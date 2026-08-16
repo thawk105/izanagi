@@ -15,6 +15,10 @@ from orchestrator.campaign import s8b_floor_contract
 from orchestrator.campaign import s8b_holdout_admission as admission
 from orchestrator.calibrator import runner as calibrator_runner
 from orchestrator.holdout_observation import assert_issued_holdout_observation
+from orchestrator.tests.s8b_floor_evidence_fixture import (
+    build_floor_admission_evidence,
+    canonical_json_line,
+)
 
 
 _CONFIGURATIONS = (
@@ -128,7 +132,7 @@ def _reserve(
     manifest_path = run_dir / "manifest.json"
     if not manifest_path.exists():
         manifest_path.write_text(json.dumps({
-            "schema_version": "s8b-floor-manifest/v2",
+            "schema_version": "s8b-floor-manifest/v3",
             "protocol_sha256": hashlib.sha256(_canonical(protocol)).hexdigest(),
             "freeze_sha256": protocol["freeze"]["sha256"],
             "reps": protocol["reps"],
@@ -588,6 +592,397 @@ def test_canonical_authority_to_run_once_proof_chain_e2e(tmp_path):
         cell["threads"], cell["workload"],
     )
     assert spawns == ["run_once"]
+
+
+def _inspection_case(
+    tmp_path: Path, *, competing: bool, session_count: int = 1,
+    measurement_head: str = "1" * 40,
+):
+    protocol, freeze = _fixture_documents()
+    cells = s8b_floor_contract.enumerate_cells(
+        freeze, stock_configuration=protocol["stock_configuration"],
+    )
+    schedule = s8b_floor_contract.build_schedule(
+        cells=cells, master_seed=protocol["master_seed"],
+        n_sessions=protocol["n_sessions"],
+    )
+    cell_by_id = {cell["cell_id"]: cell for cell in cells}
+    selected = schedule[:session_count]
+    sessions = [{
+        "cell_id": row["cell_id"],
+        "attempt_id": f"{row['cell_id']}::seq{row['seq']}",
+        "probe_before": {"competing": competing},
+    } for row in selected if row["cell_id"] in cell_by_id]
+    campaign_run_id = "run-inspection"
+    run_relpath = "env/fixture-env/calibration/s8b-floor-pilot/run-inspection"
+    manifest_sha256 = "b" * 64
+    root = tmp_path / "admission"
+    evidence = build_floor_admission_evidence(
+        root, protocol=protocol, freeze=freeze,
+        freeze_sha256=protocol["freeze"]["sha256"],
+        manifest_sha256=manifest_sha256, campaign_run_id=campaign_run_id,
+        run_relpath=run_relpath, mode="pilot", cells=cells, schedule=schedule,
+        sessions=sessions, measurement_head=measurement_head,
+    )
+    lifecycle = []
+    schedule_by_attempt = {
+        f"{row['cell_id']}::seq{row['seq']}": row for row in schedule
+    }
+    for raw_session in sessions:
+        scheduled = schedule_by_attempt[raw_session["attempt_id"]]
+        lifecycle.append({
+            "event": "session-start", "seq": scheduled["seq"],
+            "round": scheduled["round"], "kind": "planned",
+            "retry_ordinal": None, "cell_id": raw_session["cell_id"],
+            "attempt_id": raw_session["attempt_id"], "trigger": None,
+        })
+        lifecycle.append({
+            "event": "session", "kind": "planned", "valid": True,
+            **raw_session,
+        })
+    kwargs = {
+        "repo_root": tmp_path,
+        "protocol": protocol,
+        "verified_freeze_document": freeze,
+        "freeze_sha256": protocol["freeze"]["sha256"],
+        "manifest_sha256": manifest_sha256,
+        "campaign_run_id": campaign_run_id,
+        "run_relpath": run_relpath,
+        "mode": "pilot",
+        "cells": cells,
+        "schedule": schedule,
+        "sessions": lifecycle,
+    }
+    return evidence, kwargs
+
+
+def _resume_attempt_lifecycle(kwargs: dict) -> list[dict]:
+    """Project fixture completions with their prior-run durable authorizations."""
+
+    return [dict(record) for record in kwargs["sessions"]]
+
+
+def _patch_inspection_root(monkeypatch, root: Path) -> None:
+    monkeypatch.setattr(admission, "shared_admission_root", lambda _repo_root: root)
+    monkeypatch.setattr(
+        admission, "provision_shared_admission_root",
+        lambda _repo_root: pytest.fail("read-only inspector must not provision"),
+    )
+
+
+def _assert_evidence_error(category: str, reason: str, kwargs: dict) -> None:
+    with pytest.raises(admission.FloorHoldoutEvidenceError) as exc_info:
+        admission.inspect_floor_holdout_admission_evidence(**kwargs)
+    assert exc_info.value.category == category
+    assert exc_info.value.reason == reason
+
+
+def _rewrite_attempt_evidence(
+        evidence, attempt_ids: list[str]) -> None:
+    template = dict(evidence.attempt_rows[0])
+    consumed_root = evidence.root / "consumed"
+    for path in consumed_root.iterdir():
+        path.unlink()
+    rows = []
+    for attempt_id in attempt_ids:
+        row = dict(template)
+        row["attempt_id"] = attempt_id
+        rows.append(row)
+        marker_name = hashlib.sha256(attempt_id.encode("utf-8")).hexdigest()
+        marker_path = consumed_root / f"{row['claim_digest']}-{marker_name}.json"
+        marker_path.write_bytes(canonical_json_line(row))
+    (evidence.root / "attempt-ledger.jsonl").write_bytes(
+        b"".join(canonical_json_line(row) for row in rows)
+    )
+
+
+def test_inspector_public_contract_and_guarantee_boundary():
+    assert "FloorHoldoutEvidenceError" in admission.__all__
+    assert "inspect_floor_holdout_admission_evidence" in admission.__all__
+    parameters = inspect.signature(
+        admission.inspect_floor_holdout_admission_evidence
+    ).parameters
+    assert tuple(parameters) == (
+        "repo_root", "protocol", "verified_freeze_document", "freeze_sha256",
+        "manifest_sha256", "campaign_run_id", "run_relpath", "mode", "cells",
+        "schedule", "sessions",
+    )
+    doc = inspect.getdoc(admission.inspect_floor_holdout_admission_evidence) or ""
+    assert "現在状態だけを見る" in doc
+    assert "同一 bytes を再構成する攻撃は検出できない" in doc
+    assert "本 wave の保証範囲外" in doc
+
+
+def test_inspection_rejects_missing_root(tmp_path, monkeypatch):
+    evidence, kwargs = _inspection_case(tmp_path, competing=True)
+    missing = tmp_path / "missing-admission"
+    _patch_inspection_root(monkeypatch, missing)
+    _assert_evidence_error("unverifiable", "root-missing", kwargs)
+    assert evidence.root != missing
+
+
+def test_inspection_rejects_empty_claims_directory(tmp_path, monkeypatch):
+    evidence, kwargs = _inspection_case(tmp_path, competing=True)
+    for path in (evidence.root / "claims").iterdir():
+        path.unlink()
+    _patch_inspection_root(monkeypatch, evidence.root)
+    _assert_evidence_error("unverifiable", "claims-empty", kwargs)
+
+
+def test_inspection_rejects_missing_main_ledger(tmp_path, monkeypatch):
+    evidence, kwargs = _inspection_case(tmp_path, competing=True)
+    (evidence.root / "ledger.jsonl").unlink()
+    _patch_inspection_root(monkeypatch, evidence.root)
+    _assert_evidence_error("unverifiable", "main-ledger-missing", kwargs)
+
+
+def test_inspection_rejects_zero_byte_main_ledger(tmp_path, monkeypatch):
+    evidence, kwargs = _inspection_case(tmp_path, competing=True)
+    (evidence.root / "ledger.jsonl").write_bytes(b"")
+    _patch_inspection_root(monkeypatch, evidence.root)
+    _assert_evidence_error("mismatch", "main-ledger-empty", kwargs)
+
+
+def test_inspection_rejects_foreign_campaign_rows_only(tmp_path, monkeypatch):
+    evidence, kwargs = _inspection_case(tmp_path, competing=True)
+    foreign_rows = []
+    for row in evidence.admission_rows:
+        foreign = dict(row)
+        foreign["campaign_run_id"] = "foreign-campaign"
+        foreign_rows.append(foreign)
+    (evidence.root / "ledger.jsonl").write_bytes(
+        b"".join(canonical_json_line(row) for row in foreign_rows)
+    )
+    _patch_inspection_root(monkeypatch, evidence.root)
+    _assert_evidence_error("mismatch", "main-ledger-campaign-missing", kwargs)
+
+
+def test_inspection_rejects_empty_cells(tmp_path, monkeypatch):
+    evidence, kwargs = _inspection_case(tmp_path, competing=True)
+    kwargs["cells"] = []
+    _patch_inspection_root(monkeypatch, evidence.root)
+    _assert_evidence_error("mismatch", "cells-empty", kwargs)
+
+
+def test_inspection_rejects_zero_attempt_ledger_when_consumption_expected(
+    tmp_path, monkeypatch,
+):
+    evidence, kwargs = _inspection_case(tmp_path, competing=False)
+    (evidence.root / "attempt-ledger.jsonl").write_bytes(b"")
+    _patch_inspection_root(monkeypatch, evidence.root)
+    _assert_evidence_error("mismatch", "attempt-ledger-empty", kwargs)
+
+
+def test_inspection_accepts_zero_attempt_rows_only_for_all_preprobe_competing(
+    tmp_path, monkeypatch,
+):
+    evidence, kwargs = _inspection_case(tmp_path, competing=True)
+    assert (evidence.root / "attempt-ledger.jsonl").read_bytes() == b""
+    _patch_inspection_root(monkeypatch, evidence.root)
+    assert admission.inspect_floor_holdout_admission_evidence(
+        **kwargs
+    ) == evidence.expected_receipt
+
+
+def test_inspection_resume_accepts_prior_run_crashed_consumption_exact_coverage(
+    tmp_path, monkeypatch,
+):
+    evidence, kwargs = _inspection_case(tmp_path, competing=False)
+    # consume 後・session 完了前の crash: durable start/marker/ledger だけが残る。
+    kwargs["sessions"] = _resume_attempt_lifecycle(kwargs)[:1]
+    _patch_inspection_root(monkeypatch, evidence.root)
+    assert admission.inspect_floor_holdout_admission_evidence(
+        **kwargs
+    ) == evidence.expected_receipt
+
+
+def test_inspection_resume_rejects_extra_attempt_ledger_row(
+    tmp_path, monkeypatch,
+):
+    evidence, kwargs = _inspection_case(tmp_path, competing=False)
+    kwargs["sessions"] = _resume_attempt_lifecycle(kwargs)
+    original = evidence.attempt_rows[0]
+    extra = dict(original)
+    extra["attempt_id"] = next(
+        f"{row['cell_id']}::seq{row['seq']}"
+        for row in kwargs["schedule"]
+        if row["cell_id"] == original["cell_id"]
+        and f"{row['cell_id']}::seq{row['seq']}" != original["attempt_id"]
+    )
+    with (evidence.root / "attempt-ledger.jsonl").open("ab") as stream:
+        stream.write(canonical_json_line(extra))
+    _patch_inspection_root(monkeypatch, evidence.root)
+    _assert_evidence_error(
+        "mismatch", "attempt-ledger-coverage-mismatch", kwargs,
+    )
+
+
+def test_inspection_resume_rejects_missing_attempt_ledger_row(
+    tmp_path, monkeypatch,
+):
+    evidence, kwargs = _inspection_case(
+        tmp_path, competing=False, session_count=2,
+    )
+    kwargs["sessions"] = _resume_attempt_lifecycle(kwargs)
+    (evidence.root / "attempt-ledger.jsonl").write_bytes(
+        canonical_json_line(evidence.attempt_rows[0])
+    )
+    _patch_inspection_root(monkeypatch, evidence.root)
+    _assert_evidence_error(
+        "mismatch", "attempt-ledger-coverage-mismatch", kwargs,
+    )
+
+
+def test_inspection_rejects_planned_attempt_id_transplanted_from_another_seq(
+        tmp_path, monkeypatch):
+    evidence, kwargs = _inspection_case(tmp_path, competing=False)
+    start = kwargs["sessions"][0]
+    transplanted_schedule = next(
+        row for row in kwargs["schedule"]
+        if row["cell_id"] == start["cell_id"] and row["seq"] != start["seq"]
+    )
+    start["seq"] = transplanted_schedule["seq"]
+    start["round"] = transplanted_schedule["round"]
+    _patch_inspection_root(monkeypatch, evidence.root)
+
+    _assert_evidence_error("mismatch", "session-start-invalid", kwargs)
+
+
+def test_inspection_rejects_retry_attempt_id_transplanted_from_another_ordinal(
+        tmp_path, monkeypatch):
+    evidence, kwargs = _inspection_case(tmp_path, competing=False)
+    planned_start = kwargs["sessions"][0]
+    planned_completion = kwargs["sessions"][1]
+    planned_completion["valid"] = False
+    planned_completion["probe_before"] = {"competing": True}
+    retry_attempt_id = f"{planned_start['cell_id']}::retry1"
+    kwargs["sessions"].append({
+        "event": "session-start", "seq": len(kwargs["schedule"]),
+        "round": planned_start["round"], "kind": "retry",
+        "retry_ordinal": 2, "cell_id": planned_start["cell_id"],
+        "attempt_id": retry_attempt_id,
+        "trigger": planned_start["attempt_id"],
+    })
+    _rewrite_attempt_evidence(evidence, [retry_attempt_id])
+    _patch_inspection_root(monkeypatch, evidence.root)
+
+    _assert_evidence_error("mismatch", "session-start-invalid", kwargs)
+
+
+def test_inspection_rejects_duplicate_cell_retry_ordinal_with_markers(
+        tmp_path, monkeypatch):
+    evidence, kwargs = _inspection_case(tmp_path, competing=False)
+    planned_start = kwargs["sessions"][0]
+    planned_completion = kwargs["sessions"][1]
+    planned_completion["valid"] = False
+    planned_completion["probe_before"] = {"competing": True}
+    retry1 = f"{planned_start['cell_id']}::retry1"
+    retry2 = f"{planned_start['cell_id']}::retry2"
+    for offset, attempt_id in enumerate((retry1, retry2)):
+        kwargs["sessions"].append({
+            "event": "session-start", "seq": len(kwargs["schedule"]) + offset,
+            "round": planned_start["round"], "kind": "retry",
+            "retry_ordinal": 1, "cell_id": planned_start["cell_id"],
+            "attempt_id": attempt_id, "trigger": planned_start["attempt_id"],
+        })
+    _rewrite_attempt_evidence(evidence, [retry1, retry2])
+    _patch_inspection_root(monkeypatch, evidence.root)
+
+    _assert_evidence_error("mismatch", "session-start-invalid", kwargs)
+
+
+def test_inspection_digest_ignores_other_campaign_rows(tmp_path, monkeypatch):
+    evidence, kwargs = _inspection_case(tmp_path, competing=False)
+    _patch_inspection_root(monkeypatch, evidence.root)
+    before = admission.inspect_floor_holdout_admission_evidence(**kwargs)
+    foreign_main = dict(evidence.admission_rows[0])
+    foreign_main["campaign_run_id"] = "foreign-campaign"
+    foreign_attempt = dict(evidence.attempt_rows[0])
+    foreign_attempt["campaign_run_id"] = "foreign-campaign"
+    with (evidence.root / "ledger.jsonl").open("ab") as stream:
+        stream.write(canonical_json_line(foreign_main))
+    with (evidence.root / "attempt-ledger.jsonl").open("ab") as stream:
+        stream.write(canonical_json_line(foreign_attempt))
+    after = admission.inspect_floor_holdout_admission_evidence(**kwargs)
+    assert after == before == evidence.expected_receipt
+
+
+def test_inspection_digest_is_portable_but_measurement_head_stays_exact(
+    tmp_path, monkeypatch,
+):
+    first, first_kwargs = _inspection_case(
+        tmp_path / "first", competing=False, measurement_head="1" * 40,
+    )
+    second, second_kwargs = _inspection_case(
+        tmp_path / "second", competing=False, measurement_head="2" * 40,
+    )
+    _patch_inspection_root(monkeypatch, first.root)
+    first_receipt = admission.inspect_floor_holdout_admission_evidence(
+        **first_kwargs
+    )
+    _patch_inspection_root(monkeypatch, second.root)
+    second_receipt = admission.inspect_floor_holdout_admission_evidence(
+        **second_kwargs
+    )
+    assert first_receipt == first.expected_receipt
+    assert second_receipt == second.expected_receipt
+    assert first_receipt == second_receipt
+
+    tampered_rows = [dict(row) for row in first.admission_rows]
+    tampered_rows[0]["measurement_head"] = "2" * 40
+    (first.root / "ledger.jsonl").write_bytes(
+        b"".join(canonical_json_line(row) for row in tampered_rows)
+    )
+    _patch_inspection_root(monkeypatch, first.root)
+    _assert_evidence_error("mismatch", "claim-file-mismatch", first_kwargs)
+
+
+def test_inspection_accepts_synchronized_non_authoritative_measurement_head_change(
+        tmp_path, monkeypatch):
+    evidence, kwargs = _inspection_case(
+        tmp_path, competing=False, measurement_head="1" * 40,
+    )
+    changed_head = "2" * 40
+    ledger_rows = [dict(row) for row in evidence.admission_rows]
+    for row in ledger_rows:
+        row["measurement_head"] = changed_head
+    (evidence.root / "ledger.jsonl").write_bytes(
+        b"".join(canonical_json_line(row) for row in ledger_rows)
+    )
+    for claim_path in (evidence.root / "claims").iterdir():
+        claim = json.loads(claim_path.read_bytes())
+        claim["measurement_head"] = changed_head
+        claim_path.write_bytes(canonical_json_line(claim))
+    _patch_inspection_root(monkeypatch, evidence.root)
+
+    assert admission.inspect_floor_holdout_admission_evidence(
+        **kwargs
+    ) == evidence.expected_receipt
+
+
+def test_inspection_rejects_one_sided_measurement_head_change(
+        tmp_path, monkeypatch):
+    evidence, kwargs = _inspection_case(
+        tmp_path, competing=False, measurement_head="1" * 40,
+    )
+    ledger_rows = [dict(row) for row in evidence.admission_rows]
+    ledger_rows[0]["measurement_head"] = "2" * 40
+    (evidence.root / "ledger.jsonl").write_bytes(
+        b"".join(canonical_json_line(row) for row in ledger_rows)
+    )
+    _patch_inspection_root(monkeypatch, evidence.root)
+
+    _assert_evidence_error("mismatch", "claim-file-mismatch", kwargs)
+
+
+def test_inspection_rejects_tampered_claim_file_as_mismatch(tmp_path, monkeypatch):
+    evidence, kwargs = _inspection_case(tmp_path, competing=True)
+    claim_path = next((evidence.root / "claims").iterdir())
+    claim = json.loads(claim_path.read_bytes())
+    claim["records"] += 1
+    claim_path.write_bytes(canonical_json_line(claim))
+    _patch_inspection_root(monkeypatch, evidence.root)
+    _assert_evidence_error("mismatch", "claim-file-mismatch", kwargs)
 
 
 def _run() -> int:

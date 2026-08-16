@@ -1494,6 +1494,24 @@ def test_cli_official_resolves_ratified_freeze_and_verifies(tmp_path):
     assert recorded["freeze_sha256"] == reverified.ratified.sha256
 
 
+def test_report_rejects_unverifiable_floor_admission_without_output(tmp_path):
+    root, manifest_path, _document, approved = _ratified_cli_manifest(tmp_path)
+    admission_root = root / ".git/izanagi/s8b-holdout-admission-v1"
+    admission_root.rename(admission_root.with_name("admission-unavailable"))
+    output = tmp_path / "unverifiable-admission-must-not-exist.json"
+
+    with mock.patch.object(
+            oracle_spec, "APPROVED_SPEC_SHA256", approved.sha256):
+        rc = report.main([
+            "report", "--manifest", str(manifest_path),
+            "--output-root", str(root / "report-output"),
+            "--out", str(output), "--repo-root", str(root),
+        ])
+
+    assert rc == 2
+    assert not output.exists()
+
+
 def test_cli_verify_failure_returns_two_without_output(tmp_path):
     root, _manifest_path, document, approved = _ratified_cli_manifest(tmp_path)
     damaged = copy.deepcopy(document)
