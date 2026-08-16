@@ -350,24 +350,30 @@ def _build_with_fakes(tmp_path: Path):
 @pytest.mark.parametrize("kind", ["repo", "freeze", "symlink"])
 def test_m3_cache_containment_rejects_before_prepare_or_build(tmp_path, kind):
     calls = []
+    repo_root = tmp_path / "repo"
+    repo_root.mkdir()
     if kind == "repo":
-        cache_root = ROOT / "output" / "pilot-cache"
+        cache_root = repo_root / "output" / "pilot-cache"
+        expected = "repo/freeze/git worktree の外側でない"
     elif kind == "freeze":
-        cache_root = ROOT / M.FREEZE_REL.parent / "pilot-cache"
+        cache_root = repo_root / M.FREEZE_REL.parent / "pilot-cache"
+        expected = "repo/freeze/git worktree の外側でない"
     else:
         external = tmp_path / "external"
         external.mkdir()
         link = tmp_path / "link"
         link.symlink_to(external, target_is_directory=True)
         cache_root = link / "pilot-cache"
-    with pytest.raises(M.PilotError, match="cache_root"):
+        expected = "symlink 経由である"
+    cache_root.mkdir(parents=True)
+    with pytest.raises(M.PilotError, match=expected):
         M.build_binaries(
             _inputs(),
             cache_root=cache_root,
             prepare_fn=lambda *_args, **_kwargs: calls.append("prepare"),
             build_fn=lambda *_args, **_kwargs: calls.append("build"),
-            repo_root=ROOT,
-            worktree_roots=(ROOT,),
+            repo_root=repo_root,
+            worktree_roots=(repo_root,),
             compiler_fn=lambda: ("cc", "cxx"),
             toolchain_fn=lambda _cc, _cxx: {},
             context_fn=lambda **_kwargs: "context",
