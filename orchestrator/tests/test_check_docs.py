@@ -9135,7 +9135,11 @@ def test_backlog_guard_numbered_archive_entry_is_carry_target():
 
 @pytest.mark.parametrize(
     "name",
-    ("worklog-phase3-0730.md", "worklog-phase1-2.md"),
+    (
+        "worklog-phase3-0730.md",
+        "worklog-phase1-2.md",
+        "worklog-synthetic.md",
+    ),
 )
 def test_backlog_guard_unnumbered_archive_carry_is_out_of_scope(name: str):
     root = _build_min_repo()
@@ -9158,6 +9162,23 @@ def test_backlog_guard_unnumbered_archive_carry_is_out_of_scope(name: str):
         res = _run_check(root)
         assert res.returncode == 0, res.stdout + res.stderr
         assert "宙吊り参照" not in res.stdout
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_archive_non_phase_numeric_token_filename_is_malformed():
+    root = _build_min_repo()
+    try:
+        name = "worklog-broken-106-110.md"
+        _write(
+            root,
+            f"docs/archive/{name}",
+            _archive_with_entries(
+                *(("2026-07-30", str(number)) for number in range(106, 111))
+            ),
+        )
+        _write_archive_index(root, f"- `{name}`\n")
+        _assert_violation(root, name, "malformed filename")
     finally:
         shutil.rmtree(root, ignore_errors=True)
 

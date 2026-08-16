@@ -1298,6 +1298,13 @@ def _archive_filename_entry_range(path: Path) -> _ArchiveFilenameClaim:
         return _ArchiveFilenameClaim("unnumbered")
     remainder = name[len("worklog-"):]
     if re.match(r"phase[0-9]+-", remainder) is None:
+        if name.endswith(".md"):
+            tokens = remainder[:-len(".md")].split("-")
+            if any(
+                ARCHIVE_ENTRY_TOKEN_RE.fullmatch(token) is not None
+                for token in tokens
+            ):
+                return _ArchiveFilenameClaim("malformed")
         return _ArchiveFilenameClaim("unnumbered")
     if not name.endswith(".md"):
         return _ArchiveFilenameClaim("malformed")
