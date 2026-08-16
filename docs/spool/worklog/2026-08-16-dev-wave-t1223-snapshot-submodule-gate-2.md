@@ -57,6 +57,15 @@ F28 の再発として記録した。本走は 6/6 KILLED、MISMATCH 0、SURVIVE
 内容の実在を保証せず、「正しい HEAD を持つ空の CCBench」は今も通る。(b) 中間成果物層
 (`collect_run` / `make_packets` / append・freeze・reveal CLI) は snapshot を再検証しない。
 
+### 段 8 の候補と結末
+
+候補 1 は「変異の期待 node を裁定の対応表から転記せず、注入・走行・復元で実測してから登録する」。
+発火点は `DW-M01` なので同節へ 1 行統合を試みたが、`docs/dev-wave/**` の L1 unique footprint が
+予算 10625 bytes に対し 10739 bytes になり `check_docs` が赤になったため撤回した。予算引き上げは
+自己改善に含めないので、恒久対応は F28 の再発本文に残した (意味は保存されている)。
+候補 2 は `tools/dev_wave_wait.py producer` が、生産者が生存し `--artifact-file` も `--done-file` も
+不在の状態で rc=0・無出力で戻った観測。原因を特定できていないので docs は変更していない。
+
 ### 工数
 
 codex 子 6 本 (plan 1、敵対相談 2、実装 1、レビュー 2)。実装子は dispatch preflight rc=1 で
