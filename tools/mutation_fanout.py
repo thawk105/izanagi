@@ -1327,11 +1327,24 @@ def _bounded_scope_cgroup(cap: int) -> Path | None:
             return None
         oom_group = cgroup / "memory.oom.group"
         oom_group.write_text("1\n", encoding="utf-8")
+        accepted_memory_max = {str(cap)}
+        if cap > 0:
+            try:
+                page_size = os.sysconf("SC_PAGE_SIZE")
+            except (OSError, ValueError):
+                pass
+            else:
+                if type(page_size) is int and page_size > 0:
+                    accepted_memory_max.add(str(cap - cap % page_size))
+        observed_memory_max = (
+            cgroup / "memory.max"
+        ).read_text(encoding="utf-8").strip()
         properties = {
-            "memory.max": str(cap),
             "memory.swap.max": "0",
             "memory.oom.group": "1",
         }
+        if observed_memory_max not in accepted_memory_max:
+            return None
         for name, expected in properties.items():
             if (cgroup / name).read_text(encoding="utf-8").strip() != expected:
                 return None

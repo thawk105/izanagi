@@ -352,6 +352,155 @@ def test_scope_reexec_applies_one_memory_limit_to_the_driver_and_all_descendants
     assert captured["env"][MF._BOUNDED_SCOPE_CAP_ENV] == "123456"
 
 
+def _write_bounded_scope_properties(
+    scope: Path,
+    memory_max: str,
+    *,
+    swap_max: str = "0",
+    oom_group: str = "0",
+) -> None:
+    (scope / "memory.max").write_text(f"{memory_max}\n", encoding="utf-8")
+    (scope / "memory.swap.max").write_text(f"{swap_max}\n", encoding="utf-8")
+    (scope / "memory.oom.group").write_text(f"{oom_group}\n", encoding="utf-8")
+
+
+_FULLWIDTH_DIGIT_TRANSLATION = str.maketrans(
+    "0123456789",
+    "０１２３４５６７８９",
+)
+
+
+def _stub_page_size(name: str, value: object) -> object:
+    assert name == "SC_PAGE_SIZE", (
+        f"unexpected os.sysconf key {name!r}; expected 'SC_PAGE_SIZE'"
+    )
+    return value
+
+
+def _fullwidth_decimal(value: int) -> str:
+    return str(value).translate(_FULLWIDTH_DIGIT_TRANSLATION)
+
+
+@pytest.mark.parametrize("page_size", [4096, 65536], ids=["page-4k", "page-64k"])
+def test_bounded_scope_accepts_only_exact_or_page_floor(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    page_size: int,
+):
+    cap = 3 * page_size + page_size // 4 + 17
+    floor = cap - cap % page_size
+    assert cap % page_size != 0
+    assert floor != cap
+    unit = "izanagi-mutation-fanout-1234-deadbeefdeadbeef.scope"
+    proc = tmp_path / "self.cgroup"
+    proc.write_text(
+        f"0::/user.slice/user-123.slice/app.slice/{unit}\n",
+        encoding="utf-8",
+    )
+    cgroup_root = tmp_path / "cgroup"
+    scope = cgroup_root / "user.slice" / "user-123.slice" / "app.slice" / unit
+    scope.mkdir(parents=True)
+    monkeypatch.setenv(MF._BOUNDED_SCOPE_UNIT_ENV, unit)
+    monkeypatch.setenv(MF._BOUNDED_SCOPE_CAP_ENV, str(cap))
+    monkeypatch.setattr(MF, "_PROC_SELF_CGROUP", proc)
+    monkeypatch.setattr(MF, "_CGROUP_ROOT", cgroup_root)
+    monkeypatch.setattr(
+        MF.os,
+        "sysconf",
+        lambda name: _stub_page_size(name, page_size),
+    )
+
+    _write_bounded_scope_properties(scope, str(floor))
+    assert MF._bounded_scope_cgroup(cap) == scope
+    _write_bounded_scope_properties(scope, str(cap))
+    assert MF._bounded_scope_cgroup(cap) == scope
+
+    for rejected in (
+        str(cap + 1),
+        str(floor + 1),
+        str(floor - 1),
+        str(cap - 1),
+        "max",
+        "",
+        "   ",
+        f"+{cap}",
+        f"0{cap}",
+        _fullwidth_decimal(cap),
+        _fullwidth_decimal(floor),
+    ):
+        _write_bounded_scope_properties(scope, rejected)
+        assert MF._bounded_scope_cgroup(cap) is None
+
+    _write_bounded_scope_properties(scope, str(floor), swap_max="1")
+    assert MF._bounded_scope_cgroup(cap) is None
+
+    _write_bounded_scope_properties(scope, str(floor), oom_group="0")
+    original_write_text = Path.write_text
+
+    def preserve_oom_mismatch(path: Path, data: str, *args: Any, **kwargs: Any) -> int:
+        if path == scope / "memory.oom.group":
+            return len(data)
+        return original_write_text(path, data, *args, **kwargs)
+
+    with monkeypatch.context() as scoped_patch:
+        scoped_patch.setattr(Path, "write_text", preserve_oom_mismatch)
+        assert MF._bounded_scope_cgroup(cap) is None
+
+    invalid_page_sizes = (
+        OSError("unavailable"),
+        ValueError("unavailable"),
+        0,
+        -1,
+        True,
+        None,
+        "4096",
+    )
+    for invalid_page_size in invalid_page_sizes:
+        if isinstance(invalid_page_size, BaseException):
+            def fail_sysconf(name: str) -> int:
+                _stub_page_size(name, None)
+                raise invalid_page_size
+
+            monkeypatch.setattr(MF.os, "sysconf", fail_sysconf)
+        else:
+            monkeypatch.setattr(
+                MF.os,
+                "sysconf",
+                lambda name: _stub_page_size(name, invalid_page_size),
+            )
+        _write_bounded_scope_properties(scope, str(floor))
+        assert MF._bounded_scope_cgroup(cap) is None
+        _write_bounded_scope_properties(scope, str(cap))
+        assert MF._bounded_scope_cgroup(cap) == scope
+
+    monkeypatch.setattr(
+        MF.os,
+        "sysconf",
+        lambda name: _stub_page_size(name, page_size),
+    )
+    for boundary_cap, accepted in (
+        (1, ("1", "0")),
+        (page_size, (str(page_size),)),
+        (page_size + 1, (str(page_size + 1), str(page_size))),
+        (0, ("0",)),
+    ):
+        monkeypatch.setenv(MF._BOUNDED_SCOPE_CAP_ENV, str(boundary_cap))
+        for memory_max in accepted:
+            _write_bounded_scope_properties(scope, memory_max)
+            assert MF._bounded_scope_cgroup(boundary_cap) == scope
+
+    monkeypatch.setenv(MF._BOUNDED_SCOPE_CAP_ENV, "0")
+    monkeypatch.setattr(
+        MF.os,
+        "sysconf",
+        lambda _name: (_ for _ in ()).throw(
+            AssertionError("nonpositive cap must not query page size"),
+        ),
+    )
+    _write_bounded_scope_properties(scope, "0")
+    assert MF._bounded_scope_cgroup(0) == scope
+
+
 def test_receipt_for_another_n_is_unknown_and_never_launches_or_clips(
     tmp_path: Path,
     source_repo: tuple[Path, str],
