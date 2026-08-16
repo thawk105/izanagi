@@ -574,6 +574,7 @@ def test_reseal_protocol_public_entry_accepts_unoccupied_contract_and_derived_pa
     assert outcome["path"] == expected_rel
     assert lookup_mock.call_count == 1, "PID-cache authority の恒真な再照合を追加してはいけない"
     assert gitlink_mock.call_count == 2, "HEAD gitlink は build 前後に subprocess 再実測する"
+    assert len({call.args[1] for call in gitlink_mock.call_args_list}) == 1
     versioned = list((repo / fc._FLOOR_PROTOCOLS_REL).iterdir())
     assert versioned == [repo / expected_rel]
     assert hashlib.sha256(versioned[0].read_bytes()).hexdigest() == outcome["sha256"]
@@ -610,6 +611,39 @@ def test_reseal_protocol_second_issue_preserves_first_bytes(tmp_path):
     assert destination.read_bytes() == first_bytes
 
 
+def test_reseal_protocol_rejects_head_move_immediately_after_publish(tmp_path):
+    repo = _init_reseal_protocol_repo(tmp_path)
+    g2 = _pegasus_g2_contract()
+    original_writer = fc._write_protocol_document_create_only
+
+    def moving_writer(destination, built):
+        written = original_writer(destination, built)
+        subprocess.run(
+            [
+                "git", "-c", "user.name=Izanagi Test",
+                "-c", "user.email=izanagi-test@example.invalid",
+                "commit", "--allow-empty", "-qm", "move head after publish",
+            ],
+            cwd=str(repo), stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True,
+        )
+        return written
+
+    with mock.patch.object(fc, "ROOT", repo), mock.patch.object(
+            fc._env_contract, "lookup", return_value=g2,
+    ), mock.patch.object(
+            fc, "_historical_protocol_contract",
+            side_effect=_registered_protocol_contract,
+    ), mock.patch.object(
+            fc, "_write_protocol_document_create_only", side_effect=moving_writer,
+    ):
+        with pytest.raises(fc.FloorCampaignError, match="HEAD commit が変化"):
+            fc.reseal_protocol()
+    destination = repo / fc._derived_reseal_protocol_relpath(
+        g2.contract_sha256, s8b_approved.CCBENCH_FULL_SHA,
+    )
+    assert destination.is_file(), "publish 後の拒否でも artifact を自動削除してはいけない"
+
+
 def test_reseal_protocol_readback_tamper_is_not_deleted(tmp_path):
     repo = _init_reseal_protocol_repo(tmp_path)
     g2 = _pegasus_g2_contract()
@@ -629,12 +663,68 @@ def test_reseal_protocol_readback_tamper_is_not_deleted(tmp_path):
             fc, "_write_protocol_document_create_only",
             side_effect=tampering_writer,
     ):
-        with pytest.raises(fc.FloorCampaignError, match="commit 禁止"):
+        with pytest.raises(fc.FloorCampaignError, match="read-back bytes"):
             fc.reseal_protocol()
     destination = repo / fc._derived_reseal_protocol_relpath(
         g2.contract_sha256, s8b_approved.CCBENCH_FULL_SHA,
     )
     assert destination.read_bytes().endswith(b"\n")
+
+
+def test_reseal_protocol_readback_parse_mismatch_has_specific_reason(tmp_path):
+    repo = _init_reseal_protocol_repo(tmp_path)
+    g2 = _pegasus_g2_contract()
+    destination_rel = fc._derived_reseal_protocol_relpath(
+        g2.contract_sha256, s8b_approved.CCBENCH_FULL_SHA,
+    )
+    original_parser = fc._strict_parse_protocol_bytes
+
+    def mismatching_parser(raw, *, source):
+        parsed = original_parser(raw, source=source)
+        if source == destination_rel:
+            parsed = copy.deepcopy(parsed)
+            parsed["master_seed"] = "read-back-parser-mismatch"
+        return parsed
+
+    with mock.patch.object(fc, "ROOT", repo), mock.patch.object(
+            fc._env_contract, "lookup", return_value=g2,
+    ), mock.patch.object(
+            fc, "_historical_protocol_contract",
+            side_effect=_registered_protocol_contract,
+    ), mock.patch.object(
+            fc, "_strict_parse_protocol_bytes", side_effect=mismatching_parser,
+    ):
+        with pytest.raises(fc.FloorCampaignError, match="read-back strict parse"):
+            fc.reseal_protocol()
+
+
+def test_reseal_protocol_post_write_index_mismatch_has_specific_reason(tmp_path):
+    repo = _init_reseal_protocol_repo(tmp_path)
+    g2 = _pegasus_g2_contract()
+    target_pair = (g2.contract_sha256, s8b_approved.CCBENCH_FULL_SHA)
+    original_scan = fc._scan_floor_protocol_index_at_commit
+    scan_count = 0
+
+    def omit_target_on_post_scan(*, root, commit_oid):
+        nonlocal scan_count
+        scan_count += 1
+        index = original_scan(root=root, commit_oid=commit_oid)
+        if scan_count == 2:
+            return {pair: record for pair, record in index.items() if pair != target_pair}
+        return index
+
+    with mock.patch.object(fc, "ROOT", repo), mock.patch.object(
+            fc._env_contract, "lookup", return_value=g2,
+    ), mock.patch.object(
+            fc, "_historical_protocol_contract",
+            side_effect=_registered_protocol_contract,
+    ), mock.patch.object(
+            fc, "_scan_floor_protocol_index_at_commit",
+            side_effect=omit_target_on_post_scan,
+    ):
+        with pytest.raises(fc.FloorCampaignError, match="post-write full index"):
+            fc.reseal_protocol()
+    assert scan_count == 2
 
 
 def test_reseal_protocol_uses_committed_anchor_not_validator_admitted_dirty_copy(tmp_path):
@@ -659,6 +749,51 @@ def test_reseal_protocol_uses_committed_anchor_not_validator_admitted_dirty_copy
     assert issued["master_seed"] != dirty["master_seed"]
 
 
+def test_reseal_protocol_scrubs_ambient_git_dir_authority(tmp_path, monkeypatch):
+    repo = _init_reseal_protocol_repo(tmp_path, name="target-repo")
+    decoy = _init_reseal_protocol_repo(tmp_path, name="decoy-repo")
+    target_anchor = fc.validate_protocol(fc.load_protocol(repo / fc._FLOOR_PROTOCOL_REL))
+    decoy_anchor = fc.validate_protocol(fc.load_protocol(decoy / fc._FLOOR_PROTOCOL_REL))
+    decoy_anchor["master_seed"] = "ambient-git-dir-decoy"
+    (decoy / fc._FLOOR_PROTOCOL_REL).write_bytes(_canonical_protocol_bytes(decoy_anchor))
+    decoy_pin = "d" * 40
+    subprocess.run(
+        ["git", "add", fc._FLOOR_PROTOCOL_REL], cwd=str(decoy),
+        stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True,
+    )
+    subprocess.run(
+        [
+            "git", "update-index", "--add", "--cacheinfo",
+            f"160000,{decoy_pin},external/ccbench",
+        ],
+        cwd=str(decoy), stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True,
+    )
+    subprocess.run(
+        [
+            "git", "-c", "user.name=Izanagi Test",
+            "-c", "user.email=izanagi-test@example.invalid",
+            "commit", "-qm", "decoy authority",
+        ],
+        cwd=str(decoy), stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True,
+    )
+    monkeypatch.setenv("GIT_DIR", str(decoy / ".git"))
+
+    g2 = _pegasus_g2_contract()
+    with mock.patch.object(fc, "ROOT", repo), mock.patch.object(
+            fc._env_contract, "lookup", return_value=g2,
+    ), mock.patch.object(
+            fc, "_historical_protocol_contract",
+            side_effect=_registered_protocol_contract,
+    ):
+        outcome = fc.reseal_protocol()
+
+    issued = fc.load_protocol(repo / outcome["path"])
+    assert outcome["ccbench_pin"] == s8b_approved.CCBENCH_FULL_SHA
+    assert outcome["ccbench_pin"] != decoy_pin
+    assert issued["master_seed"] == target_anchor["master_seed"]
+    assert issued["master_seed"] != decoy_anchor["master_seed"]
+
+
 def test_floor_protocol_index_includes_legacy_and_rejects_duplicate_pair(tmp_path):
     repo = _init_reseal_protocol_repo(tmp_path)
     anchor = fc.validate_protocol(fc.load_protocol(repo / fc._FLOOR_PROTOCOL_REL))
@@ -672,6 +807,88 @@ def test_floor_protocol_index_includes_legacy_and_rejects_duplicate_pair(tmp_pat
     duplicate.write_bytes((repo / fc._FLOOR_PROTOCOL_REL).read_bytes())
     with pytest.raises(fc.FloorCampaignError, match="同一組"):
         fc.scan_floor_protocol_index(root=repo)
+
+
+def test_floor_protocol_index_rejects_same_contract_with_different_pin(tmp_path):
+    repo = _init_reseal_protocol_repo(tmp_path)
+    candidate = fc.validate_protocol(fc.load_protocol(repo / fc._FLOOR_PROTOCOL_REL))
+    candidate["ccbench_pin"] = "a" * 40
+    destination = repo / fc._derived_reseal_protocol_relpath(
+        candidate["contract_sha256"], candidate["ccbench_pin"],
+    )
+    destination.parent.mkdir(parents=True)
+    destination.write_bytes(_canonical_protocol_bytes(candidate))
+    with pytest.raises(fc.FloorCampaignError, match="同一 contract_sha256"):
+        fc.scan_floor_protocol_index(root=repo)
+
+
+@pytest.mark.parametrize("ancestor", ["output", "output/s8b-freeze"])
+def test_floor_protocol_index_rejects_symlink_ancestors(tmp_path, ancestor):
+    repo = _init_reseal_protocol_repo(tmp_path, name=ancestor.replace("/", "-"))
+    path = repo / ancestor
+    if path.is_dir():
+        shutil.rmtree(path)
+    external = tmp_path / f"external-{ancestor.replace('/', '-')}"
+    external.mkdir()
+    path.symlink_to(external, target_is_directory=True)
+    with pytest.raises(fc.FloorCampaignError, match=rf"親が symlink: {ancestor}$"):
+        fc.scan_floor_protocol_index(root=repo)
+
+
+def test_floor_protocol_index_binds_blob_read_to_one_head_commit(tmp_path):
+    repo = _init_reseal_protocol_repo(tmp_path)
+    original_run = fc.subprocess.run
+    old_commit = subprocess.run(
+        ["git", "rev-parse", "HEAD"], cwd=str(repo),
+        stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True,
+    ).stdout.decode("ascii").strip()
+    pinned_anchor = fc.validate_protocol(fc.load_protocol(repo / fc._FLOOR_PROTOCOL_REL))
+    pinned_anchor["master_seed"] = "pinned-head-anchor"
+    (repo / fc._FLOOR_PROTOCOL_REL).write_bytes(_canonical_protocol_bytes(pinned_anchor))
+    subprocess.run(
+        ["git", "add", fc._FLOOR_PROTOCOL_REL], cwd=str(repo),
+        stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True,
+    )
+    subprocess.run(
+        [
+            "git", "-c", "user.name=Izanagi Test",
+            "-c", "user.email=izanagi-test@example.invalid",
+            "commit", "-qm", "second anchor",
+        ],
+        cwd=str(repo), stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True,
+    )
+    pinned_commit = subprocess.run(
+        ["git", "rev-parse", "HEAD"], cwd=str(repo),
+        stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True,
+    ).stdout.decode("ascii").strip()
+    commands = []
+    moved = False
+
+    def move_head_after_ls_tree(command, **kwargs):
+        nonlocal moved
+        commands.append(tuple(command))
+        completed = original_run(command, **kwargs)
+        if (not moved and command[:3] == ["git", "ls-tree", "-z"]
+                and command[3] == pinned_commit):
+            original_run(
+                ["git", "reset", "--hard", "-q", old_commit], cwd=str(repo),
+                stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True,
+                env=fc.source_digest._sanitized_git_env(),
+            )
+            moved = True
+        return completed
+
+    with mock.patch.object(fc.subprocess, "run", side_effect=move_head_after_ls_tree):
+        index = fc.scan_floor_protocol_index(root=repo)
+
+    anchor = next(record for record in index.values() if record.path == fc._FLOOR_PROTOCOL_REL)
+    assert moved
+    assert anchor.document["master_seed"] == "pinned-head-anchor"
+    assert any(command[:4] == ("git", "ls-tree", "-z", pinned_commit)
+               for command in commands)
+    cat_file = [command for command in commands if command[:3] == ("git", "cat-file", "blob")]
+    assert len(cat_file) == 1
+    assert cat_file[0][3] != f"HEAD:{fc._FLOOR_PROTOCOL_REL}"
 
 
 def test_floor_protocol_index_rejects_misderived_path(tmp_path):
@@ -695,8 +912,12 @@ def test_floor_protocol_index_rejects_misderived_path(tmp_path):
 
 
 def test_floor_protocol_index_rejects_closed_namespace_violations(tmp_path):
-    cases = ("unknown-name", "nested-directory", "symlink")
-    for case in cases:
+    cases = {
+        "unknown-name": "予期しない名前",
+        "nested-directory": "非通常 file",
+        "symlink": "namespace に symlink",
+    }
+    for case, reason in cases.items():
         repo = _init_reseal_protocol_repo(tmp_path, name=f"closed-{case}")
         namespace = repo / fc._FLOOR_PROTOCOLS_REL
         namespace.mkdir(parents=True)
@@ -706,7 +927,7 @@ def test_floor_protocol_index_rejects_closed_namespace_violations(tmp_path):
             (namespace / "nested").mkdir()
         else:
             (namespace / "link.json").symlink_to(repo / fc._FLOOR_PROTOCOL_REL)
-        with pytest.raises(fc.FloorCampaignError):
+        with pytest.raises(fc.FloorCampaignError, match=reason):
             fc.scan_floor_protocol_index(root=repo)
 
 
@@ -720,11 +941,17 @@ def test_floor_protocol_index_rejects_strict_and_canonical_member_violations(tmp
         candidate["contract_sha256"], candidate["ccbench_pin"],
     )
     payloads = {
-        "duplicate-key": b'{"x":1,"x":2}',
-        "noncanonical": (json.dumps(candidate, ensure_ascii=False, indent=2) + "\n").encode(),
-        "extra-key": _canonical_protocol_bytes({**candidate, "extra": True}),
+        "duplicate-key": (b'{"x":1,"x":2}', "duplicate key"),
+        "noncanonical": (
+            (json.dumps(candidate, ensure_ascii=False, indent=2) + "\n").encode(),
+            "canonical bytes",
+        ),
+        "extra-key": (
+            _canonical_protocol_bytes({**candidate, "extra": True}),
+            "key 集合",
+        ),
     }
-    for case, payload in payloads.items():
+    for case, (payload, reason) in payloads.items():
         repo = _init_reseal_protocol_repo(tmp_path, name=f"strict-{case}")
         destination = repo / rel
         destination.parent.mkdir(parents=True)
@@ -733,7 +960,7 @@ def test_floor_protocol_index_rejects_strict_and_canonical_member_violations(tmp
                 fc, "_historical_protocol_contract",
                 side_effect=_registered_protocol_contract,
         ):
-            with pytest.raises(fc.FloorCampaignError):
+            with pytest.raises(fc.FloorCampaignError, match=reason):
                 fc.scan_floor_protocol_index(root=repo)
 
 
@@ -887,9 +1114,22 @@ def test_build_and_write_leave_repo_tree_unchanged(tmp_path, relative_dest):
         built = _build_golden()
         fc.write_protocol_document(tmp_path / relative_dest, built, root=tmp_path)
         index = fc.scan_floor_protocol_index(root=ROOT)
-        assert len(index) == 1
-        only = next(iter(index.values()))
-        assert only.path == fc._FLOOR_PROTOCOL_REL
+        legacy_document = fc.validate_protocol(
+            fc.load_protocol(ROOT / fc._FLOOR_PROTOCOL_REL),
+        )
+        legacy_pair = (
+            legacy_document["contract_sha256"], legacy_document["ccbench_pin"],
+        )
+        assert legacy_pair in index
+        assert index[legacy_pair].path == fc._FLOOR_PROTOCOL_REL
+        assert index[legacy_pair].document == legacy_document
+        assert len({pair[0] for pair in index}) == len(index)
+        for pair, record in index.items():
+            assert pair == (record.contract_sha256, record.ccbench_pin)
+            assert fc.validate_protocol(record.document) == record.document
+            assert hashlib.sha256(record.raw_bytes).hexdigest() == record.sha256
+            if record.path != fc._FLOOR_PROTOCOL_REL:
+                assert record.path == fc._derived_reseal_protocol_relpath(*pair)
         # 実 repo 凍結領域への書込みは拒否されること (副作用ゼロ) も併せて踏む。
         with pytest.raises(fc.FloorCampaignError):
             fc.write_protocol_document(
