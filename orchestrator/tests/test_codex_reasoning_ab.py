@@ -2001,6 +2001,254 @@ def _synthetic_nested_submodule_snapshot(
     return snapshot, submodule, nested_gitlink
 
 
+def _synthetic_verify_snapshot_with_submodules(
+    tmp_path: Path,
+    submodules: tuple[tuple[str, bool], ...],
+) -> Path:
+    source_rows: list[tuple[str, bool, Path, str]] = []
+    for index, (relative, initialized) in enumerate(submodules):
+        source = tmp_path / f"source-{index}"
+        source.mkdir()
+        subprocess.run(["git", "init"], cwd=source, check=True, capture_output=True)
+        (source / "child.txt").write_text(
+            f"child {index}\n", encoding="utf-8"
+        )
+        subprocess.run(["git", "add", "child.txt"], cwd=source, check=True)
+        subprocess.run(
+            [
+                "git",
+                "-c",
+                "user.name=T1223",
+                "-c",
+                "user.email=t1223@example.invalid",
+                "commit",
+                "-m",
+                f"child {index}",
+            ],
+            cwd=source,
+            check=True,
+            capture_output=True,
+        )
+        head = TOOL._git(source, "rev-parse", "HEAD").decode().strip()
+        source_rows.append((relative, initialized, source, head))
+
+    snapshot = tmp_path / "snapshot"
+    snapshot.mkdir()
+    subprocess.run(["git", "init"], cwd=snapshot, check=True, capture_output=True)
+    (snapshot / "root.txt").write_text("root\n", encoding="utf-8")
+    subprocess.run(["git", "add", "root.txt"], cwd=snapshot, check=True)
+    if source_rows:
+        modules = "".join(
+            f'[submodule "child-{index}"]\n'
+            f"\tpath = {relative}\n"
+            f"\turl = {source}\n"
+            for index, (relative, _, source, _) in enumerate(source_rows)
+        )
+        (snapshot / ".gitmodules").write_text(modules, encoding="utf-8")
+        subprocess.run(["git", "add", ".gitmodules"], cwd=snapshot, check=True)
+        for relative, _, _, head in source_rows:
+            subprocess.run(
+                [
+                    "git",
+                    "update-index",
+                    "--add",
+                    "--cacheinfo",
+                    f"160000,{head},{relative}",
+                ],
+                cwd=snapshot,
+                check=True,
+                capture_output=True,
+            )
+    subprocess.run(
+        [
+            "git",
+            "-c",
+            "user.name=T1223",
+            "-c",
+            "user.email=t1223@example.invalid",
+            "commit",
+            "-m",
+            "snapshot",
+        ],
+        cwd=snapshot,
+        check=True,
+        capture_output=True,
+    )
+    subprocess.run(
+        ["git", "branch", "-M", TOOL.BRANCH],
+        cwd=snapshot,
+        check=True,
+        capture_output=True,
+    )
+    for relative, initialized, _, _ in source_rows:
+        if initialized:
+            subprocess.run(
+                [
+                    "git",
+                    "-c",
+                    "protocol.file.allow=always",
+                    "submodule",
+                    "update",
+                    "--init",
+                    "--",
+                    relative,
+                ],
+                cwd=snapshot,
+                check=True,
+                capture_output=True,
+            )
+    TOOL._seal_git_object_closure(snapshot)
+    return snapshot
+
+
+def _synthetic_verify_snapshot_spec(
+    snapshot: Path,
+    *,
+    enforce_closure: bool,
+) -> dict[str, Any]:
+    verified_paths = ["root.txt"]
+    if (snapshot / ".gitmodules").is_file():
+        verified_paths.append(".gitmodules")
+    return {
+        "case": "POS",
+        "head": TOOL._git(snapshot, "rev-parse", "HEAD").decode().strip(),
+        "branch": TOOL.BRANCH,
+        "tracked_paths": [],
+        "hashes": {
+            relative: TOOL._sha256((snapshot / relative).read_bytes())
+            for relative in verified_paths
+        },
+        "numstat": [],
+        "untracked": [],
+        "modes": {
+            relative: stat.S_IFREG | 0o644 for relative in verified_paths
+        },
+        "forbidden": [],
+        "git_object_closure": enforce_closure,
+    }
+
+
+def _assert_uninitialized_submodule_reason(
+    caught: pytest.ExceptionInfo[TOOL.ValidationError],
+    relative: str,
+) -> None:
+    assert caught.value.rc == TOOL.RC_SNAPSHOT
+    assert f"submodule is not initialized: {relative}" in caught.value.reasons
+
+
+def test_verify_snapshot_submodule_gate_rejects_custom_spec_without_closure(
+    tmp_path: Path,
+) -> None:
+    snapshot = _synthetic_verify_snapshot_with_submodules(
+        tmp_path, (("deps/child", False),)
+    )
+    assert not (snapshot / "deps/child").exists()
+    assert not (snapshot / ".git/modules/deps/child").exists()
+    spec = _synthetic_verify_snapshot_spec(snapshot, enforce_closure=False)
+
+    with pytest.raises(TOOL.ValidationError) as caught:
+        TOOL.verify_snapshot(snapshot, "POS", spec=spec)
+
+    _assert_uninitialized_submodule_reason(caught, "deps/child")
+
+
+def test_verify_snapshot_submodule_gate_rejects_custom_spec_with_closure(
+    tmp_path: Path,
+) -> None:
+    snapshot = _synthetic_verify_snapshot_with_submodules(
+        tmp_path, (("deps/child", False),)
+    )
+    spec = _synthetic_verify_snapshot_spec(snapshot, enforce_closure=True)
+
+    with pytest.raises(TOOL.ValidationError) as caught:
+        TOOL.verify_snapshot(snapshot, "POS", spec=spec)
+
+    _assert_uninitialized_submodule_reason(caught, "deps/child")
+
+
+def test_verify_snapshot_submodule_gate_checks_every_manifest_row(
+    tmp_path: Path,
+) -> None:
+    snapshot = _synthetic_verify_snapshot_with_submodules(
+        tmp_path,
+        (("deps/a-initialized", True), ("deps/z-uninitialized", False)),
+    )
+    _, manifest = TOOL._submodule_inventory(snapshot)
+    assert [row["path"] for row in manifest] == [
+        "deps/a-initialized",
+        "deps/z-uninitialized",
+    ]
+    assert [row["initialization"] for row in manifest] == [
+        "initialized",
+        "uninitialized",
+    ]
+    spec = _synthetic_verify_snapshot_spec(snapshot, enforce_closure=False)
+
+    with pytest.raises(TOOL.ValidationError) as caught:
+        TOOL.verify_snapshot(snapshot, "POS", spec=spec)
+
+    _assert_uninitialized_submodule_reason(caught, "deps/z-uninitialized")
+
+
+def test_verify_snapshot_submodule_gate_rejects_default_spec_path(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """正規 seam の ``spec=`` では未指定経路を固定できないため差替える。"""
+    snapshot = _synthetic_verify_snapshot_with_submodules(
+        tmp_path, (("deps/child", False),)
+    )
+    spec = _synthetic_verify_snapshot_spec(snapshot, enforce_closure=True)
+    monkeypatch.setattr(TOOL, "_snapshot_spec", lambda case: spec)
+
+    with pytest.raises(TOOL.ValidationError) as caught:
+        TOOL.verify_snapshot(snapshot, "POS")
+
+    _assert_uninitialized_submodule_reason(caught, "deps/child")
+
+
+def test_verify_snapshot_submodule_gate_accepts_all_initialized(
+    tmp_path: Path,
+) -> None:
+    snapshot = _synthetic_verify_snapshot_with_submodules(
+        tmp_path, (("deps/child", True),)
+    )
+    spec = _synthetic_verify_snapshot_spec(snapshot, enforce_closure=True)
+
+    oracle = TOOL.verify_snapshot(snapshot, "POS", spec=spec)
+
+    assert set(oracle) == {
+        "schema_version",
+        "case",
+        "snapshot",
+        "head",
+        "branch",
+        "dirty",
+        "untracked",
+        "numstat",
+        "files",
+        "submodules",
+        "submodule_manifest_sha256",
+        "git_object_closure",
+        "filesystem_files",
+        "manifest_sha256",
+    }
+    assert [row["initialization"] for row in oracle["submodules"]] == [
+        "initialized"
+    ]
+
+
+def test_verify_snapshot_submodule_gate_accepts_empty_manifest(
+    tmp_path: Path,
+) -> None:
+    snapshot = _synthetic_verify_snapshot_with_submodules(tmp_path, ())
+    spec = _synthetic_verify_snapshot_spec(snapshot, enforce_closure=True)
+
+    oracle = TOOL.verify_snapshot(snapshot, "POS", spec=spec)
+
+    assert oracle["submodules"] == []
+
+
 def test_uninitialized_nested_submodule_is_manifested_and_accepted(
     tmp_path: Path,
 ) -> None:
