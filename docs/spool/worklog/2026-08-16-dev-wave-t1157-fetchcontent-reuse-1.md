@@ -49,7 +49,18 @@ title: 共有 FetchContent base の再利用を計算ノードで実測した �
 - **親 brief の事実誤認を 1 件、子より先に自分で訂正した。** 当初 brief は「base に当たる
   configure は 2 本」と書いていたが、床値は 2 holdout × 6 構成で構成集合が全 holdout 一致のため
   `sort_best` は 2 個あり、正しくは 3 本である。段 6 レビューも独立に同じ点を指摘した。
-- **計算資源:** PBS job 3 本 (912848 / 912886 / 912911、いずれも gen_S)。
+- **受入全走の実測は 11,539 passed / 1 failed / 65 skipped / 145.64 秒。** 唯一の赤は
+  `test_dev_wave_wait.py::test_public_main_failure_restores_handler_without_release` で、
+  **F306 族の既知フレーク**である。単独再走を計算ノードで行い `1 passed in 2.50s` / rc=0 を実測した
+  (`Request 912956.nqsv`、Elapse 7 秒)。本 wave の差分は docs と output/insights だけで
+  Python を 1 file も変えていない (`git diff main...HEAD` から docs・output を除くと空) ため
+  差分が到達しえない赤であり、非帰属と判定した。
+  **待ち手の非帰属 checker は今回も `attributable` と分類した** — 2026-08-15 の再発で
+  記録された「docs-only でも attributable になる経路」は塞がれていない。
+- **受入の 1 走目は claim 前に `preflight-submodule-ready` (rc=2) で止まった。**
+  `external/ccbench/third_party/shirakami` が未初期化だったためで、lease は消費していない。
+  worktree では `-c protocol.file.allow=always` 付きの `--init --recursive` が要る。
+- **計算資源:** PBS job 4 本 (912848 / 912886 / 912911 / 912956、いずれも gen_S)。
   権威走行は 103.4 秒。codex 子 6 本 (author 1 / review 1 / focus 1 / fix 4 のうち 3 本は fix)。
 - **fix は 4 巡した。第 4 巡は `DW-O16` の 3 巡上限を超えている。** 新しいレビュー所見への追加対応
   ではなく、**実走が出した新事実** (偽 REFETCHED と load 誤測) への対応であり、
