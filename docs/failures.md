@@ -7278,6 +7278,24 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: 段 6 で launcher_error が出たら、まず `git status` の実装面差分と
   子の log 先頭行 (`NG: Codex hook 配線の exact 検証に失敗`) を照合する。
 
+
+- **再発: 2026-08-17** — 同じ gate (`NG: Codex hook 配線の exact 検証に失敗:
+  tools/pegasus/admission_registry.json: working bytes が HEAD blob から drift`) で
+  codex 子が 2 度 launcher_error になった。**引き金が既載と異なる。**
+  既載は「段 5 の実装子が同ファイルを変更した直後」だが、本件は
+  **`git merge --no-ff --no-commit main` の競合解消中**である。実装子は同ファイルを
+  触っておらず、main 側が持ち込んだ版が index に staged された結果、
+  working bytes が自 HEAD の blob と一致しなくなった。
+  **既載の恒久対応 (レビュー投入前に統合 commit を作る) では防げない** — 統合 commit は
+  作ってあり、その後の merge で drift したためである。
+- 新しい情報は 3 点。(i) **merge 進行中は codex 子を起動できない。** 実装面の競合解消は
+  Codex `role=author` が担う契約なので、競合が実装面に出た瞬間に「子が要るのに子を起動できない」
+  状態になる。(ii) 回避は working tree だけを HEAD の bytes へ戻して起動し、子の完了後に
+  index から復元する形で成立した。index 側の sha256 を事前に控え、復元後に一致を照合した
+  (`git show :<path> | sha256sum` → `git show HEAD:<path> > <path>` → 子 → `git checkout -- <path>`)。
+  (iii) 1 度目の失敗が完全な receipt を残すため、**同じ prompt での再投入は
+  `NG: 既存の完全な receipt は上書きできない` で止まる**。`--artifact-root` を分ける必要がある。
+- 実害: 子の起動失敗 2 回と、回避手順の設計で約 4 分。誤った land には至っていない。
 ### F284. 変異 spec の期待 node に parametrize 済みテストの素の名前を書いて起動前に止まった [手順漏れ]
 
 - 事象: 変異 harness が
@@ -8991,3 +9009,30 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   「すべてのセッションを調教しろ」であり、prompt 規律では 1 セッションしか直らないため
   受入経路そのものへ関門を入れた。**rc だけでなく理由本文を呼び手へ返す**のも同じ理由で、
   rc だけ返すと次の呼び手が同じ「rc を自前分類する」ループを書く。
+
+### F366. 呼び手を確認したと書きながら入れ子の exact 検査を見落とし、修正が end-to-end で 1 度も発効しなかった [恒真ゲート] [手順漏れ]
+
+- 事象: 2026-08-16 の commit `8a2b735b` が受入赤の分類へ第 3 分類 `flake` を足した。
+  commit body は「既存の呼び手 `tools/dev_wave_wait.py` は既に同 flag を渡しており、
+  receipt でも `wave_tip == tested_tip` を照合しているので壊れない」と述べた。
+  しかし同 file には**受領証の node ごとの exact 検査**が別にあり
+  (`set(node) == {"classification","nodeid","rerun_rc"}` かつ
+  `classification == "non-attributable"`)、5 field の `flake` node はそこで落ちる。
+  結果、修正は checker 層で正しく動きながら **end-to-end では 1 度も発効せず**、
+  「確率的なフレークで受入全走を何度も無駄にする構造は許さない」というユーザー裁定が
+  丸 1 日「実装済み」と誤認されたまま運用された。文字列 `flake` の出現数は
+  `tools/dev_wave_wait.py` / `tools/dev_wave_land.py` とその test の 4 file すべてで 0 だった。
+- 根本原因: 「呼び手を確認した」を **root field と CLI flag の照合だけ**で閉じた。
+  exact 述語は root / 配列要素 / 入れ子 object のそれぞれに独立して置かれるため、
+  1 段の通過を全体の通過と読むと修正が黙って無効化される。
+  テストが producer 側 (`orchestrator/tests/test_check_acceptance_reds.py`) にしか無く、
+  consumer 側へ新しい形を渡すテストが 1 件も無かったので、全部緑のまま通った。
+- 恒久対応: memory `consumer-exact-predicates-must-all-be-checked` —
+  出力形を変えたら consumer file を `set(` と `==` で grep して**全述語**を新しい形へ当て、
+  実際の producer 出力を 1 件作って consumer の述語へ通し accept/reject を実測する。
+  **機械化 (受領証 schema と消費側述語の相互 pin) は本件の受理集合裁定に従属する**ため、
+  裁定パッケージ #2 の採択後に同 wave で行う。
+  裁定パッケージ = `output/insights/2026-08-17_t1116-nonattrib-checker/ruling-package.md`。
+- 再発検知: 実 producer 出力を consumer 述語へ通す実測を、出力形を変える wave の完了条件に置く。
+  本件は `output/insights/2026-08-17_t1116-nonattrib-checker/probe2-receipt.json` を
+  消費側述語へかけて REJECT を得ることで検出した。

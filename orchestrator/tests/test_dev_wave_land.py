@@ -12,6 +12,7 @@ import errno
 import fcntl
 import hashlib
 import importlib.util
+import io
 import json
 import os
 import re
@@ -339,6 +340,74 @@ def _land_cli_argv(request, *prefix: str) -> list[str]:
     for commit in request.audited_commits:
         argv.extend(("--audited-commit", commit))
     return argv
+
+
+@contextlib.contextmanager
+def _lease_dir_environment(lease_dir: Path):
+    name = "IZANAGI_WAVE_LEASE_DIR"
+    previous = os.environ.get(name)
+    os.environ[name] = str(lease_dir)
+    try:
+        yield
+    finally:
+        if previous is None:
+            os.environ.pop(name, None)
+        else:
+            os.environ[name] = previous
+
+
+@contextlib.contextmanager
+def _patched_window_release(value):
+    previous = LAND._wave_land_window.release
+    LAND._wave_land_window.release = value
+    try:
+        yield
+    finally:
+        LAND._wave_land_window.release = previous
+
+
+class _FlushBuffer(io.StringIO):
+    def __init__(self) -> None:
+        super().__init__()
+        self.was_flushed = False
+
+    def flush(self) -> None:
+        self.was_flushed = True
+        super().flush()
+
+
+def _invoke_land_main(
+    request,
+    lease_dir: Path,
+    *,
+    stdout: io.StringIO | None = None,
+) -> tuple[int, dict[str, object], str, str]:
+    output = stdout or _FlushBuffer()
+    errors = io.StringIO()
+    argv = _land_cli_argv(request)[2:]
+    with (
+        _cwd(request.wave_worktree),
+        _lease_dir_environment(lease_dir),
+        contextlib.redirect_stdout(output),
+        contextlib.redirect_stderr(errors),
+    ):
+        rc = LAND.main(argv)
+    return rc, json.loads(output.getvalue()), output.getvalue(), errors.getvalue()
+
+
+def _claim_acceptance_lease(repo: _Repo, request) -> tuple[Path, Path]:
+    lease_dir = repo.root / "lease"
+    lease_dir.mkdir()
+    result = LAND._wave_land_window.claim(
+        lease_dir,
+        request.acceptance_wave,
+        request.tested_main_sha,
+        LAND._wave_land_window._POLICY_TTL_SECONDS,
+    )
+    assert result["state"] == "acquired", result
+    lease_path = lease_dir / "acceptance.lease"
+    assert lease_path.is_file()
+    return lease_dir, lease_path
 
 
 def _receipt_payload(path: Path) -> dict[str, object]:
@@ -1300,6 +1369,7 @@ def test_foreign_handoff_of_any_shape_is_protected_from_target_collision() -> No
             tip = _git(wave, "rev-parse", "HEAD")
             result = _land(repo.request(wave, tip=tip))
             assert result.rc == LAND.RC_CONTROL_PLANE, (kind, result)
+            assert (result.release_safe, result.retryable_same_request) == (True, False)
             assert _git(repo.main, "rev-parse", "HEAD") == repo.base
         assert {
             path: _artifact_snapshot(path) for path in entries.values()
@@ -2336,6 +2406,7 @@ def test_post_provenance_reacquire_rejects_control_directory_replacement() -> No
         assert result.reason == (
             "control-plane identity/binding changed during the provenance audit"
         )
+        assert (result.release_safe, result.retryable_same_request) == (True, False)
         assert _git(repo.main, "rev-parse", "HEAD") == repo.base
 
 
@@ -2952,6 +3023,45 @@ def test_provenance_receipt_rejects_tip_that_moves_during_audit() -> None:
         result = _land(request)
         assert (result.rc, result.status) == (LAND.RC_PROVENANCE, "rejected"), result
         assert "heads or collision paths changed" in result.reason
+        assert _git(repo.main, "rev-parse", "HEAD") == repo.base
+
+
+def test_post_provenance_head_change_preserves_provenance_rejection_order() -> None:
+    """R1: head 変化は全 preflight の再実行より先に rc 29 で拒否する。"""
+
+    with _repo() as repo:
+        wave = repo.waves["one"]
+        checker = (
+            "import subprocess\n"
+            "from pathlib import Path\n"
+            "repo = Path(__file__).resolve().parent.parent\n"
+            "raise SystemExit(subprocess.run(["
+            f"{REAL_GIT!r}, '-C', str(repo), 'reset', '--hard', "
+            "'refs/heads/provenance-next'], check=False).returncode)\n"
+        )
+        repo.commit(wave, "tools/check_ai_provenance.py", checker)
+        tested_tip = repo.commit(wave, "wave.txt", "wave\n")
+        moved_tip = repo.commit(wave, "next.txt", "next\n")
+        _git(wave, "branch", "provenance-next", moved_tip)
+        _git(wave, "reset", "--hard", tested_tip)
+        request = repo.request(wave, tip=tested_tip)
+        real_locked_preflight = LAND._locked_preflight
+        preflight_calls = 0
+
+        def record_locked_preflight(*args, **kwargs):
+            nonlocal preflight_calls
+            preflight_calls += 1
+            return real_locked_preflight(*args, **kwargs)
+
+        with _patched_land_attr("_locked_preflight", record_locked_preflight):
+            result = _land(request)
+
+        assert preflight_calls == 1
+        assert (result.rc, result.status) == (LAND.RC_PROVENANCE, "rejected")
+        assert result.reason == (
+            "main/wave heads or collision paths changed during "
+            "the provenance audit"
+        )
         assert _git(repo.main, "rev-parse", "HEAD") == repo.base
 
 
@@ -3904,6 +4014,7 @@ def test_finalize_failure_keeps_verified_fold_commit_and_never_rolls_back() -> N
             LAND.RC_FOLD_FINALIZE_FAILED,
             "fold-finalize-failed",
         ), result
+        assert (result.release_safe, result.retryable_same_request) == (False, True)
         assert "synthetic finalize failure" in result.reason
         assert result.main_after == _git(repo.main, "rev-parse", "HEAD")
         assert _git(repo.main, "rev-parse", f"{result.main_after}^") == tip
@@ -4637,6 +4748,7 @@ def test_fold_rollback_failure_reason_reports_preserved_state() -> None:
             LAND.RC_FOLD_ROLLBACK_FAILED,
             "fold-rollback-failed",
         )
+        assert (result.release_safe, result.retryable_same_request) == (False, False)
         assert "rollback incomplete" in result.reason
         assert f"resume journal preserved at {state_path}" in result.reason
         _assert_valid_state_preserved(fold, repo, plan, state_path, state_bytes)
@@ -5954,6 +6066,587 @@ def test_verify_wave_clean_rejects_plain_untracked_file_as_dirt() -> None:
                     assert exc.reason == "wave worktree must be completely clean"
             finally:
                 repository.close()
+
+
+def test_land_result_release_contract_defaults_fail_closed_and_is_in_json() -> None:
+    result = LAND.LandResult(999, "synthetic", "unknown return site")
+
+    assert (result.release_safe, result.retryable_same_request) == (False, False)
+    assert dataclasses.replace(
+        result,
+        release_safe=True,
+        retryable_same_request=True,
+    ) == result
+    payload = result.as_json()
+    assert payload["release_safe"] is False
+    assert payload["retryable_same_request"] is False
+    assert "lease_release" not in payload
+
+
+def test_main_releases_owned_lease_after_success_and_preserves_core_result() -> None:
+    """P1 / M0: 実 land 成功は stdout 確定後に owned lease を解放する。"""
+
+    with _repo() as repo:
+        wave = repo.waves["one"]
+        tip = repo.commit(wave, "wave.txt", "wave\n")
+        request = repo.request(wave, tip=tip)
+        lease_dir, lease_path = _claim_acceptance_lease(repo, request)
+
+        rc, payload, raw, errors = _invoke_land_main(request, lease_dir)
+
+        assert rc == LAND.RC_OK
+        assert payload["status"] == "landed"
+        assert payload["main_after"] == tip
+        assert payload["release_safe"] is True
+        assert payload["retryable_same_request"] is False
+        assert "lease_release" not in payload
+        assert raw.endswith("\n")
+        assert errors == "lease_release state=released reason=none\n"
+        assert not lease_path.exists()
+        assert _git(repo.main, "rev-parse", "HEAD") == tip
+
+
+def test_main_requires_release_safe_and_not_retryable_same_request() -> None:
+    """M2: 2 bool が同時に True なら release_safe 単独では解放しない。"""
+
+    with _repo() as repo:
+        request = repo.request(repo.waves["one"])
+        lease_dir = repo.root / "lease"
+        lease_dir.mkdir()
+        calls: list[object] = []
+        result = LAND.LandResult(
+            LAND.RC_LOCK_BUSY,
+            "synthetic",
+            "both predicates true",
+            release_safe=True,
+            retryable_same_request=True,
+        )
+
+        def forbidden_release(*args, **kwargs):
+            calls.append((args, kwargs))
+            raise AssertionError("retryable result must retain the lease")
+
+        with (
+            _patched_land_attr("land", lambda _request: result),
+            _patched_window_release(forbidden_release),
+        ):
+            rc, payload, _raw, errors = _invoke_land_main(request, lease_dir)
+
+        assert rc == LAND.RC_LOCK_BUSY
+        assert calls == []
+        assert payload["release_safe"] is True
+        assert payload["retryable_same_request"] is True
+        assert errors == (
+            "lease_release state=retained reason=land-result-not-release-safe\n"
+        )
+
+
+def test_main_unexpected_exception_or_interrupt_never_releases() -> None:
+    """M3: mutation outcome 不明の例外・中断は JSON 化も release もしない。"""
+
+    for failure in (RuntimeError("synthetic"), KeyboardInterrupt()):
+        with _repo() as repo:
+            request = repo.request(repo.waves["one"])
+            lease_dir = repo.root / "lease"
+            lease_dir.mkdir()
+            output = io.StringIO()
+            errors = io.StringIO()
+            calls: list[object] = []
+
+            def fail_land(_request, failure=failure):
+                raise failure
+
+            def forbidden_release(*args, **kwargs):
+                calls.append((args, kwargs))
+                raise AssertionError("unexpected failures must not release")
+
+            try:
+                with (
+                    _patched_land_attr("land", fail_land),
+                    _patched_window_release(forbidden_release),
+                    _cwd(request.wave_worktree),
+                    _lease_dir_environment(lease_dir),
+                    contextlib.redirect_stdout(output),
+                    contextlib.redirect_stderr(errors),
+                ):
+                    LAND.main(_land_cli_argv(request)[2:])
+                assert False, "land failure must propagate"
+            except BaseException as exc:
+                assert exc is failure
+            assert calls == []
+            assert output.getvalue() == ""
+            assert errors.getvalue() == ""
+
+
+def test_provenance_checker_violation_rc_is_release_safe_and_releases() -> None:
+    """M8: checker の違反 rc=1 は rc=29 の release-safe 側。"""
+
+    with _repo() as repo:
+        wave = repo.waves["one"]
+        tip = repo.commit(wave, "wave.txt", "wave\n")
+        request = repo.request(wave, tip=tip)
+        lease_dir, lease_path = _claim_acceptance_lease(repo, request)
+
+        def rejected_checker(_checker, _repository, _env):
+            return subprocess.CompletedProcess([], 1, b"", b"")
+
+        with _patched_land_attr("_run_provenance_checker", rejected_checker):
+            rc, payload, _raw, errors = _invoke_land_main(request, lease_dir)
+
+        assert rc == LAND.RC_PROVENANCE
+        assert payload["status"] == "rejected"
+        assert payload["release_safe"] is True
+        assert payload["retryable_same_request"] is False
+        assert errors == "lease_release state=released reason=none\n"
+        assert not lease_path.exists()
+        assert _git(repo.main, "rev-parse", "HEAD") == repo.base
+
+
+def _assert_non_authoritative_provenance_rc_retains(returncode: int) -> None:
+    with _repo() as repo:
+        wave = repo.waves["one"]
+        tip = repo.commit(wave, "wave.txt", "wave\n")
+        request = repo.request(wave, tip=tip)
+        lease_dir, lease_path = _claim_acceptance_lease(repo, request)
+        before = lease_path.read_bytes()
+
+        def incomplete_checker(_checker, _repository, _env):
+            return subprocess.CompletedProcess([], returncode, b"", b"")
+
+        with _patched_land_attr("_run_provenance_checker", incomplete_checker):
+            rc, payload, _raw, errors = _invoke_land_main(request, lease_dir)
+
+        assert rc == LAND.RC_PROVENANCE
+        assert payload["status"] == "rejected"
+        assert payload["release_safe"] is False
+        assert payload["retryable_same_request"] is True
+        assert "did not complete authoritatively" in payload["reason"]
+        assert errors == (
+            "lease_release state=retained reason=land-result-not-release-safe\n"
+        )
+        assert lease_path.read_bytes() == before
+        assert _git(repo.main, "rev-parse", "HEAD") == repo.base
+
+
+def test_provenance_checker_infrastructure_rc_is_retryable_and_retains() -> None:
+    """F1: checker の infrastructure rc=16 は違反ではなく保持する。"""
+
+    _assert_non_authoritative_provenance_rc_retains(16)
+
+
+def test_provenance_checker_signal_returncode_is_retryable_and_retains() -> None:
+    """F1: signal 終了の負 returncode は違反ではなく保持する。"""
+
+    for returncode in (-9, -15):
+        _assert_non_authoritative_provenance_rc_retains(returncode)
+
+
+def test_provenance_checker_timeout_is_retryable_and_retains() -> None:
+    """M7: timeout を決定的 checker 非 0 と同一視せず lease を保持する。"""
+
+    with _repo() as repo:
+        wave = repo.waves["one"]
+        tip = repo.commit(wave, "wave.txt", "wave\n")
+        request = repo.request(wave, tip=tip)
+        lease_dir, lease_path = _claim_acceptance_lease(repo, request)
+        before = lease_path.read_bytes()
+
+        def timed_out_checker(_checker, _repository, _env):
+            raise subprocess.TimeoutExpired(["provenance-checker"], 480)
+
+        with _patched_land_attr("_run_provenance_checker", timed_out_checker):
+            rc, payload, _raw, errors = _invoke_land_main(request, lease_dir)
+
+        assert rc == LAND.RC_PROVENANCE
+        assert payload["status"] == "rejected"
+        assert payload["release_safe"] is False
+        assert payload["retryable_same_request"] is True
+        assert errors == (
+            "lease_release state=retained reason=land-result-not-release-safe\n"
+        )
+        assert lease_path.read_bytes() == before
+        assert _git(repo.main, "rev-parse", "HEAD") == repo.base
+
+
+def test_internal_fold_planning_interrupt_is_never_release_safe() -> None:
+    """M3: land 内部 catch の KeyboardInterrupt は lease を解放しない。"""
+
+    class InterruptedPlanModule(_FakeFoldModule):
+        def plan_fold(self, repo: Path, *, fold_date: str, origin):
+            raise KeyboardInterrupt("synthetic internal interrupt")
+
+    with _repo() as repo:
+        wave = repo.waves["one"]
+        tip = repo.commit(wave, "wave.txt", "wave\n")
+        request = repo.request(wave, tip=tip)
+        lease_dir, lease_path = _claim_acceptance_lease(repo, request)
+        before = lease_path.read_bytes()
+        module = InterruptedPlanModule(
+            _FakeFoldPlan("docs/spool/worklog/missing.md"),
+            lambda *_args: None,
+        )
+
+        with _patched_land_attr("_load_spool_fold", lambda: module):
+            rc, payload, _raw, errors = _invoke_land_main(request, lease_dir)
+
+        assert rc == LAND.RC_FOLD_FAILED
+        assert payload["status"] == "fold-failed"
+        assert payload["release_safe"] is False
+        assert payload["retryable_same_request"] is True
+        assert "KeyboardInterrupt" in payload["reason"]
+        assert errors == (
+            "lease_release state=retained reason=land-result-not-release-safe\n"
+        )
+        assert lease_path.read_bytes() == before
+        assert _git(repo.main, "rev-parse", "HEAD") == repo.base
+
+
+def test_successful_fold_rollback_remains_held_fail_closed() -> None:
+    """F3: ref だけの再検証では不十分なので rollback 成功後も保持する。"""
+
+    with _rollback_fold_fixture() as fixture:
+        (
+            repo,
+            wave,
+            tip,
+            index_tree,
+            _restore_path,
+            snapshots,
+            _fold,
+            plan,
+            state_path,
+            _state_bytes,
+        ) = fixture
+        module = _FakeFoldModule(
+            plan,
+            lambda *_args: (_ for _ in ()).throw(
+                RuntimeError("synthetic apply failure")
+            ),
+        )
+        successful_land = LAND.LandResult(
+            LAND.RC_OK,
+            "landed",
+            "synthetic successful fast-forward",
+            repo.base,
+            tip,
+            tip,
+        )
+        with _cwd(wave):
+            repository = LAND._verify_repository(repo.request(wave, tip=tip))
+            try:
+                result = LAND._fold_main_locked(
+                    repository,
+                    successful_land,
+                    fold=module,
+                    plan=plan,
+                    trusted_main_cutoff_sha=repo.base,
+                    tested_tip=tip,
+                    landed_commits=(tip,),
+                    wave_ref=_git(wave, "symbolic-ref", "HEAD"),
+                    rollback_ref=repo.base,
+                    snapshots=snapshots,
+                    index_tree=index_tree,
+                    state_path=state_path,
+                )
+            finally:
+                repository.close()
+
+        assert (result.rc, result.status) == (
+            LAND.RC_FOLD_FAILED,
+            "fold-failed",
+        )
+        assert (result.release_safe, result.retryable_same_request) == (False, False)
+        assert _git(repo.main, "rev-parse", "HEAD") == repo.base
+
+
+def test_receipt_read_io_failure_is_retryable_and_retains() -> None:
+    """F4: receipt open/read/stat の一時 I/O failure は同一 request で再試行する。"""
+
+    with _repo() as repo:
+        wave = repo.waves["one"]
+        tip = repo.commit(wave, "wave.txt", "wave\n")
+        request = repo.request(wave, tip=tip)
+        lease_dir, lease_path = _claim_acceptance_lease(repo, request)
+        before = lease_path.read_bytes()
+
+        def fail_regular_read(*_args, **_kwargs):
+            raise OSError("synthetic receipt read failure")
+
+        with _patched_land_attr("_read_regular_at", fail_regular_read):
+            try:
+                LAND._read_acceptance_receipt(request.acceptance_receipt)
+                assert False, "receipt I/O failure was accepted"
+            except LAND._Reject as exc:
+                assert exc.retryable_same_request is True
+
+        transient = LAND._acceptance_rejected(retryable_same_request=True)
+
+        def fail_receipt(_path):
+            raise transient
+
+        with _patched_land_attr("_read_acceptance_receipt", fail_receipt):
+            rc, payload, _raw, errors = _invoke_land_main(request, lease_dir)
+
+        assert rc == LAND.RC_AUDIT
+        assert payload["release_safe"] is False
+        assert payload["retryable_same_request"] is True
+        assert errors == (
+            "lease_release state=retained reason=land-result-not-release-safe\n"
+        )
+        assert lease_path.read_bytes() == before
+
+
+def test_locked_status_git_io_failure_is_retryable_and_retains() -> None:
+    """F4: locked preflight の status 実行失敗は structural dirt と分離する。"""
+
+    with _repo() as repo:
+        wave = repo.waves["one"]
+        tip = repo.commit(wave, "wave.txt", "wave\n")
+        request = repo.request(wave, tip=tip)
+        lease_dir, lease_path = _claim_acceptance_lease(repo, request)
+        before = lease_path.read_bytes()
+        real_git = LAND._git
+
+        def fail_main_status(repo_path: Path, *args: str, **kwargs):
+            if repo_path == repo.main and args[:2] == (
+                "status",
+                "--porcelain=v1",
+            ):
+                return LAND._GitResult(128, b"", b"synthetic status I/O failure")
+            return real_git(repo_path, *args, **kwargs)
+
+        with _patched_land_attr("_git", fail_main_status):
+            rc, payload, _raw, errors = _invoke_land_main(request, lease_dir)
+
+        assert rc == LAND.RC_DIRT
+        assert payload["release_safe"] is True
+        assert payload["retryable_same_request"] is True
+        assert errors == (
+            "lease_release state=retained reason=land-result-not-release-safe\n"
+        )
+        assert lease_path.read_bytes() == before
+        assert _git(repo.main, "rev-parse", "HEAD") == repo.base
+
+
+def test_main_binds_release_to_wave_main_and_flushed_core_json() -> None:
+    """M9/M13/M15: slug・tested_main・stdout flush・core field を同時に固定。"""
+
+    with _repo() as repo:
+        request = repo.request(repo.waves["one"])
+        lease_dir = repo.root / "lease"
+        lease_dir.mkdir()
+        output = _FlushBuffer()
+        digest = hashlib.sha256(request.acceptance_receipt.read_bytes()).hexdigest()
+        result = LAND.LandResult(
+            LAND.RC_OK,
+            "already-landed",
+            "synthetic quiescent result",
+            main_before=request.tested_main_sha,
+            main_after=request.tested_wave_tip_sha,
+            wave_tip=request.tested_wave_tip_sha,
+            acceptance_receipt_sha256=digest,
+            release_safe=True,
+        )
+
+        def observed_release(lease_path, wave, expected_main_sha=None):
+            assert output.was_flushed is True
+            printed = json.loads(output.getvalue())
+            assert printed["release_safe"] is True
+            assert printed["retryable_same_request"] is False
+            assert "lease_release" not in printed
+            assert lease_path == lease_dir
+            assert wave == request.acceptance_wave
+            assert expected_main_sha == request.tested_main_sha
+            return {
+                "state": "released",
+                "source": {"status": "ok", "reason": None},
+            }
+
+        with (
+            _patched_land_attr("land", lambda _request: result),
+            _patched_window_release(observed_release),
+        ):
+            rc, payload, _raw, errors = _invoke_land_main(
+                request,
+                lease_dir,
+                stdout=output,
+            )
+
+        assert rc == LAND.RC_OK
+        assert payload["release_safe"] is True
+        assert payload["retryable_same_request"] is False
+        assert errors == "lease_release state=released reason=none\n"
+
+
+def test_main_receipt_digest_change_blocks_release() -> None:
+    """M12: land が digest を返さない経路は snapshot 後の receipt 差替えを拒否。"""
+
+    with _repo() as repo:
+        request = repo.request(repo.waves["one"])
+        lease_dir, lease_path = _claim_acceptance_lease(repo, request)
+        before = lease_path.read_bytes()
+        calls: list[object] = []
+
+        def land_after_replacement(_request):
+            payload = _receipt_payload(request.acceptance_receipt)
+            payload["log_sha256"] = "f" * 64
+            _write_receipt(request.acceptance_receipt, payload)
+            return LAND.LandResult(
+                LAND.RC_PROVENANCE,
+                "rejected",
+                "synthetic pre-receipt result",
+                release_safe=True,
+            )
+
+        def forbidden_release(*args, **kwargs):
+            calls.append((args, kwargs))
+            raise AssertionError("changed receipt must not authorize release")
+
+        with (
+            _patched_land_attr("land", land_after_replacement),
+            _patched_window_release(forbidden_release),
+        ):
+            rc, payload, _raw, errors = _invoke_land_main(request, lease_dir)
+
+        assert rc == LAND.RC_PROVENANCE
+        assert payload["release_safe"] is True
+        assert calls == []
+        assert errors == (
+            "lease_release state=unavailable reason=receipt-digest-changed\n"
+        )
+        assert lease_path.read_bytes() == before
+
+
+def test_main_verified_receipt_digest_mismatch_blocks_release() -> None:
+    """M12: 完全検証 digest と事前 authority snapshot の不一致も拒否する。"""
+
+    with _repo() as repo:
+        request = repo.request(repo.waves["one"])
+        lease_dir, lease_path = _claim_acceptance_lease(repo, request)
+        before = lease_path.read_bytes()
+        calls: list[object] = []
+        result = LAND.LandResult(
+            LAND.RC_OK,
+            "already-landed",
+            "synthetic verified result from different receipt bytes",
+            main_before=request.tested_main_sha,
+            main_after=request.tested_wave_tip_sha,
+            wave_tip=request.tested_wave_tip_sha,
+            acceptance_receipt_sha256="f" * 64,
+            release_safe=True,
+        )
+
+        def forbidden_release(*args, **kwargs):
+            calls.append((args, kwargs))
+            raise AssertionError("mismatched verified digest must not authorize release")
+
+        with (
+            _patched_land_attr("land", lambda _request: result),
+            _patched_window_release(forbidden_release),
+        ):
+            rc, payload, _raw, errors = _invoke_land_main(request, lease_dir)
+
+        assert rc == LAND.RC_OK
+        assert payload["release_safe"] is True
+        assert calls == []
+        assert errors == (
+            "lease_release state=unavailable reason=receipt-digest-mismatch\n"
+        )
+        assert lease_path.read_bytes() == before
+
+
+def test_compact_core_json_preserves_legacy_64k_message_boundary() -> None:
+    """F6: 追加 bool で旧成功 JSON の message 受理集合を縮めない。"""
+
+    with _repo() as repo:
+        request = repo.request(repo.waves["one"])
+        lease_dir = repo.root / "lease"
+        lease_dir.mkdir()
+        result = LAND.LandResult(
+            LAND.RC_OK,
+            "landed",
+            "boundary",
+            main_before="a" * 40,
+            main_after="b" * 40,
+            wave_tip="b" * 40,
+            acceptance_receipt_sha256="c" * 64,
+            acceptance_verdict="non-attributable-only",
+            acceptance_red_nodeids=("x" * 65075,),
+        )
+        payload = result.as_json()
+        historical_payload = {
+            key: value
+            for key, value in payload.items()
+            if key not in {"release_safe", "retryable_same_request"}
+        }
+        historical_bytes = json.dumps(
+            historical_payload,
+            ensure_ascii=False,
+            sort_keys=True,
+        ).encode("utf-8")
+        expanded_bytes = json.dumps(
+            payload,
+            ensure_ascii=False,
+            sort_keys=True,
+        ).encode("utf-8")
+        compact_bytes = json.dumps(
+            payload,
+            ensure_ascii=False,
+            separators=(",", ":"),
+            sort_keys=True,
+        ).encode("utf-8")
+
+        assert len(historical_bytes) == 65491
+        assert len(expanded_bytes) == 65547
+        assert len(compact_bytes) == 65526
+        assert len(historical_bytes) <= LAND._wave_land_window._MAX_LAND_JSON_BYTES
+        assert len(expanded_bytes) > LAND._wave_land_window._MAX_LAND_JSON_BYTES
+        assert len(compact_bytes) + 1 <= LAND._wave_land_window._MAX_LAND_JSON_BYTES
+
+        with _patched_land_attr("land", lambda _request: result):
+            rc, emitted, raw, _errors = _invoke_land_main(request, lease_dir)
+
+        assert rc == LAND.RC_OK
+        assert emitted == payload
+        assert raw.encode("utf-8") == compact_bytes + b"\n"
+        land_json = repo.root / "land-result-boundary.json"
+        land_json.write_bytes(raw.encode("utf-8"))
+        message = LAND._wave_land_window.message(
+            request.acceptance_wave,
+            land_json,
+        )
+        assert message.startswith("[dev-wave] landed main=" + "b" * 40)
+
+
+def test_release_failure_never_overwrites_land_result() -> None:
+    """M14: release 例外は core JSON と元 rc を変更しない。"""
+
+    with _repo() as repo:
+        request = repo.request(repo.waves["one"])
+        lease_dir = repo.root / "lease"
+        lease_dir.mkdir()
+        result = LAND.LandResult(
+            LAND.RC_STALE_MAIN,
+            "stale-main",
+            "synthetic stale main",
+            release_safe=True,
+        )
+
+        def failed_release(*_args, **_kwargs):
+            raise OSError("synthetic release failure")
+
+        with (
+            _patched_land_attr("land", lambda _request: result),
+            _patched_window_release(failed_release),
+        ):
+            rc, payload, _raw, errors = _invoke_land_main(request, lease_dir)
+
+        assert rc == LAND.RC_STALE_MAIN
+        assert payload["status"] == "stale-main"
+        assert payload["release_safe"] is True
+        assert errors == (
+            "lease_release state=unavailable reason=release-internal-error\n"
+        )
 
 
 def _run() -> int:

@@ -781,7 +781,11 @@ def claim(lease_dir: Path, wave: str, main_sha: str, ttl: int) -> dict[str, obje
         os.close(directory_fd)
 
 
-def release(lease_dir: Path, wave: str) -> dict[str, object]:
+def release(
+    lease_dir: Path,
+    wave: str,
+    expected_main_sha: str | None = None,
+) -> dict[str, object]:
     self_holder = _holder_for(wave)
     try:
         directory_fd = _open_directory(lease_dir)
@@ -803,6 +807,18 @@ def release(lease_dir: Path, wave: str) -> dict[str, object]:
                     return _unavailable("lease-unavailable", self_holder)
                 if lease.holder != self_holder:
                     return _lease_result("not-owner", lease, self_holder)
+                if (
+                    expected_main_sha is not None
+                    and lease.main_sha != expected_main_sha
+                ):
+                    return _result(
+                        "not-owner",
+                        lease.holder,
+                        self_holder,
+                        lease.main_sha,
+                        lease.age_seconds,
+                        "main-sha-mismatch",
+                    )
                 if not _same_entry(directory_fd, _LEASE_NAME, lease.metadata):
                     continue
                 try:
