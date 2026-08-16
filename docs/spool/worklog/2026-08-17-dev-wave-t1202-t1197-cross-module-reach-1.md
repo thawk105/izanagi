@@ -4,7 +4,7 @@ ledger: worklog
 authored: 2026-08-17
 wave: dev-wave-t1202-t1197-cross-module-reach
 seq: 1
-title: 8c 事前登録の到達判定を cross-module へ広げ条件 12 の誤報を閉じた (コード + docs、branch worktree-dev-wave-t1202-t1197-cross-module-reach)
+title: 8c 事前登録の到達判定を cross-module へ広げたが版 bump が凍結世代 g4 と衝突し land 保留 (コード + docs、branch worktree-dev-wave-t1202-t1197-cross-module-reach)
 ---
 
 ## 本文
@@ -50,24 +50,42 @@ detach したところ 2 本目が起動せず、pid file 実在を確認せず�
 すべて `--force-dispatch` で計算ノードへ投げた。codex 子は Pegasus dispatch preflight
 `qstat -Q rc=1` で pytest を 1 度も実走できず、実測は全て親が引き受けた。
 
+**受入と land 保留**: 受入 attempt 1 は `preflight-submodule-ready rc=2` (ネストした
+`shirakami` 未初期化、lease claim 前のため窓は未消費)。attempt 2 は帰属赤 2 件で
+`acceptance-red-check rc=70`。赤の内訳は (i) ActivationReport の golden digest 変化
+(条件 12 の reason と evidence が変わるため必然。版 bump の有無に関わらず更新が要る)、
+(ii) tip が束縛する判定器の版と走っている定数の不一致。(ii) は本 wave の稼働中
+(02:07 JST、commit `53b01390`、[T-1250]) に凍結世代 g4 が着地し `decider_version` に v1 を
+束縛したことによる。段 1 brief の前提「tip は legacy schema なので版 bump に現用影響なし」は
+main の進行で覆った。解消には第 5 世代 record の発行が要り、`prepare_revision` の
+spurious-revision 検査により保護対象の正本 doc か証拠契約の改訂が必須になる。
+本 wave はどちらも不変条件として閉じており、敵対レビュー 2 レンズも見ていない面なので
+親の一存で開かず land を止めた。lease は解放済み (`state: free`)。
+
 **工数**: codex 子 11 本 (plan 1 / consult 2 / author 2 / review 2 / fix 4)、すべて `accepted`。
 model は plan と consult が `gpt-5.6-sol` / `gpt-5.6-luna` の reasoning=max、
 author と fix と review が `gpt-5.6-sol` の reasoning=high。
 
 ## 次の一手差分
 
-### 完了
+### 更新
 
-- [T-1202] 環境契約 条件 12 の誤報を閉じた。到達判定を cross-module へ広げ、条件 12 は
-  `environment-contract-consumer-absent` (誤報) から `allocation-enforcement-consumer-absent`
-  (真の不在) へ変わった。他 11 条件の status / reason は不変。条件 12 は改修後も充足しないが、
-  それが正しい終状態である (allocation 節の縮小は [T-1167] 択 (c) の所有)。
-  remaining: none
+- [T-1202] **P1・実装完了、land 保留 (ユーザー裁定待ち)**: 到達判定を cross-module へ広げ、
+  条件 12 は `environment-contract-consumer-absent` (誤報) から
+  `allocation-enforcement-consumer-absent` (真の不在) へ変わった。他 11 条件の status / reason は
+  不変。条件 12 は改修後も充足しないが、それが正しい終状態である (allocation 節の縮小は
+  [T-1167] 択 (c) の所有)。焦点走 489 passed、変異 matrix 全件一致。
+  **land できない理由は本 wave の外にある** — 稼働中に [T-1250] が凍結世代 g4 を着地させ
+  判定器の版 v1 を tip に束縛したため、D458 が要求する版 bump が g4 と衝突する。
+  解消には第 5 世代 record の発行が要り、`prepare_revision` の spurious-revision 検査により
+  保護対象の正本 doc または証拠契約の改訂が必須になる。どちらも本 wave の不変条件であり、
+  敵対レビュー 2 レンズが見ていない面である。択一と推奨は
+  `dev-wave-jobs/rulings-inbox/2026-08-17-t1202-t1197-decider-version-generation-collision.md`。
   base: a80b3429729413fae56a40c1ee6feec7508561e0368e06fea0c5dc66cfdadeba
-- [T-1197] 6 条件が共有する到達判定 helper の射程不足を閉じた。同一 module 内 top-level 定義
-  だけを辿る形から、契約宣言 root を起点に実 import 束縛だけを辿る canonical `(path, 関数名)`
-  graph へ置き換えた。受理規則は {{D:cross-module-reachability}} に 9 項として明文化した。
-  remaining: none
+- [T-1197] **P1・実装完了、land 保留 ([T-1202] と同一 branch・同一原因)**: 6 条件が共有する
+  到達判定 helper の射程不足を閉じた。同一 module 内 top-level 定義だけを辿る形から、
+  契約宣言 root を起点に実 import 束縛だけを辿る canonical `(path, 関数名)` graph へ
+  置き換えた。受理規則は {{D:cross-module-reachability}} に 9 項として明文化した。
   base: 6203300b5eaf55bf5970a3f5872c94ba3da046c81c9c81f9ddee854637a0c7d8
 
 ### 新規
