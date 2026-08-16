@@ -1343,3 +1343,5 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 - {"allocations":{},"authored":"2026-08-16","base":"2f7eeb220854d806f3686e0ffde3f19e8850bfaa","content_sha256":"a03b01e7f5065f318ae90b8a31ce9882aef286baf54f18bfd198a026f8e658aa","seq":1,"tested_tip":"3fd769e309f35ae8facc76b99b6ad5802835ef84","wave":"rulings-20260816-full2","wave_ref":"refs/heads/worktree-rulings-20260816-full2"}
 
 - {"allocations":{},"authored":"2026-08-16","base":"518a87e1afd52982b85e823831140eb1764904ea","content_sha256":"9f28ec7ffd8eae39f5c228cd9c3ded7ad2d7f6bcb9ed2bcc2ab23a689e8ba4e2","seq":2,"tested_tip":"0829f565f5c7343db85f141172c1943c769cef08","wave":"rulings-20260816-full2","wave_ref":"refs/heads/worktree-rulings-20260816-full2"}
+
+- {"allocations":{"F:lease-held-after-land":"F344"},"authored":"2026-08-16","base":"35a006c2bea9dcd5cc3a0447a7b0d663bf8de769","content_sha256":"8d72788bd2c33eabac8d0d02e407a5c453830f799f011d43af81c78176820c2a","seq":3,"tested_tip":"2298a44bc4192442b8e1d9bd098b5be4201c88bf","wave":"rulings-20260816-full2","wave_ref":"refs/heads/worktree-rulings-20260816-full2"}

@@ -5332,6 +5332,14 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   `holder_self=true` なら取得済みの見落としであり、そのまま受入へ進む。
   **`--wave` を渡さない `status` は `holder_self=false` を返す**ため、所有判定には必ず渡す。
 
+
+- **再発: 2026-08-16** — 上記の lease 調査で、所有判定に `--wave` を渡さない
+  `wave_land_window.py status --json` を使い、**自分が保持している lease に対して
+  `holder_self: false` を得た**。F192 の再発検知節が「`--wave` を渡さない `status` は
+  `holder_self=false` を返すため所有判定には必ず渡す」と明記しているとおりの罠で、
+  記載はあったが手順に組み込まれていなかった。誤って他 wave の lease と判定して待ち続ける、
+  あるいは他人の lease と思い込んで release しない方向の停止に至りうる。
+  今回は holder を `sha256(wave)[:12]` で自分で計算して所有を確定し、実害には至っていない。
 ### F193. 実装子が親の役割分担文書を自分への指示と読み、入れ子で agent CLI を起動して 0 行で終わった [手順漏れ]
 
 - 事象: 段 5 の実装子 (Codex `role=author`、workspace-write) が `rc=0` で終了し、
@@ -8391,3 +8399,21 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: 判定式へ field を入れるときは、その field が「狙った事象を起こさない操作」で
   動かないことを確かめる。動くなら診断へ回す。偽陰性 (恒真ゲート) だけでなく
   **偽陽性が実作業を止める側の害**も同じ台帳で数える。
+
+### F344. land 成功後に受入 lease を解放せず、次サイクルと全 wave を塞いだ [手順漏れ]
+
+- 事象: 2026-08-16 の `/rulings` land で、無人スクリプトが `land rc=0` の後に lease を
+  release しなかった。`dev_wave_wait acceptance` は成功時に
+  `acceptance succeeded; lease is held; TTL remaining at most 2400 seconds` と告げるだけで
+  **自動解放しない**。結果 (a) 同じ wave の 2 サイクル目が `stage=claim-self-unverified rc=70` で
+  2 回空振りし (14:19:06 / 14:29:09)、(b) その間ほかの wave の受入投入を塞いだ。
+  手動 release 後は 1 回目の試行で通った (14:34:37 受入緑 → 14:35:33 land)。
+- 根本原因: 自分の lease の自己照合は `claimed_main_sha == main_sha` を含む
+  (`tools/dev_wave_wait.py`)。land は main を前進させるので、**land 後に保持し続けた lease は
+  記録済み main_sha が必ず古くなり、以後その wave 自身も claim できない**。
+  解放を手順に持たない限り TTL 2400 秒 (40 分) の head-of-line blocking が続く。
+- 恒久対応: memory `release-acceptance-lease-after-land` — 無人 land スクリプトは
+  `land rc=0` の直後に
+  `python3 tools/wave_land_window.py release --lease-dir <dir> --wave <slug>` を実行する。
+- 再発検知: 2 サイクル目の投入前に `status --lease-dir <dir> --wave <slug> --json` を 1 回実行し、
+  `state` が `held` かつ `main_sha` が現行 main と異なれば解放漏れである。
