@@ -6947,6 +6947,13 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: 3 点照合を通らない完了申告は、その場で偽完了として扱う。本 wave では 2 回とも
   この照合が偽完了を捕まえ、張り直した待ち手が正しい完了時刻を拾った。
 
+
+- **再発: 2026-08-16** — 段 6 の敵対レビュー A の待ち手が、`.done` も成果物も無く
+  producer が生存 (経過 3 分 15 秒) の状態で **rc=0・出力空**のまま返った。
+  投入から待ち手を張るまでは 2 秒で、実際の完了はその約 30 分後だった。
+  3 点照合が偽完了を捕まえ、`Monitor` で張り直した待ち手が正しい完了時刻を拾った。
+  同 wave の他 5 本 (plan、consult 2 本、author、fix) の待ち手は正常に返っており、
+  偽完了は 6 本中 1 本である。
 ### F269. 4 親の merge が受入全走を恒久的に赤にした [手順漏れ]
 
 - 事象: 2026-08-13 00:45:56 に main へ入った merge `d1de13ad`「Merge 3 rulings branches into
@@ -8796,3 +8803,72 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: `orchestrator/campaign/campaign_lock.py` の `CONTRACT_LOADER_RELATIVE_PATHS` に
   載っている path を編集する wave では、焦点走の赤を実装へ帰属する前に
   統合 commit 後の再走で切り分ける。
+
+### F358. byte 束縛されたソースへの変異は、意味に無関係な共通核で全変異が KILLED に見える [テスト代表性]
+
+- 事象: `pipeline.py` を対象にした変異 13 件が全て KILLED になったが、内訳を見ると
+  44〜56 node のうち **43 node が全変異に共通**していた。この共通核は
+  `contract-loader-drift` (disk bytes が記録 commit blob と不一致) であり、変異の意味とは
+  無関係に「ファイルが 1 byte 変わったこと」だけで発火する。核だけを見て
+  「13/13 KILLED だから検出力がある」と読むと、実際には検出できていない変異
+  (このとき 2 件が該当) を検出済みと誤認する。
+- 根本原因: `campaign_lock` の enforcement source closure に入るソースは、campaign identity が
+  disk bytes と HEAD blob の一致を要求する。変異 harness は HEAD を固定したまま disk を書き換える
+  ため、identity を構築する全テストが変異の内容によらず落ちる。`DW-M03` の「過剰決定した fixture」
+  がソース束縛の形で現れたもの。
+- 恒久対応: `docs/dev-wave/mutation.md` `DW-M02` / `DW-M03` の既存義務 (mask を疑い実効 gate へ
+  再照準する / 過剰決定は単独変異の証拠から外す) を、**共通核の集合演算で機械的に適用する** —
+  全変異の `failed_nodes` の交差を核として取り、核を差し引いた delta が空でないことを
+  変異ごとに確認する。delta が空の変異は KILLED と記録しない。核が非空なら worklog に核の
+  件数と原因を明記する。
+- 再発検知: 変異台帳に核と delta を併記する運用。delta=1 の変異は、その 1 node が唯一の
+  killer であることの証拠になる (本 wave では bench の `record_rep_returncodes=True` 分岐と
+  実 trace 起動の argv がこれに該当した)。
+
+### F359. codex 子は `.git` が read-only で `git merge` を起動できない [手順漏れ]
+
+- 事象: 実装面の main 取り込みを Codex `role=author` の子に投げたところ、
+  `git merge --no-ff --no-commit main` が競合を生成する前に
+  `ORIG_HEAD.lock: Read-only file system` で失敗した。子は差分ゼロで正しく報告して降りたが、
+  1 起動分 (約 2.5 分) が無駄になった。
+- 根本原因: codex の sandbox は working tree を書けても Git 管理領域を書けない。
+  既知の「子は dispatch できず repo 外にも書けない」と同族の制約で、merge は Git 管理領域への
+  書き込みを伴う。
+- 恒久対応: `docs/dev-wave/operations.md` `DW-O17` の merge 手順に、**親が
+  `git merge --no-ff --no-commit` を起こして競合マーカーを作り、Codex `role=author` の子は
+  working tree の競合解決だけを行い、`git add` と commit は親が行う**、という分担を書く。
+  これにより「実装面 path が両親と異なれば Codex `role=author` へ」の義務を満たしたまま
+  実行可能になる。
+- 再発検知: 子の prompt に「`git merge` を自分で実行するな。親が実行済みで競合マーカーが
+  作業木にある」と書く運用。書き忘れても子は fail-closed で降りるため、被害は 1 起動分に留まる。
+
+### F360. 探索 primitive の文字列検索が in-process 呼び出しを落とす [テスト代表性] [手順漏れ]
+
+- 事象: 成長比例テストの全件走査で、子は 209 file / 8,018 top-level test を AST で閉包化し
+  候補 230 件を出したが、少なくとも 11 top-level node を落としていた。落ちた node は
+  `check_docs.main()` や `provenance.main()` を**同一プロセス内で**呼ぶ形と、
+  production の enumerator (`load_role_specs(ROOT)` 等) を経由する形である。
+- 根本原因: 探索 primitive を `(?:check_docs|check_ai_provenance)\.py` のような
+  **実行形の文字列**で定義したため、module 属性経由の呼び出しに構造的に当たらない。
+  subprocess 起動と in-process 呼び出しは同じ費用を払うが、検索面が異なる。
+- 恒久対応: 走査の primitive に「実 ROOT を引数に取る production 関数の呼び出し閉包」を
+  独立の軸として含める。文字列検索の hit 数と候補集合の件数を別々に記録し、
+  ゼロは「宣言した primitive と AST 規則の範囲で未検出」と書く。
+  母集合が閉じたとは書かない (D463 と同 wave の記録)。
+- 再発検知: 棚卸し結果に対する敵対レビューで、同型の取りこぼしを 1 件でも file:line で
+  示せるかを検査面に含める。本 wave では親と敵対レンズ 2 本がそれぞれ独立に検出した。
+
+### F361. 呼び出し閉包の一部だけを見て「非比例」と断定した [捏造/幻覚]
+
+- 事象: 親が段 4 の裁定で、`test_check_ai_provenance.py` の実 repo 2 node を
+  「固定された歴史 commit を渡すので成長比例でない」と断定した。実際は
+  `_audit_history` が毎回 `_scope_policy_commit()` / `_implementation_policy_commit()` を呼び、
+  現在の HEAD に対して `git log -S … -- docs/ai-provenance.md` を走らせる。
+  同じ裁定で「copytree 対象 4 部分木は 1 file も増えていない」とも書いたが、
+  自分が同じ文書に載せた表が `tools/task_runs` の 0 → 7 file を示していた。
+- 根本原因: 入力範囲を決める関数 (`_commit_range`) と祖先展開 (`_build_ancestry`) だけを読み、
+  その手前で毎回走る epoch 探索を読まなかった。表と結論文を別々に書き、突き合わせなかった。
+- 恒久対応: 「非比例」と書く前に**呼び出し閉包を終端まで追い**、自分が同じ文書へ載せた
+  実測表と結論文を突き合わせる。断定を弱める材料が自分の表にあるなら結論を書き換える。
+- 再発検知: 敵対レビューのレンズに「親の実測とその一般化」を明示的に含める
+  (`DW-S03` は既に要求している)。本 wave では段 6 のレビュー 2 本が独立に検出した。
