@@ -70,6 +70,9 @@ from dataclasses import asdict, dataclass
 from typing import Callable, Mapping, Optional
 from pathlib import Path
 
+_DEFAULT_SLEEP_FN = time.sleep
+_DEFAULT_MONOTONIC_FN = time.monotonic
+
 if __package__ in {None, ""}:  # pragma: no cover - direct CLI execution
     sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
     __package__ = "orchestrator.campaign"
@@ -4574,10 +4577,10 @@ def _append_completed_terminal(
 
 
 def _publish_finalize_files(run_dir: Path, staged: tuple) -> None:
-    """phase 3: terminal fsync 後に result/md を atomic create-only publish する。"""
+    """phase 3: terminal fsync 後、補助 md、権威 result の順で publish する。"""
     result_pending, result_payload, md_pending, md_payload = staged
-    _publish_staged_create_only(result_pending, Path(run_dir) / "result.json", result_payload)
     _publish_staged_create_only(md_pending, Path(run_dir) / "result.md", md_payload)
+    _publish_staged_create_only(result_pending, Path(run_dir) / "result.json", result_payload)
 
 
 def _finalize(run_dir: Path, staged: tuple, journal_path: Path, *,
@@ -4586,9 +4589,10 @@ def _finalize(run_dir: Path, staged: tuple, journal_path: Path, *,
     """二相 finalize: staged+fsync → completed terminal+fsync → atomic publish。
 
     terminal→publish 間 crash は ``M-finalize-pending`` として publish だけを再開する。
-    completed terminal は一意かつ journal 最終 record であり、result/md が先に可視になる
-    状態を作らない。``terminal_already_completed=True`` の uniqueness re-check は、通常の
-    classify 済み経路では恒真となる defense-in-depth であり、独立保証には数えない。
+    completed terminal は一意かつ journal 最終 record である。補助 ``result.md`` は
+    consumer の権威 ``result.json`` より先に publish し、二つの publish 間で停止しても
+    result.json を可視にしない。``terminal_already_completed=True`` の uniqueness re-check は、
+    通常の classify 済み経路では恒真となる defense-in-depth であり、独立保証には数えない。
     """
     if terminal_already_completed:
         records = _read_journal(journal_path)
@@ -4634,8 +4638,8 @@ _PUBLIC_CALLABLE_SEAM_NAMES = frozenset({
 
 
 def _nondefault_campaign_seams(
-        *, measure_fn=None, probe_fn=None, sleep_fn=time.sleep,
-        monotonic_fn=time.monotonic, prepare_fn=None, now_fn=None,
+        *, measure_fn=None, probe_fn=None, sleep_fn=_DEFAULT_SLEEP_FN,
+        monotonic_fn=_DEFAULT_MONOTONIC_FN, prepare_fn=None, now_fn=None,
         host_provenance_fn=None, process_identity_fn=None,
         execution_receipt_fn=None, build_fn=None, repo_root=None,
         after_certificate_issued_fn=None, durable_root_policy=None,
@@ -4646,8 +4650,8 @@ def _nondefault_campaign_seams(
     return frozenset(name for name, present in {
         "measure_fn": measure_fn is not None,
         "probe_fn": probe_fn is not None,
-        "sleep_fn": sleep_fn is not time.sleep,
-        "monotonic_fn": monotonic_fn is not time.monotonic,
+        "sleep_fn": sleep_fn is not _DEFAULT_SLEEP_FN,
+        "monotonic_fn": monotonic_fn is not _DEFAULT_MONOTONIC_FN,
         "prepare_fn": prepare_fn is not None,
         "now_fn": now_fn is not None,
         "host_provenance_fn": host_provenance_fn is not None,
@@ -4667,7 +4671,11 @@ def _nondefault_campaign_seams(
 def _derive_refreeze_eligibility(
         *, mode, resume_dir, nondefault_seams: frozenset[str],
 ) -> bool:
-    """Canonical official・fresh・非既定 seam ゼロだけを適格化する。"""
+    """Canonical official・fresh・非既定 seam ゼロだけを適格化する。
+
+    ``type(mode)`` は検証済み core local に対する defense-in-depth であり、独立保証には
+    数えない。入口の exact-type 検証が主防壁である。
+    """
     return (
         type(mode) is str
         and mode == "official"
@@ -4677,8 +4685,8 @@ def _derive_refreeze_eligibility(
 
 
 def run_campaign(protocol, freeze_doc, *, out_root, mode, resume_dir=None,
-                 measure_fn=None, probe_fn=None, sleep_fn=time.sleep,
-                 monotonic_fn=time.monotonic, prepare_fn=None, now_fn=None,
+                 measure_fn=None, probe_fn=None, sleep_fn=_DEFAULT_SLEEP_FN,
+                 monotonic_fn=_DEFAULT_MONOTONIC_FN, prepare_fn=None, now_fn=None,
                  host_provenance_fn=None, process_identity_fn=None,
                  execution_receipt_fn=None, build_fn=None, repo_root=None,
                  after_certificate_issued_fn=None,
@@ -4723,8 +4731,8 @@ def run_campaign(protocol, freeze_doc, *, out_root, mode, resume_dir=None,
 
 
 def _run_campaign_core(protocol, freeze_doc, *, out_root, mode, resume_dir=None,
-                       measure_fn=None, probe_fn=None, sleep_fn=time.sleep,
-                       monotonic_fn=time.monotonic, prepare_fn=None, now_fn=None,
+                       measure_fn=None, probe_fn=None, sleep_fn=_DEFAULT_SLEEP_FN,
+                       monotonic_fn=_DEFAULT_MONOTONIC_FN, prepare_fn=None, now_fn=None,
                        host_provenance_fn=None, process_identity_fn=None,
                        execution_receipt_fn=None, build_fn=None, repo_root=None,
                        after_certificate_issued_fn=None,
@@ -4770,6 +4778,11 @@ def _run_campaign_core(protocol, freeze_doc, *, out_root, mode, resume_dir=None,
     result = None
 
     def apply_refreeze_eligibility() -> None:
+        """捕捉済み入口判定を result へ写す call-order invariant。
+
+        ``result is None`` は直接 helper 呼出し向け defense-in-depth であり、現行 core の
+        assembly 直後 callsite では到達不能なので独立保証には数えない。
+        """
         if result is None:  # pragma: no cover - local call order invariant
             raise AssertionError("result assembly より前に refreeze finalizer が呼ばれた")
         result["eligible_for_refreeze"] = eligible_for_refreeze
