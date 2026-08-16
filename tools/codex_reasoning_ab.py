@@ -280,27 +280,49 @@ def _git(repo: Path, *args: str, input_bytes: bytes | None = None) -> bytes:
     return _run(("git", *args), cwd=repo, input_bytes=input_bytes).stdout
 
 
-def _rollout_matches_session(path: Path, session_id: str) -> bool:
-    for row in _session_meta_rows(path):
+def _rollout_matches_session(path: Path, target_session_id: str) -> bool:
+    owns_target = False
+    first_owns_target = False
+    declares_target = False
+    for index, row in enumerate(_session_meta_rows(path)):
         if row.get("type") != "session_meta":
             continue
         payload = row.get("payload")
         if not isinstance(payload, dict):
             continue
-        if payload.get("id") == session_id or payload.get("session_id") == session_id:
-            return True
-    return False
+
+        if "id" not in payload:
+            own_session_id = payload.get("session_id")
+        else:
+            payload_id = payload.get("id")
+            own_session_id = (
+                payload_id
+                if isinstance(payload_id, str) and payload_id
+                else None
+            )
+
+        if own_session_id == target_session_id:
+            owns_target = True
+            if index == 0:
+                first_owns_target = True
+        if (
+            own_session_id != target_session_id
+            and payload.get("session_id") == target_session_id
+        ):
+            declares_target = True
+
+    return owns_target and (first_owns_target or not declares_target)
 
 
 def _find_rollout(
     sessions_root: Path,
-    session_id: str,
+    target_session_id: str,
     *,
     pinned_label: str | None = None,
 ) -> Path:
     eligible = (
         pinned_label is not None
-        and SESSION_IDS.get(pinned_label) == session_id
+        and SESSION_IDS.get(pinned_label) == target_session_id
         and pinned_label in ROLLOUT_SHA256
     )
     if eligible:
@@ -308,8 +330,8 @@ def _find_rollout(
         try:
             assert pinned_label is not None
             separators = (os.sep,) if os.altsep is None else (os.sep, os.altsep)
-            if not any(separator in session_id for separator in separators):
-                escaped = glob.escape(session_id)
+            if not any(separator in target_session_id for separator in separators):
+                escaped = glob.escape(target_session_id)
                 candidates = sorted(
                     sessions_root.rglob(f"rollout-*-{escaped}.jsonl"),
                     key=os.fspath,
@@ -319,7 +341,9 @@ def _find_rollout(
         except Exception:
             pass
 
-        if candidate is not None and _rollout_matches_session(candidate, session_id):
+        if candidate is not None and _rollout_matches_session(
+            candidate, target_session_id
+        ):
             try:
                 resolved = candidate.resolve()
                 assert pinned_label is not None
@@ -331,11 +355,11 @@ def _find_rollout(
 
     matches: list[Path] = []
     for path in sorted(sessions_root.rglob("rollout-*.jsonl"), key=os.fspath):
-        if _rollout_matches_session(path, session_id):
+        if _rollout_matches_session(path, target_session_id):
             matches.append(path.resolve())
     if len(matches) != 1:
         raise ValidationError(
-            f"session {session_id} rollout count is {len(matches)}, expected 1",
+            f"session {target_session_id} rollout count is {len(matches)}, expected 1",
             RC_SESSION,
         )
     return matches[0]

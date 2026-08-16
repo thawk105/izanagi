@@ -1975,7 +1975,7 @@ def test_git_answer_object_reinjection_is_rejected(
         TOOL.verify_snapshot(snapshot, "NEG")
 
 
-def test_find_rollout_session_meta_encoding_and_payload_field_equivalence(
+def test_find_rollout_session_meta_encoding_and_payload_identity_semantics(
     tmp_path: Path,
 ) -> None:
     session_id = "target-session"
@@ -2013,6 +2013,15 @@ def test_find_rollout_session_meta_encoding_and_payload_field_equivalence(
         sessions_root.mkdir()
         rollout = sessions_root / f"rollout-{name}.jsonl"
         rollout.write_bytes(content)
+
+        if name == "distinct-fields":
+            with pytest.raises(TOOL.ValidationError) as excinfo:
+                TOOL._find_rollout(sessions_root, session_id)
+            assert excinfo.value.rc == TOOL.RC_SESSION
+            assert str(excinfo.value) == (
+                "session target-session rollout count is 0, expected 1"
+            )
+            continue
 
         assert TOOL._find_rollout(sessions_root, session_id) == rollout.resolve(), name
 
@@ -2217,6 +2226,156 @@ def _write_rollout(path: Path, content: bytes) -> Path:
     return path
 
 
+def _identity_session_meta_bytes(
+    payload_id: Any,
+    root_session_id: str,
+    *,
+    fork_marker: bool = False,
+) -> bytes:
+    payload: dict[str, Any] = {
+        "id": payload_id,
+        "session_id": root_session_id,
+    }
+    if fork_marker:
+        payload["source"] = {"subagent": {"thread_spawn": {}}}
+        payload["forked_from_id"] = root_session_id
+    return (
+        json.dumps(
+            {"type": "session_meta", "payload": payload},
+            ensure_ascii=False,
+            separators=(",", ":"),
+        ).encode("utf-8")
+        + b"\n"
+    )
+
+
+def test_find_rollout_disambiguates_parent_from_child_root_reference(
+    tmp_path: Path,
+) -> None:
+    parent_id = "parent-session"
+    child_id = "child-session"
+    parent = _write_rollout(
+        tmp_path / "rollout-0.jsonl",
+        _identity_session_meta_bytes(parent_id, parent_id),
+    )
+    child = _write_rollout(
+        tmp_path / "rollout-1.jsonl",
+        _identity_session_meta_bytes(child_id, parent_id),
+    )
+
+    assert TOOL._find_rollout(tmp_path, parent_id) == parent.resolve()
+    assert TOOL._find_rollout(tmp_path, child_id) == child.resolve()
+
+
+def test_find_rollout_disambiguates_fork_with_copied_parent_meta(
+    tmp_path: Path,
+) -> None:
+    parent_id = "parent-session"
+    child_id = "child-session"
+    parent = _write_rollout(
+        tmp_path / "rollout-0.jsonl",
+        _identity_session_meta_bytes(parent_id, parent_id),
+    )
+    child = _write_rollout(
+        tmp_path / "rollout-1.jsonl",
+        _identity_session_meta_bytes(
+            child_id, parent_id, fork_marker=True
+        )
+        + _identity_session_meta_bytes(parent_id, parent_id),
+    )
+
+    assert TOOL._find_rollout(tmp_path, parent_id) == parent.resolve()
+    assert TOOL._find_rollout(tmp_path, child_id) == child.resolve()
+
+
+def test_find_rollout_fork_with_parent_meta_first_remains_ambiguous(
+    tmp_path: Path,
+) -> None:
+    parent_id = "parent-session"
+    child_id = "child-session"
+    _write_rollout(
+        tmp_path / "rollout-0.jsonl",
+        _identity_session_meta_bytes(parent_id, parent_id),
+    )
+    child = _write_rollout(
+        tmp_path / "rollout-1.jsonl",
+        _identity_session_meta_bytes(parent_id, parent_id)
+        + _identity_session_meta_bytes(
+            child_id, parent_id, fork_marker=True
+        ),
+    )
+
+    with pytest.raises(TOOL.ValidationError) as excinfo:
+        TOOL._find_rollout(tmp_path, parent_id)
+    assert excinfo.value.rc == TOOL.RC_SESSION
+    assert str(excinfo.value) == (
+        "session parent-session rollout count is 2, expected 1"
+    )
+    assert TOOL._find_rollout(tmp_path, child_id) == child.resolve()
+
+
+def test_find_rollout_appended_child_reference_does_not_promote_duplicate(
+    tmp_path: Path,
+) -> None:
+    parent_id = "parent-session"
+    parent_content = _identity_session_meta_bytes(parent_id, parent_id)
+    _write_rollout(tmp_path / "rollout-0.jsonl", parent_content)
+    _write_rollout(
+        tmp_path / "rollout-1.jsonl",
+        parent_content
+        + _identity_session_meta_bytes("child-session", parent_id),
+    )
+
+    with pytest.raises(TOOL.ValidationError) as excinfo:
+        TOOL._find_rollout(tmp_path, parent_id)
+    assert excinfo.value.rc == TOOL.RC_SESSION
+    assert str(excinfo.value) == (
+        "session parent-session rollout count is 2, expected 1"
+    )
+
+
+@pytest.mark.parametrize(
+    ("payload_id", "variant"),
+    (
+        pytest.param(None, "null", id="null"),
+        pytest.param(0, "zero", id="zero"),
+        pytest.param("", "empty-string", id="empty-string"),
+    ),
+)
+def test_find_rollout_non_string_id_does_not_fall_back_to_root_session(
+    tmp_path: Path, payload_id: Any, variant: str
+) -> None:
+    session_id = "target-session"
+    sessions_root = tmp_path / variant
+    _write_rollout(
+        sessions_root / "rollout-0.jsonl",
+        _identity_session_meta_bytes(payload_id, session_id),
+    )
+
+    with pytest.raises(TOOL.ValidationError) as excinfo:
+        TOOL._find_rollout(sessions_root, session_id)
+    assert excinfo.value.rc == TOOL.RC_SESSION
+    assert str(excinfo.value) == (
+        "session target-session rollout count is 0, expected 1"
+    )
+
+
+def test_find_rollout_true_duplicate_parent_identity_remains_rejected(
+    tmp_path: Path,
+) -> None:
+    parent_id = "parent-session"
+    parent_content = _identity_session_meta_bytes(parent_id, parent_id)
+    _write_rollout(tmp_path / "rollout-0.jsonl", parent_content)
+    _write_rollout(tmp_path / "rollout-1.jsonl", parent_content)
+
+    with pytest.raises(TOOL.ValidationError) as excinfo:
+        TOOL._find_rollout(tmp_path, parent_id)
+    assert excinfo.value.rc == TOOL.RC_SESSION
+    assert str(excinfo.value) == (
+        "session parent-session rollout count is 2, expected 1"
+    )
+
+
 def _install_rollout_pin(
     monkeypatch: pytest.MonkeyPatch,
     *,
@@ -2228,6 +2387,74 @@ def _install_rollout_pin(
     monkeypatch.setitem(
         TOOL.ROLLOUT_SHA256, label, hashlib.sha256(content).hexdigest()
     )
+
+
+@pytest.mark.parametrize("fork_marker", (False, True), ids=("type-a", "type-b"))
+def test_find_rollout_pinned_rejects_child_candidate_before_full_scan(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    fork_marker: bool,
+) -> None:
+    label = "test-parent-child-disambiguation"
+    parent_id = "parent-session"
+    child_id = "child-session"
+    parent_content = _identity_session_meta_bytes(parent_id, parent_id)
+    child_content = _identity_session_meta_bytes(
+        child_id, parent_id, fork_marker=fork_marker
+    )
+    if fork_marker:
+        child_content += parent_content
+    child = _write_rollout(
+        tmp_path / f"rollout-child-{parent_id}.jsonl", child_content
+    )
+    parent = _write_rollout(
+        tmp_path / "rollout-parent.jsonl", parent_content
+    )
+    _install_rollout_pin(
+        monkeypatch,
+        label=label,
+        session_id=parent_id,
+        content=child_content,
+    )
+    real_verify = TOOL._verify_rollout_sha
+    verified: list[tuple[Path, str]] = []
+
+    def record_successful_verification(path: Path, pin_label: str) -> None:
+        real_verify(path, pin_label)
+        verified.append((path, pin_label))
+
+    monkeypatch.setattr(
+        TOOL, "_verify_rollout_sha", record_successful_verification
+    )
+
+    assert child != parent
+    assert (
+        TOOL._find_rollout(tmp_path, parent_id, pinned_label=label)
+        == parent.resolve()
+    )
+    assert verified == []
+
+    verified_root = tmp_path / "verified"
+    verified_id = f"verified-{fork_marker}"
+    verified_content = _identity_session_meta_bytes(verified_id, verified_id)
+    verified_candidate = _write_rollout(
+        verified_root / f"rollout-parent-{verified_id}.jsonl",
+        verified_content,
+    )
+    _install_rollout_pin(
+        monkeypatch,
+        label=label,
+        session_id=verified_id,
+        content=verified_content,
+    )
+
+    assert (
+        TOOL._find_rollout(
+            verified_root, verified_id, pinned_label=label
+        )
+        == verified_candidate.resolve()
+    )
+    assert verified == [(verified_candidate.resolve(), label)]
 
 
 def test_find_rollout_pinned_checks_content_before_returning(
