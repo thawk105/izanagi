@@ -836,15 +836,31 @@ def _registry_clock_self_passes(profile) -> bool:
     return eg.effective_clock_comparison_passes(expected, observed)
 
 
-def test_registry_effective_clock_self_failures_are_exact_known_exception():
-    """この既知例外は [T-419] の U-1/U-2 が閉じたときに削除する。"""
-    assert len(KNOWN_SELF_INCONSISTENT_CALIBRATIONS) == 1
+def _registered_and_ever_active_entries():
+    entries_by_sha256 = {}
+    for registry_key, sequence in ec.GENERATIONS.items():
+        for entry in sequence:
+            contract_sha256 = entry.contract.contract_sha256
+            assert contract_sha256 not in entries_by_sha256
+            entries_by_sha256[contract_sha256] = (registry_key, entry)
+
+    state = ec.current_activation_state()
+    for contract_sha256 in state.ever_active_contract_sha256s:
+        assert contract_sha256 in entries_by_sha256
+    return tuple(sorted(
+        entries_by_sha256.values(),
+        key=lambda item: (item[0], item[1].generation),
+    ))
+
+
+def _registered_clock_self_audit(profile_overrides=None):
+    overrides = {} if profile_overrides is None else profile_overrides
     self_failures = set()
     checked_entries = 0
     required_entries = 0
-
-    for registry_key, contract in ec.REGISTRY.items():
+    for registry_key, entry in _registered_and_ever_active_entries():
         checked_entries += 1
+        contract = entry.contract
         verified = ea.load_verified_calibration(contract, REPO_ROOT)
         if contract.attestation_mode == "none":
             assert verified.schema_version == "calibration/v1"
@@ -854,18 +870,31 @@ def test_registry_effective_clock_self_failures_are_exact_known_exception():
         assert contract.attestation_mode == "required"
         required_entries += 1
         assert verified.calibration is not None
-        profile = verified.calibration.attestation_profile
+        profile = overrides.get(
+            contract.contract_sha256,
+            verified.calibration.attestation_profile,
+        )
         assert (profile.effective_clock.tolerance_pct
                 == effective_clock_policy.EFFECTIVE_CLOCK_TOLERANCE_PCT)
         ref = (contract.calibration_ref.path, contract.calibration_ref.sha256)
         passes = _registry_clock_self_passes(profile)
         if not passes:
             self_failures.add(ref)
-        if ref not in KNOWN_SELF_INCONSISTENT_CALIBRATIONS:
+        if (contract.contract_sha256 not in overrides
+                and ref not in KNOWN_SELF_INCONSISTENT_CALIBRATIONS):
             assert passes, f"new self-inconsistent calibration: {registry_key} {ref}"
+    return self_failures, checked_entries, required_entries
 
-    assert checked_entries == 2
-    assert required_entries == 1
+
+def test_registry_effective_clock_self_failures_are_exact_known_exception():
+    """この既知例外は [T-419] の U-1/U-2 が閉じたときに削除する。"""
+    assert len(KNOWN_SELF_INCONSISTENT_CALIBRATIONS) == 1
+    self_failures, checked_entries, required_entries = (
+        _registered_clock_self_audit()
+    )
+
+    assert checked_entries == 3
+    assert required_entries == 2
     assert self_failures == KNOWN_SELF_INCONSISTENT_CALIBRATIONS
 
     base = ea.load_verified_calibration(ec.lookup("pegasus"), REPO_ROOT)
@@ -879,6 +908,36 @@ def test_registry_effective_clock_self_failures_are_exact_known_exception():
         ),
     )
     assert not _registry_clock_self_passes(synthetic)
+
+
+def test_registered_never_active_g2_clock_drift_is_detected():
+    g2 = ec.GENERATIONS["pegasus"][1]
+    state = ec.current_activation_state()
+    assert g2.contract.contract_sha256 not in state.ever_active_contract_sha256s
+    assert all(
+        contract.contract_sha256 != g2.contract.contract_sha256
+        for contract in ec.REGISTRY.values()
+    )
+    verified = ea.load_verified_calibration(g2.contract, REPO_ROOT)
+    assert verified.calibration is not None
+    profile = verified.calibration.attestation_profile
+    drifted = dataclasses.replace(
+        profile,
+        effective_clock=dataclasses.replace(
+            profile.effective_clock,
+            samples_mhz=[*profile.effective_clock.samples_mhz[:-1], 3080.0],
+        ),
+    )
+    g2_ref = (
+        g2.contract.calibration_ref.path,
+        g2.contract.calibration_ref.sha256,
+    )
+    self_failures, checked_entries, required_entries = (
+        _registered_clock_self_audit({g2.contract.contract_sha256: drifted})
+    )
+    assert checked_entries == 3
+    assert required_entries == 2
+    assert self_failures == KNOWN_SELF_INCONSISTENT_CALIBRATIONS | {g2_ref}
 
 
 def test_registry_policy_equality_rejects_near_and_rounded_values():

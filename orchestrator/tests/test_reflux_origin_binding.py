@@ -109,10 +109,14 @@ def _effective_capability(
         freeze_generation=1,
         protected_sha256="1" * 64,
         freeze_reason_code="valid",
+        decider_version=module.DECIDER_VERSION,
+        decider_version_matches=True,
+        decider_version_reason_code="decider-version-match",
         section5_findings=(),
         predicates=(),
         core_module_blob_sha256="2" * 64,
         evaluator_module_blob_sha256="3" * 64,
+        projection_module_blob_sha256="4" * 64,
         effective=True,
     )
     capability = module._construct_effective(report)

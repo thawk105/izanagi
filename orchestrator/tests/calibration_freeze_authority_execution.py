@@ -134,7 +134,9 @@ def _activation_invocation(
                 generation=registered_next.generation,
                 contract_sha256=registered_next.contract.contract_sha256,
             )
-            if not current._is_valid_activation_successor(row, successor):
+            if not current._is_valid_activation_successor_with_artifact(
+                row, successor,
+            ):
                 raise ContractError("production successor predicate が pegasus g1→g2 を拒否した")
             successor_rows_list.append(successor)
             changed = True

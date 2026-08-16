@@ -19095,3 +19095,196 @@ raw receipt が到達可能な環境でだけ検算できる。この境界を m
 **却下した選択肢:**
 - digest に残す — 成果物が測定 repo の HEAD に依存し、別 root での検証が必ず不一致になる。
 - field ごと削除する — 片側改変の検出という現に効いている性質まで失う。
+
+## D458. 8c 事前登録は判定器の版を凍結記録へ 1 個記録し、発効判定が一致を要求する (2026-08-16)
+
+**決定:** 段 8c の条件契約凍結は、判定器 (`s8c_preregistration.py`)・評価器
+(`s8c_preregistration_evidence.py`)・射影 (`s8c_generation_projection.py`) の bytes 全体を凍結範囲へ
+入れない。代わりに次を行う。
+
+1. 判定器 core が `DECIDER_VERSION` を 1 個宣言し、この 1 定数が 3 者の受理意味を代表する。
+   3 者のいずれかで受理集合・拒否理由・射影された判定入力の意味を変える変更は、bytes 差の有無に
+   関わらず明示的に bump する。整形など意味不変の変更では bump しない。
+2. 凍結記録 schema に `decider_version` を必須 key として持つ v2 を足す。v1 記録は legacy として
+   読めるまま残す (履歴上の世代 record は不変であり改変できないため)。新規発行は常に v2 とする。
+3. 発効判定は tip 記録の版と走っている `DECIDER_VERSION` の一致を要求する。tip が v1 のときは
+   値を比較せず無条件に `decider-version-unbound` として発効させない (schema-first)。
+   走っている定数は厳密型 (`str` そのもの) と閉じた形式でのみ受理する。
+4. `ActivationReport` に版・一致結果・理由コードを持たせる。報告 digest は dataclass 全体から
+   導出されるため、版 X で発行した capability は版 Y では再導出時に digest が一致しない。
+5. 判定器・評価器にだけ存在した「走っているコードが判定対象 commit の blob と一致すること」の
+   検査を、射影モジュールへも同型に広げる。3 者の同一性検査は
+   core → evaluator → projection の順で連続して行い、すべて通ったときだけ評価器を実行する。
+
+**理由:**
+- bytes 全体の凍結は、無関係な整形変更でも世代を上げる必要を生み、開発を止める型の検証機構になる。
+  防ぎたいのは「気付かずに受理意味が変わること」であり、粗い provenance で足りる既定方針の下では
+  版の一致検査で十分である (ユーザー裁定)。
+- 記録の改竄は既存の `generation-mutated` (同一 path の blob OID は履歴全体で 1 つ) と
+  `supersedes_sha256` 連鎖が塞ぐ。版 field を `protected_sha256` の preimage へ入れると、
+  記録自身の field から期待値を作って同じ記録と突き合わせる恒真検査になるため入れない。
+- 射影だけを変えた子孫 commit では、同じ世代・同じ版のまま実行の意味が変わりうる。これは凍結範囲を
+  広げる話ではなく、判定器・評価器に既に存在する同一性契約が 1 モジュール分だけ欠けていた穴である。
+
+**却下した選択肢:**
+- 判定器・評価器・射影の bytes 全体を凍結範囲へ入れる — 上記の理由でユーザーが不採用とした。
+- `spurious-revision` (保護 hash 不変の世代追加を赤にする規則) に「版が違えば許す」例外を作る —
+  事前登録の正本 doc の保護ブロックが「世代だけを増やす空改訂は機械検査で赤になる」と定めており、
+  実装だけが規範を変えることになる。版を記録する世代は、同じ commit で正本 doc の改訂手続きを
+  改訂すれば保護 hash が変わり、空改訂ではなくなるため例外を必要としない。
+- 版の bump 忘れを機械検出する module 変更 gate を足す — bytes 凍結の再導入であり裁定に反する。
+  検出できないことは限界として記録する。
+
+**この決定が保証しないこと:**
+- 受理意味を変えたのに `DECIDER_VERSION` を bump しなかった場合は検出しない。版の一致検査は
+  「明示的に bump された後に古い世代の記録を使い続けること」を止めるものであり、bump 忘れは
+  裁定が受け入れた手動 provenance の範囲に残る。
+- 3 者の同一性検査は、検査時点のファイル bytes と対象 commit の blob を比べる。既に import 済みの
+  コードを束縛するものではない (判定器・評価器の既存契約と同じ性質であり、本決定が新設した穴ではない)。
+
+## D459. 世代を有効にする根拠を較正 artifact の 4 面へ広げ、方式名だけを発行時に限る (2026-08-16)
+
+**決定:** 環境契約の後継判定を 2 層に分ける。構造判定 (`is_valid_successor` = 変わってよいのは
+calibration の path と sha だけ) はそのまま残し、その後段に較正 artifact を読む admission を置く。
+admission が要求するのは次の 4 面である。
+
+1. **自己整合** — 記録された effective clock の全標本が、同じ列の中央値から `tolerance_pct` で
+   作った帯に入ること。
+2. **content-addressed path** — `calibration_ref.path` が
+   `output/env/<env_tag>/calibration/registered/calibration-<sha256 先頭 16 桁>.json` であること。
+3. **acquisition receipt の内部束縛** — 既存の型付き admission (qsub/PBS ID の一致、
+   `pinned_clean`、`ht_off`、known-values、`quality.status`) が成立すること。
+4. **取得方式名の実体一致** — `effective_clock.method` が現行 probe 定数と exact 一致すること。
+
+**1〜3 は全遷移に適用し、4 は発行経路だけに適用する。** さらに 4 は、その遷移の後継が
+**既存 chain でまだ一度も active になっていない場合だけ**に効かせる。
+
+**理由:**
+
+- 従来の根拠は `quality.status == accepted` という自己申告 1 語だけだった。1〜3 は同じ artifact の
+  bytes から機械的に再計算でき、根拠を自己申告から独立再導出へ移せる。
+- **4 を全遷移へ適用してはならない。** activation chain は読み込みのたびに過去の全遷移へ
+  後継判定を再適用する。方式名は可変な現行 probe 定数との比較なので、probe を改良した時点で
+  既に有効な過去の遷移が落ち、authority 全体が読めなくなる。これは D329 が取り除いた
+  「probe の改良で過去の登録が構造的に通らなくなる」型そのものである。
+  1〜3 は artifact の bytes だけから決まるため、いつ再生しても結果が変わらない。
+- **4 を発行経路の全遷移へ適用してもいけない。** 発行 tool は既存記録を含む chain 全体を検証するため、
+  記録が 2 本以上になった後に probe を改良すると新しい記録を一切発行できなくなる。
+  「これから active にする世代を狭める」という要求は、後継が未 ever-active の場合に限る形で満たす。
+- 実測 (本 wave): 登録済み第 2 世代の method は現行 probe 定数と一致し、第 1 世代は一致しない。
+  正例と負例が実在の凍結 bytes で揃う。第 1 世代は自己整合にも失敗するため、
+  方式名だけの単独負例には使わず、面ごとに 1 面だけを壊した合成 successor を使う。
+- 拒否は面の名前 (`self-consistency` / `clock-method` / `content-address` /
+  `acquisition-receipt`) を持つ例外で送出し、上位の `ActivationRecordError` に原因として連鎖させる。
+  bool へ潰すと、止まった理由が運用者に届かない。
+
+**却下した選択肢:**
+
+- **歴史 resolver へ自己整合 gate を置く** — 実測で、この resolver は歴史成果物専用ではなく
+  live campaign の COMMIT 監査・床値 admission・reflux closure を含む 6 consumer に載っている。
+  唯一の自己不整合 artifact は現に active な第 1 世代なので、gate を置けば今日動いている経路が
+  止まり、例外を置けば規律 2 を緩めた恒久例外になる。どちらも採らず、
+  「新たに ever-active になる較正を止める」という前向きの形だけを実装した。
+- **登録済み全世代を production の authority load で走査する** — 未 active 世代の異常だけで
+  今日の起動が止まり、受理集合が変わる。走査の拡張は検査網 (テスト層) に置いた。
+- **実行時 attestation の method 比較を実体一致へ変える** — D329 の反転であり、
+  pegasus の全 attestation が即座に落ちる。別途ユーザー裁定へ返した。
+- **共有 `_verify_entry_calibration` を admission から呼ぶ** — 同じ較正を 2 回読んで parse するため、
+  acquisition receipt 面の拒否理由がもう一方の load に隠され、単一理由性が壊れる。
+  admission 側で 1 回だけ読む形にした。共有関数自体は変更していない。
+
+## D460. 床値 protocol の path を index authority から解決し、caller に選ばせない (2026-08-16)
+
+**決定:** `certified_writer_admission` が持っていた床値 protocol の literal path を削除し、
+既存の protocol index から**現行 env 契約の contract hash に一致する record を exact 1 件**返す
+resolver 経由にする。resolver の引数は repository root だけで、path・contract hash・ccbench pin・
+env tag を caller に渡させない。resolver は record (bytes と sha を持つ) を返し、admission は
+**再読した bytes の SHA-256 を record と再照合してから**現行契約との検証へ進む。
+
+**理由:**
+
+- 呼び手が path を選べる形にすると、committed で safe な path であっても
+  「未承認の別 protocol を admission の対象として選べる」受理拡大になる。
+  引数を root だけにすれば、その面は構造的に作られない。
+- **選択条件に ccbench pin を入れてはならない。** 実測: index の唯一の record の pin は
+  `d706650c…` で、HEAD の gitlink `511c9538…` と一致しない。pin を条件に入れると今日 0 件になり、
+  床値の受理経路が壊れる。
+- index を走査した後に live filesystem から無照合で読み直す形は、走査と再読の間の差し替えを
+  束縛しない。record が持つ sha との再照合でこれを閉じた。
+
+**却下した選択肢:**
+
+- **receipt に `protocol_path` と hash の field を足す** — 提出側が検証対象を選ぶ面を作る。
+- **resolver に複数候補の拒否分岐を足して検出力として数える** — index が同一 contract hash の
+  2 件目を上流で既に拒否しており、production では到達不能な等価変異になる。
+  防御的に閉じるだけとし、テストと変異登録には数えない。
+- **床値 path を持つ他 module と shell wrapper も同時に配線し直す** — 実投入経路の全層に及ぶため
+  本 wave の scope を超える。literal が resolver の結果と一致することを固定する検査だけを置き、
+  配線そのものは裁定パッケージへ返した。
+
+## D461. 床値 pilot の承認は投入引数で渡し、値を submission nonce に束縛する (2026-08-16)
+
+**決定:** 標準投入経路における床値 pilot の不可逆承認は、投入器 `tools/pegasus/submit_floor.sh` の
+zero-arity 引数 `--confirm-irreversible-pilot-holdout` で人間が明示的に渡す。承認時だけ
+`qsub -v` へ `IZANAGI_CONFIRM_IRREVERSIBLE_PILOT_HOLDOUT=<submission nonce>` を追加し、
+job script は **submission nonce との exact 一致**を確認したときだけ driver argv の末尾へ既存 CLI flag
+`--confirm-irreversible-pilot-holdout` を 1 個 append する。承認 env が設定済みで不一致 (空文字を含む)
+なら、build と driver より前に既存 `write_failure` の `submit_binding` で停止する。
+承認 env が未設定なら flag を渡さない。
+
+**この決定が保証すること**は「標準投入経路で明示 token を要求する運用 gate」だけである。
+**承認主体の人間性は保証しない** (D356)。raw `qsub`、driver 直接起動、Python API 直接呼出し、
+投入器自身の hidden drift は保証範囲外であり、これらは非標準・非認証経路として扱う。
+
+**理由:**
+
+- 変更前は wrapper が driver へ `--mode pilot` と `--protocol` しか渡さず、driver 側の承認 gate に
+  よって**標準投入経路から床値 pilot が 1 回も起動できなかった**。CLI flag は既に存在していたので、
+  欠けていたのは投入経路の運び手だけである。
+- 値を固定 literal にしないのは、投入者の shell 環境に同名の変数が残っているだけで全投入が
+  承認済みになる事故を防ぐためである。scheduler が `-v` 指定外の環境を継承するかは未実測であり、
+  nonce は投入器が実行時に生成するので ambient 環境には構造的に存在し得ない。
+  この束縛は新しい artifact も schema も作らず、既存の submission nonce を再利用するだけである。
+- 不一致を fail-closed にしたのは、承認の意図が壊れている投入で一回性 key を焼かないためである。
+  安全側の availability 低下 (投入が止まる) は、未承認の不可逆消費より望ましい。
+
+**却下した選択肢:**
+
+- **submit receipt へ承認 field を足して env と一致を要求する** — D356 が「receipt を足せば
+  人間承認を表現できる」を既に却下している。加えて receipt の exact key 集合は job 側と
+  `certified_writer_admission` の 2 箇所にあり、後者は driver より前に走るため、
+  field を足すと**承認付き job が driver 到達前に全滅する**。env を立てられる主体は driver を
+  直接起動できるので、この束縛は弱い経路だけを塞ぎ強い経路を塞がない。
+- **承認 receipt (repo 外) の実在を wrapper が確認する** — 新しい承認機構の新設に当たり、
+  粗い provenance で足りるという既定方針と衝突する。
+- **wrapper で無条件に承認 flag を渡す** — 一回性 key を既定で消費する。
+- **driver 側の gate を緩める** — 規律 2 に直接違反する。gate は 1 byte も変更していない。
+
+## D462. snapshot oracle は submodule の初期化を無条件に要求する (2026-08-16)
+
+**決定:** `verify_snapshot` は submodule manifest の**全行**について `initialization == "initialized"`
+を要求し、満たさない行ごとに reason を積む。この検査は `expected` (spec) を一切参照せず、
+`git_object_closure` の分岐の外に置く。したがって caller は spec でも closure 設定でも
+受理集合を広げられない。oracle document の key 集合は変えないので、受理され続ける snapshot の
+`manifest_sha256` と schedule 突合・replay bytes 比較は不変である。
+
+**理由:**
+- 既定 spec は 9 key しか pin せず submodule 系を含まないため、pin 済み manifest との照合節は
+  既定経路で常に不発だった。CCBench の作業木を持たない snapshot が「pin された木」として
+  certified 選択の材料になりうる状態が、この wave まで残っていた。
+- 深さを限定しない根拠は運用契約の実測である。受入 claim 前の `preflight-submodule-ready` は
+  再帰 status の未初期化を拒否し、runbook も投入前の再帰初期化を要求する。したがって
+  「正当に運用された作業木」は全深度が初期化済みであり、全深度要求は正規の運用を壊さない。
+- 深さ算術を持たない設計は、兄弟 path (`deps/a` と `deps/ab`) を祖先と誤認する型の欠陥を
+  構造的に排除する。
+
+**却下した選択肢:**
+- 深さ 1 だけを要求する — 親の初期案。非再帰の起動手順だけを production 契約と見なしており、
+  受入 preflight の実装を見ていなかった。初期化済みの top-level の下に未初期化の依存が
+  残る snapshot を受理し続ける。
+- 既定 spec に `submodule_manifest_sha256` の実値を pin する — submodule pin の更新ごとに腐る。
+- 緩和 key (`require_initialized_submodule_depth` 等) を spec に新設する — caller が正しさゲートを
+  緩められる lever を作ることになり、規律 2 に反する。独自 spec 経路だけを検査して
+  production が fail-open へ戻る型の回帰も残る。
+- 初期化済み submodule の内容同一性 (HEAD tree・index・worktree の三者照合) まで同時に要求する —
+  検査層と実行コストが変わるため本 wave の scope 外とし、別タスクとして起票した。
