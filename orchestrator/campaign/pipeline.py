@@ -734,6 +734,10 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
     passes: List[Tuple[str, CorrectnessWorkload, bool]] = [(LEGACY_TAG, correctness, False)]
     for tag, wl in (extra_correctness or []):
         passes.append((tag, wl, True))
+    if type(numactl) in {list, tuple}:
+        # 呼び手の可変 list を契約照合後に変更できないよう、gate・認可・verify・bench が
+        # 共有する launch prefix を一度だけ immutable snapshot にする。
+        numactl = tuple(numactl)
     if (any(fullscale_isolated for _, _, fullscale_isolated in passes)
             and qualification_policy is None
             and tuple(numactl or ()) != authorization_contract.contract.numactl):
