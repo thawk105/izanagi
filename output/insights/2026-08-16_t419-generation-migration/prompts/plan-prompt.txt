@@ -1,0 +1,109 @@
+あなたは izanagi の dev-wave 段 2 プラン起草者である。sandbox は read-only。
+
+## 必読 (読めなければ即停止し、その旨だけを出力せよ)
+
+- 親 brief: /work/1/SFC/tanab/dev-wave-jobs/wave-t419-generation-migration/brief.md
+- ユーザー裁定控え: /work/1/SFC/tanab/dev-wave-jobs/wave-t419-generation-migration/ruling.md
+  (§3.1、裁定一覧 #8 と #10 が本 wave の権威)
+
+repo root は本 worktree である。上記 2 ファイルを最初に全文読むこと。
+
+## 本 wave が何をするか (親の実測結果)
+
+pegasus 実行環境契約を g1 から g2 へ **活性化 (activate)** する。世代機構そのものは実装済みで、
+未実施なのは活性化の実行と、それに追随して壊れる面の手当てである。
+
+親が本 worktree で実測した確定事実 (brief に詳細):
+
+- 活性化 record は `orchestrator/campaign/env_contract_activations/00000001.json` の serial=1、
+  pegasus は g1 (`e576e9cd…`) が active。
+- g2 (`1346c20b…`、較正 `calibration-94a4b79fa31bba3c.json`) は `GENERATIONS` に登録済み・
+  `quality.status=accepted`・canonical clock 述語を自己充足 (帯外標本 0 件)。
+  g1 は帯外 1 件 (3080.935) で自己不整合。
+- 親が一時変異で serial=2 record (`activation_state_sha256 =
+  398b192013e0e3996ca225454049a14cb2866ef256b581fc3dfbfda02476bed8`) を置き、
+  `orchestrator/campaign/env_contract.py` の `_ACTIVATION_HEAD_SERIAL` と
+  `_ACTIVATION_HEAD_STATE_SHA256` を進めたところ、`authorize("pegasus")` は g2 を返し
+  `ever_active_contract_sha256s` は g1 を保持した。**record bytes は canonical JSON + 末尾 LF 必須。**
+- 同じ一時変異下で、凍結済み `output/s8b-freeze/floor_protocol.json` (記録 hash = g1) は
+  `s8b_floor_campaign.validate_protocol` (歴史検証) が **OK**、
+  `s8b_floor_campaign.validate_protocol_against_current` (live admission) が
+  **「protocol.contract_sha256 と resolver が返した env 契約が不一致」で拒否**した。
+
+## あなたの仕事
+
+file:line 粒度の実装プランを書く。**推測で書かず、必ず実ファイルを開いて行番号を確認せよ。**
+確認できなかった項目は「未確認」と明記する (でっち上げは最悪の結果である)。
+
+答えるべき問:
+
+1. **DW-O09 pin 閉包の完全列挙。** g1 の contract hash `e576e9cd…`、g1 較正 sha
+   `753f535a8d02472781bb51b8f56cc383112a791ff2a1e80963039e83bcce5a49`、活性化 head 定数
+   `f78072854651b316e1f2d78c2dfc58bfd995160515ed721a80a267ced54cd3ed` の出現を
+   `orchestrator/`・`tools/`・`hooks/`・`docs/`・`output/env/`・`output/s8b-freeze/` に限って探し、
+   各出現を **(i) live copy = 移行で変えるべき / (ii) 独立 golden = 変えてよいか要検討 /
+   (iii) 凍結 snapshot・歴史記録 = 絶対に変えない** に分類せよ。
+   `output/insights/` は除外してよい (逐語記録であり pin ではない)。
+   **grep は必ず path を限定し、repo 全体への無限定 grep をしてはならない** (出力が巨大になると
+   本 wave の証拠が全損する)。
+
+2. **`orchestrator/campaign/env_contract.py` の編集内容を行番号つきで確定せよ。**
+   head 定数 2 件以外に触る必要があるか (registry は既に g2 を持つので触らないはず) を確認せよ。
+
+3. **`orchestrator/tests/test_env_contract.py` の `KNOWN_SELF_INCONSISTENT_CALIBRATIONS`
+   (62 行付近) を空にしたとき、それを参照する assertion (841・864-869・885 付近) が
+   どう壊れるかを行番号つきで示し、正しい書き換えを提案せよ。**
+   空集合を「例外なし」として真面目に検査し続ける形にすること。
+   `assert len(...) == 1` を消すだけの緩和は不可。
+
+4. **`orchestrator/qualification/contract.py` (60-66 行付近) が `env_contract.py` と
+   `env_contract_activation.py` を source identity として pin している。**
+   この pin が bytes hash なのか path 列挙だけなのかを実装まで読んで判定し、
+   env_contract.py の編集が何を再発行させるかを述べよ。golden hash があるなら file:line を示せ。
+
+5. **「current contract」へ束縛している全経路を列挙し、g2 活性化後の挙動を 1 行ずつ述べよ。**
+   既知の起点: `s8b_floor_campaign.py:446-541`、`certified_writer_admission.py:209`、
+   `wal.py:1064`、`s8b_ratified_freeze.py:2820`、`s8b_oracle_report.py:1715`、
+   `reflux_source_closure.py:504`、`autonomous_trial_completeness.py:269`、
+   `s8b_floor_campaign.py:451`、`ident.py:313,381,472`、`silo_ladder_rung1.py`。
+   各々について「歴史 hash で解決するので生存」か「current と照合するので拒否に転じる」かを判定せよ。
+
+6. **親の provisional 裁定 (P1)〜(P5) が実装上成立するかを検査せよ。**
+   特に (P1)「live admission が g1 期 floor protocol を拒否するのは正しい縮小である」に対し、
+   その縮小によって **回復不能に壊れる運用経路** があれば具体的に示せ
+   (例: 拒否されると次の床値測定そのものが起動できない、という循環が実在するか)。
+   循環が実在するなら、受理集合を広げずに解く順序を提案せよ。
+
+7. **移行の commit 順序。** 活性化 record と head 定数は同一 commit である必要があるか、
+   途中状態で検査が赤になる窓があるかを述べよ。
+
+8. **テストで固定すべき性質を列挙せよ。** 最低でも
+   (a) g2 が active であること、(b) g1 が ever-active に残り歴史成果物が検証できること、
+   (c) 既知例外が空であること、(d) live admission が g1 期 protocol を拒否すること
+   の 4 つ。既存テストで既に担保されているものは「既存 (file:line)」と書き、重複新設を避けよ。
+
+## 制約
+
+- **read-only である。書込可能 tmp は無い。pytest 緑を要求しない。静的検査でよい。**
+  テスト実測は親が行う。あなたが実走していないものを「確認済み」と書いてはならない。
+- **Web 検索を使ってはならない。** 使うと本 wave の証拠が無効化される。
+- grep/find は必ず対象 path を限定し、1 コマンドの出力を数百行以内に収めよ。
+- 出力に結合文字 U+0300〜U+036F を使ってはならない。合成済み文字を使うこと。
+- 予算が尽きそうなら、そこまでの結論を下記の出力形式どおり書いて終われ。**無出力が最悪である。**
+- 日本語で書け。
+
+## 出力形式
+
+```
+## 1. pin 閉包 (分類つき表)
+## 2. env_contract.py の編集
+## 3. 既知例外の空化
+## 4. source identity pin
+## 5. current 束縛経路の一覧と移行後挙動
+## 6. (P1)〜(P5) の検査
+## 7. commit 順序
+## 8. テストで固定すべき性質
+## 9. 未確認・リスク
+```
+
+最後に fence の外へ `## 総括` 見出しを置き、5〜15 行で結論を書け。
