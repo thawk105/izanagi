@@ -27,11 +27,13 @@ seq: 2
     そのまま貼った。** 子は prompt が名指ししていない job dir を自分で探索して読み、
     その 1 文字を出力へ載せた (破損行 = 113 行目)。
     **事故の記録それ自体が次の事故の原因になる型である。**
-- 恒久対応: memory `codex-output-must-be-nfc` を上記 2 経路まで広げ、
-  `docs/dev-wave/operations.md` の `DW-O02` (「出力へ結合文字 U+0300〜U+036F を使わせない」) の
-  隣に、(a) 子 prompt へ pytest 実行禁止または `-q --tb=no -rf` 限定と
-  「`\uXXXX` の escape はそのまま escape の字面で書く」を明記する義務、
-  (b) **job dir 全体を NFC clean に保つ**義務 (子は prompt が名指ししない file も読む) を足す。
+- 恒久対応: memory `codex-output-must-be-nfc` を上記 2 経路まで広げる
+  ((a) 子 prompt へ pytest の `-q --tb=no -rf` 限定と「`\uXXXX` は escape の字面で書く」を書く、
+  (b) **job dir 全体を NFC clean に保つ** — 子は prompt が名指ししない file も読む)。
+  **`docs/dev-wave/operations.md` の `DW-O02` への追記は L1.5 予算に収まらず見送った** —
+  最小形 (3 行) でも unique footprint が 9,808 bytes となり予算 9,566 bytes を超える。
+  予算を上げず、削除可能な節も既に尽きている ([T-127] 裁定と先行 2 wave の実証) ため、
+  入口編集は {{T:devwave-nfc-rule-budget}} としてユーザー裁定へ返す。
 - 再発検知: 親が wave 中に job dir と insight を走査する probe
   (`scan_nfc.py` — 結合文字を 1 つでも検出したら報告)。本 wave では事故 2 の直後に導入し、
   以後の全 artifact 追加時に走らせて混入 0 を維持した。

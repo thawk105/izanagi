@@ -98,3 +98,10 @@ title: rollout の自己同一性で親 session を解決した — 敵対レビ
 - {{T:rollout-pin-sha-fallback}} **P2・新規**: pin fast path が `_verify_rollout_sha` の失敗を
   握り潰し、その後の全走査が同じ file を SHA 未検証で返しうる。既定 caller は後段で再検証するが
   `verify_source_sha=False` 系の seam では防壁がない。[T-886] の範囲。
+- {{T:devwave-nfc-rule-budget}} **P2・ユーザー裁定待ち**: 段 8 で
+  {{F:codex-evidence-nfc-from-repo-and-parent}} の恒久対応を `DW-O02` へ足そうとしたが、
+  **L1.5 予算に収まらなかった** (最小 3 行でも unique footprint 9,808 bytes > 予算 9,566 bytes)。
+  予算は上げず、削除可能な節も尽きている ([T-127] 裁定、先行 2 wave が実証) ため入口編集を見送り、
+  memory と repo 外 probe だけを恒久対応とした。選択肢 = (a) 現状維持 (memory 依存のまま)、
+  (b) L1.5 の他節を縮約して枠を作る、(c) この規律を L2 節 (合計上限なし) へ置く、
+  (d) 予算値そのものを独立審査する。**(d) は自己改善の範囲外なのでここでは選ばない。**
