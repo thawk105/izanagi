@@ -1568,24 +1568,26 @@ def _uniform_predicates(status: PredicateStatus, reason: str) -> tuple[Predicate
     )
 
 
-def _default_registry_results(root: Path, commit: str, module_blob: Optional[bytes]):
+def _default_registry_module(
+    module_blob: Optional[bytes],
+) -> tuple[Optional[Any], Optional[tuple[PredicateResult, ...]]]:
     if module_blob is None:
-        return _undefined_predicates("evaluator-module-absent-at-commit")
+        return None, _undefined_predicates("evaluator-module-absent-at-commit")
     module = None
     name = "orchestrator.campaign.s8c_preregistration_evidence"
     try:
         module = importlib.import_module(name)
     except ModuleNotFoundError as exc:
         if exc.name not in {name, name.split(".")[0]}:
-            return tuple(
+            return None, tuple(
                 PredicateResult(identifier, PredicateStatus.ERROR, "evaluator-import-error", ())
                 for identifier in PREDICATE_IDS
             )
     if module is None:
-        return _undefined_predicates("evaluator-module-unavailable")
+        return None, _undefined_predicates("evaluator-module-unavailable")
     module_file = getattr(module, "__file__", None)
     if not module_file:
-        return tuple(
+        return None, tuple(
             PredicateResult(identifier, PredicateStatus.ERROR, "evaluator-file-unavailable", ())
             for identifier in PREDICATE_IDS
         )
@@ -1594,10 +1596,52 @@ def _default_registry_results(root: Path, commit: str, module_blob: Optional[byt
     except OSError:
         live = b""
     if live != module_blob:
-        return tuple(
+        return None, tuple(
             PredicateResult(identifier, PredicateStatus.ERROR, "evaluator-blob-mismatch", ())
             for identifier in PREDICATE_IDS
         )
+    return module, None
+
+
+def _projection_module_identity(
+    module_blob: bytes,
+) -> tuple[Optional[Any], Optional[tuple[PredicateResult, ...]]]:
+    module = None
+    name = "orchestrator.campaign.s8c_generation_projection"
+    try:
+        module = importlib.import_module(name)
+    except ModuleNotFoundError as exc:
+        if exc.name not in {name, name.split(".")[0]}:
+            return None, _uniform_predicates(
+                PredicateStatus.ERROR, "projection-import-error"
+            )
+    except Exception:
+        return None, _uniform_predicates(
+            PredicateStatus.ERROR, "projection-import-error"
+        )
+    if module is None:
+        return None, _uniform_predicates(
+            PredicateStatus.ERROR, "projection-module-unavailable"
+        )
+    module_file = getattr(module, "__file__", None)
+    if not module_file:
+        return None, _uniform_predicates(
+            PredicateStatus.ERROR, "projection-file-unavailable"
+        )
+    try:
+        live = Path(module_file).read_bytes()
+    except Exception:
+        return None, _uniform_predicates(
+            PredicateStatus.ERROR, "projection-file-read-error"
+        )
+    if live != module_blob:
+        return None, _uniform_predicates(
+            PredicateStatus.ERROR, "projection-blob-mismatch"
+        )
+    return module, None
+
+
+def _default_registry_results(root: Path, commit: str, module: Any):
     registry: Any = module
     probe = getattr(module, "get_registry", None)
     if callable(probe):
@@ -1661,22 +1705,25 @@ def _activation_report_at(
         elif live_core != core_blob:
             predicates = _uniform_predicates(PredicateStatus.ERROR, "core-blob-mismatch")
         else:
-            try:
-                live_projection = Path(__file__).with_name(
-                    Path(PROJECTION_MODULE_PATH).name
-                ).read_bytes()
-            except OSError:
-                live_projection = b""
-            if projection_blob is None:
+            evaluator_module, evaluator_error = _default_registry_module(evaluator_blob)
+            if evaluator_error is not None:
+                predicates = evaluator_error
+            elif projection_blob is None:
                 predicates = _uniform_predicates(
                     PredicateStatus.ERROR, "projection-module-absent-at-commit"
                 )
-            elif live_projection != projection_blob:
-                predicates = _uniform_predicates(
-                    PredicateStatus.ERROR, "projection-blob-mismatch"
-                )
             else:
-                predicates = _default_registry_results(root, resolved, evaluator_blob)
+                projection_module, projection_error = _projection_module_identity(
+                    projection_blob
+                )
+                if projection_error is not None:
+                    predicates = projection_error
+                else:
+                    assert evaluator_module is not None
+                    assert projection_module is not None
+                    predicates = _default_registry_results(
+                        root, resolved, evaluator_module
+                    )
     findings = contract.section5_findings if contract is not None else ()
     all_filled = bool(findings) and all(item.status is FieldStatus.FILLED for item in findings)
     exact_ids = tuple(item.id for item in predicates) == PREDICATE_IDS
@@ -1685,7 +1732,7 @@ def _activation_report_at(
     )
     decider_version = validation.decider_version if validation is not None else None
     current_decider_valid = (
-        isinstance(DECIDER_VERSION, str)
+        type(DECIDER_VERSION) is str
         and _DECIDER_VERSION_RE.fullmatch(DECIDER_VERSION) is not None
     )
     if validation is None:
@@ -1694,7 +1741,10 @@ def _activation_report_at(
     elif decider_version is None:
         decider_version_matches = False
         decider_version_reason = "decider-version-unbound"
-    elif current_decider_valid and DECIDER_VERSION == decider_version:
+    elif (
+        current_decider_valid
+        and str.__eq__(DECIDER_VERSION, decider_version) is True
+    ):
         decider_version_matches = True
         decider_version_reason = "decider-version-match"
     else:

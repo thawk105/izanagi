@@ -2060,6 +2060,29 @@ def test_invalid_running_decider_version_cannot_activate(
     assert report.effective is False
 
 
+def test_valid_hostile_str_subclass_cannot_fake_decider_version_match(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    class HostileRuntimeDecider(str):
+        def __eq__(self, other: object) -> bool:
+            return True
+
+        __hash__ = str.__hash__
+
+    root = _init_repo(tmp_path, filled=True)
+    head, _ = _install_g1(root)
+    monkeypatch.setattr(
+        M, "DECIDER_VERSION", HostileRuntimeDecider("s8c-decider/v2")
+    )
+    report = M._activation_report_at_for_test(
+        root, head, registry=_Registry(M.PredicateStatus.SATISFIED)
+    )
+    assert report.decider_version == "s8c-decider/v1"
+    assert report.decider_version_matches is False
+    assert report.decider_version_reason_code == "decider-version-mismatch"
+    assert report.effective is False
+
+
 def test_activation_report_digest_binds_decider_and_projection_fields(tmp_path: Path) -> None:
     root = _init_repo(tmp_path, filled=True)
     head, _ = _install_g1(root)
@@ -2172,6 +2195,63 @@ def test_projection_blob_must_match_live_module(
     assert {item.reason_code for item in report.predicates} == {reason}
     expected_hash = hashlib.sha256(projection).hexdigest() if projection is not None else None
     assert report.projection_module_blob_sha256 == expected_hash
+    assert report.effective is False
+
+
+def test_projection_file_read_failure_is_error(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    root = _init_repo(tmp_path, filled=True)
+    core_bytes = Path(M.__file__).read_bytes()
+    from orchestrator.campaign import s8c_generation_projection as projection_module
+    from orchestrator.campaign import s8c_preregistration_evidence as evaluator_module
+
+    _write(root, M.CORE_MODULE_PATH, core_bytes)
+    _write(root, M.EVALUATOR_MODULE_PATH, Path(evaluator_module.__file__).read_bytes())
+    _write(root, M.PROJECTION_MODULE_PATH, b"")
+    _commit(root, "install empty projection fixture")
+    head, _ = _install_g1(root)
+    monkeypatch.setattr(projection_module, "__file__", str(tmp_path / "missing.py"))
+    report = M.activation_report_at(root, head)
+    assert {item.status for item in report.predicates} == {M.PredicateStatus.ERROR}
+    assert {item.reason_code for item in report.predicates} == {
+        "projection-file-read-error"
+    }
+    assert report.effective is False
+
+
+def test_projection_import_failure_is_error(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    root = _init_repo(tmp_path, filled=True)
+    core_bytes = Path(M.__file__).read_bytes()
+    from orchestrator.campaign import s8c_generation_projection as projection_module
+    from orchestrator.campaign import s8c_preregistration_evidence as evaluator_module
+
+    _write(root, M.CORE_MODULE_PATH, core_bytes)
+    _write(
+        root, M.EVALUATOR_MODULE_PATH, Path(evaluator_module.__file__).read_bytes()
+    )
+    _write(
+        root, M.PROJECTION_MODULE_PATH, Path(projection_module.__file__).read_bytes()
+    )
+    _commit(root, "install runtime module fixtures")
+    head, _ = _install_g1(root)
+    original_import_module = M.importlib.import_module
+
+    def import_with_broken_projection(name: str):
+        if name == "orchestrator.campaign.s8c_generation_projection":
+            raise ImportError("broken projection import")
+        return original_import_module(name)
+
+    monkeypatch.setattr(
+        M.importlib, "import_module", import_with_broken_projection
+    )
+    report = M.activation_report_at(root, head)
+    assert {item.status for item in report.predicates} == {M.PredicateStatus.ERROR}
+    assert {item.reason_code for item in report.predicates} == {
+        "projection-import-error"
+    }
     assert report.effective is False
 
 
