@@ -96,6 +96,23 @@ real であり、保留一覧でユーザーへ提示する。
 guard binding を持てるかどうか (= その file に standalone 読み込みの正規 consumer が無いか) が
 保留可能性の前提条件である。段 2・段 4 のどちらもこの条件を見ていなかった。
 
+### 受入 2 回目はフレーク 1 件で受領証が出なかった
+
+2 回目は **11,662 passed / 92 skipped / 1 failed** (pytest wall 91.48 秒) で、
+1 回目の赤は消えた。新しい赤は
+`test_dev_wave_wait.py::test_public_main_real_signal_after_success_uses_restored_handler` で、
+`RESTORED=[15]` を期待するところが `RESTORED=[]` になっていた
+(シグナルハンドラの復元が観測されない)。
+
+**本 wave はこの file を触っていない。** 親が同 node を単独走させると
+**1 passed / 2.60 秒 / rc=0** で再現しなかった。DW-O18 の
+「差分が到達しえない赤は単独再走で実測し、再現しなければ帰属せずフレーク起票する」に従い、
+フレークとして扱う。
+
+`check_acceptance_reds.py` は `attributable-red` と判定した。checker は赤を
+tested main で 1 回だけ再走して差分へ帰属させるので、**1 標本ではフレークと帰属を区別できない**。
+本件は「tested main で緑・wave tip でも単独緑・差分が到達しえない」の 3 点で非帰属と判断した。
+
 ### ユーザー提示事項
 
 正しさゲートを担う 27 件を保留した。D335 は提示を要求する。
@@ -184,6 +201,16 @@ guard binding を持てるかどうか (= その file に standalone 読み込�
   `_FIXTURE_CELL_BY_TOKEN` への依存があり contained でない)。
   **併せて、保留候補の選別条件に「guard binding を持てるか」を加える。**
   実行コストの比例だけで選ぶと本件のように受入で差し戻される。
+- {{T:signal-restore-node-flakes-under-xdist}} **P2・新規**:
+  `test_dev_wave_wait.py::test_public_main_real_signal_after_success_uses_restored_handler` が
+  受入全走で非決定的に落ちる。2026-08-16 の受入 2 走目で
+  `RESTORED=[15]` 期待に対し `RESTORED=[]` を観測した (シグナルハンドラの復元が見えない)。
+  同 node の単独走は **1 passed / 2.60 秒 / rc=0** で再現しない。
+  併せて、`check_acceptance_reds.py` が本件を `attributable-red` と判定した点も課題である。
+  checker は赤を tested main で **1 回だけ**再走して差分へ帰属させるので、
+  **1 標本ではフレークと帰属を区別できない。** 再走回数を上げるか、
+  「差分が到達しえない path の赤」を構造的に非帰属へ寄せるかを裁定する。
+  現状は親が単独再走して手で判定しており、**受入 lease を 1 本消費してから気づく**。
 - {{T:ratified-memo-payer-contract-inversion}} **P2・新規**:
   `test_ratified_memo_has_a_real_resolution_payer` が本 wave で
   「毎 session の実 direct payer を守る」検査から「payer が恒久保留に入っていることを
