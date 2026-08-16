@@ -72,6 +72,13 @@ elapsed 総和であり、critical path と net wall 差は未測定である。
 1 つの registry 変異が contract 側 2 node と inventory 側 2 node を同時に赤にするためで、
 親の期待集合が不完全だった。probe の実測から完全集合を再導出して本走し 4/4 KILLED。
 
+### 段 8 の裁定
+
+候補は 2 件。(1) 段 6 レビュー A の待ち手が producer 生存中に rc=0・出力空で返った件は
+F268 の再発として台帳へ追記した (6 本中 1 本)。(2) `tools/mutation_worktree.py` の本走が
+`--detached` を要求する件は、tool 自身が plan-only 時に fail-closed の明示メッセージを出すため
+**docs は編集しない** (機械代替済み。入口・reference の byte 予算を消費しない)。
+
 ### scope 外の real 所見 1 件
 
 `tools/hold_inventory.py` の bypass 台帳は、現在の実装が二層で拒否する 4 経路を
