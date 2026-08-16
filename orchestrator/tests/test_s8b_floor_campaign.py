@@ -3640,7 +3640,6 @@ def test_materializer_registry_covers_all_python_build_launches():
     admitted_gateways = {
         "orchestrator/campaign/pipeline.py:evaluate",
         "orchestrator/campaign/s8b_floor_campaign.py:build_cells",
-        "orchestrator/campaign/s8b_oracle_n_pilot.py:build_binaries",
     }
 
     def static_keyword_names(call, owner) -> set[str]:
@@ -3713,17 +3712,12 @@ def test_materializer_registry_covers_all_python_build_launches():
                 qualified == "build_fn"
                 and site == "orchestrator/campaign/s8b_floor_campaign.py:build_cells"
             )
-            is_pilot_materializer_call = (
-                qualified == "build_fn"
-                and site == "orchestrator/campaign/s8b_oracle_n_pilot.py:build_binaries"
-            )
-            if (not is_buildcache_call and not is_floor_materializer_call
-                    and not is_pilot_materializer_call):
+            if not is_buildcache_call and not is_floor_materializer_call:
                 continue
             required = {"admission", "build_context", "source_evidence"}
             if site in admitted_gateways:
                 seen_gateways.add(site)
-                if is_floor_materializer_call or is_pilot_materializer_call:
+                if is_floor_materializer_call:
                     keywords = static_keyword_names(call, owner)
                     if not (required | {"expected_toolchain_manifest"}) <= keywords:
                         missing_admission.append(

@@ -1,13 +1,13 @@
 # -*- coding: utf-8 -*-
 """Single typed registry for bounded Python build authority sites.
 
-The registry closes two separate bounded inventories through typed projections: direct
+The registry closes two separate bounded inventories through typed projections: Python
 materializers and coder-authority CLI entry points.  Registration is inventory metadata; it
 does not by itself reject a build downstream, prove that quarantine ran, or make an artifact
 non-certifying.  Coder entry-point registration is consumed only when its CLI authority flag is
 actually specified.  Receipt/consumer binding remains outside this module.
 
-Every direct materializer is either an admission-aware gateway or explicitly non-admissible.
+Every materializer is either an admission-aware gateway or explicitly non-admissible.
 Embedding a refusal in producer output is not uniform.  In particular,
 ``silo_ladder_rung1`` deliberately does not add one: doing so would change its committed
 exact-key evidence schema, break the driver-SHA binding, and require re-pinning frozen
@@ -33,10 +33,12 @@ class MaterializerSiteKind(str, Enum):
     """Closed kinds represented by :data:`MATERIALIZER_ADMISSION_REGISTRY`."""
 
     DIRECT_MATERIALIZER = "direct-materializer"
+    DELEGATING_MATERIALIZER = "delegating-materializer"
     CODER_ENTRYPOINT = "coder-entrypoint"
 
 
 DIRECT_MATERIALIZER = MaterializerSiteKind.DIRECT_MATERIALIZER
+DELEGATING_MATERIALIZER = MaterializerSiteKind.DELEGATING_MATERIALIZER
 CODER_ENTRYPOINT = MaterializerSiteKind.CODER_ENTRYPOINT
 
 
@@ -72,6 +74,7 @@ MATERIALIZER_ADMISSION_REGISTRY = MappingProxyType({
         MaterializerRegistration(
             NON_ADMISSIBLE,
             "exploratory oracle n pilot builds are ineligible for certified selection",
+            DELEGATING_MATERIALIZER,
         ),
     "orchestrator.campaign.t152_write_intent_coverage._build":
         MaterializerRegistration(
@@ -129,7 +132,7 @@ MATERIALIZER_ADMISSION_REGISTRY = MappingProxyType({
 NON_ADMISSIBLE_MATERIALIZERS = MappingProxyType({
     materializer: registration.reason
     for materializer, registration in MATERIALIZER_ADMISSION_REGISTRY.items()
-    if registration.site_kind is DIRECT_MATERIALIZER
+    if registration.site_kind in (DIRECT_MATERIALIZER, DELEGATING_MATERIALIZER)
     and registration.admission_status == NON_ADMISSIBLE
 })
 
@@ -159,8 +162,8 @@ def non_admissible_materializer(materializer: str) -> dict[str, str]:
         registration = MATERIALIZER_ADMISSION_REGISTRY[materializer]
     except KeyError as exc:
         raise ValueError(f"unregistered non-admissible materializer: {materializer}") from exc
-    if registration.site_kind is not DIRECT_MATERIALIZER:
-        raise ValueError(f"site is not a direct materializer: {materializer}")
+    if registration.site_kind not in (DIRECT_MATERIALIZER, DELEGATING_MATERIALIZER):
+        raise ValueError(f"site is not a materializer: {materializer}")
     if registration.admission_status != NON_ADMISSIBLE:
         raise ValueError(f"materializer is an admitted gateway: {materializer}")
     return {
