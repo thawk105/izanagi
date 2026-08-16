@@ -29,6 +29,10 @@ from .source_digest import (
     SOURCE_EVIDENCE_SCHEMA,
     SourceEvidence,
 )
+from .s8b_sort_swo_receipt import (
+    SortSwoReceiptError,
+    validate_portable_sort_swo_pass_receipt,
+)
 
 
 RECEIPT_SCHEMA = "s8b-binary-admission/v1"
@@ -38,6 +42,7 @@ PORTABLE_BUILT_KEYS = frozenset({
     "bin_hash_short", "binding", "configure_argv", "build_argv", "cached",
     "store_path", "admission_receipt",
 })
+PORTABLE_SORT_BEST_BUILT_KEYS = PORTABLE_BUILT_KEYS | {"sort_swo_oracle"}
 
 _RECEIPT_KEYS = frozenset({"schema", "admission", "subject", "receipt_sha256"})
 _ADMISSION_KEYS = frozenset({
@@ -58,6 +63,14 @@ _BINDING_KEYS = frozenset({
 
 class BinaryAdmissionError(ValueError):
     """S8b binary admission receipt を発行または検証できない。"""
+
+
+def portable_built_keys_for(configuration_id: object) -> frozenset[str]:
+    """configuration ごとの portable binary record exact key 集合を返す。"""
+
+    if configuration_id == "sort_best":
+        return PORTABLE_SORT_BEST_BUILT_KEYS
+    return PORTABLE_BUILT_KEYS
 
 
 def _plain_json(value: object) -> object:
@@ -247,6 +260,11 @@ def validate_portable_binary_record(
 
     if not isinstance(record, Mapping):
         raise BinaryAdmissionError("portable binary record が Mapping でない")
+    configuration_id = record.get("configuration_id")
+    if set(record) != set(portable_built_keys_for(configuration_id)):
+        raise BinaryAdmissionError(
+            "portable binary record の configuration 条件付き exact key 集合が不一致"
+        )
     receipt = record.get("admission_receipt")
     if not isinstance(receipt, Mapping):
         raise BinaryAdmissionError("admission receipt が object でない")
@@ -327,4 +345,16 @@ def validate_portable_binary_record(
             "receipt subject が record または外部期待の "
             "cell/holdout/configuration/entry/binding と不一致"
         )
+    if configuration_id == "sort_best":
+        try:
+            validate_portable_sort_swo_pass_receipt(
+                record["sort_swo_oracle"],
+                expected_cell_id=record["cell_id"],
+                expected_holdout_id=record["holdout_id"],
+                expected_configuration_id=configuration_id,
+                expected_entry_sha256=binding["entry_sha256"],
+                expected_binary_sha256=record["binary_sha256"],
+            )
+        except SortSwoReceiptError as exc:
+            raise BinaryAdmissionError(f"sort_best SWO receipt が不正: {exc}") from exc
     return json.loads(_canonical_json(receipt))

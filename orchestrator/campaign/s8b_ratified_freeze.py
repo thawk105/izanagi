@@ -180,7 +180,14 @@ EQUALITY_CHAIN_ADJACENCY: Tuple[Tuple[str, str], ...] = (
     ("sha256(result.raw)", "generation.floor_source.sha256"),
 )
 
-_PORTABLE_BINARY_KEYS = _binary_admission.PORTABLE_BUILT_KEYS
+_SORT_SWO_ORACLE_AXIS_SAFE_KEYS = frozenset({
+    "schema", "cell_id", "holdout_id", "configuration_id", "entry_sha256",
+    "binary_sha256", "classification", "reason_code", "oracle_contract_id",
+    "materialized_hole_sha256", "proposal_sha256", "corpus_id",
+    "corpus_version", "compiler_version_sha256", "compile_flags_sha256",
+    "tu_sha256", "tu_template_sha256", "dependency_config_sha256",
+    "receipt_sha256",
+})
 _BINDING_KEYS = frozenset({
     "genome_canonical", "src_token", "variant_id", "entry_sha256", "binding_sha256",
 })
@@ -194,13 +201,6 @@ _MANIFEST_CELL_KEYS = frozenset({
     "cell_id", "holdout_id", "configuration_id", "records", "threads", "workload",
 })
 _SCHEDULE_KEYS = frozenset({"seq", "round", "cell_id"})
-_RESULT_KEYS = frozenset({
-    "schema", "formula", "mode", "eligible_for_refreeze", "env_tag", "ccbench_pin",
-    "protocol_sha256", "freeze_sha256", "manifest_sha256", "stock_configuration",
-    "wired_min_rel_floor", "reps", "n_sessions", "scale_adequacy_rel_tolerance",
-    "holdouts", "configurations", "binaries", "config", "sessions", "cells", "floors",
-    "wall_ledger", "excluded", "attempts",
-})
 _RESULT_CONFIG_KEYS = frozenset({
     "formula", "n_sessions", "reps", "stock_configuration", "wired_min_rel_floor",
     "session_cv_max", "cell_cv_max",
@@ -1650,8 +1650,10 @@ def _validate_portable_binaries(
     out: Dict[str, dict] = {}
     policy_sha256s: set[str] = set()
     for cell_id, raw in binaries.items():
+        configuration_id = raw.get("configuration_id") if isinstance(raw, Mapping) else None
         rec = _exact_keys(
-            raw, _PORTABLE_BINARY_KEYS, reason="manifest-invalid", label=f"binaries[{cell_id}]",
+            raw, _binary_admission.portable_built_keys_for(configuration_id),
+            reason="manifest-invalid", label=f"binaries[{cell_id}]",
         )
         cell = cells_by_id[cell_id]
         for key in ("cell_id", "holdout_id", "configuration_id"):
@@ -1754,7 +1756,9 @@ def _validate_manifest(
     _exact_keys(document, _MANIFEST_KEYS, reason="manifest-invalid", label="manifest")
     if document["schema_version"] != _floor_contract.MANIFEST_SCHEMA:
         raise RatifiedFreezeError(
-            "manifest-invalid", "manifest.schema_version が v2 でない", cause="manifest-schema",
+            "manifest-invalid",
+            f"manifest.schema_version が {_floor_contract.MANIFEST_SCHEMA} でない",
+            cause="manifest-schema",
         )
     expected_mirrors = {
         "protocol_sha256": protocol_sha256,
@@ -1826,6 +1830,18 @@ def _validate_manifest(
         document["binaries"], cells_by_id=cells_by_id, ratified=ratified,
         protocol=protocol, expected_policy=expected_policy,
     )
+    try:
+        _floor_contract.validate_manifest_v3(
+            document, protocol=protocol, protocol_sha256=protocol_sha256,
+            freeze_sha256=V1_FREEZE_SHA256,
+            expected_cells=expected_cells, expected_schedule=expected_schedule,
+            mode="official",
+        )
+    except _floor_contract.FloorContractError as exc:
+        raise RatifiedFreezeError(
+            "manifest-invalid", f"共有 manifest v3 契約に不一致: {exc}",
+            cause="manifest-shared-contract",
+        ) from exc
     return expected_cells, expected_schedule, binaries
 
 
@@ -2088,6 +2104,17 @@ def _validate_journal(
             "journal-state-invalid", "session-start と schedule row が 1:1 でない",
             cause="schedule-start-bijection",
         )
+    try:
+        _floor_contract.validate_session_start_authorizations(
+            [record for record in records if record["event"] == "session-start"],
+            schedule=schedule,
+            retry_slots_per_cell=protocol["retry_slots_per_cell"],
+        )
+    except _floor_contract.FloorContractError as exc:
+        raise RatifiedFreezeError(
+            "journal-state-invalid", f"session-start authorization が正準でない: {exc}",
+            cause="session-start-authorization",
+        ) from exc
 
     sessions: List[dict] = []
     seen_session_seq: set = set()
@@ -2178,14 +2205,24 @@ def _validate_journal(
     }
 
 
+def _validate_result_top_level_keys(document: object) -> None:
+    """ratified 固有の cause を保って result v4 exact keys を検査する。"""
+    _exact_keys(
+        document, _floor_contract.result_keys_for_mode("official"),
+        reason="floor-artifact-invalid", label="result",
+    )
+
+
 def _validate_result(
         document: dict, *, protocol: Mapping, cells: list[dict], binaries: Mapping[str, Mapping],
         journal: Mapping, contract: _env_contract.ExecutionEnvironmentContract,
 ) -> None:
-    _exact_keys(document, _RESULT_KEYS, reason="floor-artifact-invalid", label="result")
+    _validate_result_top_level_keys(document)
     if document["schema"] != _floor_contract.RESULT_SCHEMA:
         raise RatifiedFreezeError(
-            "floor-artifact-invalid", "result.schema が v3 でない", cause="result-schema",
+            "floor-artifact-invalid",
+            f"result.schema が {_floor_contract.RESULT_SCHEMA} でない",
+            cause="result-schema",
         )
     _exact_keys(
         document["config"], _RESULT_CONFIG_KEYS, reason="floor-artifact-invalid",
@@ -2231,20 +2268,6 @@ def _validate_result(
                 f"result.sessions[{index}].run_cmd が portable canonical argv と不一致",
                 cause="run-cmd-projection",
             )
-
-    expected_protocol = _floor_contract.project_protocol_for_floor_artifact(protocol)
-    # cells は直前に ratified freeze から独立導出・manifest と exact 照合済み。
-    # result/manifest の自己申告集合から expected を作らない。
-    expected_protocol["expected_cells"] = _floor_contract.expected_cells_from_cells(cells)
-    problems = _floor_stats.verify_floor_artifact(
-        document, expected_protocol, expected_binaries=journal["receipts"],
-        expected_use_perf=True,
-    )
-    if problems:
-        raise RatifiedFreezeError(
-            "floor-artifact-invalid", f"verify_floor_artifact: {problems[0]}",
-            cause="floor-projection",
-        )
 
     sessions = journal["sessions"]
     excluded = [
@@ -2425,6 +2448,14 @@ def _validate_axis_occurrences(
                                     cmd_record, protocol=protocol, binaries=binaries,
                                     contract=contract)):
                             allowed = True
+                        if path.endswith(("manifest.json", "result.json")):
+                            receipt_match = re.fullmatch(
+                                r"/binaries/[^/]+/sort_swo_oracle/([^/]+)", pointer,
+                            )
+                            if (receipt_match is not None
+                                    and receipt_match.group(1)
+                                    in _SORT_SWO_ORACLE_AXIS_SAFE_KEYS):
+                                allowed = True
                         if not allowed:
                             raise RatifiedFreezeError(
                                 "floor-artifact-invalid",
@@ -3040,6 +3071,52 @@ def _launch_validate(
         binaries=binaries, cert_sha256=cert_sha, manifest_sha256=manifest_sha,
         root=root, contract=contract,
     )
+    expected_floor_protocol = _floor_contract.project_protocol_for_floor_artifact(protocol)
+    # cells は ratified freeze から独立導出・manifest と exact 照合済みであり、
+    # result の自己申告集合を期待値へ流用しない。
+    expected_floor_protocol["expected_cells"] = (
+        _floor_contract.expected_cells_from_cells(cells)
+    )
+    # 共有 verifier の汎用 floor-projection より、ratified 固有の
+    # schema-keys を優先する。通過後も共有 verifier 自体は必ず実行する。
+    _validate_result_top_level_keys(result_doc)
+    from .s8b_holdout_admission import FloorHoldoutEvidenceError
+    try:
+        admission_problems = _floor_stats.verify_floor_artifact_with_live_admission(
+            result_doc, expected_floor_protocol,
+            expected_binaries=journal["receipts"], repo_root=root,
+            protocol=protocol, verified_freeze_document=ratified.document,
+            freeze_sha256=V1_FREEZE_SHA256, manifest_sha256=manifest_sha,
+            campaign_run_id=result_path_info["run_id"],
+            run_relpath=run_dir.removeprefix("output/"), mode="official",
+            cells=cells, schedule=schedule,
+            sessions=[
+                record for record in journal["records"]
+                if record.get("event") in {"session-start", "session"}
+            ],
+            expected_use_perf=True,
+        )
+    except FloorHoldoutEvidenceError as exc:
+        reason = (
+            "floor-admission-unverifiable"
+            if exc.category == "unverifiable"
+            else "floor-admission-mismatch"
+        )
+        raise RatifiedFreezeError(
+            reason, f"floor admission evidence 検査に失敗: {exc.reason}",
+            cause=exc.reason,
+        ) from exc
+    if admission_problems:
+        if any("holdout_admission" in problem for problem in admission_problems):
+            raise RatifiedFreezeError(
+                "floor-admission-mismatch", admission_problems[0],
+                cause="artifact-receipt-mismatch",
+            )
+        raise RatifiedFreezeError(
+            "floor-artifact-invalid",
+            f"verify_floor_artifact_with_live_admission: {admission_problems[0]}",
+            cause="floor-projection",
+        )
     _validate_result(
         result_doc, protocol=protocol, cells=cells, binaries=binaries, journal=journal,
         contract=contract,

@@ -17,11 +17,16 @@ reference calculator と手導出 literal で固定する (`_ref_*`)。productio
 from __future__ import annotations
 
 import inspect
+import copy
+import hashlib
+import json
 import math
 import os
 import sys
+import tempfile
 from dataclasses import asdict
 from fractions import Fraction
+from pathlib import Path
 
 import pytest
 
@@ -41,12 +46,32 @@ from orchestrator.campaign.s8b_floor_stats import (  # noqa: E402
     holdout_floors,
     session_median,
     verify_floor_artifact as _verify_floor_artifact,
+    verify_floor_artifact_with_live_admission,
+)
+from orchestrator.campaign import s8b_binary_admission  # noqa: E402
+from orchestrator.campaign import s8b_holdout_admission  # noqa: E402
+from orchestrator.campaign.build_admission import (  # noqa: E402
+    GeneratorId, ReviewId, build_run_context, derive_build_admission,
+)
+from orchestrator.campaign.s8b_materialization import reviewed_source_capability  # noqa: E402
+from orchestrator.campaign.source_digest import SOURCE_EVIDENCE_SCHEMA, SourceEvidence  # noqa: E402
+from orchestrator.tests.s8b_floor_evidence_fixture import (  # noqa: E402
+    expected_portable_sort_swo_pass_receipt,
 )
 
 
 def verify_floor_artifact(artifact, expected, expected_binaries=None):
+    admission = artifact.get("holdout_admission")
+    if admission is None:
+        expected_cells = [
+            f"{holdout}::{configuration}"
+            for holdout, configurations in expected["expected_cells"].items()
+            for configuration in configurations
+        ]
+        admission = _admission_receipt(expected_cells)
     return _verify_floor_artifact(
         artifact, expected, expected_binaries=expected_binaries,
+        expected_holdout_admission=admission,
         expected_use_perf=True,
     )
 
@@ -92,6 +117,95 @@ def _ref_u_noise(s_c, s_stock):
 # ---------------------------------------------------------------------------
 # テストヘルパ
 # ---------------------------------------------------------------------------
+_CCBENCH_PIN = "1" * 40
+_ENTRY_SHA = hashlib.sha256(b"floor-stats-entry").hexdigest()
+_CONTRACT_SHA = hashlib.sha256(b"floor-stats-contract").hexdigest()
+
+
+def _canonical_bytes(value):
+    return json.dumps(
+        value, ensure_ascii=False, sort_keys=True, separators=(",", ":"),
+    ).encode("utf-8")
+
+
+def _portable_binary(temp_root: Path, *, cell_id: str, holdout_id: str,
+                     configuration_id: str) -> dict:
+    genome = json.dumps(
+        {"configuration_id": configuration_id}, sort_keys=True,
+        separators=(",", ":"),
+    )
+    src_token = hashlib.sha256(f"source:{configuration_id}".encode()).hexdigest()
+    binding = {
+        "genome_canonical": genome,
+        "src_token": src_token,
+        "variant_id": hashlib.sha256(
+            f"{genome}|src={src_token}".encode()
+        ).hexdigest()[:12],
+        "entry_sha256": _ENTRY_SHA,
+    }
+    binding["binding_sha256"] = hashlib.sha256(_canonical_bytes(binding)).hexdigest()
+    source_root = temp_root / cell_id.replace("::", "-")
+    source_root.mkdir()
+    source = SourceEvidence(
+        schema_version=SOURCE_EVIDENCE_SCHEMA,
+        source_root=str(source_root.resolve()), ccbench_commit=_CCBENCH_PIN,
+        genome_sha256=hashlib.sha256(genome.encode()).hexdigest(),
+        src_token=src_token,
+        source_bytes_sha256=hashlib.sha256(b"source-bytes").hexdigest(),
+        tracked_clean=False,
+        tracked_diff_sha256=hashlib.sha256(b"tracked-diff").hexdigest(),
+        tracked_paths=("include/fixture.hh",),
+    )
+    context = build_run_context(generator_id=GeneratorId.S8A_TRIGGER_SWEEP)
+    review = reviewed_source_capability(
+        review_id=ReviewId.S8B_FLOOR, source=source, input_sha256=_ENTRY_SHA,
+    )
+    admission = derive_build_admission(context, source, review_receipt=review)
+    binary = source_root / "binary"
+    binary.write_bytes(f"binary:{cell_id}".encode())
+    binary_sha = hashlib.sha256(binary.read_bytes()).hexdigest()
+    receipt = s8b_binary_admission.issue_binary_admission_receipt(
+        admission=admission, expected_policy=context.policy, source=source,
+        cell_id=cell_id, holdout_id=holdout_id,
+        configuration_id=configuration_id, binding=binding, binary=binary,
+        binary_sha256=binary_sha, contract_sha256=_CONTRACT_SHA, trace=False,
+    )
+    record = {
+        "cell_id": cell_id, "holdout_id": holdout_id,
+        "configuration_id": configuration_id, "binary": "build/fixture",
+        "binary_sha256": binary_sha, "bin_hash_short": binary_sha[:16],
+        "binding": binding, "configure_argv": ["cmake", "fixture"],
+        "build_argv": ["cmake", "--build", "fixture"], "cached": False,
+        "store_path": f"store/{binary_sha}", "admission_receipt": receipt,
+    }
+    if configuration_id == "sort_best":
+        record["sort_swo_oracle"] = expected_portable_sort_swo_pass_receipt(
+            cell_id=cell_id, holdout_id=holdout_id,
+            configuration_id=configuration_id, entry_sha256=_ENTRY_SHA,
+            binary_sha256=binary_sha,
+        )
+    return record
+
+
+def _admission_receipt(cell_ids):
+    return {
+        "schema": "s8b-floor-holdout-admission-receipt/v1",
+        "campaign_run_id": "20260816T000000Z-deadbeef",
+        "run_relpath": (
+            "env/test/calibration/s8b-floor-official/"
+            "20260816T000000Z-deadbeef"
+        ),
+        "mode": "official", "protocol_sha256": "2" * 64,
+        "freeze_sha256": "3" * 64, "manifest_sha256": "4" * 64,
+        "claim_identities": {
+            cell_id: hashlib.sha256(cell_id.encode()).hexdigest()
+            for cell_id in sorted(cell_ids)
+        },
+        "admission_row_count": len(cell_ids), "attempt_row_count": len(cell_ids),
+        "ledger_projection_sha256": "5" * 64,
+    }
+
+
 def _sess(cell_id, seq, throughputs, *, reps_expected=5, holdout_id="H",
           configuration_id="cfg", exec_failures=0, excluded_reason=None, retry=False):
     raw_values = list(throughputs) + [None] * max(0, reps_expected - len(throughputs))
@@ -382,7 +496,7 @@ def _honest_artifact():
     """honest な生成器を模した整合 artifact と対応する expected_protocol を組む (synthetic 軸)。"""
     holdout = "H1"
     stock_cfg = "stock_common"
-    va, vb = "variant_A", "variant_B"
+    va, vb = "sort_best", "variant_B"
     stock_cell = f"{holdout}::{stock_cfg}"
     va_cell = f"{holdout}::{va}"
     vb_cell = f"{holdout}::{vb}"
@@ -421,8 +535,31 @@ def _honest_artifact():
     for row in sessions:
         row["rep_observations"] = [dict(item) for item in row["rep_observations"]]
         row["exclusion_class"] = None
-    artifact = {"config": config, "sessions": sessions,
-                "cells": cells, "floors": floors}
+    with tempfile.TemporaryDirectory() as temp_dir:
+        binaries = {
+            cell_id: _portable_binary(
+                Path(temp_dir), cell_id=cell_id, holdout_id=holdout,
+                configuration_id=configuration_id,
+            )
+            for cell_id, configuration_id in (
+                (stock_cell, stock_cfg), (va_cell, va), (vb_cell, vb)
+            )
+        }
+    artifact = {
+        "schema": "s8b-floor-result/v4", "formula": FORMULA_ID,
+        "mode": "official", "eligible_for_refreeze": True,
+        "env_tag": "test", "ccbench_pin": _CCBENCH_PIN,
+        "protocol_sha256": "2" * 64, "freeze_sha256": "3" * 64,
+        "manifest_sha256": "4" * 64,
+        "stock_configuration": stock_cfg, "wired_min_rel_floor": 0.01,
+        "reps": reps, "n_sessions": n_sessions,
+        "scale_adequacy_rel_tolerance": "0.10",
+        "holdouts": [holdout], "configurations": [stock_cfg, va, vb],
+        "config": config, "sessions": sessions, "cells": cells, "floors": floors,
+        "binaries": binaries,
+        "holdout_admission": _admission_receipt(binaries),
+        "wall_ledger": [], "excluded": [], "attempts": [],
+    }
     expected = {"formula": FORMULA_ID, "n_sessions": n_sessions, "reps": reps,
                 "stock_configuration": stock_cfg, "wired_min_rel_floor": 0.01,
                 "session_cv_max": "0.10", "cell_cv_max": "0.15",
@@ -441,7 +578,50 @@ def test_verify_requires_expected_use_perf_keyword_argument():
     assert parameter.kind is inspect.Parameter.KEYWORD_ONLY
     assert parameter.default is inspect.Parameter.empty
     with pytest.raises(TypeError, match="expected_use_perf"):
-        _verify_floor_artifact(artifact, expected)
+        _verify_floor_artifact(
+            artifact, expected,
+            expected_holdout_admission=artifact["holdout_admission"],
+        )
+
+
+def test_verify_requires_expected_holdout_admission_keyword_argument():
+    artifact, expected, *_ = _honest_artifact()
+    parameter = inspect.signature(_verify_floor_artifact).parameters[
+        "expected_holdout_admission"
+    ]
+    assert parameter.kind is inspect.Parameter.KEYWORD_ONLY
+    assert parameter.default is inspect.Parameter.empty
+    with pytest.raises(TypeError, match="expected_holdout_admission"):
+        _verify_floor_artifact(artifact, expected, expected_use_perf=True)
+
+
+def test_live_verifier_signature_forbids_caller_supplied_expected_admission():
+    parameters = inspect.signature(
+        verify_floor_artifact_with_live_admission
+    ).parameters
+    assert "expected_holdout_admission" not in parameters
+
+
+def test_live_verifier_rejects_result_v4_unexpected_top_level_key(
+        tmp_path, monkeypatch):
+    artifact, expected, *_ = _honest_artifact()
+    artifact["unexpected"] = "must be rejected"
+    monkeypatch.setattr(
+        s8b_holdout_admission, "inspect_floor_holdout_admission_evidence",
+        lambda **_kwargs: artifact["holdout_admission"],
+    )
+
+    errors = verify_floor_artifact_with_live_admission(
+        artifact, expected, repo_root=tmp_path, protocol={},
+        verified_freeze_document={}, freeze_sha256="3" * 64,
+        manifest_sha256="4" * 64, campaign_run_id="run",
+        run_relpath="env/test/run", mode="official", cells=[], schedule=[],
+        sessions=[], expected_use_perf=True,
+    )
+
+    assert errors == [
+        "artifact result v4 exact key 集合が不一致 (欠落=[] 余分=['unexpected'])"
+    ]
 
 
 def test_verify_rejects_integrity_violation_with_valid_claim():
@@ -640,11 +820,10 @@ def test_verify_detects_swapped_throughputs():
 # --- 改竄 positive control 群 (verifier mutant を殺す) ---
 def test_verify_rejects_empty_artifact():
     # 空 sessions/cells/floors + config だけ → expected_cells 不一致で恒真化を拒否 (α-2)。
-    _, expected, *_ = _honest_artifact()
-    empty = {"config": {"formula": FORMULA_ID, "n_sessions": 4, "reps": 5,
-                        "stock_configuration": "stock_common", "wired_min_rel_floor": 0.01,
-                        "session_cv_max": "0.10", "cell_cv_max": "0.15"},
-             "sessions": [], "cells": {}, "floors": {}}
+    empty, expected, *_ = _honest_artifact()
+    empty["sessions"] = []
+    empty["cells"] = {}
+    empty["floors"] = {}
     errs = verify_floor_artifact(empty, expected)
     assert any("expected_cells" in e for e in errs)
 
@@ -753,3 +932,61 @@ def test_verify_rejects_missing_config():
     del artifact["config"]
     errs = verify_floor_artifact(artifact, expected)
     assert any("config" in e for e in errs)
+
+
+def test_verify_rejects_duplicate_binary_for_existing_pair_without_expected_binaries():
+    artifact, expected, *_ = _honest_artifact()
+    duplicate = copy.deepcopy(artifact["binaries"]["H1::variant_B"])
+    artifact["binaries"]["duplicate-cell-id"] = duplicate
+    errors = verify_floor_artifact(artifact, expected, expected_binaries=None)
+    assert any("canonical cell_id 集合/件数" in error for error in errors)
+
+
+def test_verify_rejects_unknown_binary_cell_id_without_expected_binaries():
+    artifact, expected, *_ = _honest_artifact()
+    record = artifact["binaries"].pop("H1::variant_B")
+    artifact["binaries"]["H1::unknown"] = record
+    errors = verify_floor_artifact(artifact, expected, expected_binaries=None)
+    assert any("canonical cell_id 集合/件数" in error for error in errors)
+
+
+def test_verify_rejects_binary_cell_id_bound_to_different_pair_without_expected_binaries():
+    artifact, expected, *_ = _honest_artifact()
+    stock = artifact["binaries"]["H1::stock_common"]
+    stock["holdout_id"] = "H1"
+    stock["configuration_id"] = "variant_B"
+    errors = verify_floor_artifact(artifact, expected, expected_binaries=None)
+    assert any("canonical cell identity" in error or "admission receipt" in error
+               for error in errors)
+
+
+def test_verify_rejects_empty_binaries_without_expected_binaries():
+    artifact, expected, *_ = _honest_artifact()
+    artifact["binaries"] = {}
+    errors = verify_floor_artifact(artifact, expected, expected_binaries=None)
+    assert errors == ["binaries: section が無い/空"]
+
+
+def test_verify_rejects_expected_holdout_without_exactly_one_sort_best():
+    artifact, expected, *_ = _honest_artifact()
+    expected["expected_cells"]["H1"].remove("sort_best")
+    errors = verify_floor_artifact(artifact, expected)
+    assert any("sort_best が 0 個" in error for error in errors)
+
+
+def test_pure_verifier_rejects_admission_different_from_external_expected():
+    artifact, expected, *_ = _honest_artifact()
+    live = copy.deepcopy(artifact["holdout_admission"])
+    live["ledger_projection_sha256"] = "6" * 64
+    errors = _verify_floor_artifact(
+        artifact, expected, expected_holdout_admission=live,
+        expected_use_perf=True,
+    )
+    assert errors == ["holdout_admission が live inspector の期待値と不一致"]
+
+
+def test_pure_verifier_rejects_legacy_result_schema():
+    artifact, expected, *_ = _honest_artifact()
+    artifact["schema"] = "s8b-floor-result/v3"
+    errors = verify_floor_artifact(artifact, expected)
+    assert errors == ["artifact.schema が 's8b-floor-result/v4' でない"]
