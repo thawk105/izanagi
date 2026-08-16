@@ -41,8 +41,8 @@ if TYPE_CHECKING:
 
 
 
-MANIFEST_SCHEMA_VERSION = "p3-8c-trial-manifest/v1"
-REGISTRATION_SCHEMA_VERSION = "p3-8c-trial-registration/v1"
+MANIFEST_SCHEMA_VERSION = "p3-8c-trial-manifest/v2"
+REGISTRATION_SCHEMA_VERSION = "p3-8c-trial-registration/v2"
 DEFAULT_REGISTRY_PATH = Path("output/s8c-trial-registry/registry.jsonl")
 DEFAULT_LIFECYCLE_PATH = Path("output/s8c-trial-registry/lifecycle.jsonl")
 LIFECYCLE_SCHEMA_VERSION = "p3-8c-trial-lifecycle/v1"
@@ -60,7 +60,9 @@ _TRIAL_ID_RE = re.compile(r"[a-z0-9][a-z0-9._-]{0,63}")
 _COMMIT_RE = re.compile(r"[0-9a-f]{40}")
 _SHA256_RE = re.compile(r"[0-9a-f]{64}")
 _MANIFEST_KEYS = frozenset({"schema_version", "prereg_commit", "trials"})
-_TRIAL_KEYS = frozenset({"trial_id", "arm", "holdout", "campaign_id"})
+_TRIAL_KEYS = frozenset({
+    "trial_id", "arm", "holdout", "campaign_id", "generations",
+})
 _REGISTRATION_KEYS = frozenset({
     "schema_version", "manifest_sha256", "prereg_commit", "trials",
 })
@@ -128,6 +130,7 @@ class TrialSpec:
     arm: str
     holdout: str
     campaign_id: str
+    generations: int
 
 
 @dataclasses.dataclass(frozen=True, slots=True)
@@ -457,6 +460,7 @@ def _parse_trials(
         arm = raw_trial["arm"]
         holdout = raw_trial["holdout"]
         campaign_id = raw_trial["campaign_id"]
+        generations = raw_trial["generations"]
         if not isinstance(trial_id, str) or _TRIAL_ID_RE.fullmatch(trial_id) is None:
             _fail("field", f"{label}[{index}].trial_id is not lexically valid")
         if not isinstance(arm, str) or arm not in ARMS:
@@ -465,7 +469,9 @@ def _parse_trials(
             _fail("field", f"{label}[{index}].holdout is outside the closed set")
         if not isinstance(campaign_id, str) or not campaign_id:
             _fail("field", f"{label}[{index}].campaign_id must be a non-empty string")
-        trials.append(TrialSpec(trial_id, arm, holdout, campaign_id))
+        if not (type(generations) is int and generations == 2):
+            _fail("field", f"{label}[{index}].generations must be the integer 2")
+        trials.append(TrialSpec(trial_id, arm, holdout, campaign_id, generations))
     if len({item.trial_id for item in trials}) != len(trials):
         _fail("uniqueness", f"{label} reuses a trial_id")
     if len({item.campaign_id for item in trials}) != len(trials):
@@ -507,12 +513,13 @@ def load_trial_manifest(path: Path) -> TrialManifest:
     )
 
 
-def _trial_dict(trial: TrialSpec) -> dict[str, str]:
+def _trial_dict(trial: TrialSpec) -> dict[str, str | int]:
     return {
         "trial_id": trial.trial_id,
         "arm": trial.arm,
         "holdout": trial.holdout,
         "campaign_id": trial.campaign_id,
+        "generations": trial.generations,
     }
 
 
@@ -2475,6 +2482,15 @@ def assert_trial_registry_acceptance(
             trial = manifest_by_id[trial_id]
             _assert_snapshot_completeness(item)
             item.assert_snapshot_unchanged()
+            if (
+                report.get("generation_budget_per_workload")
+                != trial.generations
+            ):
+                _fail(
+                    "generation-binding",
+                    "report generation_budget_per_workload differs from "
+                    f"manifest.trials[{trial_id!r}].generations",
+                )
             starts = [event for event in events if event.get("event") == "run-start"]
             if len(starts) != 1:
                 _fail("run-start-binding", "journal must contain exactly one run-start event")

@@ -81,6 +81,7 @@ def _manifest_value(prereg_commit: str, prefix: str) -> dict:
                 "arm": arm,
                 "holdout": holdout,
                 "campaign_id": f"campaign-{prefix}-{token}",
+                "generations": 2,
             })
     return {
         "schema_version": R.MANIFEST_SCHEMA_VERSION,
@@ -114,6 +115,7 @@ def _registration_value(manifest: R.TrialManifest) -> dict:
                 "arm": trial.arm,
                 "holdout": trial.holdout,
                 "campaign_id": trial.campaign_id,
+                "generations": trial.generations,
             }
             for trial in manifest.trials
         ],
@@ -146,6 +148,7 @@ def _registered_repo(
 
 def _payload_validation_receipt(event: dict, spec_key: str) -> dict:
     role = event["role"]
+    generation = event["generation"]
     fixed_literals = {
         "schema_version": producer.SCHEMA_VERSION,
         "pilot_scope": "exploratory-ycsb-abc",
@@ -166,7 +169,7 @@ def _payload_validation_receipt(event: dict, spec_key: str) -> dict:
     projection = {
         "role": role,
         "workload": event["workload"],
-        "generation": 1,
+        "generation": generation,
         "descriptor_sha256": event["descriptor_sha256"],
         "workload_descriptor_sha256": "1" * 64,
         "descriptor_binding_sha256": "2" * 64,
@@ -182,6 +185,21 @@ def _payload_validation_receipt(event: dict, spec_key: str) -> dict:
                 "IPC_overall", "cache_miss_rate_pct", "contention_level",
             ],
         })
+        feedback = None
+        if generation >= 2:
+            feedback = {
+                "source_generation": generation - 1,
+                "diagnostics": [
+                    {
+                        "metric": metric,
+                        "value_is_null": True,
+                        "value_sha256": hashlib.sha256(b"null").hexdigest(),
+                    }
+                    for metric in completeness._DIAGNOSTIC_METRICS
+                ],
+                "uncertainty_present": True,
+                "reverse_recommended": False,
+            }
         projection.update({
             "current_perf_nullness": {
                 key: True for key in sorted(completeness._PERF_KEYS)
@@ -190,7 +208,7 @@ def _payload_validation_receipt(event: dict, spec_key: str) -> dict:
                 key: True for key in sorted(completeness._LEADING_METRIC_KEYS)
             },
             "contention_level_sha256": hashlib.sha256(b'"high"').hexdigest(),
-            "critic_feedback": None,
+            "critic_feedback": feedback,
         })
     else:
         fixed_literals.update({
@@ -223,32 +241,50 @@ def _payload_validation_receipt(event: dict, spec_key: str) -> dict:
     }
 
 
-def _role_event(workload: str, role: str, seq: int, descriptor_hash: str) -> dict:
-    spec_key = "planner-generation-1" if role == "planner" else role
+def _role_event(
+    workload: str,
+    role: str,
+    seq: int,
+    descriptor_hash: str,
+    *,
+    generation: int = 1,
+    role_query_ordinal: int | None = None,
+) -> dict:
+    spec_key = (
+        "planner-generation-1"
+        if role == "planner" and generation == 1
+        else "planner-generation-next"
+        if role == "planner"
+        else role
+    )
     event = {
         "event": "role-attempt",
         "workload": workload,
-        "generation": 1,
+        "generation": generation,
         "role": role,
         "attempt": 1,
-        "invocation_id": f"{workload}.g1.{role}",
+        "invocation_id": f"{workload}.g{generation}.{role}",
         "seq": seq,
         "ts": f"2026-08-01T00:00:{seq:02d}+00:00",
         "status": "valid",
         "retry": False,
         "input_payload_sha256": hashlib.sha256(
-            f"payload:{workload}:{role}".encode()
+            f"payload:{workload}:{generation}:{role}".encode()
         ).hexdigest(),
         "descriptor_sha256": descriptor_hash,
-        "raw_response_path": f"/fixture/raw-{workload}-{role}.json",
+        "raw_response_path": (
+            f"/fixture/raw-{workload}-g{generation}-{role}.json"
+        ),
         "raw_response_sha256": hashlib.sha256(
-            f"response:{workload}:{role}".encode()
+            f"response:{workload}:{generation}:{role}".encode()
         ).hexdigest(),
         "parsed": {"fixture_role": role},
         "provenance": {"fixture": True},
         "payload_exact_keys": producer.ROLE_PAYLOAD_KEY_SPEC[spec_key],
         "payload_allowlist_sha256": producer.ROLE_PAYLOAD_ALLOWLIST_SHA256,
-        "role_query_ordinal": seq - 1,
+        "role_query_ordinal": (
+            seq - 1 if role_query_ordinal is None else role_query_ordinal
+        ),
     }
     if role in {"planner", "coder"}:
         event["payload_validation_receipt"] = _payload_validation_receipt(
@@ -257,7 +293,13 @@ def _role_event(workload: str, role: str, seq: int, descriptor_hash: str) -> dic
     return event
 
 
-def _base_start(trial: R.TrialSpec, run: Path, measurement_head: str) -> dict:
+def _base_start(
+    trial: R.TrialSpec,
+    run: Path,
+    measurement_head: str,
+    *,
+    generation_budget: int = 2,
+) -> dict:
     workload = R.HOLDOUT_BINDINGS[trial.holdout]["workload"]
     return {
         "event": "run-start",
@@ -265,7 +307,7 @@ def _base_start(trial: R.TrialSpec, run: Path, measurement_head: str) -> dict:
         "trial_id": trial.trial_id,
         "provider": "fixture",
         "workloads": [workload],
-        "generation_budget_per_workload": 1,
+        "generation_budget_per_workload": generation_budget,
         "max_wall_s": 60,
         "do_build": False,
         "performance_early_stop": False,
@@ -281,7 +323,13 @@ def _base_start(trial: R.TrialSpec, run: Path, measurement_head: str) -> dict:
     }
 
 
-def _base_report(trial: R.TrialSpec, run: Path, measurement_head: str) -> dict:
+def _base_report(
+    trial: R.TrialSpec,
+    run: Path,
+    measurement_head: str,
+    *,
+    generation_budget: int = 2,
+) -> dict:
     workload = R.HOLDOUT_BINDINGS[trial.holdout]["workload"]
     return {
         "schema_version": producer.REPORT_SCHEMA_VERSION,
@@ -292,7 +340,7 @@ def _base_report(trial: R.TrialSpec, run: Path, measurement_head: str) -> dict:
         "provider": "fixture",
         "do_build": False,
         "workloads_requested": [workload],
-        "generation_budget_per_workload": 1,
+        "generation_budget_per_workload": generation_budget,
         "stop_policy": {
             "fixed_generations": True,
             "performance_early_stop": False,
@@ -326,11 +374,11 @@ def _persist(run: Path, events: list[dict], report: dict) -> Path:
     return run / "report.json"
 
 
-def _accounting_event(workload: str, seq: int) -> dict:
+def _accounting_event(workload: str, generation: int, seq: int) -> dict:
     return {
         "event": "generation-accounting",
         "workload": workload,
-        "generation": 1,
+        "generation": generation,
         "state": "generation-complete",
         "provider_invoke_count": 4,
         "auditor_pre_audit_skipped": False,
@@ -472,25 +520,63 @@ def _complete_report(
     trial: R.TrialSpec,
     manifest: R.TrialManifest,
     measurement_head: str,
+    *,
+    generation_budget: int = 2,
 ) -> Path:
     run = root / f"run-{trial.trial_id}"
     workload = R.HOLDOUT_BINDINGS[trial.holdout]["workload"]
     ratio = R.HOLDOUT_BINDINGS[trial.holdout]["ycsb_rratio"]
     descriptor_hash = hashlib.sha256(f"descriptor:{workload}".encode()).hexdigest()
-    start = _base_start(trial, run, measurement_head)
-    report = _base_report(trial, run, measurement_head)
+    start = _base_start(
+        trial, run, measurement_head, generation_budget=generation_budget,
+    )
+    report = _base_report(
+        trial, run, measurement_head, generation_budget=generation_budget,
+    )
     for target in (start, report):
         target["prereg_commit"] = manifest.prereg_commit
         target["manifest_sha256"] = manifest.sha256
         target["launch_admission"] = _fixture_launch_admission(
             trial, manifest, measurement_head,
         )
-    roles: dict[str, dict] = {}
     events = [start]
-    for seq, role in enumerate(_ROLES, 2):
-        event = _role_event(workload, role, seq, descriptor_hash)
-        events.append(event)
-        roles[role] = copy.deepcopy(event)
+    generations = []
+    seq = 2
+    ordinal = 1
+    for generation in range(1, generation_budget + 1):
+        roles: dict[str, dict] = {}
+        for role in _ROLES:
+            event = _role_event(
+                workload,
+                role,
+                seq,
+                descriptor_hash,
+                generation=generation,
+                role_query_ordinal=ordinal,
+            )
+            events.append(event)
+            roles[role] = copy.deepcopy(event)
+            seq += 1
+            ordinal += 1
+        generations.append({
+            "generation": generation,
+            "roles": roles,
+            "preview": {"passed": True, "forbidden_identifiers": []},
+            "harness": {
+                "outcome": "dry-pass",
+                "variant": None,
+                "stop_reason": "continue",
+                "iteration": generation,
+                "ran": True,
+                "critic_digest_generated": False,
+            },
+            "outcome": "dry-pass",
+            "bench_wall_seconds": 0.0,
+            "generation_driver": dict(_GENERATION_DRIVER),
+            "gating_spec_sha256": _GATING_SPEC_SHA256,
+        })
+        events.append(_accounting_event(workload, generation, seq))
+        seq += 1
     report["cells"] = [{
         "workload": workload,
         "workload_flags": {"ycsb_rratio": ratio},
@@ -499,28 +585,11 @@ def _complete_report(
         "campaign_id": trial.campaign_id,
         "campaign_root": str(run / "campaigns" / trial.campaign_id),
         "admission_decision": {"admission_status": "not-applicable"},
-        "generations": [{
-            "generation": 1,
-            "roles": roles,
-            "preview": {"passed": True, "forbidden_identifiers": []},
-            "harness": {
-                "outcome": "dry-pass",
-                "variant": None,
-                "stop_reason": "continue",
-                "iteration": 1,
-                "ran": True,
-                "critic_digest_generated": False,
-            },
-            "outcome": "dry-pass",
-            "bench_wall_seconds": 0.0,
-            "generation_driver": dict(_GENERATION_DRIVER),
-            "gating_spec_sha256": _GATING_SPEC_SHA256,
-        }],
+        "generations": generations,
         "stop_reason": "fixed-generation-budget",
     }]
-    report["honest_accounting"]["role_query_count"] = 4
-    events.append(_accounting_event(workload, 6))
-    events.append(_finish_event(run, "complete", 7, 4))
+    report["honest_accounting"]["role_query_count"] = ordinal - 1
+    events.append(_finish_event(run, "complete", seq, ordinal - 1))
     return _persist(run, events, report)
 
 
@@ -561,9 +630,17 @@ def _one_cell_partial_report(
     manifest: R.TrialManifest,
     measurement_head: str,
 ) -> Path:
-    path = _complete_report(root, trial, manifest, measurement_head)
+    path = _complete_report(
+        root,
+        trial,
+        manifest,
+        measurement_head,
+        generation_budget=1,
+    )
     events, report = _load_report_bundle(path)
     error = {"type": "RuntimeError", "message": "supervisor failed"}
+    events[0]["generation_budget_per_workload"] = trial.generations
+    report["generation_budget_per_workload"] = trial.generations
     report["status"] = "partial"
     report["fatal_error"] = error
     report["cells"][0]["stop_reason"] = "supervisor-error"
@@ -613,6 +690,35 @@ def test_p1_exact_six_trial_manifest_passes(tmp_path: Path) -> None:
     assert [(trial.holdout, trial.arm) for trial in manifest.trials] == [
         (holdout, arm) for holdout in R.HOLDOUTS for arm in R.ARMS
     ]
+    assert {trial.generations for trial in manifest.trials} == {2}
+
+
+def test_t1185_m1_manifest_generation_one_is_rejected_at_exact_path(
+    tmp_path: Path,
+) -> None:
+    _repo, prereg = _init_repo(tmp_path)
+    path = tmp_path / "manifest.json"
+    value = _manifest_value(prereg, "m1-generation")
+    value["trials"][4]["generations"] = 1
+    _write_manifest(path, value)
+    with pytest.raises(
+        R.TrialRegistryError,
+        match=r"manifest\.trials\[4\]\.generations",
+    ):
+        R.load_trial_manifest(path)
+
+
+def test_manifest_generations_rejects_bool_at_exact_path(tmp_path: Path) -> None:
+    _repo, prereg = _init_repo(tmp_path)
+    path = tmp_path / "manifest.json"
+    value = _manifest_value(prereg, "bool-generation")
+    value["trials"][2]["generations"] = True
+    _write_manifest(path, value)
+    with pytest.raises(
+        R.TrialRegistryError,
+        match=r"manifest\.trials\[2\]\.generations",
+    ):
+        R.load_trial_manifest(path)
 
 
 def test_p2_first_and_second_registration_append_pass(tmp_path: Path) -> None:
@@ -726,6 +832,56 @@ def test_p5_six_complete_terminal_reports_pass_acceptance(tmp_path: Path) -> Non
     # the fixture repository and every key, leaf, and trial-array position is
     # compared.
     assert receipt == expected_receipt
+
+
+def test_t1185_pa_all_six_generation_two_reports_pass_acceptance(
+    tmp_path: Path,
+) -> None:
+    repo, manifest_path, registry, manifest = _registered_repo(tmp_path)
+    reports = _reports(repo / "reports", manifest, _head(repo), complete=True)
+    for path in reports:
+        report = json.loads(path.read_bytes())
+        assert report["generation_budget_per_workload"] == 2
+        assert len(report["cells"]) == 1
+        assert len(report["cells"][0]["generations"]) == 2
+        assert report["cells"][0]["stop_reason"] == "fixed-generation-budget"
+    summary = _accept(
+        manifest_path=manifest_path,
+        report_paths=reports,
+        repository_root=repo,
+        registry_path=registry,
+    )
+    assert {trial.status for trial in summary.trials} == {"complete"}
+
+
+def test_t1185_m3_m4_acceptance_checks_last_report_generation_budget(
+    tmp_path: Path,
+) -> None:
+    repo, manifest_path, registry, manifest = _registered_repo(tmp_path)
+    measurement = _head(repo)
+    reports = [
+        _complete_report(
+            repo / "reports",
+            trial,
+            manifest,
+            measurement,
+            generation_budget=(1 if index == len(manifest.trials) - 1 else 2),
+        )
+        for index, trial in enumerate(manifest.trials)
+    ]
+    last_report = json.loads(reports[-1].read_bytes())
+    assert last_report["generation_budget_per_workload"] == 1
+    assert len(last_report["cells"][0]["generations"]) == 1
+    with pytest.raises(
+        R.TrialRegistryError,
+        match=r"\[generation-binding\].*generation_budget_per_workload",
+    ):
+        _accept(
+            manifest_path=manifest_path,
+            report_paths=reports,
+            repository_root=repo,
+            registry_path=registry,
+        )
 
 
 @pytest.mark.parametrize("rejected", [True, False])
@@ -968,6 +1124,31 @@ def test_p6_one_cell_partial_terminal_outcome_passes_acceptance(tmp_path: Path) 
         registry_path=registry,
     )
     assert [trial.status for trial in summary.trials].count("partial") == 6
+
+
+def test_t1185_pb_partial_one_generation_with_budget_two_passes_acceptance(
+    tmp_path: Path,
+) -> None:
+    repo, manifest_path, registry, manifest = _registered_repo(tmp_path)
+    measurement = _head(repo)
+    reports = [
+        (_one_cell_partial_report if index == len(manifest.trials) - 1
+         else _complete_report)(
+            repo / "reports", trial, manifest, measurement,
+        )
+        for index, trial in enumerate(manifest.trials)
+    ]
+    partial = json.loads(reports[-1].read_bytes())
+    assert partial["generation_budget_per_workload"] == 2
+    assert len(partial["cells"][0]["generations"]) == 1
+    assert partial["cells"][0]["stop_reason"] == "supervisor-error"
+    summary = _accept(
+        manifest_path=manifest_path,
+        report_paths=reports,
+        repository_root=repo,
+        registry_path=registry,
+    )
+    assert [trial.status for trial in summary.trials].count("partial") == 1
 
 
 def test_p7_later_registry_rows_do_not_hide_older_manifest(tmp_path: Path) -> None:
@@ -2144,8 +2325,8 @@ def test_redundant_registry_duplicate_key_gate_rejects_before_canonical_bytes(
 ) -> None:
     row = _valid_registry_row(tmp_path)
     raw = _canonical(row).decode().replace(
-        '"schema_version":"p3-8c-trial-registration/v1"',
-        '"schema_version":"decoy","schema_version":"p3-8c-trial-registration/v1"',
+        '"schema_version":"p3-8c-trial-registration/v2"',
+        '"schema_version":"decoy","schema_version":"p3-8c-trial-registration/v2"',
         1,
     )
     path = tmp_path / "registry.jsonl"

@@ -18497,3 +18497,132 @@ in-memory で反転し実 HEAD の blob に対して評価器を実行) では
   凍結 hash と世代鎖を二重に進めることになる。
 - 実測 sink へ無条件の reservation 検査を置く — linux-baremetal の正当な計測を fail-closed で
   落とし、供給側 launcher も無いため計算ノード実行も落ちる。
+
+## D442. enforcement source closure を exact 12 path へ広げ、verifier 実装を epoch へ束縛する (2026-08-16)
+
+**決定:**
+
+1. **閉包を exact 12 path にする。** `campaign_lock.CONTRACT_LOADER_RELATIVE_PATHS` へ
+   `orchestrator/verifier/core.py` / `dsg.py` / `model.py` / `parse.py` を末尾へ加える。
+   D268 決定 1 の「exact 8 path」を supersede する。既存 8 path の順序は変えない
+   (順序は epoch preimage に効く)。検証の意味論 (記録 commit の blob と現在の disk bytes の
+   一致)、停止点、fail-closed は変えない。
+2. **識別子・wire key・hash domain は変えない。** `contract_loader_*` は歴史的名称として残す
+   (D268 決定 2 を継承)。`campaign-verifier-epoch/v1` の domain 文字列も据え置く。
+   実 corpus に v2 lock が 0 本なので旧定義と新定義が同居する実物が無く、domain を上げると
+   `E1` prefix を固定する layer3 / S1 / S8b の golden まで変更面が広がるためである。
+3. **`campaign_verifier_epoch` の scope 診断を真になる文言へ直す。** identity scope は
+   exact 12 path と verifier 実装 4 file の包含を明記し、excluded scope は verifier package の
+   うち束縛しない `__init__.py` / `__main__.py` / `cli.py` / `report.py` を exact に列挙する。
+
+**理由:**
+
+- 従来は E1 lock を作った後に verifier の実装 bytes だけを書き換えても epoch が変わらなかった。
+  正しさ判定の実体が identity の外にあり、anomaly を含む run が同じ epoch の certified 集合へ
+  入りうる状態は規律 2 に抵触する。
+- 実 corpus の `output/**/campaign.lock` は 32 本すべて v1 で v2 は 0 本である (実測)。
+  壊れる既存成果物が無い今が費用最小の窓であり、成果物が積まれてから広げるより安い。
+
+**名乗ってよい範囲 (これを超えて書いてはならない):**
+
+> `require_environment_contract=True` で `ident.ensure_campaign_identity` の source 検査が
+> 実際に完了した呼出しについて、**各 path を検査が読み取ったそれぞれの時点の** enforcement
+> source closure exact 12 path の disk bytes は、その呼出しが authority に採用した
+> `contract_loader_commit` の同 path Git blob と一致した。
+
+D268 の制限箇条書きはすべて継承する。加えて次を明記する。
+
+- **verifier package の dispatch 面は閉じていない。** `pipeline.py` は
+  `orchestrator/verifier/__init__.py` の再 export を通じて `verify_trace_dir` を解決する。
+  この shim を別実装へ向ければ、束縛した 4 file の bytes を 1 byte も変えずに正しさゲートを
+  無効化できる。`report.py` / `cli.py` / `__main__.py` と wrapper `orchestrator/verify.py` も
+  閉包外である。
+- **弱化してから作る fresh lock は拒否しない。** 本閉包が検出するのは lock 記録後の drift だけで
+  ある。verifier を弱めて commit し、その bytes で新しい lock を作れば、新しい `E1` として
+  受理される。「規律 2 の穴を塞いだ」とは名乗らない。
+- **epoch の cross-version 認証は無い。** oracle の artifact validator は scope を非空文字列
+  としか検査せず、judge は `state=E1` と `certified_eligible=true` だけで採用する。
+  旧定義の `E1` を新閉包の certified 選択から排除する機構は存在しない。
+- **別閉包は追随しない。** T126 qualification の code identity は verifier では `core.py` しか
+  含まず、`dsg/model/parse` の変更に反応しない。
+
+**受理集合の変化:**
+
+- 既存 artifact は不変。v2 lock は 0 本のままである。
+- v2 wire の受理言語は exact-8 key から **exact-12 key への置換**であって部分集合化ではない。
+  旧 exact-8 map は拒否になる。
+- 閉包 12 path のいずれかに未 commit 差分がある working tree からの certified 実行は、
+  `ident` の停止点で拒否される。verifier 4 file がこの対象へ加わったことが本決定の目的である。
+
+**却下した選択肢:**
+
+- **`__init__.py` を含む exact 13 以上。** 段 2 プランと段 3・段 6 の敵対レビューがいずれも
+  推したが、批准された裁定文が名指ししたのは 4 file である。12 / 13 / 14 / 16 の選択は
+  脅威モデルの選択そのものであり、親が独断で 1 点を選ばずユーザー裁定へ返す。
+- **domain を `/v2` へ上げる。** 上記 2 のとおり変更面が裁定の範囲を超える。
+- **oracle 側で現行 scope の exact 一致を要求する。** 受理集合を変える新設 gate であり、
+  本裁定の範囲外。択一として裁定へ返す。
+
+## D443. 8c 正式系列の世代数は manifest が宣言し、受入は宣言と実行の矛盾だけを拒否し、実効的な閂は起動側に置く (2026-08-16)
+
+**決定 (1): 世代数の正本は `manifest.trials[].generations` とし、値は整数 2 に閉じる。**
+manifest / registration schema を `p3-8c-trial-manifest/v2` / `p3-8c-trial-registration/v2` へ上げ、
+trial 行の exact key へ `generations` を足す。`type(value) is int and value == 2` を要求して
+`bool` を通さない。拒否 message は `trials[<index>].generations` の位置を含め、6 cell の
+どれが不正かを運用者が特定できるようにする。top-level ではなく trial 単位に置く理由は、
+registry・binding・admission・receipt がいずれも `trial_id` 単位の capability であり、
+選択された 1 trial の起動条件を自己完結させる必要があるためである。
+
+**決定 (2): 受入は 6 report 全件について、manifest の宣言値と report の
+`generation_budget_per_workload` の一致を要求する。不一致は `[generation-binding]` で拒否する。**
+これは「判定不能」ではなく**証拠と事前登録の矛盾**である。manifest が 2 世代の試行として
+登録したものが budget 1 で実行された report は、決定 (3) の起動 gate を通っていないことを
+意味する。したがって拒否されるのは「正当に起動できなかったはずの実行」であり、欠測でも
+crash でもない。先頭 1 件での早期 return や `zip` の暗黙短縮に頼らず、全件を回ることが
+構造的に保証される形で書く。負の対照は**末尾**の cell に不一致を置く。
+
+**決定 (3): registered 起動は runtime の generations が manifest 宣言値と一致しなければ、
+campaign identity 導出と run root 作成より前に fail-closed で拒否する。**
+ここが実効的な閂であり、**落とす対象がそもそも生成されない**。CLI 既定値 1 を manifest の
+2 へ自動補正することはしない — 事前登録文書が「世代数を明示的に指定しない起動を本系列の試行として
+数えない」と規範化しており、補正は明示の要求を骨抜きにする。
+
+**決定 (4): 実走世代数が宣言に届かなかった cell は、従来どおり partial として receipt に記録し、
+拒否しない。** crash・supervisor-error・early-stop で 2 世代に届かなかった cell の扱いは変えない。
+`stop_reason == "fixed-generation-budget"` のときに実走長 == budget を要求する既存規則
+(`autonomous_trial_completeness.py`) をそのまま使う。全件報告・判定不能の契約を破らない。
+
+**決定 (5): 世代数を `TrialBinding` / launch admission / lifecycle / 受入 receipt へ伝播しない。
+run/report schema に v4 を作らない。** 起動時検査は manifest を再読して等価性を得るため、
+封印値を binding に持たせなくても同じ保証が立つ。伝播すると launch admission の exact key 契約と
+originless 互換 golden の bytes が変わり、等価な保証に対して影響半径だけが大きくなる。
+
+**理由:**
+
+- 承認上限 `MAX_APPROVED_GENERATIONS = 2` は上限しか強制せず、予算 validator は 1 以上を受理し、
+  CLI 既定値は 1 である。budget=1 の 6 cell は manifest 登録・launch binding・完全性検査・
+  受入 gate をすべて通過できた。上限を下限へ流用せず、宣言と実行の間に別の束縛を置く。
+- **「拒否」だけでも「記録」だけでも成立しない。** 正式受入で partial report を拒否する案は、
+  file-drawer を受入側で開け直す (走らせた試行が receipt に一切残らない経路ができる)。
+  一方、受入 receipt の `certifying` は literal `False` に固定されているため、
+  「exact 2 でなければ non-certifying にする」だけの案は受理集合を 1 bit も変えず**恒真**になる。
+  budget (宣言・起動意図) と actual (実際に起きたこと) の間に線を引くことで両方を避ける。
+- 決定 (2) の比較は恒真ではない。manifest 側は parse 時点で 2 に閉じているが、report 側の
+  budget は 1 を取りうるので分岐が生きている。変異で裏取りした
+  (比較の無効化が末尾 cell の負例だけを赤にする)。
+
+**却下した選択肢:**
+
+- **正式受入で partial を拒否し `report.cells` を 1 個へ狭める** — 欠測・crash・不一致を
+  「判定不能として残す」でなく「台帳から落とす」に変える。file-drawer を塞ぐために積み上げた
+  registry・lifecycle・全件報告の設計と正面から矛盾する。
+- **manifest を触らず定数だけで exact 2 を検査する** — 事前登録 artifact に宣言が残らず、
+  「何世代の試行として登録されたか」を後から証拠で辿れない。
+- **CLI 既定値を 2 へ変える** — 「明示しない起動を数えない」という規範に反する。
+  既定値が literal 1 であることは AST で意図的に釘付けされている。
+- **`MAX_APPROVED_GENERATIONS` を exact 下限として流用する** — 上限と下限は別の概念であり、
+  上限の引き上げ (多世代開放) と正式系列の固定予算を同じ定数へ縛ると両方を動かせなくなる。
+- **run/report を exploratory v3 / registered v4 の tagged union へ割る** — 正式系列だけを
+  狭めるには有効だが、本決定の目的 (宣言と実行の突き合わせ) は既存の
+  `generation_budget_per_workload` と `cells[].generations` で足りる。schema を割ると
+  verifier の検査順序変更まで必要になり、pilot の受理集合へ波及する危険が増える。
