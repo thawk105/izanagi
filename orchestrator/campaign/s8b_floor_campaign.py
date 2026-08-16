@@ -616,13 +616,42 @@ def _strict_parse_protocol_bytes(raw: bytes, *, source: str) -> dict:
     return document
 
 
+_FLOOR_GIT_AUTHORITY_ENV = frozenset({
+    "GIT_REPLACE_REF_BASE",
+    "GIT_CONFIG",
+    "GIT_CONFIG_PARAMETERS",
+    "GIT_CONFIG_COUNT",
+    "GIT_NAMESPACE",
+    "GIT_GRAFT_FILE",
+    "GIT_SHALLOW_FILE",
+})
+_FLOOR_GIT_CONFIG_ENTRY_RE = re.compile(r"GIT_CONFIG_(?:KEY|VALUE)_\d+")
+
+
+def _sanitized_floor_git_env() -> dict[str, str]:
+    """floor issuer の Git object/config authority を ambient 環境から切る。"""
+    env = source_digest._sanitized_git_env()
+    for name in _FLOOR_GIT_AUTHORITY_ENV:
+        env.pop(name, None)
+    for name in tuple(env):
+        if _FLOOR_GIT_CONFIG_ENTRY_RE.fullmatch(name):
+            env.pop(name, None)
+    env["GIT_NO_REPLACE_OBJECTS"] = "1"
+    return env
+
+
+def _floor_git_read_command(*args: str) -> list[str]:
+    """replacement object を argv と環境の二層で無効化した Git read argv。"""
+    return ["git", "--no-replace-objects", *args]
+
+
 def _head_commit_oid(root: Path) -> str:
     """ambient Git authority を除去して HEAD commit を一度だけ解決する。"""
     try:
         raw = subprocess.run(
-            ["git", "rev-parse", "--verify", "HEAD^{commit}"],
+            _floor_git_read_command("rev-parse", "--verify", "HEAD^{commit}"),
             cwd=str(root), check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-            env=source_digest._sanitized_git_env(),
+            env=_sanitized_floor_git_env(),
         ).stdout
         commit_oid = raw.decode("ascii", "strict").strip()
         if re.fullmatch(r"[0-9a-f]{40}", commit_oid) is None:
@@ -640,9 +669,9 @@ def _head_blob_100644(root: Path, rel: str, commit_oid: str) -> bytes:
     """固定 commit の exact 100644 blob OID を検査して bytes を読む。"""
     try:
         listed = subprocess.run(
-            ["git", "ls-tree", "-z", commit_oid, "--", rel],
+            _floor_git_read_command("ls-tree", "-z", commit_oid, "--", rel),
             cwd=str(root), check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-            env=source_digest._sanitized_git_env(),
+            env=_sanitized_floor_git_env(),
         ).stdout
         entries = [entry for entry in listed.split(b"\0") if entry]
         if len(entries) != 1:
@@ -660,9 +689,9 @@ def _head_blob_100644(root: Path, rel: str, commit_oid: str) -> bytes:
                 f"AI reseal anchor の blob OID が 40 桁小文字 hex でない: {rel}"
             )
         return subprocess.run(
-            ["git", "cat-file", "blob", blob_oid],
+            _floor_git_read_command("cat-file", "blob", blob_oid),
             cwd=str(root), check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-            env=source_digest._sanitized_git_env(),
+            env=_sanitized_floor_git_env(),
         ).stdout
     except FloorCampaignError:
         raise
@@ -721,11 +750,8 @@ def _index_protocol_record(
     )
 
 
-def _scan_floor_protocol_index_at_commit(
-        *, root: Path, commit_oid: str,
-) -> dict[tuple[str, str], IndexedFloorProtocol]:
-    """固定 commit の anchor と sanctioned namespace を strict index 化する。"""
-    root = Path(root)
+def _assert_floor_protocol_ancestors(root: Path) -> None:
+    """sanctioned namespace までの祖先が実 directory であることを検査する。"""
     for rel in ("output", "output/s8b-freeze"):
         directory = root / rel
         if directory.is_symlink():
@@ -734,6 +760,23 @@ def _scan_floor_protocol_index_at_commit(
             raise FloorCampaignError(
                 f"floor protocol index 親が実 directory でない: {rel}"
             )
+    protocols_dir = root / _FLOOR_PROTOCOLS_REL
+    if protocols_dir.is_symlink():
+        raise FloorCampaignError(
+            f"floor protocol namespace が symlink: {protocols_dir}"
+        )
+    if protocols_dir.exists() and not protocols_dir.is_dir():
+        raise FloorCampaignError(
+            f"floor protocol namespace が directory でない: {protocols_dir}"
+        )
+
+
+def _scan_floor_protocol_index_at_commit(
+        *, root: Path, commit_oid: str,
+) -> dict[tuple[str, str], IndexedFloorProtocol]:
+    """固定 commit の anchor と sanctioned namespace を strict index 化する。"""
+    root = Path(root)
+    _assert_floor_protocol_ancestors(root)
     legacy_path = root / _FLOOR_PROTOCOL_REL
     try:
         legacy_stat = legacy_path.lstat()
@@ -766,16 +809,8 @@ def _scan_floor_protocol_index_at_commit(
     )
 
     protocols_dir = root / _FLOOR_PROTOCOLS_REL
-    if protocols_dir.is_symlink():
-        raise FloorCampaignError(
-            f"floor protocol namespace が symlink: {protocols_dir}"
-        )
     if not protocols_dir.exists():
         return index
-    if not protocols_dir.is_dir():
-        raise FloorCampaignError(
-            f"floor protocol namespace が directory でない: {protocols_dir}"
-        )
     try:
         entries = sorted(protocols_dir.iterdir(), key=lambda path: path.name)
     except OSError as exc:
@@ -840,9 +875,9 @@ def _ccbench_gitlink(root: Path, commit_oid: str) -> str:
     """固定 commit の ``external/ccbench`` gitlink を読む (fail-closed)。"""
     try:
         completed = subprocess.run(
-            ["git", "ls-tree", commit_oid, "external/ccbench"],
+            _floor_git_read_command("ls-tree", commit_oid, "external/ccbench"),
             cwd=str(root), stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True,
-            env=source_digest._sanitized_git_env(),
+            env=_sanitized_floor_git_env(),
         )
         out = completed.stdout.decode("utf-8", "strict")
     except (OSError, subprocess.CalledProcessError, UnicodeError) as exc:
@@ -855,6 +890,17 @@ def _ccbench_gitlink(root: Path, commit_oid: str) -> str:
     if len(sha) != 40 or any(ch not in "0123456789abcdef" for ch in sha):
         raise FloorCampaignError(f"ccbench gitlink が 40 桁 hex でない: {sha!r}")
     return sha
+
+
+def _reseal_published_artifact_error(
+        destination_rel: str, detail: str,
+) -> FloorCampaignError:
+    """自動 rollback しない発行失敗へ、復旧に必要な exact path を載せる。"""
+    return FloorCampaignError(
+        f"{detail}。artifact={destination_rel}。"
+        "この file を取り除くまで、この repository では新しい床値 protocol を発行できない。"
+        "自動削除しないため commit 禁止であり、commit してはならない"
+    )
 
 
 def _reseal_protocol_at_root(root: Path) -> dict[str, object]:
@@ -917,22 +963,48 @@ def _reseal_protocol_at_root(root: Path) -> dict[str, object]:
     destination_rel = _derived_reseal_protocol_relpath(*target_pair)
     destination = root / destination_rel
 
-    _write_protocol_document_create_only(destination, built)
+    # 初回 scan 後の祖先差し替えを writer の直前でも拒否する。
+    _assert_floor_protocol_ancestors(root)
+    try:
+        _write_protocol_document_create_only(destination, built)
+    except FloorCampaignError as exc:
+        if os.path.lexists(destination):
+            raise _reseal_published_artifact_error(
+                destination_rel, f"AI reseal write 検証失敗: {exc}",
+            ) from exc
+        raise
 
-    published_head = _head_commit_oid(root)
-    if published_head != head_commit:
-        raise FloorCampaignError(
-            "AI reseal publish 中に HEAD commit が変化した。"
-            "自動削除しないため commit 禁止"
+    root_real = os.path.realpath(root)
+    destination_real = os.path.realpath(destination)
+    try:
+        destination_inside_root = os.path.commonpath(
+            (root_real, destination_real),
+        ) == root_real
+    except ValueError:
+        destination_inside_root = False
+    if not destination_inside_root:
+        raise _reseal_published_artifact_error(
+            destination_rel,
+            f"destination realpath が repository 外: {destination_real}",
         )
-    post_publish_pin = _ccbench_gitlink(root, published_head)
+
+    try:
+        published_head = _head_commit_oid(root)
+    except FloorCampaignError as exc:
+        raise _reseal_published_artifact_error(
+            destination_rel, f"AI reseal publish 後の HEAD 検証失敗: {exc}",
+        ) from exc
+    if published_head != head_commit:
+        raise _reseal_published_artifact_error(
+            destination_rel, "AI reseal publish 中に HEAD commit が変化した",
+        )
 
     try:
         read_back = destination.read_bytes()
         reparsed = _strict_parse_protocol_bytes(read_back, source=destination_rel)
     except (OSError, FloorCampaignError) as exc:
-        raise FloorCampaignError(
-            f"AI reseal post-write 検証失敗。自動削除しないため commit 禁止: {exc}"
+        raise _reseal_published_artifact_error(
+            destination_rel, f"AI reseal post-write 検証失敗: {exc}",
         ) from exc
     problems = []
     if read_back != built.canonical_bytes:
@@ -940,25 +1012,25 @@ def _reseal_protocol_at_root(root: Path) -> dict[str, object]:
     if reparsed != built.document:
         problems.append("read-back strict parse が builder document と不一致")
     if problems:
-        raise FloorCampaignError(
-            "AI reseal post-write 検証失敗。自動削除しないため commit 禁止: "
-            + "; ".join(problems)
+        raise _reseal_published_artifact_error(
+            destination_rel,
+            "AI reseal post-write 検証失敗: " + "; ".join(problems),
         )
     try:
         post_index = _scan_floor_protocol_index_at_commit(
             root=root, commit_oid=head_commit,
         )
     except FloorCampaignError as exc:
-        raise FloorCampaignError(
-            f"AI reseal post-write full index 検証失敗。"
-            f"自動削除しないため commit 禁止: {exc}"
+        raise _reseal_published_artifact_error(
+            destination_rel, f"AI reseal post-write full index 検証失敗: {exc}",
         ) from exc
-    post_target_pair = (target_pair[0], post_publish_pin)
+    post_target_pair = target_pair
     indexed = post_index.get(post_target_pair)
     if indexed is None or indexed.path != destination_rel or indexed.raw_bytes != read_back:
-        raise FloorCampaignError(
-            "AI reseal post-write 検証失敗。自動削除しないため commit 禁止: "
-            "post-write full index に target pair が exact path/bytes で無い"
+        raise _reseal_published_artifact_error(
+            destination_rel,
+            "AI reseal post-write 検証失敗: "
+            "post-write full index に target pair が exact path/bytes で無い",
         )
     return {
         "status": "resealed",
