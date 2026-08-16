@@ -3,17 +3,23 @@
 from __future__ import annotations
 
 import importlib.util
+import fcntl
 import hashlib
+import inspect
 import json
+import math
 import os
 import re
 import signal
+import shutil
 import socket
 import stat
 import subprocess
 import sys
+import tempfile
 import threading
 import time
+import uuid
 from pathlib import Path
 from typing import Any
 
@@ -45,6 +51,18 @@ _STREAM_READ_MAX_BYTES = 64 * 1024
 _RECEIPT_MAX_BYTES = LAUNCHER._MAX_JSON_BYTES
 _TRUTH_SUMMARY_MAX_BYTES = 4096
 _EXPECTED_TRUST_BYPASS_FLAG = "--dangerously-bypass-hook-trust"
+_FAILURE_ARTIFACT_ROOT = _ROOT / "output/runs/pytest-launcher-failures"
+_SNAPSHOT_MAX_FILES = 4096
+_SNAPSHOT_MAX_BYTES = 256 * 1024 * 1024
+_FAILURE_RUN_MAX_BUNDLES = 21
+_FAILURE_RUN_MAX_ENTRIES = 16 * 1024
+_FAILURE_RUN_MAX_BYTES = 512 * 1024 * 1024
+_FAILURE_BUNDLE_METADATA_RESERVE_BYTES = 64 * 1024
+_EXCEPTION_MESSAGE_MAX_CHARS = 2048
+_LIVE_WIRING_PROBE_ENV = "IZANAGI_LAUNCHER_FAILURE_LIVE_PROBE"
+_LIVE_ARCHIVE_FAILURE_PROBE_ENV = (
+    "IZANAGI_LAUNCHER_FAILURE_ARCHIVE_ERROR_PROBE"
+)
 
 
 class LauncherReturncodeMismatch(AssertionError):
@@ -58,6 +76,577 @@ class _DiagnosticFileError(RuntimeError):
         super().__init__(reason)
         self.reason = reason
         self.total_bytes = total_bytes
+
+
+def _archive_component(value: str) -> str:
+    rendered = re.sub(r"[^A-Za-z0-9._-]+", "-", value).strip("-.")
+    return (rendered or "unknown")[:128]
+
+
+def _failure_run_directory() -> Path:
+    pbs_job_id = os.environ.get("PBS_JOBID", "local")
+    return _FAILURE_ARTIFACT_ROOT / (
+        f"{_archive_component(pbs_job_id)}--"
+        f"{_archive_component(socket.gethostname())}"
+    )
+
+
+def _paths_have_ancestor_relationship(first: Path, second: Path) -> bool:
+    first_resolved = first.resolve()
+    second_resolved = second.resolve()
+    return (
+        first_resolved == second_resolved
+        or first_resolved in second_resolved.parents
+        or second_resolved in first_resolved.parents
+    )
+
+
+def _write_archive_json(path: Path, value: object) -> None:
+    path.write_text(
+        json.dumps(
+            value,
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+
+def _snapshot_tmp_path(
+    source: Path,
+    destination: Path,
+    *,
+    max_files: int | None = None,
+    max_bytes: int | None = None,
+) -> tuple[dict[str, Any], dict[str, str]]:
+    if _paths_have_ancestor_relationship(source, destination):
+        raise ValueError("snapshot source/destination ancestor relationship")
+    if max_files is None:
+        max_files = _SNAPSHOT_MAX_FILES
+    if max_bytes is None:
+        max_bytes = _SNAPSHOT_MAX_BYTES
+    if max_files < 0 or max_bytes < 0:
+        raise ValueError("snapshot limits must be non-negative")
+    snapshot_root = destination / "tmp_path"
+    snapshot_root.mkdir(mode=0o700)
+    entries: list[dict[str, Any]] = []
+    path_map = {os.fspath(source.absolute()): "tmp_path"}
+    files_seen = 0
+    bytes_copied = 0
+    search_complete = True
+    candidates: list[
+        tuple[int, str, Path, Path, os.stat_result, dict[str, Any], str | None]
+    ] = []
+    pending_directories: list[tuple[Path, Path]] = [(source, Path())]
+
+    def critical_kind(relative: Path, metadata: os.stat_result) -> str | None:
+        if not stat.S_ISREG(metadata.st_mode):
+            return None
+        name = relative.name
+        if name.startswith("launcher-diagnostics.") and name.endswith(".json"):
+            return "launcher-sidecar"
+        if re.fullmatch(r"attempt-[0-9]+\.events\.jsonl", name):
+            return "attempt-events"
+        if re.fullmatch(r"attempt-[0-9]+\.stderr\.log", name):
+            return "attempt-stderr"
+        if re.fullmatch(r"attempt-[0-9]+\.output\.md", name):
+            return "attempt-output"
+        if name.startswith("receipt") and name.endswith(".json"):
+            return "receipt"
+        if name.startswith("manifest") and name.endswith(".json"):
+            return "manifest"
+        return None
+
+    while pending_directories and files_seen < max_files:
+        source_dir, relative_dir = pending_directories.pop()
+        remaining = max_files - files_seen
+        try:
+            with os.scandir(source_dir) as iterator:
+                children = []
+                for child in iterator:
+                    children.append(child)
+                    if len(children) > remaining:
+                        break
+        except OSError as exc:
+            search_complete = False
+            entries.append(
+                {
+                    "path": relative_dir.as_posix(),
+                    "kind": "directory",
+                    "status": "omitted",
+                    "reason": f"scandir-error:{type(exc).__name__}",
+                }
+            )
+            continue
+        over_limit = len(children) > remaining
+        selected_children = sorted(
+            children, key=lambda item: item.name
+        )[:remaining]
+        for child in selected_children:
+            files_seen += 1
+            source_path = source_dir / child.name
+            relative = relative_dir / child.name
+            try:
+                metadata = child.stat(follow_symlinks=False)
+            except OSError as exc:
+                search_complete = False
+                entries.append(
+                    {
+                        "path": relative.as_posix(),
+                        "kind": "unknown",
+                        "status": "omitted",
+                        "reason": f"lstat-error:{type(exc).__name__}",
+                    }
+                )
+                continue
+            if stat.S_ISDIR(metadata.st_mode):
+                pending_directories.append((source_path, relative))
+                continue
+            kind = (
+                "regular"
+                if stat.S_ISREG(metadata.st_mode)
+                else "symlink"
+                if stat.S_ISLNK(metadata.st_mode)
+                else "special-file"
+            )
+            record: dict[str, Any] = {
+                "path": relative.as_posix(),
+                "kind": kind,
+                "status": "omitted",
+            }
+            if kind == "special-file":
+                record["reason"] = "special-file"
+            else:
+                critical = critical_kind(relative, metadata)
+                candidates.append(
+                    (
+                        0 if critical is not None else 1,
+                        relative.as_posix(),
+                        source_path,
+                        relative,
+                        metadata,
+                        record,
+                        critical,
+                    )
+                )
+            entries.append(record)
+        if over_limit:
+            search_complete = False
+            pending_directories.clear()
+            entries.append(
+                {
+                    "path": relative_dir.as_posix() or ".",
+                    "kind": "subtree",
+                    "status": "omitted",
+                    "reason": "file-count-limit",
+                }
+            )
+
+    if pending_directories:
+        search_complete = False
+        entries.append(
+            {
+                "path": ".",
+                "kind": "subtree",
+                "status": "omitted",
+                "reason": "file-count-limit",
+            }
+        )
+
+    critical_seen = 0
+    critical_copied = 0
+    critical_kinds_seen: set[str] = set()
+    for (
+        _priority,
+        _sort_path,
+        source_path,
+        relative,
+        metadata,
+        record,
+        critical,
+    ) in sorted(candidates, key=lambda item: (item[0], item[1])):
+        if critical is not None:
+            critical_seen += 1
+            critical_kinds_seen.add(critical)
+        if stat.S_ISREG(metadata.st_mode) and (
+            bytes_copied + metadata.st_size > max_bytes
+        ):
+            record["reason"] = "total-bytes-limit"
+            continue
+        destination_path = snapshot_root / relative
+        try:
+            destination_path.parent.mkdir(parents=True, exist_ok=True)
+            if stat.S_ISLNK(metadata.st_mode):
+                os.symlink(os.readlink(source_path), destination_path)
+            else:
+                shutil.copyfile(
+                    source_path,
+                    destination_path,
+                    follow_symlinks=False,
+                )
+                bytes_copied += metadata.st_size
+            record["status"] = "copied"
+            record["bytes"] = metadata.st_size
+            mapped = (Path("tmp_path") / relative).as_posix()
+            path_map[os.fspath(source_path.absolute())] = mapped
+            if critical is not None:
+                critical_copied += 1
+        except BaseException as exc:
+            record["reason"] = f"copy-error:{type(exc).__name__}"
+
+    omitted = sum(item["status"] != "copied" for item in entries)
+    return (
+        {
+            "schema": "pytest-launcher-failure-snapshot-manifest/v1",
+            "limits": {
+                "max_files": max_files,
+                "max_bytes": max_bytes,
+            },
+            "files_seen": files_seen,
+            "bytes_copied": bytes_copied,
+            "omitted_count": omitted,
+            "entries": entries,
+            "search_complete": search_complete,
+            "critical_set_complete": (
+                search_complete and critical_seen == critical_copied
+            ),
+            "critical_files_seen": critical_seen,
+            "critical_files_copied": critical_copied,
+            "critical_kinds_seen": sorted(critical_kinds_seen),
+            "diagnostics_present": "launcher-sidecar" in critical_kinds_seen,
+            "launcher_artifacts_present": bool(critical_kinds_seen),
+        },
+        path_map,
+    )
+
+
+def _exception_chain_contains_timeout(exc: BaseException | None) -> bool:
+    seen: set[int] = set()
+    while exc is not None and id(exc) not in seen:
+        seen.add(id(exc))
+        if isinstance(exc, subprocess.TimeoutExpired):
+            return True
+        exc = exc.__cause__ or exc.__context__
+    return False
+
+
+def _append_failure_index(run_dir: Path, value: dict[str, Any]) -> None:
+    raw = (
+        json.dumps(value, sort_keys=True, separators=(",", ":")) + "\n"
+    ).encode("utf-8")
+    index_path = run_dir / "index.jsonl"
+    fd = os.open(
+        index_path,
+        os.O_WRONLY | os.O_CREAT | os.O_APPEND,
+        0o600,
+    )
+    try:
+        fcntl.flock(fd, fcntl.LOCK_EX)
+        view = memoryview(raw)
+        while view:
+            written = os.write(fd, view)
+            view = view[written:]
+    finally:
+        try:
+            fcntl.flock(fd, fcntl.LOCK_UN)
+        finally:
+            os.close(fd)
+
+
+def _failure_run_usage(run_dir: Path) -> tuple[int, int, int, str | None]:
+    """Return bundle/entry/byte usage, stopping as soon as a cap is crossed."""
+    bundles = 0
+    entries_seen = 0
+    total_bytes = 0
+    if bundles >= _FAILURE_RUN_MAX_BUNDLES:
+        return bundles, entries_seen, total_bytes, "run-bundle-limit"
+    pending = [(run_dir, 0)]
+    while pending:
+        directory, depth = pending.pop()
+        try:
+            with os.scandir(directory) as iterator:
+                for child in iterator:
+                    entries_seen += 1
+                    if entries_seen >= _FAILURE_RUN_MAX_ENTRIES:
+                        return (
+                            bundles,
+                            entries_seen,
+                            total_bytes,
+                            "run-entry-limit",
+                        )
+                    try:
+                        metadata = child.stat(follow_symlinks=False)
+                    except OSError:
+                        return (
+                            bundles,
+                            entries_seen,
+                            total_bytes,
+                            "run-usage-unreadable",
+                        )
+                    if stat.S_ISDIR(metadata.st_mode):
+                        if depth == 1:
+                            bundles += 1
+                            if bundles >= _FAILURE_RUN_MAX_BUNDLES:
+                                return (
+                                    bundles,
+                                    entries_seen,
+                                    total_bytes,
+                                    "run-bundle-limit",
+                                )
+                        pending.append((Path(child.path), depth + 1))
+                    elif stat.S_ISREG(metadata.st_mode):
+                        total_bytes += metadata.st_size
+                        if total_bytes >= _FAILURE_RUN_MAX_BYTES:
+                            return (
+                                bundles,
+                                entries_seen,
+                                total_bytes,
+                                "run-byte-limit",
+                            )
+        except OSError:
+            return bundles, entries_seen, total_bytes, "run-usage-unreadable"
+    return bundles, entries_seen, total_bytes, None
+
+
+def _metadata_only_snapshot(reason: str) -> tuple[dict[str, Any], dict[str, str]]:
+    return (
+        {
+            "schema": "pytest-launcher-failure-snapshot-manifest/v1",
+            "limits": {
+                "max_files": _SNAPSHOT_MAX_FILES,
+                "max_bytes": _SNAPSHOT_MAX_BYTES,
+            },
+            "files_seen": 0,
+            "bytes_copied": 0,
+            "omitted_count": 1,
+            "entries": [
+                {
+                    "path": ".",
+                    "kind": "subtree",
+                    "status": "omitted",
+                    "reason": reason,
+                }
+            ],
+            "search_complete": False,
+            "critical_set_complete": False,
+            "critical_files_seen": 0,
+            "critical_files_copied": 0,
+            "critical_kinds_seen": [],
+            "diagnostics_present": False,
+            "launcher_artifacts_present": False,
+        },
+        {},
+    )
+
+
+def _bounded_exception_fields(
+    exception: BaseException | None,
+) -> tuple[str | None, str | None, bool]:
+    if exception is None:
+        return None, None, False
+    exception_type = (
+        f"{type(exception).__module__}.{type(exception).__qualname__}"[:256]
+    )
+    try:
+        message = str(exception)
+    except BaseException as exc:
+        message = f"<message-unavailable:{type(exc).__name__}>"
+    truncated = len(message) > _EXCEPTION_MESSAGE_MAX_CHARS
+    if truncated:
+        message = message[:_EXCEPTION_MESSAGE_MAX_CHARS]
+    return exception_type, message, truncated
+
+
+def _diagnostics_absence_reason(
+    *,
+    source_live: bool,
+    manifest: dict[str, Any],
+) -> str | None:
+    if manifest["diagnostics_present"]:
+        return None
+    if source_live:
+        return "call-timeout-before-diagnostics"
+    if not manifest["search_complete"]:
+        return "diagnostics-search-incomplete"
+    if manifest["launcher_artifacts_present"]:
+        return "launcher-artifacts-without-diagnostics"
+    return "no-launcher-artifacts-observed"
+
+
+def _archive_launcher_failure(
+    *,
+    nodeid: str,
+    tmp_path: Path,
+    exception: BaseException | None,
+    call_duration_s: float | None = None,
+) -> Path:
+    run_dir = _failure_run_directory()
+    worker = os.environ.get("PYTEST_XDIST_WORKER", "main")
+    run_dir.mkdir(parents=True, exist_ok=True)
+    lock_fd = os.open(
+        run_dir / ".archive.lock", os.O_WRONLY | os.O_CREAT, 0o600
+    )
+    try:
+        fcntl.flock(lock_fd, fcntl.LOCK_EX)
+        _bundles, run_entries, run_bytes, budget_reason = (
+            _failure_run_usage(run_dir)
+        )
+        if (
+            budget_reason is None
+            and run_entries + 8 >= _FAILURE_RUN_MAX_ENTRIES
+        ):
+            budget_reason = "run-entry-limit"
+        if (
+            budget_reason is None
+            and run_bytes + _FAILURE_BUNDLE_METADATA_RESERVE_BYTES
+            >= _FAILURE_RUN_MAX_BYTES
+        ):
+            budget_reason = "run-byte-limit"
+        worker_dir = run_dir / _archive_component(worker)
+        worker_dir.mkdir(parents=True, exist_ok=True)
+        node_digest = hashlib.sha256(nodeid.encode("utf-8")).hexdigest()[:16]
+        leaf = Path(
+            tempfile.mkdtemp(
+                prefix=(
+                    f"{node_digest}--pid{os.getpid()}--{time.time_ns()}--"
+                ),
+                dir=worker_dir,
+            )
+        )
+        if budget_reason is None:
+            available_entries = _FAILURE_RUN_MAX_ENTRIES - run_entries - 8
+            available_bytes = (
+                _FAILURE_RUN_MAX_BYTES
+                - run_bytes
+                - _FAILURE_BUNDLE_METADATA_RESERVE_BYTES
+            )
+            manifest, path_map = _snapshot_tmp_path(
+                tmp_path,
+                leaf,
+                max_files=min(_SNAPSHOT_MAX_FILES, available_entries),
+                max_bytes=min(_SNAPSHOT_MAX_BYTES, available_bytes),
+            )
+        else:
+            manifest, path_map = _metadata_only_snapshot(budget_reason)
+        source_live = _exception_chain_contains_timeout(exception)
+        incomplete = source_live or manifest["omitted_count"] != 0
+        exception_type, exception_message, message_truncated = (
+            _bounded_exception_fields(exception)
+        )
+        duration = (
+            call_duration_s
+            if isinstance(call_duration_s, (int, float))
+            and not isinstance(call_duration_s, bool)
+            and math.isfinite(call_duration_s)
+            and call_duration_s >= 0
+            else None
+        )
+        metadata = {
+            "schema": "pytest-launcher-failure-metadata/v1",
+            "nodeid": nodeid,
+            "worker": worker,
+            "pbs_jobid": os.environ.get("PBS_JOBID"),
+            "hostname": socket.gethostname(),
+            "source_live": source_live,
+            "snapshot_consistency": (
+                "incomplete" if incomplete else "best-effort"
+            ),
+            "run_budget_mode": (
+                "metadata-only" if budget_reason is not None else "snapshot"
+            ),
+            "run_budget_reason": budget_reason,
+            "critical_set_complete": manifest["critical_set_complete"],
+            "diagnostics_present": manifest["diagnostics_present"],
+            "diagnostics_absence_reason": _diagnostics_absence_reason(
+                source_live=source_live, manifest=manifest
+            ),
+            "exception_type": exception_type,
+            "exception_message": exception_message,
+            "exception_message_truncated": message_truncated,
+            "call_duration_s": duration,
+        }
+        _write_archive_json(leaf / "metadata.json", metadata)
+        _write_archive_json(leaf / "snapshot-manifest.json", manifest)
+        _write_archive_json(
+            leaf / "path-map.json",
+            {
+                "schema": "pytest-launcher-failure-path-map/v1",
+                "paths": path_map,
+            },
+        )
+        bundle_relative = leaf.relative_to(run_dir).as_posix()
+        _append_failure_index(
+            run_dir,
+            {
+                "nodeid": nodeid,
+                "worker": worker,
+                "pbs_jobid": os.environ.get("PBS_JOBID"),
+                "bundle": bundle_relative,
+                "time_ns": time.time_ns(),
+            },
+        )
+        (leaf / ".complete").write_bytes(b"complete\n")
+        return leaf
+    finally:
+        try:
+            fcntl.flock(lock_fd, fcntl.LOCK_UN)
+        finally:
+            os.close(lock_fd)
+
+
+def _archive_launcher_failure_without_masking(
+    *,
+    nodeid: str,
+    tmp_path: Path,
+    exception: BaseException | None,
+    call_duration_s: float | None = None,
+) -> str:
+    try:
+        bundle = _archive_launcher_failure(
+            nodeid=nodeid,
+            tmp_path=tmp_path,
+            exception=exception,
+            call_duration_s=call_duration_s,
+        )
+    except BaseException as exc:
+        return f"archive_status=failed:{type(exc).__name__}"
+    return f"archive_status=complete bundle={bundle}"
+
+
+class _LauncherFailureArtifactPlugin:
+    def __init__(self, tmp_path: Path | None = None) -> None:
+        self.tmp_path = tmp_path
+
+    @pytest.hookimpl(tryfirst=True)
+    def pytest_runtest_makereport(self, item: Any, call: Any) -> None:
+        if call.when != "call" or call.excinfo is None:
+            return
+        tmp_path = self.tmp_path or item.funcargs.get("tmp_path")
+        if not isinstance(tmp_path, Path):
+            return
+        exception = call.excinfo.value
+        status = _archive_launcher_failure_without_masking(
+            nodeid=item.nodeid,
+            tmp_path=tmp_path,
+            exception=exception,
+            call_duration_s=getattr(call, "duration", None),
+        )
+        item.add_report_section("call", "launcher-failure-artifact", status)
+
+
+@pytest.fixture(autouse=True)
+def _launcher_failure_artifact_reporter(
+    request: pytest.FixtureRequest,
+) -> Any:
+    plugin = _LauncherFailureArtifactPlugin()
+    name = f"launcher-failure-artifact-{uuid.uuid4().hex}"
+    request.config.pluginmanager.register(plugin, name)
+    try:
+        yield plugin
+    finally:
+        request.config.pluginmanager.unregister(plugin)
 
 
 def _short_repr(value: Any, limit: int = 160) -> str:
@@ -1082,6 +1671,589 @@ def _run_case(
     return completed, receipt, paths
 
 
+def _read_launcher_diagnostics(paths: dict[str, Path]) -> dict[str, Any]:
+    candidates = list(
+        paths["artifact"].glob("launcher-diagnostics.*.json")
+    )
+    assert len(candidates) == 1
+    document = json.loads(candidates[0].read_text(encoding="utf-8"))
+    assert document["schema"] == "codex-worker-launch-diagnostics/v1"
+    return document
+
+
+def _diagnostic_snapshots(
+    paths: dict[str, Path], site: str
+) -> list[dict[str, Any]]:
+    diagnostics = _read_launcher_diagnostics(paths)
+    return [
+        item
+        for attempt in diagnostics["attempts"]
+        for item in attempt["limit_condition_snapshots"]
+        if item["site"] == site
+    ]
+
+
+def test_launcher_failure_artifact_reporter_hook_is_tryfirst() -> None:
+    hook = _LauncherFailureArtifactPlugin.pytest_runtest_makereport
+
+    assert hook.pytest_impl["tryfirst"] is True
+    assert hook.pytest_impl.get("trylast", False) is False
+
+
+def test_launcher_failure_artifact_fixture_does_not_request_tmp_path() -> None:
+    parameters = inspect.signature(
+        _launcher_failure_artifact_reporter
+    ).parameters
+
+    assert list(parameters) == ["request"]
+
+
+def test_launcher_failure_artifact_hook_ignores_item_without_tmp_path(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    root = tmp_path / "archive-root"
+    monkeypatch.setattr(
+        sys.modules[__name__], "_FAILURE_ARTIFACT_ROOT", root
+    )
+
+    class Item:
+        nodeid = "module.py::test_without_tmp_path"
+        funcargs: dict[str, Any] = {}
+
+        def add_report_section(self, *_args: Any) -> None:
+            pytest.fail("tmp_path の無い item を archive してはならない")
+
+    class ExcInfo:
+        value = AssertionError("unhandled")
+
+    call = type("Call", (), {"when": "call", "excinfo": ExcInfo()})()
+    _LauncherFailureArtifactPlugin().pytest_runtest_makereport(Item(), call)
+
+    assert not root.exists()
+
+
+def _create_failure_archive_for_test(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> tuple[Path, Path, bytes, type[Any]]:
+    root = tmp_path / "empty-archive-root"
+    source = tmp_path / "source"
+    source.mkdir()
+    receipt = source / "receipt.json"
+    receipt_bytes = b'{"path":"/original/path"}\n'
+    receipt.write_bytes(receipt_bytes)
+    nested = source / "nested"
+    nested.mkdir()
+    sentinel = nested / "sentinel.bin"
+    sentinel.write_bytes(b"sentinel-exact-bytes\x00")
+    diagnostics = source / "launcher-diagnostics.1.abc.json"
+    diagnostics.write_bytes(b"{}\n")
+    monkeypatch.setattr(
+        sys.modules[__name__], "_FAILURE_ARTIFACT_ROOT", root
+    )
+    monkeypatch.setenv("PBS_JOBID", "archive-unit")
+    monkeypatch.setenv("PYTEST_XDIST_WORKER", "gw-test")
+
+    class Item:
+        nodeid = "module.py::test_failure"
+        sections: list[tuple[str, str, str]] = []
+
+        def add_report_section(
+            self, when: str, key: str, content: str
+        ) -> None:
+            self.sections.append((when, key, content))
+
+    class ExcInfo:
+        value = AssertionError("unhandled")
+
+    call = type(
+        "Call",
+        (),
+        {"when": "call", "excinfo": ExcInfo(), "duration": 1.25},
+    )()
+    plugin = _LauncherFailureArtifactPlugin(source)
+
+    assert not root.exists()
+    plugin.pytest_runtest_makereport(Item(), call)
+
+    complete = list(root.rglob(".complete"))
+    assert len(complete) == 1
+    return complete[0].parent, receipt, receipt_bytes, Item
+
+
+def test_failure_archive_copies_exact_bytes_from_new_root(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    bundle, _receipt, receipt_bytes, _item = _create_failure_archive_for_test(
+        tmp_path, monkeypatch
+    )
+
+    assert (bundle / "tmp_path/nested/sentinel.bin").read_bytes() == (
+        b"sentinel-exact-bytes\x00"
+    )
+    assert (bundle / "tmp_path/receipt.json").read_bytes() == receipt_bytes
+    metadata = json.loads((bundle / "metadata.json").read_text())
+    assert metadata["diagnostics_present"] is True
+    assert metadata["diagnostics_absence_reason"] is None
+    assert metadata["source_live"] is False
+    assert metadata["snapshot_consistency"] == "best-effort"
+    assert metadata["critical_set_complete"] is True
+    assert metadata["exception_type"] == "builtins.AssertionError"
+    assert metadata["exception_message"] == "unhandled"
+    assert metadata["exception_message_truncated"] is False
+    assert metadata["call_duration_s"] == 1.25
+    manifest = json.loads(
+        (bundle / "snapshot-manifest.json").read_text()
+    )
+    assert manifest["omitted_count"] == 0
+
+
+def test_failure_archive_writes_path_map(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    bundle, receipt, _receipt_bytes, _item = _create_failure_archive_for_test(
+        tmp_path, monkeypatch
+    )
+
+    path_map = json.loads((bundle / "path-map.json").read_text())["paths"]
+    assert path_map[os.fspath(receipt.absolute())] == "tmp_path/receipt.json"
+
+
+def test_failure_archive_appends_index(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    bundle, _receipt, _receipt_bytes, item = _create_failure_archive_for_test(
+        tmp_path, monkeypatch
+    )
+    run_dir = bundle.parents[1]
+    index_lines = list(run_dir.glob("index.jsonl"))
+    assert len(index_lines) == 1
+    index = [json.loads(line) for line in index_lines[0].read_text().splitlines()]
+    assert len(index) == 1
+    assert index[0]["nodeid"] == item.nodeid
+
+
+def test_launcher_failure_artifact_reporter_ignores_handled_failure(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    root = tmp_path / "empty-archive-root"
+    source = tmp_path / "source"
+    source.mkdir()
+    monkeypatch.setattr(
+        sys.modules[__name__], "_FAILURE_ARTIFACT_ROOT", root
+    )
+
+    class Item:
+        nodeid = "module.py::test_handled"
+
+        def add_report_section(self, *_args: Any) -> None:
+            pytest.fail("handled failure must not archive")
+
+    call = type("Call", (), {"when": "call", "excinfo": None})()
+
+    _LauncherFailureArtifactPlugin(source).pytest_runtest_makereport(
+        Item(), call
+    )
+
+    assert not root.exists()
+
+
+def test_launcher_failure_artifact_paths_are_collision_free(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    root = tmp_path / "empty-archive-root"
+    source = tmp_path / "source"
+    source.mkdir()
+    sentinel = source / "sentinel.bin"
+    sentinel.write_bytes(b"first")
+    monkeypatch.setattr(
+        sys.modules[__name__], "_FAILURE_ARTIFACT_ROOT", root
+    )
+    monkeypatch.setenv("PBS_JOBID", "collision-unit")
+
+    _archive_launcher_failure(
+        nodeid="same.py::test_node",
+        tmp_path=source,
+        exception=AssertionError("first"),
+    )
+    sentinel.write_bytes(b"second")
+    _archive_launcher_failure(
+        nodeid="same.py::test_node",
+        tmp_path=source,
+        exception=AssertionError("second"),
+    )
+
+    complete = sorted(root.rglob(".complete"))
+    assert len(complete) == 2
+    payloads = {
+        marker.parent.joinpath("tmp_path/sentinel.bin").read_bytes()
+        for marker in complete
+    }
+    assert payloads == {b"first", b"second"}
+
+
+def test_launcher_failure_artifact_copy_error_does_not_mask_failure(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    root = tmp_path / "empty-archive-root"
+    source = tmp_path / "source"
+    source.mkdir()
+    (source / "sentinel.bin").write_bytes(b"sentinel")
+    monkeypatch.setattr(
+        sys.modules[__name__], "_FAILURE_ARTIFACT_ROOT", root
+    )
+    monkeypatch.setattr(
+        shutil,
+        "copyfile",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            OSError("synthetic copy failure")
+        ),
+    )
+    original = AssertionError("original test failure")
+
+    status = _archive_launcher_failure_without_masking(
+        nodeid="module.py::test_failure",
+        tmp_path=source,
+        exception=original,
+    )
+
+    assert status.startswith("archive_status=complete")
+    assert str(original) == "original test failure"
+    complete = list(root.rglob(".complete"))
+    assert len(complete) == 1
+    bundle = complete[0].parent
+    metadata = json.loads((bundle / "metadata.json").read_text())
+    assert metadata["snapshot_consistency"] == "incomplete"
+    assert metadata["diagnostics_absence_reason"] == (
+        "no-launcher-artifacts-observed"
+    )
+    manifest = json.loads(
+        (bundle / "snapshot-manifest.json").read_text()
+    )
+    assert manifest["omitted_count"] == 1
+    assert manifest["entries"][0]["reason"] == "copy-error:OSError"
+
+
+def test_launcher_failure_artifact_limits_record_omission_reasons(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    source = tmp_path / "source"
+    destination = tmp_path / "destination"
+    source.mkdir()
+    destination.mkdir()
+    (source / "one").write_bytes(b"1")
+    (source / "two").write_bytes(b"22")
+    monkeypatch.setattr(sys.modules[__name__], "_SNAPSHOT_MAX_FILES", 1)
+    monkeypatch.setattr(sys.modules[__name__], "_SNAPSHOT_MAX_BYTES", 1)
+
+    manifest, _path_map = _snapshot_tmp_path(source, destination)
+
+    reasons = {
+        item.get("reason")
+        for item in manifest["entries"]
+        if item["status"] == "omitted"
+    }
+    assert reasons == {"file-count-limit"}
+    assert manifest["bytes_copied"] == 1
+
+
+def test_launcher_failure_artifact_byte_limit_records_omission_reason(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    source = tmp_path / "source"
+    destination = tmp_path / "destination"
+    source.mkdir()
+    destination.mkdir()
+    (source / "large").write_bytes(b"12")
+    monkeypatch.setattr(sys.modules[__name__], "_SNAPSHOT_MAX_FILES", 10)
+    monkeypatch.setattr(sys.modules[__name__], "_SNAPSHOT_MAX_BYTES", 1)
+
+    manifest, _path_map = _snapshot_tmp_path(source, destination)
+
+    assert manifest["omitted_count"] == 1
+    assert manifest["entries"][0]["reason"] == "total-bytes-limit"
+
+
+def test_failure_archive_stops_descent_for_directory_heavy_source(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    source = tmp_path / "source"
+    destination = tmp_path / "destination"
+    source.mkdir()
+    destination.mkdir()
+    for index in range(20):
+        (source / f"directory-{index:02d}" / "nested").mkdir(parents=True)
+    monkeypatch.setattr(sys.modules[__name__], "_SNAPSHOT_MAX_FILES", 4)
+
+    manifest, _path_map = _snapshot_tmp_path(source, destination)
+
+    assert manifest["files_seen"] == 4
+    assert manifest["search_complete"] is False
+    assert manifest["omitted_count"] == 1
+    assert manifest["entries"] == [
+        {
+            "path": ".",
+            "kind": "subtree",
+            "status": "omitted",
+            "reason": "file-count-limit",
+        }
+    ]
+    assert list((destination / "tmp_path").iterdir()) == []
+
+
+def test_failure_archive_copies_critical_set_before_optional_files(
+    tmp_path: Path,
+) -> None:
+    source = tmp_path / "source"
+    destination = tmp_path / "destination"
+    source.mkdir()
+    destination.mkdir()
+    (source / "aaa-optional.bin").write_bytes(b"optional")
+    receipt = source / "receipt.json"
+    receipt.write_bytes(b"critical")
+
+    manifest, _path_map = _snapshot_tmp_path(
+        source, destination, max_files=10, max_bytes=len(b"critical")
+    )
+
+    assert (destination / "tmp_path/receipt.json").read_bytes() == b"critical"
+    assert not (destination / "tmp_path/aaa-optional.bin").exists()
+    assert manifest["critical_set_complete"] is True
+    assert manifest["critical_kinds_seen"] == ["receipt"]
+
+
+def test_failure_archive_run_budget_leaves_metadata_only_bundle(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    root = tmp_path / "archive-root"
+    source = tmp_path / "source"
+    source.mkdir()
+    (source / "receipt.json").write_bytes(b"critical")
+    monkeypatch.setattr(
+        sys.modules[__name__], "_FAILURE_ARTIFACT_ROOT", root
+    )
+    monkeypatch.setattr(
+        sys.modules[__name__], "_FAILURE_RUN_MAX_BUNDLES", 0
+    )
+    monkeypatch.setenv("PBS_JOBID", "run-budget-unit")
+
+    bundle = _archive_launcher_failure(
+        nodeid="module.py::test_budget",
+        tmp_path=source,
+        exception=AssertionError("failure"),
+    )
+
+    metadata = json.loads((bundle / "metadata.json").read_text())
+    manifest = json.loads((bundle / "snapshot-manifest.json").read_text())
+    assert metadata["run_budget_mode"] == "metadata-only"
+    assert metadata["run_budget_reason"] == "run-bundle-limit"
+    assert metadata["critical_set_complete"] is False
+    assert not (bundle / "tmp_path").exists()
+    assert manifest["entries"][0]["reason"] == "run-bundle-limit"
+
+
+def test_failure_archive_bounds_exception_message_and_absence_reason(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    root = tmp_path / "archive-root"
+    source = tmp_path / "source"
+    source.mkdir()
+    (source / "receipt.json").write_bytes(b"{}\n")
+    monkeypatch.setattr(
+        sys.modules[__name__], "_FAILURE_ARTIFACT_ROOT", root
+    )
+    monkeypatch.setenv("PBS_JOBID", "metadata-unit")
+
+    bundle = _archive_launcher_failure(
+        nodeid="module.py::test_metadata",
+        tmp_path=source,
+        exception=AssertionError("x" * (_EXCEPTION_MESSAGE_MAX_CHARS + 10)),
+        call_duration_s=0.75,
+    )
+
+    metadata = json.loads((bundle / "metadata.json").read_text())
+    assert metadata["exception_type"] == "builtins.AssertionError"
+    assert len(metadata["exception_message"]) == _EXCEPTION_MESSAGE_MAX_CHARS
+    assert metadata["exception_message_truncated"] is True
+    assert metadata["call_duration_s"] == 0.75
+    assert metadata["diagnostics_absence_reason"] == (
+        "launcher-artifacts-without-diagnostics"
+    )
+
+
+def test_launcher_failure_artifact_special_file_is_not_opened(
+    tmp_path: Path,
+) -> None:
+    source = tmp_path / "source"
+    destination = tmp_path / "destination"
+    source.mkdir()
+    destination.mkdir()
+    fifo = source / "fifo"
+    os.mkfifo(fifo)
+
+    manifest, path_map = _snapshot_tmp_path(source, destination)
+
+    assert manifest["omitted_count"] == 1
+    assert manifest["entries"] == [
+        {
+            "path": "fifo",
+            "kind": "special-file",
+            "status": "omitted",
+            "reason": "special-file",
+        }
+    ]
+    assert os.fspath(fifo.absolute()) not in path_map
+
+
+def test_launcher_failure_artifact_rejects_ancestor_destination(
+    tmp_path: Path,
+) -> None:
+    source = tmp_path / "source"
+    source.mkdir()
+    destination = source / "archive"
+    destination.mkdir()
+
+    with pytest.raises(ValueError, match="ancestor relationship"):
+        _snapshot_tmp_path(source, destination)
+
+
+def test_launcher_failure_artifact_marks_timeout_source_incomplete(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    root = tmp_path / "empty-archive-root"
+    source = tmp_path / "source"
+    source.mkdir()
+    monkeypatch.setattr(
+        sys.modules[__name__], "_FAILURE_ARTIFACT_ROOT", root
+    )
+
+    _archive_launcher_failure(
+        nodeid="module.py::test_timeout",
+        tmp_path=source,
+        exception=subprocess.TimeoutExpired(["launcher"], 10),
+    )
+
+    complete = list(root.rglob(".complete"))
+    assert len(complete) == 1
+    metadata = json.loads(
+        (complete[0].parent / "metadata.json").read_text()
+    )
+    assert metadata["source_live"] is True
+    assert metadata["snapshot_consistency"] == "incomplete"
+    assert metadata["diagnostics_present"] is False
+    assert metadata["diagnostics_absence_reason"] == (
+        "call-timeout-before-diagnostics"
+    )
+
+
+def test_launcher_failure_artifact_live_wiring_probe(tmp_path: Path) -> None:
+    if os.environ.get(_LIVE_WIRING_PROBE_ENV) != "1":
+        return
+    sentinel = tmp_path / "live-wiring-sentinel.bin"
+    sentinel.write_bytes(b"live-wiring-sentinel-exact\x00")
+    fake = _write_fake_codex(tmp_path / "fake-codex")
+    command, env, paths = _base_command(tmp_path, fake=fake)
+    env["FAKE_MODE"] = "normal"
+    _run_launcher_subprocess(
+        command,
+        env=env,
+        paths=paths,
+        expected_returncode=999,
+    )
+
+
+def test_launcher_failure_artifact_reporter_live_wiring() -> None:
+    pbs_job_id = f"live-wiring-{uuid.uuid4().hex}"
+    run_dir = _FAILURE_ARTIFACT_ROOT / (
+        f"{_archive_component(pbs_job_id)}--"
+        f"{_archive_component(socket.gethostname())}"
+    )
+    assert not run_dir.exists()
+    env = dict(os.environ)
+    env[_LIVE_WIRING_PROBE_ENV] = "1"
+    env["PBS_JOBID"] = pbs_job_id
+    env["PYTEST_XDIST_WORKER"] = "live-probe"
+    nodeid = (
+        os.fspath(Path(__file__).resolve())
+        + "::test_launcher_failure_artifact_live_wiring_probe"
+    )
+    try:
+        completed = subprocess.run(
+            [sys.executable, "-m", "pytest", "-q", nodeid],
+            cwd=_ROOT,
+            env=env,
+            text=True,
+            errors="backslashreplace",
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            timeout=30,
+            check=False,
+        )
+        combined = completed.stdout + completed.stderr
+        assert "LauncherReturncodeMismatch" in combined
+        assert "expected rc 999" in combined
+        complete = list(run_dir.rglob(".complete"))
+        assert len(complete) == 1
+        bundle = complete[0].parent
+        sentinels = list(
+            bundle.glob("tmp_path/**/live-wiring-sentinel.bin")
+        )
+        assert len(sentinels) == 1
+        assert sentinels[0].read_bytes() == (
+            b"live-wiring-sentinel-exact\x00"
+        )
+    finally:
+        if run_dir.is_dir():
+            shutil.rmtree(run_dir)
+
+
+def test_launcher_failure_artifact_archive_error_probe(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    if os.environ.get(_LIVE_ARCHIVE_FAILURE_PROBE_ENV) != "1":
+        return
+    blocked_root = tmp_path / "archive-root-is-a-file"
+    blocked_root.write_text("not a directory\n", encoding="utf-8")
+    monkeypatch.setattr(
+        sys.modules[__name__], "_FAILURE_ARTIFACT_ROOT", blocked_root
+    )
+    fake = _write_fake_codex(tmp_path / "fake-codex")
+    command, env, paths = _base_command(tmp_path, fake=fake)
+    env["FAKE_MODE"] = "normal"
+    _run_launcher_subprocess(
+        command,
+        env=env,
+        paths=paths,
+        expected_returncode=999,
+    )
+
+
+def test_launcher_failure_artifact_exception_safety_live() -> None:
+    env = dict(os.environ)
+    env[_LIVE_ARCHIVE_FAILURE_PROBE_ENV] = "1"
+    nodeid = (
+        os.fspath(Path(__file__).resolve())
+        + "::test_launcher_failure_artifact_archive_error_probe"
+    )
+
+    completed = subprocess.run(
+        [sys.executable, "-m", "pytest", "-q", nodeid],
+        cwd=_ROOT,
+        env=env,
+        text=True,
+        errors="backslashreplace",
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        timeout=30,
+        check=False,
+    )
+
+    combined = completed.stdout + completed.stderr
+    assert completed.returncode != 0
+    assert "LauncherReturncodeMismatch" in combined
+    assert "expected rc 999" in combined
+    assert "INTERNALERROR" not in combined
+
+
 def _remove_option(command: list[str], option: str) -> None:
     index = command.index(option)
     del command[index : index + 2]
@@ -1914,14 +3086,11 @@ def test_launcher_rejects_unsafe_evidence_grace_before_child_launch(
     command, env, paths = _base_command(tmp_path, fake=fake)
     command[command.index("--evidence-grace-s") + 1] = value
 
-    completed = subprocess.run(
+    completed = _run_launcher_subprocess(
         command,
         env=env,
-        check=False,
-        text=True,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        timeout=10,
+        paths=paths,
+        expected_returncode=2,
     )
 
     assert completed.returncode == 2
@@ -2254,9 +3423,10 @@ def test_hook_preflight_is_rechecked_before_each_retry(
     monkeypatch.setattr(
         LAUNCHER._hook_checker, "validate_installation", validator
     )
-    _run_main_in_process(
+    rc = _run_main_in_process(
         command, env, monkeypatch, paths=paths, expected_returncode=2
     )
+    assert rc == 2
     assert roots == [_ROOT, _ROOT]
     assert paths["counter"].read_text(encoding="ascii") == "1"
 
@@ -2330,7 +3500,9 @@ def test_attempt_preflight_delay_exhausts_wall_clock_before_spawn(
         "validate_installation",
         delayed_validator,
     )
-    assert LAUNCHER.main(command[2:]) == 2
+    _run_main_in_process(
+        command, env, monkeypatch, paths=paths, expected_returncode=2
+    )
     receipt = json.loads(paths["receipt"].read_text(encoding="utf-8"))
     assert receipt["outcome"] == "launcher_error"
     assert receipt["attempts"] == []
@@ -2575,6 +3747,34 @@ def test_positive_p3_exact_limit_natural_exit_is_accepted(
     assert receipt["actuals"]["cli_reported"] == 60
     assert receipt["attempts"][0]["limit_trigger"] is None
     assert receipt["attempts"][0]["accepted"] is True
+    diagnostics = _read_launcher_diagnostics(paths)
+    diagnostic_attempt = diagnostics["attempts"][0]
+    assert diagnostics["receipt_binding"]["status"] == "sealed"
+    assert diagnostic_attempt["evidence_forced_stop"] is False
+    assert set(diagnostic_attempt["phase_duration_s"]) == {
+        "attempt_preflight",
+        "spawn",
+        "supervision_drain",
+        "process_reap",
+        "final_drain",
+        "artifact_handle_close",
+        "attempt_wall_clock_sample",
+        "attempt_seal",
+    }
+    assert (
+        diagnostic_attempt["job_elapsed_s_at"]["attempt_state_created"]
+        > diagnostic_attempt["attempt_elapsed_s_at"][
+            "attempt_state_created"
+        ]
+    )
+    assert "receipt_published" in diagnostics["job_elapsed_s_at"]
+    natural_exit = [
+        item
+        for item in diagnostic_attempt["limit_condition_snapshots"]
+        if item["site"] == "natural_exit"
+    ]
+    assert natural_exit[-1]["comparison"] == ">"
+    assert natural_exit[-1]["conditions_met"] == []
 
 
 def test_sigterm_ignoring_child_is_killed(tmp_path: Path) -> None:
@@ -2626,21 +3826,34 @@ def test_sigterm_ignoring_child_is_killed(tmp_path: Path) -> None:
         _assert_pid_gone(pid)
 
 
-def test_proc_scan_and_missing_identity_are_unknown(
+def test_group_member_count_reports_identity_missing_source() -> None:
+    reasons: list[str] = []
+
+    assert (
+        LAUNCHER._group_member_count(None, on_unknown=reasons.append) is None
+    )
+    assert reasons == ["pid_identity_unavailable"]
+
+
+def test_group_member_count_reports_scandir_failure_source(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     def fail_scan(_path: str) -> Any:
         raise OSError("synthetic /proc failure")
 
-    assert LAUNCHER._group_member_count(None) is None
     monkeypatch.setattr(LAUNCHER.os, "scandir", fail_scan)
     identity = LAUNCHER.PidIdentity(
         pid=os.getpid(), boot_id="synthetic", start_ticks=1
     )
-    assert LAUNCHER._group_member_count(identity) is None
+    reasons: list[str] = []
+    assert (
+        LAUNCHER._group_member_count(identity, on_unknown=reasons.append)
+        is None
+    )
+    assert reasons == ["proc_scandir_oserror"]
 
 
-def test_individual_proc_read_failure_is_unknown(
+def test_group_member_count_reports_stat_read_failure_source(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     class Entry:
@@ -2666,10 +3879,99 @@ def test_individual_proc_read_failure_is_unknown(
         pid=os.getpid(), boot_id="synthetic", start_ticks=1
     )
 
-    assert LAUNCHER._group_member_count(identity) is None
+    reasons: list[str] = []
+    assert (
+        LAUNCHER._group_member_count(identity, on_unknown=reasons.append)
+        is None
+    )
+    assert reasons == ["proc_stat_read_error"]
 
 
-def test_unknown_residual_never_verifies_normal_reap(
+def test_group_member_count_reports_stat_parse_failure_source(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class Entry:
+        name = str(os.getpid())
+
+    class Entries:
+        def __enter__(self) -> list[Entry]:
+            return [Entry()]
+
+        def __exit__(self, *_args: Any) -> None:
+            return None
+
+        def __iter__(self) -> Any:
+            return iter([Entry()])
+
+    monkeypatch.setattr(LAUNCHER.os, "scandir", lambda _path: Entries())
+    monkeypatch.setattr(
+        LAUNCHER.Path,
+        "read_text",
+        lambda *_args, **_kwargs: "1 (fake) S 2 not-an-integer",
+    )
+    identity = LAUNCHER.PidIdentity(
+        pid=os.getpid(), boot_id="synthetic", start_ticks=1
+    )
+    reasons: list[str] = []
+    attempt = LAUNCHER.AttemptDiagnosticsState(
+        attempt_index=1, job_started_ns=0, attempt_started_ns=0
+    )
+
+    assert (
+        LAUNCHER._group_member_count(
+            identity,
+            on_unknown=reasons.append,
+            on_malformed=attempt.note_malformed,
+        )
+        is None
+    )
+    assert reasons == ["proc_stat_parse_error"]
+    assert attempt.as_document()["residual_observation"][
+        "proc_stat_malformed"
+    ] is True
+
+
+def test_group_member_count_records_malformed_without_changing_count(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class Entry:
+        name = str(os.getpid())
+
+    class Entries:
+        def __enter__(self) -> list[Entry]:
+            return [Entry()]
+
+        def __exit__(self, *_args: Any) -> None:
+            return None
+
+        def __iter__(self) -> Any:
+            return iter([Entry()])
+
+    attempt = LAUNCHER.AttemptDiagnosticsState(
+        attempt_index=1, job_started_ns=0, attempt_started_ns=0
+    )
+    monkeypatch.setattr(LAUNCHER.os, "scandir", lambda _path: Entries())
+    monkeypatch.setattr(
+        LAUNCHER.Path,
+        "read_text",
+        lambda *_args, **_kwargs: "malformed stat",
+    )
+    identity = LAUNCHER.PidIdentity(
+        pid=os.getpid(), boot_id="synthetic", start_ticks=1
+    )
+
+    assert (
+        LAUNCHER._group_member_count(
+            identity, on_malformed=attempt.note_malformed
+        )
+        == 0
+    )
+    document = attempt.as_document()
+    assert document["residual_observation"]["final_count"] is None
+    assert document["residual_observation"]["proc_stat_malformed"] is True
+
+
+def test_unknown_residual_source_propagates_without_verifying_normal_reap(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     class Process:
@@ -2677,7 +3979,7 @@ def test_unknown_residual_never_verifies_normal_reap(
             return 0
 
     monkeypatch.setattr(
-        LAUNCHER, "_group_member_count", lambda _identity: None
+        LAUNCHER, "_group_member_count", lambda _identity, **_kwargs: None
     )
     identity = LAUNCHER.PidIdentity(
         pid=os.getpid(), boot_id="synthetic", start_ticks=1
@@ -2689,6 +3991,434 @@ def test_unknown_residual_never_verifies_normal_reap(
     assert verified is False
 
 
+def test_unknown_residual_source_propagates_through_terminate(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class Process:
+        def poll(self) -> None:
+            return None
+
+        def kill(self) -> None:
+            return None
+
+        def wait(self, timeout: float | None = None) -> int:
+            return 0
+
+    clock = iter((0.0, 2.0))
+    monkeypatch.setattr(LAUNCHER.time, "monotonic", lambda: next(clock))
+    attempt = LAUNCHER.AttemptDiagnosticsState(
+        attempt_index=1,
+        job_started_ns=0,
+        attempt_started_ns=0,
+    )
+
+    residual, verified = LAUNCHER._terminate(
+        Process(),
+        None,
+        grace_s=0.05,
+        on_unknown=attempt.note_unknown,
+        on_malformed=attempt.note_malformed,
+        on_signal=attempt.note_signal,
+    )
+
+    assert residual is None
+    assert verified is False
+    assert attempt.residual_final_unknown_source == "pid_identity_unavailable"
+    assert [item["signal"] for item in attempt.termination_signals_sent] == [
+        "SIGKILL"
+    ]
+
+
+def test_concurrent_termination_observers_keep_signal_attribution_local(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    worker_module = sys.modules["tools.dev_waves.worker"]
+    original_worker_os = worker_module.os
+    barrier = threading.Barrier(2)
+    identity = LAUNCHER.PidIdentity(
+        pid=os.getpid(), boot_id="synthetic", start_ticks=1
+    )
+    observed: list[list[str]] = [[], []]
+    results: list[bool | None] = [None, None]
+
+    monkeypatch.setattr(
+        LAUNCHER._worker_module,
+        "_verified_group_exists",
+        lambda _identity: True,
+    )
+    monkeypatch.setattr(
+        LAUNCHER._worker_module, "_boottime_ns", lambda: 0
+    )
+    monkeypatch.setattr(
+        LAUNCHER._worker_module, "_group_members", lambda _pgid: ()
+    )
+
+    def observe_killpg(_pgid: int, _signum: int) -> None:
+        barrier.wait(timeout=2)
+
+    monkeypatch.setattr(LAUNCHER.os, "killpg", observe_killpg)
+
+    def run(index: int) -> None:
+        results[index] = LAUNCHER._terminate_verified_group_observed(
+            identity,
+            0.05,
+            lambda name, _now_ns: observed[index].append(name),
+        )
+
+    threads = [threading.Thread(target=run, args=(index,)) for index in range(2)]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join(timeout=2)
+
+    assert not any(thread.is_alive() for thread in threads)
+    assert results == [True, True]
+    assert observed == [["SIGTERM"], ["SIGTERM"]]
+    assert worker_module.os is original_worker_os
+
+
+def _diagnostic_attempt_loop_args(tmp_path: Path, fake: Path) -> Any:
+    command, _env, _paths = _base_command(
+        tmp_path, fake=fake, max_wall="100"
+    )
+    args = LAUNCHER._parser().parse_args(command[2:])
+    args.prompt_text = "fake prompt\n"
+    args.launch_requirement = type(
+        "Requirement",
+        (),
+        {"model": "gpt-5.6-sol", "effort": "high", "stage": "author", "lane": None},
+    )()
+    args.authority_snapshot = type(
+        "Authority", (), {"authority_commit": _BASE_COMMIT, "digest": "synthetic"}
+    )()
+    args.artifact_dir.mkdir()
+    return args
+
+
+def test_forced_stop_without_signal_is_not_launcher_initiated(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    fake = tmp_path / "fake-codex"
+    fake.write_bytes(b"fake")
+    args = _diagnostic_attempt_loop_args(tmp_path, fake)
+    diagnostics = LAUNCHER.LauncherDiagnosticsState(
+        job_id="job-a", job_started_ns=0, receipt_path=args.receipt
+    )
+
+    class Process:
+        pid = 12345
+        returncode = 0
+
+        def __init__(self) -> None:
+            self.poll_count = 0
+
+        def poll(self) -> int | None:
+            self.poll_count += 1
+            return None if self.poll_count == 1 else 0
+
+        def wait(self, timeout: float | None = None) -> int:
+            return 0
+
+        def kill(self) -> None:
+            pytest.fail("終了済み process へ signal を送ってはならない")
+
+    clock_ns = 0
+
+    def logical_clock() -> int:
+        nonlocal clock_ns
+        clock_ns += 1_000_000_000
+        return clock_ns
+
+    monkeypatch.setattr(LAUNCHER, "_monotonic_ns", logical_clock)
+    monkeypatch.setattr(
+        LAUNCHER, "_require_attempt_hook_installation", lambda *_args: None
+    )
+    monkeypatch.setattr(
+        LAUNCHER.subprocess, "Popen", lambda *_args, **_kwargs: Process()
+    )
+    monkeypatch.setattr(LAUNCHER, "read_pid_identity", lambda _pid: None)
+    monkeypatch.setattr(LAUNCHER, "_drain_stdout", lambda _state: None)
+    monkeypatch.setattr(
+        LAUNCHER, "_discover_rollouts", lambda _state, _root: None
+    )
+    monkeypatch.setattr(
+        LAUNCHER, "_group_member_count", lambda _identity, **_kwargs: 0
+    )
+    monkeypatch.setattr(
+        LAUNCHER,
+        "_seal_attempt",
+        lambda *_args, **_kwargs: {"limit_trigger": None},
+    )
+
+    LAUNCHER._attempt_loop(
+        args,
+        attempt_index=1,
+        job_started_ns=0,
+        prior_actuals={"model_calls": 0, "cli_reported": 0},
+        codex_path=fake,
+        expected_binary_sha256=hashlib.sha256(b"fake").hexdigest(),
+        diagnostics=diagnostics,
+    )
+
+    document = diagnostics.attempts[0].as_document()
+    assert document["evidence_forced_stop"] is True
+    assert document["termination_signals_sent"] == []
+    assert document["termination_initiated_by_launcher"] is False
+
+
+def test_evidence_forced_stop_propagates_unknown_residual_to_sidecar(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    fake = _write_fake_codex(tmp_path / "fake-codex")
+    command, env, paths = _base_command(tmp_path, fake=fake)
+    env["FAKE_MODE"] = "no_rollout"
+    monkeypatch.setattr(LAUNCHER, "read_pid_identity", lambda _pid: None)
+
+    _run_main_in_process(
+        command, env, monkeypatch, paths=paths, expected_returncode=1
+    )
+    diagnostics = _read_launcher_diagnostics(paths)
+    attempt = diagnostics["attempts"][0]
+
+    assert attempt["evidence_forced_stop"] is True
+    assert attempt["termination_initiated_by_launcher"] is True
+    assert attempt["residual_observation"] == {
+        "final_count": None,
+        "final_unknown_source": "pid_identity_unavailable",
+        "unknown_sources_seen": ["pid_identity_unavailable"],
+        "proc_stat_malformed": False,
+    }
+    assert [item["signal"] for item in attempt["termination_signals_sent"]] == [
+        "SIGKILL"
+    ]
+
+
+def test_launcher_diagnostics_phase_durations_use_distinct_boundaries() -> None:
+    attempt = LAUNCHER.AttemptDiagnosticsState(
+        attempt_index=1,
+        job_started_ns=0,
+        attempt_started_ns=1_000_000_000,
+    )
+    names = (
+        "attempt_state_created",
+        "attempt_preflight_completed",
+        "spawn_completed",
+        "supervision_drain_completed",
+        "process_reap_completed",
+        "final_drain_completed",
+        "artifact_handles_closed",
+        "attempt_wall_clock_sampled",
+        "attempt_sealed",
+    )
+    for index, name in enumerate(names, 1):
+        attempt.note_boundary(name, index * 1_000_000_000)
+
+    document = attempt.as_document()
+
+    assert document["attempt_elapsed_s_at"] == {
+        name: index - 1 for index, name in enumerate(names, 1)
+    }
+    assert document["phase_duration_s"] == {
+        "attempt_preflight": 1,
+        "spawn": 1,
+        "supervision_drain": 1,
+        "process_reap": 1,
+        "final_drain": 1,
+        "artifact_handle_close": 1,
+        "attempt_wall_clock_sample": 1,
+        "attempt_seal": 1,
+    }
+    pending: list[Any] = [document]
+    keys: set[str] = set()
+    while pending:
+        value = pending.pop()
+        if isinstance(value, dict):
+            keys.update(value)
+            pending.extend(value.values())
+        elif isinstance(value, list):
+            pending.extend(value)
+    assert "wall_clock_s" not in keys
+
+
+def test_launcher_diagnostics_production_phase_wiring_has_exact_durations(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    fake = tmp_path / "fake-codex"
+    fake.write_bytes(b"fake")
+    args = _diagnostic_attempt_loop_args(tmp_path, fake)
+    diagnostics = LAUNCHER.LauncherDiagnosticsState(
+        job_id="job-a", job_started_ns=0, receipt_path=args.receipt
+    )
+
+    class Process:
+        pid = 12345
+        returncode = 0
+
+        def poll(self) -> int:
+            return 0
+
+    clock_ns = 0
+
+    def logical_clock() -> int:
+        nonlocal clock_ns
+        clock_ns += 1_000_000_000
+        return clock_ns
+
+    monkeypatch.setattr(LAUNCHER, "_monotonic_ns", logical_clock)
+    monkeypatch.setattr(
+        LAUNCHER, "_require_attempt_hook_installation", lambda *_args: None
+    )
+    monkeypatch.setattr(
+        LAUNCHER.subprocess, "Popen", lambda *_args, **_kwargs: Process()
+    )
+    monkeypatch.setattr(LAUNCHER, "read_pid_identity", lambda _pid: None)
+    monkeypatch.setattr(LAUNCHER, "_drain_stdout", lambda _state: None)
+    monkeypatch.setattr(
+        LAUNCHER, "_discover_rollouts", lambda _state, _root: None
+    )
+    monkeypatch.setattr(
+        LAUNCHER, "_normal_reap", lambda *_args, **_kwargs: (0, True)
+    )
+    monkeypatch.setattr(
+        LAUNCHER,
+        "_seal_attempt",
+        lambda *_args, **_kwargs: {"limit_trigger": None},
+    )
+
+    LAUNCHER._attempt_loop(
+        args,
+        attempt_index=1,
+        job_started_ns=0,
+        prior_actuals={"model_calls": 0, "cli_reported": 0},
+        codex_path=fake,
+        expected_binary_sha256=hashlib.sha256(b"fake").hexdigest(),
+        diagnostics=diagnostics,
+    )
+
+    assert diagnostics.attempts[0].as_document()["phase_duration_s"] == {
+        "attempt_preflight": 1,
+        "spawn": 1,
+        "supervision_drain": 2,
+        "process_reap": 1,
+        "final_drain": 1,
+        "artifact_handle_close": 1,
+        "attempt_wall_clock_sample": 1,
+        "attempt_seal": 2,
+    }
+
+
+def test_launcher_diagnostics_limit_conditions_negative_and_exact_boundary() -> None:
+    limits = type(
+        "Limits",
+        (),
+        {
+            "max_wall_clock_s": 3,
+            "max_model_calls": 5,
+            "max_cli_reported_tokens": 7,
+        },
+    )()
+
+    comparison, below = LAUNCHER._limit_conditions_met(
+        site="running_poll",
+        elapsed=2,
+        model_calls=4,
+        cli_reported=6,
+        limits=limits,
+    )
+    exact_comparison, exact = LAUNCHER._limit_conditions_met(
+        site="natural_exit",
+        elapsed=3,
+        model_calls=5,
+        cli_reported=7,
+        limits=limits,
+    )
+
+    assert comparison == ">="
+    assert below == []
+    assert exact_comparison == ">"
+    assert exact == []
+
+
+def test_launcher_diagnostics_records_all_conditions_and_site_values() -> None:
+    limits = type(
+        "Limits",
+        (),
+        {
+            "max_wall_clock_s": 3,
+            "max_model_calls": 5,
+            "max_cli_reported_tokens": 7,
+        },
+    )()
+    cases = {
+        "running_poll": (3, 4, 6, ["max_wall_clock_s"]),
+        "natural_exit": (2, 6, 6, ["max_model_calls"]),
+        "attempt_seal": (2, 4, 8, ["max_cli_reported_tokens"]),
+        "retry_admission": (
+            3,
+            5,
+            7,
+            list(LAUNCHER._LIMIT_REASONS),
+        ),
+    }
+
+    observed = {
+        site: LAUNCHER._limit_conditions_met(
+            site=site,
+            elapsed=elapsed,
+            model_calls=model_calls,
+            cli_reported=tokens,
+            limits=limits,
+        )[1]
+        for site, (elapsed, model_calls, tokens, _expected) in cases.items()
+    }
+
+    assert observed == {
+        site: expected for site, (*_values, expected) in cases.items()
+    }
+
+
+def test_launcher_diagnostics_keeps_control_trigger_separate_from_all_conditions() -> None:
+    limits = type(
+        "Limits",
+        (),
+        {
+            "max_wall_clock_s": 3,
+            "max_model_calls": 5,
+            "max_cli_reported_tokens": 7,
+        },
+    )()
+    attempt = LAUNCHER.AttemptDiagnosticsState(
+        attempt_index=1, job_started_ns=0, attempt_started_ns=0
+    )
+
+    LAUNCHER._record_limit_conditions(
+        attempt,
+        site="running_poll",
+        elapsed=3,
+        model_calls=5,
+        cli_reported=7,
+        limits=limits,
+    )
+    attempt.control_limit_trigger = "max_wall_clock_s"
+    document = attempt.as_document()
+
+    assert document["control_limit_trigger"] == "max_wall_clock_s"
+    assert document["limit_condition_snapshots"] == [
+        {
+            "site": "running_poll",
+            "comparison": ">=",
+            "conditions_met": list(LAUNCHER._LIMIT_REASONS),
+            "elapsed_s": 3,
+            "model_calls": 5,
+            "cli_reported": 7,
+            "max_wall_clock_s": 3,
+            "max_model_calls": 5,
+            "max_cli_reported_tokens": 7,
+            "job_elapsed_s_at": 3,
+        }
+    ]
+
+
 def test_transient_unknown_residual_requires_later_exact_zero(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -2698,7 +4428,9 @@ def test_transient_unknown_residual_requires_later_exact_zero(
 
     observations: Any = iter([None, 1, 0])
     monkeypatch.setattr(
-        LAUNCHER, "_group_member_count", lambda _identity: next(observations)
+        LAUNCHER,
+        "_group_member_count",
+        lambda _identity, **_kwargs: next(observations),
     )
     identity = LAUNCHER.PidIdentity(
         pid=os.getpid(), boot_id="synthetic", start_ticks=1
@@ -2851,6 +4583,80 @@ def test_seal_failure_still_writes_launcher_error_receipt(
     assert receipt["outcome"] == "launcher_error"
     assert receipt["launcher_rc"] == 2
     assert not paths["output"].exists()
+    diagnostics = _read_launcher_diagnostics(paths)
+    assert diagnostics["receipt_binding"]["status"] == "sealed"
+
+
+def test_launcher_diagnostics_write_failure_does_not_change_control_result(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    fake = _write_fake_codex(tmp_path / "fake-codex")
+    command, env, paths = _base_command(tmp_path, fake=fake)
+    env["FAKE_MODE"] = "normal"
+    receipt_bytes_before_failure: list[bytes] = []
+
+    def fail_diagnostics(
+        args: Any, _diagnostics: Any, **_kwargs: Any
+    ) -> None:
+        receipt_bytes_before_failure.append(args.receipt.read_bytes())
+        raise OSError("synthetic diagnostics failure")
+
+    monkeypatch.setattr(
+        LAUNCHER, "_publish_launcher_diagnostics", fail_diagnostics
+    )
+
+    rc = _run_main_in_process(
+        command, env, monkeypatch, paths=paths, expected_returncode=0
+    )
+    receipt_bytes = paths["receipt"].read_bytes()
+    receipt = json.loads(receipt_bytes)
+
+    assert rc == 0
+    assert receipt["outcome"] == "accepted"
+    assert receipt["attempts"][0]["accepted"] is True
+    assert receipt_bytes_before_failure == [receipt_bytes]
+    assert list(paths["artifact"].glob("launcher-diagnostics.*.json")) == []
+
+
+def test_launcher_diagnostics_sidecar_write_does_not_fsync(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    artifact = tmp_path / "artifact"
+    artifact.mkdir()
+    receipt = tmp_path / "receipt.json"
+    receipt.write_bytes(b"{}\n")
+    args = type("Args", (), {"artifact_dir": artifact})()
+    diagnostics = LAUNCHER.LauncherDiagnosticsState(
+        job_id="job-a", job_started_ns=0, receipt_path=receipt
+    )
+    monkeypatch.setattr(
+        LAUNCHER.os,
+        "fsync",
+        lambda _fd: pytest.fail("diagnostics sidecar must not fsync"),
+    )
+
+    path = LAUNCHER._publish_launcher_diagnostics(
+        args, diagnostics, receipt_attempts=[]
+    )
+
+    assert path.read_bytes().endswith(b"\n")
+
+
+def test_launcher_diagnostics_sidecar_is_outside_receipt_schema(
+    tmp_path: Path,
+) -> None:
+    _completed, receipt, paths = _run_case(
+        tmp_path, "normal", expected_returncode=0
+    )
+
+    assert receipt is not None
+    assert _read_launcher_diagnostics(paths)["attempts"]
+    assert LAUNCHER._check_receipt_paths(
+        paths["receipt"], paths["manifest"], expectations={}, report=False
+    ) == 0
+    receipt["launcher_diagnostics"] = {"forbidden": True}
+    with pytest.raises(LAUNCHER.LaunchError, match="field set"):
+        LAUNCHER._validate_receipt(receipt)
 
 
 def test_post_attempt_audit_failure_still_writes_launcher_error_receipt(
@@ -2911,6 +4717,8 @@ def test_receipt_staging_wall_overrun_flips_to_not_accepted_and_removes_output(
     assert receipt["attempts"][-1]["limit_trigger"] == "max_wall_clock_s"
     assert not paths["output"].exists()
     assert list(tmp_path.glob(".receipt.json.tmp.*")) == []
+    snapshots = _diagnostic_snapshots(paths, "post_receipt_staging")
+    assert snapshots[-1]["conditions_met"] == ["max_wall_clock_s"]
 
 
 def test_receipt_audit_wall_overrun_flips_to_not_accepted(
@@ -2949,6 +4757,8 @@ def test_receipt_audit_wall_overrun_flips_to_not_accepted(
     assert receipt["attempts"][-1]["accepted"] is False
     assert receipt["attempts"][-1]["limit_trigger"] == "max_wall_clock_s"
     assert not paths["output"].exists()
+    snapshots = _diagnostic_snapshots(paths, "post_receipt_staging")
+    assert snapshots[-1]["conditions_met"] == ["max_wall_clock_s"]
 
 
 def test_accepted_publication_reuses_the_staged_receipt_temp(
@@ -3325,6 +5135,20 @@ def test_complete_receipt_publication_is_atomic_create_only_at_run_callsite(
         "job-a",
         "job-b",
     }
+    first_diagnostics = _read_launcher_diagnostics(first_paths)
+    second_diagnostics = _read_launcher_diagnostics(second_paths)
+    by_status = {
+        item["receipt_binding"]["status"]: item
+        for item in (first_diagnostics, second_diagnostics)
+    }
+    assert set(by_status) == {"sealed", "foreign"}
+    assert by_status["sealed"]["job_id"] == receipt["job_id"]
+    assert by_status["foreign"]["job_id"] != receipt["job_id"]
+    expected_hash = hashlib.sha256(
+        first_paths["receipt"].read_bytes()
+    ).hexdigest()
+    assert by_status["sealed"]["receipt_binding"]["sha256"] == expected_hash
+    assert by_status["foreign"]["receipt_binding"]["sha256"] == expected_hash
 
 
 def test_partial_receipt_never_visible_at_final_path(tmp_path: Path) -> None:
@@ -4117,6 +5941,11 @@ def test_rollout_missing_after_grace_is_stopped_and_not_accepted(
     assert receipt["attempts"][0]["limit_trigger"] is None
     assert receipt["attempts"][0]["evidence_status"] == "missing"
     assert receipt["attempts"][0]["accepted"] is False
+    diagnostics = _read_launcher_diagnostics(paths)
+    diagnostic_attempt = diagnostics["attempts"][0]
+    assert diagnostic_attempt["evidence_forced_stop"] is True
+    assert diagnostic_attempt["termination_initiated_by_launcher"] is True
+    assert diagnostic_attempt["termination_signals_sent"]
     for pid in _leader_pids(paths):
         _assert_pid_gone(pid)
 
@@ -4135,6 +5964,22 @@ def test_thread_missing_after_grace_kills_process_group(tmp_path: Path) -> None:
     assert receipt["stop_reason"] == "max_attempts"
     assert receipt["actuals"]["attempt_count"] == 1
     assert receipt["attempts"][0]["evidence_status"] == "missing"
+    diagnostics = _read_launcher_diagnostics(paths)
+    diagnostic_attempt = diagnostics["attempts"][0]
+    assert diagnostic_attempt["evidence_forced_stop"] is True
+    assert diagnostic_attempt["termination_initiated_by_launcher"] is True
+    assert [
+        item["signal"]
+        for item in diagnostic_attempt["termination_signals_sent"]
+    ][0] == "SIGTERM"
+    first_signal = diagnostic_attempt["termination_signals_sent"][0]
+    assert set(first_signal) == {
+        "signal",
+        "job_elapsed_s_at",
+        "attempt_elapsed_s_at",
+    }
+    assert first_signal["job_elapsed_s_at"] >= 0
+    assert first_signal["attempt_elapsed_s_at"] >= 0
     child_pid = int((paths["pid_dir"] / "child.pid").read_text(encoding="ascii"))
     _assert_pid_gone(child_pid)
     for pid in _leader_pids(paths):
