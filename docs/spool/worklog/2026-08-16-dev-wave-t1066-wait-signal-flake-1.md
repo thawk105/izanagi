@@ -94,6 +94,13 @@ title: 実 signal 族フレークの真因は負荷依存の race ではなく 1
   `tools/mutation_harness.py:1076` と `orchestrator/qualification/t126_driver.py:242` にもある
   (別 owner)。`orchestrator/tests/test_t139_r4_env_probe.py:696-700` にも self-signal の
   即時仮定が残る。
+- {{T:dw-o02-web-search-ban}} **P2・新規・ユーザー裁定待ち**: `DW-O02` に「子へ Web 検索を
+  禁じる」義務が無い。本 wave の段 2 の子が Web 検索を使い、1242 秒・38 model call ぶんの
+  成果物が `evidence_status=invalid` で全損した (codex-cli 0.147.0 の `web_search` item が
+  JSON の `id` キー重複行を吐き、launcher の `parse_jsonl` が 18 行拒否する)。
+  段 8 で 1 行の統合を試みたが **`docs/dev-wave/**` の L1.5 予算超過で機械拒否された**
+  (9601 > 9566 bytes)。`docs/skill-self-improvement.md` の「予算に収まらなければ止めて
+  ユーザー裁定へ返す」に従い変更を戻した。**予算値の引き上げは独立審査対象。**
 - {{T:mask-guard-generalization}} **P3・新規・ユーザー裁定待ち**: 本 wave が入れた
   signal mask の autouse guard を `conftest.py` へ一般化するか。独立 2 例が揃っていないため
   `DW-G03` に従い module scope に留めた。
