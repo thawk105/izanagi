@@ -67,3 +67,11 @@ title: 「次の一手」保存則を参照先の実在と archive 主張の一�
   ローテーションすると producer は連続範囲を名乗り checker が欠番として拒否する。
   択 (a) T-329 は公式 land の postcondition gate と明記し、直接 CLI は別タスクへ送る (親の既定)。
   択 (b) 同 wave で producer 側にも範囲 postcondition と producer テストを足す。
+- {{T:devwave-nfc-echo-guard-budget}} **P2・ユーザー裁定要 (段 8 の自己改善が予算で止まった)**:
+  {{F:codex-evidence-nfc-echo}} の恒久対応を dev-wave の reference 節へ入れるか。入れ先は
+  `docs/dev-wave/operations.md` の `DW-O02` (prompt・job artifact を作る直前に読む節) が唯一
+  意味の合う場所だが、同節は段 2・3 の preflight で常時読むため L1.5 に数えられ、
+  最短の文言を足しても `docs/dev-wave/**` の L1.5 予算を 171 bytes 超過して `check_docs.py` が
+  赤になった (実測)。自己改善契約の「予算に収まらなければ変更を止めて裁定へ返す」に従って
+  変更を revert した。択 (a) memory と failures だけで運用し reference へは入れない (親の既定)。
+  択 (b) L1.5 の陳腐化した節を削って枠を作る。択 (c) 予算値そのものを独立審査にかける。
