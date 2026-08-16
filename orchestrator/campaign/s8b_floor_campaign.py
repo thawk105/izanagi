@@ -889,6 +889,28 @@ def scan_floor_protocol_index(
     )
 
 
+def resolve_current_floor_protocol(*, root=ROOT) -> IndexedFloorProtocol:
+    """現行 env 契約に一致する唯一の indexed protocol を解決する。"""
+    index = scan_floor_protocol_index(root=root)
+    candidates: list[IndexedFloorProtocol] = []
+    for record in index.values():
+        env_tag = record.document["env_tag"]
+        try:
+            current = _env_contract.lookup(env_tag)
+        except _env_contract.EnvContractError as exc:
+            raise FloorCampaignError(
+                f"floor protocol env_tag の現行契約を解決できない: {env_tag}: {exc}"
+            ) from exc
+        if record.contract_sha256 == current.contract_sha256:
+            candidates.append(record)
+    if len(candidates) != 1:
+        raise FloorCampaignError(
+            "現行 env 契約に一致する floor protocol が exact 1 件でない: "
+            f"count={len(candidates)}"
+        )
+    return candidates[0]
+
+
 def _ccbench_gitlink(root: Path, commit_oid: str) -> str:
     """固定 commit の ``external/ccbench`` gitlink を読む (fail-closed)。"""
     try:

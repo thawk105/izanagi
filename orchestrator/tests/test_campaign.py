@@ -4981,6 +4981,87 @@ def test_p2_actual_floor_and_t126_admission_accept_valid_evidence(tmp_path=None)
         admission.env_attestation.load_verified_calibration = saved_calibration
 
 
+def test_floor_admission_uses_authority_resolver_not_legacy_literal(tmp_path=None):
+    from orchestrator.campaign import certified_writer_admission as admission
+    from orchestrator.campaign import s8b_floor_campaign as floor_campaign
+
+    root = Path(tmp_path) if tmp_path is not None else Path(
+        _tmpdir("izanagi_floor_resolver_admission_")
+    )
+    fixture = build_admission_fixture(root)
+    legacy = fixture.repo_root / floor_campaign._FLOOR_PROTOCOL_REL
+    protocol_bytes = legacy.read_bytes()
+    selected_rel = "output/authority-selected/floor_protocol.json"
+    selected = fixture.repo_root / selected_rel
+    selected.parent.mkdir(parents=True)
+    selected.write_bytes(protocol_bytes)
+    record = floor_campaign.IndexedFloorProtocol(
+        path=selected_rel,
+        document=floor_campaign._strict_parse_protocol_bytes(
+            protocol_bytes, source=selected_rel,
+        ),
+        raw_bytes=protocol_bytes,
+        sha256=hashlib.sha256(protocol_bytes).hexdigest(),
+    )
+    legacy.write_bytes(b"legacy literal must not be read\n")
+
+    with unittest_mock.patch.object(
+            admission.s8b_floor_campaign, "resolve_current_floor_protocol",
+            return_value=record,
+    ) as resolver, unittest_mock.patch.object(
+            admission.site_policy, "current_site",
+            return_value=site_policy.PEGASUS_COMPUTE,
+    ), unittest_mock.patch.object(
+            admission.env_attestation, "load_verified_calibration",
+            return_value=object(),
+    ):
+        admission.admit(
+            "floor",
+            repo_root=fixture.repo_root,
+            receipt_path=fixture.receipts["floor"],
+            environ=fixture.environments["floor"],
+        )
+    resolver.assert_called_once_with(root=fixture.repo_root)
+
+
+def test_floor_admission_rejects_disk_bytes_different_from_index_record(tmp_path=None):
+    from orchestrator.campaign import certified_writer_admission as admission
+    from orchestrator.campaign import s8b_floor_campaign as floor_campaign
+
+    root = Path(tmp_path) if tmp_path is not None else Path(
+        _tmpdir("izanagi_floor_index_bytes_mismatch_")
+    )
+    fixture = build_admission_fixture(root)
+    original_resolver = floor_campaign.resolve_current_floor_protocol
+
+    def resolve_then_replace(*, root):
+        record = original_resolver(root=root)
+        (root / record.path).write_bytes(record.raw_bytes + b"\n")
+        return record
+
+    with unittest_mock.patch.object(
+            admission.s8b_floor_campaign, "resolve_current_floor_protocol",
+            side_effect=resolve_then_replace,
+    ), unittest_mock.patch.object(
+            admission.site_policy, "current_site",
+            return_value=site_policy.PEGASUS_COMPUTE,
+    ), unittest_mock.patch.object(
+            admission.env_attestation, "load_verified_calibration",
+            return_value=object(),
+    ):
+        try:
+            admission.admit(
+                "floor",
+                repo_root=fixture.repo_root,
+                receipt_path=fixture.receipts["floor"],
+                environ=fixture.environments["floor"],
+            )
+        except admission.AdmissionRejected as exc:
+            assert str(exc) == "floor protocol bytes differ from indexed authority"
+        else:
+            raise AssertionError("indexed SHA と異なる disk bytes を受理した")
+
+
 def test_certified_writer_environment_accepts_recorded_pegasus_identity():
     from orchestrator.campaign import certified_writer_admission as admission
 
@@ -6555,6 +6636,33 @@ def test_run_trace_parses_commit_witness_from_stdout():
     assert result2.abort_counts is None       # 集計行なし → None (呼び手が fails-closed)
 
 
+def test_run_trace_prepends_exact_nonempty_numactl_to_subprocess_argv():
+    """実 _run_trace が登録 prefix を subprocess argv 先頭へ落とさず渡す。"""
+    trace_dir = _tmpdir("izanagi_runtrace_numactl_")
+    binary = "/not/executed/ycsb_silo.exe"
+    prefix = ("numactl", "--interleave=all")
+    calls = []
+
+    def subprocess_spy(argv, **kwargs):
+        calls.append((argv, kwargs))
+        return types.SimpleNamespace(
+            returncode=0,
+            stdout=("abort_counts_: 0\ncommit_counts_: 0\n"
+                    "batch_commit_counts_: 0\n"),
+        )
+
+    with unittest_mock.patch.object(pipeline.subprocess, "run", subprocess_spy):
+        pipeline._run_trace(
+            binary, trace_dir, {"thread_num": "48"}, 1800,
+            numactl=prefix,
+        )
+
+    assert len(calls) == 1
+    argv = calls[0][0]
+    assert argv[:len(prefix)] == list(prefix)
+    assert argv[len(prefix)] == binary
+
+
 def test_commit_witness_parser_rejects_duplicate_stdout():
     assert pipeline._parse_commit_witness(
         "commit_counts_: 1\ncommit_counts_: 1\nbatch_commit_counts_: 0\n"
@@ -7093,6 +7201,7 @@ def _mock_pipeline_multipass(pass_results, median=12345.0, cv=0.01, competing=No
     pass_results = [(ncommit, rc, aborts, certified), ...] — _run_trace/
     verify_trace_dir が呼ばれた順に 1 要素ずつ消費する。yield する dict:
       trace  = 各 _run_trace 呼び出しの {"flags":..., "numactl":...} 記録
+      bench = 各 measure_point 呼び出しの numactl・rep return code 分岐記録
       bench_lock_enters = bench_lock() で入った回数 (verify pass 分 + bench 分)
     """
     saved = {}
@@ -7101,7 +7210,7 @@ def _mock_pipeline_multipass(pass_results, median=12345.0, cv=0.01, competing=No
         saved[name] = getattr(pipeline, name)
         setattr(pipeline, name, val)
 
-    calls = {"trace": [], "bench_lock_enters": 0}
+    calls = {"trace": [], "bench": [], "bench_lock_enters": 0}
 
     @contextlib.contextmanager
     def fake_lock(*a, **k):
@@ -7142,6 +7251,10 @@ def _mock_pipeline_multipass(pass_results, median=12345.0, cv=0.01, competing=No
                                      configure_cmd="<cfg>", build_cmd="<build>")
 
     def fake_measure(*a, **k):
+        calls["bench"].append({
+            "numactl": k.get("numactl"),
+            "record_rep_returncodes": "rep_returncodes" in k,
+        })
         return types.SimpleNamespace(
             throughputs=[median, median], run_cmd="<run>",
             leading_indicators=lambda: {"throughput_tps": median, "abort_rate": 0.0,
@@ -7204,7 +7317,7 @@ def test_pipeline_extra_correctness_both_pass_tags_commit_and_uses_numactl_lock(
             log=lambda *a: None, build_context=_BUILD_CONTEXT)
     assert r.certified and not r.aborted
     assert calls["trace"][0]["numactl"] is None           # legacy パス: numactl 無し
-    assert calls["trace"][1]["numactl"] == numa            # S2 パス: numactl あり
+    assert calls["trace"][1]["numactl"] == tuple(numa)     # S2 パス: immutable prefix
     assert calls["bench_lock_enters"] == 2                 # S2 verify パス 1 + bench 1
     verify_recs = [rec for rec in wal.read_records(lay) if rec.stage == STAGE_VERIFY_DONE]
     assert [rec.payload["workload"]["tag"] for rec in verify_recs] == ["legacy", "s2"]
@@ -7257,6 +7370,172 @@ def test_pipeline_no_extra_correctness_matches_legacy_only_behavior():
     assert commit.payload.get("verify_configs") == ["legacy"]
 
 
+def test_pipeline_fullscale_verify_and_bench_share_numactl_expression():
+    """fullscale verify と 2 本の bench 呼出しを同じ numactl 式へ固定する。"""
+    with open(pipeline.__file__, encoding="utf-8") as stream:
+        tree = ast.parse(stream.read(), filename=pipeline.__file__)
+    evaluate_nodes = [
+        node for node in tree.body
+        if isinstance(node, ast.FunctionDef) and node.name == "evaluate"
+    ]
+    assert len(evaluate_nodes) == 1, (
+        "pipeline.py の top-level evaluate FunctionDef を exact 1 件探したが "
+        f"{len(evaluate_nodes)} 件だった"
+    )
+    evaluate_node = evaluate_nodes[0]
+    fullscale_ifs = [
+        node for node in ast.walk(evaluate_node)
+        if isinstance(node, ast.If)
+        and isinstance(node.test, ast.Name)
+        and node.test.id == "fullscale_isolated"
+    ]
+    assert len(fullscale_ifs) == 1, (
+        "evaluate 内の exact Name('fullscale_isolated') 条件を持つ If を "
+        f"1 件探したが {len(fullscale_ifs)} 件だった"
+    )
+    fullscale_if = fullscale_ifs[0]
+    verify_calls = [
+        call
+        for statement in fullscale_if.body
+        for call in ast.walk(statement)
+        if isinstance(call, ast.Call)
+        and isinstance(call.func, ast.Name)
+        and call.func.id == "_run_one_pass"
+    ]
+    bench_calls = [
+        node for node in ast.walk(evaluate_node)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Name)
+        and node.func.id == "_run_bench"
+    ]
+    assert len(verify_calls) == 1, (
+        "fullscale_isolated If 内の _run_one_pass 呼出を exact 1 件要求する"
+    )
+    assert len(bench_calls) == 2, (
+        "evaluate 内の _run_bench 呼出を exact 2 件要求する"
+    )
+    prefixes = [verify_calls[0].args[2], *(call.args[3] for call in bench_calls)]
+    assert all(
+        isinstance(prefix, ast.Name) and prefix.id == "numactl"
+        for prefix in prefixes
+    )
+    expected = ast.dump(prefixes[0], include_attributes=False)
+    assert all(
+        ast.dump(prefix, include_attributes=False) == expected
+        for prefix in prefixes[1:]
+    )
+
+
+def test_pipeline_fullscale_verify_and_bench_share_immutable_numactl():
+    """bench 2 経路と rep return code 2 分岐へ同じ immutable prefix を渡す。"""
+    for use_screening in (False, True):
+        for record_rep_returncodes in (False, True):
+            lay = _tmp_layout()
+            screening = _screening() if use_screening else None
+            if screening is not None:
+                locked_cfg = _cfg(search_config={
+                    **_cfg().search_config,
+                    **ident.screening_search_config(screening),
+                })
+                _write_certified_lock(lay, locked_cfg)
+            supplied = list(_AUTH_CONTRACT.numactl)
+            with _mock_pipeline_multipass(
+                    [(100, 0, 5, True), (900000, 0, 50000, True)]) as calls:
+                result = pipeline.evaluate(
+                    Genome("silo", {"BACK_OFF": 1}), lay,
+                    _AUTH_CONTRACT.env_tag, "deadbeef",
+                    PerfConfig(records=1000, threads=2), clocks_per_us=1800,
+                    numactl=supplied, authorization_contract=_AUTHORIZATION,
+                    extra_correctness=[
+                        (pipeline.S2_TAG, pipeline.s2_correctness_workload())
+                    ],
+                    screening=screening,
+                    record_rep_returncodes=record_rep_returncodes,
+                    log=lambda *a: None, build_context=_BUILD_CONTEXT)
+            assert result.certified and not result.aborted
+            assert len(calls["trace"]) == 2 and len(calls["bench"]) == 1
+            verify_prefix = calls["trace"][1]["numactl"]
+            bench_call = calls["bench"][0]
+            bench_prefix = bench_call["numactl"]
+            assert bench_call["record_rep_returncodes"] is record_rep_returncodes
+            assert type(verify_prefix) is tuple
+            assert verify_prefix == _AUTH_CONTRACT.numactl
+            assert bench_prefix is verify_prefix
+
+
+def test_pipeline_extra_correctness_normalizes_empty_list_numactl():
+    """Pegasus の空 list は immutable な空 prefix として S2 trace に届く。"""
+    authorization = ec.authorize("pegasus")
+    contract = ec.lookup("pegasus")
+    lay = _tmp_layout()
+    with _mock_pipeline_multipass(
+            [(100, 0, 5, True), (900000, 0, 50000, True)]) as calls:
+        result = pipeline.evaluate(
+            Genome("silo", {"BACK_OFF": 1}), lay,
+            contract.env_tag, "deadbeef",
+            PerfConfig(records=1000, threads=2),
+            clocks_per_us=contract.clocks_per_us,
+            numactl=[], env_contract=None,
+            authorization_contract=authorization,
+            extra_correctness=[
+                (pipeline.S2_TAG, pipeline.s2_correctness_workload())
+            ],
+            do_bench=False, log=lambda *a: None,
+            build_context=_BUILD_CONTEXT)
+    assert result.certified and not result.aborted
+    trace_prefix = calls["trace"][1]["numactl"]
+    assert type(trace_prefix) is tuple
+    assert trace_prefix == ()
+
+
+def test_pipeline_qualification_rejects_list_numactl_before_sink_writes():
+    """qualification は正規化前の list を exact tuple 不一致として拒否する。"""
+    from orchestrator.qualification.artifacts import (
+        QualificationEventSink,
+        QualificationRoot,
+        create_attempt,
+    )
+
+    contract = ec.lookup("pegasus")
+    root = QualificationRoot(Path(_tmpdir("izanagi_qualification_numactl_")))
+    capability = root.issue()
+    layout = create_attempt(
+        root, capability, series_id="a" * 64, attempt_id="b" * 64,
+    )
+    sink = QualificationEventSink(
+        capability, layout, round_index=1, role="subject",
+    )
+    policy = pipeline.QualificationPipelinePolicy.t126_pegasus(sink)
+    sink_path = (
+        layout.attempt_dir
+        / "rounds/0001/subject/evaluation-events.jsonl"
+    )
+
+    with _assert_raises_contains(
+            ValueError,
+            "qualification execution values do not exactly match Pegasus contract"):
+        pipeline.evaluate(
+            Genome("silo", {"BACK_OFF": 1}), layout,
+            contract.env_tag, "deadbeef",
+            PerfConfig(
+                records=1_000_000, threads=48,
+                workload={
+                    "ycsb_zipf_skew": "0.9", "ycsb_rratio": "95",
+                    "ycsb_rmw": "0", "ycsb_max_ope": "10",
+                },
+            ),
+            clocks_per_us=contract.clocks_per_us,
+            numactl=[], env_contract=contract,
+            authorization_contract=ec.authorize("pegasus"),
+            extra_correctness=[
+                (pipeline.S2_TAG, pipeline.s2_correctness_workload())
+            ],
+            bench_max_rounds=1, record_rep_returncodes=True,
+            qualification_policy=policy, log=lambda *a: None,
+            build_context=_BUILD_CONTEXT)
+    assert not sink_path.exists()
+
+
 def test_pipeline_extra_correctness_allows_empty_prefix_when_contract_is_empty():
     """T-1174: Pegasus の bench 契約も verify prefix も空なら S2 を実行できる。
 
@@ -7291,6 +7570,29 @@ def test_pipeline_extra_correctness_rejects_empty_prefix_when_contract_requires_
             numactl=(), authorization_contract=_AUTHORIZATION,
             extra_correctness=[(pipeline.S2_TAG, pipeline.s2_correctness_workload())],
             do_bench=False, log=lambda *a: None, build_context=_BUILD_CONTEXT)
+    assert list(wal.read_records(lay)) == []
+
+
+def test_pipeline_fullscale_invalid_numactl_type_rejected_before_sink_write():
+    """不正型は認可前の契約照合 gate が exact ValueError で拒否する。"""
+    lay = _tmp_layout()
+    expected_type = ValueError
+    try:
+        pipeline.evaluate(
+            Genome("silo", {"BACK_OFF": 1}), lay,
+            _AUTH_CONTRACT.env_tag, "deadbeef",
+            PerfConfig(records=1000, threads=2), clocks_per_us=1800,
+            numactl="numactl --interleave=all",
+            authorization_contract=_AUTHORIZATION,
+            extra_correctness=[
+                (pipeline.S2_TAG, pipeline.s2_correctness_workload())
+            ],
+            do_bench=False, log=lambda *a: None,
+            build_context=_BUILD_CONTEXT)
+        assert False, "不正な numactl 型は契約照合 gate で拒否すべき"
+    except expected_type as exc:
+        assert type(exc) is expected_type
+        assert "bench と同じメモリ配置" in str(exc)
     assert list(wal.read_records(lay)) == []
 
 

@@ -198,12 +198,27 @@ def _admit_floor(
     _validate_captures(row["preflight"])
     _validate_source_blob(repo_root, commit, row["job_script_path"], script_sha)
     try:
-        document = s8b_floor_campaign.load_protocol(
-            repo_root / "output/s8b-freeze/floor_protocol.json"
+        protocol_record = s8b_floor_campaign.resolve_current_floor_protocol(
+            root=repo_root,
+        )
+        if type(protocol_record) is not s8b_floor_campaign.IndexedFloorProtocol:
+            raise AdmissionRejected(
+                "floor protocol resolver returned an invalid record"
+            )
+        protocol_path = repo_root / protocol_record.path
+        protocol_bytes = protocol_path.read_bytes()
+        if hashlib.sha256(protocol_bytes).hexdigest() != protocol_record.sha256:
+            raise AdmissionRejected(
+                "floor protocol bytes differ from indexed authority"
+            )
+        document = s8b_floor_campaign._strict_parse_protocol_bytes(
+            protocol_bytes, source=protocol_record.path,
         )
         _normalized, registered = s8b_floor_campaign.validate_protocol_against_current(
             document
         )
+    except AdmissionRejected:
+        raise
     except Exception as exc:
         raise AdmissionRejected("floor protocol current validation failed") from exc
     _require_compute_and_calibration(registered, repo_root)
