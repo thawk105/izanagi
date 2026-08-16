@@ -1247,6 +1247,34 @@ def test_non_owner_release_never_removes_lease(
     assert (tmp_path / "acceptance.lease").read_bytes() == before
 
 
+def test_release_expected_main_sha_does_not_delete_reclaimed_same_slug(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """M11: 同一 slug の新 lease は main_sha 不一致なら unlink しない。"""
+
+    first = _claim(tmp_path, _WAVE_A, capsys, main_sha=_SHA_A)
+    assert first["state"] == "acquired"
+    (tmp_path / "acceptance.lease").unlink()
+    second = _claim(tmp_path, _WAVE_A, capsys, main_sha=_SHA_B)
+    assert second["state"] == "acquired"
+    before = (tmp_path / "acceptance.lease").read_bytes()
+
+    result = WLW.release(
+        tmp_path,
+        _WAVE_A,
+        expected_main_sha=_SHA_A,
+    )
+
+    assert result["state"] == "not-owner"
+    assert result["holder_self"] is True
+    assert result["main_sha"] == _SHA_B
+    assert result["source"] == {
+        "status": "unavailable",
+        "reason": "main-sha-mismatch",
+    }
+    assert (tmp_path / "acceptance.lease").read_bytes() == before
+
+
 def test_open_directory_failure_is_unavailable_not_free(
     tmp_path: Path,
     capsys: pytest.CaptureFixture[str],
