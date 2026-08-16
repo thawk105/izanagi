@@ -877,6 +877,7 @@ def test_production_use_perf_keyword_call_sites_are_a_closed_set():
     call_sites = []
     target_functions = {
         "_build_cmd", "repro_command", "build_portable_run_cmd", "measure_point",
+        "measure_fn",
     }
     for path in (ROOT / "orchestrator").rglob("*.py"):
         if "tests" in path.parts:
@@ -896,6 +897,7 @@ def test_production_use_perf_keyword_call_sites_are_a_closed_set():
         ("orchestrator/calibrator/runner.py", "repro_command"),
         ("orchestrator/campaign/s8b_floor_campaign.py", "build_portable_run_cmd"),
         ("orchestrator/campaign/s8b_floor_campaign.py", "measure_point"),
+        ("orchestrator/campaign/s8b_oracle_n_pilot.py", "measure_fn"),
     ]
 
 
@@ -3520,6 +3522,7 @@ def test_materializer_registry_covers_all_python_build_launches():
     admitted_gateways = {
         "orchestrator/campaign/pipeline.py:evaluate",
         "orchestrator/campaign/s8b_floor_campaign.py:build_cells",
+        "orchestrator/campaign/s8b_oracle_n_pilot.py:build_binaries",
     }
 
     def static_keyword_names(call, owner) -> set[str]:
@@ -3592,12 +3595,17 @@ def test_materializer_registry_covers_all_python_build_launches():
                 qualified == "build_fn"
                 and site == "orchestrator/campaign/s8b_floor_campaign.py:build_cells"
             )
-            if not is_buildcache_call and not is_floor_materializer_call:
+            is_pilot_materializer_call = (
+                qualified == "build_fn"
+                and site == "orchestrator/campaign/s8b_oracle_n_pilot.py:build_binaries"
+            )
+            if (not is_buildcache_call and not is_floor_materializer_call
+                    and not is_pilot_materializer_call):
                 continue
             required = {"admission", "build_context", "source_evidence"}
             if site in admitted_gateways:
                 seen_gateways.add(site)
-                if is_floor_materializer_call:
+                if is_floor_materializer_call or is_pilot_materializer_call:
                     keywords = static_keyword_names(call, owner)
                     if not (required | {"expected_toolchain_manifest"}) <= keywords:
                         missing_admission.append(
