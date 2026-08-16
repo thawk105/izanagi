@@ -56,6 +56,12 @@ title: 床値 pilot の承認を投入引数で渡せるようにした — 承�
   ずれはすべて「期待より多く落ちた」側で、原因は (a) fix が新設した構造テストが承認変数の
   出現集合を固定しているため出現位置を変える変異すべてに当たること、(b) ambient 非継承テストが
   driver argv も独立に確認するため job script 側の変異でも赤になることの 2 つである。
+- 受入全走の 1 回目は 1 failed / 11866 passed / 92 skipped で赤になった。落ちたのは
+  `test_mutation_harness.py::test_sigterm_handler_stops_child_and_restores_active_mutation` 1 件で、
+  SIGTERM を送る前に子が rc=1 で終了しており `128 + SIGTERM` を観測できなかった。
+  32 並列 (`gw28`) の負荷に依存する競合である。本 wave の差分は `tools/pegasus/` の 2 script と
+  その契約テストだけで当該 test へ到達しえず、**同 file を単独実走すると 80 passed** で再現しない。
+  帰属せずフレークとして再投入した。
 - 背景 job の運用で 2 つ躓いた。(i) `dev_wave_codex.py` の `--lane` は consult 段専用で、
   review 段に付けると起動前 rc=2 になりレビュー 2 本が同時に落ちた。(ii) 背景待ち手の完了通知が
   **7 回連続で偽**だった (存在しないファイルの byte 数と、自分の shell より未来の mtime を出した)。
