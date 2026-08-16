@@ -82,6 +82,11 @@ title: 床値 pilot の承認を投入引数で渡せるようにした — 承�
   `qsub -v` の 2 本目の env が計算ノードへ実際に届くことは本 wave では未実測である。
   NQSV が `-v` 指定外の ambient env を継承するかも未確認。最初の実投入時に、
   承認あり / なしの双方で job 側の env と driver argv を確認する。
+- {{T:lane-constraint-needs-budget}} **P3・新規 (段 8 の自己改善が予算で止まった)**:
+  `dev_wave_codex.py` の `--lane` が段 3 専用であることを `DW-O01` へ 1 文足そうとしたが、
+  (a) model 権威行の exact 1 件検査に抵触し、(b) dev-wave の L1.5 予算を 24 bytes 超過した。
+  差し戻して緑を確認済み。**予算値を上げる変更は独立審査対象**なので、
+  この 1 文を入れるか、入れるなら何と差し替えるかの裁定が要る。
 - {{T:unset-set-pin-too-broad}} **P3・新規 (段 6 焦点再レビュー 所見 6)**:
   新設した構造テストが `floor_campaign.sh` の `unset` 対象集合を「ちょうど 3 個」と固定しており、
   将来 `unset LD_PRELOAD` のような正当な hardening を足すと偽赤になる。
