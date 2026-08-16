@@ -545,7 +545,9 @@ else:
         stdout, stderr = child.communicate(timeout=180)
         assert child.returncode == 0, stderr
         results.append(json.loads(stdout))
-    assert [result["ok"] for result in results] == [False, False]
+    # Do not require both contenders to reject: the first owner may exit before
+    # the other's post-scan, which then legitimately classifies it as DEAD.
+    assert sum(result["ok"] for result in results) <= 1
 
     acquired = acquire_claim(claim_root, _record("successor"))
     assert acquired.path == claim_root / "successor.claim"
