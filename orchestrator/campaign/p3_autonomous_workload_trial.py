@@ -760,6 +760,24 @@ def _trial_launch_admission(
         raise trial_registry.TrialRegistryError(
             "[launch-admission] registered admission has no binding"
         )
+    manifest = trial_registry.load_trial_manifest(Path(trial_manifest))
+    if manifest.sha256 != binding.manifest_sha256:
+        raise trial_registry.TrialRegistryError(
+            "[generation-binding] manifest changed after registered admission"
+        )
+    trial = next(
+        (item for item in manifest.trials if item.trial_id == trial_id),
+        None,
+    )
+    if trial is None:  # pragma: no cover - registered admission postcondition
+        raise trial_registry.TrialRegistryError(
+            "[generation-binding] admitted trial is absent from the manifest"
+        )
+    if generations != trial.generations:
+        raise trial_registry.TrialRegistryError(
+            "[generation-binding] runtime generations differs from "
+            "manifest declaration"
+        )
     identity_context = build_run_context(
         generator_id=GeneratorId.S8A_TRIGGER_SWEEP,
     )
