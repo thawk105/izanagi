@@ -65,8 +65,10 @@ Codex role adapter はこの実走経路に使わない。`.codex/agents/README.
 
 **この opt-in は holdout 束縛 workload には使えない。** H1/H2 (`rr80` / `rr20`) に触れる起動は、
 opt-in を付けても `[u4-holdout-workload]` で無条件に拒否される。正式な holdout 起動には
-登録済み manifest、manifest の `prereg_commit` と一致する `effective_at(C)` capability、
-未消費の trial ID がすべて要る。現 repository は 12 述語の SATISFIED が 0 件なので、
+登録済み manifest、その manifest を導入した内容 commit と発効 commit の二段束縛
+(`prereg_content_commit` / `prereg_effective_commit`。正本は事前登録文書 §1) に一致する
+発効 capability、未消費の trial ID がすべて要る。**現行実装はこの二段束縛を消費しておらず、
+単一の事前登録 commit 識別子しか持たない。** 現 repository は 12 述語の SATISFIED が 0 件なので、
 **正式 H1/H2 起動が通ることを期待してはならない。**
 
 ### 3.1 決定論 fixture、build なし
@@ -115,12 +117,13 @@ python3 -m orchestrator.campaign.p3_autonomous_workload_trial \
   --max-wall-seconds 3600
 ```
 
-**`--max-generations` は 2 以上にできない** ([T-207] / D106 残余 1 / D114)。世代を跨ぐと
-前 iteration の critic 出力が次世代の生成へ効くが、その還流は `reverse_recommended` の
-boolean だけで「なぜ壊れたか」を含まない (規律 3 に対する狭まり)。**D121 が設計 draft を起草したが
-設計は未確定・機構は未実装**なので、引き続き 1 generation/cell に限る。**D114 でこれは機械 gate になった** — 承認上限
-`MAX_APPROVED_GENERATIONS = 1` を超える値は CLI・`run_trial()`・`_run_workload()` の 3 入口で
-`AutonomousTrialError` になる。既定値も `1` である。正式経路 (`provider_kind ==
+**`--max-generations` の承認上限は現在 `2` である** (D410 が D114 の上限 1 を 2 へ引き上げ、
+世代間で運ぶものを閉じた第二層射影として実装した)。**D114 でこれは機械 gate になった** — 承認上限
+`MAX_APPROVED_GENERATIONS` を超える値は CLI・`run_trial()`・`_run_workload()` の 3 入口で
+`AutonomousTrialError` になる。**強制されるのは上限だけであり、下限ではない。**
+起動側の既定値は `1` であるため、正確に `G=2` で走らせるには世代数を明示的に指定する必要がある
+(事前登録文書 §4 / §7、D438 決定 (3))。以下の探索例が `--max-generations 1` を使うのは
+配線確認のためであり、正式系列の形ではない。正式経路 (`provider_kind ==
 "claude-headless"`) の `run_trial()` は、caller 注入 `providers` (D148) と explicit keyword の
 `drive` / `preview` ([T-244] U-1、2026-08-04) を artifact 作成前に拒否する。拒否できるのは
 **explicit keyword の注入だけ**であり、module 属性の再束縛、private sentinel の持込み
@@ -136,15 +139,19 @@ CCBench を pinned commit の使い捨て worktree へ隔離する。pipeline �
 interleave を必須とするため、`numactl` のない login host で空 command に差し替えて走らせない。
 
 最初の実計測は 1 generation/cell で correctness と measurement wiring を確認する。
-2 generations 以上へ増やせるのは、D121 が列挙した多世代開放の前提条件 10 件を満たし、D96 手続を
-経て、D114 の承認上限定数と境界テストを同じ変更単位で更新してからである (それまでは機械的に
-拒否される)。**満たされているのは P10 (予算値・origin authority・軸 (iii) のユーザー裁定) の
-1 件だけ**で、残り 9 件は満たされていない。
-前提条件の評価規則は D121 決定 (7) から改訂されている — **P4 は無条件義務として評価し、P6 は
-未実装なら失敗、実装済みで当該運転が generalized cut を主張しない場合だけ免責する。P4 と P6 を
-単一の「非適用」で失敗から外してはならない。** P6 の意味的充足契約と cap-lift receipt が
-未裁定・未実装である間は「実装済み」を認定する基準が無いため、**状態を未実装へ再分類するのでは
-なく承認そのものを保留し**、承認上限 1 を維持する。
+**以下の段落は D410 より前の状態を記した歴史記述であり、結論部分は失効している。**
+現行の承認上限の正本は D410 である。
+
+- (歴史) 2 generations 以上へ増やせるのは、D121 が列挙した多世代開放の前提条件 10 件を満たし、
+  D96 手続を経て、D114 の承認上限定数と境界テストを同じ変更単位で更新してからだとされていた。
+  当時**満たされているのは P10 (予算値・origin authority・軸 (iii) のユーザー裁定) の 1 件だけ**で、
+  残り 9 件は満たされていないと評価していた。
+- (歴史) 前提条件の評価規則は D121 決定 (7) から改訂されている — **P4 は無条件義務として評価し、
+  P6 は未実装なら失敗、実装済みで当該運転が generalized cut を主張しない場合だけ免責する。
+  P4 と P6 を単一の「非適用」で失敗から外してはならない。**
+- **(現行) D410 が承認上限を 2 へ引き上げ、世代間で運ぶものを閉じた第二層射影として実装した。**
+  したがって「承認上限 1 を維持する」という上の結論は失効している。ただし引き上げられたのは
+  上限だけであり、**正確に `G=2` で走らせる責務は起動形の側にある** (事前登録文書 §4 / §7)。
 A/B/C は 100k records / 4 threads / extime 1 / reps 2 の配線規模で、
 headline 性能や有意差を主張しない。
 
@@ -227,21 +234,16 @@ proposal / raw / envelope / build 成果物の bytes、層3 の任意実行) は
   `current_metrics` (絶対 throughput を含む。planner は `current_perf`、coder は `baseline`、D118)** で、
   critic の attribution/recommend/avoid/uncertainty は `reverse_recommended` の boolean へ畳まれ、
   それは次世代 payload でなく driver の停止カウンタへ行く。
-  「なぜ壊れたか」は次の生成入力に入らない。**前提条件が満たされるまで
-  `--max-generations >= 2` で走らせない** (D106 残余 1 / D121)。正式系列 (H1/H2) は同一 generation
-  budget を要求するのでこの条件で自動的に禁止側へ入る。**D114 でこれは機械 gate になった** (3 入口 +
+  「なぜ壊れたか」は次の生成入力に入らない。**D114 でこれは機械 gate になった** (3 入口 +
   campaign freshness)。ただし機械化したのは「generation 予算」と「campaign state の freshness」の
   2 つだけである。承認上限の定数は producer の 3 入口に加え
   `autonomous_trial_completeness.py` の run-envelope / campaign-chain の 2 consumer gate も読む。
-  存在しないのは前提条件 10 件と cap-lift receipt の評価器である。
-  **D121 は設計 draft と前提条件 10 件を起草した。択一 7 件は 2026-08-03 に全件裁定され、
-  予算値も 2026-08-04 に下限式からの再導出で裁定されたが、cap-lift 可能な設計は完成していない**
-  — P6 の意味的充足と receipt、off アームの予算・受理集合の整合、承認上限の機械束縛、
-  D138 が列挙する crash 回復・replicate 数・0 bit 証明が未確定または未実装であり、
-  前提条件で満たされているのは P10 の 1 件だけである
-  (`output/insights/2026-08-01_t244-reflux-design/`)。
-  1 generation/cell を許可する根拠も「fresh campaign の単一 invocation なら還流が起きない」であって、
-  無条件ではない。
+  **D410 が承認上限を 2 へ引き上げ、世代間で運ぶものを固定 key 集合の第二層射影として実装した**
+  ため、「前提条件が満たされるまで 2 世代で走らせない」という旧規則 (D106 残余 1 / D121) は
+  失効している。**引き上げられたのは上限だけであり、下限は機械強制されない** — 正確に `G=2` で
+  走らせる責務は起動形の側にある (事前登録文書 §4 / §7、D438 決定 (3))。
+  なお D410 が明示した保証の限界は不変である — 運ぶのは人間ループが運んだものの部分集合であり、
+  診断 4 値と `reverse_recommended` の 1 bit は明示的に許可された情報であって、ゼロ漏洩は名乗らない。
 
 - auditor の mediated schema は **要素 field まで閉じていない**。consumer は要素が `dict` で
   あることしか検査せず、`{}`・未知キー・非文字列 field を含む要素が通る。

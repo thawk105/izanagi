@@ -39,7 +39,7 @@
         "proof": "The same ratified-generation hash and workload projection must reach all three production configuration sinks; helper names or probe-only return values are insufficient."
       },
       "negative_control_id": "nc_c01_perf_scale_regression",
-      "machine_checkable": false,
+      "machine_checkable": true,
       "static_only_note": "Only committed source reachability, constant projections, and a pre-run ratified-generation reference are inspected; no run output is required."
     },
     {
@@ -79,7 +79,6 @@
           "path": "output/s8c-preregistration/trial-manifest.v1.json",
           "field_paths": [
             "schema_version",
-            "prereg_commit",
             "cells[*].trial_id",
             "cells[*].arm",
             "cells[*].holdout",
@@ -91,11 +90,25 @@
           ]
         },
         {
+          "artifact_kind": "prereg_effective_binding",
+          "path": "output/s8c-preregistration/prereg-effective-binding.v1.json",
+          "field_paths": [
+            "prereg_content_commit",
+            "manifest_path",
+            "manifest_sha256"
+          ],
+          "reachable_from": [
+            "run_trial -> registry preflight -> verify effective binding",
+            "accept_trial -> compare registry to effective binding"
+          ]
+        },
+        {
           "artifact_kind": "trial_registry",
           "path": "orchestrator/campaign/trial_registry.py",
           "field_paths": [
             "registry.manifest_sha256",
-            "registry.prereg_commit",
+            "registry.prereg_content_commit",
+            "registry.prereg_effective_commit",
             "registry.trials[*]",
             "registry.history_prefix_sha256"
           ],
@@ -108,11 +121,11 @@
       "consumer_requirement": {
         "path": "orchestrator/campaign/trial_registry.py",
         "entrypoints": ["load_manifest", "accept_trial"],
-        "proof": "A strict manifest loader and append-only registry consumer must enforce the exact pre-run cell set and reject both omissions and extras."
+        "proof": "A strict manifest loader and append-only registry consumer must cross-check the exact pre-run manifest cell set, the effective-binding record, and the registry, rejecting omissions, extras, or mismatched content and effective commits."
       },
       "negative_control_id": "nc_c03_manifest_cell_removed",
       "machine_checkable": false,
-      "static_only_note": "Manifest bytes, registry schema, and code reachability are all pre-run facts; the target registry module is capability-probed because it is absent."
+      "static_only_note": "Manifest bytes and the current registry module are pre-run facts, but the two-stage content/effective binding capability is not yet implemented."
     },
     {
       "condition_number": 4,
@@ -147,7 +160,7 @@
         "proof": "The caught production crash path must mark the whole experiment indeterminate and invoke the registry's no-restart consumer before returning."
       },
       "negative_control_id": "nc_c04_partial_crash_survives",
-      "machine_checkable": false,
+      "machine_checkable": true,
       "static_only_note": "The check follows committed exception-handling and registry call paths; it does not require an actual crash or terminal report."
     },
     {
@@ -270,35 +283,57 @@
         {
           "artifact_kind": "trial_manifest",
           "path": "output/s8c-preregistration/trial-manifest.v1.json",
-          "field_paths": ["prereg_commit", "manifest_sha256"],
+          "field_paths": [
+            "schema_version",
+            "cells[*].trial_id",
+            "cells[*].arm",
+            "cells[*].holdout",
+            "cells[*].campaign_id"
+          ],
           "reachable_from": [
-            "run_trial -> manifest prereg_commit preflight",
+            "run_trial -> historical manifest preflight",
             "accept_trial -> historical manifest reread"
+          ]
+        },
+        {
+          "artifact_kind": "prereg_effective_binding",
+          "path": "output/s8c-preregistration/prereg-effective-binding.v1.json",
+          "field_paths": [
+            "prereg_content_commit",
+            "manifest_path",
+            "manifest_sha256"
+          ],
+          "reachable_from": [
+            "run_trial -> effective binding preflight",
+            "accept_trial -> historical binding reread"
           ]
         },
         {
           "artifact_kind": "trial_registry",
           "path": "orchestrator/campaign/trial_registry.py",
           "field_paths": [
-            "run_start.prereg_commit",
-            "terminal_report.prereg_commit",
-            "registry.prereg_commit",
+            "run_start.prereg_content_commit",
+            "run_start.prereg_effective_commit",
+            "terminal_report.prereg_content_commit",
+            "terminal_report.prereg_effective_commit",
+            "registry.prereg_content_commit",
+            "registry.prereg_effective_commit",
             "measurement_head"
           ],
           "reachable_from": [
-            "effective_at(prereg_commit) -> run start",
-            "accept_trial -> exact prereg binding and ancestry verification"
+            "effective binding -> run start",
+            "accept_trial -> exact parent-set and measurement ancestry verification"
           ]
         }
       ],
       "consumer_requirement": {
         "path": "orchestrator/campaign/trial_registry.py",
         "entrypoints": ["admit_preregistration", "accept_trial"],
-        "proof": "Admission and acceptance must reread historical bytes and require exact equality with the effective commit; accepting an older ancestor is forbidden."
+        "proof": "Admission and acceptance must require the effective commit C to have the exact parent set {P}, match P's manifest blob to the binding digest, and prove ancestry from C to the measurement HEAD."
       },
       "negative_control_id": "nc_c08_parent_commit_substitution",
       "machine_checkable": false,
-      "static_only_note": "The binding mechanism and historical-byte verifier are committed pre-run facts; no run-start or report instance is required by this layer."
+      "static_only_note": "The manifest and current registry module are pre-run facts, but the two-stage content/effective binding and exact-parent verifier are not yet implemented."
     },
     {
       "condition_number": 9,
@@ -329,7 +364,7 @@
         "proof": "The formal registry authority must execute Layer 3 verification for every build report and must never certify a missing or no-build chain."
       },
       "negative_control_id": "nc_c09_acceptance_skips_layer3",
-      "machine_checkable": false,
+      "machine_checkable": true,
       "static_only_note": "Static call reachability in producer and formal acceptance is sufficient; no persisted Layer 3 report from a completed run is required."
     },
     {
@@ -371,7 +406,7 @@
         "proof": "One authoritative verifier must reread every referenced byte stream and bind supervisor, provider, proposal, WAL, bench, and Layer 3 fields before registry acceptance."
       },
       "negative_control_id": "nc_c10_raw_response_unbound",
-      "machine_checkable": false,
+      "machine_checkable": true,
       "static_only_note": "Readiness requires the verifier and acceptance call path, not a completed run's mutable artifact set."
     },
     {
@@ -382,50 +417,39 @@
           "path": "orchestrator/campaign/p3_autonomous_workload_trial.py",
           "field_paths": [
             "MAX_APPROVED_GENERATIONS",
-            "main.generation_cap",
-            "run_trial.generation_cap",
-            "_run_workload.generation_cap",
-            "_run_workload.critic_feedback_consumer",
-            "_run_workload.sample_plan_sha256",
-            "_run_workload.cap_lift_sha256"
+            "main.args.max_generations",
+            "run_trial.generations",
+            "_run_workload.generations",
+            "_run_workload.apply_critic_feedback"
           ],
           "reachable_from": [
             "main -> run_trial -> _run_workload -> apply_critic_feedback -> next generation"
           ]
         },
         {
-          "artifact_kind": "sample_plan",
-          "path": "output/s8c-preregistration/sample-plan.v1.json",
+          "artifact_kind": "generation_projection",
+          "path": "orchestrator/campaign/s8c_generation_projection.py",
           "field_paths": [
-            "minimum_generations",
-            "critic_feedback_required",
-            "sample_count"
+            "_CRITIC_KEYS",
+            "_DIAGNOSTIC_METRICS",
+            "apply_critic_feedback",
+            "_validate_critic_projection",
+            "validate_planner_payload"
           ],
           "reachable_from": [
-            "run_trial -> verify_sample_plan -> _run_workload"
-          ]
-        },
-        {
-          "artifact_kind": "cap_lift",
-          "path": "output/s8c-preregistration/generation-cap-lift.v1.json",
-          "field_paths": [
-            "minimum_generations",
-            "entrypoints",
-            "ruling_reference"
-          ],
-          "reachable_from": [
-            "main, run_trial, _run_workload -> verify_generation_cap_lift"
+            "apply_critic_feedback -> AppliedCriticFeedback.planner_projection",
+            "validate_planner_payload -> _validate_critic_projection"
           ]
         }
       ],
       "consumer_requirement": {
         "path": "orchestrator/campaign/p3_autonomous_workload_trial.py",
         "entrypoints": ["main", "run_trial", "_run_workload"],
-        "proof": "Compliance requires a lifted multi-generation cap at all three entry boundaries, critic feedback consumed by the next generation, and bound sample-plan and cap-lift artifacts; a prohibition ruling alone is only auxiliary evidence."
+        "proof": "Compliance requires the approved generation upper bound at all three entry boundaries and the closed critic projection to be consumed by the next generation. Exact G=2 remains a launch-shape responsibility normatively specified by preregistration sections 4 and 7; the upper bound does not enforce a generation minimum."
       },
       "negative_control_id": "nc_c11_generation_cap_reverts_to_one",
-      "machine_checkable": false,
-      "static_only_note": "The check uses pre-run policy artifacts and committed consumer paths; it never treats the existence of a ruling or an observed multi-generation run as compliance."
+      "machine_checkable": true,
+      "static_only_note": "The check uses the committed upper-bound validators, closed critic projection, and production consumer path; it does not depend on retired policy artifacts or treat a ruling or observed run as compliance."
     },
     {
       "condition_number": 12,
@@ -482,7 +506,7 @@
         "proof": "The production 8c launcher must consume the registered environment, calibration and allocation attestations and reject multi-process or resume paths before launch."
       },
       "negative_control_id": "nc_c12_resume_or_multi_process_allowed",
-      "machine_checkable": false,
+      "machine_checkable": true,
       "static_only_note": "Only committed enforcement reachability and attestation schemas are checked; no live allocation or post-run environment observation is required."
     }
   ]

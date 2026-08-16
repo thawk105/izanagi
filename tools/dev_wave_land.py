@@ -15,11 +15,13 @@ import hashlib
 import importlib.util
 import json
 import os
+import random
 import re
 import stat
 import subprocess
 import sys
 import tempfile
+import time
 from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Sequence
@@ -54,6 +56,10 @@ RC_FOLD_FINALIZE_FAILED = 30
 
 _GIT_EXE = "/usr/bin/git"
 _LOCK_NAME = b"dev-wave-land.lock"
+_LAND_LOCK_WAIT_SECONDS = 180.0
+_LAND_LOCK_INITIAL_POLL_SECONDS = 0.05
+_LAND_LOCK_MAX_POLL_SECONDS = 1.0
+_LAND_LOCK_RANDOM = random.SystemRandom()
 _MAX_METADATA_BYTES = 16 * 1024
 _MAX_ACCEPTANCE_RECEIPT_BYTES = 64 * 1024
 _SHA_RE = re.compile(r"(?:[0-9a-f]{40}|[0-9a-f]{64})\Z")
@@ -166,6 +172,19 @@ class _Reject(Exception):
         super().__init__(reason)
         self.rc = rc
         self.reason = reason
+
+
+@dataclass
+class _LandLockHandle:
+    fd: int = -1
+
+    def close(self) -> None:
+        if self.fd >= 0:
+            fd = self.fd
+            try:
+                os.close(fd)
+            finally:
+                self.fd = -1
 
 
 @dataclass
@@ -617,13 +636,21 @@ def _verify_acceptance_receipt(
     )
     checker_blob = ""
     checker_result: _GitResult | None = None
+    main_checker_blob = ""
+    main_checker_result: _GitResult | None = None
     if verdict == "non-attributable-only":
+        main_checker_result = _git(
+            repository.wave,
+            "rev-parse",
+            f"{tested_main}:tools/check_acceptance_reds.py",
+        )
         checker_result = _git(
             repository.wave,
             "rev-parse",
             f"{tested_tip}:tools/check_acceptance_reds.py",
         )
         try:
+            main_checker_blob = main_checker_result.stdout.decode("ascii").strip()
             checker_blob = checker_result.stdout.decode("ascii").strip()
         except UnicodeError:
             raise _acceptance_rejected() from None
@@ -635,9 +662,13 @@ def _verify_acceptance_receipt(
         or (
             verdict == "non-attributable-only"
             and (
-                checker_result is None
+                main_checker_result is None
+                or main_checker_result.returncode != 0
+                or _SHA_RE.fullmatch(main_checker_blob) is None
+                or checker_result is None
                 or checker_result.returncode != 0
                 or _SHA_RE.fullmatch(checker_blob) is None
+                or main_checker_blob != checker_blob
                 or receipt.get("checker_blob_sha") != checker_blob
             )
         )
@@ -1541,17 +1572,98 @@ def _main_is_allowed(
     )
 
 
-def _acquire_land_lock(repository: _Repository) -> int | None:
-    fd = _open_lock(repository)
+def _land_lock_now() -> float:
+    return time.monotonic()
+
+
+def _land_lock_sleep(delay: float) -> None:
+    time.sleep(delay)
+
+
+def _land_lock_jitter(delay_cap: float) -> float:
+    return _LAND_LOCK_RANDOM.uniform(delay_cap / 2.0, delay_cap)
+
+
+def _lock_metadata_is_safe(metadata: os.stat_result) -> bool:
+    return (
+        stat.S_ISREG(metadata.st_mode)
+        and metadata.st_uid == os.getuid()
+        and metadata.st_nlink == 1
+        and not metadata.st_mode & 0o022
+    )
+
+
+def _verify_land_lock_binding(
+    repository: _Repository,
+    lock: _LandLockHandle,
+) -> None:
+    rebound: list[int] = []
     try:
-        fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
-    except BlockingIOError:
-        os.close(fd)
-        return None
-    except BaseException:
-        os.close(fd)
-        raise
-    return fd
+        main_fd = _open_dir(repository.main, "main worktree after lock acquisition")
+        rebound.append(main_fd)
+        wave_fd = _open_dir(repository.wave, "wave worktree after lock acquisition")
+        rebound.append(wave_fd)
+        common_fd = _open_dir(repository.common, "common git-dir after lock acquisition")
+        rebound.append(common_fd)
+        try:
+            lock_path = os.stat(
+                _LOCK_NAME,
+                dir_fd=common_fd,
+                follow_symlinks=False,
+            )
+            lock_fd = os.fstat(lock.fd)
+        except OSError as exc:
+            raise _Reject(
+                RC_IDENTITY,
+                f"land lock binding changed after acquisition ({exc})",
+            ) from exc
+        if (
+            not _same_inode(os.fstat(repository.main_fd), os.fstat(main_fd))
+            or not _same_inode(os.fstat(repository.wave_fd), os.fstat(wave_fd))
+            or not _same_inode(os.fstat(repository.common_fd), os.fstat(common_fd))
+            or not _same_inode(lock_fd, lock_path)
+            or not _lock_metadata_is_safe(lock_fd)
+            or not _lock_metadata_is_safe(lock_path)
+        ):
+            raise _Reject(
+                RC_IDENTITY,
+                "repository or land lock binding changed after acquisition",
+            )
+    finally:
+        for fd in reversed(rebound):
+            os.close(fd)
+
+
+def _acquire_land_lock(
+    repository: _Repository,
+    lock: _LandLockHandle,
+    deadline: float,
+) -> tuple[bool, float]:
+    if lock.fd >= 0:
+        raise RuntimeError("land lock handle is already open")
+    started = _land_lock_now()
+    _open_lock(repository, lock)
+    poll = _LAND_LOCK_INITIAL_POLL_SECONDS
+    contended = False
+    while True:
+        try:
+            fcntl.flock(lock.fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            contended = True
+            now = _land_lock_now()
+            if now >= deadline:
+                return False, max(0.0, now - started)
+            delay_cap = min(poll, _LAND_LOCK_MAX_POLL_SECONDS)
+            jittered = _land_lock_jitter(delay_cap)
+            if not 0.0 < jittered <= delay_cap:
+                raise RuntimeError("land lock jitter returned an invalid delay")
+            delay = min(jittered, deadline - now)
+            _land_lock_sleep(delay)
+            poll = min(poll * 2.0, _LAND_LOCK_MAX_POLL_SECONDS)
+            continue
+        _verify_land_lock_binding(repository, lock)
+        waited = max(0.0, _land_lock_now() - started) if contended else 0.0
+        return True, waited
 
 
 def _locked_preflight(
@@ -1634,9 +1746,9 @@ def _locked_preflight(
     )
 
 
-def _open_lock(repository: _Repository) -> int:
+def _open_lock(repository: _Repository, lock: _LandLockHandle) -> None:
     try:
-        fd = os.open(
+        lock.fd = os.open(
             _LOCK_NAME,
             os.O_RDWR | os.O_CREAT | os.O_NOFOLLOW,
             0o600,
@@ -1644,16 +1756,9 @@ def _open_lock(repository: _Repository) -> int:
         )
     except OSError as exc:
         raise _Reject(RC_IDENTITY, f"land lock open failed ({exc})") from exc
-    metadata = os.fstat(fd)
-    if (
-        not stat.S_ISREG(metadata.st_mode)
-        or metadata.st_uid != os.getuid()
-        or metadata.st_nlink != 1
-        or metadata.st_mode & 0o022
-    ):
-        os.close(fd)
+    metadata = os.fstat(lock.fd)
+    if not _lock_metadata_is_safe(metadata):
         raise _Reject(RC_IDENTITY, "land lock has unsafe metadata")
-    return fd
 
 
 def _provenance_checker_blob(repository: _Repository, revision: str) -> str:
@@ -2522,8 +2627,30 @@ def _postcondition(
     )
 
 
+def _lock_busy_result(
+    *,
+    phase: str,
+    waited_s: float,
+    window_started: float,
+    tested_tip: str,
+) -> LandResult:
+    window_elapsed = max(0.0, _land_lock_now() - window_started)
+    return LandResult(
+        RC_LOCK_BUSY,
+        "lock-busy",
+        "another cooperative land operation holds the common lock "
+        f"(phase={phase}, waited_s={waited_s:.3f}, "
+        f"window_elapsed_s={window_elapsed:.3f}, "
+        f"limit_s={_LAND_LOCK_WAIT_SECONDS:.3f})",
+        None,
+        None,
+        tested_tip,
+    )
+
+
 def land(request: LandRequest) -> LandResult:
     repository: _Repository | None = None
+    lock = _LandLockHandle()
     main_before: str | None = None
     tested_tip: str | None = None
     acceptance_verification: _AcceptanceVerification | None = None
@@ -2541,17 +2668,23 @@ def land(request: LandRequest) -> LandResult:
             for index, commit in enumerate(request.audited_commits)
         )
         repository = _verify_repository(request)
-        lock_fd = _acquire_land_lock(repository)
-        if lock_fd is None:
-            return LandResult(
-                RC_LOCK_BUSY,
-                "lock-busy",
-                "another cooperative land operation holds the common lock",
-                None,
-                None,
-                tested_tip,
-            )
+        lock_window_started = _land_lock_now()
+        lock_deadline = lock_window_started + _LAND_LOCK_WAIT_SECONDS
+        waited_s = 0.0
         try:
+            acquired, waited = _acquire_land_lock(
+                repository,
+                lock,
+                lock_deadline,
+            )
+            waited_s += waited
+            if not acquired:
+                return _lock_busy_result(
+                    phase="initial",
+                    waited_s=waited_s,
+                    window_started=lock_window_started,
+                    tested_tip=tested_tip,
+                )
             preflight = _locked_preflight(
                 repository,
                 tested_main=tested_main,
@@ -2564,18 +2697,20 @@ def land(request: LandRequest) -> LandResult:
             main_before = preflight.locked_main
             if preflight.locked_main != tested_tip and preflight.active_plan is None:
                 initial_fingerprint = preflight.fingerprint
-                os.close(lock_fd)
-                lock_fd = -1
+                lock.close()
                 receipt = _audit_provenance_history(repository)
-                lock_fd = _acquire_land_lock(repository)
-                if lock_fd is None:
-                    return finish(LandResult(
-                        RC_LOCK_BUSY,
-                        "lock-busy",
-                        "another cooperative land operation holds the common lock",
-                        None,
-                        None,
-                        tested_tip,
+                acquired, waited = _acquire_land_lock(
+                    repository,
+                    lock,
+                    lock_deadline,
+                )
+                waited_s += waited
+                if not acquired:
+                    return finish(_lock_busy_result(
+                        phase="post-provenance",
+                        waited_s=waited_s,
+                        window_started=lock_window_started,
+                        tested_tip=tested_tip,
                     ))
                 refreshed_control = _control_snapshot(repository)
                 if refreshed_control != preflight.control:
@@ -2885,7 +3020,7 @@ def land(request: LandRequest) -> LandResult:
             merge = _git(
                 repository.main,
                 "merge", "--ff-only", "--no-stat", "--no-progress", tested_tip,
-                pass_fds=(lock_fd,),
+                pass_fds=(lock.fd,),
             )
             merged = _postcondition(
                 repository,
@@ -2915,8 +3050,7 @@ def land(request: LandRequest) -> LandResult:
                 state_path=state_path,
             ))
         finally:
-            if lock_fd is not None and lock_fd >= 0:
-                os.close(lock_fd)
+            lock.close()
     except _Reject as exc:
         return finish(LandResult(
             exc.rc,

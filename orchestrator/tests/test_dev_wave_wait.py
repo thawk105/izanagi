@@ -2,6 +2,7 @@
 """tools/dev_wave_wait.py の canonical waiter 契約テスト。"""
 from __future__ import annotations
 
+import ast
 import errno
 import hashlib
 import importlib.util
@@ -49,6 +50,7 @@ _HOLDER = hashlib.sha256(_WAVE.encode("utf-8")).hexdigest()[:12]
 _WAITER_BLOB = "d" * 40
 _WAITER_BYTES_SHA256 = hashlib.sha256(b"same waiter source").hexdigest()
 _CHECKER_BLOB = "e" * 40
+_CHECKER_SOURCE = b"# tested main checker source\n"
 _RELEASE_JSON = json.dumps({"state": "released"})
 _LEGACY_STATUS_ARGV = ("git", "status", "--porcelain", "--untracked-files=no")
 _STATUS_ARGV = (
@@ -97,6 +99,9 @@ class _FakeEffects:
     def __init__(self) -> None:
         self.events: list[tuple[object, ...]] = []
         self.run_queue: list[tuple[tuple[str, ...], bool, object]] = []
+        self.run_with_input_queue: list[
+            tuple[tuple[str, ...], bool, bytes, object]
+        ] = []
         self.kill_queue: list[object] = []
         self.is_file_queue: list[tuple[Path, object]] = []
         self.read_text_queue: list[tuple[Path, object]] = []
@@ -141,6 +146,7 @@ class _FakeEffects:
             inspect_acceptance_log=self.inspect_acceptance_log,
             running_waiter_bytes_sha256=self.running_waiter_bytes_sha256,
             tip_waiter_bytes_sha256=self.tip_waiter_bytes_sha256,
+            run_with_input=self.run_with_input,
         )
 
     def expect_run(
@@ -214,6 +220,38 @@ class _FakeEffects:
         expected, expected_capture, result = self.run_queue.pop(0)
         assert actual == expected
         assert capture is expected_capture
+        if isinstance(result, BaseException):
+            raise result
+        return result
+
+    def expect_run_with_input(
+        self,
+        argv: tuple[str, ...],
+        content: bytes,
+        result: object = None,
+        *,
+        capture: bool = True,
+    ) -> None:
+        if result is None:
+            result = DW._BinaryCommandResult(0)
+        self.run_with_input_queue.append((argv, capture, content, result))
+
+    def run_with_input(
+        self,
+        argv: object,
+        cwd: Path,
+        capture: bool,
+        content: bytes,
+    ) -> object:
+        actual = tuple(argv)
+        self.events.append(("run_with_input", actual, cwd, capture, content))
+        assert self.run_with_input_queue, f"unexpected run_with_input: {actual}"
+        expected, expected_capture, expected_content, result = (
+            self.run_with_input_queue.pop(0)
+        )
+        assert actual == expected
+        assert capture is expected_capture
+        assert content == expected_content
         if isinstance(result, BaseException):
             raise result
         return result
@@ -320,6 +358,7 @@ class _FakeEffects:
         if expected_events is not None:
             assert self.events == expected_events
         assert self.run_queue == []
+        assert self.run_with_input_queue == []
         assert self.kill_queue == []
         assert self.is_file_queue == []
         assert self.read_text_queue == []
@@ -458,21 +497,23 @@ def _held_self_payload(**overrides: object) -> str:
     return json.dumps(payload)
 
 
-def _checker_argv() -> tuple[str, ...]:
-    return (
-        sys.executable,
-        str(_REPO / "tools" / "check_acceptance_reds.py"),
-        "--log",
-        str(_LOG),
-        "--tested-main",
-        _SHA_A,
-        "--wave-tip",
-        _SHA_A,
-        "--receipt",
-        str(_CHECKER_RECEIPT),
-        "--probe-root",
-        str(_LOG.parent),
+def _checker_argv(
+    *,
+    tested_main: str = _SHA_A,
+    tested_tip: str = _SHA_A,
+) -> tuple[str, ...]:
+    return DW._red_checker_argv(
+        repo=_REPO,
+        log_file=_LOG,
+        checker_receipt=_CHECKER_RECEIPT,
+        probe_root=_LOG.parent,
+        tested_main=tested_main,
+        tested_tip=tested_tip,
     )
+
+
+def _red_gate_git_argv(*args: str) -> tuple[str, ...]:
+    return DW._red_gate_git_argv(_REPO, *args)
 
 
 def _checker_receipt_bytes(
@@ -481,6 +522,8 @@ def _checker_receipt_bytes(
     status: str,
     nodes: list[dict[str, object]],
     log_sha256: str | None = None,
+    tested_main: str = _SHA_A,
+    tested_tip: str = _SHA_A,
 ) -> bytes:
     return (
         json.dumps(
@@ -505,8 +548,8 @@ def _checker_receipt_bytes(
                 "schema_version": "izanagi-acceptance-red-check/v1",
                 "status": status,
                 "submodules": [],
-                "tested_main": _SHA_A,
-                "wave_tip": _SHA_A,
+                "tested_main": tested_main,
+                "wave_tip": tested_tip,
             },
             sort_keys=True,
             separators=(",", ":"),
@@ -522,8 +565,39 @@ def _queue_checker(
     status: str = "non-attributable-only",
     nodes: list[dict[str, object]] | None = None,
     log_sha256: str | None = None,
+    tested_main: str = _SHA_A,
+    tested_tip: str = _SHA_A,
 ) -> bytes:
-    fake.expect_run(_checker_argv(), DW._CommandResult(rc), capture=False)
+    for revision in (tested_main, tested_tip):
+        fake.expect_run_with_input(
+            _red_gate_git_argv(
+                "rev-parse",
+                "--verify",
+                f"{revision}:{DW._RED_CHECKER_PATH}",
+            ),
+            b"",
+            DW._BinaryCommandResult(0, (_CHECKER_BLOB + "\n").encode("ascii")),
+        )
+    fake.expect_run_with_input(
+        _red_gate_git_argv(
+            "cat-file",
+            "blob",
+            f"{tested_main}:{DW._RED_CHECKER_PATH}",
+        ),
+        b"",
+        DW._BinaryCommandResult(0, _CHECKER_SOURCE),
+    )
+    fake.expect_run_with_input(
+        _red_gate_git_argv("hash-object", "--stdin", "--no-filters"),
+        _CHECKER_SOURCE,
+        DW._BinaryCommandResult(0, (_CHECKER_BLOB + "\n").encode("ascii")),
+    )
+    fake.expect_run_with_input(
+        _checker_argv(tested_main=tested_main, tested_tip=tested_tip),
+        _CHECKER_SOURCE,
+        DW._BinaryCommandResult(rc),
+        capture=False,
+    )
     raw = _checker_receipt_bytes(
         fake,
         status=status,
@@ -537,16 +611,14 @@ def _queue_checker(
             else nodes
         ),
         log_sha256=log_sha256,
+        tested_main=tested_main,
+        tested_tip=tested_tip,
     )
     fake.byte_files[_CHECKER_RECEIPT] = raw
     return raw
 
 
 def _queue_non_attributable_receipt_tail(fake: _FakeEffects) -> None:
-    fake.expect_run(
-        ("git", "rev-parse", f"{_SHA_A}:tools/check_acceptance_reds.py"),
-        DW._CommandResult(0, _CHECKER_BLOB + "\n"),
-    )
     fake.expect_run(
         ("git", "rev-parse", f"{_SHA_A}:tools/dev_wave_wait.py"),
         DW._CommandResult(0, _WAITER_BLOB + "\n"),
@@ -558,6 +630,68 @@ def _queue_non_attributable_receipt_tail(fake: _FakeEffects) -> None:
     fake.expect_run(
         _helper("claim", _SHA_A),
         DW._CommandResult(0, _held_self_payload()),
+    )
+
+
+def _checker_execution_events(
+    *,
+    tested_main: str = _SHA_A,
+    tested_tip: str = _SHA_A,
+) -> list[tuple[object, ...]]:
+    events: list[tuple[object, ...]] = []
+    for revision in (tested_main, tested_tip):
+        events.append((
+            "run_with_input",
+            _red_gate_git_argv(
+                "rev-parse",
+                "--verify",
+                f"{revision}:{DW._RED_CHECKER_PATH}",
+            ),
+            _REPO,
+            True,
+            b"",
+        ))
+    events.extend([
+        (
+            "run_with_input",
+            _red_gate_git_argv(
+                "cat-file",
+                "blob",
+                f"{tested_main}:{DW._RED_CHECKER_PATH}",
+            ),
+            _REPO,
+            True,
+            b"",
+        ),
+        (
+            "run_with_input",
+            _red_gate_git_argv("hash-object", "--stdin", "--no-filters"),
+            _REPO,
+            True,
+            _CHECKER_SOURCE,
+        ),
+        (
+            "run_with_input",
+            _checker_argv(tested_main=tested_main, tested_tip=tested_tip),
+            _REPO,
+            False,
+            _CHECKER_SOURCE,
+        ),
+    ])
+    return events
+
+
+def _is_checker_execution_event(event: tuple[object, ...]) -> bool:
+    return (
+        len(event) >= 2
+        and event[0] == "run_with_input"
+        and isinstance(event[1], tuple)
+        and event[1][:4] == (
+            sys.executable,
+            "-I",
+            "-c",
+            DW._RED_CHECKER_BOOTSTRAP,
+        )
     )
 
 
@@ -913,9 +1047,52 @@ class _RoutingAcceptanceEffects(_FakeEffects):
             if isinstance(self.command_result, BaseException):
                 raise self.command_result
             return self.command_result
-        if (
-            len(actual) >= 2
-            and Path(actual[1]).name == "check_acceptance_reds.py"
+        if actual == _helper("release", lease_dir=self.lease_dir):
+            self.releases += 1
+            lease_path = self.lease_dir / "acceptance.lease"
+            if self.remove_lease_on_release and lease_path.exists():
+                lease_path.unlink()
+            return DW._CommandResult(0, _RELEASE_JSON)
+        if actual == ("git", "merge", "--abort"):
+            return DW._CommandResult(0)
+        if actual == ("git", "rev-parse", "-q", "--verify", "MERGE_HEAD"):
+            return DW._CommandResult(1)
+        raise AssertionError(f"unexpected run: {actual}")
+
+    def run_with_input(
+        self,
+        argv: object,
+        cwd: Path,
+        capture: bool,
+        content: bytes,
+    ) -> object:
+        actual = tuple(argv)
+        self.events.append(("run_with_input", actual, cwd, capture, content))
+        if actual[: len(DW._GIT_CONFIG) + 3] == (
+            DW._GIT_EXE,
+            *DW._GIT_CONFIG,
+            "-C",
+            str(_REPO),
+        ):
+            command = actual[len(DW._GIT_CONFIG) + 3:]
+            if command[:2] == ("rev-parse", "--verify"):
+                return DW._BinaryCommandResult(
+                    0,
+                    (_CHECKER_BLOB + "\n").encode("ascii"),
+                )
+            if command[:2] == ("cat-file", "blob"):
+                return DW._BinaryCommandResult(0, _CHECKER_SOURCE)
+            if command == ("hash-object", "--stdin", "--no-filters"):
+                assert content == _CHECKER_SOURCE
+                return DW._BinaryCommandResult(
+                    0,
+                    (_CHECKER_BLOB + "\n").encode("ascii"),
+                )
+        if actual[:4] == (
+            sys.executable,
+            "-I",
+            "-c",
+            DW._RED_CHECKER_BOOTSTRAP,
         ):
             def option(name: str) -> str:
                 return actual[actual.index(name) + 1]
@@ -939,18 +1116,8 @@ class _RoutingAcceptanceEffects(_FakeEffects):
                 )
                 + "\n"
             ).encode("ascii")
-            return DW._CommandResult(0)
-        if actual == _helper("release", lease_dir=self.lease_dir):
-            self.releases += 1
-            lease_path = self.lease_dir / "acceptance.lease"
-            if self.remove_lease_on_release and lease_path.exists():
-                lease_path.unlink()
-            return DW._CommandResult(0, _RELEASE_JSON)
-        if actual == ("git", "merge", "--abort"):
-            return DW._CommandResult(0)
-        if actual == ("git", "rev-parse", "-q", "--verify", "MERGE_HEAD"):
-            return DW._CommandResult(1)
-        raise AssertionError(f"unexpected run: {actual}")
+            return DW._BinaryCommandResult(0)
+        raise AssertionError(f"unexpected run_with_input: {actual}")
 
     def is_file(self, path: Path) -> bool:
         self.events.append(("is_file", path))
@@ -1393,7 +1560,7 @@ def test_nonzero_child_is_postchecked_before_propagation() -> None:
     child_index = fake.events.index(("run", _COMMAND, _REPO, False))
     release_index = fake.events.index(("run", _helper("release"), _REPO, True))
     assert ("run", _INDEX_FLAGS_ARGV, _REPO, True) in fake.events[child_index:release_index]
-    assert ("run", _checker_argv(), _REPO, False) not in fake.events
+    assert not any(_is_checker_execution_event(event) for event in fake.events)
     fake.assert_drained()
 
 
@@ -1500,6 +1667,7 @@ def test_success_receipt_binds_tip_argv_rc_fingerprints_holder_waiter_and_schedu
     assert receipt["checker_blob_sha"] is None
     assert receipt["checker_receipt_sha256"] is None
     assert receipt["red_nodeids"] == []
+    assert not any(event[0] == "run_with_input" for event in fake.events)
     assert receipt["env_projection"] == {
         "PYTEST_ADDOPTS": None,
         "PYTEST_PLUGINS": None,
@@ -2102,7 +2270,7 @@ def test_scheduler_attestation_is_fail_closed_before_red_checker(
     assert outcome.detail is not None
     assert fake.receipt_content is None
     assert not any(
-        event[0] == "run" and event[1] == _checker_argv()
+        _is_checker_execution_event(event)
         for event in fake.events
     )
     DW._print_outcome(outcome)
@@ -2116,6 +2284,759 @@ def test_scheduler_attestation_is_fail_closed_before_red_checker(
     assert '"reason":' in attestation_diagnostics[0]
     assert '"observed":' in attestation_diagnostics[0]
     fake.assert_drained()
+
+
+def _verify_red_direct(
+    fake: _FakeEffects,
+    *,
+    tested_main: str = _SHA_A,
+    tested_tip: str = _SHA_A,
+) -> object:
+    return DW._verify_red_check_receipt(
+        effects=fake.effects,
+        repo=_REPO,
+        log_file=_LOG,
+        checker_receipt=_CHECKER_RECEIPT,
+        probe_root=_LOG.parent,
+        tested_main=tested_main,
+        tested_tip=tested_tip,
+        log_sha256=hashlib.sha256(fake.logged_bytes).hexdigest(),
+    )
+
+
+def _queue_red_blob_sha(
+    fake: _FakeEffects,
+    revision: str,
+    result: object,
+) -> None:
+    fake.expect_run_with_input(
+        _red_gate_git_argv(
+            "rev-parse",
+            "--verify",
+            f"{revision}:{DW._RED_CHECKER_PATH}",
+        ),
+        b"",
+        result,
+    )
+
+
+def test_red_checker_main_tip_blob_mismatch_is_indeterminate() -> None:
+    fake = _FakeEffects()
+    _queue_red_blob_sha(
+        fake,
+        _SHA_A,
+        DW._BinaryCommandResult(0, (_CHECKER_BLOB + "\n").encode("ascii")),
+    )
+    _queue_red_blob_sha(
+        fake,
+        _SHA_B,
+        DW._BinaryCommandResult(0, (_SHA_C + "\n").encode("ascii")),
+    )
+
+    with pytest.raises(DW._StageFailure) as exc_info:
+        _verify_red_direct(fake, tested_main=_SHA_A, tested_tip=_SHA_B)
+
+    assert exc_info.value.outcome == DW._Outcome(70, "acceptance-red-check")
+    assert not any(_is_checker_execution_event(event) for event in fake.events)
+    fake.assert_drained()
+
+
+def test_red_checker_executed_bytes_mismatch_is_indeterminate() -> None:
+    fake = _FakeEffects()
+    for revision in (_SHA_A, _SHA_B):
+        _queue_red_blob_sha(
+            fake,
+            revision,
+            DW._BinaryCommandResult(
+                0,
+                (_CHECKER_BLOB + "\n").encode("ascii"),
+            ),
+        )
+    fake.expect_run_with_input(
+        _red_gate_git_argv(
+            "cat-file",
+            "blob",
+            f"{_SHA_A}:{DW._RED_CHECKER_PATH}",
+        ),
+        b"",
+        DW._BinaryCommandResult(0, _CHECKER_SOURCE),
+    )
+    fake.expect_run_with_input(
+        _red_gate_git_argv("hash-object", "--stdin", "--no-filters"),
+        _CHECKER_SOURCE,
+        DW._BinaryCommandResult(0, (_SHA_C + "\n").encode("ascii")),
+    )
+
+    with pytest.raises(DW._StageFailure) as exc_info:
+        _verify_red_direct(fake, tested_main=_SHA_A, tested_tip=_SHA_B)
+
+    assert exc_info.value.outcome == DW._Outcome(70, "acceptance-red-check")
+    assert not any(_is_checker_execution_event(event) for event in fake.events)
+    fake.assert_drained()
+
+
+@pytest.mark.parametrize("case", ("nonzero", "malformed"))
+def test_red_checker_blob_lookup_failure_is_indeterminate(case: str) -> None:
+    fake = _FakeEffects()
+    result = (
+        DW._BinaryCommandResult(9)
+        if case == "nonzero"
+        else DW._BinaryCommandResult(0, b"not-an-object-id\n")
+    )
+    _queue_red_blob_sha(fake, _SHA_A, result)
+
+    with pytest.raises(DW._StageFailure) as exc_info:
+        _verify_red_direct(fake)
+
+    assert exc_info.value.outcome.stage == "acceptance-red-check"
+    assert exc_info.value.outcome.rc == 70
+    assert exc_info.value.outcome.source_rc == (9 if case == "nonzero" else None)
+    assert not any(_is_checker_execution_event(event) for event in fake.events)
+    fake.assert_drained()
+
+
+@pytest.mark.parametrize("case", ("tip-lookup", "main-content", "content-hash"))
+def test_red_checker_binding_command_failure_is_indeterminate(case: str) -> None:
+    fake = _FakeEffects()
+    success_sha = DW._BinaryCommandResult(
+        0,
+        (_CHECKER_BLOB + "\n").encode("ascii"),
+    )
+    _queue_red_blob_sha(fake, _SHA_A, success_sha)
+    _queue_red_blob_sha(
+        fake,
+        _SHA_B,
+        DW._BinaryCommandResult(9) if case == "tip-lookup" else success_sha,
+    )
+    if case != "tip-lookup":
+        fake.expect_run_with_input(
+            _red_gate_git_argv(
+                "cat-file",
+                "blob",
+                f"{_SHA_A}:{DW._RED_CHECKER_PATH}",
+            ),
+            b"",
+            (
+                DW._BinaryCommandResult(9)
+                if case == "main-content"
+                else DW._BinaryCommandResult(0, _CHECKER_SOURCE)
+            ),
+        )
+    if case == "content-hash":
+        fake.expect_run_with_input(
+            _red_gate_git_argv("hash-object", "--stdin", "--no-filters"),
+            _CHECKER_SOURCE,
+            DW._BinaryCommandResult(9),
+        )
+
+    with pytest.raises(DW._StageFailure) as exc_info:
+        _verify_red_direct(fake, tested_main=_SHA_A, tested_tip=_SHA_B)
+
+    assert exc_info.value.outcome == DW._Outcome(
+        70,
+        "acceptance-red-check",
+        9,
+    )
+    assert not any(_is_checker_execution_event(event) for event in fake.events)
+    fake.assert_drained()
+
+
+def test_red_checker_different_commits_same_checker_blob_is_accepted() -> None:
+    fake = _FakeEffects()
+    _queue_checker(fake, tested_main=_SHA_A, tested_tip=_SHA_B)
+
+    result = _verify_red_direct(fake, tested_main=_SHA_A, tested_tip=_SHA_B)
+
+    assert result.checker_blob_sha == _CHECKER_BLOB
+    assert result.checker_status == "non-attributable-only"
+    fake.assert_drained()
+
+
+def test_red_checker_missing_input_seam_is_indeterminate_without_fallback() -> None:
+    fake = _FakeEffects()
+    effects = DW._Effects(**{
+        **fake.effects.__dict__,
+        "run_with_input": None,
+    })
+
+    with pytest.raises(DW._StageFailure) as exc_info:
+        DW._verify_red_check_receipt(
+            effects=effects,
+            repo=_REPO,
+            log_file=_LOG,
+            checker_receipt=_CHECKER_RECEIPT,
+            probe_root=_LOG.parent,
+            tested_main=_SHA_A,
+            tested_tip=_SHA_A,
+            log_sha256=hashlib.sha256(fake.logged_bytes).hexdigest(),
+        )
+
+    assert exc_info.value.outcome == DW._Outcome(70, "acceptance-red-check")
+    assert fake.events == []
+    fake.assert_drained()
+
+
+_REAL_RED_CHECKER_SOURCE = b'''\
+import argparse
+import hashlib
+import json
+import os
+import subprocess
+import sys
+from pathlib import Path
+
+def main(
+    argv=None,
+    *,
+    repo_root=None,
+    node_runner=None,
+    collection_runner=None,
+    command_runner=subprocess.run,
+):
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--log", required=True)
+    parser.add_argument("--tested-main", required=True)
+    parser.add_argument("--wave-tip", required=True)
+    parser.add_argument("--receipt", required=True)
+    parser.add_argument("--probe-root", required=True)
+    args = parser.parse_args(argv)
+    git_result = command_runner(
+        ["git", "-C", str(repo_root), "rev-parse", "--show-toplevel"],
+        cwd=repo_root,
+        check=False,
+        stdin=subprocess.DEVNULL,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    if git_result.returncode != 0:
+        return git_result.returncode
+    payload = {
+        "collections": [{
+            "deleted_receipt_path": None,
+            "path": "orchestrator/tests/test_known.py",
+            "request_id": None,
+            "source": str(repo_root) + "|dont=" + str(sys.dont_write_bytecode),
+            "stdout_sha256": "f" * 64,
+            "submission_nonce": None,
+        }],
+        "log_path": args.log,
+        "log_sha256": hashlib.sha256(Path(args.log).read_bytes()).hexdigest(),
+        "nodes": [{
+            "classification": "non-attributable",
+            "nodeid": "orchestrator/tests/test_known.py::test_known",
+            "rerun_rc": 1,
+        }],
+        "schema_version": "izanagi-acceptance-red-check/v1",
+        "status": "non-attributable-only",
+        "submodules": [],
+        "tested_main": args.tested_main,
+        "wave_tip": args.wave_tip,
+    }
+    Path(args.receipt).write_text(
+        json.dumps(payload, sort_keys=True, separators=(",", ":")) + "\\n",
+        encoding="ascii",
+    )
+    return int(os.environ.get("IZANAGI_CHECKER_TEST_RC", "0"))
+'''
+
+_BOOTSTRAP_GIT_PROBE_SOURCE = b'''\
+import json
+import subprocess
+from pathlib import Path
+
+def main(argv=None, *, repo_root=None, command_runner=subprocess.run):
+    observed = {}
+    def recording_run(command, *args, **kwargs):
+        observed["command"] = command
+        observed["environment"] = kwargs.get("env")
+        return subprocess.CompletedProcess(command, 0, "", "")
+    subprocess.run = recording_run
+    completed = command_runner(
+        ["git", "status"],
+        cwd=repo_root,
+        env={
+            "GIT_ALLOW_PROTOCOL": "file",
+            "GIT_ATTR_NOSYSTEM": "0",
+            "GIT_CONFIG_GLOBAL": "/attacker/global",
+            "GIT_CONFIG_SYSTEM": "/attacker/system",
+            "GIT_NO_REPLACE_OBJECTS": "0",
+            "GIT_OPTIONAL_LOCKS": "checker-value",
+            "NON_GIT_SENTINEL": "preserved",
+        },
+    )
+    Path(repo_root, "bootstrap-git-probe.json").write_text(
+        json.dumps(observed), encoding="ascii"
+    )
+    return completed.returncode
+'''
+
+_REAL_REPLACE_NODEID = "orchestrator/tests/test_known.py::test_known"
+
+
+def _real_probe_runner_source(*, node_rc: int) -> str:
+    if node_rc == 1:
+        terminal = (
+            "print('=== short test summary info ===')\n"
+            "print('FAILED ' + node + ' - synthetic known red')\n"
+            "print('=== 1 failed in 0.01s ===')\n"
+        )
+    else:
+        terminal = "print('=== 1 passed in 0.01s ===')\n"
+    return (
+        "import sys\n"
+        f"node={_REAL_REPLACE_NODEID!r}\n"
+        "if '--collect-only' in sys.argv:\n"
+        "    print(node)\n"
+        "    print('1 test collected in 0.01s')\n"
+        "    raise SystemExit(0)\n"
+        + terminal
+        + f"raise SystemExit({node_rc})\n"
+    )
+
+
+def _real_red_git(repo: Path, *args: str) -> str:
+    completed = subprocess.run(
+        [DW._GIT_EXE, *DW._GIT_CONFIG, "-C", str(repo), *args],
+        cwd=repo,
+        env=DW._git_env(),
+        check=False,
+        stdin=subprocess.DEVNULL,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    assert completed.returncode == 0, (args, completed.stderr)
+    return completed.stdout.strip()
+
+
+def _real_red_checker_repo(tmp_path: Path) -> tuple[Path, str, str]:
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    initialized = subprocess.run(
+        [DW._GIT_EXE, "init", "-q", "-b", "main", str(repo)],
+        env=DW._git_env(),
+        check=False,
+        stdin=subprocess.DEVNULL,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    assert initialized.returncode == 0, initialized.stderr
+    checker = repo / DW._RED_CHECKER_PATH
+    checker.parent.mkdir()
+    checker.write_bytes(_REAL_RED_CHECKER_SOURCE)
+    _real_red_git(repo, "add", DW._RED_CHECKER_PATH)
+    _real_red_git(
+        repo,
+        "-c",
+        "user.name=Dev Wave Test",
+        "-c",
+        "user.email=dev-wave@example.invalid",
+        "commit",
+        "-qm",
+        "checker",
+    )
+    tested_main = _real_red_git(repo, "rev-parse", "HEAD")
+    (repo / "unrelated.txt").write_text("tip differs\n", encoding="ascii")
+    _real_red_git(repo, "add", "unrelated.txt")
+    _real_red_git(
+        repo,
+        "-c",
+        "user.name=Dev Wave Test",
+        "-c",
+        "user.email=dev-wave@example.invalid",
+        "commit",
+        "-qm",
+        "unrelated",
+    )
+    tested_tip = _real_red_git(repo, "rev-parse", "HEAD")
+    assert tested_main != tested_tip
+    return repo, tested_main, tested_tip
+
+
+def _real_replace_ref_repo(
+    tmp_path: Path,
+) -> tuple[Path, str, str, bytes]:
+    repo = tmp_path / "replace-repo"
+    repo.mkdir()
+    initialized = subprocess.run(
+        [DW._GIT_EXE, "init", "-q", "-b", "main", str(repo)],
+        env=DW._git_env(),
+        check=False,
+        stdin=subprocess.DEVNULL,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    assert initialized.returncode == 0, initialized.stderr
+    checker = repo / DW._RED_CHECKER_PATH
+    checker.parent.mkdir()
+    shutil.copy2(_ROOT / DW._RED_CHECKER_PATH, checker)
+    original_checker = checker.read_bytes()
+    runner = repo / "tools" / "run_tests.py"
+    runner.write_text(_real_probe_runner_source(node_rc=1), encoding="ascii")
+    _real_red_git(repo, "add", DW._RED_CHECKER_PATH, "tools/run_tests.py")
+    _real_red_git(
+        repo,
+        "-c",
+        "user.name=Dev Wave Test",
+        "-c",
+        "user.email=dev-wave@example.invalid",
+        "commit",
+        "-qm",
+        "tested main",
+    )
+    tested_main = _real_red_git(repo, "rev-parse", "HEAD")
+
+    _real_red_git(repo, "checkout", "-qb", "crafted")
+    checker.write_text("raise SystemExit(99)\n", encoding="ascii")
+    runner.write_text(_real_probe_runner_source(node_rc=0), encoding="ascii")
+    _real_red_git(repo, "add", DW._RED_CHECKER_PATH, "tools/run_tests.py")
+    _real_red_git(
+        repo,
+        "-c",
+        "user.name=Dev Wave Test",
+        "-c",
+        "user.email=dev-wave@example.invalid",
+        "commit",
+        "-qm",
+        "crafted replacement",
+    )
+    replacement = _real_red_git(repo, "rev-parse", "HEAD")
+
+    _real_red_git(repo, "checkout", "-q", "main")
+    tested_tip = _real_red_git(repo, "rev-parse", "HEAD")
+    _real_red_git(repo, "replace", tested_main, replacement)
+    assert tested_main == tested_tip
+    return repo, tested_main, tested_tip, original_checker
+
+
+def _verify_real_red_checker(
+    repo: Path,
+    tested_main: str,
+    tested_tip: str,
+    tmp_path: Path,
+) -> object:
+    log_file = tmp_path / "acceptance.log"
+    receipt = tmp_path / "checker-receipt.json"
+    log_file.write_bytes(b"real red log\n")
+    return DW._verify_red_check_receipt(
+        effects=DW._default_effects(),
+        repo=repo,
+        log_file=log_file,
+        checker_receipt=receipt,
+        probe_root=tmp_path,
+        tested_main=tested_main,
+        tested_tip=tested_tip,
+        log_sha256=hashlib.sha256(log_file.read_bytes()).hexdigest(),
+    )
+
+
+def test_red_checker_executes_verified_snapshot_after_path_replacement(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo, tested_main, tested_tip = _real_red_checker_repo(tmp_path)
+    (repo / DW._RED_CHECKER_PATH).write_text(
+        "raise SystemExit(47)\n",
+        encoding="ascii",
+    )
+    monkeypatch.setenv("PYTHONDONTWRITEBYTECODE", "1")
+
+    result = _verify_real_red_checker(repo, tested_main, tested_tip, tmp_path)
+
+    expected_blob = _real_red_git(
+        repo,
+        "rev-parse",
+        f"{tested_main}:{DW._RED_CHECKER_PATH}",
+    )
+    payload = json.loads((tmp_path / "checker-receipt.json").read_text("ascii"))
+    assert result.checker_blob_sha == expected_blob
+    assert payload["collections"][0]["source"] == f"{repo}|dont=True"
+    assert result.red_nodeids == (
+        "orchestrator/tests/test_known.py::test_known",
+    )
+
+
+def test_red_checker_bootstrap_propagates_exit_code(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo, tested_main, tested_tip = _real_red_checker_repo(tmp_path)
+    log_file = tmp_path / "acceptance.log"
+    log_file.write_bytes(b"real red log\n")
+    binding = DW._verified_red_checker_source(
+        DW._default_effects(),
+        repo,
+        tested_main,
+        tested_tip,
+        "acceptance-red-check",
+    )
+    monkeypatch.setenv("IZANAGI_CHECKER_TEST_RC", "17")
+
+    completed = DW._run_with_input(
+        DW._default_effects(),
+        DW._red_checker_argv(
+            repo=repo,
+            log_file=log_file,
+            checker_receipt=tmp_path / "checker-receipt.json",
+            probe_root=tmp_path,
+            tested_main=tested_main,
+            tested_tip=tested_tip,
+        ),
+        repo,
+        binding.source,
+        "acceptance-red-check",
+        capture=False,
+    )
+
+    assert completed.returncode == 17
+
+
+def test_red_checker_bootstrap_ignores_pythonpath_shadow(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo, tested_main, tested_tip = _real_red_checker_repo(tmp_path)
+    shadow = tmp_path / "shadow"
+    shadow.mkdir()
+    (shadow / "argparse.py").write_text(
+        "raise SystemExit(89)\n",
+        encoding="ascii",
+    )
+    monkeypatch.setenv("PYTHONPATH", str(shadow))
+
+    result = _verify_real_red_checker(repo, tested_main, tested_tip, tmp_path)
+
+    assert result.checker_status == "non-attributable-only"
+
+
+def _run_bootstrap_git_probe(repo: Path) -> dict[str, object]:
+    completed = DW._default_run_with_input(
+        DW._red_checker_argv(
+            repo=repo,
+            log_file=repo / "acceptance.log",
+            checker_receipt=repo / "checker-receipt.json",
+            probe_root=repo,
+            tested_main=_SHA_A,
+            tested_tip=_SHA_B,
+        ),
+        repo,
+        False,
+        _BOOTSTRAP_GIT_PROBE_SOURCE,
+    )
+    assert completed.returncode == 0
+    return json.loads((repo / "bootstrap-git-probe.json").read_text("ascii"))
+
+
+def test_red_checker_bootstrap_preserves_explicit_git_environment_and_forces_authority(
+    tmp_path: Path,
+) -> None:
+    observed = _run_bootstrap_git_probe(tmp_path)
+    environment = observed["environment"]
+
+    assert isinstance(environment, dict)
+    assert environment["GIT_ALLOW_PROTOCOL"] == "file"
+    assert environment["GIT_OPTIONAL_LOCKS"] == "checker-value"
+    assert environment["NON_GIT_SENTINEL"] == "preserved"
+    assert environment["GIT_CONFIG_GLOBAL"] == os.devnull
+    assert environment["GIT_CONFIG_SYSTEM"] == os.devnull
+    assert environment["GIT_ATTR_NOSYSTEM"] == "1"
+    assert environment["GIT_NO_REPLACE_OBJECTS"] == "1"
+
+
+def test_red_checker_bootstrap_does_not_forbid_file_protocol(
+    tmp_path: Path,
+) -> None:
+    observed = _run_bootstrap_git_probe(tmp_path)
+    command = observed["command"]
+
+    assert isinstance(command, list)
+    assert command[0] == DW._GIT_EXE
+    assert command[1:1 + len(DW._GIT_AUTHORITY_CONFIG)] == list(
+        DW._GIT_AUTHORITY_CONFIG
+    )
+    assert "core.hooksPath=/dev/null" in command
+    assert "protocol.file.allow=never" not in command
+    assert command[-1] == "status"
+
+
+def test_red_checker_blob_lookup_uses_hardened_git(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo, tested_main, tested_tip = _real_red_checker_repo(tmp_path)
+    shim_dir = tmp_path / "shim"
+    shim_dir.mkdir()
+    marker = tmp_path / "path-git-ran"
+    shim = shim_dir / "git"
+    shim.write_text(
+        "#!/bin/sh\nprintf used > " + str(marker) + "\nexit 99\n",
+        encoding="ascii",
+    )
+    shim.chmod(0o755)
+    monkeypatch.setenv("PATH", str(shim_dir))
+
+    result = _verify_real_red_checker(repo, tested_main, tested_tip, tmp_path)
+
+    assert result.checker_status == "non-attributable-only"
+    assert not marker.exists()
+
+
+def test_red_checker_blob_lookup_ignores_replace_ref(tmp_path: Path) -> None:
+    repo, tested_main, tested_tip, original_checker = _real_replace_ref_repo(
+        tmp_path
+    )
+    replaced_env = DW._git_env()
+    replaced_env.pop("GIT_NO_REPLACE_OBJECTS")
+    replaced = subprocess.run(
+        [
+            DW._GIT_EXE,
+            *DW._GIT_CONFIG,
+            "-C",
+            str(repo),
+            "cat-file",
+            "blob",
+            f"{tested_main}:{DW._RED_CHECKER_PATH}",
+        ],
+        cwd=repo,
+        env=replaced_env,
+        check=False,
+        stdin=subprocess.DEVNULL,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    assert replaced.returncode == 0, replaced.stderr
+    assert replaced.stdout != original_checker
+
+    binding = DW._verified_red_checker_source(
+        DW._default_effects(),
+        repo,
+        tested_main,
+        tested_tip,
+        "acceptance-red-check",
+    )
+
+    assert binding.source == original_checker
+
+
+def test_red_checker_internal_git_ignores_replace_ref(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo, tested_main, tested_tip, _original_checker = _real_replace_ref_repo(
+        tmp_path
+    )
+    shim_dir = tmp_path / "inner-git-shim"
+    shim_dir.mkdir()
+    marker = tmp_path / "inner-path-git-ran"
+    shim = shim_dir / "git"
+    shim.write_text(
+        "#!/bin/sh\nprintf used > "
+        + str(marker)
+        + "\nexec "
+        + DW._GIT_EXE
+        + ' "$@"\n',
+        encoding="ascii",
+    )
+    shim.chmod(0o755)
+    monkeypatch.setenv("PATH", str(shim_dir))
+    log_file = tmp_path / "replace-red.log"
+    log_file.write_text(
+        "=== short test summary info ===\n"
+        f"FAILED {_REAL_REPLACE_NODEID} - synthetic known red\n"
+        "=== 1 failed in 0.01s ===\n",
+        encoding="ascii",
+    )
+
+    result = DW._verify_red_check_receipt(
+        effects=DW._default_effects(),
+        repo=repo,
+        log_file=log_file,
+        checker_receipt=tmp_path / "replace-checker-receipt.json",
+        probe_root=tmp_path,
+        tested_main=tested_main,
+        tested_tip=tested_tip,
+        log_sha256=hashlib.sha256(log_file.read_bytes()).hexdigest(),
+    )
+
+    assert result.checker_status == "non-attributable-only"
+    assert result.red_nodeids == (_REAL_REPLACE_NODEID,)
+    assert not marker.exists()
+
+
+def test_red_checker_git_calls_are_routed_through_command_runner() -> None:
+    tree = ast.parse(
+        (_ROOT / DW._RED_CHECKER_PATH).read_text(encoding="utf-8")
+    )
+    direct_subprocess_calls = []
+    git_calls = []
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Call):
+            continue
+        if (
+            isinstance(node.func, ast.Attribute)
+            and isinstance(node.func.value, ast.Name)
+            and node.func.value.id == "subprocess"
+        ):
+            direct_subprocess_calls.append((node.lineno, node.func.attr))
+        if isinstance(node.func, ast.Name) and node.func.id == "_git":
+            git_calls.append(node)
+
+    assert direct_subprocess_calls == []
+    assert git_calls
+    assert all(
+        any(keyword.arg == "command_runner" for keyword in call.keywords)
+        for call in git_calls
+    )
+
+
+def test_red_checker_gate_git_environment_is_hardened(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("GIT_DIR", "/attacker/repository")
+    monkeypatch.setenv("GIT_NO_REPLACE_OBJECTS", "0")
+    monkeypatch.setenv("GIT_CONFIG_GLOBAL", "/attacker/config")
+
+    env = DW._git_env()
+    argv = DW._red_gate_git_argv(_REPO, "rev-parse", "--verify", "HEAD")
+
+    assert argv[0] == "/usr/bin/git" == DW._GIT_EXE
+    assert argv[1:1 + len(DW._GIT_CONFIG)] == DW._GIT_CONFIG
+    assert "GIT_DIR" not in env
+    assert env["GIT_NO_REPLACE_OBJECTS"] == "1"
+    assert env["GIT_CONFIG_GLOBAL"] == os.devnull
+    assert env["GIT_CONFIG_SYSTEM"] == os.devnull
+    assert env["LC_ALL"] == "C"
+
+
+def test_red_checker_bootstrap_has_no_short_outer_timeout(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls: list[tuple[list[str], dict[str, object]]] = []
+
+    def recording_run(argv: list[str], **kwargs: object) -> object:
+        calls.append((argv, kwargs))
+        return subprocess.CompletedProcess(argv, 0, None, None)
+
+    monkeypatch.setattr(DW.subprocess, "run", recording_run)
+    argv = _checker_argv()
+
+    result = DW._default_run_with_input(
+        argv,
+        _REPO,
+        False,
+        _CHECKER_SOURCE,
+    )
+
+    assert result.returncode == 0
+    assert calls == [(list(argv), {
+        "input": _CHECKER_SOURCE,
+        "check": False,
+        "cwd": _REPO,
+        "shell": False,
+        "text": False,
+    })]
+    assert argv[1] == "-I"
+    assert "timeout" not in calls[0][1]
 
 
 def test_failed_acceptance_never_publishes_receipt() -> None:
@@ -2157,7 +3078,7 @@ def test_non_pytest_failure_rc_rejected_without_red_checker(
         "acceptance-command",
         raw_child_rc,
     )
-    assert ("run", _checker_argv(), _REPO, False) not in fake.events
+    assert not any(_is_checker_execution_event(event) for event in fake.events)
     assert fake.receipt_content is None
     assert fake.receipt_published is False
     fake.assert_drained()
@@ -2331,8 +3252,7 @@ def test_postrun_failure_prevents_red_checker(postcheck: str) -> None:
     outcome = _run_acceptance(fake)
 
     assert outcome == DW._Outcome(70, postcheck)
-    assert not any(event[0] == "run" and event[1] == _checker_argv()
-                   for event in fake.events)
+    assert not any(_is_checker_execution_event(event) for event in fake.events)
     fake.assert_drained()
 
 
@@ -5523,6 +6443,7 @@ def test_abnormal_path_without_ownership_does_not_release(kind: str) -> None:
             read_bytes=effects.read_bytes,
             is_symlink=effects.is_symlink,
             inspect_acceptance_log=effects.inspect_acceptance_log,
+            run_with_input=effects.run_with_input,
         )
     if kind == "subprocess-error":
         outcome = _run_acceptance(fake)
@@ -5579,7 +6500,7 @@ def test_release_failure_overrides_primary_result() -> None:
         *_WAITER_GATE_EVENTS,
         ("run", _COMMAND, _REPO, False),
         *_POSTRUN_INTEGRITY_EVENTS,
-        ("run", _checker_argv(), _REPO, False),
+        *_checker_execution_events(),
         ("run", _helper("release"), _REPO, True),
     ]
     fake.assert_drained()
@@ -5654,7 +6575,7 @@ def test_release_subprocess_failures_are_cleanup_failures(release_result: object
         *_WAITER_GATE_EVENTS,
         ("run", _COMMAND, _REPO, False),
         *_POSTRUN_INTEGRITY_EVENTS,
-        ("run", _checker_argv(), _REPO, False),
+        *_checker_execution_events(),
         ("run", _helper("release"), _REPO, True),
     ]
     fake.assert_drained()

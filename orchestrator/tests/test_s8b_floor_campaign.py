@@ -44,6 +44,7 @@ ROOT = ORCHESTRATOR.parent
 sys.path.insert(0, str(ORCHESTRATOR.parent))
 
 from orchestrator.campaign import env_contract as ec  # noqa: E402
+from orchestrator import holdout_observation  # noqa: E402
 from orchestrator.campaign import campaign_claim, reservation  # noqa: E402
 from orchestrator.campaign import env_attestation  # noqa: E402
 from orchestrator.campaign import s8b_floor_campaign  # noqa: E402
@@ -86,11 +87,11 @@ _CONFIGS = (
 _STOCK = "stock_common"
 _HOLDOUT_SHAPE = {
     "rr79": {
-        "records": 730079, "threads": 17,
+        "candidate_id": "H1", "records": 730079, "threads": 17,
         "ycsb": {"ycsb_zipf_skew": "0.42", "ycsb_rratio": "79", "ycsb_rmw": "1"},
     },
     "rr23": {
-        "records": 230023, "threads": 11,
+        "candidate_id": "H2", "records": 230023, "threads": 11,
         "ycsb": {"ycsb_zipf_skew": "0.31", "ycsb_rratio": "23", "ycsb_rmw": "0"},
     },
 }
@@ -207,6 +208,7 @@ def _freeze_document() -> dict:
     holdouts = {}
     for holdout_id, shape in _HOLDOUT_SHAPE.items():
         holdouts[holdout_id] = {
+            "candidate_id": shape["candidate_id"],
             "records": shape["records"],
             "threads": shape["threads"],
             "ycsb": dict(shape["ycsb"]),
@@ -251,7 +253,10 @@ def _protocol(*, freeze_sha: str, master_seed: str = "fixture-seed",
         "env_tag": env_tag,
         "contract_sha256": contract_sha256,
         "ccbench_pin": "0" * 40,
-        "freeze": {"path": "output/fixture_freeze.json", "sha256": freeze_sha},
+        "freeze": {
+            "path": "output/s8b-freeze/holdout_freeze.json",
+            "sha256": freeze_sha,
+        },
         "stock_configuration": _STOCK,
         "n_sessions": n_sessions,
         "reps": reps,
@@ -411,12 +416,66 @@ def _cell_id_from_binary(binary: str) -> str:
     return Path(binary).parent.name.replace("__", "::")
 
 
+def _test_holdout_authority(out_root: Path, protocol, freeze_doc) -> Path:
+    """Resolve tests to a real Git authority without disabling any gate."""
+
+    out_root = Path(out_root)
+    authority = out_root.parent / f".{out_root.name}-holdout-authority"
+    if authority.exists():
+        return authority
+    authority.mkdir(parents=True)
+    subprocess.run(
+        ["git", "-C", str(authority), "init"], check=True,
+        stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+    )
+    fixed = authority / "output" / "s8b-freeze"
+    fixed.mkdir(parents=True)
+    # _protocol() and the callers that prevalidate already supply canonical
+    # protocol mappings. Re-resolving through the production historical
+    # registry would bypass a test-installed current contract.
+    normalized = dict(protocol)
+    (fixed / "floor_protocol.json").write_bytes(
+        json.dumps(
+            normalized, ensure_ascii=False, sort_keys=True, separators=(",", ":"),
+        ).encode("utf-8")
+    )
+    (fixed / "holdout_freeze.json").write_bytes(
+        json.dumps(
+            freeze_doc.document, ensure_ascii=False, sort_keys=True,
+            separators=(",", ":"),
+        ).encode("utf-8")
+    )
+    subprocess.run(
+        ["git", "-C", str(authority), "add", "output/s8b-freeze"], check=True,
+        stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+    )
+    subprocess.run(
+        ["git", "-C", str(authority), "-c", "user.name=fixture", "-c",
+         "user.email=fixture@example.invalid", "commit", "-m", "fixture authority"],
+        check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+    )
+    return authority
+
+
+def _private_run_campaign(protocol, freeze_doc, **kwargs):
+    authority = (
+        _test_holdout_authority(kwargs["out_root"], protocol, freeze_doc)
+        if "durable_root_policy" in kwargs else ROOT
+    )
+    return s8b_floor_campaign._run_campaign_core(
+        protocol, freeze_doc,
+        _holdout_repo_root=authority,
+        _holdout_signature_source=freeze_doc.document["holdouts"],
+        confirm_irreversible_pilot_holdout=True,
+        **kwargs,
+    )
+
+
 def _run_campaign(protocol, freeze_doc, *, out_root, build_root, measure_fn, probe_fn,
                   mode="pilot", resume_dir=None, sleep_fn=None, monotonic_fn=None,
                   now_fn=None, perf_preflight_fn=None):
     fake_build = _make_fake_build(build_root)
-    entrypoint = (s8b_floor_campaign._run_campaign_core
-                  if mode == "official" else s8b_floor_campaign.run_campaign)
+    entrypoint = s8b_floor_campaign._run_campaign_core
     extra = (
         {"_floor_preflight_fn": _fixture_floor_preflight}
         if mode == "official" and resume_dir is None else {}
@@ -430,6 +489,11 @@ def _run_campaign(protocol, freeze_doc, *, out_root, build_root, measure_fn, pro
         durable_root_policy=_durable_policy(Path(out_root)),
         **extra,
     )
+    kwargs["_holdout_repo_root"] = _test_holdout_authority(
+        Path(out_root), protocol, freeze_doc,
+    )
+    kwargs["_holdout_signature_source"] = freeze_doc.document["holdouts"]
+    kwargs["confirm_irreversible_pilot_holdout"] = True
     if mode == "official":
         with mock.patch.object(
                 s8b_floor_campaign, "_assert_official_permitted", lambda _mode: None), \
@@ -733,7 +797,7 @@ def test_pilot_default_perf_preflight_delegate_is_resolved_once_at_call_time(
         s8b_floor_campaign._perf_preflight,
         "probe_perf_availability", preflight_spy,
     )
-    outcome = s8b_floor_campaign.run_campaign(
+    outcome = _private_run_campaign(
         protocol, _verified_freeze(freeze), out_root=tmp_path / "out",
         mode="pilot",
         measure_fn=_make_measure_fn(reps=5, value_fn=lambda cid: _BASE_TPS[cid]),
@@ -2949,7 +3013,7 @@ def _deterministic_official_artifacts(base: Path) -> dict:
                 s8b_floor_campaign.source_digest, "resolve_evidence",
                 _fixture_source_evidence,
             ):
-        outcome = s8b_floor_campaign._run_campaign_core(
+        outcome = _private_run_campaign(
             protocol, verified, out_root=out_root, mode="official",
             measure_fn=_make_measure_fn(reps=5, value_fn=lambda cid: _BASE_TPS[cid]),
             probe_fn=lambda: (1, "", ""), sleep_fn=lambda _seconds: None,
@@ -3359,6 +3423,18 @@ def test_main_official_mode_always_refused(tmp_path, capsys):
     assert "§8" in payload["reason"]
 
 
+def test_main_pilot_rejects_noncanonical_protocol_path_before_loading(tmp_path, capsys):
+    protocol_path = tmp_path / "protocol.json"
+    protocol_path.write_text("{}", encoding="utf-8")
+    rc = s8b_floor_campaign.main([
+        "--mode", "pilot", "--protocol", str(protocol_path),
+    ])
+    assert rc == 1
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["status"] == "error"
+    assert "canonical" in payload["error"]
+
+
 def _oracle_unavailable_with_private_candidate(tmp_path: Path):
     candidate = sort_swo_oracle.OracleEnvironmentCandidate(
         "argument:dependency-root",
@@ -3402,13 +3478,15 @@ def test_main_emits_private_structured_oracle_unavailable_and_returns_nonzero(
         lambda *_args, **_kwargs: object(),
     )
     monkeypatch.setattr(s8b_floor_campaign, "repo_output_root", lambda: str(tmp_path))
+    monkeypatch.setattr(s8b_floor_campaign, "ROOT", tmp_path)
 
     def fail_campaign(*_args, **_kwargs):
         raise unavailable
 
     monkeypatch.setattr(s8b_floor_campaign, "run_campaign", fail_campaign)
     rc = s8b_floor_campaign.main([
-        "--mode", "pilot", "--protocol", str(tmp_path / "protocol.json"),
+        "--mode", "pilot", "--protocol",
+        str(tmp_path / s8b_floor_campaign._FLOOR_PROTOCOL_REL),
     ])
     captured = capsys.readouterr()
     assert rc == 1
@@ -3659,6 +3737,168 @@ def test_public_official_rejects_each_nondefault_seam_before_side_effects(
     assert not out_root.exists()
 
 
+@pytest.mark.parametrize("seam_name,seam_value", [
+    ("measure_fn", lambda *_args: (_ for _ in ()).throw(AssertionError())),
+    ("probe_fn", lambda: (_ for _ in ()).throw(AssertionError())),
+    ("sleep_fn", lambda _seconds: (_ for _ in ()).throw(AssertionError())),
+    ("monotonic_fn", lambda: (_ for _ in ()).throw(AssertionError())),
+    ("prepare_fn", lambda *_args: (_ for _ in ()).throw(AssertionError())),
+    ("now_fn", lambda: (_ for _ in ()).throw(AssertionError())),
+    ("host_provenance_fn", lambda **_kwargs: (_ for _ in ()).throw(AssertionError())),
+    ("process_identity_fn", lambda: (_ for _ in ()).throw(AssertionError())),
+    ("execution_receipt_fn", lambda *_args, **_kwargs: (_ for _ in ()).throw(AssertionError())),
+    ("build_fn", lambda *_args, **_kwargs: (_ for _ in ()).throw(AssertionError())),
+    ("after_certificate_issued_fn", lambda _path: (_ for _ in ()).throw(AssertionError())),
+    ("perf_preflight_fn", lambda **_kwargs: (_ for _ in ()).throw(AssertionError())),
+])
+def test_public_pilot_rejects_effect_capable_seams_without_calling_them(
+        tmp_path, seam_name, seam_value):
+    freeze = _freeze_document()
+    out_root = tmp_path / "out"
+    with pytest.raises(s8b_floor_campaign.FloorCampaignError, match=seam_name):
+        s8b_floor_campaign.run_campaign(
+            _protocol(freeze_sha=_freeze_sha(freeze)), _verified_freeze(freeze),
+            out_root=out_root, mode="pilot", **{seam_name: seam_value},
+        )
+    assert not out_root.exists()
+
+
+def test_production_entrypoints_have_no_holdout_gate_disabling_seam():
+    forbidden = {
+        "_holdout_reserve_fn", "_holdout_finalize_fn",
+        "_holdout_assert_fn", "_attempt_consume_fn",
+    }
+    for entrypoint in (
+            s8b_floor_campaign.run_campaign,
+            s8b_floor_campaign._run_campaign_core):
+        assert forbidden.isdisjoint(inspect.signature(entrypoint).parameters)
+
+
+def test_holdout_signature_source_seam_is_private_core_only():
+    seam = "_holdout_signature_source"
+    assert seam in inspect.signature(
+        s8b_floor_campaign._run_campaign_core,
+    ).parameters
+    assert seam not in inspect.signature(s8b_floor_campaign.run_campaign).parameters
+    assert seam not in {
+        action.dest for action in s8b_floor_campaign._parser()._actions
+    }
+    assert seam not in inspect.getsource(s8b_floor_campaign.run_campaign)
+    for public_leaf in (
+            s8b_floor_campaign._holdout_admission.reserve_floor_holdout_observations,
+            holdout_observation.protected_signatures_from_verified_freeze):
+        assert "_neutral_holdouts" not in inspect.signature(public_leaf).parameters
+
+
+def test_public_pilot_requires_irreversible_holdout_approval_before_effects(tmp_path):
+    freeze = _freeze_document()
+    out_root = tmp_path / "out"
+    with pytest.raises(s8b_floor_campaign.FloorCampaignError, match="一回性 key"):
+        s8b_floor_campaign.run_campaign(
+            _protocol(freeze_sha=_freeze_sha(freeze)), _verified_freeze(freeze),
+            out_root=out_root, mode="pilot",
+        )
+    assert not out_root.exists()
+
+
+def test_cli_exposes_dedicated_irreversible_pilot_holdout_flag():
+    parsed = s8b_floor_campaign._parser().parse_args([
+        "--mode", "pilot", "--protocol", "protocol.json",
+        "--confirm-irreversible-pilot-holdout",
+    ])
+    assert parsed.confirm_irreversible_pilot_holdout is True
+
+
+def test_private_core_claims_only_after_nonmeasurement_preflight(tmp_path):
+    freeze = _freeze_document()
+    protocol = _protocol(freeze_sha=_freeze_sha(freeze))
+    out_root = tmp_path / "out"
+    authority = _test_holdout_authority(
+        out_root, protocol, _verified_freeze(freeze),
+    )
+    shared = s8b_floor_campaign._holdout_admission.shared_admission_root(authority)
+    order = []
+
+    def perf_preflight(**_kwargs):
+        order.append("perf")
+        assert not (shared / "claims").exists()
+        return _perf_receipt()
+
+    def probe():
+        order.append("probe")
+        assert len(list((shared / "claims").iterdir())) == 12
+        return (1, "", "")
+
+    measure = _make_measure_fn(reps=5, value_fn=lambda cid: _BASE_TPS[cid])
+
+    def ordered_measure(*args):
+        order.append("measure")
+        assert len(list((shared / "claims").iterdir())) == 12
+        return measure(*args)
+
+    _private_run_campaign(
+        protocol, _verified_freeze(freeze), out_root=out_root, mode="pilot",
+        measure_fn=ordered_measure, probe_fn=probe,
+        perf_preflight_fn=perf_preflight, sleep_fn=lambda _seconds: None,
+        monotonic_fn=lambda: 0.0, prepare_fn=_fake_prepare,
+        now_fn=lambda: _FIXED_NOW, build_fn=_make_fake_build(tmp_path / "bin"),
+        durable_root_policy=_durable_policy(out_root),
+    )
+    assert order[0] == "perf"
+    assert order.index("perf") < order.index("probe")
+    assert order.index("perf") < order.index("measure")
+
+
+def test_private_signature_source_keeps_real_claim_ledger_and_tickets(tmp_path):
+    freeze = _freeze_document()
+    verified = _verified_freeze(freeze)
+    protocol = _protocol(freeze_sha=_freeze_sha(freeze))
+    out_root = tmp_path / "out"
+    authority = _test_holdout_authority(out_root, protocol, verified)
+    shared = s8b_floor_campaign._holdout_admission.shared_admission_root(authority)
+
+    _private_run_campaign(
+        protocol, verified, out_root=out_root, mode="pilot",
+        measure_fn=_make_measure_fn(
+            reps=5, value_fn=lambda cid: _BASE_TPS[cid],
+        ),
+        perf_preflight_fn=lambda **_kwargs: _perf_receipt(),
+        probe_fn=lambda: (1, "", ""), sleep_fn=lambda _seconds: None,
+        monotonic_fn=lambda: 0.0, prepare_fn=_fake_prepare,
+        now_fn=lambda: _FIXED_NOW, build_fn=_make_fake_build(tmp_path / "bin"),
+        durable_root_policy=_durable_policy(out_root),
+    )
+
+    assert len(list((shared / "claims").iterdir())) == 12
+    assert len(s8b_floor_campaign._holdout_admission._read_ledger(
+        shared / "ledger.jsonl",
+    )) == 12
+    assert len(list((shared / "consumed").iterdir())) == 12 * 8
+    assert len(s8b_floor_campaign._holdout_admission._read_ledger(
+        shared / "attempt-ledger.jsonl",
+    )) == 12 * 8
+
+
+def test_resume_absent_journal_is_rejected_before_perf_preflight(tmp_path):
+    freeze = _freeze_document()
+    protocol = _protocol(freeze_sha=_freeze_sha(freeze))
+    out_root = tmp_path / "out"
+    resume_dir = (
+        out_root / "env" / protocol["env_tag"] / "calibration"
+        / "s8b-floor-pilot" / "issued-run"
+    )
+    resume_dir.mkdir(parents=True)
+    called = []
+    with pytest.raises(s8b_floor_campaign.FloorCampaignError, match="resume state invalid"):
+        _private_run_campaign(
+            protocol, _verified_freeze(freeze), out_root=out_root, mode="pilot",
+            resume_dir=resume_dir,
+            perf_preflight_fn=lambda **_kwargs: called.append("perf"),
+            durable_root_policy=_durable_policy(out_root),
+        )
+    assert called == []
+
+
 def _forbid_measure(*_a, **_kw):
     raise AssertionError("pin/env/hash の検査より前で measure_fn が呼ばれてはいけない")
 
@@ -3709,7 +3949,7 @@ def test_required_binding_missing_rejected_by_production_entry_without_side_effe
         monkeypatch.delenv(key, raising=False)
     out_root = ctx["out_root"]
     with pytest.raises(s8b_floor_campaign.FloorCampaignError, match="reservation preflight"):
-        s8b_floor_campaign.run_campaign(
+        _private_run_campaign(
             ctx["protocol"], _verified_freeze(ctx["freeze"]),
             out_root=out_root, mode="pilot", measure_fn=_forbid_measure,
             probe_fn=lambda: (1, "", ""), prepare_fn=_fake_prepare,
@@ -3728,7 +3968,7 @@ def test_required_v1_receipt_mode_mismatch_rejected_without_side_effects(
         return _fixed_receipt(contract, now_fn=now_fn)
 
     with pytest.raises(s8b_floor_campaign.FloorCampaignError, match="attestation_mode"):
-        s8b_floor_campaign.run_campaign(
+        _private_run_campaign(
             ctx["protocol"], _verified_freeze(ctx["freeze"]),
             out_root=ctx["out_root"], mode="pilot", measure_fn=_forbid_measure,
             probe_fn=lambda: (1, "", ""), prepare_fn=_fake_prepare,
@@ -3752,7 +3992,7 @@ def test_required_attestation_comparison_failure_has_zero_side_effects(
     observed = _observed(observed_expected_shape)
     monkeypatch.setattr(s8b_floor_campaign.env_attestation, "probe", lambda: observed)
     with pytest.raises(s8b_floor_campaign.FloorCampaignError, match="comparisons failed"):
-        s8b_floor_campaign.run_campaign(
+        _private_run_campaign(
             ctx["protocol"], _verified_freeze(ctx["freeze"]),
             out_root=ctx["out_root"], mode="pilot", measure_fn=_forbid_measure,
             probe_fn=lambda: (1, "", ""), prepare_fn=_fake_prepare,
@@ -3779,7 +4019,7 @@ def test_required_calibration_sha_mismatch_has_zero_side_effects(tmp_path, monke
         contract_sha256=bad_contract.contract_sha256,
     )
     with pytest.raises(s8b_floor_campaign.FloorCampaignError, match="sha256 不一致"):
-        s8b_floor_campaign.run_campaign(
+        _private_run_campaign(
             protocol, _verified_freeze(ctx["freeze"]),
             out_root=ctx["out_root"], mode="pilot", measure_fn=_forbid_measure,
             probe_fn=lambda: (1, "", ""), prepare_fn=_fake_prepare,
@@ -3808,7 +4048,7 @@ def test_required_existing_claim_reports_owner_and_changes_nothing(
     campaign_claim.acquire_claim(claim_root, existing)
     before = _tree_snapshot(ctx["out_root"])
     with pytest.raises(s8b_floor_campaign.FloorCampaignError, match="existing-job"):
-        s8b_floor_campaign.run_campaign(
+        _private_run_campaign(
             protocol, _verified_freeze(ctx["freeze"]),
             out_root=ctx["out_root"], mode="pilot", measure_fn=_forbid_measure,
             probe_fn=lambda: (1, "", ""), prepare_fn=_fake_prepare,
@@ -3823,7 +4063,7 @@ def test_required_missing_preprovisioned_claim_root_is_side_effect_free(
         tmp_path, monkeypatch):
     ctx = _install_required_contract(tmp_path, monkeypatch)
     with pytest.raises(s8b_floor_campaign.FloorCampaignError, match="provisioning"):
-        s8b_floor_campaign.run_campaign(
+        _private_run_campaign(
             ctx["protocol"], _verified_freeze(ctx["freeze"]),
             out_root=ctx["out_root"], mode="pilot", measure_fn=_forbid_measure,
             probe_fn=lambda: (1, "", ""), prepare_fn=_fake_prepare,
@@ -3842,7 +4082,7 @@ def test_required_reservation_loss_is_typed_campaign_terminal_with_no_values(
     monotonic_fn = lambda: next(ticks)
     measure = _make_measure_fn(reps=5, value_fn=lambda cid: _BASE_TPS[cid])
     with pytest.raises(reservation.ReservationError, match="残時間が不足"):
-        s8b_floor_campaign.run_campaign(
+        _private_run_campaign(
             ctx["protocol"], _verified_freeze(ctx["freeze"]),
             out_root=ctx["out_root"], mode="pilot", measure_fn=measure,
             perf_preflight_fn=lambda **_kwargs: _perf_receipt(),
@@ -3889,7 +4129,7 @@ def test_required_recheck_pins_remaining_budget_margin_and_injected_monotonic_cl
 
     with mock.patch.object(reservation.ReservationCheck, "recheck", recheck_spy), \
             pytest.raises(reservation.ReservationError, match="残時間が不足"):
-        s8b_floor_campaign.run_campaign(
+        _private_run_campaign(
             ctx["protocol"], _verified_freeze(ctx["freeze"]),
             out_root=ctx["out_root"], mode="pilot",
             measure_fn=_make_measure_fn(reps=5, value_fn=lambda cid: _BASE_TPS[cid]),
@@ -3920,7 +4160,7 @@ def test_required_mode_happy_path_pins_journal_claim_and_receipt_shape(
     claim_root = _provision_claim_root(ctx)
     measure = _make_measure_fn(reps=5, value_fn=lambda cid: _BASE_TPS[cid])
 
-    outcome = s8b_floor_campaign.run_campaign(
+    outcome = _private_run_campaign(
         ctx["protocol"], _verified_freeze(ctx["freeze"]),
         out_root=ctx["out_root"], mode="pilot", measure_fn=measure,
         perf_preflight_fn=lambda **_kwargs: _perf_receipt(),
@@ -3972,7 +4212,7 @@ def test_floor_legacy_build_fallback_hits_contract_provenance_assert(
         return fake_v2_shape(genome, contract=None, **kwargs)
 
     with pytest.raises(s8b_floor_campaign.FloorCampaignError, match="legacy build"):
-        s8b_floor_campaign.run_campaign(
+        _private_run_campaign(
             ctx["protocol"], _verified_freeze(ctx["freeze"]),
             out_root=ctx["out_root"], mode="pilot", measure_fn=_forbid_measure,
             perf_preflight_fn=lambda **_kwargs: _perf_receipt(),
@@ -4007,6 +4247,9 @@ def test_measure_fn_default_uses_contract_clocks_and_numactl(tmp_path):
         seen["clocks_per_us"] = clocks_per_us
         seen["numactl"] = kw.get("numactl")
         seen["use_perf"] = use_perf
+        seen["holdout_observation_admission"] = kw.get(
+            "holdout_observation_admission"
+        )
         return _FakeScalePoint(
             throughputs=[1000.0] * 5, notes=[],
             run_cmd=_shape_faithful_run_cmd(
@@ -4017,7 +4260,7 @@ def test_measure_fn_default_uses_contract_clocks_and_numactl(tmp_path):
     fake_build = _make_fake_build(tmp_path / "bin")
     with mock.patch.object(s8b_floor_campaign.buildcache, "build_v2", fake_build), \
              mock.patch.object(s8b_floor_campaign, "measure_point", spy_measure_point):
-        s8b_floor_campaign.run_campaign(
+        _private_run_campaign(
             protocol, _verified_freeze(freeze), out_root=tmp_path / "out", mode="pilot",
             measure_fn=None, probe_fn=lambda: (1, "", ""), prepare_fn=_fake_prepare,
             perf_preflight_fn=lambda **_kwargs: _perf_receipt(),
@@ -4027,6 +4270,8 @@ def test_measure_fn_default_uses_contract_clocks_and_numactl(tmp_path):
     assert seen["clocks_per_us"] == contract.clocks_per_us
     assert seen["numactl"] == list(contract.numactl)
     assert seen["use_perf"] is True
+    assert seen["holdout_observation_admission"] is not None
+    assert seen["holdout_observation_admission"].permitted_run_once_calls == 5
 
 
 def test_measure_fn_default_passes_use_perf_false_only_for_unavailable_pilot(
@@ -4048,7 +4293,7 @@ def test_measure_fn_default_passes_use_perf_false_only_for_unavailable_pilot(
     fake_build = _make_fake_build(tmp_path / "bin")
     with mock.patch.object(s8b_floor_campaign.buildcache, "build_v2", fake_build), \
              mock.patch.object(s8b_floor_campaign, "measure_point", spy_measure_point):
-        outcome = s8b_floor_campaign.run_campaign(
+        outcome = _private_run_campaign(
             protocol, _verified_freeze(freeze), out_root=tmp_path / "out",
             mode="pilot", measure_fn=None, probe_fn=lambda: (1, "", ""),
             prepare_fn=_fake_prepare,
@@ -4103,7 +4348,7 @@ def test_rep_integrity_positive_control_default_measure_point(tmp_path, monkeypa
     fake_build = _make_fake_build(tmp_path / "bin")
     monkeypatch.setattr(s8b_floor_campaign, "measure_point", production_measure_point)
     monkeypatch.setattr(s8b_floor_campaign.buildcache, "build_v2", fake_build)
-    outcome = s8b_floor_campaign.run_campaign(
+    outcome = _private_run_campaign(
         protocol, _verified_freeze(freeze), out_root=tmp_path / "out", mode="pilot",
         measure_fn=None, probe_fn=lambda: (1, "", ""), prepare_fn=_fake_prepare,
         perf_preflight_fn=lambda **_kwargs: _perf_receipt(
@@ -4231,10 +4476,12 @@ def test_rep_integrity_precedence_uses_completed_measure_evidence(
         binaries={cell_id: {"binary": str(binary), "binary_sha256": digest}},
         artifact_binaries={cell_id: {"binary": "output/fixture/bench"}},
         schedule=[], journal_path=tmp_path / f"{state}.jsonl",
+        holdout_admissions={cell_id: SimpleNamespace(observation=None)},
         measure_fn=lambda *args: point, probe_fn=probe, sleep_fn=lambda _s: None,
         monotonic_fn=lambda: 0.0, now_fn=lambda: _FIXED_NOW,
         protocol_sha256="p", freeze_sha256="f", manifest_sha256="m",
         perf_preflight=_perf_receipt(), mode="pilot",
+        holdout_assert_fn=lambda *_args, **_kwargs: None,
     )
     record = runner._run_session(
         seq=0, round_no=1, cell_id=cell_id, kind="planned",
@@ -4245,6 +4492,27 @@ def test_rep_integrity_precedence_uses_completed_measure_evidence(
     assert len(record["rep_observations"]) == 5
     assert record["valid"] is False
     assert record["session_median"] is None
+
+
+def test_runner_requires_exact_holdout_admission_mapping(tmp_path):
+    cell_id = "rr79::stock_common"
+    cell = {
+        "cell_id": cell_id, "holdout_id": "rr79", "configuration_id": _STOCK,
+        "records": 1, "threads": 1, "workload": _HOLDOUT_SHAPE["rr79"]["ycsb"],
+    }
+    runner = s8b_floor_campaign._Runner(
+        protocol=_valid_protocol_dict(), contract=ec.lookup(ENV_TAG), cells=[cell],
+        cell_by_id={cell_id: cell}, binaries={cell_id: {}},
+        artifact_binaries={cell_id: {}}, schedule=[],
+        journal_path=tmp_path / "journal.jsonl", measure_fn=lambda *_args: None,
+        holdout_admissions={}, probe_fn=lambda: (1, "", ""),
+        sleep_fn=lambda _seconds: None, monotonic_fn=lambda: 0.0,
+        now_fn=lambda: _FIXED_NOW, protocol_sha256="p", freeze_sha256="f",
+        manifest_sha256="m", perf_preflight=_perf_receipt(), mode="pilot",
+        holdout_assert_fn=lambda *_args, **_kwargs: None,
+    )
+    with pytest.raises(s8b_floor_campaign.CampaignAbort, match="exactly cover"):
+        runner._validate_live_admissions()
 
 
 def test_rep_integrity_precedes_partial_in_runner_branch_order():
@@ -4276,7 +4544,7 @@ def test_floor_default_durable_policy_rejects_external_output_without_side_effec
     freeze = _freeze_document()
     out_root = tmp_path / "outside-default-approval"
     with pytest.raises(s8b_floor_campaign.FloorCampaignError, match="durable output root"):
-        s8b_floor_campaign.run_campaign(
+        _private_run_campaign(
             _protocol(freeze_sha=_freeze_sha(freeze)), _verified_freeze(freeze),
             out_root=out_root, mode="pilot", measure_fn=_forbid_measure,
             probe_fn=lambda: (1, "", ""), prepare_fn=_fake_prepare,
@@ -5848,7 +6116,7 @@ def test_pilot_does_not_apply_official_freeze_allowlist_scan(tmp_path):
     rogue = repo_root / "output" / "s8b-freeze" / "not-allowlisted.txt"
     rogue.write_bytes(b"pilot must not run official preflight")
     out_root = tmp_path / "pilot-out"
-    outcome = s8b_floor_campaign.run_campaign(
+    outcome = _private_run_campaign(
         protocol, _verified_freeze(freeze), out_root=out_root, mode="pilot",
         measure_fn=_make_measure_fn(reps=5, value_fn=lambda cid: _BASE_TPS[cid]),
         perf_preflight_fn=lambda **_kwargs: _perf_receipt(),
@@ -5880,7 +6148,7 @@ def test_repo_root_seam_runs_production_clean_scan_on_real_tmp_repo(tmp_path):
     with mock.patch.object(
             s8b_floor_campaign, "_assert_official_permitted", lambda _mode: None), \
             mock.patch.object(s8b_floor_campaign.buildcache, "build_v2", fake_build):
-        outcome = s8b_floor_campaign._run_campaign_core(
+        outcome = _private_run_campaign(
             protocol, _verified_freeze(freeze), out_root=tmp_path / "out",
             mode="official",
             measure_fn=_make_measure_fn(reps=5, value_fn=lambda cid: _BASE_TPS[cid]),
@@ -6547,7 +6815,7 @@ def test_new_seam_defaults_delegate_to_production_functions(tmp_path, monkeypatc
         s8b_floor_campaign, "_after_certificate_issued_noop", after_spy)
     with mock.patch.object(
             s8b_floor_campaign, "_assert_official_permitted", lambda _mode: None):
-        outcome = s8b_floor_campaign._run_campaign_core(
+        outcome = _private_run_campaign(
             protocol, _verified_freeze(freeze), out_root=tmp_path / "out", mode="official",
             measure_fn=_make_measure_fn(reps=5, value_fn=lambda cid: _BASE_TPS[cid]),
             probe_fn=lambda: (1, "", ""), sleep_fn=lambda _seconds: None,
@@ -6995,7 +7263,7 @@ def test_second_scan_digest_shift_persists_claim_but_issues_no_certificate(
     with mock.patch.object(
             s8b_floor_campaign, "_assert_official_permitted", lambda _mode: None):
         with pytest.raises(s8b_floor_campaign.FloorCampaignError, match="clean_scan_digest"):
-            s8b_floor_campaign._run_campaign_core(
+            _private_run_campaign(
                 ctx["protocol"], _verified_freeze(ctx["freeze"]),
                 out_root=ctx["out_root"], mode="official", measure_fn=_forbid_measure,
                 probe_fn=lambda: (1, "", ""), sleep_fn=lambda _seconds: None,
@@ -7084,7 +7352,7 @@ def test_checkpoint_callback_is_after_cert_validation_and_before_launch_start(
 
     with _official_test_seam(monkeypatch):
         with pytest.raises(_SimulatedCrash, match="checkpoint"):
-            s8b_floor_campaign._run_campaign_core(
+            _private_run_campaign(
                 protocol, _verified_freeze(freeze), out_root=tmp_path / "out",
                 mode="official", measure_fn=_forbid_measure,
                 probe_fn=lambda: (1, "", ""), sleep_fn=lambda _seconds: None,
@@ -7114,7 +7382,7 @@ def test_checkpoint_raw_hash_recheck_fires_before_launch_start(tmp_path, monkeyp
 
     with _official_test_seam(monkeypatch):
         with pytest.raises(s8b_floor_campaign.FloorCampaignError, match="raw hash"):
-            s8b_floor_campaign._run_campaign_core(
+            _private_run_campaign(
                 protocol, _verified_freeze(freeze), out_root=tmp_path / "out",
                 mode="official", measure_fn=_forbid_measure,
                 probe_fn=lambda: (1, "", ""), sleep_fn=lambda _seconds: None,
@@ -7458,7 +7726,8 @@ def test_main_validates_recorded_g1_with_historical_lane_when_current_is_g2(
     monkeypatch.setattr(s8b_floor_campaign, "_load_verified_freeze", load_freeze)
     monkeypatch.setattr(s8b_floor_campaign, "repo_output_root", lambda: str(tmp_path))
     monkeypatch.setattr(s8b_floor_campaign, "run_campaign", run_campaign)
-    protocol_path = tmp_path / "protocol.json"
+    monkeypatch.setattr(s8b_floor_campaign, "ROOT", tmp_path)
+    protocol_path = tmp_path / s8b_floor_campaign._FLOOR_PROTOCOL_REL
 
     assert s8b_floor_campaign.main([
         "--mode", "pilot", "--protocol", str(protocol_path),
@@ -7505,9 +7774,10 @@ def test_fresh_run_rejects_recorded_g1_when_current_contract_is_g2_before_io(
     out_root = tmp_path / "out"
 
     with pytest.raises(s8b_floor_campaign.FloorCampaignError):
-        s8b_floor_campaign.run_campaign(
+        _private_run_campaign(
             protocol, _verified_freeze(freeze), out_root=out_root, mode="pilot",
             measure_fn=measure_fn,
+            durable_root_policy=_durable_policy(out_root),
         )
 
     current_lookup.assert_called_once_with(ENV_TAG)
@@ -7572,7 +7842,7 @@ def test_current_admission_reuses_exact_contract_across_successful_run(
         s8b_floor_campaign, "_project_measure_run_cmd", projection_spy,
     )
 
-    outcome = s8b_floor_campaign.run_campaign(
+    outcome = _private_run_campaign(
         protocol, verified, out_root=tmp_path / "out", mode="pilot",
         measure_fn=measure_fn, probe_fn=lambda: (1, "", ""),
         perf_preflight_fn=lambda **_kwargs: _perf_receipt(),
@@ -7896,10 +8166,12 @@ def test_binary_receipt_mismatch_aborts(tmp_path):
         cells=[cell], cell_by_id={cell_id: cell},
         binaries=binaries, artifact_binaries={cell_id: {"binary": "output/fixture/bench"}},
         schedule=[], journal_path=tmp_path / "j.jsonl",
+        holdout_admissions={cell_id: SimpleNamespace(observation=None)},
         measure_fn=lambda *a: _FakeScalePoint([1.0] * 5, [], "x"),
         probe_fn=lambda: (1, "", ""), sleep_fn=lambda s: None,
         monotonic_fn=lambda: 0.0, now_fn=lambda: _FIXED_NOW,
         protocol_sha256="p", freeze_sha256="f", manifest_sha256="m",
+        holdout_assert_fn=lambda *_args, **_kwargs: None,
     )
     with pytest.raises(s8b_floor_campaign.CampaignAbort):
         runner._run_session(seq=0, round_no=0, cell_id=cell_id, kind="planned",
