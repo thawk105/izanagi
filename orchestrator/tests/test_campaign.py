@@ -4981,6 +4981,87 @@ def test_p2_actual_floor_and_t126_admission_accept_valid_evidence(tmp_path=None)
         admission.env_attestation.load_verified_calibration = saved_calibration
 
 
+def test_floor_admission_uses_authority_resolver_not_legacy_literal(tmp_path=None):
+    from orchestrator.campaign import certified_writer_admission as admission
+    from orchestrator.campaign import s8b_floor_campaign as floor_campaign
+
+    root = Path(tmp_path) if tmp_path is not None else Path(
+        _tmpdir("izanagi_floor_resolver_admission_")
+    )
+    fixture = build_admission_fixture(root)
+    legacy = fixture.repo_root / floor_campaign._FLOOR_PROTOCOL_REL
+    protocol_bytes = legacy.read_bytes()
+    selected_rel = "output/authority-selected/floor_protocol.json"
+    selected = fixture.repo_root / selected_rel
+    selected.parent.mkdir(parents=True)
+    selected.write_bytes(protocol_bytes)
+    record = floor_campaign.IndexedFloorProtocol(
+        path=selected_rel,
+        document=floor_campaign._strict_parse_protocol_bytes(
+            protocol_bytes, source=selected_rel,
+        ),
+        raw_bytes=protocol_bytes,
+        sha256=hashlib.sha256(protocol_bytes).hexdigest(),
+    )
+    legacy.write_bytes(b"legacy literal must not be read\n")
+
+    with unittest_mock.patch.object(
+            admission.s8b_floor_campaign, "resolve_current_floor_protocol",
+            return_value=record,
+    ) as resolver, unittest_mock.patch.object(
+            admission.site_policy, "current_site",
+            return_value=site_policy.PEGASUS_COMPUTE,
+    ), unittest_mock.patch.object(
+            admission.env_attestation, "load_verified_calibration",
+            return_value=object(),
+    ):
+        admission.admit(
+            "floor",
+            repo_root=fixture.repo_root,
+            receipt_path=fixture.receipts["floor"],
+            environ=fixture.environments["floor"],
+        )
+    resolver.assert_called_once_with(root=fixture.repo_root)
+
+
+def test_floor_admission_rejects_disk_bytes_different_from_index_record(tmp_path=None):
+    from orchestrator.campaign import certified_writer_admission as admission
+    from orchestrator.campaign import s8b_floor_campaign as floor_campaign
+
+    root = Path(tmp_path) if tmp_path is not None else Path(
+        _tmpdir("izanagi_floor_index_bytes_mismatch_")
+    )
+    fixture = build_admission_fixture(root)
+    original_resolver = floor_campaign.resolve_current_floor_protocol
+
+    def resolve_then_replace(*, root):
+        record = original_resolver(root=root)
+        (root / record.path).write_bytes(record.raw_bytes + b"\n")
+        return record
+
+    with unittest_mock.patch.object(
+            admission.s8b_floor_campaign, "resolve_current_floor_protocol",
+            side_effect=resolve_then_replace,
+    ), unittest_mock.patch.object(
+            admission.site_policy, "current_site",
+            return_value=site_policy.PEGASUS_COMPUTE,
+    ), unittest_mock.patch.object(
+            admission.env_attestation, "load_verified_calibration",
+            return_value=object(),
+    ):
+        try:
+            admission.admit(
+                "floor",
+                repo_root=fixture.repo_root,
+                receipt_path=fixture.receipts["floor"],
+                environ=fixture.environments["floor"],
+            )
+        except admission.AdmissionRejected as exc:
+            assert str(exc) == "floor protocol bytes differ from indexed authority"
+        else:
+            raise AssertionError("indexed SHA と異なる disk bytes を受理した")
+
+
 def test_certified_writer_environment_accepts_recorded_pegasus_identity():
     from orchestrator.campaign import certified_writer_admission as admission
 

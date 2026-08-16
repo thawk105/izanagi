@@ -217,7 +217,9 @@ def _load_current_activation_state(
     return env_contract_activation.load_activation_state(
         directory,
         registered_contracts=env_contract._REGISTERED_CONTRACT_CATALOG,
-        is_valid_registered_successor=env_contract._is_valid_activation_successor,
+        is_valid_registered_successor=(
+            env_contract._is_valid_activation_successor_with_artifact
+        ),
         expected_head_serial=env_contract._ACTIVATION_HEAD_SERIAL,
         expected_head_state_sha256=env_contract._ACTIVATION_HEAD_STATE_SHA256,
     )
@@ -304,7 +306,9 @@ def verify_recorded_activation_tuple(
         recorded = env_contract_activation.validate_activation_records(
             records[:authority.activation_serial],
             registered_contracts=env_contract._REGISTERED_CONTRACT_CATALOG,
-            is_valid_registered_successor=env_contract._is_valid_activation_successor,
+            is_valid_registered_successor=(
+                env_contract._is_valid_activation_successor_with_artifact
+            ),
             expected_head_serial=authority.activation_serial,
             expected_head_state_sha256=authority.activation_state_sha256,
         )
