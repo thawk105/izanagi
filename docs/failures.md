@@ -8825,6 +8825,7 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: `orchestrator/campaign/campaign_lock.py` の `CONTRACT_LOADER_RELATIVE_PATHS` に
   載っている path を編集する wave では、焦点走の赤を実装へ帰属する前に
   統合 commit 後の再走で切り分ける。
+- **supersede: 2026-08-17** — enforcement source closure は D473 で exact 14 path になった。「12 path」は「14 path」と読み替える。加えて本 wave の実測で偽赤の範囲が確定した — 閉包 member を編集した状態でも、`_REPO_ROOT` を一時 repo へ差し替える node (T671 / artifact admission の E1 / S6 / S8a) は偽赤にならず、統合 commit 前に赤くなったのは実 checkout の live closure を capture する `orchestrator/tests/test_layer3_report.py::test_accepted_report_requires_e1_and_records_epoch` の 1 件だけだった (commit 後の同範囲再走は 465 passed / 0 failed)。偽赤候補を「閉包 member を触る wave の広い consumer 群」と見積もるのは過大で、判定手順は既載どおり赤の理由行に `contract-loader-drift` があるかで行う。
 
 ### F358. byte 束縛されたソースへの変異は、意味に無関係な共通核で全変異が KILLED に見える [テスト代表性]
 
@@ -8915,6 +8916,7 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   **予算キャッシュの無いファイル組み合わせで走らせる**回避で進めた
   (キャッシュは `/run/user/<uid>/izanagi-admission/peak-tests-partial-<key>.peak`)。
 - 再発検知: `rc=16` の走行で報告された「算出予算」が `% 4096 != 0` であること。
+- **supersede: 2026-08-17** — 原因は特定され修正が land した。予算は `ceil(peak * 5/4)` で、`memory.current` ピークが page 倍数 `k*4096` なら予算は `k*5120` となり `k % 4 != 0` のとき page 整列しない。`rc=16` はピーク台帳を更新しないため、当該 target 集合は**恒久的に**走らなくなる (「確率的」ではない)。恒久対応は D472。
 
 ### F363. `Path.glob()` が列挙拒否を空集合へ変え、走査型の防壁を恒真化する [恒真ゲート]
 
@@ -9036,3 +9038,59 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: 実 producer 出力を consumer 述語へ通す実測を、出力形を変える wave の完了条件に置く。
   本件は `output/insights/2026-08-17_t1116-nonattrib-checker/probe2-receipt.json` を
   消費側述語へかけて REJECT を得ることで検出した。
+
+### F367. 変異対象が test runner 自身だと local 変異走行が自分を壊して停止する [計測汚染] [手順漏れ]
+
+- 事象: `tools/run_tests.py` の cgroup 検査へ変異を注入する matrix を
+  `--runner-mode local` で走らせたところ、`M6` (page size を引く `os.sysconf` の key 誤記) で
+  harness が `rc=16 だが canonical stdout から failed node を確実に抽出できないため停止` を出して中止した。
+  テストは 1 件も走っていない。先行する 5 変異は、その target 集合の予算がたまたま page 整列
+  (既定 4 GiB か下限 clamp) だったために通っていただけである。
+- 根本原因: local 経路では runner 自身が変異後の `tools/run_tests.py` である。
+  変異が runner の bounded local 受入判定を壊すと、runner はテストを走らせる前に
+  `dispatcher infrastructure failure` へ倒れる。変異の効果が「テストの赤」ではなく
+  「runner の自壊」として現れるため、kill を数えられない。
+- 恒久対応: `docs/dev-wave/mutation.md` `DW-M07` の既存規律
+  (本走は `--runner-mode dispatch` を既定とし runner argv へ `--force-dispatch` を入れる) に従う。
+  `--force-dispatch` は bounded local 経路自体を迂回するので、runner は変異の影響を受けない。
+  同節が local を避ける理由として挙げていた「同一 target set の 2 巡目以降で予算 attest が落ちる」は
+  D472 で解消されるため、**恒久的な理由である runner の自壊へ書き換えた**。
+  本 wave は probe を local で組んだ手順違反で 9 走ぶんを失い、dispatch へ組み直して 8/8 KILLED を得た。
+- 再発検知: 変異対象 file が runner の実行経路 (`tools/run_tests.py`、`orchestrator/campaign/login_headroom.py`、
+  `tools/pegasus/` 配下) に含まれるなら local を選ばない。`PARSE_ERROR` かつ
+  `rc=16` の組は「テストが落ちた」ではなく「runner が走らなかった」と読む。
+
+### F368. page size を parametrize しても cap の選び方で検出力が消える [恒真ゲート] [テスト代表性]
+
+- 事象: page 丸めを検査する新規テストが `cap = 3 * P + 17` を使っていた。`P = 65536` のとき
+  `cap = 196625` で、正しい切り捨て値 `196608` は **4096 での切り捨て値とも一致する**。
+  そのため「`os.sysconf` の戻り値を無視して 4096 を固定で使う」誤実装が
+  page-4k / page-64k の両 node を通過してしまう。境界 cap (`1`, `P`, `P+1`) でも同様に一致する。
+- 根本原因: page size を parametrize したこと自体で区別できると考え、
+  **cap の剰余が 2 つの page size で異なる**ことを確かめていなかった。
+  剰余 17 は 4096 でも 65536 でも同じ位置に落ちる。
+- 恒久対応: detector を `cap = 3 * P + P // 4 + 17` に変えた。`P = 65536` では
+  64 KiB 切り捨てが `196608`、4 KiB 切り捨てが `212992` となり必ず食い違う。
+  変異 `M7-run-tests-hardcode-4096` を matrix へ登録し、
+  **page-64k 側の 10 node だけを落とす**ことを実測で固定した。
+- 再発検知: page size や単位を parametrize するテストでは、
+  「別の候補値で計算しても同じ期待値になる cap」を選んでいないかを、
+  対応する固定値変異 1 件で必ず裏取りする。
+
+### F369. 判定器を `-m` で走らせると全条件が同じ理由へ潰れ、その出力を brief の一次資料にした [計測汚染]
+
+- 事象: 段 8c 事前登録の段 1 brief が、不変条件として「C01〜C12 は `evaluator-exception`」と
+  書いた。実際の vector は条件ごとに 4 種の理由コードへ分かれており、`evaluator-exception` は
+  1 件も出ていない。誤りは段 3 の敵対相談が指摘し、親が独立に再現して機序まで特定した。
+- 根本原因: `python3 -m orchestrator.campaign.s8c_preregistration check` は判定器 module を
+  `__main__` としても読み込む。評価器は `from . import s8c_preregistration as core` で
+  別の module object を掴むため、返る `core.PredicateResult` が `__main__` 側の
+  `PredicateResult` と `isinstance` で一致しない。`_normalize_predicate_results` が
+  `predicate-result-type` を上げ、`_default_registry_results` の包括 except が全 12 条件を
+  `evaluator-exception` へ倒す。CLI は正常に走って rc も返すため、壊れていることが出力から
+  見えない。安全側 (未発効) には倒れるが、規律 3 が要求する構造化した不充足理由が失われる。
+- 恒久対応: memory `judge-diagnostics-via-library-not-cli` — 判定器の診断 vector は
+  CLI ではなく library 経路 (`activation_report_at`) で取る。CLI 側の欠陥そのものは
+  [T-1288] で直す。
+- 再発検知: 同一値が全要素へ並ぶ診断出力は、別経路で 1 度裏を取るまで一次資料にしない。
+  本件では library 経路が 4 種の理由へ分かれることで即座に判別できた。
