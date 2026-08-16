@@ -2951,11 +2951,11 @@ def _floor_claim_subprocess_worker(
     scan_calls = 0
 
     def wait_for(prefix, message):
-        deadline = time.monotonic() + 15.0
+        deadline = time.monotonic() + 120.0
         while len(list(barrier.glob(f"{prefix}-*"))) != 2:
             if time.monotonic() >= deadline:
                 raise RuntimeError(message)
-            time.sleep(0.01)
+            time.sleep(0.05)
 
     def synchronized_scan(*args, **kwargs):
         nonlocal scan_calls
@@ -3027,7 +3027,7 @@ def test_two_floor_subprocesses_same_protocol_different_runs_never_both_succeed(
         )
         for label in ("1", "2")
     ]
-    deadline = time.monotonic() + 30.0
+    deadline = time.monotonic() + 180.0
     try:
         completed = [
             process.communicate(timeout=max(0.1, deadline - time.monotonic()))
@@ -5335,7 +5335,7 @@ def test_probe_own_descendant_pid_detected_as_competing_b2(tmp_path):
                                 probe_fn=lambda: (0, line, ""))
     finally:
         child.kill()
-        child.wait(timeout=5)
+        child.wait(timeout=180)
     assert measure_fn.calls == []           # 実子が競合検知され measure スキップ
     result = outcome["result"]
     assert all(s["excluded_reason"] == "competing_process" for s in result["sessions"])

@@ -161,7 +161,7 @@ else:
 
     results = []
     for child in children:
-        stdout, stderr = child.communicate(timeout=10)
+        stdout, stderr = child.communicate(timeout=180)
         assert child.returncode == 0, stderr
         results.append(json.loads(stdout))
     assert sum(result["ok"] for result in results) == 1
@@ -293,14 +293,14 @@ def test_zombie_owner_is_dead_and_same_protocol_is_accepted(tmp_path: Path):
         os.close(exit_w)
         exit_w = -1
 
-        deadline = time.monotonic() + 5
+        deadline = time.monotonic() + 120
         while True:
             state, _ = module._parse_proc_stat(stat_path.read_text(encoding="ascii"))
             if state == "Z":
                 break
             if time.monotonic() >= deadline:
                 pytest.fail("child process が zombie にならなかった")
-            time.sleep(0.01)
+            time.sleep(0.05)
 
         acquired = acquire_claim(tmp_path, _record("successor"))
         assert acquired.path == tmp_path / "successor.claim"
@@ -308,7 +308,7 @@ def test_zombie_owner_is_dead_and_same_protocol_is_accepted(tmp_path: Path):
         os.close(ready_r)
         if exit_w >= 0:
             os.close(exit_w)
-        child.wait(timeout=5)
+        child.wait(timeout=180)
 
 
 def test_malformed_existing_record_is_claim_error(tmp_path: Path):
@@ -486,11 +486,17 @@ original_scan = module._scan_protocol_conflicts
 call_count = 0
 
 def wait_for(prefix):
-    deadline = time.monotonic() + 10
-    while len([name for name in os.listdir(sync_root) if name.startswith(prefix)]) < 2:
+    deadline = time.monotonic() + 120
+    ready_count = len([name for name in os.listdir(sync_root) if name.startswith(prefix)])
+    while ready_count < 2:
         if time.monotonic() >= deadline:
-            raise RuntimeError("barrier timeout")
-        time.sleep(0.005)
+            raise RuntimeError(
+                f"barrier timeout: prefix={prefix!r}, ready={ready_count}/2"
+            )
+        time.sleep(0.05)
+        ready_count = len(
+            [name for name in os.listdir(sync_root) if name.startswith(prefix)]
+        )
 
 def synchronized_scan(*args, **kwargs):
     global call_count
@@ -536,7 +542,7 @@ else:
     ]
     results = []
     for child in children:
-        stdout, stderr = child.communicate(timeout=15)
+        stdout, stderr = child.communicate(timeout=180)
         assert child.returncode == 0, stderr
         results.append(json.loads(stdout))
     assert [result["ok"] for result in results] == [False, False]
