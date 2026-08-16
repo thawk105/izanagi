@@ -1,0 +1,175 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 60.0,
+  "timeout_seconds": 5400.0,
+  "hang_timeout_seconds": 900.0,
+  "mutations": [
+    {
+      "id": "M01",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/codex_reasoning_ab.py",
+          "old": "def _rollout_matches_session(path: Path, target_session_id: str) -> bool:\n    owns_target = False\n    first_owns_target = False\n    declares_target = False\n    saw_determinable = False\n    for row in _session_meta_rows(path):\n        if row.get(\"type\") != \"session_meta\":\n            continue\n        payload = row.get(\"payload\")\n        if not isinstance(payload, dict):\n            continue\n\n        if \"id\" not in payload:\n            own_candidate = payload.get(\"session_id\")\n        else:\n            own_candidate = payload.get(\"id\")\n        own_session_id = (\n            own_candidate\n            if isinstance(own_candidate, str) and own_candidate\n            else None\n        )\n        if own_session_id is None:\n            continue\n\n        if own_session_id == target_session_id:\n            owns_target = True\n            if not saw_determinable:\n                first_owns_target = True\n        saw_determinable = True\n        if (\n            own_session_id != target_session_id\n            and payload.get(\"session_id\") == target_session_id\n        ):\n            declares_target = True\n\n    return owns_target and (first_owns_target or not declares_target)\n",
+          "new": "def _rollout_matches_session(path: Path, target_session_id: str) -> bool:\n    for row in _session_meta_rows(path):\n        if row.get(\"type\") != \"session_meta\":\n            continue\n        payload = row.get(\"payload\")\n        if not isinstance(payload, dict):\n            continue\n        if (\n            payload.get(\"id\") == target_session_id\n            or payload.get(\"session_id\") == target_session_id\n        ):\n            return True\n    return False\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_codex_reasoning_ab.py::test_find_rollout_session_meta_encoding_and_payload_identity_semantics",
+        "orchestrator/tests/test_codex_reasoning_ab.py::test_find_rollout_disambiguates_parent_from_child_root_reference",
+        "orchestrator/tests/test_codex_reasoning_ab.py::test_find_rollout_disambiguates_fork_with_copied_parent_meta",
+        "orchestrator/tests/test_codex_reasoning_ab.py::test_find_rollout_non_string_id_does_not_fall_back_to_root_session[null]",
+        "orchestrator/tests/test_codex_reasoning_ab.py::test_find_rollout_non_string_id_does_not_fall_back_to_root_session[zero]",
+        "orchestrator/tests/test_codex_reasoning_ab.py::test_find_rollout_non_string_id_does_not_fall_back_to_root_session[false]",
+        "orchestrator/tests/test_codex_reasoning_ab.py::test_find_rollout_non_string_id_does_not_fall_back_to_root_session[empty-string]",
+        "orchestrator/tests/test_codex_reasoning_ab.py::test_find_rollout_non_dict_leader_uses_first_determinable_identity[type-a]",
+        "orchestrator/tests/test_codex_reasoning_ab.py::test_find_rollout_non_dict_leader_uses_first_determinable_identity[type-b]",
+        "orchestrator/tests/test_codex_reasoning_ab.py::test_find_rollout_late_descendant_declaration_vetoes_parent_identity",
+        "orchestrator/tests/test_codex_reasoning_ab.py::test_find_rollout_ineligible_pin_uses_identity_predicate_on_full_scan[type-a]",
+        "orchestrator/tests/test_codex_reasoning_ab.py::test_find_rollout_ineligible_pin_uses_identity_predicate_on_full_scan[type-b]",
+        "orchestrator/tests/test_codex_reasoning_ab.py::test_find_rollout_pinned_rejects_child_candidate_before_full_scan[type-a]",
+        "orchestrator/tests/test_codex_reasoning_ab.py::test_find_rollout_pinned_rejects_child_candidate_before_full_scan[type-b]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M02",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/codex_reasoning_ab.py",
+          "old": "    return owns_target and (first_owns_target or not declares_target)",
+          "new": "    return owns_target"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_codex_reasoning_ab.py::test_find_rollout_disambiguates_fork_with_copied_parent_meta",
+        "orchestrator/tests/test_codex_reasoning_ab.py::test_find_rollout_late_descendant_declaration_vetoes_parent_identity",
+        "orchestrator/tests/test_codex_reasoning_ab.py::test_find_rollout_ineligible_pin_uses_identity_predicate_on_full_scan[type-b]",
+        "orchestrator/tests/test_codex_reasoning_ab.py::test_find_rollout_pinned_rejects_child_candidate_before_full_scan[type-b]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M03",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/codex_reasoning_ab.py",
+          "old": "        if own_session_id == target_session_id:\n            owns_target = True\n            if not saw_determinable:\n                first_owns_target = True\n",
+          "new": "        if own_session_id == target_session_id:\n            owns_target = True\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_codex_reasoning_ab.py::test_find_rollout_fork_with_parent_meta_first_remains_ambiguous",
+        "orchestrator/tests/test_codex_reasoning_ab.py::test_find_rollout_appended_child_reference_does_not_promote_duplicate",
+        "orchestrator/tests/test_codex_reasoning_ab.py::test_find_rollout_undetermined_identity_does_not_promote_duplicate",
+        "orchestrator/tests/test_codex_reasoning_ab.py::test_find_rollout_empty_payload_leader_does_not_promote_duplicate",
+        "orchestrator/tests/test_codex_reasoning_ab.py::test_find_rollout_non_string_session_id_leader_does_not_promote_duplicate",
+        "orchestrator/tests/test_codex_reasoning_ab.py::test_find_rollout_non_dict_leader_uses_first_determinable_identity[type-a]",
+        "orchestrator/tests/test_codex_reasoning_ab.py::test_find_rollout_non_dict_leader_uses_first_determinable_identity[type-b]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M04",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/codex_reasoning_ab.py",
+          "old": "        if own_session_id == target_session_id:\n            owns_target = True\n            if not saw_determinable:\n                first_owns_target = True\n",
+          "new": "        if own_session_id == target_session_id:\n            return True\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_codex_reasoning_ab.py::test_find_rollout_disambiguates_fork_with_copied_parent_meta",
+        "orchestrator/tests/test_codex_reasoning_ab.py::test_find_rollout_late_descendant_declaration_vetoes_parent_identity",
+        "orchestrator/tests/test_codex_reasoning_ab.py::test_find_rollout_ineligible_pin_uses_identity_predicate_on_full_scan[type-b]",
+        "orchestrator/tests/test_codex_reasoning_ab.py::test_find_rollout_pinned_rejects_child_candidate_before_full_scan[type-b]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M05",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/codex_reasoning_ab.py",
+          "old": "        if \"id\" not in payload:\n            own_candidate = payload.get(\"session_id\")\n        else:\n            own_candidate = payload.get(\"id\")\n        own_session_id = (\n            own_candidate\n            if isinstance(own_candidate, str) and own_candidate\n            else None\n        )\n        if own_session_id is None:\n            continue\n",
+          "new": "        payload_id = payload.get(\"id\")\n        own_session_id = (\n            payload_id\n            if isinstance(payload_id, str) and payload_id\n            else payload.get(\"session_id\")\n        )\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_codex_reasoning_ab.py::test_find_rollout_non_string_id_does_not_fall_back_to_root_session[null]",
+        "orchestrator/tests/test_codex_reasoning_ab.py::test_find_rollout_non_string_id_does_not_fall_back_to_root_session[zero]",
+        "orchestrator/tests/test_codex_reasoning_ab.py::test_find_rollout_non_string_id_does_not_fall_back_to_root_session[false]",
+        "orchestrator/tests/test_codex_reasoning_ab.py::test_find_rollout_non_string_id_does_not_fall_back_to_root_session[empty-string]",
+        "orchestrator/tests/test_codex_reasoning_ab.py::test_find_rollout_undetermined_identity_does_not_promote_duplicate"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M06",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/codex_reasoning_ab.py",
+          "old": "        if \"id\" not in payload:\n            own_candidate = payload.get(\"session_id\")\n        else:\n            own_candidate = payload.get(\"id\")\n        own_session_id = (\n            own_candidate\n            if isinstance(own_candidate, str) and own_candidate\n            else None\n        )\n        if own_session_id is None:\n            continue\n",
+          "new": "        own_candidate = payload.get(\"id\")\n        own_session_id = (\n            own_candidate\n            if isinstance(own_candidate, str) and own_candidate\n            else None\n        )\n        if own_session_id is None:\n            continue\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_codex_reasoning_ab.py::test_find_rollout_session_meta_encoding_and_payload_identity_semantics"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M07",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/codex_reasoning_ab.py",
+          "old": "    if len(matches) != 1:",
+          "new": "    if len(matches) < 1:"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_codex_reasoning_ab.py::test_find_rollout_preserves_zero_and_duplicate_failure",
+        "orchestrator/tests/test_codex_reasoning_ab.py::test_find_rollout_true_duplicate_parent_identity_remains_rejected",
+        "orchestrator/tests/test_codex_reasoning_ab.py::test_find_rollout_fork_with_parent_meta_first_remains_ambiguous",
+        "orchestrator/tests/test_codex_reasoning_ab.py::test_find_rollout_appended_child_reference_does_not_promote_duplicate",
+        "orchestrator/tests/test_codex_reasoning_ab.py::test_find_rollout_undetermined_identity_does_not_promote_duplicate",
+        "orchestrator/tests/test_codex_reasoning_ab.py::test_find_rollout_empty_payload_leader_does_not_promote_duplicate",
+        "orchestrator/tests/test_codex_reasoning_ab.py::test_find_rollout_non_string_session_id_leader_does_not_promote_duplicate",
+        "orchestrator/tests/test_codex_reasoning_ab.py::test_find_rollout_pinned_sha_mismatch_falls_back_to_duplicate_rejection"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M08",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "tools/codex_reasoning_ab.py",
+          "old": "    return owns_target and (first_owns_target or not declares_target)",
+          "new": "    return False"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_codex_reasoning_ab.py::test_find_rollout_session_meta_encoding_and_payload_identity_semantics",
+        "orchestrator/tests/test_codex_reasoning_ab.py::test_find_rollout_disambiguates_parent_from_child_root_reference",
+        "orchestrator/tests/test_codex_reasoning_ab.py::test_find_rollout_disambiguates_fork_with_copied_parent_meta",
+        "orchestrator/tests/test_codex_reasoning_ab.py::test_find_rollout_checks_later_session_meta_in_same_file"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}

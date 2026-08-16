@@ -1,0 +1,41 @@
+{
+ "started_jst": "2026-08-16T09:43:39",
+ "sessions_root": "/home/SFC/tanab/.codex/sessions",
+ "module_source": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t936-rollout-identity/tools/codex_reasoning_ab.py",
+ "module_sha256": "3c9e3f70d17c83ad6bc48d656ec9b7ebac994e1a0286e51c9b5a024e62c2a8a5",
+ "file_count": 3646,
+ "symlink_count": 0,
+ "symlinks": [],
+ "duplicate_inode_groups": 0,
+ "duplicate_inodes": {},
+ "corpus_digest_path_size_sha256": "3b288a7311661be79e59ed04b959de50742532ba69acd791448c60526608cff1",
+ "scan_error_count": 0,
+ "scan_errors": [],
+ "unreadable_file_count": 0,
+ "read_error_count": 0,
+ "read_errors": [],
+ "distinct_ids": 3646,
+ "files_with_multiple_meta_rows": 4,
+ "files_with_zero_meta_rows": 0,
+ "scan_seconds": 5.6,
+ "resolution_histogram": {
+  "1": 3646
+ },
+ "ids_not_unique": {},
+ "match_error_count": 0,
+ "match_errors": [],
+ "prune_validation_sample_size": 10,
+ "prune_validation_disagreements": [],
+ "pinned_label_resolution": {
+  "POS": "/home/SFC/tanab/.codex/sessions/2026/07/29/rollout-2026-07-29T15-49-14-019faca2-6e1f-7601-bfc7-be27edcfb4ba.jsonl",
+  "NEG": "/home/SFC/tanab/.codex/sessions/2026/07/29/rollout-2026-07-29T16-19-59-019facbe-9584-7642-aa30-37f1c77e6c5f.jsonl",
+  "fix2": "/home/SFC/tanab/.codex/sessions/2026/07/29/rollout-2026-07-29T16-06-46-019facb2-7ddb-7102-814d-eeddcb1102ed.jsonl",
+  "author": "/home/SFC/tanab/.codex/sessions/2026/07/29/rollout-2026-07-29T14-49-01-019fac6b-4f74-7a03-aa4d-8a9de22b352c.jsonl",
+  "fix1": "/home/SFC/tanab/.codex/sessions/2026/07/29/rollout-2026-07-29T15-30-47-019fac91-8cde-7f73-bce1-77a9d63b4269.jsonl"
+ },
+ "t936_target_ids": {
+  "019f690c-1682-7dd2-9cc5-a708cf68d46e": "/home/SFC/tanab/.codex/sessions/2026/07/16/rollout-2026-07-16T12-50-27-019f690c-1682-7dd2-9cc5-a708cf68d46e.jsonl",
+  "019fd52d-fdac-7b73-9d3d-4aac9948ee55": "/home/SFC/tanab/.codex/sessions/2026/08/06/rollout-2026-08-06T12-46-28-019fd52d-fdac-7b73-9d3d-4aac9948ee55.jsonl"
+ },
+ "elapsed_seconds": 5.8
+}

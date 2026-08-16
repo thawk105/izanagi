@@ -1,0 +1,151 @@
+{
+ "started_jst": "2026-08-16T10:13:36",
+ "sessions_root": "/home/SFC/tanab/.codex/sessions",
+ "module_source": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t936-rollout-identity/tools/codex_reasoning_ab.py",
+ "module_sha256": "a44e91dadcbcf5f3989a9e97e37560afd84786180c380df375ec44a470310b09",
+ "infeasibility_note": "全 id への _find_rollout 直接呼出しは O(id x file) の file I/O で 単走 225 秒 x 3,646 id = 約 9.5 日となり実行不能。差分駆動 + 無作為抽出で代替する。",
+ "file_count": 3649,
+ "sha_scan_seconds": 9.3,
+ "raw_meta_candidate_lines": 4741,
+ "raw_open_failure_count": 0,
+ "raw_open_failures": [],
+ "raw_parse_failure_count": 0,
+ "raw_parse_failures": [],
+ "distinct_ids": 3649,
+ "new_resolution_histogram": {
+  "1": 3649
+ },
+ "old_resolution_histogram": {
+  "1": 3647,
+  "2": 1,
+  "4": 1
+ },
+ "ids_where_old_and_new_differ_count": 2,
+ "ids_where_old_and_new_differ": {
+  "019f690c-1682-7dd2-9cc5-a708cf68d46e": {
+   "old": [
+    "/home/SFC/tanab/.codex/sessions/2026/07/16/rollout-2026-07-16T12-50-27-019f690c-1682-7dd2-9cc5-a708cf68d46e.jsonl",
+    "/home/SFC/tanab/.codex/sessions/2026/07/16/rollout-2026-07-16T12-57-49-019f6912-d2d9-7422-94e3-cee5a9970367.jsonl"
+   ],
+   "new": [
+    "/home/SFC/tanab/.codex/sessions/2026/07/16/rollout-2026-07-16T12-50-27-019f690c-1682-7dd2-9cc5-a708cf68d46e.jsonl"
+   ]
+  },
+  "019fd52d-fdac-7b73-9d3d-4aac9948ee55": {
+   "old": [
+    "/home/SFC/tanab/.codex/sessions/2026/08/06/rollout-2026-08-06T12-46-28-019fd52d-fdac-7b73-9d3d-4aac9948ee55.jsonl",
+    "/home/SFC/tanab/.codex/sessions/2026/08/06/rollout-2026-08-06T12-50-56-019fd532-1498-79c3-9c7b-c8cc746f1698.jsonl",
+    "/home/SFC/tanab/.codex/sessions/2026/08/06/rollout-2026-08-06T12-58-45-019fd539-3b98-7811-bb5f-a49c14065e59.jsonl",
+    "/home/SFC/tanab/.codex/sessions/2026/08/06/rollout-2026-08-06T12-58-52-019fd539-5777-7f51-91d6-0256f365fe13.jsonl"
+   ],
+   "new": [
+    "/home/SFC/tanab/.codex/sessions/2026/08/06/rollout-2026-08-06T12-46-28-019fd52d-fdac-7b73-9d3d-4aac9948ee55.jsonl"
+   ]
+  }
+ },
+ "new_ids_not_unique": {},
+ "ids_where_old_unique_and_new_path_differs": {},
+ "direct_find_rollout_targets": 7,
+ "direct_find_rollout": {
+  "019f690c-1682-7dd2-9cc5-a708cf68d46e": "/home/SFC/tanab/.codex/sessions/2026/07/16/rollout-2026-07-16T12-50-27-019f690c-1682-7dd2-9cc5-a708cf68d46e.jsonl",
+  "019fac6b-4f74-7a03-aa4d-8a9de22b352c": "/home/SFC/tanab/.codex/sessions/2026/07/29/rollout-2026-07-29T14-49-01-019fac6b-4f74-7a03-aa4d-8a9de22b352c.jsonl",
+  "019fac91-8cde-7f73-bce1-77a9d63b4269": "/home/SFC/tanab/.codex/sessions/2026/07/29/rollout-2026-07-29T15-30-47-019fac91-8cde-7f73-bce1-77a9d63b4269.jsonl",
+  "019faca2-6e1f-7601-bfc7-be27edcfb4ba": "/home/SFC/tanab/.codex/sessions/2026/07/29/rollout-2026-07-29T15-49-14-019faca2-6e1f-7601-bfc7-be27edcfb4ba.jsonl",
+  "019facb2-7ddb-7102-814d-eeddcb1102ed": "/home/SFC/tanab/.codex/sessions/2026/07/29/rollout-2026-07-29T16-06-46-019facb2-7ddb-7102-814d-eeddcb1102ed.jsonl",
+  "019facbe-9584-7642-aa30-37f1c77e6c5f": "/home/SFC/tanab/.codex/sessions/2026/07/29/rollout-2026-07-29T16-19-59-019facbe-9584-7642-aa30-37f1c77e6c5f.jsonl",
+  "019fd52d-fdac-7b73-9d3d-4aac9948ee55": "/home/SFC/tanab/.codex/sessions/2026/08/06/rollout-2026-08-06T12-46-28-019fd52d-fdac-7b73-9d3d-4aac9948ee55.jsonl"
+ },
+ "pinned_label_resolution": {
+  "POS": "/home/SFC/tanab/.codex/sessions/2026/07/29/rollout-2026-07-29T15-49-14-019faca2-6e1f-7601-bfc7-be27edcfb4ba.jsonl",
+  "NEG": "/home/SFC/tanab/.codex/sessions/2026/07/29/rollout-2026-07-29T16-19-59-019facbe-9584-7642-aa30-37f1c77e6c5f.jsonl",
+  "fix2": "/home/SFC/tanab/.codex/sessions/2026/07/29/rollout-2026-07-29T16-06-46-019facb2-7ddb-7102-814d-eeddcb1102ed.jsonl",
+  "author": "/home/SFC/tanab/.codex/sessions/2026/07/29/rollout-2026-07-29T14-49-01-019fac6b-4f74-7a03-aa4d-8a9de22b352c.jsonl",
+  "fix1": "/home/SFC/tanab/.codex/sessions/2026/07/29/rollout-2026-07-29T15-30-47-019fac91-8cde-7f73-bce1-77a9d63b4269.jsonl"
+ },
+ "prune_validation_sample_size": 30,
+ "prune_validation_disagreements": [],
+ "fork_file_count": 4,
+ "fork_files": [
+  {
+   "file": "rollout-2026-07-16T12-57-49-019f6912-d2d9-7422-94e3-cee5a9970367.jsonl",
+   "meta_row_count": 1,
+   "own_row_first": true,
+   "entries": [
+    {
+     "row_index": 0,
+     "id": "019f6912-d2d9-7422-94e3-cee5a9970367",
+     "session_id": "019f690c-1682-7dd2-9cc5-a708cf68d46e",
+     "originator": "codex_vscode",
+     "cli_version": "0.144.2",
+     "parent_thread_id": "019f690c-1682-7dd2-9cc5-a708cf68d46e",
+     "forked_from_id": null,
+     "depth": null
+    }
+   ]
+  },
+  {
+   "file": "rollout-2026-08-06T12-50-56-019fd532-1498-79c3-9c7b-c8cc746f1698.jsonl",
+   "meta_row_count": 2,
+   "own_row_first": true,
+   "entries": [
+    {
+     "row_index": 0,
+     "id": "019fd532-1498-79c3-9c7b-c8cc746f1698",
+     "session_id": "019fd52d-fdac-7b73-9d3d-4aac9948ee55",
+     "originator": "codex_exec",
+     "cli_version": "0.146.0",
+     "parent_thread_id": "019fd52d-fdac-7b73-9d3d-4aac9948ee55",
+     "forked_from_id": "019fd52d-fdac-7b73-9d3d-4aac9948ee55",
+     "depth": 1
+    }
+   ]
+  },
+  {
+   "file": "rollout-2026-08-06T12-58-45-019fd539-3b98-7811-bb5f-a49c14065e59.jsonl",
+   "meta_row_count": 2,
+   "own_row_first": true,
+   "entries": [
+    {
+     "row_index": 0,
+     "id": "019fd539-3b98-7811-bb5f-a49c14065e59",
+     "session_id": "019fd52d-fdac-7b73-9d3d-4aac9948ee55",
+     "originator": "codex_exec",
+     "cli_version": "0.146.0",
+     "parent_thread_id": "019fd52d-fdac-7b73-9d3d-4aac9948ee55",
+     "forked_from_id": "019fd52d-fdac-7b73-9d3d-4aac9948ee55",
+     "depth": 1
+    }
+   ]
+  },
+  {
+   "file": "rollout-2026-08-06T12-58-52-019fd539-5777-7f51-91d6-0256f365fe13.jsonl",
+   "meta_row_count": 2,
+   "own_row_first": true,
+   "entries": [
+    {
+     "row_index": 0,
+     "id": "019fd539-5777-7f51-91d6-0256f365fe13",
+     "session_id": "019fd52d-fdac-7b73-9d3d-4aac9948ee55",
+     "originator": "codex_exec",
+     "cli_version": "0.146.0",
+     "parent_thread_id": "019fd52d-fdac-7b73-9d3d-4aac9948ee55",
+     "forked_from_id": "019fd52d-fdac-7b73-9d3d-4aac9948ee55",
+     "depth": 1
+    }
+   ]
+  }
+ ],
+ "fork_distinct_parents": [
+  "019f690c-1682-7dd2-9cc5-a708cf68d46e",
+  "019fd52d-fdac-7b73-9d3d-4aac9948ee55"
+ ],
+ "corpus_added_during_run": [
+  "/home/SFC/tanab/.codex/sessions/2026/08/16/rollout-2026-08-16T10-14-46-01a00822-b0fb-7841-87b6-34ca29aec904.jsonl"
+ ],
+ "corpus_removed_during_run": [],
+ "corpus_changed_during_run": [],
+ "corpus_stable_for_measured_set": true,
+ "corpus_content_digest_before": "362f09cb4098c794a3a5b31fc475aff1f5fe5b6358d9ba88fd0efc919622fcf2",
+ "corpus_content_digest_after_measured_set": "362f09cb4098c794a3a5b31fc475aff1f5fe5b6358d9ba88fd0efc919622fcf2",
+ "elapsed_seconds": 216.2
+}
