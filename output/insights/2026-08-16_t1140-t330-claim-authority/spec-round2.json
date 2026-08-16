@@ -1,0 +1,201 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 45.0,
+  "timeout_seconds": 5400.0,
+  "hang_timeout_seconds": 900.0,
+  "mutations": [
+    {
+      "id": "M01",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/campaign_claim.py",
+          "old": "        if existing is None or existing.protocol_digest != protocol_digest:\n            continue",
+          "new": "        if existing is None or existing.protocol_digest == protocol_digest:\n            continue"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_campaign_claim.py::test_different_protocol_claim_being_written_is_retried_and_accepted",
+        "orchestrator/tests/test_campaign_claim.py::test_different_protocol_live_owner_is_accepted",
+        "orchestrator/tests/test_campaign_claim.py::test_forced_postscan_both_reject_then_dead_owners_allow_next_acquire",
+        "orchestrator/tests/test_campaign_claim.py::test_malformed_proc_stat_is_claim_error",
+        "orchestrator/tests/test_campaign_claim.py::test_proc_permission_error_is_claim_error",
+        "orchestrator/tests/test_campaign_claim.py::test_same_protocol_live_owner_with_different_identity_is_rejected",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_required_same_protocol_different_run_is_rejected_without_new_side_effects",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_two_floor_subprocesses_same_protocol_different_runs_never_both_succeed"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M02",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/campaign_claim.py",
+          "old": "    if state == \"Z\":\n        owner_state = _OwnerState.DEAD\n        reason = \"zombie\"\n    elif starttime != record.proc_starttime:",
+          "new": "    if starttime != record.proc_starttime:"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_campaign_claim.py::test_zombie_owner_is_dead_and_same_protocol_is_accepted"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M03",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/campaign_claim.py",
+          "old": "    elif starttime != record.proc_starttime:\n        owner_state = _OwnerState.DEAD\n        reason = \"proc-starttime-mismatch\"",
+          "new": "    elif False:\n        owner_state = _OwnerState.DEAD\n        reason = \"proc-starttime-mismatch\""
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_campaign_claim.py::test_same_protocol_reused_pid_starttime_is_accepted"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M04",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/campaign_claim.py",
+          "old": "def _owner_state(record: ClaimRecord, *, current_boot_id: str) -> _OwnerObservation:\n    if record.boot_id != current_boot_id:",
+          "new": "def _owner_state(record: ClaimRecord, *, current_boot_id: str) -> _OwnerObservation:\n    if False:"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_campaign_claim.py::test_other_boot_same_protocol_is_indeterminate_and_accepted"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M05",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/campaign_claim.py",
+          "old": "        raise ClaimError(\"campaign claim directory の fsync に失敗\", claim_path=path) from exc\n    conflict = _scan_protocol_conflicts(\n        claim_root,\n        excluding_path=path,\n        protocol_digest=record.protocol_digest,\n        current_boot_id=current_boot_id,\n    )\n    if conflict is not None:\n        _raise_protocol_conflict(conflict, path=path)\n    return AcquiredClaim(path=path, record=record)",
+          "new": "        raise ClaimError(\"campaign claim directory の fsync に失敗\", claim_path=path) from exc\n    return AcquiredClaim(path=path, record=record)"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_campaign_claim.py::test_forced_postscan_both_reject_then_dead_owners_allow_next_acquire",
+        "orchestrator/tests/test_campaign_claim.py::test_postscan_chmod_permission_error_is_claim_error_and_keeps_claim",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_two_floor_subprocesses_same_protocol_different_runs_never_both_succeed"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M06",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/campaign_claim.py",
+          "old": "        with os.scandir(claim_root) as entries:\n            paths = [\n                claim_root / entry.name\n                for entry in entries\n                if entry.name.endswith(\".claim\")\n            ]",
+          "new": "        paths = list(claim_root.glob(\"*.claim\"))"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_campaign_claim.py::test_postscan_chmod_permission_error_is_claim_error_and_keeps_claim",
+        "orchestrator/tests/test_campaign_claim.py::test_prescan_permission_error_on_writable_root_is_claim_error"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M07",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/campaign_claim.py",
+          "old": "    if (\n        record.pid != os.getpid()\n        or record.proc_starttime != current_starttime\n        or record.boot_id != current_boot_id\n    ):\n        raise ClaimError(\"claim record の process identity が self の実測値と一致しない\")",
+          "new": "    if False:\n        raise ClaimError(\"claim record の process identity が self の実測値と一致しない\")"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_campaign_claim.py::test_acquire_rejects_record_not_matching_self_measurement[boot_id]",
+        "orchestrator/tests/test_campaign_claim.py::test_acquire_rejects_record_not_matching_self_measurement[pid]",
+        "orchestrator/tests/test_campaign_claim.py::test_acquire_rejects_record_not_matching_self_measurement[proc_starttime]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M08",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/floor_submit_receipt.py",
+          "old": "    if receipt[\"nonce\"] != expected_nonce:\n        raise FloorSubmitReceiptError(\"floor submit receipt nonce mismatch\")",
+          "new": "    if False:\n        raise FloorSubmitReceiptError(\"floor submit receipt nonce mismatch\")"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_floor_submit_receipt.py::test_mut_l9_nonce_mismatch_is_rejected",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_required_nonce_receipt_mismatch_is_zero_side_effect_refusal"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M09",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/floor_submit_receipt.py",
+          "old": "    if receipt[\"job_script_sha256\"] != expected_job_script_sha256:\n        raise FloorSubmitReceiptError(\"floor submit receipt script hash mismatch\")",
+          "new": "    if False:\n        raise FloorSubmitReceiptError(\"floor submit receipt script hash mismatch\")"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_floor_submit_receipt.py::test_mut_l8_script_sha_mismatch_is_rejected",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_required_script_sha_receipt_mismatch_is_zero_side_effect_production_refusal"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M10",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_floor_campaign.py",
+          "old": "            floor_submit_receipt.require_floor_submit_receipt_binding(\n                submit_receipt,\n                expected_job_id=reservation_binding.job_id,\n                expected_job_script_sha256=reservation_binding.script_sha256,\n                expected_nonce=reservation_binding.nonce,\n            )",
+          "new": "            pass"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_required_nonce_receipt_mismatch_is_zero_side_effect_refusal",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_required_script_sha_receipt_mismatch_is_zero_side_effect_production_refusal"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M11",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_floor_campaign.py",
+          "old": "                protocol_digest=protocol_sha256,",
+          "new": "                protocol_digest=_canonical_sha256({\"run\": campaign_run_id}),"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_required_mode_happy_path_pins_journal_claim_and_receipt_shape",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_required_same_protocol_different_run_is_rejected_without_new_side_effects",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_two_floor_subprocesses_same_protocol_different_runs_never_both_succeed"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}

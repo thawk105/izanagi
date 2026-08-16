@@ -1,0 +1,25 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 45.0,
+  "timeout_seconds": 5400.0,
+  "hang_timeout_seconds": 900.0,
+  "mutations": [
+    {
+      "id": "M10",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_floor_campaign.py",
+          "old": "            floor_submit_receipt.require_floor_submit_receipt_binding(\n                submit_receipt,\n                expected_job_id=reservation_binding.job_id,\n                expected_job_script_sha256=reservation_binding.script_sha256,\n                expected_nonce=reservation_binding.nonce,\n            )",
+          "new": "            pass"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_required_nonce_receipt_mismatch_is_zero_side_effect_refusal",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_required_script_sha_receipt_mismatch_is_zero_side_effect_production_refusal"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}
