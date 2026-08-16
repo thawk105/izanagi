@@ -4,7 +4,7 @@ ledger: worklog
 authored: 2026-08-16
 wave: dev-wave-t1175-cell-admission-report
 seq: 1
-title: cell admission が失敗しても診断可能な partial report が残るようにした — 免除の根拠を自己申告から独立再導出へ移した (コード + テスト + docs、branch worktree-dev-wave-t1175-cell-admission-report、変異 matrix = 10/10 KILLED)
+title: cell admission が失敗しても診断可能な partial report が残るようにした — 免除の根拠を自己申告から独立再導出へ移した (コード + テスト + docs、branch worktree-dev-wave-t1175-cell-admission-report、変異 matrix = negative 9/9 KILLED、受入で自分の過剰拒否を 1 件検出して直した)
 ---
 
 ## 本文
@@ -53,13 +53,34 @@ journal の永続化失敗、`KeyError` 等の予期しない例外は**従来�
   disposition の `count in {0, 1}` をそのまま許すのに、producer の fallback は空 cell 起点で
   破棄件数が必ず 0 だった。producer が作れない形が chain 単体の受理集合に入っていた。
   fix 第 3 巡で `count == 0` を明示要求し、拒否ケースを 1 件足した。
-- **変異 matrix は 2 走した。** 走 1 は probe で、baseline PASSED・
-  **SURVIVED 0 / TIMEOUT 0 / PARSE_ERROR 0**、KILLED 5 / MISMATCH 5。
-  MISMATCH はすべて**期待 node 集合の不足**であって検出力の欠如ではない (`DW-M08` の
-  probe + 再登録経路)。走 2 (権威走) は baseline PASSED、**KILLED 10 / MISMATCH 0 /
-  SURVIVED 0 / TIMEOUT 0** で、**10 変異すべてで登録した期待 node が 1 件も欠けずに落ちた**。
-  過剰拒否検出用の正例 P1 (chain の positive 判定に到達不能条件を足す) も KILLED で、
-  **正例に検出力があることを実証した**。
+- **受入全走が本 wave の過剰拒否を 1 件出した。これが最も重要な実測である。**
+  `test_layer3_report.py::test_completeness_rejects_certifying_historical_admission` が
+  `[campaign-chain] cells[0] admission decision is invalid` で落ちた (帰属赤)。
+  本 wave が chain へ追加した positive 述語は `classification == "admitted-new-schema"` を
+  要求するが、これは **cell 単位**の completeness 検査の要求であって chain の受理集合ではない。
+  chain は `verified-post-admission-schema` の admitted も従来受理していた。
+  **焦点範囲 (対象 2 file) では検出できなかった** — 本 wave の正例が
+  `admitted-new-schema` の fixture しか使っていなかったためである。
+  段 6 レビュー B はこの nodeid を回帰リスクとして名指ししており、指摘は正しかった。
+  fix は chain から 4 行を削除して受理集合を wave 前へ戻し、
+  `verified-post-admission-schema` の cell が chain を通る正例を追加した。
+  免除条件・`admitted` 完全一致・cell 単位検査はいずれも不変。
+- **変異 matrix は 3 走した。走 3 が権威走である。**
+  走 1 は probe で baseline PASSED・**SURVIVED 0 / TIMEOUT 0 / PARSE_ERROR 0**、
+  KILLED 5 / MISMATCH 5。MISMATCH はすべて**期待 node 集合の不足**であって
+  検出力の欠如ではない (`DW-M08` の probe + 再登録経路)。
+  走 2 は baseline PASSED、KILLED 10 / MISMATCH 0 / SURVIVED 0 / TIMEOUT 0。
+  その後の受入赤の fix で chain から 4 行を削除したため P1 のアンカーが消え、
+  harness が `anchor count=0` で起動前に停止した (`DW-M07` の fix 後 anchor 再検証が実際に発火した)。
+  走 3 は最終 commit で再登録し、baseline PASSED、
+  **negative 8 + both-layers 1 = 9 件すべて KILLED、SURVIVED 0 / TIMEOUT 0**。
+- **走 3 の正例 P1 は過剰決定だったので単独変異の証拠から外した。**
+  差し替えた P1 (failure 最終配置 gate の発火条件を恒真にする過剰拒否変異) は **106 node** を
+  落とし、暫定登録した期待 node 1 件と一致せず MISMATCH になった。
+  これは検出力不足ではなく `DW-M03` の過剰決定 fixture である。
+  したがって**変異検出力の主張は 9 件 KILLED までとし、10/10 とは名乗らない**。
+  正例自身の検出力は走 1 で別途実証されている
+  (chain の positive 判定へ到達不能条件を足す変異が**正例テストを含む 13 node** を落とした)。
 - **事前登録の変異を段 6 で 2 件是正した。** (i) M4 は共通 gate に遮蔽される等価変異だったので
   M9 (共通 gate 直撃) へ統合した。(ii) M6 (status) は artifact gate に遮蔽されるため
   producer・verifier・artifact gate の**両層 3 箇所同時変異**へ再照準した。
@@ -80,21 +101,23 @@ journal の永続化失敗、`KeyError` 等の予期しない例外は**従来�
 
 ### 工数
 
-codex 子 10 本、合計 5,961 秒 / 448 model call / CLI reported 2,117,323 token
-(receipt.json の実測)。
+codex 子 12 本、合計 7,528 秒 / 505 model call / CLI reported 2,354,268 token
+(receipt.json の実測)。**全 12 本 accepted で、不受理・分類器遮断はゼロ。**
 
 | 段 | 子 | model / effort | wall s | calls | outcome |
 |---|---|---|---|---|---|
-| 2 | plan | gpt-5.6-sol / max | 953.0 | 38 | accepted |
+| 2 | plan | gpt-5.6-sol / max | 953.0 | 38 | accepted (NO-GO 前提の起草) |
 | 3 | consult sol | gpt-5.6-sol / max | 1083.2 | 64 | accepted (NO-GO) |
 | 3 | consult luna | gpt-5.6-luna / max | 982.6 | 44 | accepted (NO-GO) |
 | 5 | author | gpt-5.6-sol / high | 1102.4 | 76 | accepted、pytest 実走 0 |
-| 6 | review A | gpt-5.6-sol | 536.7 | 53 | accepted (NO-GO) |
-| 6 | review B | gpt-5.6-sol | 495.9 | 23 | accepted (NO-GO) |
+| 6 | review A | gpt-5.6-sol / high | 536.7 | 53 | accepted (NO-GO) |
+| 6 | review B | gpt-5.6-sol / high | 495.9 | 23 | accepted (NO-GO) |
 | 6 | fix 1 | gpt-5.6-sol / high | 738.0 | 66 | accepted、pytest 実走 0 |
 | 6 | fix 2 | gpt-5.6-sol / high | 418.9 | 36 | accepted、pytest 実走 0 |
+| 6 | focus | gpt-5.6-sol / high | 502.0 | 34 | accepted (NO-GO → 3 巡目へ) |
 | 6 | fix 3 | gpt-5.6-sol / high | 151.0 | 14 | accepted、pytest 実走 0 |
-| 6 | focus | gpt-5.6-sol | 502.0 | 34 | accepted (NO-GO → 3 巡目へ) |
+| 9 前 | merge 合成監査 | gpt-5.6-sol / high | 291.9 | 35 | accepted (是正不要と判定) |
+| 受入後 | fix 4 | gpt-5.6-sol / high | 272.7 | 22 | accepted、pytest 実走 0 |
 
 ## 次の一手差分
 
@@ -104,7 +127,8 @@ codex 子 10 本、合計 5,961 秒 / 448 model call / CLI reported 2,117,323 to
   免除の根拠を verifier の独立再導出 (persisted layer3 不在かつ独立 admission 失敗) へ移し、
   run-finish への exact projection と report の完全一致照合を足した。
   certifying 経路の `admission_status == "admitted"` 完全一致要求は 1 文字も変えていない。
-  変異 matrix 10/10 KILLED、対象 2 test file で 320 passed。
+  変異 matrix は negative 8 + both-layers 1 の 9 件すべて KILLED (SURVIVED 0 / TIMEOUT 0)。
+  対象 2 test file + `test_layer3_report.py` で 383 passed。
   remaining: none
   base: d585a989b9d96336a3b6d5b204b3b5d4f5e83f81e9947a9820dc30aa30eca54e
 
