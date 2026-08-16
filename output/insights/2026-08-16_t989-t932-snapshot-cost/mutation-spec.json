@@ -1,0 +1,105 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 120,
+  "timeout_seconds": 1800,
+  "hang_timeout_seconds": 2400,
+  "mutations": [
+    {
+      "id": "M1-transfer-back-to-clone",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/codex_reasoning_ab.py",
+          "old": "    _run((\"git\", \"init\", \"--quiet\", os.fspath(base)), cwd=repo)\n",
+          "new": "    _run((\"git\", \"clone\", \"--no-hardlinks\", \"--no-checkout\", os.fspath(repo), os.fspath(base)), cwd=repo)\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_codex_reasoning_ab.py::test_build_snapshot_base_pack_transfers_unreferenced_base_closure_only"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M2-pack-wrong-rev",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/codex_reasoning_ab.py",
+          "old": "        input_bytes=(BASE_COMMIT + \"\\n\").encode(\"ascii\"),\n",
+          "new": "        input_bytes=(INTEGRATED_COMMIT + \"\\n\").encode(\"ascii\"),\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_codex_reasoning_ab.py::test_build_snapshot_base_pack_transfers_unreferenced_base_closure_only"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M3-update-ref-wrong-target",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/codex_reasoning_ab.py",
+          "old": "    _git(base, \"update-ref\", f\"refs/heads/{BRANCH}\", BASE_COMMIT)\n",
+          "new": "    _git(base, \"update-ref\", \"refs/heads/mutant-t989\", BASE_COMMIT)\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_codex_reasoning_ab.py::test_build_snapshot_base_pack_transfers_unreferenced_base_closure_only"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M5-drop-object-info-cleanup",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/codex_reasoning_ab.py",
+          "old": "    _remove_git_object_info_caches(git_dir)\n",
+          "new": "    pass  # mutated: derived cache cleanup removed\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_codex_reasoning_ab.py::test_object_info_derived_caches_are_removed_for_root_and_submodule",
+        "orchestrator/tests/test_codex_reasoning_ab.py::test_build_snapshot_base_pack_transfers_unreferenced_base_closure_only"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M6-drop-seal-call",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/codex_reasoning_ab.py",
+          "old": "        _seal_git_object_closure(base)\n",
+          "new": "        pass  # mutated: seal removed\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_codex_reasoning_ab.py::test_build_snapshot_base_pack_transfers_unreferenced_base_closure_only"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M7-drop-shallow-closure-check",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/codex_reasoning_ab.py",
+          "old": "        \"shallow\": git_dir / \"shallow\",\n",
+          "new": "        \"shallow-disabled\": git_dir / \"shallow-disabled\",\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_codex_reasoning_ab.py::test_git_closure_rejects_shallow_without_overrejecting_clean_snapshot"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}
