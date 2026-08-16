@@ -36,9 +36,9 @@ from orchestrator.tests.growth_test_holds import (
 from tools import run_tests as RT
 
 
-_EXPECTED_HOLD_COUNT = 57
-_EXPECTED_KEY_SHA256 = "e0d35a319d7409310e14d1e471226ce0ebc046d637100825be41c4036f5e4c83"
-_EXPECTED_ROW_CONTRACT_SHA256 = "dd941ebd14d1da2b36ea9faf03649ca2b6f442b69cc88281326e91071281d402"
+_EXPECTED_HOLD_COUNT = 56
+_EXPECTED_KEY_SHA256 = "922510c85e7439818e224d64652b0357b3965bae842c4fe72edda33846ee8408"
+_EXPECTED_ROW_CONTRACT_SHA256 = "cfc9ba15bcbad25e3f9d5fc2031f96b76c96ef7f44b7f4a142df0cad9ecba11c"
 _HELD_SERIAL_NODE = (
     "test_s8b_repo_scan_invariant.py::"
     "test_real_repository_scan_matches_known_hits_and_has_positive_control"
@@ -131,14 +131,6 @@ _EXPECTED_COLLATERAL_NOTES = {
     ),
     "test_s8b_binding_driftguards.py::test_gate_check_broken_binding_manifest_stacks_manifest_verify_refusal": (
         "Holding this node also removes the fixed-size binding-manifest schema refusal aggregation check."
-    ),
-    "test_s8b_floor_campaign.py::test_real_seal_protocol_to_floor_official_core_e2e": (
-        "Holding this node also removes fixed-size sealed protocol, freeze, "
-        "prediction, journal, receipt, schedule, and floor binding checks; real "
-        "Git ancestry and the 14-path seal diff; artifact hashes; producer "
-        "non-invocation; attestation and clean digest; trace=False, 12 builds, "
-        "and 96 measurements; the reservation claim; and source/clone "
-        "immutability."
     ),
     "test_s8b_oracle_driver.py::test_active_resolution_and_manifest_structure_refusals_are_aggregated": (
         "Holding this node also removes the fixed-size independent-refusal aggregation and zero-side-effect checks."
@@ -604,7 +596,6 @@ def test_every_held_module_has_exact_top_level_guard_binding():
         "test_s1_known_axes_freeze.py",
         "test_s1_measurement_freeze.py",
         "test_s8b_binding_driftguards.py",
-        "test_s8b_floor_campaign.py",
         "test_s8b_holdout_freeze.py",
         "test_s8b_oracle_driver.py",
         "test_s8b_protocol_builder.py",

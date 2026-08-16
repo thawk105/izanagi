@@ -405,21 +405,6 @@ _HOLD_ROWS = (
         ),
     ),
     (
-        "test_s8b_floor_campaign.py::test_real_seal_protocol_to_floor_official_core_e2e",
-        _hold(
-            "commits",
-            _REAL_REPO_CLONE_REASON,
-            collateral_note=(
-                "Holding this node also removes fixed-size sealed protocol, freeze, "
-                "prediction, journal, receipt, schedule, and floor binding checks; "
-                "real Git ancestry and the 14-path seal diff; artifact hashes; producer "
-                "non-invocation; attestation and clean digest; trace=False, 12 builds, "
-                "and 96 measurements; the reservation claim; and source/clone "
-                "immutability."
-            ),
-        ),
-    ),
-    (
         "test_s8b_oracle_driver.py::test_active_resolution_and_manifest_structure_refusals_are_aggregated",
         _hold(
             "commits",
