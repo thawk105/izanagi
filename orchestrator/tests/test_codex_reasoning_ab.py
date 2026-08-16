@@ -946,7 +946,20 @@ def test_build_snapshot_base_pack_transfers_unreferenced_base_closure_only(
 
     def recording_run(argv: tuple[str, ...], **kwargs: Any) -> Any:
         calls.append((tuple(argv), kwargs.get("input_bytes")))
-        return delegated_run(argv, **kwargs)
+        completed = delegated_run(argv, **kwargs)
+        if tuple(argv[:2]) == ("git", "index-pack"):
+            transferred_git_dir = Path(kwargs["cwd"]) / ".git"
+            object_info = transferred_git_dir / "objects/info"
+            (object_info / "packs").write_text("P stale.pack\n", encoding="ascii")
+            logs = transferred_git_dir / "logs"
+            logs.mkdir(exist_ok=True)
+            (logs / "seal-sentinel").write_bytes(b"")
+            delegated_run(
+                ("git", "hash-object", "-w", "--stdin"),
+                cwd=kwargs["cwd"],
+                input_bytes=b"unreachable seal sentinel\n",
+            )
+        return completed
 
     monkeypatch.setattr(TOOL, "_run", recording_run)
     snapshot = TOOL._build_snapshot_base(source, tmp_path / "snapshot")
@@ -995,6 +1008,21 @@ def test_build_snapshot_base_pack_transfers_unreferenced_base_closure_only(
         "refs/heads/snapshot-test"
     )
     git_dir = TOOL._git_dir(snapshot)
+    assert not TOOL._path_lexists(git_dir / "logs")
+    object_info = git_dir / "objects/info"
+    assert object_info.is_dir()
+    assert list(object_info.iterdir()) == []
+    fsck = TOOL._run(
+        ("git", "fsck", "--unreachable", "--no-reflogs"),
+        cwd=snapshot,
+    )
+    unreachable_rows = [
+        row
+        for stream in (fsck.stdout, fsck.stderr)
+        for row in stream.splitlines()
+        if row.startswith(b"unreachable ")
+    ]
+    assert unreachable_rows == []
     for relative in ("shallow", "FETCH_HEAD", "packed-refs"):
         assert not TOOL._path_lexists(git_dir / relative)
     assert TOOL._git(snapshot, "remote") == b""

@@ -216,6 +216,10 @@ def _fixture_collateral(detail: str) -> str:
     return f"{_SHARED_FIXTURE_COLLATERAL} {detail}"
 
 
+def _node_collateral(detail: str) -> str:
+    return f"Holding this node removes {detail}."
+
+
 EXPECTED_TEST_COLLATERAL_NOTES = {
     "test_env_attestation.py::test_probe_output_v1_corpus_is_exact_and_replays_all_physical_copies": (
         "Holding this node also removes fixed-size checks for corpus count 48, "
@@ -226,32 +230,32 @@ EXPECTED_TEST_COLLATERAL_NOTES = {
         "package, MAX_CANDIDATES/MAX_QUERY_COUNT/MAX_SIGNAL_TOKENS, independent "
         "inspect/pickaxe evidence, and the 45/60-second preflight boundaries."
     ),
-    "test_s1_known_axes_freeze.py::test_build_document_is_self_consistent_and_detects_tamper": _fixture_collateral(
-        "The node's fixed self-consistency and single-field tamper rejection checks stop too."
+    "test_s1_known_axes_freeze.py::test_build_document_is_self_consistent_and_detects_tamper": _node_collateral(
+        "its fixed self-consistency and single-field tamper rejection checks"
     ),
-    "test_s1_known_axes_freeze.py::test_generate_refuses_existing_freeze": _fixture_collateral(
-        "The node's fixed create-only refusal check stops too."
+    "test_s1_known_axes_freeze.py::test_generate_refuses_existing_freeze": _node_collateral(
+        "its fixed create-only refusal check"
     ),
-    "test_s1_known_axes_freeze.py::test_generate_selects_registered_expected_points": _fixture_collateral(
-        "The node's fixed golden checks for registered P2, backoff, and sort selections stop too."
+    "test_s1_known_axes_freeze.py::test_generate_selects_registered_expected_points": _node_collateral(
+        "its fixed golden checks for registered P2, backoff, and sort selections"
     ),
-    "test_s1_known_axes_freeze.py::test_s1b_pairing_rejects_mismatched_flags": _fixture_collateral(
-        "The node's fixed S-1b mismatched-flags rejection check stops too."
+    "test_s1_known_axes_freeze.py::test_s1b_pairing_rejects_mismatched_flags": _node_collateral(
+        "its fixed S-1b mismatched-flags rejection check"
     ),
-    "test_s1_known_axes_freeze.py::test_verify_rejects_foreign_ccbench_pin": _fixture_collateral(
-        "The node's fixed held/released ccbench-pin positive control stops too."
+    "test_s1_known_axes_freeze.py::test_verify_rejects_foreign_ccbench_pin": _node_collateral(
+        "its fixed held/released ccbench-pin positive control"
     ),
-    "test_s1_known_axes_freeze.py::test_verify_rejects_generator_sha_tamper": _fixture_collateral(
-        "The node's fixed generator-hash tamper rejection check stops too."
+    "test_s1_known_axes_freeze.py::test_verify_rejects_generator_sha_tamper": _node_collateral(
+        "its fixed generator-hash tamper rejection check"
     ),
-    "test_s1_known_axes_freeze.py::test_verify_rejects_non_ancestor_head": _fixture_collateral(
-        "The node's fixed non-ancestor HEAD rejection check stops too."
+    "test_s1_known_axes_freeze.py::test_verify_rejects_non_ancestor_head": _node_collateral(
+        "its fixed non-ancestor HEAD rejection check"
     ),
-    "test_s1_known_axes_freeze.py::test_verify_rejects_one_byte_freeze_tamper": _fixture_collateral(
-        "The node's fixed one-byte freeze tamper rejection check stops too."
+    "test_s1_known_axes_freeze.py::test_verify_rejects_one_byte_freeze_tamper": _node_collateral(
+        "its fixed one-byte freeze tamper rejection check"
     ),
-    "test_s1_known_axes_freeze.py::test_verify_rejects_tampered_source_copy": _fixture_collateral(
-        "The node's fixed copied-source hash tamper rejection check stops too."
+    "test_s1_known_axes_freeze.py::test_verify_rejects_tampered_source_copy": _node_collateral(
+        "its fixed copied-source hash tamper rejection check"
     ),
     "test_s1_measurement_freeze.py::test_build_document_rejects_tampered_known_axes_semantics": _fixture_collateral(
         "The node's fixed known-axes semantic tamper rejection check stops too."
@@ -290,7 +294,7 @@ EXPECTED_TEST_COLLATERAL_NOTES = {
         "Holding this node also removes the fixed-size binding-manifest schema refusal aggregation check."
     ),
     "test_s8b_floor_campaign.py::test_real_seal_protocol_to_floor_official_core_e2e": (
-        "Holding this node also removes fixed-size sealed protocol, freeze, prediction, journal, receipt, schedule, and floor binding checks."
+        "Holding this node also removes fixed-size sealed protocol, freeze, prediction, journal, receipt, schedule, and floor binding checks; real Git ancestry and the 14-path seal diff; artifact hashes; producer non-invocation; attestation and clean digest; trace=False, 12 builds, and 96 measurements; the reservation claim; and source/clone immutability."
     ),
     "test_s8b_oracle_driver.py::test_active_resolution_and_manifest_structure_refusals_are_aggregated": (
         "Holding this node also removes the fixed-size independent-refusal aggregation and zero-side-effect checks."

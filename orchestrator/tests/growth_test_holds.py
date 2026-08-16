@@ -91,6 +91,11 @@ _SHARED_FIXTURE_COLLATERAL = (
 def _fixture_collateral(detail: str) -> str:
     return f"{_SHARED_FIXTURE_COLLATERAL} {detail}"
 
+
+def _node_collateral(detail: str) -> str:
+    return f"Holding this node removes {detail}."
+
+
 _HOLD_ROWS = (
     ("test_codex_reasoning_ab.py::test_m3_focus_artifact_directions", _hold("output_artifacts", _SNAPSHOT_CORPUS_REASON)),
     ("test_codex_reasoning_ab.py::test_verify_replays_complete_fake_codex_experiment", _hold("output_artifacts", _SNAPSHOT_CORPUS_REASON)),
@@ -191,9 +196,8 @@ _HOLD_ROWS = (
         _hold(
             "output_artifacts",
             _KNOWN_AXES_ARTIFACT_REASON,
-            collateral_note=_fixture_collateral(
-                "The node's fixed self-consistency and single-field tamper "
-                "rejection checks stop too."
+            collateral_note=_node_collateral(
+                "its fixed self-consistency and single-field tamper rejection checks"
             ),
         ),
     ),
@@ -202,8 +206,8 @@ _HOLD_ROWS = (
         _hold(
             "output_artifacts",
             _KNOWN_AXES_ARTIFACT_REASON,
-            collateral_note=_fixture_collateral(
-                "The node's fixed create-only refusal check stops too."
+            collateral_note=_node_collateral(
+                "its fixed create-only refusal check"
             ),
         ),
     ),
@@ -212,9 +216,8 @@ _HOLD_ROWS = (
         _hold(
             "output_artifacts",
             _KNOWN_AXES_ARTIFACT_REASON,
-            collateral_note=_fixture_collateral(
-                "The node's fixed golden checks for registered P2, backoff, "
-                "and sort selections stop too."
+            collateral_note=_node_collateral(
+                "its fixed golden checks for registered P2, backoff, and sort selections"
             ),
         ),
     ),
@@ -223,8 +226,8 @@ _HOLD_ROWS = (
         _hold(
             "output_artifacts",
             _KNOWN_AXES_ARTIFACT_REASON,
-            collateral_note=_fixture_collateral(
-                "The node's fixed S-1b mismatched-flags rejection check stops too."
+            collateral_note=_node_collateral(
+                "its fixed S-1b mismatched-flags rejection check"
             ),
         ),
     ),
@@ -233,8 +236,8 @@ _HOLD_ROWS = (
         _hold(
             "output_artifacts",
             _KNOWN_AXES_ARTIFACT_REASON,
-            collateral_note=_fixture_collateral(
-                "The node's fixed held/released ccbench-pin positive control stops too."
+            collateral_note=_node_collateral(
+                "its fixed held/released ccbench-pin positive control"
             ),
         ),
     ),
@@ -243,8 +246,8 @@ _HOLD_ROWS = (
         _hold(
             "output_artifacts",
             _KNOWN_AXES_ARTIFACT_REASON,
-            collateral_note=_fixture_collateral(
-                "The node's fixed generator-hash tamper rejection check stops too."
+            collateral_note=_node_collateral(
+                "its fixed generator-hash tamper rejection check"
             ),
         ),
     ),
@@ -253,8 +256,8 @@ _HOLD_ROWS = (
         _hold(
             "output_artifacts",
             _KNOWN_AXES_ARTIFACT_REASON,
-            collateral_note=_fixture_collateral(
-                "The node's fixed non-ancestor HEAD rejection check stops too."
+            collateral_note=_node_collateral(
+                "its fixed non-ancestor HEAD rejection check"
             ),
         ),
     ),
@@ -263,8 +266,8 @@ _HOLD_ROWS = (
         _hold(
             "output_artifacts",
             _KNOWN_AXES_ARTIFACT_REASON,
-            collateral_note=_fixture_collateral(
-                "The node's fixed one-byte freeze tamper rejection check stops too."
+            collateral_note=_node_collateral(
+                "its fixed one-byte freeze tamper rejection check"
             ),
         ),
     ),
@@ -273,8 +276,8 @@ _HOLD_ROWS = (
         _hold(
             "output_artifacts",
             _KNOWN_AXES_ARTIFACT_REASON,
-            collateral_note=_fixture_collateral(
-                "The node's fixed copied-source hash tamper rejection check stops too."
+            collateral_note=_node_collateral(
+                "its fixed copied-source hash tamper rejection check"
             ),
         ),
     ),
@@ -408,7 +411,11 @@ _HOLD_ROWS = (
             _REAL_REPO_CLONE_REASON,
             collateral_note=(
                 "Holding this node also removes fixed-size sealed protocol, freeze, "
-                "prediction, journal, receipt, schedule, and floor binding checks."
+                "prediction, journal, receipt, schedule, and floor binding checks; "
+                "real Git ancestry and the 14-path seal diff; artifact hashes; producer "
+                "non-invocation; attestation and clean digest; trace=False, 12 builds, "
+                "and 96 measurements; the reservation claim; and source/clone "
+                "immutability."
             ),
         ),
     ),
