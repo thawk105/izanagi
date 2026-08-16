@@ -3665,15 +3665,34 @@ def test_acceptance_receipt_sigmask_detail(
     assert lifecycle.ownership is DW._LeaseOwnership.ACQUIRED
 
 
+@pytest.mark.parametrize(
+    "injected",
+    (
+        OSError(errno.EBUSY, "SIGBLOCK-SECRET-SENTINEL"),
+        ValueError("SIGBLOCK-SECRET-SENTINEL"),
+    ),
+    ids=("oserror", "valueerror"),
+)
 def test_acceptance_receipt_publish_sigblock_detail_restores_ownership(
+    injected: BaseException,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     fake = _FakeEffects()
     lifecycle = DW._AcceptanceLifecycle(DW._LeaseOwnership.ACQUIRED)
+    known_mask = {signal.SIGUSR1}
+    calls: list[tuple[object, object]] = []
 
     def fail_sigblock(how: object, mask: object) -> set[signal.Signals]:
-        del how, mask
-        raise OSError(errno.EBUSY, "SIGBLOCK-SECRET-SENTINEL")
+        recorded_mask = tuple(mask) if how == signal.SIG_BLOCK else mask
+        calls.append((how, recorded_mask))
+        if how == signal.SIG_BLOCK and recorded_mask == ():
+            return set(known_mask)
+        if (
+            how == signal.SIG_BLOCK
+            and frozenset(mask) == frozenset(DW._HANDLED_SIGNALS)
+        ):
+            raise injected
+        return set()
 
     monkeypatch.setattr(signal, "pthread_sigmask", fail_sigblock)
 
@@ -3687,7 +3706,10 @@ def test_acceptance_receipt_publish_sigblock_detail_restores_ownership(
 
     expected = {
         "reason": "receipt-publish-sigblock",
-        "observed": {"exception_type": "OSError", "errno": errno.EBUSY},
+        "observed": {
+            "exception_type": type(injected).__name__,
+            "errno": errno.EBUSY if isinstance(injected, OSError) else None,
+        },
     }
     assert failure.value.outcome == DW._Outcome(
         70,
@@ -3695,7 +3717,14 @@ def test_acceptance_receipt_publish_sigblock_detail_restores_ownership(
         detail=json.dumps(expected, separators=(",", ":"), sort_keys=True),
     )
     assert "SIGBLOCK-SECRET-SENTINEL" not in failure.value.outcome.detail
+    assert calls == [
+        (signal.SIG_BLOCK, ()),
+        (signal.SIG_BLOCK, DW._HANDLED_SIGNALS),
+        (signal.SIG_SETMASK, known_mask),
+    ]
     assert lifecycle.ownership is DW._LeaseOwnership.ACQUIRED
+    assert lifecycle.receipt_published is False
+    assert fake.receipt_published is False
 
 
 def test_acceptance_receipt_publish_rename_builds_detail_after_mask_restore(
@@ -3878,7 +3907,7 @@ def test_acceptance_receipt_rename_control_flow_passthrough(
             lifecycle=lifecycle,
             receipt_file=_RECEIPT,
             temp_path=_RECEIPT_TEMP,
-    )
+        )
 
     assert raised.value is injected
     assert masks == [
@@ -4591,6 +4620,7 @@ def test_signal_after_receipt_publish_does_not_reverse_success(
 ) -> None:
     fake = _FakeEffects()
     lifecycle = DW._AcceptanceLifecycle()
+    entry_mask = set(_REAL_PTHREAD_SIGMASK(signal.SIG_BLOCK, ()))
     _queue_clean_acceptance_prefix(fake)
     fake.expect_run(_COMMAND, DW._CommandResult(0), capture=False)
     real_sigmask = DW.signal.pthread_sigmask
@@ -4610,6 +4640,7 @@ def test_signal_after_receipt_publish_does_not_reverse_success(
     assert fake.receipt_published is True
     assert lifecycle.ownership is DW._LeaseOwnership.RETAINED
     fake.assert_drained()
+    assert set(_REAL_PTHREAD_SIGMASK(signal.SIG_BLOCK, ())) == entry_mask
 
 
 @pytest.mark.parametrize(
@@ -7320,7 +7351,18 @@ def test_public_main_installs_and_restores_each_handler(signum: int) -> None:
             installed is not external_handler
             for installed in observed_during_main
         )
+        assert all(
+            installed is not signal.SIG_IGN
+            and installed is not signal.SIG_DFL
+            and callable(installed)
+            for installed in observed_during_main
+        )
+        installed_handler = observed_during_main[0]
+        assert callable(installed_handler)
         assert signal.getsignal(signum) is external_handler
+        with pytest.raises(DW._SignalReceived) as received:
+            installed_handler(signum, None)
+        assert received.value.signum == signum
     finally:
         signal.signal(signum, original_handler)
 
