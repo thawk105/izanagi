@@ -44,7 +44,7 @@ def _bundle(
         arguments = dict(
             trial_id=trial.trial_id,
             workloads=[workload],
-            generations=1,
+            generations=2,
             provider_kind="fixture",
             run_root=run_root,
             sub="/unused",
@@ -346,10 +346,70 @@ def _consume_role_validation_evidence(event: dict[str, object]) -> None:
         assert "payload_validation_receipt" not in event
 
 
+def _project_t1185_generation_binding_to_generation_one(
+    bundle: dict[str, object],
+) -> dict[str, object]:
+    """Consume the intended formal G=2 delta before the older golden view."""
+
+    projected = copy.deepcopy(bundle)
+    for report in projected["reports"]:
+        assert report["generation_budget_per_workload"] == 2
+        report["generation_budget_per_workload"] = 1
+        assert report["honest_accounting"]["role_query_count"] == 8
+        report["honest_accounting"]["role_query_count"] = 4
+        for cell in report["cells"]:
+            generations = cell["generations"]
+            assert [item["generation"] for item in generations] == [1, 2]
+            first, second = generations
+            assert list(first) == list(second)
+            assert list(first["roles"]) == list(second["roles"])
+            for role in first["roles"]:
+                assert list(first["roles"][role]) == list(second["roles"][role])
+            cell["generations"] = [first]
+
+    for journal in projected["journals"]:
+        generation_one_roles = {
+            event["role"]: event
+            for event in journal
+            if event["event"] == "role-attempt" and event["generation"] == 1
+        }
+        generation_one_accounting = next(
+            event for event in journal
+            if event["event"] == "generation-accounting"
+            and event["generation"] == 1
+        )
+        kept = []
+        removed = 0
+        for event in journal:
+            if event["event"] == "run-start":
+                assert event["generation_budget_per_workload"] == 2
+                event["generation_budget_per_workload"] = 1
+            elif event["event"] == "role-attempt" and event["generation"] == 2:
+                assert list(event) == list(generation_one_roles[event["role"]])
+                removed += 1
+                continue
+            elif (
+                event["event"] == "generation-accounting"
+                and event["generation"] == 2
+            ):
+                assert list(event) == list(generation_one_accounting)
+                removed += 1
+                continue
+            elif event["event"] == "run-finish":
+                assert event["seq"] == 12
+                event["seq"] = 7
+                assert event["honest_accounting"]["role_query_count"] == 8
+                event["honest_accounting"]["role_query_count"] = 4
+            kept.append(event)
+        assert removed == 5
+        journal[:] = kept
+    return projected
+
+
 def _project_t244_additions_to_pre_wave(bundle: dict[str, object]) -> dict[str, object]:
     """Consume each adjudicated addition explicitly, then expose the old view."""
 
-    projected = copy.deepcopy(bundle)
+    projected = _project_t1185_generation_binding_to_generation_one(bundle)
     for report in projected["reports"]:
         assert report["schema_version"] == A.REPORT_SCHEMA_VERSION
         report["schema_version"] = "p3-autonomous-workload-trial-report/v2"
