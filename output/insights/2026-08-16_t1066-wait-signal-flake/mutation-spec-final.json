@@ -1,0 +1,153 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 20.0,
+  "timeout_seconds": 3600.0,
+  "hang_timeout_seconds": 600.0,
+  "mutations": [
+    {
+      "id": "M1",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/dev_wave_wait.py",
+          "old": "    if pthread_sigmask is not None:\n        previous_mask = pthread_sigmask(signal.SIG_BLOCK, ())\n    failure: BaseException | None = None\n    try:\n        if pthread_sigmask is not None:\n            pthread_sigmask(signal.SIG_BLOCK, _HANDLED_SIGNALS)\n        for signum, handler in previous.items():",
+          "new": "    if pthread_sigmask is not None:\n        previous_mask = pthread_sigmask(signal.SIG_BLOCK, _HANDLED_SIGNALS)\n    failure: BaseException | None = None\n    try:\n        for signum, handler in previous.items():"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_wave_wait.py::test_restore_sigblock_interruption_preserves_exact_mask"
+      ],
+      "hang_risk": false,
+      "expected_status": "KILLED"
+    },
+    {
+      "id": "M2",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/dev_wave_wait.py",
+          "old": "        try:\n            previous_mask = pthread_sigmask(signal.SIG_BLOCK, ())\n        except (OSError, ValueError):\n            previous_mask = None\n    try:\n        if previous_mask is not None:\n            try:\n                pthread_sigmask(signal.SIG_BLOCK, _HANDLED_SIGNALS)\n            except (OSError, ValueError):\n                previous_mask = None\n        if merge_pending:",
+          "new": "        try:\n            previous_mask = pthread_sigmask(signal.SIG_BLOCK, _HANDLED_SIGNALS)\n        except (OSError, ValueError):\n            previous_mask = None\n    try:\n        if merge_pending:"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_wave_wait.py::test_cleanup_sigblock_interruption_preserves_exact_mask_without_release",
+        "orchestrator/tests/test_dev_wave_wait.py::test_second_signal_is_deferred_until_cleanup_completes"
+      ],
+      "hang_risk": false,
+      "expected_status": "KILLED"
+    },
+    {
+      "id": "M3",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/dev_wave_wait.py",
+          "old": "        previous_mask = pthread_sigmask(signal.SIG_BLOCK, ())\n        lifecycle.ownership = _LeaseOwnership.RETAINED\n        pthread_sigmask(signal.SIG_BLOCK, _HANDLED_SIGNALS)\n        failure_reason = \"receipt-publish-rename\"",
+          "new": "        lifecycle.ownership = _LeaseOwnership.RETAINED\n        previous_mask = pthread_sigmask(signal.SIG_BLOCK, _HANDLED_SIGNALS)\n        failure_reason = \"receipt-publish-rename\""
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_wave_wait.py::test_receipt_sigblock_interruption_restores_ownership_and_exact_mask",
+        "orchestrator/tests/test_dev_wave_wait.py::test_acceptance_receipt_publish_sigblock_detail_restores_ownership[oserror]",
+        "orchestrator/tests/test_dev_wave_wait.py::test_acceptance_receipt_publish_sigblock_detail_restores_ownership[valueerror]",
+        "orchestrator/tests/test_dev_wave_wait.py::test_acceptance_receipt_rename_control_flow_passthrough[signal]",
+        "orchestrator/tests/test_dev_wave_wait.py::test_acceptance_receipt_rename_control_flow_passthrough[keyboard-interrupt]"
+      ],
+      "hang_risk": false,
+      "expected_status": "KILLED"
+    },
+    {
+      "id": "M4",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_dev_wave_wait.py",
+          "old": "    def delayed_signal(how: int, signals: object):\n        previous_mask = real_sigmask(how, signals)\n        if how == signal.SIG_SETMASK:\n            raise DW._SignalReceived(signal.SIGTERM)\n        return previous_mask",
+          "new": "    def delayed_signal(how: int, signals: object):\n        if how == signal.SIG_SETMASK:\n            raise DW._SignalReceived(signal.SIGTERM)\n        return real_sigmask(how, signals)"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_wave_wait.py::test_signal_after_receipt_publish_does_not_reverse_success"
+      ],
+      "hang_risk": false,
+      "expected_status": "KILLED"
+    },
+    {
+      "id": "M5",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/dev_wave_wait.py",
+          "old": "        for signum in _HANDLED_SIGNALS:\n            previous[signum] = signal.getsignal(signum)\n            signal.signal(signum, handler)",
+          "new": "        for signum in _HANDLED_SIGNALS:\n            previous[signum] = signal.getsignal(signum)"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_wave_wait.py::test_public_main_installs_and_restores_each_handler[sighup]",
+        "orchestrator/tests/test_dev_wave_wait.py::test_public_main_installs_and_restores_each_handler[sigint]",
+        "orchestrator/tests/test_dev_wave_wait.py::test_public_main_installs_and_restores_each_handler[sigterm]",
+        "orchestrator/tests/test_dev_wave_wait.py::test_public_main_real_signal_releases_lease",
+        "orchestrator/tests/test_dev_wave_wait.py::test_signal_after_core_success_uses_restored_real_handler"
+      ],
+      "hang_risk": false,
+      "expected_status": "KILLED"
+    },
+    {
+      "id": "M6",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/dev_wave_wait.py",
+          "old": "        for signum, handler in previous.items():\n            try:\n                signal.signal(signum, handler)\n            except BaseException as exc:\n                if failure is None:\n                    failure = exc",
+          "new": "        for signum, handler in previous.items():\n            try:\n                pass\n            except BaseException as exc:\n                if failure is None:\n                    failure = exc"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_wave_wait.py::test_public_main_failure_restores_handler_without_release",
+        "orchestrator/tests/test_dev_wave_wait.py::test_public_main_installs_and_restores_each_handler[sighup]",
+        "orchestrator/tests/test_dev_wave_wait.py::test_public_main_installs_and_restores_each_handler[sigint]",
+        "orchestrator/tests/test_dev_wave_wait.py::test_public_main_installs_and_restores_each_handler[sigterm]",
+        "orchestrator/tests/test_dev_wave_wait.py::test_public_main_real_signal_after_success_uses_restored_handler",
+        "orchestrator/tests/test_dev_wave_wait.py::test_signal_after_core_success_uses_restored_real_handler"
+      ],
+      "hang_risk": false,
+      "expected_status": "KILLED"
+    },
+    {
+      "id": "M7",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/dev_wave_wait.py",
+          "old": "_HANDLED_SIGNALS = (signal.SIGTERM, signal.SIGHUP, signal.SIGINT)",
+          "new": "_HANDLED_SIGNALS = (signal.SIGTERM, signal.SIGINT)"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_wave_wait.py::test_public_main_installs_and_restores_each_handler[sighup]"
+      ],
+      "hang_risk": false,
+      "expected_status": "KILLED"
+    },
+    {
+      "id": "M8",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/dev_wave_wait.py",
+          "old": "    finally:\n        if previous_mask is not None:\n            pthread_sigmask(signal.SIG_SETMASK, previous_mask)\n    if failure is not None:\n        raise failure",
+          "new": "    finally:\n        if previous_mask is None:\n            pthread_sigmask(signal.SIG_SETMASK, previous_mask)\n    if failure is not None:\n        raise failure"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_wave_wait.py::test_public_main_failure_restores_handler_without_release",
+        "orchestrator/tests/test_dev_wave_wait.py::test_public_main_real_signal_after_success_uses_restored_handler",
+        "orchestrator/tests/test_dev_wave_wait.py::test_restore_sigblock_interruption_preserves_exact_mask",
+        "orchestrator/tests/test_dev_wave_wait.py::test_signal_after_core_success_uses_restored_real_handler"
+      ],
+      "hang_risk": false,
+      "expected_status": "KILLED"
+    }
+  ]
+}
