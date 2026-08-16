@@ -1382,6 +1382,7 @@ def _run_capture(
     *,
     diagnostic_reason: str | None = None,
     diagnostic_observed: dict[str, object] | None = None,
+    capture_failure_output: bool = False,
 ) -> _CommandResult:
     try:
         result = effects.run(tuple(argv), repo, True)
@@ -1400,15 +1401,23 @@ def _run_capture(
         raise _StageFailure(stage, detail=detail) from None
     if result.returncode != 0:
         detail = None
-        if diagnostic_reason is not None:
+        if capture_failure_output:
+            output = result.stderr.strip() or result.stdout.strip()
+            if output:
+                encoded = output.encode("utf-8", "replace")
+                if len(encoded) > _ATTESTATION_DETAIL_MAX_BYTES:
+                    encoded = encoded[: _ATTESTATION_DETAIL_MAX_BYTES - 3] + b"..."
+                detail = encoded.decode("utf-8", "replace")
+        if diagnostic_reason is not None and detail is None:
+            observed = {
+                **({} if diagnostic_observed is None else diagnostic_observed),
+                "failure_kind": "command",
+                "source_rc": result.returncode,
+                "exception_type": None,
+            }
             detail = _attestation_detail(
                 diagnostic_reason,
-                {
-                    **({} if diagnostic_observed is None else diagnostic_observed),
-                    "failure_kind": "command",
-                    "source_rc": result.returncode,
-                    "exception_type": None,
-                },
+                observed,
             )
         raise _StageFailure(
             stage,
@@ -3010,6 +3019,17 @@ def run_acceptance(
                 ("git", "merge", "--no-ff", "--no-commit", "main"),
                 repo,
                 "merge",
+            )
+            _run_capture(
+                effects,
+                (
+                    sys.executable,
+                    str(repo / "tools" / "check_ai_provenance.py"),
+                ),
+                repo,
+                "merge-history-provenance",
+                diagnostic_reason="full-history-provenance",
+                capture_failure_output=True,
             )
             _run_capture(
                 effects,
