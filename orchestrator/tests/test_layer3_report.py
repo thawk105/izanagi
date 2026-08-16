@@ -11,6 +11,7 @@ import sys
 from types import SimpleNamespace
 from pathlib import Path
 
+import jsonschema
 import pytest
 
 _HERE = Path(__file__).resolve().parent
@@ -39,6 +40,7 @@ from orchestrator.campaign.source_digest import (  # noqa: E402
     EMPTY_TRACKED_DIFF_SHA256,
     SourceEvidence,
 )
+from orchestrator.calibrator import perf_preflight  # noqa: E402
 
 
 ROOT = _HERE.parent.parent
@@ -440,6 +442,51 @@ def _record(stage, variant="v1", **payload):
 def _bench(variant="v1", **extra):
     return _record("bench_done", variant, tps=[1.0], median_tps=1.0, cv=0.0,
                    rounds=1, leading_indicators={}, **extra)
+
+
+def _perf_observation(
+        *, available=False, missing=(), unavailable_reason="perf-not-found"):
+    if available:
+        def runner(argv, **_kwargs):
+            Path(argv[argv.index("-o") + 1]).write_text(
+                "1,,LLC-load-misses,0,100.00,,\n"
+                "2,,LLC-loads,0,100.00,,\n"
+                "3,,instructions,0,100.00,,\n"
+                "4,,cycles,0,100.00,,\n",
+                encoding="utf-8",
+            )
+            return SimpleNamespace(returncode=0, stdout="", stderr="")
+    elif unavailable_reason == "nonzero-rc":
+        def runner(*_args, **_kwargs):
+            return SimpleNamespace(returncode=2, stdout="", stderr="denied")
+    elif unavailable_reason == "requested-events-missing":
+        def runner(argv, **_kwargs):
+            Path(argv[argv.index("-o") + 1]).write_text(
+                "4,,cycles,0,100.00,,\n", encoding="utf-8",
+            )
+            return SimpleNamespace(returncode=0, stdout="", stderr="")
+    else:
+        if unavailable_reason != "perf-not-found":
+            raise ValueError("unknown unavailable perf fixture reason")
+
+        def runner(*_args, **_kwargs):
+            raise FileNotFoundError("fixture perf not found")
+
+    receipt = perf_preflight.probe_perf_availability(
+        perf_candidates=("/opt/perf",), subprocess_runner=runner,
+    )
+    use_perf = perf_preflight.use_perf_from_receipt(receipt)
+    missing_indicators = list(missing)
+    return {
+        "use_perf": use_perf,
+        "counter_status": (
+            "not_required" if not use_perf
+            else "incomplete" if missing_indicators
+            else "complete"
+        ),
+        "missing_leading_indicators": missing_indicators,
+        "preflight": receipt,
+    }
 
 
 def test_real_legacy_s8a_campaign_is_rejected(tmp_path):
@@ -1104,6 +1151,168 @@ def test_bench_rep_returncodes_passes_real_view_and_schema(tmp_path):
     )
 
     assert report["runs"][0]["rep_returncodes"] == [0, 0, 0, 0, 0]
+
+
+def test_perf_observation_survives_render_and_legacy_run_remains_valid(tmp_path):
+    unavailable = _perf_observation()
+    unavailable_nonzero = _perf_observation(unavailable_reason="nonzero-rc")
+    unavailable_missing = _perf_observation(
+        unavailable_reason="requested-events-missing",
+    )
+    available_complete = _perf_observation(available=True)
+    available_incomplete = _perf_observation(
+        available=True, missing=("llc_miss_rate", "ipc"),
+    )
+    campaign, output_root = _campaign(
+        tmp_path,
+        [
+            _bench("without-perf", perf_observation=unavailable),
+            _bench("without-perf-nonzero", perf_observation=unavailable_nonzero),
+            _bench("without-perf-events", perf_observation=unavailable_missing),
+            _bench("with-complete-perf", perf_observation=available_complete),
+            _bench("with-incomplete-perf", perf_observation=available_incomplete),
+            _bench("legacy-without-perf-observation"),
+        ],
+    )
+    out = tmp_path / "layer3-report.json"
+
+    report = layer3_report.render(
+        campaign, out, generated_from_head="fixed", output_root=output_root,
+    )
+
+    runs_with_observation = [
+        row for row in report["runs"] if "perf_observation" in row
+    ]
+    legacy_runs = [
+        row for row in report["runs"] if "perf_observation" not in row
+    ]
+
+    def observation_sort_key(observation):
+        return json.dumps(observation, sort_keys=True)
+
+    assert sorted(
+        [row["perf_observation"] for row in runs_with_observation],
+        key=observation_sort_key,
+    ) == sorted(
+        [
+            unavailable,
+            unavailable_nonzero,
+            unavailable_missing,
+            available_complete,
+            available_incomplete,
+        ],
+        key=observation_sort_key,
+    )
+    assert len(legacy_runs) == 1
+    assert json.loads(out.read_text(encoding="utf-8"))["runs"] == report["runs"]
+
+
+@pytest.mark.parametrize(
+    "target_path, expected_absolute_path",
+    [
+        ((), ["runs", 0, "perf_observation"]),
+        (("preflight",), ["runs", 0, "perf_observation", "preflight"]),
+        (
+            ("preflight", "candidates", 0),
+            ["runs", 0, "perf_observation", "preflight", "candidates", 0],
+        ),
+    ],
+    ids=("observation", "preflight", "candidate"),
+)
+def test_perf_observation_rejects_unknown_key(
+        tmp_path, target_path, expected_absolute_path):
+    observation = _perf_observation()
+    target = observation
+    for component in target_path:
+        target = target[component]
+    target["unexpected"] = "must-be-rejected"
+    campaign, output_root = _campaign(
+        tmp_path, [_bench(perf_observation=observation)],
+    )
+
+    with pytest.raises(
+        layer3_report.Layer3ReportError,
+        match=r"^layer3 schema 検証に失敗$",
+    ) as caught:
+        layer3_report.build_report(
+            campaign, generated_from_head="fixed", output_root=output_root,
+        )
+    cause = caught.value.__cause__
+    assert isinstance(cause, jsonschema.ValidationError)
+    assert cause.validator == "additionalProperties"
+    assert list(cause.absolute_path) == expected_absolute_path
+
+
+@pytest.mark.parametrize(
+    "contradiction",
+    [
+        "perf-required-but-counter-not-required",
+        "use-perf-false-disagrees-with-available",
+        "use-perf-true-disagrees-with-unavailable",
+        "no-perf-counter-complete",
+        "perf-complete-reports-missing-indicators",
+        "perf-incomplete-reports-no-missing-indicators",
+        "probe-error-reaches-layer3",
+        "unavailable-status-claims-available",
+        "no-perf-reports-missing-indicators",
+        "available-status-has-unavailable-reason",
+        "unavailable-status-has-probe-error-reason",
+    ],
+)
+def test_perf_observation_rejects_producer_impossible_combinations(
+        tmp_path, contradiction):
+    if contradiction in {
+        "perf-required-but-counter-not-required",
+        "use-perf-false-disagrees-with-available",
+        "perf-complete-reports-missing-indicators",
+        "perf-incomplete-reports-no-missing-indicators",
+        "unavailable-status-claims-available",
+        "available-status-has-unavailable-reason",
+    }:
+        observation = _perf_observation(available=True)
+    else:
+        observation = _perf_observation()
+
+    if contradiction == "perf-required-but-counter-not-required":
+        observation["counter_status"] = "not_required"
+    elif contradiction == "use-perf-false-disagrees-with-available":
+        observation["use_perf"] = False
+        observation["counter_status"] = "not_required"
+    elif contradiction == "use-perf-true-disagrees-with-unavailable":
+        observation["use_perf"] = True
+        observation["counter_status"] = "complete"
+    elif contradiction == "no-perf-counter-complete":
+        observation["counter_status"] = "complete"
+    elif contradiction == "perf-complete-reports-missing-indicators":
+        observation["missing_leading_indicators"] = ["ipc"]
+    elif contradiction == "perf-incomplete-reports-no-missing-indicators":
+        observation["counter_status"] = "incomplete"
+    elif contradiction == "probe-error-reaches-layer3":
+        observation["preflight"].update({
+            "status": "probe_error", "reason": "probe-os-error",
+        })
+    elif contradiction == "unavailable-status-claims-available":
+        observation["preflight"].update({
+            "status": "unavailable", "reason": "perf-not-found",
+        })
+    elif contradiction == "no-perf-reports-missing-indicators":
+        observation["missing_leading_indicators"] = ["ipc"]
+    elif contradiction == "available-status-has-unavailable-reason":
+        observation["preflight"]["reason"] = "nonzero-rc"
+    else:
+        observation["preflight"]["reason"] = "probe-timeout"
+
+    campaign, output_root = _campaign(
+        tmp_path, [_bench(perf_observation=observation)],
+    )
+    with pytest.raises(
+        layer3_report.Layer3ReportError,
+        match=r"^layer3 schema 検証に失敗$",
+    ) as caught:
+        layer3_report.build_report(
+            campaign, generated_from_head="fixed", output_root=output_root,
+        )
+    assert isinstance(caught.value.__cause__, jsonschema.ValidationError)
 
 
 @pytest.mark.parametrize("state", ["not-json", json.dumps({"whiteboard": {}})])
