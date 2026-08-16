@@ -15,8 +15,9 @@ import json
 import secrets
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import List, Optional, Sequence
+from typing import Callable, List, Optional, Sequence
 
+from ..calibrator import perf_preflight as _perf_preflight
 from . import buildcache, env_attestation, execution_guard, ident, source_digest, wal
 from .build_admission import BuildRunContext
 from .env_contract import AuthorizedContract, ExecutionEnvironmentContract
@@ -52,10 +53,40 @@ class CampaignSummary:
     aborted: int = 0
     results: List[EvalResult] = field(default_factory=list)
     execution_receipt: Optional[dict] = None
+    perf_preflight_receipt: Optional[dict] = None
 
 
 def _repo_root() -> Path:
     return Path(__file__).resolve().parents[2]
+
+
+def _policy_perf_candidates(repo_root: Path) -> tuple[str, ...]:
+    """Pegasus policy の既存 perf 候補を evidence 用にだけ読む。"""
+    path = Path(repo_root) / "tools/pegasus/policy.json"
+    try:
+        policy = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise _perf_preflight.PerfPreflightError(
+            f"perf candidate policy を読めない: {path}: {exc}"
+        ) from exc
+    candidates = policy.get("perf_candidates") if isinstance(policy, dict) else None
+    if (not isinstance(candidates, list)
+            or not all(isinstance(candidate, str) and candidate for candidate in candidates)
+            or len(set(candidates)) != len(candidates)):
+        raise _perf_preflight.PerfPreflightError(
+            "policy.perf_candidates が一意な str list でない"
+        )
+    return tuple(candidates)
+
+
+def _perform_perf_preflight(
+        producer: Callable[..., object],
+) -> tuple[dict, bool]:
+    """探索 bench の perf 可否を一度だけ確定し、判定不能は上位へ送出する。"""
+    receipt = _perf_preflight.validate_perf_preflight_receipt(producer(
+        perf_candidates=_policy_perf_candidates(_repo_root()),
+    ))
+    return receipt, _perf_preflight.use_perf_from_receipt(receipt)
 
 
 def _authorize_measurement(
@@ -99,13 +130,20 @@ def run_campaign(cfg: CampaignConfig, genomes: Sequence[Genome],
                  build_context: BuildRunContext,
                  capability_resolver: Optional[AdmissionCapabilityResolver] = None,
                  campaign_namespace: str = "official",
-                 trigger_gate_binding=None) -> CampaignSummary:
+                 trigger_gate_binding=None,
+                 perf_preflight_fn: Optional[Callable[..., object]] = None,
+                 ) -> CampaignSummary:
     """`ccbench_dir`/`cache_root` (段5 git worktree 隔離): pipeline.evaluate と同じ実行時
     引数の素通し。省略時は共有固定パス既定 (既存動作と完全互換)。`campaign_namespace` は
     official / exploration の閉じた path selector。namespace は campaign-id に含めず、
     `env_contract` と `dependency_prefix` は非既定時だけ素通しして既定 caller の
     evaluate 呼出し形を保つ。`build_context` の安定 policy を campaign identity へ束縛し、
     source ごとの capability resolver は evidence 解決後の pipeline へ渡す。"""
+    if campaign_namespace == "official" and perf_preflight_fn is not None:
+        raise ValueError(
+            "official mode への非 default seam 注入を拒否する: "
+            "['perf_preflight_fn']"
+        )
     if type(build_context) is not BuildRunContext:
         raise TypeError("build_context は build_run_context() 由来の exact value が必要")
     marker_present = "trigger_gate_binding_schema" in cfg.search_config
@@ -131,6 +169,12 @@ def run_campaign(cfg: CampaignConfig, genomes: Sequence[Genome],
         authorization_contract, env_tag=env_tag, clocks_per_us=clocks_per_us,
         numactl=numactl, env_contract=env_contract,
     )
+    perf_preflight_receipt = None
+    use_perf = True
+    if do_bench:
+        perf_preflight_receipt, use_perf = _perform_perf_preflight(
+            perf_preflight_fn or _perf_preflight.probe_perf_availability,
+        )
     cfg = ident.bind_environment_contract(cfg, authorized_contract)
     cid = ident.campaign_id(cfg)
     layout = layout_constructor(str(cid), output_root).ensure()
@@ -181,6 +225,7 @@ def run_campaign(cfg: CampaignConfig, genomes: Sequence[Genome],
     s = CampaignSummary(
         campaign_id=str(cid), layout_root=layout.root, total=len(genomes),
         execution_receipt=execution_receipt,
+        perf_preflight_receipt=perf_preflight_receipt,
     )
     done = set(terminal)        # terminal を seed して 1 run 内の二重評価も防ぐ (U1)
     first_bench = True          # settle は最初の実 bench の前に 1 回だけ (calibrator 契約)
@@ -253,6 +298,11 @@ def run_campaign(cfg: CampaignConfig, genomes: Sequence[Genome],
                         source_bytes_sha256=source_evidence.source_bytes_sha256,
                     ),
                 )
+            if perf_preflight_receipt is not None:
+                evaluate_options["perf_preflight_receipt"] = perf_preflight_receipt
+            if not use_perf:
+                # True は pipeline の legacy default に任せ、利用可能時の呼出し形を維持する。
+                evaluate_options["use_perf"] = False
             r = evaluate(g, layout, env_tag, cfg.ccbench_commit, perf,
                          clocks_per_us, numactl=numactl, do_bench=do_bench,
                          do_settle=(do_bench and first_bench),

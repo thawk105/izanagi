@@ -32,7 +32,8 @@ WAVE_REQUIRED_PATHS = frozenset(
         prereg.SOURCE_PATH,
         prereg.EVIDENCE_CONTRACT_PATH,
         prereg.EVALUATOR_MODULE_PATH,
-        "orchestrator/campaign/s8c_preregistration.py",
+        prereg.CORE_MODULE_PATH,
+        prereg.PROJECTION_MODULE_PATH,
         "orchestrator/tests/test_s8c_preregistration_core.py",
         "orchestrator/tests/test_s8c_preregistration_invariant.py",
         "orchestrator/tests/test_s8c_preregistration_predicates.py",
@@ -158,6 +159,14 @@ def test_candidate_freeze_matches_contract_and_generation_chain(
     assert latest["evidence_contract_sha256"] == prereg.evidence_contract_sha256(evidence_raw)
     if validation.generation_number == 1:
         assert latest["supersedes_sha256"] is None
+
+
+@pytest.mark.parametrize("generation", (1, 2, 3))
+def test_repository_legacy_v1_generations_remain_readable(generation: int) -> None:
+    raw = (ROOT / prereg.generation_path(generation)).read_bytes()
+    record = prereg._load_freeze_record(raw, expected_generation=generation)
+    assert record.schema_version == prereg.LEGACY_SCHEMA_VERSION
+    assert record.decider_version is None
 
 
 def test_candidate_commit_observes_uncommitted_worktree_delta(tmp_path: Path) -> None:

@@ -47,6 +47,7 @@ sys.path.insert(0, _REPOSITORY)
 
 from orchestrator.campaign import (buildcache, campaign_lock, genome, ident, pin, pipeline,  # noqa: E402
                       site_policy, source_digest, trigger_gate_binding, wal)
+from orchestrator.calibrator import perf_preflight as perf_preflight_module   # noqa: E402
 from orchestrator.campaign import env_contract as ec                          # noqa: E402
 from orchestrator.campaign.build_admission import (  # noqa: E402
     BuildAdmission,
@@ -4980,6 +4981,87 @@ def test_p2_actual_floor_and_t126_admission_accept_valid_evidence(tmp_path=None)
         admission.env_attestation.load_verified_calibration = saved_calibration
 
 
+def test_floor_admission_uses_authority_resolver_not_legacy_literal(tmp_path=None):
+    from orchestrator.campaign import certified_writer_admission as admission
+    from orchestrator.campaign import s8b_floor_campaign as floor_campaign
+
+    root = Path(tmp_path) if tmp_path is not None else Path(
+        _tmpdir("izanagi_floor_resolver_admission_")
+    )
+    fixture = build_admission_fixture(root)
+    legacy = fixture.repo_root / floor_campaign._FLOOR_PROTOCOL_REL
+    protocol_bytes = legacy.read_bytes()
+    selected_rel = "output/authority-selected/floor_protocol.json"
+    selected = fixture.repo_root / selected_rel
+    selected.parent.mkdir(parents=True)
+    selected.write_bytes(protocol_bytes)
+    record = floor_campaign.IndexedFloorProtocol(
+        path=selected_rel,
+        document=floor_campaign._strict_parse_protocol_bytes(
+            protocol_bytes, source=selected_rel,
+        ),
+        raw_bytes=protocol_bytes,
+        sha256=hashlib.sha256(protocol_bytes).hexdigest(),
+    )
+    legacy.write_bytes(b"legacy literal must not be read\n")
+
+    with unittest_mock.patch.object(
+            admission.s8b_floor_campaign, "resolve_current_floor_protocol",
+            return_value=record,
+    ) as resolver, unittest_mock.patch.object(
+            admission.site_policy, "current_site",
+            return_value=site_policy.PEGASUS_COMPUTE,
+    ), unittest_mock.patch.object(
+            admission.env_attestation, "load_verified_calibration",
+            return_value=object(),
+    ):
+        admission.admit(
+            "floor",
+            repo_root=fixture.repo_root,
+            receipt_path=fixture.receipts["floor"],
+            environ=fixture.environments["floor"],
+        )
+    resolver.assert_called_once_with(root=fixture.repo_root)
+
+
+def test_floor_admission_rejects_disk_bytes_different_from_index_record(tmp_path=None):
+    from orchestrator.campaign import certified_writer_admission as admission
+    from orchestrator.campaign import s8b_floor_campaign as floor_campaign
+
+    root = Path(tmp_path) if tmp_path is not None else Path(
+        _tmpdir("izanagi_floor_index_bytes_mismatch_")
+    )
+    fixture = build_admission_fixture(root)
+    original_resolver = floor_campaign.resolve_current_floor_protocol
+
+    def resolve_then_replace(*, root):
+        record = original_resolver(root=root)
+        (root / record.path).write_bytes(record.raw_bytes + b"\n")
+        return record
+
+    with unittest_mock.patch.object(
+            admission.s8b_floor_campaign, "resolve_current_floor_protocol",
+            side_effect=resolve_then_replace,
+    ), unittest_mock.patch.object(
+            admission.site_policy, "current_site",
+            return_value=site_policy.PEGASUS_COMPUTE,
+    ), unittest_mock.patch.object(
+            admission.env_attestation, "load_verified_calibration",
+            return_value=object(),
+    ):
+        try:
+            admission.admit(
+                "floor",
+                repo_root=fixture.repo_root,
+                receipt_path=fixture.receipts["floor"],
+                environ=fixture.environments["floor"],
+            )
+        except admission.AdmissionRejected as exc:
+            assert str(exc) == "floor protocol bytes differ from indexed authority"
+        else:
+            raise AssertionError("indexed SHA と異なる disk bytes を受理した")
+
+
 def test_certified_writer_environment_accepts_recorded_pegasus_identity():
     from orchestrator.campaign import certified_writer_admission as admission
 
@@ -5065,22 +5147,25 @@ def _mock_pipeline(certified=True, median=12345.0, cv=0.01, rc=0, ncommit=100,
             self.build_roots = []
             self.build_options = []
             self.source_resolve_calls = []
+            self.measure_kwargs = []
             self.lock_enters = 0
             self.competition_probes = 0
             self.verify_witnesses = []
 
     class ScriptedPoint:
         """ScalePoint 同様、値等価だが identity は別にできる round fixture。"""
-        def __init__(self, round_median, reps=2):
+        def __init__(self, round_median, reps=2, use_perf=True):
             self.throughputs = ([] if round_median is None else
                                 [round_median] * reps)
             self.run_cmd = "<run>"
             self._median = round_median
+            self._use_perf = use_perf
 
         def leading_indicators(self):
             return {"throughput_tps": self._median,
                     "abort_rate": abort_rate, "latency_ns": 1000.0,
-                    "llc_miss_rate": 0.2, "ipc": 1.5}
+                    "llc_miss_rate": 0.2 if self._use_perf else None,
+                    "ipc": 1.5 if self._use_perf else None}
 
         def __eq__(self, other):
             return (isinstance(other, ScriptedPoint)
@@ -5109,9 +5194,13 @@ def _mock_pipeline(certified=True, median=12345.0, cv=0.01, rc=0, ncommit=100,
         spec = round_specs[index]
         bench_calls.append(1)                            # 実 bench が走った証跡
         bench_calls.events.append("bench")
+        bench_calls.measure_kwargs.append(dict(k))
         if "rep_returncodes" in k:
             k["rep_returncodes"].extend(spec["rep_returncodes"])
-        point = ScriptedPoint(spec["median"], reps=k.get("reps", 2))
+        point = ScriptedPoint(
+            spec["median"], reps=k.get("reps", 2),
+            use_perf=k.get("use_perf", True),
+        )
         if round_binding == "duplicate":
             if shared_point["value"] is None:
                 shared_point["value"] = point
@@ -7533,7 +7622,8 @@ def test_loop_enables_s2_extra_correctness_via_search_config():
                        _AUTH_CONTRACT.env_tag, _AUTH_CONTRACT.clocks_per_us,
                        numactl=list(_AUTH_CONTRACT.numactl),
                        authorization_contract=_AUTHORIZATION,
-                       output_root=out_root, log=lambda *a: None, build_context=_BUILD_CONTEXT)
+                       do_bench=False, output_root=out_root,
+                       log=lambda *a: None, build_context=_BUILD_CONTEXT)
     finally:
         L.evaluate, L.source_digest = saved_eval, saved_sd
     assert captured["extra_correctness"] is not None
@@ -7576,7 +7666,8 @@ def test_loop_omits_extra_correctness_without_verify_search_config():
                        _AUTH_CONTRACT.env_tag, _AUTH_CONTRACT.clocks_per_us,
                        numactl=list(_AUTH_CONTRACT.numactl),
                        authorization_contract=_AUTHORIZATION,
-                       output_root=out_root, log=lambda *a: None, build_context=_BUILD_CONTEXT)
+                       do_bench=False, output_root=out_root,
+                       log=lambda *a: None, build_context=_BUILD_CONTEXT)
     finally:
         L.evaluate, L.source_digest = saved_eval, saved_sd
     assert captured["extra_correctness"] is None
@@ -7750,6 +7841,188 @@ def _loop_with_fake_eval(fake_eval, genomes, spec_content, do_bench=False,
     bound_cfg = _bound(cfg)
     lay = campaign_layout(str(ident.campaign_id(bound_cfg)), out_root)
     return s, lay
+
+
+_PERF_PREFLIGHT_EVENT_LINES = (
+    "1,,LLC-load-misses,0,100.00,,\n"
+    "2,,LLC-loads,0,100.00,,\n"
+    "3,,instructions,0,100.00,,\n"
+    "4,,cycles,0,100.00,,\n"
+)
+
+
+def _perf_preflight_producer(mode, producer_calls):
+    """実 perf に依存せず、production probe の subprocess seam だけを差し替える。"""
+    def produce(*, perf_candidates):
+        producer_calls.append(tuple(perf_candidates))
+
+        def run(argv, **_kwargs):
+            if mode == "unavailable":
+                raise FileNotFoundError("perf")
+            if mode == "probe_error":
+                raise subprocess.TimeoutExpired(argv, 1)
+            assert mode == "available"
+            Path(argv[argv.index("-o") + 1]).write_text(
+                _PERF_PREFLIGHT_EVENT_LINES, encoding="utf-8",
+            )
+            return types.SimpleNamespace(returncode=0, stdout="", stderr="")
+
+        return perf_preflight_module.probe_perf_availability(
+            perf_candidates=perf_candidates, subprocess_runner=run,
+        )
+
+    return produce
+
+
+def _run_exploration_with_perf_preflight(mode):
+    from orchestrator.campaign import loop as L
+
+    out_root = _tmpdir(f"izanagi_loop_perf_{mode}_")
+    cfg = CampaignConfig(
+        spec_slug="t", search_tag="enum",
+        spec_content=f"perf-preflight-{mode}", ccbench_commit="deadbeef",
+    )
+    candidate = Genome("silo", {"BACK_OFF": 1})
+    producer_calls = []
+    saved_sd = L.source_digest
+    L.source_digest = _sd_mock("stock")
+    try:
+        with _mock_pipeline(certified=True) as bench_calls:
+            summary = L.run_campaign(
+                cfg, [candidate], PerfConfig(records=1000, threads=2),
+                _AUTH_CONTRACT.env_tag, _AUTH_CONTRACT.clocks_per_us,
+                numactl=list(_AUTH_CONTRACT.numactl),
+                authorization_contract=_AUTHORIZATION,
+                output_root=out_root, log=lambda *_args: None,
+                build_context=_BUILD_CONTEXT,
+                campaign_namespace="exploration",
+                perf_preflight_fn=_perf_preflight_producer(mode, producer_calls),
+            )
+    finally:
+        L.source_digest = saved_sd
+    layout = exploration_campaign_layout(summary.campaign_id, out_root)
+    return summary, bench_calls, layout, producer_calls
+
+
+def test_official_rejects_perf_preflight_seam_while_exploration_accepts_it():
+    from orchestrator.campaign import loop as L
+
+    parent = _tmpdir("izanagi_loop_perf_seam_namespace_")
+    official_root = os.path.join(parent, "official-must-not-exist")
+    cfg = CampaignConfig(
+        spec_slug="t", search_tag="enum", spec_content="perf-seam-namespace",
+        ccbench_commit="deadbeef",
+    )
+    candidate = Genome("silo", {"BACK_OFF": 1})
+    producer_calls = []
+    producer = _perf_preflight_producer("unavailable", producer_calls)
+    common = (
+        cfg, [candidate], PerfConfig(records=1000, threads=2),
+        _AUTH_CONTRACT.env_tag, _AUTH_CONTRACT.clocks_per_us,
+    )
+
+    with pytest.raises(
+            ValueError,
+            match=r"official mode への非 default seam 注入を拒否する: "
+                  r"\['perf_preflight_fn'\]",
+    ):
+        L.run_campaign(
+            *common, numactl=list(_AUTH_CONTRACT.numactl),
+            authorization_contract=_AUTHORIZATION,
+            output_root=official_root, log=lambda *_args: None,
+            build_context=_BUILD_CONTEXT, campaign_namespace="official",
+            perf_preflight_fn=producer,
+        )
+    assert producer_calls == []
+    assert not os.path.exists(official_root)
+
+    exploration_root = os.path.join(parent, "exploration")
+    saved_sd = L.source_digest
+    L.source_digest = _sd_mock("stock")
+    try:
+        with _mock_pipeline(certified=True):
+            summary = L.run_campaign(
+                *common, numactl=list(_AUTH_CONTRACT.numactl),
+                authorization_contract=_AUTHORIZATION,
+                output_root=exploration_root, log=lambda *_args: None,
+                build_context=_BUILD_CONTEXT, campaign_namespace="exploration",
+                perf_preflight_fn=producer,
+            )
+    finally:
+        L.source_digest = saved_sd
+    assert len(producer_calls) == 1
+    assert summary.committed == 1 and summary.aborted == 0
+    assert summary.perf_preflight_receipt["status"] == "unavailable"
+
+
+def test_exploration_no_perf_completes_bench_and_records_not_required():
+    summary, bench_calls, layout, producer_calls = \
+        _run_exploration_with_perf_preflight("unavailable")
+
+    assert len(producer_calls) == 1
+    assert summary.committed == 1 and summary.aborted == 0
+    assert summary.perf_preflight_receipt["status"] == "unavailable"
+    assert bench_calls.measure_kwargs
+    assert all(call.get("use_perf") is False for call in bench_calls.measure_kwargs)
+    bench = next(
+        record for record in wal.read_records(layout)
+        if record.stage == STAGE_BENCH_DONE
+    )
+    observation = bench.payload["perf_observation"]
+    assert observation["use_perf"] is False
+    assert observation["counter_status"] == "not_required"
+    assert observation["missing_leading_indicators"] == []
+    assert observation["preflight"]["status"] == "unavailable"
+    assert bench.payload["leading_indicators"]["llc_miss_rate"] is None
+    assert bench.payload["leading_indicators"]["ipc"] is None
+
+
+def test_exploration_perf_probe_error_fails_closed_before_evaluation():
+    from orchestrator.campaign import loop as L
+
+    out_root = _tmpdir("izanagi_loop_perf_probe_error_")
+    cfg = CampaignConfig(
+        spec_slug="t", search_tag="enum", spec_content="perf-probe-error",
+        ccbench_commit="deadbeef",
+    )
+    producer_calls = []
+    with pytest.raises(perf_preflight_module.PerfPreflightError, match="判定不能"):
+        L.run_campaign(
+            cfg, [Genome("silo", {"BACK_OFF": 1})],
+            PerfConfig(records=1000, threads=2),
+            _AUTH_CONTRACT.env_tag, _AUTH_CONTRACT.clocks_per_us,
+            numactl=list(_AUTH_CONTRACT.numactl),
+            authorization_contract=_AUTHORIZATION,
+            output_root=out_root, log=lambda *_args: None,
+            build_context=_BUILD_CONTEXT,
+            campaign_namespace="exploration",
+            perf_preflight_fn=_perf_preflight_producer(
+                "probe_error", producer_calls,
+            ),
+        )
+    assert len(producer_calls) == 1
+    assert not os.path.exists(os.path.join(out_root, "exploration"))
+
+
+def test_exploration_available_perf_preserves_measurement_behavior():
+    summary, bench_calls, layout, producer_calls = \
+        _run_exploration_with_perf_preflight("available")
+
+    assert len(producer_calls) == 1
+    assert summary.committed == 1 and summary.aborted == 0
+    assert summary.perf_preflight_receipt["status"] == "available"
+    assert bench_calls.measure_kwargs
+    # True は既存 default のままなので measure_point の呼出し形も変えない。
+    assert all("use_perf" not in call for call in bench_calls.measure_kwargs)
+    bench = next(
+        record for record in wal.read_records(layout)
+        if record.stage == STAGE_BENCH_DONE
+    )
+    observation = bench.payload["perf_observation"]
+    assert observation["use_perf"] is True
+    assert observation["counter_status"] == "complete"
+    assert observation["missing_leading_indicators"] == []
+    assert observation["preflight"]["status"] == "available"
 
 
 def test_run_campaign_default_namespace_remains_official():

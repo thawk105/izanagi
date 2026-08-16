@@ -15,6 +15,7 @@ _ROOT = _ORCHESTRATOR.parent
 sys.path.insert(0, str(_ORCHESTRATOR.parent))
 
 from orchestrator.campaign import s8b_holdout_freeze  # noqa: E402
+from orchestrator.campaign import s8c_generation_projection as projection  # noqa: E402
 from orchestrator.campaign import s8c_preregistration as core  # noqa: E402
 from orchestrator.campaign import s8c_preregistration_evidence as M  # noqa: E402
 
@@ -562,10 +563,24 @@ def test_live_evaluator_bytes_must_match_commit_blob(tmp_path: Path) -> None:
     root = _init_repo(tmp_path)
     _write(root, core.CORE_MODULE_PATH, Path(core.__file__).read_bytes())
     _write(root, core.EVALUATOR_MODULE_PATH, b"# bytes different from imported evaluator\n")
+    _write(root, core.PROJECTION_MODULE_PATH, Path(projection.__file__).read_bytes())
     head = _commit(root, "mismatched evaluator")
     report = core.activation_report_at(root, head)
     assert {item.status for item in report.predicates} == {core.PredicateStatus.ERROR}
     assert {item.reason_code for item in report.predicates} == {"evaluator-blob-mismatch"}
+
+
+def test_evaluator_identity_precedes_projection_identity(tmp_path: Path) -> None:
+    root = _init_repo(tmp_path)
+    _write(root, core.CORE_MODULE_PATH, Path(core.__file__).read_bytes())
+    head = _commit(root, "missing evaluator and projection")
+    report = core.activation_report_at(root, head)
+    assert {item.status for item in report.predicates} == {
+        core.PredicateStatus.EVIDENCE_UNDEFINED
+    }
+    assert {item.reason_code for item in report.predicates} == {
+        "evaluator-module-absent-at-commit"
+    }
 
 
 def test_live_core_bytes_must_match_commit_blob(tmp_path: Path) -> None:
