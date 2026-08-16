@@ -636,13 +636,21 @@ def _verify_acceptance_receipt(
     )
     checker_blob = ""
     checker_result: _GitResult | None = None
+    main_checker_blob = ""
+    main_checker_result: _GitResult | None = None
     if verdict == "non-attributable-only":
+        main_checker_result = _git(
+            repository.wave,
+            "rev-parse",
+            f"{tested_main}:tools/check_acceptance_reds.py",
+        )
         checker_result = _git(
             repository.wave,
             "rev-parse",
             f"{tested_tip}:tools/check_acceptance_reds.py",
         )
         try:
+            main_checker_blob = main_checker_result.stdout.decode("ascii").strip()
             checker_blob = checker_result.stdout.decode("ascii").strip()
         except UnicodeError:
             raise _acceptance_rejected() from None
@@ -654,9 +662,13 @@ def _verify_acceptance_receipt(
         or (
             verdict == "non-attributable-only"
             and (
-                checker_result is None
+                main_checker_result is None
+                or main_checker_result.returncode != 0
+                or _SHA_RE.fullmatch(main_checker_blob) is None
+                or checker_result is None
                 or checker_result.returncode != 0
                 or _SHA_RE.fullmatch(checker_blob) is None
+                or main_checker_blob != checker_blob
                 or receipt.get("checker_blob_sha") != checker_blob
             )
         )

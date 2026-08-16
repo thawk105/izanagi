@@ -847,6 +847,50 @@ def test_land_accepts_non_attributable_receipt_and_emits_red_nodeids() -> None:
         ]
 
 
+def test_land_accepts_different_commits_with_same_checker_blob() -> None:
+    with _repo() as repo:
+        wave = repo.waves["one"]
+        tip = repo.commit(wave, "wave.txt", "wave\n")
+        assert repo.base != tip
+        assert _git(
+            wave,
+            "rev-parse",
+            f"{repo.base}:tools/check_acceptance_reds.py",
+        ) == _git(
+            wave,
+            "rev-parse",
+            f"{tip}:tools/check_acceptance_reds.py",
+        )
+        request = repo.request(wave, tip=tip)
+        payload = _non_attributable_payload(request)
+        _write_receipt(request.acceptance_receipt, payload)
+
+        result = _land(request)
+
+        assert (result.rc, result.status) == (LAND.RC_OK, "landed"), result
+        assert result.acceptance_verdict == "non-attributable-only"
+
+
+def test_land_rejects_checker_blob_divergence() -> None:
+    with _repo() as repo:
+        wave = repo.waves["one"]
+        tip = repo.commit(
+            wave,
+            "tools/check_acceptance_reds.py",
+            "raise SystemExit(1)\n",
+        )
+        request = repo.request(wave, tip=tip)
+        payload = _non_attributable_payload(request)
+        _write_receipt(request.acceptance_receipt, payload)
+        before = _git(repo.main, "rev-parse", "HEAD")
+
+        result = _land(request)
+
+        assert result.rc == LAND.RC_AUDIT
+        assert result.reason == "acceptance-receipt-rejected"
+        assert _git(repo.main, "rev-parse", "HEAD") == before
+
+
 @pytest.mark.parametrize(
     "child_rc",
     [0, 2, 13, 16, 23, -signal.SIGTERM],
@@ -1027,19 +1071,26 @@ def test_real_non_attributable_waiter_receipt_passes_real_land_end_to_end() -> N
             "raise SystemExit(1)\n",
             encoding="utf-8",
         )
-        _git(repo.main, "add", "tools/run_tests.py")
-        _git(repo.main, "commit", "-qm", "install synthetic known red")
+        shutil.copy2(
+            ROOT / "tools" / "check_acceptance_reds.py",
+            repo.main / "tools",
+        )
+        _git(
+            repo.main,
+            "add",
+            "tools/run_tests.py",
+            "tools/check_acceptance_reds.py",
+        )
+        _git(repo.main, "commit", "-qm", "install synthetic known red checker")
         repo.base = _git(repo.main, "rev-parse", "HEAD")
         _git(wave, "merge", "--ff-only", "main")
         shutil.copy2(ROOT / "tools" / "dev_wave_wait.py", wave / "tools")
         shutil.copy2(ROOT / "tools" / "wave_land_window.py", wave / "tools")
-        shutil.copy2(ROOT / "tools" / "check_acceptance_reds.py", wave / "tools")
         _git(
             wave,
             "add",
             "tools/dev_wave_wait.py",
             "tools/wave_land_window.py",
-            "tools/check_acceptance_reds.py",
         )
         _git(wave, "commit", "-qm", "install real acceptance integrity tools")
         tip = _git(wave, "rev-parse", "HEAD")
@@ -5268,6 +5319,10 @@ def test_git_operation_surface_is_read_only_except_sha_ff_merge() -> None:
             assert forbidden.isdisjoint(args), args
             if "config" in args:
                 assert "--get-regexp" in args and "--includes" in args, args
+        assert not any(
+            any("tools/check_acceptance_reds.py" in arg for arg in args)
+            for args in calls
+        ), calls
 
 
 def test_merge_child_inherits_only_explicit_lock_not_other_parent_fd() -> None:

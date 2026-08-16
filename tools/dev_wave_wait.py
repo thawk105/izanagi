@@ -242,6 +242,15 @@ _RED_CHECK_RECEIPT_SUFFIX = ".acceptance-red-check.json"
 _TASK_RUN_ID_ENV = "IZANAGI_TASK_RUN_ID"
 _TASK_RUNS_ROOT_ENV = "IZANAGI_TASK_RUNS_ROOT"
 _PYTEST_ENV_KEYS = ("PYTEST_ADDOPTS", "PYTEST_PLUGINS")
+_GIT_EXE = "/usr/bin/git"
+_GIT_CONFIG = (
+    "-c", "core.hooksPath=/dev/null",
+    "-c", "core.fsmonitor=false",
+    "-c", "core.useBuiltinFSMonitor=false",
+    "-c", "maintenance.auto=false",
+    "-c", "gc.auto=0",
+    "-c", "protocol.file.allow=never",
+)
 _GIT_ENV_KEYS = frozenset(
     {
         "GIT_DIR",
@@ -255,6 +264,20 @@ _GIT_ENV_KEYS = frozenset(
         "GIT_CONFIG_COUNT",
         "GIT_CONFIG_NOSYSTEM",
     }
+)
+_RED_CHECKER_PATH = "tools/check_acceptance_reds.py"
+_RED_CHECKER_BOOTSTRAP = (
+    "import os,sys\n"
+    "if os.environ.get('PYTHONDONTWRITEBYTECODE'):\n"
+    "    sys.dont_write_bytecode = True\n"
+    "source = sys.stdin.buffer.read()\n"
+    "namespace = {\n"
+    "    '__name__': '_izanagi_acceptance_red_checker',\n"
+    "    '__file__': '<tested-main:tools/check_acceptance_reds.py>',\n"
+    "}\n"
+    "exec(compile(source, namespace['__file__'], 'exec'), namespace)\n"
+    "repo = __import__('pathlib').Path(sys.argv[1])\n"
+    "raise SystemExit(namespace['main'](sys.argv[2:], repo_root=repo))\n"
 )
 _CLEAN_STATUS_ARGV = (
     "git", "status", "--porcelain", "--untracked-files=all",
@@ -282,6 +305,13 @@ class _CommandResult:
     returncode: int
     stdout: str = ""
     stderr: str = ""
+
+
+@dataclass(frozen=True)
+class _BinaryCommandResult:
+    returncode: int
+    stdout: bytes = b""
+    stderr: bytes = b""
 
 
 class _TipWaiterBlobError(Exception):
@@ -341,6 +371,12 @@ class _RedCheckResult:
     red_nodeids: tuple[str, ...]
 
 
+@dataclass(frozen=True)
+class _RedCheckerBinding:
+    source: bytes
+    blob_sha: str
+
+
 class _PidState(Enum):
     ALIVE = "alive"
     DEAD = "dead"
@@ -371,6 +407,9 @@ class _Effects:
     inspect_acceptance_log: Callable[[Path], tuple[str, str]] | None = None
     running_waiter_bytes_sha256: Callable[[], object] | None = None
     tip_waiter_bytes_sha256: Callable[[Path, str], object] | None = None
+    run_with_input: (
+        Callable[[Sequence[str], Path, bool, bytes], _BinaryCommandResult] | None
+    ) = None
 
 
 class _LeaseOwnership(Enum):
@@ -407,6 +446,25 @@ class _SignalReceived(BaseException):
     def __init__(self, signum: int):
         super().__init__(signum)
         self.signum = signum
+
+
+def _git_env() -> dict[str, str]:
+    env = {
+        key: value
+        for key, value in os.environ.items()
+        if not key.startswith("GIT_")
+    }
+    env.update({
+        "GIT_CONFIG_GLOBAL": os.devnull,
+        "GIT_CONFIG_SYSTEM": os.devnull,
+        "GIT_ATTR_NOSYSTEM": "1",
+        "GIT_TERMINAL_PROMPT": "0",
+        "GIT_NO_LAZY_FETCH": "1",
+        "GIT_NO_REPLACE_OBJECTS": "1",
+        "GIT_OPTIONAL_LOCKS": "0",
+        "LC_ALL": "C",
+    })
+    return env
 
 
 def _run_subprocess(
@@ -470,6 +528,80 @@ def _run_subprocess(
         stdout if capture else "",
         stderr if capture else "",
     )
+
+
+def _run_subprocess_with_input(
+    argv: Sequence[str],
+    cwd: Path,
+    capture: bool,
+    content: bytes,
+) -> _BinaryCommandResult:
+    values = list(argv)
+    kwargs: dict[str, object] = {
+        "cwd": cwd,
+        "shell": False,
+        "text": False,
+    }
+    direct_git = bool(values and values[0] == _GIT_EXE)
+    if direct_git:
+        kwargs["env"] = _git_env()
+    if capture:
+        kwargs["stdout"] = subprocess.PIPE
+        kwargs["stderr"] = subprocess.PIPE
+    if not direct_git:
+        # checker 内側の 5100 秒契約を外から短縮しない。
+        result = subprocess.run(
+            values,
+            input=content,
+            check=False,
+            **kwargs,
+        )
+        return _BinaryCommandResult(
+            result.returncode,
+            result.stdout if capture else b"",
+            result.stderr if capture else b"",
+        )
+
+    # blob 束縛に使う短い Git stage だけは既存 stage 上限で閉じる。
+    process = subprocess.Popen(
+        values,
+        stdin=subprocess.PIPE,
+        start_new_session=True,
+        **kwargs,
+    )
+    try:
+        stdout, stderr = process.communicate(
+            input=content,
+            timeout=_STAGE_TIMEOUT_SECONDS,
+        )
+    except BaseException:
+        try:
+            os.killpg(process.pid, signal.SIGKILL)
+        except ProcessLookupError:
+            pass
+        try:
+            process.communicate(timeout=_STAGE_TERMINATION_SECONDS)
+        except subprocess.TimeoutExpired:
+            process.kill()
+            try:
+                process.wait(timeout=_STAGE_TERMINATION_SECONDS)
+            except subprocess.TimeoutExpired:
+                pass
+        raise
+    return _BinaryCommandResult(
+        process.returncode,
+        stdout if capture else b"",
+        stderr if capture else b"",
+    )
+
+
+def _default_run_with_input(
+    argv: Sequence[str],
+    cwd: Path,
+    capture: bool,
+    content: bytes,
+) -> _BinaryCommandResult:
+    return _run_subprocess_with_input(argv, cwd, capture, content)
 
 
 def _default_run(argv: Sequence[str], cwd: Path, capture: bool) -> _CommandResult:
@@ -991,6 +1123,7 @@ def _default_effects() -> _Effects:
         inspect_acceptance_log=_default_inspect_acceptance_log,
         running_waiter_bytes_sha256=_default_running_waiter_bytes_sha256,
         tip_waiter_bytes_sha256=_default_tip_waiter_bytes_sha256,
+        run_with_input=_default_run_with_input,
     )
 
 
@@ -1727,6 +1860,152 @@ def _blob_sha(
     return value
 
 
+def _red_gate_git_argv(repo: Path, *args: str) -> tuple[str, ...]:
+    return (
+        _GIT_EXE,
+        *_GIT_CONFIG,
+        "-C",
+        str(repo),
+        *args,
+    )
+
+
+def _run_with_input(
+    effects: _Effects,
+    argv: Sequence[str],
+    repo: Path,
+    content: bytes,
+    stage: str,
+    *,
+    capture: bool,
+) -> _BinaryCommandResult:
+    runner = effects.run_with_input
+    if runner is None:
+        raise _StageFailure(stage)
+    try:
+        result = runner(tuple(argv), repo, capture, content)
+    except (OSError, UnicodeError, ValueError, subprocess.SubprocessError):
+        raise _StageFailure(stage) from None
+    if not isinstance(result, _BinaryCommandResult):
+        raise _StageFailure(stage)
+    return result
+
+
+def _red_gate_git(
+    effects: _Effects,
+    repo: Path,
+    content: bytes,
+    stage: str,
+    *args: str,
+) -> bytes:
+    result = _run_with_input(
+        effects,
+        _red_gate_git_argv(repo, *args),
+        repo,
+        content,
+        stage,
+        capture=True,
+    )
+    if result.returncode != 0:
+        raise _StageFailure(stage, source_rc=result.returncode)
+    if not isinstance(result.stdout, bytes):
+        raise _StageFailure(stage)
+    return result.stdout
+
+
+def _red_gate_blob_sha(
+    effects: _Effects,
+    repo: Path,
+    revision: str,
+    stage: str,
+) -> str:
+    raw = _red_gate_git(
+        effects,
+        repo,
+        b"",
+        stage,
+        "rev-parse",
+        "--verify",
+        f"{revision}:{_RED_CHECKER_PATH}",
+    )
+    try:
+        value = raw.decode("ascii").strip()
+    except UnicodeError:
+        raise _StageFailure(stage) from None
+    if _SHA_RE.fullmatch(value) is None:
+        raise _StageFailure(stage)
+    return value
+
+
+def _verified_red_checker_source(
+    effects: _Effects,
+    repo: Path,
+    tested_main: str,
+    tested_tip: str,
+    stage: str,
+) -> _RedCheckerBinding:
+    main_blob_sha = _red_gate_blob_sha(effects, repo, tested_main, stage)
+    tip_blob_sha = _red_gate_blob_sha(effects, repo, tested_tip, stage)
+    if main_blob_sha != tip_blob_sha:
+        raise _StageFailure(stage)
+    source = _red_gate_git(
+        effects,
+        repo,
+        b"",
+        stage,
+        "cat-file",
+        "blob",
+        f"{tested_main}:{_RED_CHECKER_PATH}",
+    )
+    actual_raw = _red_gate_git(
+        effects,
+        repo,
+        source,
+        stage,
+        "hash-object",
+        "--stdin",
+        "--no-filters",
+    )
+    try:
+        actual_blob_sha = actual_raw.decode("ascii").strip()
+    except UnicodeError:
+        raise _StageFailure(stage) from None
+    if (
+        _SHA_RE.fullmatch(actual_blob_sha) is None
+        or actual_blob_sha != main_blob_sha
+    ):
+        raise _StageFailure(stage)
+    return _RedCheckerBinding(source=source, blob_sha=main_blob_sha)
+
+
+def _red_checker_argv(
+    *,
+    repo: Path,
+    log_file: Path,
+    checker_receipt: Path,
+    probe_root: Path,
+    tested_main: str,
+    tested_tip: str,
+) -> tuple[str, ...]:
+    return (
+        sys.executable,
+        "-I",
+        "-c",
+        _RED_CHECKER_BOOTSTRAP,
+        str(repo),
+        "--log",
+        str(log_file),
+        "--tested-main",
+        tested_main,
+        "--wave-tip",
+        tested_tip,
+        "--receipt",
+        str(checker_receipt),
+        "--probe-root",
+        str(probe_root),
+    )
+
+
 def _behind_count(effects: _Effects, repo: Path, stage: str) -> int:
     result = _run_capture(
         effects,
@@ -2410,24 +2689,28 @@ def _verify_red_check_receipt(
     log_sha256: str,
 ) -> _RedCheckResult:
     stage = "acceptance-red-check"
-    checker_argv = (
-        sys.executable,
-        str(repo / "tools" / "check_acceptance_reds.py"),
-        "--log",
-        str(log_file),
-        "--tested-main",
+    binding = _verified_red_checker_source(
+        effects,
+        repo,
         tested_main,
-        "--wave-tip",
         tested_tip,
-        "--receipt",
-        str(checker_receipt),
-        "--probe-root",
-        str(probe_root),
+        stage,
     )
-    try:
-        checker = effects.run(checker_argv, repo, False)
-    except (OSError, UnicodeError, subprocess.SubprocessError):
-        raise _StageFailure(stage) from None
+    checker = _run_with_input(
+        effects,
+        _red_checker_argv(
+            repo=repo,
+            log_file=log_file,
+            checker_receipt=checker_receipt,
+            probe_root=probe_root,
+            tested_main=tested_main,
+            tested_tip=tested_tip,
+        ),
+        repo,
+        binding.source,
+        stage,
+        capture=False,
+    )
     checker_rc = _normalize_child_rc(checker.returncode)
     if checker_rc != 0:
         raise _StageFailure(stage, source_rc=checker.returncode)
@@ -2490,17 +2773,10 @@ def _verify_red_check_receipt(
         red_nodeids.append(node["nodeid"])
     if red_nodeids != sorted(set(red_nodeids)):
         raise _StageFailure(stage)
-    checker_blob_sha = _blob_sha(
-        effects,
-        repo,
-        tested_tip,
-        "tools/check_acceptance_reds.py",
-        stage,
-    )
     return _RedCheckResult(
         checker_rc=checker_rc,
         checker_status="non-attributable-only",
-        checker_blob_sha=checker_blob_sha,
+        checker_blob_sha=binding.blob_sha,
         checker_receipt_sha256=hashlib.sha256(raw).hexdigest(),
         red_nodeids=tuple(red_nodeids),
     )
