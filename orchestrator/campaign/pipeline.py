@@ -23,6 +23,7 @@ import time
 from dataclasses import dataclass, field
 from typing import Callable, Dict, List, NamedTuple, Optional, Sequence, Tuple
 
+from ..calibrator import perf_preflight as _perf_preflight                # noqa: E402
 from ..calibrator.runner import (CompetingBenchProbeError,        # noqa: E402
                                competing_bench_pids, measure_point, settle)
 from ..calibrator.stability import remeasure_until_stable         # noqa: E402
@@ -417,6 +418,8 @@ def _run_bench(perf_binary: str, perf: PerfConfig, clocks_per_us: int,
                holdout_observation_admission: Optional[
                    HoldoutObservationAdmission
                ] = None,
+               use_perf: bool = True,
+               perf_preflight_receipt: Optional[dict] = None,
                ) -> Tuple[Optional[EvalResult], Optional[_BenchResult]]:
     """現行の full bench を実行し、成功時は WAL に既測値を残す。"""
     _require_measurement_site("campaign throughput 測定")
@@ -447,6 +450,8 @@ def _run_bench(perf_binary: str, perf: PerfConfig, clocks_per_us: int,
             qualification_kwargs["holdout_observation_admission"] = (
                 holdout_observation_admission
             )
+        if not use_perf:
+            qualification_kwargs["use_perf"] = False
         if not record_rep_returncodes:
             return measure_point(
                 perf_binary, perf.records, perf.threads, clocks_per_us,
@@ -544,6 +549,10 @@ def _run_bench(perf_binary: str, perf: PerfConfig, clocks_per_us: int,
                       "rep_notes": getattr(pt, "notes", []),
                       "bench_wall_s": bench_wall_s}), None
     leading_indicators = pt.leading_indicators()
+    missing_perf_indicators = [
+        name for name in ("llc_miss_rate", "ipc")
+        if leading_indicators.get(name) is None
+    ] if use_perf else []
     bench_payload = {
         "median_tps": nf.median, "cv": nf.cv,
         "bench_wall_s": bench_wall_s,
@@ -562,6 +571,20 @@ def _run_bench(perf_binary: str, perf: PerfConfig, clocks_per_us: int,
         "rep_notes": getattr(pt, "notes", []),
         "run_cmd": pt.run_cmd,                    # この測定点を再現する実行コマンド
     }
+    if perf_preflight_receipt is not None:
+        # 探索 preflight 経路だけの明示記録。receipt 無しの official/legacy caller の
+        # WAL 形は変えない。perf 無しはゼロ値でなく not_required、利用時の欠測は
+        # incomplete として「未測定」と「測定値 0」を区別可能にする。
+        bench_payload["perf_observation"] = {
+            "use_perf": use_perf,
+            "counter_status": (
+                "not_required" if not use_perf
+                else "complete" if not missing_perf_indicators
+                else "incomplete"
+            ),
+            "missing_leading_indicators": missing_perf_indicators,
+            "preflight": perf_preflight_receipt,
+        }
     if screening:
         bench_payload["screening"] = True
     if selected_returncodes is not None:
@@ -599,7 +622,9 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
              trigger_gate_binding=None,
              holdout_observation_admission: Optional[
                  HoldoutObservationAdmission
-             ] = None) -> EvalResult:
+             ] = None,
+             use_perf: bool = True,
+             perf_preflight_receipt: Optional[dict] = None) -> EvalResult:
     """1 genome を評価し WAL に記録する。
 
     `ccbench_dir`/`cache_root` (段5 git worktree 隔離): 省略時は共有固定パス既定 (既存動作と
@@ -629,6 +654,10 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
     `record_rep_returncodes` も既定 False の opt-in。True の official oracle 経路だけ、
     採用した再測定 round と identity で一意に対応する rep rc を bench_done に残す。
 
+    `use_perf` は既定 True を維持する。False は unavailable と検証できる
+    `perf_preflight_receipt` と同時に渡された探索経路だけで許可し、probe_error や
+    receipt との不一致は build/WAL より前に拒否する。
+
     `trigger_gate_binding` は trigger proposal 専用。SourceEvidence 確定後に source-bound
     binding を作り、raw record を build_start より先に、commitment だけを start payload
     に記録する。None の既存 caller は従来 WAL 書式のまま。
@@ -641,14 +670,28 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
     (verify 2 本立て、既存 CorrectnessWorkload は置き換えず併存、決定2)。各構成は
     WAL に "workload":{"tag":...} で残り、次手生成 (critic) がどの構成で壊れたか
     帰属できる (決定4-3)。S2 相当 (t48 フルロード規模) は bench 並みの負荷ゆえ
-    bench_lock + numactl 下で回す (決定4-4)。既定 legacy は軽量ゆえ従来どおり
-    並列可 (lock.py の設計方針)。"""
+    bench_lock + bench と同一の launch prefix 下で回す (決定4-4)。既定 legacy は
+    軽量ゆえ従来どおり並列可 (lock.py の設計方針)。"""
     if type(build_context) is not BuildRunContext:
         raise TypeError("build_context は build_run_context() 由来の exact value が必要")
     if trigger_gate_binding is not None and type(trigger_gate_binding) is not TriggerGateBinding:
         raise TypeError("trigger_gate_binding は exact TriggerGateBinding または None が必要")
     if capability_resolver is not None and not callable(capability_resolver):
         raise TypeError("capability_resolver は callable または None が必要")
+    if type(use_perf) is not bool:
+        raise TypeError("use_perf は bool でなければならない")
+    if perf_preflight_receipt is None:
+        if not use_perf:
+            raise ValueError("use_perf=False には perf preflight receipt が必要")
+    else:
+        perf_preflight_receipt = (
+            _perf_preflight.validate_perf_preflight_receipt(perf_preflight_receipt)
+        )
+        expected_use_perf = _perf_preflight.use_perf_from_receipt(
+            perf_preflight_receipt
+        )
+        if use_perf is not expected_use_perf:
+            raise ValueError("use_perf と perf preflight receipt が不一致")
     if (isinstance(bench_max_rounds, bool) or not isinstance(bench_max_rounds, int)
             or bench_max_rounds < 1):
         raise ValueError("bench_max_rounds は 1 以上の整数でなければならない")
@@ -674,7 +717,8 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
                 or extra_correctness != [(S2_TAG, s2_correctness_workload())]
                 or do_bench is not True or do_settle is not True
                 or screening is not None or bench_max_rounds != 1
-                or record_rep_returncodes is not True):
+                or record_rep_returncodes is not True
+                or use_perf is not True):
             raise ValueError("qualification opt-in evaluation shape mismatch")
     emit = (
         qualification_policy.event_sink.emit
@@ -691,14 +735,16 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
     for tag, wl in (extra_correctness or []):
         passes.append((tag, wl, True))
     if (any(fullscale_isolated for _, _, fullscale_isolated in passes)
-            and not numactl and qualification_policy is None):
-        # S2 相当 (use_numactl=True) は D36 決定4-4 で numactl interleave=all が必須。
-        # numactl 無しで黙って通すと較正済み contention 条件からの静かな乖離になる
-        # (敵対レビュー 2026-07-09 で確認)。ycsb_tuple_num の既存ガードと同じ流儀
-        # (raise → run_campaign の except Exception が eval-exception abort に変換)。
+            and qualification_policy is None
+            and tuple(numactl or ()) != authorization_contract.contract.numactl):
+        # S2 相当 (fullscale_isolated=True) は D36 決定4-4 で bench と同じメモリ配置が必須。
+        # launch prefix の非空性ではなく、bench の権威である解決済み環境契約との
+        # exact 一致を要求する。これにより prefix 無しが契約である Pegasus は通し、
+        # 非空でも bench と異なる配置を指定した verify は fail-closed で拒否する。
+        # raise は run_campaign の except Exception が eval-exception abort に変換する。
         raise ValueError(
-            "extra_correctness に numactl 必須の構成があるが numactl 未指定 "
-            "(D36 決定4-4: S2 相当は bench と同じメモリ配置 numactl interleave=all で回す)")
+            "extra_correctness の launch prefix が bench の環境契約 numactl と一致しない "
+            "(D36 決定4-4: S2 相当は bench と同じメモリ配置で回す)")
     authorized_contract = execution_guard.require_certified_writer_authorization(
         authorization_contract,
         env_tag=env_tag,
@@ -1125,7 +1171,9 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
             layout, v, env_tag, _abort, log, screening=True,
             bench_max_rounds=bench_max_rounds,
             record_rep_returncodes=record_rep_returncodes,
-            holdout_observation_admission=holdout_observation_admission)
+            holdout_observation_admission=holdout_observation_admission,
+            use_perf=use_perf,
+            perf_preflight_receipt=perf_preflight_receipt)
         if aborted_result is not None:
             return aborted_result
         assert bench is not None
@@ -1238,7 +1286,9 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
                     if qualification_policy is not None else False
                 ),
                 emit=emit,
-                holdout_observation_admission=holdout_observation_admission)
+                holdout_observation_admission=holdout_observation_admission,
+                use_perf=use_perf,
+                perf_preflight_receipt=perf_preflight_receipt)
             if aborted_result is not None:
                 return aborted_result
         assert bench is not None

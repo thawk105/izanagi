@@ -1,0 +1,53 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 120,
+  "timeout_seconds": 600,
+  "hang_timeout_seconds": 900,
+  "mutations": [
+    {
+      "id": "swo.identity-external-binding-drop",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_sort_swo_receipt.py",
+          "old": "    expected = (\n        expected_cell_id, expected_holdout_id, expected_configuration_id,\n        expected_entry_sha256, expected_binary_sha256,\n    )\n",
+          "new": "    expected = (\n        receipt[\"cell_id\"], receipt[\"holdout_id\"], receipt[\"configuration_id\"],\n        receipt[\"entry_sha256\"], receipt[\"binary_sha256\"],\n    )\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_sort_swo_receipt.py::test_validator_rejects_receipt_transplant[cell_id-rr20::sort_best]",
+        "orchestrator/tests/test_s8b_sort_swo_receipt.py::test_validator_rejects_receipt_transplant[holdout_id-rr20]",
+        "orchestrator/tests/test_s8b_sort_swo_receipt.py::test_validator_rejects_receipt_transplant[entry_sha256-0000000000000000000000000000000000000000000000000000000000000000]",
+        "orchestrator/tests/test_s8b_sort_swo_receipt.py::test_validator_rejects_receipt_transplant[binary_sha256-1111111111111111111111111111111111111111111111111111111111111111]",
+        "orchestrator/tests/test_s8b_binary_admission.py::test_sort_receipt_identity_must_match_binary_record",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_sort_receipt_identity_transplant_is_rejected"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "admission.campaign-filter-drop",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_holdout_admission.py",
+          "old": "        selected_main = [\n            row for row in main_rows if row.get(\"campaign_run_id\") == campaign_run_id\n        ]\n",
+          "new": "        selected_main = list(main_rows)\n"
+        },
+        {
+          "file": "orchestrator/campaign/s8b_holdout_admission.py",
+          "old": "        selected_attempts = [\n            row for row in attempt_rows if row.get(\"campaign_run_id\") == campaign_run_id\n        ]\n",
+          "new": "        selected_attempts = list(attempt_rows)\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_inspection_rejects_foreign_campaign_rows_only",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_inspection_digest_ignores_other_campaign_rows",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_transient_prepare_failure_retries_once",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_v2_completed_driver_adapter_campaign_is_accepted_by_report"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}

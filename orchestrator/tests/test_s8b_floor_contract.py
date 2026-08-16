@@ -55,7 +55,11 @@ def _lookup_contract_sha256(env_tag: str) -> str:
 
 
 def _freeze() -> dict:
-    entries = {_STOCK: {"binding": "s"}, "variant": {"binding": "v"}}
+    entries = {
+        _STOCK: {"binding": "s"},
+        "sort_best": {"binding": "sort"},
+        "variant": {"binding": "v"},
+    }
     return {
         "holdouts": {
             "holdout-a": {
@@ -113,6 +117,12 @@ def test_floor_campaign_directly_reexports_shared_leaf_objects():
         "_round_seed",
     ):
         assert getattr(s8b_floor_campaign, name) is getattr(s8b_floor_contract, name)
+
+    assert s8b_floor_contract.RESULT_SCHEMA == "s8b-floor-result/v4"
+    assert s8b_floor_contract.MANIFEST_SCHEMA == "s8b-floor-manifest/v3"
+    assert s8b_floor_contract.FLOOR_HOLDOUT_ADMISSION_SCHEMA == (
+        "s8b-floor-holdout-admission-receipt/v1"
+    )
 
 
 def test_leaf_full_validator_normalizes_18_keys_and_projects_exact_7_scalars():
@@ -184,9 +194,117 @@ def test_expected_cells_are_derived_from_ratified_freeze_binding():
         _freeze(), stock_configuration=_STOCK,
     )
     assert expected == {
-        "holdout-a": ["stock", "variant"],
-        "holdout-b": ["stock", "variant"],
+        "holdout-a": ["sort_best", "stock", "variant"],
+        "holdout-b": ["sort_best", "stock", "variant"],
     }
+
+
+def _admission_receipt() -> dict:
+    return {
+        "schema": s8b_floor_contract.FLOOR_HOLDOUT_ADMISSION_SCHEMA,
+        "campaign_run_id": "run-a",
+        "run_relpath": "env/fixture/calibration/s8b-floor-pilot/run-a",
+        "mode": "pilot",
+        "protocol_sha256": "1" * 64,
+        "freeze_sha256": "2" * 64,
+        "manifest_sha256": "3" * 64,
+        "claim_identities": {"holdout-a::sort_best": "4" * 64},
+        "admission_row_count": 1,
+        "attempt_row_count": 0,
+        "ledger_projection_sha256": "5" * 64,
+    }
+
+
+def test_holdout_admission_receipt_validator_accepts_only_exact_shape():
+    value = _admission_receipt()
+    assert s8b_floor_contract.validate_floor_holdout_admission_receipt(value) == value
+    for mutation in ("missing", "extra"):
+        changed = deepcopy(value)
+        if mutation == "missing":
+            changed.pop("mode")
+        else:
+            changed["unexpected"] = True
+        with pytest.raises(s8b_floor_contract.FloorContractError, match="exact key"):
+            s8b_floor_contract.validate_floor_holdout_admission_receipt(changed)
+
+
+@pytest.mark.parametrize(
+    "run_relpath",
+    ["/absolute/run", ".", "a/./b", "a/../b", "a\\b", "a//b", "a/"],
+)
+def test_holdout_admission_receipt_rejects_noncanonical_run_relpath(run_relpath):
+    value = _admission_receipt()
+    value["run_relpath"] = run_relpath
+    with pytest.raises(s8b_floor_contract.FloorContractError, match="canonical POSIX"):
+        s8b_floor_contract.validate_floor_holdout_admission_receipt(value)
+
+
+def test_holdout_admission_receipt_binds_claim_count():
+    value = _admission_receipt()
+    value["admission_row_count"] = 0
+    with pytest.raises(s8b_floor_contract.FloorContractError, match="件数"):
+        s8b_floor_contract.validate_floor_holdout_admission_receipt(value)
+
+
+def _authorization_schedule() -> list[dict]:
+    return [
+        {"seq": 0, "round": 1, "cell_id": "cell"},
+        {"seq": 1, "round": 1, "cell_id": "cell"},
+    ]
+
+
+def test_canonical_authorization_rejects_attempt_id_transplanted_from_other_seq():
+    start = {
+        "event": "session-start", "kind": "planned", "seq": 1, "round": 1,
+        "cell_id": "cell", "retry_ordinal": None,
+        "attempt_id": "cell::seq0", "trigger": None,
+    }
+    with pytest.raises(s8b_floor_contract.FloorContractError, match="planned"):
+        s8b_floor_contract.validate_session_start_authorizations(
+            [start], schedule=_authorization_schedule(), retry_slots_per_cell=2,
+        )
+
+
+def test_canonical_authorization_rejects_attempt_id_transplanted_from_retry_ordinal():
+    start = {
+        "event": "session-start", "kind": "retry", "seq": 2, "round": 1,
+        "cell_id": "cell", "retry_ordinal": 2,
+        "attempt_id": "cell::retry1", "trigger": "cell::seq0",
+    }
+    with pytest.raises(s8b_floor_contract.FloorContractError, match="retry"):
+        s8b_floor_contract.validate_session_start_authorizations(
+            [start], schedule=_authorization_schedule(), retry_slots_per_cell=2,
+        )
+
+
+def test_canonical_authorization_rejects_duplicate_cell_retry_ordinal():
+    starts = [
+        {
+            "event": "session-start", "kind": "retry", "seq": 2 + index,
+            "round": 1, "cell_id": "cell", "retry_ordinal": 1,
+            "attempt_id": attempt_id, "trigger": "cell::seq0",
+        }
+        for index, attempt_id in enumerate(("cell::retry1", "cell::retry2"))
+    ]
+    with pytest.raises(s8b_floor_contract.FloorContractError, match="retry"):
+        s8b_floor_contract.validate_session_start_authorizations(
+            starts, schedule=_authorization_schedule(), retry_slots_per_cell=2,
+        )
+
+
+def test_result_v4_key_contract_is_mode_conditional_and_exact():
+    official = s8b_floor_contract.result_keys_for_mode("official")
+    pilot = s8b_floor_contract.result_keys_for_mode("pilot")
+    assert pilot == official | {"perf_preflight"}
+    assert "unexpected" not in official
+
+
+def test_enumerate_cells_rejects_freeze_without_sort_best():
+    freeze = _freeze()
+    for holdout in freeze["holdouts"].values():
+        holdout["variant_binding"]["entries"].pop("sort_best")
+    with pytest.raises(s8b_floor_contract.FloorContractError, match="sort_best"):
+        s8b_floor_contract.enumerate_cells(freeze, stock_configuration=_STOCK)
 
 
 def test_portable_run_cmd_has_canonical_workload_order_and_exact_prefix():

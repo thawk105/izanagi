@@ -19029,3 +19029,115 @@ qsub 前の永続 claim を作らないため、SIGKILL と照会中の再 signa
   dispatch を永久に封じる。evidence の再実体化で worktree を分けても隔離されない。
 - 停止記録を通常の変異台帳へ上書きする案 — 保全した campaign の `--resume` が
   schema 不一致で必ず失敗し、一時停止が campaign 再作成へ悪化する。
+
+## D455. 床値 record の SWO receipt は束縛であって oracle 実行の証明ではない (2026-08-16)
+
+**決定:** sort_best cell の SWO PASS receipt を床値の durable record へ束縛する。射影は
+`cell_id` / `holdout_id` / `configuration_id` / `entry_sha256` / `binary_sha256` の identity 5 項目を
+含み、binary record 側の同名値との完全一致を要求する。ホスト絶対パス
+(`compiler_realpath` / `dependency_root_realpath`) は成果物へ載せず、`compiler_version` は
+sha256 だけを載せる。raw receipt 全体の sha256 を commitment として持つ。
+
+**この receipt が保証するのは「床値 record がどの oracle 実行 receipt を主張しているか」の
+durable な辺であって、oracle が実際に走ったことではない。** receipt の全 field は公開かつ決定的で、
+oracle を実行せずに合成できる。`receipt_sha256` は private evidence への commitment であり、
+raw receipt が到達可能な環境でだけ検算できる。この境界を module と両関数の docstring へ明記する。
+
+**理由:**
+- 実行証明には検証時の oracle 再実行か、artifact author と分離された署名付き追記専用 authority が
+  要る。どちらも署名・束縛機構の新設であり、bytes 級 provenance 機構は既定で見送りという
+  2026-08-12 のユーザー裁定に該当する。
+- 一方で identity 束縛は安価で実利がある。これが無いと別 comparator の PASS receipt を
+  移植でき、束縛という主張自体が空になる。
+- 保証範囲を書かずに land すると、成果物が実際より強い保証を持つと読まれる。
+
+**却下した選択肢:**
+- 絶対パスも placeholder 化して全 field を載せる — portable 契約の予約 placeholder 検査と衝突し、
+  `compiler_version` は外部 compiler 出力の任意文字列なので軸情報漏洩の迂回路になる。
+- sanitized 射影そのものを hash する — 射影は成果物に在るので hash が何も足さない。
+- receipt を載せない — 束縛の辺が無いままになり、当該タスクが解けない。
+
+## D456. 公開 verifier は expected を caller から受け取らない (2026-08-16)
+
+**決定:** floor 成果物の検証を 2 つの API へ分ける。純射影 verifier は expected admission receipt を
+必須 keyword で受け取り、docstring に「live admission を保証しない」と明記する。
+公開 consumer (ratified closure / holdout freeze / report) が使う入口は別関数とし、
+**その関数自身が live inspector を呼ぶ。expected を受け取る引数を署名に持たない。**
+
+台帳へ到達できない場合も内容不一致と**別 reason** で必ず拒否する。skip・警告化・環境変数の
+逃がし道を作らない。
+
+**理由:**
+- expected を caller が渡せると、成果物自身の申告値を expected として自己投入でき、
+  台帳を消しても完全一致して検出できない。引数の有無という構造で塞ぐのが唯一の確実な形である。
+- 到達不能を skip にすると、台帳を消す攻撃が「検証できない」経路で素通りする。
+  拒否理由を 2 分するのは、どこで再審査すべきかを判別可能にするためである。
+
+**却下した選択肢:**
+- 純 verifier に `repo_root` を渡して内部で inspector を呼ぶ — 純関数であることを壊し、
+  artifact だけを持つ既存 consumer が使えなくなる。
+- 到達不能を警告に留める — 規律 2 に反する。
+
+## D457. measurement_head は成果物 identity を束縛しない (2026-08-16)
+
+**決定:** admission 台帳の `measurement_head` (測定 authority repository の Git HEAD) を、
+成果物の portable digest の入力から除外する。形状検査、ledger 行の完全一致、claim の完全一致では
+引き続き照合し、片側だけの変更は拒否する。**非権威的な同値確認用 field である**ことを docstring へ
+明記する。
+
+**理由:**
+- repository-local な値であり、同一の run を別 root で検証すると値が変わる。digest に含めると
+  成果物が root 依存になり、成果物の bytes 決定性を固定している既存検査と両立しない。
+- 権威化には測定 commit の外部期待値が要り、commit 束縛機構の新設に当たる。
+  bytes 級 provenance 機構は既定で見送りという既裁定に該当する。
+- 台帳と claim を**同期して**書き換えれば digest も受理集合も変わらない。この性質を隠さず書く。
+
+**却下した選択肢:**
+- digest に残す — 成果物が測定 repo の HEAD に依存し、別 root での検証が必ず不一致になる。
+- field ごと削除する — 片側改変の検出という現に効いている性質まで失う。
+
+## D458. 8c 事前登録は判定器の版を凍結記録へ 1 個記録し、発効判定が一致を要求する (2026-08-16)
+
+**決定:** 段 8c の条件契約凍結は、判定器 (`s8c_preregistration.py`)・評価器
+(`s8c_preregistration_evidence.py`)・射影 (`s8c_generation_projection.py`) の bytes 全体を凍結範囲へ
+入れない。代わりに次を行う。
+
+1. 判定器 core が `DECIDER_VERSION` を 1 個宣言し、この 1 定数が 3 者の受理意味を代表する。
+   3 者のいずれかで受理集合・拒否理由・射影された判定入力の意味を変える変更は、bytes 差の有無に
+   関わらず明示的に bump する。整形など意味不変の変更では bump しない。
+2. 凍結記録 schema に `decider_version` を必須 key として持つ v2 を足す。v1 記録は legacy として
+   読めるまま残す (履歴上の世代 record は不変であり改変できないため)。新規発行は常に v2 とする。
+3. 発効判定は tip 記録の版と走っている `DECIDER_VERSION` の一致を要求する。tip が v1 のときは
+   値を比較せず無条件に `decider-version-unbound` として発効させない (schema-first)。
+   走っている定数は厳密型 (`str` そのもの) と閉じた形式でのみ受理する。
+4. `ActivationReport` に版・一致結果・理由コードを持たせる。報告 digest は dataclass 全体から
+   導出されるため、版 X で発行した capability は版 Y では再導出時に digest が一致しない。
+5. 判定器・評価器にだけ存在した「走っているコードが判定対象 commit の blob と一致すること」の
+   検査を、射影モジュールへも同型に広げる。3 者の同一性検査は
+   core → evaluator → projection の順で連続して行い、すべて通ったときだけ評価器を実行する。
+
+**理由:**
+- bytes 全体の凍結は、無関係な整形変更でも世代を上げる必要を生み、開発を止める型の検証機構になる。
+  防ぎたいのは「気付かずに受理意味が変わること」であり、粗い provenance で足りる既定方針の下では
+  版の一致検査で十分である (ユーザー裁定)。
+- 記録の改竄は既存の `generation-mutated` (同一 path の blob OID は履歴全体で 1 つ) と
+  `supersedes_sha256` 連鎖が塞ぐ。版 field を `protected_sha256` の preimage へ入れると、
+  記録自身の field から期待値を作って同じ記録と突き合わせる恒真検査になるため入れない。
+- 射影だけを変えた子孫 commit では、同じ世代・同じ版のまま実行の意味が変わりうる。これは凍結範囲を
+  広げる話ではなく、判定器・評価器に既に存在する同一性契約が 1 モジュール分だけ欠けていた穴である。
+
+**却下した選択肢:**
+- 判定器・評価器・射影の bytes 全体を凍結範囲へ入れる — 上記の理由でユーザーが不採用とした。
+- `spurious-revision` (保護 hash 不変の世代追加を赤にする規則) に「版が違えば許す」例外を作る —
+  事前登録の正本 doc の保護ブロックが「世代だけを増やす空改訂は機械検査で赤になる」と定めており、
+  実装だけが規範を変えることになる。版を記録する世代は、同じ commit で正本 doc の改訂手続きを
+  改訂すれば保護 hash が変わり、空改訂ではなくなるため例外を必要としない。
+- 版の bump 忘れを機械検出する module 変更 gate を足す — bytes 凍結の再導入であり裁定に反する。
+  検出できないことは限界として記録する。
+
+**この決定が保証しないこと:**
+- 受理意味を変えたのに `DECIDER_VERSION` を bump しなかった場合は検出しない。版の一致検査は
+  「明示的に bump された後に古い世代の記録を使い続けること」を止めるものであり、bump 忘れは
+  裁定が受け入れた手動 provenance の範囲に残る。
+- 3 者の同一性検査は、検査時点のファイル bytes と対象 commit の blob を比べる。既に import 済みの
+  コードを束縛するものではない (判定器・評価器の既存契約と同じ性質であり、本決定が新設した穴ではない)。

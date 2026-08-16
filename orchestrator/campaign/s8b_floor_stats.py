@@ -40,9 +40,11 @@ import math
 import statistics
 from dataclasses import dataclass, field
 from fractions import Fraction
+from pathlib import Path
 from typing import Mapping, Optional, Sequence
 
 from . import s8b_binary_admission as _binary_admission
+from . import s8b_floor_contract as _floor_contract
 
 FORMULA_ID = "s8b-floor-stats/v2"
 
@@ -592,10 +594,13 @@ def _cmp(ctx: str, name: str, reported, computed, out: list) -> None:
 
 def verify_floor_artifact(artifact: Mapping, expected_protocol: Mapping,
                           expected_binaries: Optional[Mapping] = None, *,
+                          expected_holdout_admission: Mapping,
                           expected_use_perf: bool) -> list:
     """artifact の生 session を再計算し、自己申告値 + 外部 expected_protocol と厳密照合する。
 
-    **保証境界 (α-1):** 本関数が保証するのは (1) raw session からの cells/floors/理由の内部整合
+    **保証境界 (α-1):** この関数は live admission を保証しない。caller が渡す
+    expected_holdout_admission は live inspector 由来でなければならない。本関数が保証するのは
+    (1) raw session からの cells/floors/理由の内部整合
     再計算一致と、(2) artifact.config の自己申告 protocol 値が外部 expected_protocol (凍結値) と
     完全一致すること、および (3) 出現するセル集合が expected_protocol.expected_cells と完全一致
     すること、である。**raw session 自体の真正性 (append-only journal・attempt registry・
@@ -626,6 +631,35 @@ def verify_floor_artifact(artifact: Mapping, expected_protocol: Mapping,
     errors: list = []
     if type(expected_use_perf) is not bool:
         return [f"expected_use_perf が bool でない: {expected_use_perf!r}"]
+    if not isinstance(artifact, Mapping):
+        return ["artifact が Mapping でない"]
+    try:
+        expected_result_keys = _floor_contract.result_keys_for_mode(
+            artifact.get("mode")
+        )
+    except _floor_contract.FloorContractError as exc:
+        return [f"artifact result key 契約が不正: {exc}"]
+    if set(artifact) != set(expected_result_keys):
+        missing = sorted(set(expected_result_keys) - set(artifact))
+        extra = sorted(set(artifact) - set(expected_result_keys))
+        return [
+            f"artifact result v4 exact key 集合が不一致 (欠落={missing} 余分={extra})"
+        ]
+    if artifact.get("schema") != _floor_contract.RESULT_SCHEMA:
+        return [
+            f"artifact.schema が {_floor_contract.RESULT_SCHEMA!r} でない"
+        ]
+    try:
+        reported_admission = _floor_contract.validate_floor_holdout_admission_receipt(
+            artifact.get("holdout_admission")
+        )
+        live_admission = _floor_contract.validate_floor_holdout_admission_receipt(
+            expected_holdout_admission
+        )
+    except _floor_contract.FloorContractError as exc:
+        return [f"holdout_admission が不正: {exc}"]
+    if reported_admission != live_admission:
+        return ["holdout_admission が live inspector の期待値と不一致"]
 
     # --- expected_protocol のキー集合検査 (外部入力自体の完全性) ---
     if not isinstance(expected_protocol, Mapping):
@@ -641,6 +675,16 @@ def verify_floor_artifact(artifact: Mapping, expected_protocol: Mapping,
     expected_cells = expected_protocol["expected_cells"]
     if not isinstance(expected_cells, Mapping) or not expected_cells:
         return ["expected_protocol.expected_cells が空/Mapping でない (空 artifact 恒真化拒否)"]
+    for holdout, configurations in expected_cells.items():
+        if (not isinstance(configurations, Sequence)
+                or isinstance(configurations, (str, bytes))):
+            return [f"expected_cells[{holdout!r}] が配列でない"]
+        sort_count = sum(configuration == "sort_best" for configuration in configurations)
+        if sort_count != 1:
+            return [
+                f"expected_cells[{holdout!r}] の sort_best が {sort_count} 個 "
+                "(ちょうど 1 個であるべき)"
+            ]
 
     n_sessions = expected_protocol["n_sessions"]
     reps = expected_protocol["reps"]
@@ -883,6 +927,38 @@ def verify_floor_artifact(artifact: Mapping, expected_protocol: Mapping,
     return errors
 
 
+def verify_floor_artifact_with_live_admission(
+        artifact: Mapping, expected_protocol: Mapping,
+        expected_binaries: Optional[Mapping] = None, *, repo_root: Path,
+        protocol: Mapping[str, object],
+        verified_freeze_document: Mapping[str, object], freeze_sha256: str,
+        manifest_sha256: str, campaign_run_id: str, run_relpath: str, mode: str,
+        cells: Sequence[Mapping[str, object]],
+        schedule: Sequence[Mapping[str, object]],
+        sessions: Sequence[Mapping[str, object]], expected_use_perf: bool) -> list:
+    """live admission を自ら検査してから pure projection verifier を実行する公開入口。
+
+    **保証境界:** expected receipt を caller から受け取らず、共有 admission filesystem の
+    現在状態を inspector で検査する。台帳を削除後に同一 bytes で再構成する攻撃への耐性は
+    inspector の保証範囲外である。
+    """
+
+    from .s8b_holdout_admission import inspect_floor_holdout_admission_evidence
+
+    expected_holdout_admission = inspect_floor_holdout_admission_evidence(
+        repo_root=Path(repo_root), protocol=protocol,
+        verified_freeze_document=verified_freeze_document,
+        freeze_sha256=freeze_sha256, manifest_sha256=manifest_sha256,
+        campaign_run_id=campaign_run_id, run_relpath=run_relpath, mode=mode,
+        cells=cells, schedule=schedule, sessions=sessions,
+    )
+    return verify_floor_artifact(
+        artifact, expected_protocol, expected_binaries=expected_binaries,
+        expected_holdout_admission=expected_holdout_admission,
+        expected_use_perf=expected_use_perf,
+    )
+
+
 def _verify_binaries_section(artifact: Mapping, expected_cells: Mapping,
                              expected_binaries: Optional[Mapping]) -> list:
     """artifact.binaries を検査する (C3-6)。
@@ -894,29 +970,44 @@ def _verify_binaries_section(artifact: Mapping, expected_cells: Mapping,
     - expected_binaries (journal receipt 由来) が与えられれば cell_id ごとの binary_sha256 を
       完全一致で突合する (実測直前 hash との reconcile フック)。
 
-    artifact に binaries が無く expected_binaries も無ければ検査しない (binaries を持たない
-    合成 artifact の後方互換)。expected_binaries があるのに binaries が無ければ fail-closed。"""
+    binaries は expected_binaries の有無にかかわらず全 expected cell をちょうど 1 件ずつ持つ。"""
     binaries = artifact.get("binaries")
-    if binaries is None and expected_binaries is None:
-        return []
     out: list = []
     if not isinstance(binaries, Mapping) or not binaries:
-        return ["binaries: section が無い/空 (expected_binaries があるのに突合できない)"]
+        return ["binaries: section が無い/空"]
 
-    exp_key_set = set()
+    expected_cell_ids = set()
+    expected_cell_count = 0
     for holdout, cfgs in expected_cells.items():
         for cfg in cfgs:
-            exp_key_set.add((holdout, cfg))
-    got_key_set = set()
+            expected_cell_ids.add(f"{holdout}::{cfg}")
+            expected_cell_count += 1
+    if len(expected_cell_ids) != expected_cell_count:
+        out.append("binaries: expected_cells の canonical cell_id が重複")
+    binary_cell_ids = set(binaries)
+    if len(binaries) != expected_cell_count or binary_cell_ids != expected_cell_ids:
+        missing = sorted(expected_cell_ids - binary_cell_ids)
+        extra = sorted(binary_cell_ids - expected_cell_ids)
+        out.append(
+            "binaries: canonical cell_id 集合/件数が expected cells と不一致 "
+            f"(missing={missing}, extra={extra}, got_count={len(binaries)}, "
+            f"expected_count={expected_cell_count})"
+        )
     for cell_id, rec in binaries.items():
         if not isinstance(rec, Mapping):
             out.append(f"binaries[{cell_id}]: rec が Mapping でない")
             continue
-        if set(rec) != set(_binary_admission.PORTABLE_BUILT_KEYS):
+        expected_keys = _binary_admission.portable_built_keys_for(
+            rec.get("configuration_id")
+        )
+        if set(rec) != set(expected_keys):
             out.append(f"binaries[{cell_id}]: exact key 集合が不一致")
             continue
-        key = (rec.get("holdout_id"), rec.get("configuration_id"))
-        got_key_set.add(key)
+        expected_cell_id = f"{rec.get('holdout_id')}::{rec.get('configuration_id')}"
+        if cell_id != expected_cell_id or rec.get("cell_id") != cell_id:
+            out.append(
+                f"binaries[{cell_id}]: canonical cell identity が record と不一致"
+            )
         bin_sha = rec.get("binary_sha256")
         bin_short = rec.get("bin_hash_short")
         if not isinstance(bin_sha, str) or len(bin_sha) != 64:
@@ -939,10 +1030,6 @@ def _verify_binaries_section(artifact: Mapping, expected_cells: Mapping,
                 out.append(f"binaries[{cell_id}]: expected_binaries に receipt が無い")
             elif exp != bin_sha:
                 out.append(f"binaries[{cell_id}]: binary_sha256 が journal receipt と不一致")
-    for missing in sorted(exp_key_set - got_key_set):
-        out.append(f"binaries: セル {missing} が binaries に無い")
-    for extra in sorted(got_key_set - exp_key_set):
-        out.append(f"binaries: セル {extra} が expected に無い (余分)")
     if expected_binaries is not None:
         missing_cells = sorted(set(expected_binaries) - set(binaries))
         for m in missing_cells:

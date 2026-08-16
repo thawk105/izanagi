@@ -78,6 +78,10 @@ buildcache = s8b_floor_campaign.buildcache
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from test_schema_v2 import _valid_document as _valid_calibration_v2_document  # noqa: E402
+from s8b_floor_evidence_fixture import (  # noqa: E402
+    expected_portable_sort_swo_pass_receipt,
+    fake_sort_swo_pass_attempt,
+)
 
 
 # --------------------------------------------------------------------------- #
@@ -301,6 +305,10 @@ def _fake_prepare(cell, ccbench_pin, *, cxx):
     yield PreparedCell(
         genome=genome, src_token=token,
         ccbench_dir=ccbench_dir, cache_root="/fixture/cache",
+        oracle_attempt=(
+            fake_sort_swo_pass_attempt()
+            if configuration_id == "sort_best" else None
+        ),
     )
 
 
@@ -477,7 +485,7 @@ def _private_run_campaign(protocol, freeze_doc, **kwargs):
 
 def _run_campaign(protocol, freeze_doc, *, out_root, build_root, measure_fn, probe_fn,
                   mode="pilot", resume_dir=None, sleep_fn=None, monotonic_fn=None,
-                  now_fn=None, perf_preflight_fn=None):
+                  now_fn=None, perf_preflight_fn=None, prepare_fn=_fake_prepare):
     fake_build = _make_fake_build(build_root)
     entrypoint = s8b_floor_campaign._run_campaign_core
     extra = (
@@ -489,7 +497,7 @@ def _run_campaign(protocol, freeze_doc, *, out_root, build_root, measure_fn, pro
         measure_fn=measure_fn, probe_fn=probe_fn,
         sleep_fn=sleep_fn or (lambda s: None),
         monotonic_fn=monotonic_fn or (lambda: 0.0),
-        prepare_fn=_fake_prepare, now_fn=now_fn or (lambda: _FIXED_NOW),
+        prepare_fn=prepare_fn, now_fn=now_fn or (lambda: _FIXED_NOW),
         durable_root_policy=_durable_policy(Path(out_root)),
         **extra,
     )
@@ -507,6 +515,46 @@ def _run_campaign(protocol, freeze_doc, *, out_root, build_root, measure_fn, pro
         perf_preflight_fn or (lambda **_kwargs: _perf_receipt())
     )
     return entrypoint(protocol, freeze_doc, build_fn=fake_build, **kwargs)
+
+
+def _live_holdout_admission_for_outcome(
+        *, protocol, freeze_doc, out_root: Path, outcome: dict) -> dict:
+    """artifact 自己申告でなく test authority の live evidence を再検査する。"""
+    validated_protocol = s8b_floor_campaign.validate_protocol(protocol)
+    cells = s8b_floor_campaign.enumerate_cells(
+        freeze_doc.document,
+        stock_configuration=validated_protocol["stock_configuration"],
+    )
+    run_dir = Path(outcome["run_dir"])
+    manifest_sha256 = hashlib.sha256(
+        (run_dir / "manifest.json").read_bytes()
+    ).hexdigest()
+    authority = _test_holdout_authority(out_root, protocol, freeze_doc)
+    journal_records = [
+        json.loads(line)
+        for line in (run_dir / "journal.jsonl").read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
+    return s8b_floor_campaign._holdout_admission.inspect_floor_holdout_admission_evidence(
+        repo_root=authority,
+        protocol=validated_protocol,
+        verified_freeze_document=freeze_doc.document,
+        freeze_sha256=freeze_doc.sha256,
+        manifest_sha256=manifest_sha256,
+        campaign_run_id=run_dir.name,
+        run_relpath=run_dir.relative_to(out_root).as_posix(),
+        mode=outcome["result"]["mode"],
+        cells=cells,
+        schedule=s8b_floor_campaign.build_schedule(
+            cells=cells,
+            master_seed=validated_protocol["master_seed"],
+            n_sessions=validated_protocol["n_sessions"],
+        ),
+        sessions=[
+            record for record in journal_records
+            if record.get("event") in {"session-start", "session"}
+        ],
+    )
 
 
 def _fixture_floor_preflight(
@@ -887,6 +935,7 @@ def test_resume_allows_pre_measure_v2_journal_transition(tmp_path):
         schedule=[{"seq": 0, "round": 1, "cell_id": "H::C"}],
         protocol_sha256="p", freeze_sha256="f", manifest_sha256="m",
         resume_state="M-running", expected_use_perf=True,
+        retry_slots_per_cell=2,
     )
     assert result is None
     journal = tmp_path / "journal.jsonl"
@@ -911,6 +960,7 @@ def test_resume_rejects_v2_once_measurement_event_exists(tmp_path, event):
             records, run_dir=tmp_path, mode="pilot", schedule=[],
             protocol_sha256="p", freeze_sha256="f", manifest_sha256="m",
             resume_state="M-running", expected_use_perf=True,
+            retry_slots_per_cell=2,
         )
 
 
@@ -924,7 +974,7 @@ def test_resume_v3_rejects_session_without_rep_integrity_evidence(tmp_path):
         {
             "event": "session-start", "seq": 0, "kind": "planned",
             "cell_id": "H::C", "round": 1, "retry_ordinal": None,
-            "attempt_id": "a", "trigger": None,
+            "attempt_id": "H::C::seq0", "trigger": None,
         },
         {
             "event": "session", "seq": 0, "kind": "planned", "cell_id": "H::C",
@@ -938,6 +988,7 @@ def test_resume_v3_rejects_session_without_rep_integrity_evidence(tmp_path):
             schedule=[{"seq": 0, "round": 1, "cell_id": "H::C"}],
             protocol_sha256="p", freeze_sha256="f", manifest_sha256="m",
             resume_state="M-running", expected_use_perf=True,
+            retry_slots_per_cell=2,
         )
 
 
@@ -1290,6 +1341,10 @@ def _make_real_freeze_prepare(
             src_token=cell_id,
             ccbench_dir=str(ccbench_dir),
             cache_root=str(cache_root),
+            oracle_attempt=(
+                fake_sort_swo_pass_attempt()
+                if configuration == "sort_best" else None
+            ),
         )
 
     prepare.calls = calls
@@ -3161,6 +3216,10 @@ def _deterministic_official_artifacts(base: Path) -> dict:
             genome=genome, src_token=token,
             ccbench_dir=ccbench_dir,
             cache_root=str(base / "prepared-cache"),
+            oracle_attempt=(
+                fake_sort_swo_pass_attempt()
+                if configuration_id == "sort_best" else None
+            ),
         )
 
     with mock.patch.object(
@@ -3490,15 +3549,23 @@ def test_validate_protocol_rejects_malformed_freeze_sha256():
         s8b_floor_campaign.validate_protocol(doc)
 
 
-def test_load_resume_manifest_rejects_v1_schema(tmp_path):
+@pytest.mark.parametrize(
+    "schema",
+    [
+        pytest.param("s8b-floor-manifest/v1", id="v1"),
+        pytest.param("s8b-floor-manifest/v2", id="v2"),
+    ],
+)
+def test_load_resume_manifest_rejects_legacy_schema(tmp_path, schema):
     path = tmp_path / "manifest.json"
     path.write_text(json.dumps({
-        "schema_version": "s8b-floor-manifest/v1", "protocol_sha256": "x",
+        "schema_version": schema, "protocol_sha256": "x",
         "freeze_sha256": "y", "binaries": {},
     }), encoding="utf-8")
     with pytest.raises(s8b_floor_campaign.FloorCampaignError, match="schema_version"):
         s8b_floor_campaign._load_resume_manifest(
-            path, protocol_sha256="x", freeze_sha256="y", out_root=tmp_path)
+            path, protocol_sha256="x", freeze_sha256="y", out_root=tmp_path,
+            protocol={}, cells=[], schedule=[], mode="pilot")
 
 
 def test_legacy_resume_manifest_without_perf_preflight_is_not_backfilled(tmp_path):
@@ -3506,14 +3573,22 @@ def test_legacy_resume_manifest_without_perf_preflight_is_not_backfilled(tmp_pat
     freeze_sha = "f" * 64
     protocol = {
         "freeze": {"path": "freeze.json", "sha256": freeze_sha},
-        "env_tag": "env-x", "ccbench_pin": "pin-x",
-        "stock_configuration": "stock", "schedule_algorithm": "algorithm-x",
+        "env_tag": "env-x", "ccbench_pin": "1" * 40,
+        "stock_configuration": "sort_best", "schedule_algorithm": "algorithm-x",
         "master_seed": "seed", "n_sessions": 1, "reps": 1, "extime_s": 1,
         "session_cv_max": "0.1", "cell_cv_max": "0.1",
     }
+    cells = [{
+        "cell_id": "cell", "holdout_id": "holdout",
+        "configuration_id": "sort_best",
+        "records": 1, "threads": 1, "workload": {},
+    }]
+    built = _honest_portable_built_record(
+        tmp_path, configuration_id="sort_best",
+    )
     manifest = s8b_floor_campaign.assemble_manifest(
         protocol=protocol, protocol_sha256=protocol_sha,
-        freeze_sha256=freeze_sha, cells=[], built={}, schedule=[],
+        freeze_sha256=freeze_sha, cells=cells, built=built, schedule=[],
     )
     path = tmp_path / "manifest.json"
     raw = (json.dumps(manifest, indent=2, sort_keys=True) + "\n").encode()
@@ -3521,7 +3596,7 @@ def test_legacy_resume_manifest_without_perf_preflight_is_not_backfilled(tmp_pat
 
     loaded, _sha, _artifact, _runtime = s8b_floor_campaign._load_resume_manifest(
         path, protocol_sha256=protocol_sha, freeze_sha256=freeze_sha,
-        out_root=tmp_path,
+        out_root=tmp_path, protocol=protocol, cells=cells, schedule=[], mode="pilot",
     )
     assert "perf_preflight" not in loaded
     assert s8b_floor_campaign._assert_perf_mode("pilot", None) is True
@@ -3551,6 +3626,7 @@ def test_official_result_rejects_perf_preflight_receipt_fail_closed(tmp_path):
             protocol=protocol, mode="official", protocol_sha256="p" * 64,
             freeze_sha256="f" * 64, manifest_sha256="m" * 64,
             cells=cells, binaries=outcome["result"]["binaries"], records=records,
+            holdout_admission=outcome["result"]["holdout_admission"],
             perf_preflight=_perf_receipt(),
         )
 
@@ -3558,6 +3634,7 @@ def test_official_result_rejects_perf_preflight_receipt_fail_closed(tmp_path):
         protocol=protocol, mode="pilot", protocol_sha256="p" * 64,
         freeze_sha256="f" * 64, manifest_sha256="m" * 64,
         cells=cells, binaries=outcome["result"]["binaries"], records=records,
+        holdout_admission=outcome["result"]["holdout_admission"],
         perf_preflight=_perf_receipt(),
     )
     assert assembled["eligible_for_refreeze"] is False
@@ -3565,9 +3642,18 @@ def test_official_result_rejects_perf_preflight_receipt_fail_closed(tmp_path):
         protocol=protocol, mode="official", protocol_sha256="p" * 64,
         freeze_sha256="f" * 64, manifest_sha256="m" * 64,
         cells=cells, binaries=outcome["result"]["binaries"], records=records,
+        holdout_admission=outcome["result"]["holdout_admission"],
         perf_preflight=None,
     )
     assert official_assembled["eligible_for_refreeze"] is False
+
+
+def test_assemble_result_requires_holdout_admission_keyword():
+    parameter = inspect.signature(
+        s8b_floor_campaign.assemble_result,
+    ).parameters["holdout_admission"]
+    assert parameter.kind is inspect.Parameter.KEYWORD_ONLY
+    assert parameter.default is inspect.Parameter.empty
 
 
 # =========================================================================== #
@@ -5732,7 +5818,10 @@ def test_two_phase_finalize_crash_injection_recovers_at_all_four_boundaries(
 
             scoped.setattr(s8b_floor_campaign, "_stage_bytes", crash_after_result)
         elif crash_point == "self-check-after":
-            original = s8b_floor_campaign.s8b_floor_stats.verify_floor_artifact
+            original = (
+                s8b_floor_campaign.s8b_floor_stats
+                .verify_floor_artifact_with_live_admission
+            )
 
             def crash_after_self_check(*args, **kwargs):
                 problems = original(*args, **kwargs)
@@ -5740,7 +5829,8 @@ def test_two_phase_finalize_crash_injection_recovers_at_all_four_boundaries(
                 raise _SimulatedCrash(crash_point)
 
             scoped.setattr(
-                s8b_floor_campaign.s8b_floor_stats, "verify_floor_artifact",
+                s8b_floor_campaign.s8b_floor_stats,
+                "verify_floor_artifact_with_live_admission",
                 crash_after_self_check,
             )
         elif crash_point == "terminal-before":
@@ -6040,8 +6130,14 @@ def test_end_to_end_golden_floor_values_and_tamper_detection(tmp_path):
         s8b_floor_campaign.validate_protocol(protocol),
         s8b_floor_campaign.enumerate_cells(freeze, stock_configuration=_STOCK),
     )
+    live_admission = _live_holdout_admission_for_outcome(
+        protocol=protocol, freeze_doc=verified,
+        out_root=tmp_path / "out", outcome=outcome,
+    )
     assert s8b_floor_stats.verify_floor_artifact(
-        result, expected_protocol, expected_use_perf=True,
+        result, expected_protocol,
+        expected_holdout_admission=live_admission,
+        expected_use_perf=True,
     ) == []
 
     for holdout_id in ("rr79", "rr23"):
@@ -6060,7 +6156,9 @@ def test_end_to_end_golden_floor_values_and_tamper_detection(tmp_path):
     tampered = json.loads(json.dumps(result))
     tampered["floors"]["rr79"]["pairs"][_CONFIGS[0]] = 999999.0
     assert s8b_floor_stats.verify_floor_artifact(
-        tampered, expected_protocol, expected_use_perf=True,
+        tampered, expected_protocol,
+        expected_holdout_admission=live_admission,
+        expected_use_perf=True,
     )
 
 
@@ -7141,7 +7239,7 @@ def test_real_seal_protocol_to_floor_official_core_e2e(tmp_path, monkeypatch):
     clean_original = s8b_floor_campaign.clean_scan_digest
     revalidate_original = s8b_floor_campaign._revalidate_issued_certificate
     receipt_consumer_original = s8b_floor_campaign._validate_execution_receipt
-    self_check_original = s8b_floor_stats.verify_floor_artifact
+    self_check_original = s8b_floor_stats.verify_floor_artifact_with_live_admission
     verify_calls = []
     resolver_calls = []
     preflight_calls = []
@@ -7192,7 +7290,10 @@ def test_real_seal_protocol_to_floor_official_core_e2e(tmp_path, monkeypatch):
     monkeypatch.setattr(
         s8b_floor_campaign, "_validate_execution_receipt", receipt_consumer_spy,
     )
-    monkeypatch.setattr(s8b_floor_stats, "verify_floor_artifact", self_check_spy)
+    monkeypatch.setattr(
+        s8b_floor_stats, "verify_floor_artifact_with_live_admission",
+        self_check_spy,
+    )
 
     cells = s8b_floor_campaign.enumerate_cells(
         freeze.document, stock_configuration="stock_common",
@@ -7425,7 +7526,11 @@ def test_each_determinism_seam_reaches_its_expected_json_pointer(tmp_path):
     # build_fn は exact PortableBuiltRecord に投影され、result と manifest は同じ artifact view。
     assert result["binaries"] == manifest["binaries"]
     for cell_id, record in manifest["binaries"].items():
-        assert set(record) == set(s8b_floor_campaign._PORTABLE_BUILT_KEYS), cell_id
+        assert set(record) == set(
+            s8b_binary_admission.portable_built_keys_for(
+                record["configuration_id"],
+            )
+        ), cell_id
         assert not Path(record["binary"]).is_absolute()
         assert not Path(record["store_path"]).is_absolute()
         assert any("${OUT_ROOT}" in token for token in record["configure_argv"])
@@ -7567,8 +7672,7 @@ def _honest_portable_built_record(
         binding=binding, binary=binary, binary_sha256=sha,
         contract_sha256="2" * 64, trace=False,
     )
-    return {
-        "cell": {
+    record = {
             "cell_id": "cell", "holdout_id": "holdout",
             "configuration_id": configuration_id, "binary": "cache/cell/binary.exe",
             "binary_sha256": sha, "bin_hash_short": sha[:16], "binding": binding,
@@ -7576,8 +7680,95 @@ def _honest_portable_built_record(
             "build_argv": ["cmake", "--build", "${OUT_ROOT}/cache/cell"],
             "cached": False, "store_path": f"store/{sha}",
             "admission_receipt": receipt,
-        },
     }
+    if configuration_id == "sort_best":
+        record["sort_swo_oracle"] = expected_portable_sort_swo_pass_receipt(
+            cell_id="cell", holdout_id="holdout",
+            configuration_id=configuration_id,
+            entry_sha256=entry_sha, binary_sha256=sha,
+        )
+    return {"cell": record}
+
+
+@pytest.mark.parametrize("configuration_id", ["stock_common", "sort_best"])
+@pytest.mark.parametrize("stored", [False, True])
+@pytest.mark.parametrize("fetchcontent", [False, True])
+def test_runtime_built_key_helper_is_configuration_conditional(
+        configuration_id, stored, fetchcontent):
+    expected = set(
+        s8b_binary_admission.portable_built_keys_for(configuration_id)
+    )
+    if not stored:
+        expected.remove("store_path")
+    expected.add("_ccbench_root")
+    if fetchcontent:
+        expected.add("_fetchcontent_base_dir")
+    assert s8b_floor_campaign._runtime_built_keys_for(
+        configuration_id, stored=stored, fetchcontent=fetchcontent,
+    ) == frozenset(expected)
+
+
+def _live_admission_runner(tmp_path, *, runtime, built):
+    cell = {
+        "cell_id": "cell", "holdout_id": "holdout",
+        "configuration_id": "sort_best", "records": 1, "threads": 1,
+        "workload": dict(_HOLDOUT_SHAPE["rr79"]["ycsb"]),
+    }
+    protocol = _valid_protocol_dict()
+    protocol["ccbench_pin"] = "1" * 40
+    runner = s8b_floor_campaign._Runner(
+        protocol=protocol,
+        contract=SimpleNamespace(contract_sha256="2" * 64),
+        cells=[cell], cell_by_id={"cell": cell},
+        binaries={"cell": runtime}, artifact_binaries=built, schedule=[],
+        journal_path=tmp_path / "journal.jsonl",
+        measure_fn=lambda *_args: None,
+        holdout_admissions={"cell": SimpleNamespace(observation=None)},
+        probe_fn=lambda: (1, "", ""), sleep_fn=lambda _seconds: None,
+        monotonic_fn=lambda: 0.0, now_fn=lambda: _FIXED_NOW,
+        protocol_sha256="p", freeze_sha256="f", manifest_sha256="m",
+        perf_preflight=_perf_receipt(), mode="pilot",
+        holdout_assert_fn=lambda *_args, **_kwargs: None,
+    )
+    return runner
+
+
+@pytest.mark.parametrize("runtime_view", ["fresh", "resolved"])
+def test_live_admission_accepts_both_exact_runtime_views(tmp_path, runtime_view):
+    built = _honest_portable_built_record(
+        tmp_path, configuration_id="sort_best",
+    )
+    runtime = copy.deepcopy(built["cell"])
+    runtime["binary"] = str((tmp_path / "honest-portable.bin").resolve())
+    runtime["store_path"] = str(
+        (tmp_path / "store" / runtime["binary_sha256"]).resolve()
+    )
+    if runtime_view == "fresh":
+        runtime["_ccbench_root"] = str((tmp_path / "ccbench").resolve())
+    runner = _live_admission_runner(tmp_path, runtime=runtime, built=built)
+    runner._validate_live_admissions()
+
+
+@pytest.mark.parametrize("mutation", ["unexpected-key", "missing-sort-receipt"])
+def test_live_admission_runtime_exact_keys_fail_closed(tmp_path, mutation):
+    built = _honest_portable_built_record(
+        tmp_path, configuration_id="sort_best",
+    )
+    runtime = copy.deepcopy(built["cell"])
+    runtime["binary"] = str((tmp_path / "honest-portable.bin").resolve())
+    runtime["store_path"] = str(
+        (tmp_path / "store" / runtime["binary_sha256"]).resolve()
+    )
+    runtime["_ccbench_root"] = str((tmp_path / "ccbench").resolve())
+    if mutation == "unexpected-key":
+        runtime["unexpected"] = "must be rejected"
+    else:
+        runtime.pop("sort_swo_oracle")
+    runner = _live_admission_runner(tmp_path, runtime=runtime, built=built)
+    with pytest.raises(
+            s8b_floor_campaign.CampaignAbort,
+            match="runtime binary record.*exact key"):
+        runner._validate_live_admissions()
 
 
 def test_sort_runtime_record_with_fetchcontent_base_stores_and_projects(tmp_path):
@@ -8906,16 +9097,336 @@ def test_content_addressed_store_create_only(tmp_path):
     )  # 例外なし
 
 
-def test_verify_floor_artifact_binaries_positive_and_negative():
+def test_sort_best_swo_pass_receipt_reaches_manifest_and_result(tmp_path):
+    freeze = _freeze_document()
+    protocol = _protocol(freeze_sha=_freeze_sha(freeze))
+    outcome = _run_campaign(
+        protocol, _verified_freeze(freeze), out_root=tmp_path / "out",
+        build_root=tmp_path / "bin",
+        measure_fn=_make_measure_fn(
+            reps=5, value_fn=lambda cid: _BASE_TPS[cid],
+        ),
+        probe_fn=lambda: (1, "", ""),
+    )
+    manifest = json.loads(
+        (Path(outcome["run_dir"]) / "manifest.json").read_bytes()
+    )
+    result = outcome["result"]
+    for cell_id, record in manifest["binaries"].items():
+        if record["configuration_id"] == "sort_best":
+            assert record["sort_swo_oracle"] == (
+                result["binaries"][cell_id]["sort_swo_oracle"]
+            )
+        else:
+            assert "sort_swo_oracle" not in record
+            assert "sort_swo_oracle" not in result["binaries"][cell_id]
+
+
+def test_public_artifacts_omit_raw_swo_host_values(tmp_path):
+    freeze = _freeze_document()
+    protocol = _protocol(freeze_sha=_freeze_sha(freeze))
+    outcome = _run_campaign(
+        protocol, _verified_freeze(freeze), out_root=tmp_path / "out",
+        build_root=tmp_path / "bin",
+        measure_fn=_make_measure_fn(
+            reps=5, value_fn=lambda cid: _BASE_TPS[cid],
+        ),
+        probe_fn=lambda: (1, "", ""),
+    )
+    run_dir = Path(outcome["run_dir"])
+    manifest = json.loads((run_dir / "manifest.json").read_bytes())
+    result = json.loads((run_dir / "result.json").read_bytes())
+    public_json = json.dumps(
+        {"manifest": manifest, "result": result},
+        ensure_ascii=False, sort_keys=True,
+    )
+    assert "/fixture/toolchain/bin/c++" not in public_json
+    assert "/fixture/dependencies" not in public_json
+    assert "fixture-c++ 1.0 日本語" not in public_json
+    for artifact in (manifest, result):
+        for record in artifact["binaries"].values():
+            receipt = record.get("sort_swo_oracle", {})
+            assert "compiler_version" not in receipt
+            assert "compiler_realpath" not in receipt
+            assert "dependency_root_realpath" not in receipt
+
+
+def test_configured_marker_root_keeps_raw_swo_attempt_private(tmp_path):
+    freeze = _freeze_document()
+    cells = s8b_floor_campaign.enumerate_cells(
+        freeze, stock_configuration=_STOCK,
+    )
+    marker_root = tmp_path / "private-markers"
+    marker_root.mkdir()
+    contract = ec.lookup(ENV_TAG)
+    built = s8b_floor_campaign.build_cells(
+        freeze, cells, ccbench_pin="0" * 40,
+        out_root=tmp_path / "out", prepare_fn=_fake_prepare,
+        contract=contract,
+        verified_calibration=env_attestation.load_verified_calibration(
+            contract, ROOT,
+        ),
+        build_fn=_make_fake_build(tmp_path / "bin"),
+        phase_marker_root=marker_root,
+    )
+    private_files = sorted(marker_root.glob("sort-swo-oracle-pass-*.json"))
+    assert len(private_files) == len(_HOLDOUT_SHAPE)
+    for path in private_files:
+        document = json.loads(path.read_bytes())
+        assert set(document) == {
+            "schema", "cell_id", "oracle_attempt", "portable_receipt",
+        }
+        assert document["schema"] == "s8b-sort-swo-private-evidence/v1"
+        assert document["oracle_attempt"]["oracle_receipt"][
+            "compiler_realpath"
+        ] == "/fixture/toolchain/bin/c++"
+        assert document["portable_receipt"] == (
+            built[document["cell_id"]]["sort_swo_oracle"]
+        )
+        assert path.stat().st_mode & 0o777 == 0o600
+
+
+def test_sort_best_cell_without_swo_receipt_is_rejected(tmp_path):
+    @contextlib.contextmanager
+    def missing_sort_receipt(cell, ccbench_pin, *, cxx):
+        with _fake_prepare(cell, ccbench_pin, cxx=cxx) as prepared:
+            if cell["configuration"] == "sort_best":
+                prepared = dataclasses.replace(prepared, oracle_attempt=None)
+            yield prepared
+
+    freeze = _freeze_document()
+    protocol = _protocol(freeze_sha=_freeze_sha(freeze))
+    with pytest.raises(
+            s8b_floor_campaign.FloorCampaignError,
+            match="sort_best cell に SWO PASS receipt がない"):
+        _run_campaign(
+            protocol, _verified_freeze(freeze), out_root=tmp_path / "out",
+            build_root=tmp_path / "bin", measure_fn=_forbid_measure,
+            probe_fn=lambda: (1, "", ""), prepare_fn=missing_sort_receipt,
+        )
+
+
+def test_non_sort_cell_with_swo_receipt_is_rejected(tmp_path):
+    @contextlib.contextmanager
+    def extra_non_sort_receipt(cell, ccbench_pin, *, cxx):
+        with _fake_prepare(cell, ccbench_pin, cxx=cxx) as prepared:
+            if cell["configuration"] != "sort_best":
+                prepared = dataclasses.replace(
+                    prepared, oracle_attempt=fake_sort_swo_pass_attempt(),
+                )
+            yield prepared
+
+    freeze = _freeze_document()
+    protocol = _protocol(freeze_sha=_freeze_sha(freeze))
+    with pytest.raises(
+            s8b_floor_campaign.FloorCampaignError,
+            match="non-sort cell に SWO receipt がある"):
+        _run_campaign(
+            protocol, _verified_freeze(freeze), out_root=tmp_path / "out",
+            build_root=tmp_path / "bin", measure_fn=_forbid_measure,
+            probe_fn=lambda: (1, "", ""), prepare_fn=extra_non_sort_receipt,
+        )
+
+
+@pytest.mark.parametrize(
+    "category,cause",
+    [
+        pytest.param(
+            "unverifiable", "main-ledger-missing", id="missing",
+        ),
+        pytest.param(
+            "mismatch", "main-ledger-row-mismatch", id="mismatch",
+        ),
+    ],
+)
+def test_admission_failure_creates_no_result_pending_bytes(
+        tmp_path, monkeypatch, category, cause):
+    def reject_inspection(**_kwargs):
+        raise s8b_floor_campaign._holdout_admission.FloorHoldoutEvidenceError(
+            category=category, reason=cause,
+        )
+
+    monkeypatch.setattr(
+        s8b_floor_campaign._holdout_admission,
+        "inspect_floor_holdout_admission_evidence",
+        reject_inspection,
+    )
+    freeze = _freeze_document()
+    protocol = _protocol(freeze_sha=_freeze_sha(freeze))
+    with pytest.raises(
+            s8b_floor_campaign.FloorCampaignError,
+            match="floor admission evidence が不正"):
+        _run_campaign(
+            protocol, _verified_freeze(freeze), out_root=tmp_path / "out",
+            build_root=tmp_path / "bin",
+            measure_fn=_make_measure_fn(
+                reps=5, value_fn=lambda cid: _BASE_TPS[cid],
+            ),
+            probe_fn=lambda: (1, "", ""),
+        )
+    run_dir = _only_run_dir(tmp_path / "out")
+    assert not (run_dir / ".result.json.pending").exists()
+    assert not (run_dir / ".result.md.pending").exists()
+    assert not (run_dir / "result.json").exists()
+    assert not (run_dir / "result.md").exists()
+    terminal = _read_journal_lines(run_dir / "journal.jsonl")[-1]
+    assert terminal["status"] == "artifact-invalid"
+    assert terminal["reason"] == f"floor-admission-{category}"
+    assert terminal["cause"] == cause
+
+
+def test_sort_receipt_identity_transplant_is_rejected(tmp_path):
+    freeze = _freeze_document()
+    protocol = _protocol(freeze_sha=_freeze_sha(freeze))
+    outcome = _run_campaign(
+        protocol, _verified_freeze(freeze), out_root=tmp_path / "out",
+        build_root=tmp_path / "bin",
+        measure_fn=_make_measure_fn(
+            reps=5, value_fn=lambda cid: _BASE_TPS[cid],
+        ),
+        probe_fn=lambda: (1, "", ""),
+    )
+    tampered = copy.deepcopy(outcome["result"]["binaries"])
+    sort_id = next(
+        cell_id for cell_id, record in tampered.items()
+        if record["configuration_id"] == "sort_best"
+    )
+    other_id = next(cell_id for cell_id in tampered if cell_id != sort_id)
+    tampered[sort_id]["sort_swo_oracle"]["cell_id"] = other_id
+    with pytest.raises(
+            s8b_floor_campaign.FloorCampaignError,
+            match="receipt.*不正|identity"):
+        s8b_floor_campaign._validate_portable_built(
+            tampered,
+            expected_ccbench_pin=protocol["ccbench_pin"],
+            expected_contract_sha256=protocol["contract_sha256"],
+        )
+
+
+@pytest.mark.parametrize(
+    "cells,binaries",
+    [
+        pytest.param(
+            [{
+                "cell_id": "h::sort_best", "holdout_id": "h",
+                "configuration_id": "sort_best",
+            }],
+            {},
+            id="empty-binaries",
+        ),
+        pytest.param(
+            [
+                {
+                    "cell_id": "h::sort_best", "holdout_id": "h",
+                    "configuration_id": "sort_best",
+                },
+                {
+                    "cell_id": "h::stock", "holdout_id": "h",
+                    "configuration_id": "stock",
+                },
+            ],
+            {
+                "h::sort_best": {
+                    "cell_id": "h::sort_best", "holdout_id": "h",
+                    "configuration_id": "sort_best",
+                },
+            },
+            id="whole-cell-missing",
+        ),
+    ],
+)
+@pytest.mark.parametrize("entrypoint", ["manifest", "result"])
+def test_producer_rejects_incomplete_binary_coverage(
+        cells, binaries, entrypoint):
+    with pytest.raises(
+            s8b_floor_campaign.FloorCampaignError,
+            match="完全被覆"):
+        if entrypoint == "manifest":
+            s8b_floor_campaign.assemble_manifest(
+                protocol={}, protocol_sha256="p" * 64,
+                freeze_sha256="f" * 64, cells=cells, built=binaries,
+                schedule=[], mode="pilot",
+            )
+        else:
+            s8b_floor_campaign.assemble_result(
+                protocol={}, mode="pilot", protocol_sha256="p" * 64,
+                freeze_sha256="f" * 64, manifest_sha256="m" * 64,
+                cells=cells, binaries=binaries, records=[],
+                holdout_admission={},
+            )
+
+
+@pytest.mark.parametrize(
+    "cells,binaries,reason",
+    [
+        pytest.param([], {}, "非空", id="empty-cells"),
+        pytest.param(
+            [
+                {
+                    "cell_id": "h::sort_best", "holdout_id": "h",
+                    "configuration_id": "sort_best",
+                },
+                {
+                    "cell_id": "h::sort_best", "holdout_id": "h",
+                    "configuration_id": "sort_best",
+                },
+            ],
+            {}, "重複", id="duplicate-cell-id",
+        ),
+        pytest.param(
+            [{
+                "cell_id": "h::stock", "holdout_id": "h",
+                "configuration_id": "stock",
+            }],
+            {"h::stock": {
+                "cell_id": "h::stock", "holdout_id": "h",
+                "configuration_id": "stock",
+            }},
+            "sort_best", id="sort-best-missing",
+        ),
+        pytest.param(
+            [
+                {
+                    "cell_id": "h::sort-best-a", "holdout_id": "h",
+                    "configuration_id": "sort_best",
+                },
+                {
+                    "cell_id": "h::sort-best-b", "holdout_id": "h",
+                    "configuration_id": "sort_best",
+                },
+            ],
+            {}, "sort_best", id="sort-best-duplicate",
+        ),
+        pytest.param(
+            [{
+                "cell_id": "h::sort_best", "holdout_id": "h",
+                "configuration_id": "sort_best",
+            }],
+            {"h::sort_best": {
+                "cell_id": "h::sort_best", "holdout_id": "other",
+                "configuration_id": "sort_best",
+            }},
+            "対応 cell", id="binary-identity-mismatch",
+        ),
+    ],
+)
+def test_producer_binary_coverage_rejects_cell_invariants(
+        cells, binaries, reason):
+    with pytest.raises(s8b_floor_campaign.FloorCampaignError, match=reason):
+        s8b_floor_campaign._validate_binaries_cover_cells(binaries, cells)
+
+
+def test_verify_floor_artifact_binaries_positive_and_negative(tmp_path):
     freeze = _freeze_document()
     verified = _verified_freeze(freeze)
     protocol = _protocol(freeze_sha=_freeze_sha(freeze))
     measure_fn = _make_measure_fn(reps=5, value_fn=lambda cid: _BASE_TPS[cid])
-    import tempfile
-    with tempfile.TemporaryDirectory() as td:
-        outcome = _run_campaign(protocol, verified, out_root=Path(td) / "out",
-                                build_root=Path(td) / "bin", measure_fn=measure_fn,
-                                probe_fn=lambda: (1, "", ""))
+    out_root = tmp_path / "out"
+    outcome = _run_campaign(
+        protocol, verified, out_root=out_root,
+        build_root=tmp_path / "bin", measure_fn=measure_fn,
+        probe_fn=lambda: (1, "", ""),
+    )
     result = outcome["result"]
     expected_protocol = s8b_floor_campaign._expected_protocol(
         s8b_floor_campaign.validate_protocol(protocol),
@@ -8924,8 +9435,13 @@ def test_verify_floor_artifact_binaries_positive_and_negative():
     # 正例: binaries 整合 + journal receipt (expected_binaries) 突合が空リスト。
     expected_binaries = {cid: rec["binary_sha256"]
                          for cid, rec in result["binaries"].items()}
+    live_admission = _live_holdout_admission_for_outcome(
+        protocol=protocol, freeze_doc=verified,
+        out_root=out_root, outcome=outcome,
+    )
     assert s8b_floor_stats.verify_floor_artifact(
         result, expected_protocol, expected_binaries,
+        expected_holdout_admission=live_admission,
         expected_use_perf=True,
     ) == []
 
@@ -8934,21 +9450,27 @@ def test_verify_floor_artifact_binaries_positive_and_negative():
     any_cid = next(iter(tampered["binaries"]))
     tampered["binaries"][any_cid]["bin_hash_short"] = "deadbeefdeadbeef"
     assert s8b_floor_stats.verify_floor_artifact(
-        tampered, expected_protocol, expected_use_perf=True,
+        tampered, expected_protocol,
+        expected_holdout_admission=live_admission,
+        expected_use_perf=True,
     )
 
     # 負例2: journal receipt (expected_binaries) と binary_sha256 が不一致。
     bad_receipts = dict(expected_binaries)
     bad_receipts[any_cid] = "f" * 64
     assert s8b_floor_stats.verify_floor_artifact(
-        result, expected_protocol, bad_receipts, expected_use_perf=True,
+        result, expected_protocol, bad_receipts,
+        expected_holdout_admission=live_admission,
+        expected_use_perf=True,
     )
 
     # 負例3: binaries からセルを欠落させる (完全集合が崩れる)。
     dropped = json.loads(json.dumps(result))
     dropped["binaries"].pop(any_cid)
     assert s8b_floor_stats.verify_floor_artifact(
-        dropped, expected_protocol, expected_use_perf=True,
+        dropped, expected_protocol,
+        expected_holdout_admission=live_admission,
+        expected_use_perf=True,
     )
 
 

@@ -4596,6 +4596,36 @@ def test_v2_foreign_cell_admission_receipt_is_refused_before_store_read(tmp_path
             )
 
 
+def test_oracle_driver_accepts_conditional_sort_receipt_and_rejects_its_absence(
+        tmp_path):
+    root, freeze_path, _gen_sha, _binaries, _topology = _build_v2_repo(tmp_path)
+    out_root = root / "output"
+    _manifest_path, document = _emitter_manifest(tmp_path, root, freeze_path)
+    validated = s8b_ratified_freeze.launch_validate(
+        s8b_ratified_freeze.load_ratified_freeze(root), root,
+    )
+    sort_cells = [
+        cell_id for cell_id, record in validated.binaries_by_cell.items()
+        if record["configuration_id"] == "sort_best"
+    ]
+    assert sort_cells
+    driver._prepare_v2_execution(
+        validated=validated, run_contract=document["run_contract"],
+        schedule=document["schedule"]["rows"], out_root=out_root,
+        repo_root=root,
+    )
+
+    missing = s8b_ratified_freeze._plain_json(validated.binaries_by_cell)
+    missing[sort_cells[0]].pop("sort_swo_oracle")
+    without_receipt = dataclasses.replace(validated, binaries_by_cell=missing)
+    with pytest.raises(driver.OracleDriverError, match="admission-mismatch"):
+        driver._prepare_v2_execution(
+            validated=without_receipt, run_contract=document["run_contract"],
+            schedule=document["schedule"]["rows"], out_root=out_root,
+            repo_root=root,
+        )
+
+
 def test_v2_store_bytes_are_checked_against_admission_subject_independently(tmp_path):
     """M5 の独立性は主張せず、実 store 改変が既存 record SHA gate で拒否される。"""
     root, freeze_path, _gen_sha, binaries, _topology = _build_v2_repo(tmp_path)

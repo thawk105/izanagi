@@ -52,14 +52,6 @@ V2_ADDED_KEYS = frozenset({
     "generation_number", "supersedes_sha256", "env_tag",
     "floor_protocol", "floor_source", "measurement_closure",
 })
-FLOOR_RESULT_KEYS = frozenset({
-    "schema", "formula", "mode", "eligible_for_refreeze", "env_tag",
-    "ccbench_pin", "protocol_sha256", "freeze_sha256", "manifest_sha256",
-    "stock_configuration", "wired_min_rel_floor", "reps", "n_sessions",
-    "scale_adequacy_rel_tolerance", "holdouts", "configurations", "binaries",
-    "config", "sessions", "cells", "floors", "wall_ledger", "excluded",
-    "attempts",
-})
 BUDGET_KEYS = frozenset({
     "total_bench_s", "per_holdout_bench_s", "oracle_shared",
 })
@@ -220,6 +212,19 @@ def _strict_load_object_bytes(raw: bytes, label: str) -> Dict:
         raise FreezeError(f"{label} の top-level が object でない")
     _assert_finite_json(value, label=label)
     return value
+
+
+def _strict_load_jsonl_objects(raw: bytes, label: str) -> list[Dict]:
+    """Strictly parse a non-empty JSONL stream of top-level objects."""
+
+    if not raw or not raw.endswith(b"\n"):
+        raise FreezeError(f"{label} が non-empty newline-terminated JSONL でない")
+    records = []
+    for index, line in enumerate(raw.splitlines()):
+        if not line:
+            raise FreezeError(f"{label}[{index}] が空行")
+        records.append(_strict_load_object_bytes(line, f"{label}[{index}]"))
+    return records
 
 
 def _canonical_bytes(value) -> bytes:
@@ -1281,6 +1286,7 @@ def _validate_floor_inputs(
     from . import s8b_floor_contract
     from . import s8b_floor_stats
     from . import s8b_binary_admission
+    from .s8b_holdout_admission import FloorHoldoutEvidenceError
     from .build_admission import resolve_current_build_admission_policy
     from .s8b_launch_cert import LaunchCertError, parse_official_run_path
 
@@ -1314,10 +1320,12 @@ def _validate_floor_inputs(
         path_info = parse_official_run_path(result_rel, expected_basename="result.json")
     except LaunchCertError as exc:
         raise FreezeError(f"floor result path が official result でない: {exc}") from exc
-    if frozenset(result) != FLOOR_RESULT_KEYS:
+    if frozenset(result) != s8b_floor_contract.result_keys_for_mode("official"):
         raise FreezeError("floor result の key 集合が不一致")
     if result.get("schema") != s8b_floor_contract.RESULT_SCHEMA:
-        raise FreezeError("floor result.schema が s8b-floor-result/v2 でない")
+        raise FreezeError(
+            f"floor result.schema が {s8b_floor_contract.RESULT_SCHEMA} でない"
+        )
     if result.get("mode") != "official":
         raise FreezeError("floor result.mode が official でない")
     if result.get("eligible_for_refreeze") is not True:
@@ -1341,11 +1349,18 @@ def _validate_floor_inputs(
             raise FreezeError(f"floor result.{field} が protocol と不一致")
 
     try:
-        expected_cells = s8b_floor_contract.derive_expected_cells(
+        cells = s8b_floor_contract.enumerate_cells(
             v1, stock_configuration=protocol["stock_configuration"],
         )
+        schedule = s8b_floor_contract.build_schedule(
+            cells=cells, master_seed=protocol["master_seed"],
+            n_sessions=protocol["n_sessions"],
+        )
+        expected_cells = s8b_floor_contract.expected_cells_from_cells(cells)
     except s8b_floor_contract.FloorContractError as exc:
-        raise FreezeError(f"v1 holdout binding から expected cells を導出できない: {exc}") from exc
+        raise FreezeError(
+            f"v1 holdout binding から full cells/schedule を導出できない: {exc}"
+        ) from exc
     expected_holdouts = sorted(expected_cells)
     expected_configurations = sorted({
         configuration
@@ -1390,8 +1405,108 @@ def _validate_floor_inputs(
                 ) from exc
     expected_protocol = s8b_floor_contract.project_protocol_for_floor_artifact(protocol)
     expected_protocol["expected_cells"] = expected_cells
-    problems = s8b_floor_stats.verify_floor_artifact(result, expected_protocol, expected_use_perf=True)
+    run_dir = result_rel.rsplit("/", 1)[0]
+    manifest_rel = f"{run_dir}/manifest.json"
+    try:
+        manifest_raw = _capture_regular_nofollow(
+            root / manifest_rel, label="floor result sibling manifest",
+        )
+    except FreezeError as exc:
+        raise FreezeError(
+            f"floor-admission-unverifiable: sibling-manifest-unavailable: {exc}"
+        ) from exc
+    manifest_sha256 = _sha256_bytes(manifest_raw)
+    if result.get("manifest_sha256") != manifest_sha256:
+        raise FreezeError(
+            "floor-admission-mismatch: result.manifest_sha256 が sibling manifest bytes と不一致"
+        )
+    manifest_document = _strict_load_object_bytes(
+        manifest_raw, "floor result sibling manifest",
+    )
+    try:
+        s8b_floor_contract.validate_manifest_v3(
+            manifest_document, protocol=protocol,
+            protocol_sha256=protocol_sha256,
+            freeze_sha256=t080_freeze_migration.HOLDOUT_RAW_SHA256,
+            expected_cells=cells, expected_schedule=schedule, mode="official",
+        )
+    except s8b_floor_contract.FloorContractError as exc:
+        raise FreezeError(
+            f"floor-admission-mismatch: sibling-manifest-invalid: {exc}"
+        ) from exc
+    if result["binaries"] != manifest_document["binaries"]:
+        raise FreezeError(
+            "floor-admission-mismatch: result.binaries が sibling manifest と不一致"
+        )
+    journal_rel = f"{run_dir}/journal.jsonl"
+    try:
+        journal_raw = _capture_regular_nofollow(
+            root / journal_rel, label="floor result sibling journal",
+        )
+        journal_records = _strict_load_jsonl_objects(
+            journal_raw, "floor result sibling journal",
+        )
+    except FreezeError as exc:
+        raise FreezeError(
+            f"floor-admission-unverifiable: sibling-journal-unavailable: {exc}"
+        ) from exc
+    journal_sessions = [
+        record for record in journal_records if record.get("event") == "session"
+    ]
+    result_sessions = result["sessions"]
+    if type(result_sessions) is not list or journal_sessions != result_sessions:
+        raise FreezeError(
+            "floor-admission-mismatch: journal sessions と result.sessions が不一致"
+        )
+    attempt_lifecycle = [
+        record for record in journal_records
+        if record.get("event") in {"session-start", "session"}
+    ]
+    expected_binaries: dict[str, str] = {}
+    for record in journal_sessions:
+        try:
+            cell_id = record["cell_id"]
+            measured_sha256 = record["binary_sha256_at_measure"]
+        except KeyError as exc:
+            raise FreezeError(
+                "floor-admission-mismatch: journal binary receipt が欠落"
+            ) from exc
+        if (
+            type(cell_id) is not str or not cell_id
+            or type(measured_sha256) is not str
+            or len(measured_sha256) != 64
+            or any(character not in "0123456789abcdef" for character in measured_sha256)
+        ):
+            raise FreezeError(
+                "floor-admission-mismatch: journal binary receipt が不正"
+            )
+        previous = expected_binaries.setdefault(cell_id, measured_sha256)
+        if previous != measured_sha256:
+            raise FreezeError(
+                "floor-admission-mismatch: journal binary receipt が cell 内で不一致"
+            )
+    try:
+        problems = s8b_floor_stats.verify_floor_artifact_with_live_admission(
+            result, expected_protocol, expected_binaries=expected_binaries,
+            repo_root=root, protocol=protocol,
+            verified_freeze_document=v1,
+            freeze_sha256=t080_freeze_migration.HOLDOUT_RAW_SHA256,
+            manifest_sha256=manifest_sha256,
+            campaign_run_id=path_info["run_id"],
+            run_relpath=run_dir.removeprefix("output/"), mode="official",
+            cells=cells, schedule=schedule, sessions=attempt_lifecycle,
+            expected_use_perf=True,
+        )
+    except FloorHoldoutEvidenceError as exc:
+        prefix = (
+            "floor-admission-unverifiable"
+            if exc.category == "unverifiable"
+            else "floor-admission-mismatch"
+        )
+        raise FreezeError(f"{prefix}: {exc.reason}") from exc
     if problems:
+        if any("holdout_admission" in problem for problem in problems):
+            raise FreezeError(f"floor-admission-mismatch: {problems[0]}")
         raise FreezeError(f"floor result の統計検証に失敗: {'; '.join(problems)}")
 
     floors = result.get("floors")
