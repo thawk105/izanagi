@@ -85,6 +85,24 @@ checker は tested main で 1 回だけ再走して帰属を決めるので 1 �
 同族の署名 (`RESTORED=[]`) は 2026-08-16 の別 wave でも記録されている。
 差分が到達しえない・単独緑・同族の先例ありの 3 点で非帰属と判断し、再投入した。
 
+### 赤は signal 配送テストの族で、走行ごとに顔ぶれが変わる
+
+受入をもう 2 回、受入形でない全走を 1 回足して、赤の性質を測った。
+
+| 走行 | 結果 | 赤の node |
+|---|---|---|
+| 受入 1 | 11,875 passed / 1 failed | `test_dev_wave_wait.py::test_public_main_failure_restores_handler_without_release` |
+| 受入 2 | 1 failed | 同上 |
+| 全走 (受入形でない) | 11,916 passed / 3 failed | `test_t139_r4_env_probe.py::test_shell_sigterm_trap_finalizes_before_reporting_completion`、`test_mutation_worktree.py::test_sigint_and_sigterm_are_forwarded_between_observation_points` の SIGTERM / SIGINT |
+| 受入 3 | 11,918 passed / 1 failed | `test_dev_wave_wait.py::test_public_main_real_signal_after_success_uses_restored_handler` |
+
+**赤の顔ぶれは 3 file を跨いで入れ替わり、すべて signal の配送・復元を検査する node である。**
+本 wave の差分 4 file はどれもこれらに到達せず、どの signal テストが落ちるかを選べる経路も無い。
+最後の 1 件は 2026-08-16 の別 wave がフレークとして記録した node そのものである。
+`check_acceptance_reds.py` の `attributable` 判定は tested main での **file 単独走**が緑という
+1 標本に基づくが、同じ単独走は本 wave の tip でも緑 (297 passed / 2.85 秒) であり、
+tip と main を区別する実験になっていない。
+
 ### 段 8 の裁定
 
 候補は 2 件。(1) 段 6 レビュー A の待ち手が producer 生存中に rc=0・出力空で返った件は
