@@ -195,6 +195,10 @@ _T897_MERGE_RULING = (
     "2026-08-13 dev-wave-t897-trigger-admission land 前裁定 "
     "(ユーザー選択: known-violation 登録)"
 )
+_T1142_MERGE_RULING = (
+    "2026-08-16 dev-wave-t1142-oracle-n-pilot land 前裁定 "
+    "(ユーザー選択: known-violation 登録)"
+)
 _T720_MERGE_NOTE = (
     "[T-720] の repo 全体 import 機械書換えと main の同一 file 変更を競合ゼロで"
     "3 方向結合したため結果が両親のどちらとも異なり checker が実装面著作と判定；"
@@ -230,6 +234,20 @@ _T897_MERGE_NOTE = (
     "両側の変更の和集合；競合なし・競合解決による新規著作なし；wave 側の変更は Codex "
     "`role=author` が commit 01d17293 で書き、main 側は各 wave land 時に監査済み；"
     "親作成 merge のため Codex 著者とは記さない"
+)
+_T1142_MAIN_MERGE_NOTE = (
+    "親が作成した main 取り込み merge；実装面で両側が触ったのは "
+    "`orchestrator/tests/test_s8b_floor_campaign.py` の 1 file のみで、3 方向結合の結果が"
+    "両親のどちらとも異なるため checker が実装面著作と判定；競合なし・競合解決による"
+    "新規著作なし；wave 側の同 file の変更は Codex `role=author` が別 commit e5a86104 / "
+    "6162ade8 / 8a791531 で書いている；親作成 merge のため Codex 著者とは記さない"
+)
+_T1142_PRE_ACCEPTANCE_MERGE_NOTE = (
+    "受入直前に親が作成した main 取り込み merge；実装面で両側が触ったのは "
+    "`orchestrator/tests/test_s8b_floor_campaign.py` の 1 file のみで、3 方向結合の結果が"
+    "両親のどちらとも異なるため checker が実装面著作と判定；競合なし・競合解決による"
+    "新規著作なし；wave 側の同 file の変更は Codex `role=author` が別 commit e5a86104 / "
+    "6162ade8 / 8a791531 で書いている；親作成 merge のため Codex 著者とは記さない"
 )
 _T139_MALFORMED_VALUE = (
     "product=claude; model=claude-opus-5[1m]; reasoning=high; "
@@ -584,6 +602,18 @@ KNOWN_PROVENANCE_VIOLATIONS = (
         MISSING_CODEX_AUTHOR,
         _T897_MERGE_RULING,
         note=_T897_MERGE_NOTE,
+    ),
+    KnownViolationSpec(
+        "21582897ece7cf82317931a437dff61e9eaad33b",
+        MISSING_CODEX_AUTHOR,
+        _T1142_MERGE_RULING,
+        note=_T1142_MAIN_MERGE_NOTE,
+    ),
+    KnownViolationSpec(
+        "a8c73d747621d4b323024fc6ca6da6372ecfb668",
+        MISSING_CODEX_AUTHOR,
+        _T1142_MERGE_RULING,
+        note=_T1142_PRE_ACCEPTANCE_MERGE_NOTE,
     ),
 )
 
