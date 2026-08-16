@@ -177,6 +177,19 @@
 - 恒久対応: check_docs に runbook glob 自動検査を追加 (機械化)
 - 再発検知: check_docs が毎セッション末に走る
 
+
+- **再発: 2026-08-16** — 同型 (pin 前進で参照が腐る構造) が **runbook ではなく凍結証拠の
+  完全検証入口**で実現していた。`silo_ladder_rung1` の公開 `verify-result` は今日すでに
+  `correctness provenance values mismatch` で赤であり、原因は module 定数側の ccbench pin が
+  前進した一方で、凍結証拠側の pin が取得時のまま据え置かれていることである。
+  短絡するため後段の current binding 検査には到達しない。
+  F10 の恒久対応 (check_docs の runbook glob 検査) は docs の参照を守るが、
+  **コード内の pin 定数と凍結成果物の間の同型ドリフトは射程外**である。
+  さらに環境契約世代の前進でも同型の破綻が起きることを本 wave が実測しており、
+  producer も consumer も異なる独立 2 例が揃った。
+  したがって「凍結成果物は記録時の値で検証し、live 適格性は別 API で検査する」の
+  族一般化は `DW-G03` の閾値を満たす。設計は
+  D437 の裁定パッケージへ返した。
 ### F11. セッション終了定型の漏れ — handoff 削除忘れ [手順漏れ]
 - 事象: 正常終了時に handoff の削除 (worklog への吸収) を落とした
 - 恒久対応: memory `session-close-checklist` — セッション TODO 末尾に worklog → lint →
@@ -8182,3 +8195,51 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   待ち手を張る前に pid file と log の実在を確認するのが最も安い予防である。
 - 再発検知: 3 点照合そのもの。本件は照合により「通知は来たが未完了」と判定でき、
   走行中の子を完了と誤認せずに済んだ。
+
+### F338. live hostname を authority に数える設計を、非特権 namespace が恒真化する [恒真ゲート]
+
+- 事象: (2026-08-16、[T-1140] 段 3 レンズ A の実測) reservation の `binding.host` を
+  `socket.gethostname()` / `socket.getfqdn()` と照合して「どのノードで測ったか」の
+  authority にする設計を検討したところ、Pegasus login ノードでは
+  `/proc/sys/kernel/unprivileged_userns_clone` が `1`、`/proc/sys/user/max_user_namespaces` が
+  `2147483647` であり、**非特権のまま UTS namespace を作って hostname と FQDN の双方を
+  変更できた**。その際 `/proc/sys/kernel/random/boot_id` は親と同一のままだった。
+  計算ノードでの可否は未実測。
+- 根本原因: 「OS が返す値だから呼び手の支配外」という一段階の推論で authority を認定した。
+  実際には呼び手が namespace を作れる環境では、live な OS 状態も呼び手が用意できる。
+  2026-07-25 [T-088] の A-03 で「環境変数同士の一致を authorization gate に数えない」を
+  設計制約として確定していたが、その制約は「env 対 env」の形でしか書かれておらず、
+  「env 対 live OS 状態」が同じ穴を持つことを覆っていなかった。
+- 影響: 実装前に発見したため成果物への影響はない。実装していれば、材料レポートと proof chain が
+  claim 内の `host` を「scheduler が割り当てたノード」の証明として参照し始めていた。
+  実際に証明されるのは「呼び手が名乗ったノード名と、呼び手が観測させた値が一致すること」だけである。
+- 恒久対応: D435 の項目 3 (authority) が
+  「呼び手が両側を用意できる照合は drift 検出であって authority ではない」を要求する。
+  live OS 状態を authority と数える設計は、その状態が呼び手の namespace 権限の外にあることを
+  当該環境で実測してからでなければ採らない。
+- 再発検知: 「どのノード / どの process / どの環境で実行したか」を証明すると称する検査が、
+  同一 process から読める値 (hostname、FQDN、cgroup 名、環境変数、`/proc/self/*`) だけを
+  照合先にしていること。scheduler・kernel の特権面・外部 authority のいずれにも触れていない
+  照合は authority に数えない。
+
+### F339. attestation の `effective_clock.method` 比較が非空検査でしかなく、計測方式の実体不一致を pass と記録していた [恒真ゲート] [誤前提]
+
+- 事象: 実行時 attestation の receipt は `effective_clock.method` を expected/observed の
+  比較 field として持つが、判定は「両方が非空 str であること」だけである。
+  登録済み Pegasus 較正 (第 1 世代) の method は素朴な `proc-cpuinfo` で、
+  実行時 probe が返す method は走行 CPU を巡回させる方式 α である。
+  **両者は実体として別の計測方式であるにもかかわらず、receipt には pass と記録されていた。**
+- 根本原因: method は自由文字列であり、環境ごと・方式改訂ごとに値が変わりうる。
+  比較を導入した時点で「値の一致を要求すると方式改訂で全 attestation が落ちる」ため
+  非空検査へ退避したまま固定された。結果として、**この field は定義上どんな入力でも
+  fail しない**。恒真ゲートである。
+- 影響: 計測条件の同一性を receipt で主張できない。
+  期待側の較正がどの方式で取得されたかと、実測がどの方式で観測されたかが食い違っていても、
+  proof chain の上では区別が付かない。
+- 恒久対応: 未実施。是正は受理集合を縮小する変更であり、
+  第 1 世代が active な状態で入れると Pegasus の全 attestation が即座に落ちる。
+  環境契約世代の活性化と対で行う必要があるため、
+  D437 の裁定パッケージへ従属項目として返した。
+- 再発検知: 比較 field を足す改修では、その field を**必ず fail させる負例**を同じ変更単位で
+  置く。負例を書けない field は比較ではなく形式検査であり、receipt の比較表に
+  verdict として並べない。
