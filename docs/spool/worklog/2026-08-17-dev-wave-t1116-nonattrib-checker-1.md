@@ -36,6 +36,11 @@ title: 非帰属 checker の修正は checker 層だけで止まり消費層が�
   した」と報告した受領証の分類は `non-attributable` であり、これは 8a2b735b より前から存在した
   分岐である。新 field を持つ受領証は 45 件中 0 件のままだった。
 - 段 3 = 2 レンズ、所見 15 件 = real 14 / nit 1 / refuted 0。
+- 段 8 = 候補 1 件を採用。「呼び手を確認した」を root field と flag の照合だけで閉じ、入れ子の
+  exact 検査を見落として修正が end-to-end で発効しなかった型を
+  {{F:consumer-partial-predicate-check}} へ登録した。機械化は本件の受理集合裁定に従属するため、
+  暫定の恒久対応は memory `consumer-exact-predicates-must-all-be-checked` を実体とする。
+  dev-wave docs は変更していない (独立 2 例が揃っていないため `DW-G03` により一般化しない)。
 - 一次資料: `output/insights/2026-08-17_t1116-nonattrib-checker/`
   (`README.md`、`ruling-package.md`、`probe2-receipt.json`、`verbatim/` に brief・段 2・段 3 両
   レンズ・段 4 裁定の全文)。
