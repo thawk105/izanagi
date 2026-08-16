@@ -12,6 +12,7 @@ from types import SimpleNamespace
 
 import pytest
 
+from orchestrator.calibrator import perf_preflight
 from orchestrator.calibrator.model import ScalePoint
 from orchestrator.campaign import s1_direct_comparison
 from orchestrator.campaign import s8b_holdout_freeze
@@ -24,6 +25,44 @@ ROOT = Path(__file__).resolve().parents[2]
 CONFIGURATIONS = tuple(sorted(s1_direct_comparison._PREPARE_CELL_CONFIGURATIONS))
 SENTINEL_RECORDS = 123457
 SENTINEL_THREADS = 7
+
+
+def _perf_receipt(status: str = "available") -> dict:
+    if status == "available":
+        available = True
+        rc = 0
+        parsed_events = list(perf_preflight.PERF_EVENTS)
+        reason = "available"
+    elif status == "unavailable":
+        available = False
+        rc = None
+        parsed_events = []
+        reason = "perf-not-found"
+    else:
+        assert status == "probe_error"
+        available = False
+        rc = None
+        parsed_events = []
+        reason = "probe-os-error"
+    return {
+        "schema": perf_preflight.SCHEMA,
+        "status": status,
+        "available": available,
+        "probe_argv": list(perf_preflight._BASE_PROBE_ARGV),
+        "rc": rc,
+        "parsed_events": parsed_events,
+        "reason": reason,
+        "stderr_sha256": "0" * 64,
+        "candidates": [],
+    }
+
+
+def _perf_mode(status: str = "available") -> M.PerfMode:
+    receipt = _perf_receipt(status)
+    return M.PerfMode(
+        use_perf=perf_preflight.use_perf_from_receipt(receipt),
+        receipt=receipt,
+    )
 
 
 def _protocol_document() -> dict:
@@ -152,6 +191,7 @@ def _inputs(*, held=()) -> M.PilotInputs:
         held_markers=tuple(held),
         freeze_verification_status="held" if held else "verified",
         contract=contract,
+        observed_repo_head="a" * 40,
     )
 
 
@@ -284,12 +324,15 @@ def test_m7_load_inputs_preserves_held_markers_and_held_status(tmp_path):
         verify_fn=lambda *_args, **_kwargs: (marker,),
         contract_resolver=lambda *_args, **_kwargs: entry,
         active_contract_fn=lambda _env_tag: entry.contract,
-        current_head_fn=lambda _root: protocol.source_commit,
+        observed_repo_head="a" * 40,
+        current_head_fn=lambda _root: "a" * 40,
         gitlink_fn=lambda _root: protocol.ccbench_pin,
         submodule_head_fn=lambda _root: protocol.ccbench_pin,
     )
     assert inputs.freeze_verification_status == "held"
     assert inputs.held_markers == (marker,)
+    assert inputs.observed_repo_head == "a" * 40
+    assert inputs.observed_repo_head != protocol.source_commit
     assert {cell["records"] for cell in inputs.cells} == {SENTINEL_RECORDS}
     assert {cell["threads"] for cell in inputs.cells} == {SENTINEL_THREADS}
 
@@ -514,12 +557,18 @@ def test_m4_build_is_trace_disabled_and_uses_exact_external_cache(tmp_path):
     assert {item.cache_hit for item in result.values()} == {True, False}
 
 
-def _run_one_round(tmp_path: Path, raw=(1.0, 2.0, 3.0, 4.0, 100.0)):
+def _run_one_round(
+    tmp_path: Path,
+    raw=(1.0, 2.0, 3.0, 4.0, 100.0),
+    *,
+    perf_status="available",
+):
     inputs = _inputs()
     binaries = _binary_receipts(tmp_path, inputs)
     schedule = M.build_pilot_schedule(inputs, master_seed="schedule-seed", rounds=1)
     measure_calls = []
     tenant_calls = []
+    preflight_calls = []
     ticks = iter(float(index) for index in range(100))
 
     def measure_fn(binary, records, threads, clocks_per_us, **kwargs):
@@ -530,7 +579,7 @@ def _run_one_round(tmp_path: Path, raw=(1.0, 2.0, 3.0, 4.0, 100.0)):
             abort_rate=0.125, run_cmd="discarded",
         )
 
-    observations = M.run_sessions(
+    observations, perf_mode = M.run_sessions(
         inputs,
         binaries,
         schedule,
@@ -538,12 +587,29 @@ def _run_one_round(tmp_path: Path, raw=(1.0, 2.0, 3.0, 4.0, 100.0)):
         single_tenant_fn=lambda: tenant_calls.append("checked"),
         monotonic_fn=lambda: next(ticks),
         load1_fn=lambda: 1.25,
+        perf_preflight_fn=lambda **kwargs: (
+            preflight_calls.append(kwargs) or _perf_receipt(perf_status)
+        ),
+        perf_candidates_fn=lambda _root: ("/policy/perf",),
     )
-    return inputs, schedule, measure_calls, tenant_calls, observations
+    return (
+        inputs,
+        schedule,
+        measure_calls,
+        tenant_calls,
+        observations,
+        perf_mode,
+        preflight_calls,
+    )
 
 
 def test_m5_measure_gateway_uses_perf_and_approved_shape(tmp_path):
-    inputs, _schedule, calls, _tenant, observations = _run_one_round(tmp_path)
+    inputs, _schedule, calls, _tenant, observations, perf_mode, preflight_calls = (
+        _run_one_round(tmp_path, perf_status="available")
+    )
+    assert perf_mode.use_perf is True
+    assert perf_mode.receipt["status"] == "available"
+    assert preflight_calls == [{"perf_candidates": ("/policy/perf",)}]
     assert len(calls) == 12
     for _binary, _records, _threads, clocks, kwargs in calls:
         assert clocks == inputs.contract.clocks_per_us
@@ -557,8 +623,50 @@ def test_m5_measure_gateway_uses_perf_and_approved_shape(tmp_path):
     assert all(item.materialize_elapsed_s > 0 for item in observations)
 
 
+def test_measure_gateway_uses_no_perf_only_when_preflight_is_unavailable(tmp_path):
+    inputs, schedule, calls, _tenant, observations, perf_mode, _preflight_calls = (
+        _run_one_round(tmp_path, perf_status="unavailable")
+    )
+    assert perf_mode.use_perf is False
+    assert {kwargs["use_perf"] for *_prefix, kwargs in calls} == {False}
+    result = M._result_document(
+        inputs,
+        _binary_receipts(tmp_path, inputs),
+        attempt_id="no-perf",
+        rounds=1,
+        build_only=False,
+        schedule=schedule,
+        observations=observations,
+        statistics_document=M.summarize_sessions(inputs, observations),
+        n_analysis=None,
+        run_wall_time_s=1.0,
+        perf_mode=perf_mode,
+    )
+    assert result["input_identity"]["use_perf"] is False
+    assert result["input_identity"]["perf_preflight"]["status"] == "unavailable"
+
+
+def test_probe_error_refuses_before_measurement(tmp_path):
+    inputs = _inputs()
+    binaries = _binary_receipts(tmp_path, inputs)
+    schedule = M.build_pilot_schedule(inputs, master_seed="schedule-seed", rounds=1)
+    measure_calls = []
+    with pytest.raises(M.PilotError, match="perf preflight が判定不能"):
+        M.run_sessions(
+            inputs,
+            binaries,
+            schedule,
+            measure_fn=lambda *_args, **_kwargs: measure_calls.append("called"),
+            perf_preflight_fn=lambda **_kwargs: _perf_receipt("probe_error"),
+            perf_candidates_fn=lambda _root: (),
+        )
+    assert measure_calls == []
+
+
 def test_m6_measure_gateway_uses_nonstandard_freeze_scale_for_every_cell(tmp_path):
-    _inputs_value, _schedule, calls, _tenant, _observations_value = _run_one_round(tmp_path)
+    _inputs_value, _schedule, calls, _tenant, _observations_value, _mode, _preflight = (
+        _run_one_round(tmp_path)
+    )
     assert len(calls) == 12
     assert {records for _binary, records, _threads, _clocks, _kwargs in calls} == {
         SENTINEL_RECORDS
@@ -569,7 +677,9 @@ def test_m6_measure_gateway_uses_nonstandard_freeze_scale_for_every_cell(tmp_pat
 
 
 def test_m8_outer_trial_is_statistics_median_not_mean(tmp_path):
-    _inputs_value, _schedule, _calls, _tenant, observations = _run_one_round(tmp_path)
+    _inputs_value, _schedule, _calls, _tenant, observations, _mode, _preflight = (
+        _run_one_round(tmp_path)
+    )
     assert {item.outer_median for item in observations} == {3.0}
     assert {item.throughput_binary64_hex for item in observations} == {
         (
@@ -611,7 +721,9 @@ def test_wilson_upper_matches_known_one_sided_literals():
 
 
 def test_m12_single_tenant_gate_runs_at_start_and_around_every_point(tmp_path):
-    _inputs_value, _schedule, _calls, tenant_calls, observations = _run_one_round(tmp_path)
+    _inputs_value, _schedule, _calls, tenant_calls, observations, _mode, _preflight = (
+        _run_one_round(tmp_path)
+    )
     assert len(tenant_calls) == 1 + 2 * len(observations)
 
 
@@ -679,7 +791,9 @@ def test_raw_candidate_distribution_and_diagnostic_contrasts_are_separate():
 
 
 def test_session_records_preserve_all_drift_and_cache_confounders(tmp_path):
-    _inputs_value, _schedule, _calls, _tenant, observations = _run_one_round(tmp_path)
+    _inputs_value, _schedule, _calls, _tenant, observations, _mode, _preflight = (
+        _run_one_round(tmp_path)
+    )
     assert [item.position for item in observations] == list(range(1, 13))
     for item in observations:
         record = item.as_record()
@@ -780,7 +894,12 @@ class _FixedBlockRng:
 
 def test_indifference_zone_counts_rates_ucls_and_selected_n_are_exact():
     inputs, observations, holdouts = _selection_fixture()
-    result = M.derive_n_table(inputs, observations, rng_factory=_FixedBlockRng)
+    result = M.derive_n_table(
+        inputs, observations, use_perf=True, rng_factory=_FixedBlockRng,
+    )
+    assert result["conditioning"] == (
+        "all-rows-eligible/three-allocations/exact-pin-and-binaries/perf-on"
+    )
     for holdout in holdouts:
         first = result["candidate_results"]["1"]["per_holdout"]["0.01"][holdout]
         second = result["candidate_results"]["2"]["per_holdout"]["0.01"][holdout]
@@ -827,7 +946,9 @@ def test_tie_iterations_are_reported_but_not_counted_as_errors():
             throughput_binary64_hex=tuple(M._binary64_hex(value) for value in raw),
             outer_median=outer,
         ))
-    result = M.derive_n_table(inputs, tied, rng_factory=_FixedBlockRng)
+    result = M.derive_n_table(
+        inputs, tied, use_perf=True, rng_factory=_FixedBlockRng,
+    )
     for holdout in holdouts:
         candidate = result["candidate_results"]["1"]["per_holdout"]["0.01"][holdout]
         assert candidate["errors"] == 0
@@ -857,7 +978,12 @@ def test_nonmonotonic_candidate_series_is_flagged_and_uses_passing_suffix():
 
 def test_indifference_zone_n_table_uses_block_resampling_and_reports_ucl():
     inputs = replace(_inputs(), protocol=replace(_protocol(), pilot_rounds=3))
-    result = M.derive_n_table(inputs, _observations(inputs, rounds=3))
+    result = M.derive_n_table(
+        inputs, _observations(inputs, rounds=3), use_perf=False,
+    )
+    assert result["conditioning"] == (
+        "all-rows-eligible/three-allocations/exact-pin-and-binaries/perf-off"
+    )
     assert result["selection_error"] == "indifference-zone-relative"
     assert result["tie_rule"] == "not-an-error"
     assert result["resampling_unit"] == "complete-round-vector"
@@ -967,6 +1093,7 @@ def test_m10_result_eligibility_is_exactly_all_false(tmp_path):
         statistics_document=None,
         n_analysis=None,
         run_wall_time_s=None,
+        perf_mode=_perf_mode(),
     )
     assert result["eligibility"] == {
         "certified": False,
@@ -976,13 +1103,17 @@ def test_m10_result_eligibility_is_exactly_all_false(tmp_path):
     }
     assert result["input_identity"]["freeze_verification_status"] == "held"
     assert result["input_identity"]["freeze_verification_held_markers"] == [{"check": "held"}]
+    assert result["input_identity"]["observed_repo_head"] == "a" * 40
+    assert result["input_identity"]["use_perf"] is True
     rendered = M.canonical_result_bytes(result)
     assert b"run_cmd" in rendered
     assert b"discarded" not in rendered
 
 
 def test_complete_fake_scalepoint_result_discards_run_cmd_and_workload_object(tmp_path):
-    inputs, schedule, _calls, _tenant, observations = _run_one_round(tmp_path)
+    inputs, schedule, _calls, _tenant, observations, perf_mode, _preflight = (
+        _run_one_round(tmp_path)
+    )
     binaries = _binary_receipts(tmp_path, inputs)
     statistics_document = M.summarize_sessions(inputs, observations)
     result = M._result_document(
@@ -996,6 +1127,7 @@ def test_complete_fake_scalepoint_result_discards_run_cmd_and_workload_object(tm
         statistics_document=statistics_document,
         n_analysis=None,
         run_wall_time_s=12.5,
+        perf_mode=perf_mode,
         n_analysis_null_reason="per-allocation-result-does-not-derive-n",
     )
     destination = tmp_path / "published" / "result.json"
@@ -1023,6 +1155,7 @@ def test_per_allocation_result_cannot_publish_n_analysis(tmp_path):
             statistics_document=None,
             n_analysis={"forbidden": True},
             run_wall_time_s=1.0,
+            perf_mode=_perf_mode(),
         )
 
 
@@ -1054,6 +1187,7 @@ def _allocation_result_files(tmp_path: Path):
             statistics_document=M.summarize_sessions(inputs, shifted),
             n_analysis=None,
             run_wall_time_s=100.0,
+            perf_mode=_perf_mode(),
             n_analysis_null_reason="per-allocation-result-does-not-derive-n",
         )
         path = tmp_path / f"allocation-{allocation_index + 1}.json"
@@ -1082,6 +1216,19 @@ def test_three_allocation_aggregate_derives_n_once_and_reports_shift(tmp_path):
         assert [item["direction"] for item in cell["pairwise_differences"]] == [
             "higher", "higher", "higher",
         ]
+
+
+def test_aggregate_treats_repo_heads_as_observations_not_identity_pins(tmp_path):
+    protocol, paths = _allocation_result_files(tmp_path)
+    observed_heads = []
+    for index, path in enumerate(paths, start=1):
+        document = json.loads(path.read_text(encoding="utf-8"))
+        observed_head = f"{index:040x}"
+        document["input_identity"]["observed_repo_head"] = observed_head
+        path.write_bytes(M.canonical_result_bytes(document))
+        observed_heads.append(observed_head)
+    result = M.aggregate_results(protocol, paths)
+    assert result["input_identity"]["observed_repo_heads"] == observed_heads
 
 
 def test_aggregate_rejects_protocol_or_schedule_seed_mismatch(tmp_path):
@@ -1188,6 +1335,14 @@ def test_submit_wrapper_production_job_requires_tracked_head_blob_contract():
     assert "ls-files --error-unmatch" in source
     assert "cat-file blob" in source
     assert "working-tree job script differs from HEAD blob" in source
+
+
+def test_job_script_passes_observed_head_and_preserves_clean_tree_gates():
+    source = (ROOT / M.JOB_SCRIPT_REL).read_text(encoding="utf-8")
+    assert 'diff-index --quiet HEAD -- || fail "repo has tracked changes"' in source
+    assert "ls-files --others --exclude-standard" in source
+    assert 'REPO_HEAD=$(git -C "$REPO_ROOT" rev-parse --verify HEAD)' in source
+    assert '--observed-repo-head "$REPO_HEAD"' in source
 
 
 def test_new_python_and_shell_sources_are_nfc_and_holdout_literal_safe():

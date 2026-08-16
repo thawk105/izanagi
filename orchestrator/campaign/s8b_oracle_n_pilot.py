@@ -28,6 +28,7 @@ if __package__ in {None, ""}:  # pragma: no cover - direct CLI execution
     sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
     __package__ = "orchestrator.campaign"
 
+from ..calibrator import perf_preflight as _perf_preflight
 from ..calibrator.runner import measure_point
 
 from . import buildcache, env_contract, s8b_floor_contract, s8b_oracle_manifest
@@ -42,6 +43,7 @@ from .s1_direct_comparison import _PREPARE_CELL_CONFIGURATIONS, prepare_cell
 from .s8b_experiment_numbers import APPROVED_EXTIME_S, APPROVED_REPS
 from .s8b_floor_campaign import (
     _canonical_floor_fetchcontent_base,
+    _policy_perf_candidates,
     _prepare_floor_oracle_dependency,
 )
 from .s8b_freeze_io import load_verified_freeze
@@ -105,6 +107,13 @@ class PilotInputs:
     held_markers: tuple[Mapping[str, object], ...]
     freeze_verification_status: str
     contract: object
+    observed_repo_head: str
+
+
+@dataclass(frozen=True)
+class PerfMode:
+    use_perf: bool
+    receipt: Mapping[str, object]
 
 
 @dataclass(frozen=True)
@@ -460,6 +469,7 @@ def load_inputs(
     verify_fn: Callable[..., object] = verify_document,
     contract_resolver: Callable[..., object] = env_contract.resolve_by_contract_sha256,
     active_contract_fn: Callable[[str], object] = env_contract.lookup,
+    observed_repo_head: str | None = None,
     current_head_fn: Callable[[Path], str] | None = None,
     gitlink_fn: Callable[[Path], str] | None = None,
     submodule_head_fn: Callable[[Path], str] | None = None,
@@ -473,8 +483,14 @@ def load_inputs(
     if _sha256_file(job_script) != protocol.job_script_sha256:
         raise PilotError("job script sha256 が protocol と不一致")
     current_head = (current_head_fn or (lambda base: _git_output(base, ["rev-parse", "HEAD"])))(root)
-    if current_head != protocol.source_commit:
-        raise PilotError("source commit が protocol と不一致")
+    if not _is_hex(current_head, 40):
+        raise PilotError("observed repo HEAD が full lowercase hex でない")
+    if observed_repo_head is not None:
+        if not _is_hex(observed_repo_head, 40):
+            raise PilotError("job script の observed repo HEAD が full lowercase hex でない")
+        if observed_repo_head != current_head:
+            raise PilotError("job script の observed repo HEAD が実 HEAD と不一致")
+    recorded_repo_head = current_head if observed_repo_head is None else observed_repo_head
     freeze_path = _repo_relative_file(root, protocol.freeze_path, "freeze.path")
     verified = load_freeze_fn(freeze_path, expected_hash=protocol.freeze_sha256)
     try:
@@ -530,7 +546,26 @@ def load_inputs(
         held_markers=tuple(dict(item) for item in held),
         freeze_verification_status="held" if held else "verified",
         contract=contract,
+        observed_repo_head=recorded_repo_head,
     )
+
+
+def resolve_perf_mode(
+    *,
+    repo_root: Path = ROOT,
+    perf_preflight_fn: Callable[..., object] = _perf_preflight.probe_perf_availability,
+    perf_candidates_fn: Callable[[Path], Sequence[str]] = _policy_perf_candidates,
+) -> PerfMode:
+    """Probe perf once and derive the pilot mode through the shared contract."""
+    try:
+        receipt = perf_preflight_fn(
+            perf_candidates=perf_candidates_fn(Path(repo_root)),
+        )
+        normalized = _perf_preflight.validate_perf_preflight_receipt(receipt)
+        use_perf = _perf_preflight.use_perf_from_receipt(normalized)
+    except (_perf_preflight.PerfPreflightError, OSError, RuntimeError, ValueError) as exc:
+        raise PilotError(f"perf preflight が判定不能: {exc}") from exc
+    return PerfMode(use_perf=use_perf, receipt=normalized)
 
 
 def _existing_symlink_component(path: Path) -> Path | None:
@@ -876,8 +911,16 @@ def run_sessions(
     single_tenant_fn: Callable[[], None] = _assert_single_tenant,
     monotonic_fn: Callable[[], float] = time.monotonic,
     load1_fn: Callable[[], float] = _load1,
-) -> tuple[SessionObservation, ...]:
+    perf_preflight_fn: Callable[..., object] = _perf_preflight.probe_perf_availability,
+    perf_candidates_fn: Callable[[Path], Sequence[str]] = _policy_perf_candidates,
+    repo_root: Path = ROOT,
+) -> tuple[tuple[SessionObservation, ...], PerfMode]:
     """Measure the complete blocked schedule with no retry or partial completion."""
+    perf_mode = resolve_perf_mode(
+        repo_root=repo_root,
+        perf_preflight_fn=perf_preflight_fn,
+        perf_candidates_fn=perf_candidates_fn,
+    )
     cells = {str(cell["cell_id"]): cell for cell in inputs.cells}
     if set(binaries) != set(cells):
         raise PilotError("binary cell 集合が input cell 集合と不一致")
@@ -914,7 +957,7 @@ def run_sessions(
                 settle_first=False,
                 require_all_reps=True,
                 rep_returncodes=returncodes,
-                use_perf=True,
+                use_perf=perf_mode.use_perf,
             )
         except BaseException as exc:  # post-check is mandatory even for measurement failure
             measure_error = exc
@@ -956,7 +999,7 @@ def run_sessions(
             cache_hit=binary.cache_hit,
             materialize_elapsed_s=binary.materialize_elapsed_s,
         ))
-    return tuple(observations)
+    return tuple(observations), perf_mode
 
 
 def _summary(values: Sequence[float]) -> dict[str, float | None]:
@@ -1231,9 +1274,12 @@ def derive_n_table(
     inputs: PilotInputs,
     observations: Sequence[SessionObservation],
     *,
+    use_perf: bool,
     rng_factory: Callable[[str], object] = random.Random,
 ) -> dict[str, object]:
     """Reproduce median/exact-argmax selection under round-block resampling."""
+    if type(use_perf) is not bool:
+        raise PilotError("n analysis の use_perf が bool でない")
     rounds, by_cell = _observation_matrix(inputs, observations)
     if inputs.protocol.pilot_rounds is None or len(rounds) != inputs.protocol.pilot_rounds:
         raise PilotError("n analysis には aggregate 後の total pilot_rounds が必要")
@@ -1363,7 +1409,10 @@ def derive_n_table(
             })
     return {
         "status": "lower-bound",
-        "conditioning": "all-rows-eligible/three-allocations/exact-pin-and-binaries",
+        "conditioning": (
+            "all-rows-eligible/three-allocations/exact-pin-and-binaries/"
+            f"perf-{'on' if use_perf else 'off'}"
+        ),
         "allocation_variation_in_ucl": False,
         "selection_error": "indifference-zone-relative",
         "tie_rule": "not-an-error",
@@ -1625,6 +1674,7 @@ def _aggregation_inputs(
         held_markers=(),
         freeze_verification_status="aggregate-from-allocation-results",
         contract=None,
+        observed_repo_head=protocol.source_commit,
     )
 
 
@@ -1681,6 +1731,7 @@ def aggregate_results(
     canonical_binary_identity = None
     cell_ids: set[str] | None = None
     attempts: set[str] = set()
+    observed_repo_heads: set[str] = set()
     rounds_per_allocation: int | None = None
     for index, path in enumerate(result_paths):
         document, raw = _load_strict_json_mapping(Path(path), f"aggregate result[{index}]")
@@ -1713,9 +1764,28 @@ def aggregate_results(
         }
         if any(identity.get(key) != value for key, value in expected_identity.items()):
             raise PilotError("aggregate result identity が protocol と不一致")
+        try:
+            normalized_perf = _perf_preflight.validate_perf_preflight_receipt(
+                identity.get("perf_preflight")
+            )
+            derived_use_perf = _perf_preflight.use_perf_from_receipt(normalized_perf)
+        except _perf_preflight.PerfPreflightError as exc:
+            raise PilotError(f"aggregate result perf preflight が不正: {exc}") from exc
+        if (
+            type(identity.get("use_perf")) is not bool
+            or identity["use_perf"] is not derived_use_perf
+            or identity["perf_preflight"] != normalized_perf
+        ):
+            raise PilotError("aggregate result use_perf が perf preflight と不一致")
+        observed_repo_head = identity.get("observed_repo_head")
+        if not _is_hex(observed_repo_head, 40):
+            raise PilotError("aggregate result observed repo HEAD が不正")
+        observed_repo_heads.add(observed_repo_head)
+        stable_identity = dict(identity)
+        del stable_identity["observed_repo_head"]
         if canonical_identity is None:
-            canonical_identity = dict(identity)
-        elif identity != canonical_identity:
+            canonical_identity = stable_identity
+        elif stable_identity != canonical_identity:
             raise PilotError("aggregate results の input identity が不一致")
         if not isinstance(design, Mapping) or design.get("master_seed") != protocol.master_seed:
             raise PilotError("aggregate results が同一 schedule seed でない")
@@ -1835,7 +1905,12 @@ def aggregate_results(
     }
     statistics_document["drift_diagnostics"] = drift
     if drift["valid_for_n_analysis"]:
-        n_analysis = derive_n_table(aggregate_inputs, combined)
+        assert canonical_identity is not None
+        n_analysis = derive_n_table(
+            aggregate_inputs,
+            combined,
+            use_perf=canonical_identity["use_perf"],
+        )
         null_reason = None
     else:
         n_analysis = None
@@ -1857,6 +1932,9 @@ def aggregate_results(
             "freeze_sha256": protocol.freeze_sha256,
             "ccbench_pin": protocol.ccbench_pin,
             "contract_sha256": protocol.contract_sha256,
+            "observed_repo_heads": sorted(observed_repo_heads),
+            "use_perf": canonical_identity["use_perf"],
+            "perf_preflight": canonical_identity["perf_preflight"],
         },
         "design": {
             "master_seed": protocol.master_seed,
@@ -1891,6 +1969,7 @@ def _result_document(
     statistics_document: Mapping[str, object] | None,
     n_analysis: Mapping[str, object] | None,
     run_wall_time_s: float | None,
+    perf_mode: PerfMode,
     n_analysis_null_reason: str | None = None,
 ) -> dict[str, object]:
     if n_analysis is not None:
@@ -1900,6 +1979,15 @@ def _result_document(
             "build-only-result" if build_only
             else "per-allocation-result-does-not-derive-n"
         )
+    try:
+        normalized_perf = _perf_preflight.validate_perf_preflight_receipt(
+            perf_mode.receipt
+        )
+        derived_use_perf = _perf_preflight.use_perf_from_receipt(normalized_perf)
+    except _perf_preflight.PerfPreflightError as exc:
+        raise PilotError(f"result perf preflight が不正: {exc}") from exc
+    if type(perf_mode.use_perf) is not bool or perf_mode.use_perf is not derived_use_perf:
+        raise PilotError("result use_perf が perf preflight と不一致")
     return {
         "schema_version": RESULT_SCHEMA,
         "status": "built" if build_only else "completed",
@@ -1912,6 +2000,7 @@ def _result_document(
         "input_identity": {
             "protocol_sha256": inputs.protocol.protocol_sha256,
             "source_commit": inputs.protocol.source_commit,
+            "observed_repo_head": inputs.observed_repo_head,
             "driver_sha256": inputs.protocol.driver_sha256,
             "job_script_sha256": inputs.protocol.job_script_sha256,
             "freeze_path": inputs.protocol.freeze_path,
@@ -1922,6 +2011,8 @@ def _result_document(
             "activation_generation": inputs.protocol.activation_generation,
             "freeze_verification_status": inputs.freeze_verification_status,
             "freeze_verification_held_markers": list(inputs.held_markers),
+            "use_perf": perf_mode.use_perf,
+            "perf_preflight": normalized_perf,
         },
         "design": {
             "total_pilot_rounds": inputs.protocol.pilot_rounds,
@@ -1988,6 +2079,7 @@ def _parse_args(argv: Sequence[str] | None) -> argparse.Namespace:
     parser.add_argument("--protocol", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--attempt-id")
+    parser.add_argument("--observed-repo-head")
     parser.add_argument("--cache-root", type=Path)
     parser.add_argument("--build-only", action="store_true")
     parser.add_argument("--rounds", type=int)
@@ -2002,17 +2094,25 @@ def main(argv: Sequence[str] | None = None) -> int:
         if args.aggregate is not None:
             if (
                 args.attempt_id is not None
+                or args.observed_repo_head is not None
                 or args.cache_root is not None
                 or args.build_only
                 or args.rounds is not None
             ):
                 raise PilotError(
-                    "--aggregate は --attempt-id/--cache-root/--build-only/--rounds と併用できない"
+                    "--aggregate は --attempt-id/--observed-repo-head/--cache-root/"
+                    "--build-only/--rounds と併用できない"
                 )
             write_guarded_result(args.output, aggregate_results(protocol, args.aggregate))
             return 0
-        if args.attempt_id is None or args.cache_root is None:
-            raise PilotError("allocation run には --attempt-id と --cache-root が必要")
+        if (
+            args.attempt_id is None
+            or args.observed_repo_head is None
+            or args.cache_root is None
+        ):
+            raise PilotError(
+                "allocation run には --attempt-id、--observed-repo-head、--cache-root が必要"
+            )
         if type(args.attempt_id) is not str or not args.attempt_id or any(
             character not in "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789._-"
             for character in args.attempt_id
@@ -2037,7 +2137,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             )
         if not args.build_only and rounds is None:
             raise PilotError("実走には protocol.pilot_rounds または --rounds が必要")
-        inputs = load_inputs(protocol)
+        inputs = load_inputs(protocol, observed_repo_head=args.observed_repo_head)
         binaries = build_binaries(inputs, cache_root=args.cache_root)
         schedule: tuple[Mapping[str, object], ...] = ()
         observations: tuple[SessionObservation, ...] = ()
@@ -2045,16 +2145,20 @@ def main(argv: Sequence[str] | None = None) -> int:
         n_analysis = None
         n_analysis_null_reason = "build-only-result" if args.build_only else None
         run_wall_time = None
+        perf_mode = None
         if not args.build_only:
             assert rounds is not None
             schedule = build_pilot_schedule(
                 inputs, master_seed=protocol.master_seed, rounds=rounds,
             )
             run_start = time.monotonic()
-            observations = run_sessions(inputs, binaries, schedule)
+            observations, perf_mode = run_sessions(inputs, binaries, schedule)
             run_wall_time = time.monotonic() - run_start
             statistics_document = summarize_sessions(inputs, observations)
             n_analysis_null_reason = "per-allocation-result-does-not-derive-n"
+        else:
+            perf_mode = resolve_perf_mode()
+        assert perf_mode is not None
         result = _result_document(
             inputs,
             binaries,
@@ -2066,6 +2170,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             statistics_document=statistics_document,
             n_analysis=n_analysis,
             run_wall_time_s=run_wall_time,
+            perf_mode=perf_mode,
             n_analysis_null_reason=n_analysis_null_reason,
         )
         write_guarded_result(args.output, result)

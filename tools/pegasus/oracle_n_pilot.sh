@@ -31,6 +31,9 @@ REPO_ROOT=$(cd "$PBS_O_WORKDIR" && pwd -P) || fail "cannot resolve repo root"
 git -C "$REPO_ROOT" diff-index --quiet HEAD -- || fail "repo has tracked changes"
 [[ -z "$(git -C "$REPO_ROOT" ls-files --others --exclude-standard)" ]] \
   || fail "repo has untracked files"
+REPO_HEAD=$(git -C "$REPO_ROOT" rev-parse --verify HEAD) \
+  || fail "cannot resolve repo HEAD"
+[[ "$REPO_HEAD" =~ ^[0-9a-f]{40}$ ]] || fail "repo HEAD is not a full lowercase commit"
 
 PY=""
 for candidate in python3 python3.10 python3.11 python3.12; do
@@ -230,6 +233,7 @@ driver=(
   --protocol "$PROTOCOL"
   --output "$RESULT"
   --attempt-id "$IZANAGI_PILOT_ATTEMPT"
+  --observed-repo-head "$REPO_HEAD"
   --cache-root "$CACHE_ROOT"
 )
 if [[ "$IZANAGI_PILOT_BUILD_ONLY" == 1 ]]; then
