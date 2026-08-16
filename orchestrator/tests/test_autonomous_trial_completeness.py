@@ -8,6 +8,7 @@ import json
 import subprocess
 import sys
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -2405,6 +2406,42 @@ def test_campaign_chain_reads_legacy_layer3_without_epoch(tmp_path) -> None:
     C.assert_campaign_layer3_chain(
         report=_campaign_report(cell), output_root=output_root,
     )
+
+
+def test_campaign_chain_accepts_verified_post_admission_schema(
+    tmp_path, monkeypatch,
+) -> None:
+    output_root, _campaign, persisted_path, persisted, cell = _layer3_campaign(
+        tmp_path
+    )
+    decision = copy.deepcopy(persisted["admission_decision"])
+    decision["classification"] = "verified-post-admission-schema"
+    assert decision["admission_status"] == "admitted"
+    persisted["admission_decision"] = copy.deepcopy(decision)
+    persisted["certifying_input"] = True
+    cell["admission_decision"] = copy.deepcopy(decision)
+    persisted_path.write_text(
+        json.dumps(persisted, ensure_ascii=False, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+    admitted = SimpleNamespace(
+        decision=SimpleNamespace(as_receipt=lambda: copy.deepcopy(decision)),
+        campaign_verifier_epoch=SimpleNamespace(
+            **persisted["campaign_verifier_epoch"]
+        ),
+    )
+    monkeypatch.setattr(
+        C, "require_admitted_campaign", lambda *_args, **_kwargs: admitted,
+    )
+    monkeypatch.setattr(
+        C,
+        "_fresh_layer3_for_comparison",
+        lambda **kwargs: kwargs["persisted"],
+    )
+    report = _campaign_report(cell)
+    report["launch_admission"]["certifying"] = True
+
+    C.assert_campaign_layer3_chain(report=report, output_root=output_root)
 
 
 def test_campaign_chain_rejects_persisted_epoch_mutation(tmp_path) -> None:

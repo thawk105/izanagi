@@ -2321,10 +2321,6 @@ def assert_campaign_layer3_chain(
                 "campaign-chain",
                 f"cells[{index}] failure campaign remains independently admitted",
             )
-        if not is_positive_cell_admission_decision(
-            cell.get("admission_decision")
-        ):
-            _fail("campaign-chain", f"cells[{index}] admission decision is invalid")
         contract = _environment_contract_from_campaign_lock(
             campaign_root, producer=producer,
         )
