@@ -45,7 +45,11 @@ sys.path.insert(0, str(ORCHESTRATOR.parent))
 
 from orchestrator.campaign import env_contract as ec  # noqa: E402
 from orchestrator import holdout_observation  # noqa: E402
-from orchestrator.campaign import campaign_claim, reservation  # noqa: E402
+from orchestrator.campaign import (  # noqa: E402
+    campaign_claim,
+    floor_submit_receipt,
+    reservation,
+)
 from orchestrator.campaign import env_attestation  # noqa: E402
 from orchestrator.campaign import s8b_floor_campaign  # noqa: E402
 from orchestrator.campaign import s8b_floor_stats  # noqa: E402
@@ -1349,7 +1353,41 @@ def _make_real_freeze_prepare(
     return prepare
 
 
-def _install_real_seal_reservation(monkeypatch) -> dict[str, str]:
+def _write_floor_submit_receipt(
+        repo_root: Path, *, env_tag: str, binding_values: dict[str, str],
+        **updates,
+) -> Path:
+    payload = {
+        "schema_version": "pegasus-floor-submit-receipt/v1",
+        "source_commit": "1" * 40,
+        "job_script_path": "tools/pegasus/floor_campaign.sh",
+        "job_script_sha256": binding_values[
+            "IZANAGI_RESERVATION_SCRIPT_SHA256"
+        ],
+        "job_id": binding_values["IZANAGI_RESERVATION_JOB_ID"],
+        "nonce": binding_values["IZANAGI_RESERVATION_NONCE"],
+        "submitted_at": 1,
+        "request": {},
+        "preflight": {},
+        "dry_run": False,
+    }
+    payload.update(updates)
+    path = floor_submit_receipt.receipt_path(
+        repo_root,
+        env_tag=env_tag,
+        nonce=binding_values["IZANAGI_RESERVATION_NONCE"],
+    )
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        json.dumps(payload, sort_keys=True, separators=(",", ":")) + "\n",
+        encoding="utf-8",
+    )
+    return path
+
+
+def _install_real_seal_reservation(
+        monkeypatch, *, repo_root: Path, env_tag: str,
+) -> dict[str, str]:
     requested_s = 100_000
     started = time.time() - 1.0
     values = {
@@ -1357,16 +1395,19 @@ def _install_real_seal_reservation(monkeypatch) -> dict[str, str]:
         "IZANAGI_RESERVATION_REQUESTED_S": str(requested_s),
         "IZANAGI_RESERVATION_SCHEDULER_STARTED_EPOCH": str(started),
         "IZANAGI_RESERVATION_DEADLINE_EPOCH": str(started + requested_s),
-        "IZANAGI_RESERVATION_HOST": "real-seal-fixture-host",
+        "IZANAGI_RESERVATION_HOST": f"{os.uname().nodename}-non-authority",
         "IZANAGI_RESERVATION_BOOT_ID": Path(
             "/proc/sys/kernel/random/boot_id"
         ).read_text(encoding="ascii").strip(),
         "IZANAGI_RESERVATION_SCRIPT_SHA256": "7" * 64,
-        "IZANAGI_RESERVATION_NONCE": "real-seal-fixture-nonce",
+        "IZANAGI_RESERVATION_NONCE": "e" * 32,
         "PBS_JOBID": "real-seal-fixture-job",
     }
     for key, value in values.items():
         monkeypatch.setenv(key, value)
+    _write_floor_submit_receipt(
+        repo_root, env_tag=env_tag, binding_values=values,
+    )
     return values
 
 
@@ -1413,14 +1454,17 @@ def _install_required_contract(
         "IZANAGI_RESERVATION_REQUESTED_S": str(requested_s),
         "IZANAGI_RESERVATION_SCHEDULER_STARTED_EPOCH": str(started),
         "IZANAGI_RESERVATION_DEADLINE_EPOCH": str(started + requested_s),
-        "IZANAGI_RESERVATION_HOST": "fixture-host",
+        "IZANAGI_RESERVATION_HOST": f"{os.uname().nodename}-non-authority",
         "IZANAGI_RESERVATION_BOOT_ID": boot_id,
         "IZANAGI_RESERVATION_SCRIPT_SHA256": "d" * 64,
-        "IZANAGI_RESERVATION_NONCE": "fixture-nonce",
+        "IZANAGI_RESERVATION_NONCE": "d" * 32,
         "PBS_JOBID": "fixture-job",
     }
     for key, value in binding_values.items():
         monkeypatch.setenv(key, value)
+    submit_receipt_path = _write_floor_submit_receipt(
+        repo_root, env_tag=contract.env_tag, binding_values=binding_values,
+    )
     freeze = _freeze_document()
     protocol = _protocol(
         freeze_sha=_freeze_sha(freeze), env_tag=contract.env_tag,
@@ -1434,6 +1478,7 @@ def _install_required_contract(
         "protocol": protocol,
         "out_root": tmp_path / "required-out",
         "binding_values": binding_values,
+        "submit_receipt_path": submit_receipt_path,
     }
 
 
@@ -2947,6 +2992,124 @@ def _provision_claim_root(ctx) -> Path:
     return root
 
 
+def _floor_claim_subprocess_worker(
+        worker_root_raw: str, shared_out_raw: str, barrier_raw: str, label: str,
+) -> int:
+    """Run the production floor entry through its real claim edge in a child."""
+    worker_root = Path(worker_root_raw)
+    shared_out = Path(shared_out_raw)
+    barrier = Path(barrier_raw)
+    worker_root.mkdir(parents=True, exist_ok=True)
+    monkeypatch = pytest.MonkeyPatch()
+    ctx = _install_required_contract(worker_root, monkeypatch)
+    ctx["out_root"] = shared_out
+    original_acquire = campaign_claim.acquire_claim
+    original_scan = campaign_claim._scan_protocol_conflicts
+    scan_calls = 0
+
+    def wait_for(prefix, message):
+        deadline = time.monotonic() + 120.0
+        while len(list(barrier.glob(f"{prefix}-*"))) != 2:
+            if time.monotonic() >= deadline:
+                raise RuntimeError(message)
+            time.sleep(0.05)
+
+    def synchronized_scan(*args, **kwargs):
+        nonlocal scan_calls
+        result = original_scan(*args, **kwargs)
+        scan_calls += 1
+        if scan_calls == 1:
+            assert result is None
+            (barrier / f"pre-{label}").write_text("ready", encoding="ascii")
+            wait_for("pre", "claim subprocess prescan barrier timed out")
+        return result
+
+    def synchronized_acquire(claim_root, record):
+        try:
+            acquired = original_acquire(claim_root, record)
+        except Exception:
+            (barrier / f"done-{label}").write_text("done", encoding="ascii")
+            raise
+        (barrier / f"done-{label}").write_text("done", encoding="ascii")
+        wait_for("done", "claim subprocess done barrier timed out")
+        assert acquired.record.campaign_identity == record.campaign_identity
+        raise SystemExit(0)
+
+    started_at = _FIXED_NOW + dt.timedelta(seconds=int(label))
+    try:
+        with mock.patch.object(
+                campaign_claim, "_scan_protocol_conflicts", synchronized_scan), \
+                mock.patch.object(
+                    campaign_claim, "acquire_claim", synchronized_acquire):
+            s8b_floor_campaign._run_campaign_core(
+                ctx["protocol"], _verified_freeze(ctx["freeze"]),
+                out_root=shared_out, mode="pilot", measure_fn=_forbid_measure,
+                probe_fn=lambda: (1, "", ""), prepare_fn=_fake_prepare,
+                now_fn=lambda: started_at, repo_root=ctx["repo_root"],
+                build_fn=_make_fake_build(worker_root / "bin"),
+                durable_root_policy=_durable_policy(shared_out),
+                _holdout_repo_root=ROOT,
+                _holdout_signature_source=ctx["freeze"]["holdouts"],
+                confirm_irreversible_pilot_holdout=True,
+            )
+    except s8b_floor_campaign.FloorCampaignError:
+        return 1
+    except Exception:
+        return 2
+    return 2
+
+
+def test_two_floor_subprocesses_same_protocol_different_runs_never_both_succeed(
+        tmp_path):
+    """MUT-E1: two real floor subprocesses contend on one durable claim root."""
+    shared_out = tmp_path / "shared-out"
+    (shared_out / "claims").mkdir(parents=True)
+    barrier = tmp_path / "barrier"
+    barrier.mkdir()
+    test_dir = Path(__file__).resolve().parent
+    script = (
+        "import sys; "
+        f"sys.path.insert(0, {str(test_dir)!r}); "
+        "import test_s8b_floor_campaign as target; "
+        "sys.exit(target._floor_claim_subprocess_worker(*sys.argv[1:]))"
+    )
+    processes = [
+        subprocess.Popen(
+            [
+                sys.executable, "-c", script,
+                str(tmp_path / f"worker-{label}"), str(shared_out),
+                str(barrier), label,
+            ],
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
+        )
+        for label in ("1", "2")
+    ]
+    deadline = time.monotonic() + 180.0
+    try:
+        completed = [
+            process.communicate(timeout=max(0.1, deadline - time.monotonic()))
+            for process in processes
+        ]
+    except subprocess.TimeoutExpired:
+        for process in processes:
+            if process.poll() is None:
+                process.kill()
+        for process in processes:
+            process.communicate()
+        raise
+    returncodes = [process.returncode for process in processes]
+
+    assert set(returncodes) <= {0, 1}, (returncodes, completed)
+    assert sum(code == 0 for code in returncodes) <= 1, (returncodes, completed)
+    claims = [
+        json.loads(path.read_text(encoding="utf-8"))
+        for path in sorted((shared_out / "claims").glob("*.claim"))
+    ]
+    assert 1 <= len(claims) <= 2
+    assert len({row["campaign_identity"] for row in claims}) == len(claims)
+    assert len({row["protocol_digest"] for row in claims}) == 1
+
+
 @contextlib.contextmanager
 def _official_test_seam(monkeypatch, *, clean_digest="d" * 64):
     """production official 拒否を局所 scope だけで外し、clean scan を tmp-only test stub にする。"""
@@ -4272,6 +4435,31 @@ def test_run_campaign_machine_pin_rejects_contract_tag_mismatch(tmp_path):
                           probe_fn=lambda: (1, "", ""))
 
 
+def test_non_single_process_contract_does_not_require_floor_submit_receipt(
+        tmp_path, monkeypatch):
+    """POS-7: a non-single-process contract keeps the receipt gate out of path."""
+    contract = ec.lookup(ENV_TAG)
+    assert contract.isolation_policy.single_process is False
+
+    def receipt_tripwire(*_args, **_kwargs):
+        raise AssertionError("non-single-process path must not load a floor receipt")
+
+    monkeypatch.setattr(
+        s8b_floor_campaign.floor_submit_receipt,
+        "load_floor_submit_receipt",
+        receipt_tripwire,
+    )
+    freeze = _freeze_document()
+    outcome = _run_campaign(
+        _protocol(freeze_sha=_freeze_sha(freeze)),
+        _verified_freeze(freeze),
+        out_root=tmp_path / "out", build_root=tmp_path / "bin",
+        measure_fn=_make_measure_fn(reps=5, value_fn=lambda cid: _BASE_TPS[cid]),
+        probe_fn=lambda: (1, "", ""),
+    )
+    assert outcome["status"] == "completed"
+
+
 def test_required_binding_missing_rejected_by_production_entry_without_side_effects(
         tmp_path, monkeypatch):
     ctx = _install_required_contract(tmp_path, monkeypatch)
@@ -4288,6 +4476,58 @@ def test_required_binding_missing_rejected_by_production_entry_without_side_effe
             durable_root_policy=_durable_policy(out_root),
         )
     assert not out_root.exists()
+
+
+def test_required_script_sha_receipt_mismatch_is_zero_side_effect_production_refusal(
+        tmp_path, monkeypatch):
+    """MUT-C1 / MUT-E2: production entry must consume the canonical receipt."""
+    ctx = _install_required_contract(tmp_path, monkeypatch)
+    _provision_claim_root(ctx)
+    _write_floor_submit_receipt(
+        ctx["repo_root"], env_tag=ctx["contract"].env_tag,
+        binding_values=ctx["binding_values"], job_script_sha256="e" * 64,
+    )
+    before = _tree_snapshot(ctx["out_root"])
+
+    with pytest.raises(
+            s8b_floor_campaign.FloorCampaignError,
+            match="submitter receipt preflight.*script hash mismatch"):
+        _private_run_campaign(
+            ctx["protocol"], _verified_freeze(ctx["freeze"]),
+            out_root=ctx["out_root"], mode="pilot", measure_fn=_forbid_measure,
+            probe_fn=lambda: (1, "", ""), prepare_fn=_fake_prepare,
+            now_fn=lambda: _FIXED_NOW, repo_root=ctx["repo_root"],
+            build_fn=_make_fake_build(tmp_path / "bin"),
+            durable_root_policy=_durable_policy(ctx["out_root"]),
+        )
+
+    assert _tree_snapshot(ctx["out_root"]) == before
+
+
+def test_required_nonce_receipt_mismatch_is_zero_side_effect_refusal(
+        tmp_path, monkeypatch):
+    """MUT-C2: expected nonce must come from ReservationBinding, not receipt."""
+    ctx = _install_required_contract(tmp_path, monkeypatch)
+    _provision_claim_root(ctx)
+    _write_floor_submit_receipt(
+        ctx["repo_root"], env_tag=ctx["contract"].env_tag,
+        binding_values=ctx["binding_values"], nonce="e" * 32,
+    )
+    before = _tree_snapshot(ctx["out_root"])
+
+    with pytest.raises(
+            s8b_floor_campaign.FloorCampaignError,
+            match="submitter receipt preflight.*nonce mismatch"):
+        _private_run_campaign(
+            ctx["protocol"], _verified_freeze(ctx["freeze"]),
+            out_root=ctx["out_root"], mode="pilot", measure_fn=_forbid_measure,
+            probe_fn=lambda: (1, "", ""), prepare_fn=_fake_prepare,
+            now_fn=lambda: _FIXED_NOW, repo_root=ctx["repo_root"],
+            build_fn=_make_fake_build(tmp_path / "bin"),
+            durable_root_policy=_durable_policy(ctx["out_root"]),
+        )
+
+    assert _tree_snapshot(ctx["out_root"]) == before
 
 
 def test_required_v1_receipt_mode_mismatch_rejected_without_side_effects(
@@ -4371,8 +4611,11 @@ def test_required_existing_claim_reports_owner_and_changes_nothing(
     )
     claim_root = _provision_claim_root(ctx)
     existing = campaign_claim.ClaimRecord(
-        campaign_identity=identity, job_id="existing-job", host="existing-host",
-        boot_id="existing-boot", pid=999, proc_starttime=123,
+        campaign_identity=identity,
+        protocol_digest=s8b_floor_campaign._canonical_sha256(protocol),
+        job_id="existing-job", host="existing-host",
+        boot_id=ctx["binding_values"]["IZANAGI_RESERVATION_BOOT_ID"],
+        pid=os.getpid(), proc_starttime=campaign_claim.read_proc_starttime(),
         created_utc=_FIXED_NOW.isoformat(),
     )
     campaign_claim.acquire_claim(claim_root, existing)
@@ -4386,6 +4629,43 @@ def test_required_existing_claim_reports_owner_and_changes_nothing(
             build_fn=_make_fake_build(tmp_path / "bin"),
             durable_root_policy=_durable_policy(ctx["out_root"]),
         )
+    assert _tree_snapshot(ctx["out_root"]) == before
+
+
+def test_required_same_protocol_different_run_is_rejected_without_new_side_effects(
+        tmp_path, monkeypatch):
+    """MUT-C3: floor claim digest is protocol SHA, while identity remains per-run."""
+    ctx = _install_required_contract(tmp_path, monkeypatch)
+    protocol, _contract = s8b_floor_campaign._validate_protocol_against_current(
+        ctx["protocol"],
+    )
+    protocol_digest = s8b_floor_campaign._canonical_sha256(protocol)
+    claim_root = _provision_claim_root(ctx)
+    campaign_claim.acquire_claim(
+        claim_root,
+        campaign_claim.ClaimRecord(
+            campaign_identity=f"other-run-{protocol_digest[:8]}",
+            protocol_digest=protocol_digest,
+            job_id="existing-job", host="existing-host",
+            boot_id=ctx["binding_values"]["IZANAGI_RESERVATION_BOOT_ID"],
+            pid=os.getpid(), proc_starttime=campaign_claim.read_proc_starttime(),
+            created_utc=_FIXED_NOW.isoformat(),
+        ),
+    )
+    before = _tree_snapshot(ctx["out_root"])
+
+    with pytest.raises(
+            s8b_floor_campaign.FloorCampaignError,
+            match="同一 protocol"):
+        _private_run_campaign(
+            protocol, _verified_freeze(ctx["freeze"]),
+            out_root=ctx["out_root"], mode="pilot", measure_fn=_forbid_measure,
+            probe_fn=lambda: (1, "", ""), prepare_fn=_fake_prepare,
+            now_fn=lambda: _FIXED_NOW, repo_root=ctx["repo_root"],
+            build_fn=_make_fake_build(tmp_path / "bin"),
+            durable_root_policy=_durable_policy(ctx["out_root"]),
+        )
+
     assert _tree_snapshot(ctx["out_root"]) == before
 
 
@@ -4487,6 +4767,11 @@ def test_required_recheck_pins_remaining_budget_margin_and_injected_monotonic_cl
 def test_required_mode_happy_path_pins_journal_claim_and_receipt_shape(
         tmp_path, monkeypatch):
     ctx = _install_required_contract(tmp_path, monkeypatch)
+    # POS-6: hostname is observation only; receipt authority is job/SHA/nonce.
+    assert (
+        ctx["binding_values"]["IZANAGI_RESERVATION_HOST"]
+        != os.uname().nodename
+    )
     claim_root = _provision_claim_root(ctx)
     measure = _make_measure_fn(reps=5, value_fn=lambda cid: _BASE_TPS[cid])
 
@@ -4524,8 +4809,13 @@ def test_required_mode_happy_path_pins_journal_claim_and_receipt_shape(
     )
     claims = list(claim_root.glob("*.claim"))
     assert len(claims) == 1
-    assert set(json.loads(claims[0].read_text(encoding="utf-8"))) == {
-        "campaign_identity", "job_id", "host", "boot_id", "pid",
+    claim_payload = json.loads(claims[0].read_text(encoding="utf-8"))
+    assert claim_payload["host"] == ctx["binding_values"]["IZANAGI_RESERVATION_HOST"]
+    assert claim_payload["protocol_digest"] == s8b_floor_campaign._canonical_sha256(
+        ctx["protocol"],
+    )
+    assert set(claim_payload) == {
+        "campaign_identity", "protocol_digest", "job_id", "host", "boot_id", "pid",
         "proc_starttime", "created_utc",
     }
     assert journal[-1] == {"event": "terminal", "status": "completed"}
@@ -5133,7 +5423,7 @@ def test_probe_own_descendant_pid_detected_as_competing_b2(tmp_path):
                                 probe_fn=lambda: (0, line, ""))
     finally:
         child.kill()
-        child.wait(timeout=5)
+        child.wait(timeout=180)
     assert measure_fn.calls == []           # 実子が競合検知され measure スキップ
     result = outcome["result"]
     assert all(s["excluded_reason"] == "competing_process" for s in result["sessions"])
@@ -6932,7 +7222,9 @@ def test_real_seal_protocol_to_floor_official_core_e2e(tmp_path, monkeypatch):
         ))
 
     monkeypatch.setattr(s8b_floor_campaign.env_attestation, "probe", attestation_probe)
-    reservation_values = _install_real_seal_reservation(monkeypatch)
+    reservation_values = _install_real_seal_reservation(
+        monkeypatch, repo_root=clone_root, env_tag=contract.env_tag,
+    )
 
     def producer_tripwire(*_args, **_kwargs):
         raise AssertionError("consumer replay が producer を呼んだ")

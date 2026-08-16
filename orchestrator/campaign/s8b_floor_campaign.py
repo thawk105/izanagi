@@ -106,7 +106,7 @@ from . import s8b_approved  # noqa: E402  (承認定数の単一源 C4-3/C4-4)
 from . import env_contract as _env_contract  # noqa: E402
 from . import env_attestation  # noqa: E402
 from . import execution_guard  # noqa: E402  (共有 machine-pin + receipt)
-from . import campaign_claim, reservation  # noqa: E402
+from . import campaign_claim, floor_submit_receipt, reservation  # noqa: E402
 from .durable_root import DurableRootError, DurableRootPolicy, WriteCapability  # noqa: E402
 from . import s8b_holdout_freeze as _holdout_freeze  # noqa: E402  (launch certificate の clean scan)
 from . import s8b_freeze_io as _freeze_io  # noqa: E402
@@ -306,6 +306,16 @@ _FLOOR_RESERVATION_FORMULA = (
 
 class FloorCampaignError(RuntimeError):
     """floor campaign の入力・identity・実行契約を検証できない場合の fail-closed 拒否。"""
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        claim_error: campaign_claim.ClaimError | None = None,
+    ) -> None:
+        super().__init__(message)
+        self.claim_error = claim_error
+        self.claim_conflict = claim_error.conflict if claim_error is not None else None
 
 
 class CampaignAbort(FloorCampaignError):
@@ -5656,6 +5666,24 @@ def _run_campaign_core(protocol, freeze_doc, *, out_root, mode, resume_dir=None,
             )
         except reservation.ReservationError as exc:
             raise FloorCampaignError(f"reservation preflight 失敗: {exc}") from exc
+        try:
+            submit_receipt = floor_submit_receipt.load_floor_submit_receipt(
+                floor_submit_receipt.receipt_path(
+                    repo_root,
+                    env_tag=contract.env_tag,
+                    nonce=reservation_binding.nonce,
+                )
+            )
+            floor_submit_receipt.require_floor_submit_receipt_binding(
+                submit_receipt,
+                expected_job_id=reservation_binding.job_id,
+                expected_job_script_sha256=reservation_binding.script_sha256,
+                expected_nonce=reservation_binding.nonce,
+            )
+        except floor_submit_receipt.FloorSubmitReceiptError as exc:
+            raise FloorCampaignError(
+                f"submitter receipt preflight 失敗: {exc}"
+            ) from exc
 
     try:
         output_write_capability = authorize_output_root(
@@ -5684,6 +5712,7 @@ def _run_campaign_core(protocol, freeze_doc, *, out_root, mode, resume_dir=None,
             )
             record = campaign_claim.ClaimRecord(
                 campaign_identity=claim_identity,
+                protocol_digest=protocol_sha256,
                 job_id=reservation_binding.job_id,
                 host=reservation_binding.host,
                 boot_id=reservation_binding.boot_id,
@@ -5697,7 +5726,8 @@ def _run_campaign_core(protocol, freeze_doc, *, out_root, mode, resume_dir=None,
                 asdict(exc.existing_record) if exc.existing_record is not None else None
             )
             raise FloorCampaignError(
-                f"campaign claim 取得失敗: {exc}; existing={existing}"
+                f"campaign claim 取得失敗: {exc}; existing={existing}",
+                claim_error=exc,
             ) from exc
         except FloorCampaignError:
             raise

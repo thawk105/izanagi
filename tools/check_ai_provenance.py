@@ -199,6 +199,10 @@ _T1142_MERGE_RULING = (
     "2026-08-16 dev-wave-t1142-oracle-n-pilot land 前裁定 "
     "(ユーザー選択: known-violation 登録)"
 )
+_T1140_T330_MERGE_RULING = (
+    "2026-08-16 dev-wave-t1140-t330-claim-authority land 前裁定 "
+    "(ユーザー選択: known-violation 登録)"
+)
 _T720_MERGE_NOTE = (
     "[T-720] の repo 全体 import 機械書換えと main の同一 file 変更を競合ゼロで"
     "3 方向結合したため結果が両親のどちらとも異なり checker が実装面著作と判定；"
@@ -248,6 +252,14 @@ _T1142_PRE_ACCEPTANCE_MERGE_NOTE = (
     "両親のどちらとも異なるため checker が実装面著作と判定；競合なし・競合解決による"
     "新規著作なし；wave 側の同 file の変更は Codex `role=author` が別 commit e5a86104 / "
     "6162ade8 / 8a791531 で書いている；親作成 merge のため Codex 著者とは記さない"
+)
+_T1140_T330_MERGE_NOTE = (
+    "wave branch へ local main `0c689a96` を取り込んだ merge。実装面で両側が触ったのは"
+    "`s8b_floor_campaign.py` / `s8b_oracle_driver.py` とその 2 test file の計 4 file で、"
+    "`git diff-tree --cc 3df9b0aa` は SHA 行のみの完全な空 = 競合解決による新規著作なし、"
+    "結果は両側の変更の和集合。wave 側の実装面は Codex `role=author` が commit `6eb77ef9` / "
+    "`cdcb257d` / `30def5d5` で書き、main 側は各 wave の land 時に監査済み。"
+    "親作成 merge のため Codex 著者とは記さない。"
 )
 _T139_MALFORMED_VALUE = (
     "product=claude; model=claude-opus-5[1m]; reasoning=high; "
@@ -614,6 +626,12 @@ KNOWN_PROVENANCE_VIOLATIONS = (
         MISSING_CODEX_AUTHOR,
         _T1142_MERGE_RULING,
         note=_T1142_PRE_ACCEPTANCE_MERGE_NOTE,
+    ),
+    KnownViolationSpec(
+        "3df9b0aa379f84500e3f59add9ad76e421019d50",
+        MISSING_CODEX_AUTHOR,
+        _T1140_T330_MERGE_RULING,
+        note=_T1140_T330_MERGE_NOTE,
     ),
 )
 
