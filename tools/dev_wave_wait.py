@@ -251,6 +251,16 @@ _GIT_CONFIG = (
     "-c", "gc.auto=0",
     "-c", "protocol.file.allow=never",
 )
+_GIT_ENV_OVERRIDES = {
+    "GIT_CONFIG_GLOBAL": os.devnull,
+    "GIT_CONFIG_SYSTEM": os.devnull,
+    "GIT_ATTR_NOSYSTEM": "1",
+    "GIT_TERMINAL_PROMPT": "0",
+    "GIT_NO_LAZY_FETCH": "1",
+    "GIT_NO_REPLACE_OBJECTS": "1",
+    "GIT_OPTIONAL_LOCKS": "0",
+    "LC_ALL": "C",
+}
 _GIT_ENV_KEYS = frozenset(
     {
         "GIT_DIR",
@@ -267,7 +277,22 @@ _GIT_ENV_KEYS = frozenset(
 )
 _RED_CHECKER_PATH = "tools/check_acceptance_reds.py"
 _RED_CHECKER_BOOTSTRAP = (
-    "import os,sys\n"
+    "import os,subprocess,sys\n"
+    f"_git_exe = {_GIT_EXE!r}\n"
+    f"_git_config = {_GIT_CONFIG!r}\n"
+    f"_git_env_overrides = {_GIT_ENV_OVERRIDES!r}\n"
+    "def command_runner(command, *args, **kwargs):\n"
+    "    if not command or command[0] != 'git':\n"
+    "        return subprocess.run(command, *args, **kwargs)\n"
+    "    values = [_git_exe, *_git_config, *command[1:]]\n"
+    "    environment = {\n"
+    "        key: value\n"
+    "        for key, value in dict(kwargs.get('env') or {}).items()\n"
+    "        if not key.startswith('GIT_')\n"
+    "    }\n"
+    "    environment.update(_git_env_overrides)\n"
+    "    kwargs['env'] = environment\n"
+    "    return subprocess.run(values, *args, **kwargs)\n"
     "if os.environ.get('PYTHONDONTWRITEBYTECODE'):\n"
     "    sys.dont_write_bytecode = True\n"
     "source = sys.stdin.buffer.read()\n"
@@ -277,7 +302,9 @@ _RED_CHECKER_BOOTSTRAP = (
     "}\n"
     "exec(compile(source, namespace['__file__'], 'exec'), namespace)\n"
     "repo = __import__('pathlib').Path(sys.argv[1])\n"
-    "raise SystemExit(namespace['main'](sys.argv[2:], repo_root=repo))\n"
+    "raise SystemExit(namespace['main'](\n"
+    "    sys.argv[2:], repo_root=repo, command_runner=command_runner\n"
+    "))\n"
 )
 _CLEAN_STATUS_ARGV = (
     "git", "status", "--porcelain", "--untracked-files=all",
@@ -454,16 +481,7 @@ def _git_env() -> dict[str, str]:
         for key, value in os.environ.items()
         if not key.startswith("GIT_")
     }
-    env.update({
-        "GIT_CONFIG_GLOBAL": os.devnull,
-        "GIT_CONFIG_SYSTEM": os.devnull,
-        "GIT_ATTR_NOSYSTEM": "1",
-        "GIT_TERMINAL_PROMPT": "0",
-        "GIT_NO_LAZY_FETCH": "1",
-        "GIT_NO_REPLACE_OBJECTS": "1",
-        "GIT_OPTIONAL_LOCKS": "0",
-        "LC_ALL": "C",
-    })
+    env.update(_GIT_ENV_OVERRIDES)
     return env
 
 

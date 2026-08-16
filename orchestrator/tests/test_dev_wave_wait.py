@@ -2,6 +2,7 @@
 """tools/dev_wave_wait.py の canonical waiter 契約テスト。"""
 from __future__ import annotations
 
+import ast
 import errno
 import hashlib
 import importlib.util
@@ -2480,10 +2481,18 @@ import argparse
 import hashlib
 import json
 import os
+import subprocess
 import sys
 from pathlib import Path
 
-def main(argv, repo_root=None):
+def main(
+    argv=None,
+    *,
+    repo_root=None,
+    node_runner=None,
+    collection_runner=None,
+    command_runner=subprocess.run,
+):
     parser = argparse.ArgumentParser()
     parser.add_argument("--log", required=True)
     parser.add_argument("--tested-main", required=True)
@@ -2491,6 +2500,16 @@ def main(argv, repo_root=None):
     parser.add_argument("--receipt", required=True)
     parser.add_argument("--probe-root", required=True)
     args = parser.parse_args(argv)
+    git_result = command_runner(
+        ["git", "-C", str(repo_root), "rev-parse", "--show-toplevel"],
+        cwd=repo_root,
+        check=False,
+        stdin=subprocess.DEVNULL,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    if git_result.returncode != 0:
+        return git_result.returncode
     payload = {
         "collections": [{
             "deleted_receipt_path": None,
@@ -2519,6 +2538,29 @@ def main(argv, repo_root=None):
     )
     return int(os.environ.get("IZANAGI_CHECKER_TEST_RC", "0"))
 '''
+
+_REAL_REPLACE_NODEID = "orchestrator/tests/test_known.py::test_known"
+
+
+def _real_probe_runner_source(*, node_rc: int) -> str:
+    if node_rc == 1:
+        terminal = (
+            "print('=== short test summary info ===')\n"
+            "print('FAILED ' + node + ' - synthetic known red')\n"
+            "print('=== 1 failed in 0.01s ===')\n"
+        )
+    else:
+        terminal = "print('=== 1 passed in 0.01s ===')\n"
+    return (
+        "import sys\n"
+        f"node={_REAL_REPLACE_NODEID!r}\n"
+        "if '--collect-only' in sys.argv:\n"
+        "    print(node)\n"
+        "    print('1 test collected in 0.01s')\n"
+        "    raise SystemExit(0)\n"
+        + terminal
+        + f"raise SystemExit({node_rc})\n"
+    )
 
 
 def _real_red_git(repo: Path, *args: str) -> str:
@@ -2578,6 +2620,62 @@ def _real_red_checker_repo(tmp_path: Path) -> tuple[Path, str, str]:
     tested_tip = _real_red_git(repo, "rev-parse", "HEAD")
     assert tested_main != tested_tip
     return repo, tested_main, tested_tip
+
+
+def _real_replace_ref_repo(
+    tmp_path: Path,
+) -> tuple[Path, str, str, bytes]:
+    repo = tmp_path / "replace-repo"
+    repo.mkdir()
+    initialized = subprocess.run(
+        [DW._GIT_EXE, "init", "-q", "-b", "main", str(repo)],
+        env=DW._git_env(),
+        check=False,
+        stdin=subprocess.DEVNULL,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    assert initialized.returncode == 0, initialized.stderr
+    checker = repo / DW._RED_CHECKER_PATH
+    checker.parent.mkdir()
+    shutil.copy2(_ROOT / DW._RED_CHECKER_PATH, checker)
+    original_checker = checker.read_bytes()
+    runner = repo / "tools" / "run_tests.py"
+    runner.write_text(_real_probe_runner_source(node_rc=1), encoding="ascii")
+    _real_red_git(repo, "add", DW._RED_CHECKER_PATH, "tools/run_tests.py")
+    _real_red_git(
+        repo,
+        "-c",
+        "user.name=Dev Wave Test",
+        "-c",
+        "user.email=dev-wave@example.invalid",
+        "commit",
+        "-qm",
+        "tested main",
+    )
+    tested_main = _real_red_git(repo, "rev-parse", "HEAD")
+
+    _real_red_git(repo, "checkout", "-qb", "crafted")
+    checker.write_text("raise SystemExit(99)\n", encoding="ascii")
+    runner.write_text(_real_probe_runner_source(node_rc=0), encoding="ascii")
+    _real_red_git(repo, "add", DW._RED_CHECKER_PATH, "tools/run_tests.py")
+    _real_red_git(
+        repo,
+        "-c",
+        "user.name=Dev Wave Test",
+        "-c",
+        "user.email=dev-wave@example.invalid",
+        "commit",
+        "-qm",
+        "crafted replacement",
+    )
+    replacement = _real_red_git(repo, "rev-parse", "HEAD")
+
+    _real_red_git(repo, "checkout", "-q", "main")
+    tested_tip = _real_red_git(repo, "rev-parse", "HEAD")
+    _real_red_git(repo, "replace", tested_main, replacement)
+    assert tested_main == tested_tip
+    return repo, tested_main, tested_tip, original_checker
 
 
 def _verify_real_red_checker(
@@ -2700,6 +2798,114 @@ def test_red_checker_blob_lookup_uses_hardened_git(
 
     assert result.checker_status == "non-attributable-only"
     assert not marker.exists()
+
+
+def test_red_checker_blob_lookup_ignores_replace_ref(tmp_path: Path) -> None:
+    repo, tested_main, tested_tip, original_checker = _real_replace_ref_repo(
+        tmp_path
+    )
+    replaced_env = DW._git_env()
+    replaced_env.pop("GIT_NO_REPLACE_OBJECTS")
+    replaced = subprocess.run(
+        [
+            DW._GIT_EXE,
+            *DW._GIT_CONFIG,
+            "-C",
+            str(repo),
+            "cat-file",
+            "blob",
+            f"{tested_main}:{DW._RED_CHECKER_PATH}",
+        ],
+        cwd=repo,
+        env=replaced_env,
+        check=False,
+        stdin=subprocess.DEVNULL,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    assert replaced.returncode == 0, replaced.stderr
+    assert replaced.stdout != original_checker
+
+    binding = DW._verified_red_checker_source(
+        DW._default_effects(),
+        repo,
+        tested_main,
+        tested_tip,
+        "acceptance-red-check",
+    )
+
+    assert binding.source == original_checker
+
+
+def test_red_checker_internal_git_ignores_replace_ref(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo, tested_main, tested_tip, _original_checker = _real_replace_ref_repo(
+        tmp_path
+    )
+    shim_dir = tmp_path / "inner-git-shim"
+    shim_dir.mkdir()
+    marker = tmp_path / "inner-path-git-ran"
+    shim = shim_dir / "git"
+    shim.write_text(
+        "#!/bin/sh\nprintf used > "
+        + str(marker)
+        + "\nexec "
+        + DW._GIT_EXE
+        + ' "$@"\n',
+        encoding="ascii",
+    )
+    shim.chmod(0o755)
+    monkeypatch.setenv("PATH", str(shim_dir))
+    log_file = tmp_path / "replace-red.log"
+    log_file.write_text(
+        "=== short test summary info ===\n"
+        f"FAILED {_REAL_REPLACE_NODEID} - synthetic known red\n"
+        "=== 1 failed in 0.01s ===\n",
+        encoding="ascii",
+    )
+
+    result = DW._verify_red_check_receipt(
+        effects=DW._default_effects(),
+        repo=repo,
+        log_file=log_file,
+        checker_receipt=tmp_path / "replace-checker-receipt.json",
+        probe_root=tmp_path,
+        tested_main=tested_main,
+        tested_tip=tested_tip,
+        log_sha256=hashlib.sha256(log_file.read_bytes()).hexdigest(),
+    )
+
+    assert result.checker_status == "non-attributable-only"
+    assert result.red_nodeids == (_REAL_REPLACE_NODEID,)
+    assert not marker.exists()
+
+
+def test_red_checker_git_calls_are_routed_through_command_runner() -> None:
+    tree = ast.parse(
+        (_ROOT / DW._RED_CHECKER_PATH).read_text(encoding="utf-8")
+    )
+    direct_subprocess_calls = []
+    git_calls = []
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Call):
+            continue
+        if (
+            isinstance(node.func, ast.Attribute)
+            and isinstance(node.func.value, ast.Name)
+            and node.func.value.id == "subprocess"
+        ):
+            direct_subprocess_calls.append((node.lineno, node.func.attr))
+        if isinstance(node.func, ast.Name) and node.func.id == "_git":
+            git_calls.append(node)
+
+    assert direct_subprocess_calls == []
+    assert git_calls
+    assert all(
+        any(keyword.arg == "command_runner" for keyword in call.keywords)
+        for call in git_calls
+    )
 
 
 def test_red_checker_gate_git_environment_is_hardened(
