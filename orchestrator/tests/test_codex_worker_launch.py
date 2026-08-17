@@ -20,6 +20,7 @@ import tempfile
 import threading
 import time
 import uuid
+from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
@@ -1551,6 +1552,7 @@ def _base_command(
     reasoning: str = "high",
     max_attempts: int = 1,
     max_wall: str = "3",
+    evidence_grace: str = "1.0",
     max_calls: int = 100,
     max_tokens: int = 100000,
     suffix: str = "",
@@ -1628,7 +1630,7 @@ def _base_command(
         "--codex-bin",
         os.fspath(fake),
         "--evidence-grace-s",
-        "1.0",
+        evidence_grace,
         "--termination-grace-s",
         "0.05",
         "--poll-interval-s",
@@ -3509,6 +3511,106 @@ def test_attempt_preflight_delay_exhausts_wall_clock_before_spawn(
     assert not paths["pid_dir"].exists()
 
 
+def _install_evidence_origin_logical_clock(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    clock_ns = time.monotonic_ns()
+    polling = False
+    spawn_sample_pending = False
+    original_validator = LAUNCHER._hook_checker.validate_installation
+    original_read_pid_identity = LAUNCHER.read_pid_identity
+
+    def logical_clock() -> int:
+        nonlocal clock_ns, polling, spawn_sample_pending
+        if spawn_sample_pending:
+            spawn_sample_pending = False
+            polling = True
+        elif polling:
+            clock_ns += 10_000_000
+        return clock_ns
+
+    def delayed_validator(root: Path) -> list[str]:
+        nonlocal clock_ns, polling, spawn_sample_pending
+        result = original_validator(root)
+        polling = False
+        spawn_sample_pending = False
+        clock_ns += 100_000_000
+        return result
+
+    def delayed_read_pid_identity(pid: int) -> LAUNCHER.PidIdentity:
+        nonlocal clock_ns, spawn_sample_pending
+        try:
+            return original_read_pid_identity(pid)
+        finally:
+            clock_ns += 20_000_000
+            spawn_sample_pending = True
+
+    monkeypatch.setattr(LAUNCHER, "_monotonic_ns", logical_clock)
+    monkeypatch.setattr(
+        LAUNCHER._hook_checker,
+        "validate_installation",
+        delayed_validator,
+    )
+    monkeypatch.setattr(
+        LAUNCHER, "read_pid_identity", delayed_read_pid_identity
+    )
+
+
+def _assert_spawn_origin_phase_durations(
+    diagnostics: dict[str, Any], *, attempt_index: int
+) -> None:
+    phases = diagnostics["attempts"][attempt_index]["phase_duration_s"]
+    assert Decimal(str(phases["attempt_preflight"])) == Decimal("0.10")
+    assert Decimal(str(phases["spawn"])) == Decimal("0.02")
+    assert Decimal(str(phases["supervision_drain"])) == Decimal("0.05")
+
+
+def test_evidence_grace_starts_at_spawn_completed(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    fake = _write_fake_codex(tmp_path / "fake-codex")
+    command, env, paths = _base_command(
+        tmp_path,
+        fake=fake,
+        evidence_grace="0.05",
+        max_wall="3",
+    )
+    env["FAKE_MODE"] = "no_rollout"
+    _install_evidence_origin_logical_clock(monkeypatch)
+
+    _run_main_in_process(
+        command, env, monkeypatch, paths=paths, expected_returncode=1
+    )
+
+    diagnostics = _read_launcher_diagnostics(paths)
+    assert diagnostics["attempts"][0]["evidence_forced_stop"] is True
+    _assert_spawn_origin_phase_durations(diagnostics, attempt_index=0)
+
+
+def test_evidence_grace_starts_at_spawn_completed_on_retry(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    fake = _write_fake_codex(tmp_path / "fake-codex")
+    command, env, paths = _base_command(
+        tmp_path,
+        fake=fake,
+        evidence_grace="0.05",
+        max_attempts=2,
+        max_wall="3",
+    )
+    env["FAKE_SEQUENCE"] = "retry_reject,no_rollout"
+    _install_evidence_origin_logical_clock(monkeypatch)
+
+    _run_main_in_process(
+        command, env, monkeypatch, paths=paths, expected_returncode=1
+    )
+
+    diagnostics = _read_launcher_diagnostics(paths)
+    assert len(diagnostics["attempts"]) == 2
+    assert diagnostics["attempts"][1]["evidence_forced_stop"] is True
+    _assert_spawn_origin_phase_durations(diagnostics, attempt_index=1)
+
+
 def test_turn_context_top_level_and_collaboration_decoys_are_rejected(
     tmp_path: Path,
 ) -> None:
@@ -4166,20 +4268,117 @@ def test_forced_stop_without_signal_is_not_launcher_initiated(
     assert document["termination_initiated_by_launcher"] is False
 
 
+def test_evidence_deadline_origin_is_diagnostics_independent(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    fake = tmp_path / "fake-codex"
+    fake.write_bytes(b"fake")
+    args = _diagnostic_attempt_loop_args(tmp_path, fake)
+    args.evidence_grace_s = Decimal("0.05")
+
+    class Process:
+        pid = 12345
+        returncode: int | None = None
+
+        def __init__(self) -> None:
+            self.poll_count = 0
+
+        def poll(self) -> int | None:
+            self.poll_count += 1
+            return self.returncode
+
+    process = Process()
+    clock_ns = 0
+    polling = False
+    spawn_sample_pending = False
+    sealed_state: LAUNCHER.AttemptState | None = None
+
+    def logical_clock() -> int:
+        nonlocal clock_ns, polling, spawn_sample_pending
+        if spawn_sample_pending:
+            spawn_sample_pending = False
+            polling = True
+        elif polling:
+            clock_ns += 10_000_000
+        return clock_ns
+
+    def delayed_preflight(*_args: Any) -> None:
+        nonlocal clock_ns, polling, spawn_sample_pending
+        polling = False
+        spawn_sample_pending = False
+        clock_ns += 100_000_000
+
+    def delayed_read_pid_identity(_pid: int) -> None:
+        nonlocal clock_ns, spawn_sample_pending
+        clock_ns += 20_000_000
+        spawn_sample_pending = True
+        return None
+
+    def terminate(
+        selected_process: Process,
+        _identity: None,
+        **_kwargs: Any,
+    ) -> tuple[int, bool]:
+        selected_process.returncode = -signal.SIGKILL
+        return 0, True
+
+    def seal_attempt(
+        state: LAUNCHER.AttemptState, *_args: Any, **_kwargs: Any
+    ) -> dict[str, Any]:
+        nonlocal sealed_state
+        sealed_state = state
+        return {"limit_trigger": None}
+
+    monkeypatch.setattr(LAUNCHER, "_monotonic_ns", logical_clock)
+    monkeypatch.setattr(
+        LAUNCHER, "_require_attempt_hook_installation", delayed_preflight
+    )
+    monkeypatch.setattr(
+        LAUNCHER.subprocess, "Popen", lambda *_args, **_kwargs: process
+    )
+    monkeypatch.setattr(
+        LAUNCHER, "read_pid_identity", delayed_read_pid_identity
+    )
+    monkeypatch.setattr(LAUNCHER, "_drain_stdout", lambda _state: None)
+    monkeypatch.setattr(
+        LAUNCHER, "_discover_rollouts", lambda _state, _root: None
+    )
+    monkeypatch.setattr(LAUNCHER, "_terminate", terminate)
+    monkeypatch.setattr(LAUNCHER, "_seal_attempt", seal_attempt)
+
+    LAUNCHER._attempt_loop(
+        args,
+        attempt_index=1,
+        job_started_ns=0,
+        prior_actuals={"model_calls": 0, "cli_reported": 0},
+        codex_path=fake,
+        expected_binary_sha256=hashlib.sha256(b"fake").hexdigest(),
+        diagnostics=None,
+    )
+
+    assert process.poll_count == 5
+    assert sealed_state is not None
+    assert sealed_state.evidence_forced_stop is True
+
+
 def test_evidence_forced_stop_propagates_unknown_residual_to_sidecar(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     fake = _write_fake_codex(tmp_path / "fake-codex")
-    command, env, paths = _base_command(tmp_path, fake=fake)
+    command, env, paths = _base_command(
+        tmp_path, fake=fake, evidence_grace="0.3"
+    )
     env["FAKE_MODE"] = "no_rollout"
     monkeypatch.setattr(LAUNCHER, "read_pid_identity", lambda _pid: None)
 
     _run_main_in_process(
         command, env, monkeypatch, paths=paths, expected_returncode=1
     )
+    receipt = json.loads(paths["receipt"].read_text(encoding="utf-8"))
     diagnostics = _read_launcher_diagnostics(paths)
     attempt = diagnostics["attempts"][0]
 
+    assert receipt["attempts"][0]["session_ids"]
     assert attempt["evidence_forced_stop"] is True
     assert attempt["termination_initiated_by_launcher"] is True
     assert attempt["residual_observation"] == {
@@ -5931,6 +6130,7 @@ def test_rollout_missing_after_grace_is_stopped_and_not_accepted(
         "no_rollout",
         expected_returncode=1,
         max_wall="3",
+        evidence_grace="0.3",
         max_calls=100,
         max_tokens=100000,
     )
@@ -5940,6 +6140,7 @@ def test_rollout_missing_after_grace_is_stopped_and_not_accepted(
     assert receipt["actuals"]["attempt_count"] == 1
     assert receipt["attempts"][0]["limit_trigger"] is None
     assert receipt["attempts"][0]["evidence_status"] == "missing"
+    assert receipt["attempts"][0]["session_ids"]
     assert receipt["attempts"][0]["accepted"] is False
     diagnostics = _read_launcher_diagnostics(paths)
     diagnostic_attempt = diagnostics["attempts"][0]
@@ -5956,6 +6157,7 @@ def test_thread_missing_after_grace_kills_process_group(tmp_path: Path) -> None:
         "no_thread",
         expected_returncode=1,
         max_wall="3",
+        evidence_grace="0.3",
         max_calls=100,
         max_tokens=100000,
     )

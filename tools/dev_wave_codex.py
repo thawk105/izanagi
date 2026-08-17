@@ -100,7 +100,8 @@ def _parser() -> argparse.ArgumentParser:
             "(既定: min(90, --max-wall-clock-s); 90 秒を上限とする"
             "暫定運用値であり測定された最小値ではない); "
             f"{_NON_AUTHORITY_HELP}。ただし受理集合に影響するため、"
-            "--max-wall-clock-s が 90 未満ならそれに切り下げる"
+            "--max-wall-clock-s が 90 未満ならそれに切り下げる "
+            "(子の起動完了時を起点とする)"
         ),
     )
     parser.add_argument(
