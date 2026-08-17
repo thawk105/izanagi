@@ -14,6 +14,7 @@ import importlib.util
 import json
 import os
 import re
+import secrets
 import shutil
 import signal
 import subprocess
@@ -141,6 +142,8 @@ class OrphanHoldStop(HarnessError):
         source_state: str,
         dirty_paths: Sequence[str],
         active_record: dict[str, Any] | None = None,
+        reason_code: str = "orphan-hold",
+        hold_latched: bool = True,
         hold_error: str | None = None,
         origin_error_type: str | None = None,
         origin_error_message: str | None = None,
@@ -153,6 +156,8 @@ class OrphanHoldStop(HarnessError):
         self.source_state = source_state
         self.dirty_paths = tuple(sorted(dirty_paths))
         self.active_record = active_record
+        self.reason_code = reason_code
+        self.hold_latched = hold_latched
         self.hold_error = hold_error
         self.origin_error_type = origin_error_type
         self.origin_error_message = origin_error_message
@@ -271,27 +276,60 @@ def _dispatch_orphan_stop(
     dirty_paths: Sequence[str],
     result: dict[str, Any] | None = None,
 ) -> OrphanHoldStop | None:
-    if runner_mode != "dispatch":
-        return None
-    hold = _dispatch_orphan_hold_path(repo)
-    hold_error: str | None = None
     timed_out = result is not None and result.get("timed_out") is True
+    hold = _dispatch_orphan_hold_path(repo)
+    if runner_mode != "dispatch":
+        if _path_present_fail_closed(hold):
+            return OrphanHoldStop(
+                phase=phase,
+                mutation_id=mutation_id,
+                hold_path=hold,
+                source_state=source_state,
+                dirty_paths=dirty_paths,
+                active_record=result,
+            )
+        submission_state = (
+            result.get("dispatch_submission", {}).get("state")
+            if isinstance(result, dict)
+            and isinstance(result.get("dispatch_submission"), dict)
+            else None
+        )
+        if submission_state is None and isinstance(result, dict):
+            if result.get("new_dispatch_submission") is True:
+                submission_state = "matched"
+        if not timed_out or submission_state not in {"matched", "indeterminate"}:
+            return None
+        return OrphanHoldStop(
+            phase=phase,
+            mutation_id=mutation_id,
+            hold_path=hold,
+            source_state=source_state,
+            dirty_paths=dirty_paths,
+            active_record=result,
+            reason_code=(
+                "runner-mode-violation"
+                if submission_state == "matched"
+                else "runner-mode-evidence-unavailable"
+            ),
+            hold_latched=False,
+        )
+    hold_error: str | None = None
     receipt_requires_hold = result is not None and (
         result.get("job_may_remain") is True
         or result.get("hold_error") is not None
     )
     if timed_out or receipt_requires_hold:
+        if timed_out:
+            hold_reason = "dispatch-runner-timeout"
+        else:
+            hold_reason = "dispatch-receipt-job-may-remain"
         if not _path_present_fail_closed(hold):
             hold, hold_error = _latch_dispatch_orphan_hold(
                 repo,
                 phase=phase,
                 mutation_id=mutation_id,
                 result=result,
-                reason=(
-                    "dispatch-runner-timeout"
-                    if timed_out
-                    else "dispatch-receipt-job-may-remain"
-                ),
+                reason=hold_reason,
             )
         return OrphanHoldStop(
             phase=phase,
@@ -1491,6 +1529,153 @@ def _dispatch_submission_inventory(repo: Path) -> set[Path]:
         raise HarnessError(f"dispatch submission inventory を取得できない: {exc}") from exc
 
 
+def _canonical_dispatch_arg(repo: Path, value: str) -> str:
+    option, separator, option_value = value.partition("=")
+    if separator and option_value:
+        canonical = _canonical_dispatch_arg(repo, option_value)
+        return f"{option}={canonical}"
+    path_value, node_separator, node = value.partition("::")
+    candidate = Path(path_value)
+    if not candidate.is_absolute():
+        candidate = repo / candidate
+    try:
+        if not candidate.exists():
+            return value
+        path_value = str(candidate.resolve(strict=True))
+    except OSError:
+        return value
+    return path_value + (node_separator + node if node_separator else "")
+
+
+def _runner_dispatch_args(repo: Path, command: Sequence[str]) -> list[str] | None:
+    if list(command[1:3]) == ["-m", "pytest"]:
+        values = list(command[3:])
+    elif len(command) >= 2:
+        try:
+            entrypoint = Path(command[1])
+            if not entrypoint.is_absolute():
+                entrypoint = repo / entrypoint
+            if entrypoint.resolve(strict=False) != (
+                repo / "tools" / "run_tests.py"
+            ).resolve(strict=False):
+                return None
+        except OSError:
+            return None
+        values = list(command[2:])
+    else:
+        return None
+    return [
+        _canonical_dispatch_arg(repo, value)
+        for value in values
+        if value != "--force-dispatch"
+    ]
+
+
+def _classify_local_dispatch_submissions(
+    repo: Path,
+    submissions: set[Path],
+    command: Sequence[str],
+    dispatch_id: str,
+) -> dict[str, Any]:
+    if not submissions:
+        return {
+            "state": "none",
+            "matched_submission_dirs": [],
+            "unrelated_submission_dirs": [],
+            "corroboration": [],
+            "errors": [],
+        }
+    expected_args = _runner_dispatch_args(repo, command)
+    matched: list[str] = []
+    unrelated: list[str] = []
+    corroboration: list[dict[str, Any]] = []
+    errors: list[dict[str, str]] = []
+    for submission in sorted(submissions):
+        request_path = submission / "request.json"
+        try:
+            if request_path.is_symlink() or not request_path.is_file():
+                raise HarnessError("request.json が通常 file でない")
+            request = json.loads(request_path.read_text(encoding="utf-8"))
+        except (OSError, UnicodeError, json.JSONDecodeError, HarnessError) as exc:
+            errors.append(
+                {
+                    "submission_dir": str(submission),
+                    "code": "request-unreadable",
+                    "error_type": type(exc).__name__,
+                }
+            )
+            continue
+        if not isinstance(request, dict):
+            errors.append(
+                {
+                    "submission_dir": str(submission),
+                    "code": "request-not-object",
+                    "error_type": type(request).__name__,
+                }
+            )
+            continue
+        environment = request.get("environment")
+        request_args = request.get("args")
+        repo_root = request.get("repo_root")
+        if (
+            request.get("schema_version")
+            not in {"pegasus-dispatch-request/v1", "pegasus-dispatch-request/v2"}
+            or not isinstance(environment, dict)
+            or not isinstance(repo_root, str)
+            or not isinstance(request.get("task"), str)
+            or not isinstance(request_args, list)
+            or not all(isinstance(value, str) for value in request_args)
+        ):
+            errors.append(
+                {
+                    "submission_dir": str(submission),
+                    "code": "request-invalid",
+                    "error_type": "ValidationError",
+                }
+            )
+            continue
+        try:
+            bound_repo = (
+                Path(repo_root).resolve(strict=False) == repo.resolve(strict=True)
+            )
+        except (OSError, ValueError):
+            bound_repo = False
+        bound_args = expected_args is not None and (
+            [
+                _canonical_dispatch_arg(repo, value)
+                for value in request_args
+            ]
+            == expected_args
+        )
+        token_matches = environment.get("PYTHONDONTWRITEBYTECODE") == dispatch_id
+        corroboration.append(
+            {
+                "submission_dir": str(submission),
+                "nonce_matches": token_matches,
+                "repo_matches": bound_repo,
+                "task_matches": request.get("task") == "tests",
+                "args_match": bound_args,
+            }
+        )
+        if token_matches:
+            matched.append(str(submission))
+        else:
+            unrelated.append(str(submission))
+    if matched:
+        state = "matched"
+    elif errors:
+        state = "indeterminate"
+    else:
+        state = "unrelated"
+    return {
+        "state": state,
+        "matched_submission_dirs": matched,
+        "unrelated_submission_dirs": unrelated,
+        "corroboration": corroboration,
+        "errors": errors,
+    }
+
+
 def _recover_dispatch_request(
     repo: Path, before: set[Path]
 ) -> dict[str, Any] | None:
@@ -1577,6 +1762,10 @@ def _run_tests(
     ):
         runner_env.pop(key, None)
     runner_env["PYTHONDONTWRITEBYTECODE"] = "1"
+    dispatch_id: str | None = None
+    if runner_mode == "local":
+        dispatch_id = secrets.token_hex(16)
+        runner_env["PYTHONDONTWRITEBYTECODE"] = dispatch_id
     attempt_ordinal: int | None = None
     if attempt_recorder is not None:
         if attempt_phase not in {"collection", "baseline", "mutation"}:
@@ -1586,11 +1775,19 @@ def _run_tests(
         attempt_ordinal = attempt_recorder.started(
             phase=attempt_phase, mutation_id=mutation_id
         )
-    dispatch_before = (
-        _dispatch_submission_inventory(repo)
-        if attempt_recorder is not None and runner_mode == "dispatch"
-        else set()
-    )
+    dispatch_before: set[Path] | None
+    dispatch_before_error: dict[str, str] | None = None
+    if runner_mode == "local":
+        try:
+            dispatch_before = _dispatch_submission_inventory(repo)
+        except Exception as exc:
+            dispatch_before = None
+            dispatch_before_error = {
+                "code": "before-inventory-failed",
+                "error_type": type(exc).__name__,
+            }
+    else:
+        dispatch_before = _dispatch_submission_inventory(repo)
     try:
         process = subprocess.Popen(
             list(command),
@@ -1631,7 +1828,68 @@ def _run_tests(
         if timed_out:
             result["artifact_error"] = None
             result["job_stdout"] = output or ""
-            result["request"] = _recover_dispatch_request(repo, dispatch_before)
+            if runner_mode == "dispatch":
+                assert dispatch_before is not None
+                dispatch_after = _dispatch_submission_inventory(repo)
+                result["new_dispatch_submission"] = bool(
+                    dispatch_after - dispatch_before
+                )
+                result["request"] = _recover_dispatch_request(repo, dispatch_before)
+            else:
+                assert dispatch_id is not None
+                if dispatch_before_error is not None:
+                    evidence = {
+                        "state": "indeterminate",
+                        "matched_submission_dirs": [],
+                        "unrelated_submission_dirs": [],
+                        "corroboration": [],
+                        "errors": [dispatch_before_error],
+                    }
+                else:
+                    assert dispatch_before is not None
+                    try:
+                        dispatch_after = _dispatch_submission_inventory(repo)
+                    except Exception as exc:
+                        evidence = {
+                            "state": "indeterminate",
+                            "matched_submission_dirs": [],
+                            "unrelated_submission_dirs": [],
+                            "corroboration": [],
+                            "errors": [
+                                {
+                                    "code": "after-inventory-failed",
+                                    "error_type": type(exc).__name__,
+                                }
+                            ],
+                        }
+                    else:
+                        try:
+                            evidence = _classify_local_dispatch_submissions(
+                                repo,
+                                dispatch_after - dispatch_before,
+                                command,
+                                dispatch_id,
+                            )
+                        except Exception as exc:
+                            evidence = {
+                                "state": "indeterminate",
+                                "matched_submission_dirs": [],
+                                "unrelated_submission_dirs": [],
+                                "corroboration": [],
+                                "errors": [
+                                    {
+                                        "code": "request-inspection-failed",
+                                        "error_type": type(exc).__name__,
+                                    }
+                                ],
+                            }
+                result["dispatch_submission"] = evidence
+                result["new_dispatch_submission"] = (
+                    True
+                    if evidence["state"] == "matched"
+                    else None if evidence["state"] == "indeterminate" else False
+                )
+                result["request"] = None
         elif runner_mode == "dispatch":
             result.update(_read_dispatch_stdout(output or "", repo, int(rc)))
         else:
@@ -2431,6 +2689,13 @@ def _orphan_stop_gate_message(path: Path) -> str:
 
 def _orphan_recovery(stop: OrphanHoldStop) -> str:
     dirty = " ".join(stop.dirty_paths) if stop.dirty_paths else "<なし>"
+    if not stop.hold_latched:
+        return (
+            "job が投入された可能性を scheduler 上で確認し、"
+            f"dirty path ({dirty}) を安全確認後に復元し、"
+            "clean/HEAD を確認してから sidecar を手動削除する。"
+            "D454 orphan hold latch は作成していない。"
+        )
     return (
         "qstat で対象の不在または終端を確認し、"
         f"dirty path ({dirty}) を git checkout -- で復元し、"
@@ -2448,7 +2713,7 @@ def _write_orphan_stop_ledger(
     ledger_path: Path,
 ) -> None:
     reason = {
-        "code": "orphan-hold",
+        "code": stop.reason_code,
         "phase": stop.phase,
         "mutation_id": stop.mutation_id,
         "hold_path": str(stop.hold_path),
@@ -2456,6 +2721,24 @@ def _write_orphan_stop_ledger(
         "dirty_paths": list(stop.dirty_paths),
         "recovery": _orphan_recovery(stop),
     }
+    if not stop.hold_latched:
+        submission = (
+            stop.active_record.get("dispatch_submission")
+            if isinstance(stop.active_record, dict)
+            else None
+        )
+        reason.update(
+            {
+                "hold_latched": False,
+                "job_may_have_been_submitted": True,
+                "verification_required": True,
+                "dispatch_submission_state": (
+                    submission.get("state")
+                    if isinstance(submission, dict)
+                    else "indeterminate"
+                ),
+            }
+        )
     if stop.hold_error is not None:
         reason["hold_error"] = stop.hold_error
     if stop.origin_error_type is not None:
@@ -2480,8 +2763,17 @@ def _write_orphan_stop_ledger(
 
 def _print_orphan_stop(stop: OrphanHoldStop) -> None:
     dirty = ", ".join(stop.dirty_paths) if stop.dirty_paths else "なし"
+    if not stop.hold_latched:
+        print(
+            f"mutation harness aborted: {stop.reason_code}。"
+            f"変異を残した状態={stop.source_state}、dirty path={dirty}。"
+            f"復旧順序: {_orphan_recovery(stop)}",
+            file=sys.stderr,
+            flush=True,
+        )
+        return
     print(
-        "mutation harness aborted: orphan-hold。"
+        f"mutation harness aborted: {stop.reason_code}。"
         f"変異を残した状態={stop.source_state}、dirty path={dirty}、"
         f"hold path={stop.hold_path}。復旧順序: {_orphan_recovery(stop)}",
         file=sys.stderr,
