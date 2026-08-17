@@ -37,8 +37,10 @@ title: ユーザー裁定 R2 を発効させた — 待ち手の node exact 検�
 - **通知経路の受理幅が 21 byte 縮んだ。** land 結果 JSON へ `acceptance_flake_nodeids` を足した分
   (compact 表現で 30 byte) だけ、64 KiB 上限に収まる payload が小さくなる。fixture を縮めて
   数値を合わせる形は偽緑なので、旧最大 payload が超過することと新境界を独立 literal で pin した。
-- **変異 matrix は 13/13 KILLED、MISMATCH 0、SURVIVED 0** (anchor `4906e063`、
-  `--runner-mode dispatch`、期待 node 22 件の完全集合)。過剰拒否検出の正例 1 件 (P01) を含む。
+- **変異 matrix は 13/13 KILLED、MISMATCH 0、SURVIVED 0** (最終 anchor `dc0204ab`、
+  `--runner-mode dispatch`、期待 node 22 件の完全集合)。実装 commit `4906e063` でも同じ
+  13/13 KILLED を取っており、main 取り込み後に再走して同じ結果を確認した。
+  過剰拒否検出の正例 1 件 (P01) を含む。
   当初の P01 (child-green にも checker/runner 等値を要求する) は 71 node を落とす過剰決定だったため、
   `DW-M03` に従い単一理由の形 (runner 等値なのに拒否する向きの反転、7 node) へ差し替えた。
   初回 probe (全件 SURVIVED 期待) の結果は `output/insights/2026-08-17_t1302-r2-flake/` に残した。
@@ -47,7 +49,15 @@ title: ユーザー裁定 R2 を発効させた — 待ち手の node exact 検�
   login ノードでも計算ノードでも `campaign env_tag は exact str でなければならない` の TypeError で
   落ちる。変更前の main で同じ赤を実測しており、本 wave の差分は到達しない。台帳に未登録だったので
   新規項目として起票する。
-- **子の工数。** codex 11 本 (plan 2・consult 4・author 1・review 2・fix 1・focus 1)。
+- **並行 wave との合成に子 2 本を要した。** 受入直前の main 取り込みで
+  `tools/dev_wave_wait.py` が [T-1275] (受入待ち手の同一 process 内 attempt 再試行) と競合した。
+  競合解消は実装面なので Codex author が行い、親は git 操作と commit だけを担った。
+  さらに [T-1275] の新テストが acceptance receipt の schema v3 と旧 field 集合を pin していたため、
+  v4 契約へ合わせる合成是正をもう 1 本の Codex author が行った (production 側の変更は無く、
+  retry fake の runner `cat-file -t` 応答と schema pin の更新だけで閉じた)。
+  **受入待ち手の 1 回目は submodule の再帰初期化不足で lease 取得前に rc=2、2 回目は
+  lease 取得後の merge で rc=70。どちらも受入全走は 1 度も走っていない。**
+- **子の工数。** codex 13 本 (plan 2・consult 4・author 1・review 2・fix 3・focus 1)。
   うち plan 1 本と consult 2 本は `DW-O13` の巻き戻しで破棄した。review の初回投入 2 本は
   `--lane` を review 段へ渡して argparse で落ちており、`.done` を残したまま別名で再投入した。
 

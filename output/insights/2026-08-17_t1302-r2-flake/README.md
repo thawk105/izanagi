@@ -15,14 +15,17 @@ wave `dev-wave-t1302-r2-nonattrib` / 2026-08-17 / 実装 commit `4906e063` / bas
 - `verbatim/s6-revA.md` / `s6-revB.md` — 段 6 敵対レビュー (codex, review, high)。
 - `verbatim/s6-fix.md` — 段 6 fix (codex, fix, high)。
 - `verbatim/s6-focus.md` — 段 6 焦点再レビュー (codex, focus, high)。
+- `verbatim/s6-merge-resolution.md` — main 取り込みの競合解消 (codex, fix, high)。
+- `verbatim/s6-merge-synthesis.md` — 取り込み後の合成是正 (codex, fix, high)。
 - `mutation-spec.json` — 本走の変異 spec (13 件、期待 node 完全集合)。
-- `mutation-results.json` — 本走の結果 (13/13 KILLED、MISMATCH 0、SURVIVED 0)。
+- `mutation-results.json` — 最終 anchor `dc0204ab` での結果
+  (13/13 KILLED、MISMATCH 0、SURVIVED 0)。実装 commit `4906e063` でも同じ結果を取っている。
 - `mutation-probe.json` — 初回 probe (全件 SURVIVED 期待で観測 node を収集した回)。
   P01 だけは差し替え後に単独 probe を回したため、この file の P01 は差し替え前の版である。
 
 ## 変異走の条件
 
-- anchor: `4906e063` (実装 commit)。`--runner-mode dispatch`、runner argv は
+- anchor: `dc0204ab` (main 取り込みと合成是正の後の最終 tip)。`--runner-mode dispatch`、runner argv は
   `python3 tools/run_tests.py --force-dispatch` に焦点 3 test file と `-q -rf`。
 - baseline を緑にするため、本変更前から main で赤い
   `orchestrator/tests/test_dev_wave_land.py::test_exploration_external_root_keeps_wave_clean`
