@@ -1,0 +1,94 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 90,
+  "timeout_seconds": 1800,
+  "hang_timeout_seconds": 1800,
+  "mutations": [
+    {
+      "id": "M01",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/codex_worker_launch.py",
+          "old": "        evidence_deadline_ns = (\n            spawn_completed_ns\n",
+          "new": "        evidence_deadline_ns = (\n            state.started_ns\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_codex_worker_launch.py::test_evidence_deadline_origin_is_diagnostics_independent",
+        "orchestrator/tests/test_codex_worker_launch.py::test_evidence_grace_starts_at_spawn_completed",
+        "orchestrator/tests/test_codex_worker_launch.py::test_evidence_grace_starts_at_spawn_completed_on_retry"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M02",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/codex_worker_launch.py",
+          "old": "        evidence_deadline_ns = (\n            spawn_completed_ns\n",
+          "new": "        evidence_deadline_ns = (\n            preflight_now_ns\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_codex_worker_launch.py::test_evidence_deadline_origin_is_diagnostics_independent",
+        "orchestrator/tests/test_codex_worker_launch.py::test_evidence_grace_starts_at_spawn_completed",
+        "orchestrator/tests/test_codex_worker_launch.py::test_evidence_grace_starts_at_spawn_completed_on_retry"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M03",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/codex_worker_launch.py",
+          "old": "        spawn_completed_ns = _monotonic_ns()\n        if attempt_diagnostics is not None:\n            attempt_diagnostics.note_boundary(\n",
+          "new": "        spawn_completed_ns = state.started_ns\n        if attempt_diagnostics is not None:\n            spawn_completed_ns = _monotonic_ns()\n            attempt_diagnostics.note_boundary(\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_codex_worker_launch.py::test_evidence_deadline_origin_is_diagnostics_independent"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M04",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/codex_worker_launch.py",
+          "old": "        evidence_deadline_ns = (\n            spawn_completed_ns\n",
+          "new": "        evidence_deadline_ns = (\n            (spawn_completed_ns if attempt_index == 1\n             else state.started_ns)\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_codex_worker_launch.py::test_evidence_grace_starts_at_spawn_completed_on_retry"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M05",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/codex_worker_launch.py",
+          "old": "        evidence_deadline_ns = (\n            spawn_completed_ns\n",
+          "new": "        evidence_deadline_ns = (\n            _monotonic_ns()\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_codex_worker_launch.py::test_evidence_grace_starts_at_spawn_completed",
+        "orchestrator/tests/test_codex_worker_launch.py::test_evidence_grace_starts_at_spawn_completed_on_retry",
+        "orchestrator/tests/test_codex_worker_launch.py::test_launcher_diagnostics_production_phase_wiring_has_exact_durations"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}

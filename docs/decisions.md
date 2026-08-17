@@ -20705,3 +20705,157 @@ campaign 開始記録にその file record を束縛する。全 campaign が pe
 
 - テスト側の削除 — 成長比例のテストは削除でなく恒久保留とする既定に反する。
 - 全履歴走査の範囲縮小 — 権威境界そのものを削る。
+
+## D500. RF producer は投入 gate の完成に依存する — 本 wave は実装せず、閂の所在を公表層から gate へ訂正する (2026-08-17)
+
+**背景:** D481 は RF 発火条件 (ii) の評価領域を D282 pin 済み receipt へ束縛し、pilot を公表層実装と
+追補 P 凍結から切り離した。同 D の backlog は「RF producer と attempt registry の実体」を第 1 項に
+挙げ、archive worklog はこれを「producer 実装から着手可」と記録した。本 wave はその実装 wave として
+起動し、段 2 プラン 1 本と段 3 敵対レンズ 2 本 (総括はいずれも NO-GO) を得た。
+一次資料 = `output/insights/2026-08-17_t338-rf-producer/` (裁定パッケージ本体は `package.md`)。
+
+**決定 (1): 本 wave は実装しない。** 実装差分はゼロであり、変異 matrix は `DW-S04` により免除される。
+コード・テスト・gate・schema・artifact・凍結 bytes・certified 選択・材料レポート・proof chain・
+受理集合はいずれも不変である。
+
+**決定 (2): producer を止めている閂は公表層ではなく投入 gate であると訂正する。** D481 は
+producer の閂を公表層実装だと同定し、それを切り離した。切り離し自体は正しく、公表層は
+もはや producer を止めていない。**しかし閂はもう 1 つあり、D481 はそれを見ていなかった。**
+
+- record-items-v2 §6.10 は「受領証を永続化する関数自体」が `PreregBinding` を必須 keyword-only で
+  受け、三つ組と `measurement_head` を照合してから publish することを要求し、別経路の writer を禁じる。
+- `PreregBinding` は D264 が投入 gate の完成まで非 export と定めた 4 名前の 1 つであり、
+  D282 の `preserved` がこの非 export を維持している。
+- したがって**投入 gate が完成するまで、受領証を書き出す producer は作れない。**
+
+**決定 (3): 残余を「producer 実装済み」として land しない。** 決定 (2) の制約と、投入なしでは
+attempt が真正な qsub 事実を持てないという制約を引いた残余は、attempt registry と純粋な組み立て
+関数と否定検査である。**これは D264 が名指しで却下した形である** — 同 D は
+「台帳だけが『producer 実装済み』へ進む半実装は、直前の wave が blocker と判定した形である」と
+書いている。拒否専用 adapter や fixture 限定 leaf を producer 結線として land しない
+(D147 決定 (3) / D163 決定 (1) の再適用)。
+
+**決定 (4): `declared_use_class = "dry"` は qsub 事実の免除ではない。** D282 pin 済み schema の
+`attempt` は `qsub_result` / `performance_started_marker` / `cluster_slot_or_null` を必須とし、
+種別による免除規定を持たない。`declared_use_class` は利用意図であって受理入力にしてはならない
+(record-items-v2)。投入せずに値を合成すれば raw 事実でなくなる。`pilot_submission = forbidden` と
+D292 の解除権威は本 D でも維持し、解除条件の中身も定めない。
+
+**決定 (5): D229 決定 (8) の必須 kill 3 件は producer 段では達成できないと実測記録する。**
+敵対レンズ 2 本が独立に同じ結論へ到達した。「失敗した投入を台帳と raw の双方から落とす」は
+producer の外にある durable な intent authority と PBS driver との結線を要し、
+「親系列 ID の自己申告による累積有意水準のリセット」は族の根から測定 head までの全履歴 validator を要し、
+「anomaly の clean 申告」は raw の正しさ証拠を再計算する独立 semantic validator を要する。
+いずれも D229 決定 (6) の順序では producer より後段の機構である。**本 wave はこの 3 件を
+「kill 済み」と記録しない。**どの段の受入条件に置くかはユーザー裁定へ返す。
+
+**決定 (6): 起動命令が名指しした既存機構は実在しないと訂正する (実測)。**
+`orchestrator/campaign/s8b_floor_stats.py` は自らの保証境界として「raw session 自体の真正性
+(append-only journal・attempt registry・schedule 突合) は保証しない」と明記しており、
+attempt registry を持たない。`s8b_floor_campaign.py` のそれは私有 runner クラスの私有メソッド群で、
+床値 protocol の cell / round / retry 予算に束縛され export されていない。
+D229 決定 (7) が名指しする再利用先は `orchestrator/qualification/attempt_ledger.py` である。
+ただし再利用先の確定は次 wave の段 1 要件とし、本 D では定めない。
+
+**決定 (7): D496 との相互作用について、承認済み出力契約に床値表への依存は無いと実測記録する。**
+D282 pin 済み受領証 schema と record-items-v2 の双方で `floor` / `床値` の出現は 0 件であり、
+schema は 3 arm を同一受領証内で必須とする。RF は床値表の引き当てではなく同一 campaign 内の
+対測定であって、D496 が求める形と一致する。D162 決定 (9) も層 3 の calibration floor 閉表との
+分離を既に命じている。**この結論は承認済み出力契約の範囲に限る。**
+文字列の不在から実装依存の不在を導かない — 新規 module の設置先 package は import graph 上
+calibrator を引くこと、および D496 の構成集合固定と失敗時の全構成再測定という lifecycle 条件が
+attempt registry の identity 設計に効くことを、次 wave の段 1 要件として残す。
+
+**却下した選択肢:**
+
+- attempt registry だけを先に land し producer 実装済みと記録する — D264 が名指しで却下した形であり、
+  本 wave の実測では必須 kill を 1 件も達成せず消費者も 0 件である。
+- `dry` 受領証で end-to-end を通す — 決定 (4) のとおり免除規定が無く、合成すれば raw 事実でなくなる。
+- 恒真 deny stub や拒否専用 adapter を gate の代わりに置く — D264 が明示的に却下している。
+- 発火条件が揃わないまま機械化する — `DW-G04` は発火条件を満たす既存 artifact path か計測 ID を
+  brief に書けない場合、設計メモに留めると定める。本 wave はどちらも書けない。
+- 段 2 プランの総括をそのまま採る — 必須 kill が「後二件」だけ不能という記述は同プラン本文と
+  食い違っており、実際は 3 件とも不能である。
+
+**研究状態への影響:** certified 選択の値、材料レポート、proof chain、凍結 bytes、既存 gate、
+受理集合はいずれも**不変**である。実装差分はゼロであり、producer・pilot artifact・
+validator / consumer のいずれも本 D では生成しない。変わるのは、RF producer を止めている閂の
+所在が公表層から投入 gate へ訂正されたことと、必須 kill 3 件の帰属段がユーザー裁定待ちとして
+分離されたことの 2 点である。
+
+## D501. 8b oracle の比較規則を明示的に再凍結する (2026-08-18)
+
+**決定:**
+
+1. **集約規則を明示的に再凍結する。** `s8b_oracle_judge.judge_oracle` の集約は、各 trial の
+   bench rep 中央値を求め、その trial 中央値群の中央値を構成ごとの cell 値とする
+   二段中央値 (median of medians) とする。floor は入力にも argmax の tie-break にも使わない。
+   同関数の docstring が要求していた「実測開始前の明示的な再凍結」は本決定で満たす。
+   docstring からその未凍結宣言を外し、本決定を**題で**指す (番号は land 時に採番されるため
+   コードへ書けない)。
+2. **raw oracle の判定境界を現行のまま再凍結する。** holdout ごとに eligible な構成の cell 値の
+   最大値を取り、最大値と**完全一致**する構成が 1 つなら一意最良、2 つ以上なら tie、
+   eligible が空か unknown を含むなら判定不能とする。
+3. **反復数の凍結手段は既存機構に置く。ただし trial 数の値は未凍結である。**
+   bench rep 数と実行時間は `s8b_experiment_numbers` の承認定数と exact 一致を manifest 検証が
+   要求し、再測定 round は 1 完全一致で pin されている。**trial 数は reviewed spec の承認手番に
+   従属し、承認定数が未設定の現状では凍結されていない** (機構全体が `no-approved-spec` で
+   fail-closed に止まり、official の受理集合は空である)。本決定はその定数を書かない。
+4. **構成集合・holdout 集合の凍結手段は既存機構に置く。新設しない。** manifest 検証は
+   freeze の全 byte hash 一致を要求し、さらに schedule の holdout 集合が freeze の holdout 集合と
+   完全一致すること、schedule の cell 集合が holdout × 構成の完全積と完全一致することを
+   独立に検査する。
+5. **機械強制の内訳を分けて記録する。** 集約規則は既存の judge テストが集約値と勝者を期待値として
+   pin しており、規則を書き換えれば赤くなる。**判定境界は本決定と同じ land で新設したテストが担う** —
+   変更前の exact tie テストは本物の完全一致しか置かないため、境界を `isclose` 系や固定幅へ緩めても
+   赤くならなかった。新設テストは完全一致を tie とし、1 ulp 差を両方向で一意最良と固定する。
+   **変異実測**: 同じ緩和変異 2 件が、変更前 HEAD では 2 件とも SURVIVED、
+   新設後は 2 件とも KILLED で、落ちた node は新設テスト 1 本と完全一致した。
+6. **`judge_oracle` の判定関数と observations の受理条件は変更しない。**
+   ただし docstring の byte 変更で同 module の実ファイル hash が変わるため、
+   **reviewed spec の generator identity は旧 hash から新 hash へ移る** (manifest 検証が
+   `generator_versions` の実 byte hash 一致を要求する)。同一 land で独立 golden の literal と
+   その派生 hash を実測値へ追随させた。
+7. **D496 が外すべき対象は受入関門ではなく最終判定層である。** 床値を比較の基礎として使っている
+   のは `s8b_verdict` の条件 3 (実測差が凍結 per-pair floor を超えるか) と scale gate
+   (stock の実測 median を床値 campaign 由来の期待値と比較) である。**ただし条件 3 は
+   2026-07-16 のユーザー裁定が逐語凍結した truth table の一部であり、本決定では変更しない。**
+   変更は当該裁定の再裁定を要する。
+8. **床値に従属すると説明されていた受入関門 2 件は、実装上いずれも過去値との比較ではないが、
+   D496 の下では不要になる。** manifest の per-pair 対表 exact 検査は freeze の floor 節の内部整合
+   だけを見ており、構成集合の凍結は決定 4 の別述語が担う。floor/budget の部分 hash は
+   freeze 全体の byte hash 照合と重複する。driver の測定 binary bytes 照合は、照合対象の receipt
+   自体が過去の床値 campaign 由来であるため「今回測る binary が過去 campaign の binary と同じか」を
+   要求している。**いずれの撤去も受理集合を広げるため、本決定では実装しない。**
+9. **D496 決定 3 は現状の実装では実行できない。** 実走マーカーが freeze の byte hash を identity と
+   して出力先非依存に排他作成され、存在すれば同じ freeze の再走を全拒否する。この resume 拒否は
+   別のユーザー裁定が凍結した挙動である。加えて v1 freeze の verify は毎回 repository novelty
+   search の pass を要求し、初回観測後の再走と両立しない。**どちらが優先するかは本決定では
+   決めない。**
+
+**理由:**
+
+- D496 決定 2 は事前登録を放棄せず凍結対象を規則側へ移すと定めた。実測すると、規則の 4 要素のうち
+  構成集合・holdout 集合は既存機構が凍結しており、反復数も 3 量のうち 2 量は凍結済みで trial 数だけが
+  承認手番待ちである。未凍結のまま実測へ入りうるのは集約規則と判定境界であり、本決定はその 2 つを
+  閉じる。既存機構がある要素については名指しで参照し、新しい凍結装置を重ねない。
+- 判定境界だけは既存テストで pin されていなかった。宣言だけを台帳へ書けば恒真な事前登録になるため、
+  緩和変異を捕まえる正例つき検査を同じ land で足した。純増の検出力はこの 1 点である。
+- 床値の比較利用が最終判定層にあることは、裁定時に見えていなかった事実である。判定層の変更は
+  逐語凍結された truth table に触るため、人間の再裁定を経ずに実施してはならない。
+- 受入関門の撤去は受理集合を広げる。規律 2 の下では、置き換える事前登録の発効が先である。
+
+**却下した選択肢:**
+
+- 比較規則を宣言する新しい定数と、spec / manifest / runtime の三者一致 pin を新設する —
+  宣言と実装の乖離検出という利点はあるが、manifest schema の版上げと受理形の変更という代償が
+  大きい。乖離検出だけを目的に受理形を変えず、撤去実装と同じ裁定へ束ねて返す。
+- 判定境界を走行内分解限界 (変動係数) 由来の帯へ書き換える — D496 決定 4 が求める
+  「差が機械の分解限界より小さい」を判定へ反映できる利点はあるが、raw oracle の tie を変えると
+  判定関数を書き換えないという裁定時の留保に触る。**択は 2 つではない** — 順位の事実と性能主張の
+  境界を二層に分ける案、replicate 単位の対比とその分散を使う案があり、対比の共分散は
+  manifest の replicate 添字と observations の schedule 添字から復元できる (共分散と相関の
+  実装は pilot module に既に存在する)。境界の算式そのものが未裁定であり実装者が選んではならない。
+- 受入関門と最終判定層の床値依存を本決定と同じ land で撤去する — 受理集合を広げる変更と
+  逐語凍結された truth table の変更を、事前登録の発効と同時に既成事実にすることになる。
+- 事前登録ごと外す — 絶対規律 2 に触れる。人間だけが変更できる。

@@ -94,8 +94,20 @@ worklog 末尾、採用済み判断の正本は decisions であり、ここに�
 | `s6-revA.md` / `s6-revB.md` | 段 6 敵対レビュー 2 本 (どちらも NO-GO) |
 | `s6-refocus.md` | 段 6 焦点再レビュー 第 2 巡 (所見ごとの closed / partial / regressed 対応表)。NO-GO、blocker 2 件 |
 | `s6-refocus-3.md` | 段 6 焦点再レビュー 第 3 巡 (引き取り側が投入)。NO-GO、blocker 1 件 → 親が real と裁定して最小修正で閉じた |
+| `s6-refocus2.md` | 停止した branch 側の焦点再レビュー。`s6-refocus.md` の blocker 2 件を再判定 (closed 1 / partial 1) し、「B4 と B8 が異なる前進条件を提示している」を新規 blocker として挙げた |
+| `s6-refocus3.md` | 停止した branch 側の焦点再レビュー・最終。`s6-refocus2.md` の指摘 2 件を再判定 (closed 1 / partial 1) し、親が新しく書いた 4 主張を検証して 2 件を誤り・過大と判定した |
 | `addendum-b.md` | **追補 B 草案 (`authority: none`)。承認しても、承認決定を台帳へ畳むまで発効しない** |
 | `package.md` | ユーザー承認パッケージ (B1〜B8) |
+
+> **索引の追記 (2026-08-17、`[T-963]`)。** 上の `s6-refocus2.md` / `s6-refocus3.md` の 2 行は、停止した
+> branch `worktree-dev-wave-t139-addendum-b` (`84217161`) から `[T-950]` が byte 保存で回収した file を
+> 指す。回収時に本表へ載せ損ねており、5 日間どの文書からも参照されない状態だった。本追記は索引だけを
+> 足すもので、2 file の bytes も他の記述も変えていない。出典は `docs/archive/worklog-phase3-0812-499.md`。
+>
+> **巡の番号は文書ごとに基準が違う。** 表が使う「第 2 巡 / 第 3 巡」は引き取り側の数え方である。
+> 一方 `s6-refocus2.md` / `s6-refocus3.md` の本文が言う「1 巡目 / 2 巡目」は branch 側の数え方で、
+> `s6-refocus.md` を 1 巡目と数える。**`s6-refocus-3.md` (ハイフン付き) と `s6-refocus3.md`
+> (ハイフン無し) は別の文書であり、結論も別である。**
 
 ## 凍結の段階 (追補 A と同じ 3 段階)
 

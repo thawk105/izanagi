@@ -596,6 +596,7 @@ def test_help_marks_resource_defaults_non_authoritative() -> None:
         assert option in option_block
         assert phrase in option_block
     evidence_block = _help_option_block(result.stdout, "--evidence-grace-s")
+    assert "子の起動完了時を起点とする" in evidence_block
     assert "受理集合に影響する" in evidence_block
     assert "暫定運用値であり測定された最小値ではない" in evidence_block
     assert "90 秒を上限" in evidence_block
