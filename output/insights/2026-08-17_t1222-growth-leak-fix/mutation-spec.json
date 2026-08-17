@@ -1,0 +1,111 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 30,
+  "timeout_seconds": 900,
+  "hang_timeout_seconds": 1200,
+  "mutations": [
+    {
+      "id": "MA-disable-cache-entirely",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/check_docs.py",
+          "old": "    cache = _READ_TEXT_CACHE.get()\n",
+          "new": "    cache = None\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_check_docs.py::test_read_text_cache_uses_one_open_across_newline_modes",
+        "orchestrator/tests/test_check_docs.py::test_read_text_cache_uses_one_physical_open_per_main"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "MB-drop-newline-from-cache-key",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/check_docs.py",
+          "old": "    cache_key = (path, newline)\n",
+          "new": "    cache_key = (path, None)\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_check_docs.py::test_read_text_cache_keeps_newline_modes_distinct",
+        "orchestrator/tests/test_check_docs.py::test_read_text_cache_uses_one_open_across_newline_modes"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "MC-skip-crlf-normalization",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/check_docs.py",
+          "old": "                    raw.payload.replace(\"\\r\\n\", \"\\n\").replace(\"\\r\", \"\\n\"),\n",
+          "new": "                    raw.payload,\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_check_docs.py::test_read_text_cache_keeps_newline_modes_distinct",
+        "orchestrator/tests/test_check_docs.py::test_read_text_cache_uses_one_open_across_newline_modes"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "MD-drop-finding-replay-on-hit",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/check_docs.py",
+          "old": "        findings.append(f\"{prefix} ({cached.payload})\")\n",
+          "new": "        pass\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_check_docs.py::test_read_text_cache_replays_failure_for_each_caller"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "ME-drop-identity-comparison",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/check_docs.py",
+          "old": "    if cached is not None and cached.identity != identity:\n",
+          "new": "    if False:\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_check_docs.py::test_read_text_cache_invalidates_ctime_only_change",
+        "orchestrator/tests/test_check_docs.py::test_read_text_cache_invalidates_inode_only_replacement",
+        "orchestrator/tests/test_check_docs.py::test_read_text_cache_invalidates_mtime_only_change",
+        "orchestrator/tests/test_check_docs.py::test_read_text_cache_invalidates_replaced_file_identity",
+        "orchestrator/tests/test_check_docs.py::test_read_text_cache_invalidates_revoked_read_permission"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "MF-disable-cross-mode-sharing",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/check_docs.py",
+          "old": "        raw = cache.get((path, \"\"))\n",
+          "new": "        raw = None\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_check_docs.py::test_read_text_cache_uses_one_open_across_newline_modes"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}
