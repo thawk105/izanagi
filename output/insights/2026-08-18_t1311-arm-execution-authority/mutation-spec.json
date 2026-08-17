@@ -1,0 +1,196 @@
+{
+ "estimated_run_seconds": 140,
+ "hang_timeout_seconds": 2400,
+ "mutations": [
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_formal_start_is_recorded_before_run_root_and_blocks_other_root",
+    "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_m26_manifest_binding_survives_provider_init_and_supervisor_failures",
+    "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_origin_public_path_preserves_capability_identity_and_projects_terminal",
+    "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_origin_public_result_distinguishes_partial_from_completed",
+    "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_p8_m25_manifest_run_burns_exact_binding_without_arm_fields"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "t1311.m1-descriptor-sink",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_autonomous_workload_trial.py",
+     "new": "        \"content_digest_sha256\": \"e\" * 64,\n",
+     "old": "        \"content_digest_sha256\": content_digest,\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_t1311_registered_identity_consumes_issued_arm_bytes"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "t1311.m2-campaign-sink",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_autonomous_workload_trial.py",
+     "new": "        search_config[\"arm_binding_digest_sha256\"] = \"e\" * 64\n",
+     "old": "        search_config[\"arm_binding_digest_sha256\"] = arm_binding_digest_sha256\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_formal_start_is_recorded_before_run_root_and_blocks_other_root",
+    "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_origin_public_path_preserves_capability_identity_and_projects_terminal",
+    "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_p8_m25_manifest_run_burns_exact_binding_without_arm_fields",
+    "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_t1311_registered_workload_binds_proposal_and_all_invocations"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "t1311.m3-proposal-bytes-sink",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_autonomous_workload_trial.py",
+     "new": "                proposal_value[\"arm_binding_digest_sha256\"] = \"e\" * 64\n",
+     "old": "                proposal_value[\"arm_binding_digest_sha256\"] = (\n                    arm_execution.arm_binding_digest_sha256\n                )\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_formal_start_is_recorded_before_run_root_and_blocks_other_root",
+    "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_origin_public_path_preserves_capability_identity_and_projects_terminal",
+    "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_p8_m25_manifest_run_burns_exact_binding_without_arm_fields",
+    "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_t1311_invocation_id_enforces_provider_limit",
+    "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_t1311_provider_payload_and_envelope_are_bound_to_arm_digest",
+    "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_t1311_registered_workload_binds_proposal_and_all_invocations"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "t1311.m4-invocation-id-prewave-form",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_autonomous_workload_trial.py",
+     "new": "        candidate = f\"{workload}.g{generation}.{role}\"\n",
+     "old": "        candidate = (\n            f\"{_invocation_namespace(arm=arm, digest=digest)}.\"\n            f\"{workload}.g{generation}.{role}\"\n        )\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_formal_start_is_recorded_before_run_root_and_blocks_other_root",
+    "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_m26_manifest_binding_survives_provider_init_and_supervisor_failures",
+    "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_origin_public_path_preserves_capability_identity_and_projects_terminal",
+    "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_p8_m25_manifest_run_burns_exact_binding_without_arm_fields",
+    "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_t1311_provider_payload_and_envelope_are_bound_to_arm_digest",
+    "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_t1311_registered_workload_binds_proposal_and_all_invocations"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "t1311.m5-role-event-sink",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_autonomous_workload_trial.py",
+     "new": "        base[\"arm_binding_digest_sha256\"] = \"e\" * 64\n",
+     "old": "        base[\"arm_binding_digest_sha256\"] = arm_binding_digest\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_t1311_provider_payload_and_envelope_are_bound_to_arm_digest"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "t1311.m6-provider-artifact-sink",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_autonomous_workload_trial.py",
+     "new": "                    \"arm_binding_digest_sha256\": \"e\" * 64,\n                },\n",
+     "old": "                    \"arm_binding_digest_sha256\": arm_binding_digest,\n                },\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_formal_start_is_recorded_before_run_root_and_blocks_other_root",
+    "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_origin_public_path_preserves_capability_identity_and_projects_terminal",
+    "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_p8_m25_manifest_run_burns_exact_binding_without_arm_fields",
+    "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_t1311_registered_workload_binds_proposal_and_all_invocations"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "t1311.m7-proposal-record-sink",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_autonomous_workload_trial.py",
+     "new": "                    \"digest\": \"e\" * 64,\n",
+     "old": "                    \"digest\": arm_execution.arm_binding_digest_sha256,\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_formal_start_is_recorded_before_run_root_and_blocks_other_root",
+    "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_m26_manifest_binding_survives_provider_init_and_supervisor_failures",
+    "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_origin_public_path_preserves_capability_identity_and_projects_terminal",
+    "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_origin_public_result_distinguishes_partial_from_completed",
+    "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_p8_m25_manifest_run_burns_exact_binding_without_arm_fields"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "t1311.m8-run-start-sink",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_autonomous_workload_trial.py",
+     "new": "                \"arm_execution\": {\n                    \"input_schema_version\": \"8b-v1\",\n                    \"content_digest_sha256\": \"e\" * 64,\n                    \"arm_binding_digest_sha256\": \"e\" * 64,\n                },\n",
+     "old": "                \"arm_execution\": trial_registry.arm_execution_record(\n                    arm_execution\n                ),\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_formal_start_is_recorded_before_run_root_and_blocks_other_root",
+    "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_m26_manifest_binding_survives_provider_init_and_supervisor_failures",
+    "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_origin_public_path_preserves_capability_identity_and_projects_terminal",
+    "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_origin_public_result_distinguishes_partial_from_completed",
+    "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_p8_m25_manifest_run_burns_exact_binding_without_arm_fields"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "t1311.m9-terminal-report-sink",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_autonomous_workload_trial.py",
+     "new": "            \"arm_execution\": {\n                \"input_schema_version\": \"8b-v1\",\n                \"content_digest_sha256\": \"e\" * 64,\n                \"arm_binding_digest_sha256\": \"e\" * 64,\n            },\n",
+     "old": "            \"arm_execution\": trial_registry.arm_execution_record(\n                arm_execution\n            ),\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_s8c_arm_inputs.py::test_pairwise_collision_rejects_instead_of_falling_back"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "t1311.m10-pairwise-distinct-off",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s8c_arm_inputs.py",
+     "new": "    if False:\n",
+     "old": "    if len(set(digests.values())) != len(ARMS):\n"
+    }
+   ]
+  }
+ ],
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "timeout_seconds": 1800
+}
