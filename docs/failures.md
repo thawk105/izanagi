@@ -1208,6 +1208,14 @@
   `docs/dev-wave/**` は余裕 10 bytes で本文追記できないため、本追記を運用の正本とする
 - 記録: worklog 2026-07-26 (3)、材料レポート = `output/insights/2026-07-26_s1-cross-protocol-gate-survey.md` §3.4
 
+
+- **再発: 2026-08-17** — 8c 事前登録の C12 契約・拒否理由・判定器版・凍結世代を変えた wave が、
+  それらを入力に持つ**活性化報告 digest の pin** を閉包から落とした。pin は別サブシステム
+  (reflux 互換) の golden 構造の中にあり、key がファイル path ではなく派生 digest 名なので、
+  path での閉包検索に原理的に掛からない — F39 の根本原因の逐語再現である。前回 [T-1186] が
+  同じ pin を同じ理由で更新していた。検出は受入全走 (land 前、実害なし)。恒久対応は F39 から
+  変更しない。運用として、判定器の版・理由コード・凍結世代を変える wave では、それらを入力に
+  持つ**再導出 digest** を pin 閉包の既定対象に含める。
 ### F40. 測定のための一時変異ハーネスが部分一致の anchor で tracked file を壊し、実装の退行に見える赤を出した [恒真ゲート] [防壁の射程誤認]
 
 - 事象: [T-120] の A/B 交互測定 (xdist group あり/なしを交互に走らせて wall を比べる) で、親は
@@ -9239,3 +9247,70 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: 上記 grep が 0 件であること。および同一 interpreter で
   2 つの forced-stop run を並行させる帰属テスト。
 - 近縁: F371 (同じ計装で見つかった別の欠陥)。
+
+### F373. 親セッションの FORCE_COLOR が子 process の出力を汚し無関係な node を落とす [環境汚染] [偽赤]
+
+- 事象: 焦点走で `test_growth_test_holds_contract.py::test_plain_pytest_delegating_runner_is_not_over_rejected`
+  が 1 件だけ落ちた。この node は `orchestrator/tests/test_env_attestation.py` を subprocess として
+  起動し、その出力を `(\d+) passed(?:,| in )` で照合するが、出力が
+  `\x1b[1m103 passed\x1b[0m, ` の形になり "passed" の直後に reset 列が挟まって正規表現が外れた。
+- 根本原因: Claude Code の背景 job 環境が `FORCE_COLOR=3` を export しており、それが
+  `run_tests.py` → pytest → subprocess pytest まで継承される。pytest は pipe 出力でも
+  `FORCE_COLOR` があれば着色する。**差分にも repo にも原因はない。**
+- 恒久対応: 焦点走・受入走を起動する script で `env -u FORCE_COLOR -u COLORTERM` を前置する
+  (D476 の wave で実測により確立)。
+  memory `report-progress-every-10-minutes` と同じ層の運用規律として
+  `docs/dev-wave/operations.md` の親テスト節 (`DW-O18`) へ寄せる候補。
+- 再発検知: `env -u FORCE_COLOR` を外した走行で当該 node が落ちることを実測で確認済み
+  (同一 checkout・同一 commit で色あり/色なしを 1 回ずつ実行し、前者だけが落ちる)。
+
+### F374. 封緘前の repository へ封緘後用の判定を当てて 66 node を落とした [順序誤り] [信頼境界の取り違え]
+
+- 事象: 段 6 の fix 1 巡目で local config の allowlist 検査を repository 列挙処理へ移した結果、
+  計算ノードでの焦点走が `66 failed / 545 passed / 3 errors` になった。理由はすべて
+  `snapshot repository local config is not allowlisted: <path>: ['branch.*', 'remote.*', ...]`。
+- 根本原因: 封緘処理は**自分が config section を削除する前に** repository を列挙する。
+  そこへ封緘後用の厳格な allowlist が当たると、まだ正当に残っている transport 設定で必ず落ちる。
+  **認証の境界は封緘処理ではなく検証時点である**という区別が実装に無かった。
+- 恒久対応: D478 — 封緘前後で allowlist の厳しさを
+  分け、封緘処理だけが builder 側の緩い集合を使う。外部 program を起動しうる key は封緘前でも拒否する。
+- 再発検知: 封緘前の木に対して列挙しても allowlist が誤発火しないこと、かつ封緘後の同じ木では
+  transport key が拒否されることを、単独理由で固定する node を置いた。
+
+### F375. 並行 wave が同じ凍結世代番号を先に land し、merge では解けなかった [手順漏れ] [ドリフト]
+
+- 事象: 本 wave と [T-1250] が同時に第 4 世代の条件契約凍結 record を発行した。[T-1250] が先に
+  land したため、main を取り込んで自分の record を第 5 世代へ作り直そうとしたところ
+  `prepare-revision` が `generation-mutated` で停止した。競合ファイルを main 側の内容へ揃えても
+  解けなかった。続けて、文書変更を commit 済みのまま再生成しようとして
+  `record-protected-mismatch` でも停止した。
+- 根本原因: 2 つある。(1) 凍結 chain の世代 record 不変検査は作業木でなく **HEAD から到達できる
+  全 commit** を走査し、同じ世代 path に 2 つ以上の blob oid があれば停止する。競合解消で作業木を
+  揃えても、自 branch の履歴 commit に旧 blob が残る限り条件は成立しない。(2) `prepare-revision`
+  は文書と証拠契約を**作業木**から読み、履歴は `--commit` で検証する。文書変更を commit 済みに
+  すると、その commit の tip record が新しい文書と食い違い必ず落ちる。
+- 恒久対応: 検査自体が fails-closed の実体である
+  (`orchestrator/campaign/s8c_preregistration.py` の `validate_condition_freeze_at` が
+  `generation-mutated` / `record-protected-mismatch` を送出し、`prepare_revision` を止める)。
+  手順側は memory `frozen-generation-collision-needs-history-rebuild` — 凍結 artifact を発行する
+  wave は、(a) land 前に自 branch 履歴が同一世代の別 blob を含まないことを確かめ、含むなら
+  merge でなく main 直上の線形形へ組み直す、(b) 再生成は文書変更を**未 commit**の状態で走らせる。
+- 再発検知: 上記 2 つの停止コードが本走前に発火する。どちらも rc=2 で世代を進めないため、
+  誤った世代 record が commit へ入る経路は無い。
+
+### F376. 自ら truncated と明示している出力を、閉包の全件として 2 度続けて読んだ [手順漏れ] [テスト代表性]
+
+- 事象: 受入全走の赤 1 件を直すため、失敗出力に現れた差分 1 件を「変えるべき pin の全件」と扱って
+  修正した。焦点走で同じテストがまた赤になり、今度は別の 2 件が差分に出た。`-vv` を付けて撮り
+  直したが、その走行も予算で切られており全件ではなかった。最終的に正しい範囲は 4 件だった。
+- 根本原因: どちらの出力も**自分が不完全であることを明示していた** (`...Full output truncated
+  (N lines hidden)`、`omitted_bytes=450948`) のに、表示された差分を実質的な全件集合として扱った。
+  「切り取られた出力を不在・網羅の根拠にしない」という規律を、検索結果には適用していたが
+  **テストの失敗出力には適用していなかった**。加えて、実装子の報告 (同じ誤読を含む) を親が
+  検証せずに受け取った。
+- 恒久対応: memory `truncated-diagnostics-are-not-a-closure` — 閉包の全件性は、
+  (a) 台帳側 (期待値を書いてある file) を全文検索して occurrence を数える、または
+  (b) 完全一致検査そのものが緑になる、のいずれかでだけ確定する。**描画された差分は根拠にしない。**
+  子の報告が閉包を主張したら、親は同じ 2 経路のどちらかで裏を取る。
+- 再発検知: 修正後の焦点走が同じ node で再び赤になったら、まず「前回の根拠が切り取られていた
+  のではないか」を疑う。出力に `truncated` / `omitted_bytes` が含まれていないかを見る。

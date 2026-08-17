@@ -459,15 +459,12 @@
           "path": "orchestrator/campaign/p3_autonomous_workload_trial.py",
           "field_paths": [
             "run_trial.env_contract",
-            "run_trial.calibration_receipt",
-            "run_trial.allocation_receipt",
-            "run_trial.single_process",
-            "run_trial.allow_resume"
+            "run_trial.calibration_receipt"
           ],
           "reachable_from": [
             "main -> run_trial -> env_contract.lookup",
             "run_trial -> execution_guard.attest_and_build_receipt",
-            "run_trial -> reservation.single_process_required -> campaign launch"
+            "run_trial -> reservation.read_binding -> reservation.check_reservation -> campaign launch"
           ]
         },
         {
@@ -475,12 +472,10 @@
           "path": "orchestrator/campaign/env_contract.py",
           "field_paths": [
             "lookup(env_tag)",
-            "ExecutionEnvironmentContract.calibration_ref",
-            "ExecutionEnvironmentContract.isolation_policy.single_process",
-            "ExecutionEnvironmentContract.isolation_policy.allow_resume"
+            "ExecutionEnvironmentContract.calibration_ref"
           ],
           "reachable_from": [
-            "run_trial -> lookup -> attestation and reservation consumers"
+            "run_trial -> lookup -> attestation consumer"
           ]
         },
         {
@@ -494,20 +489,26 @@
         {
           "artifact_kind": "allocation_consumer",
           "path": "orchestrator/campaign/reservation.py",
-          "field_paths": ["single_process_required(isolation_policy)"],
+          "field_paths": [
+            "ReservationBinding.job_id",
+            "ReservationBinding.boot_id",
+            "ReservationBinding.deadline_epoch",
+            "read_binding(environ)",
+            "check_reservation(binding, required_s, safety_margin_s, environ)"
+          ],
           "reachable_from": [
-            "run_trial -> single_process_required -> campaign launch"
+            "run_trial -> reservation.read_binding -> reservation.check_reservation -> campaign launch"
           ]
         }
       ],
       "consumer_requirement": {
         "path": "orchestrator/campaign/p3_autonomous_workload_trial.py",
         "entrypoints": ["main", "run_trial"],
-        "proof": "The production 8c launcher must consume the registered environment, calibration and allocation attestations and reject multi-process or resume paths before launch."
+        "proof": "The production 8c launcher must consume the registered environment and calibration attestations plus a reservation binding, and before launch reject a mismatched PBS job, a mismatched boot, or insufficient time remaining before the reservation deadline."
       },
-      "negative_control_id": "nc_c12_resume_or_multi_process_allowed",
+      "negative_control_id": "nc_c12_reservation_check_bypassed",
       "machine_checkable": true,
-      "static_only_note": "Only committed enforcement reachability and attestation schemas are checked; no live allocation or post-run environment observation is required."
+      "static_only_note": "Only committed top-level definitions and may-reach call names are checked; no live allocation or post-run environment observation is required. This may-reach check does not prove same-binding data flow, dominance before campaign launch, or that exceptions are not swallowed. It does not establish process exclusivity or resume rejection."
     }
   ]
 }

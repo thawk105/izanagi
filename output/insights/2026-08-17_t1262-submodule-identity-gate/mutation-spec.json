@@ -1,0 +1,236 @@
+{
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "estimated_run_seconds": 120,
+ "timeout_seconds": 2400,
+ "hang_timeout_seconds": 2400,
+ "mutations": [
+  {
+   "id": "M01",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/codex_reasoning_ab.py",
+     "old": "    if diff.returncode == 1:\n        return [f\"initialized submodule index/HEAD tree mismatch: {label}\"]\n",
+     "new": "    if diff.returncode == 1 and False:\n        return [f\"initialized submodule index/HEAD tree mismatch: {label}\"]\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_codex_reasoning_ab.py::test_submodule_content_identity_reasons_rejects_empty_index_and_worktree",
+    "orchestrator/tests/test_codex_reasoning_ab.py::test_submodule_content_identity_reasons_rejects_index_entry_absent_from_head_tree",
+    "orchestrator/tests/test_codex_reasoning_ab.py::test_submodule_content_identity_reasons_rejects_replacement_ref_tree",
+    "orchestrator/tests/test_codex_reasoning_ab.py::test_verify_snapshot_submodule_content_gate_rejects_empty_index_and_worktree",
+    "orchestrator/tests/test_codex_reasoning_ab.py::test_verify_snapshot_submodule_content_gate_rejects_index_entry_absent_from_head_tree",
+    "orchestrator/tests/test_codex_reasoning_ab.py::test_verify_snapshot_submodule_content_gate_rejects_replacement_ref_without_closure"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M02",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/codex_reasoning_ab.py",
+     "old": "        if _raw_blob_object_id(payload) != object_id:\n",
+     "new": "        if False and _raw_blob_object_id(payload) != object_id:\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_codex_reasoning_ab.py::test_submodule_content_identity_reasons_rejects_crlf_worktree_bytes",
+    "orchestrator/tests/test_codex_reasoning_ab.py::test_submodule_content_identity_reasons_rejects_initialized_grandchild_change",
+    "orchestrator/tests/test_codex_reasoning_ab.py::test_submodule_content_identity_reasons_rejects_symlink_target_mismatch",
+    "orchestrator/tests/test_codex_reasoning_ab.py::test_submodule_content_identity_reasons_rejects_worktree_blob_mismatch",
+    "orchestrator/tests/test_codex_reasoning_ab.py::test_verify_snapshot_submodule_content_gate_rejects_crlf_worktree_bytes",
+    "orchestrator/tests/test_codex_reasoning_ab.py::test_verify_snapshot_submodule_content_gate_rejects_initialized_grandchild_change",
+    "orchestrator/tests/test_codex_reasoning_ab.py::test_verify_snapshot_submodule_content_gate_rejects_symlink_target_mismatch",
+    "orchestrator/tests/test_codex_reasoning_ab.py::test_verify_snapshot_submodule_content_gate_rejects_worktree_blob_mismatch_with_preserved_stat"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M03",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/codex_reasoning_ab.py",
+     "old": "            if resolved_git_path(admin_probe.stdout) != admin_dir:\n",
+     "new": "            if False and resolved_git_path(admin_probe.stdout) != admin_dir:\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_codex_reasoning_ab.py::test_init_submodules_from_local_source_rejects_rogue_source_admin",
+    "orchestrator/tests/test_codex_reasoning_ab.py::test_submodule_worktree_state_rejects_marker_bound_to_rogue_admin_dir",
+    "orchestrator/tests/test_codex_reasoning_ab.py::test_verify_snapshot_submodule_content_gate_rejects_git_marker_bound_to_rogue_admin_dir"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M04",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/codex_reasoning_ab.py",
+     "old": "            if resolved_git_path(common_probe.stdout) != admin_dir:\n",
+     "new": "            if False and resolved_git_path(common_probe.stdout) != admin_dir:\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_codex_reasoning_ab.py::test_submodule_worktree_state_rejects_external_common_dir",
+    "orchestrator/tests/test_codex_reasoning_ab.py::test_verify_snapshot_submodule_content_gate_rejects_external_common_dir"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M05",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/codex_reasoning_ab.py",
+     "old": "    if actual_files != expected_files:\n",
+     "new": "    if False and actual_files != expected_files:\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_codex_reasoning_ab.py::test_submodule_content_identity_reasons_rejects_ignored_extra_file",
+    "orchestrator/tests/test_codex_reasoning_ab.py::test_verify_snapshot_submodule_content_gate_rejects_ignored_extra_file_without_closure"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M06",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/codex_reasoning_ab.py",
+     "old": "                if stat.S_ISLNK(component_metadata.st_mode):\n",
+     "new": "                if False and stat.S_ISLNK(component_metadata.st_mode):\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_codex_reasoning_ab.py::test_submodule_worktree_state_rejects_symlinked_expected_admin_path",
+    "orchestrator/tests/test_codex_reasoning_ab.py::test_verify_snapshot_submodule_content_gate_rejects_symlinked_expected_admin_path"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M07",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/codex_reasoning_ab.py",
+     "old": "            if stat.S_ISLNK(metadata.st_mode) or not stat.S_ISDIR(\n                metadata.st_mode\n            ):\n                return [\n                    f\"initialized submodule tracked path crosses unsafe \"\n",
+     "new": "            if False:\n                return [\n                    f\"initialized submodule tracked path crosses unsafe \"\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_codex_reasoning_ab.py::test_submodule_content_identity_reasons_rejects_intermediate_directory_symlink",
+    "orchestrator/tests/test_codex_reasoning_ab.py::test_verify_snapshot_submodule_content_gate_rejects_intermediate_directory_symlink"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M08",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/codex_reasoning_ab.py",
+     "old": "            if forbidden:\n",
+     "new": "            if False and forbidden:\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_codex_reasoning_ab.py::test_derived_preflight_rejects_forbidden_includeif_config",
+    "orchestrator/tests/test_codex_reasoning_ab.py::test_init_submodules_from_local_source_rejects_forbidden_source_config",
+    "orchestrator/tests/test_codex_reasoning_ab.py::test_init_submodules_from_local_source_rejects_unexpanded_source_key",
+    "orchestrator/tests/test_codex_reasoning_ab.py::test_seal_allows_preseal_transport_but_strict_inventory_rejects_postseal",
+    "orchestrator/tests/test_codex_reasoning_ab.py::test_seal_preflight_rejects_forbidden_static_config",
+    "orchestrator/tests/test_codex_reasoning_ab.py::test_submodule_content_identity_reasons_rejects_forbidden_config_key[autocrlf]",
+    "orchestrator/tests/test_codex_reasoning_ab.py::test_submodule_content_identity_reasons_rejects_forbidden_config_key[filter]",
+    "orchestrator/tests/test_codex_reasoning_ab.py::test_submodule_content_identity_reasons_rejects_forbidden_config_key[fsmonitor]",
+    "orchestrator/tests/test_codex_reasoning_ab.py::test_submodule_content_identity_reasons_rejects_forbidden_config_key[include]",
+    "orchestrator/tests/test_codex_reasoning_ab.py::test_submodule_content_identity_reasons_rejects_forbidden_config_key[template-dir]",
+    "orchestrator/tests/test_codex_reasoning_ab.py::test_submodule_content_identity_reasons_rejects_forbidden_config_key[worktree-config]",
+    "orchestrator/tests/test_codex_reasoning_ab.py::test_submodule_content_identity_reasons_rejects_post_seal_config",
+    "orchestrator/tests/test_codex_reasoning_ab.py::test_submodule_content_identity_reasons_rejects_root_local_config",
+    "orchestrator/tests/test_codex_reasoning_ab.py::test_verify_snapshot_root_preflight_precedes_inventory",
+    "orchestrator/tests/test_codex_reasoning_ab.py::test_verify_snapshot_submodule_content_gate_rejects_post_seal_config",
+    "orchestrator/tests/test_codex_reasoning_ab.py::test_verify_snapshot_submodule_content_gate_rejects_root_local_config",
+    "orchestrator/tests/test_codex_reasoning_ab.py::test_verify_snapshot_submodule_preflight_skips_worktree_git_and_aggregates"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M09",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/codex_reasoning_ab.py",
+     "old": "        elif object_format != \"sha1\":\n",
+     "new": "        elif False and object_format != \"sha1\":\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_codex_reasoning_ab.py::test_submodule_content_identity_reasons_rejects_non_sha1_object_format"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M10",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/codex_reasoning_ab.py",
+     "old": "            if executable != (mode == \"100755\"):\n",
+     "new": "            if False and executable != (mode == \"100755\"):\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_codex_reasoning_ab.py::test_submodule_content_identity_reasons_rejects_executable_bit_mismatch",
+    "orchestrator/tests/test_codex_reasoning_ab.py::test_verify_snapshot_submodule_content_gate_rejects_executable_bit_mismatch"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M11",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/codex_reasoning_ab.py",
+     "old": "    def fail_walk(error: OSError) -> None:\n        raise error\n",
+     "new": "    def fail_walk(error: OSError) -> None:\n        return None\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_codex_reasoning_ab.py::test_submodule_content_identity_reasons_rejects_walk_error"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M12",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/codex_reasoning_ab.py",
+     "old": "            \"git\",\n            \"--no-replace-objects\",\n            \"diff-index\",\n",
+     "new": "            \"git\",\n            \"diff-index\",\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_codex_reasoning_ab.py::test_submodule_content_identity_reasons_rejects_replacement_ref_tree",
+    "orchestrator/tests/test_codex_reasoning_ab.py::test_verify_snapshot_submodule_content_gate_rejects_replacement_ref_without_closure"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  }
+ ]
+}

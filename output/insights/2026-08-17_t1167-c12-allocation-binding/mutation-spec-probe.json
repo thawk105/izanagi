@@ -1,0 +1,69 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 60,
+  "timeout_seconds": 1800,
+  "hang_timeout_seconds": 2400,
+  "mutations": [
+    {
+      "id": "M1-drop-read-binding-requirement",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8c_preregistration_evidence.py",
+          "old": "    required_functions = {\"read_binding\", \"check_reservation\"}",
+          "new": "    required_functions = {\"check_reservation\"}"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M2-drop-check-reservation-requirement",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8c_preregistration_evidence.py",
+          "old": "    required_functions = {\"read_binding\", \"check_reservation\"}",
+          "new": "    required_functions = {\"read_binding\"}"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M3-allocation-gate-after-env-gate",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8c_preregistration_evidence.py",
+          "old": "    allocation_verdict = _c12_allocation_binding_verdict(tree, allocation)\n    if allocation_verdict is not None:\n        status, reason = allocation_verdict\n        return _result(probe, status, reason)\n    calls = _reachable_calls(tree, \"run_trial\")",
+          "new": "    calls = _reachable_calls(tree, \"run_trial\")"
+        },
+        {
+          "file": "orchestrator/campaign/s8c_preregistration_evidence.py",
+          "old": "        return _result(probe, core.PredicateStatus.UNSATISFIED, ReasonCode.ENVIRONMENT_CONTRACT_CONSUMER_ABSENT)\n    return _result(\n        probe,\n        core.PredicateStatus.EVIDENCE_UNDEFINED,\n        ReasonCode.COMPLETION_PROOF_NOT_MACHINE_CHECKABLE,\n    )",
+          "new": "        return _result(probe, core.PredicateStatus.UNSATISFIED, ReasonCode.ENVIRONMENT_CONTRACT_CONSUMER_ABSENT)\n    allocation_verdict = _c12_allocation_binding_verdict(tree, allocation)\n    if allocation_verdict is not None:\n        status, reason = allocation_verdict\n        return _result(probe, status, reason)\n    return _result(\n        probe,\n        core.PredicateStatus.EVIDENCE_UNDEFINED,\n        ReasonCode.COMPLETION_PROOF_NOT_MACHINE_CHECKABLE,\n    )"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M4-decider-version-not-bumped",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8c_preregistration.py",
+          "old": "DECIDER_VERSION = \"s8c-decider/v2\"",
+          "new": "DECIDER_VERSION = \"s8c-decider/v1\""
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    }
+  ]
+}

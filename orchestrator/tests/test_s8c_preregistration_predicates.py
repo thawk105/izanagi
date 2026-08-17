@@ -2,6 +2,7 @@
 """s8c preregistration evidence predicate の fail-closed / 恒真化対策。"""
 from __future__ import annotations
 
+import ast
 import io
 import json
 import os
@@ -149,6 +150,44 @@ def test_current_repository_gap_reason_snapshot_requires_cross_wave_review(
         "C11": (core.PredicateStatus.EVIDENCE_UNDEFINED, "completion-proof-not-machine-checkable"),
         "C12": (core.PredicateStatus.UNSATISFIED, "allocation-enforcement-consumer-absent"),
     }
+
+
+def test_current_repository_c12_registry_reports_unwired_allocation_consumer(
+    tmp_path: Path,
+) -> None:
+    # production が正しく配線されたら反転させる snapshot tripwire である。
+    root, head = _snapshot_current_commit(tmp_path)
+    results = M.get_registry().evaluate_all(head, repo_root=root)
+    c12 = {item.id: item for item in results}["C12"]
+    assert c12.status is core.PredicateStatus.UNSATISFIED
+    assert c12.reason_code == "allocation-enforcement-consumer-absent"
+
+
+def test_current_repository_c12_allocation_binding_helper_reports_unwired_consumer(
+    tmp_path: Path,
+) -> None:
+    # production が正しく配線されたら反転させる snapshot tripwire である。
+    root, head = _snapshot_current_commit(tmp_path)
+    condition = M.load_contract_bytes(CONTRACT_FILE.read_bytes()).condition(12)
+    paths = {
+        item.artifact_kind: item.path for item in condition.required_evidence
+    }
+    supervisor_raw = core.read_blob_at(
+        root, head, paths["workload_supervisor"]
+    )
+    allocation_raw = core.read_blob_at(
+        root, head, paths["allocation_consumer"]
+    )
+    assert supervisor_raw is not None
+    assert allocation_raw is not None
+
+    supervisor = ast.parse(supervisor_raw)
+    allocation = ast.parse(allocation_raw)
+    assert {"read_binding", "check_reservation"} <= M._functions(allocation).keys()
+    assert M._c12_allocation_binding_verdict(supervisor, allocation) == (
+        core.PredicateStatus.UNSATISFIED,
+        M.ReasonCode.ALLOCATION_ENFORCEMENT_CONSUMER_ABSENT,
+    )
 
 
 def test_evidence_undefined_is_never_satisfied() -> None:
@@ -437,26 +476,113 @@ def validate_planner_payload(): pass
 """
 
 TOKEN_ONLY_C12 = """
-from . import env_contract, execution_guard, reservation
-class Policy:
-    single_process = True
-    allow_resume = False
-class Contract:
-    isolation_policy = Policy()
+from . import env_contract, execution_guard
+environ = {}
 def run_trial():
     contract = env_contract.lookup()
     execution_guard.attest_and_build_receipt(contract)
-    if not reservation.single_process_required(contract.isolation_policy):
-        raise RuntimeError
-    if contract.isolation_policy.allow_resume:
-        raise RuntimeError
-    return contract.isolation_policy.single_process
+    binding = read_binding(environ)
+    check_reservation(
+        binding,
+        required_s=1,
+        safety_margin_s=0,
+        environ=environ,
+    )
+    return binding
 def main():
     return run_trial()
 """
 
 
-def _negative_control_case(identifier: str) -> tuple[dict[str, str], str, str]:
+def test_c12_allocation_binding_helper_rejects_check_without_read_binding() -> None:
+    reservation = "orchestrator/campaign/reservation.py"
+    baseline = TOKEN_ONLY_C12.encode("utf-8")
+    read_binding_call = b"    binding = read_binding(environ)"
+    assert baseline.count(read_binding_call) == 1
+    without_read_binding = baseline.replace(
+        read_binding_call,
+        b"    binding = object()",
+    )
+    assert without_read_binding != baseline
+
+    supervisor = ast.parse(without_read_binding)
+    calls = M._reachable_calls(supervisor, "run_trial")
+    assert "check_reservation" in calls
+    assert "read_binding" not in calls
+    allocation = ast.parse(_git(_ROOT, "show", f"HEAD:{reservation}"))
+    assert M._c12_allocation_binding_verdict(supervisor, allocation) == (
+        core.PredicateStatus.UNSATISFIED,
+        M.ReasonCode.ALLOCATION_ENFORCEMENT_CONSUMER_ABSENT,
+    )
+
+
+def test_c12_allocation_binding_gate_precedes_environment_gate(
+    tmp_path: Path,
+) -> None:
+    root = _init_repo(tmp_path)
+    _write(
+        root,
+        "orchestrator/campaign/p3_autonomous_workload_trial.py",
+        "def run_trial(): return None\n",
+    )
+    reservation = "orchestrator/campaign/reservation.py"
+    _write(root, reservation, _git(_ROOT, "show", f"HEAD:{reservation}"))
+    head = _commit(root, "C12 allocation and environment consumers both absent")
+
+    result = _result(root, head, "C12")
+    assert result.status is core.PredicateStatus.UNSATISFIED
+    assert result.reason_code == "allocation-enforcement-consumer-absent"
+
+
+def test_current_repository_c12_allocation_binding_helper_accepts_both_calls_overlay(
+) -> None:
+    condition = M.load_contract_bytes(CONTRACT_FILE.read_bytes()).condition(12)
+    paths = {
+        item.artifact_kind: item.path for item in condition.required_evidence
+    }
+    supervisor_raw = _git(
+        _ROOT,
+        "show",
+        f"HEAD:{paths['workload_supervisor']}",
+    )
+    allocation_raw = _git(
+        _ROOT,
+        "show",
+        f"HEAD:{paths['allocation_consumer']}",
+    )
+    anchor = b"""    if drive is _DRIVE_NOT_PROVIDED:
+        drive = trigger.drive_iteration
+    if preview is _PREVIEW_NOT_PROVIDED:
+        preview = _preview
+    _validate_generation_budget(generations)
+"""
+    injection = anchor + b"""    from .reservation import check_reservation, read_binding
+    allocation_binding = read_binding(os.environ)
+    check_reservation(
+        allocation_binding,
+        required_s=max_wall_s,
+        safety_margin_s=0,
+        environ=os.environ,
+    )
+"""
+    assert supervisor_raw.count(anchor) == 1
+    overlay_raw = supervisor_raw.replace(anchor, injection)
+    assert overlay_raw != supervisor_raw
+
+    baseline_calls = M._reachable_calls(ast.parse(supervisor_raw), "run_trial")
+    assert {"read_binding", "check_reservation"}.isdisjoint(baseline_calls)
+    overlay = ast.parse(overlay_raw)
+    assert {"read_binding", "check_reservation"} <= M._reachable_calls(
+        overlay,
+        "run_trial",
+    )
+    allocation = ast.parse(allocation_raw)
+    assert M._c12_allocation_binding_verdict(overlay, allocation) is None
+
+
+def _negative_control_case(
+    identifier: str,
+) -> tuple[dict[str, bytes | str], str, bytes | str]:
     p3 = "orchestrator/campaign/p3_autonomous_workload_trial.py"
     registry = "orchestrator/campaign/trial_registry.py"
     if identifier == "nc_c01_perf_scale_regression":
@@ -499,20 +625,27 @@ def _negative_control_case(identifier: str) -> tuple[dict[str, str], str, str]:
                 TOKEN_ONLY_C11_PROJECTION,
         }
         return sources, p3, TOKEN_ONLY_C11.replace("MAX_APPROVED_GENERATIONS = 2", "MAX_APPROVED_GENERATIONS = 1")
-    if identifier == "nc_c12_resume_or_multi_process_allowed":
+    if identifier == "nc_c12_reservation_check_bypassed":
+        reservation = "orchestrator/campaign/reservation.py"
+        baseline = TOKEN_ONLY_C12.encode("utf-8")
+        reservation_check = b"""    check_reservation(
+        binding,
+        required_s=1,
+        safety_margin_s=0,
+        environ=environ,
+    )"""
+        bypass = b"    is_reservation_required(contract.isolation_policy)"
+        assert baseline.count(reservation_check) == 1
+        mutated = baseline.replace(reservation_check, bypass)
+        assert mutated != baseline
         sources = {
             p3: TOKEN_ONLY_C12,
             "orchestrator/campaign/env_contract.py": "def lookup(): pass\n",
             "orchestrator/campaign/execution_guard.py":
                 "def attest_and_build_receipt(): pass\n",
-            "orchestrator/campaign/reservation.py":
-                "def single_process_required(): pass\n",
+            reservation: _git(_ROOT, "show", f"HEAD:{reservation}"),
         }
-        return sources, p3, TOKEN_ONLY_C12.replace(
-            "reservation.single_process_required(contract.isolation_policy)",
-            "multi_process_allowed(contract.isolation_policy)",
-            1,
-        )
+        return sources, p3, mutated
     raise AssertionError(identifier)
 
 
@@ -522,7 +655,7 @@ NEGATIVE_CONTROL_CASES = {
     "nc_c09_acceptance_skips_layer3": "C09",
     "nc_c10_raw_response_unbound": "C10",
     "nc_c11_generation_cap_reverts_to_one": "C11",
-    "nc_c12_resume_or_multi_process_allowed": "C12",
+    "nc_c12_reservation_check_bypassed": "C12",
 }
 
 
@@ -546,7 +679,8 @@ def _c12_modules(supervisor: str) -> dict[str, str]:
         "orchestrator/campaign/execution_guard.py":
             "def attest_and_build_receipt(*args): pass\n",
         "orchestrator/campaign/reservation.py":
-            "def single_process_required(*args): return True\n",
+            "def read_binding(*args): return object()\n"
+            "def check_reservation(*args, **kwargs): pass\n",
     }
 
 
@@ -554,38 +688,32 @@ def _c12_modules(supervisor: str) -> dict[str, str]:
     "imports_and_calls",
     [
         pytest.param(
-            "from . import env_contract, execution_guard, reservation\n"
-            "ENV = env_contract.lookup\nGUARD = execution_guard.attest_and_build_receipt\n"
-            "ALLOC = reservation.single_process_required\n",
+            "from . import env_contract, execution_guard\n"
+            "ENV = env_contract.lookup\nGUARD = execution_guard.attest_and_build_receipt\n",
             id="multi-name-from-package",
         ),
         pytest.param(
             "from .env_contract import lookup\n"
             "from .execution_guard import attest_and_build_receipt\n"
-            "from .reservation import single_process_required\n"
-            "ENV = lookup\nGUARD = attest_and_build_receipt\nALLOC = single_process_required\n",
+            "ENV = lookup\nGUARD = attest_and_build_receipt\n",
             id="from-symbol",
         ),
         pytest.param(
             "from .env_contract import lookup as ENV\n"
-            "from .execution_guard import attest_and_build_receipt as GUARD\n"
-            "from .reservation import single_process_required as ALLOC\n",
+            "from .execution_guard import attest_and_build_receipt as GUARD\n",
             id="from-symbol-as",
         ),
         pytest.param(
             "import orchestrator.campaign.env_contract as e\n"
             "import orchestrator.campaign.execution_guard as g\n"
-            "import orchestrator.campaign.reservation as r\n"
-            "ENV = e.lookup\nGUARD = g.attest_and_build_receipt\nALLOC = r.single_process_required\n",
+            "ENV = e.lookup\nGUARD = g.attest_and_build_receipt\n",
             id="absolute-import-as",
         ),
         pytest.param(
             "import orchestrator.campaign.env_contract\n"
             "import orchestrator.campaign.execution_guard\n"
-            "import orchestrator.campaign.reservation\n"
             "ENV = orchestrator.campaign.env_contract.lookup\n"
-            "GUARD = orchestrator.campaign.execution_guard.attest_and_build_receipt\n"
-            "ALLOC = orchestrator.campaign.reservation.single_process_required\n",
+            "GUARD = orchestrator.campaign.execution_guard.attest_and_build_receipt\n",
             id="absolute-import",
         ),
     ],
@@ -594,18 +722,13 @@ def test_cross_module_import_forms_resolve_exact_bound_target(
     tmp_path: Path, imports_and_calls: str
 ) -> None:
     supervisor = imports_and_calls + """
-class Policy:
-    single_process = True
-    allow_resume = False
-class Contract:
-    isolation_policy = Policy()
+environ = {}
 def run_trial():
     contract = ENV()
     GUARD(contract)
-    ALLOC(contract.isolation_policy)
-    if contract.isolation_policy.allow_resume:
-        raise RuntimeError
-    return contract.isolation_policy.single_process
+    binding = read_binding(environ)
+    check_reservation(binding, required_s=1, safety_margin_s=0, environ=environ)
+    return binding
 def main(): return run_trial()
 """
     _, _, result = _terminal_result(
@@ -622,21 +745,18 @@ def main(): return run_trial()
 VALUE_FLOW_C12 = """
 from . import env_contract, reservation, trigger
 SENTINEL = object()
-class Policy:
-    single_process = True
-    allow_resume = False
-class Contract:
-    isolation_policy = Policy()
+environ = {}
 def relay(*, drive, contract, origin_runtime=None):
     drive(contract)
-    return contract.isolation_policy.single_process
+    return contract
 def run_trial(drive=SENTINEL):
     if drive is SENTINEL:
         drive = trigger.drive_iteration
     contract = env_contract.lookup()
-    reservation.single_process_required(contract.isolation_policy)
-    if contract.isolation_policy.allow_resume:
-        raise RuntimeError
+    binding = reservation.read_binding(environ)
+    reservation.check_reservation(
+        binding, required_s=1, safety_margin_s=0, environ=environ
+    )
     return relay(drive=drive, contract=contract)
 def main():
     return run_trial()
@@ -953,13 +1073,13 @@ def test_c12_allocation_target_requires_exact_imported_definition(
     root, _, _ = _terminal_result(tmp_path, "exact-target", "C12", sources)
     reservation = "orchestrator/campaign/reservation.py"
     if absence == "missing-definition":
-        _write(root, reservation, "def unrelated(): pass\n")
+        _write(root, reservation, "def read_binding(*args): return object()\n")
     else:
-        _write(root, reservation, "def unrelated(): pass\n")
+        _write(root, reservation, "def read_binding(*args): return object()\n")
         _write(
             root,
             "orchestrator/campaign/unimported_decoy.py",
-            "def single_process_required(*args): return True\n",
+            "def check_reservation(*args, **kwargs): pass\n",
         )
     head = _commit(root, absence)
     result = _result(root, head, "C12")
@@ -971,32 +1091,55 @@ def test_c12_allocation_target_requires_exact_imported_definition(
     ("absence", "supervisor"),
     [
         pytest.param(
-            "call-edge",
+            "read-binding-call-edge",
             TOKEN_ONLY_C12.replace(
-                "if not reservation.single_process_required(contract.isolation_policy):",
-                "if not True:",
+                "    binding = read_binding(environ)",
+                "    binding = object()",
             ),
-            id="call-edge",
+            id="read-binding-call-edge",
         ),
         pytest.param(
-            "single-process-attribute",
+            "check-reservation-call-edge",
             TOKEN_ONLY_C12.replace(
-                "return contract.isolation_policy.single_process", "return True"
+                "    check_reservation(\n"
+                "        binding,\n"
+                "        required_s=1,\n"
+                "        safety_margin_s=0,\n"
+                "        environ=environ,\n"
+                "    )",
+                "    is_reservation_required(binding)",
             ),
-            id="single-process-attribute",
+            id="check-reservation-call-edge",
         ),
         pytest.param(
-            "allow-resume-attribute",
+            "unreachable-check-reservation",
             TOKEN_ONLY_C12.replace(
-                "if contract.isolation_policy.allow_resume:", "if False:"
+                "    check_reservation(\n"
+                "        binding,\n"
+                "        required_s=1,\n"
+                "        safety_margin_s=0,\n"
+                "        environ=environ,\n"
+                "    )",
+                "    return binding\n"
+                "def never_called():\n"
+                "    check_reservation(\n"
+                "        None, required_s=1, safety_margin_s=0, environ=environ\n"
+                "    )",
             ),
-            id="allow-resume-attribute",
+            id="unreachable-check-reservation",
         ),
     ],
 )
 def test_c12_allocation_absence_shapes_are_independent_from_definition(
     tmp_path: Path, absence: str, supervisor: str
 ) -> None:
+    removed = {
+        "read-binding-call-edge": "    binding = read_binding(environ)",
+        "check-reservation-call-edge": "    check_reservation(\n",
+        "unreachable-check-reservation": "    check_reservation(\n",
+    }[absence]
+    assert TOKEN_ONLY_C12.count(removed) == 1
+    assert supervisor != TOKEN_ONLY_C12, absence
     sources = _c12_modules(TOKEN_ONLY_C12)
     root, _, _ = _terminal_result(tmp_path, "allocation-baseline", "C12", sources)
     _write(
@@ -1117,8 +1260,8 @@ def test_test_only_target_is_rejected_for_all_reachability_conditions(
         decoy = "def assert_campaign_layer3_chain(): pass\n"
     else:
         source = source.replace(
-            "from . import env_contract, execution_guard, reservation",
-            "from . import env_contract, reservation\n"
+            "from . import env_contract, execution_guard",
+            "from . import env_contract\n"
             "from orchestrator.tests import fake_target as execution_guard",
         )
         decoy = "def attest_and_build_receipt(*args): pass\n"
@@ -1230,7 +1373,7 @@ def test_absence_matrix_exclusions_are_explicit_and_limited() -> None:
         pytest.param(
             "module-rebind",
             TOKEN_ONLY_C12.replace(
-                "class Policy:", "env_contract = None\nclass Policy:"
+                "environ = {}", "env_contract = None\nenviron = {}"
             ),
             {},
             id="module-rebind",
@@ -1246,8 +1389,8 @@ def test_absence_matrix_exclusions_are_explicit_and_limited() -> None:
         pytest.param(
             "test-only",
             TOKEN_ONLY_C12.replace(
-                "from . import env_contract, execution_guard, reservation",
-                "from . import env_contract, reservation\n"
+                "from . import env_contract, execution_guard",
+                "from . import env_contract\n"
                 "from orchestrator.tests import fake_guard as execution_guard",
             ),
             {"orchestrator/tests/fake_guard.py": "def attest_and_build_receipt(*args): pass\n"},

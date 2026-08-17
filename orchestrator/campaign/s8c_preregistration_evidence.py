@@ -348,6 +348,26 @@ def _assigned_integer(tree: ast.Module, name: str) -> int | None:
     return None
 
 
+def _reachable_functions(tree: ast.Module, start: str) -> set[str]:
+    functions = _functions(tree)
+    reached: set[str] = set()
+    pending = [start]
+    while pending:
+        name = pending.pop()
+        if name in reached or name not in functions:
+            continue
+        reached.add(name)
+        pending.extend(_called_names(functions[name]) & functions.keys())
+    return reached
+
+
+def _reachable_calls(tree: ast.Module, start: str) -> set[str]:
+    functions = _functions(tree)
+    return set().union(
+        *(_called_names(functions[name]) for name in _reachable_functions(tree, start))
+    ) if start in functions else set()
+
+
 _MAX_REACHABILITY_MODULES = 512
 _MAX_REACHABILITY_DEPTH = 64
 _MAX_REACHABILITY_STATES = 2048
@@ -1527,11 +1547,34 @@ def _evaluate_c11(probe: _ConditionProbe) -> core.PredicateResult:
     )
 
 
+def _c12_allocation_binding_verdict(
+    workload_supervisor: ast.Module,
+    allocation_consumer: ast.Module | None,
+) -> tuple[core.PredicateStatus, ReasonCode] | None:
+    required_functions = {"read_binding", "check_reservation"}
+    if (
+        allocation_consumer is None
+        or not required_functions <= _functions(allocation_consumer).keys()
+        or not required_functions
+        <= _reachable_calls(workload_supervisor, "run_trial")
+    ):
+        return (
+            core.PredicateStatus.UNSATISFIED,
+            ReasonCode.ALLOCATION_ENFORCEMENT_CONSUMER_ABSENT,
+        )
+    return None
+
+
 def _evaluate_c12(probe: _ConditionProbe) -> core.PredicateResult:
-    workload_path = probe.requirement("workload_supervisor").path
     tree = probe.python_kind("workload_supervisor")
     if tree is None:
         return _result(probe, core.PredicateStatus.EVIDENCE_UNDEFINED, ReasonCode.WORKLOAD_SUPERVISOR_ABSENT)
+    allocation = probe.python_kind("allocation_consumer")
+    allocation_verdict = _c12_allocation_binding_verdict(tree, allocation)
+    if allocation_verdict is not None:
+        status, reason = allocation_verdict
+        return _result(probe, status, reason)
+    workload_path = probe.requirement("workload_supervisor").path
     functions = _functions(tree)
     if functions.get("run_trial") is None or functions.get("main") is None:
         return _result(probe, core.PredicateStatus.UNSATISFIED, ReasonCode.ENVIRONMENT_CONTRACT_CONSUMER_ABSENT)
@@ -1540,15 +1583,10 @@ def _evaluate_c12(probe: _ConditionProbe) -> core.PredicateResult:
         return _result(probe, core.PredicateStatus.UNSATISFIED, ReasonCode.ENVIRONMENT_CONTRACT_CONSUMER_ABSENT)
     environment = probe.python_kind("environment_contract")
     guard = probe.python_kind("execution_guard")
-    allocation = probe.python_kind("allocation_consumer")
     environment_target = (probe.requirement("environment_contract").path, "lookup")
     guard_target = (
         probe.requirement("execution_guard").path,
         "attest_and_build_receipt",
-    )
-    allocation_target = (
-        probe.requirement("allocation_consumer").path,
-        "single_process_required",
     )
     if (
         environment is None
@@ -1561,13 +1599,6 @@ def _evaluate_c12(probe: _ConditionProbe) -> core.PredicateResult:
         )
     ):
         return _result(probe, core.PredicateStatus.UNSATISFIED, ReasonCode.ENVIRONMENT_CONTRACT_CONSUMER_ABSENT)
-    if (
-        allocation is None
-        or "single_process_required" not in _functions(allocation)
-        or not _declared_call(probe, graph, allocation_target)
-        or not {"single_process", "allow_resume"} <= graph.attributes
-    ):
-        return _result(probe, core.PredicateStatus.UNSATISFIED, ReasonCode.ALLOCATION_ENFORCEMENT_CONSUMER_ABSENT)
     return _result(
         probe,
         core.PredicateStatus.EVIDENCE_UNDEFINED,

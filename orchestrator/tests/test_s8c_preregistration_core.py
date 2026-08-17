@@ -766,17 +766,17 @@ def test_evidence_contract_hash_rejects_crlf_path_controls(
     [
         pytest.param(
             "\x00",
-            "8b8aafceb9dd5c83bde977c106facb4257318222a8a36cab38a4f18d3ab87fdc",
+            "8569c023aeb473fd4a02078ff392445af4174a70accd63efee70351460d0685c",
             id="nul",
         ),
         pytest.param(
             "\r",
-            "818001ee2e0cc0315809e5b2d72e0d565e78f43fca68743ed46ff99568dfa19b",
+            "8401901107438f127bc164bfe3fc754f108bcdc19cb2af198c93e1cec0a29768",
             id="cr",
         ),
         pytest.param(
             "\n",
-            "0773bb625645523ed4104bbd23f5c9e23da74e3c2d5c99f02fe7f8fb65c878da",
+            "8cec35e8879b6b611ee2c1afcf80cfca2f0095c203dc0b17eb6aba158d18998a",
             id="lf",
         ),
     ],
@@ -1157,7 +1157,7 @@ def test_evidence_contract_hash_preserves_canonicalization_reason_before_crlf(
 
 def test_current_evidence_contract_hash_is_frozen() -> None:
     assert M.evidence_contract_sha256(EVIDENCE_CONTRACT_FILE.read_bytes()) == (
-        "983f5d7c3b20e653dcf9518d76d8bbfbd9607fadcdd1b9d0a7118dbd578adb89"
+        "6944a0b0eed75917c9d489dd43c3b58e637f3d85b97203d1dc60d2cf96fbdf29"
     )
 
 
@@ -2059,13 +2059,12 @@ def test_invalid_running_decider_version_cannot_activate(
         __hash__ = str.__hash__
 
     root = _init_repo(tmp_path, filled=True)
-    head, raw = _install_g1(root)
-    recorded_version = json.loads(raw)["decider_version"]
+    head, _ = _install_g1(root)
     monkeypatch.setattr(M, "DECIDER_VERSION", InvalidRuntimeDecider("invalid-version"))
     report = M._activation_report_at_for_test(
         root, head, registry=_Registry(M.PredicateStatus.SATISFIED)
     )
-    assert report.decider_version == recorded_version
+    assert report.decider_version == "s8c-decider/v2"
     assert report.decider_version_matches is False
     assert report.decider_version_reason_code == "decider-version-mismatch"
     assert report.effective is False
@@ -2081,15 +2080,14 @@ def test_valid_hostile_str_subclass_cannot_fake_decider_version_match(
         __hash__ = str.__hash__
 
     root = _init_repo(tmp_path, filled=True)
-    head, raw = _install_g1(root)
-    recorded_version = json.loads(raw)["decider_version"]
+    head, _ = _install_g1(root)
     monkeypatch.setattr(
         M, "DECIDER_VERSION", HostileRuntimeDecider(M.DECIDER_VERSION)
     )
     report = M._activation_report_at_for_test(
         root, head, registry=_Registry(M.PredicateStatus.SATISFIED)
     )
-    assert report.decider_version == recorded_version
+    assert report.decider_version == "s8c-decider/v2"
     assert report.decider_version_matches is False
     assert report.decider_version_reason_code == "decider-version-mismatch"
     assert report.effective is False

@@ -713,6 +713,8 @@ def _snapshot_spec(case: str) -> dict[str, Any]:
 
 
 def _init_submodules_from_local_source(source: Path, snapshot: Path) -> None:
+    preflight_cache: dict[Path, tuple[str, ...]] = {}
+
     def initialize_pair(source_repo: Path, snapshot_repo: Path) -> None:
         entries = {
             relative: (mode, object_id)
@@ -732,8 +734,14 @@ def _init_submodules_from_local_source(source: Path, snapshot: Path) -> None:
                 relative,
                 mode_and_id[1],
                 source,
+                require_admin_within_snapshot=False,
+                preflight_cache=preflight_cache,
+                allow_builder_transport=True,
             )
             if state == "initialized":
+                repository_reasons = preflight_cache.get(local, ())
+                if repository_reasons:
+                    raise ValidationError(repository_reasons, RC_SNAPSHOT)
                 initialized.append((name, relative, local))
 
         for name, relative, local in initialized:
@@ -763,7 +771,9 @@ def _init_submodules_from_local_source(source: Path, snapshot: Path) -> None:
 
 
 def _git_dir(repo: Path) -> Path:
-    raw = _git(repo, "rev-parse", "--absolute-git-dir").decode().strip()
+    raw = _git(
+        repo, "--no-replace-objects", "rev-parse", "--absolute-git-dir"
+    ).decode().strip()
     return Path(raw).resolve()
 
 
@@ -858,6 +868,7 @@ def _direct_submodules(repository: Path) -> list[tuple[str, str]]:
     modules = _run(
         (
             "git",
+            "--no-replace-objects",
             "config",
             "-f",
             ".gitmodules",
@@ -918,6 +929,10 @@ def _submodule_worktree_state(
     relative: str,
     gitlink_commit: str,
     snapshot: Path,
+    *,
+    require_admin_within_snapshot: bool = True,
+    preflight_cache: dict[Path, tuple[str, ...]] | None = None,
+    allow_builder_transport: bool = False,
 ) -> tuple[str, Path]:
     snapshot = snapshot.resolve()
     repository = repository.resolve()
@@ -931,9 +946,10 @@ def _submodule_worktree_state(
     if repository not in candidate.parents or snapshot not in candidate.parents:
         raise ValidationError(f"submodule escapes snapshot: {relative}", RC_SNAPSHOT)
 
-    modules_root = (_git_dir(repository) / "modules").resolve()
-    admin_dir = (modules_root / name).resolve()
-    if admin_dir != modules_root and modules_root not in admin_dir.parents:
+    modules_root = _git_dir(repository) / "modules"
+    admin_path = modules_root / name
+    admin_dir = admin_path.resolve()
+    if admin_dir != modules_root.resolve() and modules_root.resolve() not in admin_dir.parents:
         raise ValidationError(
             f"submodule administrative path escapes object store: {name}",
             RC_SNAPSHOT,
@@ -952,8 +968,32 @@ def _submodule_worktree_state(
                 f"{candidate.relative_to(snapshot).as_posix()}",
                 RC_SNAPSHOT,
             )
+        if marker_exists and admin_exists:
+            if preflight_cache is None:
+                repository_reasons = tuple(
+                    _repository_preflight_reasons(
+                        snapshot,
+                        candidate,
+                        allow_builder_transport=allow_builder_transport,
+                    )
+                )
+            else:
+                repository_reasons = preflight_cache.get(candidate)
+                if repository_reasons is None:
+                    repository_reasons = tuple(
+                        _repository_preflight_reasons(
+                            snapshot,
+                            candidate,
+                            allow_builder_transport=allow_builder_transport,
+                        )
+                    )
+                    preflight_cache[candidate] = repository_reasons
+            if repository_reasons:
+                if preflight_cache is None:
+                    raise ValidationError(repository_reasons, RC_SNAPSHOT)
+                return "initialized", candidate
         probe = _run(
-            ("git", "rev-parse", "--show-toplevel"),
+            ("git", "--no-replace-objects", "rev-parse", "--show-toplevel"),
             cwd=candidate_path,
             check=False,
         )
@@ -961,12 +1001,114 @@ def _submodule_worktree_state(
             probe.returncode == 0
             and Path(probe.stdout.decode().strip()).resolve() == candidate
         ):
-            head = _git(candidate_path, "rev-parse", "HEAD").decode().strip()
+            label = candidate.relative_to(snapshot).as_posix()
+            head_probe = _run(
+                ("git", "--no-replace-objects", "rev-parse", "HEAD"),
+                cwd=candidate_path,
+                check=False,
+            )
+            if head_probe.returncode != 0:
+                raise ValidationError(
+                    f"initialized submodule HEAD cannot be resolved: {label}",
+                    RC_SNAPSHOT,
+                )
+            head = head_probe.stdout.decode().strip()
             if head != gitlink_commit:
                 raise ValidationError(
                     f"initialized submodule HEAD/gitlink mismatch: "
                     f"{candidate.relative_to(snapshot).as_posix()}: "
                     f"{head} != {gitlink_commit}",
+                    RC_SNAPSHOT,
+                )
+            marker = candidate_path / ".git"
+            try:
+                marker_metadata = marker.lstat()
+            except OSError as exc:
+                raise ValidationError(
+                    f"initialized submodule git marker cannot be inspected: "
+                    f"{label}: {exc}",
+                    RC_SNAPSHOT,
+                ) from exc
+            if stat.S_ISLNK(marker_metadata.st_mode) or not stat.S_ISREG(
+                marker_metadata.st_mode
+            ):
+                raise ValidationError(
+                    f"initialized submodule git marker is not a non-symlink "
+                    f"regular file: {label}",
+                    RC_SNAPSHOT,
+                )
+            try:
+                admin_relative = admin_path.relative_to(snapshot)
+            except ValueError:
+                if require_admin_within_snapshot:
+                    raise ValidationError(
+                        f"initialized submodule administrative path escapes "
+                        f"snapshot: {label}",
+                        RC_SNAPSHOT,
+                    )
+                cursor = Path(admin_path.anchor)
+                admin_components = admin_path.parts[1:]
+            else:
+                cursor = snapshot
+                admin_components = admin_relative.parts
+            for component in admin_components:
+                cursor /= component
+                try:
+                    component_metadata = cursor.lstat()
+                except OSError as exc:
+                    raise ValidationError(
+                        f"initialized submodule administrative path cannot be "
+                        f"inspected: {label}: {exc}",
+                        RC_SNAPSHOT,
+                    ) from exc
+                if stat.S_ISLNK(component_metadata.st_mode):
+                    raise ValidationError(
+                        f"initialized submodule administrative path contains "
+                        f"a symlink: {label}",
+                        RC_SNAPSHOT,
+                    )
+
+            admin_probe = _run(
+                (
+                    "git",
+                    "--no-replace-objects",
+                    "rev-parse",
+                    "--absolute-git-dir",
+                ),
+                cwd=candidate_path,
+                check=False,
+            )
+            common_probe = _run(
+                (
+                    "git",
+                    "--no-replace-objects",
+                    "rev-parse",
+                    "--git-common-dir",
+                ),
+                cwd=candidate_path,
+                check=False,
+            )
+            if admin_probe.returncode != 0 or common_probe.returncode != 0:
+                raise ValidationError(
+                    f"initialized submodule gitdir/common-dir cannot be "
+                    f"inspected: {label}",
+                    RC_SNAPSHOT,
+                )
+
+            def resolved_git_path(payload: bytes) -> Path:
+                path = Path(os.fsdecode(payload.strip()))
+                if not path.is_absolute():
+                    path = candidate_path / path
+                return path.resolve()
+
+            if resolved_git_path(admin_probe.stdout) != admin_dir:
+                raise ValidationError(
+                    f"initialized submodule gitdir/admin mismatch: {label}",
+                    RC_SNAPSHOT,
+                )
+            if resolved_git_path(common_probe.stdout) != admin_dir:
+                raise ValidationError(
+                    f"initialized submodule common-dir/admin mismatch: {label}",
                     RC_SNAPSHOT,
                 )
             return "initialized", candidate
@@ -981,7 +1123,12 @@ def _submodule_worktree_state(
     return "uninitialized", candidate
 
 
-def _submodule_inventory(snapshot: Path) -> tuple[list[Path], list[dict[str, str]]]:
+def _submodule_inventory(
+    snapshot: Path,
+    *,
+    preflight_cache: dict[Path, tuple[str, ...]] | None = None,
+    allow_builder_transport: bool = False,
+) -> tuple[list[Path], list[dict[str, str]]]:
     snapshot = snapshot.resolve()
     repositories: list[Path] = []
     rows: list[dict[str, str]] = []
@@ -1014,6 +1161,8 @@ def _submodule_inventory(snapshot: Path) -> tuple[list[Path], list[dict[str, str
                 relative,
                 gitlinks[relative],
                 snapshot,
+                preflight_cache=preflight_cache,
+                allow_builder_transport=allow_builder_transport,
             )
             manifest_path = candidate.relative_to(snapshot).as_posix()
             if candidate in seen:
@@ -1031,7 +1180,11 @@ def _submodule_inventory(snapshot: Path) -> tuple[list[Path], list[dict[str, str
             )
             if state == "initialized":
                 repositories.append(candidate)
-                visit(candidate)
+                if not (
+                    preflight_cache is not None
+                    and preflight_cache.get(candidate)
+                ):
+                    visit(candidate)
 
     visit(snapshot)
     return repositories, rows
@@ -1121,7 +1274,9 @@ def _preflight_snapshot_relocation(base: Path) -> None:
 
 
 def _seal_git_object_closure(snapshot: Path) -> None:
-    repositories, _ = _submodule_inventory(snapshot)
+    repositories, _ = _submodule_inventory(
+        snapshot, allow_builder_transport=True
+    )
     _seal_one_git_closure(snapshot, f"refs/heads/{BRANCH}")
     for repository in repositories:
         _seal_one_git_closure(repository, None)
@@ -1199,7 +1354,13 @@ def _filesystem_file_set(snapshot: Path) -> set[str]:
 
 def _index_stage_entries(repository: Path) -> list[tuple[str, str, str, str]]:
     entries: list[tuple[str, str, str, str]] = []
-    raw = _git(repository, "ls-files", "--stage", "-z")
+    raw = _git(
+        repository,
+        "--no-replace-objects",
+        "ls-files",
+        "--stage",
+        "-z",
+    )
     for record in raw.split(b"\0"):
         if not record:
             continue
@@ -1237,9 +1398,374 @@ def _index_stage_entries(repository: Path) -> list[tuple[str, str, str, str]]:
     return entries
 
 
-def _expected_filesystem_files(snapshot: Path, untracked: Iterable[str]) -> set[str]:
+_LOCAL_CONFIG_STATIC_KEYS = frozenset(
+    {
+        "core.bare",
+        "core.filemode",
+        "core.ignorecase",
+        "core.logallrefupdates",
+        "core.precomposeunicode",
+        "core.repositoryformatversion",
+        "core.symlinks",
+        "core.worktree",
+    }
+)
+_LOCAL_CONFIG_DYNAMIC_KEYS = (
+    re.compile(r"branch\..+\.(?:merge|remote)\Z"),
+    re.compile(r"remote\..+\.(?:fetch|url)\Z"),
+    re.compile(
+        r"submodule\..+\."
+        r"(?:active|branch|fetchrecursesubmodules|ignore|update|url)\Z"
+    ),
+    re.compile(r"user\.(?:email|name)\Z"),
+)
+
+
+def _repository_label(snapshot: Path, repository: Path) -> str:
+    if repository == snapshot:
+        return "."
+    try:
+        return repository.relative_to(snapshot).as_posix()
+    except ValueError:
+        return "<outside-snapshot>"
+
+
+def _local_config_allowlist_reasons(
+    snapshot: Path,
+    repositories: Sequence[Path],
+    *,
+    allow_builder_transport: bool = False,
+) -> list[str]:
+    reasons: list[str] = []
+    for repository in repositories:
+        label = _repository_label(snapshot, repository)
+        try:
+            probe = _run(
+                (
+                    "git",
+                    "--no-replace-objects",
+                    "config",
+                    "--local",
+                    "--name-only",
+                    "--null",
+                    "--list",
+                ),
+                cwd=repository,
+                check=False,
+            )
+            if probe.returncode != 0:
+                reasons.append(
+                    f"snapshot repository local config cannot be inspected: "
+                    f"{label}"
+                )
+                continue
+            keys = sorted(
+                {
+                    os.fsdecode(raw).lower()
+                    for raw in probe.stdout.split(b"\0")
+                    if raw
+                }
+            )
+            forbidden = [
+                key
+                for key in keys
+                if key not in _LOCAL_CONFIG_STATIC_KEYS
+                and not (
+                    allow_builder_transport
+                    and any(
+                        pattern.fullmatch(key)
+                        for pattern in _LOCAL_CONFIG_DYNAMIC_KEYS
+                    )
+                )
+            ]
+            if forbidden:
+                reasons.append(
+                    f"snapshot repository local config is not allowlisted: "
+                    f"{label}: {forbidden}"
+                )
+        except Exception as exc:
+            reasons.append(
+                f"snapshot repository local config cannot be inspected: "
+                f"{label}: {type(exc).__name__}"
+            )
+    return reasons
+
+
+def _raw_blob_object_id(payload: bytes) -> str:
+    header = f"blob {len(payload)}\0".encode("ascii")
+    return hashlib.sha1(header + payload).hexdigest()
+
+
+def _submodule_non_directory_files(
+    repository: Path, gitlinks: set[str]
+) -> set[str]:
+    found: set[str] = set()
+
+    def fail_walk(error: OSError) -> None:
+        raise error
+
+    for current, directories, files in os.walk(
+        repository, followlinks=False, onerror=fail_walk
+    ):
+        current_path = Path(current)
+        current_relative = current_path.relative_to(repository)
+        retained: list[str] = []
+        for name in directories:
+            path = current_path / name
+            relative = (current_relative / name).as_posix()
+            metadata = path.lstat()
+            if current_relative == Path() and name == ".git":
+                continue
+            if relative in gitlinks:
+                continue
+            if stat.S_ISLNK(metadata.st_mode):
+                found.add(relative)
+                continue
+            retained.append(name)
+        directories[:] = retained
+        for name in files:
+            found.add((current_relative / name).as_posix())
+    return found
+
+
+def _one_submodule_content_identity_reasons(
+    snapshot: Path, repository: Path
+) -> list[str]:
+    label = _repository_label(snapshot, repository)
+    diff = _run(
+        (
+            "git",
+            "--no-replace-objects",
+            "diff-index",
+            "--cached",
+            "--quiet",
+            "--ignore-submodules=none",
+            "HEAD",
+            "--",
+        ),
+        cwd=repository,
+        check=False,
+    )
+    if diff.returncode == 1:
+        return [f"initialized submodule index/HEAD tree mismatch: {label}"]
+    if diff.returncode != 0:
+        return [
+            f"initialized submodule content cannot be inspected: {label}: "
+            f"diff-index exited {diff.returncode}"
+        ]
+
+    entries = _index_stage_entries(repository)
+    indexed_files: set[str] = set()
+    gitlinks: set[str] = set()
+    for mode, object_id, _, relative in entries:
+        raw_relative = Path(relative)
+        if (
+            raw_relative.is_absolute()
+            or not raw_relative.parts
+            or any(part in {"", ".", ".."} for part in raw_relative.parts)
+        ):
+            return [
+                f"initialized submodule tracked path is unsafe: "
+                f"{label}: {relative}"
+            ]
+        cursor = repository
+        for component in raw_relative.parts[:-1]:
+            cursor /= component
+            try:
+                metadata = cursor.lstat()
+            except OSError:
+                return [
+                    f"initialized submodule tracked path cannot be inspected: "
+                    f"{label}: {relative}"
+                ]
+            if stat.S_ISLNK(metadata.st_mode) or not stat.S_ISDIR(
+                metadata.st_mode
+            ):
+                return [
+                    f"initialized submodule tracked path crosses unsafe "
+                    f"component: {label}: {relative}"
+                ]
+        path = repository / raw_relative
+        if mode == "160000":
+            gitlinks.add(relative)
+            if _path_lexists(path):
+                metadata = path.lstat()
+                if stat.S_ISLNK(metadata.st_mode) or not stat.S_ISDIR(
+                    metadata.st_mode
+                ):
+                    return [
+                        f"initialized submodule worktree/index mode mismatch: "
+                        f"{label}: {relative}"
+                    ]
+            continue
+        indexed_files.add(relative)
+        try:
+            metadata = path.lstat()
+        except OSError:
+            return [
+                f"initialized submodule worktree/index mismatch: "
+                f"{label}: {relative}"
+            ]
+        if mode == "120000":
+            if not stat.S_ISLNK(metadata.st_mode):
+                return [
+                    f"initialized submodule worktree/index mode mismatch: "
+                    f"{label}: {relative}"
+                ]
+            payload = os.fsencode(os.readlink(path))
+        else:
+            if stat.S_ISLNK(metadata.st_mode) or not stat.S_ISREG(
+                metadata.st_mode
+            ):
+                return [
+                    f"initialized submodule worktree/index mode mismatch: "
+                    f"{label}: {relative}"
+                ]
+            executable = bool(metadata.st_mode & stat.S_IXUSR)
+            if executable != (mode == "100755"):
+                return [
+                    f"initialized submodule worktree/index mode mismatch: "
+                    f"{label}: {relative}"
+                ]
+            payload = path.read_bytes()
+        if _raw_blob_object_id(payload) != object_id:
+            return [
+                f"initialized submodule worktree/index mismatch: "
+                f"{label}: {relative}"
+            ]
+
+    actual_files = _submodule_non_directory_files(repository, gitlinks)
+    expected_files = indexed_files | {".git"}
+    if actual_files != expected_files:
+        extra = sorted(actual_files - expected_files)
+        missing = sorted(expected_files - actual_files)
+        return [
+            f"initialized submodule worktree file-set mismatch: {label}: "
+            f"extra={extra}, missing={missing}"
+        ]
+    return []
+
+
+def _repository_preflight_reasons(
+    snapshot: Path,
+    repository: Path,
+    *,
+    allow_builder_transport: bool = False,
+) -> list[str]:
     snapshot = snapshot.resolve()
-    initialized, _ = _submodule_inventory(snapshot)
+    repository = repository.resolve()
+    reasons: list[str] = []
+    label = _repository_label(snapshot, repository)
+    try:
+        probe = _run(
+            (
+                "git",
+                "--no-replace-objects",
+                "rev-parse",
+                "--show-object-format",
+            ),
+            cwd=repository,
+            check=False,
+        )
+        object_format = probe.stdout.decode("ascii").strip()
+        if probe.returncode != 0:
+            reasons.append(
+                f"snapshot repository object format cannot be inspected: "
+                f"{label}"
+            )
+        elif object_format != "sha1":
+            reasons.append(
+                f"snapshot repository object format is not sha1: "
+                f"{label}: {object_format}"
+            )
+    except Exception as exc:
+        reasons.append(
+            f"snapshot repository object format cannot be inspected: "
+            f"{label}: {type(exc).__name__}"
+        )
+    if not reasons:
+        reasons.extend(
+            _local_config_allowlist_reasons(
+                snapshot,
+                (repository,),
+                allow_builder_transport=allow_builder_transport,
+            )
+        )
+    return reasons
+
+
+def _cached_repository_preflight_reasons(
+    snapshot: Path,
+    repository: Path,
+    cache: dict[Path, tuple[str, ...]],
+    *,
+    allow_builder_transport: bool = False,
+) -> tuple[str, ...]:
+    repository = repository.resolve()
+    cached = cache.get(repository)
+    if cached is None:
+        cached = tuple(
+            _repository_preflight_reasons(
+                snapshot,
+                repository,
+                allow_builder_transport=allow_builder_transport,
+            )
+        )
+        cache[repository] = cached
+    return cached
+
+
+def _submodule_content_identity_reasons(
+    snapshot: Path,
+    repositories: Sequence[Path],
+    *,
+    preflight_cache: dict[Path, tuple[str, ...]] | None = None,
+) -> list[str]:
+    try:
+        snapshot = snapshot.resolve()
+        repositories = [repository.resolve() for repository in repositories]
+    except Exception as exc:
+        return [
+            f"initialized submodule content cannot be inspected: "
+            f"{type(exc).__name__}"
+        ]
+    if any(snapshot not in repository.parents for repository in repositories):
+        return [
+            "initialized submodule repository escapes snapshot: "
+            "<outside-snapshot>"
+        ]
+    cache = preflight_cache if preflight_cache is not None else {}
+    reasons = list(
+        _cached_repository_preflight_reasons(snapshot, snapshot, cache)
+    )
+    for repository in repositories:
+        repository_preflight = _cached_repository_preflight_reasons(
+            snapshot, repository, cache
+        )
+        if repository_preflight:
+            reasons.extend(repository_preflight)
+            continue
+        try:
+            reasons.extend(
+                _one_submodule_content_identity_reasons(snapshot, repository)
+            )
+        except Exception as exc:
+            reasons.append(
+                f"initialized submodule content cannot be inspected: "
+                f"{_repository_label(snapshot, repository)}: "
+                f"{type(exc).__name__}"
+            )
+    return reasons
+
+
+def _expected_filesystem_files(
+    snapshot: Path,
+    untracked: Iterable[str],
+    initialized: Sequence[Path] | None = None,
+) -> set[str]:
+    snapshot = snapshot.resolve()
+    if initialized is None:
+        initialized, _ = _submodule_inventory(snapshot)
     repositories = [snapshot, *initialized]
     tracked: set[str] = set()
     for repository in repositories:
@@ -1394,19 +1920,35 @@ def _one_git_closure_reasons(
 
 
 def _git_closure_reasons(
-    snapshot: Path, untracked: Iterable[str]
+    snapshot: Path,
+    untracked: Iterable[str],
+    *,
+    inventory: tuple[list[Path], list[dict[str, str]]] | None = None,
+    preflight_cache: dict[Path, tuple[str, ...]] | None = None,
 ) -> tuple[list[str], list[dict[str, Any]], list[dict[str, str]]]:
-    initialized, submodules = _submodule_inventory(snapshot)
+    if inventory is None:
+        initialized, submodules = _submodule_inventory(snapshot)
+    else:
+        initialized, submodules = inventory
     reasons, root_manifest = _one_git_closure_reasons(
         snapshot, snapshot, [f"refs/heads/{BRANCH}"]
     )
     manifests = [root_manifest]
     for repository in initialized:
+        if preflight_cache is not None and preflight_cache.get(repository):
+            continue
         nested_reasons, nested_manifest = _one_git_closure_reasons(
             snapshot, repository, []
         )
         reasons.extend(nested_reasons)
         manifests.append(nested_manifest)
+    reasons.extend(
+        _submodule_content_identity_reasons(
+            snapshot,
+            initialized,
+            preflight_cache=preflight_cache,
+        )
+    )
     for forbidden in (INTEGRATED_COMMIT, ARTIFACT_COMMIT):
         probe = _run(("git", "cat-file", "-e", forbidden), cwd=snapshot, check=False)
         if probe.returncode == 0:
@@ -1424,14 +1966,21 @@ def _git_closure_reasons(
         probe = _run(("git", "cat-file", "-e", object_id), cwd=snapshot, check=False)
         if probe.returncode == 0:
             reasons.append(f"untracked artifact entered git object store: {relative}")
-    actual_files = _filesystem_file_set(snapshot)
-    expected_files = _expected_filesystem_files(snapshot, untracked)
-    extra = sorted(actual_files - expected_files)
-    missing = sorted(expected_files - actual_files)
-    if extra:
-        reasons.append(f"filesystem allowlist has extra files: {extra}")
-    if missing:
-        reasons.append(f"filesystem allowlist has missing files: {missing}")
+    preflight_failed = bool(
+        preflight_cache is not None
+        and any(preflight_cache.get(repository) for repository in initialized)
+    )
+    if not preflight_failed:
+        actual_files = _filesystem_file_set(snapshot)
+        expected_files = _expected_filesystem_files(
+            snapshot, untracked, initialized
+        )
+        extra = sorted(actual_files - expected_files)
+        missing = sorted(expected_files - actual_files)
+        if extra:
+            reasons.append(f"filesystem allowlist has extra files: {extra}")
+        if missing:
+            reasons.append(f"filesystem allowlist has missing files: {missing}")
     return reasons, manifests, submodules
 
 
@@ -1609,6 +2158,8 @@ def verify_snapshot(
     snapshot = snapshot.resolve()
     expected = dict(spec or _snapshot_spec(case))
     reasons: list[str] = []
+    inventory: tuple[list[Path], list[dict[str, str]]] | None = None
+    preflight_cache: dict[Path, tuple[str, ...]] = {}
     git_dir = snapshot / ".git"
     try:
         git_metadata = git_dir.lstat()
@@ -1619,6 +2170,17 @@ def verify_snapshot(
             git_metadata.st_mode
         ):
             reasons.append(".git is not a non-symlink directory")
+        else:
+            root_preflight_reasons = _cached_repository_preflight_reasons(
+                snapshot, snapshot, preflight_cache
+            )
+            if root_preflight_reasons:
+                raise ValidationError(
+                    root_preflight_reasons, RC_SNAPSHOT
+                )
+            inventory = _submodule_inventory(
+                snapshot, preflight_cache=preflight_cache
+            )
     try:
         head = _git(snapshot, "rev-parse", "HEAD").decode().strip()
         branch_result = _run(
@@ -1684,11 +2246,23 @@ def verify_snapshot(
     submodule_manifest: list[dict[str, str]] = []
     if enforce_closure:
         closure_reasons, git_manifests, submodule_manifest = _git_closure_reasons(
-            snapshot, expected["untracked"]
+            snapshot,
+            expected["untracked"],
+            inventory=inventory,
+            preflight_cache=preflight_cache,
         )
         reasons.extend(closure_reasons)
     else:
-        _, submodule_manifest = _submodule_inventory(snapshot)
+        if inventory is None:
+            inventory = _submodule_inventory(snapshot)
+        initialized, submodule_manifest = inventory
+        reasons.extend(
+            _submodule_content_identity_reasons(
+                snapshot,
+                initialized,
+                preflight_cache=preflight_cache,
+            )
+        )
     submodule_manifest_sha256 = _submodule_manifest_sha256(submodule_manifest)
     for row in submodule_manifest:
         if row["initialization"] != "initialized":

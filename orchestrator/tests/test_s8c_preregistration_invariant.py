@@ -179,9 +179,15 @@ def test_repository_tip_binds_current_decider_version_without_activation(
     )
     assert tip_raw is not None
     tip = json.loads(tip_raw)
+    record = prereg._load_freeze_record(
+        tip_raw,
+        expected_generation=report.freeze_generation,
+    )
 
     assert tip["schema_version"] == prereg.SCHEMA_VERSION
     assert tip["decider_version"] == prereg.DECIDER_VERSION
+    assert record.schema_version == prereg.SCHEMA_VERSION
+    assert record.decider_version == prereg.DECIDER_VERSION
     assert report.decider_version == prereg.DECIDER_VERSION
     assert report.decider_version_matches is True
     assert report.decider_version_reason_code == "decider-version-match"
