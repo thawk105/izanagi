@@ -34,6 +34,12 @@ title: 変異 TIMEOUT の生きている穴は local 申告 × 実 dispatch だ�
   harness → `run_tests.py` (同変数に触れない) → `_dispatch_environment()` (素通し) →
   dispatch の env allowlist → `request.json` の各段を実コードで確認した。
   ただし副次的な指摘は正当で、テストは carrier 連鎖の 1 段を pin していない。後続タスクへ。
+- **段 8 の自己改善は 1 件だけ実施した。** fixture が判定器の読む値を自作して実 producer の
+  連鎖を通さない近接事故は F109 と同型なので、新規 F を作らず再発として追記した。
+  DW-M06 の逐語 (「timeout は fail-open の証拠として記録し harness を落とさない」) は
+  実測すると本 wave で誤りになったわけではなく、queue 由来 timeout について沈黙しているだけ
+  だった。dev-wave docs は 3 層とも予算満杯で節の exact pin を壊す risk があるため、
+  DW-S08 に従い編集せずユーザー裁定へ返す。
 - 工数: codex 子 10 本 (plan 1 / consult 2 / author 1 / review 2 / fix 3 / focus 1)。
   親の実測は焦点走 4 回、変異走行 2 回 (probe + 本走)、全史 provenance 監査 1 回。
 
