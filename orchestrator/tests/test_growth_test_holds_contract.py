@@ -532,9 +532,9 @@ def _static_context(tree: ast.Module):
     assignments: dict[ast.AST, dict[str, list[ast.AST]]] = {}
     aliases: dict[ast.AST, dict[str, str | None]] = {tree: {}}
 
-    # Loader APIs count only when a direct module import establishes the name.
-    # A same-scope assignment or definition makes the binding ambiguous and
-    # therefore unusable for an import-permission decision.
+    # Loader APIs count only when an import in the active scope establishes the
+    # name.  A same-scope assignment or definition makes the binding ambiguous
+    # and therefore unusable for an import-permission decision.
     for node in tree.body:
         if isinstance(node, ast.Import):
             for alias in node.names:
@@ -592,19 +592,18 @@ def _static_context(tree: ast.Module):
 
         if isinstance(node, (ast.Import, ast.ImportFrom)) and parents[node] is not tree:
             scope_aliases = aliases.setdefault(scope, {})
-            imported_names = []
             if isinstance(node, ast.Import):
-                imported_names = [
-                    alias.asname or alias.name.split(".", 1)[0]
-                    for alias in node.names
-                ]
+                for alias in node.names:
+                    local_name = alias.asname or alias.name.split(".", 1)[0]
+                    scope_aliases[local_name] = (
+                        alias.name if alias.asname else local_name
+                    )
             elif node.module is not None:
-                imported_names = [
-                    alias.asname or alias.name
-                    for alias in node.names if alias.name != "*"
-                ]
-            for name in imported_names:
-                scope_aliases[name] = None
+                for alias in node.names:
+                    if alias.name != "*":
+                        scope_aliases[alias.asname or alias.name] = (
+                            f"{node.module}.{alias.name}"
+                        )
 
         if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
             function_aliases = aliases.setdefault(node, {})
@@ -1057,7 +1056,68 @@ def _self_load_analysis(
     return self_load, tuple(errors)
 
 
-def _pre_guard_references_held_function(
+class _ImportTimeHeldReferenceFinder(ast.NodeVisitor):
+    def __init__(self, held_names: set[str]) -> None:
+        self.held_names = held_names
+        self.found = False
+
+    def visit_Name(self, node: ast.Name) -> None:
+        if isinstance(node.ctx, ast.Load) and node.id in self.held_names:
+            self.found = True
+
+    def visit_Constant(self, node: ast.Constant) -> None:
+        if isinstance(node.value, str) and node.value in self.held_names:
+            self.found = True
+
+    def _visit_function_definition(
+        self,
+        node: ast.FunctionDef | ast.AsyncFunctionDef,
+    ) -> None:
+        for decorator in node.decorator_list:
+            self.visit(decorator)
+        for default in (*node.args.defaults, *node.args.kw_defaults):
+            if default is not None:
+                self.visit(default)
+        arguments = (
+            *node.args.posonlyargs,
+            *node.args.args,
+            *node.args.kwonlyargs,
+            node.args.vararg,
+            node.args.kwarg,
+        )
+        for argument in arguments:
+            if argument is not None and argument.annotation is not None:
+                self.visit(argument.annotation)
+        if node.returns is not None:
+            self.visit(node.returns)
+        for type_parameter in getattr(node, "type_params", ()):
+            self.visit(type_parameter)
+
+    def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
+        self._visit_function_definition(node)
+
+    def visit_AsyncFunctionDef(self, node: ast.AsyncFunctionDef) -> None:
+        self._visit_function_definition(node)
+
+    def visit_Lambda(self, node: ast.Lambda) -> None:
+        for default in (*node.args.defaults, *node.args.kw_defaults):
+            if default is not None:
+                self.visit(default)
+
+    def visit_ClassDef(self, node: ast.ClassDef) -> None:
+        for decorator in node.decorator_list:
+            self.visit(decorator)
+        for base in node.bases:
+            self.visit(base)
+        for keyword in node.keywords:
+            self.visit(keyword.value)
+        for type_parameter in getattr(node, "type_params", ()):
+            self.visit(type_parameter)
+        for statement in node.body:
+            self.visit(statement)
+
+
+def _pre_guard_import_time_references_held_function(
     tree: ast.Module,
     call: ast.Call,
     filename: str,
@@ -1067,15 +1127,12 @@ def _pre_guard_references_held_function(
         for node_id in GROWTH_TEST_HOLDS
         if node_id.split("::", 1)[0] == Path(filename).name
     }
-    for node in ast.walk(tree):
-        if (
-            isinstance(node, ast.Name)
-            and isinstance(node.ctx, ast.Load)
-            and node.id in held_names
-            and node.lineno < call.lineno
-        ):
-            return True
-    return False
+    finder = _ImportTimeHeldReferenceFinder(held_names)
+    for statement in tree.body:
+        if statement.lineno >= call.lineno:
+            break
+        finder.visit(statement)
+    return finder.found
 
 
 def _guard_binding_analysis(
@@ -1164,12 +1221,13 @@ def _guard_binding_analysis(
             "guard_mode='call-only' only for canonical self-load"
         )
 
-    if declared_mode == "call-only" and _pre_guard_references_held_function(
-        tree, call, filename,
+    if (
+        declared_mode == "call-only"
+        and _pre_guard_import_time_references_held_function(tree, call, filename)
     ):
         errors.append(
             "call-only binding must not preserve a pre-guard held-function "
-            "alias/reference"
+            "alias/reference evaluated at import time"
         )
 
     test_definitions = [
@@ -1363,7 +1421,10 @@ def test_call_only_binding_rejects_pre_guard_alias_with_post_guard_control():
     )
     pre_guard_references = (
         f"saved = {held_name}\n",
+        f"saved = globals()[{held_name!r}]\n",
+        f"class Holder:\n    saved = globals()[{held_name!r}]\n",
         f"def escape(fn={held_name}):\n    return fn\n",
+        f"escape = lambda fn={held_name}: fn\n",
         f"setattr(type('Holder', (), {{}}), 'held', {held_name})\n",
         f"holders = []\nholders.append(__import__('functools').partial({held_name}))\n",
         (
@@ -1381,6 +1442,29 @@ def test_call_only_binding_rejects_pre_guard_alias_with_post_guard_control():
     alias = f"saved = {held_name}\n"
     accepted = _synthetic_binding_source("none") + alias
     assert _guard_binding_errors(accepted, filename) == ()
+
+
+def test_call_only_binding_accepts_actual_deferred_manual_runner_reference():
+    filename = "test_s8b_repo_scan_invariant.py"
+    path = Path(__file__).resolve().parent / filename
+    source = path.read_text(encoding="utf-8")
+    source = source.replace("import sys\n", "import importlib.util\nimport sys\n", 1)
+    source = source.replace(
+        "def _run() -> int:\n",
+        "def _run() -> int:\n"
+        "    spec = importlib.util.spec_from_file_location('self', __file__)\n"
+        "    module = importlib.util.module_from_spec(spec)\n"
+        "    spec.loader.exec_module(module)\n",
+        1,
+    )
+    source = source.replace(
+        'enforce_held_functions(globals(), __file__, plain_runner="manual")',
+        'enforce_held_functions(\n'
+        '    globals(), __file__, plain_runner="manual", guard_mode="call-only",\n'
+        ')',
+        1,
+    )
+    assert _guard_binding_analysis(source, filename) == ((), True)
 
 
 def test_self_load_detection_handles_real_nested_consumers():
@@ -1481,6 +1565,22 @@ def test_self_load_detection_pairs_each_loader_with_foreign_control(
     filename = "test_s8b_repo_scan_invariant.py"
     assert _self_load_analysis(ast.parse(self_source), filename) == (True, ())
     assert _self_load_analysis(ast.parse(foreign_source), filename) == (False, ())
+
+
+@pytest.mark.parametrize(
+    "source",
+    [
+        "def consumer():\n    import runpy\n    runpy.run_path(__file__)\n",
+        (
+            "def consumer():\n"
+            "    from runpy import run_path as load\n"
+            "    load(__file__)\n"
+        ),
+    ],
+)
+def test_self_load_detection_resolves_function_local_imports(source):
+    filename = "test_s8b_repo_scan_invariant.py"
+    assert _self_load_analysis(ast.parse(source), filename) == (True, ())
 
 
 def test_self_load_detection_compares_full_path_not_only_basename():
