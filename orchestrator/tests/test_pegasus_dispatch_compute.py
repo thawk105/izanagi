@@ -230,6 +230,233 @@ def _dispatch(
     return rc, tmp_path / "dispatch" / nonce
 
 
+def _dispatch_attestation_lines(captured):
+    return [
+        line
+        for line in (captured.out + captured.err).splitlines()
+        if line.startswith(DC._DISPATCH_OUTCOME_PREFIX)
+    ]
+
+
+def test_queue_wait_timeout_attests_child_not_started_once(tmp_path, capsys):
+    scheduler = _Scheduler(states=("QUE", "QUE", "QUE", "QUE"))
+    rc, _ = _dispatch(
+        tmp_path,
+        scheduler,
+        queue_wait_timeout_s=10,
+    )
+    lines = _dispatch_attestation_lines(capsys.readouterr())
+
+    assert rc == DC.INFRA_RC
+    assert lines == [
+        DC._DISPATCH_OUTCOME_PREFIX
+        + '{"child_rc":null,"child_started":false,"kind":"infra",'
+        '"reason":"queue-wait-timeout"}'
+    ]
+    assert lines[0].isascii()
+    payload_text = lines[0][len(DC._DISPATCH_OUTCOME_PREFIX):]
+    payload = json.loads(payload_text)
+    assert set(payload) == {"child_rc", "child_started", "kind", "reason"}
+    assert payload_text == json.dumps(
+        payload,
+        ensure_ascii=True,
+        sort_keys=True,
+        separators=(",", ":"),
+    )
+
+
+@pytest.mark.parametrize(
+    "states",
+    [
+        ("HLD", "HLD", "HLD", "HLD"),
+        ("QUE", "QUE", "UNRECOGNIZED", "QUE"),
+        ("QUE", "QUE", "ERROR", "QUE"),
+    ],
+    ids=("held", "unknown", "qstat-error"),
+)
+def test_queue_wait_timeout_without_queued_proof_attests_started(
+    tmp_path, capsys, states,
+):
+    rc, _ = _dispatch(
+        tmp_path,
+        _Scheduler(states=states),
+        queue_wait_timeout_s=10,
+    )
+    lines = _dispatch_attestation_lines(capsys.readouterr())
+
+    assert rc == DC.INFRA_RC
+    assert len(lines) == 1
+    payload = json.loads(lines[0][len(DC._DISPATCH_OUTCOME_PREFIX):])
+    assert payload == {
+        "child_rc": None,
+        "child_started": True,
+        "kind": "infra",
+        "reason": "queue-wait-timeout",
+    }
+
+
+def test_fast_ended_job_without_result_attests_started_when_run_was_unseen(
+    tmp_path, capsys,
+):
+    scheduler = _Scheduler(states=("QUE", "DONE"))
+
+    def discard_result_after_end(command, **kwargs):
+        result = scheduler(command, **kwargs)
+        result_path = Path(kwargs["cwd"]) / "result.json"
+        if list(command)[:2] == ["qstat", "-f"] and result_path.exists():
+            result_path.unlink()
+        return result
+
+    rc = DC.dispatch(
+        [],
+        repo_root=_REPO,
+        output_root=tmp_path / "dispatch",
+        run_command=discard_result_after_end,
+        clock=(clock := _Clock()),
+        sleep=clock.sleep,
+        poll_interval_s=5,
+        queue_wait_timeout_s=10,
+        accounting_grace_s=0,
+        nonce="fast-ended-missing-result",
+    )
+    lines = _dispatch_attestation_lines(capsys.readouterr())
+
+    assert rc == DC.INFRA_RC
+    assert len(lines) == 1
+    payload = json.loads(lines[0][len(DC._DISPATCH_OUTCOME_PREFIX):])
+    assert payload["child_started"] is True
+    assert payload["reason"] == "result/log/accounting-grace-expired"
+
+
+def test_receipt_persist_failure_after_red_child_attests_started_and_rc(
+    tmp_path, capsys,
+):
+    scheduler = _Scheduler(child_rc=1)
+    with mock.patch.object(DC, "_persist_receipt", return_value=None):
+        rc, _ = _dispatch(tmp_path, scheduler)
+    lines = _dispatch_attestation_lines(capsys.readouterr())
+
+    assert rc == DC.INFRA_RC
+    assert len(lines) == 1
+    payload = json.loads(lines[0][len(DC._DISPATCH_OUTCOME_PREFIX):])
+    assert payload == {
+        "child_rc": 1,
+        "child_started": True,
+        "kind": "infra",
+        "reason": "receipt-persist-failed",
+    }
+
+
+@pytest.mark.parametrize("child_rc", [0, 1, 13, DC.INFRA_RC])
+def test_child_rc_passthrough_emits_no_infra_attestation(
+    tmp_path, capsys, child_rc,
+):
+    rc, _ = _dispatch(tmp_path, _Scheduler(child_rc=child_rc))
+    captured = capsys.readouterr()
+
+    assert rc == child_rc
+    assert _dispatch_attestation_lines(captured) == []
+
+
+@pytest.mark.parametrize(
+    ("raised", "expected_reason"),
+    [
+        (RuntimeError("unknown exception detail"), "unexpected-error"),
+        (DC.DispatchError("unknown dispatch reason"), "dispatch-error"),
+    ],
+    ids=("unexpected-exception", "unknown-dispatch-reason"),
+)
+def test_unknown_exception_attestation_uses_closed_vocabulary(
+    tmp_path, capsys, raised, expected_reason,
+):
+    def raise_unknown(_command, **_kwargs):
+        raise raised
+
+    rc = DC.dispatch(
+        [],
+        repo_root=_REPO,
+        output_root=tmp_path / "dispatch",
+        run_command=raise_unknown,
+        nonce="unknown-exception",
+    )
+    lines = _dispatch_attestation_lines(capsys.readouterr())
+
+    assert rc == DC.INFRA_RC
+    assert len(lines) == 1
+    payload = json.loads(lines[0][len(DC._DISPATCH_OUTCOME_PREFIX):])
+    assert payload["reason"] == expected_reason
+    assert payload["reason"] in DC._DISPATCH_INFRA_REASONS
+    assert str(raised) not in lines[0]
+
+
+def test_setup_failure_attestation_is_fail_closed(tmp_path, capsys):
+    rc = DC.dispatch(
+        [],
+        task="outside-closed-task-enum",
+        repo_root=_REPO,
+        output_root=tmp_path / "dispatch",
+    )
+    lines = _dispatch_attestation_lines(capsys.readouterr())
+
+    assert rc == DC.INFRA_RC
+    assert len(lines) == 1
+    payload = json.loads(lines[0][len(DC._DISPATCH_OUTCOME_PREFIX):])
+    assert payload == {
+        "child_rc": None,
+        "child_started": True,
+        "kind": "infra",
+        "reason": "setup-failure",
+    }
+
+
+@pytest.mark.parametrize(
+    ("reason", "child_rc"),
+    [("overall-timeout", None), ("queue-wait-timeout", 1)],
+    ids=("nonqueue-reason", "observed-child-rc"),
+)
+def test_infra_attestation_false_is_reserved_for_consistent_queue_timeout(
+    capsys, reason, child_rc,
+):
+    rc = DC._return_infra(
+        reason,
+        child_started=False,
+        child_rc=child_rc,
+    )
+    lines = _dispatch_attestation_lines(capsys.readouterr())
+
+    assert rc == DC.INFRA_RC
+    payload = json.loads(lines[0][len(DC._DISPATCH_OUTCOME_PREFIX):])
+    assert payload["child_started"] is True
+
+
+def test_parent_dispatch_infra_returns_are_all_attested_by_helper():
+    source = Path(DC.__file__).read_text(encoding="utf-8")
+    tree = ast.parse(source)
+    functions = {
+        node.name: node
+        for node in tree.body
+        if isinstance(node, ast.FunctionDef)
+    }
+
+    for name in ("_dispatch_impl", "dispatch"):
+        bare_returns = [
+            node.lineno
+            for node in ast.walk(functions[name])
+            if isinstance(node, ast.Return)
+            and (
+                (
+                    isinstance(node.value, ast.Name)
+                    and node.value.id == "INFRA_RC"
+                )
+                or (
+                    isinstance(node.value, ast.Constant)
+                    and node.value.value == DC.INFRA_RC
+                )
+            )
+        ]
+        assert bare_returns == []
+
+
 def test_dispatch_state_machine_returns_child_rc_after_accounting(tmp_path):
     scheduler = _Scheduler(child_rc=9)
     rc, submission = _dispatch(tmp_path, scheduler)
