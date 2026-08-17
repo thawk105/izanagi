@@ -1,0 +1,265 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 600,
+  "timeout_seconds": 1800,
+  "hang_timeout_seconds": 2400,
+  "mutations": [
+    {
+      "id": "M-COND3",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/calibrator/perf_preflight.py",
+          "old": "        argv = _measurement_argv(run_cmd)\n        if _has_perf_stat_prefix(argv):\n            raise PerfPreflightError(\n                \"degraded measurement run_cmd に perf stat prefix がある\"\n            )\n",
+          "new": "        argv = _measurement_argv(run_cmd)\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M-COND4",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/calibrator/perf_preflight.py",
+          "old": "        for name in _PERF_LEADING_INDICATORS:\n            if name not in leading_indicators:\n                raise PerfPreflightError(\n                    f\"leading_indicators.{name} が欠落している\"\n                )\n            if leading_indicators[name] is not None:\n                raise PerfPreflightError(\n                    f\"leading_indicators.{name} が non-null である\"\n                )\n        _validate_null_perf_values(\n            leading_indicators, path=\"leading_indicators\",\n        )\n",
+          "new": "        for name in _PERF_LEADING_INDICATORS:\n            if name not in leading_indicators:\n                raise PerfPreflightError(\n                    f\"leading_indicators.{name} が欠落している\"\n                )\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M-A",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_floor_campaign.py",
+          "old": "    if mode != \"pilot\" and receipt is not None and use_perf:\n        raise CampaignAbort(\"official mode では available perf_preflight receipt を拒否する\")\n",
+          "new": ""
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M-J",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_floor_campaign.py",
+          "old": "    if mode != \"pilot\" and normalized_perf is not None and use_perf:\n        raise CampaignAbort(\n            \"available perf_preflight を持つ official manifest を拒否する\"\n        )\n",
+          "new": ""
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M-B",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_floor_contract.py",
+          "old": "    return frozenset({\"perf_preflight\", \"perf_observation\"})\n",
+          "new": "    return frozenset({\"perf_preflight\"})\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M-K",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_floor_stats.py",
+          "old": "    if expected_use_perf is not derived_use_perf:\n        return [\n            \"expected_use_perf が artifact receipt の再導出値と不一致 \"\n            f\"(caller={expected_use_perf!r}, artifact={derived_use_perf!r})\"\n        ]\n",
+          "new": ""
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M-CLAIM",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_floor_stats.py",
+          "old": "    else:\n        allowed = _perf_preflight.perf_claim_allowed(\n            observation, claim, run_cmd=first_run_cmd,\n            leading_indicators=first_indicators,\n        )\n        if not allowed:\n            raise _perf_preflight.PerfPreflightError(\n                f\"floor artifact は {claim!r} claim を許可しない\"\n            )\n        normalized = _perf_preflight.validate_perf_observation(\n            observation, run_cmd=first_run_cmd,\n            leading_indicators=first_indicators,\n        )\n",
+          "new": "    else:\n        normalized = _perf_preflight.validate_perf_observation(\n            observation, run_cmd=first_run_cmd,\n            leading_indicators=first_indicators,\n        )\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M-D",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_holdout_freeze.py",
+          "old": "    if (result.get(\"perf_preflight\") != manifest_document.get(\"perf_preflight\")\n            or result.get(\"perf_observation\")\n            != manifest_document.get(\"perf_observation\")):\n        raise FreezeError(\n            \"floor-admission-mismatch: result/manifest の perf evidence が不一致\"\n        )\n",
+          "new": ""
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M-E",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_ratified_freeze.py",
+          "old": "        binaries=binaries, cert_sha256=cert_sha, manifest_sha256=manifest_sha,\n        root=root, contract=contract, expected_use_perf=expected_use_perf,\n    )\n",
+          "new": "        binaries=binaries, cert_sha256=cert_sha, manifest_sha256=manifest_sha,\n        root=root, contract=contract,\n    )\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M-L",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_ratified_freeze.py",
+          "old": "        expected = _floor_contract.build_portable_run_cmd(\n            binary=binary_record[\"binary\"], workload=record[\"workload\"],\n            records=record[\"records\"], threads=record[\"threads\"],\n            extime_s=protocol[\"extime_s\"], clocks_per_us=contract.clocks_per_us,\n            numactl=contract.numactl,\n            use_perf=expected_use_perf,\n        )\n",
+          "new": "        expected = _floor_contract.build_portable_run_cmd(\n            binary=binary_record[\"binary\"], workload=record[\"workload\"],\n            records=record[\"records\"], threads=record[\"threads\"],\n            extime_s=protocol[\"extime_s\"], clocks_per_us=contract.clocks_per_us,\n            numactl=contract.numactl,\n        )\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M-I",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_oracle_driver.py",
+          "old": "        perf_evaluate_kwargs = {\n            \"use_perf\": False,\n            \"perf_preflight_receipt\": perf_preflight_receipt,\n        }\n",
+          "new": "        perf_evaluate_kwargs = {}\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M-REPORT",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_oracle_report.py",
+          "old": "        if observation != expected_perf_observation:\n",
+          "new": "        if (observation is not None\n                and observation != expected_perf_observation):\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M-JUDGE",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_oracle_judge.py",
+          "old": "    if perf_present and degraded:\n",
+          "new": "    if False:\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M-VERDICT",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_verdict.py",
+          "old": "    else:\n        mismatch = (\n            not oracle_observations\n            or any(observation != floor_observation\n                   for observation in oracle_observations)\n        )\n",
+          "new": "    else:\n        mismatch = False\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M-C",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/pipeline.py",
+          "old": "                or perf.extime != 3 or perf.reps != 5\n",
+          "new": "                or perf.extime != 3\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M-G",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/qualification/t126_driver.py",
+          "old": "        admitted = validate_member_evidence(\n            records, expected_role=role, expected_round=round_index,\n            expected_reps=self.protocol[\"workload\"][\"reps\"],\n            expected_perf_observation=self.perf_observation,\n        )\n",
+          "new": "        admitted = validate_member_evidence(\n            records, expected_role=role, expected_round=round_index,\n            expected_reps=self.protocol[\"workload\"][\"reps\"],\n        )\n"
+        },
+        {
+          "file": "orchestrator/qualification/t126_driver.py",
+          "old": "                admitted = validate_member_evidence(\n                    load_jsonl_strict(path), expected_role=role,\n                    expected_round=round_index,\n                    expected_perf_observation=perf_observation,\n                )\n",
+          "new": "                admitted = validate_member_evidence(\n                    load_jsonl_strict(path), expected_role=role,\n                    expected_round=round_index,\n                )\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M-M",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/qualification/contract.py",
+          "old": "    executable_keys = {\"python\", \"cc\", \"cxx\", \"cmake\"}\n    if use_perf:\n        executable_keys.add(\"perf\")\n",
+          "new": "    executable_keys = {\"python\", \"cc\", \"cxx\", \"cmake\", \"perf\"}\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M-CLOSURE",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_official_perf_closure.py",
+          "old": "    actual_perf_files = _production_perf_files()\n    assert actual_perf_files == _REVIEWED_PERF_FILES, _perf_file_drift(\n        actual_perf_files,\n    )\n",
+          "new": ""
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    }
+  ]
+}
