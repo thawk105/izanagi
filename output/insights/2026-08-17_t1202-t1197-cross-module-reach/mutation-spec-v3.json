@@ -1,0 +1,163 @@
+{
+  "estimated_run_seconds": 60,
+  "hang_timeout_seconds": 1200,
+  "mutations": [
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_decider_version_binds_cross_module_semantics_to_v2",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_invalid_running_decider_version_cannot_activate",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_valid_hostile_str_subclass_cannot_fake_decider_version_match"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "t1202.m12-decider-version-reverted",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8c_preregistration.py",
+          "new": "DECIDER_VERSION = \"s8c-decider/v1\"\n",
+          "old": "DECIDER_VERSION = \"s8c-decider/v2\"\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_production_default_module_limit_accepts_sixty_five_modules"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "t1202.m11-module-limit-64",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8c_preregistration_evidence.py",
+          "new": "_MAX_REACHABILITY_MODULES = 64\n",
+          "old": "_MAX_REACHABILITY_MODULES = 512\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_callable_value_flow_failures_stay_environment_absent[multiple-assignment]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "t1202.m-relax-exactly-once",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8c_preregistration_evidence.py",
+          "new": "            if False:\n",
+          "old": "            if len(rows) != 1 or name in callable_defaults:\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_c09_same_name_target_in_undeclared_production_path_is_not_witness"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "t1202.m-c09-drop-declared-path",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8c_preregistration_evidence.py",
+          "new": "        name == \"assert_campaign_layer3_chain\"\n",
+          "old": "        path in probe.declared_paths and name == \"assert_campaign_layer3_chain\"\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false,
+      "id": "t1202.m-drop-declared-path-equivalent",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8c_preregistration_evidence.py",
+          "new": "    return target in graph.calls\n",
+          "old": "    return target[0] in probe.declared_paths and target in graph.calls\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_c12_rejects_conservative_local_binding_forms[except-target]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_c12_rejects_conservative_local_binding_forms[for-target]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_c12_rejects_conservative_local_binding_forms[global-declaration]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_c12_rejects_conservative_local_binding_forms[local-import]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_c12_rejects_conservative_local_binding_forms[nonlocal-declaration]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_c12_rejects_conservative_local_binding_forms[walrus-target]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_c12_rejects_conservative_local_binding_forms[with-target]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_c12_rejects_shadow_entrypoint_and_test_only_paths[local-shadow]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_c12_rejects_shadow_entrypoint_and_test_only_paths[module-rebind]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_c12_rejects_shadow_entrypoint_and_test_only_paths[package-shadow-if-true]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_c12_rejects_shadow_entrypoint_and_test_only_paths[package-shadow]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_c12_rejects_shadow_entrypoint_and_test_only_paths[test-only-module]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_cross_module_import_forms_resolve_exact_bound_target[absolute-import-as]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_cross_module_import_forms_resolve_exact_bound_target[absolute-import]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_cross_module_import_forms_resolve_exact_bound_target[from-symbol-as]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_cross_module_import_forms_resolve_exact_bound_target[from-symbol]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_cross_module_import_forms_resolve_exact_bound_target[multi-name-from-package]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_local_single_assignment_and_keyword_value_flow_is_witness",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_reachable_consumers_reject_absence_shapes_with_single_reason[constant-false-C12]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_reachable_consumers_reject_absence_shapes_with_single_reason[nested-C12]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_report_projection_is_hash_seed_deterministic",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_single_assignment_dict_carrier_with_unrelated_literal_update_is_witness",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_test_only_target_is_rejected_for_all_reachability_conditions[C12]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "t1202.mC-c12-env-gate-module-local",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8c_preregistration_evidence.py",
+          "new": "        or not {\"lookup\", \"attest_and_build_receipt\"}\n        <= _reachable_calls(tree, \"run_trial\")\n",
+          "old": "        or not all(\n            _declared_call(probe, graph, target)\n            for target in (environment_target, guard_target)\n        )\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_c09_provably_dead_calls_are_not_reachability_witnesses[after-return]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "t1202.mD-drop-terminator-dead-code",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8c_preregistration_evidence.py",
+          "new": "            if isinstance(statement, ()):\n                break\n",
+          "old": "            if isinstance(statement, (ast.Return, ast.Raise, ast.Continue, ast.Break)):\n                break\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_c09_provably_dead_calls_are_not_reachability_witnesses[if-true-else]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_c09_provably_dead_calls_are_not_reachability_witnesses[while-false-body]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_reachable_consumers_reject_absence_shapes_with_single_reason[constant-false-C01]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_reachable_consumers_reject_absence_shapes_with_single_reason[constant-false-C04]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_reachable_consumers_reject_absence_shapes_with_single_reason[constant-false-C09]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_reachable_consumers_reject_absence_shapes_with_single_reason[constant-false-C12]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "t1202.mE-literal-truth-always-unknown",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8c_preregistration_evidence.py",
+          "new": "    if True:\n        return None\n",
+          "old": "    if not isinstance(node, (ast.Constant, ast.Tuple, ast.List, ast.Set, ast.Dict)):\n        return None\n"
+        }
+      ]
+    }
+  ],
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "timeout_seconds": 900
+}

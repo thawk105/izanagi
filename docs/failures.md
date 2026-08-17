@@ -3483,6 +3483,24 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   **同一 producer の複数 pid から誤った 1 つを選ぶ**形は射程外だった。
   判別 = pid を待ち条件にする前に `ps -o pid,ppid,etime,cmd -p <pid>` で実体を確認し、
   script 本体の pid (親 shell ではなく) を選ぶ。復旧は正しい pid での待ち手張り直しで足りた。
+
+- **再発: 2026-08-17** — 五つ目の方向。既往 4 方向はいずれも「生きている pid の選び違い」
+  または「別 process への誤一致」だったが、本件は**生産者がそもそも起動していない**形である。
+  段 5 で 2 単位の子を 1 回の Bash 呼び出しでまとめて detach したところ 2 本目が起動せず
+  (pid file も log も未生成)、その状態で張った待ち手が `stage=pid-file rc=2` で即座に落ちた。
+  待ち手の異常終了は harness からは「completed」として通知されるため、出力本文を読むまで
+  正常完了と区別できなかった。判別 = detach 直後に pid file の実在を確認してから待ち手を張る。
+  復旧 = 子を 1 本ずつ detach し直し、pid file 実在を確認してから待ち手を張り直した。
+  本 wave では以後この順序で全子を投入し、同型の再発は起きていない。
+- **再発: 2026-08-17 (land 相)** — 六つ目の方向。生産者は生きているのに、待ち手が
+  **出力ゼロのまま「completed」で戻る**形が 2 度起きた (`tools/dev_wave_wait.py producer` を
+  背景で起動した場合)。`.done` も成果物も未生成のまま完了通知だけが届くため、
+  通知だけを見ると子が失敗したように見える。前景で同じ引数を短い `--max-wait-seconds` で
+  走らせると `stage=producer-timeout rc=70` を返し、待ち手自体は正常だった。
+  判別 = 通知を受けたら `.done` の実在と生産者 pid の生存を両方見る。pid が生きていれば
+  待ち手だけを張り直す。復旧 = 待ち手を張り直して継続し、両度とも子は正常完了した。
+  既往の「落ちた待ち手は完了に見える」と同型だが、**待ち手が落ちる原因が生産者側にない**点が
+  新しい方向である。
 ### F105. 事前登録変異のテストが空 directory を untracked file とみなしていた [テスト代表性]
 
 - 事象: 変異 M6 (`--untracked-files=all` を落とす) を殺すテストが、fixture で
@@ -8123,6 +8141,14 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   `external/ccbench/third_party/shirakami` とその `third_party/googletest` を追加初期化し、
   `git submodule status --recursive` の全行が `-`/`U` プレフィックスなしになったことを確認して
   attempt 2 で再投入した。恒久対応 ([T-1139] 未裁定) は未実施のまま。
+
+- **再発: 2026-08-17** — wave 開始時の worktree 初期化で再現。`DW-O20` が指示する素の
+  `git submodule update --init` は `fatal: transport 'file' not allowed` で必ず落ちる。
+  さらに pipe 越しに実行すると shell の `$?` が pipe 側の 0 を拾うため、失敗が
+  「rc=0」に見えて気づきにくい。`git -c protocol.file.allow=always submodule update --init` で
+  通した。本件は受入ではなく wave 起動段での発現であり、既存の受入 preflight 検査は
+  この時点では発火しない。`DW-O20` 本文の是正は同節が 997 / 1000 bytes で余白 3 bytes しか
+  なく実測に裏付けられた 1 行も入らないため実施しない (恒久対応は [T-1139] が所有)。
 ### F321. `single_process` を名乗る床値 claim が、同一 protocol の二重投入を排除しない [恒真ゲート]
 
 - 事象: (2026-08-16、静的検査) 床値 campaign は `isolation_policy.single_process` が真のとき
@@ -9203,6 +9229,17 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   (再 export 二段経路は resolved にも UNRESOLVED にも入らない)」と、親が正本と呼んだ台帳の
   限界まで指摘した。
 
+
+- **再発: 2026-08-17 ([T-987] wave の段 1)** — 親が「`reseal_protocol()` の production caller は
+  ゼロ、呼び手はテストのみ」と brief と実測記録へ書いた。実際は同一 file の `main()` に
+  `reseal-protocol` CLI サブコマンドが実在した
+  (`orchestrator/campaign/s8b_floor_campaign.py` の dispatcher、parser は同 file)。
+  原因は呼び手検索を `grep -v "^orchestrator/campaign/s8b_floor_campaign.py"` で走らせ、
+  **答えを含む file を自分の除外条件で消していた**こと。F370 が「検索した空間そのものが違った」
+  と書いた型の同型再発で、今回は空間の欠落が他 module でなく自 module だった。
+  恒久対応は同じ memory `authoritative-closure-before-counting` を、
+  **除外条件付き検索で「不在」を断定する前に除外集合を読み上げる**方向へ適用する。
+  検出は F370 と同じ経路 — 段 3 の敵対レンズ (luna) が refuted を返し、親が再確認して確定した。
 ### F371. 終了主体を記録しない計装が、「送る前に送ったことにする」形で自分の目的を偽った [恒真ゲート]
 
 - 事象: F285 は `codex_exit_code=-9` が外部 SIGKILL と識別不能であることを
@@ -9314,3 +9351,56 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   子の報告が閉包を主張したら、親は同じ 2 経路のどちらかで裏を取る。
 - 再発検知: 修正後の焦点走が同じ node で再び赤になったら、まず「前回の根拠が切り取られていた
   のではないか」を疑う。出力に `truncated` / `omitted_bytes` が含まれていないかを見る。
+
+### F377. 負例 fixture の文字列置換が一致せず変異が no-op になっていた [恒真ゲート] [テスト代表性]
+
+- 事象: 述語の負例 param が `VALUE_FLOW_C12.replace(old, new)` で被検体を作っていたが、`old` が
+  fixture 本文に存在せず置換が起きなかった。生成された「変異体」は正例と byte 単位で同一で、
+  それに対して `UNSATISFIED` を要求していたため必ず赤になった。同 file の
+  `.replace()` ベース変異 70 param を全件検査したところ、no-op はこの 1 件だった。
+- 根本原因: 置換の元文字列を fixture の実本文と突き合わせずに書いた。fixture では対象の代入行と
+  次の目印行の間に 4 行挟まっており、複合文字列が一致しなかった。置換が起きたことを
+  確かめる検査が無かったため、no-op のまま「負例がある」と見なせる状態だった。
+- 恒久対応: 当該 param に「置換が適用されたこと (source が元と異なること)」と「対象名の代入が
+  意図した回数あること」を確かめる assert を常設した
+  (`orchestrator/tests/test_s8c_preregistration_predicates.py` の value-flow 負例)。
+  置換ベースで被検体を作る負例は、置換の実在を同じテスト内で assert する。
+- 再発検知: 上記 assert が fails-closed で発火する。加えて変異 matrix が当該 param を
+  期待 kill node に持つため、負例が空振りに戻れば変異が生存して検出できる。
+
+### F378. 親が焦点走の赤を fixture 欠陥でなく実装の緩みと即断した [手順漏れ]
+
+- 事象: 同一 wave で 3 回起きた。(1) 段 6 fix 後の焦点走で負例 1 件が赤になり、親は
+  「実装が受理集合を広げた」と裁定して実装を厳格化する巡を投入したが、真因は fixture の
+  no-op 変異で実装は正しかった。(2) 変異 1 件の生存を「検出力の穴」と裁定して負例追加の巡を
+  投入したが、真因は述語節が恒真であることによる等価変異だった。(3) land 相で敵対レビューの
+  所見を受けて「終端 target の定義 path を条件自身の宣言 path へ限定する」と裁定したが、
+  条件 9 の正規 target `assert_campaign_layer3_chain` は条件 10 の宣言 path にあり、
+  限定すると条件 9 の reason が変わる。契約は正当に別条件の宣言 path にある consumer を
+  参照していた。3 回とも子が実装を変えずに停止し、親が独立に検証して裁定を撤回した。
+- 根本原因: 赤・生存・レビュー所見の原因仮説を 1 つに絞って裁定した。被検体が期待どおり
+  構成されているか、変異が実際に挙動を変えうる位置にあるか、**処方が実データで成立するか**を
+  先に潰していなかった。(3) は敵対レビューの処方をそのまま裁定へ通した形であり、
+  レビューが real と判定した所見でも処方の可否は別に実測する必要がある。
+- 恒久対応: 実装子契約の「期待値が誤りと判断したら実装を変えずに報告して止まれ」
+  (`docs/dev-wave/workers.md` の `DW-S06-B`) が両方を捕まえた。この契約は現に効いており、
+  fix prompt から省略しない。あわせて `docs/dev-wave/mutation.md` の `DW-M02`
+  (生存はまず他層の mask と等価変異を疑う) を生存時の最初の手順として守る。
+- 再発検知: 子の停止報告を親が独立検証する手順そのものが検知経路である。子が停止したのに
+  親が押し切って実装を変えた場合、変異 matrix で当該負例が生存または過剰決定として現れる。
+
+### F379. テストの前提 assert を代理条件で書き、環境の残骸で偽赤になった [テスト代表性]
+
+- 事象: repo 外 campaign の fallback を検査する 3 node が、前提 assert
+  「campaign の祖先に `.git` が 1 つも無い」で赤になった。実行機に空の `/tmp/.git`
+  directory が残っており、pytest の一時 directory がその配下だったため。空 directory は
+  git repository として無効なので、テストが本当に必要とする性質 (git HEAD を取得できない)
+  は満たされており、production の挙動は正しかった。焦点走 1 回を捨てた。
+- 根本原因: 前提が要求する性質そのもの (`_git_head` が送出する) ではなく、その十分条件でも
+  必要条件でもない代理条件 (祖先に `.git` が無い) を assert した。代理条件は環境の残骸・
+  無関係な repository・bind mount で容易に破れる。
+- 恒久対応: 前提 assert は、テストの本体が依存する性質を**その性質を計算する production の
+  関数を直接呼んで**固定する。周辺の観測可能な条件で代理しない。代理せざるを得ない場合は、
+  代理と本来の性質の差を assert のすぐ上に 1 行で書く。
+- 再発検知: 前提 assert が production の判定関数を呼ばずに filesystem・環境変数・path 形状を
+  直接見ている箇所は、レビューの「恒真・偽赤」レンズで指摘する。
