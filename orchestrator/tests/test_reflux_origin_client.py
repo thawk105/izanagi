@@ -26,6 +26,7 @@ _BANNED_PARAMETERS = {
     "repository_root",
     "ledger_root",
 }
+_ARM_BINDING_DIGEST_SHA256 = "a" * 64
 
 
 @dataclass(frozen=True)
@@ -141,6 +142,7 @@ def _p6_result(
         evidence_sha256s=evidence_sha256s,
         evidence_root_sha256=evidence_root_sha256,
         enforcement_arm="fixture-arm",
+        arm_binding_digest_sha256=_ARM_BINDING_DIGEST_SHA256,
         generator_closure={},
         reason_code=formal.FormalReasonCode.P6_UNAVAILABLE,
         _issuer=formal._RECEIPT_CONSTRUCTOR,
@@ -157,6 +159,7 @@ def _p6_result(
         origin_id=capability.origin_id,
         cell_key=capability.cell_key,
         terminal_payload_sha256=decision.terminal_payload_sha256,
+        arm_binding_digest_sha256=_ARM_BINDING_DIGEST_SHA256,
     )
     return formal.P6Unavailable(
         formal.FormalReasonCode.P6_UNAVAILABLE,
@@ -480,6 +483,7 @@ def test_client_rederives_receipt_evidence_root_from_digest_list(
         evidence_sha256s=original.evidence_sha256s,
         evidence_root_sha256="f" * 64,
         enforcement_arm=original.enforcement_arm,
+        arm_binding_digest_sha256=original.arm_binding_digest_sha256,
         generator_closure=original.generator_closure,
         reason_code=original.reason_code,
         _issuer=formal._RECEIPT_CONSTRUCTOR,

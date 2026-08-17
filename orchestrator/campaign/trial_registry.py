@@ -2659,27 +2659,6 @@ def assert_trial_registry_acceptance(
                     "measurement-head-coherence",
                     "reports do not share one measurement_head",
                 )
-            report_arm_execution = report.get("arm_execution")
-            start_arm_execution = start.get("arm_execution")
-            if (
-                type(report_arm_execution) is not dict
-                or type(start_arm_execution) is not dict
-                or report_arm_execution != start_arm_execution
-            ):
-                _fail(
-                    "acceptance-arm-execution",
-                    "report and run-start arm_execution must exist and match exactly",
-                )
-            expected_arm_execution = _expected_registered_arm_execution_record(
-                repository_root=root,
-                trial=trial,
-                measurement_head=measurement_head,
-            )
-            if report_arm_execution != expected_arm_execution:
-                _fail(
-                    "acceptance-arm-execution",
-                    "arm_execution differs from historical input derivation",
-                )
             _assert_snapshot_completeness(item)
             assert_prereg_ancestor(
                 root,
@@ -2732,6 +2711,7 @@ def assert_trial_registry_acceptance(
                     "acceptance-origin",
                     "origin binding and terminal projection presence differ",
                 )
+            terminal_projection = None
             if origin_binding_record is not None:
                 terminal_projection = _validate_origin_terminal_projection(
                     report["origin_terminal_projection"],
@@ -2746,14 +2726,6 @@ def assert_trial_registry_acceptance(
                     _fail(
                         "acceptance-origin",
                         "terminal projection differs from launch origin binding",
-                    )
-                if (
-                    terminal_projection["arm_binding_digest_sha256"]
-                    != expected_arm_execution["arm_binding_digest_sha256"]
-                ):
-                    _fail(
-                        "acceptance-origin",
-                        "terminal projection differs from arm execution binding",
                     )
             historical_manifest = _blob_at_commit(
                 root, commit_id=measurement_head, relative_path=manifest_relative,
@@ -2781,6 +2753,36 @@ def assert_trial_registry_acceptance(
                     current_bytes=current_registry_bytes,
                 )
                 history_checked.add(measurement_head)
+            report_arm_execution = report.get("arm_execution")
+            start_arm_execution = start.get("arm_execution")
+            if (
+                type(report_arm_execution) is not dict
+                or type(start_arm_execution) is not dict
+                or report_arm_execution != start_arm_execution
+            ):
+                _fail(
+                    "acceptance-arm-execution",
+                    "report and run-start arm_execution must exist and match exactly",
+                )
+            expected_arm_execution = _expected_registered_arm_execution_record(
+                repository_root=root,
+                trial=trial,
+                measurement_head=measurement_head,
+            )
+            if report_arm_execution != expected_arm_execution:
+                _fail(
+                    "acceptance-arm-execution",
+                    "arm_execution differs from historical input derivation",
+                )
+            if (
+                terminal_projection is not None
+                and terminal_projection["arm_binding_digest_sha256"]
+                != expected_arm_execution["arm_binding_digest_sha256"]
+            ):
+                _fail(
+                    "acceptance-origin",
+                    "terminal projection differs from arm execution binding",
+                )
             expected_workload = HOLDOUT_BINDINGS[trial.holdout]
             if report.get("workloads_requested") != [expected_workload["workload"]]:
                 _fail("terminal-projection", "report workload does not match trial holdout")
