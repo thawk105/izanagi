@@ -1,0 +1,253 @@
+{
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "estimated_run_seconds": 120,
+ "timeout_seconds": 2400,
+ "hang_timeout_seconds": 2400,
+ "mutations": [
+  {
+   "id": "M01",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/dev_wave_wait.py",
+     "old": "    if payload[\"child_started\"]:\n        return \"dispatch-child-started\"\n",
+     "new": "    if False and payload[\"child_started\"]:\n        return \"dispatch-child-started\"\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_dev_wave_wait.py::test_dispatch_attestation_ambiguity_never_retries[child-started]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M02",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/dev_wave_wait.py",
+     "old": "    if evidence.pytest_verdict_traces:\n        return \"pytest-verdict-observed\"\n",
+     "new": "    if False and evidence.pytest_verdict_traces:\n        return \"pytest-verdict-observed\"\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_dev_wave_wait.py::test_pytest_verdict_trace_blocks_retry_even_with_prechild_attestation[red-nodeid]",
+    "orchestrator/tests/test_dev_wave_wait.py::test_pytest_verdict_trace_blocks_retry_even_with_prechild_attestation[session-summary]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M03",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/dev_wave_wait.py",
+     "old": "    if not evidence.absence_conclusive:\n        return \"pytest-absence-indeterminate\"\n",
+     "new": "    if False and not evidence.absence_conclusive:\n        return \"pytest-absence-indeterminate\"\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_dev_wave_wait.py::test_dispatch_attestation_ambiguity_never_retries[invalid-utf8]",
+    "orchestrator/tests/test_dev_wave_wait.py::test_dispatch_attestation_ambiguity_never_retries[oversized-line]",
+    "orchestrator/tests/test_dev_wave_wait.py::test_dispatch_truncation_framing_makes_pytest_absence_indeterminate[relay-abort]",
+    "orchestrator/tests/test_dev_wave_wait.py::test_dispatch_truncation_framing_makes_pytest_absence_indeterminate[relay-truncation]",
+    "orchestrator/tests/test_dev_wave_wait.py::test_dispatch_truncation_framing_makes_pytest_absence_indeterminate[upstream-omission]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M06",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/dev_wave_wait.py",
+     "old": "    if len(evidence.dispatch_payloads) != 1:\n        return \"dispatch-attestation-non-unique\"\n",
+     "new": "    if False and len(evidence.dispatch_payloads) != 1:\n        return \"dispatch-attestation-non-unique\"\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_dev_wave_wait.py::test_dispatch_attestation_ambiguity_never_retries[duplicate]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M07",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/dev_wave_wait.py",
+     "old": "        (not child_started and child_rc is not None)\n        or (not child_started and reason != \"queue-wait-timeout\")\n",
+     "new": "        False\n        or (False and reason != \"queue-wait-timeout\")\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_dev_wave_wait.py::test_dispatch_attestation_ambiguity_never_retries[false-with-child-rc]",
+    "orchestrator/tests/test_dev_wave_wait.py::test_dispatch_attestation_ambiguity_never_retries[false-with-nonqueue-reason]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M08",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/dev_wave_wait.py",
+     "old": "        if active_lifecycle.ownership is not _LeaseOwnership.ACQUIRED:\n            retry_reason = \"ownership-not-acquired\"\n",
+     "new": "        if False and active_lifecycle.ownership is not _LeaseOwnership.ACQUIRED:\n            retry_reason = \"ownership-not-acquired\"\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_dev_wave_wait.py::test_held_self_ownership_never_retries_no_verdict_attempt"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M09",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/dev_wave_wait.py",
+     "old": "        elif active_lifecycle.cleanup_failure is not None:\n            retry_reason = \"cleanup-failure\"\n",
+     "new": "        elif False and active_lifecycle.cleanup_failure is not None:\n            retry_reason = \"cleanup-failure\"\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_dev_wave_wait.py::test_existing_cleanup_failure_blocks_retry"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M10",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/dev_wave_wait.py",
+     "old": "        elif attempt_no >= _MAX_ACCEPTANCE_ATTEMPTS:\n            retry_reason = \"attempt-limit\"\n",
+     "new": "        elif False and attempt_no >= _MAX_ACCEPTANCE_ATTEMPTS:\n            retry_reason = \"attempt-limit\"\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_dev_wave_wait.py::test_attempt_two_terminal_releases_real_owned_lease",
+    "orchestrator/tests/test_dev_wave_wait.py::test_no_verdict_retry_stops_at_attempt_limit"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M11",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/dev_wave_wait.py",
+     "old": "        elif effects.monotonic() >= deadline.get(effects):\n            retry_reason = \"shared-deadline\"\n",
+     "new": "        elif False and effects.monotonic() >= deadline.get(effects):\n            retry_reason = \"shared-deadline\"\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_dev_wave_wait.py::test_no_verdict_retry_stops_at_shared_deadline"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M12",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/dev_wave_wait.py",
+     "old": "    if not (\n        confirmed.state == \"held-self\"\n        and confirmed.holder == claim_context.holder\n        and confirmed.main_sha == claim_context.main_sha\n    ):\n        raise _StageFailure(\"acceptance-retry-renew\")\n",
+     "new": "    if False:\n        raise _StageFailure(\"acceptance-retry-renew\")\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_dev_wave_wait.py::test_retry_renew_requires_same_held_self_lease[not-held-self]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M14",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/pegasus/dispatch_compute.py",
+     "old": "        return not (\n            reason == \"queue-wait-timeout\"\n            and queue_timeout_queued_evidence\n        )\n",
+     "new": "        return not (\n            reason == \"queue-wait-timeout\"\n        )\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_pegasus_dispatch_compute.py::test_queue_wait_timeout_without_queued_proof_attests_started[held]",
+    "orchestrator/tests/test_pegasus_dispatch_compute.py::test_queue_wait_timeout_without_queued_proof_attests_started[qstat-error]",
+    "orchestrator/tests/test_pegasus_dispatch_compute.py::test_queue_wait_timeout_without_queued_proof_attests_started[unknown]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M15",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/pegasus/dispatch_compute.py",
+     "old": "    if not normalized_started and (\n        normalized_reason != \"queue-wait-timeout\"\n        or normalized_child_rc is not None\n    ):\n        normalized_started = True\n",
+     "new": "    if False and not normalized_started and (\n        normalized_reason != \"queue-wait-timeout\"\n        or normalized_child_rc is not None\n    ):\n        normalized_started = True\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_pegasus_dispatch_compute.py::test_infra_attestation_false_is_reserved_for_consistent_queue_timeout[nonqueue-reason]",
+    "orchestrator/tests/test_pegasus_dispatch_compute.py::test_infra_attestation_false_is_reserved_for_consistent_queue_timeout[observed-child-rc]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "R04",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/dev_wave_wait.py",
+     "old": "            elif raw.startswith(b\"| \" + _DISPATCH_OUTCOME_PREFIX):\n                relayed_dispatch_markers = min(relayed_dispatch_markers + 1, 2)\n",
+     "new": "            elif raw.startswith(b\"| \" + _DISPATCH_OUTCOME_PREFIX):\n                if len(dispatch_payloads) < 2:\n                    dispatch_payloads.append(\n                        raw[len(b\"| \" + _DISPATCH_OUTCOME_PREFIX):]\n                    )\n"
+    },
+    {
+     "file": "tools/dev_wave_wait.py",
+     "old": "    if evidence.relayed_dispatch_markers:\n        return \"relayed-dispatch-attestation\"\n",
+     "new": "    if False and evidence.relayed_dispatch_markers:\n        return \"relayed-dispatch-attestation\"\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_dev_wave_wait.py::test_dispatch_attestation_ambiguity_never_retries[relay]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "R13",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/dev_wave_wait.py",
+     "old": "        _external_new_file_preflight(\n            effects,\n            repo,\n            archive,\n            \"acceptance-retry-log-archive\",\n        )\n",
+     "new": "        pass\n"
+    },
+    {
+     "file": "tools/dev_wave_wait.py",
+     "old": "        if _path_exists(effects, log_file) or not _path_exists(effects, archive):\n            raise _StageFailure(\"acceptance-retry-log-archive\")\n",
+     "new": "        if False:\n            raise _StageFailure(\"acceptance-retry-log-archive\")\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_dev_wave_wait.py::test_default_retry_archive_never_overwrites_existing_sibling",
+    "orchestrator/tests/test_dev_wave_wait.py::test_retry_archive_collision_stops_without_overwrite"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  }
+ ]
+}
