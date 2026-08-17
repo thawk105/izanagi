@@ -55,6 +55,17 @@ fix は 4 巡投入したが、**巡 1 は編集ゼロ**である (親の許可�
 `s8b_holdout_freeze.py` に触れず、子が正しく全体停止した)。実質の fix 巡は 2・3 の 2 巡で、
 巡 4 は破棄した。したがって上限には抵触していない。
 
+### 変異 matrix の実測
+
+**baseline PASSED、9/9 KILLED、MISMATCH 0、SURVIVED 0、TIMEOUT 0** (計算ノード dispatch)。
+probe (全件 SURVIVED 期待) で観測 node を集め、期待 node の完全集合を実測から確定してから本走した。
+m02 は 101 node、他は 1〜3 node。
+
+到達までに 2 走を無駄にした。1 走目は親が走行中に docs を書いて harness を止め、
+2 走目は node ID の 2 空間問題で m02 が MISMATCH になった。後者は
+**回避策が既に failures 台帳に載っていたのに走行前に引かなかった**もので、
+台帳どおりに直したら一度で通った ({{F:review-claim-unverified-before-fix}} と同じ規律の破れ)。
+
 ### 子の実行環境
 
 **codex 子は 6 回とも pytest を 1 度も実走できなかった** (実装子 1・fix 子 3・spec 子 1・
