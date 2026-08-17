@@ -3967,6 +3967,16 @@ def _run_loaded_checker(module) -> subprocess.CompletedProcess:
     return subprocess.CompletedProcess([], returncode, output.getvalue(), "")
 
 
+class _ReadTextIdentityView:
+    def __init__(self, source, *, ctime_ns):
+        self.st_mode = source.st_mode
+        self.st_mtime_ns = source.st_mtime_ns
+        self.st_size = source.st_size
+        self.st_ino = source.st_ino
+        self.st_dev = source.st_dev
+        self.st_ctime_ns = ctime_ns
+
+
 def test_read_text_cache_uses_one_physical_open_per_main(tmp_path, monkeypatch):
     target = tmp_path / "shared.md"
     target.write_text("shared text\n", encoding="utf-8")
@@ -3994,6 +4004,43 @@ def test_read_text_cache_uses_one_physical_open_per_main(tmp_path, monkeypatch):
 
     assert check_docs.main([]) == 0
     assert observed == ["shared text\n", "shared text\n"]
+    assert findings == []
+    assert physical_opens == 1
+
+
+def test_read_text_cache_uses_one_open_across_newline_modes(tmp_path, monkeypatch):
+    target = tmp_path / "cross-mode.md"
+    target.write_bytes(b"alpha\r\nbeta\r")
+    monkeypatch.setattr(check_docs, "REPO", tmp_path)
+
+    real_open = check_docs.Path.open
+    physical_opens = 0
+
+    def counting_open(path, *args, **kwargs):
+        nonlocal physical_opens
+        if path == target:
+            physical_opens += 1
+        return real_open(path, *args, **kwargs)
+
+    observed = []
+    findings = []
+
+    def cross_mode_probe(argv=None):
+        observed.append(
+            check_docs._safe_read_text(target, findings, "raw", newline="")
+        )
+        observed.append(
+            check_docs._safe_read_text(
+                target, findings, "normalized", newline=None
+            )
+        )
+        return 0
+
+    monkeypatch.setattr(check_docs.Path, "open", counting_open)
+    monkeypatch.setattr(check_docs, "_main", cross_mode_probe)
+
+    assert check_docs.main([]) == 0
+    assert observed == ["alpha\r\nbeta\r", "alpha\nbeta\n"]
     assert findings == []
     assert physical_opens == 1
 
@@ -4053,6 +4100,100 @@ def test_read_text_cache_replays_failure_for_each_caller(tmp_path, monkeypatch):
     )
 
 
+def test_read_text_cache_invalidates_revoked_read_permission(tmp_path, monkeypatch):
+    target = tmp_path / "permission.md"
+    target.write_text("secret\n", encoding="utf-8")
+    initial = target.lstat()
+    monkeypatch.setattr(check_docs, "REPO", tmp_path)
+
+    real_lstat = check_docs.Path.lstat
+    real_open = check_docs.Path.open
+
+    def stable_ctime_lstat(path):
+        current = real_lstat(path)
+        if path == target:
+            return _ReadTextIdentityView(current, ctime_ns=initial.st_ctime_ns)
+        return current
+
+    def permission_checked_open(path, *args, **kwargs):
+        if path == target and not (path.lstat().st_mode & 0o444):
+            raise PermissionError(13, "Permission denied", str(path))
+        return real_open(path, *args, **kwargs)
+
+    observed = []
+    findings = []
+
+    def permission_probe(argv=None):
+        observed.append(check_docs._safe_read_text(target, findings, "before"))
+        os.chmod(target, 0o000)
+        try:
+            observed.append(check_docs._safe_read_text(target, findings, "after"))
+        finally:
+            os.chmod(target, 0o644)
+        return 0
+
+    monkeypatch.setattr(check_docs.Path, "lstat", stable_ctime_lstat)
+    monkeypatch.setattr(check_docs.Path, "open", permission_checked_open)
+    monkeypatch.setattr(check_docs, "_main", permission_probe)
+
+    assert check_docs.main([]) == 0
+    assert observed == ["secret\n", None]
+    assert len(findings) == 1
+    assert findings[0].startswith("after (PermissionError: ")
+
+
+def test_read_text_cache_invalidates_ctime_only_change(tmp_path, monkeypatch):
+    target = tmp_path / "ctime.md"
+    target.write_text("same\n", encoding="utf-8")
+    initial = target.lstat()
+    monkeypatch.setattr(check_docs, "REPO", tmp_path)
+
+    real_lstat = check_docs.Path.lstat
+    real_open = check_docs.Path.open
+    physical_opens = 0
+    use_changed_identity = False
+
+    def ctime_only_lstat(path):
+        current = real_lstat(path)
+        if path == target and use_changed_identity:
+            return _ReadTextIdentityView(
+                current, ctime_ns=initial.st_ctime_ns + 1
+            )
+        return current
+
+    def counting_open(path, *args, **kwargs):
+        nonlocal physical_opens
+        if path == target:
+            physical_opens += 1
+        return real_open(path, *args, **kwargs)
+
+    observed = []
+    findings = []
+
+    def ctime_probe(argv=None):
+        nonlocal use_changed_identity
+        observed.append(check_docs._safe_read_text(target, findings, "before"))
+        use_changed_identity = True
+        changed = target.lstat()
+        assert changed.st_mtime_ns == initial.st_mtime_ns
+        assert changed.st_size == initial.st_size
+        assert changed.st_ino == initial.st_ino
+        assert changed.st_dev == initial.st_dev
+        assert changed.st_mode == initial.st_mode
+        assert changed.st_ctime_ns != initial.st_ctime_ns
+        observed.append(check_docs._safe_read_text(target, findings, "after"))
+        return 0
+
+    monkeypatch.setattr(check_docs.Path, "lstat", ctime_only_lstat)
+    monkeypatch.setattr(check_docs.Path, "open", counting_open)
+    monkeypatch.setattr(check_docs, "_main", ctime_probe)
+
+    assert check_docs.main([]) == 0
+    assert observed == ["same\n", "same\n"]
+    assert findings == []
+    assert physical_opens == 2
+
+
 def test_read_text_cache_invalidates_replaced_file_identity(tmp_path, monkeypatch):
     target = tmp_path / "replaceable.md"
     replacement = tmp_path / "replacement.md"
@@ -4074,6 +4215,99 @@ def test_read_text_cache_invalidates_replaced_file_identity(tmp_path, monkeypatc
     assert check_docs.main([]) == 0
     assert observed == ["old\n", "replacement content\n"]
     assert findings == []
+
+
+def test_read_text_cache_invalidates_inode_only_replacement(tmp_path, monkeypatch):
+    target = tmp_path / "inode.md"
+    replacement = tmp_path / "replacement.md"
+    target.write_text("old\n", encoding="utf-8")
+    replacement.write_text("new\n", encoding="utf-8")
+    initial = target.lstat()
+    os.utime(
+        replacement,
+        ns=(initial.st_atime_ns, initial.st_mtime_ns),
+    )
+    replacement_stat = replacement.lstat()
+    assert replacement_stat.st_ino != initial.st_ino
+    assert replacement_stat.st_size == initial.st_size
+    assert replacement_stat.st_mtime_ns == initial.st_mtime_ns
+    assert replacement_stat.st_dev == initial.st_dev
+    assert replacement_stat.st_mode == initial.st_mode
+    monkeypatch.setattr(check_docs, "REPO", tmp_path)
+
+    real_lstat = check_docs.Path.lstat
+
+    def stable_ctime_lstat(path):
+        current = real_lstat(path)
+        if path == target:
+            return _ReadTextIdentityView(current, ctime_ns=initial.st_ctime_ns)
+        return current
+
+    observed = []
+    findings = []
+
+    def replacement_probe(argv=None):
+        observed.append(check_docs._safe_read_text(target, findings, "before"))
+        replacement.replace(target)
+        observed.append(check_docs._safe_read_text(target, findings, "after"))
+        return 0
+
+    monkeypatch.setattr(check_docs.Path, "lstat", stable_ctime_lstat)
+    monkeypatch.setattr(check_docs, "_main", replacement_probe)
+
+    assert check_docs.main([]) == 0
+    assert observed == ["old\n", "new\n"]
+    assert findings == []
+
+
+def test_read_text_cache_invalidates_mtime_only_change(tmp_path, monkeypatch):
+    target = tmp_path / "mtime.md"
+    target.write_text("same\n", encoding="utf-8")
+    initial = target.lstat()
+    monkeypatch.setattr(check_docs, "REPO", tmp_path)
+
+    real_lstat = check_docs.Path.lstat
+    real_open = check_docs.Path.open
+    physical_opens = 0
+
+    def stable_ctime_lstat(path):
+        current = real_lstat(path)
+        if path == target:
+            return _ReadTextIdentityView(current, ctime_ns=initial.st_ctime_ns)
+        return current
+
+    def counting_open(path, *args, **kwargs):
+        nonlocal physical_opens
+        if path == target:
+            physical_opens += 1
+        return real_open(path, *args, **kwargs)
+
+    observed = []
+    findings = []
+
+    def mtime_probe(argv=None):
+        observed.append(check_docs._safe_read_text(target, findings, "before"))
+        os.utime(
+            target,
+            ns=(initial.st_atime_ns, initial.st_mtime_ns + 2_000_000_000),
+        )
+        changed = real_lstat(target)
+        assert changed.st_ino == initial.st_ino
+        assert changed.st_size == initial.st_size
+        assert changed.st_mtime_ns != initial.st_mtime_ns
+        assert changed.st_dev == initial.st_dev
+        assert changed.st_mode == initial.st_mode
+        observed.append(check_docs._safe_read_text(target, findings, "after"))
+        return 0
+
+    monkeypatch.setattr(check_docs.Path, "lstat", stable_ctime_lstat)
+    monkeypatch.setattr(check_docs.Path, "open", counting_open)
+    monkeypatch.setattr(check_docs, "_main", mtime_probe)
+
+    assert check_docs.main([]) == 0
+    assert observed == ["same\n", "same\n"]
+    assert findings == []
+    assert physical_opens == 2
 
 
 def test_provenance_registry_three_faces_asymmetry_is_rejected(monkeypatch):

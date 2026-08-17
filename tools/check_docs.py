@@ -847,7 +847,7 @@ PATH_REF = re.compile(r"(?<![\w/])(?:docs|tools|orchestrator|hooks|patches|outpu
 class _ReadTextCacheEntry:
     outcome: str
     payload: str
-    identity: tuple[int, int, int, int]
+    identity: tuple[int, int, int, int, int, int]
 
 
 _READ_TEXT_CACHE: ContextVar[
@@ -900,13 +900,15 @@ def _safe_read_text(
     cache = _READ_TEXT_CACHE.get()
     cache_key = (path, newline)
     identity = (
+        path_stat.st_mode,
         path_stat.st_mtime_ns,
+        path_stat.st_ctime_ns,
         path_stat.st_size,
         path_stat.st_ino,
         path_stat.st_dev,
     )
     # 既存 lstat で観測できる identity が変わった場合だけ stale と判定する。
-    # 4 値を保ったまま本文だけが変わる差し替えは既知の残差として残る。
+    # 6 値を保ったまま本文だけが変わる差し替えは既知の残差として残る。
     cached = cache.get(cache_key) if cache is not None else None
     if cached is not None and cached.identity != identity:
         cache.pop(cache_key, None)
