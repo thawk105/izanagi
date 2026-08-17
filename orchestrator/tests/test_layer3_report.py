@@ -995,22 +995,68 @@ def test_accepted_report_rejects_e0_after_historical_projection(
 def certifying_completeness_chain(tmp_path: Path, monkeypatch):
     """Build a full campaign-chain fixture with admission as the only variable."""
     output_root = tmp_path / "output"
-    campaign_id = "campaign-chain-fixture"
+    workload = "ycsb-a"
+    workload_flags = dict(YCSB)
+    descriptor = {
+        "schema_version": "8b-v1",
+        "source": "campaign_search_config_projection",
+        "contention": {"label": "high", "skew": 0.9},
+        "read_write": {"read_ratio_percent": 50, "rmw": 0},
+        "scale": {"records": 100_000, "threads": 4},
+        "correctness": "serializable_legacy_and_s2",
+        "objective": "maximize_throughput_tps",
+    }
+    descriptor_sha256 = hashlib.sha256(
+        json.dumps(
+            descriptor, ensure_ascii=False, sort_keys=True,
+            separators=(",", ":"), allow_nan=False,
+        ).encode("utf-8")
+    ).hexdigest()
+    descriptor_binding = {
+        "input_sha256": descriptor_sha256,
+        "output_sha256": descriptor_sha256,
+        "projection_version": "8b-descriptor-projection/v1",
+        "schema_sha256": (
+            "e60203b021a77a6d5a7d09bafd59525acd4173fa1ade099ec145a2b9d3ddc653"
+        ),
+    }
+    identity_preimage = campaign_lock.canonical_json({
+        "spec_content": autonomous_trial_completeness._AUTONOMOUS_SPEC_CONTENT,
+        "ccbench_commit": CURRENT_PIN,
+        "search_tag": "workload-conditioned-autonomous",
+        "search_config": {
+            "axis": "silo-backoff-trigger-gating",
+            "descriptor_schema": "8b-v1",
+            "descriptor_sha256": descriptor_sha256,
+            "generation_budget": 1,
+            "pilot_scope": "exploratory-ycsb-abc",
+            "records": 100_000,
+            "reflux": "on",
+            "scale": "silo",
+            "stop_policy": "fixed-generations-no-performance-early-stop",
+            "threads": 4,
+            "trigger_gate_binding_schema": "izanagi-trigger-gate-binding/v1",
+            "verify": "legacy+s2",
+            "workload": workload,
+            "ycsb": workload_flags,
+            "build_admission": {"fixture": True},
+        },
+        "trial": "fixture-trial-ycsb-a",
+    })
+    campaign_id = (
+        "p3-t178-ycsb-a-workload-conditioned-autonomous-"
+        + hashlib.sha256(identity_preimage.encode("utf-8")).hexdigest()[:8]
+    )
     campaign_root = output_root / "campaigns" / campaign_id
     persisted_path = campaign_root / "reports" / "layer3_report.json"
     persisted_path.parent.mkdir(parents=True)
-    workload_flags = {"ycsb_rratio": "50"}
-    descriptor = {"name": "fixture"}
-    descriptor_binding = {"output_sha256": "a" * 64}
+    (campaign_root / "campaign.lock").write_text(
+        build_v2_campaign_lock(identity_preimage), encoding="utf-8",
+    )
 
     producer = SimpleNamespace(
         MAX_APPROVED_GENERATIONS=2,
-        WORKLOADS={"ycsb-a": workload_flags},
-        GeneratorId=SimpleNamespace(S8A_TRIGGER_SWEEP="fixture"),
-        ident=SimpleNamespace(campaign_id=lambda _cfg: campaign_id),
-        _descriptor_for=lambda _flags: (descriptor, descriptor_binding),
-        build_run_context=lambda **_kwargs: object(),
-        _campaign_for=lambda **_kwargs: object(),
+        WORKLOADS={workload: workload_flags},
     )
     monkeypatch.setattr(
         autonomous_trial_completeness, "_producer_module", lambda: producer,
@@ -1046,7 +1092,7 @@ def certifying_completeness_chain(tmp_path: Path, monkeypatch):
     cell = {
         "campaign_id": campaign_id,
         "campaign_root": str(campaign_root),
-        "workload": "ycsb-a",
+        "workload": workload,
         "workload_flags": workload_flags,
         "descriptor": descriptor,
         "descriptor_binding": descriptor_binding,

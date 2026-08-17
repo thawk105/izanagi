@@ -12,7 +12,9 @@ import argparse
 import hashlib
 import json
 import math
+import os
 import re
+import stat
 import sys
 from collections import Counter
 from collections.abc import Mapping, Sequence
@@ -31,6 +33,7 @@ from .artifact_admission import (
     require_admitted_campaign,
 )
 from .layer3_report import canonical_record_ref
+from .pin import CURRENT_PIN as _CURRENT_CCBENCH_PIN
 from .role_session_isolation import evaluate_role_session_isolation
 
 
@@ -94,10 +97,49 @@ _ORIGIN_BINDING_KEYS = frozenset({
     "measurement_head", "store_scope", "issuer_seal",
 })
 _ORIGIN_WORKLOAD_KEYS = frozenset({"descriptor_sha256", "records", "threads"})
-_ORIGIN_TERMINAL_PROJECTION_KEYS = frozenset({
+_ORIGIN_TERMINAL_PROJECTION_BASE_KEYS = frozenset({
     "schema_version", "reason_code", "formal_receipt_sha256",
     "evidence_root_sha256", "authority_blob_sha256", "origin_id", "cell_key",
     "terminal_payload_sha256",
+})
+_ORIGIN_TERMINAL_PROJECTION_KEYS = frozenset({
+    _ORIGIN_TERMINAL_PROJECTION_BASE_KEYS,
+    _ORIGIN_TERMINAL_PROJECTION_BASE_KEYS | {"arm_binding_digest_sha256"},
+})
+_ARM_EXECUTION_KEYS = frozenset({
+    "input_schema_version", "content_digest_sha256",
+    "arm_binding_digest_sha256",
+})
+_EXPLORATORY_DESCRIPTOR_BINDING_KEYS = frozenset({
+    "input_sha256", "output_sha256", "projection_version", "schema_sha256",
+})
+_REGISTERED_DESCRIPTOR_BINDING_KEYS = frozenset({
+    *_EXPLORATORY_DESCRIPTOR_BINDING_KEYS,
+    "content_digest_sha256", "arm_binding_digest_sha256",
+})
+_DESCRIPTOR_SCHEMA_SHA256 = (
+    "e60203b021a77a6d5a7d09bafd59525acd4173fa1ade099ec145a2b9d3ddc653"
+)
+_AUTONOMOUS_SEARCH_CONFIG_KEYS = frozenset({
+    "axis", "descriptor_schema", "descriptor_sha256", "generation_budget",
+    "pilot_scope", "records", "reflux", "scale", "stop_policy", "threads",
+    "trigger_gate_binding_schema", "verify", "workload", "ycsb",
+    "build_admission",
+})
+_AUTONOMOUS_SPEC_CONTENT = (
+    "T-178 exploratory YCSB A/B/C workload-conditioned unattended synthesis. "
+    "Python invokes fresh projected planner/coder/auditor/critic roles; existing "
+    "trigger-gating quarantine/correctness/performance harness remains authoritative. "
+    "Fixed generations, no performance-target early stop, no formal descriptor claim."
+)
+_ARM_BINDING_DOMAIN_SEPARATOR_V1 = b"izanagi-s8c-arm-binding/v1\0"
+_REGISTERED_PROPOSAL_KEYS = frozenset({"path", "sha256", "digest"})
+_REGISTERED_PROPOSAL_VALUE_KEYS = frozenset({
+    "planner", "coder", "auditor", "prior_critic_reverse",
+    "descriptor_sha256", "arm_binding_digest_sha256",
+})
+_PROVIDER_ARTIFACT_KEYS = frozenset({
+    "payload_path", "envelope_path", "arm_binding_digest_sha256",
 })
 _FORMAL_REASON_CODES = frozenset({
     "FC01", "FC02", "FC03", "FC04", "FC05a", "FC05b", "FC05c", "FC06",
@@ -386,6 +428,498 @@ def _canonical_ref(record: Mapping[str, Any]) -> str:
 def _producer_module() -> Any:
     from . import p3_autonomous_workload_trial as producer
     return producer
+
+
+def _arm_binding_digest(
+    *, holdout: str, arm: str, content_digest: str,
+) -> str:
+    return hashlib.sha256(
+        _ARM_BINDING_DOMAIN_SEPARATOR_V1
+        + holdout.encode("utf-8")
+        + arm.encode("utf-8")
+        + content_digest.encode("ascii")
+    ).hexdigest()
+
+
+def _bound_regular_bytes(
+    value: Any, *, run_root: Path, gate: str, label: str,
+) -> tuple[Path, bytes]:
+    if type(value) is not str or not value:
+        _fail(gate, f"{label} is not a non-empty path string")
+    root = Path(run_root).resolve(strict=True)
+    lexical = Path(os.path.abspath(value))
+    try:
+        relative = lexical.relative_to(root)
+    except ValueError:
+        _fail(gate, f"{label} is outside the run root")
+    if not relative.parts:
+        _fail(gate, f"{label} is not a regular file")
+    cursor = root
+    try:
+        for component in relative.parts:
+            cursor = cursor / component
+            metadata = cursor.lstat()
+            if stat.S_ISLNK(metadata.st_mode):
+                _fail(gate, f"{label} traverses a symlink")
+        if not stat.S_ISREG(metadata.st_mode):
+            _fail(gate, f"{label} is not a regular file")
+        resolved = lexical.resolve(strict=True)
+        resolved.relative_to(root)
+        return resolved, resolved.read_bytes()
+    except AutonomousTrialCompletenessError:
+        raise
+    except (OSError, ValueError) as exc:
+        raise AutonomousTrialCompletenessError(
+            f"[{gate}] {label} cannot be read as a run-root regular file"
+        ) from exc
+
+
+def _canonical_descriptor_digest(
+    value: Any, *, label: str,
+) -> tuple[Mapping[str, Any], bytes, str]:
+    descriptor = _mapping(value, gate="arm-digest-chain", label=label)
+    raw = _canonical_bytes(descriptor)
+    return descriptor, raw, hashlib.sha256(raw).hexdigest()
+
+
+def _decode_canonical_object(
+    raw: bytes, *, gate: str, label: str,
+) -> Mapping[str, Any]:
+    value = _decode_json(raw, label=label)
+    mapped = _mapping(value, gate=gate, label=label)
+    if _canonical_bytes(mapped) != raw:
+        _fail(gate, f"{label} is not canonical JSON")
+    return mapped
+
+
+def _campaign_lock_identity(
+    campaign_root: Path, *, gate: str,
+) -> campaign_lock.DecodedCampaignLock:
+    lock_path = campaign_root / "campaign.lock"
+    try:
+        metadata = lock_path.lstat()
+        if stat.S_ISLNK(metadata.st_mode) or not stat.S_ISREG(metadata.st_mode):
+            _fail(gate, "campaign.lock is not a regular non-symlink file")
+        raw = lock_path.read_bytes()
+        decoded = campaign_lock.decode_campaign_lock_bytes(raw)
+    except AutonomousTrialCompletenessError:
+        raise
+    except (OSError, campaign_lock.CampaignLockCodecError) as exc:
+        raise AutonomousTrialCompletenessError(
+            f"[{gate}] campaign.lock cannot be decoded"
+        ) from exc
+    if decoded.is_v1 or decoded.authority is None:
+        _fail(gate, "campaign.lock v2 authority is required")
+    return decoded
+
+
+def _check_cell_campaign_identity(
+    *, cell: Mapping[str, Any], cell_index: int, workload: str,
+    workload_flags: Mapping[str, Any], trial_id: str, budget: int,
+    campaign_root: Path, arm_binding_digest: str | None,
+) -> None:
+    label = f"cells[{cell_index}]"
+    descriptor, _descriptor_raw, content_digest = _canonical_descriptor_digest(
+        cell.get("descriptor"), label=f"{label}.descriptor",
+    )
+    descriptor_binding = _mapping(
+        cell.get("descriptor_binding"), gate="campaign-chain",
+        label=f"{label}.descriptor_binding",
+    )
+    expected_binding_keys = (
+        _EXPLORATORY_DESCRIPTOR_BINDING_KEYS
+        if arm_binding_digest is None
+        else _REGISTERED_DESCRIPTOR_BINDING_KEYS
+    )
+    if frozenset(descriptor_binding) != expected_binding_keys:
+        _fail("campaign-chain", f"{label}.descriptor_binding exact keys differ")
+    if descriptor_binding.get("output_sha256") != content_digest:
+        _fail("campaign-chain", f"{label}.descriptor digest differs from binding")
+    if descriptor_binding.get("projection_version") != "8b-descriptor-projection/v1":
+        _fail("campaign-chain", f"{label}.descriptor projection version differs")
+    if descriptor_binding.get("schema_sha256") != _DESCRIPTOR_SCHEMA_SHA256:
+        _fail("campaign-chain", f"{label}.descriptor schema digest differs")
+    if descriptor.get("schema_version") != "8b-v1":
+        _fail("campaign-chain", f"{label}.descriptor schema differs")
+    if arm_binding_digest is not None and (
+        descriptor_binding.get("input_sha256") != content_digest
+        or descriptor_binding.get("content_digest_sha256") != content_digest
+        or descriptor_binding.get("arm_binding_digest_sha256")
+        != arm_binding_digest
+    ):
+        _fail("campaign-chain", f"{label}.registered descriptor binding differs")
+
+    decoded = _campaign_lock_identity(campaign_root, gate="campaign-chain")
+    identity = decoded.identity
+    search_config = identity.get("search_config")
+    if type(search_config) is not dict:
+        _fail("campaign-chain", f"{label} search_config is not an exact object")
+    expected_search_keys = _AUTONOMOUS_SEARCH_CONFIG_KEYS | (
+        {"arm_binding_digest_sha256"}
+        if arm_binding_digest is not None else set()
+    )
+    admitted_search_key_sets = {
+        frozenset(expected_search_keys),
+        frozenset(expected_search_keys | {"measurement_env"}),
+    }
+    if frozenset(search_config) not in admitted_search_key_sets:
+        _fail("campaign-chain", f"{label} search_config exact keys differ")
+    if "measurement_env" in search_config and (
+        search_config["measurement_env"] != "pegasus"
+    ):
+        _fail("campaign-chain", f"{label} search_config.measurement_env differs")
+    expected_search_values = {
+        "axis": "silo-backoff-trigger-gating",
+        "descriptor_schema": descriptor.get("schema_version"),
+        "descriptor_sha256": content_digest,
+        "generation_budget": budget,
+        "pilot_scope": "exploratory-ycsb-abc",
+        "records": 100_000,
+        "reflux": "on",
+        "scale": "silo",
+        "stop_policy": "fixed-generations-no-performance-early-stop",
+        "threads": 4,
+        "trigger_gate_binding_schema": "izanagi-trigger-gate-binding/v1",
+        "verify": "legacy+s2",
+        "workload": workload,
+        "ycsb": dict(workload_flags),
+    }
+    for field, expected in expected_search_values.items():
+        if search_config.get(field) != expected:
+            _fail("campaign-chain", f"{label} search_config.{field} differs")
+    if not isinstance(search_config.get("build_admission"), Mapping):
+        _fail("campaign-chain", f"{label} search_config.build_admission is absent")
+    if arm_binding_digest is not None and (
+        search_config.get("arm_binding_digest_sha256") != arm_binding_digest
+    ):
+        _fail("campaign-chain", f"{label} campaign arm digest differs")
+    if (
+        identity.get("spec_content") != _AUTONOMOUS_SPEC_CONTENT
+        or identity.get("search_tag") != "workload-conditioned-autonomous"
+        or identity.get("trial") != f"{trial_id}-{workload}"
+        or identity.get("ccbench_commit") != _CURRENT_CCBENCH_PIN
+    ):
+        _fail("campaign-chain", f"{label} campaign_id differs from producer derivation")
+    expected_campaign_id = (
+        f"p3-t178-{workload}-workload-conditioned-autonomous-"
+        f"{hashlib.sha256(decoded.identity_preimage.encode('utf-8')).hexdigest()[:8]}"
+    )
+    if cell.get("campaign_id") != expected_campaign_id:
+        _fail("campaign-chain", f"{label} campaign_id differs from producer derivation")
+
+
+def _check_registered_proposal(
+    *, proposal: Any, run_root: Path, workload: str, generation: int,
+    arm: str, content_digest: str, arm_binding_digest: str,
+) -> None:
+    record = _mapping(
+        proposal, gate="arm-digest-chain", label="generation.proposal",
+    )
+    if frozenset(record) != _REGISTERED_PROPOSAL_KEYS:
+        _fail("arm-digest-chain", "proposal record exact keys differ")
+    path, raw = _bound_regular_bytes(
+        record.get("path"), run_root=run_root, gate="arm-digest-chain",
+        label="proposal.path",
+    )
+    expected_name = (
+        f"arm-{arm}.exec-{arm_binding_digest}.{workload}.g{generation}.json"
+    )
+    if path.parent != run_root / "proposals" or path.name != expected_name:
+        _fail("arm-digest-chain", "proposal path differs from the bound generation")
+    actual_sha256 = hashlib.sha256(raw).hexdigest()
+    if (
+        record.get("sha256") != actual_sha256
+        or record.get("digest") != arm_binding_digest
+    ):
+        _fail("arm-digest-chain", "proposal digest differs")
+    value = _decode_canonical_object(
+        raw, gate="arm-digest-chain", label="proposal bytes",
+    )
+    if frozenset(value) != _REGISTERED_PROPOSAL_VALUE_KEYS:
+        _fail("arm-digest-chain", "proposal bytes exact keys differ")
+    if (
+        value.get("descriptor_sha256") != content_digest
+        or value.get("arm_binding_digest_sha256") != arm_binding_digest
+    ):
+        _fail("arm-digest-chain", "proposal bytes digest differs")
+
+
+def _check_registered_provider_artifacts(
+    *, event: Mapping[str, Any], run_root: Path, content_digest: str,
+    arm_binding_digest: str,
+) -> None:
+    artifacts = _mapping(
+        event.get("provider_artifacts"), gate="arm-digest-chain",
+        label="role-attempt.provider_artifacts",
+    )
+    if frozenset(artifacts) != _PROVIDER_ARTIFACT_KEYS:
+        _fail("arm-digest-chain", "provider_artifacts exact keys differ")
+    if artifacts.get("arm_binding_digest_sha256") != arm_binding_digest:
+        _fail("arm-digest-chain", "provider artifact arm digest differs")
+    payload_path, payload_raw = _bound_regular_bytes(
+        artifacts.get("payload_path"), run_root=run_root,
+        gate="arm-digest-chain", label="provider payload path",
+    )
+    envelope_path, envelope_raw = _bound_regular_bytes(
+        artifacts.get("envelope_path"), run_root=run_root,
+        gate="arm-digest-chain", label="provider envelope path",
+    )
+    invocation_id = event.get("invocation_id")
+    if (
+        payload_path.name != f"payload_{invocation_id}.json"
+        or envelope_path.name != f"envelope_{invocation_id}.json"
+        or payload_path.parent != envelope_path.parent
+    ):
+        _fail("arm-digest-chain", "provider artifact path differs from invocation")
+    payload_sha256 = hashlib.sha256(payload_raw).hexdigest()
+    envelope_sha256 = hashlib.sha256(envelope_raw).hexdigest()
+    if (
+        event.get("provider_payload_sha256") != payload_sha256
+        or event.get("provider_envelope_sha256") != envelope_sha256
+        or event.get("input_payload_sha256") != payload_sha256
+    ):
+        _fail("arm-digest-chain", "provider payload/envelope digest differs")
+    payload = _decode_canonical_object(
+        payload_raw, gate="arm-digest-chain", label="provider payload bytes",
+    )
+    payload_binding = _mapping(
+        payload.get("descriptor_binding"), gate="arm-digest-chain",
+        label="provider payload descriptor_binding",
+    )
+    if (
+        payload_binding.get("output_sha256") != content_digest
+        or payload_binding.get("content_digest_sha256") != content_digest
+        or payload_binding.get("arm_binding_digest_sha256")
+        != arm_binding_digest
+    ):
+        _fail("arm-digest-chain", "provider payload digest differs")
+    _mapping(
+        _decode_json(envelope_raw, label="provider envelope bytes"),
+        gate="arm-digest-chain", label="provider envelope bytes",
+    )
+    provenance = event.get("provenance")
+    if isinstance(provenance, Mapping) and (
+        provenance.get("payload_sha256") != payload_sha256
+        or provenance.get("envelope_sha256") != envelope_sha256
+    ):
+        _fail("arm-digest-chain", "provider provenance digest differs")
+
+
+def _check_arm_digest_chain(
+    *, report: Mapping[str, Any], events: Sequence[Mapping[str, Any]],
+    cells: Sequence[Mapping[str, Any]], run_root: Path,
+) -> None:
+    # ``trial_registry`` imports this module, so the registry authority must be
+    # acquired lazily after both modules have finished initializing.  Do not
+    # use the exploratory producer's WORKLOADS table for registered holdouts.
+    from .trial_registry import HOLDOUT_BINDINGS, HOLDOUT_WORKLOADS
+
+    launch = _mapping(
+        report.get("launch_admission"), gate="arm-digest-chain",
+        label="report.launch_admission",
+    )
+    launch_binding = launch.get("binding")
+    launch_workload = (
+        launch_binding.get("workload")
+        if isinstance(launch_binding, Mapping)
+        else None
+    )
+    registered = (
+        launch.get("mode") == "registered-effective"
+        and type(launch_workload) is str
+        and launch_workload in HOLDOUT_WORKLOADS
+    )
+    starts = [event for event in events if event.get("event") == "run-start"]
+    if len(starts) != 1:
+        _fail("arm-digest-chain", "run-start is not unique")
+    start = starts[0]
+    if not registered:
+        if "arm_execution" in report or "arm_execution" in start:
+            _fail("arm-digest-chain", "exploratory run carries arm_execution")
+        return
+
+    report_arm = _mapping(
+        report.get("arm_execution"), gate="arm-digest-chain",
+        label="report.arm_execution",
+    )
+    start_arm = _mapping(
+        start.get("arm_execution"), gate="arm-digest-chain",
+        label="run-start.arm_execution",
+    )
+    if frozenset(report_arm) != _ARM_EXECUTION_KEYS:
+        _fail("arm-digest-chain", "report.arm_execution exact keys differ")
+    if dict(start_arm) != dict(report_arm):
+        _fail("arm-digest-chain", "run-start/report arm_execution differs")
+    for field in ("content_digest_sha256", "arm_binding_digest_sha256"):
+        value = report_arm.get(field)
+        if type(value) is not str or _SHA256_RE.fullmatch(value) is None:
+            _fail("arm-digest-chain", f"arm_execution.{field} is invalid")
+    if report_arm.get("input_schema_version") != "8b-v1":
+        _fail("arm-digest-chain", "arm_execution input schema differs")
+    content_digest = report_arm["content_digest_sha256"]
+    arm_binding_digest = report_arm["arm_binding_digest_sha256"]
+    binding = _mapping(
+        launch.get("binding"), gate="arm-digest-chain",
+        label="launch_admission.binding",
+    )
+    arm = binding.get("arm")
+    holdout = binding.get("holdout")
+    if arm not in {"on", "off", "swapped"} or type(holdout) is not str:
+        _fail("arm-digest-chain", "launch arm/holdout is outside the closed set")
+    if _arm_binding_digest(
+        holdout=holdout, arm=arm, content_digest=content_digest,
+    ) != arm_binding_digest:
+        _fail("arm-digest-chain", "arm binding digest differs")
+    projection = report.get("origin_terminal_projection")
+    if projection is not None:
+        projection = _mapping(
+            projection, gate="arm-digest-chain",
+            label="origin_terminal_projection",
+        )
+        if (
+            frozenset(projection)
+            != (
+                _ORIGIN_TERMINAL_PROJECTION_BASE_KEYS
+                | {"arm_binding_digest_sha256"}
+            )
+            or projection.get("arm_binding_digest_sha256")
+            != arm_binding_digest
+        ):
+            _fail("arm-digest-chain", "origin terminal arm digest differs")
+
+    workload = binding.get("workload")
+    registered_holdout = HOLDOUT_BINDINGS.get(holdout)
+    if (
+        type(workload) is not str
+        or workload not in HOLDOUT_WORKLOADS
+        or not isinstance(registered_holdout, Mapping)
+        or registered_holdout.get("workload") != workload
+        or binding.get("ycsb_rratio")
+        != registered_holdout.get("ycsb_rratio")
+        or launch.get("workloads") != [workload]
+    ):
+        _fail("arm-digest-chain", "registered workload is inconsistent")
+    matching_cells = [cell for cell in cells if cell.get("workload") == workload]
+    if cells and len(matching_cells) != 1:
+        _fail("arm-digest-chain", "registered workload cell is not unique")
+    if not matching_cells:
+        return
+    cell = matching_cells[0]
+    cell_index = cells.index(cell)
+    workload_flags = _mapping(
+        cell.get("workload_flags"), gate="arm-digest-chain",
+        label=f"cells[{cell_index}].workload_flags",
+    )
+    if (
+        workload_flags.get("ycsb_rratio")
+        != registered_holdout.get("ycsb_rratio")
+    ):
+        _fail("arm-digest-chain", "benchmark workload_flags differs")
+    _descriptor, _raw, actual_content_digest = _canonical_descriptor_digest(
+        cell.get("descriptor"), label=f"cells[{cell_index}].descriptor",
+    )
+    if actual_content_digest != content_digest:
+        _fail("arm-digest-chain", "cell descriptor content digest differs")
+    descriptor_binding = _mapping(
+        cell.get("descriptor_binding"), gate="arm-digest-chain",
+        label=f"cells[{cell_index}].descriptor_binding",
+    )
+    if (
+        frozenset(descriptor_binding) != _REGISTERED_DESCRIPTOR_BINDING_KEYS
+        or descriptor_binding.get("input_sha256") != content_digest
+        or descriptor_binding.get("output_sha256") != content_digest
+        or descriptor_binding.get("schema_sha256") != _DESCRIPTOR_SCHEMA_SHA256
+        or descriptor_binding.get("content_digest_sha256") != content_digest
+        or descriptor_binding.get("arm_binding_digest_sha256")
+        != arm_binding_digest
+    ):
+        _fail("arm-digest-chain", "descriptor binding digest differs")
+    campaign_id = cell.get("campaign_id")
+    campaign_root = _path_identity(
+        cell.get("campaign_root"), gate="arm-digest-chain",
+        label=f"cells[{cell_index}].campaign_root",
+    )
+    artifact_run_root = campaign_root.parent.parent
+    expected_root = artifact_run_root / "campaigns" / str(campaign_id)
+    if campaign_root != expected_root:
+        _fail("arm-digest-chain", "campaign identity/path differs")
+    if binding.get("campaign_id") != campaign_id:
+        _fail("arm-digest-chain", "launch binding campaign_id differs")
+    lock_path = campaign_root / "campaign.lock"
+    if report.get("do_build") is True or lock_path.exists() or lock_path.is_symlink():
+        _check_cell_campaign_identity(
+            cell=cell, cell_index=cell_index, workload=workload,
+            workload_flags=workload_flags, trial_id=report.get("trial_id"),
+            budget=report.get("generation_budget_per_workload"),
+            campaign_root=campaign_root,
+            arm_binding_digest=arm_binding_digest,
+        )
+
+    for event in events:
+        if event.get("event") != "role-attempt":
+            continue
+        role = event.get("role")
+        generation = event.get("generation")
+        expected_invocation = (
+            f"arm-{arm}.exec-{arm_binding_digest}.{workload}."
+            f"g{generation}.{role}"
+        )
+        if (
+            event.get("workload") != workload
+            or event.get("invocation_id") != expected_invocation
+            or event.get("arm_binding_digest_sha256") != arm_binding_digest
+            or event.get("descriptor_sha256") != content_digest
+        ):
+            _fail("arm-digest-chain", "journal invocation digest differs")
+
+    for generation_record in _list(
+        cell.get("generations"), gate="arm-digest-chain",
+        label=f"cells[{cell_index}].generations",
+    ):
+        generation_record = _mapping(
+            generation_record, gate="arm-digest-chain", label="generation",
+        )
+        generation = generation_record.get("generation")
+        roles = _mapping(
+            generation_record.get("roles"), gate="arm-digest-chain",
+            label="generation.roles",
+        )
+        for role, event in roles.items():
+            event = _mapping(
+                event, gate="arm-digest-chain", label=f"generation.roles.{role}",
+            )
+            expected_invocation = (
+                f"arm-{arm}.exec-{arm_binding_digest}.{workload}."
+                f"g{generation}.{role}"
+            )
+            if (
+                event.get("invocation_id") != expected_invocation
+                or event.get("arm_binding_digest_sha256")
+                != arm_binding_digest
+                or event.get("descriptor_sha256") != content_digest
+            ):
+                _fail("arm-digest-chain", "role invocation digest differs")
+            if (
+                report.get("provider") == "claude-headless"
+                and event.get("status") != "skipped"
+            ):
+                _check_registered_provider_artifacts(
+                    event=event, run_root=artifact_run_root,
+                    content_digest=content_digest,
+                    arm_binding_digest=arm_binding_digest,
+                )
+        auditor = roles.get("auditor")
+        proposal_reached = isinstance(auditor, Mapping) and (
+            auditor.get("status") != "invalid"
+        )
+        if proposal_reached or "proposal" in generation_record:
+            _check_registered_proposal(
+                proposal=generation_record.get("proposal"),
+                run_root=artifact_run_root,
+                workload=workload, generation=generation, arm=arm,
+                content_digest=content_digest,
+                arm_binding_digest=arm_binding_digest,
+            )
 
 
 def _sha256_field(value: Any, *, label: str) -> None:
@@ -1078,7 +1612,7 @@ def _check_origin_terminal_projection(report: Mapping[str, Any]) -> None:
         gate="origin-terminal-projection",
         label="report.origin_terminal_projection",
     )
-    if frozenset(projection) != _ORIGIN_TERMINAL_PROJECTION_KEYS:
+    if frozenset(projection) not in _ORIGIN_TERMINAL_PROJECTION_KEYS:
         _fail("origin-terminal-projection", "exact keys differ")
     reason = projection.get("reason_code")
     if reason not in _FORMAL_REASON_CODES:
@@ -1103,6 +1637,10 @@ def _check_origin_terminal_projection(report: Mapping[str, Any]) -> None:
         value = projection.get(field)
         if type(value) is not str or _SHA256_RE.fullmatch(value) is None:
             _fail("origin-terminal-projection", f"{field} is invalid")
+    if "arm_binding_digest_sha256" in projection:
+        value = projection.get("arm_binding_digest_sha256")
+        if type(value) is not str or _SHA256_RE.fullmatch(value) is None:
+            _fail("origin-terminal-projection", "arm_binding_digest_sha256 is invalid")
     for field in ("origin_id", "cell_key"):
         value = projection.get(field)
         if type(value) is not str or not value:
@@ -1989,6 +2527,10 @@ def assert_autonomous_trial_completeness(
         _mapping(cell, gate="report-shape", label=f"cells[{index}]")
         for index, cell in enumerate(raw_cells)
     ]
+    _check_arm_digest_chain(
+        report=report, events=events, cells=cells,
+        run_root=Path(attempt_journal).resolve().parent,
+    )
     do_build = report.get("do_build")
     failure_indices: list[int] = []
     for index, cell in enumerate(cells):
@@ -2289,13 +2831,8 @@ def assert_campaign_layer3_chain(
             _fail("campaign-chain", f"cells[{index}] campaign_id is invalid or duplicated")
         seen.add(campaign_id)
         workload_flags = producer.WORKLOADS[workload]
-        expected_descriptor, expected_binding = producer._descriptor_for(workload_flags)
         if cell.get("workload_flags") != workload_flags:
             _fail("campaign-chain", f"cells[{index}].workload_flags differs from producer")
-        if cell.get("descriptor") != expected_descriptor:
-            _fail("campaign-chain", f"cells[{index}].descriptor differs from producer")
-        if cell.get("descriptor_binding") != expected_binding:
-            _fail("campaign-chain", f"cells[{index}].descriptor_binding differs from producer")
         campaign_root = _path_identity(
             campaign_root_value, gate="campaign-chain",
             label=f"cells[{index}].campaign_root",
@@ -2321,25 +2858,25 @@ def assert_campaign_layer3_chain(
                 "campaign-chain",
                 f"cells[{index}] failure campaign remains independently admitted",
             )
-        contract = _environment_contract_from_campaign_lock(
-            campaign_root, producer=producer,
+        arm_execution = report.get("arm_execution")
+        arm_binding_digest = None
+        if arm_execution is not None:
+            arm_execution = _mapping(
+                arm_execution, gate="campaign-chain", label="report.arm_execution",
+            )
+            arm_binding_digest = arm_execution.get("arm_binding_digest_sha256")
+            if (
+                frozenset(arm_execution) != _ARM_EXECUTION_KEYS
+                or type(arm_binding_digest) is not str
+                or _SHA256_RE.fullmatch(arm_binding_digest) is None
+            ):
+                _fail("campaign-chain", "report.arm_execution is invalid")
+        _check_cell_campaign_identity(
+            cell=cell, cell_index=index, workload=workload,
+            workload_flags=workload_flags, trial_id=trial_id, budget=budget,
+            campaign_root=campaign_root,
+            arm_binding_digest=arm_binding_digest,
         )
-        context = producer.build_run_context(
-            generator_id=producer.GeneratorId.S8A_TRIGGER_SWEEP,
-        )
-        expected_cfg = producer._campaign_for(
-            workload=workload,
-            workload_flags=workload_flags,
-            descriptor=expected_descriptor,
-            descriptor_record=expected_binding,
-            trial_id=trial_id,
-            generations=budget,
-            contract=contract,
-            build_context=context,
-        )
-        expected_campaign_id = str(producer.ident.campaign_id(expected_cfg))
-        if campaign_id != expected_campaign_id:
-            _fail("campaign-chain", f"cells[{index}] campaign_id differs from producer derivation")
         try:
             persisted = _read_report(persisted_path)
         except AutonomousTrialCompletenessError as exc:

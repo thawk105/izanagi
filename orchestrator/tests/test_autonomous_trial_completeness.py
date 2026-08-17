@@ -689,6 +689,420 @@ def _complete_trial(
     return run, events, report
 
 
+def _registered_digest_chain_trial(tmp_path: Path):
+    run, events, report = _complete_trial(tmp_path)
+    cell = report["cells"][0]
+    workload = "rr80"
+    workload_flags = {
+        "ycsb_zipf_skew": "0.9",
+        "ycsb_rratio": "80",
+        "ycsb_rmw": "0",
+    }
+    descriptor = {
+        "schema_version": "8b-v1",
+        "source": "campaign_search_config_projection",
+        "read_write": {"read_ratio_percent": 80, "rmw": 0},
+        "contention": {"skew": 0.9, "label": "high"},
+        "scale": {"records": 1_000_000, "threads": 48},
+        "objective": "maximize_throughput_tps",
+        "correctness": "serializable_legacy_and_s2",
+    }
+    report["workloads_requested"] = [workload]
+    events[0]["workloads"] = [workload]
+    cell["workload"] = workload
+    cell["workload_flags"] = workload_flags
+    cell["descriptor"] = descriptor
+    for event in events:
+        if event.get("event") in {"role-attempt", "generation-accounting"}:
+            event["workload"] = workload
+    for event in cell["generations"][0]["roles"].values():
+        event["workload"] = workload
+    descriptor_bytes = json.dumps(
+        cell["descriptor"], ensure_ascii=False, sort_keys=True,
+        separators=(",", ":"), allow_nan=False,
+    ).encode("utf-8")
+    content_digest = hashlib.sha256(descriptor_bytes).hexdigest()
+    assert content_digest == (
+        "80501db0235d88314edd4a4c29a1949e67acc2b466ae426fbbb1cb3da4b7d843"
+    )
+    arm = "on"
+    holdout = "H1"
+    arm_digest = C._arm_binding_digest(
+        holdout=holdout, arm=arm, content_digest=content_digest,
+    )
+    arm_execution = {
+        "input_schema_version": "8b-v1",
+        "content_digest_sha256": content_digest,
+        "arm_binding_digest_sha256": arm_digest,
+    }
+    context = build_run_context(generator_id=GeneratorId.S8A_TRIGGER_SWEEP)
+    identity_preimage = C.campaign_lock.canonical_json({
+        "spec_content": C._AUTONOMOUS_SPEC_CONTENT,
+        "ccbench_commit": CURRENT_PIN,
+        "search_tag": "workload-conditioned-autonomous",
+        "search_config": {
+            "axis": "silo-backoff-trigger-gating",
+            "descriptor_schema": "8b-v1",
+            "descriptor_sha256": content_digest,
+            "generation_budget": 1,
+            "pilot_scope": "exploratory-ycsb-abc",
+            "records": 100_000,
+            "reflux": "on",
+            "scale": "silo",
+            "stop_policy": "fixed-generations-no-performance-early-stop",
+            "threads": 4,
+            "trigger_gate_binding_schema": "izanagi-trigger-gate-binding/v1",
+            "verify": "legacy+s2",
+            "workload": workload,
+            "ycsb": dict(workload_flags),
+            "build_admission": dict(context.policy.as_preimage()),
+            "arm_binding_digest_sha256": arm_digest,
+        },
+        "trial": f"fixture-completeness-{workload}",
+    })
+    campaign_id = (
+        f"p3-t178-{workload}-workload-conditioned-autonomous-"
+        + hashlib.sha256(identity_preimage.encode("utf-8")).hexdigest()[:8]
+    )
+    campaign_root = run / "campaigns" / campaign_id
+    campaign_root.mkdir(parents=True)
+    (campaign_root / "campaign.lock").write_text(
+        build_v2_lock(identity_preimage), encoding="utf-8",
+    )
+    cell.update({
+        "campaign_id": campaign_id,
+        "campaign_root": str(campaign_root),
+        "descriptor_binding": {
+            **cell["descriptor_binding"],
+            "input_sha256": content_digest,
+            "output_sha256": content_digest,
+            "content_digest_sha256": content_digest,
+            "arm_binding_digest_sha256": arm_digest,
+        },
+    })
+    launch_admission = {
+        "mode": "registered-effective",
+        "certifying": False,
+        "reason_code": "registered-effective-non-certifying",
+        "trial_id": "fixture-completeness",
+        "workloads": [workload],
+        "binding": {
+            "manifest_sha256": "b" * 64,
+            "prereg_commit": "c" * 40,
+            "measurement_head": "7" * 40,
+            "trial_id": "fixture-completeness",
+            "arm": arm,
+            "holdout": holdout,
+            "campaign_id": campaign_id,
+            "workload": workload,
+            "ycsb_rratio": workload_flags["ycsb_rratio"],
+        },
+        "activation_report_digest_sha256": "d" * 64,
+    }
+    report["launch_admission"] = copy.deepcopy(launch_admission)
+    report["arm_execution"] = copy.deepcopy(arm_execution)
+    events[0]["launch_admission"] = copy.deepcopy(launch_admission)
+    events[0]["arm_execution"] = copy.deepcopy(arm_execution)
+
+    report_roles = report["cells"][0]["generations"][0]["roles"]
+    journal_roles = [event for event in events if event["event"] == "role-attempt"]
+    for role, report_event in report_roles.items():
+        invocation_id = f"arm-{arm}.exec-{arm_digest}.{workload}.g1.{role}"
+        for event in (report_event, next(
+            item for item in journal_roles if item["role"] == role
+        )):
+            event["invocation_id"] = invocation_id
+            event["descriptor_sha256"] = content_digest
+            event["arm_binding_digest_sha256"] = arm_digest
+            if role in {"planner", "coder"}:
+                spec_key = "planner-generation-1" if role == "planner" else role
+                event["payload_validation_receipt"] = (
+                    _fixture_payload_validation_receipt(event, spec_key)
+                )
+    proposal_value = {
+        "planner": {"fixture": True},
+        "coder": {"fixture": True},
+        "auditor": {"fixture": True},
+        "prior_critic_reverse": False,
+        "descriptor_sha256": content_digest,
+        "arm_binding_digest_sha256": arm_digest,
+    }
+    proposal_path = (
+        run / "proposals"
+        / f"arm-{arm}.exec-{arm_digest}.{workload}.g1.json"
+    )
+    proposal_path.parent.mkdir()
+    proposal_bytes = json.dumps(
+        proposal_value, ensure_ascii=False, sort_keys=True,
+        separators=(",", ":"), allow_nan=False,
+    ).encode("utf-8")
+    proposal_path.write_bytes(proposal_bytes)
+    cell["generations"][0]["proposal"] = {
+        "path": str(proposal_path),
+        "sha256": hashlib.sha256(proposal_bytes).hexdigest(),
+        "digest": arm_digest,
+    }
+    _persist(run, events, report)
+    return run, events, report, arm_execution
+
+
+def test_t1311_registered_digest_chain_positive_control(tmp_path) -> None:
+    run, _events, report, _arm_execution = _registered_digest_chain_trial(
+        tmp_path
+    )
+    _verify(run, report)
+
+
+@pytest.mark.parametrize("mutation", ("missing", "extra", "format"))
+def test_t1311_registered_arm_execution_is_required_exact_and_sha256(
+    tmp_path: Path, mutation: str,
+) -> None:
+    run, events, report, _arm_execution = _registered_digest_chain_trial(
+        tmp_path
+    )
+    if mutation == "missing":
+        report.pop("arm_execution")
+    elif mutation == "extra":
+        report["arm_execution"]["arm"] = "on"
+        events[0]["arm_execution"]["arm"] = "on"
+    else:
+        report["arm_execution"]["content_digest_sha256"] = "not-a-digest"
+        events[0]["arm_execution"]["content_digest_sha256"] = "not-a-digest"
+    _persist(run, events, report)
+    with pytest.raises(
+        C.AutonomousTrialCompletenessError,
+        match=r"\[arm-digest-chain\] ",
+    ):
+        _verify(run, report)
+
+
+def test_t1311_registered_run_rejects_one_missing_digest(tmp_path: Path) -> None:
+    run, events, report, _arm_execution = _registered_digest_chain_trial(
+        tmp_path
+    )
+    report["arm_execution"].pop("arm_binding_digest_sha256")
+    events[0]["arm_execution"].pop("arm_binding_digest_sha256")
+    _persist(run, events, report)
+    with pytest.raises(
+        C.AutonomousTrialCompletenessError,
+        match=(
+            r"\[arm-digest-chain\] "
+            r"report\.arm_execution exact keys differ$"
+        ),
+    ):
+        _verify(run, report)
+
+
+def test_t1311_exploratory_shape_rejects_arm_execution(tmp_path: Path) -> None:
+    run, events, report = _complete_trial(tmp_path)
+    report["arm_execution"] = {
+        "input_schema_version": "8b-v1",
+        "content_digest_sha256": "a" * 64,
+        "arm_binding_digest_sha256": "b" * 64,
+    }
+    events[0]["arm_execution"] = copy.deepcopy(report["arm_execution"])
+    _persist(run, events, report)
+    with pytest.raises(
+        C.AutonomousTrialCompletenessError,
+        match=r"\[arm-digest-chain\] exploratory run carries arm_execution$",
+    ):
+        _verify(run, report)
+
+
+@pytest.mark.parametrize(
+    ("mutation", "message"),
+    (
+        ("descriptor", r"cell descriptor content digest differs"),
+        ("descriptor-binding", r"descriptor binding digest differs"),
+        ("descriptor-schema", r"descriptor binding digest differs"),
+        ("campaign", r"search_config exact keys differ"),
+        ("proposal", r"proposal digest differs"),
+        ("invocation", r"journal invocation digest differs"),
+        ("run-start", r"run-start/report arm_execution differs"),
+        ("terminal-report", r"run-start/report arm_execution differs"),
+    ),
+)
+def test_t1311_registered_digest_chain_rejects_each_bound_sink(
+    tmp_path: Path, mutation: str, message: str,
+) -> None:
+    run, events, report, _arm_execution = _registered_digest_chain_trial(
+        tmp_path
+    )
+    cell = report["cells"][0]
+    if mutation == "descriptor":
+        cell["descriptor"]["objective"] = "same-arm-label-different-bytes"
+    elif mutation == "descriptor-binding":
+        cell["descriptor_binding"]["arm_binding_digest_sha256"] = "e" * 64
+    elif mutation == "descriptor-schema":
+        cell["descriptor_binding"]["schema_sha256"] = "e" * 64
+    elif mutation == "campaign":
+        campaign_root = Path(cell["campaign_root"])
+        decoded = C.campaign_lock.decode_campaign_lock_bytes(
+            (campaign_root / "campaign.lock").read_bytes()
+        )
+        identity = copy.deepcopy(decoded.identity)
+        assert identity["search_config"].pop("arm_binding_digest_sha256")
+        (campaign_root / "campaign.lock").write_text(
+            build_v2_lock(C.campaign_lock.canonical_json(identity)),
+            encoding="utf-8",
+        )
+    elif mutation == "proposal":
+        cell["generations"][0]["proposal"]["digest"] = "e" * 64
+    elif mutation == "invocation":
+        for event in events:
+            if event.get("event") == "role-attempt":
+                event["invocation_id"] = (
+                    f"{event['workload']}.g{event['generation']}.{event['role']}"
+                )
+        for role, event in cell["generations"][0]["roles"].items():
+            event["invocation_id"] = f"{event['workload']}.g1.{role}"
+    elif mutation == "run-start":
+        events[0]["arm_execution"]["arm_binding_digest_sha256"] = "e" * 64
+    elif mutation == "terminal-report":
+        report["arm_execution"]["arm_binding_digest_sha256"] = "e" * 64
+    else:  # pragma: no cover - parametrization is closed
+        raise AssertionError(mutation)
+    _persist(run, events, report)
+    with pytest.raises(
+        C.AutonomousTrialCompletenessError,
+        match=rf"\[(?:arm-digest-chain|campaign-chain)\].*{message}$",
+    ):
+        _verify(run, report)
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    ("outside", "symlink", "non-regular", "noncanonical", "hash"),
+)
+def test_t1311_proposal_artifact_is_run_bound_canonical_and_hashed(
+    tmp_path: Path, mutation: str,
+) -> None:
+    run, events, report, _arm_execution = _registered_digest_chain_trial(
+        tmp_path
+    )
+    proposal = report["cells"][0]["generations"][0]["proposal"]
+    original = Path(proposal["path"])
+    if mutation == "outside":
+        outside = tmp_path / "outside.json"
+        outside.write_bytes(original.read_bytes())
+        proposal["path"] = str(outside)
+    elif mutation == "symlink":
+        target = original.with_suffix(".target")
+        original.rename(target)
+        original.symlink_to(target)
+    elif mutation == "non-regular":
+        original.unlink()
+        original.mkdir()
+    elif mutation == "noncanonical":
+        value = json.loads(original.read_text("utf-8"))
+        original.write_text(json.dumps(value, indent=2), encoding="utf-8")
+        proposal["sha256"] = hashlib.sha256(original.read_bytes()).hexdigest()
+    else:
+        proposal["sha256"] = "e" * 64
+    _persist(run, events, report)
+    with pytest.raises(
+        C.AutonomousTrialCompletenessError,
+        match=r"\[arm-digest-chain\] ",
+    ):
+        _verify(run, report)
+
+
+def test_t1311_origin_terminal_projection_requires_current_arm_epoch(
+    tmp_path: Path,
+) -> None:
+    run, events, report, arm_execution = _registered_digest_chain_trial(
+        tmp_path
+    )
+    projection = _origin_terminal_projection(rejected=True)
+    projection["arm_binding_digest_sha256"] = (
+        arm_execution["arm_binding_digest_sha256"]
+    )
+    report["origin_terminal_projection"] = projection
+    _persist(run, events, report)
+    _verify(run, report)
+    report["origin_terminal_projection"]["arm_binding_digest_sha256"] = "e" * 64
+    _persist(run, events, report)
+    with pytest.raises(
+        C.AutonomousTrialCompletenessError,
+        match=r"\[arm-digest-chain\] origin terminal arm digest differs$",
+    ):
+        _verify(run, report)
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    (None, "payload-hash", "envelope-hash", "payload-arm", "artifact-arm"),
+)
+def test_t1311_provider_payload_and_envelope_are_independently_reread(
+    tmp_path: Path, mutation: str | None,
+) -> None:
+    run = tmp_path / "provider-run"
+    artifact_root = run / "provider" / "planner"
+    artifact_root.mkdir(parents=True)
+    content_digest = "a" * 64
+    arm_digest = "b" * 64
+    invocation_id = f"arm-on.exec-{arm_digest}.ycsb-a.g1.planner"
+    payload = {
+        "descriptor_binding": {
+            "output_sha256": content_digest,
+            "content_digest_sha256": content_digest,
+            "arm_binding_digest_sha256": arm_digest,
+        },
+    }
+    payload_path = artifact_root / f"payload_{invocation_id}.json"
+    envelope_path = artifact_root / f"envelope_{invocation_id}.json"
+    payload_path.write_bytes(json.dumps(
+        payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"),
+    ).encode("utf-8"))
+    envelope_path.write_bytes(b'{"result":"fixture","type":"result"}')
+    payload_sha256 = hashlib.sha256(payload_path.read_bytes()).hexdigest()
+    envelope_sha256 = hashlib.sha256(envelope_path.read_bytes()).hexdigest()
+    event = {
+        "invocation_id": invocation_id,
+        "input_payload_sha256": payload_sha256,
+        "provider_payload_sha256": payload_sha256,
+        "provider_envelope_sha256": envelope_sha256,
+        "provider_artifacts": {
+            "payload_path": str(payload_path),
+            "envelope_path": str(envelope_path),
+            "arm_binding_digest_sha256": arm_digest,
+        },
+        "provenance": {
+            "payload_sha256": payload_sha256,
+            "envelope_sha256": envelope_sha256,
+        },
+    }
+    if mutation == "payload-hash":
+        event.pop("provider_payload_sha256")
+    elif mutation == "envelope-hash":
+        event["provider_envelope_sha256"] = "c" * 64
+    elif mutation == "payload-arm":
+        payload["descriptor_binding"]["arm_binding_digest_sha256"] = "c" * 64
+        payload_path.write_bytes(json.dumps(
+            payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"),
+        ).encode("utf-8"))
+        changed = hashlib.sha256(payload_path.read_bytes()).hexdigest()
+        event["input_payload_sha256"] = changed
+        event["provider_payload_sha256"] = changed
+        event["provenance"]["payload_sha256"] = changed
+    elif mutation == "artifact-arm":
+        event["provider_artifacts"].pop("arm_binding_digest_sha256")
+    if mutation is None:
+        C._check_registered_provider_artifacts(
+            event=event, run_root=run,
+            content_digest=content_digest, arm_binding_digest=arm_digest,
+        )
+    else:
+        with pytest.raises(
+            C.AutonomousTrialCompletenessError,
+            match=r"\[arm-digest-chain\] ",
+        ):
+            C._check_registered_provider_artifacts(
+                event=event, run_root=run,
+                content_digest=content_digest, arm_binding_digest=arm_digest,
+            )
+
+
 def _pending_critic_admission_failure_trial(tmp_path: Path):
     run, events, report = _complete_trial(tmp_path)
     cell = report["cells"][0]

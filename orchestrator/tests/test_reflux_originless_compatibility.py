@@ -147,6 +147,10 @@ _VOLATILE_REPORT_JOURNAL_PATH = ("reports", "*", "attempt_journal")
 _VOLATILE_REPORT_JOURNAL_SHA = ("reports", "*", "attempt_journal_sha256")
 # Campaign roots are absolute trial-local paths; admission_decision.campaign_path is not excluded.
 _VOLATILE_REPORT_CAMPAIGN_ROOT = ("reports", "*", "cells", "*", "campaign_root")
+# T-1311 proposal artifacts are absolute descendants of each run root.
+_VOLATILE_REPORT_PROPOSAL_PATH = (
+    "reports", "*", "cells", "*", "generations", "*", "proposal", "path",
+)
 # Every journal append independently records its wall-clock timestamp.
 _VOLATILE_JOURNAL_TS = ("journals", "*", "*", "ts")
 # Role journal rows retain the absolute raw-response artifact path.
@@ -174,6 +178,7 @@ _VOLATILE_LEAF_PATHS = frozenset({
     _VOLATILE_REPORT_JOURNAL_PATH,
     _VOLATILE_REPORT_JOURNAL_SHA,
     _VOLATILE_REPORT_CAMPAIGN_ROOT,
+    _VOLATILE_REPORT_PROPOSAL_PATH,
     _VOLATILE_JOURNAL_TS,
     _VOLATILE_JOURNAL_ROLE_PATH,
     _VOLATILE_JOURNAL_REPORT_PATH,
@@ -506,10 +511,143 @@ def _project_t1185_generation_binding_to_generation_one(
     return projected
 
 
+_PRE_T1311_ROLE_PAYLOAD_SHA256 = {
+    "rr80": {
+        "planner": "e13194c65ec91bfbc5e85961b69f4c26a12330992f63d1a54ffbbe59a5521c30",
+        "coder": "5582fb991ca35d43f28b0820a992ebf992eb40d5309e5866999aac9c2341a2c5",
+        "auditor": "08469300d23c5d6985d6a0ff5fe2f48e4c41e1b2fb55f7a1408516df25265ceb",
+        "critic": "150985d205911afcbd0604e4600dea5e2a50ebacf89f671e135d0ae33c984a90",
+    },
+    "rr20": {
+        "planner": "95b45f9add1a4319d7a47ea70744a6cfc78587131aa5c43c0d196b06f5edc17a",
+        "coder": "ad21042abc28eababb14788755185510d6a50f26d6ed67b4f92eeea377a2b30b",
+        "auditor": "2ade3914c5d2f4bc03991e29346f32ee973863a339e34cf2fe9d994dcff8487e",
+        "critic": "b77e3c1d6b70096714a2fa9f5523248ab2c30ba6751ad9593ee680a704585395",
+    },
+}
+
+
+def _pre_t1311_descriptor(
+    workload: str,
+) -> tuple[dict[str, object], dict[str, str]]:
+    flags = A.WORKLOADS[workload]
+    projected_input = {
+        "records": 100_000,
+        "threads": 4,
+        "ycsb": dict(flags),
+    }
+    descriptor = {
+        "schema_version": "8b-v1",
+        "source": "campaign_search_config_projection",
+        "contention": {"label": "high", "skew": 0.9},
+        "read_write": {
+            "read_ratio_percent": int(flags["ycsb_rratio"]),
+            "rmw": int(flags["ycsb_rmw"]),
+        },
+        "scale": {"records": 100_000, "threads": 4},
+        "correctness": "serializable_legacy_and_s2",
+        "objective": "maximize_throughput_tps",
+    }
+    def canonical(value: object) -> bytes:
+        return json.dumps(
+            value, ensure_ascii=False, sort_keys=True, separators=(",", ":"),
+            allow_nan=False,
+        ).encode("utf-8")
+    binding = {
+        "input_sha256": hashlib.sha256(canonical(projected_input)).hexdigest(),
+        "output_sha256": hashlib.sha256(canonical(descriptor)).hexdigest(),
+        "projection_version": "8b-descriptor-projection/v1",
+        "schema_sha256": (
+            "e60203b021a77a6d5a7d09bafd59525acd4173fa1ade099ec145a2b9d3ddc653"
+        ),
+    }
+    return descriptor, binding
+
+
+def _project_t1311_arm_authority_to_pre_wave(
+    bundle: dict[str, object],
+) -> dict[str, object]:
+    """Validate and consume the current arm-authority epoch additions."""
+
+    projected = copy.deepcopy(bundle)
+
+    def project_role(event: dict[str, object]) -> None:
+        workload = event["workload"]
+        role = event["role"]
+        assert workload in _PRE_T1311_ROLE_PAYLOAD_SHA256
+        assert role in _PRE_T1311_ROLE_PAYLOAD_SHA256[workload]
+        arm_digest = event.pop("arm_binding_digest_sha256")
+        assert type(arm_digest) is str and len(arm_digest) == 64
+        old_payload_sha256 = _PRE_T1311_ROLE_PAYLOAD_SHA256[workload][role]
+        event["descriptor_sha256"] = _pre_t1311_descriptor(workload)[1][
+            "output_sha256"
+        ]
+        event["input_payload_sha256"] = old_payload_sha256
+        event["invocation_id"] = f"{workload}.g1.{role}"
+        provenance = event["provenance"]
+        assert type(provenance) is dict
+        provenance["child_id"] = f"fixture-{workload}.g1.{role}"
+        provenance["payload_sha256"] = old_payload_sha256
+        receipt = event.get("payload_validation_receipt")
+        if receipt is not None:
+            assert type(receipt) is dict
+            receipt["payload_sha256"] = old_payload_sha256
+
+    for report in projected["reports"]:
+        arm_execution = report.pop("arm_execution")
+        assert set(arm_execution) == {
+            "input_schema_version", "content_digest_sha256",
+            "arm_binding_digest_sha256",
+        }
+        for cell in report["cells"]:
+            descriptor, descriptor_binding = _pre_t1311_descriptor(
+                cell["workload"]
+            )
+            descriptor = json.loads(json.dumps(descriptor, sort_keys=True))
+            descriptor_binding = json.loads(json.dumps(
+                descriptor_binding, sort_keys=True,
+            ))
+            current_binding = cell["descriptor_binding"]
+            assert set(current_binding) == {
+                "input_sha256", "output_sha256", "projection_version",
+                "schema_sha256", "content_digest_sha256",
+                "arm_binding_digest_sha256",
+            }
+            assert current_binding["content_digest_sha256"] == (
+                arm_execution["content_digest_sha256"]
+            )
+            assert current_binding["arm_binding_digest_sha256"] == (
+                arm_execution["arm_binding_digest_sha256"]
+            )
+            cell["descriptor"] = descriptor
+            cell["descriptor_binding"] = descriptor_binding
+            for generation in cell["generations"]:
+                proposal = generation.pop("proposal")
+                assert set(proposal) == {"path", "sha256", "digest"}
+                assert proposal["digest"] == arm_execution[
+                    "arm_binding_digest_sha256"
+                ]
+                for event in generation["roles"].values():
+                    project_role(event)
+
+    for journal in projected["journals"]:
+        for event in journal:
+            if event["event"] == "run-start":
+                arm_execution = event.pop("arm_execution")
+                assert set(arm_execution) == {
+                    "input_schema_version", "content_digest_sha256",
+                    "arm_binding_digest_sha256",
+                }
+            elif event["event"] == "role-attempt":
+                project_role(event)
+    return projected
+
+
 def _project_t244_additions_to_pre_wave(bundle: dict[str, object]) -> dict[str, object]:
     """Consume each adjudicated addition explicitly, then expose the old view."""
 
     projected = _project_t1185_generation_binding_to_generation_one(bundle)
+    projected = _project_t1311_arm_authority_to_pre_wave(projected)
     for report in projected["reports"]:
         assert report["schema_version"] == A.REPORT_SCHEMA_VERSION
         report["schema_version"] = "p3-autonomous-workload-trial-report/v2"
