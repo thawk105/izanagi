@@ -30,6 +30,7 @@ if __package__ in {None, ""}:  # pragma: no cover - direct CLI execution
 from .autonomous_trial_completeness import (
     AutonomousTrialCompletenessError,
     assert_autonomous_trial_completeness,
+    assert_execution_digest_chain,
 )
 from . import s8c_preregistration
 from . import s8c_acceptance_receipt
@@ -2830,6 +2831,14 @@ def assert_trial_registry_acceptance(
             status = report.get("status")
             if not isinstance(status, str):
                 _fail("terminal-projection", "report status is not a string")
+            try:
+                assert_execution_digest_chain(
+                    report=report,
+                    events=events,
+                    run_root=item.journal_path.resolve().parent,
+                )
+            except AutonomousTrialCompletenessError as exc:
+                raise TrialRegistryError(f"[terminal-completeness] {exc}") from exc
             accepted.append(AcceptedTrial(trial_id, status, measurement_head))
         accepted.sort(key=lambda accepted_trial: accepted_trial.trial_id)
         accepted_by_id = {item.trial_id: item for item in accepted}

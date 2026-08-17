@@ -1342,6 +1342,37 @@ def test_acceptance_registered_run_rejects_one_missing_digest(
         )
 
 
+def test_acceptance_runs_digest_chain_once_per_registered_trial(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo, manifest_path, registry, manifest = _registered_repo(tmp_path)
+    reports = _reports(repo / "reports", manifest, _head(repo), complete=True)
+    capability = _effective_capability(manifest, monkeypatch)
+    lifecycle = _write_acceptance_lifecycle(
+        repo, manifest, reports, capability.report_digest_sha256,
+    )
+    calls: list[str] = []
+    original = R.assert_execution_digest_chain
+
+    def record_digest_chain(**kwargs) -> None:
+        calls.append(kwargs["report"]["trial_id"])
+        original(**kwargs)
+
+    monkeypatch.setattr(
+        R, "assert_execution_digest_chain", record_digest_chain,
+    )
+    R.assert_trial_registry_acceptance(
+        effective_preregistration=capability,
+        manifest_path=manifest_path,
+        report_paths=reports,
+        repository_root=repo,
+        registry_path=registry,
+        lifecycle_path=lifecycle,
+    )
+    assert calls == [trial.trial_id for trial in manifest.trials]
+
+
 @pytest.mark.parametrize("origin_binding_record", [None, {"unexpected": True}])
 def test_acceptance_rejects_null_or_open_origin_binding_projection(
     tmp_path: Path,

@@ -922,6 +922,29 @@ def _check_arm_digest_chain(
             )
 
 
+def assert_execution_digest_chain(
+    *, report: Mapping[str, Any], events: Sequence[Mapping[str, Any]],
+    run_root: Path,
+) -> None:
+    """Verify the arm execution digest chain independently of completeness."""
+    report = _mapping(report, gate="report-shape", label="report")
+    normalized_events = [
+        _mapping(event, gate="arm-digest-chain", label=f"events[{index}]")
+        for index, event in enumerate(events)
+    ]
+    raw_cells = _list(
+        report.get("cells"), gate="report-shape", label="report.cells",
+    )
+    cells = [
+        _mapping(cell, gate="report-shape", label=f"cells[{index}]")
+        for index, cell in enumerate(raw_cells)
+    ]
+    _check_arm_digest_chain(
+        report=report, events=normalized_events, cells=cells,
+        run_root=Path(run_root),
+    )
+
+
 def _sha256_field(value: Any, *, label: str) -> None:
     if not isinstance(value, str) or _SHA256_RE.fullmatch(value) is None:
         _fail("role-event-shape", f"{label} is not a lowercase SHA-256")
@@ -2527,10 +2550,6 @@ def assert_autonomous_trial_completeness(
         _mapping(cell, gate="report-shape", label=f"cells[{index}]")
         for index, cell in enumerate(raw_cells)
     ]
-    _check_arm_digest_chain(
-        report=report, events=events, cells=cells,
-        run_root=Path(attempt_journal).resolve().parent,
-    )
     do_build = report.get("do_build")
     failure_indices: list[int] = []
     for index, cell in enumerate(cells):

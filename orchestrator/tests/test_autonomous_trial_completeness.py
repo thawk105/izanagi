@@ -531,7 +531,9 @@ def _origin_binding(*, workload: str = "ycsb-a") -> dict:
         "axis_semantics_sha256": "4" * 64,
         "verifier_policy_sha256": "5" * 64,
         "environment_contract_sha256": "6" * 64,
-        "campaign_id": "fixture-campaign",
+        "campaign_id": _PRE_T343_NO_BUILD_CAMPAIGN_IDS[
+            ("fixture-completeness", "ycsb-a")
+        ],
         "trial_workload": workload,
         "measurement_head": "7" * 40,
         "store_scope": "fixture",
@@ -553,7 +555,9 @@ def _origin_bound_launch_admission() -> dict:
             "trial_id": "fixture-completeness",
             "arm": "on",
             "holdout": "H1",
-            "campaign_id": "fixture-campaign",
+            "campaign_id": _PRE_T343_NO_BUILD_CAMPAIGN_IDS[
+                ("fixture-completeness", "ycsb-a")
+            ],
             "workload": "ycsb-a",
             "ycsb_rratio": "70",
         },
@@ -846,11 +850,17 @@ def _registered_digest_chain_trial(tmp_path: Path):
     return run, events, report, arm_execution
 
 
+def _verify_digest_chain(run: Path, events: list[dict], report: dict) -> None:
+    C.assert_execution_digest_chain(
+        report=report, events=events, run_root=run,
+    )
+
+
 def test_t1311_registered_digest_chain_positive_control(tmp_path) -> None:
-    run, _events, report, _arm_execution = _registered_digest_chain_trial(
+    run, events, report, _arm_execution = _registered_digest_chain_trial(
         tmp_path
     )
-    _verify(run, report)
+    _verify_digest_chain(run, events, report)
 
 
 @pytest.mark.parametrize("mutation", ("missing", "extra", "format"))
@@ -873,7 +883,7 @@ def test_t1311_registered_arm_execution_is_required_exact_and_sha256(
         C.AutonomousTrialCompletenessError,
         match=r"\[arm-digest-chain\] ",
     ):
-        _verify(run, report)
+        _verify_digest_chain(run, events, report)
 
 
 def test_t1311_registered_run_rejects_one_missing_digest(tmp_path: Path) -> None:
@@ -890,7 +900,7 @@ def test_t1311_registered_run_rejects_one_missing_digest(tmp_path: Path) -> None
             r"report\.arm_execution exact keys differ$"
         ),
     ):
-        _verify(run, report)
+        _verify_digest_chain(run, events, report)
 
 
 def test_t1311_exploratory_shape_rejects_arm_execution(tmp_path: Path) -> None:
@@ -906,7 +916,7 @@ def test_t1311_exploratory_shape_rejects_arm_execution(tmp_path: Path) -> None:
         C.AutonomousTrialCompletenessError,
         match=r"\[arm-digest-chain\] exploratory run carries arm_execution$",
     ):
-        _verify(run, report)
+        _verify_digest_chain(run, events, report)
 
 
 @pytest.mark.parametrize(
@@ -967,7 +977,7 @@ def test_t1311_registered_digest_chain_rejects_each_bound_sink(
         C.AutonomousTrialCompletenessError,
         match=rf"\[(?:arm-digest-chain|campaign-chain)\].*{message}$",
     ):
-        _verify(run, report)
+        _verify_digest_chain(run, events, report)
 
 
 @pytest.mark.parametrize(
@@ -1004,7 +1014,7 @@ def test_t1311_proposal_artifact_is_run_bound_canonical_and_hashed(
         C.AutonomousTrialCompletenessError,
         match=r"\[arm-digest-chain\] ",
     ):
-        _verify(run, report)
+        _verify_digest_chain(run, events, report)
 
 
 def test_t1311_origin_terminal_projection_requires_current_arm_epoch(
@@ -1019,14 +1029,14 @@ def test_t1311_origin_terminal_projection_requires_current_arm_epoch(
     )
     report["origin_terminal_projection"] = projection
     _persist(run, events, report)
-    _verify(run, report)
+    _verify_digest_chain(run, events, report)
     report["origin_terminal_projection"]["arm_binding_digest_sha256"] = "e" * 64
     _persist(run, events, report)
     with pytest.raises(
         C.AutonomousTrialCompletenessError,
         match=r"\[arm-digest-chain\] origin terminal arm digest differs$",
     ):
-        _verify(run, report)
+        _verify_digest_chain(run, events, report)
 
 
 @pytest.mark.parametrize(
