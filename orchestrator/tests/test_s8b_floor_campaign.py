@@ -1430,13 +1430,20 @@ def _install_required_contract(
     raw = json.dumps(
         document, ensure_ascii=False, sort_keys=True, separators=(",", ":"),
     ).encode("utf-8")
-    (repo_root / "calibration.json").write_bytes(raw)
+    calibration_sha256 = hashlib.sha256(raw).hexdigest()
+    calibration_relative = Path(
+        "output", "env", document["env_tag"], "calibration", "registered",
+        f"calibration-{calibration_sha256[:16]}.json",
+    )
+    calibration_path = repo_root / calibration_relative
+    calibration_path.parent.mkdir(parents=True, exist_ok=True)
+    calibration_path.write_bytes(raw)
     contract = ec.ExecutionEnvironmentContract(
         env_tag=document["env_tag"], clocks_per_us=document["clocks_per_us"],
         numactl=ec.lookup(ENV_TAG).numactl, attestation_mode="required",
         isolation_policy=ec.IsolationPolicy(single_process=True, allow_resume=False),
         calibration_ref=ec.CalibrationRef(
-            path="calibration.json", sha256=hashlib.sha256(raw).hexdigest(),
+            path=calibration_relative.as_posix(), sha256=calibration_sha256,
         ),
     )
     monkeypatch.setattr(s8b_floor_campaign._env_contract, "lookup", lambda _tag: contract)
@@ -4294,6 +4301,92 @@ def test_public_pilot_requires_irreversible_holdout_approval_before_effects(tmp_
     assert not out_root.exists()
 
 
+def test_public_campaign_rejects_noncurrent_supplied_protocol_before_all_effects(
+        tmp_path, monkeypatch):
+    freeze = _freeze_document()
+    verified = _verified_freeze(freeze)
+    legacy_protocol = _protocol(freeze_sha=_freeze_sha(freeze))
+    out_root = tmp_path / "out"
+    authority = _test_holdout_authority(out_root, legacy_protocol, verified)
+    supplied_path = authority / s8b_floor_campaign._FLOOR_PROTOCOL_REL
+
+    selected_protocol = copy.deepcopy(legacy_protocol)
+    selected_protocol["ccbench_pin"] = "a" * 40
+    selected_rel = s8b_floor_campaign._derived_reseal_protocol_relpath(
+        selected_protocol["contract_sha256"], selected_protocol["ccbench_pin"],
+    )
+    selected_path = authority / selected_rel
+    selected_path.parent.mkdir(parents=True)
+    selected_path.write_bytes(s8b_floor_campaign._canonical_bytes(selected_protocol))
+    subprocess.run(
+        ["git", "add", selected_rel], cwd=str(authority), check=True,
+        stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+    )
+    subprocess.run(
+        [
+            "git", "update-index", "--add", "--cacheinfo",
+            f"160000,{selected_protocol['ccbench_pin']},external/ccbench",
+        ],
+        cwd=str(authority), check=True,
+        stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+    )
+    subprocess.run(
+        [
+            "git", "-c", "user.name=fixture", "-c",
+            "user.email=fixture@example.invalid", "commit", "-m",
+            "select versioned protocol",
+        ],
+        cwd=str(authority), check=True,
+        stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+    )
+    shared_admission = (
+        s8b_floor_campaign._holdout_admission.shared_admission_root(authority)
+    )
+    core = mock.Mock(side_effect=AssertionError(
+        "authority mismatch must not reach the effect-capable core"
+    ))
+    monkeypatch.setattr(s8b_floor_campaign, "_run_campaign_core", core)
+
+    with pytest.raises(s8b_floor_campaign.FloorCampaignError) as exc_info:
+        s8b_floor_campaign.run_campaign(
+            legacy_protocol, verified, out_root=out_root, mode="pilot",
+            repo_root=authority, protocol_path=supplied_path,
+            confirm_irreversible_pilot_holdout=True,
+        )
+
+    message = str(exc_info.value)
+    assert str(supplied_path) in message
+    assert str(selected_path) in message
+    core.assert_not_called()
+    assert not out_root.exists()
+    assert list(tmp_path.rglob("manifest.json")) == []
+    assert list(tmp_path.rglob("binaries")) == []
+    assert list(tmp_path.rglob("s8b-floor-pilot")) == []
+    assert not shared_admission.exists()
+
+
+def test_public_campaign_current_supplied_protocol_reaches_core(
+        tmp_path, monkeypatch):
+    freeze = _freeze_document()
+    verified = _verified_freeze(freeze)
+    protocol = _protocol(freeze_sha=_freeze_sha(freeze))
+    out_root = tmp_path / "out"
+    authority = _test_holdout_authority(out_root, protocol, verified)
+    supplied_path = authority / s8b_floor_campaign._FLOOR_PROTOCOL_REL
+    expected = {"status": "completed", "run_dir": str(tmp_path / "run")}
+    core = mock.Mock(return_value=expected)
+    monkeypatch.setattr(s8b_floor_campaign, "_run_campaign_core", core)
+
+    outcome = s8b_floor_campaign.run_campaign(
+        protocol, verified, out_root=out_root, mode="pilot",
+        repo_root=authority, protocol_path=supplied_path,
+        confirm_irreversible_pilot_holdout=True,
+    )
+
+    assert outcome == expected
+    core.assert_called_once()
+
+
 def test_cli_exposes_dedicated_irreversible_pilot_holdout_flag():
     parsed = s8b_floor_campaign._parser().parse_args([
         "--mode", "pilot", "--protocol", "protocol.json",
@@ -4685,8 +4778,12 @@ def test_required_missing_preprovisioned_claim_root_is_side_effect_free(
 
 
 def test_required_reservation_loss_is_typed_campaign_terminal_with_no_values(
-        tmp_path, monkeypatch):
+        tmp_path, monkeypatch, _activate_synthetic_env_authority):
     ctx = _install_required_contract(tmp_path, monkeypatch)
+    _activate_synthetic_env_authority(
+        ctx["contract"], repo_root=ctx["repo_root"],
+        authority_dir=tmp_path / "authority",
+    )
     _provision_claim_root(ctx)
     ticks = iter((0.0, 200_000.0))
     monotonic_fn = lambda: next(ticks)
@@ -4714,8 +4811,12 @@ def test_required_reservation_loss_is_typed_campaign_terminal_with_no_values(
 
 
 def test_required_recheck_pins_remaining_budget_margin_and_injected_monotonic_clock(
-        tmp_path, monkeypatch):
+        tmp_path, monkeypatch, _activate_synthetic_env_authority):
     ctx = _install_required_contract(tmp_path, monkeypatch)
+    _activate_synthetic_env_authority(
+        ctx["contract"], repo_root=ctx["repo_root"],
+        authority_dir=tmp_path / "authority",
+    )
     _provision_claim_root(ctx)
 
     class Clock:
@@ -4765,8 +4866,12 @@ def test_required_recheck_pins_remaining_budget_margin_and_injected_monotonic_cl
 
 
 def test_required_mode_happy_path_pins_journal_claim_and_receipt_shape(
-        tmp_path, monkeypatch):
+        tmp_path, monkeypatch, _activate_synthetic_env_authority):
     ctx = _install_required_contract(tmp_path, monkeypatch)
+    _activate_synthetic_env_authority(
+        ctx["contract"], repo_root=ctx["repo_root"],
+        authority_dir=tmp_path / "authority",
+    )
     # POS-6: hostname is observation only; receipt authority is job/SHA/nonce.
     assert (
         ctx["binding_values"]["IZANAGI_RESERVATION_HOST"]
@@ -8611,6 +8716,7 @@ def test_main_validates_recorded_g1_with_historical_lane_when_current_is_g2(
     load_freeze.assert_called_once()
     run_campaign.assert_called_once()
     assert run_campaign.call_args.args == (protocol, verified)
+    assert run_campaign.call_args.kwargs["protocol_path"] == protocol_path
 
 
 def test_fresh_run_rejects_recorded_g1_when_current_contract_is_g2_before_io(
@@ -8722,7 +8828,8 @@ def test_current_admission_reuses_exact_contract_across_successful_run(
     )
 
     assert outcome["status"] == "completed"
-    current_lookup.assert_called_once_with(ENV_TAG)
+    # resolver の index 候補絞り込みと admission 本体が各 1 回、現行契約を引く。
+    assert current_lookup.call_args_list == [mock.call(ENV_TAG)] * 2
     assert len(seen["calibration"]) == 1
     assert len(seen["receipt"]) == 1
     assert len(seen["build"]) == len(_CONFIGS) * len(_HOLDOUT_SHAPE)

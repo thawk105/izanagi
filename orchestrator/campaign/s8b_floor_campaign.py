@@ -67,7 +67,7 @@ import sys
 import tempfile
 import time
 import uuid
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 from typing import Callable, Mapping, Optional, Sequence
 from pathlib import Path
 
@@ -595,6 +595,7 @@ class IndexedFloorProtocol:
     document: dict
     raw_bytes: bytes
     sha256: str
+    commit_oid: str = field(default="", compare=False)
 
     @property
     def contract_sha256(self) -> str:
@@ -741,7 +742,7 @@ def _derived_reseal_protocol_relpath(contract_sha256: object, ccbench_pin: objec
 
 def _index_protocol_record(
         index: dict[tuple[str, str], IndexedFloorProtocol], *, path: str,
-        document: dict, raw: bytes) -> None:
+        document: dict, raw: bytes, commit_oid: str) -> None:
     pair = _validate_floor_protocol_pair(
         document["contract_sha256"], document["ccbench_pin"],
     )
@@ -755,6 +756,7 @@ def _index_protocol_record(
         document=document,
         raw_bytes=raw,
         sha256=hashlib.sha256(raw).hexdigest(),
+        commit_oid=commit_oid,
     )
 
 
@@ -777,6 +779,35 @@ def _assert_floor_protocol_ancestors(root: Path) -> None:
         raise FloorCampaignError(
             f"floor protocol namespace が directory でない: {protocols_dir}"
         )
+
+
+def _floor_protocol_paths_at_commit(root: Path, commit_oid: str) -> set[str]:
+    """固定 commit の versioned namespace path 集合を衛生化 Git で読む。"""
+    try:
+        raw = subprocess.run(
+            _floor_git_read_command(
+                "ls-tree", "-r", "-z", "--name-only", commit_oid,
+                "--", _FLOOR_PROTOCOLS_REL,
+            ),
+            cwd=str(root), check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+            env=_sanitized_floor_git_env(),
+        ).stdout
+        paths = [
+            entry.decode("utf-8", "strict")
+            for entry in raw.split(b"\0") if entry
+        ]
+    except (OSError, UnicodeError, subprocess.CalledProcessError) as exc:
+        raise FloorCampaignError(
+            f"floor protocol namespace の HEAD path 集合を検証できない: {exc}"
+        ) from exc
+    if len(paths) != len(set(paths)):
+        raise FloorCampaignError("floor protocol namespace の HEAD path 集合に重複がある")
+    prefix = f"{_FLOOR_PROTOCOLS_REL}/"
+    if any(not path.startswith(prefix) for path in paths):
+        raise FloorCampaignError(
+            "floor protocol namespace の HEAD path が sanctioned prefix 外"
+        )
+    return set(paths)
 
 
 def _scan_floor_protocol_index_at_commit(
@@ -814,10 +845,17 @@ def _scan_floor_protocol_index_at_commit(
     index: dict[tuple[str, str], IndexedFloorProtocol] = {}
     _index_protocol_record(
         index, path=_FLOOR_PROTOCOL_REL, document=anchor_document, raw=anchor_raw,
+        commit_oid=commit_oid,
     )
 
     protocols_dir = root / _FLOOR_PROTOCOLS_REL
+    committed_paths = _floor_protocol_paths_at_commit(root, commit_oid)
     if not protocols_dir.exists():
+        if committed_paths:
+            raise FloorCampaignError(
+                "floor protocol namespace の committed entry が working tree に無い: "
+                f"paths={sorted(committed_paths)}"
+            )
         return index
     try:
         entries = sorted(protocols_dir.iterdir(), key=lambda path: path.name)
@@ -825,8 +863,10 @@ def _scan_floor_protocol_index_at_commit(
         raise FloorCampaignError(
             f"floor protocol namespace を列挙できない: {protocols_dir}: {exc}"
         ) from exc
+    working_paths: set[str] = set()
     for path in entries:
         rel = path.relative_to(root).as_posix()
+        working_paths.add(rel)
         if path.is_symlink():
             raise FloorCampaignError(f"floor protocol namespace に symlink がある: {rel}")
         try:
@@ -843,6 +883,12 @@ def _scan_floor_protocol_index_at_commit(
             raw = path.read_bytes()
         except OSError as exc:
             raise FloorCampaignError(f"floor protocol entry を読めない: {rel}: {exc}") from exc
+        committed_raw = _head_blob_100644(root, rel, commit_oid)
+        if raw != committed_raw:
+            raise FloorCampaignError(
+                "floor protocol entry の working tree bytes が "
+                f"HEAD 固定 commit の 100644 blob と不一致: {rel}"
+            )
         document_raw = _strict_parse_protocol_bytes(raw, source=rel)
         document = validate_protocol(document_raw)
         expected_rel = _derived_reseal_protocol_relpath(
@@ -866,6 +912,13 @@ def _scan_floor_protocol_index_at_commit(
             )
         _index_protocol_record(
             index, path=rel, document=document, raw=raw,
+            commit_oid=commit_oid,
+        )
+    if working_paths != committed_paths:
+        raise FloorCampaignError(
+            "floor protocol namespace の working tree entry 集合が "
+            "HEAD 固定 commit と不一致: "
+            f"working={sorted(working_paths)} committed={sorted(committed_paths)}"
         )
     return index
 
@@ -880,10 +933,20 @@ def scan_floor_protocol_index(
 
 
 def resolve_current_floor_protocol(*, root=ROOT) -> IndexedFloorProtocol:
-    """現行 env 契約に一致する唯一の indexed protocol を解決する。"""
-    index = scan_floor_protocol_index(root=root)
+    """現行契約候補内の HEAD pin exact を優先し、一意候補へだけ fallback する。"""
+    root = Path(root)
+    head_commit = _head_commit_oid(root)
+    index = _scan_floor_protocol_index_at_commit(
+        root=root, commit_oid=head_commit,
+    )
     candidates: list[IndexedFloorProtocol] = []
     for record in index.values():
+        if record.commit_oid != head_commit:
+            raise FloorCampaignError(
+                "floor protocol index record の固定 commit OID が resolver と不一致: "
+                f"path={record.path} record={record.commit_oid!r} "
+                f"resolver={head_commit}"
+            )
         env_tag = record.document["env_tag"]
         try:
             current = _env_contract.lookup(env_tag)
@@ -893,12 +956,26 @@ def resolve_current_floor_protocol(*, root=ROOT) -> IndexedFloorProtocol:
             ) from exc
         if record.contract_sha256 == current.contract_sha256:
             candidates.append(record)
-    if len(candidates) != 1:
+    if not candidates:
         raise FloorCampaignError(
-            "現行 env 契約に一致する floor protocol が exact 1 件でない: "
-            f"count={len(candidates)}"
+            "現行 env 契約の floor protocol を一意に解決できない: "
+            "current_count=0 head_exact_count=0"
         )
-    return candidates[0]
+    if len(candidates) == 1:
+        return candidates[0]
+
+    head_gitlink = _ccbench_gitlink(root, head_commit)
+    head_exact = [
+        record for record in candidates
+        if record.ccbench_pin == head_gitlink
+    ]
+    if len(head_exact) == 1:
+        return head_exact[0]
+    raise FloorCampaignError(
+        "現行 env 契約の floor protocol を一意に解決できない: "
+        f"current_count={len(candidates)} "
+        f"head_exact_count={len(head_exact)}"
+    )
 
 
 def _ccbench_gitlink(root: Path, commit_oid: str) -> str:
@@ -1031,31 +1108,39 @@ def _reseal_protocol_at_root(root: Path) -> dict[str, object]:
         raise _reseal_published_artifact_error(
             destination_rel, f"AI reseal post-write 検証失敗: {exc}",
         ) from exc
-    problems = []
-    if read_back != built.canonical_bytes:
-        problems.append("read-back bytes が canonical bytes と不一致")
-    if reparsed != built.document:
-        problems.append("read-back strict parse が builder document と不一致")
-    if problems:
-        raise _reseal_published_artifact_error(
-            destination_rel,
-            "AI reseal post-write 検証失敗: " + "; ".join(problems),
-        )
     try:
-        post_index = _scan_floor_protocol_index_at_commit(
-            root=root, commit_oid=head_commit,
+        normalized_read_back = validate_protocol(reparsed)
+        read_back_rel = _derived_reseal_protocol_relpath(
+            normalized_read_back["contract_sha256"],
+            normalized_read_back["ccbench_pin"],
         )
+        canonical_read_back = _canonical_bytes(normalized_read_back)
     except FloorCampaignError as exc:
         raise _reseal_published_artifact_error(
-            destination_rel, f"AI reseal post-write full index 検証失敗: {exc}",
+            destination_rel,
+            f"AI reseal post-write protocol 検証失敗: {exc}",
         ) from exc
-    post_target_pair = target_pair
-    indexed = post_index.get(post_target_pair)
-    if indexed is None or indexed.path != destination_rel or indexed.raw_bytes != read_back:
+    post_write_problems = []
+    try:
+        validate_ai_reseal_inheritance(anchor.document, normalized_read_back)
+    except _floor_contract.FloorContractError as exc:
+        post_write_problems.append(f"read-back inheritance が不一致: {exc}")
+    if read_back != built.canonical_bytes:
+        post_write_problems.append("read-back bytes が builder canonical bytes と不一致")
+    if reparsed != built.document:
+        post_write_problems.append("read-back strict parse が builder document と不一致")
+    if read_back_rel != destination_rel:
+        post_write_problems.append("read-back の導出 path が destination と不一致")
+    if normalized_read_back != built.document:
+        post_write_problems.append("read-back document が builder document と不一致")
+    if canonical_read_back != read_back:
+        post_write_problems.append("read-back bytes が canonical bytes と不一致")
+    if canonical_read_back != built.canonical_bytes:
+        post_write_problems.append("read-back canonical bytes が builder bytes と不一致")
+    if post_write_problems:
         raise _reseal_published_artifact_error(
             destination_rel,
-            "AI reseal post-write 検証失敗: "
-            "post-write full index に target pair が exact path/bytes で無い",
+            "AI reseal post-write 検証失敗: " + "; ".join(post_write_problems),
         )
     return {
         "status": "resealed",
@@ -5406,6 +5491,46 @@ def _derive_refreeze_eligibility(
     )
 
 
+def _require_supplied_protocol_authority(
+        protocol: Mapping, *, root: Path,
+        supplied_protocol_path: Path | str | None,
+) -> IndexedFloorProtocol:
+    """production 入力を resolver の固定 record へ副作用前に束縛する。"""
+    root = Path(root)
+    supplied_path = (
+        root / _FLOOR_PROTOCOL_REL
+        if supplied_protocol_path is None else Path(supplied_protocol_path)
+    )
+    if not supplied_path.is_absolute():
+        supplied_path = (Path.cwd() / supplied_path).absolute()
+    resolved = resolve_current_floor_protocol(root=root)
+    resolved_path = (root / resolved.path).absolute()
+    problems = []
+    if resolved.document != dict(protocol):
+        problems.append("document mismatch")
+    try:
+        supplied_raw = supplied_path.read_bytes()
+    except OSError as exc:
+        raise FloorCampaignError(
+            "supplied floor protocol authority を読めない: "
+            f"supplied_path={supplied_path} resolved_path={resolved_path}: {exc}"
+        ) from exc
+    supplied_sha256 = hashlib.sha256(supplied_raw).hexdigest()
+    if supplied_raw != resolved.raw_bytes:
+        problems.append("bytes mismatch")
+    if supplied_sha256 != resolved.sha256:
+        problems.append(
+            f"sha256 mismatch supplied={supplied_sha256} resolved={resolved.sha256}"
+        )
+    if problems:
+        raise FloorCampaignError(
+            "supplied floor protocol authority が current resolver record と不一致: "
+            f"supplied_path={supplied_path} resolved_path={resolved_path}; "
+            + "; ".join(problems)
+        )
+    return resolved
+
+
 def run_campaign(protocol, freeze_doc, *, out_root, mode, resume_dir=None,
                  measure_fn=None, probe_fn=None, sleep_fn=_DEFAULT_SLEEP_FN,
                  monotonic_fn=_DEFAULT_MONOTONIC_FN, prepare_fn=None, now_fn=None,
@@ -5413,6 +5538,7 @@ def run_campaign(protocol, freeze_doc, *, out_root, mode, resume_dir=None,
                  execution_receipt_fn=None, build_fn=None, repo_root=None,
                  after_certificate_issued_fn=None,
                  durable_root_policy=None, perf_preflight_fn=None,
+                 protocol_path: Path | str | None = None,
                  confirm_irreversible_pilot_holdout=False) -> dict:
     """Production wrapper with no caller-provided callable seams."""
     mode = _validate_mode(mode)
@@ -5437,6 +5563,22 @@ def run_campaign(protocol, freeze_doc, *, out_root, mode, resume_dir=None,
         if non_default:
             raise FloorCampaignError(
                 f"official mode への非 default seam 注入を拒否する: {non_default}")
+    if type(confirm_irreversible_pilot_holdout) is not bool:
+        raise FloorCampaignError(
+            "confirm_irreversible_pilot_holdout が exact bool でない"
+        )
+    if mode == "pilot" and not confirm_irreversible_pilot_holdout:
+        raise FloorCampaignError(
+            "pilot holdout は将来の official と共有する一回性 key を不可逆消費するため、"
+            "明示承認が必要"
+        )
+    if mode == "official":
+        _assert_official_permitted(mode)
+    authority_root = ROOT if repo_root is None else Path(repo_root)
+    _require_supplied_protocol_authority(
+        protocol, root=authority_root,
+        supplied_protocol_path=protocol_path,
+    )
     return _run_campaign_core(
         protocol, freeze_doc, out_root=out_root, mode=mode, resume_dir=resume_dir,
         measure_fn=measure_fn, probe_fn=probe_fn, sleep_fn=sleep_fn,
@@ -6577,6 +6719,13 @@ def _check_protocol_index_parser() -> argparse.ArgumentParser:
     )
 
 
+def _resolve_current_protocol_parser() -> argparse.ArgumentParser:
+    return argparse.ArgumentParser(
+        prog=f"{Path(sys.argv[0]).name} resolve-current-protocol",
+        description="current floor protocol の sanctioned relative path を解決する",
+    )
+
+
 def _freeze_protocol_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog=f"{Path(sys.argv[0]).name} freeze-protocol",
@@ -6721,6 +6870,17 @@ def main(argv=None) -> int:
             "status": "ok", "count": len(records), "protocols": records,
         }, ensure_ascii=False, sort_keys=True))
         return 0
+    if cli_argv and cli_argv[0] == "resolve-current-protocol":
+        _resolve_current_protocol_parser().parse_args(cli_argv[1:])
+        try:
+            record = resolve_current_floor_protocol(root=ROOT)
+        except FloorCampaignError as exc:
+            print(json.dumps({
+                "status": "error", "error": f"{type(exc).__name__}: {exc}",
+            }, ensure_ascii=False))
+            return 1
+        print(record.path)
+        return 0
     if cli_argv and cli_argv[0] == "freeze-protocol":
         freeze_args = _freeze_protocol_parser().parse_args(cli_argv[1:])
         try:
@@ -6764,6 +6924,7 @@ def main(argv=None) -> int:
         outcome = run_campaign(
             protocol, verified, out_root=out_root, mode=args.mode,
             resume_dir=args.resume,
+            protocol_path=supplied_protocol_path,
             confirm_irreversible_pilot_holdout=(
                 args.confirm_irreversible_pilot_holdout
             ),

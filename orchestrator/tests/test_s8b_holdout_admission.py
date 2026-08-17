@@ -2,11 +2,13 @@
 from __future__ import annotations
 
 from concurrent.futures import ProcessPoolExecutor
+from contextlib import nullcontext
 import hashlib
 import inspect
 import json
 from pathlib import Path
 import subprocess
+from unittest import mock
 
 import pytest
 
@@ -91,6 +93,22 @@ def _write_fixed_documents(root: Path, protocol: dict, freeze: dict) -> None:
     (fixed / "holdout_freeze.json").write_bytes(_canonical(freeze))
 
 
+def _indexed_protocol_record(
+    root: Path, relpath: str = "output/s8b-freeze/floor_protocol.json",
+) -> s8b_floor_campaign.IndexedFloorProtocol:
+    raw = subprocess.run(
+        ["git", "-C", str(root), "show", f"HEAD:{relpath}"], check=True,
+        stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+    ).stdout
+    return s8b_floor_campaign.IndexedFloorProtocol(
+        path=relpath,
+        document=json.loads(raw),
+        raw_bytes=raw,
+        sha256=hashlib.sha256(raw).hexdigest(),
+        commit_oid=_git(root, "rev-parse", "HEAD"),
+    )
+
+
 def _init_repo(tmp_path: Path, *, master_seed: str = "seed-a") -> tuple[Path, dict, dict]:
     root = tmp_path / "repo"
     root.mkdir()
@@ -127,10 +145,14 @@ def _cells_and_schedule(protocol: dict, freeze: dict) -> tuple[list[dict], list[
 
 def _reserve(
         root: Path, protocol: dict, freeze: dict, *, run_id: str,
-        resume: bool = False, journal_exists: bool = False):
+        resume: bool = False, journal_exists: bool = False,
+        resolver_record=None, resolver_side_effect=None,
+        use_real_resolver: bool = False):
     cells, schedule = _cells_and_schedule(protocol, freeze)
     out_root = root / "out"
-    run_relpath = f"env/fixture-env/calibration/s8b-floor-pilot/{run_id}"
+    run_relpath = (
+        f"env/{protocol['env_tag']}/calibration/s8b-floor-pilot/{run_id}"
+    )
     run_dir = out_root / run_relpath
     run_dir.mkdir(parents=True, exist_ok=True)
     manifest_path = run_dir / "manifest.json"
@@ -151,14 +173,24 @@ def _reserve(
                 "freeze_sha256": protocol["freeze"]["sha256"],
                 "manifest_sha256": manifest_sha256,
             }, sort_keys=True) + "\n", encoding="utf-8")
-    return admission.reserve_floor_holdout_observations(
-        repo_root=root, protocol=protocol,
-        verified_freeze_document=freeze,
-        freeze_sha256=protocol["freeze"]["sha256"],
-        cells=cells, schedule=schedule, campaign_run_id=run_id,
-        out_root=out_root, run_dir=run_dir, run_relpath=run_relpath,
-        mode="pilot", resume=resume, irreversible_pilot_approved=True,
-    )
+    if use_real_resolver:
+        resolver_context = nullcontext()
+    else:
+        if resolver_record is None:
+            resolver_record = _indexed_protocol_record(root)
+        resolver_context = mock.patch.object(
+            s8b_floor_campaign, "resolve_current_floor_protocol",
+            return_value=resolver_record, side_effect=resolver_side_effect,
+        )
+    with resolver_context:
+        return admission.reserve_floor_holdout_observations(
+            repo_root=root, protocol=protocol,
+            verified_freeze_document=freeze,
+            freeze_sha256=protocol["freeze"]["sha256"],
+            cells=cells, schedule=schedule, campaign_run_id=run_id,
+            out_root=out_root, run_dir=run_dir, run_relpath=run_relpath,
+            mode="pilot", resume=resume, irreversible_pilot_approved=True,
+        )
 
 
 def _parallel_reserve(args: tuple[str, dict, dict, str]) -> str:
@@ -517,6 +549,211 @@ def test_resume_rejects_actual_terminal_journal(tmp_path):
         )
 
 
+def test_resolver_record_path_and_bytes_are_the_protocol_authority(tmp_path):
+    root, protocol, freeze = _init_repo(tmp_path)
+    relpath = "output/s8b-freeze/protocols/selected.json"
+    selected = root / relpath
+    selected.parent.mkdir(parents=True)
+    selected.write_bytes(_canonical(protocol))
+    _git(root, "add", relpath)
+    _git(root, "-c", "user.name=fixture", "-c", "user.email=f@example.invalid",
+         "commit", "-m", "commit selected protocol")
+    record = _indexed_protocol_record(root, relpath)
+
+    reservation = _reserve(
+        root, protocol, freeze, run_id="run-selected",
+        resolver_record=record,
+    )
+
+    assert reservation.protocol_sha256 == record.sha256
+
+
+def test_authority_keeps_resolver_commit_when_head_moves_after_resolution(tmp_path):
+    root, protocol, freeze = _init_repo(tmp_path)
+    record = _indexed_protocol_record(root)
+    fixed_commit = record.commit_oid
+    moved = False
+
+    def move_head_after_resolution(*, root):
+        nonlocal moved
+        assert root == Path(record_root)
+        marker = root / "head-moved-after-resolution.txt"
+        marker.write_text("new commit\n", encoding="utf-8")
+        _git(root, "add", marker.name)
+        _git(
+            root, "-c", "user.name=fixture", "-c",
+            "user.email=f@example.invalid", "commit", "-m", "move HEAD",
+        )
+        moved = True
+        return record
+
+    record_root = root
+    original_blob_reader = s8b_floor_campaign._head_blob_100644
+    with mock.patch.object(
+            s8b_floor_campaign, "_head_blob_100644",
+            wraps=original_blob_reader,
+    ) as blob_reader:
+        reservation = _reserve(
+            root, protocol, freeze, run_id="run-fixed-commit",
+            resolver_record=record,
+            resolver_side_effect=move_head_after_resolution,
+        )
+
+    assert moved
+    assert _git(root, "rev-parse", "HEAD") != fixed_commit
+    assert admission._reservation_state(reservation).measurement_head == fixed_commit
+    assert blob_reader.call_args_list == [
+        mock.call(root, record.path, fixed_commit),
+        mock.call(root, "output/s8b-freeze/holdout_freeze.json", fixed_commit),
+    ]
+
+
+def test_resolved_record_bytes_mismatch_is_rejected_before_any_cell_claim(tmp_path):
+    root, protocol, freeze = _init_repo(tmp_path)
+    record = _indexed_protocol_record(root)
+    mismatched = s8b_floor_campaign.IndexedFloorProtocol(
+        path=record.path,
+        document=record.document,
+        raw_bytes=record.raw_bytes + b" ",
+        sha256=record.sha256,
+        commit_oid=record.commit_oid,
+    )
+
+    with pytest.raises(admission.HoldoutAdmissionError, match="indexed record"):
+        _reserve(
+            root, protocol, freeze, run_id="run-bytes-mismatch",
+            resolver_record=mismatched,
+        )
+
+    assert list((admission.shared_admission_root(root) / "claims").iterdir()) == []
+
+
+def test_resolved_record_sha256_mismatch_is_rejected_before_any_cell_claim(tmp_path):
+    root, protocol, freeze = _init_repo(tmp_path)
+    record = _indexed_protocol_record(root)
+    mismatched = s8b_floor_campaign.IndexedFloorProtocol(
+        path=record.path,
+        document=record.document,
+        raw_bytes=record.raw_bytes,
+        sha256="0" * 64,
+        commit_oid=record.commit_oid,
+    )
+
+    with pytest.raises(admission.HoldoutAdmissionError, match="sha256"):
+        _reserve(
+            root, protocol, freeze, run_id="run-sha-mismatch",
+            resolver_record=mismatched,
+        )
+
+    assert list((admission.shared_admission_root(root) / "claims").iterdir()) == []
+
+
+def test_resolver_exception_is_rejected_before_any_cell_claim(tmp_path):
+    root, protocol, freeze = _init_repo(tmp_path)
+
+    with pytest.raises(admission.HoldoutAdmissionError, match="cannot resolve"):
+        _reserve(
+            root, protocol, freeze, run_id="run-resolver-error",
+            resolver_side_effect=s8b_floor_campaign.FloorCampaignError(
+                "fixture resolver rejection"
+            ),
+        )
+
+    assert list((admission.shared_admission_root(root) / "claims").iterdir()) == []
+
+
+def test_resolver_invalid_record_type_is_rejected_before_any_cell_claim(tmp_path):
+    root, protocol, freeze = _init_repo(tmp_path)
+
+    with pytest.raises(admission.HoldoutAdmissionError, match="invalid record type"):
+        _reserve(
+            root, protocol, freeze, run_id="run-invalid-record",
+            resolver_record=object(),
+        )
+
+    assert list((admission.shared_admission_root(root) / "claims").iterdir()) == []
+
+
+def test_resolver_record_without_fixed_commit_is_rejected_before_any_cell_claim(
+        tmp_path):
+    root, protocol, freeze = _init_repo(tmp_path)
+    record = _indexed_protocol_record(root)
+    missing_commit = s8b_floor_campaign.IndexedFloorProtocol(
+        path=record.path,
+        document=record.document,
+        raw_bytes=record.raw_bytes,
+        sha256=record.sha256,
+    )
+
+    with pytest.raises(admission.HoldoutAdmissionError, match="fixed commit OID"):
+        _reserve(
+            root, protocol, freeze, run_id="run-missing-fixed-commit",
+            resolver_record=missing_commit,
+        )
+
+    assert list((admission.shared_admission_root(root) / "claims").iterdir()) == []
+
+
+def test_supplied_protocol_mismatch_remains_rejected_before_any_cell_claim(tmp_path):
+    root, protocol, freeze = _init_repo(tmp_path)
+    supplied = dict(protocol)
+    supplied["master_seed"] = "caller-selected-seed"
+
+    with pytest.raises(admission.HoldoutAdmissionError, match="supplied protocol"):
+        _reserve(root, supplied, freeze, run_id="run-supplied-mismatch")
+
+    assert list((admission.shared_admission_root(root) / "claims").iterdir()) == []
+
+
+def test_committed_versioned_protocol_admits_with_dirty_legacy_worktree(tmp_path):
+    source_root = Path(__file__).resolve().parents[2]
+    legacy_raw = (
+        source_root / "output/s8b-freeze/floor_protocol.json"
+    ).read_bytes()
+    freeze_raw = (
+        source_root / "output/s8b-freeze/holdout_freeze.json"
+    ).read_bytes()
+    legacy_protocol = json.loads(legacy_raw)
+    freeze = json.loads(freeze_raw)
+    head_pin = "2" * 40
+    versioned_protocol = dict(legacy_protocol)
+    versioned_protocol["ccbench_pin"] = head_pin
+    versioned_raw = s8b_floor_campaign._canonical_bytes(  # noqa: SLF001
+        versioned_protocol
+    )
+    versioned_relpath = s8b_floor_campaign._derived_reseal_protocol_relpath(  # noqa: SLF001
+        versioned_protocol["contract_sha256"], head_pin,
+    )
+
+    root = tmp_path / "versioned-repo"
+    root.mkdir()
+    _git(root, "init")
+    fixed = root / "output/s8b-freeze"
+    fixed.mkdir(parents=True)
+    (fixed / "floor_protocol.json").write_bytes(legacy_raw)
+    (fixed / "holdout_freeze.json").write_bytes(freeze_raw)
+    versioned_path = root / versioned_relpath
+    versioned_path.parent.mkdir(parents=True)
+    versioned_path.write_bytes(versioned_raw)
+    _git(root, "add", "output/s8b-freeze")
+    _git(
+        root, "update-index", "--add", "--cacheinfo",
+        f"160000,{head_pin},external/ccbench",
+    )
+    _git(root, "-c", "user.name=fixture", "-c", "user.email=f@example.invalid",
+         "commit", "-m", "commit versioned protocol")
+
+    # The resolver must use the committed versioned record, not dirty legacy bytes.
+    (fixed / "floor_protocol.json").write_bytes(versioned_raw)
+    reservation = _reserve(
+        root, versioned_protocol, freeze, run_id="run-versioned",
+        use_real_resolver=True,
+    )
+
+    assert reservation.protocol_sha256 == hashlib.sha256(versioned_raw).hexdigest()
+    assert versioned_path.read_bytes() == versioned_raw
+
+
 @pytest.mark.parametrize("filename", ["floor_protocol.json", "holdout_freeze.json"])
 def test_worktree_byte_drift_is_rejected_before_any_cell_claim(tmp_path, filename):
     root, protocol, freeze = _init_repo(tmp_path)
@@ -690,14 +927,18 @@ def test_canonical_authority_to_run_once_proof_chain_e2e(tmp_path):
     }, sort_keys=True) + "\n", encoding="utf-8")
     manifest_sha256 = hashlib.sha256(manifest_path.read_bytes()).hexdigest()
 
-    reservation = admission.reserve_floor_holdout_observations(
-        repo_root=root, protocol=protocol,
-        verified_freeze_document=freeze,
-        freeze_sha256=protocol["freeze"]["sha256"],
-        cells=cells, schedule=schedule, campaign_run_id=run_id,
-        out_root=out_root, run_dir=run_dir, run_relpath=run_relpath,
-        mode="pilot", resume=False, irreversible_pilot_approved=True,
-    )
+    with mock.patch.object(
+            s8b_floor_campaign, "resolve_current_floor_protocol",
+            return_value=_indexed_protocol_record(root),
+    ):
+        reservation = admission.reserve_floor_holdout_observations(
+            repo_root=root, protocol=protocol,
+            verified_freeze_document=freeze,
+            freeze_sha256=protocol["freeze"]["sha256"],
+            cells=cells, schedule=schedule, campaign_run_id=run_id,
+            out_root=out_root, run_dir=run_dir, run_relpath=run_relpath,
+            mode="pilot", resume=False, irreversible_pilot_approved=True,
+        )
     admitted = admission.finalize_floor_holdout_admissions(reservation)
     cell = cells[0]
     scheduled = next(row for row in schedule if row["cell_id"] == cell["cell_id"])

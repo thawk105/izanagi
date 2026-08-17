@@ -61,7 +61,6 @@ __all__ = (
     "shared_admission_root",
 )
 
-_PROTOCOL_REL = "output/s8b-freeze/floor_protocol.json"
 _FREEZE_REL = "output/s8b-freeze/holdout_freeze.json"
 _ROOT_REL = Path("izanagi") / "s8b-holdout-admission-v1"
 _LOCK_NAME = "ledger.lock"
@@ -410,19 +409,19 @@ def _locked_readonly(root: Path):
             os.close(fd)
 
 
-def _head_blob(repo_root: Path, relpath: str) -> tuple[str, bytes]:
-    listed = _run_git(repo_root, "ls-tree", "-z", "HEAD", "--", relpath)
-    entries = [entry for entry in listed.split(b"\0") if entry]
-    if len(entries) != 1:
-        raise HoldoutAdmissionError(f"fixed authority is not one HEAD blob: {relpath}")
+def _head_blob(repo_root: Path, relpath: str, commit_oid: str) -> tuple[str, bytes]:
+    """固定 commit の衛生化 100644 blob と working tree の一致を検査する。"""
     try:
-        meta, actual = entries[0].decode("utf-8").split("\t", 1)
-        mode, kind, oid = meta.split(" ")
-    except (UnicodeError, ValueError) as exc:
-        raise HoldoutAdmissionError(f"cannot parse HEAD blob identity: {relpath}") from exc
-    if actual != relpath or mode != "100644" or kind != "blob":
-        raise HoldoutAdmissionError(f"fixed authority is not a 100644 blob: {relpath}")
-    raw = _run_git(repo_root, "show", f"HEAD:{relpath}")
+        # s8b_floor_campaign imports this module, so keep the reverse edge local.
+        from . import s8b_floor_campaign as _floor_campaign
+
+        raw = _floor_campaign._head_blob_100644(
+            repo_root, relpath, commit_oid,
+        )
+    except Exception as exc:
+        raise HoldoutAdmissionError(
+            f"cannot read fixed commit blob: {commit_oid}:{relpath}"
+        ) from exc
     worktree_path = repo_root / relpath
     try:
         worktree_mode = worktree_path.lstat().st_mode
@@ -433,7 +432,7 @@ def _head_blob(repo_root: Path, relpath: str) -> tuple[str, bytes]:
         raise HoldoutAdmissionError(f"fixed authority is not a regular worktree file: {relpath}")
     if raw != worktree_raw:
         raise HoldoutAdmissionError(f"HEAD and working-tree bytes differ: {relpath}")
-    return oid, raw
+    return commit_oid, raw
 
 
 def _strict_json(raw: bytes, field: str) -> dict[str, Any]:
@@ -467,14 +466,49 @@ def _authority(
     freeze_sha256: str,
 ) -> tuple[str, str, dict[str, Any], dict[str, Any]]:
     root = _repo_root(repo_root)
-    _protocol_oid, protocol_raw = _head_blob(root, _PROTOCOL_REL)
+    try:
+        # s8b_floor_campaign imports this module, so keep the reverse edge local.
+        from . import s8b_floor_campaign as _floor_campaign
+
+        protocol_record = _floor_campaign.resolve_current_floor_protocol(
+            root=root,
+        )
+    except Exception as exc:
+        raise HoldoutAdmissionError(
+            f"cannot resolve current floor protocol: {exc}"
+        ) from exc
+    if type(protocol_record) is not _floor_campaign.IndexedFloorProtocol:
+        raise HoldoutAdmissionError(
+            "current floor protocol resolver returned an invalid record type"
+        )
+    fixed_commit_oid = protocol_record.commit_oid
+    if (
+        type(fixed_commit_oid) is not str
+        or len(fixed_commit_oid) != 40
+        or any(char not in _HEX64 for char in fixed_commit_oid)
+    ):
+        raise HoldoutAdmissionError(
+            "resolved protocol record has an invalid fixed commit OID"
+        )
+    _protocol_oid, protocol_raw = _head_blob(
+        root, protocol_record.path, fixed_commit_oid,
+    )
+    if protocol_raw != protocol_record.raw_bytes:
+        raise HoldoutAdmissionError(
+            "resolved protocol bytes do not match the indexed record"
+        )
+    protocol_sha256 = hashlib.sha256(protocol_raw).hexdigest()
+    if protocol_sha256 != protocol_record.sha256:
+        raise HoldoutAdmissionError(
+            "resolved protocol sha256 does not match the indexed record"
+        )
     protocol_document = _strict_json(protocol_raw, "floor protocol")
     if protocol_document != dict(protocol):
         raise HoldoutAdmissionError("fixed protocol bytes do not match the supplied protocol")
     freeze_ref = protocol_document.get("freeze")
     if not isinstance(freeze_ref, Mapping) or freeze_ref.get("path") != _FREEZE_REL:
         raise HoldoutAdmissionError("protocol freeze path is not the fixed canonical path")
-    _freeze_oid, freeze_raw = _head_blob(root, _FREEZE_REL)
+    _freeze_oid, freeze_raw = _head_blob(root, _FREEZE_REL, fixed_commit_oid)
     freeze_document = _strict_json(freeze_raw, "holdout freeze")
     actual_freeze_sha256 = hashlib.sha256(freeze_raw).hexdigest()
     if freeze_ref.get("sha256") != actual_freeze_sha256:
@@ -483,10 +517,7 @@ def _authority(
         raise HoldoutAdmissionError("verified freeze hash does not match fixed freeze bytes")
     if freeze_document != dict(freeze):
         raise HoldoutAdmissionError("fixed freeze bytes do not match the verified freeze document")
-    protocol_sha256 = hashlib.sha256(protocol_raw).hexdigest()
-    measurement_head = _run_git(root, "rev-parse", "HEAD").decode().strip()
-    if len(measurement_head) != 40:
-        raise HoldoutAdmissionError("measurement HEAD is not a full SHA-1")
+    measurement_head = fixed_commit_oid
     return measurement_head, protocol_sha256, protocol_document, freeze_document
 
 
