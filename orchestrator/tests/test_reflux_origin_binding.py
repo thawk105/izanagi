@@ -325,7 +325,14 @@ def case(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> _Case:
         repository_root=repo,
         registry_path=registry_path,
     )
-    _commit(repo, "trial registry", registry_path)
+    registry.s8c_arm_inputs.generate_off_neutral_artifacts(repository_root=repo)
+    _commit(
+        repo,
+        "trial registry and arm inputs",
+        registry_path,
+        repo / registry.s8c_arm_inputs.OFF_DESCRIPTOR_RELATIVE_PATH,
+        repo / registry.s8c_arm_inputs.OFF_FREEZE_RELATIVE_PATH,
+    )
     loaded_manifest = registry.load_trial_manifest(manifest_path)
     trial = loaded_manifest.trials[0]
     effective = _effective_capability(loaded_manifest, monkeypatch)
@@ -346,7 +353,11 @@ def case(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> _Case:
         "repository_root": repo,
         "registry_path": registry_path,
     }
-    launch = B.rederive_launch_admission(admission, **launch_kwargs)
+    assert admission.binding is not None
+    arm_execution = registry.bind_trial_arm(admission.binding, repository_root=repo)
+    launch = B.rederive_launch_admission(
+        admission, arm_execution=arm_execution, **launch_kwargs
+    )
     prepared_campaign = producer.PreparedCampaignIdentity(
         descriptor=descriptor,
         descriptor_record={"output_sha256": descriptor_sha},
@@ -399,6 +410,10 @@ def test_fixture_scope_positive_binds_exact_fields(case: _Case) -> None:
         "descriptor_sha256", "records", "threads",
     }
     assert record["store_scope"] == "fixture"
+    assert capability.enforcement_arm == "on"
+    assert capability.arm_binding_digest_sha256 == (
+        case.launch.arm_execution.arm_binding_digest_sha256
+    )
     assert case.launch.certifying is False
     assert not hasattr(capability, "certifying")
     B.assert_origin_binding_capability_record(record, capability)
@@ -409,7 +424,11 @@ def test_decision_1_rejects_admission_that_fails_fresh_registry_derivation(
 ) -> None:
     altered = dataclasses.replace(case.launch.admission, trial_id="altered-trial")
     with pytest.raises(B.OriginBindingError, match="launch-admission"):
-        B.rederive_launch_admission(altered, **case.launch_kwargs())
+        B.rederive_launch_admission(
+            altered,
+            arm_execution=case.launch.arm_execution,
+            **case.launch_kwargs(),
+        )
 
 
 def test_decision_2_rejects_exploratory_production_capability(case: _Case) -> None:
@@ -456,7 +475,11 @@ def test_decision_2_rejects_unissued_trial_binding(case: _Case) -> None:
     )
     admission = dataclasses.replace(case.launch.admission, binding=forged)
     with pytest.raises(B.OriginBindingError, match="launch-binding") as caught:
-        B.rederive_launch_admission(admission, **case.launch_kwargs())
+        B.rederive_launch_admission(
+            admission,
+            arm_execution=case.launch.arm_execution,
+            **case.launch_kwargs(),
+        )
     assert isinstance(caught.value.__cause__, registry.TrialRegistryError)
 
 
@@ -535,6 +558,12 @@ def test_decision_5_rederives_dataclasses_replace_launch_fields(case: _Case) -> 
         case.issue(launch_rederivation=altered)
 
 
+def test_registered_origin_binding_requires_issued_arm_execution(case: _Case) -> None:
+    altered = dataclasses.replace(case.launch, arm_execution=None)
+    with pytest.raises(B.OriginBindingError, match="arm-execution"):
+        case.issue(launch_rederivation=altered)
+
+
 def test_final_capability_rejects_dataclasses_replace(case: _Case) -> None:
     capability = case.issue()
     altered = dataclasses.replace(capability, campaign_id="caller-selected")
@@ -576,7 +605,11 @@ def test_decision_7_true_is_rejected_upstream_and_has_no_issuance_path(
 ) -> None:
     altered_admission = dataclasses.replace(case.launch.admission, certifying=True)
     with pytest.raises(B.OriginBindingError, match="launch-admission"):
-        B.rederive_launch_admission(altered_admission, **case.launch_kwargs())
+        B.rederive_launch_admission(
+            altered_admission,
+            arm_execution=case.launch.arm_execution,
+            **case.launch_kwargs(),
+        )
 
     source_path = Path(B.__file__)
     tree = ast.parse(source_path.read_text(encoding="utf-8"))
@@ -627,6 +660,8 @@ def test_dataclass_and_wire_fields_are_exact(case: _Case) -> None:
         "measurement_head",
         "store_scope",
         "_seal",
+        "enforcement_arm",
+        "arm_binding_digest_sha256",
     }
     assert {field.name for field in dataclasses.fields(B.AuthorityWorkload)} == {
         "descriptor_sha256", "records", "threads",

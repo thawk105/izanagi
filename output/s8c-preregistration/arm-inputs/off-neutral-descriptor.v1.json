@@ -1,0 +1,1 @@
+{"contention":{"label":"high","skew":0.9},"correctness":"serializable_legacy_and_s2","objective":"maximize_throughput_tps","read_write":{"read_ratio_percent":50,"rmw":0},"scale":{"records":1000000,"threads":48},"schema_version":"8b-v1","source":"campaign_search_config_projection"}

@@ -152,6 +152,7 @@ class LaunchAdmissionRederivation:
     trial_id: str
     workloads: tuple[str, ...]
     binding: trial_registry.TrialBinding | None
+    arm_execution: trial_registry.TrialArmExecutionBinding | None
     activation_report_digest_sha256: str | None
     _seal: object = dataclasses.field(repr=False, compare=False)
 
@@ -188,6 +189,8 @@ class OriginBindingCapability:
     measurement_head: str
     store_scope: Literal["production", "fixture"]
     _seal: object = dataclasses.field(repr=False, compare=False)
+    enforcement_arm: str | None = None
+    arm_binding_digest_sha256: str | None = None
 
 
 def _capability_fields(value: OriginBindingCapability) -> tuple[object, ...]:
@@ -201,6 +204,7 @@ def _capability_fields(value: OriginBindingCapability) -> tuple[object, ...]:
 def rederive_launch_admission(
     admission: trial_registry.TrialLaunchAdmission,
     *,
+    arm_execution: trial_registry.TrialArmExecutionBinding | None = None,
     effective_preregistration,
     manifest_path: Path | None,
     trial_id: str,
@@ -225,6 +229,20 @@ def rederive_launch_admission(
         )
     except trial_registry.TrialRegistryError as exc:
         raise OriginBindingError(f"[launch-admission] {exc}") from exc
+    if arm_execution is not None:
+        try:
+            trial_registry.assert_issued_trial_arm_execution(arm_execution)
+            if admission.binding is None or arm_execution.binding is not admission.binding:
+                _reject(
+                    "arm-execution",
+                    "arm execution belongs to another launch binding object",
+                )
+            trial_registry.assert_rederived_trial_arm_execution(
+                arm_execution,
+                repository_root=repository_root,
+            )
+        except trial_registry.TrialRegistryError as exc:
+            raise OriginBindingError(f"[arm-execution] {exc}") from exc
     return LaunchAdmissionRederivation(
         admission=admission,
         mode=admission.mode,
@@ -233,6 +251,7 @@ def rederive_launch_admission(
         trial_id=admission.trial_id,
         workloads=tuple(admission.workloads),
         binding=admission.binding,
+        arm_execution=arm_execution,
         activation_report_digest_sha256=admission.activation_report_digest_sha256,
         _seal=_LAUNCH_REDERIVATION_SEAL,
     )
@@ -249,6 +268,13 @@ def assert_issued_launch_admission_rederivation(
     admission = value.admission
     if type(admission) is not trial_registry.TrialLaunchAdmission:
         _reject("issued-launch", "admission type changed")
+    if value.arm_execution is not None:
+        try:
+            trial_registry.assert_issued_trial_arm_execution(value.arm_execution)
+        except trial_registry.TrialRegistryError as exc:
+            raise OriginBindingError(f"[issued-launch] {exc}") from exc
+        if admission.binding is None or value.arm_execution.binding is not admission.binding:
+            _reject("issued-launch", "arm execution binding object changed")
     expected = (
         admission.mode,
         admission.certifying,
@@ -503,6 +529,7 @@ def issue_origin_binding_capability(
     )
     fresh_launch = rederive_launch_admission(
         supplied_launch.admission,
+        arm_execution=supplied_launch.arm_execution,
         effective_preregistration=effective_preregistration,
         manifest_path=manifest_path,
         trial_id=trial_id,
@@ -519,6 +546,8 @@ def issue_origin_binding_capability(
 
     if supplied_launch.mode != "registered-effective":
         _reject("launch-mode", "only registered-effective admission can issue")
+    if supplied_launch.arm_execution is None:
+        _reject("arm-execution", "registered origin launch has no issued arm input")
     binding = supplied_launch.binding
     if binding is None:
         _reject("launch-binding", "registered admission has no binding")
@@ -592,6 +621,10 @@ def issue_origin_binding_capability(
         measurement_head=binding.measurement_head,
         store_scope="fixture",
         _seal=issuer_seal,
+        enforcement_arm=supplied_launch.arm_execution.resolved_input.arm,
+        arm_binding_digest_sha256=(
+            supplied_launch.arm_execution.arm_binding_digest_sha256
+        ),
     )
     _ISSUED_CAPABILITY_FIELDS[issuer_seal] = _capability_fields(capability)
     return assert_issued_origin_binding_capability(capability)

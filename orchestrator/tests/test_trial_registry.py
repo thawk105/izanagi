@@ -142,7 +142,14 @@ def _registered_repo(
         repository_root=repo,
         registry_path=registry_path,
     )
-    _commit(repo, "registry", registry_path)
+    R.s8c_arm_inputs.generate_off_neutral_artifacts(repository_root=repo)
+    _commit(
+        repo,
+        "registry and arm inputs",
+        registry_path,
+        repo / R.s8c_arm_inputs.OFF_DESCRIPTOR_RELATIVE_PATH,
+        repo / R.s8c_arm_inputs.OFF_FREEZE_RELATIVE_PATH,
+    )
     return repo, manifest_path, registry_path, R.load_trial_manifest(manifest_path)
 
 
@@ -443,6 +450,58 @@ def _fixture_launch_admission(
     return record
 
 
+_ARM_CONTENT_DIGESTS = {
+    ("H1", "on"): "80501db0235d88314edd4a4c29a1949e67acc2b466ae426fbbb1cb3da4b7d843",
+    ("H1", "off"): "8ecce69906410c451aa20a242634ba8ce82525636ed912493af6d12487340e89",
+    ("H1", "swapped"): "53230b8b1f0e0d82def3c384f4d8d8b050a1ce872afd2ed9e2a403c61c3c550b",
+    ("H2", "on"): "53230b8b1f0e0d82def3c384f4d8d8b050a1ce872afd2ed9e2a403c61c3c550b",
+    ("H2", "off"): "8ecce69906410c451aa20a242634ba8ce82525636ed912493af6d12487340e89",
+    ("H2", "swapped"): "80501db0235d88314edd4a4c29a1949e67acc2b466ae426fbbb1cb3da4b7d843",
+}
+
+
+def _fixture_arm_execution(trial: R.TrialSpec) -> dict[str, str]:
+    content_digest = _ARM_CONTENT_DIGESTS[(trial.holdout, trial.arm)]
+    arm_binding_digest = hashlib.sha256(
+        b"izanagi-s8c-arm-binding/v1\0"
+        + trial.holdout.encode("ascii")
+        + trial.arm.encode("ascii")
+        + content_digest.encode("ascii")
+    ).hexdigest()
+    return {
+        "input_schema_version": "8b-v1",
+        "content_digest_sha256": content_digest,
+        "arm_binding_digest_sha256": arm_binding_digest,
+    }
+
+
+def _fixture_execution_descriptor(trial: R.TrialSpec) -> dict:
+    ratios = {
+        ("H1", "on"): 80,
+        ("H1", "off"): 50,
+        ("H1", "swapped"): 20,
+        ("H2", "on"): 20,
+        ("H2", "off"): 50,
+        ("H2", "swapped"): 80,
+    }
+    descriptor = {
+        "schema_version": "8b-v1",
+        "source": "campaign_search_config_projection",
+        "read_write": {
+            "read_ratio_percent": ratios[(trial.holdout, trial.arm)],
+            "rmw": 0,
+        },
+        "contention": {"skew": 0.9, "label": "high"},
+        "scale": {"records": 1_000_000, "threads": 48},
+        "objective": "maximize_throughput_tps",
+        "correctness": "serializable_legacy_and_s2",
+    }
+    assert hashlib.sha256(_canonical(descriptor)).hexdigest() == (
+        _ARM_CONTENT_DIGESTS[(trial.holdout, trial.arm)]
+    )
+    return descriptor
+
+
 def _fixture_origin_binding(
     trial: R.TrialSpec,
     measurement_head: str,
@@ -498,6 +557,7 @@ def _origin_terminal_projection(
     *,
     rejected: bool,
     origin_binding_record: dict,
+    arm_binding_digest_sha256: str,
 ) -> formal.OriginTerminalProjection:
     return formal.OriginTerminalProjection(
         schema_version=formal.ORIGIN_TERMINAL_PROJECTION_SCHEMA_VERSION,
@@ -512,6 +572,7 @@ def _origin_terminal_projection(
         origin_id=origin_binding_record["origin_id"],
         cell_key=origin_binding_record["cell_key"],
         terminal_payload_sha256="9" * 64,
+        arm_binding_digest_sha256=arm_binding_digest_sha256,
     )
 
 
@@ -526,7 +587,8 @@ def _complete_report(
     run = root / f"run-{trial.trial_id}"
     workload = R.HOLDOUT_BINDINGS[trial.holdout]["workload"]
     ratio = R.HOLDOUT_BINDINGS[trial.holdout]["ycsb_rratio"]
-    descriptor_hash = hashlib.sha256(f"descriptor:{workload}".encode()).hexdigest()
+    descriptor_hash = _ARM_CONTENT_DIGESTS[(trial.holdout, trial.arm)]
+    descriptor = _fixture_execution_descriptor(trial)
     start = _base_start(
         trial, run, measurement_head, generation_budget=generation_budget,
     )
@@ -536,6 +598,7 @@ def _complete_report(
     for target in (start, report):
         target["prereg_commit"] = manifest.prereg_commit
         target["manifest_sha256"] = manifest.sha256
+        target["arm_execution"] = _fixture_arm_execution(trial)
         target["launch_admission"] = _fixture_launch_admission(
             trial, manifest, measurement_head,
         )
@@ -580,7 +643,7 @@ def _complete_report(
     report["cells"] = [{
         "workload": workload,
         "workload_flags": {"ycsb_rratio": ratio},
-        "descriptor": {"fixture": workload},
+        "descriptor": descriptor,
         "descriptor_binding": {"output_sha256": descriptor_hash},
         "campaign_id": trial.campaign_id,
         "campaign_root": str(run / "campaigns" / trial.campaign_id),
@@ -605,6 +668,7 @@ def _partial_report(
     for target in (start, report):
         target["prereg_commit"] = manifest.prereg_commit
         target["manifest_sha256"] = manifest.sha256
+        target["arm_execution"] = _fixture_arm_execution(trial)
         target["launch_admission"] = _fixture_launch_admission(
             trial, manifest, measurement_head,
         )
@@ -963,6 +1027,9 @@ def test_acceptance_projects_identical_terminal_bytes_in_all_json_boundaries(
             _origin_terminal_projection(
                 rejected=rejected,
                 origin_binding_record=binding_record,
+                arm_binding_digest_sha256=_fixture_arm_execution(trial)[
+                    "arm_binding_digest_sha256"
+                ],
             )
         )
         report.update(copy.deepcopy(projection))
@@ -1027,10 +1094,87 @@ def test_acceptance_independently_requires_exact_rederived_launch_admission(
         )
         events[0]["launch_admission"]["trial_id"] = "foreign-trial"
     _persist(reports[0].parent, events, report)
-    monkeypatch.setattr(R, "assert_autonomous_trial_completeness", lambda **_kwargs: None)
+    monkeypatch.setattr(
+        R,
+        "assert_autonomous_trial_completeness",
+        lambda **_kwargs: None,
+    )
     with pytest.raises(
         R.TrialRegistryError,
         match=r"\[acceptance-launch-admission\] ",
+    ):
+        R.assert_trial_registry_acceptance(
+            effective_preregistration=capability,
+            manifest_path=manifest_path,
+            report_paths=reports,
+            repository_root=repo,
+            registry_path=registry,
+            lifecycle_path=lifecycle,
+        )
+
+
+@pytest.mark.parametrize("mutation", ["missing", "wrong-digest"])
+def test_acceptance_independently_rederives_historical_arm_execution(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    mutation: str,
+) -> None:
+    repo, manifest_path, registry, manifest = _registered_repo(tmp_path)
+    reports = _reports(repo / "reports", manifest, _head(repo), complete=False)
+    capability = _effective_capability(manifest, monkeypatch)
+    events, report = _load_report_bundle(reports[0])
+    if mutation == "missing":
+        report.pop("arm_execution")
+        events[0].pop("arm_execution")
+        expected = "must exist and match exactly"
+    else:
+        report["arm_execution"]["arm_binding_digest_sha256"] = "f" * 64
+        events[0]["arm_execution"] = copy.deepcopy(report["arm_execution"])
+        expected = "differs from historical input derivation"
+    _persist(reports[0].parent, events, report)
+    lifecycle = _write_acceptance_lifecycle(
+        repo, manifest, reports, capability.report_digest_sha256,
+    )
+    monkeypatch.setattr(
+        R,
+        "assert_autonomous_trial_completeness",
+        lambda **_kwargs: None,
+    )
+    with pytest.raises(
+        R.TrialRegistryError,
+        match=rf"\[acceptance-arm-execution\] {expected}",
+    ):
+        R.assert_trial_registry_acceptance(
+            effective_preregistration=capability,
+            manifest_path=manifest_path,
+            report_paths=reports,
+            repository_root=repo,
+            registry_path=registry,
+            lifecycle_path=lifecycle,
+        )
+
+
+def test_acceptance_rejects_cell_descriptor_that_differs_from_arm_input(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo, manifest_path, registry, manifest = _registered_repo(tmp_path)
+    reports = _reports(repo / "reports", manifest, _head(repo), complete=True)
+    capability = _effective_capability(manifest, monkeypatch)
+    events, report = _load_report_bundle(reports[0])
+    report["cells"][0]["descriptor"]["read_write"]["read_ratio_percent"] = 79
+    _persist(reports[0].parent, events, report)
+    lifecycle = _write_acceptance_lifecycle(
+        repo, manifest, reports, capability.report_digest_sha256,
+    )
+    monkeypatch.setattr(
+        R,
+        "assert_autonomous_trial_completeness",
+        lambda **_kwargs: None,
+    )
+    with pytest.raises(
+        R.TrialRegistryError,
+        match=r"\[acceptance-arm-execution\] cell descriptor differs",
     ):
         R.assert_trial_registry_acceptance(
             effective_preregistration=capability,
@@ -1549,6 +1693,48 @@ def test_launch_record_rejects_an_issued_capability_for_another_trial(
         R.launch_admission_record(admission, origin_binding=foreign)
 
 
+def test_registered_admission_does_not_implicitly_resolve_arm_input(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo, manifest_path, registry, manifest = _registered_repo(tmp_path)
+    monkeypatch.setattr(
+        R,
+        "bind_trial_arm",
+        lambda *_args, **_kwargs: pytest.fail("implicit arm resolution"),
+    )
+    admission = _registered_admission(
+        repo, manifest_path, registry, manifest, monkeypatch,
+    )
+    assert admission.binding is not None
+
+
+def test_bind_trial_arm_issues_exact_three_field_projection(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo, manifest_path, registry, manifest = _registered_repo(tmp_path)
+    admission = _registered_admission(
+        repo, manifest_path, registry, manifest, monkeypatch,
+    )
+    assert admission.binding is not None
+    arm_execution = R.bind_trial_arm(admission.binding, repository_root=repo)
+    record = R.arm_execution_record(arm_execution)
+    assert set(record) == {
+        "input_schema_version",
+        "content_digest_sha256",
+        "arm_binding_digest_sha256",
+    }
+    assert "arm" not in record
+    assert "holdout" not in record
+    R.assert_rederived_trial_arm_execution(arm_execution, repository_root=repo)
+    forged = dataclasses.replace(
+        arm_execution, arm_binding_digest_sha256="f" * 64,
+    )
+    with pytest.raises(R.TrialRegistryError, match=r"\[arm-input-resolution\] "):
+        R.assert_issued_trial_arm_execution(forged)
+
+
 @pytest.mark.parametrize(
     ("trial_id", "workloads", "match"),
     [
@@ -1878,6 +2064,9 @@ def test_lifecycle_terminal_projects_the_formal_consumer_shape_by_bytes(
     projection = _origin_terminal_projection(
         rejected=rejected,
         origin_binding_record=binding_record,
+        arm_binding_digest_sha256=_fixture_arm_execution(trial)[
+            "arm_binding_digest_sha256"
+        ],
     )
     R.record_trial_terminal(
         token,
@@ -2547,8 +2736,13 @@ def test_m13_producer_campaign_derivation_is_independently_bound(tmp_path: Path)
         repository_root=repo,
         registry_path=registry,
     )
+    arm_execution = R.bind_trial_arm(binding, repository_root=repo)
     with pytest.raises(R.TrialRegistryError, match=r"\[campaign-binding\] "):
-        R.assert_campaign_binding(binding, actual_campaign_id=trial.campaign_id + "-derived")
+        R.assert_campaign_binding(
+            binding,
+            arm_execution=arm_execution,
+            actual_campaign_id=trial.campaign_id + "-derived",
+        )
 
 
 def test_m14_ancestry_direction_is_not_reversible(tmp_path: Path) -> None:

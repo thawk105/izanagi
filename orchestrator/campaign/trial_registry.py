@@ -33,6 +33,7 @@ from .autonomous_trial_completeness import (
 )
 from . import s8c_preregistration
 from . import s8c_acceptance_receipt
+from . import s8c_arm_inputs
 
 if TYPE_CHECKING:
     from .reflux_formal_consumer import OriginTerminalProjection
@@ -67,6 +68,7 @@ _REGISTRATION_KEYS = frozenset({
     "schema_version", "manifest_sha256", "prereg_commit", "trials",
 })
 _TRIAL_BINDING_SEAL = object()
+_TRIAL_ARM_EXECUTION_SEAL = object()
 _TRIAL_LAUNCH_ADMISSION_SEAL = object()
 _TRIAL_LIFECYCLE_TOKEN_SEAL = object()
 _LIFECYCLE_START_KEYS = frozenset({
@@ -100,7 +102,7 @@ _ORIGIN_WORKLOAD_KEYS = frozenset({"descriptor_sha256", "records", "threads"})
 _ORIGIN_TERMINAL_PROJECTION_KEYS = frozenset({
     "schema_version", "reason_code", "formal_receipt_sha256",
     "evidence_root_sha256", "authority_blob_sha256", "origin_id", "cell_key",
-    "terminal_payload_sha256",
+    "terminal_payload_sha256", "arm_binding_digest_sha256",
 })
 _FORMAL_REASON_CODES = frozenset({
     "FC01", "FC02", "FC03", "FC04", "FC05a", "FC05b", "FC05c", "FC06",
@@ -161,6 +163,19 @@ class TrialBinding:
     campaign_id: str
     workload: str
     ycsb_rratio: str
+    _seal: object = dataclasses.field(repr=False, compare=False)
+
+
+@dataclasses.dataclass(frozen=True, slots=True)
+class TrialArmExecutionBinding:
+    """Registry-issued binding from a declared arm to immutable input bytes."""
+
+    binding: TrialBinding
+    resolved_input: s8c_arm_inputs.ResolvedArmInput
+    canonical_input_bytes: bytes = dataclasses.field(repr=False)
+    input_schema_version: str
+    content_digest_sha256: str
+    arm_binding_digest_sha256: str
     _seal: object = dataclasses.field(repr=False, compare=False)
 
 
@@ -428,7 +443,11 @@ def _validate_origin_terminal_projection(
                 _fail(gate, f"rejected origin terminal {field} must be null")
         elif type(digest) is not str or _SHA256_RE.fullmatch(digest) is None:
             _fail(gate, f"P6Unavailable origin terminal {field} is invalid")
-    for field in ("authority_blob_sha256", "terminal_payload_sha256"):
+    for field in (
+        "authority_blob_sha256",
+        "terminal_payload_sha256",
+        "arm_binding_digest_sha256",
+    ):
         digest = value.get(field)
         if type(digest) is not str or _SHA256_RE.fullmatch(digest) is None:
             _fail(gate, f"origin terminal {field} is invalid")
@@ -1197,6 +1216,108 @@ def assert_issued_trial_binding(binding: TrialBinding) -> None:
         _fail("launch-binding", "binding was not issued by the registry gate")
 
 
+def bind_trial_arm(
+    binding: TrialBinding,
+    *,
+    repository_root: Path,
+) -> TrialArmExecutionBinding:
+    """Resolve and seal the execution input selected by an issued trial arm."""
+    assert_issued_trial_binding(binding)
+    expected = HOLDOUT_BINDINGS.get(binding.holdout)
+    if (
+        expected is None
+        or expected.get("workload") != binding.workload
+        or expected.get("ycsb_rratio") != binding.ycsb_rratio
+    ):
+        _fail("arm-input-resolution", "trial holdout projection is inconsistent")
+    try:
+        resolved = s8c_arm_inputs.resolve_arm_input(
+            arm=binding.arm,
+            holdout=binding.holdout,
+            repository_root=Path(repository_root),
+            commit=binding.measurement_head,
+        )
+    except s8c_arm_inputs.ArmInputError as exc:
+        _fail("arm-input-resolution", str(exc))
+    if resolved.arm != binding.arm or resolved.holdout != binding.holdout:
+        _fail("arm-input-resolution", "resolver returned a different arm or holdout")
+    if binding.arm == "on" and resolved.selected_holdout != binding.workload:
+        _fail("arm-input-resolution", "on arm differs from the registered workload")
+    return TrialArmExecutionBinding(
+        binding=binding,
+        resolved_input=resolved,
+        canonical_input_bytes=resolved.canonical_input_bytes,
+        input_schema_version=resolved.input_schema_version,
+        content_digest_sha256=resolved.content_digest_sha256,
+        arm_binding_digest_sha256=resolved.arm_binding_digest_sha256,
+        _seal=_TRIAL_ARM_EXECUTION_SEAL,
+    )
+
+
+def assert_issued_trial_arm_execution(
+    arm_execution: TrialArmExecutionBinding,
+) -> None:
+    """Reject caller construction and mutation of an arm execution capability."""
+    if (
+        type(arm_execution) is not TrialArmExecutionBinding
+        or arm_execution._seal is not _TRIAL_ARM_EXECUTION_SEAL
+    ):
+        _fail("arm-input-resolution", "arm execution was not issued by the registry")
+    assert_issued_trial_binding(arm_execution.binding)
+    try:
+        resolved = s8c_arm_inputs.assert_issued_resolved_arm_input(
+            arm_execution.resolved_input
+        )
+    except s8c_arm_inputs.ArmInputError as exc:
+        _fail("arm-input-resolution", str(exc))
+    expected = (
+        resolved.canonical_input_bytes,
+        resolved.input_schema_version,
+        resolved.content_digest_sha256,
+        resolved.arm_binding_digest_sha256,
+    )
+    supplied = (
+        arm_execution.canonical_input_bytes,
+        arm_execution.input_schema_version,
+        arm_execution.content_digest_sha256,
+        arm_execution.arm_binding_digest_sha256,
+    )
+    if supplied != expected:
+        _fail("arm-input-resolution", "sealed arm execution fields changed")
+
+
+def assert_rederived_trial_arm_execution(
+    arm_execution: TrialArmExecutionBinding,
+    *,
+    repository_root: Path,
+) -> None:
+    """Re-resolve historical bytes and require an exact capability projection."""
+    assert_issued_trial_arm_execution(arm_execution)
+    fresh = bind_trial_arm(
+        arm_execution.binding,
+        repository_root=repository_root,
+    )
+    if fresh.binding is not arm_execution.binding:
+        _fail("arm-input-resolution", "fresh binding object identity changed")
+    for field in dataclasses.fields(TrialArmExecutionBinding):
+        if field.name in {"binding", "_seal"}:
+            continue
+        if getattr(fresh, field.name) != getattr(arm_execution, field.name):
+            _fail("arm-input-resolution", f"arm execution changed: {field.name}")
+
+
+def arm_execution_record(
+    arm_execution: TrialArmExecutionBinding,
+) -> dict[str, str]:
+    """Project only input schema and the two independent digest layers."""
+    assert_issued_trial_arm_execution(arm_execution)
+    return {
+        "input_schema_version": arm_execution.input_schema_version,
+        "content_digest_sha256": arm_execution.content_digest_sha256,
+        "arm_binding_digest_sha256": arm_execution.arm_binding_digest_sha256,
+    }
+
+
 def assert_rederived_launch_binding(
     binding: TrialBinding,
     *,
@@ -1894,11 +2015,14 @@ def record_trial_terminal(
 def assert_campaign_binding(
     binding: TrialBinding,
     *,
+    arm_execution: TrialArmExecutionBinding,
     actual_campaign_id: str,
 ) -> None:
-    """Compare producer-derived campaign identity with the declaration."""
-    if not isinstance(binding, TrialBinding):
-        _fail("campaign-binding", "binding is not a TrialBinding")
+    """Compare producer identity only after validating issued input authority."""
+    assert_issued_trial_binding(binding)
+    assert_issued_trial_arm_execution(arm_execution)
+    if arm_execution.binding is not binding:
+        _fail("campaign-binding", "arm execution belongs to another binding object")
     if actual_campaign_id != binding.campaign_id:
         _fail("campaign-binding", "producer campaign_id differs from the manifest")
 
@@ -2362,6 +2486,29 @@ def _expected_registered_launch_admission_record(
     return record
 
 
+def _expected_registered_arm_execution_record(
+    *,
+    repository_root: Path,
+    trial: TrialSpec,
+    measurement_head: str,
+) -> dict[str, str]:
+    """Independently resolve the historical arm bytes for acceptance."""
+    try:
+        resolved = s8c_arm_inputs.resolve_arm_input(
+            arm=trial.arm,
+            holdout=trial.holdout,
+            repository_root=repository_root,
+            commit=measurement_head,
+        )
+    except s8c_arm_inputs.ArmInputError as exc:
+        _fail("acceptance-arm-execution", str(exc))
+    return {
+        "input_schema_version": resolved.input_schema_version,
+        "content_digest_sha256": resolved.content_digest_sha256,
+        "arm_binding_digest_sha256": resolved.arm_binding_digest_sha256,
+    }
+
+
 def _exclusive_create_acceptance_receipt(
     *,
     repository_root: Path,
@@ -2481,7 +2628,6 @@ def assert_trial_registry_acceptance(
             events = item.events
             trial_id = report["trial_id"]
             trial = manifest_by_id[trial_id]
-            _assert_snapshot_completeness(item)
             item.assert_snapshot_unchanged()
             if (
                 report.get("generation_budget_per_workload")
@@ -2513,6 +2659,28 @@ def assert_trial_registry_acceptance(
                     "measurement-head-coherence",
                     "reports do not share one measurement_head",
                 )
+            report_arm_execution = report.get("arm_execution")
+            start_arm_execution = start.get("arm_execution")
+            if (
+                type(report_arm_execution) is not dict
+                or type(start_arm_execution) is not dict
+                or report_arm_execution != start_arm_execution
+            ):
+                _fail(
+                    "acceptance-arm-execution",
+                    "report and run-start arm_execution must exist and match exactly",
+                )
+            expected_arm_execution = _expected_registered_arm_execution_record(
+                repository_root=root,
+                trial=trial,
+                measurement_head=measurement_head,
+            )
+            if report_arm_execution != expected_arm_execution:
+                _fail(
+                    "acceptance-arm-execution",
+                    "arm_execution differs from historical input derivation",
+                )
+            _assert_snapshot_completeness(item)
             assert_prereg_ancestor(
                 root,
                 prereg_commit=manifest.prereg_commit,
@@ -2579,6 +2747,14 @@ def assert_trial_registry_acceptance(
                         "acceptance-origin",
                         "terminal projection differs from launch origin binding",
                     )
+                if (
+                    terminal_projection["arm_binding_digest_sha256"]
+                    != expected_arm_execution["arm_binding_digest_sha256"]
+                ):
+                    _fail(
+                        "acceptance-origin",
+                        "terminal projection differs from arm execution binding",
+                    )
             historical_manifest = _blob_at_commit(
                 root, commit_id=measurement_head, relative_path=manifest_relative,
             )
@@ -2623,6 +2799,32 @@ def assert_trial_registry_acceptance(
                     or cell.get("campaign_id") != trial.campaign_id
                 ):
                     _fail("terminal-projection", "report cell differs from manifest projection")
+                descriptor = cell.get("descriptor")
+                descriptor_binding = cell.get("descriptor_binding")
+                if not isinstance(descriptor, Mapping) or not isinstance(
+                    descriptor_binding, Mapping
+                ):
+                    _fail(
+                        "acceptance-arm-execution",
+                        "cell descriptor authority is absent",
+                    )
+                try:
+                    descriptor_raw = (
+                        s8c_arm_inputs.validate_execution_input_descriptor(descriptor)
+                    )
+                except s8c_arm_inputs.ArmInputError as exc:
+                    _fail("acceptance-arm-execution", str(exc))
+                descriptor_digest = hashlib.sha256(descriptor_raw).hexdigest()
+                if (
+                    descriptor_digest
+                    != expected_arm_execution["content_digest_sha256"]
+                    or descriptor_binding.get("output_sha256")
+                    != descriptor_digest
+                ):
+                    _fail(
+                        "acceptance-arm-execution",
+                        "cell descriptor differs from sealed execution input",
+                    )
             status = report.get("status")
             if not isinstance(status, str):
                 _fail("terminal-projection", "report status is not a string")

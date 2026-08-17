@@ -33,6 +33,7 @@ WAVE_PRODUCTION_FILES = (
     "p3_autonomous_workload_trial.py",
     "wal.py",
     "s8b_descriptor.py",
+    "s8c_arm_inputs.py",
 )
 
 
@@ -67,6 +68,8 @@ def _issued_capability(**overrides) -> B.OriginBindingCapability:
         "trial_workload": raw["trial_workload"],
         "measurement_head": raw["measurement_head"],
         "store_scope": raw["store_scope"],
+        "enforcement_arm": "fixture-enforced",
+        "arm_binding_digest_sha256": "d" * 64,
     }
     values.update(overrides)
     seal = object()
@@ -185,6 +188,7 @@ class _Case:
                 self.fixture.root / "artifacts" / "verifier-policy.json"
             ).read_bytes(),
             "enforcement_arm": "fixture-enforced",
+            "arm_binding_digest_sha256": "d" * 64,
             "generator_closure": {
                 "schema_version": "fixture-generator-closure/v1",
                 "generator_sha256": "a" * 64,
@@ -686,13 +690,39 @@ def test_receipt_has_exact_keys_independent_canonical_bytes_and_no_self_digest(
         "evidence_sha256s",
         "evidence_root_sha256",
         "enforcement_arm",
+        "arm_binding_digest_sha256",
         "generator_closure",
         "reason_code",
         "issuer_seal",
     }
+    assert record["enforcement_arm"] == "fixture-enforced"
+    assert record["arm_binding_digest_sha256"] == "d" * 64
     assert all("receipt_sha256" not in key for key in record)
     assert C.canonical_formal_consumer_receipt_bytes(result.receipt) == _canonical(record)
     assert not C.canonical_formal_consumer_receipt_bytes(result.receipt).endswith(b"\n")
+
+
+def test_formal_consumer_rejects_invalid_arm_binding_digest_before_issuance(
+    case: _Case,
+) -> None:
+    with pytest.raises(ValueError, match="arm_binding_digest_sha256"):
+        _evaluate(case, arm_binding_digest_sha256="not-a-digest")
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("enforcement_arm", "caller-selected"),
+        ("arm_binding_digest_sha256", "e" * 64),
+    ],
+)
+def test_formal_consumer_requires_digest_and_label_from_issued_binding(
+    case: _Case,
+    field: str,
+    value: str,
+) -> None:
+    with pytest.raises(ValueError, match="differs from issued arm binding"):
+        _evaluate(case, **{field: value})
 
 
 def test_receipt_rejects_wrong_input_state_commitment(case: _Case) -> None:
@@ -782,15 +812,17 @@ def test_terminal_projection_is_one_nested_key_with_closed_reason(case: _Case) -
         "origin_id",
         "cell_key",
         "terminal_payload_sha256",
+        "arm_binding_digest_sha256",
     }
     assert nested["reason_code"] == "P6Unavailable"
     assert nested["formal_receipt_sha256"] is not None
     assert nested["evidence_root_sha256"] is not None
+    assert nested["arm_binding_digest_sha256"] == "d" * 64
     assert type(result.projection.reason_code) is C.FormalReasonCode
 
 
 def test_consumer_source_has_no_nonaborted_construction_or_success_variant() -> None:
-    assert len(WAVE_PRODUCTION_FILES) == 13
+    assert len(WAVE_PRODUCTION_FILES) == 14
     assert set(WAVE_PRODUCTION_FILES) == {
         "autonomous_trial_completeness.py",
         "p3_autonomous_workload_trial.py",
@@ -803,6 +835,7 @@ def test_consumer_source_has_no_nonaborted_construction_or_success_variant() -> 
         "reflux_result_evidence.py",
         "reflux_source_closure.py",
         "s8b_descriptor.py",
+        "s8c_arm_inputs.py",
         "trial_registry.py",
         "wal.py",
     }

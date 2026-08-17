@@ -145,6 +145,7 @@ class OriginTerminalProjection:
     origin_id: str
     cell_key: str
     terminal_payload_sha256: str
+    arm_binding_digest_sha256: str
 
     def __post_init__(self) -> None:
         if self.schema_version != ORIGIN_TERMINAL_PROJECTION_SCHEMA_VERSION:
@@ -159,6 +160,7 @@ class OriginTerminalProjection:
         for value in (
             self.authority_blob_sha256,
             self.terminal_payload_sha256,
+            self.arm_binding_digest_sha256,
             *(() if self.formal_receipt_sha256 is None else (self.formal_receipt_sha256,)),
             *(() if self.evidence_root_sha256 is None else (self.evidence_root_sha256,)),
         ):
@@ -192,6 +194,7 @@ class FormalConsumerReceipt:
     evidence_sha256s: tuple[str, ...]
     evidence_root_sha256: str
     enforcement_arm: str
+    arm_binding_digest_sha256: str
     generator_closure: Mapping[str, object]
     reason_code: FormalReasonCode
     issuer_seal: str
@@ -210,6 +213,7 @@ class FormalConsumerReceipt:
         evidence_sha256s: tuple[str, ...],
         evidence_root_sha256: str,
         enforcement_arm: str,
+        arm_binding_digest_sha256: str,
         generator_closure: Mapping[str, object],
         reason_code: FormalReasonCode,
         _issuer: object,
@@ -229,6 +233,9 @@ class FormalConsumerReceipt:
         object.__setattr__(self, "evidence_sha256s", evidence_sha256s)
         object.__setattr__(self, "evidence_root_sha256", evidence_root_sha256)
         object.__setattr__(self, "enforcement_arm", enforcement_arm)
+        object.__setattr__(
+            self, "arm_binding_digest_sha256", arm_binding_digest_sha256
+        )
         object.__setattr__(
             self, "generator_closure", MappingProxyType(dict(generator_closure))
         )
@@ -361,6 +368,7 @@ def origin_terminal_projection_record(
             "origin_id": projection.origin_id,
             "cell_key": projection.cell_key,
             "terminal_payload_sha256": projection.terminal_payload_sha256,
+            "arm_binding_digest_sha256": projection.arm_binding_digest_sha256,
         }
     }
 
@@ -382,6 +390,7 @@ def formal_consumer_receipt_record(
         "evidence_sha256s": list(receipt.evidence_sha256s),
         "evidence_root_sha256": receipt.evidence_root_sha256,
         "enforcement_arm": receipt.enforcement_arm,
+        "arm_binding_digest_sha256": receipt.arm_binding_digest_sha256,
         "generator_closure": dict(receipt.generator_closure),
         "reason_code": receipt.reason_code.value,
         "issuer_seal": receipt.issuer_seal,
@@ -408,6 +417,7 @@ def _projection(
     decision: AbortedOriginDecision,
     capability: OriginBindingCapability,
     receipt: FormalConsumerReceipt | None,
+    arm_binding_digest_sha256: str,
 ) -> OriginTerminalProjection:
     return OriginTerminalProjection(
         schema_version=ORIGIN_TERMINAL_PROJECTION_SCHEMA_VERSION,
@@ -422,6 +432,7 @@ def _projection(
         origin_id=capability.origin_id,
         cell_key=capability.cell_key,
         terminal_payload_sha256=decision.terminal_payload_sha256,
+        arm_binding_digest_sha256=arm_binding_digest_sha256,
     )
 
 
@@ -430,6 +441,7 @@ def _rejected(
     *,
     snapshot: ledger.OriginSnapshot,
     capability: OriginBindingCapability,
+    arm_binding_digest_sha256: str,
 ) -> FormalContractRejected:
     decision = _decision(snapshot)
     projection = _projection(
@@ -437,6 +449,7 @@ def _rejected(
         decision=decision,
         capability=capability,
         receipt=None,
+        arm_binding_digest_sha256=arm_binding_digest_sha256,
     )
     return FormalContractRejected(reason_code, decision, projection)
 
@@ -891,10 +904,12 @@ def _issue_receipt(
     decision: AbortedOriginDecision,
     evidence_sha256s: tuple[str, ...],
     enforcement_arm: str,
+    arm_binding_digest_sha256: str,
     generator_closure: Mapping[str, object],
 ) -> FormalConsumerReceipt:
     _token(operation_id, label="operation_id")
     _token(enforcement_arm, label="enforcement_arm")
+    _sha256(arm_binding_digest_sha256, label="arm_binding_digest_sha256")
     if type(generator_closure) is not dict:
         raise TypeError("generator_closure must be an exact object")
     detached = json.loads(canonical_json_bytes(generator_closure).decode("utf-8"))
@@ -914,6 +929,7 @@ def _issue_receipt(
         evidence_sha256s=evidence_sha256s,
         evidence_root_sha256=evidence_root_sha256,
         enforcement_arm=enforcement_arm,
+        arm_binding_digest_sha256=arm_binding_digest_sha256,
         generator_closure=detached,
         reason_code=FormalReasonCode.P6_UNAVAILABLE,
         _issuer=_RECEIPT_CONSTRUCTOR,
@@ -936,6 +952,7 @@ def evaluate_formal_origin(
     evidence_root: Path,
     verifier_policy_bytes: bytes,
     enforcement_arm: str,
+    arm_binding_digest_sha256: str,
     generator_closure: Mapping[str, object],
     operation_id: str,
 ) -> FormalConsumerResult:
@@ -943,10 +960,21 @@ def evaluate_formal_origin(
 
     if type(capability) is not OriginBindingCapability:
         raise TypeError("capability must be an exact OriginBindingCapability")
+    issued_capability = assert_issued_origin_binding_capability(capability)
     if type(origin_snapshot) is not ledger.OriginSnapshot:
         raise TypeError("origin_snapshot must be an exact OriginSnapshot")
     if type(run_plan) is not RecoveryEnvelope:
         raise TypeError("run_plan must be an exact RecoveryEnvelope")
+    _sha256(arm_binding_digest_sha256, label="arm_binding_digest_sha256")
+    if issued_capability.enforcement_arm != enforcement_arm:
+        raise ValueError("enforcement_arm differs from issued arm binding")
+    if (
+        issued_capability.arm_binding_digest_sha256
+        != arm_binding_digest_sha256
+    ):
+        raise ValueError(
+            "arm_binding_digest_sha256 differs from issued arm binding"
+        )
     try:
         paired = _pair_records(
             sealed_batches=sealed_batches,
@@ -986,6 +1014,7 @@ def evaluate_formal_origin(
             failure.reason_code,
             snapshot=origin_snapshot,
             capability=capability,
+            arm_binding_digest_sha256=arm_binding_digest_sha256,
         )
 
     decision = _decision(origin_snapshot)
@@ -999,6 +1028,7 @@ def evaluate_formal_origin(
         decision=decision,
         evidence_sha256s=evidence_sha256s,
         enforcement_arm=enforcement_arm,
+        arm_binding_digest_sha256=arm_binding_digest_sha256,
         generator_closure=generator_closure,
     )
     reason = FormalReasonCode.P6_UNAVAILABLE
@@ -1011,6 +1041,7 @@ def evaluate_formal_origin(
             decision=decision,
             capability=capability,
             receipt=receipt,
+            arm_binding_digest_sha256=arm_binding_digest_sha256,
         ),
     )
 
