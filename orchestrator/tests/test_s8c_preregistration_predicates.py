@@ -74,30 +74,37 @@ def _snapshot_current_commit(tmp_path: Path) -> tuple[Path, str]:
     数えない。ここで固定するのは commit-blob 投影の同値性だけである。
     """
     root = _init_repo(tmp_path, "current-snapshot")
-    contract = M.load_contract_bytes(CONTRACT_FILE.read_bytes())
     paths = {
-        item.path
-        for condition in contract.conditions
-        for item in condition.required_evidence
+        reference.path
+        for result in M.get_registry().evaluate_all("HEAD", repo_root=_ROOT)
+        for reference in result.evidence
     }
-    tracked = _git(_ROOT, "ls-tree", "-r", "--name-only", "HEAD").decode().splitlines()
-    paths.update(
-        path
-        for path in tracked
-        if path.startswith("orchestrator/campaign/") and path.endswith(".py")
+    paths.add(core.EVIDENCE_CONTRACT_PATH)
+    tracked = set(
+        _git(_ROOT, "ls-tree", "-r", "--name-only", "HEAD").decode().splitlines()
     )
-    present = sorted(paths & set(tracked))
-    archive = _git(_ROOT, "archive", "--format=tar", "HEAD", "--", *present)
-    with tarfile.open(fileobj=io.BytesIO(archive), mode="r:") as bundle:
-        for member in bundle.getmembers():
-            if not member.isfile():
-                continue
-            source = bundle.extractfile(member)
-            assert source is not None
-            _write(root, member.name, source.read())
+    assert paths - tracked <= {core.EVIDENCE_CONTRACT_PATH}
+    present = sorted(paths & tracked)
+    if present:
+        archive = _git(_ROOT, "archive", "--format=tar", "HEAD", "--", *present)
+        with tarfile.open(fileobj=io.BytesIO(archive), mode="r:") as bundle:
+            for member in bundle.getmembers():
+                if not member.isfile():
+                    continue
+                source = bundle.extractfile(member)
+                assert source is not None
+                _write(root, member.name, source.read())
     # HEAD がこの単位をまだ含まない段 5 でも、評価対象 commit には契約を含める。
     _write(root, core.EVIDENCE_CONTRACT_PATH, CONTRACT_FILE.read_bytes())
     return root, _commit(root, "current evidence snapshot")
+
+
+@pytest.fixture(scope="module")
+def current_commit_snapshot(
+    tmp_path_factory: pytest.TempPathFactory,
+) -> tuple[Path, str]:
+    """Read-only snapshot shared by all current-tree equivalence checks."""
+    return _snapshot_current_commit(tmp_path_factory.mktemp("current-commit"))
 
 
 def test_predicate_registry_is_exactly_c01_through_c12(tmp_path: Path) -> None:
@@ -109,8 +116,10 @@ def test_predicate_registry_is_exactly_c01_through_c12(tmp_path: Path) -> None:
     assert all(item.reason_code in M.REASON_CODES for item in results)
 
 
-def test_current_repository_snapshot_has_zero_satisfied_predicates(tmp_path: Path) -> None:
-    root, head = _snapshot_current_commit(tmp_path)
+def test_current_repository_snapshot_has_zero_satisfied_predicates(
+    current_commit_snapshot: tuple[Path, str],
+) -> None:
+    root, head = current_commit_snapshot
     results = M.get_registry().evaluate_all(head, repo_root=root)
     assert sum(item.status is core.PredicateStatus.SATISFIED for item in results) == 0
     for item in results:
@@ -118,21 +127,23 @@ def test_current_repository_snapshot_has_zero_satisfied_predicates(tmp_path: Pat
         assert all(ref.path and len(ref.blob_sha256) == 64 for ref in item.evidence)
 
 
-def test_current_repository_snapshot_exactly_matches_head(tmp_path: Path) -> None:
-    root, head = _snapshot_current_commit(tmp_path)
+def test_current_repository_snapshot_exactly_matches_head(
+    current_commit_snapshot: tuple[Path, str],
+) -> None:
+    root, head = current_commit_snapshot
     snapshot = tuple(M.get_registry().evaluate_all(head, repo_root=root))
     actual = tuple(M.get_registry().evaluate_all("HEAD", repo_root=_ROOT))
     assert snapshot == actual
 
 
 def test_current_repository_gap_reason_snapshot_requires_cross_wave_review(
-    tmp_path: Path,
+    current_commit_snapshot: tuple[Path, str],
 ) -> None:
     """個別 reason は gap ledger。他 wave の land 時は意図を再審査して更新する。
 
     [T-325] の land で trial_registry の capability probe 段階を通過した。
     """
-    root, head = _snapshot_current_commit(tmp_path)
+    root, head = current_commit_snapshot
     results = M.get_registry().evaluate_all(head, repo_root=root)
     assert {
         item.id: (item.status, item.reason_code) for item in results
@@ -153,10 +164,10 @@ def test_current_repository_gap_reason_snapshot_requires_cross_wave_review(
 
 
 def test_current_repository_c12_registry_reports_unwired_allocation_consumer(
-    tmp_path: Path,
+    current_commit_snapshot: tuple[Path, str],
 ) -> None:
     # production が正しく配線されたら反転させる snapshot tripwire である。
-    root, head = _snapshot_current_commit(tmp_path)
+    root, head = current_commit_snapshot
     results = M.get_registry().evaluate_all(head, repo_root=root)
     c12 = {item.id: item for item in results}["C12"]
     assert c12.status is core.PredicateStatus.UNSATISFIED
@@ -164,10 +175,10 @@ def test_current_repository_c12_registry_reports_unwired_allocation_consumer(
 
 
 def test_current_repository_c12_allocation_binding_helper_reports_unwired_consumer(
-    tmp_path: Path,
+    current_commit_snapshot: tuple[Path, str],
 ) -> None:
     # production が正しく配線されたら反転させる snapshot tripwire である。
-    root, head = _snapshot_current_commit(tmp_path)
+    root, head = current_commit_snapshot
     condition = M.load_contract_bytes(CONTRACT_FILE.read_bytes()).condition(12)
     paths = {
         item.artifact_kind: item.path for item in condition.required_evidence
@@ -1188,6 +1199,71 @@ def test_reachable_consumers_reject_absence_shapes_with_single_reason(
     result = _result(tmp_path / "baseline", head, identifier)
     assert result.status is core.PredicateStatus.UNSATISFIED
     assert result.reason_code == expected
+
+
+@pytest.mark.parametrize(
+    ("dead_shape", "replacement"),
+    [
+        pytest.param(
+            "if-true-else",
+            "    if True:\n"
+            "        pass\n"
+            "    else:\n"
+            "        assert_campaign_layer3_chain()\n",
+            id="if-true-else",
+        ),
+        pytest.param(
+            "while-false-body",
+            "    while False:\n"
+            "        assert_campaign_layer3_chain()\n",
+            id="while-false-body",
+        ),
+        pytest.param(
+            "after-return",
+            "    return None\n"
+            "    assert_campaign_layer3_chain()\n",
+            id="after-return",
+        ),
+    ],
+)
+def test_c09_provably_dead_calls_are_not_reachability_witnesses(
+    tmp_path: Path, dead_shape: str, replacement: str
+) -> None:
+    sources, _, _ = _negative_control_case("nc_c09_acceptance_skips_layer3")
+    root, _, _ = _terminal_result(tmp_path, "dead-call-baseline", "C09", sources)
+    producer_path = "orchestrator/campaign/p3_autonomous_workload_trial.py"
+    target = "    assert_campaign_layer3_chain()\n"
+    producer = sources[producer_path]
+    assert isinstance(producer, str)
+    assert producer.count(target) == 1
+    mutated = producer.replace(target, replacement, 1)
+    assert mutated != producer, dead_shape
+    _write(root, producer_path, mutated)
+    head = _commit(root, dead_shape)
+    result = _result(root, head, "C09")
+    assert result.status is core.PredicateStatus.UNSATISFIED
+    assert result.reason_code == "layer3-producer-unreachable"
+
+
+def test_c09_unknown_branch_remains_a_potential_reachability_witness(
+    tmp_path: Path,
+) -> None:
+    sources, _, _ = _negative_control_case("nc_c09_acceptance_skips_layer3")
+    producer_path = "orchestrator/campaign/p3_autonomous_workload_trial.py"
+    target = "    assert_campaign_layer3_chain()\n"
+    producer = sources[producer_path]
+    assert isinstance(producer, str)
+    assert producer.count(target) == 1
+    replacement = (
+        "    if unknown_condition:\n"
+        "        pass\n"
+        "    else:\n"
+        "        assert_campaign_layer3_chain()\n"
+    )
+    mutated = producer.replace(target, replacement, 1)
+    assert mutated != producer
+    sources[producer_path] = mutated
+    _terminal_result(tmp_path, "unknown-call-branch", "C09", sources)
 
 
 @pytest.mark.parametrize(

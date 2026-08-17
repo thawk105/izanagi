@@ -308,10 +308,6 @@ def _called_names(node: ast.AST) -> set[str]:
     return names
 
 
-def _attributes(node: ast.AST) -> set[str]:
-    return {child.attr for child in ast.walk(node) if isinstance(child, ast.Attribute)}
-
-
 def _strings(node: ast.AST) -> set[str]:
     return {
         child.value
@@ -529,15 +525,30 @@ def _function_parameters(node: ast.FunctionDef | ast.AsyncFunctionDef) -> tuple[
     )
 
 
+def _literal_truth(node: ast.AST) -> bool | None:
+    """Return literal truthiness, or ``None`` for every non-literal expression."""
+    if not isinstance(node, (ast.Constant, ast.Tuple, ast.List, ast.Set, ast.Dict)):
+        return None
+    try:
+        return bool(ast.literal_eval(node))
+    except (ValueError, TypeError, SyntaxError):
+        return None
+
+
 def _live_nodes(node: ast.AST) -> list[ast.AST]:
-    """Function body nodes excluding nested scopes and constant-false branches."""
+    """Function body nodes excluding nested scopes and provably dead statements."""
     values: list[ast.AST] = []
+
+    def visit_block(statements: Sequence[ast.stmt]) -> None:
+        for statement in statements:
+            visit(statement)
+            if isinstance(statement, (ast.Return, ast.Raise, ast.Continue, ast.Break)):
+                break
 
     def visit(current: ast.AST, *, root: bool = False) -> None:
         if root and isinstance(current, (ast.FunctionDef, ast.AsyncFunctionDef)):
             values.append(current)
-            for child in current.body:
-                visit(child)
+            visit_block(current.body)
             return
         if not root and isinstance(
             current, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef, ast.Lambda)
@@ -545,17 +556,34 @@ def _live_nodes(node: ast.AST) -> list[ast.AST]:
             return
         values.append(current)
         if isinstance(current, ast.If):
-            false_branch = (
-                isinstance(current.test, ast.Constant)
-                and (current.test.value is False or current.test.value == 0)
-            )
-            branches = current.orelse if false_branch else (*current.body, *current.orelse)
             visit(current.test)
-            for child in branches:
-                visit(child)
+            truth = _literal_truth(current.test)
+            if truth is True:
+                visit_block(current.body)
+            elif truth is False:
+                visit_block(current.orelse)
+            else:
+                visit_block(current.body)
+                visit_block(current.orelse)
             return
-        for child in ast.iter_child_nodes(current):
-            visit(child)
+        if isinstance(current, ast.While):
+            visit(current.test)
+            if _literal_truth(current.test) is False:
+                visit_block(current.orelse)
+            else:
+                visit_block(current.body)
+                visit_block(current.orelse)
+            return
+        for _, child in ast.iter_fields(current):
+            if isinstance(child, ast.AST):
+                visit(child)
+            elif isinstance(child, list):
+                if all(isinstance(item, ast.stmt) for item in child):
+                    visit_block(child)
+                else:
+                    for item in child:
+                        if isinstance(item, ast.AST):
+                            visit(item)
 
     visit(node, root=True)
     return values
@@ -1072,10 +1100,21 @@ class _ReachabilityExplorer:
         local = dict(incoming)
         availability = {name: (-1, -1) for name in incoming}
         assignments = self._assignment_rows(node)
+        scope = _scope_nodes(node)
+        assignment_names = {
+            target.id
+            for current in scope
+            for target in (
+                current.targets
+                if isinstance(current, ast.Assign)
+                else (current.target,) if isinstance(current, ast.AnnAssign) else ()
+            )
+            if isinstance(target, ast.Name)
+        }
         parameters = set(_function_parameters(node))
         callable_defaults = _callable_defaults(node)
         unsafe_bindings: set[str] = set()
-        for current in _scope_nodes(node):
+        for current in scope:
             if isinstance(current, (ast.Assign, ast.AnnAssign)):
                 continue
             unsafe_bindings.update(_direct_bound_names(current))
@@ -1084,7 +1123,7 @@ class _ReachabilityExplorer:
             availability.pop(name, None)
         shadowed = (
             parameters
-            | set(assignments)
+            | assignment_names
             | callable_defaults
             | blocked
             | unsafe_bindings
