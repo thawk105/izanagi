@@ -3967,6 +3967,115 @@ def _run_loaded_checker(module) -> subprocess.CompletedProcess:
     return subprocess.CompletedProcess([], returncode, output.getvalue(), "")
 
 
+def test_read_text_cache_uses_one_physical_open_per_main(tmp_path, monkeypatch):
+    target = tmp_path / "shared.md"
+    target.write_text("shared text\n", encoding="utf-8")
+    monkeypatch.setattr(check_docs, "REPO", tmp_path)
+
+    real_open = check_docs.Path.open
+    physical_opens = 0
+
+    def counting_open(path, *args, **kwargs):
+        nonlocal physical_opens
+        if path == target:
+            physical_opens += 1
+        return real_open(path, *args, **kwargs)
+
+    observed = []
+    findings = []
+
+    def cache_probe(argv=None):
+        observed.append(check_docs._safe_read_text(target, findings, "first"))
+        observed.append(check_docs._safe_read_text(target, findings, "second"))
+        return 0
+
+    monkeypatch.setattr(check_docs.Path, "open", counting_open)
+    monkeypatch.setattr(check_docs, "_main", cache_probe)
+
+    assert check_docs.main([]) == 0
+    assert observed == ["shared text\n", "shared text\n"]
+    assert findings == []
+    assert physical_opens == 1
+
+
+def test_read_text_cache_keeps_newline_modes_distinct(tmp_path, monkeypatch):
+    target = tmp_path / "newlines.md"
+    target.write_bytes(b"alpha\r\nbeta\rgamma\n")
+    monkeypatch.setattr(check_docs, "REPO", tmp_path)
+
+    observed = []
+    findings = []
+
+    def newline_probe(argv=None):
+        observed.append(
+            check_docs._safe_read_text(
+                target, findings, "raw", newline=""
+            )
+        )
+        observed.append(
+            check_docs._safe_read_text(
+                target, findings, "normalized", newline=None
+            )
+        )
+        return 0
+
+    monkeypatch.setattr(check_docs, "_main", newline_probe)
+
+    assert check_docs.main([]) == 0
+    assert observed == [
+        "alpha\r\nbeta\rgamma\n",
+        "alpha\nbeta\ngamma\n",
+    ]
+    assert findings == []
+
+
+def test_read_text_cache_replays_failure_for_each_caller(tmp_path, monkeypatch):
+    target = tmp_path / "invalid.md"
+    target.write_bytes(b"\xff")
+    monkeypatch.setattr(check_docs, "REPO", tmp_path)
+
+    findings = []
+
+    def failure_probe(argv=None):
+        assert check_docs._safe_read_text(target, findings, "first caller") is None
+        assert check_docs._safe_read_text(target, findings, "second caller") is None
+        return 0
+
+    monkeypatch.setattr(check_docs, "_main", failure_probe)
+
+    assert check_docs.main([]) == 0
+    assert [finding.split(" (", 1)[0] for finding in findings] == [
+        "first caller",
+        "second caller",
+    ]
+    assert findings[0].removeprefix("first caller") == findings[1].removeprefix(
+        "second caller"
+    )
+
+
+def test_read_text_cache_invalidates_replaced_file_identity(tmp_path, monkeypatch):
+    target = tmp_path / "replaceable.md"
+    replacement = tmp_path / "replacement.md"
+    target.write_text("old\n", encoding="utf-8")
+    replacement.write_text("replacement content\n", encoding="utf-8")
+    monkeypatch.setattr(check_docs, "REPO", tmp_path)
+
+    observed = []
+    findings = []
+
+    def replacement_probe(argv=None):
+        observed.append(check_docs._safe_read_text(target, findings, "before"))
+        replacement.replace(target)
+        observed.append(check_docs._safe_read_text(target, findings, "after"))
+        return 0
+
+    monkeypatch.setattr(check_docs, "_main", replacement_probe)
+
+    assert check_docs.main([]) == 0
+    assert observed == ["old\n", "replacement content\n"]
+    assert findings == []
+
+
 def test_provenance_registry_three_faces_asymmetry_is_rejected(monkeypatch):
     root = _build_min_repo()
     try:

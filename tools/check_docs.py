@@ -847,6 +847,7 @@ PATH_REF = re.compile(r"(?<![\w/])(?:docs|tools|orchestrator|hooks|patches|outpu
 class _ReadTextCacheEntry:
     outcome: str
     payload: str
+    identity: tuple[int, int, int, int]
 
 
 _READ_TEXT_CACHE: ContextVar[
@@ -881,8 +882,8 @@ def _safe_read_text(
                 break
             candidate = candidate.parent
 
-        mode = path.lstat().st_mode
-        if not stat.S_ISREG(mode):
+        path_stat = path.lstat()
+        if not stat.S_ISREG(path_stat.st_mode):
             findings.append(
                 f"{unsafe_path_prefix or failure_prefix} "
                 f"(regular file でないため読まない: {path})"
@@ -898,16 +899,31 @@ def _safe_read_text(
     # symlink / lstat 判定は毎回行い、呼出し時点の安全判定を飛ばさない。
     cache = _READ_TEXT_CACHE.get()
     cache_key = (path, newline)
+    identity = (
+        path_stat.st_mtime_ns,
+        path_stat.st_size,
+        path_stat.st_ino,
+        path_stat.st_dev,
+    )
+    # 既存 lstat で観測できる identity が変わった場合だけ stale と判定する。
+    # 4 値を保ったまま本文だけが変わる差し替えは既知の残差として残る。
     cached = cache.get(cache_key) if cache is not None else None
+    if cached is not None and cached.identity != identity:
+        cache.pop(cache_key, None)
+        cached = None
     if cached is None and cache is not None and newline is None:
         # newline="" の本文は改行を変換しない基底表現として共有できる。
         # newline=None の返り値は別 key に CR/LF 変換後の本文を保存する。
         raw = cache.get((path, ""))
+        if raw is not None and raw.identity != identity:
+            cache.pop((path, ""), None)
+            raw = None
         if raw is not None:
             cached = (
                 _ReadTextCacheEntry(
                     "text",
                     raw.payload.replace("\r\n", "\n").replace("\r", "\n"),
+                    identity,
                 )
                 if raw.outcome == "text"
                 else raw
@@ -933,7 +949,7 @@ def _safe_read_text(
     except UnicodeDecodeError as exc:
         detail = f"{type(exc).__name__}: {exc}"
         if cache is not None:
-            entry = _ReadTextCacheEntry("invalid-utf8", detail)
+            entry = _ReadTextCacheEntry("invalid-utf8", detail, identity)
             cache[cache_key] = entry
             if newline is None:
                 cache[(path, "")] = entry
@@ -945,7 +961,7 @@ def _safe_read_text(
     except OSError as exc:
         detail = f"{type(exc).__name__}: {exc}"
         if cache is not None:
-            entry = _ReadTextCacheEntry("os-error", detail)
+            entry = _ReadTextCacheEntry("os-error", detail, identity)
             cache[cache_key] = entry
             if newline is None:
                 cache[(path, "")] = entry
@@ -955,9 +971,9 @@ def _safe_read_text(
         return None
     if cache is not None:
         if newline is None:
-            cache[(path, "")] = _ReadTextCacheEntry("text", text)
+            cache[(path, "")] = _ReadTextCacheEntry("text", text, identity)
             text = text.replace("\r\n", "\n").replace("\r", "\n")
-        cache[cache_key] = _ReadTextCacheEntry("text", text)
+        cache[cache_key] = _ReadTextCacheEntry("text", text, identity)
     return text
 
 
