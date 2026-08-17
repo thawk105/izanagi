@@ -83,6 +83,17 @@ title: arm が選ぶ入力から二層 digest を導き 7 sink へ消費させ�
   digest authority とは別の設計択一である。これが残る限り、6 cell の on/off 差と swapped 追従を
   descriptor 効果として解釈できない。正本 =
   `output/insights/2026-08-18_t1311-arm-execution-authority/README.md`
+- {{T:dev-wave-waiter-and-lane-doc-gaps}} **P3・新規 (段 8 自己改善、docs 予算のため未実装 → ユーザー裁定)**:
+  本 wave で実測した dev-wave の作法の穴 2 件。(a) 待ち手を producer script の pid file 作成**前**に
+  張ると、子が生きていても待ち手が即座に戻る。`DW-O01` は pid file を producer 自身が書くと
+  定めるが、**張る前に実在を確認せよ**とは書いていない。(b) `--lane` は `--stage consult` 専用で、
+  他段に渡すと rc=2 で起動前に落ちる。`DW-O01` の起動形は `[--lane <lane>]` を段の別なく併記している。
+  どちらも 1 行で是正できるが、`DW-O01` は L2 上限を超える大きさで `DW-O20` の余裕も 4 bytes しかなく、
+  自己改善契約の「予算に収まらなければ止めてユーザー裁定へ返す」に該当する。
+  **諮る点 = どちらの節を削って空きを作るか、別 L2 節へ収容するか、見送るか。**
+  なお背景 Bash の完了通知が実体より先に返る事象も観測したが、これは
+  `DW-O01` の「通知は先行しうる。完了は `.done` と exit code だけで判定」が既に覆っており、
+  実際その規律で誤進行を防いだので候補から外した。
 - {{T:holdout-profile-single-source}} **P2・新規 ([T-1310] への申し送り)**:
   [T-1311] の arm resolver は `s8b_holdout_freeze.HOLDOUTS` を descriptor の権威として読む。
   [T-1310] が producer へ入れる rr80 / rr20 の production profile が**同一 bytes を指すことを
