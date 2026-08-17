@@ -22,6 +22,7 @@ import stat
 import sys
 import time
 from collections.abc import Iterator, Mapping, Sequence
+from contextvars import ContextVar
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -842,6 +843,17 @@ D_REF = re.compile(r"\bD(\d{1,3})\b")
 PATH_REF = re.compile(r"(?<![\w/])(?:docs|tools|orchestrator|hooks|patches|output|src|\.claude|\.codex)/[\w.\-/]+\.[A-Za-z0-9]+")
 
 
+@dataclass(frozen=True)
+class _ReadTextCacheEntry:
+    outcome: str
+    payload: str
+
+
+_READ_TEXT_CACHE: ContextVar[
+    dict[tuple[Path, str | None], _ReadTextCacheEntry] | None
+] = ContextVar("check_docs_read_text_cache", default=None)
+
+
 def _safe_read_text(
     path: Path,
     findings: list[str],
@@ -876,19 +888,77 @@ def _safe_read_text(
                 f"(regular file でないため読まない: {path})"
             )
             return None
-        with path.open("r", encoding="utf-8", newline=newline) as stream:
-            return stream.read()
-    except UnicodeDecodeError as exc:
-        findings.append(
-            f"{invalid_utf8_prefix or failure_prefix} "
-            f"({type(exc).__name__}: {exc})"
-        )
-        return None
     except OSError as exc:
         findings.append(
             f"{failure_prefix} ({type(exc).__name__}: {exc})"
         )
         return None
+
+    # path と newline が同じ呼出しだけ本文を共有する。cache hit でも上の
+    # symlink / lstat 判定は毎回行い、呼出し時点の安全判定を飛ばさない。
+    cache = _READ_TEXT_CACHE.get()
+    cache_key = (path, newline)
+    cached = cache.get(cache_key) if cache is not None else None
+    if cached is None and cache is not None and newline is None:
+        # newline="" の本文は改行を変換しない基底表現として共有できる。
+        # newline=None の返り値は別 key に CR/LF 変換後の本文を保存する。
+        raw = cache.get((path, ""))
+        if raw is not None:
+            cached = (
+                _ReadTextCacheEntry(
+                    "text",
+                    raw.payload.replace("\r\n", "\n").replace("\r", "\n"),
+                )
+                if raw.outcome == "text"
+                else raw
+            )
+            cache[cache_key] = cached
+    if cached is not None:
+        if cached.outcome == "text":
+            return cached.payload
+        prefix = (
+            invalid_utf8_prefix or failure_prefix
+            if cached.outcome == "invalid-utf8"
+            else failure_prefix
+        )
+        findings.append(f"{prefix} ({cached.payload})")
+        return None
+
+    # main 内の newline=None は raw text を一度だけ取得して変換する。これにより
+    # newline="" と返り値を混同せず、同じ file の物理読取だけを共有できる。
+    open_newline = "" if cache is not None and newline is None else newline
+    try:
+        with path.open("r", encoding="utf-8", newline=open_newline) as stream:
+            text = stream.read()
+    except UnicodeDecodeError as exc:
+        detail = f"{type(exc).__name__}: {exc}"
+        if cache is not None:
+            entry = _ReadTextCacheEntry("invalid-utf8", detail)
+            cache[cache_key] = entry
+            if newline is None:
+                cache[(path, "")] = entry
+        findings.append(
+            f"{invalid_utf8_prefix or failure_prefix} "
+            f"({detail})"
+        )
+        return None
+    except OSError as exc:
+        detail = f"{type(exc).__name__}: {exc}"
+        if cache is not None:
+            entry = _ReadTextCacheEntry("os-error", detail)
+            cache[cache_key] = entry
+            if newline is None:
+                cache[(path, "")] = entry
+        findings.append(
+            f"{failure_prefix} ({detail})"
+        )
+        return None
+    if cache is not None:
+        if newline is None:
+            cache[(path, "")] = _ReadTextCacheEntry("text", text)
+            text = text.replace("\r\n", "\n").replace("\r", "\n")
+        cache[cache_key] = _ReadTextCacheEntry("text", text)
+    return text
 
 
 def _check_spool_guard(
@@ -5210,6 +5280,16 @@ def _parser() -> argparse.ArgumentParser:
 
 
 def main(argv: Sequence[str] | None = None) -> int:
+    """1 回の検査内だけ読取結果を共有し、終了時に必ず破棄する。"""
+
+    cache_token = _READ_TEXT_CACHE.set({})
+    try:
+        return _main(argv)
+    finally:
+        _READ_TEXT_CACHE.reset(cache_token)
+
+
+def _main(argv: Sequence[str] | None = None) -> int:
     args = _parser().parse_args(()) if argv is None else _parser().parse_args(argv)
     findings: list[str] = []
     warnings: list[str] = []
