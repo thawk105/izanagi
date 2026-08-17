@@ -17,9 +17,12 @@ import pytest
 
 from orchestrator.campaign import p3_autonomous_workload_trial as producer
 from orchestrator.campaign import autonomous_trial_completeness as completeness
+from orchestrator.campaign import campaign_lock
 from orchestrator.campaign import reflux_formal_consumer as formal
 from orchestrator.campaign import reflux_origin_binding as origin_binding
+from orchestrator.campaign import s8b_descriptor
 from orchestrator.campaign import trial_registry as R
+from orchestrator.tests.campaign_lock_test_support import build_v2_lock
 from orchestrator.tests import reflux_origin_fixture_builder as origin_fixtures
 
 
@@ -76,12 +79,22 @@ def _manifest_value(prereg_commit: str, prefix: str) -> dict:
     for holdout in R.HOLDOUTS:
         for arm in R.ARMS:
             token = f"{holdout.lower()}-{arm}"
+            provisional = R.TrialSpec(
+                trial_id=f"{prefix}-{token}",
+                arm=arm,
+                holdout=holdout,
+                campaign_id="pending-campaign-identity",
+                generations=2,
+            )
+            campaign_id, _identity_preimage = _fixture_campaign_identity(
+                provisional
+            )
             trials.append({
-                "trial_id": f"{prefix}-{token}",
-                "arm": arm,
-                "holdout": holdout,
-                "campaign_id": f"campaign-{prefix}-{token}",
-                "generations": 2,
+                "trial_id": provisional.trial_id,
+                "arm": provisional.arm,
+                "holdout": provisional.holdout,
+                "campaign_id": campaign_id,
+                "generations": provisional.generations,
             })
     return {
         "schema_version": R.MANIFEST_SCHEMA_VERSION,
@@ -254,6 +267,8 @@ def _role_event(
     seq: int,
     descriptor_hash: str,
     *,
+    arm: str,
+    arm_binding_digest: str,
     generation: int = 1,
     role_query_ordinal: int | None = None,
 ) -> dict:
@@ -270,7 +285,10 @@ def _role_event(
         "generation": generation,
         "role": role,
         "attempt": 1,
-        "invocation_id": f"{workload}.g{generation}.{role}",
+        "invocation_id": (
+            f"arm-{arm}.exec-{arm_binding_digest}."
+            f"{workload}.g{generation}.{role}"
+        ),
         "seq": seq,
         "ts": f"2026-08-01T00:00:{seq:02d}+00:00",
         "status": "valid",
@@ -279,6 +297,7 @@ def _role_event(
             f"payload:{workload}:{generation}:{role}".encode()
         ).hexdigest(),
         "descriptor_sha256": descriptor_hash,
+        "arm_binding_digest_sha256": arm_binding_digest,
         "raw_response_path": (
             f"/fixture/raw-{workload}-g{generation}-{role}.json"
         ),
@@ -461,7 +480,9 @@ _ARM_CONTENT_DIGESTS = {
 
 
 def _fixture_arm_execution(trial: R.TrialSpec) -> dict[str, str]:
-    content_digest = _ARM_CONTENT_DIGESTS[(trial.holdout, trial.arm)]
+    descriptor = _fixture_execution_descriptor(trial)
+    content_digest = hashlib.sha256(_canonical(descriptor)).hexdigest()
+    assert content_digest == _ARM_CONTENT_DIGESTS[(trial.holdout, trial.arm)]
     arm_binding_digest = hashlib.sha256(
         b"izanagi-s8c-arm-binding/v1\0"
         + trial.holdout.encode("ascii")
@@ -496,10 +517,74 @@ def _fixture_execution_descriptor(trial: R.TrialSpec) -> dict:
         "objective": "maximize_throughput_tps",
         "correctness": "serializable_legacy_and_s2",
     }
-    assert hashlib.sha256(_canonical(descriptor)).hexdigest() == (
-        _ARM_CONTENT_DIGESTS[(trial.holdout, trial.arm)]
-    )
     return descriptor
+
+
+def _fixture_descriptor_binding(
+    descriptor: dict,
+    arm_execution: dict[str, str],
+) -> dict[str, str]:
+    content_digest = hashlib.sha256(_canonical(descriptor)).hexdigest()
+    assert content_digest == arm_execution["content_digest_sha256"]
+    binding = s8b_descriptor.projection_record(descriptor, descriptor)
+    binding.update({
+        "input_sha256": content_digest,
+        "output_sha256": content_digest,
+        "content_digest_sha256": content_digest,
+        "arm_binding_digest_sha256": arm_execution[
+            "arm_binding_digest_sha256"
+        ],
+    })
+    return binding
+
+
+def _fixture_workload_flags(trial: R.TrialSpec) -> dict[str, str]:
+    return {
+        "ycsb_zipf_skew": "0.9",
+        "ycsb_rratio": R.HOLDOUT_BINDINGS[trial.holdout]["ycsb_rratio"],
+        "ycsb_rmw": "0",
+    }
+
+
+def _fixture_campaign_identity(trial: R.TrialSpec) -> tuple[str, str]:
+    workload = R.HOLDOUT_BINDINGS[trial.holdout]["workload"]
+    arm_execution = _fixture_arm_execution(trial)
+    build_context = producer.build_run_context(
+        generator_id=producer.GeneratorId.S8A_TRIGGER_SWEEP,
+    )
+    identity_preimage = campaign_lock.canonical_json({
+        "spec_content": completeness._AUTONOMOUS_SPEC_CONTENT,
+        "ccbench_commit": completeness._CURRENT_CCBENCH_PIN,
+        "search_tag": "workload-conditioned-autonomous",
+        "search_config": {
+            "axis": "silo-backoff-trigger-gating",
+            "descriptor_schema": arm_execution["input_schema_version"],
+            "descriptor_sha256": arm_execution["content_digest_sha256"],
+            "generation_budget": trial.generations,
+            "pilot_scope": "exploratory-ycsb-abc",
+            "records": 100_000,
+            "reflux": "on",
+            "scale": "silo",
+            "stop_policy": "fixed-generations-no-performance-early-stop",
+            "threads": 4,
+            "trigger_gate_binding_schema": (
+                "izanagi-trigger-gate-binding/v1"
+            ),
+            "verify": "legacy+s2",
+            "workload": workload,
+            "ycsb": _fixture_workload_flags(trial),
+            "build_admission": dict(build_context.policy.as_preimage()),
+            "arm_binding_digest_sha256": arm_execution[
+                "arm_binding_digest_sha256"
+            ],
+        },
+        "trial": f"{trial.trial_id}-{workload}",
+    })
+    campaign_id = (
+        f"p3-t178-{workload}-workload-conditioned-autonomous-"
+        f"{hashlib.sha256(identity_preimage.encode('utf-8')).hexdigest()[:8]}"
+    )
+    return campaign_id, identity_preimage
 
 
 def _fixture_origin_binding(
@@ -586,9 +671,21 @@ def _complete_report(
 ) -> Path:
     run = root / f"run-{trial.trial_id}"
     workload = R.HOLDOUT_BINDINGS[trial.holdout]["workload"]
-    ratio = R.HOLDOUT_BINDINGS[trial.holdout]["ycsb_rratio"]
-    descriptor_hash = _ARM_CONTENT_DIGESTS[(trial.holdout, trial.arm)]
+    workload_flags = _fixture_workload_flags(trial)
     descriptor = _fixture_execution_descriptor(trial)
+    arm_execution = _fixture_arm_execution(trial)
+    descriptor_hash = arm_execution["content_digest_sha256"]
+    arm_binding_digest = arm_execution["arm_binding_digest_sha256"]
+    descriptor_binding = _fixture_descriptor_binding(
+        descriptor, arm_execution,
+    )
+    campaign_id, campaign_identity_preimage = _fixture_campaign_identity(trial)
+    assert campaign_id == trial.campaign_id
+    campaign_root = run / "campaigns" / campaign_id
+    campaign_root.mkdir(parents=True, exist_ok=True)
+    (campaign_root / "campaign.lock").write_text(
+        build_v2_lock(campaign_identity_preimage), encoding="utf-8",
+    )
     start = _base_start(
         trial, run, measurement_head, generation_budget=generation_budget,
     )
@@ -598,7 +695,7 @@ def _complete_report(
     for target in (start, report):
         target["prereg_commit"] = manifest.prereg_commit
         target["manifest_sha256"] = manifest.sha256
-        target["arm_execution"] = _fixture_arm_execution(trial)
+        target["arm_execution"] = copy.deepcopy(arm_execution)
         target["launch_admission"] = _fixture_launch_admission(
             trial, manifest, measurement_head,
         )
@@ -614,6 +711,8 @@ def _complete_report(
                 role,
                 seq,
                 descriptor_hash,
+                arm=trial.arm,
+                arm_binding_digest=arm_binding_digest,
                 generation=generation,
                 role_query_ordinal=ordinal,
             )
@@ -621,9 +720,32 @@ def _complete_report(
             roles[role] = copy.deepcopy(event)
             seq += 1
             ordinal += 1
+        proposal_value = {
+            "planner": copy.deepcopy(roles["planner"]["parsed"]),
+            "coder": copy.deepcopy(roles["coder"]["parsed"]),
+            "auditor": copy.deepcopy(roles["auditor"]["parsed"]),
+            "prior_critic_reverse": False,
+            "descriptor_sha256": descriptor_hash,
+            "arm_binding_digest_sha256": arm_binding_digest,
+        }
+        proposal_path = (
+            run / "proposals"
+            / (
+                f"arm-{trial.arm}.exec-{arm_binding_digest}."
+                f"{workload}.g{generation}.json"
+            )
+        )
+        proposal_path.parent.mkdir(parents=True, exist_ok=True)
+        proposal_bytes = _canonical(proposal_value)
+        proposal_path.write_bytes(proposal_bytes)
         generations.append({
             "generation": generation,
             "roles": roles,
+            "proposal": {
+                "path": str(proposal_path),
+                "sha256": hashlib.sha256(proposal_bytes).hexdigest(),
+                "digest": arm_binding_digest,
+            },
             "preview": {"passed": True, "forbidden_identifiers": []},
             "harness": {
                 "outcome": "dry-pass",
@@ -642,11 +764,11 @@ def _complete_report(
         seq += 1
     report["cells"] = [{
         "workload": workload,
-        "workload_flags": {"ycsb_rratio": ratio},
+        "workload_flags": workload_flags,
         "descriptor": descriptor,
-        "descriptor_binding": {"output_sha256": descriptor_hash},
-        "campaign_id": trial.campaign_id,
-        "campaign_root": str(run / "campaigns" / trial.campaign_id),
+        "descriptor_binding": descriptor_binding,
+        "campaign_id": campaign_id,
+        "campaign_root": str(campaign_root),
         "admission_decision": {"admission_status": "not-applicable"},
         "generations": generations,
         "stop_reason": "fixed-generation-budget",
@@ -1126,11 +1248,13 @@ def test_acceptance_independently_rederives_historical_arm_execution(
     if mutation == "missing":
         report.pop("arm_execution")
         events[0].pop("arm_execution")
-        expected = "must exist and match exactly"
+        expected = (
+            "report and run-start arm_execution must exist and match exactly"
+        )
     else:
         report["arm_execution"]["arm_binding_digest_sha256"] = "f" * 64
         events[0]["arm_execution"] = copy.deepcopy(report["arm_execution"])
-        expected = "differs from historical input derivation"
+        expected = "arm_execution differs from historical input derivation"
     _persist(reports[0].parent, events, report)
     lifecycle = _write_acceptance_lifecycle(
         repo, manifest, reports, capability.report_digest_sha256,
@@ -1175,6 +1299,38 @@ def test_acceptance_rejects_cell_descriptor_that_differs_from_arm_input(
     with pytest.raises(
         R.TrialRegistryError,
         match=r"\[acceptance-arm-execution\] cell descriptor differs",
+    ):
+        R.assert_trial_registry_acceptance(
+            effective_preregistration=capability,
+            manifest_path=manifest_path,
+            report_paths=reports,
+            repository_root=repo,
+            registry_path=registry,
+            lifecycle_path=lifecycle,
+        )
+
+
+def test_acceptance_registered_run_rejects_one_missing_digest(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo, manifest_path, registry, manifest = _registered_repo(tmp_path)
+    reports = _reports(repo / "reports", manifest, _head(repo), complete=True)
+    capability = _effective_capability(manifest, monkeypatch)
+    events, report = _load_report_bundle(reports[0])
+    report["cells"][0]["descriptor_binding"].pop(
+        "arm_binding_digest_sha256"
+    )
+    _persist(reports[0].parent, events, report)
+    lifecycle = _write_acceptance_lifecycle(
+        repo, manifest, reports, capability.report_digest_sha256,
+    )
+    with pytest.raises(
+        R.TrialRegistryError,
+        match=(
+            r"\[terminal-completeness\] \[arm-digest-chain\] "
+            r"descriptor binding digest differs$"
+        ),
     ):
         R.assert_trial_registry_acceptance(
             effective_preregistration=capability,
