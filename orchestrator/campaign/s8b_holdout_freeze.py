@@ -1340,8 +1340,6 @@ def _validate_floor_inputs(
         )
     if result.get("mode") != "official":
         raise FreezeError("floor result.mode が official でない")
-    if result.get("eligible_for_refreeze") is not True:
-        raise FreezeError("floor result.eligible_for_refreeze が true でない")
     if not expected_use_perf:
         try:
             normalized_observation = s8b_floor_stats.validate_floor_perf_evidence(
@@ -1541,6 +1539,8 @@ def _validate_floor_inputs(
         if any("holdout_admission" in problem for problem in problems):
             raise FreezeError(f"floor-admission-mismatch: {problems[0]}")
         raise FreezeError(f"floor result の統計検証に失敗: {'; '.join(problems)}")
+    if result.get("eligible_for_refreeze") is not True:
+        raise FreezeError("floor result.eligible_for_refreeze が true でない")
 
     floors = result.get("floors")
     if not isinstance(floors, Mapping) or set(floors) != set(expected_holdouts):
