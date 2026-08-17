@@ -1,0 +1,24 @@
+{
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "estimated_run_seconds": 120,
+ "timeout_seconds": 2400,
+ "hang_timeout_seconds": 2400,
+ "mutations": [
+  {
+   "id": "R13B",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/dev_wave_wait.py",
+     "old": "def _default_archive_log(source: Path, destination: Path) -> None:\n    os.link(source, destination, follow_symlinks=False)\n    os.unlink(source)\n",
+     "new": "def _default_archive_log(source: Path, destination: Path) -> None:\n    os.replace(source, destination)\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_dev_wave_wait.py::test_default_retry_archive_never_overwrites_existing_sibling"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  }
+ ]
+}

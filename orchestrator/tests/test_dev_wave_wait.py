@@ -15,6 +15,7 @@ import shutil
 import subprocess
 import sys
 import threading
+import time
 import tracemalloc
 from collections.abc import Iterator
 from pathlib import Path
@@ -25,11 +26,26 @@ import pytest
 _ROOT = Path(__file__).resolve().parents[2]
 _TOOL = _ROOT / "tools" / "dev_wave_wait.py"
 _LEASE_HELPER = _ROOT / "tools" / "wave_land_window.py"
+_DISPATCHER = _ROOT / "tools" / "pegasus" / "dispatch_compute.py"
 _SPEC = importlib.util.spec_from_file_location("dev_wave_wait_under_test", _TOOL)
 assert _SPEC and _SPEC.loader
 DW = importlib.util.module_from_spec(_SPEC)
 sys.modules[_SPEC.name] = DW
 _SPEC.loader.exec_module(DW)
+_LEASE_SPEC = importlib.util.spec_from_file_location(
+    "wave_land_window_under_test", _LEASE_HELPER,
+)
+assert _LEASE_SPEC and _LEASE_SPEC.loader
+WL = importlib.util.module_from_spec(_LEASE_SPEC)
+sys.modules[_LEASE_SPEC.name] = WL
+_LEASE_SPEC.loader.exec_module(WL)
+_DISPATCH_SPEC = importlib.util.spec_from_file_location(
+    "pegasus_dispatch_compute_under_test", _DISPATCHER,
+)
+assert _DISPATCH_SPEC and _DISPATCH_SPEC.loader
+DC = importlib.util.module_from_spec(_DISPATCH_SPEC)
+sys.modules[_DISPATCH_SPEC.name] = DC
+_DISPATCH_SPEC.loader.exec_module(DC)
 
 _SHA_A = "a" * 40
 _SHA_B = "b" * 40
@@ -137,6 +153,35 @@ def _scheduler_marker(value: object = "serial", *, relay: bool = False) -> bytes
     return prefix + DW._EFFECTIVE_SCHEDULER_PREFIX + payload + b"\n"
 
 
+def _dispatch_outcome_marker(
+    *,
+    child_started: bool = False,
+    child_rc: int | None = None,
+    reason: str = "queue-wait-timeout",
+    relay: bool = False,
+) -> bytes:
+    payload = json.dumps(
+        {
+            "child_rc": child_rc,
+            "child_started": child_started,
+            "kind": "infra",
+            "reason": reason,
+        },
+        ensure_ascii=True,
+        separators=(",", ":"),
+        sort_keys=True,
+    ).encode("ascii")
+    prefix = b"| " if relay else b""
+    return prefix + DW._DISPATCH_OUTCOME_PREFIX + payload + b"\n"
+
+
+def test_dispatch_attestation_protocol_matches_producer_exactly() -> None:
+    assert DW._DISPATCH_OUTCOME_PREFIX == DC._DISPATCH_OUTCOME_PREFIX.encode(
+        "ascii"
+    )
+    assert DW._DISPATCH_INFRA_REASONS == DC._DISPATCH_INFRA_REASONS
+
+
 def _provenance_argv(
     repo: Path = _REPO,
     message: Path = _VALIDATED_MESSAGE,
@@ -172,6 +217,7 @@ class _FakeEffects:
         self.is_file_queue: list[tuple[Path, object]] = []
         self.read_text_queue: list[tuple[Path, object]] = []
         self.monotonic_queue: list[float] = []
+        self.clock = 0.0
         self.env: dict[str, str] = {}
         self.temp_path = _VALIDATED_MESSAGE
         self.existing_paths: set[Path] = set()
@@ -213,6 +259,9 @@ class _FakeEffects:
             running_waiter_bytes_sha256=self.running_waiter_bytes_sha256,
             tip_waiter_bytes_sha256=self.tip_waiter_bytes_sha256,
             run_with_input=self.run_with_input,
+            inspect_no_verdict_log=self.inspect_no_verdict_log,
+            archive_log=self.archive_log,
+            acceptance_monotonic=lambda: self.clock,
         )
 
     def expect_run(
@@ -337,6 +386,10 @@ class _FakeEffects:
         digest, payloads = DW._scan_acceptance_log_chunks([self.byte_files[path]])
         return digest, DW._scheduler_from_marker_payloads(payloads)
 
+    def inspect_no_verdict_log(self, path: Path) -> object:
+        assert path in self.byte_files, f"unexpected acceptance log: {path}"
+        return DW._scan_no_verdict_log_chunks([self.byte_files[path]])
+
     def running_waiter_bytes_sha256(self) -> object:
         self.events.append(("running_waiter_bytes_sha256",))
         if isinstance(self.running_waiter_bytes_result, BaseException):
@@ -351,6 +404,7 @@ class _FakeEffects:
 
     def sleep(self, seconds: float) -> None:
         self.events.append(("sleep", seconds))
+        self.clock += seconds
 
     def kill(self, pid: int, signum: int) -> None:
         self.events.append(("kill", pid, signum))
@@ -381,7 +435,11 @@ class _FakeEffects:
 
     def monotonic(self) -> float:
         self.events.append(("monotonic",))
-        return self.monotonic_queue.pop(0) if self.monotonic_queue else 0.0
+        return (
+            self.monotonic_queue.pop(0)
+            if self.monotonic_queue
+            else self.clock
+        )
 
     def write_temp(self, content: bytes) -> Path:
         self.events.append(("write_temp", content))
@@ -389,6 +447,8 @@ class _FakeEffects:
 
     def unlink(self, path: Path) -> None:
         self.events.append(("unlink", path))
+        self.existing_paths.discard(path)
+        self.byte_files.pop(path, None)
 
     def path_exists(self, path: Path) -> bool:
         return path in self.existing_paths
@@ -416,6 +476,14 @@ class _FakeEffects:
         if isinstance(self.rename_result, BaseException):
             raise self.rename_result
         self.receipt_published = True
+        self.existing_paths.add(target)
+
+    def archive_log(self, source: Path, target: Path) -> None:
+        self.events.append(("archive_log", source, target))
+        if target in self.existing_paths:
+            raise FileExistsError(target)
+        self.byte_files[target] = self.byte_files.pop(source)
+        self.existing_paths.remove(source)
         self.existing_paths.add(target)
 
     def assert_drained(
@@ -1291,6 +1359,240 @@ class _RoutingAcceptanceEffects(_FakeEffects):
     def read_text(self, path: Path) -> str:
         self.events.append(("read_text", path))
         return self.message
+
+
+class _RetryAcceptanceEffects(_RoutingAcceptanceEffects):
+    def __init__(
+        self,
+        *,
+        command_results: list[int],
+        logs: list[bytes],
+        main_after_first: str = _SHA_A,
+        head_shas: list[str] | None = None,
+        checker_mode: str = "success",
+        advance_after_first: float = 0.0,
+        advance_before_first_claim: float = 0.0,
+        advance_on_claim: dict[int, float] | None = None,
+        signal_on_claim: int | None = None,
+        lease_dir: Path = _LEASE,
+    ) -> None:
+        super().__init__(
+            behind=[0] * 16,
+            head_shas=(
+                [_SHA_A, _SHA_A] * len(command_results)
+                if head_shas is None
+                else head_shas
+            ),
+            lease_dir=lease_dir,
+        )
+        self.command_results = list(command_results)
+        self.logs = list(logs)
+        self.main_after_first = main_after_first
+        self.checker_mode = checker_mode
+        self.advance_after_first = advance_after_first
+        self.advance_before_first_claim = advance_before_first_claim
+        self.advance_on_claim = dict(advance_on_claim or {})
+        self.signal_on_claim = signal_on_claim
+        self.red_check_bindings: list[tuple[str, str]] = []
+        self.inject_artifact_after_archive: Path | None = None
+        self.env_after_archive: dict[str, str] | None = None
+        self.lifecycle_to_observe: object | None = None
+        self.submission_ownerships: list[object] = []
+        self.claim_payload_overrides: dict[int, str] = {}
+        self.lease_main_sha: str | None = None
+
+    def run(self, argv: object, cwd: Path, capture: bool) -> object:
+        actual = tuple(argv)
+        if (
+            actual == _history_provenance_argv()
+            and self.claims == 0
+            and self.advance_before_first_claim
+        ):
+            result = super().run(argv, cwd, capture)
+            self.sleep(self.advance_before_first_claim)
+            return result
+        if actual == _COMMAND:
+            self.events.append(("run", actual, cwd, capture))
+            self.submissions += 1
+            assert self.command_results
+            return DW._CommandResult(self.command_results.pop(0))
+        if actual == ("git", "rev-parse", "main"):
+            self.events.append(("run", actual, cwd, capture))
+            self.main_reads += 1
+            main_sha = _SHA_A if self.submissions == 0 else self.main_after_first
+            return DW._CommandResult(0, main_sha + "\n")
+        if actual == ("git", "rev-list", "--count", "HEAD..main"):
+            self.events.append(("run", actual, cwd, capture))
+            return DW._CommandResult(0, "0\n")
+        if len(actual) >= 5 and actual[2] == "claim" and actual[-2] == "--main-sha":
+            self.events.append(("run", actual, cwd, capture))
+            self.claims += 1
+            if self.signal_on_claim == self.claims:
+                raise DW._SignalReceived(signal.SIGTERM)
+            main_sha = actual[-1]
+            if self.lease_main_sha is None:
+                self.lease_main_sha = main_sha
+            payload = self.claim_payload_overrides.get(self.claims)
+            if payload is None:
+                payload = (
+                    _acquired_payload(main_sha=main_sha)
+                    if self.claims == 1
+                    else _held_self_payload(main_sha=self.lease_main_sha)
+                )
+            if self.claims in self.advance_on_claim:
+                self.sleep(self.advance_on_claim[self.claims])
+            return DW._CommandResult(0, payload)
+        return super().run(argv, cwd, capture)
+
+    def run_logged(self, argv: object, cwd: Path, log_file: Path) -> object:
+        result = self.run(argv, cwd, False)
+        if self.lifecycle_to_observe is not None:
+            self.submission_ownerships.append(
+                self.lifecycle_to_observe.ownership
+            )
+        assert self.logs
+        self.logged_bytes = self.logs.pop(0)
+        self.byte_files[log_file] = self.logged_bytes
+        self.existing_paths.add(log_file)
+        if self.submissions == 1 and self.advance_after_first:
+            self.sleep(self.advance_after_first)
+        return result
+
+    def run_with_input(
+        self,
+        argv: object,
+        cwd: Path,
+        capture: bool,
+        content: bytes,
+    ) -> object:
+        actual = tuple(argv)
+        if actual[:4] == (
+            sys.executable,
+            "-I",
+            "-c",
+            DW._RED_CHECKER_BOOTSTRAP,
+        ):
+            self.events.append(("run_with_input", actual, cwd, capture, content))
+
+            def option(name: str) -> str:
+                return actual[actual.index(name) + 1]
+
+            tested_main = option("--tested-main")
+            tested_tip = option("--wave-tip")
+            self.red_check_bindings.append((tested_main, tested_tip))
+            if self.checker_mode == "failure":
+                return DW._BinaryCommandResult(2)
+            checker_receipt = Path(option("--receipt"))
+            self.byte_files[checker_receipt] = _checker_receipt_bytes(
+                self,
+                status="non-attributable-only",
+                nodes=[{
+                    "classification": "non-attributable",
+                    "nodeid": "orchestrator/tests/test_known.py::test_known",
+                    "rerun_rc": 1,
+                }],
+                tested_main=tested_main,
+                tested_tip=tested_tip,
+            )
+            return DW._BinaryCommandResult(0)
+        return super().run_with_input(argv, cwd, capture, content)
+
+    def archive_log(self, source: Path, target: Path) -> None:
+        super().archive_log(source, target)
+        if self.env_after_archive is not None:
+            self.env = dict(self.env_after_archive)
+        if self.inject_artifact_after_archive is not None:
+            self.existing_paths.add(self.inject_artifact_after_archive)
+
+
+class _RealLeaseRetryEffects(_RetryAcceptanceEffects):
+    def __init__(
+        self,
+        *,
+        lease_dir: Path,
+        command_results: list[int],
+        logs: list[bytes],
+        competitor_wave: str | None = None,
+        age_before_retry_seconds: int = 0,
+    ) -> None:
+        super().__init__(
+            command_results=command_results,
+            logs=logs,
+            lease_dir=lease_dir,
+        )
+        self.competitor_wave = competitor_wave
+        self.age_before_retry_seconds = age_before_retry_seconds
+        self.competitor_claim: dict[str, object] | None = None
+        self.renew_stats: list[
+            tuple[os.stat_result, os.stat_result, dict[str, object]]
+        ] = []
+        self.release_results: list[dict[str, object]] = []
+        self.aged_lease_stat: os.stat_result | None = None
+        self.archive_lease_stat: os.stat_result | None = None
+
+    def run(self, argv: object, cwd: Path, capture: bool) -> object:
+        actual = tuple(argv)
+        helper_prefix = (
+            sys.executable,
+            str(_REPO / "tools" / "wave_land_window.py"),
+        )
+        if actual[:2] == helper_prefix and len(actual) >= 7:
+            action = actual[2]
+            lease_dir = Path(actual[actual.index("--lease-dir") + 1])
+            wave = actual[actual.index("--wave") + 1]
+            self.events.append(("run", actual, cwd, capture))
+            if action == "claim":
+                main_sha = actual[actual.index("--main-sha") + 1]
+                lease_path = lease_dir / "acceptance.lease"
+                before = lease_path.stat() if lease_path.exists() else None
+                result = WL.claim(
+                    lease_dir,
+                    wave,
+                    main_sha,
+                    DW._LEASE_TTL_SECONDS,
+                )
+                self.claims += 1
+                if result.get("state") == "held-self" and before is not None:
+                    self.renew_stats.append((before, lease_path.stat(), result))
+                return DW._CommandResult(
+                    0,
+                    json.dumps(result, sort_keys=True) + "\n",
+                )
+            if action == "release":
+                result = WL.release(lease_dir, wave)
+                self.releases += 1
+                self.release_results.append(result)
+                return DW._CommandResult(
+                    0,
+                    json.dumps(result, sort_keys=True) + "\n",
+                )
+        return super().run(argv, cwd, capture)
+
+    def run_logged(self, argv: object, cwd: Path, log_file: Path) -> object:
+        result = super().run_logged(argv, cwd, log_file)
+        lease_path = self.lease_dir / "acceptance.lease"
+        if self.submissions == 1 and self.age_before_retry_seconds:
+            aged_ns = time.time_ns() - self.age_before_retry_seconds * 1_000_000_000
+            os.utime(lease_path, ns=(aged_ns, aged_ns))
+            self.aged_lease_stat = lease_path.stat()
+        if (
+            self.submissions == 1
+            and self.competitor_wave is not None
+            and self.competitor_claim is None
+        ):
+            self.competitor_claim = WL.claim(
+                self.lease_dir,
+                self.competitor_wave,
+                _SHA_A,
+                DW._LEASE_TTL_SECONDS,
+            )
+        return result
+
+    def archive_log(self, source: Path, target: Path) -> None:
+        super().archive_log(source, target)
+        self.archive_lease_stat = (
+            self.lease_dir / "acceptance.lease"
+        ).stat()
 
 
 class _SubmoduleDirtyAcceptanceEffects(_RoutingAcceptanceEffects):
@@ -7165,6 +7467,7 @@ def test_abnormal_path_without_ownership_does_not_release(kind: str) -> None:
             is_symlink=effects.is_symlink,
             inspect_acceptance_log=effects.inspect_acceptance_log,
             run_with_input=effects.run_with_input,
+            acceptance_monotonic=effects.acceptance_monotonic,
         )
     if kind == "subprocess-error":
         outcome = _run_acceptance(fake)
@@ -8866,3 +9169,536 @@ def test_public_main_real_signal_after_success_uses_restored_handler(
     assert f"RESTORED=[{signal.SIGTERM}] RC=0" in result.stdout
     assert f"TOKEN=[{signal.SIGTERM & 0xFF}]" in result.stdout
     assert (lease / "acceptance.lease").is_file()
+
+
+def _attempt_journals(stderr: str) -> list[dict[str, object]]:
+    return [
+        json.loads(line[len(DW._ATTEMPT_JOURNAL_PREFIX):])
+        for line in stderr.splitlines()
+        if line.startswith(DW._ATTEMPT_JOURNAL_PREFIX)
+    ]
+
+
+def test_no_verdict_attempt_retries_in_same_process_and_keeps_owned_lease(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    first_log = _dispatch_outcome_marker()
+    second_log = _scheduler_marker()
+    lifecycle = DW._AcceptanceLifecycle()
+    fake = _RetryAcceptanceEffects(
+        command_results=[16, 0],
+        logs=[first_log, second_log],
+    )
+    fake.lifecycle_to_observe = lifecycle
+
+    outcome = _run_acceptance(fake, lifecycle=lifecycle)
+
+    archive = _LOG.with_name(_LOG.name + ".attempt-01.no-verdict")
+    assert outcome == DW._Outcome(0)
+    assert fake.submissions == 2
+    assert fake.claims == 4
+    assert fake.releases == 0
+    assert fake.submission_ownerships == [
+        DW._LeaseOwnership.ACQUIRED,
+        DW._LeaseOwnership.ACQUIRED,
+    ]
+    assert lifecycle.ownership is DW._LeaseOwnership.RETAINED
+    assert fake.byte_files[archive] == first_log
+    assert fake.byte_files[_LOG] == second_log
+    journals = _attempt_journals(capsys.readouterr().err)
+    assert [item["attempt"] for item in journals] == [1, 2]
+    assert set(journals[0]) == {
+        "attempt", "classification", "raw_child_rc", "normalized_child_rc",
+        "archived_log_path", "log_sha256", "claimed_main", "retry", "reason",
+    }
+    assert journals[0]["classification"] == "no-verdict-infra"
+    assert journals[0]["raw_child_rc"] == 16
+    assert journals[0]["normalized_child_rc"] == 16
+    assert journals[0]["claimed_main"] == _SHA_A
+    assert journals[0]["retry"] is True
+    assert journals[0]["reason"] == "retryable-no-verdict-infra"
+    assert journals[0]["archived_log_path"] == str(archive)
+    assert journals[0]["log_sha256"] == hashlib.sha256(first_log).hexdigest()
+    assert journals[1]["classification"] == "child-green"
+    assert journals[1]["raw_child_rc"] == 0
+    assert journals[1]["normalized_child_rc"] == 0
+    assert journals[1]["retry"] is False
+    assert journals[1]["reason"] == "child-verdict"
+
+
+def test_retry_keeps_priority_with_real_lease_and_competing_ticket(
+    tmp_path: Path,
+) -> None:
+    lease_dir = tmp_path / "lease"
+    lease_dir.mkdir()
+    competitor_wave = "later-competing-wave"
+    fake = _RealLeaseRetryEffects(
+        lease_dir=lease_dir,
+        command_results=[16, 0],
+        logs=[_dispatch_outcome_marker(), _scheduler_marker()],
+        competitor_wave=competitor_wave,
+    )
+
+    outcome = _run_acceptance(fake, lease_dir=lease_dir)
+
+    competitor_holder = hashlib.sha256(
+        competitor_wave.encode("utf-8")
+    ).hexdigest()[:12]
+    assert outcome == DW._Outcome(0)
+    assert fake.submissions == 2
+    assert fake.competitor_claim is not None
+    assert fake.competitor_claim["state"] == "held"
+    assert (lease_dir / f"ticket.{competitor_holder}").is_file()
+    assert (lease_dir / "acceptance.lease").is_file()
+
+
+def test_retry_renew_restores_real_lease_ttl_without_replacing_inode(
+    tmp_path: Path,
+) -> None:
+    lease_dir = tmp_path / "lease"
+    lease_dir.mkdir()
+    fake = _RealLeaseRetryEffects(
+        lease_dir=lease_dir,
+        command_results=[16, 0],
+        logs=[_dispatch_outcome_marker(), _scheduler_marker()],
+        age_before_retry_seconds=120,
+    )
+
+    outcome = _run_acceptance(fake, lease_dir=lease_dir)
+
+    assert outcome == DW._Outcome(0)
+    assert fake.aged_lease_stat is not None
+    assert fake.archive_lease_stat is not None
+    assert fake.archive_lease_stat.st_ino == fake.aged_lease_stat.st_ino
+    assert fake.archive_lease_stat.st_mtime_ns > fake.aged_lease_stat.st_mtime_ns
+    assert fake.renew_stats[0][2]["state"] == "held-self"
+    assert fake.renew_stats[0][2]["age_seconds"] == 0
+
+
+def test_attempt_two_terminal_releases_real_owned_lease(tmp_path: Path) -> None:
+    lease_dir = tmp_path / "lease"
+    lease_dir.mkdir()
+    lifecycle = DW._AcceptanceLifecycle()
+    marker = _dispatch_outcome_marker()
+    fake = _RealLeaseRetryEffects(
+        lease_dir=lease_dir,
+        command_results=[16, 16],
+        logs=[marker, marker],
+    )
+
+    outcome = _run_acceptance(
+        fake,
+        lease_dir=lease_dir,
+        lifecycle=lifecycle,
+    )
+
+    assert outcome == DW._Outcome(70, "acceptance-command", 16)
+    assert fake.submissions == 2
+    assert len(fake.release_results) == 1
+    assert fake.release_results[0]["state"] == "released"
+    assert fake.release_results[0]["holder"] == _HOLDER
+    assert not (lease_dir / "acceptance.lease").exists()
+    assert lifecycle.ownership is DW._LeaseOwnership.NONE
+
+
+@pytest.mark.parametrize(
+    ("child_rc", "checker_mode", "expected_rc"),
+    [(0, "success", 0), (1, "success", 0), (1, "failure", 70)],
+    ids=("green", "red-check-success", "red-check-failure"),
+)
+def test_verdict_attempt_is_never_retried(
+    child_rc: int,
+    checker_mode: str,
+    expected_rc: int,
+) -> None:
+    fake = _RetryAcceptanceEffects(
+        command_results=[child_rc, 0],
+        logs=[_scheduler_marker(), _scheduler_marker()],
+        checker_mode=checker_mode,
+    )
+
+    outcome = _run_acceptance(fake)
+
+    assert outcome.rc == expected_rc
+    assert fake.submissions == 1
+    assert fake.claims == (1 if checker_mode == "failure" else 2)
+
+
+@pytest.mark.parametrize(
+    "log_bytes",
+    [
+        b"dispatch failed without attestation\n",
+        _dispatch_outcome_marker() + _dispatch_outcome_marker(),
+        _dispatch_outcome_marker(child_started=True, child_rc=1),
+        _dispatch_outcome_marker(relay=True),
+        DW._DISPATCH_OUTCOME_PREFIX + b"not-json\n",
+        DW._DISPATCH_OUTCOME_PREFIX
+        + b'{"child_rc":null,"child_started":true,"child_started":false,'
+        + b'"kind":"infra","reason":"queue-wait-timeout"}\n',
+        _dispatch_outcome_marker()[:-1],
+        _dispatch_outcome_marker(child_rc=1),
+        _dispatch_outcome_marker(reason="overall-timeout"),
+        _dispatch_outcome_marker(
+            child_started=True,
+            reason="receipt-persist-failed",
+        ),
+        _dispatch_outcome_marker() + b"\xff\n",
+        _dispatch_outcome_marker()
+        + b"x" * (DW._PYTEST_TRACE_LINE_MAX_BYTES + 1)
+        + b"\n",
+    ],
+    ids=(
+        "missing", "duplicate", "child-started", "relay", "malformed",
+        "duplicate-key", "unterminated-eof", "false-with-child-rc",
+        "false-with-nonqueue-reason", "persist-without-child-rc",
+        "invalid-utf8", "oversized-line",
+    ),
+)
+def test_dispatch_attestation_ambiguity_never_retries(log_bytes: bytes) -> None:
+    fake = _RetryAcceptanceEffects(
+        command_results=[16, 0],
+        logs=[log_bytes, _scheduler_marker()],
+    )
+
+    outcome = _run_acceptance(fake)
+
+    assert outcome == DW._Outcome(70, "acceptance-command", 16)
+    assert fake.submissions == 1
+    assert fake.claims == 1
+    assert fake.releases == 1
+
+
+@pytest.mark.parametrize(
+    "framing",
+    [
+        (
+            (
+                "| [先頭 4096 bytes を省略。末尾 65536 bytes を収集]"
+                "\\nretained tail\n"
+            ).encode("utf-8")
+        ),
+        (
+            b"[Pegasus dispatch] request 424242.nqsv child stdout begin "
+            b"(size=70000 bytes, omitted_bytes=4464)\n"
+        ),
+        (
+            b"[Pegasus dispatch] request 424242.nqsv child log relay "
+            b"aborted after broken pipe on stderr\n"
+        ),
+    ],
+    ids=("upstream-omission", "relay-truncation", "relay-abort"),
+)
+def test_dispatch_truncation_framing_makes_pytest_absence_indeterminate(
+    framing: bytes,
+) -> None:
+    fake = _RetryAcceptanceEffects(
+        command_results=[16, 0],
+        logs=[_dispatch_outcome_marker() + framing, _scheduler_marker()],
+    )
+
+    outcome = _run_acceptance(fake)
+
+    assert outcome == DW._Outcome(70, "acceptance-command", 16)
+    assert fake.submissions == 1
+    assert fake.claims == 1
+    assert fake.releases == 1
+
+
+@pytest.mark.parametrize(
+    "trace",
+    [
+        b"FAILED orchestrator/tests/test_known.py::test_known\n",
+        b"================ 1 failed in 0.12s ================\n",
+    ],
+    ids=("red-nodeid", "session-summary"),
+)
+def test_pytest_verdict_trace_blocks_retry_even_with_prechild_attestation(
+    trace: bytes,
+) -> None:
+    log_bytes = _dispatch_outcome_marker() + trace
+    fake = _RetryAcceptanceEffects(
+        command_results=[16, 0],
+        logs=[log_bytes, _scheduler_marker()],
+    )
+
+    outcome = _run_acceptance(fake)
+
+    assert outcome == DW._Outcome(70, "acceptance-command", 16)
+    assert fake.submissions == 1
+    assert fake.releases == 1
+
+
+def test_no_verdict_retry_stops_at_attempt_limit() -> None:
+    marker = _dispatch_outcome_marker()
+    fake = _RetryAcceptanceEffects(
+        command_results=[16, 16, 0],
+        logs=[marker, marker, _scheduler_marker()],
+    )
+
+    outcome = _run_acceptance(fake)
+
+    assert outcome == DW._Outcome(70, "acceptance-command", 16)
+    assert fake.submissions == DW._MAX_ACCEPTANCE_ATTEMPTS
+    assert fake.command_results == [0]
+    assert fake.releases == 1
+
+
+def test_no_verdict_retry_stops_at_shared_deadline() -> None:
+    fake = _RetryAcceptanceEffects(
+        command_results=[16, 0],
+        logs=[_dispatch_outcome_marker(), _scheduler_marker()],
+        advance_after_first=31.0,
+    )
+
+    outcome = _run_acceptance(fake, max_wait=30)
+
+    assert outcome == DW._Outcome(70, "acceptance-command", 16)
+    assert fake.submissions == 1
+    assert fake.releases == 1
+
+
+def test_acceptance_shared_deadline_is_fixed_at_invocation_entry() -> None:
+    fake = _RetryAcceptanceEffects(
+        command_results=[16, 0],
+        logs=[_dispatch_outcome_marker(), _scheduler_marker()],
+        advance_before_first_claim=31.0,
+    )
+
+    outcome = _run_acceptance(fake, max_wait=30)
+
+    assert outcome == DW._Outcome(70, "claim-timeout")
+    assert fake.claims == 0
+    assert fake.submissions == 0
+    assert fake.releases == 0
+
+
+def test_attempt_two_deadline_is_rechecked_immediately_before_command() -> None:
+    fake = _RetryAcceptanceEffects(
+        command_results=[16, 0],
+        logs=[_dispatch_outcome_marker(), _scheduler_marker()],
+        advance_on_claim={3: 31.0},
+    )
+
+    outcome = _run_acceptance(fake, max_wait=30)
+
+    assert outcome == DW._Outcome(70, "acceptance-command-deadline")
+    assert fake.claims == 3
+    assert fake.submissions == 1
+    assert fake.releases == 1
+
+
+def test_retry_success_uses_only_success_attempt_values_and_v3_schema() -> None:
+    first_log = _dispatch_outcome_marker()
+    second_log = b"second attempt\n" + _scheduler_marker("loadgroup", relay=True)
+    fake = _RetryAcceptanceEffects(
+        command_results=[16, 0],
+        logs=[first_log, second_log],
+        head_shas=[_SHA_A, _SHA_A, _SHA_B, _SHA_B],
+    )
+    fake.env_after_archive = {
+        "IZANAGI_TASK_RUN_ID": "attempt-two",
+        "IZANAGI_TASK_RUNS_ROOT": "/task-runs",
+    }
+
+    outcome = _run_acceptance(fake)
+
+    assert outcome == DW._Outcome(0)
+    receipt = json.loads(fake.receipt_content)
+    assert receipt["tested_main"] == _SHA_A
+    assert receipt["tested_tip"] == _SHA_B
+    assert receipt["log_sha256"] == hashlib.sha256(second_log).hexdigest()
+    assert receipt["effective_scheduler"] == "loadgroup"
+    assert receipt["env_projection"]["IZANAGI_TASK_RUN_ID"] == "attempt-two"
+    assert receipt["env_projection"]["IZANAGI_TASK_RUNS_ROOT"] == "/task-runs"
+    assert receipt["log_sha256"] != hashlib.sha256(first_log).hexdigest()
+    assert receipt["schema_version"] == "dev-wave-acceptance-receipt/v3"
+    assert set(receipt) == {
+        "schema_version", "authority_kind", "acceptance_wave", "lease_holder",
+        "tested_main", "tested_tip", "argv", "resolved_runner_path", "child_rc",
+        "pre_fingerprint", "post_fingerprint", "waiter_blob_sha",
+        "env_projection", "verdict", "log_sha256", "checker_rc",
+        "checker_status", "checker_blob_sha", "checker_receipt_sha256",
+        "red_nodeids", "effective_scheduler",
+    }
+
+
+def test_retry_red_check_binds_second_attempt_main_and_tip() -> None:
+    fake = _RetryAcceptanceEffects(
+        command_results=[16, 1],
+        logs=[
+            _dispatch_outcome_marker(),
+            b"FAILED orchestrator/tests/test_known.py::test_known\n"
+            + _scheduler_marker(),
+        ],
+        head_shas=[_SHA_A, _SHA_A, _SHA_B, _SHA_B],
+        checker_mode="success",
+    )
+
+    outcome = _run_acceptance(fake)
+
+    assert outcome == DW._Outcome(0)
+    assert fake.red_check_bindings == [(_SHA_A, _SHA_B)]
+    receipt = json.loads(fake.receipt_content)
+    assert (receipt["tested_main"], receipt["tested_tip"]) == (_SHA_A, _SHA_B)
+
+
+def test_retry_main_advance_is_terminal_before_second_command() -> None:
+    fake = _RetryAcceptanceEffects(
+        command_results=[16, 0],
+        logs=[_dispatch_outcome_marker(), _scheduler_marker()],
+        main_after_first=_SHA_B,
+    )
+
+    outcome = _run_acceptance(fake)
+
+    assert outcome.rc == 70
+    assert outcome.stage == "claim-self-unverified"
+    assert fake.submissions == 1
+    assert fake.claims == 3
+    assert fake.releases == 1
+
+
+def test_retry_archive_collision_stops_without_overwrite() -> None:
+    archive = _LOG.with_name(_LOG.name + ".attempt-01.no-verdict")
+    fake = _RetryAcceptanceEffects(
+        command_results=[16, 0],
+        logs=[_dispatch_outcome_marker(), _scheduler_marker()],
+    )
+    fake.existing_paths.add(archive)
+    fake.byte_files[archive] = b"existing archive\n"
+
+    outcome = _run_acceptance(fake)
+
+    assert outcome == DW._Outcome(70, "acceptance-retry-log-archive")
+    assert fake.submissions == 1
+    assert fake.byte_files[archive] == b"existing archive\n"
+    assert fake.byte_files[_LOG] == _dispatch_outcome_marker()
+    assert fake.releases == 1
+
+
+def test_default_retry_archive_never_overwrites_existing_sibling(
+    tmp_path: Path,
+) -> None:
+    source = tmp_path / "acceptance.log"
+    destination = tmp_path / "acceptance.log.attempt-01.no-verdict"
+    source.write_bytes(b"new evidence\n")
+    destination.write_bytes(b"existing evidence\n")
+
+    with pytest.raises(FileExistsError):
+        DW._default_archive_log(source, destination)
+
+    assert source.read_bytes() == b"new evidence\n"
+    assert destination.read_bytes() == b"existing evidence\n"
+
+
+@pytest.mark.parametrize(
+    "renew_payload",
+    [
+        _acquired_payload(),
+        _held_self_payload(holder="0" * 12),
+        _held_self_payload(main_sha=_SHA_B),
+    ],
+    ids=("not-held-self", "holder-mismatch", "main-mismatch"),
+)
+def test_retry_renew_requires_same_held_self_lease(renew_payload: str) -> None:
+    fake = _RetryAcceptanceEffects(
+        command_results=[16, 0],
+        logs=[_dispatch_outcome_marker(), _scheduler_marker()],
+    )
+    fake.claim_payload_overrides[2] = renew_payload
+
+    outcome = _run_acceptance(fake)
+
+    assert outcome.stage == "acceptance-retry-renew"
+    assert fake.submissions == 1
+    assert fake.releases == 1
+
+
+@pytest.mark.parametrize(
+    "unexpected_path",
+    [_RECEIPT, _CHECKER_RECEIPT],
+    ids=("receipt", "red-check-receipt"),
+)
+def test_retry_does_not_remove_artifact_that_appears_between_attempts(
+    unexpected_path: Path,
+) -> None:
+    fake = _RetryAcceptanceEffects(
+        command_results=[16, 0],
+        logs=[_dispatch_outcome_marker(), _scheduler_marker()],
+    )
+    fake.inject_artifact_after_archive = unexpected_path
+
+    outcome = _run_acceptance(fake)
+
+    expected_stage = (
+        "acceptance-receipt-preflight"
+        if unexpected_path == _RECEIPT
+        else "acceptance-red-check-preflight"
+    )
+    assert outcome == DW._Outcome(2, expected_stage)
+    assert fake.submissions == 1
+    assert unexpected_path in fake.existing_paths
+    assert not any(
+        event[0] == "unlink" and event[1] == unexpected_path
+        for event in fake.events
+    )
+    assert fake.releases == 1
+
+
+def test_preclaim_failure_never_enters_attempt_retry() -> None:
+    fake = _RoutingAcceptanceEffects(preclaim_behind=1)
+
+    outcome = _run_acceptance(fake)
+
+    assert outcome.rc == 2
+    assert (fake.claims, fake.submissions, fake.releases) == (0, 0, 0)
+
+
+def test_existing_cleanup_failure_blocks_retry() -> None:
+    lifecycle = DW._AcceptanceLifecycle(
+        cleanup_failure=DW._Outcome(74, "release"),
+    )
+    fake = _RetryAcceptanceEffects(
+        command_results=[16, 0],
+        logs=[_dispatch_outcome_marker(), _scheduler_marker()],
+    )
+
+    outcome = _run_acceptance(fake, lifecycle=lifecycle)
+
+    assert outcome == DW._Outcome(70, "acceptance-command", 16)
+    assert fake.submissions == 1
+    assert fake.releases == 1
+
+
+def test_held_self_ownership_never_retries_no_verdict_attempt() -> None:
+    fake = _RetryAcceptanceEffects(
+        command_results=[16, 0],
+        logs=[_dispatch_outcome_marker(), _scheduler_marker()],
+    )
+    fake.claim_payload_overrides[1] = _held_self_payload()
+
+    outcome = _run_acceptance(fake)
+
+    assert outcome == DW._Outcome(70, "acceptance-command", 16)
+    assert fake.submissions == 1
+    assert fake.releases == 0
+
+
+def test_signal_during_retry_renew_releases_once_and_stops() -> None:
+    lifecycle = DW._AcceptanceLifecycle()
+    fake = _RetryAcceptanceEffects(
+        command_results=[16, 0],
+        logs=[_dispatch_outcome_marker(), _scheduler_marker()],
+        signal_on_claim=2,
+    )
+
+    outcome = _run_acceptance(fake, lifecycle=lifecycle)
+
+    assert outcome == DW._Outcome(143, "signal-15")
+    assert fake.submissions == 1
+    assert fake.releases == 1
+    assert lifecycle.ownership is DW._LeaseOwnership.NONE
+    assert sum(
+        event[0] == "run" and event[1] == _helper("release")
+        for event in fake.events
+    ) == 1

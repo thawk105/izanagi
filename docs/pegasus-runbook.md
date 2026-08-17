@@ -830,6 +830,19 @@ python3 tools/dev_wave_wait.py acceptance --wave "$W" \
 - **`--receipt-file` / `--log-file` は attempt ごとに別 path にする。** target 未存在が必須なので、
   同じ path のまま再走すると claim 前に rc=2 で止まる。消して撮り直すと、
   非帰属判定の一次資料である log を失う。上の例のように attempt 番号を付ける。
+  ここでの attempt は**外部 invocation** の番号である。
+- **1 回の invocation は内部で最大 2 attempt 走る ([T-1275])。** 受入 command が
+  **pytest の判定を 1 つも産まずに戻った**ことを肯定的証拠で確定できたときだけ、待ち手は
+  lease を保持したまま同一 process 内で 1 度だけ再投入する。判定 (rc=0 / rc=1) が出た走行、
+  証拠が曖昧・欠落・重複・relay 経由・矛盾のいずれか、log に pytest 痕跡がある走行、
+  claim 前 failure、cleanup 失敗はいずれも再試行しない。attempt 上限と
+  `--max-wait-seconds` 由来の共有 deadline の両方で必ず止まる。
+- **内部再試行が起きたときの一次資料の所在。** 失敗 attempt の log は
+  `<--log-file の値>.attempt-<2 桁>.no-verdict` へ退避され (既存があれば上書きせず停止)、
+  `--log-file` が指す path には**最後の内部 attempt の log**が残る。受領証は成功 attempt の値だけを
+  収録し、path も版 (`dev-wave-acceptance-receipt/v3`) も root field も変わらない。
+  attempt 番号・分類・rc・退避先・log hash・claim した main は待ち手の stderr へ
+  機械可読な retry journal 行として出る (成功終端でも消えない)。
 - **受理は 2 経路ある ([T-1019] / 2026-08-13 第 9 束 #1)。**
   (i) 受入 command が rc=0 → `verdict = "child-green"`。
   (ii) 受入 command が **rc=1 ちょうど** (pytest の「テストが落ちた」) で、
