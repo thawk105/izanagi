@@ -40,6 +40,7 @@ from . import s8b_ratified_freeze as _ratified_freeze
 
 __all__ = (
     "CellHoldoutAdmission",
+    "FloorHoldoutEvidenceInspection",
     "FloorHoldoutEvidenceError",
     "FloorHoldoutReservation",
     "HoldoutAdmissionError",
@@ -67,10 +68,14 @@ _ROOT_REL = Path("izanagi") / "s8b-holdout-admission-v1"
 _LOCK_NAME = "ledger.lock"
 _LEDGER_NAME = "ledger.jsonl"
 _ATTEMPT_LEDGER_NAME = "attempt-ledger.jsonl"
-_CLAIM_SCHEMA = "s8b-holdout-cell-claim/v1"
+_CLAIM_SCHEMA_V1 = "s8b-holdout-cell-claim/v1"
+_CLAIM_SCHEMA_V2 = "s8b-holdout-cell-claim/v2"
+_CLAIM_SCHEMA = _CLAIM_SCHEMA_V2
 _LEDGER_SCHEMA = "s8b-holdout-observation-ledger/v1"
 _ATTEMPT_SCHEMA = "s8b-holdout-attempt-consumption/v1"
 _LEDGER_PROJECTION_SCHEMA = "s8b-floor-admission-ledger-projection/v1"
+_REFREEZE_DISQUALIFICATION_SCHEMA = "s8b-refreeze-disqualification/v1"
+_REFREEZE_DISQUALIFICATION_DIR = "refreeze-disqualifications"
 _MAX_LEDGER_BYTES = 16 * 1024 * 1024
 _HEX64 = frozenset("0123456789abcdef")
 OBSERVATION_ROLE_FLOOR_CAMPAIGN = "floor_campaign"
@@ -103,6 +108,27 @@ class FloorHoldoutEvidenceError(HoldoutAdmissionError):
         self.category = category
         self.reason = reason
         super().__init__(f"{category}: {reason}")
+
+
+class FloorHoldoutEvidenceInspection(dict[str, object]):
+    """Receipt-shaped inspection result with a mandatory derived policy bit.
+
+    The mapping bytes remain exactly the portable v1 receipt.  Keeping the
+    derived value out of the mapping preserves the result/receipt schema while
+    making it impossible for the live verifier to omit the comparison.
+    """
+
+    __slots__ = ("derived_eligible_for_refreeze",)
+
+    derived_eligible_for_refreeze: bool
+
+    def __init__(
+        self, receipt: Mapping[str, object], *, derived_eligible_for_refreeze: bool,
+    ) -> None:
+        if type(derived_eligible_for_refreeze) is not bool:
+            raise TypeError("derived_eligible_for_refreeze must be an exact bool")
+        super().__init__(receipt)
+        self.derived_eligible_for_refreeze = derived_eligible_for_refreeze
 
 
 @dataclass(frozen=True, slots=True)
@@ -348,7 +374,7 @@ def provision_shared_admission_root(repo_root: Path) -> Path:
 
     root = shared_admission_root(repo_root)
     _ensure_private_directory(root)
-    for name in ("claims", "consumed"):
+    for name in ("claims", "consumed", _REFREEZE_DISQUALIFICATION_DIR):
         child = root / name
         _ensure_private_directory(child)
         _fsync_directory(child)
@@ -517,6 +543,108 @@ def _claim_digest(key: Mapping[str, str]) -> str:
 
 def _claim_path(root: Path, digest: str) -> Path:
     return root / "claims" / f"{digest}.claim"
+
+
+def _refreeze_disqualification_name(campaign_run_id: str) -> str:
+    digest = hashlib.sha256(campaign_run_id.encode("utf-8")).hexdigest()
+    return f"{digest}.json"
+
+
+def _refreeze_disqualification_path(root: Path, campaign_run_id: str) -> Path:
+    return (
+        root / _REFREEZE_DISQUALIFICATION_DIR
+        / _refreeze_disqualification_name(campaign_run_id)
+    )
+
+
+def _refreeze_disqualification_document(
+    *, campaign_run_id: str, run_relpath: str, protocol_sha256: str,
+    freeze_sha256: str,
+) -> dict[str, object]:
+    return {
+        "schema_version": _REFREEZE_DISQUALIFICATION_SCHEMA,
+        "reason": "resume",
+        "campaign_run_id": _require_text(campaign_run_id, "campaign_run_id"),
+        "run_relpath": _portable_run_relpath(run_relpath),
+        "protocol_sha256": _require_sha256(protocol_sha256, "protocol_sha256"),
+        "freeze_sha256": _require_sha256(freeze_sha256, "freeze_sha256"),
+    }
+
+
+def _read_refreeze_markers_for_write(
+    root: Path,
+) -> dict[str, dict[str, Any]]:
+    marker_root = root / _REFREEZE_DISQUALIFICATION_DIR
+    markers: dict[str, dict[str, Any]] = {}
+    try:
+        paths = sorted(marker_root.iterdir(), key=lambda path: path.name)
+    except OSError as exc:
+        raise HoldoutAdmissionError(
+            "resume disqualification marker directory is unavailable"
+        ) from exc
+    for path in paths:
+        marker = _read_canonical_document(path)
+        if (
+            set(marker) != set(_REFREEZE_DISQUALIFICATION_KEYS)
+            or marker.get("schema_version") != _REFREEZE_DISQUALIFICATION_SCHEMA
+            or marker.get("reason") != "resume"
+        ):
+            raise HoldoutAdmissionError(
+                "resume disqualification marker shape is unknown"
+            )
+        marker_campaign = marker.get("campaign_run_id")
+        if type(marker_campaign) is not str or not marker_campaign:
+            raise HoldoutAdmissionError(
+                "resume disqualification marker identity is invalid"
+            )
+        if marker_campaign in markers:
+            raise HoldoutAdmissionError(
+                "resume disqualification marker is duplicated"
+            )
+        markers[marker_campaign] = marker
+        if path.name != _refreeze_disqualification_name(marker_campaign):
+            raise HoldoutAdmissionError(
+                "resume disqualification marker name is noncanonical"
+            )
+    return markers
+
+
+def _record_floor_resume_disqualification(
+    *, repo_root: Path, campaign_run_id: str, run_relpath: str,
+    protocol_sha256: str, freeze_sha256: str,
+) -> None:
+    """Create or exact-check the run-wide resume marker under the ledger lock."""
+
+    document = _refreeze_disqualification_document(
+        campaign_run_id=campaign_run_id, run_relpath=run_relpath,
+        protocol_sha256=protocol_sha256, freeze_sha256=freeze_sha256,
+    )
+    root = provision_shared_admission_root(Path(repo_root))
+    path = _refreeze_disqualification_path(root, campaign_run_id)
+    with _locked(root):
+        markers = _read_refreeze_markers_for_write(root)
+        prior = markers.get(campaign_run_id)
+        if prior is None:
+            _write_exclusive(path, document)
+        elif prior != document:
+            raise HoldoutAdmissionError(
+                "resume disqualification marker identity mismatch"
+            )
+
+
+def _canonical_nondefault_seams(value: object) -> list[str]:
+    if type(value) is not list or any(type(item) is not str for item in value):
+        raise HoldoutAdmissionError("nondefault_seams must be a list of exact strings")
+    if len(value) != len(set(value)):
+        raise HoldoutAdmissionError("nondefault_seams contains duplicates")
+    if value != sorted(value):
+        raise HoldoutAdmissionError("nondefault_seams is not in canonical order")
+    unknown = set(value) - _floor_contract.REFREEZE_DISQUALIFYING_SEAM_NAMES
+    if unknown:
+        raise HoldoutAdmissionError(
+            f"nondefault_seams contains unknown names: {sorted(unknown)}"
+        )
+    return list(value)
 
 
 def _write_exclusive(path: Path, document: Mapping[str, object]) -> None:
@@ -737,7 +865,8 @@ def reserve_floor_holdout_observations(
     verified_freeze_document: Mapping[str, object], freeze_sha256: str,
     cells: Sequence[Mapping[str, object]], schedule: Sequence[Mapping[str, object]],
     campaign_run_id: str, out_root: Path, run_dir: Path, run_relpath: str,
-    mode: str, resume: bool, irreversible_pilot_approved: bool,
+    mode: str, resume: bool, nondefault_seams: list[str],
+    irreversible_pilot_approved: bool,
 ) -> FloorHoldoutReservation:
     """Production reservation entrypoint with the fixed neutral signature table."""
 
@@ -747,6 +876,7 @@ def reserve_floor_holdout_observations(
         freeze_sha256=freeze_sha256, cells=cells, schedule=schedule,
         campaign_run_id=campaign_run_id, out_root=out_root, run_dir=run_dir,
         run_relpath=run_relpath, mode=mode, resume=resume,
+        nondefault_seams=nondefault_seams,
         irreversible_pilot_approved=irreversible_pilot_approved,
     )
 
@@ -756,7 +886,8 @@ def _reserve_floor_holdout_observations_core(
     verified_freeze_document: Mapping[str, object], freeze_sha256: str,
     cells: Sequence[Mapping[str, object]], schedule: Sequence[Mapping[str, object]],
     campaign_run_id: str, out_root: Path, run_dir: Path, run_relpath: str,
-    mode: str, resume: bool, irreversible_pilot_approved: bool,
+    mode: str, resume: bool, nondefault_seams: list[str],
+    irreversible_pilot_approved: bool,
     _neutral_holdouts: Mapping[str, Mapping[str, object]] | None = None,
 ) -> FloorHoldoutReservation:
     """Verify fixed authority and atomically reserve every frozen cell.
@@ -776,6 +907,9 @@ def _reserve_floor_holdout_observations_core(
     campaign_run_id = _require_text(campaign_run_id, "campaign_run_id")
     run_relpath = _portable_run_relpath(run_relpath)
     mode = _require_text(mode, "mode")
+    if mode not in {"pilot", "official"}:
+        raise HoldoutAdmissionError("mode is not pilot or official")
+    nondefault_seams = _canonical_nondefault_seams(nondefault_seams)
     if mode == "pilot" and not irreversible_pilot_approved:
         raise HoldoutAdmissionError(
             "pilot holdout observation requires irreversible one-shot approval"
@@ -879,7 +1013,7 @@ def _reserve_floor_holdout_observations_core(
         if len(attempts) != fixed_protocol["n_sessions"] + retry_slots:
             raise HoldoutAdmissionError("frozen attempt count is inconsistent")
         claims.append({
-            "schema_version": _CLAIM_SCHEMA,
+            "schema_version": _CLAIM_SCHEMA_V2,
             "event": "claim",
             "key": key,
             "measurement_head": measurement_head,
@@ -893,31 +1027,131 @@ def _reserve_floor_holdout_observations_core(
             "campaign_run_id": campaign_run_id,
             "run_relpath": run_relpath,
             "mode": mode,
+            "entry_kind": "resume" if resume else "fresh",
+            "nondefault_seams": nondefault_seams,
             "irreversible_pilot_approved": irreversible_pilot_approved,
             "attempt_ids": list(attempts),
         })
 
+    marker_document = _refreeze_disqualification_document(
+        campaign_run_id=campaign_run_id, run_relpath=run_relpath,
+        protocol_sha256=protocol_sha256, freeze_sha256=freeze_sha256,
+    )
+    marker_path = _refreeze_disqualification_path(root, campaign_run_id)
+
+    # Run-wide fresh/resume transition table.  Every claim-count decision and
+    # immutable-schema compatibility branch is made under the same ledger lock.
     with _locked(root):
+        existing: dict[str, dict[str, Any]] = {}
         for claim in claims:
             digest = _claim_digest(claim["key"])
             path = _claim_path(root, digest)
-            if resume:
-                if path.exists():
-                    if _read_canonical_document(path) != claim:
+            if path.exists():
+                existing[digest] = _read_canonical_document(path)
+
+        existing_schemas = {
+            document.get("schema_version") for document in existing.values()
+        }
+        if not resume and existing:
+            raise HoldoutAdmissionError(
+                "holdout cell key was already consumed by another fresh run"
+            )
+        if resume and not existing_schemas.issubset(
+            {_CLAIM_SCHEMA_V1, _CLAIM_SCHEMA_V2}
+        ):
+            raise HoldoutAdmissionError("resume cell claim schema is unknown")
+        if resume and len(existing_schemas) > 1:
+            raise HoldoutAdmissionError(
+                "resume cell claims mix incompatible schema generations"
+            )
+        create_schema = (
+            _CLAIM_SCHEMA_V1
+            if existing_schemas == {_CLAIM_SCHEMA_V1}
+            else _CLAIM_SCHEMA_V2
+        )
+
+        existing_v2_basis: tuple[str, list[str]] | None = None
+
+        for claim in claims:
+            digest = _claim_digest(claim["key"])
+            path = _claim_path(root, digest)
+            prior = existing.get(digest)
+            if prior is not None:
+                expected = dict(claim)
+                if prior.get("schema_version") == _CLAIM_SCHEMA_V1:
+                    expected["schema_version"] = _CLAIM_SCHEMA_V1
+                    expected.pop("entry_kind")
+                    expected.pop("nondefault_seams")
+                else:
+                    prior_entry_kind = prior.get("entry_kind")
+                    if prior_entry_kind not in {"fresh", "resume"}:
                         raise HoldoutAdmissionError(
-                            "resume cell claim does not match the same run identity"
+                            "resume v2 cell claim entry_kind is invalid"
                         )
-                    continue
-                if measurement_started:
-                    raise HoldoutAdmissionError(
-                        "cannot backfill a missing cell claim after measurement started"
+                    try:
+                        prior_nondefault_seams = _canonical_nondefault_seams(
+                            prior.get("nondefault_seams")
+                        )
+                    except HoldoutAdmissionError as exc:
+                        raise HoldoutAdmissionError(
+                            "resume v2 cell claim nondefault_seams is invalid"
+                        ) from exc
+                    prior_basis = (
+                        prior_entry_kind, prior_nondefault_seams,
                     )
-            try:
-                _write_exclusive(path, claim)
-            except FileExistsError as exc:
+                    if existing_v2_basis is None:
+                        existing_v2_basis = prior_basis
+                    elif existing_v2_basis != prior_basis:
+                        raise HoldoutAdmissionError(
+                            "resume v2 cell claims mix incompatible eligibility basis"
+                        )
+                    expected["entry_kind"] = prior_entry_kind
+                    expected["nondefault_seams"] = prior_nondefault_seams
+                if prior != expected:
+                    raise HoldoutAdmissionError(
+                        "resume cell claim does not match the same run identity"
+                    )
+
+        markers = _read_refreeze_markers_for_write(root)
+        prior_marker = markers.get(campaign_run_id)
+        if resume:
+            if prior_marker is None:
+                _write_exclusive(marker_path, marker_document)
+            elif prior_marker != marker_document:
                 raise HoldoutAdmissionError(
-                    "holdout cell key was already consumed by another fresh run"
+                    "resume disqualification marker identity mismatch"
+                )
+        elif prior_marker is not None:
+            raise HoldoutAdmissionError(
+                "fresh reservation has a resume disqualification marker"
+            )
+
+        for claim in claims:
+            digest = _claim_digest(claim["key"])
+            path = _claim_path(root, digest)
+            if digest in existing:
+                continue
+            if resume and measurement_started:
+                raise HoldoutAdmissionError(
+                    "cannot backfill a missing cell claim after measurement started"
+                )
+            document = dict(claim)
+            if create_schema == _CLAIM_SCHEMA_V1:
+                document["schema_version"] = _CLAIM_SCHEMA_V1
+                document.pop("entry_kind")
+                document.pop("nondefault_seams")
+            try:
+                _write_exclusive(path, document)
+            except FileExistsError as exc:  # pragma: no cover - lock invariant
+                raise HoldoutAdmissionError(
+                    "claim appeared while the ledger lock was held"
                 ) from exc
+        effective_claims = [
+            _read_canonical_document(
+                _claim_path(root, _claim_digest(claim["key"]))
+            )
+            for claim in claims
+        ]
 
     token = FloorHoldoutReservation(
         campaign_run_id=campaign_run_id,
@@ -929,7 +1163,7 @@ def _reserve_floor_holdout_observations_core(
         token=token, root=root, measurement_head=measurement_head,
         protocol=fixed_protocol, freeze=fixed_freeze,
         cells=tuple(normalized_cells), schedule=tuple(normalized_schedule),
-        claims=tuple(claims), signatures=signature_by_key,
+        claims=tuple(effective_claims), signatures=signature_by_key,
         neutral_holdouts=neutral_holdouts, mode=mode,
         resume=resume, measurement_started=measurement_started,
         run_dir=canonical_run_dir, manifest_sha256=manifest_sha256,
@@ -1178,7 +1412,7 @@ def reserve_oracle_holdout_observations(
             for row in cell_rows
         ]
         claim = {
-            "schema_version": _CLAIM_SCHEMA,
+            "schema_version": _CLAIM_SCHEMA_V1,
             "event": "claim",
             "key": key,
             "manifest_sha256": manifest_sha256,
@@ -1494,7 +1728,7 @@ def reserve_n_pilot_holdout_observations(
             observation_role=OBSERVATION_ROLE_N_PILOT,
         )
         claim = {
-            "schema_version": _CLAIM_SCHEMA,
+            "schema_version": _CLAIM_SCHEMA_V1,
             "event": "claim",
             "key": key,
             "protocol_sha256": protocol_sha256,
@@ -1791,11 +2025,18 @@ def consume_attempt_ticket(
     return observation
 
 
-_FLOOR_CLAIM_KEYS = frozenset({
+_FLOOR_CLAIM_KEYS_V1 = frozenset({
     "schema_version", "event", "key", "measurement_head", "protocol_sha256",
     "freeze_candidate_id", "trial_workload_name", "cell_id", "records", "threads",
     "workload", "campaign_run_id", "run_relpath", "mode",
     "irreversible_pilot_approved", "attempt_ids",
+})
+_FLOOR_CLAIM_KEYS_V2 = _FLOOR_CLAIM_KEYS_V1 | frozenset({
+    "entry_kind", "nondefault_seams",
+})
+_REFREEZE_DISQUALIFICATION_KEYS = frozenset({
+    "schema_version", "reason", "campaign_run_id", "run_relpath",
+    "protocol_sha256", "freeze_sha256",
 })
 _FLOOR_LEDGER_KEYS = frozenset({
     "schema_version", "event", "freeze_sha256", "freeze_holdout_key",
@@ -1890,7 +2131,9 @@ def _read_evidence_ledger(
         ) from exc
 
 
-def _read_evidence_document(path: Path, *, missing_reason: str) -> dict[str, Any]:
+def _read_evidence_document(
+    path: Path, *, missing_reason: str, malformed_reason: str | None = None,
+) -> dict[str, Any]:
     try:
         path.lstat()
     except FileNotFoundError as exc:
@@ -1905,8 +2148,69 @@ def _read_evidence_document(path: Path, *, missing_reason: str) -> dict[str, Any
         return _read_canonical_document(path)
     except HoldoutAdmissionError as exc:
         raise FloorHoldoutEvidenceError(
-            category="mismatch", reason=f"{path.name}-malformed",
+            category="mismatch",
+            reason=malformed_reason or f"{path.name}-malformed",
         ) from exc
+
+
+def _inspect_refreeze_disqualification_markers(
+    root: Path, *, campaign_run_id: str,
+) -> list[dict[str, Any]]:
+    marker_root = root / _REFREEZE_DISQUALIFICATION_DIR
+    try:
+        info = marker_root.lstat()
+    except FileNotFoundError:
+        # Backward compatibility for roots created before marker support.
+        return []
+    except OSError as exc:
+        raise FloorHoldoutEvidenceError(
+            category="unverifiable", reason="refreeze-marker-root-unavailable",
+        ) from exc
+    if not stat.S_ISDIR(info.st_mode) or marker_root.is_symlink():
+        raise FloorHoldoutEvidenceError(
+            category="unverifiable", reason="refreeze-marker-root-unsafe-type",
+        )
+    try:
+        paths = sorted(marker_root.iterdir(), key=lambda path: path.name)
+    except OSError as exc:
+        raise FloorHoldoutEvidenceError(
+            category="unverifiable", reason="refreeze-marker-root-unavailable",
+        ) from exc
+
+    selected: list[dict[str, Any]] = []
+    seen_campaigns: set[str] = set()
+    for path in paths:
+        marker = _read_evidence_document(
+            path, missing_reason="refreeze-marker-missing",
+        )
+        if set(marker) != set(_REFREEZE_DISQUALIFICATION_KEYS):
+            raise FloorHoldoutEvidenceError(
+                category="mismatch", reason="refreeze-marker-shape-mismatch",
+            )
+        marker_campaign = marker.get("campaign_run_id")
+        if type(marker_campaign) is not str or not marker_campaign:
+            raise FloorHoldoutEvidenceError(
+                category="mismatch", reason="refreeze-marker-identity-mismatch",
+            )
+        if marker_campaign in seen_campaigns:
+            raise FloorHoldoutEvidenceError(
+                category="mismatch", reason="refreeze-marker-count-mismatch",
+            )
+        seen_campaigns.add(marker_campaign)
+        if path.name != _refreeze_disqualification_name(marker_campaign):
+            raise FloorHoldoutEvidenceError(
+                category="mismatch", reason="refreeze-marker-name-mismatch",
+            )
+        if (
+            marker.get("schema_version") != _REFREEZE_DISQUALIFICATION_SCHEMA
+            or marker.get("reason") != "resume"
+        ):
+            raise FloorHoldoutEvidenceError(
+                category="mismatch", reason="refreeze-marker-shape-mismatch",
+            )
+        if marker_campaign == campaign_run_id:
+            selected.append(marker)
+    return selected
 
 
 def _floor_row_claim_digest(row: Mapping[str, object]) -> str:
@@ -1930,8 +2234,8 @@ def inspect_floor_holdout_admission_evidence(
     manifest_sha256: str, campaign_run_id: str, run_relpath: str, mode: str,
     cells: Sequence[Mapping[str, object]], schedule: Sequence[Mapping[str, object]],
     sessions: Sequence[Mapping[str, object]],
-) -> dict[str, object]:
-    """共有 admission filesystem の現在状態を変更せず検査し receipt を返す。
+) -> FloorHoldoutEvidenceInspection:
+    """共有 admission filesystem を検査し receipt と derived eligibility を返す。
 
     保証境界: この inspector は現在状態だけを見る。
     台帳を削除して同一 bytes を再構成する攻撃は検出できない。全 field は公開かつ決定的で、
@@ -2047,6 +2351,21 @@ def inspect_floor_holdout_admission_evidence(
             raise FloorHoldoutEvidenceError(
                 category="unverifiable", reason="claims-unavailable",
             ) from exc
+        resume_markers = _inspect_refreeze_disqualification_markers(
+            root, campaign_run_id=campaign_run_id,
+        )
+        if len(resume_markers) > 1:
+            raise FloorHoldoutEvidenceError(
+                category="mismatch", reason="refreeze-marker-count-mismatch",
+            )
+        expected_resume_marker = _refreeze_disqualification_document(
+            campaign_run_id=campaign_run_id, run_relpath=run_relpath,
+            protocol_sha256=protocol_sha256, freeze_sha256=freeze_sha256,
+        )
+        if resume_markers and resume_markers[0] != expected_resume_marker:
+            raise FloorHoldoutEvidenceError(
+                category="mismatch", reason="refreeze-marker-identity-mismatch",
+            )
         main_rows = _read_evidence_ledger(
             root / _LEDGER_NAME, missing_reason="main-ledger-missing",
             empty_reason="main-ledger-empty",
@@ -2075,6 +2394,9 @@ def inspect_floor_holdout_admission_evidence(
                 category="mismatch", reason="main-ledger-cell-coverage-mismatch",
             )
 
+        claim_schemas: set[str] = set()
+        claim_entry_kinds: set[str] = set()
+        claim_seam_lists: set[tuple[str, ...]] = set()
         for cell_id, row in main_by_cell.items():
             cell = cell_by_id[cell_id]
             expected = expected_claims[cell_id]
@@ -2117,8 +2439,8 @@ def inspect_floor_holdout_admission_evidence(
                 raise FloorHoldoutEvidenceError(
                     category="mismatch", reason="main-ledger-row-mismatch",
                 )
-            expected_claim = {
-                "schema_version": _CLAIM_SCHEMA,
+            expected_claim_v1 = {
+                "schema_version": _CLAIM_SCHEMA_V1,
                 "event": "claim",
                 "key": expected["key"],
                 "measurement_head": measurement_head,
@@ -2137,11 +2459,90 @@ def inspect_floor_holdout_admission_evidence(
             }
             claim = _read_evidence_document(
                 _claim_path(root, digest), missing_reason="claim-file-missing",
+                malformed_reason="claim-file-mismatch",
             )
-            if set(claim) != set(_FLOOR_CLAIM_KEYS) or claim != expected_claim:
+            claim_schema = claim.get("schema_version")
+            if claim_schema == _CLAIM_SCHEMA_V1:
+                if (
+                    set(claim) != set(_FLOOR_CLAIM_KEYS_V1)
+                    or claim != expected_claim_v1
+                ):
+                    raise FloorHoldoutEvidenceError(
+                        category="mismatch", reason="claim-file-mismatch",
+                    )
+            elif claim_schema == _CLAIM_SCHEMA_V2:
+                if set(claim) != set(_FLOOR_CLAIM_KEYS_V2):
+                    raise FloorHoldoutEvidenceError(
+                        category="mismatch", reason="claim-file-mismatch",
+                    )
+                entry_kind = claim.get("entry_kind")
+                if entry_kind not in {"fresh", "resume"}:
+                    raise FloorHoldoutEvidenceError(
+                        category="mismatch", reason="claim-entry-kind-invalid",
+                    )
+                try:
+                    seams = _canonical_nondefault_seams(
+                        claim.get("nondefault_seams")
+                    )
+                except HoldoutAdmissionError as exc:
+                    raise FloorHoldoutEvidenceError(
+                        category="mismatch", reason="claim-nondefault-seams-invalid",
+                    ) from exc
+                expected_claim_v2 = {
+                    **expected_claim_v1,
+                    "schema_version": _CLAIM_SCHEMA_V2,
+                    "entry_kind": entry_kind,
+                    "nondefault_seams": seams,
+                }
+                if claim != expected_claim_v2:
+                    raise FloorHoldoutEvidenceError(
+                        category="mismatch", reason="claim-file-mismatch",
+                    )
+                claim_entry_kinds.add(entry_kind)
+                claim_seam_lists.add(tuple(seams))
+            elif (
+                type(claim_schema) is str
+                and frozenset(claim) in {
+                    frozenset(_FLOOR_CLAIM_KEYS_V1),
+                    frozenset(_FLOOR_CLAIM_KEYS_V2),
+                }
+            ):
+                raise FloorHoldoutEvidenceError(
+                    category="mismatch", reason="claim-schema-unsupported",
+                )
+            else:
                 raise FloorHoldoutEvidenceError(
                     category="mismatch", reason="claim-file-mismatch",
                 )
+            claim_schemas.add(str(claim_schema))
+
+        if len(claim_schemas) != 1:
+            raise FloorHoldoutEvidenceError(
+                category="mismatch", reason="claim-basis-cell-mismatch",
+            )
+        if claim_schemas == {_CLAIM_SCHEMA_V2}:
+            if len(claim_seam_lists) != 1:
+                raise FloorHoldoutEvidenceError(
+                    category="mismatch", reason="claim-basis-cell-mismatch",
+                )
+            if len(claim_entry_kinds) != 1 and not (
+                claim_entry_kinds == {"fresh", "resume"} and resume_markers
+            ):
+                raise FloorHoldoutEvidenceError(
+                    category="mismatch", reason="claim-basis-cell-mismatch",
+                )
+            if "resume" in claim_entry_kinds and len(resume_markers) != 1:
+                raise FloorHoldoutEvidenceError(
+                    category="mismatch", reason="refreeze-marker-count-mismatch",
+                )
+
+        derived_eligible_for_refreeze = (
+            claim_schemas == {_CLAIM_SCHEMA_V2}
+            and mode == "official"
+            and claim_entry_kinds == {"fresh"}
+            and claim_seam_lists == {()}
+            and not resume_markers
+        )
 
         # session-start is the durable authorization, not proof that a ticket was
         # consumed.  A crash may leave only that start either before or after
@@ -2337,7 +2738,13 @@ def inspect_floor_holdout_admission_evidence(
             ).hexdigest(),
         }
         try:
-            return _floor_contract.validate_floor_holdout_admission_receipt(receipt)
+            validated_receipt = (
+                _floor_contract.validate_floor_holdout_admission_receipt(receipt)
+            )
+            return FloorHoldoutEvidenceInspection(
+                validated_receipt,
+                derived_eligible_for_refreeze=derived_eligible_for_refreeze,
+            )
         except _floor_contract.FloorContractError as exc:
             raise FloorHoldoutEvidenceError(
                 category="mismatch", reason="receipt-invalid",
