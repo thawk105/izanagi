@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import ast
+import hashlib
 import json
 import subprocess
 import sys
@@ -22,6 +23,38 @@ from orchestrator.campaign.layout import (  # noqa: E402
     campaign_layout,
     exploration_campaign_layout,
 )
+
+
+def _degraded_measurement_fixture():
+    leading_indicators = {
+        "ipc": None,
+        "llc_miss_rate": None,
+        "perf_raw": {
+            "LLC-load-misses": None,
+            "LLC-loads": None,
+            "instructions": None,
+            "cycles": None,
+        },
+    }
+    receipt = {
+        "schema": "izanagi-perf-preflight/v1",
+        "status": "unavailable",
+        "available": False,
+        "reason": "perf-not-found",
+        "rc": None,
+        "parsed_events": [],
+        "probe_argv": [
+            "perf", "stat", "-x,", "-o", "<tmp>/perf.csv", "-e",
+            "LLC-load-misses,LLC-loads,instructions,cycles", "--", "/bin/true",
+        ],
+        "stderr_sha256": "0" * 64,
+        "candidates": [],
+    }
+    run_cmd = ["./db_bench", "--threads=1"]
+    observation = artifacts._perf_preflight.build_perf_observation(
+        receipt, run_cmd=run_cmd, leading_indicators=leading_indicators,
+    )
+    return observation, run_cmd, leading_indicators
 
 
 def test_exploration_package_uses_disjoint_namespace_schema_and_accepts_three_by_three_hint(
@@ -271,6 +304,136 @@ def test_exploration_cli_packages_three_by_three_without_official_output(tmp_pat
     }
     assert not (tmp_path / "campaigns").exists()
     assert set(tmp_path.glob("*.json")) == {input_path}
+
+
+def test_measurement_manifest_write_load_and_hash_are_bound(tmp_path):
+    observation, run_cmd, leading_indicators = _degraded_measurement_fixture()
+    output = tmp_path / "measurement-manifest.json"
+
+    written = artifacts.write_measurement_manifest(
+        output,
+        oracle_manifest_sha256="a" * 64,
+        campaign_id="oracle-block-1-config-a",
+        block_id="block-1",
+        perf_observation=observation,
+        run_cmd=run_cmd,
+        leading_indicators=leading_indicators,
+    )
+
+    assert set(written) == artifacts.MEASUREMENT_MANIFEST_KEYS
+    assert written["schema_version"] == artifacts.MEASUREMENT_MANIFEST_SCHEMA
+    assert artifacts.load_measurement_manifest(
+        output, run_cmd=run_cmd, leading_indicators=leading_indicators,
+    ) == written
+    assert artifacts.measurement_manifest_sha256(output) == hashlib.sha256(
+        output.read_bytes()
+    ).hexdigest()
+
+
+def test_measurement_manifest_writer_is_create_only(tmp_path):
+    observation, run_cmd, leading_indicators = _degraded_measurement_fixture()
+    output = tmp_path / "measurement-manifest.json"
+    output.write_bytes(b"existing-sidecar\n")
+
+    with pytest.raises(FileExistsError):
+        artifacts.write_measurement_manifest(
+            output,
+            oracle_manifest_sha256="a" * 64,
+            campaign_id="oracle-block-1-config-a",
+            block_id="block-1",
+            perf_observation=observation,
+            run_cmd=run_cmd,
+            leading_indicators=leading_indicators,
+        )
+
+    assert output.read_bytes() == b"existing-sidecar\n"
+
+
+def test_measurement_manifest_loader_rejects_extra_top_level_key(tmp_path):
+    observation, run_cmd, leading_indicators = _degraded_measurement_fixture()
+    document = {
+        "schema_version": artifacts.MEASUREMENT_MANIFEST_SCHEMA,
+        "oracle_manifest_sha256": "a" * 64,
+        "campaign_id": "oracle-block-1-config-a",
+        "block_id": "block-1",
+        "perf_observation": observation,
+        "unexpected": None,
+    }
+
+    with pytest.raises(artifacts.OracleArtifactTypeError, match="exact key"):
+        artifacts.load_measurement_manifest(
+            json.dumps(document).encode(),
+            run_cmd=run_cmd,
+            leading_indicators=leading_indicators,
+        )
+
+
+def test_measurement_manifest_loader_requires_shared_observation_validator():
+    observation, run_cmd, leading_indicators = _degraded_measurement_fixture()
+    observation["counter_status"] = "complete"
+    document = {
+        "schema_version": artifacts.MEASUREMENT_MANIFEST_SCHEMA,
+        "oracle_manifest_sha256": "a" * 64,
+        "campaign_id": "oracle-block-1-config-a",
+        "block_id": "block-1",
+        "perf_observation": observation,
+    }
+
+    with pytest.raises(artifacts.OracleArtifactTypeError, match="perf_observation"):
+        artifacts.load_measurement_manifest(
+            json.dumps(document).encode(),
+            run_cmd=run_cmd,
+            leading_indicators=leading_indicators,
+        )
+
+
+@pytest.mark.parametrize(
+    ("field", "value", "message"),
+    [
+        ("schema_version", "unknown/v1", "schema_version"),
+        ("oracle_manifest_sha256", "A" * 64, "lowercase hex"),
+        ("campaign_id", "", "campaign_id"),
+        ("block_id", None, "block_id"),
+    ],
+)
+def test_measurement_manifest_loader_rejects_noncanonical_identity_fields(
+    field, value, message,
+):
+    observation, run_cmd, leading_indicators = _degraded_measurement_fixture()
+    document = {
+        "schema_version": artifacts.MEASUREMENT_MANIFEST_SCHEMA,
+        "oracle_manifest_sha256": "a" * 64,
+        "campaign_id": "oracle-block-1-config-a",
+        "block_id": "block-1",
+        "perf_observation": observation,
+    }
+    document[field] = value
+
+    with pytest.raises(artifacts.OracleArtifactTypeError, match=message):
+        artifacts.load_measurement_manifest(
+            json.dumps(document).encode(),
+            run_cmd=run_cmd,
+            leading_indicators=leading_indicators,
+        )
+
+
+def test_measurement_manifest_writer_rejects_absent_perf_observation_before_create(
+    tmp_path,
+):
+    output = tmp_path / "measurement-manifest.json"
+
+    with pytest.raises(artifacts.OracleArtifactTypeError, match="perf_observation"):
+        artifacts.write_measurement_manifest(
+            output,
+            oracle_manifest_sha256="a" * 64,
+            campaign_id="oracle-block-1-config-a",
+            block_id="block-1",
+            perf_observation=None,
+            run_cmd=["./db_bench"],
+            leading_indicators={"ipc": None, "llc_miss_rate": None},
+        )
+
+    assert not output.exists()
 
 
 if __name__ == "__main__":

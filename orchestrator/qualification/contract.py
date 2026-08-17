@@ -15,6 +15,7 @@ import re
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Mapping, Sequence
+from orchestrator.calibrator import perf_preflight as _perf_preflight
 from .retry_index import RetryIndexError, validate_retry_index
 
 
@@ -534,15 +535,31 @@ def series_identity(preimage: Mapping[str, Any]) -> str:
         if any(type(digest) is not str or _HEX64.fullmatch(digest) is None
                for digest in rows.values()):
             raise ProtocolError(f"series identity {key} hash is invalid")
-    toolchain = _exact_keys(value["toolchain_manifest"], {
+    raw_toolchain = value["toolchain_manifest"]
+    if not isinstance(raw_toolchain, Mapping):
+        raise ProtocolError("series identity toolchain is not an object")
+    receipt = raw_toolchain.get("perf_preflight")
+    try:
+        use_perf = _perf_preflight.use_perf_from_receipt(receipt)
+    except _perf_preflight.PerfPreflightError as exc:
+        raise ProtocolError("toolchain perf preflight is invalid") from exc
+    if receipt is not None and use_perf:
+        raise ProtocolError(
+            "available perf receipt cannot select degraded toolchain shape")
+    toolchain_keys = {
         "schema_version", "executables", "dependencies", "build_argv",
-    }, "series identity toolchain")
+    }
+    if not use_perf:
+        toolchain_keys.add("perf_preflight")
+    toolchain = _exact_keys(
+        raw_toolchain, toolchain_keys, "series identity toolchain")
     if toolchain["schema_version"] != "t126-toolchain-manifest/v1":
         raise ProtocolError("toolchain schema mismatch")
+    executable_keys = {"python", "cc", "cxx", "cmake"}
+    if use_perf:
+        executable_keys.add("perf")
     executables = _exact_keys(
-        toolchain["executables"], {"python", "cc", "cxx", "cmake", "perf"},
-        "toolchain executables",
-    )
+        toolchain["executables"], executable_keys, "toolchain executables")
     for name, row in executables.items():
         row = _exact_keys(
             row, {"path", "sha256", "version"}, f"toolchain executable {name}")

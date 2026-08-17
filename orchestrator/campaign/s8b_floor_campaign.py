@@ -80,7 +80,8 @@ if __package__ in {None, ""}:  # pragma: no cover - direct CLI execution
 
 _HERE = Path(__file__).resolve().parent
 _ORCHESTRATOR = _HERE.parent
-ROOT = _ORCHESTRATOR.parent
+_REPO_ROOT = _ORCHESTRATOR.parent
+ROOT = _REPO_ROOT
 
 from ..calibrator.runner import (  # noqa: E402
     CompetingBenchProbeError,
@@ -346,15 +347,26 @@ def _normalize_perf_preflight(receipt) -> dict:
     return normalized
 
 
+def _project_probed_perf_preflight(mode: str, receipt) -> dict | None:
+    """内部 probe receipt を legacy-compatible な artifact 表現へ射影する。"""
+
+    normalized = _normalize_perf_preflight(receipt)
+    try:
+        use_perf = _perf_preflight.use_perf_from_receipt(normalized)
+    except _perf_preflight.PerfPreflightError as exc:  # pragma: no cover - normalized
+        raise FloorCampaignError(str(exc)) from exc
+    if mode != "pilot" and use_perf:
+        return None
+    return normalized
+
+
 def _assert_perf_mode(mode: str, receipt) -> bool:
-    if mode != "pilot" and receipt is not None:
-        raise CampaignAbort("official mode では perf_preflight/no-perf を拒否する")
     try:
         use_perf = _perf_preflight.use_perf_from_receipt(receipt)
     except _perf_preflight.PerfPreflightError as exc:
         raise FloorCampaignError(str(exc)) from exc
-    if mode != "pilot" and not use_perf:
-        raise CampaignAbort("official mode では perf_preflight/no-perf を拒否する")
+    if mode != "pilot" and receipt is not None and use_perf:
+        raise CampaignAbort("official mode では available perf_preflight receipt を拒否する")
     return use_perf
 
 
@@ -3445,12 +3457,17 @@ def assemble_manifest(*, protocol: Mapping, protocol_sha256: str,
         built, expected_ccbench_pin=protocol["ccbench_pin"],
         expected_contract_sha256=protocol.get("contract_sha256"),
     )
-    if perf_preflight is not None and mode != "pilot":
-        raise CampaignAbort("perf_preflight を持つ manifest は pilot 専用")
+    use_perf = _assert_perf_mode(mode, perf_preflight)
     normalized_perf = (
         _normalize_perf_preflight(perf_preflight)
         if perf_preflight is not None else None
     )
+    # _assert_perf_mode と別の producer-side gate として残す。manifest 単体の
+    # M6 変異が A の拒否へ吸収されないよう、同じ条件をここでも fail-closed にする。
+    if mode != "pilot" and normalized_perf is not None and use_perf:
+        raise CampaignAbort(
+            "available perf_preflight を持つ official manifest を拒否する"
+        )
     manifest = {
         "schema_version": MANIFEST_SCHEMA,
         "protocol_sha256": protocol_sha256,
@@ -3472,6 +3489,19 @@ def assemble_manifest(*, protocol: Mapping, protocol_sha256: str,
     }
     if normalized_perf is not None:
         manifest["perf_preflight"] = normalized_perf
+        if mode != "pilot" and not use_perf:
+            run_cmd, leading_indicators = (
+                _floor_contract.manifest_perf_validation_context(manifest)
+            )
+            try:
+                manifest["perf_observation"] = _perf_preflight.build_perf_observation(
+                    normalized_perf, run_cmd=run_cmd,
+                    leading_indicators=leading_indicators,
+                )
+            except _perf_preflight.PerfPreflightError as exc:
+                raise FloorCampaignError(
+                    f"manifest perf_observation を構築できない: {exc}"
+                ) from exc
     return manifest
 
 
@@ -5009,7 +5039,7 @@ def assemble_result(*, protocol, mode, protocol_sha256, freeze_sha256,
     wall_ledger は journal から読むだけの純粋関数なので resume を跨いで決定的 (β-11 の冪等
     finalization が hash 照合に依存する)。
     """
-    _assert_perf_mode(mode, perf_preflight)
+    use_perf = _assert_perf_mode(mode, perf_preflight)
     normalized_perf = (
         _normalize_perf_preflight(perf_preflight)
         if perf_preflight is not None else None
@@ -5148,6 +5178,20 @@ def assemble_result(*, protocol, mode, protocol_sha256, freeze_sha256,
     }
     if normalized_perf is not None:
         result["perf_preflight"] = normalized_perf
+        if mode != "pilot" and not use_perf:
+            contexts = s8b_floor_stats.floor_perf_validation_contexts(result)
+            run_cmd, leading_indicators = contexts[0]
+            try:
+                observation = _perf_preflight.build_perf_observation(
+                    normalized_perf, run_cmd=run_cmd,
+                    leading_indicators=leading_indicators,
+                )
+                result["perf_observation"] = observation
+                s8b_floor_stats.validate_floor_perf_evidence(result, observation)
+            except _perf_preflight.PerfPreflightError as exc:
+                raise FloorCampaignError(
+                    f"result perf_observation を構築できない: {exc}"
+                ) from exc
     return result
 
 
@@ -5546,12 +5590,12 @@ def _run_campaign_core(protocol, freeze_doc, *, out_root, mode, resume_dir=None,
     after_certificate_issued_fn = (
         after_certificate_issued_fn or _after_certificate_issued_noop)
 
-    def perform_perf_preflight() -> dict:
+    def perform_perf_preflight() -> dict | None:
         producer = perf_preflight_fn or _perf_preflight.probe_perf_availability
         raw_receipt = producer(
-            perf_candidates=_policy_perf_candidates(ROOT),
+            perf_candidates=_policy_perf_candidates(_REPO_ROOT),
         )
-        return _normalize_perf_preflight(raw_receipt)
+        return _project_probed_perf_preflight(mode, raw_receipt)
 
     protocol, contract = _validate_protocol_against_current(protocol)
 
@@ -5743,8 +5787,7 @@ def _run_campaign_core(protocol, freeze_doc, *, out_root, mode, resume_dir=None,
                 campaign_run_id=campaign_run_id,
                 freeze_allowlist=freeze_allowlist,
             )
-        else:
-            perf_preflight_receipt = perform_perf_preflight()
+        perf_preflight_receipt = perform_perf_preflight()
         _assert_perf_mode(mode, perf_preflight_receipt)
 
         run_dir = _fresh_run_dir(
@@ -5880,8 +5923,7 @@ def _run_campaign_core(protocol, freeze_doc, *, out_root, mode, resume_dir=None,
                 manifest_sha256=None, resume_state=resume_state,
                 retry_slots_per_cell=protocol["retry_slots_per_cell"],
             )
-            if mode == "pilot":
-                perf_preflight_receipt = perform_perf_preflight()
+            perf_preflight_receipt = perform_perf_preflight()
             _assert_perf_mode(mode, perf_preflight_receipt)
             runtime_built = build_cells(
                 freeze, cells, ccbench_pin=protocol["ccbench_pin"],
@@ -6240,10 +6282,14 @@ def _load_resume_manifest(
     if manifest.get("freeze_sha256") != freeze_sha256:
         raise FloorCampaignError("resume: freeze sha256 が manifest と不一致")
     try:
+        manifest_run_cmd, manifest_indicators = (
+            _floor_contract.manifest_perf_validation_context(manifest)
+        )
         _floor_contract.validate_manifest_v3(
             manifest, protocol=protocol, protocol_sha256=protocol_sha256,
             freeze_sha256=freeze_sha256, expected_cells=cells,
             expected_schedule=schedule, mode=mode,
+            run_cmd=manifest_run_cmd, leading_indicators=manifest_indicators,
         )
     except _floor_contract.FloorContractError as exc:
         raise FloorCampaignError(f"resume: manifest v3 共有契約が不正: {exc}") from exc

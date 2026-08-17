@@ -5,10 +5,12 @@ runtime type は JSON 互換の marker であり、provenance 検証の証明で
 全 consumer はこの module を canonical name ``orchestrator.campaign.s8b_oracle_artifacts`` で
 import し、同名 class が別 module identity で複製されることを避ける。
 
-この module は stdlib-only leaf とし、他の campaign module を import しない。
+この module は他の campaign module を import しない。runtime measurement sidecar だけは
+calibrator の共有 perf observation validator を信頼境界として使う。
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import math
 import os
@@ -16,18 +18,25 @@ from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import TypeAlias
 
+from orchestrator.calibrator import perf_preflight as _perf_preflight
+
 
 OFFICIAL_MANIFEST_SCHEMA = "8b-oracle-manifest/v1"
 OFFICIAL_OBSERVATIONS_SCHEMA = "8b-oracle-observations/v1"
 OFFICIAL_VERDICT_SCHEMA = "8b-oracle-verdict/v1"
 COMBINED_VERDICT_SCHEMA = "8b-combined-verdict/v2"
 EXPLORATION_ARTIFACT_SCHEMA = "8b-oracle-exploration-artifact/v1"
+MEASUREMENT_MANIFEST_SCHEMA = "8b-oracle-measurement-manifest/v1"
 
 EXPLORATION_ARTIFACT_ROLES = frozenset({"manifest", "observations", "verdict"})
 EXPLORATION_ARTIFACT_KEYS = frozenset({
     "schema_version", "artifact_role", "campaign_id", "measurement_hint", "payload",
 })
 MEASUREMENT_HINT_KEYS = frozenset({"extime_s", "reps"})
+MEASUREMENT_MANIFEST_KEYS = frozenset({
+    "schema_version", "oracle_manifest_sha256", "campaign_id", "block_id",
+    "perf_observation",
+})
 CAMPAIGN_VERIFIER_EPOCH_KEYS = frozenset({
     "campaign_id", "campaign_verifier_epoch", "state", "reason_code",
     "identity_scope", "excluded_scope", "certified_eligible", "rejection",
@@ -294,3 +303,100 @@ def validate_exploration_artifact(document: Mapping) -> ExplorationArtifact:
 
 def load_exploration_artifact(source: JsonSource) -> ExplorationArtifact:
     return validate_exploration_artifact(strict_load_json_object(source))
+
+
+def _validate_measurement_manifest(
+        document: object, *, run_cmd: object,
+        leading_indicators: Mapping[str, object]) -> dict:
+    if not isinstance(document, Mapping) or set(document) != MEASUREMENT_MANIFEST_KEYS:
+        raise OracleArtifactTypeError(
+            "measurement manifest top-level の exact key 集合が不一致"
+        )
+    if document.get("schema_version") != MEASUREMENT_MANIFEST_SCHEMA:
+        raise OracleArtifactTypeError(
+            "measurement manifest schema_version が不一致"
+        )
+    oracle_sha256 = document.get("oracle_manifest_sha256")
+    if (not isinstance(oracle_sha256, str) or len(oracle_sha256) != 64
+            or not set(oracle_sha256) <= _SHA256_CHARS):
+        raise OracleArtifactTypeError(
+            "measurement manifest oracle_manifest_sha256 が lowercase hex でない"
+        )
+    for field in ("campaign_id", "block_id"):
+        value = document.get(field)
+        if not isinstance(value, str) or not value:
+            raise OracleArtifactTypeError(
+                f"measurement manifest {field} が空でない文字列でない"
+            )
+    try:
+        observation = _perf_preflight.validate_perf_observation(
+            document.get("perf_observation"),
+            run_cmd=run_cmd,
+            leading_indicators=leading_indicators,
+        )
+    except _perf_preflight.PerfPreflightError as exc:
+        raise OracleArtifactTypeError(
+            f"measurement manifest perf_observation が不正: {exc}"
+        ) from exc
+    if observation["use_perf"] is not False:
+        raise OracleArtifactTypeError(
+            "measurement manifest は degraded measurement 専用"
+        )
+    normalized = dict(document)
+    normalized["perf_observation"] = observation
+    return normalized
+
+
+def write_measurement_manifest(
+        path: str | os.PathLike[str], *, oracle_manifest_sha256: str,
+        campaign_id: str, block_id: str, perf_observation: object,
+        run_cmd: object, leading_indicators: Mapping[str, object]) -> dict:
+    """degraded runtime sidecar を create-only で書く。"""
+    document = _validate_measurement_manifest(
+        {
+            "schema_version": MEASUREMENT_MANIFEST_SCHEMA,
+            "oracle_manifest_sha256": oracle_manifest_sha256,
+            "campaign_id": campaign_id,
+            "block_id": block_id,
+            "perf_observation": perf_observation,
+        },
+        run_cmd=run_cmd,
+        leading_indicators=leading_indicators,
+    )
+    payload = (
+        json.dumps(document, ensure_ascii=False, sort_keys=True, indent=2) + "\n"
+    ).encode("utf-8")
+    with Path(path).open("xb") as stream:
+        stream.write(payload)
+        stream.flush()
+        os.fsync(stream.fileno())
+    return document
+
+
+def load_measurement_manifest(
+        source: JsonSource, *, run_cmd: object,
+        leading_indicators: Mapping[str, object]) -> dict:
+    """runtime sidecar を strict JSON と semantic contract の両方で読む。"""
+    return _validate_measurement_manifest(
+        strict_load_json_object(source),
+        run_cmd=run_cmd,
+        leading_indicators=leading_indicators,
+    )
+
+
+def measurement_manifest_sha256(source: JsonSource) -> str:
+    """sidecar の raw bytes に対する SHA-256 を返す。"""
+    if isinstance(source, bytes):
+        payload = source
+    elif isinstance(source, (str, os.PathLike)):
+        try:
+            payload = Path(source).read_bytes()
+        except OSError as exc:
+            raise OracleArtifactTypeError(
+                f"measurement manifest を読めない: {source}: {exc}"
+            ) from exc
+    else:
+        raise OracleArtifactTypeError(
+            "measurement manifest source は path または bytes でなければならない"
+        )
+    return hashlib.sha256(payload).hexdigest()

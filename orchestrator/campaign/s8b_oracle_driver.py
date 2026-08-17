@@ -27,6 +27,7 @@ _ORCHESTRATOR = _HERE.parent
 ROOT = _ORCHESTRATOR.parent
 
 from . import buildcache, model, pipeline, s8b_budget, s8b_run_marker, wal  # noqa: E402
+from orchestrator.calibrator import perf_preflight as _perf_preflight  # noqa: E402
 from .build_admission import (  # noqa: E402
     GeneratorId,
     ReviewId,
@@ -45,6 +46,7 @@ from . import env_attestation as _env_attestation  # noqa: E402
 from . import execution_guard  # noqa: E402
 from . import reservation as _reservation  # noqa: E402
 from . import s8b_ratified_freeze  # noqa: E402
+from . import s8b_oracle_artifacts as _oracle_artifacts  # noqa: E402
 from . import t080_freeze_migration as _t080_migration  # noqa: E402
 from . import freeze_verification_hold as _freeze_hold  # noqa: E402
 from .layout import campaign_layout, repo_output_root  # noqa: E402
@@ -1333,6 +1335,24 @@ def run_block(
         )
         return {"status": "refused", **asdict(decision)}
 
+    # Measurement authority is resolved exactly once after the side-effect-free plan
+    # gate and before the durable claim/marker/WAL/budget chain begins.
+    try:
+        perf_preflight_receipt = _perf_preflight.probe_perf_availability()
+        use_perf = _perf_preflight.use_perf_from_receipt(perf_preflight_receipt)
+        perf_observation = (
+            None if use_perf else _perf_preflight.build_perf_observation(
+                perf_preflight_receipt,
+                run_cmd=["ccbench"],
+                leading_indicators={"ipc": None, "llc_miss_rate": None},
+            )
+        )
+    except _perf_preflight.PerfPreflightError as exc:
+        decision = _make_gate_decision(
+            t080_resolution, refusals=[f"perf-preflight: {exc}"],
+        )
+        return {"status": "refused", **asdict(decision)}
+
     refusal: Optional[str]
     try:
         execution_identity = _execution_identity(plan)
@@ -1367,6 +1387,7 @@ def run_block(
             refusal = f"holdout-observation-admission: {exc}"
         else:
             refusal = None
+
     if refusal is not None:
         decision = _make_gate_decision(t080_resolution, refusals=[refusal])
         return {"status": "refused", **asdict(decision)}
@@ -1385,7 +1406,7 @@ def run_block(
         layout, manifest_sha256=manifest_sha, block_id=block_id,
         campaign_id=campaign_id, freeze_sha256=freeze_sha, marker_root=marker_root,
     )
-    _append_session(layout, env_tag, "campaign-start", {
+    campaign_start_payload = {
         "manifest_sha256": manifest_sha,
         "block_id": block_id,
         "campaign_id": campaign_id,
@@ -1393,7 +1414,30 @@ def run_block(
         # C3-10: 共有 execution guard/receipt を run 記録に残す (report が manifest の
         # env_tag/contract_sha256 と照合する)。
         "execution_receipt": plan.receipt,
-    })
+    }
+    perf_evaluate_kwargs = {}
+    if not use_perf:
+        measurement_manifest_path = Path(layout.root) / "measurement-manifest.json"
+        _oracle_artifacts.write_measurement_manifest(
+            measurement_manifest_path,
+            oracle_manifest_sha256=manifest_sha,
+            campaign_id=campaign_id,
+            block_id=block_id,
+            perf_observation=perf_observation,
+            run_cmd=["ccbench"],
+            leading_indicators={"ipc": None, "llc_miss_rate": None},
+        )
+        campaign_start_payload["measurement_manifest"] = {
+            "path": measurement_manifest_path.name,
+            "sha256": _oracle_artifacts.measurement_manifest_sha256(
+                measurement_manifest_path
+            ),
+        }
+        perf_evaluate_kwargs = {
+            "use_perf": False,
+            "perf_preflight_receipt": perf_preflight_receipt,
+        }
+    _append_session(layout, env_tag, "campaign-start", campaign_start_payload)
     ledger_identity = {
         "manifest_sha256": manifest_sha,
         "freeze_sha256": freeze_sha,
@@ -1570,6 +1614,7 @@ def run_block(
                                 holdout_observation_admission=(
                                     observation_admission
                                 ),
+                                **perf_evaluate_kwargs,
                             )
                     except (wal.WalAppendError, wal.WalFramingError):
                         # 不確かな同一 WAL へ trial-result/deviation を重ねない。

@@ -95,6 +95,35 @@ _FAKE_GATE_TRANSACTION_CC = (
 )
 
 
+def _canonical_perf_receipt(status: str) -> dict:
+    available = status == "available"
+    return {
+        "schema": S._perf_preflight.SCHEMA,
+        "status": status,
+        "available": available,
+        "probe_argv": list(S._perf_preflight._BASE_PROBE_ARGV),
+        "rc": 0 if available else None,
+        "parsed_events": list(S._perf_preflight.PERF_EVENTS) if available else [],
+        "reason": (
+            "available" if available else
+            "probe-os-error" if status == "probe_error" else
+            "perf-not-found"
+        ),
+        "stderr_sha256": "0" * 64,
+        "candidates": [],
+    }
+
+
+@pytest.fixture(autouse=True)
+def _pin_s1_perf_available(monkeypatch):
+    """既存の perf-present fixture を実行 host の availability から隔離する。"""
+    monkeypatch.setattr(
+        S._perf_preflight,
+        "probe_perf_availability",
+        lambda: _canonical_perf_receipt("available"),
+    )
+
+
 def _evidence(*, stock=True, commit=None):
     return SourceEvidence(
         schema_version="source-evidence/v1", source_root="/ccbench",
@@ -272,6 +301,79 @@ def test_modified_freeze_is_refused_before_campaign_start(tmp_path):
             verify_document=reject, evaluate_fn=lambda *a, **k: calls.append(1),
             prepare_cell_fn=_prepared, single_tenant_fn=lambda: None)
     assert calls == []
+
+
+def test_run_role_available_perf_keeps_evaluate_call_shape_exact(
+        tmp_path, monkeypatch):
+    probe_calls = []
+    evaluate_calls = []
+
+    def probe():
+        probe_calls.append(1)
+        return _canonical_perf_receipt("available")
+
+    def evaluate(genome, *args, **kwargs):
+        evaluate_calls.append((args, kwargs))
+        return _green(genome)
+
+    monkeypatch.setattr(S._perf_preflight, "probe_perf_availability", probe)
+    assert _run(tmp_path, "develop", evaluate) == S.EXIT_OK
+
+    assert probe_calls == [1]
+    assert evaluate_calls
+    for args, kwargs in evaluate_calls:
+        assert len(args) == 5
+        assert set(kwargs) == {
+            "numactl", "correctness", "extra_correctness", "do_bench",
+            "do_settle", "src_token", "log", "ccbench_dir", "cache_root",
+            "screening", "bench_max_rounds", "build_context",
+            "capability_resolver", "authorization_contract",
+        }
+        assert "use_perf" not in kwargs
+        assert "perf_preflight_receipt" not in kwargs
+
+
+def test_run_role_unavailable_perf_passes_degraded_kwargs_from_one_probe(
+        tmp_path, monkeypatch):
+    unavailable = _canonical_perf_receipt("unavailable")
+    probe_calls = []
+    evaluate_calls = []
+
+    def probe():
+        probe_calls.append(1)
+        return unavailable
+
+    def evaluate(genome, *args, **kwargs):
+        evaluate_calls.append(kwargs)
+        return _green(genome)
+
+    monkeypatch.setattr(S._perf_preflight, "probe_perf_availability", probe)
+    assert _run(tmp_path, "develop", evaluate) == S.EXIT_OK
+
+    assert probe_calls == [1]
+    assert evaluate_calls
+    for kwargs in evaluate_calls:
+        assert kwargs["use_perf"] is False
+        assert kwargs["perf_preflight_receipt"] == unavailable
+
+
+def test_run_role_probe_error_refuses_before_campaign_or_evaluate(
+        tmp_path, monkeypatch):
+    evaluate_calls = []
+    monkeypatch.setattr(
+        S._perf_preflight, "probe_perf_availability",
+        lambda: _canonical_perf_receipt("probe_error"),
+    )
+
+    with pytest.raises(S._perf_preflight.PerfPreflightError):
+        _run(
+            tmp_path, "develop",
+            lambda *args, **kwargs: evaluate_calls.append((args, kwargs)),
+        )
+
+    assert evaluate_calls == []
+    assert not (tmp_path / "out").exists()
+    assert not (tmp_path / "time_ledger.json").exists()
 
 
 def test_receipt_exists_but_direct_comparison_loader_stays_legacy_strict(

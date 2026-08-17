@@ -17,6 +17,9 @@ sys.path.insert(0, str(_HERE.parents[1]))
 
 from orchestrator.qualification.contract import (  # noqa: E402
     ProtocolError,
+    REGISTERED_DEPENDENCY_BUILD_ARGV,
+    REQUIRED_CODE_IDENTITY_PATHS,
+    REQUIRED_SCRIPT_IDENTITY_PATHS,
     balanced_order,
     load_protocol,
     observe_relative,
@@ -26,6 +29,66 @@ from orchestrator.qualification.contract import (  # noqa: E402
     series_identity,
     validate_protocol,
 )
+
+
+def _perf_receipt(*, available: bool) -> dict[str, object]:
+    events = ["LLC-load-misses", "LLC-loads", "instructions", "cycles"]
+    return {
+        "schema": "izanagi-perf-preflight/v1",
+        "status": "available" if available else "unavailable",
+        "available": available,
+        "probe_argv": [
+            "perf", "stat", "-x,", "-o", "<tmp>/perf.csv", "-e",
+            ",".join(events), "--", "/bin/true",
+        ],
+        "rc": 0 if available else None,
+        "parsed_events": events if available else [],
+        "reason": "available" if available else "perf-not-found",
+        "stderr_sha256": "0" * 64,
+        "candidates": [],
+    }
+
+
+def _series_preimage() -> dict[str, object]:
+    protocol = load_protocol()
+    executable = {
+        "path": "/fixture/tool", "sha256": "1" * 64,
+        "version": "fixture 1",
+    }
+    return {
+        "schema_version": "t126-qualification-series-identity/v1",
+        "protocol_sha256": protocol_sha256(protocol),
+        "superproject_commit": "a" * 40,
+        "superproject_tree": "b" * 40,
+        "ccbench_gitlink": "c" * 40,
+        "source_snapshots": {
+            "campaign_lock": {"path": "campaign.lock", "sha256": "2" * 64},
+            "wal": {"path": "source.jsonl", "sha256": "3" * 64},
+        },
+        "pair_roles": deepcopy(protocol["source"]["members"]),
+        "workload": deepcopy(protocol["workload"]),
+        "verification": deepcopy(protocol["verification"]),
+        "threshold": deepcopy(protocol["threshold"]),
+        "sprt": deepcopy(protocol["sprt"]),
+        "timing": deepcopy(protocol["timing"]),
+        "order_seed": protocol["order"]["seed"],
+        "code_identity": {
+            path: "4" * 64 for path in REQUIRED_CODE_IDENTITY_PATHS},
+        "script_identity": {
+            path: "5" * 64 for path in REQUIRED_SCRIPT_IDENTITY_PATHS},
+        "toolchain_manifest": {
+            "schema_version": "t126-toolchain-manifest/v1",
+            "executables": {
+                name: deepcopy(executable)
+                for name in ("python", "cc", "cxx", "cmake", "perf")
+            },
+            "dependencies": {
+                name: {"commit": "6" * 40, "tree": "7" * 40}
+                for name in ("gflags", "glog")
+            },
+            "build_argv": deepcopy(REGISTERED_DEPENDENCY_BUILD_ARGV),
+        },
+    }
 
 
 def _reference(bits, cfg):
@@ -211,6 +274,45 @@ def test_empty_identity_is_rejected_before_it_can_name_a_series():
     }
     with pytest.raises(ProtocolError, match="source snapshots|required set"):
         series_identity(empty)
+
+
+def test_series_identity_toolchain_shape_is_receipt_conditional_and_exact():
+    legacy = _series_preimage()
+    legacy_before = deepcopy(legacy)
+    assert len(series_identity(legacy)) == 64
+    assert legacy == legacy_before
+
+    degraded = _series_preimage()
+    toolchain = degraded["toolchain_manifest"]
+    toolchain["executables"].pop("perf")
+    toolchain["perf_preflight"] = _perf_receipt(available=False)
+    assert len(series_identity(degraded)) == 64
+
+    no_receipt = deepcopy(degraded)
+    no_receipt["toolchain_manifest"].pop("perf_preflight")
+    with pytest.raises(ProtocolError, match="toolchain executables"):
+        series_identity(no_receipt)
+
+    unconditional_five = deepcopy(degraded)
+    unconditional_five["toolchain_manifest"]["executables"]["perf"] = {
+        "path": "/fixture/tool", "sha256": "1" * 64,
+        "version": "fixture 1",
+    }
+    with pytest.raises(ProtocolError, match="toolchain executables"):
+        series_identity(unconditional_five)
+
+    explicit_available = deepcopy(degraded)
+    explicit_available["toolchain_manifest"]["perf_preflight"] = (
+        _perf_receipt(available=True))
+    with pytest.raises(ProtocolError, match="available perf receipt"):
+        series_identity(explicit_available)
+
+    probe_error = deepcopy(degraded)
+    probe_error["toolchain_manifest"]["perf_preflight"].update({
+        "status": "probe_error", "reason": "probe-os-error",
+    })
+    with pytest.raises(ProtocolError, match="perf preflight"):
+        series_identity(probe_error)
 
 
 if __name__ == "__main__":

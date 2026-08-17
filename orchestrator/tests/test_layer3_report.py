@@ -8,6 +8,7 @@ import json
 import os
 import subprocess
 import sys
+from collections.abc import Mapping
 from types import SimpleNamespace
 from pathlib import Path
 
@@ -440,8 +441,13 @@ def _record(stage, variant="v1", **payload):
 
 
 def _bench(variant="v1", **extra):
+    leading_indicators = {}
+    observation = extra.get("perf_observation")
+    if isinstance(observation, Mapping) and observation.get("use_perf") is False:
+        leading_indicators = {"llc_miss_rate": None, "ipc": None}
+        extra.setdefault("run_cmd", "./benchmark")
     return _record("bench_done", variant, tps=[1.0], median_tps=1.0, cv=0.0,
-                   rounds=1, leading_indicators={}, **extra)
+                   rounds=1, leading_indicators=leading_indicators, **extra)
 
 
 def _perf_observation(
@@ -477,7 +483,7 @@ def _perf_observation(
     )
     use_perf = perf_preflight.use_perf_from_receipt(receipt)
     missing_indicators = list(missing)
-    return {
+    observation = {
         "use_perf": use_perf,
         "counter_status": (
             "not_required" if not use_perf
@@ -487,6 +493,12 @@ def _perf_observation(
         "missing_leading_indicators": missing_indicators,
         "preflight": receipt,
     }
+    if not use_perf:
+        observation["claim_scope"] = {
+            "throughput": "eligible",
+            "perf_required": "unsupported",
+        }
+    return observation
 
 
 def test_real_legacy_s8a_campaign_is_rejected(tmp_path):
@@ -1243,6 +1255,26 @@ def test_perf_observation_rejects_unknown_key(
     assert list(cause.absolute_path) == expected_absolute_path
 
 
+def test_perf_observation_rejects_schema_valid_noncanonical_receipt(tmp_path):
+    """M13: layer3 は JSON Schema だけでなく canonical receipt を検証する。"""
+    observation = _perf_observation()
+    observation["preflight"]["probe_argv"] = ["perf", "stat"]
+    campaign, output_root = _campaign(
+        tmp_path, [_bench(perf_observation=observation)],
+    )
+
+    with pytest.raises(
+        layer3_report.Layer3ReportError,
+        match=r"^layer3 perf observation 共有検証に失敗$",
+    ) as caught:
+        layer3_report.build_report(
+            campaign, generated_from_head="fixed", output_root=output_root,
+        )
+    assert isinstance(
+        caught.value.__cause__, perf_preflight.PerfPreflightError,
+    )
+
+
 @pytest.mark.parametrize(
     "contradiction",
     [
@@ -1278,6 +1310,10 @@ def test_perf_observation_rejects_producer_impossible_combinations(
     elif contradiction == "use-perf-false-disagrees-with-available":
         observation["use_perf"] = False
         observation["counter_status"] = "not_required"
+        observation["claim_scope"] = {
+            "throughput": "eligible",
+            "perf_required": "unsupported",
+        }
     elif contradiction == "use-perf-true-disagrees-with-unavailable":
         observation["use_perf"] = True
         observation["counter_status"] = "complete"

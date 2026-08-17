@@ -1284,7 +1284,8 @@ def _attempt(
                     / f"rounds/{round_index:04d}/{role}/evaluation-events.jsonl")
                 admitted = validate_member_evidence(
                     load_jsonl_strict(event_path), expected_role=role,
-                    expected_round=round_index)
+                    expected_round=round_index,
+                    expected_perf_observation=None)
                 runtime = {
                     "schema_version": "t126-qualification-member-runtime/v1",
                     "round_index": round_index, "member_role": role,
@@ -3189,9 +3190,20 @@ def _submit_fixture(
     perf.write_text(
         "#!/bin/sh\n"
         "case \" $* \" in\n"
-        "  *' --version '*) printf '%s\\n' 'perf fixture 1' ;;\n"
-        "  *) printf '%s\\n' '1,cycles' >&2 ;;\n"
-        "esac\n",
+        "  *' --version '*) printf '%s\\n' 'perf fixture 1'; exit 0 ;;\n"
+        "esac\n"
+        "output=; previous=\n"
+        "for argument in \"$@\"; do\n"
+        "  [ \"$previous\" != -o ] || output=$argument\n"
+        "  previous=$argument\n"
+        "done\n"
+        "events='1,,LLC-load-misses\n1,,LLC-loads\n"
+        "1,,instructions\n1,,cycles'\n"
+        "if [ -n \"$output\" ]; then\n"
+        "  printf '%s\\n' \"$events\" > \"$output\"\n"
+        "else\n"
+        "  printf '%s\\n' \"$events\" >&2\n"
+        "fi\n",
         encoding="utf-8")
     perf.chmod(0o755)
     policy_path = tools / "policy.json"
@@ -3277,6 +3289,9 @@ def _install_scheduler_stubs(
             "esac\n",
             encoding="utf-8")
         perf.chmod(0o755)
+        literal_perf = fake_bin / "perf"
+        literal_perf.write_text("#!/bin/sh\nexit 2\n", encoding="utf-8")
+        literal_perf.chmod(0o755)
     return qsub_args
 
 
@@ -3506,6 +3521,11 @@ def test_fake_qsub_qstat_exact_visibility_and_durable_receipt(tmp_path):
     receipt = load_json_strict(receipts[0])
     assert receipt["job_id"] == "98765.nqsv"
     assert receipt["qualification_attempt_id"]
+    toolchain = load_json_strict(receipts[0].with_name("toolchain-manifest.json"))
+    assert set(toolchain) == {
+        "schema_version", "executables", "dependencies", "build_argv"}
+    assert set(toolchain["executables"]) == {
+        "python", "cc", "cxx", "cmake", "perf"}
     args = [item.decode() for item in qsub_args.read_bytes().split(b"\0") if item]
     assert args == [
         "-v", "IZANAGI_SUBMISSION_NONCE=" + receipt["nonce"],
@@ -3802,7 +3822,7 @@ def test_one_authorized_retry_submit_collector_chain_is_accepted_once(
     assert state.attempt_count == 2
 
 
-def test_submit_rejects_symlink_component_hidden_drift_and_unsupported_perf(
+def test_submit_rejects_symlink_component_hidden_drift_and_skip_worktree(
         tmp_path):
     repo, fake_bin, calls = _submit_fixture(tmp_path)
     _install_scheduler_stubs(fake_bin, calls)
@@ -3836,12 +3856,66 @@ def test_submit_rejects_symlink_component_hidden_drift_and_unsupported_perf(
     assert "assume-unchanged/skip-worktree" in skipped.stderr
     assert not calls_skip.exists()
 
-    repo3, fake_bin3, calls3 = _submit_fixture(tmp_path / "unsupported")
-    _install_scheduler_stubs(fake_bin3, calls3, perf_unsupported=True)
-    unsupported = _run_submit(repo3, fake_bin3)
-    assert unsupported.returncode == 2
-    assert "not functional" in unsupported.stderr
-    assert "qsub" not in calls3.read_text(encoding="utf-8")
+
+
+def test_submit_unsupported_policy_perf_uses_canonical_degraded_toolchain(
+        tmp_path):
+    repo, fake_bin, calls = _submit_fixture(tmp_path)
+    _install_scheduler_stubs(fake_bin, calls, perf_unsupported=True)
+
+    completed = _run_submit(repo, fake_bin)
+
+    assert completed.returncode == 0, completed.stderr
+    toolchain_path = next((
+        repo / "output/env/pegasus/qualification/t126/submissions"
+    ).glob("*/toolchain-manifest.json"))
+    toolchain = load_json_strict(toolchain_path)
+    assert set(toolchain) == {
+        "schema_version", "executables", "dependencies", "build_argv",
+        "perf_preflight",
+    }
+    assert set(toolchain["executables"]) == {
+        "python", "cc", "cxx", "cmake"}
+    assert toolchain["perf_preflight"]["status"] == "unavailable"
+    assert toolchain["perf_preflight"]["available"] is False
+    assert calls.read_text(encoding="utf-8").splitlines().count("qsub") == 1
+
+
+def test_submit_probe_error_remains_fail_closed_before_qsub(tmp_path):
+    repo, fake_bin, calls = _submit_fixture(tmp_path)
+    _install_scheduler_stubs(fake_bin, calls, perf_unsupported=True)
+    literal_perf = fake_bin / "perf"
+    literal_perf.write_text("#!/bin/sh\nkill -TERM $$\n", encoding="utf-8")
+    literal_perf.chmod(0o755)
+
+    completed = _run_submit(repo, fake_bin)
+
+    assert completed.returncode == 2
+    assert "perf preflight failed" in completed.stderr
+    assert "qsub" not in calls.read_text(encoding="utf-8")
+
+
+def test_submit_perf_present_keeps_policy_candidate_smoke_rejection(tmp_path):
+    repo, fake_bin, calls = _submit_fixture(tmp_path)
+    _install_scheduler_stubs(fake_bin, calls, perf_unsupported=True)
+    literal_perf = fake_bin / "perf"
+    literal_perf.write_text(
+        "#!/bin/sh\n"
+        "output=; previous=\n"
+        "for argument in \"$@\"; do\n"
+        "  [ \"$previous\" != -o ] || output=$argument\n"
+        "  previous=$argument\n"
+        "done\n"
+        "printf '%s\\n' '1,,LLC-load-misses' '1,,LLC-loads' "
+        "'1,,instructions' '1,,cycles' > \"$output\"\n",
+        encoding="utf-8")
+    literal_perf.chmod(0o755)
+
+    completed = _run_submit(repo, fake_bin)
+
+    assert completed.returncode == 2
+    assert "perf candidate is not functional" in completed.stderr
+    assert "qsub" not in calls.read_text(encoding="utf-8")
 
 
 def test_submit_untracked_scan_failure_is_fail_closed_before_qsub(tmp_path):
@@ -5988,6 +6062,217 @@ def test_submission_durable_json_rejects_zero_write(monkeypatch, tmp_path):
             submission._durable_json(target, {"payload": "zero-write"})
 
     assert write_calls == 1
+
+
+def _canonical_perf_receipt(*, available: bool) -> dict[str, object]:
+    events = ["LLC-load-misses", "LLC-loads", "instructions", "cycles"]
+    return {
+        "schema": "izanagi-perf-preflight/v1",
+        "status": "available" if available else "unavailable",
+        "available": available,
+        "probe_argv": [
+            "perf", "stat", "-x,", "-o", "<tmp>/perf.csv", "-e",
+            ",".join(events), "--", "/bin/true",
+        ],
+        "rc": 0 if available else None,
+        "parsed_events": events if available else [],
+        "reason": "available" if available else "perf-not-found",
+        "stderr_sha256": "0" * 64,
+        "candidates": [],
+    }
+
+
+def _run_copied_toolchain_validator(
+        tmp_path: Path, *, toolchain: dict[str, object],
+        compute_receipt: dict[str, object]):
+    script = (_ROOT / "tools/pegasus/t126_qualification.sh").read_text(
+        encoding="utf-8")
+    command = script.index(
+        '"$PY" -I -S -B - "$JOB_STAGING/toolchain-manifest.json"')
+    start = script.index("import hashlib,json,os,sys\n", command)
+    body = script[start:script.index("\nPY\n", start)]
+    manifest_path = _canonical(tmp_path / "toolchain.json", toolchain)
+    receipt_path = _canonical(tmp_path / "compute-receipt.json", compute_receipt)
+    executable = str(Path(sys.executable).resolve(strict=True))
+    return subprocess.run(
+        [
+            sys.executable, "-I", "-S", "-B", "-",
+            str(manifest_path), executable, executable, executable, executable,
+            executable, "6" * 40, "7" * 40, str(receipt_path), str(_ROOT),
+        ],
+        input=body, text=True, capture_output=True,
+    )
+
+
+def _toolchain_fixture(*, degraded: bool) -> dict[str, object]:
+    executable = Path(sys.executable).resolve(strict=True)
+    row = {
+        "path": str(executable),
+        "sha256": hashlib.sha256(executable.read_bytes()).hexdigest(),
+        "version": "fixture 1",
+    }
+    names = ("python", "cc", "cxx", "cmake") if degraded else (
+        "python", "cc", "cxx", "cmake", "perf")
+    value = {
+        "schema_version": "t126-toolchain-manifest/v1",
+        "executables": {name: dict(row) for name in names},
+        "dependencies": {
+            "gflags": {"commit": "6" * 40, "tree": "8" * 40},
+            "glog": {"commit": "7" * 40, "tree": "9" * 40},
+        },
+        "build_argv": {},
+    }
+    if degraded:
+        value["perf_preflight"] = _canonical_perf_receipt(available=False)
+    return value
+
+
+def test_copied_toolchain_rehash_is_compute_perf_conditional(tmp_path):
+    submission_perf = _toolchain_fixture(degraded=False)
+    compute_degraded = _run_copied_toolchain_validator(
+        tmp_path / "submission-true-compute-false",
+        toolchain=submission_perf,
+        compute_receipt=_canonical_perf_receipt(available=False),
+    )
+    assert compute_degraded.returncode == 0, compute_degraded.stderr
+
+    missing_compute_perf = _run_copied_toolchain_validator(
+        tmp_path / "submission-false-compute-true",
+        toolchain=_toolchain_fixture(degraded=True),
+        compute_receipt=_canonical_perf_receipt(available=True),
+    )
+    assert missing_compute_perf.returncode != 0
+    assert "compute perf requires submission perf identity" in (
+        missing_compute_perf.stderr)
+
+    drifted = _toolchain_fixture(degraded=False)
+    drifted["executables"]["perf"]["sha256"] = "f" * 64
+    perf_hash = _run_copied_toolchain_validator(
+        tmp_path / "compute-true-hash-drift",
+        toolchain=drifted,
+        compute_receipt=_canonical_perf_receipt(available=True),
+    )
+    assert perf_hash.returncode != 0
+    assert "tool hash mismatch: perf" in perf_hash.stderr
+
+
+def _run_candidate_preflight_block(
+        tmp_path: Path, *, functional_candidate: bool):
+    script = (_ROOT / "tools/pegasus/t126_qualification.sh").read_text(
+        encoding="utf-8")
+    start = script.index('PERF_REAL=""\n')
+    end = script.index("readarray -t SUBMIT_ID", start)
+    block = script[start:end]
+    fake_bin = tmp_path / "bin"
+    fake_bin.mkdir(parents=True)
+    for name in ("grep", "mkdir", "ln"):
+        resolved = shutil.which(name)
+        assert resolved is not None
+        (fake_bin / name).symlink_to(resolved)
+    candidate = tmp_path / "policy-perf"
+    if functional_candidate:
+        candidate.write_text(
+            "#!/bin/sh\n"
+            "output=; previous=\n"
+            "for argument in \"$@\"; do\n"
+            "  [ \"$previous\" != -o ] || output=$argument\n"
+            "  previous=$argument\n"
+            "done\n"
+            "events='1,,LLC-load-misses\n1,,LLC-loads\n"
+            "1,,instructions\n1,,cycles'\n"
+            "if [ -n \"$output\" ]; then\n"
+            "  printf '%s\\n' \"$events\" > \"$output\"\n"
+            "else\n"
+            "  printf '%s\\n' \"$events\" >&2\n"
+            "fi\n",
+            encoding="utf-8")
+        candidate.chmod(0o755)
+    policy = tmp_path / "policy.json"
+    policy.write_text(json.dumps({"perf_candidates": [str(candidate)]}) + "\n")
+    staging = tmp_path / "staging"
+    scratch = tmp_path / "scratch"
+    staging.mkdir()
+    scratch.mkdir()
+    prefix = (
+        "set -Eeuo pipefail\n"
+        f"PY={shlex.quote(str(Path(sys.executable).resolve(strict=True)))}\n"
+        f"SOURCE_STAGE={shlex.quote(str(_ROOT))}\n"
+        f"POLICY={shlex.quote(str(policy))}\n"
+        f"JOB_STAGING={shlex.quote(str(staging))}\n"
+        f"SCR_ROOT={shlex.quote(str(scratch))}\n"
+        f"PATH={shlex.quote(str(fake_bin))}\nexport PATH\n"
+        "run_with_budget() { shift; \"$@\"; }\n"
+        "check_job_deadline() { :; }\n"
+    )
+    suffix = "printf '%s|%s\\n' \"$USE_PERF\" \"$PERF_REAL\"\n"
+    bash = shutil.which("bash")
+    assert bash is not None
+    completed = subprocess.run(
+        [bash, "-c", prefix + block + suffix],
+        capture_output=True, text=True,
+    )
+    receipt = load_json_strict(staging / "perf-preflight.json")
+    return completed, receipt, candidate
+
+
+def _run_degraded_source_stage_evidence_builder(tmp_path: Path):
+    script = (_ROOT / "tools/pegasus/t126_qualification.sh").read_text(
+        encoding="utf-8")
+    command = script.index('"$JOB_STAGING/source-stage-evidence.json"')
+    start = script.index("import hashlib,json,os,sys\n", command)
+    body = script[start:script.index("\nPY\n", start)]
+    target = tmp_path / "source-stage-evidence.json"
+    toolchain = _canonical(tmp_path / "toolchain.json", {})
+    receipt = _canonical(
+        tmp_path / "perf-preflight.json",
+        _canonical_perf_receipt(available=False))
+    completed = subprocess.run(
+        [
+            sys.executable, "-I", "-S", "-B", "-", str(target),
+            "a" * 40, "b" * 40, "c" * 40, str(_ROOT), str(toolchain),
+            str(tmp_path / "absent-perf.stdout"),
+            str(tmp_path / "absent-perf.stderr"), str(receipt), "0",
+        ],
+        input=body, text=True, capture_output=True,
+    )
+    return completed, load_json_strict(target)
+
+
+def test_literal_perf_absent_functional_policy_candidate_stays_perf_present(
+        tmp_path):
+    completed, receipt, candidate = _run_candidate_preflight_block(
+        tmp_path, functional_candidate=True)
+
+    assert completed.returncode == 0, completed.stderr
+    assert completed.stdout.strip() == f"1|{candidate}"
+    assert receipt["status"] == "available"
+    assert receipt["available"] is True
+
+
+def test_candidate_exhaustion_uses_canonical_unavailable_without_early_exit(
+        tmp_path):
+    completed, receipt, candidate = _run_candidate_preflight_block(
+        tmp_path, functional_candidate=False)
+
+    assert completed.returncode == 0, completed.stderr
+    assert completed.stdout.strip() == "0|"
+    assert not candidate.exists()
+    assert receipt["status"] == "unavailable"
+    assert receipt["available"] is False
+    evidence_run, evidence = _run_degraded_source_stage_evidence_builder(
+        tmp_path / "evidence")
+    assert evidence_run.returncode == 0, evidence_run.stderr
+    assert evidence["perf_observation"] == {
+        "use_perf": False,
+        "counter_status": "not_required",
+        "missing_leading_indicators": [],
+        "preflight": _canonical_perf_receipt(available=False),
+        "claim_scope": {
+            "throughput": "eligible", "perf_required": "unsupported"},
+    }
+    assert not {
+        "perf_smoke_returncode", "perf_smoke_stdout", "perf_smoke_stderr",
+    } & set(evidence)
 
 
 if __name__ == "__main__":

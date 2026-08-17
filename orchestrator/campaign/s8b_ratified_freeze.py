@@ -37,6 +37,7 @@ from pathlib import Path
 from types import MappingProxyType
 from typing import Callable, Dict, List, Mapping, Optional, Sequence, Tuple, Type
 
+from ..calibrator import perf_preflight as _perf_preflight
 from . import env_contract as _env_contract
 from . import env_attestation as _env_attestation
 from . import execution_guard as _execution_guard
@@ -219,6 +220,22 @@ _ATTEMPT_KEYS = frozenset({
     "exclusion_class", "rep_integrity_failures", "session_cv", "session_median",
     "duration_s",
 })
+
+
+@dataclass(frozen=True)
+class _ValidatedManifest:
+    """Ratified manifest の既存 3 値と receipt 由来 perf 条件を運ぶ。"""
+
+    cells: list[dict]
+    schedule: list[dict]
+    binaries: Dict[str, dict]
+    expected_use_perf: bool
+
+    def __iter__(self):
+        """既存の private test caller の 3 値 unpack を維持する。"""
+        yield self.cells
+        yield self.schedule
+        yield self.binaries
 
 _JOURNAL_KEYS = {
     "launch-start": frozenset({
@@ -1752,8 +1769,30 @@ def _validate_portable_binaries(
 def _validate_manifest(
         document: dict, *, protocol: Mapping, protocol_sha256: str,
         ratified: RatifiedFreeze, expected_policy,
-) -> Tuple[list[dict], list[dict], Dict[str, dict]]:
-    _exact_keys(document, _MANIFEST_KEYS, reason="manifest-invalid", label="manifest")
+) -> _ValidatedManifest:
+    receipt = document.get("perf_preflight") if isinstance(document, Mapping) else None
+    try:
+        expected_use_perf = _perf_preflight.use_perf_from_receipt(receipt)
+        expected_keys = _floor_contract.manifest_keys_for_mode(
+            "official", perf_preflight=receipt,
+        )
+    except (_perf_preflight.PerfPreflightError,
+            _floor_contract.FloorContractError) as exc:
+        raise RatifiedFreezeError(
+            "manifest-invalid", f"manifest perf 条件が不正: {exc}",
+            cause="manifest-perf-condition",
+        ) from exc
+    ratified_expected_keys = _MANIFEST_KEYS | (
+        frozenset() if expected_use_perf
+        else frozenset({"perf_preflight", "perf_observation"})
+    )
+    if expected_keys != ratified_expected_keys:
+        raise RatifiedFreezeError(
+            "manifest-invalid",
+            "ratified/shared manifest key 契約が不一致",
+            cause="manifest-key-contract-drift",
+        )
+    _exact_keys(document, expected_keys, reason="manifest-invalid", label="manifest")
     if document["schema_version"] != _floor_contract.MANIFEST_SCHEMA:
         raise RatifiedFreezeError(
             "manifest-invalid",
@@ -1831,18 +1870,25 @@ def _validate_manifest(
         protocol=protocol, expected_policy=expected_policy,
     )
     try:
+        run_cmd, leading_indicators = _floor_contract.manifest_perf_validation_context(
+            document,
+        )
         _floor_contract.validate_manifest_v3(
             document, protocol=protocol, protocol_sha256=protocol_sha256,
             freeze_sha256=V1_FREEZE_SHA256,
             expected_cells=expected_cells, expected_schedule=expected_schedule,
             mode="official",
+            run_cmd=run_cmd, leading_indicators=leading_indicators,
         )
     except _floor_contract.FloorContractError as exc:
         raise RatifiedFreezeError(
             "manifest-invalid", f"共有 manifest v3 契約に不一致: {exc}",
             cause="manifest-shared-contract",
         ) from exc
-    return expected_cells, expected_schedule, binaries
+    return _ValidatedManifest(
+        cells=expected_cells, schedule=expected_schedule, binaries=binaries,
+        expected_use_perf=expected_use_perf,
+    )
 
 
 def _journal_schema_key(record: Mapping) -> str:
@@ -1857,6 +1903,7 @@ def _validate_journal(
         cells: list[dict], binaries: Mapping[str, Mapping], cert_sha256: str,
         manifest_sha256: str, root: Path,
         contract: _env_contract.ExecutionEnvironmentContract,
+        expected_use_perf: bool = True,
 ) -> dict:
     if not records:
         raise RatifiedFreezeError("journal-state-invalid", "journal が空", cause="journal-empty")
@@ -2156,7 +2203,8 @@ def _validate_journal(
                 cause="run-cmd-required",
             )
         if not _run_cmd_matches_portable_session(
-                record, protocol=protocol, binaries=binaries, contract=contract):
+                record, protocol=protocol, binaries=binaries, contract=contract,
+                expected_use_perf=expected_use_perf):
             raise RatifiedFreezeError(
                 "journal-state-invalid",
                 f"session[{seq}].run_cmd が portable canonical argv と不一致",
@@ -2205,19 +2253,58 @@ def _validate_journal(
     }
 
 
-def _validate_result_top_level_keys(document: object) -> None:
+def _validate_result_top_level_keys(
+        document: object, *, expected_use_perf: bool = True,
+        expected_perf_preflight: object | None = None,
+        expected_perf_observation: object | None = None) -> None:
     """ratified 固有の cause を保って result v4 exact keys を検査する。"""
-    _exact_keys(
-        document, _floor_contract.result_keys_for_mode("official"),
-        reason="floor-artifact-invalid", label="result",
+    receipt = document.get("perf_preflight") if isinstance(document, Mapping) else None
+    try:
+        derived_use_perf = _perf_preflight.use_perf_from_receipt(receipt)
+        expected_keys = _floor_contract.result_keys_for_mode(
+            "official", perf_preflight=receipt,
+        )
+    except (_perf_preflight.PerfPreflightError,
+            _floor_contract.FloorContractError) as exc:
+        raise RatifiedFreezeError(
+            "floor-artifact-invalid", f"result perf 条件が不正: {exc}",
+            cause="result-perf-condition",
+        ) from exc
+    if derived_use_perf is not expected_use_perf:
+        raise RatifiedFreezeError(
+            "binding-chain-mismatch",
+            "result perf_preflight が manifest の perf 条件と不一致",
+            cause="result-perf-condition",
+        )
+    _exact_keys(document, expected_keys, reason="floor-artifact-invalid", label="result")
+    if receipt != expected_perf_preflight:
+        raise RatifiedFreezeError(
+            "binding-chain-mismatch",
+            "result.perf_preflight != manifest.perf_preflight",
+            cause="result-manifest-perf-preflight",
+        )
+    observation = (
+        document.get("perf_observation") if isinstance(document, Mapping) else None
     )
+    if observation != expected_perf_observation:
+        raise RatifiedFreezeError(
+            "binding-chain-mismatch",
+            "result.perf_observation != manifest.perf_observation",
+            cause="result-manifest-perf-observation",
+        )
 
 
 def _validate_result(
         document: dict, *, protocol: Mapping, cells: list[dict], binaries: Mapping[str, Mapping],
         journal: Mapping, contract: _env_contract.ExecutionEnvironmentContract,
+        expected_use_perf: bool = True, expected_perf_preflight: object | None = None,
+        expected_perf_observation: object | None = None,
 ) -> None:
-    _validate_result_top_level_keys(document)
+    _validate_result_top_level_keys(
+        document, expected_use_perf=expected_use_perf,
+        expected_perf_preflight=expected_perf_preflight,
+        expected_perf_observation=expected_perf_observation,
+    )
     if document["schema"] != _floor_contract.RESULT_SCHEMA:
         raise RatifiedFreezeError(
             "floor-artifact-invalid",
@@ -2262,7 +2349,8 @@ def _validate_result(
     for index, record in enumerate(result_sessions):
         if (not isinstance(record, Mapping)
                 or not _run_cmd_matches_portable_session(
-                    record, protocol=protocol, binaries=binaries, contract=contract)):
+                    record, protocol=protocol, binaries=binaries, contract=contract,
+                    expected_use_perf=expected_use_perf)):
             raise RatifiedFreezeError(
                 "floor-artifact-invalid",
                 f"result.sessions[{index}].run_cmd が portable canonical argv と不一致",
@@ -2343,7 +2431,8 @@ def _walk_json(value, pointer: str = ""):
 def _run_cmd_matches_portable_session(
         record: Mapping, *, protocol: Mapping,
         binaries: Mapping[str, Mapping],
-        contract: _env_contract.ExecutionEnvironmentContract) -> bool:
+        contract: _env_contract.ExecutionEnvironmentContract,
+        expected_use_perf: bool = True) -> bool:
     """session.run_cmd が検証済み構造値からの leaf 再構築と完全一致するか返す。"""
     run_cmd = record.get("run_cmd")
     if run_cmd is None:
@@ -2361,6 +2450,7 @@ def _run_cmd_matches_portable_session(
             records=record["records"], threads=record["threads"],
             extime_s=protocol["extime_s"], clocks_per_us=contract.clocks_per_us,
             numactl=contract.numactl,
+            use_perf=expected_use_perf,
         )
     except (ValueError, KeyError, TypeError, _floor_contract.FloorContractError):
         return False
@@ -2371,6 +2461,7 @@ def _validate_axis_occurrences(
         *, artifacts: Sequence[Tuple[str, object, Optional[bytes]]], protocol: Mapping,
         binaries: Mapping[str, Mapping],
         contract: _env_contract.ExecutionEnvironmentContract,
+        expected_use_perf: bool = True,
         closure_paths: frozenset = frozenset(),
 ) -> Dict[str, list]:
     """軸 occurrence を path/record-index/pointer/holdout/axis/encoding 単位で検査する。"""
@@ -2446,7 +2537,8 @@ def _validate_axis_occurrences(
                         if (cmd_record is not None
                                 and _run_cmd_matches_portable_session(
                                     cmd_record, protocol=protocol, binaries=binaries,
-                                    contract=contract)):
+                                    contract=contract,
+                                    expected_use_perf=expected_use_perf)):
                             allowed = True
                         if path.endswith(("manifest.json", "result.json")):
                             receipt_match = re.fullmatch(
@@ -3060,16 +3152,20 @@ def _launch_validate(
         resolve_current_build_admission_policy()
         if result_type is LaunchValidatedFreeze else None
     )
-    cells, schedule, binaries = _validate_manifest(
+    validated_manifest = _validate_manifest(
         manifest_doc, protocol=protocol, protocol_sha256=protocol_sha, ratified=ratified,
         expected_policy=expected_admission_policy,
     )
+    cells, schedule, binaries = validated_manifest
+    expected_use_perf = validated_manifest.expected_use_perf
+    expected_perf_preflight = manifest_doc.get("perf_preflight")
+    expected_perf_observation = manifest_doc.get("perf_observation")
     cert_sha = _sha256_hex(cert_raw)
     manifest_sha = _sha256_hex(captured[role_paths["manifest"]])
     journal = _validate_journal(
         journal_records, protocol=protocol, schedule=schedule, cells=cells,
         binaries=binaries, cert_sha256=cert_sha, manifest_sha256=manifest_sha,
-        root=root, contract=contract,
+        root=root, contract=contract, expected_use_perf=expected_use_perf,
     )
     expected_floor_protocol = _floor_contract.project_protocol_for_floor_artifact(protocol)
     # cells は ratified freeze から独立導出・manifest と exact 照合済みであり、
@@ -3079,7 +3175,11 @@ def _launch_validate(
     )
     # 共有 verifier の汎用 floor-projection より、ratified 固有の
     # schema-keys を優先する。通過後も共有 verifier 自体は必ず実行する。
-    _validate_result_top_level_keys(result_doc)
+    _validate_result_top_level_keys(
+        result_doc, expected_use_perf=expected_use_perf,
+        expected_perf_preflight=expected_perf_preflight,
+        expected_perf_observation=expected_perf_observation,
+    )
     from .s8b_holdout_admission import FloorHoldoutEvidenceError
     try:
         admission_problems = _floor_stats.verify_floor_artifact_with_live_admission(
@@ -3094,7 +3194,7 @@ def _launch_validate(
                 record for record in journal["records"]
                 if record.get("event") in {"session-start", "session"}
             ],
-            expected_use_perf=True,
+            expected_use_perf=expected_use_perf,
         )
     except FloorHoldoutEvidenceError as exc:
         reason = (
@@ -3119,7 +3219,9 @@ def _launch_validate(
         )
     _validate_result(
         result_doc, protocol=protocol, cells=cells, binaries=binaries, journal=journal,
-        contract=contract,
+        contract=contract, expected_use_perf=expected_use_perf,
+        expected_perf_preflight=expected_perf_preflight,
+        expected_perf_observation=expected_perf_observation,
     )
 
     # --- 5: §8.4 binding graph (adjacency list の全辺) ---
@@ -3293,7 +3395,8 @@ def _launch_validate(
         occurrence_artifacts.append((path, None, captured[path]))
     expected_hits = _validate_axis_occurrences(
         artifacts=occurrence_artifacts, protocol=protocol, binaries=binaries,
-        contract=contract, closure_paths=closure_paths,
+        contract=contract, expected_use_perf=expected_use_perf,
+        closure_paths=closure_paths,
     )
 
     digest_before = _enumeration_digest(root)

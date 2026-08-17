@@ -188,7 +188,49 @@ def test_shared_create_writer_real_callers_preserve_unsafe_stage(
     assert _entry_snapshot(target.parent) == before
 
 
-def _member_events():
+def _unavailable_receipt():
+    events = ["LLC-load-misses", "LLC-loads", "instructions", "cycles"]
+    return {
+        "schema": "izanagi-perf-preflight/v1",
+        "status": "unavailable",
+        "available": False,
+        "probe_argv": [
+            "perf", "stat", "-x,", "-o", "<tmp>/perf.csv", "-e",
+            ",".join(events), "--", "/bin/true",
+        ],
+        "rc": None,
+        "parsed_events": [],
+        "reason": "perf-not-found",
+        "stderr_sha256": "0" * 64,
+        "candidates": [],
+    }
+
+
+def _degraded_observation():
+    return {
+        "use_perf": False,
+        "counter_status": "not_required",
+        "missing_leading_indicators": [],
+        "preflight": _unavailable_receipt(),
+        "claim_scope": {
+            "throughput": "eligible",
+            "perf_required": "unsupported",
+        },
+    }
+
+
+def _member_events(*, perf_observation=None):
+    bench_payload = {
+        "tps": [100.0] * 5, "median_tps": 100.0,
+        "rep_returncodes": [0] * 5,
+        "settled": True, "unstable": False, "rounds": 1,
+    }
+    if perf_observation is not None:
+        bench_payload.update({
+            "run_cmd": ["/x/benchmark"],
+            "leading_indicators": {"ipc": None, "llc_miss_rate": None},
+            "perf_observation": perf_observation,
+        })
     stages = (
         ("qualification_build_start", {"genome": "silo|BACK_OFF=1"}),
         ("qualification_build_done", {
@@ -216,10 +258,7 @@ def _member_events():
             ],
             "binary_sha256": "a" * 64,
         }),
-        ("qualification_bench_done", {
-            "tps": [100.0] * 5, "median_tps": 100.0, "rep_returncodes": [0] * 5,
-            "settled": True, "unstable": False, "rounds": 1,
-        }),
+        ("qualification_bench_done", bench_payload),
         ("qualification_evaluation_terminal", {
             "fitness_tps": 100.0, "verify_configs": ["legacy", "s2"],
         }),
@@ -439,7 +478,8 @@ def test_create_recovers_staging_abandoned_by_hard_crash(
 def test_m4_settled_false_rejects_and_full_evidence_accepts():
     records = _member_events()
     admitted = validate_member_evidence(
-        records, expected_role="subject", expected_round=1)
+        records, expected_role="subject", expected_round=1,
+        expected_perf_observation=None)
     assert admitted["settled"] is True
     mutated = deepcopy(records)
     payload = json.loads(mutated[4]["payload"]["canonical_json"])
@@ -451,7 +491,8 @@ def test_m4_settled_false_rejects_and_full_evidence_accepts():
     }
     with pytest.raises(QualificationArtifactError, match="settled"):
         validate_member_evidence(
-            mutated, expected_role="subject", expected_round=1)
+            mutated, expected_role="subject", expected_round=1,
+            expected_perf_observation=None)
 
 
 def test_m5a_exact_s2_tag_order_has_no_argv_mask():
@@ -460,7 +501,8 @@ def test_m5a_exact_s2_tag_order_has_no_argv_mask():
         records[3]["payload"], records[2]["payload"])
     with pytest.raises(QualificationArtifactError, match="legacy\\+S2"):
         validate_member_evidence(
-            records, expected_role="subject", expected_round=1)
+            records, expected_role="subject", expected_round=1,
+            expected_perf_observation=None)
 
 
 def test_m5b_s2_exact_argv_flag_has_no_shape_or_tag_mask():
@@ -474,7 +516,8 @@ def test_m5b_s2_exact_argv_flag_has_no_shape_or_tag_mask():
     }
     with pytest.raises(QualificationArtifactError, match="runtime evidence"):
         validate_member_evidence(
-            records, expected_role="subject", expected_round=1)
+            records, expected_role="subject", expected_round=1,
+            expected_perf_observation=None)
 
 
 def test_anomaly_gate_remains_conjunctive():
@@ -488,7 +531,42 @@ def test_anomaly_gate_remains_conjunctive():
     }
     with pytest.raises(QualificationArtifactError):
         validate_member_evidence(
-            records, expected_role="subject", expected_round=1)
+            records, expected_role="subject", expected_round=1,
+            expected_perf_observation=None)
+
+
+def test_member_evidence_requires_expected_perf_observation_argument():
+    with pytest.raises(TypeError, match="expected_perf_observation"):
+        validate_member_evidence(
+            _member_events(), expected_role="subject", expected_round=1)
+
+
+def test_degraded_member_evidence_matches_expected_prologue_observation():
+    observation = _degraded_observation()
+    admitted = validate_member_evidence(
+        _member_events(perf_observation=observation),
+        expected_role="subject", expected_round=1,
+        expected_perf_observation=observation,
+    )
+    assert admitted["median_tps"] == 100.0
+
+
+def test_m10_degraded_prologue_rejects_perf_present_member():
+    with pytest.raises(QualificationArtifactError, match="disagrees with prologue"):
+        validate_member_evidence(
+            _member_events(), expected_role="subject", expected_round=1,
+            expected_perf_observation=_degraded_observation(),
+        )
+
+
+def test_perf_present_prologue_rejects_degraded_member():
+    observation = _degraded_observation()
+    with pytest.raises(QualificationArtifactError, match="disagrees with prologue"):
+        validate_member_evidence(
+            _member_events(perf_observation=observation),
+            expected_role="subject", expected_round=1,
+            expected_perf_observation=None,
+        )
 
 
 def test_m7_retry_only_once_before_first_observation():

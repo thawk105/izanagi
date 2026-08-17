@@ -2500,7 +2500,7 @@ def test_gate_decision_is_built_only_by_factory_and_all_run_returns_propagate():
         assert isinstance(t080_value, ast.Name) and t080_value.id == "t080_campaign_value"
         categories.append(status or "terminal-status-variable")
     assert categories == [
-        *("refused-via-gate-decision" for _ in range(13)),
+        *("refused-via-gate-decision" for _ in range(14)),
         "budget_exhausted_before_attempt",
         "terminal-status-variable",
     ]
@@ -5146,6 +5146,149 @@ def test_v2_binary_mismatch_abort_maps_to_binary_mismatch_outcome(tmp_path):
                      evaluate_fn, out_root=out_root, tmp_path=tmp_path)
     outcomes = [e["outcome"] for e in result["events"] if e["event"] == "trial-result"]
     assert outcomes and set(outcomes) == {"binary-mismatch"}, result
+
+
+def _canonical_perf_receipt(status: str) -> dict:
+    available = status == "available"
+    return {
+        "schema": driver._perf_preflight.SCHEMA,
+        "status": status,
+        "available": available,
+        "probe_argv": list(driver._perf_preflight._BASE_PROBE_ARGV),
+        "rc": 0 if available else None,
+        "parsed_events": (
+            list(driver._perf_preflight.PERF_EVENTS) if available else []
+        ),
+        "reason": (
+            "available" if available else
+            "probe-os-error" if status == "probe_error" else
+            "perf-not-found"
+        ),
+        "stderr_sha256": "0" * 64,
+        "candidates": [],
+    }
+
+
+@pytest.fixture(autouse=True)
+def _pin_oracle_perf_available():
+    """既存の perf-present fixture を実行 host の availability から隔離する。"""
+    with mock.patch.object(
+            driver._perf_preflight, "probe_perf_availability",
+            return_value=_canonical_perf_receipt("available")):
+        yield
+
+
+def test_unavailable_preflight_creates_bound_measurement_manifest_and_passes_false_kwargs(
+        tmp_path):
+    freeze_path = _synthetic_freeze(tmp_path)
+    prepare_fn = _prepare_factory()
+    manifest_path, document = _write_manifest(tmp_path, freeze_path, prepare_fn)
+    prepare_fn.calls.clear()
+    evaluate_fn = _fake_evaluate_factory()
+    unavailable = _canonical_perf_receipt("unavailable")
+
+    with mock.patch.object(
+            driver._perf_preflight, "probe_perf_availability",
+            return_value=unavailable) as probe:
+        result = _run(
+            tmp_path, freeze_path, manifest_path, prepare_fn, evaluate_fn,
+        )
+
+    probe.assert_called_once_with()
+    assert result["status"] == "completed"
+    assert evaluate_fn.calls
+    for call in evaluate_fn.calls:
+        assert call["kwargs"]["use_perf"] is False
+        assert call["kwargs"]["perf_preflight_receipt"] == unavailable
+
+    start = result["events"][0]
+    assert set(start) == {
+        "event", "manifest_sha256", "block_id", "campaign_id",
+        "t080_freeze_migration_observation", "execution_receipt",
+        "measurement_manifest",
+    }
+    record = start["measurement_manifest"]
+    assert set(record) == {"path", "sha256"}
+    assert record["path"] == "measurement-manifest.json"
+    sidecar = (
+        tmp_path / "out" / "campaigns" / result["campaign_id"] / record["path"]
+    )
+    assert record["sha256"] == hashlib.sha256(sidecar.read_bytes()).hexdigest()
+    assert json.loads(sidecar.read_text(encoding="utf-8")) == {
+        "schema_version": "8b-oracle-measurement-manifest/v1",
+        "oracle_manifest_sha256": result["manifest_sha256"],
+        "campaign_id": document["campaign_ids"]["b0"],
+        "block_id": "b0",
+        "perf_observation": driver._perf_preflight.build_perf_observation(
+            unavailable, run_cmd=["ccbench"],
+            leading_indicators={"ipc": None, "llc_miss_rate": None},
+        ),
+    }
+
+
+def test_available_preflight_preserves_call_and_artifact_shape(tmp_path):
+    freeze_path = _synthetic_freeze(tmp_path)
+    prepare_fn = _prepare_factory()
+    manifest_path, _ = _write_manifest(tmp_path, freeze_path, prepare_fn)
+    prepare_fn.calls.clear()
+    evaluate_fn = _fake_evaluate_factory()
+    available = _canonical_perf_receipt("available")
+
+    with mock.patch.object(
+            driver._perf_preflight, "probe_perf_availability",
+            return_value=available) as probe:
+        result = _run(
+            tmp_path, freeze_path, manifest_path, prepare_fn, evaluate_fn,
+        )
+
+    probe.assert_called_once_with()
+    assert result["status"] == "completed"
+    assert evaluate_fn.calls
+    for call in evaluate_fn.calls:
+        assert "use_perf" not in call["kwargs"]
+        assert "perf_preflight_receipt" not in call["kwargs"]
+    assert set(result["events"][0]) == {
+        "event", "manifest_sha256", "block_id", "campaign_id",
+        "t080_freeze_migration_observation", "execution_receipt",
+    }
+    assert not (
+        tmp_path / "out" / "campaigns" / result["campaign_id"]
+        / "measurement-manifest.json"
+    ).exists()
+
+
+def test_probe_error_precedes_claim_marker_wal_and_budget(tmp_path):
+    freeze_path = _synthetic_freeze(tmp_path)
+    prepare_fn = _prepare_factory()
+    manifest_path, _ = _write_manifest(tmp_path, freeze_path, prepare_fn)
+    prepare_fn.calls.clear()
+    output_root = tmp_path / "probe-error-out"
+    budget_path = tmp_path / "probe-error-budget.json"
+    marker_root = tmp_path / "probe-error-markers"
+
+    with mock.patch.object(
+            driver._perf_preflight, "probe_perf_availability",
+            return_value=_canonical_perf_receipt("probe_error")) as probe, \
+            mock.patch.object(driver, "_acquire_g12_claim") as claim, \
+            mock.patch.object(driver, "_ensure_campaign") as ensure, \
+            mock.patch.object(driver, "_append_session") as append, \
+            mock.patch.object(driver.s8b_budget, "create_ledger") as ledger:
+        result = _run(
+            tmp_path, freeze_path, manifest_path, prepare_fn,
+            _fake_evaluate_factory(), output_root=output_root,
+            budget_path=budget_path, marker_root=marker_root,
+        )
+
+    probe.assert_called_once_with()
+    assert result["status"] == "refused"
+    assert result["refusals"] and result["refusals"][0].startswith("perf-preflight: ")
+    claim.assert_not_called()
+    ensure.assert_not_called()
+    append.assert_not_called()
+    ledger.assert_not_called()
+    assert not output_root.exists()
+    assert not budget_path.exists()
+    assert not marker_root.exists()
 
 
 from orchestrator.tests.growth_test_holds import enforce_held_functions  # noqa: E402

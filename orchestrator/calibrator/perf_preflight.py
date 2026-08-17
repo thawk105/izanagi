@@ -7,6 +7,7 @@ artifact を揮発させないよう ``<tmp>/perf.csv`` に正規化して記録
 from __future__ import annotations
 
 import hashlib
+import shlex
 import subprocess
 import tempfile
 from collections.abc import Mapping, Sequence
@@ -29,6 +30,17 @@ _RECEIPT_KEYS = {
 }
 _CANDIDATE_KEYS = {"path", "rc", "executable"}
 _ERROR_REASONS = {"probe-timeout", "probe-os-error", "probe-signal"}
+_OBSERVATION_KEYS = {
+    "use_perf", "counter_status", "missing_leading_indicators", "preflight",
+}
+_CLAIM_SCOPE = {
+    "throughput": "eligible",
+    "perf_required": "unsupported",
+}
+_PERF_LEADING_INDICATORS = ("llc_miss_rate", "ipc")
+_RAW_PERF_FIELD_NAMES = set(PERF_EVENTS) | {
+    "llc_load_misses", "llc_loads", "instructions", "cycles",
+}
 
 
 class PerfPreflightError(ValueError):
@@ -256,3 +268,201 @@ def use_perf_from_receipt(receipt: object | None) -> bool:
             f"perf preflight が判定不能: {normalized['reason']}"
         )
     return normalized["available"]
+
+
+def _missing_leading_indicators(value: object) -> list[str]:
+    if not isinstance(value, list):
+        raise PerfPreflightError(
+            "perf observation.missing_leading_indicators が list でない"
+        )
+    if (not all(isinstance(name, str) for name in value)
+            or any(name not in _PERF_LEADING_INDICATORS for name in value)
+            or len(set(value)) != len(value)):
+        raise PerfPreflightError(
+            "perf observation.missing_leading_indicators が canonical subset でない"
+        )
+    return list(value)
+
+
+def _measurement_argv(run_cmd: object) -> list[str]:
+    if isinstance(run_cmd, str):
+        try:
+            argv = shlex.split(run_cmd)
+        except ValueError as exc:
+            raise PerfPreflightError("measurement run_cmd を argv 化できない") from exc
+    elif (isinstance(run_cmd, Sequence)
+            and not isinstance(run_cmd, (str, bytes))
+            and all(isinstance(token, str) for token in run_cmd)):
+        argv = list(run_cmd)
+    else:
+        raise PerfPreflightError("measurement run_cmd が str または str の argv でない")
+    if not argv:
+        raise PerfPreflightError("measurement run_cmd が空である")
+    return argv
+
+
+def _has_perf_stat_prefix(argv: Sequence[str]) -> bool:
+    return any(
+        Path(first).name == "perf" and Path(second).name == "stat"
+        for first, second in zip(argv, argv[1:])
+    )
+
+
+def _validate_null_perf_values(value: object, *, path: str) -> None:
+    """degraded 成果物内に残った perf raw 値を入れ子も含めて拒否する。"""
+    if isinstance(value, Mapping):
+        for key, child in value.items():
+            child_path = f"{path}.{key}"
+            if key == "perf_raw":
+                if not isinstance(child, Mapping) or set(child) != set(PERF_EVENTS):
+                    raise PerfPreflightError(
+                        f"{child_path} の exact event 集合が不一致"
+                    )
+                if any(raw is not None for raw in child.values()):
+                    raise PerfPreflightError(
+                        f"{child_path} に non-null perf raw 値がある"
+                    )
+            elif key in _RAW_PERF_FIELD_NAMES and child is not None:
+                raise PerfPreflightError(
+                    f"{child_path} に non-null perf raw 値がある"
+                )
+            _validate_null_perf_values(child, path=child_path)
+    elif isinstance(value, Sequence) and not isinstance(value, (str, bytes)):
+        for index, child in enumerate(value):
+            _validate_null_perf_values(child, path=f"{path}[{index}]")
+
+
+def build_perf_observation(
+        receipt: object | None, *, run_cmd: object,
+        leading_indicators: Mapping[str, object]) -> dict | None:
+    """receipt と測定値から canonical observation を作る。
+
+    ``None`` receipt は legacy/perf-present の field 不在をそのまま保つ。
+    """
+    if receipt is None:
+        return None
+    if not isinstance(leading_indicators, Mapping):
+        raise PerfPreflightError("leading_indicators が object でない")
+    normalized_receipt = validate_perf_preflight_receipt(receipt)
+    use_perf = use_perf_from_receipt(normalized_receipt)
+    missing = (
+        [
+            name for name in _PERF_LEADING_INDICATORS
+            if leading_indicators.get(name) is None
+        ]
+        if use_perf else []
+    )
+    observation = {
+        "use_perf": use_perf,
+        "counter_status": (
+            "not_required" if not use_perf
+            else "complete" if not missing
+            else "incomplete"
+        ),
+        "missing_leading_indicators": missing,
+        "preflight": normalized_receipt,
+    }
+    if not use_perf:
+        observation["claim_scope"] = dict(_CLAIM_SCOPE)
+    return validate_perf_observation(
+        observation, run_cmd=run_cmd, leading_indicators=leading_indicators,
+    )
+
+
+def validate_perf_observation(
+        observation: object, *, run_cmd: object,
+        leading_indicators: Mapping[str, object]) -> dict:
+    """observation と同じ測定成果物の argv/指標を相互検証する。"""
+    if not isinstance(observation, Mapping):
+        raise PerfPreflightError("perf observation が object でない")
+    use_perf = observation.get("use_perf")
+    if type(use_perf) is not bool:
+        raise PerfPreflightError("perf observation.use_perf が bool でない")
+    expected_keys = _OBSERVATION_KEYS | ({"claim_scope"} if not use_perf else set())
+    if set(observation) != expected_keys:
+        raise PerfPreflightError("perf observation の exact key 集合が不一致")
+
+    normalized_receipt = validate_perf_preflight_receipt(
+        observation.get("preflight")
+    )
+    derived_use_perf = use_perf_from_receipt(normalized_receipt)
+    if use_perf is not derived_use_perf:
+        raise PerfPreflightError(
+            "perf observation.use_perf と preflight receipt が不整合"
+        )
+    missing = _missing_leading_indicators(
+        observation.get("missing_leading_indicators")
+    )
+    status = observation.get("counter_status")
+
+    if use_perf:
+        if status not in {"complete", "incomplete"}:
+            raise PerfPreflightError(
+                "perf observation.counter_status が perf 有り分岐と不整合"
+            )
+        expected_status = "complete" if not missing else "incomplete"
+        if status != expected_status:
+            raise PerfPreflightError(
+                "perf observation.counter_status と欠測指標が不整合"
+            )
+    else:
+        if status != "not_required" or missing != []:
+            raise PerfPreflightError(
+                "degraded perf observation の counter 状態が不整合"
+            )
+        if observation.get("claim_scope") != _CLAIM_SCOPE:
+            raise PerfPreflightError(
+                "degraded perf observation.claim_scope が不一致"
+            )
+        argv = _measurement_argv(run_cmd)
+        if _has_perf_stat_prefix(argv):
+            raise PerfPreflightError(
+                "degraded measurement run_cmd に perf stat prefix がある"
+            )
+        if not isinstance(leading_indicators, Mapping):
+            raise PerfPreflightError("leading_indicators が object でない")
+        for name in _PERF_LEADING_INDICATORS:
+            if name not in leading_indicators:
+                raise PerfPreflightError(
+                    f"leading_indicators.{name} が欠落している"
+                )
+            if leading_indicators[name] is not None:
+                raise PerfPreflightError(
+                    f"leading_indicators.{name} が non-null である"
+                )
+        _validate_null_perf_values(
+            leading_indicators, path="leading_indicators",
+        )
+        # 偽 unavailable でも本物の no-perf 走と完全整合しなければ通らず、偽造の利得をゼロにする。
+
+    normalized = {
+        "use_perf": use_perf,
+        "counter_status": status,
+        "missing_leading_indicators": missing,
+        "preflight": normalized_receipt,
+    }
+    if not use_perf:
+        normalized["claim_scope"] = dict(_CLAIM_SCOPE)
+    return normalized
+
+
+def _claim_decision(claim_scope: Mapping[str, str], claim: str) -> bool:
+    """M4 consumer 検査が判定だけを deny できる seam。"""
+    return claim_scope[claim] == "eligible"
+
+
+def perf_claim_allowed(
+        observation: object, claim: str, *, run_cmd: object,
+        leading_indicators: Mapping[str, object]) -> bool:
+    """canonical degraded observation が claim を支えられるか返す。"""
+    normalized = validate_perf_observation(
+        observation, run_cmd=run_cmd, leading_indicators=leading_indicators,
+    )
+    if claim not in _CLAIM_SCOPE:
+        raise PerfPreflightError(f"未知の perf claim: {claim!r}")
+    if normalized["use_perf"]:
+        return True
+    claim_scope = normalized.get("claim_scope")
+    if not isinstance(claim_scope, Mapping):
+        raise PerfPreflightError("perf observation.claim_scope が欠落している")
+    return _claim_decision(claim_scope, claim)

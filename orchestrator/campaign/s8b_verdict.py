@@ -86,9 +86,11 @@ from .s8b_selector_input import (
 from .s8b_descriptor import DescriptorError
 
 
+from . import s8b_floor_stats as _floor_stats  # noqa: E402
 from . import s8b_oracle_artifacts as _artifacts  # noqa: E402
 from . import s8b_oracle_judge, s8b_oracle_manifest, s8b_oracle_spec  # noqa: E402
 from . import s8b_ratified_freeze  # noqa: E402
+from orchestrator.calibrator import perf_preflight as _perf_preflight  # noqa: E402
 
 
 
@@ -108,6 +110,7 @@ SCALE_ADEQUATE = "adequate"
 SCALE_INADEQUATE = "inadequate"
 SCALE_STOCK_INELIGIBLE = "stock-ineligible"
 SCALE_REF_NULL = "scale-ref-null"
+SCALE_MEASUREMENT_CONDITIONS_MISMATCH = "measurement-conditions-mismatch"
 
 # projector の解決結果。
 _PROJECT_QUERY = "query"            # pair floor を取得できた (query して条件 3 を判定)
@@ -115,6 +118,14 @@ _PROJECT_REFUTED = "refuted"        # on == off 短絡 (差 0 で不成立側、
 _PROJECT_INDETERMINATE = "indeterminate"  # off≠stock / pair null / 欠測 → 判定不能
 
 _ARMS = ("on", "off", "swapped")
+_MEASUREMENT_CONDITION_KEYS = {
+    "campaign_id", "measurement_manifest_sha256", "perf_observation",
+}
+_DEGRADED_PLACEHOLDER_CMD = ("ccbench",)
+_DEGRADED_PLACEHOLDER_INDICATORS = {
+    "ipc": None,
+    "llc_miss_rate": None,
+}
 
 
 class VerdictError(RuntimeError):
@@ -504,6 +515,129 @@ def _oracle_holdouts(oracle: Mapping) -> tuple[dict, list[dict]]:
     return dict(holdouts), reasons
 
 
+def _combined_measurement_conditions(
+        oracle: Mapping, floor_source: Mapping | None,
+) -> tuple[dict | None, list[dict], bool]:
+    """bound floor observation と oracle campaign 条件を claim gate 後に比較する。"""
+    reasons: list[dict] = []
+    floor_observation = None
+    if not isinstance(floor_source, Mapping):
+        reasons.append(_reason(
+            "floor-source-type", "bound floor_source が object でない",
+        ))
+    elif isinstance(floor_source, Mapping):
+        raw_floor_observation = floor_source.get("perf_observation")
+        if raw_floor_observation is not None:
+            try:
+                contexts = _floor_stats.floor_perf_validation_contexts(floor_source)
+                run_cmd, leading_indicators = contexts[0]
+                allowed = _perf_preflight.perf_claim_allowed(
+                    raw_floor_observation,
+                    "throughput",
+                    run_cmd=run_cmd,
+                    leading_indicators=leading_indicators,
+                )
+                floor_observation = _perf_preflight.validate_perf_observation(
+                    raw_floor_observation,
+                    run_cmd=run_cmd,
+                    leading_indicators=leading_indicators,
+                )
+                for candidate_cmd, candidate_indicators in contexts[1:]:
+                    candidate = _perf_preflight.validate_perf_observation(
+                        raw_floor_observation,
+                        run_cmd=candidate_cmd,
+                        leading_indicators=candidate_indicators,
+                    )
+                    if candidate != floor_observation:
+                        raise _perf_preflight.PerfPreflightError(
+                            "floor session 間で perf observation が不一致"
+                        )
+                if not allowed:
+                    reasons.append(_reason(
+                        "floor-measurement-claim",
+                        "floor measurement condition は throughput claim を許可しない",
+                    ))
+                if floor_observation.get("preflight") != floor_source.get("perf_preflight"):
+                    reasons.append(_reason(
+                        "floor-measurement-preflight",
+                        "floor perf_observation.preflight が floor_source receipt と不一致",
+                    ))
+            except _perf_preflight.PerfPreflightError as exc:
+                reasons.append(_reason(
+                    "floor-measurement-condition",
+                    f"floor perf_observation が不正: {exc}",
+                ))
+
+    raw_oracle_conditions = oracle.get("measurement_conditions")
+    oracle_conditions: list[dict] | None = None
+    oracle_observations: list[dict | None] = []
+    if raw_oracle_conditions is not None:
+        if (not isinstance(raw_oracle_conditions, Sequence)
+                or isinstance(raw_oracle_conditions, (str, bytes, bytearray))
+                or not raw_oracle_conditions):
+            reasons.append(_reason(
+                "oracle-measurement-conditions",
+                "oracle measurement_conditions が空でない array でない",
+            ))
+            oracle_conditions = []
+        else:
+            oracle_conditions = []
+            for entry in raw_oracle_conditions:
+                if (not isinstance(entry, Mapping)
+                        or set(entry) != _MEASUREMENT_CONDITION_KEYS):
+                    reasons.append(_reason(
+                        "oracle-measurement-condition-schema",
+                        "oracle measurement condition の exact key 集合が不一致",
+                    ))
+                    continue
+                normalized_entry = dict(entry)
+                observation = entry.get("perf_observation")
+                if observation is not None:
+                    try:
+                        normalized = _perf_preflight.validate_perf_observation(
+                            observation,
+                            run_cmd=_DEGRADED_PLACEHOLDER_CMD,
+                            leading_indicators=_DEGRADED_PLACEHOLDER_INDICATORS,
+                        )
+                    except _perf_preflight.PerfPreflightError as exc:
+                        reasons.append(_reason(
+                            "oracle-measurement-condition",
+                            f"oracle perf_observation が不正: {exc}",
+                        ))
+                        continue
+                    normalized_entry["perf_observation"] = normalized
+                    observation = normalized
+                oracle_conditions.append(normalized_entry)
+                oracle_observations.append(observation)
+
+    conditions_present = (
+        floor_observation is not None or raw_oracle_conditions is not None
+    )
+    mismatch = False
+    if raw_oracle_conditions is None:
+        mismatch = floor_observation is not None
+    elif floor_observation is None:
+        mismatch = True
+    else:
+        mismatch = (
+            not oracle_observations
+            or any(observation != floor_observation
+                   for observation in oracle_observations)
+        )
+    if mismatch:
+        reasons.append(_reason(
+            "measurement-conditions-mismatch",
+            "bound floor_source と oracle の測定条件が一致しない",
+        ))
+    evidence = None
+    if conditions_present:
+        evidence = {
+            "floor_perf_observation": floor_observation,
+            "oracle": oracle_conditions,
+        }
+    return evidence, reasons, mismatch or bool(reasons)
+
+
 def _pred_diff(on_choice: object, off_choice: object) -> str:
     """条件 1 の holdout 単位判定: on 予測 choice と off 予測 choice が異なるか。"""
     if on_choice is None or off_choice is None:
@@ -706,12 +840,14 @@ def _conjunction(verdicts: Sequence[str]) -> str:
 
 def judge_combined(*, prediction: VerifiedPrediction, oracle: VerifiedOracleVerdict,
                    floor_by_holdout: Mapping, expected_holdouts: object,
-                   scale_tolerance: object) -> dict:
+                   scale_tolerance: object,
+                   floor_source: Mapping) -> dict:
     """検証済み prediction・oracle verdict・per-pair floor から §6 の 3 条件と結論を判定する。
 
     ``prediction`` は ``VerifiedPrediction`` (未検証 dict は fail-closed に拒否)、
     ``oracle`` は ``verify_oracle_verdict`` が封印した再導出済み verdict、``floor_by_holdout`` は
     ``freeze.floor.by_holdout`` の per-pair 表 (holdout → {pairs, scale_ref, scalar_alt})、
+    ``floor_source`` は ratified freeze の bound floor_source blob を strict load した文書、
     ``expected_holdouts`` は凍結 holdout ID 集合 (裁定 5 項 1 の全称量化の領域)、
     ``scale_tolerance`` は protocol 由来の ``scale_adequacy_rel_tolerance`` (暗黙 default 禁止)。
 
@@ -748,6 +884,10 @@ def judge_combined(*, prediction: VerifiedPrediction, oracle: VerifiedOracleVerd
     oracle_holdouts, oracle_reasons = _oracle_holdouts(oracle_document)
     expected_domain, holdout_reasons = _expected_holdout_set(expected_holdouts)
     structural_reasons = pred_reasons + exp_reasons + oracle_reasons + holdout_reasons
+    measurement_conditions, measurement_reasons, measurement_mismatch = (
+        _combined_measurement_conditions(oracle_document, floor_source)
+    )
+    structural_reasons.extend(measurement_reasons)
 
     expected_set = set(expected_domain)
     present_targets = {target for (target, _arm) in pred_index}
@@ -798,7 +938,15 @@ def judge_combined(*, prediction: VerifiedPrediction, oracle: VerifiedOracleVerd
         for violation in projected.violations:
             protocol_violations.append({**violation, "holdout": target})
 
-        scale_state, observed_stock = _scale_state(oracle_holdout, scale_ref, tolerance)
+        if measurement_mismatch:
+            scale_state, observed_stock = (
+                SCALE_MEASUREMENT_CONDITIONS_MISMATCH,
+                None,
+            )
+        else:
+            scale_state, observed_stock = _scale_state(
+                oracle_holdout, scale_ref, tolerance,
+            )
         scale_states[target] = scale_state
 
         if projected.resolution == _PROJECT_REFUTED:
@@ -893,7 +1041,7 @@ def judge_combined(*, prediction: VerifiedPrediction, oracle: VerifiedOracleVerd
         },
     }
 
-    return {
+    result = {
         "schema_version": SCHEMA_VERSION,
         "status": conclusion,
         "same_holdout_coupled_verdict": coupled_existential,
@@ -909,6 +1057,9 @@ def judge_combined(*, prediction: VerifiedPrediction, oracle: VerifiedOracleVerd
         },
         "reasons": _sorted_reasons(structural_reasons),
     }
+    if measurement_conditions is not None:
+        result["measurement_conditions"] = measurement_conditions
+    return result
 
 
 # ---------------------------------------------------------------------------
@@ -1025,6 +1176,11 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         _validate_execution_snapshot(freeze_document, holdout_ids=holdout_ids)
         floor_by_holdout = freeze_document["floor"]["by_holdout"]
         scale_tolerance = _resolve_scale_tolerance(freeze_document, root=root)
+        floor_source = _artifacts.strict_load_json_object(
+            s8b_ratified_freeze.read_floor_source_blob(
+                reverified.ratified, root,
+            )
+        )
 
         prediction_document = _load_json_object(args.prediction)
         verified_prediction = verify_prediction(
@@ -1039,7 +1195,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         verdict = judge_combined(
             prediction=verified_prediction, oracle=verified_oracle,
             floor_by_holdout=floor_by_holdout, expected_holdouts=set(holdout_ids),
-            scale_tolerance=scale_tolerance)
+            scale_tolerance=scale_tolerance, floor_source=floor_source)
         _write_create_only(args.out, verdict)
     except (OSError, json.JSONDecodeError, TypeError, ValueError,
             VerdictError, _artifacts.OracleArtifactTypeError,

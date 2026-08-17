@@ -1,8 +1,9 @@
 # -*- coding: utf-8 -*-
 """S8b floor protocol / cell / schedule の共有 validation leaf。
 
-stdlib と ``s8b_experiment_numbers`` のみに依存し、campaign 内のそれ以外の module は
-import しない。発行側と検証側が同じ protocol 正規化、``verify_floor_artifact`` 用射影、
+stdlib と ``perf_preflight``、``s8b_experiment_numbers`` のみに依存し、campaign 内の
+それ以外の module は import しない。発行側と検証側が同じ protocol 正規化、
+``verify_floor_artifact`` 用射影、
 freeze 由来セル集合、決定的 schedule を循環 import なしで利用するための単一源である。
 
 ``validate_protocol`` の ``contract_sha256_lookup`` は env registry の単一源を leaf 内へ複製
@@ -21,6 +22,7 @@ from collections.abc import Callable, Mapping, Sequence
 from pathlib import PurePosixPath
 from typing import Optional
 
+from ..calibrator import perf_preflight as _perf_preflight
 from . import s8b_experiment_numbers as _experiment_numbers
 
 
@@ -107,14 +109,62 @@ class FloorContractError(RuntimeError):
     """floor 共有契約を検証できない場合の fail-closed 拒否。"""
 
 
-def result_keys_for_mode(mode: object) -> frozenset[str]:
+def _official_perf_evidence_keys(receipt: object | None) -> frozenset[str]:
+    """official receipt から degraded-only evidence keys を返す。"""
+
+    try:
+        use_perf = _perf_preflight.use_perf_from_receipt(receipt)
+    except _perf_preflight.PerfPreflightError as exc:
+        raise FloorContractError(f"perf_preflight receipt が不正: {exc}") from exc
+    if receipt is not None and use_perf:
+        raise FloorContractError("official mode の available perf_preflight receipt を拒否する")
+    if receipt is None:
+        return frozenset()
+    return frozenset({"perf_preflight", "perf_observation"})
+
+
+def manifest_perf_validation_context(
+        document: Mapping[str, object]) -> tuple[object, Mapping[str, object]]:
+    """manifest 自身から degraded observation の必須検証 context を導出する。"""
+
+    binaries = document.get("binaries") if isinstance(document, Mapping) else None
+    run_cmd: object = ("floor-manifest-no-perf",)
+    if isinstance(binaries, Mapping):
+        for cell_id in sorted(binaries, key=str):
+            record = binaries[cell_id]
+            if isinstance(record, Mapping) and isinstance(record.get("binary"), str):
+                run_cmd = (record["binary"],)
+                break
+    return run_cmd, {
+        "ipc": None,
+        "llc_miss_rate": None,
+        "manifest": document,
+    }
+
+
+def result_keys_for_mode(
+        mode: object, *, perf_preflight: object | None = None) -> frozenset[str]:
     """result v4 の mode 条件付き top-level exact key 集合を返す。"""
 
-    if mode == "official":
-        return _RESULT_KEYS
     if mode == "pilot":
+        # Legacy pilot result は receipt の値によらず perf_preflight を必須とする。
         return _RESULT_KEYS | {"perf_preflight"}
+    if mode == "official":
+        return _RESULT_KEYS | _official_perf_evidence_keys(perf_preflight)
     raise FloorContractError("result.mode が exact {'pilot','official'} でない")
+
+
+def manifest_keys_for_mode(
+        mode: object, *, perf_preflight: object | None = None) -> frozenset[str]:
+    """manifest v3 の receipt 条件付き top-level exact key 集合を返す。"""
+
+    if mode == "pilot":
+        # Legacy pilot manifest は receipt 無し/有りの二つの exact 集合を許す。
+        evidence_keys = {"perf_preflight"} if perf_preflight is not None else set()
+        return _MANIFEST_KEYS | evidence_keys
+    if mode == "official":
+        return _MANIFEST_KEYS | _official_perf_evidence_keys(perf_preflight)
+    raise FloorContractError("manifest.mode が exact {'pilot','official'} でない")
 
 
 def validate_session_start_authorizations(
@@ -197,13 +247,14 @@ def validate_manifest_v3(
     protocol_sha256: str, freeze_sha256: str,
     expected_cells: Sequence[Mapping[str, object]],
     expected_schedule: Sequence[Mapping[str, object]], mode: str,
+    run_cmd: object, leading_indicators: Mapping[str, object],
 ) -> dict[str, object]:
     """manifest v3 の exact shape と protocol/cells/binaries/schedule 束縛を検査する。"""
 
-    allowed_keys = _MANIFEST_KEYS | ({"perf_preflight"} if mode == "pilot" else set())
     received_keys = set(document) if isinstance(document, Mapping) else set()
-    valid_keysets = (set(_MANIFEST_KEYS), set(allowed_keys))
-    if mode not in {"pilot", "official"} or received_keys not in valid_keysets:
+    receipt = document.get("perf_preflight") if isinstance(document, Mapping) else None
+    expected_keys = manifest_keys_for_mode(mode, perf_preflight=receipt)
+    if received_keys != set(expected_keys):
         raise FloorContractError("manifest v3 の mode 条件付き exact key 集合が不一致")
     if document["schema_version"] != MANIFEST_SCHEMA:
         raise FloorContractError(f"manifest.schema_version が {MANIFEST_SCHEMA} でない")
@@ -225,6 +276,18 @@ def validate_manifest_v3(
     for key, expected in mirrors.items():
         if document[key] != expected or type(document[key]) is not type(expected):
             raise FloorContractError(f"manifest.{key} が protocol/anchor と不一致")
+    if "perf_observation" in expected_keys:
+        try:
+            normalized_observation = _perf_preflight.validate_perf_observation(
+                document.get("perf_observation"), run_cmd=run_cmd,
+                leading_indicators=leading_indicators,
+            )
+        except _perf_preflight.PerfPreflightError as exc:
+            raise FloorContractError(f"manifest.perf_observation が不正: {exc}") from exc
+        if normalized_observation["preflight"] != receipt:
+            raise FloorContractError(
+                "manifest.perf_observation.preflight が perf_preflight と不一致"
+            )
     if type(document["cells"]) is not list:
         raise FloorContractError("manifest.cells が list でない")
     for cell in document["cells"]:

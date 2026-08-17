@@ -76,6 +76,124 @@ def _positive_fixture_report() -> dict:
     )
 
 
+def _perf_unavailable_receipt(*, marker: bytes = b"holdout-degraded") -> dict:
+    events = ["LLC-load-misses", "LLC-loads", "instructions", "cycles"]
+    return {
+        "schema": "izanagi-perf-preflight/v1",
+        "status": "unavailable",
+        "available": False,
+        "probe_argv": [
+            "perf", "stat", "-x,", "-o", "<tmp>/perf.csv", "-e",
+            ",".join(events), "--", "/bin/true",
+        ],
+        "rc": None,
+        "parsed_events": [],
+        "reason": "perf-not-found",
+        "stderr_sha256": hashlib.sha256(marker).hexdigest(),
+        "candidates": [],
+    }
+
+
+def _perf_degraded_observation(receipt: dict) -> dict:
+    return {
+        "use_perf": False,
+        "counter_status": "not_required",
+        "missing_leading_indicators": [],
+        "preflight": receipt,
+        "claim_scope": {
+            "throughput": "eligible",
+            "perf_required": "unsupported",
+        },
+    }
+
+
+def _degrade_v2_candidate_repository(fixture: dict) -> None:
+    """共有 true fixture を canonical degraded floor closure へ局所変換する。"""
+    from orchestrator.campaign import env_contract
+    from orchestrator.campaign import s8b_floor_contract as contract
+    from orchestrator.tests.s8b_floor_evidence_fixture import (
+        build_floor_admission_evidence,
+    )
+
+    root = fixture["root"]
+    result_path = root / fixture["result_rel"]
+    run_dir = result_path.parent
+    manifest_path = run_dir / "manifest.json"
+    journal_path = run_dir / "journal.jsonl"
+    result = json.loads(result_path.read_bytes())
+    manifest = json.loads(manifest_path.read_bytes())
+    receipt = _perf_unavailable_receipt()
+    observation = _perf_degraded_observation(receipt)
+
+    for session in result["sessions"]:
+        session["run_cmd"] = [
+            result["binaries"][session["cell_id"]]["binary"],
+        ]
+        for rep in session["rep_observations"]:
+            rep["counter_status"] = "not_required"
+            rep["perf_raw"] = {
+                event: None for event in (
+                    "LLC-load-misses", "LLC-loads", "instructions", "cycles",
+                )
+            }
+    manifest["perf_preflight"] = receipt
+    manifest["perf_observation"] = observation
+    manifest_raw = V2FIX.canonical_bytes(manifest)
+    manifest_path.write_bytes(manifest_raw)
+    manifest_sha256 = hashlib.sha256(manifest_raw).hexdigest()
+    result["manifest_sha256"] = manifest_sha256
+    result["perf_preflight"] = receipt
+    result["perf_observation"] = observation
+
+    protocol_document = json.loads((root / M.FLOOR_PROTOCOL_REL).read_bytes())
+    protocol = contract.validate_protocol(
+        protocol_document,
+        contract_sha256_lookup=lambda env_tag: env_contract.lookup(
+            env_tag,
+        ).contract_sha256,
+    )
+    v1 = json.loads((root / M.FREEZE_REL).read_bytes())
+    cells = contract.enumerate_cells(
+        v1, stock_configuration=protocol["stock_configuration"],
+    )
+    schedule = contract.build_schedule(
+        cells=cells, master_seed=protocol["master_seed"],
+        n_sessions=protocol["n_sessions"],
+    )
+    admission_root = root / ".git/izanagi/s8b-holdout-admission-v1"
+    shutil.rmtree(admission_root)
+    evidence = build_floor_admission_evidence(
+        admission_root,
+        protocol=protocol,
+        freeze=v1,
+        freeze_sha256=protocol["freeze"]["sha256"],
+        manifest_sha256=manifest_sha256,
+        campaign_run_id=result["holdout_admission"]["campaign_run_id"],
+        run_relpath=result["holdout_admission"]["run_relpath"],
+        mode="official",
+        cells=cells,
+        schedule=schedule,
+        sessions=result["sessions"],
+    )
+    result["holdout_admission"] = evidence.expected_receipt
+    result_path.write_bytes(V2FIX.canonical_bytes(result))
+
+    sessions_by_seq = {session["seq"]: session for session in result["sessions"]}
+    journal = [
+        json.loads(line)
+        for line in journal_path.read_text(encoding="utf-8").splitlines()
+    ]
+    journal = [
+        sessions_by_seq[row["seq"]] if row.get("event") == "session" else row
+        for row in journal
+    ]
+    journal_path.write_bytes(b"".join(
+        V2FIX.canonical_bytes(row) + b"\n" for row in journal
+    ))
+    _git(root, "add", "-A")
+    _git(root, "commit", "-qm", "degraded floor fixture")
+
+
 def test_t080_positive_control_fixture_raw_bytes_match_test_pin():
     payload = FIXTURE_ROOTS.POSITIVE_CONTROL_FILE.read_bytes()
 
@@ -1321,6 +1439,66 @@ def test_v2_candidate_build_and_generate_synthetic_g1(tmp_path, monkeypatch):
     assert generated == document
     with pytest.raises(M.FreezeError, match="安全に新規作成できない"):
         M.generate_v2_g1_candidate(
+            floor_result_path=fixture["result_rel"],
+            budget_path=fixture["budget_rel"],
+            root=root,
+        )
+
+
+def test_v2_candidate_threads_receipt_derived_degraded_mode_to_floor_stats(
+        tmp_path, monkeypatch):
+    """M7: D の入口が old fixed True へ戻れば、この wiring assertion だけが赤になる。"""
+    from orchestrator.campaign import s8b_floor_stats
+
+    fixture = V2FIX.candidate_repository(tmp_path, M)
+    _degrade_v2_candidate_repository(fixture)
+    root = fixture["root"]
+    monkeypatch.setattr(
+        M, "BUDGET_APPROVAL_SHA256", fixture["approval_sha256"],
+    )
+    original = s8b_floor_stats.verify_floor_artifact_with_live_admission
+    received_use_perf = []
+
+    def verify_with_wiring_assertion(*args, **kwargs):
+        assert kwargs["expected_use_perf"] is False
+        received_use_perf.append(kwargs["expected_use_perf"])
+        return original(*args, **kwargs)
+
+    monkeypatch.setattr(
+        s8b_floor_stats, "verify_floor_artifact_with_live_admission",
+        verify_with_wiring_assertion,
+    )
+
+    document = M.build_v2_g1_candidate(
+        floor_result_path=fixture["result_rel"],
+        budget_path=fixture["budget_rel"],
+        root=root,
+    )
+
+    assert received_use_perf == [False]
+    assert frozenset(document) == M.V2_TOP_LEVEL_KEYS
+    assert document["floor"]["by_holdout"]
+
+
+def test_v2_candidate_rejects_result_manifest_degraded_evidence_mismatch(
+        tmp_path, monkeypatch):
+    fixture = V2FIX.candidate_repository(tmp_path, M)
+    _degrade_v2_candidate_repository(fixture)
+    root = fixture["root"]
+    monkeypatch.setattr(
+        M, "BUDGET_APPROVAL_SHA256", fixture["approval_sha256"],
+    )
+    result_path = root / fixture["result_rel"]
+    result = json.loads(result_path.read_bytes())
+    different_receipt = _perf_unavailable_receipt(marker=b"different-result")
+    result["perf_preflight"] = different_receipt
+    result["perf_observation"] = _perf_degraded_observation(different_receipt)
+    result_path.write_bytes(V2FIX.canonical_bytes(result))
+
+    with pytest.raises(
+            M.FreezeError,
+            match="^floor-admission-mismatch: result/manifest の perf evidence が不一致$"):
+        M.build_v2_g1_candidate(
             floor_result_path=fixture["result_rel"],
             budget_path=fixture["budget_rel"],
             root=root,

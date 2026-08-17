@@ -17,6 +17,7 @@ sys.path.insert(0, str(ORCHESTRATOR.parent))
 
 from orchestrator.campaign import s8b_floor_campaign  # noqa: E402
 from orchestrator.campaign import s8b_floor_contract  # noqa: E402
+from orchestrator.calibrator import perf_preflight  # noqa: E402
 
 
 _CONTRACT_SHA256 = "a" * 64
@@ -44,6 +45,64 @@ def _protocol() -> dict:
         "scale_adequacy_rel_tolerance": "0.10",
         "allowed_excluded_reasons": list(s8b_floor_contract._APPROVED_REASONS),
     }
+
+
+def _perf_receipt(*, available: bool) -> dict:
+    events = ["LLC-load-misses", "LLC-loads", "instructions", "cycles"]
+    return {
+        "schema": "izanagi-perf-preflight/v1",
+        "status": "available" if available else "unavailable",
+        "available": available,
+        "probe_argv": [
+            "perf", "stat", "-x,", "-o", "<tmp>/perf.csv",
+            "-e", ",".join(events), "--", "/bin/true",
+        ],
+        "rc": 0 if available else None,
+        "parsed_events": events if available else [],
+        "reason": "available" if available else "perf-not-found",
+        "stderr_sha256": hashlib.sha256(b"").hexdigest(),
+        "candidates": [],
+    }
+
+
+def _manifest_fixture(*, receipt: dict | None = None) -> tuple[
+        dict, dict, list[dict], list[dict], tuple[str, ...], dict]:
+    protocol = _protocol()
+    cells = [{
+        "cell_id": "holdout-a::stock", "holdout_id": "holdout-a",
+        "configuration_id": "stock", "records": 100, "threads": 2,
+        "workload": {"ycsb_rratio": "50"},
+    }]
+    schedule = [{"seq": 0, "round": 1, "cell_id": "holdout-a::stock"}]
+    document = {
+        "schema_version": s8b_floor_contract.MANIFEST_SCHEMA,
+        "protocol_sha256": "1" * 64,
+        "freeze": dict(protocol["freeze"]),
+        "freeze_sha256": protocol["freeze"]["sha256"],
+        "env_tag": protocol["env_tag"],
+        "ccbench_pin": protocol["ccbench_pin"],
+        "stock_configuration": protocol["stock_configuration"],
+        "schedule_algorithm": protocol["schedule_algorithm"],
+        "master_seed": protocol["master_seed"],
+        "n_sessions": protocol["n_sessions"],
+        "reps": protocol["reps"],
+        "extime_s": protocol["extime_s"],
+        "session_cv_max": protocol["session_cv_max"],
+        "cell_cv_max": protocol["cell_cv_max"],
+        "cells": deepcopy(cells),
+        "binaries": {
+            "holdout-a::stock": {
+                "cell_id": "holdout-a::stock", "holdout_id": "holdout-a",
+                "configuration_id": "stock", "binary": "output/fixture/bench",
+            },
+        },
+        "schedule": deepcopy(schedule),
+    }
+    run_cmd = ("output/fixture/bench",)
+    leading_indicators = {"ipc": None, "llc_miss_rate": None}
+    if receipt is not None:
+        document["perf_preflight"] = deepcopy(receipt)
+    return document, protocol, cells, schedule, run_cmd, leading_indicators
 
 
 def _lookup_contract_sha256(env_tag: str) -> str:
@@ -293,10 +352,125 @@ def test_canonical_authorization_rejects_duplicate_cell_retry_ordinal():
 
 
 def test_result_v4_key_contract_is_mode_conditional_and_exact():
+    base = s8b_floor_contract._RESULT_KEYS
     official = s8b_floor_contract.result_keys_for_mode("official")
     pilot = s8b_floor_contract.result_keys_for_mode("pilot")
-    assert pilot == official | {"perf_preflight"}
+    degraded = s8b_floor_contract.result_keys_for_mode(
+        "official", perf_preflight=_perf_receipt(available=False),
+    )
+    assert official == base
+    assert pilot == base | {"perf_preflight"}
+    assert degraded == base | {"perf_preflight", "perf_observation"}
+    assert s8b_floor_contract.result_keys_for_mode(
+        "pilot", perf_preflight=_perf_receipt(available=False),
+    ) == pilot
     assert "unexpected" not in official
+    with pytest.raises(s8b_floor_contract.FloorContractError, match="available"):
+        s8b_floor_contract.result_keys_for_mode(
+            "official", perf_preflight=_perf_receipt(available=True),
+        )
+
+
+def test_manifest_v3_key_contract_preserves_pilot_and_splits_official_degraded():
+    base = s8b_floor_contract._MANIFEST_KEYS
+    unavailable = _perf_receipt(available=False)
+    assert s8b_floor_contract.manifest_keys_for_mode("official") == base
+    assert s8b_floor_contract.manifest_keys_for_mode(
+        "official", perf_preflight=unavailable,
+    ) == base | {"perf_preflight", "perf_observation"}
+    assert s8b_floor_contract.manifest_keys_for_mode("pilot") == base
+    assert s8b_floor_contract.manifest_keys_for_mode(
+        "pilot", perf_preflight=unavailable,
+    ) == base | {"perf_preflight"}
+    with pytest.raises(s8b_floor_contract.FloorContractError, match="available"):
+        s8b_floor_contract.manifest_keys_for_mode(
+            "official", perf_preflight=_perf_receipt(available=True),
+        )
+
+
+def test_validate_manifest_v3_accepts_exact_strict_official_degraded_shape():
+    receipt = _perf_receipt(available=False)
+    document, protocol, cells, schedule, run_cmd, indicators = _manifest_fixture(
+        receipt=receipt,
+    )
+    document["perf_observation"] = perf_preflight.build_perf_observation(
+        receipt, run_cmd=run_cmd, leading_indicators=indicators,
+    )
+    normalized = s8b_floor_contract.validate_manifest_v3(
+        document, protocol=protocol, protocol_sha256="1" * 64,
+        freeze_sha256=protocol["freeze"]["sha256"],
+        expected_cells=cells, expected_schedule=schedule, mode="official",
+        run_cmd=run_cmd, leading_indicators=indicators,
+    )
+    assert normalized == document
+
+    missing = deepcopy(document)
+    missing.pop("perf_observation")
+    with pytest.raises(s8b_floor_contract.FloorContractError, match="exact key"):
+        s8b_floor_contract.validate_manifest_v3(
+            missing, protocol=protocol, protocol_sha256="1" * 64,
+            freeze_sha256=protocol["freeze"]["sha256"],
+            expected_cells=cells, expected_schedule=schedule, mode="official",
+            run_cmd=run_cmd, leading_indicators=indicators,
+        )
+
+    extra = deepcopy(document)
+    extra["unexpected"] = True
+    with pytest.raises(s8b_floor_contract.FloorContractError, match="exact key"):
+        s8b_floor_contract.validate_manifest_v3(
+            extra, protocol=protocol, protocol_sha256="1" * 64,
+            freeze_sha256=protocol["freeze"]["sha256"],
+            expected_cells=cells, expected_schedule=schedule, mode="official",
+            run_cmd=run_cmd, leading_indicators=indicators,
+        )
+
+
+@pytest.mark.parametrize(
+    ("run_cmd", "indicators", "match"),
+    [
+        (("perf", "stat", "--", "output/fixture/bench"),
+         {"ipc": None, "llc_miss_rate": None}, "perf stat prefix"),
+        (("output/fixture/bench",),
+         {"ipc": 1.0, "llc_miss_rate": None}, "ipc.*non-null"),
+    ],
+)
+def test_validate_manifest_v3_rejects_internally_inconsistent_degraded_evidence(
+        run_cmd, indicators, match):
+    receipt = _perf_receipt(available=False)
+    document, protocol, cells, schedule, clean_cmd, clean_indicators = (
+        _manifest_fixture(receipt=receipt)
+    )
+    document["perf_observation"] = perf_preflight.build_perf_observation(
+        receipt, run_cmd=clean_cmd, leading_indicators=clean_indicators,
+    )
+    with pytest.raises(s8b_floor_contract.FloorContractError, match=match):
+        s8b_floor_contract.validate_manifest_v3(
+            document, protocol=protocol, protocol_sha256="1" * 64,
+            freeze_sha256=protocol["freeze"]["sha256"],
+            expected_cells=cells, expected_schedule=schedule, mode="official",
+            run_cmd=run_cmd, leading_indicators=indicators,
+        )
+
+
+def test_validate_manifest_v3_preserves_legacy_official_and_pilot_shapes():
+    document, protocol, cells, schedule, run_cmd, indicators = _manifest_fixture()
+    assert s8b_floor_contract.validate_manifest_v3(
+        document, protocol=protocol, protocol_sha256="1" * 64,
+        freeze_sha256=protocol["freeze"]["sha256"],
+        expected_cells=cells, expected_schedule=schedule, mode="official",
+        run_cmd=run_cmd, leading_indicators=indicators,
+    ) == document
+
+    receipt = _perf_receipt(available=True)
+    pilot, protocol, cells, schedule, run_cmd, indicators = _manifest_fixture(
+        receipt=receipt,
+    )
+    assert s8b_floor_contract.validate_manifest_v3(
+        pilot, protocol=protocol, protocol_sha256="1" * 64,
+        freeze_sha256=protocol["freeze"]["sha256"],
+        expected_cells=cells, expected_schedule=schedule, mode="pilot",
+        run_cmd=run_cmd, leading_indicators=indicators,
+    ) == pilot
 
 
 def test_enumerate_cells_rejects_freeze_without_sort_best():

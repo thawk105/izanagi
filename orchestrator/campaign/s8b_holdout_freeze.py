@@ -1286,6 +1286,7 @@ def _validate_floor_inputs(
     from . import s8b_floor_contract
     from . import s8b_floor_stats
     from . import s8b_binary_admission
+    from ..calibrator import perf_preflight as _perf_preflight
     from .s8b_holdout_admission import FloorHoldoutEvidenceError
     from .build_admission import resolve_current_build_admission_policy
     from .s8b_launch_cert import LaunchCertError, parse_official_run_path
@@ -1320,7 +1321,18 @@ def _validate_floor_inputs(
         path_info = parse_official_run_path(result_rel, expected_basename="result.json")
     except LaunchCertError as exc:
         raise FreezeError(f"floor result path が official result でない: {exc}") from exc
-    if frozenset(result) != s8b_floor_contract.result_keys_for_mode("official"):
+    result_perf_preflight = result.get("perf_preflight")
+    try:
+        expected_use_perf = _perf_preflight.use_perf_from_receipt(
+            result_perf_preflight
+        )
+        expected_result_keys = s8b_floor_contract.result_keys_for_mode(
+            "official", perf_preflight=result_perf_preflight,
+        )
+    except (_perf_preflight.PerfPreflightError,
+            s8b_floor_contract.FloorContractError) as exc:
+        raise FreezeError(f"floor result の perf evidence が不正: {exc}") from exc
+    if frozenset(result) != expected_result_keys:
         raise FreezeError("floor result の key 集合が不一致")
     if result.get("schema") != s8b_floor_contract.RESULT_SCHEMA:
         raise FreezeError(
@@ -1330,6 +1342,17 @@ def _validate_floor_inputs(
         raise FreezeError("floor result.mode が official でない")
     if result.get("eligible_for_refreeze") is not True:
         raise FreezeError("floor result.eligible_for_refreeze が true でない")
+    if not expected_use_perf:
+        try:
+            normalized_observation = s8b_floor_stats.validate_floor_perf_evidence(
+                result, result.get("perf_observation"), claim="throughput",
+            )
+        except _perf_preflight.PerfPreflightError as exc:
+            raise FreezeError(f"floor result perf_observation が不正: {exc}") from exc
+        if normalized_observation["preflight"] != result_perf_preflight:
+            raise FreezeError(
+                "floor result perf_observation.preflight が perf_preflight と不一致"
+            )
     if result.get("freeze_sha256") != t080_freeze_migration.HOLDOUT_RAW_SHA256:
         raise FreezeError("floor result.freeze_sha256 が固定 v1 hash と不一致")
     if result.get("protocol_sha256") != protocol_sha256:
@@ -1424,11 +1447,15 @@ def _validate_floor_inputs(
         manifest_raw, "floor result sibling manifest",
     )
     try:
+        manifest_run_cmd, manifest_indicators = (
+            s8b_floor_contract.manifest_perf_validation_context(manifest_document)
+        )
         s8b_floor_contract.validate_manifest_v3(
             manifest_document, protocol=protocol,
             protocol_sha256=protocol_sha256,
             freeze_sha256=t080_freeze_migration.HOLDOUT_RAW_SHA256,
             expected_cells=cells, expected_schedule=schedule, mode="official",
+            run_cmd=manifest_run_cmd, leading_indicators=manifest_indicators,
         )
     except s8b_floor_contract.FloorContractError as exc:
         raise FreezeError(
@@ -1437,6 +1464,12 @@ def _validate_floor_inputs(
     if result["binaries"] != manifest_document["binaries"]:
         raise FreezeError(
             "floor-admission-mismatch: result.binaries が sibling manifest と不一致"
+        )
+    if (result.get("perf_preflight") != manifest_document.get("perf_preflight")
+            or result.get("perf_observation")
+            != manifest_document.get("perf_observation")):
+        raise FreezeError(
+            "floor-admission-mismatch: result/manifest の perf evidence が不一致"
         )
     journal_rel = f"{run_dir}/journal.jsonl"
     try:
@@ -1495,7 +1528,7 @@ def _validate_floor_inputs(
             campaign_run_id=path_info["run_id"],
             run_relpath=run_dir.removeprefix("output/"), mode="official",
             cells=cells, schedule=schedule, sessions=attempt_lifecycle,
-            expected_use_perf=True,
+            expected_use_perf=expected_use_perf,
         )
     except FloorHoldoutEvidenceError as exc:
         prefix = (

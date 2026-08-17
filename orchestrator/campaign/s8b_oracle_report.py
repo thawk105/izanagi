@@ -48,6 +48,7 @@ from . import s8b_outcome_stage_contract as _outcome_stage_contract  # noqa: E40
 from . import s8b_ratified_freeze  # noqa: E402
 from . import t080_freeze_migration as _t080  # noqa: E402
 from .layout import CampaignLayout, campaign_layout  # noqa: E402
+from orchestrator.calibrator import perf_preflight as _perf_preflight  # noqa: E402
 
 
 SCHEMA_VERSION = _artifacts.OFFICIAL_OBSERVATIONS_SCHEMA
@@ -98,6 +99,16 @@ _T080_ITEM_KEYS = frozenset({
 _T080_NEVER_KEYS = frozenset({"state", "validation_head"})
 _SHA1_RE = re.compile(r"[0-9a-f]{40}")
 _SHA256_RE = re.compile(r"[0-9a-f]{64}")
+_MEASUREMENT_RECORD_KEYS = frozenset({"path", "sha256"})
+_MEASUREMENT_CONDITION_KEYS = frozenset({
+    "campaign_id", "measurement_manifest_sha256", "perf_observation",
+})
+_MEASUREMENT_MANIFEST_NAME = "measurement-manifest.json"
+_DEGRADED_PLACEHOLDER_CMD = ("ccbench",)
+_DEGRADED_PLACEHOLDER_INDICATORS = {
+    "ipc": None,
+    "llc_miss_rate": None,
+}
 
 
 class ReportError(ValueError):
@@ -602,6 +613,127 @@ def _session_event(record: object, event: Optional[str] = None) -> bool:
     return (getattr(record, "stage", None) == SESSION_STAGE
             and isinstance(payload, Mapping)
             and (event is None or payload.get("event") == event))
+
+
+def _measurement_condition_for_campaign(
+        campaign_id: str, manifest_sha256: str, expected_block_ids: set[str],
+        output_root: Path) -> dict:
+    """campaign-start と runtime sidecar を bench observation へ再束縛する。"""
+    condition = {
+        "campaign_id": campaign_id,
+        "measurement_manifest_sha256": None,
+        "perf_observation": None,
+    }
+    layout = _resolved_campaign_layout(campaign_id, output_root)
+    root = Path(layout.root)
+    if not root.is_dir():
+        return condition
+    try:
+        records, _line_issues, _truncated_tail = wal.read_records_collected(layout)
+    except Exception:
+        return condition
+    starts = [record.payload for record in records
+              if _session_event(record, "campaign-start")]
+    declared = [
+        start.get("measurement_manifest") for start in starts
+        if start.get("measurement_manifest") is not None
+    ]
+    if not declared:
+        if (root / _MEASUREMENT_MANIFEST_NAME).exists():
+            raise ReportError(
+                f"campaign_id={campaign_id!r}: measurement sidecar があるのに "
+                "campaign-start file record がない"
+            )
+        if any(
+                isinstance(getattr(record, "payload", None), Mapping)
+                and record.stage == "bench_done"
+                and record.payload.get("perf_observation") is not None
+                for record in records):
+            raise ReportError(
+                f"campaign_id={campaign_id!r}: bench perf_observation があるのに "
+                "campaign-start.measurement_manifest がない"
+            )
+        return condition
+    if len(starts) != 1 or len(declared) != 1:
+        raise ReportError(
+            f"campaign_id={campaign_id!r}: measurement manifest を持つ "
+            "campaign-start が一意でない"
+        )
+    record = declared[0]
+    if not isinstance(record, Mapping) or set(record) != _MEASUREMENT_RECORD_KEYS:
+        raise ReportError(
+            f"campaign_id={campaign_id!r}: measurement_manifest file record の "
+            "exact key 集合が不一致"
+        )
+    if record.get("path") != _MEASUREMENT_MANIFEST_NAME:
+        raise ReportError(
+            f"campaign_id={campaign_id!r}: measurement_manifest.path が canonical でない"
+        )
+    expected_sha256 = record.get("sha256")
+    if (not isinstance(expected_sha256, str)
+            or _SHA256_RE.fullmatch(expected_sha256) is None):
+        raise ReportError(
+            f"campaign_id={campaign_id!r}: measurement_manifest.sha256 が不正"
+        )
+    source = root / _MEASUREMENT_MANIFEST_NAME
+    try:
+        actual_sha256 = _artifacts.measurement_manifest_sha256(source)
+        document = _artifacts.load_measurement_manifest(
+            source,
+            run_cmd=_DEGRADED_PLACEHOLDER_CMD,
+            leading_indicators=_DEGRADED_PLACEHOLDER_INDICATORS,
+        )
+    except _artifacts.OracleArtifactTypeError as exc:
+        raise ReportError(
+            f"campaign_id={campaign_id!r}: measurement manifest が不正: {exc}"
+        ) from exc
+    if actual_sha256 != expected_sha256:
+        raise ReportError(
+            f"campaign_id={campaign_id!r}: measurement manifest raw hash が "
+            "campaign-start record と不一致"
+        )
+    start = starts[0]
+    if document["oracle_manifest_sha256"] != manifest_sha256:
+        raise ReportError(
+            f"campaign_id={campaign_id!r}: measurement manifest の oracle manifest hash が不一致"
+        )
+    if document["campaign_id"] != campaign_id:
+        raise ReportError(
+            f"campaign_id={campaign_id!r}: measurement manifest campaign_id が不一致"
+        )
+    block_id = start.get("block_id")
+    if (document["block_id"] != block_id
+            or expected_block_ids and block_id not in expected_block_ids):
+        raise ReportError(
+            f"campaign_id={campaign_id!r}: measurement manifest block_id が schedule と不一致"
+        )
+
+    observation = document["perf_observation"]
+    for bench in (
+            record.payload for record in records
+            if record.stage == "bench_done"
+            and isinstance(record.payload, Mapping)):
+        try:
+            rebound = _artifacts.load_measurement_manifest(
+                source,
+                run_cmd=bench.get("run_cmd"),
+                leading_indicators=bench.get("leading_indicators"),
+            )
+        except _artifacts.OracleArtifactTypeError as exc:
+            raise ReportError(
+                f"campaign_id={campaign_id!r}: bench 測定条件で measurement manifestを"
+                f"再検証できない: {exc}"
+            ) from exc
+        if (rebound["perf_observation"] != observation
+                or bench.get("perf_observation") != observation):
+            raise ReportError(
+                f"campaign_id={campaign_id!r}: sidecar と bench perf_observation が不一致"
+            )
+    condition["measurement_manifest_sha256"] = actual_sha256
+    condition["perf_observation"] = observation
+    if set(condition) != _MEASUREMENT_CONDITION_KEYS:  # pragma: no cover - construction pin
+        raise AssertionError("measurement condition construction keys")
+    return condition
 
 
 def _session_identity_issues(records, manifest) -> list[str]:
@@ -1120,6 +1252,21 @@ def _assess_window(item: Mapping, window: Sequence[object], manifest: Mapping,
         issues.append(f"bench_done が一意でない: {len(benches)}")
     elif len(benches) == 1:
         bench_payload = _safe_payload(benches[0])
+        claim_ok = True
+        observation = bench_payload.get("perf_observation")
+        if observation is not None:
+            try:
+                claim_ok = _perf_preflight.perf_claim_allowed(
+                    observation,
+                    "throughput",
+                    run_cmd=bench_payload.get("run_cmd"),
+                    leading_indicators=bench_payload.get("leading_indicators"),
+                )
+            except _perf_preflight.PerfPreflightError as exc:
+                claim_ok = False
+                issues.append(f"bench_done.perf_observation が不正: {exc}")
+            if not claim_ok:
+                issues.append("bench_done.perf_observation は throughput claim を許可しない")
         raw_values = bench_payload.get("tps")
         projected = _artifacts.project_finite_float_sequence(raw_values)
         tps_ok = False
@@ -1147,7 +1294,7 @@ def _assess_window(item: Mapping, window: Sequence[object], manifest: Mapping,
             issues.append("bench_done.rep_returncodes に非ゼロがある")
         else:
             returncodes_ok = True
-        if tps_ok and returncodes_ok:
+        if claim_ok and tps_ok and returncodes_ok:
             bench_values = projected
 
     counts = {stage: sum(record.stage == stage for record in pipeline_records)
@@ -1734,6 +1881,19 @@ def build_observations(
             detached.append((ordinal, item, str(exc)))
             continue
         grouped[campaign_id].append((ordinal, item))
+    measurement_conditions = [
+        _measurement_condition_for_campaign(
+            campaign_id,
+            manifest_sha,
+            {
+                str(item.get("block_id"))
+                for _ordinal, item in grouped[campaign_id]
+                if isinstance(item.get("block_id"), str)
+            },
+            resolved_output_root,
+        )
+        for campaign_id in sorted(campaign_ids)
+    ]
     by_ordinal: dict[int, dict] = {}
     t080_by_campaign: dict[str, _T080CampaignObservation] = {}
     for campaign_id in sorted(grouped):
@@ -1797,6 +1957,10 @@ def build_observations(
     })
     if spec_sha is not None:
         result["spec_sha256"] = spec_sha
+    if any(
+            condition["perf_observation"] is not None
+            for condition in measurement_conditions):
+        result["measurement_conditions"] = measurement_conditions
     return result
 
 

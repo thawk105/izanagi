@@ -11,6 +11,41 @@
         "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
       }
     },
+    "perfObservation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "use_perf", "counter_status", "missing_leading_indicators",
+        "preflight", "claim_scope"
+      ],
+      "properties": {
+        "use_perf": {"const": false},
+        "counter_status": {"const": "not_required"},
+        "missing_leading_indicators": {"const": []},
+        "preflight": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "schema", "status", "available", "probe_argv", "rc",
+            "parsed_events", "reason", "stderr_sha256", "candidates"
+          ],
+          "properties": {
+            "schema": {"const": "izanagi-perf-preflight/v1"},
+            "status": {"const": "unavailable"},
+            "available": {"const": false},
+            "probe_argv": {"type": "array", "items": {"type": "string"}},
+            "rc": {"type": "null"},
+            "parsed_events": {"const": []},
+            "reason": {"const": "perf-not-found"},
+            "stderr_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+            "candidates": {"type": "array", "items": {"type": "object"}}
+          }
+        },
+        "claim_scope": {
+          "const": {"throughput": "eligible", "perf_required": "unsupported"}
+        }
+      }
+    },
     "member": {
       "type": "object",
       "additionalProperties": false,
@@ -118,6 +153,7 @@
       "type": "array", "minItems": 1, "uniqueItems": true,
       "items": {"$ref": "#/definitions/fileRecord"}
     },
-    "timing_envelope": {"$ref": "#/definitions/timing"}
+    "timing_envelope": {"$ref": "#/definitions/timing"},
+    "perf_observation": {"$ref": "#/definitions/perfObservation"}
   }
 }

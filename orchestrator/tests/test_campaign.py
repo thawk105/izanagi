@@ -6006,6 +6006,19 @@ def test_pipeline_records_leading_indicators_in_wal():
     assert bench[0].payload["bench_wall_s"] >= 0.0
 
 
+def test_pipeline_receipt_none_omits_perf_observation_from_bench_payload():
+    """P1: receipt 不在の official/legacy WAL shape は従来どおり不変。"""
+    lay = _tmp_layout()
+    result, _ = _eval(lay, certified=True)
+
+    assert result.certified and not result.aborted
+    bench = next(
+        record for record in wal.read_records(lay)
+        if record.stage == STAGE_BENCH_DONE
+    )
+    assert "perf_observation" not in bench.payload
+
+
 def test_pipeline_records_returncodes_from_best_middle_round():
     """M-P2: 最終でなく、CV 最良の中間 round に属する rc だけを記録する。"""
     lay = _tmp_layout()
@@ -7534,6 +7547,152 @@ def test_pipeline_qualification_rejects_list_numactl_before_sink_writes():
             qualification_policy=policy, log=lambda *a: None,
             build_context=_BUILD_CONTEXT)
     assert not sink_path.exists()
+
+
+def _qualification_perf_case():
+    from orchestrator.qualification.artifacts import (
+        QualificationEventSink,
+        QualificationRoot,
+        create_attempt,
+    )
+
+    contract = ec.lookup("pegasus")
+    root = QualificationRoot(Path(_tmpdir("izanagi_qualification_perf_")))
+    capability = root.issue()
+    layout = create_attempt(
+        root, capability, series_id="a" * 64, attempt_id="b" * 64,
+    )
+    sink = QualificationEventSink(
+        capability, layout, round_index=1, role="subject",
+    )
+
+    def perf_missing(*_args, **_kwargs):
+        raise FileNotFoundError("fixture perf not found")
+
+    receipt = perf_preflight_module.probe_perf_availability(
+        perf_candidates=(), subprocess_runner=perf_missing,
+    )
+    policy = pipeline.QualificationPipelinePolicy.t126_pegasus(sink)
+    return contract, layout, policy, receipt
+
+
+def _qualification_perf_config(**overrides):
+    values = {
+        "records": 1_000_000,
+        "threads": 48,
+        "workload": {
+            "ycsb_zipf_skew": "0.9", "ycsb_rratio": "95",
+            "ycsb_rmw": "0", "ycsb_max_ope": "10",
+        },
+        "extime": 3,
+        "reps": 5,
+    }
+    values.update(overrides)
+    return PerfConfig(**values)
+
+
+def test_pipeline_qualification_accepts_canonical_no_perf_shape():
+    contract, layout, policy, receipt = _qualification_perf_case()
+    with _mock_pipeline(certified=True) as calls:
+        result = pipeline.evaluate(
+            Genome("silo", {"BACK_OFF": 1}), layout,
+            contract.env_tag, "deadbeef", _qualification_perf_config(),
+            clocks_per_us=contract.clocks_per_us,
+            numactl=contract.numactl, env_contract=contract,
+            authorization_contract=ec.authorize("pegasus"),
+            extra_correctness=[
+                (pipeline.S2_TAG, pipeline.s2_correctness_workload())
+            ],
+            bench_max_rounds=1, record_rep_returncodes=True,
+            qualification_policy=policy, use_perf=False,
+            perf_preflight_receipt=receipt,
+            log=lambda *_args: None, build_context=_BUILD_CONTEXT,
+        )
+
+    assert result.certified and not result.aborted
+    assert calls.measure_kwargs
+    assert calls.measure_kwargs[0]["use_perf"] is False
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    (
+        "records", "threads", "workload", "extime", "reps", "correctness",
+        "extra_correctness", "do_bench", "do_settle", "screening",
+        "bench_max_rounds", "record_rep_returncodes",
+    ),
+)
+def test_pipeline_qualification_keeps_every_non_perf_shape_predicate(mutation):
+    """M15: use_perf 以外の qualification shape 条件は全て残す。"""
+    contract, layout, policy, receipt = _qualification_perf_case()
+    perf_overrides = {}
+    kwargs = {
+        "correctness": None,
+        "extra_correctness": [
+            (pipeline.S2_TAG, pipeline.s2_correctness_workload())
+        ],
+        "do_bench": True,
+        "do_settle": True,
+        "screening": None,
+        "bench_max_rounds": 1,
+        "record_rep_returncodes": True,
+    }
+    if mutation in {"records", "threads", "extime", "reps"}:
+        perf_overrides[mutation] = {
+            "records": 999_999,
+            "threads": 47,
+            "extime": 2,
+            "reps": 4,
+        }[mutation]
+    elif mutation == "workload":
+        perf_overrides["workload"] = {
+            "ycsb_zipf_skew": "0.8", "ycsb_rratio": "95",
+            "ycsb_rmw": "0", "ycsb_max_ope": "10",
+        }
+    elif mutation == "correctness":
+        kwargs[mutation] = pipeline.s2_correctness_workload()
+    elif mutation == "extra_correctness":
+        kwargs[mutation] = []
+    elif mutation == "screening":
+        kwargs[mutation] = _screening()
+    elif mutation in {"do_bench", "do_settle", "record_rep_returncodes"}:
+        kwargs[mutation] = False
+    else:
+        kwargs[mutation] = 2
+
+    with pytest.raises(
+        ValueError,
+        match=r"^qualification opt-in evaluation shape mismatch$",
+    ):
+        pipeline.evaluate(
+            Genome("silo", {"BACK_OFF": 1}), layout,
+            contract.env_tag, "deadbeef",
+            _qualification_perf_config(**perf_overrides),
+            clocks_per_us=contract.clocks_per_us,
+            numactl=contract.numactl, env_contract=contract,
+            authorization_contract=ec.authorize("pegasus"),
+            qualification_policy=policy, use_perf=False,
+            perf_preflight_receipt=receipt,
+            log=lambda *_args: None, build_context=_BUILD_CONTEXT,
+            **kwargs,
+        )
+
+
+def test_pipeline_use_perf_false_without_receipt_keeps_specific_rejection():
+    """M-C1: None receipt と use_perf=False の専用拒否点を残す。"""
+    lay = _tmp_layout()
+    with pytest.raises(ValueError) as caught:
+        pipeline.evaluate(
+            Genome("silo", {"BACK_OFF": 1}), lay,
+            _AUTH_CONTRACT.env_tag, "deadbeef",
+            PerfConfig(records=1000, threads=2), clocks_per_us=1800,
+            numactl=_AUTH_CONTRACT.numactl,
+            authorization_contract=_AUTHORIZATION,
+            do_bench=False, use_perf=False,
+            log=lambda *_args: None, build_context=_BUILD_CONTEXT,
+        )
+    assert str(caught.value) == "use_perf=False には perf preflight receipt が必要"
+    assert list(wal.read_records(lay)) == []
 
 
 def test_pipeline_extra_correctness_allows_empty_prefix_when_contract_is_empty():

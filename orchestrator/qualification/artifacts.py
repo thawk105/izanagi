@@ -17,6 +17,8 @@ from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 from typing import Any, Iterable, Mapping, Sequence
 
+from orchestrator.calibrator import perf_preflight as _perf_preflight
+
 from ..campaign import campaign_lock
 
 from .contract import (
@@ -851,7 +853,8 @@ def select_source_pair(repo_root: Path, protocol: Mapping[str, Any]) -> dict[str
 
 def validate_member_evidence(
         records: Sequence[Mapping[str, Any]], *, expected_role: str,
-        expected_round: int, expected_reps: int = 5) -> dict[str, Any]:
+        expected_round: int, expected_perf_observation: object,
+        expected_reps: int = 5) -> dict[str, Any]:
     """Admit one live member only with full build/verify/bench evidence."""
     if not records:
         raise QualificationArtifactError("member evaluation events are empty")
@@ -939,6 +942,30 @@ def validate_member_evidence(
                 or row.get("binary_sha256") != trace_hash):
             raise QualificationArtifactError("verify runtime evidence is incomplete")
     bench = decoded_payloads[4]
+    if expected_perf_observation is None:
+        if "perf_observation" in bench:
+            raise QualificationArtifactError(
+                "member bench perf observation disagrees with prologue")
+    else:
+        try:
+            normalized_observation = _perf_preflight.validate_perf_observation(
+                expected_perf_observation,
+                run_cmd=bench.get("run_cmd"),
+                leading_indicators=bench.get("leading_indicators"),
+            )
+            if (normalized_observation["use_perf"] is not False
+                    or bench.get("perf_observation") != normalized_observation
+                    or not _perf_preflight.perf_claim_allowed(
+                        normalized_observation, "throughput",
+                        run_cmd=bench.get("run_cmd"),
+                        leading_indicators=bench.get("leading_indicators"),
+                    )):
+                raise QualificationArtifactError(
+                    "member bench perf observation disagrees with prologue")
+        except _perf_preflight.PerfPreflightError as exc:
+            raise QualificationArtifactError(
+                "member bench perf observation disagrees with prologue"
+            ) from exc
     tps = bench.get("tps")
     rcs = bench.get("rep_returncodes")
     if (bench.get("settled") is not True

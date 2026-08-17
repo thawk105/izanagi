@@ -52,6 +52,7 @@ from orchestrator.campaign import (  # noqa: E402
 )
 from orchestrator.campaign import env_attestation  # noqa: E402
 from orchestrator.campaign import s8b_floor_campaign  # noqa: E402
+from orchestrator.campaign import s8b_floor_contract  # noqa: E402
 from orchestrator.campaign import s8b_floor_stats  # noqa: E402
 from orchestrator.campaign import s8b_binary_admission  # noqa: E402
 from orchestrator.campaign import s8b_materialization  # noqa: E402
@@ -156,6 +157,10 @@ def _synthetic_source_evidence_for_materializer_seams(monkeypatch, request):
 
     monkeypatch.setattr(
         s8b_floor_campaign.source_digest, "resolve_evidence", _fixture_source_evidence,
+    )
+    monkeypatch.setattr(
+        s8b_floor_campaign._perf_preflight, "probe_perf_availability",
+        lambda **_kwargs: _perf_receipt(available=True),
     )
 
 
@@ -507,9 +512,16 @@ def _run_campaign(protocol, freeze_doc, *, out_root, build_root, measure_fn, pro
     kwargs["_holdout_signature_source"] = freeze_doc.document["holdouts"]
     kwargs["confirm_irreversible_pilot_holdout"] = True
     if mode == "official":
+        official_preflight = (
+            perf_preflight_fn or (lambda **_kwargs: _perf_receipt(available=True))
+        )
         with mock.patch.object(
                 s8b_floor_campaign, "_assert_official_permitted", lambda _mode: None), \
-                mock.patch.object(s8b_floor_campaign.buildcache, "build_v2", fake_build):
+                mock.patch.object(s8b_floor_campaign.buildcache, "build_v2", fake_build), \
+                mock.patch.object(
+                    s8b_floor_campaign._perf_preflight,
+                    "probe_perf_availability", official_preflight,
+                ):
             return entrypoint(protocol, freeze_doc, **kwargs)
     kwargs["perf_preflight_fn"] = (
         perf_preflight_fn or (lambda **_kwargs: _perf_receipt())
@@ -743,7 +755,7 @@ def test_measure_run_cmd_rejects_shape_opposite_to_recorded_preflight(
         )
 
 
-def test_measure_run_cmd_rejects_unavailable_receipt_in_official_mode(tmp_path):
+def test_measure_run_cmd_accepts_unavailable_receipt_in_official_mode(tmp_path):
     freeze = _freeze_document()
     protocol = s8b_floor_campaign.validate_protocol(
         _protocol(freeze_sha=_freeze_sha(freeze)))
@@ -756,13 +768,72 @@ def test_measure_run_cmd_rejects_unavailable_receipt_in_official_mode(tmp_path):
         use_perf=False,
     )
 
-    with pytest.raises(s8b_floor_campaign.CampaignAbort, match="official mode"):
-        s8b_floor_campaign._project_measure_run_cmd(
-            direct_raw, runtime_binary=runtime_binary, portable_binary=portable_binary,
-            workload=cell["ycsb"], records=cell["records"], threads=cell["threads"],
-            protocol=protocol, contract=contract,
-            perf_preflight=_perf_receipt(available=False),
-            mode="official",
+    projected = s8b_floor_campaign._project_measure_run_cmd(
+        direct_raw, runtime_binary=runtime_binary, portable_binary=portable_binary,
+        workload=cell["ycsb"], records=cell["records"], threads=cell["threads"],
+        protocol=protocol, contract=contract,
+        perf_preflight=_perf_receipt(available=False),
+        mode="official",
+    )
+    assert tuple(shlex.split(projected)) == s8b_floor_campaign.build_portable_run_cmd(
+        binary=portable_binary, workload=cell["ycsb"], records=cell["records"],
+        threads=cell["threads"], extime_s=protocol["extime_s"],
+        clocks_per_us=contract.clocks_per_us, numactl=contract.numactl,
+        use_perf=False,
+    )
+
+
+def test_official_perf_mode_rejects_only_explicit_available_receipt():
+    assert s8b_floor_campaign._assert_perf_mode("official", None) is True
+    assert s8b_floor_campaign._assert_perf_mode(
+        "official", _perf_receipt(available=False),
+    ) is False
+    with pytest.raises(s8b_floor_campaign.CampaignAbort, match="available"):
+        s8b_floor_campaign._assert_perf_mode(
+            "official", _perf_receipt(available=True),
+        )
+
+
+def test_probed_official_available_projects_to_legacy_none():
+    assert s8b_floor_campaign._project_probed_perf_preflight(
+        "official", _perf_receipt(available=True),
+    ) is None
+    unavailable = s8b_floor_campaign._project_probed_perf_preflight(
+        "official", _perf_receipt(available=False),
+    )
+    assert unavailable == _perf_receipt(available=False)
+    assert s8b_floor_campaign._project_probed_perf_preflight(
+        "pilot", _perf_receipt(available=True),
+    ) == _perf_receipt(available=True)
+
+
+def test_assemble_manifest_has_independent_official_available_gate(monkeypatch):
+    """M6: A を通す seam の下でも manifest producer 自身が available を拒否する。"""
+    monkeypatch.setattr(
+        s8b_floor_campaign, "_assert_perf_mode", lambda _mode, _receipt: True,
+    )
+    monkeypatch.setattr(
+        s8b_floor_campaign, "_validate_binaries_cover_cells",
+        lambda _built, _cells: None,
+    )
+    monkeypatch.setattr(
+        s8b_floor_campaign, "_validate_portable_built",
+        lambda _built, **_kwargs: {},
+    )
+    with pytest.raises(s8b_floor_campaign.CampaignAbort, match="official manifest"):
+        s8b_floor_campaign.assemble_manifest(
+            protocol={
+                "freeze": {"path": "freeze.json", "sha256": "3" * 64},
+                "env_tag": "fixture-env", "ccbench_pin": "0" * 40,
+                "contract_sha256": "1" * 64,
+                "stock_configuration": "stock",
+                "schedule_algorithm": "round-permutation/v2",
+                "master_seed": "seed", "n_sessions": 1, "reps": 1,
+                "extime_s": 1, "session_cv_max": "0.1", "cell_cv_max": "0.1",
+            },
+            protocol_sha256="2" * 64, freeze_sha256="3" * 64,
+            cells=[], built={}, schedule=[],
+            perf_preflight=_perf_receipt(available=True), mode="official",
         )
 
 
@@ -788,6 +859,8 @@ def test_perf_unavailable_continues_and_records_one_run_receipt(tmp_path):
     manifest = json.loads((run_dir / "manifest.json").read_text(encoding="utf-8"))
     assert manifest["perf_preflight"] == outcome["result"]["perf_preflight"]
     assert manifest["perf_preflight"]["available"] is False
+    assert "perf_observation" not in manifest
+    assert "perf_observation" not in outcome["result"]
     assert all(" perf " not in f" {record['run_cmd']} "
                for record in outcome["result"]["sessions"])
     receipt = outcome["result"]["perf_preflight"]
@@ -804,6 +877,36 @@ def test_perf_unavailable_continues_and_records_one_run_receipt(tmp_path):
         f"- perf: mode=disabled, reason=nonzero-rc, "
         f"receipt_sha256=`{receipt_digest}`"
     ]
+
+
+def test_official_unavailable_preflight_reaches_measurement_once(tmp_path, monkeypatch):
+    freeze = _freeze_document()
+    protocol = _protocol(freeze_sha=_freeze_sha(freeze))
+    calls = []
+
+    def preflight(**kwargs):
+        calls.append(kwargs)
+        return _perf_receipt(available=False)
+
+    with _official_test_seam(monkeypatch):
+        outcome = _run_campaign(
+            protocol, _verified_freeze(freeze), out_root=tmp_path / "out",
+            build_root=tmp_path / "bin", mode="official",
+            measure_fn=_make_measure_fn(
+                reps=5, value_fn=lambda cid: _BASE_TPS[cid], use_perf=False,
+            ),
+            probe_fn=lambda: (1, "", ""), perf_preflight_fn=preflight,
+        )
+    assert len(calls) == 1
+    manifest = json.loads(
+        (Path(outcome["run_dir"]) / "manifest.json").read_text(encoding="utf-8")
+    )
+    assert manifest["perf_preflight"] == outcome["result"]["perf_preflight"]
+    assert manifest["perf_observation"] == outcome["result"]["perf_observation"]
+    assert all(
+        " perf " not in f" {record['run_cmd']} "
+        for record in outcome["result"]["sessions"]
+    )
 
 
 def test_perf_available_records_receipt_and_preserves_perf_shape(tmp_path):
@@ -3234,10 +3337,16 @@ def _deterministic_official_artifacts(base: Path) -> dict:
             mock.patch.object(
                 s8b_floor_campaign.source_digest, "resolve_evidence",
                 _fixture_source_evidence,
+            ), \
+            mock.patch.object(
+                s8b_floor_campaign._perf_preflight, "probe_perf_availability",
+                lambda **_kwargs: _perf_receipt(available=False),
             ):
         outcome = _private_run_campaign(
             protocol, verified, out_root=out_root, mode="official",
-            measure_fn=_make_measure_fn(reps=5, value_fn=lambda cid: _BASE_TPS[cid]),
+            measure_fn=_make_measure_fn(
+                reps=5, value_fn=lambda cid: _BASE_TPS[cid], use_perf=False,
+            ),
             probe_fn=lambda: (1, "", ""), sleep_fn=lambda _seconds: None,
             monotonic_fn=lambda: 0.0, prepare_fn=rooted_prepare,
             now_fn=lambda: _FIXED_NOW, host_provenance_fn=_fixed_host,
@@ -3605,6 +3714,44 @@ def test_legacy_resume_manifest_without_perf_preflight_is_not_backfilled(tmp_pat
     assert path.read_bytes() == raw
 
 
+def test_assemble_manifest_records_official_degraded_observation(tmp_path):
+    protocol_sha = "p" * 64
+    freeze_sha = "f" * 64
+    protocol = {
+        "freeze": {"path": "freeze.json", "sha256": freeze_sha},
+        "env_tag": "env-x", "ccbench_pin": "1" * 40,
+        "stock_configuration": "sort_best", "schedule_algorithm": "algorithm-x",
+        "master_seed": "seed", "n_sessions": 1, "reps": 1, "extime_s": 1,
+        "session_cv_max": "0.1", "cell_cv_max": "0.1",
+    }
+    cells = [{
+        "cell_id": "cell", "holdout_id": "holdout",
+        "configuration_id": "sort_best",
+        "records": 1, "threads": 1, "workload": {},
+    }]
+    manifest = s8b_floor_campaign.assemble_manifest(
+        protocol=protocol, protocol_sha256=protocol_sha,
+        freeze_sha256=freeze_sha, cells=cells,
+        built=_honest_portable_built_record(
+            tmp_path, configuration_id="sort_best",
+        ),
+        schedule=[], perf_preflight=_perf_receipt(available=False),
+        mode="official",
+    )
+    assert set(manifest) == set(s8b_floor_contract._MANIFEST_KEYS) | {
+        "perf_preflight", "perf_observation",
+    }
+    assert manifest["perf_observation"] == {
+        "use_perf": False,
+        "counter_status": "not_required",
+        "missing_leading_indicators": [],
+        "preflight": manifest["perf_preflight"],
+        "claim_scope": {
+            "throughput": "eligible", "perf_required": "unsupported",
+        },
+    }
+
+
 def test_official_result_rejects_perf_preflight_receipt_fail_closed(tmp_path):
     freeze = _freeze_document()
     verified = _verified_freeze(freeze)
@@ -3648,6 +3795,55 @@ def test_official_result_rejects_perf_preflight_receipt_fail_closed(tmp_path):
         perf_preflight=None,
     )
     assert official_assembled["eligible_for_refreeze"] is False
+
+
+def test_official_degraded_result_records_strict_perf_observation(tmp_path):
+    freeze = _freeze_document()
+    verified = _verified_freeze(freeze)
+    protocol = s8b_floor_campaign.validate_protocol(
+        _protocol(freeze_sha=_freeze_sha(freeze)))
+    cells = s8b_floor_campaign.enumerate_cells(
+        freeze, stock_configuration=protocol["stock_configuration"],
+    )
+    outcome = _run_campaign(
+        protocol, verified, out_root=tmp_path / "out",
+        build_root=tmp_path / "bin",
+        measure_fn=_make_measure_fn(
+            reps=protocol["reps"], value_fn=lambda cid: _BASE_TPS[cid],
+            use_perf=False,
+        ),
+        probe_fn=lambda: (1, "", ""),
+        perf_preflight_fn=lambda **_kwargs: _perf_receipt(available=False),
+    )
+    records = _read_journal_lines(Path(outcome["run_dir"]) / "journal.jsonl")
+    assembled = s8b_floor_campaign.assemble_result(
+        protocol=protocol, mode="official", protocol_sha256="p" * 64,
+        freeze_sha256="f" * 64, manifest_sha256="m" * 64,
+        cells=cells, binaries=outcome["result"]["binaries"], records=records,
+        holdout_admission=outcome["result"]["holdout_admission"],
+        perf_preflight=_perf_receipt(available=False),
+    )
+    assert set(assembled) == set(s8b_floor_contract.result_keys_for_mode(
+        "official", perf_preflight=assembled["perf_preflight"],
+    ))
+    assert assembled["perf_observation"]["preflight"] == assembled["perf_preflight"]
+    assert assembled["perf_observation"]["counter_status"] == "not_required"
+    assert assembled["perf_observation"]["claim_scope"] == {
+        "throughput": "eligible", "perf_required": "unsupported",
+    }
+
+    perf_prefixed = copy.deepcopy(records)
+    session = next(row for row in perf_prefixed if row.get("event") == "session")
+    session["run_cmd"] = f"perf stat -- {session['run_cmd']}"
+    with pytest.raises(s8b_floor_campaign.FloorCampaignError, match="perf stat prefix"):
+        s8b_floor_campaign.assemble_result(
+            protocol=protocol, mode="official", protocol_sha256="p" * 64,
+            freeze_sha256="f" * 64, manifest_sha256="m" * 64,
+            cells=cells, binaries=outcome["result"]["binaries"],
+            records=perf_prefixed,
+            holdout_admission=outcome["result"]["holdout_admission"],
+            perf_preflight=_perf_receipt(available=False),
+        )
 
 
 def test_assemble_result_requires_holdout_admission_keyword():

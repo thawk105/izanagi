@@ -48,6 +48,7 @@ from orchestrator.campaign.s8b_floor_stats import (  # noqa: E402
     verify_floor_artifact as _verify_floor_artifact,
     verify_floor_artifact_with_live_admission,
 )
+from orchestrator.calibrator import perf_preflight  # noqa: E402
 from orchestrator.campaign import s8b_binary_admission  # noqa: E402
 from orchestrator.campaign import s8b_holdout_admission  # noqa: E402
 from orchestrator.campaign.build_admission import (  # noqa: E402
@@ -126,6 +127,24 @@ def _canonical_bytes(value):
     return json.dumps(
         value, ensure_ascii=False, sort_keys=True, separators=(",", ":"),
     ).encode("utf-8")
+
+
+def _perf_receipt(*, available: bool) -> dict:
+    events = ["LLC-load-misses", "LLC-loads", "instructions", "cycles"]
+    return {
+        "schema": "izanagi-perf-preflight/v1",
+        "status": "available" if available else "unavailable",
+        "available": available,
+        "probe_argv": [
+            "perf", "stat", "-x,", "-o", "<tmp>/perf.csv", "-e",
+            ",".join(events), "--", "/bin/true",
+        ],
+        "rc": 0 if available else None,
+        "parsed_events": events if available else [],
+        "reason": "available" if available else "perf-not-found",
+        "stderr_sha256": hashlib.sha256(b"floor-stats-perf").hexdigest(),
+        "candidates": [],
+    }
 
 
 def _portable_binary(temp_root: Path, *, cell_id: str, holdout_id: str,
@@ -570,6 +589,229 @@ def _honest_artifact():
 def test_verify_accepts_consistent_artifact():
     artifact, expected, *_ = _honest_artifact()
     assert verify_floor_artifact(artifact, expected) == []
+
+
+def _degraded_honest_artifact():
+    artifact, expected, *rest = _honest_artifact()
+    receipt = _perf_receipt(available=False)
+    for session in artifact["sessions"]:
+        session["run_cmd"] = [artifact["binaries"][session["cell_id"]]["binary"]]
+        for observation in session["rep_observations"]:
+            observation["counter_status"] = "not_required"
+            observation["perf_raw"] = {
+                event: None for event in (
+                    "LLC-load-misses", "LLC-loads", "instructions", "cycles",
+                )
+            }
+    artifact["perf_preflight"] = receipt
+    artifact["perf_observation"] = {
+        "use_perf": False,
+        "counter_status": "not_required",
+        "missing_leading_indicators": [],
+        "preflight": receipt,
+        "claim_scope": {
+            "throughput": "eligible",
+            "perf_required": "unsupported",
+        },
+    }
+    return (artifact, expected, *rest)
+
+
+def test_pilot_degraded_preserves_legacy_shape_without_perf_observation():
+    artifact, expected, *_ = _degraded_honest_artifact()
+    artifact["mode"] = "pilot"
+    del artifact["perf_observation"]
+
+    errors = _verify_floor_artifact(
+        artifact, expected,
+        expected_holdout_admission=artifact["holdout_admission"],
+        expected_use_perf=False,
+    )
+
+    assert errors == []
+
+
+def test_official_degraded_requires_and_consumes_perf_observation():
+    artifact, expected, *_ = _degraded_honest_artifact()
+
+    assert _verify_floor_artifact(
+        artifact, expected,
+        expected_holdout_admission=artifact["holdout_admission"],
+        expected_use_perf=False,
+    ) == []
+
+    del artifact["perf_observation"]
+    assert _verify_floor_artifact(
+        artifact, expected,
+        expected_holdout_admission=artifact["holdout_admission"],
+        expected_use_perf=False,
+    ) == [
+        "artifact result v4 exact key 集合が不一致 "
+        "(欠落=['perf_observation'] 余分=[])"
+    ]
+
+
+def test_official_degraded_keeps_all_five_internal_consistency_conditions():
+    artifact, expected, *_ = _degraded_honest_artifact()
+
+    noncanonical_receipt = copy.deepcopy(artifact)
+    noncanonical_receipt["perf_preflight"]["reason"] = "available"
+    assert _verify_floor_artifact(
+        noncanonical_receipt, expected,
+        expected_holdout_admission=noncanonical_receipt["holdout_admission"],
+        expected_use_perf=False,
+    )[0].startswith("artifact perf_preflight が不正: ")
+
+    for field, invalid in (
+        ("counter_status", "complete"),
+        ("missing_leading_indicators", ["ipc"]),
+    ):
+        mutated = copy.deepcopy(artifact)
+        mutated["perf_observation"][field] = invalid
+        errors = _verify_floor_artifact(
+            mutated, expected,
+            expected_holdout_admission=mutated["holdout_admission"],
+            expected_use_perf=False,
+        )
+        assert errors == [
+            "artifact perf_observation が不正: "
+            "degraded perf observation の counter 状態が不整合"
+        ]
+
+    perf_prefixed = copy.deepcopy(artifact)
+    perf_prefixed["sessions"][0]["run_cmd"] = [
+        "perf", "stat", "--", perf_prefixed["sessions"][0]["run_cmd"][0],
+    ]
+    assert _verify_floor_artifact(
+        perf_prefixed, expected,
+        expected_holdout_admission=perf_prefixed["holdout_admission"],
+        expected_use_perf=False,
+    ) == [
+        "artifact perf_observation が不正: "
+        "degraded measurement run_cmd に perf stat prefix がある"
+    ]
+
+    non_null_counter = copy.deepcopy(artifact)
+    non_null_counter["sessions"][0]["rep_observations"][0]["perf_raw"][
+        "cycles"
+    ] = 1
+    assert _verify_floor_artifact(
+        non_null_counter, expected,
+        expected_holdout_admission=non_null_counter["holdout_admission"],
+        expected_use_perf=False,
+    ) == [
+        "artifact perf_observation が不正: "
+        "leading_indicators.session.rep_observations[0].perf_raw "
+        "に non-null perf raw 値がある"
+    ]
+
+    invalid_claim_scope = copy.deepcopy(artifact)
+    invalid_claim_scope["perf_observation"]["claim_scope"][
+        "perf_required"
+    ] = "eligible"
+    assert _verify_floor_artifact(
+        invalid_claim_scope, expected,
+        expected_holdout_admission=invalid_claim_scope["holdout_admission"],
+        expected_use_perf=False,
+    ) == [
+        "artifact perf_observation が不正: "
+        "degraded perf observation.claim_scope が不一致"
+    ]
+
+
+def test_official_perf_present_keeps_legacy_exact_shape():
+    artifact, expected, *_ = _honest_artifact()
+
+    assert _verify_floor_artifact(
+        artifact, expected,
+        expected_holdout_admission=artifact["holdout_admission"],
+        expected_use_perf=True,
+    ) == []
+
+    artifact["perf_observation"] = _degraded_honest_artifact()[0][
+        "perf_observation"
+    ]
+    assert _verify_floor_artifact(
+        artifact, expected,
+        expected_holdout_admission=artifact["holdout_admission"],
+        expected_use_perf=True,
+    ) == [
+        "artifact result v4 exact key 集合が不一致 "
+        "(欠落=[] 余分=['perf_observation'])"
+    ]
+
+
+def test_expected_use_perf_cannot_disagree_with_artifact_receipt():
+    """M3: caller の裸 False は available receipt の authority を上書きできない。"""
+    artifact, expected, *_ = _honest_artifact()
+    artifact["mode"] = "pilot"
+    artifact["perf_preflight"] = _perf_receipt(available=True)
+
+    errors = _verify_floor_artifact(
+        artifact, expected,
+        expected_holdout_admission=artifact["holdout_admission"],
+        expected_use_perf=False,
+    )
+
+    assert errors == [
+        "expected_use_perf が artifact receipt の再導出値と不一致 "
+        "(caller=False, artifact=True)"
+    ]
+
+
+def test_degraded_floor_stats_require_consumed_throughput_claim(monkeypatch):
+    """consumer-side M2: valid observation の claim 判定だけ deny して呼出しを pin。"""
+    artifact, expected, *_ = _degraded_honest_artifact()
+    monkeypatch.setattr(
+        perf_preflight, "_claim_decision",
+        lambda _claim_scope, _claim: False,
+    )
+
+    errors = _verify_floor_artifact(
+        artifact, expected,
+        expected_holdout_admission=artifact["holdout_admission"],
+        expected_use_perf=False,
+    )
+
+    assert errors == [
+        "artifact perf_observation が不正: "
+        "floor artifact は 'throughput' claim を許可しない"
+    ]
+
+
+def test_degraded_floor_stats_bind_run_cmd_from_same_result():
+    artifact, expected, *_ = _degraded_honest_artifact()
+    artifact["sessions"][0]["run_cmd"] = [
+        "perf", "stat", "--", artifact["sessions"][0]["run_cmd"][0],
+    ]
+
+    errors = _verify_floor_artifact(
+        artifact, expected,
+        expected_holdout_admission=artifact["holdout_admission"],
+        expected_use_perf=False,
+    )
+
+    assert errors == [
+        "artifact perf_observation が不正: "
+        "degraded measurement run_cmd に perf stat prefix がある"
+    ]
+
+
+def test_degraded_floor_stats_bind_raw_counters_from_same_result():
+    artifact, expected, *_ = _degraded_honest_artifact()
+    artifact["sessions"][0]["rep_observations"][0]["perf_raw"]["cycles"] = 1
+
+    errors = _verify_floor_artifact(
+        artifact, expected,
+        expected_holdout_admission=artifact["holdout_admission"],
+        expected_use_perf=False,
+    )
+
+    assert errors == [
+        "artifact perf_observation が不正: "
+        "leading_indicators.session.rep_observations[0].perf_raw "
+        "に non-null perf raw 値がある"
+    ]
 
 
 def test_verify_requires_expected_use_perf_keyword_argument():

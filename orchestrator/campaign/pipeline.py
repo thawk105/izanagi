@@ -549,10 +549,6 @@ def _run_bench(perf_binary: str, perf: PerfConfig, clocks_per_us: int,
                       "rep_notes": getattr(pt, "notes", []),
                       "bench_wall_s": bench_wall_s}), None
     leading_indicators = pt.leading_indicators()
-    missing_perf_indicators = [
-        name for name in ("llc_miss_rate", "ipc")
-        if leading_indicators.get(name) is None
-    ] if use_perf else []
     bench_payload = {
         "median_tps": nf.median, "cv": nf.cv,
         "bench_wall_s": bench_wall_s,
@@ -571,20 +567,13 @@ def _run_bench(perf_binary: str, perf: PerfConfig, clocks_per_us: int,
         "rep_notes": getattr(pt, "notes", []),
         "run_cmd": pt.run_cmd,                    # この測定点を再現する実行コマンド
     }
-    if perf_preflight_receipt is not None:
-        # 探索 preflight 経路だけの明示記録。receipt 無しの official/legacy caller の
-        # WAL 形は変えない。perf 無しはゼロ値でなく not_required、利用時の欠測は
-        # incomplete として「未測定」と「測定値 0」を区別可能にする。
-        bench_payload["perf_observation"] = {
-            "use_perf": use_perf,
-            "counter_status": (
-                "not_required" if not use_perf
-                else "complete" if not missing_perf_indicators
-                else "incomplete"
-            ),
-            "missing_leading_indicators": missing_perf_indicators,
-            "preflight": perf_preflight_receipt,
-        }
+    perf_observation = _perf_preflight.build_perf_observation(
+        perf_preflight_receipt,
+        run_cmd=pt.run_cmd,
+        leading_indicators=leading_indicators,
+    )
+    if perf_observation is not None:
+        bench_payload["perf_observation"] = perf_observation
     if screening:
         bench_payload["screening"] = True
     if selected_returncodes is not None:
@@ -687,11 +676,11 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
         perf_preflight_receipt = (
             _perf_preflight.validate_perf_preflight_receipt(perf_preflight_receipt)
         )
-        expected_use_perf = _perf_preflight.use_perf_from_receipt(
-            perf_preflight_receipt
-        )
-        if use_perf is not expected_use_perf:
-            raise ValueError("use_perf と perf preflight receipt が不一致")
+    expected_use_perf = _perf_preflight.use_perf_from_receipt(
+        perf_preflight_receipt
+    )
+    if use_perf is not expected_use_perf:
+        raise ValueError("use_perf と perf preflight receipt が不一致")
     if (isinstance(bench_max_rounds, bool) or not isinstance(bench_max_rounds, int)
             or bench_max_rounds < 1):
         raise ValueError("bench_max_rounds は 1 以上の整数でなければならない")
@@ -717,8 +706,7 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
                 or extra_correctness != [(S2_TAG, s2_correctness_workload())]
                 or do_bench is not True or do_settle is not True
                 or screening is not None or bench_max_rounds != 1
-                or record_rep_returncodes is not True
-                or use_perf is not True):
+                or record_rep_returncodes is not True):
             raise ValueError("qualification opt-in evaluation shape mismatch")
     emit = (
         qualification_policy.event_sink.emit

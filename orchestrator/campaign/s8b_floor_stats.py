@@ -43,6 +43,7 @@ from fractions import Fraction
 from pathlib import Path
 from typing import Mapping, Optional, Sequence
 
+from ..calibrator import perf_preflight as _perf_preflight
 from . import s8b_binary_admission as _binary_admission
 from . import s8b_floor_contract as _floor_contract
 
@@ -592,6 +593,92 @@ def _cmp(ctx: str, name: str, reported, computed, out: list) -> None:
         out.append(f"{ctx}: {name} 齟齬 (申告 {reported!r} != 再計算 {computed!r})")
 
 
+def floor_perf_validation_contexts(
+        artifact: Mapping) -> tuple[tuple[object, Mapping[str, object]], ...]:
+    """result 内の全 session を observation validator 用 context へ射影する。"""
+
+    contexts: list[tuple[object, Mapping[str, object]]] = []
+    sessions = artifact.get("sessions") if isinstance(artifact, Mapping) else None
+    binaries = artifact.get("binaries") if isinstance(artifact, Mapping) else None
+
+    def binary_run_cmd(cell_id: object | None = None) -> tuple[str, ...] | None:
+        if not isinstance(binaries, Mapping):
+            return None
+        candidates = (
+            (binaries.get(cell_id),) if cell_id is not None
+            else tuple(binaries[key] for key in sorted(binaries, key=str))
+        )
+        for binary in candidates:
+            if isinstance(binary, Mapping) and isinstance(binary.get("binary"), str):
+                return (binary["binary"],)
+        return None
+
+    if isinstance(sessions, Sequence) and not isinstance(sessions, (str, bytes)):
+        for session in sessions:
+            if not isinstance(session, Mapping):
+                continue
+            run_cmd = session.get("run_cmd")
+            if run_cmd is None:
+                run_cmd = binary_run_cmd(session.get("cell_id"))
+            if run_cmd is None:
+                raise _perf_preflight.PerfPreflightError(
+                    "floor session の run_cmd を同じ result から導出できない"
+                )
+            contexts.append((run_cmd, {
+                "ipc": session.get("ipc"),
+                "llc_miss_rate": session.get("llc_miss_rate"),
+                "session": session,
+            }))
+    if not contexts:
+        run_cmd = binary_run_cmd()
+        if run_cmd is None:
+            raise _perf_preflight.PerfPreflightError(
+                "floor result の run_cmd を同じ result から導出できない"
+            )
+        contexts.append((run_cmd, {
+            "ipc": artifact.get("ipc"),
+            "llc_miss_rate": artifact.get("llc_miss_rate"),
+            "artifact": artifact,
+        }))
+    return tuple(contexts)
+
+
+def validate_floor_perf_evidence(
+        artifact: Mapping, observation: object, *, claim: str | None = None) -> dict:
+    """全 session の argv/raw counter と artifact-level observation を束縛する。"""
+
+    contexts = floor_perf_validation_contexts(artifact)
+    first_run_cmd, first_indicators = contexts[0]
+    if claim is None:
+        normalized = _perf_preflight.validate_perf_observation(
+            observation, run_cmd=first_run_cmd,
+            leading_indicators=first_indicators,
+        )
+    else:
+        allowed = _perf_preflight.perf_claim_allowed(
+            observation, claim, run_cmd=first_run_cmd,
+            leading_indicators=first_indicators,
+        )
+        if not allowed:
+            raise _perf_preflight.PerfPreflightError(
+                f"floor artifact は {claim!r} claim を許可しない"
+            )
+        normalized = _perf_preflight.validate_perf_observation(
+            observation, run_cmd=first_run_cmd,
+            leading_indicators=first_indicators,
+        )
+    for run_cmd, leading_indicators in contexts[1:]:
+        candidate = _perf_preflight.validate_perf_observation(
+            observation, run_cmd=run_cmd,
+            leading_indicators=leading_indicators,
+        )
+        if candidate != normalized:
+            raise _perf_preflight.PerfPreflightError(
+                "floor session 間で perf observation の正規化結果が不一致"
+            )
+    return normalized
+
+
 def verify_floor_artifact(artifact: Mapping, expected_protocol: Mapping,
                           expected_binaries: Optional[Mapping] = None, *,
                           expected_holdout_admission: Mapping,
@@ -633,9 +720,19 @@ def verify_floor_artifact(artifact: Mapping, expected_protocol: Mapping,
         return [f"expected_use_perf が bool でない: {expected_use_perf!r}"]
     if not isinstance(artifact, Mapping):
         return ["artifact が Mapping でない"]
+    receipt = artifact.get("perf_preflight")
+    try:
+        derived_use_perf = _perf_preflight.use_perf_from_receipt(receipt)
+    except _perf_preflight.PerfPreflightError as exc:
+        return [f"artifact perf_preflight が不正: {exc}"]
+    if expected_use_perf is not derived_use_perf:
+        return [
+            "expected_use_perf が artifact receipt の再導出値と不一致 "
+            f"(caller={expected_use_perf!r}, artifact={derived_use_perf!r})"
+        ]
     try:
         expected_result_keys = _floor_contract.result_keys_for_mode(
-            artifact.get("mode")
+            artifact.get("mode"), perf_preflight=receipt,
         )
     except _floor_contract.FloorContractError as exc:
         return [f"artifact result key 契約が不正: {exc}"]
@@ -649,6 +746,15 @@ def verify_floor_artifact(artifact: Mapping, expected_protocol: Mapping,
         return [
             f"artifact.schema が {_floor_contract.RESULT_SCHEMA!r} でない"
         ]
+    if artifact.get("mode") == "official" and not derived_use_perf:
+        try:
+            normalized_observation = validate_floor_perf_evidence(
+                artifact, artifact.get("perf_observation"), claim="throughput",
+            )
+        except _perf_preflight.PerfPreflightError as exc:
+            return [f"artifact perf_observation が不正: {exc}"]
+        if normalized_observation["preflight"] != receipt:
+            return ["artifact perf_observation.preflight が perf_preflight と不一致"]
     try:
         reported_admission = _floor_contract.validate_floor_holdout_admission_receipt(
             artifact.get("holdout_admission")

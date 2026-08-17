@@ -42,6 +42,7 @@ from orchestrator.campaign import (  # noqa: E402
 )
 from orchestrator.campaign import s8b_oracle_artifacts as artifacts  # noqa: E402
 from orchestrator.campaign.layout import campaign_layout, exploration_campaign_layout  # noqa: E402
+from orchestrator.calibrator import perf_preflight  # noqa: E402
 
 
 # 注意: holdout の三軸 conjunction はテストへ静止させない。
@@ -447,7 +448,8 @@ def _rewrite_session_identity(
 
 def _campaign_start(layout, manifest: dict, campaign_id: str = "oracle-b0",
                     *, block_id: str = "b0", receipt: dict | None = None,
-                    t080_observation: object = _T080_DEFAULT) -> None:
+                    t080_observation: object = _T080_DEFAULT,
+                    measurement_manifest: dict | None = None) -> None:
     contract = env_contract.lookup("linux-baremetal")
     payload = {
         "manifest_sha256": oracle_manifest.manifest_sha256(manifest),
@@ -471,6 +473,8 @@ def _campaign_start(layout, manifest: dict, campaign_id: str = "oracle-b0",
         }
     elif t080_observation is not _T080_ABSENT:
         payload["t080_freeze_migration_observation"] = t080_observation
+    if measurement_manifest is not None:
+        payload["measurement_manifest"] = measurement_manifest
     _session(layout, "campaign-start", payload)
 
 
@@ -502,7 +506,8 @@ def _trial(layout, item: dict, outcome: str, *, variant: str = VARIANT,
            screen_marker: bool = False,
            excluded_reason: str | None = None,
            verify_frontier: str = "s2",
-           abort_payload: object = _DEFAULT_ABORT_PAYLOAD) -> None:
+           abort_payload: object = _DEFAULT_ABORT_PAYLOAD,
+           bench_payload_extra: Mapping | None = None) -> None:
     def selected_abort_payload(default: object) -> object:
         if abort_payload is _DEFAULT_ABORT_PAYLOAD:
             return default
@@ -584,6 +589,8 @@ def _trial(layout, item: dict, outcome: str, *, variant: str = VARIANT,
                             )
                         if screen_marker:
                             payload["screening"] = True
+                        if bench_payload_extra is not None:
+                            payload.update(dict(bench_payload_extra))
                         wal.log(layout, variant, "bench_done", "fixture-env", payload)
                         wal.log(layout, variant, "commit", "fixture-env", {
                             "fitness_tps": sum(tps) / len(tps),
@@ -635,10 +642,15 @@ def _finish_campaign(layout, manifest: dict, *, status: str = "completed",
     })
 
 
-def _finish_campaign_rows(layout, rows: list[dict]) -> None:
+def _finish_campaign_rows(
+        layout, rows: list[dict], *, bench_payload_extra: Mapping | None = None,
+) -> None:
     """複数 campaign の横断契約テスト用に、所有 row だけを完了する。"""
     for item in rows:
-        _trial(layout, item, "committed")
+        _trial(
+            layout, item, "committed",
+            bench_payload_extra=bench_payload_extra,
+        )
     _session(layout, "campaign-terminal", {
         "status": "completed",
         "scheduled_rows": len(rows),
@@ -4200,3 +4212,196 @@ def test_pre_r_null_and_object_mixture_is_protocol_violation(tmp_path):
     assert observations["rows"][1]["reason"] == (
         "t080-freeze-migration-observation: bare null は現行 grammar で禁止"
     )
+
+
+def _degraded_perf_observation() -> dict:
+    receipt = {
+        "schema": perf_preflight.SCHEMA,
+        "status": "unavailable",
+        "available": False,
+        "probe_argv": list(perf_preflight._BASE_PROBE_ARGV),
+        "rc": None,
+        "parsed_events": [],
+        "reason": "perf-not-found",
+        "stderr_sha256": "0" * 64,
+        "candidates": [],
+    }
+    observation = perf_preflight.build_perf_observation(
+        receipt,
+        run_cmd=["ccbench"],
+        leading_indicators={"ipc": None, "llc_miss_rate": None},
+    )
+    assert observation is not None
+    return observation
+
+
+def _degraded_campaign(
+        tmp_path: Path, manifest: dict, campaign_id: str, block_id: str,
+        rows: list[dict], *, observation: dict | None = None,
+) -> None:
+    selected = _degraded_perf_observation() if observation is None else observation
+    layout = campaign_layout(campaign_id, output_root=str(tmp_path)).ensure()
+    sidecar = Path(layout.root) / "measurement-manifest.json"
+    artifacts.write_measurement_manifest(
+        sidecar,
+        oracle_manifest_sha256=oracle_manifest.manifest_sha256(manifest),
+        campaign_id=campaign_id,
+        block_id=block_id,
+        perf_observation=selected,
+        run_cmd=["ccbench"],
+        leading_indicators={"ipc": None, "llc_miss_rate": None},
+    )
+    _campaign_start(
+        layout,
+        manifest,
+        campaign_id,
+        block_id=block_id,
+        measurement_manifest={
+            "path": sidecar.name,
+            "sha256": artifacts.measurement_manifest_sha256(sidecar),
+        },
+    )
+    _finish_campaign_rows(
+        layout,
+        rows,
+        bench_payload_extra={
+            "run_cmd": ["ccbench"],
+            "leading_indicators": {"ipc": None, "llc_miss_rate": None},
+            "perf_observation": selected,
+        },
+    )
+
+
+def test_degraded_report_emits_bound_measurement_conditions(tmp_path):
+    manifest = _schema_less_legacy(_manifest(tmp_path))
+    rows = manifest["schedule"]["rows"]
+    _degraded_campaign(tmp_path, manifest, "oracle-b0", "b0", rows)
+
+    observations = report.build_observations(
+        manifest=manifest, output_root=tmp_path,
+    )
+
+    conditions = observations["measurement_conditions"]
+    assert len(conditions) == 1
+    assert conditions[0]["campaign_id"] == "oracle-b0"
+    assert conditions[0]["measurement_manifest_sha256"] is not None
+    assert conditions[0]["perf_observation"] == _degraded_perf_observation()
+    assert all(row["bench_values"] for row in observations["rows"])
+
+
+def test_measurement_conditions_cover_every_expected_campaign(tmp_path):
+    manifest = _two_campaign_manifest(tmp_path)
+    rows = manifest["schedule"]["rows"]
+    _degraded_campaign(tmp_path, manifest, "oracle-b0", "b0", [rows[0]])
+    perf_layout = campaign_layout("oracle-b1", output_root=str(tmp_path)).ensure()
+    _campaign_start(perf_layout, manifest, "oracle-b1", block_id="b1")
+    _finish_campaign_rows(perf_layout, [rows[1]])
+
+    observations = report.build_observations(
+        manifest=manifest, output_root=tmp_path,
+    )
+
+    conditions = observations["measurement_conditions"]
+    assert [entry["campaign_id"] for entry in conditions] == [
+        "oracle-b0", "oracle-b1",
+    ]
+    assert conditions[1] == {
+        "campaign_id": "oracle-b1",
+        "measurement_manifest_sha256": None,
+        "perf_observation": None,
+    }
+
+
+def test_report_rejects_sidecar_bench_observation_mismatch(tmp_path):
+    manifest = _schema_less_legacy(_manifest(tmp_path))
+    rows = manifest["schedule"]["rows"]
+    observation = _degraded_perf_observation()
+    _degraded_campaign(
+        tmp_path, manifest, "oracle-b0", "b0", rows,
+        observation=observation,
+    )
+    layout = campaign_layout("oracle-b0", output_root=str(tmp_path))
+    lines = Path(layout.wal_file).read_text(encoding="utf-8").splitlines()
+    rewritten = []
+    for line in lines:
+        record = json.loads(line)
+        if record.get("stage") == "bench_done":
+            record["payload"]["perf_observation"]["claim_scope"]["throughput"] = (
+                "unsupported"
+            )
+        rewritten.append(json.dumps(record, separators=(",", ":")))
+    Path(layout.wal_file).write_text("\n".join(rewritten) + "\n", encoding="utf-8")
+
+    with pytest.raises(report.ReportError, match="sidecar と bench"):
+        report.build_observations(manifest=manifest, output_root=tmp_path)
+
+
+def test_report_rejects_campaign_start_sidecar_hash_mismatch(tmp_path):
+    manifest = _schema_less_legacy(_manifest(tmp_path))
+    rows = manifest["schedule"]["rows"]
+    _degraded_campaign(tmp_path, manifest, "oracle-b0", "b0", rows)
+    layout = campaign_layout("oracle-b0", output_root=str(tmp_path))
+    lines = Path(layout.wal_file).read_text(encoding="utf-8").splitlines()
+    rewritten = []
+    for line in lines:
+        record = json.loads(line)
+        payload = record.get("payload", {})
+        if payload.get("event") == "campaign-start":
+            payload["measurement_manifest"]["sha256"] = "f" * 64
+        rewritten.append(json.dumps(record, separators=(",", ":")))
+    Path(layout.wal_file).write_text("\n".join(rewritten) + "\n", encoding="utf-8")
+
+    with pytest.raises(report.ReportError, match="raw hash"):
+        report.build_observations(manifest=manifest, output_root=tmp_path)
+
+
+def test_report_throughput_projection_calls_claim_gate(tmp_path, monkeypatch):
+    manifest = _schema_less_legacy(_manifest(tmp_path))
+    rows = manifest["schedule"]["rows"]
+    _degraded_campaign(tmp_path, manifest, "oracle-b0", "b0", rows)
+    calls = []
+    monkeypatch.setattr(
+        report._perf_preflight,
+        "perf_claim_allowed",
+        lambda *args, **kwargs: calls.append((args, kwargs)) or False,
+    )
+
+    observations = report.build_observations(
+        manifest=manifest, output_root=tmp_path,
+    )
+
+    assert calls
+    assert all(row["bench_values"] == [] for row in observations["rows"])
+    assert all(row["status"] == "protocol_violation" for row in observations["rows"])
+
+
+def test_all_perf_report_preserves_exact_legacy_keys(tmp_path):
+    manifest = _schema_less_legacy(_manifest(tmp_path))
+    layout = _layout(tmp_path, manifest)
+    _finish_campaign(layout, manifest)
+
+    observations = report.build_observations(
+        manifest=manifest, output_root=tmp_path,
+    )
+
+    assert set(observations) == {
+        "schema_version", "manifest_kind", "manifest_sha256", "n_per_cell",
+        "expected_cells", "rows", "manifest_issues", "campaign_verifier_epochs",
+        "t080_freeze_migration_observation",
+    }
+
+
+def test_all_perf_report_preserves_exact_official_keys(tmp_path):
+    manifest = _manifest(tmp_path)
+    layout = _layout(tmp_path, manifest)
+    _finish_campaign(layout, manifest)
+
+    observations = report.build_observations(
+        manifest=_verify_for_report(tmp_path, manifest), output_root=tmp_path,
+    )
+
+    assert set(observations) == {
+        "schema_version", "manifest_kind", "manifest_sha256", "spec_sha256",
+        "n_per_cell", "expected_cells", "rows", "manifest_issues",
+        "campaign_verifier_epochs", "t080_freeze_migration_observation",
+    }

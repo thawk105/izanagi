@@ -31,6 +31,7 @@ _HERE = Path(__file__).resolve().parent
 _ORCHESTRATOR = _HERE.parent
 ROOT = _ORCHESTRATOR.parent
 
+from ..calibrator import perf_preflight as _perf_preflight  # noqa: E402
 from . import buildcache, env_contract, ident, source_digest, trigger_gate_binding, wal  # noqa: E402
 from .layout import CampaignLayout, campaign_layout, repo_output_root  # noqa: E402
 from .model import CampaignConfig, Genome, STAGE_S1_SESSION  # noqa: E402
@@ -809,6 +810,15 @@ def run_role(
         log(f"dry-run: role={role} sessions={len(schedule)} next={next_index} schedule照合済み")
         return EXIT_OK
 
+    perf_preflight_receipt = _perf_preflight.probe_perf_availability()
+    use_perf = _perf_preflight.use_perf_from_receipt(perf_preflight_receipt)
+    perf_evaluate_kwargs = {}
+    if not use_perf:
+        perf_evaluate_kwargs = {
+            "use_perf": False,
+            "perf_preflight_receipt": perf_preflight_receipt,
+        }
+
     if single_tenant_fn is None:
         from .p2_2 import _assert_single_tenant
         single_tenant_fn = _assert_single_tenant
@@ -971,7 +981,8 @@ def run_role(
                             prepared.genome, layout, ENV_TAG, cfg.ccbench_commit, perf,
                             CLOCKS_PER_US,
                             authorization_contract=authorization_contract,
-                            **kwargs)
+                            **kwargs,
+                            **perf_evaluate_kwargs)
                     except (wal.WalAppendError, wal.WalFramingError):
                         # 不確かな同一 WAL に retry/session-result を重ねない。
                         raise

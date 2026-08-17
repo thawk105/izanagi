@@ -39,6 +39,7 @@
               {
                 "if": {"properties": {"use_perf": {"const": false}}},
                 "then": {
+                  "required": ["claim_scope"],
                   "properties": {
                     "counter_status": {"const": "not_required"},
                     "missing_leading_indicators": {"maxItems": 0},
@@ -49,6 +50,7 @@
               {
                 "if": {"properties": {"use_perf": {"const": true}}},
                 "then": {
+                  "not": {"required": ["claim_scope"]},
                   "properties": {
                     "counter_status": {"enum": ["complete", "incomplete"]},
                     "preflight": {"properties": {"available": {"const": true}}}
@@ -81,6 +83,15 @@
                 "type": "array",
                 "items": {"enum": ["llc_miss_rate", "ipc"]},
                 "uniqueItems": true
+              },
+              "claim_scope": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["throughput", "perf_required"],
+                "properties": {
+                  "throughput": {"const": "eligible"},
+                  "perf_required": {"const": "unsupported"}
+                }
               },
               "preflight": {
                 "type": "object",

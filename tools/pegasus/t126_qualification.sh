@@ -645,15 +645,29 @@ import json,sys
 for p in json.load(open(sys.argv[1]))["perf_candidates"]: print(p)
 PY
 )
-[[ -n "$PERF_REAL" ]] || {
-  echo "no functional perf candidate" >&2
-  exit 2
-}
 check_job_deadline
-PERF_BIN="$SCR_ROOT/perf-bin"
-mkdir "$PERF_BIN"
-ln -s "$PERF_REAL" "$PERF_BIN/perf"
-export PATH="$PERF_BIN:$PATH"
+if [[ -n "$PERF_REAL" ]]; then
+  PERF_BIN="$SCR_ROOT/perf-bin"
+  mkdir "$PERF_BIN"
+  ln -s "$PERF_REAL" "$PERF_BIN/perf"
+  export PATH="$PERF_BIN:$PATH"
+fi
+PERF_PREFLIGHT_RECEIPT="$JOB_STAGING/perf-preflight.json"
+USE_PERF=$("$PY" -I -S -B - "$SOURCE_STAGE" "$POLICY" \
+  "$PERF_PREFLIGHT_RECEIPT" <<'PY'
+import json,sys
+sys.path.insert(0,sys.argv[1])
+from orchestrator.calibrator import perf_preflight
+policy=json.load(open(sys.argv[2],encoding="utf-8"))
+receipt=perf_preflight.probe_perf_availability(
+    perf_candidates=policy["perf_candidates"])
+use_perf=perf_preflight.use_perf_from_receipt(receipt)
+with open(sys.argv[3],"x",encoding="utf-8") as f:
+    json.dump(receipt,f,sort_keys=True,separators=(",",":")); f.write("\n")
+print("1" if use_perf else "0")
+PY
+) || exit 2
+[[ "$USE_PERF" == 0 || "$USE_PERF" == 1 ]] || exit 2
 
 readarray -t SUBMIT_ID < <("$PY" -I -S -B - "$SUBMISSION_RECEIPT" <<'PY'
 import json,sys
@@ -721,14 +735,30 @@ safe_namespace "$JOB_STAGING" || exit 2
 cp --no-clobber "$QUAL_ROOT/submissions/$IZANAGI_SUBMISSION_NONCE/toolchain-manifest.json" \
   "$JOB_STAGING/toolchain-manifest.json"
 "$PY" -I -S -B - "$JOB_STAGING/toolchain-manifest.json" "$PY" "$PERF_REAL" \
-  "$CC_REAL" "$CXX_REAL" "$CMAKE_REAL" "$GFLAGS_HEAD" "$GLOG_HEAD" <<'PY'
+  "$CC_REAL" "$CXX_REAL" "$CMAKE_REAL" "$GFLAGS_HEAD" "$GLOG_HEAD" \
+  "$PERF_PREFLIGHT_RECEIPT" "$SOURCE_STAGE" <<'PY'
 import hashlib,json,os,sys
-path,python,perf,cc,cxx,cmake,gflags,glog=sys.argv[1:]
+path,python,perf,cc,cxx,cmake,gflags,glog,compute_receipt,source=sys.argv[1:]
+sys.path.insert(0,source)
+from orchestrator.calibrator import perf_preflight
 d=json.load(open(path,encoding="utf-8"))
-if set(d)!={"schema_version","executables","dependencies","build_argv"} \
+compute=json.load(open(compute_receipt,encoding="utf-8"))
+compute_use_perf=perf_preflight.use_perf_from_receipt(compute)
+submission_receipt=d.get("perf_preflight")
+submission_use_perf=perf_preflight.use_perf_from_receipt(submission_receipt)
+if submission_receipt is not None and submission_use_perf:
+    raise SystemExit("available submission receipt is forbidden")
+expected_keys={"schema_version","executables","dependencies","build_argv"}
+if not submission_use_perf: expected_keys.add("perf_preflight")
+expected_executables={"python","cc","cxx","cmake"}
+if submission_use_perf: expected_executables.add("perf")
+if set(d)!=expected_keys or set(d.get("executables",{}))!=expected_executables \
         or d["schema_version"]!="t126-toolchain-manifest/v1":
     raise SystemExit("toolchain manifest shape mismatch")
-actual={"python":python,"perf":perf,"cc":cc,"cxx":cxx,"cmake":cmake}
+if compute_use_perf and "perf" not in d["executables"]:
+    raise SystemExit("compute perf requires submission perf identity")
+actual={"python":python,"cc":cc,"cxx":cxx,"cmake":cmake}
+if compute_use_perf: actual["perf"]=perf
 for name,path_value in actual.items():
     row=d["executables"][name]
     if os.path.realpath(path_value)!=row["path"]:
@@ -745,9 +775,12 @@ PY
 "$PY" -I -S -B - "$JOB_STAGING/source-stage-evidence.json" "$SOURCE_COMMIT" \
   "${EARLY_ID[1]}" "${EARLY_ID[2]}" "$SOURCE_STAGE" \
   "$JOB_STAGING/toolchain-manifest.json" "$JOB_STAGING/perf-smoke.stdout" \
-  "$JOB_STAGING/perf-smoke.stderr" <<'PY'
+  "$JOB_STAGING/perf-smoke.stderr" "$PERF_PREFLIGHT_RECEIPT" "$USE_PERF" <<'PY'
 import hashlib,json,os,sys
-(target,commit,tree,gitlink,source,toolchain,perf_out,perf_err)=sys.argv[1:]
+(target,commit,tree,gitlink,source,toolchain,perf_out,perf_err,
+ receipt_path,use_perf_raw)=sys.argv[1:]
+sys.path.insert(0,source)
+from orchestrator.calibrator import perf_preflight
 def digest(path):
     h=hashlib.sha256()
     with open(path,"rb") as f:
@@ -765,10 +798,22 @@ p={"schema_version":"t126-source-stage-evidence/v1",
        source,"orchestrator/qualification/t126_driver.py")),
    "job_script_sha256":digest(os.path.join(
        source,"tools/pegasus/t126_qualification.sh")),
-   "toolchain_manifest_sha256":digest(toolchain),
-   "perf_smoke_returncode":0,
-   "perf_smoke_stdout":open(perf_out,encoding="utf-8",errors="strict").read(),
-   "perf_smoke_stderr":open(perf_err,encoding="utf-8",errors="strict").read()}
+   "toolchain_manifest_sha256":digest(toolchain)}
+receipt=json.load(open(receipt_path,encoding="utf-8"))
+use_perf=perf_preflight.use_perf_from_receipt(receipt)
+if use_perf != (use_perf_raw=="1"): raise SystemExit(2)
+if use_perf:
+    p.update({
+        "perf_smoke_returncode":0,
+        "perf_smoke_stdout":open(
+            perf_out,encoding="utf-8",errors="strict").read(),
+        "perf_smoke_stderr":open(
+            perf_err,encoding="utf-8",errors="strict").read(),
+    })
+else:
+    p["perf_observation"]=perf_preflight.build_perf_observation(
+        receipt,run_cmd=["true"],
+        leading_indicators={"ipc":None,"llc_miss_rate":None})
 with open(target,"x",encoding="utf-8") as f:
     json.dump(p,f,sort_keys=True,separators=(",",":")); f.write("\n")
 PY

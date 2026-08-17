@@ -22,10 +22,20 @@ ROOT = _ORCHESTRATOR.parent
 from . import s8b_oracle_artifacts as _artifacts  # noqa: E402
 from . import s8b_oracle_manifest, s8b_oracle_spec  # noqa: E402
 from . import s8b_ratified_freeze  # noqa: E402
+from orchestrator.calibrator import perf_preflight as _perf_preflight  # noqa: E402
 
 INPUT_SCHEMA = _artifacts.OFFICIAL_OBSERVATIONS_SCHEMA
 OUTPUT_SCHEMA = _artifacts.OFFICIAL_VERDICT_SCHEMA
 _EXPECTED_CELL_KEYS = {"schedule_index", "holdout_id", "configuration_id"}
+_MEASUREMENT_CONDITION_KEYS = {
+    "campaign_id", "measurement_manifest_sha256", "perf_observation",
+}
+_SHA256_CHARS = frozenset("0123456789abcdef")
+_DEGRADED_PLACEHOLDER_CMD = ("ccbench",)
+_DEGRADED_PLACEHOLDER_INDICATORS = {
+    "ipc": None,
+    "llc_miss_rate": None,
+}
 
 
 @dataclass(frozen=True)
@@ -101,6 +111,111 @@ def _unknown(reasons: Sequence[Mapping]) -> dict:
                      key=lambda reason: (str(reason.get("code")), str(reason.get("message"))))
     return {"status": "unknown", "median_of_medians": None,
             "trial_medians": [], "reasons": ordered}
+
+
+def _measurement_conditions(
+        observations: Mapping, expected_campaign_ids: frozenset[str],
+) -> tuple[list[dict] | None, list[dict]]:
+    """条件付き campaign 全被覆を検査し、集約前 claim gate を実行する。"""
+    if "measurement_conditions" not in observations:
+        return None, []
+    raw = observations.get("measurement_conditions")
+    reasons: list[dict] = []
+    normalized: list[dict] = []
+    if (not isinstance(raw, Sequence)
+            or isinstance(raw, (str, bytes, bytearray)) or not raw):
+        return [], [_reason(
+            "measurement-conditions",
+            "measurement_conditions が空でない array でない",
+        )]
+    campaign_ids: list[str] = []
+    perf_present = 0
+    degraded = 0
+    for entry in raw:
+        if not isinstance(entry, Mapping) or set(entry) != _MEASUREMENT_CONDITION_KEYS:
+            reasons.append(_reason(
+                "measurement-condition-schema",
+                "measurement_conditions entry の exact key 集合が不一致",
+            ))
+            continue
+        campaign_id = entry.get("campaign_id")
+        if not isinstance(campaign_id, str) or not campaign_id:
+            reasons.append(_reason(
+                "measurement-condition-campaign-id",
+                "measurement_conditions campaign_id が非空文字列でない",
+            ))
+            continue
+        campaign_ids.append(campaign_id)
+        sha256 = entry.get("measurement_manifest_sha256")
+        observation = entry.get("perf_observation")
+        if sha256 is None and observation is None:
+            perf_present += 1
+            normalized.append(dict(entry))
+            continue
+        if (not isinstance(sha256, str) or len(sha256) != 64
+                or not set(sha256) <= _SHA256_CHARS or observation is None):
+            reasons.append(_reason(
+                "measurement-condition-pair",
+                "measurement manifest hash と perf_observation の null 条件が不一致",
+            ))
+            continue
+        try:
+            allowed = _perf_preflight.perf_claim_allowed(
+                observation,
+                "throughput",
+                run_cmd=_DEGRADED_PLACEHOLDER_CMD,
+                leading_indicators=_DEGRADED_PLACEHOLDER_INDICATORS,
+            )
+            canonical = _perf_preflight.validate_perf_observation(
+                observation,
+                run_cmd=_DEGRADED_PLACEHOLDER_CMD,
+                leading_indicators=_DEGRADED_PLACEHOLDER_INDICATORS,
+            )
+        except _perf_preflight.PerfPreflightError as exc:
+            reasons.append(_reason(
+                "measurement-condition-observation",
+                f"measurement condition perf_observation が不正: {exc}",
+            ))
+            continue
+        if not allowed:
+            reasons.append(_reason(
+                "measurement-condition-claim",
+                "measurement condition は throughput claim を許可しない",
+            ))
+            continue
+        if canonical["use_perf"] is not False:
+            reasons.append(_reason(
+                "measurement-condition-mode",
+                "measurement manifest 付き condition が degraded でない",
+            ))
+            continue
+        degraded += 1
+        normalized.append({
+            "campaign_id": campaign_id,
+            "measurement_manifest_sha256": sha256,
+            "perf_observation": canonical,
+        })
+    if len(campaign_ids) != len(set(campaign_ids)):
+        reasons.append(_reason(
+            "measurement-condition-duplicate",
+            "measurement_conditions campaign_id が重複",
+        ))
+    if frozenset(campaign_ids) != expected_campaign_ids:
+        reasons.append(_reason(
+            "measurement-condition-campaigns",
+            "measurement_conditions が検証済み manifest campaign_ids を完全被覆しない",
+        ))
+    if perf_present and degraded:
+        reasons.append(_reason(
+            "measurement-conditions-mixed",
+            "perf 有り campaign と degraded campaign が混在",
+        ))
+    elif perf_present and not degraded:
+        reasons.append(_reason(
+            "measurement-conditions-redundant",
+            "全 campaign が perf 有りなら measurement_conditions は不在でなければならない",
+        ))
+    return normalized, reasons
 
 
 def _cell(
@@ -374,6 +489,12 @@ def judge_oracle(
                      if _is_int(row.get("schedule_index")))
     duplicate_indices = {index for index, count in counts.items() if count > 1}
 
+    measurement_conditions, measurement_reasons = _measurement_conditions(
+        observations, schedule_projection.expected_campaign_ids,
+    )
+    top_reasons.extend(measurement_reasons)
+    measurement_aggregation_allowed = not measurement_reasons
+
     holdouts: dict[str, dict] = {}
     for holdout_id in holdout_ids:
         configurations: dict[str, dict] = {}
@@ -381,9 +502,13 @@ def judge_oracle(
             cell_rows = [row for row in rows
                          if row.get("holdout_id") == holdout_id
                          and row.get("configuration_id") == configuration_id]
-            configurations[configuration_id] = _cell(
-                cell_rows, n, duplicate_indices,
-                epoch_eligible_campaign_ids,
+            configurations[configuration_id] = (
+                _cell(
+                    cell_rows, n, duplicate_indices,
+                    epoch_eligible_campaign_ids,
+                )
+                if measurement_aggregation_allowed
+                else _unknown(measurement_reasons)
             )
         unknown = bool(top_reasons) or any(
             value["status"] == "unknown" for value in configurations.values())
@@ -414,7 +539,7 @@ def judge_oracle(
     overall = ("indeterminate" if top_reasons or not holdouts
                or any(value["verdict"] == "indeterminate" for value in holdouts.values())
                else "determinate")
-    return _artifacts.OfficialVerdict({
+    result = _artifacts.OfficialVerdict({
         "schema_version": OUTPUT_SCHEMA,
         "manifest_sha256": manifest_sha,
         "n_per_cell": n,
@@ -423,6 +548,9 @@ def judge_oracle(
                           key=lambda reason: (reason["code"], reason["message"])),
         "holdouts": holdouts,
     })
+    if measurement_conditions is not None:
+        result["measurement_conditions"] = measurement_conditions
+    return result
 
 
 def _write_create_only(path: Path, value: Mapping) -> None:

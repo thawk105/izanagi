@@ -31,6 +31,7 @@ sys.path.insert(0, os.path.dirname(_ORCH))
 sys.path.insert(0, _HERE)
 
 from orchestrator.calibrator import schema_v2 as CALIBRATION_V2  # noqa: E402
+from orchestrator.calibrator import perf_preflight as PERF_PREFLIGHT  # noqa: E402
 from orchestrator.campaign import s8b_ratified_freeze as M  # noqa: E402
 from orchestrator.campaign import env_contract as EC  # noqa: E402
 from orchestrator.campaign import s8b_floor_campaign as FLOOR  # noqa: E402
@@ -49,6 +50,24 @@ from s8b_floor_evidence_fixture import (  # noqa: E402
 from test_schema_v2 import _valid_document as _valid_calibration_v2_document  # noqa: E402
 
 _REAL_V1 = Path(_ROOT) / "output" / "s8b-freeze" / "holdout_freeze.json"
+
+
+def _perf_receipt(*, available: bool) -> dict:
+    events = ["LLC-load-misses", "LLC-loads", "instructions", "cycles"]
+    return {
+        "schema": "izanagi-perf-preflight/v1",
+        "status": "available" if available else "unavailable",
+        "available": available,
+        "probe_argv": [
+            "perf", "stat", "-x,", "-o", "<tmp>/perf.csv",
+            "-e", ",".join(events), "--", "/bin/true",
+        ],
+        "rc": 0 if available else None,
+        "parsed_events": events if available else [],
+        "reason": "available" if available else "perf-not-found",
+        "stderr_sha256": hashlib.sha256(b"ratified-fixture").hexdigest(),
+        "candidates": [],
+    }
 
 
 # --------------------------------------------------------------------------
@@ -452,17 +471,20 @@ def _make_emitter_build():
 
 
 class _EmitterScalePoint:
-    def __init__(self, run_cmd: str):
+    def __init__(self, run_cmd: str, *, use_perf: bool = True):
         self.throughputs = [1000.0] * 5
         self.notes = []
         self.run_cmd = run_cmd
         self.rep_observations = [
             {
                 "rep_index": index, "returncode": 0,
-                "counter_status": "complete", "missing_perf_events": [],
+                "counter_status": "complete" if use_perf else "not_required",
+                "missing_perf_events": [],
                 "perf_raw": {
-                    "LLC-load-misses": 1, "LLC-loads": 2,
-                    "instructions": 3, "cycles": 4,
+                    "LLC-load-misses": 1 if use_perf else None,
+                    "LLC-loads": 2 if use_perf else None,
+                    "instructions": 3 if use_perf else None,
+                    "cycles": 4 if use_perf else None,
                 },
                 "throughput": 1000.0,
             }
@@ -470,15 +492,29 @@ class _EmitterScalePoint:
         ]
 
 
-def _emitter_measure(binary, records, threads, workload):
+def _emitter_measure_for_perf(binary, records, threads, workload, *, use_perf: bool):
     contract = EC.lookup("linux-baremetal")
     argv = list(FC.build_portable_run_cmd(
         binary="output/portable/bench", workload=workload, records=records,
         threads=threads, extime_s=5, clocks_per_us=contract.clocks_per_us,
         numactl=contract.numactl,
+        use_perf=use_perf,
     ))
-    argv[argv.index("--") + 1] = str(binary)
-    return _EmitterScalePoint(shlex.join(argv))
+    binary_index = argv.index("--") + 1 if use_perf else len(contract.numactl)
+    argv[binary_index] = str(binary)
+    return _EmitterScalePoint(shlex.join(argv), use_perf=use_perf)
+
+
+def _emitter_measure(binary, records, threads, workload):
+    return _emitter_measure_for_perf(
+        binary, records, threads, workload, use_perf=True,
+    )
+
+
+def _emitter_measure_degraded(binary, records, threads, workload):
+    return _emitter_measure_for_perf(
+        binary, records, threads, workload, use_perf=False,
+    )
 
 
 def _json_bytes(document) -> bytes:
@@ -811,7 +847,8 @@ def _emitter_artifact_paths(run_dir: Path, root: Path) -> dict[str, str]:
 
 
 def _run_official_fixture_campaign(
-        protocol, verified, *, build_fn, verified_calibration, **kwargs) -> dict:
+        protocol, verified, *, build_fn, verified_calibration,
+        perf_receipt=None, **kwargs) -> dict:
     """official-shaped bytes を作る pytest 専用入口。
 
     materializer は production core の引数 seam へ渡さず、既定 gateway の局所パッチとして
@@ -864,6 +901,11 @@ def _run_official_fixture_campaign(
             ), \
             mock.patch.object(
                 FLOOR.source_digest, "resolve_evidence", fixture_evidence,
+            ), \
+            mock.patch.object(
+                FLOOR._perf_preflight, "probe_perf_availability",
+                return_value=(_perf_receipt(available=True)
+                              if perf_receipt is None else perf_receipt),
             ):
         return FLOOR._run_campaign_core(
             protocol, verified, mode="official", **kwargs,
@@ -875,7 +917,7 @@ def build_production_emitter_g1(
         journal_manifest_before_g=False, executable_role=None,
         cert_at_generation=False, generation_strings_escaped=False, now=_FIXED_NOW,
         selector_valid_cell=False, selector_extra_files=(),
-        selector_payload_hit=False):
+        selector_payload_hit=False, perf_available=True):
     """決定的観測下の production-emitter bytes で base→C→G→A を構築する。
 
     build/measure/provenance は固定 seam であり、実 build・実測の代表 bytes ではない。
@@ -919,7 +961,9 @@ def build_production_emitter_g1(
 
     outcome = _run_official_fixture_campaign(
         protocol, verified, out_root=out_root,
-        measure_fn=_emitter_measure, probe_fn=lambda: (1, "", ""),
+        measure_fn=(_emitter_measure if perf_available else _emitter_measure_degraded),
+        perf_receipt=_perf_receipt(available=perf_available),
+        probe_fn=lambda: (1, "", ""),
         sleep_fn=lambda _seconds: None, monotonic_fn=lambda: 0.0,
         prepare_fn=_fixed_prepare, now_fn=lambda: now,
         host_provenance_fn=_fixed_host, process_identity_fn=_fixed_process,
@@ -1353,6 +1397,136 @@ def test_happy_path_resolves_and_loads(tmp_path):
     assert freeze.activation_head == res.activation_head
     assert freeze.document["schema_version"] == "8b-holdout-freeze/v2"
     assert topology["result"]["eligible_for_refreeze"] is True
+    assert set(topology["manifest"]) == set(M._MANIFEST_KEYS)
+    assert set(topology["result"]) == set(FC.result_keys_for_mode("official"))
+    assert "perf_preflight" not in topology["manifest"]
+    assert "perf_observation" not in topology["result"]
+    contract = EC.lookup("linux-baremetal")
+    for record in topology["result"]["sessions"]:
+        tokens = shlex.split(record["run_cmd"])
+        assert tokens[len(contract.numactl):len(contract.numactl) + 2] == ["perf", "stat"]
+        assert M._run_cmd_matches_portable_session(
+            record, protocol=topology["protocol"],
+            binaries=topology["manifest"]["binaries"], contract=contract,
+            expected_use_perf=True,
+        )
+
+
+def test_degraded_launch_threads_expected_use_perf_to_every_consumer(tmp_path):
+    """M8: journal/stats/result/axis の一箇所でも旧 True へ戻れば拒否する。"""
+    root, freeze, topology = load_emitter_g1(tmp_path, perf_available=False)
+    manifest = topology["manifest"]
+    result = topology["result"]
+    assert PERF_PREFLIGHT.use_perf_from_receipt(manifest["perf_preflight"]) is False
+    assert result["perf_preflight"] == manifest["perf_preflight"]
+    assert result["perf_observation"] == manifest["perf_observation"]
+
+    with mock.patch.object(
+            M, "_validate_journal", wraps=M._validate_journal) as journal_spy, \
+            mock.patch.object(
+                M._floor_stats, "verify_floor_artifact_with_live_admission",
+                wraps=M._floor_stats.verify_floor_artifact_with_live_admission,
+            ) as stats_spy, \
+            mock.patch.object(
+                M, "_validate_result", wraps=M._validate_result,
+            ) as result_spy, \
+            mock.patch.object(
+                M, "_validate_axis_occurrences", wraps=M._validate_axis_occurrences,
+            ) as axis_spy:
+        validated = M.launch_validate(freeze, root)
+
+    assert isinstance(validated, M.LaunchValidatedFreeze)
+    for spy in (journal_spy, stats_spy, result_spy, axis_spy):
+        assert spy.call_count == 1
+        assert spy.call_args.kwargs["expected_use_perf"] is False
+    contract = EC.lookup("linux-baremetal")
+    for record in result["sessions"]:
+        tokens = shlex.split(record["run_cmd"])
+        assert tokens[len(contract.numactl)] != "perf"
+
+
+def _degraded_portable_record():
+    contract = EC.lookup("linux-baremetal")
+    holdout = HF.HOLDOUTS["rr80"]
+    binary = "output/portable/fixture.exe"
+    record = {
+        "cell_id": "rr80::stock_common",
+        "records": holdout["records"],
+        "threads": holdout["threads"],
+        "workload": holdout["ycsb"],
+    }
+    expected = FC.build_portable_run_cmd(
+        binary=binary, workload=record["workload"], records=record["records"],
+        threads=record["threads"], extime_s=5,
+        clocks_per_us=contract.clocks_per_us, numactl=contract.numactl,
+        use_perf=False,
+    )
+    record["run_cmd"] = shlex.join(expected)
+    binaries = {record["cell_id"]: {"binary": binary}}
+    return contract, record, binaries, expected
+
+
+def test_degraded_axis_occurrence_uses_false_portable_projection():
+    """M8 axis: scanner 内の consumer だけ旧 True へ戻る変異を殺す。"""
+    contract, record, binaries, _expected = _degraded_portable_record()
+    record["event"] = "session"
+    raw = _jsonl_bytes([record])
+    hits = M._validate_axis_occurrences(
+        artifacts=(("output/run/journal.jsonl", (record,), raw),),
+        protocol={"extime_s": 5}, binaries=binaries, contract=contract,
+        expected_use_perf=False,
+    )
+    assert hits["rr80"] == ["output/run/journal.jsonl"]
+
+
+def test_degraded_result_observation_is_exactly_bound_to_manifest():
+    receipt = _perf_receipt(available=False)
+    observation = {
+        "use_perf": False,
+        "counter_status": "not_required",
+        "missing_leading_indicators": [],
+        "preflight": receipt,
+        "claim_scope": {
+            "throughput": "eligible",
+            "perf_required": "unsupported",
+        },
+    }
+    result = {
+        key: None for key in FC.result_keys_for_mode(
+            "official", perf_preflight=receipt,
+        )
+    }
+    result["perf_preflight"] = receipt
+    result["perf_observation"] = json.loads(json.dumps(observation))
+    M._validate_result_top_level_keys(
+        result, expected_use_perf=False,
+        expected_perf_preflight=receipt,
+        expected_perf_observation=observation,
+    )
+    result["perf_observation"]["claim_scope"]["throughput"] = "unsupported"
+    with pytest.raises(M.RatifiedFreezeError) as error:
+        M._validate_result_top_level_keys(
+            result, expected_use_perf=False,
+            expected_perf_preflight=receipt,
+            expected_perf_observation=observation,
+        )
+    assert error.value.reason == "binding-chain-mismatch"
+    assert error.value.cause == "result-manifest-perf-observation"
+
+
+def test_degraded_portable_projection_passes_use_perf_explicitly():
+    """M9: build_portable_run_cmd の既定 True 復活を call kwargs で直接殺す。"""
+    contract, record, binaries, expected = _degraded_portable_record()
+    with mock.patch.object(
+            FC, "build_portable_run_cmd", wraps=FC.build_portable_run_cmd) as build_spy:
+        M._run_cmd_matches_portable_session(
+            record, protocol={"extime_s": 5}, binaries=binaries,
+            contract=contract, expected_use_perf=False,
+        )
+    assert build_spy.call_count == 1
+    assert build_spy.call_args.kwargs.get("use_perf") is False
+    assert tuple(shlex.split(record["run_cmd"])) == expected
+    assert expected[len(contract.numactl)] != "perf"
 
 
 def _emitter_observation(tmp_path: Path) -> dict:

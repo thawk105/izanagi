@@ -49,6 +49,7 @@ GENERATOR_IDENTITY = "orchestrator.campaign.layer3_report"
 STAGES = frozenset(("build_start", "build_done", "verify_done", "bench_done", "commit", "abort"))
 _HERE = Path(__file__).resolve().parent
 
+from ..calibrator import perf_preflight as _perf_preflight  # noqa: E402
 from . import (  # noqa: E402
     campaign_lock,
     s8c_acceptance_receipt,
@@ -227,6 +228,20 @@ def _validate_schema(report: Mapping[str, Any]) -> None:
         jsonschema.Draft7Validator(schema).validate(report)
     except jsonschema.ValidationError as exc:
         raise Layer3ReportError("layer3 schema 検証に失敗") from exc
+    for run in report.get("runs", ()):
+        observation = run.get("perf_observation")
+        if observation is None:
+            continue
+        try:
+            _perf_preflight.validate_perf_observation(
+                observation,
+                run_cmd=run.get("run_cmd"),
+                leading_indicators=run.get("leading_indicators"),
+            )
+        except _perf_preflight.PerfPreflightError as exc:
+            raise Layer3ReportError(
+                "layer3 perf observation 共有検証に失敗"
+            ) from exc
     certifying_input = report.get("certifying_input", False)
     acceptance_receipt = report.get("acceptance_receipt")
     if (certifying_input is True) != (acceptance_receipt is not None):

@@ -36,6 +36,7 @@ from orchestrator.campaign.build_admission import (  # noqa: E402
     build_run_context,
 )
 from orchestrator.campaign.model import Genome  # noqa: E402
+from orchestrator.calibrator import perf_preflight as _perf_preflight  # noqa: E402
 
 from .artifacts import (  # noqa: E402
     QualificationArtifactError,
@@ -484,7 +485,8 @@ class ForkedMemberRunner:
             self, *, repo_root: Path, capability, layout, protocol,
             ccbench_dir: Path, cache_root: Path, ccbench_gitlink: str,
             process_groups: ActiveProcessGroups,
-            envelope: MonotonicEnvelope):
+            envelope: MonotonicEnvelope,
+            perf_observation: Mapping[str, Any] | None):
         self.repo_root = repo_root
         self.capability = capability
         self.layout = layout
@@ -494,6 +496,7 @@ class ForkedMemberRunner:
         self.ccbench_gitlink = ccbench_gitlink
         self.process_groups = process_groups
         self.envelope = envelope
+        self.perf_observation = perf_observation
 
     def __call__(self, round_index: int, role: str) -> dict[str, Any]:
         source_member = self.protocol["source"]["members"][role]
@@ -556,6 +559,7 @@ class ForkedMemberRunner:
                     qualification_policy=policy,
                     build_context=build_context,
                     log=lambda *args, **kwargs: None,
+                    **_member_pipeline_perf_kwargs(self.perf_observation),
                 )
                 if not result.certified or result.aborted:
                     os._exit(RC_MEMBER_REJECTED)
@@ -645,6 +649,7 @@ class ForkedMemberRunner:
         admitted = validate_member_evidence(
             records, expected_role=role, expected_round=round_index,
             expected_reps=self.protocol["workload"]["reps"],
+            expected_perf_observation=self.perf_observation,
         )
         runtime_path = event_path.with_name("member-runtime.json")
         runtime = load_json_strict(runtime_path)
@@ -681,6 +686,28 @@ class ForkedMemberRunner:
             "terminal_monotonic": time.monotonic(),
         })
         return admitted
+
+
+def _member_pipeline_perf_kwargs(
+        perf_observation: Mapping[str, Any] | None) -> dict[str, Any]:
+    """Keep the legacy evaluate call exact unless prologue proved degraded."""
+    if perf_observation is None:
+        return {}
+    if perf_observation.get("use_perf") is not False:
+        raise QualificationDriverError(
+            "member perf observation is not canonical degraded evidence")
+    return {
+        "use_perf": False,
+        "perf_preflight_receipt": perf_observation["preflight"],
+    }
+
+
+def _series_result_perf_fields(
+        perf_observation: Mapping[str, Any] | None) -> dict[str, Any]:
+    """Keep the legacy series-result key set exact for perf-present runs."""
+    if perf_observation is None:
+        return {}
+    return {"perf_observation": perf_observation}
 
 
 def run_series(
@@ -819,7 +846,7 @@ def _toolchain_manifest(path: Path) -> dict[str, Any]:
 def _verify_prologue_evidence(
         path: Path, *, series_preimage: Mapping[str, Any],
         toolchain_manifest_path: Path,
-) -> dict[str, Any]:
+) -> dict[str, Any] | None:
     value = load_json_strict(path)
     required = {
         "schema_version", "source_commit", "source_tree", "ccbench_gitlink",
@@ -828,15 +855,20 @@ def _verify_prologue_evidence(
         "toolchain_manifest_sha256", "perf_smoke_returncode",
         "perf_smoke_stdout", "perf_smoke_stderr",
     }
+    smoke_fields = {
+        "perf_smoke_returncode", "perf_smoke_stdout", "perf_smoke_stderr",
+    }
+    common_required = required - smoke_fields
+    key_set = set(value)
+    if key_set not in (
+            required, common_required | {"perf_observation"}):
+        raise QualificationDriverError(
+            "prologue source-stage/perf evidence is not consumer-verifiable")
     identities = {
         **series_preimage["code_identity"],
         **series_preimage["script_identity"],
     }
-    perf_text = (
-        str(value.get("perf_smoke_stdout", ""))
-        + "\n" + str(value.get("perf_smoke_stderr", ""))).lower()
-    if (set(value) != required
-            or value["schema_version"] != "t126-source-stage-evidence/v1"
+    if (value.get("schema_version") != "t126-source-stage-evidence/v1"
             or value["source_commit"] != series_preimage["superproject_commit"]
             or value["source_tree"] != series_preimage["superproject_tree"]
             or value["ccbench_gitlink"] != series_preimage["ccbench_gitlink"]
@@ -852,15 +884,34 @@ def _verify_prologue_evidence(
             or value["job_script_sha256"] != identities[
                 "tools/pegasus/t126_qualification.sh"]
             or value["toolchain_manifest_sha256"]
-            != sha256_file(toolchain_manifest_path)
-            or value["perf_smoke_returncode"] != 0
-            or "<not supported>" in perf_text
-            or "<not counted>" in perf_text
-            or not all(name in perf_text for name in (
-                "llc-load-misses", "llc-loads", "instructions", "cycles"))):
+            != sha256_file(toolchain_manifest_path)):
         raise QualificationDriverError(
             "prologue source-stage/perf evidence is not consumer-verifiable")
-    return value
+    if key_set == required:
+        perf_text = (
+            str(value.get("perf_smoke_stdout", ""))
+            + "\n" + str(value.get("perf_smoke_stderr", ""))).lower()
+        if (value["perf_smoke_returncode"] != 0
+                or "<not supported>" in perf_text
+                or "<not counted>" in perf_text
+                or not all(name in perf_text for name in (
+                    "llc-load-misses", "llc-loads", "instructions", "cycles"))):
+            raise QualificationDriverError(
+                "prologue source-stage/perf evidence is not consumer-verifiable")
+        return None
+    try:
+        observation = _perf_preflight.validate_perf_observation(
+            value["perf_observation"], run_cmd=["true"],
+            leading_indicators={"ipc": None, "llc_miss_rate": None},
+        )
+    except _perf_preflight.PerfPreflightError as exc:
+        raise QualificationDriverError(
+            "prologue source-stage/perf evidence is not consumer-verifiable"
+        ) from exc
+    if observation["use_perf"] is not False:
+        raise QualificationDriverError(
+            "prologue source-stage/perf evidence is not consumer-verifiable")
+    return observation
 
 
 def run(
@@ -893,7 +944,7 @@ def run(
     if prologue_evidence_path is None:
         raise QualificationDriverError(
             "live run requires immutable prologue evidence")
-    _verify_prologue_evidence(
+    perf_observation = _verify_prologue_evidence(
         prologue_evidence_path, series_preimage=series_preimage,
         toolchain_manifest_path=toolchain_manifest_path)
     try:
@@ -1210,6 +1261,7 @@ def run(
             protocol=protocol, ccbench_dir=ccbench_dir, cache_root=cache_root,
             ccbench_gitlink=series_preimage["ccbench_gitlink"],
             process_groups=process_groups, envelope=envelope,
+            perf_observation=perf_observation,
         )
         try:
             outcome = run_series(
@@ -1243,6 +1295,7 @@ def run(
         "evidence_manifest": evidence_manifest,
         "timing_envelope": envelope.receipt(),
     }
+    result.update(_series_result_perf_fields(perf_observation))
     validate_json_schema("t126_series_result_schema.json", result)
     result_path = create_json(capability, f"{prefix}/series-result.json", result)
     rc = {
@@ -1273,6 +1326,11 @@ def verify(attempt_dir: Path) -> ReceiptVerification:
             attempt_dir / "source/source-snapshots.json")
         ledger = load_jsonl_strict(attempt_dir / "series-ledger.jsonl")
         validate_json_schema("t126_series_result_schema.json", result)
+        prologue_manifest = attempt_dir / "prologue/toolchain-manifest.json"
+        perf_observation = _verify_prologue_evidence(
+            attempt_dir / "prologue/source-stage-evidence.json",
+            series_preimage=series_preimage,
+            toolchain_manifest_path=prologue_manifest)
         for event in ledger:
             validate_json_schema("t126_event_schema.json", event)
         replay = replay_ledger(ledger, protocol)
@@ -1283,8 +1341,13 @@ def verify(attempt_dir: Path) -> ReceiptVerification:
             "expectation_match", "bits", "rounds", "ledger",
             "evidence_manifest", "timing_envelope",
         }
+        expected_result_keys.update(
+            _series_result_perf_fields(perf_observation))
         if set(result) != expected_result_keys:
             raise QualificationDriverError("series result key set mismatch")
+        if result.get("perf_observation") != perf_observation:
+            raise QualificationDriverError(
+                "series result/prologue perf observation mismatch")
         computed_series_id = series_identity(series_preimage)
         computed_attempt_id = attempt_identity(attempt_preimage)
         if (marker.get("qualification_series_id") != computed_series_id
@@ -1379,11 +1442,6 @@ def verify(attempt_dir: Path) -> ReceiptVerification:
         if submission_value.get("qsub_binding_sha256") != binding_row["sha256"]:
             raise QualificationDriverError(
                 "submission/qsub binding snapshot mismatch")
-        prologue_manifest = attempt_dir / "prologue/toolchain-manifest.json"
-        _verify_prologue_evidence(
-            attempt_dir / "prologue/source-stage-evidence.json",
-            series_preimage=series_preimage,
-            toolchain_manifest_path=prologue_manifest)
         event_identity = ledger[0]["identity"]
         if (event_identity["qualification_series_id"] != computed_series_id
                 or event_identity["qualification_attempt_id"] != computed_attempt_id
@@ -1454,6 +1512,7 @@ def verify(attempt_dir: Path) -> ReceiptVerification:
                 admitted = validate_member_evidence(
                     load_jsonl_strict(path), expected_role=role,
                     expected_round=round_index,
+                    expected_perf_observation=perf_observation,
                 )
                 if (role_round[role]["median_tps"] != admitted["median_tps"]
                         or role_round[role]["evidence_ref"]

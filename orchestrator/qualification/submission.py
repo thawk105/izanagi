@@ -11,6 +11,7 @@ import shutil
 import stat
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 from typing import Any, Mapping, Optional, Sequence
 
@@ -25,6 +26,7 @@ from .contract import (  # noqa: E402
     series_identity,
 )
 from .t126_driver import build_series_preimage  # noqa: E402
+from orchestrator.calibrator import perf_preflight as _perf_preflight  # noqa: E402
 
 
 class SubmissionPreparationError(RuntimeError):
@@ -108,20 +110,51 @@ def prepare_toolchain(policy: Mapping[str, Any]) -> dict[str, Any]:
         "cc": _executable("cc", ["gcc-13"]),
         "cxx": _executable("cxx", ["g++-13"]),
         "cmake": _executable("cmake", ["cmake"]),
-        "perf": _executable("perf", policy["perf_candidates"]),
     }
-    perf = executables["perf"]["path"]
+    perf_row = None
+    perf_error: SubmissionPreparationError | None = None
     try:
-        smoke = subprocess.run(
-            [perf, "stat", "-x,", "-e",
-             "LLC-load-misses,LLC-loads,instructions,cycles", "--", "true"],
-            capture_output=True, text=True, timeout=10)
-    except (OSError, subprocess.SubprocessError) as exc:
-        raise SubmissionPreparationError(f"perf smoke failed: {exc}") from exc
-    perf_text = (smoke.stdout + "\n" + smoke.stderr).lower()
-    if (smoke.returncode != 0 or "<not supported>" in perf_text
-            or "<not counted>" in perf_text):
-        raise SubmissionPreparationError("perf candidate is not functional")
+        perf_row = _executable("perf", policy["perf_candidates"])
+        perf = perf_row["path"]
+        try:
+            smoke = subprocess.run(
+                [perf, "stat", "-x,", "-e",
+                 "LLC-load-misses,LLC-loads,instructions,cycles", "--", "true"],
+                capture_output=True, text=True, timeout=10)
+        except (OSError, subprocess.SubprocessError) as exc:
+            raise SubmissionPreparationError(f"perf smoke failed: {exc}") from exc
+        perf_text = (smoke.stdout + "\n" + smoke.stderr).lower()
+        if (smoke.returncode != 0 or "<not supported>" in perf_text
+                or "<not counted>" in perf_text):
+            raise SubmissionPreparationError("perf candidate is not functional")
+    except SubmissionPreparationError as exc:
+        perf_error = exc
+
+    original_path = os.environ.get("PATH")
+    try:
+        with tempfile.TemporaryDirectory(prefix="t126-submit-perf-") as tmp:
+            if perf_row is not None and perf_error is None:
+                os.symlink(perf_row["path"], Path(tmp) / "perf")
+                os.environ["PATH"] = tmp + os.pathsep + (original_path or "")
+            receipt = _perf_preflight.probe_perf_availability(
+                perf_candidates=policy["perf_candidates"])
+    except (OSError, _perf_preflight.PerfPreflightError) as exc:
+        raise SubmissionPreparationError(f"perf preflight failed: {exc}") from exc
+    finally:
+        if original_path is None:
+            os.environ.pop("PATH", None)
+        else:
+            os.environ["PATH"] = original_path
+    try:
+        use_perf = _perf_preflight.use_perf_from_receipt(receipt)
+    except _perf_preflight.PerfPreflightError as exc:
+        raise SubmissionPreparationError(f"perf preflight failed: {exc}") from exc
+    if use_perf:
+        if perf_error is not None:
+            raise perf_error
+        if perf_row is None:  # pragma: no cover - guarded by the branch above
+            raise SubmissionPreparationError("required executable unavailable: perf")
+        executables["perf"] = perf_row
     dependencies = {
         "gflags": _dependency(
             Path(policy["gflags_source_path"]), policy["gflags_expected_head"]),
@@ -132,12 +165,15 @@ def prepare_toolchain(policy: Mapping[str, Any]) -> dict[str, Any]:
         name: list(argv)
         for name, argv in REGISTERED_DEPENDENCY_BUILD_ARGV.items()
     }
-    return {
+    manifest = {
         "schema_version": "t126-toolchain-manifest/v1",
         "executables": executables,
         "dependencies": dependencies,
         "build_argv": build_argv,
     }
+    if not use_perf:
+        manifest["perf_preflight"] = receipt
+    return manifest
 
 
 def _durable_json(path: Path, value: Mapping[str, Any]) -> None:

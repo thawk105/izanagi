@@ -32,6 +32,7 @@ from orchestrator.campaign import s8b_oracle_judge as oracle_judge  # noqa: E402
 from orchestrator.campaign import s8b_oracle_manifest as oracle_manifest  # noqa: E402
 from orchestrator.campaign import s8b_oracle_spec as oracle_spec  # noqa: E402
 from orchestrator.campaign import s8b_ratified_freeze as ratified_freeze  # noqa: E402
+from orchestrator.calibrator import perf_preflight  # noqa: E402
 from orchestrator.campaign.s8b_selector_input import (  # noqa: E402
     CHOICE_TO_BINDING,
     STATIC_DEFAULT_CHOICE_ID,
@@ -152,13 +153,14 @@ def _unsafe_verified_oracle_for_judge_unit_test(
 
 
 def run(prediction: dict, oracle: artifacts.OfficialVerdict, floor_by_holdout: dict, *,
-        expected=EXPECTED, tol=TOL) -> dict:
+        expected=EXPECTED, tol=TOL, floor_source=None) -> dict:
     """三値判定本体だけを対象に、検証済み token 形へ包んで呼ぶ薄いラッパ。"""
     return verdict.judge_combined(
         prediction=verdict.VerifiedPrediction(document=prediction),
         oracle=_unsafe_verified_oracle_for_judge_unit_test(oracle),
         floor_by_holdout=floor_by_holdout,
-        expected_holdouts=expected, scale_tolerance=tol)
+        expected_holdouts=expected, scale_tolerance=tol,
+        floor_source=({} if floor_source is None else floor_source))
 
 
 def _cond(result: dict, name: str) -> str:
@@ -636,7 +638,7 @@ def test_judge_combined_rejects_unverified_raw_dict():
     with pytest.raises(verdict.VerdictError, match="VerifiedPrediction"):
         verdict.judge_combined(
             prediction=prediction, oracle=oracle, floor_by_holdout=floor,
-            expected_holdouts=EXPECTED, scale_tolerance=TOL)
+            expected_holdouts=EXPECTED, scale_tolerance=TOL, floor_source={})
 
 
 def test_judge_combined_rejects_unverified_official_oracle_verdict():
@@ -656,7 +658,7 @@ def test_judge_combined_rejects_unverified_official_oracle_verdict():
         with pytest.raises(verdict.VerdictError, match="VerifiedOracleVerdict"):
             verdict.judge_combined(
                 prediction=prediction, oracle=unverified, floor_by_holdout=floor,
-                expected_holdouts=EXPECTED, scale_tolerance=TOL,
+                expected_holdouts=EXPECTED, scale_tolerance=TOL, floor_source={},
             )
 
 
@@ -680,6 +682,7 @@ def test_judge_combined_rejects_duck_typed_oracle_wrapper():
             floor_by_holdout=floor,
             expected_holdouts=EXPECTED,
             scale_tolerance=TOL,
+            floor_source={},
         )
 
 
@@ -715,6 +718,7 @@ def test_judge_combined_rejects_post_issuance_oracle_document_tampering(tmp_path
             floor_by_holdout={},
             expected_holdouts=EXPECTED,
             scale_tolerance=TOL,
+            floor_source={},
         )
 
 
@@ -773,6 +777,7 @@ def test_judge_combined_rejects_nested_semantic_subclass_in_sealed_document(tmp_
             floor_by_holdout=floor_by_holdout,
             expected_holdouts=set(verified_oracle.document["holdouts"]),
             scale_tolerance=TOL,
+            floor_source={},
         )
 
 
@@ -1342,6 +1347,11 @@ def test_cli_derives_floor_and_tolerance_from_freeze(tmp_path, monkeypatch):
         assert kwargs["approved_spec"] is approved
         return verified_manifest
 
+    def read_floor_source(value, root):
+        calls.append("floor-source")
+        assert value is reverified.ratified
+        return b"{}"
+
     def verify_prediction(document, *, freeze, root):
         calls.append("prediction")
         return verdict.VerifiedPrediction(document=document)
@@ -1359,6 +1369,9 @@ def test_cli_derives_floor_and_tolerance_from_freeze(tmp_path, monkeypatch):
     )
     monkeypatch.setattr(verdict.s8b_oracle_spec, "load_approved_spec", load_approved)
     monkeypatch.setattr(verdict.s8b_oracle_manifest, "verify_manifest", verify_manifest)
+    monkeypatch.setattr(
+        verdict.s8b_ratified_freeze, "read_floor_source_blob", read_floor_source,
+    )
     monkeypatch.setattr(verdict, "_resolve_scale_tolerance", lambda document, *, root: TOL)
     monkeypatch.setattr(verdict, "verify_prediction", verify_prediction)
     monkeypatch.setattr(verdict, "verify_oracle_verdict", verify_oracle)
@@ -1372,7 +1385,7 @@ def test_cli_derives_floor_and_tolerance_from_freeze(tmp_path, monkeypatch):
     assert rc == 0
     assert calls == [
         "freeze", "ratified", "reverify", "approved", "manifest",
-        "prediction", "oracle",
+        "floor-source", "prediction", "oracle",
     ]
     out = json.loads(out_path.read_text(encoding="utf-8"))
     floor_ev = out["conditions"]["oracle_floor_exceeded"]["evidence"]
@@ -1497,3 +1510,174 @@ def test_cli_rejects_freeze_identity_mismatch_before_consumers(tmp_path, monkeyp
     assert rc == 2
     assert calls == []
     assert not output.exists()
+
+
+def _degraded_observation() -> dict:
+    receipt = {
+        "schema": perf_preflight.SCHEMA,
+        "status": "unavailable",
+        "available": False,
+        "probe_argv": list(perf_preflight._BASE_PROBE_ARGV),
+        "rc": None,
+        "parsed_events": [],
+        "reason": "perf-not-found",
+        "stderr_sha256": "0" * 64,
+        "candidates": [],
+    }
+    observation = perf_preflight.build_perf_observation(
+        receipt,
+        run_cmd=["ccbench"],
+        leading_indicators={"ipc": None, "llc_miss_rate": None},
+    )
+    assert observation is not None
+    return observation
+
+
+def _measurement_condition(observation: dict) -> dict:
+    return {
+        "campaign_id": "oracle-b0",
+        "measurement_manifest_sha256": "c" * 64,
+        "perf_observation": observation,
+    }
+
+
+def _degraded_floor_source(observation: dict) -> dict:
+    return {
+        "perf_preflight": observation["preflight"],
+        "perf_observation": observation,
+        "sessions": [{
+            "cell_id": "h1::stock_common",
+            "run_cmd": ["ccbench"],
+            "ipc": None,
+            "llc_miss_rate": None,
+        }],
+        "binaries": {},
+    }
+
+
+def _combined_measurement_case(observation: dict):
+    prediction = make_prediction({
+        H1: {"on": "c01", "off": "c06", "swapped": "c06"},
+        H2: {"on": "c06", "off": "c06", "swapped": "c01"},
+    })
+    oracle = make_oracle({
+        H1: {
+            "verdict": "unique-best",
+            "winner": "c01",
+            "configs": {"c01": 20.0, "c06": 10.0},
+        },
+        H2: {
+            "verdict": "unique-best",
+            "winner": "c06",
+            "configs": {"c06": 10.0},
+        },
+    })
+    oracle["measurement_conditions"] = [_measurement_condition(observation)]
+    floor = make_floor(
+        {H1: {"c01": 5.0}, H2: {}},
+        {H1: 10.0, H2: 10.0},
+    )
+    return prediction, oracle, floor
+
+
+def test_verify_oracle_verdict_rejects_handwritten_measurement_conditions(tmp_path):
+    case = _oracle_verifier_case(tmp_path)
+    observation = _degraded_observation()
+    case.observations["measurement_conditions"] = [
+        _measurement_condition(observation),
+    ]
+    oracle = oracle_judge.judge_oracle(
+        case.observations,
+        schedule_projection=case.schedule_projection,
+        verified_manifest_sha256=case.verified_manifest.sha256,
+        approved_spec_sha256=case.approved.sha256,
+    )
+    case.observations_path.write_text(
+        json.dumps(case.observations, ensure_ascii=False), encoding="utf-8",
+    )
+    forged = deepcopy(oracle)
+    forged["measurement_conditions"][0]["measurement_manifest_sha256"] = "d" * 64
+    forged_path = tmp_path / "oracle-handwritten-measurement-condition.json"
+    _write_oracle_variant(forged_path, forged)
+
+    with pytest.raises(verdict.VerdictError, match="再導出結果"):
+        verdict.verify_oracle_verdict(
+            forged_path,
+            observations_source=case.observations_path,
+            verified_manifest=case.verified_manifest,
+            approved_spec=case.approved,
+        )
+
+
+def test_combined_verdict_measurement_mismatch_is_indeterminate():
+    observation = _degraded_observation()
+    prediction, oracle, floor = _combined_measurement_case(observation)
+
+    result = run(prediction, oracle, floor, floor_source={})
+
+    assert result["status"] == verdict.INDETERMINATE
+    assert {entry["code"] for entry in result["reasons"]} == {
+        "measurement-conditions-mismatch",
+    }
+    assert all(
+        row["scale"]["state"]
+        == verdict.SCALE_MEASUREMENT_CONDITIONS_MISMATCH
+        for row in result["holdouts"].values()
+    )
+    assert _cond(result, "oracle_floor_exceeded") == verdict.INDETERMINATE
+    assert result["holdouts"][H1]["oracle_floor_exceeded"] == verdict.INDETERMINATE
+
+
+def test_combined_verdict_matching_degraded_conditions_propagate():
+    observation = _degraded_observation()
+    prediction, oracle, floor = _combined_measurement_case(observation)
+
+    result = run(
+        prediction,
+        oracle,
+        floor,
+        floor_source=_degraded_floor_source(observation),
+    )
+
+    assert result["status"] == verdict.HOLDS
+    assert result["measurement_conditions"] == {
+        "floor_perf_observation": observation,
+        "oracle": [_measurement_condition(observation)],
+    }
+
+
+def test_combined_verdict_calls_claim_gate_before_condition_comparison(monkeypatch):
+    observation = _degraded_observation()
+    prediction, oracle, floor = _combined_measurement_case(observation)
+    calls = []
+    monkeypatch.setattr(
+        verdict._perf_preflight,
+        "perf_claim_allowed",
+        lambda *args, **kwargs: calls.append((args, kwargs)) or False,
+    )
+
+    result = run(
+        prediction,
+        oracle,
+        floor,
+        floor_source=_degraded_floor_source(observation),
+    )
+
+    assert calls
+    assert result["status"] == verdict.INDETERMINATE
+    assert {entry["code"] for entry in result["reasons"]} == {
+        "floor-measurement-claim",
+    }
+
+
+def test_all_perf_combined_verdict_preserves_exact_keys():
+    observation = _degraded_observation()
+    prediction, oracle, floor = _combined_measurement_case(observation)
+    oracle.pop("measurement_conditions")
+
+    result = run(prediction, oracle, floor, floor_source={})
+
+    assert set(result) == {
+        "schema_version", "status", "same_holdout_coupled_verdict",
+        "conditions", "holdouts", "protocol_violations", "evidence", "reasons",
+    }

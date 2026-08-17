@@ -2,9 +2,11 @@
 """T-126 single-process FSM、driver 順序、exact pipeline opt-in を検査する。"""
 from __future__ import annotations
 
+import ast
 import sys
 import os
 import json
+import hashlib
 import select
 import signal
 import subprocess
@@ -38,6 +40,9 @@ from orchestrator.qualification.artifacts import (  # noqa: E402
     validate_member_evidence,
 )
 from orchestrator.qualification.contract import load_protocol  # noqa: E402
+from orchestrator.qualification.contract import (  # noqa: E402
+    RESERVATION_POLICY_RELATIVE_PATH,
+)
 from orchestrator.qualification.series import SeriesFSM, SeriesStateError, replay_ledger  # noqa: E402
 from orchestrator.qualification.t126_driver import (  # noqa: E402
     ActiveProcessGroups,
@@ -46,10 +51,207 @@ from orchestrator.qualification.t126_driver import (  # noqa: E402
     RC_ATTESTATION,
     MonotonicEnvelope,
     QualificationDriverError,
+    _member_pipeline_perf_kwargs,
+    _series_result_perf_fields,
+    _verify_prologue_evidence,
     run_series,
 )
 from orchestrator.qualification import t126_driver  # noqa: E402
 from test_schema_v2 import _valid_document  # noqa: E402
+
+
+def _unavailable_receipt():
+    events = ["LLC-load-misses", "LLC-loads", "instructions", "cycles"]
+    return {
+        "schema": "izanagi-perf-preflight/v1",
+        "status": "unavailable",
+        "available": False,
+        "probe_argv": [
+            "perf", "stat", "-x,", "-o", "<tmp>/perf.csv", "-e",
+            ",".join(events), "--", "/bin/true",
+        ],
+        "rc": None,
+        "parsed_events": [],
+        "reason": "perf-not-found",
+        "stderr_sha256": "0" * 64,
+        "candidates": [],
+    }
+
+
+def _degraded_observation():
+    return {
+        "use_perf": False,
+        "counter_status": "not_required",
+        "missing_leading_indicators": [],
+        "preflight": _unavailable_receipt(),
+        "claim_scope": {
+            "throughput": "eligible",
+            "perf_required": "unsupported",
+        },
+    }
+
+
+def _prologue_value(toolchain_path: Path, *, perf_present: bool):
+    code_identity = {
+        "orchestrator/qualification/t126_control_v1.json": "1" * 64,
+        "tools/pegasus/policy.json": "2" * 64,
+        "orchestrator/qualification/t126_driver.py": "3" * 64,
+    }
+    script_identity = {
+        RESERVATION_POLICY_RELATIVE_PATH: "4" * 64,
+        "tools/pegasus/t126_qualification.sh": "5" * 64,
+    }
+    series_preimage = {
+        "superproject_commit": "6" * 40,
+        "superproject_tree": "7" * 40,
+        "ccbench_gitlink": "8" * 40,
+        "code_identity": code_identity,
+        "script_identity": script_identity,
+    }
+    value = {
+        "schema_version": "t126-source-stage-evidence/v1",
+        "source_commit": series_preimage["superproject_commit"],
+        "source_tree": series_preimage["superproject_tree"],
+        "ccbench_gitlink": series_preimage["ccbench_gitlink"],
+        "tracked_only": True,
+        "immutable_mode": True,
+        "protocol_sha256": code_identity[
+            "orchestrator/qualification/t126_control_v1.json"],
+        "policy_sha256": code_identity["tools/pegasus/policy.json"],
+        "reservation_policy_sha256": script_identity[
+            RESERVATION_POLICY_RELATIVE_PATH],
+        "driver_sha256": code_identity[
+            "orchestrator/qualification/t126_driver.py"],
+        "job_script_sha256": script_identity[
+            "tools/pegasus/t126_qualification.sh"],
+        "toolchain_manifest_sha256": hashlib.sha256(
+            toolchain_path.read_bytes()).hexdigest(),
+    }
+    if perf_present:
+        value.update({
+            "perf_smoke_returncode": 0,
+            "perf_smoke_stdout": "",
+            "perf_smoke_stderr": (
+                "1,LLC-load-misses\n1,LLC-loads\n"
+                "1,instructions\n1,cycles\n"
+            ),
+        })
+    else:
+        value["perf_observation"] = _degraded_observation()
+    return value, series_preimage
+
+
+def test_prologue_perf_present_and_degraded_exact_shapes(monkeypatch, tmp_path):
+    toolchain_path = tmp_path / "toolchain.json"
+    toolchain_path.write_bytes(b"{}\n")
+    present, series_preimage = _prologue_value(
+        toolchain_path, perf_present=True)
+    monkeypatch.setattr(t126_driver, "load_json_strict", lambda _path: present)
+    assert _verify_prologue_evidence(
+        tmp_path / "evidence.json", series_preimage=series_preimage,
+        toolchain_manifest_path=toolchain_path) is None
+
+    degraded, series_preimage = _prologue_value(
+        toolchain_path, perf_present=False)
+    monkeypatch.setattr(t126_driver, "load_json_strict", lambda _path: degraded)
+    assert _verify_prologue_evidence(
+        tmp_path / "evidence.json", series_preimage=series_preimage,
+        toolchain_manifest_path=toolchain_path) == _degraded_observation()
+
+    degraded["perf_smoke_returncode"] = 0
+    with pytest.raises(QualificationDriverError, match="consumer-verifiable"):
+        _verify_prologue_evidence(
+            tmp_path / "evidence.json", series_preimage=series_preimage,
+            toolchain_manifest_path=toolchain_path)
+
+
+@pytest.mark.parametrize(
+    "missing_event",
+    ["LLC-load-misses", "LLC-loads", "instructions", "cycles"],
+)
+def test_mg1_perf_present_prologue_requires_every_smoke_event(
+        monkeypatch, tmp_path, missing_event):
+    toolchain_path = tmp_path / "toolchain.json"
+    toolchain_path.write_bytes(b"{}\n")
+    value, series_preimage = _prologue_value(
+        toolchain_path, perf_present=True)
+    value["perf_smoke_stderr"] = "\n".join(
+        event for event in (
+            "LLC-load-misses", "LLC-loads", "instructions", "cycles")
+        if event != missing_event)
+    monkeypatch.setattr(t126_driver, "load_json_strict", lambda _path: value)
+    with pytest.raises(QualificationDriverError, match="consumer-verifiable"):
+        _verify_prologue_evidence(
+            tmp_path / "evidence.json", series_preimage=series_preimage,
+            toolchain_manifest_path=toolchain_path)
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("perf_smoke_returncode", 1),
+        ("perf_smoke_stdout", "<not supported>"),
+        ("perf_smoke_stderr", "<not counted>"),
+    ],
+)
+def test_perf_present_prologue_keeps_rc_and_counter_rejection(
+        monkeypatch, tmp_path, field, value):
+    toolchain_path = tmp_path / "toolchain.json"
+    toolchain_path.write_bytes(b"{}\n")
+    evidence, series_preimage = _prologue_value(
+        toolchain_path, perf_present=True)
+    evidence[field] = value
+    monkeypatch.setattr(t126_driver, "load_json_strict", lambda _path: evidence)
+    with pytest.raises(QualificationDriverError, match="consumer-verifiable"):
+        _verify_prologue_evidence(
+            tmp_path / "evidence.json", series_preimage=series_preimage,
+            toolchain_manifest_path=toolchain_path)
+
+
+def test_perf_present_call_and_series_result_keys_remain_exact():
+    assert _member_pipeline_perf_kwargs(None) == {}
+    assert _series_result_perf_fields(None) == {}
+
+    observation = _degraded_observation()
+    assert _member_pipeline_perf_kwargs(observation) == {
+        "use_perf": False,
+        "perf_preflight_receipt": observation["preflight"],
+    }
+    assert _series_result_perf_fields(observation) == {
+        "perf_observation": observation,
+    }
+
+
+def test_m10_driver_binds_prologue_observation_at_every_member_callsite():
+    source = (_ROOT / "orchestrator/qualification/t126_driver.py").read_text(
+        encoding="utf-8")
+    tree = ast.parse(source)
+    member_calls = [
+        node for node in ast.walk(tree)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Name)
+        and node.func.id == "validate_member_evidence"
+    ]
+    assert len(member_calls) == 2
+    assert {
+        ast.unparse(keyword.value)
+        for call in member_calls for keyword in call.keywords
+        if keyword.arg == "expected_perf_observation"
+    } == {"self.perf_observation", "perf_observation"}
+
+    prologue_assignments = [
+        node for node in ast.walk(tree)
+        if isinstance(node, ast.Assign)
+        and isinstance(node.value, ast.Call)
+        and isinstance(node.value.func, ast.Name)
+        and node.value.func.id == "_verify_prologue_evidence"
+    ]
+    assert len(prologue_assignments) == 2
+    assert {
+        ast.unparse(target)
+        for assignment in prologue_assignments
+        for target in assignment.targets
+    } == {"perf_observation"}
 
 
 def test_t452_attest_preserves_intentional_fail_closed_behavior(monkeypatch, tmp_path):
@@ -410,7 +612,8 @@ def test_exact_pegasus_empty_numactl_opt_in_emits_nonformal_evidence(tmp_path):
     records = load_jsonl_strict(
         layout.attempt_dir / "rounds/0001/subject/evaluation-events.jsonl")
     admitted = validate_member_evidence(
-        records, expected_role="subject", expected_round=1)
+        records, expected_role="subject", expected_round=1,
+        expected_perf_observation=None)
     assert admitted["verify_order"] == ["legacy", "s2"]
     assert calls.lock_enters == 2
     assert calls.competition_probes == 2

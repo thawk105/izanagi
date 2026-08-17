@@ -11,6 +11,7 @@ import os
 from dataclasses import dataclass, replace
 from typing import Callable, Dict, Optional, Sequence
 
+from ..calibrator import perf_preflight as _perf_preflight
 from . import buildcache, execution_guard, ident, source_digest, wal
 from .build_admission import BuildRunContext
 from .env_contract import AuthorizedContract
@@ -182,6 +183,14 @@ def evaluate_candidate(
     if (not force and state is not None and state.terminal
             and not state.retryable_abort):
         return None
+    perf_preflight_receipt = _perf_preflight.probe_perf_availability()
+    use_perf = _perf_preflight.use_perf_from_receipt(perf_preflight_receipt)
+    perf_evaluate_kwargs = {}
+    if not use_perf:
+        perf_evaluate_kwargs = {
+            "use_perf": False,
+            "perf_preflight_receipt": perf_preflight_receipt,
+        }
     extra_correctness = None
     if cfg.search_config.get(SEARCH_CONFIG_VERIFY_KEY) == VERIFY_LEGACY_PLUS_S2:
         extra_correctness = [(S2_TAG, s2_correctness_workload())]
@@ -194,7 +203,8 @@ def evaluate_candidate(
             authorization_contract=authorization_contract,
             build_context=build_context,
             capability_resolver=capability_resolver,
-            source_evidence=evidence)
+            source_evidence=evidence,
+            **perf_evaluate_kwargs)
     except (KeyboardInterrupt, SystemExit):
         raise
     except Exception as exc:  # candidate固有失敗をWALへ隔離。loop.pyと同じ境界。

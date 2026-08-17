@@ -38,6 +38,37 @@ _BUILD_CONTEXT = build_run_context(generator_id=GeneratorId.BACKOFF_SWEEP)
 _CONTRACT = env_contract.GENERATIONS["linux-baremetal"][0].contract
 
 
+def _canonical_perf_receipt(status: str) -> dict:
+    available = status == "available"
+    return {
+        "schema": screening_driver._perf_preflight.SCHEMA,
+        "status": status,
+        "available": available,
+        "probe_argv": list(screening_driver._perf_preflight._BASE_PROBE_ARGV),
+        "rc": 0 if available else None,
+        "parsed_events": (
+            list(screening_driver._perf_preflight.PERF_EVENTS) if available else []
+        ),
+        "reason": (
+            "available" if available else
+            "probe-os-error" if status == "probe_error" else
+            "perf-not-found"
+        ),
+        "stderr_sha256": "0" * 64,
+        "candidates": [],
+    }
+
+
+@pytest.fixture(autouse=True)
+def _pin_screening_perf_available(monkeypatch):
+    """既存の perf-present fixture を実行 host の availability から隔離する。"""
+    monkeypatch.setattr(
+        screening_driver._perf_preflight,
+        "probe_perf_availability",
+        lambda: _canonical_perf_receipt("available"),
+    )
+
+
 @pytest.fixture
 def _certified_writer_authority():
     authorization = env_contract.authorize("linux-baremetal")
@@ -276,7 +307,7 @@ def test_evaluate_candidate_repairs_tail_before_replay_and_evaluate(
     def evaluate(candidate, candidate_layout, *args, **kwargs):
         records, truncated = wal.read_records_checked(candidate_layout)
         assert truncated is False and [r.variant for r in records] == ["prior"] * 3
-        calls.append(candidate)
+        calls.append((candidate, args, kwargs))
         return EvalResult(
             genome=candidate, variant="candidate", certified=True, aborted=False)
 
@@ -292,7 +323,99 @@ def test_evaluate_candidate_repairs_tail_before_replay_and_evaluate(
         authorization_contract=authorization,
         build_context=_BUILD_CONTEXT,
         screening=None, src_token="stock", log=lambda message: None)
-    assert result is not None and result.certified and calls == [genome]
+    assert result is not None and result.certified and len(calls) == 1
+    assert calls[0][0] == genome and len(calls[0][1]) == 4
+    assert set(calls[0][2]) == {
+        "numactl", "do_settle", "src_token", "extra_correctness", "screening",
+        "log", "ccbench_dir", "cache_root", "authorization_contract",
+        "build_context", "capability_resolver", "source_evidence",
+    }
+    assert "use_perf" not in calls[0][2]
+    assert "perf_preflight_receipt" not in calls[0][2]
+
+
+def test_evaluate_candidate_unavailable_perf_passes_degraded_kwargs_once(
+        tmp_path, monkeypatch, _certified_writer_authority):
+    authorization, contract = _certified_writer_authority
+    cfg = _cfg()
+    layout = campaign_layout(str(ident.campaign_id(cfg)), str(tmp_path / "out")).ensure()
+    ident.ensure_resumable_wal(
+        cfg, layout, admission_policy=_BUILD_CONTEXT.policy,
+    )
+    genome = Genome("silo", {"BACK_OFF": 1})
+    unavailable = _canonical_perf_receipt("unavailable")
+    probe_calls = []
+    evaluate_calls = []
+
+    def probe():
+        probe_calls.append(1)
+        return unavailable
+
+    def evaluate(*args, **kwargs):
+        evaluate_calls.append((args, kwargs))
+        return EvalResult(
+            genome=genome, variant="candidate", certified=True, aborted=False,
+        )
+
+    monkeypatch.setattr(
+        screening_driver._perf_preflight, "probe_perf_availability", probe,
+    )
+    monkeypatch.setattr(screening_driver, "evaluate", evaluate)
+    monkeypatch.setattr(
+        screening_driver.source_digest, "resolve_evidence",
+        lambda *_args, **_kwargs: _source_evidence(genome),
+    )
+
+    result = screening_driver.evaluate_candidate(
+        cfg, layout, genome, PerfConfig(records=1, threads=1),
+        contract.env_tag, contract.clocks_per_us,
+        numactl=contract.numactl,
+        authorization_contract=authorization,
+        build_context=_BUILD_CONTEXT,
+        screening=None, src_token="stock", log=lambda message: None,
+    )
+
+    assert result is not None and result.certified
+    assert probe_calls == [1]
+    assert len(evaluate_calls) == 1
+    assert evaluate_calls[0][1]["use_perf"] is False
+    assert evaluate_calls[0][1]["perf_preflight_receipt"] == unavailable
+
+
+def test_evaluate_candidate_probe_error_refuses_before_evaluate(
+        tmp_path, monkeypatch, _certified_writer_authority):
+    authorization, contract = _certified_writer_authority
+    cfg = _cfg()
+    layout = campaign_layout(str(ident.campaign_id(cfg)), str(tmp_path / "out")).ensure()
+    ident.ensure_resumable_wal(
+        cfg, layout, admission_policy=_BUILD_CONTEXT.policy,
+    )
+    genome = Genome("silo", {"BACK_OFF": 1})
+    evaluate_calls = []
+    monkeypatch.setattr(
+        screening_driver._perf_preflight, "probe_perf_availability",
+        lambda: _canonical_perf_receipt("probe_error"),
+    )
+    monkeypatch.setattr(
+        screening_driver, "evaluate",
+        lambda *args, **kwargs: evaluate_calls.append((args, kwargs)),
+    )
+    monkeypatch.setattr(
+        screening_driver.source_digest, "resolve_evidence",
+        lambda *_args, **_kwargs: _source_evidence(genome),
+    )
+
+    with pytest.raises(screening_driver._perf_preflight.PerfPreflightError):
+        screening_driver.evaluate_candidate(
+            cfg, layout, genome, PerfConfig(records=1, threads=1),
+            contract.env_tag, contract.clocks_per_us,
+            numactl=contract.numactl,
+            authorization_contract=authorization,
+            build_context=_BUILD_CONTEXT,
+            screening=None, src_token="stock", log=lambda message: None,
+        )
+
+    assert evaluate_calls == []
 
 
 @pytest.mark.parametrize("failure_kind", ["append", "framing"])

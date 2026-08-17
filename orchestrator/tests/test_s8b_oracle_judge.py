@@ -21,6 +21,7 @@ from orchestrator.campaign import s8b_oracle_judge as judge  # noqa: E402
 from orchestrator.campaign import s8b_oracle_artifacts as artifacts  # noqa: E402
 from orchestrator.campaign import s8b_oracle_manifest as oracle_manifest  # noqa: E402
 from orchestrator.campaign import s8b_oracle_spec as oracle_spec  # noqa: E402
+from orchestrator.calibrator import perf_preflight  # noqa: E402
 import test_s8b_oracle_report as report_fixtures  # noqa: E402
 
 
@@ -592,3 +593,111 @@ def test_judge_cli_rejects_non_observations_schema_without_output(tmp_path, sche
     assert positive_output.exists()
     assert rc == 2
     assert not output.exists()
+
+
+def _degraded_observation() -> dict:
+    receipt = {
+        "schema": perf_preflight.SCHEMA,
+        "status": "unavailable",
+        "available": False,
+        "probe_argv": list(perf_preflight._BASE_PROBE_ARGV),
+        "rc": None,
+        "parsed_events": [],
+        "reason": "perf-not-found",
+        "stderr_sha256": "0" * 64,
+        "candidates": [],
+    }
+    observation = perf_preflight.build_perf_observation(
+        receipt,
+        run_cmd=["ccbench"],
+        leading_indicators={"ipc": None, "llc_miss_rate": None},
+    )
+    assert observation is not None
+    return observation
+
+
+def _condition(campaign_id: str, observation: dict | None) -> dict:
+    return {
+        "campaign_id": campaign_id,
+        "measurement_manifest_sha256": ("c" * 64 if observation is not None else None),
+        "perf_observation": observation,
+    }
+
+
+def test_mixed_perf_conditions_are_indeterminate_before_cell_aggregation():
+    observations = _observations()
+    second_campaign = "oracle-b1"
+    observations["campaign_verifier_epochs"].append({
+        **_e1_evidence()[0],
+        "campaign_id": second_campaign,
+    })
+    for row in observations["rows"][1::2]:
+        row["campaign_id"] = second_campaign
+    observations["measurement_conditions"] = [
+        _condition(CAMPAIGN_ID, _degraded_observation()),
+        _condition(second_campaign, None),
+    ]
+    projection = judge.ManifestScheduleProjection(
+        n_per_cell=observations["n_per_cell"],
+        expected_cells=frozenset(
+            (entry["schedule_index"], entry["holdout_id"], entry["configuration_id"])
+            for entry in observations["expected_cells"]
+        ),
+        expected_campaign_ids=frozenset({CAMPAIGN_ID, second_campaign}),
+    )
+
+    result = _judge(observations, schedule_projection=projection)
+
+    assert result["status"] == "indeterminate"
+    assert [reason["code"] for reason in result["reasons"]] == [
+        "measurement-conditions-mixed",
+    ]
+    assert all(
+        cell["median_of_medians"] is None
+        for cell in _holdout(result)["configurations"].values()
+    )
+
+
+def test_all_degraded_claim_gate_precedes_configuration_median(monkeypatch):
+    observations = _observations()
+    observations["measurement_conditions"] = [
+        _condition(CAMPAIGN_ID, _degraded_observation()),
+    ]
+    calls = []
+    monkeypatch.setattr(
+        judge._perf_preflight,
+        "perf_claim_allowed",
+        lambda *args, **kwargs: calls.append((args, kwargs)) or False,
+    )
+
+    result = _judge(observations)
+
+    assert calls
+    assert result["status"] == "indeterminate"
+    assert [reason["code"] for reason in result["reasons"]] == [
+        "measurement-condition-claim",
+    ]
+    assert all(
+        cell["trial_medians"] == []
+        for cell in _holdout(result)["configurations"].values()
+    )
+
+
+def test_all_degraded_conditions_propagate_to_oracle_verdict():
+    observations = _observations()
+    conditions = [_condition(CAMPAIGN_ID, _degraded_observation())]
+    observations["measurement_conditions"] = conditions
+
+    result = _judge(observations)
+
+    assert result["status"] == "determinate"
+    assert result["measurement_conditions"] == conditions
+
+
+def test_all_perf_oracle_verdict_preserves_exact_keys():
+    result = _judge(_observations())
+
+    assert set(result) == {
+        "schema_version", "manifest_sha256", "n_per_cell", "status",
+        "reasons", "holdouts",
+    }
