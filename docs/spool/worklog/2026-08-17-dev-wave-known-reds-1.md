@@ -64,6 +64,13 @@ tmp mirror へ逃がす案、受入での xdist 直列化、再 hash 削除も�
 含意しない」は誤りで、fake child は SIGINT/SIGTERM handler を設置してから ready を書く
 (`orchestrator/tests/test_mutation_worktree.py:97-104`)。
 
+**段 8 の自己改善は予算で塞がれた。** `DW-O20` の submodule 初期化コマンド
+(`git submodule update --init`) は実挙動と食い違う — 素の形は `transport 'file' not allowed` で必ず
+落ち、`--recursive` を欠くと受入 preflight が rc=2 になる (memory に 6 回の実測記録)。是正文を書いて
+`tools/check_docs.py` を走らせたところ **DW-O20 が 1146 bytes となり単節予算 1000 bytes を 146 bytes
+超過**した。予算のために既存の安全義務を削るのは禁止されているため、`DW-O19` の復元規律で戻し
+(`git checkout --`、復元後 check_docs rc=0)、{{T:dw-o20-submodule-budget}} として裁定へ回した。
+
 **エージェント工数:** codex 子 3 本 (段 2 plan × 1、段 3 敵対 × 2、いずれも `reasoning=max`、
 `sandbox=read-only`)。実装子・fix 子は裁定により起動していない。段 3 の 2 本は独立に
 「予算引き上げはリワードハック」へ収束した。
@@ -117,3 +124,13 @@ tmp mirror へ逃がす案、受入での xdist 直列化、再 hash 削除も�
   「負荷が高い日は子の猶予が短くなる」gate は測ろうとしている性質を測っていない。(b) は緩和ではなく
   gate を宣言どおりの意味へ戻す是正だと親は考える。**ただし敵対レンズ A の「受理集合の拡張」という
   分類は正しく、この択一は親の権限を超える。** [T-1298] / [T-1005] / F57 はこの裁定に従属する。
+- {{T:dw-o20-submodule-budget}} **P3・ユーザー裁定待ち (予算超過)**: `DW-O20` の
+  `git submodule update --init` は実挙動と食い違う。素の形は `transport 'file' not allowed` で必ず
+  落ち、`--recursive` を欠くと受入 preflight が rc=2 になる。正しい形
+  (`git -c protocol.file.allow=always submodule update --init --recursive`) と失敗理由を書くと
+  DW-O20 が 1146 bytes になり単節予算 1000 bytes を **146 bytes 超過**する (実測)。
+  選択肢は (a) 現状維持 = 誤った命令を残す、(b) DW-O20 内で意味等価の圧縮を探す (memory の
+  実績では dev-wave docs の圧縮は節 exact・行 exact・regex 構造・literal の 4 型の pin を壊す)、
+  (c) 単節予算を上げる (予算値変更は独立審査対象で通常の自己改善に含めない)。
+  親の推奨は (b) を 1 度試し、意味等価にできなければ (c) を独立審査へ出すこと。
+  安全義務を削って収める案は取らない。
