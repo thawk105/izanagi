@@ -5920,9 +5920,13 @@ def test_p10_cli_manifest_gate_precedes_build_preparation_and_forwards_manifest(
         sequence.append("registry-gate")
         return original_load(**kwargs)
 
-    def observed_campaign(binding, *, actual_campaign_id):
+    def observed_campaign(binding, *, arm_execution, actual_campaign_id):
         sequence.append("campaign-gate")
-        return original_campaign(binding, actual_campaign_id=actual_campaign_id)
+        return original_campaign(
+            binding,
+            arm_execution=arm_execution,
+            actual_campaign_id=actual_campaign_id,
+        )
 
     def observed_preparation(*args, **kwargs):
         sequence.append("build-preparation")

@@ -801,6 +801,8 @@ def _active_arm_execution(
     *, workload: str,
 ) -> trial_registry.TrialArmExecutionBinding | None:
     scope = _ACTIVE_TRIAL_BINDING.get()
+    if scope is None:
+        return None
     if (
         type(scope) is not _RunScopeBinding
         or scope._seal is not _RUN_SCOPE_SEAL
