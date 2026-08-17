@@ -1,0 +1,86 @@
+{
+  "estimated_run_seconds": 60,
+  "hang_timeout_seconds": 1200,
+  "mutations": [
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_decider_version_binds_cross_module_semantics_to_v2"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "t1202.m12-decider-version-reverted",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8c_preregistration.py",
+          "new": "DECIDER_VERSION = \"s8c-decider/v1\"\n",
+          "old": "DECIDER_VERSION = \"s8c-decider/v2\"\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_production_default_module_limit_accepts_sixty_five_modules"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "t1202.m11-module-limit-64",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8c_preregistration_evidence.py",
+          "new": "_MAX_REACHABILITY_MODULES = 64\n",
+          "old": "_MAX_REACHABILITY_MODULES = 512\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_callable_value_flow_failures_stay_environment_absent[multiple-assignment]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "t1202.m-relax-exactly-once",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8c_preregistration_evidence.py",
+          "new": "            if False:\n",
+          "old": "            if len(rows) != 1 or name in callable_defaults:\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_c09_same_name_target_in_undeclared_production_path_is_not_witness"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "t1202.m-c09-drop-declared-path",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8c_preregistration_evidence.py",
+          "new": "        name == \"assert_campaign_layer3_chain\"\n",
+          "old": "        path in probe.declared_paths and name == \"assert_campaign_layer3_chain\"\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false,
+      "id": "t1202.m-drop-declared-path-equivalent",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8c_preregistration_evidence.py",
+          "new": "    return target in graph.calls\n",
+          "old": "    return target[0] in probe.declared_paths and target in graph.calls\n"
+        }
+      ]
+    }
+  ],
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "timeout_seconds": 900
+}
