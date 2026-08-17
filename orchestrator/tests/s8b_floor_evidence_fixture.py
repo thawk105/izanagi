@@ -185,6 +185,10 @@ def build_floor_admission_evidence(
     cells: Sequence[Mapping[str, object]], schedule: Sequence[Mapping[str, object]],
     sessions: Sequence[Mapping[str, object]], measurement_head: str = "1" * 40,
     irreversible_pilot_approved: bool | None = None,
+    claim_schema: str = "s8b-holdout-cell-claim/v2",
+    entry_kind: str = "fresh",
+    nondefault_seams: Sequence[str] = (),
+    resume_marker: bool = False,
 ) -> FloorAdmissionEvidenceFixture:
     """tmp 上へ claims/consumed/両 ledger/lock の完全な正例を構築する。"""
 
@@ -192,8 +196,10 @@ def build_floor_admission_evidence(
         irreversible_pilot_approved = mode == "pilot"
     claims_root = root / "claims"
     consumed_root = root / "consumed"
+    disqualification_root = root / "refreeze-disqualifications"
     claims_root.mkdir(parents=True)
     consumed_root.mkdir()
+    disqualification_root.mkdir()
     (root / "ledger.lock").write_bytes(b"")
     protocol_sha256 = hashlib.sha256(canonical_json_bytes(dict(protocol))).hexdigest()
     holdouts = freeze["holdouts"]
@@ -228,7 +234,7 @@ def build_floor_admission_evidence(
             "workload": dict(cell["workload"]),
         }
         claim = {
-            "schema_version": "s8b-holdout-cell-claim/v1",
+            "schema_version": claim_schema,
             "event": "claim",
             "key": key,
             "measurement_head": measurement_head,
@@ -240,6 +246,9 @@ def build_floor_admission_evidence(
             "irreversible_pilot_approved": irreversible_pilot_approved,
             "attempt_ids": attempt_ids,
         }
+        if claim_schema == "s8b-holdout-cell-claim/v2":
+            claim["entry_kind"] = entry_kind
+            claim["nondefault_seams"] = list(nondefault_seams)
         (claims_root / f"{digest}.claim").write_bytes(canonical_json_line(claim))
         admission_rows.append({
             "schema_version": "s8b-holdout-observation-ledger/v1",
@@ -293,6 +302,21 @@ def build_floor_admission_evidence(
     (root / "attempt-ledger.jsonl").write_bytes(
         b"".join(canonical_json_line(row) for row in attempt_rows)
     )
+    if resume_marker:
+        marker = {
+            "schema_version": "s8b-refreeze-disqualification/v1",
+            "reason": "resume",
+            "campaign_run_id": campaign_run_id,
+            "run_relpath": run_relpath,
+            "protocol_sha256": protocol_sha256,
+            "freeze_sha256": freeze_sha256,
+        }
+        marker_name = hashlib.sha256(
+            campaign_run_id.encode("utf-8")
+        ).hexdigest()
+        (disqualification_root / f"{marker_name}.json").write_bytes(
+            canonical_json_line(marker)
+        )
     expected_receipt = {
         "schema": "s8b-floor-holdout-admission-receipt/v1",
         "campaign_run_id": campaign_run_id,

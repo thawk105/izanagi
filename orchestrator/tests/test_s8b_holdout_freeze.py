@@ -1577,12 +1577,40 @@ def test_v2_candidate_rejects_floor_not_eligible_for_refreeze(
     result = json.loads(result_path.read_bytes())
     result["eligible_for_refreeze"] = False
     result_path.write_bytes(V2FIX.canonical_bytes(result))
+    for path in (
+        root / ".git/izanagi/s8b-holdout-admission-v1/claims"
+    ).glob("*.claim"):
+        claim = json.loads(path.read_bytes())
+        claim["nondefault_seams"] = ["build_fn"]
+        path.write_bytes(V2FIX.canonical_bytes(claim) + b"\n")
 
     with pytest.raises(M.FreezeError, match="eligible_for_refreeze が true でない"):
         M.build_v2_g1_candidate(
             floor_result_path=fixture["result_rel"],
             budget_path=fixture["budget_rel"],
             root=root,
+        )
+
+
+def test_v2_candidate_rejects_reported_false_when_live_basis_is_eligible(
+        tmp_path, monkeypatch):
+    fixture = V2FIX.candidate_repository(tmp_path, M)
+    root = fixture["root"]
+    monkeypatch.setattr(
+        M, "BUDGET_APPROVAL_SHA256", fixture["approval_sha256"],
+    )
+    result_path = root / fixture["result_rel"]
+    result = json.loads(result_path.read_bytes())
+    result["eligible_for_refreeze"] = False
+    result_path.write_bytes(V2FIX.canonical_bytes(result))
+
+    with pytest.raises(
+        M.FreezeError,
+        match="^floor-admission-mismatch: refreeze-eligibility-mismatch$",
+    ):
+        M.build_v2_g1_candidate(
+            floor_result_path=fixture["result_rel"],
+            budget_path=fixture["budget_rel"], root=root,
         )
 
 
@@ -1613,6 +1641,30 @@ def test_v2_candidate_rejects_floor_admission_claim_mismatch(
     claims[0].write_bytes(b"{}\n")
 
     with pytest.raises(M.FreezeError, match="^floor-admission-mismatch:"):
+        M.build_v2_g1_candidate(
+            floor_result_path=fixture["result_rel"],
+            budget_path=fixture["budget_rel"], root=root,
+        )
+
+
+def test_v2_candidate_rejects_reported_true_when_live_basis_is_disqualified(
+        tmp_path, monkeypatch):
+    fixture = V2FIX.candidate_repository(tmp_path, M)
+    root = fixture["root"]
+    monkeypatch.setattr(M, "BUDGET_APPROVAL_SHA256", fixture["approval_sha256"])
+    claims = sorted(
+        (root / ".git/izanagi/s8b-holdout-admission-v1/claims").glob("*.claim")
+    )
+    assert claims
+    for path in claims:
+        claim = json.loads(path.read_bytes())
+        claim["nondefault_seams"] = ["build_fn"]
+        path.write_bytes(V2FIX.canonical_bytes(claim) + b"\n")
+
+    with pytest.raises(
+        M.FreezeError,
+        match="^floor-admission-mismatch: refreeze-eligibility-mismatch$",
+    ):
         M.build_v2_g1_candidate(
             floor_result_path=fixture["result_rel"],
             budget_path=fixture["budget_rel"], root=root,

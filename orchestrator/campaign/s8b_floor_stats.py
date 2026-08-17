@@ -1049,18 +1049,35 @@ def verify_floor_artifact_with_live_admission(
     inspector の保証範囲外である。
     """
 
-    from .s8b_holdout_admission import inspect_floor_holdout_admission_evidence
+    from .s8b_holdout_admission import (
+        FloorHoldoutEvidenceError,
+        FloorHoldoutEvidenceInspection,
+        inspect_floor_holdout_admission_evidence,
+    )
 
-    expected_holdout_admission = inspect_floor_holdout_admission_evidence(
+    inspection = inspect_floor_holdout_admission_evidence(
         repo_root=Path(repo_root), protocol=protocol,
         verified_freeze_document=verified_freeze_document,
         freeze_sha256=freeze_sha256, manifest_sha256=manifest_sha256,
         campaign_run_id=campaign_run_id, run_relpath=run_relpath, mode=mode,
         cells=cells, schedule=schedule, sessions=sessions,
     )
+    if not isinstance(inspection, FloorHoldoutEvidenceInspection):
+        raise FloorHoldoutEvidenceError(
+            category="mismatch", reason="refreeze-inspection-contract-invalid",
+        )
+    reported_eligible_for_refreeze = artifact.get("eligible_for_refreeze")
+    if (
+        type(reported_eligible_for_refreeze) is bool
+        and reported_eligible_for_refreeze
+        != inspection.derived_eligible_for_refreeze
+    ):
+        raise FloorHoldoutEvidenceError(
+            category="mismatch", reason="refreeze-eligibility-mismatch",
+        )
     return verify_floor_artifact(
         artifact, expected_protocol, expected_binaries=expected_binaries,
-        expected_holdout_admission=expected_holdout_admission,
+        expected_holdout_admission=inspection,
         expected_use_perf=expected_use_perf,
     )
 

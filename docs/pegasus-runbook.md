@@ -830,17 +830,46 @@ python3 tools/dev_wave_wait.py acceptance --wave "$W" \
 - **`--receipt-file` / `--log-file` は attempt ごとに別 path にする。** target 未存在が必須なので、
   同じ path のまま再走すると claim 前に rc=2 で止まる。消して撮り直すと、
   非帰属判定の一次資料である log を失う。上の例のように attempt 番号を付ける。
+  ここでの attempt は**外部 invocation** の番号である。
+- **1 回の invocation は内部で最大 2 attempt 走る ([T-1275])。** 受入 command が
+  **pytest の判定を 1 つも産まずに戻った**ことを肯定的証拠で確定できたときだけ、待ち手は
+  lease を保持したまま同一 process 内で 1 度だけ再投入する。判定 (rc=0 / rc=1) が出た走行、
+  証拠が曖昧・欠落・重複・relay 経由・矛盾のいずれか、log に pytest 痕跡がある走行、
+  claim 前 failure、cleanup 失敗はいずれも再試行しない。attempt 上限と
+  `--max-wait-seconds` 由来の共有 deadline の両方で必ず止まる。
+- **内部再試行が起きたときの一次資料の所在。** 失敗 attempt の log は
+  `<--log-file の値>.attempt-<2 桁>.no-verdict` へ退避され (既存があれば上書きせず停止)、
+  `--log-file` が指す path には**最後の内部 attempt の log**が残る。受領証は成功 attempt の値だけを
+  収録し、path も版 (`dev-wave-acceptance-receipt/v3`) も root field も変わらない。
+  attempt 番号・分類・rc・退避先・log hash・claim した main は待ち手の stderr へ
+  機械可読な retry journal 行として出る (成功終端でも消えない)。
 - **受理は 2 経路ある ([T-1019] / 2026-08-13 第 9 束 #1)。**
   (i) 受入 command が rc=0 → `verdict = "child-green"`。
   (ii) 受入 command が **rc=1 ちょうど** (pytest の「テストが落ちた」) で、
   `tools/check_acceptance_reds.py` が rc=0 かつ `status = "non-attributable-only"` を返し、
   その receipt の `log_sha256` が待ち手の捕獲 log と一致 →
   `verdict = "non-attributable-only"`。この経路は既知赤が land を止める構造を解くためのもので、
-  **どの nodeid を非帰属と判定したかが receipt と land 結果 JSON に残る**。
+  **どの nodeid をどちらの分類で通したかが receipt と land 結果 JSON に残る**。
+  待ち手が受理する checker node は exact 2 形だけである。`non-attributable` は
+  `classification` / `nodeid` / `rerun_rc` の 3 field で `rerun_rc == 1`、`flake` は
+  `classification` / `main_rerun_rc` / `nodeid` / `rerun_rc` / `wave_rerun_rc` の 5 field で
+  3 個の rc がすべて 0 でなければならない。前者は `red_nodeids`、後者は `flake_nodeids` へ
+  別々に入り、各集合は sorted・unique で互いに素、和集合が非空である必要がある。
+  outer receipt の schema は `dev-wave-acceptance-receipt/v4` で、v3 は受理しない。
+  **`flake` は原因ではなく観測の分類である** — 初回全走で赤、tested main 単独再走で緑、
+  wave tip 単独再走でも緑、という観測を指す。決定的な全走限定赤もここへ入る (明示受容した残余)。
   rc が 0 でも 1 でもない非 0 (`_DELETION_GATE_RC = 13` / `_PEGASUS_DISPATCH_RC = 16` /
   signal 由来など) は**テスト失敗以外の理由で落ちた走行**なので、赤が全部非帰属でも受理しない。
   checker の `status = "green"` (log から赤 nodeid を 1 件も取れなかった) も、
   rc=1 / rc=2 も受理しない。
+- **`tools/run_tests.py` または `tools/check_acceptance_reds.py` を変更した wave は経路 (ii) を
+  使えない。** 経路 (ii) の受領証は、待ち手と land の双方が
+  `tested_main:tools/run_tests.py` と `tested_tip:tools/run_tests.py` の object type が `blob`
+  であることと blob SHA の等値を要求する (checker についての既存の等値要求と同型)。
+  この 2 つを触る wave は**完全に緑の走行 (child-green) でしか land できない**ので、
+  受入をそう計画すること。等値が保証するのは同一 bytes の runner が両側で使われたことだけで、
+  import 閉包・cwd・環境変数・pytest の選択と scheduler・`conftest.py`・plugin の同一性は
+  保証しない。
 - **既知の限界 (2026-08-13 時点、いずれも倒れる向きは fail-closed)。**
   checker には timeout が無く、赤の単独再走が hang すると receipt が出ないまま待ち続ける。
   checker 実行中の lease heartbeat も無いので、赤が多いと最終確認までに TTL 2,400 秒を
@@ -877,8 +906,10 @@ python3 tools/dev_wave_wait.py acceptance --wave "$W" \
   無ければ投入せず止まる。message には `DW-O17` に従った `AI-Agent:` trailer を書く。
 - **rc=0 は「receipt が発行され、lease を保持したまま返った」を意味する。**
   受入 command 自身が緑だったとは限らない — 上の受理経路 (ii) では rc=1 で赤があり、
-  それが全部非帰属だったという意味になる。**台帳へ「全テスト緑」と書く前に receipt の
-  `verdict` と `red_nodeids` を読むこと。** 成功時は release
+  それが全部非帰属または flake だったという意味になる。**台帳へ「全テスト緑」と書く前に
+  receipt の `verdict`、`red_nodeids`、`flake_nodeids` を読むこと。** `flake_nodeids` は
+  単独再走が両側緑だったために実測証拠なしで通した残余なので、land 結果 JSON の
+  `acceptance_flake_nodeids` とあわせて台帳へ残す。成功時は release
   しない。**land の終端で親が `release --wave "$W"` する**こと。それ以外の終わり方
   (claim 異常・Git 異常・merge 中止・受入赤・例外・signal・中断) では待ち手が release する。
   **例外は `held-self` 経路** — その呼出しが lease を作っていないので release 権限を持たず、

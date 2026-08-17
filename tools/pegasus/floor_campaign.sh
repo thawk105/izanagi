@@ -951,7 +951,31 @@ with open(path, "x", encoding="utf-8") as handle:
     handle.write("\n")
 PY
 
-PROTOCOL_PATH="output/s8b-freeze/floor_protocol.json"
+protocol_resolution_rc=0
+protocol_resolution_output=$(
+  "$PY" -I -B "$REPO_ROOT/orchestrator/campaign/s8b_floor_campaign.py" \
+    resolve-current-protocol
+  resolver_rc=$?
+  printf '\036'
+  exit "$resolver_rc"
+) || protocol_resolution_rc=$?
+protocol_resolution_output=${protocol_resolution_output%$'\036'}
+if [[ "$protocol_resolution_rc" -eq 0 \
+      && "$protocol_resolution_output" == *$'\n' ]]; then
+  protocol_resolution_output=${protocol_resolution_output%$'\n'}
+fi
+if [[ "$protocol_resolution_rc" -ne 0 \
+      || -z "$protocol_resolution_output" \
+      || "$protocol_resolution_output" == *$'\n'* \
+      || "$protocol_resolution_output" == /* ]]; then
+  if [[ "$protocol_resolution_rc" -eq 0 ]]; then
+    protocol_resolution_rc=2
+  fi
+  write_failure "$protocol_resolution_rc" floor_protocol_resolution \
+    "resolver did not return one nonempty relative protocol path"
+  exit "$protocol_resolution_rc"
+fi
+PROTOCOL_PATH=$protocol_resolution_output
 export IZANAGI_FLOOR_JOB_STAGING="$ATTEMPT_DIR"
 driver_setup_rc=0
 exec {DRIVER_STDOUT_FD}>"$ATTEMPT_DIR/floor-driver.stdout" || driver_setup_rc=$?

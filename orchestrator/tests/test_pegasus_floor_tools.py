@@ -696,7 +696,7 @@ def test_floor_job_hardens_interpreter() -> None:
     assert '"$PY" -I -B --version' in source
     assert '"$PY" -I -B "$REPO_ROOT/orchestrator/campaign/s8b_floor_campaign.py"' in source
     assert "-E -s -B" not in source
-    assert source.count('"$PY" -I -B') == 15
+    assert source.count('"$PY" -I -B') == 16
     assert len(re.findall(r"(?<![A-Za-z0-9_])python3(?=\s)", submit)) == 5
     assert submit.count("python3 -I -B") == 5
     assert re.search(r"(?<![A-Za-z0-9_])python3\s+(?!-I -B)", submit) is None
@@ -810,9 +810,7 @@ def test_floor_job_interpreter_gate_prefers_default_python3(tmp_path: Path) -> N
 def _dependency_build_fragment() -> str:
     source = JOB.read_text(encoding="utf-8")
     start = source.index('if [[ ! -d "$GFLAGS_SOURCE_PATH" ]]')
-    end = source.index(
-        'PROTOCOL_PATH="output/s8b-freeze/floor_protocol.json"', start
-    )
+    end = source.index("protocol_resolution_rc=0", start)
     return source[start:end]
 
 
@@ -1042,7 +1040,8 @@ def _run_floor_driver_tail(
         "import json\n"
         "import sys\n"
         "from pathlib import Path\n"
-        f"Path({str(argv_record)!r}).write_text(json.dumps(sys.argv[1:]), encoding='utf-8')\n"
+        "if sys.argv[1:] != ['resolve-current-protocol']:\n"
+        f"    Path({str(argv_record)!r}).write_text(json.dumps(sys.argv[1:]), encoding='utf-8')\n"
         + _floor_driver_stub_source(),
         encoding="utf-8",
     )
@@ -1115,13 +1114,23 @@ def test_floor_job_invokes_fixed_pilot_cli_without_bypass(
         for token in source_tokens
         if token == driver_path or token.endswith("/" + driver_path)
     ]
-    assert len(driver_tokens) == 1
+    assert len(driver_tokens) == 2
+    assert source_tokens.count("resolve-current-protocol") == 1
     assert source_tokens.count("--mode") == 1
     source_mode_index = source_tokens.index("--mode")
     assert source_tokens[source_mode_index + 1] == "pilot"
     assert 'export IZANAGI_FLOOR_JOB_STAGING="$ATTEMPT_DIR"' in source
+    resolver_index = source.index("resolve-current-protocol")
+    driver_argv_index = source.index("driver_argv=(")
+    driver_launch_index = source.index(
+        '"$REPO_ROOT/orchestrator/campaign/s8b_floor_campaign.py"',
+        driver_argv_index,
+    )
+    assert resolver_index < source.index(
+        'export IZANAGI_FLOOR_JOB_STAGING="$ATTEMPT_DIR"'
+    )
     assert source.index('export IZANAGI_FLOOR_JOB_STAGING="$ATTEMPT_DIR"') < (
-        source.index('"$REPO_ROOT/orchestrator/campaign/s8b_floor_campaign.py"')
+        driver_launch_index
     )
     assert "--mode official" not in source
     assert "--resume" not in source
@@ -2161,7 +2170,7 @@ def test_submit_receipt_round_trips_through_job_validator(
 
 def _driver_tail() -> str:
     source = JOB.read_text(encoding="utf-8")
-    return source[source.index('PROTOCOL_PATH="output/s8b-freeze/floor_protocol.json"') :]
+    return source[source.index("protocol_resolution_rc=0") :]
 
 
 def _floor_driver_stub_source(*, invalid_metric: str | None = None) -> str:
@@ -2188,12 +2197,25 @@ def _floor_driver_stub_source(*, invalid_metric: str | None = None) -> str:
     return (
         "import json\n"
         "import os\n"
+        "import sys\n"
         "from pathlib import Path\n"
+        "call_log = os.environ.get('STUB_CALL_LOG')\n"
+        "if call_log:\n"
+        "    with Path(call_log).open('a', encoding='utf-8') as handle:\n"
+        "        handle.write(json.dumps(sys.argv[1:]) + '\\n')\n"
+        "if sys.argv[1:] == ['resolve-current-protocol']:\n"
+        "    sys.stdout.write(os.environ.get(\n"
+        "        'STUB_RESOLVER_OUTPUT',\n"
+        "        'output/s8b-freeze/floor_protocol.json\\n',\n"
+        "    ))\n"
+        "    raise SystemExit(int(os.environ.get('STUB_RESOLVER_RC', '0')))\n"
         "rc = int(os.environ['STUB_DRIVER_RC'])\n"
         "if rc == 0:\n"
         "    repo = Path(__file__).resolve().parents[2]\n"
-        "    freeze_dir = repo / 'output' / 's8b-freeze'\n"
+        "    protocol_path = Path(sys.argv[sys.argv.index('--protocol') + 1])\n"
+        "    freeze_dir = protocol_path.parent\n"
         "    freeze_dir.mkdir(parents=True)\n"
+        "    freeze_path = freeze_dir / 'holdout_freeze.json'\n"
         "    freeze = {\n"
         "        'holdouts': {'rr79': {\n"
         "            'variant_binding': {'entries': {\n"
@@ -2201,13 +2223,13 @@ def _floor_driver_stub_source(*, invalid_metric: str | None = None) -> str:
         "            }},\n"
         "        }},\n"
         "    }\n"
-        "    (freeze_dir / 'holdout_freeze.json').write_text(\n"
+        "    freeze_path.write_text(\n"
         "        json.dumps(freeze), encoding='utf-8')\n"
         "    protocol = {\n"
-        "        'freeze': {'path': 'output/s8b-freeze/holdout_freeze.json'},\n"
+        "        'freeze': {'path': freeze_path.relative_to(repo).as_posix()},\n"
         "        'stock_configuration': 'stock_common',\n"
         "    }\n"
-        "    (freeze_dir / 'floor_protocol.json').write_text(\n"
+        "    protocol_path.write_text(\n"
         "        json.dumps(protocol), encoding='utf-8')\n"
         "    run_dir = repo / 'output' / 'fixture-run'\n"
         "    run_dir.mkdir(parents=True)\n"
@@ -2226,6 +2248,126 @@ def _floor_driver_stub_source(*, invalid_metric: str | None = None) -> str:
         "    print(json.dumps({'status': 'completed', 'run_dir': str(run_dir)}))\n"
         "raise SystemExit(rc)\n"
     )
+
+
+def _run_driver_tail_with_resolver(
+    tmp_path: Path, *, resolver_output: str, resolver_rc: int = 0
+) -> tuple[subprocess.CompletedProcess[str], Path, list[list[str]], Path]:
+    repo = tmp_path / "repo"
+    driver = repo / "orchestrator" / "campaign" / "s8b_floor_campaign.py"
+    driver.parent.mkdir(parents=True)
+    driver.write_text(_floor_driver_stub_source(), encoding="utf-8")
+    attempt = tmp_path / "attempt"
+    attempt.mkdir()
+    call_log = tmp_path / "driver-calls.jsonl"
+    failure_call = attempt / "failure-call.txt"
+    prefix = "\n".join(
+        [
+            "set -Eeuo pipefail",
+            f"REPO_ROOT={shlex.quote(str(repo))}",
+            f"ATTEMPT_DIR={shlex.quote(str(attempt))}",
+            f"PY={shlex.quote(sys.executable)}",
+            "PBS_JOBID=0:fixture.nqsv",
+            f"CURRENT_COMMIT={'a' * 40}",
+            f"JOB_SCRIPT_SHA256={'b' * 64}",
+            f"EXECUTING_SCRIPT_SHA256={'c' * 64}",
+            f"IZANAGI_SUBMISSION_NONCE={'d' * 32}",
+            "REQUESTED_S=36000",
+            "export STUB_DRIVER_RC=0",
+            f"export STUB_CALL_LOG={shlex.quote(str(call_log))}",
+            "export STUB_RESOLVER_OUTPUT=" + shlex.quote(resolver_output),
+            f"export STUB_RESOLVER_RC={resolver_rc}",
+            "write_failure() {",
+            f"  printf '%s|%s|%s\\n' \"$1\" \"$2\" \"$3\" > {shlex.quote(str(failure_call))}",
+            "}",
+            "",
+        ]
+    )
+    result = subprocess.run(
+        ["bash", "-c", prefix + _driver_tail()],
+        capture_output=True,
+        text=True,
+    )
+    calls = []
+    if call_log.exists():
+        calls = [
+            json.loads(line)
+            for line in call_log.read_text(encoding="utf-8").splitlines()
+        ]
+    return result, attempt, calls, failure_call
+
+
+def test_floor_protocol_resolution_is_shared_by_all_consumers(
+    tmp_path: Path,
+) -> None:
+    protocol_path = (
+        "output/s8b-freeze/protocols/"
+        + "a" * 64
+        + "/"
+        + "b" * 40
+        + "/floor_protocol.json"
+    )
+    result, attempt, calls, failure_call = _run_driver_tail_with_resolver(
+        tmp_path, resolver_output=protocol_path + "\n"
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert calls == [
+        ["resolve-current-protocol"],
+        [
+            "--mode",
+            "pilot",
+            "--protocol",
+            str(tmp_path / "repo" / protocol_path),
+        ],
+    ]
+    job_result = json.loads(
+        (attempt / "job-result.json").read_text(encoding="utf-8")
+    )
+    assert job_result["protocol_path"] == protocol_path
+    assert (tmp_path / "repo" / protocol_path).is_file()
+    assert not (
+        tmp_path / "repo" / "output/s8b-freeze/floor_protocol.json"
+    ).exists()
+    assert (attempt / "floor-driver.launch-attempted").is_file()
+    assert not failure_call.exists()
+
+
+@pytest.mark.parametrize(
+    ("resolver_output", "resolver_rc", "expected_rc"),
+    [
+        ("output/s8b-freeze/floor_protocol.json\n", 7, 7),
+        ("", 0, 2),
+        (
+            "output/s8b-freeze/floor_protocol.json\n"
+            "output/s8b-freeze/other.json\n",
+            0,
+            2,
+        ),
+        ("/tmp/floor_protocol.json\n", 0, 2),
+    ],
+    ids=["nonzero", "empty", "multiple-lines", "absolute"],
+)
+def test_floor_protocol_resolution_failure_stops_before_driver_launch(
+    tmp_path: Path,
+    resolver_output: str,
+    resolver_rc: int,
+    expected_rc: int,
+) -> None:
+    result, attempt, calls, failure_call = _run_driver_tail_with_resolver(
+        tmp_path,
+        resolver_output=resolver_output,
+        resolver_rc=resolver_rc,
+    )
+
+    assert result.returncode == expected_rc, result.stderr
+    assert calls == [["resolve-current-protocol"]]
+    assert failure_call.read_text(encoding="utf-8").split("|", 2)[:2] == [
+        str(expected_rc),
+        "floor_protocol_resolution",
+    ]
+    assert not (attempt / "floor-driver.launch-attempted").exists()
+    assert not (attempt / "job-result.json").exists()
 
 
 def _reservation_writer_fragment() -> str:
@@ -2408,7 +2550,11 @@ def test_floor_driver_fd_setup_failure_does_not_mark_launch(
     driver.parent.mkdir(parents=True)
     driver_ran = tmp_path / "driver-ran"
     driver.write_text(
+        "import sys\n"
         "from pathlib import Path\n"
+        "if sys.argv[1:] == ['resolve-current-protocol']:\n"
+        "    print('output/s8b-freeze/floor_protocol.json')\n"
+        "    raise SystemExit(0)\n"
         f"Path({str(driver_ran)!r}).write_text('ran', encoding='utf-8')\n"
         "raise SystemExit(7)\n",
         encoding="utf-8",
@@ -2463,7 +2609,14 @@ def test_floor_job_result_writer_failure_preserves_driver_rc(
     repo = tmp_path / "repo"
     driver = repo / "orchestrator" / "campaign" / "s8b_floor_campaign.py"
     driver.parent.mkdir(parents=True)
-    driver.write_text("raise SystemExit(7)\n", encoding="utf-8")
+    driver.write_text(
+        "import sys\n"
+        "if sys.argv[1:] == ['resolve-current-protocol']:\n"
+        "    print('output/s8b-freeze/floor_protocol.json')\n"
+        "    raise SystemExit(0)\n"
+        "raise SystemExit(7)\n",
+        encoding="utf-8",
+    )
     attempt = tmp_path / "attempt"
     attempt.mkdir()
     sentinel = '{"preexisting": true}\n'

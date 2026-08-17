@@ -38,6 +38,8 @@ _DIRECT_SAFE_ALLOWLIST = Counter({
     ("campaign/s3_lock_coverage.py", "<module>._run_trace"): 1,
     # Public profile paths runtime-reject protected ratios before build/profile.
     ("campaign/backoff_profile.py", "<module>._profile_run"): 1,
+    # Fixed argv, no shell expansion, sanitized env, read-only Git tree query.
+    ("campaign/s8b_floor_campaign.py", "<module>._floor_protocol_paths_at_commit"): 1,
 })
 
 _DIRECT_CCBENCH_DIAGNOSTIC_SITES = Counter({

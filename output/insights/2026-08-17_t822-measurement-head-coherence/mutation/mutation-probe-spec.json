@@ -1,0 +1,50 @@
+{
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "estimated_run_seconds": 120,
+ "timeout_seconds": 1800,
+ "hang_timeout_seconds": 900,
+ "mutations": [
+  {
+   "id": "M1",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/trial_registry.py",
+     "old": "            if common_measurement_head is None:\n                common_measurement_head = measurement_head\n            elif measurement_head != common_measurement_head:\n                _fail(\n                    \"measurement-head-coherence\",\n                    \"reports do not share one measurement_head\",\n                )\n",
+     "new": "            common_measurement_head = measurement_head\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "M2",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s8c_acceptance_receipt.py",
+     "old": "    if len({trial.measurement_head for trial in trials}) != 1:\n",
+     "new": "    if False:\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "M3",
+   "category": "positive",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/trial_registry.py",
+     "old": "            if common_measurement_head is None:\n                common_measurement_head = measurement_head\n",
+     "new": "            if common_measurement_head is None:\n                common_measurement_head = current_head\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  }
+ ]
+}

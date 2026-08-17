@@ -37,6 +37,17 @@ JOURNAL_SCHEMA = "s8b-floor-journal/v3"
 FORMULA_ID = "s8b-floor-stats/v2"
 FLOOR_HOLDOUT_ADMISSION_SCHEMA = "s8b-floor-holdout-admission-receipt/v1"
 
+# Campaign entry で捕捉し、floor claim v2 へ canonical list として記録する
+# refreeze 不適格 seam の閉集合。producer と admission validator の単一源である。
+REFREEZE_DISQUALIFYING_SEAM_NAMES = frozenset({
+    "measure_fn", "probe_fn", "sleep_fn", "monotonic_fn", "prepare_fn",
+    "now_fn", "host_provenance_fn", "process_identity_fn",
+    "execution_receipt_fn", "build_fn", "repo_root",
+    "after_certificate_issued_fn", "durable_root_policy",
+    "_floor_preflight_fn", "perf_preflight_fn", "_holdout_repo_root",
+    "_holdout_signature_source",
+})
+
 _PROTOCOL_KEYS = frozenset({
     "schema", "formula", "env_tag", "ccbench_pin", "freeze", "stock_configuration",
     "n_sessions", "reps", "master_seed", "schedule_algorithm", "extime_s",

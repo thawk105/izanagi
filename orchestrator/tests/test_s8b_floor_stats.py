@@ -17,6 +17,7 @@ reference calculator と手導出 literal で固定する (`_ref_*`)。productio
 from __future__ import annotations
 
 import inspect
+import ast
 import copy
 import hashlib
 import json
@@ -844,13 +845,76 @@ def test_live_verifier_signature_forbids_caller_supplied_expected_admission():
     assert "expected_holdout_admission" not in parameters
 
 
+def test_live_refreeze_comparison_is_centralized_once_and_has_three_callers():
+    source = inspect.getsource(verify_floor_artifact_with_live_admission)
+    comparisons = [
+        node for node in ast.walk(ast.parse(source))
+        if isinstance(node, ast.Compare)
+        and any(
+            isinstance(item, ast.Attribute)
+            and item.attr == "derived_eligible_for_refreeze"
+            for item in ast.walk(node)
+        )
+    ]
+    assert len(comparisons) == 1
+
+    campaign_root = Path(__file__).resolve().parents[1] / "campaign"
+    callers = {
+        path.name
+        for path in campaign_root.glob("*.py")
+        if path.name != "s8b_floor_stats.py"
+        and "verify_floor_artifact_with_live_admission(" in path.read_text(
+            encoding="utf-8"
+        )
+    }
+    assert callers == {
+        "s8b_floor_campaign.py",
+        "s8b_holdout_freeze.py",
+        "s8b_ratified_freeze.py",
+    }
+
+
+@pytest.mark.parametrize(
+    "reported,derived",
+    [(True, False), (False, True)],
+    ids=["reported-true-derived-false", "reported-false-derived-true"],
+)
+def test_live_verifier_rejects_both_refreeze_mismatch_directions(
+    tmp_path, monkeypatch, reported, derived,
+):
+    artifact, expected, *_ = _honest_artifact()
+    artifact["eligible_for_refreeze"] = reported
+    monkeypatch.setattr(
+        s8b_holdout_admission, "inspect_floor_holdout_admission_evidence",
+        lambda **_kwargs: s8b_holdout_admission.FloorHoldoutEvidenceInspection(
+            artifact["holdout_admission"],
+            derived_eligible_for_refreeze=derived,
+        ),
+    )
+
+    with pytest.raises(
+        s8b_holdout_admission.FloorHoldoutEvidenceError,
+    ) as exc_info:
+        verify_floor_artifact_with_live_admission(
+            artifact, expected, repo_root=tmp_path, protocol={},
+            verified_freeze_document={}, freeze_sha256="3" * 64,
+            manifest_sha256="4" * 64, campaign_run_id="run",
+            run_relpath="env/test/run", mode="official", cells=[], schedule=[],
+            sessions=[], expected_use_perf=True,
+        )
+    assert exc_info.value.category == "mismatch"
+    assert exc_info.value.reason == "refreeze-eligibility-mismatch"
+
+
 def test_live_verifier_rejects_result_v4_unexpected_top_level_key(
         tmp_path, monkeypatch):
     artifact, expected, *_ = _honest_artifact()
     artifact["unexpected"] = "must be rejected"
     monkeypatch.setattr(
         s8b_holdout_admission, "inspect_floor_holdout_admission_evidence",
-        lambda **_kwargs: artifact["holdout_admission"],
+        lambda **_kwargs: s8b_holdout_admission.FloorHoldoutEvidenceInspection(
+            artifact["holdout_admission"], derived_eligible_for_refreeze=True,
+        ),
     )
 
     errors = verify_floor_artifact_with_live_admission(
