@@ -1,0 +1,78 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 60,
+  "timeout_seconds": 2400,
+  "hang_timeout_seconds": 2400,
+  "mutations": [
+    {
+      "id": "M1-prewave-local-never-stops",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/mutation_harness.py",
+          "old": "if not timed_out or submission_state not in {\"matched\", \"indeterminate\"}:",
+          "new": "if True:"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M2-evidence-collection-removed",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/mutation_harness.py",
+          "old": "    else:\n        dispatch_before = _dispatch_submission_inventory(repo)",
+          "new": "    else:\n        dispatch_before = set()"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M3-binding-always-mine",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/mutation_harness.py",
+          "old": "token_matches = environment.get(\"PYTHONDONTWRITEBYTECODE\") == dispatch_id",
+          "new": "token_matches = True"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M4-indeterminate-fails-open",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/mutation_harness.py",
+          "old": "if not timed_out or submission_state not in {\"matched\", \"indeterminate\"}:",
+          "new": "if not timed_out or submission_state not in {\"matched\"}:"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M5-d454-dispatch-latch-removed",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/mutation_harness.py",
+          "old": "if timed_out or receipt_requires_hold:",
+          "new": "if receipt_requires_hold:"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    }
+  ]
+}

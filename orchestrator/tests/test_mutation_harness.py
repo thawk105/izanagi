@@ -50,6 +50,7 @@ def repo(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     tests.mkdir()
     (tests / "test_gate.py").write_text(
         """\
+import json
 import os
 import signal
 import time
@@ -69,6 +70,43 @@ def record_run():
         stream.write(value + "\\n")
         stream.flush()
         os.fsync(stream.fileno())
+    mode = os.environ.get("IZANAGI_MUTATION_TEST_MODE")
+    dispatch_modes = {
+        "hang-three-dispatched",
+        "hang-three-dispatched-missing-request",
+        "hang-three-dispatched-malformed-request",
+        "hang-three-unrelated",
+    }
+    if mode in dispatch_modes and value == "3":
+        submission = TARGET.parent / "output" / "pegasus-dispatch" / "queued-request"
+        submission.mkdir(parents=True)
+        if mode == "hang-three-dispatched-missing-request":
+            return
+        if mode == "hang-three-dispatched-malformed-request":
+            (submission / "request.json").write_text("{\\n", encoding="utf-8")
+            return
+        environment = {}
+        if mode == "hang-three-dispatched":
+            environment["PYTHONDONTWRITEBYTECODE"] = os.environ[
+                "PYTHONDONTWRITEBYTECODE"
+            ]
+        (submission / "request.json").write_text(
+            json.dumps(
+                {
+                    "schema_version": "pegasus-dispatch-request/v2",
+                    "repo_root": str(TARGET.parent),
+                    "task": "tests",
+                    "args": (
+                        ["tests/test_gate.py", "-q", "-rf"]
+                        if mode == "hang-three-dispatched"
+                        else ["unrelated/test.py", "-q", "-rf"]
+                    ),
+                    "environment": environment,
+                }
+            )
+            + "\\n",
+            encoding="utf-8",
+        )
 
 
 @pytest.mark.parametrize("case", ["one", "two", "three"])
@@ -80,7 +118,13 @@ def test_gate(case):
     mode = os.environ.get("IZANAGI_MUTATION_TEST_MODE", "normal")
     if mode == "kill-parent-two" and value == "2":
         os.kill(os.getppid(), signal.SIGKILL)
-    if mode == "hang-three" and value == "3":
+    if mode in {
+        "hang-three",
+        "hang-three-dispatched",
+        "hang-three-dispatched-missing-request",
+        "hang-three-dispatched-malformed-request",
+        "hang-three-unrelated",
+    } and value == "3":
         time.sleep(5)
     assert False, f"mutation value {value} reached {case}"
 """,
@@ -892,9 +936,239 @@ def test_hang_risk_uses_short_timeout_records_evidence_and_restores(repo: Path) 
     ledger = json.loads(out.read_text(encoding="utf-8"))
     assert ledger["mutations"][0]["status"] == "TIMEOUT"
     assert ledger["mutations"][0]["timed_out"] is True
+    assert not MH._orphan_stop_path(out).exists()
     assert (repo / "target.py").read_text(encoding="utf-8") == _git(
         repo, "show", "HEAD:target.py"
     )
+
+
+def test_local_timeout_after_dispatch_submission_stops_without_terminal_record(
+    repo: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    spec, out, calls, mode = _paths(repo)
+    mutation = {
+        "id": "H1",
+        "category": "negative",
+        "replacements": [
+            {"file": "target.py", "old": "VALUE = 0", "new": "VALUE = 3"}
+        ],
+        "expected_nodes": [],
+        "expected_status": "TIMEOUT",
+        "hang_risk": True,
+    }
+    _write_spec(spec, [mutation])
+    document = json.loads(spec.read_text(encoding="utf-8"))
+    document["hang_timeout_seconds"] = 1
+    spec.write_text(json.dumps(document) + "\n", encoding="utf-8")
+    mode.write_text("hang-three-dispatched\n", encoding="utf-8")
+    (repo / ".git" / "info" / "exclude").write_text(
+        "/output/\n", encoding="utf-8"
+    )
+
+    def receipt_recovery_forbidden(*args: object, **kwargs: object) -> None:
+        raise AssertionError("local timeout must not interpret a dispatch receipt")
+
+    monkeypatch.setattr(MH, "_recover_dispatch_request", receipt_recovery_forbidden)
+
+    assert MH.main(_argv(repo, spec, out, calls, mode)) == 2
+
+    ledger = json.loads(out.read_text(encoding="utf-8"))
+    assert ledger["mutations"] == []
+    sidecar = json.loads(
+        MH._orphan_stop_path(out).read_text(encoding="utf-8")
+    )
+    assert sidecar["reason"]["code"] == "runner-mode-violation"
+    assert sidecar["reason"]["phase"] == "mutation"
+    assert sidecar["reason"]["mutation_id"] == "H1"
+    assert sidecar["reason"]["hold_latched"] is False
+    assert sidecar["reason"]["job_may_have_been_submitted"] is True
+    assert sidecar["reason"]["verification_required"] is True
+    assert sidecar["reason"]["dispatch_submission_state"] == "matched"
+    assert sidecar["active_record"]["new_dispatch_submission"] is True
+    assert sidecar["active_record"]["dispatch_submission"]["state"] == "matched"
+    submission = repo / "output" / "pegasus-dispatch" / "queued-request"
+    assert sidecar["active_record"]["dispatch_submission"]["corroboration"] == [
+        {
+            "submission_dir": str(submission),
+            "nonce_matches": True,
+            "repo_matches": True,
+            "task_matches": True,
+            "args_match": False,
+        }
+    ]
+    assert not (
+        repo / "output" / "pegasus-dispatch" / MH.ORPHAN_HOLD_NAME
+    ).exists()
+    assert (repo / "target.py").read_text(encoding="utf-8").startswith("VALUE = 3\n")
+
+
+def test_local_timeout_ignores_conclusively_unrelated_submission(
+    repo: Path,
+) -> None:
+    spec, out, calls, mode = _paths(repo)
+    mutation = {
+        "id": "H1",
+        "category": "negative",
+        "replacements": [
+            {"file": "target.py", "old": "VALUE = 0", "new": "VALUE = 3"}
+        ],
+        "expected_nodes": [],
+        "expected_status": "TIMEOUT",
+        "hang_risk": True,
+    }
+    _write_spec(spec, [mutation])
+    document = json.loads(spec.read_text(encoding="utf-8"))
+    document["hang_timeout_seconds"] = 1
+    spec.write_text(json.dumps(document) + "\n", encoding="utf-8")
+    mode.write_text("hang-three-unrelated\n", encoding="utf-8")
+    (repo / ".git" / "info" / "exclude").write_text(
+        "/output/\n", encoding="utf-8"
+    )
+
+    assert MH.main(_argv(repo, spec, out, calls, mode)) == 0
+
+    ledger = json.loads(out.read_text(encoding="utf-8"))
+    assert ledger["mutations"][0]["status"] == "TIMEOUT"
+    assert not MH._orphan_stop_path(out).exists()
+    assert not (
+        repo / "output" / "pegasus-dispatch" / MH.ORPHAN_HOLD_NAME
+    ).exists()
+    assert (repo / "target.py").read_text(encoding="utf-8") == _git(
+        repo, "show", "HEAD:target.py"
+    )
+
+
+def test_local_timeout_inventory_failure_stops_without_terminal_record(
+    repo: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    spec, out, calls, mode = _paths(repo)
+    mutation = {
+        "id": "H1",
+        "category": "negative",
+        "replacements": [
+            {"file": "target.py", "old": "VALUE = 0", "new": "VALUE = 3"}
+        ],
+        "expected_nodes": [],
+        "expected_status": "TIMEOUT",
+        "hang_risk": True,
+    }
+    _write_spec(spec, [mutation])
+    document = json.loads(spec.read_text(encoding="utf-8"))
+    document["hang_timeout_seconds"] = 1
+    spec.write_text(json.dumps(document) + "\n", encoding="utf-8")
+    mode.write_text("hang-three\n", encoding="utf-8")
+    (repo / ".git" / "info" / "exclude").write_text(
+        "/output/\n", encoding="utf-8"
+    )
+    real_inventory = MH._dispatch_submission_inventory
+    mutation_inventory_calls = 0
+
+    def inventory(root: Path) -> set[Path]:
+        nonlocal mutation_inventory_calls
+        if (root / "target.py").read_text(encoding="utf-8").startswith("VALUE = 3\n"):
+            mutation_inventory_calls += 1
+            if mutation_inventory_calls == 2:
+                raise MH.HarnessError("injected inventory failure")
+        return real_inventory(root)
+
+    monkeypatch.setattr(MH, "_dispatch_submission_inventory", inventory)
+
+    assert MH.main(_argv(repo, spec, out, calls, mode)) == 2
+
+    ledger = json.loads(out.read_text(encoding="utf-8"))
+    assert ledger["mutations"] == []
+    sidecar = json.loads(MH._orphan_stop_path(out).read_text(encoding="utf-8"))
+    assert sidecar["reason"]["code"] == "runner-mode-evidence-unavailable"
+    assert sidecar["reason"]["dispatch_submission_state"] == "indeterminate"
+    assert sidecar["active_record"]["new_dispatch_submission"] is None
+    assert sidecar["active_record"]["dispatch_submission"]["errors"] == [
+        {"code": "after-inventory-failed", "error_type": "HarnessError"}
+    ]
+    assert not (
+        repo / "output" / "pegasus-dispatch" / MH.ORPHAN_HOLD_NAME
+    ).exists()
+    assert (repo / "target.py").read_text(encoding="utf-8").startswith("VALUE = 3\n")
+
+
+@pytest.mark.parametrize(
+    ("mode_value", "request_error_type"),
+    [
+        pytest.param(
+            "hang-three-dispatched-missing-request",
+            "HarnessError",
+            id="missing",
+        ),
+        pytest.param(
+            "hang-three-dispatched-malformed-request",
+            "JSONDecodeError",
+            id="malformed",
+        ),
+    ],
+)
+def test_local_timeout_with_unreadable_dispatch_request_stops_as_evidence_unavailable(
+    repo: Path,
+    mode_value: str,
+    request_error_type: str,
+) -> None:
+    spec, out, calls, mode = _paths(repo)
+    mutation = {
+        "id": "H1",
+        "category": "negative",
+        "replacements": [
+            {"file": "target.py", "old": "VALUE = 0", "new": "VALUE = 3"}
+        ],
+        "expected_nodes": [],
+        "expected_status": "TIMEOUT",
+        "hang_risk": True,
+    }
+    _write_spec(spec, [mutation])
+    document = json.loads(spec.read_text(encoding="utf-8"))
+    document["hang_timeout_seconds"] = 1
+    spec.write_text(json.dumps(document) + "\n", encoding="utf-8")
+    mode.write_text(mode_value + "\n", encoding="utf-8")
+    (repo / ".git" / "info" / "exclude").write_text(
+        "/output/\n", encoding="utf-8"
+    )
+
+    assert MH.main(_argv(repo, spec, out, calls, mode)) == 2
+
+    ledger = json.loads(out.read_text(encoding="utf-8"))
+    assert ledger["mutations"] == []
+    sidecar = json.loads(MH._orphan_stop_path(out).read_text(encoding="utf-8"))
+    assert sidecar["reason"]["code"] == "runner-mode-evidence-unavailable"
+    assert sidecar["reason"]["dispatch_submission_state"] == "indeterminate"
+    assert sidecar["active_record"]["new_dispatch_submission"] is None
+    submission = repo / "output" / "pegasus-dispatch" / "queued-request"
+    assert sidecar["active_record"]["dispatch_submission"]["errors"] == [
+        {
+            "submission_dir": str(submission),
+            "code": "request-unreadable",
+            "error_type": request_error_type,
+        }
+    ]
+    assert not (
+        repo / "output" / "pegasus-dispatch" / MH.ORPHAN_HOLD_NAME
+    ).exists()
+    assert (repo / "target.py").read_text(encoding="utf-8").startswith("VALUE = 3\n")
+
+
+def test_preexisting_dispatch_hold_blocks_local_runner_start(repo: Path) -> None:
+    spec, out, calls, mode = _paths(repo)
+    _single_spec(spec)
+    (repo / ".git" / "info" / "exclude").write_text(
+        "/output/\n", encoding="utf-8"
+    )
+    hold = repo / "output" / "pegasus-dispatch" / MH.ORPHAN_HOLD_NAME
+    hold.parent.mkdir(parents=True)
+    hold.write_text("{}\n", encoding="utf-8")
+
+    assert MH.main(_argv(repo, spec, out, calls, mode)) == 2
+
+    assert not calls.exists()
+    assert hold.is_file()
+    stop = json.loads(MH._orphan_stop_path(out).read_text(encoding="utf-8"))
+    assert stop["reason"]["code"] == "orphan-hold"
+    assert stop["reason"]["phase"] == "collection"
 
 
 def test_dispatch_timeout_latches_hold_preserves_bytes_stops_next_and_writes_stop(
@@ -958,6 +1232,7 @@ def test_dispatch_timeout_latches_hold_preserves_bytes_stops_next_and_writes_sto
     ledger_path = out
     ledger = json.loads(ledger_path.read_text(encoding="utf-8"))
     assert ledger["schema"] == MH.LEDGER_SCHEMA
+    assert ledger["mutations"] == []
     out = MH._orphan_stop_path(ledger_path)
     stop = json.loads(out.read_text(encoding="utf-8"))
     assert stop["schema"] == MH.ORPHAN_STOP_SCHEMA
@@ -1628,6 +1903,56 @@ def test_attempt_sidecar_is_started_before_popen_and_finished_after_failure(
     assert sidecar["attempts"][0]["state"] == "finished"
     assert sidecar["attempts"][0]["wrapper_attempt_ordinal"] == 7
     assert sidecar["attempts"][0]["request"] is None
+
+
+@pytest.mark.parametrize("runner_mode", ["local", "dispatch"])
+@pytest.mark.parametrize("with_attempt_recorder", [False, True])
+def test_dispatch_inventory_snapshot_precedes_runner_in_every_mode(
+    repo: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    runner_mode: str,
+    with_attempt_recorder: bool,
+) -> None:
+    events: list[str] = []
+
+    def inventory(root: Path) -> set[Path]:
+        assert root == repo
+        events.append("inventory")
+        return set()
+
+    def failing_popen(*args: object, **kwargs: object) -> None:
+        events.append("popen")
+        raise OSError("fixture popen failure")
+
+    recorder = None
+    if with_attempt_recorder:
+        recorder = MH.AttemptRecorder(
+            path=repo.parent / f"attempts-{runner_mode}.json",
+            wrapper_attempt_ordinal=1,
+            document={
+                "schema": MH.ATTEMPT_SCHEMA,
+                "repo_head": "a" * 40,
+                "spec_sha256": "b" * 64,
+                "runner_sha256": "c" * 64,
+                "tool_sha256": "d" * 64,
+                "expected_initial_requests": 1,
+                "attempts": [],
+            },
+        )
+    monkeypatch.setattr(MH, "_dispatch_submission_inventory", inventory)
+    monkeypatch.setattr(MH.subprocess, "Popen", failing_popen)
+
+    result = MH._run_tests(
+        repo,
+        [sys.executable, "-c", "pass"],
+        timeout_s=1,
+        runner_mode=runner_mode,
+        attempt_recorder=recorder,
+        attempt_phase="baseline" if recorder is not None else None,
+    )
+
+    assert result["rc"] is None
+    assert events == ["inventory", "popen"]
 
 
 def test_timeout_request_recovery_uses_partial_receipt_as_correspondence_source(

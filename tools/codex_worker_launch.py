@@ -1790,12 +1790,13 @@ def _attempt_loop(
             identity = read_pid_identity(process.pid)
         except (OSError, ValueError):
             identity = None
+        spawn_completed_ns = _monotonic_ns()
         if attempt_diagnostics is not None:
             attempt_diagnostics.note_boundary(
-                "spawn_completed", _monotonic_ns()
+                "spawn_completed", spawn_completed_ns
             )
         evidence_deadline_ns = (
-            state.started_ns
+            spawn_completed_ns
             + decimal_seconds_to_nanoseconds(args.evidence_grace_s)
         )
         forced_stop = False

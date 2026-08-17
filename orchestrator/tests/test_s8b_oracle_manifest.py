@@ -59,7 +59,7 @@ PIN_GATE_SCHEDULE_SHA256 = (
     "105bf4cb713f309fec174035814b7ab70ac892a70a51d62f028c31f6310c68d2"
 )
 PIN_GATE_SPEC_SHA256 = (
-    "0f6e745f8d40bf56c7d7b1b200fc2c01d34baad3f1e0c8856c3de670b046f867"
+    "307b3c82798e30be19e81204e245204cfeddb8c591d037aa759afddeb241228f"
 )
 # production serializer から独立した reviewed-spec golden。UTF-8 非 ASCII、
 # sort 済み key 順、compact separator、末尾 LF 無しを raw bytes として固定する。
@@ -82,7 +82,7 @@ PIN_GATE_SPEC_RAW = (
     b'"artifacts":{"path":"orchestrator/campaign/s8b_oracle_artifacts.py",'
     b'"sha256":"11ce63aa5f95bb2d06954d3743c5e845d5c5c16f4a146f557f28586cb217f0be"},'
     b'"judge":{"path":"orchestrator/campaign/s8b_oracle_judge.py",'
-    b'"sha256":"cf200b22ddea4246f9f1030d9dc8d7b7651e4f4bffce4fbf203a801a9d89b1a1"},'
+    b'"sha256":"54db1d3594f3fb7485d8fa8e37bff33d42e81baccd64abd2d342463109b42f6e"},'
     b'"materializer":{"path":"orchestrator/campaign/s1_direct_comparison.py",'
     b'"sha256":"ec3ebb16f480f0bb77f4090e8e01e42bfdda480ab65d445fd9be45b956206f99"},'
     b'"outcome_stage_contract":{"path":"orchestrator/campaign/s8b_outcome_stage_contract.py",'

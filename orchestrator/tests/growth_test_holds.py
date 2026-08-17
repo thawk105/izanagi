@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import hashlib
+import inspect
 import json
 import math
 import os
@@ -569,6 +570,8 @@ class GrowthTestHoldBypassRefused(RuntimeError):
 
 PlainRunner = Literal["pytest-delegating", "manual", "none"]
 _PLAIN_RUNNERS = frozenset({"pytest-delegating", "manual", "none"})
+GuardMode = Literal["import-and-call", "call-only"]
+_GUARD_MODES = frozenset({"import-and-call", "call-only"})
 _ENFORCING_PYTEST_CONFIG_IDS: set[int] = set()
 
 
@@ -606,15 +609,37 @@ def _wrap_held_function(function: Callable, node_id: str) -> Callable:
     return wrapped
 
 
+def _pytest_drives_current_import() -> bool:
+    """Return whether the active import call stack belongs to pytest."""
+    frame = inspect.currentframe()
+    if frame is None:
+        return True
+    try:
+        frame = frame.f_back
+        while frame is not None:
+            module_name = frame.f_globals.get("__name__")
+            if isinstance(module_name, str) and (
+                module_name == "_pytest" or module_name.startswith("_pytest.")
+            ):
+                return True
+            frame = frame.f_back
+        return False
+    finally:
+        del frame
+
+
 def enforce_held_functions(
     namespace: MutableMapping[str, object],
     module_file: str | os.PathLike[str],
     *,
     plain_runner: PlainRunner,
+    guard_mode: GuardMode = "import-and-call",
 ) -> tuple[str, ...]:
     """Bind held call guards and reject imports outside an enforcing runner."""
     if plain_runner not in _PLAIN_RUNNERS:
         raise ValueError(f"invalid growth-test plain runner: {plain_runner!r}")
+    if guard_mode not in _GUARD_MODES:
+        raise ValueError(f"invalid growth-test guard mode: {guard_mode!r}")
     filename = os.path.basename(os.fspath(module_file))
     held_nodes = sorted(
         node_id for node_id in GROWTH_TEST_HOLDS
@@ -646,6 +671,15 @@ def enforce_held_functions(
     if _ENFORCING_PYTEST_CONFIG_IDS:
         return function_names
     if os.environ.get(RUN_GROWTH_HELD_TESTS_ENV) == RUN_GROWTH_HELD_TESTS_TOKEN:
+        return function_names
+    if guard_mode == "call-only":
+        if _pytest_drives_current_import():
+            raise GrowthTestHoldBypassRefused(_refusal_message(f"{filename}::*"))
+        if (
+            namespace.get("__name__") == "__main__"
+            and plain_runner != "pytest-delegating"
+        ):
+            raise GrowthTestHoldBypassRefused(_refusal_message(f"{filename}::*"))
         return function_names
     if (
         namespace.get("__name__") == "__main__"

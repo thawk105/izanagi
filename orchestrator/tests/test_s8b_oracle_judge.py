@@ -5,6 +5,7 @@ from __future__ import annotations
 import copy
 import inspect
 import json
+import math
 import random
 import sys
 from pathlib import Path
@@ -206,6 +207,38 @@ def test_exact_maximum_tie_is_not_broken_by_a_floor():
     assert _holdout(result)["verdict"] == "tie"
     assert _holdout(result)["tied_configuration_ids"] == list(CONFIGURATIONS[-2:])
     assert _holdout(result)["winner_configuration_id"] is None
+
+
+def test_exact_maximum_boundary_distinguishes_one_ulp_in_both_directions():
+    observations = _observations()
+    lower_configuration_id, upper_configuration_id = CONFIGURATIONS[-2:]
+    for row in observations["rows"]:
+        if row["configuration_id"] in {
+            lower_configuration_id, upper_configuration_id,
+        }:
+            row["bench_values"] = [100.0]
+
+    exact_tie = _holdout(_judge(observations))
+    assert exact_tie["verdict"] == "tie"
+    assert exact_tie["tied_configuration_ids"] == [
+        lower_configuration_id, upper_configuration_id,
+    ]
+    assert exact_tie["winner_configuration_id"] is None
+
+    for direction, adjusted_configuration_id, winner_configuration_id in (
+        (math.inf, lower_configuration_id, lower_configuration_id),
+        (-math.inf, upper_configuration_id, lower_configuration_id),
+    ):
+        one_ulp_apart = copy.deepcopy(observations)
+        adjusted_value = math.nextafter(100.0, direction)
+        for row in one_ulp_apart["rows"]:
+            if row["configuration_id"] == adjusted_configuration_id:
+                row["bench_values"] = [adjusted_value]
+
+        result = _holdout(_judge(one_ulp_apart))
+        assert result["verdict"] == "unique-best"
+        assert result["tied_configuration_ids"] == []
+        assert result["winner_configuration_id"] == winner_configuration_id
 
 
 @pytest.mark.parametrize("damage", ["missing", "duplicate", "non-finite", "n-short", "binding"])

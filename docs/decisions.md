@@ -20782,3 +20782,205 @@ attempt registry の identity 設計に効くことを、次 wave の段 1 要�
 validator / consumer のいずれも本 D では生成しない。変わるのは、RF producer を止めている閂の
 所在が公表層から投入 gate へ訂正されたことと、必須 kill 3 件の帰属段がユーザー裁定待ちとして
 分離されたことの 2 点である。
+
+## D501. 8b oracle の比較規則を明示的に再凍結する (2026-08-18)
+
+**決定:**
+
+1. **集約規則を明示的に再凍結する。** `s8b_oracle_judge.judge_oracle` の集約は、各 trial の
+   bench rep 中央値を求め、その trial 中央値群の中央値を構成ごとの cell 値とする
+   二段中央値 (median of medians) とする。floor は入力にも argmax の tie-break にも使わない。
+   同関数の docstring が要求していた「実測開始前の明示的な再凍結」は本決定で満たす。
+   docstring からその未凍結宣言を外し、本決定を**題で**指す (番号は land 時に採番されるため
+   コードへ書けない)。
+2. **raw oracle の判定境界を現行のまま再凍結する。** holdout ごとに eligible な構成の cell 値の
+   最大値を取り、最大値と**完全一致**する構成が 1 つなら一意最良、2 つ以上なら tie、
+   eligible が空か unknown を含むなら判定不能とする。
+3. **反復数の凍結手段は既存機構に置く。ただし trial 数の値は未凍結である。**
+   bench rep 数と実行時間は `s8b_experiment_numbers` の承認定数と exact 一致を manifest 検証が
+   要求し、再測定 round は 1 完全一致で pin されている。**trial 数は reviewed spec の承認手番に
+   従属し、承認定数が未設定の現状では凍結されていない** (機構全体が `no-approved-spec` で
+   fail-closed に止まり、official の受理集合は空である)。本決定はその定数を書かない。
+4. **構成集合・holdout 集合の凍結手段は既存機構に置く。新設しない。** manifest 検証は
+   freeze の全 byte hash 一致を要求し、さらに schedule の holdout 集合が freeze の holdout 集合と
+   完全一致すること、schedule の cell 集合が holdout × 構成の完全積と完全一致することを
+   独立に検査する。
+5. **機械強制の内訳を分けて記録する。** 集約規則は既存の judge テストが集約値と勝者を期待値として
+   pin しており、規則を書き換えれば赤くなる。**判定境界は本決定と同じ land で新設したテストが担う** —
+   変更前の exact tie テストは本物の完全一致しか置かないため、境界を `isclose` 系や固定幅へ緩めても
+   赤くならなかった。新設テストは完全一致を tie とし、1 ulp 差を両方向で一意最良と固定する。
+   **変異実測**: 同じ緩和変異 2 件が、変更前 HEAD では 2 件とも SURVIVED、
+   新設後は 2 件とも KILLED で、落ちた node は新設テスト 1 本と完全一致した。
+6. **`judge_oracle` の判定関数と observations の受理条件は変更しない。**
+   ただし docstring の byte 変更で同 module の実ファイル hash が変わるため、
+   **reviewed spec の generator identity は旧 hash から新 hash へ移る** (manifest 検証が
+   `generator_versions` の実 byte hash 一致を要求する)。同一 land で独立 golden の literal と
+   その派生 hash を実測値へ追随させた。
+7. **D496 が外すべき対象は受入関門ではなく最終判定層である。** 床値を比較の基礎として使っている
+   のは `s8b_verdict` の条件 3 (実測差が凍結 per-pair floor を超えるか) と scale gate
+   (stock の実測 median を床値 campaign 由来の期待値と比較) である。**ただし条件 3 は
+   2026-07-16 のユーザー裁定が逐語凍結した truth table の一部であり、本決定では変更しない。**
+   変更は当該裁定の再裁定を要する。
+8. **床値に従属すると説明されていた受入関門 2 件は、実装上いずれも過去値との比較ではないが、
+   D496 の下では不要になる。** manifest の per-pair 対表 exact 検査は freeze の floor 節の内部整合
+   だけを見ており、構成集合の凍結は決定 4 の別述語が担う。floor/budget の部分 hash は
+   freeze 全体の byte hash 照合と重複する。driver の測定 binary bytes 照合は、照合対象の receipt
+   自体が過去の床値 campaign 由来であるため「今回測る binary が過去 campaign の binary と同じか」を
+   要求している。**いずれの撤去も受理集合を広げるため、本決定では実装しない。**
+9. **D496 決定 3 は現状の実装では実行できない。** 実走マーカーが freeze の byte hash を identity と
+   して出力先非依存に排他作成され、存在すれば同じ freeze の再走を全拒否する。この resume 拒否は
+   別のユーザー裁定が凍結した挙動である。加えて v1 freeze の verify は毎回 repository novelty
+   search の pass を要求し、初回観測後の再走と両立しない。**どちらが優先するかは本決定では
+   決めない。**
+
+**理由:**
+
+- D496 決定 2 は事前登録を放棄せず凍結対象を規則側へ移すと定めた。実測すると、規則の 4 要素のうち
+  構成集合・holdout 集合は既存機構が凍結しており、反復数も 3 量のうち 2 量は凍結済みで trial 数だけが
+  承認手番待ちである。未凍結のまま実測へ入りうるのは集約規則と判定境界であり、本決定はその 2 つを
+  閉じる。既存機構がある要素については名指しで参照し、新しい凍結装置を重ねない。
+- 判定境界だけは既存テストで pin されていなかった。宣言だけを台帳へ書けば恒真な事前登録になるため、
+  緩和変異を捕まえる正例つき検査を同じ land で足した。純増の検出力はこの 1 点である。
+- 床値の比較利用が最終判定層にあることは、裁定時に見えていなかった事実である。判定層の変更は
+  逐語凍結された truth table に触るため、人間の再裁定を経ずに実施してはならない。
+- 受入関門の撤去は受理集合を広げる。規律 2 の下では、置き換える事前登録の発効が先である。
+
+**却下した選択肢:**
+
+- 比較規則を宣言する新しい定数と、spec / manifest / runtime の三者一致 pin を新設する —
+  宣言と実装の乖離検出という利点はあるが、manifest schema の版上げと受理形の変更という代償が
+  大きい。乖離検出だけを目的に受理形を変えず、撤去実装と同じ裁定へ束ねて返す。
+- 判定境界を走行内分解限界 (変動係数) 由来の帯へ書き換える — D496 決定 4 が求める
+  「差が機械の分解限界より小さい」を判定へ反映できる利点はあるが、raw oracle の tie を変えると
+  判定関数を書き換えないという裁定時の留保に触る。**択は 2 つではない** — 順位の事実と性能主張の
+  境界を二層に分ける案、replicate 単位の対比とその分散を使う案があり、対比の共分散は
+  manifest の replicate 添字と observations の schedule 添字から復元できる (共分散と相関の
+  実装は pilot module に既に存在する)。境界の算式そのものが未裁定であり実装者が選んではならない。
+- 受入関門と最終判定層の床値依存を本決定と同じ land で撤去する — 受理集合を広げる変更と
+  逐語凍結された truth table の変更を、事前登録の発効と同時に既成事実にすることになる。
+- 事前登録ごと外す — 絶対規律 2 に触れる。人間だけが変更できる。
+
+## D502. 変異台帳の status は増やさず、local 申告 × 実 dispatch の timeout を停止 sidecar で閉じる (2026-08-18)
+
+**決定:** 変異 harness の `--runner-mode local` で走った試行が、実際には計算ノードへ
+dispatch していて queue 待ちのまま harness 側 timeout に掛かった場合、
+**terminal record を書かずに停止する**。停止は D454 が確立した停止 sidecar と同じ形とし、
+理由コードで区別する。台帳 schema `izanagi-dev-wave-mutation/v4`、status 集合、summary 欄、
+D289 の TIMEOUT 全面拒否はいずれも変更しない。
+
+判定は次のとおり。
+
+1. `output/pegasus-dispatch/` 直下の submission 一覧を、**runner mode に依らず**走行の前後で取る。
+2. timeout 時に現れた新規 submission のうち、**この走行だけの nonce** が
+   `request.json` の `environment` に載っているものだけを「自分の走行」と判定する。
+   nonce は `secrets.token_hex(16)` で、`PYTHONDONTWRITEBYTECODE` を運び屋にする。
+3. 一致する submission があれば停止する。nonce が一致しないものは他者の走行として無視する。
+4. inventory が取れない・`request.json` が読めない等の判定不能は、必ず停止側へ倒す。
+5. **local 側では D454 の create-only latch を張らない。**
+6. 非 timeout の local 走行の挙動は変えない。dispatch 経路の挙動も 1 bit も変えない。
+
+**理由:**
+
+- 台帳項が名指しした dispatch 経路は D454 で既に閉じており、既存テストが固定している。
+  残っていたのは local 申告と実体の乖離だけである。`tools/run_tests.py` は
+  `--force-dispatch` が無くても login headroom が不足すれば dispatch し、
+  harness は申告と runner argv の実体を突き合わせていなかった。
+- **新しい status を台帳語彙へ入れても、書き込む経路が 1 本も残らない。**
+  dispatch 側は D454 が先に止め、local 側は本決定が止めるためである。
+  死んだ語彙のために schema を上げると、既存台帳の `--resume` と既存 shard の
+  再併合が全て拒否される。互換性の代償が検出力の利得を上回る。
+- **receipt を一次証拠にできない。** dispatcher は polling 中に receipt を永続化せず、
+  終端でしか書かない。harness は SIGTERM の 5 秒後に SIGKILL するため、
+  timeout 時に receipt が残る保証がない。一方 submission directory は
+  runner mode に依らず必ず作られるので、こちらを一次証拠にする。
+- **latch を張らないのは D454 の署名規則に従うためである。** D454 は latch の署名を
+  receipt の `job_may_remain` **だけ**と定め免除条項を置かない。local 停止はその署名を持たない。
+  さらに submission directory は qsub より**前**に作られるので、未投入でも latch が張られうる。
+  latch は次回投入・変異 source 復元・worktree 廃棄・受入 probe 掃除の 4 経路を
+  人手の解除まで止めるため、署名のない停止で張ってはならない。
+- **束縛を nonce 単独にしたのは、それ以外が原理的に成立しないからである。**
+  当初は repo / task / argv の一致も要求したが、dispatch へ渡るのは pytest の子 argv であって
+  harness の runner argv ではないため、自分の走行でも argv 一致は成立せず、
+  「自分のもの」と判定できる状態が実運用で到達不能だった。
+  nonce は走行ごとの 128 bit 乱数であり、それを載せた submission は自分のものである。
+
+**却下した選択肢:**
+
+- **queue 側 timeout に専用 status を新設して台帳へ書く** — 台帳項が指示した形だが、
+  上記のとおり producer が残らず、schema 更新の互換性代償だけが残る。
+  この選択は実装せず、新事実を添えてユーザー裁定へ返す。
+- **dispatch 側へ queue 待ち上限を渡して dispatcher 自身に分類させる** — option 自体は
+  実在するが、runner argv を組み立てる層から dispatcher の option を透過させる seam がない。
+- **local 停止でも D454 latch を張る** — 未投入の可能性がある停止で 4 経路を止め、
+  解除に人手を要求する。D454 の署名規則にも反する。
+- **判定不能を terminal 側へ倒す** — 規律 2/3 に反する。証拠が取れないことは
+  「実行された」ことの証拠ではない。
+
+## D503. 恒久保留 guard の call-only は D360 の狭い例外とし、pytest 駆動の読み込みは拒否し続ける (2026-08-18)
+
+**決定:** `enforce_held_functions` に `guard_mode="call-only"` を置き、module の読み込みを許して
+held function の呼出だけを拒否する形を D360 の**狭い例外**として認める。既定は
+`"import-and-call"` で、D360 の二層防壁のままとする。call-only でも次の 2 つは拒否を残す。
+
+- 読み込みを駆動しているのが pytest である場合 (enforcement を持たない session の
+  `--noconftest` / `--confcutdir` 経路)。判定は import 時の call stack に `_pytest` 由来の frame が
+  あるかで行い、判定不能 (frame 取得不能) は拒否へ倒す。
+- `__name__ == "__main__"` かつ plain runner が pytest へ委譲しない場合。
+
+**理由:**
+- 恒久保留は自己読込を持つ file へ掛けられなかった。呼出時 wrapper は既にあったが、末尾の
+  一律 import 拒否が、同 file を `spec_from_file_location` や package import で読み直す
+  正規 consumer を巻き込んで受入で差し戻された (F351)。
+- D360 が読み込み時拒否を置いた理由は費用である。呼出時のみの拒否では `--noconftest` 経路が
+  38.01 秒かけて実 repository 全走査を完走してから拒否していた (読み込み時なら 2.33 秒)。
+  無条件に import を許すとこの層を失う。
+- 一方、救うべき自己読込 consumer は素の `python -c` サブプロセスであり pytest を通らない。
+  よって「pytest 駆動なら拒否」と狭めても、call-only が救う経路は 1 つも壊れない (実測)。
+- 委譲先の無い直接実行を許すと、テストを 1 件も走らせずに rc=0 で終わる偽緑になる。
+
+**残余 (閉じないと明示するもの):**
+- call-only で読み込みを許した後、`__wrapped__` や `inspect.getclosurevars` 経由で原関数を
+  取り出せば、解除 token 無しに本体へ到達できる。`@wraps` は保留関数のソースを
+  `inspect.getsource(inspect.unwrap(...))` で読む既存 consumer が依存しており除去できない。
+  D347 の `bypass_surface` が扱う既知迂回と同じ系列として記録し、閉じない。
+  **call-only を実際に使う file を登録するときは、この迂回を `bypass_surface` へ書く。**
+- pytest の test / plugin が別 thread から import する経路と、`__name__` を `_pytest.*` に
+  偽装する経路は stack 判定で捕まらない。同じく既知迂回として記録する。
+
+**却下した選択肢:**
+- helper 閉包の切り出し — 依存が 8 個あり contained でない (ユーザー裁定で不採用)。
+- `plain_runner` の literal を増やす — 同 literal は AST から導出した runner 種別との一致検査を
+  持ち、保留防壁の強さという別軸と衝突する。
+- call-only で import を無条件に許す — D360 の費用層を pytest 経路でも失う。
+
+## D504. 恒久保留の候補選別に「guard binding を持てるか」を加える (2026-08-18)
+
+**決定:** 成長比例テストを恒久保留する候補を選ぶとき、実行コストの比例だけで選ばない。
+**その file に guard binding を置けるか**を選別条件に加え、契約テストで機械化する。
+
+- 判定の母集合は登録済み held file だけとし、全 test file の走査や repo 成長に比例する検査を作らない。
+- 自己読込の判定は、最終 loader path または module 名が当該 file と同一かで行う。
+  loader API 名の出現や `__file__` の出現では発火させない (他 path を読むだけの file が
+  偽陽性になる)。nested な subprocess source は二段 parse する。
+  静的に解決できない loader は「自己読込なし」へ倒さず binding error とする。
+- 自己読込を持つ file は `guard_mode="call-only"` の宣言を要求し、持たない file には
+  同宣言を許さない (不要な import 緩和を作らないため)。
+- call-only を宣言する file では、guard 呼出行より前の**import 時に評価される位置**に
+  held function 名が名前としても文字列としても現れてはならない。canonical 名の wrapper が
+  唯一の防壁になるためである。関数本体の参照は対象外とする (global 解決は呼出時に起き、
+  guard 後に呼ばれる限り必ず wrapper を引く)。
+- 比例コストが module の import 時副作用にある file は call-only の候補にしない。
+  call-only は import を通すため、その費用を止められない。
+
+**理由:**
+- 選別を実行コストの比例だけで行った結果、自己読込を持つ file を保留登録してしまい、受入全走で
+  帰属赤になって差し戻された (F351)。検出は受入 lease を 1 本消費した後だった。
+- 静的検査へ前倒しすれば、同じ型の差し戻しを受入の手前で止められる。
+- 別名退避を列挙して塞ぐ形は、動的な `globals()` lookup を取りこぼし、同時に安全な関数内参照を
+  過剰拒否した。import 時評価という 1 本の基準へ寄せると両方が閉じる。
+
+**却下した選択肢:**
+- docs に選別条件を書くだけ — 謳うだけで発火しない保証になる。
+- 全 test file を走査する検出器 — 母集合が repo 成長に比例し、開発するほどテストが遅くなる。
+- 実 consumer file を毎回まるごと parse する回帰検査 — 同じ理由で却下し、固定サイズの
+  synthetic 複製へ置き換えた。実データに対する保証は既存の held file 走査が担う。

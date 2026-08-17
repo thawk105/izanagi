@@ -1,0 +1,915 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": "/work/1/SFC/tanab/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/a9e00be7cfdcbf2c6ee615e82839b3d5/izdw-a9e00be7cf.o919958",
+      "receipt_path": "/work/1/SFC/tanab/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/a9e00be7cfdcbf2c6ee615e82839b3d5/receipt.json",
+      "runner_mode": "dispatch",
+      "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 96%]\n...                                                                      [100%]\n75 passed in 5.02s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+      "stdout_sha256": "b5a067f71ce7fbe81a9b06d20767b4893ce845fc689de719c394cd629c4f842e"
+    },
+    "artifact_error": null,
+    "collection_sha256": "5a62cf17f8aaa7f1256ca8228863b83fb712e6efcee9826fe1f3340e371e61f4",
+    "duration_s": 32.064,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "fdb272496b25ee63930c6f13061d759c2dc12a2a7000795a477b5058f7f50a78",
+    "repo_head": "124cd8e83a14e221c919292464f34a6d92079bce",
+    "runner_sha256": "961d48926f898f2deee3fde147bcac1b87a804cfb4a9b3ff7398ace96c42f38a",
+    "spec_sha256": "9e3e36eff22af02c29267de18f0212c07d6db107015af9c1b39f9a29e4b8a029",
+    "status": "PASSED",
+    "test_output_sha256": "b5a067f71ce7fbe81a9b06d20767b4893ce845fc689de719c394cd629c4f842e",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "21619a1a63123d4e93d61f4e9239a34b4f33b0e4717d057c1df738dc82699587"
+  },
+  "date": "2026-08-17T15:54:53.593394+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/a562faca12f279a4b68027cb27b44d52/izdw-a562faca12.o919959",
+        "receipt_path": "/work/1/SFC/tanab/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/a562faca12f279a4b68027cb27b44d52/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n.......................................................F......FF........ [ 96%]\n...                                                                      [100%]\n=================================== FAILURES ===================================\n________ test_enforcement_signature_pins_independent_guard_mode_default ________\n[gw47] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_enforcement_signature_pins_independent_guard_mode_default():\n        signature = inspect.signature(enforce_held_functions)\n        assert tuple(signature.parameters) == (\n            \"namespace\",\n            \"module_file\",\n            \"plain_runner\",\n            \"guard_mode\",\n        )\n        assert signature.parameters[\"guard_mode\"].kind is inspect.Parameter.KEYWORD_ONLY\n>       assert signature.parameters[\"guard_mode\"].default == \"import-and-call\"\nE       AssertionError: assert 'call-only' == 'import-and-call'\nE         \nE         - import-and-call\nE         + call-only\n\norchestrator/tests/test_growth_test_holds_contract.py:1712: AssertionError\n___ test_import_guard_rejects_nonempty_nonexact_release_token[explicit-typo] ___\n[gw14] linux -- Python 3.10.12 /bin/python3.10\n\nrelease_value = 'explicit-typo'\n\n    @pytest.mark.parametrize(\n        \"release_value\",\n        [\"explicit-typo\", \"explicit-user-command-extra\"],\n    )\n    def test_import_guard_rejects_nonempty_nonexact_release_token(release_value):\n        env = _clean_subprocess_env()\n        env[\"IZANAGI_RUN_GROWTH_HELD_TESTS\"] = release_value\n        result = subprocess.run(\n            [\n                sys.executable,\n                \"-c\",\n                \"import orchestrator.tests.test_s8b_repo_scan_invariant\",\n            ],\n            cwd=ROOT,\n            env=env,\n            capture_output=True,\n            text=True,\n            timeout=10.0,\n            check=False,\n        )\n        output = _combined_output(result)\n>       assert result.returncode != 0, output\nE       AssertionError: \nE       assert 0 != 0\nE        +  where 0 = CompletedProcess(args=['/bin/python3.10', '-c', 'import orchestrator.tests.test_s8b_repo_scan_invariant'], returncode=0, stdout='', stderr='').returncode\n\norchestrator/tests/test_growth_test_holds_contract.py:2012: AssertionError\n_ test_import_guard_rejects_nonempty_nonexact_release_token[explicit-user-command-extra] _\n[gw15] linux -- Python 3.10.12 /bin/python3.10\n\nrelease_value = 'explicit-user-command-extra'\n\n    @pytest.mark.parametrize(\n        \"release_value\",\n        [\"explicit-typo\", \"explicit-user-command-extra\"],\n    )\n    def test_import_guard_rejects_nonempty_nonexact_release_token(release_value):\n        env = _clean_subprocess_env()\n        env[\"IZANAGI_RUN_GROWTH_HELD_TESTS\"] = release_value\n        result = subprocess.run(\n            [\n                sys.executable,\n                \"-c\",\n                \"import orchestrator.tests.test_s8b_repo_scan_invariant\",\n            ],\n            cwd=ROOT,\n            env=env,\n            capture_output=True,\n            text=True,\n            timeout=10.0,\n            check=False,\n        )\n        output = _combined_output(result)\n>       assert result.returncode != 0, output\nE       AssertionError: \nE       assert 0 != 0\nE        +  where 0 = CompletedProcess(args=['/bin/python3.10', '-c', 'import orchestrator.tests.test_s8b_repo_scan_invariant'], returncode=0, stdout='', stderr='').returncode\n\norchestrator/tests/test_growth_test_holds_contract.py:2012: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_growth_test_holds_contract.py::test_enforcement_signature_pins_independent_guard_mode_default\nFAILED orchestrator/tests/test_growth_test_holds_contract.py::test_import_guard_rejects_nonempty_nonexact_release_token[explicit-typo]\nFAILED orchestrator/tests/test_growth_test_holds_contract.py::test_import_guard_rejects_nonempty_nonexact_release_token[explicit-user-command-extra]\n3 failed, 72 passed in 4.92s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_growth_test_holds_contract.py::test_import_guard_rejects_nonempty_nonexact_release_token[explicit-user-command-extra]\" nodeid_bytes=141 nodeid_omitted_bytes=0 source_bytes=1131 retained_bytes=1131 omitted_bytes=0 rendered_excerpt_bytes=1194 sha256=d5243663e971e852aa768725da6ee0b1fc187f5ed6757f1a00ab251bab59979a\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw15] linux -- Python 3.10.12 /bin/python3.10\n> \n> release_value = 'explicit-user-command-extra'\n> \n>     @pytest.mark.parametrize(\n>         \"release_value\",\n>         [\"explicit-typo\", \"explicit-user-command-extra\"],\n>     )\n>     def test_import_guard_rejects_nonempty_nonexact_release_token(release_value):\n>         env = _clean_subprocess_env()\n>         env[\"IZANAGI_RUN_GROWTH_HELD_TESTS\"] = release_value\n>         result = subprocess.run(\n>             [\n>                 sys.executable,\n>                 \"-c\",\n>                 \"import orchestrator.tests.test_s8b_repo_scan_invariant\",\n>             ],\n>             cwd=ROOT,\n>             env=env,\n>             capture_output=True,\n>             text=True,\n>             timeout=10.0,\n>             check=False,\n>         )\n>         output = _combined_output(result)\n> >       assert result.returncode != 0, output\n> E       AssertionError: \n> E       assert 0 != 0\n> E        +  where 0 = CompletedProcess(args=['/bin/python3.10', '-c', 'import orchestrator.tests.test_s8b_repo_scan_invariant'], returncode=0, stdout='', stderr='').returncode\n> \n> orchestrator/tests/test_growth_test_holds_contract.py:2012: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_growth_test_holds_contract.py::test_import_guard_rejects_nonempty_nonexact_release_token[explicit-typo]\" nodeid_bytes=127 nodeid_omitted_bytes=0 source_bytes=1117 retained_bytes=1117 omitted_bytes=0 rendered_excerpt_bytes=1180 sha256=b0a2d287e420639aba8f758ed48e3d708a99897cc50baf1c91ced8fc984d3fd1\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw14] linux -- Python 3.10.12 /bin/python3.10\n> \n> release_value = 'explicit-typo'\n> \n>     @pytest.mark.parametrize(\n>         \"release_value\",\n>         [\"explicit-typo\", \"explicit-user-command-extra\"],\n>     )\n>     def test_import_guard_rejects_nonempty_nonexact_release_token(release_value):\n>         env = _clean_subprocess_env()\n>         env[\"IZANAGI_RUN_GROWTH_HELD_TESTS\"] = release_value\n>         result = subprocess.run(\n>             [\n>                 sys.executable,\n>                 \"-c\",\n>                 \"import orchestrator.tests.test_s8b_repo_scan_invariant\",\n>             ],\n>             cwd=ROOT,\n>             env=env,\n>             capture_output=True,\n>             text=True,\n>             timeout=10.0,\n>             check=False,\n>         )\n>         output = _combined_output(result)\n> >       assert result.returncode != 0, output\n> E       AssertionError: \n> E       assert 0 != 0\n> E        +  where 0 = CompletedProcess(args=['/bin/python3.10', '-c', 'import orchestrator.tests.test_s8b_repo_scan_invariant'], returncode=0, stdout='', stderr='').returncode\n> \n> orchestrator/tests/test_growth_test_holds_contract.py:2012: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE rank=3 category=failed when=call nodeid=\"orchestrator/tests/test_growth_test_holds_contract.py::test_enforcement_signature_pins_independent_guard_mode_default\" nodeid_bytes=117 nodeid_omitted_bytes=0 source_bytes=716 retained_bytes=716 omitted_bytes=0 rendered_excerpt_bytes=753 sha256=6ac8ee85edcf8ed15708f905fa31fed39d38860e227865d989a9312fae739f3e\n--- IZANAGI FAILURE EXCERPT rank=3 BEGIN ---\n> [gw47] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_enforcement_signature_pins_independent_guard_mode_default():\n>         signature = inspect.signature(enforce_held_functions)\n>         assert tuple(signature.parameters) == (\n>             \"namespace\",\n>             \"module_file\",\n>             \"plain_runner\",\n>             \"guard_mode\",\n>         )\n>         assert signature.parameters[\"guard_mode\"].kind is inspect.Parameter.KEYWORD_ONLY\n> >       assert signature.parameters[\"guard_mode\"].default == \"import-and-call\"\n> E       AssertionError: assert 'call-only' == 'import-and-call'\n> E         \n> E         - import-and-call\n> E         + call-only\n> \n> orchestrator/tests/test_growth_test_holds_contract.py:1712: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=3 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=3 failed=3 errors=0 selected=3 omitted_failures=0 source_bytes=2964 retained_bytes=2964 omitted_bytes=0 budget_bytes=49152 rendered_bytes=4819 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "83c1589295f87f954cd699f7d39c7a0ceb1f2bf61bfe7c590ac147bc125c0915"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "5a62cf17f8aaa7f1256ca8228863b83fb712e6efcee9826fe1f3340e371e61f4",
+      "duration_s": 26.915,
+      "expected_nodes": [
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_enforcement_signature_pins_independent_guard_mode_default",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_import_guard_rejects_nonempty_nonexact_release_token[explicit-typo]",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_import_guard_rejects_nonempty_nonexact_release_token[explicit-user-command-extra]"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_enforcement_signature_pins_independent_guard_mode_default",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_import_guard_rejects_nonempty_nonexact_release_token[explicit-typo]",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_import_guard_rejects_nonempty_nonexact_release_token[explicit-user-command-extra]"
+      ],
+      "hang_risk": false,
+      "id": "t1226.m1-default-call-only",
+      "injection_diff_sha256": "9d8041fff9216d60ad35da0db3ff479baada4e32af5c0b17747ba8064ac28110",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "07f4873ef7c753ab4922297fc2c5357669956988b246916cf665af6262934049",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/growth_test_holds.py",
+          "new": "    guard_mode: GuardMode = \"call-only\",\n",
+          "old": "    guard_mode: GuardMode = \"import-and-call\",\n"
+        }
+      ],
+      "repo_head": "124cd8e83a14e221c919292464f34a6d92079bce",
+      "runner_sha256": "961d48926f898f2deee3fde147bcac1b87a804cfb4a9b3ff7398ace96c42f38a",
+      "spec_sha256": "9e3e36eff22af02c29267de18f0212c07d6db107015af9c1b39f9a29e4b8a029",
+      "status": "KILLED",
+      "test_output_sha256": "83c1589295f87f954cd699f7d39c7a0ceb1f2bf61bfe7c590ac147bc125c0915",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "21619a1a63123d4e93d61f4e9239a34b4f33b0e4717d057c1df738dc82699587"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/9a1ad295f68254cddc555d573e3a7bba/izdw-9a1ad295f6.o919960",
+        "receipt_path": "/work/1/SFC/tanab/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/9a1ad295f68254cddc555d573e3a7bba/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n.........................................................FFF.......FF... [ 96%]\n...                                                                      [100%]\n=================================== FAILURES ===================================\n___________ test_call_only_mode_allows_import_but_refuses_held_call ____________\n[gw8] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw8/test_call_only_mode_allows_imp0')\n\n    def test_call_only_mode_allows_import_but_refuses_held_call(tmp_path):\n        synthetic = _write_call_only_module(tmp_path)\n        script = (\n            \"import importlib.util; \"\n            f\"spec=importlib.util.spec_from_file_location('synthetic', {str(synthetic)!r}); \"\n            \"module=importlib.util.module_from_spec(spec); \"\n            \"spec.loader.exec_module(module); print('IMPORT_OK', flush=True); \"\n            \"module.test_real_repository_scan_matches_known_hits_and_has_positive_control()\"\n        )\n        result = _run_subprocess(\n            [sys.executable, \"-c\", script],\n            repo_on_pythonpath=True,\n        )\n        output = _combined_output(result)\n>       assert result.returncode != 0, output\nE       AssertionError: IMPORT_OK\nE         BODY_RAN\nE         \nE       assert 0 != 0\nE        +  where 0 = CompletedProcess(args=['/bin/python3.10', '-c', \"import importlib.util; spec=importlib.util.spec_from_file_location('s...pository_scan_matches_known_hits_and_has_positive_control()\"], returncode=0, stdout='IMPORT_OK\\nBODY_RAN\\n', stderr='').returncode\n\norchestrator/tests/test_growth_test_holds_contract.py:1882: AssertionError\n____________ test_call_only_mode_still_rejects_non_delegating_main _____________\n[gw12] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw12/test_call_only_mode_still_reje0')\n\n    def test_call_only_mode_still_rejects_non_delegating_main(tmp_path):\n        synthetic = _write_call_only_module(tmp_path)\n        result = _run_subprocess(\n            [sys.executable, str(synthetic)],\n            repo_on_pythonpath=True,\n        )\n        output = _combined_output(result)\n>       assert result.returncode != 0, output\nE       AssertionError: \nE       assert 0 != 0\nE        +  where 0 = CompletedProcess(args=['/bin/python3.10', '/tmp/pytest-of-tanab/pytest-0/popen-gw12/test_call_only_mode_still_reje0/test_s8b_repo_scan_invariant.py'], returncode=0, stdout='', stderr='').returncode\n\norchestrator/tests/test_growth_test_holds_contract.py:1967: AssertionError\n_______ test_call_only_mode_allows_package_import_but_refuses_held_call ________\n[gw9] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw9/test_call_only_mode_allows_pac0')\n\n    def test_call_only_mode_allows_package_import_but_refuses_held_call(tmp_path):\n        package = tmp_path / \"synthetic_package\"\n        package.mkdir()\n        (package / \"__init__.py\").write_text(\"\", encoding=\"utf-8\")\n        _write_call_only_module(package)\n        script = (\n            \"import sys; \"\n            f\"sys.path.insert(0, {str(tmp_path)!r}); \"\n            \"from synthetic_package import test_s8b_repo_scan_invariant as module; \"\n            \"print('IMPORT_OK', flush=True); \"\n            \"module.test_real_repository_scan_matches_known_hits_and_has_positive_control()\"\n        )\n        result = _run_subprocess(\n            [sys.executable, \"-c\", script],\n            repo_on_pythonpath=True,\n        )\n        output = _combined_output(result)\n>       assert result.returncode != 0, output\nE       AssertionError: IMPORT_OK\nE         BODY_RAN\nE         \nE       assert 0 != 0\nE        +  where 0 = CompletedProcess(args=['/bin/python3.10', '-c', \"import sys; sys.path.insert(0, '/tmp/pytest-of-tanab/pytest-0/popen-g...pository_scan_matches_known_hits_and_has_positive_control()\"], returncode=0, stdout='IMPORT_OK\\nBODY_RAN\\n', stderr='').returncode\n\norchestrator/tests/test_growth_test_holds_contract.py:1905: AssertionError\n__________ test_call_only_mode_still_rejects_noconftest_pytest_import __________\n[gw10] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw10/test_call_only_mode_still_reje0')\n\n    def test_call_only_mode_still_rejects_noconftest_pytest_import(tmp_path):\n        synthetic = _write_call_only_module(tmp_path, cost_markers=True)\n        result = _run_subprocess(\n            [\n                sys.executable,\n                \"-m\",\n                \"pytest\",\n                \"--noconftest\",\n                \"-p\",\n                \"no:cacheprovider\",\n                \"-q\",\n                str(synthetic),\n            ],\n            repo_on_pythonpath=True,\n        )\n        output = _combined_output(result)\n>       assert result.returncode != 0, output\nE       AssertionError: .                                                                        [100%]\nE         1 passed in 0.14s\nE         \nE       assert 0 != 0\nE        +  where 0 = CompletedProcess(args=['/bin/python3.10', '-m', 'pytest', '--noconftest', '-p', 'no:cacheprovider', '-q', '/tmp/pytest...dout='.                                                                        [100%]\\n1 passed in 0.14s\\n', stderr='').returncode\n\norchestrator/tests/test_growth_test_holds_contract.py:1927: AssertionError\n__________ test_call_only_mode_still_rejects_confcutdir_pytest_import __________\n[gw11] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw11/test_call_only_mode_still_reje0')\n\n    def test_call_only_mode_still_rejects_confcutdir_pytest_import(tmp_path):\n        synthetic = _write_call_only_module(tmp_path, cost_markers=True)\n        result = _run_subprocess(\n            [\n                sys.executable,\n                \"-m\",\n                \"pytest\",\n                \"--confcutdir\",\n                str(tmp_path),\n                \"-p\",\n                \"no:cacheprovider\",\n                \"-q\",\n                str(synthetic),\n            ],\n            repo_on_pythonpath=True,\n        )\n        output = _combined_output(result)\n>       assert result.returncode != 0, output\nE       AssertionError: .                                                                        [100%]\nE         1 passed in 0.14s\nE         \nE       assert 0 != 0\nE        +  where 0 = CompletedProcess(args=['/bin/python3.10', '-m', 'pytest', '--confcutdir', '/tmp/pytest-of-tanab/pytest-0/popen-gw11/te...dout='.                                                                        [100%]\\n1 passed in 0.14s\\n', stderr='').returncode\n\norchestrator/tests/test_growth_test_holds_contract.py:1952: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_growth_test_holds_contract.py::test_call_only_mode_allows_import_but_refuses_held_call\nFAILED orchestrator/tests/test_growth_test_holds_contract.py::test_call_only_mode_still_rejects_non_delegating_main\nFAILED orchestrator/tests/test_growth_test_holds_contract.py::test_call_only_mode_allows_package_import_but_refuses_held_call\nFAILED orchestrator/tests/test_growth_test_holds_contract.py::test_call_only_mode_still_rejects_noconftest_pytest_import\nFAILED orchestrator/tests/test_growth_test_holds_contract.py::test_call_only_mode_still_rejects_confcutdir_pytest_import\n5 failed, 70 passed in 4.94s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_growth_test_holds_contract.py::test_call_only_mode_allows_package_import_but_refuses_held_call\" nodeid_bytes=118 nodeid_omitted_bytes=0 source_bytes=1392 retained_bytes=1392 omitted_bytes=0 rendered_excerpt_bytes=1457 sha256=72f4c8d0ea108f7dabc517dbc845a2b2ffbbfb1e7df8deff1fa5b59419642b31\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw9] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw9/test_call_only_mode_allows_pac0')\n> \n>     def test_call_only_mode_allows_package_import_but_refuses_held_call(tmp_path):\n>         package = tmp_path / \"synthetic_package\"\n>         package.mkdir()\n>         (package / \"__init__.py\").write_text(\"\", encoding=\"utf-8\")\n>         _write_call_only_module(package)\n>         script = (\n>             \"import sys; \"\n>             f\"sys.path.insert(0, {str(tmp_path)!r}); \"\n>             \"from synthetic_package import test_s8b_repo_scan_invariant as module; \"\n>             \"print('IMPORT_OK', flush=True); \"\n>             \"module.test_real_repository_scan_matches_known_hits_and_has_positive_control()\"\n>         )\n>         result = _run_subprocess(\n>             [sys.executable, \"-c\", script],\n>             repo_on_pythonpath=True,\n>         )\n>         output = _combined_output(result)\n> >       assert result.returncode != 0, output\n> E       AssertionError: IMPORT_OK\n> E         BODY_RAN\n> E         \n> E       assert 0 != 0\n> E        +  where 0 = CompletedProcess(args=['/bin/python3.10', '-c', \"import sys; sys.path.insert(0, '/tmp/pytest-of-tanab/pytest-0/popen-g...pository_scan_matches_known_hits_and_has_positive_control()\"], returncode=0, stdout='IMPORT_OK\\x5cnBODY_RAN\\x5cn', stderr='').returncode\n> \n> orchestrator/tests/test_growth_test_holds_contract.py:1905: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_growth_test_holds_contract.py::test_call_only_mode_allows_import_but_refuses_held_call\" nodeid_bytes=110 nodeid_omitted_bytes=0 source_bytes=1316 retained_bytes=1316 omitted_bytes=0 rendered_excerpt_bytes=1375 sha256=8b219a39357beed30ce33c1aa3e2a7290d02df879d655c11af761629b4a1a539\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw8] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw8/test_call_only_mode_allows_imp0')\n> \n>     def test_call_only_mode_allows_import_but_refuses_held_call(tmp_path):\n>         synthetic = _write_call_only_module(tmp_path)\n>         script = (\n>             \"import importlib.util; \"\n>             f\"spec=importlib.util.spec_from_file_location('synthetic', {str(synthetic)!r}); \"\n>             \"module=importlib.util.module_from_spec(spec); \"\n>             \"spec.loader.exec_module(module); print('IMPORT_OK', flush=True); \"\n>             \"module.test_real_repository_scan_matches_known_hits_and_has_positive_control()\"\n>         )\n>         result = _run_subprocess(\n>             [sys.executable, \"-c\", script],\n>             repo_on_pythonpath=True,\n>         )\n>         output = _combined_output(result)\n> >       assert result.returncode != 0, output\n> E       AssertionError: IMPORT_OK\n> E         BODY_RAN\n> E         \n> E       assert 0 != 0\n> E        +  where 0 = CompletedProcess(args=['/bin/python3.10', '-c', \"import importlib.util; spec=importlib.util.spec_from_file_location('s...pository_scan_matches_known_hits_and_has_positive_control()\"], returncode=0, stdout='IMPORT_OK\\x5cnBODY_RAN\\x5cn', stderr='').returncode\n> \n> orchestrator/tests/test_growth_test_holds_contract.py:1882: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE rank=3 category=failed when=call nodeid=\"orchestrator/tests/test_growth_test_holds_contract.py::test_call_only_mode_still_rejects_confcutdir_pytest_import\" nodeid_bytes=113 nodeid_omitted_bytes=0 source_bytes=1264 retained_bytes=1264 omitted_bytes=0 rendered_excerpt_bytes=1329 sha256=d68bc7959dfc81861628b689b8b8765c6ca6b738e775d801225bd490a56e5994\n--- IZANAGI FAILURE EXCERPT rank=3 BEGIN ---\n> [gw11] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw11/test_call_only_mode_still_reje0')\n> \n>     def test_call_only_mode_still_rejects_confcutdir_pytest_import(tmp_path):\n>         synthetic = _write_call_only_module(tmp_path, cost_markers=True)\n>         result = _run_subprocess(\n>             [\n>                 sys.executable,\n>                 \"-m\",\n>                 \"pytest\",\n>                 \"--confcutdir\",\n>                 str(tmp_path),\n>                 \"-p\",\n>                 \"no:cacheprovider\",\n>                 \"-q\",\n>                 str(synthetic),\n>             ],\n>             repo_on_pythonpath=True,\n>         )\n>         output = _combined_output(result)\n> >       assert result.returncode != 0, output\n> E       AssertionError: .                                                                        [100%]\n> E         1 passed in 0.14s\n> E         \n> E       assert 0 != 0\n> E        +  where 0 = CompletedProcess(args=['/bin/python3.10', '-m', 'pytest', '--confcutdir', '/tmp/pytest-of-tanab/pytest-0/popen-gw11/te...dout='.                                                                        [100%]\\x5cn1 passed in 0.14s\\x5cn', stderr='').returncode\n> \n> orchestrator/tests/test_growth_test_holds_contract.py:1952: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=3 END ---\nIZANAGI_FAILURE rank=4 category=failed when=call nodeid=\"orchestrator/tests/test_growth_test_holds_contract.py::test_call_only_mode_still_rejects_noconftest_pytest_import\" nodeid_bytes=113 nodeid_omitted_bytes=0 source_bytes=1233 retained_bytes=1233 omitted_bytes=0 rendered_excerpt_bytes=1296 sha256=817724c98afba234b65d2cc8ec61eb2604e61e88460e6394711f9f4f8eb01f06\n--- IZANAGI FAILURE EXCERPT rank=4 BEGIN ---\n> [gw10] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw10/test_call_only_mode_still_reje0')\n> \n>     def test_call_only_mode_still_rejects_noconftest_pytest_import(tmp_path):\n>         synthetic = _write_call_only_module(tmp_path, cost_markers=True)\n>         result = _run_subprocess(\n>             [\n>                 sys.executable,\n>                 \"-m\",\n>                 \"pytest\",\n>                 \"--noconftest\",\n>                 \"-p\",\n>                 \"no:cacheprovider\",\n>                 \"-q\",\n>                 str(synthetic),\n>             ],\n>             repo_on_pythonpath=True,\n>         )\n>         output = _combined_output(result)\n> >       assert result.returncode != 0, output\n> E       AssertionError: .                                                                        [100%]\n> E         1 passed in 0.14s\n> E         \n> E       assert 0 != 0\n> E        +  where 0 = CompletedProcess(args=['/bin/python3.10', '-m', 'pytest', '--noconftest', '-p', 'no:cacheprovider', '-q', '/tmp/pytest...dout='.                                                                        [100%]\\x5cn1 passed in 0.14s\\x5cn', stderr='').returncode\n> \n> orchestrator/tests/test_growth_test_holds_contract.py:1927: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=4 END ---\nIZANAGI_FAILURE rank=5 category=failed when=call nodeid=\"orchestrator/tests/test_growth_test_holds_contract.py::test_call_only_mode_still_rejects_non_delegating_main\" nodeid_bytes=108 nodeid_omitted_bytes=0 source_bytes=830 retained_bytes=830 omitted_bytes=0 rendered_excerpt_bytes=865 sha256=12bbbb40e754f053135119f27786fa5f1014c6ecc60dc863617451d291830205\n--- IZANAGI FAILURE EXCERPT rank=5 BEGIN ---\n> [gw12] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw12/test_call_only_mode_still_reje0')\n> \n>     def test_call_only_mode_still_rejects_non_delegating_main(tmp_path):\n>         synthetic = _write_call_only_module(tmp_path)\n>         result = _run_subprocess(\n>             [sys.executable, str(synthetic)],\n>             repo_on_pythonpath=True,\n>         )\n>         output = _combined_output(result)\n> >       assert result.returncode != 0, output\n> E       AssertionError: \n> E       assert 0 != 0\n> E        +  where 0 = CompletedProcess(args=['/bin/python3.10', '/tmp/pytest-of-tanab/pytest-0/popen-gw12/test_call_only_mode_still_reje0/test_s8b_repo_scan_invariant.py'], returncode=0, stdout='', stderr='').returncode\n> \n> orchestrator/tests/test_growth_test_holds_contract.py:1967: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=5 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=5 failed=5 errors=0 selected=5 omitted_failures=0 source_bytes=6035 retained_bytes=6035 omitted_bytes=0 budget_bytes=49152 rendered_bytes=8873 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "9d183957e1c1d8ec326fb0c89ba243a33b2b8e7ebca50c7975c69b71246b58ef"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "5a62cf17f8aaa7f1256ca8228863b83fb712e6efcee9826fe1f3340e371e61f4",
+      "duration_s": 26.887,
+      "expected_nodes": [
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_call_only_mode_allows_import_but_refuses_held_call",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_call_only_mode_allows_package_import_but_refuses_held_call",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_call_only_mode_still_rejects_confcutdir_pytest_import",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_call_only_mode_still_rejects_noconftest_pytest_import",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_call_only_mode_still_rejects_non_delegating_main"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_call_only_mode_allows_import_but_refuses_held_call",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_call_only_mode_still_rejects_non_delegating_main",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_call_only_mode_allows_package_import_but_refuses_held_call",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_call_only_mode_still_rejects_noconftest_pytest_import",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_call_only_mode_still_rejects_confcutdir_pytest_import"
+      ],
+      "hang_risk": false,
+      "id": "t1226.m2-return-before-wrap",
+      "injection_diff_sha256": "a4a56d683336942eb8ee4bf050991c09d67f41b0b03b2da1338b3d9da7c79c43",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "d62710bb844c16966a439fbb3f2d83a809027394cc4f144ed81e18052c67b489",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/growth_test_holds.py",
+          "new": "    if guard_mode == \"call-only\":\n        return ()\n    filename = os.path.basename(os.fspath(module_file))\n",
+          "old": "    filename = os.path.basename(os.fspath(module_file))\n"
+        }
+      ],
+      "repo_head": "124cd8e83a14e221c919292464f34a6d92079bce",
+      "runner_sha256": "961d48926f898f2deee3fde147bcac1b87a804cfb4a9b3ff7398ace96c42f38a",
+      "spec_sha256": "9e3e36eff22af02c29267de18f0212c07d6db107015af9c1b39f9a29e4b8a029",
+      "status": "KILLED",
+      "test_output_sha256": "9d183957e1c1d8ec326fb0c89ba243a33b2b8e7ebca50c7975c69b71246b58ef",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "21619a1a63123d4e93d61f4e9239a34b4f33b0e4717d057c1df738dc82699587"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/dfce2b0f885bf4547d04775fd86cff23/izdw-dfce2b0f88.o919961",
+        "receipt_path": "/work/1/SFC/tanab/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/dfce2b0f885bf4547d04775fd86cff23/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n...................................................................FF... [ 96%]\n...                                                                      [100%]\n=================================== FAILURES ===================================\n__________ test_call_only_mode_still_rejects_confcutdir_pytest_import __________\n[gw11] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw11/test_call_only_mode_still_reje0')\n\n    def test_call_only_mode_still_rejects_confcutdir_pytest_import(tmp_path):\n        synthetic = _write_call_only_module(tmp_path, cost_markers=True)\n        result = _run_subprocess(\n            [\n                sys.executable,\n                \"-m\",\n                \"pytest\",\n                \"--confcutdir\",\n                str(tmp_path),\n                \"-p\",\n                \"no:cacheprovider\",\n                \"-q\",\n                str(synthetic),\n            ],\n            repo_on_pythonpath=True,\n        )\n        output = _combined_output(result)\n        assert result.returncode != 0, output\n        assert \"IZANAGI_GROWTH_HOLD_BYPASS_REFUSED_V1\" in output\n        assert \"MODULE_AFTER_GUARD_RAN\" not in output\n>       assert \"FIXTURE_RAN\" not in output\nE       AssertionError: assert 'FIXTURE_RAN' not in 'F          ...d in 0.16s\\n'\nE         \nE         'FIXTURE_RAN' is contained here:\nE           ---------\nE           FIXTURE_RAN\nE           =========================== short test summary info ============================\nE           FAILED ../../../../../../../tmp/pytest-of-tanab/pytest-0/popen-gw11/test_call_only_mode_still_reje0/test_s8b_repo_scan_invariant.py::test_real_repository_scan_matches_known_hits_and_has_positive_control\nE           1 failed in 0.16s\n\norchestrator/tests/test_growth_test_holds_contract.py:1955: AssertionError\n__________ test_call_only_mode_still_rejects_noconftest_pytest_import __________\n[gw10] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw10/test_call_only_mode_still_reje0')\n\n    def test_call_only_mode_still_rejects_noconftest_pytest_import(tmp_path):\n        synthetic = _write_call_only_module(tmp_path, cost_markers=True)\n        result = _run_subprocess(\n            [\n                sys.executable,\n                \"-m\",\n                \"pytest\",\n                \"--noconftest\",\n                \"-p\",\n                \"no:cacheprovider\",\n                \"-q\",\n                str(synthetic),\n            ],\n            repo_on_pythonpath=True,\n        )\n        output = _combined_output(result)\n        assert result.returncode != 0, output\n        assert \"IZANAGI_GROWTH_HOLD_BYPASS_REFUSED_V1\" in output\n        assert \"MODULE_AFTER_GUARD_RAN\" not in output\n>       assert \"FIXTURE_RAN\" not in output\nE       AssertionError: assert 'FIXTURE_RAN' not in 'F          ...d in 0.16s\\n'\nE         \nE         'FIXTURE_RAN' is contained here:\nE           ---------\nE           FIXTURE_RAN\nE           =========================== short test summary info ============================\nE           FAILED ../../../../../../../tmp/pytest-of-tanab/pytest-0/popen-gw10/test_call_only_mode_still_reje0/test_s8b_repo_scan_invariant.py::test_real_repository_scan_matches_known_hits_and_has_positive_control\nE           1 failed in 0.16s\n\norchestrator/tests/test_growth_test_holds_contract.py:1930: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_growth_test_holds_contract.py::test_call_only_mode_still_rejects_confcutdir_pytest_import\nFAILED orchestrator/tests/test_growth_test_holds_contract.py::test_call_only_mode_still_rejects_noconftest_pytest_import\n2 failed, 73 passed in 4.87s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_growth_test_holds_contract.py::test_call_only_mode_still_rejects_confcutdir_pytest_import\" nodeid_bytes=113 nodeid_omitted_bytes=0 source_bytes=1506 retained_bytes=1506 omitted_bytes=0 rendered_excerpt_bytes=1580 sha256=a7de3d23cbf3823bb7608f2de4fd2e8d3ef9953bd9764750759d99a8f3f47197\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw11] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw11/test_call_only_mode_still_reje0')\n> \n>     def test_call_only_mode_still_rejects_confcutdir_pytest_import(tmp_path):\n>         synthetic = _write_call_only_module(tmp_path, cost_markers=True)\n>         result = _run_subprocess(\n>             [\n>                 sys.executable,\n>                 \"-m\",\n>                 \"pytest\",\n>                 \"--confcutdir\",\n>                 str(tmp_path),\n>                 \"-p\",\n>                 \"no:cacheprovider\",\n>                 \"-q\",\n>                 str(synthetic),\n>             ],\n>             repo_on_pythonpath=True,\n>         )\n>         output = _combined_output(result)\n>         assert result.returncode != 0, output\n>         assert \"IZANAGI_GROWTH_HOLD_BYPASS_REFUSED_V1\" in output\n>         assert \"MODULE_AFTER_GUARD_RAN\" not in output\n> >       assert \"FIXTURE_RAN\" not in output\n> E       AssertionError: assert 'FIXTURE_RAN' not in 'F          ...d in 0.16s\\x5cn'\n> E         \n> E         'FIXTURE_RAN' is contained here:\n> E           ---------\n> E           FIXTURE_RAN\n> E           =========================== short test summary info ============================\n> E           FAILED ../../../../../../../tmp/pytest-of-tanab/pytest-0/popen-gw11/test_call_only_mode_still_reje0/test_s8b_repo_scan_invariant.py::test_real_repository_scan_matches_known_hits_and_has_positive_control\n> E           1 failed in 0.16s\n> \n> orchestrator/tests/test_growth_test_holds_contract.py:1955: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_growth_test_holds_contract.py::test_call_only_mode_still_rejects_noconftest_pytest_import\" nodeid_bytes=113 nodeid_omitted_bytes=0 source_bytes=1475 retained_bytes=1475 omitted_bytes=0 rendered_excerpt_bytes=1547 sha256=ccd23ac4dce42d1e1c00db6873e0fb3750848dbaa95e0d0a20f44aed2d1823aa\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw10] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw10/test_call_only_mode_still_reje0')\n> \n>     def test_call_only_mode_still_rejects_noconftest_pytest_import(tmp_path):\n>         synthetic = _write_call_only_module(tmp_path, cost_markers=True)\n>         result = _run_subprocess(\n>             [\n>                 sys.executable,\n>                 \"-m\",\n>                 \"pytest\",\n>                 \"--noconftest\",\n>                 \"-p\",\n>                 \"no:cacheprovider\",\n>                 \"-q\",\n>                 str(synthetic),\n>             ],\n>             repo_on_pythonpath=True,\n>         )\n>         output = _combined_output(result)\n>         assert result.returncode != 0, output\n>         assert \"IZANAGI_GROWTH_HOLD_BYPASS_REFUSED_V1\" in output\n>         assert \"MODULE_AFTER_GUARD_RAN\" not in output\n> >       assert \"FIXTURE_RAN\" not in output\n> E       AssertionError: assert 'FIXTURE_RAN' not in 'F          ...d in 0.16s\\x5cn'\n> E         \n> E         'FIXTURE_RAN' is contained here:\n> E           ---------\n> E           FIXTURE_RAN\n> E           =========================== short test summary info ============================\n> E           FAILED ../../../../../../../tmp/pytest-of-tanab/pytest-0/popen-gw10/test_call_only_mode_still_reje0/test_s8b_repo_scan_invariant.py::test_real_repository_scan_matches_known_hits_and_has_positive_control\n> E           1 failed in 0.16s\n> \n> orchestrator/tests/test_growth_test_holds_contract.py:1930: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=2981 retained_bytes=2981 omitted_bytes=0 budget_bytes=49152 rendered_bytes=4322 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "45e39fbd6c255f0cb478228b358fdca85c8f11f75290706417ebc4718eb12bb6"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "5a62cf17f8aaa7f1256ca8228863b83fb712e6efcee9826fe1f3340e371e61f4",
+      "duration_s": 26.899,
+      "expected_nodes": [
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_call_only_mode_still_rejects_confcutdir_pytest_import",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_call_only_mode_still_rejects_noconftest_pytest_import"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_call_only_mode_still_rejects_confcutdir_pytest_import",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_call_only_mode_still_rejects_noconftest_pytest_import"
+      ],
+      "hang_risk": false,
+      "id": "t1226.m3-no-pytest-driver-refusal",
+      "injection_diff_sha256": "ee9068ccc9e20c4b2e3cc7417d440088743efdd1a11f382ea576db97096c7dfb",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "bd27edb3d5d6b99316ef83c3bbd715ec92c291361babf62d7947a5a0378ce33d",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/growth_test_holds.py",
+          "new": "        if False:\n",
+          "old": "        if _pytest_drives_current_import():\n"
+        }
+      ],
+      "repo_head": "124cd8e83a14e221c919292464f34a6d92079bce",
+      "runner_sha256": "961d48926f898f2deee3fde147bcac1b87a804cfb4a9b3ff7398ace96c42f38a",
+      "spec_sha256": "9e3e36eff22af02c29267de18f0212c07d6db107015af9c1b39f9a29e4b8a029",
+      "status": "KILLED",
+      "test_output_sha256": "45e39fbd6c255f0cb478228b358fdca85c8f11f75290706417ebc4718eb12bb6",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "21619a1a63123d4e93d61f4e9239a34b4f33b0e4717d057c1df738dc82699587"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/3f770832f279de202449f7e721130ffc/izdw-3f770832f2.o919962",
+        "receipt_path": "/work/1/SFC/tanab/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/3f770832f279de202449f7e721130ffc/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n.........................................................F.............. [ 96%]\n...                                                                      [100%]\n=================================== FAILURES ===================================\n____________ test_call_only_mode_still_rejects_non_delegating_main _____________\n[gw12] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw12/test_call_only_mode_still_reje0')\n\n    def test_call_only_mode_still_rejects_non_delegating_main(tmp_path):\n        synthetic = _write_call_only_module(tmp_path)\n        result = _run_subprocess(\n            [sys.executable, str(synthetic)],\n            repo_on_pythonpath=True,\n        )\n        output = _combined_output(result)\n>       assert result.returncode != 0, output\nE       AssertionError: \nE       assert 0 != 0\nE        +  where 0 = CompletedProcess(args=['/bin/python3.10', '/tmp/pytest-of-tanab/pytest-0/popen-gw12/test_call_only_mode_still_reje0/test_s8b_repo_scan_invariant.py'], returncode=0, stdout='', stderr='').returncode\n\norchestrator/tests/test_growth_test_holds_contract.py:1967: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_growth_test_holds_contract.py::test_call_only_mode_still_rejects_non_delegating_main\n1 failed, 74 passed in 4.90s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_growth_test_holds_contract.py::test_call_only_mode_still_rejects_non_delegating_main\" nodeid_bytes=108 nodeid_omitted_bytes=0 source_bytes=830 retained_bytes=830 omitted_bytes=0 rendered_excerpt_bytes=865 sha256=12bbbb40e754f053135119f27786fa5f1014c6ecc60dc863617451d291830205\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw12] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw12/test_call_only_mode_still_reje0')\n> \n>     def test_call_only_mode_still_rejects_non_delegating_main(tmp_path):\n>         synthetic = _write_call_only_module(tmp_path)\n>         result = _run_subprocess(\n>             [sys.executable, str(synthetic)],\n>             repo_on_pythonpath=True,\n>         )\n>         output = _combined_output(result)\n> >       assert result.returncode != 0, output\n> E       AssertionError: \n> E       assert 0 != 0\n> E        +  where 0 = CompletedProcess(args=['/bin/python3.10', '/tmp/pytest-of-tanab/pytest-0/popen-gw12/test_call_only_mode_still_reje0/test_s8b_repo_scan_invariant.py'], returncode=0, stdout='', stderr='').returncode\n> \n> orchestrator/tests/test_growth_test_holds_contract.py:1967: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=830 retained_bytes=830 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1596 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "217dc8cf8c0d3584bce027599042b2bbf928dad091e2688a500e588b3b33db31"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "5a62cf17f8aaa7f1256ca8228863b83fb712e6efcee9826fe1f3340e371e61f4",
+      "duration_s": 26.895,
+      "expected_nodes": [
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_call_only_mode_still_rejects_non_delegating_main"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_call_only_mode_still_rejects_non_delegating_main"
+      ],
+      "hang_risk": false,
+      "id": "t1226.m4-no-nondelegating-main-refusal",
+      "injection_diff_sha256": "7c92c475bd1000ced17dfafc7dd00c7f9c8b52c6f592b913c7f2ed11b1f038f2",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "0b96835dd0427b2029a91a1d2824c3a1fd12573c9c27ea4a292ad400e65fb2b1",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/growth_test_holds.py",
+          "new": "        if False:\n",
+          "old": "        if (\n            namespace.get(\"__name__\") == \"__main__\"\n            and plain_runner != \"pytest-delegating\"\n        ):\n"
+        }
+      ],
+      "repo_head": "124cd8e83a14e221c919292464f34a6d92079bce",
+      "runner_sha256": "961d48926f898f2deee3fde147bcac1b87a804cfb4a9b3ff7398ace96c42f38a",
+      "spec_sha256": "9e3e36eff22af02c29267de18f0212c07d6db107015af9c1b39f9a29e4b8a029",
+      "status": "KILLED",
+      "test_output_sha256": "217dc8cf8c0d3584bce027599042b2bbf928dad091e2688a500e588b3b33db31",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "21619a1a63123d4e93d61f4e9239a34b4f33b0e4717d057c1df738dc82699587"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/fe790bf5f4604cfabc3125fb8d83ee3f/izdw-fe790bf5f4.o919963",
+        "receipt_path": "/work/1/SFC/tanab/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/fe790bf5f4604cfabc3125fb8d83ee3f/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n.......................................................F................ [ 96%]\n...                                                                      [100%]\n=================================== FAILURES ===================================\n____________ test_self_load_detection_handles_real_nested_consumers ____________\n[gw27] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_self_load_detection_handles_real_nested_consumers():\n        consumers = {\n            \"test_s8b_floor_campaign.py\": (\n                \"# Shape copied from orchestrator/tests/test_s8b_floor_campaign.py:7896.\\n\"\n                \"import subprocess\\n\"\n                \"import sys\\n\"\n                \"import textwrap\\n\"\n                \"from pathlib import Path\\n\"\n                \"script = textwrap.dedent(f'''\\n\"\n                \"import importlib.util\\n\"\n                \"spec = importlib.util.spec_from_file_location(\\n\"\n                \"    'floor_test_helper', {str(Path(__file__))!r},\\n\"\n                \")\\n\"\n                \"module = importlib.util.module_from_spec(spec)\\n\"\n                \"spec.loader.exec_module(module)\\n\"\n                \"''')\\n\"\n                \"subprocess.run([sys.executable, '-c', script])\\n\"\n            ),\n            \"test_dev_waves_integration.py\": (\n                \"# Shape copied from orchestrator/tests/test_dev_waves_integration.py:2050.\\n\"\n                \"import subprocess\\n\"\n                \"import sys\\n\"\n                \"script = (\\n\"\n                \"    'from orchestrator.tests import test_dev_waves_integration as target;'\\n\"\n                \"    'raise SystemExit(target._serve_child_main())'\\n\"\n                \")\\n\"\n                \"subprocess.Popen([sys.executable, '-c', script])\\n\"\n            ),\n        }\n        for filename, source in consumers.items():\n>           assert _self_load_analysis(ast.parse(source), filename) == (True, ())\nE           assert (False, ()) == (True, ())\nE             \nE             At index 0 diff: False != True\nE             Use -v to get more diff\n\norchestrator/tests/test_growth_test_holds_contract.py:1498: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_growth_test_holds_contract.py::test_self_load_detection_handles_real_nested_consumers\n1 failed, 74 passed in 5.23s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_growth_test_holds_contract.py::test_self_load_detection_handles_real_nested_consumers\" nodeid_bytes=109 nodeid_omitted_bytes=0 source_bytes=1774 retained_bytes=1774 omitted_bytes=0 rendered_excerpt_bytes=1919 sha256=6696316c410d0a719e6a78de41472cf3bf7cff3a30aeb03e578ecb6f8fa1a076\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw27] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_self_load_detection_handles_real_nested_consumers():\n>         consumers = {\n>             \"test_s8b_floor_campaign.py\": (\n>                 \"# Shape copied from orchestrator/tests/test_s8b_floor_campaign.py:7896.\\x5cn\"\n>                 \"import subprocess\\x5cn\"\n>                 \"import sys\\x5cn\"\n>                 \"import textwrap\\x5cn\"\n>                 \"from pathlib import Path\\x5cn\"\n>                 \"script = textwrap.dedent(f'''\\x5cn\"\n>                 \"import importlib.util\\x5cn\"\n>                 \"spec = importlib.util.spec_from_file_location(\\x5cn\"\n>                 \"    'floor_test_helper', {str(Path(__file__))!r},\\x5cn\"\n>                 \")\\x5cn\"\n>                 \"module = importlib.util.module_from_spec(spec)\\x5cn\"\n>                 \"spec.loader.exec_module(module)\\x5cn\"\n>                 \"''')\\x5cn\"\n>                 \"subprocess.run([sys.executable, '-c', script])\\x5cn\"\n>             ),\n>             \"test_dev_waves_integration.py\": (\n>                 \"# Shape copied from orchestrator/tests/test_dev_waves_integration.py:2050.\\x5cn\"\n>                 \"import subprocess\\x5cn\"\n>                 \"import sys\\x5cn\"\n>                 \"script = (\\x5cn\"\n>                 \"    'from orchestrator.tests import test_dev_waves_integration as target;'\\x5cn\"\n>                 \"    'raise SystemExit(target._serve_child_main())'\\x5cn\"\n>                 \")\\x5cn\"\n>                 \"subprocess.Popen([sys.executable, '-c', script])\\x5cn\"\n>             ),\n>         }\n>         for filename, source in consumers.items():\n> >           assert _self_load_analysis(ast.parse(source), filename) == (True, ())\n> E           assert (False, ()) == (True, ())\n> E             \n> E             At index 0 diff: False != True\n> E             Use -v to get more diff\n> \n> orchestrator/tests/test_growth_test_holds_contract.py:1498: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1774 retained_bytes=1774 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2656 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "0107b3acdcff403be565f1b73ef5d99385092d556bf99683d51a7c3302270316"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "5a62cf17f8aaa7f1256ca8228863b83fb712e6efcee9826fe1f3340e371e61f4",
+      "duration_s": 32.09,
+      "expected_nodes": [
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_self_load_detection_handles_real_nested_consumers"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_self_load_detection_handles_real_nested_consumers"
+      ],
+      "hang_risk": false,
+      "id": "t1226.m5-no-nested-two-stage-parse",
+      "injection_diff_sha256": "f771f000996904d9de046f7493f77dc681aa4c2d3a01629fc2cce75893efdb62",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "b54fc289fd740a3cdf5bb6a4bd027dea97eacaf5163bf10512d2bb5ad070daa3",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_growth_test_holds_contract.py",
+          "new": "        nested_self, nested_errors = False, ()\n",
+          "old": "        nested_self, nested_errors = _self_load_analysis(\n            nested_tree, filename, inspect_subprocess=False,\n        )\n"
+        }
+      ],
+      "repo_head": "124cd8e83a14e221c919292464f34a6d92079bce",
+      "runner_sha256": "961d48926f898f2deee3fde147bcac1b87a804cfb4a9b3ff7398ace96c42f38a",
+      "spec_sha256": "9e3e36eff22af02c29267de18f0212c07d6db107015af9c1b39f9a29e4b8a029",
+      "status": "KILLED",
+      "test_output_sha256": "0107b3acdcff403be565f1b73ef5d99385092d556bf99683d51a7c3302270316",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "21619a1a63123d4e93d61f4e9239a34b4f33b0e4717d057c1df738dc82699587"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/c189c7ae1d51502659c12cbf3251ec0d/izdw-c189c7ae1d.o919964",
+        "receipt_path": "/work/1/SFC/tanab/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/c189c7ae1d51502659c12cbf3251ec0d/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n...............................................FF.FFFF.................F [ 96%]\n...                                                                      [100%]\n=================================== FAILURES ===================================\n_ test_guard_binding_requires_call_only_exactly_for_canonical_self_load[pytest-delegating] _\n[gw24] linux -- Python 3.10.12 /bin/python3.10\n\nrunner = 'pytest-delegating'\n\n    @pytest.mark.parametrize(\"runner\", [\"none\", \"manual\", \"pytest-delegating\"])\n    def test_guard_binding_requires_call_only_exactly_for_canonical_self_load(runner):\n        filename = \"test_s8b_repo_scan_invariant.py\"\n        accepted = _synthetic_binding_source(\n            runner,\n            keywords=f'plain_runner=\"{runner}\", guard_mode=\"call-only\"',\n        )\n        assert _guard_binding_errors(accepted, filename) == ()\n    \n        self_load_without_mode = _synthetic_binding_source(\n            runner, keywords=f'plain_runner=\"{runner}\"',\n        )\n        assert _guard_binding_errors(self_load_without_mode, filename) != ()\n    \n        foreign_default = _synthetic_binding_source(\n            runner,\n            loader_path=\"'tools/check_docs.py'\",\n            keywords=f'plain_runner=\"{runner}\"',\n        )\n>       assert _guard_binding_errors(foreign_default, filename) == ()\nE       assert ('call must d...l self-load',) == ()\nE         \nE         Left contains one more item: \"call must declare enforce_held_functions(globals(), __file__, plain_runner=<pytest-delegating|manual|none>) and add exact trailing guard_mode='call-only' only for canonical self-load\"\nE         Use -v to get more diff\n\norchestrator/tests/test_growth_test_holds_contract.py:1379: AssertionError\n_ test_self_load_detection_pairs_each_loader_with_foreign_control[import runpy\\nrunpy.run_path(__file__)\\n-import runpy\\nrunpy.run_path('tools/check_docs.py')\\n] _\n[gw32] linux -- Python 3.10.12 /bin/python3.10\n\nself_source = 'import runpy\\nrunpy.run_path(__file__)\\n'\nforeign_source = \"import runpy\\nrunpy.run_path('tools/check_docs.py')\\n\"\n\n    @pytest.mark.parametrize(\n        (\"self_source\", \"foreign_source\"),\n        [\n            (\n                \"import runpy\\nrunpy.run_path(__file__)\\n\",\n                \"import runpy\\nrunpy.run_path('tools/check_docs.py')\\n\",\n            ),\n            (\n                \"from runpy import run_module as load\\n\"\n                \"load('orchestrator.tests.test_s8b_repo_scan_invariant')\\n\",\n                \"from runpy import run_module as load\\nload('tools.check_docs')\\n\",\n            ),\n            (\n                \"exec(open(__file__).read())\\n\",\n                \"exec(open('tools/check_docs.py').read())\\n\",\n            ),\n        ],\n    )\n    def test_self_load_detection_pairs_each_loader_with_foreign_control(\n        self_source, foreign_source,\n    ):\n        filename = \"test_s8b_repo_scan_invariant.py\"\n        assert _self_load_analysis(ast.parse(self_source), filename) == (True, ())\n>       assert _self_load_analysis(ast.parse(foreign_source), filename) == (False, ())\nE       assert (True, ()) == (False, ())\nE         \nE         At index 0 diff: True != False\nE         Use -v to get more diff\n\norchestrator/tests/test_growth_test_holds_contract.py:1567: AssertionError\n_ test_guard_binding_requires_call_only_exactly_for_canonical_self_load[none] __\n[gw22] linux -- Python 3.10.12 /bin/python3.10\n\nrunner = 'none'\n\n    @pytest.mark.parametrize(\"runner\", [\"none\", \"manual\", \"pytest-delegating\"])\n    def test_guard_binding_requires_call_only_exactly_for_canonical_self_load(runner):\n        filename = \"test_s8b_repo_scan_invariant.py\"\n        accepted = _synthetic_binding_source(\n            runner,\n            keywords=f'plain_runner=\"{runner}\", guard_mode=\"call-only\"',\n        )\n        assert _guard_binding_errors(accepted, filename) == ()\n    \n        self_load_without_mode = _synthetic_binding_source(\n            runner, keywords=f'plain_runner=\"{runner}\"',\n        )\n        assert _guard_binding_errors(self_load_without_mode, filename) != ()\n    \n        foreign_default = _synthetic_binding_source(\n            runner,\n            loader_path=\"'tools/check_docs.py'\",\n            keywords=f'plain_runner=\"{runner}\"',\n        )\n>       assert _guard_binding_errors(foreign_default, filename) == ()\nE       assert ('call must d...l self-load',) == ()\nE         \nE         Left contains one more item: \"call must declare enforce_held_functions(globals(), __file__, plain_runner=<pytest-delegating|manual|none>) and add exact trailing guard_mode='call-only' only for canonical self-load\"\nE         Use -v to get more diff\n\norchestrator/tests/test_growth_test_holds_contract.py:1379: AssertionError\n_ test_guard_binding_requires_call_only_exactly_for_canonical_self_load[manual] _\n[gw23] linux -- Python 3.10.12 /bin/python3.10\n\nrunner = 'manual'\n\n    @pytest.mark.parametrize(\"runner\", [\"none\", \"manual\", \"pytest-delegating\"])\n    def test_guard_binding_requires_call_only_exactly_for_canonical_self_load(runner):\n        filename = \"test_s8b_repo_scan_invariant.py\"\n        accepted = _synthetic_binding_source(\n            runner,\n            keywords=f'plain_runner=\"{runner}\", guard_mode=\"call-only\"',\n        )\n        assert _guard_binding_errors(accepted, filename) == ()\n    \n        self_load_without_mode = _synthetic_binding_source(\n            runner, keywords=f'plain_runner=\"{runner}\"',\n        )\n        assert _guard_binding_errors(self_load_without_mode, filename) != ()\n    \n        foreign_default = _synthetic_binding_source(\n            runner,\n            loader_path=\"'tools/check_docs.py'\",\n            keywords=f'plain_runner=\"{runner}\"',\n        )\n>       assert _guard_binding_errors(foreign_default, filename) == ()\nE       assert ('call must d...l self-load',) == ()\nE         \nE         Left contains one more item: \"call must declare enforce_held_functions(globals(), __file__, plain_runner=<pytest-delegating|manual|none>) and add exact trailing guard_mode='call-only' only for canonical self-load\"\nE         Use -v to get more diff\n\norchestrator/tests/test_growth_test_holds_contract.py:1379: AssertionError\n________ test_self_load_detection_compares_full_path_not_only_basename _________\n[gw37] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_self_load_detection_compares_full_path_not_only_basename():\n        filename = \"test_s8b_repo_scan_invariant.py\"\n        source = (\n            \"import importlib.util\\n\"\n            \"spec = importlib.util.spec_from_file_location(\\n\"\n            \"    'foreign', '/tmp/test_s8b_repo_scan_invariant.py',\\n\"\n            \")\\n\"\n            \"module = importlib.util.module_from_spec(spec)\\n\"\n            \"spec.loader.exec_module(module)\\n\"\n        )\n>       assert _self_load_analysis(ast.parse(source), filename) == (False, ())\nE       assert (True, ()) == (False, ())\nE         \nE         At index 0 diff: True != False\nE         Use -v to get more diff\n\norchestrator/tests/test_growth_test_holds_contract.py:1596: AssertionError\n_ test_self_load_detection_pairs_each_loader_with_foreign_control[exec(open(__file__).read())\\n-exec(open('tools/check_docs.py').read())\\n] _\n[gw34] linux -- Python 3.10.12 /bin/python3.10\n\nself_source = 'exec(open(__file__).read())\\n'\nforeign_source = \"exec(open('tools/check_docs.py').read())\\n\"\n\n    @pytest.mark.parametrize(\n        (\"self_source\", \"foreign_source\"),\n        [\n            (\n                \"import runpy\\nrunpy.run_path(__file__)\\n\",\n                \"import runpy\\nrunpy.run_path('tools/check_docs.py')\\n\",\n            ),\n            (\n                \"from runpy import run_module as load\\n\"\n                \"load('orchestrator.tests.test_s8b_repo_scan_invariant')\\n\",\n                \"from runpy import run_module as load\\nload('tools.check_docs')\\n\",\n            ),\n            (\n                \"exec(open(__file__).read())\\n\",\n                \"exec(open('tools/check_docs.py').read())\\n\",\n            ),\n        ],\n    )\n    def test_self_load_detection_pairs_each_loader_with_foreign_control(\n        self_source, foreign_source,\n    ):\n        filename = \"test_s8b_repo_scan_invariant.py\"\n        assert _self_load_analysis(ast.parse(self_source), filename) == (True, ())\n>       assert _self_load_analysis(ast.parse(foreign_source), filename) == (False, ())\nE       assert (True, ()) == (False, ())\nE         \nE         At index 0 diff: True != False\nE         Use -v to get more diff\n\norchestrator/tests/test_growth_test_holds_contract.py:1567: AssertionError\n___________ test_every_held_module_has_exact_top_level_guard_binding ___________\n[gw21] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_every_held_module_has_exact_top_level_guard_binding():\n        assert _held_filenames() == (\n            \"test_campaign_import_invariant.py\",\n            \"test_check_docs.py\",\n            \"test_codex_reasoning_ab.py\",\n            \"test_env_attestation.py\",\n            \"test_real_repo_serialization.py\",\n            \"test_ruleops.py\",\n            \"test_s1_known_axes_freeze.py\",\n            \"test_s1_measurement_freeze.py\",\n            \"test_s8b_binding_driftguards.py\",\n            \"test_s8b_holdout_freeze.py\",\n            \"test_s8b_oracle_driver.py\",\n            \"test_s8b_protocol_builder.py\",\n            \"test_s8b_repo_scan_invariant.py\",\n        )\n        analyses = {}\n        for filename in _held_filenames():\n            path = Path(__file__).resolve().parent / filename\n            assert path.is_file(), filename\n            errors, self_load = _guard_binding_analysis(\n                path.read_text(encoding=\"utf-8\"), filename,\n            )\n            analyses[filename] = (errors, self_load)\n>           assert errors == (), filename\nE           AssertionError: test_codex_reasoning_ab.py\nE           assert ('call must d...l self-load',) == ()\nE             \nE             Left contains one more item: \"call must declare enforce_held_functions(globals(), __file__, plain_runner=<pytest-delegating|manual|none>) and add exact trailing guard_mode='call-only' only for canonical self-load\"\nE             Use -v to get more diff\n\norchestrator/tests/test_growth_test_holds_contract.py:1325: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_growth_test_holds_contract.py::test_guard_binding_requires_call_only_exactly_for_canonical_self_load[pytest-delegating]\nFAILED orchestrator/tests/test_growth_test_holds_contract.py::test_self_load_detection_pairs_each_loader_with_foreign_control[import runpy\\nrunpy.run_path(__file__)\\n-import runpy\\nrunpy.run_path('tools/check_docs.py')\\n]\nFAILED orchestrator/tests/test_growth_test_holds_contract.py::test_guard_binding_requires_call_only_exactly_for_canonical_self_load[none]\nFAILED orchestrator/tests/test_growth_test_holds_contract.py::test_guard_binding_requires_call_only_exactly_for_canonical_self_load[manual]\nFAILED orchestrator/tests/test_growth_test_holds_contract.py::test_self_load_detection_compares_full_path_not_only_basename\nFAILED orchestrator/tests/test_growth_test_holds_contract.py::test_self_load_detection_pairs_each_loader_with_foreign_control[exec(open(__file__).read())\\n-exec(open('tools/check_docs.py').read())\\n]\nFAILED orchestrator/tests/test_growth_test_holds_contract.py::test_every_held_module_has_exact_top_level_guard_binding\n7 failed, 68 passed in 4.85s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_growth_test_holds_contract.py::test_every_held_module_has_exact_top_level_guard_binding\" nodeid_bytes=111 nodeid_omitted_bytes=0 source_bytes=1580 retained_bytes=1580 omitted_bytes=0 rendered_excerpt_bytes=1649 sha256=66a117cb6ec3ebc675e6536c7d9a4ba6ab46947b41babfb1f7446c6043c1fce3\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw21] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_every_held_module_has_exact_top_level_guard_binding():\n>         assert _held_filenames() == (\n>             \"test_campaign_import_invariant.py\",\n>             \"test_check_docs.py\",\n>             \"test_codex_reasoning_ab.py\",\n>             \"test_env_attestation.py\",\n>             \"test_real_repo_serialization.py\",\n>             \"test_ruleops.py\",\n>             \"test_s1_known_axes_freeze.py\",\n>             \"test_s1_measurement_freeze.py\",\n>             \"test_s8b_binding_driftguards.py\",\n>             \"test_s8b_holdout_freeze.py\",\n>             \"test_s8b_oracle_driver.py\",\n>             \"test_s8b_protocol_builder.py\",\n>             \"test_s8b_repo_scan_invariant.py\",\n>         )\n>         analyses = {}\n>         for filename in _held_filenames():\n>             path = Path(__file__).resolve().parent / filename\n>             assert path.is_file(), filename\n>             errors, self_load = _guard_binding_analysis(\n>                 path.read_text(encoding=\"utf-8\"), filename,\n>             )\n>             analyses[filename] = (errors, self_load)\n> >           assert errors == (), filename\n> E           AssertionError: test_codex_reasoning_ab.py\n> E           assert ('call must d...l self-load',) == ()\n> E             \n> E             Left contains one more item: \"call must declare enforce_held_functions(globals(), __file__, plain_runner=<pytest-delegating|manual|none>) and add exact trailing guard_mode='call-only' only for canonical self-load\"\n> E             Use -v to get more diff\n> \n> orchestrator/tests/test_growth_test_holds_contract.py:1325: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_growth_test_holds_contract.py::test_guard_binding_requires_call_only_exactly_for_canonical_self_load[pytest-delegating]\" nodeid_bytes=143 nodeid_omitted_bytes=0 source_bytes=1371 retained_bytes=1371 omitted_bytes=0 rendered_excerpt_bytes=1432 sha256=6d6c8527f268937a6a215553f8957d5e374ce519726512077049a55c13e3e35d\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw24] linux -- Python 3.10.12 /bin/python3.10\n> \n> runner = 'pytest-delegating'\n> \n>     @pytest.mark.parametrize(\"runner\", [\"none\", \"manual\", \"pytest-delegating\"])\n>     def test_guard_binding_requires_call_only_exactly_for_canonical_self_load(runner):\n>         filename = \"test_s8b_repo_scan_invariant.py\"\n>         accepted = _synthetic_binding_source(\n>             runner,\n>             keywords=f'plain_runner=\"{runner}\", guard_mode=\"call-only\"',\n>         )\n>         assert _guard_binding_errors(accepted, filename) == ()\n>     \n>         self_load_without_mode = _synthetic_binding_source(\n>             runner, keywords=f'plain_runner=\"{runner}\"',\n>         )\n>         assert _guard_binding_errors(self_load_without_mode, filename) != ()\n>     \n>         foreign_default = _synthetic_binding_source(\n>             runner,\n>             loader_path=\"'tools/check_docs.py'\",\n>             keywords=f'plain_runner=\"{runner}\"',\n>         )\n> >       assert _guard_binding_errors(foreign_default, filename) == ()\n> E       assert ('call must d...l self-load',) == ()\n> E         \n> E         Left contains one more item: \"call must declare enforce_held_functions(globals(), __file__, plain_runner=<pytest-delegating|manual|none>) and add exact trailing guard_mode='call-only' only for canonical self-load\"\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_growth_test_holds_contract.py:1379: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE rank=3 category=failed when=call nodeid=\"orchestrator/tests/test_growth_test_holds_contract.py::test_self_load_detection_pairs_each_loader_with_foreign_control[import runpy\\\\x5cnrunpy.run_path(__file__)\\\\x5cn-import runpy\\\\x5cnrunpy.run_path('tools/check_docs.py')\\\\x5cn]\" nodeid_bytes=214 nodeid_omitted_bytes=0 source_bytes=1370 retained_bytes=1370 omitted_bytes=0 rendered_excerpt_bytes=1483 sha256=4f482dbcbb45fc04b21db716b6d3004f4b14e0de31c888b57fc1131a053b8552\n--- IZANAGI FAILURE EXCERPT rank=3 BEGIN ---\n> [gw32] linux -- Python 3.10.12 /bin/python3.10\n> \n> self_source = 'import runpy\\x5cnrunpy.run_path(__file__)\\x5cn'\n> foreign_source = \"import runpy\\x5cnrunpy.run_path('tools/check_docs.py')\\x5cn\"\n> \n>     @pytest.mark.parametrize(\n>         (\"self_source\", \"foreign_source\"),\n>         [\n>             (\n>                 \"import runpy\\x5cnrunpy.run_path(__file__)\\x5cn\",\n>                 \"import runpy\\x5cnrunpy.run_path('tools/check_docs.py')\\x5cn\",\n>             ),\n>             (\n>                 \"from runpy import run_module as load\\x5cn\"\n>                 \"load('orchestrator.tests.test_s8b_repo_scan_invariant')\\x5cn\",\n>                 \"from runpy import run_module as load\\x5cnload('tools.check_docs')\\x5cn\",\n>             ),\n>             (\n>                 \"exec(open(__file__).read())\\x5cn\",\n>                 \"exec(open('tools/check_docs.py').read())\\x5cn\",\n>             ),\n>         ],\n>     )\n>     def test_self_load_detection_pairs_each_loader_with_foreign_control(\n>         self_source, foreign_source,\n>     ):\n>         filename = \"test_s8b_repo_scan_invariant.py\"\n>         assert _self_load_analysis(ast.parse(self_source), filename) == (True, ())\n> >       assert _self_load_analysis(ast.parse(foreign_source), filename) == (False, ())\n> E       assert (True, ()) == (False, ())\n> E         \n> E         At index 0 diff: True != False\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_growth_test_holds_contract.py:1567: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=3 END ---\nIZANAGI_FAILURE rank=4 category=failed when=call nodeid=\"orchestrator/tests/test_growth_test_holds_contract.py::test_guard_binding_requires_call_only_exactly_for_canonical_self_load[manual]\" nodeid_bytes=132 nodeid_omitted_bytes=0 source_bytes=1360 retained_bytes=1360 omitted_bytes=0 rendered_excerpt_bytes=1421 sha256=511c04b436567716864975283b79f6b00b151af737d6722c3aa7b697b21869fd\n--- IZANAGI FAILURE EXCERPT rank=4 BEGIN ---\n> [gw23] linux -- Python 3.10.12 /bin/python3.10\n> \n> runner = 'manual'\n> \n>     @pytest.mark.parametrize(\"runner\", [\"none\", \"manual\", \"pytest-delegating\"])\n>     def test_guard_binding_requires_call_only_exactly_for_canonical_self_load(runner):\n>         filename = \"test_s8b_repo_scan_invariant.py\"\n>         accepted = _synthetic_binding_source(\n>             runner,\n>             keywords=f'plain_runner=\"{runner}\", guard_mode=\"call-only\"',\n>         )\n>         assert _guard_binding_errors(accepted, filename) == ()\n>     \n>         self_load_without_mode = _synthetic_binding_source(\n>             runner, keywords=f'plain_runner=\"{runner}\"',\n>         )\n>         assert _guard_binding_errors(self_load_without_mode, filename) != ()\n>     \n>         foreign_default = _synthetic_binding_source(\n>             runner,\n>             loader_path=\"'tools/check_docs.py'\",\n>             keywords=f'plain_runner=\"{runner}\"',\n>         )\n> >       assert _guard_binding_errors(foreign_default, filename) == ()\n> E       assert ('call must d...l self-load',) == ()\n> E         \n> E         Left contains one more item: \"call must declare enforce_held_functions(globals(), __file__, plain_runner=<pytest-delegating|manual|none>) and add exact trailing guard_mode='call-only' only for canonical self-load\"\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_growth_test_holds_contract.py:1379: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=4 END ---\nIZANAGI_FAILURE rank=5 category=failed when=call nodeid=\"orchestrator/tests/test_growth_test_holds_contract.py::test_guard_binding_requires_call_only_exactly_for_canonical_self_load[none]\" nodeid_bytes=130 nodeid_omitted_bytes=0 source_bytes=1358 retained_bytes=1358 omitted_bytes=0 rendered_excerpt_bytes=1419 sha256=12c0a74c9de040f6ba1f1daf1753bf90df8557f2a0ac60103d2cb9b7dfd8dcb6\n--- IZANAGI FAILURE EXCERPT rank=5 BEGIN ---\n> [gw22] linux -- Python 3.10.12 /bin/python3.10\n> \n> runner = 'none'\n> \n>     @pytest.mark.parametrize(\"runner\", [\"none\", \"manual\", \"pytest-delegating\"])\n>     def test_guard_binding_requires_call_only_exactly_for_canonical_self_load(runner):\n>         filename = \"test_s8b_repo_scan_invariant.py\"\n>         accepted = _synthetic_binding_source(\n>             runner,\n>             keywords=f'plain_runner=\"{runner}\", guard_mode=\"call-only\"',\n>         )\n>         assert _guard_binding_errors(accepted, filename) == ()\n>     \n>         self_load_without_mode = _synthetic_binding_source(\n>             runner, keywords=f'plain_runner=\"{runner}\"',\n>         )\n>         assert _guard_binding_errors(self_load_without_mode, filename) != ()\n>     \n>         foreign_default = _synthetic_binding_source(\n>             runner,\n>             loader_path=\"'tools/check_docs.py'\",\n>             keywords=f'plain_runner=\"{runner}\"',\n>         )\n> >       assert _guard_binding_errors(foreign_default, filename) == ()\n> E       assert ('call must d...l self-load',) == ()\n> E         \n> E         Left contains one more item: \"call must declare enforce_held_functions(globals(), __file__, plain_runner=<pytest-delegating|manual|none>) and add exact trailing guard_mode='call-only' only for canonical self-load\"\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_growth_test_holds_contract.py:1379: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=5 END ---\nIZANAGI_FAILURE rank=6 category=failed when=call nodeid=\"orchestrator/tests/test_growth_test_holds_contract.py::test_self_load_detection_pairs_each_loader_with_foreign_control[exec(open(__file__).read())\\\\x5cn-exec(open('tools/check_docs.py').read())\\\\x5cn]\" nodeid_bytes=192 nodeid_omitted_bytes=0 source_bytes=1348 retained_bytes=1348 omitted_bytes=0 rendered_excerpt_bytes=1455 sha256=0ab5608c8524d1cf78247f9368fa4cb58bf578e7c3d6570ccc59daa397e55990\n--- IZANAGI FAILURE EXCERPT rank=6 BEGIN ---\n> [gw34] linux -- Python 3.10.12 /bin/python3.10\n> \n> self_source = 'exec(open(__file__).read())\\x5cn'\n> foreign_source = \"exec(open('tools/check_docs.py').read())\\x5cn\"\n> \n>     @pytest.mark.parametrize(\n>         (\"self_source\", \"foreign_source\"),\n>         [\n>             (\n>                 \"import runpy\\x5cnrunpy.run_path(__file__)\\x5cn\",\n>                 \"import runpy\\x5cnrunpy.run_path('tools/check_docs.py')\\x5cn\",\n>             ),\n>             (\n>                 \"from runpy import run_module as load\\x5cn\"\n>                 \"load('orchestrator.tests.test_s8b_repo_scan_invariant')\\x5cn\",\n>                 \"from runpy import run_module as load\\x5cnload('tools.check_docs')\\x5cn\",\n>             ),\n>             (\n>                 \"exec(open(__file__).read())\\x5cn\",\n>                 \"exec(open('tools/check_docs.py').read())\\x5cn\",\n>             ),\n>         ],\n>     )\n>     def test_self_load_detection_pairs_each_loader_with_foreign_control(\n>         self_source, foreign_source,\n>     ):\n>         filename = \"test_s8b_repo_scan_invariant.py\"\n>         assert _self_load_analysis(ast.parse(self_source), filename) == (True, ())\n> >       assert _self_load_analysis(ast.parse(foreign_source), filename) == (False, ())\n> E       assert (True, ()) == (False, ())\n> E         \n> E         At index 0 diff: True != False\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_growth_test_holds_contract.py:1567: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=6 END ---\nIZANAGI_FAILURE rank=7 category=failed when=call nodeid=\"orchestrator/tests/test_growth_test_holds_contract.py::test_self_load_detection_compares_full_path_not_only_basename\" nodeid_bytes=116 nodeid_omitted_bytes=0 source_bytes=785 retained_bytes=785 omitted_bytes=0 rendered_excerpt_bytes=842 sha256=f48242df5621fbae93d23157b5b04a76f97d9ac3f212a235538d194f52385754\n--- IZANAGI FAILURE EXCERPT rank=7 BEGIN ---\n> [gw37] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_self_load_detection_compares_full_path_not_only_basename():\n>         filename = \"test_s8b_repo_scan_invariant.py\"\n>         source = (\n>             \"import importlib.util\\x5cn\"\n>             \"spec = importlib.util.spec_from_file_location(\\x5cn\"\n>             \"    'foreign', '/tmp/test_s8b_repo_scan_invariant.py',\\x5cn\"\n>             \")\\x5cn\"\n>             \"module = importlib.util.module_from_spec(spec)\\x5cn\"\n>             \"spec.loader.exec_module(module)\\x5cn\"\n>         )\n> >       assert _self_load_analysis(ast.parse(source), filename) == (False, ())\n> E       assert (True, ()) == (False, ())\n> E         \n> E         At index 0 diff: True != False\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_growth_test_holds_contract.py:1596: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=7 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=7 failed=7 errors=0 selected=7 omitted_failures=0 source_bytes=9172 retained_bytes=9172 omitted_bytes=0 budget_bytes=49152 rendered_bytes=13435 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "967a1c1723769a175462ffec29f288c6d83493fe4f0bc5f72d181c329e157f08"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "5a62cf17f8aaa7f1256ca8228863b83fb712e6efcee9826fe1f3340e371e61f4",
+      "duration_s": 27.759,
+      "expected_nodes": [
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_every_held_module_has_exact_top_level_guard_binding",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_guard_binding_requires_call_only_exactly_for_canonical_self_load[manual]",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_guard_binding_requires_call_only_exactly_for_canonical_self_load[none]",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_guard_binding_requires_call_only_exactly_for_canonical_self_load[pytest-delegating]",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_self_load_detection_compares_full_path_not_only_basename",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_self_load_detection_pairs_each_loader_with_foreign_control[exec(open(__file__).read())/n-exec(open('tools/check_docs.py').read())/n]",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_self_load_detection_pairs_each_loader_with_foreign_control[import runpy/nrunpy.run_path(__file__)/n-import runpy/nrunpy.run_path('tools/check_docs.py')/n]"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_guard_binding_requires_call_only_exactly_for_canonical_self_load[pytest-delegating]",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_self_load_detection_pairs_each_loader_with_foreign_control[import runpy/nrunpy.run_path(__file__)/n-import runpy/nrunpy.run_path('tools/check_docs.py')/n]",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_guard_binding_requires_call_only_exactly_for_canonical_self_load[none]",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_guard_binding_requires_call_only_exactly_for_canonical_self_load[manual]",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_self_load_detection_compares_full_path_not_only_basename",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_self_load_detection_pairs_each_loader_with_foreign_control[exec(open(__file__).read())/n-exec(open('tools/check_docs.py').read())/n]",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_every_held_module_has_exact_top_level_guard_binding"
+      ],
+      "hang_risk": false,
+      "id": "t1226.m6-path-identity-always-self",
+      "injection_diff_sha256": "e7ecbf43495044c1aa1ce55f7323ea1cfaadd2c06f80faa9231908ca85f59752",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "1f86d13555de44119428f932defa72d258c47b87236a4c7c9aae065270f49086",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_growth_test_holds_contract.py",
+          "new": "        return \"self\"\n",
+          "old": "        return \"self\" if path == _canonical_test_path(filename) else \"foreign\"\n"
+        }
+      ],
+      "repo_head": "124cd8e83a14e221c919292464f34a6d92079bce",
+      "runner_sha256": "961d48926f898f2deee3fde147bcac1b87a804cfb4a9b3ff7398ace96c42f38a",
+      "spec_sha256": "9e3e36eff22af02c29267de18f0212c07d6db107015af9c1b39f9a29e4b8a029",
+      "status": "KILLED",
+      "test_output_sha256": "967a1c1723769a175462ffec29f288c6d83493fe4f0bc5f72d181c329e157f08",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "21619a1a63123d4e93d61f4e9239a34b4f33b0e4717d057c1df738dc82699587"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/f632efeb1a2dbadfc8174d2bdea3eb5d/izdw-f632efeb1a.o919965",
+        "receipt_path": "/work/1/SFC/tanab/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/f632efeb1a2dbadfc8174d2bdea3eb5d/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n..................................................FFF................... [ 96%]\n...                                                                      [100%]\n=================================== FAILURES ===================================\n_ test_guard_binding_requires_call_only_exactly_for_canonical_self_load[manual] _\n[gw23] linux -- Python 3.10.12 /bin/python3.10\n\nrunner = 'manual'\n\n    @pytest.mark.parametrize(\"runner\", [\"none\", \"manual\", \"pytest-delegating\"])\n    def test_guard_binding_requires_call_only_exactly_for_canonical_self_load(runner):\n        filename = \"test_s8b_repo_scan_invariant.py\"\n        accepted = _synthetic_binding_source(\n            runner,\n            keywords=f'plain_runner=\"{runner}\", guard_mode=\"call-only\"',\n        )\n        assert _guard_binding_errors(accepted, filename) == ()\n    \n        self_load_without_mode = _synthetic_binding_source(\n            runner, keywords=f'plain_runner=\"{runner}\"',\n        )\n        assert _guard_binding_errors(self_load_without_mode, filename) != ()\n    \n        foreign_default = _synthetic_binding_source(\n            runner,\n            loader_path=\"'tools/check_docs.py'\",\n            keywords=f'plain_runner=\"{runner}\"',\n        )\n        assert _guard_binding_errors(foreign_default, filename) == ()\n        for mode in (\"call-only\", \"import-and-call\"):\n            foreign_explicit_mode = _synthetic_binding_source(\n                runner,\n                loader_path=\"'tools/check_docs.py'\",\n                keywords=f'plain_runner=\"{runner}\", guard_mode=\"{mode}\"',\n            )\n            assert _guard_binding_errors(foreign_explicit_mode, filename) != ()\n    \n        rejected_keywords = (\n            f'plain_runner=\"{runner}\", guard_mode=\"import-and-call\"',\n            f'plain_runner=\"{runner}\", guard_mode=\"unknown\"',\n            f'guard_mode=\"call-only\", plain_runner=\"{runner}\"',\n            f'plain_runner=\"{runner}\", unknown=\"call-only\"',\n            f'plain_runner=\"{runner}\", guard_mode=True',\n            f'plain_runner=\"{runner}\", **{{\"guard_mode\": \"call-only\"}}',\n        )\n        for keywords in rejected_keywords:\n>           assert _guard_binding_errors(\n                _synthetic_binding_source(runner, keywords=keywords), filename,\n            ) != (), keywords\nE           AssertionError: guard_mode=\"call-only\", plain_runner=\"manual\"\nE           assert () != ()\nE            +  where () = _guard_binding_errors('import importlib.util as importlib_util\\nfrom orchestrator.tests.growth_test_holds import enforce_held_functions\\n\\nd...), __file__, guard_mode=\"call-only\", plain_runner=\"manual\")\\n\\nif __name__ == \\'__main__\\':\\n    raise SystemExit(0)\\n', 'test_s8b_repo_scan_invariant.py')\nE            +    where 'import importlib.util as importlib_util\\nfrom orchestrator.tests.growth_test_holds import enforce_held_functions\\n\\nd...), __file__, guard_mode=\"call-only\", plain_runner=\"manual\")\\n\\nif __name__ == \\'__main__\\':\\n    raise SystemExit(0)\\n' = _synthetic_binding_source('manual', keywords='guard_mode=\"call-only\", plain_runner=\"manual\"')\n\norchestrator/tests/test_growth_test_holds_contract.py:1397: AssertionError\n_ test_guard_binding_requires_call_only_exactly_for_canonical_self_load[none] __\n[gw22] linux -- Python 3.10.12 /bin/python3.10\n\nrunner = 'none'\n\n    @pytest.mark.parametrize(\"runner\", [\"none\", \"manual\", \"pytest-delegating\"])\n    def test_guard_binding_requires_call_only_exactly_for_canonical_self_load(runner):\n        filename = \"test_s8b_repo_scan_invariant.py\"\n        accepted = _synthetic_binding_source(\n            runner,\n            keywords=f'plain_runner=\"{runner}\", guard_mode=\"call-only\"',\n        )\n        assert _guard_binding_errors(accepted, filename) == ()\n    \n        self_load_without_mode = _synthetic_binding_source(\n            runner, keywords=f'plain_runner=\"{runner}\"',\n        )\n        assert _guard_binding_errors(self_load_without_mode, filename) != ()\n    \n        foreign_default = _synthetic_binding_source(\n            runner,\n            loader_path=\"'tools/check_docs.py'\",\n            keywords=f'plain_runner=\"{runner}\"',\n        )\n        assert _guard_binding_errors(foreign_default, filename) == ()\n        for mode in (\"call-only\", \"import-and-call\"):\n            foreign_explicit_mode = _synthetic_binding_source(\n                runner,\n                loader_path=\"'tools/check_docs.py'\",\n                keywords=f'plain_runner=\"{runner}\", guard_mode=\"{mode}\"',\n            )\n            assert _guard_binding_errors(foreign_explicit_mode, filename) != ()\n    \n        rejected_keywords = (\n            f'plain_runner=\"{runner}\", guard_mode=\"import-and-call\"',\n            f'plain_runner=\"{runner}\", guard_mode=\"unknown\"',\n            f'guard_mode=\"call-only\", plain_runner=\"{runner}\"',\n            f'plain_runner=\"{runner}\", unknown=\"call-only\"',\n            f'plain_runner=\"{runner}\", guard_mode=True',\n            f'plain_runner=\"{runner}\", **{{\"guard_mode\": \"call-only\"}}',\n        )\n        for keywords in rejected_keywords:\n>           assert _guard_binding_errors(\n                _synthetic_binding_source(runner, keywords=keywords), filename,\n            ) != (), keywords\nE           AssertionError: guard_mode=\"call-only\", plain_runner=\"none\"\nE           assert () != ()\nE            +  where () = _guard_binding_errors('import importlib.util as importlib_util\\nfrom orchestrator.tests.growth_test_holds import enforce_held_functions\\n\\nd...ader.exec_module(module)\\n\\nenforce_held_functions(globals(), __file__, guard_mode=\"call-only\", plain_runner=\"none\")\\n', 'test_s8b_repo_scan_invariant.py')\nE            +    where 'import importlib.util as importlib_util\\nfrom orchestrator.tests.growth_test_holds import enforce_held_functions\\n\\nd...ader.exec_module(module)\\n\\nenforce_held_functions(globals(), __file__, guard_mode=\"call-only\", plain_runner=\"none\")\\n' = _synthetic_binding_source('none', keywords='guard_mode=\"call-only\", plain_runner=\"none\"')\n\norchestrator/tests/test_growth_test_holds_contract.py:1397: AssertionError\n_ test_guard_binding_requires_call_only_exactly_for_canonical_self_load[pytest-delegating] _\n[gw24] linux -- Python 3.10.12 /bin/python3.10\n\nrunner = 'pytest-delegating'\n\n    @pytest.mark.parametrize(\"runner\", [\"none\", \"manual\", \"pytest-delegating\"])\n    def test_guard_binding_requires_call_only_exactly_for_canonical_self_load(runner):\n        filename = \"test_s8b_repo_scan_invariant.py\"\n        accepted = _synthetic_binding_source(\n            runner,\n            keywords=f'plain_runner=\"{runner}\", guard_mode=\"call-only\"',\n        )\n        assert _guard_binding_errors(accepted, filename) == ()\n    \n        self_load_without_mode = _synthetic_binding_source(\n            runner, keywords=f'plain_runner=\"{runner}\"',\n        )\n        assert _guard_binding_errors(self_load_without_mode, filename) != ()\n    \n        foreign_default = _synthetic_binding_source(\n            runner,\n            loader_path=\"'tools/check_docs.py'\",\n            keywords=f'plain_runner=\"{runner}\"',\n        )\n        assert _guard_binding_errors(foreign_default, filename) == ()\n        for mode in (\"call-only\", \"import-and-call\"):\n            foreign_explicit_mode = _synthetic_binding_source(\n                runner,\n                loader_path=\"'tools/check_docs.py'\",\n                keywords=f'plain_runner=\"{runner}\", guard_mode=\"{mode}\"',\n            )\n            assert _guard_binding_errors(foreign_explicit_mode, filename) != ()\n    \n        rejected_keywords = (\n            f'plain_runner=\"{runner}\", guard_mode=\"import-and-call\"',\n            f'plain_runner=\"{runner}\", guard_mode=\"unknown\"',\n            f'guard_mode=\"call-only\", plain_runner=\"{runner}\"',\n            f'plain_runner=\"{runner}\", unknown=\"call-only\"',\n            f'plain_runner=\"{runner}\", guard_mode=True',\n            f'plain_runner=\"{runner}\", **{{\"guard_mode\": \"call-only\"}}',\n        )\n        for keywords in rejected_keywords:\n>           assert _guard_binding_errors(\n                _synthetic_binding_source(runner, keywords=keywords), filename,\n            ) != (), keywords\nE           AssertionError: guard_mode=\"call-only\", plain_runner=\"pytest-delegating\"\nE           assert () != ()\nE            +  where () = _guard_binding_errors('import importlib.util as importlib_util\\nimport pytest\\nfrom orchestrator.tests.growth_test_holds import enforce_held...y\", plain_runner=\"pytest-delegating\")\\n\\nif __name__ == \\'__main__\\':\\n    raise SystemExit(pytest.main([__file__]))\\n', 'test_s8b_repo_scan_invariant.py')\nE            +    where 'import importlib.util as importlib_util\\nimport pytest\\nfrom orchestrator.tests.growth_test_holds import enforce_held...y\", plain_runner=\"pytest-delegating\")\\n\\nif __name__ == \\'__main__\\':\\n    raise SystemExit(pytest.main([__file__]))\\n' = _synthetic_binding_source('pytest-delegating', keywords='guard_mode=\"call-only\", plain_runner=\"pytest-delegating\"')\n\norchestrator/tests/test_growth_test_holds_contract.py:1397: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_growth_test_holds_contract.py::test_guard_binding_requires_call_only_exactly_for_canonical_self_load[manual]\nFAILED orchestrator/tests/test_growth_test_holds_contract.py::test_guard_binding_requires_call_only_exactly_for_canonical_self_load[none]\nFAILED orchestrator/tests/test_growth_test_holds_contract.py::test_guard_binding_requires_call_only_exactly_for_canonical_self_load[pytest-delegating]\n3 failed, 72 passed in 4.90s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_growth_test_holds_contract.py::test_guard_binding_requires_call_only_exactly_for_canonical_self_load[pytest-delegating]\" nodeid_bytes=143 nodeid_omitted_bytes=0 source_bytes=2861 retained_bytes=2861 omitted_bytes=0 rendered_excerpt_bytes=3010 sha256=a423d870adc07189bab83e47160da8cc89eb0999c08eb42682a0768562ea8fe0\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw24] linux -- Python 3.10.12 /bin/python3.10\n> \n> runner = 'pytest-delegating'\n> \n>     @pytest.mark.parametrize(\"runner\", [\"none\", \"manual\", \"pytest-delegating\"])\n>     def test_guard_binding_requires_call_only_exactly_for_canonical_self_load(runner):\n>         filename = \"test_s8b_repo_scan_invariant.py\"\n>         accepted = _synthetic_binding_source(\n>             runner,\n>             keywords=f'plain_runner=\"{runner}\", guard_mode=\"call-only\"',\n>         )\n>         assert _guard_binding_errors(accepted, filename) == ()\n>     \n>         self_load_without_mode = _synthetic_binding_source(\n>             runner, keywords=f'plain_runner=\"{runner}\"',\n>         )\n>         assert _guard_binding_errors(self_load_without_mode, filename) != ()\n>     \n>         foreign_default = _synthetic_binding_source(\n>             runner,\n>             loader_path=\"'tools/check_docs.py'\",\n>             keywords=f'plain_runner=\"{runner}\"',\n>         )\n>         assert _guard_binding_errors(foreign_default, filename) == ()\n>         for mode in (\"call-only\", \"import-and-call\"):\n>             foreign_explicit_mode = _synthetic_binding_source(\n>                 runner,\n>                 loader_path=\"'tools/check_docs.py'\",\n>                 keywords=f'plain_runner=\"{runner}\", guard_mode=\"{mode}\"',\n>             )\n>             assert _guard_binding_errors(foreign_explicit_mode, filename) != ()\n>     \n>         rejected_keywords = (\n>             f'plain_runner=\"{runner}\", guard_mode=\"import-and-call\"',\n>             f'plain_runner=\"{runner}\", guard_mode=\"unknown\"',\n>             f'guard_mode=\"call-only\", plain_runner=\"{runner}\"',\n>             f'plain_runner=\"{runner}\", unknown=\"call-only\"',\n>             f'plain_runner=\"{runner}\", guard_mode=True',\n>             f'plain_runner=\"{runner}\", **{{\"guard_mode\": \"call-only\"}}',\n>         )\n>         for keywords in rejected_keywords:\n> >           assert _guard_binding_errors(\n>                 _synthetic_binding_source(runner, keywords=keywords), filename,\n>             ) != (), keywords\n> E           AssertionError: guard_mode=\"call-only\", plain_runner=\"pytest-delegating\"\n> E           assert () != ()\n> E            +  where () = _guard_binding_errors('import importlib.util as importlib_util\\x5cnimport pytest\\x5cnfrom orchestrator.tests.growth_test_holds import enforce_held...y\", plain_runner=\"pytest-delegating\")\\x5cn\\x5cnif __name__ == \\x5c'__main__\\x5c':\\x5cn    raise SystemExit(pytest.main([__file__]))\\x5cn', 'test_s8b_repo_scan_invariant.py')\n> E            +    where 'import importlib.util as importlib_util\\x5cnimport pytest\\x5cnfrom orchestrator.tests.growth_test_holds import enforce_held...y\", plain_runner=\"pytest-delegating\")\\x5cn\\x5cnif __name__ == \\x5c'__main__\\x5c':\\x5cn    raise SystemExit(pytest.main([__file__]))\\x5cn' = _synthetic_binding_source('pytest-delegating', keywords='guard_mode=\"call-only\", plain_runner=\"pytest-delegating\"')\n> \n> orchestrator/tests/test_growth_test_holds_contract.py:1397: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_growth_test_holds_contract.py::test_guard_binding_requires_call_only_exactly_for_canonical_self_load[manual]\" nodeid_bytes=132 nodeid_omitted_bytes=0 source_bytes=2817 retained_bytes=2817 omitted_bytes=0 rendered_excerpt_bytes=2972 sha256=13ba8f676e71949b18b64bc3a1b0b7e3e4a053d49e2a48788d9d2acce9f16c7f\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw23] linux -- Python 3.10.12 /bin/python3.10\n> \n> runner = 'manual'\n> \n>     @pytest.mark.parametrize(\"runner\", [\"none\", \"manual\", \"pytest-delegating\"])\n>     def test_guard_binding_requires_call_only_exactly_for_canonical_self_load(runner):\n>         filename = \"test_s8b_repo_scan_invariant.py\"\n>         accepted = _synthetic_binding_source(\n>             runner,\n>             keywords=f'plain_runner=\"{runner}\", guard_mode=\"call-only\"',\n>         )\n>         assert _guard_binding_errors(accepted, filename) == ()\n>     \n>         self_load_without_mode = _synthetic_binding_source(\n>             runner, keywords=f'plain_runner=\"{runner}\"',\n>         )\n>         assert _guard_binding_errors(self_load_without_mode, filename) != ()\n>     \n>         foreign_default = _synthetic_binding_source(\n>             runner,\n>             loader_path=\"'tools/check_docs.py'\",\n>             keywords=f'plain_runner=\"{runner}\"',\n>         )\n>         assert _guard_binding_errors(foreign_default, filename) == ()\n>         for mode in (\"call-only\", \"import-and-call\"):\n>             foreign_explicit_mode = _synthetic_binding_source(\n>                 runner,\n>                 loader_path=\"'tools/check_docs.py'\",\n>                 keywords=f'plain_runner=\"{runner}\", guard_mode=\"{mode}\"',\n>             )\n>             assert _guard_binding_errors(foreign_explicit_mode, filename) != ()\n>     \n>         rejected_keywords = (\n>             f'plain_runner=\"{runner}\", guard_mode=\"import-and-call\"',\n>             f'plain_runner=\"{runner}\", guard_mode=\"unknown\"',\n>             f'guard_mode=\"call-only\", plain_runner=\"{runner}\"',\n>             f'plain_runner=\"{runner}\", unknown=\"call-only\"',\n>             f'plain_runner=\"{runner}\", guard_mode=True',\n>             f'plain_runner=\"{runner}\", **{{\"guard_mode\": \"call-only\"}}',\n>         )\n>         for keywords in rejected_keywords:\n> >           assert _guard_binding_errors(\n>                 _synthetic_binding_source(runner, keywords=keywords), filename,\n>             ) != (), keywords\n> E           AssertionError: guard_mode=\"call-only\", plain_runner=\"manual\"\n> E           assert () != ()\n> E            +  where () = _guard_binding_errors('import importlib.util as importlib_util\\x5cnfrom orchestrator.tests.growth_test_holds import enforce_held_functions\\x5cn\\x5cnd...), __file__, guard_mode=\"call-only\", plain_runner=\"manual\")\\x5cn\\x5cnif __name__ == \\x5c'__main__\\x5c':\\x5cn    raise SystemExit(0)\\x5cn', 'test_s8b_repo_scan_invariant.py')\n> E            +    where 'import importlib.util as importlib_util\\x5cnfrom orchestrator.tests.growth_test_holds import enforce_held_functions\\x5cn\\x5cnd...), __file__, guard_mode=\"call-only\", plain_runner=\"manual\")\\x5cn\\x5cnif __name__ == \\x5c'__main__\\x5c':\\x5cn    raise SystemExit(0)\\x5cn' = _synthetic_binding_source('manual', keywords='guard_mode=\"call-only\", plain_runner=\"manual\"')\n> \n> orchestrator/tests/test_growth_test_holds_contract.py:1397: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE rank=3 category=failed when=call nodeid=\"orchestrator/tests/test_growth_test_holds_contract.py::test_guard_binding_requires_call_only_exactly_for_canonical_self_load[none]\" nodeid_bytes=130 nodeid_omitted_bytes=0 source_bytes=2809 retained_bytes=2809 omitted_bytes=0 rendered_excerpt_bytes=2946 sha256=d01028f2763a6ac1e55ee488eb96a2cf90a6c0b2ed9419e8841b1615ca00f507\n--- IZANAGI FAILURE EXCERPT rank=3 BEGIN ---\n> [gw22] linux -- Python 3.10.12 /bin/python3.10\n> \n> runner = 'none'\n> \n>     @pytest.mark.parametrize(\"runner\", [\"none\", \"manual\", \"pytest-delegating\"])\n>     def test_guard_binding_requires_call_only_exactly_for_canonical_self_load(runner):\n>         filename = \"test_s8b_repo_scan_invariant.py\"\n>         accepted = _synthetic_binding_source(\n>             runner,\n>             keywords=f'plain_runner=\"{runner}\", guard_mode=\"call-only\"',\n>         )\n>         assert _guard_binding_errors(accepted, filename) == ()\n>     \n>         self_load_without_mode = _synthetic_binding_source(\n>             runner, keywords=f'plain_runner=\"{runner}\"',\n>         )\n>         assert _guard_binding_errors(self_load_without_mode, filename) != ()\n>     \n>         foreign_default = _synthetic_binding_source(\n>             runner,\n>             loader_path=\"'tools/check_docs.py'\",\n>             keywords=f'plain_runner=\"{runner}\"',\n>         )\n>         assert _guard_binding_errors(foreign_default, filename) == ()\n>         for mode in (\"call-only\", \"import-and-call\"):\n>             foreign_explicit_mode = _synthetic_binding_source(\n>                 runner,\n>                 loader_path=\"'tools/check_docs.py'\",\n>                 keywords=f'plain_runner=\"{runner}\", guard_mode=\"{mode}\"',\n>             )\n>             assert _guard_binding_errors(foreign_explicit_mode, filename) != ()\n>     \n>         rejected_keywords = (\n>             f'plain_runner=\"{runner}\", guard_mode=\"import-and-call\"',\n>             f'plain_runner=\"{runner}\", guard_mode=\"unknown\"',\n>             f'guard_mode=\"call-only\", plain_runner=\"{runner}\"',\n>             f'plain_runner=\"{runner}\", unknown=\"call-only\"',\n>             f'plain_runner=\"{runner}\", guard_mode=True',\n>             f'plain_runner=\"{runner}\", **{{\"guard_mode\": \"call-only\"}}',\n>         )\n>         for keywords in rejected_keywords:\n> >           assert _guard_binding_errors(\n>                 _synthetic_binding_source(runner, keywords=keywords), filename,\n>             ) != (), keywords\n> E           AssertionError: guard_mode=\"call-only\", plain_runner=\"none\"\n> E           assert () != ()\n> E            +  where () = _guard_binding_errors('import importlib.util as importlib_util\\x5cnfrom orchestrator.tests.growth_test_holds import enforce_held_functions\\x5cn\\x5cnd...ader.exec_module(module)\\x5cn\\x5cnenforce_held_functions(globals(), __file__, guard_mode=\"call-only\", plain_runner=\"none\")\\x5cn', 'test_s8b_repo_scan_invariant.py')\n> E            +    where 'import importlib.util as importlib_util\\x5cnfrom orchestrator.tests.growth_test_holds import enforce_held_functions\\x5cn\\x5cnd...ader.exec_module(module)\\x5cn\\x5cnenforce_held_functions(globals(), __file__, guard_mode=\"call-only\", plain_runner=\"none\")\\x5cn' = _synthetic_binding_source('none', keywords='guard_mode=\"call-only\", plain_runner=\"none\"')\n> \n> orchestrator/tests/test_growth_test_holds_contract.py:1397: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=3 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=3 failed=3 errors=0 selected=3 omitted_failures=0 source_bytes=8487 retained_bytes=8487 omitted_bytes=0 budget_bytes=49152 rendered_bytes=10644 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "11b86457b0e0cedfef82d6af1052e401f660f557f6b3359371d549b57091994a"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "5a62cf17f8aaa7f1256ca8228863b83fb712e6efcee9826fe1f3340e371e61f4",
+      "duration_s": 27.134,
+      "expected_nodes": [
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_guard_binding_requires_call_only_exactly_for_canonical_self_load[manual]",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_guard_binding_requires_call_only_exactly_for_canonical_self_load[none]",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_guard_binding_requires_call_only_exactly_for_canonical_self_load[pytest-delegating]"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_guard_binding_requires_call_only_exactly_for_canonical_self_load[manual]",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_guard_binding_requires_call_only_exactly_for_canonical_self_load[none]",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_guard_binding_requires_call_only_exactly_for_canonical_self_load[pytest-delegating]"
+      ],
+      "hang_risk": false,
+      "id": "t1226.m7-keyword-exactness-loose",
+      "injection_diff_sha256": "16310e2e9eec92441044b0ab3be80f16c71b64d6fbcb1b7413071bfbe7a418f1",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "e47282eb51e42996e9658730b72ff3ee8184a90a00a670bba556450286cd7652",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_growth_test_holds_contract.py",
+          "new": "        and set(keyword_names) <= {\"plain_runner\", \"guard_mode\"}\n",
+          "old": "        and keyword_names == expected_keywords\n"
+        }
+      ],
+      "repo_head": "124cd8e83a14e221c919292464f34a6d92079bce",
+      "runner_sha256": "961d48926f898f2deee3fde147bcac1b87a804cfb4a9b3ff7398ace96c42f38a",
+      "spec_sha256": "9e3e36eff22af02c29267de18f0212c07d6db107015af9c1b39f9a29e4b8a029",
+      "status": "KILLED",
+      "test_output_sha256": "11b86457b0e0cedfef82d6af1052e401f660f557f6b3359371d549b57091994a",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "21619a1a63123d4e93d61f4e9239a34b4f33b0e4717d057c1df738dc82699587"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/6cbcbccb518c46ef8a13deb6b72c427b/izdw-6cbcbccb51.o919966",
+        "receipt_path": "/work/1/SFC/tanab/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/6cbcbccb518c46ef8a13deb6b72c427b/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n.......................................................F................ [ 96%]\n...                                                                      [100%]\n=================================== FAILURES ===================================\n____ test_call_only_binding_rejects_pre_guard_alias_with_post_guard_control ____\n[gw25] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_call_only_binding_rejects_pre_guard_alias_with_post_guard_control():\n        filename = \"test_s8b_repo_scan_invariant.py\"\n        held_name = (\n            \"test_real_repository_scan_matches_known_hits_and_has_positive_control\"\n        )\n        pre_guard_references = (\n            f\"saved = {held_name}\\n\",\n            f\"saved = globals()[{held_name!r}]\\n\",\n            f\"class Holder:\\n    saved = globals()[{held_name!r}]\\n\",\n            f\"def escape(fn={held_name}):\\n    return fn\\n\",\n            f\"escape = lambda fn={held_name}: fn\\n\",\n            f\"setattr(type('Holder', (), {{}}), 'held', {held_name})\\n\",\n            f\"holders = []\\nholders.append(__import__('functools').partial({held_name}))\\n\",\n            (\n                \"import pytest\\n\"\n                \"@pytest.fixture\\n\"\n                f\"def escaped(fn={held_name}):\\n    return fn\\n\"\n            ),\n        )\n        for reference in pre_guard_references:\n            rejected = _synthetic_binding_source(\"none\", alias_line=reference)\n>           assert \"pre-guard held-function alias\" in \" \".join(\n                _guard_binding_errors(rejected, filename)\n            ), reference\nE           AssertionError: saved = test_real_repository_scan_matches_known_hits_and_has_positive_control\nE             \nE           assert 'pre-guard held-function alias' in ''\nE            +  where '' = <built-in method join of str object at 0x1488de3ecb30>(())\nE            +    where <built-in method join of str object at 0x1488de3ecb30> = ' '.join\nE            +    and   () = _guard_binding_errors('import importlib.util as importlib_util\\nfrom orchestrator.tests.growth_test_holds import enforce_held_functions\\n\\nd...s_and_has_positive_control\\nenforce_held_functions(globals(), __file__, plain_runner=\"none\", guard_mode=\"call-only\")\\n', 'test_s8b_repo_scan_invariant.py')\n\norchestrator/tests/test_growth_test_holds_contract.py:1438: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_growth_test_holds_contract.py::test_call_only_binding_rejects_pre_guard_alias_with_post_guard_control\n1 failed, 74 passed in 4.85s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_growth_test_holds_contract.py::test_call_only_binding_rejects_pre_guard_alias_with_post_guard_control\" nodeid_bytes=125 nodeid_omitted_bytes=0 source_bytes=1975 retained_bytes=1975 omitted_bytes=0 rendered_excerpt_bytes=2101 sha256=35de045572ec205fdf113baf1895737910c65df230ead6be366d3af05ac75798\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw25] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_call_only_binding_rejects_pre_guard_alias_with_post_guard_control():\n>         filename = \"test_s8b_repo_scan_invariant.py\"\n>         held_name = (\n>             \"test_real_repository_scan_matches_known_hits_and_has_positive_control\"\n>         )\n>         pre_guard_references = (\n>             f\"saved = {held_name}\\x5cn\",\n>             f\"saved = globals()[{held_name!r}]\\x5cn\",\n>             f\"class Holder:\\x5cn    saved = globals()[{held_name!r}]\\x5cn\",\n>             f\"def escape(fn={held_name}):\\x5cn    return fn\\x5cn\",\n>             f\"escape = lambda fn={held_name}: fn\\x5cn\",\n>             f\"setattr(type('Holder', (), {{}}), 'held', {held_name})\\x5cn\",\n>             f\"holders = []\\x5cnholders.append(__import__('functools').partial({held_name}))\\x5cn\",\n>             (\n>                 \"import pytest\\x5cn\"\n>                 \"@pytest.fixture\\x5cn\"\n>                 f\"def escaped(fn={held_name}):\\x5cn    return fn\\x5cn\"\n>             ),\n>         )\n>         for reference in pre_guard_references:\n>             rejected = _synthetic_binding_source(\"none\", alias_line=reference)\n> >           assert \"pre-guard held-function alias\" in \" \".join(\n>                 _guard_binding_errors(rejected, filename)\n>             ), reference\n> E           AssertionError: saved = test_real_repository_scan_matches_known_hits_and_has_positive_control\n> E             \n> E           assert 'pre-guard held-function alias' in ''\n> E            +  where '' = <built-in method join of str object at 0x1488de3ecb30>(())\n> E            +    where <built-in method join of str object at 0x1488de3ecb30> = ' '.join\n> E            +    and   () = _guard_binding_errors('import importlib.util as importlib_util\\x5cnfrom orchestrator.tests.growth_test_holds import enforce_held_functions\\x5cn\\x5cnd...s_and_has_positive_control\\x5cnenforce_held_functions(globals(), __file__, plain_runner=\"none\", guard_mode=\"call-only\")\\x5cn', 'test_s8b_repo_scan_invariant.py')\n> \n> orchestrator/tests/test_growth_test_holds_contract.py:1438: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1975 retained_bytes=1975 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2854 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "74cd7213cf1c027673a3756c38a5feb5b2cad3c06719aa94c9f4bc9fc15dfdd1"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "5a62cf17f8aaa7f1256ca8228863b83fb712e6efcee9826fe1f3340e371e61f4",
+      "duration_s": 26.854,
+      "expected_nodes": [
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_call_only_binding_rejects_pre_guard_alias_with_post_guard_control"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_call_only_binding_rejects_pre_guard_alias_with_post_guard_control"
+      ],
+      "hang_risk": false,
+      "id": "t1226.m8-preguard-alias-blind",
+      "injection_diff_sha256": "dc3188db86e70cb55cd3fb146442c138bb23c55a78108a26025ea9d4271e9131",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "f7c8db4078f8ff81c0bdcd8e4b3c7e22867c855608e79ddcdd26506aa1178d88",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_growth_test_holds_contract.py",
+          "new": "    def visit_Name(self, node: ast.Name) -> None:\n        if False:\n            self.found = True\n",
+          "old": "    def visit_Name(self, node: ast.Name) -> None:\n        if isinstance(node.ctx, ast.Load) and node.id in self.held_names:\n            self.found = True\n"
+        }
+      ],
+      "repo_head": "124cd8e83a14e221c919292464f34a6d92079bce",
+      "runner_sha256": "961d48926f898f2deee3fde147bcac1b87a804cfb4a9b3ff7398ace96c42f38a",
+      "spec_sha256": "9e3e36eff22af02c29267de18f0212c07d6db107015af9c1b39f9a29e4b8a029",
+      "status": "KILLED",
+      "test_output_sha256": "74cd7213cf1c027673a3756c38a5feb5b2cad3c06719aa94c9f4bc9fc15dfdd1",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "21619a1a63123d4e93d61f4e9239a34b4f33b0e4717d057c1df738dc82699587"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/729ecf3a2c570a2d12b14d21a33baa3c/izdw-729ecf3a2c.o919967",
+        "receipt_path": "/work/1/SFC/tanab/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/729ecf3a2c570a2d12b14d21a33baa3c/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n.....................................................FFF................ [ 96%]\n...                                                                      [100%]\n=================================== FAILURES ===================================\n________________ test_guard_mode_rejects_unknown_literal[True] _________________\n[gw1] linux -- Python 3.10.12 /bin/python3.10\n\nguard_mode = True\n\n    @pytest.mark.parametrize(\"guard_mode\", [\"unknown\", True, None])\n    def test_guard_mode_rejects_unknown_literal(guard_mode):\n        function_name = (\n            \"test_real_repository_scan_matches_known_hits_and_has_positive_control\"\n        )\n>       with pytest.raises(ValueError, match=\"invalid growth-test guard mode\"):\nE       Failed: DID NOT RAISE ValueError\n\norchestrator/tests/test_growth_test_holds_contract.py:1722: Failed\n_______________ test_guard_mode_rejects_unknown_literal[unknown] _______________\n[gw0] linux -- Python 3.10.12 /bin/python3.10\n\nguard_mode = 'unknown'\n\n    @pytest.mark.parametrize(\"guard_mode\", [\"unknown\", True, None])\n    def test_guard_mode_rejects_unknown_literal(guard_mode):\n        function_name = (\n            \"test_real_repository_scan_matches_known_hits_and_has_positive_control\"\n        )\n>       with pytest.raises(ValueError, match=\"invalid growth-test guard mode\"):\nE       Failed: DID NOT RAISE ValueError\n\norchestrator/tests/test_growth_test_holds_contract.py:1722: Failed\n________________ test_guard_mode_rejects_unknown_literal[None] _________________\n[gw2] linux -- Python 3.10.12 /bin/python3.10\n\nguard_mode = None\n\n    @pytest.mark.parametrize(\"guard_mode\", [\"unknown\", True, None])\n    def test_guard_mode_rejects_unknown_literal(guard_mode):\n        function_name = (\n            \"test_real_repository_scan_matches_known_hits_and_has_positive_control\"\n        )\n>       with pytest.raises(ValueError, match=\"invalid growth-test guard mode\"):\nE       Failed: DID NOT RAISE ValueError\n\norchestrator/tests/test_growth_test_holds_contract.py:1722: Failed\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_growth_test_holds_contract.py::test_guard_mode_rejects_unknown_literal[True]\nFAILED orchestrator/tests/test_growth_test_holds_contract.py::test_guard_mode_rejects_unknown_literal[unknown]\nFAILED orchestrator/tests/test_growth_test_holds_contract.py::test_guard_mode_rejects_unknown_literal[None]\n3 failed, 72 passed in 4.89s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_growth_test_holds_contract.py::test_guard_mode_rejects_unknown_literal[unknown]\" nodeid_bytes=103 nodeid_omitted_bytes=0 source_bytes=508 retained_bytes=508 omitted_bytes=0 rendered_excerpt_bytes=535 sha256=e6f74d7e93b2ea597cf4cf6ee96965d9b4cc802be0f38585c5afabf3eb4eb48e\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw0] linux -- Python 3.10.12 /bin/python3.10\n> \n> guard_mode = 'unknown'\n> \n>     @pytest.mark.parametrize(\"guard_mode\", [\"unknown\", True, None])\n>     def test_guard_mode_rejects_unknown_literal(guard_mode):\n>         function_name = (\n>             \"test_real_repository_scan_matches_known_hits_and_has_positive_control\"\n>         )\n> >       with pytest.raises(ValueError, match=\"invalid growth-test guard mode\"):\n> E       Failed: DID NOT RAISE ValueError\n> \n> orchestrator/tests/test_growth_test_holds_contract.py:1722: Failed\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_growth_test_holds_contract.py::test_guard_mode_rejects_unknown_literal[None]\" nodeid_bytes=100 nodeid_omitted_bytes=0 source_bytes=503 retained_bytes=503 omitted_bytes=0 rendered_excerpt_bytes=530 sha256=328d6e8a829e52902511a23dca6157cc8a680ac1291396f97273d93e60496d1e\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw2] linux -- Python 3.10.12 /bin/python3.10\n> \n> guard_mode = None\n> \n>     @pytest.mark.parametrize(\"guard_mode\", [\"unknown\", True, None])\n>     def test_guard_mode_rejects_unknown_literal(guard_mode):\n>         function_name = (\n>             \"test_real_repository_scan_matches_known_hits_and_has_positive_control\"\n>         )\n> >       with pytest.raises(ValueError, match=\"invalid growth-test guard mode\"):\n> E       Failed: DID NOT RAISE ValueError\n> \n> orchestrator/tests/test_growth_test_holds_contract.py:1722: Failed\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE rank=3 category=failed when=call nodeid=\"orchestrator/tests/test_growth_test_holds_contract.py::test_guard_mode_rejects_unknown_literal[True]\" nodeid_bytes=100 nodeid_omitted_bytes=0 source_bytes=503 retained_bytes=503 omitted_bytes=0 rendered_excerpt_bytes=530 sha256=3626710001bb44ff100ca96f8f332de48c7636ce08347e683689cc231399c099\n--- IZANAGI FAILURE EXCERPT rank=3 BEGIN ---\n> [gw1] linux -- Python 3.10.12 /bin/python3.10\n> \n> guard_mode = True\n> \n>     @pytest.mark.parametrize(\"guard_mode\", [\"unknown\", True, None])\n>     def test_guard_mode_rejects_unknown_literal(guard_mode):\n>         function_name = (\n>             \"test_real_repository_scan_matches_known_hits_and_has_positive_control\"\n>         )\n> >       with pytest.raises(ValueError, match=\"invalid growth-test guard mode\"):\n> E       Failed: DID NOT RAISE ValueError\n> \n> orchestrator/tests/test_growth_test_holds_contract.py:1722: Failed\n--- IZANAGI FAILURE EXCERPT rank=3 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=3 failed=3 errors=0 selected=3 omitted_failures=0 source_bytes=1514 retained_bytes=1514 omitted_bytes=0 budget_bytes=49152 rendered_bytes=3199 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "06676cc7b8c3b6308b71eb6878bf9178479dbed4ff4e8a57564cefe3ad3b45d1"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "5a62cf17f8aaa7f1256ca8228863b83fb712e6efcee9826fe1f3340e371e61f4",
+      "duration_s": 26.887,
+      "expected_nodes": [
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_guard_mode_rejects_unknown_literal[None]",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_guard_mode_rejects_unknown_literal[True]",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_guard_mode_rejects_unknown_literal[unknown]"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_guard_mode_rejects_unknown_literal[True]",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_guard_mode_rejects_unknown_literal[unknown]",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_guard_mode_rejects_unknown_literal[None]"
+      ],
+      "hang_risk": false,
+      "id": "t1226.m9-no-guard-mode-validation",
+      "injection_diff_sha256": "76d2ae9d68e5a59a70fae5b14e50f270516a1200aa63923a16b1b6b78cba7cbe",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "49df8833631e00a52947efe805eeee8422a7960ad8a5bc4255eff6c57c4c4f65",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/growth_test_holds.py",
+          "new": "    if False:\n",
+          "old": "    if guard_mode not in _GUARD_MODES:\n"
+        }
+      ],
+      "repo_head": "124cd8e83a14e221c919292464f34a6d92079bce",
+      "runner_sha256": "961d48926f898f2deee3fde147bcac1b87a804cfb4a9b3ff7398ace96c42f38a",
+      "spec_sha256": "9e3e36eff22af02c29267de18f0212c07d6db107015af9c1b39f9a29e4b8a029",
+      "status": "KILLED",
+      "test_output_sha256": "06676cc7b8c3b6308b71eb6878bf9178479dbed4ff4e8a57564cefe3ad3b45d1",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "21619a1a63123d4e93d61f4e9239a34b4f33b0e4717d057c1df738dc82699587"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/b2a7e4a0549e1c0b8d366b79036cb06f/izdw-b2a7e4a054.o919968",
+        "receipt_path": "/work/1/SFC/tanab/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/b2a7e4a0549e1c0b8d366b79036cb06f/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n.......................................................F................ [ 96%]\n...                                                                      [100%]\n=================================== FAILURES ===================================\n____________ test_self_load_detection_handles_real_nested_consumers ____________\n[gw27] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_self_load_detection_handles_real_nested_consumers():\n        consumers = {\n            \"test_s8b_floor_campaign.py\": (\n                \"# Shape copied from orchestrator/tests/test_s8b_floor_campaign.py:7896.\\n\"\n                \"import subprocess\\n\"\n                \"import sys\\n\"\n                \"import textwrap\\n\"\n                \"from pathlib import Path\\n\"\n                \"script = textwrap.dedent(f'''\\n\"\n                \"import importlib.util\\n\"\n                \"spec = importlib.util.spec_from_file_location(\\n\"\n                \"    'floor_test_helper', {str(Path(__file__))!r},\\n\"\n                \")\\n\"\n                \"module = importlib.util.module_from_spec(spec)\\n\"\n                \"spec.loader.exec_module(module)\\n\"\n                \"''')\\n\"\n                \"subprocess.run([sys.executable, '-c', script])\\n\"\n            ),\n            \"test_dev_waves_integration.py\": (\n                \"# Shape copied from orchestrator/tests/test_dev_waves_integration.py:2050.\\n\"\n                \"import subprocess\\n\"\n                \"import sys\\n\"\n                \"script = (\\n\"\n                \"    'from orchestrator.tests import test_dev_waves_integration as target;'\\n\"\n                \"    'raise SystemExit(target._serve_child_main())'\\n\"\n                \")\\n\"\n                \"subprocess.Popen([sys.executable, '-c', script])\\n\"\n            ),\n        }\n        for filename, source in consumers.items():\n>           assert _self_load_analysis(ast.parse(source), filename) == (True, ())\nE           assert (False, ()) == (True, ())\nE             \nE             At index 0 diff: False != True\nE             Use -v to get more diff\n\norchestrator/tests/test_growth_test_holds_contract.py:1500: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_growth_test_holds_contract.py::test_self_load_detection_handles_real_nested_consumers\n1 failed, 74 passed in 4.92s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_growth_test_holds_contract.py::test_self_load_detection_handles_real_nested_consumers\" nodeid_bytes=109 nodeid_omitted_bytes=0 source_bytes=1774 retained_bytes=1774 omitted_bytes=0 rendered_excerpt_bytes=1919 sha256=31bf71e66f08c8b5abcde0d8b20deb13541a6a658f98486c08c103365ef51d12\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw27] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_self_load_detection_handles_real_nested_consumers():\n>         consumers = {\n>             \"test_s8b_floor_campaign.py\": (\n>                 \"# Shape copied from orchestrator/tests/test_s8b_floor_campaign.py:7896.\\x5cn\"\n>                 \"import subprocess\\x5cn\"\n>                 \"import sys\\x5cn\"\n>                 \"import textwrap\\x5cn\"\n>                 \"from pathlib import Path\\x5cn\"\n>                 \"script = textwrap.dedent(f'''\\x5cn\"\n>                 \"import importlib.util\\x5cn\"\n>                 \"spec = importlib.util.spec_from_file_location(\\x5cn\"\n>                 \"    'floor_test_helper', {str(Path(__file__))!r},\\x5cn\"\n>                 \")\\x5cn\"\n>                 \"module = importlib.util.module_from_spec(spec)\\x5cn\"\n>                 \"spec.loader.exec_module(module)\\x5cn\"\n>                 \"''')\\x5cn\"\n>                 \"subprocess.run([sys.executable, '-c', script])\\x5cn\"\n>             ),\n>             \"test_dev_waves_integration.py\": (\n>                 \"# Shape copied from orchestrator/tests/test_dev_waves_integration.py:2050.\\x5cn\"\n>                 \"import subprocess\\x5cn\"\n>                 \"import sys\\x5cn\"\n>                 \"script = (\\x5cn\"\n>                 \"    'from orchestrator.tests import test_dev_waves_integration as target;'\\x5cn\"\n>                 \"    'raise SystemExit(target._serve_child_main())'\\x5cn\"\n>                 \")\\x5cn\"\n>                 \"subprocess.Popen([sys.executable, '-c', script])\\x5cn\"\n>             ),\n>         }\n>         for filename, source in consumers.items():\n> >           assert _self_load_analysis(ast.parse(source), filename) == (True, ())\n> E           assert (False, ()) == (True, ())\n> E             \n> E             At index 0 diff: False != True\n> E             Use -v to get more diff\n> \n> orchestrator/tests/test_growth_test_holds_contract.py:1500: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1774 retained_bytes=1774 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2656 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "2853b194678ed25c361877988f24cc544438768ec9f7d3b0358ef84799bd3931"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "5a62cf17f8aaa7f1256ca8228863b83fb712e6efcee9826fe1f3340e371e61f4",
+      "duration_s": 31.962,
+      "expected_nodes": [
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_self_load_detection_handles_real_nested_consumers"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_self_load_detection_handles_real_nested_consumers"
+      ],
+      "hang_risk": false,
+      "id": "t1226.m10-no-package-self-import",
+      "injection_diff_sha256": "f77172c4c7c01fd50416acfd8299282a0dc8bd0cd26e160af26911de832e95b7",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "559e353a130ed5392404a291fa61b43ec38116678d545a93f8fe2fe74b8d9b14",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_growth_test_holds_contract.py",
+          "new": "        if False:\n            self_load = True\n",
+          "old": "        if _nested_imports_self(nested_tree, filename):\n            self_load = True\n"
+        }
+      ],
+      "repo_head": "124cd8e83a14e221c919292464f34a6d92079bce",
+      "runner_sha256": "961d48926f898f2deee3fde147bcac1b87a804cfb4a9b3ff7398ace96c42f38a",
+      "spec_sha256": "9e3e36eff22af02c29267de18f0212c07d6db107015af9c1b39f9a29e4b8a029",
+      "status": "KILLED",
+      "test_output_sha256": "2853b194678ed25c361877988f24cc544438768ec9f7d3b0358ef84799bd3931",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "21619a1a63123d4e93d61f4e9239a34b4f33b0e4717d057c1df738dc82699587"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/51dee2c4b142397d4f4d569b0b58e4eb/izdw-51dee2c4b1.o919969",
+        "receipt_path": "/work/1/SFC/tanab/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/51dee2c4b142397d4f4d569b0b58e4eb/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n.......................................................F................ [ 96%]\n...                                                                      [100%]\n=================================== FAILURES ===================================\n____ test_pytest_driver_detection_fails_closed_without_frame_introspection _____\n[gw3] linux -- Python 3.10.12 /bin/python3.10\n\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x15259cbb1cf0>\n\n    def test_pytest_driver_detection_fails_closed_without_frame_introspection(\n        monkeypatch,\n    ):\n        monkeypatch.setattr(inspect, \"currentframe\", lambda: None)\n>       assert _pytest_drives_current_import() is True\nE       assert False is True\nE        +  where False = _pytest_drives_current_import()\n\norchestrator/tests/test_growth_test_holds_contract.py:1735: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_growth_test_holds_contract.py::test_pytest_driver_detection_fails_closed_without_frame_introspection\n1 failed, 74 passed in 4.97s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_growth_test_holds_contract.py::test_pytest_driver_detection_fails_closed_without_frame_introspection\" nodeid_bytes=124 nodeid_omitted_bytes=0 source_bytes=512 retained_bytes=512 omitted_bytes=0 rendered_excerpt_bytes=539 sha256=a9f5d1b8c2391130b3f8495f4e1a046603295c8b7130e36b4bdd37f999a8743b\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw3] linux -- Python 3.10.12 /bin/python3.10\n> \n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x15259cbb1cf0>\n> \n>     def test_pytest_driver_detection_fails_closed_without_frame_introspection(\n>         monkeypatch,\n>     ):\n>         monkeypatch.setattr(inspect, \"currentframe\", lambda: None)\n> >       assert _pytest_drives_current_import() is True\n> E       assert False is True\n> E        +  where False = _pytest_drives_current_import()\n> \n> orchestrator/tests/test_growth_test_holds_contract.py:1735: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=512 retained_bytes=512 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1286 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "bbef369ca157a9a3aa34cdd21c14b22eaf624b7b55082d4b1da357dbf2c5cbe1"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "5a62cf17f8aaa7f1256ca8228863b83fb712e6efcee9826fe1f3340e371e61f4",
+      "duration_s": 26.898,
+      "expected_nodes": [
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_pytest_driver_detection_fails_closed_without_frame_introspection"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_pytest_driver_detection_fails_closed_without_frame_introspection"
+      ],
+      "hang_risk": false,
+      "id": "t1226.m11-frame-none-fail-open",
+      "injection_diff_sha256": "cf002cec285b5d99b97463c04c27ef54c1bb2e813857179f51e9658ddfcbf06b",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "c0de25a6593779cadc8a2aaf720177d064fd0253083388f9572aebe49e02b64e",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/growth_test_holds.py",
+          "new": "    if frame is None:\n        return False\n",
+          "old": "    if frame is None:\n        return True\n"
+        }
+      ],
+      "repo_head": "124cd8e83a14e221c919292464f34a6d92079bce",
+      "runner_sha256": "961d48926f898f2deee3fde147bcac1b87a804cfb4a9b3ff7398ace96c42f38a",
+      "spec_sha256": "9e3e36eff22af02c29267de18f0212c07d6db107015af9c1b39f9a29e4b8a029",
+      "status": "KILLED",
+      "test_output_sha256": "bbef369ca157a9a3aa34cdd21c14b22eaf624b7b55082d4b1da357dbf2c5cbe1",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "21619a1a63123d4e93d61f4e9239a34b4f33b0e4717d057c1df738dc82699587"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/cd2440f7858a6356975edd3ed1e952b8/izdw-cd2440f785.o919956",
+        "receipt_path": "/work/1/SFC/tanab/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/cd2440f7858a6356975edd3ed1e952b8/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "orchestrator/tests/test_growth_test_holds_contract.py::test_inventory_count_and_key_digest_are_independently_pinned\norchestrator/tests/test_growth_test_holds_contract.py::test_registry_rows_preserve_current_wave_contract\norchestrator/tests/test_growth_test_holds_contract.py::test_schema_negative_controls_are_rejected[test_file.py::test_name-hold0]\norchestrator/tests/test_growth_test_holds_contract.py::test_schema_negative_controls_are_rejected[test_file.py::test_name-hold1]\norchestrator/tests/test_growth_test_holds_contract.py::test_schema_negative_controls_are_rejected[test_file.py:test_name_typo-hold2]\norchestrator/tests/test_growth_test_holds_contract.py::test_schema_negative_controls_are_rejected[test_file.py::test_name-hold3]\norchestrator/tests/test_growth_test_holds_contract.py::test_schema_negative_controls_are_rejected[test_file.py::test_name-hold4]\norchestrator/tests/test_growth_test_holds_contract.py::test_schema_negative_controls_are_rejected[test_file.py::test_name-hold5]\norchestrator/tests/test_growth_test_holds_contract.py::test_schema_negative_controls_are_rejected[test_file.py::test_name-hold6]\norchestrator/tests/test_growth_test_holds_contract.py::test_schema_negative_controls_are_rejected[test_file.py::test_name-hold7]\norchestrator/tests/test_growth_test_holds_contract.py::test_schema_negative_controls_are_rejected[test_file.py::test_name-hold8]\norchestrator/tests/test_growth_test_holds_contract.py::test_schema_negative_controls_are_rejected[test_file.py::test_name-hold9]\norchestrator/tests/test_growth_test_holds_contract.py::test_schema_negative_controls_are_rejected[test_file.py::test_name-hold10]\norchestrator/tests/test_growth_test_holds_contract.py::test_empty_and_duplicate_registries_are_rejected\norchestrator/tests/test_growth_test_holds_contract.py::test_collection_hook_attaches_skip_metadata_and_prints_early_summary\norchestrator/tests/test_growth_test_holds_contract.py::test_collection_hook_opt_in_keeps_real_repo_serialization_without_skip\norchestrator/tests/test_growth_test_holds_contract.py::test_collection_hook_rejects_opt_in_typo\norchestrator/tests/test_growth_test_holds_contract.py::test_complete_collection_rejects_valid_shape_function_typo\norchestrator/tests/test_growth_test_holds_contract.py::test_contract_module_is_not_held\norchestrator/tests/test_growth_test_holds_contract.py::test_inventory_output_is_sorted_exact_and_marks_correctness_gates\norchestrator/tests/test_growth_test_holds_contract.py::test_opt_in_changes_only_suite_identity_not_acceptance_shape\norchestrator/tests/test_growth_test_holds_contract.py::test_every_held_module_has_exact_top_level_guard_binding\norchestrator/tests/test_growth_test_holds_contract.py::test_guard_binding_requires_call_only_exactly_for_canonical_self_load[none]\norchestrator/tests/test_growth_test_holds_contract.py::test_guard_binding_requires_call_only_exactly_for_canonical_self_load[manual]\norchestrator/tests/test_growth_test_holds_contract.py::test_guard_binding_requires_call_only_exactly_for_canonical_self_load[pytest-delegating]\norchestrator/tests/test_growth_test_holds_contract.py::test_call_only_binding_rejects_pre_guard_alias_with_post_guard_control\norchestrator/tests/test_growth_test_holds_contract.py::test_call_only_binding_accepts_actual_deferred_manual_runner_reference\norchestrator/tests/test_growth_test_holds_contract.py::test_self_load_detection_handles_real_nested_consumers\norchestrator/tests/test_growth_test_holds_contract.py::test_self_load_detection_resolves_spec_and_loader_assignment_forms[import importlib.util\\nspec: object = importlib.util.spec_from_file_location('self', __file__)\\nmodule = importlib.util.module_from_spec(spec)\\nspec.loader.exec_module(module)\\n]\norchestrator/tests/test_growth_test_holds_contract.py::test_self_load_detection_resolves_spec_and_loader_assignment_forms[import importlib.util\\nspec = importlib.util.spec_from_file_location('self', __file__)\\nmodule = importlib.util.module_from_spec(spec)\\nloader = spec.loader\\nloader.exec_module(module)\\n]\norchestrator/tests/test_growth_test_holds_contract.py::test_self_load_detection_ignores_shadowed_or_unreachable_loader_names[class runpy:\\n    @staticmethod\\n    def run_path(path):\\n        return path\\nrunpy.run_path(__file__)\\n]\norchestrator/tests/test_growth_test_holds_contract.py::test_self_load_detection_ignores_shadowed_or_unreachable_loader_names[import runpy\\nif False:\\n    runpy.run_path(__file__)\\n]\norchestrator/tests/test_growth_test_holds_contract.py::test_self_load_detection_pairs_each_loader_with_foreign_control[import runpy\\nrunpy.run_path(__file__)\\n-import runpy\\nrunpy.run_path('tools/check_docs.py')\\n]\norchestrator/tests/test_growth_test_holds_contract.py::test_self_load_detection_pairs_each_loader_with_foreign_control[from runpy import run_module as load\\nload('orchestrator.tests.test_s8b_repo_scan_invariant')\\n-from runpy import run_module as load\\nload('tools.check_docs')\\n]\norchestrator/tests/test_growth_test_holds_contract.py::test_self_load_detection_pairs_each_loader_with_foreign_control[exec(open(__file__).read())\\n-exec(open('tools/check_docs.py').read())\\n]\norchestrator/tests/test_growth_test_holds_contract.py::test_self_load_detection_resolves_function_local_imports[def consumer():\\n    import runpy\\n    runpy.run_path(__file__)\\n]\norchestrator/tests/test_growth_test_holds_contract.py::test_self_load_detection_resolves_function_local_imports[def consumer():\\n    from runpy import run_path as load\\n    load(__file__)\\n]\norchestrator/tests/test_growth_test_holds_contract.py::test_self_load_detection_compares_full_path_not_only_basename\norchestrator/tests/test_growth_test_holds_contract.py::test_self_load_detection_fails_closed_for_unresolved_loader_path\norchestrator/tests/test_growth_test_holds_contract.py::test_self_load_detection_fails_closed_for_unresolved_exec_module_binding\norchestrator/tests/test_growth_test_holds_contract.py::test_nested_loader_resolution_has_positive_and_unrelated_negative_controls\norchestrator/tests/test_growth_test_holds_contract.py::test_guard_binding_negative_control_detects_removed_call\norchestrator/tests/test_growth_test_holds_contract.py::test_plain_runner_ast_rejects_nonterminal_or_indirect_pytest_calls[    if False:\\n        pytest.main([__file__])\\n    sys.exit(_run())\\n]\norchestrator/tests/test_growth_test_holds_contract.py::test_plain_runner_ast_rejects_nonterminal_or_indirect_pytest_calls[    def delegate():\\n        return pytest.main([__file__])\\n    sys.exit(_run())\\n]\norchestrator/tests/test_growth_test_holds_contract.py::test_plain_runner_ast_rejects_nonterminal_or_indirect_pytest_calls[    sys.exit(getattr(pytest, 'main')([__file__]))\\n]\norchestrator/tests/test_growth_test_holds_contract.py::test_plain_runner_ast_rejects_nonterminal_or_indirect_pytest_calls[    sys.exit(pytest_entry([__file__]))\\n]\norchestrator/tests/test_growth_test_holds_contract.py::test_all_registered_nodes_are_call_time_wrapped\norchestrator/tests/test_growth_test_holds_contract.py::test_enforcement_signature_pins_independent_guard_mode_default\norchestrator/tests/test_growth_test_holds_contract.py::test_guard_mode_rejects_unknown_literal[unknown]\norchestrator/tests/test_growth_test_holds_contract.py::test_guard_mode_rejects_unknown_literal[True]\norchestrator/tests/test_growth_test_holds_contract.py::test_guard_mode_rejects_unknown_literal[None]\norchestrator/tests/test_growth_test_holds_contract.py::test_pytest_driver_detection_fails_closed_without_frame_introspection\norchestrator/tests/test_growth_test_holds_contract.py::test_enforcement_rejects_misplacement_and_missing_functions\norchestrator/tests/test_growth_test_holds_contract.py::test_refusal_diagnostic_is_canonical_ascii_json\norchestrator/tests/test_growth_test_holds_contract.py::test_exact_token_is_the_only_release_for_lightweight_body\norchestrator/tests/test_growth_test_holds_contract.py::test_opt_in_runs_held_fixture_and_parametrize_shape\norchestrator/tests/test_growth_test_holds_contract.py::test_call_only_mode_allows_import_but_refuses_held_call\norchestrator/tests/test_growth_test_holds_contract.py::test_call_only_mode_allows_package_import_but_refuses_held_call\norchestrator/tests/test_growth_test_holds_contract.py::test_call_only_mode_still_rejects_noconftest_pytest_import\norchestrator/tests/test_growth_test_holds_contract.py::test_call_only_mode_still_rejects_confcutdir_pytest_import\norchestrator/tests/test_growth_test_holds_contract.py::test_call_only_mode_still_rejects_non_delegating_main\norchestrator/tests/test_growth_test_holds_contract.py::test_noconftest_bypass_is_refused_before_held_body\norchestrator/tests/test_growth_test_holds_contract.py::test_import_guard_rejects_nonempty_nonexact_release_token[explicit-typo]\norchestrator/tests/test_growth_test_holds_contract.py::test_import_guard_rejects_nonempty_nonexact_release_token[explicit-user-command-extra]\norchestrator/tests/test_growth_test_holds_contract.py::test_plain_runner_bypass_is_refused_before_held_body\norchestrator/tests/test_growth_test_holds_contract.py::test_imported_conftest_does_not_enable_runpy_bypass\norchestrator/tests/test_growth_test_holds_contract.py::test_direct_import_and_call_bypass_is_refused\norchestrator/tests/test_growth_test_holds_contract.py::test_regular_pytest_path_keeps_single_hold_skip\norchestrator/tests/test_growth_test_holds_contract.py::test_plain_pytest_delegating_runner_is_not_over_rejected\norchestrator/tests/test_hold_inventory.py::test_inventory_projects_exact_registered_source_sets\norchestrator/tests/test_hold_inventory.py::test_main_dispatches_human_and_json\norchestrator/tests/test_hold_inventory.py::test_effective_status_tracks_exact_test_opt_in\norchestrator/tests/test_hold_inventory.py::test_effective_status_matches_suite_conftest_decision\norchestrator/tests/test_hold_inventory.py::test_script_and_module_entrypoints_match_without_pythonpath\norchestrator/tests/test_hold_inventory.py::test_output_does_not_claim_unknown_layer_completeness\n\n75 tests collected in 0.54s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"serial\"}\n",
+        "stdout_sha256": "564547d7cee993c45d1c3400e08efc4aa60af2706c1109aa30f679938874e44c"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_inventory_count_and_key_digest_are_independently_pinned",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_registry_rows_preserve_current_wave_contract",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_schema_negative_controls_are_rejected[test_file.py::test_name-hold0]",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_schema_negative_controls_are_rejected[test_file.py::test_name-hold1]",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_schema_negative_controls_are_rejected[test_file.py:test_name_typo-hold2]",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_schema_negative_controls_are_rejected[test_file.py::test_name-hold3]",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_schema_negative_controls_are_rejected[test_file.py::test_name-hold4]",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_schema_negative_controls_are_rejected[test_file.py::test_name-hold5]",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_schema_negative_controls_are_rejected[test_file.py::test_name-hold6]",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_schema_negative_controls_are_rejected[test_file.py::test_name-hold7]",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_schema_negative_controls_are_rejected[test_file.py::test_name-hold8]",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_schema_negative_controls_are_rejected[test_file.py::test_name-hold9]",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_schema_negative_controls_are_rejected[test_file.py::test_name-hold10]",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_empty_and_duplicate_registries_are_rejected",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_collection_hook_attaches_skip_metadata_and_prints_early_summary",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_collection_hook_opt_in_keeps_real_repo_serialization_without_skip",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_collection_hook_rejects_opt_in_typo",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_complete_collection_rejects_valid_shape_function_typo",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_contract_module_is_not_held",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_inventory_output_is_sorted_exact_and_marks_correctness_gates",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_opt_in_changes_only_suite_identity_not_acceptance_shape",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_every_held_module_has_exact_top_level_guard_binding",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_guard_binding_requires_call_only_exactly_for_canonical_self_load[none]",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_guard_binding_requires_call_only_exactly_for_canonical_self_load[manual]",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_guard_binding_requires_call_only_exactly_for_canonical_self_load[pytest-delegating]",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_call_only_binding_rejects_pre_guard_alias_with_post_guard_control",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_call_only_binding_accepts_actual_deferred_manual_runner_reference",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_self_load_detection_handles_real_nested_consumers",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_self_load_detection_resolves_spec_and_loader_assignment_forms[import importlib.util/nspec: object = importlib.util.spec_from_file_location('self', __file__)/nmodule = importlib.util.module_from_spec(spec)/nspec.loader.exec_module(module)/n]",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_self_load_detection_resolves_spec_and_loader_assignment_forms[import importlib.util/nspec = importlib.util.spec_from_file_location('self', __file__)/nmodule = importlib.util.module_from_spec(spec)/nloader = spec.loader/nloader.exec_module(module)/n]",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_self_load_detection_ignores_shadowed_or_unreachable_loader_names[class runpy:/n    @staticmethod/n    def run_path(path):/n        return path/nrunpy.run_path(__file__)/n]",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_self_load_detection_ignores_shadowed_or_unreachable_loader_names[import runpy/nif False:/n    runpy.run_path(__file__)/n]",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_self_load_detection_pairs_each_loader_with_foreign_control[import runpy/nrunpy.run_path(__file__)/n-import runpy/nrunpy.run_path('tools/check_docs.py')/n]",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_self_load_detection_pairs_each_loader_with_foreign_control[from runpy import run_module as load/nload('orchestrator.tests.test_s8b_repo_scan_invariant')/n-from runpy import run_module as load/nload('tools.check_docs')/n]",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_self_load_detection_pairs_each_loader_with_foreign_control[exec(open(__file__).read())/n-exec(open('tools/check_docs.py').read())/n]",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_self_load_detection_resolves_function_local_imports[def consumer():/n    import runpy/n    runpy.run_path(__file__)/n]",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_self_load_detection_resolves_function_local_imports[def consumer():/n    from runpy import run_path as load/n    load(__file__)/n]",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_self_load_detection_compares_full_path_not_only_basename",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_self_load_detection_fails_closed_for_unresolved_loader_path",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_self_load_detection_fails_closed_for_unresolved_exec_module_binding",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_nested_loader_resolution_has_positive_and_unrelated_negative_controls",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_guard_binding_negative_control_detects_removed_call",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_plain_runner_ast_rejects_nonterminal_or_indirect_pytest_calls[    if False:/n        pytest.main([__file__])/n    sys.exit(_run())/n]",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_plain_runner_ast_rejects_nonterminal_or_indirect_pytest_calls[    def delegate():/n        return pytest.main([__file__])/n    sys.exit(_run())/n]",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_plain_runner_ast_rejects_nonterminal_or_indirect_pytest_calls[    sys.exit(getattr(pytest, 'main')([__file__]))/n]",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_plain_runner_ast_rejects_nonterminal_or_indirect_pytest_calls[    sys.exit(pytest_entry([__file__]))/n]",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_all_registered_nodes_are_call_time_wrapped",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_enforcement_signature_pins_independent_guard_mode_default",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_guard_mode_rejects_unknown_literal[unknown]",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_guard_mode_rejects_unknown_literal[True]",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_guard_mode_rejects_unknown_literal[None]",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_pytest_driver_detection_fails_closed_without_frame_introspection",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_enforcement_rejects_misplacement_and_missing_functions",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_refusal_diagnostic_is_canonical_ascii_json",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_exact_token_is_the_only_release_for_lightweight_body",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_opt_in_runs_held_fixture_and_parametrize_shape",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_call_only_mode_allows_import_but_refuses_held_call",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_call_only_mode_allows_package_import_but_refuses_held_call",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_call_only_mode_still_rejects_noconftest_pytest_import",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_call_only_mode_still_rejects_confcutdir_pytest_import",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_call_only_mode_still_rejects_non_delegating_main",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_noconftest_bypass_is_refused_before_held_body",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_import_guard_rejects_nonempty_nonexact_release_token[explicit-typo]",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_import_guard_rejects_nonempty_nonexact_release_token[explicit-user-command-extra]",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_plain_runner_bypass_is_refused_before_held_body",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_imported_conftest_does_not_enable_runpy_bypass",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_direct_import_and_call_bypass_is_refused",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_regular_pytest_path_keeps_single_hold_skip",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_plain_pytest_delegating_runner_is_not_over_rejected",
+        "orchestrator/tests/test_hold_inventory.py::test_inventory_projects_exact_registered_source_sets",
+        "orchestrator/tests/test_hold_inventory.py::test_main_dispatches_human_and_json",
+        "orchestrator/tests/test_hold_inventory.py::test_effective_status_tracks_exact_test_opt_in",
+        "orchestrator/tests/test_hold_inventory.py::test_effective_status_matches_suite_conftest_decision",
+        "orchestrator/tests/test_hold_inventory.py::test_script_and_module_entrypoints_match_without_pythonpath",
+        "orchestrator/tests/test_hold_inventory.py::test_output_does_not_claim_unknown_layer_completeness"
+      ],
+      "duration_s": 26.808,
+      "rc": 0,
+      "repo_head": "124cd8e83a14e221c919292464f34a6d92079bce",
+      "runner_sha256": "961d48926f898f2deee3fde147bcac1b87a804cfb4a9b3ff7398ace96c42f38a",
+      "spec_sha256": "9e3e36eff22af02c29267de18f0212c07d6db107015af9c1b39f9a29e4b8a029",
+      "status": "PASSED",
+      "tool_sha256": "21619a1a63123d4e93d61f4e9239a34b4f33b0e4717d057c1df738dc82699587"
+    },
+    "hang_timeout_seconds": 1200.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "t1226.m1-default-call-only": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_growth_test_holds_contract.py::test_enforcement_signature_pins_independent_guard_mode_default",
+          "orchestrator/tests/test_growth_test_holds_contract.py::test_import_guard_rejects_nonempty_nonexact_release_token[explicit-typo]",
+          "orchestrator/tests/test_growth_test_holds_contract.py::test_import_guard_rejects_nonempty_nonexact_release_token[explicit-user-command-extra]"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "9d8041fff9216d60ad35da0db3ff479baada4e32af5c0b17747ba8064ac28110",
+        "replacements": [
+          {
+            "file": "orchestrator/tests/growth_test_holds.py",
+            "new": "    guard_mode: GuardMode = \"call-only\",\n",
+            "old": "    guard_mode: GuardMode = \"import-and-call\",\n"
+          }
+        ]
+      },
+      "t1226.m10-no-package-self-import": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_growth_test_holds_contract.py::test_self_load_detection_handles_real_nested_consumers"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "f77172c4c7c01fd50416acfd8299282a0dc8bd0cd26e160af26911de832e95b7",
+        "replacements": [
+          {
+            "file": "orchestrator/tests/test_growth_test_holds_contract.py",
+            "new": "        if False:\n            self_load = True\n",
+            "old": "        if _nested_imports_self(nested_tree, filename):\n            self_load = True\n"
+          }
+        ]
+      },
+      "t1226.m11-frame-none-fail-open": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_growth_test_holds_contract.py::test_pytest_driver_detection_fails_closed_without_frame_introspection"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "cf002cec285b5d99b97463c04c27ef54c1bb2e813857179f51e9658ddfcbf06b",
+        "replacements": [
+          {
+            "file": "orchestrator/tests/growth_test_holds.py",
+            "new": "    if frame is None:\n        return False\n",
+            "old": "    if frame is None:\n        return True\n"
+          }
+        ]
+      },
+      "t1226.m2-return-before-wrap": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_growth_test_holds_contract.py::test_call_only_mode_allows_import_but_refuses_held_call",
+          "orchestrator/tests/test_growth_test_holds_contract.py::test_call_only_mode_allows_package_import_but_refuses_held_call",
+          "orchestrator/tests/test_growth_test_holds_contract.py::test_call_only_mode_still_rejects_confcutdir_pytest_import",
+          "orchestrator/tests/test_growth_test_holds_contract.py::test_call_only_mode_still_rejects_noconftest_pytest_import",
+          "orchestrator/tests/test_growth_test_holds_contract.py::test_call_only_mode_still_rejects_non_delegating_main"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "a4a56d683336942eb8ee4bf050991c09d67f41b0b03b2da1338b3d9da7c79c43",
+        "replacements": [
+          {
+            "file": "orchestrator/tests/growth_test_holds.py",
+            "new": "    if guard_mode == \"call-only\":\n        return ()\n    filename = os.path.basename(os.fspath(module_file))\n",
+            "old": "    filename = os.path.basename(os.fspath(module_file))\n"
+          }
+        ]
+      },
+      "t1226.m3-no-pytest-driver-refusal": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_growth_test_holds_contract.py::test_call_only_mode_still_rejects_confcutdir_pytest_import",
+          "orchestrator/tests/test_growth_test_holds_contract.py::test_call_only_mode_still_rejects_noconftest_pytest_import"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "ee9068ccc9e20c4b2e3cc7417d440088743efdd1a11f382ea576db97096c7dfb",
+        "replacements": [
+          {
+            "file": "orchestrator/tests/growth_test_holds.py",
+            "new": "        if False:\n",
+            "old": "        if _pytest_drives_current_import():\n"
+          }
+        ]
+      },
+      "t1226.m4-no-nondelegating-main-refusal": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_growth_test_holds_contract.py::test_call_only_mode_still_rejects_non_delegating_main"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "7c92c475bd1000ced17dfafc7dd00c7f9c8b52c6f592b913c7f2ed11b1f038f2",
+        "replacements": [
+          {
+            "file": "orchestrator/tests/growth_test_holds.py",
+            "new": "        if False:\n",
+            "old": "        if (\n            namespace.get(\"__name__\") == \"__main__\"\n            and plain_runner != \"pytest-delegating\"\n        ):\n"
+          }
+        ]
+      },
+      "t1226.m5-no-nested-two-stage-parse": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_growth_test_holds_contract.py::test_self_load_detection_handles_real_nested_consumers"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "f771f000996904d9de046f7493f77dc681aa4c2d3a01629fc2cce75893efdb62",
+        "replacements": [
+          {
+            "file": "orchestrator/tests/test_growth_test_holds_contract.py",
+            "new": "        nested_self, nested_errors = False, ()\n",
+            "old": "        nested_self, nested_errors = _self_load_analysis(\n            nested_tree, filename, inspect_subprocess=False,\n        )\n"
+          }
+        ]
+      },
+      "t1226.m6-path-identity-always-self": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_growth_test_holds_contract.py::test_every_held_module_has_exact_top_level_guard_binding",
+          "orchestrator/tests/test_growth_test_holds_contract.py::test_guard_binding_requires_call_only_exactly_for_canonical_self_load[manual]",
+          "orchestrator/tests/test_growth_test_holds_contract.py::test_guard_binding_requires_call_only_exactly_for_canonical_self_load[none]",
+          "orchestrator/tests/test_growth_test_holds_contract.py::test_guard_binding_requires_call_only_exactly_for_canonical_self_load[pytest-delegating]",
+          "orchestrator/tests/test_growth_test_holds_contract.py::test_self_load_detection_compares_full_path_not_only_basename",
+          "orchestrator/tests/test_growth_test_holds_contract.py::test_self_load_detection_pairs_each_loader_with_foreign_control[exec(open(__file__).read())/n-exec(open('tools/check_docs.py').read())/n]",
+          "orchestrator/tests/test_growth_test_holds_contract.py::test_self_load_detection_pairs_each_loader_with_foreign_control[import runpy/nrunpy.run_path(__file__)/n-import runpy/nrunpy.run_path('tools/check_docs.py')/n]"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "e7ecbf43495044c1aa1ce55f7323ea1cfaadd2c06f80faa9231908ca85f59752",
+        "replacements": [
+          {
+            "file": "orchestrator/tests/test_growth_test_holds_contract.py",
+            "new": "        return \"self\"\n",
+            "old": "        return \"self\" if path == _canonical_test_path(filename) else \"foreign\"\n"
+          }
+        ]
+      },
+      "t1226.m7-keyword-exactness-loose": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_growth_test_holds_contract.py::test_guard_binding_requires_call_only_exactly_for_canonical_self_load[manual]",
+          "orchestrator/tests/test_growth_test_holds_contract.py::test_guard_binding_requires_call_only_exactly_for_canonical_self_load[none]",
+          "orchestrator/tests/test_growth_test_holds_contract.py::test_guard_binding_requires_call_only_exactly_for_canonical_self_load[pytest-delegating]"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "16310e2e9eec92441044b0ab3be80f16c71b64d6fbcb1b7413071bfbe7a418f1",
+        "replacements": [
+          {
+            "file": "orchestrator/tests/test_growth_test_holds_contract.py",
+            "new": "        and set(keyword_names) <= {\"plain_runner\", \"guard_mode\"}\n",
+            "old": "        and keyword_names == expected_keywords\n"
+          }
+        ]
+      },
+      "t1226.m8-preguard-alias-blind": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_growth_test_holds_contract.py::test_call_only_binding_rejects_pre_guard_alias_with_post_guard_control"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "dc3188db86e70cb55cd3fb146442c138bb23c55a78108a26025ea9d4271e9131",
+        "replacements": [
+          {
+            "file": "orchestrator/tests/test_growth_test_holds_contract.py",
+            "new": "    def visit_Name(self, node: ast.Name) -> None:\n        if False:\n            self.found = True\n",
+            "old": "    def visit_Name(self, node: ast.Name) -> None:\n        if isinstance(node.ctx, ast.Load) and node.id in self.held_names:\n            self.found = True\n"
+          }
+        ]
+      },
+      "t1226.m9-no-guard-mode-validation": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_growth_test_holds_contract.py::test_guard_mode_rejects_unknown_literal[None]",
+          "orchestrator/tests/test_growth_test_holds_contract.py::test_guard_mode_rejects_unknown_literal[True]",
+          "orchestrator/tests/test_growth_test_holds_contract.py::test_guard_mode_rejects_unknown_literal[unknown]"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "76d2ae9d68e5a59a70fae5b14e50f270516a1200aa63923a16b1b6b78cba7cbe",
+        "replacements": [
+          {
+            "file": "orchestrator/tests/growth_test_holds.py",
+            "new": "    if False:\n",
+            "old": "    if guard_mode not in _GUARD_MODES:\n"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "fdb272496b25ee63930c6f13061d759c2dc12a2a7000795a477b5058f7f50a78",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "dispatch",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "/usr/bin/python3",
+      "tools/run_tests.py",
+      "orchestrator/tests/test_growth_test_holds_contract.py",
+      "orchestrator/tests/test_hold_inventory.py",
+      "--force-dispatch",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 900.0
+  },
+  "repo_head": "124cd8e83a14e221c919292464f34a6d92079bce",
+  "runner_identity": {
+    "command": [
+      "/usr/bin/python3",
+      "tools/run_tests.py",
+      "orchestrator/tests/test_growth_test_holds_contract.py",
+      "orchestrator/tests/test_hold_inventory.py",
+      "--force-dispatch",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": "/work/1/SFC/tanab/mutation-scratch/.izanagi-mutation-worktree/repo/tools/pegasus/dispatch_compute.py",
+    "dispatch_entrypoint_sha256": "c2de5f0edfac383e4d35555ffa377d8df9aebd59cc981650716eac0d5e2a70df",
+    "dispatch_head_blob_sha256": "c2de5f0edfac383e4d35555ffa377d8df9aebd59cc981650716eac0d5e2a70df",
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/mutation-scratch/.izanagi-mutation-worktree/repo/tools/run_tests.py",
+    "entrypoint_sha256": "7d892e4a670ef336cba605ef633c214a3318b7bd29825d1121e7baa18816350d",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+    "head_blob_sha256": "7d892e4a670ef336cba605ef633c214a3318b7bd29825d1121e7baa18816350d",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "a4bc6e9b2862bbf45afdb25a65d387c476d3d585",
+    "runner_mode": "dispatch"
+  },
+  "runner_sha256": "961d48926f898f2deee3fde147bcac1b87a804cfb4a9b3ff7398ace96c42f38a",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "9e3e36eff22af02c29267de18f0212c07d6db107015af9c1b39f9a29e4b8a029",
+  "summary": {
+    "KILLED": 11,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 0,
+    "TIMEOUT": 0,
+    "completed": 11,
+    "matching": 11,
+    "recorded": 11,
+    "registered": 11
+  },
+  "tool_identity": {
+    "head_blob_sha256": "7db30225af4a2f797245dfad848e0184af1c7ae7de3b37cfb56f53b35441336b",
+    "path": "/work/1/SFC/tanab/mutation-scratch/.izanagi-mutation-worktree/repo/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "7db30225af4a2f797245dfad848e0184af1c7ae7de3b37cfb56f53b35441336b"
+  },
+  "tool_sha256": "21619a1a63123d4e93d61f4e9239a34b4f33b0e4717d057c1df738dc82699587",
+  "updated_at": "2026-08-17T16:00:56.449462+00:00"
+}

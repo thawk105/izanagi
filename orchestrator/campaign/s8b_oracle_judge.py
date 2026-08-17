@@ -318,8 +318,10 @@ def judge_oracle(
     """holdout ごとの oracle verdict を返す純関数。
 
     集約は各 trial の bench rep 中央値を構成ごとにさらに中央値へ畳む
-    median of medians とする。この集約規則はまだ再凍結されておらず、実測開始前に
-    明示的な再凍結が必要である。floor は入力にも argmax の tie-break にも使わない。
+    median of medians とする。eligible な構成の median_of_medians の最大値との
+    完全一致で tie を決める。これらの規則は docs/decisions.md の
+    「8b oracle の比較規則を明示的に再凍結する」で明示的に再凍結済みである。
+    floor は入力にも argmax の tie-break にも使わない。
     """
     if type(observations) is not _artifacts.OfficialObservations:
         raise _artifacts.OracleArtifactTypeError(
