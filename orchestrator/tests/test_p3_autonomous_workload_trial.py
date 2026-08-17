@@ -440,6 +440,7 @@ def _assert_workload_campaign_uses_site_contract(
 
     def prepare_campaign_identity(
         *, workload, trial_id, generations, site, contract, build_context,
+        arm_execution=None,
     ):
         prepared = prepare(
             workload=workload,
@@ -448,6 +449,7 @@ def _assert_workload_campaign_uses_site_contract(
             site=site,
             contract=contract,
             build_context=build_context,
+            arm_execution=arm_execution,
         )
         observed["site"] = site
         observed["contract"] = contract
@@ -5173,6 +5175,78 @@ def test_projected_provider_rejects_server_tool_use(tmp_path) -> None:
         provider.invoke(invocation_id="ycsb-a.g1.auditor", payload={"x": 1})
 
 
+def test_t1311_provider_payload_and_envelope_are_bound_to_arm_digest(
+    tmp_path,
+) -> None:
+    digest = "a" * 64
+    invocation_id = A._invocation_id(
+        arm="on",
+        digest=digest,
+        workload="rr80",
+        generation=1,
+        role="auditor",
+    )
+    envelope = _envelope()
+    envelope["result"] = json.dumps({
+        "verdict": "pass",
+        "diff_digest": "b" * 64,
+        "violations": [],
+        "nits": [],
+        "proposed_tests": [],
+        "uncertainty": "",
+    }, separators=(",", ":"))
+    provider = ClaudeProjectedRoleProvider(
+        artifact_root=tmp_path / "provider",
+        role_file=_role_file(tmp_path / "role.md"),
+        role_name="fixture-auditor",
+        mediated_contract="Return one JSON object only.",
+        repository_root=Path(__file__).resolve().parents[2],
+        executable=_executable(tmp_path),
+        runner=_Runner(envelope),
+        environ={"HOME": "/fixture/home"},
+    )
+    payload = {
+        "descriptor_binding": {
+            "output_sha256": "c" * 64,
+            "arm_binding_digest_sha256": digest,
+        },
+        "working_diff": "fixture diff",
+        "diff_digest": "b" * 64,
+    }
+    raw_root = tmp_path / "raw"
+    raw_root.mkdir()
+    journal = A.AttemptJournal(tmp_path / "attempts.jsonl")
+    try:
+        parsed, event = A._invoke(
+            role="auditor",
+            provider=provider,
+            invocation_id=invocation_id,
+            payload=payload,
+            raw_root=raw_root,
+            journal=journal,
+            workload="rr80",
+            generation=1,
+        )
+    finally:
+        provider.close()
+    assert parsed is not None
+    payload_path = Path(event["provider_artifacts"]["payload_path"])
+    envelope_path = Path(event["provider_artifacts"]["envelope_path"])
+    assert event["arm_binding_digest_sha256"] == digest
+    assert event["provider_artifacts"]["arm_binding_digest_sha256"] == digest
+    assert digest in payload_path.name
+    assert digest in envelope_path.name
+    assert json.loads(payload_path.read_text("utf-8"))[
+        "descriptor_binding"
+    ]["arm_binding_digest_sha256"] == digest
+    assert hashlib.sha256(payload_path.read_bytes()).hexdigest() == (
+        event["provider_payload_sha256"]
+    )
+    assert hashlib.sha256(envelope_path.read_bytes()).hexdigest() == (
+        event["provider_envelope_sha256"]
+    )
+
+
 # T-325 supervisor/registry integration.  These fixtures deliberately extend
 # the supervisor's closed workload set so the new registry gate, rather than
 # the pre-existing unknown-workload gate, is the reason under test.
@@ -5202,6 +5276,16 @@ def t325_registered_trial(tmp_path, monkeypatch):
     _t325_git(repo, "add", "anchor.txt")
     _t325_git(repo, "commit", "-m", "prereg anchor")
     prereg_commit = _t325_git(repo, "rev-parse", "HEAD")
+    A.s8c_arm_inputs.generate_off_neutral_artifacts(repository_root=repo)
+    _t325_git(
+        repo,
+        "add",
+        "--",
+        A.s8c_arm_inputs.OFF_DESCRIPTOR_RELATIVE_PATH.as_posix(),
+        A.s8c_arm_inputs.OFF_FREEZE_RELATIVE_PATH.as_posix(),
+    )
+    _t325_git(repo, "commit", "-m", "add arm input authority")
+    arm_input_commit = _t325_git(repo, "rev-parse", "HEAD")
 
     monkeypatch.setattr(A, "ROOT", repo)
     monkeypatch.setitem(A.WORKLOADS, "rr80", {
@@ -5219,13 +5303,20 @@ def t325_registered_trial(tmp_path, monkeypatch):
     for holdout, workload in (("H1", "rr80"), ("H2", "rr20")):
         for arm in ("on", "off", "swapped"):
             trial_id = f"t325-{holdout.lower()}-{arm}"
-            prepared = A._prepare_campaign_identity(
+            resolved = A.s8c_arm_inputs.resolve_arm_input(
+                arm=arm,
+                holdout=holdout,
+                repository_root=repo,
+                commit=arm_input_commit,
+            )
+            prepared = A._prepare_manifest_campaign_identity(
                 workload=workload,
                 trial_id=trial_id,
                 generations=2,
                 site=A.trigger.site_policy.OTHER,
                 contract=_T530_CONTRACT,
                 build_context=_no_build_context(),
+                resolved_arm_input=resolved,
             )
             trials.append({
                 "trial_id": trial_id,
@@ -5398,6 +5489,10 @@ def test_manifest_identity_preflight_does_not_consume_coder_authority(
         generator_id=A.GeneratorId.S8A_TRIGGER_SWEEP,
         coder_authority=authority,
     )
+    arm_execution = A.trial_registry.bind_trial_arm(
+        admission.binding,
+        repository_root=t325_registered_trial.repo,
+    )
     prepared = A._prepare_campaign_identity(
         workload="rr80",
         trial_id=t325_registered_trial.trial_id,
@@ -5405,12 +5500,140 @@ def test_manifest_identity_preflight_does_not_consume_coder_authority(
         site=A.trigger.site_policy.OTHER,
         contract=_T530_CONTRACT,
         build_context=context,
+        arm_execution=arm_execution,
     )
     assert prepared.campaign_id == admission.binding.campaign_id
     with pytest.raises(A.BuildAdmissionError, match="既に使用済み"):
         A.build_run_context(
             generator_id=A.GeneratorId.S8A_TRIGGER_SWEEP,
             coder_authority=authority,
+        )
+
+
+def test_t1311_registered_identity_consumes_issued_arm_bytes(
+    t325_registered_trial,
+) -> None:
+    arm_execution = A.trial_registry.bind_trial_arm(
+        t325_registered_trial.binding,
+        repository_root=t325_registered_trial.repo,
+    )
+    prepared = A._prepare_campaign_identity(
+        workload="rr80",
+        trial_id=t325_registered_trial.trial_id,
+        generations=2,
+        site=A.trigger.site_policy.OTHER,
+        contract=_T530_CONTRACT,
+        build_context=_no_build_context(),
+        arm_execution=arm_execution,
+    )
+    record = A.trial_registry.arm_execution_record(arm_execution)
+    assert set(record) == {
+        "input_schema_version",
+        "content_digest_sha256",
+        "arm_binding_digest_sha256",
+    }
+    assert "arm" not in record
+    assert prepared.descriptor == json.loads(
+        arm_execution.canonical_input_bytes.decode("utf-8")
+    )
+    assert prepared.descriptor_record["output_sha256"] == (
+        record["content_digest_sha256"]
+    )
+    assert prepared.descriptor_record["arm_binding_digest_sha256"] == (
+        record["arm_binding_digest_sha256"]
+    )
+    assert prepared.campaign.search_config["arm_binding_digest_sha256"] == (
+        record["arm_binding_digest_sha256"]
+    )
+    assert prepared.campaign.search_config["ycsb"] == A.WORKLOADS["rr80"]
+    assert prepared.campaign_id == t325_registered_trial.binding.campaign_id
+
+
+def test_t1311_invocation_id_enforces_provider_limit() -> None:
+    digest = "a" * 64
+    invocation_id = A._invocation_id(
+        arm="swapped",
+        digest=digest,
+        workload="rr80",
+        generation=2,
+        role="auditor",
+    )
+    assert invocation_id == (
+        f"arm-swapped.exec-{digest}.rr80.g2.auditor"
+    )
+    assert len(invocation_id) <= 128
+    with pytest.raises(A.AutonomousTrialError, match="provider 制約外"):
+        A._invocation_id(
+            arm="swapped",
+            digest=digest,
+            workload="w" * 60,
+            generation=2,
+            role="auditor",
+        )
+
+
+def test_t1311_registered_workload_binds_proposal_and_all_invocations(
+    tmp_path, t325_registered_trial,
+) -> None:
+    admission = t325_registered_trial.admission
+    arm_execution = A.trial_registry.bind_trial_arm(
+        admission.binding,
+        repository_root=t325_registered_trial.repo,
+    )
+    run_root = tmp_path / "registered-workload"
+    run_root.mkdir()
+    (run_root / "raw").mkdir()
+    (run_root / "proposals").mkdir()
+    journal = A.AttemptJournal(run_root / "attempts.jsonl")
+    scope = A._RunScopeBinding(
+        admission,
+        A._RUN_SCOPE_SEAL,
+        None,
+        arm_execution,
+    )
+    token = A._ACTIVE_TRIAL_BINDING.set(scope)
+    try:
+        cell = A._run_workload(
+            workload="rr80",
+            generations=2,
+            providers={
+                role: A.FixtureRoleProvider(role) for role in A.ROLE_FILES
+            },
+            journal=journal,
+            run_root=run_root,
+            sub="/unused",
+            do_build=False,
+            cache_root="",
+            trial_id=t325_registered_trial.trial_id,
+            started_monotonic=time.monotonic(),
+            max_wall_s=3600,
+            drive=_fake_drive,
+            preview=_fake_preview,
+            build_context=_no_build_context(),
+            gating_spec_snapshot=A.snapshot_gating_spec(A.GATING_SPEC),
+        )
+    finally:
+        A._ACTIVE_TRIAL_BINDING.reset(token)
+    digest = arm_execution.arm_binding_digest_sha256
+    assert cell["descriptor_binding"]["arm_binding_digest_sha256"] == digest
+    assert cell["workload_flags"] == A.WORKLOADS["rr80"]
+    for generation in cell["generations"]:
+        for role, event in generation["roles"].items():
+            assert event["invocation_id"] == A._invocation_id(
+                arm="on",
+                digest=digest,
+                workload="rr80",
+                generation=generation["generation"],
+                role=role,
+            )
+            assert event["arm_binding_digest_sha256"] == digest
+        proposal = generation["proposal"]
+        assert set(proposal) == {"path", "sha256", "digest"}
+        assert proposal["digest"] == digest
+        proposal_value = json.loads(Path(proposal["path"]).read_text("utf-8"))
+        assert proposal_value["arm_binding_digest_sha256"] == digest
+        assert hashlib.sha256(Path(proposal["path"]).read_bytes()).hexdigest() == (
+            proposal["sha256"]
         )
 
 
@@ -5425,6 +5648,16 @@ def test_p8_m25_manifest_run_burns_exact_binding_without_arm_fields(
     assert {field: _t325_run_start(run_root)[field] for field in expected} == expected
     assert report["launch_admission"] == _t325_run_start(run_root)["launch_admission"]
     assert report["launch_admission"]["certifying"] is False
+    arm_execution = A.trial_registry.bind_trial_arm(
+        t325_registered_trial.binding,
+        repository_root=t325_registered_trial.repo,
+    )
+    expected_arm_execution = A.trial_registry.arm_execution_record(
+        arm_execution
+    )
+    assert report["arm_execution"] == expected_arm_execution
+    assert _t325_run_start(run_root)["arm_execution"] == expected_arm_execution
+    assert "arm" not in report["arm_execution"]
     assert "arm" not in report
     assert "holdout" not in report
 
@@ -6069,16 +6302,26 @@ def test_m13_prime_public_launcher_rejects_producer_campaign_derivation_bypass(
 ) -> None:
     trials = []
     target_trial_id = "m13-prime-h1-on"
+    measurement_head = _t325_git(
+        t325_registered_trial.repo, "rev-parse", "HEAD"
+    )
     for holdout, workload in (("H1", "rr80"), ("H2", "rr20")):
         for arm in ("on", "off", "swapped"):
             trial_id = f"m13-prime-{holdout.lower()}-{arm}"
-            prepared = A._prepare_campaign_identity(
+            resolved = A.s8c_arm_inputs.resolve_arm_input(
+                arm=arm,
+                holdout=holdout,
+                repository_root=t325_registered_trial.repo,
+                commit=measurement_head,
+            )
+            prepared = A._prepare_manifest_campaign_identity(
                 workload=workload,
                 trial_id=trial_id,
                 generations=2,
                 site=A.trigger.site_policy.OTHER,
                 contract=_T530_CONTRACT,
                 build_context=_no_build_context(),
+                resolved_arm_input=resolved,
             )
             campaign_id = prepared.campaign_id
             if trial_id == target_trial_id:
@@ -6374,14 +6617,20 @@ def _seal_origin_fixture_ledger(
 
 def _origin_public_inputs(tmp_path, monkeypatch, registered):
     frozen = origin_fixtures.build_fixture_repository(tmp_path / "origin-frozen")
-    descriptor, descriptor_binding = A._descriptor_for(A.WORKLOADS["rr80"])
+    registered_arm_execution = A.trial_registry.bind_trial_arm(
+        registered.binding,
+        repository_root=registered.repo,
+    )
+    descriptor, descriptor_binding = A._descriptor_from_arm_execution(
+        registered_arm_execution
+    )
     descriptor_bytes = _canonical_origin_test_bytes(descriptor)
     descriptor_sha256 = hashlib.sha256(descriptor_bytes).hexdigest()
     authority_manifest = origin_fixtures.build_authority_manifest(
         workload={
             "descriptor_sha256": descriptor_sha256,
-            "records": 100_000,
-            "threads": 4,
+            "records": descriptor["scale"]["records"],
+            "threads": descriptor["scale"]["threads"],
         }
     )
     manifest_bytes = _canonical_origin_test_bytes(authority_manifest)
@@ -6496,7 +6745,6 @@ def _origin_public_inputs(tmp_path, monkeypatch, registered):
         verifier_policy_bytes=(
             frozen.root / "artifacts" / "verifier-policy.json"
         ).read_bytes(),
-        enforcement_arm="fixture-enforced",
         generator_closure={
             "schema_version": "fixture-generator-closure/v1",
             "generator_sha256": "a" * 64,
@@ -6514,6 +6762,10 @@ def _origin_public_inputs(tmp_path, monkeypatch, registered):
         allow_unregistered_exploratory=False,
         effective_preregistration=registered.capability,
     )
+    fresh_arm_execution = A.trial_registry.bind_trial_arm(
+        fresh_admission.binding,
+        repository_root=registered.repo,
+    )
     preliminary_runtime = A._prepare_origin_trial_runtime(
         admission=fresh_admission,
         request=request,
@@ -6524,6 +6776,7 @@ def _origin_public_inputs(tmp_path, monkeypatch, registered):
         trial_manifest=registered.manifest_path,
         effective_preregistration=registered.capability,
         build_context=_no_build_context(),
+        arm_execution=fresh_arm_execution,
     )
     result_record_bytes = _align_origin_result_records(
         frozen,

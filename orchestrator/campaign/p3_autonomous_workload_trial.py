@@ -43,6 +43,7 @@ from . import reflux_origin_binding
 from . import reflux_origin_client
 from . import reflux_origin_ledger
 from . import reflux_origin_topology
+from . import s8c_arm_inputs
 from . import s8c_preregistration
 from . import trial_registry
 from .reflux_source_closure import ValidatedSourceClosure
@@ -152,6 +153,7 @@ _INJECTED_GENERATION_DRIVER = {
 _AUTHORITATIVE_ACCOUNTING = "supervisor-authoritative"
 _UNSUPPORTED_ACCOUNTING = "excluded-caller-injected-unsupported"
 _TRIAL_ID_RE = re.compile(r"[a-z0-9][a-z0-9._-]{0,63}")
+_INVOCATION_ID_RE = re.compile(r"[a-z0-9][a-z0-9._-]{0,127}\Z")
 _LOWER_HEX_RE = re.compile(r"[0-9a-f]{64}")
 _TRANSPORT_RECEIPT_KEYS = {
     "schema_version",
@@ -335,7 +337,6 @@ class OriginProducerInputs:
     result_record_bytes: tuple[bytes, ...]
     evidence_root: Path
     verifier_policy_bytes: bytes
-    enforcement_arm: str
     generator_closure: Mapping[str, object]
     terminal_operation_id: str
 
@@ -381,6 +382,7 @@ class _RunScopeBinding:
     admission: trial_registry.TrialLaunchAdmission
     _seal: object = dataclasses.field(repr=False)
     origin_capability: reflux_origin_binding.OriginBindingCapability | None = None
+    arm_execution: trial_registry.TrialArmExecutionBinding | None = None
 
 
 _ACTIVE_TRIAL_BINDING: contextvars.ContextVar[
@@ -639,6 +641,7 @@ def _campaign_for(
     descriptor_record: Mapping[str, Any], trial_id: str, generations: int,
     contract: env_contract.ExecutionEnvironmentContract,
     build_context: BuildRunContext | None = None,
+    arm_binding_digest_sha256: str | None = None,
 ) -> CampaignConfig:
     base = trigger.default_cfg(reflux=True)
     search_config = dict(base.search_config)
@@ -653,6 +656,15 @@ def _campaign_for(
         "stop_policy": "fixed-generations-no-performance-early-stop",
         "pilot_scope": "exploratory-ycsb-abc",
     })
+    if arm_binding_digest_sha256 is not None:
+        if (
+            type(arm_binding_digest_sha256) is not str
+            or _LOWER_HEX_RE.fullmatch(arm_binding_digest_sha256) is None
+        ):
+            raise AutonomousTrialError(
+                "campaign arm binding digest は lowercase SHA-256 必須"
+            )
+        search_config["arm_binding_digest_sha256"] = arm_binding_digest_sha256
     cfg = CampaignConfig(
         spec_slug=f"p3-t178-{workload}",
         search_tag="workload-conditioned-autonomous",
@@ -695,6 +707,129 @@ def _descriptor_for(workload_flags: Mapping[str, str]) -> tuple[dict, dict]:
     return descriptor, projection_record(projected_input, descriptor)
 
 
+def _descriptor_from_resolved_arm_input(
+    resolved: s8c_arm_inputs.ResolvedArmInput,
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    """Decode only module-issued canonical bytes for preregistration identity."""
+    try:
+        s8c_arm_inputs.assert_issued_resolved_arm_input(resolved)
+    except s8c_arm_inputs.ArmInputError as exc:
+        raise AutonomousTrialError(str(exc)) from exc
+    try:
+        descriptor = json.loads(resolved.canonical_input_bytes.decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise AutonomousTrialError(
+            "sealed arm execution descriptor を decode できない"
+        ) from exc
+    if type(descriptor) is not dict:
+        raise AutonomousTrialError("sealed arm execution descriptor は object 必須")
+    try:
+        canonical = s8c_arm_inputs.validate_execution_input_descriptor(descriptor)
+    except s8c_arm_inputs.ArmInputError as exc:
+        raise AutonomousTrialError(str(exc)) from exc
+    content_digest = hashlib.sha256(canonical).hexdigest()
+    if (
+        canonical != resolved.canonical_input_bytes
+        or content_digest != resolved.content_digest_sha256
+    ):
+        raise AutonomousTrialError(
+            "sealed arm execution descriptor bytes/digest が不一致"
+        )
+    descriptor_record = projection_record(descriptor, descriptor)
+    descriptor_record.update({
+        "input_sha256": content_digest,
+        "output_sha256": content_digest,
+        "content_digest_sha256": content_digest,
+        "arm_binding_digest_sha256": (
+            resolved.arm_binding_digest_sha256
+        ),
+    })
+    return descriptor, descriptor_record
+
+
+def _descriptor_from_arm_execution(
+    arm_execution: trial_registry.TrialArmExecutionBinding,
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    """Decode only registry-sealed canonical bytes for a registered run."""
+    trial_registry.assert_issued_trial_arm_execution(arm_execution)
+    return _descriptor_from_resolved_arm_input(arm_execution.resolved_input)
+
+
+def _invocation_namespace(*, arm: str, digest: str) -> str:
+    if type(arm) is not str or arm not in trial_registry.ARMS:
+        raise AutonomousTrialError("invocation arm は closed set 必須")
+    if type(digest) is not str or _LOWER_HEX_RE.fullmatch(digest) is None:
+        raise AutonomousTrialError(
+            "invocation arm binding digest は lowercase SHA-256 必須"
+        )
+    candidate = f"arm-{arm}.exec-{digest}"
+    if len(candidate) > 128 or _INVOCATION_ID_RE.fullmatch(candidate) is None:
+        raise AutonomousTrialError(
+            f"invocation namespace が provider 制約外: {candidate!r}"
+        )
+    return candidate
+
+
+def _invocation_id(
+    *,
+    arm: str | None,
+    digest: str | None,
+    workload: str,
+    generation: int,
+    role: str,
+) -> str:
+    """Build the sole invocation namespace for formal and exploratory runs."""
+    if arm is None and digest is None:
+        candidate = f"{workload}.g{generation}.{role}"
+    elif arm is not None and digest is not None:
+        candidate = (
+            f"{_invocation_namespace(arm=arm, digest=digest)}."
+            f"{workload}.g{generation}.{role}"
+        )
+    else:
+        raise AutonomousTrialError(
+            "invocation arm と digest は同時指定必須"
+        )
+    if len(candidate) > 128 or _INVOCATION_ID_RE.fullmatch(candidate) is None:
+        raise AutonomousTrialError(
+            f"invocation_id が provider 制約外: {candidate!r}"
+        )
+    return candidate
+
+
+def _active_arm_execution(
+    *, workload: str,
+) -> trial_registry.TrialArmExecutionBinding | None:
+    scope = _ACTIVE_TRIAL_BINDING.get()
+    if (
+        type(scope) is not _RunScopeBinding
+        or scope._seal is not _RUN_SCOPE_SEAL
+    ):
+        raise trial_registry.TrialRegistryError(
+            "[run-scope] arm execution requires the sealed run scope"
+        )
+    arm_execution = scope.arm_execution
+    if scope.admission.mode == "registered-effective":
+        if arm_execution is None:
+            raise trial_registry.TrialRegistryError(
+                "[arm-input-resolution] registered run has no arm execution"
+            )
+        trial_registry.assert_issued_trial_arm_execution(arm_execution)
+        if (
+            scope.admission.binding is None
+            or arm_execution.binding is not scope.admission.binding
+            or arm_execution.binding.workload != workload
+        ):
+            raise trial_registry.TrialRegistryError(
+                "[arm-input-resolution] active arm execution differs"
+            )
+    elif arm_execution is not None:
+        raise trial_registry.TrialRegistryError(
+            "[arm-input-resolution] exploratory run cannot carry arm execution"
+        )
+    return arm_execution
+
+
 def _prepare_campaign_identity(
     *,
     workload: str,
@@ -703,10 +838,22 @@ def _prepare_campaign_identity(
     site: str,
     contract: env_contract.ExecutionEnvironmentContract,
     build_context: BuildRunContext,
+    arm_execution: trial_registry.TrialArmExecutionBinding | None = None,
 ) -> PreparedCampaignIdentity:
-    """Derive the existing descriptor/campaign identity without writing artifacts."""
+    """Derive an exploratory or registry-authorized campaign identity."""
     flags = WORKLOADS[workload]
-    descriptor, descriptor_record = _descriptor_for(flags)
+    if arm_execution is None:
+        descriptor, descriptor_record = _descriptor_for(flags)
+        arm_binding_digest = None
+    else:
+        if arm_execution.binding.workload != workload:
+            raise trial_registry.TrialRegistryError(
+                "[arm-input-resolution] arm execution workload differs"
+            )
+        descriptor, descriptor_record = _descriptor_from_arm_execution(
+            arm_execution
+        )
+        arm_binding_digest = arm_execution.arm_binding_digest_sha256
     campaign = _campaign_for(
         workload=workload,
         workload_flags=flags,
@@ -716,6 +863,51 @@ def _prepare_campaign_identity(
         generations=generations,
         contract=contract,
         build_context=build_context,
+        arm_binding_digest_sha256=arm_binding_digest,
+    )
+    campaign = trigger._campaign_cfg_for_site(
+        campaign, site, _contract=contract,
+    )
+    return PreparedCampaignIdentity(
+        descriptor=descriptor,
+        descriptor_record=descriptor_record,
+        campaign=campaign,
+        campaign_id=str(ident.campaign_id(campaign)),
+    )
+
+
+def _prepare_manifest_campaign_identity(
+    *,
+    workload: str,
+    trial_id: str,
+    generations: int,
+    site: str,
+    contract: env_contract.ExecutionEnvironmentContract,
+    build_context: BuildRunContext,
+    resolved_arm_input: s8c_arm_inputs.ResolvedArmInput,
+) -> PreparedCampaignIdentity:
+    """Prepare manifest identity from a module-issued pre-manifest resolver result."""
+    if resolved_arm_input.holdout not in trial_registry.HOLDOUT_BINDINGS:
+        raise AutonomousTrialError("manifest arm input holdout が closed set 外")
+    expected = trial_registry.HOLDOUT_BINDINGS[resolved_arm_input.holdout]
+    if expected["workload"] != workload:
+        raise AutonomousTrialError("manifest arm input workload が holdout と不一致")
+    descriptor, descriptor_record = _descriptor_from_resolved_arm_input(
+        resolved_arm_input
+    )
+    flags = WORKLOADS[workload]
+    campaign = _campaign_for(
+        workload=workload,
+        workload_flags=flags,
+        descriptor=descriptor,
+        descriptor_record=descriptor_record,
+        trial_id=trial_id,
+        generations=generations,
+        contract=contract,
+        build_context=build_context,
+        arm_binding_digest_sha256=(
+            resolved_arm_input.arm_binding_digest_sha256
+        ),
     )
     campaign = trigger._campaign_cfg_for_site(
         campaign, site, _contract=contract,
@@ -780,6 +972,10 @@ def _trial_launch_admission(
             "[generation-binding] runtime generations differs from "
             "manifest declaration"
         )
+    arm_execution = trial_registry.bind_trial_arm(
+        binding,
+        repository_root=ROOT,
+    )
     identity_context = build_run_context(
         generator_id=GeneratorId.S8A_TRIGGER_SWEEP,
     )
@@ -792,9 +988,11 @@ def _trial_launch_admission(
         site=site,
         contract=contract,
         build_context=identity_context,
+        arm_execution=arm_execution,
     )
     trial_registry.assert_campaign_binding(
         binding,
+        arm_execution=arm_execution,
         actual_campaign_id=prepared.campaign_id,
     )
     return admission
@@ -813,6 +1011,7 @@ def _prepare_origin_trial_runtime(
         s8c_preregistration.EffectivePreregistration | None
     ),
     build_context: BuildRunContext,
+    arm_execution: trial_registry.TrialArmExecutionBinding,
 ) -> OriginTrialRuntime:
     """Issue and exercise the fixture capability before lifecycle start."""
 
@@ -849,15 +1048,14 @@ def _prepare_origin_trial_runtime(
     if type(producer_inputs.verifier_policy_bytes) is not bytes:
         raise TypeError("origin verifier_policy_bytes must be bytes")
     if (
-        type(producer_inputs.enforcement_arm) is not str
-        or not producer_inputs.enforcement_arm
-        or type(producer_inputs.terminal_operation_id) is not str
+        type(producer_inputs.terminal_operation_id) is not str
         or not producer_inputs.terminal_operation_id
     ):
         raise TypeError("origin producer tokens must be non-empty strings")
 
     launch = reflux_origin_binding.rederive_launch_admission(
         admission,
+        arm_execution=arm_execution,
         effective_preregistration=effective_preregistration,
         manifest_path=Path(trial_manifest),
         trial_id=trial_id,
@@ -875,6 +1073,7 @@ def _prepare_origin_trial_runtime(
         site=site,
         contract=contract,
         build_context=build_context,
+        arm_execution=arm_execution,
     )
     prepared_origin = reflux_origin_binding.prepare_origin_identity(
         authority_blob_bytes=request.authority_blob_bytes,
@@ -943,6 +1142,17 @@ def _complete_origin_runtime(runtime: OriginTrialRuntime) -> None:
     capability = reflux_origin_binding.assert_issued_origin_binding_capability(
         runtime.capability
     )
+    if (
+        type(capability.enforcement_arm) is not str
+        or capability.enforcement_arm not in trial_registry.ARMS
+        or type(capability.arm_binding_digest_sha256) is not str
+        or _LOWER_HEX_RE.fullmatch(
+            capability.arm_binding_digest_sha256
+        ) is None
+    ):
+        raise AutonomousTrialError(
+            "issued origin capability has no arm execution authority"
+        )
     snapshot = runtime.client.read_origin(capability)
     sealed_batches = runtime.client.read_sealed_batches(capability)
     producer = runtime.producer_inputs
@@ -959,7 +1169,10 @@ def _complete_origin_runtime(runtime: OriginTrialRuntime) -> None:
         result_record_bytes=producer.result_record_bytes,
         evidence_root=Path(producer.evidence_root),
         verifier_policy_bytes=producer.verifier_policy_bytes,
-        enforcement_arm=producer.enforcement_arm,
+        enforcement_arm=capability.enforcement_arm,
+        arm_binding_digest_sha256=(
+            capability.arm_binding_digest_sha256
+        ),
         generator_closure=producer.generator_closure,
         operation_id=producer.terminal_operation_id,
     )
@@ -1443,7 +1656,27 @@ def _invoke(
     transport_receipt: Mapping[str, Any] | None = None,
     validation_receipt: PayloadValidationReceipt | None = None,
 ) -> tuple[Any | None, dict[str, Any]]:
-    input_sha256 = _sha256(_canonical_json_bytes(payload))
+    payload_bytes = _canonical_json_bytes(payload)
+    input_sha256 = _sha256(payload_bytes)
+    descriptor_binding = payload.get("descriptor_binding")
+    arm_binding_digest = (
+        descriptor_binding.get("arm_binding_digest_sha256")
+        if isinstance(descriptor_binding, Mapping)
+        else None
+    )
+    if invocation_id.startswith("arm-") and arm_binding_digest is None:
+        raise AutonomousTrialError(
+            "formal provider payload に arm binding digest がない"
+        )
+    if arm_binding_digest is not None:
+        if (
+            type(arm_binding_digest) is not str
+            or _LOWER_HEX_RE.fullmatch(arm_binding_digest) is None
+            or f".exec-{arm_binding_digest}." not in invocation_id
+        ):
+            raise AutonomousTrialError(
+                "provider invocation が arm binding digest に束縛されていない"
+            )
     if validation_receipt is not None:
         if role not in {"planner", "coder"}:
             raise AutonomousTrialError(
@@ -1494,6 +1727,8 @@ def _invoke(
         "payload_exact_keys": sorted(payload),
         "payload_allowlist_sha256": ROLE_PAYLOAD_ALLOWLIST_SHA256,
     }
+    if arm_binding_digest is not None:
+        base["arm_binding_digest_sha256"] = arm_binding_digest
     if validation_receipt is not None:
         base["payload_validation_receipt"] = validation_receipt.as_dict()
     try:
@@ -1505,6 +1740,45 @@ def _invoke(
         if not isinstance(response, ProviderResponse):
             raise AutonomousTrialError("provider は ProviderResponse を返す必要がある")
         provenance = dict(response.provenance)
+        artifact_root = getattr(provider, "artifact_root", None)
+        if arm_binding_digest is not None and isinstance(artifact_root, Path):
+            payload_path = artifact_root / f"payload_{invocation_id}.json"
+            envelope_path = artifact_root / f"envelope_{invocation_id}.json"
+            try:
+                if (
+                    payload_path.is_symlink()
+                    or envelope_path.is_symlink()
+                    or not payload_path.is_file()
+                    or not envelope_path.is_file()
+                ):
+                    raise AutonomousTrialError(
+                        "provider payload/envelope artifact が通常 file でない"
+                    )
+                stored_payload = payload_path.read_bytes()
+                stored_envelope = envelope_path.read_bytes()
+            except OSError as exc:
+                raise AutonomousTrialError(
+                    "provider payload/envelope artifact を再読込できない"
+                ) from exc
+            payload_sha256 = _sha256(stored_payload)
+            envelope_sha256 = _sha256(stored_envelope)
+            if (
+                stored_payload != payload_bytes
+                or provenance.get("payload_sha256") != payload_sha256
+                or provenance.get("envelope_sha256") != envelope_sha256
+            ):
+                raise AutonomousTrialError(
+                    "provider provenance が実 payload/envelope bytes と不一致"
+                )
+            base.update({
+                "provider_payload_sha256": payload_sha256,
+                "provider_envelope_sha256": envelope_sha256,
+                "provider_artifacts": {
+                    "payload_path": str(payload_path),
+                    "envelope_path": str(envelope_path),
+                    "arm_binding_digest_sha256": arm_binding_digest,
+                },
+            })
         if transport_receipt is None:
             if "transport_receipt" in provenance:
                 raise AutonomousTrialError(
@@ -1520,6 +1794,8 @@ def _invoke(
         parsed = PARSERS[role](response.raw_response)
     except Exception as exc:
         error_artifacts: dict[str, str] = {}
+        if arm_binding_digest is not None:
+            error_artifacts["arm_binding_digest_sha256"] = arm_binding_digest
         invalid = {
             **base,
             "status": "invalid",
@@ -1565,7 +1841,7 @@ def _journal_auditor_skip(
         if key != "working_diff"
     }
     skip_payload = {**common, "pre_audit": evidence}
-    return journal.append({
+    event = {
         "event": "role-attempt",
         "workload": workload,
         "generation": generation,
@@ -1583,7 +1859,13 @@ def _journal_auditor_skip(
         "status": "skipped",
         "skip_reason": "machine-pre-audit-rejection",
         "pre_audit": evidence,
-    })
+    }
+    arm_binding_digest = common["descriptor_binding"].get(
+        "arm_binding_digest_sha256"
+    )
+    if arm_binding_digest is not None:
+        event["arm_binding_digest_sha256"] = arm_binding_digest
+    return journal.append(event)
 
 
 def _common_payload(
@@ -1960,11 +2242,22 @@ def _run_one_pending_critic(
             },
             "critic_digest": digest,
         }
+        arm_execution = _active_arm_execution(workload=cell["workload"])
         critic, event = _invoke(
             role="critic",
             provider=providers["critic"],
-            invocation_id=(
-                f"{cell['workload']}.g{generation}.critic"
+            invocation_id=_invocation_id(
+                arm=(
+                    None if arm_execution is None
+                    else arm_execution.resolved_input.arm
+                ),
+                digest=(
+                    None if arm_execution is None
+                    else arm_execution.arm_binding_digest_sha256
+                ),
+                workload=cell["workload"],
+                generation=generation,
+                role="critic",
             ),
             payload=critic_payload,
             raw_root=run_root / "raw",
@@ -2084,6 +2377,24 @@ def _finish_trial(
     ):
         raise trial_registry.TrialRegistryError(
             "[run-scope] finish requires the exact sealed run_trial admission"
+        )
+    arm_execution = active_scope.arm_execution
+    if launch_admission.mode == "registered-effective":
+        if (
+            arm_execution is None
+            or launch_admission.binding is None
+            or arm_execution.binding is not launch_admission.binding
+        ):
+            raise trial_registry.TrialRegistryError(
+                "[arm-input-resolution] finish has no matching arm execution"
+            )
+        trial_registry.assert_rederived_trial_arm_execution(
+            arm_execution,
+            repository_root=ROOT,
+        )
+    elif arm_execution is not None:
+        raise trial_registry.TrialRegistryError(
+            "[arm-input-resolution] exploratory finish has arm execution"
         )
     if fatal_error is None:
         _assert_build_transport_admitted(
@@ -2346,6 +2657,9 @@ def _finish_trial(
             "prereg_commit": trial_binding.prereg_commit,
             "measurement_head": trial_binding.measurement_head,
             "manifest_sha256": trial_binding.manifest_sha256,
+            "arm_execution": trial_registry.arm_execution_record(
+                arm_execution
+            ),
         })
     run_finish = {
         "event": "run-finish",
@@ -2439,6 +2753,7 @@ def _run_workload(
             "[launch-admission] active admission differs from workload inputs"
         )
     active_binding = active_admission.binding
+    arm_execution = _active_arm_execution(workload=workload)
     if active_binding is not None:
         trial_registry.assert_issued_trial_binding(active_binding)
         if (
@@ -2471,6 +2786,7 @@ def _run_workload(
         site=resolved_site,
         contract=contract,
         build_context=build_context,
+        arm_execution=arm_execution,
     )
     descriptor = prepared.descriptor
     descriptor_record = prepared.descriptor_record
@@ -2581,6 +2897,14 @@ def _run_workload(
                 descriptor=descriptor,
                 descriptor_record=descriptor_record,
             )
+            invocation_arm = (
+                None if arm_execution is None
+                else arm_execution.resolved_input.arm
+            )
+            invocation_digest = (
+                None if arm_execution is None
+                else arm_execution.arm_binding_digest_sha256
+            )
             whiteboard = _whiteboard(layout)
             planner_payload = {
                 **common,
@@ -2613,7 +2937,13 @@ def _run_workload(
             planner, event = _invoke(
                 role="planner",
                 provider=providers["planner"],
-                invocation_id=f"{workload}.g{generation}.planner",
+                invocation_id=_invocation_id(
+                    arm=invocation_arm,
+                    digest=invocation_digest,
+                    workload=workload,
+                    generation=generation,
+                    role="planner",
+                ),
                 payload=planner_payload,
                 raw_root=run_root / "raw",
                 journal=journal,
@@ -2664,7 +2994,13 @@ def _run_workload(
             coder, event = _invoke(
                 role="coder",
                 provider=providers["coder"],
-                invocation_id=f"{workload}.g{generation}.coder",
+                invocation_id=_invocation_id(
+                    arm=invocation_arm,
+                    digest=invocation_digest,
+                    workload=workload,
+                    generation=generation,
+                    role="coder",
+                ),
                 payload=coder_payload,
                 raw_root=run_root / "raw",
                 journal=journal,
@@ -2700,7 +3036,13 @@ def _run_workload(
                     uncertainty="not invoked: machine pre-audit rejection",
                 )
                 event = _journal_auditor_skip(
-                    invocation_id=f"{workload}.g{generation}.auditor",
+                    invocation_id=_invocation_id(
+                        arm=invocation_arm,
+                        digest=invocation_digest,
+                        workload=workload,
+                        generation=generation,
+                        role="auditor",
+                    ),
                     common=common,
                     preview_result=preview_result,
                     journal=journal,
@@ -2721,7 +3063,13 @@ def _run_workload(
                 auditor, event = _invoke(
                     role="auditor",
                     provider=providers["auditor"],
-                    invocation_id=f"{workload}.g{generation}.auditor",
+                    invocation_id=_invocation_id(
+                        arm=invocation_arm,
+                        digest=invocation_digest,
+                        workload=workload,
+                        generation=generation,
+                        role="auditor",
+                    ),
                     payload=auditor_payload,
                     raw_root=run_root / "raw",
                     journal=journal,
@@ -2738,9 +3086,15 @@ def _run_workload(
                     result["stop_reason"] = "role-invalid"
                     break
 
-            proposal_path = (
-                run_root / "proposals" / f"{workload}.g{generation}.json"
+            proposal_name = (
+                f"{workload}.g{generation}.json"
+                if arm_execution is None
+                else (
+                    f"{_invocation_namespace(arm=invocation_arm, digest=invocation_digest)}."
+                    f"{workload}.g{generation}.json"
+                )
             )
+            proposal_path = run_root / "proposals" / proposal_name
             proposal_value = {
                 "planner": dataclasses.asdict(planner),
                 "coder": dataclasses.asdict(coder),
@@ -2748,9 +3102,19 @@ def _run_workload(
                 "prior_critic_reverse": prior_reverse,
                 "descriptor_sha256": descriptor_record["output_sha256"],
             }
-            _write_bytes_bound(
+            if arm_execution is not None:
+                proposal_value["arm_binding_digest_sha256"] = (
+                    arm_execution.arm_binding_digest_sha256
+                )
+            proposal_sha256 = _write_bytes_bound(
                 proposal_path, _canonical_json_bytes(proposal_value)
             )
+            if arm_execution is not None:
+                generation_record["proposal"] = {
+                    "path": str(proposal_path),
+                    "sha256": proposal_sha256,
+                    "digest": arm_execution.arm_binding_digest_sha256,
+                }
             outcome, observed_driver = _drive_s8c_generation(
                 drive=drive,
                 cfg=cfg,
@@ -2980,6 +3344,12 @@ def run_trial(
             raise trial_registry.TrialRegistryError(
                 "[launch-admission] supplied admission differs from fresh derivation"
             )
+    arm_execution = None
+    if trial_admission.binding is not None:
+        arm_execution = trial_registry.bind_trial_arm(
+            trial_admission.binding,
+            repository_root=ROOT,
+        )
     unknown = sorted(set(selected) - set(WORKLOADS))
     if unknown:
         raise AutonomousTrialError(f"unknown workloads: {unknown}")
@@ -3018,6 +3388,7 @@ def run_trial(
             trial_manifest=trial_manifest,
             effective_preregistration=effective_preregistration,
             build_context=preflight_build_context,
+            arm_execution=arm_execution,
         )
     lifecycle_token: trial_registry.TrialLifecycleToken | None = None
     if trial_admission.mode == "registered-effective":
@@ -3038,6 +3409,16 @@ def run_trial(
     try:
         run_root.mkdir(parents=True)
         ensure_exploration_namespace(str(run_root))
+        if arm_execution is not None:
+            invocation_namespace = (
+                run_root
+                / "invocations"
+                / _invocation_namespace(
+                    arm=arm_execution.resolved_input.arm,
+                    digest=arm_execution.arm_binding_digest_sha256,
+                )
+            )
+            ensure_exploration_namespace(str(invocation_namespace))
         run_children = ["raw", "proposals"]
         if origin_runtime is not None:
             run_children.append("origin")
@@ -3100,6 +3481,9 @@ def run_trial(
                 "prereg_commit": trial_binding.prereg_commit,
                 "measurement_head": trial_binding.measurement_head,
                 "manifest_sha256": trial_binding.manifest_sha256,
+                "arm_execution": trial_registry.arm_execution_record(
+                    arm_execution
+                ),
             })
         journal.append(run_start)
     except BaseException as exc:
@@ -3156,6 +3540,7 @@ def run_trial(
             trial_admission,
             _RUN_SCOPE_SEAL,
             None if origin_runtime is None else origin_runtime.capability,
+            arm_execution,
         )
         scope_token = _ACTIVE_TRIAL_BINDING.set(run_scope)
         try:
