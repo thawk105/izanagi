@@ -1308,10 +1308,20 @@ class _RoutingAcceptanceEffects(_FakeEffects):
             str(_REPO),
         ):
             command = actual[len(DW._GIT_CONFIG) + 3:]
+            if (
+                command[:2] == ("cat-file", "-t")
+                and command[2].endswith(f":{DW._RUNNER_PATH}")
+            ):
+                return DW._BinaryCommandResult(0, b"blob\n")
             if command[:2] == ("rev-parse", "--verify"):
+                blob_sha = (
+                    _RUNNER_BLOB
+                    if command[2].endswith(f":{DW._RUNNER_PATH}")
+                    else _CHECKER_BLOB
+                )
                 return DW._BinaryCommandResult(
                     0,
-                    (_CHECKER_BLOB + "\n").encode("ascii"),
+                    (blob_sha + "\n").encode("ascii"),
                 )
             if command[:2] == ("cat-file", "blob"):
                 return DW._BinaryCommandResult(0, _CHECKER_SOURCE)
@@ -1375,6 +1385,7 @@ class _RetryAcceptanceEffects(_RoutingAcceptanceEffects):
         advance_on_claim: dict[int, float] | None = None,
         signal_on_claim: int | None = None,
         lease_dir: Path = _LEASE,
+        checker_nodes: list[dict[str, object]] | None = None,
     ) -> None:
         super().__init__(
             behind=[0] * 16,
@@ -1393,6 +1404,15 @@ class _RetryAcceptanceEffects(_RoutingAcceptanceEffects):
         self.advance_before_first_claim = advance_before_first_claim
         self.advance_on_claim = dict(advance_on_claim or {})
         self.signal_on_claim = signal_on_claim
+        self.checker_nodes = (
+            [{
+                "classification": "non-attributable",
+                "nodeid": "orchestrator/tests/test_known.py::test_known",
+                "rerun_rc": 1,
+            }]
+            if checker_nodes is None
+            else checker_nodes
+        )
         self.red_check_bindings: list[tuple[str, str]] = []
         self.inject_artifact_after_archive: Path | None = None
         self.env_after_archive: dict[str, str] | None = None
@@ -1486,11 +1506,7 @@ class _RetryAcceptanceEffects(_RoutingAcceptanceEffects):
             self.byte_files[checker_receipt] = _checker_receipt_bytes(
                 self,
                 status="non-attributable-only",
-                nodes=[{
-                    "classification": "non-attributable",
-                    "nodeid": "orchestrator/tests/test_known.py::test_known",
-                    "rerun_rc": 1,
-                }],
+                nodes=self.checker_nodes,
                 tested_main=tested_main,
                 tested_tip=tested_tip,
             )
@@ -9487,7 +9503,7 @@ def test_attempt_two_deadline_is_rechecked_immediately_before_command() -> None:
     assert fake.releases == 1
 
 
-def test_retry_success_uses_only_success_attempt_values_and_v3_schema() -> None:
+def test_retry_success_uses_only_success_attempt_values_and_v4_schema() -> None:
     first_log = _dispatch_outcome_marker()
     second_log = b"second attempt\n" + _scheduler_marker("loadgroup", relay=True)
     fake = _RetryAcceptanceEffects(
@@ -9511,18 +9527,21 @@ def test_retry_success_uses_only_success_attempt_values_and_v3_schema() -> None:
     assert receipt["env_projection"]["IZANAGI_TASK_RUN_ID"] == "attempt-two"
     assert receipt["env_projection"]["IZANAGI_TASK_RUNS_ROOT"] == "/task-runs"
     assert receipt["log_sha256"] != hashlib.sha256(first_log).hexdigest()
-    assert receipt["schema_version"] == "dev-wave-acceptance-receipt/v3"
+    assert receipt["schema_version"] == "dev-wave-acceptance-receipt/v4"
+    assert receipt["flake_nodeids"] == []
     assert set(receipt) == {
         "schema_version", "authority_kind", "acceptance_wave", "lease_holder",
         "tested_main", "tested_tip", "argv", "resolved_runner_path", "child_rc",
         "pre_fingerprint", "post_fingerprint", "waiter_blob_sha",
         "env_projection", "verdict", "log_sha256", "checker_rc",
         "checker_status", "checker_blob_sha", "checker_receipt_sha256",
-        "red_nodeids", "effective_scheduler",
+        "red_nodeids", "flake_nodeids", "effective_scheduler",
     }
 
 
 def test_retry_red_check_binds_second_attempt_main_and_tip() -> None:
+    red = "orchestrator/tests/test_known.py::test_known"
+    flake = "orchestrator/tests/test_retry.py::test_flake"
     fake = _RetryAcceptanceEffects(
         command_results=[16, 1],
         logs=[
@@ -9532,6 +9551,16 @@ def test_retry_red_check_binds_second_attempt_main_and_tip() -> None:
         ],
         head_shas=[_SHA_A, _SHA_A, _SHA_B, _SHA_B],
         checker_mode="success",
+        checker_nodes=[
+            {"classification": "non-attributable", "nodeid": red, "rerun_rc": 1},
+            {
+                "classification": "flake",
+                "main_rerun_rc": 0,
+                "nodeid": flake,
+                "rerun_rc": 0,
+                "wave_rerun_rc": 0,
+            },
+        ],
     )
 
     outcome = _run_acceptance(fake)
@@ -9540,6 +9569,8 @@ def test_retry_red_check_binds_second_attempt_main_and_tip() -> None:
     assert fake.red_check_bindings == [(_SHA_A, _SHA_B)]
     receipt = json.loads(fake.receipt_content)
     assert (receipt["tested_main"], receipt["tested_tip"]) == (_SHA_A, _SHA_B)
+    assert receipt["red_nodeids"] == [red]
+    assert receipt["flake_nodeids"] == [flake]
 
 
 def test_retry_main_advance_is_terminal_before_second_command() -> None:
