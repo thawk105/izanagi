@@ -1646,6 +1646,60 @@ def test_combined_verdict_matching_degraded_conditions_propagate():
     }
 
 
+def test_combined_verdict_different_floor_and_oracle_observations_indeterminate():
+    floor_observation = _degraded_observation()
+    oracle_observation = deepcopy(floor_observation)
+    oracle_observation["preflight"]["stderr_sha256"] = "1" * 64
+    prediction, oracle, floor = _combined_measurement_case(oracle_observation)
+
+    result = run(
+        prediction,
+        oracle,
+        floor,
+        floor_source=_degraded_floor_source(floor_observation),
+    )
+
+    assert result["status"] == verdict.INDETERMINATE
+    assert {entry["code"] for entry in result["reasons"]} == {
+        "measurement-conditions-mismatch",
+    }
+
+
+def test_combined_verdict_empty_oracle_observations_with_floor_indeterminate():
+    floor_observation = _degraded_observation()
+    prediction, oracle, floor = _combined_measurement_case(floor_observation)
+    oracle["measurement_conditions"] = []
+
+    result = run(
+        prediction,
+        oracle,
+        floor,
+        floor_source=_degraded_floor_source(floor_observation),
+    )
+
+    assert result["status"] == verdict.INDETERMINATE
+    assert "measurement-conditions-mismatch" in {
+        entry["code"] for entry in result["reasons"]
+    }
+
+
+def test_combined_verdict_exact_floor_and_oracle_observations_not_indeterminate():
+    observation = _degraded_observation()
+    prediction, oracle, floor = _combined_measurement_case(observation)
+
+    result = run(
+        prediction,
+        oracle,
+        floor,
+        floor_source=_degraded_floor_source(observation),
+    )
+
+    assert result["status"] == verdict.HOLDS
+    assert "measurement-conditions-mismatch" not in {
+        entry["code"] for entry in result["reasons"]
+    }
+
+
 def test_combined_verdict_calls_claim_gate_before_condition_comparison(monkeypatch):
     observation = _degraded_observation()
     prediction, oracle, floor = _combined_measurement_case(observation)
