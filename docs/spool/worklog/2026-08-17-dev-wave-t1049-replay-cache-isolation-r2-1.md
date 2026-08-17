@@ -54,7 +54,13 @@ title: replay cache の test 間汚染は起票時の衝突源が 89723b89 で�
   取るため、job tmp に `base_digest.py` を書いて `tools/spool_fold.py` の内部関数を呼んだ。
   `DW-C00` の凍結境界は probe / script も実装面と定め Codex `role=author` に限っている。
   repo 外かつ出力が `spool_fold --dry-run` で fail-closed に再検査される性質のため実害は無いが、
-  逸脱として記録する。
+  逸脱として記録する。**これは規律の緩みではなく構造の穴**で、carry 解決済み digest を出す公開手段が
+  repo に無く、`spool_fold` の private API を呼ぶしかない。段 8 で裁定パッケージ RP-1 へ送った。
+- **段 8 自己改善は候補 2 件を裁定し、docs 編集はゼロだった。** (1) 前回中断の原因だった Codex plan の
+  evidence deadline は既に `min(90, --max-wall-clock-s)` へ改善済みで、本 wave の 3 本とも正常に
+  model call へ到達したため是正不要。(2) 上記の `base:` 取得手段は `DW-C00` の実装子権限境界に
+  関わるため、`docs/skill-self-improvement.md` の dev-wave 終端に従い実装せず裁定パッケージへ送った
+  (`output/insights/2026-08-17_t1049-replay-cache-isolation/ruling-package.md`)。
 
 ## 次の一手差分
 
@@ -65,3 +71,13 @@ title: replay cache の test 間汚染は起票時の衝突源が 89723b89 で�
   単一理由性を満たさないため、いずれも不採用として実装せずに閉じた。
   remaining: none
   base: d78b80a73ccb4e9930282255d2ed84075af92b827bdac62d225f8480e4c2cc3a
+
+### 新規
+
+- {{T:spool-base-digest-tool}} **P2・新規・ユーザー裁定待ち (RP-1)**:
+  spool fragment の `base:` に要る carry 解決済み digest を出す公開手段が repo に無く、
+  親は `tools/spool_fold.py` の private `_extract_latest_active` を呼ぶ script を書くしかない。
+  ところが `DW-C00` の凍結境界は script も実装面と定め Codex `role=author` に限っているため、
+  台帳を終端する wave のたびに親が境界を破るか docs 1 行のために実装子を立てるかになる。
+  親の推奨は読み取り専用 subcommand の追加 (択 i)。詳細と選択肢は
+  `output/insights/2026-08-17_t1049-replay-cache-isolation/ruling-package.md`。
