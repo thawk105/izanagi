@@ -23,6 +23,24 @@ from typing import Any, Callable, Mapping, Optional, Sequence
 
 
 INFRA_RC = 16
+_DISPATCH_OUTCOME_PREFIX = "IZANAGI_DISPATCH_OUTCOME_V1 "
+_DISPATCH_INFRA_REASONS = frozenset({
+    "compute-marker-not-observed",
+    "dispatch-error",
+    "immediate-qstat-unavailable-after-retries",
+    "malformed-request-id",
+    "orphan-hold",
+    "overall-timeout",
+    "qstat-permission-or-ownership-error",
+    "qstat-success-request-not-visible",
+    "queue-wait-timeout",
+    "receipt-persist-failed",
+    "result/log/accounting-grace-expired",
+    "setup-failure",
+    "signal-abort",
+    "submission-disabled",
+    "unexpected-error",
+})
 DEFAULT_PROJECT = "SFC"
 DEFAULT_QUEUE = "gen_S"
 DEFAULT_WALLTIME = "01:00:00"
@@ -152,6 +170,56 @@ class _SignalAbort(DispatchError):
     def __init__(self, signum: int):
         super().__init__(f"signal {signum}")
         self.signum = signum
+
+
+def _infra_attestation_reason(exc: BaseException) -> str:
+    """例外を外部文字列を含まない closed vocabulary へ射影する。"""
+
+    if isinstance(exc, _SignalAbort):
+        return "signal-abort"
+    if isinstance(exc, DispatchError):
+        reason = str(exc)
+        if reason in _DISPATCH_INFRA_REASONS:
+            return reason
+        return "dispatch-error"
+    return "unexpected-error"
+
+
+def _return_infra(
+    reason: str,
+    *,
+    child_started: bool,
+    child_rc: Optional[int] = None,
+) -> int:
+    """dispatcher 自身の infra 終端を 1 行 attest して既存 rc を返す。"""
+
+    normalized_reason = (
+        reason if reason in _DISPATCH_INFRA_REASONS else "unexpected-error"
+    )
+    normalized_child_rc = child_rc if type(child_rc) is int else None
+    normalized_started = child_started if type(child_started) is bool else True
+    if not normalized_started and (
+        normalized_reason != "queue-wait-timeout"
+        or normalized_child_rc is not None
+    ):
+        normalized_started = True
+    payload = {
+        "child_rc": normalized_child_rc,
+        "child_started": normalized_started,
+        "kind": "infra",
+        "reason": normalized_reason,
+    }
+    print(
+        _DISPATCH_OUTCOME_PREFIX + json.dumps(
+            payload,
+            ensure_ascii=True,
+            sort_keys=True,
+            separators=(",", ":"),
+        ),
+        file=sys.stderr,
+        flush=True,
+    )
+    return INFRA_RC
 
 
 def _walltime_seconds(value: str) -> int:
@@ -1449,7 +1517,7 @@ def _dispatch_impl(
     latch = root / "submission-disabled.json"
     if latch.exists():
         _print_terminal_handoff(latch, "既存の F47 型ラッチ")
-        return INFRA_RC
+        return _return_infra("submission-disabled", child_started=True)
     orphan_hold = _orphan_hold_path(root)
     if _orphan_hold_present(root):
         print(
@@ -1459,7 +1527,7 @@ def _dispatch_impl(
             file=sys.stderr,
             flush=True,
         )
-        return INFRA_RC
+        return _return_infra("orphan-hold", child_started=True)
 
     nonce_value = nonce or secrets.token_hex(16)
     if re.fullmatch(r"[A-Za-z0-9._-]+", nonce_value) is None:
@@ -1512,13 +1580,23 @@ def _dispatch_impl(
     qsub_result_unknown = False
     request_was_visible = False
     run_seen = False
+    queue_timeout_queued_evidence = False
     run_deadline_rebased = False
     terminal_history_end = False
     cleanup_claimed = False
     pending_cleanup_signal: Optional[int] = None
     stdout_record: Optional[dict[str, Any]] = None
     stderr_record: Optional[dict[str, Any]] = None
+    observed_child_rc: Optional[int] = None
     old_handlers: dict[int, Any] = {}
+
+    def infra_child_started(reason: str) -> bool:
+        """肯定的な未開始証拠がある queue timeout だけを false にする。"""
+
+        return not (
+            reason == "queue-wait-timeout"
+            and queue_timeout_queued_evidence
+        )
 
     def abort_on_signal(signum, _frame):
         nonlocal pending_cleanup_signal
@@ -1676,12 +1754,14 @@ def _dispatch_impl(
             )
             _persist_receipt(submission_dir, root, receipt)
             if pending_cleanup_signal is not None:
-                return INFRA_RC
+                return _return_infra(
+                    "signal-abort", child_started=True,
+                )
             _print_terminal_handoff(latched, reason)
             _print_qdel_remaining_warning(
                 receipt["qdel"], request_id=request_id, job_name=job_name,
             )
-            return INFRA_RC
+            return _return_infra(reason, child_started=True)
         if visible is None:
             raise DispatchError("immediate-qstat-unavailable-after-retries")
         if qstat_succeeded_without_request:
@@ -1697,12 +1777,14 @@ def _dispatch_impl(
             )
             _persist_receipt(submission_dir, root, receipt)
             if pending_cleanup_signal is not None:
-                return INFRA_RC
+                return _return_infra(
+                    "signal-abort", child_started=True,
+                )
             _print_terminal_handoff(latched, reason)
             _print_qdel_remaining_warning(
                 receipt["qdel"], request_id=request_id, job_name=job_name,
             )
-            return INFRA_RC
+            return _return_infra(reason, child_started=True)
 
         current = visible
         queue_started = submitted_at
@@ -1754,6 +1836,19 @@ def _dispatch_impl(
                     receipt["queue_wait_s"] = max(0.0, now - queue_started)
                     receipt["queue_wait_observed"] = True
             if not run_seen and now - queue_started >= queue_wait_timeout_s:
+                # current はこの判定へ入る直前の qstat -f 応答である。
+                # 対象 ID に一意に束縛された QUE だけを「まだ未開始」の
+                # 肯定的証拠とし、HLD / RUN / END / 非ゼロ / UNKNOWN は
+                # attestation を true へ倒す。
+                queue_timeout_queued_evidence = (
+                    current.returncode == 0
+                    and _classify_qstat_response(
+                        current, normalized_id,
+                    ) == "success-request-visible"
+                    and _target_bound_qstat_state(
+                        current.stdout or "", normalized_id,
+                    ) == "QUE"
+                )
                 raise DispatchError("queue-wait-timeout")
             if now >= total_deadline:
                 raise DispatchError("overall-timeout")
@@ -1834,7 +1929,9 @@ def _dispatch_impl(
                     )
                     _persist_receipt(submission_dir, root, receipt)
                     if pending_cleanup_signal is not None:
-                        return INFRA_RC
+                        return _return_infra(
+                            "signal-abort", child_started=True,
+                        )
                     _print_terminal_handoff(latched, reason)
                     _print_qdel_remaining_warning(
                         receipt["qdel"],
@@ -1847,7 +1944,7 @@ def _dispatch_impl(
                         request_id=request_id,
                         successful=False,
                     )
-                    return INFRA_RC
+                    return _return_infra(reason, child_started=True)
                 raise DispatchError("result/log/accounting-grace-expired")
             sleep(poll_interval_s)
 
@@ -1868,6 +1965,7 @@ def _dispatch_impl(
             raise DispatchError(f"job bootstrap failure: stage={result.get('stage')}")
         if type(child_rc) is not int:
             raise DispatchError("result.child_rc が int ではありません")
+        observed_child_rc = child_rc
 
         receipt["outcome"] = {
             "kind": "child",
@@ -1888,7 +1986,11 @@ def _dispatch_impl(
                 request_id=request_id,
                 successful=False,
             )
-            return INFRA_RC
+            return _return_infra(
+                "receipt-persist-failed",
+                child_started=True,
+                child_rc=child_rc,
+            )
         _progress(f"receipt を {persisted} へ保存しました (child rc={child_rc})")
         _relay_scheduler_logs(
             stdout_record,
@@ -1955,7 +2057,11 @@ def _dispatch_impl(
         if persisted is not None:
             _progress(f"receipt を {persisted} へ保存しました (child rc={INFRA_RC})")
         if pending_cleanup_signal is not None:
-            return INFRA_RC
+            return _return_infra(
+                "signal-abort",
+                child_started=True,
+                child_rc=observed_child_rc,
+            )
         print(
             f"Pegasus dispatch infrastructure failure: {exc}",
             file=sys.stderr,
@@ -1970,7 +2076,12 @@ def _dispatch_impl(
             request_id=request_id,
             successful=False,
         )
-        return INFRA_RC
+        infra_reason = _infra_attestation_reason(exc)
+        return _return_infra(
+            infra_reason,
+            child_started=infra_child_started(infra_reason),
+            child_rc=observed_child_rc,
+        )
     finally:
         for signum, handler in old_handlers.items():
             try:
@@ -2065,7 +2176,9 @@ def dispatch(
             file=sys.stderr,
             flush=True,
         )
-        return INFRA_RC
+        # _dispatch_impl の run_seen が参照不能な setup 終端は、再試行を
+        # 許さない向きへ fail-closed に倒す。
+        return _return_infra("setup-failure", child_started=True)
     finally:
         for signum, handler in old_handlers.items():
             try:
