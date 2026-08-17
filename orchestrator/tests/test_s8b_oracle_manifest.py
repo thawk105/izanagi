@@ -59,7 +59,7 @@ PIN_GATE_SCHEDULE_SHA256 = (
     "105bf4cb713f309fec174035814b7ab70ac892a70a51d62f028c31f6310c68d2"
 )
 PIN_GATE_SPEC_SHA256 = (
-    "f4ac4e9ff209ad9f0ecc75ca81eb20b850538b0237759ecd118f781b5b0f8ccb"
+    "0f6e745f8d40bf56c7d7b1b200fc2c01d34baad3f1e0c8856c3de670b046f867"
 )
 # production serializer から独立した reviewed-spec golden。UTF-8 非 ASCII、
 # sort 済み key 順、compact separator、末尾 LF 無しを raw bytes として固定する。
@@ -80,15 +80,15 @@ PIN_GATE_SPEC_RAW = (
     b'"genome_canonical":"g","holdout_id":"rr80","src_token":"s","variant_id":"v"}],'
     b'"campaign_ids":{"b0":"campaign-b0"},"generator_versions":{'
     b'"artifacts":{"path":"orchestrator/campaign/s8b_oracle_artifacts.py",'
-    b'"sha256":"8bfecd1a5f1d4f4598c563e544e9c64338f07c1c8053d30e529a0ddde6fc78d5"},'
+    b'"sha256":"11ce63aa5f95bb2d06954d3743c5e845d5c5c16f4a146f557f28586cb217f0be"},'
     b'"judge":{"path":"orchestrator/campaign/s8b_oracle_judge.py",'
-    b'"sha256":"7d7120a46693b759bc4e4b3ed2c5e35635e2d1053066bdd0d5748f596f162ec9"},'
+    b'"sha256":"cf200b22ddea4246f9f1030d9dc8d7b7651e4f4bffce4fbf203a801a9d89b1a1"},'
     b'"materializer":{"path":"orchestrator/campaign/s1_direct_comparison.py",'
-    b'"sha256":"38ed8790807e3f1aa7516fd286b365dfe2dc45c18f05fb4566970a587db75e7f"},'
+    b'"sha256":"ec3ebb16f480f0bb77f4090e8e01e42bfdda480ab65d445fd9be45b956206f99"},'
     b'"outcome_stage_contract":{"path":"orchestrator/campaign/s8b_outcome_stage_contract.py",'
     b'"sha256":"f8a0bb2237dcaf3c643a78c04ca6b8cea2a8f83e3d306d85c781716b165c73af"},'
     b'"report":{"path":"orchestrator/campaign/s8b_oracle_report.py",'
-    b'"sha256":"ed44aef8daac4990a6145cdb41d663d3874df0d019d06dfbbb0d68e7612872d0"}},'
+    b'"sha256":"a586065fa1390356b960700569d86f4ad30a09b2f00e6bf9661e83eb4adda7da"}},'
     b'"run_contract":{"bench_max_rounds":1,"ccbench_pin":"pin","clocks":1800,'
     b'"contract_sha256":"0000000000000000000000000000000000000000000000000000000000000000",'
     b'"env_tag":"test-env","extime":5,"reps":5,"screening":"off","verify":"legacy+s2"},'
