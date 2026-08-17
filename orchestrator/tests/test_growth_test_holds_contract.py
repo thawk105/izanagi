@@ -10,6 +10,7 @@ import os
 import re
 import subprocess
 import sys
+import textwrap
 from dataclasses import replace
 from pathlib import Path
 from types import SimpleNamespace
@@ -23,10 +24,13 @@ if str(ROOT) not in sys.path:
 import orchestrator.tests.conftest as CONF
 from orchestrator.tests.growth_test_holds import (
     GROWTH_TEST_HOLDS,
+    GuardMode,
     RUN_GROWTH_HELD_TESTS_ENV,
     RUN_GROWTH_HELD_TESTS_TOKEN,
     GrowthTestHold,
     GrowthTestHoldBypassRefused,
+    _GUARD_MODES,
+    _pytest_drives_current_import,
     _wrap_held_function,
     _validate_hold_rows,
     enforce_held_functions,
@@ -505,7 +509,579 @@ def _plain_runner_for_tree(tree: ast.Module) -> str:
     )
 
 
-def _guard_binding_errors(source: str, filename: str) -> tuple[str, ...]:
+def _parent_map(tree: ast.AST) -> dict[ast.AST, ast.AST]:
+    return {
+        child: parent
+        for parent in ast.walk(tree)
+        for child in ast.iter_child_nodes(parent)
+    }
+
+
+def _scope_for(node: ast.AST, parents: dict[ast.AST, ast.AST]) -> ast.AST:
+    current = node
+    while not isinstance(
+        current,
+        (ast.Module, ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef, ast.Lambda),
+    ):
+        current = parents[current]
+    return current
+
+
+def _static_context(tree: ast.Module):
+    parents = _parent_map(tree)
+    assignments: dict[ast.AST, dict[str, list[ast.AST]]] = {}
+    aliases: dict[ast.AST, dict[str, str | None]] = {tree: {}}
+
+    # Loader APIs count only when a direct module import establishes the name.
+    # A same-scope assignment or definition makes the binding ambiguous and
+    # therefore unusable for an import-permission decision.
+    for node in tree.body:
+        if isinstance(node, ast.Import):
+            for alias in node.names:
+                local_name = alias.asname or alias.name.split(".", 1)[0]
+                aliases[tree][local_name] = (
+                    alias.name if alias.asname else local_name
+                )
+        elif isinstance(node, ast.ImportFrom) and node.module is not None:
+            for alias in node.names:
+                if alias.name != "*":
+                    aliases[tree][alias.asname or alias.name] = (
+                        f"{node.module}.{alias.name}"
+                    )
+
+    for node in ast.walk(tree):
+        scope = _scope_for(node, parents)
+        values = assignments.setdefault(scope, {})
+        shadowed_names = set()
+        if isinstance(node, ast.Assign):
+            for target in node.targets:
+                if isinstance(target, ast.Name):
+                    values.setdefault(target.id, []).append(node.value)
+                shadowed_names.update(
+                    candidate.id for candidate in ast.walk(target)
+                    if isinstance(candidate, ast.Name)
+                )
+        elif isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name):
+            if node.value is not None:
+                values.setdefault(node.target.id, []).append(node.value)
+            shadowed_names.add(node.target.id)
+        elif isinstance(node, ast.NamedExpr) and isinstance(node.target, ast.Name):
+            values.setdefault(node.target.id, []).append(node.value)
+            shadowed_names.add(node.target.id)
+        elif isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+            if node is not tree:
+                binding_scope = _scope_for(parents[node], parents)
+                aliases.setdefault(binding_scope, {})[node.name] = None
+        elif isinstance(node, (ast.For, ast.AsyncFor)):
+            shadowed_names.update(
+                candidate.id for candidate in ast.walk(node.target)
+                if isinstance(candidate, ast.Name)
+            )
+        elif isinstance(node, (ast.With, ast.AsyncWith)):
+            shadowed_names.update(
+                candidate.id
+                for item in node.items if item.optional_vars is not None
+                for candidate in ast.walk(item.optional_vars)
+                if isinstance(candidate, ast.Name)
+            )
+        elif isinstance(node, ast.ExceptHandler) and node.name is not None:
+            shadowed_names.add(node.name)
+
+        for name in shadowed_names:
+            aliases.setdefault(scope, {})[name] = None
+
+        if isinstance(node, (ast.Import, ast.ImportFrom)) and parents[node] is not tree:
+            scope_aliases = aliases.setdefault(scope, {})
+            imported_names = []
+            if isinstance(node, ast.Import):
+                imported_names = [
+                    alias.asname or alias.name.split(".", 1)[0]
+                    for alias in node.names
+                ]
+            elif node.module is not None:
+                imported_names = [
+                    alias.asname or alias.name
+                    for alias in node.names if alias.name != "*"
+                ]
+            for name in imported_names:
+                scope_aliases[name] = None
+
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            function_aliases = aliases.setdefault(node, {})
+            arguments = (
+                node.args.posonlyargs + node.args.args + node.args.kwonlyargs
+            )
+            if node.args.vararg is not None:
+                arguments.append(node.args.vararg)
+            if node.args.kwarg is not None:
+                arguments.append(node.args.kwarg)
+            for argument in arguments:
+                function_aliases[argument.arg] = None
+    return parents, assignments, aliases
+
+
+def _scope_chain(scope: ast.AST, parents: dict[ast.AST, ast.AST]):
+    current = scope
+    while True:
+        yield current
+        if isinstance(current, ast.Module):
+            return
+        current = _scope_for(parents[current], parents)
+
+
+def _resolve_name(
+    name: str,
+    scope: ast.AST,
+    parents: dict[ast.AST, ast.AST],
+    assignments: dict[ast.AST, dict[str, list[ast.AST]]],
+) -> tuple[ast.AST, ast.AST] | None:
+    for candidate_scope in _scope_chain(scope, parents):
+        values = assignments.get(candidate_scope, {}).get(name)
+        if values is not None:
+            return (values[0], candidate_scope) if len(values) == 1 else None
+    return None
+
+
+def _dotted_name(node: ast.AST) -> str | None:
+    parts = []
+    current = node
+    while isinstance(current, ast.Attribute):
+        parts.append(current.attr)
+        current = current.value
+    if not isinstance(current, ast.Name):
+        return None
+    parts.append(current.id)
+    return ".".join(reversed(parts))
+
+
+def _qualified_name(
+    node: ast.AST,
+    scope: ast.AST,
+    parents: dict[ast.AST, ast.AST],
+    aliases: dict[ast.AST, dict[str, str | None]],
+) -> str | None:
+    dotted = _dotted_name(node)
+    if dotted is None:
+        return None
+    first, separator, suffix = dotted.partition(".")
+    for candidate_scope in _scope_chain(scope, parents):
+        scope_aliases = aliases.get(candidate_scope, {})
+        if first in scope_aliases:
+            replacement = scope_aliases[first]
+            if replacement is None:
+                return None
+            return replacement + (separator + suffix if separator else "")
+    return dotted if first in {"exec", "open", "str"} else None
+
+
+def _canonical_test_path(filename: str) -> Path:
+    path = Path(filename)
+    return path.resolve() if path.is_absolute() else (
+        Path(__file__).resolve().parent / path.name
+    )
+
+
+def _static_path(
+    node: ast.AST,
+    filename: str,
+    scope: ast.AST,
+    context,
+    seen: frozenset[str] = frozenset(),
+) -> Path | None:
+    parents, assignments, aliases = context
+    if isinstance(node, ast.Name):
+        if node.id == "__file__":
+            return _canonical_test_path(filename)
+        if node.id in seen:
+            return None
+        resolved = _resolve_name(node.id, scope, parents, assignments)
+        if resolved is None:
+            return None
+        value, value_scope = resolved
+        return _static_path(
+            value, filename, value_scope, context, seen | {node.id},
+        )
+    if isinstance(node, ast.Constant) and isinstance(node.value, str):
+        path = Path(node.value)
+        return path.resolve() if path.is_absolute() else (ROOT / path).resolve()
+    if isinstance(node, ast.BinOp) and isinstance(node.op, ast.Div):
+        left = _static_path(node.left, filename, scope, context, seen)
+        if isinstance(node.right, ast.Constant) and isinstance(node.right.value, str):
+            return None if left is None else (left / node.right.value).resolve()
+        return None
+    if (
+        isinstance(node, ast.Subscript)
+        and isinstance(node.value, ast.Attribute)
+        and node.value.attr == "parents"
+        and isinstance(node.slice, ast.Constant)
+        and isinstance(node.slice.value, int)
+    ):
+        base = _static_path(node.value.value, filename, scope, context, seen)
+        if base is None:
+            return None
+        try:
+            return base.parents[node.slice.value]
+        except IndexError:
+            return None
+    if isinstance(node, ast.Attribute):
+        if node.attr == "parent":
+            base = _static_path(node.value, filename, scope, context, seen)
+            return None if base is None else base.parent
+    if isinstance(node, ast.Call):
+        qualified = _qualified_name(node.func, scope, parents, aliases)
+        if qualified in {"str", "os.fspath", "pathlib.Path", "Path"} and len(node.args) == 1:
+            return _static_path(node.args[0], filename, scope, context, seen)
+        if qualified in {"os.path.join", "posixpath.join"} and node.args:
+            path = _static_path(node.args[0], filename, scope, context, seen)
+            if path is None:
+                return None
+            for component in node.args[1:]:
+                if not (
+                    isinstance(component, ast.Constant)
+                    and isinstance(component.value, str)
+                ):
+                    return None
+                path = path / component.value
+            return path.resolve()
+        if isinstance(node.func, ast.Attribute) and node.func.attr in {"resolve", "absolute"}:
+            path = _static_path(node.func.value, filename, scope, context, seen)
+            return None if path is None else path.resolve()
+    return None
+
+
+def _terminal_basename(
+    node: ast.AST,
+    scope: ast.AST,
+    context,
+    seen: frozenset[str] = frozenset(),
+) -> str | None:
+    parents, assignments, aliases = context
+    if isinstance(node, ast.Name):
+        if node.id in seen:
+            return None
+        resolved = _resolve_name(node.id, scope, parents, assignments)
+        if resolved is None:
+            return None
+        value, value_scope = resolved
+        return _terminal_basename(value, value_scope, context, seen | {node.id})
+    if isinstance(node, ast.Constant) and isinstance(node.value, str):
+        return Path(node.value).name or None
+    if isinstance(node, ast.BinOp) and isinstance(node.op, ast.Div):
+        return _terminal_basename(node.right, scope, context, seen)
+    if isinstance(node, ast.Call):
+        qualified = _qualified_name(node.func, scope, parents, aliases)
+        if qualified in {"str", "os.fspath", "pathlib.Path", "Path"} and len(node.args) == 1:
+            return _terminal_basename(node.args[0], scope, context, seen)
+        if qualified in {"os.path.join", "posixpath.join"} and node.args:
+            return _terminal_basename(node.args[-1], scope, context, seen)
+        if isinstance(node.func, ast.Attribute) and node.func.attr in {"resolve", "absolute"}:
+            return _terminal_basename(node.func.value, scope, context, seen)
+    return None
+
+
+def _path_identity(
+    node: ast.AST,
+    filename: str,
+    scope: ast.AST,
+    context,
+) -> str | None:
+    path = _static_path(node, filename, scope, context)
+    if path is not None:
+        return "self" if path == _canonical_test_path(filename) else "foreign"
+    basename = _terminal_basename(node, scope, context)
+    if basename is not None and basename != Path(filename).name:
+        return "foreign"
+    return None
+
+
+def _static_text(
+    node: ast.AST,
+    filename: str,
+    scope: ast.AST,
+    context,
+    seen: frozenset[str] = frozenset(),
+) -> str | None:
+    parents, assignments, aliases = context
+    if isinstance(node, ast.Constant) and isinstance(node.value, str):
+        return node.value
+    if isinstance(node, ast.Name):
+        if node.id in seen:
+            return None
+        resolved = _resolve_name(node.id, scope, parents, assignments)
+        if resolved is None:
+            return None
+        value, value_scope = resolved
+        return _static_text(value, filename, value_scope, context, seen | {node.id})
+    if isinstance(node, ast.BinOp) and isinstance(node.op, ast.Add):
+        left = _static_text(node.left, filename, scope, context, seen)
+        right = _static_text(node.right, filename, scope, context, seen)
+        return None if left is None or right is None else left + right
+    if isinstance(node, ast.JoinedStr):
+        parts = []
+        for value in node.values:
+            if isinstance(value, ast.Constant) and isinstance(value.value, str):
+                parts.append(value.value)
+                continue
+            if not isinstance(value, ast.FormattedValue):
+                return None
+            if _path_identity(value.value, filename, scope, context) != "self":
+                return None
+            sentinel = str(_canonical_test_path(filename))
+            parts.append(repr(sentinel) if value.conversion == ord("r") else sentinel)
+        return "".join(parts)
+    if isinstance(node, ast.Call):
+        qualified = _qualified_name(node.func, scope, parents, aliases)
+        if qualified == "textwrap.dedent" and len(node.args) == 1:
+            value = _static_text(node.args[0], filename, scope, context, seen)
+            return None if value is None else textwrap.dedent(value)
+    return None
+
+
+def _module_is_self(
+    node: ast.AST,
+    filename: str,
+    scope: ast.AST,
+    context,
+    seen: frozenset[str] = frozenset(),
+) -> bool | None:
+    parents, assignments, _aliases = context
+    own_module = f"orchestrator.tests.{Path(filename).stem}"
+    if isinstance(node, ast.Constant) and isinstance(node.value, str):
+        return node.value == own_module
+    if isinstance(node, ast.Name):
+        if node.id == "__name__":
+            return True
+        if node.id in seen:
+            return None
+        resolved = _resolve_name(node.id, scope, parents, assignments)
+        if resolved is None:
+            return None
+        value, value_scope = resolved
+        return _module_is_self(
+            value, filename, value_scope, context, seen | {node.id},
+        )
+    return None
+
+
+def _is_statically_unreachable(
+    node: ast.AST,
+    parents: dict[ast.AST, ast.AST],
+) -> bool:
+    current = node
+    while current in parents:
+        parent = parents[current]
+        if isinstance(parent, ast.If) and isinstance(parent.test, ast.Constant):
+            active_branch = parent.body if bool(parent.test.value) else parent.orelse
+            if current not in active_branch:
+                return True
+        if (
+            isinstance(parent, ast.While)
+            and isinstance(parent.test, ast.Constant)
+            and not bool(parent.test.value)
+            and current in parent.body
+        ):
+            return True
+        current = parent
+    return False
+
+
+def _nested_imports_self(tree: ast.Module, filename: str) -> bool:
+    own_stem = Path(filename).stem
+    own_module = f"orchestrator.tests.{own_stem}"
+    parents = _parent_map(tree)
+    for node in ast.walk(tree):
+        if _is_statically_unreachable(node, parents):
+            continue
+        if isinstance(node, ast.Import) and any(
+            alias.name == own_module for alias in node.names
+        ):
+            return True
+        if isinstance(node, ast.ImportFrom) and (
+            node.module == own_module
+            or (
+                node.module == "orchestrator.tests"
+                and any(alias.name == own_stem for alias in node.names)
+            )
+        ):
+            return True
+    return False
+
+
+def _spec_loader_call(
+    node: ast.AST,
+    scope: ast.AST,
+    context,
+    seen: frozenset[str] = frozenset(),
+) -> tuple[ast.Call, ast.AST] | None:
+    parents, assignments, aliases = context
+    if isinstance(node, ast.Name):
+        if node.id in seen:
+            return None
+        resolved = _resolve_name(node.id, scope, parents, assignments)
+        if resolved is None:
+            return None
+        value, value_scope = resolved
+        return _spec_loader_call(
+            value, value_scope, context, seen | {node.id},
+        )
+    if isinstance(node, ast.Attribute) and node.attr == "loader":
+        spec = node.value
+        spec_scope = scope
+        if isinstance(spec, ast.Name):
+            if spec.id in seen:
+                return None
+            resolved = _resolve_name(spec.id, scope, parents, assignments)
+            if resolved is None:
+                return None
+            spec, spec_scope = resolved
+        if (
+            isinstance(spec, ast.Call)
+            and _qualified_name(spec.func, spec_scope, parents, aliases)
+            == "importlib.util.spec_from_file_location"
+        ):
+            return spec, spec_scope
+    return None
+
+
+def _self_load_analysis(
+    tree: ast.Module,
+    filename: str,
+    *,
+    inspect_subprocess: bool = True,
+) -> tuple[bool, tuple[str, ...]]:
+    context = _static_context(tree)
+    parents, assignments, aliases = context
+    errors = []
+    self_load = False
+
+    for call in (node for node in ast.walk(tree) if isinstance(node, ast.Call)):
+        if _is_statically_unreachable(call, parents):
+            continue
+        scope = _scope_for(call, parents)
+        qualified = _qualified_name(call.func, scope, parents, aliases)
+        path_argument = None
+        path_scope = scope
+        if isinstance(call.func, ast.Attribute) and call.func.attr == "exec_module":
+            spec_loader = _spec_loader_call(call.func.value, scope, context)
+            if spec_loader is None:
+                errors.append("self-load loader is not statically resolvable")
+            else:
+                spec_call, path_scope = spec_loader
+                if len(spec_call.args) < 2:
+                    errors.append("self-load loader path is missing")
+                else:
+                    path_argument = spec_call.args[1]
+        elif qualified == "runpy.run_path" and call.args:
+            path_argument = call.args[0]
+        elif qualified == "runpy.run_module" and call.args:
+            module_match = _module_is_self(call.args[0], filename, scope, context)
+            if module_match is None:
+                errors.append("self-load module name is not statically resolvable")
+            self_load = self_load or module_match is True
+            continue
+        elif qualified == "exec" and call.args:
+            payload = call.args[0]
+            if (
+                isinstance(payload, ast.Call)
+                and isinstance(payload.func, ast.Attribute)
+                and payload.func.attr == "read"
+                and isinstance(payload.func.value, ast.Call)
+                and _qualified_name(payload.func.value.func, scope, parents, aliases) == "open"
+                and payload.func.value.args
+            ):
+                path_argument = payload.func.value.args[0]
+
+        if path_argument is not None:
+            identity = _path_identity(path_argument, filename, path_scope, context)
+            if identity is None:
+                errors.append("self-load path is not statically resolvable")
+            elif identity == "self":
+                self_load = True
+
+        if not inspect_subprocess or qualified not in {
+            "subprocess.run",
+            "subprocess.Popen",
+            "subprocess.call",
+            "subprocess.check_call",
+            "subprocess.check_output",
+        } or not call.args:
+            continue
+        argv_node = call.args[0]
+        if isinstance(argv_node, ast.Name):
+            resolved = _resolve_name(argv_node.id, scope, parents, assignments)
+            if resolved is not None:
+                argv_node, scope = resolved
+        if not isinstance(argv_node, (ast.List, ast.Tuple)) or not argv_node.elts:
+            continue
+        executable = _qualified_name(argv_node.elts[0], scope, parents, aliases)
+        if executable != "sys.executable":
+            continue
+        command_index = next(
+            (
+                index for index, value in enumerate(argv_node.elts[:-1])
+                if isinstance(value, ast.Constant) and value.value == "-c"
+            ),
+            None,
+        )
+        if command_index is None:
+            continue
+        script_node = argv_node.elts[command_index + 1]
+        rendered_script_node = script_node
+        if isinstance(script_node, ast.Name):
+            resolved = _resolve_name(script_node.id, scope, parents, assignments)
+            if resolved is not None:
+                rendered_script_node, _rendered_scope = resolved
+        script = _static_text(script_node, filename, scope, context)
+        if script is None:
+            rendered = ast.unparse(rendered_script_node)
+            if any(token in rendered for token in (
+                "spec_from_file_location",
+                "run_path",
+                "run_module",
+                f"orchestrator.tests.{Path(filename).stem}",
+            )):
+                errors.append("nested loader source is not statically resolvable")
+            continue
+        try:
+            nested_tree = ast.parse(script, filename=f"{filename}:subprocess-c")
+        except SyntaxError:
+            errors.append("nested loader source is not statically parseable")
+            continue
+        if _nested_imports_self(nested_tree, filename):
+            self_load = True
+        nested_self, nested_errors = _self_load_analysis(
+            nested_tree, filename, inspect_subprocess=False,
+        )
+        self_load = self_load or nested_self
+        errors.extend(nested_errors)
+    return self_load, tuple(errors)
+
+
+def _pre_guard_references_held_function(
+    tree: ast.Module,
+    call: ast.Call,
+    filename: str,
+) -> bool:
+    held_names = {
+        node_id.split("::", 1)[1]
+        for node_id in GROWTH_TEST_HOLDS
+        if node_id.split("::", 1)[0] == Path(filename).name
+    }
+    for node in ast.walk(tree):
+        if (
+            isinstance(node, ast.Name)
+            and isinstance(node.ctx, ast.Load)
+            and node.id in held_names
+            and node.lineno < call.lineno
+        ):
+            return True
+    return False
+
+
+def _guard_binding_analysis(
+    source: str,
+    filename: str,
+) -> tuple[tuple[str, ...], bool]:
     tree = ast.parse(source, filename=filename)
     imports = [
         alias
@@ -536,9 +1112,11 @@ def _guard_binding_errors(source: str, filename: str) -> tuple[str, ...]:
         errors.append(f"call count is {len(all_calls)}, expected 1")
     if len(top_level_calls) != 1:
         errors.append(f"top-level call count is {len(top_level_calls)}, expected 1")
-        return tuple(errors)
+        return tuple(errors), False
 
     call = top_level_calls[0]
+    self_load, self_load_errors = _self_load_analysis(tree, filename)
+    errors.extend(self_load_errors)
     globals_call = call.args[0] if call.args else None
     runner_keywords = [
         keyword for keyword in call.keywords if keyword.arg == "plain_runner"
@@ -550,10 +1128,27 @@ def _guard_binding_errors(source: str, filename: str) -> tuple[str, ...]:
         and isinstance(runner_keywords[0].value.value, str)
         else None
     )
+    mode_keywords = [
+        keyword for keyword in call.keywords if keyword.arg == "guard_mode"
+    ]
+    declared_mode = (
+        mode_keywords[0].value.value
+        if len(mode_keywords) == 1
+        and isinstance(mode_keywords[0].value, ast.Constant)
+        and isinstance(mode_keywords[0].value.value, str)
+        else None
+    )
+    keyword_names = tuple(keyword.arg for keyword in call.keywords)
+    expected_keywords = (
+        ("plain_runner", "guard_mode") if self_load else ("plain_runner",)
+    )
     exact_arguments = (
         len(call.args) == 2
-        and len(call.keywords) == 1
+        and keyword_names == expected_keywords
         and declared_runner in {"pytest-delegating", "manual", "none"}
+        and (
+            declared_mode == "call-only" if self_load else not mode_keywords
+        )
         and isinstance(globals_call, ast.Call)
         and isinstance(globals_call.func, ast.Name)
         and globals_call.func.id == "globals"
@@ -565,7 +1160,16 @@ def _guard_binding_errors(source: str, filename: str) -> tuple[str, ...]:
     if not exact_arguments:
         errors.append(
             "call must declare enforce_held_functions(globals(), __file__, "
-            "plain_runner=<pytest-delegating|manual|none>)"
+            "plain_runner=<pytest-delegating|manual|none>) and add exact trailing "
+            "guard_mode='call-only' only for canonical self-load"
+        )
+
+    if declared_mode == "call-only" and _pre_guard_references_held_function(
+        tree, call, filename,
+    ):
+        errors.append(
+            "call-only binding must not preserve a pre-guard held-function "
+            "alias/reference"
         )
 
     test_definitions = [
@@ -586,15 +1190,28 @@ def _guard_binding_errors(source: str, filename: str) -> tuple[str, ...]:
             f"plain_runner {declared_runner!r} does not match AST runner "
             f"{expected_runner!r}"
         )
-    return tuple(errors)
+    return tuple(errors), self_load
 
 
-def _clean_subprocess_env(*, opt_in: bool = False) -> dict[str, str]:
+def _guard_binding_errors(source: str, filename: str) -> tuple[str, ...]:
+    return _guard_binding_analysis(source, filename)[0]
+
+
+def _clean_subprocess_env(
+    *,
+    opt_in: bool = False,
+    repo_on_pythonpath: bool = False,
+) -> dict[str, str]:
     env = os.environ.copy()
     env.pop("PYTEST_ADDOPTS", None)
     env.pop("IZANAGI_RUN_GROWTH_HELD_TESTS", None)
     if opt_in:
         env["IZANAGI_RUN_GROWTH_HELD_TESTS"] = "explicit-user-command"
+    if repo_on_pythonpath:
+        inherited_pythonpath = env.get("PYTHONPATH")
+        env["PYTHONPATH"] = os.pathsep.join(
+            part for part in (str(ROOT), inherited_pythonpath) if part
+        )
     return env
 
 
@@ -602,12 +1219,16 @@ def _run_subprocess(
     argv: list[str],
     *,
     opt_in: bool = False,
+    repo_on_pythonpath: bool = False,
     timeout: float = 10.0,
 ) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
         argv,
         cwd=ROOT,
-        env=_clean_subprocess_env(opt_in=opt_in),
+        env=_clean_subprocess_env(
+            opt_in=opt_in,
+            repo_on_pythonpath=repo_on_pythonpath,
+        ),
         capture_output=True,
         text=True,
         timeout=timeout,
@@ -635,10 +1256,290 @@ def test_every_held_module_has_exact_top_level_guard_binding():
         "test_s8b_protocol_builder.py",
         "test_s8b_repo_scan_invariant.py",
     )
+    analyses = {}
     for filename in _held_filenames():
         path = Path(__file__).resolve().parent / filename
         assert path.is_file(), filename
-        assert _guard_binding_errors(path.read_text(encoding="utf-8"), filename) == ()
+        errors, self_load = _guard_binding_analysis(
+            path.read_text(encoding="utf-8"), filename,
+        )
+        analyses[filename] = (errors, self_load)
+        assert errors == (), filename
+        assert self_load is False, filename
+    assert analyses["test_check_docs.py"] == ((), False)
+
+
+def _synthetic_binding_source(
+    runner: str,
+    *,
+    loader_path: str = "__file__",
+    keywords: str = 'plain_runner="none", guard_mode="call-only"',
+    alias_line: str = "",
+) -> str:
+    main_guard = {
+        "none": "",
+        "manual": "\nif __name__ == '__main__':\n    raise SystemExit(0)\n",
+        "pytest-delegating": (
+            "\nif __name__ == '__main__':\n"
+            "    raise SystemExit(pytest.main([__file__]))\n"
+        ),
+    }[runner]
+    pytest_import = "import pytest\n" if runner == "pytest-delegating" else ""
+    return (
+        "import importlib.util as importlib_util\n"
+        f"{pytest_import}"
+        "from orchestrator.tests.growth_test_holds import enforce_held_functions\n\n"
+        "def test_real_repository_scan_matches_known_hits_and_has_positive_control():\n"
+        f"    spec = importlib_util.spec_from_file_location('self', {loader_path})\n"
+        "    module = importlib_util.module_from_spec(spec)\n"
+        "    spec.loader.exec_module(module)\n\n"
+        f"{alias_line}"
+        f"enforce_held_functions(globals(), __file__, {keywords})\n"
+        f"{main_guard}"
+    )
+
+
+@pytest.mark.parametrize("runner", ["none", "manual", "pytest-delegating"])
+def test_guard_binding_requires_call_only_exactly_for_canonical_self_load(runner):
+    filename = "test_s8b_repo_scan_invariant.py"
+    accepted = _synthetic_binding_source(
+        runner,
+        keywords=f'plain_runner="{runner}", guard_mode="call-only"',
+    )
+    assert _guard_binding_errors(accepted, filename) == ()
+
+    self_load_without_mode = _synthetic_binding_source(
+        runner, keywords=f'plain_runner="{runner}"',
+    )
+    assert _guard_binding_errors(self_load_without_mode, filename) != ()
+
+    foreign_default = _synthetic_binding_source(
+        runner,
+        loader_path="'tools/check_docs.py'",
+        keywords=f'plain_runner="{runner}"',
+    )
+    assert _guard_binding_errors(foreign_default, filename) == ()
+    for mode in ("call-only", "import-and-call"):
+        foreign_explicit_mode = _synthetic_binding_source(
+            runner,
+            loader_path="'tools/check_docs.py'",
+            keywords=f'plain_runner="{runner}", guard_mode="{mode}"',
+        )
+        assert _guard_binding_errors(foreign_explicit_mode, filename) != ()
+
+    rejected_keywords = (
+        f'plain_runner="{runner}", guard_mode="import-and-call"',
+        f'plain_runner="{runner}", guard_mode="unknown"',
+        f'guard_mode="call-only", plain_runner="{runner}"',
+        f'plain_runner="{runner}", unknown="call-only"',
+        f'plain_runner="{runner}", guard_mode=True',
+        f'plain_runner="{runner}", **{{"guard_mode": "call-only"}}',
+    )
+    for keywords in rejected_keywords:
+        assert _guard_binding_errors(
+            _synthetic_binding_source(runner, keywords=keywords), filename,
+        ) != (), keywords
+
+    third_positional = _synthetic_binding_source(
+        runner,
+        keywords=f'"extra", plain_runner="{runner}", guard_mode="call-only"',
+    )
+    assert _guard_binding_errors(third_positional, filename) != ()
+
+    duplicate = _synthetic_binding_source(
+        runner,
+        keywords=(
+            f'plain_runner="{runner}", plain_runner="{runner}", '
+            'guard_mode="call-only"'
+        ),
+    )
+    assert _guard_binding_errors(duplicate, filename) != ()
+
+
+def test_call_only_binding_rejects_pre_guard_alias_with_post_guard_control():
+    filename = "test_s8b_repo_scan_invariant.py"
+    held_name = (
+        "test_real_repository_scan_matches_known_hits_and_has_positive_control"
+    )
+    pre_guard_references = (
+        f"saved = {held_name}\n",
+        f"def escape(fn={held_name}):\n    return fn\n",
+        f"setattr(type('Holder', (), {{}}), 'held', {held_name})\n",
+        f"holders = []\nholders.append(__import__('functools').partial({held_name}))\n",
+        (
+            "import pytest\n"
+            "@pytest.fixture\n"
+            f"def escaped(fn={held_name}):\n    return fn\n"
+        ),
+    )
+    for reference in pre_guard_references:
+        rejected = _synthetic_binding_source("none", alias_line=reference)
+        assert "pre-guard held-function alias" in " ".join(
+            _guard_binding_errors(rejected, filename)
+        ), reference
+
+    alias = f"saved = {held_name}\n"
+    accepted = _synthetic_binding_source("none") + alias
+    assert _guard_binding_errors(accepted, filename) == ()
+
+
+def test_self_load_detection_handles_real_nested_consumers():
+    consumers = {
+        "test_s8b_floor_campaign.py": (
+            "# Shape copied from orchestrator/tests/test_s8b_floor_campaign.py:7896.\n"
+            "import subprocess\n"
+            "import sys\n"
+            "import textwrap\n"
+            "from pathlib import Path\n"
+            "script = textwrap.dedent(f'''\n"
+            "import importlib.util\n"
+            "spec = importlib.util.spec_from_file_location(\n"
+            "    'floor_test_helper', {str(Path(__file__))!r},\n"
+            ")\n"
+            "module = importlib.util.module_from_spec(spec)\n"
+            "spec.loader.exec_module(module)\n"
+            "''')\n"
+            "subprocess.run([sys.executable, '-c', script])\n"
+        ),
+        "test_dev_waves_integration.py": (
+            "# Shape copied from orchestrator/tests/test_dev_waves_integration.py:2050.\n"
+            "import subprocess\n"
+            "import sys\n"
+            "script = (\n"
+            "    'from orchestrator.tests import test_dev_waves_integration as target;'\n"
+            "    'raise SystemExit(target._serve_child_main())'\n"
+            ")\n"
+            "subprocess.Popen([sys.executable, '-c', script])\n"
+        ),
+    }
+    for filename, source in consumers.items():
+        assert _self_load_analysis(ast.parse(source), filename) == (True, ())
+
+
+@pytest.mark.parametrize(
+    "source",
+    [
+        (
+            "import importlib.util\n"
+            "spec: object = importlib.util.spec_from_file_location('self', __file__)\n"
+            "module = importlib.util.module_from_spec(spec)\n"
+            "spec.loader.exec_module(module)\n"
+        ),
+        (
+            "import importlib.util\n"
+            "spec = importlib.util.spec_from_file_location('self', __file__)\n"
+            "module = importlib.util.module_from_spec(spec)\n"
+            "loader = spec.loader\n"
+            "loader.exec_module(module)\n"
+        ),
+    ],
+)
+def test_self_load_detection_resolves_spec_and_loader_assignment_forms(source):
+    filename = "test_s8b_repo_scan_invariant.py"
+    assert _self_load_analysis(ast.parse(source), filename) == (True, ())
+
+
+@pytest.mark.parametrize(
+    "source",
+    [
+        (
+            "class runpy:\n"
+            "    @staticmethod\n"
+            "    def run_path(path):\n"
+            "        return path\n"
+            "runpy.run_path(__file__)\n"
+        ),
+        "import runpy\nif False:\n    runpy.run_path(__file__)\n",
+    ],
+)
+def test_self_load_detection_ignores_shadowed_or_unreachable_loader_names(source):
+    filename = "test_s8b_repo_scan_invariant.py"
+    assert _self_load_analysis(ast.parse(source), filename) == (False, ())
+
+
+@pytest.mark.parametrize(
+    ("self_source", "foreign_source"),
+    [
+        (
+            "import runpy\nrunpy.run_path(__file__)\n",
+            "import runpy\nrunpy.run_path('tools/check_docs.py')\n",
+        ),
+        (
+            "from runpy import run_module as load\n"
+            "load('orchestrator.tests.test_s8b_repo_scan_invariant')\n",
+            "from runpy import run_module as load\nload('tools.check_docs')\n",
+        ),
+        (
+            "exec(open(__file__).read())\n",
+            "exec(open('tools/check_docs.py').read())\n",
+        ),
+    ],
+)
+def test_self_load_detection_pairs_each_loader_with_foreign_control(
+    self_source, foreign_source,
+):
+    filename = "test_s8b_repo_scan_invariant.py"
+    assert _self_load_analysis(ast.parse(self_source), filename) == (True, ())
+    assert _self_load_analysis(ast.parse(foreign_source), filename) == (False, ())
+
+
+def test_self_load_detection_compares_full_path_not_only_basename():
+    filename = "test_s8b_repo_scan_invariant.py"
+    source = (
+        "import importlib.util\n"
+        "spec = importlib.util.spec_from_file_location(\n"
+        "    'foreign', '/tmp/test_s8b_repo_scan_invariant.py',\n"
+        ")\n"
+        "module = importlib.util.module_from_spec(spec)\n"
+        "spec.loader.exec_module(module)\n"
+    )
+    assert _self_load_analysis(ast.parse(source), filename) == (False, ())
+
+
+def test_self_load_detection_fails_closed_for_unresolved_loader_path():
+    source = (
+        "import runpy\n"
+        "def load(path):\n"
+        "    runpy.run_path(path)\n"
+    )
+    self_load, errors = _self_load_analysis(
+        ast.parse(source), "test_s8b_repo_scan_invariant.py",
+    )
+    assert self_load is False
+    assert errors == ("self-load path is not statically resolvable",)
+
+
+def test_self_load_detection_fails_closed_for_unresolved_exec_module_binding():
+    source = (
+        "import importlib.util\n"
+        "spec = importlib.util.spec_from_file_location('self', __file__)\n"
+        "loader = choose_loader(spec.loader)\n"
+        "loader.exec_module(object())\n"
+    )
+    assert _self_load_analysis(
+        ast.parse(source), "test_s8b_repo_scan_invariant.py",
+    ) == (False, ("self-load loader is not statically resolvable",))
+
+
+def test_nested_loader_resolution_has_positive_and_unrelated_negative_controls():
+    filename = "test_s8b_repo_scan_invariant.py"
+    unresolved_loader = (
+        "import subprocess, sys\n"
+        "def run(path):\n"
+        "    script = f'import runpy; runpy.run_path({path!r})'\n"
+        "    subprocess.run([sys.executable, '-c', script])\n"
+    )
+    assert _self_load_analysis(ast.parse(unresolved_loader), filename) == (
+        False,
+        ("nested loader source is not statically resolvable",),
+    )
+
+    unrelated_dynamic = (
+        "import subprocess, sys\n"
+        "def run(script):\n"
+        "    subprocess.run([sys.executable, '-c', script])\n"
+    )
+    assert _self_load_analysis(ast.parse(unrelated_dynamic), filename) == (False, ())
 
 
 def test_guard_binding_negative_control_detects_removed_call():
@@ -697,6 +1598,41 @@ def test_all_registered_nodes_are_call_time_wrapped(monkeypatch):
             "release_env": "IZANAGI_RUN_GROWTH_HELD_TESTS",
             "release_token": "explicit-user-command",
         }
+
+
+def test_enforcement_signature_pins_independent_guard_mode_default():
+    signature = inspect.signature(enforce_held_functions)
+    assert tuple(signature.parameters) == (
+        "namespace",
+        "module_file",
+        "plain_runner",
+        "guard_mode",
+    )
+    assert signature.parameters["guard_mode"].kind is inspect.Parameter.KEYWORD_ONLY
+    assert signature.parameters["guard_mode"].default == "import-and-call"
+    assert GuardMode.__args__ == ("import-and-call", "call-only")
+    assert _GUARD_MODES == frozenset({"import-and-call", "call-only"})
+
+
+@pytest.mark.parametrize("guard_mode", ["unknown", True, None])
+def test_guard_mode_rejects_unknown_literal(guard_mode):
+    function_name = (
+        "test_real_repository_scan_matches_known_hits_and_has_positive_control"
+    )
+    with pytest.raises(ValueError, match="invalid growth-test guard mode"):
+        enforce_held_functions(
+            {function_name: lambda: None},
+            "test_s8b_repo_scan_invariant.py",
+            plain_runner="manual",
+            guard_mode=guard_mode,
+        )
+
+
+def test_pytest_driver_detection_fails_closed_without_frame_introspection(
+    monkeypatch,
+):
+    monkeypatch.setattr(inspect, "currentframe", lambda: None)
+    assert _pytest_drives_current_import() is True
 
 
 def test_enforcement_rejects_misplacement_and_missing_functions():
@@ -794,6 +1730,143 @@ def test_opt_in_runs_held_fixture_and_parametrize_shape(tmp_path):
     output = _combined_output(result)
     assert result.returncode == 0, output
     assert "2 passed" in output
+
+
+def _write_call_only_module(
+    tmp_path: Path,
+    *,
+    cost_markers: bool = False,
+) -> Path:
+    synthetic = tmp_path / "test_s8b_repo_scan_invariant.py"
+    fixture = (
+        "import pytest\n\n"
+        "@pytest.fixture(autouse=True)\n"
+        "def eager_fixture():\n"
+        "    print('FIXTURE_RAN', flush=True)\n\n"
+        if cost_markers else ""
+    )
+    module_tail = (
+        "print('MODULE_AFTER_GUARD_RAN', flush=True)\n"
+        if cost_markers else ""
+    )
+    synthetic.write_text(
+        fixture
+        + (
+            "from orchestrator.tests.growth_test_holds import enforce_held_functions\n\n"
+            "def test_real_repository_scan_matches_known_hits_and_has_positive_control():\n"
+            "    print('BODY_RAN', flush=True)\n\n"
+            "enforce_held_functions(\n"
+            "    globals(), __file__, plain_runner='none', guard_mode='call-only',\n"
+            ")\n"
+        )
+        + module_tail,
+        encoding="utf-8",
+    )
+    return synthetic
+
+
+def test_call_only_mode_allows_import_but_refuses_held_call(tmp_path):
+    synthetic = _write_call_only_module(tmp_path)
+    script = (
+        "import importlib.util; "
+        f"spec=importlib.util.spec_from_file_location('synthetic', {str(synthetic)!r}); "
+        "module=importlib.util.module_from_spec(spec); "
+        "spec.loader.exec_module(module); print('IMPORT_OK', flush=True); "
+        "module.test_real_repository_scan_matches_known_hits_and_has_positive_control()"
+    )
+    result = _run_subprocess(
+        [sys.executable, "-c", script],
+        repo_on_pythonpath=True,
+    )
+    output = _combined_output(result)
+    assert result.returncode != 0, output
+    assert "IMPORT_OK" in output
+    assert "IZANAGI_GROWTH_HOLD_BYPASS_REFUSED_V1" in output
+    assert "BODY_RAN" not in output
+
+
+def test_call_only_mode_allows_package_import_but_refuses_held_call(tmp_path):
+    package = tmp_path / "synthetic_package"
+    package.mkdir()
+    (package / "__init__.py").write_text("", encoding="utf-8")
+    _write_call_only_module(package)
+    script = (
+        "import sys; "
+        f"sys.path.insert(0, {str(tmp_path)!r}); "
+        "from synthetic_package import test_s8b_repo_scan_invariant as module; "
+        "print('IMPORT_OK', flush=True); "
+        "module.test_real_repository_scan_matches_known_hits_and_has_positive_control()"
+    )
+    result = _run_subprocess(
+        [sys.executable, "-c", script],
+        repo_on_pythonpath=True,
+    )
+    output = _combined_output(result)
+    assert result.returncode != 0, output
+    assert "IMPORT_OK" in output
+    assert "IZANAGI_GROWTH_HOLD_BYPASS_REFUSED_V1" in output
+    assert "BODY_RAN" not in output
+
+
+def test_call_only_mode_still_rejects_noconftest_pytest_import(tmp_path):
+    synthetic = _write_call_only_module(tmp_path, cost_markers=True)
+    result = _run_subprocess(
+        [
+            sys.executable,
+            "-m",
+            "pytest",
+            "--noconftest",
+            "-p",
+            "no:cacheprovider",
+            "-q",
+            str(synthetic),
+        ],
+        repo_on_pythonpath=True,
+    )
+    output = _combined_output(result)
+    assert result.returncode != 0, output
+    assert "IZANAGI_GROWTH_HOLD_BYPASS_REFUSED_V1" in output
+    assert "MODULE_AFTER_GUARD_RAN" not in output
+    assert "FIXTURE_RAN" not in output
+    assert "BODY_RAN" not in output
+    assert "passed" not in output
+
+
+def test_call_only_mode_still_rejects_confcutdir_pytest_import(tmp_path):
+    synthetic = _write_call_only_module(tmp_path, cost_markers=True)
+    result = _run_subprocess(
+        [
+            sys.executable,
+            "-m",
+            "pytest",
+            "--confcutdir",
+            str(tmp_path),
+            "-p",
+            "no:cacheprovider",
+            "-q",
+            str(synthetic),
+        ],
+        repo_on_pythonpath=True,
+    )
+    output = _combined_output(result)
+    assert result.returncode != 0, output
+    assert "IZANAGI_GROWTH_HOLD_BYPASS_REFUSED_V1" in output
+    assert "MODULE_AFTER_GUARD_RAN" not in output
+    assert "FIXTURE_RAN" not in output
+    assert "BODY_RAN" not in output
+    assert "passed" not in output
+
+
+def test_call_only_mode_still_rejects_non_delegating_main(tmp_path):
+    synthetic = _write_call_only_module(tmp_path)
+    result = _run_subprocess(
+        [sys.executable, str(synthetic)],
+        repo_on_pythonpath=True,
+    )
+    output = _combined_output(result)
+    assert result.returncode != 0, output
+    assert "IZANAGI_GROWTH_HOLD_BYPASS_REFUSED_V1" in output
+    assert "BODY_RAN" not in output
 
 
 def test_noconftest_bypass_is_refused_before_held_body():
