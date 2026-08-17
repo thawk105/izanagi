@@ -169,3 +169,14 @@ v2 candidate producer は独立した公開 CLI (`generate-v2-candidate`) から
    変更前からの挙動である。
 4. 次に pin を前進させると versioned record が 2 件並ぶ。そのとき現行契約が同じなら
    HEAD pin exact が 1 件に決まるので解決は続く。契約も同時に変わる場合は未検証。
+
+## erratum — 逐語の行末空白を可逆正規化した
+
+`git diff --check` が `verbatim/` の 2 file で行末空白を検出したため、
+**行末の空白だけ**を取り除いた (可視文字は 1 文字も変えていない)。
+復元は各行の末尾へ元の空白を戻すことで行える。
+
+| file | 原文 sha256 | 原文 bytes | 正規化後 sha256 | 正規化後 bytes | 対象行数 |
+|---|---|---|---|---|---|
+| `verbatim/s3-lensB.md` | `c3444ec5cca1b0eba31cd8d2148979bbfc5de5b453da0efbd9394319df42ee84` | 11784 | `3ed0e537d771d5d0598ef1c3ba6aa7943dc009a25ec244a8acc758e191e6542a` | 11774 | 5 |
+| `verbatim/s6-lensD.md` | `db5259fa4d1f86240d4870fd6ea8cc49409a89d352b7fbfe4725bb2a5748ed72` | 11324 | `92b6bc785d0a37b9aa7b72b358fe92e21b09cbfb65003b1acd45edae7eafd90e` | 11308 | 8 |

@@ -124,16 +124,16 @@ shell ハンク自体に blocker は見つかりませんでした。
 
 一方、この fallback により大半の floor campaign tests は発行後の「候補 2 件＋HEAD gitlink exact」状態を踏みません。これは D-2 の coverage nit であり、既存テストが別理由で緑になる実例です。
 
-**最終判定: NO-GO。**  
+**最終判定: NO-GO。**
 コード commit 後ただちに artifact を発行するのではなく、D-1 の直接 CLI／resume authority を先に閉じるか、公開 CLI 裁定まで artifact 発行を延期すべきです。
 
 ## 総括
 
-発行後に赤くなる既存 pytest node は 0 件で、指定台帳にも stale node はありません。  
-ただしテストが緑でも、従来の直接 legacy pilot CLI と legacy resume は発行後だけ後段拒否へ変わります。  
-その拒否は build、binary store、manifest 発行後なので、部分成果物を残して result と試行台帳を失います。  
-未 commit 発行窓では resolver 系検査が赤になるものの、親の artifact 単体検証から commit する順序自体は成立します。  
-shell は resolver を 1 回だけ呼び、失敗記録、fd、marker、3 consumer の順序も維持しています。  
-official preflight と v2 producer は現在休眠ですが、official CLI 拒否だけが到達防壁という説明は正確ではありません。  
-単位 B の legacy-only fixture は現実には衝突せず、単独候補 fallback により緑になります。  
+発行後に赤くなる既存 pytest node は 0 件で、指定台帳にも stale node はありません。
+ただしテストが緑でも、従来の直接 legacy pilot CLI と legacy resume は発行後だけ後段拒否へ変わります。
+その拒否は build、binary store、manifest 発行後なので、部分成果物を残して result と試行台帳を失います。
+未 commit 発行窓では resolver 系検査が赤になるものの、親の artifact 単体検証から commit する順序自体は成立します。
+shell は resolver を 1 回だけ呼び、失敗記録、fd、marker、3 consumer の順序も維持しています。
+official preflight と v2 producer は現在休眠ですが、official CLI 拒否だけが到達防壁という説明は正確ではありません。
+単位 B の legacy-only fixture は現実には衝突せず、単独候補 fallback により緑になります。
 以上から、artifact 発行を含む現在の着地は NO-GO です。

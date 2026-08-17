@@ -171,9 +171,9 @@ worklogには、実際に発行していないこと、2件とshaは投影値で
 
 ## 総括
 
-親案P1は、D460だけでなくD471の明示的なresolver不変更に反する。  
-T-1255の明示フラグとAI provenanceも、実際の発行経路には存在しない。  
-pilotの3点経路は、承認済みならv2へ流せる見込みがある。  
-official preflightとholdout producerは、v2を拒否するかlegacyへ戻す。  
-2件、774 bytes、sha、3点閉包はいずれも一部が投影値または限定経路の値である。  
+親案P1は、D460だけでなくD471の明示的なresolver不変更に反する。
+T-1255の明示フラグとAI provenanceも、実際の発行経路には存在しない。
+pilotの3点経路は、承認済みならv2へ流せる見込みがある。
+official preflightとholdout producerは、v2を拒否するかlegacyへ戻す。
+2件、774 bytes、sha、3点閉包はいずれも一部が投影値または限定経路の値である。
 ユーザー再裁定とscope再確定なしに実装・発行へ進めてはならない。
