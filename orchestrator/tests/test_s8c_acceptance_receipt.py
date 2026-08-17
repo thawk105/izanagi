@@ -169,6 +169,32 @@ def test_tracked_receipt_and_all_referenced_bytes_verify_positive(
     assert receipt.require_current_verified_receipt(verified).sha256 == verified.sha256
 
 
+def test_t822_tracked_receipt_rejects_mixed_measurement_heads(
+    tmp_path: Path,
+) -> None:
+    repo, path, value = _receipt_fixture(tmp_path, commit_receipt=True)
+    coherent_head = value["registry_introduction_commit"]
+    for trial in value["trials"]:
+        trial["measurement_head"] = coherent_head
+    path.write_bytes(_canonical(value))
+    _commit_all(repo, "coherent valid measurement heads")
+
+    distinct_valid_head = _head(repo)
+    assert distinct_valid_head != coherent_head
+    value["trials"][0]["measurement_head"] = distinct_valid_head
+    path.write_bytes(_canonical(value))
+    _commit_all(repo, "one mixed valid measurement head")
+
+    with pytest.raises(
+        receipt.AcceptanceReceiptError,
+        match=(
+            r"\[receipt-measurement-head-coherence\] "
+            r"trials do not share one measurement_head$"
+        ),
+    ):
+        receipt.verify_acceptance_receipt(path, repository_root=repo)
+
+
 def test_m12_untracked_receipt_is_rejected(tmp_path: Path) -> None:
     repo, path, _value = _receipt_fixture(tmp_path, commit_receipt=False)
     with pytest.raises(

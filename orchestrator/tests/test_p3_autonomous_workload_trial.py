@@ -29,6 +29,7 @@ if str(_ROOT) not in sys.path:
 from orchestrator.campaign import claude_transport
 from orchestrator.campaign import autonomous_trial_completeness as completeness
 from orchestrator.campaign import artifact_admission
+from orchestrator.campaign import campaign_lock
 from orchestrator.campaign import model as campaign_model
 from orchestrator.campaign import p3_autonomous_workload_trial as A
 from orchestrator.campaign import reflux_origin_client
@@ -2361,11 +2362,8 @@ def test_run_trial_build_public_entry_passes_exploration_layout_to_trigger(
 def test_three_workload_build_positive_admission_passes_real_layer3_chain(
     tmp_path, monkeypatch,
 ) -> None:
-    # The campaign fixture lives outside the repository, so Layer 3 cannot
-    # discover a Git object ID from its ancestry.  Supply the same stable
-    # provenance input used by the dedicated Layer 3 fixtures; render itself
-    # and the complete campaign-chain verifier remain real.
-    monkeypatch.setattr(A.layer3_report, "_git_head", lambda _root: "a" * 40)
+    # The campaign fixture lives outside the repository.  Keep Layer 3's
+    # authority fallback and the complete campaign-chain verifier real.
     monkeypatch.setattr(
         A.trigger, "_current_site", lambda: A.trigger.site_policy.OTHER,
     )
@@ -2463,6 +2461,18 @@ def test_three_workload_build_positive_admission_passes_real_layer3_chain(
         (Path(cell["campaign_root"]) / "reports" / "layer3_report.json").is_file()
         for cell in report["cells"]
     )
+    for cell in report["cells"]:
+        campaign_root = Path(cell["campaign_root"])
+        decoded_lock = campaign_lock.decode_campaign_lock(
+            (campaign_root / "campaign.lock").read_text(encoding="utf-8")
+        )
+        assert decoded_lock.authority is not None
+        persisted = json.loads(
+            (campaign_root / "reports" / "layer3_report.json").read_bytes()
+        )
+        assert persisted["meta"]["generated_from_head"] == (
+            decoded_lock.authority.contract_loader_commit
+        )
 
 
 def test_build_cell_admission_precedes_critic_invocation(

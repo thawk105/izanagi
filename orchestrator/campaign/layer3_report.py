@@ -171,6 +171,23 @@ def _git_head(campaign_dir: Path) -> str:
     return head
 
 
+def _resolve_generated_from_head(
+    campaign_dir: Path,
+    decoded_lock: campaign_lock.DecodedCampaignLock,
+    generated_from_head: Optional[str],
+) -> str:
+    if generated_from_head is not None:
+        return generated_from_head
+    try:
+        return _git_head(campaign_dir)
+    except Layer3ReportError:
+        if campaign_dir.is_relative_to(_DEFAULT_OUTPUT_ROOT.parent):
+            raise
+        if decoded_lock.authority is not None:
+            return decoded_lock.authority.contract_loader_commit
+        raise
+
+
 def _artifact_refs(campaign_dir: Path) -> List[Dict[str, str]]:
     files = sorted(path for path in campaign_dir.rglob("*") if path.is_file())
     if not files:
@@ -508,7 +525,9 @@ def build_report(campaign_dir: Path, generated_from_head: Optional[str] = None, 
         "meta": {
             "campaign_id": campaign_dir.name, "campaign_path": campaign_path.as_posix(),
             "ccbench_commit": lock["ccbench_commit"],
-            "generated_from_head": generated_from_head if generated_from_head is not None else _git_head(campaign_dir),
+            "generated_from_head": _resolve_generated_from_head(
+                campaign_dir, decoded_lock, generated_from_head,
+            ),
             "generator": {"identity": GENERATOR_IDENTITY, "sha256": _sha256_file(Path(__file__))},
         },
         "workload": lock["search_config"], "variants": variant_rows, "runs": runs,
@@ -576,6 +595,9 @@ def build_accepted_report(
             "acceptance receipt の trial_id が対象 campaign と一致しない"
         )
 
+    if generated_from_head is None:
+        # Keep the certifying path's accepted inputs identical to its pre-wave set.
+        generated_from_head = _git_head(resolved_campaign)
     report = build_report(
         resolved_campaign,
         generated_from_head=generated_from_head,
