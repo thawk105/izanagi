@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import ast
 import collections
+import sys
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -856,3 +857,25 @@ def test_outer_perf_file_mutations_are_not_tautologies() -> None:
     pilot_path = "orchestrator/campaign/s8b_oracle_n_pilot.py"
     without_pilot = _production_perf_files({pilot_path: ""})
     assert f"missing: {pilot_path}" in _perf_file_drift(without_pilot)
+
+
+def _run() -> int:
+    tests = [
+        value for name, value in sorted(globals().items())
+        if name.startswith("test_") and callable(value)
+    ]
+    passed = failed = 0
+    for test in tests:
+        try:
+            test()
+            print(f"PASS {test.__name__}")
+            passed += 1
+        except Exception as exc:  # noqa: BLE001
+            print(f"FAIL {test.__name__}: {type(exc).__name__}: {exc}")
+            failed += 1
+    print(f"\n{passed} passed, {failed} failed")
+    return 1 if failed else 0
+
+
+if __name__ == "__main__":
+    sys.exit(_run())
