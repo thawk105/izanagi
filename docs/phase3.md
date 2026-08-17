@@ -832,6 +832,11 @@ terminal な項目 (取り消し線付き・「裁定・完了記録」節) に�
   [T-1128] へ移る。再訪条件 = offline 再現性が実需になったとき、または network 経路が実際に
   計算ノードで落ちたとき。
 
+- [T-339] **RF consumer の独立 task としての保持** — 理由: 2026-08-17 裁定 (陳腐化 = 所有が別 ID へ
+  移り本項は参照のみ)。ユーザー裁定 (2026-08-16) の択 B により
+  `producer → pilot → validator/consumer` を 1 scope へ戻したため、残作業の所有は [T-338] が持つ。
+  完了ではない。再訪条件 = 後続裁定が [T-338] から consumer の所有を再分離したとき。
+
 ### プロセス文書系
 
 - [T-040] **CLAUDE.md 作業手順 5 への provenance pointer 配線** (B-032, 出所 `docs/archive/worklog-phase3-0702-0713.md`) — hot path への provenance pointer を承認し現行導線に無い時。裁定 2026-07-19 保留承認、述語の正本 = `output/insights/2026-07-19_backlog-triage.md`。

@@ -3,9 +3,12 @@
 from __future__ import annotations
 
 import ast
+import io
 import json
+import os
 import subprocess
 import sys
+import tarfile
 from pathlib import Path
 
 import pytest
@@ -65,27 +68,43 @@ def _result(root: Path, commit: str, identifier: str) -> core.PredicateResult:
 
 
 def _snapshot_current_commit(tmp_path: Path) -> tuple[Path, str]:
-    """現 HEAD の evidence blobs と、この単位の契約を使い捨て commit へ写す。"""
+    """現 HEAD を一時 commit へ写す補助検査。
+
+    snapshot と HEAD は同じ evaluator を使うため、resolver mutation の kill 根拠には
+    数えない。ここで固定するのは commit-blob 投影の同値性だけである。
+    """
     root = _init_repo(tmp_path, "current-snapshot")
-    contract = M.load_contract_bytes(CONTRACT_FILE.read_bytes())
     paths = {
-        item.path
-        for condition in contract.conditions
-        for item in condition.required_evidence
+        reference.path
+        for result in M.get_registry().evaluate_all("HEAD", repo_root=_ROOT)
+        for reference in result.evidence
     }
-    for path in sorted(paths):
-        exists = subprocess.run(
-            ["git", "cat-file", "-e", f"HEAD:{path}"],
-            cwd=_ROOT,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-            timeout=10,
-        ).returncode == 0
-        if exists:
-            _write(root, path, _git(_ROOT, "show", f"HEAD:{path}"))
+    paths.add(core.EVIDENCE_CONTRACT_PATH)
+    tracked = set(
+        _git(_ROOT, "ls-tree", "-r", "--name-only", "HEAD").decode().splitlines()
+    )
+    assert paths - tracked <= {core.EVIDENCE_CONTRACT_PATH}
+    present = sorted(paths & tracked)
+    if present:
+        archive = _git(_ROOT, "archive", "--format=tar", "HEAD", "--", *present)
+        with tarfile.open(fileobj=io.BytesIO(archive), mode="r:") as bundle:
+            for member in bundle.getmembers():
+                if not member.isfile():
+                    continue
+                source = bundle.extractfile(member)
+                assert source is not None
+                _write(root, member.name, source.read())
     # HEAD がこの単位をまだ含まない段 5 でも、評価対象 commit には契約を含める。
     _write(root, core.EVIDENCE_CONTRACT_PATH, CONTRACT_FILE.read_bytes())
     return root, _commit(root, "current evidence snapshot")
+
+
+@pytest.fixture(scope="module")
+def current_commit_snapshot(
+    tmp_path_factory: pytest.TempPathFactory,
+) -> tuple[Path, str]:
+    """Read-only snapshot shared by all current-tree equivalence checks."""
+    return _snapshot_current_commit(tmp_path_factory.mktemp("current-commit"))
 
 
 def test_predicate_registry_is_exactly_c01_through_c12(tmp_path: Path) -> None:
@@ -97,8 +116,10 @@ def test_predicate_registry_is_exactly_c01_through_c12(tmp_path: Path) -> None:
     assert all(item.reason_code in M.REASON_CODES for item in results)
 
 
-def test_current_repository_snapshot_has_zero_satisfied_predicates(tmp_path: Path) -> None:
-    root, head = _snapshot_current_commit(tmp_path)
+def test_current_repository_snapshot_has_zero_satisfied_predicates(
+    current_commit_snapshot: tuple[Path, str],
+) -> None:
+    root, head = current_commit_snapshot
     results = M.get_registry().evaluate_all(head, repo_root=root)
     assert sum(item.status is core.PredicateStatus.SATISFIED for item in results) == 0
     for item in results:
@@ -106,14 +127,23 @@ def test_current_repository_snapshot_has_zero_satisfied_predicates(tmp_path: Pat
         assert all(ref.path and len(ref.blob_sha256) == 64 for ref in item.evidence)
 
 
+def test_current_repository_snapshot_exactly_matches_head(
+    current_commit_snapshot: tuple[Path, str],
+) -> None:
+    root, head = current_commit_snapshot
+    snapshot = tuple(M.get_registry().evaluate_all(head, repo_root=root))
+    actual = tuple(M.get_registry().evaluate_all("HEAD", repo_root=_ROOT))
+    assert snapshot == actual
+
+
 def test_current_repository_gap_reason_snapshot_requires_cross_wave_review(
-    tmp_path: Path,
+    current_commit_snapshot: tuple[Path, str],
 ) -> None:
     """個別 reason は gap ledger。他 wave の land 時は意図を再審査して更新する。
 
     [T-325] の land で trial_registry の capability probe 段階を通過した。
     """
-    root, head = _snapshot_current_commit(tmp_path)
+    root, head = current_commit_snapshot
     results = M.get_registry().evaluate_all(head, repo_root=root)
     assert {
         item.id: (item.status, item.reason_code) for item in results
@@ -134,10 +164,10 @@ def test_current_repository_gap_reason_snapshot_requires_cross_wave_review(
 
 
 def test_current_repository_c12_registry_reports_unwired_allocation_consumer(
-    tmp_path: Path,
+    current_commit_snapshot: tuple[Path, str],
 ) -> None:
     # production が正しく配線されたら反転させる snapshot tripwire である。
-    root, head = _snapshot_current_commit(tmp_path)
+    root, head = current_commit_snapshot
     results = M.get_registry().evaluate_all(head, repo_root=root)
     c12 = {item.id: item for item in results}["C12"]
     assert c12.status is core.PredicateStatus.UNSATISFIED
@@ -145,10 +175,10 @@ def test_current_repository_c12_registry_reports_unwired_allocation_consumer(
 
 
 def test_current_repository_c12_allocation_binding_helper_reports_unwired_consumer(
-    tmp_path: Path,
+    current_commit_snapshot: tuple[Path, str],
 ) -> None:
     # production が正しく配線されたら反転させる snapshot tripwire である。
-    root, head = _snapshot_current_commit(tmp_path)
+    root, head = current_commit_snapshot
     condition = M.load_contract_bytes(CONTRACT_FILE.read_bytes()).condition(12)
     paths = {
         item.artifact_kind: item.path for item in condition.required_evidence
@@ -349,7 +379,21 @@ def test_contract_does_not_add_a_holdout_axis_conjunction() -> None:
     assert all(paths == [] for paths in hits.values())
 
 
+def test_contract_declares_exact_terminal_definition_path_universe() -> None:
+    contract = M.load_contract_bytes(CONTRACT_FILE.read_bytes())
+    assert len(contract.evidence_paths) == 14
+    assert {
+        "orchestrator/campaign/env_contract.py",
+        "orchestrator/campaign/execution_guard.py",
+        "orchestrator/campaign/reservation.py",
+        "orchestrator/campaign/s8b_ratified_freeze.py",
+        "orchestrator/campaign/trial_registry.py",
+        "orchestrator/campaign/autonomous_trial_completeness.py",
+    } <= contract.evidence_paths
+
+
 TOKEN_ONLY_C01 = """
+from .s8b_ratified_freeze import load_ratified_freeze
 def _campaign_for(*, holdout, ratified_sha256):
     return {"records": 1_000_000, "threads": 48}
 def _perf_for(*, holdout, ratified_sha256):
@@ -371,9 +415,9 @@ def main():
 """
 
 TOKEN_ONLY_C04 = """
+from .trial_registry import forbid_trial_restart
 def launch_cells(): pass
 def mark_experiment_indeterminate(): pass
-def forbid_trial_restart(): pass
 def run_trial():
     try:
         launch_cells()
@@ -385,7 +429,7 @@ def main():
 """
 
 TOKEN_ONLY_C09_PRODUCER = """
-def assert_campaign_layer3_chain(): pass
+from .autonomous_trial_completeness import assert_campaign_layer3_chain
 def run_trial():
     assert_campaign_layer3_chain()
 def main():
@@ -393,7 +437,7 @@ def main():
 """
 
 TOKEN_ONLY_C09_REGISTRY = """
-def assert_campaign_layer3_chain(): pass
+from .autonomous_trial_completeness import assert_campaign_layer3_chain
 def accept_trial():
     policy = {"no-build": False, "certifying": False}
     assert_campaign_layer3_chain()
@@ -443,11 +487,11 @@ def validate_planner_payload(): pass
 """
 
 TOKEN_ONLY_C12 = """
-def lookup(): return object()
-def attest_and_build_receipt(*args): return object()
+from . import env_contract, execution_guard
+environ = {}
 def run_trial():
-    contract = lookup()
-    attest_and_build_receipt(contract)
+    contract = env_contract.lookup()
+    execution_guard.attest_and_build_receipt(contract)
     binding = read_binding(environ)
     check_reservation(
         binding,
@@ -570,7 +614,12 @@ def _negative_control_case(
             1,
         )
     if identifier == "nc_c09_acceptance_skips_layer3":
-        sources = {p3: TOKEN_ONLY_C09_PRODUCER, registry: TOKEN_ONLY_C09_REGISTRY}
+        sources = {
+            p3: TOKEN_ONLY_C09_PRODUCER,
+            registry: TOKEN_ONLY_C09_REGISTRY,
+            "orchestrator/campaign/autonomous_trial_completeness.py":
+                "def assert_campaign_layer3_chain(): pass\n",
+        }
         return sources, registry, TOKEN_ONLY_C09_REGISTRY.replace(
             "    assert_campaign_layer3_chain()\n", "", 1
         )
@@ -619,6 +668,1160 @@ NEGATIVE_CONTROL_CASES = {
     "nc_c11_generation_cap_reverts_to_one": "C11",
     "nc_c12_reservation_check_bypassed": "C12",
 }
+
+
+def _terminal_result(
+    tmp_path: Path, name: str, identifier: str, sources: dict[str, str]
+) -> tuple[Path, str, core.PredicateResult]:
+    root = _init_repo(tmp_path, name)
+    for path, source in sources.items():
+        _write(root, path, source)
+    head = _commit(root, name)
+    result = _result(root, head, identifier)
+    assert result.status is core.PredicateStatus.EVIDENCE_UNDEFINED
+    assert result.reason_code == "completion-proof-not-machine-checkable"
+    return root, head, result
+
+
+def _c12_modules(supervisor: str) -> dict[str, str]:
+    return {
+        "orchestrator/campaign/p3_autonomous_workload_trial.py": supervisor,
+        "orchestrator/campaign/env_contract.py": "def lookup(): pass\n",
+        "orchestrator/campaign/execution_guard.py":
+            "def attest_and_build_receipt(*args): pass\n",
+        "orchestrator/campaign/reservation.py":
+            "def read_binding(*args): return object()\n"
+            "def check_reservation(*args, **kwargs): pass\n",
+    }
+
+
+@pytest.mark.parametrize(
+    "imports_and_calls",
+    [
+        pytest.param(
+            "from . import env_contract, execution_guard\n"
+            "ENV = env_contract.lookup\nGUARD = execution_guard.attest_and_build_receipt\n",
+            id="multi-name-from-package",
+        ),
+        pytest.param(
+            "from .env_contract import lookup\n"
+            "from .execution_guard import attest_and_build_receipt\n"
+            "ENV = lookup\nGUARD = attest_and_build_receipt\n",
+            id="from-symbol",
+        ),
+        pytest.param(
+            "from .env_contract import lookup as ENV\n"
+            "from .execution_guard import attest_and_build_receipt as GUARD\n",
+            id="from-symbol-as",
+        ),
+        pytest.param(
+            "import orchestrator.campaign.env_contract as e\n"
+            "import orchestrator.campaign.execution_guard as g\n"
+            "ENV = e.lookup\nGUARD = g.attest_and_build_receipt\n",
+            id="absolute-import-as",
+        ),
+        pytest.param(
+            "import orchestrator.campaign.env_contract\n"
+            "import orchestrator.campaign.execution_guard\n"
+            "ENV = orchestrator.campaign.env_contract.lookup\n"
+            "GUARD = orchestrator.campaign.execution_guard.attest_and_build_receipt\n",
+            id="absolute-import",
+        ),
+    ],
+)
+def test_cross_module_import_forms_resolve_exact_bound_target(
+    tmp_path: Path, imports_and_calls: str
+) -> None:
+    supervisor = imports_and_calls + """
+environ = {}
+def run_trial():
+    contract = ENV()
+    GUARD(contract)
+    binding = read_binding(environ)
+    check_reservation(binding, required_s=1, safety_margin_s=0, environ=environ)
+    return binding
+def main(): return run_trial()
+"""
+    _, _, result = _terminal_result(
+        tmp_path, "import-form", "C12", _c12_modules(supervisor)
+    )
+    paths = {reference.path for reference in result.evidence}
+    assert {
+        "orchestrator/campaign/env_contract.py",
+        "orchestrator/campaign/execution_guard.py",
+        "orchestrator/campaign/reservation.py",
+    } <= paths
+
+
+VALUE_FLOW_C12 = """
+from . import env_contract, reservation, trigger
+SENTINEL = object()
+environ = {}
+def relay(*, drive, contract, origin_runtime=None):
+    drive(contract)
+    return contract
+def run_trial(drive=SENTINEL):
+    if drive is SENTINEL:
+        drive = trigger.drive_iteration
+    contract = env_contract.lookup()
+    binding = reservation.read_binding(environ)
+    reservation.check_reservation(
+        binding, required_s=1, safety_margin_s=0, environ=environ
+    )
+    return relay(drive=drive, contract=contract)
+def main():
+    return run_trial()
+"""
+
+VALUE_FLOW_TRIGGER = """
+from . import execution_guard
+def drive_iteration(contract):
+    execution_guard.attest_and_build_receipt(contract)
+"""
+
+
+def _value_flow_sources(supervisor: str = VALUE_FLOW_C12) -> dict[str, str]:
+    sources = _c12_modules(supervisor)
+    sources["orchestrator/campaign/trigger.py"] = VALUE_FLOW_TRIGGER
+    return sources
+
+
+def test_local_single_assignment_and_keyword_value_flow_is_witness(
+    tmp_path: Path,
+) -> None:
+    _terminal_result(tmp_path, "value-flow", "C12", _value_flow_sources())
+
+
+DICT_CARRIER_C12 = VALUE_FLOW_C12.replace(
+    "    return relay(drive=drive, contract=contract)",
+    "    arguments = dict(drive=drive, contract=contract)\n"
+    "    arguments[\"origin_runtime\"] = None\n"
+    "    return relay(**arguments)",
+)
+
+
+def test_single_assignment_dict_carrier_with_unrelated_literal_update_is_witness(
+    tmp_path: Path,
+) -> None:
+    _terminal_result(
+        tmp_path, "dict-carrier", "C12", _value_flow_sources(DICT_CARRIER_C12)
+    )
+
+
+@pytest.mark.parametrize(
+    ("name", "source"),
+    [
+        pytest.param(
+            "target-key-subscript",
+            DICT_CARRIER_C12.replace(
+                'arguments["origin_runtime"] = None',
+                'arguments["drive"] = custom_drive',
+            ).replace(
+                "def run_trial(drive=SENTINEL):",
+                "def custom_drive(*args): return None\n"
+                "def run_trial(drive=SENTINEL):",
+            ),
+            id="target-key-subscript",
+        ),
+        pytest.param(
+            "nonliteral-subscript",
+            DICT_CARRIER_C12.replace(
+                'arguments["origin_runtime"] = None',
+                'arguments[unknown_key] = None',
+            ),
+            id="nonliteral-subscript",
+        ),
+        pytest.param(
+            "update",
+            DICT_CARRIER_C12.replace(
+                'arguments["origin_runtime"] = None',
+                'arguments.update({"drive": custom_drive})',
+            ).replace(
+                "def run_trial(drive=SENTINEL):",
+                "def custom_drive(*args): return None\n"
+                "def run_trial(drive=SENTINEL):",
+            ),
+            id="update",
+        ),
+        pytest.param(
+            "pop",
+            DICT_CARRIER_C12.replace(
+                'arguments["origin_runtime"] = None',
+                'arguments.pop("drive")',
+            ),
+            id="pop",
+        ),
+        pytest.param(
+            "delete",
+            DICT_CARRIER_C12.replace(
+                'arguments["origin_runtime"] = None',
+                'del arguments["drive"]',
+            ),
+            id="delete",
+        ),
+        pytest.param(
+            "ior",
+            DICT_CARRIER_C12.replace(
+                'arguments["origin_runtime"] = None',
+                'arguments |= {"drive": custom_drive}',
+            ).replace(
+                "def run_trial(drive=SENTINEL):",
+                "def custom_drive(*args): return None\n"
+                "def run_trial(drive=SENTINEL):",
+            ),
+            id="ior",
+        ),
+        pytest.param(
+            "literal-splat",
+            VALUE_FLOW_C12.replace(
+                "return relay(drive=drive, contract=contract)",
+                'return relay(**{"drive": drive, "contract": contract})',
+            ),
+            id="literal-splat",
+        ),
+        pytest.param(
+            "dict-positional-input",
+            DICT_CARRIER_C12.replace(
+                "dict(drive=drive, contract=contract)",
+                'dict({"drive": drive}, contract=contract)',
+            ),
+            id="dict-positional-input",
+        ),
+        pytest.param(
+            "dict-keyword-merge",
+            DICT_CARRIER_C12.replace(
+                "dict(drive=drive, contract=contract)",
+                'dict(**{"drive": drive}, contract=contract)',
+            ),
+            id="dict-keyword-merge",
+        ),
+        pytest.param(
+            "dict-literal-carrier",
+            DICT_CARRIER_C12.replace(
+                "dict(drive=drive, contract=contract)",
+                '{"drive": drive, "contract": contract}',
+            ),
+            id="dict-literal-carrier",
+        ),
+        pytest.param(
+            "expression-splat",
+            DICT_CARRIER_C12.replace(
+                "return relay(**arguments)", "return relay(**arguments.copy())"
+            ),
+            id="expression-splat",
+        ),
+        pytest.param(
+            "carrier-rebound",
+            DICT_CARRIER_C12.replace(
+                'arguments["origin_runtime"] = None',
+                'arguments = dict(drive=custom_drive, contract=contract)',
+            ).replace(
+                "def run_trial(drive=SENTINEL):",
+                "def custom_drive(*args): return None\n"
+                "def run_trial(drive=SENTINEL):",
+            ),
+            id="carrier-rebound",
+        ),
+        pytest.param(
+            "carrier-alias-mutation",
+            DICT_CARRIER_C12.replace(
+                'arguments["origin_runtime"] = None',
+                'alias = arguments\n    alias["drive"] = custom_drive',
+            ).replace(
+                "def run_trial(drive=SENTINEL):",
+                "def custom_drive(*args): return None\n"
+                "def run_trial(drive=SENTINEL):",
+            ),
+            id="carrier-alias-mutation",
+        ),
+        pytest.param(
+            "carrier-splatted-twice",
+            DICT_CARRIER_C12.replace(
+                "    return relay(**arguments)",
+                "    relay(**arguments)\n    return relay(**arguments)",
+            ),
+            id="carrier-splatted-twice",
+        ),
+    ],
+)
+def test_unsafe_dict_carriers_block_the_target_parameter(
+    tmp_path: Path, name: str, source: str
+) -> None:
+    root = _init_repo(tmp_path, name)
+    for path, raw in _value_flow_sources(source).items():
+        _write(root, path, raw)
+    head = _commit(root, name)
+    result = _result(root, head, "C12")
+    assert result.status is core.PredicateStatus.UNSATISFIED
+    assert result.reason_code == "environment-contract-consumer-absent"
+
+
+@pytest.mark.parametrize(
+    ("mutation", "source"),
+    [
+        pytest.param(
+            "caller-override",
+            VALUE_FLOW_C12.replace(
+                "def main():\n    return run_trial()",
+                "def custom_drive(): return None\ndef main():\n    return run_trial(drive=custom_drive)",
+            ),
+            id="caller-override",
+        ),
+        pytest.param(
+            "caller-positional-override",
+            VALUE_FLOW_C12.replace(
+                "def main():\n    return run_trial()",
+                "def custom_drive(*args): return None\n"
+                "def main():\n    return run_trial(custom_drive)",
+            ),
+            id="caller-positional-override",
+        ),
+        pytest.param(
+            "sentinel-resolution-removed",
+            VALUE_FLOW_C12.replace("        drive = trigger.drive_iteration", "        pass"),
+            id="sentinel-resolution-removed",
+        ),
+        pytest.param(
+            "callable-default",
+            VALUE_FLOW_C12.replace(
+                "def run_trial(drive=SENTINEL):\n"
+                "    if drive is SENTINEL:\n"
+                "        drive = trigger.drive_iteration\n",
+                "def run_trial(drive=trigger.drive_iteration):\n",
+            ),
+            id="callable-default-is-not-witness",
+        ),
+        pytest.param(
+            "multiple-assignment",
+            VALUE_FLOW_C12.replace(
+                "        drive = trigger.drive_iteration",
+                "        drive = trigger.drive_iteration\n"
+                "    drive = trigger.drive_iteration",
+            ),
+            id="multiple-assignment",
+        ),
+        pytest.param(
+            "positional-only-propagation",
+            VALUE_FLOW_C12.replace(
+                "return relay(drive=drive, contract=contract)",
+                "return relay(drive, contract=contract)",
+            ),
+            id="positional-only-is-not-propagated",
+        ),
+        pytest.param(
+            "star-args",
+            VALUE_FLOW_C12.replace(
+                "return relay(drive=drive, contract=contract)",
+                "return relay(*unknown_args, drive=drive, contract=contract)",
+            ),
+            id="star-args-blocks-all-target-parameters",
+        ),
+        pytest.param(
+            "conditional-local-assignment",
+            VALUE_FLOW_C12.replace(
+                "if drive is SENTINEL:\n        drive = trigger.drive_iteration",
+                "if unknown_condition:\n        drive = trigger.drive_iteration",
+            ),
+            id="conditional-local-assignment",
+        ),
+        pytest.param(
+            "use-before-assignment",
+            VALUE_FLOW_C12.replace(
+                "    return relay(drive=drive, contract=contract)",
+                "    result = relay(drive=drive, contract=contract)\n"
+                "    drive = trigger.drive_iteration\n"
+                "    return result",
+            ).replace(
+                "    if drive is SENTINEL:\n"
+                "        drive = trigger.drive_iteration\n",
+                "",
+            ).replace(
+                "def run_trial(drive=SENTINEL):", "def run_trial():"
+            ),
+            id="use-before-assignment",
+        ),
+        pytest.param(
+            "sentinel-assignment-in-else",
+            VALUE_FLOW_C12.replace(
+                "if drive is SENTINEL:\n        drive = trigger.drive_iteration",
+                "if drive is SENTINEL:\n        pass\n"
+                "    else:\n        drive = trigger.drive_iteration",
+            ),
+            id="sentinel-assignment-in-else",
+        ),
+        pytest.param(
+            "sentinel-assignment-nested",
+            VALUE_FLOW_C12.replace(
+                "if drive is SENTINEL:\n        drive = trigger.drive_iteration",
+                "if drive is SENTINEL:\n"
+                "        if unknown_condition:\n"
+                "            drive = trigger.drive_iteration",
+            ),
+            id="sentinel-assignment-nested",
+        ),
+    ],
+)
+def test_callable_value_flow_failures_stay_environment_absent(
+    tmp_path: Path, mutation: str, source: str
+) -> None:
+    assert source != VALUE_FLOW_C12, mutation
+    if mutation == "multiple-assignment":
+        assert source.count("drive = trigger.drive_iteration") == 2
+    root = _init_repo(tmp_path)
+    for path, raw in _value_flow_sources(source).items():
+        _write(root, path, raw)
+    head = _commit(root)
+    result = _result(root, head, "C12")
+    assert result.status is core.PredicateStatus.UNSATISFIED
+    assert result.reason_code == "environment-contract-consumer-absent"
+
+
+@pytest.mark.parametrize("absence", ["missing-definition", "unimported-same-name"])
+def test_c12_allocation_target_requires_exact_imported_definition(
+    tmp_path: Path, absence: str
+) -> None:
+    sources = _c12_modules(TOKEN_ONLY_C12)
+    root, _, _ = _terminal_result(tmp_path, "exact-target", "C12", sources)
+    reservation = "orchestrator/campaign/reservation.py"
+    if absence == "missing-definition":
+        _write(root, reservation, "def read_binding(*args): return object()\n")
+    else:
+        _write(root, reservation, "def read_binding(*args): return object()\n")
+        _write(
+            root,
+            "orchestrator/campaign/unimported_decoy.py",
+            "def check_reservation(*args, **kwargs): pass\n",
+        )
+    head = _commit(root, absence)
+    result = _result(root, head, "C12")
+    assert result.status is core.PredicateStatus.UNSATISFIED
+    assert result.reason_code == "allocation-enforcement-consumer-absent"
+
+
+@pytest.mark.parametrize(
+    ("absence", "supervisor"),
+    [
+        pytest.param(
+            "read-binding-call-edge",
+            TOKEN_ONLY_C12.replace(
+                "    binding = read_binding(environ)",
+                "    binding = object()",
+            ),
+            id="read-binding-call-edge",
+        ),
+        pytest.param(
+            "check-reservation-call-edge",
+            TOKEN_ONLY_C12.replace(
+                "    check_reservation(\n"
+                "        binding,\n"
+                "        required_s=1,\n"
+                "        safety_margin_s=0,\n"
+                "        environ=environ,\n"
+                "    )",
+                "    is_reservation_required(binding)",
+            ),
+            id="check-reservation-call-edge",
+        ),
+        pytest.param(
+            "unreachable-check-reservation",
+            TOKEN_ONLY_C12.replace(
+                "    check_reservation(\n"
+                "        binding,\n"
+                "        required_s=1,\n"
+                "        safety_margin_s=0,\n"
+                "        environ=environ,\n"
+                "    )",
+                "    return binding\n"
+                "def never_called():\n"
+                "    check_reservation(\n"
+                "        None, required_s=1, safety_margin_s=0, environ=environ\n"
+                "    )",
+            ),
+            id="unreachable-check-reservation",
+        ),
+    ],
+)
+def test_c12_allocation_absence_shapes_are_independent_from_definition(
+    tmp_path: Path, absence: str, supervisor: str
+) -> None:
+    removed = {
+        "read-binding-call-edge": "    binding = read_binding(environ)",
+        "check-reservation-call-edge": "    check_reservation(\n",
+        "unreachable-check-reservation": "    check_reservation(\n",
+    }[absence]
+    assert TOKEN_ONLY_C12.count(removed) == 1
+    assert supervisor != TOKEN_ONLY_C12, absence
+    sources = _c12_modules(TOKEN_ONLY_C12)
+    root, _, _ = _terminal_result(tmp_path, "allocation-baseline", "C12", sources)
+    _write(
+        root,
+        "orchestrator/campaign/p3_autonomous_workload_trial.py",
+        supervisor,
+    )
+    head = _commit(root, absence)
+    result = _result(root, head, "C12")
+    assert result.status is core.PredicateStatus.UNSATISFIED
+    assert result.reason_code == "allocation-enforcement-consumer-absent"
+
+
+@pytest.mark.parametrize(
+    ("identifier", "mutation", "expected"),
+    [
+        pytest.param("C01", "ratified = load_ratified_freeze()", "ratified-generation-reference-absent", id="C01"),
+        pytest.param("C04", "mark_experiment_indeterminate()", "crash-policy-cell-partial", id="C04"),
+        pytest.param("C09", "assert_campaign_layer3_chain()", "layer3-producer-unreachable", id="C09"),
+        pytest.param("C12", "execution_guard.attest_and_build_receipt(contract)", "environment-contract-consumer-absent", id="C12"),
+    ],
+)
+@pytest.mark.parametrize("absence", ["not-called", "constant-false", "nested"])
+def test_reachable_consumers_reject_absence_shapes_with_single_reason(
+    tmp_path: Path,
+    identifier: str,
+    mutation: str,
+    expected: str,
+    absence: str,
+) -> None:
+    control_id = next(key for key, value in NEGATIVE_CONTROL_CASES.items() if value == identifier)
+    sources, _, _ = _negative_control_case(control_id)
+    _terminal_result(tmp_path, "baseline", identifier, sources)
+    owner = next(path for path, source in sources.items() if mutation in source)
+    source = sources[owner]
+    old_line = next(line for line in source.splitlines() if line.strip() == mutation)
+    indent = old_line[: len(old_line) - len(old_line.lstrip())]
+    if absence == "not-called":
+        replacement = indent + "pass"
+    elif absence == "constant-false":
+        replacement = indent + "if False:\n" + indent + "    " + mutation
+    else:
+        replacement = indent + "def never_called():\n" + indent + "    " + mutation
+    _write(tmp_path / "baseline", owner, source.replace(old_line, replacement, 1))
+    head = _commit(tmp_path / "baseline", absence)
+    result = _result(tmp_path / "baseline", head, identifier)
+    assert result.status is core.PredicateStatus.UNSATISFIED
+    assert result.reason_code == expected
+
+
+@pytest.mark.parametrize(
+    ("dead_shape", "replacement"),
+    [
+        pytest.param(
+            "if-true-else",
+            "    if True:\n"
+            "        pass\n"
+            "    else:\n"
+            "        assert_campaign_layer3_chain()\n",
+            id="if-true-else",
+        ),
+        pytest.param(
+            "while-false-body",
+            "    while False:\n"
+            "        assert_campaign_layer3_chain()\n",
+            id="while-false-body",
+        ),
+        pytest.param(
+            "after-return",
+            "    return None\n"
+            "    assert_campaign_layer3_chain()\n",
+            id="after-return",
+        ),
+    ],
+)
+def test_c09_provably_dead_calls_are_not_reachability_witnesses(
+    tmp_path: Path, dead_shape: str, replacement: str
+) -> None:
+    sources, _, _ = _negative_control_case("nc_c09_acceptance_skips_layer3")
+    root, _, _ = _terminal_result(tmp_path, "dead-call-baseline", "C09", sources)
+    producer_path = "orchestrator/campaign/p3_autonomous_workload_trial.py"
+    target = "    assert_campaign_layer3_chain()\n"
+    producer = sources[producer_path]
+    assert isinstance(producer, str)
+    assert producer.count(target) == 1
+    mutated = producer.replace(target, replacement, 1)
+    assert mutated != producer, dead_shape
+    _write(root, producer_path, mutated)
+    head = _commit(root, dead_shape)
+    result = _result(root, head, "C09")
+    assert result.status is core.PredicateStatus.UNSATISFIED
+    assert result.reason_code == "layer3-producer-unreachable"
+
+
+def test_c09_unknown_branch_remains_a_potential_reachability_witness(
+    tmp_path: Path,
+) -> None:
+    sources, _, _ = _negative_control_case("nc_c09_acceptance_skips_layer3")
+    producer_path = "orchestrator/campaign/p3_autonomous_workload_trial.py"
+    target = "    assert_campaign_layer3_chain()\n"
+    producer = sources[producer_path]
+    assert isinstance(producer, str)
+    assert producer.count(target) == 1
+    replacement = (
+        "    if unknown_condition:\n"
+        "        pass\n"
+        "    else:\n"
+        "        assert_campaign_layer3_chain()\n"
+    )
+    mutated = producer.replace(target, replacement, 1)
+    assert mutated != producer
+    sources[producer_path] = mutated
+    _terminal_result(tmp_path, "unknown-call-branch", "C09", sources)
+
+
+@pytest.mark.parametrize(
+    ("identifier", "expected"),
+    [
+        pytest.param("C01", "workload-consumer-unreachable", id="C01"),
+        pytest.param("C04", "crash-policy-cell-partial", id="C04"),
+        pytest.param("C09", "layer3-producer-unreachable", id="C09"),
+        pytest.param("C12", "environment-contract-consumer-absent", id="C12"),
+    ],
+)
+def test_production_entrypoint_cut_is_rejected_for_all_reachability_conditions(
+    tmp_path: Path, identifier: str, expected: str
+) -> None:
+    control_id = next(
+        key for key, value in NEGATIVE_CONTROL_CASES.items() if value == identifier
+    )
+    sources, _, _ = _negative_control_case(control_id)
+    root, _, _ = _terminal_result(tmp_path, "entrypoint-baseline", identifier, sources)
+    owner = "orchestrator/campaign/p3_autonomous_workload_trial.py"
+    _write(
+        root,
+        owner,
+        sources[owner].replace(
+            "def main():\n    return run_trial()",
+            "def main():\n    return None",
+        ),
+    )
+    head = _commit(root, "entrypoint cut")
+    result = _result(root, head, identifier)
+    assert result.status is core.PredicateStatus.UNSATISFIED
+    assert result.reason_code == expected
+
+
+@pytest.mark.parametrize(
+    ("identifier", "expected"),
+    [
+        pytest.param("C01", "ratified-generation-reference-absent", id="C01"),
+        pytest.param("C04", "crash-policy-cell-partial", id="C04"),
+        pytest.param("C09", "layer3-producer-unreachable", id="C09"),
+        pytest.param("C12", "environment-contract-consumer-absent", id="C12"),
+    ],
+)
+def test_test_only_target_is_rejected_for_all_reachability_conditions(
+    tmp_path: Path, identifier: str, expected: str
+) -> None:
+    control_id = next(
+        key for key, value in NEGATIVE_CONTROL_CASES.items() if value == identifier
+    )
+    sources, _, _ = _negative_control_case(control_id)
+    owner = "orchestrator/campaign/p3_autonomous_workload_trial.py"
+    source = sources[owner]
+    if identifier == "C01":
+        source = source.replace(
+            "from .s8b_ratified_freeze import load_ratified_freeze",
+            "from orchestrator.tests.fake_target import load_ratified_freeze",
+        )
+        decoy = "def load_ratified_freeze(): pass\n"
+    elif identifier == "C04":
+        source = source.replace(
+            "from .trial_registry import forbid_trial_restart",
+            "from orchestrator.tests.fake_target import forbid_trial_restart",
+        )
+        decoy = "def forbid_trial_restart(): pass\n"
+    elif identifier == "C09":
+        source = source.replace(
+            "from .autonomous_trial_completeness import assert_campaign_layer3_chain",
+            "from orchestrator.tests.fake_target import assert_campaign_layer3_chain",
+        )
+        decoy = "def assert_campaign_layer3_chain(): pass\n"
+    else:
+        source = source.replace(
+            "from . import env_contract, execution_guard",
+            "from . import env_contract\n"
+            "from orchestrator.tests import fake_target as execution_guard",
+        )
+        decoy = "def attest_and_build_receipt(*args): pass\n"
+    sources[owner] = source
+    sources["orchestrator/tests/fake_target.py"] = decoy
+    root = _init_repo(tmp_path, f"{identifier}-test-only")
+    for path, raw in sources.items():
+        _write(root, path, raw)
+    head = _commit(root, "test-only target")
+    result = _result(root, head, identifier)
+    assert result.status is core.PredicateStatus.UNSATISFIED
+    assert result.reason_code == expected
+
+
+@pytest.mark.parametrize(
+    ("identifier", "target_call", "decoy", "expected"),
+    [
+        pytest.param(
+            "C01", "ratified = load_ratified_freeze()",
+            "def load_ratified_freeze(): pass\n",
+            "ratified-generation-reference-absent", id="C01",
+        ),
+        pytest.param(
+            "C04", "forbid_trial_restart()", "def forbid_trial_restart(): pass\n",
+            "crash-policy-cell-partial", id="C04",
+        ),
+        pytest.param(
+            "C09", "assert_campaign_layer3_chain()",
+            "def assert_campaign_layer3_chain(): pass\n",
+            "layer3-producer-unreachable", id="C09",
+        ),
+        pytest.param(
+            "C12", "execution_guard.attest_and_build_receipt(contract)",
+            "def attest_and_build_receipt(*args): pass\n",
+            "environment-contract-consumer-absent", id="C12",
+        ),
+    ],
+)
+def test_unimported_same_name_decoy_is_rejected_for_all_reachability_conditions(
+    tmp_path: Path,
+    identifier: str,
+    target_call: str,
+    decoy: str,
+    expected: str,
+) -> None:
+    control_id = next(
+        key for key, value in NEGATIVE_CONTROL_CASES.items() if value == identifier
+    )
+    sources, _, _ = _negative_control_case(control_id)
+    root, _, _ = _terminal_result(tmp_path, "decoy-baseline", identifier, sources)
+    owner = next(path for path, source in sources.items() if target_call in source)
+    _write(root, owner, sources[owner].replace(target_call, "pass", 1))
+    _write(root, "orchestrator/campaign/unimported_decoy.py", decoy)
+    head = _commit(root, "unimported same-name decoy")
+    result = _result(root, head, identifier)
+    assert result.status is core.PredicateStatus.UNSATISFIED
+    assert result.reason_code == expected
+
+
+ABSENCE_MATRIX_EXCLUSIONS = {
+    "caller-override": {
+        "C01": "callable parameter relay が契約経路に無い",
+        "C04": "callable parameter relay が契約経路に無い",
+        "C09": "callable parameter relay が契約経路に無い",
+    },
+    "package-module-shadow": {
+        "C01": "from submodule import symbol で package 属性を参照しない",
+        "C04": "from submodule import symbol で package 属性を参照しない",
+        "C09": "from submodule import symbol で package 属性を参照しない",
+    },
+}
+
+
+def test_absence_matrix_exclusions_are_explicit_and_limited() -> None:
+    assert set(ABSENCE_MATRIX_EXCLUSIONS) == {
+        "caller-override", "package-module-shadow"
+    }
+    assert all(
+        set(rows) == {"C01", "C04", "C09"}
+        and all(reason for reason in rows.values())
+        for rows in ABSENCE_MATRIX_EXCLUSIONS.values()
+    )
+
+
+@pytest.mark.parametrize(
+    ("name", "supervisor", "extra"),
+    [
+        pytest.param(
+            "entrypoint-cut",
+            TOKEN_ONLY_C12.replace("def main():\n    return run_trial()", "def main():\n    return None"),
+            {},
+            id="production-entrypoint-cut",
+        ),
+        pytest.param(
+            "package-shadow",
+            TOKEN_ONLY_C12,
+            {"orchestrator/campaign/__init__.py": "env_contract = None\n"},
+            id="package-shadow",
+        ),
+        pytest.param(
+            "package-shadow-if-true",
+            TOKEN_ONLY_C12,
+            {
+                "orchestrator/campaign/__init__.py":
+                    "if True:\n    env_contract = None\n"
+            },
+            id="package-shadow-if-true",
+        ),
+        pytest.param(
+            "module-rebind",
+            TOKEN_ONLY_C12.replace(
+                "environ = {}", "env_contract = None\nenviron = {}"
+            ),
+            {},
+            id="module-rebind",
+        ),
+        pytest.param(
+            "local-shadow",
+            TOKEN_ONLY_C12.replace(
+                "def run_trial():", "def run_trial(env_contract=None):"
+            ).replace("return run_trial()", "return run_trial(env_contract=None)"),
+            {},
+            id="local-shadow",
+        ),
+        pytest.param(
+            "test-only",
+            TOKEN_ONLY_C12.replace(
+                "from . import env_contract, execution_guard",
+                "from . import env_contract\n"
+                "from orchestrator.tests import fake_guard as execution_guard",
+            ),
+            {"orchestrator/tests/fake_guard.py": "def attest_and_build_receipt(*args): pass\n"},
+            id="test-only-module",
+        ),
+    ],
+)
+def test_c12_rejects_shadow_entrypoint_and_test_only_paths(
+    tmp_path: Path, name: str, supervisor: str, extra: dict[str, str]
+) -> None:
+    sources = _c12_modules(supervisor)
+    sources.update(extra)
+    root = _init_repo(tmp_path)
+    for path, source in sources.items():
+        _write(root, path, source)
+    head = _commit(root, name)
+    result = _result(root, head, "C12")
+    assert result.status is core.PredicateStatus.UNSATISFIED
+    assert result.reason_code == "environment-contract-consumer-absent"
+    if name.startswith("package-shadow"):
+        assert "orchestrator/campaign/__init__.py" in {
+            reference.path for reference in result.evidence
+        }
+
+
+@pytest.mark.parametrize(
+    ("name", "binding", "extra"),
+    [
+        pytest.param(
+            "local-import",
+            "    from . import decoy as env_contract\n",
+            {"orchestrator/campaign/decoy.py": "def lookup(): pass\n"},
+            id="local-import",
+        ),
+        pytest.param(
+            "for-target",
+            "    for env_contract in ():\n        pass\n",
+            {},
+            id="for-target",
+        ),
+        pytest.param(
+            "with-target",
+            "    with unknown_manager as env_contract:\n        pass\n",
+            {},
+            id="with-target",
+        ),
+        pytest.param(
+            "except-target",
+            "    try:\n        pass\n"
+            "    except Exception as env_contract:\n        pass\n",
+            {},
+            id="except-target",
+        ),
+        pytest.param(
+            "walrus-target",
+            "    if (env_contract := None) is not None:\n        pass\n",
+            {},
+            id="walrus-target",
+        ),
+        pytest.param(
+            "global-declaration",
+            "    global env_contract\n",
+            {},
+            id="global-declaration",
+        ),
+        pytest.param(
+            "nonlocal-declaration",
+            "    nonlocal env_contract\n",
+            {},
+            id="nonlocal-declaration",
+        ),
+    ],
+)
+def test_c12_rejects_conservative_local_binding_forms(
+    tmp_path: Path, name: str, binding: str, extra: dict[str, str]
+) -> None:
+    supervisor = TOKEN_ONLY_C12.replace(
+        "def run_trial():\n", "def run_trial():\n" + binding
+    )
+    sources = _c12_modules(supervisor)
+    sources.update(extra)
+    root = _init_repo(tmp_path, name)
+    for path, source in sources.items():
+        _write(root, path, source)
+    head = _commit(root, name)
+    result = _result(root, head, "C12")
+    assert result.status is core.PredicateStatus.UNSATISFIED
+    assert result.reason_code == "environment-contract-consumer-absent"
+
+
+def test_c09_test_only_layer3_target_is_not_production_witness(
+    tmp_path: Path,
+) -> None:
+    sources, _, _ = _negative_control_case("nc_c09_acceptance_skips_layer3")
+    root, _, _ = _terminal_result(tmp_path, "c09-production", "C09", sources)
+    producer_path = "orchestrator/campaign/p3_autonomous_workload_trial.py"
+    _write(
+        root,
+        producer_path,
+        sources[producer_path].replace(
+            "from .autonomous_trial_completeness import assert_campaign_layer3_chain",
+            "from orchestrator.tests.fake_layer3 import assert_campaign_layer3_chain",
+        ),
+    )
+    _write(
+        root,
+        "orchestrator/tests/fake_layer3.py",
+        "def assert_campaign_layer3_chain(): pass\n",
+    )
+    head = _commit(root, "test-only layer3")
+    result = _result(root, head, "C09")
+    assert result.status is core.PredicateStatus.UNSATISFIED
+    assert result.reason_code == "layer3-producer-unreachable"
+
+
+def test_c09_same_name_target_in_undeclared_production_path_is_not_witness(
+    tmp_path: Path,
+) -> None:
+    sources, _, _ = _negative_control_case("nc_c09_acceptance_skips_layer3")
+    root, _, _ = _terminal_result(tmp_path, "c09-declared-owner", "C09", sources)
+    producer_path = "orchestrator/campaign/p3_autonomous_workload_trial.py"
+    _write(
+        root,
+        producer_path,
+        sources[producer_path].replace(
+            "from .autonomous_trial_completeness import assert_campaign_layer3_chain",
+            "from .production_decoy import assert_campaign_layer3_chain",
+        ),
+    )
+    _write(
+        root,
+        "orchestrator/campaign/production_decoy.py",
+        "def assert_campaign_layer3_chain(): pass\n",
+    )
+    head = _commit(root, "undeclared production decoy")
+    result = _result(root, head, "C09")
+    assert result.status is core.PredicateStatus.UNSATISFIED
+    assert result.reason_code == "layer3-producer-unreachable"
+
+
+def _walk_sources(
+    tmp_path: Path,
+    name: str,
+    sources: dict[str, str],
+    limits: M._ReachabilityLimits,
+) -> M._Reachability:
+    root = _init_repo(tmp_path, name)
+    for path, source in sources.items():
+        _write(root, path, source)
+    head = _commit(root, name)
+    raw = core.read_blob_at(root, head, core.EVIDENCE_CONTRACT_PATH, required=True)
+    contract = M.load_contract_bytes(raw).condition(12)
+    probe = M._ConditionProbe(
+        root,
+        head,
+        contract,
+        core.EvidenceRef(core.EVIDENCE_CONTRACT_PATH, core._sha256(raw)),
+        {},
+        {},
+    )
+    return M._ReachabilityExplorer(probe, limits).walk(
+        ("orchestrator/campaign/m0.py", "f0")
+    )
+
+
+def _chain_sources(length: int, *, padding: str = "") -> dict[str, str]:
+    sources: dict[str, str] = {}
+    for index in range(length):
+        path = f"orchestrator/campaign/m{index}.py"
+        if index + 1 == length:
+            sources[path] = f"def f{index}(): pass\n{padding}"
+        else:
+            sources[path] = (
+                f"from .m{index + 1} import f{index + 1}\n"
+                f"def f{index}(): return f{index + 1}()\n"
+            )
+    return sources
+
+
+def test_production_default_module_limit_accepts_sixty_five_modules(
+    tmp_path: Path,
+) -> None:
+    assert M._MAX_REACHABILITY_MODULES == 512
+    graph = _walk_sources(
+        tmp_path,
+        "production-default-65-modules",
+        _chain_sources(65),
+        M._ReachabilityLimits(),
+    )
+    assert len(graph.functions) == 65
+    assert len(graph.modules) == 65
+
+
+@pytest.mark.parametrize(
+    ("dimension", "limits"),
+    [
+        pytest.param("modules", M._ReachabilityLimits(modules=2), id="modules"),
+        pytest.param("depth", M._ReachabilityLimits(depth=1), id="depth"),
+        pytest.param("states", M._ReachabilityLimits(states=2), id="states"),
+    ],
+)
+def test_reachability_limits_accept_boundary_and_reject_boundary_plus_one(
+    tmp_path: Path, dimension: str, limits: M._ReachabilityLimits
+) -> None:
+    graph = _walk_sources(tmp_path, f"{dimension}-exact", _chain_sources(2), limits)
+    assert len(graph.functions) == 2
+    with pytest.raises(M.EvidenceContractError) as caught:
+        _walk_sources(tmp_path, f"{dimension}-plus-one", _chain_sources(3), limits)
+    assert caught.value.reason_code == "reachability-limit-exceeded"
+
+
+def test_reachability_byte_limit_accepts_boundary_and_rejects_next_byte(
+    tmp_path: Path,
+) -> None:
+    sources = _chain_sources(2)
+    exact = sum(len(source.encode("utf-8")) for source in sources.values())
+    graph = _walk_sources(
+        tmp_path,
+        "bytes-exact",
+        sources,
+        M._ReachabilityLimits(total_bytes=exact),
+    )
+    assert len(graph.functions) == 2
+    with pytest.raises(M.EvidenceContractError) as caught:
+        _walk_sources(
+            tmp_path,
+            "bytes-plus-one",
+            _chain_sources(2, padding="#"),
+            M._ReachabilityLimits(total_bytes=exact),
+        )
+    assert caught.value.reason_code == "reachability-limit-exceeded"
+
+
+def test_cross_module_cycle_terminates_on_canonical_callable_state(
+    tmp_path: Path,
+) -> None:
+    graph = _walk_sources(
+        tmp_path,
+        "cycle",
+        {
+            "orchestrator/campaign/m0.py":
+                "from .m1 import f1\ndef f0(): return f1()\n",
+            "orchestrator/campaign/m1.py":
+                "from .m0 import f0\ndef f1(): return f0()\n",
+        },
+        M._ReachabilityLimits(),
+    )
+    assert graph.functions == frozenset(
+        {
+            ("orchestrator/campaign/m0.py", "f0"),
+            ("orchestrator/campaign/m1.py", "f1"),
+        }
+    )
+
+
+def test_registry_preserves_reachability_limit_reason(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    sources, _, _ = _negative_control_case("nc_c04_partial_crash_survives")
+    root = _init_repo(tmp_path)
+    for path, source in sources.items():
+        _write(root, path, source)
+    head = _commit(root)
+
+    def fail_limit(*args: object, **kwargs: object) -> None:
+        del args, kwargs
+        raise M.EvidenceContractError("reachability-limit-exceeded")
+
+    monkeypatch.setattr(M._ReachabilityExplorer, "walk", fail_limit)
+    result = _result(root, head, "C04")
+    assert result.status is core.PredicateStatus.ERROR
+    assert result.reason_code == "reachability-limit-exceeded"
+
+
+def test_evaluate_all_shares_blob_ast_binding_and_root_graph_caches(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    root = _init_repo(tmp_path)
+    for path, source in _c12_modules(TOKEN_ONLY_C12).items():
+        _write(root, path, source)
+    head = _commit(root, "shared evaluation caches")
+    read_counts: dict[str, int] = {}
+    resolve_calls = 0
+    graph_cache_hits: list[bool] = []
+    cache_identities: list[tuple[int, int, int, int, int]] = []
+    original_read = M._read_blob_at_resolved
+    original_resolve = core.resolve_commit
+    original_walk = M._ReachabilityExplorer.walk
+
+    def counted_resolve(repo_root: Path, commit: str = "HEAD") -> str:
+        nonlocal resolve_calls
+        resolve_calls += 1
+        return original_resolve(repo_root, commit)
+
+    def counted_read(repo_root: Path, commit: str, path: str) -> bytes | None:
+        read_counts[path] = read_counts.get(path, 0) + 1
+        return original_read(repo_root, commit, path)
+
+    def counted_walk(
+        explorer: M._ReachabilityExplorer, start: M._CallableTarget
+    ) -> M._Reachability:
+        cache_identities.append(
+            (
+                id(explorer.probe.cache),
+                id(explorer.probe.python_cache),
+                id(explorer.probe.function_cache),
+                id(explorer.probe.binding_cache),
+                id(explorer.probe.graph_cache),
+            )
+        )
+        graph_cache_hits.append(
+            (start, explorer.limits) in explorer.probe.graph_cache
+        )
+        return original_walk(explorer, start)
+
+    monkeypatch.setattr(M, "_read_blob_at_resolved", counted_read)
+    monkeypatch.setattr(core, "resolve_commit", counted_resolve)
+    monkeypatch.setattr(M._ReachabilityExplorer, "walk", counted_walk)
+    results = M.evaluate_all(head, repo_root=root)
+    assert len(results) == 12
+    assert read_counts
+    assert resolve_calls == 1
+    assert max(read_counts.values()) == 1
+    assert graph_cache_hits == [False, True, True]
+    assert len(set(cache_identities)) == 1
+
+
+def test_report_projection_is_hash_seed_deterministic(tmp_path: Path) -> None:
+    root, head, _ = _terminal_result(
+        tmp_path, "hash-seed", "C12", _value_flow_sources()
+    )
+    script = (
+        "import json,sys; from pathlib import Path; "
+        "from orchestrator.campaign import s8c_preregistration_evidence as M; "
+        "rows=M.evaluate_all(sys.argv[2],repo_root=Path(sys.argv[1])); "
+        "print(json.dumps([(x.id,x.status.value,x.reason_code,"
+        "[(r.path,r.blob_sha256) for r in x.evidence]) for x in rows],"
+        "sort_keys=True,separators=(',',':')))"
+    )
+    outputs = []
+    for seed in ("1", "987654"):
+        environment = dict(os.environ)
+        environment["PYTHONHASHSEED"] = seed
+        outputs.append(
+            subprocess.run(
+                [sys.executable, "-c", script, str(root), head],
+                cwd=_ROOT,
+                env=environment,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                check=True,
+                timeout=30,
+            ).stdout
+        )
+    assert outputs[0] == outputs[1]
 
 
 def test_satisfiable_predicate_requires_negative_control() -> None:

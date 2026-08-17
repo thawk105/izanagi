@@ -2475,6 +2475,7 @@ def assert_trial_registry_acceptance(
         manifest_by_id = {trial.trial_id: trial for trial in manifest.trials}
         accepted: list[AcceptedTrial] = []
         history_checked: set[str] = set()
+        common_measurement_head: str | None = None
         for item in loaded:
             report = item.report
             events = item.events
@@ -2505,6 +2506,13 @@ def assert_trial_registry_acceptance(
             measurement_head = report["measurement_head"]
             if not isinstance(measurement_head, str) or _COMMIT_RE.fullmatch(measurement_head) is None:
                 _fail("acceptance-binding", "report measurement_head is not a full commit ID")
+            if common_measurement_head is None:
+                common_measurement_head = measurement_head
+            elif measurement_head != common_measurement_head:
+                _fail(
+                    "measurement-head-coherence",
+                    "reports do not share one measurement_head",
+                )
             assert_prereg_ancestor(
                 root,
                 prereg_commit=manifest.prereg_commit,

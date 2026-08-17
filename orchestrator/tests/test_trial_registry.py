@@ -834,6 +834,64 @@ def test_p5_six_complete_terminal_reports_pass_acceptance(tmp_path: Path) -> Non
     assert receipt == expected_receipt
 
 
+def test_t822_acceptance_allows_coherent_past_measurement_head(
+    tmp_path: Path,
+) -> None:
+    repo, manifest_path, registry, manifest = _registered_repo(tmp_path)
+    measurement_head = _head(repo)
+    later = repo / "later.txt"
+    later.write_text("later\n", encoding="utf-8")
+    assert _commit(repo, "later unrelated commit", later) != measurement_head
+    reports = _reports(
+        repo / "reports", manifest, measurement_head, complete=True,
+    )
+
+    summary = _accept(
+        manifest_path=manifest_path,
+        report_paths=reports,
+        repository_root=repo,
+        registry_path=registry,
+    )
+
+    assert {trial.measurement_head for trial in summary.trials} == {
+        measurement_head
+    }
+
+
+def test_t822_acceptance_rejects_mixed_measurement_heads(
+    tmp_path: Path,
+) -> None:
+    repo, manifest_path, registry, manifest = _registered_repo(tmp_path)
+    first_head = _head(repo)
+    later = repo / "later.txt"
+    later.write_text("later\n", encoding="utf-8")
+    second_head = _commit(repo, "later unrelated commit", later)
+    assert first_head != second_head
+    reports = [
+        _complete_report(
+            repo / "reports",
+            trial,
+            manifest,
+            first_head if index < 3 else second_head,
+        )
+        for index, trial in enumerate(manifest.trials)
+    ]
+
+    with pytest.raises(
+        R.TrialRegistryError,
+        match=(
+            r"\[measurement-head-coherence\] "
+            r"reports do not share one measurement_head$"
+        ),
+    ):
+        _accept(
+            manifest_path=manifest_path,
+            report_paths=reports,
+            repository_root=repo,
+            registry_path=registry,
+        )
+
+
 def test_t1185_pa_all_six_generation_two_reports_pass_acceptance(
     tmp_path: Path,
 ) -> None:

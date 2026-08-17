@@ -334,6 +334,11 @@ def parse_acceptance_receipt_bytes(data: bytes) -> AcceptanceReceipt:
         _fail("receipt-schema", "receipt reuses a trial_id")
     if len({trial.campaign_id for trial in trials}) != 6:
         _fail("receipt-schema", "receipt reuses a campaign_id")
+    if len({trial.measurement_head for trial in trials}) != 1:
+        _fail(
+            "receipt-measurement-head-coherence",
+            "trials do not share one measurement_head",
+        )
 
     return AcceptanceReceipt(
         schema_version=SCHEMA_VERSION,
