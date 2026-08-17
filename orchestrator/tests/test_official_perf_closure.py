@@ -17,6 +17,11 @@ from pathlib import Path
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 _CAMPAIGN_TEST = _REPO_ROOT / "orchestrator/tests/test_campaign.py"
 _T126_SCRIPT = _REPO_ROOT / "tools/pegasus/t126_qualification.sh"
+_PRODUCTION_ROOTS = ("orchestrator", "tools")
+_PRODUCTION_SUFFIXES = frozenset({".py", ".sh"})
+_NON_PRODUCTION_PARTS = frozenset({
+    "tests", "external", "output", "__pycache__",
+})
 
 _TRACKED_CALLS = frozenset({
     "build_perf_observation",
@@ -33,6 +38,39 @@ _TRACKED_CALLS = frozenset({
     "validate_perf_observation",
     "validate_perf_preflight_receipt",
     "write_measurement_manifest",
+})
+_PERF_DISCOVERY_CALLS = _TRACKED_CALLS - {"evaluate", "evaluate_fn"}
+_REVIEWED_PERF_FILES = frozenset({
+    "orchestrator/calibrator/perf_preflight.py",
+    "orchestrator/calibrator/runner.py",
+    "orchestrator/campaign/layer3_report.py",
+    "orchestrator/campaign/loop.py",
+    "orchestrator/campaign/pipeline.py",
+    "orchestrator/campaign/profiler_directive.py",
+    "orchestrator/campaign/s1_direct_comparison.py",
+    "orchestrator/campaign/s8b_floor_campaign.py",
+    "orchestrator/campaign/s8b_floor_contract.py",
+    "orchestrator/campaign/s8b_floor_stats.py",
+    "orchestrator/campaign/s8b_holdout_freeze.py",
+    "orchestrator/campaign/s8b_oracle_artifacts.py",
+    "orchestrator/campaign/s8b_oracle_driver.py",
+    "orchestrator/campaign/s8b_oracle_judge.py",
+    "orchestrator/campaign/s8b_oracle_n_pilot.py",
+    "orchestrator/campaign/s8b_oracle_report.py",
+    "orchestrator/campaign/s8b_ratified_freeze.py",
+    "orchestrator/campaign/s8b_verdict.py",
+    "orchestrator/campaign/screening_driver.py",
+    "orchestrator/campaign/silo_ladder_rung1.py",
+    "orchestrator/qualification/artifacts.py",
+    "orchestrator/qualification/contract.py",
+    "orchestrator/qualification/submission.py",
+    "orchestrator/qualification/t126_driver.py",
+    "tools/pegasus/certify_calibration.sh",
+    "tools/pegasus/floor_scoping.sh",
+    "tools/pegasus/probes/t293_perf_site_probe.py",
+    "tools/pegasus/probes/t316_sandbox_backend_probe.py",
+    "tools/pegasus/t126_qualification.sh",
+    "tools/pegasus/t141_region_profile.sh",
 })
 
 
@@ -343,6 +381,25 @@ _REVIEWED_GUARDS = (
     ),
 )
 
+_ADDED_REVIEWED_GUARDS = (
+    _GuardSpec(
+        "T967", "orchestrator/campaign/s8b_oracle_report.py",
+        "_assess_window", ("observation", "expected_perf_observation"),
+        (
+            "observation != expected_perf_observation",
+            "observation is not None",
+        ),
+    ),
+    _GuardSpec(
+        "runner", "orchestrator/calibrator/runner.py", "_build_cmd",
+        ("use_perf",), ("use_perf",),
+    ),
+    _GuardSpec(
+        "runner", "orchestrator/calibrator/runner.py", "measure_point",
+        ("use_perf",), ("not use_perf",),
+    ),
+)
+
 
 class _CallScanner(ast.NodeVisitor):
     def __init__(self, rel_path: str):
@@ -379,6 +436,89 @@ def _scan_source(rel_path: str, source: str) -> collections.Counter:
     scanner = _CallScanner(rel_path)
     scanner.visit(ast.parse(source, filename=rel_path))
     return scanner.calls
+
+
+def _is_perf_name(name: str) -> bool:
+    lowered = name.lower()
+    return (lowered in {"perf", "use_perf", "perf_preflight"}
+            or lowered.startswith("perf_")
+            or lowered.endswith("_perf")
+            or "_perf_" in lowered)
+
+
+def _python_has_perf_predicate(rel_path: str, source: str) -> bool:
+    if ("perf" not in source.lower()
+            and not any(call in source for call in _PERF_DISCOVERY_CALLS)):
+        return False
+    tree = ast.parse(source, filename=rel_path)
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Call):
+            if isinstance(node.func, ast.Attribute):
+                call_name = node.func.attr
+            elif isinstance(node.func, ast.Name):
+                call_name = node.func.id
+            else:
+                call_name = None
+            if call_name in _PERF_DISCOVERY_CALLS:
+                return True
+        if not isinstance(node, (ast.If, ast.IfExp, ast.While)):
+            continue
+        for term in ast.walk(node.test):
+            if isinstance(term, ast.Name) and _is_perf_name(term.id):
+                return True
+            if isinstance(term, ast.Attribute) and _is_perf_name(term.attr):
+                return True
+    return False
+
+
+def _shell_has_perf_predicate(source: str) -> bool:
+    for raw_line in source.splitlines():
+        line = raw_line.strip().lower()
+        if "perf" not in line:
+            continue
+        if (line.startswith(("if ", "elif ", "while ", "case "))
+                or "[[" in line or "&&" in line or "||" in line
+                or "perf_preflight." in line):
+            return True
+    return False
+
+
+def _production_perf_files(overrides: dict[str, str] | None = None) -> set[str]:
+    overrides = overrides or {}
+    paths = {
+        path.relative_to(_REPO_ROOT).as_posix()
+        for root in _PRODUCTION_ROOTS
+        for path in (_REPO_ROOT / root).rglob("*")
+        if path.is_file()
+        and path.suffix in _PRODUCTION_SUFFIXES
+        and not (_NON_PRODUCTION_PARTS & set(path.relative_to(_REPO_ROOT).parts))
+    }
+    paths.update(
+        rel_path for rel_path in overrides
+        if Path(rel_path).suffix in _PRODUCTION_SUFFIXES
+        and not (_NON_PRODUCTION_PARTS & set(Path(rel_path).parts))
+        and Path(rel_path).parts
+        and Path(rel_path).parts[0] in _PRODUCTION_ROOTS
+    )
+    found = set()
+    for rel_path in sorted(paths):
+        source = overrides.get(rel_path)
+        if source is None:
+            source = (_REPO_ROOT / rel_path).read_text(encoding="utf-8")
+        if rel_path.endswith(".py"):
+            if _python_has_perf_predicate(rel_path, source):
+                found.add(rel_path)
+        elif _shell_has_perf_predicate(source):
+            found.add(rel_path)
+    return found
+
+
+def _perf_file_drift(actual: set[str]) -> str:
+    rows = [f"unreviewed: {path}" for path in sorted(actual - _REVIEWED_PERF_FILES)]
+    rows.extend(
+        f"missing: {path}" for path in sorted(_REVIEWED_PERF_FILES - actual)
+    )
+    return "\n".join(rows)
 
 
 def _expected_predicates() -> collections.Counter:
@@ -516,9 +656,11 @@ def _string_constants(node: ast.AST) -> set[str]:
     }
 
 
-def _expected_guards() -> collections.Counter:
+def _expected_guards(
+        specs: tuple[_GuardSpec, ...] = _REVIEWED_GUARDS,
+) -> collections.Counter:
     expected: collections.Counter = collections.Counter()
-    for spec in _REVIEWED_GUARDS:
+    for spec in specs:
         expected.update(
             (spec.path, spec.function, condition)
             for condition in spec.conditions
@@ -527,12 +669,14 @@ def _expected_guards() -> collections.Counter:
 
 
 def _production_guards(
-        overrides: dict[str, str] | None = None) -> collections.Counter:
+        overrides: dict[str, str] | None = None, *,
+        specs: tuple[_GuardSpec, ...] = _REVIEWED_GUARDS,
+) -> collections.Counter:
     overrides = overrides or {}
     sources: dict[str, str] = {}
     functions_by_path: dict[str, dict[str, ast.FunctionDef]] = {}
     actual: collections.Counter = collections.Counter()
-    for spec in _REVIEWED_GUARDS:
+    for spec in specs:
         if spec.path not in sources:
             sources[spec.path] = overrides.get(
                 spec.path,
@@ -684,3 +828,31 @@ def test_closure_inventory_mutations_are_not_tautologies() -> None:
         for path in _BENCH_AUTHORITIES
     })
     assert authoritative != reviewed
+
+
+def test_outer_perf_file_and_added_guard_inventory_is_exact() -> None:
+    actual_perf_files = _production_perf_files()
+    assert actual_perf_files == _REVIEWED_PERF_FILES, _perf_file_drift(
+        actual_perf_files,
+    )
+    expected_guards = _expected_guards(_ADDED_REVIEWED_GUARDS)
+    actual_guards = _production_guards(specs=_ADDED_REVIEWED_GUARDS)
+    assert actual_guards == expected_guards, _drift(actual_guards, expected_guards)
+
+
+def test_outer_perf_file_mutations_are_not_tautologies() -> None:
+    """New production files and erased registered surfaces must turn red."""
+
+    unreviewed_path = "orchestrator/campaign/unreviewed.py"
+    with_unreviewed = _production_perf_files({
+        unreviewed_path: "def added():\n    probe_perf_availability()\n",
+    })
+    assert f"unreviewed: {unreviewed_path}" in _perf_file_drift(with_unreviewed)
+
+    runner_path = "orchestrator/calibrator/runner.py"
+    without_runner = _production_perf_files({runner_path: ""})
+    assert f"missing: {runner_path}" in _perf_file_drift(without_runner)
+
+    pilot_path = "orchestrator/campaign/s8b_oracle_n_pilot.py"
+    without_pilot = _production_perf_files({pilot_path: ""})
+    assert f"missing: {pilot_path}" in _perf_file_drift(without_pilot)

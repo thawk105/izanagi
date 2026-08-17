@@ -4336,6 +4336,33 @@ def test_report_rejects_sidecar_bench_observation_mismatch(tmp_path):
         report.build_observations(manifest=manifest, output_root=tmp_path)
 
 
+def test_degraded_campaign_condition_rejects_omitted_bench_observation(
+        tmp_path, monkeypatch):
+    manifest = _schema_less_legacy(_manifest(tmp_path))
+    rows = manifest["schedule"]["rows"]
+    layout = _layout(tmp_path, manifest)
+    _finish_campaign_rows(layout, rows)
+    observation = _degraded_perf_observation()
+    monkeypatch.setattr(
+        report,
+        "_measurement_condition_for_campaign",
+        lambda campaign_id, *_args, **_kwargs: {
+            "campaign_id": campaign_id,
+            "measurement_manifest_sha256": "0" * 64,
+            "perf_observation": observation,
+        },
+    )
+
+    observations = report.build_observations(
+        manifest=manifest, output_root=tmp_path,
+    )
+
+    row = observations["rows"][0]
+    assert row["status"] == "protocol_violation"
+    assert row["bench_values"] == []
+    assert "campaign 測定条件と不一致" in row["reason"]
+
+
 def test_report_rejects_campaign_start_sidecar_hash_mismatch(tmp_path):
     manifest = _schema_less_legacy(_manifest(tmp_path))
     rows = manifest["schedule"]["rows"]

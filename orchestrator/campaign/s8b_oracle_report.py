@@ -1172,6 +1172,7 @@ def _abort_workload_evidence(abort_records: Sequence[object]) -> tuple[str, list
 def _assess_window(item: Mapping, window: Sequence[object], manifest: Mapping,
                    allowed_excluded: set[str], expected_reps: int,
                    record_ordinals: Mapping[int, int],
+                   expected_perf_observation: object,
                    payload_issues: Sequence[str] = ()) -> dict:
     row = _base_row(item)
     start = window[0].payload
@@ -1254,7 +1255,12 @@ def _assess_window(item: Mapping, window: Sequence[object], manifest: Mapping,
         bench_payload = _safe_payload(benches[0])
         claim_ok = True
         observation = bench_payload.get("perf_observation")
-        if observation is not None:
+        if observation != expected_perf_observation:
+            claim_ok = False
+            issues.append(
+                "bench_done.perf_observation が campaign 測定条件と不一致"
+            )
+        elif observation is not None:
             try:
                 claim_ok = _perf_preflight.perf_claim_allowed(
                     observation,
@@ -1486,6 +1492,7 @@ def _campaign_terminal_position_issue(records: Sequence[object]) -> Optional[str
 def _assess_campaign(rows: Sequence[Mapping], campaign_id: str, manifest: Mapping,
                      manifest_sha: str, allowed_excluded: set[str], output_root: Path,
                      expected_reps: int,
+                     expected_perf_observation: object,
                      manifest_issue_messages: Sequence[str], *,
                      repo_root: Path,
                      current_receipt_invalid: bool,
@@ -1729,7 +1736,7 @@ def _assess_campaign(rows: Sequence[Mapping], campaign_id: str, manifest: Mappin
         assessed = [
             _assess_window(
                 item, window, manifest, allowed_excluded, expected_reps,
-                record_ordinals,
+                record_ordinals, expected_perf_observation,
                 [payload_issue_by_record[id(record)] for record in window
                  if id(record) in payload_issue_by_record],
             )
@@ -1894,6 +1901,10 @@ def build_observations(
         )
         for campaign_id in sorted(campaign_ids)
     ]
+    measurement_conditions_by_campaign = {
+        condition["campaign_id"]: condition
+        for condition in measurement_conditions
+    }
     by_ordinal: dict[int, dict] = {}
     t080_by_campaign: dict[str, _T080CampaignObservation] = {}
     for campaign_id in sorted(grouped):
@@ -1903,6 +1914,7 @@ def build_observations(
                 items, campaign_id, document, manifest_sha,
                 allowed_excluded, resolved_output_root,
                 expected_reps,
+                measurement_conditions_by_campaign[campaign_id]["perf_observation"],
                 assessed_manifest_issue_messages,
                 repo_root=Path(repo_root),
                 current_receipt_invalid=current_receipt_invalid,
