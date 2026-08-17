@@ -190,3 +190,7 @@ def test_leaf_module_does_not_import_runner_or_completeness() -> None:
     source = Path(A.__file__).read_text(encoding="utf-8")
     assert "p3_autonomous_workload_trial" not in source
     assert "autonomous_trial_completeness" not in source
+
+
+if __name__ == "__main__":  # pragma: no cover - plain-runner false-green guard
+    raise SystemExit(pytest.main([__file__, "-x"]))

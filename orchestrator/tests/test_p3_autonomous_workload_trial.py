@@ -5662,6 +5662,53 @@ def test_p8_m25_manifest_run_burns_exact_binding_without_arm_fields(
     assert "holdout" not in report
 
 
+def test_registered_producer_self_check_runs_execution_digest_chain(
+    tmp_path, monkeypatch, t325_registered_trial,
+) -> None:
+    observed: list[dict[str, object]] = []
+
+    def observe_chain(**kwargs) -> None:
+        observed.append(kwargs)
+
+    monkeypatch.setattr(
+        A,
+        "assert_autonomous_trial_execution_digest_chain",
+        observe_chain,
+    )
+    run_root = tmp_path / "registered-chain-self-check"
+    report = _t325_run(t325_registered_trial, run_root)
+    assert observed == [{
+        "report": report,
+        "attempt_journal": run_root / "attempts.jsonl",
+    }]
+
+
+def test_exploratory_producer_self_check_skips_execution_digest_chain(
+    tmp_path, monkeypatch,
+) -> None:
+    def forbidden_chain(**_kwargs) -> None:
+        pytest.fail("exploratory producer invoked registered digest chain")
+
+    monkeypatch.setattr(
+        A,
+        "assert_autonomous_trial_execution_digest_chain",
+        forbidden_chain,
+    )
+    report = A.run_trial(
+        trial_id="exploratory-chain-self-check",
+        workloads=["ycsb-a"],
+        generations=1,
+        provider_kind="fixture",
+        run_root=tmp_path / "exploratory-chain-self-check",
+        sub="/unused",
+        do_build=False,
+        drive=_fake_drive,
+        preview=_fake_preview,
+        allow_unregistered_exploratory=True,
+    )
+    assert report["status"] == "complete"
+
+
 def test_formal_start_is_recorded_before_run_root_and_blocks_other_root(
     tmp_path,
     monkeypatch,
@@ -6782,6 +6829,9 @@ def _origin_public_inputs(tmp_path, monkeypatch, registered):
         build_context=_no_build_context(),
         arm_execution=fresh_arm_execution,
     )
+    assert preliminary_runtime.producer_inputs.enforcement_arm == (
+        fresh_arm_execution.resolved_input.arm
+    )
     result_record_bytes = _align_origin_result_records(
         frozen,
         preliminary_runtime.capability,
@@ -6937,6 +6987,43 @@ def test_origin_client_omission_is_typed_preflight_before_production_resolution(
     assert type(outcome) is A.OriginPreflightFailure
     assert reached == []
     assert not run_root.exists()
+
+
+def test_origin_producer_arm_must_match_issued_capability_and_closed_arm_set(
+    tmp_path, monkeypatch, t325_registered_trial,
+) -> None:
+    request, producer = _origin_public_inputs(
+        tmp_path, monkeypatch, t325_registered_trial
+    )
+    invalid_root = tmp_path / "invalid-origin-producer-arm"
+    invalid = A.run_origin_trial(
+        origin_binding_request=request,
+        origin_producer_inputs=dataclasses.replace(
+            producer,
+            enforcement_arm="not-an-arm",
+        ),
+        **_origin_trial_arguments(t325_registered_trial, invalid_root),
+    )
+    assert type(invalid) is A.OriginPreflightFailure
+    assert "not a registered arm" in invalid.message
+    assert not invalid_root.exists()
+
+    issued_arm = t325_registered_trial.binding.arm
+    different_arm = next(
+        arm for arm in A.trial_registry.ARMS if arm != issued_arm
+    )
+    mismatch_root = tmp_path / "mismatched-origin-producer-arm"
+    mismatch = A.run_origin_trial(
+        origin_binding_request=request,
+        origin_producer_inputs=dataclasses.replace(
+            producer,
+            enforcement_arm=different_arm,
+        ),
+        **_origin_trial_arguments(t325_registered_trial, mismatch_root),
+    )
+    assert type(mismatch) is A.OriginPreflightFailure
+    assert "differs from issued capability" in mismatch.message
+    assert not mismatch_root.exists()
 
 
 def test_origin_arguments_are_all_or_none_before_artifact_creation(

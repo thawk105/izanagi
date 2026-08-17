@@ -21,6 +21,7 @@ from orchestrator.campaign import campaign_lock
 from orchestrator.campaign import reflux_formal_consumer as formal
 from orchestrator.campaign import reflux_origin_binding as origin_binding
 from orchestrator.campaign import s8b_descriptor
+from orchestrator.campaign import s8c_arm_inputs
 from orchestrator.campaign import trial_registry as R
 from orchestrator.tests.campaign_lock_test_support import build_v2_lock
 from orchestrator.tests import reflux_origin_fixture_builder as origin_fixtures
@@ -166,7 +167,9 @@ def _registered_repo(
     return repo, manifest_path, registry_path, R.load_trial_manifest(manifest_path)
 
 
-def _payload_validation_receipt(event: dict, spec_key: str) -> dict:
+def _payload_validation_receipt(
+    event: dict, spec_key: str, workload_descriptor: dict,
+) -> dict:
     role = event["role"]
     generation = event["generation"]
     fixed_literals = {
@@ -191,7 +194,11 @@ def _payload_validation_receipt(event: dict, spec_key: str) -> dict:
         "workload": event["workload"],
         "generation": generation,
         "descriptor_sha256": event["descriptor_sha256"],
-        "workload_descriptor_sha256": "1" * 64,
+        "workload_descriptor_sha256": hashlib.sha256(
+            s8c_arm_inputs.canonical_execution_input_bytes(
+                workload_descriptor
+            )
+        ).hexdigest(),
         "descriptor_binding_sha256": "2" * 64,
         "fixed_literals": fixed_literals,
         "nested_key_sets": nested_key_sets,
@@ -266,6 +273,7 @@ def _role_event(
     role: str,
     seq: int,
     descriptor_hash: str,
+    workload_descriptor: dict,
     *,
     arm: str,
     arm_binding_digest: str,
@@ -314,7 +322,7 @@ def _role_event(
     }
     if role in {"planner", "coder"}:
         event["payload_validation_receipt"] = _payload_validation_receipt(
-            event, spec_key,
+            event, spec_key, workload_descriptor,
         )
     return event
 
@@ -711,6 +719,7 @@ def _complete_report(
                 role,
                 seq,
                 descriptor_hash,
+                descriptor,
                 arm=trial.arm,
                 arm_binding_digest=arm_binding_digest,
                 generation=generation,

@@ -22,6 +22,9 @@ from orchestrator.campaign import env_contract, ident                # noqa: E40
 from orchestrator.campaign import p3_autonomous_workload_trial as A  # noqa: E402
 from orchestrator.campaign import layer3_report as L3                 # noqa: E402
 from orchestrator.campaign import pipeline as P                       # noqa: E402
+from orchestrator.campaign import s8b_descriptor                      # noqa: E402
+from orchestrator.campaign import s8b_holdout_freeze                  # noqa: E402
+from orchestrator.campaign import s8c_arm_inputs                      # noqa: E402
 from orchestrator.campaign import trigger_gate_binding as TGB         # noqa: E402
 from orchestrator.campaign.build_admission import (                  # noqa: E402
     GeneratorId,
@@ -295,7 +298,9 @@ def _golden_cell_metadata(
     }
 
 
-def _fixture_payload_validation_receipt(event: dict, spec_key: str) -> dict:
+def _fixture_payload_validation_receipt(
+    event: dict, spec_key: str, workload_descriptor: dict,
+) -> dict:
     role = event["role"]
     generation = event["generation"]
     fixed_literals = {
@@ -320,7 +325,11 @@ def _fixture_payload_validation_receipt(event: dict, spec_key: str) -> dict:
         "workload": event["workload"],
         "generation": generation,
         "descriptor_sha256": event["descriptor_sha256"],
-        "workload_descriptor_sha256": "1" * 64,
+        "workload_descriptor_sha256": hashlib.sha256(
+            s8c_arm_inputs.canonical_execution_input_bytes(
+                workload_descriptor
+            )
+        ).hexdigest(),
         "descriptor_binding_sha256": "2" * 64,
         "fixed_literals": fixed_literals,
         "nested_key_sets": nested_key_sets,
@@ -390,6 +399,7 @@ def _role_event(
     workload: str, role: str, seq: int, *, status: str = "valid",
     generation: int = 1, pre_audit: dict | None = None,
     role_query_ordinal: int | None = None,
+    workload_descriptor: dict,
 ) -> dict:
     spec_key = (
         "planner-generation-1"
@@ -431,7 +441,9 @@ def _role_event(
     }
     if role in {"planner", "coder"}:
         event["payload_validation_receipt"] = (
-            _fixture_payload_validation_receipt(event, spec_key)
+            _fixture_payload_validation_receipt(
+                event, spec_key, workload_descriptor,
+            )
         )
     if status == "invalid":
         for key in ("raw_response_path", "raw_response_sha256", "parsed", "provenance"):
@@ -647,10 +659,12 @@ def _complete_trial(
     seq = 2
     ordinal = 1
     for workload in requested:
+        cell_metadata = _golden_cell_metadata(run, workload)
         roles = {}
         for role in _ROLES:
             event = _role_event(
                 workload, role, seq, role_query_ordinal=ordinal,
+                workload_descriptor=cell_metadata["descriptor"],
             )
             events.append(event)
             roles[role] = copy.deepcopy(event)
@@ -662,7 +676,7 @@ def _complete_trial(
         seq += 1
         report["cells"].append({
             "workload": workload,
-            **_golden_cell_metadata(run, workload),
+            **cell_metadata,
             "generations": [{
                 "generation": 1,
                 "roles": roles,
@@ -721,10 +735,9 @@ def _registered_digest_chain_trial(tmp_path: Path):
             event["workload"] = workload
     for event in cell["generations"][0]["roles"].values():
         event["workload"] = workload
-    descriptor_bytes = json.dumps(
-        cell["descriptor"], ensure_ascii=False, sort_keys=True,
-        separators=(",", ":"), allow_nan=False,
-    ).encode("utf-8")
+    descriptor_bytes = s8c_arm_inputs.canonical_execution_input_bytes(
+        cell["descriptor"]
+    )
     content_digest = hashlib.sha256(descriptor_bytes).hexdigest()
     assert content_digest == (
         "80501db0235d88314edd4a4c29a1949e67acc2b466ae426fbbb1cb3da4b7d843"
@@ -821,7 +834,9 @@ def _registered_digest_chain_trial(tmp_path: Path):
             if role in {"planner", "coder"}:
                 spec_key = "planner-generation-1" if role == "planner" else role
                 event["payload_validation_receipt"] = (
-                    _fixture_payload_validation_receipt(event, spec_key)
+                    _fixture_payload_validation_receipt(
+                        event, spec_key, cell["descriptor"],
+                    )
                 )
     proposal_value = {
         "planner": {"fixture": True},
@@ -850,9 +865,9 @@ def _registered_digest_chain_trial(tmp_path: Path):
     return run, events, report, arm_execution
 
 
-def _verify_digest_chain(run: Path, events: list[dict], report: dict) -> None:
-    C.assert_execution_digest_chain(
-        report=report, events=events, run_root=run,
+def _verify_digest_chain(run: Path, _events: list[dict], report: dict) -> None:
+    C.assert_autonomous_trial_execution_digest_chain(
+        report=report, attempt_journal=run / "attempts.jsonl",
     )
 
 
@@ -916,7 +931,24 @@ def test_t1311_exploratory_shape_rejects_arm_execution(tmp_path: Path) -> None:
         C.AutonomousTrialCompletenessError,
         match=r"\[arm-digest-chain\] exploratory run carries arm_execution$",
     ):
-        _verify_digest_chain(run, events, report)
+        _verify(run, report)
+
+
+def test_t1311_persisted_file_verifier_runs_registered_digest_chain(
+    tmp_path: Path,
+) -> None:
+    run, events, report, _arm_execution = _registered_digest_chain_trial(
+        tmp_path
+    )
+    report["cells"][0]["generations"][0]["proposal"]["digest"] = "e" * 64
+    _persist(run, events, report)
+    with pytest.raises(
+        C.AutonomousTrialCompletenessError,
+        match=r"\[arm-digest-chain\] proposal digest differs$",
+    ):
+        C.verify_autonomous_trial_files(
+            run / "attempts.jsonl", run / "report.json",
+        )
 
 
 @pytest.mark.parametrize(
@@ -1041,7 +1073,15 @@ def test_t1311_origin_terminal_projection_requires_current_arm_epoch(
 
 @pytest.mark.parametrize(
     "mutation",
-    (None, "payload-hash", "envelope-hash", "payload-arm", "artifact-arm"),
+    (
+        None,
+        "payload-hash",
+        "envelope-hash",
+        "missing-descriptor",
+        "payload-descriptor",
+        "payload-arm",
+        "artifact-arm",
+    ),
 )
 def test_t1311_provider_payload_and_envelope_are_independently_reread(
     tmp_path: Path, mutation: str | None,
@@ -1049,10 +1089,17 @@ def test_t1311_provider_payload_and_envelope_are_independently_reread(
     run = tmp_path / "provider-run"
     artifact_root = run / "provider" / "planner"
     artifact_root.mkdir(parents=True)
-    content_digest = "a" * 64
+    workload_descriptor = s8c_arm_inputs.derive_off_neutral_descriptor()
+    other_arm_descriptor = s8b_descriptor.descriptor_for_holdout(
+        s8b_holdout_freeze.HOLDOUTS["rr80"]
+    )
+    content_digest = hashlib.sha256(
+        s8c_arm_inputs.canonical_execution_input_bytes(workload_descriptor)
+    ).hexdigest()
     arm_digest = "b" * 64
     invocation_id = f"arm-on.exec-{arm_digest}.ycsb-a.g1.planner"
     payload = {
+        "workload_descriptor": workload_descriptor,
         "descriptor_binding": {
             "output_sha256": content_digest,
             "content_digest_sha256": content_digest,
@@ -1086,6 +1133,18 @@ def test_t1311_provider_payload_and_envelope_are_independently_reread(
         event.pop("provider_payload_sha256")
     elif mutation == "envelope-hash":
         event["provider_envelope_sha256"] = "c" * 64
+    elif mutation in {"missing-descriptor", "payload-descriptor"}:
+        if mutation == "missing-descriptor":
+            payload.pop("workload_descriptor")
+        else:
+            payload["workload_descriptor"] = other_arm_descriptor
+        payload_path.write_bytes(json.dumps(
+            payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"),
+        ).encode("utf-8"))
+        changed = hashlib.sha256(payload_path.read_bytes()).hexdigest()
+        event["input_payload_sha256"] = changed
+        event["provider_payload_sha256"] = changed
+        event["provenance"]["payload_sha256"] = changed
     elif mutation == "payload-arm":
         payload["descriptor_binding"]["arm_binding_digest_sha256"] = "c" * 64
         payload_path.write_bytes(json.dumps(
@@ -1111,6 +1170,101 @@ def test_t1311_provider_payload_and_envelope_are_independently_reread(
                 event=event, run_root=run,
                 content_digest=content_digest, arm_binding_digest=arm_digest,
             )
+
+
+def test_t1311_authoritative_run_root_rejects_coordinated_tree_rebinding(
+    tmp_path: Path,
+) -> None:
+    run, events, report, arm_execution = _registered_digest_chain_trial(
+        tmp_path
+    )
+    cell = report["cells"][0]
+    planner = cell["generations"][0]["roles"]["planner"]
+    for role, event in cell["generations"][0]["roles"].items():
+        if role != "planner":
+            event["status"] = "skipped"
+    report["provider"] = "claude-headless"
+    invocation_id = planner["invocation_id"]
+    provider_root = run / "provider" / "planner"
+    provider_root.mkdir(parents=True)
+    payload = {
+        "workload_descriptor": cell["descriptor"],
+        "descriptor_binding": cell["descriptor_binding"],
+    }
+    payload_path = provider_root / f"payload_{invocation_id}.json"
+    envelope_path = provider_root / f"envelope_{invocation_id}.json"
+    payload_path.write_bytes(json.dumps(
+        payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"),
+        allow_nan=False,
+    ).encode("utf-8"))
+    envelope_path.write_bytes(b'{"result":"fixture","type":"result"}')
+    payload_sha256 = hashlib.sha256(payload_path.read_bytes()).hexdigest()
+    envelope_sha256 = hashlib.sha256(envelope_path.read_bytes()).hexdigest()
+    planner.update({
+        "input_payload_sha256": payload_sha256,
+        "provider_payload_sha256": payload_sha256,
+        "provider_envelope_sha256": envelope_sha256,
+        "provider_artifacts": {
+            "payload_path": str(payload_path),
+            "envelope_path": str(envelope_path),
+            "arm_binding_digest_sha256": arm_execution[
+                "arm_binding_digest_sha256"
+            ],
+        },
+        "provenance": {
+            "payload_sha256": payload_sha256,
+            "envelope_sha256": envelope_sha256,
+        },
+    })
+    _persist(run, events, report)
+    _verify_digest_chain(run, events, report)
+
+    other_run = tmp_path / "other-run"
+    (other_run / "campaigns").mkdir(parents=True)
+    old_campaign_root = Path(cell["campaign_root"])
+    new_campaign_root = other_run / "campaigns" / old_campaign_root.name
+    old_campaign_root.rename(new_campaign_root)
+    cell["campaign_root"] = str(new_campaign_root)
+    old_proposal = Path(cell["generations"][0]["proposal"]["path"])
+    (other_run / "proposals").mkdir()
+    new_proposal = other_run / "proposals" / old_proposal.name
+    old_proposal.rename(new_proposal)
+    cell["generations"][0]["proposal"]["path"] = str(new_proposal)
+    new_provider_root = other_run / "provider" / "planner"
+    new_provider_root.parent.mkdir()
+    provider_root.rename(new_provider_root)
+    planner["provider_artifacts"]["payload_path"] = str(
+        new_provider_root / payload_path.name
+    )
+    planner["provider_artifacts"]["envelope_path"] = str(
+        new_provider_root / envelope_path.name
+    )
+    _persist(run, events, report)
+    with pytest.raises(
+        C.AutonomousTrialCompletenessError,
+        match=r"\[arm-digest-chain\].*(?:run root|identity/path differs)$",
+    ):
+        _verify_digest_chain(run, events, report)
+
+
+def test_t1311_registered_build_keeps_artifacts_bound_to_trial_run_root(
+    tmp_path: Path,
+) -> None:
+    run, events, report, _arm_execution = _registered_digest_chain_trial(
+        tmp_path
+    )
+    report["do_build"] = True
+    cell = report["cells"][0]
+    old_campaign_root = Path(cell["campaign_root"])
+    build_campaign_root = (
+        tmp_path / "output" / "exploration" / "campaigns"
+        / old_campaign_root.name
+    )
+    build_campaign_root.parent.mkdir(parents=True)
+    old_campaign_root.rename(build_campaign_root)
+    cell["campaign_root"] = str(build_campaign_root)
+    _persist(run, events, report)
+    _verify_digest_chain(run, events, report)
 
 
 def _pending_critic_admission_failure_trial(tmp_path: Path):
@@ -1175,25 +1329,31 @@ def _pre_audit_trial(tmp_path: Path):
     run = tmp_path / "run"
     report = _report(run, ["ycsb-a"])
     events = [_start(run, ["ycsb-a"])]
+    cell_metadata = _golden_cell_metadata(run, "ycsb-a")
     roles = {}
     for seq, role in enumerate(("planner", "coder"), 2):
-        event = _role_event("ycsb-a", role, seq)
+        event = _role_event(
+            "ycsb-a", role, seq,
+            workload_descriptor=cell_metadata["descriptor"],
+        )
         events.append(event)
         roles[role] = copy.deepcopy(event)
     preview = {"passed": False, "forbidden_identifiers": []}
     auditor = _role_event(
         "ycsb-a", "auditor", 4, status="skipped", pre_audit=preview,
+        workload_descriptor=cell_metadata["descriptor"],
     )
     events.append(auditor)
     roles["auditor"] = copy.deepcopy(auditor)
     critic = _role_event(
         "ycsb-a", "critic", 5, role_query_ordinal=3,
+        workload_descriptor=cell_metadata["descriptor"],
     )
     events.append(critic)
     roles["critic"] = copy.deepcopy(critic)
     report["cells"] = [{
         "workload": "ycsb-a",
-        **_golden_cell_metadata(run, "ycsb-a"),
+        **cell_metadata,
         "generations": [{
             "generation": 1,
             "roles": roles,
@@ -1226,10 +1386,14 @@ def _role_invalid_trial(tmp_path: Path):
     run = tmp_path / "run"
     report = _report(run, ["ycsb-a"])
     report["status"] = "partial"
-    invalid = _role_event("ycsb-a", "planner", 2, status="invalid")
+    cell_metadata = _golden_cell_metadata(run, "ycsb-a")
+    invalid = _role_event(
+        "ycsb-a", "planner", 2, status="invalid",
+        workload_descriptor=cell_metadata["descriptor"],
+    )
     report["cells"] = [{
         "workload": "ycsb-a",
-        **_golden_cell_metadata(run, "ycsb-a"),
+        **cell_metadata,
         "generations": [{
             "generation": 1,
             "roles": {"planner": copy.deepcopy(invalid)},
@@ -1617,6 +1781,7 @@ def test_role_payload_exact_keys_are_independently_rechecked(tmp_path) -> None:
     [
         ("missing", "is not a Mapping"),
         ("payload-digest", "receipt payload digest differs"),
+        ("workload-descriptor", "workload descriptor digest differs"),
         ("fixed-literal", "fixed literals differ"),
         ("whiteboard-origin", "whiteboard origin digest differs"),
         ("seal", "receipt seal differs"),
@@ -1636,6 +1801,21 @@ def test_payload_validation_receipt_is_independently_rechecked(
             receipt = target["payload_validation_receipt"]
             if mutation == "payload-digest":
                 receipt["payload_sha256"] = "0" * 64
+            elif mutation == "workload-descriptor":
+                receipt["safe_projection"][
+                    "workload_descriptor_sha256"
+                ] = "0" * 64
+                receipt["safe_projection_sha256"] = C._receipt_sha256(
+                    receipt["safe_projection"]
+                )
+                seal_preimage = {
+                    key: receipt[key]
+                    for key in (
+                        "schema_version", "role", "payload_sha256",
+                        "payload_allowlist_sha256", "safe_projection_sha256",
+                    )
+                }
+                receipt["seal_sha256"] = C._receipt_sha256(seal_preimage)
             elif mutation == "fixed-literal":
                 receipt["safe_projection"]["fixed_literals"][
                     "scientific_claim"
@@ -1932,7 +2112,10 @@ def test_fixed_budget_rejects_null_or_empty_harness(tmp_path, harness) -> None:
 
 def test_fixed_budget_rejects_impossible_invalid_role_history(tmp_path) -> None:
     run, events, report = _complete_trial(tmp_path)
-    invalid_planner = _role_event("ycsb-a", "planner", 2, status="invalid")
+    invalid_planner = _role_event(
+        "ycsb-a", "planner", 2, status="invalid",
+        workload_descriptor=report["cells"][0]["descriptor"],
+    )
     events[1] = invalid_planner
     report["cells"][0]["generations"][0]["roles"]["planner"] = copy.deepcopy(
         invalid_planner
@@ -2152,16 +2335,23 @@ def test_role_invalid_rejects_prior_terminal_harness_stop(
     report = _report(run, ["ycsb-a"], budget=2)
     report["status"] = "partial"
     events = [_start(run, ["ycsb-a"], budget=2)]
+    cell_metadata = _golden_cell_metadata(run, "ycsb-a")
     roles = {}
     for seq, role in enumerate(_ROLES, 2):
-        event = _role_event("ycsb-a", role, seq, generation=1)
+        event = _role_event(
+            "ycsb-a", role, seq, generation=1,
+            workload_descriptor=cell_metadata["descriptor"],
+        )
         events.append(event)
         roles[role] = copy.deepcopy(event)
-    invalid = _role_event("ycsb-a", "planner", 6, status="invalid", generation=2)
+    invalid = _role_event(
+        "ycsb-a", "planner", 6, status="invalid", generation=2,
+        workload_descriptor=cell_metadata["descriptor"],
+    )
     events.append(invalid)
     report["cells"] = [{
         "workload": "ycsb-a",
-        **_golden_cell_metadata(run, "ycsb-a"),
+        **cell_metadata,
         "generations": [
             {
                 "generation": 1,
@@ -2344,14 +2534,18 @@ def _supervisor_error_trial(
     error_value = {"type": "FixtureError", "message": "fixture supervisor error"}
     report["fatal_error"] = dict(error_value)
     events = [_start(run, ["ycsb-a"])]
+    cell_metadata = _golden_cell_metadata(run, "ycsb-a")
     report_roles = {}
     for seq, role in enumerate(roles, 2):
-        event = _role_event("ycsb-a", role, seq, generation=generation)
+        event = _role_event(
+            "ycsb-a", role, seq, generation=generation,
+            workload_descriptor=cell_metadata["descriptor"],
+        )
         events.append(event)
         report_roles[role] = copy.deepcopy(event)
     report["cells"] = [{
         "workload": "ycsb-a",
-        **_golden_cell_metadata(run, "ycsb-a"),
+        **cell_metadata,
         "generations": [{
             "generation": generation,
             "roles": report_roles,
@@ -2564,7 +2758,12 @@ def test_state_machine_rejects_nonprefix_roles(tmp_path) -> None:
 
 
 def test_m9_logical_id_diagnostic_pin_has_no_coverage_failure() -> None:
-    first = _role_event("ycsb-a", "planner", 2)
+    first = _role_event(
+        "ycsb-a", "planner", 2,
+        workload_descriptor=_golden_cell_metadata(
+            Path("/fixture"), "ycsb-a",
+        )["descriptor"],
+    )
     duplicate = copy.deepcopy(first)
     duplicate["seq"] = 3
     duplicate["ts"] = "2026-08-01T00:00:03+00:00"

@@ -682,6 +682,17 @@ def _check_registered_provider_artifacts(
     payload = _decode_canonical_object(
         payload_raw, gate="arm-digest-chain", label="provider payload bytes",
     )
+    _payload_descriptor, _payload_descriptor_raw, payload_descriptor_digest = (
+        _canonical_descriptor_digest(
+            payload.get("workload_descriptor"),
+            label="provider payload workload_descriptor",
+        )
+    )
+    if payload_descriptor_digest != content_digest:
+        _fail(
+            "arm-digest-chain",
+            "provider payload workload descriptor digest differs",
+        )
     payload_binding = _mapping(
         payload.get("descriptor_binding"), gate="arm-digest-chain",
         label="provider payload descriptor_binding",
@@ -839,9 +850,16 @@ def _check_arm_digest_chain(
         cell.get("campaign_root"), gate="arm-digest-chain",
         label=f"cells[{cell_index}].campaign_root",
     )
-    artifact_run_root = campaign_root.parent.parent
-    expected_root = artifact_run_root / "campaigns" / str(campaign_id)
-    if campaign_root != expected_root:
+    artifact_run_root = Path(run_root).resolve(strict=True)
+    if report.get("do_build") is False:
+        expected_root = artifact_run_root / "campaigns" / str(campaign_id)
+        campaign_path_matches = campaign_root == expected_root
+    else:
+        campaign_path_matches = (
+            campaign_root.name == str(campaign_id)
+            and campaign_root.parent.name == "campaigns"
+        )
+    if not campaign_path_matches:
         _fail("arm-digest-chain", "campaign identity/path differs")
     if binding.get("campaign_id") != campaign_id:
         _fail("arm-digest-chain", "launch binding campaign_id differs")
@@ -942,6 +960,18 @@ def assert_execution_digest_chain(
     _check_arm_digest_chain(
         report=report, events=normalized_events, cells=cells,
         run_root=Path(run_root),
+    )
+
+
+def assert_autonomous_trial_execution_digest_chain(
+    *, report: Mapping[str, Any], attempt_journal: Path,
+) -> None:
+    """Re-read a persisted journal and verify its execution digest chain."""
+    _journal_bytes, events = _read_journal(Path(attempt_journal))
+    assert_execution_digest_chain(
+        report=report,
+        events=events,
+        run_root=Path(attempt_journal).resolve().parent,
     )
 
 
@@ -1092,6 +1122,14 @@ def _check_payload_validation_receipt(
         "whiteboard_origin_sha256",
     ):
         _receipt_sha256_field(projection.get(field), label=f"{label}.{field}")
+    if (
+        projection.get("workload_descriptor_sha256")
+        != record.get("descriptor_sha256")
+    ):
+        _fail(
+            "payload-validation-receipt",
+            f"{label} workload descriptor digest differs",
+        )
 
     fixed = _mapping(
         projection.get("fixed_literals"),
@@ -2545,6 +2583,19 @@ def assert_autonomous_trial_completeness(
         report=report, events=events, attempt_journal=Path(attempt_journal),
     )
     _check_origin_terminal_projection(report)
+    launch = report.get("launch_admission")
+    registered = (
+        isinstance(launch, Mapping)
+        and launch.get("mode") == "registered-effective"
+    )
+    if not registered and (
+        "arm_execution" in report
+        or any(
+            event.get("event") == "run-start" and "arm_execution" in event
+            for event in events
+        )
+    ):
+        _fail("arm-digest-chain", "exploratory run carries arm_execution")
     raw_cells = _list(report.get("cells"), gate="report-shape", label="report.cells")
     cells = [
         _mapping(cell, gate="report-shape", label=f"cells[{index}]")
@@ -2966,6 +3017,9 @@ def verify_autonomous_trial_files(
     if Path(report_json).resolve() != expected_report:
         _fail("run-envelope", "report_json is not the journal sibling report.json")
     assert_autonomous_trial_completeness(
+        report=report, attempt_journal=Path(attempt_journal),
+    )
+    assert_autonomous_trial_execution_digest_chain(
         report=report, attempt_journal=Path(attempt_journal),
     )
     if report.get("do_build") is True and campaign_output_root is None:

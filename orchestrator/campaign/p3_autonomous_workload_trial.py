@@ -51,6 +51,7 @@ from .reflux_ir import emit_predicate, parse_wire
 from .autonomous_trial_completeness import (
     assert_campaign_layer3_chain,
     assert_autonomous_trial_completeness,
+    assert_autonomous_trial_execution_digest_chain,
     cell_admission_failure_projection,
     is_positive_cell_admission_decision,
 )
@@ -339,6 +340,7 @@ class OriginProducerInputs:
     verifier_policy_bytes: bytes
     generator_closure: Mapping[str, object]
     terminal_operation_id: str
+    enforcement_arm: str | None = None
 
 
 @dataclasses.dataclass(slots=True)
@@ -1054,6 +1056,16 @@ def _prepare_origin_trial_runtime(
         or not producer_inputs.terminal_operation_id
     ):
         raise TypeError("origin producer tokens must be non-empty strings")
+    if (
+        producer_inputs.enforcement_arm is not None
+        and (
+            type(producer_inputs.enforcement_arm) is not str
+            or producer_inputs.enforcement_arm not in trial_registry.ARMS
+        )
+    ):
+        raise AutonomousTrialError(
+            "origin producer enforcement_arm is not a registered arm"
+        )
 
     launch = reflux_origin_binding.rederive_launch_admission(
         admission,
@@ -1105,6 +1117,22 @@ def _prepare_origin_trial_runtime(
             prepared_origin.environment_contract_sha256
         ),
         store_scope=request.client.store_scope,
+    )
+    issued_arm = capability.enforcement_arm
+    if type(issued_arm) is not str or issued_arm not in trial_registry.ARMS:
+        raise AutonomousTrialError(
+            "issued origin capability has no registered enforcement arm"
+        )
+    if (
+        producer_inputs.enforcement_arm is not None
+        and producer_inputs.enforcement_arm != issued_arm
+    ):
+        raise AutonomousTrialError(
+            "origin producer enforcement_arm differs from issued capability"
+        )
+    producer_inputs = dataclasses.replace(
+        producer_inputs,
+        enforcement_arm=issued_arm,
     )
     client = reflux_origin_client.require_origin_ledger_client(
         capability, request.client
@@ -2684,6 +2712,11 @@ def _finish_trial(
         report=report,
         attempt_journal=run_root / "attempts.jsonl",
     )
+    if trial_binding is not None:
+        assert_autonomous_trial_execution_digest_chain(
+            report=report,
+            attempt_journal=run_root / "attempts.jsonl",
+        )
     if do_build and cells:
         campaign_parents = {
             Path(campaign_root).resolve().parent.parent
