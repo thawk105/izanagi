@@ -75,6 +75,15 @@ pid file 実在を確認せずに張った待ち手が rc=2 で落ちた。land 
 fix 第 2 巡の子は停止条件を発火項目以外にも適用して全項目を止めたため、
 発火項目だけを止める運用を明記して再投入した。
 
+**段 8 自己改善**: 候補 3 件。(1) 待ち手の六つ目の方向は F104 へ再発として追記した。
+(2) 別タスクが着地させた設計判断を反転させない裁定は {{D:main-owned-gate-order}} へ送った。
+(3) fix 子への停止条件は発火項目だけへ適用させると明記する 1 行は、**置き場所が無く実装できない**。
+発火点に対応する正本は `docs/dev-wave/workers.md` の `DW-S06-B` だが、追記すると
+L1.5 unique footprint が 9667 bytes となり予算 9566 bytes を超える (実測)。
+上限引き上げは [T-1300] の裁定で据え置きと確定しており、同裁定が示す「新規 L2 節へ収容」も
+D271 の鏡像条件を満たさない — 同じ発火点の既存正本 (`DW-S06-B`) が実在するためである。
+よって編集を戻し、{{T:fix-stop-condition-scope}} として起票する。
+
 **環境**: ログインノードの bounded local は cgroup attest 不能で、テストと変異走はすべて
 `--force-dispatch` で計算ノードへ投げた。codex 子は pytest を 1 度も実走できず、
 実測は全て親が引き受けた。
@@ -123,6 +132,13 @@ author と fix と review が `gpt-5.6-sol` の reasoning=high。
   `formal-acceptance-layer3-consumer-absent` から `layer3-producer-unreachable` へ変わる。
   契約は正当に別条件の宣言 path にある consumer を参照している。真の修正は
   「終端 target を契約が名指しする所有 path へ束縛する」設計であり、契約 JSON の読み方を変える。
+- {{T:fix-stop-condition-scope}} **P3・新規**: fix 子へ「条件が発火したら実装を変えず止まれ」を
+  渡すとき、適用範囲を項目ごとに書かないと子は全項目を止める (実測: land 相の fix 第 2 巡で
+  1 件の発火により独立な 3 項目まで止まり、1 巡を要した)。子の判断は保守的で正しく、
+  欠けていたのは親の prompt 側の指定である。恒久対応は `docs/dev-wave/workers.md` の
+  `DW-S06-B` へ 1 行足すことだが、L1.5 予算 9566 bytes に対し追記後 9667 bytes で入らない。
+  上限引き上げは [T-1300] で据え置き確定、新規 L2 節も同じ発火点の既存正本があるため
+  D271 の鏡像条件を満たさない。予算の枠内で意味等価に収める方法を決める。
 - {{T:bare-name-and-decorator-reachability}} **P2・新規**: `_called_names` は canonical binding を
   見ず裸名と属性末尾名を採るため、未束縛名・dead 枝・未呼出し nested 配下の同名 call を
   到達済みと数える。`_functions` は decorator 付き関数を無条件に canonical 定義とするため、
