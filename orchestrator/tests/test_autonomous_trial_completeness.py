@@ -710,17 +710,23 @@ def _complete_trial(
 def _registered_digest_chain_trial(tmp_path: Path):
     run, events, report = _complete_trial(tmp_path)
     cell = report["cells"][0]
-    workload = "rr80"
+    holdout_high = s8b_holdout_freeze._HOLDOUT_HIGH
+    fixed_skew = s8b_holdout_freeze._FIXED_SKEW
+    fixed_rmw = s8b_holdout_freeze._FIXED_RMW
+    workload = "rr" + holdout_high
     workload_flags = {
-        "ycsb_zipf_skew": "0.9",
-        "ycsb_rratio": "80",
-        "ycsb_rmw": "0",
+        s8b_holdout_freeze.SKEW_KEY: fixed_skew,
+        s8b_holdout_freeze.RRATIO_KEY: holdout_high,
+        s8b_holdout_freeze.RMW_KEY: fixed_rmw,
     }
     descriptor = {
         "schema_version": "8b-v1",
         "source": "campaign_search_config_projection",
-        "read_write": {"read_ratio_percent": 80, "rmw": 0},
-        "contention": {"skew": 0.9, "label": "high"},
+        "read_write": {
+            "read_ratio_percent": int(holdout_high),
+            "rmw": int(fixed_rmw),
+        },
+        "contention": {"skew": float(fixed_skew), "label": "high"},
         "scale": {"records": 1_000_000, "threads": 48},
         "objective": "maximize_throughput_tps",
         "correctness": "serializable_legacy_and_s2",
