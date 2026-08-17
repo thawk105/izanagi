@@ -1,0 +1,120 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 120.0,
+  "timeout_seconds": 7200.0,
+  "hang_timeout_seconds": 900.0,
+  "mutations": [
+    {
+      "id": "M01",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/layer3_report.py",
+          "old": "            \"generated_from_head\": _resolve_generated_from_head(\n                campaign_dir, decoded_lock, generated_from_head,\n            ),\n",
+          "new": "            \"generated_from_head\": generated_from_head if generated_from_head is not None else _git_head(campaign_dir),\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M02",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/layer3_report.py",
+          "old": "    if generated_from_head is not None:\n        return generated_from_head\n    try:\n        return _git_head(campaign_dir)\n    except Layer3ReportError:\n        if campaign_dir.is_relative_to(_DEFAULT_OUTPUT_ROOT.parent):\n            raise\n        if decoded_lock.authority is not None:\n            return decoded_lock.authority.contract_loader_commit\n        raise\n",
+          "new": "    if generated_from_head is not None:\n        return generated_from_head\n    if decoded_lock.authority is not None:\n        return decoded_lock.authority.contract_loader_commit\n    return _git_head(campaign_dir)\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M03",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/layer3_report.py",
+          "old": "    except Layer3ReportError:\n        if campaign_dir.is_relative_to(_DEFAULT_OUTPUT_ROOT.parent):\n            raise\n        if decoded_lock.authority is not None:\n",
+          "new": "    except Layer3ReportError:\n        if decoded_lock.authority is not None:\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M04",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/layer3_report.py",
+          "old": "            return decoded_lock.authority.contract_loader_commit\n",
+          "new": "            return decoded_lock.authority.environment_contract_sha256\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M05",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/layer3_report.py",
+          "old": "        if decoded_lock.authority is not None:\n            return decoded_lock.authority.contract_loader_commit\n        raise\n",
+          "new": "        if decoded_lock.authority is not None:\n            return decoded_lock.authority.contract_loader_commit\n        return \"0\" * 40\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M06",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/layer3_report.py",
+          "old": "    if generated_from_head is not None:\n        return generated_from_head\n    try:\n        return _git_head(campaign_dir)\n",
+          "new": "    try:\n        return _git_head(campaign_dir)\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M07",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/layer3_report.py",
+          "old": "        if decoded_lock.authority is not None:\n            return decoded_lock.authority.contract_loader_commit\n",
+          "new": "        if decoded_lock.authority is not None:\n            return _git_head(_DEFAULT_OUTPUT_ROOT.parent)\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M08",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/layer3_report.py",
+          "old": "    if generated_from_head is None:\n        # Keep the certifying path's accepted inputs identical to its pre-wave set.\n        generated_from_head = _git_head(resolved_campaign)\n",
+          "new": ""
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    }
+  ]
+}

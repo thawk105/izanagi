@@ -70,6 +70,7 @@ def build_v2_campaign_lock(
         identity_preimage: str, *,
         authorization: env_contract.AuthorizedContract | None = None,
         binding: contract_loader_binding.ContractLoaderBinding | None = None,
+        contract_loader_commit: str | None = None,
 ) -> str:
     """Build a v2 fixture without crossing the campaign module namespace."""
     if authorization is None:
@@ -88,7 +89,11 @@ def build_v2_campaign_lock(
             ),
             activation_serial=authorization.activation_serial,
             activation_state_sha256=authorization.activation_state_sha256,
-            contract_loader_commit=binding.contract_loader_commit,
+            contract_loader_commit=(
+                binding.contract_loader_commit
+                if contract_loader_commit is None
+                else contract_loader_commit
+            ),
             contract_loader_blob_sha256s=dict(
                 binding.contract_loader_blob_sha256s
             ),
@@ -208,6 +213,14 @@ def _campaign(tmp_path: Path, records, whiteboard=None, *, loop_state=True,
     (root / "runs/wal.jsonl").write_text(
         "".join(json.dumps(record) + "\n" for record in records), encoding="utf-8")
     return root, output_root
+
+
+def _assert_external_campaign_without_git_head(campaign: Path) -> None:
+    resolved = campaign.resolve()
+    source_repo = layer3_report._DEFAULT_OUTPUT_ROOT.parent.resolve()
+    assert not resolved.is_relative_to(source_repo)
+    with pytest.raises(layer3_report.Layer3ReportError):
+        layer3_report._git_head(campaign)
 
 
 def _historical_admitted_campaign(campaign: Path):
@@ -890,6 +903,31 @@ def test_accepted_report_requires_e1_and_records_epoch(
         "path": verified.relative_path,
         "sha256": verified.sha256,
     }
+
+
+def test_accepted_report_rejects_external_v2_campaign_without_git_head(
+    tmp_path: Path, monkeypatch,
+) -> None:
+    campaign, output_root = _campaign(
+        tmp_path, [_record("build_start", genome="g", src_token="s")],
+    )
+    _assert_external_campaign_without_git_head(campaign)
+    verified = _certifying_receipt_for(campaign)
+    monkeypatch.setattr(
+        layer3_report.s8c_acceptance_receipt,
+        "require_current_verified_receipt",
+        lambda _receipt: verified,
+    )
+
+    with pytest.raises(
+        layer3_report.Layer3ReportError,
+        match="git HEAD を取得できない$",
+    ):
+        layer3_report.build_accepted_report(
+            campaign,
+            acceptance_receipt=object(),
+            output_root=output_root,
+        )
 
 
 def test_accepted_report_rejects_e0_after_historical_projection(
@@ -1661,6 +1699,156 @@ def test_git_head_is_real_repository_head():
     head = layer3_report._git_head(ROOT)
     assert len(head) == 40
     assert all(char in "0123456789abcdef" for char in head)
+
+
+def test_external_v2_campaign_uses_lock_authority_for_build_and_render(
+    tmp_path, monkeypatch,
+):
+    expected = "b" * 40
+    campaign, output_root = _campaign(
+        tmp_path, [_record("build_start", genome="g", src_token="s")],
+    )
+    _assert_external_campaign_without_git_head(campaign)
+    assert layer3_report._git_head(
+        layer3_report._DEFAULT_OUTPUT_ROOT.parent,
+    ) != expected
+    admitted = layer3_report.require_admitted_campaign(
+        campaign,
+        purpose=layer3_report.CampaignReadPurpose.HISTORICAL_RAW,
+    )
+    lock_path = campaign / "campaign.lock"
+    identity_preimage = campaign_lock.decode_campaign_lock(
+        lock_path.read_text(encoding="utf-8")
+    ).identity_preimage
+    v2_text = build_v2_campaign_lock(
+        identity_preimage, contract_loader_commit=expected,
+    )
+    lock_path.write_text(v2_text, encoding="utf-8")
+    admitted = dataclasses.replace(
+        admitted,
+        decision=dataclasses.replace(
+            admitted.decision,
+            campaign_lock_sha256=hashlib.sha256(
+                v2_text.encode("utf-8")
+            ).hexdigest(),
+        ),
+    )
+    monkeypatch.setattr(
+        layer3_report,
+        "require_admitted_campaign",
+        lambda _path, *, purpose: admitted,
+    )
+    decoded_lock = campaign_lock.decode_campaign_lock(
+        lock_path.read_text(encoding="utf-8")
+    )
+    assert decoded_lock.authority is not None
+    assert decoded_lock.authority.contract_loader_commit == expected
+
+    built = layer3_report.build_report(campaign, output_root=output_root)
+    out = tmp_path / "external-v2-layer3.json"
+    rendered = layer3_report.render(campaign, out, output_root=output_root)
+
+    assert built["meta"]["generated_from_head"] == expected
+    assert rendered["meta"]["generated_from_head"] == expected
+
+
+def test_git_backed_campaign_head_precedes_v2_lock_authority(tmp_path):
+    campaign, output_root = _campaign(
+        tmp_path, [_record("build_start", genome="g", src_token="s")],
+    )
+    repo = output_root.parent
+    assert subprocess.run(
+        ["git", "-C", str(repo), "init", "-q"], check=False,
+    ).returncode == 0
+    for key, value in (
+        ("user.email", "fixture@example.invalid"),
+        ("user.name", "Fixture"),
+    ):
+        assert subprocess.run(
+            ["git", "-C", str(repo), "config", key, value], check=False,
+        ).returncode == 0
+    assert subprocess.run(
+        ["git", "-C", str(repo), "add", "-A"], check=False,
+    ).returncode == 0
+    assert subprocess.run(
+        ["git", "-C", str(repo), "commit", "-q", "-m", "campaign"],
+        check=False,
+    ).returncode == 0
+    head = subprocess.check_output(
+        ["git", "-C", str(campaign), "rev-parse", "HEAD"], text=True,
+    ).strip()
+    decoded_lock = campaign_lock.decode_campaign_lock(
+        (campaign / "campaign.lock").read_text(encoding="utf-8")
+    )
+    assert decoded_lock.authority is not None
+    assert head != decoded_lock.authority.contract_loader_commit
+
+    report = layer3_report.build_report(campaign, output_root=output_root)
+
+    assert report["meta"]["generated_from_head"] == head
+
+
+def test_source_repo_internal_git_failure_does_not_use_lock_authority(
+    tmp_path, monkeypatch,
+):
+    campaign, _output_root = _campaign(
+        tmp_path, [_record("build_start", genome="g", src_token="s")],
+    )
+    decoded_lock = campaign_lock.decode_campaign_lock(
+        (campaign / "campaign.lock").read_text(encoding="utf-8")
+    )
+    assert decoded_lock.authority is not None
+    original = layer3_report.Layer3ReportError("git failure sentinel")
+
+    def fail_git_head(_campaign_dir):
+        raise original
+
+    monkeypatch.setattr(layer3_report, "_git_head", fail_git_head)
+    source_campaign = layer3_report._DEFAULT_OUTPUT_ROOT.parent / "campaign"
+    with pytest.raises(layer3_report.Layer3ReportError) as caught:
+        layer3_report._resolve_generated_from_head(
+            source_campaign, decoded_lock, None,
+        )
+    assert caught.value is original
+
+
+def test_source_repo_external_v1_without_authority_stays_fail_closed(
+    tmp_path, monkeypatch,
+):
+    campaign, _output_root = _campaign(
+        tmp_path, [_record("build_start", genome="g", src_token="s")],
+    )
+    _assert_external_campaign_without_git_head(campaign)
+    decoded_v2 = campaign_lock.decode_campaign_lock(
+        (campaign / "campaign.lock").read_text(encoding="utf-8")
+    )
+    decoded_v1 = campaign_lock.decode_campaign_lock(decoded_v2.identity_preimage)
+    assert decoded_v1.authority is None
+    original = layer3_report.Layer3ReportError("git failure sentinel")
+
+    def fail_git_head(_campaign_dir):
+        raise original
+
+    monkeypatch.setattr(layer3_report, "_git_head", fail_git_head)
+    with pytest.raises(layer3_report.Layer3ReportError) as caught:
+        layer3_report._resolve_generated_from_head(campaign, decoded_v1, None)
+    assert caught.value is original
+
+
+def test_explicit_generated_from_head_still_wins(tmp_path, monkeypatch):
+    campaign, output_root = _campaign(
+        tmp_path, [_record("build_start", genome="g", src_token="s")],
+    )
+
+    def unexpected_git_head(_campaign_dir):
+        raise AssertionError("explicit generated_from_head must bypass Git")
+
+    monkeypatch.setattr(layer3_report, "_git_head", unexpected_git_head)
+    report = layer3_report.build_report(
+        campaign, generated_from_head="fixed", output_root=output_root,
+    )
+
+    assert report["meta"]["generated_from_head"] == "fixed"
 
 
 def test_campaign_outside_repo_fails_closed(tmp_path):
