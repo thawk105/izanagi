@@ -1,0 +1,24 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 90,
+  "timeout_seconds": 1800,
+  "hang_timeout_seconds": 1800,
+  "mutations": [
+    {
+      "id": "M03",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/codex_worker_launch.py",
+          "old": "        spawn_completed_ns = _monotonic_ns()\n        if attempt_diagnostics is not None:\n            attempt_diagnostics.note_boundary(\n",
+          "new": "        spawn_completed_ns = state.started_ns\n        if attempt_diagnostics is not None:\n            spawn_completed_ns = _monotonic_ns()\n            attempt_diagnostics.note_boundary(\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_codex_worker_launch.py::test_evidence_deadline_origin_is_diagnostics_independent"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}
