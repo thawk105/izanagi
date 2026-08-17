@@ -53,6 +53,7 @@ _HOLDER = hashlib.sha256(_WAVE.encode("utf-8")).hexdigest()[:12]
 _WAITER_BLOB = "d" * 40
 _WAITER_BYTES_SHA256 = hashlib.sha256(b"same waiter source").hexdigest()
 _CHECKER_BLOB = "e" * 40
+_RUNNER_BLOB = "1" * 40
 _CHECKER_SOURCE = b"# tested main checker source\n"
 _RELEASE_JSON = json.dumps({"state": "released"})
 _LEGACY_STATUS_ARGV = ("git", "status", "--porcelain", "--untracked-files=no")
@@ -654,6 +655,11 @@ def _queue_checker(
     log_sha256: str | None = None,
     tested_main: str = _SHA_A,
     tested_tip: str = _SHA_A,
+    runner_gate: bool | None = None,
+    main_runner_blob: str = _RUNNER_BLOB,
+    tip_runner_blob: str = _RUNNER_BLOB,
+    main_runner_type: str = "blob",
+    tip_runner_type: str = "blob",
 ) -> bytes:
     for revision in (tested_main, tested_tip):
         fake.expect_run_with_input(
@@ -702,6 +708,27 @@ def _queue_checker(
         tested_tip=tested_tip,
     )
     fake.byte_files[_CHECKER_RECEIPT] = raw
+    if runner_gate is None:
+        runner_gate = rc == 0 and status == "non-attributable-only"
+    if runner_gate:
+        for revision, object_type, blob_sha in (
+            (tested_main, main_runner_type, main_runner_blob),
+            (tested_tip, tip_runner_type, tip_runner_blob),
+        ):
+            fake.expect_run_with_input(
+                _red_gate_git_argv(
+                    "cat-file", "-t", f"{revision}:{DW._RUNNER_PATH}"
+                ),
+                b"",
+                DW._BinaryCommandResult(0, (object_type + "\n").encode("ascii")),
+            )
+            fake.expect_run_with_input(
+                _red_gate_git_argv(
+                    "rev-parse", "--verify", f"{revision}:{DW._RUNNER_PATH}"
+                ),
+                b"",
+                DW._BinaryCommandResult(0, (blob_sha + "\n").encode("ascii")),
+            )
     return raw
 
 
@@ -724,6 +751,7 @@ def _checker_execution_events(
     *,
     tested_main: str = _SHA_A,
     tested_tip: str = _SHA_A,
+    include_runner_gate: bool = False,
 ) -> list[tuple[object, ...]]:
     events: list[tuple[object, ...]] = []
     for revision in (tested_main, tested_tip):
@@ -765,6 +793,30 @@ def _checker_execution_events(
             _CHECKER_SOURCE,
         ),
     ])
+    if include_runner_gate:
+        for revision in (tested_main, tested_tip):
+            events.extend([
+                (
+                    "run_with_input",
+                    _red_gate_git_argv(
+                        "cat-file", "-t", f"{revision}:{DW._RUNNER_PATH}"
+                    ),
+                    _REPO,
+                    True,
+                    b"",
+                ),
+                (
+                    "run_with_input",
+                    _red_gate_git_argv(
+                        "rev-parse",
+                        "--verify",
+                        f"{revision}:{DW._RUNNER_PATH}",
+                    ),
+                    _REPO,
+                    True,
+                    b"",
+                ),
+            ])
     return events
 
 
@@ -809,13 +861,18 @@ def _valid_receipt_arguments() -> dict[str, object]:
     }
 
 
-def _red_check(*, red_nodeids: tuple[str, ...] = ("test.py::test_red",)) -> object:
+def _red_check(
+    *,
+    red_nodeids: tuple[str, ...] = ("test.py::test_red",),
+    flake_nodeids: tuple[str, ...] = (),
+) -> object:
     return DW._RedCheckResult(
         checker_rc=0,
         checker_status="non-attributable-only",
         checker_blob_sha=_CHECKER_BLOB,
         checker_receipt_sha256="f" * 64,
         red_nodeids=red_nodeids,
+        flake_nodeids=flake_nodeids,
     )
 
 
@@ -1753,9 +1810,9 @@ def test_success_receipt_binds_tip_argv_rc_fingerprints_holder_waiter_and_schedu
         "pre_fingerprint", "post_fingerprint", "waiter_blob_sha",
         "env_projection", "verdict", "log_sha256", "checker_rc",
         "checker_status", "checker_blob_sha", "checker_receipt_sha256",
-        "red_nodeids", "effective_scheduler",
+        "red_nodeids", "flake_nodeids", "effective_scheduler",
     }
-    assert receipt["schema_version"] == "dev-wave-acceptance-receipt/v3"
+    assert receipt["schema_version"] == "dev-wave-acceptance-receipt/v4"
     assert receipt["authority_kind"] == "dev-wave-wait-acceptance"
     assert receipt["acceptance_wave"] == _WAVE
     assert receipt["lease_holder"] == _HOLDER
@@ -1775,6 +1832,7 @@ def test_success_receipt_binds_tip_argv_rc_fingerprints_holder_waiter_and_schedu
     assert receipt["checker_blob_sha"] is None
     assert receipt["checker_receipt_sha256"] is None
     assert receipt["red_nodeids"] == []
+    assert receipt["flake_nodeids"] == []
     assert not any(event[0] == "run_with_input" for event in fake.events)
     assert receipt["env_projection"] == {
         "PYTEST_ADDOPTS": None,
@@ -2412,6 +2470,144 @@ def _verify_red_direct(
     )
 
 
+def _red_payload(nodes: list[dict[str, object]]) -> dict[str, object]:
+    fake = _FakeEffects()
+    return json.loads(
+        _checker_receipt_bytes(
+            fake,
+            status="non-attributable-only",
+            nodes=nodes,
+            log_sha256="9" * 64,
+        )
+    )
+
+
+def _consume_red_payload(
+    payload: object,
+) -> tuple[tuple[str, ...], tuple[str, ...]]:
+    return DW._red_check_payload_nodeids(
+        payload,
+        tested_main=_SHA_A,
+        tested_tip=_SHA_A,
+        log_sha256="9" * 64,
+    )
+
+
+def test_red_check_payload_accepts_exact_supported_node_shapes() -> None:
+    red = "a.py::test_red"
+    flake = "b.py::test_flake"
+    payload = _red_payload([
+        {
+            "classification": "non-attributable",
+            "nodeid": red,
+            "rerun_rc": 1,
+        },
+        {
+            "classification": "flake",
+            "main_rerun_rc": 0,
+            "nodeid": flake,
+            "rerun_rc": 0,
+            "wave_rerun_rc": 0,
+        },
+    ])
+
+    assert _consume_red_payload(payload) == ((red,), (flake,))
+
+
+@pytest.mark.parametrize(
+    "node",
+    (
+        {
+            "classification": "flake",
+            "main_rerun_rc": 0,
+            "nodeid": "x.py::test_x",
+            "rerun_rc": 0,
+            "wave_rerun_rc": 0,
+            "extra": 0,
+        },
+        {
+            "classification": "flake",
+            "main_rerun_rc": 0,
+            "nodeid": "x.py::test_x",
+            "rerun_rc": 0,
+            "wave_rerun_rc": 1,
+        },
+        {
+            "classification": "flake",
+            "main_rerun_rc": False,
+            "nodeid": "x.py::test_x",
+            "rerun_rc": 0,
+            "wave_rerun_rc": 0,
+        },
+        {
+            "classification": "non-attributable",
+            "nodeid": "x.py::test_x",
+            "rerun_rc": 0,
+        },
+        {
+            "classification": "non-attributable",
+            "nodeid": "x.py::test_x",
+            "rerun_rc": True,
+        },
+        {
+            "classification": "attributable",
+            "main_rerun_rc": 0,
+            "nodeid": "x.py::test_x",
+            "rerun_rc": 0,
+            "wave_rerun_rc": 1,
+        },
+        {
+            "classification": "unknown",
+            "nodeid": "x.py::test_x",
+            "rerun_rc": 1,
+        },
+    ),
+    ids=(
+        "flake-extra-field-M1",
+        "flake-wave-rc-M2",
+        "flake-bool-rc",
+        "non-attributable-zero-M3",
+        "non-attributable-bool",
+        "attributable",
+        "unknown-classification",
+    ),
+)
+def test_red_check_payload_rejects_non_exact_node_shapes(
+    node: dict[str, object],
+) -> None:
+    with pytest.raises(DW._StageFailure) as exc_info:
+        _consume_red_payload(_red_payload([node]))
+
+    assert exc_info.value.outcome == DW._Outcome(70, "acceptance-red-check")
+
+
+@pytest.mark.parametrize(
+    "nodes",
+    (
+        [
+            {"classification": "non-attributable", "nodeid": "z", "rerun_rc": 1},
+            {"classification": "non-attributable", "nodeid": "a", "rerun_rc": 1},
+        ],
+        [
+            {"classification": "flake", "main_rerun_rc": 0, "nodeid": "a", "rerun_rc": 0, "wave_rerun_rc": 0},
+            {"classification": "flake", "main_rerun_rc": 0, "nodeid": "a", "rerun_rc": 0, "wave_rerun_rc": 0},
+        ],
+        [
+            {"classification": "non-attributable", "nodeid": "a", "rerun_rc": 1},
+            {"classification": "flake", "main_rerun_rc": 0, "nodeid": "a", "rerun_rc": 0, "wave_rerun_rc": 0},
+        ],
+    ),
+    ids=("red-unsorted", "flake-duplicate", "overlap-M4"),
+)
+def test_red_check_payload_rejects_unsorted_duplicate_or_overlapping_sets(
+    nodes: list[dict[str, object]],
+) -> None:
+    with pytest.raises(DW._StageFailure) as exc_info:
+        _consume_red_payload(_red_payload(nodes))
+
+    assert exc_info.value.outcome == DW._Outcome(70, "acceptance-red-check")
+
+
 def _queue_red_blob_sha(
     fake: _FakeEffects,
     revision: str,
@@ -2557,6 +2753,45 @@ def test_red_checker_different_commits_same_checker_blob_is_accepted() -> None:
 
     assert result.checker_blob_sha == _CHECKER_BLOB
     assert result.checker_status == "non-attributable-only"
+    assert result.flake_nodeids == ()
+    fake.assert_drained()
+
+
+def test_non_attributable_runner_blob_mismatch_is_indeterminate() -> None:
+    fake = _FakeEffects()
+    _queue_checker(
+        fake,
+        tested_main=_SHA_A,
+        tested_tip=_SHA_B,
+        tip_runner_blob=_SHA_C,
+    )
+
+    with pytest.raises(DW._StageFailure) as exc_info:
+        _verify_red_direct(fake, tested_main=_SHA_A, tested_tip=_SHA_B)
+
+    assert exc_info.value.outcome == DW._Outcome(70, "acceptance-red-check")
+    fake.assert_drained()
+
+
+def test_non_attributable_runner_object_must_be_blob() -> None:
+    fake = _FakeEffects()
+    _queue_checker(
+        fake,
+        main_runner_type="tree",
+        runner_gate=False,
+    )
+    fake.expect_run_with_input(
+        _red_gate_git_argv(
+            "cat-file", "-t", f"{_SHA_A}:{DW._RUNNER_PATH}"
+        ),
+        b"",
+        DW._BinaryCommandResult(0, b"tree\n"),
+    )
+
+    with pytest.raises(DW._StageFailure) as exc_info:
+        _verify_red_direct(fake)
+
+    assert exc_info.value.outcome == DW._Outcome(70, "acceptance-red-check")
     fake.assert_drained()
 
 
@@ -2732,7 +2967,14 @@ def _real_red_checker_repo(tmp_path: Path) -> tuple[Path, str, str]:
     checker = repo / DW._RED_CHECKER_PATH
     checker.parent.mkdir()
     checker.write_bytes(_REAL_RED_CHECKER_SOURCE)
-    _real_red_git(repo, "add", DW._RED_CHECKER_PATH)
+    runner = repo / "tools/run_tests.py"
+    runner.write_bytes(b"raise SystemExit(0)\n")
+    _real_red_git(
+        repo,
+        "add",
+        DW._RED_CHECKER_PATH,
+        "tools/run_tests.py",
+    )
     _real_red_git(
         repo,
         "-c",
@@ -2758,6 +3000,15 @@ def _real_red_checker_repo(tmp_path: Path) -> tuple[Path, str, str]:
     )
     tested_tip = _real_red_git(repo, "rev-parse", "HEAD")
     assert tested_main != tested_tip
+    assert _real_red_git(
+        repo,
+        "rev-parse",
+        f"{tested_main}:tools/run_tests.py",
+    ) == _real_red_git(
+        repo,
+        "rev-parse",
+        f"{tested_tip}:tools/run_tests.py",
+    )
     return repo, tested_main, tested_tip
 
 
@@ -3151,7 +3402,7 @@ def test_failed_acceptance_never_publishes_receipt() -> None:
     fake = _FakeEffects()
     _queue_clean_acceptance_prefix(fake)
     fake.expect_run(_COMMAND, DW._CommandResult(1), capture=False)
-    _queue_checker(fake, status="green", nodes=[])
+    _queue_checker(fake, status="green", nodes=[], runner_gate=False)
     _release(fake)
 
     outcome = _run_acceptance(fake)
@@ -3236,7 +3487,63 @@ def test_non_attributable_only_publishes_receipt_with_real_child_rc() -> None:
     assert receipt["red_nodeids"] == [
         "orchestrator/tests/test_known.py::test_known"
     ]
+    assert receipt["flake_nodeids"] == []
     assert receipt["log_sha256"] == hashlib.sha256(fake.logged_bytes).hexdigest()
+    fake.assert_drained()
+
+
+def test_flake_only_publishes_v4_receipt_with_separate_nodeids() -> None:
+    fake = _FakeEffects()
+    fake.logged_bytes = b"synthetic flaky pytest log\n" + _scheduler_marker()
+    lifecycle = DW._AcceptanceLifecycle()
+    _queue_clean_acceptance_prefix(fake)
+    fake.expect_run(_COMMAND, DW._CommandResult(1), capture=False)
+    flake = "orchestrator/tests/test_flake.py::test_flake"
+    _queue_checker(fake, nodes=[{
+        "classification": "flake",
+        "main_rerun_rc": 0,
+        "nodeid": flake,
+        "rerun_rc": 0,
+        "wave_rerun_rc": 0,
+    }])
+    _queue_non_attributable_receipt_tail(fake)
+
+    outcome = _run_acceptance(fake, lifecycle=lifecycle)
+
+    assert outcome == DW._Outcome(0)
+    receipt = json.loads(fake.receipt_content)
+    assert receipt["schema_version"] == "dev-wave-acceptance-receipt/v4"
+    assert receipt["red_nodeids"] == []
+    assert receipt["flake_nodeids"] == [flake]
+    fake.assert_drained()
+
+
+def test_mixed_red_and_flake_receipt_preserves_disjoint_sets() -> None:
+    fake = _FakeEffects()
+    fake.logged_bytes = b"synthetic mixed pytest log\n" + _scheduler_marker()
+    lifecycle = DW._AcceptanceLifecycle()
+    _queue_clean_acceptance_prefix(fake)
+    fake.expect_run(_COMMAND, DW._CommandResult(1), capture=False)
+    red = "a.py::test_red"
+    flake = "b.py::test_flake"
+    _queue_checker(fake, nodes=[
+        {"classification": "non-attributable", "nodeid": red, "rerun_rc": 1},
+        {
+            "classification": "flake",
+            "main_rerun_rc": 0,
+            "nodeid": flake,
+            "rerun_rc": 0,
+            "wave_rerun_rc": 0,
+        },
+    ])
+    _queue_non_attributable_receipt_tail(fake)
+
+    outcome = _run_acceptance(fake, lifecycle=lifecycle)
+
+    assert outcome == DW._Outcome(0)
+    receipt = json.loads(fake.receipt_content)
+    assert receipt["red_nodeids"] == [red]
+    assert receipt["flake_nodeids"] == [flake]
     fake.assert_drained()
 
 
@@ -3245,7 +3552,11 @@ def test_checker_receipt_log_hash_mismatch_is_rejected() -> None:
     fake.logged_bytes = b"owned log bytes\n" + _scheduler_marker()
     _queue_clean_acceptance_prefix(fake)
     fake.expect_run(_COMMAND, DW._CommandResult(1), capture=False)
-    _queue_checker(fake, log_sha256=hashlib.sha256(b"other log").hexdigest())
+    _queue_checker(
+        fake,
+        log_sha256=hashlib.sha256(b"other log").hexdigest(),
+        runner_gate=False,
+    )
     _release(fake)
 
     outcome = _run_acceptance(fake)
@@ -3259,7 +3570,7 @@ def test_checker_receipt_without_collections_is_rejected() -> None:
     fake = _FakeEffects()
     _queue_clean_acceptance_prefix(fake)
     fake.expect_run(_COMMAND, DW._CommandResult(1), capture=False)
-    checker_raw = _queue_checker(fake)
+    checker_raw = _queue_checker(fake, runner_gate=False)
     payload = json.loads(checker_raw)
     del payload["collections"]
     fake.byte_files[_CHECKER_RECEIPT] = (
@@ -3278,7 +3589,7 @@ def test_checker_receipt_collection_with_unknown_field_is_rejected() -> None:
     fake = _FakeEffects()
     _queue_clean_acceptance_prefix(fake)
     fake.expect_run(_COMMAND, DW._CommandResult(1), capture=False)
-    checker_raw = _queue_checker(fake)
+    checker_raw = _queue_checker(fake, runner_gate=False)
     payload = json.loads(checker_raw)
     payload["collections"][0]["unknown"] = "rejected"
     fake.byte_files[_CHECKER_RECEIPT] = (
@@ -3315,7 +3626,7 @@ def test_checker_receipt_identity_and_nodes_are_bound(field: str) -> None:
     fake = _FakeEffects()
     _queue_clean_acceptance_prefix(fake)
     fake.expect_run(_COMMAND, DW._CommandResult(1), capture=False)
-    checker_raw = _queue_checker(fake)
+    checker_raw = _queue_checker(fake, runner_gate=False)
     payload = json.loads(checker_raw)
     if field == "schema_version":
         payload[field] = "izanagi-acceptance-red-check/v0"
@@ -3503,6 +3814,7 @@ def test_acceptance_receipt_field_detail(
                 "child_rc": 0,
                 "red_check_present": None,
                 "red_nodeid_count": None,
+                "flake_nodeid_count": None,
             },
         ),
         (
@@ -3514,6 +3826,7 @@ def test_acceptance_receipt_field_detail(
                 "child_rc": 1,
                 "red_check_present": False,
                 "red_nodeid_count": None,
+                "flake_nodeid_count": None,
             },
         ),
         (
@@ -3525,6 +3838,7 @@ def test_acceptance_receipt_field_detail(
                 "child_rc": 1,
                 "red_check_present": True,
                 "red_nodeid_count": 0,
+                "flake_nodeid_count": 0,
             },
         ),
     ),
@@ -3560,6 +3874,52 @@ def test_acceptance_receipt_consistency_detail(
         detail=json.dumps(expected, separators=(",", ":"), sort_keys=True),
     )
     assert json.loads(failure.value.outcome.detail) == expected
+
+
+def test_acceptance_receipt_rejects_overlapping_red_check_sets_directly() -> None:
+    arguments = _valid_receipt_arguments()
+    arguments.update(
+        child_rc=1,
+        verdict="non-attributable-only",
+        red_check=_red_check(red_nodeids=("a",), flake_nodeids=("a",)),
+    )
+
+    with pytest.raises(DW._StageFailure) as failure:
+        DW._acceptance_receipt_bytes(**arguments)
+
+    assert failure.value.outcome == DW._Outcome(
+        70,
+        "acceptance-receipt",
+        detail=(
+            '{"observed":{"child_rc":1,"flake_nodeid_count":1,'
+            '"red_check_present":true,"red_nodeid_count":1},'
+            '"reason":"receipt-non-attributable"}'
+        ),
+    )
+
+
+def test_child_green_receipt_does_not_require_main_tip_runner_equality() -> None:
+    arguments = _valid_receipt_arguments()
+    fingerprint = DW._TreeFingerprint(
+        digest="e" * 64,
+        head_sha=_SHA_B,
+        status_bytes=0,
+        diff_bytes=0,
+        submodule_status_bytes=0,
+    )
+    arguments.update(
+        tested_tip=_SHA_B,
+        pre_fingerprint=fingerprint,
+        post_fingerprint=fingerprint,
+    )
+
+    receipt = json.loads(DW._acceptance_receipt_bytes(**arguments))
+
+    assert receipt["verdict"] == "child-green"
+    assert receipt["tested_main"] == _SHA_A
+    assert receipt["tested_tip"] == _SHA_B
+    assert receipt["red_nodeids"] == []
+    assert receipt["flake_nodeids"] == []
 
 
 def test_acceptance_receipt_unknown_verdict_detail_is_bounded() -> None:
@@ -8221,7 +8581,8 @@ def test_real_waiter_process_accepts_merged_tip_with_same_waiter_bytes(
     assert result.returncode == 0, result.stderr
     assert counter.read_text(encoding="ascii").splitlines() == ["run"]
     payload = json.loads(receipt.read_text(encoding="ascii"))
-    assert payload["schema_version"] == "dev-wave-acceptance-receipt/v3"
+    assert payload["schema_version"] == "dev-wave-acceptance-receipt/v4"
+    assert payload["flake_nodeids"] == []
     waiter_blob_sha = subprocess.run(
         ["git", "rev-parse", "HEAD:tools/dev_wave_wait.py"],
         cwd=repo,

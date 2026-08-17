@@ -264,6 +264,7 @@ class _Repo:
             "checker_blob_sha": None,
             "checker_receipt_sha256": None,
             "red_nodeids": [],
+            "flake_nodeids": [],
         }
         path = self.root / "acceptance-receipt.json"
         path.write_text(
@@ -425,6 +426,8 @@ def _non_attributable_payload(
     request: object,
     *,
     child_rc: int = 1,
+    red_nodeids: list[str] | None = None,
+    flake_nodeids: list[str] | None = None,
 ) -> dict[str, object]:
     payload = _receipt_payload(request.acceptance_receipt)
     checker_blob = _git(
@@ -441,7 +444,12 @@ def _non_attributable_payload(
         "checker_receipt_sha256": hashlib.sha256(
             b"synthetic checker receipt"
         ).hexdigest(),
-        "red_nodeids": ["orchestrator/tests/test_known.py::test_known"],
+        "red_nodeids": (
+            ["orchestrator/tests/test_known.py::test_known"]
+            if red_nodeids is None
+            else red_nodeids
+        ),
+        "flake_nodeids": [] if flake_nodeids is None else flake_nodeids,
     })
     return payload
 
@@ -700,11 +708,13 @@ def test_land_accepts_receipt_bound_to_wave_tip_and_emits_digest() -> None:
         assert result.acceptance_receipt_sha256 == hashlib.sha256(raw).hexdigest()
         assert result.acceptance_verdict == "child-green"
         assert result.acceptance_red_nodeids == ()
+        assert result.acceptance_flake_nodeids == ()
         assert result.as_json()["acceptance_receipt_sha256"] == hashlib.sha256(
             raw
         ).hexdigest()
         assert result.as_json()["acceptance_verdict"] == "child-green"
         assert result.as_json()["acceptance_red_nodeids"] == []
+        assert result.as_json()["acceptance_flake_nodeids"] == []
         assert _git(repo.main, "rev-parse", "HEAD") == tip
 
 
@@ -744,6 +754,8 @@ _TAMPER_CASES = (
     "waiter-blob",
     "duplicate-key",
     "unknown-field",
+    "missing-flake-nodeids",
+    "v3-schema",
 )
 
 
@@ -757,6 +769,8 @@ def test_land_rejects_tampered_acceptance_receipt(case: str) -> None:
         payload = _receipt_payload(receipt)
         if case == "schema":
             payload["schema_version"] = "dev-wave-acceptance-receipt/v2"
+        elif case == "v3-schema":
+            payload["schema_version"] = "dev-wave-acceptance-receipt/v3"
         elif case == "authority":
             payload["authority_kind"] = "direct-test-run"
         elif case == "tip":
@@ -794,6 +808,8 @@ def test_land_rejects_tampered_acceptance_receipt(case: str) -> None:
             payload["waiter_blob_sha"] = "f" * 40
         elif case == "unknown-field":
             payload["extra"] = "rejected"
+        elif case == "missing-flake-nodeids":
+            del payload["flake_nodeids"]
         if case == "duplicate-key":
             raw = receipt.read_text(encoding="ascii")
             receipt.write_text(
@@ -823,6 +839,7 @@ _VERDICT_INCONSISTENCY_CASES = (
     "green-checker-blob",
     "green-checker-receipt",
     "green-red-nodeids",
+    "green-flake-nodeids",
     "red-child-rc",
     "red-checker-rc-null",
     "red-checker-rc-nonzero",
@@ -833,6 +850,10 @@ _VERDICT_INCONSISTENCY_CASES = (
     "red-nodeids-empty",
     "red-nodeids-unsorted",
     "red-nodeids-non-string",
+    "red-flake-nodeids-unsorted",
+    "red-flake-nodeids-duplicate",
+    "red-flake-nodeids-non-string",
+    "red-nodeids-overlap-flake-nodeids",
 )
 
 
@@ -861,6 +882,8 @@ def test_land_rejects_verdict_field_inconsistency(case: str) -> None:
             payload["checker_receipt_sha256"] = "f" * 64
         elif case == "green-red-nodeids":
             payload["red_nodeids"] = ["test_x.py::test_x"]
+        elif case == "green-flake-nodeids":
+            payload["flake_nodeids"] = ["test_x.py::test_x"]
         elif case == "red-child-rc":
             payload["child_rc"] = 0
         elif case == "red-checker-rc-null":
@@ -881,6 +904,14 @@ def test_land_rejects_verdict_field_inconsistency(case: str) -> None:
             payload["red_nodeids"] = ["z.py::test_z", "a.py::test_a"]
         elif case == "red-nodeids-non-string":
             payload["red_nodeids"] = [1]
+        elif case == "red-flake-nodeids-unsorted":
+            payload["flake_nodeids"] = ["z.py::test_z", "a.py::test_a"]
+        elif case == "red-flake-nodeids-duplicate":
+            payload["flake_nodeids"] = ["a.py::test_a", "a.py::test_a"]
+        elif case == "red-flake-nodeids-non-string":
+            payload["flake_nodeids"] = [1]
+        elif case == "red-nodeids-overlap-flake-nodeids":
+            payload["flake_nodeids"] = list(payload["red_nodeids"])
         _write_receipt(request.acceptance_receipt, payload)
         before = _git(repo.main, "rev-parse", "HEAD")
 
@@ -914,6 +945,205 @@ def test_land_accepts_non_attributable_receipt_and_emits_red_nodeids() -> None:
         assert result.as_json()["acceptance_red_nodeids"] == [
             "orchestrator/tests/test_known.py::test_known"
         ]
+        assert result.acceptance_flake_nodeids == ()
+        assert result.as_json()["acceptance_flake_nodeids"] == []
+
+
+def test_land_accepts_flake_only_and_emits_flake_nodeids() -> None:
+    with _repo() as repo:
+        wave = repo.waves["one"]
+        tip = repo.commit(wave, "wave.txt", "wave\n")
+        request = repo.request(wave, tip=tip)
+        flake = "orchestrator/tests/test_flake.py::test_flake"
+        payload = _non_attributable_payload(
+            request,
+            red_nodeids=[],
+            flake_nodeids=[flake],
+        )
+        _write_receipt(request.acceptance_receipt, payload)
+        raw = request.acceptance_receipt.read_bytes()
+
+        assert LAND._release_authority_digest(
+            request.acceptance_receipt,
+            request.acceptance_wave,
+        ) == hashlib.sha256(raw).hexdigest()
+        result = _land(request)
+
+        assert (result.rc, result.status) == (LAND.RC_OK, "landed"), result
+        assert result.acceptance_red_nodeids == ()
+        assert result.acceptance_flake_nodeids == (flake,)
+        assert result.as_json()["acceptance_red_nodeids"] == []
+        assert result.as_json()["acceptance_flake_nodeids"] == [flake]
+
+
+def test_land_accepts_mixed_red_and_flake_nodeids_without_merging_sets() -> None:
+    with _repo() as repo:
+        wave = repo.waves["one"]
+        tip = repo.commit(wave, "wave.txt", "wave\n")
+        request = repo.request(wave, tip=tip)
+        red = "orchestrator/tests/test_known.py::test_known"
+        flake = "orchestrator/tests/test_flake.py::test_flake"
+        payload = _non_attributable_payload(
+            request,
+            red_nodeids=[red],
+            flake_nodeids=[flake],
+        )
+        _write_receipt(request.acceptance_receipt, payload)
+
+        result = _land(request)
+
+        assert (result.rc, result.status) == (LAND.RC_OK, "landed"), result
+        assert result.acceptance_red_nodeids == (red,)
+        assert result.acceptance_flake_nodeids == (flake,)
+        assert result.as_json()["acceptance_red_nodeids"] == [red]
+        assert result.as_json()["acceptance_flake_nodeids"] == [flake]
+
+
+def test_child_green_accepts_different_main_and_tip_runner_blobs() -> None:
+    with _repo() as repo:
+        wave = repo.waves["one"]
+        tip = repo.commit(
+            wave,
+            "tools/run_tests.py",
+            "raise SystemExit(7)\n",
+        )
+        assert _git(
+            wave, "rev-parse", f"{repo.base}:tools/run_tests.py"
+        ) != _git(wave, "rev-parse", f"{tip}:tools/run_tests.py")
+        request = repo.request(wave, tip=tip)
+
+        result = _land(request)
+
+        assert (result.rc, result.status) == (LAND.RC_OK, "landed"), result
+        assert result.acceptance_verdict == "child-green"
+
+
+def test_land_rejects_non_attributable_runner_blob_divergence() -> None:
+    with _repo() as repo:
+        wave = repo.waves["one"]
+        tip = repo.commit(
+            wave,
+            "tools/run_tests.py",
+            "raise SystemExit(7)\n",
+        )
+        request = repo.request(wave, tip=tip)
+        payload = _non_attributable_payload(request)
+        _write_receipt(request.acceptance_receipt, payload)
+        before = _git(repo.main, "rev-parse", "HEAD")
+
+        result = _land(request)
+
+        assert result.rc == LAND.RC_AUDIT
+        assert result.reason == "acceptance-receipt-rejected"
+        assert _git(repo.main, "rev-parse", "HEAD") == before
+
+
+def test_land_runner_path_absence_is_permanent_rejection() -> None:
+    with _repo() as repo:
+        wave = repo.waves["one"]
+        _git(repo.main, "rm", "tools/run_tests.py")
+        _git(repo.main, "commit", "-qm", "remove runner")
+        repo.base = _git(repo.main, "rev-parse", "HEAD")
+        _git(wave, "merge", "--ff-only", "main")
+        tip = repo.commit(
+            wave,
+            "tools/run_tests.py",
+            "raise SystemExit(0)\n",
+        )
+        request = repo.request(wave, base=repo.base, tip=tip)
+        payload = _non_attributable_payload(request)
+        _write_receipt(request.acceptance_receipt, payload)
+
+        result = _land(request)
+
+        assert result.rc == LAND.RC_AUDIT
+        assert result.reason == "acceptance-receipt-rejected"
+        assert (result.release_safe, result.retryable_same_request) == (
+            True,
+            False,
+        )
+        assert _git(repo.main, "rev-parse", "HEAD") == repo.base
+
+
+def test_land_runner_lookup_process_failure_is_retryable() -> None:
+    with _repo() as repo:
+        wave = repo.waves["one"]
+        tip = repo.commit(wave, "wave.txt", "wave\n")
+        request = repo.request(wave, tip=tip)
+        payload = _non_attributable_payload(request)
+        _write_receipt(request.acceptance_receipt, payload)
+        real_git = LAND._git
+
+        def fail_runner_lookup(repo_path: Path, *args: str, **kwargs):
+            if args[:3] == ("ls-tree", "-z", "--full-tree") and args[-2:] == (
+                "--",
+                "tools/run_tests.py",
+            ):
+                return LAND._GitResult(
+                    128,
+                    b"",
+                    b"synthetic git process failure",
+                )
+            return real_git(repo_path, *args, **kwargs)
+
+        with _patched_land_attr("_git", fail_runner_lookup):
+            result = _land(request)
+
+        assert result.rc == LAND.RC_AUDIT
+        assert result.reason == "acceptance-receipt-rejected"
+        assert (result.release_safe, result.retryable_same_request) == (
+            False,
+            True,
+        )
+        assert _git(repo.main, "rev-parse", "HEAD") == repo.base
+
+
+def test_land_runner_gate_uses_tested_main_after_main_reaches_tip() -> None:
+    with _repo() as repo:
+        wave = repo.waves["one"]
+        tested_main = repo.base
+        tip = repo.commit(
+            wave,
+            "tools/run_tests.py",
+            "raise SystemExit(7)\n",
+        )
+        request = repo.request(wave, base=tested_main, tip=tip)
+        payload = _non_attributable_payload(request)
+        _write_receipt(request.acceptance_receipt, payload)
+        _git(repo.main, "merge", "--ff-only", tip)
+
+        result = _land(request)
+
+        assert result.rc == LAND.RC_AUDIT
+        assert result.reason == "acceptance-receipt-rejected"
+        assert _git(repo.main, "rev-parse", "HEAD") == tip
+
+
+def test_land_rejects_non_blob_runner_objects_even_when_trees_match() -> None:
+    with _repo() as repo:
+        wave = repo.waves["one"]
+        (repo.main / "tools" / "run_tests.py").unlink()
+        (repo.main / "tools" / "run_tests.py").mkdir()
+        (repo.main / "tools" / "run_tests.py" / "entry").write_text(
+            "tree object\n",
+            encoding="utf-8",
+        )
+        _git(repo.main, "add", "-A", "tools/run_tests.py")
+        _git(repo.main, "commit", "-qm", "replace runner blob with tree")
+        repo.base = _git(repo.main, "rev-parse", "HEAD")
+        _git(wave, "merge", "--ff-only", "main")
+        tip = repo.commit(wave, "wave.txt", "wave\n")
+        assert _git(
+            wave, "rev-parse", f"{repo.base}:tools/run_tests.py"
+        ) == _git(wave, "rev-parse", f"{tip}:tools/run_tests.py")
+        request = repo.request(wave, base=repo.base, tip=tip)
+        payload = _non_attributable_payload(request)
+        _write_receipt(request.acceptance_receipt, payload)
+
+        result = _land(request)
+
+        assert result.rc == LAND.RC_AUDIT
+        assert result.reason == "acceptance-receipt-rejected"
 
 
 def test_land_accepts_different_commits_with_same_checker_blob() -> None:
@@ -929,6 +1159,15 @@ def test_land_accepts_different_commits_with_same_checker_blob() -> None:
             wave,
             "rev-parse",
             f"{tip}:tools/check_acceptance_reds.py",
+        )
+        assert _git(
+            wave,
+            "rev-parse",
+            f"{repo.base}:tools/run_tests.py",
+        ) == _git(
+            wave,
+            "rev-parse",
+            f"{tip}:tools/run_tests.py",
         )
         request = repo.request(wave, tip=tip)
         payload = _non_attributable_payload(request)
@@ -1208,6 +1447,7 @@ def test_real_non_attributable_waiter_receipt_passes_real_land_end_to_end() -> N
         assert payload["verdict"] == "non-attributable-only"
         assert payload["child_rc"] == 1
         assert payload["red_nodeids"] == [known_red]
+        assert payload["flake_nodeids"] == []
         request = repo.request(
             wave,
             base=repo.base,
@@ -1224,6 +1464,7 @@ def test_real_non_attributable_waiter_receipt_passes_real_land_end_to_end() -> N
         ).hexdigest()
         assert result.acceptance_verdict == "non-attributable-only"
         assert result.acceptance_red_nodeids == (known_red,)
+        assert result.acceptance_flake_nodeids == ()
         assert _git(repo.main, "rev-parse", "HEAD") == tip
 
 
@@ -3764,6 +4005,7 @@ def test_zero_fragment_preserves_land_result_and_commit_graph_bit_for_bit() -> N
             acceptance_receipt_sha256=receipt_digest,
             acceptance_verdict="child-green",
             acceptance_red_nodeids=(),
+            acceptance_flake_nodeids=(),
         )
         assert second == LAND.LandResult(
             LAND.RC_OK,
@@ -3775,6 +4017,7 @@ def test_zero_fragment_preserves_land_result_and_commit_graph_bit_for_bit() -> N
             acceptance_receipt_sha256=receipt_digest,
             acceptance_verdict="child-green",
             acceptance_red_nodeids=(),
+            acceptance_flake_nodeids=(),
         )
         assert _git(repo.main, "rev-list", "--count", f"{repo.base}..HEAD") == "1"
         assert _git(repo.main, "status", "--porcelain=v1") == ""
@@ -6078,6 +6321,7 @@ def test_land_result_release_contract_defaults_fail_closed_and_is_in_json() -> N
         retryable_same_request=True,
     ) == result
     payload = result.as_json()
+    assert payload["acceptance_flake_nodeids"] is None
     assert payload["release_safe"] is False
     assert payload["retryable_same_request"] is False
     assert "lease_release" not in payload
@@ -6556,12 +6800,14 @@ def test_main_verified_receipt_digest_mismatch_blocks_release() -> None:
 
 
 def test_compact_core_json_preserves_legacy_64k_message_boundary() -> None:
-    """F6: 追加 bool で旧成功 JSON の message 受理集合を縮めない。"""
+    """flake field 追加で通知 JSON の最大 nodeid が 21 bytes 縮む。"""
 
     with _repo() as repo:
         request = repo.request(repo.waves["one"])
         lease_dir = repo.root / "lease"
         lease_dir.mkdir()
+        legacy_nodeid = "x" * 65075
+        boundary_nodeid = "x" * 65054
         result = LAND.LandResult(
             LAND.RC_OK,
             "landed",
@@ -6571,22 +6817,29 @@ def test_compact_core_json_preserves_legacy_64k_message_boundary() -> None:
             wave_tip="b" * 40,
             acceptance_receipt_sha256="c" * 64,
             acceptance_verdict="non-attributable-only",
-            acceptance_red_nodeids=("x" * 65075,),
+            acceptance_red_nodeids=(boundary_nodeid,),
+            acceptance_flake_nodeids=(),
         )
         payload = result.as_json()
-        historical_payload = {
+        legacy_payload = dataclasses.replace(
+            result,
+            acceptance_red_nodeids=(legacy_nodeid,),
+        ).as_json()
+        legacy_without_flake_payload = {
             key: value
-            for key, value in payload.items()
-            if key not in {"release_safe", "retryable_same_request"}
+            for key, value in legacy_payload.items()
+            if key != "acceptance_flake_nodeids"
         }
-        historical_bytes = json.dumps(
-            historical_payload,
+        legacy_without_flake_bytes = json.dumps(
+            legacy_without_flake_payload,
             ensure_ascii=False,
+            separators=(",", ":"),
             sort_keys=True,
         ).encode("utf-8")
-        expanded_bytes = json.dumps(
-            payload,
+        legacy_bytes = json.dumps(
+            legacy_payload,
             ensure_ascii=False,
+            separators=(",", ":"),
             sort_keys=True,
         ).encode("utf-8")
         compact_bytes = json.dumps(
@@ -6596,12 +6849,14 @@ def test_compact_core_json_preserves_legacy_64k_message_boundary() -> None:
             sort_keys=True,
         ).encode("utf-8")
 
-        assert len(historical_bytes) == 65491
-        assert len(expanded_bytes) == 65547
-        assert len(compact_bytes) == 65526
-        assert len(historical_bytes) <= LAND._wave_land_window._MAX_LAND_JSON_BYTES
-        assert len(expanded_bytes) > LAND._wave_land_window._MAX_LAND_JSON_BYTES
-        assert len(compact_bytes) + 1 <= LAND._wave_land_window._MAX_LAND_JSON_BYTES
+        assert len(legacy_nodeid) - len(boundary_nodeid) == 21
+        assert len(b',"acceptance_flake_nodeids":[]') == 30
+        assert len(legacy_bytes) - len(legacy_without_flake_bytes) == 30
+        assert len(legacy_bytes) - len(compact_bytes) == 21
+        assert len(legacy_bytes) == 65556
+        assert len(compact_bytes) == 65535
+        assert len(legacy_bytes) + 1 > LAND._wave_land_window._MAX_LAND_JSON_BYTES
+        assert len(compact_bytes) + 1 == LAND._wave_land_window._MAX_LAND_JSON_BYTES
 
         with _patched_land_attr("land", lambda _request: result):
             rc, emitted, raw, _errors = _invoke_land_main(request, lease_dir)

@@ -67,7 +67,7 @@ _PROVENANCE_VIOLATION_RC = 1
 _SHA_RE = re.compile(r"(?:[0-9a-f]{40}|[0-9a-f]{64})\Z")
 _SHA256_RE = re.compile(r"[0-9a-f]{64}\Z")
 _HOLDER_RE = re.compile(r"[0-9a-f]{12}\Z")
-_ACCEPTANCE_RECEIPT_SCHEMA = "dev-wave-acceptance-receipt/v3"
+_ACCEPTANCE_RECEIPT_SCHEMA = "dev-wave-acceptance-receipt/v4"
 _ACCEPTANCE_AUTHORITY_KIND = "dev-wave-wait-acceptance"
 _ACCEPTED_EFFECTIVE_SCHEDULERS = frozenset({"loadgroup", "serial"})
 _RECEIPT_TEMP_PREFIX = ".dev-wave-acceptance-receipt-"
@@ -93,6 +93,7 @@ _ACCEPTANCE_RECEIPT_FIELDS = frozenset({
     "checker_blob_sha",
     "checker_receipt_sha256",
     "red_nodeids",
+    "flake_nodeids",
 })
 _FINGERPRINT_FIELDS = frozenset({
     "digest",
@@ -150,6 +151,10 @@ class LandResult:
     acceptance_receipt_sha256: str | None = None
     acceptance_verdict: str | None = None
     acceptance_red_nodeids: tuple[str, ...] | None = None
+    acceptance_flake_nodeids: tuple[str, ...] | None = field(
+        default=None,
+        kw_only=True,
+    )
     release_safe: bool = field(default=False, compare=False)
     retryable_same_request: bool = field(default=False, compare=False)
 
@@ -167,6 +172,11 @@ class LandResult:
                 None
                 if self.acceptance_red_nodeids is None
                 else list(self.acceptance_red_nodeids)
+            ),
+            "acceptance_flake_nodeids": (
+                None
+                if self.acceptance_flake_nodeids is None
+                else list(self.acceptance_flake_nodeids)
             ),
             "release_safe": self.release_safe,
             "retryable_same_request": self.retryable_same_request,
@@ -260,6 +270,7 @@ class _AcceptanceVerification:
     receipt_sha256: str
     verdict: str
     red_nodeids: tuple[str, ...]
+    flake_nodeids: tuple[str, ...]
 
 
 @dataclass
@@ -605,6 +616,36 @@ def _valid_fingerprint(value: object, tested_tip: str) -> bool:
     )
 
 
+def _runner_tree_entry(
+    repository: _Repository,
+    revision: str,
+) -> tuple[str, str] | None:
+    result = _git(
+        repository.wave,
+        "ls-tree",
+        "-z",
+        "--full-tree",
+        revision,
+        "--",
+        "tools/run_tests.py",
+    )
+    if result.returncode != 0:
+        raise _acceptance_rejected(retryable_same_request=True)
+    if result.stdout == b"":
+        return None
+    match = re.fullmatch(
+        rb"[0-7]{6} ([a-z]+) "
+        rb"((?:[0-9a-f]{40}|[0-9a-f]{64}))\ttools/run_tests\.py\x00",
+        result.stdout,
+    )
+    if match is None:
+        raise _acceptance_rejected()
+    try:
+        return match.group(1).decode("ascii"), match.group(2).decode("ascii")
+    except UnicodeError:
+        raise _acceptance_rejected() from None
+
+
 def _verify_acceptance_receipt(
     repository: _Repository,
     *,
@@ -627,6 +668,7 @@ def _verify_acceptance_receipt(
     argv = receipt.get("argv")
     verdict = receipt.get("verdict")
     red_nodeids = receipt.get("red_nodeids")
+    flake_nodeids = receipt.get("flake_nodeids")
     effective_scheduler = receipt.get("effective_scheduler")
     if not (
         receipt.get("schema_version") == _ACCEPTANCE_RECEIPT_SCHEMA
@@ -664,9 +706,11 @@ def _verify_acceptance_receipt(
             and receipt.get("checker_blob_sha") is None
             and receipt.get("checker_receipt_sha256") is None
             and red_nodeids == []
+            and flake_nodeids == []
         ):
             raise _acceptance_rejected()
-        accepted_nodeids: tuple[str, ...] = ()
+        accepted_red_nodeids: tuple[str, ...] = ()
+        accepted_flake_nodeids: tuple[str, ...] = ()
     elif verdict == "non-attributable-only":
         if not (
             receipt["child_rc"] == 1
@@ -680,12 +724,20 @@ def _verify_acceptance_receipt(
                 receipt["checker_receipt_sha256"]
             ) is not None
             and isinstance(red_nodeids, list)
-            and red_nodeids
+            and isinstance(flake_nodeids, list)
+            and (red_nodeids or flake_nodeids)
             and all(isinstance(nodeid, str) and nodeid for nodeid in red_nodeids)
+            and all(
+                isinstance(nodeid, str) and nodeid
+                for nodeid in flake_nodeids
+            )
             and red_nodeids == sorted(set(red_nodeids))
+            and flake_nodeids == sorted(set(flake_nodeids))
+            and set(red_nodeids).isdisjoint(flake_nodeids)
         ):
             raise _acceptance_rejected()
-        accepted_nodeids = tuple(red_nodeids)
+        accepted_red_nodeids = tuple(red_nodeids)
+        accepted_flake_nodeids = tuple(flake_nodeids)
     else:
         raise _acceptance_rejected()
     waiter_result = _git(
@@ -693,20 +745,20 @@ def _verify_acceptance_receipt(
         "rev-parse",
         f"{tested_tip}:tools/dev_wave_wait.py",
     )
+    if waiter_result.returncode != 0:
+        raise _acceptance_rejected(retryable_same_request=True)
     try:
         waiter_blob = waiter_result.stdout.decode("ascii").strip()
     except UnicodeError:
         raise _acceptance_rejected() from None
-    runner_blob = _git(
-        repository.wave,
-        "cat-file",
-        "-e",
-        f"{tested_tip}:tools/run_tests.py",
-    )
+    tip_runner_entry = _runner_tree_entry(repository, tested_tip)
+    if tip_runner_entry is None:
+        raise _acceptance_rejected()
     checker_blob = ""
     checker_result: _GitResult | None = None
     main_checker_blob = ""
     main_checker_result: _GitResult | None = None
+    main_runner_entry: tuple[str, str] | None = None
     if verdict == "non-attributable-only":
         main_checker_result = _git(
             repository.wave,
@@ -718,18 +770,19 @@ def _verify_acceptance_receipt(
             "rev-parse",
             f"{tested_tip}:tools/check_acceptance_reds.py",
         )
+        if (
+            main_checker_result.returncode != 0
+            or checker_result.returncode != 0
+        ):
+            raise _acceptance_rejected(retryable_same_request=True)
+        main_runner_entry = _runner_tree_entry(repository, tested_main)
+        if main_runner_entry is None:
+            raise _acceptance_rejected()
         try:
             main_checker_blob = main_checker_result.stdout.decode("ascii").strip()
             checker_blob = checker_result.stdout.decode("ascii").strip()
         except UnicodeError:
             raise _acceptance_rejected() from None
-    receipt_git_results = [waiter_result, runner_blob]
-    if main_checker_result is not None:
-        receipt_git_results.append(main_checker_result)
-    if checker_result is not None:
-        receipt_git_results.append(checker_result)
-    if any(result.returncode != 0 for result in receipt_git_results):
-        raise _acceptance_rejected(retryable_same_request=True)
     if (
         _SHA_RE.fullmatch(waiter_blob) is None
         or receipt.get("waiter_blob_sha") != waiter_blob
@@ -742,6 +795,10 @@ def _verify_acceptance_receipt(
                 or _SHA_RE.fullmatch(checker_blob) is None
                 or main_checker_blob != checker_blob
                 or receipt.get("checker_blob_sha") != checker_blob
+                or main_runner_entry is None
+                or main_runner_entry[0] != "blob"
+                or tip_runner_entry[0] != "blob"
+                or main_runner_entry[1] != tip_runner_entry[1]
             )
         )
     ):
@@ -749,7 +806,8 @@ def _verify_acceptance_receipt(
     return _AcceptanceVerification(
         receipt_sha256=hashlib.sha256(raw).hexdigest(),
         verdict=verdict,
-        red_nodeids=accepted_nodeids,
+        red_nodeids=accepted_red_nodeids,
+        flake_nodeids=accepted_flake_nodeids,
     )
 
 
@@ -762,6 +820,7 @@ def _with_acceptance_verification(
         acceptance_receipt_sha256=verification.receipt_sha256,
         acceptance_verdict=verification.verdict,
         acceptance_red_nodeids=verification.red_nodeids,
+        acceptance_flake_nodeids=verification.flake_nodeids,
     )
 
 

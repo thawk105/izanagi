@@ -228,7 +228,7 @@ _STAGE_TIMEOUT_SECONDS = 300
 _STAGE_TERMINATION_SECONDS = 5
 _LEASE_TTL_SECONDS = 2400
 _RECEIPT_PUBLISH_MIN_TTL_SECONDS = _STAGE_TIMEOUT_SECONDS
-_RECEIPT_SCHEMA_VERSION = "dev-wave-acceptance-receipt/v3"
+_RECEIPT_SCHEMA_VERSION = "dev-wave-acceptance-receipt/v4"
 _RECEIPT_AUTHORITY_KIND = "dev-wave-wait-acceptance"
 _RECEIPT_TEMP_PREFIX = ".dev-wave-acceptance-receipt-"
 _DETAIL_TEXT_MAX_BYTES = 256
@@ -288,6 +288,7 @@ _RED_CHECKER_GIT_ENV_OVERRIDES = {
     )
 }
 _RED_CHECKER_PATH = "tools/check_acceptance_reds.py"
+_RUNNER_PATH = "tools/run_tests.py"
 _RED_CHECKER_BOOTSTRAP = (
     "import os,subprocess,sys\n"
     f"_git_exe = {_GIT_EXE!r}\n"
@@ -404,6 +405,7 @@ class _RedCheckResult:
     checker_blob_sha: str
     checker_receipt_sha256: str
     red_nodeids: tuple[str, ...]
+    flake_nodeids: tuple[str, ...]
 
 
 @dataclass(frozen=True)
@@ -1953,7 +1955,26 @@ def _red_gate_blob_sha(
     repo: Path,
     revision: str,
     stage: str,
+    *,
+    path: str,
+    require_blob: bool = False,
 ) -> str:
+    if require_blob:
+        object_type_raw = _red_gate_git(
+            effects,
+            repo,
+            b"",
+            stage,
+            "cat-file",
+            "-t",
+            f"{revision}:{path}",
+        )
+        try:
+            object_type = object_type_raw.decode("ascii").strip()
+        except UnicodeError:
+            raise _StageFailure(stage) from None
+        if object_type != "blob":
+            raise _StageFailure(stage)
     raw = _red_gate_git(
         effects,
         repo,
@@ -1961,7 +1982,7 @@ def _red_gate_blob_sha(
         stage,
         "rev-parse",
         "--verify",
-        f"{revision}:{_RED_CHECKER_PATH}",
+        f"{revision}:{path}",
     )
     try:
         value = raw.decode("ascii").strip()
@@ -1979,8 +2000,12 @@ def _verified_red_checker_source(
     tested_tip: str,
     stage: str,
 ) -> _RedCheckerBinding:
-    main_blob_sha = _red_gate_blob_sha(effects, repo, tested_main, stage)
-    tip_blob_sha = _red_gate_blob_sha(effects, repo, tested_tip, stage)
+    main_blob_sha = _red_gate_blob_sha(
+        effects, repo, tested_main, stage, path=_RED_CHECKER_PATH
+    )
+    tip_blob_sha = _red_gate_blob_sha(
+        effects, repo, tested_tip, stage, path=_RED_CHECKER_PATH
+    )
     if main_blob_sha != tip_blob_sha:
         raise _StageFailure(stage)
     source = _red_gate_git(
@@ -2011,6 +2036,33 @@ def _verified_red_checker_source(
     ):
         raise _StageFailure(stage)
     return _RedCheckerBinding(source=source, blob_sha=main_blob_sha)
+
+
+def _verify_runner_blob_identity(
+    effects: _Effects,
+    repo: Path,
+    tested_main: str,
+    tested_tip: str,
+    stage: str,
+) -> None:
+    main_blob_sha = _red_gate_blob_sha(
+        effects,
+        repo,
+        tested_main,
+        stage,
+        path=_RUNNER_PATH,
+        require_blob=True,
+    )
+    tip_blob_sha = _red_gate_blob_sha(
+        effects,
+        repo,
+        tested_tip,
+        stage,
+        path=_RUNNER_PATH,
+        require_blob=True,
+    )
+    if main_blob_sha != tip_blob_sha:
+        raise _StageFailure(stage)
 
 
 def _red_checker_argv(
@@ -2590,10 +2642,33 @@ def _acceptance_receipt_bytes(
                 ),
             )
     elif verdict == "non-attributable-only":
-        if child_rc != 1 or red_check is None or not red_check.red_nodeids:
+        if (
+            child_rc != 1
+            or red_check is None
+            or not (red_check.red_nodeids or red_check.flake_nodeids)
+            or any(
+                not isinstance(nodeid, str) or not nodeid
+                for nodeid in (
+                    *red_check.red_nodeids,
+                    *red_check.flake_nodeids,
+                )
+            )
+            or list(red_check.red_nodeids)
+            != sorted(set(red_check.red_nodeids))
+            or list(red_check.flake_nodeids)
+            != sorted(set(red_check.flake_nodeids))
+            or not set(red_check.red_nodeids).isdisjoint(
+                red_check.flake_nodeids
+            )
+        ):
             red_check_present = red_check is not None if child_rc == 1 else None
             red_nodeid_count = (
                 len(red_check.red_nodeids)
+                if red_check_present is True
+                else None
+            )
+            flake_nodeid_count = (
+                len(red_check.flake_nodeids)
                 if red_check_present is True
                 else None
             )
@@ -2605,6 +2680,7 @@ def _acceptance_receipt_bytes(
                         "child_rc": child_rc,
                         "red_check_present": red_check_present,
                         "red_nodeid_count": red_nodeid_count,
+                        "flake_nodeid_count": flake_nodeid_count,
                     },
                 ),
             )
@@ -2640,6 +2716,9 @@ def _acceptance_receipt_bytes(
             None if red_check is None else red_check.checker_receipt_sha256
         ),
         "red_nodeids": [] if red_check is None else list(red_check.red_nodeids),
+        "flake_nodeids": (
+            [] if red_check is None else list(red_check.flake_nodeids)
+        ),
     }
     try:
         return (
@@ -2717,6 +2796,104 @@ def _inspect_acceptance_log(
     return value
 
 
+def _red_check_payload_nodeids(
+    receipt: object,
+    *,
+    tested_main: str,
+    tested_tip: str,
+    log_sha256: str,
+) -> tuple[tuple[str, ...], tuple[str, ...]]:
+    stage = "acceptance-red-check"
+    expected_fields = {
+        "collections", "log_path", "log_sha256", "nodes", "schema_version",
+        "status", "submodules", "tested_main", "wave_tip",
+    }
+    expected_collection_fields = {
+        "deleted_receipt_path", "path", "request_id", "source",
+        "stdout_sha256", "submission_nonce",
+    }
+    if not isinstance(receipt, dict):
+        raise _StageFailure(stage)
+    collections = receipt.get("collections")
+    nodes = receipt.get("nodes")
+    if not (
+        set(receipt) == expected_fields
+        and receipt.get("schema_version") == _RED_CHECK_SCHEMA_VERSION
+        and receipt.get("status") == "non-attributable-only"
+        and receipt.get("log_sha256") == log_sha256
+        and receipt.get("wave_tip") == tested_tip
+        and receipt.get("tested_main") == tested_main
+        and isinstance(collections, list)
+        and isinstance(nodes, list)
+        and nodes
+    ):
+        raise _StageFailure(stage)
+    for collection in collections:
+        if not (
+            isinstance(collection, dict)
+            and set(collection) == expected_collection_fields
+            and isinstance(collection.get("path"), str)
+            and isinstance(collection.get("source"), str)
+            and all(
+                collection.get(field) is None
+                or isinstance(collection.get(field), str)
+                for field in (
+                    "deleted_receipt_path",
+                    "request_id",
+                    "stdout_sha256",
+                    "submission_nonce",
+                )
+            )
+        ):
+            raise _StageFailure(stage)
+    red_nodeids: list[str] = []
+    flake_nodeids: list[str] = []
+    for node in nodes:
+        if not isinstance(node, dict):
+            raise _StageFailure(stage)
+        classification = node.get("classification")
+        nodeid = node.get("nodeid")
+        if not isinstance(nodeid, str) or not nodeid:
+            raise _StageFailure(stage)
+        if classification == "non-attributable":
+            if not (
+                set(node) == {"classification", "nodeid", "rerun_rc"}
+                and type(node.get("rerun_rc")) is int
+                and node["rerun_rc"] == 1
+            ):
+                raise _StageFailure(stage)
+            red_nodeids.append(nodeid)
+        elif classification == "flake":
+            if not (
+                set(node) == {
+                    "classification",
+                    "main_rerun_rc",
+                    "nodeid",
+                    "rerun_rc",
+                    "wave_rerun_rc",
+                }
+                and all(
+                    type(node.get(field)) is int and node[field] == 0
+                    for field in (
+                        "main_rerun_rc",
+                        "rerun_rc",
+                        "wave_rerun_rc",
+                    )
+                )
+            ):
+                raise _StageFailure(stage)
+            flake_nodeids.append(nodeid)
+        else:
+            raise _StageFailure(stage)
+    if (
+        red_nodeids != sorted(set(red_nodeids))
+        or flake_nodeids != sorted(set(flake_nodeids))
+        or not set(red_nodeids).isdisjoint(flake_nodeids)
+    ):
+        raise _StageFailure(stage)
+    return tuple(red_nodeids), tuple(flake_nodeids)
+
+
 def _verify_red_check_receipt(
     *,
     effects: _Effects,
@@ -2759,66 +2936,26 @@ def _verify_red_check_receipt(
         receipt = _parse_json_object(raw.decode("utf-8"), stage=stage)
     except UnicodeError:
         raise _StageFailure(stage) from None
-    expected_fields = {
-        "collections", "log_path", "log_sha256", "nodes", "schema_version",
-        "status", "submodules", "tested_main", "wave_tip",
-    }
-    expected_collection_fields = {
-        "deleted_receipt_path", "path", "request_id", "source",
-        "stdout_sha256", "submission_nonce",
-    }
-    collections = receipt.get("collections")
-    nodes = receipt.get("nodes")
-    if not (
-        set(receipt) == expected_fields
-        and receipt.get("schema_version") == _RED_CHECK_SCHEMA_VERSION
-        and receipt.get("status") == "non-attributable-only"
-        and receipt.get("log_sha256") == log_sha256
-        and receipt.get("wave_tip") == tested_tip
-        and receipt.get("tested_main") == tested_main
-        and isinstance(collections, list)
-        and isinstance(nodes, list)
-        and nodes
-    ):
-        raise _StageFailure(stage)
-    for collection in collections:
-        if not (
-            isinstance(collection, dict)
-            and set(collection) == expected_collection_fields
-            and isinstance(collection.get("path"), str)
-            and isinstance(collection.get("source"), str)
-            and all(
-                collection.get(field) is None
-                or isinstance(collection.get(field), str)
-                for field in (
-                    "deleted_receipt_path",
-                    "request_id",
-                    "stdout_sha256",
-                    "submission_nonce",
-                )
-            )
-        ):
-            raise _StageFailure(stage)
-    red_nodeids: list[str] = []
-    for node in nodes:
-        if not (
-            isinstance(node, dict)
-            and set(node) == {"classification", "nodeid", "rerun_rc"}
-            and node.get("classification") == "non-attributable"
-            and isinstance(node.get("nodeid"), str)
-            and node["nodeid"]
-            and type(node.get("rerun_rc")) is int
-        ):
-            raise _StageFailure(stage)
-        red_nodeids.append(node["nodeid"])
-    if red_nodeids != sorted(set(red_nodeids)):
-        raise _StageFailure(stage)
+    red_nodeids, flake_nodeids = _red_check_payload_nodeids(
+        receipt,
+        tested_main=tested_main,
+        tested_tip=tested_tip,
+        log_sha256=log_sha256,
+    )
+    _verify_runner_blob_identity(
+        effects,
+        repo,
+        tested_main,
+        tested_tip,
+        stage,
+    )
     return _RedCheckResult(
         checker_rc=checker_rc,
         checker_status="non-attributable-only",
         checker_blob_sha=binding.blob_sha,
         checker_receipt_sha256=hashlib.sha256(raw).hexdigest(),
-        red_nodeids=tuple(red_nodeids),
+        red_nodeids=red_nodeids,
+        flake_nodeids=flake_nodeids,
     )
 
 

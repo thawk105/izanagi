@@ -17,12 +17,20 @@ import pytest
 
 _ROOT = Path(__file__).resolve().parents[2]
 _CHECKER = _ROOT / "tools" / "check_acceptance_reds.py"
+_WAITER = _ROOT / "tools" / "dev_wave_wait.py"
 _SPEC = importlib.util.spec_from_file_location(
     "check_acceptance_reds_under_test", _CHECKER
 )
 assert _SPEC and _SPEC.loader
 CAR = importlib.util.module_from_spec(_SPEC)
 _SPEC.loader.exec_module(CAR)
+_WAIT_SPEC = importlib.util.spec_from_file_location(
+    "dev_wave_wait_for_acceptance_reds_test", _WAITER
+)
+assert _WAIT_SPEC and _WAIT_SPEC.loader
+DW = importlib.util.module_from_spec(_WAIT_SPEC)
+sys.modules[_WAIT_SPEC.name] = DW
+_WAIT_SPEC.loader.exec_module(DW)
 
 _NON_ATTRIBUTABLE = "orchestrator/tests/test_example.py::test_non_attributable"
 _ATTRIBUTABLE_A = "orchestrator/tests/test_example.py::test_attributable_a"
@@ -557,7 +565,13 @@ def test_main_green_wave_red_is_attributable(
         node_runner=node_runner,
     ) == 1
     assert observed_tips == [tested_main, wave_tip]
-    assert json.loads(receipt.read_text(encoding="utf-8"))["nodes"] == [
+    raw = receipt.read_bytes()
+    document = json.loads(raw)
+    assert set(document) == {
+        "collections", "log_path", "log_sha256", "nodes", "schema_version",
+        "status", "submodules", "tested_main", "wave_tip",
+    }
+    assert document["nodes"] == [
         {
             "classification": "attributable",
             "main_rerun_rc": 0,
@@ -566,6 +580,18 @@ def test_main_green_wave_red_is_attributable(
             "wave_rerun_rc": 1,
         }
     ]
+    assert set(document["nodes"][0]) == {
+        "classification", "main_rerun_rc", "nodeid", "rerun_rc",
+        "wave_rerun_rc",
+    }
+    with pytest.raises(DW._StageFailure) as exc_info:
+        DW._red_check_payload_nodeids(
+            json.loads(raw),
+            tested_main=tested_main,
+            tested_tip=wave_tip,
+            log_sha256=hashlib.sha256(log.read_bytes()).hexdigest(),
+        )
+    assert exc_info.value.outcome == DW._Outcome(70, "acceptance-red-check")
 
 
 def test_main_green_wave_green_is_recorded_as_flake(
@@ -599,6 +625,11 @@ def test_main_green_wave_green_is_recorded_as_flake(
     ]
     assert observed_tips == [tested_main, wave_tip]
     document = json.loads(receipt.read_text(encoding="utf-8"))
+    raw = receipt.read_bytes()
+    assert set(document) == {
+        "collections", "log_path", "log_sha256", "nodes", "schema_version",
+        "status", "submodules", "tested_main", "wave_tip",
+    }
     assert document["status"] == "non-attributable-only"
     assert document["nodes"] == [
         {
@@ -609,6 +640,16 @@ def test_main_green_wave_green_is_recorded_as_flake(
             "wave_rerun_rc": 0,
         }
     ]
+    assert set(document["nodes"][0]) == {
+        "classification", "main_rerun_rc", "nodeid", "rerun_rc",
+        "wave_rerun_rc",
+    }
+    assert DW._red_check_payload_nodeids(
+        json.loads(raw),
+        tested_main=tested_main,
+        tested_tip=wave_tip,
+        log_sha256=hashlib.sha256(log.read_bytes()).hexdigest(),
+    ) == ((), (_NON_ATTRIBUTABLE,))
 
 
 def test_main_red_is_non_attributable_without_wave_rerun(
@@ -637,13 +678,80 @@ def test_main_red_is_non_attributable_without_wave_rerun(
         node_runner=node_runner,
     ) == 0
     assert observed_tips == [tested_main]
-    assert json.loads(receipt.read_text(encoding="utf-8"))["nodes"] == [
+    raw = receipt.read_bytes()
+    document = json.loads(raw)
+    assert set(document) == {
+        "collections", "log_path", "log_sha256", "nodes", "schema_version",
+        "status", "submodules", "tested_main", "wave_tip",
+    }
+    assert document["nodes"] == [
         {
             "classification": "non-attributable",
             "nodeid": _NON_ATTRIBUTABLE,
             "rerun_rc": 1,
         }
     ]
+    assert set(document["nodes"][0]) == {
+        "classification", "nodeid", "rerun_rc",
+    }
+    assert DW._red_check_payload_nodeids(
+        json.loads(raw),
+        tested_main=tested_main,
+        tested_tip=wave_tip,
+        log_sha256=hashlib.sha256(log.read_bytes()).hexdigest(),
+    ) == ((_NON_ATTRIBUTABLE,), ())
+
+
+def test_mixed_non_attributable_and_flake_receipt_round_trips_to_waiter(
+    tmp_path: Path,
+    committed_repo: tuple[Path, str, Path],
+) -> None:
+    repo, tested_main, probe_root = committed_repo
+    wave_tip = _advance_wave_tip(repo)
+    red = "orchestrator/tests/test_example.py::test_non_attributable"
+    flake = "orchestrator/tests/test_example.py::test_attributable_a"
+    log = _write_log(
+        tmp_path,
+        _summary_log((("FAILED", red), ("ERROR", flake))),
+    )
+    receipt = tmp_path / "receipt.json"
+    observed: list[tuple[str, str]] = []
+
+    def node_runner(worktree: Path, nodeid: str) -> int:
+        observed.append(
+            (_git(worktree, "rev-parse", "HEAD").stdout.strip(), nodeid)
+        )
+        if nodeid == red:
+            return 1
+        if nodeid == flake:
+            return 0
+        raise AssertionError(f"unexpected nodeid: {nodeid}")
+
+    assert CAR.main(
+        _arguments(
+            log,
+            tested_main,
+            receipt,
+            probe_root,
+            wave_tip=wave_tip,
+        ),
+        repo_root=repo,
+        node_runner=node_runner,
+    ) == 0
+    assert observed.count((tested_main, red)) == 1
+    assert observed.count((tested_main, flake)) == 1
+    assert observed.count((wave_tip, flake)) == 1
+
+    raw = receipt.read_bytes()
+    assert DW._red_check_payload_nodeids(
+        json.loads(raw),
+        tested_main=tested_main,
+        tested_tip=wave_tip,
+        log_sha256=hashlib.sha256(log.read_bytes()).hexdigest(),
+    ) == (
+        ("orchestrator/tests/test_example.py::test_non_attributable",),
+        ("orchestrator/tests/test_example.py::test_attributable_a",),
+    )
 
 
 def test_wave_rerun_rc_outside_zero_or_one_fails_closed(
