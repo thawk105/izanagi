@@ -20253,3 +20253,135 @@ certifying 入口 (受領証に束縛されたレポート生成) では 3 を�
   取り残される。
 - 明示引数に版形式の検査を足す — 既存 API は非版形式の文字列を受理しており、これを縮めるのは
   求められていない厳密化にあたる。
+
+## D486. 受入の同一 process 内再試行は、肯定的証拠の合議でだけ発火させる (2026-08-17)
+
+**決定:** 受入待ち手は、受入 command が **pytest の判定を 1 つも産まずに戻った**走行に限り、
+lease を保持したまま同一 process 内で 1 度だけ再投入する。発火条件は次の全成立とし、
+1 つでも取れなければ terminal (fail-closed) とする。
+
+1. 正規化後の child rc が 0 でも 1 でもない。
+2. 捕獲 log に dispatch 由来の構造化 attestation が**ちょうど 1 件**あり、その `child_started` が
+   偽である。relay prefix 付き・欠落・重複・payload 不正・duplicate key・未終端 EOF・
+   内部矛盾はすべて拒否する。
+3. 捕獲 log から pytest の判定痕跡が 1 件も導けない。**log に切り詰め・省略の framing があれば
+   不在を確定不能として terminal に倒す。**
+4. 走行後の clean / index flag / fingerprint 検査を通過している。
+5. lease 所有が `ACQUIRED` で、cleanup 失敗が無い。
+6. attempt 上限と、invocation 入口で一度だけ確定した共有 deadline の双方に余裕がある。
+   deadline は attempt 2 の claim 前と**受入 command 起動直前**に再確認する。
+
+producer 側では、`child_started` を偽にしてよいのは
+**「対象 job がまだ待ち行列にいる」ことを判定時点の権威ある問い合わせで確かめられた
+queue 待ち timeout」だけ**とする。保留・終了・状態不明・受領証永続化失敗はすべて真へ倒す。
+「実行中を観測しなかった」ことだけを根拠に偽にしてはならない。
+
+再試行の間 lease は release せず、attempt 境界で自 holder の claim により mtime を更新し、
+`ownership` を `ACQUIRED` のまま保つ (release 権限を失わせない)。失敗 attempt の log は
+sibling path へ上書き禁止で退避し、成功 attempt の受領証と log は呼び手の指定 path に置く。
+受領証 schema の版と root field 集合、rc の意味論、受入の受理 2 経路、D253 の待ち札意味論は
+いずれも変えない。attempt 番号・分類・rc・退避先・log hash・claim した main は
+待ち手の stderr へ機械可読な 1 行として残す (成功終端でも消さない)。
+
+**理由:**
+
+- **raw rc は判定の有無を表さない。** dispatcher は受領証の永続化に失敗すると、child rc を
+  得ているのに infra rc を返す。pytest が実走して赤を出しても待ち手には同じ rc に見えるため、
+  rc だけを発火条件にすると**実走した赤を握りつぶして再走できる**。これは規律 2 が名指しする
+  reward hacking そのものであり、実害の観測を待つ種類の欠陥ではない。
+- **「観測しなかった」は不在の証拠にならない。** scheduler の実行中状態は観測を取り逃がしうる。
+  短命な job は待ち行列から終了へ抜けるため、消極的判定では実走を「未開始」と誤認する。
+  肯定的証拠を要求し、取れないときは再試行を許さない側へ倒すのが唯一の fail-closed である。
+- **切り詰められた log は不在を支持しない。** 判定痕跡が落ちた log と、判定が無かった log は
+  区別できない。区別できないことを確定として扱えば、1 と 2 の裏取りが恒真になる。
+- **順番を手放すと目的が発効しない。** lease 取得の成功時に自分の待ち札は削除されるため、
+  失敗後に release して再 claim すると、同一 process であっても**新しい到着時刻の札**になり
+  後着の後ろへ回る。保持したまま再試行することだけが、待ち直しの代償を実際に取り除く。
+
+**却下した選択肢:**
+
+- **raw rc だけを発火条件にする** — 上記のとおり実走赤を再試行でき、規律 2 に反する。
+- **dispatcher に pre-child failure 専用の rc を足す** — rc の意味論は runbook と land が
+  依存する受理集合であり、そこへ新しい値を入れる影響が本来の目的に見合わない。
+  構造化 attestation を足せば rc を 1 bit も変えずに同じ判別ができる。
+- **失敗 attempt で lease を release して待ち行列へ戻る** — 先着順位が戻らないため、
+  「フレーク 1 件の代償を 1 走ぶんに戻す」という目的が発効しない。
+- **dispatcher が受入 command から書けない場所へ nonce 付き sidecar を置く** — 偽造耐性は
+  上がるが、attestation と同格の新しい channel を作る設計であり、独立の敵対検証を要する。
+  信頼済み中核の内側であること、attempt 上限のもとで偽造の利得が再試行 1 回に限られること、
+  赤を緑に変えられないことから、限界として明記して受容する。
+- **attempt 上限を 2 より増やす** — 再試行のたびに lease 占有が延び、偽造の利得も比例して
+  増える。上限を上げるなら偽造耐性の channel と同時に裁定する。
+- **走行中の受入 command を deadline で kill する** — 停止性は上がるが、正当に長時間走る
+  受入を途中で捨てる。有界性の主張は「command が戻った後の再試行ループ」に限る。
+
+## D487. flake を別集合で受理し、非帰属経路の runner を main へ束縛する (2026-08-17)
+
+**決定:** ユーザー裁定 R2 (確率的なフレークで受入全走を何度も無駄にする構造を許さない) を
+発効させるため、D371・D389・D393 を次の範囲で部分改訂する。既存 3 決定の本文はそのまま残し、
+食い違う部分は本決定を正本とする。
+
+1. **分類。** tested main の単独再走が rc=1 の node は `red_nodeids`、
+   tested main と wave tip の単独再走がともに rc=0 の node は `flake_nodeids` へ分ける。
+   `attributable` (main 緑・tip 赤) が 1 件でもあれば従来どおり checker rc=1 で停止する。
+   verdict 名は `non-attributable-only` のままとし、**2 集合の和が非空**のときだけ成立する。
+2. **exact な受理形。** 待ち手が受理する checker receipt の node は 2 形だけとする。
+   非帰属は field 集合ちょうど `classification` / `nodeid` / `rerun_rc` で `rerun_rc == 1`、
+   flake は field 集合ちょうど `classification` / `main_rerun_rc` / `nodeid` / `rerun_rc` /
+   `wave_rerun_rc` で 3 個の rc がすべて 0 とする。2 集合は各々 sorted・unique で互いに素とする。
+3. **schema.** outer acceptance receipt を `dev-wave-acceptance-receipt/v4` とし、
+   `flake_nodeids` を必須 field にする。**D393 が定めた v3 の schema 値はここで後継する。**
+   v3 fallback・互換受理・警告 mode は作らない。発行済み v3 receipt は変換せず、受入を撮り直す。
+4. **runner 束縛。** `verdict == "non-attributable-only"` の受領証は、待ち手と land の双方で
+   `tested_main:tools/run_tests.py` と `tested_tip:tools/run_tests.py` の object type が `blob` で
+   あることと blob SHA の等値を要求する。**`flake_nodeids` の値で条件分岐しない。**
+   revision は当該走行の tested main / tested tip を使い、現在の `main` や `HEAD` を使わない。
+   SHA を receipt field へ書かず、両者とも Git から再計算する。child-green の受理集合は変えない。
+5. **checker は変更しない。** `tools/check_acceptance_reds.py` は既に単独再走 rc を `{0,1}` へ
+   限定し、3 分類を出している。
+
+**述語ごとの効き方 (恒真ゲートを「守っている」と書かないため):**
+
+| 述語 | 現 producer に対する narrowing | crafted receipt / 将来 drift への防御深度 |
+|---|---|---|
+| flake node の exact 5 field と 3 rc == 0 | しない (producer が構造的に保証) | する |
+| 非帰属 node の `rerun_rc == 1` | しない (同上) | する |
+| 2 集合の sorted・unique・互いに素 | しない (producer が sort し 1 node 1 分類) | する |
+| 和集合の非空 | しない (checker root が nodes 非空を要求) | する (land 側は外部 receipt に対して発火) |
+| outer receipt の exact field 集合と v4 | する (v3 と field 欠落を拒否) | する |
+| runner の main/tip blob 等値と object type | **する** (runner を変えた wave の非帰属受理を拒否) | する |
+
+**保証の範囲 (盛らない):** runner の blob 等値が保証するのは「同一 bytes の
+`tools/run_tests.py` が両側で使われたこと」だけである。import 閉包・cwd・環境変数・
+pytest の選択と scheduler・`conftest.py`・plugin の同一性は保証しない。
+初回全走と単独再走の argv・環境も同形ではない。
+
+**明示的に受容する残余:** `flake` は原因の分類ではなく観測の分類である
+(初回全走で赤、tested main 単独再走で緑、wave tip 単独再走でも緑)。
+production code、`conftest.py`、共有 fixture、pytest plugin、test file 自身、選択・build 設定、
+初回と再走の argv や環境の差、負荷や外部汚染に由来する「全走限定赤」を区別しない。
+したがって**確率的でない決定的な赤も flake として通りうる**。差分到達可能性の完全な写像が
+無い限りこの残余は閉じられない。R2 の発効と引き換えにこれを受容し、受理した nodeid は
+`flake_nodeids` と land 結果 JSON へ耐久記録して追跡可能にする。
+**検査を削除・弱化して緑を買う変更は引き続き絶対規律 2 により禁止する。**
+
+**理由:**
+- flake 1 件で受入全走 (1055〜1273 秒 + queue 待ち) を丸ごと捨てる構造が R2 を発効不能にしていた。
+  待ち手の node exact 検査が 3 field 固定だったため、checker 側の分類は end-to-end で
+  一度も発効していなかった。
+- flake を `red_nodeids` へ混ぜると、実測証拠なしで通した残余がどの nodeid だったかを
+  受領証・land 結果・台帳のどこからも追跡できない。
+- field 集合が変わるのに schema 値を据え置くと、互換性の無い 2 形が同じ名前を持つ。
+- 非帰属経路の証拠 (単独再走 rc) は `tools/run_tests.py` が生成する。既にユーザー裁定済みの
+  「待ち手と runner も tested main 側 blob と照合する」方針を、この経路へ先に適用する。
+  条件を `flake_nodeids` 非空に絞ると、flake を非帰属と偽った receipt が gate を素通りするため
+  無条件とした。
+
+**却下した選択肢:**
+- flake を `red_nodeids` に含める / 記録しない — 残余の追跡可能性を失う。
+- flake を従来どおり拒否する — R2 が発効せず、受入窓を捨て続ける。
+- flake 専用の verdict を足す — 同じ安全条件に対して consumer と文書の分岐だけが増える。
+- 同一 tip で全走を再走し、緑なら flake と確定する — 受入全走をもう 1 本消費する。
+  窓を捨てないという R2 の目的と正面から矛盾する。
+- runner blob SHA を receipt field へ書く — land が Git から再計算できる。自己申告 field を増やさない。
+- 単独再走 rc=0 に「対象 node が実行され PASSED した」証明を要求する — 新機構であり本決定の scope 外。

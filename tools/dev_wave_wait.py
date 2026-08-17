@@ -224,19 +224,63 @@ _DEFAULT_ACCEPTANCE_POLL_SECONDS = 30
 _MIN_ACCEPTANCE_POLL_SECONDS = 30
 _MAX_ACCEPTANCE_POLL_SECONDS = 120
 _DEFAULT_ACCEPTANCE_MAX_WAIT_SECONDS = 7200
+_MAX_ACCEPTANCE_ATTEMPTS = 2
 _STAGE_TIMEOUT_SECONDS = 300
 _STAGE_TERMINATION_SECONDS = 5
 _LEASE_TTL_SECONDS = 2400
 _RECEIPT_PUBLISH_MIN_TTL_SECONDS = _STAGE_TIMEOUT_SECONDS
-_RECEIPT_SCHEMA_VERSION = "dev-wave-acceptance-receipt/v3"
+_RECEIPT_SCHEMA_VERSION = "dev-wave-acceptance-receipt/v4"
 _RECEIPT_AUTHORITY_KIND = "dev-wave-wait-acceptance"
 _RECEIPT_TEMP_PREFIX = ".dev-wave-acceptance-receipt-"
 _DETAIL_TEXT_MAX_BYTES = 256
 _ATTESTATION_DETAIL_MAX_BYTES = 2048
 _LOG_HASH_CHUNK_BYTES = 1024 * 1024
 _EFFECTIVE_SCHEDULER_PREFIX = b"IZANAGI_EFFECTIVE_SCHEDULER_V1 "
+_DISPATCH_OUTCOME_PREFIX = b"IZANAGI_DISPATCH_OUTCOME_V1 "
+_ATTEMPT_JOURNAL_PREFIX = "IZANAGI_ACCEPTANCE_ATTEMPT_V1 "
 _EFFECTIVE_SCHEDULERS = frozenset({"loadgroup", "serial", "unknown"})
+_DISPATCH_INFRA_REASONS = frozenset({
+    "compute-marker-not-observed",
+    "dispatch-error",
+    "immediate-qstat-unavailable-after-retries",
+    "malformed-request-id",
+    "orphan-hold",
+    "overall-timeout",
+    "qstat-permission-or-ownership-error",
+    "qstat-success-request-not-visible",
+    "queue-wait-timeout",
+    "receipt-persist-failed",
+    "result/log/accounting-grace-expired",
+    "setup-failure",
+    "signal-abort",
+    "submission-disabled",
+    "unexpected-error",
+})
 _MARKER_PAYLOAD_MAX_BYTES = 4096
+_PYTEST_TRACE_LINE_MAX_BYTES = 64 * 1024
+_PYTEST_ANSI_ESCAPE = re.compile(rb"\x1b\[[0-?]*[ -/]*[@-~]")
+_PYTEST_SHORT_SUMMARY = re.compile(
+    rb"^={3,} short test summary info ={3,}$"
+)
+_PYTEST_TERMINAL_SUMMARY = re.compile(
+    rb"^={3,} .+ in [0-9]+(?:\.[0-9]+)?s(?: \([^()]+\))? ={3,}$"
+)
+_PYTEST_RED_OUTCOME = re.compile(rb"^[ \t]*(?:FAILED|ERROR) .+$")
+_DISPATCH_RELAY_TRUNCATION = re.compile(
+    rb"^\[Pegasus dispatch\] request \S+ child (?:stdout|stderr) begin "
+    rb"\(size=[0-9]+ bytes, omitted_bytes=[1-9][0-9]*\)$"
+)
+_DISPATCH_UPSTREAM_OMISSION = re.compile(
+    (
+        r"^(?:\| )?\[先頭 [1-9][0-9]* bytes を省略。"
+        r"末尾 [1-9][0-9]* bytes を収集\](?:\\n|$)"
+    ).encode("utf-8")
+)
+_DISPATCH_RELAY_ABORT = re.compile(
+    rb"^\[Pegasus dispatch\] request \S+ child "
+    rb"(?:(?:stdout|stderr) relay aborted after relay error|"
+    rb"log relay aborted after broken pipe on (?:stdout|stderr))$"
+)
 _RED_CHECK_SCHEMA_VERSION = "izanagi-acceptance-red-check/v1"
 _RED_CHECK_RECEIPT_SUFFIX = ".acceptance-red-check.json"
 _TASK_RUN_ID_ENV = "IZANAGI_TASK_RUN_ID"
@@ -288,6 +332,7 @@ _RED_CHECKER_GIT_ENV_OVERRIDES = {
     )
 }
 _RED_CHECKER_PATH = "tools/check_acceptance_reds.py"
+_RUNNER_PATH = "tools/run_tests.py"
 _RED_CHECKER_BOOTSTRAP = (
     "import os,subprocess,sys\n"
     f"_git_exe = {_GIT_EXE!r}\n"
@@ -365,6 +410,38 @@ class _Outcome:
 
 
 @dataclass(frozen=True)
+class _AcceptanceAttemptResult:
+    outcome: _Outcome
+    retry: bool
+
+
+@dataclass
+class _AcceptanceDeadline:
+    max_wait_seconds: int
+    value: float | None = None
+
+    def get(self, effects: _Effects) -> float:
+        if self.value is None:
+            self.value = effects.monotonic() + self.max_wait_seconds
+        return self.value
+
+    def start(self, effects: _Effects) -> float:
+        if self.value is None:
+            clock = effects.acceptance_monotonic or effects.monotonic
+            self.value = clock() + self.max_wait_seconds
+        return self.value
+
+
+@dataclass(frozen=True)
+class _NoVerdictLogEvidence:
+    log_sha256: str
+    dispatch_payloads: tuple[bytes, ...]
+    relayed_dispatch_markers: int
+    pytest_verdict_traces: int
+    absence_conclusive: bool
+
+
+@dataclass(frozen=True)
 class _TreeFingerprint:
     digest: str
     head_sha: str
@@ -404,6 +481,7 @@ class _RedCheckResult:
     checker_blob_sha: str
     checker_receipt_sha256: str
     red_nodeids: tuple[str, ...]
+    flake_nodeids: tuple[str, ...]
 
 
 @dataclass(frozen=True)
@@ -445,6 +523,11 @@ class _Effects:
     run_with_input: (
         Callable[[Sequence[str], Path, bool, bytes], _BinaryCommandResult] | None
     ) = None
+    inspect_no_verdict_log: (
+        Callable[[Path], _NoVerdictLogEvidence] | None
+    ) = None
+    archive_log: Callable[[Path, Path], None] | None = None
+    acceptance_monotonic: Callable[[], float] | None = None
 
 
 class _LeaseOwnership(Enum):
@@ -822,6 +905,146 @@ def _scan_acceptance_log_chunks(
     return digest.hexdigest(), marker_payloads
 
 
+def _scan_no_verdict_log_chunks(
+    chunks: Iterable[bytes],
+) -> _NoVerdictLogEvidence:
+    """dispatch の肯定証拠と pytest 判定痕跡を同じ chunk 走査で集める。"""
+
+    digest = hashlib.sha256()
+    dispatch_payloads: list[bytes] = []
+    relayed_dispatch_markers = 0
+    pytest_verdict_traces = 0
+    absence_conclusive = True
+    line = bytearray()
+    line_overflow = False
+
+    def finish_line() -> None:
+        nonlocal relayed_dispatch_markers, pytest_verdict_traces
+        nonlocal absence_conclusive, line_overflow
+        raw = bytes(line)
+        if raw.endswith(b"\r"):
+            raw = raw[:-1]
+        if line_overflow:
+            absence_conclusive = False
+        else:
+            if (
+                _DISPATCH_RELAY_TRUNCATION.fullmatch(raw) is not None
+                or _DISPATCH_UPSTREAM_OMISSION.match(raw) is not None
+                or _DISPATCH_RELAY_ABORT.fullmatch(raw) is not None
+            ):
+                absence_conclusive = False
+            if raw.startswith(_DISPATCH_OUTCOME_PREFIX):
+                if len(dispatch_payloads) < 2:
+                    dispatch_payloads.append(raw[len(_DISPATCH_OUTCOME_PREFIX):])
+            elif raw.startswith(b"| " + _DISPATCH_OUTCOME_PREFIX):
+                relayed_dispatch_markers = min(relayed_dispatch_markers + 1, 2)
+            try:
+                raw.decode("utf-8", errors="strict")
+            except UnicodeError:
+                absence_conclusive = False
+            else:
+                payload = raw[2:] if raw.startswith(b"| ") else raw
+                payload = _PYTEST_ANSI_ESCAPE.sub(b"", payload)
+                if (
+                    _PYTEST_SHORT_SUMMARY.fullmatch(payload) is not None
+                    or _PYTEST_TERMINAL_SUMMARY.fullmatch(payload) is not None
+                    or _PYTEST_RED_OUTCOME.fullmatch(payload) is not None
+                ):
+                    pytest_verdict_traces = min(pytest_verdict_traces + 1, 2)
+        line.clear()
+        line_overflow = False
+
+    for chunk in chunks:
+        if not isinstance(chunk, bytes):
+            raise TypeError("acceptance log chunk must be bytes")
+        digest.update(chunk)
+        offset = 0
+        while offset < len(chunk):
+            newline = chunk.find(b"\n", offset)
+            end = len(chunk) if newline < 0 else newline
+            available = _PYTEST_TRACE_LINE_MAX_BYTES - len(line)
+            if available > 0:
+                line.extend(chunk[offset:min(end, offset + available)])
+            if end - offset > max(available, 0):
+                line_overflow = True
+            if newline < 0:
+                break
+            finish_line()
+            offset = newline + 1
+    if line or line_overflow:
+        # 改行なし EOF fragment は完成行ではない。marker として採用せず、
+        # pytest 痕跡の不在も確定不能へ倒す。
+        absence_conclusive = False
+    return _NoVerdictLogEvidence(
+        log_sha256=digest.hexdigest(),
+        dispatch_payloads=tuple(dispatch_payloads),
+        relayed_dispatch_markers=relayed_dispatch_markers,
+        pytest_verdict_traces=pytest_verdict_traces,
+        absence_conclusive=absence_conclusive,
+    )
+
+
+def _retry_evidence_reason(evidence: _NoVerdictLogEvidence) -> str:
+    if evidence.relayed_dispatch_markers:
+        return "relayed-dispatch-attestation"
+    if len(evidence.dispatch_payloads) == 0:
+        return "dispatch-attestation-missing"
+    if len(evidence.dispatch_payloads) != 1:
+        return "dispatch-attestation-non-unique"
+    if not evidence.absence_conclusive:
+        return "pytest-absence-indeterminate"
+    if len(evidence.dispatch_payloads[0]) > _MARKER_PAYLOAD_MAX_BYTES:
+        return "dispatch-attestation-malformed"
+
+    def reject_duplicate_keys(
+        pairs: list[tuple[str, object]],
+    ) -> dict[str, object]:
+        value: dict[str, object] = {}
+        for key, item in pairs:
+            if key in value:
+                raise ValueError("duplicate JSON key")
+            value[key] = item
+        return value
+
+    try:
+        payload = json.loads(
+            evidence.dispatch_payloads[0].decode("utf-8"),
+            object_pairs_hook=reject_duplicate_keys,
+        )
+    except (UnicodeError, ValueError, RecursionError):
+        return "dispatch-attestation-malformed"
+    if not (
+        type(payload) is dict
+        and set(payload) == {"child_rc", "child_started", "kind", "reason"}
+        and payload.get("kind") == "infra"
+        and type(payload.get("child_started")) is bool
+        and (
+            payload.get("child_rc") is None
+            or type(payload.get("child_rc")) is int
+        )
+        and isinstance(payload.get("reason"), str)
+        and payload.get("reason") in _DISPATCH_INFRA_REASONS
+    ):
+        return "dispatch-attestation-malformed"
+    child_started = payload["child_started"]
+    child_rc = payload["child_rc"]
+    reason = payload["reason"]
+    if (
+        (not child_started and child_rc is not None)
+        or (not child_started and reason != "queue-wait-timeout")
+        or (
+            reason == "receipt-persist-failed"
+            and (not child_started or child_rc is None)
+        )
+    ):
+        return "dispatch-attestation-malformed"
+    if payload["child_started"]:
+        return "dispatch-child-started"
+    if evidence.pytest_verdict_traces:
+        return "pytest-verdict-observed"
+    return "retryable-no-verdict-infra"
+
+
 def _bounded_detail_text(value: object) -> str:
     if not isinstance(value, str):
         value = type(value).__name__
@@ -1092,6 +1315,51 @@ def _default_inspect_acceptance_log(path: Path) -> tuple[str, str]:
     return log_sha256, _scheduler_from_marker_payloads(payloads)
 
 
+def _default_inspect_no_verdict_log(path: Path) -> _NoVerdictLogEvidence:
+    stage = "acceptance-retry-evidence"
+    flags = os.O_RDONLY | os.O_CLOEXEC | os.O_NOFOLLOW
+    try:
+        fd = os.open(path, flags)
+    except (OSError, TypeError, ValueError):
+        raise _StageFailure(stage) from None
+    try:
+        before = os.fstat(fd)
+        if not stat.S_ISREG(before.st_mode):
+            raise _StageFailure(stage)
+        total_read = 0
+
+        def chunks():
+            nonlocal total_read
+            while True:
+                chunk = os.read(fd, _LOG_HASH_CHUNK_BYTES)
+                if not chunk:
+                    return
+                total_read += len(chunk)
+                yield chunk
+
+        evidence = _scan_no_verdict_log_chunks(chunks())
+        after = os.fstat(fd)
+    except _StageFailure:
+        raise
+    except (OSError, TypeError, ValueError):
+        raise _StageFailure(stage) from None
+    finally:
+        os.close(fd)
+    if (
+        before.st_dev,
+        before.st_ino,
+        before.st_size,
+        before.st_mtime_ns,
+    ) != (
+        after.st_dev,
+        after.st_ino,
+        after.st_size,
+        after.st_mtime_ns,
+    ) or total_read != before.st_size:
+        raise _StageFailure(stage)
+    return evidence
+
+
 def _default_write_temp(content: bytes) -> Path:
     fd, raw_path = tempfile.mkstemp(prefix="dev-wave-wait-message-", suffix=".txt")
     path = Path(raw_path)
@@ -1125,6 +1393,11 @@ def _default_write_receipt_temp(final_path: Path, content: bytes) -> Path:
     return path
 
 
+def _default_archive_log(source: Path, destination: Path) -> None:
+    os.link(source, destination, follow_symlinks=False)
+    os.unlink(source)
+
+
 def _default_effects() -> _Effects:
     return _Effects(
         run=_default_run,
@@ -1150,6 +1423,9 @@ def _default_effects() -> _Effects:
         running_waiter_bytes_sha256=_default_running_waiter_bytes_sha256,
         tip_waiter_bytes_sha256=_default_tip_waiter_bytes_sha256,
         run_with_input=_default_run_with_input,
+        inspect_no_verdict_log=_default_inspect_no_verdict_log,
+        archive_log=_default_archive_log,
+        acceptance_monotonic=time.monotonic,
     )
 
 
@@ -1953,7 +2229,26 @@ def _red_gate_blob_sha(
     repo: Path,
     revision: str,
     stage: str,
+    *,
+    path: str,
+    require_blob: bool = False,
 ) -> str:
+    if require_blob:
+        object_type_raw = _red_gate_git(
+            effects,
+            repo,
+            b"",
+            stage,
+            "cat-file",
+            "-t",
+            f"{revision}:{path}",
+        )
+        try:
+            object_type = object_type_raw.decode("ascii").strip()
+        except UnicodeError:
+            raise _StageFailure(stage) from None
+        if object_type != "blob":
+            raise _StageFailure(stage)
     raw = _red_gate_git(
         effects,
         repo,
@@ -1961,7 +2256,7 @@ def _red_gate_blob_sha(
         stage,
         "rev-parse",
         "--verify",
-        f"{revision}:{_RED_CHECKER_PATH}",
+        f"{revision}:{path}",
     )
     try:
         value = raw.decode("ascii").strip()
@@ -1979,8 +2274,12 @@ def _verified_red_checker_source(
     tested_tip: str,
     stage: str,
 ) -> _RedCheckerBinding:
-    main_blob_sha = _red_gate_blob_sha(effects, repo, tested_main, stage)
-    tip_blob_sha = _red_gate_blob_sha(effects, repo, tested_tip, stage)
+    main_blob_sha = _red_gate_blob_sha(
+        effects, repo, tested_main, stage, path=_RED_CHECKER_PATH
+    )
+    tip_blob_sha = _red_gate_blob_sha(
+        effects, repo, tested_tip, stage, path=_RED_CHECKER_PATH
+    )
     if main_blob_sha != tip_blob_sha:
         raise _StageFailure(stage)
     source = _red_gate_git(
@@ -2011,6 +2310,33 @@ def _verified_red_checker_source(
     ):
         raise _StageFailure(stage)
     return _RedCheckerBinding(source=source, blob_sha=main_blob_sha)
+
+
+def _verify_runner_blob_identity(
+    effects: _Effects,
+    repo: Path,
+    tested_main: str,
+    tested_tip: str,
+    stage: str,
+) -> None:
+    main_blob_sha = _red_gate_blob_sha(
+        effects,
+        repo,
+        tested_main,
+        stage,
+        path=_RUNNER_PATH,
+        require_blob=True,
+    )
+    tip_blob_sha = _red_gate_blob_sha(
+        effects,
+        repo,
+        tested_tip,
+        stage,
+        path=_RUNNER_PATH,
+        require_blob=True,
+    )
+    if main_blob_sha != tip_blob_sha:
+        raise _StageFailure(stage)
 
 
 def _red_checker_argv(
@@ -2300,20 +2626,21 @@ def _wait_until_acquired(
     lease_dir: Path,
     wave: str,
     poll_seconds: int,
-    max_wait_seconds: int,
+    deadline: float,
     lifecycle: _AcceptanceLifecycle,
 ) -> tuple[float, _ClaimContext]:
-    started = effects.monotonic()
     while True:
         sha = _main_sha(effects, repo, "preclaim-rev-parse")
         claim_started_at = effects.monotonic()
+        if claim_started_at >= deadline:
+            raise _StageFailure("claim-timeout")
         claim = _claim_once(effects, repo, lease_dir, wave, sha, lifecycle)
         if claim.state in _ACCEPTED_CLAIM_STATES:
             lifecycle.acquired_at = claim_started_at
             return claim_started_at, claim
         if claim.state not in _POLLING_CLAIM_STATES:
             raise _StageFailure("claim-state")
-        if effects.monotonic() - started + poll_seconds > max_wait_seconds:
+        if effects.monotonic() + poll_seconds > deadline:
             raise _StageFailure("claim-timeout")
         effects.sleep(poll_seconds)
 
@@ -2590,10 +2917,33 @@ def _acceptance_receipt_bytes(
                 ),
             )
     elif verdict == "non-attributable-only":
-        if child_rc != 1 or red_check is None or not red_check.red_nodeids:
+        if (
+            child_rc != 1
+            or red_check is None
+            or not (red_check.red_nodeids or red_check.flake_nodeids)
+            or any(
+                not isinstance(nodeid, str) or not nodeid
+                for nodeid in (
+                    *red_check.red_nodeids,
+                    *red_check.flake_nodeids,
+                )
+            )
+            or list(red_check.red_nodeids)
+            != sorted(set(red_check.red_nodeids))
+            or list(red_check.flake_nodeids)
+            != sorted(set(red_check.flake_nodeids))
+            or not set(red_check.red_nodeids).isdisjoint(
+                red_check.flake_nodeids
+            )
+        ):
             red_check_present = red_check is not None if child_rc == 1 else None
             red_nodeid_count = (
                 len(red_check.red_nodeids)
+                if red_check_present is True
+                else None
+            )
+            flake_nodeid_count = (
+                len(red_check.flake_nodeids)
                 if red_check_present is True
                 else None
             )
@@ -2605,6 +2955,7 @@ def _acceptance_receipt_bytes(
                         "child_rc": child_rc,
                         "red_check_present": red_check_present,
                         "red_nodeid_count": red_nodeid_count,
+                        "flake_nodeid_count": flake_nodeid_count,
                     },
                 ),
             )
@@ -2640,6 +2991,9 @@ def _acceptance_receipt_bytes(
             None if red_check is None else red_check.checker_receipt_sha256
         ),
         "red_nodeids": [] if red_check is None else list(red_check.red_nodeids),
+        "flake_nodeids": (
+            [] if red_check is None else list(red_check.flake_nodeids)
+        ),
     }
     try:
         return (
@@ -2717,6 +3071,242 @@ def _inspect_acceptance_log(
     return value
 
 
+def _red_check_payload_nodeids(
+    receipt: object,
+    *,
+    tested_main: str,
+    tested_tip: str,
+    log_sha256: str,
+) -> tuple[tuple[str, ...], tuple[str, ...]]:
+    stage = "acceptance-red-check"
+    expected_fields = {
+        "collections", "log_path", "log_sha256", "nodes", "schema_version",
+        "status", "submodules", "tested_main", "wave_tip",
+    }
+    expected_collection_fields = {
+        "deleted_receipt_path", "path", "request_id", "source",
+        "stdout_sha256", "submission_nonce",
+    }
+    if not isinstance(receipt, dict):
+        raise _StageFailure(stage)
+    collections = receipt.get("collections")
+    nodes = receipt.get("nodes")
+    if not (
+        set(receipt) == expected_fields
+        and receipt.get("schema_version") == _RED_CHECK_SCHEMA_VERSION
+        and receipt.get("status") == "non-attributable-only"
+        and receipt.get("log_sha256") == log_sha256
+        and receipt.get("wave_tip") == tested_tip
+        and receipt.get("tested_main") == tested_main
+        and isinstance(collections, list)
+        and isinstance(nodes, list)
+        and nodes
+    ):
+        raise _StageFailure(stage)
+    for collection in collections:
+        if not (
+            isinstance(collection, dict)
+            and set(collection) == expected_collection_fields
+            and isinstance(collection.get("path"), str)
+            and isinstance(collection.get("source"), str)
+            and all(
+                collection.get(field) is None
+                or isinstance(collection.get(field), str)
+                for field in (
+                    "deleted_receipt_path",
+                    "request_id",
+                    "stdout_sha256",
+                    "submission_nonce",
+                )
+            )
+        ):
+            raise _StageFailure(stage)
+    red_nodeids: list[str] = []
+    flake_nodeids: list[str] = []
+    for node in nodes:
+        if not isinstance(node, dict):
+            raise _StageFailure(stage)
+        classification = node.get("classification")
+        nodeid = node.get("nodeid")
+        if not isinstance(nodeid, str) or not nodeid:
+            raise _StageFailure(stage)
+        if classification == "non-attributable":
+            if not (
+                set(node) == {"classification", "nodeid", "rerun_rc"}
+                and type(node.get("rerun_rc")) is int
+                and node["rerun_rc"] == 1
+            ):
+                raise _StageFailure(stage)
+            red_nodeids.append(nodeid)
+        elif classification == "flake":
+            if not (
+                set(node) == {
+                    "classification",
+                    "main_rerun_rc",
+                    "nodeid",
+                    "rerun_rc",
+                    "wave_rerun_rc",
+                }
+                and all(
+                    type(node.get(field)) is int and node[field] == 0
+                    for field in (
+                        "main_rerun_rc",
+                        "rerun_rc",
+                        "wave_rerun_rc",
+                    )
+                )
+            ):
+                raise _StageFailure(stage)
+            flake_nodeids.append(nodeid)
+        else:
+            raise _StageFailure(stage)
+    if (
+        red_nodeids != sorted(set(red_nodeids))
+        or flake_nodeids != sorted(set(flake_nodeids))
+        or not set(red_nodeids).isdisjoint(flake_nodeids)
+    ):
+        raise _StageFailure(stage)
+    return tuple(red_nodeids), tuple(flake_nodeids)
+def _inspect_no_verdict_log(
+    effects: _Effects,
+    path: Path,
+) -> _NoVerdictLogEvidence:
+    inspector = effects.inspect_no_verdict_log or _default_inspect_no_verdict_log
+    try:
+        value = inspector(path)
+    except _StageFailure:
+        raise
+    except (OSError, UnicodeError, TypeError, ValueError):
+        raise _StageFailure("acceptance-retry-evidence") from None
+    if not (
+        isinstance(value, _NoVerdictLogEvidence)
+        and re.fullmatch(r"[0-9a-f]{64}", value.log_sha256) is not None
+        and all(isinstance(item, bytes) for item in value.dispatch_payloads)
+        and type(value.relayed_dispatch_markers) is int
+        and 0 <= value.relayed_dispatch_markers <= 2
+        and type(value.pytest_verdict_traces) is int
+        and 0 <= value.pytest_verdict_traces <= 2
+        and type(value.absence_conclusive) is bool
+    ):
+        raise _StageFailure("acceptance-retry-evidence")
+    return value
+
+
+def _retry_archive_path(log_file: Path, attempt_no: int) -> Path:
+    return log_file.with_name(
+        f"{log_file.name}.attempt-{attempt_no:02d}.no-verdict"
+    )
+
+
+def _archive_retry_log(
+    effects: _Effects,
+    repo: Path,
+    log_file: Path,
+    attempt_no: int,
+) -> Path:
+    archive = _retry_archive_path(log_file, attempt_no)
+    try:
+        _external_new_file_preflight(
+            effects,
+            repo,
+            archive,
+            "acceptance-retry-log-archive",
+        )
+    except _StageFailure:
+        raise _StageFailure("acceptance-retry-log-archive") from None
+    archive_log = effects.archive_log or _default_archive_log
+    try:
+        archive_log(log_file, archive)
+    except (_SignalReceived, KeyboardInterrupt):
+        raise
+    except BaseException:
+        raise _StageFailure("acceptance-retry-log-archive") from None
+    try:
+        if _path_exists(effects, log_file) or not _path_exists(effects, archive):
+            raise _StageFailure("acceptance-retry-log-archive")
+    except _StageFailure:
+        raise
+    except (OSError, RuntimeError, UnicodeError, ValueError):
+        raise _StageFailure("acceptance-retry-log-archive") from None
+    return archive
+
+
+def _renew_retry_lease(
+    *,
+    effects: _Effects,
+    repo: Path,
+    lease_dir: Path,
+    wave: str,
+    active_lifecycle: _AcceptanceLifecycle,
+    claim_context: _ClaimContext,
+) -> None:
+    assert claim_context.holder is not None and claim_context.main_sha is not None
+    confirmation_lifecycle = _AcceptanceLifecycle()
+    try:
+        confirmed = _claim_once(
+            effects,
+            repo,
+            lease_dir,
+            wave,
+            claim_context.main_sha,
+            confirmation_lifecycle,
+            diagnostic_reason="acceptance-retry-renew",
+        )
+    except _StageFailure as exc:
+        if confirmation_lifecycle.ownership is _LeaseOwnership.ACQUIRED:
+            active_lifecycle.ownership = _LeaseOwnership.ACQUIRED
+        raise _StageFailure(
+            "acceptance-retry-renew",
+            source_rc=exc.outcome.source_rc,
+            detail=exc.outcome.detail,
+        ) from None
+    if confirmed.state == "acquired":
+        active_lifecycle.ownership = _LeaseOwnership.ACQUIRED
+    if not (
+        confirmed.state == "held-self"
+        and confirmed.holder == claim_context.holder
+        and confirmed.main_sha == claim_context.main_sha
+    ):
+        raise _StageFailure("acceptance-retry-renew")
+
+
+def _print_attempt_journal(
+    *,
+    attempt_no: int,
+    classification: str,
+    raw_child_rc: int | None,
+    normalized_child_rc: int | None,
+    archived_log_path: Path | None,
+    log_sha256: str | None,
+    claimed_main: str | None,
+    retry: bool,
+    reason: str,
+) -> None:
+    payload = {
+        "attempt": attempt_no,
+        "classification": classification,
+        "raw_child_rc": raw_child_rc,
+        "normalized_child_rc": normalized_child_rc,
+        "archived_log_path": (
+            None if archived_log_path is None else os.fspath(archived_log_path)
+        ),
+        "log_sha256": log_sha256,
+        "claimed_main": claimed_main,
+        "retry": retry,
+        "reason": reason,
+    }
+    print(
+        _ATTEMPT_JOURNAL_PREFIX
+        + json.dumps(
+            payload,
+            ensure_ascii=True,
+            separators=(",", ":"),
+            sort_keys=True,
+        ),
+        file=sys.stderr,
+    )
+
+
 def _verify_red_check_receipt(
     *,
     effects: _Effects,
@@ -2759,66 +3349,26 @@ def _verify_red_check_receipt(
         receipt = _parse_json_object(raw.decode("utf-8"), stage=stage)
     except UnicodeError:
         raise _StageFailure(stage) from None
-    expected_fields = {
-        "collections", "log_path", "log_sha256", "nodes", "schema_version",
-        "status", "submodules", "tested_main", "wave_tip",
-    }
-    expected_collection_fields = {
-        "deleted_receipt_path", "path", "request_id", "source",
-        "stdout_sha256", "submission_nonce",
-    }
-    collections = receipt.get("collections")
-    nodes = receipt.get("nodes")
-    if not (
-        set(receipt) == expected_fields
-        and receipt.get("schema_version") == _RED_CHECK_SCHEMA_VERSION
-        and receipt.get("status") == "non-attributable-only"
-        and receipt.get("log_sha256") == log_sha256
-        and receipt.get("wave_tip") == tested_tip
-        and receipt.get("tested_main") == tested_main
-        and isinstance(collections, list)
-        and isinstance(nodes, list)
-        and nodes
-    ):
-        raise _StageFailure(stage)
-    for collection in collections:
-        if not (
-            isinstance(collection, dict)
-            and set(collection) == expected_collection_fields
-            and isinstance(collection.get("path"), str)
-            and isinstance(collection.get("source"), str)
-            and all(
-                collection.get(field) is None
-                or isinstance(collection.get(field), str)
-                for field in (
-                    "deleted_receipt_path",
-                    "request_id",
-                    "stdout_sha256",
-                    "submission_nonce",
-                )
-            )
-        ):
-            raise _StageFailure(stage)
-    red_nodeids: list[str] = []
-    for node in nodes:
-        if not (
-            isinstance(node, dict)
-            and set(node) == {"classification", "nodeid", "rerun_rc"}
-            and node.get("classification") == "non-attributable"
-            and isinstance(node.get("nodeid"), str)
-            and node["nodeid"]
-            and type(node.get("rerun_rc")) is int
-        ):
-            raise _StageFailure(stage)
-        red_nodeids.append(node["nodeid"])
-    if red_nodeids != sorted(set(red_nodeids)):
-        raise _StageFailure(stage)
+    red_nodeids, flake_nodeids = _red_check_payload_nodeids(
+        receipt,
+        tested_main=tested_main,
+        tested_tip=tested_tip,
+        log_sha256=log_sha256,
+    )
+    _verify_runner_blob_identity(
+        effects,
+        repo,
+        tested_main,
+        tested_tip,
+        stage,
+    )
     return _RedCheckResult(
         checker_rc=checker_rc,
         checker_status="non-attributable-only",
         checker_blob_sha=binding.blob_sha,
         checker_receipt_sha256=hashlib.sha256(raw).hexdigest(),
-        red_nodeids=tuple(red_nodeids),
+        red_nodeids=red_nodeids,
+        flake_nodeids=flake_nodeids,
     )
 
 
@@ -2951,22 +3501,23 @@ def _publish_acceptance_receipt(
         ) from None
 
 
-def run_acceptance(
+def _run_acceptance_attempt(
     *,
+    attempt_no: int,
+    deadline: _AcceptanceDeadline,
     wave: str,
     lease_dir: Path,
     merge_message_file: Path | None,
     poll_seconds: int,
-    max_wait_seconds: int,
     command: Sequence[str],
     repo: Path,
     effects: _Effects,
     receipt_file: Path,
     log_file: Path,
-    lifecycle: _AcceptanceLifecycle | None = None,
+    lifecycle: _AcceptanceLifecycle,
     owned_paths: Sequence[Path] = (),
-) -> _Outcome:
-    active_lifecycle = lifecycle or _AcceptanceLifecycle()
+) -> _AcceptanceAttemptResult:
+    active_lifecycle = lifecycle
     primary = _Outcome(RC_FAIL_CLOSED, "internal")
     cleanup_failure: _Outcome | None = None
     validated_message: Path | None = None
@@ -2976,6 +3527,11 @@ def run_acceptance(
     resolved_log_file: Path | None = None
     checker_receipt: Path | None = None
     probe_root: Path | None = None
+    raw_child_rc: int | None = None
+    normalized_child_rc: int | None = None
+    log_sha256: str | None = None
+    retry_evidence_reason: str | None = None
+    classification = "internal"
     try:
         _identity_preflight(effects, repo, wave)
         _check_index_flags(effects, repo, "preflight-index-flags")
@@ -3025,15 +3581,35 @@ def run_acceptance(
                 "acceptance: --owned-path 未指定のため所有実装面 overlap 判定を省略します",
                 file=sys.stderr,
             )
-        _, claim_context = _wait_until_acquired(
+        absolute_deadline = deadline.get(effects)
+        # 期限値そのものは run_acceptance 入口で固定済みであり、この
+        # attempt 境界の再確認で延長しない。
+        preclaim_checked_at = effects.monotonic()
+        if attempt_no > 1 and preclaim_checked_at >= absolute_deadline:
+            raise _StageFailure("claim-timeout")
+        preserving_owned_lease = (
+            active_lifecycle.ownership is _LeaseOwnership.ACQUIRED
+        )
+        claim_lifecycle = (
+            _AcceptanceLifecycle()
+            if preserving_owned_lease
+            else active_lifecycle
+        )
+        claim_started_at, claim_context = _wait_until_acquired(
             effects,
             repo,
             lease_dir,
             wave,
             poll_seconds,
-            max_wait_seconds,
-            active_lifecycle,
+            absolute_deadline,
+            claim_lifecycle,
         )
+        if preserving_owned_lease:
+            if claim_lifecycle.ownership is _LeaseOwnership.ACQUIRED:
+                active_lifecycle.ownership = _LeaseOwnership.ACQUIRED
+            if claim_context.state != "held-self":
+                raise _StageFailure("claim-state")
+            active_lifecycle.acquired_at = claim_started_at
         _main_sha(effects, repo, "postclaim-rev-parse")
         behind = _behind_count(effects, repo, "behind-count")
         if behind > 0:
@@ -3126,6 +3702,11 @@ def run_acceptance(
             repo,
             prerun_fingerprint.head_sha,
         )
+        if (
+            attempt_no > 1
+            and effects.monotonic() >= deadline.get(effects)
+        ):
+            raise _StageFailure("acceptance-command-deadline")
         print(
             "acceptance-command argv=" + json.dumps(list(command), ensure_ascii=True),
             file=sys.stderr,
@@ -3141,7 +3722,8 @@ def run_acceptance(
             child = run_logged(tuple(command), repo, resolved_log_file)
         except (OSError, UnicodeError, subprocess.SubprocessError):
             raise _StageFailure("acceptance-command") from None
-        child_rc = _normalize_child_rc(child.returncode)
+        raw_child_rc = child.returncode
+        normalized_child_rc = _normalize_child_rc(child.returncode)
         postrun_status = _run_capture(
             effects,
             _CLEAN_STATUS_ARGV,
@@ -3164,7 +3746,15 @@ def run_acceptance(
         )
         if postrun_fingerprint != prerun_fingerprint:
             raise _StageFailure("postrun-fingerprint")
-        if child_rc not in (0, 1):
+        if normalized_child_rc not in (0, 1):
+            evidence = _inspect_no_verdict_log(effects, resolved_log_file)
+            log_sha256 = evidence.log_sha256
+            retry_evidence_reason = _retry_evidence_reason(evidence)
+            classification = (
+                "no-verdict-infra"
+                if retry_evidence_reason == "retryable-no-verdict-infra"
+                else "acceptance-command"
+            )
             raise _StageFailure(
                 "acceptance-command",
                 source_rc=child.returncode,
@@ -3176,7 +3766,7 @@ def run_acceptance(
         assert claim_context is not None and claim_context.holder is not None
         red_check: _RedCheckResult | None = None
         verdict = "child-green"
-        if child_rc == 1:
+        if normalized_child_rc == 1:
             assert checker_receipt is not None and probe_root is not None
             red_check = _verify_red_check_receipt(
                 effects=effects,
@@ -3208,7 +3798,7 @@ def run_acceptance(
             post_fingerprint=postrun_fingerprint,
             waiter_blob_sha=waiter_blob_sha,
             environment=acceptance_environment,
-            child_rc=child_rc,
+            child_rc=normalized_child_rc,
             verdict=verdict,
             log_sha256=log_sha256,
             effective_scheduler=effective_scheduler,
@@ -3337,23 +3927,32 @@ def run_acceptance(
         )
         print("known limitation: no fencing token is provided")
         primary = _Outcome(RC_OK)
+        classification = verdict
     except _StageFailure as exc:
         primary = exc.outcome
+        if classification == "internal":
+            classification = primary.stage or "unknown"
     except KeyboardInterrupt:
         if active_lifecycle.receipt_published:
             primary = _Outcome(RC_OK)
+            classification = "receipt-published"
         else:
             primary = _Outcome(RC_INTERRUPTED, "keyboard-interrupt")
+            classification = "keyboard-interrupt"
     except _SignalReceived as exc:
         if active_lifecycle.receipt_published:
             primary = _Outcome(RC_OK)
+            classification = "receipt-published"
         else:
             primary = _Outcome(128 + exc.signum, f"signal-{exc.signum}")
+            classification = f"signal-{exc.signum}"
     except BaseException:
         if active_lifecycle.receipt_published:
             primary = _Outcome(RC_OK)
+            classification = "receipt-published"
         else:
             primary = _Outcome(RC_FAIL_CLOSED, "unexpected-error")
+            classification = "unexpected-error"
     finally:
         if receipt_temp is not None:
             try:
@@ -3365,13 +3964,82 @@ def run_acceptance(
                 effects.unlink(validated_message)
             except OSError:
                 pass
-        cleanup_failure = _cleanup_lifecycle(
-            active_lifecycle,
-            effects,
-            repo,
-            lease_dir,
-            wave,
+    retry = False
+    if retry_evidence_reason is not None:
+        retry_reason = retry_evidence_reason
+    elif normalized_child_rc in (0, 1):
+        retry_reason = "child-verdict"
+    else:
+        retry_reason = f"terminal-{classification}"
+    archived_log_path: Path | None = None
+    if retry_evidence_reason == "retryable-no-verdict-infra":
+        if active_lifecycle.ownership is not _LeaseOwnership.ACQUIRED:
+            retry_reason = "ownership-not-acquired"
+        elif active_lifecycle.cleanup_failure is not None:
+            retry_reason = "cleanup-failure"
+        elif attempt_no >= _MAX_ACCEPTANCE_ATTEMPTS:
+            retry_reason = "attempt-limit"
+        elif effects.monotonic() >= deadline.get(effects):
+            retry_reason = "shared-deadline"
+        else:
+            try:
+                assert claim_context is not None
+                _renew_retry_lease(
+                    effects=effects,
+                    repo=repo,
+                    lease_dir=lease_dir,
+                    wave=wave,
+                    active_lifecycle=active_lifecycle,
+                    claim_context=claim_context,
+                )
+                archived_log_path = _archive_retry_log(
+                    effects,
+                    repo,
+                    log_file,
+                    attempt_no,
+                )
+            except _StageFailure as exc:
+                primary = exc.outcome
+                classification = exc.outcome.stage or "unknown"
+                retry_reason = classification
+            except KeyboardInterrupt:
+                primary = _Outcome(RC_INTERRUPTED, "keyboard-interrupt")
+                classification = "keyboard-interrupt"
+                retry_reason = classification
+            except _SignalReceived as exc:
+                primary = _Outcome(128 + exc.signum, f"signal-{exc.signum}")
+                classification = f"signal-{exc.signum}"
+                retry_reason = classification
+            except BaseException:
+                primary = _Outcome(RC_FAIL_CLOSED, "unexpected-error")
+                classification = "unexpected-error"
+                retry_reason = classification
+            else:
+                retry = True
+                retry_reason = "retryable-no-verdict-infra"
+
+    if retry:
+        _print_attempt_journal(
+            attempt_no=attempt_no,
+            classification=classification,
+            raw_child_rc=raw_child_rc,
+            normalized_child_rc=normalized_child_rc,
+            archived_log_path=archived_log_path,
+            log_sha256=log_sha256,
+            claimed_main=(
+                None if claim_context is None else claim_context.main_sha
+            ),
+            retry=True,
+            reason=retry_reason,
         )
+        return _AcceptanceAttemptResult(primary, True)
+    cleanup_failure = _cleanup_lifecycle(
+        active_lifecycle,
+        effects,
+        repo,
+        lease_dir,
+        wave,
+    )
     if cleanup_failure is not None:
         cleanup_failure = _Outcome(
             cleanup_failure.rc,
@@ -3388,7 +4056,66 @@ def run_acceptance(
                 },
             ),
         )
-    return cleanup_failure if cleanup_failure is not None else primary
+        classification = cleanup_failure.stage or "cleanup-failure"
+        retry_reason = "cleanup-failure"
+    _print_attempt_journal(
+        attempt_no=attempt_no,
+        classification=classification,
+        raw_child_rc=raw_child_rc,
+        normalized_child_rc=normalized_child_rc,
+        archived_log_path=archived_log_path,
+        log_sha256=log_sha256,
+        claimed_main=(None if claim_context is None else claim_context.main_sha),
+        retry=False,
+        reason=retry_reason,
+    )
+    return _AcceptanceAttemptResult(
+        cleanup_failure if cleanup_failure is not None else primary,
+        False,
+    )
+
+
+def run_acceptance(
+    *,
+    wave: str,
+    lease_dir: Path,
+    merge_message_file: Path | None,
+    poll_seconds: int,
+    max_wait_seconds: int,
+    command: Sequence[str],
+    repo: Path,
+    effects: _Effects,
+    receipt_file: Path,
+    log_file: Path,
+    lifecycle: _AcceptanceLifecycle | None = None,
+    owned_paths: Sequence[Path] = (),
+) -> _Outcome:
+    active_lifecycle = lifecycle or _AcceptanceLifecycle()
+    deadline = _AcceptanceDeadline(max_wait_seconds)
+    # preflight の所要で attempt ごとの待ち上限へ作り直されないよう、
+    # invocation 入口で共有 deadline を確定する。
+    deadline.start(effects)
+    last = _Outcome(RC_FAIL_CLOSED, "internal")
+    for attempt_no in range(1, _MAX_ACCEPTANCE_ATTEMPTS + 1):
+        attempt = _run_acceptance_attempt(
+            attempt_no=attempt_no,
+            deadline=deadline,
+            wave=wave,
+            lease_dir=lease_dir,
+            merge_message_file=merge_message_file,
+            poll_seconds=poll_seconds,
+            command=command,
+            repo=repo,
+            effects=effects,
+            receipt_file=receipt_file,
+            log_file=log_file,
+            lifecycle=active_lifecycle,
+            owned_paths=owned_paths,
+        )
+        last = attempt.outcome
+        if not attempt.retry:
+            return last
+    return last
 
 
 def _lease_dir(argument: Path | None, effects: _Effects) -> Path:
