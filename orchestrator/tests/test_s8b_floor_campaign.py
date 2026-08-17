@@ -1260,7 +1260,45 @@ def _clone_committed_head_with_ccbench(
         cwd=cloned_submodule, check=True,
         stdout=subprocess.PIPE, stderr=subprocess.PIPE,
     )
+    subprocess.run(
+        ["git", "add", "--", "external/ccbench"],
+        cwd=destination, check=True,
+        stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+    )
+    subprocess.run(
+        [
+            "git", "-c", "user.name=Izanagi Test",
+            "-c", "user.email=izanagi-test@example.invalid",
+            "commit", "--quiet", "-m", "test: restore historical ccbench gitlink",
+        ],
+        cwd=destination, check=True,
+        stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+    )
     return destination
+
+
+def _remove_post_seal_floor_protocols_from_replay(
+        clone_root: Path, relative_paths: tuple[str, ...]) -> None:
+    """seal 後に発行された protocol だけを replay clone の履歴から外す。"""
+    assert relative_paths
+    assert all(
+        relative.startswith(s8b_floor_campaign._FLOOR_PROTOCOLS_REL + "/")
+        for relative in relative_paths
+    )
+    subprocess.run(
+        ["git", "rm", "--quiet", "--", *relative_paths],
+        cwd=clone_root, check=True,
+        stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+    )
+    subprocess.run(
+        [
+            "git", "-c", "user.name=Izanagi Test",
+            "-c", "user.email=izanagi-test@example.invalid",
+            "commit", "--quiet", "-m", "test: restore historical protocol namespace",
+        ],
+        cwd=clone_root, check=True,
+        stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+    )
 
 
 def _bytes_snapshot(root: Path, relative_paths) -> tuple:
@@ -7099,7 +7137,38 @@ def test_real_seal_protocol_to_floor_official_core_e2e(tmp_path, monkeypatch):
                 assert not left.is_relative_to(right)
 
     source_head = _git_stdout(ROOT, "rev-parse", "HEAD").strip()
-    assert _git_stdout(clone_root, "rev-parse", "HEAD").strip() == source_head
+    assert _git_stdout(clone_root, "rev-parse", "HEAD^").strip() == source_head
+    assert _git_stdout(
+        clone_root, "diff-tree", "--no-commit-id", "--name-only", "-r", "HEAD",
+    ).splitlines() == ["external/ccbench"]
+    seal_protocol_paths = set(_git_stdout(
+        clone_root, "ls-tree", "-r", "--name-only", seal_commit, "--",
+        s8b_floor_campaign._FLOOR_PROTOCOLS_REL,
+    ).splitlines())
+    current_protocol_paths = set(_git_stdout(
+        clone_root, "ls-tree", "-r", "--name-only", "HEAD", "--",
+        s8b_floor_campaign._FLOOR_PROTOCOLS_REL,
+    ).splitlines())
+    post_seal_protocol_paths = tuple(sorted(
+        current_protocol_paths - seal_protocol_paths
+    ))
+    assert seal_protocol_paths - current_protocol_paths == set()
+    assert post_seal_protocol_paths == (
+        f"{s8b_floor_campaign._FLOOR_PROTOCOLS_REL}/{contract_sha256}--"
+        "511c9538e4e8efa54b45cda62e72389ed3b706ec.json",
+    )
+    replay_parent = _git_stdout(clone_root, "rev-parse", "HEAD").strip()
+    _remove_post_seal_floor_protocols_from_replay(
+        clone_root, post_seal_protocol_paths,
+    )
+    assert _git_stdout(clone_root, "rev-parse", "HEAD^").strip() == replay_parent
+    assert [
+        tuple(line.split("\t", 1))
+        for line in _git_stdout(
+            clone_root, "diff-tree", "--no-commit-id", "--name-status", "-r", "HEAD",
+        ).splitlines()
+    ] == [("D", post_seal_protocol_paths[0])]
+    assert not (clone_root / post_seal_protocol_paths[0]).exists()
     assert _git_stdout(clone_root, "rev-parse", "--is-shallow-repository").strip() == "false"
     subprocess.run(
         ["git", "merge-base", "--is-ancestor", seal_commit, "HEAD"],
@@ -7124,8 +7193,7 @@ def test_real_seal_protocol_to_floor_official_core_e2e(tmp_path, monkeypatch):
         "s8b-floor.sealed-protocol-ccbench-pin-current-head"
     )
     with mock.patch.object(s8b_floor_campaign._freeze_hold, "HELD", False):
-        with pytest.raises(AssertionError):
-            verify_sealed_gitlink_identity()
+        assert verify_sealed_gitlink_identity() is None
     assert _git_stdout(
         clone_root / "external" / "ccbench", "rev-parse", "HEAD",
     ).strip() == ccbench_pin
