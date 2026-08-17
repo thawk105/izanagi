@@ -1143,6 +1143,8 @@
   walltime 2400s + grace 300s を含みうる)、(iii)「active fold recovery は新規 commit を 1 つも
   admit しない」という**偽の署名**を書く、の 3 点で誤っていた。逐語は
   `output/insights/2026-08-09_t139-f37-land-gate/`。
+
+- **再発: 2026-08-17** — 親が焦点走を `run_tests.py ... -q 2>&1 | tail -15` で投げ、報告された exit code 0 が `tail` のものだった。dispatch epilogue しか残らず pytest の集計行が切り落とされていたため偽緑には至っていない (near miss、2026-08-04 と同型で 3 例目)。パイプを外し出力を file へ落として rc を別 file へ取る形へ組み直したところ、真の rc=0 と 651 passed / 3 skipped を確認できた。恒久対応は F37 既存のとおり変わらない。
 ### F38. 記録後検査の値を埋める amend で、worklog 内の記録 commit hash が dangling になった [ドリフト] [手順漏れ]
 
 - 事象: `DW-S07` の F34 恒久対応 (記録 commit の後に再走) と F36 恒久対応 (実測前に欄を作らない) を
