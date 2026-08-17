@@ -43,10 +43,11 @@ official core は ``build_fn`` 注入を副作用前に拒否し、admission-awa
 だけを materializer として使う。pilot、resume、または非既定 seam を使った artifact は
 ``eligible_for_refreeze: false`` とし、fresh official の既定実引数だけを true にできる。
 
-既知限界: ``eligible_for_refreeze`` は durable receipt chain ではない。同一 interpreter 内の
-module 属性差し替えは任意コード実行と同値であり、この argument 境界はその攻撃への耐性を
-主張しない。binary 側は発行時に検証した admission を store、resume、floor 実測直前まで
-連続束縛するが、gateway 発行の証明や暗号学的保証ではない。
+既知限界: durable 側が保証するのは、測定前に create-only で共有 store へ置く事前 commitment、
+生成後 artifact の書換と resume 後の basis 付替えの検出、台帳と artifact が食い違うときの
+下流拒否である。同一 interpreter 内の code substitution は任意コード実行と同値であり、
+この argument 境界はその攻撃への耐性を主張しない。artifact 単体の offline 検証も行わず、
+gateway 発行の証明や暗号学的保証でもない。
 """
 from __future__ import annotations
 
@@ -5256,7 +5257,10 @@ def _render_result_md(result: Mapping) -> str:
     lines.append("> floor **案** (何も発効させていない)。freeze への floor 書込みは親が行う。")
     lines.append("> 単一 campaign 内 session dispersion に基づく記述的下限 "
                  "(別 run 間の変動は含まない)。")
-    lines.append(f"> eligible_for_refreeze: {result['eligible_for_refreeze']}")
+    lines.append(
+        f"> eligible_for_refreeze (producer-reported): "
+        f"{result['eligible_for_refreeze']}"
+    )
     lines.append("")
     lines.append(f"- formula: `{result['formula']}`")
     lines.append(f"- ccbench_pin: `{result['ccbench_pin']}`")
@@ -5454,7 +5458,7 @@ def _nondefault_campaign_seams(
         _holdout_repo_root=None, _holdout_signature_source=None,
 ) -> frozenset[str]:
     """Raw campaign 実引数から refreeze 不適格 seam 名を単一源で分類する。"""
-    return frozenset(name for name, present in {
+    seam_presence = {
         "measure_fn": measure_fn is not None,
         "probe_fn": probe_fn is not None,
         "sleep_fn": sleep_fn is not _DEFAULT_SLEEP_FN,
@@ -5472,7 +5476,10 @@ def _nondefault_campaign_seams(
         "perf_preflight_fn": perf_preflight_fn is not None,
         "_holdout_repo_root": _holdout_repo_root is not None,
         "_holdout_signature_source": _holdout_signature_source is not None,
-    }.items() if present)
+    }
+    if set(seam_presence) != _floor_contract.REFREEZE_DISQUALIFYING_SEAM_NAMES:
+        raise AssertionError("refreeze seam classifier differs from its closed set")
+    return frozenset(name for name, present in seam_presence.items() if present)
 
 
 def _derive_refreeze_eligibility(
@@ -6099,6 +6106,18 @@ def _run_campaign_core(protocol, freeze_doc, *, out_root, mode, resume_dir=None,
         _transition_pre_measure_journal_to_v3(
             journal_path, resume_records, write_capability=run_write_capability,
         )
+        try:
+            _holdout_admission._record_floor_resume_disqualification(
+                repo_root=holdout_repo_root,
+                campaign_run_id=campaign_run_id,
+                run_relpath=run_relpath,
+                protocol_sha256=protocol_sha256,
+                freeze_sha256=freeze_sha256,
+            )
+        except _holdout_admission.HoldoutAdmissionError as exc:
+            raise FloorCampaignError(
+                f"resume disqualification marker failed: {exc}"
+            ) from exc
 
     if resume_state == "M-finalize-pending":
         try:
@@ -6196,6 +6215,7 @@ def _run_campaign_core(protocol, freeze_doc, *, out_root, mode, resume_dir=None,
                 campaign_run_id=campaign_run_id, out_root=out_root,
                 run_dir=run_dir, run_relpath=run_relpath, mode=mode,
                 resume=resume_dir is not None,
+                nondefault_seams=sorted(nondefault_seams),
                 irreversible_pilot_approved=confirm_irreversible_pilot_holdout,
                 _neutral_holdouts=_holdout_signature_source,
             )

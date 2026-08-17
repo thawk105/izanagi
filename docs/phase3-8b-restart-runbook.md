@@ -246,8 +246,10 @@ official mode の guard は変更していない (受理集合は空のまま)�
   各 hash を残す。run directory / content-addressed の binary store
   (`output/env/<env>/binaries/<sha>`。manifest と result はここを `store_path` で参照する) /
   submission receipt / job staging。**run directory だけを残すと参照が dangling になる。**
-- **途中で死んだら救出しない。** wrapper は `--resume` を渡さず、reservation 再検査は余裕不足を
-  `reservation-lost` terminal として numeric values を不適格にする。**新規 job で最初から再実行する。**
+- **途中で死んだときの扱いは crash 点で分かれる。** wrapper は `--resume` を渡さず、
+  reservation 再検査は余裕不足を `reservation-lost` terminal として numeric values を
+  不適格にする。**「新規 job で最初から再実行する」が通るのは claim 発行前に死んだ場合だけである**
+  — それ以外では admission 台帳の一回性 key が新規 job を拒否する。判定と各点の可否は §3.6 に従う。
 - 完了後、記録された `cmake.path` を期待値と照合する。**cmake は version body だけが照合対象で
   realpath は束縛されていない**ため、実体同一性は gate では証明されない
   (§5 R-4 の「束縛していない量」に既記)。
@@ -277,6 +279,50 @@ official mode の guard は変更していない (受理集合は空のまま)�
 - `gate-check` が `allowed: true` を返すことを確認してから `run-block` を block 単位で回す
 - rc の意味: 0 = completed、1 = internal-error、2 = gate-refused / budget-refused、
   3 = protocol_violation
+
+### 3.6 crash 後の復帰可否 — crash 点で分かれる ([T-1179])
+
+床値 campaign が途中で死んだとき、復帰できるかは **どこで死んだか**で決まる。
+`docs/archive/worklog-phase3-0816-595-596.md` の `[T-1179]` 裁定 (2) は
+「crash 時の freeze / admission 再生成を必須」と定めたが、**その再生成を実行可能にする経路は
+現行 HEAD に存在しない** (下記「再生成が塞がっている理由」)。したがって本節は、
+今日できることとできないことを分けて書く。**架空の復帰コマンドを書いてはならない。**
+
+#### 判定手順 (実在 artifact だけで決める)
+
+共有 admission root を `R` とする (`s8b_holdout_admission.shared_admission_root`)。
+run directory を `D` とする。次を上から順に見る。
+
+1. `R/claims/` に当該 key の claim が 1 件も無い → **claim 発行前**
+2. claim が 1 件以上あるが cell 数に足りない → **部分発行**
+3. claim が cell 数だけ揃い、`D/journal.jsonl` に `session-start` / `session` が無い →
+   **claim 全件・観測前**
+4. `session-start` / `session` はあるが `terminal` が無い → **観測開始後**
+5. `terminal` はあるが `D/result.json` が無い → **terminal 後・公開前**
+6. `D/result.json` はあるが `D/result.md` が無い、または逆 → **M-finalize-pending**
+
+#### 各点の可否
+
+| crash 点 | 今日の可否 | 根拠 |
+|---|---|---|
+| 1. claim 発行前 | **fresh 再投入できる** | claim path が未作成なので排他作成が衝突しない。未完 output を隔離し clean な作業木から投入する |
+| 2. 部分発行 | resume で残りを補完できる。**ただし公開はできない** | resume は既存 claim を不変に保ち残りを同じ schema で補完するが、run 全体に resume marker が立つため再凍結不適格になる |
+| 3. claim 全件・観測前 | 同上 | 同上 |
+| 4. 観測開始後 | 同上。**かつ再抽選バイアスの問題が立つ** | 同じ holdout を観測後に測り直す形になる。§5 の裁定待ち項目 |
+| 5. terminal 後・公開前 | **admission の再発行が拒否される** | 完了/terminal 済み run は admission を再発行できない |
+| 6. M-finalize-pending | **完了できない** | resume は再凍結不適格として result を再構成するため、公開前の staged bytes と一致せず停止する。この挙動は現行 main の検査が固定している |
+
+#### 再生成が塞がっている理由
+
+admission key は freeze の hash・holdout key・configuration・ccbench pin・env tag・観測 role の
+6 要素だけで決まる。このうち実質的に動かせるのは freeze の hash だけだが、official 床値では
+その hash が固定 v1 に pin されており (`t080_freeze_migration` の raw hash)、下流の
+再凍結側もその固定値と一致することを要求する。
+pin を外せる v2 freeze の生成器は**入力に完成済みの official 床値 result を要求する**ため、
+result を出す前に死んだ campaign の復帰には使えない。
+
+したがって **1 回目の official 床値 campaign が crash 点 2〜6 で死ぬと、その protocol と env の
+組では以後 official 床値を出せない。** これは既知の袋小路であり、解消には §5 の裁定が要る。
 
 ---
 
@@ -323,6 +369,16 @@ official mode の guard は変更していない (受理集合は空のまま)�
   赤を返す。(a) CLI を受領証参照へ寄せる / (b) supersede を明記して手順から外す / (c) 現状維持
 - **R-3 (欠けている producer):** W-3 (freeze v2 生成側) と W-4 (oracle manifest 配線) を
   1 wave にまとめるか分けるか
+- **R-5 (crash 復帰の再生成、§3.6、[T-1179] 2026-08-17 追加):** 裁定 (2) は
+  「crash 時の freeze / admission 再生成を必須」と定めたが、それを実行可能にする手段が無い。
+  択一は 3 つで、いずれも既存の不変条件のどれかに触るため親は裁定しない。
+  (a) 復帰用 generation で admission key を salt する。観測後の再抽選を防ぐため
+  「session-start 0 件・consumed marker 0 件・attempt row 0 件」に限定する。
+  この制約下でも、形式的には今日拒否される run を受理するので受理集合は広がる。
+  (b) 新しい未知 holdout freeze を引き直す。本来の意味の「freeze 再生成」だが、
+  固定 v1 pin から trust root を外す必要がある。
+  (c) 現状維持。crash した official campaign はその protocol / env で terminal と扱う。
+  裁定 (2) の「再生成を必須」は満たせないので、裁定 (2) 自体の再裁定になる
 - **R-4 (toolchain 前提、§1.2):** Pegasus に `g++-13` が無く床値 driver は固定要求する。
   (a) env contract へ toolchain を束縛する field を足し、Pegasus 世代は system compiler を
   実体・版数つきで焼き込む / (b) Pegasus に `gcc-13`/`g++-13` を用意できるか先に調べる /

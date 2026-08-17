@@ -825,6 +825,23 @@ def test_reverify_rejects_admission_claim_content_mismatch(tmp_path):
     assert caught.value.cause == "claim-file-mismatch"
 
 
+def test_reverify_rejects_reported_true_when_live_basis_is_disqualified(tmp_path):
+    root, freeze, _ = _build_independent_launch_repo(tmp_path)
+    claims = sorted(
+        (root / ".git/izanagi/s8b-holdout-admission-v1/claims").glob("*.claim")
+    )
+    assert claims
+    for path in claims:
+        claim = json.loads(path.read_bytes())
+        claim["nondefault_seams"] = ["build_fn"]
+        path.write_bytes(M._canonical_bytes(claim) + b"\n")
+
+    with pytest.raises(M.RatifiedFreezeError) as caught:
+        M.launch_validate(freeze, root)
+    assert caught.value.reason == "floor-admission-mismatch"
+    assert caught.value.cause == "refreeze-eligibility-mismatch"
+
+
 def test_public_reverify_accepts_recorded_g1_under_g2_current_while_live_refuses(
         tmp_path):
     """read-only public 入口だけが記録 g1 を解決し、live admission は current g2 に留まる。"""

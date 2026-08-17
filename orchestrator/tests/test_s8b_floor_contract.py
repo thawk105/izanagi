@@ -125,6 +125,18 @@ def test_floor_campaign_directly_reexports_shared_leaf_objects():
     )
 
 
+def test_refreeze_disqualifying_seam_closed_set_is_exact():
+    assert s8b_floor_contract.REFREEZE_DISQUALIFYING_SEAM_NAMES == frozenset({
+        "measure_fn", "probe_fn", "sleep_fn", "monotonic_fn", "prepare_fn",
+        "now_fn", "host_provenance_fn", "process_identity_fn",
+        "execution_receipt_fn", "build_fn", "repo_root",
+        "after_certificate_issued_fn", "durable_root_policy",
+        "_floor_preflight_fn", "perf_preflight_fn", "_holdout_repo_root",
+        "_holdout_signature_source",
+    })
+    assert len(s8b_floor_contract.REFREEZE_DISQUALIFYING_SEAM_NAMES) == 17
+
+
 def test_leaf_full_validator_normalizes_18_keys_and_projects_exact_7_scalars():
     normalized = s8b_floor_contract.validate_protocol(
         _protocol(), contract_sha256_lookup=_lookup_contract_sha256,

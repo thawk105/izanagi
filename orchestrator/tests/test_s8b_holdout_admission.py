@@ -14,6 +14,7 @@ import pytest
 
 from orchestrator.campaign import s8b_floor_campaign
 from orchestrator.campaign import s8b_floor_contract
+from orchestrator.campaign import s8b_floor_stats
 from orchestrator.campaign import s8b_holdout_admission as admission
 from orchestrator.calibrator import runner as calibrator_runner
 from orchestrator.holdout_observation import (
@@ -147,7 +148,7 @@ def _reserve(
         root: Path, protocol: dict, freeze: dict, *, run_id: str,
         resume: bool = False, journal_exists: bool = False,
         resolver_record=None, resolver_side_effect=None,
-        use_real_resolver: bool = False):
+        use_real_resolver: bool = False, nondefault_seams=None):
     cells, schedule = _cells_and_schedule(protocol, freeze)
     out_root = root / "out"
     run_relpath = (
@@ -189,7 +190,11 @@ def _reserve(
             freeze_sha256=protocol["freeze"]["sha256"],
             cells=cells, schedule=schedule, campaign_run_id=run_id,
             out_root=out_root, run_dir=run_dir, run_relpath=run_relpath,
-            mode="pilot", resume=resume, irreversible_pilot_approved=True,
+            mode="pilot", resume=resume,
+            nondefault_seams=(
+                [] if nondefault_seams is None else nondefault_seams
+            ),
+            irreversible_pilot_approved=True,
         )
 
 
@@ -214,6 +219,7 @@ def test_shared_root_is_identical_across_two_worktrees_and_provisions_parents(tm
     assert first.is_dir()
     assert (first / "claims").is_dir()
     assert (first / "consumed").is_dir()
+    assert (first / "refreeze-disqualifications").is_dir()
     assert (first / "ledger.lock").is_file()
 
 
@@ -250,6 +256,11 @@ def test_admission_rows_use_effect_key_and_issue_frozen_attempt_count(tmp_path):
     ]
     assert len(claims) == 12
     assert all(set(claim["key"]) == effect_key for claim in claims)
+    assert {claim["schema_version"] for claim in claims} == {
+        "s8b-holdout-cell-claim/v2"
+    }
+    assert {claim["entry_kind"] for claim in claims} == {"fresh"}
+    assert {tuple(claim["nondefault_seams"]) for claim in claims} == {()}
     for row in rows:
         assert row["attempt_count"] == 10
         assert len(row["attempt_ids"]) == 10
@@ -299,6 +310,36 @@ def test_observation_role_is_closed_and_separates_two_authorized_producers():
         admission._key_fields(  # noqa: SLF001 - unknown role must fail closed
             **common, observation_role="caller_selected_role",
         )
+
+
+def test_oracle_and_n_pilot_claim_producers_remain_explicitly_v1():
+    for producer in (
+        admission.reserve_oracle_holdout_observations,
+        admission.reserve_n_pilot_holdout_observations,
+    ):
+        source = inspect.getsource(producer)
+        assert '"schema_version": _CLAIM_SCHEMA_V1' in source
+        assert '"schema_version": _CLAIM_SCHEMA,' not in source
+
+
+@pytest.mark.parametrize(
+    "seams,match",
+    [
+        (["not-a-seam"], "unknown names"),
+        (["build_fn", "build_fn"], "duplicates"),
+        (["probe_fn", "measure_fn"], "canonical order"),
+    ],
+)
+def test_reservation_rejects_invalid_seam_list_before_shared_ledger_write(
+    tmp_path, seams, match,
+):
+    root, protocol, freeze = _init_repo(tmp_path)
+    with pytest.raises(admission.HoldoutAdmissionError, match=match):
+        _reserve(
+            root, protocol, freeze, run_id="invalid-seams",
+            nondefault_seams=seams,
+        )
+    assert not admission.shared_admission_root(root).exists()
 
 
 def _n_pilot_fixture(protocol: dict, freeze: dict):
@@ -462,7 +503,8 @@ def test_pilot_claim_requires_irreversible_approval_before_claim(tmp_path):
             freeze_sha256=protocol["freeze"]["sha256"],
             cells=cells, schedule=schedule, campaign_run_id=run_id,
             out_root=out_root, run_dir=run_dir, run_relpath=run_relpath,
-            mode="pilot", resume=False, irreversible_pilot_approved=False,
+            mode="pilot", resume=False, nondefault_seams=[],
+            irreversible_pilot_approved=False,
         )
     shared = admission.shared_admission_root(root)
     assert not shared.exists()
@@ -531,6 +573,96 @@ def test_resume_api_has_no_caller_journal_or_manifest_self_report():
     assert "journal_exists" not in reserve_parameters
     assert "measurement_started" not in reserve_parameters
     assert "manifest_sha256" not in finalize_parameters
+
+
+@pytest.mark.parametrize(
+    "claims_to_keep,expected_entry_kinds",
+    [
+        (0, {"resume"}),
+        (1, {"fresh", "resume"}),
+        (12, {"fresh"}),
+    ],
+    ids=["zero-claims", "one-claim", "all-claims"],
+)
+def test_resume_claim_transition_table_is_run_wide_and_marker_guarded(
+    tmp_path, claims_to_keep, expected_entry_kinds,
+):
+    root, protocol, freeze = _init_repo(tmp_path)
+    _reserve(root, protocol, freeze, run_id="crash-point")
+    shared = admission.shared_admission_root(root)
+    claim_paths = sorted((shared / "claims").iterdir())
+    assert len(claim_paths) == 12
+    for path in claim_paths[claims_to_keep:]:
+        path.unlink()
+
+    _reserve(
+        root, protocol, freeze, run_id="crash-point",
+        resume=True, journal_exists=True,
+    )
+
+    claims = [json.loads(path.read_bytes()) for path in (shared / "claims").iterdir()]
+    assert len(claims) == 12
+    assert {claim["entry_kind"] for claim in claims} == expected_entry_kinds
+    markers = list((shared / "refreeze-disqualifications").iterdir())
+    assert len(markers) == 1
+    marker = json.loads(markers[0].read_bytes())
+    assert marker["reason"] == "resume"
+    assert marker["campaign_run_id"] == "crash-point"
+
+
+def test_resume_preserves_existing_v1_claims_immutably(tmp_path):
+    root, protocol, freeze = _init_repo(tmp_path)
+    _reserve(root, protocol, freeze, run_id="legacy-v1")
+    shared = admission.shared_admission_root(root)
+    before = {}
+    for path in (shared / "claims").iterdir():
+        claim = json.loads(path.read_bytes())
+        claim["schema_version"] = "s8b-holdout-cell-claim/v1"
+        claim.pop("entry_kind")
+        claim.pop("nondefault_seams")
+        path.write_bytes(canonical_json_line(claim))
+        before[path.name] = path.read_bytes()
+
+    _reserve(
+        root, protocol, freeze, run_id="legacy-v1",
+        resume=True, journal_exists=True,
+    )
+
+    after = {
+        path.name: path.read_bytes() for path in (shared / "claims").iterdir()
+    }
+    assert after == before
+    assert len(list((shared / "refreeze-disqualifications").iterdir())) == 1
+
+
+def test_resume_backfills_partial_v1_claim_set_without_schema_upgrade(tmp_path):
+    root, protocol, freeze = _init_repo(tmp_path)
+    _reserve(root, protocol, freeze, run_id="legacy-v1-partial")
+    shared = admission.shared_admission_root(root)
+    claim_paths = sorted((shared / "claims").iterdir())
+    retained_path = claim_paths[0]
+    retained = json.loads(retained_path.read_bytes())
+    retained["schema_version"] = "s8b-holdout-cell-claim/v1"
+    retained.pop("entry_kind")
+    retained.pop("nondefault_seams")
+    retained_path.write_bytes(canonical_json_line(retained))
+    retained_before = retained_path.read_bytes()
+    for path in claim_paths[1:]:
+        path.unlink()
+
+    _reserve(
+        root, protocol, freeze, run_id="legacy-v1-partial",
+        resume=True, journal_exists=True,
+    )
+
+    claims = [
+        json.loads(path.read_bytes()) for path in (shared / "claims").iterdir()
+    ]
+    assert len(claims) == 12
+    assert {claim["schema_version"] for claim in claims} == {
+        "s8b-holdout-cell-claim/v1"
+    }
+    assert retained_path.read_bytes() == retained_before
 
 
 def test_resume_rejects_actual_terminal_journal(tmp_path):
@@ -937,7 +1069,8 @@ def test_canonical_authority_to_run_once_proof_chain_e2e(tmp_path):
             freeze_sha256=protocol["freeze"]["sha256"],
             cells=cells, schedule=schedule, campaign_run_id=run_id,
             out_root=out_root, run_dir=run_dir, run_relpath=run_relpath,
-            mode="pilot", resume=False, irreversible_pilot_approved=True,
+            mode="pilot", resume=False, nondefault_seams=[],
+            irreversible_pilot_approved=True,
         )
     admitted = admission.finalize_floor_holdout_admissions(reservation)
     cell = cells[0]
@@ -997,6 +1130,8 @@ def test_canonical_authority_to_run_once_proof_chain_e2e(tmp_path):
 def _inspection_case(
     tmp_path: Path, *, competing: bool, session_count: int = 1,
     measurement_head: str = "1" * 40,
+    mode: str = "pilot", claim_schema: str = "s8b-holdout-cell-claim/v2",
+    entry_kind: str = "fresh", nondefault_seams=(), resume_marker: bool = False,
 ):
     protocol, freeze = _fixture_documents()
     cells = s8b_floor_contract.enumerate_cells(
@@ -1014,15 +1149,17 @@ def _inspection_case(
         "probe_before": {"competing": competing},
     } for row in selected if row["cell_id"] in cell_by_id]
     campaign_run_id = "run-inspection"
-    run_relpath = "env/fixture-env/calibration/s8b-floor-pilot/run-inspection"
+    run_relpath = f"env/fixture-env/calibration/s8b-floor-{mode}/run-inspection"
     manifest_sha256 = "b" * 64
     root = tmp_path / "admission"
     evidence = build_floor_admission_evidence(
         root, protocol=protocol, freeze=freeze,
         freeze_sha256=protocol["freeze"]["sha256"],
         manifest_sha256=manifest_sha256, campaign_run_id=campaign_run_id,
-        run_relpath=run_relpath, mode="pilot", cells=cells, schedule=schedule,
+        run_relpath=run_relpath, mode=mode, cells=cells, schedule=schedule,
         sessions=sessions, measurement_head=measurement_head,
+        claim_schema=claim_schema, entry_kind=entry_kind,
+        nondefault_seams=nondefault_seams, resume_marker=resume_marker,
     )
     lifecycle = []
     schedule_by_attempt = {
@@ -1048,7 +1185,7 @@ def _inspection_case(
         "manifest_sha256": manifest_sha256,
         "campaign_run_id": campaign_run_id,
         "run_relpath": run_relpath,
-        "mode": "pilot",
+        "mode": mode,
         "cells": cells,
         "schedule": schedule,
         "sessions": lifecycle,
@@ -1098,6 +1235,7 @@ def _rewrite_attempt_evidence(
 
 def test_inspector_public_contract_and_guarantee_boundary():
     assert "FloorHoldoutEvidenceError" in admission.__all__
+    assert "FloorHoldoutEvidenceInspection" in admission.__all__
     assert "inspect_floor_holdout_admission_evidence" in admission.__all__
     parameters = inspect.signature(
         admission.inspect_floor_holdout_admission_evidence
@@ -1111,6 +1249,199 @@ def test_inspector_public_contract_and_guarantee_boundary():
     assert "現在状態だけを見る" in doc
     assert "同一 bytes を再構成する攻撃は検出できない" in doc
     assert "本 wave の保証範囲外" in doc
+    assert admission._FLOOR_CLAIM_KEYS_V2 == (  # noqa: SLF001
+        admission._FLOOR_CLAIM_KEYS_V1  # noqa: SLF001
+        | {"entry_kind", "nondefault_seams"}
+    )
+    assert "entry_kind" not in admission._FLOOR_CLAIM_KEYS_V1  # noqa: SLF001
+
+
+def test_inspection_positive_official_fresh_v2_derives_true(tmp_path, monkeypatch):
+    evidence, kwargs = _inspection_case(
+        tmp_path, competing=True, mode="official",
+    )
+    _patch_inspection_root(monkeypatch, evidence.root)
+
+    inspection = admission.inspect_floor_holdout_admission_evidence(**kwargs)
+
+    assert inspection == evidence.expected_receipt
+    assert inspection.derived_eligible_for_refreeze is True
+
+
+def test_inspection_positive_legacy_v1_remains_readable_and_conservative(
+    tmp_path, monkeypatch,
+):
+    evidence, kwargs = _inspection_case(
+        tmp_path, competing=True, mode="official",
+        claim_schema="s8b-holdout-cell-claim/v1",
+    )
+    _patch_inspection_root(monkeypatch, evidence.root)
+
+    inspection = admission.inspect_floor_holdout_admission_evidence(**kwargs)
+
+    assert inspection == evidence.expected_receipt
+    assert inspection.derived_eligible_for_refreeze is False
+
+
+def test_inspection_positive_legacy_v1_pilot_keeps_receipt_and_is_conservative(
+    tmp_path, monkeypatch,
+):
+    evidence, kwargs = _inspection_case(
+        tmp_path, competing=True, mode="pilot",
+        claim_schema="s8b-holdout-cell-claim/v1",
+    )
+    _patch_inspection_root(monkeypatch, evidence.root)
+
+    inspection = admission.inspect_floor_holdout_admission_evidence(**kwargs)
+
+    assert inspection == evidence.expected_receipt
+    assert inspection.derived_eligible_for_refreeze is False
+    assert all(row["irreversible_pilot_approved"] is True
+               for row in evidence.admission_rows)
+
+
+@pytest.mark.parametrize(
+    "seams",
+    [
+        ["unknown_seam"],
+        ["build_fn", "build_fn"],
+        ["probe_fn", "measure_fn"],
+    ],
+    ids=["unknown", "duplicate", "noncanonical-order"],
+)
+def test_inspection_rejects_noncanonical_or_unknown_v2_seams(
+    tmp_path, monkeypatch, seams,
+):
+    evidence, kwargs = _inspection_case(
+        tmp_path, competing=True, mode="official", nondefault_seams=seams,
+    )
+    _patch_inspection_root(monkeypatch, evidence.root)
+
+    _assert_evidence_error(
+        "mismatch", "claim-nondefault-seams-invalid", kwargs,
+    )
+
+
+def test_inspection_v2_nondefault_seam_is_valid_but_disqualifying(
+    tmp_path, monkeypatch,
+):
+    evidence, kwargs = _inspection_case(
+        tmp_path, competing=True, mode="official",
+        nondefault_seams=["build_fn"],
+    )
+    _patch_inspection_root(monkeypatch, evidence.root)
+
+    inspection = admission.inspect_floor_holdout_admission_evidence(**kwargs)
+
+    assert inspection == evidence.expected_receipt
+    assert inspection.derived_eligible_for_refreeze is False
+
+
+def test_inspection_resume_marker_is_exact_and_disqualifying(tmp_path, monkeypatch):
+    evidence, kwargs = _inspection_case(
+        tmp_path, competing=True, mode="official", entry_kind="resume",
+        resume_marker=True,
+    )
+    _patch_inspection_root(monkeypatch, evidence.root)
+
+    inspection = admission.inspect_floor_holdout_admission_evidence(**kwargs)
+
+    assert inspection.derived_eligible_for_refreeze is False
+
+
+def test_official_fresh_v2_marker_alone_disqualifies_and_live_mismatch_is_exact(
+    tmp_path, monkeypatch,
+):
+    evidence, kwargs = _inspection_case(
+        tmp_path, competing=True, mode="official", entry_kind="fresh",
+        nondefault_seams=(), resume_marker=True,
+    )
+    _patch_inspection_root(monkeypatch, evidence.root)
+
+    inspection = admission.inspect_floor_holdout_admission_evidence(**kwargs)
+
+    assert inspection.derived_eligible_for_refreeze is False
+    with pytest.raises(admission.FloorHoldoutEvidenceError) as caught:
+        s8b_floor_stats.verify_floor_artifact_with_live_admission(
+            {"eligible_for_refreeze": True}, {}, expected_binaries=None,
+            expected_use_perf=True, **kwargs,
+        )
+    assert caught.value.category == "mismatch"
+    assert caught.value.reason == "refreeze-eligibility-mismatch"
+
+
+def test_inspection_reports_unknown_schema_only_for_well_formed_claim(
+    tmp_path, monkeypatch,
+):
+    evidence, kwargs = _inspection_case(
+        tmp_path, competing=True, mode="official",
+    )
+    claim_path = next((evidence.root / "claims").iterdir())
+    claim = json.loads(claim_path.read_bytes())
+    claim["schema_version"] = "s8b-holdout-cell-claim/v999"
+    claim_path.write_bytes(canonical_json_line(claim))
+    _patch_inspection_root(monkeypatch, evidence.root)
+
+    _assert_evidence_error("mismatch", "claim-schema-unsupported", kwargs)
+
+
+def test_inspection_maps_malformed_claim_bytes_to_file_mismatch(
+    tmp_path, monkeypatch,
+):
+    evidence, kwargs = _inspection_case(
+        tmp_path, competing=True, mode="official",
+    )
+    claim_path = next((evidence.root / "claims").iterdir())
+    claim_path.write_bytes(b"{not-json}\n")
+    _patch_inspection_root(monkeypatch, evidence.root)
+
+    _assert_evidence_error("mismatch", "claim-file-mismatch", kwargs)
+
+
+def test_inspection_rejects_resume_marker_identity_change(tmp_path, monkeypatch):
+    evidence, kwargs = _inspection_case(
+        tmp_path, competing=True, mode="official", entry_kind="resume",
+        resume_marker=True,
+    )
+    marker_path = next((evidence.root / "refreeze-disqualifications").iterdir())
+    marker = json.loads(marker_path.read_bytes())
+    marker["run_relpath"] = (
+        "env/fixture-env/calibration/s8b-floor-official/other-run"
+    )
+    marker_path.write_bytes(canonical_json_line(marker))
+    _patch_inspection_root(monkeypatch, evidence.root)
+
+    _assert_evidence_error(
+        "mismatch", "refreeze-marker-identity-mismatch", kwargs,
+    )
+
+
+def test_inspection_rejects_duplicate_resume_marker(tmp_path, monkeypatch):
+    evidence, kwargs = _inspection_case(
+        tmp_path, competing=True, mode="official", entry_kind="resume",
+        resume_marker=True,
+    )
+    marker_root = evidence.root / "refreeze-disqualifications"
+    marker_path = next(marker_root.iterdir())
+    (marker_root / ("f" * 64 + ".json")).write_bytes(marker_path.read_bytes())
+    _patch_inspection_root(monkeypatch, evidence.root)
+
+    _assert_evidence_error(
+        "mismatch", "refreeze-marker-count-mismatch", kwargs,
+    )
+
+
+def test_inspection_rejects_cell_to_cell_v2_basis_mismatch(tmp_path, monkeypatch):
+    evidence, kwargs = _inspection_case(
+        tmp_path, competing=True, mode="official",
+    )
+    claim_path = next((evidence.root / "claims").iterdir())
+    claim = json.loads(claim_path.read_bytes())
+    claim["nondefault_seams"] = ["build_fn"]
+    claim_path.write_bytes(canonical_json_line(claim))
+    _patch_inspection_root(monkeypatch, evidence.root)
+
+    _assert_evidence_error("mismatch", "claim-basis-cell-mismatch", kwargs)
 
 
 def test_inspection_rejects_missing_root(tmp_path, monkeypatch):

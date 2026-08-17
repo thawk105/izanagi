@@ -4112,11 +4112,51 @@ def test_refreeze_seam_classifier_covers_and_classifies_every_core_seam():
     assert classifier_keyword_only - core_keyword_only == set()
     expected_seams = core_keyword_only - excluded
     assert classifier_keyword_only == expected_seams
+    assert expected_seams == (
+        s8b_floor_campaign._floor_contract.REFREEZE_DISQUALIFYING_SEAM_NAMES
+    )
     for seam_name in sorted(expected_seams):
         sentinel = object()
         assert s8b_floor_campaign._nondefault_campaign_seams(
             **{seam_name: sentinel},
         ) == frozenset({seam_name})
+
+
+def test_captured_refreeze_seams_are_forwarded_to_claim_reservation_canonically():
+    source = textwrap.dedent(inspect.getsource(
+        s8b_floor_campaign._run_campaign_core,
+    ))
+    tree = ast.parse(source)
+    reservation_calls = [
+        node for node in ast.walk(tree)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Attribute)
+        and node.func.attr == "_reserve_floor_holdout_observations_core"
+    ]
+    assert len(reservation_calls) == 1
+    keyword = next(
+        item for item in reservation_calls[0].keywords
+        if item.arg == "nondefault_seams"
+    )
+    assert isinstance(keyword.value, ast.Call)
+    assert isinstance(keyword.value.func, ast.Name)
+    assert keyword.value.func.id == "sorted"
+    assert len(keyword.value.args) == 1
+    assert isinstance(keyword.value.args[0], ast.Name)
+    assert keyword.value.args[0].id == "nondefault_seams"
+
+
+def test_module_limit_keeps_code_substitution_and_offline_boundaries_explicit():
+    doc = inspect.getdoc(s8b_floor_campaign) or ""
+    assert "create-only" in doc
+    assert "resume 後の basis 付替えの検出" in doc
+    assert "同一 interpreter 内の code substitution" in doc
+    assert "artifact 単体の offline 検証も行わず" in doc
+
+
+def test_result_markdown_labels_refreeze_bit_as_producer_reported():
+    source = inspect.getsource(s8b_floor_campaign._render_result_md)
+    assert "eligible_for_refreeze (producer-reported)" in source
 
 
 def test_refreeze_seam_classifier_defaults_and_core_forwarding_are_exact():
@@ -5825,6 +5865,10 @@ def test_result_json_stays_hidden_when_publish_stops_after_markdown(
             # Full-run fixture seams are non-default only to avoid real measurement.
             # Project the already-asserted fresh/default policy value into staged bytes.
             lambda **_kwargs: True,
+        )
+        scoped.setattr(
+            s8b_floor_campaign, "_nondefault_campaign_seams",
+            lambda **_kwargs: frozenset(),
         )
         scoped.setattr(
             s8b_floor_campaign, "_publish_staged_create_only",

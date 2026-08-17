@@ -1328,8 +1328,6 @@ def _validate_floor_inputs(
         )
     if result.get("mode") != "official":
         raise FreezeError("floor result.mode が official でない")
-    if result.get("eligible_for_refreeze") is not True:
-        raise FreezeError("floor result.eligible_for_refreeze が true でない")
     if result.get("freeze_sha256") != t080_freeze_migration.HOLDOUT_RAW_SHA256:
         raise FreezeError("floor result.freeze_sha256 が固定 v1 hash と不一致")
     if result.get("protocol_sha256") != protocol_sha256:
@@ -1508,6 +1506,8 @@ def _validate_floor_inputs(
         if any("holdout_admission" in problem for problem in problems):
             raise FreezeError(f"floor-admission-mismatch: {problems[0]}")
         raise FreezeError(f"floor result の統計検証に失敗: {'; '.join(problems)}")
+    if result.get("eligible_for_refreeze") is not True:
+        raise FreezeError("floor result.eligible_for_refreeze が true でない")
 
     floors = result.get("floors")
     if not isinstance(floors, Mapping) or set(floors) != set(expected_holdouts):
