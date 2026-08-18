@@ -21,7 +21,7 @@ title: 予算で差し戻され続けた実測是正 10 件を新規 L2 節 DW-C
   レーン B が「ユーザーの明示裁定は D271 に優先する」「[T-1348] と [T-1320] の裁定文自身が
   機械強制の存在を書いた上で収容を裁定している」と反証した。(j) は
   `tools/codex_worker_launch.py` の argv に Web 無効化 flag が実在せず移送先が無いことも実測した。
-  **10 件すべて収容した** (節 991 / 1000 bytes)。詳細は {{D:dw-c01-admission}}。
+  **命令が名指しした 10 項を収容した** (節 991 / 1000 bytes)。詳細は {{D:dw-c01-admission}}。
 - **[T-1313] の「`DW-O20` からポインタを残す」裁定と、親 brief が置いた「既存節を 1 byte も
   変えない」不変条件が衝突した。** 裁定文自身が「必ず失敗する命令を残すのは無い方がまし」と
   述べているため、誤った `git submodule update --init` を `DW-C01` ポインタへ置換する形を採った
@@ -41,7 +41,7 @@ title: 予算で差し戻され続けた実測是正 10 件を新規 L2 節 DW-C
   出力 0 bytes・rc=0 で早期に返る事象を 3 回観測し、いずれも producer は生存していた。
   pid file 実在を確認してから張っており ([T-1348] の是正どおり) それでも起きた。
   以降は `.done` と pid で判定し、テスト実行も codex 子と同じく `.sh` へ外出しして detach した。
-  この作法は {{F:background-bash-early-return}} に記録した。
+  この作法は F355 の再発として記録した (F355 で未特定だった根本原因を本 wave で特定した)。
 
 ## 次の一手差分
 
@@ -56,9 +56,6 @@ title: 予算で差し戻され続けた実測是正 10 件を新規 L2 節 DW-C
 - [T-1159] 段 6 fix 契約の受理・拒否条件の書き方を `DW-C01` へ収容した。
   remaining: none
   base: c8420e6f3ebedc87e5dfa9aec8b13304b334391504d1f8083f2eed5b457250c7
-- [T-1245] 予算超過で差し戻された是正 3 件を `DW-C01` へ収容して閉じた。
-  remaining: none
-  base: 762d4d6dcf4c45ed2158d2f43247977509d55780fc77b7e5115e9dd9ddbd05ab
 - [T-1260] `--lane` が consult 段専用である旨を `DW-C01` へ収容した。
   remaining: none
   base: 8faa5326016ae50a76179eaddc70a566bab68001901f93039d21584d58d203b3
@@ -89,6 +86,13 @@ title: 予算で差し戻され続けた実測是正 10 件を新規 L2 節 DW-C
 
 ### 更新
 
+- [T-1245] **P2・未収容**: 本項の実体は予算で入らなかった是正 **3 件**
+  ((a) `DW-O09` の pin 閉包から成果物側を除外しない、(b) `DW-S01` へ不在主張の探索範囲を書く、
+  (c) `DW-S05-C` へ実走経路が子の環境で塞がっているなら親が測ると prompt に書く) であり、
+  **1 件も収容していない**。親は本項を「[T-1260] / [T-1265] / [T-1273] の束ね項」と誤読した。
+  `DW-C01` は 991 / 1000 bytes で残り 9 bytes、上限を上げない指示のため 3 件とも入らない。
+  収容先の再裁定が要る。段 6 の敵対レビューが検出した。
+  base: 762d4d6dcf4c45ed2158d2f43247977509d55780fc77b7e5115e9dd9ddbd05ab
 - [T-1273] **P2・部分収容**: 子への Web 検索禁止は `DW-C01` へ 1 行で収容したが、
   裁定が主とした機械移送は**未実施**である。`tools/codex_worker_launch.py` の argv に
   Web 無効化 flag が実在しないことを実測した。flag と負例テストの新設が残件。
@@ -99,7 +103,8 @@ title: 予算で差し戻され続けた実測是正 10 件を新規 L2 節 DW-C
 - {{T:startup-diagnostics-lack-recursive}} **P2・新規 (本 wave の明示残余)**:
   `tools/check_wave_startup.py` と `tools/run_tests.py` の診断文は今も
   `git submodule update --init` を `--recursive` 無しで案内し、その逐語が
-  `orchestrator/tests/test_check_wave_startup.py` で pin されている。`DW-C01` は docs 側を
+  `orchestrator/tests/test_check_wave_startup.py` と
+  `orchestrator/tests/test_run_tests_preflight.py` でそれぞれ pin されている。`DW-C01` は docs 側を
   是正したが、この executable consumer には届かない。**submodule 手順は全面修正されていない。**
 - {{T:dev-wave-condition-triggers-near-tautological}} **P3・新規**:
   条件 26 を含む既存条件の多くが実質恒真 (条件 01・02・20 はほぼ毎 wave 発火する) で、

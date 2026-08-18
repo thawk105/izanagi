@@ -8,24 +8,6 @@ seq: 3
 
 ## 新規
 
-### {{F:background-bash-early-return}}. 背景 Bash と待ち手が約 10 分で空返りし、生きている子を完了扱いにしかけた [誤前提] [セッション死・救出]
-
-- 事象: 本 wave の session では、背景で走らせた `tools/dev_wave_wait.py producer` が
-  出力 0 bytes・rc=0 で早期に終了する事象を 3 回観測した。いずれも producer は生存しており
-  (`ps` の経過時間で確認)、成果物も `.done` も存在しなかった。同じ形で、背景に投げた
-  焦点テスト走行も約 10 分で打ち切られ、dispatch した計算ノード側の収集途中でログが途切れた。
-- 根本原因: この session の背景 Bash が一定時間で終了させられる。待ち手はその子プロセスなので
-  巻き添えで死ぬ。待ち手の rc=0 と「完了通知」だけを見ると、生きている producer を
-  完了と誤認して次段へ進む。pid file 実在を確認してから張る作法
-  (本 wave が収容した待ち手規則) を守っていても防げない。
-- 恒久対応: 収容した `DW-C01` の待ち手規則に加え、実行系は codex 子と同じく runner と launcher を
-  `.sh` へ外出しして `nohup setsid` で detach し、**死活判定は producer の pid と `.done` の
-  mtime だけで行う**。待ち手の rc と harness の完了通知は判定に使わない。
-  これは `docs/dev-wave/core.md` の `DW-C01` と `docs/dev-wave/operations.md` の `DW-O01`
-  (完了は `.done` と exit code だけで判定し通知を判定にしない) が既に持つ規律の実行系への拡張である。
-- 再発検知: `.done` の mtime が投入時刻より古ければ前走行の残骸であり、完了と数えない。
-  本 wave では実際に旧 `.done` (rc=1) が残っていて、新走行の結果と取り違えかけた。
-
 ### {{F:mutation-scope-misses-real-repo-gate}}. 変異 runner の scope に実効 gate の node が無く 4 件が静かに生存した [テスト代表性] [恒真ゲート]
 
 - 事象: docs の受理集合を変える変異 4 件 (条件行削除・発火条件文の改変・参照先すげ替え・
@@ -41,3 +23,17 @@ seq: 3
 - 再発検知: 変異 matrix で SURVIVED が出たら、期待 node が runner scope 内に**実在して
   走っている**かを `--junitxml` か実走ログの collected 件数で確かめる。
   0 件失敗の SURVIVED は「gate が無い」ではなく「gate が走っていない」を先に疑う。
+
+## 再発
+
+### F355
+
+- **再発: 2026-08-18** — 本 wave で `tools/dev_wave_wait.py producer` が出力 0 bytes・rc=0 で
+  早期終了する事象を 3 回観測した。いずれも producer は生存しており (`ps` の経過時間で確認)、
+  成果物も `.done` も無かった。arming 前の pid file 実在確認は済ませていた。
+  **F355 で未特定だった根本原因を本 wave で特定した**: この session では背景 Bash 自体が
+  約 10 分で終了させられ、その子である待ち手が巻き添えで死ぬ。背景に投げた焦点テスト走行も
+  同じ約 10 分で打ち切られ、dispatch した計算ノード側の成果物収集の途中でログが途切れた。
+  対応として、実行系は codex 子と同じく runner と launcher を `.sh` へ外出しして
+  `nohup setsid` で detach し、死活判定は producer の pid と `.done` の mtime だけで行った。
+  旧走行の `.done` (rc=1) が残っていて新走行の結果と取り違えかけたため、mtime の照合も要る。

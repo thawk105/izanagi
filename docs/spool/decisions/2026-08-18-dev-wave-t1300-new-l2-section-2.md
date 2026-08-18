@@ -12,7 +12,7 @@ seq: 2
 `docs/dev-wave/core.md` へ未使用 ID の L2 節を 1 つ足し、`.claude/commands/dev-wave.md` の
 条件表へ専用行を足して dispatch する。`tools/check_docs.py` 側は
 `REQUIRED_REFERENCE_SECTIONS` / `CONDITION_DISPATCH_CONTRACT` / `CONDITION_TRIGGER_CONTRACT` の
-3 箇所だけを手書きし、`_OPERATION_NUMBERS` は触らない。新節は本文 exact pin を持ち、
+3 箇所と本文 exact pin の登録を手書きし、`_OPERATION_NUMBERS` は触らない。新節は本文 exact pin を持ち、
 見出しだけの空節が緑で通らないようにする。
 
 **理由:**
