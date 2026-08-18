@@ -41,8 +41,11 @@ title: D130 条件 2 は同種の排他の運用前提では閉じない — 残
 - **セッション事象 2 件。** (1) レンズ A の初回走行は codex が自然終了 (rc=0、41 model call、
   673 秒、9983 bytes) したにもかかわらず、出力に Web 検索由来の外部 URL が含まれ evidence chain が
   invalid で不受理になった。Web 禁止を明記して再走し受理された。結論は両走とも同じ NO-GO。
-  (2) `tools/dev_wave_wait.py producer` が 2 度、producer 生存中に rc=0 で先に終了した (出力なし)。
-  親は自前の bounded polling (成果物出現・producer 死・deadline) へ切り替えた。
+  (2) 待ち手が producer 生存中に rc=0・出力ゼロで終わる事象が 3 度あった。**親は当初これを
+  `tools/dev_wave_wait.py producer` の欠陥と判定したが、撤回した** — 全終了経路で必ず出力する
+  自作 polling script でも同じ形 (rc=0・出力ゼロ) になったため、原因は待ち手ではなく
+  **背景 process が外側で終了させられて rc=0 と報告される**ことである。機構欠陥として
+  台帳へ書かない。生存判定は pid の直接確認で行った。
 - **エージェント工数**: codex 子 3 本 (consult 3、うち 1 本は evidence 不受理)、いずれも
   `reasoning=max`。受理された 2 本は 674 秒 / 41 model call と同程度。実装子は無し。
 - 設計判断は {{D:bundle-flock-premise-not-transferable}}。
