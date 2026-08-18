@@ -1645,3 +1645,5 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 
 - {"allocations":{},"authored":"2026-08-18","base":"15bc4daa3848b8c9f76308a20ebf8c77a1bbe482","content_sha256":"76ece8b4605c8757d895f8a9089fb6133e9fcebc9141b8d6f4c5683ac519bb78","seq":1,"tested_tip":"f185b693498a6cfb33f0566581c73074cf9411dd","wave":"soft-plotting-starlight","wave_ref":"refs/heads/worktree-soft-plotting-starlight"}
 - {"allocations":{},"authored":"2026-08-18","base":"15bc4daa3848b8c9f76308a20ebf8c77a1bbe482","content_sha256":"4e92d2e5b4fd9502f076068c0525b5c990d59ba5c39df18325be3889d380d504","seq":2,"tested_tip":"f185b693498a6cfb33f0566581c73074cf9411dd","wave":"soft-plotting-starlight","wave_ref":"refs/heads/worktree-soft-plotting-starlight"}
+
+- {"allocations":{},"authored":"2026-08-19","base":"40a833edb0932cec66c47c4f7660433891617404","content_sha256":"9cf1c06a4cfe1edc65c7a54d10143d6a8aa208b73f8489efef118960f7dbb390","seq":1,"tested_tip":"f0e201b2d7efe233e0bc812c6ceb7f9ad7fe09b3","wave":"dev-wave-artifact-dir","wave_ref":"refs/heads/worktree-dev-wave-artifact-dir"}
