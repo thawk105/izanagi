@@ -283,10 +283,10 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser = _parser()
     args = parser.parse_args(argv)
     launcher_argv = _launcher_argv(parser, args)
+    _create_generated_directories(parser, args.generated_directories)
     if args.dry_run:
         print("\n".join(launcher_argv))
         return 0
-    _create_generated_directories(parser, args.generated_directories)
     try:
         return subprocess.run(launcher_argv, check=False).returncode
     except OSError as exc:
