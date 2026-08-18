@@ -983,6 +983,16 @@
 - 現行実体: `docs/dev-wave/mutation.md` の `DW-M04` と `DW-M08`。
 - 記録: worklog 2026-07-22 (6)、erratum = `output/insights/2026-07-22_t004-wal-framing-mutation-ledger.md`
 
+
+- **再発: 2026-08-18** ([T-1352] wave)。今回は偽 SURVIVED ではなく**偽 KILL の帰属**で、
+  向きが逆の同型である。段 1 前の前提実測で親が `_MACHINE_EVALUATORS` へ key 7 を足し
+  負例辞書へ C07 を足したが、`_negative_control_case` の C07 分岐を作らなかったため、
+  赤 4 件のうち 1 件は helper の AssertionError で落ちていた。親はこれを
+  「C07 を登録すると赤になる」証拠の一部として数え、段 3 の敵対レンズが独立に検出するまで
+  範囲を誤ったまま報告した。結論 (登録は見送る) 自体は残り 2 件の全単射検査だけで成立していた。
+  恒久対応 4 = **変異の赤も、注入が意図した層に届いたことを確認するまで kill と数えない。**
+  注入不全で前段の helper が落ちた赤は対象への帰属証拠にならない。`DW-M04` の
+  「注入なしを緑と報告しない」と対称の義務であり、現行実体は同じ `DW-M04` である。
 ### F34. 受入全走の後に積んだ docs commit が repo scan invariant を破り、main が赤のまま次 wave まで残った [手順漏れ]
 
 - 事象: wave2 は受入全走を fix2 commit (d4b6271) で緑にした後、docs commit (441babc) で凍結逐語
