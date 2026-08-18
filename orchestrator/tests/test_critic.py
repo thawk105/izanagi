@@ -70,6 +70,7 @@ from orchestrator.critic.digest import (STOCK_SRC_TOKEN, DiffQuarantineRejection
                            render_rejections as _render_rejections,
                            render_text)
 from campaign_lock_test_support import build_v2_lock              # noqa: E402
+from orchestrator.tests import commit_receipt_support as receipt_support  # noqa: E402
 
 
 _ADMISSION_CONTEXT = build_run_context(generator_id=GeneratorId.BACKOFF_SWEEP)
@@ -366,13 +367,20 @@ def _attempt_event(
     payload: dict,
 ) -> None:
     variant, attempt_id, receipt_sha, _src_token = attempt
-    wal.log(lay, variant, stage, _ENV_CONTRACT.env_tag, {
+    event_payload = {
         **payload,
         **({"contract_sha256": _ENV_CONTRACT.contract_sha256}
            if stage == STAGE_COMMIT else {}),
         "build_attempt_id": attempt_id,
         "build_admission_receipt_sha256": receipt_sha,
-    })
+    }
+    if stage == STAGE_COMMIT:
+        receipt_support.log_receipted_commit(
+            lay, variant, _ENV_CONTRACT.env_tag, event_payload,
+            operation_identity=attempt_id,
+        )
+    else:
+        wal.log(lay, variant, stage, _ENV_CONTRACT.env_tag, event_payload)
 
 
 def _oracle_receipt(contract_id: str, materialized_hash: str, proposal_hash: str) -> dict:
