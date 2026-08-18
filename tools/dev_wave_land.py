@@ -65,10 +65,16 @@ _MAX_METADATA_BYTES = 16 * 1024
 _MAX_ACCEPTANCE_RECEIPT_BYTES = 64 * 1024
 _PROVENANCE_VIOLATION_RC = 1
 _SHA_RE = re.compile(r"(?:[0-9a-f]{40}|[0-9a-f]{64})\Z")
+_SHA1_RE = re.compile(r"[0-9a-f]{40}\Z")
 _SHA256_RE = re.compile(r"[0-9a-f]{64}\Z")
 _HOLDER_RE = re.compile(r"[0-9a-f]{12}\Z")
-_ACCEPTANCE_RECEIPT_SCHEMA = "dev-wave-acceptance-receipt/v4"
-_ACCEPTANCE_AUTHORITY_KIND = "dev-wave-wait-acceptance"
+_ACCEPTANCE_RECEIPT_SCHEMA = "dev-wave-acceptance-receipt/v5"
+_ACCEPTANCE_AUTHORITY_KINDS = {
+    "tested-main": "dev-wave-acceptance-launcher",
+    "tested-tip-bootstrap": "dev-wave-acceptance-launcher-bootstrap-tip",
+}
+_ACCEPTANCE_BOOTSTRAP_MAIN = "a160f4aac1a929e3f7d489c8d30c75fb8cb8c5db"
+_ACCEPTANCE_LAUNCHER_PATH = "tools/acceptance_launcher.py"
 _ACCEPTED_EFFECTIVE_SCHEDULERS = frozenset({"loadgroup", "serial"})
 _RECEIPT_TEMP_PREFIX = ".dev-wave-acceptance-receipt-"
 _ACCEPTANCE_RECEIPT_FIELDS = frozenset({
@@ -84,6 +90,11 @@ _ACCEPTANCE_RECEIPT_FIELDS = frozenset({
     "pre_fingerprint",
     "post_fingerprint",
     "waiter_blob_sha",
+    "launcher_source_revision",
+    "launcher_blob_sha",
+    "launcher_executed_sha256",
+    "waiter_executed_sha256",
+    "runner_executed_sha256",
     "env_projection",
     "effective_scheduler",
     "verdict",
@@ -646,6 +657,63 @@ def _runner_tree_entry(
         raise _acceptance_rejected() from None
 
 
+def _acceptance_tree_entry(
+    repository: _Repository,
+    revision: str,
+    path: str,
+) -> tuple[str, str, str] | None:
+    result = _git(
+        repository.wave,
+        "ls-tree",
+        "-z",
+        "--full-tree",
+        revision,
+        "--",
+        path,
+    )
+    if result.returncode != 0:
+        raise _acceptance_rejected(retryable_same_request=True)
+    if not result.stdout:
+        return None
+    try:
+        header, separator, returned_path = result.stdout.partition(b"\t")
+        fields = header.split(b" ")
+        expected_path = path.encode("utf-8") + b"\0"
+        if (
+            separator != b"\t"
+            or returned_path != expected_path
+            or len(fields) != 3
+        ):
+            raise ValueError("malformed ls-tree output")
+        mode, object_type, object_id = (
+            field.decode("ascii") for field in fields
+        )
+    except (UnicodeError, ValueError):
+        raise _acceptance_rejected() from None
+    if _SHA_RE.fullmatch(object_id) is None:
+        raise _acceptance_rejected()
+    return mode, object_type, object_id
+
+
+def _regular_blob_entry(entry: tuple[str, str, str] | None) -> bool:
+    return (
+        entry is not None
+        and entry[0] in {"100644", "100755"}
+        and entry[1] == "blob"
+        and _SHA1_RE.fullmatch(entry[2]) is not None
+    )
+
+
+def _acceptance_blob_content_sha256(
+    repository: _Repository,
+    object_id: str,
+) -> str:
+    result = _git(repository.wave, "cat-file", "blob", object_id)
+    if result.returncode != 0:
+        raise _acceptance_rejected(retryable_same_request=True)
+    return hashlib.sha256(result.stdout).hexdigest()
+
+
 def _verify_acceptance_receipt(
     repository: _Repository,
     *,
@@ -670,9 +738,27 @@ def _verify_acceptance_receipt(
     red_nodeids = receipt.get("red_nodeids")
     flake_nodeids = receipt.get("flake_nodeids")
     effective_scheduler = receipt.get("effective_scheduler")
+    launcher_source_revision = receipt.get("launcher_source_revision")
     if not (
         receipt.get("schema_version") == _ACCEPTANCE_RECEIPT_SCHEMA
-        and receipt.get("authority_kind") == _ACCEPTANCE_AUTHORITY_KIND
+        and isinstance(launcher_source_revision, str)
+        and launcher_source_revision in _ACCEPTANCE_AUTHORITY_KINDS
+        and receipt.get("authority_kind")
+        == _ACCEPTANCE_AUTHORITY_KINDS[launcher_source_revision]
+        and isinstance(receipt.get("launcher_blob_sha"), str)
+        and _SHA1_RE.fullmatch(receipt["launcher_blob_sha"]) is not None
+        and isinstance(receipt.get("launcher_executed_sha256"), str)
+        and _SHA256_RE.fullmatch(
+            receipt["launcher_executed_sha256"]
+        ) is not None
+        and isinstance(receipt.get("waiter_executed_sha256"), str)
+        and _SHA256_RE.fullmatch(
+            receipt["waiter_executed_sha256"]
+        ) is not None
+        and isinstance(receipt.get("runner_executed_sha256"), str)
+        and _SHA256_RE.fullmatch(
+            receipt["runner_executed_sha256"]
+        ) is not None
         and receipt.get("acceptance_wave") == acceptance_wave
         and isinstance(receipt.get("lease_holder"), str)
         and _HOLDER_RE.fullmatch(receipt["lease_holder"]) is not None
@@ -740,6 +826,34 @@ def _verify_acceptance_receipt(
         accepted_flake_nodeids = tuple(flake_nodeids)
     else:
         raise _acceptance_rejected()
+    main_launcher_entry = _acceptance_tree_entry(
+        repository,
+        tested_main,
+        _ACCEPTANCE_LAUNCHER_PATH,
+    )
+    if launcher_source_revision == "tested-main":
+        launcher_entry = main_launcher_entry
+    else:
+        if (
+            tested_main != _ACCEPTANCE_BOOTSTRAP_MAIN
+            or main_launcher_entry is not None
+        ):
+            raise _acceptance_rejected()
+        launcher_entry = _acceptance_tree_entry(
+            repository,
+            tested_tip,
+            _ACCEPTANCE_LAUNCHER_PATH,
+        )
+    if not _regular_blob_entry(launcher_entry):
+        raise _acceptance_rejected()
+    assert launcher_entry is not None
+    launcher_blob_sha = launcher_entry[2]
+    if (
+        receipt.get("launcher_blob_sha") != launcher_blob_sha
+        or receipt.get("launcher_executed_sha256")
+        != _acceptance_blob_content_sha256(repository, launcher_blob_sha)
+    ):
+        raise _acceptance_rejected()
     waiter_result = _git(
         repository.wave,
         "rev-parse",
@@ -753,6 +867,23 @@ def _verify_acceptance_receipt(
         raise _acceptance_rejected() from None
     tip_runner_entry = _runner_tree_entry(repository, tested_tip)
     if tip_runner_entry is None:
+        raise _acceptance_rejected()
+    waiter_entry = _acceptance_tree_entry(
+        repository,
+        tested_tip,
+        "tools/dev_wave_wait.py",
+    )
+    if (
+        waiter_entry is None
+        or waiter_entry[1] != "blob"
+        or _SHA_RE.fullmatch(waiter_entry[2]) is None
+        or receipt.get("waiter_executed_sha256")
+        != _acceptance_blob_content_sha256(repository, waiter_entry[2])
+        or tip_runner_entry[0] != "blob"
+        or _SHA_RE.fullmatch(tip_runner_entry[1]) is None
+        or receipt.get("runner_executed_sha256")
+        != _acceptance_blob_content_sha256(repository, tip_runner_entry[1])
+    ):
         raise _acceptance_rejected()
     checker_blob = ""
     checker_result: _GitResult | None = None
