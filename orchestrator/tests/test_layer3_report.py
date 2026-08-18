@@ -306,7 +306,7 @@ def _verified_non_certifying_receipt(
         ["git", "-C", str(repo), "rev-parse", "HEAD"], text=True,
     ).strip()
     value = {
-        "schema_version": s8c_acceptance_receipt.SCHEMA_VERSION,
+        "schema_version": s8c_acceptance_receipt.LEGACY_SCHEMA_VERSION,
         "manifest_path": manifest_path,
         "manifest_sha256": manifest_sha,
         "prereg_commit": head,
@@ -319,7 +319,7 @@ def _verified_non_certifying_receipt(
         "lifecycle_prefix_sha256": lifecycle_sha,
         "certifying": False,
         "non_certifying_reason_codes": sorted(
-            s8c_acceptance_receipt.MANDATORY_NON_CERTIFYING_REASONS
+            s8c_acceptance_receipt.LEGACY_MANDATORY_NON_CERTIFYING_REASONS
         ),
         "trials": sorted(trial_rows, key=lambda item: item["trial_id"]),
     }

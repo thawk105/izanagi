@@ -60,6 +60,7 @@ class ReasonCode(str, enum.Enum):
     TRIAL_REGISTRY_CAPABILITY_ABSENT = "trial-registry-capability-absent"
     ARM_BINDING_DECLARED_ONLY = "arm-binding-declared-only"
     ARM_BINDING_PROOF_UNDEFINED = "arm-binding-proof-undefined"
+    ARM_BINDING_CONSUMER_UNREACHABLE = "arm-binding-consumer-unreachable"
     MANIFEST_REGISTRY_PROOF_UNDEFINED = "manifest-registry-proof-undefined"
     CRASH_POLICY_CELL_PARTIAL = "crash-policy-cell-partial"
     RESTART_GUARD_ABSENT = "restart-guard-absent"
@@ -308,6 +309,65 @@ def _called_names(node: ast.AST) -> set[str]:
     return names
 
 
+def _live_called_names(node: ast.FunctionDef | ast.AsyncFunctionDef) -> set[str]:
+    names: set[str] = set()
+    for current in _live_nodes(node):
+        if not isinstance(current, ast.Call):
+            continue
+        function = current.func
+        if isinstance(function, ast.Name):
+            names.add(function.id)
+        elif isinstance(function, ast.Attribute):
+            names.add(function.attr)
+    return names
+
+
+def _returns_joined_string_using(
+    node: ast.FunctionDef | ast.AsyncFunctionDef,
+    required_names: set[str],
+) -> bool:
+    assignments: dict[str, list[tuple[int, int, ast.AST]]] = {}
+    returns: list[ast.Return] = []
+    for current in _live_nodes(node):
+        if isinstance(current, ast.Assign):
+            targets = [target.id for target in current.targets if isinstance(target, ast.Name)]
+            for target in targets:
+                assignments.setdefault(target, []).append(
+                    (current.lineno, current.col_offset, current.value)
+                )
+        elif isinstance(current, ast.AnnAssign) and isinstance(current.target, ast.Name):
+            if current.value is not None:
+                assignments.setdefault(current.target.id, []).append(
+                    (current.lineno, current.col_offset, current.value)
+                )
+        elif isinstance(current, ast.Return):
+            returns.append(current)
+
+    def joined_string_uses_required_names(value: ast.AST) -> bool:
+        return isinstance(value, ast.JoinedStr) and required_names <= {
+            child.id
+            for child in ast.walk(value)
+            if isinstance(child, ast.Name) and isinstance(child.ctx, ast.Load)
+        }
+
+    for returned in returns:
+        value = returned.value
+        if value is not None and joined_string_uses_required_names(value):
+            return True
+        if not isinstance(value, ast.Name):
+            continue
+        preceding = [
+            item
+            for item in assignments.get(value.id, ())
+            if (item[0], item[1]) < (returned.lineno, returned.col_offset)
+        ]
+        if preceding and joined_string_uses_required_names(
+            max(preceding, key=lambda item: item[:2])[2]
+        ):
+            return True
+    return False
+
+
 def _strings(node: ast.AST) -> set[str]:
     return {
         child.value
@@ -543,6 +603,12 @@ def _live_nodes(node: ast.AST) -> list[ast.AST]:
         for statement in statements:
             visit(statement)
             if isinstance(statement, (ast.Return, ast.Raise, ast.Continue, ast.Break)):
+                break
+            if (
+                isinstance(statement, ast.If)
+                and _literal_truth(statement.test) is True
+                and any(isinstance(child, ast.Return) for child in statement.body)
+            ):
                 break
 
     def visit(current: ast.AST, *, root: bool = False) -> None:
@@ -1445,6 +1511,94 @@ def _evaluate_c01(probe: _ConditionProbe) -> core.PredicateResult:
     )
 
 
+def _evaluate_c02(probe: _ConditionProbe) -> core.PredicateResult:
+    registry = probe.python_kind("trial_registry")
+    if registry is None:
+        return _result(
+            probe,
+            core.PredicateStatus.EVIDENCE_UNDEFINED,
+            ReasonCode.TRIAL_REGISTRY_CAPABILITY_ABSENT,
+        )
+    functions = _functions(registry)
+    required_calls = {
+        "bind_trial_arm": {"assert_issued_trial_binding", "resolve_arm_input"},
+        "assert_issued_trial_arm_execution": {
+            "assert_issued_trial_binding",
+            "assert_issued_resolved_arm_input",
+        },
+        "assert_rederived_trial_arm_execution": {
+            "assert_issued_trial_arm_execution",
+            "bind_trial_arm",
+        },
+        "_expected_registered_arm_execution_record": {"resolve_arm_input"},
+        "assert_trial_registry_acceptance": {
+            "_expected_registered_arm_execution_record",
+            "validate_execution_input_descriptor",
+            "assert_execution_digest_chain",
+        },
+    }
+    for name, expected in required_calls.items():
+        function = functions.get(name)
+        if function is None:
+            return _result(
+                probe,
+                core.PredicateStatus.UNSATISFIED,
+                ReasonCode.ARM_BINDING_CONSUMER_UNREACHABLE,
+            )
+        if not expected <= _live_called_names(function):
+            return _result(
+                probe,
+                core.PredicateStatus.UNSATISFIED,
+                ReasonCode.ARM_BINDING_CONSUMER_UNREACHABLE,
+            )
+
+    binding_fields = {
+        current.value
+        for current in _live_nodes(functions["_expected_registered_arm_execution_record"])
+        if isinstance(current, ast.Constant) and isinstance(current.value, str)
+    }
+    acceptance_fields = {
+        current.value
+        for current in _live_nodes(functions["assert_trial_registry_acceptance"])
+        if isinstance(current, ast.Constant) and isinstance(current.value, str)
+    }
+    if not {
+        "input_schema_version",
+        "content_digest_sha256",
+        "arm_binding_digest_sha256",
+    } <= binding_fields or "arm_execution" not in acceptance_fields:
+        return _result(
+            probe,
+            core.PredicateStatus.UNSATISFIED,
+            ReasonCode.ARM_BINDING_CONSUMER_UNREACHABLE,
+        )
+
+    producer = probe.python_kind("proposal_namespace_producer")
+    producer_functions = _functions(producer) if producer is not None else {}
+    namespace = producer_functions.get("_invocation_namespace")
+    producer_consumers = ("_invocation_id", "_run_workload", "run_trial")
+    namespace_binds_arm_and_digest = (
+        namespace is not None
+        and _returns_joined_string_using(namespace, {"arm", "digest"})
+    )
+    consumers_use_namespace = all(
+        name in producer_functions
+        and "_invocation_namespace" in _live_called_names(producer_functions[name])
+        for name in producer_consumers
+    )
+    if not namespace_binds_arm_and_digest or not consumers_use_namespace:
+        return _result(
+            probe,
+            core.PredicateStatus.UNSATISFIED,
+            ReasonCode.ARM_BINDING_CONSUMER_UNREACHABLE,
+        )
+    return _result(
+        probe,
+        core.PredicateStatus.EVIDENCE_UNDEFINED,
+        ReasonCode.COMPLETION_PROOF_NOT_MACHINE_CHECKABLE,
+    )
+
+
 def _evaluate_c04(probe: _ConditionProbe) -> core.PredicateResult:
     workload_path = probe.requirement("workload_supervisor").path
     tree = probe.python_kind("workload_supervisor")
@@ -1487,7 +1641,7 @@ def _evaluate_c09(probe: _ConditionProbe) -> core.PredicateResult:
         return _result(probe, core.PredicateStatus.UNSATISFIED, ReasonCode.LAYER3_PRODUCER_UNREACHABLE)
     registry = probe.python_kind("trial_registry")
     functions = _functions(registry) if registry is not None else {}
-    accept = functions.get("accept_trial")
+    accept = functions.get("assert_trial_registry_acceptance")
     if accept is None or "assert_campaign_layer3_chain" not in _called_names(accept):
         return _result(probe, core.PredicateStatus.UNSATISFIED, ReasonCode.FORMAL_ACCEPTANCE_LAYER3_ABSENT)
     strings = _strings(accept)
@@ -1529,7 +1683,11 @@ def _evaluate_c10(probe: _ConditionProbe) -> core.PredicateResult:
     ):
         return _result(probe, core.PredicateStatus.UNSATISFIED, ReasonCode.CROSS_BINDING_VERIFIER_INCOMPLETE)
     registry = probe.python_kind("trial_registry")
-    accept = _functions(registry).get("accept_trial") if registry is not None else None
+    accept = (
+        _functions(registry).get("assert_trial_registry_acceptance")
+        if registry is not None
+        else None
+    )
     if accept is None or "verify_s8c_cross_binding" not in _called_names(accept):
         return _result(probe, core.PredicateStatus.UNSATISFIED, ReasonCode.CROSS_BINDING_ACCEPTANCE_UNREACHABLE)
     return _result(
@@ -1647,6 +1805,7 @@ def _evaluate_c12(probe: _ConditionProbe) -> core.PredicateResult:
 
 _MACHINE_EVALUATORS = {
     1: _evaluate_c01,
+    2: _evaluate_c02,
     4: _evaluate_c04,
     9: _evaluate_c09,
     10: _evaluate_c10,
@@ -1665,14 +1824,6 @@ def _evaluate_undefined(probe: _ConditionProbe) -> core.PredicateResult:
         for item in probe.contract.required_evidence:
             probe.read_kind(item.artifact_kind)
         reason = ReasonCode.COMPLETION_PROOF_NOT_MACHINE_CHECKABLE
-    elif number == 2:
-        raw = probe.read_kind("trial_registry")
-        if raw is None:
-            reason = ReasonCode.TRIAL_REGISTRY_CAPABILITY_ABSENT
-        elif b"declared-only" in raw:
-            reason = ReasonCode.ARM_BINDING_DECLARED_ONLY
-        else:
-            reason = ReasonCode.ARM_BINDING_PROOF_UNDEFINED
     elif number == 3:
         raw = probe.read_kind("trial_registry")
         reason = (
@@ -1770,6 +1921,15 @@ class PredicateRegistry:
                             "contract-machine-evaluator", condition.identifier
                         )
                     result = evaluator(probe)
+                    if (
+                        is_satisfied(result.status)
+                        and condition.identifier not in SATISFIABLE_CONDITION_IDS
+                    ):
+                        result = _result(
+                            probe,
+                            core.PredicateStatus.ERROR,
+                            ReasonCode.EVALUATOR_INTERNAL_ERROR,
+                        )
                 else:
                     result = _evaluate_undefined(probe)
             except (core.PreregistrationError, EvidenceContractError) as exc:

@@ -20,9 +20,12 @@ from __future__ import annotations
 
 import argparse
 import dataclasses
+import errno
 import hashlib
 import json
+import os
 import re
+import stat
 import sys
 from collections.abc import Mapping, Sequence
 from typing import Callable, Optional, TypedDict
@@ -100,6 +103,12 @@ _T080_NEVER_KEYS = frozenset({"state", "validation_head"})
 _SHA1_RE = re.compile(r"[0-9a-f]{40}")
 _SHA256_RE = re.compile(r"[0-9a-f]{64}")
 _MEASUREMENT_RECORD_KEYS = frozenset({"path", "sha256"})
+_STORE_REVERIFICATION_KEYS = frozenset({"state", "cells"})
+_STORE_REVERIFICATION_CELL_KEYS = frozenset({
+    "cell_id", "store_path", "expected_sha256", "actual_sha256", "state",
+})
+_STORE_REVERIFICATION_STATES = frozenset({"verified", "unverified"})
+_STORE_REVERIFICATION_CELL_STATES = frozenset({"match", "mismatch", "missing"})
 _MEASUREMENT_CONDITION_KEYS = frozenset({
     "campaign_id", "measurement_manifest_sha256", "perf_observation",
 })
@@ -1811,18 +1820,218 @@ def _assess_campaign(rows: Sequence[Mapping], campaign_id: str, manifest: Mappin
     return output, t080_observation
 
 
+def _resolve_store_path(*, output_root: Path, store_path: object) -> Path:
+    """raw POSIX store path を検査し、root containment を確認する。"""
+    if not isinstance(store_path, str) or not store_path:
+        raise ReportError("store_path が空でない文字列でない")
+    components = store_path.split("/")
+    if (store_path.startswith("/") or store_path.endswith("/")
+            or "//" in store_path or "\\" in store_path
+            or "." in components or ".." in components
+            or any(ord(char) < 32 or 127 <= ord(char) <= 159
+                   for char in store_path)):
+        raise ReportError(f"store_path の raw POSIX path が非正規: {store_path!r}")
+    try:
+        resolved_root = Path(output_root).resolve(strict=False)
+        resolved = (resolved_root / store_path).resolve(strict=False)
+        resolved.relative_to(resolved_root)
+    except OSError:
+        # 存在しない、または読めない root / component は caller で missing にする。
+        # raw path は上で containment を崩す字句を拒否済みである。
+        return Path(output_root) / store_path
+    except (RuntimeError, ValueError) as exc:
+        raise ReportError(
+            f"store_path が output_root 配下へ解決されない: {store_path!r}"
+        ) from exc
+    return resolved
+
+
+def _store_sha256_nofollow(
+        *, output_root: Path, store_path: object,
+) -> str | None:
+    """root fd から symlink を辿らず regular leaf を chunk hash する。"""
+    _resolve_store_path(output_root=output_root, store_path=store_path)
+    assert isinstance(store_path, str)
+    components = store_path.split("/")
+    directory_flags = (
+        os.O_RDONLY | getattr(os, "O_DIRECTORY", 0)
+        | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_CLOEXEC", 0)
+    )
+    leaf_flags = (
+        os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0)
+        | getattr(os, "O_CLOEXEC", 0) | getattr(os, "O_NONBLOCK", 0)
+    )
+    opened: list[int] = []
+    try:
+        try:
+            resolved_root = Path(output_root).resolve(strict=True)
+            current_fd = os.open(resolved_root, directory_flags)
+        except OSError:
+            return None
+        opened.append(current_fd)
+        for component in components[:-1]:
+            try:
+                component_stat = os.stat(
+                    component, dir_fd=current_fd, follow_symlinks=False,
+                )
+            except FileNotFoundError:
+                return None
+            except OSError:
+                return None
+            if stat.S_ISLNK(component_stat.st_mode):
+                raise ReportError(
+                    f"store_path parent component が symlink: {store_path!r}"
+                )
+            if not stat.S_ISDIR(component_stat.st_mode):
+                raise ReportError(
+                    f"store_path parent component が directory でない: {store_path!r}"
+                )
+            try:
+                next_fd = os.open(component, directory_flags, dir_fd=current_fd)
+            except FileNotFoundError:
+                return None
+            except OSError as exc:
+                if exc.errno in {errno.ELOOP, errno.ENOTDIR}:
+                    raise ReportError(
+                        f"store_path parent component を no-follow open できない: "
+                        f"{store_path!r}"
+                    ) from exc
+                return None
+            opened.append(next_fd)
+            current_fd = next_fd
+
+        leaf = components[-1]
+        try:
+            leaf_lstat = os.stat(leaf, dir_fd=current_fd, follow_symlinks=False)
+        except FileNotFoundError:
+            return None
+        except OSError:
+            return None
+        if stat.S_ISLNK(leaf_lstat.st_mode):
+            raise ReportError(f"store_path leaf が symlink: {store_path!r}")
+        if not stat.S_ISREG(leaf_lstat.st_mode):
+            raise ReportError(f"store_path leaf が regular file でない: {store_path!r}")
+        try:
+            leaf_fd = os.open(leaf, leaf_flags, dir_fd=current_fd)
+        except FileNotFoundError:
+            return None
+        except OSError as exc:
+            if exc.errno in {errno.ELOOP, errno.ENOTDIR}:
+                raise ReportError(
+                    f"store_path leaf を no-follow open できない: {store_path!r}"
+                ) from exc
+            return None
+        opened.append(leaf_fd)
+        try:
+            leaf_fstat = os.fstat(leaf_fd)
+        except OSError:
+            return None
+        if not stat.S_ISREG(leaf_fstat.st_mode):
+            raise ReportError(f"store_path leaf が regular file でない: {store_path!r}")
+        digest = hashlib.sha256()
+        try:
+            while True:
+                chunk = os.read(leaf_fd, 1024 * 1024)
+                if not chunk:
+                    break
+                digest.update(chunk)
+        except OSError:
+            return None
+        return digest.hexdigest()
+    finally:
+        for descriptor in reversed(opened):
+            try:
+                os.close(descriptor)
+            except OSError:
+                pass
+
+
+def _build_store_reverification(
+        *, schedule: Sequence[Mapping], binaries_by_cell: Mapping,
+        output_root: Path,
+) -> dict[str, object]:
+    """各 store を読んだ瞬間の freeze SHA 一致だけを receipt にする。
+
+    一時改変後に読み取り前に復元された場合と、各読み取り後の差し替えは検出しない。
+    certifying path は ``main()`` から直接渡された ``ReverifiedFreeze`` だけである。
+    """
+    scheduled_cell_ids: set[str] = set()
+    for row in schedule:
+        holdout_id = row.get("holdout_id")
+        configuration_id = row.get("configuration_id")
+        if (not isinstance(holdout_id, str) or not holdout_id
+                or not isinstance(configuration_id, str) or not configuration_id):
+            raise ReportError("schedule の logical cell identity が不正")
+        scheduled_cell_ids.add(f"{holdout_id}::{configuration_id}")
+    if not scheduled_cell_ids:
+        raise ReportError("schedule の logical cell 集合が空")
+    if not isinstance(binaries_by_cell, Mapping) or not binaries_by_cell:
+        raise ReportError("ReverifiedFreeze.binaries_by_cell が空でない mapping でない")
+    if set(binaries_by_cell) != scheduled_cell_ids:
+        raise ReportError(
+            "ReverifiedFreeze.binaries_by_cell が schedule logical cells を完全被覆しない"
+        )
+
+    cells: list[dict[str, object]] = []
+    for cell_id in sorted(scheduled_cell_ids):
+        record = binaries_by_cell[cell_id]
+        if not isinstance(record, Mapping):
+            raise ReportError(f"binaries_by_cell[{cell_id!r}] が object でない")
+        store_path = record.get("store_path")
+        expected_sha256 = record.get("binary_sha256")
+        if (not isinstance(expected_sha256, str)
+                or _SHA256_RE.fullmatch(expected_sha256) is None):
+            raise ReportError(
+                f"binaries_by_cell[{cell_id!r}].binary_sha256 が lowercase SHA-256 でない"
+            )
+        actual_sha256 = _store_sha256_nofollow(
+            output_root=output_root, store_path=store_path,
+        )
+        if actual_sha256 is None:
+            state = "missing"
+        elif actual_sha256 == expected_sha256:
+            state = "match"
+        else:
+            state = "mismatch"
+        cell = {
+            "cell_id": cell_id,
+            "store_path": store_path,
+            "expected_sha256": expected_sha256,
+            "actual_sha256": actual_sha256,
+            "state": state,
+        }
+        if set(cell) != _STORE_REVERIFICATION_CELL_KEYS:
+            raise ReportError("store_reverification cell construction schema が不一致")
+        cells.append(cell)
+    outer_state = (
+        "verified" if all(cell["state"] == "match" for cell in cells)
+        else "unverified"
+    )
+    receipt: dict[str, object] = {"state": outer_state, "cells": cells}
+    if (set(receipt) != _STORE_REVERIFICATION_KEYS
+            or receipt["state"] not in _STORE_REVERIFICATION_STATES
+            or any(cell["state"] not in _STORE_REVERIFICATION_CELL_STATES
+                   for cell in cells)):
+        raise ReportError("store_reverification construction schema が不一致")
+    return receipt
+
+
 def build_observations(
     *, manifest: (
         s8b_oracle_manifest.VerifiedManifest | _artifacts.LegacyManifest
     ),
     output_root: Path,
     repo_root: Path = ROOT,
+    reverified_freeze: s8b_ratified_freeze.ReverifiedFreeze | None = None,
 ) -> _artifacts.OfficialObservations:
     """manifest 所有 campaign だけから JSON-safe な全件 observations を作る。"""
     if type(manifest) not in {
             s8b_oracle_manifest.VerifiedManifest, _artifacts.LegacyManifest}:
         raise _artifacts.OracleArtifactTypeError(
             "build_observations は VerifiedManifest/LegacyManifest exact type のみ受理する")
+    if (reverified_freeze is not None
+            and type(reverified_freeze) is not s8b_ratified_freeze.ReverifiedFreeze):
+        raise ReportError("reverified_freeze は ReverifiedFreeze exact type が必要")
     if type(manifest) is s8b_oracle_manifest.VerifiedManifest:
         document = manifest.document
         manifest_kind = "official"
@@ -1834,7 +2043,17 @@ def build_observations(
             )
         manifest_sha = manifest.sha256
         spec_sha = document["spec_sha256"]
+        if reverified_freeze is not None:
+            freeze_record = document.get("freeze")
+            if (not isinstance(freeze_record, Mapping)
+                    or freeze_record.get("sha256")
+                    != reverified_freeze.ratified.sha256):
+                raise ReportError(
+                    "ReverifiedFreeze の freeze sha256 が manifest.freeze.sha256 と不一致"
+                )
     else:
+        if reverified_freeze is not None:
+            raise ReportError("legacy manifest は reverified_freeze を受理しない")
         document = manifest
         manifest_kind = "legacy"
         spec_sha = None
@@ -1956,6 +2175,13 @@ def build_observations(
         "holdout_id": item["holdout_id"],
         "configuration_id": item["configuration_id"],
     } for item in schedule]
+    store_reverification = None
+    if reverified_freeze is not None:
+        store_reverification = _build_store_reverification(
+            schedule=schedule,
+            binaries_by_cell=reverified_freeze.binaries_by_cell,
+            output_root=resolved_output_root,
+        )
     result = _artifacts.OfficialObservations({
         "schema_version": SCHEMA_VERSION,
         "manifest_kind": manifest_kind,
@@ -1969,6 +2195,8 @@ def build_observations(
     })
     if spec_sha is not None:
         result["spec_sha256"] = spec_sha
+    if store_reverification is not None:
+        result["store_reverification"] = store_reverification
     if any(
             condition["perf_observation"] is not None
             for condition in measurement_conditions):
@@ -1998,6 +2226,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     try:
         manifest = _artifacts.load_official_manifest(args.manifest)
         root = Path(args.repo_root)
+        build_kwargs: dict[str, object] = {}
         if type(manifest) is _artifacts.OfficialManifest:
             ratified = s8b_ratified_freeze.load_ratified_freeze(root)
             reverified = s8b_ratified_freeze.reverify_published_freeze(
@@ -2011,8 +2240,10 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                 freeze_sha256=reverified.ratified.sha256,
                 approved_spec=approved,
             )
+            build_kwargs["reverified_freeze"] = reverified
         observations = build_observations(
             manifest=manifest, output_root=args.output_root, repo_root=root,
+            **build_kwargs,
         )
         _write_create_only(args.out, observations)
     except (OSError, json.JSONDecodeError, _artifacts.OracleArtifactTypeError,

@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
 """Phase 3 8c trial manifest registration and acceptance gates.
 
-The registry records declarations only.  In particular, a successful
-acceptance result does not certify that the declared experimental arm was the
-arm that ran.
+The v2 receipt projects the execution binding already checked against report,
+run-start, historical input derivation, and cell descriptor bytes.  Approval
+authority remains unresolved, so acceptance is still structurally
+non-certifying.
 """
 from __future__ import annotations
 
@@ -243,7 +244,7 @@ class AcceptanceSummary:
     receipt_path: str
     receipt_sha256: str
     certifying: bool = False
-    arm_binding: str = "declared-only"
+    arm_binding: str = "execution-bound"
 
 
 @dataclasses.dataclass(slots=True)
@@ -2859,6 +2860,7 @@ def assert_trial_registry_acceptance(
             current_head=current_head,
         )
         receipt_trials: list[dict[str, Any]] = []
+        descriptor_proofs: list[bool] = []
         for trial in sorted(manifest.trials, key=lambda item: item.trial_id):
             item = loaded_by_id[trial.trial_id]
             accepted_trial = accepted_by_id[trial.trial_id]
@@ -2889,7 +2891,9 @@ def assert_trial_registry_acceptance(
                 "attempt_journal_sha256": hashlib.sha256(
                     item.journal_bytes
                 ).hexdigest(),
+                "arm_execution": dict(item.report["arm_execution"]),
             }
+            descriptor_proofs.append(len(item.report.get("cells", ())) == 1)
             if "origin_terminal_projection" in item.report:
                 receipt_trial["origin_terminal_projection"] = (
                     _validate_origin_terminal_projection(
@@ -2901,6 +2905,11 @@ def assert_trial_registry_acceptance(
         reason_codes = sorted(
             s8c_acceptance_receipt.MANDATORY_NON_CERTIFYING_REASONS
         )
+        if not all(descriptor_proofs):
+            reason_codes.append(
+                s8c_acceptance_receipt.C02_ARM_BINDING_UNPROVEN
+            )
+            reason_codes.sort()
         receipt_value = {
             "schema_version": s8c_acceptance_receipt.SCHEMA_VERSION,
             "manifest_path": manifest_relative,
