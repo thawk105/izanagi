@@ -31,7 +31,7 @@ sys.path.insert(0, str(ORCHESTRATOR.parent))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import real_repo_ratified_memo as ratified_memo  # noqa: E402
-import real_repo_receipt_memo as receipt_memo  # noqa: E402
+from orchestrator.tests import real_repo_receipt_memo as receipt_memo  # noqa: E402
 import s8b_oracle_spec_fixture as spec_fixture  # noqa: E402
 import s8b_v2_freeze_fixture as v2_fixture  # noqa: E402
 import test_s8b_ratified_freeze as ratified_fixture  # noqa: E402
@@ -2329,8 +2329,8 @@ def test_real_freeze_gate_lists_floor_and_budget_null():
     introduction, raw = independent
     assert introduction == _T080_RECEIPT_INTRODUCTION
     assert hashlib.sha256(raw).hexdigest() == _T080_RECEIPT_RAW_SHA256
-    # [T-057] この node は実 repo receipt の observation 自体が検査対象。実解決は memo の
-    # 初回 miss として必ず本番 verify_receipt へ委譲されるので (canned 値は作らない)、
+    # [T-057] この node は実 repo receipt の observation 自体が検査対象。実解決は collection
+    # barrier の prewarm で本番 verify_receipt へ委譲されるので (canned 値は作らない)、
     # 検出力は変わらず gate_check 側の重複解決 (同 22.4 秒) だけが畳まれる。
     with receipt_memo.patch_driver_resolver():
         decision = driver.gate_check(freeze_path=REAL_FREEZE, root=ROOT)

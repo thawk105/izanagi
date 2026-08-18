@@ -724,6 +724,44 @@ def test_conftest_hooks_swallow_exception_and_preserve_required_output(
         assert reporter.lines == []
 
 
+@pytest.mark.parametrize("hook_name", ["collection", "xdist"])
+def test_receipt_memo_prewarm_skips_minimal_fake_config(hook_name):
+    consumer = next(iter(sorted(CONF.RECEIPT_MEMO_CONSUMER_NODES)))
+    config = SimpleNamespace()
+    lazy_import = mock.Mock(side_effect=AssertionError("fake config was prewarmed"))
+    with mock.patch.object(CONF, "_receipt_memo_module", lazy_import):
+        if hook_name == "collection":
+            filename, function = consumer.split("::", 1)
+            item = SimpleNamespace(
+                path=Path(filename), name=function, originalname=function,
+            )
+            result = CONF.pytest_collection_finish(
+                SimpleNamespace(config=config, items=[item]),
+            )
+        else:
+            result = CONF.pytest_xdist_node_collection_finished(
+                SimpleNamespace(config=config), [consumer],
+            )
+    assert result is None
+    lazy_import.assert_not_called()
+
+
+def test_receipt_memo_prewarm_gate_rejects_constant_true_synthetic_mutant():
+    consumer = next(iter(sorted(CONF.RECEIPT_MEMO_CONSUMER_NODES)))
+    filename, function = consumer.split("::", 1)
+    item = SimpleNamespace(
+        path=Path(filename), name=function, originalname=function,
+    )
+    config = SimpleNamespace()
+
+    # 合成退行: 前提判定を恒真にすると、最小偽 config の安全側 no-op を失う。
+    with mock.patch.object(CONF, "_receipt_memo_prewarm_prerequisites", return_value=True):
+        with pytest.raises(pytest.UsageError):
+            CONF.pytest_collection_finish(
+                SimpleNamespace(config=config, items=[item]),
+            )
+
+
 def test_check_wrapper_executes_only_fixed_argv(monkeypatch):
     calls = []
     monkeypatch.setattr(TC.subprocess, "call", lambda *a, **kw: calls.append((a, kw)) or 3)
