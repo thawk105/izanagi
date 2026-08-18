@@ -6107,6 +6107,15 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   起動を拒む機械強制にする / memory + 本エントリのままとする)。
 - **新しい情報**: 本 F の発火点は「子が勝手に検索する」だけでなく**親が外部事実を問う設問を
   書いた瞬間**にある。禁止文言の明記と同時に、設問を実機と repo で確かめられる形に保つことが要る。
+
+- **再発: 2026-08-18** — 段 3 敵対レンズ A が web 検索を 3 回使い (events の `web_search` 3 件)、
+  `codex_exit_code=0` / 41 model call / 673 秒 / 出力 9983 bytes / `## 総括` あり
+  にもかかわらず `evidence_status=invalid` / `accepted=false` で不採用になった。
+  入力 376 万 token を消費している。**3 度目の同型発生であり、2026-08-11 の再発で記録した
+  「恒久対応がどの dispatch 節にも配線されておらず書き手の記憶に依存している」状態が
+  そのまま持続していることの実証である。** 本 wave の親も consult prompt に禁止を書き忘れ、
+  Web 禁止を明記した prompt で再走して初めて受理を得た (結論は両走とも同一)。
+  機械強制は [T-1350] で起票する。
 ### F218. Codex は `.codex/` 配下へ構造的に書けない [手順漏れ]
 
 - 事象: 段 5 の実装子が `.codex/hooks.json` だけを作れず、`patch rejected: writing outside of the
@@ -8802,6 +8811,14 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   TIMEOUT 0。MISMATCH の M01 は失敗 node 19 件のうち 17 件が完全一致し、
   差は real-repo serial 2 件のグループ名だけだった。
 
+
+- **再発: 2026-08-18** — 事前登録 §5 の欄名凍結を撃つ変異 3 件で同型を再現し、本走 1 巡を失った。
+  probe が返した `...::test_candidate_freeze_matches_contract_and_generation_chain@s8c-preregistration-candidate`
+  をそのまま登録すると起動前 rc=2、接尾辞を落とすと比較段で MISMATCH という、記録どおり
+  どちらの形でも一致しない状態に落ちた。**回避策を実測した** — 変異 runner の argv へ
+  `-n0` を足して xdist を無効化すると報告空間から `@<group>` が消え、collection 空間と一致して
+  KILLED 3 / 3 を得た。[T-1217] の正規化が入るまで、`xdist_group` を持つテストを期待 node に
+  含む変異は runner argv で xdist を無効化してから走らせれば、erratum つきの手動判定を避けられる。
 ### F347. repo 内の非 NFC 行を子が raw 表示すると evidence が全損する [コンテキスト浪費] [手順漏れ]
 
 - 事象: 2026-08-16、段 2 のプラン子が
@@ -9740,3 +9757,23 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   7 面の導出手順と、6 面止まりで通るすり抜け入力を逐語で残す。
 - 再発検知: 変異 matrix に「各 sink へ digest を流さない producer」を 1 件ずつ登録し、
   面の数だけ KILLED が並ぶことを求める。面が漏れていれば、その面の変異が作れないことで気づく。
+
+### F391. codex の同一上流障害が「認証失効」と「枠切れ」の 2 症状で出た [手順漏れ]
+
+- 事象: 2026-08-18 12:56〜13:07 JST、独立した 2 wave の codex 子が同時間帯に即死した。
+  本 wave (段 3 敵対相談 2 本) の stderr は
+  `HTTP error: 401 Unauthorized, url: wss://api.openai.com/v1/responses` の連打で、
+  rc=1・出力 0 bytes・`codex login status` は "Logged in using ChatGPT" のままだった。
+  並行 wave は同じ時間帯に events 内の usage limit メッセージとして観測した。
+  症状だけでは「サブスクのログイン失効」と「利用枠の取り合い」を判別できない。
+- 根本原因: 上流の同一障害が経路によって別の表層症状を出す。`codex login status` は
+  credential の存在を見るだけで、API 側が拒否している状態を反映しない。
+  401 を見て「ログインし直しが要る」と診断すると、実際には数分待てば回復する事象で
+  ユーザー手番を要求してしまう (逆に枠切れと診断すると、本当に失効したとき復旧しない)。
+- 恒久対応: memory `codex-auth-expiry-is-fail-closed-stop` へ「症状で原因を断定せず、
+  新しい prompt bytes で 1 本だけ再投入して切り分ける」を足す。失敗は数十秒・token ゼロで安価であり、
+  切り分けの費用は再投入 1 本より高くならない。判定は `docs/dev-wave/operations.md` の `DW-O01`
+  どおり `.done` と exit code で行い、`codex login status` の表示を判定に使わない。
+- 再発検知: `tools/check_codex_output.py` の rc≠0 が無出力を成果と誤認する経路を塞ぐ。
+  再投入時は job-id が prompt 内容の sha256 で決まるため、prompt 本文を変えないと
+  `既存の完全な receipt は上書きできない` で rc=2 になり、上書き事故も同時に塞がれる。
