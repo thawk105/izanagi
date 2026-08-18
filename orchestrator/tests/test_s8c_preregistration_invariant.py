@@ -38,6 +38,8 @@ WAVE_REQUIRED_PATHS = frozenset(
         "orchestrator/tests/test_s8c_preregistration_core.py",
         "orchestrator/tests/test_s8c_preregistration_invariant.py",
         "orchestrator/tests/test_s8c_preregistration_predicates.py",
+        "orchestrator/campaign/s8c_schedule.py",
+        "orchestrator/tests/test_s8c_schedule.py",
     }
 )
 MACHINE_CONTRACT_FUNCTION_CHECKS = frozenset(

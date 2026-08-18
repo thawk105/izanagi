@@ -66,6 +66,7 @@ class ReasonCode(str, enum.Enum):
     RESTART_GUARD_ABSENT = "restart-guard-absent"
     SCHEDULE_SCHEMA_ABSENT = "schedule-schema-absent"
     SCHEDULE_CONSUMER_UNDEFINED = "schedule-consumer-undefined"
+    SCHEDULE_CONSUMER_UNREACHABLE = "schedule-consumer-unreachable"
     BUDGET_CONSUMER_UNDEFINED = "budget-consumer-contract-undefined"
     FLOOR_JUDGE_CONSUMER_UNDEFINED = "floor-judge-contract-undefined"
     PREREG_BINDING_CAPABILITY_ABSENT = "prereg-binding-capability-absent"
@@ -1619,6 +1620,118 @@ def _evaluate_c04(probe: _ConditionProbe) -> core.PredicateResult:
     registry = probe.python_kind("trial_registry")
     if registry is None or "forbid_trial_restart" not in _functions(registry):
         return _result(probe, core.PredicateStatus.UNSATISFIED, ReasonCode.RESTART_GUARD_ABSENT)
+    return _result(
+        probe,
+        core.PredicateStatus.EVIDENCE_UNDEFINED,
+        ReasonCode.COMPLETION_PROOF_NOT_MACHINE_CHECKABLE,
+    )
+
+
+def _evaluate_c05(probe: _ConditionProbe) -> core.PredicateResult:
+    if probe.read_kind("schedule_artifact") is None:
+        return _result(
+            probe,
+            core.PredicateStatus.EVIDENCE_UNDEFINED,
+            ReasonCode.SCHEDULE_SCHEMA_ABSENT,
+        )
+
+    consumer = probe.python_kind("schedule_consumer")
+    if consumer is None:
+        return _result(
+            probe,
+            core.PredicateStatus.EVIDENCE_UNDEFINED,
+            ReasonCode.SCHEDULE_CONSUMER_UNDEFINED,
+        )
+
+    functions = _functions(consumer)
+    required_functions = {
+        "validate_authority",
+        "search_space_digest",
+        "initial_state_digest",
+        "regenerate",
+        "load_schedule",
+        "verify_exact_schedule_bytes",
+        "verify_shared_search_space_and_initial_state",
+        "verify_schedule",
+        "consume_schedule",
+    }
+    if not required_functions <= functions.keys():
+        return _result(
+            probe,
+            core.PredicateStatus.UNSATISFIED,
+            ReasonCode.SCHEDULE_CONSUMER_UNDEFINED,
+        )
+
+    required_calls = {
+        "verify_schedule": {
+            "verify_exact_schedule_bytes",
+            "verify_shared_search_space_and_initial_state",
+            "validate_authority",
+        },
+        "consume_schedule": {"verify_schedule"},
+        "verify_exact_schedule_bytes": {"regenerate"},
+    }
+    for name, expected in required_calls.items():
+        if not expected <= _live_called_names(functions[name]):
+            return _result(
+                probe,
+                core.PredicateStatus.UNSATISFIED,
+                ReasonCode.SCHEDULE_CONSUMER_UNREACHABLE,
+            )
+
+    field_literals = {
+        current.value
+        for name in required_functions
+        for current in _live_nodes(functions[name])
+        if isinstance(current, ast.Constant) and isinstance(current.value, str)
+    }
+    if not {
+        "schema_version",
+        "master_seed",
+        "cells",
+        "schedule_index",
+        "arm",
+        "holdout",
+        "search_space_sha256",
+        "initial_state_sha256",
+    } <= field_literals:
+        return _result(
+            probe,
+            core.PredicateStatus.UNSATISFIED,
+            ReasonCode.SCHEDULE_CONSUMER_UNDEFINED,
+        )
+
+    workload_path = "orchestrator/campaign/p3_autonomous_workload_trial.py"
+    try:
+        workload = probe.python_kind("workload_supervisor")
+    except EvidenceContractError as exc:
+        if exc.reason_code != "contract-artifact-kind":
+            raise
+        # C05 declares the two reachable evidence edges, not a third artifact
+        # kind.  Resolve the named production supervisor path directly for
+        # the reachability part of this static check.
+        workload = probe.python_path(workload_path)
+    if workload is None or "run_trial" not in _functions(workload):
+        return _result(
+            probe,
+            core.PredicateStatus.UNSATISFIED,
+            ReasonCode.SCHEDULE_CONSUMER_UNREACHABLE,
+        )
+
+    graph = _ReachabilityExplorer(probe).walk((workload_path, "run_trial"))
+    consumer_path = probe.requirement("schedule_consumer").path
+    required_targets = {
+        (consumer_path, "verify_schedule"),
+        (consumer_path, "consume_schedule"),
+        (consumer_path, "load_schedule"),
+    }
+    if not required_targets <= graph.calls:
+        return _result(
+            probe,
+            core.PredicateStatus.UNSATISFIED,
+            ReasonCode.SCHEDULE_CONSUMER_UNREACHABLE,
+        )
+
     return _result(
         probe,
         core.PredicateStatus.EVIDENCE_UNDEFINED,

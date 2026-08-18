@@ -3223,6 +3223,17 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   期待集合から同じ node を除いて再走したところ、baseline PASSED・9/9 KILLED・
   MISMATCH 0 で一度で通った。memory `primary-source-includes-failures-ledger` の
   「一次資料には failures 台帳を含める」は、**計測を投入する前**にも適用される。
+
+- **再発: 2026-08-18** — 3 度目。本 wave の変異本走 preflight が
+  `test_p3_s4_loop_trigger_gating.py` の 2 node で「期待 node が pytest collection に実在しない」
+  で停止した。接尾辞は xdist loadgroup 由来の `@real-repo` で、probe 走の観測 node をそのまま
+  期待集合へ移したために混入した。**新しい事実は、2026-08-17 の再発が「親が変異走行の前に
+  failures 台帳を引かなかった」ことを新事実として明記していたのに、本 wave の親も同じ順序で
+  投入したこと**である。同じ散文の警告を台帳へ足す対策は、2 度続けて発火しなかった。
+  回避は台帳どおり runner argv へ `--deselect <素の node id>` を足し、期待集合から同じ node を
+  除く再導出で、baseline PASSED・11/11 KILLED・MISMATCH 0 で一度で通った。
+  [T-417] の恒久対応 (harness 側で loadgroup 接尾辞を機械的に扱う) は依然未実施であり、
+  **散文の再発記録をこれ以上重ねても検知にならない**ことが 3 例で示された。
 ### F96. 非 UTF-8 の証跡 blob が land され local main の受入全走が赤のままになった [手順漏れ]
 
 - 事象: [T-287] wave が段 9 直前の受入全走で 1 件の赤を観測した
@@ -9703,6 +9714,7 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: 受入受領証の `verdict` 分布を集計し、`child-green` が主経路である限り本欠落は
   生きていると読む (集計 predicate は 2026-08-17 の worklog エントリに記録)。
   非帰属経路の束縛が発火した割合が、既存の部分対応が実際に効いた割合の上限である。
+- **supersede: 2026-08-18** — 恒久対応を D524 へ更新した。受領証の内容を候補外の `tools/acceptance_launcher.py` が生成し、land が実行 bytes 3 本の内容 SHA-256 を Git tree から独立に再計算して `child-green` にも照合する。**それでも閉じていない** — 起動権は tip 側待ち手にあり、bounded / dispatch の内側の子は束縛外で、land verifier 自身も候補コードである。残余は [T-1373] / [T-1374] / [T-1375] で追う。
 
 ### F386. 依頼が挙げた module 名で閉包を切り、真の consumer を落とした [手順漏れ]
 
@@ -9911,3 +9923,80 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   消しても `..` の負例は resolve containment が受けて緑のままで、赤になったのは
   絶対 path・制御文字・backslash の 3 例だけだった。**多層防御は望ましいが、
   変異の期待 node を層ごとに書けると仮定してはいけない。**
+
+### F397. receipt を要求する門を実装し全緑になった状態で、門は開いたままだった [恒真ゲート]
+
+- 事象: 全 `STAGE_COMMIT` producer へ receipt を要求する実装を入れ、親が実走した焦点走 23 file が
+  1388 passed / 0 failed になった。その状態で
+  `VerifyResult(trace_dir="never-read", serializable=True, n_txns=1)` を手で構築して issuer へ
+  渡すと live receipt が発行でき、trace parser も verifier entrypoint も一度も呼ばれなかった。
+  同型が 3 面あった (primary issuer・replay issuer・capability の operation 非束縛による再利用)。
+- 根本原因: 「receipt を要求する検査を足す」ことと「receipt が verifier 由来である」ことを
+  同一視した。門の入力を呼び手が生成できる限り、門は入力の形式だけを検査する飾りになる。
+  テストも同じ呼び手側の経路で receipt を作るため、検出力ゼロのまま全緑になる。
+- 恒久対応: D525。capability は実 verifier 走行の
+  内側でだけ生成し、operation・variant・workload・sink・lock を焼き込んで一回消費する。
+- 再発検知: 呼び手が構築した検証結果オブジェクトから receipt に到達しないことの負の対照と、
+  issuer / sink の call-site census を production 全走査で置く。
+  **緑の焦点走を「塞がった証拠」と数えない。** 門を壊す変異が赤を出すことでのみ検出力を主張する。
+
+### F398. 認証閉包 member を未 commit のまま測り、無関係な赤 29 件を実装差分へ帰属しかけた [手順漏れ]
+
+- 事象: 閉包 member (`pipeline.py` / `wal.py`) を編集した working tree で焦点走を回したところ
+  66 failed になった。実装を commit して閉包を再 pin してから同じ走行を回すと 37 failed に落ちた。
+  差の 29 件はすべて `contract-loader-drift: disk bytes が記録 commit blob と不一致` であり、
+  実装の欠陥ではなく測定条件の産物だった。
+- 根本原因: live binding 検査は disk bytes を HEAD blob と突き合わせる。閉包 member を
+  編集した未 commit の木では必ず drift が出るが、これが semantic gate より**手前で**落ちるため、
+  本来の失敗が隠れたまま件数だけが膨らむ。
+- 恒久対応: 閉包 member を編集する wave は、焦点走の前に必ず統合 commit を作る。
+  赤の件数を commit 前後で比較し、差分を drift として分離してから帰属を判定する。
+  **この手順を `DW-O18` へ書き足せなかった** — 同節は 995 bytes で L2 単節予算 1000 bytes に対し
+  余白 5 bytes しかない。手順の追記はユーザー裁定へ返す。
+- 再発検知: 閉包 member を含む差分で焦点走が大量の赤を返したとき、
+  最初に `contract-loader-drift` の件数を数える。
+
+### F399. 一過性で死んだ codex 子を同一 prompt で再投入できず 1 巡を失った [手順漏れ]
+
+- 事象: 段 3 の敵対 2 レンズが codex 認証の 401 で出力ゼロのまま即死した。同じ prompt で
+  再投入したところ `NG: 既存の完全な receipt は上書きできない` の rc=2 で起動せず、
+  prompt 本文を書き換えて job-id を変えるまで再投入できなかった。
+- 根本原因: job-id が prompt の sha256 から導かれるため、**内容が同じ再投入は常に同一 job-id** に
+  なる。既存 receipt の保護 (正しい設計) と、一過性失敗の再投入 (正当な運用) が同じ鍵を共有している。
+- 恒久対応: 一過性失敗の再投入は、prompt へ再投入の事実と新しい実測を追記して job-id を変える。
+  子の意味を変えない空白追加だけの回避はしない (何度目の投入かが receipt から読めなくなる)。
+  **この手順を `DW-O01` へ書き足せなかった** — 同節は既に 1275 bytes ある。追記はユーザー裁定へ返す。
+- 再発検知: rc=2 と「既存の完全な receipt は上書きできない」を見たら、
+  子の失敗が一過性かを先に判定し、prompt の更新で job-id を変える。
+
+### F400. 並行 wave との編集面衝突を相手の plan で判定し、着地結果と食い違った [手順漏れ]
+
+- 事象: 並行 wave の段 2 プランが closure 定数・exact-list pin・資格 identity を編集すると
+  書いていたため、段 4 で「本 wave の単位 C と同一編集面で衝突する」と裁定し、
+  実装順序を組み替えた。実際にはその wave が land した差分はこれらを 1 件も含まず、
+  両側が触った file の積集合は空だった。裁定の前提が着地結果では成立しなかった。
+- 根本原因: 衝突判定の一次資料を相手の**計画**に置いた。plan は wave 中に反証・縮小され、
+  着地するとは限らない。branch の現差分がゼロなことも「触らない」の証拠にはならない
+  (起動直後は必ずゼロである)。
+- 恒久対応: 衝突判定は相手が land した後の `git diff --name-only <base>..main` と
+  自分側の編集面の積集合で行う。未 land の相手については「衝突しうる」までしか言わず、
+  受入直前に着地差分で再判定する。
+- 再発検知: 段 4 で並行 wave との衝突を裁定に使うときは、根拠が plan か着地差分かを
+  裁定文に明記する。plan 根拠のまま受入へ進まない。
+
+### F401. 前回走の rc file を新しい走行の結果として読みかけた [誤前提] [手順漏れ]
+
+- 事象: fix 後の焦点走を再投入した直後に rc file を読み、`0` が入っていたので緑と判断しかけた。
+  実際にはそれは 32 分前の前回走が残した file で、当該走行はまだ計算ノードで実行中だった。
+  ログ側は dispatch の投入行までしか出ておらず、テストの要約行が無いことに気づいて
+  `ls --time-style=full-iso` で mtime を突き合わせ、rc file (19:23) とログ (19:54) の
+  時刻差から残留と判明した。
+- 根本原因: runner script が `echo $? > <rc>` を走行後に書く形なので、走行中は前回値が残る。
+  「file が存在し値が 0」を完了と等値に扱っており、その値がどの走行のものかを問わなかった。
+  「描画された差分は閉包の根拠にならない」と同型で、**手元にある成果物の出所を確かめずに
+  結論の根拠にした**ものである。
+- 恒久対応: 再走の前に rc file を削除してから起動する。読むときは mtime を実測し、
+  当該走行の開始時刻より後であることを確かめる。単独の rc 値を完了判定に使わず、
+  ログの要約行と対で見る。
+- 再発検知: 焦点走・変異走を再投入する手順で、rc file の削除と mtime 照合を実行する。
+  本 wave では削除してから再走し、mtime 19:55:37 を確認したうえで 548 passed を読んだ。

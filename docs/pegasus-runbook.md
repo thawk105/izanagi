@@ -840,7 +840,7 @@ python3 tools/dev_wave_wait.py acceptance --wave "$W" \
 - **内部再試行が起きたときの一次資料の所在。** 失敗 attempt の log は
   `<--log-file の値>.attempt-<2 桁>.no-verdict` へ退避され (既存があれば上書きせず停止)、
   `--log-file` が指す path には**最後の内部 attempt の log**が残る。受領証は成功 attempt の値だけを
-  収録し、path も版 (`dev-wave-acceptance-receipt/v3`) も root field も変わらない。
+  収録し、path も版 (`dev-wave-acceptance-receipt/v5`) も root field も変わらない。
   attempt 番号・分類・rc・退避先・log hash・claim した main は待ち手の stderr へ
   機械可読な retry journal 行として出る (成功終端でも消えない)。
 - **受理は 2 経路ある ([T-1019] / 2026-08-13 第 9 束 #1)。**
@@ -855,13 +855,29 @@ python3 tools/dev_wave_wait.py acceptance --wave "$W" \
   `classification` / `main_rerun_rc` / `nodeid` / `rerun_rc` / `wave_rerun_rc` の 5 field で
   3 個の rc がすべて 0 でなければならない。前者は `red_nodeids`、後者は `flake_nodeids` へ
   別々に入り、各集合は sorted・unique で互いに素、和集合が非空である必要がある。
-  outer receipt の schema は `dev-wave-acceptance-receipt/v4` で、v3 は受理しない。
+  outer receipt の schema は `dev-wave-acceptance-receipt/v5` で、v4 以前は受理しない。
   **`flake` は原因ではなく観測の分類である** — 初回全走で赤、tested main 単独再走で緑、
   wave tip 単独再走でも緑、という観測を指す。決定的な全走限定赤もここへ入る (明示受容した残余)。
   rc が 0 でも 1 でもない非 0 (`_DELETION_GATE_RC = 13` / `_PEGASUS_DISPATCH_RC = 16` /
   signal 由来など) は**テスト失敗以外の理由で落ちた走行**なので、赤が全部非帰属でも受理しない。
   checker の `status = "green"` (log から赤 nodeid を 1 件も取れなかった) も、
   rc=1 / rc=2 も受理しない。
+- **受領証の内容は待ち手ではなく `tools/acceptance_launcher.py` が作る ([T-1283])。**
+  待ち手は launcher の source を Git blob から取り、`python3 -I -c` の stdin へ渡して実行する。
+  launcher は `tested_tip:tools/run_tests.py` の blob bytes を同じ形で exec して runner の rc を
+  観測し、canonical な v5 receipt を待ち手が渡した一時 path へ書く。待ち手は保管と publish
+  だけを担い、launcher が非 0 で終われば receipt を publish しない。
+  **この形は runner が `main(argv)` を公開していることを要求する** (pathname から import
+  しないため)。v5 は `launcher_source_revision` / `launcher_blob_sha` /
+  `launcher_executed_sha256` / `waiter_executed_sha256` / `runner_executed_sha256` を必須にし、
+  land は 3 本の内容 SHA-256 を Git tree から独立に再計算して照合する。
+  **この照合は `child-green` にも掛かる** (受入受領証の 99.0% がこの経路。全期間 103 本中 102 本)。
+  launcher source は `tested_main` にあればそれを使い、無いときだけ `tested-tip-bootstrap` を
+  名乗る。land は `tested_main` と `locked_main` の双方で launcher 不在を要求するので、
+  launcher が main へ入った後は bootstrap を名乗れない。
+  **閉じていない残余**: 改変された tip 側待ち手は launcher を起動せず受領証を自作でき、
+  bounded / dispatch の内側の子は pathname を読み直すため実行 bytes の束縛外にある。
+  land verifier 自身も候補コードである。いずれも [T-696] の協調境界に残る。
 - **`tools/run_tests.py` または `tools/check_acceptance_reds.py` を変更した wave は経路 (ii) を
   使えない。** 経路 (ii) の受領証は、待ち手と land の双方が
   `tested_main:tools/run_tests.py` と `tested_tip:tools/run_tests.py` の object type が `blob`

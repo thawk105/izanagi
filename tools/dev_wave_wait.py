@@ -229,9 +229,31 @@ _STAGE_TIMEOUT_SECONDS = 300
 _STAGE_TERMINATION_SECONDS = 5
 _LEASE_TTL_SECONDS = 2400
 _RECEIPT_PUBLISH_MIN_TTL_SECONDS = _STAGE_TIMEOUT_SECONDS
-_RECEIPT_SCHEMA_VERSION = "dev-wave-acceptance-receipt/v4"
-_RECEIPT_AUTHORITY_KIND = "dev-wave-wait-acceptance"
+_RECEIPT_SCHEMA_VERSION = "dev-wave-acceptance-receipt/v5"
+_RECEIPT_AUTHORITY_KIND = "dev-wave-acceptance-launcher"
 _RECEIPT_TEMP_PREFIX = ".dev-wave-acceptance-receipt-"
+_LAUNCHER_PATH = "tools/acceptance_launcher.py"
+_LAUNCHER_BOOTSTRAP = r'''
+import hashlib
+import sys
+
+source = sys.stdin.buffer.read()
+executed_sha256 = hashlib.sha256(source).hexdigest()
+canonical_path = sys.argv[1]
+sys.argv = [
+    canonical_path,
+    "--launcher-executed-sha256",
+    executed_sha256,
+    *sys.argv[2:],
+]
+namespace = {
+    "__name__": "__main__",
+    "__file__": canonical_path,
+    "__package__": None,
+    "__cached__": None,
+}
+exec(compile(source, canonical_path, "exec"), namespace, namespace)
+'''.strip()
 _DETAIL_TEXT_MAX_BYTES = 256
 _ATTESTATION_DETAIL_MAX_BYTES = 2048
 _LOG_HASH_CHUNK_BYTES = 1024 * 1024
@@ -490,6 +512,60 @@ class _RedCheckerBinding:
     blob_sha: str
 
 
+@dataclass(frozen=True)
+class _LauncherBinding:
+    source: bytes
+    blob_sha: str
+    source_revision: str
+    waiter_blob_sha: str | None = None
+
+
+class _LauncherSession:
+    def __init__(
+        self,
+        process: subprocess.Popen[bytes],
+        outcome_fd: int,
+        completion_fd: int,
+    ) -> None:
+        self._process = process
+        self._outcome = os.fdopen(outcome_fd, "rb", buffering=0)
+        self._completion = os.fdopen(completion_fd, "wb", buffering=0)
+
+    def read_outcome(self) -> bytes:
+        payload = self._outcome.readline(4097)
+        if len(payload) > 4096 or not payload.endswith(b"\n"):
+            raise OSError("invalid launcher outcome framing")
+        return payload
+
+    def send_completion(self, payload: bytes) -> None:
+        remaining = memoryview(payload)
+        while remaining:
+            written = self._completion.write(remaining)
+            if written is None or written <= 0:
+                raise OSError("launcher completion pipe write failed")
+            remaining = remaining[written:]
+        self._completion.close()
+
+    def wait(self) -> _CommandResult:
+        result = _CommandResult(self._process.wait())
+        self._outcome.close()
+        return result
+
+    def abort(self) -> None:
+        for stream in (self._completion, self._outcome):
+            try:
+                stream.close()
+            except OSError:
+                pass
+        if self._process.poll() is None:
+            self._process.terminate()
+            try:
+                self._process.wait(timeout=_STAGE_TERMINATION_SECONDS)
+            except subprocess.TimeoutExpired:
+                self._process.kill()
+                self._process.wait()
+
+
 class _PidState(Enum):
     ALIVE = "alive"
     DEAD = "dead"
@@ -522,6 +598,12 @@ class _Effects:
     tip_waiter_bytes_sha256: Callable[[Path, str], object] | None = None
     run_with_input: (
         Callable[[Sequence[str], Path, bool, bytes], _BinaryCommandResult] | None
+    ) = None
+    launcher_source: (
+        Callable[[Path, str, str], _LauncherBinding] | None
+    ) = None
+    launch_launcher: (
+        Callable[[Sequence[str], Path, bytes], object] | None
     ) = None
     inspect_no_verdict_log: (
         Callable[[Path], _NoVerdictLogEvidence] | None
@@ -737,6 +819,63 @@ def _default_run_logged(
             stderr=subprocess.STDOUT,
         )
     return _CommandResult(result.returncode)
+
+
+def _launcher_process_argv(
+    argv: Sequence[str], outcome_fd: int, completion_fd: int
+) -> tuple[str, ...]:
+    return tuple(argv) + (
+            "--outcome-fd",
+            str(outcome_fd),
+            "--completion-fd",
+            str(completion_fd),
+            "--",
+            "python3",
+            "tools/run_tests.py",
+        )
+
+
+def _default_launch_launcher(
+    argv: Sequence[str], cwd: Path, source: bytes
+) -> _LauncherSession:
+    outcome_read, outcome_write = os.pipe()
+    completion_read, completion_write = os.pipe()
+    process: subprocess.Popen[bytes] | None = None
+    try:
+        actual_argv = _launcher_process_argv(
+            argv, outcome_write, completion_read
+        )
+        process = subprocess.Popen(
+            actual_argv,
+            cwd=cwd,
+            shell=False,
+            stdin=subprocess.PIPE,
+            pass_fds=(outcome_write, completion_read),
+        )
+        os.close(outcome_write)
+        outcome_write = -1
+        os.close(completion_read)
+        completion_read = -1
+        assert process.stdin is not None
+        process.stdin.write(source)
+        process.stdin.close()
+        return _LauncherSession(process, outcome_read, completion_write)
+    except BaseException:
+        for fd in (
+            outcome_read,
+            outcome_write,
+            completion_read,
+            completion_write,
+        ):
+            if fd >= 0:
+                try:
+                    os.close(fd)
+                except OSError:
+                    pass
+        if process is not None and process.poll() is None:
+            process.kill()
+            process.wait()
+        raise
 
 
 def _default_read_text(path: Path) -> str:
@@ -1423,6 +1562,8 @@ def _default_effects() -> _Effects:
         running_waiter_bytes_sha256=_default_running_waiter_bytes_sha256,
         tip_waiter_bytes_sha256=_default_tip_waiter_bytes_sha256,
         run_with_input=_default_run_with_input,
+        launcher_source=None,
+        launch_launcher=_default_launch_launcher,
         inspect_no_verdict_log=_default_inspect_no_verdict_log,
         archive_log=_default_archive_log,
         acceptance_monotonic=time.monotonic,
@@ -2339,6 +2480,108 @@ def _verify_runner_blob_identity(
         raise _StageFailure(stage)
 
 
+def _launcher_tree_blob(
+    effects: _Effects,
+    repo: Path,
+    revision: str,
+    stage: str,
+) -> str | None:
+    raw = _red_gate_git(
+        effects,
+        repo,
+        b"",
+        stage,
+        "ls-tree",
+        "-z",
+        revision,
+        "--",
+        _LAUNCHER_PATH,
+    )
+    if raw == b"":
+        return None
+    match = re.fullmatch(
+        rb"100(?:644|755) blob ([0-9a-f]{40})\t"
+        + re.escape(_LAUNCHER_PATH.encode("ascii"))
+        + rb"\x00",
+        raw,
+    )
+    if match is None:
+        raise _StageFailure(stage)
+    return match.group(1).decode("ascii")
+
+
+def _default_launcher_source(
+    effects: _Effects,
+    repo: Path,
+    tested_main: str,
+    tested_tip: str,
+    stage: str,
+) -> _LauncherBinding:
+    main_blob = _launcher_tree_blob(
+        effects, repo, tested_main, stage
+    )
+    if main_blob is None:
+        revision = tested_tip
+        source_revision = "tested-tip-bootstrap"
+        blob_sha = _launcher_tree_blob(effects, repo, revision, stage)
+        if blob_sha is None:
+            raise _StageFailure(stage)
+    else:
+        revision = tested_main
+        source_revision = "tested-main"
+        blob_sha = main_blob
+    source = _red_gate_git(
+        effects, repo, b"", stage, "cat-file", "blob", blob_sha
+    )
+    actual_raw = _red_gate_git(
+        effects,
+        repo,
+        source,
+        stage,
+        "hash-object",
+        "--stdin",
+        "--no-filters",
+    )
+    try:
+        actual = actual_raw.decode("ascii").strip()
+    except UnicodeError:
+        raise _StageFailure(stage) from None
+    if actual != blob_sha:
+        raise _StageFailure(stage)
+    return _LauncherBinding(source, blob_sha, source_revision)
+
+
+def _launcher_binding(
+    effects: _Effects,
+    repo: Path,
+    tested_main: str,
+    tested_tip: str,
+) -> _LauncherBinding:
+    if effects.launcher_source is not None:
+        binding = effects.launcher_source(repo, tested_main, tested_tip)
+    else:
+        binding = _default_launcher_source(
+            effects,
+            repo,
+            tested_main,
+            tested_tip,
+            "acceptance-launcher",
+        )
+    if (
+        not isinstance(binding, _LauncherBinding)
+        or binding.source_revision
+        not in {"tested-main", "tested-tip-bootstrap"}
+        or _SHA_RE.fullmatch(binding.blob_sha) is None
+        or not isinstance(binding.source, bytes)
+        or (
+            binding.waiter_blob_sha is not None
+            and _SHA_RE.fullmatch(binding.waiter_blob_sha) is None
+        )
+    ):
+        raise _StageFailure("acceptance-launcher")
+    return binding
+
+
 def _red_checker_argv(
     *,
     repo: Path,
@@ -2735,6 +2978,140 @@ def _normalize_child_rc(returncode: int) -> int:
     return 128 + (-returncode)
 
 
+def _canonical_json_line(value: object) -> bytes:
+    return (
+        json.dumps(
+            value,
+            ensure_ascii=True,
+            sort_keys=True,
+            separators=(",", ":"),
+        )
+        + "\n"
+    ).encode("ascii")
+
+
+def _launcher_outcome(payload: bytes) -> tuple[int, str, str]:
+    try:
+        value = json.loads(payload.decode("ascii"))
+    except (UnicodeError, ValueError, RecursionError):
+        raise _StageFailure("acceptance-launcher") from None
+    if _canonical_json_line(value) != payload or not isinstance(value, dict):
+        raise _StageFailure("acceptance-launcher")
+    if set(value) != {
+        "child_rc",
+        "log_sha256",
+        "runner_executed_sha256",
+    }:
+        raise _StageFailure("acceptance-launcher")
+    child_rc = value["child_rc"]
+    log_sha256 = value["log_sha256"]
+    runner_sha256 = value["runner_executed_sha256"]
+    if (
+        type(child_rc) is not int
+        or not isinstance(log_sha256, str)
+        or _SHA256_TEXT_RE.fullmatch(log_sha256) is None
+        or not isinstance(runner_sha256, str)
+        or _SHA256_TEXT_RE.fullmatch(runner_sha256) is None
+    ):
+        raise _StageFailure("acceptance-launcher")
+    return child_rc, log_sha256, runner_sha256
+
+
+def _running_waiter_sha256(effects: _Effects) -> str:
+    try:
+        value = (
+            effects.running_waiter_bytes_sha256
+            or _default_running_waiter_bytes_sha256
+        )()
+    except Exception:
+        raise _StageFailure("acceptance-launcher") from None
+    if not isinstance(value, str) or _SHA256_TEXT_RE.fullmatch(value) is None:
+        raise _StageFailure("acceptance-launcher")
+    return value
+
+
+def _launcher_argv(
+    *,
+    repo: Path,
+    wave: str,
+    holder: str,
+    tested_main: str,
+    tested_tip: str,
+    binding: _LauncherBinding,
+    waiter_executed_sha256: str,
+    waiter_blob_sha: str | None,
+    receipt_temp: Path,
+    log_file: Path,
+    pre_fingerprint: _TreeFingerprint,
+    environment: _AcceptanceEnvironment,
+) -> tuple[str, ...]:
+    prefix = (
+        sys.executable,
+        "-I",
+        "-c",
+        _LAUNCHER_BOOTSTRAP,
+        str(repo / _LAUNCHER_PATH),
+        "--repo-root",
+        str(repo),
+        "--wave",
+        wave,
+        "--lease-holder",
+        holder,
+        "--tested-main",
+        tested_main,
+        "--tested-tip",
+        tested_tip,
+        "--launcher-source-revision",
+        binding.source_revision,
+        "--launcher-blob-sha",
+        binding.blob_sha,
+        "--waiter-executed-sha256",
+        waiter_executed_sha256,
+    )
+    if waiter_blob_sha is not None:
+        prefix += ("--waiter-blob-sha", waiter_blob_sha)
+    return prefix + (
+        "--receipt-file",
+        str(receipt_temp),
+        "--log-file",
+        str(log_file),
+        "--pre-fingerprint-json",
+        _canonical_json_line(_fingerprint_json(pre_fingerprint))
+        .decode("ascii")
+        .rstrip("\n"),
+        "--env-projection-json",
+        _canonical_json_line(environment.as_json())
+        .decode("ascii")
+        .rstrip("\n"),
+    )
+
+
+def _launcher_completion(
+    post_fingerprint: _TreeFingerprint,
+    effective_scheduler: str,
+    red_check: _RedCheckResult | None,
+    waiter_blob_sha: str | None = None,
+) -> bytes:
+    red_json: dict[str, object] | None = None
+    if red_check is not None:
+        red_json = {
+            "checker_blob_sha": red_check.checker_blob_sha,
+            "checker_rc": red_check.checker_rc,
+            "checker_receipt_sha256": red_check.checker_receipt_sha256,
+            "checker_status": red_check.checker_status,
+            "flake_nodeids": list(red_check.flake_nodeids),
+            "red_nodeids": list(red_check.red_nodeids),
+        }
+    payload: dict[str, object] = {
+            "effective_scheduler": effective_scheduler,
+            "post_fingerprint": _fingerprint_json(post_fingerprint),
+            "red_check": red_json,
+    }
+    if waiter_blob_sha is not None:
+        payload["waiter_blob_sha"] = waiter_blob_sha
+    return _canonical_json_line(payload)
+
+
 def _cleanup_after_claim(
     effects: _Effects,
     repo: Path,
@@ -2815,204 +3192,6 @@ def _cleanup_lifecycle(
             file=sys.stderr,
         )
     return lifecycle.cleanup_failure
-
-
-def _acceptance_receipt_bytes(
-    *,
-    wave: str,
-    holder: str,
-    tested_main: str,
-    tested_tip: str,
-    command: Sequence[str],
-    resolved_runner_path: str,
-    pre_fingerprint: _TreeFingerprint,
-    post_fingerprint: _TreeFingerprint,
-    waiter_blob_sha: str,
-    environment: _AcceptanceEnvironment,
-    child_rc: int,
-    verdict: str,
-    log_sha256: str,
-    effective_scheduler: str,
-    red_check: _RedCheckResult | None,
-) -> bytes:
-    if not (
-        _SHA_RE.fullmatch(tested_main) is not None
-        and _SHA_RE.fullmatch(tested_tip) is not None
-        and re.fullmatch(r"[0-9a-f]{64}", log_sha256) is not None
-        and isinstance(effective_scheduler, str)
-        and effective_scheduler in _EFFECTIVE_SCHEDULERS
-    ):
-        tested_main_valid = _diagnostic_bool(
-            lambda: _SHA_RE.fullmatch(tested_main) is not None
-        )
-        tested_tip_valid = (
-            _diagnostic_bool(lambda: _SHA_RE.fullmatch(tested_tip) is not None)
-            if tested_main_valid
-            else None
-        )
-        log_sha256_valid = (
-            _diagnostic_bool(
-                lambda: re.fullmatch(r"[0-9a-f]{64}", log_sha256) is not None
-            )
-            if tested_tip_valid is True
-            else None
-        )
-        scheduler_is_str = (
-            _diagnostic_bool(lambda: isinstance(effective_scheduler, str))
-            if log_sha256_valid is True
-            else None
-        )
-        scheduler_in_allowed = (
-            _diagnostic_bool(
-                lambda: effective_scheduler in _EFFECTIVE_SCHEDULERS
-            )
-            if scheduler_is_str is True
-            else None
-        )
-        raise _StageFailure(
-            "acceptance-receipt",
-            detail=_attestation_detail(
-                "receipt-fields",
-                {
-                    "tested_main": tested_main,
-                    "tested_main_valid": tested_main_valid,
-                    "tested_tip": (
-                        tested_tip
-                        if tested_tip_valid is not None
-                        else None
-                    ),
-                    "tested_tip_valid": tested_tip_valid,
-                    "log_sha256": (
-                        log_sha256
-                        if log_sha256_valid is not None
-                        else None
-                    ),
-                    "log_sha256_valid": log_sha256_valid,
-                    "effective_scheduler": (
-                        effective_scheduler
-                        if scheduler_is_str is True
-                        else (
-                            type(effective_scheduler).__name__
-                            if scheduler_is_str is False
-                            else None
-                        )
-                    ),
-                    "scheduler_is_str": scheduler_is_str,
-                    "scheduler_in_allowed": scheduler_in_allowed,
-                },
-            ),
-        )
-    if verdict == "child-green":
-        if child_rc != 0 or red_check is not None:
-            raise _StageFailure(
-                "acceptance-receipt",
-                detail=_attestation_detail(
-                    "receipt-child-green",
-                    {
-                        "child_rc": child_rc,
-                        "red_check_present": (
-                            red_check is not None if child_rc == 0 else None
-                        ),
-                    },
-                ),
-            )
-    elif verdict == "non-attributable-only":
-        if (
-            child_rc != 1
-            or red_check is None
-            or not (red_check.red_nodeids or red_check.flake_nodeids)
-            or any(
-                not isinstance(nodeid, str) or not nodeid
-                for nodeid in (
-                    *red_check.red_nodeids,
-                    *red_check.flake_nodeids,
-                )
-            )
-            or list(red_check.red_nodeids)
-            != sorted(set(red_check.red_nodeids))
-            or list(red_check.flake_nodeids)
-            != sorted(set(red_check.flake_nodeids))
-            or not set(red_check.red_nodeids).isdisjoint(
-                red_check.flake_nodeids
-            )
-        ):
-            red_check_present = red_check is not None if child_rc == 1 else None
-            red_nodeid_count = (
-                len(red_check.red_nodeids)
-                if red_check_present is True
-                else None
-            )
-            flake_nodeid_count = (
-                len(red_check.flake_nodeids)
-                if red_check_present is True
-                else None
-            )
-            raise _StageFailure(
-                "acceptance-receipt",
-                detail=_attestation_detail(
-                    "receipt-non-attributable",
-                    {
-                        "child_rc": child_rc,
-                        "red_check_present": red_check_present,
-                        "red_nodeid_count": red_nodeid_count,
-                        "flake_nodeid_count": flake_nodeid_count,
-                    },
-                ),
-            )
-    else:
-        raise _StageFailure(
-            "acceptance-receipt",
-            detail=_attestation_detail(
-                "receipt-verdict",
-                {"verdict": verdict},
-            ),
-        )
-    receipt = {
-        "schema_version": _RECEIPT_SCHEMA_VERSION,
-        "authority_kind": _RECEIPT_AUTHORITY_KIND,
-        "acceptance_wave": wave,
-        "lease_holder": holder,
-        "tested_main": tested_main,
-        "tested_tip": tested_tip,
-        "argv": list(command),
-        "resolved_runner_path": resolved_runner_path,
-        "child_rc": child_rc,
-        "pre_fingerprint": _fingerprint_json(pre_fingerprint),
-        "post_fingerprint": _fingerprint_json(post_fingerprint),
-        "waiter_blob_sha": waiter_blob_sha,
-        "env_projection": environment.as_json(),
-        "verdict": verdict,
-        "log_sha256": log_sha256,
-        "effective_scheduler": effective_scheduler,
-        "checker_rc": None if red_check is None else red_check.checker_rc,
-        "checker_status": None if red_check is None else red_check.checker_status,
-        "checker_blob_sha": None if red_check is None else red_check.checker_blob_sha,
-        "checker_receipt_sha256": (
-            None if red_check is None else red_check.checker_receipt_sha256
-        ),
-        "red_nodeids": [] if red_check is None else list(red_check.red_nodeids),
-        "flake_nodeids": (
-            [] if red_check is None else list(red_check.flake_nodeids)
-        ),
-    }
-    try:
-        return (
-            json.dumps(
-                receipt,
-                ensure_ascii=True,
-                sort_keys=True,
-                separators=(",", ":"),
-            )
-            + "\n"
-        ).encode("ascii")
-    except (TypeError, UnicodeError, ValueError, RecursionError) as exc:
-        raise _StageFailure(
-            "acceptance-receipt",
-            detail=_attestation_detail(
-                "receipt-encode",
-                _exception_observed(exc),
-            ),
-        ) from None
 
 
 def _read_bytes(effects: _Effects, path: Path, stage: str) -> bytes:
@@ -3532,6 +3711,7 @@ def _run_acceptance_attempt(
     log_sha256: str | None = None
     retry_evidence_reason: str | None = None
     classification = "internal"
+    launcher_session: object | None = None
     try:
         _identity_preflight(effects, repo, wave)
         _check_index_flags(effects, repo, "preflight-index-flags")
@@ -3576,11 +3756,6 @@ def _run_acceptance_attempt(
             diagnostic_reason="full-history-provenance",
             capture_failure_output=True,
         )
-        if not owned_paths:
-            print(
-                "acceptance: --owned-path 未指定のため所有実装面 overlap 判定を省略します",
-                file=sys.stderr,
-            )
         absolute_deadline = deadline.get(effects)
         # 期限値そのものは run_acceptance 入口で固定済みであり、この
         # attempt 境界の再確認で延長しない。
@@ -3702,13 +3877,15 @@ def _run_acceptance_attempt(
             repo,
             prerun_fingerprint.head_sha,
         )
+        waiter_executed_sha256 = _running_waiter_sha256(effects)
         if (
             attempt_no > 1
             and effects.monotonic() >= deadline.get(effects)
         ):
             raise _StageFailure("acceptance-command-deadline")
         print(
-            "acceptance-command argv=" + json.dumps(list(command), ensure_ascii=True),
+            "acceptance-command argv="
+            + json.dumps(["python3", "tools/run_tests.py"], ensure_ascii=True),
             file=sys.stderr,
         )
         print(
@@ -3716,14 +3893,45 @@ def _run_acceptance_attempt(
             file=sys.stderr,
         )
         assert resolved_log_file is not None
+        assert claim_context is not None and claim_context.holder is not None
+        binding = _launcher_binding(
+            effects,
+            repo,
+            claim_context.main_sha,
+            prerun_fingerprint.head_sha,
+        )
+        waiter_blob_sha = binding.waiter_blob_sha
+        receipt_temp = _prepare_acceptance_receipt(
+            effects=effects,
+            receipt_file=receipt_file,
+            content=b"",
+        )
+        launcher_argv = _launcher_argv(
+            repo=repo,
+            wave=wave,
+            holder=claim_context.holder,
+            tested_main=claim_context.main_sha,
+            tested_tip=prerun_fingerprint.head_sha,
+            binding=binding,
+            waiter_executed_sha256=waiter_executed_sha256,
+            waiter_blob_sha=waiter_blob_sha,
+            receipt_temp=receipt_temp,
+            log_file=resolved_log_file,
+            pre_fingerprint=prerun_fingerprint,
+            environment=acceptance_environment,
+        )
         try:
-            # 受入 command 自身は正当に長時間走るため、stage timeout を適用しない。
-            run_logged = effects.run_logged or _default_run_logged
-            child = run_logged(tuple(command), repo, resolved_log_file)
+            launch = effects.launch_launcher or _default_launch_launcher
+            launcher_session = launch(launcher_argv, repo, binding.source)
+            outcome_payload = launcher_session.read_outcome()
+            (
+                normalized_child_rc,
+                launcher_log_sha256,
+                _runner_executed_sha256,
+            ) = _launcher_outcome(outcome_payload)
         except (OSError, UnicodeError, subprocess.SubprocessError):
             raise _StageFailure("acceptance-command") from None
-        raw_child_rc = child.returncode
-        normalized_child_rc = _normalize_child_rc(child.returncode)
+        raw_child_rc = normalized_child_rc
         postrun_status = _run_capture(
             effects,
             _CLEAN_STATUS_ARGV,
@@ -3757,12 +3965,23 @@ def _run_acceptance_attempt(
             )
             raise _StageFailure(
                 "acceptance-command",
-                source_rc=child.returncode,
+                source_rc=raw_child_rc,
             )
         log_sha256, effective_scheduler = _inspect_acceptance_log(
             effects,
             resolved_log_file,
         )
+        if log_sha256 != launcher_log_sha256:
+            raise _StageFailure("acceptance-launcher")
+        if waiter_blob_sha is None:
+            waiter_blob_sha = _blob_sha(
+                effects,
+                repo,
+                prerun_fingerprint.head_sha,
+                "tools/dev_wave_wait.py",
+                "acceptance-receipt",
+                diagnostic_reason="receipt-waiter-blob",
+            )
         assert claim_context is not None and claim_context.holder is not None
         red_check: _RedCheckResult | None = None
         verdict = "child-green"
@@ -3779,36 +3998,31 @@ def _run_acceptance_attempt(
                 log_sha256=log_sha256,
             )
             verdict = "non-attributable-only"
-        waiter_blob_sha = _blob_sha(
-            effects,
-            repo,
-            postrun_fingerprint.head_sha,
-            "tools/dev_wave_wait.py",
-            "acceptance-receipt",
-            diagnostic_reason="receipt-waiter-blob",
-        )
-        receipt_content = _acceptance_receipt_bytes(
-            wave=wave,
-            holder=claim_context.holder,
-            tested_main=claim_context.main_sha,
-            tested_tip=postrun_fingerprint.head_sha,
-            command=command,
-            resolved_runner_path=resolved_runner_path,
-            pre_fingerprint=prerun_fingerprint,
-            post_fingerprint=postrun_fingerprint,
-            waiter_blob_sha=waiter_blob_sha,
-            environment=acceptance_environment,
-            child_rc=normalized_child_rc,
-            verdict=verdict,
-            log_sha256=log_sha256,
-            effective_scheduler=effective_scheduler,
-            red_check=red_check,
-        )
-        receipt_temp = _prepare_acceptance_receipt(
-            effects=effects,
-            receipt_file=receipt_file,
-            content=receipt_content,
-        )
+        assert launcher_session is not None
+        try:
+            launcher_session.send_completion(
+                _launcher_completion(
+                    postrun_fingerprint,
+                    effective_scheduler,
+                    red_check,
+                    waiter_blob_sha=(
+                        waiter_blob_sha
+                        if binding.waiter_blob_sha is None
+                        else None
+                    ),
+                )
+            )
+            launcher_result = launcher_session.wait()
+        except (OSError, UnicodeError, subprocess.SubprocessError):
+            raise _StageFailure("acceptance-launcher") from None
+        launcher_session = None
+        if launcher_result.returncode != 0:
+            raise _StageFailure(
+                "acceptance-launcher",
+                source_rc=launcher_result.returncode,
+            )
+        if _running_waiter_sha256(effects) != waiter_executed_sha256:
+            raise _StageFailure("acceptance-launcher")
         final_main_sha = _main_sha(
             effects,
             repo,
@@ -3954,6 +4168,11 @@ def _run_acceptance_attempt(
             primary = _Outcome(RC_FAIL_CLOSED, "unexpected-error")
             classification = "unexpected-error"
     finally:
+        if launcher_session is not None:
+            try:
+                launcher_session.abort()
+            except BaseException:
+                pass
         if receipt_temp is not None:
             try:
                 effects.unlink(receipt_temp)
@@ -4095,6 +4314,11 @@ def run_acceptance(
     # preflight の所要で attempt ごとの待ち上限へ作り直されないよう、
     # invocation 入口で共有 deadline を確定する。
     deadline.start(effects)
+    if not owned_paths:
+        print(
+            "acceptance: --owned-path 未指定のため所有実装面 overlap 判定を省略します",
+            file=sys.stderr,
+        )
     last = _Outcome(RC_FAIL_CLOSED, "internal")
     for attempt_no in range(1, _MAX_ACCEPTANCE_ATTEMPTS + 1):
         attempt = _run_acceptance_attempt(

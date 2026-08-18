@@ -1,0 +1,92 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 320,
+  "timeout_seconds": 1800,
+  "hang_timeout_seconds": 900,
+  "mutations": [
+    {
+      "id": "t1333.mu1-campaign-sink-scale",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_autonomous_workload_trial.py",
+          "old": "    records = entry[\"records\"]\n    threads = entry[\"threads\"]\n    ycsb = entry[\"ycsb\"]\n    if \"candidate_id\" in entry and (records, threads) != (1_000_000, 48):\n        raise AutonomousTrialError(\"formal workload campaign scale differs\")\n",
+          "new": "    records = 100_000\n    threads = 4\n    ycsb = entry[\"ycsb\"]\n"
+        }
+      ]
+    },
+    {
+      "id": "t1333.mu2-perf-sink-scale",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_autonomous_workload_trial.py",
+          "old": "    records = entry[\"records\"]\n    threads = entry[\"threads\"]\n    ycsb = entry[\"ycsb\"]\n    if \"candidate_id\" in entry and (records, threads) != (1_000_000, 48):\n        raise AutonomousTrialError(\"formal workload perf scale differs\")\n",
+          "new": "    records = 100_000\n    threads = 4\n    ycsb = entry[\"ycsb\"]\n"
+        }
+      ]
+    },
+    {
+      "id": "t1333.mu3-descriptor-sink-scale",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_autonomous_workload_trial.py",
+          "old": "    records = entry[\"records\"]\n    threads = entry[\"threads\"]\n    ycsb = entry[\"ycsb\"]\n    if \"candidate_id\" in entry and (records, threads) != (1_000_000, 48):\n        raise AutonomousTrialError(\"formal workload descriptor scale differs\")\n",
+          "new": "    records = 100_000\n    threads = 4\n    ycsb = entry[\"ycsb\"]\n"
+        }
+      ]
+    },
+    {
+      "id": "t1333.mu4-layer3-four-way-scale",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/autonomous_trial_completeness.py",
+          "old": "    if not (\n        dict(descriptor_scale)\n        == dict(perf_config_scale)\n        == campaign_scale\n        == expected_scale\n    ):\n        _fail(\"campaign-chain\", f\"{label} workload scale differs from producer\")\n",
+          "new": "    if False:\n        _fail(\"campaign-chain\", f\"{label} workload scale differs from producer\")\n"
+        }
+      ]
+    },
+    {
+      "id": "t1333.mu5-formal-entry-alias",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_autonomous_workload_trial.py",
+          "old": "        ycsb=copy.deepcopy(_formal_authority[\"ycsb\"]),\n",
+          "new": "        ycsb=_formal_authority[\"ycsb\"],\n"
+        }
+      ]
+    },
+    {
+      "id": "t1333.mu6-resolver-merges-formal-into-exploratory",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_autonomous_workload_trial.py",
+          "old": "FORMAL_WORKLOADS: dict[str, WorkloadEntry] = {}\n",
+          "new": "FORMAL_WORKLOADS: dict[str, WorkloadEntry] = WORKLOADS\n"
+        }
+      ]
+    }
+  ]
+}

@@ -67,6 +67,7 @@ from orchestrator.critic.digest import (DIFF_QUARANTINE_REASON,                 
                            load_diff_rejections,
                            load_liveness_rejections, render_rejections)
 from campaign_lock_test_support import build_v2_lock               # noqa: E402
+import commit_receipt_support                                     # noqa: E402
 
 # 実 backoff.hh の EVOLVE-BLOCK 骨格を写した fixture (test_diff_quarantine と同型)。
 _TEMPLATE = """#pragma once
@@ -1487,7 +1488,7 @@ def test_checkpoint_whiteboard_value_domains_match_closed_literals():
 
 def test_checkpoint_direction_and_magnitude_domains_match_role_policy():
     """production の層間 import を増やさず、checkpoint 値域と role policy の drift を検出する。"""
-    from codex_roles import policy
+    from orchestrator.codex_roles import policy
 
     domains = dict(L._WB_VALUE_DOMAINS)
     assert domains["direction"] == policy._DIRECTION
@@ -1780,7 +1781,9 @@ def test_wall_budget_via_start_wall():
     assert L.check_stop(st2).reason == "continue"
 
 
-def test_drive_iteration_stops_before_running_when_reverse_exhausted():
+def test_drive_iteration_stops_before_running_when_reverse_exhausted(
+    ratified_enforcement_source,
+):
     """入口停止: 前 critic の逆方向推奨で reverse_recommendations が閾値に達すると、
     drive_iteration は run_one_iteration を呼ばず (ran=False) build/verify/bench に進まない。
     sub に不在パスを渡しても到達しない = 実行前に停止する証拠 (submodule に触れない)。"""
@@ -1878,7 +1881,9 @@ def test_inner_run_recovers_reject_start_before_writing_retry_start():
     assert records[2].payload["build_attempt_id"] != "crashed-reject-attempt"
 
 
-def test_drive_iteration_checkpoint_survives_across_calls():
+def test_drive_iteration_checkpoint_survives_across_calls(
+    ratified_enforcement_source,
+):
     """fresh reject が identity を確立し、次候補の public drive が resume できる。"""
     import contextlib
     from orchestrator.campaign import patchharness
@@ -1918,7 +1923,9 @@ def test_drive_iteration_checkpoint_survives_across_calls():
     assert len(st.whiteboard) == 2 and st.iteration == 2
 
 
-def test_drive_iteration_clean_no_build_skips_admitted_critic_digest(monkeypatch):
+def test_drive_iteration_clean_no_build_skips_admitted_critic_digest(
+    monkeypatch, ratified_enforcement_source,
+):
     import contextlib
     from orchestrator.campaign import patchharness
 
@@ -2290,7 +2297,9 @@ def test_resolve_duplicate_recovers_certified_from_wal():
               {"genome": genome.canonical(), "src_token": fake_src_tok})
     L.wal.log(lay, v, L.STAGE_VERIFY_DONE, L.ENV_TAG,
               {"verdict": "serializable", "certified": True, "commits": 1, "aborts": 1})
-    L.wal.log(lay, v, L.STAGE_COMMIT, L.ENV_TAG, {"fitness_tps": 491796.0, "cv": 0.009})
+    commit_receipt_support.append_legacy_raw_commit(
+        lay, v, L.ENV_TAG, {"fitness_tps": 491796.0, "cv": 0.009},
+    )
     pl = L.PlannerProposal(axis=L.MARKER_ID, direction="decrease", magnitude="medium")
     state = L.LoopState(iteration=2, start_wall=time.time())
     out = L._resolve_duplicate(lay, pl, state, _dup_summary(v))
@@ -2332,7 +2341,9 @@ def test_resolve_duplicate_never_reresolves_source():
     v = variant_id(genome, "feedface")
     L.wal.log(lay, v, L.STAGE_BUILD_START, L.ENV_TAG,
               {"genome": genome.canonical(), "src_token": "feedface"})
-    L.wal.log(lay, v, L.STAGE_COMMIT, L.ENV_TAG, {"fitness_tps": 1.0, "cv": 0.0})
+    commit_receipt_support.append_legacy_raw_commit(
+        lay, v, L.ENV_TAG, {"fitness_tps": 1.0, "cv": 0.0},
+    )
     pl = L.PlannerProposal(axis=L.MARKER_ID, direction="increase", magnitude="small")
     state = L.LoopState(iteration=2, start_wall=time.time())
     with unittest.mock.patch.object(

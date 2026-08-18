@@ -62,6 +62,7 @@ from orchestrator.campaign.pipeline import VERIFY_LEGACY_PLUS_S2                
 from orchestrator.campaign.source_digest import (EMPTY_TRACKED_DIFF_SHA256,      # noqa: E402
                                     STOCK, SourceEvidence)
 from campaign_lock_test_support import build_v2_lock                 # noqa: E402
+from orchestrator.tests import commit_receipt_support as receipt_support  # noqa: E402
 
 _REAL_E0_CAMPAIGN = (
     Path(_ORCH).parent
@@ -390,6 +391,7 @@ def _install_public_reject_sweep_fakes(monkeypatch, layout):
     )
 
 
+@pytest.mark.usefixtures("ratified_enforcement_source")
 def test_public_sweep_fresh_reject_then_next_candidate_resumes(monkeypatch):
     from orchestrator.campaign.layout import CampaignLayout
 
@@ -438,6 +440,7 @@ def test_public_sweep_trigger_crash_tail_fails_before_quarantine_write(monkeypat
     assert open(layout.wal_file, "rb").read() == before
 
 
+@pytest.mark.usefixtures("ratified_enforcement_source")
 def test_public_sweep_reaches_pipeline_with_exact_stock_and_machine_classes(
         monkeypatch):
     """public sweep→実 pipeline admission 境界で exact class 差を固定する。"""
@@ -514,6 +517,7 @@ def test_public_sweep_reaches_pipeline_with_exact_stock_and_machine_classes(
     assert seen[0][2] is seen[1][2]
 
 
+@pytest.mark.usefixtures("ratified_enforcement_source")
 def test_public_sweep_does_not_turn_admission_error_into_driver_error(monkeypatch):
     """F4: admission 配線失敗は候補隔離の broad except を通過して停止する。"""
     from orchestrator.campaign.layout import CampaignLayout
@@ -569,6 +573,7 @@ def test_eval_one_propagates_context_and_source_capability_to_build_entry(monkey
     assert callable(seen[0][1])
 
 
+@pytest.mark.usefixtures("ratified_enforcement_source")
 def test_public_sweep_full_frame_fsync_eio_stops_before_next_candidate(
         monkeypatch):
     from orchestrator.campaign.layout import CampaignLayout
@@ -963,11 +968,13 @@ def test_screen_reject_row_and_report_hide_uncertified_bench_values(
         },
     })
     # post-policy COMMIT は attempt と receipt SHA を必須にする。
-    W.wal.log(layout, certified_variant, W.STAGE_COMMIT, W.ENV_TAG, {
+    receipt_support.log_receipted_commit(
+        layout, certified_variant, W.ENV_TAG, {
         "build_attempt_id": certified_attempt,
         "build_admission_receipt_sha256": certified_receipt["receipt_sha256"],
         COMMIT_CONTRACT_SHA256_KEY: contract_sha256,
-    })
+        }, operation_identity=certified_attempt,
+    )
 
     entries = {
         "screened-out": {"variant_id": screen_variant, "category": "subset"},

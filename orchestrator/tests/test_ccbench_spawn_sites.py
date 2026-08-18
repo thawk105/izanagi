@@ -76,6 +76,9 @@ _EXPLICIT_NON_CCBENCH_PROCESS_SITES = Counter({
     ("campaign/certified_writer_admission.py", "<module>._git"): 1,
     ("campaign/certified_writer_preflight.py", "<module>._committed_blob"): 1,
     ("campaign/contract_loader_binding.py", "<module>._run_git"): 1,
+    # Fixed /usr/bin/git, bounded timeout, sanitized environment, and only
+    # read-only repository/ledger inspection; never names or runs CCBench.
+    ("campaign/enforcement_source_ratification.py", "<module>._git"): 1,
     ("campaign/floor_liveness.py", "<module>.classify"): 1,
     ("campaign/layer3_report.py", "<module>._git_head"): 1,
     ("campaign/patchharness.py", "<module>._git"): 1,

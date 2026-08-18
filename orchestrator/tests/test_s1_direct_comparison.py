@@ -303,6 +303,7 @@ def test_modified_freeze_is_refused_before_campaign_start(tmp_path):
     assert calls == []
 
 
+@pytest.mark.usefixtures("ratified_enforcement_source")
 def test_run_role_available_perf_keeps_evaluate_call_shape_exact(
         tmp_path, monkeypatch):
     probe_calls = []
@@ -333,6 +334,7 @@ def test_run_role_available_perf_keeps_evaluate_call_shape_exact(
         assert "perf_preflight_receipt" not in kwargs
 
 
+@pytest.mark.usefixtures("ratified_enforcement_source")
 def test_run_role_unavailable_perf_passes_degraded_kwargs_from_one_probe(
         tmp_path, monkeypatch):
     unavailable = _canonical_perf_receipt("unavailable")
@@ -1170,6 +1172,7 @@ def test_unknown_status_is_redacted_from_exception_deviation_and_budget(tmp_path
     assert all("sha256_12=" in output for output in outputs)
 
 
+@pytest.mark.usefixtures("ratified_enforcement_source")
 def test_budget_shortage_does_not_start_session(tmp_path):
     budget_path = tmp_path / "time_ledger.json"
     S.append_budget_entry(
@@ -1188,6 +1191,7 @@ def test_budget_shortage_does_not_start_session(tmp_path):
     assert any(e.get("event") == "budget-refused" for e in S.read_session_ledger(layout))
 
 
+@pytest.mark.usefixtures("ratified_enforcement_source")
 def test_budget_preflight_uses_conservative_upper_bound(tmp_path):
     budget_path = tmp_path / "time_ledger.json"
     # 性能実行の下限15秒は残るが、保守上界15分には足りない通常枠残額。
@@ -1273,6 +1277,7 @@ def test_terminal_exit_code_redundant_local_guard_rejects_unknown_status(tmp_pat
     assert "sha256_12=" in str(caught.value)
 
 
+@pytest.mark.usefixtures("ratified_enforcement_source")
 def test_retry_limit_abandons_session_and_continues(tmp_path):
     calls = []
 
@@ -1294,6 +1299,7 @@ def test_retry_limit_abandons_session_and_continues(tmp_path):
                for e in events)
 
 
+@pytest.mark.usefixtures("ratified_enforcement_source")
 def test_prepare_transient_failure_retries_twice_then_succeeds(tmp_path):
     prepare_calls = []
     evaluate_calls = []
@@ -1340,6 +1346,7 @@ def test_prepare_transient_failure_retries_twice_then_succeeds(tmp_path):
     ]) == 2
 
 
+@pytest.mark.usefixtures("ratified_enforcement_source")
 def test_s1_oracle_reject_is_distinct_terminal_and_resume_does_not_prepare(tmp_path):
     result = _oracle_reject_result()
     attempt_record = S._sort_swo_reject_attempt_record(result)
@@ -1393,6 +1400,7 @@ def test_s1_oracle_reject_is_distinct_terminal_and_resume_does_not_prepare(tmp_p
     assert len([e for e in resumed if e.get("event") == "session-result"]) == 1
 
 
+@pytest.mark.usefixtures("ratified_enforcement_source")
 def test_s1_oracle_unavailable_is_recorded_as_attempt_infra_before_retry(tmp_path):
     from orchestrator.campaign import sort_swo_oracle as oracle
 
@@ -1435,6 +1443,7 @@ def test_s1_oracle_unavailable_is_recorded_as_attempt_infra_before_retry(tmp_pat
     assert infra[0]["reason_code"] == oracle.INFRASTRUCTURE_REASON_CODE
 
 
+@pytest.mark.usefixtures("ratified_enforcement_source")
 def test_prepare_freeze_contract_error_aborts_without_retry(tmp_path):
     prepare_calls = []
     evaluate_calls = []
@@ -1459,6 +1468,7 @@ def test_prepare_freeze_contract_error_aborts_without_retry(tmp_path):
     assert not any(e.get("event") == "retry" for e in S.read_session_ledger(layout))
 
 
+@pytest.mark.usefixtures("ratified_enforcement_source")
 def test_verifier_red_stops_without_retry(tmp_path):
     calls = []
 
@@ -1475,6 +1485,7 @@ def test_verifier_red_stops_without_retry(tmp_path):
     assert not any(e.get("event") == "retry" for e in S.read_session_ledger(layout))
 
 
+@pytest.mark.usefixtures("ratified_enforcement_source")
 def test_trace_timeout_retries_but_verify_payload_does_not(tmp_path):
     timeout_calls = []
 
@@ -1506,6 +1517,7 @@ def test_trace_timeout_retries_but_verify_payload_does_not(tmp_path):
     assert red_calls == [1]
 
 
+@pytest.mark.usefixtures("ratified_enforcement_source")
 def test_driver_uses_workload_flags_from_freeze(tmp_path):
     document = _freeze()
     document["workload_flags"]["balanced"]["ycsb_rratio"] = "42"
@@ -1537,6 +1549,7 @@ def test_driver_refuses_freeze_without_workload_flags(tmp_path):
             single_tenant_fn=lambda: None, monotonic=_Clock(), log=lambda msg: None)
 
 
+@pytest.mark.usefixtures("ratified_enforcement_source")
 def test_verifier_red_in_one_campaign_blocks_other_campaign(tmp_path):
     calls = []
 
@@ -1558,6 +1571,7 @@ def test_verifier_red_in_one_campaign_blocks_other_campaign(tmp_path):
     assert calls == ["red"]
 
 
+@pytest.mark.usefixtures("ratified_enforcement_source")
 def test_develop_calls_legacy_plus_s2_without_bench_18_times(tmp_path):
     calls = []
 
@@ -1591,6 +1605,7 @@ def test_s1_session_stage_is_in_shared_wal_contract(tmp_path):
         "event": "session-start"}
 
 
+@pytest.mark.usefixtures("ratified_enforcement_source")
 def test_completed_campaign_resume_does_not_evaluate_again(tmp_path):
     assert _run(tmp_path, "develop", _green) == S.EXIT_OK
     calls = []
@@ -1628,6 +1643,7 @@ def test_resume_repairs_tail_before_retry_and_session_result(tmp_path):
                and event.get("attempt") == 1 for event in events)
 
 
+@pytest.mark.usefixtures("ratified_enforcement_source")
 def test_run_role_partial_wal_write_eio_preserves_error_and_stops_followup(
         tmp_path, monkeypatch):
     document = _freeze()
@@ -1696,6 +1712,7 @@ def test_dry_run_refuses_unframed_tail_without_physical_change(tmp_path):
 def test_pipeline_bench_rounds_default_three_and_opt_in_one(tmp_path, monkeypatch):
     """未指定は従来3、S-1 opt-inだけ1を remeasure_until_stable へ渡す。"""
     captured = []
+    real_verify = pipeline.verify_trace_dir_with_capability
 
     @contextlib.contextmanager
     def unlocked():
@@ -1727,9 +1744,11 @@ def test_pipeline_bench_rounds_default_three_and_opt_in_one(tmp_path, monkeypatc
         ),
     )
     monkeypatch.setattr(
-        pipeline, "verify_trace_dir",
-        lambda path, *, expected_commits=None: types.SimpleNamespace(
-            verdict="serializable", certified=True, anomalies=[]),
+        pipeline, "verify_trace_dir_with_capability",
+        lambda path, *, expected_commits=None, **receipt_binding: real_verify(
+            str(TESTS / "fixtures/g1_serial"),
+            **receipt_binding,
+        ),
     )
     monkeypatch.setattr(pipeline, "bench_lock", unlocked)
     monkeypatch.setattr(pipeline, "competing_bench_pids", lambda: [])

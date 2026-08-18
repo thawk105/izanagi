@@ -21,6 +21,7 @@ from orchestrator.campaign.model import (
     STAGE_COMMIT,
 )
 from orchestrator.qualification.artifacts import select_source_pair
+from orchestrator.tests import commit_receipt_support as receipt_support
 from orchestrator.tests.campaign_lock_test_support import build_v2_campaign_lock
 
 
@@ -51,7 +52,9 @@ def _layout(tmp_path: Path, name: str) -> CampaignLayout:
 def _write_commit(
         layout: CampaignLayout, *, env_tag: str, payload: dict[str, object],
 ) -> None:
-    wal.log(layout, "variant", STAGE_COMMIT, env_tag, payload)
+    receipt_support.log_receipted_commit(
+        layout, "variant", env_tag, payload,
+    )
 
 
 @pytest.mark.parametrize(

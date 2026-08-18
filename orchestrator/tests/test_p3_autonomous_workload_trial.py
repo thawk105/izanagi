@@ -339,7 +339,7 @@ def _actual_campaign_layout(
     descriptor, descriptor_record = A._descriptor_for(flags)
     cfg = A._campaign_for(
         workload="ycsb-a",
-        workload_flags=flags,
+        entry=flags,
         descriptor=descriptor,
         descriptor_record=descriptor_record,
         trial_id=trial_id,
@@ -357,7 +357,7 @@ def test_no_build_campaign_identity_binds_shared_policy_context() -> None:
     descriptor, descriptor_record = A._descriptor_for(flags)
     context = _no_build_context()
     cfg = A._campaign_for(
-        workload="ycsb-a", workload_flags=flags,
+        workload="ycsb-a", entry=flags,
         descriptor=descriptor, descriptor_record=descriptor_record,
         trial_id="fixture-completeness", generations=1,
         contract=_T530_CONTRACT, build_context=context,
@@ -372,6 +372,308 @@ def test_no_build_campaign_identity_binds_shared_policy_context() -> None:
         "p3-t178-ycsb-a-workload-conditioned-autonomous-948f4c43"
     )
     assert str(A.ident.campaign_id(cfg)) != _T530_NO_BUILD_CAMPAIGN_ID
+
+
+def test_t1333_exploratory_entries_preserve_baseline_projection_bytes() -> None:
+    expected = {
+        "ycsb-a": "8e7d4c370177086b9e3c4fdb87f8db85b169328c253378d962a4c694993a6e5c",
+        "ycsb-b": "c749c20173488ec03424a96f367b04aab428eeae8ba76aed7ff2679878d2c016",
+        "ycsb-c": "36be6867728e7c195174f7fd2aab9486e23783850e9f6c9e3af423b823dfc4c6",
+    }
+    assert tuple(A.WORKLOADS) == ("ycsb-a", "ycsb-b", "ycsb-c")
+    for workload, expected_sha256 in expected.items():
+        entry = A.WORKLOADS[workload]
+        assert set(entry) == {"ycsb", "records", "threads"}
+        descriptor, descriptor_record = A._descriptor_for(entry)
+        value = {
+            "descriptor": descriptor,
+            "descriptor_record": descriptor_record,
+            "perf": dataclasses.asdict(A._perf_for(entry)),
+            "workload_flags": dict(entry["ycsb"]),
+        }
+        assert hashlib.sha256(A._canonical_json_bytes(value)).hexdigest() == (
+            expected_sha256
+        )
+
+
+def test_t1333_all_three_sinks_use_the_same_synthetic_scale_entry() -> None:
+    entry = A.WorkloadEntry(
+        ycsb=dict(A.WORKLOADS["ycsb-a"]["ycsb"]),
+        records=123_457,
+        threads=13,
+    )
+    descriptor, descriptor_record = A._descriptor_for(entry)
+    campaign = A._campaign_for(
+        workload="ycsb-a",
+        entry=entry,
+        descriptor=descriptor,
+        descriptor_record=descriptor_record,
+        trial_id="synthetic-entry",
+        generations=1,
+        contract=_T530_CONTRACT,
+        build_context=_no_build_context(),
+    )
+    perf = A._perf_for(entry)
+    assert campaign.search_config["records"] == perf.records == 123_457
+    assert campaign.search_config["threads"] == perf.threads == 13
+    assert descriptor["scale"] == {"records": 123_457, "threads": 13}
+    assert campaign.search_config["ycsb"] == perf.workload == entry["ycsb"]
+
+
+def test_t1349_formal_entries_bind_legacy_module_and_arm_descriptor() -> None:
+    known_digests = {
+        "rr80": "80501db0235d88314edd4a4c29a1949e67acc2b466ae426fbbb1cb3da4b7d843",
+        "rr20": "53230b8b1f0e0d82def3c384f4d8d8b050a1ce872afd2ed9e2a403c61c3c550b",
+    }
+    source_record = A._formal_profile_source_record(repository_root=A.ROOT)
+    legacy = A.s8b_ratified_freeze.load_legacy_freeze(A.ROOT)
+    assert source_record["path"] == A.s8b_ratified_freeze.V1_FREEZE_PATH
+    assert source_record["sha256"] == legacy.sha256
+    for name, authority in A.s8b_holdout_freeze.HOLDOUTS.items():
+        entry = A.FORMAL_WORKLOADS[name]
+        assert set(entry) == {"candidate_id", "ycsb", "records", "threads"}
+        descriptor, record = A._descriptor_for(entry)
+        perf = A._perf_for(entry)
+        campaign = A._campaign_for(
+            workload=name,
+            entry=entry,
+            descriptor=descriptor,
+            descriptor_record=record,
+            trial_id=f"formal-{name}",
+            generations=1,
+            contract=_T530_CONTRACT,
+            build_context=_no_build_context(),
+        )
+        selected_name, arm_descriptor = A.s8c_arm_inputs._descriptor_for_candidate(
+            authority["candidate_id"]
+        )
+        assert selected_name == name
+        assert descriptor == arm_descriptor
+        assert record["output_sha256"] == known_digests[name]
+        assert campaign.search_config["records"] == perf.records == entry["records"]
+        assert campaign.search_config["threads"] == perf.threads == entry["threads"]
+        assert campaign.search_config["ycsb"] == perf.workload == entry["ycsb"]
+
+
+def test_t1349_formal_ycsb_entries_do_not_alias_module_authority(
+    monkeypatch,
+) -> None:
+    name = next(iter(A.FORMAL_WORKLOADS))
+    formal_ycsb = A.FORMAL_WORKLOADS[name]["ycsb"]
+    module_ycsb = A.s8b_holdout_freeze.HOLDOUTS[name]["ycsb"]
+    assert formal_ycsb == module_ycsb
+    assert formal_ycsb is not module_ycsb
+    key = A.s8b_holdout_freeze.SKEW_KEY
+    original = module_ycsb[key]
+    monkeypatch.setitem(formal_ycsb, key, original + "0")
+    assert module_ycsb[key] == original
+
+
+def test_t1333_each_formal_sink_rejects_a_wrong_scale() -> None:
+    name = next(iter(A.FORMAL_WORKLOADS))
+    valid = A.FORMAL_WORKLOADS[name]
+    descriptor, descriptor_record = A._descriptor_for(valid)
+    invalid = A.WorkloadEntry(copy.deepcopy(valid))
+    invalid["records"] += 1
+    with pytest.raises(A.AutonomousTrialError, match="formal workload campaign scale"):
+        A._campaign_for(
+            workload=name,
+            entry=invalid,
+            descriptor=descriptor,
+            descriptor_record=descriptor_record,
+            trial_id="wrong-formal-campaign-scale",
+            generations=1,
+            contract=_T530_CONTRACT,
+            build_context=_no_build_context(),
+        )
+    with pytest.raises(A.AutonomousTrialError, match="formal workload perf scale"):
+        A._perf_for(invalid)
+    with pytest.raises(A.AutonomousTrialError, match="formal workload descriptor scale"):
+        A._descriptor_for(invalid)
+
+
+def test_t1349_formal_binding_rejects_module_projection_mismatch(
+    monkeypatch,
+) -> None:
+    name = next(iter(A.FORMAL_WORKLOADS))
+    descriptor, _record = A._descriptor_for(A.FORMAL_WORKLOADS[name])
+    tampered = copy.deepcopy(A.s8b_holdout_freeze.HOLDOUTS)
+    tampered[name]["candidate_id"] += "-tampered"
+    monkeypatch.setattr(A.s8b_holdout_freeze, "HOLDOUTS", tampered)
+    monkeypatch.setattr(
+        A.s8c_arm_inputs,
+        "_descriptor_for_candidate",
+        lambda _candidate_id: (name, descriptor),
+    )
+    with pytest.raises(A.AutonomousTrialError, match="module bytes differ"):
+        A._assert_formal_entry_binding(name, A.FORMAL_WORKLOADS[name])
+
+
+def test_t1349_formal_binding_rejects_producer_projection_mismatch(
+    monkeypatch,
+) -> None:
+    name = next(iter(A.FORMAL_WORKLOADS))
+    original = A.FORMAL_WORKLOADS[name]
+    descriptor, _record = A._descriptor_for(original)
+    tampered = A.WorkloadEntry(copy.deepcopy(original))
+    tampered["candidate_id"] += "-tampered"
+    monkeypatch.setattr(
+        A.s8c_arm_inputs,
+        "_descriptor_for_candidate",
+        lambda _candidate_id: (name, descriptor),
+    )
+    with pytest.raises(A.AutonomousTrialError, match="module bytes differ"):
+        A._assert_formal_entry_binding(name, tampered)
+
+
+def test_t1349_formal_source_rejects_legacy_projection_mismatch(
+    monkeypatch,
+) -> None:
+    original_loader = A.s8b_ratified_freeze.load_legacy_freeze
+    legacy = original_loader(A.ROOT)
+    document = json.loads(json.dumps(legacy.document, default=dict))
+    name = next(iter(A.FORMAL_WORKLOADS))
+    document["holdouts"][name]["candidate_id"] += "-tampered"
+    monkeypatch.setattr(
+        A.s8b_ratified_freeze,
+        "load_legacy_freeze",
+        lambda _root: SimpleNamespace(document=document, sha256=legacy.sha256),
+    )
+    with pytest.raises(A.AutonomousTrialError, match="authority bytes differ"):
+        A._formal_profile_source_record(repository_root=A.ROOT)
+
+
+def test_t1349_formal_binding_rejects_arm_descriptor_mismatch(
+    monkeypatch,
+) -> None:
+    name = next(iter(A.FORMAL_WORKLOADS))
+    entry = A.FORMAL_WORKLOADS[name]
+    descriptor, _record = A._descriptor_for(entry)
+    mismatched = copy.deepcopy(descriptor)
+    mismatched["read_write"]["read_ratio_percent"] += 1
+    monkeypatch.setattr(
+        A.s8c_arm_inputs,
+        "_descriptor_for_candidate",
+        lambda _candidate_id: (name, mismatched),
+    )
+    with pytest.raises(A.AutonomousTrialError, match="descriptor authority differs"):
+        A._assert_formal_entry_binding(name, entry)
+
+
+def test_t1310_producer_source_has_no_holdout_conjunction() -> None:
+    source = Path(A.__file__).read_text(encoding="utf-8")
+    hits = A.s8b_holdout_freeze.holdout_conjunction_hits(
+        {Path(A.__file__).name: source}
+    )
+    assert set(hits) == set(A.s8b_holdout_freeze.HOLDOUTS)
+    assert all(not paths for paths in hits.values())
+
+
+def test_m12_scale_tokens_alone_do_not_create_a_holdout_conjunction() -> None:
+    source = Path(A.__file__).read_text(encoding="utf-8")
+    scale_only_mutation = source + "\nrecords = 1_000_000\nthreads = 48\n"
+    hits = A.s8b_holdout_freeze.holdout_conjunction_hits(
+        {Path(A.__file__).name: scale_only_mutation}
+    )
+    assert all(not paths for paths in hits.values())
+
+
+def test_formal_selector_rederives_source_then_fails_closed_before_run_root(
+    tmp_path,
+) -> None:
+    run_root = tmp_path / "must-not-exist"
+    with pytest.raises(
+        A.AutonomousTrialError,
+        match=(
+            r"^formal launch is not admissible: effective "
+            r"preregistration unavailable$"
+        ),
+    ):
+        A.run_trial(
+            trial_id="formal-blocked",
+            workloads=list(A.s8b_holdout_freeze.HOLDOUTS),
+            generations=1,
+            provider_kind="fixture",
+            run_root=run_root,
+            sub="/unused",
+            do_build=False,
+            workload_profile=A.FORMAL_LEGACY_WORKLOAD_PROFILE,
+        )
+    assert not run_root.exists()
+
+
+def test_programmatic_workload_profile_is_a_plain_string_closed_set(tmp_path) -> None:
+    for selector in ("not-a-profile", None, 1):
+        with pytest.raises(A.AutonomousTrialError, match="unknown workload profile"):
+            A.run_trial(
+                trial_id="profile-closed-set",
+                workloads=["ycsb-a"],
+                generations=1,
+                provider_kind="fixture",
+                run_root=tmp_path / f"run-{selector}",
+                sub="/unused",
+                do_build=False,
+                workload_profile=selector,
+            )
+
+
+def test_cli_default_workloads_stay_exploratory_after_formal_entries(
+    tmp_path, monkeypatch,
+) -> None:
+    observed = {}
+
+    def stop_at_admission(**kwargs):
+        observed.update(kwargs)
+        raise _CliGateReached
+
+    monkeypatch.setattr(A, "_trial_launch_admission", stop_at_admission)
+    with pytest.raises(_CliGateReached):
+        A.main([
+            "--trial-id", "default-workload-profile",
+            "--provider", "fixture",
+            "--no-build",
+            "--allow-unregistered-exploratory",
+            "--ccbench-dir", str(tmp_path / "ccbench"),
+            "--run-root", str(tmp_path / "run"),
+        ])
+    assert observed["workloads"] == list(A.WORKLOADS)
+
+
+def test_cli_formal_selector_fails_before_launch_admission(
+    tmp_path, monkeypatch,
+) -> None:
+    def unexpected_admission(**_kwargs):
+        pytest.fail("formal selector reached launch admission")
+
+    monkeypatch.setattr(A, "_trial_launch_admission", unexpected_admission)
+    with pytest.raises(
+        A.AutonomousTrialError,
+        match=(
+            r"^formal launch is not admissible: effective "
+            r"preregistration unavailable$"
+        ),
+    ):
+        A.main([
+            "--trial-id", "formal-cli-blocked",
+            "--provider", "fixture",
+            "--workload-profile", A.FORMAL_LEGACY_WORKLOAD_PROFILE,
+            "--no-build",
+            "--ccbench-dir", str(tmp_path / "ccbench"),
+            "--run-root", str(tmp_path / "run"),
+        ])
+
+
+def test_cli_workload_profile_rejects_values_outside_closed_set(tmp_path) -> None:
+    run_root = tmp_path / "must-not-exist"
+    with pytest.raises(SystemExit):
+        A.main([
+            "--trial-id", "unknown-profile-cli",
+            "--provider", "fixture",
+            "--workload-profile", "not-a-profile",
+            "--no-build",
+            "--run-root", str(run_root),
+        ])
+    assert not run_root.exists()
 
 
 def test_prepare_campaign_identity_uses_injected_contract_once(monkeypatch) -> None:
@@ -1070,7 +1372,7 @@ def test_fixture_trial_runs_ycsb_abc_and_binds_descriptor(tmp_path) -> None:
 
 
 def test_fixture_no_build_cli_uses_public_drive_without_critic_digest(
-    tmp_path, monkeypatch,
+    tmp_path, monkeypatch, ratified_enforcement_source,
 ) -> None:
     """P+1: documented 8c CLI reaches the real public drive on a fresh layout."""
     from orchestrator.campaign import patchharness
@@ -3695,7 +3997,7 @@ def test_role_metric_payloads_do_not_alias_frozen_validator_expectations(
 
 
 def test_standard_drive_two_generation_no_build_uses_s8c_wrapper(
-    tmp_path, monkeypatch,
+    tmp_path, monkeypatch, ratified_enforcement_source,
 ) -> None:
     from orchestrator.campaign import patchharness
 
@@ -5247,9 +5549,8 @@ def test_t1311_provider_payload_and_envelope_are_bound_to_arm_digest(
     )
 
 
-# T-325 supervisor/registry integration.  These fixtures deliberately extend
-# the supervisor's closed workload set so the new registry gate, rather than
-# the pre-existing unknown-workload gate, is the reason under test.
+# T-325 supervisor/registry integration.  The formal entries now come from the
+# shared holdout authority; the registry gate remains the reason under test.
 def _t325_git(repo: Path, *args: str) -> str:
     completed = subprocess.run(
         ["git", "-C", str(repo), *args],
@@ -5288,16 +5589,12 @@ def t325_registered_trial(tmp_path, monkeypatch):
     arm_input_commit = _t325_git(repo, "rev-parse", "HEAD")
 
     monkeypatch.setattr(A, "ROOT", repo)
-    monkeypatch.setitem(A.WORKLOADS, "rr80", {
-        "ycsb_zipf_skew": "0" + ".9",
-        "ycsb_rratio": "8" + "0",
-        "ycsb_rmw": "" + "0",
-    })
-    monkeypatch.setitem(A.WORKLOADS, "rr20", {
-        "ycsb_zipf_skew": "0" + ".9",
-        "ycsb_rratio": "2" + "0",
-        "ycsb_rmw": "" + "0",
-    })
+    for name, formal_entry in A.FORMAL_WORKLOADS.items():
+        monkeypatch.setitem(
+            A.WORKLOADS,
+            name,
+            A.WorkloadEntry(copy.deepcopy(formal_entry)),
+        )
 
     trials = []
     for holdout, workload in (("H1", "rr80"), ("H2", "rr20")):
@@ -5446,7 +5743,7 @@ def test_prepare_campaign_identity_exactly_matches_existing_derivation(
     descriptor, descriptor_record = A._descriptor_for(flags)
     legacy_campaign = A._campaign_for(
         workload="rr80",
-        workload_flags=flags,
+        entry=flags,
         descriptor=descriptor,
         descriptor_record=descriptor_record,
         trial_id=t325_registered_trial.trial_id,
@@ -5510,6 +5807,31 @@ def test_manifest_identity_preflight_does_not_consume_coder_authority(
         )
 
 
+def test_t1333_manifest_identity_reuses_the_formal_entry_scale(
+    t325_registered_trial,
+) -> None:
+    arm_execution = A.trial_registry.bind_trial_arm(
+        t325_registered_trial.binding,
+        repository_root=t325_registered_trial.repo,
+    )
+    prepared = A._prepare_manifest_campaign_identity(
+        workload="rr80",
+        trial_id=t325_registered_trial.trial_id,
+        generations=2,
+        site=A.trigger.site_policy.OTHER,
+        contract=_T530_CONTRACT,
+        build_context=_no_build_context(),
+        resolved_arm_input=arm_execution.resolved_input,
+    )
+    entry = A.FORMAL_WORKLOADS["rr80"]
+    assert prepared.campaign.search_config["records"] == entry["records"]
+    assert prepared.campaign.search_config["threads"] == entry["threads"]
+    assert prepared.campaign.search_config["ycsb"] == entry["ycsb"]
+    assert prepared.perf.records == entry["records"]
+    assert prepared.perf.threads == entry["threads"]
+    assert prepared.perf.workload == entry["ycsb"]
+
+
 def test_t1311_registered_identity_consumes_issued_arm_bytes(
     t325_registered_trial,
 ) -> None:
@@ -5545,7 +5867,9 @@ def test_t1311_registered_identity_consumes_issued_arm_bytes(
     assert prepared.campaign.search_config["arm_binding_digest_sha256"] == (
         record["arm_binding_digest_sha256"]
     )
-    assert prepared.campaign.search_config["ycsb"] == A.WORKLOADS["rr80"]
+    assert prepared.campaign.search_config["ycsb"] == (
+        A.FORMAL_WORKLOADS["rr80"]["ycsb"]
+    )
     assert prepared.campaign_id == t325_registered_trial.binding.campaign_id
 
 
@@ -5616,7 +5940,11 @@ def test_t1311_registered_workload_binds_proposal_and_all_invocations(
         A._ACTIVE_TRIAL_BINDING.reset(token)
     digest = arm_execution.arm_binding_digest_sha256
     assert cell["descriptor_binding"]["arm_binding_digest_sha256"] == digest
-    assert cell["workload_flags"] == A.WORKLOADS["rr80"]
+    assert cell["workload_flags"] == A.FORMAL_WORKLOADS["rr80"]["ycsb"]
+    assert cell["perf_config_scale"] == {
+        "records": A.FORMAL_WORKLOADS["rr80"]["records"],
+        "threads": A.FORMAL_WORKLOADS["rr80"]["threads"],
+    }
     for generation in cell["generations"]:
         for role, event in generation["roles"].items():
             assert event["invocation_id"] == A._invocation_id(
@@ -5635,6 +5963,20 @@ def test_t1311_registered_workload_binds_proposal_and_all_invocations(
         assert hashlib.sha256(Path(proposal["path"]).read_bytes()).hexdigest() == (
             proposal["sha256"]
         )
+
+
+def test_formal_registered_launch_requires_explicit_test_injection(
+    tmp_path, monkeypatch, t325_registered_trial,
+) -> None:
+    monkeypatch.delitem(A.WORKLOADS, "rr80")
+    run_root = tmp_path / "formal-default-selector-denied"
+    with pytest.raises(
+        A.AutonomousTrialError,
+        match=r"^unknown workloads: \['rr80'\]$",
+    ):
+        _t325_run(t325_registered_trial, run_root)
+    assert "rr80" in A.FORMAL_WORKLOADS
+    assert not run_root.exists()
 
 
 def test_p8_m25_manifest_run_burns_exact_binding_without_arm_fields(
