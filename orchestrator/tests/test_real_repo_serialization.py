@@ -1441,6 +1441,19 @@ def test_receipt_memo_l1_to_l5_are_fail_closed_and_uid_is_hashed():
         assert calls == ["resolve", "resolve"]
         path.unlink()
 
+        # 実 _cache_store の replace を directory 宛てにして失敗させる。
+        path.mkdir()
+        store_tmp = path.with_name(f"{path.name}.{os.getpid()}.tmp")
+        try:
+            memo_module._cache_store(path, resolution)
+        except IsADirectoryError:
+            pass
+        else:
+            raise AssertionError("実 _cache_store が replace 失敗を握り潰した")
+        assert path.is_dir()
+        assert not store_tmp.exists()
+        path.rmdir()
+
         store_failed = memo_module._make_receipt_memo(resolve=resolve)
         store_error = OSError(28, "no space")
         with mock.patch.object(memo_module, "_cache_store", side_effect=store_error):
