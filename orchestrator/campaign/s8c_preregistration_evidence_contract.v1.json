@@ -49,27 +49,50 @@
           "artifact_kind": "trial_registry",
           "path": "orchestrator/campaign/trial_registry.py",
           "field_paths": [
-            "manifest.cells[*].arm",
-            "run_start.arm",
-            "terminal_report.arm",
-            "campaign_identity.arm",
-            "proposal_path.arm",
-            "invocation_id.arm"
+            "TrialArmExecutionBinding.input_schema_version",
+            "TrialArmExecutionBinding.content_digest_sha256",
+            "TrialArmExecutionBinding.arm_binding_digest_sha256",
+            "run_start.arm_execution",
+            "terminal_report.arm_execution",
+            "terminal_report.cells[*].descriptor",
+            "terminal_report.cells[*].descriptor_binding"
           ],
           "reachable_from": [
-            "run_trial -> bind_trial_arm -> campaign launch",
-            "accept_trial -> verify_arm_binding -> registry append"
+            "bind_trial_arm -> resolve_arm_input",
+            "assert_issued_trial_arm_execution -> assert_issued_trial_binding",
+            "assert_issued_trial_arm_execution -> assert_issued_resolved_arm_input",
+            "assert_rederived_trial_arm_execution -> assert_issued_trial_arm_execution -> bind_trial_arm",
+            "assert_trial_registry_acceptance -> _expected_registered_arm_execution_record -> resolve_arm_input",
+            "assert_trial_registry_acceptance -> validate_execution_input_descriptor",
+            "assert_trial_registry_acceptance -> assert_execution_digest_chain"
+          ]
+        },
+        {
+          "artifact_kind": "proposal_namespace_producer",
+          "path": "orchestrator/campaign/p3_autonomous_workload_trial.py",
+          "field_paths": [
+            "_invocation_namespace.arm",
+            "_invocation_namespace.digest",
+            "_invocation_id.arm",
+            "_invocation_id.digest",
+            "_run_workload.proposal_path",
+            "_run_workload.proposal.arm_binding_digest_sha256"
+          ],
+          "reachable_from": [
+            "_invocation_id -> _invocation_namespace -> provider invocation_id",
+            "_run_workload -> _invocation_namespace -> proposal_path",
+            "run_trial -> _invocation_namespace -> invocation namespace"
           ]
         }
       ],
       "consumer_requirement": {
         "path": "orchestrator/campaign/trial_registry.py",
-        "entrypoints": ["bind_trial_arm", "accept_trial"],
+        "entrypoints": ["bind_trial_arm", "assert_trial_registry_acceptance"],
         "proof": "The registry must prove injective arm binding at production sinks, not merely store a declared arm field."
       },
       "negative_control_id": "nc_c02_proposal_path_arm_collision",
-      "machine_checkable": false,
-      "static_only_note": "The future proof is defined over committed binding and acceptance code before execution; the authoritative registry capability is not yet present."
+      "machine_checkable": true,
+      "static_only_note": "Only committed registry call edges and arm/digest consumption by the shared invocation and proposal namespace constructor are inspected; receipt v2 proves completed-run bytes separately."
     },
     {
       "condition_number": 3,
@@ -350,17 +373,17 @@
           "artifact_kind": "trial_registry",
           "path": "orchestrator/campaign/trial_registry.py",
           "field_paths": [
-            "accept_trial.build_reports[*].layer3_chain",
-            "accept_trial.no_build.certifying"
+            "assert_trial_registry_acceptance.build_reports[*].layer3_chain",
+            "assert_trial_registry_acceptance.no_build.certifying"
           ],
           "reachable_from": [
-            "accept_trial -> assert_campaign_layer3_chain -> registry append"
+            "assert_trial_registry_acceptance -> assert_campaign_layer3_chain -> registry append"
           ]
         }
       ],
       "consumer_requirement": {
         "path": "orchestrator/campaign/trial_registry.py",
-        "entrypoints": ["accept_trial"],
+        "entrypoints": ["assert_trial_registry_acceptance"],
         "proof": "The formal registry authority must execute Layer 3 verification for every build report and must never certify a missing or no-build chain."
       },
       "negative_control_id": "nc_c09_acceptance_skips_layer3",
@@ -388,21 +411,21 @@
             "layer3.admission_decision"
           ],
           "reachable_from": [
-            "accept_trial -> verify_s8c_cross_binding -> authoritative bytes reread"
+            "assert_trial_registry_acceptance -> verify_s8c_cross_binding -> authoritative bytes reread"
           ]
         },
         {
           "artifact_kind": "trial_registry",
           "path": "orchestrator/campaign/trial_registry.py",
-          "field_paths": ["accept_trial.cross_binding_receipt_sha256"],
+          "field_paths": ["assert_trial_registry_acceptance.cross_binding_receipt_sha256"],
           "reachable_from": [
-            "accept_trial -> verify_s8c_cross_binding -> registry append"
+            "assert_trial_registry_acceptance -> verify_s8c_cross_binding -> registry append"
           ]
         }
       ],
       "consumer_requirement": {
         "path": "orchestrator/campaign/trial_registry.py",
-        "entrypoints": ["accept_trial"],
+        "entrypoints": ["assert_trial_registry_acceptance"],
         "proof": "One authoritative verifier must reread every referenced byte stream and bind supervisor, provider, proposal, WAL, bench, and Layer 3 fields before registry acceptance."
       },
       "negative_control_id": "nc_c10_raw_response_unbound",

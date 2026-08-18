@@ -149,7 +149,10 @@ def test_current_repository_gap_reason_snapshot_requires_cross_wave_review(
         item.id: (item.status, item.reason_code) for item in results
     } == {
         "C01": (core.PredicateStatus.UNSATISFIED, "workload-projection-mismatch"),
-        "C02": (core.PredicateStatus.EVIDENCE_UNDEFINED, "arm-binding-declared-only"),
+        "C02": (
+            core.PredicateStatus.EVIDENCE_UNDEFINED,
+            "completion-proof-not-machine-checkable",
+        ),
         "C03": (core.PredicateStatus.EVIDENCE_UNDEFINED, "manifest-registry-proof-undefined"),
         "C04": (core.PredicateStatus.UNSATISFIED, "crash-policy-cell-partial"),
         "C05": (core.PredicateStatus.EVIDENCE_UNDEFINED, "schedule-schema-absent"),
@@ -172,6 +175,22 @@ def test_current_repository_c12_registry_reports_unwired_allocation_consumer(
     c12 = {item.id: item for item in results}["C12"]
     assert c12.status is core.PredicateStatus.UNSATISFIED
     assert c12.reason_code == "allocation-enforcement-consumer-absent"
+
+
+def test_c02_missing_registry_preserves_capability_absent_reason(
+    tmp_path: Path,
+) -> None:
+    root = _init_repo(tmp_path)
+    _write(
+        root,
+        "orchestrator/campaign/p3_autonomous_workload_trial.py",
+        TOKEN_ONLY_C02_PRODUCER,
+    )
+    head = _commit(root, "C02 registry absent")
+
+    result = _result(root, head, "C02")
+    assert result.status is core.PredicateStatus.EVIDENCE_UNDEFINED
+    assert result.reason_code == "trial-registry-capability-absent"
 
 
 def test_current_repository_c12_allocation_binding_helper_reports_unwired_consumer(
@@ -414,6 +433,46 @@ def main():
     return run_trial()
 """
 
+TOKEN_ONLY_C02_REGISTRY = """
+def assert_issued_trial_binding(): pass
+def resolve_arm_input(): pass
+def assert_issued_resolved_arm_input(): pass
+def validate_execution_input_descriptor(): pass
+def assert_execution_digest_chain(): pass
+def bind_trial_arm():
+    assert_issued_trial_binding()
+    resolve_arm_input()
+def assert_issued_trial_arm_execution():
+    assert_issued_trial_binding()
+    assert_issued_resolved_arm_input()
+def assert_rederived_trial_arm_execution():
+    assert_issued_trial_arm_execution()
+    bind_trial_arm()
+def _expected_registered_arm_execution_record():
+    resolve_arm_input()
+    return {
+        "input_schema_version": "v1",
+        "content_digest_sha256": "a" * 64,
+        "arm_binding_digest_sha256": "b" * 64,
+    }
+def assert_trial_registry_acceptance():
+    arm_execution = {"arm_execution": _expected_registered_arm_execution_record()}
+    validate_execution_input_descriptor()
+    assert_execution_digest_chain()
+    return arm_execution
+"""
+
+TOKEN_ONLY_C02_PRODUCER = """
+def _invocation_namespace(*, arm, digest):
+    return f"arm-{arm}.exec-{digest}"
+def _invocation_id(*, arm, digest):
+    return _invocation_namespace(arm=arm, digest=digest)
+def _run_workload(*, arm, digest):
+    return _invocation_namespace(arm=arm, digest=digest)
+def run_trial(*, arm, digest):
+    return _invocation_namespace(arm=arm, digest=digest)
+"""
+
 TOKEN_ONLY_C04 = """
 from .trial_registry import forbid_trial_restart
 def launch_cells(): pass
@@ -438,7 +497,7 @@ def main():
 
 TOKEN_ONLY_C09_REGISTRY = """
 from .autonomous_trial_completeness import assert_campaign_layer3_chain
-def accept_trial():
+def assert_trial_registry_acceptance():
     policy = {"no-build": False, "certifying": False}
     assert_campaign_layer3_chain()
     return policy
@@ -459,7 +518,7 @@ def verify_s8c_cross_binding():
 
 TOKEN_ONLY_C10_REGISTRY = """
 def verify_s8c_cross_binding(): pass
-def accept_trial():
+def assert_trial_registry_acceptance():
     return verify_s8c_cross_binding()
 """
 
@@ -606,6 +665,19 @@ def _negative_control_case(
             'def _perf_for(*, holdout, ratified_sha256):\n    return {"records": 1_000_000',
             'def _perf_for(*, holdout, ratified_sha256):\n    return {"records": 100_000',
         )
+    if identifier == "nc_c02_proposal_path_arm_collision":
+        sources = {
+            registry: TOKEN_ONLY_C02_REGISTRY,
+            p3: TOKEN_ONLY_C02_PRODUCER,
+        }
+        namespace_token = 'f"arm-{arm}.exec-{digest}"'
+        collision_token = '"arm-shared.exec-shared"'
+        assert TOKEN_ONLY_C02_PRODUCER.count(namespace_token) == 1
+        mutated = TOKEN_ONLY_C02_PRODUCER.replace(
+            namespace_token, collision_token, 1
+        )
+        assert mutated.count(collision_token) == 1
+        return sources, p3, mutated
     if identifier == "nc_c04_partial_crash_survives":
         sources = {p3: TOKEN_ONLY_C04, registry: "def forbid_trial_restart(): pass\n"}
         return sources, p3, TOKEN_ONLY_C04.replace(
@@ -662,12 +734,33 @@ def _negative_control_case(
 
 NEGATIVE_CONTROL_CASES = {
     "nc_c01_perf_scale_regression": "C01",
+    "nc_c02_proposal_path_arm_collision": "C02",
     "nc_c04_partial_crash_survives": "C04",
     "nc_c09_acceptance_skips_layer3": "C09",
     "nc_c10_raw_response_unbound": "C10",
     "nc_c11_generation_cap_reverts_to_one": "C11",
     "nc_c12_reservation_check_bypassed": "C12",
 }
+
+
+def test_c02_negative_control_collides_two_arms_by_one_namespace_token() -> None:
+    _, mutated_path, mutated_source = _negative_control_case(
+        "nc_c02_proposal_path_arm_collision"
+    )
+    assert mutated_path == "orchestrator/campaign/p3_autonomous_workload_trial.py"
+    assert isinstance(mutated_source, str)
+    baseline_scope: dict[str, object] = {}
+    mutated_scope: dict[str, object] = {}
+    exec(TOKEN_ONLY_C02_PRODUCER, baseline_scope)
+    exec(mutated_source, mutated_scope)
+    baseline_namespace = baseline_scope["_invocation_namespace"]
+    mutated_namespace = mutated_scope["_invocation_namespace"]
+    assert callable(baseline_namespace)
+    assert callable(mutated_namespace)
+    first = {"arm": "on", "digest": "a" * 64}
+    second = {"arm": "off", "digest": "b" * 64}
+    assert baseline_namespace(**first) != baseline_namespace(**second)
+    assert mutated_namespace(**first) == mutated_namespace(**second)
 
 
 def _terminal_result(
@@ -1168,6 +1261,7 @@ def test_c12_allocation_absence_shapes_are_independent_from_definition(
     ("identifier", "mutation", "expected"),
     [
         pytest.param("C01", "ratified = load_ratified_freeze()", "ratified-generation-reference-absent", id="C01"),
+        pytest.param("C02", "assert_execution_digest_chain()", "arm-binding-consumer-unreachable", id="C02"),
         pytest.param("C04", "mark_experiment_indeterminate()", "crash-policy-cell-partial", id="C04"),
         pytest.param("C09", "assert_campaign_layer3_chain()", "layer3-producer-unreachable", id="C09"),
         pytest.param("C12", "execution_guard.attest_and_build_receipt(contract)", "environment-contract-consumer-absent", id="C12"),
@@ -1199,6 +1293,59 @@ def test_reachable_consumers_reject_absence_shapes_with_single_reason(
     result = _result(tmp_path / "baseline", head, identifier)
     assert result.status is core.PredicateStatus.UNSATISFIED
     assert result.reason_code == expected
+
+
+def test_c02_namespace_fstring_must_flow_to_return_value(tmp_path: Path) -> None:
+    sources, _, _ = _negative_control_case(
+        "nc_c02_proposal_path_arm_collision"
+    )
+    root, _, _ = _terminal_result(tmp_path, "baseline", "C02", sources)
+    old = '    return f"arm-{arm}.exec-{digest}"'
+    replacement = (
+        '    f"arm-{arm}.exec-{digest}"\n'
+        '    return "arm-shared.exec-shared"'
+    )
+    assert TOKEN_ONLY_C02_PRODUCER.count(old) == 1
+    _write(
+        root,
+        "orchestrator/campaign/p3_autonomous_workload_trial.py",
+        TOKEN_ONLY_C02_PRODUCER.replace(old, replacement, 1),
+    )
+    head = _commit(root, "namespace f-string is unused")
+
+    result = _result(root, head, "C02")
+    assert result.status is core.PredicateStatus.UNSATISFIED
+    assert result.reason_code == "arm-binding-consumer-unreachable"
+
+
+def test_c02_call_after_literal_true_return_is_dead(tmp_path: Path) -> None:
+    sources, _, _ = _negative_control_case(
+        "nc_c02_proposal_path_arm_collision"
+    )
+    root, _, _ = _terminal_result(tmp_path, "baseline", "C02", sources)
+    old = (
+        "def bind_trial_arm():\n"
+        "    assert_issued_trial_binding()\n"
+        "    resolve_arm_input()\n"
+    )
+    replacement = (
+        "def bind_trial_arm():\n"
+        "    assert_issued_trial_binding()\n"
+        "    if True:\n"
+        "        return None\n"
+        "    resolve_arm_input()\n"
+    )
+    assert TOKEN_ONLY_C02_REGISTRY.count(old) == 1
+    _write(
+        root,
+        "orchestrator/campaign/trial_registry.py",
+        TOKEN_ONLY_C02_REGISTRY.replace(old, replacement, 1),
+    )
+    head = _commit(root, "C02 call follows literal true return")
+
+    result = _result(root, head, "C02")
+    assert result.status is core.PredicateStatus.UNSATISFIED
+    assert result.reason_code == "arm-binding-consumer-unreachable"
 
 
 @pytest.mark.parametrize(
@@ -1831,7 +1978,9 @@ def test_satisfiable_predicate_requires_negative_control() -> None:
         identifier for identifier, row in rows.items() if row.machine_checkable
     }
     assert machine_checkable == M.MACHINE_CHECKABLE_CONDITION_IDS
-    assert machine_checkable == {"C01", "C04", "C09", "C10", "C11", "C12"}
+    assert machine_checkable == {
+        "C01", "C02", "C04", "C09", "C10", "C11", "C12"
+    }
     assert M.SATISFIABLE_CONDITION_IDS == frozenset()
     assert M.SATISFIABLE_CONDITION_IDS <= M.MACHINE_CHECKABLE_CONDITION_IDS
     exercised = 0
@@ -1840,7 +1989,7 @@ def test_satisfiable_predicate_requires_negative_control() -> None:
         row = rows[identifier]
         assert row.negative_control_id in NEGATIVE_CONTROL_CASES
         assert NEGATIVE_CONTROL_CASES[row.negative_control_id] == identifier
-    assert exercised == 6
+    assert exercised == 7
     assert set(NEGATIVE_CONTROL_CASES) == {
         rows[identifier].negative_control_id for identifier in machine_checkable
     }
@@ -1867,6 +2016,7 @@ def test_noop_and_token_only_fixtures_never_satisfy(
     mutated_result = _result(root, mutated, identifier)
     expected_reasons = {
         "C01": "workload-projection-mismatch",
+        "C02": "arm-binding-consumer-unreachable",
         "C04": "crash-policy-cell-partial",
         "C09": "formal-acceptance-layer3-consumer-absent",
         "C10": "cross-binding-verifier-incomplete",
@@ -1875,6 +2025,30 @@ def test_noop_and_token_only_fixtures_never_satisfy(
     }
     assert mutated_result.status is core.PredicateStatus.UNSATISFIED
     assert mutated_result.reason_code == expected_reasons[identifier]
+
+
+def test_runtime_satisfiable_allowlist_rejects_unlisted_evaluator_success(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    root = _init_repo(tmp_path)
+    sources, _, _ = _negative_control_case(
+        "nc_c02_proposal_path_arm_collision"
+    )
+    for path, source in sources.items():
+        _write(root, path, source)
+    head = _commit(root, "spuriously satisfied C02 evaluator")
+
+    def spuriously_satisfied(probe: M._ConditionProbe) -> core.PredicateResult:
+        return M._result(
+            probe,
+            core.PredicateStatus.SATISFIED,
+            M.ReasonCode.COMPLETION_PROOF_NOT_MACHINE_CHECKABLE,
+        )
+
+    monkeypatch.setitem(M._MACHINE_EVALUATORS, 2, spuriously_satisfied)
+    result = _result(root, head, "C02")
+    assert result.status is core.PredicateStatus.ERROR
+    assert result.reason_code == "evaluator-internal-error"
 
 
 def test_evidence_reads_commit_blob_not_dirty_worktree(tmp_path: Path) -> None:
@@ -1947,16 +2121,16 @@ def test_c11_prohibition_ruling_blob_alone_is_not_compliance(tmp_path: Path) -> 
 
 def test_machine_checkable_condition_without_evaluator_is_error(tmp_path: Path) -> None:
     value = json.loads(CONTRACT_FILE.read_bytes())
-    value["conditions"][1]["machine_checkable"] = True
+    value["conditions"][2]["machine_checkable"] = True
     root = _init_repo(tmp_path)
     _write(
         root,
         core.EVIDENCE_CONTRACT_PATH,
         json.dumps(value, ensure_ascii=False).encode("utf-8"),
     )
-    head = _commit(root, "C02 falsely marked machine checkable")
+    head = _commit(root, "C03 falsely marked machine checkable")
 
-    result = _result(root, head, "C02")
+    result = _result(root, head, "C03")
     assert result.status is core.PredicateStatus.ERROR
     assert result.reason_code == "commit-blob-read-error"
 

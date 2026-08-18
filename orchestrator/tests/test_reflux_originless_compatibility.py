@@ -70,7 +70,7 @@ def _bundle(
         registry_path=fixture.registry_path,
         lifecycle_path=fixture.repo / A.trial_registry.DEFAULT_LIFECYCLE_PATH,
     )
-    return {
+    bundle = {
         "reports": [json.loads(path.read_bytes()) for path in report_paths],
         "journals": [
             [
@@ -89,6 +89,28 @@ def _bundle(
         ],
         "acceptance": json.loads((fixture.repo / summary.receipt_path).read_bytes()),
     }
+    activation_digest = fixture.capability.report_digest_sha256
+    assert bundle["acceptance"]["activation_report_digest_sha256"] == (
+        activation_digest
+    )
+    assert all(
+        report["launch_admission"]["activation_report_digest_sha256"]
+        == activation_digest
+        for report in bundle["reports"]
+    )
+    assert all(
+        event["launch_admission"]["activation_report_digest_sha256"]
+        == activation_digest
+        for journal in bundle["journals"]
+        for event in journal
+        if event["event"] == "run-start"
+    )
+    assert all(
+        row["activation_report_digest_sha256"] == activation_digest
+        for row in bundle["lifecycle"]
+        if "activation_report_digest_sha256" in row
+    )
+    return bundle
 
 
 def _origin_enabled_bundle(
@@ -564,6 +586,109 @@ def _pre_t1311_descriptor(
     return descriptor, binding
 
 
+_PRE_T822_ACTIVATION_REPORT_DIGEST_SHA256 = (
+    "3176f3a92cd88bf551acb18651143835901286e2ab86f73be8d9098d8cfae170"
+)
+
+
+def _project_t822_receipt_v2_to_v1(
+    bundle: dict[str, object],
+) -> dict[str, object]:
+    """Validate and consume receipt-v2 additions before the frozen view."""
+
+    projected = copy.deepcopy(bundle)
+    acceptance = projected["acceptance"]
+    reports = projected["reports"]
+    journals = projected["journals"]
+    assert type(acceptance) is dict
+    assert type(reports) is list
+    assert type(journals) is list
+    assert acceptance["schema_version"] == (
+        "p3-8c-trial-acceptance-receipt/v2"
+    )
+    assert acceptance["certifying"] is False
+    assert acceptance["non_certifying_reason_codes"] == [
+        "t468-approval-authority-absent"
+    ]
+    current_activation_digest = acceptance[
+        "activation_report_digest_sha256"
+    ]
+    assert (
+        type(current_activation_digest) is str
+        and len(current_activation_digest) == 64
+        and current_activation_digest
+        != _PRE_T822_ACTIVATION_REPORT_DIGEST_SHA256
+    )
+
+    reports_by_id = {}
+    for report in reports:
+        assert type(report) is dict
+        trial_id = report["trial_id"]
+        assert type(trial_id) is str and trial_id not in reports_by_id
+        reports_by_id[trial_id] = report
+    starts_by_id = {}
+    for journal in journals:
+        assert type(journal) is list
+        starts = [event for event in journal if event.get("event") == "run-start"]
+        assert len(starts) == 1
+        start = starts[0]
+        trial_id = start["trial_id"]
+        assert type(trial_id) is str and trial_id not in starts_by_id
+        starts_by_id[trial_id] = start
+    assert set(reports_by_id) == set(starts_by_id)
+    for report in reports:
+        assert report["launch_admission"][
+            "activation_report_digest_sha256"
+        ] == current_activation_digest
+        report["launch_admission"]["activation_report_digest_sha256"] = (
+            _PRE_T822_ACTIVATION_REPORT_DIGEST_SHA256
+        )
+    for start in starts_by_id.values():
+        assert start["launch_admission"][
+            "activation_report_digest_sha256"
+        ] == current_activation_digest
+        start["launch_admission"]["activation_report_digest_sha256"] = (
+            _PRE_T822_ACTIVATION_REPORT_DIGEST_SHA256
+        )
+    for row in projected["lifecycle"]:
+        if "activation_report_digest_sha256" not in row:
+            continue
+        assert row["activation_report_digest_sha256"] == current_activation_digest
+        row["activation_report_digest_sha256"] = (
+            _PRE_T822_ACTIVATION_REPORT_DIGEST_SHA256
+        )
+
+    receipt_trials = acceptance["trials"]
+    assert type(receipt_trials) is list
+    assert {trial["trial_id"] for trial in receipt_trials} == set(reports_by_id)
+    for trial in receipt_trials:
+        assert type(trial) is dict
+        trial_id = trial["trial_id"]
+        arm_execution = trial.pop("arm_execution")
+        assert set(arm_execution) == {
+            "input_schema_version",
+            "content_digest_sha256",
+            "arm_binding_digest_sha256",
+        }
+        assert arm_execution == reports_by_id[trial_id]["arm_execution"]
+        assert arm_execution == starts_by_id[trial_id]["arm_execution"]
+        assert arm_execution.pop("input_schema_version") == "8b-v1"
+        assert set(arm_execution) == {
+            "content_digest_sha256",
+            "arm_binding_digest_sha256",
+        }
+
+    acceptance["schema_version"] = "p3-8c-trial-acceptance-receipt/v1"
+    acceptance["activation_report_digest_sha256"] = (
+        _PRE_T822_ACTIVATION_REPORT_DIGEST_SHA256
+    )
+    acceptance["non_certifying_reason_codes"] = [
+        "c02-arm-binding-unproven",
+        "t468-approval-authority-absent",
+    ]
+    return projected
+
+
 def _project_t1311_arm_authority_to_pre_wave(
     bundle: dict[str, object],
 ) -> dict[str, object]:
@@ -595,9 +720,9 @@ def _project_t1311_arm_authority_to_pre_wave(
 
     for report in projected["reports"]:
         arm_execution = report.pop("arm_execution")
+        assert arm_execution.pop("input_schema_version") == "8b-v1"
         assert set(arm_execution) == {
-            "input_schema_version", "content_digest_sha256",
-            "arm_binding_digest_sha256",
+            "content_digest_sha256", "arm_binding_digest_sha256",
         }
         for cell in report["cells"]:
             descriptor, descriptor_binding = _pre_t1311_descriptor(
@@ -634,9 +759,9 @@ def _project_t1311_arm_authority_to_pre_wave(
         for event in journal:
             if event["event"] == "run-start":
                 arm_execution = event.pop("arm_execution")
+                assert arm_execution.pop("input_schema_version") == "8b-v1"
                 assert set(arm_execution) == {
-                    "input_schema_version", "content_digest_sha256",
-                    "arm_binding_digest_sha256",
+                    "content_digest_sha256", "arm_binding_digest_sha256",
                 }
             elif event["event"] == "role-attempt":
                 project_role(event)
@@ -647,6 +772,7 @@ def _project_t244_additions_to_pre_wave(bundle: dict[str, object]) -> dict[str, 
     """Consume each adjudicated addition explicitly, then expose the old view."""
 
     projected = _project_t1185_generation_binding_to_generation_one(bundle)
+    projected = _project_t822_receipt_v2_to_v1(projected)
     projected = _project_t1311_arm_authority_to_pre_wave(projected)
     for report in projected["reports"]:
         assert report["schema_version"] == A.REPORT_SCHEMA_VERSION
@@ -742,6 +868,55 @@ def test_originless_default_preserves_every_nonvolatile_leaf_and_closed_key_set(
     generation_two_planner["parsed"]["magnitude"] = "generation-two-mutant"
     with pytest.raises(AssertionError):
         _assert_generation_two_matches(omitted, generation_two_mutant)
+    receipt_binding_mutant = copy.deepcopy(omitted)
+    receipt_binding_mutant["acceptance"]["trials"][0]["arm_execution"][
+        "content_digest_sha256"
+    ] = "f" * 64
+    with pytest.raises(AssertionError):
+        _project_t822_receipt_v2_to_v1(receipt_binding_mutant)
+    run_start_mutant = copy.deepcopy(omitted)
+    start = next(
+        event for event in run_start_mutant["journals"][0]
+        if event["event"] == "run-start"
+    )
+    start["arm_execution"]["content_digest_sha256"] = "e" * 64
+    with pytest.raises(AssertionError):
+        _project_t822_receipt_v2_to_v1(run_start_mutant)
+    input_schema_mutant = copy.deepcopy(omitted)
+    receipt_trial = input_schema_mutant["acceptance"]["trials"][0]
+    trial_id = receipt_trial["trial_id"]
+    report = next(
+        item for item in input_schema_mutant["reports"]
+        if item["trial_id"] == trial_id
+    )
+    run_start = next(
+        event
+        for journal in input_schema_mutant["journals"]
+        for event in journal
+        if event.get("event") == "run-start" and event["trial_id"] == trial_id
+    )
+    for arm_execution in (
+        receipt_trial["arm_execution"],
+        report["arm_execution"],
+        run_start["arm_execution"],
+    ):
+        arm_execution["input_schema_version"] = "8b-mutant"
+    with pytest.raises(AssertionError):
+        _project_t244_additions_to_pre_wave(input_schema_mutant)
+    report_schema_mutant = copy.deepcopy(omitted)
+    report_schema_mutant["reports"][0]["arm_execution"][
+        "input_schema_version"
+    ] = "8b-mutant"
+    with pytest.raises(AssertionError):
+        _project_t1311_arm_authority_to_pre_wave(report_schema_mutant)
+    run_start_schema_mutant = copy.deepcopy(omitted)
+    run_start = next(
+        event for event in run_start_schema_mutant["journals"][0]
+        if event["event"] == "run-start"
+    )
+    run_start["arm_execution"]["input_schema_version"] = "8b-mutant"
+    with pytest.raises(AssertionError):
+        _project_t1311_arm_authority_to_pre_wave(run_start_schema_mutant)
     assert _baseline_structure(
         _project_t244_additions_to_pre_wave(omitted)
     ) == _PRE_WAVE_ORIGINLESS_BASELINE
