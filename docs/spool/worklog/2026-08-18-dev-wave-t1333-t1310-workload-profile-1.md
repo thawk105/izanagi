@@ -50,6 +50,17 @@ title: workload 表 entry を scale の単一権威にした — 新しい検査
 - **C01 は `workload-projection-mismatch` から `ratified-generation-reference-absent` へ遷移した。**
   status は `UNSATISFIED` のままで、満たしたふりにはなっていない。他 11 条件は不変。
   更新した snapshot は実 repo の 1 箇所だけで、負の control は更新していない。
+- **受入全走が焦点走 10 本の取り残しを 1 件出した。** 1 回目の全走は
+  12783 passed / 1 failed / 32 errors で、赤 33 件はすべて
+  `test_reflux_origin_binding.py` の 1 file・1 原因
+  (`PreparedCampaignIdentity.__init__()` の新必須引数 `perf` に直接構築者が追随していない) だった。
+  焦点走は「変更した production file を検査するテスト」で対象を選んでいたため、
+  **新しく必須になった dataclass 引数の直接構築者**が漏れた。
+  型の consumer は import 経路でなく**構築箇所**で閉包を取る必要がある。
+  帰属判定器は `dispatch receipt result is not an object` で rc=2 (判定不能) を返したため、
+  `DW-O18` に従い非帰属の根拠にせず、親が赤の本文を読んで帰属を確定させた。
+- **受入の 1 回目は rc=70 で全走に入る前に止まった。** lease 取得時点で main が進んでおり、
+  受入が wave 側の main 取り込みを要求したが `--merge-message-file` を渡していなかった。
 - **`dev_wave_wait.py producer` が出力ゼロで rc=0 早期終了する事象を 2 回観測した**
   (fix4 / fix5)。いずれも producer は生存しており `.done` も成果物も無かった。
   `DW-O01` の「完了は `.done` と exit code だけで判定」が既に覆っており誤進行は防げた。

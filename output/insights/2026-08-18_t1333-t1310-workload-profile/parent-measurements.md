@@ -215,3 +215,39 @@ wave 前は `UNSATISFIED / workload-projection-mismatch`。他 11 条件は不�
 2. **焦点走 9 の 10 件は環境要因だった。** 同じ file を負荷の低い状態で単独走させると全緑。
    `git commit` subprocess の 10 秒 timeout / returncode -9 (SIGKILL) は
    並行走行によるメモリ/CPU 逼迫であり、差分に帰属しない。
+
+## 受入全走 1 回目 (17:22 JST) — consumer 取り残しを 1 件検出
+
+`python3 tools/run_tests.py` (受入 lease 内、tested main `392cabe0`)。
+
+**12783 passed / 1 failed / 32 errors / 95 skipped / 127.94s**。
+
+赤 33 件は**すべて `orchestrator/tests/test_reflux_origin_binding.py` の 1 file に集中**し、
+原因は 1 つに収束した。
+
+```
+TypeError: PreparedCampaignIdentity.__init__() missing 1 required positional argument: 'perf'
+```
+
+F-4 (B-01 の閉塞) で `PreparedCampaignIdentity` へ `perf` field を追加したが、
+同 dataclass を**直接構築**しているこのテスト (`:361` 付近、型注釈は `:140`) が追随していない。
+**本 wave の consumer 取り残しでありフレークではない。**
+
+親の焦点走 10 本はこの file を含んでいなかった。閉包を測ると
+`PreparedCampaignIdentity(` の構築箇所は production 1 + この test file 1 の 2 箇所だけである。
+
+帰属判定器 `check_acceptance_reds.py` は `dispatch receipt result is not an object` で
+**rc=2 (判定不能)** を返した。`DW-O18` のとおり rc=2 は非帰属の根拠にできないため、
+親が赤の本文を読んで帰属を確定させた。
+
+### 前段の受入 rc=70 (15:56 JST) の原因
+
+lease を取得した時点で main が進んでおり、受入は wave 側で main の取り込みを要求したが、
+`--merge-message-file` を渡していなかったため `terminal-merge-message` で停止した。
+手前で main を取り込み、message file を用意して再投入した。
+
+### 焦点走の対象選定が落としたもの
+
+変更した production file の consumer を「その file を検査するテスト」で選んでいたため、
+**新しく必須になった dataclass 引数の直接構築者**が漏れた。
+型の consumer は import 経路でなく**構築箇所**で閉包を取る必要がある。
