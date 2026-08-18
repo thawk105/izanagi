@@ -3223,6 +3223,17 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   期待集合から同じ node を除いて再走したところ、baseline PASSED・9/9 KILLED・
   MISMATCH 0 で一度で通った。memory `primary-source-includes-failures-ledger` の
   「一次資料には failures 台帳を含める」は、**計測を投入する前**にも適用される。
+
+- **再発: 2026-08-18** — 3 度目。本 wave の変異本走 preflight が
+  `test_p3_s4_loop_trigger_gating.py` の 2 node で「期待 node が pytest collection に実在しない」
+  で停止した。接尾辞は xdist loadgroup 由来の `@real-repo` で、probe 走の観測 node をそのまま
+  期待集合へ移したために混入した。**新しい事実は、2026-08-17 の再発が「親が変異走行の前に
+  failures 台帳を引かなかった」ことを新事実として明記していたのに、本 wave の親も同じ順序で
+  投入したこと**である。同じ散文の警告を台帳へ足す対策は、2 度続けて発火しなかった。
+  回避は台帳どおり runner argv へ `--deselect <素の node id>` を足し、期待集合から同じ node を
+  除く再導出で、baseline PASSED・11/11 KILLED・MISMATCH 0 で一度で通った。
+  [T-417] の恒久対応 (harness 側で loadgroup 接尾辞を機械的に扱う) は依然未実施であり、
+  **散文の再発記録をこれ以上重ねても検知にならない**ことが 3 例で示された。
 ### F96. 非 UTF-8 の証跡 blob が land され local main の受入全走が赤のままになった [手順漏れ]
 
 - 事象: [T-287] wave が段 9 直前の受入全走で 1 件の赤を観測した
