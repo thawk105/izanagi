@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""task-run pytest/check recording の opt-in・privacy・fail-open 回帰。"""
+"""task-run pytest/check recording の automatic/manual・privacy・fail-open 回帰。"""
 from __future__ import annotations
 
 import hashlib
@@ -49,9 +49,12 @@ def _clean_stats_state(monkeypatch):
         "IZANAGI_RUN_TESTS_SCOPE_UNIT", "IZANAGI_RUN_TESTS_SCOPE_CAP",
     ):
         monkeypatch.delenv(name, raising=False)
+    # Existing manual/shape tests opt out explicitly; observation tests
+    # remove this marker when they exercise the automatic path.
+    monkeypatch.setenv("IZANAGI_TASK_RUN_AUTO_RECORD", "0")
 
 
-def test_opt_out_preserves_exact_command_and_call_shape(monkeypatch):
+def test_explicit_auto_off_preserves_exact_command_and_call_shape(monkeypatch):
     called = []
     monkeypatch.setattr(RT, "_preflight_unstaged_deletions", lambda args, repo: 0)
     monkeypatch.setattr(RT, "_preflight_ruleops", lambda args, repo: 0)
@@ -136,7 +139,7 @@ def test_suite_id_contains_no_command_target_or_selector_text():
     assert "python" not in suite_id
 
 
-def test_opt_in_keeps_pytest_argv_and_records_monotonic_result(monkeypatch, tmp_path):
+def test_manual_id_keeps_pytest_argv_and_records_monotonic_result(monkeypatch, tmp_path):
     captured = {}
     monkeypatch.setenv("IZANAGI_TASK_RUN_ID", "20260720-e2-01234567")
     monkeypatch.setenv("IZANAGI_TASK_RUNS_ROOT", str(tmp_path / "ledger"))
@@ -198,6 +201,7 @@ def test_login_parent_records_once_and_dispatch_environment_has_no_run_id(
         assert "IZANAGI_TASK_RUN_ID" not in environ
         assert "IZANAGI_TASK_RUNS_ROOT" not in environ
         assert "IZANAGI_TASK_RUN_SIDECAR" not in environ
+        assert environ["IZANAGI_TASK_RUN_AUTO_RECORD"] == "0"
         return 5
 
     assert RT.main(
@@ -315,6 +319,7 @@ def test_m7_parent_dispatch_environment_isolated_redundant_gate(monkeypatch):
     child_env = RT._dispatch_environment()
 
     assert set(task_run_state).isdisjoint(child_env)
+    assert child_env["IZANAGI_TASK_RUN_AUTO_RECORD"] == "0"
 
 
 def test_login_dispatch_exception_records_single_infra_rc(monkeypatch, tmp_path):
@@ -348,7 +353,9 @@ def test_local_scope_completion_records_once_in_scope_parent(monkeypatch):
     monkeypatch.setattr(
         RT,
         "_run_bounded_scope",
-        lambda args, cap: RT._ScopeResult(RT._ScopeOutcome.CHILD_RC, 0),
+        lambda args, cap, **kwargs: RT._ScopeResult(
+            RT._ScopeOutcome.CHILD_RC, 0,
+        ),
     )
     assert RT.main(
         ["test_target.py"],
@@ -370,7 +377,7 @@ def test_cap_oom_fallback_records_authoritative_compute_once(
     monkeypatch.setattr(
         RT,
         "_run_bounded_scope",
-        lambda args, cap: RT._ScopeResult(RT._ScopeOutcome.CAP_OOM),
+        lambda args, cap, **kwargs: RT._ScopeResult(RT._ScopeOutcome.CAP_OOM),
     )
     fingerprint = RT._TreeFingerprint("a" * 64, (0, 0, 0, 0, 0))
     monkeypatch.setattr(
@@ -438,6 +445,7 @@ def test_scope_child_cannot_record_task_run_directly(monkeypatch, tmp_path):
     assert "IZANAGI_TASK_RUN_ID" not in captured["env"]
     assert "IZANAGI_TASK_RUNS_ROOT" not in captured["env"]
     assert "IZANAGI_TASK_RUN_SIDECAR" not in captured["env"]
+    assert captured["env"]["IZANAGI_TASK_RUN_AUTO_RECORD"] == "0"
 
 
 def test_sidecar_setup_and_record_failures_preserve_rc_and_output(monkeypatch, capsys):
@@ -445,7 +453,8 @@ def test_sidecar_setup_and_record_failures_preserve_rc_and_output(monkeypatch, c
     monkeypatch.setattr(RT, "_record_task_run", mock.Mock(side_effect=ImportError("injected")))
 
     def child(command, **kwargs):
-        assert kwargs == {"cwd": str(_REPO)}
+        assert kwargs["cwd"] == str(_REPO)
+        assert kwargs["env"]["IZANAGI_TASK_RUN_AUTO_RECORD"] == "0"
         print("child stdout")
         print("child stderr", file=sys.stderr)
         return 5
@@ -454,7 +463,10 @@ def test_sidecar_setup_and_record_failures_preserve_rc_and_output(monkeypatch, c
     assert RT._call_and_record(["pytest"], [], "20260720-e2-01234567") == 5
     captured = capsys.readouterr()
     assert captured.out == "child stdout\n"
-    assert captured.err == "child stderr\n"
+    assert captured.err == (
+        "child stderr\n"
+        "IZANAGI_TASK_RUN_DIAGNOSTIC_V1 recording-unavailable:filesystem\n"
+    )
 
 
 def test_lazy_import_failure_preserves_child_rc_and_output(monkeypatch, capsys):
@@ -477,7 +489,10 @@ def test_lazy_import_failure_preserves_child_rc_and_output(monkeypatch, capsys):
     assert RT._call_and_record(["pytest"], [], "20260720-e2-01234567") == 3
     captured = capsys.readouterr()
     assert captured.out == "child stdout\n"
-    assert captured.err == "child stderr\n"
+    assert captured.err == (
+        "child stderr\n"
+        "IZANAGI_TASK_RUN_DIAGNOSTIC_V1 recording-unavailable:filesystem\n"
+    )
 
 
 def test_corrupt_sidecar_records_null_metrics_without_output(monkeypatch, tmp_path, capsys):
