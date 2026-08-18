@@ -232,3 +232,33 @@ consult luna は 371 秒・34 model call・出力 13,874 token を消費した�
 耐え、認証回復後の 13:09 に完走した。並行 wave からは「枠切れ (数秒・token ゼロの即死)」と
 周知されたが、**本 wave の失敗はその型ではなく認証失効である**。再投入は別 artifact-root で行った
 (同一 prompt は job-id が同じになり receipt 上書き拒否で rc=2 になる)。
+
+## erratum E1 — 変異台帳が production holdout scan を汚染したので可逆 defang した
+
+**事象。** 段 7 の記録 commit `54f747c2` が変異台帳を raw のまま入れた結果、
+実 repo の holdout scan が rr80 / rr20 とも conjunction hit 1 件
+(`output/insights/2026-08-18_t902-holdout-scan-coefficient/mutation-ledger.json`) を返し、
+`test_s8c_preregistration_invariant.py::test_wave_files_do_not_contaminate_production_holdout_scan`
+が赤になった。台帳は変異走行の pytest stdout を保持しており、その中に等価性 fixture が書く
+三軸文字列がそのまま入っていたためである。
+
+**これは commit 2473483f が test fixture について直したのと同じ型を、記録側から再発させたものである。**
+`DW-S07` の「凍結前に全 gate の検出語 (三軸語・placeholder) を機械走査し、hit は
+原文 hash 付きの可逆 defang + erratum とする (D88)」を、親が段 7 で適用し損ねた。
+他の insight にも単一軸の語は多数あるが、**同一 file 内で三軸が揃うのは本台帳だけ**だったため、
+conjunction 検査はそこだけを指した。
+
+**対応。** 台帳の JSON string 内に現れる軸 key 接頭辞の下線 1 文字を、
+JSON の 6 文字 unicode escape 表記 (backslash + `u005f`) へ置き換えた (325 箇所)。
+JSON parser はこの表記を下線として読むため、**`json.load` の結果は原文と完全に一致する**
+(実測で等値を確認済み)。raw bytes からのみ三軸 literal が消える。
+
+- 原文 sha256   = `bcef5f3c38436fab529e1f3b208b291ff8afe6d67232b19c117b8383f34a9631`
+- defang sha256 = `c02e3911ddfe85a43c381f92d0d9b87e5472003ca5b5300401a396fd0b6f6fbc`
+- 復元法: `json.load` するか、raw text の当該 escape 表記を下線へ戻す。
+- defang 後の実測: rr80 / rr20 とも conjunction 0 件、陽性対照 83 件 (> 0)。
+
+**教訓。** 変異台帳は runner の stdout を丸ごと保持するため、**gate の検出語を持つ fixture を
+使う wave では台帳自身が gate を破る**。台帳を insights へ入れる前に、その wave が関わる
+gate の検出語で raw 走査するのが要る。今回は holdout の三軸だったが、placeholder gate や
+他の literal gate でも同型が起こる。
