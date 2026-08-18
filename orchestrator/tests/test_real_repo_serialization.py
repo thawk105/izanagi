@@ -16,9 +16,11 @@ import subprocess
 import sys
 import tempfile
 import textwrap
+import time
 from collections import Counter
 from importlib import metadata
 from pathlib import Path
+from types import SimpleNamespace
 from unittest import mock
 
 from packaging.version import InvalidVersion, Version
@@ -115,6 +117,47 @@ _XDIST_GROUP_NAMES_GOLDEN = frozenset({
     "dev-waves-runtime",
     "real-repo",
     "s8c-preregistration-candidate",
+})
+
+# conftest の receipt consumer 正本から導出しない独立 oracle。
+_RECEIPT_MEMO_CONSUMERS_GOLDEN = frozenset({
+    "test_s8b_oracle_driver.py::test_success_wal_order_budget_and_evaluate_contract",
+    "test_s8b_oracle_driver.py::test_oracle_pipeline_contract_keyword_is_mandatory_positive_control",
+    "test_s8b_oracle_driver.py::test_build_result_contract_mismatch_aborts_campaign_before_measurement",
+    "test_s8b_oracle_driver.py::test_binding_mismatch_refuses_only_that_row_before_evaluate",
+    "test_s8b_oracle_driver.py::test_v8_bulk_reservation_unavailable_runs_nothing",
+    "test_s8b_oracle_driver.py::test_reservation_envelope_exceeded_is_fail_closed",
+    "test_s8b_oracle_driver.py::test_verify_inconclusive_and_unknown_abort_reasons_are_fail_closed",
+    "test_s8b_oracle_driver.py::test_probe_error_reason_is_fail_closed_unknown_abort",
+    "test_s8b_oracle_driver.py::test_v3_all_rows_binding_refused_is_protocol_violation",
+    "test_s8b_oracle_driver.py::test_v3_partial_binding_refused_is_protocol_violation",
+    "test_s8b_oracle_driver.py::test_v6_freeze_swap_after_verify_is_not_observed",
+    "test_s8b_oracle_driver.py::test_v7_manifest_swap_after_verify_is_not_observed",
+    "test_s8b_oracle_driver.py::test_v2_resume_rejected_at_s1_s2_s3_boundaries",
+    "test_s8b_oracle_driver.py::test_atomic_one_shot_lock_rejects_second_start",
+    "test_s8b_oracle_driver.py::test_resume_wal_lstat_eio_propagates_fail_closed_from_public_driver",
+    "test_s8b_oracle_driver.py::test_driver_full_frame_fsync_eio_is_not_folded_or_followed_up",
+    "test_s8b_oracle_driver.py::test_v4_marker_fires_across_output_root_change",
+    "test_s8b_oracle_driver.py::test_v5_truncated_wal_rejects_resume_even_with_zero_parseable_records",
+    "test_s8b_oracle_driver.py::test_official_driver_records_returncodes_through_real_producer_flow",
+    "test_s8b_oracle_driver.py::test_unavailable_preflight_creates_bound_measurement_manifest_and_passes_false_kwargs",
+    "test_s8b_oracle_driver.py::test_available_preflight_preserves_call_and_artifact_shape",
+    "test_s8b_oracle_driver.py::test_probe_error_precedes_claim_marker_wal_and_budget",
+    "test_s8b_oracle_driver.py::test_real_freeze_gate_lists_floor_and_budget_null",
+    "test_s8b_oracle_driver.py::test_run_block_refusal_writes_no_campaign_or_budget_and_calls_nothing",
+    "test_s8b_oracle_driver.py::test_nonnull_floor_without_active_generation_is_refused",
+    "test_s8b_oracle_driver.py::test_active_resolution_and_manifest_structure_refusals_are_aggregated",
+    "test_s8b_oracle_driver.py::test_run_block_reuses_launch_validated_and_legacy_loader_is_dead",
+    "test_s8b_oracle_driver.py::test_run_block_verifies_manifest_once_and_reuses_object",
+    "test_s8b_binding_driftguards.py::test_run_block_broken_binding_manifest_refuses_and_writes_nothing",
+    "test_s8b_binding_driftguards.py::test_gate_check_broken_binding_manifest_stacks_manifest_verify_refusal",
+    "test_s8b_binding_driftguards.py::test_receipt_memo_delegates_to_production_verifier_exactly_once",
+    "test_s8b_binding_driftguards.py::test_receipt_memo_patches_the_driver_module_the_tests_import",
+})
+
+_RECEIPT_MEMO_OPTOUT_GOLDEN = frozenset({
+    "test_s8b_oracle_driver.py::test_run_block_resolves_receipt_once_and_propagates_observation_to_wal_and_result",
+    "test_s8b_oracle_driver.py::test_run_block_rejects_receipt_epoch_drift_before_campaign_start_g4",
 })
 
 
@@ -705,7 +748,7 @@ def _assert_real_repo_collection_order(report: list[dict]) -> None:
     assert max(priority_positions[expected_priority[0]]) < min(
         priority_positions[expected_priority[1]]
     ), (
-        "全 CLI instance が全 cache barrier instance より前でなければならない: "
+        "全 CLI instance が全 legacy priority instance より前でなければならない: "
         f"positions={priority_positions!r}"
     )
     writers = (
@@ -716,7 +759,7 @@ def _assert_real_repo_collection_order(report: list[dict]) -> None:
     )
     barrier_index = real_repo_order.index(expected_priority[1])
     assert all(real_repo_order.index(writer) > barrier_index for writer in writers), (
-        "実 submodule writer が CLI / cache barrier より前にある: "
+        "実 submodule writer が CLI / legacy priority より前にある: "
         f"order={real_repo_order!r}"
     )
 
@@ -1169,6 +1212,1015 @@ def test_ratified_memo_has_a_real_resolution_payer():
         assert "patch_ratified_loader" in inspect.getsource(inspect.unwrap(function)), (
             f"memo consumer {function.__name__} が memo を使っていない (配線の取り残し)"
         )
+
+
+def _qualified_call_name(call: ast.Call) -> str | None:
+    target = call.func
+    if isinstance(target, ast.Name):
+        return target.id
+    if (
+        isinstance(target, ast.Attribute)
+        and isinstance(target.value, ast.Name)
+    ):
+        return f"{target.value.id}.{target.attr}"
+    return None
+
+
+def _receipt_consumers_from_source(path: Path) -> tuple[set[str], set[str], int]:
+    """source から memo consumer、opt-out、parametrize 後 node 数を独立導出する。"""
+    tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+    consumers: set[str] = set()
+    optouts: set[str] = set()
+    node_counts: dict[str, int] = {}
+    for function in tree.body:
+        if not isinstance(function, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            continue
+        if not function.name.startswith("test_"):
+            continue
+        calls = [node for node in ast.walk(function) if isinstance(node, ast.Call)]
+        run_calls = [call for call in calls if _qualified_call_name(call) == "_run"]
+        has_optout = any(
+            any(
+                keyword.arg == "memo_receipt"
+                and isinstance(keyword.value, ast.Constant)
+                and keyword.value.value is False
+                for keyword in call.keywords
+            )
+            for call in run_calls
+        )
+        direct = any(
+            _qualified_call_name(call) in {
+                "receipt_memo.patch_driver_resolver",
+                "receipt_memo.real_repo_receipt",
+            }
+            for call in calls
+        )
+        canonical = f"{path.name}::{function.name}"
+        if has_optout:
+            optouts.add(canonical)
+        elif run_calls or direct:
+            consumers.add(canonical)
+
+        count = 1
+        for decorator in function.decorator_list:
+            if not (
+                isinstance(decorator, ast.Call)
+                and isinstance(decorator.func, ast.Attribute)
+                and decorator.func.attr == "parametrize"
+                and len(decorator.args) >= 2
+                and isinstance(decorator.args[1], (ast.List, ast.Tuple))
+            ):
+                continue
+            count *= len(decorator.args[1].elts)
+        node_counts[canonical] = count
+    return consumers, optouts, sum(node_counts[node] for node in consumers)
+
+
+def _assert_receipt_inventory(configured, consumers, optouts, node_count) -> None:
+    assert set(configured) == set(_RECEIPT_MEMO_CONSUMERS_GOLDEN)
+    assert set(consumers) == set(_RECEIPT_MEMO_CONSUMERS_GOLDEN)
+    assert set(optouts) == set(_RECEIPT_MEMO_OPTOUT_GOLDEN)
+    assert len(consumers) == 32
+    assert node_count == 35
+    assert not set(consumers) & set(optouts)
+
+
+def test_receipt_memo_consumer_inventory_and_optouts_are_complete():
+    suite_conftest = _load_suite_conftest()
+    driver_consumers, driver_optouts, driver_nodes = _receipt_consumers_from_source(
+        HERE / "test_s8b_oracle_driver.py"
+    )
+    drift_consumers, drift_optouts, drift_nodes = _receipt_consumers_from_source(
+        HERE / "test_s8b_binding_driftguards.py"
+    )
+    consumers = driver_consumers | drift_consumers
+    optouts = driver_optouts | drift_optouts
+    _assert_receipt_inventory(
+        suite_conftest.RECEIPT_MEMO_CONSUMER_NODES,
+        consumers,
+        optouts,
+        driver_nodes + drift_nodes,
+    )
+
+    # 合成負例: 代表 consumer の欠落と opt-out 混入を同じ exact 検査が拒否する。
+    representative = next(iter(sorted(_RECEIPT_MEMO_CONSUMERS_GOLDEN)))
+    mutated = (set(consumers) - {representative}) | {
+        next(iter(sorted(_RECEIPT_MEMO_OPTOUT_GOLDEN)))
+    }
+    try:
+        _assert_receipt_inventory(mutated, consumers, optouts, 35)
+    except AssertionError:
+        pass
+    else:
+        raise AssertionError("receipt consumer inventory の合成負例が通過した")
+
+
+def _receipt_error(call, memo_module, expected_reason):
+    try:
+        call()
+    except memo_module.ReceiptMemoError as exc:
+        assert exc.payload["reason"] == expected_reason, exc.payload
+        raw = str(exc).removeprefix(memo_module._ERROR_PREFIX)
+        assert str(exc).startswith(memo_module._ERROR_PREFIX)
+        assert raw == json.dumps(
+            exc.payload, ensure_ascii=True, separators=(",", ":"), sort_keys=True,
+        )
+        assert set((
+            "reason", "cache_path", "run_id", "head", "prewarm",
+            "process_prewarmed",
+        )) <= set(exc.payload)
+        return exc
+    raise AssertionError(f"structured receipt error が無い: {expected_reason}")
+
+
+def test_receipt_memo_l1_to_l5_are_fail_closed_and_uid_is_hashed():
+    from orchestrator.tests import real_repo_receipt_memo as memo_module
+
+    resolution = memo_module.migration.ReceiptResolution(
+        "never-issued", (), None, "c" * 40,
+    )
+    calls = []
+
+    def resolve():
+        calls.append("resolve")
+        return resolution
+
+    serial = memo_module._make_receipt_memo(resolve=resolve)
+    with mock.patch.dict(os.environ, {}, clear=False):
+        os.environ.pop(memo_module._RUN_ID_ENV, None)
+        error = _receipt_error(
+            serial.get, memo_module, "cache-path-unavailable",
+        )
+        assert error.payload["prewarm"] is False and calls == []
+        assert serial.prewarm(run_id=None) is resolution
+        assert serial.prewarm(run_id=None) is resolution
+        assert serial.get() is resolution and calls == ["resolve"]
+
+    head = "a" * 40
+    run_id = "ci-job-42 / arbitrary UID"
+    with tempfile.TemporaryDirectory(prefix="receipt-memo-test-") as raw_tmp, \
+            mock.patch.object(memo_module, "_repo_head", return_value=head), \
+            mock.patch.object(memo_module.tempfile, "gettempdir", return_value=raw_tmp):
+        path = memo_module._cache_path_for(run_id, head)
+        assert run_id not in path.name
+        assert path == memo_module._cache_path_for(run_id, head)
+        assert path != memo_module._cache_path_for(run_id + "x", head)
+        with mock.patch.dict(os.environ, {memo_module._RUN_ID_ENV: ""}):
+            assert memo_module._session_cache_path() == (
+                memo_module._cache_path_for("", head)
+            )
+
+        pathless = memo_module._make_receipt_memo(resolve=resolve)
+        with mock.patch.object(
+            memo_module, "_session_cache_path", return_value=None,
+        ):
+            _receipt_error(
+                lambda: pathless.prewarm(run_id=run_id),
+                memo_module,
+                "cache-path-unavailable",
+            )
+            with mock.patch.dict(os.environ, {memo_module._RUN_ID_ENV: run_id}):
+                _receipt_error(
+                    pathless.get, memo_module, "cache-path-unavailable",
+                )
+        assert calls == ["resolve"]
+
+        lock_failed = memo_module._make_receipt_memo(resolve=resolve)
+        with mock.patch.object(
+            memo_module, "open", side_effect=OSError(13, "denied"), create=True,
+        ):
+            error = _receipt_error(
+                lambda: lock_failed.prewarm(run_id=run_id),
+                memo_module,
+                "lock-open-failed",
+            )
+        assert error.payload["exception_type"] == "PermissionError"
+        assert error.payload["errno"] == 13 and calls == ["resolve"]
+        lock_reader = memo_module._make_receipt_memo(resolve=resolve)
+        with mock.patch.object(
+            memo_module, "open", side_effect=OSError(13, "denied"), create=True,
+        ), mock.patch.dict(os.environ, {memo_module._RUN_ID_ENV: run_id}):
+            error = _receipt_error(
+                lock_reader.get, memo_module, "lock-open-failed",
+            )
+        assert error.payload["prewarm"] is False and calls == ["resolve"]
+
+        missing = memo_module._make_receipt_memo(resolve=resolve)
+        with mock.patch.dict(os.environ, {memo_module._RUN_ID_ENV: run_id}):
+            _receipt_error(missing.get, memo_module, "cache-missing")
+        assert calls == ["resolve"]
+
+        path.write_bytes(b"not a pickle")
+        corrupt = memo_module._make_receipt_memo(resolve=resolve)
+        with mock.patch.dict(os.environ, {memo_module._RUN_ID_ENV: run_id}):
+            _receipt_error(corrupt.get, memo_module, "cache-unpickle-failed")
+        assert calls == ["resolve"]
+        path.write_bytes(memo_module.pickle.dumps({"wrong": "type"}))
+        wrong_type = memo_module._make_receipt_memo(resolve=resolve)
+        with mock.patch.dict(os.environ, {memo_module._RUN_ID_ENV: run_id}):
+            _receipt_error(wrong_type.get, memo_module, "cache-type-invalid")
+        assert calls == ["resolve"]
+        path.unlink()
+
+        path.write_bytes(b"stale session")
+        preexisting = memo_module._make_receipt_memo(resolve=resolve)
+        _receipt_error(
+            lambda: preexisting.prewarm(run_id=run_id),
+            memo_module,
+            "cache-preexists-before-prewarm",
+        )
+        assert calls == ["resolve"]
+        path.unlink()
+
+        controller = memo_module._make_receipt_memo(resolve=resolve)
+        assert controller.prewarm(run_id=run_id) is resolution
+        worker = memo_module._make_receipt_memo(resolve=resolve)
+        with mock.patch.dict(os.environ, {memo_module._RUN_ID_ENV: run_id}):
+            loaded = worker.get()
+            assert loaded == resolution and worker.get() is loaded
+        assert calls == ["resolve", "resolve"]
+        path.unlink()
+
+        store_failed = memo_module._make_receipt_memo(resolve=resolve)
+        store_error = OSError(28, "no space")
+        with mock.patch.object(memo_module, "_cache_store", side_effect=store_error):
+            error = _receipt_error(
+                lambda: store_failed.prewarm(run_id=run_id),
+                memo_module,
+                "cache-store-failed",
+            )
+        assert error.payload["errno"] == 28
+        assert error.payload["process_prewarmed"] is False
+        assert calls == ["resolve", "resolve", "resolve"]
+        with mock.patch.dict(os.environ, {memo_module._RUN_ID_ENV: run_id}):
+            _receipt_error(store_failed.get, memo_module, "cache-missing")
+        assert calls == ["resolve", "resolve", "resolve"]
+
+        # 合成 fail-open consumer は resolver count 0 の control を破る。
+        fail_open_calls = []
+
+        def synthetic_fail_open():
+            try:
+                return memo_module._make_receipt_memo(resolve=resolve).get()
+            except memo_module.ReceiptMemoError:
+                fail_open_calls.append("fallback")
+                return resolve()
+
+        try:
+            _receipt_error(synthetic_fail_open, memo_module, "cache-path-unavailable")
+        except AssertionError:
+            pass
+        else:
+            raise AssertionError("L1 fail-open 合成負例が structured error 検査を通過した")
+        assert fail_open_calls == ["fallback"]
+
+
+def test_receipt_memo_public_endpoints_reject_all_xdist_reader_faults():
+    """公開 2 endpoint は UID 下の miss・破損・lock 不能でも実解決しない。"""
+    from orchestrator.tests import real_repo_receipt_memo as memo_module
+
+    calls = []
+
+    def production_resolve(*, root):
+        calls.append(Path(root))
+        return object()
+
+    head = "b" * 40
+    run_id = "public-fail-closed"
+    with tempfile.TemporaryDirectory(prefix="receipt-public-test-") as raw_tmp, \
+            mock.patch.object(memo_module, "_repo_head", return_value=head), \
+            mock.patch.object(memo_module.tempfile, "gettempdir", return_value=raw_tmp), \
+            mock.patch.object(
+                memo_module, "_PRODUCTION_RESOLVE", production_resolve,
+            ), mock.patch.dict(
+                os.environ, {memo_module._RUN_ID_ENV: run_id}, clear=False,
+            ):
+        path = memo_module._cache_path_for(run_id, head)
+        cases = (
+            ("cache-missing", None),
+            ("cache-unpickle-failed", b"not a pickle"),
+            ("lock-open-failed", b"unused"),
+        )
+        for reason, cache_bytes in cases:
+            for endpoint_name in ("real_repo_receipt", "memo_resolver"):
+                if path.exists():
+                    path.unlink()
+                if cache_bytes is not None:
+                    path.write_bytes(cache_bytes)
+                memo = memo_module._make_receipt_memo()
+                with mock.patch.object(memo_module, "_RECEIPT_MEMO", memo):
+                    if endpoint_name == "real_repo_receipt":
+                        call = memo_module.real_repo_receipt
+                    else:
+                        call = lambda: memo_module.memo_resolver(root=memo_module.ROOT)
+                    if reason == "lock-open-failed":
+                        with mock.patch.object(
+                            memo_module, "open",
+                            side_effect=OSError(13, "denied"), create=True,
+                        ):
+                            error = _receipt_error(call, memo_module, reason)
+                    else:
+                        error = _receipt_error(call, memo_module, reason)
+                assert error.payload["run_id"] == run_id
+                assert error.payload["prewarm"] is False
+                assert calls == []
+
+
+def test_receipt_memo_process_state_is_scoped_to_pytest_session():
+    """反復 session は旧 snapshot を捨て、入れ子終了時は外側だけを復元する。"""
+    from orchestrator.tests import real_repo_receipt_memo as memo_module
+
+    first = object()
+    second = object()
+    snapshots = iter((first, second))
+    calls = []
+
+    def resolve():
+        value = next(snapshots)
+        calls.append(value)
+        return value
+
+    memo = memo_module._make_receipt_memo(resolve=resolve)
+    assert memo.prewarm(run_id=None, session_id="session-a") is first
+    assert memo.get() is first
+    assert memo.prewarm(run_id=None, session_id="session-a") is first
+    assert memo.prewarm(run_id=None, session_id="session-b") is second
+    assert memo.get() is second
+    memo.finish_session(session_id="session-b")
+    assert memo.get() is first
+    memo.finish_session(session_id="session-a")
+    with mock.patch.dict(os.environ, {}, clear=False):
+        os.environ.pop(memo_module._RUN_ID_ENV, None)
+        _receipt_error(memo.get, memo_module, "cache-path-unavailable")
+    assert calls == [first, second]
+
+
+def test_receipt_memo_prune_keeps_locks_and_current_session_key():
+    from orchestrator.tests import real_repo_receipt_memo as memo_module
+
+    with tempfile.TemporaryDirectory(prefix="receipt-prune-test-") as raw_tmp:
+        directory = Path(raw_tmp)
+        current = directory / f"{memo_module._CACHE_PREFIX}current.pickle"
+        stale = directory / f"{memo_module._CACHE_PREFIX}stale.pickle"
+        lock = directory / f"{memo_module._CACHE_PREFIX}stale.pickle.lock"
+        for path in (current, stale, lock):
+            path.write_bytes(b"x")
+            os.utime(path, (time.time() - memo_module._CACHE_STALE_S - 10,) * 2)
+        memo_module._prune_stale_caches(directory, current_path=current)
+        assert current.exists() and lock.exists() and not stale.exists()
+
+        # 合成旧 prune は lock と current の両方を消し、この契約を満たせない。
+        def synthetic_old_prune():
+            for entry in directory.glob(f"{memo_module._CACHE_PREFIX}*"):
+                entry.unlink()
+
+        synthetic_old_prune()
+        try:
+            assert current.exists() and lock.exists()
+        except AssertionError:
+            pass
+        else:
+            raise AssertionError("prune の合成負例が lock/current 保護を通過した")
+
+
+_OPTION_UNDECLARED = object()
+
+
+class _ReceiptHookConfig:
+    def __init__(self, options=None, *, worker=False):
+        self._options = dict(options or {})
+        self.option = SimpleNamespace(**self._options)
+        self._izanagi_receipt_memo_session_id = "session-test"
+        if worker:
+            self.workerinput = {"testrunuid": self._options.get("testrunuid")}
+
+    def getoption(self, name, default=_OPTION_UNDECLARED):
+        if name in self._options:
+            return self._options[name]
+        if default is _OPTION_UNDECLARED:
+            raise ValueError(f"no option named {name!r}")
+        return default
+
+
+def _receipt_hook_item(nodeid):
+    filename, function = nodeid.split("::", 1)
+    return SimpleNamespace(
+        path=HERE / filename, name=function, originalname=function,
+    )
+
+
+def test_receipt_memo_prewarm_wiring_is_controller_only_and_lazy():
+    suite_conftest = _load_suite_conftest()
+    consumer = (
+        "test_s8b_oracle_driver.py::"
+        "test_success_wal_order_budget_and_evaluate_contract"
+    )
+    calls = []
+    fake_module = SimpleNamespace(
+        prewarm_real_repo_receipt=(
+            lambda *, run_id, session_id: calls.append(run_id)
+        ),
+    )
+
+    worker_config = _ReceiptHookConfig(
+        {"collectonly": False, "testrunuid": "ci-job-42"}, worker=True,
+    )
+    worker_session = SimpleNamespace(
+        config=worker_config, items=[_receipt_hook_item(consumer)],
+    )
+    controller_config = _ReceiptHookConfig(
+        {"collectonly": False, "testrunuid": "ci-job-42"},
+    )
+    controller_node = SimpleNamespace(
+        config=controller_config,
+        workerinput={"testrunuid": "ci-job-42"},
+    )
+    events = []
+    with mock.patch.object(
+        suite_conftest, "_receipt_memo_module", return_value=fake_module,
+    ):
+        events.append("worker-hook")
+        suite_conftest.pytest_collection_finish(worker_session)
+        assert calls == []
+        events.append("controller-hook")
+        suite_conftest.pytest_xdist_node_collection_finished(
+            controller_node, [consumer + "@real-repo"],
+        )
+        suite_conftest.pytest_xdist_node_collection_finished(
+            controller_node, [consumer + "@real-repo"],
+        )
+    assert events == ["worker-hook", "controller-hook"]
+    assert calls == ["ci-job-42"]
+
+    # serial controller は run_id=None で一回だけ prewarm する。
+    serial_calls = []
+    serial_module = SimpleNamespace(
+        prewarm_real_repo_receipt=(
+            lambda *, run_id, session_id: serial_calls.append(run_id)
+        ),
+    )
+    serial_config = _ReceiptHookConfig({"collectonly": False})
+    serial_session = SimpleNamespace(
+        config=serial_config, items=[_receipt_hook_item(consumer)],
+    )
+    with mock.patch.object(
+        suite_conftest, "_receipt_memo_module", return_value=serial_module,
+    ):
+        suite_conftest.pytest_collection_finish(serial_session)
+    assert serial_calls == [None]
+
+    # conftest の inventory に consumer が無い選択では lazy import seam へ到達しない。
+    # consumer file 自体を collect すれば、その module-scope import は別に発生する。
+    no_consumer = "test_example.py::test_unrelated"
+    with mock.patch.object(
+        suite_conftest, "_receipt_memo_module",
+        side_effect=AssertionError("consumer なしで memo import"),
+    ) as lazy_import:
+        suite_conftest.pytest_collection_finish(SimpleNamespace(
+            config=_ReceiptHookConfig({"collectonly": False}),
+            items=[_receipt_hook_item(no_consumer)],
+        ))
+    assert lazy_import.call_count == 0
+
+    # prewarm 例外は隣接する task-run stats の握り潰しへ入らず、そのまま伝播する。
+    from orchestrator.tests import real_repo_receipt_memo as memo_module
+
+    broken_config = _ReceiptHookConfig({"collectonly": False})
+    prewarm_error = memo_module.ReceiptMemoError(
+        "resolver-failed", cache_path=None, run_id=None, head=None,
+        prewarm=True, process_prewarmed=False,
+    )
+    broken = SimpleNamespace(
+        prewarm_real_repo_receipt=mock.Mock(side_effect=prewarm_error),
+        finish_real_repo_receipt_session=mock.Mock(),
+    )
+    with mock.patch.object(
+        suite_conftest, "_receipt_memo_module", return_value=broken,
+    ):
+        try:
+            suite_conftest.pytest_collection_finish(SimpleNamespace(
+                config=broken_config, items=[_receipt_hook_item(consumer)],
+            ))
+        except memo_module.ReceiptMemoError as exc:
+            assert exc is prewarm_error
+        else:
+            raise AssertionError("prewarm 例外が collection hook に握り潰された")
+    assert not getattr(
+        broken_config, suite_conftest._RECEIPT_MEMO_PREWARMED_ATTR, False,
+    )
+    broken.finish_real_repo_receipt_session.assert_called_once_with(
+        session_id="session-test",
+    )
+
+    # 合成 worker payer trace は controller-only assertion が拒否する。
+    synthetic_trace = ["worker-hook", "worker-prewarm", "controller-hook"]
+    try:
+        assert synthetic_trace == ["worker-hook", "controller-hook"]
+    except AssertionError:
+        pass
+    else:
+        raise AssertionError("worker prewarm の合成負例が順序検査を通過した")
+
+
+def test_receipt_memo_optout_only_selection_does_not_prewarm():
+    """opt-out 2 関数だけの node 集合は memo import も prewarm もしない。"""
+    suite_conftest = _load_suite_conftest()
+    optouts = sorted(_RECEIPT_MEMO_OPTOUT_GOLDEN)
+    config = _ReceiptHookConfig({"collectonly": False})
+    session = SimpleNamespace(
+        config=config,
+        items=[_receipt_hook_item(nodeid) for nodeid in optouts],
+    )
+    with mock.patch.object(
+        suite_conftest, "_receipt_memo_module",
+        side_effect=AssertionError("opt-out only で memo import"),
+    ) as lazy_import:
+        suite_conftest.pytest_collection_finish(session)
+    assert lazy_import.call_count == 0
+    assert not getattr(
+        config, suite_conftest._RECEIPT_MEMO_PREWARMED_ATTR, False,
+    )
+
+    # 合成退行: opt-out を consumer inventory へ混ぜると prewarm が発火する。
+    calls = []
+    fake_module = SimpleNamespace(
+        prewarm_real_repo_receipt=lambda **kwargs: calls.append(kwargs),
+    )
+    mutated_config = _ReceiptHookConfig({"collectonly": False})
+    with mock.patch.object(
+        suite_conftest, "RECEIPT_MEMO_CONSUMER_NODES",
+        suite_conftest.RECEIPT_MEMO_CONSUMER_NODES | set(optouts),
+    ), mock.patch.object(
+        suite_conftest, "_receipt_memo_module", return_value=fake_module,
+    ):
+        suite_conftest.pytest_collection_finish(SimpleNamespace(
+            config=mutated_config,
+            items=[_receipt_hook_item(nodeid) for nodeid in optouts],
+        ))
+    assert calls == [{"run_id": None, "session_id": "session-test"}]
+
+
+def test_receipt_memo_both_worker_guards_are_required_as_redundant_defense():
+    """outer/helper 両 guard を同時に外す source 変異は worker payer を再発させる。"""
+    suite_conftest = _load_suite_conftest()
+    source = (HERE / "conftest.py").read_text(encoding="utf-8")
+    inner_guard = (
+        "    # pytest_collection_finish の外側 guard と意図的に冗長な defense-in-depth。\n"
+        "    # worker payer は両 guard が同時に失われない限り再発しない。\n"
+        '    if hasattr(config, "workerinput"):\n'
+        "        return\n"
+    )
+    outer_guard = (
+        '    if not hasattr(session.config, "workerinput"):\n'
+        "        _prewarm_receipt_memo(\n"
+        "            session.config,\n"
+        "            (_real_repo_node_id(item) for item in session.items),\n"
+        "            run_id=None,\n"
+        "        )\n"
+    )
+    outer_mutant = (
+        "    _prewarm_receipt_memo(\n"
+        "        session.config,\n"
+        "        (_real_repo_node_id(item) for item in session.items),\n"
+        "        run_id=None,\n"
+        "    )\n"
+    )
+    assert source.count(inner_guard) == 1
+    assert source.count(outer_guard) == 1
+    mutated = source.replace(
+        inner_guard,
+        "    # synthetic mutation: inner worker guard removed\n",
+        1,
+    ).replace(
+        outer_guard, outer_mutant, 1,
+    )
+    tree = ast.parse(mutated)
+    selected = [
+        statement for statement in tree.body
+        if isinstance(statement, ast.FunctionDef)
+        and statement.name in {
+            "_prewarm_receipt_memo", "pytest_collection_finish",
+        }
+    ]
+    assert {statement.name for statement in selected} == {
+        "_prewarm_receipt_memo", "pytest_collection_finish",
+    }
+    namespace = dict(vars(suite_conftest))
+    exec(compile(ast.Module(body=selected, type_ignores=[]), "mutant", "exec"), namespace)
+
+    consumer = next(iter(sorted(_RECEIPT_MEMO_CONSUMERS_GOLDEN)))
+    calls = []
+    namespace["_receipt_memo_module"] = lambda: SimpleNamespace(
+        prewarm_real_repo_receipt=lambda **kwargs: calls.append(kwargs),
+    )
+    namespace["pytest_collection_finish"](SimpleNamespace(
+        config=_ReceiptHookConfig(
+            {"collectonly": False, "testrunuid": "ci-job-42"}, worker=True,
+        ),
+        items=[_receipt_hook_item(consumer)],
+    ))
+    try:
+        assert calls == []
+    except AssertionError:
+        pass
+    else:
+        raise AssertionError("worker guard 両層同時変異が payer 0 検査を通過した")
+    assert calls == [{"run_id": None, "session_id": "session-test"}]
+
+
+def test_receipt_memo_real_xdist_order_has_no_worker_payer():
+    """実 xdist 順序を worker collection hook から controller hook まで固定する。"""
+    _require_loadgroup_capability()
+    with tempfile.TemporaryDirectory(prefix="receipt-xdist-order-") as raw_tmp:
+        directory = Path(raw_tmp)
+        events = directory / "events.log"
+        (directory / "test_s8b_oracle_driver.py").write_text(
+            "def test_success_wal_order_budget_and_evaluate_contract():\n"
+            "    pass\n",
+            encoding="utf-8",
+        )
+        (directory / "receipt_order_plugin.py").write_text(
+            textwrap.dedent(
+                f"""
+                import os
+                from pathlib import Path
+
+                EVENTS = Path({str(events)!r})
+
+                def record(value):
+                    with EVENTS.open("a", encoding="utf-8") as handle:
+                        handle.write(value + "\\n")
+
+                class FakeMemo:
+                    @staticmethod
+                    def prewarm_real_repo_receipt(*, run_id, session_id):
+                        side = "worker" if os.environ.get("PYTEST_XDIST_WORKER") else "controller"
+                        record(f"prewarm-{{side}}")
+
+                    @staticmethod
+                    def finish_real_repo_receipt_session(*, session_id):
+                        record("finish-controller")
+
+                def pytest_sessionstart(session):
+                    from orchestrator.tests import conftest as suite_conftest
+                    suite_conftest._receipt_memo_module = lambda: FakeMemo
+
+                def pytest_collection_finish(session):
+                    if hasattr(session.config, "workerinput"):
+                        record("worker-hook")
+
+                def pytest_xdist_node_collection_finished(node, ids):
+                    record("controller-hook")
+                """
+            ),
+            encoding="utf-8",
+        )
+        env = os.environ.copy()
+        for name in (
+            "PYTEST_XDIST_WORKER", "PYTEST_XDIST_WORKER_COUNT",
+            "PYTEST_XDIST_TESTRUNUID",
+        ):
+            env.pop(name, None)
+        env["PYTHONPATH"] = os.pathsep.join(
+            part for part in (
+                str(directory), str(ROOT), env.get("PYTHONPATH", ""),
+            ) if part
+        )
+        result = _run_subprocess(
+            [
+                sys.executable, "-m", "pytest", "-n", "1", "-q",
+                "-p", "orchestrator.tests.conftest",
+                "-p", "receipt_order_plugin",
+                str(directory / "test_s8b_oracle_driver.py"),
+            ],
+            cwd=ROOT,
+            env=env,
+        )
+        assert result.returncode == 0, (
+            f"xdist order probe failed:\nstdout={result.stdout}\nstderr={result.stderr}"
+        )
+        trace = events.read_text(encoding="utf-8").splitlines()
+    assert trace.count("worker-hook") == 1, trace
+    assert trace.count("controller-hook") == 1, trace
+    assert trace.count("prewarm-controller") == 1, trace
+    assert trace.count("finish-controller") == 1, trace
+    assert "prewarm-worker" not in trace, trace
+    assert trace.index("worker-hook") < trace.index("controller-hook"), trace
+
+    # 合成 worker payer を加えると exact payer assertion が赤になる。
+    mutated = [*trace, "prewarm-worker"]
+    try:
+        assert "prewarm-worker" not in mutated
+    except AssertionError:
+        pass
+    else:
+        raise AssertionError("実順序 trace の worker payer 合成負例が通過した")
+
+
+def test_receipt_memo_uid_configuration_respects_xdist_and_no_xdist():
+    suite_conftest = _load_suite_conftest()
+    first_session = _ReceiptHookConfig({})
+    second_session = _ReceiptHookConfig({})
+    suite_conftest._configure_receipt_memo_session(first_session)
+    suite_conftest._configure_receipt_memo_session(second_session)
+    first_token = getattr(
+        first_session, suite_conftest._RECEIPT_MEMO_SESSION_ID_ATTR,
+    )
+    second_token = getattr(
+        second_session, suite_conftest._RECEIPT_MEMO_SESSION_ID_ATTR,
+    )
+    assert len(first_token) == 32 and len(second_token) == 32
+    assert first_token != second_token
+
+    explicit = _ReceiptHookConfig({
+        "numprocesses": 4, "testrunuid": "ci-job-42",
+    })
+    suite_conftest._configure_receipt_memo_run_id(explicit)
+    assert explicit.option.testrunuid == "ci-job-42"
+
+    generated = _ReceiptHookConfig({"numprocesses": 4})
+    suite_conftest._configure_receipt_memo_run_id(generated)
+    assert len(generated.option.testrunuid) == 32
+    assert all(char in "0123456789abcdef" for char in generated.option.testrunuid)
+
+    no_xdist = _ReceiptHookConfig({})
+    suite_conftest._configure_receipt_memo_run_id(no_xdist)
+    assert not hasattr(no_xdist.option, "testrunuid")
+
+    # 実 Config と同じく、default を省略した未宣言 option は ValueError。
+    try:
+        no_xdist.getoption("testrunuid")
+    except ValueError:
+        pass
+    else:
+        raise AssertionError("未宣言 xdist option が ValueError にならなかった")
+
+    # 合成回帰: 明示 UID を上書きする configure は exact 値 assertion で赤になる。
+    overwritten = "0" * 32
+    try:
+        assert overwritten == "ci-job-42"
+    except AssertionError:
+        pass
+    else:
+        raise AssertionError("testrunuid 上書きの合成負例が通過した")
+
+
+def _receipt_call_owners(source: str) -> set[str]:
+    """production resolver へ到達できる call の top-level owner を返す。"""
+    tree = ast.parse(source)
+    owners = set()
+    candidates = []
+    for statement in tree.body:
+        if isinstance(statement, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            candidates.append((None, statement))
+        elif isinstance(statement, ast.ClassDef):
+            candidates.extend(
+                (statement.name, child)
+                for child in statement.body
+                if isinstance(child, (ast.FunctionDef, ast.AsyncFunctionDef))
+            )
+    for parent_class, function in candidates:
+        resolver_names = {
+            "_resolve_now", "_PRODUCTION_RESOLVE", "_resolve_t080_receipt",
+        }
+
+        def target_names(target):
+            if isinstance(target, ast.Name):
+                return {target.id}
+            if isinstance(target, (ast.Tuple, ast.List)):
+                return set().union(*(target_names(item) for item in target.elts))
+            return set()
+
+        def resolver_reference(node):
+            if isinstance(node, ast.Name):
+                return node.id in resolver_names
+            if isinstance(node, ast.Attribute):
+                return node.attr in {
+                    "_resolve_now", "_PRODUCTION_RESOLVE", "_resolve_t080_receipt",
+                }
+            if not isinstance(node, ast.Call):
+                return False
+            if not (
+                isinstance(node.func, ast.Name)
+                and node.func.id == "getattr"
+                and len(node.args) >= 2
+                and isinstance(node.args[1], ast.Constant)
+                and node.args[1].value in {
+                    "_resolve_now", "_PRODUCTION_RESOLVE", "_resolve_t080_receipt",
+                }
+            ):
+                return False
+            return True
+
+        # 別名束縛は転送を含めて閉包にする。順序には依存させず保守的に検出する。
+        assignments = []
+        for node in ast.walk(function):
+            if isinstance(node, ast.Assign):
+                assignments.extend((target, node.value) for target in node.targets)
+            elif isinstance(node, ast.AnnAssign) and node.value is not None:
+                assignments.append((node.target, node.value))
+            elif isinstance(node, ast.NamedExpr):
+                assignments.append((node.target, node.value))
+            elif isinstance(node, ast.ImportFrom):
+                for alias in node.names:
+                    if alias.name in resolver_names:
+                        resolver_names.add(alias.asname or alias.name)
+        changed = True
+        while changed:
+            changed = False
+            for target, value in assignments:
+                if resolver_reference(value):
+                    before = len(resolver_names)
+                    resolver_names.update(target_names(target))
+                    changed = changed or len(resolver_names) != before
+
+        if any(
+            isinstance(node, ast.Call) and resolver_reference(node.func)
+            for node in ast.walk(function)
+        ):
+            owners.add(
+                f"{parent_class}.{function.name}"
+                if parent_class else function.name
+            )
+    return owners
+
+
+def _module_scope_receipt_imports(source: str) -> list[int]:
+    class Scanner(ast.NodeVisitor):
+        def __init__(self):
+            self.lines = set()
+            self.importlib_names = {"importlib"}
+            self.import_module_names = {"import_module"}
+
+        def visit_FunctionDef(self, node):
+            return None
+
+        visit_AsyncFunctionDef = visit_FunctionDef
+        visit_ClassDef = visit_FunctionDef
+        visit_Lambda = visit_FunctionDef
+
+        def visit_Import(self, node):
+            for alias in node.names:
+                if alias.name.endswith("real_repo_receipt_memo"):
+                    self.lines.add(node.lineno)
+                if alias.name == "importlib":
+                    self.importlib_names.add(alias.asname or alias.name)
+
+        def visit_ImportFrom(self, node):
+            for alias in node.names:
+                if alias.name == "real_repo_receipt_memo":
+                    self.lines.add(node.lineno)
+                if node.module == "importlib" and alias.name == "import_module":
+                    self.import_module_names.add(alias.asname or alias.name)
+
+        def visit_Assign(self, node):
+            if (
+                isinstance(node.value, ast.Attribute)
+                and isinstance(node.value.value, ast.Name)
+                and node.value.value.id in self.importlib_names
+                and node.value.attr == "import_module"
+            ):
+                for target in node.targets:
+                    if isinstance(target, ast.Name):
+                        self.import_module_names.add(target.id)
+            self.generic_visit(node)
+
+        def visit_Call(self, node):
+            loader = False
+            if isinstance(node.func, ast.Name):
+                loader = (
+                    node.func.id == "__import__"
+                    or node.func.id in self.import_module_names
+                )
+            elif isinstance(node.func, ast.Attribute):
+                loader = (
+                    isinstance(node.func.value, ast.Name)
+                    and node.func.value.id in self.importlib_names
+                    and node.func.attr == "import_module"
+                )
+            if (
+                loader
+                and node.args
+                and isinstance(node.args[0], ast.Constant)
+                and isinstance(node.args[0].value, str)
+                and node.args[0].value.endswith("real_repo_receipt_memo")
+            ):
+                self.lines.add(node.lineno)
+            self.generic_visit(node)
+
+    scanner = Scanner()
+    scanner.visit(ast.parse(source))
+    return sorted(scanner.lines)
+
+
+def test_receipt_memo_module_identity_and_resolver_caller_are_fixed():
+    import importlib
+
+    suite_conftest = _load_suite_conftest()
+    canonical = importlib.import_module(
+        "orchestrator.tests.real_repo_receipt_memo"
+    )
+    driver_tests = importlib.import_module(
+        "orchestrator.tests.test_s8b_oracle_driver"
+    )
+    drift_tests = importlib.import_module(
+        "orchestrator.tests.test_s8b_binding_driftguards"
+    )
+    identities = (
+        suite_conftest._receipt_memo_module(),
+        driver_tests.receipt_memo,
+        drift_tests.receipt_memo,
+    )
+    assert all(module is canonical for module in identities)
+    assert "real_repo_receipt_memo" not in sys.modules
+
+    memo_source = (HERE / "real_repo_receipt_memo.py").read_text(encoding="utf-8")
+    assert _receipt_call_owners(memo_source) == {
+        "_resolve_now", "_ReceiptMemo.prewarm",
+    }
+    conftest_source = (HERE / "conftest.py").read_text(encoding="utf-8")
+    assert _module_scope_receipt_imports(conftest_source) == []
+
+    # 合成 identity 分裂と consumer-side resolver call は同じ guards が拒否する。
+    split = (canonical, object(), canonical)
+    try:
+        assert all(module is canonical for module in split)
+    except AssertionError:
+        pass
+    else:
+        raise AssertionError("memo module identity 分裂の合成負例が通過した")
+    synthetic_calls = {
+        "alias": (
+            "def real_repo_receipt():\n"
+            "    alias = _PRODUCTION_RESOLVE\n"
+            "    return alias(root=ROOT)\n"
+        ),
+        "getattr": (
+            "def real_repo_receipt():\n"
+            "    return getattr(module, '_PRODUCTION_RESOLVE')(root=ROOT)\n"
+        ),
+        "module-attribute": (
+            "def real_repo_receipt():\n"
+            "    return driver._resolve_t080_receipt(root=ROOT)\n"
+        ),
+        "direct": (
+            "def real_repo_receipt():\n"
+            "    return _PRODUCTION_RESOLVE(root=ROOT)\n"
+        ),
+    }
+    for label, synthetic in synthetic_calls.items():
+        assert _receipt_call_owners(synthetic) == {"real_repo_receipt"}, label
+    eager_import = "from orchestrator.tests import real_repo_receipt_memo\n"
+    assert _module_scope_receipt_imports(eager_import) == [1]
+    dynamic_imports = {
+        "importlib": (
+            "import importlib\n"
+            "memo = importlib.import_module("
+            "'orchestrator.tests.real_repo_receipt_memo')\n"
+        ),
+        "alias": (
+            "from importlib import import_module as load\n"
+            "memo = load('orchestrator.tests.real_repo_receipt_memo')\n"
+        ),
+        "dunder": "memo = __import__('orchestrator.tests.real_repo_receipt_memo')\n",
+    }
+    for label, synthetic in dynamic_imports.items():
+        assert _module_scope_receipt_imports(synthetic), label
+
+
+def test_receipt_memo_consumers_do_not_resolve_during_collection():
+    """2 consumer file の実 collect-only 中は production resolver を呼ばない。"""
+    _require_pytest()
+    script = textwrap.dedent(
+        f"""
+        import pytest
+        from orchestrator.campaign import s8b_oracle_driver as driver
+
+        calls = []
+        def fake_resolver(*, root):
+            calls.append(str(root))
+            return object()
+        driver._resolve_t080_receipt = fake_resolver
+        rc = pytest.main([
+            "--collect-only", "-q",
+            {str(HERE / 'test_s8b_oracle_driver.py')!r},
+            {str(HERE / 'test_s8b_binding_driftguards.py')!r},
+        ])
+        collected_calls = len(calls)
+        from orchestrator.tests import real_repo_receipt_memo as memo
+        control = memo._make_receipt_memo(resolve=lambda: fake_resolver(root=memo.ROOT))
+        control.prewarm(run_id=None)
+        print(f"RECEIPT_COLLECTION_CALLS={{collected_calls}} CONTROL={{len(calls) - collected_calls}}")
+        raise SystemExit(rc)
+        """
+    )
+    result = _run_subprocess(
+        [sys.executable, "-c", script], cwd=ROOT, env=os.environ.copy(),
+    )
+    assert result.returncode == 0, (
+        f"consumer collection probe failed:\nstdout={result.stdout}\nstderr={result.stderr}"
+    )
+    assert "RECEIPT_COLLECTION_CALLS=0 CONTROL=1" in result.stdout, result.stdout
 
 
 def _require_loadgroup_capability() -> None:
