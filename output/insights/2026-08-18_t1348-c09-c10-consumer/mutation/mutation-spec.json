@@ -1,0 +1,196 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 120,
+  "timeout_seconds": 1800,
+  "hang_timeout_seconds": 900,
+  "mutations": [
+    {
+      "id": "t1348.m01-drop-layer3-chain-call",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_trial_registry.py::test_s8c_acceptance_registered_build_reports_are_unreachable_until_workload_definition"
+      ],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/trial_registry.py",
+          "old": "                try:\n                    assert_campaign_layer3_chain(\n                        report=report,\n                        output_root=(\n                            layer3_output_root\n                            if layer3_output_root is not None\n                            else run_root / \"_no_campaign_output\"\n                        ),\n                    )\n                except AutonomousTrialCompletenessError as exc:\n                    raise TrialRegistryError(f\"[campaign-chain] {exc}\") from exc\n",
+          "new": "                pass\n"
+        }
+      ]
+    },
+    {
+      "id": "t1348.m02-drop-empty-cells-rejection",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_trial_registry.py::test_s8c_acceptance_build_with_empty_cells_fails_closed_before_receipt"
+      ],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/trial_registry.py",
+          "old": "                if not isinstance(cells, list) or not cells:\n                    _fail(\n                        \"campaign-chain\",\n                        \"do_build=True requires a non-empty report.cells list\",\n                    )\n",
+          "new": "                if not isinstance(cells, list):\n                    cells = []\n"
+        }
+      ]
+    },
+    {
+      "id": "t1348.m03-drop-no-build-reason",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_trial_registry.py::test_acceptance_v3_has_no_certifying_issuance_branch",
+        "orchestrator/tests/test_trial_registry.py::test_p5_six_complete_terminal_reports_pass_acceptance",
+        "orchestrator/tests/test_trial_registry.py::test_p6_one_cell_partial_terminal_outcome_passes_acceptance",
+        "orchestrator/tests/test_trial_registry.py::test_s8c_acceptance_failure_cell_pins_layer3_chain_absent_reason"
+      ],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/trial_registry.py",
+          "old": "        if no_build_seen:\n            reason_codes.append(\"no-build\")\n            reason_codes.sort()\n",
+          "new": "        if no_build_seen:\n            pass\n"
+        }
+      ]
+    },
+    {
+      "id": "t1348.m04-drop-layer3-absent-reason",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_trial_registry.py::test_s8c_acceptance_failure_cell_pins_layer3_chain_absent_reason"
+      ],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/trial_registry.py",
+          "old": "        if layer3_chain_absent_seen:\n            reason_codes.append(\"layer3-chain-absent\")\n            reason_codes.sort()\n",
+          "new": "        if layer3_chain_absent_seen:\n            pass\n"
+        }
+      ]
+    },
+    {
+      "id": "t1348.m05-drop-cross-binding-call",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_trial_registry.py::test_p5_six_complete_terminal_reports_pass_acceptance",
+        "orchestrator/tests/test_trial_registry.py::test_s8c_acceptance_no_build_verifier_leaf_is_independently_recomputed"
+      ],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/trial_registry.py",
+          "old": "            try:\n                cross_binding_receipts[trial_id] = verify_s8c_cross_binding(\n                    report=report,\n                    events=events,\n                    run_root=run_root,\n                    output_root=layer3_output_root,\n                )\n            except AutonomousTrialCompletenessError as exc:\n                raise TrialRegistryError(f\"[cross-binding] {exc}\") from exc\n",
+          "new": "            cross_binding_receipts[trial_id] = {\"receipt_sha256\": \"0\" * 64}\n"
+        }
+      ]
+    },
+    {
+      "id": "t1348.m06-drop-output-root-binding",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_trial_registry.py::test_s8c_acceptance_rejects_campaign_from_different_output_root"
+      ],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/trial_registry.py",
+          "old": "                    report_output_root = run_root.parent.parent\n                    if layer3_output_root != report_output_root:\n                        _fail(\n                            \"campaign-chain\",\n                            \"campaign output root differs from report run root\",\n                        )\n",
+          "new": "                    report_output_root = run_root.parent.parent\n"
+        }
+      ]
+    },
+    {
+      "id": "t1348.m07-drop-read-verify-digest",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_autonomous_trial_completeness.py::test_read_and_verify_bytes_rejects_changed_bytes",
+        "orchestrator/tests/test_autonomous_trial_completeness.py::test_verify_s8c_cross_binding_rejects_each_reference_mutation[proposal_sha256]",
+        "orchestrator/tests/test_autonomous_trial_completeness.py::test_verify_s8c_cross_binding_rejects_each_reference_mutation[provider_envelope_sha256]",
+        "orchestrator/tests/test_autonomous_trial_completeness.py::test_verify_s8c_cross_binding_rejects_each_reference_mutation[provider_payload_sha256]",
+        "orchestrator/tests/test_autonomous_trial_completeness.py::test_verify_s8c_cross_binding_rejects_each_reference_mutation[raw_response_sha256]"
+      ],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/autonomous_trial_completeness.py",
+          "old": "    if actual_sha256 != expected_sha256:\n        _fail(gate, f\"{label} bytes differ from expected_sha256\")\n",
+          "new": "    if False:\n        _fail(gate, f\"{label} bytes differ from expected_sha256\")\n"
+        }
+      ]
+    },
+    {
+      "id": "t1348.m09-drop-wal-coverage",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_autonomous_trial_completeness.py::test_verify_s8c_cross_binding_rejects_each_reference_mutation[build_records]"
+      ],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/autonomous_trial_completeness.py",
+          "old": "        if Counter(\n            canonical_record_ref(\"wal\", record) for record in persisted_primary\n        ) != Counter(canonical_record_ref(\"wal\", record) for record in non_binding):\n            _fail(\"cross-binding-wal\", \"layer3 variants do not cover the campaign WAL\")\n",
+          "new": "        if False:\n            _fail(\"cross-binding-wal\", \"layer3 variants do not cover the campaign WAL\")\n"
+        }
+      ]
+    },
+    {
+      "id": "t1348.m11-drop-aggregate-recompute",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_v3_aggregate_is_recomputed_from_trial_leaves"
+      ],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8c_acceptance_receipt.py",
+          "old": "        if receipt.cross_binding_receipt_sha256 != aggregate:\n            _fail(\n                \"receipt-cross-binding\",\n                \"top-level cross-binding aggregate differs from trial leaves\",\n            )\n",
+          "new": "        if False:\n            _fail(\n                \"receipt-cross-binding\",\n                \"top-level cross-binding aggregate differs from trial leaves\",\n            )\n"
+        }
+      ]
+    },
+    {
+      "id": "t1348.m08-drop-raw-response-digest",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_autonomous_trial_completeness.py::test_verify_s8c_cross_binding_rejects_each_reference_mutation[raw_response_path]",
+        "orchestrator/tests/test_autonomous_trial_completeness.py::test_verify_s8c_cross_binding_rejects_each_reference_mutation[raw_response_sha256]"
+      ],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/autonomous_trial_completeness.py",
+          "old": "        raw_path, _raw = read_and_verify_bytes(\n            event.get(\"raw_response_path\"),\n            root=run_root,\n            expected_sha256=event.get(\"raw_response_sha256\"),\n            gate=\"cross-binding-raw\",\n            label=f\"role {invocation_id} raw response\",\n        )\n",
+          "new": "        raw_path, _raw = read_and_verify_bytes(\n            event.get(\"raw_response_path\"),\n            root=run_root,\n            expected_sha256=hashlib.sha256(\n                (Path(run_root) / str(event.get(\"raw_response_path\"))).read_bytes()\n                if not Path(str(event.get(\"raw_response_path\"))).is_absolute()\n                else Path(str(event.get(\"raw_response_path\"))).read_bytes()\n            ).hexdigest(),\n            gate=\"cross-binding-raw\",\n            label=f\"role {invocation_id} raw response\",\n        )\n"
+        }
+      ]
+    },
+    {
+      "id": "t1348.m10-artifact-refs-first-only",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_autonomous_trial_completeness.py::test_verify_s8c_cross_binding_positive_binds_all_fields",
+        "orchestrator/tests/test_autonomous_trial_completeness.py::test_verify_s8c_cross_binding_projects_from_verified_wal_bytes",
+        "orchestrator/tests/test_autonomous_trial_completeness.py::test_verify_s8c_cross_binding_rejects_an_unclassified_wal_record",
+        "orchestrator/tests/test_autonomous_trial_completeness.py::test_verify_s8c_cross_binding_rejects_missing_bench_wall_s"
+      ],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/autonomous_trial_completeness.py",
+          "old": "    for index, path_value, expected in declared_refs:\n        resolved, raw = read_and_verify_bytes(\n            path_value,\n            root=campaign_root,\n            expected_sha256=expected,\n            gate=\"cross-binding-artifacts\",\n            label=f\"artifact_refs[{index}]\",\n        )\n",
+          "new": "    for index, path_value, expected in declared_refs[:1]:\n        resolved, raw = read_and_verify_bytes(\n            path_value,\n            root=campaign_root,\n            expected_sha256=expected,\n            gate=\"cross-binding-artifacts\",\n            label=f\"artifact_refs[{index}]\",\n        )\n"
+        }
+      ]
+    }
+  ]
+}
