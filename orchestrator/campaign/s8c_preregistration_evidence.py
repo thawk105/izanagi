@@ -1976,3 +1976,308 @@ def evaluate_all(
 ) -> Sequence[core.PredicateResult]:
     """module 自身も registry として使える protocol adapter。"""
     return _REGISTRY.evaluate_all(commit, repo_root=repo_root)
+
+
+# C06 は契約が false の間は production dispatch に登録しない。ここに置く
+# staged registry は、将来の契約反転を検査する test 専用の待機場所である。
+from types import MappingProxyType as _MappingProxyType  # noqa: E402
+
+_C06_EXPECTED_FIELD_PATHS = frozenset(
+    {
+        "ledger.manifest_sha256",
+        "ledger.freeze_sha256",
+        "ledger.schedule_sha256",
+        "ledger.ratified_generation_sha256",
+        "reservation.cells[*].reserved_bench_s",
+        "settlement.cells[*].actual_bench_s",
+    }
+)
+_C06_EXPECTED_CELL_ROWS = frozenset(
+    {
+        ("H1", "on"),
+        ("H1", "off"),
+        ("H1", "swapped"),
+        ("H2", "on"),
+        ("H2", "off"),
+        ("H2", "swapped"),
+    }
+)
+
+
+def _c06_annotation_names(node: ast.AST) -> frozenset[str]:
+    return frozenset(
+        current.id
+        for current in ast.walk(node)
+        if isinstance(current, ast.Name)
+    ) | frozenset(
+        current.attr
+        for current in ast.walk(node)
+        if isinstance(current, ast.Attribute)
+    )
+
+
+def _c06_dataclass_fields(
+    tree: ast.Module,
+    name: str,
+) -> tuple[dict[str, ast.AST], bool]:
+    matches = [
+        node
+        for node in tree.body
+        if isinstance(node, ast.ClassDef) and node.name == name
+    ]
+    if len(matches) != 1:
+        return {}, False
+    node = matches[0]
+    dataclass_decorator = False
+    frozen = False
+    for decorator in node.decorator_list:
+        target = decorator.func if isinstance(decorator, ast.Call) else decorator
+        if (
+            isinstance(target, ast.Name) and target.id == "dataclass"
+        ) or (
+            isinstance(target, ast.Attribute) and target.attr == "dataclass"
+        ):
+            dataclass_decorator = True
+            if isinstance(decorator, ast.Call):
+                frozen = any(
+                    keyword.arg == "frozen"
+                    and isinstance(keyword.value, ast.Constant)
+                    and keyword.value.value is True
+                    for keyword in decorator.keywords
+                )
+    fields = {
+        statement.target.id: statement.annotation
+        for statement in node.body
+        if isinstance(statement, ast.AnnAssign)
+        and isinstance(statement.target, ast.Name)
+    }
+    return fields, dataclass_decorator and frozen
+
+
+def _c06_expected_rows(tree: ast.Module) -> frozenset[tuple[str, str]]:
+    for statement in tree.body:
+        if not isinstance(statement, (ast.Assign, ast.AnnAssign)):
+            continue
+        targets = (
+            statement.targets
+            if isinstance(statement, ast.Assign)
+            else (statement.target,)
+        )
+        if not any(
+            isinstance(target, ast.Name) and target.id == "_EXPECTED_CELL_ROWS"
+            for target in targets
+        ):
+            continue
+        value = statement.value
+        if not isinstance(value, ast.Tuple):
+            return frozenset()
+        rows: set[tuple[str, str]] = set()
+        for row in value.elts:
+            if not isinstance(row, ast.Tuple) or len(row.elts) != 2:
+                return frozenset()
+            if not all(
+                isinstance(item, ast.Constant) and type(item.value) is str
+                for item in row.elts
+            ):
+                return frozenset()
+            rows.add((row.elts[0].value, row.elts[1].value))
+        return frozenset(rows)
+    return frozenset()
+
+
+def _c06_has_attribute_chain(tree: ast.Module, chain: tuple[str, ...]) -> bool:
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Attribute):
+            continue
+        parts: list[str] = [node.attr]
+        current = node.value
+        while isinstance(current, ast.Attribute):
+            parts.append(current.attr)
+            current = current.value
+        if isinstance(current, ast.Name):
+            parts.append(current.id)
+        if tuple(reversed(parts)) == chain:
+            return True
+    return False
+
+
+def _c06_field_path_verdict(tree: ast.Module) -> bool:
+    """C06 の field path を実 dataclass と instance access から検査する。"""
+    fields: dict[str, dict[str, ast.AST]] = {}
+    for name in (
+        "BudgetLimits",
+        "ReservationCell",
+        "Reservation",
+        "SettlementCell",
+        "Settlement",
+        "Ledger",
+    ):
+        current, valid = _c06_dataclass_fields(tree, name)
+        if not valid:
+            return False
+        fields[name] = current
+    required_fields = {
+        "BudgetLimits": {"total_bench_s", "per_arm_bench_s", "per_holdout_bench_s"},
+        "ReservationCell": {"cell_id", "holdout", "arm", "reserved_bench_s"},
+        "Reservation": {"cells", "budget_bench_s", "total_reserved_bench_s", "state"},
+        "SettlementCell": {"cell_id", "actual_bench_s"},
+        "Settlement": {"cells", "total_actual_bench_s"},
+        "Ledger": {
+            "manifest_sha256",
+            "freeze_sha256",
+            "schedule_sha256",
+            "ratified_generation_sha256",
+            "reservation",
+            "settlement",
+            "cell_ids",
+        },
+    }
+    if any(
+        not required_fields[name] <= set(class_fields)
+        for name, class_fields in fields.items()
+    ):
+        return False
+    if not {"tuple", "frozenset"} <= {
+        current.func.id
+        for current in ast.walk(tree)
+        if isinstance(current, ast.Call) and isinstance(current.func, ast.Name)
+    }:
+        return False
+    constructor_names = {
+        current.func.id
+        for current in ast.walk(tree)
+        if isinstance(current, ast.Call) and isinstance(current.func, ast.Name)
+    }
+    if not {
+        "BudgetLimits",
+        "ReservationCell",
+        "Reservation",
+        "SettlementCell",
+        "Settlement",
+        "Ledger",
+    } <= constructor_names:
+        return False
+    annotation_names = {
+        name: _c06_annotation_names(annotation)
+        for class_name, class_fields in fields.items()
+        for name, annotation in class_fields.items()
+    }
+    if "tuple" not in annotation_names["cells"]:
+        return False
+    if "frozenset" not in annotation_names["cell_ids"]:
+        return False
+    if _c06_expected_rows(tree) != _C06_EXPECTED_CELL_ROWS:
+        return False
+    required_strings = {
+        "total_bench_s",
+        "per_arm_bench_s",
+        "per_holdout_bench_s",
+        "total_reserved_bench_s",
+        "reserved_bench_s",
+        "actual_bench_s",
+        "insufficient",
+    }
+    strings = _strings(tree)
+    if not required_strings <= strings:
+        return False
+    comparisons = {
+        type(current.ops[0])
+        for current in ast.walk(tree)
+        if isinstance(current, ast.Compare) and current.ops
+    }
+    if ast.LtE not in comparisons:
+        return False
+    if not any(
+        isinstance(current, ast.Attribute) and current.attr == "O_EXCL"
+        for current in ast.walk(tree)
+    ):
+        return False
+    for chain in (
+        ("ledger", "manifest_sha256"),
+        ("ledger", "freeze_sha256"),
+        ("ledger", "schedule_sha256"),
+        ("ledger", "ratified_generation_sha256"),
+        ("ledger", "reservation", "cells"),
+        ("ledger", "settlement", "cells"),
+    ):
+        if not _c06_has_attribute_chain(tree, chain):
+            return False
+    if any(
+        isinstance(current, ast.Call)
+        and isinstance(current.func, ast.Name)
+        and current.func.id == "setattr"
+        for current in ast.walk(tree)
+    ):
+        return False
+    return True
+
+
+def _c06_unsatisfied(probe: _ConditionProbe) -> core.PredicateResult:
+    return _result(
+        probe,
+        core.PredicateStatus.UNSATISFIED,
+        ReasonCode.BUDGET_CONSUMER_UNDEFINED,
+    )
+
+
+def _evaluate_c06(probe: _ConditionProbe) -> core.PredicateResult:
+    """C06 の staged evaluator。充足を返さず、完了証明は常に未定義にする。"""
+    budget = probe.python_kind("budget_consumer")
+    if budget is None:
+        return _result(
+            probe,
+            core.PredicateStatus.EVIDENCE_UNDEFINED,
+            ReasonCode.BUDGET_CONSUMER_UNDEFINED,
+        )
+    requirement = probe.requirement("budget_consumer")
+    if frozenset(requirement.field_paths) != _C06_EXPECTED_FIELD_PATHS:
+        return _c06_unsatisfied(probe)
+    if not _c06_field_path_verdict(budget):
+        return _c06_unsatisfied(probe)
+    functions = _functions(budget)
+    if not {
+        "reserve_all_cells",
+        "settle",
+        "symmetric_indeterminate",
+    } <= functions.keys():
+        return _c06_unsatisfied(probe)
+    if not {
+        "_ledger_lock",
+        "_check_limit_state",
+    } <= functions.keys():
+        return _c06_unsatisfied(probe)
+    reference = probe.python_kind("ratified_generation_reference")
+    if (
+        reference is None
+        or "load_ratified_freeze" not in _functions(reference)
+        or "sha256" not in _strings(reference)
+    ):
+        return _c06_unsatisfied(probe)
+    supervisor_path = "orchestrator/campaign/p3_autonomous_workload_trial.py"
+    supervisor = probe.python_path(supervisor_path)
+    if supervisor is not None:
+        reachable = _reachable_functions(supervisor, "run_trial")
+        reachable_calls = _reachable_calls(supervisor, "run_trial")
+        if "run_trial" not in _functions(supervisor) or not {
+            "load_ratified_freeze",
+            "reserve_all_cells",
+            "settle",
+            "symmetric_indeterminate",
+        } <= reachable_calls:
+            return _c06_unsatisfied(probe)
+        if not reachable or len(reachable) > _MAX_REACHABILITY_STATES:
+            return _c06_unsatisfied(probe)
+        if not any(
+            isinstance(current, ast.Attribute) and current.attr == "sha256"
+            for current in ast.walk(supervisor)
+        ):
+            return _c06_unsatisfied(probe)
+    # static_only_note の通り、実時間の値は readiness の充足条件にしない。
+    return _result(
+        probe,
+        core.PredicateStatus.EVIDENCE_UNDEFINED,
+        ReasonCode.COMPLETION_PROOF_NOT_MACHINE_CHECKABLE,
+    )
+
+
+_STAGED_EVALUATORS = _MappingProxyType({6: _evaluate_c06})

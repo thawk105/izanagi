@@ -97,6 +97,15 @@ from .s8c_generation_projection import (
     validate_coder_payload,
     validate_planner_payload,
 )
+from .s8b_ratified_freeze import load_ratified_freeze
+from .s8c_budget import (
+    BudgetLimits,
+    Ledger,
+    ReservationCell,
+    reserve_all_cells,
+    settle,
+    symmetric_indeterminate,
+)
 
 
 
@@ -385,6 +394,17 @@ class _RunScopeBinding:
     _seal: object = dataclasses.field(repr=False)
     origin_capability: reflux_origin_binding.OriginBindingCapability | None = None
     arm_execution: trial_registry.TrialArmExecutionBinding | None = None
+
+
+@dataclasses.dataclass(frozen=True, slots=True)
+class _S8CBudgetInputs:
+    ledger_path: Path
+    manifest_sha256: str
+    freeze_sha256: str
+    schedule_sha256: str
+    ratified_generation_sha256: str
+    cells: tuple[ReservationCell, ...]
+    limits: BudgetLimits
 
 
 _ACTIVE_TRIAL_BINDING: contextvars.ContextVar[
@@ -1359,6 +1379,116 @@ def _accounting_authority(
     )
 
 
+def _load_s8c_schedule_authority(*, root: Path) -> Mapping[str, Any]:
+    """C05 の schedule 正本を要求する。未実装の hash は推測しない。"""
+    del root
+    raise AutonomousTrialError(
+        "8c schedule authority is unavailable; schedule_sha256 を推測できない"
+    )
+
+
+def _prepare_s8c_budget_inputs(
+    *,
+    admission: trial_registry.TrialLaunchAdmission,
+    trial_manifest: Path | None,
+    ratified_freeze: Any,
+) -> _S8CBudgetInputs:
+    if admission.mode != "registered-effective" or admission.binding is None:
+        raise AutonomousTrialError(
+            "C06 budget requires registered-effective admission"
+        )
+    if trial_manifest is None:
+        raise AutonomousTrialError("C06 budget requires a registered manifest")
+    manifest = trial_registry.load_trial_manifest(Path(trial_manifest))
+    if manifest.sha256 != admission.binding.manifest_sha256:
+        raise AutonomousTrialError("C06 manifest hash binding changed")
+    document = getattr(ratified_freeze, "document", None)
+    if not isinstance(document, Mapping):
+        raise AutonomousTrialError("ratified freeze document is unavailable")
+    freeze_sha256 = document.get("freeze_sha256")
+    if (
+        type(freeze_sha256) is not str
+        or _LOWER_HEX_RE.fullmatch(freeze_sha256) is None
+    ):
+        raise AutonomousTrialError("ratified freeze sha256 is unavailable")
+    ratified_generation_sha256 = getattr(ratified_freeze, "sha256", None)
+    if (
+        type(ratified_generation_sha256) is not str
+        or _LOWER_HEX_RE.fullmatch(ratified_generation_sha256) is None
+    ):
+        raise AutonomousTrialError("ratified generation sha256 is unavailable")
+    schedule = _load_s8c_schedule_authority(root=ROOT)
+    if not isinstance(schedule, Mapping):
+        raise AutonomousTrialError("8c schedule authority is not an object")
+    required = {
+        "ledger_path",
+        "schedule_sha256",
+        "cells",
+        "limits",
+    }
+    if set(schedule) != required:
+        raise AutonomousTrialError("8c schedule authority schema is incomplete")
+    schedule_sha256 = schedule["schedule_sha256"]
+    if type(schedule_sha256) is not str or _LOWER_HEX_RE.fullmatch(schedule_sha256) is None:
+        raise AutonomousTrialError("8c schedule sha256 is unavailable")
+    ledger_path = schedule["ledger_path"]
+    if not isinstance(ledger_path, Path):
+        raise AutonomousTrialError("8c schedule ledger path is not a Path")
+    cells = tuple(schedule["cells"])
+    if any(type(cell) is not ReservationCell for cell in cells):
+        raise AutonomousTrialError("8c schedule cells are not ReservationCell values")
+    limits = schedule["limits"]
+    if type(limits) is not BudgetLimits:
+        raise AutonomousTrialError("8c schedule limits are not BudgetLimits")
+    return _S8CBudgetInputs(
+        ledger_path=ledger_path,
+        manifest_sha256=manifest.sha256,
+        freeze_sha256=freeze_sha256,
+        schedule_sha256=schedule_sha256,
+        ratified_generation_sha256=ratified_generation_sha256,
+        cells=cells,
+        limits=limits,
+    )
+
+
+def _budget_indeterminate_report(
+    *,
+    trial_id: str,
+    provider_kind: str,
+    selected: Sequence[str],
+    generations: int,
+    ledger: Ledger,
+    indeterminate_cells: frozenset[str],
+) -> dict[str, Any]:
+    cells = [
+        {
+            "cell_id": cell_id,
+            "status": "indeterminate",
+            "reason": "budget-insufficient",
+        }
+        for cell_id in sorted(indeterminate_cells)
+    ]
+    return {
+        "schema_version": REPORT_SCHEMA_VERSION,
+        "trial_id": trial_id,
+        "status": "partial",
+        "provider": provider_kind,
+        "do_build": True,
+        "workloads_requested": list(selected),
+        "generation_budget_per_workload": generations,
+        "budget": {
+            "state": ledger.reservation.state,
+            "manifest_sha256": ledger.manifest_sha256,
+            "freeze_sha256": ledger.freeze_sha256,
+            "schedule_sha256": ledger.schedule_sha256,
+            "ratified_generation_sha256": ledger.ratified_generation_sha256,
+            "indeterminate_cells": cells,
+        },
+        "cells": cells,
+        "lifecycle_terminal_status": "indeterminate",
+    }
+
+
 def _bench_wall_seconds(
     outcome: Mapping[str, Any], *, authoritative: bool,
 ) -> float:
@@ -1372,7 +1502,9 @@ def _bench_wall_seconds(
         return 0.0
     records = outcome.get("records")
     if not isinstance(records, Mapping):
-        return 0.0
+        raise AutonomousTrialError(
+            "ran=True の current attempt に bench_wall_s がない"
+        )
     candidates: list[float] = []
     for record in records.values():
         if not isinstance(record, Mapping) or "bench_wall_s" not in record:
@@ -1386,7 +1518,51 @@ def _bench_wall_seconds(
         candidates.append(value)
     if len(candidates) > 1:
         raise AutonomousTrialError("current attempt の bench_wall_s が一意でない")
-    return candidates[0] if candidates else 0.0
+    if len(candidates) != 1:
+        raise AutonomousTrialError(
+            "ran=True の current attempt の bench_wall_s が一意でない"
+        )
+    return candidates[0]
+
+
+def _settle_budget_cell(
+    *,
+    ledger_path: Path,
+    cell: Mapping[str, Any],
+    cell_id: str,
+) -> None:
+    """terminal cell の世代 accounting だけを ledger へ精算する。"""
+    stop_reason = cell.get("stop_reason")
+    if stop_reason == "supervisor-error":
+        raise AutonomousTrialError(
+            "budget cell は supervisor error のため indeterminate"
+        )
+    generations = cell.get("generations")
+    if not isinstance(generations, list):
+        raise AutonomousTrialError("budget cell generations が list でない")
+    actual_bench_s = 0.0
+    if not generations and stop_reason not in {
+        "stopped-before",
+        "supervisor-wall-budget",
+    }:
+        raise AutonomousTrialError(
+            "budget cell の bench accounting が無く indeterminate"
+        )
+    for generation in generations:
+        if not isinstance(generation, Mapping):
+            raise AutonomousTrialError("budget generation accounting が object でない")
+        value = generation.get("bench_wall_seconds")
+        if isinstance(value, bool) or not isinstance(value, (int, float)):
+            raise AutonomousTrialError(
+                "budget cell の bench_wall_seconds が一意でない"
+            )
+        value = float(value)
+        if not math.isfinite(value) or value < 0.0:
+            raise AutonomousTrialError(
+                "budget cell の bench_wall_seconds が有限非負でない"
+            )
+        actual_bench_s += value
+    settle(ledger_path, cell_id=cell_id, actual_bench_s=actual_bench_s)
 
 
 def _new_generation_accounting(
@@ -2366,6 +2542,7 @@ def _finish_trial(
     gating_spec_snapshot: GatingSpecSnapshot,
     generation_driver: Mapping[str, str] | None = None,
     accounting_authority: str | None = None,
+    budget_ledger_path: Path | None = None,
     effective_preregistration: (
         s8c_preregistration.EffectivePreregistration | None
     ) = None,
@@ -2504,6 +2681,10 @@ def _finish_trial(
                         "error": dict(fatal_error),
                     }
                 cells.append(cell)
+                if budget_ledger_path is not None:
+                    raise AutonomousTrialError(
+                        "budget cell terminal is indeterminate after supervisor error"
+                    )
                 admission_succeeded = _finalize_cell_admission(
                     cell,
                     do_build=do_build,
@@ -2571,6 +2752,10 @@ def _finish_trial(
                     ))
                     cell["stop_reason"] = "supervisor-error"
                     cell["error"] = dict(fatal_error)
+                    if budget_ledger_path is not None:
+                        raise AutonomousTrialError(
+                            "budget cell terminal is indeterminate after critic error"
+                        )
                     break
             deferred_wall_generation = cell.pop(
                 "_deferred_wall_generation", None
@@ -2596,6 +2781,17 @@ def _finish_trial(
                         transport_receipt,
                     ))
                 break
+            if budget_ledger_path is not None:
+                binding = launch_admission.binding
+                if binding is None:
+                    raise AutonomousTrialError(
+                        "budget settlement requires a registered cell binding"
+                    )
+                _settle_budget_cell(
+                    ledger_path=budget_ledger_path,
+                    cell=cell,
+                    cell_id=binding.trial_id,
+                )
             if not admission_succeeded:
                 break
     status = (
@@ -3392,6 +3588,13 @@ def run_trial(
     gating_spec_snapshot = snapshot_gating_spec(GATING_SPEC)
     generation_driver = _generation_driver_identity(drive)
     accounting_authority = _accounting_authority(drive)
+    c06_budget_enabled = (
+        trial_admission.mode == "registered-effective" and do_build
+    )
+    if c06_budget_enabled and accounting_authority != _AUTHORITATIVE_ACCOUNTING:
+        raise AutonomousTrialError(
+            "registered-effective build requires authoritative accounting drive"
+        )
     _assert_build_site_opted_in(
         do_build,
         allow_pegasus_compute_transport=allow_pegasus_compute_transport,
@@ -3441,7 +3644,45 @@ def run_trial(
         lifecycle_token = trial_registry.record_trial_start_once(
             **lifecycle_arguments
         )
+    budget_ledger_path: Path | None = None
+    lifecycle_terminalized = False
     try:
+        if c06_budget_enabled:
+            ratified_freeze = load_ratified_freeze(ROOT)
+            budget_inputs = _prepare_s8c_budget_inputs(
+                admission=trial_admission,
+                trial_manifest=trial_manifest,
+                ratified_freeze=ratified_freeze,
+            )
+            budget_ledger_path = budget_inputs.ledger_path
+            budget_ledger = reserve_all_cells(
+                budget_ledger_path,
+                manifest_sha256=budget_inputs.manifest_sha256,
+                freeze_sha256=budget_inputs.freeze_sha256,
+                schedule_sha256=budget_inputs.schedule_sha256,
+                ratified_generation_sha256=(
+                    budget_inputs.ratified_generation_sha256
+                ),
+                cells=budget_inputs.cells,
+                limits=budget_inputs.limits,
+            )
+            if budget_ledger.reservation.state == "insufficient":
+                indeterminate_cells = symmetric_indeterminate(budget_ledger)
+                report = _budget_indeterminate_report(
+                    trial_id=trial_id,
+                    provider_kind=provider_kind,
+                    selected=selected,
+                    generations=generations,
+                    ledger=budget_ledger,
+                    indeterminate_cells=indeterminate_cells,
+                )
+                if lifecycle_token is not None:
+                    trial_registry.record_trial_terminal(
+                        lifecycle_token,
+                        terminal_status="indeterminate",
+                    )
+                    lifecycle_terminalized = True
+                return report
         run_root.mkdir(parents=True)
         ensure_exploration_namespace(str(run_root))
         if arm_execution is not None:
@@ -3535,7 +3776,6 @@ def run_trial(
         raise
     owns_active_providers = providers is None
     active_providers: dict[str, Any] = {}
-    lifecycle_terminalized = False
     fatal_error: dict[str, str] | None = (
         {
             "type": type(admission_error).__name__,
@@ -3603,6 +3843,7 @@ def run_trial(
                 gating_spec_snapshot=gating_spec_snapshot,
                 generation_driver=generation_driver,
                 accounting_authority=accounting_authority,
+                budget_ledger_path=budget_ledger_path,
                 effective_preregistration=effective_preregistration,
                 trial_manifest=trial_manifest,
                 allow_unregistered_exploratory=(
@@ -3614,7 +3855,9 @@ def run_trial(
             report = _finish_trial(**finish_arguments)
             if lifecycle_token is not None:
                 terminal_arguments: dict[str, Any] = {
-                    "terminal_status": report["status"],
+                    "terminal_status": report.get(
+                        "lifecycle_terminal_status", report["status"]
+                    ),
                 }
                 if origin_runtime is not None:
                     terminal_arguments["origin_terminal_projection"] = (

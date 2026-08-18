@@ -2237,3 +2237,352 @@ def test_machine_checkable_contract_and_evaluator_registry_are_bijective() -> No
         f"C{number:02d}" for number in M._MACHINE_EVALUATORS
     )
     assert contract_ids == evaluator_ids == M.MACHINE_CHECKABLE_CONDITION_IDS
+
+
+TOKEN_ONLY_C06_BUDGET = """
+import os
+from dataclasses import dataclass
+from typing import Literal, Mapping
+
+@dataclass(frozen=True, slots=True)
+class BudgetLimits:
+    total_bench_s: float
+    per_arm_bench_s: Mapping[str, float]
+    per_holdout_bench_s: Mapping[str, float]
+
+@dataclass(frozen=True, slots=True)
+class ReservationCell:
+    cell_id: str
+    holdout: str
+    arm: str
+    reserved_bench_s: float
+
+@dataclass(frozen=True, slots=True)
+class Reservation:
+    cells: tuple[ReservationCell, ...]
+    budget_bench_s: float
+    total_reserved_bench_s: float
+    state: Literal["held", "insufficient"]
+
+@dataclass(frozen=True, slots=True)
+class SettlementCell:
+    cell_id: str
+    actual_bench_s: float
+
+@dataclass(frozen=True, slots=True)
+class Settlement:
+    cells: tuple[SettlementCell, ...]
+    total_actual_bench_s: float
+
+@dataclass(frozen=True, slots=True)
+class Ledger:
+    manifest_sha256: str
+    freeze_sha256: str
+    schedule_sha256: str
+    ratified_generation_sha256: str
+    reservation: Reservation
+    settlement: Settlement
+    cell_ids: frozenset[str]
+
+_EXPECTED_CELL_ROWS = (
+    ("H1", "on"),
+    ("H1", "off"),
+    ("H1", "swapped"),
+    ("H2", "on"),
+    ("H2", "off"),
+    ("H2", "swapped"),
+)
+
+def _ledger_lock():
+    return os.O_CREAT | os.O_EXCL
+
+def _check_limit_state(cells, limits):
+    total_reserved_bench_s = sum(cell.reserved_bench_s for cell in cells)
+    total_ok = total_reserved_bench_s <= limits.total_bench_s
+    arm_ok = all(value <= limits.per_arm_bench_s[arm] for arm, value in {})
+    holdout_ok = all(value <= limits.per_holdout_bench_s[holdout] for holdout, value in {})
+    return total_ok and arm_ok and holdout_ok
+
+def _make_limits():
+    return BudgetLimits(1.0, {}, {})
+
+def _make_cells():
+    return (
+        ReservationCell("cell", "H1", "on", 0.0),
+        SettlementCell("cell", 0.0),
+    )
+
+def reserve_all_cells(ledger_path, *, manifest_sha256, freeze_sha256,
+                      schedule_sha256, ratified_generation_sha256,
+                      cells, limits):
+    cells = tuple(cells)
+    state = "held" if _check_limit_state(cells, limits) else "insufficient"
+    reservation = Reservation(cells, limits.total_bench_s,
+                              sum(cell.reserved_bench_s for cell in cells), state)
+    settlement = Settlement(tuple(), 0.0)
+    return Ledger(manifest_sha256, freeze_sha256, schedule_sha256,
+                  ratified_generation_sha256, reservation, settlement,
+                  frozenset(cell.cell_id for cell in cells))
+
+def settle(ledger_path, *, cell_id, actual_bench_s):
+    if actual_bench_s <= 1.0:
+        return ledger_path
+    raise RuntimeError("actual_bench_s")
+
+def symmetric_indeterminate(ledger, *, launched_cell_ids=()):
+    if ledger.reservation.state == "insufficient":
+        return frozenset(ledger.cell_ids) - frozenset(launched_cell_ids)
+    return frozenset()
+
+def _document(ledger, limits):
+    return {
+        "schema_version": "s8c-budget-ledger/v1",
+        "manifest_sha256": ledger.manifest_sha256,
+        "freeze_sha256": ledger.freeze_sha256,
+        "schedule_sha256": ledger.schedule_sha256,
+        "ratified_generation_sha256": ledger.ratified_generation_sha256,
+        "reservation": {
+            "cells": [
+                {
+                    "cell_id": cell.cell_id,
+                    "holdout": cell.holdout,
+                    "arm": cell.arm,
+                    "reserved_bench_s": cell.reserved_bench_s,
+                }
+                for cell in ledger.reservation.cells
+            ],
+            "budget_bench_s": ledger.reservation.budget_bench_s,
+            "total_reserved_bench_s": ledger.reservation.total_reserved_bench_s,
+            "state": ledger.reservation.state,
+            "limits": {
+                "total_bench_s": limits.total_bench_s,
+                "per_arm_bench_s": dict(limits.per_arm_bench_s),
+                "per_holdout_bench_s": dict(limits.per_holdout_bench_s),
+            },
+        },
+        "settlement": {
+            "cells": [
+                {
+                    "cell_id": cell.cell_id,
+                    "actual_bench_s": cell.actual_bench_s,
+                }
+                for cell in ledger.settlement.cells
+            ],
+            "total_actual_bench_s": ledger.settlement.total_actual_bench_s,
+        },
+        "cell_ids": sorted(ledger.cell_ids),
+    }
+"""
+
+TOKEN_ONLY_C06_RATIFIED = """
+class Ratified:
+    sha256 = "a" * 64
+    sha256_field = "sha256"
+def load_ratified_freeze():
+    return Ratified()
+"""
+
+TOKEN_ONLY_C06_SUPERVISOR = """
+from .s8b_ratified_freeze import load_ratified_freeze
+from .s8c_budget import reserve_all_cells, settle, symmetric_indeterminate
+def _budget():
+    ratified = load_ratified_freeze()
+    generation_sha256 = ratified.sha256
+    ledger = reserve_all_cells(None, manifest_sha256="a", freeze_sha256="b",
+                               schedule_sha256="c", ratified_generation_sha256=generation_sha256,
+                               cells=(), limits=None)
+    settle(None, cell_id="cell", actual_bench_s=0.0)
+    return symmetric_indeterminate(ledger)
+def run_trial():
+    return _budget()
+"""
+
+
+def _c06_contract_with_machine_flag() -> bytes:
+    value = json.loads(CONTRACT_FILE.read_bytes())
+    value["conditions"][5]["machine_checkable"] = True
+    return json.dumps(value, ensure_ascii=False, sort_keys=True).encode("utf-8")
+
+
+def _staged_c06_result(
+    tmp_path: Path,
+    name: str,
+    *,
+    budget_source: str,
+    monkeypatch: pytest.MonkeyPatch,
+) -> tuple[Path, str, core.PredicateResult]:
+    root = _init_repo(tmp_path, name)
+    _write(root, core.EVIDENCE_CONTRACT_PATH, _c06_contract_with_machine_flag())
+    _write(root, "orchestrator/campaign/s8c_budget.py", budget_source)
+    _write(root, "orchestrator/campaign/s8b_ratified_freeze.py", TOKEN_ONLY_C06_RATIFIED)
+    _write(
+        root,
+        "orchestrator/campaign/p3_autonomous_workload_trial.py",
+        TOKEN_ONLY_C06_SUPERVISOR,
+    )
+    head = _commit(root, name)
+    monkeypatch.setitem(M._MACHINE_EVALUATORS, 6, M._STAGED_EVALUATORS[6])
+    return root, head, _result(root, head, "C06")
+
+
+def _negative_control_c06(
+    identifier: str,
+) -> tuple[dict[str, bytes | str], str, bytes | str]:
+    if identifier != "nc_c06_one_arm_reservation_removed":
+        raise AssertionError(identifier)
+    path = "orchestrator/campaign/s8c_budget.py"
+    marker = '    ("H2", "swapped"),\n'
+    assert TOKEN_ONLY_C06_BUDGET.count(marker) == 1
+    mutated = TOKEN_ONLY_C06_BUDGET.replace(marker, "", 1)
+    return (
+        {
+            path: TOKEN_ONLY_C06_BUDGET,
+            "orchestrator/campaign/s8b_ratified_freeze.py": TOKEN_ONLY_C06_RATIFIED,
+            "orchestrator/campaign/p3_autonomous_workload_trial.py": TOKEN_ONLY_C06_SUPERVISOR,
+        },
+        path,
+        mutated,
+    )
+
+
+# Keep the pre-existing control table untouched while extending its dispatcher
+# with the staged C06 mutation required by this wave.
+_BASE_NEGATIVE_CONTROL_CASE = _negative_control_case
+
+
+def _negative_control_case(
+    identifier: str,
+) -> tuple[dict[str, bytes | str], str, bytes | str]:
+    if identifier == "nc_c06_one_arm_reservation_removed":
+        return _negative_control_c06(identifier)
+    return _BASE_NEGATIVE_CONTROL_CASE(identifier)
+
+
+STAGED_NEGATIVE_CONTROL_CASES = {
+    "nc_c06_one_arm_reservation_removed": "C06",
+}
+
+
+def test_current_contract_keeps_c06_staged_only() -> None:
+    contract = M.load_contract_bytes(CONTRACT_FILE.read_bytes())
+    assert contract.condition(6).machine_checkable is False
+    assert 6 not in M._MACHINE_EVALUATORS
+    assert set(M._STAGED_EVALUATORS) == {6}
+    assert len(M.MACHINE_CHECKABLE_CONDITION_IDS) == 7
+
+
+def test_c06_staged_fixture_is_not_a_contract_promotion(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """これは mutation fixture であり凍結された契約ではない。"""
+    root, head, result = _staged_c06_result(
+        tmp_path,
+        "staged-c06",
+        budget_source=TOKEN_ONLY_C06_BUDGET,
+        monkeypatch=monkeypatch,
+    )
+    assert result.status is core.PredicateStatus.EVIDENCE_UNDEFINED
+    assert result.reason_code == "completion-proof-not-machine-checkable"
+    report = core.activation_report_at(root, head)
+    assert report.effective is False
+
+
+def test_c06_staged_negative_control_removes_one_arm_reservation(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    control_id = next(
+        key for key, value in STAGED_NEGATIVE_CONTROL_CASES.items()
+        if value == "C06"
+    )
+    sources, mutated_path, mutated_source = _negative_control_case(control_id)
+    root = _init_repo(tmp_path, "staged-c06-negative")
+    _write(root, core.EVIDENCE_CONTRACT_PATH, _c06_contract_with_machine_flag())
+    for path, source in sources.items():
+        _write(root, path, source)
+    baseline = _commit(root, "staged C06 baseline")
+    monkeypatch.setitem(M._MACHINE_EVALUATORS, 6, M._STAGED_EVALUATORS[6])
+    baseline_result = _result(root, baseline, "C06")
+    assert baseline_result.status is core.PredicateStatus.EVIDENCE_UNDEFINED
+    _write(root, mutated_path, mutated_source)
+    mutated = _commit(root, "staged C06 one arm removed")
+    mutated_result = _result(root, mutated, "C06")
+    assert mutated_result.status is core.PredicateStatus.UNSATISFIED
+
+
+@pytest.mark.parametrize(
+    "source",
+    [
+        "def reserve_all_cells():\n    return {'ledger.manifest_sha256': 'x'}\n",
+        "class Ledger:\n    manifest_sha256: str\n",
+        TOKEN_ONLY_C06_BUDGET + "\ndef dynamic(ledger, name, value):\n    setattr(ledger, name, value)\n",
+    ],
+    ids=("dict-literal-only", "annotation-only", "dynamic-field-generation"),
+)
+def test_c06_field_path_checker_rejects_non_closed_shapes(source: str) -> None:
+    assert M._c06_field_path_verdict(ast.parse(source)) is False
+
+
+def _candidate_commit_with_worktree(tmp_path: Path) -> str:
+    index = tmp_path / "candidate.index"
+    env = os.environ.copy()
+    env.update(
+        {
+            "GIT_INDEX_FILE": str(index),
+            "GIT_AUTHOR_NAME": "s8c candidate fixture",
+            "GIT_AUTHOR_EMAIL": "s8c-candidate@example.invalid",
+            "GIT_COMMITTER_NAME": "s8c candidate fixture",
+            "GIT_COMMITTER_EMAIL": "s8c-candidate@example.invalid",
+        }
+    )
+
+    def run(args: list[str], *, input_bytes: bytes | None = None) -> str:
+        result = subprocess.run(
+            ["git", *args],
+            cwd=_ROOT,
+            env=env,
+            input=input_bytes,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            check=True,
+            timeout=20,
+        )
+        return result.stdout.decode("utf-8").strip()
+
+    run(["read-tree", "HEAD"])
+    run(["add", "-A", "--", "."])
+    tree = run(["write-tree"])
+    return run(
+        ["commit-tree", tree, "-p", "HEAD"],
+        input_bytes=b"s8c budget candidate\n",
+    )
+
+
+@pytest.fixture(scope="module")
+def repository_candidate_commit(
+    tmp_path_factory: pytest.TempPathFactory,
+) -> str:
+    """実 repo の index/worktree bytes を candidate commit へ合成する。"""
+    return _candidate_commit_with_worktree(tmp_path_factory.mktemp("c06-candidate"))
+
+
+def _direct_c06_result(root: Path, commit: str) -> core.PredicateResult:
+    raw = CONTRACT_FILE.read_bytes()
+    contract = M.load_contract_bytes(raw)
+    probe = M._ConditionProbe(
+        root,
+        commit,
+        contract.condition(6),
+        core.EvidenceRef(core.EVIDENCE_CONTRACT_PATH, core._sha256(raw)),
+        {},
+        {core.EVIDENCE_CONTRACT_PATH: raw},
+        declared_paths=contract.evidence_paths,
+    )
+    return M._evaluate_c06(probe)
+
+
+def test_repository_candidate_uses_real_s8c_budget_module(
+    repository_candidate_commit: str,
+) -> None:
+    result = _direct_c06_result(_ROOT, repository_candidate_commit)
+    assert result.status is core.PredicateStatus.EVIDENCE_UNDEFINED
+    assert result.reason_code == "completion-proof-not-machine-checkable"
