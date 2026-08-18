@@ -375,6 +375,32 @@ def test_live_v1_is_rejected_but_historical_v1_is_reconstructed(
     )
 
 
+def test_historical_v1_rejects_same_lens_model_and_reconstructs_valid_v1(
+    tmp_path: Path,
+) -> None:
+    malformed_root = _prepare_repo(
+        tmp_path / "malformed",
+        operations=_operations_with_authority_line(
+            _V1_MODEL_LINE.replace("gpt-5.6-luna", "gpt-5.6-sol")
+        ),
+    )
+    malformed_commit = _git(malformed_root, "rev-parse", "HEAD")
+    with pytest.raises(AuthorityError, match="v1 の consult 2 レンズ model が同一"):
+        snapshot_authority(malformed_root, commit=malformed_commit)
+
+    valid_root = _prepare_repo(
+        tmp_path / "valid", operations=_operations_with_authority_line(_V1_MODEL_LINE)
+    )
+    valid_commit = _git(valid_root, "rev-parse", "HEAD")
+    historical = snapshot_authority(valid_root, commit=valid_commit)
+    assert historical.model_authority_version == "v1"
+    assert historical.consult_models == ("gpt-5.6-sol", "gpt-5.6-luna")
+    assert (
+        derive_launch(historical, stage="consult", lane="sol").model
+        != derive_launch(historical, stage="consult", lane="luna").model
+    )
+
+
 @pytest.mark.parametrize("invalid_model", ("gpt-", "gpt-5.6/luna", "luna"))
 def test_v2_model_slug_drift_fails_closed(
     tmp_path: Path, invalid_model: str

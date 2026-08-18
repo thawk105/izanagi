@@ -100,6 +100,8 @@ def _validate_model_mapping(
     other_model: str,
 ) -> None:
     if version == "v1":
+        if consult_models[0] == consult_models[1]:
+            raise AuthorityError("DW-O01: v1 の consult 2 レンズ model が同一")
         if other_model != consult_models[0]:
             raise AuthorityError(
                 "DW-O01: 他段 model と consult sol model が一致しない"
