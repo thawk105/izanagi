@@ -4,7 +4,7 @@ ledger: worklog
 authored: 2026-08-18
 wave: dev-wave-t1286-commit-receipt
 seq: 1
-title: COMMIT へ verifier 発行の一回限り receipt を要求し、新 lock を批准済み digest と比較し、ident の第 3 経路を塞いだ — 焦点走 1388 passed の下で門は開いたままだった (コード + テスト + 記録、branch worktree-dev-wave-t1286-commit-receipt)
+title: COMMIT へ verifier 発行の一回限り receipt を要求し、新 lock を批准済み digest と比較し、ident の第 3 経路を塞いだ — 焦点走 1388 passed の下で門は開いたままだった (コード + テスト + 記録、branch worktree-dev-wave-t1286-commit-receipt、変異 matrix = baseline PASSED・9/9 KILLED・SURVIVED 0・MISMATCH 0)
 ---
 
 ## 本文
@@ -46,6 +46,10 @@ title: COMMIT へ verifier 発行の一回限り receipt を要求し、新 lock
   再投入した (同一 prompt は「既存の完全な receipt は上書きできない」で rc=2)。
 - **エージェント工数**: codex 子 11 本 (plan 1・consult 2 + 失敗 2・author 3・fix 6・review 2)。
   段 5 単位 A は 35 model call / 604 秒。段 6 の must-fix 収束に fix を 2 巡要した。
+- 変異は 9 件とも wave 前の実コードの形 (検査なし・v2 枝限定・直接呼び・exact 14 閉包・
+  receipt 自身との自己照合) を再現した。m2 / m3 / m4 / m6 は killer がちょうど 1 node で、
+  その門が守る性質を名指しするテストだけが落ちる。m7 / m8 / m9 は閉包 consumer が広く
+  過剰決定のため冗長 gate として記録し、単独変異の精密な証拠には数えない。
 - 正本 = `output/insights/2026-08-18_t1286-commit-receipt-closure/README.md`
 
 ## 次の一手差分

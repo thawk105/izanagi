@@ -151,7 +151,35 @@ repo に既存の hardening (`orchestrator/preregistration/blobref.py` の固定
    閉包収載、将来 `s8c_result_judge.py` の scope、hooks 文書の「COMMIT の唯一経路は
    `pipeline.evaluate()`」記述が `guided.py:141` と食い違う件)。
 
-## 10. エージェント工数
+## 10. 変異 matrix — baseline PASSED・KILLED 9/9
+
+`mutation-spec-final.json` / `mutation-out.json`。runner は焦点 9 file を
+`--force-dispatch -n0 -rf` で回した。`-n0` は F346 (報告空間と collection 空間の
+`@<group>` 不一致) を避けるためである。期待 node は probe 走 (全件 SURVIVED 期待) で
+観測集合を集めてから完全集合として再登録した。
+
+baseline PASSED (374 passed / 49.96s)、**KILLED 9 / SURVIVED 0 / MISMATCH 0 / TIMEOUT 0**。
+
+9 変異はすべて **wave 前の実コードの形**を再現している。
+
+| 変異 | wave 前の形 | 単独 killer |
+|---|---|---|
+| m1 receipt 要求を外す | 検査なし | 5 node |
+| m2 消費済み集合の走査を落とす | 走査なし | `test_normal_wal_receipt_commits_and_duplicate_is_rejected` |
+| m3 sink 側 lock digest を観測しない | receipt 自身との自己照合 (RA-1 の欠陥形) | `test_receipt_rejects_changed_lock_and_changed_payload_without_write` |
+| m4 recovery の ABORT 限定を外す | 限定なし | `test_recovery_internal_writer_rejects_commit_before_write` |
+| m5 批准比較の呼び出しを消す | 呼び出しなし | `test_new_certified_lock_rejects_unratified_closure_digest` ほか 1 |
+| m6 批准判定を無条件受理へ倒す | 比較なし | `test_new_certified_lock_rejects_unratified_closure_digest` |
+| m7 閉包を exact 14 へ戻す | exact 14 | 103 node |
+| m8 判定器 3 module を閉包から外す | 未収載 | 89 node |
+| m9 receipt 実装面を閉包から外す | 未収載 | 94 node |
+
+m2・m3・m4・m6 は killer がちょうど 1 node で、**その門が守る性質を名指しするテストだけが落ちる**。
+m3 は段 6 レンズ A が指摘した恒真 (lock 束縛の自己照合) の修正が実際に効いていることの直接証拠である。
+m7・m8・m9 は閉包 consumer が広いため過剰決定であり、単独変異の精密な証拠としては扱わず
+冗長 gate として記録する。
+
+## 11. エージェント工数
 
 codex 子 11 本 (plan 1・consult 2 + 失敗 2・author 3・fix 6・review 2)。
 段 3 の 2 レンズは 13:31 に codex 認証の 401 で出力ゼロ即死し、prompt を変えて job-id を
