@@ -10083,3 +10083,27 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   「その負例は当該 gate の単独証拠にならない」と台帳へ明記する。
 - 再発検知: probe 走の期待 node と実測 node の差分。
   期待した node が実測集合に**含まれない**変異は、KILLED でも検出力の注記対象とする。
+
+### F406. version 差で常に失敗する API を握り潰し恒真な保証を作った [恒真ゲート]
+
+- 事象: crash 終端の失敗集約を `try: cause.add_note(...) except BaseException: pass` で書いた。
+  `BaseException.add_note` は Python 3.11 以降の API で、実行環境は 3.10.12 である。
+  この経路は必ず失敗し必ず握り潰され、集約 note は 1 度も発火しなかった。
+- 根本原因: 「起きないはず」の例外に対して握り潰し guard を置き、guard が守る API が
+  実行環境に実在するかを version で確かめなかった。
+- 恒久対応: D542 — fallback を持ち、付与に失敗しても
+  元例外を失わない形にし、握り潰しを除いた。
+- 再発検知: note が実際に載ることを要求する対照 2 件と、集約ブロックを無効化する変異
+  (本走で KILLED)。テストが赤いときに期待値を緩める前に、実装が発火しているかを実測する。
+
+### F407. 実 site でなく opt-in flag から site を推定して gate を迂回可能にした [恒真ゲート]
+
+- 事象: 予約検査の対象 site を、`do_build=False` のとき transport の opt-in flag から推定した。
+  実際に予約が要る計算ノード上の no-build 実行が opt-out なら検査を迂回し、逆に予約不要な
+  site の実行が opt-in なら過剰拒否された。
+- 根本原因: 既存 helper が `do_build=False` で site を返さないため、代わりに意味の異なる
+  flag を代理値として使った。代理値と実測値の差を検査しなかった。
+- 恒久対応: D541 — preflight で実 site を一度だけ解決し、
+  build gate と予約 gate で共有する。
+- 再発検知: flag 推定へ戻す変異 (本走で KILLED)、実 site が compute の no-build で発火する対照、
+  実 site が OTHER の no-build で過剰拒否されない対照の 3 点。
