@@ -24,6 +24,7 @@ import sys
 from dataclasses import dataclass
 from typing import Dict, List, Literal, Optional, overload
 from pathlib import Path
+from types import MappingProxyType
 
 if __package__ in {None, ""}:  # pragma: no cover - direct CLI execution
     sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
@@ -43,6 +44,12 @@ from .model import (STAGE_BENCH_DONE, STAGE_BUILD_START,  # noqa: E402
                             STAGE_COMMIT, STAGE_VERIFY_DONE, Genome)
 from .p2_2 import BETWEEN_RUN_CV, WORKLOADS               # noqa: E402
 from ..calibrator.stability import compare                         # noqa: E402
+from ..verifier.commit_receipt import (                            # noqa: E402
+    RECEIPT_PAYLOAD_KEY,
+    CommitReceiptError,
+    ReplayVerificationEvidence,
+    admit_replay_evidence,
+)
 
 
 P2_2_SLUG = "p2-2-silo"
@@ -58,6 +65,16 @@ class GenomeResult:
     tps: List[float]                     # reps 反復の生 tps (compare 用)
     leading_indicators: Dict[str, float]
     certified: bool
+    verification_evidence: Optional[ReplayVerificationEvidence] = None
+
+
+def _mutable_json(value):
+    """Thaw an admitted view's recursive immutable JSON projection."""
+    if type(value) is MappingProxyType:
+        return {key: _mutable_json(item) for key, item in value.items()}
+    if type(value) is tuple:
+        return [_mutable_json(item) for item in value]
+    return value
 
 
 def parse_flags(canonical: str) -> Dict[str, int]:
@@ -171,6 +188,7 @@ def load_landscape(tag: str, output_root: str = "") -> Dict[str, GenomeResult]:
     genome_of: Dict[str, str] = {}
     bench_of: Dict[str, dict] = {}
     certified_of: Dict[str, bool] = {}
+    evidence_of: Dict[str, ReplayVerificationEvidence] = {}
     committed: set = set()
     # [T-082] prefix 容認 (crash tail は黙って捨てる) — 公式判定に使わない。
     for r in view.records:
@@ -182,6 +200,21 @@ def load_landscape(tag: str, output_root: str = "") -> Dict[str, GenomeResult]:
             certified_of[r.variant] = bool(r.payload.get("certified"))
         elif r.stage == STAGE_COMMIT:
             committed.add(r.variant)
+            commit_payload = _mutable_json(r.payload)
+            serialized_receipt = commit_payload.pop(RECEIPT_PAYLOAD_KEY, None)
+            if serialized_receipt is not None:
+                try:
+                    evidence_of[r.variant] = admit_replay_evidence(
+                        serialized_receipt,
+                        source_campaign_lock_sha256=(
+                            view.decision.campaign_lock_sha256
+                        ),
+                        source_wal_sha256=view.decision.wal_sha256,
+                        source_variant=r.variant,
+                        source_terminal_payload=commit_payload,
+                    )
+                except CommitReceiptError:
+                    certified_of[r.variant] = False
     out: Dict[str, GenomeResult] = {}
     for v in committed:
         g = genome_of.get(v)
@@ -193,7 +226,8 @@ def load_landscape(tag: str, output_root: str = "") -> Dict[str, GenomeResult]:
             fitness_tps=p.get("median_tps"),
             tps=list(p.get("tps") or []),
             leading_indicators=dict(p.get("leading_indicators") or {}),
-            certified=certified_of.get(v, False))
+            certified=certified_of.get(v, False),
+            verification_evidence=evidence_of.get(v))
     return out
 
 
@@ -207,7 +241,10 @@ def assert_complete(landscape: Dict[str, GenomeResult], tag: str = "") -> None:
         raise AssertionError(
             f"landscape ({tag}) が SILO_SPACE と不一致。"
             f"欠落={sorted(expected - got)} 余剰={sorted(got - expected)}")
-    uncert = [g for g, r in landscape.items() if not r.certified]
+    uncert = [
+        g for g, r in landscape.items()
+        if not r.certified or r.verification_evidence is None
+    ]
     if uncert:
         raise AssertionError(f"landscape ({tag}) に未 certified genome: {sorted(uncert)} "
                              "(replay は certified 済みのみ配る前提)")

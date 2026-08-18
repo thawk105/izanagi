@@ -7,6 +7,7 @@ It cannot create formal campaign names and never calls the campaign WAL writer.
 from __future__ import annotations
 
 import hashlib
+import fcntl
 import json
 import math
 import os
@@ -20,6 +21,12 @@ from typing import Any, Iterable, Mapping, Sequence
 from orchestrator.calibrator import perf_preflight as _perf_preflight
 
 from ..campaign import campaign_lock
+from ..verifier.commit_receipt import (
+    QUALIFICATION_SINK,
+    CommitReceiptError,
+    validate_live_receipt,
+    validate_serialized_receipt,
+)
 
 from .contract import (
     attempt_identity,
@@ -688,12 +695,13 @@ class QualificationEventSink:
 
     __slots__ = (
         "_capability", "_layout", "_round_index", "_role", "_relative",
-        "_sealed",
+        "_source_lock_identity_sha256", "_sealed",
     )
 
     def __init__(
             self, capability: QualificationWriteCapability, layout: QualificationLayout,
-            *, round_index: int, role: str):
+            *, round_index: int, role: str,
+            source_lock_identity_sha256: str | None = None):
         if (type(capability) is not QualificationWriteCapability
                 or type(layout) is not QualificationLayout):
             raise TypeError("exact qualification capability/layout are required")
@@ -702,6 +710,13 @@ class QualificationEventSink:
         object.__setattr__(self, "_layout", layout)
         object.__setattr__(self, "_round_index", round_index)
         object.__setattr__(self, "_role", role)
+        if (source_lock_identity_sha256 is not None
+                and (type(source_lock_identity_sha256) is not str
+                     or _HEX64.fullmatch(source_lock_identity_sha256) is None)):
+            raise QualificationArtifactError(
+                "source campaign lock identity must be lowercase sha256")
+        object.__setattr__(
+            self, "_source_lock_identity_sha256", source_lock_identity_sha256)
         object.__setattr__(
             self, "_relative", layout.member_events_relpath(round_index, role))
         object.__setattr__(self, "_sealed", True)
@@ -718,6 +733,14 @@ class QualificationEventSink:
     @property
     def capability(self) -> QualificationWriteCapability:
         return self._capability
+
+    @property
+    def commit_lock_identity_sha256(self) -> str:
+        value = self._source_lock_identity_sha256
+        if value is None:
+            raise QualificationArtifactError(
+                "qualification sink has no source campaign lock identity")
+        return value
 
     def assert_pipeline_binding(self, layout: object) -> None:
         """Authenticate the complete qualification chain before pipeline writes."""
@@ -746,42 +769,118 @@ class QualificationEventSink:
             raise QualificationArtifactError(
                 "qualification attempt marker identity mismatch")
 
-    def emit(self, layout, variant: str, stage: str, env_tag: str, payload: Mapping[str, Any]) -> None:
+    def emit(
+            self, layout, variant: str, stage: str, env_tag: str,
+            payload: Mapping[str, Any], *, commit_receipt=None,
+    ) -> None:
         self.assert_pipeline_binding(layout)
+        if stage != "commit" and commit_receipt is not None:
+            raise QualificationArtifactError(
+                "commit receipt supplied for non-COMMIT qualification event")
         expected_relative = self._layout.member_events_relpath(
             self._round_index, self._role)
         event_path = self._capability.root.joinpath(
             *PurePosixPath(expected_relative).parts)
-        existing = load_jsonl_strict(event_path) if event_path.exists() else []
-        for index, prior in enumerate(existing):
-            if (prior.get("event_index") != index
-                    or prior.get("round_index") != self._round_index
-                    or prior.get("member_role") != self._role
-                    or prior.get("qualification_lineage") != "t126-only"):
-                raise QualificationArtifactError(
-                    "qualification sink existing event sequence is not exact")
-        event_index = len(existing)
         try:
             evaluation_stage = _EVENT_STAGE_MAP[stage]
         except KeyError as exc:
             raise QualificationArtifactError(f"unknown pipeline stage: {stage}") from exc
-        record = {
-            "schema_version": "t126-qualification-evaluation-event/v1",
-            "qualification_lineage": "t126-only",
-            "event_index": event_index,
-            "round_index": self._round_index,
-            "member_role": self._role,
-            "event_type": "member_evaluation_event",
-            "evaluation_stage": evaluation_stage,
-            "evaluation_wal_key": variant,
-            "env_tag": env_tag,
-            "payload": {
-                "canonical_json": canonical_json_bytes(dict(payload)).decode("ascii"),
-                "sha256": sha256_bytes(canonical_json_bytes(dict(payload))),
-            },
-        }
-        validate_json_schema("t126_evaluation_event_schema.json", record)
-        append_jsonl(self._capability, expected_relative, record)
+        path = _bound_path(self._capability, expected_relative)
+        _mkdir_parents(self._capability, path)
+        path = _bound_path(self._capability, expected_relative)
+        flags = os.O_RDWR | os.O_APPEND | os.O_CREAT
+        if hasattr(os, "O_NOFOLLOW"):
+            flags |= os.O_NOFOLLOW
+        try:
+            fd = os.open(path, flags, 0o600)
+        except OSError as exc:
+            raise QualificationArtifactError(f"append failed: {path}: {exc}") from exc
+        try:
+            fcntl.flock(fd, fcntl.LOCK_EX)
+            info = os.fstat(fd)
+            if not stat.S_ISREG(info.st_mode):
+                raise QualificationArtifactError("event sink is not a regular file")
+            raw = os.pread(fd, info.st_size, 0)
+            if len(raw) != info.st_size:
+                raise QualificationArtifactError(
+                    "qualification event ledger changed during locked read")
+            existing = []
+            if raw:
+                if not raw.endswith(b"\n"):
+                    raise QualificationArtifactError(
+                        "qualification event ledger is not newline terminated")
+                for line in raw.splitlines():
+                    try:
+                        prior = json.loads(
+                            line, object_pairs_hook=_reject_duplicates)
+                    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+                        raise QualificationArtifactError(
+                            "qualification event ledger JSON is invalid") from exc
+                    if (type(prior) is not dict
+                            or canonical_json_bytes(prior) != line):
+                        raise QualificationArtifactError(
+                            "qualification event ledger is not canonical JSONL")
+                    existing.append(prior)
+            for index, prior in enumerate(existing):
+                if (prior.get("event_index") != index
+                        or prior.get("round_index") != self._round_index
+                        or prior.get("member_role") != self._role
+                        or prior.get("qualification_lineage") != "t126-only"):
+                    raise QualificationArtifactError(
+                        "qualification sink existing event sequence is not exact")
+            event_index = len(existing)
+            serialized_receipt = None
+            if stage == "commit":
+                try:
+                    serialized_receipt = validate_live_receipt(
+                        commit_receipt,
+                        sink_kind=QUALIFICATION_SINK,
+                        lock_identity_sha256=self.commit_lock_identity_sha256,
+                        variant=variant,
+                        terminal_payload=dict(payload),
+                    )
+                except CommitReceiptError as exc:
+                    raise QualificationArtifactError(str(exc)) from exc
+                consumed = {
+                    row["commit_verification_receipt"]["receipt_id"]
+                    for row in existing
+                    if type(row.get("commit_verification_receipt")) is dict
+                    and type(row["commit_verification_receipt"].get("receipt_id")) is str
+                }
+                if serialized_receipt["receipt_id"] in consumed:
+                    raise QualificationArtifactError(
+                        "commit receipt was already consumed by this event ledger")
+            payload_bytes = canonical_json_bytes(dict(payload))
+            record = {
+                "schema_version": "t126-qualification-evaluation-event/v1",
+                "qualification_lineage": "t126-only",
+                "event_index": event_index,
+                "round_index": self._round_index,
+                "member_role": self._role,
+                "event_type": "member_evaluation_event",
+                "evaluation_stage": evaluation_stage,
+                "evaluation_wal_key": variant,
+                "env_tag": env_tag,
+                "payload": {
+                    "canonical_json": payload_bytes.decode("ascii"),
+                    "sha256": sha256_bytes(payload_bytes),
+                },
+                "commit_verification_receipt": serialized_receipt,
+            }
+            validate_json_schema("t126_evaluation_event_schema.json", record)
+            encoded = canonical_json_bytes(record) + b"\n"
+            written = 0
+            while written < len(encoded):
+                count = os.write(fd, encoded[written:])
+                if count <= 0:
+                    raise QualificationArtifactError(
+                        "qualification event append made no progress")
+                written += count
+            os.fsync(fd)
+        except OSError as exc:
+            raise QualificationArtifactError(f"append failed: {path}: {exc}") from exc
+        finally:
+            os.close(fd)
 
 
 def snapshot_source(
@@ -854,6 +953,7 @@ def select_source_pair(repo_root: Path, protocol: Mapping[str, Any]) -> dict[str
 def validate_member_evidence(
         records: Sequence[Mapping[str, Any]], *, expected_role: str,
         expected_round: int, expected_perf_observation: object,
+        expected_lock_identity_sha256: str,
         expected_reps: int = 5) -> dict[str, Any]:
     """Admit one live member only with full build/verify/bench evidence."""
     if not records:
@@ -863,6 +963,7 @@ def validate_member_evidence(
             "schema_version", "qualification_lineage", "event_index",
             "round_index", "member_role", "event_type", "evaluation_stage",
             "evaluation_wal_key", "env_tag", "payload",
+            "commit_verification_receipt",
         }
         if type(record) is not dict or set(record) != required:
             raise QualificationArtifactError("member event key set mismatch")
@@ -874,7 +975,9 @@ def validate_member_evidence(
                 or record["event_type"] != "member_evaluation_event"
                 or record["env_tag"] != "pegasus"
                 or type(record["payload"]) is not dict
-                or set(record["payload"]) != {"canonical_json", "sha256"}):
+                or set(record["payload"]) != {"canonical_json", "sha256"}
+                or (index < len(records) - 1
+                    and record["commit_verification_receipt"] is not None)):
             raise QualificationArtifactError("member event identity/schema mismatch")
     decoded_payloads = []
     for record in records:
@@ -977,6 +1080,16 @@ def validate_member_evidence(
             or rcs != [0] * expected_reps):
         raise QualificationArtifactError("bench reps/rc/settled evidence is incomplete")
     terminal = decoded_payloads[5]
+    try:
+        validate_serialized_receipt(
+            records[5]["commit_verification_receipt"],
+            sink_kind=QUALIFICATION_SINK,
+            lock_identity_sha256=expected_lock_identity_sha256,
+            variant=records[5]["evaluation_wal_key"],
+            terminal_payload=terminal,
+        )
+    except CommitReceiptError as exc:
+        raise QualificationArtifactError(str(exc)) from exc
     if terminal.get("verify_configs") != ["legacy", "s2"]:
         raise QualificationArtifactError("evaluation terminal lacks legacy+S2 conjunction")
     median = bench.get("median_tps")

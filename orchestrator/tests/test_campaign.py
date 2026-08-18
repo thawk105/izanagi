@@ -81,6 +81,7 @@ from certified_writer_fixtures import (                          # noqa: E402
     build_source_drift_fixture,
 )
 from campaign_lock_test_support import build_v2_lock              # noqa: E402
+import commit_receipt_support as commit_receipts                  # noqa: E402
 
 _AUTHORITY_PARSER = argparse.ArgumentParser(add_help=False)
 add_coder_build_authority_argument(_AUTHORITY_PARSER)
@@ -175,10 +176,12 @@ def _write_receiptful_attempt(
     if terminal == STAGE_COMMIT:
         wal.log(layout, variant, STAGE_BUILD_DONE, contract.env_tag,
                 dict(propagated))
-        wal.log(layout, variant, STAGE_COMMIT, contract.env_tag, {
+        commit_receipts.log_receipted_commit(
+            layout, variant, contract.env_tag, {
             **propagated, "fitness_tps": 100.0,
             "contract_sha256": contract.contract_sha256,
-        })
+            }, operation_identity=attempt_id,
+        )
     elif terminal == STAGE_ABORT:
         wal.log(layout, variant, STAGE_ABORT, contract.env_tag, {
             **propagated, "reason": reason or "fixture-abort",
@@ -907,10 +910,13 @@ def _layout():
 
 def test_wal_append_replay():
     lay = _layout(); lay.ensure()
+    wal.write_lock(lay, ident.canonical_preimage(_cfg()))
     wal.log(lay, "v1", STAGE_BUILD_START, "linux-baremetal")
     wal.log(lay, "v1", STAGE_BUILD_DONE, "linux-baremetal", {"bin_hash": "abc"})
     wal.log(lay, "v1", STAGE_VERIFY_DONE, "linux-baremetal", {"verdict": "serializable"})
-    wal.log(lay, "v1", STAGE_COMMIT, "linux-baremetal", {"tps": 900000})
+    commit_receipts.log_receipted_commit(
+        lay, "v1", "linux-baremetal", {"tps": 900000},
+    )
     states = wal.replay(lay)
     assert states["v1"].committed
     assert "v1" in wal.terminal_variants(states)
@@ -939,7 +945,13 @@ def _attempt_stage(lay, variant, stage, attempt_id, receipt_sha, **extra):
     }
     if stage == STAGE_COMMIT:
         payload["contract_sha256"] = _T530_CONTRACT_SHA256
-    wal.log(lay, variant, stage, _T530_CONTRACT.env_tag, payload)
+    if stage == STAGE_COMMIT:
+        commit_receipts.log_receipted_commit(
+            lay, variant, _T530_CONTRACT.env_tag, payload,
+            operation_identity=attempt_id,
+        )
+    else:
+        wal.log(lay, variant, stage, _T530_CONTRACT.env_tag, payload)
 
 
 def _contract_binding_lock(contract_sha256=_T530_CONTRACT_SHA256):
@@ -1087,8 +1099,8 @@ def test_commit_contract_projection_rejects_outer_authority_change():
 def test_commit_contract_rejection_precedes_tail_repair_mutation():
     lay = CampaignLayout(root=_tmpdir("t530_contract_tail_order_")).ensure()
     wal.write_lock(lay, campaign_lock.canonical_json(_contract_binding_lock()))
-    wal.log(
-        lay, "contract-v", STAGE_COMMIT, _T530_CONTRACT.env_tag,
+    commit_receipts.log_receipted_commit(
+        lay, "contract-v", _T530_CONTRACT.env_tag,
         {COMMIT_CONTRACT_SHA256_KEY: "0" * 64},
     )
     with open(lay.wal_file, "ab") as stream:
@@ -1117,12 +1129,12 @@ def test_contract_rejection_precedes_recovery_abort_and_repair_receipt():
         lay, "mismatched-v", STAGE_BUILD_DONE,
         "mismatched-attempt", committed_sha,
     )
-    wal.log(
-        lay, "mismatched-v", STAGE_COMMIT, _T530_CONTRACT.env_tag, {
+    commit_receipts.log_receipted_commit(
+        lay, "mismatched-v", _T530_CONTRACT.env_tag, {
             "build_attempt_id": "mismatched-attempt",
             "build_admission_receipt_sha256": committed_sha,
             COMMIT_CONTRACT_SHA256_KEY: "0" * 64,
-        },
+        }, operation_identity="mismatched-attempt",
     )
     receipt, receipt_sha = _wal_admission_receipt("active")
     _attempt_start(lay, "active-v", "active-attempt", receipt, receipt_sha)
@@ -1159,7 +1171,9 @@ def test_unbound_legacy_and_guided_campaigns_remain_readable():
         "spec_content": "legacy", "ccbench_commit": "old",
         "search_tag": "legacy", "search_config": {}, "trial": None,
     }, sort_keys=True, separators=(",", ":")))
-    wal.log(legacy, "legacy-v", STAGE_COMMIT, "historical-env", {"fitness_tps": 1.0})
+    commit_receipts.append_legacy_raw_commit(
+        legacy, "legacy-v", "historical-env", {"fitness_tps": 1.0},
+    )
     assert wal.replay(legacy)["legacy-v"].committed
 
     from orchestrator.campaign import guided, replay
@@ -1178,6 +1192,10 @@ def test_unbound_legacy_and_guided_campaigns_remain_readable():
     guided._log_eval(guided_layout, replay.GenomeResult(
         genome=canonical, flags=replay.parse_flags(canonical),
         fitness_tps=2.0, tps=[2.0], leading_indicators={}, certified=True,
+        verification_evidence=commit_receipts.replay_evidence(
+            source_variant=canonical,
+            source_payload={"fitness_tps": 2.0},
+        ),
     ))
     with open(guided_layout.wal_file, "ab") as stream:
         stream.write(b'{"torn":')
@@ -1851,11 +1869,13 @@ def test_resume_rejects_committed_attempt_without_receipt():
         "build_attempt_id": "attempt-a",
         "build_admission_receipt_sha256": "1" * 64,
     })
-    wal.log(lay, "v", STAGE_COMMIT, _T530_CONTRACT.env_tag, {
+    commit_receipts.append_legacy_raw_commit(
+        lay, "v", _T530_CONTRACT.env_tag, {
         "build_attempt_id": "attempt-a",
         "build_admission_receipt_sha256": "1" * 64,
         COMMIT_CONTRACT_SHA256_KEY: _T530_CONTRACT_SHA256,
-    })
+        },
+    )
     try:
         wal.replay(lay, admission_policy=_BUILD_CONTEXT.policy)
         assert False, "receiptless committed attempt を拒否すべき"
@@ -1886,7 +1906,9 @@ def test_wal_abort_is_terminal_not_adopted():
 
 def test_wal_tolerates_truncated_last_line():
     lay = _layout(); lay.ensure()
-    wal.log(lay, "v4", STAGE_COMMIT, "linux-baremetal")
+    commit_receipts.append_legacy_raw_commit(
+        lay, "v4", "linux-baremetal", {},
+    )
     # 追記中クラッシュを模す: 壊れた半端な JSON を末尾に足す
     with open(lay.wal_file, "a", encoding="utf-8") as f:
         f.write('{"variant":"v5","stage":"build_st')     # 切れた行
@@ -1900,7 +1922,9 @@ def test_wal_tolerates_truncated_last_line():
 
 def test_wal_complete_invalid_final_line_is_not_treated_as_crash_prefix():
     lay = _layout(); lay.ensure()
-    wal.log(lay, "v4", STAGE_COMMIT, "linux-baremetal")
+    commit_receipts.append_legacy_raw_commit(
+        lay, "v4", "linux-baremetal", {},
+    )
     with open(lay.wal_file, "ab") as f:
         # JSON として完全だが payload が無い raw record。最終行でも黙殺しない。
         f.write(b'{"variant":"v5","stage":"build_start",'
@@ -1972,22 +1996,22 @@ def test_wal_parse_line_requires_object_payload_and_checks_nested_duplicates_fir
 def test_wal_log_rejects_falsy_nonobject_payload_but_none_means_empty_object():
     rejected = _layout()
     try:
-        wal.log(rejected, "v", STAGE_COMMIT, "test", payload=[])
+        wal.log(rejected, "v", STAGE_BUILD_DONE, "test", payload=[])
         assert False, "falsy list を empty object に正規化してはならない"
     except wal.WalPayloadTypeError as exc:
         assert exc.path == "payload"
     assert not os.path.exists(rejected.runs_dir)
 
     accepted = _layout()
-    record = wal.log(accepted, "v", STAGE_COMMIT, "test", payload=None)
+    record = wal.log(accepted, "v", STAGE_BUILD_DONE, "test", payload=None)
     assert record.payload == {}
     assert wal.read_records(accepted)[0].payload == {}
 
 
 def test_wal_blank_line_is_rejected_but_collected_reader_keeps_valid_records():
     lay = _layout(); lay.ensure()
-    wal.log(lay, "before", STAGE_COMMIT, "test")
-    wal.log(lay, "after", STAGE_COMMIT, "test")
+    commit_receipts.append_legacy_raw_commit(lay, "before", "test", {})
+    commit_receipts.append_legacy_raw_commit(lay, "after", "test", {})
     with open(lay.wal_file, encoding="utf-8") as stream:
         lines = stream.readlines()
     with open(lay.wal_file, "w", encoding="utf-8") as stream:
@@ -2043,7 +2067,7 @@ def test_wal_unterminated_complete_json_is_always_truncated_tail():
 
 def test_wal_multibyte_partial_tail_is_not_decoded():
     lay = _layout(); lay.ensure()
-    wal.log(lay, "before", STAGE_COMMIT, "test")
+    commit_receipts.append_legacy_raw_commit(lay, "before", "test", {})
     with open(lay.wal_file, "ab") as stream:
         stream.write(b'{"variant":"broken","payload":"\xe3\x81')
     checked, truncated = wal.read_records_checked(lay)
@@ -2092,12 +2116,12 @@ def test_wal_append_rejects_every_unterminated_tail_without_changing_bytes():
     )
     for tail in tails:
         lay = _layout(); lay.ensure()
-        wal.log(lay, "before", STAGE_COMMIT, "test")
+        wal.log(lay, "before", STAGE_BUILD_DONE, "test")
         with open(lay.wal_file, "ab") as stream:
             stream.write(tail)
         before = open(lay.wal_file, "rb").read()
         try:
-            wal.log(lay, "after", STAGE_COMMIT, "test")
+            wal.log(lay, "after", STAGE_BUILD_DONE, "test")
             assert False, "unframed tail への append を拒否すべき"
         except wal.WalAppendError as exc:
             assert exc.phase == "tail-gate"
@@ -2109,7 +2133,7 @@ def test_wal_append_rejects_every_unterminated_tail_without_changing_bytes():
 
 def test_wal_repair_tail_then_append_restores_independent_frames():
     lay = _layout(); lay.ensure()
-    wal.log(lay, "before", STAGE_COMMIT, "test")
+    wal.log(lay, "before", STAGE_BUILD_DONE, "test")
     framed = open(lay.wal_file, "rb").read()
     tail = b'{"variant":"torn"'
     with open(lay.wal_file, "ab") as stream:
@@ -2122,7 +2146,7 @@ def test_wal_repair_tail_then_append_restores_independent_frames():
     assert result.removed_sha256 == hashlib.sha256(tail).hexdigest()
     assert len(result.preview.encode("utf-8")) <= 256
     assert result.receipt_path and os.path.isfile(result.receipt_path)
-    wal.log(lay, "after", STAGE_COMMIT, "test")
+    wal.log(lay, "after", STAGE_BUILD_DONE, "test")
     records, truncated = wal.read_records_checked(lay)
     assert [record.variant for record in records] == ["before", "after"]
     assert truncated is False
@@ -2154,7 +2178,7 @@ def test_wal_repair_missing_empty_and_framed_are_noops():
         "noop", 0, 0, 0, None, "", None)
 
     framed = _layout(); framed.ensure()
-    wal.log(framed, "v", STAGE_COMMIT, "test")
+    wal.log(framed, "v", STAGE_BUILD_DONE, "test")
     size = os.path.getsize(framed.wal_file)
     result = wal.repair_truncated_tail(framed)
     assert result == wal.WalTailRepairResult(
@@ -2163,7 +2187,7 @@ def test_wal_repair_missing_empty_and_framed_are_noops():
 
 def test_wal_repair_receipt_is_durable_and_complete_before_truncate():
     lay = _layout(); lay.ensure()
-    wal.log(lay, "before", STAGE_COMMIT, "test")
+    wal.log(lay, "before", STAGE_BUILD_DONE, "test")
     final_size = os.path.getsize(lay.wal_file)
     removed = b"torn-tail\x00\xff"
     with open(lay.wal_file, "ab") as stream:
@@ -2224,7 +2248,7 @@ def test_wal_append_completes_short_writes_and_rejects_zero_progress():
 
     wal.os.write = short_write
     try:
-        wal.log(lay, "short", STAGE_COMMIT, "test", {"text": "あ"})
+        wal.log(lay, "short", STAGE_BUILD_DONE, "test", {"text": "あ"})
     finally:
         wal.os.write = real_write
     records, truncated = wal.read_records_checked(lay)
@@ -2236,7 +2260,7 @@ def test_wal_append_completes_short_writes_and_rejects_zero_progress():
     wal.os.write = lambda _fd, _data: 0
     try:
         try:
-            wal.log(zero, "zero", STAGE_COMMIT, "test")
+            wal.log(zero, "zero", STAGE_BUILD_DONE, "test")
             assert False, "zero-progress write を成功扱いしてはならない"
         except wal.WalAppendError as exc:
             assert exc.phase == "write"
@@ -2284,8 +2308,8 @@ def test_wal_append_fsyncs_directory_under_flock_on_every_append():
     wal.os.fsync = tracked_fsync
     wal.os.close = tracked_close
     try:
-        wal.log(lay, "first", STAGE_COMMIT, "test")
-        wal.log(lay, "second", STAGE_COMMIT, "test")
+        wal.log(lay, "first", STAGE_BUILD_DONE, "test")
+        wal.log(lay, "second", STAGE_BUILD_DONE, "test")
     finally:
         wal.fcntl.flock = real_flock
         wal.os.fsync = real_fsync
@@ -2313,7 +2337,7 @@ def test_wal_append_maps_wal_close_failure_to_structured_error():
     caught = None
     try:
         try:
-            wal.log(lay, "close-failure", STAGE_COMMIT, "test")
+            wal.log(lay, "close-failure", STAGE_BUILD_DONE, "test")
         except wal.WalAppendError as exc:
             caught = exc
     finally:
@@ -2327,7 +2351,7 @@ def test_wal_append_maps_wal_close_failure_to_structured_error():
 
 def test_wal_repair_hashes_large_removed_tail_incrementally():
     lay = _layout(); lay.ensure()
-    wal.log(lay, "before", STAGE_COMMIT, "test")
+    wal.log(lay, "before", STAGE_BUILD_DONE, "test")
     tail = b"streamed-tail-without-newline-" * 6000
     with open(lay.wal_file, "ab") as stream:
         stream.write(tail)
@@ -2418,7 +2442,7 @@ def test_wal_payload_deep_type_rejections_happen_before_open():
     for payload, expected_path in invalid:
         lay = _layout()
         try:
-            wal.log(lay, "v", STAGE_COMMIT, "test", payload)
+            wal.log(lay, "v", STAGE_BUILD_DONE, "test", payload)
             assert False, "invalid payload を拒否すべき: %r" % (payload,)
         except wal.WalPayloadTypeError as exc:
             assert exc.path == expected_path
@@ -2433,7 +2457,7 @@ def test_wal_payload_accepts_ordered_dict_native_tree_and_shared_dag():
         ("text", "日本語"),
     ))
     lay = _layout()
-    wal.log(lay, "v", STAGE_COMMIT, "test", payload)
+    wal.log(lay, "v", STAGE_BUILD_DONE, "test", payload)
     record = wal.read_records(lay)[0]
     assert record.payload == {
         "left": shared, "right": shared, "text": "日本語",
@@ -2470,7 +2494,7 @@ def test_wal_exception_hierarchy_and_append_attributes_are_separate():
 
 def test_wal_append_and_repair_wait_for_exclusive_flock():
     append_layout = _layout(); append_layout.ensure()
-    wal.log(append_layout, "before", STAGE_COMMIT, "test")
+    wal.log(append_layout, "before", STAGE_BUILD_DONE, "test")
     held = os.open(append_layout.wal_file, os.O_RDWR)
     fcntl.flock(held, fcntl.LOCK_EX)
     append_started = threading.Event()
@@ -2480,7 +2504,7 @@ def test_wal_append_and_repair_wait_for_exclusive_flock():
     def append_worker():
         append_started.set()
         try:
-            wal.log(append_layout, "after", STAGE_COMMIT, "test")
+            wal.log(append_layout, "after", STAGE_BUILD_DONE, "test")
         except BaseException as exc:  # noqa: BLE001 - worker 診断を親で検査
             append_errors.append(exc)
         finally:
@@ -2497,7 +2521,7 @@ def test_wal_append_and_repair_wait_for_exclusive_flock():
     assert [r.variant for r in wal.read_records(append_layout)] == ["before", "after"]
 
     repair_layout = _layout(); repair_layout.ensure()
-    wal.log(repair_layout, "before", STAGE_COMMIT, "test")
+    wal.log(repair_layout, "before", STAGE_BUILD_DONE, "test")
     with open(repair_layout.wal_file, "ab") as stream:
         stream.write(b"tail")
     held = os.open(repair_layout.wal_file, os.O_RDWR)
@@ -2529,8 +2553,12 @@ def test_wal_records_by_stage_last_wins_per_stage():
     共通ヘルパ。stage ごとに最後の payload が残る (宣言でなく WAL レコードで判定)。"""
     lay = _layout(); lay.ensure()
     wal.log(lay, "v1", STAGE_BUILD_START, "linux-baremetal", {"genome": "g"})
-    wal.log(lay, "v1", STAGE_COMMIT, "linux-baremetal", {"fitness_tps": 1})
-    wal.log(lay, "v1", STAGE_COMMIT, "linux-baremetal", {"fitness_tps": 2})  # 再書き (最後勝ち)
+    commit_receipts.append_legacy_raw_commit(
+        lay, "v1", "linux-baremetal", {"fitness_tps": 1}, ts=1.0,
+    )
+    commit_receipts.append_legacy_raw_commit(
+        lay, "v1", "linux-baremetal", {"fitness_tps": 2}, ts=2.0,
+    )  # 歴史 WAL の最後勝ち projection
     wal.log(lay, "v2", STAGE_BUILD_START, "linux-baremetal", {"genome": "other"})
     recs = wal.records_by_stage(lay, "v1")
     assert recs[STAGE_BUILD_START]["genome"] == "g"
@@ -5173,7 +5201,9 @@ def _mock_pipeline(certified=True, median=12345.0, cv=0.01, rc=0, ncommit=100,
                     and self.run_cmd == other.run_cmd)
 
     bench_calls = CallEvidence()
-    real_verify_trace_dir = pipeline.verify_trace_dir
+    real_verify_trace_dir_with_capability = (
+        pipeline.verify_trace_dir_with_capability
+    )
     round_specs = list(bench_rounds or [{
         "median": median, "cv": cv, "rep_returncodes": [0, 0, 0, 0, 0],
     }])
@@ -5314,15 +5344,18 @@ def _mock_pipeline(certified=True, median=12345.0, cv=0.01, rc=0, ncommit=100,
     if trace_content is None:
         def fake_verify(tdir, *, expected_commits=None):
             bench_calls.verify_witnesses.append(expected_commits)
-            return _green_vr() if certified else _red_vr()
-        patch("verify_trace_dir", fake_verify)
+            fixture = "g1_serial" if certified else "r1_write_skew"
+            return real_verify_trace_dir_with_capability(
+                os.path.join(_HERE, "fixtures", fixture)
+            )
+        patch("verify_trace_dir_with_capability", fake_verify)
     else:
         def wrapped_real_verify(tdir, *, expected_commits=None):
             bench_calls.verify_witnesses.append(expected_commits)
-            return real_verify_trace_dir(
+            return real_verify_trace_dir_with_capability(
                 tdir, expected_commits=expected_commits,
             )
-        patch("verify_trace_dir", wrapped_real_verify)
+        patch("verify_trace_dir_with_capability", wrapped_real_verify)
     def fake_remeasure(measure_fn, settle_fn=None, **k):
         # scripted round を全て通し、実装と同じく CV が厳密に低い最初の点を採る。
         points = [measure_fn() for _ in round_specs]
@@ -5365,9 +5398,13 @@ def _mock_pipeline(certified=True, median=12345.0, cv=0.01, rc=0, ncommit=100,
 def _eval(lay, do_bench=True, screening=None, expected_perf_sha256=None,
           record_rep_returncodes=False, **mock_kw):
     """1 genome を mock 下で評価し (EvalResult, bench 呼び出し回数 list) を返す。"""
-    if screening is not None and wal.read_lock(lay) is None:
-        cfg = _cfg(search_config={**_cfg().search_config,
-                                  **ident.screening_search_config(screening)})
+    if wal.read_lock(lay) is None:
+        cfg = _cfg()
+        if screening is not None:
+            cfg = _cfg(search_config={
+                **cfg.search_config,
+                **ident.screening_search_config(screening),
+            })
         _write_certified_lock(lay, _bound(cfg))
     with _mock_pipeline(**mock_kw) as calls:
         r = pipeline.evaluate(
@@ -7102,10 +7139,12 @@ def test_pipeline_rejects_runtime_screening_mixed_into_legacy_campaign():
     lay = _tmp_layout()
     legacy_cfg = _cfg()
     _write_certified_lock(lay, _bound(legacy_cfg))
-    wal.log(lay, "already-committed", STAGE_COMMIT, _T530_CONTRACT.env_tag, {
+    commit_receipts.log_receipted_commit(
+        lay, "already-committed", _T530_CONTRACT.env_tag, {
         "fitness_tps": 1.0,
         COMMIT_CONTRACT_SHA256_KEY: _T530_CONTRACT_SHA256,
-    })
+        },
+    )
     before = list(wal.read_records(lay))
 
     with _mock_pipeline() as calls:
@@ -7247,12 +7286,19 @@ def _mock_pipeline_multipass(pass_results, median=12345.0, cv=0.01, competing=No
 
     idx_verify = {"i": 0}
 
+    real_verify_trace_dir_with_capability = (
+        pipeline.verify_trace_dir_with_capability
+    )
+
     def fake_verify(tdir, *, expected_commits=None):
         i = idx_verify["i"]
         idx_verify["i"] += 1
         ncommit, _, _, certified = pass_results[i]
         assert expected_commits == ncommit
-        return _green_vr() if certified else _red_vr()
+        fixture = "g1_serial" if certified else "r1_write_skew"
+        return real_verify_trace_dir_with_capability(
+            os.path.join(_HERE, "fixtures", fixture)
+        )
 
     def fake_build(genome, commit, trace, src_token=None, ccbench_dir="", cache_root="",
                    *, admission, build_context, source_evidence):
@@ -7297,7 +7343,7 @@ def _mock_pipeline_multipass(pass_results, median=12345.0, cv=0.01, competing=No
             source_root=kwargs.get("ccbench_dir") or "/tmp/izanagi-test-ccbench",
         )))
     patch("_run_trace", fake_run_trace)
-    patch("verify_trace_dir", fake_verify)
+    patch("verify_trace_dir_with_capability", fake_verify)
     patch("bench_lock", fake_lock)
     patch("settle", lambda *a, **k: {"settled": True})
 
@@ -7320,6 +7366,7 @@ def test_pipeline_extra_correctness_both_pass_tags_commit_and_uses_numactl_lock(
     なら STAGE_COMMIT.verify_configs に両タグが並ぶ。S2 パスだけ numactl + bench_lock
     (決定4-4) を使い、legacy パスは従来どおり並列可 (numactl 無し)。"""
     lay = _tmp_layout()
+    _write_certified_lock(lay, _bound(_cfg()))
     numa = ["numactl", "--interleave=all"]
     with _mock_pipeline_multipass([(100, 0, 5, True), (900000, 0, 50000, True)]) as calls:
         r = pipeline.evaluate(
@@ -7369,6 +7416,7 @@ def test_pipeline_no_extra_correctness_matches_legacy_only_behavior():
     verify 中に一切入らない (do_bench=False で bench 分もゼロ) — 既存 campaign の
     挙動を変えない (S2 は opt-in)。"""
     lay = _tmp_layout()
+    _write_certified_lock(lay, _bound(_cfg()))
     with _mock_pipeline_multipass([(100, 0, 5, True)]) as calls:
         r = pipeline.evaluate(
             Genome("silo", {"BACK_OFF": 1}), lay, _AUTH_CONTRACT.env_tag, "deadbeef",
@@ -7451,6 +7499,8 @@ def test_pipeline_fullscale_verify_and_bench_share_immutable_numactl():
                     **ident.screening_search_config(screening),
                 })
                 _write_certified_lock(lay, locked_cfg)
+            else:
+                _write_certified_lock(lay, _bound(_cfg()))
             supplied = list(_AUTH_CONTRACT.numactl)
             with _mock_pipeline_multipass(
                     [(100, 0, 5, True), (900000, 0, 50000, True)]) as calls:
@@ -7481,6 +7531,7 @@ def test_pipeline_extra_correctness_normalizes_empty_list_numactl():
     authorization = ec.authorize("pegasus")
     contract = ec.lookup("pegasus")
     lay = _tmp_layout()
+    _write_certified_lock(lay, _bound(_cfg()))
     with _mock_pipeline_multipass(
             [(100, 0, 5, True), (900000, 0, 50000, True)]) as calls:
         result = pipeline.evaluate(
@@ -7517,6 +7568,7 @@ def test_pipeline_qualification_rejects_list_numactl_before_sink_writes():
     )
     sink = QualificationEventSink(
         capability, layout, round_index=1, role="subject",
+        source_lock_identity_sha256="e" * 64,
     )
     policy = pipeline.QualificationPipelinePolicy.t126_pegasus(sink)
     sink_path = (
@@ -7564,6 +7616,7 @@ def _qualification_perf_case():
     )
     sink = QualificationEventSink(
         capability, layout, round_index=1, role="subject",
+        source_lock_identity_sha256="e" * 64,
     )
 
     def perf_missing(*_args, **_kwargs):
@@ -7704,6 +7757,7 @@ def test_pipeline_extra_correctness_allows_empty_prefix_when_contract_is_empty()
     authorization = ec.authorize("pegasus")
     contract = authorization.contract
     lay = _tmp_layout()
+    _write_certified_lock(lay, _bound(_cfg()))
     with _mock_pipeline_multipass(
             [(100, 0, 5, True), (900000, 0, 50000, True)]) as calls:
         result = pipeline.evaluate(
@@ -7981,7 +8035,7 @@ def test_loop_enables_s2_extra_correctness_via_search_config():
         captured["extra_correctness"] = extra_correctness
         v = pipeline.variant_id(g, src_token or "stock")
         wal.log(layout, v, STAGE_BUILD_START, env_tag, {"genome": g.canonical()})
-        wal.log(layout, v, STAGE_COMMIT, env_tag, {
+        commit_receipts.log_receipted_commit(layout, v, env_tag, {
             "fitness_tps": 1.0,
             COMMIT_CONTRACT_SHA256_KEY: _T530_CONTRACT_SHA256,
         })
@@ -8027,7 +8081,7 @@ def test_loop_omits_extra_correctness_without_verify_search_config():
         captured["extra_correctness"] = extra_correctness
         v = pipeline.variant_id(g, src_token or "stock")
         wal.log(layout, v, STAGE_BUILD_START, env_tag, {"genome": g.canonical()})
-        wal.log(layout, v, STAGE_COMMIT, env_tag, {
+        commit_receipts.log_receipted_commit(layout, v, env_tag, {
             "fitness_tps": 1.0,
             COMMIT_CONTRACT_SHA256_KEY: _T530_CONTRACT_SHA256,
         })
@@ -8440,7 +8494,7 @@ def test_run_campaign_exploration_namespace_reaches_lock_wal_and_pipeline():
         variant = pipeline.variant_id(g, kwargs.get("src_token"))
         wal.log(layout, variant, STAGE_BUILD_START, env_tag,
                 {"genome": g.canonical()})
-        wal.log(layout, variant, STAGE_COMMIT, env_tag, {
+        commit_receipts.log_receipted_commit(layout, variant, env_tag, {
             "fitness_tps": 1.0,
             COMMIT_CONTRACT_SHA256_KEY: _T530_CONTRACT_SHA256,
         })

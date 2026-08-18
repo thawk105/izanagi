@@ -14,6 +14,10 @@ from typing import Dict, Optional
 from .dsg import DSG
 from .model import VerifyResult
 from .parse import parse_trace_dir
+from .commit_receipt import (
+    VerificationCapability,
+    _issue_verification_capability,
+)
 
 
 def verify_trace_dir(
@@ -151,3 +155,14 @@ def verify_trace_dir(
         total_cycles=total,
         abort_reasons=dict(issues.abort_reasons),
     )
+
+
+def verify_trace_dir_with_capability(
+        trace_dir: str, max_report: Optional[int] = 20, *,
+        expected_commits: Optional[int] = None,
+) -> tuple[VerifyResult, VerificationCapability]:
+    """Run verification and return its same-invocation COMMIT capability."""
+    result = verify_trace_dir(
+        trace_dir, max_report=max_report, expected_commits=expected_commits,
+    )
+    return result, _issue_verification_capability(result)

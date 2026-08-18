@@ -13,7 +13,22 @@ Adya の Direct Serialization Graph を作り、rw (anti-dependency) を含む c
 入力は trace と optional な trace 外 commit counter のみ。性能数値は持ち込まない
 (入力側隔離, roadmap §3.4-4)。
 """
-from .core import verify_trace_dir
+from .core import verify_trace_dir, verify_trace_dir_with_capability
+from .commit_receipt import (
+    CAMPAIGN_WAL_SINK,
+    QUALIFICATION_SINK,
+    RECEIPT_PAYLOAD_KEY,
+    CommitReceipt,
+    CommitReceiptError,
+    ReplayVerificationEvidence,
+    VerificationCapability,
+    admit_replay_evidence,
+    campaign_lock_sha256,
+    issue_commit_receipt,
+    issue_replay_commit_receipt,
+    validate_live_receipt,
+    validate_serialized_receipt,
+)
 from .model import (Anomaly, CycleEdge, EdgeReason, Integrity, Read, Txn,
                     VerifyResult, Write, GENESIS, RW, WR, WW)
 from .parse import ParseError, parse_trace_dir
@@ -21,6 +36,20 @@ from .report import render_text, result_to_dict
 
 __all__ = [
     "verify_trace_dir",
+    "verify_trace_dir_with_capability",
+    "VerificationCapability",
+    "CommitReceipt",
+    "CommitReceiptError",
+    "ReplayVerificationEvidence",
+    "CAMPAIGN_WAL_SINK",
+    "QUALIFICATION_SINK",
+    "RECEIPT_PAYLOAD_KEY",
+    "campaign_lock_sha256",
+    "issue_commit_receipt",
+    "issue_replay_commit_receipt",
+    "admit_replay_evidence",
+    "validate_live_receipt",
+    "validate_serialized_receipt",
     "parse_trace_dir",
     "ParseError",
     "render_text",

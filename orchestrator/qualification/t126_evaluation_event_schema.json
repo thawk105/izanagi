@@ -9,6 +9,61 @@
         "canonical_json": {"type": "string", "minLength": 2},
         "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
       }
+    },
+    "verifierEvidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["workload_tag", "verdict", "certified", "verifier_result_sha256"],
+      "properties": {
+        "workload_tag": {"type": "string", "minLength": 1},
+        "verdict": {"const": "serializable"},
+        "certified": {"const": true},
+        "verifier_result_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+      }
+    },
+    "replayProvenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_campaign_lock_sha256", "source_wal_sha256",
+        "source_commit_receipt_id", "source_variant"
+      ],
+      "properties": {
+        "source_campaign_lock_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "source_wal_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "source_commit_receipt_id": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "source_variant": {"type": "string", "minLength": 1}
+      }
+    },
+    "commitReceipt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema", "sink_kind", "lock_identity_sha256", "variant",
+        "operation_identity", "verifier_evidence", "terminal_payload_sha256",
+        "replay_provenance", "issuer_pid", "issuer_process_seal_sha256", "receipt_id"
+      ],
+      "properties": {
+        "schema": {"const": "campaign-commit-verification-receipt/v1"},
+        "sink_kind": {"const": "qualification-evaluation"},
+        "lock_identity_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "variant": {"type": "string", "minLength": 1},
+        "operation_identity": {"type": "string", "minLength": 1},
+        "verifier_evidence": {
+          "type": "array", "minItems": 1,
+          "items": {"$ref": "#/definitions/verifierEvidence"}
+        },
+        "terminal_payload_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "replay_provenance": {
+          "oneOf": [
+            {"type": "null"},
+            {"$ref": "#/definitions/replayProvenance"}
+          ]
+        },
+        "issuer_pid": {"type": "integer", "minimum": 1},
+        "issuer_process_seal_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "receipt_id": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+      }
     }
   },
   "type": "object",
@@ -16,7 +71,7 @@
   "required": [
     "schema_version", "qualification_lineage", "event_index", "round_index",
     "member_role", "event_type", "evaluation_stage", "evaluation_wal_key",
-    "env_tag", "payload"
+    "env_tag", "payload", "commit_verification_receipt"
   ],
   "properties": {
     "schema_version": {"const": "t126-qualification-evaluation-event/v1"},
@@ -34,6 +89,12 @@
     },
     "evaluation_wal_key": {"type": "string", "minLength": 1},
     "env_tag": {"const": "pegasus"},
-    "payload": {"$ref": "#/definitions/payloadEnvelope"}
+    "payload": {"$ref": "#/definitions/payloadEnvelope"},
+    "commit_verification_receipt": {
+      "oneOf": [
+        {"type": "null"},
+        {"$ref": "#/definitions/commitReceipt"}
+      ]
+    }
   }
 }

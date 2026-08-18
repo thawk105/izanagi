@@ -28,7 +28,14 @@ from ..calibrator.runner import (CompetingBenchProbeError,        # noqa: E402
                                competing_bench_pids, measure_point, settle)
 from ..calibrator.stability import remeasure_until_stable         # noqa: E402
 from ..holdout_observation import HoldoutObservationAdmission     # noqa: E402
-from ..verifier import result_to_dict, verify_trace_dir          # noqa: E402
+from ..verifier import (                                        # noqa: E402
+    CAMPAIGN_WAL_SINK,
+    QUALIFICATION_SINK,
+    campaign_lock_sha256,
+    issue_commit_receipt,
+    result_to_dict,
+    verify_trace_dir_with_capability,
+)
 from ..verifier.parse import ParseError                           # noqa: E402
 
 from . import (buildcache, env_contract as _env_contract, execution_guard, ident,
@@ -986,6 +993,8 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
 
     # --- verify (正しさゲート, 絶対規律2)。legacy (既定・軽量) + extra_correctness
     #     (S2 等・bench 並みの負荷) を順に全て通す (verify 2 本立て, D36 決定2/4) ---
+    verification_capabilities = []
+
     def _run_one_pass(tag: str, workload: CorrectnessWorkload,
                       pass_numactl: Optional[Sequence[str]]) -> Optional[EvalResult]:
         """1 verify 構成を通す。certified なら None、reject なら abort 済み EvalResult。"""
@@ -1091,7 +1100,7 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
                     workload_tag=tag,
                 )
             try:
-                vr = verify_trace_dir(
+                vr, verification_capability = verify_trace_dir_with_capability(
                     tdir,
                     expected_commits=trace_result.commit_count_witness,
                 )
@@ -1129,6 +1138,7 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
                 vdict.pop("trace_dir", None)        # 使い捨て tmpdir = WAL に残す価値なし
                 return _abort(vr.verdict, f"正しさゲート不通過 ({vr.verdict}, {tag}) → reject",
                               {"verify": vdict}, workload_tag=tag)
+            verification_capabilities.append(verification_capability)
             return None
         finally:
             shutil.rmtree(tdir, ignore_errors=True)
@@ -1234,29 +1244,60 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
         verify_tags.append(tag)
     res.certified = True
 
+    def _receipt_for(payload: Dict):
+        if qualification_policy is None:
+            sink_kind = CAMPAIGN_WAL_SINK
+            lock_identity = campaign_lock_sha256(layout)
+        else:
+            sink_kind = QUALIFICATION_SINK
+            lock_identity = (
+                qualification_policy.event_sink.commit_lock_identity_sha256
+            )
+        return issue_commit_receipt(
+            verification_capabilities,
+            workload_tags=verify_tags,
+            sink_kind=sink_kind,
+            lock_identity_sha256=lock_identity,
+            variant=v,
+            operation_identity=build_attempt_id,
+            terminal_payload=payload,
+        )
+
     # COMMIT の全構文位置を認証完了判定の内側に閉じる。AST gate がこの形を固定する。
     if res.certified:
         if not do_bench:
             # 配線テストでベンチを省くとき: certified だけで commit (fitness なし)。
             _require_measurement_site("campaign COMMIT 記録")
             if qualification_policy is None:
-                wal.log(layout, v, STAGE_COMMIT, env_tag, {
-                    COMMIT_CONTRACT_SHA256_KEY: authorized_contract.contract_sha256,
+                commit_payload = {
                     "fitness_tps": None,
                     "note": "no-bench",
                     "verify_configs": verify_tags,
                     "build_attempt_id": build_attempt_id,
                     "build_admission_receipt_sha256": admission.receipt_sha256,
-                })
-            else:
-                qualification_policy.event_sink.emit(
+                }
+                wal_payload = {
+                    **commit_payload,
+                    COMMIT_CONTRACT_SHA256_KEY: authorized_contract.contract_sha256,
+                }
+                wal.log(
                     layout, v, STAGE_COMMIT, env_tag, {
-                        "fitness_tps": None,
-                        "note": "no-bench",
-                        "verify_configs": verify_tags,
-                        "build_attempt_id": build_attempt_id,
-                        "build_admission_receipt_sha256": admission.receipt_sha256,
+                        **commit_payload,
+                        COMMIT_CONTRACT_SHA256_KEY: authorized_contract.contract_sha256,
                     },
+                    commit_receipt=_receipt_for(wal_payload),
+                )
+            else:
+                commit_payload = {
+                    "fitness_tps": None,
+                    "note": "no-bench",
+                    "verify_configs": verify_tags,
+                    "build_attempt_id": build_attempt_id,
+                    "build_admission_receipt_sha256": admission.receipt_sha256,
+                }
+                qualification_policy.event_sink.emit(
+                    layout, v, STAGE_COMMIT, env_tag, commit_payload,
+                    commit_receipt=_receipt_for(commit_payload),
                 )
             return res
 
@@ -1302,13 +1343,22 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
             commit_payload["screened"] = True
         _require_measurement_site("campaign COMMIT 記録")
         if qualification_policy is None:
-            wal.log(layout, v, STAGE_COMMIT, env_tag, {
+            wal_payload = {
                 **commit_payload,
                 COMMIT_CONTRACT_SHA256_KEY: authorized_contract.contract_sha256,
-            })
+            }
+            wal.log(
+                layout, v, STAGE_COMMIT, env_tag, {
+                    **commit_payload,
+                    COMMIT_CONTRACT_SHA256_KEY: authorized_contract.contract_sha256,
+                },
+                commit_receipt=_receipt_for(wal_payload),
+            )
         else:
             qualification_policy.event_sink.emit(
-                layout, v, STAGE_COMMIT, env_tag, commit_payload)
+                layout, v, STAGE_COMMIT, env_tag, commit_payload,
+                commit_receipt=_receipt_for(commit_payload),
+            )
         return res
 
     raise AssertionError("verify 完了前の非認証結果は COMMIT 経路へ到達できない")

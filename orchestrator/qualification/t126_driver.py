@@ -503,6 +503,9 @@ class ForkedMemberRunner:
         genome = _parse_genome(source_member["genome"])
         sink = QualificationEventSink(
             self.capability, self.layout, round_index=round_index, role=role,
+            source_lock_identity_sha256=(
+                self.protocol["source"]["campaign_lock_sha256"]
+            ),
         )
         policy = pipeline.QualificationPipelinePolicy.t126_pegasus(sink)
         contract = env_contract.lookup(self.protocol["environment"]["env_tag"])
@@ -650,6 +653,9 @@ class ForkedMemberRunner:
             records, expected_role=role, expected_round=round_index,
             expected_reps=self.protocol["workload"]["reps"],
             expected_perf_observation=self.perf_observation,
+            expected_lock_identity_sha256=(
+                self.protocol["source"]["campaign_lock_sha256"]
+            ),
         )
         runtime_path = event_path.with_name("member-runtime.json")
         runtime = load_json_strict(runtime_path)
@@ -1513,6 +1519,9 @@ def verify(attempt_dir: Path) -> ReceiptVerification:
                     load_jsonl_strict(path), expected_role=role,
                     expected_round=round_index,
                     expected_perf_observation=perf_observation,
+                    expected_lock_identity_sha256=(
+                        protocol["source"]["campaign_lock_sha256"]
+                    ),
                 )
                 if (role_round[role]["median_tps"] != admitted["median_tps"]
                         or role_round[role]["evidence_ref"]
