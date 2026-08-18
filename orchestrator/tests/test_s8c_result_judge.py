@@ -226,6 +226,17 @@ def _verified_floor(
     ])
 
 
+def _floor_provenance(evidence: M._VerifiedFloorEvidence) -> dict[str, str]:
+    return {
+        "floor_protocol_path": evidence.floor_protocol_path,
+        "floor_protocol_sha256": evidence.floor_protocol_sha256,
+        "floor_source_path": evidence.floor_source_path,
+        "floor_source_sha256": evidence.floor_source_sha256,
+        "env_tag": evidence.env_tag,
+        "frozen_at_head": evidence.frozen_at_head,
+    }
+
+
 def test_public_names_are_exactly_three() -> None:
     assert set(M.__all__) == {"verify_floor_bytes", "judge", "publish_result_table"}
     assert len(M.__all__) == 3
@@ -785,6 +796,109 @@ def test_publish_creates_three_separate_tables_from_independent_six_cell_set(
     assert h1_on["replicate_values"] == [[12.0], [14.0]]
     selection = json.loads(paths["selection_evaluation"].read_text())["result_table"]["cells"]
     assert {"predicted_configuration_id", "predicted_rank"} <= set(selection[0])
+
+
+def test_publish_embeds_verified_floor_provenance_in_each_table(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    result = _judge()
+    evidence = _verified_floor(tmp_path, monkeypatch)
+    paths = _output_paths(tmp_path)
+
+    M.publish_result_table(
+        result, [cell["cell_id"] for cell in _cells()], paths, evidence,
+    )
+
+    expected = _floor_provenance(evidence)
+    for path in paths.values():
+        payload = json.loads(path.read_text())
+        assert payload["metadata"] == expected
+
+
+def test_publish_provenance_follows_another_ratified_freeze_receipt(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    result = _judge()
+    first_freeze = tmp_path / "first-freeze"
+    first_freeze.mkdir()
+    first_evidence = _verified_floor(
+        first_freeze,
+        monkeypatch,
+        protocol_payload=b"first-protocol",
+        source_payload=b"first-source",
+        frozen_at_head="a" * 40,
+    )
+    first_output = tmp_path / "first-output"
+    first_output.mkdir()
+    first_paths = _output_paths(first_output)
+    M.publish_result_table(
+        result, [cell["cell_id"] for cell in _cells()], first_paths, first_evidence,
+    )
+
+    second_freeze = tmp_path / "second-freeze"
+    second_freeze.mkdir()
+    second_evidence = _verified_floor(
+        second_freeze,
+        monkeypatch,
+        protocol_payload=b"second-protocol",
+        source_payload=b"second-source",
+        frozen_at_head="b" * 40,
+    )
+    second_output = tmp_path / "second-output"
+    second_output.mkdir()
+    second_paths = _output_paths(second_output)
+    M.publish_result_table(
+        result, [cell["cell_id"] for cell in _cells()], second_paths, second_evidence,
+    )
+
+    first_metadata = {
+        name: json.loads(path.read_text())["metadata"]
+        for name, path in first_paths.items()
+    }
+    second_metadata = {
+        name: json.loads(path.read_text())["metadata"]
+        for name, path in second_paths.items()
+    }
+    assert all(
+        metadata == _floor_provenance(first_evidence)
+        for metadata in first_metadata.values()
+    )
+    assert all(
+        metadata == _floor_provenance(second_evidence)
+        for metadata in second_metadata.values()
+    )
+    assert first_metadata != second_metadata
+
+
+def test_publish_floor_provenance_does_not_copy_floor_values(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    result = _judge()
+    evidence = _verified_floor(
+        tmp_path,
+        monkeypatch,
+        protocol_payload=(
+            b'{"floor_value":123456789012345,"threshold":987654321098765,'
+            b'"raw_measurement":555555555555555}'
+        ),
+        source_payload=(
+            b'{"floor_value":123456789012345,"threshold":987654321098765,'
+            b'"raw_measurement":555555555555555}'
+        ),
+    )
+    paths = _output_paths(tmp_path)
+    M.publish_result_table(
+        result, [cell["cell_id"] for cell in _cells()], paths, evidence,
+    )
+
+    forbidden_values = ("123456789012345", "987654321098765", "555555555555555")
+    for path in paths.values():
+        payload = json.loads(path.read_text())
+        provenance = payload["metadata"]
+        assert set(provenance) == set(_floor_provenance(evidence))
+        assert all(type(value) is str for value in provenance.values())
+        serialized = json.dumps(payload, sort_keys=True)
+        assert all(value not in serialized for value in forbidden_values)
 
 
 @pytest.mark.parametrize("mutation", ["missing", "extra", "duplicate", "second-write-failure"])

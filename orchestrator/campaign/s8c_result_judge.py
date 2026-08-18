@@ -1262,6 +1262,20 @@ def _validate_verified_floor(evidence: Any) -> _VerifiedFloorEvidence:
     return evidence
 
 
+def _floor_provenance_metadata(
+    floor_receipt: _VerifiedFloorEvidence,
+) -> Mapping[str, str]:
+    """Project only verified floor provenance into the published tables."""
+    return _freeze({
+        "floor_protocol_path": floor_receipt.floor_protocol_path,
+        "floor_protocol_sha256": floor_receipt.floor_protocol_sha256,
+        "floor_source_path": floor_receipt.floor_source_path,
+        "floor_source_sha256": floor_receipt.floor_source_sha256,
+        "env_tag": floor_receipt.env_tag,
+        "frozen_at_head": floor_receipt.frozen_at_head,
+    })
+
+
 def _expected_cell_ids(predeclared_cells: Any) -> tuple[str, ...]:
     raw = _sequence(predeclared_cells, "predeclared_cells")
     if len(raw) != 6:
@@ -1323,11 +1337,17 @@ def _safe_output_paths(output_paths: Mapping[str, os.PathLike[str] | str]) -> di
     return result
 
 
-def _table_bytes(name: str, rows: Sequence[Mapping[str, Any]], result: _JudgeResult) -> bytes:
+def _table_bytes(
+    name: str,
+    rows: Sequence[Mapping[str, Any]],
+    result: _JudgeResult,
+    floor_provenance: Mapping[str, str],
+) -> bytes:
     payload = {
         "schema": "s8c-result-table/v1",
         "table": name,
         "official_conclusion": result.conclusion.value if name == "official_status" else None,
+        "metadata": _plain(floor_provenance),
         "result_table": {"cells": [_plain(row) for row in rows]},
     }
     return (json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")) + "\n").encode("utf-8")
@@ -1424,15 +1444,22 @@ def publish_result_table(
     if type(result) is not _JudgeResult:
         raise _ResultTableError("publish requires a judge result object")
     floor_receipt = _validate_verified_floor(floor_receipt)
+    floor_provenance = _floor_provenance_metadata(floor_receipt)
     expected = _expected_cell_ids(predeclared_cells)
     paths = _safe_output_paths(output_paths)
     descriptive_rows = _validate_exact_cell_set(result.cell_rows, expected)
     official_rows = _official_rows(descriptive_rows, result)
     selection_rows = _selection_rows(descriptive_rows, result)
     staged = {
-        "descriptive_only": _table_bytes("descriptive_only", descriptive_rows, result),
-        "official_status": _table_bytes("official_status", official_rows, result),
-        "selection_evaluation": _table_bytes("selection_evaluation", selection_rows, result),
+        "descriptive_only": _table_bytes(
+            "descriptive_only", descriptive_rows, result, floor_provenance,
+        ),
+        "official_status": _table_bytes(
+            "official_status", official_rows, result, floor_provenance,
+        ),
+        "selection_evaluation": _table_bytes(
+            "selection_evaluation", selection_rows, result, floor_provenance,
+        ),
     }
     created: list[Path] = []
     transaction_dir: Path | None = None
