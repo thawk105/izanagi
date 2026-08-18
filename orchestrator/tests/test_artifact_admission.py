@@ -1506,7 +1506,11 @@ def test_v2_loader_validation_rejects_git_unavailable(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     campaign = _new_schema_campaign(tmp_path)
-    monkeypatch.setattr(contract_loader_binding.shutil, "which", lambda _name: None)
+    monkeypatch.setattr(
+        contract_loader_binding,
+        "_GIT_EXECUTABLE",
+        tmp_path / "missing-fixed-git",
+    )
 
     with pytest.raises(A.ArtifactAdmissionError, match="git executable"):
         A.classify_campaign(campaign)

@@ -213,8 +213,8 @@ def test_enforcement_source_closure_is_the_independent_exact_twenty_five_paths()
     (
         (
             "orchestrator/verifier/__init__.py",
-            b"from .core import verify_trace_dir",
-            b"from .parse import parse_trace_dir as verify_trace_dir",
+            b"    verify_trace_dir_with_capability,",
+            b"    verify_trace_dir_with_capability as unchecked_verify_trace_dir_with_capability,",
         ),
         (
             "orchestrator/verifier/report.py",

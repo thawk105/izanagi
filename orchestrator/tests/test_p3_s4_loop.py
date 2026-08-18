@@ -1488,7 +1488,7 @@ def test_checkpoint_whiteboard_value_domains_match_closed_literals():
 
 def test_checkpoint_direction_and_magnitude_domains_match_role_policy():
     """production の層間 import を増やさず、checkpoint 値域と role policy の drift を検出する。"""
-    from codex_roles import policy
+    from orchestrator.codex_roles import policy
 
     domains = dict(L._WB_VALUE_DOMAINS)
     assert domains["direction"] == policy._DIRECTION
@@ -1781,7 +1781,9 @@ def test_wall_budget_via_start_wall():
     assert L.check_stop(st2).reason == "continue"
 
 
-def test_drive_iteration_stops_before_running_when_reverse_exhausted():
+def test_drive_iteration_stops_before_running_when_reverse_exhausted(
+    ratified_enforcement_source,
+):
     """入口停止: 前 critic の逆方向推奨で reverse_recommendations が閾値に達すると、
     drive_iteration は run_one_iteration を呼ばず (ran=False) build/verify/bench に進まない。
     sub に不在パスを渡しても到達しない = 実行前に停止する証拠 (submodule に触れない)。"""
@@ -1879,7 +1881,9 @@ def test_inner_run_recovers_reject_start_before_writing_retry_start():
     assert records[2].payload["build_attempt_id"] != "crashed-reject-attempt"
 
 
-def test_drive_iteration_checkpoint_survives_across_calls():
+def test_drive_iteration_checkpoint_survives_across_calls(
+    ratified_enforcement_source,
+):
     """fresh reject が identity を確立し、次候補の public drive が resume できる。"""
     import contextlib
     from orchestrator.campaign import patchharness
@@ -1919,7 +1923,9 @@ def test_drive_iteration_checkpoint_survives_across_calls():
     assert len(st.whiteboard) == 2 and st.iteration == 2
 
 
-def test_drive_iteration_clean_no_build_skips_admitted_critic_digest(monkeypatch):
+def test_drive_iteration_clean_no_build_skips_admitted_critic_digest(
+    monkeypatch, ratified_enforcement_source,
+):
     import contextlib
     from orchestrator.campaign import patchharness
 
