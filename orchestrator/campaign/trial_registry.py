@@ -30,8 +30,12 @@ if __package__ in {None, ""}:  # pragma: no cover - direct CLI execution
 
 from .autonomous_trial_completeness import (
     AutonomousTrialCompletenessError,
+    assert_campaign_layer3_chain,
     assert_autonomous_trial_completeness,
     assert_execution_digest_chain,
+    is_exact_campaignless_failure_fallback_cell,
+    is_exact_cell_admission_failure_decision,
+    verify_s8c_cross_binding,
 )
 from . import s8c_preregistration
 from . import s8c_acceptance_receipt
@@ -2623,6 +2627,9 @@ def assert_trial_registry_acceptance(
 
         manifest_by_id = {trial.trial_id: trial for trial in manifest.trials}
         accepted: list[AcceptedTrial] = []
+        no_build_seen = False
+        layer3_chain_absent_seen = False
+        cross_binding_receipts: dict[str, dict[str, Any]] = {}
         history_checked: set[str] = set()
         common_measurement_head: str | None = None
         for item in loaded:
@@ -2795,40 +2802,52 @@ def assert_trial_registry_acceptance(
                 cell = cells[0]
                 if not isinstance(cell, Mapping):
                     _fail("terminal-projection", "report cell is not an object")
+                failure_cell = (
+                    is_exact_cell_admission_failure_decision(
+                        cell.get("admission_decision")
+                    )
+                    and is_exact_campaignless_failure_fallback_cell(cell)
+                )
                 flags = cell.get("workload_flags")
-                if (
-                    cell.get("workload") != expected_workload["workload"]
-                    or not isinstance(flags, Mapping)
+                if cell.get("workload") != expected_workload["workload"]:
+                    _fail("terminal-projection", "report cell differs from manifest projection")
+                if not failure_cell and (
+                    not isinstance(flags, Mapping)
                     or flags.get("ycsb_rratio") != expected_workload["ycsb_rratio"]
                     or cell.get("campaign_id") != trial.campaign_id
                 ):
                     _fail("terminal-projection", "report cell differs from manifest projection")
                 descriptor = cell.get("descriptor")
                 descriptor_binding = cell.get("descriptor_binding")
-                if not isinstance(descriptor, Mapping) or not isinstance(
-                    descriptor_binding, Mapping
+                if failure_cell:
+                    descriptor = None
+                    descriptor_binding = None
+                if not failure_cell and (
+                    not isinstance(descriptor, Mapping)
+                    or not isinstance(descriptor_binding, Mapping)
                 ):
                     _fail(
                         "acceptance-arm-execution",
                         "cell descriptor authority is absent",
                     )
-                try:
-                    descriptor_raw = (
-                        s8c_arm_inputs.validate_execution_input_descriptor(descriptor)
-                    )
-                except s8c_arm_inputs.ArmInputError as exc:
-                    _fail("acceptance-arm-execution", str(exc))
-                descriptor_digest = hashlib.sha256(descriptor_raw).hexdigest()
-                if (
-                    descriptor_digest
-                    != expected_arm_execution["content_digest_sha256"]
-                    or descriptor_binding.get("output_sha256")
-                    != descriptor_digest
-                ):
-                    _fail(
-                        "acceptance-arm-execution",
-                        "cell descriptor differs from sealed execution input",
-                    )
+                if not failure_cell:
+                    try:
+                        descriptor_raw = (
+                            s8c_arm_inputs.validate_execution_input_descriptor(descriptor)
+                        )
+                    except s8c_arm_inputs.ArmInputError as exc:
+                        _fail("acceptance-arm-execution", str(exc))
+                    descriptor_digest = hashlib.sha256(descriptor_raw).hexdigest()
+                    if (
+                        descriptor_digest
+                        != expected_arm_execution["content_digest_sha256"]
+                        or descriptor_binding.get("output_sha256")
+                        != descriptor_digest
+                    ):
+                        _fail(
+                            "acceptance-arm-execution",
+                            "cell descriptor differs from sealed execution input",
+                        )
             status = report.get("status")
             if not isinstance(status, str):
                 _fail("terminal-projection", "report status is not a string")
@@ -2840,6 +2859,93 @@ def assert_trial_registry_acceptance(
                 )
             except AutonomousTrialCompletenessError as exc:
                 raise TrialRegistryError(f"[terminal-completeness] {exc}") from exc
+            do_build = report.get("do_build")
+            if type(do_build) is not bool:
+                _fail("campaign-chain", "report.do_build is not a bool")
+            run_root = item.journal_path.resolve().parent
+            if do_build is False:
+                no_build_seen = True
+                layer3_output_root = None
+            else:
+                cells = report.get("cells")
+                if not isinstance(cells, list) or not cells:
+                    _fail(
+                        "campaign-chain",
+                        "do_build=True requires a non-empty report.cells list",
+                    )
+                campaign_roots: list[Path] = []
+                for index, cell in enumerate(cells):
+                    if not isinstance(cell, Mapping):
+                        _fail("campaign-chain", f"cells[{index}] is not an object")
+                    if is_exact_campaignless_failure_fallback_cell(cell):
+                        layer3_chain_absent_seen = True
+                        continue
+                    campaign_root_value = cell.get("campaign_root")
+                    if type(campaign_root_value) is not str or not campaign_root_value:
+                        _fail(
+                            "campaign-chain",
+                            f"cells[{index}].campaign_root is required for build",
+                        )
+                    try:
+                        declared_campaign_root = Path(campaign_root_value)
+                        campaign_root = (
+                            declared_campaign_root
+                            if declared_campaign_root.is_absolute()
+                            else run_root / declared_campaign_root
+                        ).resolve(strict=True)
+                    except (OSError, ValueError) as exc:
+                        raise TrialRegistryError(
+                            f"[campaign-chain] cells[{index}].campaign_root cannot be resolved"
+                        ) from exc
+                    if not campaign_root.is_dir():
+                        _fail(
+                            "campaign-chain",
+                            f"cells[{index}].campaign_root is not a directory",
+                        )
+                    campaign_roots.append(campaign_root)
+                if campaign_roots:
+                    layer3_output_root = campaign_roots[0].parent.parent
+                    if any(
+                        campaign_root.parent.parent != layer3_output_root
+                        for campaign_root in campaign_roots
+                    ):
+                        _fail(
+                            "campaign-chain",
+                            "build cells do not share one campaign output root",
+                        )
+                    report_output_root = run_root.parent.parent
+                    if layer3_output_root != report_output_root:
+                        _fail(
+                            "campaign-chain",
+                            "campaign output root differs from report run root",
+                        )
+                else:
+                    layer3_output_root = None
+                try:
+                    assert_campaign_layer3_chain(
+                        report=report,
+                        output_root=(
+                            layer3_output_root
+                            if layer3_output_root is not None
+                            else run_root / "_no_campaign_output"
+                        ),
+                    )
+                except AutonomousTrialCompletenessError as exc:
+                    raise TrialRegistryError(f"[campaign-chain] {exc}") from exc
+                if any(
+                    not (campaign_root / "reports" / "layer3_report.json").is_file()
+                    for campaign_root in campaign_roots
+                ):
+                    layer3_chain_absent_seen = True
+            try:
+                cross_binding_receipts[trial_id] = verify_s8c_cross_binding(
+                    report=report,
+                    events=events,
+                    run_root=run_root,
+                    output_root=layer3_output_root,
+                )
+            except AutonomousTrialCompletenessError as exc:
+                raise TrialRegistryError(f"[cross-binding] {exc}") from exc
             accepted.append(AcceptedTrial(trial_id, status, measurement_head))
         accepted.sort(key=lambda accepted_trial: accepted_trial.trial_id)
         accepted_by_id = {item.trial_id: item for item in accepted}
@@ -2892,6 +2998,9 @@ def assert_trial_registry_acceptance(
                     item.journal_bytes
                 ).hexdigest(),
                 "arm_execution": dict(item.report["arm_execution"]),
+                "cross_binding_receipt_sha256": cross_binding_receipts[
+                    trial.trial_id
+                ]["receipt_sha256"],
             }
             descriptor_proofs.append(len(item.report.get("cells", ())) == 1)
             if "origin_terminal_projection" in item.report:
@@ -2910,6 +3019,24 @@ def assert_trial_registry_acceptance(
                 s8c_acceptance_receipt.C02_ARM_BINDING_UNPROVEN
             )
             reason_codes.sort()
+        if no_build_seen:
+            reason_codes.append("no-build")
+            reason_codes.sort()
+        if layer3_chain_absent_seen:
+            reason_codes.append("layer3-chain-absent")
+            reason_codes.sort()
+        cross_binding_leaf_rows = [
+            {
+                "trial_id": trial["trial_id"],
+                "receipt_sha256": trial["cross_binding_receipt_sha256"],
+            }
+            for trial in receipt_trials
+        ]
+        cross_binding_receipt_sha256 = (
+            s8c_acceptance_receipt.cross_binding_aggregate_sha256(
+                cross_binding_leaf_rows
+            )
+        )
         receipt_value = {
             "schema_version": s8c_acceptance_receipt.SCHEMA_VERSION,
             "manifest_path": manifest_relative,
@@ -2930,6 +3057,7 @@ def assert_trial_registry_acceptance(
             ).hexdigest(),
             "certifying": False,
             "non_certifying_reason_codes": reason_codes,
+            "cross_binding_receipt_sha256": cross_binding_receipt_sha256,
             "trials": receipt_trials,
         }
         receipt_path, receipt_sha256 = _exclusive_create_acceptance_receipt(

@@ -227,8 +227,14 @@ def test_current_repository_gap_reason_snapshot_requires_cross_wave_review(
         "C06": (core.PredicateStatus.EVIDENCE_UNDEFINED, "budget-consumer-contract-undefined"),
         "C07": (core.PredicateStatus.EVIDENCE_UNDEFINED, "floor-judge-contract-undefined"),
         "C08": (core.PredicateStatus.EVIDENCE_UNDEFINED, "prereg-binding-proof-undefined"),
-        "C09": (core.PredicateStatus.UNSATISFIED, "formal-acceptance-layer3-consumer-absent"),
-        "C10": (core.PredicateStatus.UNSATISFIED, "cross-binding-verifier-incomplete"),
+        "C09": (
+            core.PredicateStatus.EVIDENCE_UNDEFINED,
+            "completion-proof-not-machine-checkable",
+        ),
+        "C10": (
+            core.PredicateStatus.EVIDENCE_UNDEFINED,
+            "completion-proof-not-machine-checkable",
+        ),
         "C11": (core.PredicateStatus.EVIDENCE_UNDEFINED, "completion-proof-not-machine-checkable"),
         "C12": (core.PredicateStatus.UNSATISFIED, "allocation-enforcement-consumer-absent"),
     }
