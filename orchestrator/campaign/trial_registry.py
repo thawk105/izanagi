@@ -47,8 +47,16 @@ if TYPE_CHECKING:
 MANIFEST_SCHEMA_VERSION = "p3-8c-trial-manifest/v2"
 REGISTRATION_SCHEMA_VERSION = "p3-8c-trial-registration/v2"
 DEFAULT_REGISTRY_PATH = Path("output/s8c-trial-registry/registry.jsonl")
+DEFAULT_EFFECTIVE_BINDING_PATH = Path(
+    "output/s8c-preregistration/prereg-effective-binding.v1.json"
+)
+DEFAULT_ATTEMPT_REGISTRY_PATH = Path(
+    "output/s8c-preregistration/attempt-registry.jsonl"
+)
+ATTEMPT_REGISTRY_SCHEMA_VERSION = "p3-8c-attempt-registry/v1"
+EFFECTIVE_BINDING_SCHEMA_VERSION = "p3-8c-prereg-effective-binding/v1"
 DEFAULT_LIFECYCLE_PATH = Path("output/s8c-trial-registry/lifecycle.jsonl")
-LIFECYCLE_SCHEMA_VERSION = "p3-8c-trial-lifecycle/v1"
+LIFECYCLE_SCHEMA_VERSION = "p3-8c-trial-lifecycle/v2"
 ARMS = ("on", "off", "swapped")
 HOLDOUTS = ("H1", "H2")
 HOLDOUT_BINDINGS: Mapping[str, Mapping[str, str]] = {
@@ -67,20 +75,69 @@ _TRIAL_KEYS = frozenset({
     "trial_id", "arm", "holdout", "campaign_id", "generations",
 })
 _REGISTRATION_KEYS = frozenset({
-    "schema_version", "manifest_sha256", "prereg_commit", "trials",
+    "schema_version", "manifest_sha256", "prereg_commit",
+    "prereg_content_commit", "prereg_effective_commit", "trials",
+})
+_EFFECTIVE_BINDING_KEYS = frozenset({
+    "schema_version", "prereg_content_commit", "manifest_path",
+    "manifest_sha256", "freeze_id", "attempt_registry_path",
+    "attempt_registry_initial_sha256",
 })
 _TRIAL_BINDING_SEAL = object()
 _TRIAL_ARM_EXECUTION_SEAL = object()
 _TRIAL_LAUNCH_ADMISSION_SEAL = object()
 _TRIAL_LIFECYCLE_TOKEN_SEAL = object()
+_ATTEMPT_SLOT_CAPABILITY_SEAL = object()
+
+ATTEMPT_STATUSES = (
+    "observed", "retryable-failure", "terminal-failure", "not-consumed",
+)
+ATTEMPT_RETRYABLE_FAILURE_REASONS = frozenset({
+    "preempted", "wall-timeout", "node-failure", "launcher-failure",
+})
+_ATTEMPT_GENESIS_KEYS = frozenset({
+    "schema_version", "event", "freeze_id", "manifest_path",
+    "manifest_sha256", "root_path", "retryable_failure_reasons", "slots",
+})
+_ATTEMPT_SLOT_KEYS = frozenset({
+    "slot_id", "trial_id", "arm", "holdout", "campaign_id",
+    "replicate_index", "attempt_index", "schedule_row_sha256",
+})
+_ATTEMPT_START_KEYS = frozenset({
+    "schema_version", "event", "freeze_id", "slot_id",
+    "prereg_content_commit", "prereg_effective_commit",
+    "run_start_receipt_sha256", "process_identity", "schedule_row_sha256",
+    "started_at",
+})
+_ATTEMPT_CLASSIFICATION_KEYS = frozenset({
+    "schema_version", "event", "freeze_id", "slot_id",
+    "prereg_content_commit", "prereg_effective_commit",
+    "classification_receipt_sha256", "capability_digest_sha256",
+    "authority_id", "authority_policy_sha256", "external_evidence_sha256",
+    "classified_at", "failure_reason", "performance_output_read",
+})
+_ATTEMPT_TERMINAL_KEYS = frozenset({
+    "schema_version", "event", "freeze_id", "slot_id",
+    "prereg_content_commit", "prereg_effective_commit",
+    "classification_receipt_sha256", "terminal_status", "raw_output_sha256",
+    "report_sha256", "observation_sha256", "primary_value", "failure_reason",
+    "finished_at", "schedule_row_sha256", "process_identity",
+})
+_PROCESS_IDENTITY_KEYS = frozenset({
+    "pid", "starttime", "execution_uuid",
+})
 _LIFECYCLE_START_KEYS = frozenset({
     "schema_version", "event", "trial_id", "run_root", "mode",
-    "manifest_sha256", "measurement_head", "activation_report_digest_sha256",
-    "launch_admission_sha256",
+    "manifest_sha256", "prereg_commit", "prereg_content_commit",
+    "prereg_effective_commit", "measurement_head",
+    "activation_report_digest_sha256", "launch_admission_sha256", "slot_id",
+    "schedule_row_sha256", "process_identity",
 })
 _LIFECYCLE_TERMINAL_BASE_KEYS = frozenset({
     "schema_version", "event", "trial_id", "terminal_status",
-    "report_sha256", "attempt_journal_sha256",
+    "report_sha256", "attempt_journal_sha256", "prereg_commit",
+    "prereg_content_commit", "prereg_effective_commit", "slot_id",
+    "classification_receipt_sha256", "raw_output_sha256",
 })
 _LIFECYCLE_TERMINAL_KEYS = frozenset({
     _LIFECYCLE_TERMINAL_BASE_KEYS,
@@ -94,11 +151,17 @@ _ORIGIN_BINDING_KEYS = frozenset({
 })
 _LAUNCH_ADMISSION_BASE_KEYS = frozenset({
     "mode", "certifying", "reason_code", "trial_id", "workloads", "binding",
-    "activation_report_digest_sha256",
+    "activation_report_digest_sha256", "prereg_content_commit",
+    "prereg_effective_commit",
 })
+_LAUNCH_ADMISSION_EXPLORATORY_KEYS = frozenset(
+    _LAUNCH_ADMISSION_BASE_KEYS
+    - {"prereg_content_commit", "prereg_effective_commit"}
+)
 _LAUNCH_ADMISSION_KEYS = frozenset({
     _LAUNCH_ADMISSION_BASE_KEYS,
     _LAUNCH_ADMISSION_BASE_KEYS | {"origin_binding"},
+    _LAUNCH_ADMISSION_EXPLORATORY_KEYS,
 })
 _ORIGIN_WORKLOAD_KEYS = frozenset({"descriptor_sha256", "records", "threads"})
 _ORIGIN_TERMINAL_PROJECTION_KEYS = frozenset({
@@ -151,13 +214,37 @@ class TrialRegistration:
     schema_version: str
     manifest_sha256: str
     prereg_commit: str
+    prereg_content_commit: str
+    prereg_effective_commit: str
     trials: tuple[TrialSpec, ...]
+
+
+@dataclasses.dataclass(frozen=True, slots=True)
+class PreregEffectiveBinding:
+    """The effective-commit record stored in commit C.
+
+    The record deliberately omits C itself.  C is proven from Git as the
+    commit containing this blob, so putting C in the blob would create a
+    self-reference.  ``raw_bytes`` is an in-memory parser witness and is not
+    part of the JSON record.
+    """
+
+    schema_version: str
+    prereg_content_commit: str
+    manifest_path: str
+    manifest_sha256: str
+    freeze_id: str
+    attempt_registry_path: str
+    attempt_registry_initial_sha256: str
+    raw_bytes: bytes = dataclasses.field(repr=False, compare=False)
 
 
 @dataclasses.dataclass(frozen=True, slots=True)
 class TrialBinding:
     manifest_sha256: str
     prereg_commit: str
+    prereg_content_commit: str
+    prereg_effective_commit: str
     measurement_head: str
     trial_id: str
     arm: str
@@ -210,6 +297,9 @@ class TrialLifecycleToken:
     run_root: str
     start_row_sha256: str
     launch_admission_sha256: str
+    prereg_content_commit: str
+    prereg_effective_commit: str
+    slot_id: str
     _seal: object = dataclasses.field(repr=False, compare=False)
 
 
@@ -222,12 +312,46 @@ class _TrialLifecycleCapabilityState:
     run_root: str
     start_row_sha256: str
     launch_admission_sha256: str
+    prereg_content_commit: str
+    prereg_effective_commit: str
+    slot_id: str
+    schedule_row_sha256: str
+    process_identity: Mapping[str, Any]
     origin_binding: OriginBindingCapability | None
     consumed: bool = False
 
 
 _TRIAL_LIFECYCLE_CAPABILITIES: dict[int, _TrialLifecycleCapabilityState] = {}
 _TRIAL_LIFECYCLE_CAPABILITIES_LOCK = threading.Lock()
+
+
+@dataclasses.dataclass(frozen=True, slots=True)
+class AttemptSlotCapability:
+    """Capability issued when a pre-registered slot is reserved.
+
+    The capability binds the slot and all immutable schedule identity to P/C.
+    The API that classifies a failure intentionally has no performance-output
+    parameter.  This wave therefore proves capability and receipt binding, not
+    the real-time fact that a trusted launcher classified before reading
+    performance output; that timing proof remains outside this guarantee.
+    """
+
+    repository_root: Path = dataclasses.field(repr=False, compare=False)
+    registry_path: Path = dataclasses.field(repr=False, compare=False)
+    freeze_id: str
+    slot_id: str
+    trial_id: str
+    arm: str
+    holdout: str
+    campaign_id: str
+    replicate_index: int
+    attempt_index: int
+    schedule_row_sha256: str
+    prereg_commit: str
+    prereg_content_commit: str
+    prereg_effective_commit: str
+    capability_digest_sha256: str
+    _seal: object = dataclasses.field(repr=False, compare=False)
 
 
 @dataclasses.dataclass(frozen=True, slots=True)
@@ -549,15 +673,34 @@ def _registration_dict(registration: TrialRegistration) -> dict[str, Any]:
         "schema_version": registration.schema_version,
         "manifest_sha256": registration.manifest_sha256,
         "prereg_commit": registration.prereg_commit,
+        "prereg_content_commit": registration.prereg_content_commit,
+        "prereg_effective_commit": registration.prereg_effective_commit,
         "trials": [_trial_dict(trial) for trial in registration.trials],
     }
 
 
-def _registration_for(manifest: TrialManifest) -> TrialRegistration:
+def _registration_for(
+    manifest: TrialManifest,
+    *,
+    prereg_content_commit: str,
+    prereg_effective_commit: str,
+) -> TrialRegistration:
+    if _COMMIT_RE.fullmatch(prereg_content_commit) is None:
+        _fail(
+            "registration-binding",
+            "prereg_content_commit is not a full lowercase commit ID",
+        )
+    if _COMMIT_RE.fullmatch(prereg_effective_commit) is None:
+        _fail(
+            "registration-binding",
+            "prereg_effective_commit is not a full lowercase commit ID",
+        )
     return TrialRegistration(
         schema_version=REGISTRATION_SCHEMA_VERSION,
         manifest_sha256=manifest.sha256,
         prereg_commit=manifest.prereg_commit,
+        prereg_content_commit=prereg_content_commit,
+        prereg_effective_commit=prereg_effective_commit,
         trials=manifest.trials,
     )
 
@@ -579,14 +722,28 @@ def _load_registry_bytes(data: bytes, *, label: str) -> tuple[TrialRegistration,
             _fail("schema", f"{label} line {lineno} has an unsupported schema_version")
         manifest_sha256 = value["manifest_sha256"]
         prereg_commit = value["prereg_commit"]
+        prereg_content_commit = value["prereg_content_commit"]
+        prereg_effective_commit = value["prereg_effective_commit"]
         if not isinstance(manifest_sha256, str) or _SHA256_RE.fullmatch(manifest_sha256) is None:
             _fail("field", f"{label} line {lineno} has an invalid manifest_sha256")
         if not isinstance(prereg_commit, str) or _COMMIT_RE.fullmatch(prereg_commit) is None:
             _fail("field", f"{label} line {lineno} has an invalid prereg_commit")
+        if (
+            not isinstance(prereg_content_commit, str)
+            or _COMMIT_RE.fullmatch(prereg_content_commit) is None
+        ):
+            _fail("field", f"{label} line {lineno} has an invalid prereg_content_commit")
+        if (
+            not isinstance(prereg_effective_commit, str)
+            or _COMMIT_RE.fullmatch(prereg_effective_commit) is None
+        ):
+            _fail("field", f"{label} line {lineno} has an invalid prereg_effective_commit")
         registrations.append(TrialRegistration(
             schema_version=REGISTRATION_SCHEMA_VERSION,
             manifest_sha256=manifest_sha256,
             prereg_commit=prereg_commit,
+            prereg_content_commit=prereg_content_commit,
+            prereg_effective_commit=prereg_effective_commit,
             trials=_parse_trials(
                 value["trials"],
                 label=f"{label} line {lineno}.trials",
@@ -599,12 +756,20 @@ def _load_registry_bytes(data: bytes, *, label: str) -> tuple[TrialRegistration,
 
 def _assert_registry_unique(registrations: tuple[TrialRegistration, ...]) -> None:
     manifest_hashes: set[str] = set()
+    content_commits: set[str] = set()
+    effective_commits: set[str] = set()
     trial_ids: set[str] = set()
     campaign_ids: set[str] = set()
     for registration in registrations:
         if registration.manifest_sha256 in manifest_hashes:
             _fail("registry-index", "registry reuses a manifest_sha256")
         manifest_hashes.add(registration.manifest_sha256)
+        if registration.prereg_content_commit in content_commits:
+            _fail("registry-index", "registry reuses a prereg_content_commit")
+        if registration.prereg_effective_commit in effective_commits:
+            _fail("registry-index", "registry reuses a prereg_effective_commit")
+        content_commits.add(registration.prereg_content_commit)
+        effective_commits.add(registration.prereg_effective_commit)
         for trial in registration.trials:
             if trial.trial_id in trial_ids:
                 _fail("registry-index", f"registry reuses trial_id {trial.trial_id!r}")
@@ -854,6 +1019,102 @@ def _assert_not_shallow(repository_root: Path) -> None:
         _fail("ancestry", "shallow repositories are not accepted")
 
 
+def _assert_no_grafts_or_replace_refs(repository_root: Path) -> None:
+    """Reject Git history rewriting inputs before any ancestry proof."""
+    git_path = _git(repository_root, ("rev-parse", "--git-path", "info/grafts"))
+    if git_path.returncode != 0:
+        raise TrialRegistryError(
+            "[git-operational] Git graft path could not be resolved"
+        )
+    try:
+        graft_path = Path(git_path.stdout.decode("utf-8").strip())
+    except UnicodeDecodeError as exc:
+        raise TrialRegistryError(
+            "[git-operational] Git graft path was not UTF-8"
+        ) from exc
+    if not graft_path.is_absolute():
+        graft_path = repository_root / graft_path
+    if graft_path.exists() or graft_path.is_symlink():
+        _fail("ancestry", "Git graft files are not accepted")
+
+    replaces = _git(
+        repository_root,
+        ("for-each-ref", "--format=%(refname)", "refs/replace"),
+    )
+    if replaces.returncode != 0:
+        raise TrialRegistryError(
+            "[git-operational] replace-ref enumeration failed"
+        )
+    if replaces.stdout.splitlines():
+        _fail("ancestry", "Git replace refs are not accepted")
+
+
+def _assert_full_commit_id(commit_id: str, *, label: str) -> None:
+    if not isinstance(commit_id, str) or _COMMIT_RE.fullmatch(commit_id) is None:
+        _fail("commit", f"{label} must be a 40-digit lowercase commit ID")
+
+
+def _parents_at_commit(
+    repository_root: Path,
+    *,
+    commit_id: str,
+) -> tuple[str, ...]:
+    """Read exactly the parent list Git reports for one full commit ID."""
+    _assert_full_commit_id(commit_id, label="effective_commit")
+    result = _git(
+        repository_root,
+        ("rev-list", "--parents", "-n", "1", commit_id),
+    )
+    if result.returncode != 0:
+        raise TrialRegistryError(
+            "[git-operational] rev-list --parents failed for the effective commit"
+        )
+    lines = result.stdout.splitlines()
+    if len(lines) != 1:
+        _fail("ancestry", "effective commit parent query returned no unique row")
+    try:
+        fields = lines[0].decode("ascii").split()
+    except UnicodeDecodeError as exc:
+        raise TrialRegistryError(
+            "[git-operational] effective commit parent query was not ASCII"
+        ) from exc
+    if not fields or fields[0] != commit_id:
+        _fail("ancestry", "effective commit parent query changed the commit identity")
+    parents = tuple(fields[1:])
+    if any(_COMMIT_RE.fullmatch(parent) is None for parent in parents):
+        _fail("ancestry", "effective commit parent query returned an invalid parent")
+    return parents
+
+
+def assert_effective_commit_exact_parent(
+    repository_root: Path,
+    *,
+    content_commit: str,
+    effective_commit: str,
+) -> None:
+    """Require a normal commit C whose sole parent is exactly P.
+
+    A root commit, merge commit, ref/short/non-lowercase argument, failed
+    ``rev-list`` query, shallow repository, graft, replace ref, or other parent
+    is rejected.  A commit C with one parent P is accepted, for example when P
+    contains the manifest and C adds only the effective binding record.
+    """
+    root = _repository_root(repository_root)
+    _assert_full_commit_id(content_commit, label="content_commit")
+    _assert_full_commit_id(effective_commit, label="effective_commit")
+    _assert_no_grafts_or_replace_refs(root)
+    _assert_not_shallow(root)
+    require_commit_object(root, content_commit)
+    require_commit_object(root, effective_commit)
+    parents = _parents_at_commit(root, commit_id=effective_commit)
+    if len(parents) == 0:
+        _fail("ancestry", "effective commit is a root commit")
+    if len(parents) != 1:
+        _fail("ancestry", "effective commit is a merge commit")
+    if parents[0] != content_commit:
+        _fail("ancestry", "effective commit parent is not the exact content commit")
+
+
 def _assert_ancestor(
     repository_root: Path,
     *,
@@ -926,6 +1187,176 @@ def _blob_at_commit(
     return result.stdout
 
 
+def _validate_binding_relative_path(value: object, *, label: str) -> str:
+    if not isinstance(value, str) or not value or value.startswith("/"):
+        _fail("effective-binding", f"{label} must be a relative repository path")
+    path = Path(value)
+    if path.is_absolute() or any(part in {"", ".", ".."} for part in path.parts):
+        _fail("effective-binding", f"{label} is not a safe repository path")
+    if ".git" in path.parts:
+        _fail("effective-binding", f"{label} must not contain a .git component")
+    return path.as_posix()
+
+
+def _parse_effective_binding_bytes(
+    data: bytes,
+    *,
+    label: str,
+) -> PreregEffectiveBinding:
+    value = _decode_json(data, label=label)
+    if not isinstance(value, Mapping):
+        _fail("effective-binding", f"{label} root must be an object")
+    if _canonical_json_bytes(value) != data:
+        _fail("effective-binding", f"{label} is not canonical JSON")
+    _exact_keys(value, _EFFECTIVE_BINDING_KEYS, label=label)
+    if value.get("schema_version") != EFFECTIVE_BINDING_SCHEMA_VERSION:
+        _fail("effective-binding", f"{label} has an unsupported schema_version")
+    content = value.get("prereg_content_commit")
+    if not isinstance(content, str) or _COMMIT_RE.fullmatch(content) is None:
+        _fail("effective-binding", f"{label}.prereg_content_commit is invalid")
+    manifest_path = _validate_binding_relative_path(
+        value.get("manifest_path"), label=f"{label}.manifest_path",
+    )
+    for field in ("manifest_sha256", "attempt_registry_initial_sha256"):
+        digest = value.get(field)
+        if not isinstance(digest, str) or _SHA256_RE.fullmatch(digest) is None:
+            _fail("effective-binding", f"{label}.{field} is invalid")
+    freeze_id = value.get("freeze_id")
+    if not isinstance(freeze_id, str) or not freeze_id or len(freeze_id) > 128:
+        _fail("effective-binding", f"{label}.freeze_id is invalid")
+    attempt_path = _validate_binding_relative_path(
+        value.get("attempt_registry_path"),
+        label=f"{label}.attempt_registry_path",
+    )
+    if attempt_path != DEFAULT_ATTEMPT_REGISTRY_PATH.as_posix():
+        _fail("effective-binding", "attempt_registry_path is not the canonical path")
+    return PreregEffectiveBinding(
+        schema_version=EFFECTIVE_BINDING_SCHEMA_VERSION,
+        prereg_content_commit=content,
+        manifest_path=manifest_path,
+        manifest_sha256=value["manifest_sha256"],
+        freeze_id=freeze_id,
+        attempt_registry_path=attempt_path,
+        attempt_registry_initial_sha256=value["attempt_registry_initial_sha256"],
+        raw_bytes=data,
+    )
+
+
+def load_effective_binding_at_commit(
+    repository_root: Path,
+    effective_commit: str,
+    manifest_path: Path,
+    manifest: TrialManifest | None = None,
+) -> PreregEffectiveBinding:
+    """Load the fixed effective-binding blob from commit C.
+
+    A missing or non-canonical binding blob is rejected, and a binding whose
+    P-side manifest bytes/digest disagree is rejected.  A C blob containing
+    the exact record, with P's manifest and genesis bytes matching its hashes,
+    is accepted; C itself is intentionally not recorded in the JSON.
+    """
+    root = _repository_root(repository_root)
+    _assert_full_commit_id(effective_commit, label="effective_commit")
+    require_commit_object(root, effective_commit)
+    binding_bytes = _blob_at_commit(
+        root,
+        commit_id=effective_commit,
+        relative_path=DEFAULT_EFFECTIVE_BINDING_PATH.as_posix(),
+    )
+    if binding_bytes is None:
+        _fail(
+            "effective-binding",
+            "effective binding blob is absent from effective commit",
+        )
+    binding = _parse_effective_binding_bytes(
+        binding_bytes, label="effective binding blob",
+    )
+    _assert_full_commit_id(binding.prereg_content_commit, label="content_commit")
+    _repo_path, manifest_relative = _repo_relative(
+        Path(manifest_path), root, label="manifest",
+    )
+    if manifest_relative != binding.manifest_path:
+        _fail("effective-binding", "binding manifest_path differs from manifest argument")
+    if manifest is None:
+        manifest = load_trial_manifest(Path(manifest_path))
+    manifest_blob = _blob_at_commit(
+        root,
+        commit_id=binding.prereg_content_commit,
+        relative_path=manifest_relative,
+    )
+    if manifest_blob is None:
+        _fail("effective-binding", "manifest blob is absent from content commit")
+    if hashlib.sha256(manifest_blob).hexdigest() != binding.manifest_sha256:
+        _fail("effective-binding", "manifest blob differs from binding manifest_sha256")
+    if manifest is not None:
+        if (
+            manifest.sha256 != binding.manifest_sha256
+            or manifest.raw_bytes != manifest_blob
+        ):
+            _fail("effective-binding", "loaded manifest differs from effective binding")
+    attempt_blob = _blob_at_commit(
+        root,
+        commit_id=binding.prereg_content_commit,
+        relative_path=binding.attempt_registry_path,
+    )
+    if attempt_blob is None:
+        _fail("effective-binding", "attempt registry genesis blob is absent from content commit")
+    if hashlib.sha256(attempt_blob).hexdigest() != binding.attempt_registry_initial_sha256:
+        _fail(
+            "effective-binding",
+            "attempt registry genesis bytes differ from binding initial hash",
+        )
+    return binding
+
+
+def validate_preregistration_binding(
+    repository_root: Path,
+    *,
+    manifest_path: Path,
+    effective_commit: str,
+    measurement_commit: str,
+) -> PreregEffectiveBinding:
+    """Validate the complete P/C/H preregistration proof.
+
+    Invalid commit syntax, failed parent enumeration, root/merge/other-parent
+    C, missing C binding, shallow/graft/replace history, and P-only ancestry
+    are rejected.  A normal C with sole parent P, matching P manifest/genesis
+    blobs, and C reachable from measurement HEAD H is accepted.
+    """
+    root = _repository_root(repository_root)
+    _assert_full_commit_id(measurement_commit, label="measurement_commit")
+    _assert_no_grafts_or_replace_refs(root)
+    _assert_not_shallow(root)
+    _assert_full_commit_id(effective_commit, label="effective_commit")
+    manifest = load_trial_manifest(Path(manifest_path))
+    binding = load_effective_binding_at_commit(
+        root,
+        effective_commit,
+        Path(manifest_path),
+        manifest,
+    )
+    _assert_ancestor(
+        root,
+        ancestor=manifest.prereg_commit,
+        descendant=binding.prereg_content_commit,
+        gate="ancestry",
+        message="manifest prereg_commit is not an ancestor of prereg_content_commit",
+    )
+    assert_effective_commit_exact_parent(
+        root,
+        content_commit=binding.prereg_content_commit,
+        effective_commit=effective_commit,
+    )
+    _assert_ancestor(
+        root,
+        ancestor=effective_commit,
+        descendant=measurement_commit,
+        gate="ancestry",
+        message="prereg_effective_commit is not an ancestor of measurement_head",
+    )
+    return binding
+
+
 def _require_committed_file(
     *,
     repository_root: Path,
@@ -958,11 +1389,126 @@ def _find_registration(
     return selected[0]
 
 
+def _trial_canonical_tuple(trial: TrialSpec) -> tuple[object, ...]:
+    """The complete manifest/registry identity, not only trial_id."""
+    return (
+        trial.trial_id,
+        trial.arm,
+        trial.holdout,
+        trial.campaign_id,
+        trial.generations,
+    )
+
+
+def _assert_manifest_registry_trial_set(
+    manifest: TrialManifest,
+    registration: TrialRegistration,
+) -> None:
+    """Require the six manifest trials and one registry row to be identical.
+
+    A registry that contains every manifest trial with a changed arm,
+    holdout, campaign, or generations is rejected, and a registry with an
+    extra or missing trial is rejected.  The report ``cells`` collection is
+    intentionally not inspected here; it is a one-run runtime object and is
+    checked by a separate helper below.
+    """
+    expected = tuple(_trial_canonical_tuple(item) for item in manifest.trials)
+    actual = tuple(_trial_canonical_tuple(item) for item in registration.trials)
+    if len(actual) != len(expected) or set(actual) != set(expected):
+        _fail(
+            "registration-binding",
+            "manifest and registry trial sets differ in canonical trial identity",
+        )
+    if actual != expected:
+        _fail(
+            "registration-binding",
+            "manifest and registry trial order differs from canonical order",
+        )
+    if registration.prereg_commit != manifest.prereg_commit:
+        _fail("registration-binding", "registry prereg_commit differs from manifest")
+
+
+def _find_registration_for_manifest(
+    registrations: tuple[TrialRegistration, ...],
+    manifest: TrialManifest,
+    *,
+    effective_commit: str | None = None,
+    allow_distinct_content_commit: bool = False,
+) -> TrialRegistration:
+    candidates = [
+        item for item in registrations
+        if item.manifest_sha256 == manifest.sha256
+        and item.prereg_commit == manifest.prereg_commit
+    ]
+    if not allow_distinct_content_commit:
+        candidates = [
+            item for item in candidates
+            if item.prereg_content_commit == manifest.prereg_commit
+        ]
+    if effective_commit is not None:
+        candidates = [
+            item for item in candidates
+            if item.prereg_effective_commit == effective_commit
+        ]
+    if len(candidates) != 1:
+        _fail("registration-binding", "manifest has no single exact registry registration")
+    registration = candidates[0]
+    _assert_manifest_registry_trial_set(manifest, registration)
+    return registration
+
+
+def _assert_runtime_report_trial_set(
+    loaded: Sequence[_LoadedReport],
+    manifest: TrialManifest,
+) -> None:
+    """Require the six report objects to cover the manifest trial IDs once.
+
+    This is a report-collection check only.  It does not inspect registry rows
+    or runtime ``cells``; those are different one-run objects and are checked
+    by ``_assert_runtime_report_cells``.
+    """
+    trial_ids = [item.report.get("trial_id") for item in loaded]
+    expected_ids = {trial.trial_id for trial in manifest.trials}
+    if (
+        any(not isinstance(trial_id, str) for trial_id in trial_ids)
+        or len(set(trial_ids)) != len(trial_ids)
+        or set(trial_ids) != expected_ids
+    ):
+        _fail("trial-set", "report trial_id set is not the exact manifest trial set")
+
+
+def _assert_runtime_report_cells(
+    report: Mapping[str, Any],
+    *,
+    trial: TrialSpec,
+) -> list[Mapping[str, Any]]:
+    """Validate the independent per-run cell collection (zero or one cell)."""
+    expected_workload = HOLDOUT_BINDINGS[trial.holdout]
+    cells = report.get("cells")
+    if not isinstance(cells, list) or len(cells) > 1:
+        _fail("runtime-cell-set", "report cells must contain zero or one cell")
+    if not cells:
+        return []
+    cell = cells[0]
+    if not isinstance(cell, Mapping):
+        _fail("runtime-cell-set", "report cell is not an object")
+    flags = cell.get("workload_flags")
+    if (
+        cell.get("workload") != expected_workload["workload"]
+        or not isinstance(flags, Mapping)
+        or flags.get("ycsb_rratio") != expected_workload["ycsb_rratio"]
+        or cell.get("campaign_id") != trial.campaign_id
+    ):
+        _fail("runtime-cell-set", "runtime cell differs from its trial projection")
+    return [cell]
+
+
 def append_trial_registration(
     *,
     manifest_path: Path,
     repository_root: Path,
     registry_path: Path,
+    prereg_effective_commit: str,
 ) -> TrialRegistration:
     """Append one manifest registration in a single fsynced critical section."""
     root = _repository_root(repository_root)
@@ -986,7 +1532,19 @@ def append_trial_registration(
     committed = _blob_at_commit(
         root, commit_id=measurement_head, relative_path=relative,
     )
-    registration = _registration_for(manifest)
+    effective_commit = prereg_effective_commit
+    _assert_full_commit_id(effective_commit, label="prereg_effective_commit")
+    effective_binding = validate_preregistration_binding(
+        root,
+        manifest_path=Path(manifest_path),
+        effective_commit=effective_commit,
+        measurement_commit=measurement_head,
+    )
+    registration = _registration_for(
+        manifest,
+        prereg_content_commit=effective_binding.prereg_content_commit,
+        prereg_effective_commit=effective_commit,
+    )
     payload = _canonical_json_bytes(_registration_dict(registration)) + b"\n"
     try:
         parent_fd = _open_registry_parent(
@@ -1137,6 +1695,1278 @@ def _load_committed_registry(
     return _load_registry_bytes(committed, label="committed registry"), committed, relative
 
 
+def _attempt_digest(value: object, *, label: str, nullable: bool = False) -> str | None:
+    if value is None and nullable:
+        return None
+    if not isinstance(value, str) or _SHA256_RE.fullmatch(value) is None:
+        _fail("attempt-registry-schema", f"{label} is not a SHA-256 digest")
+    return value
+
+
+def _attempt_text(value: object, *, label: str, max_length: int = 256) -> str:
+    if not isinstance(value, str) or not value or len(value) > max_length:
+        _fail("attempt-registry-schema", f"{label} is not a bounded non-empty string")
+    return value
+
+
+def _attempt_process_identity(
+    value: object,
+    *,
+    label: str,
+) -> dict[str, Any]:
+    if type(value) is not dict or frozenset(value) != _PROCESS_IDENTITY_KEYS:
+        _fail("attempt-registry-schema", f"{label} exact keys differ")
+    pid = value.get("pid")
+    if type(pid) is not int or pid < 1:
+        _fail("attempt-registry-schema", f"{label}.pid is invalid")
+    starttime = value.get("starttime")
+    if type(starttime) is bool or not isinstance(starttime, (int, str)):
+        _fail("attempt-registry-schema", f"{label}.starttime is invalid")
+    if isinstance(starttime, int) and starttime < 0:
+        _fail("attempt-registry-schema", f"{label}.starttime is invalid")
+    if isinstance(starttime, str) and not starttime:
+        _fail("attempt-registry-schema", f"{label}.starttime is invalid")
+    execution_uuid = _attempt_text(
+        value.get("execution_uuid"), label=f"{label}.execution_uuid",
+    )
+    return {
+        "pid": pid,
+        "starttime": starttime,
+        "execution_uuid": execution_uuid,
+    }
+
+
+def _attempt_slot_config(slot: Mapping[str, Any]) -> tuple[object, ...]:
+    return (
+        slot["trial_id"],
+        slot["arm"],
+        slot["holdout"],
+        slot["campaign_id"],
+        slot["replicate_index"],
+    )
+
+
+def _parse_attempt_slot(value: object, *, label: str) -> dict[str, Any]:
+    if not isinstance(value, Mapping):
+        _fail("attempt-registry-schema", f"{label} is not an object")
+    _exact_keys(value, _ATTEMPT_SLOT_KEYS, label=label)
+    slot_id = _attempt_text(value.get("slot_id"), label=f"{label}.slot_id")
+    trial_id = value.get("trial_id")
+    if not isinstance(trial_id, str) or _TRIAL_ID_RE.fullmatch(trial_id) is None:
+        _fail("attempt-registry-schema", f"{label}.trial_id is invalid")
+    arm = value.get("arm")
+    if arm not in ARMS:
+        _fail("attempt-registry-schema", f"{label}.arm is outside the closed set")
+    holdout = value.get("holdout")
+    if holdout not in HOLDOUTS:
+        _fail("attempt-registry-schema", f"{label}.holdout is outside the closed set")
+    campaign_id = _attempt_text(
+        value.get("campaign_id"), label=f"{label}.campaign_id",
+    )
+    replicate_index = value.get("replicate_index")
+    attempt_index = value.get("attempt_index")
+    for field, raw in (
+        ("replicate_index", replicate_index),
+        ("attempt_index", attempt_index),
+    ):
+        if type(raw) is not int or raw < 0:
+            _fail("attempt-registry-schema", f"{label}.{field} is invalid")
+    schedule_row_sha256 = _attempt_digest(
+        value.get("schedule_row_sha256"), label=f"{label}.schedule_row_sha256",
+    )
+    return {
+        "slot_id": slot_id,
+        "trial_id": trial_id,
+        "arm": arm,
+        "holdout": holdout,
+        "campaign_id": campaign_id,
+        "replicate_index": replicate_index,
+        "attempt_index": attempt_index,
+        "schedule_row_sha256": schedule_row_sha256,
+    }
+
+
+def _assert_attempt_slot_layout(slots: Sequence[Mapping[str, Any]]) -> None:
+    slot_ids: set[str] = set()
+    groups: dict[tuple[object, ...], list[int]] = {}
+    for slot in slots:
+        slot_id = slot["slot_id"]
+        if slot_id in slot_ids:
+            _fail("attempt-registry-genesis", "genesis reuses a slot_id")
+        slot_ids.add(slot_id)
+        groups.setdefault(_attempt_slot_config(slot), []).append(slot["attempt_index"])
+    if not slots:
+        _fail("attempt-registry-genesis", "genesis must close a non-empty slot set")
+    for indexes in groups.values():
+        if sorted(indexes) != list(range(len(indexes))):
+            _fail(
+                "attempt-registry-genesis",
+                "slot attempt_index values must be a contiguous zero-based set",
+            )
+
+
+def _parse_attempt_genesis(value: object, *, label: str) -> dict[str, Any]:
+    if not isinstance(value, Mapping):
+        _fail("attempt-registry-schema", f"{label} is not an object")
+    _exact_keys(value, _ATTEMPT_GENESIS_KEYS, label=label)
+    if value.get("schema_version") != ATTEMPT_REGISTRY_SCHEMA_VERSION:
+        _fail("attempt-registry-schema", f"{label}.schema_version is unsupported")
+    if value.get("event") != "freeze":
+        _fail("attempt-registry-genesis", f"{label}.event is not freeze")
+    freeze_id = _attempt_text(value.get("freeze_id"), label=f"{label}.freeze_id")
+    manifest_path = _validate_binding_relative_path(
+        value.get("manifest_path"), label=f"{label}.manifest_path",
+    )
+    manifest_sha256 = _attempt_digest(
+        value.get("manifest_sha256"), label=f"{label}.manifest_sha256",
+    )
+    if value.get("root_path") != DEFAULT_ATTEMPT_REGISTRY_PATH.as_posix():
+        _fail("attempt-registry-genesis", f"{label}.root_path is not canonical")
+    reasons = value.get("retryable_failure_reasons")
+    if (
+        not isinstance(reasons, list)
+        or any(type(reason) is not str or not reason for reason in reasons)
+        or len(reasons) != len(set(reasons))
+        or reasons != sorted(reasons)
+        or frozenset(reasons) != ATTEMPT_RETRYABLE_FAILURE_REASONS
+    ):
+        _fail(
+            "attempt-registry-genesis",
+            f"{label}.retryable_failure_reasons is not the exact closed set",
+        )
+    raw_slots = value.get("slots")
+    if not isinstance(raw_slots, list):
+        _fail("attempt-registry-genesis", f"{label}.slots is not an array")
+    slots = tuple(
+        _parse_attempt_slot(slot, label=f"{label}.slots[{index}]")
+        for index, slot in enumerate(raw_slots)
+    )
+    _assert_attempt_slot_layout(slots)
+    return {
+        "schema_version": ATTEMPT_REGISTRY_SCHEMA_VERSION,
+        "event": "freeze",
+        "freeze_id": freeze_id,
+        "manifest_path": manifest_path,
+        "manifest_sha256": manifest_sha256,
+        "root_path": DEFAULT_ATTEMPT_REGISTRY_PATH.as_posix(),
+        "retryable_failure_reasons": list(reasons),
+        "slots": [dict(slot) for slot in slots],
+    }
+
+
+def _attempt_capability_payload(
+    *,
+    freeze_id: str,
+    slot: Mapping[str, Any],
+    prereg_content_commit: str,
+    prereg_effective_commit: str,
+) -> dict[str, Any]:
+    return {
+        "schema_version": ATTEMPT_REGISTRY_SCHEMA_VERSION,
+        "freeze_id": freeze_id,
+        "slot_id": slot["slot_id"],
+        "trial_id": slot["trial_id"],
+        "arm": slot["arm"],
+        "holdout": slot["holdout"],
+        "campaign_id": slot["campaign_id"],
+        "replicate_index": slot["replicate_index"],
+        "attempt_index": slot["attempt_index"],
+        "schedule_row_sha256": slot["schedule_row_sha256"],
+        "prereg_content_commit": prereg_content_commit,
+        "prereg_effective_commit": prereg_effective_commit,
+    }
+
+
+def _attempt_capability_digest(
+    *,
+    freeze_id: str,
+    slot: Mapping[str, Any],
+    prereg_content_commit: str,
+    prereg_effective_commit: str,
+) -> str:
+    return hashlib.sha256(
+        _canonical_json_bytes(
+            _attempt_capability_payload(
+                freeze_id=freeze_id,
+                slot=slot,
+                prereg_content_commit=prereg_content_commit,
+                prereg_effective_commit=prereg_effective_commit,
+            )
+        )
+    ).hexdigest()
+
+
+def _parse_attempt_row(
+    value: object,
+    *,
+    label: str,
+    freeze_id: str,
+) -> dict[str, Any]:
+    if not isinstance(value, Mapping):
+        _fail("attempt-registry-schema", f"{label} is not an object")
+    event = value.get("event")
+    expected = {
+        "start": _ATTEMPT_START_KEYS,
+        "classification": _ATTEMPT_CLASSIFICATION_KEYS,
+        "terminal": _ATTEMPT_TERMINAL_KEYS,
+    }.get(event)
+    if expected is None:
+        _fail("attempt-registry-schema", f"{label}.event is unknown")
+    _exact_keys(value, expected, label=label)
+    if value.get("schema_version") != ATTEMPT_REGISTRY_SCHEMA_VERSION:
+        _fail("attempt-registry-schema", f"{label}.schema_version is unsupported")
+    if value.get("freeze_id") != freeze_id:
+        _fail("attempt-registry-binding", f"{label}.freeze_id differs from genesis")
+    slot_id = _attempt_text(value.get("slot_id"), label=f"{label}.slot_id")
+    for field in ("prereg_content_commit", "prereg_effective_commit"):
+        _assert_full_commit_id(value.get(field), label=f"{label}.{field}")
+    if event == "start":
+        _attempt_digest(
+            value.get("run_start_receipt_sha256"),
+            label=f"{label}.run_start_receipt_sha256",
+        )
+        process_identity = _attempt_process_identity(
+            value.get("process_identity"), label=f"{label}.process_identity",
+        )
+        schedule_row_sha256 = _attempt_digest(
+            value.get("schedule_row_sha256"),
+            label=f"{label}.schedule_row_sha256",
+        )
+        started_at = _attempt_text(value.get("started_at"), label=f"{label}.started_at")
+        return {
+            **dict(value),
+            "slot_id": slot_id,
+            "process_identity": process_identity,
+            "schedule_row_sha256": schedule_row_sha256,
+            "started_at": started_at,
+        }
+    if event == "classification":
+        for field in (
+            "classification_receipt_sha256", "capability_digest_sha256",
+            "authority_policy_sha256", "external_evidence_sha256",
+        ):
+            _attempt_digest(value.get(field), label=f"{label}.{field}")
+        _attempt_text(value.get("authority_id"), label=f"{label}.authority_id")
+        _attempt_text(value.get("classified_at"), label=f"{label}.classified_at")
+        reason = value.get("failure_reason")
+        if reason is not None:
+            _attempt_text(reason, label=f"{label}.failure_reason")
+        if value.get("performance_output_read") is not False:
+            _fail(
+                "attempt-classification",
+                f"{label}.performance_output_read must be false",
+            )
+        return dict(value)
+    for field in (
+        "classification_receipt_sha256", "raw_output_sha256",
+        "report_sha256", "observation_sha256",
+    ):
+        _attempt_digest(value.get(field), label=f"{label}.{field}", nullable=True)
+    status = value.get("terminal_status")
+    if status not in ATTEMPT_STATUSES:
+        _fail("attempt-null-matrix", f"{label}.terminal_status is outside the closed set")
+    primary_value = value.get("primary_value")
+    if primary_value is not None:
+        try:
+            _canonical_json_bytes(primary_value)
+        except TrialRegistryError as exc:
+            raise TrialRegistryError(
+                f"[attempt-null-matrix] {label}.primary_value is not JSON data"
+            ) from exc
+    reason = value.get("failure_reason")
+    if reason is not None:
+        _attempt_text(reason, label=f"{label}.failure_reason")
+    _attempt_text(value.get("finished_at"), label=f"{label}.finished_at")
+    _attempt_digest(value.get("schedule_row_sha256"), label=f"{label}.schedule_row_sha256")
+    _attempt_process_identity(
+        value.get("process_identity"), label=f"{label}.process_identity",
+    )
+    return dict(value)
+
+
+def _assert_attempt_null_matrix(
+    row: Mapping[str, Any],
+    *,
+    retryable_reasons: frozenset[str],
+    label: str,
+) -> None:
+    """Accept only the exact null matrix for each closed terminal status.
+
+    A row with the status-specific permitted nulls is accepted; a row with a
+    substituted raw hash, observation, primary value, or failure reason is
+    rejected.
+    """
+    status = row["terminal_status"]
+    raw_output = row.get("raw_output_sha256")
+    classification = row.get("classification_receipt_sha256")
+    if raw_output is None or classification is None:
+        _fail(
+            "attempt-null-matrix",
+            f"{label} requires non-null raw output and classification receipt digests",
+        )
+    if status == "observed":
+        if (
+            row.get("report_sha256") is None
+            or row.get("observation_sha256") is None
+            or row.get("primary_value") is None
+            or row.get("failure_reason") is not None
+        ):
+            _fail("attempt-null-matrix", f"{label} observed null matrix differs")
+    elif status == "retryable-failure":
+        reason = row.get("failure_reason")
+        if (
+            row.get("report_sha256") is None
+            or row.get("observation_sha256") is not None
+            or row.get("primary_value") is not None
+            or not isinstance(reason, str)
+            or reason not in retryable_reasons
+        ):
+            _fail("attempt-null-matrix", f"{label} retryable-failure null matrix differs")
+    elif status == "terminal-failure":
+        reason = row.get("failure_reason")
+        if (
+            row.get("report_sha256") is None
+            or row.get("observation_sha256") is not None
+            or row.get("primary_value") is not None
+            or not isinstance(reason, str)
+            or reason in retryable_reasons
+        ):
+            _fail("attempt-null-matrix", f"{label} terminal-failure null matrix differs")
+    elif (
+        row.get("report_sha256") is not None
+        or row.get("observation_sha256") is not None
+        or row.get("primary_value") is not None
+        or row.get("failure_reason") is not None
+    ):
+        _fail("attempt-null-matrix", f"{label} not-consumed null matrix differs")
+
+
+def _assert_attempt_registry_rows(
+    rows: Sequence[Mapping[str, Any]],
+    *,
+    repository_root: Path | None = None,
+    expected_prereg_content_commit: str | None = None,
+    expected_prereg_effective_commit: str | None = None,
+) -> tuple[dict[str, Any], ...]:
+    """Accept one ordered genesis/lifecycle state machine with immutable slots.
+
+    A start followed by one capability-bound classification and one matching
+    terminal row is accepted; duplicate starts, skipped retries, altered
+    artifacts, second roots, and unbound rows are rejected.
+    """
+    if not rows or rows[0].get("event") != "freeze":
+        _fail("attempt-registry-genesis", "attempt registry must begin with one freeze row")
+    genesis = _parse_attempt_genesis(rows[0], label="attempt registry genesis")
+    slots = {slot["slot_id"]: slot for slot in genesis["slots"]}
+    starts: dict[str, Mapping[str, Any]] = {}
+    classifications: dict[str, Mapping[str, Any]] = {}
+    terminals: dict[str, Mapping[str, Any]] = {}
+    binding: tuple[str, str] | None = None
+    for index, raw in enumerate(rows[1:], 2):
+        row = _parse_attempt_row(
+            raw,
+            label=f"attempt registry line {index}",
+            freeze_id=genesis["freeze_id"],
+        )
+        slot_id = row["slot_id"]
+        slot = slots.get(slot_id)
+        if slot is None:
+            _fail("attempt-slot", f"attempt registry references an undeclared slot: {slot_id}")
+        pair = (row["prereg_content_commit"], row["prereg_effective_commit"])
+        if binding is None:
+            binding = pair
+        elif pair != binding:
+            _fail("attempt-binding", "attempt rows do not share one P/C pair")
+        if expected_prereg_content_commit is not None and pair[0] != expected_prereg_content_commit:
+            _fail("attempt-binding", "attempt row content commit differs from expected P")
+        if expected_prereg_effective_commit is not None and pair[1] != expected_prereg_effective_commit:
+            _fail("attempt-binding", "attempt row effective commit differs from expected C")
+        if row["event"] == "start":
+            if slot_id in starts or slot_id in terminals:
+                _fail("attempt-slot", "slot was reserved more than once")
+            if row["schedule_row_sha256"] != slot["schedule_row_sha256"]:
+                _fail("attempt-slot", "start schedule row hash differs from genesis")
+            config = _attempt_slot_config(slot)
+            if slot["attempt_index"] > 0:
+                previous = [
+                    candidate for candidate in slots.values()
+                    if _attempt_slot_config(candidate) == config
+                    and candidate["attempt_index"] == slot["attempt_index"] - 1
+                ]
+                if len(previous) != 1 or previous[0]["slot_id"] not in terminals:
+                    _fail(
+                        "attempt-slot-order",
+                        "only the next slot after a completed retryable failure may start",
+                    )
+                if terminals[previous[0]["slot_id"]]["terminal_status"] != "retryable-failure":
+                    _fail(
+                        "attempt-slot-order",
+                        "a slot after a non-retryable outcome cannot be consumed",
+                    )
+            starts[slot_id] = row
+        elif row["event"] == "classification":
+            if slot_id not in starts or slot_id in classifications:
+                _fail("attempt-classification", "classification does not follow exactly one start")
+            expected_digest = _attempt_capability_digest(
+                freeze_id=genesis["freeze_id"],
+                slot=slot,
+                prereg_content_commit=row["prereg_content_commit"],
+                prereg_effective_commit=row["prereg_effective_commit"],
+            )
+            if row["capability_digest_sha256"] != expected_digest:
+                _fail("attempt-classification", "classification capability digest differs")
+            if row["failure_reason"] is not None and not isinstance(
+                row["failure_reason"], str
+            ):
+                _fail("attempt-classification", "classification failure_reason is invalid")
+            classifications[slot_id] = row
+        else:
+            if slot_id not in starts or slot_id not in classifications:
+                _fail("attempt-terminal", "terminal does not follow start and classification")
+            if slot_id in terminals:
+                _fail("attempt-terminal", "slot has more than one terminal row")
+            start = starts[slot_id]
+            classification = classifications[slot_id]
+            if row["classification_receipt_sha256"] != classification[
+                "classification_receipt_sha256"
+            ]:
+                _fail("attempt-slot", "terminal classification receipt was replaced")
+            if row["schedule_row_sha256"] != start["schedule_row_sha256"]:
+                _fail("attempt-slot", "terminal schedule row hash was replaced")
+            if _canonical_json_bytes(row["process_identity"]) != _canonical_json_bytes(
+                start["process_identity"]
+            ):
+                _fail("attempt-slot", "terminal process identity was replaced")
+            if row["failure_reason"] != classification["failure_reason"]:
+                _fail("attempt-classification", "terminal failure reason differs from receipt")
+            _assert_attempt_null_matrix(
+                row,
+                retryable_reasons=frozenset(genesis["retryable_failure_reasons"]),
+                label=f"attempt registry line {index}",
+            )
+            terminals[slot_id] = row
+    if repository_root is not None:
+        for classification in classifications.values():
+            receipt_path = (
+                repository_root
+                / "output/s8c-trial-registry/classification-receipts"
+                / f"{classification['classification_receipt_sha256']}.json"
+            )
+            if not receipt_path.exists():
+                _fail("attempt-classification", "classification receipt file is absent")
+            receipt = _read_regular_bytes(
+                receipt_path,
+                gate="attempt-classification",
+                label="classification receipt",
+            )
+            if hashlib.sha256(receipt).hexdigest() != classification[
+                "classification_receipt_sha256"
+            ]:
+                _fail("attempt-classification", "classification receipt digest differs")
+            if not receipt.endswith(b"\n"):
+                _fail("attempt-classification", "classification receipt is not newline terminated")
+            receipt_value = _decode_json(
+                receipt[:-1], label="classification receipt",
+            )
+            expected_receipt_keys = frozenset({
+                "schema_version", "event", "freeze_id", "slot_id",
+                "capability_digest_sha256", "authority_id",
+                "authority_policy_sha256", "external_evidence_sha256",
+                "classified_at", "failure_reason", "performance_output_read",
+            })
+            if not isinstance(receipt_value, Mapping):
+                _fail("attempt-classification", "classification receipt is not an object")
+            if _canonical_json_bytes(receipt_value) + b"\n" != receipt:
+                _fail("attempt-classification", "classification receipt is not canonical JSON")
+            _exact_keys(receipt_value, expected_receipt_keys, label="classification receipt")
+            if (
+                receipt_value.get("schema_version") != ATTEMPT_REGISTRY_SCHEMA_VERSION
+                or receipt_value.get("event") != "classification-receipt"
+                or receipt_value.get("freeze_id") != classification["freeze_id"]
+                or receipt_value.get("slot_id") != classification["slot_id"]
+                or receipt_value.get("capability_digest_sha256")
+                != classification["capability_digest_sha256"]
+                or receipt_value.get("failure_reason") != classification["failure_reason"]
+                or receipt_value.get("performance_output_read") is not False
+            ):
+                _fail("attempt-classification", "classification receipt is not capability-bound")
+    return tuple(dict(row) for row in rows)
+
+
+def _load_attempt_registry_bytes(
+    data: bytes,
+    *,
+    label: str = "attempt registry",
+) -> tuple[dict[str, Any], ...]:
+    if not data or not data.endswith(b"\n"):
+        _fail("attempt-registry-framing", f"{label} must be non-empty and newline terminated")
+    rows: list[dict[str, Any]] = []
+    for lineno, line in enumerate(data.splitlines(), 1):
+        if not line:
+            _fail("attempt-registry-framing", f"{label} has a blank line at {lineno}")
+        value = _decode_json(line, label=f"{label} line {lineno}")
+        if not isinstance(value, Mapping) or _canonical_json_bytes(value) != line:
+            _fail("attempt-registry-canonical", f"{label} line {lineno} is not canonical JSON")
+        rows.append(dict(value))
+    return _assert_attempt_registry_rows(rows)
+
+
+def _attempt_registry_target(
+    repository_root: Path,
+    registry_path: Path = DEFAULT_ATTEMPT_REGISTRY_PATH,
+    *,
+    create_parent: bool,
+) -> tuple[Path, Path, str]:
+    root = _repository_root(repository_root)
+    _candidate, relative_path, relative = _registry_relative_target(
+        Path(registry_path), root,
+    )
+    if relative != DEFAULT_ATTEMPT_REGISTRY_PATH.as_posix():
+        _fail("attempt-registry-path", "attempt registry path is not canonical")
+    target, canonical_relative = _registry_target(
+        DEFAULT_ATTEMPT_REGISTRY_PATH, root, create_parent=create_parent,
+    )
+    return target, relative_path, canonical_relative
+
+
+def _write_create_only(
+    *,
+    repository_root: Path,
+    relative_path: Path,
+    payload: bytes,
+    gate: str,
+) -> Path:
+    parent_fd = _open_registry_parent(
+        repository_root, relative_path.parent, create=True,
+    )
+    try:
+        flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL
+        if hasattr(os, "O_NOFOLLOW"):
+            flags |= os.O_NOFOLLOW
+        try:
+            fd = os.open(relative_path.name, flags, 0o644, dir_fd=parent_fd)
+        except FileExistsError as exc:
+            raise TrialRegistryError(f"[{gate}] create-only path already exists") from exc
+        try:
+            view = memoryview(payload)
+            while view:
+                written = os.write(fd, view)
+                if written <= 0:
+                    raise OSError("create-only write did not advance")
+                view = view[written:]
+            os.fsync(fd)
+            os.fsync(parent_fd)
+        finally:
+            os.close(fd)
+    except TrialRegistryError:
+        raise
+    except OSError as exc:
+        raise TrialRegistryError(f"[{gate}] create-only write failed: {exc}") from exc
+    finally:
+        os.close(parent_fd)
+    return repository_root / relative_path
+
+
+def create_attempt_registry_genesis(
+    *,
+    repository_root: Path,
+    manifest_path: Path,
+    manifest_sha256: str,
+    freeze_id: str,
+    slots: Sequence[Mapping[str, Any]],
+    retryable_failure_reasons: Sequence[str] = tuple(
+        sorted(ATTEMPT_RETRYABLE_FAILURE_REASONS)
+    ),
+    registry_path: Path = DEFAULT_ATTEMPT_REGISTRY_PATH,
+) -> Path:
+    """Create the one freeze-wide root before any slot can be observed.
+
+    A genesis with the complete slot set is accepted only at the canonical
+    path when that path is absent; a second genesis, a late slot, or a retry
+    reason outside the exact closed set is rejected.  A valid first creation
+    is one canonical freeze row containing every declared slot and no lifecycle
+    row yet.
+    """
+    root = _repository_root(repository_root)
+    _attempt_registry_target(root, registry_path, create_parent=True)
+    if not isinstance(manifest_sha256, str) or _SHA256_RE.fullmatch(manifest_sha256) is None:
+        _fail("attempt-registry-genesis", "manifest_sha256 is invalid")
+    _attempt_text(freeze_id, label="freeze_id")
+    _repo_path, manifest_relative = _repo_relative(
+        Path(manifest_path), root, label="manifest",
+    )
+    reasons = list(retryable_failure_reasons)
+    value = {
+        "schema_version": ATTEMPT_REGISTRY_SCHEMA_VERSION,
+        "event": "freeze",
+        "freeze_id": freeze_id,
+        "manifest_path": manifest_relative,
+        "manifest_sha256": manifest_sha256,
+        "root_path": DEFAULT_ATTEMPT_REGISTRY_PATH.as_posix(),
+        "retryable_failure_reasons": sorted(reasons),
+        "slots": [dict(slot) for slot in slots],
+    }
+    parsed = _parse_attempt_genesis(value, label="attempt registry genesis")
+    payload = _canonical_json_bytes(parsed) + b"\n"
+    _candidate, relative_path, _relative = _attempt_registry_target(
+        root, registry_path, create_parent=True,
+    )
+    return _write_create_only(
+        repository_root=root,
+        relative_path=relative_path,
+        payload=payload,
+        gate="attempt-registry-genesis",
+    )
+
+
+def _attempt_tree_paths(
+    repository_root: Path,
+    *,
+    commit_id: str,
+) -> tuple[tuple[str, bytes], ...]:
+    listing = _git(
+        repository_root,
+        ("ls-tree", "-r", "-z", "--full-tree", commit_id),
+    )
+    if listing.returncode != 0:
+        raise TrialRegistryError("[git-operational] attempt registry tree walk failed")
+    result: list[tuple[str, bytes]] = []
+    for entry in (item for item in listing.stdout.split(b"\0") if item):
+        metadata, separator, entry_path = entry.partition(b"\t")
+        fields = metadata.split()
+        if separator != b"\t" or len(fields) != 3 or fields[1] != b"blob":
+            continue
+        try:
+            path = entry_path.decode("utf-8")
+            blob_id = fields[2].decode("ascii")
+        except UnicodeDecodeError as exc:
+            raise TrialRegistryError("[git-operational] attempt tree path is not valid UTF-8") from exc
+        blob = _git(repository_root, ("cat-file", "blob", blob_id))
+        if blob.returncode != 0:
+            raise TrialRegistryError("[git-operational] attempt tree blob cannot be read")
+        result.append((path, blob.stdout))
+    return tuple(result)
+
+
+def _looks_like_attempt_genesis(data: bytes) -> bool:
+    if not data:
+        return False
+    first_line = data.splitlines()[0]
+    if ATTEMPT_REGISTRY_SCHEMA_VERSION.encode("ascii") not in first_line:
+        return False
+    try:
+        value = _decode_json(first_line, label="attempt history root")
+    except TrialRegistryError:
+        return False
+    return (
+        isinstance(value, Mapping)
+        and value.get("schema_version") == ATTEMPT_REGISTRY_SCHEMA_VERSION
+        and value.get("event") == "freeze"
+    )
+
+
+def _assert_attempt_registry_history_append_only(
+    *,
+    repository_root: Path,
+    relative_path: str = DEFAULT_ATTEMPT_REGISTRY_PATH.as_posix(),
+    current_bytes: bytes | None = None,
+) -> bytes | None:
+    """Check every ref for one canonical append-only attempt-registry root.
+
+    A canonical root and strict prefix extensions across all refs are accepted;
+    a second freeze row, an alternate-path root, deletion/recreation, or a
+    root reachable only from an unmerged ref is rejected.  The scan uses
+    ``git rev-list --all`` deliberately, so current-HEAD ancestry alone is not
+    evidence for this gate.
+    """
+    if relative_path != DEFAULT_ATTEMPT_REGISTRY_PATH.as_posix():
+        _fail("attempt-registry-history", "history path is not canonical")
+    root = _repository_root(repository_root)
+    _assert_no_grafts_or_replace_refs(root)
+    _assert_not_shallow(root)
+    commits = _git(root, ("rev-list", "--all", "--topo-order", "--reverse"))
+    if commits.returncode != 0:
+        raise TrialRegistryError("[git-operational] attempt registry full history walk failed")
+    previous: bytes | None = None
+    canonical_seen = False
+    for raw_commit in commits.stdout.splitlines():
+        try:
+            commit_id = raw_commit.decode("ascii")
+        except UnicodeDecodeError as exc:
+            raise TrialRegistryError("[git-operational] attempt history commit is not ASCII") from exc
+        _assert_full_commit_id(commit_id, label="attempt history commit")
+        tree_paths = _attempt_tree_paths(root, commit_id=commit_id)
+        canonical = next((blob for path, blob in tree_paths if path == relative_path), None)
+        if canonical is None:
+            if canonical_seen:
+                _fail("attempt-registry-history", "canonical attempt registry was deleted")
+        else:
+            canonical_seen = True
+            _load_attempt_registry_bytes(canonical, label=f"attempt registry at {commit_id}")
+            if previous is not None and canonical != previous and (
+                not canonical.startswith(previous) or len(canonical) <= len(previous)
+            ):
+                _fail(
+                    "attempt-registry-history",
+                    "attempt registry history is not a strict prefix extension",
+                )
+            previous = canonical
+        for path, blob in tree_paths:
+            if path != relative_path and _looks_like_attempt_genesis(blob):
+                _fail(
+                    "attempt-registry-history",
+                    "alternate attempt registry genesis exists on a ref (second root)",
+                )
+    if current_bytes is not None:
+        _load_attempt_registry_bytes(current_bytes, label="working attempt registry")
+        if previous is not None and not current_bytes.startswith(previous):
+            _fail(
+                "attempt-registry-history",
+                "working attempt registry does not extend committed history",
+            )
+    return previous
+
+
+def load_attempt_registry(
+    repository_root: Path,
+    *,
+    registry_path: Path = DEFAULT_ATTEMPT_REGISTRY_PATH,
+    prereg_content_commit: str | None = None,
+    prereg_effective_commit: str | None = None,
+    freeze_id: str | None = None,
+    manifest_path: Path | None = None,
+    manifest_sha256: str | None = None,
+) -> tuple[dict[str, Any], ...]:
+    """Accept the fixed registry when its rows and all-ref history are valid.
+
+    A canonical genesis with strict prefix extensions is accepted; missing,
+    replaced, deleted, recreated, or alternate-root history is rejected.
+    """
+    root = _repository_root(repository_root)
+    target, _relative_path, relative = _attempt_registry_target(
+        root, registry_path, create_parent=False,
+    )
+    data = _read_regular_bytes(
+        target, gate="attempt-registry-read", label="attempt registry",
+    )
+    _assert_attempt_registry_history_append_only(
+        repository_root=root, relative_path=relative, current_bytes=data,
+    )
+    rows = _load_attempt_registry_bytes(data)
+    genesis = rows[0]
+    if freeze_id is not None and genesis["freeze_id"] != freeze_id:
+        _fail("attempt-registry-binding", "genesis freeze_id differs from effective binding")
+    if manifest_sha256 is not None and genesis["manifest_sha256"] != manifest_sha256:
+        _fail("attempt-registry-binding", "genesis manifest_sha256 differs from effective binding")
+    if manifest_path is not None:
+        _resolved, supplied_relative = _repo_relative(
+            Path(manifest_path), root, label="manifest",
+        )
+        if genesis["manifest_path"] != supplied_relative:
+            _fail("attempt-registry-binding", "genesis manifest_path differs from binding")
+    _assert_attempt_registry_rows(
+        rows,
+        repository_root=root,
+        expected_prereg_content_commit=prereg_content_commit,
+        expected_prereg_effective_commit=prereg_effective_commit,
+    )
+    return rows
+
+
+def _locked_attempt_registry_update(
+    *,
+    repository_root: Path,
+    registry_path: Path,
+    update,
+):
+    root = _repository_root(repository_root)
+    target, relative_path, relative = _attempt_registry_target(
+        root, registry_path, create_parent=False,
+    )
+    if not target.exists() or target.is_symlink():
+        _fail("attempt-registry-path", "attempt registry genesis is absent")
+    history_tip = _assert_attempt_registry_history_append_only(
+        repository_root=root,
+        relative_path=relative,
+    )
+    parent_fd = _open_registry_parent(root, relative_path.parent, create=False)
+    try:
+        flags = os.O_RDWR | os.O_APPEND
+        if hasattr(os, "O_NOFOLLOW"):
+            flags |= os.O_NOFOLLOW
+        fd = os.open(relative_path.name, flags, dir_fd=parent_fd)
+        try:
+            fcntl.flock(fd, fcntl.LOCK_EX)
+            info = os.fstat(fd)
+            if not stat.S_ISREG(info.st_mode):
+                _fail("attempt-registry-path", "attempt registry is not a regular file")
+            current = bytearray()
+            offset = 0
+            while offset < info.st_size:
+                chunk = os.pread(fd, min(1024 * 1024, info.st_size - offset), offset)
+                if not chunk:
+                    _fail("attempt-registry-read", "attempt registry read stopped early")
+                current.extend(chunk)
+                offset += len(chunk)
+            current_bytes = bytes(current)
+            rows = _load_attempt_registry_bytes(current_bytes)
+            if history_tip is not None and not current_bytes.startswith(history_tip):
+                _fail("attempt-registry-history", "working attempt registry changed under lock")
+            payload, result = update(rows)
+            if payload is not None:
+                candidate = current_bytes + payload
+                _load_attempt_registry_bytes(candidate, label="attempt registry append")
+                view = memoryview(payload)
+                while view:
+                    written = os.write(fd, view)
+                    if written <= 0:
+                        raise OSError("attempt registry append did not advance")
+                    view = view[written:]
+                os.fsync(fd)
+                os.fsync(parent_fd)
+            return result
+        finally:
+            os.close(fd)
+    except TrialRegistryError:
+        raise
+    except OSError as exc:
+        raise TrialRegistryError(f"[attempt-registry-io] update failed: {exc}") from exc
+    finally:
+        os.close(parent_fd)
+
+
+def _assert_attempt_capability(capability: AttemptSlotCapability) -> None:
+    if (
+        type(capability) is not AttemptSlotCapability
+        or capability._seal is not _ATTEMPT_SLOT_CAPABILITY_SEAL
+    ):
+        _fail("attempt-capability", "slot capability was not issued by the registry")
+    _assert_full_commit_id(capability.prereg_content_commit, label="prereg_content_commit")
+    _assert_full_commit_id(capability.prereg_effective_commit, label="prereg_effective_commit")
+    _assert_full_commit_id(capability.prereg_commit, label="prereg_commit")
+    if capability.prereg_commit != capability.prereg_content_commit:
+        _fail("attempt-capability", "slot capability prereg_commit differs from P")
+    slot = {
+        "slot_id": capability.slot_id,
+        "trial_id": capability.trial_id,
+        "arm": capability.arm,
+        "holdout": capability.holdout,
+        "campaign_id": capability.campaign_id,
+        "replicate_index": capability.replicate_index,
+        "attempt_index": capability.attempt_index,
+        "schedule_row_sha256": capability.schedule_row_sha256,
+    }
+    _parse_attempt_slot(slot, label="issued attempt capability")
+    expected = _attempt_capability_digest(
+        freeze_id=capability.freeze_id,
+        slot=slot,
+        prereg_content_commit=capability.prereg_content_commit,
+        prereg_effective_commit=capability.prereg_effective_commit,
+    )
+    if expected != capability.capability_digest_sha256:
+        _fail("attempt-capability", "slot capability digest was replaced")
+
+
+def reserve_attempt_slot(
+    *,
+    repository_root: Path,
+    freeze_id: str,
+    slot_id: str,
+    prereg_content_commit: str,
+    prereg_effective_commit: str,
+    run_start_receipt_sha256: str,
+    process_identity: Mapping[str, Any],
+    started_at: str,
+    registry_path: Path = DEFAULT_ATTEMPT_REGISTRY_PATH,
+) -> AttemptSlotCapability:
+    """Consume one already-declared slot before any observation can exist.
+
+    A first attempt is accepted only for a declared slot, and a later attempt
+    is accepted only for the immediate same-configuration slot after a
+    retryable failure.  A success rerun, slot skip, other-trial retry, and
+    post-observation slot invention are rejected.
+    """
+    root = _repository_root(repository_root)
+    _attempt_text(freeze_id, label="freeze_id")
+    _assert_full_commit_id(prereg_content_commit, label="prereg_content_commit")
+    _assert_full_commit_id(prereg_effective_commit, label="prereg_effective_commit")
+    _attempt_digest(run_start_receipt_sha256, label="run_start_receipt_sha256")
+    checked_process = _attempt_process_identity(
+        dict(process_identity), label="process_identity",
+    )
+    _attempt_text(started_at, label="started_at")
+    result_holder: dict[str, AttemptSlotCapability] = {}
+
+    def append_start(rows):
+        genesis = rows[0]
+        if genesis["freeze_id"] != freeze_id:
+            _fail("attempt-binding", "slot reservation freeze_id differs from genesis")
+        slot_matches = [slot for slot in genesis["slots"] if slot["slot_id"] == slot_id]
+        if len(slot_matches) != 1:
+            _fail("attempt-slot", "slot_id was not declared by genesis")
+        slot = slot_matches[0]
+        for row in rows[1:]:
+            if row.get("event") == "start" and row.get("slot_id") == slot_id:
+                _fail("attempt-slot", "slot was already reserved")
+        start = {
+            "schema_version": ATTEMPT_REGISTRY_SCHEMA_VERSION,
+            "event": "start",
+            "freeze_id": freeze_id,
+            "slot_id": slot_id,
+            "prereg_content_commit": prereg_content_commit,
+            "prereg_effective_commit": prereg_effective_commit,
+            "run_start_receipt_sha256": run_start_receipt_sha256,
+            "process_identity": checked_process,
+            "schedule_row_sha256": slot["schedule_row_sha256"],
+            "started_at": started_at,
+        }
+        candidate = tuple(rows) + (start,)
+        _assert_attempt_registry_rows(
+            candidate,
+            expected_prereg_content_commit=prereg_content_commit,
+            expected_prereg_effective_commit=prereg_effective_commit,
+        )
+        digest = _attempt_capability_digest(
+            freeze_id=freeze_id,
+            slot=slot,
+            prereg_content_commit=prereg_content_commit,
+            prereg_effective_commit=prereg_effective_commit,
+        )
+        result_holder["capability"] = AttemptSlotCapability(
+            repository_root=root,
+            registry_path=_attempt_registry_target(root, registry_path, create_parent=False)[0],
+            freeze_id=freeze_id,
+            slot_id=slot["slot_id"],
+            trial_id=slot["trial_id"],
+            arm=slot["arm"],
+            holdout=slot["holdout"],
+            campaign_id=slot["campaign_id"],
+            replicate_index=slot["replicate_index"],
+            attempt_index=slot["attempt_index"],
+            schedule_row_sha256=slot["schedule_row_sha256"],
+            prereg_commit=prereg_content_commit,
+            prereg_content_commit=prereg_content_commit,
+            prereg_effective_commit=prereg_effective_commit,
+            capability_digest_sha256=digest,
+            _seal=_ATTEMPT_SLOT_CAPABILITY_SEAL,
+        )
+        return _canonical_json_bytes(start) + b"\n", result_holder["capability"]
+
+    _locked_attempt_registry_update(
+        repository_root=root,
+        registry_path=registry_path,
+        update=append_start,
+    )
+    return result_holder["capability"]
+
+
+record_attempt_start = reserve_attempt_slot
+
+
+def _attempt_receipt_payload(
+    *,
+    capability: AttemptSlotCapability,
+    failure_reason: str | None,
+    authority_id: str,
+    authority_policy_sha256: str,
+    external_evidence_sha256: str,
+    classified_at: str,
+) -> dict[str, Any]:
+    return {
+        "schema_version": ATTEMPT_REGISTRY_SCHEMA_VERSION,
+        "event": "classification-receipt",
+        "freeze_id": capability.freeze_id,
+        "slot_id": capability.slot_id,
+        "capability_digest_sha256": capability.capability_digest_sha256,
+        "authority_id": authority_id,
+        "authority_policy_sha256": authority_policy_sha256,
+        "external_evidence_sha256": external_evidence_sha256,
+        "classified_at": classified_at,
+        "failure_reason": failure_reason,
+        "performance_output_read": False,
+    }
+
+
+def classify_attempt(
+    capability: AttemptSlotCapability,
+    *,
+    failure_reason: str | None,
+    authority_id: str,
+    authority_policy_sha256: str,
+    external_evidence_sha256: str,
+    classified_at: str,
+) -> dict[str, Any]:
+    """Create one capability-bound classification receipt and append its row.
+
+    This signature deliberately accepts no performance output.  It binds the
+    classification to the reservation capability and an O_EXCL receipt, but
+    this wave does not prove that a trusted caller classified before reading
+    performance output; that timing fact is outside the guarantee boundary.
+    """
+    _assert_attempt_capability(capability)
+    if failure_reason is not None:
+        _attempt_text(failure_reason, label="failure_reason")
+    authority_id = _attempt_text(authority_id, label="authority_id")
+    _attempt_digest(authority_policy_sha256, label="authority_policy_sha256")
+    _attempt_digest(external_evidence_sha256, label="external_evidence_sha256")
+    classified_at = _attempt_text(classified_at, label="classified_at")
+    receipt = _attempt_receipt_payload(
+        capability=capability,
+        failure_reason=failure_reason,
+        authority_id=authority_id,
+        authority_policy_sha256=authority_policy_sha256,
+        external_evidence_sha256=external_evidence_sha256,
+        classified_at=classified_at,
+    )
+    receipt_bytes = _canonical_json_bytes(receipt) + b"\n"
+    receipt_digest = hashlib.sha256(receipt_bytes).hexdigest()
+    receipt_relative = (
+        Path("output/s8c-trial-registry/classification-receipts")
+        / f"{receipt_digest}.json"
+    )
+    _write_create_only(
+        repository_root=capability.repository_root,
+        relative_path=receipt_relative,
+        payload=receipt_bytes,
+        gate="attempt-classification-receipt",
+    )
+    row = {
+        "schema_version": ATTEMPT_REGISTRY_SCHEMA_VERSION,
+        "event": "classification",
+        "freeze_id": capability.freeze_id,
+        "slot_id": capability.slot_id,
+        "prereg_content_commit": capability.prereg_content_commit,
+        "prereg_effective_commit": capability.prereg_effective_commit,
+        "classification_receipt_sha256": receipt_digest,
+        "capability_digest_sha256": capability.capability_digest_sha256,
+        "authority_id": authority_id,
+        "authority_policy_sha256": authority_policy_sha256,
+        "external_evidence_sha256": external_evidence_sha256,
+        "classified_at": classified_at,
+        "failure_reason": failure_reason,
+        "performance_output_read": False,
+    }
+
+    def append_classification(rows):
+        if any(
+            item.get("event") == "classification"
+            and item.get("slot_id") == capability.slot_id
+            for item in rows
+        ):
+            _fail("attempt-classification", "slot already has a classification receipt")
+        _assert_attempt_registry_rows(
+            tuple(rows) + (row,),
+            expected_prereg_content_commit=capability.prereg_content_commit,
+            expected_prereg_effective_commit=capability.prereg_effective_commit,
+        )
+        return _canonical_json_bytes(row) + b"\n", dict(receipt)
+
+    try:
+        return _locked_attempt_registry_update(
+            repository_root=capability.repository_root,
+            registry_path=capability.registry_path,
+            update=append_classification,
+        )
+    except BaseException:
+        raise
+
+
+classify_attempt_failure = classify_attempt
+
+
+def record_attempt_terminal(
+    capability: AttemptSlotCapability,
+    *,
+    terminal_status: str,
+    raw_output_sha256: str,
+    report_sha256: str | None,
+    observation_sha256: str | None,
+    primary_value: Any,
+    finished_at: str,
+    failure_reason: str | None = None,
+) -> None:
+    """Append one immutable terminal row after the capability classification."""
+    _assert_attempt_capability(capability)
+    if terminal_status not in ATTEMPT_STATUSES:
+        _fail("attempt-terminal", "terminal_status is outside the closed set")
+    _attempt_digest(raw_output_sha256, label="raw_output_sha256")
+    _attempt_digest(report_sha256, label="report_sha256", nullable=True)
+    _attempt_digest(observation_sha256, label="observation_sha256", nullable=True)
+    _attempt_text(finished_at, label="finished_at")
+    if failure_reason is not None:
+        _attempt_text(failure_reason, label="failure_reason")
+
+    def append_terminal(rows):
+        classifications = [
+            row for row in rows
+            if row.get("event") == "classification"
+            and row.get("slot_id") == capability.slot_id
+        ]
+        starts = [
+            row for row in rows
+            if row.get("event") == "start" and row.get("slot_id") == capability.slot_id
+        ]
+        if len(starts) != 1 or len(classifications) != 1:
+            _fail("attempt-terminal", "terminal requires one start and one classification")
+        classification = classifications[0]
+        if failure_reason is None:
+            reason = classification["failure_reason"]
+        else:
+            reason = failure_reason
+        if reason != classification["failure_reason"]:
+            _fail("attempt-classification", "terminal failure reason differs from receipt")
+        terminal = {
+            "schema_version": ATTEMPT_REGISTRY_SCHEMA_VERSION,
+            "event": "terminal",
+            "freeze_id": capability.freeze_id,
+            "slot_id": capability.slot_id,
+            "prereg_content_commit": capability.prereg_content_commit,
+            "prereg_effective_commit": capability.prereg_effective_commit,
+            "classification_receipt_sha256": classification[
+                "classification_receipt_sha256"
+            ],
+            "terminal_status": terminal_status,
+            "raw_output_sha256": raw_output_sha256,
+            "report_sha256": report_sha256,
+            "observation_sha256": observation_sha256,
+            "primary_value": primary_value,
+            "failure_reason": reason,
+            "finished_at": finished_at,
+            "schedule_row_sha256": starts[0]["schedule_row_sha256"],
+            "process_identity": dict(starts[0]["process_identity"]),
+        }
+        _assert_attempt_registry_rows(
+            tuple(rows) + (terminal,),
+            expected_prereg_content_commit=capability.prereg_content_commit,
+            expected_prereg_effective_commit=capability.prereg_effective_commit,
+        )
+        return _canonical_json_bytes(terminal) + b"\n", None
+
+    _locked_attempt_registry_update(
+        repository_root=capability.repository_root,
+        registry_path=capability.registry_path,
+        update=append_terminal,
+    )
+
+
+def assert_attempt_registry_acceptance(
+    *,
+    repository_root: Path,
+    manifest_path: Path,
+    manifest: TrialManifest,
+    effective_binding: PreregEffectiveBinding,
+    effective_commit: str,
+    report_paths: Sequence[Path] = (),
+    registry_path: Path = DEFAULT_ATTEMPT_REGISTRY_PATH,
+) -> tuple[dict[str, Any], ...]:
+    """Require manifest, effective binding, slots, and observed report rows to agree.
+
+    Manifest ``trials`` and runtime report ``cells`` are checked as separate
+    objects: a manifest/slot set cannot substitute for a runtime cell, and a
+    runtime cell cannot create or remove a pre-registered trial slot.
+    """
+    root = _repository_root(repository_root)
+    if effective_binding.manifest_sha256 != manifest.sha256:
+        _fail("attempt-acceptance", "effective binding manifest hash differs")
+    rows = load_attempt_registry(
+        root,
+        registry_path=registry_path,
+        prereg_content_commit=effective_binding.prereg_content_commit,
+        prereg_effective_commit=effective_commit,
+        freeze_id=effective_binding.freeze_id,
+        manifest_path=manifest_path,
+        manifest_sha256=manifest.sha256,
+    )
+    attempt_registry_file, _relative_path, _relative = _attempt_registry_target(
+        root, registry_path, create_parent=False,
+    )
+    attempt_registry_bytes = _read_regular_bytes(
+        attempt_registry_file,
+        gate="attempt-acceptance",
+        label="attempt registry",
+    )
+    initial_blob = _blob_at_commit(
+        root,
+        commit_id=effective_binding.prereg_content_commit,
+        relative_path=effective_binding.attempt_registry_path,
+    )
+    if (
+        initial_blob is None
+        or hashlib.sha256(initial_blob).hexdigest()
+        != effective_binding.attempt_registry_initial_sha256
+        or not attempt_registry_bytes.startswith(initial_blob)
+    ):
+        _fail("attempt-acceptance", "attempt registry does not extend binding genesis")
+    genesis = rows[0]
+    configs = {
+        (
+            slot["trial_id"], slot["arm"], slot["holdout"],
+            slot["campaign_id"],
+        )
+        for slot in genesis["slots"]
+        if slot["attempt_index"] == 0
+    }
+    expected_configs = {
+        (trial.trial_id, trial.arm, trial.holdout, trial.campaign_id)
+        for trial in manifest.trials
+    }
+    if configs != expected_configs:
+        _fail("attempt-trial-set", "genesis initial slot set differs from manifest trials")
+    terminals = {
+        row["slot_id"]: row for row in rows if row.get("event") == "terminal"
+    }
+    slots_by_id = {
+        slot["slot_id"]: slot for slot in genesis["slots"]
+    }
+    seen_report_slots: set[str] = set()
+    for report_path in report_paths:
+        report_bytes = _read_regular_bytes(
+            Path(report_path), gate="attempt-acceptance", label="runtime report",
+        )
+        report = _decode_json(report_bytes, label="runtime report")
+        if not isinstance(report, Mapping):
+            _fail("attempt-runtime-cell", "runtime report is not an object")
+        slot_id = report.get("slot_id")
+        if not isinstance(slot_id, str):
+            _fail("attempt-runtime-cell", "runtime report is missing slot_id")
+        terminal = terminals.get(slot_id)
+        if terminal is None:
+            _fail("attempt-runtime-cell", "runtime report has no terminal slot")
+        slot = slots_by_id.get(slot_id)
+        if slot is None or report.get("trial_id") != slot["trial_id"]:
+            _fail("attempt-trial-set", "runtime report slot differs from its trial")
+        if slot_id in seen_report_slots:
+            _fail("attempt-runtime-cell", "runtime reports reuse one slot")
+        seen_report_slots.add(slot_id)
+        if report.get("prereg_content_commit") != effective_binding.prereg_content_commit:
+            _fail("attempt-runtime-cell", "runtime report P differs from binding")
+        if report.get("prereg_effective_commit") != effective_commit:
+            _fail("attempt-runtime-cell", "runtime report C differs from registry")
+        expected_status = {
+            "complete": "observed",
+            "partial": "terminal-failure",
+            "indeterminate": "not-consumed",
+        }.get(report.get("status"))
+        if expected_status is not None and terminal["terminal_status"] != expected_status:
+            _fail("attempt-terminal", "runtime report status differs from attempt terminal")
+        if terminal["report_sha256"] != hashlib.sha256(report_bytes).hexdigest():
+            _fail("attempt-artifact", "terminal report hash differs from runtime report")
+        report_raw_output = report.get("raw_output_sha256")
+        _attempt_digest(report_raw_output, label="runtime report.raw_output_sha256")
+        if report_raw_output != terminal["raw_output_sha256"]:
+            _fail("attempt-artifact", "terminal raw output hash differs from runtime report")
+        if terminal["terminal_status"] == "observed":
+            observation_digest = _attempt_digest(
+                report.get("observation_sha256"),
+                label="runtime report.observation_sha256",
+            )
+            if observation_digest != terminal["observation_sha256"]:
+                _fail("attempt-artifact", "terminal observation hash differs from runtime report")
+            if report.get("primary_value") != terminal["primary_value"]:
+                _fail("attempt-artifact", "terminal primary value differs from runtime report")
+    return rows
+
+
 def _derive_launch_binding(
     *,
     manifest_path: Path,
@@ -1161,7 +2991,19 @@ def _derive_launch_binding(
         registry_path=Path(registry_path),
         commit_id=measurement_head,
     )
-    _find_registration(registrations, _registration_for(manifest))
+    registration = _find_registration_for_manifest(
+        registrations,
+        manifest,
+        allow_distinct_content_commit=True,
+    )
+    effective_binding = validate_preregistration_binding(
+        root,
+        manifest_path=Path(manifest_path),
+        effective_commit=registration.prereg_effective_commit,
+        measurement_commit=measurement_head,
+    )
+    if effective_binding.prereg_content_commit != registration.prereg_content_commit:
+        _fail("registration-binding", "registry P differs from effective binding")
     selected = [trial for trial in manifest.trials if trial.trial_id == trial_id]
     if len(selected) != 1:
         _fail("trial-membership", "trial_id is not in the selected manifest")
@@ -1169,14 +3011,11 @@ def _derive_launch_binding(
     binding = HOLDOUT_BINDINGS[trial.holdout]
     if list(workloads) != [binding["workload"]]:
         _fail("workload-binding", "workloads do not match the trial holdout singleton")
-    assert_prereg_ancestor(
-        root,
-        prereg_commit=manifest.prereg_commit,
-        measurement_commit=measurement_head,
-    )
     return TrialBinding(
         manifest_sha256=manifest.sha256,
         prereg_commit=manifest.prereg_commit,
+        prereg_content_commit=registration.prereg_content_commit,
+        prereg_effective_commit=registration.prereg_effective_commit,
         measurement_head=measurement_head,
         trial_id=trial.trial_id,
         arm=trial.arm,
@@ -1216,6 +3055,11 @@ def assert_issued_trial_binding(binding: TrialBinding) -> None:
         or binding._seal is not _TRIAL_BINDING_SEAL
     ):
         _fail("launch-binding", "binding was not issued by the registry gate")
+    for field in (
+        "prereg_commit", "prereg_content_commit", "prereg_effective_commit",
+        "measurement_head",
+    ):
+        _assert_full_commit_id(getattr(binding, field), label=f"binding.{field}")
 
 
 def bind_trial_arm(
@@ -1514,6 +3358,11 @@ def assert_issued_trial_launch_admission(
         if admission.binding is None:
             _fail("launch-admission", "registered admission is missing its binding")
         assert_issued_trial_binding(admission.binding)
+        if (
+            _COMMIT_RE.fullmatch(admission.binding.prereg_content_commit) is None
+            or _COMMIT_RE.fullmatch(admission.binding.prereg_effective_commit) is None
+        ):
+            _fail("launch-admission", "registered admission has invalid P/C binding")
         if admission.reason_code != "registered-effective-non-certifying":
             _fail("launch-admission", "registered admission reason_code is inconsistent")
         if admission.binding.trial_id != admission.trial_id:
@@ -1548,7 +3397,8 @@ def launch_admission_record(
         binding_record = {
             field: getattr(binding, field)
             for field in (
-                "manifest_sha256", "prereg_commit", "measurement_head",
+                "manifest_sha256", "prereg_commit", "prereg_content_commit",
+                "prereg_effective_commit", "measurement_head",
                 "trial_id", "arm", "holdout", "campaign_id", "workload",
                 "ycsb_rratio",
             )
@@ -1564,6 +3414,9 @@ def launch_admission_record(
             admission.activation_report_digest_sha256
         ),
     }
+    if binding is not None:
+        record["prereg_content_commit"] = binding.prereg_content_commit
+        record["prereg_effective_commit"] = binding.prereg_effective_commit
     if origin_binding is not None:
         from . import reflux_origin_binding
 
@@ -1632,6 +3485,7 @@ def _load_lifecycle_rows(data: bytes) -> tuple[dict[str, Any], ...]:
     rows: list[dict[str, Any]] = []
     starts: set[str] = set()
     terminals: set[str] = set()
+    start_by_trial: dict[str, Mapping[str, Any]] = {}
     for lineno, line in enumerate(data.splitlines(), 1):
         if not line:
             _fail("lifecycle-framing", f"lifecycle ledger has a blank line at {lineno}")
@@ -1666,13 +3520,23 @@ def _load_lifecycle_rows(data: bytes) -> tuple[dict[str, Any], ...]:
                 _fail("lifecycle-schema", "start run_root must be a non-empty string")
             for field, pattern in (
                 ("manifest_sha256", _SHA256_RE),
+                ("prereg_commit", _COMMIT_RE),
+                ("prereg_content_commit", _COMMIT_RE),
+                ("prereg_effective_commit", _COMMIT_RE),
                 ("measurement_head", _COMMIT_RE),
                 ("activation_report_digest_sha256", _SHA256_RE),
                 ("launch_admission_sha256", _SHA256_RE),
+                ("schedule_row_sha256", _SHA256_RE),
             ):
                 raw = value[field]
                 if not isinstance(raw, str) or pattern.fullmatch(raw) is None:
                     _fail("lifecycle-schema", f"start {field} is invalid")
+            _attempt_process_identity(
+                value["process_identity"], label=f"lifecycle line {lineno}.process_identity",
+            )
+            if not value["slot_id"]:
+                _fail("lifecycle-schema", "start slot_id is empty")
+            start_by_trial[trial_id] = dict(value)
         else:
             if trial_id not in starts:
                 _fail("lifecycle-terminal", f"terminal precedes start: {trial_id}")
@@ -1681,6 +3545,25 @@ def _load_lifecycle_rows(data: bytes) -> tuple[dict[str, Any], ...]:
             terminals.add(trial_id)
             if value["terminal_status"] not in {"complete", "partial", "indeterminate"}:
                 _fail("lifecycle-schema", "terminal_status is outside the closed set")
+            start = start_by_trial[trial_id]
+            for field, pattern in (
+                ("prereg_commit", _COMMIT_RE),
+                ("prereg_content_commit", _COMMIT_RE),
+                ("prereg_effective_commit", _COMMIT_RE),
+                ("slot_id", _TRIAL_ID_RE),
+                ("classification_receipt_sha256", _SHA256_RE),
+                ("raw_output_sha256", _SHA256_RE),
+            ):
+                raw = value[field]
+                if not isinstance(raw, str) or pattern.fullmatch(raw) is None:
+                    _fail("lifecycle-schema", f"terminal {field} is invalid")
+            if (
+                value["prereg_commit"] != value["prereg_content_commit"]
+                or value["prereg_content_commit"] != start["prereg_content_commit"]
+                or value["prereg_effective_commit"] != start["prereg_effective_commit"]
+                or value["slot_id"] != start["slot_id"]
+            ):
+                _fail("lifecycle-binding", "terminal P/C/slot differs from its start")
             for field in ("report_sha256", "attempt_journal_sha256"):
                 raw = value[field]
                 if raw is not None and (
@@ -1814,6 +3697,7 @@ def record_trial_start_once(
     manifest_path: Path,
     run_root: Path,
     repository_root: Path,
+    attempt_slot: AttemptSlotCapability,
     registry_path: Path = DEFAULT_REGISTRY_PATH,
     lifecycle_path: Path = DEFAULT_LIFECYCLE_PATH,
     origin_binding: OriginBindingCapability | None = None,
@@ -1838,11 +3722,35 @@ def record_trial_start_once(
     if admission.mode != "registered-effective" or admission.binding is None:
         _fail("lifecycle-start", "only registered-effective admission may start")
     binding = admission.binding
+    _assert_attempt_capability(attempt_slot)
+    if (
+        attempt_slot.repository_root != _repository_root(repository_root)
+        or attempt_slot.trial_id != admission.trial_id
+        or attempt_slot.prereg_content_commit != binding.prereg_content_commit
+        or attempt_slot.prereg_effective_commit != binding.prereg_effective_commit
+    ):
+        _fail("lifecycle-start", "attempt slot differs from launch binding")
     admission_sha256 = hashlib.sha256(
         _canonical_json_bytes(
             launch_admission_record(admission, origin_binding=origin_binding)
         )
-    ).hexdigest()
+        ).hexdigest()
+    attempt_rows = load_attempt_registry(
+        attempt_slot.repository_root,
+        registry_path=attempt_slot.registry_path,
+        prereg_content_commit=binding.prereg_content_commit,
+        prereg_effective_commit=binding.prereg_effective_commit,
+        freeze_id=attempt_slot.freeze_id,
+    )
+    attempt_starts = [
+        item for item in attempt_rows
+        if item.get("event") == "start" and item.get("slot_id") == attempt_slot.slot_id
+    ]
+    if len(attempt_starts) != 1:
+        _fail("lifecycle-start", "attempt slot must be reserved exactly once before lifecycle start")
+    attempt_start = attempt_starts[0]
+    if attempt_start["run_start_receipt_sha256"] != admission_sha256:
+        _fail("lifecycle-start", "attempt run-start receipt differs from launch admission")
     row = {
         "schema_version": LIFECYCLE_SCHEMA_VERSION,
         "event": "start",
@@ -1850,11 +3758,17 @@ def record_trial_start_once(
         "run_root": os.path.abspath(os.fspath(run_root)),
         "mode": admission.mode,
         "manifest_sha256": binding.manifest_sha256,
+        "prereg_commit": binding.prereg_commit,
+        "prereg_content_commit": binding.prereg_content_commit,
+        "prereg_effective_commit": binding.prereg_effective_commit,
         "measurement_head": binding.measurement_head,
         "activation_report_digest_sha256": (
             admission.activation_report_digest_sha256
         ),
         "launch_admission_sha256": admission_sha256,
+        "slot_id": attempt_slot.slot_id,
+        "schedule_row_sha256": attempt_start["schedule_row_sha256"],
+        "process_identity": dict(attempt_start["process_identity"]),
     }
     raw = _canonical_json_bytes(row)
     payload = raw + b"\n"
@@ -1876,6 +3790,9 @@ def record_trial_start_once(
             run_root=row["run_root"],
             start_row_sha256=hashlib.sha256(raw).hexdigest(),
             launch_admission_sha256=admission_sha256,
+            prereg_content_commit=binding.prereg_content_commit,
+            prereg_effective_commit=binding.prereg_effective_commit,
+            slot_id=attempt_slot.slot_id,
             _seal=_TRIAL_LIFECYCLE_TOKEN_SEAL,
         )
         state = _TrialLifecycleCapabilityState(
@@ -1886,6 +3803,11 @@ def record_trial_start_once(
             run_root=row["run_root"],
             start_row_sha256=token.start_row_sha256,
             launch_admission_sha256=admission_sha256,
+            prereg_content_commit=binding.prereg_content_commit,
+            prereg_effective_commit=binding.prereg_effective_commit,
+            slot_id=attempt_slot.slot_id,
+            schedule_row_sha256=attempt_start["schedule_row_sha256"],
+            process_identity=dict(attempt_start["process_identity"]),
             origin_binding=origin_binding,
         )
         return payload, (token, state)
@@ -1956,6 +3878,28 @@ def record_trial_terminal(
                 )
         state.consumed = True
 
+    attempt_rows = load_attempt_registry(
+        state.repository_root,
+        registry_path=(
+            state.repository_root / DEFAULT_ATTEMPT_REGISTRY_PATH
+        ),
+        prereg_content_commit=state.prereg_content_commit,
+        prereg_effective_commit=state.prereg_effective_commit,
+    )
+    attempt_terminals = [
+        item for item in attempt_rows
+        if item.get("event") == "terminal" and item.get("slot_id") == state.slot_id
+    ]
+    if len(attempt_terminals) != 1:
+        _fail("lifecycle-terminal", "attempt slot terminal row is absent or ambiguous")
+    attempt_terminal = attempt_terminals[0]
+    expected_attempt_status = {
+        "complete": "observed",
+        "partial": "terminal-failure",
+        "indeterminate": "not-consumed",
+    }[terminal_status]
+    if attempt_terminal["terminal_status"] != expected_attempt_status:
+        _fail("lifecycle-terminal", "lifecycle status differs from attempt status")
     if terminal_status == "indeterminate":
         report_sha256 = None
         attempt_journal_sha256 = None
@@ -1980,6 +3924,14 @@ def record_trial_terminal(
         "terminal_status": terminal_status,
         "report_sha256": report_sha256,
         "attempt_journal_sha256": attempt_journal_sha256,
+        "prereg_commit": state.prereg_content_commit,
+        "prereg_content_commit": state.prereg_content_commit,
+        "prereg_effective_commit": state.prereg_effective_commit,
+        "slot_id": state.slot_id,
+        "classification_receipt_sha256": attempt_terminal[
+            "classification_receipt_sha256"
+        ],
+        "raw_output_sha256": attempt_terminal["raw_output_sha256"],
     }
     if projection_record is not None:
         row.update(projection_record)
@@ -2312,6 +4264,7 @@ def _receipt_lifecycle_snapshot(
     accepted_by_id: Mapping[str, AcceptedTrial],
     loaded_by_id: Mapping[str, _LoadedReport],
     activation_report_digest_sha256: str,
+    attempt_rows: Sequence[Mapping[str, Any]] | None = None,
 ) -> tuple[bytes, str]:
     lifecycle, relative = _canonical_lifecycle_target(
         lifecycle_path, repository_root, create_parent=False,
@@ -2368,6 +4321,11 @@ def _receipt_lifecycle_snapshot(
             )
         if (
             start["manifest_sha256"] != manifest.sha256
+            or start["prereg_commit"] != manifest.prereg_commit
+            or start["prereg_content_commit"]
+            != item.report.get("prereg_content_commit")
+            or item.report.get("prereg_effective_commit")
+            != start["prereg_effective_commit"]
             or start["measurement_head"] != accepted.measurement_head
             or start["activation_report_digest_sha256"]
             != activation_report_digest_sha256
@@ -2381,6 +4339,36 @@ def _receipt_lifecycle_snapshot(
                 f"trial {trial.trial_id!r} start row differs from accepted bytes",
             )
         terminal = terminals[0]
+        if attempt_rows is not None:
+            attempt_starts = [
+                row for row in attempt_rows
+                if row.get("event") == "start"
+                and row.get("slot_id") == start["slot_id"]
+            ]
+            attempt_terminals = [
+                row for row in attempt_rows
+                if row.get("event") == "terminal"
+                and row.get("slot_id") == start["slot_id"]
+            ]
+            if len(attempt_starts) != 1 or len(attempt_terminals) != 1:
+                _fail(
+                    "acceptance-lifecycle",
+                    f"trial {trial.trial_id!r} has no exact attempt slot pair",
+                )
+            attempt_start = attempt_starts[0]
+            attempt_terminal = attempt_terminals[0]
+            if (
+                start["schedule_row_sha256"] != attempt_start["schedule_row_sha256"]
+                or _canonical_json_bytes(start["process_identity"])
+                != _canonical_json_bytes(attempt_start["process_identity"])
+                or terminal["classification_receipt_sha256"]
+                != attempt_terminal["classification_receipt_sha256"]
+                or terminal["raw_output_sha256"] != attempt_terminal["raw_output_sha256"]
+            ):
+                _fail(
+                    "acceptance-lifecycle",
+                    f"trial {trial.trial_id!r} lifecycle slot artifacts differ",
+                )
         report_has_origin = "origin_terminal_projection" in item.report
         terminal_has_origin = "origin_terminal_projection" in terminal
         if report_has_origin != terminal_has_origin:
@@ -2447,20 +4435,26 @@ def _expected_registered_launch_admission_record(
     )
     if registry_bytes is None:
         _fail("historical-binding", "measurement registry blob is absent")
-    _find_registration(
+    registration = _find_registration_for_manifest(
         _load_registry_bytes(registry_bytes, label="measurement registry"),
-        _registration_for(manifest),
+        manifest,
+        allow_distinct_content_commit=True,
     )
-    assert_prereg_ancestor(
+    effective_binding = validate_preregistration_binding(
         repository_root,
-        prereg_commit=manifest.prereg_commit,
+        manifest_path=manifest_path,
+        effective_commit=registration.prereg_effective_commit,
         measurement_commit=measurement_head,
     )
+    if effective_binding.prereg_content_commit != registration.prereg_content_commit:
+        _fail("historical-binding", "measurement registry P differs from effective binding")
     if manifest_relative == registry_relative:
         _fail("historical-binding", "manifest and registry paths alias")
     binding = {
         "manifest_sha256": manifest.sha256,
         "prereg_commit": manifest.prereg_commit,
+        "prereg_content_commit": registration.prereg_content_commit,
+        "prereg_effective_commit": registration.prereg_effective_commit,
         "measurement_head": measurement_head,
         "trial_id": trial.trial_id,
         "arm": trial.arm,
@@ -2476,6 +4470,8 @@ def _expected_registered_launch_admission_record(
         "trial_id": trial.trial_id,
         "workloads": [workload],
         "binding": binding,
+        "prereg_content_commit": registration.prereg_content_commit,
+        "prereg_effective_commit": registration.prereg_effective_commit,
         "activation_report_digest_sha256": activation_report_digest_sha256,
     }
     if origin_binding_record is not None:
@@ -2600,26 +4596,24 @@ def assert_trial_registry_acceptance(
         registry_path=Path(registry_path),
         commit_id=current_head,
     )
-    expected_registration = _registration_for(manifest)
-    _find_registration(registrations, expected_registration)
-    assert_prereg_ancestor(
+    registration = _find_registration_for_manifest(
+        registrations,
+        manifest,
+        allow_distinct_content_commit=True,
+    )
+    effective_binding = validate_preregistration_binding(
         root,
-        prereg_commit=manifest.prereg_commit,
+        manifest_path=Path(manifest_path),
+        effective_commit=registration.prereg_effective_commit,
         measurement_commit=current_head,
     )
-
+    if effective_binding.prereg_content_commit != registration.prereg_content_commit:
+        _fail("registration-binding", "registry P differs from effective binding")
     loaded: list[_LoadedReport] = []
     try:
         for path in report_paths:
             loaded.append(_read_report_and_journal(Path(path)))
-        trial_ids = [item.report.get("trial_id") for item in loaded]
-        expected_ids = {trial.trial_id for trial in manifest.trials}
-        if (
-            any(not isinstance(trial_id, str) for trial_id in trial_ids)
-            or len(set(trial_ids)) != len(trial_ids)
-            or set(trial_ids) != expected_ids
-        ):
-            _fail("trial-set", "report trial_id set is not the exact manifest trial set")
+        _assert_runtime_report_trial_set(loaded, manifest)
 
         manifest_by_id = {trial.trial_id: trial for trial in manifest.trials}
         accepted: list[AcceptedTrial] = []
@@ -2644,13 +4638,29 @@ def assert_trial_registry_acceptance(
             if len(starts) != 1:
                 _fail("run-start-binding", "journal must contain exactly one run-start event")
             start = starts[0]
-            for field in ("prereg_commit", "measurement_head", "manifest_sha256"):
+            for field in (
+                "prereg_commit", "prereg_content_commit",
+                "prereg_effective_commit", "measurement_head",
+                "manifest_sha256", "slot_id",
+            ):
                 if field not in report or field not in start or report[field] != start[field]:
                     _fail("run-start-binding", f"report/run-start mismatch or missing field: {field}")
             if report["prereg_commit"] != manifest.prereg_commit:
                 _fail("acceptance-binding", "report prereg_commit differs from manifest")
+            if report["prereg_content_commit"] != registration.prereg_content_commit:
+                _fail(
+                    "acceptance-binding",
+                    "report prereg_content_commit differs from registry",
+                )
+            if report["prereg_effective_commit"] != registration.prereg_effective_commit:
+                _fail(
+                    "acceptance-binding",
+                    "report prereg_effective_commit differs from registry",
+                )
             if report["manifest_sha256"] != manifest.sha256:
                 _fail("acceptance-binding", "report manifest_sha256 differs from manifest bytes")
+            if report["slot_id"] != start["slot_id"]:
+                _fail("attempt-slot", "report slot_id differs from run-start")
             measurement_head = report["measurement_head"]
             if not isinstance(measurement_head, str) or _COMMIT_RE.fullmatch(measurement_head) is None:
                 _fail("acceptance-binding", "report measurement_head is not a full commit ID")
@@ -2662,11 +4672,6 @@ def assert_trial_registry_acceptance(
                     "reports do not share one measurement_head",
                 )
             _assert_snapshot_completeness(item)
-            assert_prereg_ancestor(
-                root,
-                prereg_commit=manifest.prereg_commit,
-                measurement_commit=measurement_head,
-            )
             report_admission = report.get("launch_admission")
             start_admission = start.get("launch_admission")
             if (
@@ -2742,7 +4747,23 @@ def assert_trial_registry_acceptance(
             historical_registrations = _load_registry_bytes(
                 historical_registry, label="measurement registry",
             )
-            _find_registration(historical_registrations, expected_registration)
+            historical_registration = _find_registration_for_manifest(
+                historical_registrations,
+                manifest,
+                effective_commit=registration.prereg_effective_commit,
+                allow_distinct_content_commit=True,
+            )
+            if (
+                historical_registration.prereg_commit != registration.prereg_commit
+                or historical_registration.prereg_content_commit
+                != registration.prereg_content_commit
+                or historical_registration.prereg_effective_commit
+                != registration.prereg_effective_commit
+            ):
+                _fail(
+                    "historical-binding",
+                    "measurement registry P/C differs from current registration",
+                )
             if not current_registry_bytes.startswith(historical_registry):
                 _fail("registry-prefix", "measurement registry is not a current registry prefix")
             if measurement_head not in history_checked:
@@ -2803,6 +4824,9 @@ def assert_trial_registry_acceptance(
                     or cell.get("campaign_id") != trial.campaign_id
                 ):
                     _fail("terminal-projection", "report cell differs from manifest projection")
+            cells = _assert_runtime_report_cells(report, trial=trial)
+            if cells:
+                cell = cells[0]
                 descriptor = cell.get("descriptor")
                 descriptor_binding = cell.get("descriptor_binding")
                 if not isinstance(descriptor, Mapping) or not isinstance(
@@ -2844,6 +4868,14 @@ def assert_trial_registry_acceptance(
         accepted.sort(key=lambda accepted_trial: accepted_trial.trial_id)
         accepted_by_id = {item.trial_id: item for item in accepted}
         loaded_by_id = {item.report["trial_id"]: item for item in loaded}
+        attempt_rows = assert_attempt_registry_acceptance(
+            repository_root=root,
+            manifest_path=Path(manifest_path),
+            manifest=manifest,
+            effective_binding=effective_binding,
+            effective_commit=registration.prereg_effective_commit,
+            report_paths=report_paths,
+        )
         lifecycle_bytes, lifecycle_relative = _receipt_lifecycle_snapshot(
             repository_root=root,
             lifecycle_path=Path(lifecycle_path),
@@ -2853,6 +4885,7 @@ def assert_trial_registry_acceptance(
             activation_report_digest_sha256=(
                 effective_preregistration.report_digest_sha256
             ),
+            attempt_rows=attempt_rows,
         )
         introduction_commit = _registry_introduction_commit(
             repository_root=root,
@@ -2967,10 +5000,18 @@ def main(argv: Sequence[str] | None = None) -> int:
     register.add_argument("--manifest", required=True)
     register.add_argument("--repo-root", required=True)
     register.add_argument("--registry", required=True)
+    register.add_argument("--effective-commit", required=True)
     accept = subparsers.add_parser("accept", help="verify trial-ID completeness")
     accept.add_argument("--manifest", required=True)
     accept.add_argument("--repo-root", required=True)
     accept.add_argument("--registry", required=True)
+    accept.add_argument(
+        "--effective-commit",
+        help=(
+            "exact effective binding commit; when omitted it is derived from "
+            "the committed registration"
+        ),
+    )
     accept.add_argument("reports", nargs="+")
     args = parser.parse_args(argv)
     try:
@@ -2979,6 +5020,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 manifest_path=Path(args.manifest),
                 repository_root=Path(args.repo_root),
                 registry_path=Path(args.registry),
+                prereg_effective_commit=args.effective_commit,
             )
             output = {
                 "manifest_sha256": registration.manifest_sha256,
@@ -2987,14 +5029,36 @@ def main(argv: Sequence[str] | None = None) -> int:
             }
         else:
             manifest = load_trial_manifest(Path(args.manifest))
+            repository_root = Path(args.repo_root)
+            measurement_head = resolve_measurement_commit(repository_root)
+            registrations, _registry_bytes, _registry_relative = (
+                _load_committed_registry(
+                    repository_root=repository_root,
+                    registry_path=Path(args.registry),
+                    commit_id=measurement_head,
+                )
+            )
+            registration = _find_registration_for_manifest(
+                registrations,
+                manifest,
+                effective_commit=args.effective_commit,
+                allow_distinct_content_commit=True,
+            )
+            effective_commit = registration.prereg_effective_commit
+            validate_preregistration_binding(
+                repository_root,
+                manifest_path=Path(args.manifest),
+                effective_commit=effective_commit,
+                measurement_commit=measurement_head,
+            )
             effective = s8c_preregistration.effective_at(
-                Path(args.repo_root), manifest.prereg_commit,
+                repository_root, manifest.prereg_commit,
             )
             summary = assert_trial_registry_acceptance(
                 effective_preregistration=effective,
                 manifest_path=Path(args.manifest),
                 report_paths=[Path(path) for path in args.reports],
-                repository_root=Path(args.repo_root),
+                repository_root=repository_root,
                 registry_path=Path(args.registry),
             )
             output = _summary_dict(summary)

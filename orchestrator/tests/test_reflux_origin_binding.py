@@ -320,10 +320,47 @@ def case(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> _Case:
     _commit(repo, "trial manifest", manifest_path)
     registry_path = repo / "registry" / "registry.jsonl"
     loaded_manifest = registry.load_trial_manifest(manifest_path)
+    slots = []
+    for trial in loaded_manifest.trials:
+        identity = {
+            "trial_id": trial.trial_id,
+            "arm": trial.arm,
+            "holdout": trial.holdout,
+            "campaign_id": trial.campaign_id,
+            "replicate_index": 0,
+            "attempt_index": 0,
+        }
+        slots.append({
+            "slot_id": f"{trial.trial_id}-r0-a0",
+            **identity,
+            "schedule_row_sha256": _digest(_canonical(identity)),
+        })
+    attempt_path = registry.create_attempt_registry_genesis(
+        repository_root=repo,
+        manifest_path=manifest_path,
+        manifest_sha256=loaded_manifest.sha256,
+        freeze_id=f"freeze-{loaded_manifest.sha256[:16]}",
+        slots=slots,
+    )
+    content_commit = _commit(repo, "attempt registry genesis", attempt_path)
+    genesis = json.loads(attempt_path.read_bytes().splitlines()[0])
+    binding_path = repo / registry.DEFAULT_EFFECTIVE_BINDING_PATH
+    binding_path.parent.mkdir(parents=True, exist_ok=True)
+    binding_path.write_bytes(_canonical({
+        "schema_version": registry.EFFECTIVE_BINDING_SCHEMA_VERSION,
+        "prereg_content_commit": content_commit,
+        "manifest_path": manifest_path.relative_to(repo).as_posix(),
+        "manifest_sha256": loaded_manifest.sha256,
+        "freeze_id": genesis["freeze_id"],
+        "attempt_registry_path": registry.DEFAULT_ATTEMPT_REGISTRY_PATH.as_posix(),
+        "attempt_registry_initial_sha256": _digest(attempt_path.read_bytes()),
+    }))
+    effective_commit = _commit(repo, "effective binding", binding_path)
     registry.append_trial_registration(
         manifest_path=manifest_path,
         repository_root=repo,
         registry_path=registry_path,
+        prereg_effective_commit=effective_commit,
     )
     registry.s8c_arm_inputs.generate_off_neutral_artifacts(repository_root=repo)
     _commit(

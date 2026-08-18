@@ -81,14 +81,24 @@ _PENDING_CRITIC_DISPOSITION_KEYS = frozenset({
 _LAUNCH_ADMISSION_BASE_KEYS = frozenset({
     "mode", "certifying", "reason_code", "trial_id", "workloads",
     "binding", "activation_report_digest_sha256",
+    "prereg_content_commit", "prereg_effective_commit",
 })
+_LAUNCH_ADMISSION_EXPLORATORY_KEYS = frozenset(
+    _LAUNCH_ADMISSION_BASE_KEYS
+    - {"prereg_content_commit", "prereg_effective_commit"}
+)
 _LAUNCH_ADMISSION_KEYS = frozenset({
+    _LAUNCH_ADMISSION_EXPLORATORY_KEYS,
+    _LAUNCH_ADMISSION_EXPLORATORY_KEYS | {"origin_binding"},
+})
+_LAUNCH_ADMISSION_REGISTERED_KEYS = frozenset({
     _LAUNCH_ADMISSION_BASE_KEYS,
     _LAUNCH_ADMISSION_BASE_KEYS | {"origin_binding"},
 })
 _LAUNCH_BINDING_KEYS = frozenset({
-    "manifest_sha256", "prereg_commit", "measurement_head", "trial_id",
-    "arm", "holdout", "campaign_id", "workload", "ycsb_rratio",
+    "manifest_sha256", "prereg_commit", "prereg_content_commit",
+    "prereg_effective_commit", "measurement_head", "trial_id", "arm",
+    "holdout", "campaign_id", "workload", "ycsb_rratio",
 })
 _ORIGIN_BINDING_KEYS = frozenset({
     "authority_blob_sha256", "source_closure_sha256", "origin_id", "cell_key",
@@ -1562,11 +1572,16 @@ def _check_launch_admission_projection(
         gate="launch-admission",
         label="run-start.launch_admission",
     )
-    if frozenset(report_admission) not in _LAUNCH_ADMISSION_KEYS:
+    mode = report_admission.get("mode")
+    admission_key_sets = (
+        _LAUNCH_ADMISSION_REGISTERED_KEYS
+        if mode == "registered-effective"
+        else _LAUNCH_ADMISSION_KEYS
+    )
+    if frozenset(report_admission) not in admission_key_sets:
         _fail("launch-admission", "report launch_admission exact keys differ")
     if dict(start_admission) != dict(report_admission):
         _fail("launch-admission", "run-start/report launch_admission differs")
-    mode = report_admission.get("mode")
     if mode not in {
         "registered-effective", "explicit-unregistered-exploratory",
     }:

@@ -191,6 +191,17 @@ _VOLATILE_ACCEPTANCE_LIFECYCLE_SHA = ("acceptance", "lifecycle_prefix_sha256")
 _VOLATILE_ACCEPTANCE_REPORT_SHA = ("acceptance", "trials", "*", "report_sha256")
 # Acceptance journal digests transitively cover volatile journal leaves above.
 _VOLATILE_ACCEPTANCE_JOURNAL_SHA = ("acceptance", "trials", "*", "attempt_journal_sha256")
+# Attempt output digests cover the journal's wall clock and temporary paths.
+_VOLATILE_REPORT_RAW_OUTPUT_SHA = ("reports", "*", "raw_output_sha256")
+_VOLATILE_LIFECYCLE_CLASSIFICATION_SHA = (
+    "lifecycle", "*", "classification_receipt_sha256",
+)
+_VOLATILE_LIFECYCLE_RAW_OUTPUT_SHA = (
+    "lifecycle", "*", "raw_output_sha256",
+)
+_VOLATILE_LIFECYCLE_PROCESS_IDENTITY = (
+    "lifecycle", "*", "process_identity", "*",
+)
 
 _VOLATILE_LEAF_PATHS = frozenset({
     _VOLATILE_ROLE_TS,
@@ -210,6 +221,10 @@ _VOLATILE_LEAF_PATHS = frozenset({
     _VOLATILE_ACCEPTANCE_LIFECYCLE_SHA,
     _VOLATILE_ACCEPTANCE_REPORT_SHA,
     _VOLATILE_ACCEPTANCE_JOURNAL_SHA,
+    _VOLATILE_REPORT_RAW_OUTPUT_SHA,
+    _VOLATILE_LIFECYCLE_CLASSIFICATION_SHA,
+    _VOLATILE_LIFECYCLE_RAW_OUTPUT_SHA,
+    _VOLATILE_LIFECYCLE_PROCESS_IDENTITY,
 })
 
 # campaign identity は main の identity contract の進行で変わる値であり、
@@ -289,6 +304,180 @@ def _normalize_main_derived_leaves(
 _PRE_WAVE_ORIGINLESS_BASELINE = _normalize_main_derived_leaves(
     _PRE_WAVE_ORIGINLESS_BASELINE
 )
+
+
+def _extend_t1353_originless_baseline(
+    baseline: dict[str, list[list[object]]],
+) -> None:
+    """Freeze the required registry/receipt fields introduced by T1353."""
+
+    def set_keys(path: str, keys: list[str]) -> None:
+        for run in baseline[path]:
+            assert type(run[0]) is dict
+            run[0]["dict_keys"] = list(keys)
+
+    def set_value(path: str, value: object, count: int) -> None:
+        baseline[path] = [[value, count]]
+
+    set_keys("reports/*", [
+        "attempt_journal", "attempt_journal_sha256", "cells", "claim_scope",
+        "do_build", "finished_at", "generation_budget_per_workload",
+        "launch_admission", "manifest_sha256", "measurement_head",
+        "observation_sha256", "prereg_commit", "prereg_content_commit",
+        "prereg_effective_commit", "primary_value", "provider",
+        "raw_output_sha256", "schema_version", "slot_id", "started_at",
+        "status", "stop_policy", "trial_id", "workloads_requested",
+    ])
+    set_keys("reports/*/launch_admission", [
+        "activation_report_digest_sha256", "binding", "certifying", "mode",
+        "prereg_content_commit", "prereg_effective_commit", "reason_code",
+        "trial_id", "workloads",
+    ])
+    set_keys("reports/*/launch_admission/binding", [
+        "arm", "campaign_id", "holdout", "manifest_sha256",
+        "measurement_head", "prereg_commit", "prereg_content_commit",
+        "prereg_effective_commit", "trial_id", "workload", "ycsb_rratio",
+    ])
+    baseline["reports/*/observation_sha256"] = [
+        ["bea0a71ac66674c287517ae35ad43eb8a1c97d8ed0f533418224e6740c20f908", 1],
+        ["6bf099fe6e935d92a01ab92801ddea607a70edb86f721ae0ba47eee256059a1c", 1],
+        ["8e6f1edefca06c4908c84ac0b96e515749998ada48b332d350630d2ed5b53782", 1],
+        ["9733d8e7a4a0e9096b84cf6903a1f16aee27dc32b441383637661ded65b2ea05", 1],
+        ["64d0584cd6b17f3ef34f111b71a89a0763463b08021221c2ef53a0a7638cfc7b", 1],
+        ["eed5d0119de7753d698fce45fdb681ea97b974e00a698383e38cd9aced694018", 1],
+    ]
+    set_value(
+        "reports/*/prereg_content_commit",
+        "33195a0c9910db9c7ac41a853e40bc137b91afd4",
+        6,
+    )
+    set_value(
+        "reports/*/prereg_effective_commit",
+        "e6a5bbbe2bec696c41ebf970dc18459aaae29887",
+        6,
+    )
+    set_value("reports/*/primary_value", 0.0, 6)
+    set_value("reports/*/raw_output_sha256", {"volatile": True}, 6)
+    baseline["reports/*/slot_id"] = [
+        ["t325-h1-on-r0-a0", 1], ["t325-h1-off-r0-a0", 1],
+        ["t325-h1-swapped-r0-a0", 1], ["t325-h2-on-r0-a0", 1],
+        ["t325-h2-off-r0-a0", 1], ["t325-h2-swapped-r0-a0", 1],
+    ]
+    for path, value in (
+        ("reports/*/launch_admission/prereg_content_commit", "33195a0c9910db9c7ac41a853e40bc137b91afd4"),
+        ("reports/*/launch_admission/prereg_effective_commit", "e6a5bbbe2bec696c41ebf970dc18459aaae29887"),
+        ("reports/*/launch_admission/binding/prereg_content_commit", "33195a0c9910db9c7ac41a853e40bc137b91afd4"),
+        ("reports/*/launch_admission/binding/prereg_effective_commit", "e6a5bbbe2bec696c41ebf970dc18459aaae29887"),
+    ):
+        set_value(path, value, 6)
+
+    journal_runs = baseline["journals/*/*"]
+    run_start_keys = [
+        "do_build", "event", "generation_budget_per_workload",
+        "launch_admission", "manifest_sha256", "max_wall_s",
+        "measurement_head", "performance_early_stop", "prereg_commit",
+        "prereg_content_commit", "prereg_effective_commit", "provider",
+        "schema_version", "scientific_claim", "seq", "slot_id", "trial_id",
+        "ts", "workloads",
+    ]
+    for index in range(0, len(journal_runs), 3):
+        journal_runs[index][0]["dict_keys"] = list(run_start_keys)
+    set_keys("journals/*/*/launch_admission", [
+        "activation_report_digest_sha256", "binding", "certifying", "mode",
+        "prereg_content_commit", "prereg_effective_commit", "reason_code",
+        "trial_id", "workloads",
+    ])
+    set_keys("journals/*/*/launch_admission/binding", [
+        "arm", "campaign_id", "holdout", "manifest_sha256",
+        "measurement_head", "prereg_commit", "prereg_content_commit",
+        "prereg_effective_commit", "trial_id", "workload", "ycsb_rratio",
+    ])
+    set_value(
+        "journals/*/*/prereg_content_commit",
+        "33195a0c9910db9c7ac41a853e40bc137b91afd4",
+        6,
+    )
+    set_value(
+        "journals/*/*/prereg_effective_commit",
+        "e6a5bbbe2bec696c41ebf970dc18459aaae29887",
+        6,
+    )
+    baseline["journals/*/*/slot_id"] = [
+        ["t325-h1-on-r0-a0", 1], ["t325-h1-off-r0-a0", 1],
+        ["t325-h1-swapped-r0-a0", 1], ["t325-h2-on-r0-a0", 1],
+        ["t325-h2-off-r0-a0", 1], ["t325-h2-swapped-r0-a0", 1],
+    ]
+    for path, value in (
+        ("journals/*/*/launch_admission/prereg_content_commit", "33195a0c9910db9c7ac41a853e40bc137b91afd4"),
+        ("journals/*/*/launch_admission/prereg_effective_commit", "e6a5bbbe2bec696c41ebf970dc18459aaae29887"),
+        ("journals/*/*/launch_admission/binding/prereg_content_commit", "33195a0c9910db9c7ac41a853e40bc137b91afd4"),
+        ("journals/*/*/launch_admission/binding/prereg_effective_commit", "e6a5bbbe2bec696c41ebf970dc18459aaae29887"),
+    ):
+        set_value(path, value, 6)
+
+    lifecycle_runs = baseline["lifecycle/*"]
+    lifecycle_start_keys = [
+        "activation_report_digest_sha256", "event", "launch_admission_sha256",
+        "manifest_sha256", "measurement_head", "mode", "prereg_commit",
+        "prereg_content_commit", "prereg_effective_commit", "process_identity",
+        "run_root", "schedule_row_sha256", "schema_version", "slot_id",
+        "trial_id",
+    ]
+    lifecycle_terminal_keys = [
+        "attempt_journal_sha256", "classification_receipt_sha256", "event",
+        "prereg_commit", "prereg_content_commit", "prereg_effective_commit",
+        "raw_output_sha256", "report_sha256", "schema_version", "slot_id",
+        "terminal_status", "trial_id",
+    ]
+    for index, run in enumerate(lifecycle_runs):
+        run[0]["dict_keys"] = list(
+            lifecycle_start_keys if index % 2 == 0 else lifecycle_terminal_keys
+        )
+    baseline["lifecycle/*/prereg_commit"] = [
+        ["bcb3912d3380451505a2cd5de3138e310dd659b6", 1],
+        ["33195a0c9910db9c7ac41a853e40bc137b91afd4", 1],
+    ] * 6
+    set_value(
+        "lifecycle/*/prereg_content_commit",
+        "33195a0c9910db9c7ac41a853e40bc137b91afd4",
+        12,
+    )
+    set_value(
+        "lifecycle/*/prereg_effective_commit",
+        "e6a5bbbe2bec696c41ebf970dc18459aaae29887",
+        12,
+    )
+    set_value("lifecycle/*/schema_version", "p3-8c-trial-lifecycle/v2", 12)
+    set_value(
+        "lifecycle/*/process_identity",
+        {"dict_keys": ["execution_uuid", "pid", "starttime"]},
+        6,
+    )
+    for field in ("execution_uuid", "pid", "starttime"):
+        set_value(f"lifecycle/*/process_identity/{field}", {"volatile": True}, 6)
+    set_value(
+        "lifecycle/*/classification_receipt_sha256",
+        {"volatile": True},
+        6,
+    )
+    set_value("lifecycle/*/raw_output_sha256", {"volatile": True}, 6)
+    baseline["lifecycle/*/schedule_row_sha256"] = [
+        ["d83fdce97d7e198df9c2345d2a8bfffd2493188b46629da6ea0e81d13fa782a9", 1],
+        ["cc739a1e1632a09b9a33f44adddf55c655774d8c1fd7c0926cbdab673a1ab935", 1],
+        ["a97767436d46db5c45f376884251e35f63d6ccae8c6c189f1195849f6b54bb51", 1],
+        ["6b7b2cef8c6a68e469059d796098976b66f28f5993e7b1654e939dbf616148bd", 1],
+        ["75906d3564ca6a05d92881c34e81376be1211229ad2d3925ccd7c48bb615847a", 1],
+        ["6df22448624eb7e906377d0312bf207438de32d38f5af512e6a648147c98645b", 1],
+    ]
+    baseline["lifecycle/*/slot_id"] = [
+        ["t325-h1-on-r0-a0", 2], ["t325-h1-off-r0-a0", 2],
+        ["t325-h1-swapped-r0-a0", 2], ["t325-h2-on-r0-a0", 2],
+        ["t325-h2-off-r0-a0", 2], ["t325-h2-swapped-r0-a0", 2],
+    ]
+    baseline["acceptance/lifecycle_prefix_bytes"] = [[11364, 1]]
+
+
+_extend_t1353_originless_baseline(_PRE_WAVE_ORIGINLESS_BASELINE)
 
 
 def _assert_same_structure(left: object, right: object, path=()) -> None:

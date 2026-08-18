@@ -473,6 +473,180 @@ def run_trial(*, arm, digest):
     return _invocation_namespace(arm=arm, digest=digest)
 """
 
+TOKEN_ONLY_C03_REGISTRY = """
+MANIFEST_SCHEMA_VERSION = "manifest.v1"
+REGISTRATION_SCHEMA_VERSION = "registration.v1"
+DEFAULT_ATTEMPT_REGISTRY_PATH = "attempt-registry.jsonl"
+ATTEMPT_REGISTRY_SCHEMA_VERSION = "attempt-registry.v1"
+ATTEMPT_STATUSES = ("observed", "retryable-failure", "terminal-failure", "not-consumed")
+ATTEMPT_RETRYABLE_FAILURE_REASONS = ("provider-transient",)
+def load_trial_manifest(path):
+    return path
+def load_effective_binding_at_commit(repository_root, effective_commit, manifest_path):
+    return (repository_root, effective_commit, manifest_path)
+def validate_preregistration_binding(repository_root, *, manifest_path, effective_commit, measurement_commit):
+    return load_effective_binding_at_commit(
+        repository_root, effective_commit, manifest_path
+    )
+def _trial_canonical_tuple(trial):
+    return (
+        trial.trial_id,
+        trial.arm,
+        trial.holdout,
+        trial.campaign_id,
+        trial.generations,
+    )
+def _assert_manifest_registry_trial_set(manifest, registration):
+    expected = tuple(_trial_canonical_tuple(item) for item in manifest.trials)
+    actual = tuple(_trial_canonical_tuple(item) for item in registration.trials)
+    if len(actual) != len(expected) or set(actual) != set(expected):
+        raise ValueError("manifest registry set mismatch")
+def _assert_runtime_report_trial_set(loaded, manifest):
+    ids = [item.report.get("trial_id") for item in loaded]
+    return set(ids) == {trial.trial_id for trial in manifest.trials}
+def _assert_runtime_report_cells(report, *, trial):
+    cells = report.get("cells")
+    if not isinstance(cells, list) or len(cells) > 1:
+        raise ValueError("runtime cells mismatch")
+    if cells:
+        cell = cells[0]
+        flags = cell.get("workload_flags")
+        if (
+            cell.get("workload") != "workload"
+            or not isinstance(flags, dict)
+            or flags.get("ycsb_rratio") != "50"
+            or cell.get("campaign_id") != trial.campaign_id
+        ):
+            raise ValueError("runtime cell projection mismatch")
+    return cells
+def _find_registration_for_manifest(registrations, manifest, *, effective_commit=None):
+    registration = registrations[0]
+    _assert_manifest_registry_trial_set(manifest, registration)
+    return registration
+def load_attempt_registry(*args, **kwargs):
+    return ()
+def assert_attempt_registry_acceptance(*, report, trial):
+    rows = load_attempt_registry()
+    return rows
+def assert_trial_registry_acceptance(*, manifest_path, registration, loaded, report):
+    manifest = load_trial_manifest(manifest_path)
+    binding = validate_preregistration_binding(
+        None,
+        manifest_path=manifest_path,
+        effective_commit=registration.prereg_effective_commit,
+        measurement_commit=registration.measurement_head,
+    )
+    selected = _find_registration_for_manifest(
+        [registration], manifest, effective_commit=registration.prereg_effective_commit
+    )
+    _assert_runtime_report_trial_set(loaded, manifest)
+    _assert_runtime_report_cells(report, trial=manifest.trials[0])
+    assert_attempt_registry_acceptance(report=report, trial=manifest.trials[0])
+    return {
+        "manifest_sha256": selected.manifest_sha256,
+        "prereg_content_commit": selected.prereg_content_commit,
+        "prereg_effective_commit": selected.prereg_effective_commit,
+        "trials": manifest.trials,
+        "cells": report.get("cells"),
+        "binding": binding,
+    }
+def create_attempt_registry_genesis(*args, **kwargs):
+    pass
+def reserve_attempt_slot(*args, **kwargs):
+    pass
+def classify_attempt(*args, **kwargs):
+    pass
+def record_attempt_terminal(*args, **kwargs):
+    pass
+"""
+
+TOKEN_ONLY_C03_PRODUCER = """
+from . import trial_registry
+def _reserve_registered_attempt_slot():
+    return trial_registry.reserve_attempt_slot()
+def read_observation():
+    return "observation"
+def run_trial():
+    slot = _reserve_registered_attempt_slot()
+    value = read_observation()
+    return slot, value
+"""
+
+TOKEN_ONLY_C08_REGISTRY = """
+def _blob_at_commit(repository_root, *, commit_id, relative_path):
+    return (repository_root, commit_id, relative_path)
+def _assert_ancestor(repository_root, *, ancestor, descendant, gate, message):
+    return (repository_root, ancestor, descendant, gate, message)
+def assert_effective_commit_exact_parent(repository_root, *, content_commit, effective_commit):
+    return (repository_root, content_commit, effective_commit)
+def load_effective_binding_at_commit(repository_root, effective_commit, manifest_path, manifest=None):
+    binding_blob = _blob_at_commit(
+        repository_root,
+        commit_id=effective_commit,
+        relative_path="output/s8c-preregistration/prereg-effective-binding.v1.json",
+    )
+    return binding_blob
+def validate_preregistration_binding(
+    repository_root, *, manifest_path, effective_commit, measurement_commit
+):
+    binding = load_effective_binding_at_commit(
+        repository_root, effective_commit, manifest_path
+    )
+    _assert_ancestor(
+        repository_root,
+        ancestor=manifest.prereg_commit,
+        descendant=binding.prereg_content_commit,
+        gate="ancestry",
+        message="manifest ancestry",
+    )
+    assert_effective_commit_exact_parent(
+        repository_root,
+        content_commit=binding.prereg_content_commit,
+        effective_commit=effective_commit,
+    )
+    _assert_ancestor(
+        repository_root,
+        ancestor=effective_commit,
+        descendant=measurement_commit,
+        gate="ancestry",
+        message="measurement ancestry",
+    )
+    return binding
+def _derive_launch_binding(*, manifest_path, registration, measurement_head):
+    return validate_preregistration_binding(
+        None,
+        manifest_path=manifest_path,
+        effective_commit=registration.prereg_effective_commit,
+        measurement_commit=measurement_head,
+    )
+def load_launch_binding(*, manifest_path, registration, measurement_head):
+    return _derive_launch_binding(
+        manifest_path=manifest_path,
+        registration=registration,
+        measurement_head=measurement_head,
+    )
+def admit_registered_launch(*, manifest_path, registration, measurement_head):
+    return load_launch_binding(
+        manifest_path=manifest_path,
+        registration=registration,
+        measurement_head=measurement_head,
+    )
+def _expected_registered_launch_admission_record(*, manifest_path, registration, measurement_head):
+    return validate_preregistration_binding(
+        None,
+        manifest_path=manifest_path,
+        effective_commit=registration.prereg_effective_commit,
+        measurement_commit=measurement_head,
+    )
+def assert_trial_registry_acceptance(*, manifest_path, registration, measurement_head):
+    return validate_preregistration_binding(
+        None,
+        manifest_path=manifest_path,
+        effective_commit=registration.prereg_effective_commit,
+        measurement_commit=measurement_head,
+    )
+"""
+
 TOKEN_ONLY_C04 = """
 from .trial_registry import forbid_trial_restart
 def launch_cells(): pass
@@ -678,6 +852,25 @@ def _negative_control_case(
         )
         assert mutated.count(collision_token) == 1
         return sources, p3, mutated
+    if identifier == "nc_c03_manifest_cell_removed":
+        sources = {
+            registry: TOKEN_ONLY_C03_REGISTRY,
+            p3: TOKEN_ONLY_C03_PRODUCER,
+        }
+        anchor = "    expected = tuple(_trial_canonical_tuple(item) for item in manifest.trials)\n"
+        replacement = "    expected = tuple()\n"
+        assert TOKEN_ONLY_C03_REGISTRY.count(anchor) == 1
+        mutated = TOKEN_ONLY_C03_REGISTRY.replace(anchor, replacement, 1)
+        assert mutated.count(replacement) == 1
+        return sources, registry, mutated
+    if identifier == "nc_c08_parent_commit_substitution":
+        sources = {registry: TOKEN_ONLY_C08_REGISTRY}
+        anchor = "        ancestor=effective_commit,\n"
+        replacement = "        ancestor=registration.prereg_content_commit,\n"
+        assert TOKEN_ONLY_C08_REGISTRY.count(anchor) == 1
+        mutated = TOKEN_ONLY_C08_REGISTRY.replace(anchor, replacement, 1)
+        assert mutated.count(replacement) == 1
+        return sources, registry, mutated
     if identifier == "nc_c04_partial_crash_survives":
         sources = {p3: TOKEN_ONLY_C04, registry: "def forbid_trial_restart(): pass\n"}
         return sources, p3, TOKEN_ONLY_C04.replace(
@@ -743,6 +936,12 @@ NEGATIVE_CONTROL_CASES = {
 }
 
 
+STATIC_NEGATIVE_CONTROL_CASES = {
+    "nc_c03_manifest_cell_removed": "C03",
+    "nc_c08_parent_commit_substitution": "C08",
+}
+
+
 def test_c02_negative_control_collides_two_arms_by_one_namespace_token() -> None:
     _, mutated_path, mutated_source = _negative_control_case(
         "nc_c02_proposal_path_arm_collision"
@@ -764,7 +963,12 @@ def test_c02_negative_control_collides_two_arms_by_one_namespace_token() -> None
 
 
 def _terminal_result(
-    tmp_path: Path, name: str, identifier: str, sources: dict[str, str]
+    tmp_path: Path,
+    name: str,
+    identifier: str,
+    sources: dict[str, str],
+    *,
+    expected_reason: str = "completion-proof-not-machine-checkable",
 ) -> tuple[Path, str, core.PredicateResult]:
     root = _init_repo(tmp_path, name)
     for path, source in sources.items():
@@ -772,7 +976,7 @@ def _terminal_result(
     head = _commit(root, name)
     result = _result(root, head, identifier)
     assert result.status is core.PredicateStatus.EVIDENCE_UNDEFINED
-    assert result.reason_code == "completion-proof-not-machine-checkable"
+    assert result.reason_code == expected_reason
     return root, head, result
 
 
@@ -1995,6 +2199,21 @@ def test_satisfiable_predicate_requires_negative_control() -> None:
     }
 
 
+def test_static_negative_controls_equal_non_machine_contract_controls() -> None:
+    contract = M.load_contract_bytes(CONTRACT_FILE.read_bytes())
+    expected = {
+        condition.negative_control_id: f"C{condition.condition_number:02d}"
+        for condition in contract.conditions
+        if not condition.machine_checkable and condition.condition_number in (3, 8)
+    }
+    assert expected == {
+        "nc_c03_manifest_cell_removed": "C03",
+        "nc_c08_parent_commit_substitution": "C08",
+    }
+    assert STATIC_NEGATIVE_CONTROL_CASES == expected
+    assert set(STATIC_NEGATIVE_CONTROL_CASES).isdisjoint(NEGATIVE_CONTROL_CASES)
+
+
 @pytest.mark.parametrize(
     ("negative_control_id", "identifier"),
     tuple(NEGATIVE_CONTROL_CASES.items()),
@@ -2049,6 +2268,232 @@ def test_runtime_satisfiable_allowlist_rejects_unlisted_evaluator_success(
     result = _result(root, head, "C02")
     assert result.status is core.PredicateStatus.ERROR
     assert result.reason_code == "evaluator-internal-error"
+
+
+def test_non_machine_c03_satisfied_is_rejected_by_runtime_allowlist(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    root = _init_repo(tmp_path)
+    head = _commit(root, "spuriously satisfied non-machine C03")
+
+    def spuriously_satisfied(probe: M._ConditionProbe) -> core.PredicateResult:
+        return M._result(
+            probe,
+            core.PredicateStatus.SATISFIED,
+            M.ReasonCode.MANIFEST_REGISTRY_PROOF_UNDEFINED,
+        )
+
+    monkeypatch.setattr(M, "_evaluate_c03", spuriously_satisfied)
+    result = _result(root, head, "C03")
+    assert result.status is core.PredicateStatus.ERROR
+    assert result.reason_code == "evaluator-internal-error"
+
+
+def test_non_machine_c08_satisfied_is_rejected_by_runtime_allowlist(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    root = _init_repo(tmp_path)
+    head = _commit(root, "spuriously satisfied non-machine C08")
+
+    def spuriously_satisfied(probe: M._ConditionProbe) -> core.PredicateResult:
+        return M._result(
+            probe,
+            core.PredicateStatus.SATISFIED,
+            M.ReasonCode.PREREG_BINDING_PROOF_UNDEFINED,
+        )
+
+    monkeypatch.setattr(M, "_evaluate_c08", spuriously_satisfied)
+    result = _result(root, head, "C08")
+    assert result.status is core.PredicateStatus.ERROR
+    assert result.reason_code == "evaluator-internal-error"
+
+
+def test_c03_negative_control_rejects_manifest_cell_check_removal(
+    tmp_path: Path,
+) -> None:
+    sources, mutated_path, mutated_source = _negative_control_case(
+        "nc_c03_manifest_cell_removed"
+    )
+    root = _init_repo(tmp_path)
+    for path, source in sources.items():
+        _write(root, path, source)
+    token_only = _commit(root, "token only C03")
+    token_result = _result(root, token_only, "C03")
+    assert token_result.status is core.PredicateStatus.EVIDENCE_UNDEFINED
+    assert token_result.reason_code == "manifest-registry-proof-undefined"
+
+    _write(root, mutated_path, mutated_source)
+    mutated = _commit(root, "mutated token only nc_c03_manifest_cell_removed")
+    result = _result(root, mutated, "C03")
+    assert result.status is core.PredicateStatus.UNSATISFIED
+    assert result.reason_code == "manifest-registry-proof-undefined"
+
+
+def test_c08_negative_control_rejects_parent_commit_substitution(
+    tmp_path: Path,
+) -> None:
+    sources, mutated_path, mutated_source = _negative_control_case(
+        "nc_c08_parent_commit_substitution"
+    )
+    root = _init_repo(tmp_path)
+    for path, source in sources.items():
+        _write(root, path, source)
+    token_only = _commit(root, "token only C08")
+    token_result = _result(root, token_only, "C08")
+    assert token_result.status is core.PredicateStatus.EVIDENCE_UNDEFINED
+    assert token_result.reason_code == "prereg-binding-proof-undefined"
+
+    _write(root, mutated_path, mutated_source)
+    mutated = _commit(root, "mutated token only nc_c08_parent_commit_substitution")
+    result = _result(root, mutated, "C08")
+    assert result.status is core.PredicateStatus.UNSATISFIED
+    assert result.reason_code == "prereg-binding-proof-undefined"
+
+
+def test_c03_acceptance_legacy_bypass_is_unsatisfied(tmp_path: Path) -> None:
+    sources = {
+        "orchestrator/campaign/trial_registry.py": TOKEN_ONLY_C03_REGISTRY,
+        "orchestrator/campaign/p3_autonomous_workload_trial.py": TOKEN_ONLY_C03_PRODUCER,
+    }
+    root, _, _ = _terminal_result(
+        tmp_path,
+        "c03-legacy-baseline",
+        "C03",
+        sources,
+        expected_reason="manifest-registry-proof-undefined",
+    )
+    anchor = "def assert_trial_registry_acceptance(*, manifest_path, registration, loaded, report):\n"
+    assert TOKEN_ONLY_C03_REGISTRY.count(anchor) == 1
+    mutated_source = TOKEN_ONLY_C03_REGISTRY.replace(
+        anchor,
+        anchor + "    if legacy_mode:\n        return old_acceptance()\n",
+        1,
+    )
+    _write(root, "orchestrator/campaign/trial_registry.py", mutated_source)
+    head = _commit(root, "C03 legacy acceptance bypass")
+    result = _result(root, head, "C03")
+    assert result.status is core.PredicateStatus.UNSATISFIED
+    assert result.reason_code == "manifest-registry-proof-undefined"
+
+
+def test_c03_acceptance_requires_independent_runtime_cell_route(
+    tmp_path: Path,
+) -> None:
+    sources = {
+        "orchestrator/campaign/trial_registry.py": TOKEN_ONLY_C03_REGISTRY,
+        "orchestrator/campaign/p3_autonomous_workload_trial.py": TOKEN_ONLY_C03_PRODUCER,
+    }
+    root, _, _ = _terminal_result(
+        tmp_path,
+        "c03-cell-route-baseline",
+        "C03",
+        sources,
+        expected_reason="manifest-registry-proof-undefined",
+    )
+    anchor = "    _assert_runtime_report_cells(report, trial=manifest.trials[0])\n"
+    assert TOKEN_ONLY_C03_REGISTRY.count(anchor) == 1
+    mutated_source = TOKEN_ONLY_C03_REGISTRY.replace(anchor, "", 1)
+    _write(root, "orchestrator/campaign/trial_registry.py", mutated_source)
+    head = _commit(root, "C03 runtime cell route removed")
+    result = _result(root, head, "C03")
+    assert result.status is core.PredicateStatus.UNSATISFIED
+    assert result.reason_code == "manifest-registry-proof-undefined"
+
+
+def test_c03_noop_helpers_do_not_prove_manifest_registry(tmp_path: Path) -> None:
+    names = (
+        "load_trial_manifest",
+        "load_effective_binding_at_commit",
+        "validate_preregistration_binding",
+        "_find_registration_for_manifest",
+        "_assert_manifest_registry_trial_set",
+        "_assert_runtime_report_trial_set",
+        "_assert_runtime_report_cells",
+        "load_attempt_registry",
+        "reserve_attempt_slot",
+        "assert_trial_registry_acceptance",
+    )
+    noop = "\n".join(
+        f"def {name}(*args, **kwargs): pass" for name in names
+    ) + "\n"
+    root = _init_repo(tmp_path)
+    _write(root, "orchestrator/campaign/trial_registry.py", noop)
+    _write(
+        root,
+        "orchestrator/campaign/p3_autonomous_workload_trial.py",
+        TOKEN_ONLY_C03_PRODUCER,
+    )
+    head = _commit(root, "C03 noop helpers")
+    result = _result(root, head, "C03")
+    assert result.status is core.PredicateStatus.UNSATISFIED
+    assert result.reason_code == "manifest-registry-proof-undefined"
+
+
+def test_c08_noop_helpers_do_not_prove_prereg_binding(tmp_path: Path) -> None:
+    names = (
+        "_blob_at_commit",
+        "_assert_ancestor",
+        "assert_effective_commit_exact_parent",
+        "load_effective_binding_at_commit",
+        "validate_preregistration_binding",
+        "_derive_launch_binding",
+        "load_launch_binding",
+        "admit_registered_launch",
+        "assert_trial_registry_acceptance",
+    )
+    noop = "\n".join(
+        f"def {name}(*args, **kwargs): pass" for name in names
+    ) + "\n"
+    root = _init_repo(tmp_path)
+    _write(root, "orchestrator/campaign/trial_registry.py", noop)
+    head = _commit(root, "C08 noop helpers")
+    result = _result(root, head, "C08")
+    assert result.status is core.PredicateStatus.UNSATISFIED
+    assert result.reason_code == "prereg-binding-proof-undefined"
+
+
+def test_c03_dispatch_trace_never_calls_machine_evaluator(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    calls: list[str] = []
+
+    def traced(probe: M._ConditionProbe) -> core.PredicateResult:
+        calls.append(probe.contract.identifier)
+        return M._result(
+            probe,
+            core.PredicateStatus.SATISFIED,
+            M.ReasonCode.COMPLETION_PROOF_NOT_MACHINE_CHECKABLE,
+        )
+
+    monkeypatch.setitem(M._MACHINE_EVALUATORS, 3, traced)
+    root = _init_repo(tmp_path)
+    head = _commit(root, "C03 dispatch trace")
+    result = _result(root, head, "C03")
+    assert calls == []
+    assert result.status is core.PredicateStatus.EVIDENCE_UNDEFINED
+    assert result.reason_code == "trial-registry-capability-absent"
+
+
+def test_c08_dispatch_trace_never_calls_machine_evaluator(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    calls: list[str] = []
+
+    def traced(probe: M._ConditionProbe) -> core.PredicateResult:
+        calls.append(probe.contract.identifier)
+        return M._result(
+            probe,
+            core.PredicateStatus.SATISFIED,
+            M.ReasonCode.COMPLETION_PROOF_NOT_MACHINE_CHECKABLE,
+        )
+
+    monkeypatch.setitem(M._MACHINE_EVALUATORS, 8, traced)
+    root = _init_repo(tmp_path)
+    head = _commit(root, "C08 dispatch trace")
+    result = _result(root, head, "C08")
+    assert calls == []
+    assert result.status is core.PredicateStatus.EVIDENCE_UNDEFINED
+    assert result.reason_code == "prereg-binding-capability-absent"
 
 
 def test_evidence_reads_commit_blob_not_dirty_worktree(tmp_path: Path) -> None:
@@ -2131,6 +2576,24 @@ def test_machine_checkable_condition_without_evaluator_is_error(tmp_path: Path) 
     head = _commit(root, "C03 falsely marked machine checkable")
 
     result = _result(root, head, "C03")
+    assert result.status is core.PredicateStatus.ERROR
+    assert result.reason_code == "commit-blob-read-error"
+
+
+def test_historical_c08_machine_checkable_contract_fails_closed(
+    tmp_path: Path,
+) -> None:
+    value = json.loads(CONTRACT_FILE.read_bytes())
+    value["conditions"][7]["machine_checkable"] = True
+    root = _init_repo(tmp_path)
+    _write(
+        root,
+        core.EVIDENCE_CONTRACT_PATH,
+        json.dumps(value, ensure_ascii=False).encode("utf-8"),
+    )
+    head = _commit(root, "C08 falsely marked machine checkable")
+
+    result = _result(root, head, "C08")
     assert result.status is core.PredicateStatus.ERROR
     assert result.reason_code == "commit-blob-read-error"
 

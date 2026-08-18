@@ -5262,6 +5262,54 @@ def _t325_git(repo: Path, *args: str) -> str:
     return completed.stdout.strip()
 
 
+def _t325_prepare_effective_binding(repo: Path, manifest_path: Path) -> str:
+    manifest = A.trial_registry.load_trial_manifest(manifest_path)
+    slots = []
+    for trial in manifest.trials:
+        identity = {
+            "trial_id": trial.trial_id,
+            "arm": trial.arm,
+            "holdout": trial.holdout,
+            "campaign_id": trial.campaign_id,
+            "replicate_index": 0,
+            "attempt_index": 0,
+        }
+        slots.append({
+            "slot_id": f"{trial.trial_id}-r0-a0",
+            **identity,
+            "schedule_row_sha256": hashlib.sha256(
+                A.trial_registry._canonical_json_bytes(identity)
+            ).hexdigest(),
+        })
+    attempt_path = A.trial_registry.create_attempt_registry_genesis(
+        repository_root=repo,
+        manifest_path=manifest_path,
+        manifest_sha256=manifest.sha256,
+        freeze_id=f"freeze-{manifest.sha256[:16]}",
+        slots=slots,
+    )
+    _t325_git(repo, "add", "--", str(attempt_path.relative_to(repo)))
+    _t325_git(repo, "commit", "-m", "attempt registry genesis")
+    content_commit = _t325_git(repo, "rev-parse", "HEAD")
+    genesis = json.loads(attempt_path.read_bytes().splitlines()[0])
+    binding_path = repo / A.trial_registry.DEFAULT_EFFECTIVE_BINDING_PATH
+    binding_path.parent.mkdir(parents=True, exist_ok=True)
+    binding_path.write_bytes(A.trial_registry._canonical_json_bytes({
+        "schema_version": A.trial_registry.EFFECTIVE_BINDING_SCHEMA_VERSION,
+        "prereg_content_commit": content_commit,
+        "manifest_path": manifest_path.relative_to(repo).as_posix(),
+        "manifest_sha256": manifest.sha256,
+        "freeze_id": genesis["freeze_id"],
+        "attempt_registry_path": A.trial_registry.DEFAULT_ATTEMPT_REGISTRY_PATH.as_posix(),
+        "attempt_registry_initial_sha256": hashlib.sha256(
+            attempt_path.read_bytes()
+        ).hexdigest(),
+    }))
+    _t325_git(repo, "add", "--", str(binding_path.relative_to(repo)))
+    _t325_git(repo, "commit", "-m", "effective binding")
+    return _t325_git(repo, "rev-parse", "HEAD")
+
+
 @pytest.fixture
 def t325_registered_trial(tmp_path, monkeypatch):
     monkeypatch.setattr(
@@ -5338,10 +5386,12 @@ def t325_registered_trial(tmp_path, monkeypatch):
     _t325_git(repo, "add", "manifests/trial.json")
     _t325_git(repo, "commit", "-m", "add trial manifest")
     registry_path = repo / A.trial_registry.DEFAULT_REGISTRY_PATH
+    effective_commit = _t325_prepare_effective_binding(repo, manifest_path)
     A.trial_registry.append_trial_registration(
         manifest_path=manifest_path,
         repository_root=repo,
         registry_path=registry_path,
+        prereg_effective_commit=effective_commit,
     )
     _t325_git(repo, "add", str(A.trial_registry.DEFAULT_REGISTRY_PATH))
     _t325_git(repo, "commit", "-m", "register trial manifest")
@@ -5757,6 +5807,16 @@ def test_formal_post_start_io_failure_records_indeterminate_and_stays_consumed(
     lifecycle = t325_registered_trial.repo / A.trial_registry.DEFAULT_LIFECYCLE_PATH
     rows = [json.loads(line) for line in lifecycle.read_text().splitlines()]
     assert [row["event"] for row in rows] == ["start", "terminal"]
+    attempt_rows = [
+        json.loads(line)
+        for line in (
+            t325_registered_trial.repo
+            / A.trial_registry.DEFAULT_ATTEMPT_REGISTRY_PATH
+        ).read_text().splitlines()
+    ]
+    attempt_terminal = next(
+        row for row in attempt_rows if row.get("event") == "terminal"
+    )
     assert rows[-1] == {
         "schema_version": A.trial_registry.LIFECYCLE_SCHEMA_VERSION,
         "event": "terminal",
@@ -5764,6 +5824,14 @@ def test_formal_post_start_io_failure_records_indeterminate_and_stays_consumed(
         "terminal_status": "indeterminate",
         "report_sha256": None,
         "attempt_journal_sha256": None,
+        "prereg_commit": attempt_terminal["prereg_content_commit"],
+        "prereg_content_commit": attempt_terminal["prereg_content_commit"],
+        "prereg_effective_commit": attempt_terminal["prereg_effective_commit"],
+        "slot_id": attempt_terminal["slot_id"],
+        "classification_receipt_sha256": attempt_terminal[
+            "classification_receipt_sha256"
+        ],
+        "raw_output_sha256": attempt_terminal["raw_output_sha256"],
     }
     with pytest.raises(
         A.trial_registry.TrialRegistryError,
@@ -6351,6 +6419,26 @@ def test_m32_cli_manifestless_gate_is_not_masked_by_run_trial(
 def test_m13_prime_public_launcher_rejects_producer_campaign_derivation_bypass(
     tmp_path, monkeypatch, t325_registered_trial,
 ) -> None:
+    original_branch = _t325_git(
+        t325_registered_trial.repo, "branch", "--show-current",
+    )
+    prereg_commit = t325_registered_trial.binding.prereg_commit
+    _t325_git(
+        t325_registered_trial.repo, "checkout", "-q", "-b", "m13-prime",
+        prereg_commit,
+    )
+    _t325_git(t325_registered_trial.repo, "branch", "-D", original_branch)
+    A.s8c_arm_inputs.generate_off_neutral_artifacts(
+        repository_root=t325_registered_trial.repo,
+    )
+    _t325_git(
+        t325_registered_trial.repo,
+        "add",
+        "--",
+        A.s8c_arm_inputs.OFF_DESCRIPTOR_RELATIVE_PATH.as_posix(),
+        A.s8c_arm_inputs.OFF_FREEZE_RELATIVE_PATH.as_posix(),
+    )
+    _t325_git(t325_registered_trial.repo, "commit", "-m", "m13 arm input authority")
     trials = []
     target_trial_id = "m13-prime-h1-on"
     measurement_head = _t325_git(
@@ -6385,10 +6473,11 @@ def test_m13_prime_public_launcher_rejects_producer_campaign_derivation_bypass(
                 "generations": 2,
             })
     manifest_path = t325_registered_trial.repo / "manifests" / "m13-prime.json"
+    manifest_path.parent.mkdir(parents=True, exist_ok=True)
     manifest_path.write_text(
         json.dumps({
             "schema_version": A.trial_registry.MANIFEST_SCHEMA_VERSION,
-            "prereg_commit": t325_registered_trial.binding.prereg_commit,
+            "prereg_commit": prereg_commit,
             "trials": trials,
         }, ensure_ascii=False, sort_keys=True, separators=(",", ":")) + "\n",
         encoding="utf-8",
@@ -6400,10 +6489,14 @@ def test_m13_prime_public_launcher_rejects_producer_campaign_derivation_bypass(
         str(manifest_path.relative_to(t325_registered_trial.repo)),
     )
     _t325_git(t325_registered_trial.repo, "commit", "-m", "m13 prime manifest")
+    effective_commit = _t325_prepare_effective_binding(
+        t325_registered_trial.repo, manifest_path,
+    )
     A.trial_registry.append_trial_registration(
         manifest_path=manifest_path,
         repository_root=t325_registered_trial.repo,
         registry_path=t325_registered_trial.registry_path,
+        prereg_effective_commit=effective_commit,
     )
     _t325_git(
         t325_registered_trial.repo,
