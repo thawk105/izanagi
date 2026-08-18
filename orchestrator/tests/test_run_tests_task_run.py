@@ -64,7 +64,7 @@ def test_opt_out_preserves_exact_command_and_call_shape(monkeypatch):
     assert RT.main(["-q"], site=RT.site_policy.OTHER) == 7
     assert called == [(([
         sys.executable, "-m", "pytest", str(_REPO / "orchestrator" / "tests"),
-        "-n", "4", "--dist", "loadgroup", "-q",
+        "-n", "4", "--no-loadscope-reorder", "--dist", "loadgroup", "-q",
     ],), {"cwd": str(_REPO)})]
 
 
