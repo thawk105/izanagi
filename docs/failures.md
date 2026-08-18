@@ -5188,6 +5188,20 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   `tools/check_codex_output.py` が「対象を開けない」で必ず非 0 になる。
   この rc を採用条件として扱っていれば、無出力を成果と誤認する経路はない。
 
+
+- **再発: 2026-08-18** — 段 3 の敵対相談 2 本を並列投入した最中に
+  `401 Unauthorized ... auth error code: token_revoked` が出た。今回の形は F172 初出と 2 点違う。
+  (1) 死んだ子は即死ではなく、**371 秒・34 model call・出力 13,874 token を消費してから**
+  websocket 再接続で 401 を踏み、rc=1・出力 0 bytes で終わった。receipt の
+  `actuals` を見ずに wall-clock と rc だけで判断すると「重い相談が失敗した」と誤読する。
+  (2) 同じ worktree の兄弟子は同じ 401 を 3 分間隔で 3 回受けながら**既存 session で耐え**、
+  認証回復後に rc=0 で完走した。**同一 wave 内で生死が割れる。**
+  並行 wave からは「利用枠切れ (数秒・token ゼロの即死)」として周知されたが、
+  本 wave の stderr 実本文は枠切れではなく認証失効であり、**peer の分類をそのまま自分の
+  失敗へ当てはめると真因を取り違える**。復旧の可否は親自身の最小実行で実測して確かめた。
+  再投入は別 artifact-root で行った (同一 prompt は job-id が同じになり receipt 上書き拒否で
+  rc=2)。F172 の恒久対応 (fail-closed 停止・成果の commit 保全・新 artifact 名での再投入) は
+  そのまま有効で、追加の恒久対応は要らない。
 ### F173. byte 予算を捻出するために、他文書にしか無い義務への到達手段を削った [手順漏れ]
 
 - 事象: `.claude/commands/cleanup-branches.md` へ監査の探索根配線 (1 行) を足す byte を作るため、
@@ -9757,3 +9771,23 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   7 面の導出手順と、6 面止まりで通るすり抜け入力を逐語で残す。
 - 再発検知: 変異 matrix に「各 sink へ digest を流さない producer」を 1 件ずつ登録し、
   面の数だけ KILLED が並ぶことを求める。面が漏れていれば、その面の変異が作れないことで気づく。
+
+### F391. codex の同一上流障害が「認証失効」と「枠切れ」の 2 症状で出た [手順漏れ]
+
+- 事象: 2026-08-18 12:56〜13:07 JST、独立した 2 wave の codex 子が同時間帯に即死した。
+  本 wave (段 3 敵対相談 2 本) の stderr は
+  `HTTP error: 401 Unauthorized, url: wss://api.openai.com/v1/responses` の連打で、
+  rc=1・出力 0 bytes・`codex login status` は "Logged in using ChatGPT" のままだった。
+  並行 wave は同じ時間帯に events 内の usage limit メッセージとして観測した。
+  症状だけでは「サブスクのログイン失効」と「利用枠の取り合い」を判別できない。
+- 根本原因: 上流の同一障害が経路によって別の表層症状を出す。`codex login status` は
+  credential の存在を見るだけで、API 側が拒否している状態を反映しない。
+  401 を見て「ログインし直しが要る」と診断すると、実際には数分待てば回復する事象で
+  ユーザー手番を要求してしまう (逆に枠切れと診断すると、本当に失効したとき復旧しない)。
+- 恒久対応: memory `codex-auth-expiry-is-fail-closed-stop` へ「症状で原因を断定せず、
+  新しい prompt bytes で 1 本だけ再投入して切り分ける」を足す。失敗は数十秒・token ゼロで安価であり、
+  切り分けの費用は再投入 1 本より高くならない。判定は `docs/dev-wave/operations.md` の `DW-O01`
+  どおり `.done` と exit code で行い、`codex login status` の表示を判定に使わない。
+- 再発検知: `tools/check_codex_output.py` の rc≠0 が無出力を成果と誤認する経路を塞ぐ。
+  再投入時は job-id が prompt 内容の sha256 で決まるため、prompt 本文を変えないと
+  `既存の完全な receipt は上書きできない` で rc=2 になり、上書き事故も同時に塞がれる。

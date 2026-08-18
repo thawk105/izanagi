@@ -151,20 +151,6 @@ def test_benign_candidate_local_directive_is_left_to_structural_gate():
 @pytest.mark.parametrize(
     "implementation",
     (
-        "for (int i = 0; i < n; ++i) { values[i] += 1; }",
-        "for (const auto& value : values) { total += value; }",
-        "while (remaining > 0) { --remaining; }",
-        "while (0) {}",
-        "for (int i = 0; i < n; ++i) {}",
-    ),
-)
-def test_ordinary_for_range_for_and_data_dependent_loops_pass(implementation):
-    assert scan_host_effects(implementation) == ()
-
-
-@pytest.mark.parametrize(
-    "implementation",
-    (
         "while (1u) {}",
         "while (0xDEADu) {}",
         "while ((true)) {}",

@@ -21290,3 +21290,106 @@ B1 の閂が凍結 bytes 不変で外れる見通しが立ったことの 3 点�
   `DECIDER_VERSION` を bump して次世代 record を発行する (D458)。
 - 8b の bytes pin を更新し凍結検証の保留を解除してから編集する — 不一致は本改訂の前から存在し、
   保留の解除はユーザーの明示命令のみと定められている。
+
+## D511. role 契約の執行主体は禁止文を書き換えずに後置で示す (2026-08-18)
+
+**決定:** LLM role 契約 (`.claude/agents/*.md`) の禁止と、その禁止を機械が実際に執行する範囲が
+食い違っているとき、**禁止文そのものは 1 byte も変えず、執行範囲を別節として後置する**。
+書き換えてはならない。同時に次の 3 つを守る。
+
+- 執行範囲は「機械 gate が拒否する / 検査が部分的にとどまる / 検査しない」の 3 分類までとし、
+  機械が捕える形と素通りする形を分ける**境界条件を書かない**。これは偵察 firewall (D48) の適用である。
+- 結線されていない執行主体を名指ししない。checklist にも入力にも当該項目が無い role を
+  「が拒否する」と書けば、謳うだけで発火しない保証になる。
+- 非検査は許可ではないことを、禁止一覧の直前と執行範囲の直後の 2 箇所で明示する。
+  role 本文は文書ではなく live prompt であり、読み手は生成側の LLM である。
+
+**理由:**
+
+- 禁止文を gate の言葉へ書き直す案を実際に起草したところ、書き直しの過程で
+  「内部で処理された例外送出」の禁止が機械項にも残余項にも属さなくなり、
+  policy 上の受理集合が黙って広がった。禁止を context 行のまま残せば、この型の脱落は
+  `git diff` で機械的に検出できる。人間の照合に頼らない。
+- 複合 bullet を単位に分類すると、bullet 内の**原子的義務**が取りこぼされる。
+  実際に「説明をコード内に埋めず justification へ書く」義務が、同じ bullet の
+  comment delimiter 禁止と一緒に「完全機械執行」へ誤分類された。分類は原子的義務の粒度で行う。
+- 「どこが穴か」を契約文へ書くことは、その契約を読んで合成する LLM への回避手順の開示にあたる。
+  一方、契約が実態より広く読めることの実害は「守られていると誤読する」ことなので、
+  粒度 (完全 / 部分 / なし) を示せば解消する。境界条件は不要である。
+
+**却下した選択肢:**
+
+- **禁止文を執行主体ごとに書き直して二分する** — 上記のとおり禁止が 1 つ落ちた。
+  意味等価な書き換えであることを人間が毎回照合しなければならず、検査に載らない。
+- **契約側でなく実装側を強める (typed IR / AST allowlist の導入)** — D344 が却下済み。
+  合成が事前 allowlist からの選択に化け、raw C++ comparator の独立合成という実証点が
+  別実験に変わる。到達可能な reward hack 経路が実測ゼロである以上、防御的堅牢化にあたる。
+- **乖離をそのまま残す** — 契約に書いてあるのに守られないという記述の誤りが残り、
+  監査のたびに同じ遠回りを再生産する。
+- **執行範囲を書かず「一部は機械執行されない」とだけ書く** — どの禁止が人手検査に
+  依存しているかが分からず、auditor の負荷配分ができない。
+
+**主張の範囲 (正直な非主張):** 本決定は記述と実装を一致させるだけで、機械の受理集合を
+1 bit も変えない。禁止集合が将来縮んでいないことを保証する検査は**存在しない** —
+source pin と adapter byte parity は bytes の同一性しか証明せず、禁止を削って pin を
+整合再承認すれば全検査が緑のまま通る。これは変異で SURVIVED として実証済みであり、
+別タスクとして分離した。
+
+## D512. holdout live scan の最適化は係数削減に限り、読取経路と例外契約は変えない (2026-08-18)
+
+**決定:** `s8b_holdout_freeze.search_repository` の最適化は、report の canonical bytes を
+1 bit も変えない範囲の**係数削減**に限る。全対象 file の列挙・open・read・decode は維持する。
+prefilter を強めるときは新しい regex 文法を自作せず、既存 `_derive_required_literal` を
+1 要素 mapping `{axis: expression}` で軸ごとに呼び直す形だけを使う。
+memo は 1 回の `search_repository` 呼出しに閉じ、`texts` object の identity へ束縛し、
+内容変化は fail-closed で拒否する。
+
+**理由:**
+- 「ファイル数比例をやめる」は出力契約と両立しない。`skipped_binary_count` は全 file の
+  binary / UTF-8 判定を要し、regex hit は file の任意位置にありうるので先頭だけ読む短絡ができず、
+  exact 免除の判定は全 bytes の SHA-256 を要する。
+- 律速は Python overhead ではなく共有ファイルシステムのメタデータ遅延である
+  (stat 163 us/file、open+read+close 346 us/file、`pathlib` と raw syscall の差は 10 us 未満)。
+  file ごとに触る回数を減らす以外に比例は消えず、それは受理集合に触る設計変更になる。
+- 新しい literal 導出文法は false negative 面を増やす。量指定子が literal 末尾に掛かる形
+  (`(?:k=0*)` の prefix を `k=0` とすると `k=` を落とす) は、無作為 40 万試行の fuzz で
+  prefilter 適用 78 件中 5 件の反例が出た。既存 helper は未対応 grammar を `None` へ倒す
+  保守性を既に持ち、その正しさは既存テストが固定している。
+- prefilter の false negative は holdout hit の見落とし = 未既知性の偽保証であり、
+  検索式の陽性対照は別 literal で生き残るため fail-closed 検査を素通りする。
+
+**却下した選択肢:**
+- `path.is_file()` を open 後の `os.fstat` へ畳む — 実測で 18% 相当の削減があるが、
+  directory / symlink 先の特殊 file / FIFO / Unix socket / device / dangling symlink /
+  列挙後の削除 race / stat 権限不足 / NUL を含む path の 9 系統で、例外の型・文言と
+  「そもそも open しない」現行挙動を保存できない。性能を理由に厳密等価性は緩めない。
+- 各 alternative の value literal prefix まで導出する自作 parser — 追加削減は約 5% にとどまり、
+  量指定子・escape・文字クラス・inline flag・空 alternative・nested group・非 ASCII を
+  自前で正しく扱う負債に見合わない。
+- `git grep` / `--cached` / 結果 cache への読取経路置換 — 対象集合が既に一致しない
+  (worktree grep と in-memory 列挙で件数が違う)。untracked / submodule / worktree bytes と
+  binary / UTF-8 / 免除の意味論を別途証明しない限り受理集合を静かに変える。
+- 出力に現れない `per_axis_paths` の順序を保つための全件再走査 — report には件数しか出ず、
+  conjunction は別途 sort される。順序を守る変異は等価変異であり、それを固定するテストは
+  ファイル数比例の走査を設計契約として凍結してしまう。
+
+## D513. 出力等価な最適化変異は発火回数で番人を張る (2026-08-18)
+
+**決定:** 検索の prefilter のように「結果を変えずに走査量だけを減らす」層を入れるときは、
+report 比較だけを番人にしない。同じ入力に対する検査器の**発火回数**を、
+最適化あり / 中間層だけ無効 / 完全 slow path の三段で分離できる fixture を置き、
+各段の回数を exact に固定する。
+
+**理由:**
+- prefilter を wave 前の形へ戻す変異は出力が変わらないため、canonical bytes の等価性テストでは
+  1 件も殺せない。実測でもこの変異は発火回数を見る node でだけ赤になった。
+- 従来の「slow path」比較は helper 1 つを `None` へ差し替えるだけだったため、
+  新しい層がその外側にあると optimized と slow が同じ経路を通り、assert が恒真になる。
+  検査器そのもの (`_scan_one` に相当する単位) を、prefilter も memo も持たない
+  reference 実装へ差し替え、reference が期待回数だけ呼ばれたことまで assert する必要がある。
+- 三段分離は fixture の中身に依存する。中間層だけを通す入力 (共通 literal は含むが
+  軸 literal は含まない text) を意図的に置かないと、段が縮退して検出力が消える。
+
+**却下した選択肢:**
+- production API に prefilter 無効化 knob を足して比較する — 防壁の迂回口を製品側へ残す。
+- 出力へ path 一覧を足して順序を検査可能にする — schema と canonical bytes が変わる。
