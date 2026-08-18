@@ -53,7 +53,15 @@ title: workload 表 entry を scale の単一権威にした — 新しい検査
 - **`dev_wave_wait.py producer` が出力ゼロで rc=0 早期終了する事象を 2 回観測した**
   (fix4 / fix5)。いずれも producer は生存しており `.done` も成果物も無かった。
   `DW-O01` の「完了は `.done` と exit code だけで判定」が既に覆っており誤進行は防げた。
+  **これは撤回済みの既裁定と同一現象なので候補にしない** — 全終了経路で必ず出力する
+  自作 polling script でも同じ形になることが実測されており、原因は待ち手ではなく
+  背景 process が外側で kill されることだと確定している。
 - **`--lane` は consult 段専用**という制約で、段 6 review の起動が rc=2 で 2 本とも即死した。
+  `DW-O01` の argv 記述 `[--lane <lane>]` は段依存の制約を表現していない。
+  **段 8 = 予算超過につきユーザー裁定へ返す。** 収容先の `DW-O01` は単節予算 1000 bytes に対し
+  現在 1248 bytes で余白が無く、自己改善契約の「予算に収まらなければ止めて裁定へ返す」に該当する。
+  同じ理由で、親自身の実測出力を射影する規律 (段 1 で 120KB 級の出力が context を消費した) も
+  裁定へ返す。**諮る点 = どの節を削って空きを作るか、別 L2 節へ収容するか、見送るか。**
 - **エージェント工数**: codex 子 10 本 (plan 1・consult 2・author 1・review 2・fix 5・focus 1)。
   段 5 と fix は `gpt-5.6-sol` @ high、段 2・3 は `gpt-5.6-sol` @ max。
   codex 子は本 wave でも pytest を 1 件も実走できず (全巡 `qstat -Q rc=1` / 子 rc=16)、
