@@ -9703,6 +9703,7 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: 受入受領証の `verdict` 分布を集計し、`child-green` が主経路である限り本欠落は
   生きていると読む (集計 predicate は 2026-08-17 の worklog エントリに記録)。
   非帰属経路の束縛が発火した割合が、既存の部分対応が実際に効いた割合の上限である。
+- **supersede: 2026-08-18** — 恒久対応を D524 へ更新した。受領証の内容を候補外の `tools/acceptance_launcher.py` が生成し、land が実行 bytes 3 本の内容 SHA-256 を Git tree から独立に再計算して `child-green` にも照合する。**それでも閉じていない** — 起動権は tip 側待ち手にあり、bounded / dispatch の内側の子は束縛外で、land verifier 自身も候補コードである。残余は [T-1373] / [T-1374] / [T-1375] で追う。
 
 ### F386. 依頼が挙げた module 名で閉包を切り、真の consumer を落とした [手順漏れ]
 
