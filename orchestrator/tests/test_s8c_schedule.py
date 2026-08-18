@@ -325,6 +325,31 @@ def test_shared_verifier_accepts_directly_constructed_valid_schedule() -> None:
     )
 
 
+def test_consume_rejects_seed_mismatch_and_accepts_matching_seed() -> None:
+    """A seed that does not match the artifact makes consume fail.
+    A matching seed returns the cell for the requested ordinal.
+    """
+    authority = _authority()
+    artifact = S.regenerate("seed-alpha", authority=authority)
+
+    with pytest.raises(S.ScheduleError):
+        S.consume_schedule(
+            artifact,
+            master_seed="seed-beta",
+            authority=authority,
+            schedule_index=0,
+        )
+
+    cell = S.consume_schedule(
+        artifact,
+        master_seed="seed-alpha",
+        authority=authority,
+        schedule_index=0,
+    )
+    assert isinstance(cell, S.ScheduleCell)
+    assert cell.cell_ordinal == 0
+
+
 def test_consume_rejects_bad_indices_and_returns_the_verified_cell(tmp_path: Path) -> None:
     authority = _authority()
     artifact = S.regenerate("seed-alpha", authority=authority)
