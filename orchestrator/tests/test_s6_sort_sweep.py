@@ -315,6 +315,7 @@ def _install_public_reject_sweep_fakes(monkeypatch, layout):
     )
 
 
+@pytest.mark.usefixtures("ratified_enforcement_source")
 def test_public_sweep_fresh_reject_then_next_candidate_resumes(monkeypatch):
     layout = _tmp_layout()
     _install_public_reject_sweep_fakes(monkeypatch, layout)
@@ -357,6 +358,7 @@ def test_public_sweep_recovers_real_wal_start_before_quarantine_write(monkeypatc
     }
 
 
+@pytest.mark.usefixtures("ratified_enforcement_source")
 def test_public_sweep_reaches_pipeline_with_exact_stock_and_machine_classes(
         monkeypatch):
     """public sweep→実 pipeline admission 境界で exact class 差を固定する。"""
@@ -429,6 +431,7 @@ def test_public_sweep_reaches_pipeline_with_exact_stock_and_machine_classes(
     assert seen[0][2] is seen[1][2]
 
 
+@pytest.mark.usefixtures("ratified_enforcement_source")
 def test_public_sweep_does_not_turn_admission_error_into_driver_error(monkeypatch):
     """F4: admission 配線失敗は候補隔離の broad except を通過して停止する。"""
     layout = _tmp_layout()
@@ -443,6 +446,7 @@ def test_public_sweep_does_not_turn_admission_error_into_driver_error(monkeypatc
                     log=lambda _line: None)
 
 
+@pytest.mark.usefixtures("ratified_enforcement_source")
 def test_public_sweep_driver_error_provenance_never_reflects_candidate_bytes(monkeypatch):
     """固定化された上流例外を S6 の error・log・永続 JSON まで通して非反射を固定する。"""
     layout = _tmp_layout()
@@ -511,6 +515,7 @@ def test_eval_one_propagates_context_and_source_capability_to_build_entry(monkey
     assert callable(seen[0][1])
 
 
+@pytest.mark.usefixtures("ratified_enforcement_source")
 def test_public_sweep_partial_write_eio_stops_before_next_candidate(
         monkeypatch):
     layout = _tmp_layout()

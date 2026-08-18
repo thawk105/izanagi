@@ -135,6 +135,7 @@ def _write_floor(root, *, floor=0.03, workload=WORKLOAD):
     return path
 
 
+@pytest.mark.usefixtures("ratified_enforcement_source")
 def test_prepare_screening_bakes_identity_and_uses_new_same_campaign_baseline(
         tmp_path, _certified_writer_authority):
     authorization, contract = _certified_writer_authority
@@ -225,6 +226,7 @@ def test_prepare_screening_rejects_authorization_before_layout_or_wal(
 
 
 @pytest.mark.parametrize("missing", ["median", "abort_rate", "commit"])
+@pytest.mark.usefixtures("ratified_enforcement_source")
 def test_prepare_screening_requires_complete_baseline_evidence(
         tmp_path, missing, _certified_writer_authority):
     authorization, contract = _certified_writer_authority
@@ -342,6 +344,7 @@ def test_evaluate_candidate_repairs_tail_before_replay_and_evaluate(
     assert "perf_preflight_receipt" not in calls[0][2]
 
 
+@pytest.mark.usefixtures("ratified_enforcement_source")
 def test_evaluate_candidate_unavailable_perf_passes_degraded_kwargs_once(
         tmp_path, monkeypatch, _certified_writer_authority):
     authorization, contract = _certified_writer_authority
@@ -390,6 +393,7 @@ def test_evaluate_candidate_unavailable_perf_passes_degraded_kwargs_once(
     assert evaluate_calls[0][1]["perf_preflight_receipt"] == unavailable
 
 
+@pytest.mark.usefixtures("ratified_enforcement_source")
 def test_evaluate_candidate_probe_error_refuses_before_evaluate(
         tmp_path, monkeypatch, _certified_writer_authority):
     authorization, contract = _certified_writer_authority
@@ -427,6 +431,7 @@ def test_evaluate_candidate_probe_error_refuses_before_evaluate(
 
 
 @pytest.mark.parametrize("failure_kind", ["append", "framing"])
+@pytest.mark.usefixtures("ratified_enforcement_source")
 def test_evaluate_candidate_does_not_append_abort_after_wal_io_error(
         tmp_path, monkeypatch, failure_kind, _certified_writer_authority):
     authorization, contract = _certified_writer_authority

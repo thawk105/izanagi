@@ -746,6 +746,7 @@ def test_campaign_lock_requires_exact_admission_policy():
         assert "admission policy" in str(exc)
 
 
+@pytest.mark.usefixtures("ratified_enforcement_source")
 def test_ensure_campaign_identity_uses_atomic_lock_and_loser_only_verifies():
     cfg = _cfg()
     lay = _layout()
@@ -2661,6 +2662,7 @@ def test_trigger_fixture_has_32_unique_predicates_source_bytes_and_variant_ids()
     assert len(set(predicates)) == len(set(materialized)) == len(set(variants)) == 32
 
 
+@pytest.mark.usefixtures("ratified_enforcement_source")
 def test_trigger_campaign_epoch_never_writes_pre_t428_paths():
     from orchestrator.campaign import loop as campaign_loop
     from orchestrator.campaign import p3_s4_loop_trigger_gating as trigger_driver
@@ -2993,6 +2995,7 @@ def test_p1_pipeline_accepts_registered_contract_without_enabling_v2_build():
     assert calls.builds == [("legacy", True, None), ("legacy", False, None)]
 
 
+@pytest.mark.usefixtures("ratified_enforcement_source")
 def test_p1_run_campaign_accepts_registered_contract():
     from orchestrator.campaign import loop as campaign_loop
 
@@ -8036,6 +8039,7 @@ def test_screening_driver_probe_error_is_retryable_after_recovery():
             assert calls == [] and res is None, reason
 
 
+@pytest.mark.usefixtures("ratified_enforcement_source")
 def test_loop_enables_s2_extra_correctness_via_search_config():
     """D36 決定4-1: search_config[SEARCH_CONFIG_VERIFY_KEY]=='legacy+s2' で
     run_campaign が evaluate() に S2 extra_correctness を渡す (opt-in の配線点)。"""
@@ -8082,6 +8086,7 @@ def test_loop_enables_s2_extra_correctness_via_search_config():
     assert [tag for tag, _ in captured["extra_correctness"]] == [pipeline.S2_TAG]
 
 
+@pytest.mark.usefixtures("ratified_enforcement_source")
 def test_loop_omits_extra_correctness_without_verify_search_config():
     """回帰確認: search_config に verify キーが無い既存 campaign は extra_correctness
     が None のまま (S2 は opt-in、既存 campaign の挙動を変えない)。"""
@@ -8125,6 +8130,7 @@ def test_loop_omits_extra_correctness_without_verify_search_config():
     assert captured["extra_correctness"] is None
 
 
+@pytest.mark.usefixtures("ratified_enforcement_source")
 def test_m12_loop_compute_uses_gxx_and_forwards_only_contract_and_prefix():
     from orchestrator.campaign import loop as L
 
@@ -8186,6 +8192,7 @@ def test_m12_loop_compute_uses_gxx_and_forwards_only_contract_and_prefix():
     assert summary.execution_receipt == {"fixture": "receipt"}
 
 
+@pytest.mark.usefixtures("ratified_enforcement_source")
 def test_required_contract_is_attested_once_at_run_campaign_sink():
     from orchestrator.campaign import loop as L
 
@@ -8356,6 +8363,7 @@ def _run_exploration_with_perf_preflight(mode):
     return summary, bench_calls, layout, producer_calls
 
 
+@pytest.mark.usefixtures("ratified_enforcement_source")
 def test_official_rejects_perf_preflight_seam_while_exploration_accepts_it():
     from orchestrator.campaign import loop as L
 
@@ -8407,6 +8415,7 @@ def test_official_rejects_perf_preflight_seam_while_exploration_accepts_it():
     assert summary.perf_preflight_receipt["status"] == "unavailable"
 
 
+@pytest.mark.usefixtures("ratified_enforcement_source")
 def test_exploration_no_perf_completes_bench_and_records_not_required():
     summary, bench_calls, layout, producer_calls = \
         _run_exploration_with_perf_preflight("unavailable")
@@ -8456,6 +8465,7 @@ def test_exploration_perf_probe_error_fails_closed_before_evaluation():
     assert not os.path.exists(os.path.join(out_root, "exploration"))
 
 
+@pytest.mark.usefixtures("ratified_enforcement_source")
 def test_exploration_available_perf_preserves_measurement_behavior():
     summary, bench_calls, layout, producer_calls = \
         _run_exploration_with_perf_preflight("available")
@@ -8477,6 +8487,7 @@ def test_exploration_available_perf_preserves_measurement_behavior():
     assert observation["preflight"]["status"] == "available"
 
 
+@pytest.mark.usefixtures("ratified_enforcement_source")
 def test_run_campaign_default_namespace_remains_official():
     """selector 省略時は既存どおり official root を使う。"""
     from orchestrator.campaign import loop as L
@@ -8497,6 +8508,7 @@ def test_run_campaign_default_namespace_remains_official():
     assert not os.path.exists(os.path.join(out_root, "exploration"))
 
 
+@pytest.mark.usefixtures("ratified_enforcement_source")
 def test_run_campaign_exploration_namespace_reaches_lock_wal_and_pipeline():
     """exploration selector が marker/lock/WAL/evaluate の同一 layout まで届く。"""
     from orchestrator.campaign import loop as L
@@ -8568,6 +8580,7 @@ def test_run_campaign_rejects_unknown_namespace_before_output_creation():
     assert not os.path.exists(out_root)
 
 
+@pytest.mark.usefixtures("ratified_enforcement_source")
 def test_run_campaign_namespace_does_not_change_campaign_id():
     """namespace は runtime path selector であり identity preimage へ入らない。"""
     from orchestrator.campaign import loop as L
@@ -8593,6 +8606,7 @@ def test_run_campaign_namespace_does_not_change_campaign_id():
     assert official.campaign_id == exploration.campaign_id == str(ident.campaign_id(_bound(cfg)))
 
 
+@pytest.mark.usefixtures("ratified_enforcement_source")
 def test_loop_isolates_failing_genome():
     """1 genome の評価例外が campaign 全体を止めず、abort 記録で terminal 化する。"""
     seen = []
@@ -8613,6 +8627,7 @@ def test_loop_isolates_failing_genome():
     assert wal.replay(lay, admission_policy=_BUILD_CONTEXT.policy)[bad].aborted
 
 
+@pytest.mark.usefixtures("ratified_enforcement_source")
 def test_loop_dedup_identical_genome_in_one_run():
     """同一 (protocol, flags) の genome が複数あっても 1 run 内で 1 回しか評価しない (U1)。"""
     seen = []
@@ -8630,6 +8645,7 @@ def test_loop_dedup_identical_genome_in_one_run():
     assert s.skipped_variants == [pipeline.variant_id(genomes[1], "stock")]
 
 
+@pytest.mark.usefixtures("ratified_enforcement_source")
 def test_loop_dedup_uses_src_token_id():
     """coder variant (src_token != stock) で 1run dedup が起き src_token が evaluate に渡る (D24)。
     注: 同一 genome 2 本は stock id でも src_token id でも単一キーに潰れるためこのテストは skip
@@ -8749,6 +8765,7 @@ def test_replay_accepts_matching_contract_bound_commit_and_skips_evaluation():
     assert summary.skipped == 1 and summary.evaluated == 0
 
 
+@pytest.mark.usefixtures("ratified_enforcement_source")
 def test_loop_isolates_identity_error():
     """source_digest.resolve が確定不能 (RuntimeError) なら loop が stock id で abort 隔離し継続。"""
     def fake_eval(g, *a, **kw):
@@ -8763,6 +8780,7 @@ def test_loop_isolates_identity_error():
         assert st[pipeline.variant_id(g)].aborted        # identity 不明ゆえ stock id で abort
 
 
+@pytest.mark.usefixtures("ratified_enforcement_source")
 def test_loop_identity_error_is_retryable_after_repair():
     """identity-error abort (transient) は permanent skip でなく環境修復後に再評価される (D25)。
     旧挙動は stock id terminal abort → 永久 skip で stock baseline を silently drop していた。"""
@@ -8855,6 +8873,7 @@ def test_loop_identity_error_retryable_survives_inflight_crash():
     assert len(calls) == 1 and s3.committed == 1 and s3.skipped == 0
 
 
+@pytest.mark.usefixtures("ratified_enforcement_source")
 def test_loop_resume_recovery_aborts_real_pipeline_crash_after_start():
     """実 evaluate/WAL writer の start→process death→resume 境界を通す。"""
     from orchestrator.campaign import artifact_admission
@@ -11310,6 +11329,7 @@ def test_loop_resume_repairs_tail_before_replay_and_surfaces_receipt():
     assert os.path.exists(repair_payload["receipt_path"])
 
 
+@pytest.mark.usefixtures("ratified_enforcement_source")
 def test_loop_does_not_append_abort_after_wal_io_error():
     from orchestrator.campaign import loop as L
 
