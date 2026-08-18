@@ -883,6 +883,11 @@ def _oracle_verifier_case(tmp_path: Path) -> SimpleNamespace:
             "screen_outcome": "not_enabled",
             "reason": None,
         })
+    expected_cells = [{
+        "schedule_index": row["schedule_index"],
+        "holdout_id": row["holdout_id"],
+        "configuration_id": row["configuration_id"],
+    } for row in rows]
     observations = artifacts.OfficialObservations({
         "schema_version": artifacts.OFFICIAL_OBSERVATIONS_SCHEMA,
         "manifest_kind": "official",
@@ -899,11 +904,20 @@ def _oracle_verifier_case(tmp_path: Path) -> SimpleNamespace:
             "certified_eligible": True,
             "rejection": None,
         }],
-        "expected_cells": [{
-            "schedule_index": row["schedule_index"],
-            "holdout_id": row["holdout_id"],
-            "configuration_id": row["configuration_id"],
-        } for row in rows],
+        "expected_cells": expected_cells,
+        "store_reverification": {
+            "state": "verified",
+            "cells": [{
+                "cell_id": cell_id,
+                "store_path": f"fixture-store/{cell_id.replace('::', '--')}",
+                "expected_sha256": "c" * 64,
+                "actual_sha256": "c" * 64,
+                "state": "match",
+            } for cell_id in sorted({
+                f"{entry['holdout_id']}::{entry['configuration_id']}"
+                for entry in expected_cells
+            })],
+        },
         "rows": rows,
     })
     schedule_projection = oracle_judge.project_verified_manifest_schedule(
@@ -936,6 +950,120 @@ def _oracle_verifier_case(tmp_path: Path) -> SimpleNamespace:
         schedule_projection=schedule_projection,
         reverified=reverified,
     )
+
+
+def test_store_reverification_failure_propagates_to_combined_verdict():
+    configurations = (CHOICE_TO_BINDING["c01"], CHOICE_TO_BINDING["c06"])
+    rows = []
+    expected_cells = []
+    schedule_index = 0
+    for holdout_id in (H1, H2):
+        for configuration_id in configurations:
+            expected_cells.append({
+                "schedule_index": schedule_index,
+                "holdout_id": holdout_id,
+                "configuration_id": configuration_id,
+            })
+            rows.append({
+                "schedule_index": schedule_index,
+                "campaign_id": "oracle-b0",
+                "block_id": "b0",
+                "holdout_id": holdout_id,
+                "configuration_id": configuration_id,
+                "attempt": 1,
+                "status": "completed",
+                "outcome": "committed",
+                "binding_ok": True,
+                "legacy_verify": "pass",
+                "s2_verify": "pass",
+                "bench_values": [
+                    100.0 if configuration_id == CHOICE_TO_BINDING["c01"] else 50.0
+                ],
+                "excluded_reason": None,
+                "screen_outcome": "not_enabled",
+                "reason": None,
+            })
+            schedule_index += 1
+    logical_cell_ids = sorted({
+        f"{entry['holdout_id']}::{entry['configuration_id']}"
+        for entry in expected_cells
+    })
+    observations = artifacts.OfficialObservations({
+        "schema_version": artifacts.OFFICIAL_OBSERVATIONS_SCHEMA,
+        "manifest_kind": "official",
+        "manifest_sha256": "a" * 64,
+        "spec_sha256": "b" * 64,
+        "n_per_cell": 1,
+        "campaign_verifier_epochs": [{
+            "campaign_id": "oracle-b0",
+            "campaign_verifier_epoch": f"E1:{'e' * 64}",
+            "state": "E1",
+            "reason_code": "recorded-closure",
+            "identity_scope": "fixture enforcement closure",
+            "excluded_scope": "fixture excluded verifier implementation",
+            "certified_eligible": True,
+            "rejection": None,
+        }],
+        "expected_cells": expected_cells,
+        "store_reverification": {
+            "state": "verified",
+            "cells": [{
+                "cell_id": cell_id,
+                "store_path": f"fixture-store/{cell_id.replace('::', '--')}",
+                "expected_sha256": "c" * 64,
+                "actual_sha256": "c" * 64,
+                "state": "match",
+            } for cell_id in logical_cell_ids],
+        },
+        "rows": rows,
+    })
+    projection = oracle_judge.ManifestScheduleProjection(
+        n_per_cell=1,
+        expected_cells=frozenset(
+            (entry["schedule_index"], entry["holdout_id"], entry["configuration_id"])
+            for entry in expected_cells
+        ),
+        expected_campaign_ids=frozenset({"oracle-b0"}),
+    )
+    prediction = make_prediction({
+        H1: {"on": "c01", "off": "c06", "swapped": "c01"},
+        H2: {"on": "c01", "off": "c06", "swapped": "c01"},
+    })
+    floor = make_floor(
+        {H1: {"c01": 1.0}, H2: {"c01": 1.0}},
+        {H1: 50.0, H2: 50.0},
+    )
+    baseline_oracle = oracle_judge.judge_oracle(
+        observations,
+        schedule_projection=projection,
+        verified_manifest_sha256="a" * 64,
+        approved_spec_sha256="b" * 64,
+    )
+    baseline = run(prediction, baseline_oracle, floor)
+    assert baseline_oracle["status"] == "determinate"
+    assert baseline["status"] == verdict.HOLDS
+
+    for damage in ("absent", "mismatch"):
+        damaged = artifacts.OfficialObservations(deepcopy(observations))
+        if damage == "absent":
+            damaged.pop("store_reverification")
+        else:
+            damaged["store_reverification"]["state"] = "unverified"
+            damaged["store_reverification"]["cells"][0].update(
+                actual_sha256="d" * 64, state="mismatch",
+            )
+        damaged_oracle = oracle_judge.judge_oracle(
+            damaged,
+            schedule_projection=projection,
+            verified_manifest_sha256="a" * 64,
+            approved_spec_sha256="b" * 64,
+        )
+        combined = run(prediction, damaged_oracle, floor)
+        assert damaged_oracle["status"] == "indeterminate", damage
+        assert combined["conditions"]["oracle_floor_exceeded"]["verdict"] == (
+            verdict.INDETERMINATE
+        ), damage
+        assert combined["status"] == verdict.INDETERMINATE, damage
 
 
 def _write_oracle_variant(path: Path, document) -> None:
