@@ -2173,6 +2173,18 @@ def test_registered_admission_and_lifecycle_are_non_certifying_and_start_once(
         registry_path=registry,
         lifecycle_path=lifecycle,
     )
+    lifecycle_before_reject = lifecycle.read_bytes()
+    with pytest.raises(R.TrialRegistryError, match=r"\[lifecycle-start-once\] "):
+        R.reject_started_trial(
+            trial_id=first.trial_id,
+            repository_root=repo,
+            lifecycle_path=lifecycle,
+        )
+    assert lifecycle.read_bytes() == lifecycle_before_reject
+    R.forbid_trial_restart(second)
+    second_state = R._TRIAL_LIFECYCLE_CAPABILITIES[id(second)]
+    assert second_state.started_once is True
+    assert second_state.restart_forbidden is True
     full_field_replacement = dataclasses.replace(
         first,
         repository_root=second.repository_root,

@@ -106,7 +106,7 @@ from .s8c_generation_projection import (
 # The axis driver imports the campaign namespace directly.  Keep the U1 run
 # context and identity types on that same module identity so exact-type seals
 # survive package and direct-script entry points alike.
-from . import env_contract, ident  # noqa: E402
+from . import env_contract, ident, reservation  # noqa: E402
 from .artifact_admission import (  # noqa: E402
     CampaignReadPurpose,
     require_admitted_campaign,
@@ -2162,16 +2162,16 @@ def _provider_set(
 
 def _assert_build_site_opted_in(
     do_build: bool, *, allow_pegasus_compute_transport: bool
-) -> None:
+) -> str | None:
     """成果物作成前に build site と transport の明示 opt-in を閉じる。"""
     if not do_build:
-        return
+        return None
     site = trigger._current_site()
     if site == trigger.site_policy.OTHER:
-        return
+        return site
     if site == trigger.site_policy.PEGASUS_COMPUTE:
         if allow_pegasus_compute_transport:
-            return
+            return site
         raise AutonomousTrialError(
             "8c の Pegasus compute build は T-276 の明示 transport opt-in が必要"
         )
@@ -2223,6 +2223,24 @@ def _assert_build_transport_admitted_for_site(
     )
     _validate_transport_receipt(
         dict(transport_receipt), expected=admitted_receipt
+    )
+
+
+def _assert_reservation_preflight(
+    *,
+    site: str,
+    max_wall_s: int,
+) -> reservation.ReservationCheck | None:
+    """Consume the registered reservation binding before lifecycle start."""
+    contract = trigger._admit_env_contract(site)
+    if not reservation.is_reservation_required(contract.isolation_policy):
+        return None
+    binding = reservation.read_binding(os.environ)
+    return reservation.check_reservation(
+        binding,
+        required_s=max_wall_s,
+        safety_margin_s=0,
+        environ=os.environ,
     )
 
 
@@ -3385,23 +3403,46 @@ def _run_workload(
     return result
 
 
-def _record_indeterminate_terminal(
+def mark_experiment_indeterminate(
     token: trial_registry.TrialLifecycleToken,
     *,
     cause: BaseException,
+    experiment_status: str,
+    remaining_cells: Sequence[str],
     origin_terminal_projection: (
         reflux_formal_consumer.OriginTerminalProjection | None
     ) = None,
 ) -> None:
-    """Terminalize a consumed formal trial or expose irrecoverable ledger I/O.
+    """Record an experiment-wide indeterminate state and forbid a rerun.
 
-    If the terminal append itself fails, the original start remains consumed
-    and rerun stays forbidden.  The raised error names both the original
-    failure and the failed terminalization instead of implying recovery.
+    Lifecycle v1 has no field for a remaining-cell projection, so the
+    projection is accepted and validated at this boundary but is not added to
+    the frozen row shape.  Restart refusal and terminalization are attempted
+    independently; failures are attached to the original crash and the caller
+    re-raises that original object.
     """
+    if not isinstance(cause, BaseException):
+        raise TypeError("cause must be a BaseException")
+    if experiment_status != "indeterminate":
+        raise AutonomousTrialError(
+            "experiment_status must be indeterminate at crash terminalization"
+        )
+    if (
+        isinstance(remaining_cells, (str, bytes))
+        or not isinstance(remaining_cells, Sequence)
+        or any(type(cell) is not str or not cell for cell in remaining_cells)
+    ):
+        raise AutonomousTrialError("remaining_cells must be a sequence of non-empty strings")
+
+    failures: list[tuple[str, BaseException]] = []
+    try:
+        trial_registry.forbid_trial_restart(token)
+    except BaseException as restart_error:
+        failures.append(("restart-forbid", restart_error))
+
     try:
         terminal_arguments: dict[str, Any] = {
-            "terminal_status": "indeterminate",
+            "terminal_status": experiment_status,
         }
         if origin_terminal_projection is not None:
             terminal_arguments["origin_terminal_projection"] = (
@@ -3409,12 +3450,20 @@ def _record_indeterminate_terminal(
             )
         trial_registry.record_trial_terminal(token, **terminal_arguments)
     except BaseException as terminal_error:
-        raise AutonomousTrialError(
-            "formal trial failed after lifecycle start and indeterminate "
-            "terminalization also failed; the start remains consumed: "
-            f"original={type(cause).__name__}; "
-            f"terminal={type(terminal_error).__name__}"
-        ) from terminal_error
+        failures.append(("terminal-record", terminal_error))
+
+    if failures:
+        detail = "; ".join(
+            f"{label}={type(error).__name__}" for label, error in failures
+        )
+        try:
+            cause.add_note(
+                "indeterminate crash bookkeeping encountered independent failures: "
+                + detail
+            )
+        except BaseException:
+            pass
+    raise cause
 
 
 def run_trial(
@@ -3570,7 +3619,7 @@ def run_trial(
     gating_spec_snapshot = snapshot_gating_spec(GATING_SPEC)
     generation_driver = _generation_driver_identity(drive)
     accounting_authority = _accounting_authority(drive)
-    _assert_build_site_opted_in(
+    preflight_site = _assert_build_site_opted_in(
         do_build,
         allow_pegasus_compute_transport=allow_pegasus_compute_transport,
     )
@@ -3603,8 +3652,23 @@ def run_trial(
             build_context=preflight_build_context,
             arm_execution=arm_execution,
         )
+    if preflight_site is None:
+        preflight_site = (
+            trigger.site_policy.PEGASUS_COMPUTE
+            if allow_pegasus_compute_transport
+            else trigger.site_policy.OTHER
+        )
+    _assert_reservation_preflight(
+        site=preflight_site,
+        max_wall_s=max_wall_s,
+    )
     lifecycle_token: trial_registry.TrialLifecycleToken | None = None
     if trial_admission.mode == "registered-effective":
+        trial_registry.reject_started_trial(
+            trial_id=trial_admission.trial_id,
+            repository_root=ROOT,
+            lifecycle_path=ROOT / trial_registry.DEFAULT_LIFECYCLE_PATH,
+        )
         lifecycle_arguments = dict(
             admission=trial_admission,
             effective_preregistration=effective_preregistration,
@@ -3701,16 +3765,19 @@ def run_trial(
         journal.append(run_start)
     except BaseException as exc:
         if lifecycle_token is not None:
-            _record_indeterminate_terminal(
+            mark_experiment_indeterminate(
                 lifecycle_token,
                 cause=exc,
+                experiment_status="indeterminate",
+                remaining_cells=tuple(selected),
                 origin_terminal_projection=(
                     None
                     if origin_runtime is None
                     else origin_runtime.terminal_projection
                 ),
             )
-        raise
+        else:
+            raise
     owns_active_providers = providers is None
     active_providers: dict[str, Any] = {}
     lifecycle_terminalized = False
@@ -3807,16 +3874,19 @@ def run_trial(
             _ACTIVE_TRIAL_BINDING.reset(scope_token)
     except BaseException as exc:
         if lifecycle_token is not None and not lifecycle_terminalized:
-            _record_indeterminate_terminal(
+            mark_experiment_indeterminate(
                 lifecycle_token,
                 cause=exc,
+                experiment_status="indeterminate",
+                remaining_cells=tuple(selected),
                 origin_terminal_projection=(
                     None
                     if origin_runtime is None
                     else origin_runtime.terminal_projection
                 ),
             )
-        raise
+        else:
+            raise
     finally:
         if owns_active_providers:
             _close_owned_providers(active_providers)

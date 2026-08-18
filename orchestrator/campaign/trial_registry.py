@@ -224,6 +224,8 @@ class _TrialLifecycleCapabilityState:
     launch_admission_sha256: str
     origin_binding: OriginBindingCapability | None
     consumed: bool = False
+    started_once: bool = False
+    restart_forbidden: bool = False
 
 
 _TRIAL_LIFECYCLE_CAPABILITIES: dict[int, _TrialLifecycleCapabilityState] = {}
@@ -1887,6 +1889,7 @@ def record_trial_start_once(
             start_row_sha256=token.start_row_sha256,
             launch_admission_sha256=admission_sha256,
             origin_binding=origin_binding,
+            started_once=True,
         )
         return payload, (token, state)
 
@@ -1900,6 +1903,66 @@ def record_trial_start_once(
             _fail("lifecycle-token", "issued token identity is not unique")
         _TRIAL_LIFECYCLE_CAPABILITIES[id(token)] = state
     return token
+
+
+def reject_started_trial(
+    *,
+    trial_id: str,
+    repository_root: Path,
+    lifecycle_path: Path = DEFAULT_LIFECYCLE_PATH,
+) -> None:
+    """Reject a second launch before issuing a lifecycle capability.
+
+    The check is deliberately read-only with respect to lifecycle rows.  The
+    shared lifecycle lock still makes the observation atomic with the later
+    start append, while the existing start-once append remains the final
+    race-safe defense.
+    """
+    if type(trial_id) is not str or _TRIAL_ID_RE.fullmatch(trial_id) is None:
+        _fail("lifecycle-start-once", "trial_id is not lexically valid")
+    root = _repository_root(repository_root)
+    ledger, _relative = _canonical_lifecycle_target(
+        lifecycle_path, root, create_parent=True,
+    )
+
+    def inspect(rows):
+        if any(
+            item["event"] == "start" and item["trial_id"] == trial_id
+            for item in rows
+        ):
+            _fail(
+                "lifecycle-start-once",
+                f"trial_id already has a start row: {trial_id}",
+            )
+        return None, None
+
+    _locked_lifecycle_update(
+        repository_root=root,
+        lifecycle_path=ledger,
+        update=inspect,
+    )
+
+
+def forbid_trial_restart(token: TrialLifecycleToken) -> None:
+    """Consume the in-process restart capability for a started trial.
+
+    The durable start and indeterminate terminal rows remain the cross-process
+    refusal proof.  This capability flag makes the no-restart state explicit
+    to the process that owns the issued token without adding lifecycle keys.
+    """
+    if (
+        type(token) is not TrialLifecycleToken
+        or token._seal is not _TRIAL_LIFECYCLE_TOKEN_SEAL
+    ):
+        _fail("lifecycle-token", "restart refusal requires an issued lifecycle token")
+    with _TRIAL_LIFECYCLE_CAPABILITIES_LOCK:
+        state = _TRIAL_LIFECYCLE_CAPABILITIES.get(id(token))
+        if state is None or state.token is not token or not state.started_once:
+            _fail(
+                "lifecycle-token",
+                "restart refusal requires the exact started capability",
+            )
+        state.restart_forbidden = True
 
 
 def record_trial_terminal(

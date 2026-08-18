@@ -31,6 +31,7 @@ import hashlib
 import json
 import os
 import sys
+import time
 import uuid
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
@@ -88,6 +89,31 @@ def _ensure_growth_test_holds_loaded() -> None:
 @pytest.fixture
 def _detect_site_under_test():
     """Allow site-policy unit tests to exercise the real detector explicitly."""
+
+
+@pytest.fixture
+def valid_reservation_environment() -> dict[str, str]:
+    """Return one live, internally consistent Pegasus reservation binding."""
+    requested_s = 3600
+    scheduler_started_epoch = time.time() - 60
+    boot_id = Path("/proc/sys/kernel/random/boot_id").read_text(
+        encoding="ascii"
+    ).strip()
+    return {
+        "PBS_JOBID": "987654.pegasus",
+        "IZANAGI_RESERVATION_JOB_ID": "987654.pegasus",
+        "IZANAGI_RESERVATION_REQUESTED_S": str(requested_s),
+        "IZANAGI_RESERVATION_SCHEDULER_STARTED_EPOCH": str(
+            scheduler_started_epoch
+        ),
+        "IZANAGI_RESERVATION_DEADLINE_EPOCH": str(
+            scheduler_started_epoch + requested_s
+        ),
+        "IZANAGI_RESERVATION_HOST": "test-host",
+        "IZANAGI_RESERVATION_BOOT_ID": boot_id,
+        "IZANAGI_RESERVATION_SCRIPT_SHA256": "a" * 64,
+        "IZANAGI_RESERVATION_NONCE": "fixture-nonce",
+    }
 
 
 @pytest.fixture
