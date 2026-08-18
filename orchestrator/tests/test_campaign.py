@@ -911,11 +911,22 @@ def _layout():
 def test_wal_append_replay():
     lay = _layout(); lay.ensure()
     wal.write_lock(lay, ident.canonical_preimage(_cfg()))
-    wal.log(lay, "v1", STAGE_BUILD_START, "linux-baremetal")
-    wal.log(lay, "v1", STAGE_BUILD_DONE, "linux-baremetal", {"bin_hash": "abc"})
-    wal.log(lay, "v1", STAGE_VERIFY_DONE, "linux-baremetal", {"verdict": "serializable"})
-    commit_receipts.log_receipted_commit(
-        lay, "v1", "linux-baremetal", {"tps": 900000},
+    attempt_id = "wal-append-replay-attempt"
+    receipt, receipt_sha = _wal_admission_receipt("v1")
+    propagated = {
+        "build_attempt_id": attempt_id,
+        "build_admission_receipt_sha256": receipt_sha,
+    }
+    _attempt_start(lay, "v1", attempt_id, receipt, receipt_sha)
+    _attempt_stage(
+        lay, "v1", STAGE_BUILD_DONE, attempt_id, receipt_sha,
+        bin_hash="abc",
+    )
+    wal.log(lay, "v1", STAGE_VERIFY_DONE, "linux-baremetal", {
+        "verdict": "serializable", **propagated,
+    })
+    _attempt_stage(
+        lay, "v1", STAGE_COMMIT, attempt_id, receipt_sha, tps=900000,
     )
     states = wal.replay(lay)
     assert states["v1"].committed

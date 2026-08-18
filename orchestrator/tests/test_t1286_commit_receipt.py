@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import ast
+import hashlib
 import json
 import os
 import sys
@@ -29,18 +30,26 @@ from orchestrator.campaign import (  # noqa: E402
 from orchestrator.campaign.build_admission import (  # noqa: E402
     GeneratorId,
     build_run_context,
+    derive_build_admission,
 )
 from orchestrator.campaign.layout import CampaignLayout  # noqa: E402
 from orchestrator.campaign.model import (  # noqa: E402
     CampaignConfig,
     STAGE_ABORT,
     STAGE_BENCH_DONE,
+    STAGE_BUILD_DONE,
     STAGE_BUILD_START,
     STAGE_COMMIT,
     STAGE_VERIFY_DONE,
     WalRecord,
 )
+from orchestrator.campaign.pin import CURRENT_PIN  # noqa: E402
 from orchestrator.campaign.replay import GenomeResult, parse_flags  # noqa: E402
+from orchestrator.campaign.source_digest import (  # noqa: E402
+    EMPTY_TRACKED_DIFF_SHA256,
+    STOCK,
+    SourceEvidence,
+)
 from orchestrator.qualification.artifacts import (  # noqa: E402
     QualificationArtifactError,
     QualificationEventSink,
@@ -60,9 +69,10 @@ from orchestrator.verifier import (  # noqa: E402
 
 
 _CANON = "silo|BACK_OFF=0,NO_WAIT_LOCKING_IN_VALIDATION=1,NO_WAIT_OF_TICTOC=0,WAL=0"
-_TEST_ADMISSION_POLICY = build_run_context(
+_TEST_BUILD_CONTEXT = build_run_context(
     generator_id=GeneratorId.BACKOFF_SWEEP,
-).policy
+)
+_TEST_ADMISSION_POLICY = _TEST_BUILD_CONTEXT.policy
 
 
 def _v1_layout(tmp_path: Path, name: str = "campaign") -> CampaignLayout:
@@ -335,8 +345,36 @@ def test_cmd_evaluate_rejects_receiptless_result_from_exact_source_view(
 
 def test_legacy_receiptless_replay_and_recovery_are_byte_stable(tmp_path: Path):
     layout = _v1_layout(tmp_path)
+    admission = derive_build_admission(
+        _TEST_BUILD_CONTEXT,
+        SourceEvidence(
+            schema_version="source-evidence/v1",
+            source_root=os.path.realpath(layout.root),
+            ccbench_commit=CURRENT_PIN,
+            genome_sha256=hashlib.sha256(_CANON.encode("utf-8")).hexdigest(),
+            src_token=STOCK,
+            source_bytes_sha256=hashlib.sha256(
+                b"legacy-receiptless-fixture"
+            ).hexdigest(),
+            tracked_clean=True,
+            tracked_diff_sha256=EMPTY_TRACKED_DIFF_SHA256,
+            tracked_paths=(),
+        ),
+    ).as_wal_receipt()
+    attempt_id = "legacy-receiptless-attempt"
+    propagated = {
+        "build_attempt_id": attempt_id,
+        "build_admission_receipt_sha256": admission["receipt_sha256"],
+    }
+    wal.log(layout, "legacy", STAGE_BUILD_START, "test", {
+        "genome": _CANON,
+        "src_token": STOCK,
+        "build_admission": admission,
+        **propagated,
+    })
+    wal.log(layout, "legacy", STAGE_BUILD_DONE, "test", dict(propagated))
     receipt_support.append_legacy_raw_commit(
-        layout, "legacy", "test", {"fitness_tps": 1.0})
+        layout, "legacy", "test", {"fitness_tps": 1.0, **propagated})
     before = Path(layout.wal_file).read_bytes()
     assert wal.replay(layout)["legacy"].committed
     assert wal.recover_interrupted_attempts(
