@@ -67,8 +67,11 @@ title: 8c 条件 7 の consumer (result judge) と静的 evaluator を新設す�
 
 ### 更新
 
-- [T-1352] **P1・一部完了**: 8c 条件 7 の consumer (`orchestrator/campaign/s8c_result_judge.py`) と
-  静的 evaluator (`_evaluate_c07`) を新設した。残件は (a) 証拠契約の `machine_checkable` 反転と
-  `_MACHINE_EVALUATORS` 登録・negative control 登録・条件凍結の新世代発行を束ね wave で 1 回に行う、
+- [T-1352] **P1・部分実装済み**: 本 wave で 8c 条件 7 の consumer
+  (`orchestrator/campaign/s8c_result_judge.py`) と静的 evaluator (`_evaluate_c07`) を新設した。
+  judge は 3 条件を三値評価し、3 表を分離出力し、床値を判定の入力にしない。§5 の数値欄 validator は
+  別 wave が先に production 経路へ置いている。残件は (a) 証拠契約の `machine_checkable` 反転と
+  `_MACHINE_EVALUATORS` 登録・negative control 登録・条件凍結の新世代発行を束ね wave で 1 回に行う
+  (契約 C07 の入口名 `accept_trial` が実在しないため契約本文の是正も同時に要る)、
   (b) 最終判定層の現用実装から旧条件 3 と scale gate を撤去する、の 2 つ。
-  base: d7d46332b6fe35eecbb4f354d86bb6079b7d67f25eb3f0e989b474ea9ea20634
+  base: 67310146572f6cf395f07bbe77e51c0c42c476a1506af43a37d227b3f6068116
