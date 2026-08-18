@@ -44,6 +44,7 @@ _PERF_DISCOVERY_CALLS = _TRACKED_CALLS - {"evaluate", "evaluate_fn"}
 _REVIEWED_PERF_FILES = frozenset({
     "orchestrator/calibrator/perf_preflight.py",
     "orchestrator/calibrator/runner.py",
+    "orchestrator/campaign/autonomous_trial_completeness.py",
     "orchestrator/campaign/layer3_report.py",
     "orchestrator/campaign/loop.py",
     "orchestrator/campaign/pipeline.py",

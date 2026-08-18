@@ -30,6 +30,7 @@ from typing import Dict, Iterator, List, Optional
 from .build_admission import (
     BuildAdmissionError,
     BuildAdmissionPolicy,
+    resolve_current_build_admission_policy,
     validate_build_admission_receipt,
 )
 from . import campaign_lock as campaign_lock_codec
@@ -50,6 +51,12 @@ from .model import (
     WalRecord,
 )
 from . import trigger_gate_binding
+from ..verifier.commit_receipt import (
+    RECEIPT_PAYLOAD_KEY,
+    CommitReceiptError,
+    campaign_lock_sha256,
+    validate_live_campaign_wal_receipt,
+)
 
 
 TRIGGER_BINDING_PAYLOAD_KEY = "trigger_gate_binding"
@@ -376,9 +383,38 @@ def _append_error(layout: CampaignLayout, total: int, written: int,
     )
 
 
-def append(layout: CampaignLayout, record: WalRecord) -> None:
+def _consumed_commit_receipt_ids(fd: int, size: int) -> set[str]:
+    """Read the ledger held by ``fd`` and return durable receipt IDs."""
+    if size == 0:
+        return set()
+    raw = os.pread(fd, size, 0)
+    if len(raw) != size:
+        raise CommitReceiptError("WAL changed while scanning commit receipts")
+    consumed: set[str] = set()
+    for frame in raw.splitlines(keepends=True):
+        if not frame.endswith(b"\n"):
+            raise WalFramingError(
+                "WAL tail is not newline-terminated; explicit repair required")
+        parsed = parse_line(frame.decode("utf-8"))
+        receipt = parsed.payload.get(RECEIPT_PAYLOAD_KEY)
+        if receipt is None:
+            continue
+        if type(receipt) is not dict or type(receipt.get("receipt_id")) is not str:
+            raise CommitReceiptError("stored commit receipt is malformed")
+        receipt_id = receipt["receipt_id"]
+        if receipt_id in consumed:
+            raise CommitReceiptError("stored commit receipt is duplicated")
+        consumed.add(receipt_id)
+    return consumed
+
+
+def append(
+        layout: CampaignLayout, record: WalRecord, *, commit_receipt=None,
+) -> WalRecord:
     """WAL に 1 frame を排他追記し、file/dir を fsync する。"""
     # 拒否された record で directory/file 側の効果を起こさない。
+    if record.stage != STAGE_COMMIT and commit_receipt is not None:
+        raise CommitReceiptError("commit receipt supplied for non-COMMIT record")
     line = _record_to_line(record) + "\n"
     parse_line(line)
     encoded = line.encode("utf-8")
@@ -407,6 +443,37 @@ def append(layout: CampaignLayout, record: WalRecord) -> None:
                 raise _append_error(
                     layout, total, written, "tail-gate", exc,
                 ) from exc
+
+            if record.stage == STAGE_COMMIT:
+                lock_identity_sha256 = (
+                    campaign_lock_sha256(layout)
+                    if os.path.lexists(layout.lock_file)
+                    else None
+                )
+                serialized_receipt = validate_live_campaign_wal_receipt(
+                    commit_receipt,
+                    lock_identity_sha256=lock_identity_sha256,
+                    variant=record.variant,
+                    terminal_payload=record.payload,
+                )
+                consumed = _consumed_commit_receipt_ids(fd, info.st_size)
+                if serialized_receipt["receipt_id"] in consumed:
+                    raise CommitReceiptError(
+                        "commit receipt was already consumed by this WAL")
+                record = WalRecord(
+                    variant=record.variant,
+                    stage=record.stage,
+                    env_tag=record.env_tag,
+                    ts=record.ts,
+                    payload={
+                        **record.payload,
+                        RECEIPT_PAYLOAD_KEY: serialized_receipt,
+                    },
+                )
+                line = _record_to_line(record) + "\n"
+                parse_line(line)
+                encoded = line.encode("utf-8")
+                total = len(encoded)
 
             while written < total:
                 try:
@@ -472,6 +539,7 @@ def append(layout: CampaignLayout, record: WalRecord) -> None:
             ) from exc
     except BaseException:
         raise
+    return record
 
 
 def _digest_range(fd: int, start: int, size: int) -> tuple[str, bytes]:
@@ -619,13 +687,13 @@ def repair_truncated_tail(
 
 
 def log(layout: CampaignLayout, variant: str, stage: str, env_tag: str,
-        payload: Optional[Dict] = None, ts: Optional[float] = None) -> WalRecord:
+        payload: Optional[Dict] = None, ts: Optional[float] = None, *,
+        commit_receipt=None) -> WalRecord:
     """WalRecord を組んで追記する糖衣。ts 省略時は現在時刻。"""
     rec = WalRecord(variant=variant, stage=stage, env_tag=env_tag,
                     ts=ts if ts is not None else time.time(),
                     payload={} if payload is None else payload)
-    append(layout, rec)
-    return rec
+    return append(layout, rec, commit_receipt=commit_receipt)
 
 
 def log_trigger_binding(
@@ -744,12 +812,6 @@ def ordered_attempt_frames(
             ))
         byte_start = byte_end
     return tuple(selected)
-
-
-def _lock_declares_admission_policy(lock_value: object) -> bool:
-    identity = _campaign_lock_identity(lock_value)
-    search = identity.get("search_config") if type(identity) is dict else None
-    return type(search) is dict and "build_admission" in search
 
 
 def _campaign_lock_value(layout: CampaignLayout) -> object:
@@ -1336,6 +1398,16 @@ def _recovery_abort_record(start: WalRecord, attempt: BuildAttemptState) -> WalR
 def _append_records_locked(
         layout: CampaignLayout, fd: int, records: List[WalRecord],
 ) -> None:
+    if any(record.stage != STAGE_ABORT for record in records):
+        raise InterruptedAttemptRecoveryError(
+            condition="recovery-stage-not-abort",
+            variant=next(
+                record.variant for record in records
+                if record.stage != STAGE_ABORT
+            ),
+            attempt_ids=("internal-recovery-suffix",),
+            detail="_append_records_locked accepts STAGE_ABORT only",
+        )
     encoded = b"".join(
         (_record_to_line(record) + "\n").encode("utf-8")
         for record in records
@@ -1526,10 +1598,19 @@ def replay(
     campaign_lock = _campaign_lock_value(layout)
     validate_commit_contract_bindings(records, campaign_lock=campaign_lock)
     validate_trigger_bindings(records, campaign_lock=campaign_lock)
-    if admission_policy is None and _lock_declares_admission_policy(campaign_lock):
-        raise AttemptTopologyError(
-            "admission-aware campaign replay には current admission_policy が必要"
+    if admission_policy is None:
+        identity = _campaign_lock_identity(campaign_lock)
+        search = identity.get("search_config") if type(identity) is dict else None
+        declared_policy = (
+            search.get("build_admission") if type(search) is dict else None
         )
+        if declared_policy is not None:
+            current_policy = resolve_current_build_admission_policy()
+            if declared_policy != current_policy.as_preimage():
+                raise AttemptTopologyError(
+                    "campaign.lock の build admission_policy が現行 policy と不一致"
+                )
+            admission_policy = current_policy
     attempts = (
         _validate_attempt_topology(
             records, admission_policy=admission_policy,
@@ -1594,7 +1675,9 @@ def records_by_stage(layout: CampaignLayout, variant: str) -> Dict[str, Dict]:
         if (r.variant == variant
                 and r.stage != trigger_gate_binding.WAL_RECORD_STAGE
                 and not _is_trigger_orphan_tombstone_at(records, index)):
-            out[r.stage] = r.payload
+            payload = dict(r.payload)
+            payload.pop(RECEIPT_PAYLOAD_KEY, None)
+            out[r.stage] = payload
     return out
 
 

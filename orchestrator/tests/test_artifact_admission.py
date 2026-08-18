@@ -37,6 +37,7 @@ from orchestrator.campaign.layout import CampaignLayout
 from orchestrator.campaign.pin import CURRENT_PIN
 from orchestrator.campaign.source_digest import EMPTY_TRACKED_DIFF_SHA256, SourceEvidence
 from orchestrator.tests.campaign_lock_test_support import build_v2_campaign_lock
+from orchestrator.tests import commit_receipt_support as receipt_support
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -57,6 +58,17 @@ _EXPECTED_E1_CLOSURE_PATHS = (
     "orchestrator/verifier/parse.py",
     "orchestrator/verifier/__init__.py",
     "orchestrator/verifier/report.py",
+    "orchestrator/campaign/s8c_preregistration.py",
+    "orchestrator/campaign/s8c_preregistration_evidence.py",
+    "orchestrator/campaign/s8c_generation_projection.py",
+    "orchestrator/campaign/campaign_lock.py",
+    "orchestrator/campaign/contract_loader_binding.py",
+    "orchestrator/campaign/enforcement_source_ratification.py",
+    "orchestrator/campaign/guided.py",
+    "orchestrator/campaign/replay.py",
+    "orchestrator/qualification/artifacts.py",
+    "orchestrator/qualification/t126_driver.py",
+    "orchestrator/verifier/commit_receipt.py",
 )
 _GIT_ENV_ALLOWLIST = (
     "LANG",
@@ -364,7 +376,7 @@ def _fixture_git(repo: Path, *args: str) -> bytes:
 
 
 def _committed_closure_repo(tmp_path: Path) -> Path:
-    """現行 checkout の hash を使わない exact 14-path E1 fixture。"""
+    """現行 checkout の hash を使わない exact 25-path E1 fixture。"""
     repo = tmp_path / "closure-repo"
     repo.mkdir()
     _fixture_git(repo, "init", "-q")
@@ -584,11 +596,13 @@ def test_recovered_attempt_then_retry_is_admitted_without_read_mutation(tmp_path
     wal.log(layout, start.variant, "build_done", start.env_tag, terminal_payload)
     decoded = campaign_lock.decode_campaign_lock(Path(layout.lock_file).read_text())
     assert decoded.authority is not None
-    wal.log(layout, start.variant, "commit", start.env_tag, {
+    receipt_support.log_receipted_commit(
+        layout, start.variant, start.env_tag, {
         **terminal_payload,
         COMMIT_CONTRACT_SHA256_KEY:
             decoded.authority.environment_contract_sha256,
-    })
+        }, operation_identity="attempt-2",
+    )
     before_admission = (campaign / "runs/wal.jsonl").read_bytes()
 
     admitted = A.require_admitted_campaign(campaign, purpose=HISTORICAL)
@@ -674,11 +688,13 @@ def _append_committed_retry(layout, start, attempt_id: str) -> None:
     wal.log(layout, start.variant, "build_done", start.env_tag, terminal)
     decoded = campaign_lock.decode_campaign_lock(Path(layout.lock_file).read_text())
     assert decoded.authority is not None
-    wal.log(layout, start.variant, "commit", start.env_tag, {
+    receipt_support.log_receipted_commit(
+        layout, start.variant, start.env_tag, {
         **terminal,
         COMMIT_CONTRACT_SHA256_KEY:
             decoded.authority.environment_contract_sha256,
-    })
+        }, operation_identity=attempt_id,
+    )
 
 
 def test_historical_signal_does_not_overreject_later_start_only_recovery(tmp_path):
@@ -991,8 +1007,8 @@ def test_real_e0_is_rejected_only_by_certified_epoch_gate() -> None:
     assert excinfo.value.epoch_state == "E0"
     assert excinfo.value.reason_code == "v1-authority-absent"
     assert excinfo.value.identity_scope == (
-        "enforcement source closure (exact 14 path; witness gate 本体 pipeline.py、"
-        "verifier dispatch __init__.py、verifier 実装 core/dsg/model/parse/report.py を含む)"
+        "enforcement source closure (exact 25 path; witness gate、S8C 判定器、"
+        "批准比較、receipt 発行・検証面を含む)"
     )
     assert excinfo.value.excluded_scope == (
         "verifier package のうち orchestrator/verifier/__main__.py と "
@@ -1115,7 +1131,7 @@ def test_valid_v2_campaign_is_admitted(tmp_path: Path) -> None:
     )
     assert decoded.is_v2
     assert decoded.authority is not None
-    assert len(decoded.authority.contract_loader_blob_sha256s) == 14
+    assert len(decoded.authority.contract_loader_blob_sha256s) == 25
     assert A.classify_campaign(campaign).admission_status == "admitted"
 
 
@@ -1174,6 +1190,7 @@ def test_certified_acceptance_rejects_e1_stale_exact_map_mismatch(
         "orchestrator/verifier/parse.py",
         "orchestrator/verifier/__init__.py",
         "orchestrator/verifier/report.py",
+        "orchestrator/verifier/commit_receipt.py",
     ),
     ids=lambda path: Path(path).name,
 )
@@ -1489,7 +1506,11 @@ def test_v2_loader_validation_rejects_git_unavailable(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     campaign = _new_schema_campaign(tmp_path)
-    monkeypatch.setattr(contract_loader_binding.shutil, "which", lambda _name: None)
+    monkeypatch.setattr(
+        contract_loader_binding,
+        "_GIT_EXECUTABLE",
+        tmp_path / "missing-fixed-git",
+    )
 
     with pytest.raises(A.ArtifactAdmissionError, match="git executable"):
         A.classify_campaign(campaign)

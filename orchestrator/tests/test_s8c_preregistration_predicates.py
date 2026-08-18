@@ -22,9 +22,71 @@ from orchestrator.campaign import s8b_holdout_freeze  # noqa: E402
 from orchestrator.campaign import s8c_generation_projection as projection  # noqa: E402
 from orchestrator.campaign import s8c_preregistration as core  # noqa: E402
 from orchestrator.campaign import s8c_preregistration_evidence as M  # noqa: E402
+from orchestrator.campaign import s8c_schedule as S  # noqa: E402
 
 
 CONTRACT_FILE = _ROOT / core.EVIDENCE_CONTRACT_PATH
+
+
+def _c05_authority() -> dict[str, object]:
+    return {
+        "arms": ["on", "off", "swapped"],
+        "designated_source_context": "axis:silo-backoff-trigger-gating/v1",
+        "descriptor_bindings": {
+            "H1": {"workload": "rr80", "ycsb_rratio": "80"},
+            "H2": {"workload": "rr20", "ycsb_rratio": "20"},
+        },
+        "gating_spec": "five-bit-wire:v1",
+        "holdout_bindings": {
+            "H1": {"workload": "rr80", "ycsb_rratio": "80"},
+            "H2": {"workload": "rr20", "ycsb_rratio": "20"},
+        },
+        "holdouts": ["H1", "H2"],
+        "role_contracts": {
+            "auditor": "auditor-contract:v1",
+            "coder": "coder-contract:v1",
+            "critic": "critic-contract:v1",
+            "planner": "planner-contract:v1",
+        },
+        "role_files": {
+            "auditor": "auditor.md",
+            "coder": "coder.md",
+            "critic": "critic.md",
+            "planner": "planner.md",
+        },
+        "role_payload_allowlist": {
+            "auditor": ["working_diff", "correctness_digest"],
+            "coder": ["gating_spec", "baseline"],
+            "critic": ["harness_result", "critic_digest"],
+            "planner": ["current_perf", "whiteboard"],
+        },
+        "workloads": {
+            "rr20": {"records": 100000, "threads": 4},
+            "rr80": {"records": 100000, "threads": 4},
+        },
+        "attempt_policy": {"max_attempts": 1, "retry": False},
+        "baseline": {"kind": "stock", "trace": False},
+        "descriptor_binding": {
+            "schema_version": "8b-v1",
+            "descriptor_sha256": "descriptor-hash",
+        },
+        "gating_snapshot": {"schema_version": "gating-snapshot/v1", "wire": "10100"},
+        "initial_role_metrics": {
+            "abort_rate": None,
+            "ipc": None,
+            "latency_ns": None,
+            "llc_miss_rate": None,
+            "throughput_ops_sec": None,
+        },
+        "leakproof_context": {
+            "tools": ["declared-tool-set"],
+            "projected_input_only": True,
+        },
+        "stop_policy": {
+            "reasons": ["converged", "budget-iterations", "budget-walltime"],
+        },
+        "whiteboard": [{"status": "initial"}],
+    }
 
 
 def _git(root: Path, *args: str, input_bytes: bytes | None = None) -> bytes:
@@ -148,7 +210,7 @@ def test_current_repository_gap_reason_snapshot_requires_cross_wave_review(
     assert {
         item.id: (item.status, item.reason_code) for item in results
     } == {
-        "C01": (core.PredicateStatus.UNSATISFIED, "workload-projection-mismatch"),
+        "C01": (core.PredicateStatus.UNSATISFIED, "ratified-generation-reference-absent"),
         "C02": (
             core.PredicateStatus.EVIDENCE_UNDEFINED,
             "completion-proof-not-machine-checkable",
@@ -740,6 +802,11 @@ NEGATIVE_CONTROL_CASES = {
     "nc_c10_raw_response_unbound": "C10",
     "nc_c11_generation_cap_reverts_to_one": "C11",
     "nc_c12_reservation_check_bypassed": "C12",
+}
+
+
+NON_MACHINE_CHECKABLE_NEGATIVE_CONTROL_CASES = {
+    "nc_c05_initial_state_hash_bitflip": "C05",
 }
 
 
@@ -2194,6 +2261,131 @@ def test_c11_generation_projection_is_required_before_terminal_undefined(
     result = _result(root, mutated, "C11")
     assert result.status is core.PredicateStatus.UNSATISFIED
     assert result.reason_code == "critic-feedback-consumer-absent"
+
+
+def _current_head_c05_probe() -> M._ConditionProbe:
+    contract_raw = CONTRACT_FILE.read_bytes()
+    contract = M.load_contract_bytes(contract_raw)
+    condition = contract.condition(5)
+    paths = {
+        item.artifact_kind: item.path for item in condition.required_evidence
+    }
+    artifact_path = paths["schedule_artifact"]
+    consumer_path = paths["schedule_consumer"]
+    workload_path = "orchestrator/campaign/p3_autonomous_workload_trial.py"
+    artifact = S.regenerate("c05-direct-probe", authority=_c05_authority())
+    consumer_raw = (_ROOT / consumer_path).read_bytes()
+    workload_raw = _git(_ROOT, "show", f"HEAD:{workload_path}")
+    return M._ConditionProbe(
+        _ROOT,
+        "HEAD",
+        condition,
+        core.EvidenceRef(
+            core.EVIDENCE_CONTRACT_PATH,
+            core._sha256(contract_raw),
+        ),
+        {},
+        {
+            artifact_path: artifact,
+            consumer_path: consumer_raw,
+            workload_path: workload_raw,
+        },
+        python_cache={
+            consumer_path: ast.parse(
+                consumer_raw.decode("utf-8"), filename=consumer_path
+            ),
+            workload_path: ast.parse(
+                workload_raw.decode("utf-8"), filename=workload_path
+            ),
+        },
+        declared_paths=contract.evidence_paths,
+    )
+
+
+def test_c05_direct_evaluator_reports_current_head_unreachable() -> None:
+    result = M._evaluate_c05(_current_head_c05_probe())
+    assert result.status is core.PredicateStatus.UNSATISFIED
+    assert result.reason_code == "schedule-consumer-unreachable"
+
+
+def test_c05_evaluator_reports_undefined_when_consumer_commit_module_is_absent(
+    tmp_path: Path,
+) -> None:
+    contract_raw = CONTRACT_FILE.read_bytes()
+    contract = M.load_contract_bytes(contract_raw)
+    condition = contract.condition(5)
+    paths = {
+        item.artifact_kind: item.path
+        for item in condition.required_evidence
+    }
+    artifact_path = paths["schedule_artifact"]
+    consumer_path = paths["schedule_consumer"]
+    artifact = S.regenerate("c05-consumer-absent", authority=_c05_authority())
+    root = _init_repo(tmp_path, "c05-consumer-absent")
+    _write(root, artifact_path, artifact)
+    commit = _commit(root, "C05 artifact without consumer module")
+    probe = M._ConditionProbe(
+        root,
+        commit,
+        condition,
+        core.EvidenceRef(
+            core.EVIDENCE_CONTRACT_PATH,
+            core._sha256(contract_raw),
+        ),
+        {},
+        {
+            artifact_path: artifact,
+            consumer_path: None,
+        },
+        declared_paths=contract.evidence_paths,
+    )
+
+    result = M._evaluate_c05(probe)
+    assert result.status is core.PredicateStatus.EVIDENCE_UNDEFINED
+    assert result.reason_code == "schedule-consumer-undefined"
+
+
+@pytest.mark.parametrize(
+    ("negative_control_id", "identifier"),
+    tuple(NON_MACHINE_CHECKABLE_NEGATIVE_CONTROL_CASES.items()),
+)
+def test_c05_initial_state_hash_bitflip_is_single_shared_layer_failure(
+    negative_control_id: str, identifier: str
+) -> None:
+    assert negative_control_id == "nc_c05_initial_state_hash_bitflip"
+    assert identifier == "C05"
+    authority = _c05_authority()
+    master_seed = "c05-negative-control"
+    baseline = S.regenerate(master_seed, authority=authority)
+    schedule = S.verify_schedule(
+        baseline,
+        master_seed=master_seed,
+        authority=authority,
+    )
+    expected_search = S.search_space_digest(authority)
+    expected_initial = S.initial_state_digest(authority)
+    assert all(cell.search_space_sha256 == expected_search for cell in schedule.cells)
+    assert all(cell.initial_state_sha256 == expected_initial for cell in schedule.cells)
+
+    flipped_bytes = bytearray.fromhex(expected_initial)
+    flipped_bytes[0] ^= 0x01
+    flipped_initial = bytes(flipped_bytes).hex()
+    assert (
+        int(expected_initial, 16) ^ int(flipped_initial, 16)
+    ).bit_count() == 1
+    assert expected_initial[2:] == flipped_initial[2:]
+
+    with pytest.raises(S.ScheduleError):
+        S.verify_shared_search_space_and_initial_state(
+            schedule,
+            expected_search_space_sha256=expected_search,
+            expected_initial_state_sha256=flipped_initial,
+        )
+    S.verify_exact_schedule_bytes(
+        baseline,
+        master_seed=master_seed,
+        authority=authority,
+    )
 
 
 def test_c03_c08_contract_uses_two_stage_binding_without_self_reference() -> None:

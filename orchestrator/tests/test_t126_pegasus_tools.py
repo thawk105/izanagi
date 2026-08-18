@@ -20,10 +20,13 @@ from pathlib import Path
 import pytest
 from jsonschema import Draft7Validator
 
+pytestmark = pytest.mark.usefixtures("ratified_enforcement_source")
+
 _HERE = Path(__file__).resolve().parent
 _ROOT = _HERE.parent.parent
 sys.path.insert(0, str(_HERE.parents[1]))
 
+from orchestrator.tests import commit_receipt_support as receipt_support  # noqa: E402
 from pegasus_policy_expected_goldens import (  # noqa: E402
     EXPECTED_CURRENT_PEGASUS_POLICY_SHA256,
     EXPECTED_HISTORICAL_PEGASUS_POLICY_SHA256,
@@ -1238,7 +1241,11 @@ def _attempt(
             for role in order:
                 median = 90.0 if role == "subject" else 100.0
                 sink = QualificationEventSink(
-                    capability, layout, round_index=round_index, role=role)
+                    capability, layout, round_index=round_index, role=role,
+                    source_lock_identity_sha256=(
+                        protocol["source"]["campaign_lock_sha256"]
+                    ),
+                )
                 payloads = [
                     ("build_start", {"genome": "silo|BACK_OFF=1", "src_token": "x"}),
                     ("build_done", {
@@ -1278,14 +1285,31 @@ def _attempt(
                     }),
                 ]
                 for stage, payload in payloads:
-                    sink.emit(layout, "variant", stage, "pegasus", payload)
+                    if stage == "commit":
+                        receipt = receipt_support.qualification_receipt(
+                            "variant", payload,
+                            lock_identity_sha256=(
+                                protocol["source"]["campaign_lock_sha256"]
+                            ),
+                            operation_identity=f"round-{round_index}-{role}",
+                        )
+                        sink.emit(
+                            layout, "variant", stage, "pegasus", payload,
+                            commit_receipt=receipt,
+                        )
+                    else:
+                        sink.emit(layout, "variant", stage, "pegasus", payload)
                 event_path = (
                     layout.attempt_dir
                     / f"rounds/{round_index:04d}/{role}/evaluation-events.jsonl")
                 admitted = validate_member_evidence(
                     load_jsonl_strict(event_path), expected_role=role,
                     expected_round=round_index,
-                    expected_perf_observation=None)
+                    expected_perf_observation=None,
+                    expected_lock_identity_sha256=(
+                        protocol["source"]["campaign_lock_sha256"]
+                    ),
+                )
                 runtime = {
                     "schema_version": "t126-qualification-member-runtime/v1",
                     "round_index": round_index, "member_role": role,
