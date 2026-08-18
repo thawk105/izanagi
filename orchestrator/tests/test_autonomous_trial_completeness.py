@@ -227,7 +227,7 @@ def _t428_descriptor_campaign_id(trial_id: str, workload: str) -> str:
     descriptor, descriptor_record = A._descriptor_for(workload_flags)
     cfg = A._campaign_for(
         workload=workload,
-        workload_flags=workload_flags,
+        entry=workload_flags,
         descriptor=descriptor,
         descriptor_record=descriptor_record,
         trial_id=trial_id,
@@ -277,6 +277,7 @@ def _golden_cell_metadata(
             "ycsb_rratio": golden["rratio"],
             "ycsb_rmw": "0",
         },
+        "perf_config_scale": {"records": 100_000, "threads": 4},
         "descriptor": {
             "schema_version": "8b-v1",
             "source": "campaign_search_config_projection",
@@ -719,6 +720,7 @@ def _registered_digest_chain_trial(tmp_path: Path):
         s8b_holdout_freeze.RRATIO_KEY: holdout_high,
         s8b_holdout_freeze.RMW_KEY: fixed_rmw,
     }
+    entry = A.FORMAL_WORKLOADS[workload]
     descriptor = {
         "schema_version": "8b-v1",
         "source": "campaign_search_config_projection",
@@ -735,6 +737,10 @@ def _registered_digest_chain_trial(tmp_path: Path):
     events[0]["workloads"] = [workload]
     cell["workload"] = workload
     cell["workload_flags"] = workload_flags
+    cell["perf_config_scale"] = {
+        "records": entry["records"],
+        "threads": entry["threads"],
+    }
     cell["descriptor"] = descriptor
     for event in events:
         if event.get("event") in {"role-attempt", "generation-accounting"}:
@@ -769,11 +775,11 @@ def _registered_digest_chain_trial(tmp_path: Path):
             "descriptor_sha256": content_digest,
             "generation_budget": 1,
             "pilot_scope": "exploratory-ycsb-abc",
-            "records": 100_000,
+            "records": entry["records"],
             "reflux": "on",
             "scale": "silo",
             "stop_policy": "fixed-generations-no-performance-early-stop",
-            "threads": 4,
+            "threads": entry["threads"],
             "trigger_gate_binding_schema": "izanagi-trigger-gate-binding/v1",
             "verify": "legacy+s2",
             "workload": workload,
@@ -2965,6 +2971,186 @@ def _campaign_report(cell: dict, *, trial_id: str = "fixture-completeness") -> d
         "launch_admission": {"certifying": False},
         "cells": [copy.deepcopy(cell)],
     }
+
+
+def _rewrite_cell_campaign_identity(
+    campaign: Path, cell: dict, mutate_identity,
+) -> None:
+    decoded = C._campaign_lock_identity(campaign, gate="fixture")
+    identity = json.loads(decoded.identity_preimage)
+    mutate_identity(identity)
+    identity_preimage = C.campaign_lock.canonical_json(identity)
+    (campaign / "campaign.lock").write_text(
+        build_v2_lock(identity_preimage), encoding="utf-8",
+    )
+    workload = identity["search_config"]["workload"]
+    cell["campaign_id"] = (
+        f"p3-t178-{workload}-workload-conditioned-autonomous-"
+        f"{hashlib.sha256(identity_preimage.encode('utf-8')).hexdigest()[:8]}"
+    )
+
+
+def test_t1333_campaign_chain_reprojects_descriptor_scale_from_entry(
+    tmp_path,
+) -> None:
+    _output_root, campaign, _path, _persisted, cell = _layer3_campaign(tmp_path)
+    entry = A.WORKLOADS["ycsb-a"]
+    C._check_cell_campaign_identity(
+        cell=cell,
+        cell_index=0,
+        workload="ycsb-a",
+        entry=entry,
+        trial_id="fixture-completeness",
+        budget=1,
+        campaign_root=campaign,
+        arm_binding_digest=None,
+    )
+    mutated_records = entry["records"] + 1
+    cell["descriptor"]["scale"]["records"] = mutated_records
+    cell["perf_config_scale"]["records"] = mutated_records
+    descriptor_sha256 = hashlib.sha256(
+        C._canonical_bytes(cell["descriptor"])
+    ).hexdigest()
+    projected_input_sha256 = hashlib.sha256(C._canonical_bytes({
+        "records": mutated_records,
+        "threads": entry["threads"],
+        "ycsb": dict(entry["ycsb"]),
+    })).hexdigest()
+    cell["descriptor_binding"]["input_sha256"] = projected_input_sha256
+    cell["descriptor_binding"]["output_sha256"] = descriptor_sha256
+
+    def mutate_identity(identity):
+        identity["search_config"]["records"] = mutated_records
+        identity["search_config"]["descriptor_sha256"] = descriptor_sha256
+
+    _rewrite_cell_campaign_identity(campaign, cell, mutate_identity)
+    with pytest.raises(
+        C.AutonomousTrialCompletenessError,
+        match=(
+            r"^\[campaign-chain\] cells\[0\] workload scale "
+            r"differs from producer$"
+        ),
+    ):
+        C._check_cell_campaign_identity(
+            cell=cell,
+            cell_index=0,
+            workload="ycsb-a",
+            entry=entry,
+            trial_id="fixture-completeness",
+            budget=1,
+            campaign_root=campaign,
+            arm_binding_digest=None,
+        )
+
+
+def test_m5_exploratory_workload_flags_are_the_only_mismatch(tmp_path) -> None:
+    output_root, _campaign, _path, _persisted, cell = _layer3_campaign(tmp_path)
+    key = A.s8b_holdout_freeze.SKEW_KEY
+    cell["workload_flags"][key] += "0"
+    with pytest.raises(
+        C.AutonomousTrialCompletenessError,
+        match=r"cells\[0\]\.workload_flags differs from producer$",
+    ):
+        C.assert_campaign_layer3_chain(
+            report=_campaign_report(cell), output_root=output_root,
+        )
+
+
+def test_perf_config_scale_is_independently_bound_to_the_entry(tmp_path) -> None:
+    _output_root, campaign, _path, _persisted, cell = _layer3_campaign(tmp_path)
+    entry = A.WORKLOADS["ycsb-a"]
+    cell["perf_config_scale"]["threads"] = entry["threads"] + 1
+    with pytest.raises(
+        C.AutonomousTrialCompletenessError,
+        match=r"cells\[0\] workload scale differs from producer$",
+    ):
+        C._check_cell_campaign_identity(
+            cell=cell,
+            cell_index=0,
+            workload="ycsb-a",
+            entry=entry,
+            trial_id="fixture-completeness",
+            budget=1,
+            campaign_root=campaign,
+            arm_binding_digest=None,
+        )
+
+
+def test_m6_formal_campaign_scale_is_the_only_mismatch(tmp_path) -> None:
+    _run, _events, report, arm_execution = _registered_digest_chain_trial(tmp_path)
+    cell = report["cells"][0]
+    workload = cell["workload"]
+    entry = A.FORMAL_WORKLOADS[workload]
+    campaign = Path(cell["campaign_root"])
+    mutated_records = entry["records"] + 1
+
+    def mutate_identity(identity):
+        identity["search_config"]["records"] = mutated_records
+
+    _rewrite_cell_campaign_identity(campaign, cell, mutate_identity)
+    with pytest.raises(
+        C.AutonomousTrialCompletenessError,
+        match=r"cells\[0\] workload scale differs from producer$",
+    ):
+        C._check_cell_campaign_identity(
+            cell=cell,
+            cell_index=0,
+            workload=workload,
+            entry=entry,
+            trial_id="fixture-completeness",
+            budget=1,
+            campaign_root=campaign,
+            arm_binding_digest=arm_execution["arm_binding_digest_sha256"],
+        )
+
+
+def test_t1310_consumer_independently_reloads_legacy_source_and_four_keys(
+    monkeypatch,
+) -> None:
+    source_record = A._formal_profile_source_record(repository_root=A.ROOT)
+    original_loader = C.s8b_ratified_freeze.load_legacy_freeze
+    calls = []
+
+    def recording_loader(root):
+        calls.append(Path(root))
+        return original_loader(root)
+
+    monkeypatch.setattr(
+        C.s8b_ratified_freeze, "load_legacy_freeze", recording_loader,
+    )
+    C.assert_legacy_workload_profile_source(
+        source_record=source_record,
+        producer_entries=A.FORMAL_WORKLOADS,
+        repository_root=A.ROOT,
+    )
+    assert calls == [A.ROOT]
+
+    tampered_source = {**source_record, "sha256": "0" * 64}
+    with pytest.raises(
+        C.AutonomousTrialCompletenessError,
+        match=r"source record differs from fresh legacy load$",
+    ):
+        C.assert_legacy_workload_profile_source(
+            source_record=tampered_source,
+            producer_entries=A.FORMAL_WORKLOADS,
+            repository_root=A.ROOT,
+        )
+
+    tampered_entries = copy.deepcopy(A.FORMAL_WORKLOADS)
+    formal_name = next(iter(A.s8b_holdout_freeze.HOLDOUTS))
+    tampered_entries[formal_name] = {
+        **A.FORMAL_WORKLOADS[formal_name],
+        "records": A.FORMAL_WORKLOADS[formal_name]["records"] + 1,
+    }
+    with pytest.raises(
+        C.AutonomousTrialCompletenessError,
+        match=r"four-key authority bytes differ$",
+    ):
+        C.assert_legacy_workload_profile_source(
+            source_record=source_record,
+            producer_entries=tampered_entries,
+            repository_root=A.ROOT,
+        )
 
 
 def test_m10_campaign_chain_rejects_persisted_performance_mutation(tmp_path) -> None:
