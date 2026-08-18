@@ -1,0 +1,126 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 70,
+  "timeout_seconds": 900,
+  "hang_timeout_seconds": 1200,
+  "mutations": [
+    {
+      "id": "t1132.m1-live-v2-guard-removed",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/dev_waves/launch_authority.py",
+          "old": "    if commit is None and model_version != \"v2\":\n        raise AuthorityError(\"DW-O01: live authority は v2 でなければならない\")\n",
+          "new": ""
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_wave_launch_authority.py::test_live_v1_is_rejected_but_historical_v1_is_reconstructed"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "t1132.m2-v2-mapping-validation-noop",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/dev_waves/launch_authority.py",
+          "old": "    if version == \"v2\":\n        if consult_models != (other_model, other_model):\n            raise AuthorityError(\"DW-O01: v2 の全段 model が一致しない\")\n        return\n",
+          "new": "    if version == \"v2\":\n        return\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_wave_launch_authority.py::test_v2_snapshot_mapping_inconsistency_fails_closed"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "t1132.m3-v2-slug-unconstrained",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/dev_waves/launch_authority.py",
+          "old": "    r\"`<model>`: 全段 `(?P<model>gpt-[A-Za-z0-9._-]+)` \"\n",
+          "new": "    r\"`<model>`: 全段 `(?P<model>[^`]+)` \"\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_wave_launch_authority.py::test_v2_model_slug_drift_fails_closed[gpt-]",
+        "orchestrator/tests/test_dev_wave_launch_authority.py::test_v2_model_slug_drift_fails_closed[gpt-5.6/luna]",
+        "orchestrator/tests/test_dev_wave_launch_authority.py::test_v2_model_slug_drift_fails_closed[luna]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "t1132.m4-normative-line-cardinality-relaxed",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/dev_waves/launch_authority.py",
+          "old": "    if len(matches) != 1:\n        raise AuthorityError(f\"{_MODEL_SECTION}: 規範行が {len(matches)} 件\")\n    return matches[0]\n",
+          "new": "    if len(matches) < 1:\n        raise AuthorityError(f\"{_MODEL_SECTION}: 規範行が {len(matches)} 件\")\n    return matches[0]\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_wave_launch_authority.py::test_model_normative_line_decoys_fail_closed[duplicate]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "t1132.m5-model-authority-literal-reverted",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/check_docs.py",
+          "old": "DEV_WAVE_DW_O01_MODEL_AUTHORITY_LITERAL = (\n    \"`<model>`: 全段 `gpt-5.6-luna` (段 3 の 2 本も同じ)。\"\n)\n",
+          "new": "DEV_WAVE_DW_O01_MODEL_AUTHORITY_LITERAL = (\n    \"`<model>`: 段 3 のみ 2 本で `gpt-5.6-sol`→`gpt-5.6-luna`、\"\n    \"他段 `gpt-5.6-sol`。\"\n)\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_check_docs.py::test_dev_wave_model_pin_contract_is_time_invariant",
+        "orchestrator/tests/test_check_docs.py::test_dev_wave_model_pins_accept_current_docs_contract",
+        "orchestrator/tests/test_check_docs.py::test_normative_exact_section_pins_accept_real_repo",
+        "orchestrator/tests/test_check_docs.py::test_real_repo_clean"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "t1132.m6-s06a-effort-pin-reverted",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/check_docs.py",
+          "old": "DEV_WAVE_DW_S06_A_REASONING_MAX_LITERAL = \"`reasoning=max`\"\n",
+          "new": "DEV_WAVE_DW_S06_A_REASONING_MAX_LITERAL = \"`reasoning=high`\"\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_check_docs.py::test_dev_wave_reasoning_effort_pin_findings_are_time_invariant"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "t1132.m7-s06a-effort-pin-value-reverted",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/check_docs.py",
+          "old": "        (\n            \"DW-S06-A\",\n            \"max\",\n            DEV_WAVE_DW_S06_A_REASONING_MAX_SENTENCE,\n            DEV_WAVE_DW_S06_A_REASONING_MAX_FINDING,\n        ),\n",
+          "new": "        (\n            \"DW-S06-A\",\n            \"high\",\n            DEV_WAVE_DW_S06_A_REASONING_MAX_SENTENCE,\n            DEV_WAVE_DW_S06_A_REASONING_MAX_FINDING,\n        ),\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_check_docs.py::test_dev_wave_reasoning_effort_pins_accept_current_workers_contract",
+        "orchestrator/tests/test_check_docs.py::test_real_repo_clean"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}
