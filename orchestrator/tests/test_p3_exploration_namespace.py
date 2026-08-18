@@ -6,7 +6,7 @@ import ast
 import argparse
 import contextlib
 import dataclasses
-import inspect
+import importlib
 import os
 import stat
 import sys
@@ -23,12 +23,10 @@ from orchestrator.campaign import ident, layout as layout_module, wal           
 from orchestrator.campaign import env_contract                                  # noqa: E402
 from orchestrator.campaign import patchharness                                  # noqa: E402
 from orchestrator.campaign import p3_autonomous_workload_trial as AUTONOMOUS     # noqa: E402
-from orchestrator.campaign import p3_kickoff as KICKOFF                          # noqa: E402
 from orchestrator.campaign import p3_s4_loop as LOOP                             # noqa: E402
 from orchestrator.campaign import p3_s4_loop_sort as SORT                        # noqa: E402
 from orchestrator.campaign import sort_swo_oracle as SWO                         # noqa: E402
 from orchestrator.campaign import p3_s4_loop_trigger_gating as TRIGGER           # noqa: E402
-from orchestrator.campaign import p3_s4_red as RED                               # noqa: E402
 from orchestrator.campaign.build_admission import (BuildAdmissionError, BuildRunContext, GeneratorId,  # noqa: E402
                                       add_coder_build_authority_argument,
                                       build_run_context)
@@ -36,15 +34,122 @@ from orchestrator.campaign.layout import exploration_campaign_layout            
 from campaign_lock_test_support import build_v2_lock                 # noqa: E402
 
 
-_DRIVERS = (
-    ("loop", LOOP, LOOP.default_cfg, 1, 5),
-    ("sort", SORT, SORT.default_cfg, 1, 5),
-    ("trigger_gating", TRIGGER, TRIGGER.default_cfg, 1, 5),
-    ("red", RED, RED._cfg, 2, 1),
-    ("kickoff", KICKOFF, KICKOFF._cfg, 2, 1),
-    ("autonomous", AUTONOMOUS, None, None, None),
+_CAMPAIGN_ROOT = Path(__file__).resolve().parents[1] / "campaign"
+
+
+def _call_name(call):
+    if isinstance(call.func, ast.Name):
+        return call.func.id
+    if isinstance(call.func, ast.Attribute):
+        return call.func.attr
+    return None
+
+
+def _call_nodes(tree, name):
+    return [
+        node for node in ast.walk(tree)
+        if isinstance(node, ast.Call) and _call_name(node) == name
+    ]
+
+
+def _call_names(tree):
+    return {
+        name for node in ast.walk(tree)
+        if isinstance(node, ast.Call)
+        for name in [_call_name(node)]
+        if name is not None
+    }
+
+
+def _has_run_campaign_call(tree):
+    return bool(_call_nodes(tree, "run_campaign"))
+
+
+def _is_campaign_root_creator(tree):
+    """AST の実体で exploration campaign root producer を見つける。"""
+    calls = _call_names(tree)
+    return (
+        "exploration_campaign_layout" in calls
+        and (
+            _has_run_campaign_call(tree)
+            or "CampaignLayout" in calls
+        )
+    )
+
+
+def _module_level_declared_use_class(tree):
+    for node in tree.body:
+        targets = []
+        if isinstance(node, ast.Assign):
+            targets = node.targets
+        elif isinstance(node, ast.AnnAssign):
+            targets = [node.target]
+        if any(
+                isinstance(target, ast.Name)
+                and target.id == "DECLARED_USE_CLASS"
+                for target in targets
+        ):
+            value = node.value
+            return value.value if isinstance(value, ast.Constant) else None
+    return None
+
+
+def _campaign_driver_is_closed(tree):
+    """実際の campaign-root 閉包検査を返す。fixture もこの経路を使う。"""
+    if not _is_campaign_root_creator(tree):
+        return True
+    if _module_level_declared_use_class(tree) != "exploration":
+        return False
+    for call in _call_nodes(tree, "run_campaign"):
+        selectors = [
+            keyword.value for keyword in call.keywords
+            if keyword.arg == "declared_use_class"
+        ]
+        if len(selectors) != 1:
+            return False
+        if not isinstance(selectors[0], ast.Name):
+            return False
+        if selectors[0].id != "DECLARED_USE_CLASS":
+            return False
+    return True
+
+
+def _discover_campaign_drivers(campaign_root=None, *, import_modules=True):
+    campaign_root = _CAMPAIGN_ROOT if campaign_root is None else Path(campaign_root)
+    drivers = []
+    for source in sorted(campaign_root.glob("*.py")):
+        tree = ast.parse(source.read_text(encoding="utf-8"))
+        if not _is_campaign_root_creator(tree):
+            continue
+        module = None
+        if import_modules:
+            module = importlib.import_module(
+                f"orchestrator.campaign.{source.stem}"
+            )
+        drivers.append((source.stem, module, tree))
+    return tuple(drivers)
+
+
+_CAMPAIGN_DRIVERS = _discover_campaign_drivers()
+_RUN_CAMPAIGN_DRIVERS = tuple(
+    driver for driver in _CAMPAIGN_DRIVERS if _has_run_campaign_call(driver[2])
 )
-_CAMPAIGN_DRIVERS = _DRIVERS[:-1]
+_ITERATION_DRIVERS = tuple(
+    driver[:2] for driver in _RUN_CAMPAIGN_DRIVERS
+    if hasattr(driver[1], "run_one_iteration")
+)
+_MAIN_DRIVERS = tuple(
+    driver[:2] for driver in _RUN_CAMPAIGN_DRIVERS
+    if not hasattr(driver[1], "run_one_iteration")
+)
+_EXPECTED_CALL_COUNTS = {
+    "p3_autonomous_workload_trial": (1, 0),
+    "p3_kickoff": (1, 2),
+    "p3_s4_loop": (5, 1),
+    "p3_s4_loop_sort": (5, 1),
+    "p3_s4_loop_trigger_gating": (5, 1),
+    "p3_s4_red": (1, 2),
+}
 _PARSER = argparse.ArgumentParser()
 add_coder_build_authority_argument(_PARSER)
 _AUTHORITY = _PARSER.parse_args(["--allow-coder-derived-build"]).coder_build_authority
@@ -71,8 +176,8 @@ def _stub_real_sort_swo_oracle(monkeypatch):
 
 
 @pytest.mark.parametrize(
-    "name,module", [(case[0], case[1]) for case in _DRIVERS],
-    ids=[case[0] for case in _DRIVERS],
+    "name,module", [(case[0], case[1]) for case in _CAMPAIGN_DRIVERS],
+    ids=[case[0] for case in _CAMPAIGN_DRIVERS],
 )
 def test_coder_driver_without_flag_rejects_before_build_spy(name, module, monkeypatch):
     """M2: 各 coder CLI の既定拒否を、materialization 以前の単一理由で固定する。"""
@@ -87,7 +192,7 @@ def test_coder_driver_without_flag_rejects_before_build_spy(name, module, monkey
             lambda *_a, **_k: reached.append("iteration"),
         )
     argv = []
-    if name == "autonomous":
+    if module is AUTONOMOUS:
         monkeypatch.setattr(
             module, "_assert_build_site_opted_in", lambda *_a, **_k: None,
         )
@@ -105,8 +210,8 @@ class _BuildSpyReached(RuntimeError):
 
 
 @pytest.mark.parametrize(
-    "name,module", [(case[0], case[1]) for case in _CAMPAIGN_DRIVERS],
-    ids=[case[0] for case in _CAMPAIGN_DRIVERS],
+    "name,module", [(case[0], case[1]) for case in _RUN_CAMPAIGN_DRIVERS],
+    ids=[case[0] for case in _RUN_CAMPAIGN_DRIVERS],
 )
 def test_coder_driver_flag_reaches_build_spy_with_exact_run_context(
         name, module, monkeypatch, tmp_path,
@@ -128,7 +233,7 @@ def test_coder_driver_flag_reaches_build_spy_with_exact_run_context(
     )
 
     argv = ["--allow-coder-derived-build"]
-    if name in {"loop", "sort", "trigger_gating"}:
+    if module in {LOOP, SORT, TRIGGER}:
         monkeypatch.setattr(module, "run_campaign", capture)
         monkeypatch.setattr(
             module, "exploration_campaign_layout",
@@ -140,9 +245,9 @@ def test_coder_driver_flag_reaches_build_spy_with_exact_run_context(
             LOOP, "quarantine",
             lambda *_a, **_k: (passed, "", "", "fixture"),
         )
-        if name in {"sort", "trigger_gating"}:
+        if module in {SORT, TRIGGER}:
             argv.append("--no-isolate-worktree")
-        if name == "trigger_gating":
+        if module is TRIGGER:
             contract = dataclasses.replace(
                 env_contract.GENERATIONS["linux-baremetal"][0].contract,
                 env_tag="test", numactl=(),
@@ -221,8 +326,8 @@ def _spy_driver_layout(monkeypatch, tmp_path, module):
 
 
 @pytest.mark.parametrize(
-    "name,module", (("loop", LOOP), ("sort", SORT), ("trigger_gating", TRIGGER)),
-    ids=("loop", "sort", "trigger_gating"),
+    "name,module", _ITERATION_DRIVERS,
+    ids=[case[0] for case in _ITERATION_DRIVERS],
 )
 def test_iteration_public_entry_routes_runtime_layout_and_selector(
         monkeypatch, tmp_path, name, module):
@@ -231,7 +336,7 @@ def test_iteration_public_entry_routes_runtime_layout_and_selector(
     selectors = []
 
     def run_sink(*run_args, **kwargs):
-        selectors.append(kwargs.get("campaign_namespace"))
+        selectors.append(kwargs.get("declared_use_class"))
         cfg = run_args[0]
         campaign_id = str(ident.campaign_id(cfg))
         sink_layout = module.exploration_campaign_layout(campaign_id).ensure()
@@ -247,7 +352,7 @@ def test_iteration_public_entry_routes_runtime_layout_and_selector(
     planner = LOOP.PlannerProposal(
         axis=LOOP.MARKER_ID, direction="increase", magnitude="small")
     state = LOOP.LoopState()
-    if name == "loop":
+    if module is LOOP:
         template = '''#pragma once
 #include "atomic_tool.hh"
 class Backoff {
@@ -272,7 +377,7 @@ class Backoff {
         )
         cfg, perf = module.default_cfg(), module.default_perf()
     else:
-        if name == "sort":
+        if module is SORT:
             template = '''#pragma once
 #include "storage.hh"
 class TxExecutor {
@@ -343,7 +448,7 @@ class TxExecutor {
             monkeypatch.setattr(module, "_current_site", lambda: module.site_policy.OTHER)
 
     cfg = ident.bind_admission_policy(cfg, _CODER_CONTEXT.policy)
-    if name == "trigger_gating":
+    if module is TRIGGER:
         contract = env_contract.lookup(module.ENV_TAG)
         monkeypatch.setattr(module, "_lookup", lambda _env_tag: contract)
         cfg = ident.bind_environment_contract(cfg, contract)
@@ -351,14 +456,14 @@ class TxExecutor {
     source = sub / module.SOURCE_REL
     source.parent.mkdir(parents=True)
     source.write_text(template, encoding="utf-8")
-    if name == "loop":
+    if module is LOOP:
         module.run_one_iteration(
             cfg, perf, planner, coder, state, str(sub), True,
             build_context=_CODER_CONTEXT, log=lambda *_: None)
     else:
         implementation = (
             coder.implementation
-            if name == "sort"
+            if module is SORT
             else module.emit_predicate(module.parse_wire(coder.wire))
         )
         preview = LOOP.quarantine(
@@ -382,7 +487,8 @@ class TxExecutor {
 
 
 @pytest.mark.parametrize(
-    "name,module", (("red", RED), ("kickoff", KICKOFF)), ids=("red", "kickoff"),
+    "name,module", _MAIN_DRIVERS,
+    ids=[case[0] for case in _MAIN_DRIVERS],
 )
 def test_main_public_entry_routes_runtime_layout_and_selector(
         monkeypatch, tmp_path, name, module):
@@ -391,7 +497,7 @@ def test_main_public_entry_routes_runtime_layout_and_selector(
     selectors = []
 
     def run_sink(*run_args, **kwargs):
-        selectors.append(kwargs.get("campaign_namespace"))
+        selectors.append(kwargs.get("declared_use_class"))
         cfg = run_args[0]
         campaign_id = str(ident.campaign_id(cfg))
         sink_layout = module.exploration_campaign_layout(campaign_id).ensure()
@@ -428,40 +534,62 @@ def test_main_public_entry_routes_runtime_layout_and_selector(
 
 
 @pytest.mark.parametrize(
-    "name,module,_cfg_factory,run_count,layout_count", _CAMPAIGN_DRIVERS,
+    "name,module,tree", _CAMPAIGN_DRIVERS,
     ids=[case[0] for case in _CAMPAIGN_DRIVERS],
 )
 def test_driver_ast_supplements_runtime_namespace_gate(
-        name, module, _cfg_factory, run_count, layout_count):
-    """Structural sensitivity の補助 AST gate。operative kill の唯一根拠にしない。"""
-    tree = ast.parse(inspect.getsource(module))
-    layout_calls = [
-        node for node in ast.walk(tree)
-        if isinstance(node, ast.Call)
-        and isinstance(node.func, ast.Name)
-        and node.func.id in {"campaign_layout", "exploration_campaign_layout"}
-    ]
-    assert len(layout_calls) == layout_count, name
-    assert {node.func.id for node in layout_calls} == {"exploration_campaign_layout"}, name
-
-    run_calls = [
-        node for node in ast.walk(tree)
-        if isinstance(node, ast.Call)
-        and isinstance(node.func, ast.Name)
-        and node.func.id == "run_campaign"
-    ]
-    assert len(run_calls) == run_count, name
+        name, module, tree):
+    """宣言を起点に族を閉包し、operative kill の唯一根拠にはしない。"""
+    assert _is_campaign_root_creator(tree), name
+    assert _campaign_driver_is_closed(tree), name
+    expected_layout_count, expected_run_count = _EXPECTED_CALL_COUNTS[name]
+    layout_calls = _call_nodes(tree, "exploration_campaign_layout")
+    assert len(layout_calls) == expected_layout_count, name
+    run_calls = _call_nodes(tree, "run_campaign")
+    assert len(run_calls) == expected_run_count, name
     for call in run_calls:
-        selectors = [
-            keyword.value for keyword in call.keywords
-            if keyword.arg == "campaign_namespace"
-        ]
-        assert len(selectors) == 1, name
-        assert isinstance(selectors[0], ast.Constant), name
-        assert selectors[0].value == "exploration", name
         contexts = [keyword.value for keyword in call.keywords
                     if keyword.arg == "build_context"]
         assert len(contexts) == 1, name
+
+
+def test_campaign_root_declaration_meta_gate_has_negative_and_positive_fixtures(
+        tmp_path):
+    """新しい root producer の宣言漏れを落とし、宣言済み producer を通す。"""
+    body = """
+from orchestrator.campaign import layout
+from orchestrator.campaign import loop
+
+def main():
+    loop.run_campaign(
+        None, (), None, None, None, declared_use_class=DECLARED_USE_CLASS,
+    )
+    layout.exploration_campaign_layout("fixture")
+    layout.CampaignLayout(root="fixture")
+"""
+    fixture = tmp_path / "fixture_driver.py"
+    fixture.write_text(body, encoding="utf-8")
+    missing_drivers = _discover_campaign_drivers(
+        tmp_path, import_modules=False,
+    )
+    assert [name for name, _module, _tree in missing_drivers] == [
+        "fixture_driver",
+    ]
+    name, _module, missing = missing_drivers[0]
+    assert _is_campaign_root_creator(missing)
+    assert not _campaign_driver_is_closed(missing), name
+
+    fixture.write_text("DECLARED_USE_CLASS = 'exploration'\n" + body,
+                       encoding="utf-8")
+    declared_drivers = _discover_campaign_drivers(
+        tmp_path, import_modules=False,
+    )
+    assert [name for name, _module, _tree in declared_drivers] == [
+        "fixture_driver",
+    ]
+    name, _module, declared = declared_drivers[0]
+    assert _is_campaign_root_creator(declared)
+    assert _campaign_driver_is_closed(declared), name
 
 
 def test_exploration_marker_is_atomically_published_and_directory_synced(

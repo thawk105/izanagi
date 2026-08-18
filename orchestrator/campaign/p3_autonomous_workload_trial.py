@@ -120,6 +120,7 @@ from .build_admission import (  # noqa: E402
 
 
 ROOT = Path(__file__).resolve().parents[2]
+DECLARED_USE_CLASS = "exploration"
 SCHEMA_VERSION = "p3-autonomous-workload-trial/v3"
 REPORT_SCHEMA_VERSION = "p3-autonomous-workload-trial-report/v3"
 MAX_GENERATIONS = 10

@@ -402,7 +402,11 @@ def test_signature_stubs_keep_legacy_calls_valid_with_none_default():
         (
             loop.run_campaign,
             (object(), [], object(), "env", 1),
-            {"build_context": object(), "authorization_contract": object()},
+            {
+                "build_context": object(),
+                "authorization_contract": object(),
+                "declared_use_class": "official",
+            },
         ),
         (
             pipeline.evaluate,

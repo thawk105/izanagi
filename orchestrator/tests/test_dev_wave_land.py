@@ -6215,7 +6215,7 @@ def test_exploration_external_root_keeps_wave_clean() -> None:
                 contract.clocks_per_us, numactl=contract.numactl,
                 do_bench=False, log=lambda *_args: None,
                 authorization_contract=authorization,
-                build_context=context, campaign_namespace="exploration",
+                build_context=context, declared_use_class="exploration",
             )
             campaign_root = Path(summary.layout_root)
             assert campaign_root.is_relative_to(external)

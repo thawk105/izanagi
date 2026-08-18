@@ -173,6 +173,7 @@ def run_workload(tag: str, workload: dict, log=print, *,
         s = run_campaign(cfg, gs, perf, ENV_TAG, CLK, numactl=NUMA, log=log,
                          authorization_contract=env_contract.authorize(ENV_TAG),
                          build_context=build_context,
+                         declared_use_class="official",
                          capability_resolver=capability_resolver)
 
     rows = [(r.fitness_tps, r) for r in s.results if r.fitness_tps is not None]
