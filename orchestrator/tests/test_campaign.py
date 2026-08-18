@@ -474,7 +474,8 @@ def test_run_campaign_binds_guard_contract_before_campaign_id():
                 _AUTH_CONTRACT.env_tag, _AUTH_CONTRACT.clocks_per_us,
                 numactl=list(_AUTH_CONTRACT.numactl),
                 authorization_contract=_AUTHORIZATION,
-                build_context=_BUILD_CONTEXT, log=lambda _message: None,
+                build_context=_BUILD_CONTEXT, declared_use_class="official",
+                log=lambda _message: None,
             )
         except RuntimeError as exc:
             caught = exc
@@ -2693,7 +2694,7 @@ def test_trigger_campaign_epoch_never_writes_pre_t428_paths():
         numactl=list(_AUTH_CONTRACT.numactl),
         authorization_contract=_AUTHORIZATION,
         do_bench=False, output_root=output_root, log=lambda *_args: None,
-        build_context=context, campaign_namespace="exploration",
+        build_context=context, declared_use_class="exploration",
         trigger_gate_binding=candidate,
     )
     assert summary.campaign_id == current_id
@@ -2999,6 +3000,7 @@ def test_p1_pipeline_accepts_registered_contract_without_enabling_v2_build():
 def test_p1_run_campaign_accepts_registered_contract():
     from orchestrator.campaign import loop as campaign_loop
 
+    out_root = _tmpdir("izanagi_authorization_run_")
     cfg = CampaignConfig(
         spec_slug="authorization-positive",
         search_tag="registered-contract",
@@ -3009,11 +3011,15 @@ def test_p1_run_campaign_accepts_registered_contract():
         cfg, [], PerfConfig(records=1, threads=1),
         _AUTH_CONTRACT.env_tag, _AUTH_CONTRACT.clocks_per_us,
         numactl=list(_AUTH_CONTRACT.numactl), do_bench=False,
-        output_root=_tmpdir("izanagi_authorization_run_"),
+        output_root=out_root,
         authorization_contract=_AUTHORIZATION,
-        build_context=_BUILD_CONTEXT, log=lambda *_args: None,
+        build_context=_BUILD_CONTEXT, declared_use_class="official",
+        log=lambda *_args: None,
     )
     assert summary.total == 0 and summary.results == []
+    expected = campaign_layout(str(ident.campaign_id(_bound(cfg))), out_root)
+    assert summary.layout_root == expected.root
+    assert os.path.isdir(expected.root)
 
 
 _CERTIFIED_WRITER_TARGETS = frozenset({
@@ -4863,6 +4869,11 @@ def test_certified_writer_authorization_caller_inventory_is_closed():
                 for keyword in call.keywords)
             for call in calls
         ), name
+        assert all(
+            any(keyword.arg == "declared_use_class"
+                for keyword in call.keywords)
+            for call in calls
+        ), name
     assert sum(expected_run_calls.values()) == 15
 
     direct_sinks = {
@@ -5908,7 +5919,8 @@ def test_build_admission_loop_and_screening_revalidate_before_build_entry_spy():
                 cfg, [genome], PerfConfig(records=1, threads=1), "test", 1800,
                 authorization_contract=_AUTHORIZATION,
                 do_bench=False, output_root=_tmpdir("t316_loop_"),
-                build_context=bad, log=lambda *_args: None,
+                build_context=bad, declared_use_class="official",
+                log=lambda *_args: None,
             )
         except TypeError as exc:
             loop_error = exc
@@ -7983,7 +7995,8 @@ def test_loop_probe_error_is_retryable_after_recovery():
                 numactl=list(_AUTH_CONTRACT.numactl),
                 authorization_contract=_AUTHORIZATION,
                 do_bench=False, output_root=out_root,
-                               log=lambda *a: None, build_context=_BUILD_CONTEXT)
+                               log=lambda *a: None, build_context=_BUILD_CONTEXT,
+                               declared_use_class="official")
         finally:
             L.evaluate, L.source_digest = saved, saved_sd
         assert len(calls) == 1 and s.committed == 1 and s.skipped == 0, reason
@@ -8084,7 +8097,8 @@ def test_loop_enables_s2_extra_correctness_via_search_config():
                        numactl=list(_AUTH_CONTRACT.numactl),
                        authorization_contract=_AUTHORIZATION,
                        do_bench=False, output_root=out_root,
-                       log=lambda *a: None, build_context=_BUILD_CONTEXT)
+                        log=lambda *a: None, build_context=_BUILD_CONTEXT,
+                        declared_use_class="official")
     finally:
         L.evaluate, L.source_digest = saved_eval, saved_sd
     assert captured["extra_correctness"] is not None
@@ -8129,7 +8143,8 @@ def test_loop_omits_extra_correctness_without_verify_search_config():
                        numactl=list(_AUTH_CONTRACT.numactl),
                        authorization_contract=_AUTHORIZATION,
                        do_bench=False, output_root=out_root,
-                       log=lambda *a: None, build_context=_BUILD_CONTEXT)
+                        log=lambda *a: None, build_context=_BUILD_CONTEXT,
+                        declared_use_class="official")
     finally:
         L.evaluate, L.source_digest = saved_eval, saved_sd
     assert captured["extra_correctness"] is None
@@ -8179,7 +8194,7 @@ def test_m12_loop_compute_uses_gxx_and_forwards_only_contract_and_prefix():
             env_contract=contract, dependency_prefix=prefix,
             numactl=contract.numactl,
             authorization_contract=ec.authorize(contract.env_tag),
-            build_context=_BUILD_CONTEXT,
+            build_context=_BUILD_CONTEXT, declared_use_class="official",
         )
     finally:
         L.evaluate, L.source_digest = saved_eval, saved_sd
@@ -8244,7 +8259,7 @@ def test_required_contract_is_attested_once_at_run_campaign_sink():
             contract.clocks_per_us, numactl=contract.numactl,
             do_bench=False, output_root=out_root, log=lambda *a: None,
             env_contract=contract, authorization_contract=ec.authorize(contract.env_tag),
-            build_context=_BUILD_CONTEXT,
+            build_context=_BUILD_CONTEXT, declared_use_class="official",
         )
     finally:
         L.env_attestation.load_verified_calibration = saved["load"]
@@ -8299,7 +8314,8 @@ def _loop_with_fake_eval(fake_eval, genomes, spec_content, do_bench=False,
             numactl=list(_AUTH_CONTRACT.numactl),
             authorization_contract=_AUTHORIZATION, do_bench=do_bench,
                            output_root=out_root, log=lambda *a: None,
-                           build_context=_BUILD_CONTEXT)
+                           build_context=_BUILD_CONTEXT,
+                           declared_use_class="official")
     finally:
         L.evaluate, L.source_digest = saved, saved_sd
     bound_cfg = _bound(cfg)
@@ -8359,7 +8375,7 @@ def _run_exploration_with_perf_preflight(mode):
                 authorization_contract=_AUTHORIZATION,
                 output_root=out_root, log=lambda *_args: None,
                 build_context=_BUILD_CONTEXT,
-                campaign_namespace="exploration",
+                declared_use_class="exploration",
                 perf_preflight_fn=_perf_preflight_producer(mode, producer_calls),
             )
     finally:
@@ -8395,7 +8411,7 @@ def test_official_rejects_perf_preflight_seam_while_exploration_accepts_it():
             *common, numactl=list(_AUTH_CONTRACT.numactl),
             authorization_contract=_AUTHORIZATION,
             output_root=official_root, log=lambda *_args: None,
-            build_context=_BUILD_CONTEXT, campaign_namespace="official",
+            build_context=_BUILD_CONTEXT, declared_use_class="official",
             perf_preflight_fn=producer,
         )
     assert producer_calls == []
@@ -8410,7 +8426,7 @@ def test_official_rejects_perf_preflight_seam_while_exploration_accepts_it():
                 *common, numactl=list(_AUTH_CONTRACT.numactl),
                 authorization_contract=_AUTHORIZATION,
                 output_root=exploration_root, log=lambda *_args: None,
-                build_context=_BUILD_CONTEXT, campaign_namespace="exploration",
+                build_context=_BUILD_CONTEXT, declared_use_class="exploration",
                 perf_preflight_fn=producer,
             )
     finally:
@@ -8461,7 +8477,7 @@ def test_exploration_perf_probe_error_fails_closed_before_evaluation():
             authorization_contract=_AUTHORIZATION,
             output_root=out_root, log=lambda *_args: None,
             build_context=_BUILD_CONTEXT,
-            campaign_namespace="exploration",
+            declared_use_class="exploration",
             perf_preflight_fn=_perf_preflight_producer(
                 "probe_error", producer_calls,
             ),
@@ -8493,24 +8509,31 @@ def test_exploration_available_perf_preserves_measurement_behavior():
 
 
 @pytest.mark.usefixtures("ratified_enforcement_source")
-def test_run_campaign_default_namespace_remains_official():
-    """selector 省略時は既存どおり official root を使う。"""
+def test_run_campaign_requires_declared_use_class():
+    """selector 省略は暗黙 official にせず、実行前に TypeError へ倒す。"""
     from orchestrator.campaign import loop as L
 
-    out_root = _tmpdir("izanagi_loop_namespace_default_")
+    parameters = inspect.signature(L.run_campaign).parameters
+    assert "campaign_namespace" not in parameters
+    declared = parameters["declared_use_class"]
+    assert declared.kind is inspect.Parameter.KEYWORD_ONLY
+    assert declared.default is inspect.Parameter.empty
+
+    out_root = os.path.join(
+        _tmpdir("izanagi_loop_namespace_default_"), "must-not-exist",
+    )
     cfg = CampaignConfig(spec_slug="t", search_tag="enum",
                          spec_content="namespace-default", ccbench_commit="deadbeef")
-    summary = L.run_campaign(
-        cfg, [], PerfConfig(records=1, threads=1),
-        _AUTH_CONTRACT.env_tag, _AUTH_CONTRACT.clocks_per_us,
-        numactl=list(_AUTH_CONTRACT.numactl),
-        authorization_contract=_AUTHORIZATION,
-        do_bench=False, output_root=out_root, log=lambda *_args: None, build_context=_BUILD_CONTEXT,
-    )
-    expected = campaign_layout(str(ident.campaign_id(_bound(cfg))), out_root)
-    assert summary.layout_root == expected.root
-    assert os.path.isdir(expected.root)
-    assert not os.path.exists(os.path.join(out_root, "exploration"))
+    with pytest.raises(TypeError):
+        L.run_campaign(
+            cfg, [], PerfConfig(records=1, threads=1),
+            _AUTH_CONTRACT.env_tag, _AUTH_CONTRACT.clocks_per_us,
+            numactl=list(_AUTH_CONTRACT.numactl),
+            authorization_contract=_AUTHORIZATION,
+            do_bench=False, output_root=out_root, log=lambda *_args: None,
+            build_context=_BUILD_CONTEXT,
+        )
+    assert not os.path.exists(out_root)
 
 
 @pytest.mark.usefixtures("ratified_enforcement_source")
@@ -8546,7 +8569,7 @@ def test_run_campaign_exploration_namespace_reaches_lock_wal_and_pipeline():
             numactl=list(_AUTH_CONTRACT.numactl),
             authorization_contract=_AUTHORIZATION,
             do_bench=False, output_root=out_root, log=lambda *_args: None, build_context=_BUILD_CONTEXT,
-            campaign_namespace="exploration",
+            declared_use_class="exploration",
         )
     finally:
         L.evaluate, L.source_digest = saved_eval, saved_sd
@@ -8564,30 +8587,43 @@ def test_run_campaign_exploration_namespace_reaches_lock_wal_and_pipeline():
     ]
 
 
-def test_run_campaign_rejects_unknown_namespace_before_output_creation():
-    """未知 namespace は official fallback せず directory 作成前に拒否する。"""
+@pytest.mark.parametrize(
+    "declared_use_class", ["qualification", "dry", "unknown"],
+)
+def test_run_campaign_rejects_unsupported_declared_use_class_before_output_creation(
+        declared_use_class, monkeypatch):
+    """非 materializing class は cid/layout の前に拒否する。"""
     from orchestrator.campaign import loop as L
 
     parent = _tmpdir("izanagi_loop_namespace_unknown_")
     out_root = os.path.join(parent, "must-not-exist")
     cfg = CampaignConfig(spec_slug="t", search_tag="enum",
                          spec_content="namespace-unknown", ccbench_commit="deadbeef")
-    try:
+    expected_cid = str(ident.campaign_id(_bound(cfg)))
+    cid_calls = []
+    original_campaign_id = L.ident.campaign_id
+
+    def campaign_id_spy(*args, **kwargs):
+        cid_calls.append((args, kwargs))
+        return original_campaign_id(*args, **kwargs)
+
+    monkeypatch.setattr(L.ident, "campaign_id", campaign_id_spy)
+    with pytest.raises(ValueError):
         L.run_campaign(
             cfg, [], PerfConfig(records=1, threads=1), "test-env", 1800,
             authorization_contract=_AUTHORIZATION,
-            do_bench=False, output_root=out_root, log=lambda *_args: None, build_context=_BUILD_CONTEXT,
-            campaign_namespace="typo",
+            do_bench=False, output_root=out_root, log=lambda *_args: None,
+            build_context=_BUILD_CONTEXT,
+            declared_use_class=declared_use_class,
         )
-        assert False, "未知 namespace を拒否すべき"
-    except ValueError as exc:
-        assert "namespace" in str(exc)
+    assert cid_calls == []
     assert not os.path.exists(out_root)
+    assert not os.path.exists(os.path.join(out_root, "campaigns", expected_cid))
 
 
 @pytest.mark.usefixtures("ratified_enforcement_source")
-def test_run_campaign_namespace_does_not_change_campaign_id():
-    """namespace は runtime path selector であり identity preimage へ入らない。"""
+def test_run_campaign_declared_use_class_does_not_change_campaign_id():
+    """宣言は runtime path selector であり identity preimage へ入らない。"""
     from orchestrator.campaign import loop as L
 
     out_root = _tmpdir("izanagi_loop_namespace_identity_")
@@ -8600,13 +8636,14 @@ def test_run_campaign_namespace_does_not_change_campaign_id():
     official = L.run_campaign(
         *common, numactl=list(_AUTH_CONTRACT.numactl),
         authorization_contract=_AUTHORIZATION, do_bench=False,
-        output_root=out_root, log=lambda *_args: None, build_context=_BUILD_CONTEXT,
+        output_root=out_root, log=lambda *_args: None,
+        build_context=_BUILD_CONTEXT, declared_use_class="official",
     )
     exploration = L.run_campaign(
         *common, numactl=list(_AUTH_CONTRACT.numactl),
         authorization_contract=_AUTHORIZATION, do_bench=False,
         output_root=out_root, log=lambda *_args: None, build_context=_BUILD_CONTEXT,
-        campaign_namespace="exploration",
+        declared_use_class="exploration",
     )
     assert official.campaign_id == exploration.campaign_id == str(ident.campaign_id(_bound(cfg)))
 
@@ -8706,7 +8743,7 @@ def test_loop_recovery_skips_committed_src_token_variant():
             numactl=list(_AUTH_CONTRACT.numactl),
             authorization_contract=_AUTHORIZATION,
             do_bench=False, output_root=out_root, log=lambda *a: None,
-            build_context=_BUILD_CONTEXT)
+            build_context=_BUILD_CONTEXT, declared_use_class="official")
     finally:
         L.evaluate, L.source_digest = saved, saved_sd
     assert len(calls) == 0 and s.skipped == 1            # src_token id terminal → 再評価しない
@@ -8761,6 +8798,7 @@ def test_replay_accepts_matching_contract_bound_commit_and_skips_evaluation():
             authorization_contract=_AUTHORIZATION,
             do_bench=False, output_root=out_root,
             log=lambda _message: None, build_context=_BUILD_CONTEXT,
+            declared_use_class="official",
         )
     finally:
         L.evaluate = saved_eval
@@ -8812,7 +8850,7 @@ def test_loop_identity_error_is_retryable_after_repair():
             numactl=list(_AUTH_CONTRACT.numactl),
             authorization_contract=_AUTHORIZATION,
             do_bench=False, output_root=out_root, log=lambda *a: None,
-            build_context=_BUILD_CONTEXT)
+            build_context=_BUILD_CONTEXT, declared_use_class="official")
         assert s1.aborted == 1 and len(calls) == 0
         # run2: 環境修復 (resolve 成功 → stock) → 永久 skip でなく再評価・commit
         L.source_digest = _sd_mock("stock")
@@ -8822,7 +8860,7 @@ def test_loop_identity_error_is_retryable_after_repair():
             numactl=list(_AUTH_CONTRACT.numactl),
             authorization_contract=_AUTHORIZATION,
             do_bench=False, output_root=out_root, log=lambda *a: None,
-            build_context=_BUILD_CONTEXT)
+            build_context=_BUILD_CONTEXT, declared_use_class="official")
     finally:
         L.evaluate, L.source_digest = saved, saved_sd
     assert len(calls) == 1 and s2.committed == 1 and s2.skipped == 0   # 修復後に再評価
@@ -8872,7 +8910,8 @@ def test_loop_identity_error_retryable_survives_inflight_crash():
             numactl=list(_AUTH_CONTRACT.numactl),
             authorization_contract=_AUTHORIZATION,
             do_bench=False, output_root=out_root,
-                            log=lambda *a: None, build_context=_BUILD_CONTEXT)
+                            log=lambda *a: None, build_context=_BUILD_CONTEXT,
+                            declared_use_class="official")
     finally:
         L.evaluate, L.source_digest = saved, saved_sd
     assert len(calls) == 1 and s3.committed == 1 and s3.skipped == 0
@@ -8912,6 +8951,7 @@ def test_loop_resume_recovery_aborts_real_pipeline_crash_after_start():
                         authorization_contract=_AUTHORIZATION, do_bench=False,
                         output_root=out_root, log=lambda *_args: None,
                         build_context=_BUILD_CONTEXT,
+                        declared_use_class="official",
                     )
                     assert False, "BaseException crash が loop を脱出すべき"
                 except ProcessCrash:
@@ -8932,7 +8972,7 @@ def test_loop_resume_recovery_aborts_real_pipeline_crash_after_start():
                 numactl=list(_AUTH_CONTRACT.numactl),
                 authorization_contract=_AUTHORIZATION, do_bench=False,
                 output_root=out_root, log=lambda *_args: None,
-                build_context=_BUILD_CONTEXT,
+                build_context=_BUILD_CONTEXT, declared_use_class="official",
             )
     finally:
         L.source_digest = saved_source_digest
@@ -8990,7 +9030,8 @@ def test_loop_identity_skip_is_visible_when_stock_id_terminal():
             numactl=list(_AUTH_CONTRACT.numactl),
             authorization_contract=_AUTHORIZATION,
             do_bench=False, output_root=out_root,
-                           log=lambda *a: None, build_context=_BUILD_CONTEXT)
+                           log=lambda *a: None, build_context=_BUILD_CONTEXT,
+                           declared_use_class="official")
     finally:
         L.source_digest = saved_sd
     assert s.skipped == 1 and s.identity_skipped == 1 and s.evaluated == 0
@@ -11316,7 +11357,8 @@ def test_loop_resume_repairs_tail_before_replay_and_surfaces_receipt():
             _AUTH_CONTRACT.env_tag, _AUTH_CONTRACT.clocks_per_us,
             numactl=list(_AUTH_CONTRACT.numactl),
             authorization_contract=_AUTHORIZATION,
-            do_bench=False, output_root=out_root, log=messages.append, build_context=_BUILD_CONTEXT)
+            do_bench=False, output_root=out_root, log=messages.append,
+            build_context=_BUILD_CONTEXT, declared_use_class="official")
     finally:
         L.evaluate, L.source_digest = saved_eval, saved_sd
     records, truncated = wal.read_records_checked(layout)
@@ -11364,7 +11406,8 @@ def test_loop_does_not_append_abort_after_wal_io_error():
                     numactl=list(_AUTH_CONTRACT.numactl),
                     authorization_contract=_AUTHORIZATION,
                     do_bench=False, output_root=out_root,
-                    log=lambda message: None, build_context=_BUILD_CONTEXT)
+                    log=lambda message: None, build_context=_BUILD_CONTEXT,
+                    declared_use_class="official")
             except (wal.WalAppendError, wal.WalFramingError) as exc:
                 caught = exc
         finally:

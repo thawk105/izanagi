@@ -60,6 +60,7 @@ def main() -> int:
         cfg, genomes, perf, ENV_TAG, CLK, numactl=list(contract.numactl),
         do_bench=False, authorization_contract=authorization,
         build_context=build_context,
+        declared_use_class="official",
     )
 
     print(f"\n committed(certified)={s.committed} aborted={s.aborted} "

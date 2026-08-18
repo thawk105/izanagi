@@ -21782,3 +21782,161 @@ activation の leaf 関数を直接呼ばない。
 **却下した選択肢:**
 - 単一 wrapper で両用途を賄う — 上記のとおりどちらかの意味が壊れる。
 - AST 検査だけで直接呼びを禁じる — 呼び出し形は縛れても検査内容の回復を示せない。
+
+## D528. campaign producer の利用意図 field を `declared_use_class` と確定し、旧 literal 指定を明示 supersede して族の外延を宣言由来にする (2026-08-18)
+
+**背景:** D162 決定 (11) は種別軸の field 名を確定させず、「名前が決まるまで種別 field を持つ
+新しい producer を land しない」と定めてユーザー再裁定へ返した。その再裁定 (2026-08-05 /rulings、
+T-479 択 (b)) が「`artifact_role` を使わず別名とし、実装 wave の新 D で確定して旧 literal 指定を
+明示 supersede する」と決めた。本 D はその委任を履行する条文である。
+一次資料 = `output/insights/2026-08-18_t337-t479-t318-declared-use-class/`。
+
+**決定 (1): 名前を `declared_use_class` に確定する。** 値の閉表は
+`official` / `exploration` / `qualification` / `dry` の 4 値とする。この名前と閉表は
+D282 が pin した受領証 schema に既に存在し、D500 決定 (4) も本文で同じ意味に用いている。
+本 D は新たな候補を選ぶのではなく、既に実成果物へ pin されている名前を条文として固定する。
+
+**決定 (2): T-318 / T-337 の裁定文にある literal `artifact_role` 指定を本 D で明示 supersede する。**
+`artifact_role` は `orchestrator/campaign/s8b_oracle_exploration.py` と
+`s8b_oracle_artifacts.py` で探索 oracle の文書種別 (`manifest` / `observations` / `verdict`) として
+現用であり、同名を種別軸へ再利用すれば D75 の二義化になる。oracle 側の改名は T-479 が不採用と
+裁定済みである。
+
+**決定 (3): D162 決定 (11) の land 禁止は、campaign producer の宣言に限って解除する。**
+解除の権威は D282 の schema pin ではなく T-479 の委任である。schema pin は名前の実在を証明するが、
+D162 が指定した解除条件ではない。RF 側 9 層の実装禁止 (D162 決定 (10)) と producer 実装禁止
+(D500 決定 (1)(2)(3)) はそのまま維持する。**本 D は RF producer の実装ではない。**
+
+**決定 (4): 宣言は利用意図であり、namespace はそこから導く非 identity の派生値である。**
+`declared_use_class` を `CampaignConfig`・canonical preimage・campaign-id のいずれにも入れない
+(D123 決定 (3) の維持)。したがって同じ cfg の campaign-id は宣言を跨いで同一である。
+
+**決定 (5): `run_campaign` は宣言を既定値なしの必須 keyword-only 引数として要求し、
+`campaign_namespace` は削除する。** 二つの selector を併存させない。併存させれば宣言値と
+実配線が乖離しうる。省略は signature binding の `TypeError` で止まり、
+**従来の「省略すると暗黙に official」という配線は無くなる。**
+
+**決定 (6): campaign sink が materialize できるのは `official` と `exploration` だけとする。**
+`qualification` と `dry` は、campaign-id の計算と `layout.ensure()` より**前**に `ValueError` で
+拒否する。拒否時に campaign-id も出力 directory も作られない。`qualification` は
+「適格性審査へ提出する」意図であって合格宣言ではなく (D162 決定 (1))、`dry` は qsub 事実の
+免除ではない (D500 決定 (4))。既存 2 layout へ暗黙変換せず、別 layout も新設しない。
+
+**決定 (7): 族の外延を宣言由来にする。** 手書きの driver tuple と位置依存の除外を、
+`orchestrator/campaign/` の production module を AST で走査して「campaign root を作る module は
+module-level の `DECLARED_USE_CLASS` を宣言する」を固定する閉包検査へ置換した。
+走査は `ast.Name` 形と `ast.Attribute` 形の両方を見る。module 修飾の呼び出し
+(`layout.exploration_campaign_layout(...)`) で閉包を素通りできない。
+producer ごとの layout / `run_campaign` 呼出し個数の pin は維持する。
+
+**決定 (8): 宣言は権威ではない。** 防げるのは宣言の省略であって、`official` と誤って申告する事故
+ではない。caller の自己申告が意味 gate にならないことは D162 決定 (1) が既に条文化している。
+producer identity 束縛による誤申告検出は本 D の射程外とする。
+
+**決定 (9): `run_campaign` を通らない producer の runtime gate は本 D で作らない。**
+8c (`p3_autonomous_workload_trial.py`) は `exploration_campaign_layout` を直接呼ぶため、
+宣言と閉包検査の対象ではあるが必須引数の gate は通らない。その trial-local layout の型分離は
+D123 決定 (4) が別裁定へ送済みであり、本 D はその境界を動かさない。
+
+**却下した選択肢:**
+
+- `artifact_role` を種別軸へ再利用する — production 2 file で別軸に現用であり D75 の二義化になる。
+- 宣言を module-level 定数だけに置く — 定数は runtime の分岐に届かず、宣言なしの producer を
+  実際には止められない。段 2 プランがこの形を反証した。
+- `campaign_namespace` を残して宣言と併存させる — 不一致時にどちらが実配線を決めるかが曖昧になる。
+- `qualification` / `dry` を既存 2 layout へ暗黙変換する — 適格性を producer の自己申告で
+  昇格させる経路が開く。
+- 宣言を campaign-id へ入れる — 歴史 campaign の identity と proof chain 参照が壊れる。
+
+**研究状態への影響:** 既存 6 producer の出力 root、凍結 3 artifact の bytes、campaign-id、
+certified 選択の値、材料レポート、proof chain はいずれも**不変**である。受理集合は狭まる方向にだけ
+変わる — 宣言を省略した caller が実行前に止まり、`qualification` / `dry` / 未知値が出力生成前に
+拒否される。RF/qualification の 9 層は 0/9 のまま動かしていない。
+
+## D529. 条件を機械検査対象へ載せる操作は 1 改訂単位から分割しない (2026-08-18)
+
+**決定:** 8c 事前登録の条件を機械検査対象へ載せる操作 — 証拠契約 JSON の `machine_checkable`
+反転、評価器 registry への登録、`DECIDER_VERSION` bump、新しい条件凍結 record の発行 — は
+**不可分の 1 改訂単位**とし、同一 commit で行う。評価器の実装だけを先に置くことは許すが、
+registry への登録は上記の残りと切り離さない。
+
+**理由:**
+- 評価器の呼び分けは契約 JSON の `machine_checkable` が駆動しており、registry 表ではない。
+  登録だけでは評価器が呼ばれず、意図した効果が出ない。
+- それどころか登録だけで、その条件の拒否理由が「証拠不足」から「機械検査可能な充足証明が無い」へ
+  変わる。凍結規約は判定器・評価器・射影で拒否理由の意味を変える変更に対し、bytes 差の有無に
+  関わらず版 bump と新世代 record を要求する。したがって登録は世代発行を要求する。
+- 契約の反転は契約 bytes を変えるため、現行世代の凍結を無効にし、やはり世代発行を要求する。
+- 登録単独では、契約側の machine-checkable 集合と registry 集合の全単射を要求するメタテストと、
+  負の対照の集合一致を要求するメタテストが赤になる。
+- F393 が示すとおり、凍結の妥当性検査は tip でなく履歴グラフ全体を走る。契約を変えた commit を
+  祖先に残すと、後から正しい世代を足しても拒否され続ける。分割は後から接合できない。
+
+**却下した選択肢:**
+- 登録だけを先に land する — 上記のとおり受理集合が動かないまま拒否理由だけが変わり、
+  世代発行の義務が発生する。メタテストも赤になる。
+- メタテストの期待集合を緩めて登録を通す — 正しさ防壁の弱体化であり採らない。
+- 評価器も書かずに設計メモへ留める — 登録 wave が負の対照なしで登録することになり、
+  検出力を同じ改訂単位で裏取りできなくなる。評価器本体と負の対照は先に置いてよい。
+
+## D530. 条件 consumer は権威を引数で受け取り、退化した権威を拒否する (2026-08-18)
+
+**決定:** 8c の条件 consumer module は、hash の入力となる権威 (探索空間・初期状態を定める定数群) を
+**呼び手から引数で受け取る**。module は権威の key 集合を閉じた集合として持ち、欠落・余剰・型違反・
+**退化した値 (空の写像・空の配列・空文字列)** をすべて拒否する。部分的または空の権威から
+digest を計算できてはならない。consumer module は supervisor を import しない。
+
+**理由:**
+- 証拠契約は起動経路から consumer への到達を要求する。これは supervisor が consumer を import する
+  向きを意味する。consumer が supervisor から定数を取ると循環になり、契約が要求する配線自体を
+  将来にわたって塞ぐ。呼出し関係を静的に解決する評価器は関数内 import を辿らないため、
+  局所 import へ逃がしても到達性を証明できない。
+- 権威を引数にすると、全 cell が同じ hash を持つという検査が「自明に成り立つ性質」から
+  「外から供給された期待値との照合」へ変わり、恒真でなくなる。
+- 権威の key 集合を閉じ、かつ退化値を拒否することで、「hash に入っているように見えて実は
+  効いていない field」と「空の権威を承認する」の両方を同時に塞げる。型だけを見る検査は
+  すべての値を空にすれば通ってしまい、証明にならない。
+
+**却下した選択肢:**
+- consumer が supervisor の定数を直接読む — 循環になり配線を塞ぐ。
+- 権威を説明用の文字列定数 1 つに代表させる — 実際の workload 定義・role 契約・gating 仕様が
+  変わっても hash が変わらない経路が残る。
+- 関数の source を hash 入力に含める — 整形やコメントの変更で hash が動き、無害な改修が
+  既存 schedule を全 cell 拒否にする。過剰決定であり採らない。
+
+## D531. 受入全走の wall は「直列鎖 + 固定費」で説明し、定所要時間の LPT 模型を根拠にしない (2026-08-18)
+
+**決定:** 受入全走の所要を論じるときの正本モデルは
+`wall = real-repo 直列鎖 + 固定費 (約 26 秒)` とする。testcase の所要時間を独立な定数とみなす
+list scheduling / LPT 模型を、改善案の採否根拠に使わない。配布順の変更で wall が下がると
+主張する提案は、実装したうえで**同一 branch 上の A/B 対測定**で示す。
+
+**理由:**
+- 14 走で `wall − 鎖長` が 20.6〜28.8 秒に収まり、鎖以外の仕事はすべて鎖の下に隠れている。
+  直列総和が 15% 増えても `wall − 鎖長` は変わらなかった。
+- junit の duration は共走の競合を含むため、スケジュールを変えると duration 自体が変わる。
+  定所要時間の仮定が成立しない。
+- 忠実に scheduler を再現した離散事象模型 (先読み `pending <= 2`、初期 1+1 配布を含む) でも、
+  worker 起動と各 worker の collection を持たないため系統的に 20 秒以上過小評価した。
+
+**却下した選択肢:**
+- junit 1 走からの LPT 下界を目標値に据える — 実機で 20 秒以上外れる。
+- 非対の before/after 比較で採否を決める — ノードが交絡する (実際に交絡した)。
+- 配布順を変えて「理論上最適」に近づける — 効果ゼロを実測で確認済み。
+
+## D532. 受入のコア利用率を上げる手は排他鎖の短縮と細分化に限る (2026-08-18)
+
+**決定:** 受入全走のコア利用率 (実測 59%) を上げる手として認めるのは、
+(a) `real-repo` 排他鎖そのものの短縮、(b) 排他閉包の細分化、(c) 固定費の削減の 3 つに限る。
+worker 数の増減と work unit の配布順は、実測で効果が無いか悪化するため提案しない。
+
+**理由:**
+- 鎖 77.5〜94.9 秒が wall の 74〜78% を占め、鎖上位 3 件で鎖の 76% を占める。
+  鎖を x 秒縮めれば wall はほぼ x 秒縮む。
+- 48 は gen_S の per-job CPU 上限であり receipt で実測した。`-n 32` は模型で悪化する。
+- 鎖以外の仕事は鎖の下に隠れており、その並べ替えは wall に効かない。
+
+**却下した選択肢:**
+- 所要時間の宣言による work unit 並べ替え — 実装して対測定で反証した。
+  保守債務 (宣言の再生成) だけが残る。
+- テストの削除・skip・selection の縮小で速くする — 規律 2 に反する。検討対象にしない。

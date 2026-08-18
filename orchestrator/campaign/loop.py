@@ -129,17 +129,25 @@ def run_campaign(cfg: CampaignConfig, genomes: Sequence[Genome],
                  authorization_contract: AuthorizedContract,
                  build_context: BuildRunContext,
                  capability_resolver: Optional[AdmissionCapabilityResolver] = None,
-                 campaign_namespace: str = "official",
+                 declared_use_class: str,
                  trigger_gate_binding=None,
                  perf_preflight_fn: Optional[Callable[..., object]] = None,
                  ) -> CampaignSummary:
     """`ccbench_dir`/`cache_root` (段5 git worktree 隔離): pipeline.evaluate と同じ実行時
-    引数の素通し。省略時は共有固定パス既定 (既存動作と完全互換)。`campaign_namespace` は
-    official / exploration の閉じた path selector。namespace は campaign-id に含めず、
+    引数の素通し。`declared_use_class` は official / exploration の閉じた
+    path selector で、campaign-id には含めない。
     `env_contract` と `dependency_prefix` は非既定時だけ素通しして既定 caller の
     evaluate 呼出し形を保つ。`build_context` の安定 policy を campaign identity へ束縛し、
     source ごとの capability resolver は evidence 解決後の pipeline へ渡す。"""
-    if campaign_namespace == "official" and perf_preflight_fn is not None:
+    if declared_use_class == "official":
+        layout_constructor = campaign_layout
+    elif declared_use_class == "exploration":
+        layout_constructor = exploration_campaign_layout
+    else:
+        raise ValueError(
+            f"unsupported declared_use_class: {declared_use_class!r}"
+        )
+    if declared_use_class == "official" and perf_preflight_fn is not None:
         raise ValueError(
             "official mode への非 default seam 注入を拒否する: "
             "['perf_preflight_fn']"
@@ -159,12 +167,6 @@ def run_campaign(cfg: CampaignConfig, genomes: Sequence[Genome],
           or trigger_gate_binding.source is not None):
         raise TypeError("trigger campaign は source-null candidate binding が必要")
     cfg = ident.bind_admission_policy(cfg, build_context.policy)
-    if campaign_namespace == "official":
-        layout_constructor = campaign_layout
-    elif campaign_namespace == "exploration":
-        layout_constructor = exploration_campaign_layout
-    else:
-        raise ValueError(f"未知の campaign namespace: {campaign_namespace!r}")
     authorized_contract, execution_receipt = _authorize_measurement(
         authorization_contract, env_tag=env_tag, clocks_per_us=clocks_per_us,
         numactl=numactl, env_contract=env_contract,

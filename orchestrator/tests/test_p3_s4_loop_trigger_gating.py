@@ -426,7 +426,7 @@ def _measurement_case(
             "numactl": numactl,
             "env_contract": kwargs.get("env_contract"),
             "dependency_prefix": kwargs.get("dependency_prefix"),
-            "campaign_namespace": kwargs.get("campaign_namespace"),
+            "declared_use_class": kwargs.get("declared_use_class"),
         })
         return SimpleNamespace(
             results=[], skipped=0, execution_receipt=receipt,
@@ -715,7 +715,7 @@ def test_contract_sentinel_flows_to_run_campaign(
         "numactl": list(contract.numactl),
         "env_contract": None,
         "dependency_prefix": None,
-        "campaign_namespace": "exploration",
+        "declared_use_class": "exploration",
     }]
 
 
@@ -747,7 +747,7 @@ def test_same_selector_contract_flows_to_run_campaign(monkeypatch):
         "numactl": list(contract.numactl),
         "env_contract": None,
         "dependency_prefix": None,
-        "campaign_namespace": "exploration",
+        "declared_use_class": "exploration",
     }]
 
 
@@ -1258,7 +1258,7 @@ def test_fresh_default_seams_flow_distinct_contract_to_measurement_sink(
             "env_tag": env_tag,
             "clocks_per_us": clocks_per_us,
             "numactl": numactl,
-            "campaign_namespace": kwargs.get("campaign_namespace"),
+            "declared_use_class": kwargs.get("declared_use_class"),
         })
         return SimpleNamespace(results=[], skipped=0)
 
@@ -1280,7 +1280,7 @@ def test_fresh_default_seams_flow_distinct_contract_to_measurement_sink(
         "env_tag": contract.env_tag,
         "clocks_per_us": contract.clocks_per_us,
         "numactl": list(contract.numactl),
-        "campaign_namespace": "exploration",
+        "declared_use_class": "exploration",
     }]
 
 

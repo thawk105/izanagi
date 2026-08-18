@@ -61,6 +61,7 @@ from ..critic.digest import (Rejection, load_liveness_rejections,    # noqa: E40
 
 
 PIN = "dff0f1e"
+DECLARED_USE_CLASS = "exploration"
 ENV_TAG = "linux-baremetal"
 CLK = 1800
 NUMA = ["numactl", "--interleave=all"]
@@ -168,7 +169,7 @@ def main(argv=None) -> int:
         s1 = run_campaign(cfg, [RED_G], perf, ENV_TAG, CLK, numactl=NUMA,
                           authorization_contract=env_contract.authorize(ENV_TAG),
                           build_context=build_context,
-                          campaign_namespace="exploration")
+                          declared_use_class=DECLARED_USE_CLASS)
     v1 = next((r.variant for r in s1.results), None)
 
     print("\n=== 赤 2: fixture 発 verify-red (r1_write_skew trace 注入の半実) ===")
@@ -178,7 +179,7 @@ def main(argv=None) -> int:
         s2 = run_campaign(cfg, [STOCK_G], perf, ENV_TAG, CLK, numactl=NUMA,
                           authorization_contract=env_contract.authorize(ENV_TAG),
                           build_context=build_context,
-                          campaign_namespace="exploration")
+                          declared_use_class=DECLARED_USE_CLASS)
     finally:
         pipeline._run_trace = saved
     v2 = next((r.variant for r in s2.results), None)
