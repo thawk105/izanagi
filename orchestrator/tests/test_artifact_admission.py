@@ -58,6 +58,17 @@ _EXPECTED_E1_CLOSURE_PATHS = (
     "orchestrator/verifier/parse.py",
     "orchestrator/verifier/__init__.py",
     "orchestrator/verifier/report.py",
+    "orchestrator/campaign/s8c_preregistration.py",
+    "orchestrator/campaign/s8c_preregistration_evidence.py",
+    "orchestrator/campaign/s8c_generation_projection.py",
+    "orchestrator/campaign/campaign_lock.py",
+    "orchestrator/campaign/contract_loader_binding.py",
+    "orchestrator/campaign/enforcement_source_ratification.py",
+    "orchestrator/campaign/guided.py",
+    "orchestrator/campaign/replay.py",
+    "orchestrator/qualification/artifacts.py",
+    "orchestrator/qualification/t126_driver.py",
+    "orchestrator/verifier/commit_receipt.py",
 )
 _GIT_ENV_ALLOWLIST = (
     "LANG",
@@ -365,7 +376,7 @@ def _fixture_git(repo: Path, *args: str) -> bytes:
 
 
 def _committed_closure_repo(tmp_path: Path) -> Path:
-    """現行 checkout の hash を使わない exact 14-path E1 fixture。"""
+    """現行 checkout の hash を使わない exact 25-path E1 fixture。"""
     repo = tmp_path / "closure-repo"
     repo.mkdir()
     _fixture_git(repo, "init", "-q")
@@ -996,8 +1007,8 @@ def test_real_e0_is_rejected_only_by_certified_epoch_gate() -> None:
     assert excinfo.value.epoch_state == "E0"
     assert excinfo.value.reason_code == "v1-authority-absent"
     assert excinfo.value.identity_scope == (
-        "enforcement source closure (exact 14 path; witness gate 本体 pipeline.py、"
-        "verifier dispatch __init__.py、verifier 実装 core/dsg/model/parse/report.py を含む)"
+        "enforcement source closure (exact 25 path; witness gate、S8C 判定器、"
+        "批准比較、receipt 発行・検証面を含む)"
     )
     assert excinfo.value.excluded_scope == (
         "verifier package のうち orchestrator/verifier/__main__.py と "
@@ -1120,7 +1131,7 @@ def test_valid_v2_campaign_is_admitted(tmp_path: Path) -> None:
     )
     assert decoded.is_v2
     assert decoded.authority is not None
-    assert len(decoded.authority.contract_loader_blob_sha256s) == 14
+    assert len(decoded.authority.contract_loader_blob_sha256s) == 25
     assert A.classify_campaign(campaign).admission_status == "admitted"
 
 
@@ -1179,6 +1190,7 @@ def test_certified_acceptance_rejects_e1_stale_exact_map_mismatch(
         "orchestrator/verifier/parse.py",
         "orchestrator/verifier/__init__.py",
         "orchestrator/verifier/report.py",
+        "orchestrator/verifier/commit_receipt.py",
     ),
     ids=lambda path: Path(path).name,
 )
