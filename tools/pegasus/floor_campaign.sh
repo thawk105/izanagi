@@ -25,6 +25,11 @@ if [[ ! "$PBS_JOBID" =~ ^([0-9]+:)?[A-Za-z0-9._-]+$ ]]; then
 fi
 
 unset PYTHONPATH PYTHONHOME PYTHONSTARTUP
+CURRENT_STAGE=bootstrap
+CHECKPOINT_PATH=""
+CHECKPOINT_ENABLED=0
+CHECKPOINT_BOOTSTRAP_OPEN=0
+CHECKPOINT_BOOTSTRAP_PARENT_OPEN=0
 
 # Static admission must complete before this job body mutates either scratch or
 # durable output.  Resolve the adapter from the submitted source commit so a
@@ -35,6 +40,127 @@ if [[ -z "${IZANAGI_SUBMISSION_NONCE:-}" \
   exit 4
 fi
 REPO_ROOT=$(cd "$PBS_O_WORKDIR" && pwd -P) || exit 4
+GIT_COMMON_DIR=""
+git_common_rc=0
+GIT_COMMON_DIR=$(git -C "$REPO_ROOT" rev-parse --path-format=absolute --git-common-dir) \
+  || git_common_rc=$?
+GIT_COMMON_REPO=""
+DEFAULT_EVIDENCE_ROOT=""
+EVIDENCE_ROOT=""
+if [[ "$git_common_rc" -eq 0 && "$GIT_COMMON_DIR" == /* ]]; then
+  GIT_COMMON_REPO=${GIT_COMMON_DIR%/.git}
+  DEFAULT_EVIDENCE_ROOT="$(dirname "$(dirname "$GIT_COMMON_DIR")")/izanagi-job-evidence"
+  EVIDENCE_ROOT=$DEFAULT_EVIDENCE_ROOT
+else
+  echo "cannot derive Git common directory; checkpoint disabled" >&2
+fi
+if [[ -n "$EVIDENCE_ROOT" && ${IZANAGI_FLOOR_JOB_EVIDENCE_ROOT+x} == x ]]; then
+  if [[ "$IZANAGI_FLOOR_JOB_EVIDENCE_ROOT" == /* \
+      && "$IZANAGI_FLOOR_JOB_EVIDENCE_ROOT" =~ ^[A-Za-z0-9_./:-]+$ ]]; then
+    EVIDENCE_ROOT=$IZANAGI_FLOOR_JOB_EVIDENCE_ROOT
+  else
+    echo "unsafe floor evidence root override ignored; using default" >&2
+  fi
+fi
+if [[ -z "$EVIDENCE_ROOT" ]]; then
+  :
+elif [[ "$EVIDENCE_ROOT" == "$REPO_ROOT" || "$EVIDENCE_ROOT" == "$REPO_ROOT/"* \
+    || "$EVIDENCE_ROOT" == "$GIT_COMMON_REPO" \
+    || "$EVIDENCE_ROOT" == "$GIT_COMMON_REPO/"* ]]; then
+  echo "floor evidence root resolves inside a repository; checkpoint disabled" >&2
+else
+  EVIDENCE_JOB_ID=${PBS_JOBID#0:}
+  CHECKPOINT_PATH="$EVIDENCE_ROOT/pegasus/$EVIDENCE_JOB_ID/$IZANAGI_SUBMISSION_NONCE/checkpoint.jsonl"
+  checkpoint_parent=${CHECKPOINT_PATH%/*}
+  checkpoint_components_safe=1
+  checkpoint_current="/"
+  IFS='/' read -r -a checkpoint_components <<<"${checkpoint_parent#/}"
+  for checkpoint_component in "${checkpoint_components[@]}"; do
+    [[ -n "$checkpoint_component" && "$checkpoint_component" != "." \
+        && "$checkpoint_component" != ".." ]] || checkpoint_components_safe=0
+    checkpoint_current="${checkpoint_current%/}/$checkpoint_component"
+    [[ ! -L "$checkpoint_current" ]] || checkpoint_components_safe=0
+  done
+  if [[ "$checkpoint_components_safe" -eq 1 ]] \
+      && mkdir -p -m 0700 -- "$checkpoint_parent"; then
+    checkpoint_current="/"
+    for checkpoint_component in "${checkpoint_components[@]}"; do
+      checkpoint_current="${checkpoint_current%/}/$checkpoint_component"
+      [[ -d "$checkpoint_current" && ! -L "$checkpoint_current" ]] \
+        || checkpoint_components_safe=0
+    done
+  else
+    checkpoint_components_safe=0
+  fi
+  checkpoint_parent_real=""
+  checkpoint_parent_identity=""
+  checkpoint_fd_real=""
+  checkpoint_fd_identity=""
+  if [[ "$checkpoint_components_safe" -eq 1 ]]; then
+    checkpoint_parent_real=$(realpath -e -- "$checkpoint_parent") \
+      || checkpoint_components_safe=0
+    checkpoint_parent_identity=$(stat -Lc '%d:%i' -- "$checkpoint_parent") \
+      || checkpoint_components_safe=0
+    [[ "$checkpoint_parent_real" == "$checkpoint_parent" ]] \
+      || checkpoint_components_safe=0
+  fi
+  if [[ "$checkpoint_components_safe" -eq 1 ]]; then
+    checkpoint_parent_open_rc=0
+    exec {CHECKPOINT_BOOTSTRAP_PARENT_FD}<"$checkpoint_parent" \
+      || checkpoint_parent_open_rc=$?
+    [[ "$checkpoint_parent_open_rc" -eq 0 ]] \
+      && CHECKPOINT_BOOTSTRAP_PARENT_OPEN=1
+  fi
+  if [[ "$CHECKPOINT_BOOTSTRAP_PARENT_OPEN" -eq 1 ]]; then
+    checkpoint_fd_real=$(realpath -e -- \
+      "/proc/self/fd/$CHECKPOINT_BOOTSTRAP_PARENT_FD") \
+      || checkpoint_components_safe=0
+    checkpoint_fd_identity=$(stat -Lc '%d:%i' -- \
+      "/proc/self/fd/$CHECKPOINT_BOOTSTRAP_PARENT_FD") \
+      || checkpoint_components_safe=0
+    [[ "$checkpoint_fd_real" == "$checkpoint_parent_real" \
+        && "$checkpoint_fd_identity" == "$checkpoint_parent_identity" \
+        && "$checkpoint_fd_real" != "$REPO_ROOT" \
+        && "$checkpoint_fd_real" != "$REPO_ROOT/"* \
+        && "$checkpoint_fd_real" != "$GIT_COMMON_REPO" \
+        && "$checkpoint_fd_real" != "$GIT_COMMON_REPO/"* ]] \
+      || checkpoint_components_safe=0
+  fi
+  checkpoint_fd_leaf="/proc/self/fd/${CHECKPOINT_BOOTSTRAP_PARENT_FD:-0}/checkpoint.jsonl"
+  if [[ "$checkpoint_components_safe" -eq 1 && ! -e "$checkpoint_fd_leaf" \
+      && ! -L "$checkpoint_fd_leaf" ]]; then
+    checkpoint_create_rc=0
+    set -o noclobber
+    exec {CHECKPOINT_BOOTSTRAP_FD}>"$checkpoint_fd_leaf" || checkpoint_create_rc=$?
+    set +o noclobber
+    if [[ "$checkpoint_create_rc" -eq 0 ]]; then
+      CHECKPOINT_BOOTSTRAP_OPEN=1
+      CHECKPOINT_ENABLED=1
+    fi
+  fi
+  if [[ "$CHECKPOINT_BOOTSTRAP_PARENT_OPEN" -eq 1 ]]; then
+    exec {CHECKPOINT_BOOTSTRAP_PARENT_FD}<&-
+    CHECKPOINT_BOOTSTRAP_PARENT_OPEN=0
+  fi
+fi
+
+checkpoint_bootstrap_event() {
+  local transition=$1
+  local rc=$2
+  local recorded_epoch
+  local bootstrap_attempt
+  [[ "$CHECKPOINT_BOOTSTRAP_OPEN" -eq 1 ]] || return 0
+  printf -v recorded_epoch '%(%s)T' -1
+  for bootstrap_attempt in 1 2; do
+    if printf '%s\n' \
+        "{\"attempt_dir\":null,\"authority\":\"diagnostic-only\",\"command\":null,\"durability\":\"process-kill\",\"env_tag\":\"pegasus\",\"journal_path\":null,\"partial_log_path\":\"$CHECKPOINT_PATH\",\"pbs_jobid\":\"$PBS_JOBID\",\"producer\":\"floor_campaign.sh\",\"rc\":$rc,\"recorded_epoch\":$recorded_epoch,\"repo_root\":null,\"run_dir\":null,\"schema_version\":\"pegasus-job-checkpoint/v1\",\"stage\":\"bootstrap\",\"submission_nonce\":\"$IZANAGI_SUBMISSION_NONCE\",\"transition\":\"$transition\"}" \
+        >&"$CHECKPOINT_BOOTSTRAP_FD"; then
+      return 0
+    fi
+  done
+  return 0
+}
+if ! checkpoint_bootstrap_event entered null; then :; fi
 PREFLIGHT_PY=""
 for preflight_py_name in python3 python3.10 python3.11 python3.12; do
   py_cmd=$(command -v -- "$preflight_py_name") || continue
@@ -48,9 +174,46 @@ for preflight_py_name in python3 python3.10 python3.11 python3.12; do
   fi
 done
 if [[ -z "$PREFLIGHT_PY" ]]; then
+  if ! checkpoint_bootstrap_event rejected 4; then :; fi
+  if [[ "$CHECKPOINT_BOOTSTRAP_OPEN" -eq 1 ]]; then exec {CHECKPOINT_BOOTSTRAP_FD}>&-; fi
   echo '{"gate":"bootstrap","reason":"no python3 >= 3.10 for static admission"}' >&2
   exit 4
 fi
+if [[ "$CHECKPOINT_BOOTSTRAP_OPEN" -eq 1 ]]; then exec {CHECKPOINT_BOOTSTRAP_FD}>&-; fi
+
+checkpoint_event() {
+  local stage=$1
+  local transition=$2
+  local rc=${3:-null}
+  local command=${4:-}
+  local writer_attempt
+  [[ "$CHECKPOINT_ENABLED" -eq 1 ]] || return 0
+  for writer_attempt in 1 2; do
+    if timeout --signal=KILL 6s "$PREFLIGHT_PY" -I -B -c '
+import sys
+from pathlib import Path
+sys.path.insert(0, sys.argv[1])
+from orchestrator.campaign import floor_job_checkpoint as checkpoint
+value = None if sys.argv[7] == "null" else int(sys.argv[7])
+ok = checkpoint.try_append_checkpoint_bounded(
+    attempts=1,
+    path=sys.argv[2], job_id=sys.argv[3], nonce=sys.argv[4],
+    producer="floor_campaign.sh", stage=sys.argv[5], transition=sys.argv[6],
+    rc=value, command=sys.argv[8] or None, durability="fsynced",
+    repo_root=sys.argv[9] or None, attempt_dir=sys.argv[10] or None,
+)
+raise SystemExit(0 if ok else 1)
+' "$REPO_ROOT" "$CHECKPOINT_PATH" "$PBS_JOBID" "$IZANAGI_SUBMISSION_NONCE" \
+        "$stage" "$transition" "$rc" "$command" "$REPO_ROOT" "${ATTEMPT_DIR:-}"; then
+      return 0
+    fi
+  done
+  if ! printf 'checkpoint writer failed after bounded reopen: stage=%s transition=%s\n' \
+      "$stage" "$transition" >&2; then :; fi
+  return 0
+}
+CURRENT_STAGE=static-admission
+if ! checkpoint_event "$CURRENT_STAGE" entered null ""; then :; fi
 PREFLIGHT_RECEIPT="$REPO_ROOT/output/env/pegasus/floor/attempts/submissions/$IZANAGI_SUBMISSION_NONCE/submit-receipt.json"
 PREFLIGHT_SOURCE_COMMIT=$(
   "$PREFLIGHT_PY" -I -B - "$PREFLIGHT_RECEIPT" <<'PY'
@@ -77,12 +240,14 @@ if type(source_commit) is not str or re.fullmatch(r"[0-9a-f]{40}", source_commit
 print(source_commit)
 PY
 ) || {
+  if ! checkpoint_event "$CURRENT_STAGE" rejected 4 "receipt binding rejected"; then :; fi
   echo '{"gate":"bootstrap","reason":"cannot read a unique source_commit from floor receipt"}' >&2
   exit 4
 }
 PREFLIGHT_HELPER_PATH="orchestrator/campaign/certified_writer_preflight.py"
 PREFLIGHT_HELPER_SPEC="$PREFLIGHT_SOURCE_COMMIT:$PREFLIGHT_HELPER_PATH"
 if ! git -C "$REPO_ROOT" cat-file -e "$PREFLIGHT_HELPER_SPEC" 2>/dev/null; then
+  if ! checkpoint_event "$CURRENT_STAGE" rejected 4 "admission helper unavailable"; then :; fi
   echo '{"gate":"bootstrap","reason":"static admission helper blob is unavailable"}' >&2
   exit 4
 fi
@@ -91,11 +256,15 @@ git -C "$REPO_ROOT" cat-file blob "$PREFLIGHT_HELPER_SPEC" \
   | "$PREFLIGHT_PY" -I -B - floor --repo-root "$REPO_ROOT" \
       --receipt "$PREFLIGHT_RECEIPT" || preflight_rc=$?
 if [[ "$preflight_rc" -ne 0 ]]; then
+  if ! checkpoint_event "$CURRENT_STAGE" rejected "$preflight_rc" "static admission rejected"; then :; fi
   exit "$preflight_rc"
 fi
 
+CURRENT_STAGE=attempt-setup
+if ! checkpoint_event "$CURRENT_STAGE" entered null ""; then :; fi
 export TMPDIR="/scr/${PBS_JOBID//:/_}"
 if ! mkdir "$TMPDIR"; then
+  if ! checkpoint_event "$CURRENT_STAGE" failed 2 "scratch create-only failed"; then :; fi
   echo "TMPDIR already exists or cannot be created (create-only): $TMPDIR" >&2
   exit 2
 fi
@@ -109,11 +278,16 @@ ATTEMPTS_ROOT="$OUTPUT_ROOT/env/pegasus/floor/attempts"
 JOB_STAGING_ROOT="$OUTPUT_ROOT/env/pegasus/floor/job-staging"
 
 if [[ ! -d "$OUTPUT_ROOT" || -L "$OUTPUT_ROOT" ]]; then
+  if ! checkpoint_event "$CURRENT_STAGE" failed 2 "output root rejected"; then :; fi
   echo "repo output root is missing, not a directory, or a symlink" >&2
   exit 2
 fi
-OUTPUT_ROOT_REAL=$(realpath -e -- "$OUTPUT_ROOT") || exit 2
+OUTPUT_ROOT_REAL=$(realpath -e -- "$OUTPUT_ROOT") || {
+  if ! checkpoint_event "$CURRENT_STAGE" failed 2 "output root resolution failed"; then :; fi
+  exit 2
+}
 if [[ "$OUTPUT_ROOT_REAL" != "$OUTPUT_ROOT" ]]; then
+  if ! checkpoint_event "$CURRENT_STAGE" failed 2 "output root identity mismatch"; then :; fi
   echo "repo output root does not resolve to the fixed output path" >&2
   exit 2
 fi
@@ -148,13 +322,21 @@ assert_safe_output_path() {
 
 for staging_path in "$ATTEMPTS_ROOT" "$JOB_STAGING_ROOT"; do
   if ! assert_safe_output_path "$staging_path"; then
+    if ! checkpoint_event "$CURRENT_STAGE" failed 2 "staging path rejected"; then :; fi
     echo "unsafe output path component or containment: $staging_path" >&2
     exit 2
   fi
 done
-mkdir -p "$ATTEMPTS_ROOT" "$JOB_STAGING_ROOT"
+attempt_parent_rc=0
+mkdir -p "$ATTEMPTS_ROOT" "$JOB_STAGING_ROOT" || attempt_parent_rc=$?
+if [[ "$attempt_parent_rc" -ne 0 ]]; then
+  if ! checkpoint_event "$CURRENT_STAGE" failed "$attempt_parent_rc" \
+      "staging parent creation failed"; then :; fi
+  exit "$attempt_parent_rc"
+fi
 for staging_path in "$ATTEMPTS_ROOT" "$JOB_STAGING_ROOT"; do
   if ! assert_safe_output_path "$staging_path"; then
+    if ! checkpoint_event "$CURRENT_STAGE" failed 2 "created staging path rejected"; then :; fi
     echo "unsafe output path after creation: $staging_path" >&2
     exit 2
   fi
@@ -162,14 +344,17 @@ done
 
 ATTEMPT_DIR="$JOB_STAGING_ROOT/$PBS_JOBID"
 if ! assert_safe_output_path "$ATTEMPT_DIR"; then
+  if ! checkpoint_event "$CURRENT_STAGE" failed 2 "attempt path rejected"; then :; fi
   echo "unsafe attempt path component or containment: $ATTEMPT_DIR" >&2
   exit 2
 fi
 if ! mkdir "$ATTEMPT_DIR"; then
+  if ! checkpoint_event "$CURRENT_STAGE" failed 2 "attempt create-only failed"; then :; fi
   echo "attempt already exists or cannot be created (create-only): $ATTEMPT_DIR" >&2
   exit 2
 fi
 if ! assert_safe_output_path "$ATTEMPT_DIR"; then
+  if ! checkpoint_event "$CURRENT_STAGE" failed 2 "created attempt path rejected"; then :; fi
   echo "unsafe attempt path after creation: $ATTEMPT_DIR" >&2
   exit 2
 fi
@@ -182,6 +367,7 @@ write_failure() {
   local rc=$1
   local stage=$2
   local message=$3
+  local checkpoint_transition=${4-failed}
   local writer_rc=0
   if [[ "$failure_written" -eq 0 ]]; then
     failure_written=1
@@ -211,6 +397,9 @@ PY
       echo "failure writer failed with rc=$writer_rc (original rc=$rc stage=$stage)" >&2
     fi
   fi
+  if [[ -n "$checkpoint_transition" ]]; then
+    if ! checkpoint_event "$stage" "$checkpoint_transition" "$rc" "$message"; then :; fi
+  fi
   return 0
 }
 write_interpreter_failure() {
@@ -219,6 +408,7 @@ write_interpreter_failure() {
       >"$ATTEMPT_DIR/failure-interpreter.txt"; then
     echo "cannot write interpreter failure marker: $message" >&2
   fi
+  if ! checkpoint_event "$CURRENT_STAGE" rejected 2 "$message"; then :; fi
 }
 
 # 計算ノードは intelpython 既定ロードで python3 が 3.9 に解決され、driver の import 前提
@@ -247,8 +437,10 @@ fi
 on_err() {
   local rc=$?
   local line=${BASH_LINENO[0]:-unknown}
+  local command=${BASH_COMMAND:-unknown}
   trap - ERR
-  write_failure "$rc" "shell" "command failed at line $line"
+  if ! checkpoint_event "$CURRENT_STAGE" failed "$rc" "$command"; then :; fi
+  write_failure "$rc" "shell" "command failed at line $line" ""
   exit "$rc"
 }
 trap on_err ERR
@@ -257,7 +449,8 @@ on_signal() {
   local signal_number=$2
   local rc=$((128 + signal_number))
   trap - ERR INT TERM HUP
-  write_failure "$rc" signal "received $signal_name"
+  if ! checkpoint_event "$CURRENT_STAGE" signalled "$rc" "signal $signal_name"; then :; fi
+  write_failure "$rc" signal "received $signal_name" ""
   exit "$rc"
 }
 trap 'on_signal INT 2' INT
@@ -268,6 +461,8 @@ printf '%s\n' "$PY" >"$ATTEMPT_DIR/python3.realpath"
 "$PY" -I -B --version >"$ATTEMPT_DIR/python3.version" 2>&1
 
 # 出典: certify_calibration.sh:105-141 @ e9b6f69
+CURRENT_STAGE=policy
+if ! checkpoint_event "$CURRENT_STAGE" entered null ""; then :; fi
 if [[ ! -f "$POLICY" || -L "$POLICY" ]]; then
   write_failure 2 policy "policy file missing, not regular, or a symlink"
   exit 2
@@ -343,6 +538,8 @@ if [[ "$PROJECT" != SFC || "$QUEUE" != gen_S || "$NODES" != 1 \
 fi
 
 # 出典: certify_calibration.sh:143-172 @ e9b6f69
+CURRENT_STAGE=submit-binding
+if ! checkpoint_event "$CURRENT_STAGE" entered null ""; then :; fi
 if [[ -z "${IZANAGI_SUBMISSION_NONCE:-}" \
     || ! "$IZANAGI_SUBMISSION_NONCE" =~ ^[0-9a-f]{32}$ ]]; then
   write_failure 2 submit_binding "IZANAGI_SUBMISSION_NONCE must be 32 lowercase hex"
@@ -501,6 +698,8 @@ if [[ "$receipt_rc" -ne 0 ]]; then
 fi
 
 # 出典: certify_calibration.sh:174-208 @ e9b6f69
+CURRENT_STAGE=source-identity
+if ! checkpoint_event "$CURRENT_STAGE" entered null ""; then :; fi
 SCRIPT_RELATIVE_PATH="tools/pegasus/floor_campaign.sh"
 REPO_SCRIPT="$REPO_ROOT/$SCRIPT_RELATIVE_PATH"
 if [[ ! -f "$REPO_SCRIPT" || -L "$REPO_SCRIPT" ]]; then
@@ -575,6 +774,8 @@ if [[ -n "$REPO_STATUS" ]]; then
 fi
 
 # 出典: certify_calibration.sh:210-318 @ e9b6f69
+CURRENT_STAGE=allocation-reservation
+if ! checkpoint_event "$CURRENT_STAGE" entered null ""; then :; fi
 qstat_rc=0
 QSTAT_JOBID=${PBS_JOBID#0:}
 timeout 30 qstat -f "$QSTAT_JOBID" >"$ATTEMPT_DIR/qstat-f.stdout" \
@@ -785,6 +986,8 @@ realpath -e "$CMAKE_PATH" >"$ATTEMPT_DIR/cmake.path"
 "$CMAKE_PATH" --version >"$ATTEMPT_DIR/cmake.version" 2>&1
 
 # 出典: certify_calibration.sh:376-510 @ e9b6f69
+CURRENT_STAGE=gflags-build
+if ! checkpoint_event "$CURRENT_STAGE" entered null ""; then :; fi
 if [[ ! -d "$GFLAGS_SOURCE_PATH" ]]; then
   write_failure 2 gflags "gflags source path missing"
   exit 2
@@ -853,6 +1056,8 @@ if [[ "$gflags_rc" -ne 0 ]]; then
 fi
 
 # 出典: certify_calibration.sh:423-486 @ e9b6f69
+CURRENT_STAGE=glog-build
+if ! checkpoint_event "$CURRENT_STAGE" entered null ""; then :; fi
 if [[ ! -d "$GLOG_SOURCE_PATH" ]]; then
   write_failure 2 glog "glog source path missing"
   exit 2
@@ -951,6 +1156,8 @@ with open(path, "x", encoding="utf-8") as handle:
     handle.write("\n")
 PY
 
+CURRENT_STAGE=protocol-resolution
+if ! checkpoint_event "$CURRENT_STAGE" entered null ""; then :; fi
 protocol_resolution_rc=0
 protocol_resolution_output=$(
   "$PY" -I -B "$REPO_ROOT/orchestrator/campaign/s8b_floor_campaign.py" \
@@ -977,6 +1184,8 @@ if [[ "$protocol_resolution_rc" -ne 0 \
 fi
 PROTOCOL_PATH=$protocol_resolution_output
 export IZANAGI_FLOOR_JOB_STAGING="$ATTEMPT_DIR"
+export IZANAGI_FLOOR_JOB_CHECKPOINT_PATH="$CHECKPOINT_PATH"
+export -n IZANAGI_FLOOR_JOB_EVIDENCE_ROOT 2>/dev/null || :
 driver_setup_rc=0
 exec {DRIVER_STDOUT_FD}>"$ATTEMPT_DIR/floor-driver.stdout" || driver_setup_rc=$?
 if [[ "$driver_setup_rc" -ne 0 ]]; then
@@ -989,6 +1198,8 @@ if [[ "$driver_setup_rc" -ne 0 ]]; then
   exit "$driver_setup_rc"
 fi
 printf '%s\n' "launch-attempted" >"$ATTEMPT_DIR/floor-driver.launch-attempted"
+CURRENT_STAGE=floor-driver
+if ! checkpoint_event "$CURRENT_STAGE" entered null ""; then :; fi
 driver_argv=(
   "$PY" -I -B "$REPO_ROOT/orchestrator/campaign/s8b_floor_campaign.py"
   --mode pilot
@@ -1126,6 +1337,8 @@ PY
 fi
 
 # 出典: certify_calibration.sh:734-762 @ e9b6f69
+CURRENT_STAGE=job-result
+if ! checkpoint_event "$CURRENT_STAGE" entered null ""; then :; fi
 job_result_writer_rc=0
 "$PY" -I -B - "$ATTEMPT_DIR/job-result.json" "$PBS_JOBID" "$driver_rc" \
   "$PROTOCOL_PATH" "$CURRENT_COMMIT" "$JOB_SCRIPT_SHA256" \
