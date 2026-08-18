@@ -315,3 +315,11 @@ def test_committed_multirow_addition_is_rejected(
         match="added more than one row",
     ):
         R.require_ratified_closure(_closure_map("third"))
+
+
+def _run() -> int:
+    return pytest.main([__file__, "-q"])
+
+
+if __name__ == "__main__":
+    raise SystemExit(_run())

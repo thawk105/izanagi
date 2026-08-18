@@ -6143,6 +6143,7 @@ def test_cli_emits_json_and_uses_only_sha_target_ff() -> None:
         assert _git(repo.main, "rev-parse", "HEAD") == tip
 
 
+@pytest.mark.usefixtures("ratified_enforcement_source")
 def test_exploration_external_root_keeps_wave_clean() -> None:
     """F98 正例: fake evaluator の exploration campaign は wave 外だけを汚す。"""
     with _campaign_import_scope():
