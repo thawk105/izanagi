@@ -2092,6 +2092,60 @@ def test_run_trial_reservation_rejects_each_live_binding_mismatch_before_launch(
     assert not run_root.exists()
 
 
+def test_run_trial_reservation_rejects_when_remaining_time_is_less_than_max_wall(
+    tmp_path,
+    monkeypatch,
+    valid_reservation_environment,
+) -> None:
+    monkeypatch.setattr(
+        A.trigger,
+        "_current_site",
+        lambda: A.trigger.site_policy.PEGASUS_COMPUTE,
+    )
+    environment = dict(valid_reservation_environment)
+    now = time.time()
+    requested_s = 1860
+    scheduler_started = now - 60
+    environment["IZANAGI_RESERVATION_REQUESTED_S"] = str(requested_s)
+    environment["IZANAGI_RESERVATION_SCHEDULER_STARTED_EPOCH"] = str(
+        scheduler_started
+    )
+    environment["IZANAGI_RESERVATION_DEADLINE_EPOCH"] = str(
+        scheduler_started + requested_s
+    )
+    for key, value in environment.items():
+        monkeypatch.setenv(key, value)
+
+    launches: list[str] = []
+
+    def blocked_provider(**_kwargs):
+        launches.append("provider")
+        raise AssertionError("provider launch must remain after reservation gate")
+
+    def blocked_campaign(*_args, **_kwargs):
+        launches.append("campaign")
+        raise AssertionError("campaign launch must remain after reservation gate")
+
+    monkeypatch.setattr(A, "_provider_set", blocked_provider)
+    monkeypatch.setattr(A.trigger, "drive_iteration", blocked_campaign)
+    run_root = tmp_path / "reservation-max-wall"
+    with pytest.raises(A.reservation.ReservationError):
+        A.run_trial(
+            trial_id="reservation-max-wall",
+            workloads=["ycsb-a"],
+            generations=1,
+            provider_kind="claude-headless",
+            run_root=run_root,
+            sub="/unused",
+            do_build=False,
+            max_wall_s=3600,
+            allow_pegasus_compute_transport=True,
+            allow_unregistered_exploratory=True,
+        )
+    assert launches == []
+    assert not run_root.exists()
+
+
 def test_reservation_error_stays_outside_run_trial_crash_terminalizer(
     tmp_path,
     monkeypatch,
