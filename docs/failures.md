@@ -8811,6 +8811,14 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   TIMEOUT 0。MISMATCH の M01 は失敗 node 19 件のうち 17 件が完全一致し、
   差は real-repo serial 2 件のグループ名だけだった。
 
+
+- **再発: 2026-08-18** — 事前登録 §5 の欄名凍結を撃つ変異 3 件で同型を再現し、本走 1 巡を失った。
+  probe が返した `...::test_candidate_freeze_matches_contract_and_generation_chain@s8c-preregistration-candidate`
+  をそのまま登録すると起動前 rc=2、接尾辞を落とすと比較段で MISMATCH という、記録どおり
+  どちらの形でも一致しない状態に落ちた。**回避策を実測した** — 変異 runner の argv へ
+  `-n0` を足して xdist を無効化すると報告空間から `@<group>` が消え、collection 空間と一致して
+  KILLED 3 / 3 を得た。[T-1217] の正規化が入るまで、`xdist_group` を持つテストを期待 node に
+  含む変異は runner argv で xdist を無効化してから走らせれば、erratum つきの手動判定を避けられる。
 ### F347. repo 内の非 NFC 行を子が raw 表示すると evidence が全損する [コンテキスト浪費] [手順漏れ]
 
 - 事象: 2026-08-16、段 2 のプラン子が
