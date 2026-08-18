@@ -7,10 +7,12 @@
 from __future__ import annotations
 
 import ast
+import io
 import importlib.util
 import inspect
 import json
 import os
+import pytest
 import shutil
 import subprocess
 import sys
@@ -169,6 +171,328 @@ def _load_suite_conftest():
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
+
+
+def _long_order_item(nodeid: str, *group_names: str, user_properties=None):
+    marks = tuple(
+        SimpleNamespace(args=(name,), kwargs={}) for name in group_names
+    )
+    path, _, name = nodeid.partition("::")
+    item = SimpleNamespace(
+        nodeid=nodeid,
+        path=Path(path),
+        name=name,
+        originalname=name.split("[", 1)[0].split("@", 1)[0],
+        user_properties=([] if user_properties is None else user_properties),
+        own_markers=marks,
+    )
+    item.iter_markers = lambda marker_name, marks=marks: (
+        marks if marker_name == "xdist_group" else ()
+    )
+    return item
+
+
+def _long_order_mark(*, name=None):
+    if name is None:
+        return SimpleNamespace(args=(), kwargs={})
+    return SimpleNamespace(args=(), kwargs={"name": name})
+
+
+def test_long_work_unit_reorder_matches_independent_fixed_oracle():
+    """固定 full nodeid の oracle は declaration/helper から導出しない。"""
+    suite_conftest = _load_suite_conftest()
+    items = [
+        _long_order_item(
+            "orchestrator/tests/test_long.py::test_tail_z",
+        ),
+        _long_order_item(
+            "orchestrator/tests/test_long.py::test_zeta", "g-alpha",
+        ),
+        _long_order_item(
+            "orchestrator/tests/test_long.py::test_tail_a",
+        ),
+        _long_order_item(
+            "orchestrator/tests/test_long.py::test_beta", "g-beta",
+        ),
+        _long_order_item(
+            "orchestrator/tests/test_long.py::test_alpha", "g-alpha",
+        ),
+        _long_order_item(
+            "orchestrator/tests/test_long.py::test_tail_group_a", "g-tail",
+        ),
+        _long_order_item(
+            "orchestrator/tests/test_long.py::test_tail_c",
+        ),
+        _long_order_item(
+            "orchestrator/tests/test_long.py::test_tail_group_b", "g-tail",
+        ),
+    ]
+    declaration = (("group", "g-beta"), ("group", "g-alpha"))
+    expected = (
+        "orchestrator/tests/test_long.py::test_beta",
+        "orchestrator/tests/test_long.py::test_zeta",
+        "orchestrator/tests/test_long.py::test_alpha",
+        "orchestrator/tests/test_long.py::test_tail_group_a",
+        "orchestrator/tests/test_long.py::test_tail_group_b",
+        "orchestrator/tests/test_long.py::test_tail_z",
+        "orchestrator/tests/test_long.py::test_tail_a",
+        "orchestrator/tests/test_long.py::test_tail_c",
+    )
+    actual = tuple(
+        item.nodeid for item in suite_conftest.reorder_units(items, declaration)
+    )
+    assert actual == expected
+
+
+def test_long_work_unit_reorder_preserves_identity_and_selection_metadata():
+    suite_conftest = _load_suite_conftest()
+    properties = [("skip", "growth-hold"), ("user", "kept")]
+    items = [
+        _long_order_item(
+            "orchestrator/tests/test_long.py::test_one", "one",
+            user_properties=properties,
+        ),
+        _long_order_item("orchestrator/tests/test_long.py::test_two"),
+    ]
+    original_ids = {id(item) for item in items}
+    original_properties = {id(item): item.user_properties for item in items}
+    ordered = suite_conftest.reorder_units(
+        items, (("group", "one"),),
+    )
+    assert {id(item) for item in ordered} == original_ids
+    assert len(ordered) == len(items)
+    assert all(
+        item.user_properties is original_properties[id(item)] for item in ordered
+    )
+    assert properties == [("skip", "growth-hold"), ("user", "kept")]
+
+
+def test_long_work_unit_scope_key_matches_serial_and_worker_rules():
+    suite_conftest = _load_suite_conftest()
+    cases = [
+        (
+            _long_order_item(
+                "orchestrator/tests/test_scope.py::test_multi", "b", "a",
+            ),
+            "a_b",
+        ),
+        (
+            _long_order_item(
+                "orchestrator/tests/test_scope.py::test_multi@a_b", "b", "a",
+            ),
+            "a_b",
+        ),
+        (
+            _long_order_item(
+                "orchestrator/tests/test_scope.py::test_param[value@inside]",
+            ),
+            "orchestrator/tests/test_scope.py::test_param[value@inside]",
+        ),
+        (
+            _long_order_item(
+                "orchestrator/tests/test_scope.py::test_param[value]@group",
+            ),
+            "group",
+        ),
+        (
+            _long_order_item(
+                "orchestrator/tests/test_scope.py::test_default",
+            ),
+            "default",
+        ),
+    ]
+    cases[-1][0].iter_markers = lambda marker_name: (
+        (_long_order_mark(),) if marker_name == "xdist_group" else ()
+    )
+    for item, expected in cases:
+        assert suite_conftest.scope_key_for_item(item) == expected
+
+    serial = [
+        _long_order_item("orchestrator/tests/test_scope.py::test_multi", "b", "a"),
+        _long_order_item("orchestrator/tests/test_scope.py::test_tail[value@x]"),
+        _long_order_item("orchestrator/tests/test_scope.py::test_group", "g"),
+    ]
+    worker = [
+        _long_order_item(
+            "orchestrator/tests/test_scope.py::test_multi@a_b", "b", "a",
+        ),
+        _long_order_item(
+            "orchestrator/tests/test_scope.py::test_tail[value@x]",
+        ),
+        _long_order_item("orchestrator/tests/test_scope.py::test_group@g", "g"),
+    ]
+    declaration = (
+        ("group", "a_b"),
+        ("group", "g"),
+        ("nodeid", "orchestrator/tests/test_scope.py::test_tail[value@x]"),
+    )
+    serial_order = suite_conftest.reorder_units(serial, declaration)
+    worker_order = suite_conftest.reorder_units(worker, declaration)
+    assert [
+        suite_conftest.scope_key_for_item(item) for item in serial_order
+    ] == [
+        suite_conftest.scope_key_for_item(item) for item in worker_order
+    ]
+
+
+def test_long_work_unit_authorization_rejects_invalid_declarations():
+    suite_conftest = _load_suite_conftest()
+    item = _long_order_item("orchestrator/tests/test_long.py::test_valid", "valid")
+    invalid_declarations = (
+        (("scope", "valid"),),
+        (("group", ""),),
+        (("group", "bad@name"),),
+        (("group", "bad]name"),),
+        (("nodeid", ""),),
+        (("group", "valid"), ("group", "valid")),
+    )
+    for declaration in invalid_declarations:
+        try:
+            suite_conftest.reorder_units([item], declaration)
+        except ValueError:
+            continue
+        raise AssertionError(f"invalid declaration was accepted: {declaration!r}")
+
+    valid = suite_conftest.reorder_units([item], (("group", "valid"),))
+    assert valid == [item]
+
+
+def test_long_work_unit_collection_rejects_forbidden_suite_marker_names():
+    suite_conftest = _load_suite_conftest()
+    for marker_name in ("bad@name", "bad]name"):
+        item = _long_order_item(
+            "orchestrator/tests/test_long.py::test_invalid", marker_name,
+        )
+        config = SimpleNamespace(
+            invocation_params=SimpleNamespace(args=()),
+            option=SimpleNamespace(numprocesses=0),
+        )
+        with pytest.raises(pytest.UsageError, match="invalid xdist_group"):
+            suite_conftest.pytest_collection_finish(
+                SimpleNamespace(config=config, items=[item]),
+            )
+
+
+def test_long_work_unit_empty_or_all_stale_declaration_uses_count_sort():
+    suite_conftest = _load_suite_conftest()
+    items = [
+        _long_order_item("orchestrator/tests/test_long.py::test_single"),
+        _long_order_item("orchestrator/tests/test_long.py::test_tail_one", "tail"),
+        _long_order_item("orchestrator/tests/test_long.py::test_tail_two", "tail"),
+    ]
+    expected = (
+        "orchestrator/tests/test_long.py::test_tail_one",
+        "orchestrator/tests/test_long.py::test_tail_two",
+        "orchestrator/tests/test_long.py::test_single",
+    )
+    for declaration in (
+        (),
+        (("group", "missing"), ("nodeid", "orchestrator/tests/missing.py::test")),
+    ):
+        actual = tuple(
+            item.nodeid for item in suite_conftest.reorder_units(items, declaration)
+        )
+        assert actual == expected
+
+
+def test_long_work_unit_staleness_marker_contains_declaration_status():
+    suite_conftest = _load_suite_conftest()
+    nodeid = (
+        "orchestrator/tests/test_s8b_oracle_driver.py::"
+        "test_cli_subprocess_returns_rc_2_on_gate_refused"
+    )
+    item = _long_order_item(nodeid, "real-repo")
+    config = SimpleNamespace(
+        args=[str(Path(suite_conftest.__file__).resolve().parent)],
+        invocation_params=SimpleNamespace(args=()),
+        option=SimpleNamespace(numprocesses=0),
+    )
+    output = io.StringIO()
+    with __import__("contextlib").redirect_stdout(output):
+        suite_conftest.pytest_collection_finish(
+            SimpleNamespace(config=config, items=[item]),
+        )
+    lines = [
+        line for line in output.getvalue().splitlines()
+        if line.startswith("IZANAGI_LONG_WORK_UNIT_ORDER_V1 ")
+    ]
+    assert len(lines) == 1
+    payload = json.loads(lines[0].split(" ", 1)[1])
+    assert payload["declared_count"] == 17
+    assert payload["matched_count"] == 1
+    assert ["group", "real-repo"] not in payload["missing_keys"]
+
+
+@pytest.mark.parametrize(
+    "target, invocation_args",
+    [
+        ("test_real_repo_serialization.py", ()),
+        (None, ("-k", "long_work_unit")),
+        (None, ("--deselect", "test_real_repo_serialization.py::test_other")),
+        (None, ("--collect-only",)),
+    ],
+)
+def test_long_work_unit_staleness_marker_requires_complete_suite_collection(
+    target, invocation_args,
+):
+    suite_conftest = _load_suite_conftest()
+    suite_root = Path(suite_conftest.__file__).resolve().parent
+    config = SimpleNamespace(
+        args=[str(suite_root if target is None else suite_root / target)],
+        invocation_params=SimpleNamespace(
+            args=(str(suite_root), *invocation_args),
+        ),
+        option=SimpleNamespace(numprocesses=0),
+    )
+    output = io.StringIO()
+    with __import__("contextlib").redirect_stdout(output):
+        suite_conftest.pytest_collection_finish(SimpleNamespace(
+            config=config,
+            items=[_long_order_item(
+                "orchestrator/tests/test_long.py::test_tail", "real-repo",
+            )],
+        ))
+    assert not any(
+        line.startswith("IZANAGI_LONG_WORK_UNIT_ORDER_V1 ")
+        for line in output.getvalue().splitlines()
+    )
+
+
+def test_long_work_unit_staleness_marker_is_controller_or_serial_only():
+    suite_conftest = _load_suite_conftest()
+    suite_root = Path(suite_conftest.__file__).resolve().parent
+    config = SimpleNamespace(
+        args=[str(suite_root)],
+        invocation_params=SimpleNamespace(args=(str(suite_root),)),
+        option=SimpleNamespace(numprocesses=None),
+        workerinput={"workerid": "gw0"},
+    )
+    output = io.StringIO()
+    with __import__("contextlib").redirect_stdout(output):
+        suite_conftest.pytest_collection_finish(SimpleNamespace(
+            config=config,
+            items=[_long_order_item(
+                "orchestrator/tests/test_long.py::test_tail", "real-repo",
+            )],
+        ))
+        suite_conftest.pytest_xdist_node_collection_finished(
+            SimpleNamespace(config=config),
+            ["orchestrator/tests/test_long.py::test_tail@real-repo"],
+        )
+    assert output.getvalue() == ""
+
+    controller_config = SimpleNamespace(
+        args=[str(suite_root)],
+        invocation_params=SimpleNamespace(args=(str(suite_root),)),
+        option=SimpleNamespace(numprocesses=2),
+    )
+    output = io.StringIO()
+    with __import__("contextlib").redirect_stdout(output):
+        suite_conftest.pytest_xdist_node_collection_finished(
+            SimpleNamespace(config=controller_config),
+            ["orchestrator/tests/test_long.py::test_tail@real-repo"],
+        )
+    assert output.getvalue().startswith("IZANAGI_LONG_WORK_UNIT_ORDER_V1 ")
 
 
 # --- 一時ディレクトリの置き場ガード -------------------------------------------------
