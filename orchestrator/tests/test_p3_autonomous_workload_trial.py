@@ -1372,7 +1372,7 @@ def test_fixture_trial_runs_ycsb_abc_and_binds_descriptor(tmp_path) -> None:
 
 
 def test_fixture_no_build_cli_uses_public_drive_without_critic_digest(
-    tmp_path, monkeypatch,
+    tmp_path, monkeypatch, ratified_enforcement_source,
 ) -> None:
     """P+1: documented 8c CLI reaches the real public drive on a fresh layout."""
     from orchestrator.campaign import patchharness
@@ -4283,7 +4283,7 @@ def test_role_metric_payloads_do_not_alias_frozen_validator_expectations(
 
 
 def test_standard_drive_two_generation_no_build_uses_s8c_wrapper(
-    tmp_path, monkeypatch,
+    tmp_path, monkeypatch, ratified_enforcement_source,
 ) -> None:
     from orchestrator.campaign import patchharness
 

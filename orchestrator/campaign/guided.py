@@ -45,6 +45,10 @@ from .model import (CampaignConfig, STAGE_BENCH_DONE,     # noqa: E402
 from .p2_2 import BETWEEN_RUN_CV, ENV_TAG, WORKLOADS      # noqa: E402
 from .search_baselines import reached_cost               # noqa: E402
 from ..critic.online_digest import online_digest_text              # noqa: E402
+from ..verifier.commit_receipt import (                            # noqa: E402
+    campaign_lock_sha256,
+    issue_replay_commit_receipt,
+)
 
 
 BUDGET = len(SILO_SPACE.enumerate())          # 予算上限 N=8 (最悪 = 全探索に縮退)
@@ -131,6 +135,16 @@ def _evaluated_canon(layout: CampaignLayout) -> List[str]:
 def _log_eval(layout: CampaignLayout, res: replay.GenomeResult) -> None:
     """1 genome の評価を replay 値で誘導 WAL に記録 (build_start→verify→bench→commit)。"""
     v = res.genome                                # variant id = canonical
+    if not res.certified or res.verification_evidence is None:
+        raise ValueError(
+            "guided COMMIT requires admitted source verifier receipt evidence")
+    commit_payload = {"fitness_tps": res.fitness_tps}
+    receipt = issue_replay_commit_receipt(
+        res.verification_evidence,
+        lock_identity_sha256=campaign_lock_sha256(layout),
+        variant=v,
+        terminal_payload=commit_payload,
+    )
     wal.log(layout, v, STAGE_BUILD_START, ENV_TAG, {"genome": res.genome})
     wal.log(layout, v, STAGE_VERIFY_DONE, ENV_TAG,
             {"certified": res.certified,
@@ -138,7 +152,10 @@ def _log_eval(layout: CampaignLayout, res: replay.GenomeResult) -> None:
     wal.log(layout, v, STAGE_BENCH_DONE, ENV_TAG,
             {"median_tps": res.fitness_tps, "tps": res.tps,
              "leading_indicators": res.leading_indicators})
-    wal.log(layout, v, STAGE_COMMIT, ENV_TAG, {"fitness_tps": res.fitness_tps})
+    wal.log(
+        layout, v, STAGE_COMMIT, ENV_TAG, commit_payload,
+        commit_receipt=receipt,
+    )
 
 
 def _print_state(layout: CampaignLayout, tag: str, workload: dict) -> None:

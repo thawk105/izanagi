@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""歴史名 ``contract_loader_*`` が表す exact 14 path closure の binding。"""
+"""歴史名 ``contract_loader_*`` が表す exact 25 path closure の binding。"""
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -7,21 +7,30 @@ import hashlib
 import os
 from pathlib import Path, PurePosixPath
 import re
-import shutil
 import stat
 import subprocess
 from typing import Mapping
 
+from . import enforcement_source_ratification
 from .campaign_lock import CONTRACT_LOADER_RELATIVE_PATHS
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 GIT_TIMEOUT_SECONDS = 10
+_GIT_EXECUTABLE = Path("/usr/bin/git")
+_GIT_HARDEN = (
+    "--no-pager",
+    "-c",
+    "core.useReplaceRefs=false",
+    "-c",
+    "core.commitGraph=false",
+    "-c",
+    "core.fsmonitor=false",
+)
 
 _GIT_ENV_ALLOWLIST = (
     "LANG",
     "LC_ALL",
     "LC_CTYPE",
-    "PATH",
     "SYSTEMROOT",
     "TMPDIR",
     "TZ",
@@ -46,10 +55,10 @@ class ContractLoaderBindingError(Exception):
 
 @dataclass(frozen=True)
 class ContractLoaderBinding:
-    """記録 commit と enforcement source closure 14 path の SHA-256。
+    """記録 commit と enforcement source closure 25 path の SHA-256。
 
     ``contract_loader_*`` 識別子は歴史的名称であり、値は loader 2 path では
-    なく enforcement source closure 14 path を表す。
+    なく enforcement source closure 25 path を表す。
     """
 
     contract_loader_commit: str
@@ -241,11 +250,21 @@ def _read_regular_file_no_follow(root: Path, relative: str) -> bytes:
 
 
 def _run_git(root: Path, *args: str) -> bytes:
-    executable = shutil.which("git")
-    if executable is None:
+    if not _GIT_EXECUTABLE.is_absolute():
+        raise ContractLoaderBindingError(
+            "contract-loader-git-error: git executable が絶対 path でない"
+        )
+    try:
+        present = _GIT_EXECUTABLE.is_file()
+    except OSError as exc:
+        raise ContractLoaderBindingError(
+            "contract-loader-git-error: git executable を解決できない"
+        ) from exc
+    if not present:
         raise ContractLoaderBindingError(
             "contract-loader-git-error: git executable が見つからない"
         )
+    executable = os.fspath(_GIT_EXECUTABLE)
     contaminated = sorted(
         key for key in _FORBIDDEN_AMBIENT_GIT_ENV if key in os.environ
     )
@@ -267,7 +286,13 @@ def _run_git(root: Path, *args: str) -> bytes:
     })
     try:
         completed = subprocess.run(
-            [executable, "-C", str(root), *args],
+            [
+                executable,
+                *_GIT_HARDEN,
+                "--no-replace-objects",
+                "-C", str(root),
+                *args,
+            ],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             check=False,
@@ -357,6 +382,24 @@ def verify_live_contract_loader_binding(binding: ContractLoaderBinding) -> None:
             raise ContractLoaderBindingError(
                 f"contract-loader-drift: disk bytes が記録 commit blob と不一致: {relative}"
             )
+
+
+def verify_ratified_contract_loader_binding(
+        binding: ContractLoaderBinding,
+) -> str:
+    """closure map 全体が read-only 批准集合に含まれることを検査する。"""
+    if type(binding) is not ContractLoaderBinding:
+        raise ContractLoaderBindingError(
+            "contract-loader-invalid-binding: exact ContractLoaderBinding が必要"
+        )
+    try:
+        return enforcement_source_ratification.require_ratified_closure(
+            binding.contract_loader_blob_sha256s
+        )
+    except enforcement_source_ratification.EnforcementSourceRatificationError as exc:
+        raise ContractLoaderBindingError(
+            f"enforcement-source-ratification: {exc}"
+        ) from exc
 
 
 def verify_committed_contract_loader_binding(

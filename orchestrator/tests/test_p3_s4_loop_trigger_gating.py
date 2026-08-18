@@ -426,7 +426,7 @@ def _measurement_case(
             "numactl": numactl,
             "env_contract": kwargs.get("env_contract"),
             "dependency_prefix": kwargs.get("dependency_prefix"),
-            "campaign_namespace": kwargs.get("campaign_namespace"),
+            "declared_use_class": kwargs.get("declared_use_class"),
         })
         return SimpleNamespace(
             results=[], skipped=0, execution_receipt=receipt,
@@ -580,6 +580,7 @@ def test_wal_binding_commitment_success_is_unchanged():
 
 
 @pytest.mark.parametrize("path", ["duplicate", "normal"])
+@pytest.mark.usefixtures("ratified_enforcement_source")
 def test_missing_build_start_propagates_from_both_iteration_paths(
         monkeypatch, path):
     expected_variant = f"variant-{path}"
@@ -686,6 +687,7 @@ def test_environment_module_surface_and_default_seams():
     assert "site" not in inspect.signature(T.drive_iteration).parameters
 
 
+@pytest.mark.usefixtures("ratified_enforcement_source")
 def test_contract_sentinel_flows_to_run_campaign(
         monkeypatch, tmp_path, _activate_synthetic_env_authority):
     contract = _sentinel_contract()
@@ -713,10 +715,11 @@ def test_contract_sentinel_flows_to_run_campaign(
         "numactl": list(contract.numactl),
         "env_contract": None,
         "dependency_prefix": None,
-        "campaign_namespace": "exploration",
+        "declared_use_class": "exploration",
     }]
 
 
+@pytest.mark.usefixtures("ratified_enforcement_source")
 def test_same_selector_contract_flows_to_run_campaign(monkeypatch):
     registry_contract = env_contract.lookup(T.ENV_TAG)
     contract = replace(
@@ -744,10 +747,11 @@ def test_same_selector_contract_flows_to_run_campaign(monkeypatch):
         "numactl": list(contract.numactl),
         "env_contract": None,
         "dependency_prefix": None,
-        "campaign_namespace": "exploration",
+        "declared_use_class": "exploration",
     }]
 
 
+@pytest.mark.usefixtures("ratified_enforcement_source")
 def test_empty_numactl_contract_flows_as_empty_list(
         monkeypatch, tmp_path, _activate_synthetic_env_authority):
     contract = _sentinel_contract(numactl=())
@@ -928,6 +932,7 @@ def test_fixture_cli_uses_authoritative_layout_and_preserves_legacy_bytes(
     ).read() == "compute-only\n"
 
 
+@pytest.mark.usefixtures("ratified_enforcement_source")
 def test_fixture_no_build_cli_fresh_layout_uses_provenance_without_digest_mock(
     tmp_path, monkeypatch,
 ):
@@ -961,6 +966,7 @@ def test_fixture_no_build_cli_fresh_layout_uses_provenance_without_digest_mock(
     assert not os.path.exists(os.path.join(layout.root, T.DIGEST_BASENAME))
 
 
+@pytest.mark.usefixtures("ratified_enforcement_source")
 def test_compute_forwards_required_contract_and_records_sink_receipt(monkeypatch):
     contract = env_contract.lookup("pegasus")
     order = []
@@ -986,6 +992,7 @@ def test_compute_forwards_required_contract_and_records_sink_receipt(monkeypatch
     assert entry["outcome"] == "aborted"
 
 
+@pytest.mark.usefixtures("ratified_enforcement_source")
 def test_attestation_failure_from_campaign_sink_propagates_without_wal(monkeypatch):
     contract = env_contract.lookup("pegasus")
     invoke, lay, calls = _measurement_case(
@@ -1089,6 +1096,7 @@ def test_measurement_sink_rejects_login_before_campaign_and_wal(monkeypatch):
     assert wal.read_records(lay) == []
 
 
+@pytest.mark.usefixtures("ratified_enforcement_source")
 def test_measurement_sink_admits_compute_with_pegasus_contract_and_identity(monkeypatch):
     contract = env_contract.lookup("pegasus")
     invoke, lay, calls = _measurement_case(
@@ -1109,6 +1117,7 @@ def test_measurement_sink_admits_compute_with_pegasus_contract_and_identity(monk
 
 
 @pytest.mark.parametrize("wire", ["00000", "10100", "11111"])
+@pytest.mark.usefixtures("ratified_enforcement_source")
 def test_reject_sink_compute_records_pegasus_without_attestation(monkeypatch, wire):
     invoke, lay = _reject_case(
         monkeypatch, site=site_policy.PEGASUS_COMPUTE,
@@ -1131,6 +1140,7 @@ def test_reject_sink_refuses_login_without_wal(monkeypatch, wire):
     assert wal.read_records(lay) == []
 
 
+@pytest.mark.usefixtures("ratified_enforcement_source")
 def test_reject_sink_other_writes_two_contract_tagged_records(monkeypatch):
     contract = _sentinel_contract()
     looked_up = []
@@ -1207,6 +1217,7 @@ def test_admit_env_contract_behaviorally_rejects_non_admitted_sites(site):
         T._admit_env_contract(site)
 
 
+@pytest.mark.usefixtures("ratified_enforcement_source")
 def test_fresh_default_seams_flow_distinct_contract_to_measurement_sink(
         monkeypatch, tmp_path, _activate_synthetic_env_authority):
     """R16 measurement 実経路。import 後の module 再束縛や動的 reflection は保証外。"""
@@ -1247,7 +1258,7 @@ def test_fresh_default_seams_flow_distinct_contract_to_measurement_sink(
             "env_tag": env_tag,
             "clocks_per_us": clocks_per_us,
             "numactl": numactl,
-            "campaign_namespace": kwargs.get("campaign_namespace"),
+            "declared_use_class": kwargs.get("declared_use_class"),
         })
         return SimpleNamespace(results=[], skipped=0)
 
@@ -1269,10 +1280,11 @@ def test_fresh_default_seams_flow_distinct_contract_to_measurement_sink(
         "env_tag": contract.env_tag,
         "clocks_per_us": contract.clocks_per_us,
         "numactl": list(contract.numactl),
-        "campaign_namespace": "exploration",
+        "declared_use_class": "exploration",
     }]
 
 
+@pytest.mark.usefixtures("ratified_enforcement_source")
 def test_fresh_default_seams_flow_distinct_contract_to_reject_sink(monkeypatch):
     """R16 reject 実経路。import 後の module 再束縛や動的 reflection は保証外。"""
     import contextlib
@@ -1325,6 +1337,7 @@ def test_fresh_default_seams_flow_distinct_contract_to_reject_sink(monkeypatch):
     assert [record.env_tag for record in records] == [contract.env_tag] * 3
 
 
+@pytest.mark.usefixtures("ratified_enforcement_source")
 def test_clean_dry_pass_still_admitted_on_pegasus(monkeypatch):
     import contextlib
     from orchestrator.campaign import patchharness
@@ -2141,6 +2154,7 @@ def test_parse_extra_source():
 
 # ==== drive_iteration (checkpoint 継続 + provenance funnel) =====================
 
+@pytest.mark.usefixtures("ratified_enforcement_source")
 def test_drive_iteration_stops_before_running_but_writes_header(monkeypatch):
     """入口停止でも provenance ヘッダは焼かれる (ヘッダは入口 = build 前、FC-1(a))。
     sub に不在パスを渡しても到達しないことが実行前停止の証拠。"""
@@ -2357,6 +2371,7 @@ def test_inner_run_reject_start_crash_fails_before_second_start(monkeypatch):
         )
 
 
+@pytest.mark.usefixtures("ratified_enforcement_source")
 def test_drive_iteration_writes_entry_and_checkpoint(monkeypatch):
     """fresh reject 後も次候補の public funnel が identity を照合して resume する。"""
     import contextlib
@@ -2411,6 +2426,7 @@ def test_drive_iteration_writes_entry_and_checkpoint(monkeypatch):
     ]
 
 
+@pytest.mark.usefixtures("ratified_enforcement_source")
 def test_drive_iteration_provenance_copies_each_reject_wal_build_attempt_id(monkeypatch):
     """同じ variant の build 前 reject も attempt ごとに provenance へ転記する。"""
     import contextlib
@@ -2455,6 +2471,7 @@ def test_drive_iteration_provenance_copies_each_reject_wal_build_attempt_id(monk
     ]
 
 
+@pytest.mark.usefixtures("ratified_enforcement_source")
 def test_drive_iteration_dry_pass_provenance_has_no_attempt_id(monkeypatch):
     """WAL build_start のない dry-pass を admission 対象 attempt に偽装しない。"""
     import contextlib
@@ -2486,6 +2503,7 @@ def test_drive_iteration_dry_pass_provenance_has_no_attempt_id(monkeypatch):
     assert not any(record.stage == "build_start" for record in wal.read_records(lay))
 
 
+@pytest.mark.usefixtures("ratified_enforcement_source")
 def test_drive_iteration_entry_failure_blocks_checkpoint(monkeypatch):
     """provenance entry が書けない iteration は checkpoint を前進させない (FC-1(b) 裁定 —
     「WAL/checkpoint は進んだが記録なし」の中途半端を作らない)。"""
