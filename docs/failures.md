@@ -759,6 +759,18 @@
   結論を支持していない」と指摘し、親が blob OID / sha256 で測り直して結論を裏取りした
   (`1744da0e…` の一致)。結論の向きは正しかったが、**測定対象が命題と違っていた**点で F29 と同型。
   同 probe の作り直し (v2) で、NUL の同型欠陥という新事実も併せて実測できた。
+
+- **再発: 2026-08-18** (D514 の wave)。ユーザーの問いは「codex の消費が
+  claude より激しい。sol を luna へ替えて足りるか」という**費用**の問いだったが、親は receipt 170 本を
+  集計して **token の数**だけを測り、「同一 wave 内 paired 15 wave で luna/sol の token 比は中央値
+  1.05 倍・合計 +7.2%。luna は安くないので置換では目標に届かない。全段 max へ広げれば +46.5% で
+  悪化する」と報告した。測定自体は正確だったが、**費用 = 数量 × 単価**のうち単価を一度も見ていなかった。
+  実際には luna のレートは sol の 4% であり、全段置換で費用は約 70% 減る。結論の向きが逆だった。
+  ユーザーの「遥かにモデル料金レートが安い。それはわかってる?」で是正され、レートを確認して
+  全案を再計算した。F29 の恒久対応 (「何を模擬したか・実差分と模擬の差は何か」を明示する) は
+  **模擬と実差分の差**を扱うが、本件は**測った量と問われた量の差**であり、同じ「正しく測って誤った
+  結論を出した」型の別の面である。単価・重み・係数を伴う問いでは、数量を測る前に
+  **「問いの単位」と「測る量の単位」が一致しているか**を 1 行で書く。
 ### F30. 凍結成果物を触る wave で `FROZEN_MANIFEST` を見落とした [手順漏れ]
 
 - 事象: 同 wave で、S-1 成果物の bytes を変える設計を検討しながら、
@@ -5188,6 +5200,20 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   `tools/check_codex_output.py` が「対象を開けない」で必ず非 0 になる。
   この rc を採用条件として扱っていれば、無出力を成果と誤認する経路はない。
 
+
+- **再発: 2026-08-18** — 段 3 の敵対相談 2 本を並列投入した最中に
+  `401 Unauthorized ... auth error code: token_revoked` が出た。今回の形は F172 初出と 2 点違う。
+  (1) 死んだ子は即死ではなく、**371 秒・34 model call・出力 13,874 token を消費してから**
+  websocket 再接続で 401 を踏み、rc=1・出力 0 bytes で終わった。receipt の
+  `actuals` を見ずに wall-clock と rc だけで判断すると「重い相談が失敗した」と誤読する。
+  (2) 同じ worktree の兄弟子は同じ 401 を 3 分間隔で 3 回受けながら**既存 session で耐え**、
+  認証回復後に rc=0 で完走した。**同一 wave 内で生死が割れる。**
+  並行 wave からは「利用枠切れ (数秒・token ゼロの即死)」として周知されたが、
+  本 wave の stderr 実本文は枠切れではなく認証失効であり、**peer の分類をそのまま自分の
+  失敗へ当てはめると真因を取り違える**。復旧の可否は親自身の最小実行で実測して確かめた。
+  再投入は別 artifact-root で行った (同一 prompt は job-id が同じになり receipt 上書き拒否で
+  rc=2)。F172 の恒久対応 (fail-closed 停止・成果の commit 保全・新 artifact 名での再投入) は
+  そのまま有効で、追加の恒久対応は要らない。
 ### F173. byte 予算を捻出するために、他文書にしか無い義務への到達手段を削った [手順漏れ]
 
 - 事象: `.claude/commands/cleanup-branches.md` へ監査の探索根配線 (1 行) を足す byte を作るため、
@@ -6107,6 +6133,15 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   起動を拒む機械強制にする / memory + 本エントリのままとする)。
 - **新しい情報**: 本 F の発火点は「子が勝手に検索する」だけでなく**親が外部事実を問う設問を
   書いた瞬間**にある。禁止文言の明記と同時に、設問を実機と repo で確かめられる形に保つことが要る。
+
+- **再発: 2026-08-18** — 段 3 敵対レンズ A が web 検索を 3 回使い (events の `web_search` 3 件)、
+  `codex_exit_code=0` / 41 model call / 673 秒 / 出力 9983 bytes / `## 総括` あり
+  にもかかわらず `evidence_status=invalid` / `accepted=false` で不採用になった。
+  入力 376 万 token を消費している。**3 度目の同型発生であり、2026-08-11 の再発で記録した
+  「恒久対応がどの dispatch 節にも配線されておらず書き手の記憶に依存している」状態が
+  そのまま持続していることの実証である。** 本 wave の親も consult prompt に禁止を書き忘れ、
+  Web 禁止を明記した prompt で再走して初めて受理を得た (結論は両走とも同一)。
+  機械強制は [T-1350] で起票する。
 ### F218. Codex は `.codex/` 配下へ構造的に書けない [手順漏れ]
 
 - 事象: 段 5 の実装子が `.codex/hooks.json` だけを作れず、`patch rejected: writing outside of the
@@ -6636,6 +6671,19 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   (`baseline が緑でないため production write を開始しない: status=FAILED`)。
   この fail-closed 自体は正しく働いた。検知の問題ではなく、検知が遅い位置にあることが問題である。
 
+
+- **再発: 2026-08-18** (D514 の wave)。段 6 の敵対レビュー 2 本と
+  焦点再レビュー 1 本のいずれもが、**権威行の model slug を「2 個ある前提」で入れ替える consumer**
+  (`test_codex_worker_launch.py` の receipt 再構成テスト) を見落とした。新権威は slug 1 個のため
+  `models[1]` が `IndexError` になる。レンズ B は同 file の consumer を列挙する所見を出していたが、
+  この 1 件は挙げていない。**F242 の恒久対応どおり親が変異 matrix より前に焦点走を回したことで
+  検出できた**が、初回の焦点走は「変更した test file」から集合を組んだためこの file を含んでおらず、
+  5 file へ広げて初めて赤が出た。型の精緻化 = **焦点走の集合は「変更した test file」ではなく
+  「変更した production file を import・実行する consumer test」まで広げないと、
+  静的レビューが見落とした破れを初回実測でも取り逃す**。
+  手順への反映は `DW-O18` の L2 単節予算 (1000 bytes に対し現行 995 bytes、余裕 5 bytes) に
+  収まらないため、`docs/skill-self-improvement.md` の「予算に収まらなければ変更を止めて
+  ユーザー裁定へ返す」に従い本 wave では実装せず、裁定へ返した。
 ### F243. 凍結表を共有する変異は超過検出になり単独帰属しない [テスト代表性]
 
 - 事象: [T-866] の変異本走で M7 (retry 表の変異) が MISMATCH。変異は KILLED されたが、
@@ -8802,6 +8850,14 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   TIMEOUT 0。MISMATCH の M01 は失敗 node 19 件のうち 17 件が完全一致し、
   差は real-repo serial 2 件のグループ名だけだった。
 
+
+- **再発: 2026-08-18** — 事前登録 §5 の欄名凍結を撃つ変異 3 件で同型を再現し、本走 1 巡を失った。
+  probe が返した `...::test_candidate_freeze_matches_contract_and_generation_chain@s8c-preregistration-candidate`
+  をそのまま登録すると起動前 rc=2、接尾辞を落とすと比較段で MISMATCH という、記録どおり
+  どちらの形でも一致しない状態に落ちた。**回避策を実測した** — 変異 runner の argv へ
+  `-n0` を足して xdist を無効化すると報告空間から `@<group>` が消え、collection 空間と一致して
+  KILLED 3 / 3 を得た。[T-1217] の正規化が入るまで、`xdist_group` を持つテストを期待 node に
+  含む変異は runner argv で xdist を無効化してから走らせれば、erratum つきの手動判定を避けられる。
 ### F347. repo 内の非 NFC 行を子が raw 表示すると evidence が全損する [コンテキスト浪費] [手順漏れ]
 
 - 事象: 2026-08-16、段 2 のプラン子が
@@ -9740,3 +9796,23 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   7 面の導出手順と、6 面止まりで通るすり抜け入力を逐語で残す。
 - 再発検知: 変異 matrix に「各 sink へ digest を流さない producer」を 1 件ずつ登録し、
   面の数だけ KILLED が並ぶことを求める。面が漏れていれば、その面の変異が作れないことで気づく。
+
+### F391. codex の同一上流障害が「認証失効」と「枠切れ」の 2 症状で出た [手順漏れ]
+
+- 事象: 2026-08-18 12:56〜13:07 JST、独立した 2 wave の codex 子が同時間帯に即死した。
+  本 wave (段 3 敵対相談 2 本) の stderr は
+  `HTTP error: 401 Unauthorized, url: wss://api.openai.com/v1/responses` の連打で、
+  rc=1・出力 0 bytes・`codex login status` は "Logged in using ChatGPT" のままだった。
+  並行 wave は同じ時間帯に events 内の usage limit メッセージとして観測した。
+  症状だけでは「サブスクのログイン失効」と「利用枠の取り合い」を判別できない。
+- 根本原因: 上流の同一障害が経路によって別の表層症状を出す。`codex login status` は
+  credential の存在を見るだけで、API 側が拒否している状態を反映しない。
+  401 を見て「ログインし直しが要る」と診断すると、実際には数分待てば回復する事象で
+  ユーザー手番を要求してしまう (逆に枠切れと診断すると、本当に失効したとき復旧しない)。
+- 恒久対応: memory `codex-auth-expiry-is-fail-closed-stop` へ「症状で原因を断定せず、
+  新しい prompt bytes で 1 本だけ再投入して切り分ける」を足す。失敗は数十秒・token ゼロで安価であり、
+  切り分けの費用は再投入 1 本より高くならない。判定は `docs/dev-wave/operations.md` の `DW-O01`
+  どおり `.done` と exit code で行い、`codex login status` の表示を判定に使わない。
+- 再発検知: `tools/check_codex_output.py` の rc≠0 が無出力を成果と誤認する経路を塞ぐ。
+  再投入時は job-id が prompt 内容の sha256 で決まるため、prompt 本文を変えないと
+  `既存の完全な receipt は上書きできない` で rc=2 になり、上書き事故も同時に塞がれる。
