@@ -40,6 +40,7 @@ from orchestrator.qualification.artifacts import (  # noqa: E402
     validate_retry_history,
 )
 from orchestrator.qualification.contract import canonical_json_bytes, load_protocol  # noqa: E402
+from orchestrator.tests import commit_receipt_support as receipt_support  # noqa: E402
 from orchestrator.qualification.attempt_ledger import (  # noqa: E402
     AttemptLedgerError,
     SeriesAttemptLedger,
@@ -47,6 +48,9 @@ from orchestrator.qualification.attempt_ledger import (  # noqa: E402
 )
 from orchestrator.qualification import attempt_ledger as attempt_ledger_module  # noqa: E402
 from campaign_lock_test_support import build_v2_lock  # noqa: E402
+
+pytestmark = pytest.mark.usefixtures("ratified_enforcement_source")
+_MEMBER_LOCK_IDENTITY_SHA256 = "c" * 64
 
 
 def _root(tmp_path: Path):
@@ -263,6 +267,10 @@ def _member_events(*, perf_observation=None):
             "fitness_tps": 100.0, "verify_configs": ["legacy", "s2"],
         }),
     )
+    receipt = receipt_support.serialized_qualification_receipt(
+        "variant", stages[-1][1],
+        lock_identity_sha256=_MEMBER_LOCK_IDENTITY_SHA256,
+    )
     return [{
         "schema_version": "t126-qualification-evaluation-event/v1",
         "qualification_lineage": "t126-only",
@@ -280,6 +288,7 @@ def _member_events(*, perf_observation=None):
                 payload, sort_keys=True, separators=(",", ":")
             ).encode("ascii")).hexdigest(),
         },
+        "commit_verification_receipt": receipt if index == 5 else None,
     } for index, (stage, payload) in enumerate(stages)]
 
 
@@ -479,7 +488,8 @@ def test_m4_settled_false_rejects_and_full_evidence_accepts():
     records = _member_events()
     admitted = validate_member_evidence(
         records, expected_role="subject", expected_round=1,
-        expected_perf_observation=None)
+        expected_perf_observation=None,
+        expected_lock_identity_sha256=_MEMBER_LOCK_IDENTITY_SHA256)
     assert admitted["settled"] is True
     mutated = deepcopy(records)
     payload = json.loads(mutated[4]["payload"]["canonical_json"])
@@ -492,7 +502,8 @@ def test_m4_settled_false_rejects_and_full_evidence_accepts():
     with pytest.raises(QualificationArtifactError, match="settled"):
         validate_member_evidence(
             mutated, expected_role="subject", expected_round=1,
-            expected_perf_observation=None)
+            expected_perf_observation=None,
+            expected_lock_identity_sha256=_MEMBER_LOCK_IDENTITY_SHA256)
 
 
 def test_m5a_exact_s2_tag_order_has_no_argv_mask():
@@ -502,7 +513,8 @@ def test_m5a_exact_s2_tag_order_has_no_argv_mask():
     with pytest.raises(QualificationArtifactError, match="legacy\\+S2"):
         validate_member_evidence(
             records, expected_role="subject", expected_round=1,
-            expected_perf_observation=None)
+            expected_perf_observation=None,
+            expected_lock_identity_sha256=_MEMBER_LOCK_IDENTITY_SHA256)
 
 
 def test_m5b_s2_exact_argv_flag_has_no_shape_or_tag_mask():
@@ -517,7 +529,8 @@ def test_m5b_s2_exact_argv_flag_has_no_shape_or_tag_mask():
     with pytest.raises(QualificationArtifactError, match="runtime evidence"):
         validate_member_evidence(
             records, expected_role="subject", expected_round=1,
-            expected_perf_observation=None)
+            expected_perf_observation=None,
+            expected_lock_identity_sha256=_MEMBER_LOCK_IDENTITY_SHA256)
 
 
 def test_anomaly_gate_remains_conjunctive():
@@ -532,13 +545,15 @@ def test_anomaly_gate_remains_conjunctive():
     with pytest.raises(QualificationArtifactError):
         validate_member_evidence(
             records, expected_role="subject", expected_round=1,
-            expected_perf_observation=None)
+            expected_perf_observation=None,
+            expected_lock_identity_sha256=_MEMBER_LOCK_IDENTITY_SHA256)
 
 
 def test_member_evidence_requires_expected_perf_observation_argument():
     with pytest.raises(TypeError, match="expected_perf_observation"):
         validate_member_evidence(
-            _member_events(), expected_role="subject", expected_round=1)
+            _member_events(), expected_role="subject", expected_round=1,
+            expected_lock_identity_sha256=_MEMBER_LOCK_IDENTITY_SHA256)
 
 
 def test_degraded_member_evidence_matches_expected_prologue_observation():
@@ -547,6 +562,7 @@ def test_degraded_member_evidence_matches_expected_prologue_observation():
         _member_events(perf_observation=observation),
         expected_role="subject", expected_round=1,
         expected_perf_observation=observation,
+        expected_lock_identity_sha256=_MEMBER_LOCK_IDENTITY_SHA256,
     )
     assert admitted["median_tps"] == 100.0
 
@@ -556,6 +572,7 @@ def test_m10_degraded_prologue_rejects_perf_present_member():
         validate_member_evidence(
             _member_events(), expected_role="subject", expected_round=1,
             expected_perf_observation=_degraded_observation(),
+            expected_lock_identity_sha256=_MEMBER_LOCK_IDENTITY_SHA256,
         )
 
 
@@ -566,6 +583,7 @@ def test_perf_present_prologue_rejects_degraded_member():
             _member_events(perf_observation=observation),
             expected_role="subject", expected_round=1,
             expected_perf_observation=None,
+            expected_lock_identity_sha256=_MEMBER_LOCK_IDENTITY_SHA256,
         )
 
 

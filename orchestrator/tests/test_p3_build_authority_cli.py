@@ -17,6 +17,11 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest import mock
 
+import pytest
+
+
+pytestmark = pytest.mark.usefixtures("ratified_enforcement_source")
+
 _HERE = Path(__file__).resolve().parent
 _ORCH = _HERE.parent
 sys.path.insert(0, str(_ORCH.parent))

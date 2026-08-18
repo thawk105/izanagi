@@ -27,6 +27,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import s8b_v2_freeze_fixture as v2_fixture  # noqa: E402
 import s8b_oracle_spec_fixture as spec_fixture  # noqa: E402
 import test_s8b_ratified_freeze as ratified_fixture  # noqa: E402
+from orchestrator.tests import commit_receipt_support as receipt_support  # noqa: E402
 from orchestrator.campaign import (  # noqa: E402
     artifact_admission as admission,
     env_contract,
@@ -44,6 +45,8 @@ from orchestrator.campaign import (  # noqa: E402
 from orchestrator.campaign import s8b_oracle_artifacts as artifacts  # noqa: E402
 from orchestrator.campaign.layout import campaign_layout, exploration_campaign_layout  # noqa: E402
 from orchestrator.calibrator import perf_preflight  # noqa: E402
+
+pytestmark = pytest.mark.usefixtures("ratified_enforcement_source")
 
 
 # 注意: holdout の三軸 conjunction はテストへ静止させない。
@@ -539,6 +542,11 @@ def _verify(layout, variant: str, tag: str, certified: bool) -> None:
 def _fixture_log(layout, variant: str, stage: str, payload: object) -> None:
     """不正 payload の負例だけ writer を迂回し、raw WAL 接点へ注入する。"""
     if isinstance(payload, dict):
+        if stage == "commit":
+            receipt_support.append_legacy_raw_commit(
+                layout, variant, "fixture-env", payload,
+            )
+            return
         wal.log(layout, variant, stage, "fixture-env", payload)
         return
     record = {
@@ -642,10 +650,12 @@ def _trial(layout, item: dict, outcome: str, *, variant: str = VARIANT,
                         if bench_payload_extra is not None:
                             payload.update(dict(bench_payload_extra))
                         wal.log(layout, variant, "bench_done", "fixture-env", payload)
-                        wal.log(layout, variant, "commit", "fixture-env", {
-                            "fitness_tps": sum(tps) / len(tps),
-                            "verify_configs": ["legacy", "s2"],
-                        })
+                        receipt_support.append_legacy_raw_commit(
+                            layout, variant, "fixture-env", {
+                                "fitness_tps": sum(tps) / len(tps),
+                                "verify_configs": ["legacy", "s2"],
+                            },
+                        )
     declared = {
         "legacy-red": "correctness-red",
         "s2-red": "correctness-red",
@@ -763,6 +773,11 @@ def _retry(layout, item: dict, next_attempt: int = 2, **payload_overrides) -> No
 
 def _append_pipeline(layout, pipeline: list[tuple[str, object]] | None = None) -> None:
     for stage, payload in pipeline or _valid_committed_pipeline():
+        if stage == "commit":
+            receipt_support.append_legacy_raw_commit(
+                layout, VARIANT, "fixture-env", payload,
+            )
+            continue
         wal.log(layout, VARIANT, stage, "fixture-env", payload)
 
 

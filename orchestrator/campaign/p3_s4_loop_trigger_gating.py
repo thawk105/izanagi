@@ -91,6 +91,7 @@ from .trigger_gate_binding import (                        # noqa: E402
 
 
 # ---- campaign 定数 (軸定数は axis_trigger_gating が正本 — ここは環境・計測の定数のみ) ----
+DECLARED_USE_CLASS = "exploration"
 ENV_TAG = "linux-baremetal"
 _SITE_ENV_TAGS = {
     site_policy.OTHER: ENV_TAG,
@@ -643,7 +644,7 @@ def _run_one_iteration_resolved(
             cache_root=cache_root,
             authorization_contract=env_contract.authorize(contract.env_tag),
             build_context=build_context,
-            campaign_namespace="exploration",
+            declared_use_class=DECLARED_USE_CLASS,
             trigger_gate_binding=binding,
             **campaign_options,
         )

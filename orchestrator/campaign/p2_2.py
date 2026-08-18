@@ -143,7 +143,8 @@ def run_workload(tag: str, workload: dict, log=print):
     log(f"\n=== P2-2 workload={tag}  ({workload})  {len(genomes)} genome ===")
     s = run_campaign(cfg, genomes, perf, ENV_TAG, CLK, numactl=NUMA, log=log,
                      authorization_contract=env_contract.authorize(ENV_TAG),
-                     build_context=build_context)
+                     build_context=build_context,
+                     declared_use_class="official")
 
     rows = [(r.fitness_tps, r) for r in s.results if r.fitness_tps is not None]
     rows.sort(key=lambda t: t[0], reverse=True)

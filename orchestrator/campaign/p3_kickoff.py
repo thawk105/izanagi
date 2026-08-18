@@ -44,6 +44,7 @@ from .pipeline import PerfConfig, variant_id              # noqa: E402
 
 
 PIN = "dff0f1e"
+DECLARED_USE_CLASS = "exploration"
 ENV_TAG = "linux-baremetal"
 CLK = 1800
 NUMA = ["numactl", "--interleave=all"]
@@ -111,14 +112,14 @@ def main(argv=None) -> int:
         s1 = run_campaign(cfg, [STOCK_G], perf, ENV_TAG, CLK, numactl=NUMA,
                           authorization_contract=env_contract.authorize(ENV_TAG),
                           build_context=build_context,
-                          campaign_namespace="exploration")
+                          declared_use_class=DECLARED_USE_CLASS)
 
     print("\n=== 完了条件 2: 純 timing static50 → cache-miss 新規ビルド 1 周 ===")
     with applied(os.path.join(root, STATIC_PATCH), PIN, sub):
         s2 = run_campaign(cfg, [STATIC_G], perf, ENV_TAG, CLK, numactl=NUMA,
                           authorization_contract=env_contract.authorize(ENV_TAG),
                           build_context=build_context,
-                          campaign_namespace="exploration")
+                          declared_use_class=DECLARED_USE_CLASS)
 
     # --- WAL 機械判定 (完了条件の文言どおり。宣言でなくレコードを gate にする) ---
     layout = exploration_campaign_layout(str(ident.campaign_id(cfg)))
