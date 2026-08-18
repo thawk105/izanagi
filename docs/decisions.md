@@ -21530,3 +21530,119 @@ xdist の `--testrunuid` は charset を制限しないため、UID を検査で
 - 無条件 prewarm — consumer を含まない焦点走に解決 1 回分が丸乗りし、テスト時間規則を自ら破る。
 - controller 側で consumer file だけを自前 collect する — 二重 collection のコストを新設する。
 - UID の charset 検査を残す — xdist が受理する正当な UID を新たに拒否してしまう。
+
+## D519. 受領証が非認証理由を落とす根拠は、名指して hash した bytes からの再導出に限る (2026-08-18)
+
+**決定:** 受入受領証 v2 が必須の非認証理由から `c02-arm-binding-unproven` を落とせるのは、
+受領証が `path` と `sha256` で名指し、その場で読み直した bytes から digest を再導出できたときだけとする。
+受領証・terminal report・run-start の 3 者が同じ値を申告していることを根拠にしてはならない。
+
+具体的には、hash 済み report の cell descriptor から canonical bytes を作って content digest を
+再計算し、受領証の主張と一致することを要求する。あわせて domain 分離した arm binding digest を
+再計算し、同一 holdout の 3 arm の content digest が相異なることと、report と run-start が
+受領証と exact 一致することを要求する。descriptor を持たない部分 report は理由を残す
+fail-closed 形とする。
+
+`certifying` は v1 / v2 とも構造的に false のままであり、承認権威の欠落を示す理由は必須で残る。
+本決定は certified 選択の受理集合を 1 件も広げない。
+
+**理由:**
+- 受領証・report・run-start はいずれも producer が書いた要約であり、独立な証拠ではない。
+  3 者一致だけを根拠にすると、相異なる digest を捏造して binding digest を正しく再計算した
+  一式が検査を全部通る。段 6 の敵対レビューが静的に構成手順を示した。
+- 権威ある実行 chain は既に descriptor bytes から content digest を再計算している。
+  受領証層が同じ導出を自前で行えば、受領証の主張は producer の申告から独立になる。
+- canonical 化は純粋な JSON 正規化と sha256 であり、受領証 module が registry や
+  材料レポート module へ依存しない設計上の性質を壊さない。
+
+**却下した選択肢:**
+- 3 者一致だけを根拠にする — 上記のとおり定義上の穴が残る。
+- 事前登録判定器が条件 2 の充足を返すことを条件にする — 判定器には充足を返す経路が 1 本も無く、
+  恒久に発火しない条件になる。
+- 部分 report でも理由を落とせるようにする — descriptor が無ければ再導出できず、
+  証明のない受理になる。
+
+## D520. 凍結契約の変更と世代記録は同じ commit に入れる (2026-08-18)
+
+**決定:** 事前登録の凍結契約 (規範本文と証拠契約 bytes) を変更する wave は、その変更と
+次世代の凍結記録を**同一 commit** に入れる。契約を変更した commit を祖先に残したまま、
+後続 commit で世代記録を足す形を採ってはならない。並行 wave が先に世代を取った場合は、
+自分の作業を新しい main の直上へ組み直してから、契約変更と世代記録を 1 commit で入れ直す。
+
+**理由:**
+- 凍結の妥当性検査は tip だけでなく履歴グラフの全 commit を走り、各点で契約と当該時点の
+  世代記録の一致を要求する。「契約を変えたが世代記録は前世代のまま」の commit が祖先に
+  1 つでもあると、後から正しい世代を足しても永久に拒否される。
+- したがってこの衝突は取り込み操作では解けない。履歴の形を変えるしかない。
+- 世代番号は逐次で排他生成されるため、並行 wave のどちらが先に着地するかは事前に決められない。
+  生成を最後の取り込み直後まで遅らせれば、番号の取り合いは着地順で自然に解ける。
+
+**却下した選択肢:**
+- 生成済みの世代記録を持ち越して相手の世代と併合する — 全履歴検査が落ちる。
+- 世代記録を後続 commit で足す — 同上。祖先の不整合は消えない。
+- 世代番号を事前に予約する — 排他生成の設計に反し、予約とみなせない。
+
+## D521. 充足可能条件の allowlist は実行時に照合する (2026-08-18)
+
+**決定:** 事前登録判定器の充足可能条件集合は、宣言するだけでなく dispatch 後に照合する。
+許可されていない条件へ評価器が充足を返した場合は fail-closed で評価エラーへ倒す。
+
+**理由:**
+- 従来この集合は定数として宣言されるだけで、評価結果と突き合わされていなかった。
+  評価器 1 本の退行で充足が返れば、そのまま受理されて発効判定まで変わりえた。
+- 集合を空に保つ規律は人間の注意力に依存しており、機械的な防壁になっていなかった。
+- 照合の追加は受理集合を広げない。現在この集合は空であり、あらゆる充足申告が拒否される。
+
+**却下した選択肢:**
+- 宣言のままにして規律で守る — 防壁ではないものを防壁として数えることになる。
+- 集合へ条件を足して充足を許す — 本 wave の scope 外であり、受理集合を広げる。
+
+## D522. oracle 実走後の store 再検証は報告の receipt で行う (2026-08-18)
+
+**決定:** oracle 実走が終わってから observations を書くまでの窓について、report が各 cell の store
+bytes を読み直し、その結果を observations の `store_reverification` receipt として発行する。
+judge はこの receipt を observations の中から検査し、`judge_oracle` の呼び出し規約 (位置引数 1 +
+keyword 3) と judge CLI の引数は変更しない。期待 SHA の唯一の源は
+`ReverifiedFreeze.binaries_by_cell` であり、run 自身が WAL へ書いた値は使わない。
+
+**この receipt が保証する範囲:** report が各 store を読んだ瞬間に freeze の SHA と一致したこと。
+連続不変性ではない。一時的に改変され読み取り前に復元された場合と、読み取り後の差し替えは
+検出しない。封印でも偽造耐性でもなく、主張の限度は「単独 oracle 改竄まで」である。
+
+**理由:**
+- 実走**前**には二重防壁があった (driver の実走前 store 再 hash と、pipeline の
+  `expected_perf_sha256` による TOCTOU 照合)。実走**後**は report も judge も store を
+  一度も読み直しておらず、この窓だけが無防備だった。
+- judge は `--output-root` を持たず store を読む経路を構造的に持たない。したがって
+  「読む側」は report にしか置けない。
+- receipt を observations の中に載せれば、judge の consumer (judge CLI と
+  combined verdict) の呼び出し規約を一切変えずに検査を届けられる。
+
+**却下した選択肢:**
+- **judge API に store の所在を渡す案** — consumer が広く、`judge_oracle` の呼び出し規約を
+  変える影響が receipt の利得に見合わない。
+- **最終 store seal を作る案** — 封印機構の新設であり、既に見送りが確定している
+  observations 層の封印と重複する。
+- **期待 SHA を WAL の `build_done.perf_bin_sha256` から取る案** — run 自身の自己申告になり、
+  権威源が実走から独立しなくなる。`reverify_published_freeze` が返す値だけを使う。
+- **receipt 欠落を緑にする案** — official observations に receipt が無いことを許すと、
+  検査を消しただけで通る恒真な gate になる。欠落は judge が indeterminate にする。
+
+## D523. receipt の総合判定は消費側が cell から再導出する (2026-08-18)
+
+**決定:** `store_reverification` の outer `state` を judge が信じず、cell ごとの
+`state` / `expected_sha256` / `actual_sha256` の整合を検査したうえで再導出し、
+申告値と食い違えば理由を積む。cells は非空・重複なし・schedule の logical cell 集合と
+完全一致であることも独立に要求する。judge は report 側の定数を import せず、
+自分の closed schema 定数で検査する。
+
+**理由:**
+- 総合判定を自己申告のまま読むと、`state: "verified"` と書くだけで通る恒真な枝になる。
+- cells が空または部分集合のとき、素朴な `all(...)` は空集合に対して真を返す。
+  非空検査と完全被覆検査を先に置かないと、空 receipt が「全件一致」に化ける。
+- producer の定数を consumer が import すると、片側の定数を緩めただけで両側が同時に
+  緩む。独立な定数にしておけば、片方の変異がもう片方の検査で必ず露見する。
+
+**却下した選択肢:**
+- **outer state だけを見る単純形** — 上記の恒真枝をそのまま残す。
+- **producer の定数を judge が import する案** — 検査の独立性を失う。

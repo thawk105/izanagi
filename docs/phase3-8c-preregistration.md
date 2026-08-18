@@ -50,9 +50,9 @@ canonical 綴りで書くと**この文書自身が hit となり**、未既知�
     維持する。** ff-only の取り込みと後続の追記は `C` の親集合を変えないため両立する。
   - 実走成果物 (run-start、terminal report、追記専用 registry) は `P` と `C` を**別の欄**として
     記録する。単一の `prereg commit` 欄で兼ねる形は使わない — 同名識別子が 2 つの意味を持つ。
-- **成果物への commit 記録は未実装である。** 現行 supervisor の terminal report は
-  内容 commit も発効 commit も measurement HEAD も持たない。この binding の実装は
-  前提条件 (§6) に含む。
+- **成果物への commit 記録は部分実装である。** 現行 supervisor の terminal report と run-start は
+  measurement HEAD を持つ ([T-822] 2026-08-18 実測)。内容 commit と発効 commit を**別の欄**として
+  持つ二段束縛は依然として未実装であり、この binding の実装は前提条件 (§6) に含む。
 
 ## 2. 主張の型と scope
 
@@ -80,7 +80,7 @@ canonical 綴りで書くと**この文書自身が hit となり**、未既知�
 |項目|正本|8c 固有の補足|
 |---|---|---|
 |holdout の条件と未既知性の確認手続き|8b §3|実走開始前に同手続きを再実行し、証跡 (a)〜(e) を §5 へ記入する|
-|on / off / swapped の arm と derangement|8b §4|8c では descriptor は planner / coder への入力である。arm を journal・report・campaign ID・proposal file 名・invocation ID の識別子に含める (§6 の前提条件 2)|
+|on / off / swapped の arm と derangement|8b §4|8c では descriptor は planner / coder への入力である。arm が選ぶ実入力 bytes から content digest と arm binding digest を導き、descriptor・campaign identity・proposal bytes/path・invocation namespace・run-start・terminal report・provider payload の 7 sink がこれを消費する ([T-1311])。arm 名を identifier へ書き足すだけの形は採らない (§6 の前提条件 2)|
 |correctness gate (legacy + S2)、build 分離|8b §5.2 / CLAUDE.md 絶対規律 1・2|8c の diff quarantine と禁止識別子 gate は driver 側を authoritative path とする。supervisor 側 preview を判定根拠にしない|
 |判定基準の表|8b §6 (§10 が 2026-08-18 に条件 3 と結論を上書き)|本書で列・成立条件・判定不能条件を書き換えない|
 |crash 時の扱い|8b §10.5 (事前割当 attempt registry。§9 項 8 の再走全拒否を上書き)|8c supervisor の現行 state machine はこれに従っていない (cell 単位の停止 + 新 trial id での再走)。整合は §6 の前提条件 4|
@@ -203,8 +203,13 @@ canonical 綴りで書くと**この文書自身が hit となり**、未既知�
    `_campaign_for` / `_perf_for` / `_descriptor_for` に 100k / 4 で hard-code されている。
 2. **off / swapped arm** が実装され、arm が journal・report・campaign ID・proposal file 名・
    invocation ID の識別子に入っている。あわせて §4 の非干渉性 — `off` の role payload と
-   provider へ送る bytes が真の holdout を跨いで byte 同一であること — が成立している。現行 pilot は descriptor-on だけで、識別子は workload 名のみで
-   あるため arm を増やすと path が衝突する。
+   provider へ送る bytes が真の holdout を跨いで byte 同一であること — が成立している。
+   **識別子に arm 名を書き足すだけでは足りない。** arm が選ぶ実入力 bytes から content digest を
+   導き、その digest を上記 sink が消費していることを要求する。[T-1311] が二層 digest
+   (content digest と domain 分離した arm binding digest) と同一 holdout 内 pairwise 非同一検査を
+   入れ、7 sink が同じ digest を消費する形にした。**本条件は 2026-08-18 時点で
+   機械検査対象である** (証拠契約 C02)。ただし評価器の終端は他の機械条件と同じく
+   「機械検査可能な充足証明が無い」であり、充足を返す経路は無い。
 3. **実走前の 6 cell manifest** と、それに対する append-only の trial registry が存在し、
    manifest 外の trial を結果へ混入させず manifest 内の trial を黙って落とさない。
    manifest の bytes は内容 commit `P` が導入し、発効束縛 record が `P` と manifest の
@@ -298,8 +303,12 @@ schema v1 record は版を持たない legacy として改変せずに残す。�
 **現在地 (重要)。** 判定器は依然として **12 条件のいずれについても充足を証明できない**。
 第 3 世代 (D438 決定 (1)) で、評価器が実在する 6 条件 (1・4・9・10・11・12) だけを機械検査対象と
 記すよう証拠契約を改めた。これにより当該 6 条件は評価器へ dispatch されるようになった。
-**ただし 6 評価器の終端は「機械検査可能な充足証明が無い」のままであり、充足を返す経路は
-1 本も無い。** 評価器を持たない 6 条件は引き続き機械検査対象外である。
+**2026-08-18 の [T-822] 改訂で条件 2 を加え、機械検査対象は 7 条件 (1・2・4・9・10・11・12) に
+なった。** これに伴い判定器の版を `s8c-decider/v3` へ上げている。
+**ただし 7 評価器の終端は「機械検査可能な充足証明が無い」のままであり、充足を返す経路は
+1 本も無い。** 評価器を持たない 5 条件は引き続き機械検査対象外である。
+同改訂で、許可外の条件へ評価器が充足を返した場合に実行時へ fail-closed で落とす関門を足した
+(それ以前は充足可能集合が宣言されるだけで dispatch 後に照合されていなかった)。
 dispatch された条件が返す理由は一様ではない — 登録済みの負の対照が壊す形については条件別の
 不充足を返すが、証拠 blob そのものが存在しない場合は不充足ではなく別の評価不能理由になる。
 いずれも非充足であり、この区別を充足側へ倒す根拠に使ってはならない。したがって §6 の 12 機構をすべて実装し §5 を埋めても、**充足判定器を
@@ -368,9 +377,16 @@ stale にならない。本改訂では両文書を確定してから record を
   へ改めた。**解消したのは契約と規範本文の形だけである。** 実行 registry・起動・terminal report・
   受入は依然として単一の事前登録 commit 識別子を要求しており、二段束縛を消費しない。
   したがって条件 3 / 8 は機械検査対象外のまま残す — 配線されるまで、実装したふりをしない。
-- **衝突 (d) arm の未束縛。** 実行 payload と campaign identity に arm が入っていないため、
-  宣言された arm が実際に走ったことを機械的に証明できない (§6 の前提条件 2)。
-  これは条件の充足以前に、6 cell の比較そのものの意味に関わる。
+- **衝突 (d) arm の未束縛 — [T-1311] と [T-822] で解消した。** 旧本文が記したとおり、実行 payload と
+  campaign identity に arm が入っておらず、宣言された arm が実際に走ったことを機械的に証明できなかった。
+  [T-1311] が arm の選ぶ実入力 bytes から二層 digest を導いて 7 sink へ消費させ、[T-822] が
+  条件 2 を機械検査対象へ載せ、受領証 v2 が**自身の参照 bytes から digest を再導出**して
+  arm 束縛を確かめる形にした。**解消したのは宣言と実行の乖離だけである。**
+  受領証が非認証理由から `c02-arm-binding-unproven` を落とせるのは、受領証が名指して hash した
+  bytes から digest を再導出できたときに限る。**これは事前登録条件 2 (C02) の充足ではない** —
+  同条件の評価器は依然として非充足を返す。両者を同一視してはならない。
+  bundle 一式を捏造する攻撃は受領証層では落ちず、事前登録 commit 束縛と追記専用 registry の
+  射程に残る。
 - **衝突 (e) 条件 12 の実在しない allocation 述語 — 第 4 世代で契約の要求を縮小した。**
   旧契約は、実装に存在しない述語名 (単独性の要否を判定する名前) と、8c launcher が
   single-process 違反と resume 経路を launch 前に拒否することの証明を要求していた。
@@ -438,8 +454,11 @@ stale にならない。本改訂では両文書を確定してから record を
   差し替えは通る。どの checkout で材料レポートを生成したかを機械的に保証する仕組みは無い。
 - **journal と report の同時改変** — 両方から同じ attempt を削って journal hash を再計算すれば
   整合する。`AttemptJournal` の append-only は実行中の `O_APPEND` であって、永続的な
-  immutable registry でも hash anchor でもない。**入力が可変な 2 ファイルだけである以上、
-  これは情報理論的に検出できない** — 外部の immutable な anchor (registry、commit、署名) が要る。
+  immutable registry でも hash anchor でもない。**supervisor 層では入力が可変な 2 ファイルだけである
+  以上、これは情報理論的に検出できない** — 外部の immutable な anchor (registry、commit、署名) が要る。
+  受入層では 2026-08-18 の受領証 v2 が git HEAD へ束縛された第 3 の anchor になり、両ファイルの
+  hash に加えて report 内 descriptor からの digest 再導出を要求する。ただしこれが効くのは
+  受入を通った trial だけであり、上記の supervisor 層の限界は解消していない。
 - **supervisor の `harness` 値と campaign WAL の値の個体 cross-binding** — 未実装。
 - **公開直前の再 hash から atomic replace までの極小の競合** — 検査後に journal bytes を
   もう一度照合してから report を書くが、その照合と `os.replace` の間は塞いでいない。

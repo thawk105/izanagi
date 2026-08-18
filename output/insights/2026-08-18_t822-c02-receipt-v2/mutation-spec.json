@@ -1,0 +1,241 @@
+{
+  "estimated_run_seconds": 70,
+  "hang_timeout_seconds": 2400,
+  "mutations": [
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_receipt_digest_divergence_is_attributed_to_report_descriptor"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "t822.m2-content-digest-rederive",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8c_acceptance_receipt.py",
+          "new": "        if False and actual_content_digest != arm_execution.content_digest_sha256:\n",
+          "old": "        if actual_content_digest != arm_execution.content_digest_sha256:\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_pairwise_collision_is_rejected_after_binding_recalculation"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "t822.m3-pairwise-distinct",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8c_acceptance_receipt.py",
+          "new": "            if False and len(set(digests)) != 3:\n",
+          "old": "            if len(set(digests)) != 3:\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_binding_digest_is_rederived_from_self_consistent_three_way_claim"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "t822.m5-binding-digest-rederive",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8c_acceptance_receipt.py",
+          "new": "    if False and arm_execution.arm_binding_digest_sha256 != expected_binding_digest:\n",
+          "old": "    if arm_execution.arm_binding_digest_sha256 != expected_binding_digest:\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_run_start_mismatch_is_rejected_after_reference_hashes_match"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "t822.m6-runstart-equality",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8c_acceptance_receipt.py",
+          "new": "    if False and starts[0].get(\"arm_execution\") != expected_arm_execution:\n",
+          "old": "    if starts[0].get(\"arm_execution\") != expected_arm_execution:\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_partial_receipt_cannot_drop_c02_reason_without_descriptor_proof"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "t822.m14-reason-drop-always-true",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8c_acceptance_receipt.py",
+          "new": "    return True\n",
+          "old": "    return len(descriptor_proofs) == 6 and all(descriptor_proofs)\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_trial_report_arm_execution_mismatch_is_rejected_after_reference_hashes_match"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "t822.m18-report-receipt-equality",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8c_acceptance_receipt.py",
+          "new": "    if False and report.get(\"arm_execution\") != expected_arm_execution:\n",
+          "old": "    if report.get(\"arm_execution\") != expected_arm_execution:\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_runtime_satisfiable_allowlist_rejects_unlisted_evaluator_success"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "t822.m9-satisfiable-allowlist",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8c_preregistration_evidence.py",
+          "new": "                        and condition.identifier not in MACHINE_CHECKABLE_CONDITION_IDS\n",
+          "old": "                        and condition.identifier not in SATISFIABLE_CONDITION_IDS\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_c02_call_after_literal_true_return_is_dead",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_c02_missing_registry_preserves_capability_absent_reason",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_c02_namespace_fstring_must_flow_to_return_value",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_current_repository_gap_reason_snapshot_requires_cross_wave_review",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_machine_checkable_contract_and_evaluator_registry_are_bijective",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_noop_and_token_only_fixtures_never_satisfy[nc_c02_proposal_path_arm_collision-C02]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_reachable_consumers_reject_absence_shapes_with_single_reason[constant-false-C02]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_reachable_consumers_reject_absence_shapes_with_single_reason[nested-C02]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_reachable_consumers_reject_absence_shapes_with_single_reason[not-called-C02]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_satisfiable_predicate_requires_negative_control"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "t822.m13-c02-prewave-contract",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8c_preregistration_evidence.py",
+          "new": "",
+          "old": "    2: _evaluate_c02,\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_reflux_originless_compatibility.py::test_originless_default_preserves_every_nonvolatile_leaf_and_closed_key_set",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_decider_version_binds_cross_module_semantics_to_v3",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_invalid_running_decider_version_cannot_activate",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_valid_hostile_str_subclass_cannot_fake_decider_version_match"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "t822.m11-decider-version",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8c_preregistration.py",
+          "new": "DECIDER_VERSION = \"s8c-decider/v2\"\n",
+          "old": "DECIDER_VERSION = \"s8c-decider/v3\"\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_c09_provably_dead_calls_are_not_reachability_witnesses[after-return]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_c09_provably_dead_calls_are_not_reachability_witnesses[if-true-else]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_c09_provably_dead_calls_are_not_reachability_witnesses[while-false-body]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_c09_same_name_target_in_undeclared_production_path_is_not_witness",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_c09_test_only_layer3_target_is_not_production_witness",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_c09_unknown_branch_remains_a_potential_reachability_witness",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_noop_and_token_only_fixtures_never_satisfy[nc_c09_acceptance_skips_layer3-C09]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_production_entrypoint_cut_is_rejected_for_all_reachability_conditions[C09]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_reachable_consumers_reject_absence_shapes_with_single_reason[constant-false-C09]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_reachable_consumers_reject_absence_shapes_with_single_reason[nested-C09]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_reachable_consumers_reject_absence_shapes_with_single_reason[not-called-C09]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_unimported_same_name_decoy_is_rejected_for_all_reachability_conditions[C09]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "t822.m7-c09-prewave-name",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8c_preregistration_evidence.py",
+          "new": "    accept = functions.get(\"accept_trial\")\n",
+          "old": "    accept = functions.get(\"assert_trial_registry_acceptance\")\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_c02_namespace_fstring_must_flow_to_return_value",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_noop_and_token_only_fixtures_never_satisfy[nc_c02_proposal_path_arm_collision-C02]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "t822.m15-namespace-unused",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8c_preregistration_evidence.py",
+          "new": "        and True\n",
+          "old": "        and _returns_joined_string_using(namespace, {\"arm\", \"digest\"})\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_origin_terminal_projection_is_retained_and_reverified"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "t822.m17-origin-projection-unbound",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8c_acceptance_receipt.py",
+          "new": "        if False and _canonical_bytes(report_origin) != _canonical_bytes(\n",
+          "old": "        if _canonical_bytes(report_origin) != _canonical_bytes(\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_c02_namespace_fstring_must_flow_to_return_value",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_noop_and_token_only_fixtures_never_satisfy[nc_c02_proposal_path_arm_collision-C02]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "t822.m19-consumers-use-namespace",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8c_preregistration_evidence.py",
+          "new": "    if False and (not namespace_binds_arm_and_digest or not consumers_use_namespace):\n",
+          "old": "    if not namespace_binds_arm_and_digest or not consumers_use_namespace:\n"
+        }
+      ]
+    }
+  ],
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "timeout_seconds": 1800
+}
