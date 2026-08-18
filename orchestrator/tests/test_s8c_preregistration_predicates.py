@@ -222,7 +222,10 @@ def test_current_repository_gap_reason_snapshot_requires_cross_wave_review(
             "completion-proof-not-machine-checkable",
         ),
         "C03": (core.PredicateStatus.EVIDENCE_UNDEFINED, "manifest-registry-proof-undefined"),
-        "C04": (core.PredicateStatus.UNSATISFIED, "crash-policy-cell-partial"),
+        "C04": (
+            core.PredicateStatus.EVIDENCE_UNDEFINED,
+            "completion-proof-not-machine-checkable",
+        ),
         "C05": (core.PredicateStatus.EVIDENCE_UNDEFINED, "schedule-schema-absent"),
         "C06": (core.PredicateStatus.EVIDENCE_UNDEFINED, "budget-consumer-contract-undefined"),
         "C07": (core.PredicateStatus.EVIDENCE_UNDEFINED, "floor-judge-contract-undefined"),
@@ -236,7 +239,10 @@ def test_current_repository_gap_reason_snapshot_requires_cross_wave_review(
             "completion-proof-not-machine-checkable",
         ),
         "C11": (core.PredicateStatus.EVIDENCE_UNDEFINED, "completion-proof-not-machine-checkable"),
-        "C12": (core.PredicateStatus.UNSATISFIED, "allocation-enforcement-consumer-absent"),
+        "C12": (
+            core.PredicateStatus.EVIDENCE_UNDEFINED,
+            "completion-proof-not-machine-checkable",
+        ),
     }
 
 
@@ -247,8 +253,8 @@ def test_current_repository_c12_registry_reports_unwired_allocation_consumer(
     root, head = current_commit_snapshot
     results = M.get_registry().evaluate_all(head, repo_root=root)
     c12 = {item.id: item for item in results}["C12"]
-    assert c12.status is core.PredicateStatus.UNSATISFIED
-    assert c12.reason_code == "allocation-enforcement-consumer-absent"
+    assert c12.status is core.PredicateStatus.EVIDENCE_UNDEFINED
+    assert c12.reason_code == "completion-proof-not-machine-checkable"
 
 
 def test_c02_missing_registry_preserves_capability_absent_reason(
@@ -288,10 +294,7 @@ def test_current_repository_c12_allocation_binding_helper_reports_unwired_consum
     supervisor = ast.parse(supervisor_raw)
     allocation = ast.parse(allocation_raw)
     assert {"read_binding", "check_reservation"} <= M._functions(allocation).keys()
-    assert M._c12_allocation_binding_verdict(supervisor, allocation) == (
-        core.PredicateStatus.UNSATISFIED,
-        M.ReasonCode.ALLOCATION_ENFORCEMENT_CONSUMER_ABSENT,
-    )
+    assert M._c12_allocation_binding_verdict(supervisor, allocation) is None
 
 
 def test_evidence_undefined_is_never_satisfied() -> None:
@@ -775,50 +778,26 @@ def test_c12_allocation_binding_gate_precedes_environment_gate(
     assert result.reason_code == "allocation-enforcement-consumer-absent"
 
 
-def test_current_repository_c12_allocation_binding_helper_accepts_both_calls_overlay(
-) -> None:
+def test_current_repository_c12_allocation_binding_helper_accepts_both_calls() -> None:
     condition = M.load_contract_bytes(CONTRACT_FILE.read_bytes()).condition(12)
     paths = {
         item.artifact_kind: item.path for item in condition.required_evidence
     }
     supervisor_raw = _git(
-        _ROOT,
-        "show",
-        f"HEAD:{paths['workload_supervisor']}",
+        _ROOT, "show", f"HEAD:{paths['workload_supervisor']}"
     )
     allocation_raw = _git(
         _ROOT,
         "show",
         f"HEAD:{paths['allocation_consumer']}",
     )
-    anchor = b"""    if drive is _DRIVE_NOT_PROVIDED:
-        drive = trigger.drive_iteration
-    if preview is _PREVIEW_NOT_PROVIDED:
-        preview = _preview
-    _validate_generation_budget(generations)
-"""
-    injection = anchor + b"""    from .reservation import check_reservation, read_binding
-    allocation_binding = read_binding(os.environ)
-    check_reservation(
-        allocation_binding,
-        required_s=max_wall_s,
-        safety_margin_s=0,
-        environ=os.environ,
-    )
-"""
-    assert supervisor_raw.count(anchor) == 1
-    overlay_raw = supervisor_raw.replace(anchor, injection)
-    assert overlay_raw != supervisor_raw
-
-    baseline_calls = M._reachable_calls(ast.parse(supervisor_raw), "run_trial")
-    assert {"read_binding", "check_reservation"}.isdisjoint(baseline_calls)
-    overlay = ast.parse(overlay_raw)
+    supervisor = ast.parse(supervisor_raw)
     assert {"read_binding", "check_reservation"} <= M._reachable_calls(
-        overlay,
+        supervisor,
         "run_trial",
     )
     allocation = ast.parse(allocation_raw)
-    assert M._c12_allocation_binding_verdict(overlay, allocation) is None
+    assert M._c12_allocation_binding_verdict(supervisor, allocation) is None
 
 
 def _negative_control_case(
