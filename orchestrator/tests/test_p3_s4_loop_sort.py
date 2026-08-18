@@ -316,6 +316,7 @@ def test_sort_driver_requires_exact_oracle_contract_id(monkeypatch):
         )
 
 
+@pytest.mark.usefixtures("ratified_enforcement_source")
 def test_oracle_reject_stops_before_run_campaign_and_roundtrips_to_critic(monkeypatch):
     import contextlib
     from orchestrator.campaign import patchharness, sort_swo_oracle as oracle
@@ -674,6 +675,7 @@ def test_default_cfg_axis_is_sort_marker():
 
 # ==== drive_iteration (checkpoint 継続、backoff 版と同型) ======================
 
+@pytest.mark.usefixtures("ratified_enforcement_source")
 def test_drive_iteration_stops_before_running_when_reverse_exhausted():
     """入口停止: reverse-exhausted なら run_one_iteration を呼ばず (ran=False)。
     sub に不在パスを渡しても到達しないことが実行前停止の証拠。"""
@@ -767,6 +769,7 @@ def test_inner_run_recovers_reject_start_before_writing_retry_start():
     assert records[2].payload["build_attempt_id"] != "crashed-reject-attempt"
 
 
+@pytest.mark.usefixtures("ratified_enforcement_source")
 def test_drive_iteration_checkpoint_survives_across_calls():
     """fresh reject が identity を確立し、次候補の public drive が resume できる。"""
     import contextlib

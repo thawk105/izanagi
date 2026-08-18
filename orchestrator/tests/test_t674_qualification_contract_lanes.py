@@ -33,7 +33,11 @@ from orchestrator.qualification.artifacts import (  # noqa: E402
 
 
 def _campaign_layout(tmp_path: Path) -> CampaignLayout:
-    return CampaignLayout(root=str(tmp_path / "campaign")).ensure()
+    layout = CampaignLayout(root=str(tmp_path / "campaign")).ensure()
+    campaign_fixtures._write_certified_lock(
+        layout, campaign_fixtures._bound(campaign_fixtures._cfg()),
+    )
+    return layout
 
 
 def _qualification_lane(tmp_path: Path):
@@ -49,6 +53,7 @@ def _qualification_lane(tmp_path: Path):
     )
     sink = QualificationEventSink(
         capability, layout, round_index=1, role="subject",
+        source_lock_identity_sha256="e" * 64,
     )
     policy = pipeline.QualificationPipelinePolicy.t126_pegasus(sink)
     authorization = env_contract.authorize("pegasus")

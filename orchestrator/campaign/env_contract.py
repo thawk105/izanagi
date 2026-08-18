@@ -33,7 +33,7 @@ from types import MappingProxyType
 from typing import TYPE_CHECKING, Tuple
 
 if TYPE_CHECKING:
-    from .env_contract_activation import ActiveContract
+    from .env_contract_activation import ActiveContract, ActivationState
 
 # env 固有 literal はこのモジュールでは ``_build_registry`` の内部にのみ現れる。
 # その他の場所 (lookup / validation / property) は env 中立でなければならず、
@@ -553,6 +553,9 @@ class _AuthoritySnapshot:
 _AUTHORITY_LOCK = threading.Lock()
 _AUTHORITY_PID = os.getpid()
 _AUTHORITY_SNAPSHOT: _AuthoritySnapshot | None = None
+_HISTORICAL_AUTHORITY_SNAPSHOTS: dict[
+    tuple[int, str], _AuthoritySnapshot
+] = {}
 _VERIFIED_CONTRACT_SHA256S: frozenset[str] = frozenset()
 
 
@@ -628,6 +631,39 @@ def _verify_entry_calibration(entry: GenerationEntry, repo_root: Path) -> None:
             raise EnvContractError("required calibration quality.status が accepted でない")
 
 
+def _verified_snapshot_from_state(
+        state: ActivationState,
+        repo_root: Path,
+        *,
+        preserve_verified_hashes: bool,
+) -> _AuthoritySnapshot:
+    """Activation state の active rows を registry と calibration へ再照合する。"""
+    current: dict[str, ExecutionEnvironmentContract] = {}
+    verified_hashes: set[str] = set()
+    for row in state.active_contracts:
+        try:
+            sequence = GENERATIONS[row.env_tag]
+            entry = sequence[row.generation - 1]
+        except (KeyError, IndexError) as exc:
+            raise EnvContractError(
+                "activation state と generation registry が load 後に不一致"
+            ) from exc
+        if (entry.generation != row.generation
+                or entry.contract.contract_sha256 != row.contract_sha256):
+            raise EnvContractError("activation state と generation registry が load 後に不一致")
+        _verify_entry_calibration(entry, repo_root)
+        current[row.env_tag] = entry.contract
+        verified_hashes.add(row.contract_sha256)
+    global _VERIFIED_CONTRACT_SHA256S
+    if preserve_verified_hashes:
+        verified_hashes.update(_VERIFIED_CONTRACT_SHA256S)
+    _VERIFIED_CONTRACT_SHA256S = frozenset(verified_hashes)
+    return _AuthoritySnapshot(
+        state=state,
+        current=MappingProxyType(current),
+    )
+
+
 def _load_authority_snapshot() -> _AuthoritySnapshot:
     from . import env_contract_activation as activation
 
@@ -644,30 +680,52 @@ def _load_authority_snapshot() -> _AuthoritySnapshot:
         )
     except activation.ActivationRecordError as exc:
         raise EnvContractError(f"activation authority 検証失敗: {exc}") from exc
-    current: dict[str, ExecutionEnvironmentContract] = {}
-    verified_hashes: set[str] = set()
-    for row in state.active_contracts:
-        sequence = GENERATIONS[row.env_tag]
-        entry = sequence[row.generation - 1]
-        if entry.contract.contract_sha256 != row.contract_sha256:
-            raise EnvContractError("activation state と generation registry が load 後に不一致")
-        _verify_entry_calibration(entry, repo_root)
-        current[row.env_tag] = entry.contract
-        verified_hashes.add(row.contract_sha256)
-    global _VERIFIED_CONTRACT_SHA256S
-    _VERIFIED_CONTRACT_SHA256S = frozenset(verified_hashes)
-    return _AuthoritySnapshot(
-        state=state,
-        current=MappingProxyType(current),
+    return _verified_snapshot_from_state(
+        state,
+        repo_root,
+        preserve_verified_hashes=False,
+    )
+
+
+def _load_historical_authority_snapshot(
+        activation_serial: int,
+        activation_state_sha256: str,
+) -> _AuthoritySnapshot:
+    from . import env_contract_activation as activation
+
+    repo_root = _repository_root()
+    try:
+        records = activation.read_activation_record_files(
+            repo_root / Path(_ACTIVATION_DIRECTORY)
+        )
+        state = activation.validate_activation_records(
+            records[:activation_serial],
+            registered_contracts=_REGISTERED_CONTRACT_CATALOG,
+            is_valid_registered_successor=(
+                _is_valid_activation_successor_with_artifact
+            ),
+            expected_head_serial=activation_serial,
+            expected_head_state_sha256=activation_state_sha256,
+        )
+    except activation.ActivationRecordError as exc:
+        raise EnvContractError(
+            f"historical activation authority 検証失敗: {exc}"
+        ) from exc
+    return _verified_snapshot_from_state(
+        state,
+        repo_root,
+        preserve_verified_hashes=True,
     )
 
 
 def _reset_authority_after_fork() -> None:
     global _AUTHORITY_LOCK, _AUTHORITY_PID, _AUTHORITY_SNAPSHOT
+    global _HISTORICAL_AUTHORITY_SNAPSHOTS
     global _VERIFIED_CONTRACT_SHA256S
     _AUTHORITY_LOCK = threading.Lock()
     _AUTHORITY_PID = os.getpid()
     _AUTHORITY_SNAPSHOT = None
+    _HISTORICAL_AUTHORITY_SNAPSHOTS = {}
     _VERIFIED_CONTRACT_SHA256S = frozenset()
 
 
@@ -703,9 +761,11 @@ def _authority_snapshot() -> _AuthoritySnapshot:
 def _clear_authority_cache_for_tests() -> None:
     """Test fixture 専用。production authority を変更せず process cache だけを捨てる。"""
     global _AUTHORITY_PID, _AUTHORITY_SNAPSHOT, _VERIFIED_CONTRACT_SHA256S
+    global _HISTORICAL_AUTHORITY_SNAPSHOTS
     with _AUTHORITY_LOCK:
         _AUTHORITY_PID = os.getpid()
         _AUTHORITY_SNAPSHOT = None
+        _HISTORICAL_AUTHORITY_SNAPSHOTS = {}
         _VERIFIED_CONTRACT_SHA256S = frozenset()
     with _AUTHORIZATION_LOCK:
         global _AUTHORIZED_CONTRACTS
@@ -742,9 +802,45 @@ class _ActivationRegistryView(Mapping[str, ExecutionEnvironmentContract]):
 REGISTRY = MappingProxyType(_ActivationRegistryView())
 
 
+def verified_current_activation_state() -> object:
+    """Current head を registry・calibration 検証済み snapshot から返す。"""
+    return _authority_snapshot().state
+
+
+def verified_historical_activation_state(
+        activation_serial: int,
+        activation_state_sha256: str,
+) -> object:
+    """記録済み activation prefix を current head とは独立に検証して返す。"""
+    if type(activation_serial) is not int or activation_serial <= 0:
+        raise EnvContractError("historical activation serial が正の exact int でない")
+    if (type(activation_state_sha256) is not str
+            or _HEX64_RE.fullmatch(activation_state_sha256) is None):
+        raise EnvContractError(
+            "historical activation state hash が 64 lower-hex でない"
+        )
+    global _AUTHORITY_PID
+    if _AUTHORITY_PID != os.getpid():
+        _reset_authority_after_fork()
+    key = (activation_serial, activation_state_sha256)
+    with _AUTHORITY_LOCK:
+        if _AUTHORITY_PID != os.getpid():
+            _reset_authority_after_fork()
+            return verified_historical_activation_state(
+                activation_serial, activation_state_sha256,
+            )
+        snapshot = _HISTORICAL_AUTHORITY_SNAPSHOTS.get(key)
+        if snapshot is None:
+            snapshot = _load_historical_authority_snapshot(
+                activation_serial, activation_state_sha256,
+            )
+            _HISTORICAL_AUTHORITY_SNAPSHOTS[key] = snapshot
+        return snapshot.state
+
+
 def current_activation_state() -> object:
     """検証済み process-local activation state。receipt 単位が型付けして消費する。"""
-    return _authority_snapshot().state
+    return verified_current_activation_state()
 
 
 def authorize(env_tag: str) -> AuthorizedContract:

@@ -22,6 +22,7 @@ _ORCH = os.path.dirname(_HERE)
 sys.path.insert(0, os.path.dirname(_ORCH))
 
 from orchestrator.campaign import guided, ident, pipeline, replay, wal         # noqa: E402
+import commit_receipt_support as receipt_support                              # noqa: E402
 from orchestrator.campaign.build_admission import (                            # noqa: E402
     GeneratorId,
     build_run_context,
@@ -54,9 +55,14 @@ def _tmp_layout():
 
 
 def _gr(canon, med):
+    source_payload = {"fitness_tps": med}
     return replay.GenomeResult(genome=canon, flags=replay.parse_flags(canon),
                                fitness_tps=med, tps=[med] * 5,
-                               leading_indicators={}, certified=True)
+                               leading_indicators={}, certified=True,
+                               verification_evidence=receipt_support.replay_evidence(
+                                   source_variant=canon,
+                                   source_payload=source_payload,
+                               ))
 
 
 # ---- label ↔ genome 逆写像 (誘導の次手翻訳) ----
@@ -140,10 +146,12 @@ def test_online_digest_leakage_assert():
             "leading_indicators": {"throughput_tps": 1.0},
             **propagated,
         })
-        wal.log(guided_v1_layout, variant, STAGE_COMMIT, "test", {
+        receipt_support.log_receipted_commit(
+            guided_v1_layout, variant, "test", {
             "fitness_tps": 1.0,
             **propagated,
-        })
+            }, operation_identity=attempt_id,
+        )
     # committed 2 genome。iterations=1 と誤計算したら sanity が発火する。
     try:
         online_digest(guided_v1_layout, "x", {}, iterations=1)
