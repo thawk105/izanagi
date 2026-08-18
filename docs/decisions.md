@@ -22108,3 +22108,91 @@ path / sha256 / `env_tag` / `frozen_at_head` と突き合わせる出所検証�
 
 **却下した選択肢:**
 - 件数だけの検査 (6 件なら通す) — 任意の cell ID で通ってしまう。
+
+## D540. 負txid false-green (ruling-inbox 2026-08-12 finding#1) は実装しないと裁定する (2026-08-19)
+
+**決定:** `orchestrator/verifier/parse.py:213` 周りの負txid false-green
+(`C -1 ...`/`E -1` が `missing=-1` になり欠番検出をすり抜ける) について、修正・
+新規回帰テストのいずれも実装しない。
+
+**理由:**
+- 現行main (HEAD `a31832d9`) への直接実測で `C -1 0 2 1 0 0`/`E -1` を含むtraceを
+  `parse_trace_dir()` に通すと `ParseError: txid must be a non-negative integer: -1`
+  が即座に発生し、false-greenは再現しない。負txid拒否は commit `fb5e74a1`
+  (2026-08-12, [T-816] 手順4) で既に追加され、後続の是正commit `a80daf83`
+  (同日) でも維持されている。
+- `orchestrator/tests/test_verifier.py:269-282`
+  `test_negative_txid_is_rejected_before_gap_math_can_cancel_it` が同じ入力
+  パターンを `verify_trace_dir()` 経由で既にpinしている (docstring:「{-1, 1} は旧
+  max(txid)+1-len(txns) だと欠番を相殺できた。構文で拒否する。」)。
+- 独立コンテキストの敵対チェック (fresh subagent, general-purpose, opus) が13通りの
+  手動variantと1554通りの全数探索で追試し、反証できなかった。
+- 密連番gap-checkロジック自体は commit `36a11936` (2026-07-02) から存在し、負txid
+  guard (`fb5e74a1`, 2026-08-12) までの約6週間は構文レベルの穴が実在したが、
+  実CCBench trace-hookはtxidを0始まりの単調atomic counterでのみ採番するため
+  (`patches/README.md:385`)、負txidが実evaluation/mutationのtraceに出現することは
+  構造的にありえない。過去のreal走行がこの穴を通過した実例はない。
+
+**副次所見 (対応不要と裁定):** 同じ敵対チェックで、隣接するが別種のfalse-green
+(「末尾txid丸ごと欠落」、witnessなしoptional APIパス) が見つかったが、これは既に
+`orchestrator/tests/test_verifier.py:882-940` で「既知偽陰性のcharacterization」
+として文書化・テスト済みの意図的挙動であり、実本番経路2つで独立に緩和されている
+ことを確認した: `orchestrator/campaign/pipeline.py:1118`
+(`expected_commits=trace_result.commit_count_witness` を渡し、witness欠落時は
+fail-closed reject) と `orchestrator/campaign/silo_ladder_rung1.py:828-839,855`
+(`_validate_correctness_commit_witness` がstdout witnessと記録txn数を独立照合)。
+新規T番号・追加実装は不要と裁定する。一次資料:
+`output/insights/2026-08-18_t816-negtxid-refute/README.md`。
+
+**却下した選択肢:**
+- 依頼どおり parse.py を編集し新規回帰テストを追加する — 既に同一シナリオをpinする
+  テストが存在するため、追加は「純増検出力ゼロ」の重複になる (DW-S01 の既存被覆
+  確認原則に反する)。
+- 副次所見 (末尾txid欠落) を本waveのscopeへ繰り込んで実装まで行う — 依頼が明示
+  した対象 (負txid) と異なるベクトルであり、段階導入/盛らない原則 (絶対規律5) と
+  DW-S04 の「scope外のreal所見は実装せず裁定パッケージで返す」に従い見送る。
+  実本番経路は既に保護されているため緊急性もない。
+
+## D541. 予約束縛は実 site から導いた要否判定に従い lifecycle start 前に消費する (2026-08-19)
+
+**決定:** 8c launcher (`run_trial`) は preflight 帯の末尾、lifecycle start と run_root 生成より
+前に予約束縛を消費する。要否は `reservation.is_reservation_required(contract.isolation_policy)`
+で決め、contract は **preflight で一度だけ解決した実 site** から `_admit_env_contract` で得る。
+予約が要らない isolation policy では binding を読まない。job 不一致・boot 不一致・残時間不足の
+判定は `reservation.check_reservation` へ委譲し、launcher 側で再実装しない。要求時間は
+trial の実行時間上限 (`max_wall_s`) に束縛する。
+
+**理由:**
+- 実行 site を transport の opt-in flag から推定すると、実際に予約が要る計算ノード上の
+  no-build 実行が opt-out というだけで検査を迂回し、逆に予約不要な site の実行が
+  opt-in というだけで拒否される。どちらも受理集合を誤って動かす。
+- 無条件に binding を読むと、予約という概念を持たない実行形の受理集合を狭める。
+- 判定を launcher 側へ写すと二重権威になり、片方だけが直る。
+- 要求時間を上限へ束縛しないと、残り時間が実行時間に満たない予約の上で起動できてしまう。
+
+**却下した選択肢:**
+- 全 launch 経路 (探索層の CLI や将来の dispatch wrapper) へ同じ gate を広げる — 別 module への
+  新設であり、保証範囲の裁定が要る。裁定パッケージへ回した。
+- campaign launch ごとの再検査 — preflight から launch までの時間差は小さく、
+  上限束縛が主要な穴を塞ぐ。強化は別途裁定する。
+- 予約事実を report / lifecycle へ永続束縛する — 新しい証拠面の新設であり別裁定。
+
+## D542. crash 終端は再起動禁止と indeterminate 記録を独立に試行し元例外を必ず再送出する (2026-08-19)
+
+**決定:** 捕捉した crash を実験全体の indeterminate として終端する経路は、registry の
+再起動禁止と terminal 記録を**独立に試行**し、いずれかが失敗しても他方を実行し、失敗を
+元例外へ note として集約したうえで**元例外そのものを再送出**する。note 付与の実装は
+実行環境の Python に `BaseException.add_note` が無い場合へ fallback を持ち、
+付与に失敗しても元例外を失わない。再起動禁止 flag は同一 process 内で実際に読まれて拒否に
+使われ、durable な start row による拒否と二重の防壁を成す。
+
+**理由:**
+- 片方の失敗で他方を落とすと、indeterminate 行・再起動拒否・元 crash の三者が食い違う。
+- 例外を握り潰す guard は、環境差で常に失敗する経路と組み合わさると「謳うだけで発火しない
+  保証」になる。実際にこの型が 1 件発火していた。
+- 立てるだけで誰も読まない flag は証拠面として恒真である。
+
+**却下した選択肢:**
+- 失敗を握り潰して先へ進む — 台帳と例外が食い違う。
+- 記録の失敗で元例外を差し替える — 呼び出し元が真因を失う。
+- flag を契約から外す — 契約が要求する証拠面を実装しないまま通すことになる。
