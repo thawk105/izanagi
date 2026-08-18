@@ -377,9 +377,8 @@ def _prewarm_receipt_memo(config, nodeids, *, run_id: str | None) -> None:
     # worker payer は両 guard が同時に失われない限り再発しない。
     if hasattr(config, "workerinput"):
         return
-    if config.getoption("collectonly", False):
-        return
-    if not _receipt_memo_consumer_selected(nodeids):
+    nodeids = tuple(nodeids)
+    if not _receipt_memo_prewarm_prerequisites(config, nodeids):
         return
     if getattr(config, _RECEIPT_MEMO_PREWARMED_ATTR, False):
         previous = getattr(config, _RECEIPT_MEMO_RUN_ID_ATTR, None)
@@ -405,6 +404,19 @@ def _prewarm_receipt_memo(config, nodeids, *, run_id: str | None) -> None:
     setattr(config, _RECEIPT_MEMO_SESSION_ACTIVE_ATTR, True)
     setattr(config, _RECEIPT_MEMO_RUN_ID_ATTR, run_id)
     setattr(config, _RECEIPT_MEMO_PREWARMED_ATTR, True)
+
+
+def _receipt_memo_prewarm_prerequisites(config, nodeids) -> bool:
+    """prewarm 前提を読めない pytest 以外の hook 引数は安全側で無視する。"""
+    try:
+        getoption = getattr(config, "getoption", None)
+        if not callable(getoption):
+            return False
+        if getoption("collectonly", False):
+            return False
+        return _receipt_memo_consumer_selected(nodeids)
+    except Exception:
+        return False
 
 
 def _receipt_memo_consumer_selected(nodeids) -> bool:
@@ -594,16 +606,27 @@ def pytest_collection_finish(session) -> None:
 @pytest.hookimpl(optionalhook=True)
 def pytest_xdist_node_collection_finished(node, ids) -> None:
     """Collect controller-visible node IDs without persisting their names."""
+    ids = tuple(ids)
     for nodeid in ids:
         hold_id = _growth_hold_id_from_nodeid(nodeid)
         if hold_id in GROWTH_TEST_HOLDS:
             _note_growth_hold(node.config, hold_id)
-    run_id = getattr(node, "workerinput", {}).get("testrunuid")
-    if run_id is None:
-        run_id = node.config.getoption("testrunuid", None)
-    if _receipt_memo_consumer_selected(ids) and run_id is None:
-        raise pytest.UsageError("xdist receipt memo consumer に testrunuid が無い")
-    _prewarm_receipt_memo(node.config, ids, run_id=run_id)
+    if (
+        not hasattr(node.config, "workerinput")
+        and _receipt_memo_prewarm_prerequisites(node.config, ids)
+    ):
+        run_id_available = True
+        try:
+            run_id = getattr(node, "workerinput", {}).get("testrunuid")
+            if run_id is None:
+                run_id = node.config.getoption("testrunuid", None)
+        except Exception:
+            run_id = None
+            run_id_available = False
+        if run_id_available and run_id is None:
+            raise pytest.UsageError("xdist receipt memo consumer に testrunuid が無い")
+        if run_id_available:
+            _prewarm_receipt_memo(node.config, ids, run_id=run_id)
     if not os.environ.get("IZANAGI_TASK_RUN_SIDECAR"):
         return
     try:
