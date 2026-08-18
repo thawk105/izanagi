@@ -632,10 +632,14 @@ TOKEN_ONLY_C03_PRODUCER = """
 from . import trial_registry
 def _reserve_registered_attempt_slot():
     return trial_registry.reserve_attempt_slot()
+def _record_attempt_terminal_for_run():
+    trial_registry.classify_attempt()
+    trial_registry.record_attempt_terminal()
 def read_observation():
     return "observation"
 def run_trial():
     slot = _reserve_registered_attempt_slot()
+    _record_attempt_terminal_for_run()
     value = read_observation()
     return slot, value
 """
@@ -2287,6 +2291,14 @@ def test_static_negative_controls_equal_non_machine_contract_controls() -> None:
     assert set(STATIC_NEGATIVE_CONTROL_CASES).isdisjoint(NEGATIVE_CONTROL_CASES)
 
 
+def test_static_negative_control_binds_c03_to_its_contract_case() -> None:
+    assert STATIC_NEGATIVE_CONTROL_CASES["nc_c03_manifest_cell_removed"] == "C03"
+
+
+def test_static_negative_control_binds_c08_to_its_contract_case() -> None:
+    assert STATIC_NEGATIVE_CONTROL_CASES["nc_c08_parent_commit_substitution"] == "C08"
+
+
 @pytest.mark.parametrize(
     ("negative_control_id", "identifier"),
     tuple(NEGATIVE_CONTROL_CASES.items()),
@@ -2419,6 +2431,114 @@ def test_c08_negative_control_rejects_parent_commit_substitution(
     _write(root, mutated_path, mutated_source)
     mutated = _commit(root, "mutated token only nc_c08_parent_commit_substitution")
     result = _result(root, mutated, "C08")
+    assert result.status is core.PredicateStatus.UNSATISFIED
+    assert result.reason_code == "prereg-binding-proof-undefined"
+
+
+def test_c03_negative_control_rejects_deterministic_false_strict_branch(
+    tmp_path: Path,
+) -> None:
+    sources = {
+        "orchestrator/campaign/trial_registry.py": TOKEN_ONLY_C03_REGISTRY,
+        "orchestrator/campaign/p3_autonomous_workload_trial.py": TOKEN_ONLY_C03_PRODUCER,
+    }
+    root, _head, _baseline = _terminal_result(
+        tmp_path,
+        "c03-deterministic-false-baseline",
+        "C03",
+        sources,
+        expected_reason="manifest-registry-proof-undefined",
+    )
+    anchor = """def _assert_manifest_registry_trial_set(manifest, registration):
+    expected = tuple(_trial_canonical_tuple(item) for item in manifest.trials)
+    actual = tuple(_trial_canonical_tuple(item) for item in registration.trials)
+    if len(actual) != len(expected) or set(actual) != set(expected):
+        raise ValueError("manifest registry set mismatch")
+"""
+    replacement = """def _assert_manifest_registry_trial_set(manifest, registration):
+    if bool(0):
+        expected = tuple(_trial_canonical_tuple(item) for item in manifest.trials)
+        actual = tuple(_trial_canonical_tuple(item) for item in registration.trials)
+        if len(actual) != len(expected) or set(actual) != set(expected):
+            raise ValueError("manifest registry set mismatch")
+"""
+    assert TOKEN_ONLY_C03_REGISTRY.count(anchor) == 1
+    _write(
+        root,
+        "orchestrator/campaign/trial_registry.py",
+        TOKEN_ONLY_C03_REGISTRY.replace(anchor, replacement, 1),
+    )
+    head = _commit(root, "C03 deterministic false strict branch")
+    result = _result(root, head, "C03")
+    assert result.status is core.PredicateStatus.UNSATISFIED
+    assert result.reason_code == "manifest-registry-proof-undefined"
+
+
+def test_c03_producer_reachability_requires_classification_and_terminal(
+    tmp_path: Path,
+) -> None:
+    sources = {
+        "orchestrator/campaign/trial_registry.py": TOKEN_ONLY_C03_REGISTRY,
+        "orchestrator/campaign/p3_autonomous_workload_trial.py": TOKEN_ONLY_C03_PRODUCER,
+    }
+    root, _head, _baseline = _terminal_result(
+        tmp_path,
+        "c03-producer-reachability-baseline",
+        "C03",
+        sources,
+        expected_reason="manifest-registry-proof-undefined",
+    )
+    anchor = """def _record_attempt_terminal_for_run():
+    trial_registry.classify_attempt()
+    trial_registry.record_attempt_terminal()
+"""
+    replacement = """def _record_attempt_terminal_for_run():
+    pass
+"""
+    assert TOKEN_ONLY_C03_PRODUCER.count(anchor) == 1
+    _write(
+        root,
+        "orchestrator/campaign/p3_autonomous_workload_trial.py",
+        TOKEN_ONLY_C03_PRODUCER.replace(anchor, replacement, 1),
+    )
+    head = _commit(root, "C03 producer classification terminal bypass")
+    result = _result(root, head, "C03")
+    assert result.status is core.PredicateStatus.UNSATISFIED
+    assert result.reason_code == "manifest-registry-proof-undefined"
+
+
+def test_c08_negative_control_rejects_deterministic_false_binding_branch(
+    tmp_path: Path,
+) -> None:
+    sources = {"orchestrator/campaign/trial_registry.py": TOKEN_ONLY_C08_REGISTRY}
+    root, _head, _baseline = _terminal_result(
+        tmp_path,
+        "c08-deterministic-false-baseline",
+        "C08",
+        sources,
+        expected_reason="prereg-binding-proof-undefined",
+    )
+    anchor = """    assert_effective_commit_exact_parent(
+        repository_root,
+        content_commit=binding.prereg_content_commit,
+        effective_commit=effective_commit,
+    )
+"""
+    replacement = """    if bool(0):
+        assert_effective_commit_exact_parent(
+            repository_root,
+            content_commit=binding.prereg_content_commit,
+            effective_commit=effective_commit,
+        )
+"""
+    assert TOKEN_ONLY_C08_REGISTRY.count(anchor) == 1
+    _write(
+        root,
+        "orchestrator/campaign/trial_registry.py",
+        TOKEN_ONLY_C08_REGISTRY.replace(anchor, replacement, 1),
+    )
+    head = _commit(root, "C08 deterministic false binding branch")
+    result = _result(root, head, "C08")
     assert result.status is core.PredicateStatus.UNSATISFIED
     assert result.reason_code == "prereg-binding-proof-undefined"
 

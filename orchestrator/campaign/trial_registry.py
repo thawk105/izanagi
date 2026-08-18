@@ -1435,6 +1435,14 @@ def _find_registration_for_manifest(
     effective_commit: str | None = None,
     allow_distinct_content_commit: bool = False,
 ) -> TrialRegistration:
+    """Find one manifest row while keeping the P and C identities distinct.
+
+    A registered trial may store the manifest's ``prereg_commit`` as P and a
+    later ``prereg_content_commit`` as C.  Forcing equality here would reject
+    that valid chain before ``validate_preregistration_binding`` can enforce
+    the P-is-an-ancestor-of-C proof.  Callers that perform that proof opt in;
+    the strict default remains for direct helper callers without that proof.
+    """
     candidates = [
         item for item in registrations
         if item.manifest_sha256 == manifest.sha256
@@ -2186,6 +2194,14 @@ def _assert_attempt_registry_rows(
                 or receipt_value.get("slot_id") != classification["slot_id"]
                 or receipt_value.get("capability_digest_sha256")
                 != classification["capability_digest_sha256"]
+                or receipt_value.get("authority_id")
+                != classification["authority_id"]
+                or receipt_value.get("authority_policy_sha256")
+                != classification["authority_policy_sha256"]
+                or receipt_value.get("external_evidence_sha256")
+                != classification["external_evidence_sha256"]
+                or receipt_value.get("classified_at")
+                != classification["classified_at"]
                 or receipt_value.get("failure_reason") != classification["failure_reason"]
                 or receipt_value.get("performance_output_read") is not False
             ):
@@ -2279,7 +2295,7 @@ def create_attempt_registry_genesis(
     ),
     registry_path: Path = DEFAULT_ATTEMPT_REGISTRY_PATH,
 ) -> Path:
-    """Create the one freeze-wide root before any slot can be observed.
+    """Create the one freeze-wide root before any performance observation.
 
     A genesis with the complete slot set is accepted only at the canonical
     path when that path is absent; a second genesis, a late slot, or a retry
@@ -2579,12 +2595,15 @@ def reserve_attempt_slot(
     started_at: str,
     registry_path: Path = DEFAULT_ATTEMPT_REGISTRY_PATH,
 ) -> AttemptSlotCapability:
-    """Consume one already-declared slot before any observation can exist.
+    """Consume one declared slot before the first performance observation.
 
     A first attempt is accepted only for a declared slot, and a later attempt
     is accepted only for the immediate same-configuration slot after a
     retryable failure.  A success rerun, slot skip, other-trial retry, and
-    post-observation slot invention are rejected.
+    post-observation slot invention are rejected.  The CLI build path may run
+    its non-performance competing-benchmark environment probe before
+    ``run_trial`` reaches this reservation; that probe is outside this
+    guarantee boundary.
     """
     root = _repository_root(repository_root)
     _attempt_text(freeze_id, label="freeze_id")
@@ -2901,13 +2920,13 @@ def assert_attempt_registry_acceptance(
     configs = {
         (
             slot["trial_id"], slot["arm"], slot["holdout"],
-            slot["campaign_id"],
+            slot["campaign_id"], slot["replicate_index"],
         )
         for slot in genesis["slots"]
         if slot["attempt_index"] == 0
     }
     expected_configs = {
-        (trial.trial_id, trial.arm, trial.holdout, trial.campaign_id)
+        (trial.trial_id, trial.arm, trial.holdout, trial.campaign_id, 0)
         for trial in manifest.trials
     }
     if configs != expected_configs:
@@ -2964,6 +2983,14 @@ def assert_attempt_registry_acceptance(
                 _fail("attempt-artifact", "terminal observation hash differs from runtime report")
             if report.get("primary_value") != terminal["primary_value"]:
                 _fail("attempt-artifact", "terminal primary value differs from runtime report")
+        elif (
+            report.get("observation_sha256") is not None
+            or report.get("primary_value") is not None
+        ):
+            _fail(
+                "attempt-artifact",
+                "non-observed terminal report carries observed values",
+            )
     return rows
 
 

@@ -6132,6 +6132,98 @@ def test_formal_start_is_recorded_before_run_root_and_blocks_other_root(
     assert not second_root.exists()
 
 
+def test_registered_slot_is_reserved_before_first_performance_observation(
+    tmp_path,
+    monkeypatch,
+    t325_registered_trial,
+) -> None:
+    events: list[str] = []
+    original_reserve = A._reserve_registered_attempt_slot
+
+    def observe_reservation(**kwargs):
+        events.append("slot-reservation")
+        return original_reserve(**kwargs)
+
+    def observe_performance(*args, **kwargs):
+        events.append("performance-observation")
+        return _fake_drive(*args, **kwargs)
+
+    monkeypatch.setattr(A, "_reserve_registered_attempt_slot", observe_reservation)
+    report = _t325_run(
+        t325_registered_trial,
+        tmp_path / "reservation-before-performance",
+        drive=observe_performance,
+    )
+    assert report["status"] == "complete"
+    assert events[:2] == ["slot-reservation", "performance-observation"]
+
+
+def test_registered_budget_insufficient_closes_as_not_consumed(
+    tmp_path,
+    monkeypatch,
+    t325_registered_trial,
+) -> None:
+    ledger = SimpleNamespace(
+        manifest_sha256="a" * 64,
+        freeze_sha256="b" * 64,
+        schedule_sha256="c" * 64,
+        ratified_generation_sha256="d" * 64,
+        reservation=SimpleNamespace(state="insufficient"),
+    )
+    budget_inputs = SimpleNamespace(
+        ledger_path=tmp_path / "budget-ledger.json",
+        manifest_sha256=ledger.manifest_sha256,
+        freeze_sha256=ledger.freeze_sha256,
+        schedule_sha256=ledger.schedule_sha256,
+        ratified_generation_sha256=ledger.ratified_generation_sha256,
+        cells=(),
+        limits=object(),
+    )
+    monkeypatch.setattr(A, "load_ratified_freeze", lambda _root: object())
+    monkeypatch.setattr(
+        A,
+        "_prepare_s8c_budget_inputs",
+        lambda **_kwargs: budget_inputs,
+    )
+    monkeypatch.setattr(A, "reserve_all_cells", lambda *_args, **_kwargs: ledger)
+    monkeypatch.setattr(
+        A,
+        "symmetric_indeterminate",
+        lambda _ledger: frozenset({"fixture-cell"}),
+    )
+    report = _t325_run(
+        t325_registered_trial,
+        tmp_path / "budget-insufficient",
+        do_build=True,
+        drive=A.trigger.drive_iteration,
+        coder_authority=_coder_authority(),
+    )
+    assert report["status"] == "partial"
+    assert report["lifecycle_terminal_status"] == "indeterminate"
+    attempt_rows = [
+        json.loads(line)
+        for line in (
+            t325_registered_trial.repo
+            / A.trial_registry.DEFAULT_ATTEMPT_REGISTRY_PATH
+        ).read_text(encoding="utf-8").splitlines()
+    ]
+    attempt_terminal = next(
+        row for row in attempt_rows if row.get("event") == "terminal"
+    )
+    assert attempt_terminal["terminal_status"] == "not-consumed"
+    assert attempt_terminal["report_sha256"] is None
+    assert attempt_terminal["observation_sha256"] is None
+    assert attempt_terminal["primary_value"] is None
+    lifecycle_rows = [
+        json.loads(line)
+        for line in (
+            t325_registered_trial.repo
+            / A.trial_registry.DEFAULT_LIFECYCLE_PATH
+        ).read_text(encoding="utf-8").splitlines()
+    ]
+    assert lifecycle_rows[-1]["terminal_status"] == "indeterminate"
+
+
 def test_formal_post_start_io_failure_records_indeterminate_and_stays_consumed(
     tmp_path,
     monkeypatch,

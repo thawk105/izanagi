@@ -588,6 +588,15 @@ def _function_parameters(node: ast.FunctionDef | ast.AsyncFunctionDef) -> tuple[
 
 def _literal_truth(node: ast.AST) -> bool | None:
     """Return literal truthiness, or ``None`` for every non-literal expression."""
+    if (
+        isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Name)
+        and node.func.id == "bool"
+        and len(node.args) == 1
+        and not node.keywords
+    ):
+        nested = _literal_truth(node.args[0])
+        return nested
     if not isinstance(node, (ast.Constant, ast.Tuple, ast.List, ast.Set, ast.Dict)):
         return None
     try:
@@ -1718,7 +1727,15 @@ def _evaluate_c03(probe: _ConditionProbe) -> core.PredicateResult:
             ReasonCode.MANIFEST_REGISTRY_PROOF_UNDEFINED,
         )
     producer_graph = _ReachabilityExplorer(probe).walk((producer_path, "run_trial"))
-    if (registry_path, "reserve_attempt_slot") not in producer_graph.calls:
+    required_producer_targets = {
+        "reserve_attempt_slot",
+        "classify_attempt",
+        "record_attempt_terminal",
+    }
+    if not all(
+        (registry_path, name) in producer_graph.calls
+        for name in required_producer_targets
+    ):
         return _result(
             probe,
             core.PredicateStatus.UNSATISFIED,

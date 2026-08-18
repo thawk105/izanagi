@@ -1211,7 +1211,11 @@ def _reserve_registered_attempt_slot(
     origin_binding: reflux_origin_binding.OriginBindingCapability | None,
     started_at: str,
 ) -> trial_registry.AttemptSlotCapability:
-    """Reserve the next declared slot before provider or benchmark work."""
+    """Reserve the declared r0 slot before the first performance observation.
+
+    The CLI build path can perform its non-performance environment probe before
+    entering ``run_trial``; that probe is outside this reservation guarantee.
+    """
     trial_registry.assert_issued_trial_launch_admission(admission)
     if admission.mode != "registered-effective" or admission.binding is None:
         raise trial_registry.TrialRegistryError(
@@ -1233,6 +1237,7 @@ def _reserve_registered_attempt_slot(
             and slot["arm"] == binding.arm
             and slot["holdout"] == binding.holdout
             and slot["campaign_id"] == binding.campaign_id
+            and slot["replicate_index"] == 0
         )
     ]
     candidates.sort(key=lambda slot: (slot["attempt_index"], slot["slot_id"]))
@@ -3742,7 +3747,15 @@ def _record_attempt_terminal_for_run(
     cause: BaseException | None = None,
 ) -> None:
     """Close the reserved slot with the producer's terminal projection."""
-    if report is not None and report.get("status") == "complete":
+    lifecycle_terminal_status = (
+        report.get("lifecycle_terminal_status")
+        if isinstance(report, Mapping)
+        else None
+    )
+    if lifecycle_terminal_status == "indeterminate":
+        terminal_status = "not-consumed"
+        failure_reason = None
+    elif report is not None and report.get("status") == "complete":
         terminal_status = "observed"
         failure_reason = None
     elif report is not None:
@@ -3771,7 +3784,11 @@ def _record_attempt_terminal_for_run(
     raw_output_sha256 = hashlib.sha256(journal_bytes).hexdigest()
 
     report_bytes: bytes | None = None
-    if report_path is not None and report_path.is_file():
+    if (
+        terminal_status != "not-consumed"
+        and report_path is not None
+        and report_path.is_file()
+    ):
         try:
             report_bytes = report_path.read_bytes()
         except OSError:
@@ -4068,7 +4085,8 @@ def run_trial(
     report: dict[str, Any] | None = None
     try:
         if origin_runtime is not None:
-            # The first ledger observation is after the freeze-wide reservation.
+            # The first performance observation is after the freeze-wide
+            # reservation.  The CLI environment probe is outside this bound.
             origin_runtime.initial_snapshot = origin_runtime.client.read_origin(
                 origin_runtime.capability
             )
@@ -4554,6 +4572,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     else:
         from ..calibrator.runner import competing_bench_pids
 
+        # This is a non-performance environment probe.  It intentionally
+        # precedes run_trial's slot reservation and is outside that guarantee.
         competitors = competing_bench_pids()
         if competitors:
             raise AutonomousTrialError(

@@ -1011,6 +1011,10 @@ def _one_cell_partial_report(
     events[0]["generation_budget_per_workload"] = trial.generations
     report["generation_budget_per_workload"] = trial.generations
     report["status"] = "partial"
+    # The cell prefix is retained for diagnosis, but a partial terminal row
+    # has no observed top-level projection.
+    report["observation_sha256"] = None
+    report["primary_value"] = None
     report["fatal_error"] = error
     report["cells"][0]["stop_reason"] = "supervisor-error"
     report["cells"][0]["error"] = error
@@ -4162,6 +4166,7 @@ def _attempt_fixture(
     tmp_path: Path,
     *,
     repeats_for_first: int = 1,
+    extra_replicate: bool = False,
 ) -> tuple[Path, Path, R.TrialManifest, Path, str, str, str, list[dict]]:
     repo, seed = _init_repo(tmp_path)
     manifest_path = repo / "manifest.json"
@@ -4169,6 +4174,23 @@ def _attempt_fixture(
     _commit(repo, "attempt manifest", manifest_path)
     manifest = R.load_trial_manifest(manifest_path)
     slots = _attempt_slots(manifest, repeats_for_first=repeats_for_first)
+    if extra_replicate:
+        base = dict(slots[0])
+        base.update({
+            "slot_id": f"{base['trial_id']}-r1-a0",
+            "replicate_index": 1,
+            "attempt_index": 0,
+        })
+        base["schedule_row_sha256"] = hashlib.sha256(
+            _canonical({
+                key: base[key]
+                for key in (
+                    "trial_id", "arm", "holdout", "campaign_id",
+                    "replicate_index", "attempt_index",
+                )
+            })
+        ).hexdigest()
+        slots.append(base)
     registry = R.create_attempt_registry_genesis(
         repository_root=repo,
         manifest_path=manifest_path,
@@ -4571,7 +4593,47 @@ def test_acceptance_rejects_content_or_effective_commit_mismatch(tmp_path: Path)
         R._find_registration_for_manifest((registration,), manifest)
 
 
-def test_attempt_registry_genesis_is_closed_before_first_observation(tmp_path: Path) -> None:
+def test_acceptance_rejects_content_commit_without_manifest_ancestor(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo, manifest_path, _manifest, _content, effective = _effective_binding_fixture(
+        tmp_path,
+    )
+    binding = R.load_effective_binding_at_commit(repo, effective, manifest_path)
+    tree = _run(repo, "rev-parse", f"{effective}^{{tree}}")
+    assert tree.returncode == 0, tree.stderr
+    unrelated = _run(
+        repo,
+        "commit-tree",
+        tree.stdout.strip(),
+        "-m",
+        "unrelated content root",
+    )
+    assert unrelated.returncode == 0, unrelated.stderr
+    invalid_binding = dataclasses.replace(
+        binding,
+        prereg_content_commit=unrelated.stdout.strip(),
+    )
+    monkeypatch.setattr(
+        R,
+        "load_effective_binding_at_commit",
+        lambda *args, **kwargs: invalid_binding,
+    )
+    with pytest.raises(
+        R.TrialRegistryError,
+        match=r"manifest prereg_commit is not an ancestor of prereg_content_commit",
+    ):
+        R.validate_preregistration_binding(
+            repo,
+            manifest_path=manifest_path,
+            effective_commit=effective,
+            measurement_commit=effective,
+        )
+
+
+def test_attempt_registry_genesis_is_closed_before_first_performance_observation(
+    tmp_path: Path,
+) -> None:
     repo, _manifest_path, manifest, registry, _p, _c, _freeze, slots = _attempt_fixture(tmp_path)
     with pytest.raises(R.TrialRegistryError, match=r"create-only"):
         R.create_attempt_registry_genesis(
@@ -4671,6 +4733,48 @@ def test_attempt_registry_classification_receipt_is_create_only(tmp_path: Path) 
         R.classify_attempt(cap, **kwargs)
 
 
+def test_attempt_registry_classification_row_must_match_receipt(tmp_path: Path) -> None:
+    repo, _manifest, _m, registry, p, c, freeze, slots = _attempt_fixture(tmp_path)
+    cap = _reserve_attempt(repo, registry, p, c, freeze, slots[0])
+    _classify_and_terminal(cap, failure_reason="wall-timeout", terminal_status="retryable-failure")
+    rows = [json.loads(line) for line in registry.read_text().splitlines()]
+    classification = next(row for row in rows if row.get("event") == "classification")
+    classification["authority_id"] = "tampered-authority"
+    registry.write_bytes(b"".join(_canonical(row) + b"\n" for row in rows))
+    with pytest.raises(
+        R.TrialRegistryError,
+        match=r"classification receipt is not capability-bound",
+    ):
+        R.load_attempt_registry(repo)
+
+
+def test_attempt_registry_rejects_capability_digest_replacement(tmp_path: Path) -> None:
+    repo, _manifest, _m, registry, p, c, freeze, slots = _attempt_fixture(tmp_path)
+    cap = _reserve_attempt(repo, registry, p, c, freeze, slots[0])
+    _classify_and_terminal(cap, failure_reason="wall-timeout", terminal_status="retryable-failure")
+    rows = [json.loads(line) for line in registry.read_text().splitlines()]
+    classification = next(row for row in rows if row.get("event") == "classification")
+    classification["capability_digest_sha256"] = "f" * 64
+    registry.write_bytes(b"".join(_canonical(row) + b"\n" for row in rows))
+    with pytest.raises(
+        R.TrialRegistryError,
+        match=r"classification capability digest differs",
+    ):
+        R.load_attempt_registry(repo)
+
+
+def test_attempt_registry_rejects_observed_primary_value_null(tmp_path: Path) -> None:
+    repo, _manifest, _m, registry, p, c, freeze, slots = _attempt_fixture(tmp_path)
+    cap = _reserve_attempt(repo, registry, p, c, freeze, slots[0])
+    _classify_and_terminal(cap, failure_reason=None, terminal_status="observed")
+    rows = [json.loads(line) for line in registry.read_text().splitlines()]
+    terminal = next(row for row in rows if row.get("event") == "terminal")
+    terminal["primary_value"] = None
+    registry.write_bytes(b"".join(_canonical(row) + b"\n" for row in rows))
+    with pytest.raises(R.TrialRegistryError, match=r"observed null matrix"):
+        R.load_attempt_registry(repo)
+
+
 def test_attempt_registry_rejects_second_root_in_full_history(tmp_path: Path) -> None:
     repo, manifest_path, manifest, _registry, _p, _c, _freeze, slots = _attempt_fixture(tmp_path)
     branch = _run(repo, "branch", "alternate-root")
@@ -4760,6 +4864,99 @@ def test_attempt_registry_accepts_correct_formal_slot_consumption(
         report_paths=[report_path],
     )
     assert any(row.get("event") == "terminal" for row in rows)
+
+
+def test_attempt_registry_accepts_observed_terminal_status_only(
+    tmp_path: Path,
+) -> None:
+    repo, manifest_path, manifest, registry, p, c, freeze, slots = _attempt_fixture(tmp_path)
+    cap = _reserve_attempt(repo, registry, p, c, freeze, slots[0])
+    raw_hash = "d" * 64
+    report_path, binding = _attempt_report_for_acceptance(
+        repo, manifest, slots[0], p, c, raw_hash,
+    )
+    _classify_and_terminal(
+        cap,
+        failure_reason=None,
+        terminal_status="observed",
+        report_sha256=hashlib.sha256(report_path.read_bytes()).hexdigest(),
+        raw_output_sha256=raw_hash,
+    )
+    rows = R.assert_attempt_registry_acceptance(
+        repository_root=repo,
+        manifest_path=manifest_path,
+        manifest=manifest,
+        effective_binding=binding,
+        effective_commit=c,
+        report_paths=[report_path],
+    )
+    assert rows[-1]["terminal_status"] == "observed"
+
+
+def test_attempt_acceptance_rejects_unmanifested_replicate_slot(
+    tmp_path: Path,
+) -> None:
+    repo, manifest_path, manifest, registry, p, c, freeze, slots = _attempt_fixture(
+        tmp_path,
+        extra_replicate=True,
+    )
+    cap = _reserve_attempt(repo, registry, p, c, freeze, slots[0])
+    raw_hash = "d" * 64
+    report_path, binding = _attempt_report_for_acceptance(
+        repo, manifest, slots[0], p, c, raw_hash,
+    )
+    _classify_and_terminal(
+        cap,
+        failure_reason=None,
+        terminal_status="observed",
+        report_sha256=hashlib.sha256(report_path.read_bytes()).hexdigest(),
+        raw_output_sha256=raw_hash,
+    )
+    with pytest.raises(
+        R.TrialRegistryError,
+        match=r"genesis initial slot set differs",
+    ):
+        R.assert_attempt_registry_acceptance(
+            repository_root=repo,
+            manifest_path=manifest_path,
+            manifest=manifest,
+            effective_binding=binding,
+            effective_commit=c,
+            report_paths=[report_path],
+        )
+
+
+def test_attempt_acceptance_rejects_terminal_failure_report_observed_values(
+    tmp_path: Path,
+) -> None:
+    repo, manifest_path, manifest, registry, p, c, freeze, slots = _attempt_fixture(tmp_path)
+    cap = _reserve_attempt(repo, registry, p, c, freeze, slots[0])
+    raw_hash = "d" * 64
+    report_path, binding = _attempt_report_for_acceptance(
+        repo, manifest, slots[0], p, c, raw_hash,
+    )
+    report = json.loads(report_path.read_bytes())
+    report["status"] = "partial"
+    report_path.write_bytes(_canonical(report))
+    _classify_and_terminal(
+        cap,
+        failure_reason="producer-failure",
+        terminal_status="terminal-failure",
+        report_sha256=hashlib.sha256(report_path.read_bytes()).hexdigest(),
+        raw_output_sha256=raw_hash,
+    )
+    with pytest.raises(
+        R.TrialRegistryError,
+        match=r"non-observed terminal report carries observed values",
+    ):
+        R.assert_attempt_registry_acceptance(
+            repository_root=repo,
+            manifest_path=manifest_path,
+            manifest=manifest,
+            effective_binding=binding,
+            effective_commit=c,
+            report_paths=[report_path],
+        )
 
 
 def test_attempt_registry_rejects_schedule_row_hash_replacement(tmp_path: Path) -> None:
