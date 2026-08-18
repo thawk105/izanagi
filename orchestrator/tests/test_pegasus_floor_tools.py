@@ -104,7 +104,14 @@ def _pbs_directives(path: Path) -> dict[str, str]:
         if header_open and (not line.strip() or line.startswith("#")):
             if not line.startswith("#PBS "):
                 continue
-            option, value = line[len("#PBS ") :].split(maxsplit=1)
+            fields = line[len("#PBS ") :].split(maxsplit=1)
+            if len(fields) == 1:
+                option, separator, value = fields[0].partition("=")
+                assert option.startswith("--") and separator and value, (
+                    f"malformed PBS directive at {path}:{line_number}"
+                )
+            else:
+                option, value = fields
             assert option not in directives, (
                 f"duplicate PBS directive {option} at {path}:{line_number}"
             )
@@ -568,6 +575,7 @@ def test_floor_pbs_directives_match_shared_and_floor_policies() -> None:
     shared_policy = json.loads(SHARED_POLICY.read_text(encoding="utf-8"))
     floor_policy = json.loads(FLOOR_POLICY.read_text(encoding="utf-8"))
     directives = _pbs_directives(JOB)
+    assert directives.pop("--accept-sigterm") == "yes"
     assert directives == {
         "-A": shared_policy["project"],
         "-q": shared_policy["queue"],
@@ -1244,6 +1252,9 @@ def test_floor_checkpoint_failure_in_err_and_signal_traps_preserves_evidence(
     tmp_path: Path, trigger: str, expected_rc: int,
 ) -> None:
     source = JOB.read_text(encoding="utf-8")
+    assert source.index("#PBS --accept-sigterm=yes") < source.index(
+        "set -Eeuo pipefail"
+    )
     start = source.index("failure_written=0")
     end = source.index("CURRENT_STAGE=policy", start)
     attempt = tmp_path / "attempt"
@@ -1260,8 +1271,24 @@ def test_floor_checkpoint_failure_in_err_and_signal_traps_preserves_evidence(
         "checkpoint_event() { return 1; }",
         "",
     ])
+    command = [
+        "bash", "-c", prefix + source[start:end] + "\n" + trigger + "\n",
+    ]
+    if trigger == "kill -TERM $$":
+        # A batch/xdist parent may leave TERM ignored or blocked.  Normalize it
+        # in an exec launcher so this test controls the signal-delivery premise.
+        signal_reset_launcher = (
+            "import os,signal,sys\n"
+            "signal.signal(signal.SIGTERM,signal.SIG_DFL)\n"
+            "signal.pthread_sigmask(signal.SIG_UNBLOCK,{signal.SIGTERM})\n"
+            "os.execvp(sys.argv[1],sys.argv[1:])\n"
+        )
+        command = [
+            sys.executable, "-I", "-S", "-B", "-c", signal_reset_launcher,
+            *command,
+        ]
     result = subprocess.run(
-        ["bash", "-c", prefix + source[start:end] + "\n" + trigger + "\n"],
+        command,
         capture_output=True,
         text=True,
     )

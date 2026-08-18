@@ -3,6 +3,7 @@
 #PBS -q gen_S
 #PBS -l elapstim_req=10:00:00
 #PBS -b 1
+#PBS --accept-sigterm=yes
 # 出典: certify_calibration.sh:1-5 @ e9b6f69
 
 # driver required_s                    = 12 * (900 + (8+2) * (5*5 + 120)) = 28200
