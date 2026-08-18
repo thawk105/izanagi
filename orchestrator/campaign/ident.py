@@ -21,7 +21,6 @@ from . import (
     campaign_lock,
     contract_loader_binding,
     env_contract,
-    env_contract_activation,
 )
 from .env_contract import AuthorizedContract, ExecutionEnvironmentContract
 from .layout import CampaignLayout
@@ -209,25 +208,13 @@ def _validate_identity_inputs(
 
 
 def _load_current_activation_state(
-) -> env_contract_activation.ActivationState:
-    directory = (
-        env_contract._repository_root()
-        / env_contract._ACTIVATION_DIRECTORY
-    )
-    return env_contract_activation.load_activation_state(
-        directory,
-        registered_contracts=env_contract._REGISTERED_CONTRACT_CATALOG,
-        is_valid_registered_successor=(
-            env_contract._is_valid_activation_successor_with_artifact
-        ),
-        expected_head_serial=env_contract._ACTIVATION_HEAD_SERIAL,
-        expected_head_state_sha256=env_contract._ACTIVATION_HEAD_STATE_SHA256,
-    )
+) -> Any:
+    return env_contract.verified_current_activation_state()
 
 
 def _authority_source_for_new_certified_lock(
         cfg: CampaignConfig,
-) -> tuple[ExecutionEnvironmentContract, env_contract_activation.ActivationState]:
+) -> tuple[ExecutionEnvironmentContract, Any]:
     bound = cfg.bound_environment_contract
     if type(bound) is not ExecutionEnvironmentContract:
         raise IdentityMismatch(
@@ -236,8 +223,7 @@ def _authority_source_for_new_certified_lock(
         )
     try:
         state = _load_current_activation_state()
-    except (env_contract.EnvContractError,
-            env_contract_activation.ActivationRecordError) as exc:
+    except env_contract.EnvContractError as exc:
         raise IdentityMismatch(
             f"campaign-lock activation tuple is not authentic: {exc}",
             reason="activation-tuple-invalid",
@@ -293,35 +279,22 @@ def verify_recorded_activation_tuple(
     try:
         current = _load_current_activation_state()
         if authority.activation_serial > current.activation_serial:
-            raise env_contract_activation.ActivationRecordError(
+            raise env_contract.EnvContractError(
                 "記録 activation serial が current chain head を越えている"
             )
-        directory = (
-            env_contract._repository_root()
-            / env_contract._ACTIVATION_DIRECTORY
-        )
-        records = env_contract_activation.read_activation_record_files(
-            directory
-        )
-        recorded = env_contract_activation.validate_activation_records(
-            records[:authority.activation_serial],
-            registered_contracts=env_contract._REGISTERED_CONTRACT_CATALOG,
-            is_valid_registered_successor=(
-                env_contract._is_valid_activation_successor_with_artifact
-            ),
-            expected_head_serial=authority.activation_serial,
-            expected_head_state_sha256=authority.activation_state_sha256,
+        recorded = env_contract.verified_historical_activation_state(
+            authority.activation_serial,
+            authority.activation_state_sha256,
         )
         target_rows = tuple(
             row for row in recorded.active_contracts
             if row.contract_sha256 == authority.environment_contract_sha256
         )
         if len(target_rows) != 1:
-            raise env_contract_activation.ActivationRecordError(
+            raise env_contract.EnvContractError(
                 "記録 activation state が対象 environment contract H を active にしていない"
             )
-    except (env_contract.EnvContractError,
-            env_contract_activation.ActivationRecordError) as exc:
+    except env_contract.EnvContractError as exc:
         raise IdentityMismatch(
             f"campaign-lock activation tuple is not authentic: {exc}",
             reason="activation-tuple-invalid",
