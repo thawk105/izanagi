@@ -15,6 +15,9 @@ from types import SimpleNamespace
 
 import pytest
 
+
+pytestmark = pytest.mark.usefixtures("ratified_enforcement_source")
+
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _ORCH = os.path.dirname(_HERE)
 sys.path.insert(0, os.path.dirname(_ORCH))

@@ -61,6 +61,7 @@ from orchestrator.campaign.layout import campaign_layout  # noqa: E402
 from orchestrator.campaign.model import Genome  # noqa: E402
 from orchestrator.campaign.s1_direct_comparison import PreparedCell  # noqa: E402
 from orchestrator.campaign.source_digest import SourceEvidence  # noqa: E402
+from orchestrator.tests import commit_receipt_support as receipt_support  # noqa: E402
 
 from test_schema_v2 import _valid_document as _valid_calibration_v2  # noqa: E402
 
@@ -1782,10 +1783,14 @@ def _fake_evaluate_factory(*, bench_wall_s: float = 0.25):
         if kwargs.get("record_rep_returncodes") is True:
             bench_payload["rep_returncodes"] = [0, 0, 0, 0, 0]
         wal.log(layout, variant, "bench_done", env_tag, bench_payload)
-        wal.log(layout, variant, "commit", env_tag, {
+        receipt_support.log_receipted_commit(
+            layout, variant, env_tag, {
             "fitness_tps": 12.0,
             "verify_configs": [pipeline.LEGACY_TAG, pipeline.S2_TAG],
-        })
+            },
+            operation_identity=f"s8b-{len(calls)}-{variant}",
+            tags=(pipeline.LEGACY_TAG, pipeline.S2_TAG),
+        )
         return pipeline.EvalResult(
             genome=genome, variant=variant, certified=True, aborted=False,
             fitness_tps=12.0,

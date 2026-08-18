@@ -358,11 +358,13 @@ def case(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> _Case:
     launch = B.rederive_launch_admission(
         admission, arm_execution=arm_execution, **launch_kwargs
     )
+    entry = producer.resolve_workload_entry(workload)
     prepared_campaign = producer.PreparedCampaignIdentity(
         descriptor=descriptor,
         descriptor_record={"output_sha256": descriptor_sha},
         campaign=campaign,
         campaign_id=campaign_id,
+        perf=producer._perf_for(entry),
     )
     prepared_origin = B.prepare_origin_identity(
         authority_blob_bytes=authority_bytes,

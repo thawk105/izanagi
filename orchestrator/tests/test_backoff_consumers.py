@@ -21,7 +21,8 @@ from orchestrator.campaign.artifact_admission import CampaignReadPurpose   # noq
 from orchestrator.campaign.backoff_repro import _bench_tps                 # noqa: E402
 from orchestrator.campaign.layout import CampaignLayout                    # noqa: E402
 from orchestrator.campaign.model import (STAGE_ABORT, STAGE_BENCH_DONE,    # noqa: E402
-                            STAGE_BUILD_START, STAGE_COMMIT)
+                            STAGE_BUILD_START)
+from orchestrator.tests import commit_receipt_support as receipt_support  # noqa: E402
 
 
 def _load_plot_module():
@@ -69,7 +70,10 @@ def _fixture_layout(tmp_path):
             {"genome": certified_genome})
     wal.log(layout, "v-certified", STAGE_BENCH_DONE, "test",
             {"median_tps": 123456.0, "tps": [123456.0, 123457.0]})
-    wal.log(layout, "v-certified", STAGE_COMMIT, "test", {"fitness_tps": 123456.0})
+    receipt_support.log_receipted_commit(
+        layout, "v-certified", "test", {"fitness_tps": 123456.0},
+        lock_identity_sha256="0" * 64,
+    )
     dat = os.path.join(layout.reports_dir, "fixture.dat")
     with open(dat, "w", encoding="utf-8") as f:
         f.write("# workload: fixture\n# env: test\n# campaign: fixture-campaign\n")
