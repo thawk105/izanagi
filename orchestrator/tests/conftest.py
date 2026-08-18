@@ -269,6 +269,253 @@ REAL_REPO_EXECUTION_PRIORITY = (
     "test_s8b_binding_driftguards.py::test_run_block_broken_binding_manifest_refuses_and_writes_nothing",
 )
 
+# 受入全走の 4 走から得た所要時間降順の work unit。所要時間や閾値は
+# 再生成・監査の入力であり、runtime の宣言へは持ち込まない。group と nodeid
+# を namespace 付きにして、xdist の scope 文字列衝突を構造的に避ける。
+LONG_WORK_UNIT_SCOPE_ORDER: tuple[tuple[str, str], ...] = (
+    ("group", "real-repo"),
+    ("group", "s8c-preregistration-candidate"),
+    (
+        "nodeid",
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::"
+        "test_role_sink_bytes_vary_only_at_declared_declassifications",
+    ),
+    (
+        "nodeid",
+        "orchestrator/tests/test_s8b_floor_campaign.py::"
+        "test_official_resume_rejects_tampered_certificate",
+    ),
+    (
+        "nodeid",
+        "orchestrator/tests/test_s8b_floor_campaign.py::"
+        "test_official_build_failure_leaves_durable_launch_start",
+    ),
+    (
+        "nodeid",
+        "orchestrator/tests/test_s8b_floor_campaign.py::"
+        "test_official_resume_validates_certificate_and_completes",
+    ),
+    (
+        "nodeid",
+        "orchestrator/tests/test_s8b_floor_campaign.py::"
+        "test_official_resume_rejects_renamed_run_dir",
+    ),
+    (
+        "nodeid",
+        "orchestrator/tests/test_s8b_floor_campaign.py::"
+        "test_official_fresh_issues_certificate_and_binds_wall_ledger",
+    ),
+    (
+        "nodeid",
+        "orchestrator/tests/test_s8b_floor_campaign.py::"
+        "test_official_resume_rejects_certificate_time_not_bound_to_run_id",
+    ),
+    (
+        "nodeid",
+        "orchestrator/tests/test_login_headroom.py::"
+        "test_ceiling_numeric_literal_occurs_only_in_login_headroom_module",
+    ),
+    (
+        "nodeid",
+        "orchestrator/tests/test_s8b_floor_campaign.py::"
+        "test_pilot_resume_rejects_launch_certificate_contamination[campaign-key]",
+    ),
+    (
+        "nodeid",
+        "orchestrator/tests/test_s8b_floor_campaign.py::"
+        "test_official_scan_rejection_has_zero_filesystem_side_effects",
+    ),
+    (
+        "nodeid",
+        "orchestrator/tests/test_s8b_floor_campaign.py::"
+        "test_pilot_resume_rejects_launch_certificate_contamination[certificate-file]",
+    ),
+    (
+        "nodeid",
+        "orchestrator/tests/test_s8b_floor_campaign.py::"
+        "test_pilot_resume_rejects_launch_certificate_contamination[launch-start]",
+    ),
+    (
+        "nodeid",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::"
+        "test_current_repository_snapshot_exactly_matches_head",
+    ),
+    (
+        "nodeid",
+        "orchestrator/tests/test_dev_waves_integration.py::"
+        "test_child_failure_injection_stops_before_next_wave[sleep_timeout-timeout]",
+    ),
+    (
+        "nodeid",
+        "orchestrator/tests/test_run_tests_preflight.py::"
+        "test_headroom_short_queue_unavailable_cap_oom_stops_without_dispatch",
+    ),
+)
+
+
+def _item_nodeid(item) -> str:
+    """Return the public collection nodeid, with a small fake-item fallback."""
+    nodeid = getattr(item, "nodeid", None)
+    if nodeid is not None:
+        return str(nodeid)
+    return _real_repo_node_id(item)
+
+
+def _xdist_group_names(item) -> tuple[str, ...]:
+    """Reproduce xdist remote.py's marker name set/sort/join inputs."""
+    iter_markers = getattr(item, "iter_markers", None)
+    if not callable(iter_markers):
+        return ()
+    names: set[str] = set()
+    for mark in iter_markers("xdist_group"):
+        args = getattr(mark, "args", ())
+        kwargs = getattr(mark, "kwargs", {}) or {}
+        name = args[0] if len(args) > 0 else kwargs.get("name", "default")
+        names.add(str(name))
+    return tuple(sorted(names))
+
+
+def _split_xdist_scope(nodeid: str) -> str:
+    """Use loadgroup.py's exact suffix guard and split operation."""
+    if nodeid.rfind("@") > nodeid.rfind("]"):
+        return nodeid.split("@")[-1]
+    return nodeid
+
+
+def _unit_key_from_nodeid(nodeid: str) -> tuple[str, str]:
+    scope = _split_xdist_scope(nodeid)
+    namespace = "group" if nodeid.rfind("@") > nodeid.rfind("]") else "nodeid"
+    return namespace, scope
+
+
+def _unit_key_from_item(item) -> tuple[str, str]:
+    """Return the namespace-aware work unit key for serial or worker items."""
+    nodeid = _item_nodeid(item)
+    group_names = _xdist_group_names(item)
+    if group_names:
+        suffix = "@" + "_".join(group_names)
+        # Worker items already carry remote.py's suffix. Serial items do not,
+        # so synthesize exactly the same nodeid before applying loadgroup's
+        # parser. endswith keeps a worker suffix from being appended twice.
+        if not nodeid.endswith(suffix):
+            nodeid += suffix
+    return _unit_key_from_nodeid(nodeid)
+
+
+def scope_key_for_item(item) -> str:
+    """Return the xdist-compatible string scope key for a collected item."""
+    return _unit_key_from_item(item)[1]
+
+
+def _validate_declaration(
+    declaration: Sequence[tuple[str, str]],
+) -> tuple[tuple[str, str], ...]:
+    """Validate the namespace-bearing long-unit declaration."""
+    try:
+        entries = tuple(declaration)
+    except TypeError as exc:
+        raise ValueError("long work unit declaration must be iterable") from exc
+    seen: set[tuple[str, str]] = set()
+    for entry in entries:
+        if not isinstance(entry, tuple) or len(entry) != 2:
+            raise ValueError(
+                "long work unit declaration entries must be (namespace, key) tuples"
+            )
+        namespace, key = entry
+        if not isinstance(namespace, str) or namespace not in {"group", "nodeid"}:
+            raise ValueError(f"invalid long work unit namespace: {namespace!r}")
+        if not isinstance(key, str) or not key:
+            raise ValueError(
+                f"long work unit {namespace} key must be a non-empty string"
+            )
+        if namespace == "group" and ("@" in key or "]" in key):
+            raise ValueError(
+                f"invalid long work unit group name: {key!r}"
+            )
+        if entry in seen:
+            raise ValueError(f"duplicate long work unit declaration: {entry!r}")
+        seen.add(entry)
+    return entries
+
+
+def _validate_xdist_group_markers(items: Iterable[object]) -> None:
+    for item in items:
+        for name in _xdist_group_names(item):
+            if "@" in name or "]" in name:
+                raise pytest.UsageError(
+                    f"invalid xdist_group marker name {name!r}: '@' and ']' are forbidden"
+                )
+
+
+def reorder_units(
+    items: Sequence[object],
+    declaration: Sequence[tuple[str, str]],
+) -> list[object]:
+    """Return a stable declared-prefix plus count-sorted work-unit order.
+
+    The function only returns the existing item objects in a new list. It never
+    adds/removes items, changes markers or properties, or calls deselection.
+    """
+    item_list = tuple(items)
+    declared = _validate_declaration(declaration)
+    _validate_xdist_group_markers(item_list)
+
+    units: dict[tuple[str, str], list[object]] = {}
+    for item in item_list:
+        units.setdefault(_unit_key_from_item(item), []).append(item)
+
+    declared_set = set(declared)
+    ordered_keys = [key for key in declared if key in units]
+    ordered_keys.extend(
+        sorted(
+            (key for key in units if key not in declared_set),
+            key=lambda key: -len(units[key]),
+        )
+    )
+    return [item for key in ordered_keys for item in units[key]]
+
+
+def _long_work_unit_status(
+    unit_keys: Iterable[tuple[str, str]],
+    declaration: Sequence[tuple[str, str]],
+) -> dict[str, object]:
+    declared = _validate_declaration(declaration)
+    present = set(unit_keys)
+    return {
+        "declared_count": len(declared),
+        "matched_count": sum(key in present for key in declared),
+        "missing_keys": [
+            [namespace, key]
+            for namespace, key in declared
+            if (namespace, key) not in present
+        ],
+    }
+
+
+_LONG_WORK_UNIT_MARKER_PREFIX = "IZANAGI_LONG_WORK_UNIT_ORDER_V1 "
+_LONG_WORK_UNIT_MARKER_EMITTED_ATTR = "_izanagi_long_work_unit_marker_emitted"
+
+
+def _emit_long_work_unit_marker(config, unit_keys: Iterable[tuple[str, str]]) -> None:
+    """Emit one controller/serial staleness line for a real pytest config."""
+    # Minimal fake configs are used by existing hook unit tests. Real pytest
+    # configs always expose invocation_params; do not turn those probes into
+    # noisy pseudo-runs.
+    if not hasattr(config, "invocation_params"):
+        return
+    if not _is_complete_suite_collection(config):
+        return
+    if getattr(config, _LONG_WORK_UNIT_MARKER_EMITTED_ATTR, False):
+        return
+    setattr(config, _LONG_WORK_UNIT_MARKER_EMITTED_ATTR, True)
+    payload = json.dumps(
+        _long_work_unit_status(unit_keys, LONG_WORK_UNIT_SCOPE_ORDER),
+        ensure_ascii=True,
+        separators=(",", ":"),
+        sort_keys=True,
+    )
+    print(_LONG_WORK_UNIT_MARKER_PREFIX + payload, flush=True)
+
 # production receipt memo を test body 内で読む関数の完全 inventory。parametrize suffix と
 # loadgroup suffix は除いた ``file::function`` 形で固定する。32 関数 / 35 node。
 RECEIPT_MEMO_CONSUMER_NODES = frozenset({
@@ -428,7 +675,13 @@ def _receipt_memo_consumer_selected(nodeids) -> bool:
 
 _GROWTH_HOLD_IDS_ATTR = "_izanagi_collected_growth_hold_ids"
 _REAL_REPO_SERIAL_NODE_ATTR = "_izanagi_real_repo_serial_node"
-_COLLECTION_NARROWING_OPTIONS = frozenset({"--ignore", "--ignore-glob", "--pyargs"})
+_COLLECTION_NARROWING_OPTIONS = frozenset({
+    "-k", "-m", "--keyword", "--markexpr",
+    "--lf", "--last-failed", "--ff", "--failed-first",
+    "--deselect", "--ignore", "--ignore-glob", "-x", "--exitfirst",
+    "--maxfail", "--stepwise", "--sw", "--stepwise-skip",
+    "--new-first", "--nf", "--collect-only", "--co", "--pyargs",
+})
 _EFFECTIVE_SCHEDULER_PREFIX = "IZANAGI_EFFECTIVE_SCHEDULER_V1 "
 _EFFECTIVE_SCHEDULER_ATTR = "_izanagi_effective_scheduler"
 
@@ -478,15 +731,11 @@ def _growth_hold_id_from_nodeid(nodeid: str) -> str | None:
     return f"{os.path.basename(parts[0])}::{function}"
 
 
-def _is_complete_growth_hold_collection(config) -> bool:
-    numprocesses = getattr(getattr(config, "option", None), "numprocesses", None)
-    if (
-        not hasattr(config, "workerinput")
-        and numprocesses not in (None, 0, "0")
-    ):
-        # xdist controller does not own the workers' complete item collection.
+def _is_complete_suite_collection(config) -> bool:
+    """Recognize the suite-wide, non-narrowed collection shape."""
+    if hasattr(config, "workerinput"):
         return False
-    if len(config.args) != 1:
+    if len(getattr(config, "args", ())) != 1:
         return False
     try:
         target = Path(config.args[0]).resolve(strict=False)
@@ -496,15 +745,30 @@ def _is_complete_growth_hold_collection(config) -> bool:
     if target != suite_root:
         return False
     argv = tuple(getattr(config.invocation_params, "args", ()))
-    return not any(
-        token.split("=", 1)[0] in _COLLECTION_NARROWING_OPTIONS
-        for token in argv
-    )
+    for token in argv:
+        option = token.split("=", 1)[0]
+        if option in _COLLECTION_NARROWING_OPTIONS:
+            return False
+        if len(token) > 2 and token.startswith(("-k", "-m")):
+            return False
+    return True
+
+
+def _is_complete_growth_hold_collection(config) -> bool:
+    numprocesses = getattr(getattr(config, "option", None), "numprocesses", None)
+    if (
+        not hasattr(config, "workerinput")
+        and numprocesses not in (None, 0, "0")
+    ):
+        # xdist controller does not own the workers' complete item collection.
+        return False
+    return _is_complete_suite_collection(config)
 
 
 @pytest.hookimpl(wrapper=True, tryfirst=True)
 def pytest_collection_modifyitems(config, items):
     """Attach serial/hold metadata before selection hooks can narrow items."""
+    _validate_xdist_group_markers(items)
     opted_in = _growth_holds_opted_in()
     seen_hold_ids: set[str] = set()
     source_paths: dict[str, set[str]] = {}
@@ -585,6 +849,23 @@ def pytest_collection_finish(session) -> None:
     """cacheprovider の後で順序を固定し、任意の task-run stats を収集する。"""
     # collection_finish は --ff / --nf の post-yield より後に来るため、最終順を固定できる。
     _prioritize_real_repo_items(session.items)
+    try:
+        session.items[:] = reorder_units(
+            session.items, LONG_WORK_UNIT_SCOPE_ORDER,
+        )
+    except ValueError as exc:
+        raise pytest.UsageError(str(exc)) from exc
+    config = session.config
+    numprocesses = getattr(getattr(config, "option", None), "numprocesses", None)
+    controller_with_workers = (
+        not hasattr(config, "workerinput")
+        and numprocesses not in (None, 0, "0")
+    )
+    if not hasattr(config, "workerinput") and not controller_with_workers:
+        _emit_long_work_unit_marker(
+            config,
+            (_unit_key_from_item(item) for item in session.items),
+        )
     # xdist worker もこの hook を通る。内側 helper guard と意図的に冗長な
     # defense-in-depth で、実解決を controller hook だけに限定する。
     if not hasattr(session.config, "workerinput"):
@@ -607,6 +888,11 @@ def pytest_collection_finish(session) -> None:
 def pytest_xdist_node_collection_finished(node, ids) -> None:
     """Collect controller-visible node IDs without persisting their names."""
     ids = tuple(ids)
+    if not hasattr(node.config, "workerinput"):
+        _emit_long_work_unit_marker(
+            node.config,
+            (_unit_key_from_nodeid(nodeid) for nodeid in ids),
+        )
     for nodeid in ids:
         hold_id = _growth_hold_id_from_nodeid(nodeid)
         if hold_id in GROWTH_TEST_HOLDS:
