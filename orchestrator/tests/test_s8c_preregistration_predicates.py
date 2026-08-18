@@ -26,6 +26,12 @@ from orchestrator.campaign import s8c_schedule as S  # noqa: E402
 
 
 CONTRACT_FILE = _ROOT / core.EVIDENCE_CONTRACT_PATH
+_C06_CANDIDATE_PATHS = (
+    core.EVIDENCE_CONTRACT_PATH,
+    "orchestrator/campaign/s8c_budget.py",
+    "orchestrator/campaign/s8b_ratified_freeze.py",
+    "orchestrator/campaign/p3_autonomous_workload_trial.py",
+)
 
 
 def _c05_authority() -> dict[str, object]:
@@ -2741,7 +2747,7 @@ def _candidate_commit_with_worktree(tmp_path: Path) -> str:
         return result.stdout.decode("utf-8").strip()
 
     run(["read-tree", "HEAD"])
-    run(["add", "-A", "--", "."])
+    run(["add", "-A", "--", *_C06_CANDIDATE_PATHS])
     tree = run(["write-tree"])
     return run(
         ["commit-tree", tree, "-p", "HEAD"],
@@ -2749,7 +2755,7 @@ def _candidate_commit_with_worktree(tmp_path: Path) -> str:
     )
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="session")
 def repository_candidate_commit(
     tmp_path_factory: pytest.TempPathFactory,
 ) -> str:
