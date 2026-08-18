@@ -11,6 +11,7 @@ import subprocess
 import sys
 from collections.abc import Mapping
 from pathlib import Path
+from types import MappingProxyType
 
 import pytest
 
@@ -375,7 +376,8 @@ def test_unsupported_expression_fallback_still_detects_hit():
     assert result["conjunction_hits"] == ["hit.txt"]
 
 
-def test_search_derives_once_per_actual_scan(tmp_path, monkeypatch):
+def test_search_derives_common_and_axis_literals_once_per_scan(
+        tmp_path, monkeypatch):
     positive = tmp_path / "positive.txt"
     _write(positive, _positive_text())
     original = M._derive_required_literal
@@ -388,14 +390,16 @@ def test_search_derives_once_per_actual_scan(tmp_path, monkeypatch):
     monkeypatch.setattr(M, "_derive_required_literal", spy)
     M.search_repository(tmp_path, files=[positive])
 
-    assert len(seen) == 3
-    assert len({id(expressions) for expressions in seen}) == 3
+    assert len(seen) == 12
+    assert sum(len(expressions) == 3 for expressions in seen) == 3
+    assert sum(len(expressions) == 1 for expressions in seen) == 9
+    assert len({id(expressions) for expressions in seen}) == 12
 
 
-def test_prefilter_skips_regex_search_for_text_without_required_literal(
+def test_axis_prefilter_skips_common_only_text_and_memo_searches_unique_expressions(
         tmp_path, monkeypatch):
     positive_text = _positive_text()
-    irrelevant_text = "irrelevant text\n"
+    irrelevant_text = "ycsb_unrelated text\n"
     positive = tmp_path / "positive.txt"
     irrelevant = tmp_path / "irrelevant.txt"
     _write(positive, positive_text)
@@ -415,8 +419,8 @@ def test_prefilter_skips_regex_search_for_text_without_required_literal(
     M.search_repository(tmp_path, files=[positive, irrelevant])
 
     assert irrelevant_text not in searched
-    assert searched.count(positive_text) == 9
-    assert len(searched) < 2 * 9
+    assert searched.count(positive_text) == 5
+    assert len(searched) == 5
 
 
 def test_empty_prefilter_is_distinct_from_disabled_prefilter(monkeypatch):
@@ -438,6 +442,39 @@ def test_empty_prefilter_is_distinct_from_disabled_prefilter(monkeypatch):
 
     assert searched == []
     assert result["per_axis_counts"] == {"rratio": 0, "skew": 0, "rmw": 0}
+
+
+def test_disabled_common_prefilter_disables_every_axis_prefilter(monkeypatch):
+    original_compile = M.re.compile
+    searched = []
+    derive_calls = []
+
+    class SearchSpy:
+        def __init__(self, expression):
+            self._pattern = original_compile(expression)
+
+        def search(self, text):
+            searched.append(text)
+            return self._pattern.search(text)
+
+    def disable_common(expressions):
+        derive_calls.append(dict(expressions))
+        if len(expressions) == 1:
+            pytest.fail("共通 literal 無効時に軸 literal を導出した")
+        return None
+
+    monkeypatch.setattr(M.re, "compile", SearchSpy)
+    monkeypatch.setattr(M, "_derive_required_literal", disable_common)
+    result = M._scan_one(
+        {"unrelated.txt": "ycsb_unrelated\n"},
+        "candidate", _current_expressions(),
+    )
+
+    assert len(derive_calls) == 1
+    assert searched == ["ycsb_unrelated\n"] * 3
+    assert result["per_axis_counts"] == {
+        "rratio": 0, "skew": 0, "rmw": 0,
+    }
 
 
 def test_str_subclass_disables_prefilter(monkeypatch):
@@ -493,6 +530,137 @@ def test_single_axis_dot_match_survives_required_literal_prefilter():
 
     assert result["per_axis_counts"] == {"skew": 1}
     assert result["conjunction_hits"] == ["dot-match.txt"]
+
+
+def test_axis_prefilter_keeps_each_single_axis_count_without_conjunction():
+    ratio = _axis_value("rr80", "rratio")
+    values = {
+        "rratio": ratio,
+        "skew": _axis_value("rr80", "skew"),
+        "rmw": _axis_value("rr80", "rmw"),
+    }
+    texts = {
+        axis + ".txt": M.concrete_axis_encodings(axis, value)[0]
+        for axis, value in values.items()
+    }
+
+    result = M._scan_one(texts, "candidate", _current_expressions())
+
+    assert result["per_axis_counts"] == {
+        "rratio": 1, "skew": 1, "rmw": 1,
+    }
+    assert result["conjunction_hits"] == []
+
+
+def test_scan_memo_misses_for_a_different_text_mapping(monkeypatch):
+    expression = {"axis": "(?:key=value)"}
+    first_texts = {"same.txt": "irrelevant\n"}
+    second_texts = {"same.txt": "key=value\n"}
+    memo = M._ScanMemo(first_texts)
+    original_compile = M.re.compile
+    searched = []
+
+    class SearchSpy:
+        def __init__(self, value):
+            self._pattern = original_compile(value)
+
+        def search(self, text):
+            searched.append(text)
+            return self._pattern.search(text)
+
+    monkeypatch.setattr(M.re, "compile", SearchSpy)
+    first = M._scan_one(first_texts, "first", expression, memo=memo)
+    second = M._scan_one(second_texts, "second", expression, memo=memo)
+
+    assert first["conjunction_hits"] == []
+    assert second["conjunction_hits"] == ["same.txt"]
+    assert searched == ["key=value\n"]
+
+
+def test_scan_memo_fails_closed_if_same_mutable_mapping_changes():
+    texts = {"same.txt": "irrelevant\n"}
+    expressions = {"axis": "(?:key=value)"}
+    memo = M._ScanMemo(texts)
+
+    first = M._scan_one(texts, "first", expressions, memo=memo)
+    texts["same.txt"] = "key=value\n"
+
+    assert first["conjunction_hits"] == []
+    with pytest.raises(M.FreezeError, match="texts 内容が再利用前に変化"):
+        M._scan_one(texts, "second", expressions, memo=memo)
+
+
+def test_search_repository_passes_one_read_only_mapping_to_all_scans(
+        tmp_path, monkeypatch):
+    positive = tmp_path / "positive.txt"
+    _write(positive, _positive_text())
+    original_scan_one = M._scan_one
+    seen = []
+
+    def assert_read_only(texts, candidate_id, expressions, *, memo=None):
+        assert isinstance(texts, MappingProxyType)
+        assert memo is not None and memo.texts is texts
+        with pytest.raises(TypeError):
+            texts["mutated.txt"] = "not allowed"
+        seen.append(texts)
+        return original_scan_one(
+            texts, candidate_id, expressions, memo=memo,
+        )
+
+    monkeypatch.setattr(M, "_scan_one", assert_read_only)
+    M.search_repository(tmp_path, files=[positive])
+
+    assert len(seen) == 3
+    assert all(texts is seen[0] for texts in seen)
+
+
+def test_memo_cache_hit_skips_regex_and_matches_slow_counts_and_sorted_conjunction(
+        monkeypatch):
+    texts = MappingProxyType({
+        "z-first.txt": "key=value\nother=yes\n",
+        "a-second.txt": "key=value\nother=yes\n",
+        "middle.txt": "key=value\n",
+    })
+    expressions = {
+        "first": "(?:key=value)",
+        "second": "(?:other=yes)",
+    }
+    memo = M._ScanMemo(texts)
+    M._scan_one(texts, "candidate", expressions, memo=memo)
+    reference = _reference_scan_one(texts, "candidate", expressions)
+    original_compile = M.re.compile
+    searched = []
+
+    class SearchSpy:
+        def __init__(self, expression):
+            self._pattern = original_compile(expression)
+
+        def search(self, text):
+            searched.append(text)
+            return self._pattern.search(text)
+
+    monkeypatch.setattr(M.re, "compile", SearchSpy)
+    cached = M._scan_one(texts, "candidate", expressions, memo=memo)
+
+    assert searched == []
+    assert cached["per_axis_counts"] == reference["per_axis_counts"]
+    assert cached["conjunction_hits"] == reference["conjunction_hits"]
+    assert cached["conjunction_hits"] == ["a-second.txt", "z-first.txt"]
+    assert cached == reference
+
+
+def test_search_memo_does_not_cross_search_repository_calls(tmp_path):
+    positive = tmp_path / "positive.txt"
+    changed = tmp_path / "changed.txt"
+    _write(positive, _positive_text())
+    _write(changed, "ycsb_unrelated\n")
+
+    before = M.search_repository(tmp_path, files=[positive, changed])
+    _write(changed, _three_axis_text(_axis_value("rr80", "rratio")))
+    after = M.search_repository(tmp_path, files=[positive, changed])
+
+    assert before["holdouts"]["rr80"]["conjunction_hits"] == []
+    assert after["holdouts"]["rr80"]["conjunction_hits"] == ["changed.txt"]
 
 
 def test_zero_positive_control_fails_closed(tmp_path):
@@ -718,6 +886,74 @@ def _report_bytes(report: dict) -> bytes:
     ).encode("utf-8")
 
 
+def _reference_scan_one(
+    texts: Mapping[str, str], candidate_id: str, expressions: Mapping[str, str],
+    *, memo=None,
+) -> dict:
+    """prefilter と memo を持たない report 等価性用 scanner。"""
+    del memo
+    expression_snapshot = dict(expressions.items())
+    compiled = {
+        axis: M.re.compile(expression)
+        for axis, expression in expression_snapshot.items()
+    }
+    per_axis_paths = {axis: [] for axis in expression_snapshot}
+    conjunction_hits = []
+    for rel, text in texts.items():
+        matched = {
+            axis: bool(pattern.search(text))
+            for axis, pattern in compiled.items()
+        }
+        for axis, is_match in matched.items():
+            if is_match:
+                per_axis_paths[axis].append(rel)
+        if all(matched.values()):
+            conjunction_hits.append(rel)
+    per_axis_counts = {
+        axis: len(paths) for axis, paths in per_axis_paths.items()
+    }
+    conjunction_hits.sort()
+    hash_input = {
+        "candidate_id": candidate_id,
+        "expressions": expression_snapshot,
+        "per_axis_counts": per_axis_counts,
+        "conjunction_hits": conjunction_hits,
+    }
+    return {
+        **hash_input,
+        "result_sha256": M._canonical_sha256(hash_input),
+    }
+
+
+def test_prefilter_scans_common_and_axis_literals_after_8192_bytes():
+    padding = "x" * 9000
+    expressions = _current_expressions()
+    common_literal = M._derive_required_literal(expressions)
+    axis_literals = {
+        axis: M._derive_required_literal({axis: expression})
+        for axis, expression in expressions.items()
+    }
+    texts = {
+        "late-hit.txt": (
+            padding + _three_axis_text(_axis_value("rr80", "rratio"))
+        ),
+    }
+
+    assert len(padding.encode("utf-8")) > 8192
+    assert "ycsb_" not in padding
+    assert common_literal is not None and common_literal not in padding
+    assert all(
+        literal is not None and literal not in padding
+        for literal in axis_literals.values()
+    )
+    optimized = M._scan_one(texts, "candidate", expressions)
+    reference = _reference_scan_one(texts, "candidate", expressions)
+
+    assert optimized["conjunction_hits"] == ["late-hit.txt"]
+    assert reference["conjunction_hits"] == ["late-hit.txt"]
+    assert optimized == reference
+
+
 def _prefilter_equivalence_fixture(root: Path) -> tuple[list[str], str]:
     positive = "fixtures/positive.txt"
     holdout = "fixtures/holdout.txt"
@@ -744,7 +980,7 @@ def _prefilter_equivalence_fixture(root: Path) -> tuple[list[str], str]:
     (root / non_utf8).write_bytes(b"\xff\xfe")
     _write(root / excluded, _three_axis_text(_axis_value("rr20", "rratio")))
     _write(root / exact, _three_axis_text(_axis_value("rr20", "rratio")))
-    _write(root / irrelevant, "irrelevant\n")
+    _write(root / irrelevant, "ycsb_unrelated\n")
     return [
         positive, holdout, skew_only, rmw_only, binary, non_utf8,
         excluded, exact, irrelevant,
@@ -772,15 +1008,63 @@ def test_prefilter_report_exactly_matches_slow_path(tmp_path, monkeypatch, mode)
     else:
         kwargs = {"exempt_exact": {exact: "0" * 64}}
 
+    original_compile = M.re.compile
+    searched = []
+
+    class SearchSpy:
+        def __init__(self, expression):
+            self._pattern = original_compile(expression)
+
+        def search(self, text):
+            searched.append(text)
+            return self._pattern.search(text)
+
+    monkeypatch.setattr(M.re, "compile", SearchSpy)
     optimized = M.search_repository(root, **kwargs)
+    assert searched.count("ycsb_unrelated\n") == 0
+    searched.clear()
+    with monkeypatch.context() as memo_only_path:
+        memo_only_path.setattr(
+            M, "_derive_required_literal", lambda _expressions: None,
+        )
+        memo_only = M.search_repository(root, **kwargs)
+    assert searched.count("ycsb_unrelated\n") == 5
+    assert memo_only == optimized
+    searched.clear()
+    reference_calls = []
+
+    def reference(texts, candidate_id, expressions, *, memo=None):
+        reference_calls.append(candidate_id)
+        return _reference_scan_one(
+            texts, candidate_id, expressions, memo=memo,
+        )
+
     with monkeypatch.context() as slow:
-        slow.setattr(M, "_derive_required_literal", lambda _expressions: None)
+        slow.setattr(M, "_scan_one", reference)
         unfiltered = M.search_repository(root, **kwargs)
 
+    assert reference_calls == ["H1", "H2", "rr50-positive-control"]
+    assert searched.count("ycsb_unrelated\n") == 9
     assert optimized["holdouts"]["rr80"]["conjunction_hits"] == [
         "fixtures/holdout.txt",
     ]
     assert optimized["positive_control"]["hit_count"] == 1
+    expected_rr20_hits = {
+        "files": [],
+        "exempt-none": [],
+        "empty-mapping": [
+            "output/s8b-freeze/exact-hit.txt",
+            "output/s8b-freeze/excluded-hit.txt",
+        ],
+        "hash-match": ["output/s8b-freeze/excluded-hit.txt"],
+        "hash-mismatch": [
+            "output/s8b-freeze/exact-hit.txt",
+            "output/s8b-freeze/excluded-hit.txt",
+        ],
+    }
+    assert optimized["holdouts"]["rr20"]["conjunction_hits"] == (
+        expected_rr20_hits[mode]
+    )
     assert optimized == unfiltered
     assert _report_bytes(optimized) == _report_bytes(unfiltered)
 

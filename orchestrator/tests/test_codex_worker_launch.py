@@ -5410,12 +5410,19 @@ def test_check_receipt_reconstructs_authority_from_recorded_commit(
         operations = repo / "docs/dev-wave/operations.md"
         text = operations.read_text(encoding="utf-8")
         line = next(item for item in text.splitlines() if "`<model>`:" in item)
-        models = re.findall(r"gpt-[A-Za-z0-9._-]+", line)
-        changed_line = (
-            line.replace(models[0], "MODEL-TEMP")
-            .replace(models[1], models[0])
-            .replace("MODEL-TEMP", models[1])
+        recorded_authority = LAUNCHER.snapshot_authority(repo, commit=commit)
+        models = tuple(dict.fromkeys(re.findall(r"gpt-[A-Za-z0-9._-]+", line)))
+        replacement_models = tuple(
+            f"gpt-5.6-authority-alt-{index}" for index in range(len(models))
         )
+        replacement_by_model = dict(zip(models, replacement_models))
+        assert set(models).isdisjoint(replacement_models)
+        changed_line = re.sub(
+            r"gpt-[A-Za-z0-9._-]+",
+            lambda match: replacement_by_model[match.group(0)],
+            line,
+        )
+        assert changed_line != line
         operations.write_text(
             text.replace(line, changed_line, 1), encoding="utf-8"
         )
@@ -5426,6 +5433,19 @@ def test_check_receipt_reconstructs_authority_from_recorded_commit(
         subprocess.run(
             ["git", "-C", os.fspath(repo), "commit", "-qm", "new authority"],
             check=True,
+        )
+        changed_commit = subprocess.run(
+            ["git", "-C", os.fspath(repo), "rev-parse", "HEAD"],
+            check=True,
+            text=True,
+            stdout=subprocess.PIPE,
+        ).stdout.strip()
+        changed_authority = LAUNCHER.snapshot_authority(
+            repo, commit=changed_commit
+        )
+        assert (
+            changed_authority.model_authority_version
+            == recorded_authority.model_authority_version
         )
         checked = subprocess.run(
             _check_command(paths), text=True, capture_output=True, timeout=10
