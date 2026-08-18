@@ -228,7 +228,7 @@ def test_current_repository_gap_reason_snapshot_requires_cross_wave_review(
         ),
         "C05": (core.PredicateStatus.EVIDENCE_UNDEFINED, "schedule-schema-absent"),
         "C06": (core.PredicateStatus.EVIDENCE_UNDEFINED, "budget-consumer-contract-undefined"),
-        "C07": (core.PredicateStatus.EVIDENCE_UNDEFINED, "floor-judge-contract-undefined"),
+        "C07": (core.PredicateStatus.EVIDENCE_UNDEFINED, "completion-proof-not-machine-checkable"),
         "C08": (core.PredicateStatus.EVIDENCE_UNDEFINED, "prereg-binding-proof-undefined"),
         "C09": (
             core.PredicateStatus.EVIDENCE_UNDEFINED,
@@ -898,6 +898,7 @@ NEGATIVE_CONTROL_CASES = {
     "nc_c01_perf_scale_regression": "C01",
     "nc_c02_proposal_path_arm_collision": "C02",
     "nc_c04_partial_crash_survives": "C04",
+    "nc_c07_floor_or_result_cell_removed": "C07",
     "nc_c09_acceptance_skips_layer3": "C09",
     "nc_c10_raw_response_unbound": "C10",
     "nc_c11_generation_cap_reverts_to_one": "C11",
@@ -1149,9 +1150,9 @@ def test_c07_literal_floor_fields_without_verification_are_incomplete(
     assert result.reason_code == "result-judge-consumer-incomplete"
 
 
-def test_c07_is_not_registered_or_added_to_negative_controls() -> None:
-    assert 7 not in M._MACHINE_EVALUATORS
-    assert "nc_c07_floor_or_result_cell_removed" not in NEGATIVE_CONTROL_CASES
+def test_c07_is_registered_and_added_to_negative_controls() -> None:
+    assert 7 in M._MACHINE_EVALUATORS
+    assert "nc_c07_floor_or_result_cell_removed" in NEGATIVE_CONTROL_CASES
 
 
 def test_c07_real_result_judge_blob_is_static_only(
@@ -2374,7 +2375,7 @@ def test_satisfiable_predicate_requires_negative_control() -> None:
     }
     assert machine_checkable == M.MACHINE_CHECKABLE_CONDITION_IDS
     assert machine_checkable == {
-        "C01", "C02", "C04", "C09", "C10", "C11", "C12"
+        "C01", "C02", "C04", "C07", "C09", "C10", "C11", "C12"
     }
     assert M.SATISFIABLE_CONDITION_IDS == frozenset()
     assert M.SATISFIABLE_CONDITION_IDS <= M.MACHINE_CHECKABLE_CONDITION_IDS
@@ -2384,7 +2385,7 @@ def test_satisfiable_predicate_requires_negative_control() -> None:
         row = rows[identifier]
         assert row.negative_control_id in NEGATIVE_CONTROL_CASES
         assert NEGATIVE_CONTROL_CASES[row.negative_control_id] == identifier
-    assert exercised == 7
+    assert exercised == 8
     assert set(NEGATIVE_CONTROL_CASES) == {
         rows[identifier].negative_control_id for identifier in machine_checkable
     }
@@ -2413,6 +2414,7 @@ def test_noop_and_token_only_fixtures_never_satisfy(
         "C01": "workload-projection-mismatch",
         "C02": "arm-binding-consumer-unreachable",
         "C04": "crash-policy-cell-partial",
+        "C07": "result-judge-consumer-incomplete",
         "C09": "formal-acceptance-layer3-consumer-absent",
         "C10": "cross-binding-verifier-incomplete",
         "C11": "generation-cap-not-lifted",
@@ -2988,7 +2990,7 @@ def test_current_contract_keeps_c06_staged_only() -> None:
     assert contract.condition(6).machine_checkable is False
     assert 6 not in M._MACHINE_EVALUATORS
     assert set(M._STAGED_EVALUATORS) == {6}
-    assert len(M.MACHINE_CHECKABLE_CONDITION_IDS) == 7
+    assert len(M.MACHINE_CHECKABLE_CONDITION_IDS) == 8
 
 
 def test_c06_staged_fixture_is_not_a_contract_promotion(

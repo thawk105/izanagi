@@ -279,7 +279,7 @@
             "result_table.cells[*]"
           ],
           "reachable_from": [
-            "accept_trial -> verify_floor_bytes -> judge -> publish_result_table"
+            "verify_floor_bytes -> judge -> publish_result_table"
           ]
         },
         {
@@ -287,7 +287,7 @@
           "path": "orchestrator/campaign/s8b_ratified_freeze.py",
           "field_paths": ["load_ratified_freeze().sha256"],
           "reachable_from": [
-            "accept_trial -> load_ratified_freeze -> verify_floor_bytes"
+            "load_ratified_freeze -> verify_floor_bytes"
           ]
         }
       ],
@@ -297,7 +297,7 @@
         "proof": "The formal acceptance consumer must verify both floor artifacts, evaluate exactly three judge conditions, and require the exact predeclared result-cell set."
       },
       "negative_control_id": "nc_c07_floor_or_result_cell_removed",
-      "machine_checkable": false,
+      "machine_checkable": true,
       "static_only_note": "Readiness checks schemas, floor references, and consumer reachability; it does not demand result values that only exist after execution."
     },
     {
