@@ -27,6 +27,12 @@ from orchestrator.calibrator import perf_preflight as _perf_preflight  # noqa: E
 INPUT_SCHEMA = _artifacts.OFFICIAL_OBSERVATIONS_SCHEMA
 OUTPUT_SCHEMA = _artifacts.OFFICIAL_VERDICT_SCHEMA
 _EXPECTED_CELL_KEYS = {"schedule_index", "holdout_id", "configuration_id"}
+_STORE_REVERIFICATION_KEYS = frozenset({"state", "cells"})
+_STORE_REVERIFICATION_CELL_KEYS = frozenset({
+    "cell_id", "store_path", "expected_sha256", "actual_sha256", "state",
+})
+_STORE_REVERIFICATION_STATES = frozenset({"verified", "unverified"})
+_STORE_REVERIFICATION_CELL_STATES = frozenset({"match", "mismatch", "missing"})
 _MEASUREMENT_CONDITION_KEYS = {
     "campaign_id", "measurement_manifest_sha256", "perf_observation",
 }
@@ -310,6 +316,139 @@ def _cell(
     }
 
 
+def _portable_store_path(value: object) -> bool:
+    if not isinstance(value, str) or not value:
+        return False
+    components = value.split("/")
+    return not (
+        value.startswith("/") or value.endswith("/") or "//" in value
+        or "\\" in value or "." in components or ".." in components
+        or any(ord(char) < 32 or 127 <= ord(char) <= 159 for char in value)
+    )
+
+
+def _validate_store_reverification(
+        value: object, *, expected_cell_ids: frozenset[str],
+) -> list[dict]:
+    """report と独立な closed schema で store receipt を再検査する。"""
+    reasons: list[dict] = []
+    if not isinstance(value, Mapping) or set(value) != _STORE_REVERIFICATION_KEYS:
+        return [_reason(
+            "store-reverification-schema",
+            "store_reverification の exact key 集合が不一致",
+        )]
+    outer_state = value.get("state")
+    if outer_state not in _STORE_REVERIFICATION_STATES:
+        reasons.append(_reason(
+            "store-reverification-state",
+            "store_reverification.state が closed state 集合にない",
+        ))
+    raw_cells = value.get("cells")
+    if type(raw_cells) is not list or not raw_cells:
+        reasons.append(_reason(
+            "store-reverification-cells",
+            "store_reverification.cells が空でない array でない",
+        ))
+        return reasons
+
+    observed_cell_ids: list[str] = []
+    semantically_valid_states: list[str] = []
+    for entry in raw_cells:
+        if (not isinstance(entry, Mapping)
+                or set(entry) != _STORE_REVERIFICATION_CELL_KEYS):
+            reasons.append(_reason(
+                "store-reverification-cell-schema",
+                "store_reverification cell の exact key 集合が不一致",
+            ))
+            continue
+        cell_id = entry.get("cell_id")
+        store_path = entry.get("store_path")
+        expected_sha256 = entry.get("expected_sha256")
+        actual_sha256 = entry.get("actual_sha256")
+        state = entry.get("state")
+        if not isinstance(cell_id, str) or not cell_id:
+            reasons.append(_reason(
+                "store-reverification-cell-id",
+                "store_reverification cell_id が非空文字列でない",
+            ))
+        else:
+            observed_cell_ids.append(cell_id)
+        if not _portable_store_path(store_path):
+            reasons.append(_reason(
+                "store-reverification-store-path",
+                "store_reverification store_path が canonical relative POSIX path でない",
+            ))
+        expected_valid = (
+            isinstance(expected_sha256, str) and len(expected_sha256) == 64
+            and all(char in _SHA256_CHARS for char in expected_sha256)
+        )
+        actual_valid = (
+            actual_sha256 is None
+            or (isinstance(actual_sha256, str) and len(actual_sha256) == 64
+                and all(char in _SHA256_CHARS for char in actual_sha256))
+        )
+        if not expected_valid or not actual_valid:
+            reasons.append(_reason(
+                "store-reverification-sha256",
+                "store_reverification expected/actual SHA-256 が不正",
+            ))
+        if state not in _STORE_REVERIFICATION_CELL_STATES:
+            reasons.append(_reason(
+                "store-reverification-cell-state",
+                "store_reverification cell state が closed state 集合にない",
+            ))
+            continue
+        semantic_match = (
+            expected_valid and actual_valid
+            and (
+                (state == "match" and actual_sha256 == expected_sha256)
+                or (state == "mismatch" and actual_sha256 is not None
+                    and actual_sha256 != expected_sha256)
+                or (state == "missing" and actual_sha256 is None)
+            )
+        )
+        if not semantic_match:
+            reasons.append(_reason(
+                "store-reverification-cell-state",
+                "store_reverification cell state と expected/actual SHA が矛盾",
+            ))
+            continue
+        semantically_valid_states.append(state)
+        if state == "mismatch":
+            reasons.append(_reason(
+                "store-reverification-mismatch",
+                f"store bytes が freeze SHA と不一致: cell_id={cell_id!r}",
+            ))
+        elif state == "missing":
+            reasons.append(_reason(
+                "store-reverification-store-missing",
+                f"store を report 時に読めない: cell_id={cell_id!r}",
+            ))
+
+    if len(observed_cell_ids) != len(set(observed_cell_ids)):
+        reasons.append(_reason(
+            "store-reverification-duplicate",
+            "store_reverification cell_id が重複",
+        ))
+    if frozenset(observed_cell_ids) != expected_cell_ids:
+        reasons.append(_reason(
+            "store-reverification-cell-coverage",
+            "store_reverification cells が検証済み manifest logical cells を完全被覆しない",
+        ))
+    derived_state = (
+        "verified"
+        if (len(semantically_valid_states) == len(raw_cells)
+            and all(state == "match" for state in semantically_valid_states))
+        else "unverified"
+    )
+    if outer_state in _STORE_REVERIFICATION_STATES and outer_state != derived_state:
+        reasons.append(_reason(
+            "store-reverification-state",
+            "store_reverification outer state が cell states の再導出値と不一致",
+        ))
+    return reasons
+
+
 def judge_oracle(
     observations: _artifacts.OfficialObservations,
     *, schedule_projection: ManifestScheduleProjection,
@@ -463,6 +602,27 @@ def judge_oracle(
             "manifest schedule の cell 件数が n_per_cell と不一致",
         ))
 
+    store_reverification_reasons: list[dict] = []
+    if observations.get("manifest_kind") == "official":
+        if "store_reverification" not in observations:
+            store_reverification_reasons.append(_reason(
+                "store-reverification-absent",
+                "official observations に store_reverification がない",
+            ))
+        else:
+            store_reverification_reasons.extend(
+                _validate_store_reverification(
+                    observations.get("store_reverification"),
+                    expected_cell_ids=frozenset(
+                        f"{holdout_id}::{configuration_id}"
+                        for _index, holdout_id, configuration_id in expected_cells
+                        if isinstance(holdout_id, str) and holdout_id
+                        and isinstance(configuration_id, str) and configuration_id
+                    ),
+                )
+            )
+    top_reasons.extend(store_reverification_reasons)
+
     holdout_ids = sorted({holdout_id for _, holdout_id, _ in expected_cells})
     configurations_by_holdout = {
         holdout_id: sorted({configuration_id for _, candidate, configuration_id
@@ -495,7 +655,12 @@ def judge_oracle(
         observations, schedule_projection.expected_campaign_ids,
     )
     top_reasons.extend(measurement_reasons)
-    measurement_aggregation_allowed = not measurement_reasons
+    aggregation_allowed = not (
+        measurement_reasons or store_reverification_reasons
+    )
+    aggregation_reasons = [
+        *measurement_reasons, *store_reverification_reasons,
+    ]
 
     holdouts: dict[str, dict] = {}
     for holdout_id in holdout_ids:
@@ -509,8 +674,8 @@ def judge_oracle(
                     cell_rows, n, duplicate_indices,
                     epoch_eligible_campaign_ids,
                 )
-                if measurement_aggregation_allowed
-                else _unknown(measurement_reasons)
+                if aggregation_allowed
+                else _unknown(aggregation_reasons)
             )
         unknown = bool(top_reasons) or any(
             value["status"] == "unknown" for value in configurations.values())

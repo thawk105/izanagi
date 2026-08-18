@@ -31,7 +31,7 @@ sys.path.insert(0, str(ORCHESTRATOR.parent))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import real_repo_ratified_memo as ratified_memo  # noqa: E402
-import real_repo_receipt_memo as receipt_memo  # noqa: E402
+from orchestrator.tests import real_repo_receipt_memo as receipt_memo  # noqa: E402
 import s8b_oracle_spec_fixture as spec_fixture  # noqa: E402
 import s8b_v2_freeze_fixture as v2_fixture  # noqa: E402
 import test_s8b_ratified_freeze as ratified_fixture  # noqa: E402
@@ -44,6 +44,7 @@ from orchestrator.campaign.build_admission import (  # noqa: E402
     build_run_context,
 )
 from orchestrator.campaign import env_attestation  # noqa: E402
+from orchestrator.campaign import artifact_admission  # noqa: E402
 from orchestrator.campaign import execution_guard  # noqa: E402
 from orchestrator.campaign import model, pipeline, s8b_budget, s8b_oracle_driver as driver, wal  # noqa: E402
 from orchestrator.campaign import s8b_freeze_io  # noqa: E402
@@ -51,6 +52,7 @@ from orchestrator.campaign import s8b_materialization  # noqa: E402
 from orchestrator.campaign import s8b_oracle_manifest as manifest_module  # noqa: E402
 from orchestrator.campaign import s8b_oracle_spec as oracle_spec  # noqa: E402
 from orchestrator.campaign import s8b_oracle_report as report_module  # noqa: E402
+from orchestrator.campaign import s8b_oracle_judge as judge_module  # noqa: E402
 from orchestrator.campaign import s8b_holdout_freeze  # noqa: E402
 from orchestrator.campaign import s8b_ratified_freeze  # noqa: E402
 from orchestrator.campaign import s8b_run_marker  # noqa: E402
@@ -2334,8 +2336,8 @@ def test_real_freeze_gate_lists_floor_and_budget_null():
     introduction, raw = independent
     assert introduction == _T080_RECEIPT_INTRODUCTION
     assert hashlib.sha256(raw).hexdigest() == _T080_RECEIPT_RAW_SHA256
-    # [T-057] この node は実 repo receipt の observation 自体が検査対象。実解決は memo の
-    # 初回 miss として必ず本番 verify_receipt へ委譲されるので (canned 値は作らない)、
+    # [T-057] この node は実 repo receipt の observation 自体が検査対象。実解決は collection
+    # barrier の prewarm で本番 verify_receipt へ委譲されるので (canned 値は作らない)、
     # 検出力は変わらず gate_check 側の重複解決 (同 22.4 秒) だけが畳まれる。
     with receipt_memo.patch_driver_resolver():
         decision = driver.gate_check(freeze_path=REAL_FREEZE, root=ROOT)
@@ -4660,23 +4662,122 @@ def test_v2_completed_driver_adapter_campaign_is_accepted_by_report(tmp_path):
     )
     assert result["status"] == "completed", result
 
-    launch_validated = s8b_ratified_freeze.launch_validate(
+    reverified = s8b_ratified_freeze.reverify_published_freeze(
         s8b_ratified_freeze.load_ratified_freeze(root), root,
     )
     loaded_manifest = _verify_manifest(
         manifest_path,
         root=root,
-        freeze_document=launch_validated.ratified.document,
-        freeze_sha256=launch_validated.ratified.sha256,
+        freeze_document=reverified.ratified.document,
+        freeze_sha256=reverified.ratified.sha256,
     )
-    observations = report_module.build_observations(
-        manifest=loaded_manifest, output_root=out_root, repo_root=root,
-    )
+    with mock.patch.object(
+            report_module._artifact_admission,
+            "require_campaign_verifier_epoch",
+            lambda campaign, *, purpose: artifact_admission.CampaignVerifierEpoch(
+                campaign_verifier_epoch=f"E1:{'e' * 64}",
+                state="E1", reason_code="recorded-closure",
+            ),
+    ):
+        observations = report_module.build_observations(
+            manifest=loaded_manifest, output_root=out_root, repo_root=root,
+            reverified_freeze=reverified,
+        )
     assert len(observations["rows"]) == len(document["schedule"]["rows"])
     assert all(row["status"] == "completed" for row in observations["rows"])
     assert all(row["lifecycle_ok"] is True for row in observations["rows"])
     assert all(row["bench_values"] == [10.0, 11.0, 12.0, 13.0, 14.0]
                for row in observations["rows"])
+    receipt = observations["store_reverification"]
+    assert set(receipt) == {"state", "cells"}
+    assert receipt["state"] == "verified"
+    assert [cell["cell_id"] for cell in receipt["cells"]] == sorted(
+        reverified.binaries_by_cell
+    )
+    assert all(
+        set(cell) == {
+            "cell_id", "store_path", "expected_sha256", "actual_sha256", "state",
+        }
+        and cell["state"] == "match"
+        and cell["expected_sha256"] == cell["actual_sha256"]
+        == reverified.binaries_by_cell[cell["cell_id"]]["binary_sha256"]
+        for cell in receipt["cells"]
+    )
+    oracle = judge_module.judge_oracle(
+        observations,
+        schedule_projection=judge_module.project_verified_manifest_schedule(
+            loaded_manifest,
+        ),
+        verified_manifest_sha256=loaded_manifest.sha256,
+        approved_spec_sha256=loaded_manifest.document["spec_sha256"],
+    )
+    assert oracle["status"] == "determinate"
+
+
+@pytest.mark.parametrize("change", ["replaced", "removed"])
+def test_v2_post_run_store_change_is_reported_and_refused(tmp_path, change):
+    root, freeze_path, _gen_sha, binaries, _topology = _build_v2_repo(tmp_path)
+    out_root = root / "output"
+    manifest_path, _document = _emitter_manifest(tmp_path, root, freeze_path)
+    result = _run_v2(
+        root, freeze_path, manifest_path, _prepare_factory(),
+        _fake_evaluate_factory(), out_root=out_root, tmp_path=tmp_path,
+    )
+    assert result["status"] == "completed", result
+    reverified = s8b_ratified_freeze.reverify_published_freeze(
+        s8b_ratified_freeze.load_ratified_freeze(root), root,
+    )
+    loaded_manifest = _verify_manifest(
+        manifest_path,
+        root=root,
+        freeze_document=reverified.ratified.document,
+        freeze_sha256=reverified.ratified.sha256,
+    )
+    victim = _unique_store_victim(binaries)
+    victim_path = out_root / victim["store_path"]
+    if change == "replaced":
+        victim_path.write_bytes(b"post-run replacement")
+        expected_state = "mismatch"
+        expected_reason = "store-reverification-mismatch"
+    else:
+        victim_path.unlink()
+        expected_state = "missing"
+        expected_reason = "store-reverification-store-missing"
+
+    with mock.patch.object(
+            report_module._artifact_admission,
+            "require_campaign_verifier_epoch",
+            lambda campaign, *, purpose: artifact_admission.CampaignVerifierEpoch(
+                campaign_verifier_epoch=f"E1:{'e' * 64}",
+                state="E1", reason_code="recorded-closure",
+            ),
+    ):
+        observations = report_module.build_observations(
+            manifest=loaded_manifest, output_root=out_root, repo_root=root,
+            reverified_freeze=reverified,
+        )
+    receipt = observations["store_reverification"]
+    victim_cell = next(
+        cell for cell in receipt["cells"]
+        if cell["cell_id"] == victim["cell_id"]
+    )
+    assert receipt["state"] == "unverified"
+    assert victim_cell["state"] == expected_state
+    assert victim_cell["expected_sha256"] == victim["binary_sha256"]
+    if change == "replaced":
+        assert victim_cell["actual_sha256"] != victim_cell["expected_sha256"]
+    else:
+        assert victim_cell["actual_sha256"] is None
+    oracle = judge_module.judge_oracle(
+        observations,
+        schedule_projection=judge_module.project_verified_manifest_schedule(
+            loaded_manifest,
+        ),
+        verified_manifest_sha256=loaded_manifest.sha256,
+        approved_spec_sha256=loaded_manifest.document["spec_sha256"],
+    )
+    assert oracle["status"] == "indeterminate"
+    assert expected_reason in {reason["code"] for reason in oracle["reasons"]}
 
 
 def test_oracle_admission_uses_verified_manifest_schedule_and_reps(tmp_path):

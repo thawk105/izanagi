@@ -98,9 +98,9 @@ def test_dry_run_stage_and_lane_matrix() -> None:
         ("plan", None, "max", "read-only"),
         ("consult", "sol", "max", "read-only"),
         ("consult", "luna", "max", "read-only"),
-        ("author", None, "high", "workspace-write"),
+        ("author", None, "max", "workspace-write"),
         ("review", None, None, "read-only"),
-        ("fix", None, "high", "workspace-write"),
+        ("fix", None, "max", "workspace-write"),
         ("focus", None, None, "read-only"),
     )
     with tempfile.TemporaryDirectory() as tmp:
@@ -436,7 +436,7 @@ def _run_fake_dispatch(
         "read-only",
     ]
     if stage == "fix":
-        command.extend(("--reasoning", "high"))
+        command.extend(("--reasoning", "max"))
     return subprocess.run(
         command,
         check=False,

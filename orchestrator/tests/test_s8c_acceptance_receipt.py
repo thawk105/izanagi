@@ -95,7 +95,7 @@ def _receipt_fixture(
         })
     introduction = _commit_all(repo, "referenced bytes")
     value = {
-        "schema_version": receipt.SCHEMA_VERSION,
+        "schema_version": receipt.LEGACY_SCHEMA_VERSION,
         "manifest_path": manifest.relative_to(repo).as_posix(),
         "manifest_sha256": manifest_sha,
         "prereg_commit": introduction,
@@ -108,7 +108,7 @@ def _receipt_fixture(
         "lifecycle_prefix_sha256": lifecycle_sha,
         "certifying": False,
         "non_certifying_reason_codes": sorted(
-            receipt.MANDATORY_NON_CERTIFYING_REASONS
+            receipt.LEGACY_MANDATORY_NON_CERTIFYING_REASONS
         ),
         "trials": trial_rows,
     }
@@ -124,11 +124,12 @@ def _receipt_fixture(
 def test_schema_parse_positive_is_canonical_and_exact(tmp_path: Path) -> None:
     _repo, path, value = _receipt_fixture(tmp_path, commit_receipt=False)
     parsed = receipt.parse_acceptance_receipt_bytes(path.read_bytes())
-    assert parsed.schema_version == receipt.SCHEMA_VERSION
+    assert parsed.schema_version == receipt.LEGACY_SCHEMA_VERSION
     assert parsed.manifest_sha256 == value["manifest_sha256"]
     assert [trial.trial_id for trial in parsed.trials] == [
         f"trial-{index}" for index in range(6)
     ]
+    assert all(trial.arm_execution is None for trial in parsed.trials)
 
 
 @pytest.mark.parametrize(

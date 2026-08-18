@@ -11,7 +11,7 @@ prompt 非空を先に検査し、既存 `.done` は消さず再利用せず再�
 待機は `tools/dev_wave_wait.py producer` を使い、`--pid-file` は producer script 自身が `echo $$` で書く。
 完了は `.done` と exit code だけで判定し、grep も通知も判定にしない（通知は先行しうる）。成果物は最終メッセージから読む（F23/F24）。
 採用は `tools/check_codex_output.py` の rc=0（prompt は `## 総括` 必須。F43）。
-`<model>`: 段 3 のみ 2 本で `gpt-5.6-sol`→`gpt-5.6-luna`、他段 `gpt-5.6-sol`。
+`<model>`: 全段 `gpt-5.6-luna` (段 3 の 2 本も同じ)。
 `--artifact-root` は `<root>/<wave>/` しか作らず、`<root>` 未作成は rc=2。投入前に作る。
 `--max-*` は非権威の運用既定で caller が上げてよい。重い巡は所要 model call と token を見積もる。
 中断子の部分成果物は未完了と明記して保全し、次の子へ監査させる。
@@ -139,7 +139,7 @@ cwdが既にworktreeなら作成せず、directory/branch不一致をhandoff・w
 worktreeを流用しない。作成直後は`tools/check_wave_startup.py`、再開直後は`--mode resume`付きで
 実行し（背景jobは`--external-handoff <handoff>`も）、非0なら停止する。resumeも
 branch・clean tree・main包含を要求。HEAD差は`--ff-only`で揃える（F48）。
-新規worktreeはsubmodule未初期化で非0になる。worktree内で`git submodule update --init`を実行して
+新規worktreeはsubmodule未初期化で非0になる。worktree内で`DW-C01`に従い初期化して
 再検査する（`deinit`は使わない）。取り込みはsubmodule pointerを進めるがworking treeを更新しない。
 受入投入前に`git submodule update --recursive`で記録へ揃える。
 子を走らせるworktreeは`git worktree lock`する（cwd走査はlauncher型の子を検出しない）。

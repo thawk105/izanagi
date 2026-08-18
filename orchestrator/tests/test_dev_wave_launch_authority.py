@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+import hashlib
+import json
 import os
 import re
 import subprocess
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
@@ -21,6 +24,20 @@ from tools.dev_waves.launch_authority import (
 _ROOT = Path(__file__).resolve().parents[2]
 _OPERATIONS = "docs/dev-wave/operations.md"
 _WORKERS = "docs/dev-wave/workers.md"
+_V1_MODEL_LINE = (
+    "`<model>`: 段 3 のみ 2 本で `gpt-5.6-sol`→`gpt-5.6-luna`、"
+    "他段 `gpt-5.6-sol`。"
+)
+_V2_MODEL_LINE = "`<model>`: 全段 `gpt-5.6-luna` (段 3 の 2 本も同じ)。"
+_STAGE_LANES = (
+    ("plan", None),
+    ("consult", "sol"),
+    ("consult", "luna"),
+    ("author", None),
+    ("review", None),
+    ("fix", None),
+    ("focus", None),
+)
 
 
 def _git(root: Path, *args: str) -> str:
@@ -38,6 +55,11 @@ def _authority_line(text: str) -> str:
     matches = [line for line in text.splitlines() if "`<model>`:" in line]
     assert len(matches) == 1
     return matches[0]
+
+
+def _operations_with_authority_line(line: str) -> str:
+    text = (_ROOT / _OPERATIONS).read_text(encoding="utf-8")
+    return text.replace(_authority_line(text), line, 1)
 
 
 def _independent_docs_section(path: Path, section_id: str) -> str:
@@ -84,30 +106,69 @@ def test_snapshot_and_derive_current_authority_positive(tmp_path: Path) -> None:
     snapshot = snapshot_authority(root)
     requirements = {
         (stage, lane): derive_launch(snapshot, stage=stage, lane=lane)
-        for stage, lane in (
-            ("plan", None),
-            ("consult", "sol"),
-            ("consult", "luna"),
-            ("author", None),
-            ("review", None),
-            ("fix", None),
-            ("focus", None),
-        )
+        for stage, lane in _STAGE_LANES
     }
     assert tuple(dict.fromkeys(item[0] for item in requirements)) == STAGES
-    assert (
-        requirements[("consult", "sol")].model
-        != requirements[("consult", "luna")].model
-    )
-    assert (
-        requirements[("author", None)].model
-        == requirements[("consult", "sol")].model
-    )
+    assert snapshot.model_authority_version == "v2"
+    assert {requirement.model for requirement in requirements.values()} == {
+        "gpt-5.6-luna"
+    }
     assert requirements[("review", None)].effort_authority == "docs"
     assert requirements[("focus", None)].effort_authority == "docs"
     assert requirements[("author", None)].effort is None
     assert requirements[("author", None)].effort_authority == "unbound"
     assert len(snapshot.sections) == 3
+
+
+def test_v2_all_stage_and_lane_models_resolve_to_single_model(
+    tmp_path: Path,
+) -> None:
+    root = _prepare_repo(
+        tmp_path, operations=_operations_with_authority_line(_V2_MODEL_LINE)
+    )
+    snapshot = snapshot_authority(root)
+    requirements = [
+        derive_launch(snapshot, stage=stage, lane=lane)
+        for stage, lane in _STAGE_LANES
+    ]
+    assert snapshot.model_authority_version == "v2"
+    assert snapshot.consult_models == ("gpt-5.6-luna", "gpt-5.6-luna")
+    assert snapshot.other_model == "gpt-5.6-luna"
+    assert [requirement.model for requirement in requirements] == [
+        "gpt-5.6-luna"
+    ] * 7
+
+
+def test_authority_snapshot_serialized_contract_and_digest_are_unchanged(
+    tmp_path: Path,
+) -> None:
+    root = _prepare_repo(
+        tmp_path, operations=_operations_with_authority_line(_V2_MODEL_LINE)
+    )
+    snapshot = snapshot_authority(root)
+    payload = {
+        "authority_commit": snapshot.authority_commit,
+        "sections": [section.as_dict() for section in snapshot.sections],
+    }
+    canonical = json.dumps(
+        payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")
+    ).encode("utf-8")
+    expected_digest = hashlib.sha256(canonical).hexdigest()
+    assert snapshot.digest == expected_digest
+    assert snapshot.as_dict() == {**payload, "digest": expected_digest}
+
+
+def test_v2_snapshot_mapping_inconsistency_fails_closed(tmp_path: Path) -> None:
+    root = _prepare_repo(
+        tmp_path, operations=_operations_with_authority_line(_V2_MODEL_LINE)
+    )
+    snapshot = snapshot_authority(root)
+    inconsistent = replace(
+        snapshot,
+        consult_models=("gpt-5.6-sol", snapshot.consult_models[1]),
+    )
+    with pytest.raises(AuthorityError, match="v2 の全段 model が一致しない"):
+        derive_launch(inconsistent, stage="consult", lane="sol")
 
 
 def test_review_effort_matches_independent_docs_cross_check() -> None:
@@ -129,19 +190,12 @@ def test_focus_effort_matches_independent_docs_cross_check() -> None:
 def test_all_stage_models_match_independent_docs_cross_check() -> None:
     section = _independent_docs_section(_ROOT / _OPERATIONS, "DW-O01")
     expected_models = re.findall(r"`(gpt-[A-Za-z0-9._-]+)`", section)
-    assert len(expected_models) == 3
+    assert expected_models == ["gpt-5.6-luna"]
 
     snapshot = snapshot_authority(_ROOT)
-    for stage in STAGES:
-        if stage == "consult":
-            for lane, expected in zip(
-                ("sol", "luna"), expected_models[:2], strict=True
-            ):
-                requirement = derive_launch(snapshot, stage=stage, lane=lane)
-                assert requirement.model == expected
-        else:
-            requirement = derive_launch(snapshot, stage=stage, lane=None)
-            assert requirement.model == expected_models[2]
+    for stage, lane in _STAGE_LANES:
+        requirement = derive_launch(snapshot, stage=stage, lane=lane)
+        assert requirement.model == expected_models[0]
 
 
 def _mutate_normative_line(text: str, case: str) -> str:
@@ -281,33 +335,82 @@ def test_dirty_working_tree_authority_is_rejected(tmp_path: Path) -> None:
         snapshot_authority(root)
 
 
-def test_historical_commit_is_reconstructed_without_live_head(
+def test_live_v1_is_rejected_but_historical_v1_is_reconstructed(
     tmp_path: Path,
 ) -> None:
-    root = _prepare_repo(tmp_path)
+    root = _prepare_repo(
+        tmp_path, operations=_operations_with_authority_line(_V1_MODEL_LINE)
+    )
     historical_commit = _git(root, "rev-parse", "HEAD")
+    with pytest.raises(AuthorityError, match="live authority は v2"):
+        snapshot_authority(root)
     historical = snapshot_authority(root, commit=historical_commit)
+    assert historical.model_authority_version == "v1"
+    assert historical.consult_models == ("gpt-5.6-sol", "gpt-5.6-luna")
+    assert historical.other_model == "gpt-5.6-sol"
+    assert (
+        derive_launch(historical, stage="consult", lane="sol").model
+        != derive_launch(historical, stage="consult", lane="luna").model
+    )
+    for stage in ("plan", "author", "review", "fix", "focus"):
+        assert derive_launch(historical, stage=stage, lane=None).model == (
+            "gpt-5.6-sol"
+        )
+
     path = root / _OPERATIONS
     text = path.read_text(encoding="utf-8")
-    line = _authority_line(text)
-    models = re.findall(r"gpt-[A-Za-z0-9._-]+", line)
-    assert len(models) == 3 and models[0] == models[2] and models[0] != models[1]
-    swapped = (
-        line.replace(models[0], "MODEL-TEMP")
-        .replace(models[1], models[0])
-        .replace("MODEL-TEMP", models[1])
+    path.write_text(
+        text.replace(_V1_MODEL_LINE, _V2_MODEL_LINE, 1), encoding="utf-8"
     )
-    path.write_text(text.replace(line, swapped, 1), encoding="utf-8")
     _git(root, "add", _OPERATIONS)
-    _git(root, "commit", "-qm", "change authority")
+    _git(root, "commit", "-qm", "adopt v2 authority")
     current = snapshot_authority(root)
     reconstructed = snapshot_authority(root, commit=historical_commit)
     assert reconstructed == historical
     assert reconstructed.digest != current.digest
+    assert current.model_authority_version == "v2"
     assert (
-        derive_launch(reconstructed, stage="author", lane=None).model
-        != derive_launch(current, stage="author", lane=None).model
+        derive_launch(current, stage="author", lane=None).model
+        == "gpt-5.6-luna"
     )
+
+
+def test_historical_v1_rejects_same_lens_model_and_reconstructs_valid_v1(
+    tmp_path: Path,
+) -> None:
+    malformed_root = _prepare_repo(
+        tmp_path / "malformed",
+        operations=_operations_with_authority_line(
+            _V1_MODEL_LINE.replace("gpt-5.6-luna", "gpt-5.6-sol")
+        ),
+    )
+    malformed_commit = _git(malformed_root, "rev-parse", "HEAD")
+    with pytest.raises(AuthorityError, match="v1 の consult 2 レンズ model が同一"):
+        snapshot_authority(malformed_root, commit=malformed_commit)
+
+    valid_root = _prepare_repo(
+        tmp_path / "valid", operations=_operations_with_authority_line(_V1_MODEL_LINE)
+    )
+    valid_commit = _git(valid_root, "rev-parse", "HEAD")
+    historical = snapshot_authority(valid_root, commit=valid_commit)
+    assert historical.model_authority_version == "v1"
+    assert historical.consult_models == ("gpt-5.6-sol", "gpt-5.6-luna")
+    assert (
+        derive_launch(historical, stage="consult", lane="sol").model
+        != derive_launch(historical, stage="consult", lane="luna").model
+    )
+
+
+@pytest.mark.parametrize("invalid_model", ("gpt-", "gpt-5.6/luna", "luna"))
+def test_v2_model_slug_drift_fails_closed(
+    tmp_path: Path, invalid_model: str
+) -> None:
+    invalid_line = _V2_MODEL_LINE.replace("gpt-5.6-luna", invalid_model, 1)
+    root = _prepare_repo(
+        tmp_path, operations=_operations_with_authority_line(invalid_line)
+    )
+    with pytest.raises(AuthorityError):
+        snapshot_authority(root)
 
 
 def test_lane_validation_is_not_inferred_from_model_value(tmp_path: Path) -> None:

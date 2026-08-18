@@ -21334,3 +21334,315 @@ B1 の閂が凍結 bytes 不変で外れる見通しが立ったことの 3 点�
 source pin と adapter byte parity は bytes の同一性しか証明せず、禁止を削って pin を
 整合再承認すれば全検査が緑のまま通る。これは変異で SURVIVED として実証済みであり、
 別タスクとして分離した。
+
+## D512. holdout live scan の最適化は係数削減に限り、読取経路と例外契約は変えない (2026-08-18)
+
+**決定:** `s8b_holdout_freeze.search_repository` の最適化は、report の canonical bytes を
+1 bit も変えない範囲の**係数削減**に限る。全対象 file の列挙・open・read・decode は維持する。
+prefilter を強めるときは新しい regex 文法を自作せず、既存 `_derive_required_literal` を
+1 要素 mapping `{axis: expression}` で軸ごとに呼び直す形だけを使う。
+memo は 1 回の `search_repository` 呼出しに閉じ、`texts` object の identity へ束縛し、
+内容変化は fail-closed で拒否する。
+
+**理由:**
+- 「ファイル数比例をやめる」は出力契約と両立しない。`skipped_binary_count` は全 file の
+  binary / UTF-8 判定を要し、regex hit は file の任意位置にありうるので先頭だけ読む短絡ができず、
+  exact 免除の判定は全 bytes の SHA-256 を要する。
+- 律速は Python overhead ではなく共有ファイルシステムのメタデータ遅延である
+  (stat 163 us/file、open+read+close 346 us/file、`pathlib` と raw syscall の差は 10 us 未満)。
+  file ごとに触る回数を減らす以外に比例は消えず、それは受理集合に触る設計変更になる。
+- 新しい literal 導出文法は false negative 面を増やす。量指定子が literal 末尾に掛かる形
+  (`(?:k=0*)` の prefix を `k=0` とすると `k=` を落とす) は、無作為 40 万試行の fuzz で
+  prefilter 適用 78 件中 5 件の反例が出た。既存 helper は未対応 grammar を `None` へ倒す
+  保守性を既に持ち、その正しさは既存テストが固定している。
+- prefilter の false negative は holdout hit の見落とし = 未既知性の偽保証であり、
+  検索式の陽性対照は別 literal で生き残るため fail-closed 検査を素通りする。
+
+**却下した選択肢:**
+- `path.is_file()` を open 後の `os.fstat` へ畳む — 実測で 18% 相当の削減があるが、
+  directory / symlink 先の特殊 file / FIFO / Unix socket / device / dangling symlink /
+  列挙後の削除 race / stat 権限不足 / NUL を含む path の 9 系統で、例外の型・文言と
+  「そもそも open しない」現行挙動を保存できない。性能を理由に厳密等価性は緩めない。
+- 各 alternative の value literal prefix まで導出する自作 parser — 追加削減は約 5% にとどまり、
+  量指定子・escape・文字クラス・inline flag・空 alternative・nested group・非 ASCII を
+  自前で正しく扱う負債に見合わない。
+- `git grep` / `--cached` / 結果 cache への読取経路置換 — 対象集合が既に一致しない
+  (worktree grep と in-memory 列挙で件数が違う)。untracked / submodule / worktree bytes と
+  binary / UTF-8 / 免除の意味論を別途証明しない限り受理集合を静かに変える。
+- 出力に現れない `per_axis_paths` の順序を保つための全件再走査 — report には件数しか出ず、
+  conjunction は別途 sort される。順序を守る変異は等価変異であり、それを固定するテストは
+  ファイル数比例の走査を設計契約として凍結してしまう。
+
+## D513. 出力等価な最適化変異は発火回数で番人を張る (2026-08-18)
+
+**決定:** 検索の prefilter のように「結果を変えずに走査量だけを減らす」層を入れるときは、
+report 比較だけを番人にしない。同じ入力に対する検査器の**発火回数**を、
+最適化あり / 中間層だけ無効 / 完全 slow path の三段で分離できる fixture を置き、
+各段の回数を exact に固定する。
+
+**理由:**
+- prefilter を wave 前の形へ戻す変異は出力が変わらないため、canonical bytes の等価性テストでは
+  1 件も殺せない。実測でもこの変異は発火回数を見る node でだけ赤になった。
+- 従来の「slow path」比較は helper 1 つを `None` へ差し替えるだけだったため、
+  新しい層がその外側にあると optimized と slow が同じ経路を通り、assert が恒真になる。
+  検査器そのもの (`_scan_one` に相当する単位) を、prefilter も memo も持たない
+  reference 実装へ差し替え、reference が期待回数だけ呼ばれたことまで assert する必要がある。
+- 三段分離は fixture の中身に依存する。中間層だけを通す入力 (共通 literal は含むが
+  軸 literal は含まない text) を意図的に置かないと、段が縮退して検出力が消える。
+
+**却下した選択肢:**
+- production API に prefilter 無効化 knob を足して比較する — 防壁の迂回口を製品側へ残す。
+- 出力へ path 一覧を足して順序を検査可能にする — schema と canonical bytes が変わる。
+
+## D514. dev-wave の codex を全段 `gpt-5.6-luna` @ `reasoning=max` にする — 根拠は費用の運用選好であって品質同等性の証拠ではない (2026-08-18)
+
+**決定:** dev-wave が起動する codex の model を、全段・全 lane 単一の `gpt-5.6-luna` にする。
+`reasoning` は段 2 / 段 3 が従来どおり `max`、段 5 (author) と段 6 (review / fix / focus) を
+`high` から `max` へ上げ、**luna を使う段はすべて `max`** に揃える。
+lane 名 `sol` / `luna` は残すが、model を指さないレンズ識別子になる。
+
+**この採用の根拠はユーザー裁定であり、品質同等性の証拠ではない。**
+[T-1146] の現行裁定 (c) が「体感や速度を理由に切り替えたくなった場合は、証拠に基づく判断ではなく
+**運用上の選好**として (b) を明示指示し、その旨を記録する道を残す」と定めており、本決定はその道を
+通ったものである。D423 が「supersede はユーザー裁定にだけ属する」とした権限を、ユーザー自身が行使した。
+
+**理由 (費用):**
+- `gpt-5.6-luna` のレートは `gpt-5.6-sol` の 4% である
+  (sol 入力 $5 / 出力 $30 per M、luna 入力 $0.20 / 出力 $1.20 per M。2026-07-30 に luna が 80% 値下げ、
+  sol は据え置き)。
+- dev-wave の codex 消費のうち sol を使う段が 76.4% を占める
+  (receipt 170 本 / 26 wave / CLI reported 35.8M の集計)。
+- token 比 luna/sol は同一 wave 内 paired 15 wave で中央値 1.05 倍であり、
+  **token の数は減らない。減るのは単価である。**
+- `high`→`max` の段は token が約 2.02 倍になる (D207 が観測した比) が、レート差がそれを上回る。
+  費用換算の削減は約 70% と見積もる。**wave の所要時間は伸びる。**
+
+**この決定が失うもの (受容した代償):**
+- 段 3 の敵対相談 2 レンズと段 6 の敵対レビュー 2 本が同一 model になる。
+  レンズは prompt だけで分かれ、model 由来の系統的盲点は共通化する。
+  D241 が「sol にしか出せない所見を落とす」として不採用にした「全 luna」の形そのものである。
+- D266 の認証済み A/B が段 6 focused review について選んだ `high` を `max` へ上書きする。
+  effort を上げる向きなので検出力は下がらないが、認証済みの値を証拠なしで動かしている。
+
+**機械化した内容:**
+- model 権威行の文法を v1 (旧) / v2 (新) の 2 本にし、**live snapshot は v2 だけを受理する**。
+  過去 commit 指定では v1 も受理する — 過去 receipt の再構成監査を壊さないため。
+  v1 を live 起動へ使える抜け道は作っていない。
+- `AuthoritySnapshot.as_dict()` と集約 digest は 1 bit も変えていない。既存 receipt の照合は不変。
+- 段 6 の `reasoning` pin は削除せず `high` から `max` へ張り替えた。
+  値ちょうど一致の要求と decoy 4 種 (HTML comment / fence / blockquote / 併記) の拒否は減らしていない。
+
+**却下した選択肢:**
+- **段 2 だけ luna にする** — 段 2 は codex 消費の 16.0% しかなく、レート差を最大に見積もっても
+  削減は 15.3% で目標に届かない。
+- **model だけ替えて effort は据え置く** — ユーザーが「luna は愚かだから luna を使う段は max
+  でなければ受け入れない」と裁定した。
+- **権威行の sol / luna 位置を入れ替える flip trick** — D423 が挙げた 145 箇所の
+  `--lane` 呼び出しの意味が反転する footgun があり、費用も減らない。
+- **`reasoning` pin を削除して自由化する** — pin の finding 文が「変更には採用裁定と pin の同時更新が
+  必要」と手順を定めており、削除は手順ではない。張り替えが正しい対処である。
+
+**rollback:** 権威行 1 行と `workers.md` の 3 語を戻し、`check_docs.py` の pin literal を戻せば
+旧挙動へ戻る。v1 文法は残っているため過去 receipt の監査経路は影響を受けない。
+
+## D515. 予算差し戻しの是正は core.md の新 ID + 明示条件で収容する (2026-08-18)
+
+**決定:** `docs/dev-wave/` の層予算・単節予算・command 入口の byte 上限は 1 つも上げず、
+`docs/dev-wave/core.md` へ未使用 ID の L2 節を 1 つ足し、`.claude/commands/dev-wave.md` の
+条件表へ専用行を足して dispatch する。`tools/check_docs.py` 側は
+`REQUIRED_REFERENCE_SECTIONS` / `CONDITION_DISPATCH_CONTRACT` / `CONDITION_TRIGGER_CONTRACT` の
+3 箇所と本文 exact pin の登録を手書きし、`_OPERATION_NUMBERS` は触らない。新節は本文 exact pin を持ち、
+見出しだけの空節が緑で通らないようにする。
+
+**理由:**
+- operations.md の空き操作番号は削除済み ID しか残っておらず、復活には新規裁定が要る。
+  真に未使用の番号を operations.md へ足すと段 5・6 の `|C|` 行へ範囲外の singleton として
+  入るため、追加圧縮を全部使っても command 入口の上限を超える (実測 58 bytes 超過)。
+- core.md を指す条件は既に 3 本あり (external continuation と manager 範囲)、
+  operations 番号と条件番号を切り離す形は新設ではなく既存パターンの適用である。
+- 節本文が空でも可視 H2 と単節上限しか見ない検査は緑になる。exact pin を置かなければ、
+  条件行と registry だけが残って中身が蒸発する経路が閉じない。
+
+**却下した選択肢:**
+- 削除済み ID の復活 — checker は復活を検査しないため、注記を書き換えれば機械的には通る。
+  裁定境界を機械が守らない場所で既成事実を作らない。
+- 既存節の縮約で枠を作る — 同族 docs では折り返しの変更だけで exact pin が壊れた実績がある。
+- 条件表の安全注記 (最遅読了段の併記) を削って byte を作る — 安全義務を削って収める形は取らない。
+- 上限の引き上げ — 上限は上げないという既裁定に反する。
+
+## D516. 明示裁定は L2 admission の 3 条件に優先する (2026-08-18)
+
+**決定:** 新規 L2 節へ何を収容するかについて、ユーザーの明示裁定と L2 admission の鏡像 3 条件
+(発火実績あり / 現に機械代替されていない / 意味検索で反証も同一発火点の既存正本もなし) が
+衝突した場合、**明示裁定を優先して収容する**。3 条件は AI が自律的に admission を判断するときの
+必要条件であり、人間の個別裁定を却下する根拠にはしない。
+
+**理由:**
+- 三層可変性では憲法だけが不変で、この 3 条件は AI 改訂可能な層に属する。
+- 本件の裁定文は「他段に渡すと rc=2 で起動前に落ちる」「harness が baseline 緑を要求すること」
+  と、機械強制の存在を**明記した上で**収容を裁定している。つまり条件 2 の不成立は
+  裁定時の未見事実ではない。段 4 契約は「承認済み裁定は裁定時の未見事実でだけ止め、
+  親は不採用にせず新事実を添えてユーザー再裁定待ちへ戻す」と定める。
+- 「機械代替済みだから docs に書かない」を機械的に適用すると、失敗が安価に自己申告される
+  作法ほど文書から消える。rc=2 で落ちること自体は、落とし方を知らない書き手を救わない。
+
+**却下した選択肢:**
+- 3 条件を満たさない項を落として親判断で閉じる — 裁定の不採用に当たる。
+- 全項を裁定へ差し戻す — 同じ壁を 4 回報告済みで、収容方針は既に決着している。
+
+## D517. 「機械検査へ移送」は移送先の実在を確かめてから決める (2026-08-18)
+
+**決定:** 「述語にできる義務は機械検査へ移送する」方針を個別項へ適用するときは、
+**移送先の機構が実在するか**を先に実測する。実在しなければ移送は成立しないので、
+docs へ収容したうえで機構の新設を別項として残す。
+
+**理由:**
+- 子への Web 検索禁止は「述語化しやすい典型」と裁定されたが、実際の launcher argv には
+  無効化 flag が無く、現行の防壁は prompt での禁止と事後の証拠無効判定だけだった。
+  移送先が無いまま docs から外すと、規律がどこにも書かれていない状態になる。
+
+**却下した選択肢:**
+- 方針だけで docs から外す — 収容漏れになる。
+- 本 wave で flag を新設する — 実装面の scope が変わり、変更面の所有が二重になる。
+
+## D518. receipt memo の prewarm barrier は worker 起動前でなく test 実行前に置く (2026-08-18)
+
+**決定:** 実 repo の T-080 receipt 解決を畳む test 支援 memo の prewarm barrier は、
+**test body が 1 本も走る前**に置く。実装は `pytest_xdist_node_collection_finished`
+(xdist controller) と `pytest_collection_finish` (非 xdist) で、worker 側は二重 guard で除外する。
+UID の確定だけは `pytest_configure` で行う。`tools/run_tests.py` の argv は変更しない。
+xdist の `--testrunuid` は charset を制限しないため、UID を検査で弾かず内容 hash から cache 名を作る。
+
+**理由:**
+- 承認済み裁定の字面は「worker 起動前に runner が 1 回解決して cache を作る」だが、
+  xdist 3.8.0 でこれをコードで満たす経路は存在しない。`DSession.pytest_sessionstart` が
+  `NodeManager` 生成と `setup_nodes()` (worker 起動) を同じ関数で行い、
+  `DSession.pytest_collection` は controller の item collection を短絡する。
+  「collect 結果で prewarm を条件分岐する」と「worker process 生成前」は両立しない。
+- 裁定の目的である「session 中に production 経路が実 repo を再解決しない」は、
+  test 実行前 barrier で達成される。縮小が成立する前提 (collection 時に consumer が
+  resolver へ到達しないこと) は meta-test で機械固定する。
+- memo が返す値は本番 resolver の戻り object そのままで受理集合は不変。変わるのは
+  snapshot の時点 (最初の consumer 時点 → collection barrier 時点) と、miss が赤になること。
+  固定 snapshot に対して全 consumer が同じ解決結果を観測する。
+
+**却下した選択肢:**
+- 無条件 prewarm — consumer を含まない焦点走に解決 1 回分が丸乗りし、テスト時間規則を自ら破る。
+- controller 側で consumer file だけを自前 collect する — 二重 collection のコストを新設する。
+- UID の charset 検査を残す — xdist が受理する正当な UID を新たに拒否してしまう。
+
+## D519. 受領証が非認証理由を落とす根拠は、名指して hash した bytes からの再導出に限る (2026-08-18)
+
+**決定:** 受入受領証 v2 が必須の非認証理由から `c02-arm-binding-unproven` を落とせるのは、
+受領証が `path` と `sha256` で名指し、その場で読み直した bytes から digest を再導出できたときだけとする。
+受領証・terminal report・run-start の 3 者が同じ値を申告していることを根拠にしてはならない。
+
+具体的には、hash 済み report の cell descriptor から canonical bytes を作って content digest を
+再計算し、受領証の主張と一致することを要求する。あわせて domain 分離した arm binding digest を
+再計算し、同一 holdout の 3 arm の content digest が相異なることと、report と run-start が
+受領証と exact 一致することを要求する。descriptor を持たない部分 report は理由を残す
+fail-closed 形とする。
+
+`certifying` は v1 / v2 とも構造的に false のままであり、承認権威の欠落を示す理由は必須で残る。
+本決定は certified 選択の受理集合を 1 件も広げない。
+
+**理由:**
+- 受領証・report・run-start はいずれも producer が書いた要約であり、独立な証拠ではない。
+  3 者一致だけを根拠にすると、相異なる digest を捏造して binding digest を正しく再計算した
+  一式が検査を全部通る。段 6 の敵対レビューが静的に構成手順を示した。
+- 権威ある実行 chain は既に descriptor bytes から content digest を再計算している。
+  受領証層が同じ導出を自前で行えば、受領証の主張は producer の申告から独立になる。
+- canonical 化は純粋な JSON 正規化と sha256 であり、受領証 module が registry や
+  材料レポート module へ依存しない設計上の性質を壊さない。
+
+**却下した選択肢:**
+- 3 者一致だけを根拠にする — 上記のとおり定義上の穴が残る。
+- 事前登録判定器が条件 2 の充足を返すことを条件にする — 判定器には充足を返す経路が 1 本も無く、
+  恒久に発火しない条件になる。
+- 部分 report でも理由を落とせるようにする — descriptor が無ければ再導出できず、
+  証明のない受理になる。
+
+## D520. 凍結契約の変更と世代記録は同じ commit に入れる (2026-08-18)
+
+**決定:** 事前登録の凍結契約 (規範本文と証拠契約 bytes) を変更する wave は、その変更と
+次世代の凍結記録を**同一 commit** に入れる。契約を変更した commit を祖先に残したまま、
+後続 commit で世代記録を足す形を採ってはならない。並行 wave が先に世代を取った場合は、
+自分の作業を新しい main の直上へ組み直してから、契約変更と世代記録を 1 commit で入れ直す。
+
+**理由:**
+- 凍結の妥当性検査は tip だけでなく履歴グラフの全 commit を走り、各点で契約と当該時点の
+  世代記録の一致を要求する。「契約を変えたが世代記録は前世代のまま」の commit が祖先に
+  1 つでもあると、後から正しい世代を足しても永久に拒否される。
+- したがってこの衝突は取り込み操作では解けない。履歴の形を変えるしかない。
+- 世代番号は逐次で排他生成されるため、並行 wave のどちらが先に着地するかは事前に決められない。
+  生成を最後の取り込み直後まで遅らせれば、番号の取り合いは着地順で自然に解ける。
+
+**却下した選択肢:**
+- 生成済みの世代記録を持ち越して相手の世代と併合する — 全履歴検査が落ちる。
+- 世代記録を後続 commit で足す — 同上。祖先の不整合は消えない。
+- 世代番号を事前に予約する — 排他生成の設計に反し、予約とみなせない。
+
+## D521. 充足可能条件の allowlist は実行時に照合する (2026-08-18)
+
+**決定:** 事前登録判定器の充足可能条件集合は、宣言するだけでなく dispatch 後に照合する。
+許可されていない条件へ評価器が充足を返した場合は fail-closed で評価エラーへ倒す。
+
+**理由:**
+- 従来この集合は定数として宣言されるだけで、評価結果と突き合わされていなかった。
+  評価器 1 本の退行で充足が返れば、そのまま受理されて発効判定まで変わりえた。
+- 集合を空に保つ規律は人間の注意力に依存しており、機械的な防壁になっていなかった。
+- 照合の追加は受理集合を広げない。現在この集合は空であり、あらゆる充足申告が拒否される。
+
+**却下した選択肢:**
+- 宣言のままにして規律で守る — 防壁ではないものを防壁として数えることになる。
+- 集合へ条件を足して充足を許す — 本 wave の scope 外であり、受理集合を広げる。
+
+## D522. oracle 実走後の store 再検証は報告の receipt で行う (2026-08-18)
+
+**決定:** oracle 実走が終わってから observations を書くまでの窓について、report が各 cell の store
+bytes を読み直し、その結果を observations の `store_reverification` receipt として発行する。
+judge はこの receipt を observations の中から検査し、`judge_oracle` の呼び出し規約 (位置引数 1 +
+keyword 3) と judge CLI の引数は変更しない。期待 SHA の唯一の源は
+`ReverifiedFreeze.binaries_by_cell` であり、run 自身が WAL へ書いた値は使わない。
+
+**この receipt が保証する範囲:** report が各 store を読んだ瞬間に freeze の SHA と一致したこと。
+連続不変性ではない。一時的に改変され読み取り前に復元された場合と、読み取り後の差し替えは
+検出しない。封印でも偽造耐性でもなく、主張の限度は「単独 oracle 改竄まで」である。
+
+**理由:**
+- 実走**前**には二重防壁があった (driver の実走前 store 再 hash と、pipeline の
+  `expected_perf_sha256` による TOCTOU 照合)。実走**後**は report も judge も store を
+  一度も読み直しておらず、この窓だけが無防備だった。
+- judge は `--output-root` を持たず store を読む経路を構造的に持たない。したがって
+  「読む側」は report にしか置けない。
+- receipt を observations の中に載せれば、judge の consumer (judge CLI と
+  combined verdict) の呼び出し規約を一切変えずに検査を届けられる。
+
+**却下した選択肢:**
+- **judge API に store の所在を渡す案** — consumer が広く、`judge_oracle` の呼び出し規約を
+  変える影響が receipt の利得に見合わない。
+- **最終 store seal を作る案** — 封印機構の新設であり、既に見送りが確定している
+  observations 層の封印と重複する。
+- **期待 SHA を WAL の `build_done.perf_bin_sha256` から取る案** — run 自身の自己申告になり、
+  権威源が実走から独立しなくなる。`reverify_published_freeze` が返す値だけを使う。
+- **receipt 欠落を緑にする案** — official observations に receipt が無いことを許すと、
+  検査を消しただけで通る恒真な gate になる。欠落は judge が indeterminate にする。
+
+## D523. receipt の総合判定は消費側が cell から再導出する (2026-08-18)
+
+**決定:** `store_reverification` の outer `state` を judge が信じず、cell ごとの
+`state` / `expected_sha256` / `actual_sha256` の整合を検査したうえで再導出し、
+申告値と食い違えば理由を積む。cells は非空・重複なし・schedule の logical cell 集合と
+完全一致であることも独立に要求する。judge は report 側の定数を import せず、
+自分の closed schema 定数で検査する。
+
+**理由:**
+- 総合判定を自己申告のまま読むと、`state: "verified"` と書くだけで通る恒真な枝になる。
+- cells が空または部分集合のとき、素朴な `all(...)` は空集合に対して真を返す。
+  非空検査と完全被覆検査を先に置かないと、空 receipt が「全件一致」に化ける。
+- producer の定数を consumer が import すると、片側の定数を緩めただけで両側が同時に
+  緩む。独立な定数にしておけば、片方の変異がもう片方の検査で必ず露見する。
+
+**却下した選択肢:**
+- **outer state だけを見る単純形** — 上記の恒真枝をそのまま残す。
+- **producer の定数を judge が import する案** — 検査の独立性を失う。
