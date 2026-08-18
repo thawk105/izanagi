@@ -43,3 +43,23 @@ seq: 3
 - 恒久対応: 本走は `--runner-mode dispatch` を既定とし runner argv へ `--force-dispatch` を
   入れる、という既存手順に従う。この経路は relay ではなく job stdout 全文を読む。
 - 再発検知: 手順どおりの dispatch mode で本走し直し、baseline PASSED・10/10 KILLED を実測した。
+
+### {{F:codex-transient-death-misread-as-exhaustion}}. codex 子の一過性即死を資源枯渇と断定し wave を畳んだ [セッション死・救出] [捏造/幻覚]
+
+- 事象: 段 3 の codex 子 2 本が即死し、events に `You've hit your usage limit ... try again at
+  Aug 20th` が出ていた。親はこれを恒久的な枠切れと断定し、wave を fail-closed 停止として
+  worktree まで畳んだ。実際には一過性で、**8 分後には回復していた**。
+- 根本原因: 表層メッセージの日付表記を額面どおり受け取り、再投入で確かめずに恒久性を結論した。
+  外形 (`codex_exit_code=1` / `model_calls=0` / token 0 / log 0 byte) だけでは一過性か恒久かを
+  区別できない。
+- 影響: 実装可能な wave を停止扱いにし、worktree の作り直しと段 3 の再投入を要した。
+  成果物は repo 外へ保全していたため失われなかった。
+- 併せて判明: 同時刻に並行 2 wave が**別症状**で同じ即死をしていた。一方は同じ usage limit 型、
+  もう一方は `401 Unauthorized: Missing bearer or basic authentication in header` の連打型で、
+  `codex login status` は正常のままだった。**外形は両者とも同一で、log の空だけでは区別できない。**
+  いずれも数分で自然回復した。独立 2 例が揃うため一般化してよい。
+- 恒久対応: 停止を断定する前に (1) receipt の `codex_exit_code` を読む、(2)
+  `attempt-*.events.jsonl` の message 本文で症状を確定する、(3) 数分あけて 1 度だけ再投入する。
+  再投入は prompt bytes を変える必要がある (job-id が prompt hash から決まるため)。
+  この手順の dev-wave 入口への明文化は {{T:codex-transient-stop-rule}} で裁定する。
+- 再発検知: 現時点では機械検査が無い。手順の明文化と併せて裁定へ返す。

@@ -74,3 +74,9 @@ title: 床値 job の kill 証拠を repo 外へ残して事後診断へ接続�
   walltime 打ち切りで SIGTERM が送られる保証にならない。{{D:floor-job-accept-sigterm}} と
   既裁定に従い、`elapstim_req="max,warn"` と `--warning-signal=elapstim:SIGTERM` を含む構成の
   実測を行うかを裁定する。実測するまで walltime 被覆を主張しない。
+- {{T:codex-transient-stop-rule}} **P2・新規・ユーザー裁定待ち**: codex 子の即死を停止と断定する
+  前に receipt と events で症状を確定し、数分あけて 1 度だけ再投入する手順を dev-wave の入口へ
+  明文化するかを裁定する。実測根拠は {{F:codex-transient-death-misread-as-exhaustion}} で、
+  独立 2 例 (usage limit 型 / 401 型) が同時刻に発生していずれも自然回復した。
+  **`docs/dev-wave/**` は 3 層とも予算が満杯であり、この 1 行も入らない。** 予算引き上げは通常の
+  自己改善に含めない独立審査対象であるため、DW-S08 に従い実装せず裁定へ返す。
