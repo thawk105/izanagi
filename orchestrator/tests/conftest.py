@@ -94,7 +94,7 @@ def _detect_site_under_test():
 @pytest.fixture
 def valid_reservation_environment() -> dict[str, str]:
     """Return one live, internally consistent Pegasus reservation binding."""
-    requested_s = 3600
+    requested_s = 7200
     scheduler_started_epoch = time.time() - 60
     boot_id = Path("/proc/sys/kernel/random/boot_id").read_text(
         encoding="ascii"

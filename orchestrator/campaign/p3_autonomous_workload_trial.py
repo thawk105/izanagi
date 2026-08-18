@@ -3456,13 +3456,21 @@ def mark_experiment_indeterminate(
         detail = "; ".join(
             f"{label}={type(error).__name__}" for label, error in failures
         )
-        try:
-            cause.add_note(
-                "indeterminate crash bookkeeping encountered independent failures: "
-                + detail
-            )
-        except BaseException:
-            pass
+        note = (
+            "indeterminate crash bookkeeping encountered independent failures: "
+            + detail
+        )
+        add_note = getattr(cause, "add_note", None)
+        if callable(add_note):
+            add_note(note)
+        else:
+            notes = getattr(cause, "__notes__", None)
+            if notes is None:
+                notes = []
+                cause.__notes__ = notes
+            if not isinstance(notes, list):
+                raise TypeError("cause.__notes__ must be a list")
+            notes.append(note)
     raise cause
 
 

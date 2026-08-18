@@ -6180,11 +6180,13 @@ def test_formal_start_is_recorded_before_run_root_and_blocks_other_root(
     first_root = tmp_path / "formal-first-root"
     original_reject = A.trial_registry.reject_started_trial
     original = A.trial_registry.record_trial_start_once
+    current_root: list[Path | None] = [None]
     reject_observations: list[bool] = []
     observations: list[bool] = []
 
     def observe_reject(**kwargs):
-        reject_observations.append(first_root.exists())
+        assert current_root[0] is not None
+        reject_observations.append(current_root[0].exists())
         return original_reject(**kwargs)
 
     def observe_start(**kwargs):
@@ -6201,12 +6203,14 @@ def test_formal_start_is_recorded_before_run_root_and_blocks_other_root(
         "record_trial_start_once",
         observe_start,
     )
+    current_root[0] = first_root
     first = _t325_run(t325_registered_trial, first_root)
     assert first["status"] == "complete"
     assert reject_observations == [False]
     assert observations == [False]
 
     second_root = tmp_path / "formal-second-root"
+    current_root[0] = second_root
     with pytest.raises(
         A.trial_registry.TrialRegistryError,
         match=r"\[lifecycle-start-once\] ",
