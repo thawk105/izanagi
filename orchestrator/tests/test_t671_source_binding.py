@@ -389,6 +389,40 @@ def test_exact_twenty_five_clean_closure_capture_and_live_verify(
         )
 
 
+def test_contract_loader_binding_ignores_fake_git_at_front_of_path(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from orchestrator.campaign import contract_loader_binding
+
+    repo, _commit, _blob_sha256s = _committed_loader_repo(
+        tmp_path, copy_current_loaders=True,
+    )
+    target = repo / contract_loader_binding.CONTRACT_LOADER_RELATIVE_PATHS[0]
+    target.write_bytes(target.read_bytes() + b"\n# forged live closure\n")
+    fake_bin = tmp_path / "fake-bin"
+    fake_bin.mkdir()
+    marker = tmp_path / "fake-git-ran"
+    fake_git = fake_bin / "git"
+    fake_git.write_text(
+        "#!/bin/sh\n"
+        f"touch {marker}\n"
+        "exit 0\n",
+        encoding="ascii",
+    )
+    fake_git.chmod(0o755)
+    monkeypatch.setenv(
+        "PATH", os.fspath(fake_bin) + os.pathsep + os.environ.get("PATH", ""),
+    )
+    monkeypatch.setattr(contract_loader_binding, "_REPO_ROOT", repo)
+
+    with pytest.raises(
+        contract_loader_binding.ContractLoaderBindingError,
+        match="contract-loader-drift",
+    ):
+        contract_loader_binding.capture_contract_loader_binding()
+    assert not marker.exists()
+
+
 def _commit_closure_ratification(
         repo: Path, blob_sha256s: dict[str, str],
 ) -> None:

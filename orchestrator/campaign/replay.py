@@ -205,13 +205,8 @@ def load_landscape(tag: str, output_root: str = "") -> Dict[str, GenomeResult]:
             if serialized_receipt is not None:
                 try:
                     evidence_of[r.variant] = admit_replay_evidence(
-                        serialized_receipt,
-                        source_campaign_lock_sha256=(
-                            view.decision.campaign_lock_sha256
-                        ),
-                        source_wal_sha256=view.decision.wal_sha256,
-                        source_variant=r.variant,
-                        source_terminal_payload=commit_payload,
+                        view,
+                        r,
                     )
                 except CommitReceiptError:
                     certified_of[r.variant] = False

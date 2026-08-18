@@ -13,7 +13,11 @@ Adya の Direct Serialization Graph を作り、rw (anti-dependency) を含む c
 入力は trace と optional な trace 外 commit counter のみ。性能数値は持ち込まない
 (入力側隔離, roadmap §3.4-4)。
 """
-from .core import verify_trace_dir, verify_trace_dir_with_capability
+from .core import (
+    VerificationCapability,
+    verify_trace_dir,
+    verify_trace_dir_with_capability,
+)
 from .commit_receipt import (
     CAMPAIGN_WAL_SINK,
     QUALIFICATION_SINK,
@@ -21,7 +25,6 @@ from .commit_receipt import (
     CommitReceipt,
     CommitReceiptError,
     ReplayVerificationEvidence,
-    VerificationCapability,
     admit_replay_evidence,
     campaign_lock_sha256,
     issue_commit_receipt,

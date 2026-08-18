@@ -7,12 +7,8 @@ import json
 import os
 import re
 import secrets
-from dataclasses import dataclass
 from types import MappingProxyType
 from typing import Any, Mapping, Sequence
-
-from .model import VerifyResult
-from .report import result_to_dict
 
 
 RECEIPT_PAYLOAD_KEY = "commit_verification_receipt"
@@ -21,9 +17,7 @@ CAMPAIGN_WAL_SINK = "campaign-wal"
 QUALIFICATION_SINK = "qualification-evaluation"
 _SINK_KINDS = frozenset({CAMPAIGN_WAL_SINK, QUALIFICATION_SINK})
 _HEX64 = re.compile(r"^[0-9a-f]{64}$")
-_VERIFICATION_TOKEN = object()
 _RECEIPT_TOKEN = object()
-_REPLAY_TOKEN = object()
 _PROCESS_SEAL = secrets.token_bytes(32)
 _PROCESS_SEAL_SHA256 = hashlib.sha256(_PROCESS_SEAL).hexdigest()
 
@@ -89,52 +83,6 @@ def campaign_lock_sha256(layout: object) -> str:
     return hashlib.sha256(raw).hexdigest()
 
 
-class VerificationCapability:
-    """Opaque evidence that this process ran the verifier for one result."""
-
-    __slots__ = (
-        "_verdict", "_certified", "_result_sha256", "_pid",
-        "_process_seal", "_token", "_sealed",
-    )
-
-    def __init__(self, result: VerifyResult, token: object):
-        if token is not _VERIFICATION_TOKEN or type(result) is not VerifyResult:
-            raise TypeError("VerificationCapability is verifier-issued")
-        projection = result_to_dict(result)
-        projection.pop("trace_dir", None)
-        object.__setattr__(self, "_verdict", result.verdict)
-        object.__setattr__(self, "_certified", result.certified)
-        object.__setattr__(
-            self, "_result_sha256",
-            _domain_digest(b"izanagi-verifier-result-v1", projection),
-        )
-        object.__setattr__(self, "_pid", os.getpid())
-        object.__setattr__(self, "_process_seal", _PROCESS_SEAL)
-        object.__setattr__(self, "_token", token)
-        object.__setattr__(self, "_sealed", True)
-
-    def __setattr__(self, name, value):
-        if getattr(self, "_sealed", False):
-            raise AttributeError("VerificationCapability is immutable")
-        object.__setattr__(self, name, value)
-
-    def _assert_intact(self) -> None:
-        if (type(self) is not VerificationCapability
-                or self._token is not _VERIFICATION_TOKEN
-                or self._pid != os.getpid()
-                or self._process_seal is not _PROCESS_SEAL
-                or self._verdict != "serializable"
-                or self._certified is not True
-                or _HEX64.fullmatch(self._result_sha256) is None):
-            raise CommitReceiptError(
-                "verification capability is not certified in this process")
-
-
-def _issue_verification_capability(result: VerifyResult) -> VerificationCapability:
-    """Issuer hook called only by the verifier entrypoint after computation."""
-    return VerificationCapability(result, _VERIFICATION_TOKEN)
-
-
 class CommitReceipt:
     """Opaque live capability; sinks persist only its validated projection."""
 
@@ -155,27 +103,60 @@ class CommitReceipt:
         object.__setattr__(self, name, value)
 
 
-@dataclass(frozen=True, slots=True, init=False)
-class ReplayVerificationEvidence:
-    """Immutable source receipt admitted from an exact certified campaign view."""
+def _bind_replay_verification_evidence():
+    issuer_token = object()
+    issued: dict[object, tuple[object, ...]] = {}
 
-    receipt: Mapping[str, Any]
-    source_campaign_lock_sha256: str
-    source_wal_sha256: str
-    source_variant: str
-    _token: object
+    class _ReplayVerificationEvidence:
+        """Opaque evidence admitted from an exact certified campaign view."""
 
-    def __init__(
-            self, *, receipt: Mapping[str, Any], source_campaign_lock_sha256: str,
-            source_wal_sha256: str, source_variant: str, token: object):
-        if token is not _REPLAY_TOKEN:
-            raise TypeError("ReplayVerificationEvidence is validator-issued")
-        object.__setattr__(self, "receipt", _freeze_json(dict(receipt)))
-        object.__setattr__(
-            self, "source_campaign_lock_sha256", source_campaign_lock_sha256)
-        object.__setattr__(self, "source_wal_sha256", source_wal_sha256)
-        object.__setattr__(self, "source_variant", source_variant)
-        object.__setattr__(self, "_token", token)
+        __slots__ = ("_nonce",)
+
+        def __init__(
+                self, *, receipt: Mapping[str, Any],
+                source_campaign_lock_sha256: str,
+                source_wal_sha256: str, source_variant: str,
+                _token: object = None,
+        ) -> None:
+            if _token is not issuer_token:
+                raise TypeError(
+                    "ReplayVerificationEvidence is admission-issued"
+                )
+            nonce = object()
+            issued[nonce] = (
+                _freeze_json(dict(receipt)),
+                source_campaign_lock_sha256,
+                source_wal_sha256,
+                source_variant,
+                os.getpid(),
+            )
+            object.__setattr__(self, "_nonce", nonce)
+
+        def _projection(self) -> tuple[object, ...]:
+            try:
+                projection = issued[self._nonce]
+            except (AttributeError, KeyError, TypeError) as exc:
+                raise CommitReceiptError(
+                    "replay evidence has no admission authority"
+                ) from exc
+            if (type(self) is not _ReplayVerificationEvidence
+                    or projection[4] != os.getpid()):
+                raise CommitReceiptError(
+                    "exact replay verification evidence required"
+                )
+            return projection
+
+    def issue(**fields):
+        return _ReplayVerificationEvidence(**fields, _token=issuer_token)
+
+    return _ReplayVerificationEvidence, issue
+
+
+(
+    ReplayVerificationEvidence,
+    _issue_replay_verification_evidence,
+) = _bind_replay_verification_evidence()
+del _bind_replay_verification_evidence
 
 
 def _validate_hex(value: object, label: str) -> str:
@@ -293,7 +274,7 @@ def _new_commit_receipt(
 
 
 def issue_commit_receipt(
-        capabilities: Sequence[VerificationCapability], *,
+        capabilities: Sequence[object], *,
         workload_tags: Sequence[str], sink_kind: str,
         lock_identity_sha256: str, variant: str, operation_identity: str,
         terminal_payload: Mapping[str, Any]) -> CommitReceipt:
@@ -303,19 +284,32 @@ def issue_commit_receipt(
             or len(capabilities) != len(workload_tags)
             or not capabilities):
         raise CommitReceiptError("exact non-empty verifier capability/tag sequence required")
+    from .core import VerificationCapability
+
+    if len({id(capability) for capability in capabilities}) != len(capabilities):
+        raise CommitReceiptError("verification capability sequence contains duplicates")
     evidence = []
     for capability, tag in zip(capabilities, workload_tags):
         if type(capability) is not VerificationCapability:
             raise CommitReceiptError("serialized verifier evidence is not a capability")
-        capability._assert_intact()
         if type(tag) is not str or not tag:
             raise CommitReceiptError("workload tag must be non-empty str")
+        capability._assert_matches(
+            sink_kind=sink_kind,
+            lock_identity_sha256=lock_identity_sha256,
+            variant=variant,
+            operation_identity=operation_identity,
+            workload_tag=tag,
+        )
+        verdict, certified, result_sha256 = capability._receipt_evidence()
         evidence.append({
             "workload_tag": tag,
-            "verdict": capability._verdict,
-            "certified": capability._certified,
-            "verifier_result_sha256": capability._result_sha256,
+            "verdict": verdict,
+            "certified": certified,
+            "verifier_result_sha256": result_sha256,
         })
+    for capability in capabilities:
+        capability._consume()
     return _new_commit_receipt(
         evidence,
         sink_kind=sink_kind,
@@ -352,61 +346,108 @@ def _live_receipt_record(receipt: object) -> dict[str, Any]:
 
 
 def validate_live_campaign_wal_receipt(
-        receipt: object, *, variant: str,
+        receipt: object, *, lock_identity_sha256: str | None, variant: str,
         terminal_payload: Mapping[str, Any]) -> dict[str, Any]:
-    """Validate a live WAL receipt using the issuer-burned lock identity.
-
-    The WAL sink does not re-open ``campaign.lock``.  Its existing topology
-    checks remain responsible for binding a COMMIT record's contract identity
-    to the lock when one is available.
-    """
+    """Validate against the sink-observed raw lock, or issuer binding if lockless."""
     record = _live_receipt_record(receipt)
     core = _receipt_core(record)
+    actual_lock_identity = (
+        core["lock_identity_sha256"]
+        if lock_identity_sha256 is None
+        else lock_identity_sha256
+    )
     return validate_serialized_receipt(
         record,
         sink_kind=CAMPAIGN_WAL_SINK,
-        lock_identity_sha256=core["lock_identity_sha256"],
+        lock_identity_sha256=actual_lock_identity,
         variant=variant,
         terminal_payload=terminal_payload,
     )
 
 
-def admit_replay_evidence(
-        serialized_receipt: object, *, source_campaign_lock_sha256: str,
-        source_wal_sha256: str, source_variant: str,
-        source_terminal_payload: Mapping[str, Any]) -> ReplayVerificationEvidence:
-    """Admit a source receipt already protected by a certified immutable view."""
-    _validate_hex(source_campaign_lock_sha256, "source lock identity")
-    _validate_hex(source_wal_sha256, "source WAL digest")
-    record = validate_serialized_receipt(
-        serialized_receipt,
-        sink_kind=CAMPAIGN_WAL_SINK,
-        lock_identity_sha256=source_campaign_lock_sha256,
-        variant=source_variant,
-        terminal_payload=source_terminal_payload,
-    )
-    return ReplayVerificationEvidence(
-        receipt=record,
-        source_campaign_lock_sha256=source_campaign_lock_sha256,
-        source_wal_sha256=source_wal_sha256,
-        source_variant=source_variant,
-        token=_REPLAY_TOKEN,
-    )
+def _bind_admit_replay_evidence(evidence_issuer):
+    def admit_replay_evidence(
+            certified_view: object, source_record: object,
+    ) -> ReplayVerificationEvidence:
+        """Admit the exact COMMIT record capability held by a certified view."""
+        from ..campaign.artifact_admission import (
+            CertifiedCampaignView,
+            ImmutableWalRecord,
+            _assert_replay_admission_source,
+        )
+
+        if type(certified_view) is not CertifiedCampaignView:
+            raise CommitReceiptError(
+                "exact CertifiedCampaignView capability required"
+            )
+        if type(source_record) is not ImmutableWalRecord:
+            raise CommitReceiptError(
+                "exact COMMIT source record from the certified view is required"
+            )
+        try:
+            _assert_replay_admission_source(
+                certified_view,
+                source_record,
+            )
+        except (AttributeError, TypeError) as exc:
+            raise CommitReceiptError(
+                "certified view lacks replay admission authority"
+            ) from exc
+        source_campaign_lock_sha256 = (
+            certified_view.decision.campaign_lock_sha256
+        )
+        source_wal_sha256 = certified_view.decision.wal_sha256
+        source_variant = source_record.variant
+        source_terminal_payload = _thaw_json(source_record.payload)
+        serialized_receipt = source_terminal_payload.pop(
+            RECEIPT_PAYLOAD_KEY, None,
+        )
+        _validate_hex(source_campaign_lock_sha256, "source lock identity")
+        _validate_hex(source_wal_sha256, "source WAL digest")
+        record = validate_serialized_receipt(
+            serialized_receipt,
+            sink_kind=CAMPAIGN_WAL_SINK,
+            lock_identity_sha256=source_campaign_lock_sha256,
+            variant=source_variant,
+            terminal_payload=source_terminal_payload,
+        )
+        return evidence_issuer(
+            receipt=record,
+            source_campaign_lock_sha256=source_campaign_lock_sha256,
+            source_wal_sha256=source_wal_sha256,
+            source_variant=source_variant,
+        )
+
+    return admit_replay_evidence
+
+
+admit_replay_evidence = _bind_admit_replay_evidence(
+    _issue_replay_verification_evidence,
+)
+del _bind_admit_replay_evidence
+del _issue_replay_verification_evidence
 
 
 def issue_replay_commit_receipt(
         evidence: ReplayVerificationEvidence, *, lock_identity_sha256: str,
         variant: str, terminal_payload: Mapping[str, Any]) -> CommitReceipt:
     """Rebind admitted immutable source evidence to a destination campaign lock."""
-    if type(evidence) is not ReplayVerificationEvidence or evidence._token is not _REPLAY_TOKEN:
+    if type(evidence) is not ReplayVerificationEvidence:
         raise CommitReceiptError("exact replay verification evidence required")
-    source = _thaw_json(evidence.receipt)
+    (
+        frozen_source,
+        source_campaign_lock_sha256,
+        source_wal_sha256,
+        source_variant,
+        _issuer_pid,
+    ) = evidence._projection()
+    source = _thaw_json(frozen_source)
     source_rows = source["verifier_evidence"]
     provenance = {
-        "source_campaign_lock_sha256": evidence.source_campaign_lock_sha256,
-        "source_wal_sha256": evidence.source_wal_sha256,
+        "source_campaign_lock_sha256": source_campaign_lock_sha256,
+        "source_wal_sha256": source_wal_sha256,
         "source_commit_receipt_id": source["receipt_id"],
-        "source_variant": evidence.source_variant,
+        "source_variant": source_variant,
     }
     return _new_commit_receipt(
         [dict(row) for row in source_rows],

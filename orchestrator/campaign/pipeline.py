@@ -991,6 +991,19 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
     # 実際に trace/throughput を作る producer へ進む直前に現在 site を再検査する。
     _require_measurement_site("campaign trace/throughput producer")
 
+    if qualification_policy is None:
+        receipt_sink_kind = CAMPAIGN_WAL_SINK
+        receipt_lock_identity = (
+            campaign_lock_sha256(layout)
+            if os.path.lexists(layout.lock_file)
+            else authorized_contract.contract_sha256
+        )
+    else:
+        receipt_sink_kind = QUALIFICATION_SINK
+        receipt_lock_identity = (
+            qualification_policy.event_sink.commit_lock_identity_sha256
+        )
+
     # --- verify (正しさゲート, 絶対規律2)。legacy (既定・軽量) + extra_correctness
     #     (S2 等・bench 並みの負荷) を順に全て通す (verify 2 本立て, D36 決定2/4) ---
     verification_capabilities = []
@@ -1103,6 +1116,11 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
                 vr, verification_capability = verify_trace_dir_with_capability(
                     tdir,
                     expected_commits=trace_result.commit_count_witness,
+                    receipt_sink_kind=receipt_sink_kind,
+                    receipt_lock_identity_sha256=receipt_lock_identity,
+                    receipt_variant=v,
+                    receipt_operation_identity=build_attempt_id,
+                    receipt_workload_tag=tag,
                 )
             except ParseError as e:
                 return _abort("trace-parse-error", f"trace パース不能 ({tag}) → reject ({e})",
@@ -1245,27 +1263,11 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
     res.certified = True
 
     def _receipt_for(payload: Dict):
-        if qualification_policy is None:
-            sink_kind = CAMPAIGN_WAL_SINK
-            # Preserve the raw lock identity used by certified replay whenever
-            # a lock exists.  Some direct producer layouts intentionally have
-            # no physical lock; their issuer still binds the receipt to the
-            # COMMIT contract identity, while wal.append never re-opens a lock.
-            lock_identity = (
-                campaign_lock_sha256(layout)
-                if os.path.lexists(layout.lock_file)
-                else payload[COMMIT_CONTRACT_SHA256_KEY]
-            )
-        else:
-            sink_kind = QUALIFICATION_SINK
-            lock_identity = (
-                qualification_policy.event_sink.commit_lock_identity_sha256
-            )
         return issue_commit_receipt(
             verification_capabilities,
             workload_tags=verify_tags,
-            sink_kind=sink_kind,
-            lock_identity_sha256=lock_identity,
+            sink_kind=receipt_sink_kind,
+            lock_identity_sha256=receipt_lock_identity,
             variant=v,
             operation_identity=build_attempt_id,
             terminal_payload=payload,

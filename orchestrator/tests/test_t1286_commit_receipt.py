@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import ast
+from copy import copy, deepcopy
 import hashlib
 import json
 import os
@@ -61,11 +62,15 @@ from orchestrator.verifier import (  # noqa: E402
     CAMPAIGN_WAL_SINK,
     QUALIFICATION_SINK,
     CommitReceiptError,
+    ReplayVerificationEvidence,
+    VerificationCapability,
+    admit_replay_evidence,
     campaign_lock_sha256,
     issue_commit_receipt,
     validate_live_receipt,
     verify_trace_dir_with_capability,
 )
+from orchestrator.verifier.model import VerifyResult  # noqa: E402
 
 
 _CANON = "silo|BACK_OFF=0,NO_WAIT_LOCKING_IN_VALIDATION=1,NO_WAIT_OF_TICTOC=0,WAL=0"
@@ -113,13 +118,19 @@ def _qualification_sink(tmp_path: Path, *, lock_sha: str = "a" * 64):
 
 
 def _qualification_receipt(lock_sha: str, payload: dict, variant: str = "v"):
+    operation_identity = "qualification-test-op"
     return issue_commit_receipt(
-        receipt_support.verification_capabilities(),
+        receipt_support.verification_capabilities(
+            sink_kind=QUALIFICATION_SINK,
+            lock_identity_sha256=lock_sha,
+            variant=variant,
+            operation_identity=operation_identity,
+        ),
         workload_tags=["legacy"],
         sink_kind=QUALIFICATION_SINK,
         lock_identity_sha256=lock_sha,
         variant=variant,
-        operation_identity="qualification-test-op",
+        operation_identity=operation_identity,
         terminal_payload=payload,
     )
 
@@ -163,15 +174,13 @@ def test_receipt_rejects_changed_lock_and_changed_payload_without_write(tmp_path
     Path(layout.wal_file).touch()
     before = Path(layout.wal_file).read_bytes()
 
-    Path(layout.lock_file).write_text('{"different":"lock"}\n', encoding="utf-8")
+    original_lock = json.loads(Path(layout.lock_file).read_text(encoding="utf-8"))
+    Path(layout.lock_file).write_text(
+        json.dumps(original_lock, ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
     with pytest.raises(CommitReceiptError, match="binding mismatch"):
-        validate_live_receipt(
-            receipt,
-            sink_kind=CAMPAIGN_WAL_SINK,
-            lock_identity_sha256=campaign_lock_sha256(layout),
-            variant="v",
-            terminal_payload=payload,
-        )
+        wal.append(layout, _record(payload), commit_receipt=receipt)
     assert Path(layout.wal_file).read_bytes() == before
 
     layout2 = _v1_layout(tmp_path, "campaign-two")
@@ -205,7 +214,14 @@ def test_uncertified_verifier_capability_cannot_issue_receipt(
         fixture: str,
 ):
     trace_dir = _HERE / "fixtures" / fixture
-    result, capability = verify_trace_dir_with_capability(str(trace_dir))
+    result, capability = verify_trace_dir_with_capability(
+        str(trace_dir),
+        receipt_sink_kind=CAMPAIGN_WAL_SINK,
+        receipt_lock_identity_sha256="a" * 64,
+        receipt_variant="v",
+        receipt_operation_identity="op",
+        receipt_workload_tag="legacy",
+    )
     assert result.certified is False
     assert result.verdict in {"indeterminate", "non-serializable"}
     with pytest.raises(CommitReceiptError, match="not certified"):
@@ -215,6 +231,137 @@ def test_uncertified_verifier_capability_cannot_issue_receipt(
             variant="v", operation_identity="op",
             terminal_payload={"fitness_tps": 1.0},
         )
+
+
+def test_caller_built_verify_result_has_no_receipt_issuer() -> None:
+    caller_result = VerifyResult(
+        trace_dir="never-read",
+        serializable=True,
+        n_txns=1,
+    )
+    with pytest.raises(TypeError, match="verifier-issued"):
+        VerificationCapability(
+            caller_result,
+            sink_kind=CAMPAIGN_WAL_SINK,
+            lock_identity_sha256="a" * 64,
+            variant="v",
+            operation_identity="op",
+            workload_tag="legacy",
+        )
+
+
+def test_verification_capability_is_operation_bound_and_single_use() -> None:
+    trace_dir = _HERE / "fixtures" / "g1_serial"
+    binding = {
+        "receipt_sink_kind": CAMPAIGN_WAL_SINK,
+        "receipt_lock_identity_sha256": "a" * 64,
+        "receipt_variant": "v",
+        "receipt_operation_identity": "op-1",
+        "receipt_workload_tag": "legacy",
+    }
+    result, capability = verify_trace_dir_with_capability(
+        str(trace_dir), **binding,
+    )
+    assert result.certified
+    assert not hasattr(capability, "_issuer_token")
+    issue_args = {
+        "workload_tags": ["legacy"],
+        "sink_kind": CAMPAIGN_WAL_SINK,
+        "lock_identity_sha256": "a" * 64,
+        "variant": "v",
+        "operation_identity": "op-1",
+        "terminal_payload": {"fitness_tps": 1.0},
+    }
+    issue_commit_receipt([capability], **issue_args)
+    with pytest.raises(CommitReceiptError, match="consumed"):
+        issue_commit_receipt([capability], **issue_args)
+
+    _result, copy_source = verify_trace_dir_with_capability(
+        str(trace_dir), **binding,
+    )
+    shallow_clone = copy(copy_source)
+    deep_clone = deepcopy(copy_source)
+    issue_commit_receipt([copy_source], **issue_args)
+    with pytest.raises(CommitReceiptError, match="consumed"):
+        issue_commit_receipt([shallow_clone], **issue_args)
+    with pytest.raises(CommitReceiptError, match="issuer authority"):
+        issue_commit_receipt([deep_clone], **issue_args)
+
+    _result, other_capability = verify_trace_dir_with_capability(
+        str(trace_dir), **binding,
+    )
+    mutated_clone = copy(other_capability)
+    object.__setattr__(mutated_clone, "_variant", "other-v")
+    object.__setattr__(mutated_clone, "_operation_identity", "op-2")
+    object.__setattr__(mutated_clone, "_result_sha256", "f" * 64)
+    with pytest.raises(CommitReceiptError, match="different operation"):
+        issue_commit_receipt(
+            [mutated_clone],
+            **{
+                **issue_args,
+                "variant": "other-v",
+                "operation_identity": "op-2",
+            },
+        )
+    mismatches = (
+        {"operation_identity": "op-2"},
+        {"variant": "other-v"},
+        {"lock_identity_sha256": "b" * 64},
+        {"sink_kind": QUALIFICATION_SINK},
+        {"workload_tags": ["other-workload"]},
+    )
+    for mismatch in mismatches:
+        with pytest.raises(CommitReceiptError, match="different operation"):
+            issue_commit_receipt(
+                [other_capability],
+                **{**issue_args, **mismatch},
+            )
+    issue_commit_receipt([other_capability], **issue_args)
+
+
+def test_caller_built_serialized_receipt_cannot_become_replay_evidence(
+    tmp_path: Path,
+) -> None:
+    assert not hasattr(
+        artifact_admission,
+        "_issue_replay_admission_capability",
+    )
+    from orchestrator.verifier import commit_receipt as receipt_module
+    assert not hasattr(receipt_module, "_REPLAY_TOKEN")
+    assert not hasattr(receipt_module, "_issue_replay_verification_evidence")
+    serialized = {
+        "schema": "campaign-commit-verification-receipt/v1",
+        "certified": True,
+    }
+    with pytest.raises(TypeError, match="admission-issued"):
+        ReplayVerificationEvidence(
+            receipt=serialized,
+            source_campaign_lock_sha256="a" * 64,
+            source_wal_sha256="b" * 64,
+            source_variant="source-v",
+        )
+    with pytest.raises(CommitReceiptError, match="CertifiedCampaignView"):
+        admit_replay_evidence(serialized, serialized)
+    view = _receiptless_certified_source_view(tmp_path)
+    with pytest.raises(CommitReceiptError, match="exact COMMIT source record"):
+        admit_replay_evidence(view, serialized)
+    with pytest.raises(CommitReceiptError, match="lacks replay admission authority"):
+        admit_replay_evidence(view, view.records[-1])
+
+    class FakeReplayAuthority:
+        def _assert_source(self, _view, _record) -> None:
+            return None
+
+    forged_view = artifact_admission.CertifiedCampaignView(
+        layout=view.layout,
+        records=view.records,
+        decision=view.decision,
+        campaign_verifier_epoch=view.campaign_verifier_epoch,
+        _certification_token=artifact_admission._CERTIFIED_VIEW_TOKEN,
+        _replay_admission_capability=FakeReplayAuthority(),
+    )
+    with pytest.raises(CommitReceiptError, match="lacks replay admission authority"):
+        admit_replay_evidence(forged_view, forged_view.records[-1])
 
 
 def test_qualification_sink_receipt_gate_is_locked_and_byte_stable(tmp_path: Path):
@@ -435,6 +582,44 @@ def test_production_commit_producer_census_is_exactly_five():
         "wal.log", "qualification_policy.event_sink.emit",
     ]
     assert [name for name, _line in guided_calls] == ["wal.log"]
+
+    all_calls = []
+    for path in sorted(_ORCH.rglob("*.py")):
+        if "tests" in path.parts:
+            continue
+        all_calls.extend(
+            (path.relative_to(_ORCH).as_posix(), name)
+            for name, _line in _commit_calls(path)
+        )
+    assert all_calls == [
+        ("campaign/guided.py", "wal.log"),
+        ("campaign/pipeline.py", "wal.log"),
+        ("campaign/pipeline.py", "qualification_policy.event_sink.emit"),
+        ("campaign/pipeline.py", "wal.log"),
+        ("campaign/pipeline.py", "qualification_policy.event_sink.emit"),
+    ]
+
+
+def test_verification_capability_issuer_call_site_is_exactly_core_entrypoint():
+    issuer_calls = []
+    forbidden_issuer_names = []
+    for path in sorted(_ORCH.rglob("*.py")):
+        if "tests" in path.parts:
+            continue
+        source = path.read_text(encoding="utf-8")
+        if "_issue_verification_capability" in source:
+            forbidden_issuer_names.append(path.relative_to(_ORCH).as_posix())
+        tree = ast.parse(source, filename=str(path))
+        for node in ast.walk(tree):
+            if (isinstance(node, ast.Call)
+                    and isinstance(node.func, ast.Name)
+                    and node.func.id == "_VerificationCapability"):
+                issuer_calls.append(
+                    (path.relative_to(_ORCH).as_posix(), node.lineno)
+                )
+    assert forbidden_issuer_names == []
+    assert len(issuer_calls) == 1
+    assert issuer_calls[0][0] == "verifier/core.py"
 
 
 def _run() -> int:

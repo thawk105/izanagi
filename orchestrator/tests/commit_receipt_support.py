@@ -3,10 +3,10 @@
 from __future__ import annotations
 
 import json
-from functools import lru_cache
 from pathlib import Path
+from types import MappingProxyType
 
-from orchestrator.campaign import wal
+from orchestrator.campaign import artifact_admission, wal
 from orchestrator.campaign.model import STAGE_COMMIT, WalRecord
 from orchestrator.verifier import (
     CAMPAIGN_WAL_SINK,
@@ -22,30 +22,43 @@ from orchestrator.verifier import (
 _FIXTURE = Path(__file__).resolve().parent / "fixtures/g1_serial"
 
 
-@lru_cache(maxsize=None)
-def _cached_verification_capabilities(tags: tuple[str, ...]):
+def verification_capabilities(
+        tags=("legacy",), *, sink_kind: str, lock_identity_sha256: str,
+        variant: str, operation_identity: str,
+):
     results = tuple(
-        verify_trace_dir_with_capability(str(_FIXTURE)) for _ in tags
+        verify_trace_dir_with_capability(
+            str(_FIXTURE),
+            receipt_sink_kind=sink_kind,
+            receipt_lock_identity_sha256=lock_identity_sha256,
+            receipt_variant=variant,
+            receipt_operation_identity=operation_identity,
+            receipt_workload_tag=tag,
+        )
+        for tag in tags
     )
     assert all(result.certified for result, _capability in results)
-    return tuple(capability for _result, capability in results)
-
-
-def verification_capabilities(tags=("legacy",)):
-    return list(_cached_verification_capabilities(tuple(tags)))
+    return [capability for _result, capability in results]
 
 
 def campaign_receipt(
         layout, variant: str, payload: dict, *, operation_identity: str = "test-op",
         tags=("legacy",), lock_identity_sha256: str | None = None):
+    lock_identity = (
+        campaign_lock_sha256(layout)
+        if lock_identity_sha256 is None else lock_identity_sha256
+    )
     return issue_commit_receipt(
-        verification_capabilities(tags),
+        verification_capabilities(
+            tags,
+            sink_kind=CAMPAIGN_WAL_SINK,
+            lock_identity_sha256=lock_identity,
+            variant=variant,
+            operation_identity=operation_identity,
+        ),
         workload_tags=list(tags),
         sink_kind=CAMPAIGN_WAL_SINK,
-        lock_identity_sha256=(
-            campaign_lock_sha256(layout)
-            if lock_identity_sha256 is None else lock_identity_sha256
-        ),
+        lock_identity_sha256=lock_identity,
         variant=variant,
         operation_identity=operation_identity,
         terminal_payload=payload,
@@ -76,7 +89,12 @@ def replay_evidence(
         source_wal_sha256: str = "b" * 64,
 ):
     receipt = issue_commit_receipt(
-        verification_capabilities(),
+        verification_capabilities(
+            sink_kind=CAMPAIGN_WAL_SINK,
+            lock_identity_sha256=source_lock_sha256,
+            variant=source_variant,
+            operation_identity="source-test-op",
+        ),
         workload_tags=["legacy"],
         sink_kind=CAMPAIGN_WAL_SINK,
         lock_identity_sha256=source_lock_sha256,
@@ -91,13 +109,56 @@ def replay_evidence(
         variant=source_variant,
         terminal_payload=source_payload,
     )
-    return admit_replay_evidence(
-        serialized,
-        source_campaign_lock_sha256=source_lock_sha256,
-        source_wal_sha256=source_wal_sha256,
-        source_variant=source_variant,
-        source_terminal_payload=source_payload,
+    source_record = artifact_admission.ImmutableWalRecord(
+        variant=source_variant,
+        stage=STAGE_COMMIT,
+        env_tag="test",
+        ts=1.0,
+        payload=MappingProxyType({
+            **source_payload,
+            RECEIPT_PAYLOAD_KEY: serialized,
+        }),
     )
+    records = (source_record,)
+    decision = artifact_admission.CampaignAdmissionDecision(
+        classification="test",
+        admission_status="admitted",
+        verification_status="certified",
+        campaign_id="source-test",
+        campaign_path="source-test",
+        campaign_lock_sha256=source_lock_sha256,
+        wal_sha256=source_wal_sha256,
+        policy_sha256=None,
+        attempt_receipt_sha256s=(),
+        overlay_ledger_sha256="c" * 64,
+        overlay_record_key=None,
+        validator_sha256="d" * 64,
+    )
+    epoch = artifact_admission.CampaignVerifierEpoch(
+        campaign_verifier_epoch="E1:" + "e" * 64,
+        state="E1",
+        reason_code="recorded-closure",
+    )
+    # Production exposes no replay-capability issuer.  This test-only fixture
+    # extracts the issuer already captured by the public admission closure, so
+    # the evidence still crosses the exact production capability check.
+    replay_issuers = tuple(
+        cell.cell_contents
+        for cell in (artifact_admission.require_admitted_campaign.__closure__ or ())
+        if callable(cell.cell_contents)
+        and getattr(cell.cell_contents, "__name__", None) == "issue"
+    )
+    assert len(replay_issuers) == 1
+    replay_capability = replay_issuers[0](decision, records)
+    view = artifact_admission.CertifiedCampaignView(
+        layout=artifact_admission.CampaignLayout(root="source-test"),
+        records=records,
+        decision=decision,
+        campaign_verifier_epoch=epoch,
+        _certification_token=artifact_admission._CERTIFIED_VIEW_TOKEN,
+        _replay_admission_capability=replay_capability,
+    )
+    return admit_replay_evidence(view, source_record)
 
 
 def append_legacy_raw_commit(

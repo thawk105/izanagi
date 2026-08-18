@@ -176,6 +176,34 @@ def test_unratified_closure_digest_is_rejected(
         R.require_ratified_closure(_closure_map("unratified"))
 
 
+def test_fake_git_at_front_of_path_cannot_forge_ratification(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo = _repo(tmp_path)
+    fake_bin = tmp_path / "fake-bin"
+    fake_bin.mkdir()
+    marker = tmp_path / "fake-git-ran"
+    fake_git = fake_bin / "git"
+    fake_git.write_text(
+        "#!/bin/sh\n"
+        f"touch {marker}\n"
+        "exit 0\n",
+        encoding="ascii",
+    )
+    fake_git.chmod(0o755)
+    monkeypatch.setenv(
+        "PATH", os.fspath(fake_bin) + os.pathsep + os.environ.get("PATH", ""),
+    )
+    monkeypatch.setattr(R, "_REPO_ROOT", repo)
+
+    with pytest.raises(
+        R.EnforcementSourceRatificationError,
+        match="enforcement-source-closure-unratified",
+    ):
+        R.require_ratified_closure(_closure_map("forged-by-path"))
+    assert not marker.exists()
+
+
 def test_ratified_closure_digest_is_accepted(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
 ) -> None:

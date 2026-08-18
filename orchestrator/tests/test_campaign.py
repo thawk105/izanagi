@@ -5356,11 +5356,12 @@ def _mock_pipeline(certified=True, median=12345.0, cv=0.01, rc=0, ncommit=100,
         patch("_run_trace", fake_trace)
     # 実 VerifyResult を返す (result_to_dict が S4 で abort payload を作るので duck-type 不可)。
     if trace_content is None:
-        def fake_verify(tdir, *, expected_commits=None):
+        def fake_verify(tdir, *, expected_commits=None, **receipt_binding):
             bench_calls.verify_witnesses.append(expected_commits)
             fixture = "g1_serial" if certified else "r1_write_skew"
             result, capability = real_verify_trace_dir_with_capability(
-                os.path.join(_HERE, "fixtures", fixture)
+                os.path.join(_HERE, "fixtures", fixture),
+                **receipt_binding,
             )
             # The pre-receipt pipeline fixture intentionally exposes txn 1→2
             # and keys aa/bb in its structured red payload.  A red capability
@@ -5371,10 +5372,13 @@ def _mock_pipeline(certified=True, median=12345.0, cv=0.01, rc=0, ncommit=100,
             return result, capability
         patch("verify_trace_dir_with_capability", fake_verify)
     else:
-        def wrapped_real_verify(tdir, *, expected_commits=None):
+        def wrapped_real_verify(
+                tdir, *, expected_commits=None, **receipt_binding,
+        ):
             bench_calls.verify_witnesses.append(expected_commits)
             return real_verify_trace_dir_with_capability(
                 tdir, expected_commits=expected_commits,
+                **receipt_binding,
             )
         patch("verify_trace_dir_with_capability", wrapped_real_verify)
     def fake_remeasure(measure_fn, settle_fn=None, **k):
@@ -7311,14 +7315,15 @@ def _mock_pipeline_multipass(pass_results, median=12345.0, cv=0.01, competing=No
         pipeline.verify_trace_dir_with_capability
     )
 
-    def fake_verify(tdir, *, expected_commits=None):
+    def fake_verify(tdir, *, expected_commits=None, **receipt_binding):
         i = idx_verify["i"]
         idx_verify["i"] += 1
         ncommit, _, _, certified = pass_results[i]
         assert expected_commits == ncommit
         fixture = "g1_serial" if certified else "r1_write_skew"
         return real_verify_trace_dir_with_capability(
-            os.path.join(_HERE, "fixtures", fixture)
+            os.path.join(_HERE, "fixtures", fixture),
+            **receipt_binding,
         )
 
     def fake_build(genome, commit, trace, src_token=None, ccbench_dir="", cache_root="",

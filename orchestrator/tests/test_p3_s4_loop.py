@@ -67,6 +67,7 @@ from orchestrator.critic.digest import (DIFF_QUARANTINE_REASON,                 
                            load_diff_rejections,
                            load_liveness_rejections, render_rejections)
 from campaign_lock_test_support import build_v2_lock               # noqa: E402
+import commit_receipt_support                                     # noqa: E402
 
 # 実 backoff.hh の EVOLVE-BLOCK 骨格を写した fixture (test_diff_quarantine と同型)。
 _TEMPLATE = """#pragma once
@@ -2290,7 +2291,9 @@ def test_resolve_duplicate_recovers_certified_from_wal():
               {"genome": genome.canonical(), "src_token": fake_src_tok})
     L.wal.log(lay, v, L.STAGE_VERIFY_DONE, L.ENV_TAG,
               {"verdict": "serializable", "certified": True, "commits": 1, "aborts": 1})
-    L.wal.log(lay, v, L.STAGE_COMMIT, L.ENV_TAG, {"fitness_tps": 491796.0, "cv": 0.009})
+    commit_receipt_support.append_legacy_raw_commit(
+        lay, v, L.ENV_TAG, {"fitness_tps": 491796.0, "cv": 0.009},
+    )
     pl = L.PlannerProposal(axis=L.MARKER_ID, direction="decrease", magnitude="medium")
     state = L.LoopState(iteration=2, start_wall=time.time())
     out = L._resolve_duplicate(lay, pl, state, _dup_summary(v))
@@ -2332,7 +2335,9 @@ def test_resolve_duplicate_never_reresolves_source():
     v = variant_id(genome, "feedface")
     L.wal.log(lay, v, L.STAGE_BUILD_START, L.ENV_TAG,
               {"genome": genome.canonical(), "src_token": "feedface"})
-    L.wal.log(lay, v, L.STAGE_COMMIT, L.ENV_TAG, {"fitness_tps": 1.0, "cv": 0.0})
+    commit_receipt_support.append_legacy_raw_commit(
+        lay, v, L.ENV_TAG, {"fitness_tps": 1.0, "cv": 0.0},
+    )
     pl = L.PlannerProposal(axis=L.MARKER_ID, direction="increase", magnitude="small")
     state = L.LoopState(iteration=2, start_wall=time.time())
     with unittest.mock.patch.object(

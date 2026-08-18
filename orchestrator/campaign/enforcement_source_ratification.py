@@ -13,7 +13,6 @@ import json
 import os
 from pathlib import Path
 import re
-import shutil
 import subprocess
 from typing import Mapping
 
@@ -28,11 +27,20 @@ _HEX40_RE = re.compile(r"[0-9a-f]{40}\Z")
 _HEX64_RE = re.compile(r"[0-9a-f]{64}\Z")
 _ROW_KEYS = frozenset({"schema_version", "closure_digest_sha256"})
 _GIT_TIMEOUT_SECONDS = 10
+_GIT_EXECUTABLE = Path("/usr/bin/git")
+_GIT_HARDEN = (
+    "--no-pager",
+    "-c",
+    "core.useReplaceRefs=false",
+    "-c",
+    "core.commitGraph=false",
+    "-c",
+    "core.fsmonitor=false",
+)
 _GIT_ENV_ALLOWLIST = (
     "LANG",
     "LC_ALL",
     "LC_CTYPE",
-    "PATH",
     "SYSTEMROOT",
     "TMPDIR",
     "TZ",
@@ -170,14 +178,30 @@ def _git_env() -> dict[str, str]:
 
 
 def _git(root: Path, *args: str) -> subprocess.CompletedProcess[bytes]:
-    executable = shutil.which("git")
-    if executable is None:
+    if not _GIT_EXECUTABLE.is_absolute():
+        raise EnforcementSourceRatificationError(
+            "ratification git executable is not an absolute path"
+        )
+    try:
+        present = _GIT_EXECUTABLE.is_file()
+    except OSError as exc:
+        raise EnforcementSourceRatificationError(
+            "ratification git executable cannot be resolved"
+        ) from exc
+    if not present:
         raise EnforcementSourceRatificationError(
             "ratification git executable is unavailable"
         )
+    executable = os.fspath(_GIT_EXECUTABLE)
     try:
         return subprocess.run(
-            [executable, "-C", str(root), *args],
+            [
+                executable,
+                *_GIT_HARDEN,
+                "--no-replace-objects",
+                "-C", str(root),
+                *args,
+            ],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             check=False,

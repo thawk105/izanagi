@@ -15,8 +15,9 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import subprocess
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
 from types import MappingProxyType
@@ -71,6 +72,59 @@ CAMPAIGN_VERIFIER_EPOCH_EXCLUDED_SCOPE = (
     "orchestrator/verifier/cli.py、および package 外の orchestrator/verify.py の "
     "implementation bytes は束縛しない"
 )
+
+
+def _bind_replay_admission_capability_issuer():
+    issuer_token = object()
+    issued: dict[object, tuple[object, tuple, int]] = {}
+
+    class _ReplayAdmissionCapability:
+        __slots__ = ("_nonce",)
+
+        def __init__(self, decision, records, token):
+            if token is not issuer_token:
+                raise TypeError("replay admission capability is admission-issued")
+            nonce = object()
+            issued[nonce] = (decision, records, os.getpid())
+            self._nonce = nonce
+
+        def _assert_source(self, view, record) -> None:
+            try:
+                decision, records, issuer_pid = issued[self._nonce]
+            except (AttributeError, KeyError, TypeError) as exc:
+                raise TypeError(
+                    "replay admission capability lacks issuer authority"
+                ) from exc
+            if (type(self) is not _ReplayAdmissionCapability
+                    or issuer_pid != os.getpid()
+                    or view._replay_admission_capability is not self
+                    or view.decision is not decision
+                    or view.records is not records
+                    or not any(record is row for row in records)
+                    or record.stage != STAGE_COMMIT):
+                raise TypeError(
+                    "replay evidence requires the admission-issued source record"
+                )
+
+    def issue(decision, records):
+        return _ReplayAdmissionCapability(decision, records, issuer_token)
+
+    def assert_source(view, record) -> None:
+        capability = view._replay_admission_capability
+        if type(capability) is not _ReplayAdmissionCapability:
+            raise TypeError(
+                "certified view lacks exact replay admission authority"
+            )
+        capability._assert_source(view, record)
+
+    return issue, assert_source
+
+
+(
+    _issue_replay_admission_capability,
+    _assert_replay_admission_source,
+) = _bind_replay_admission_capability_issuer()
+del _bind_replay_admission_capability_issuer
 
 
 class ArtifactAdmissionError(RuntimeError):
@@ -271,12 +325,18 @@ class AdmittedCampaign:
 class CertifiedCampaignView(AdmittedCampaign):
     """E1 と current exact map equality を証明した certified 専用 view。"""
 
+    _replay_admission_capability: object = field(
+        repr=False,
+        compare=False,
+    )
+
     def __init__(
             self, *, layout: CampaignLayout,
             records: tuple[ImmutableWalRecord, ...],
             decision: CampaignAdmissionDecision,
             campaign_verifier_epoch: CampaignVerifierEpoch,
             _certification_token: object,
+            _replay_admission_capability: object = None,
     ) -> None:
         if _certification_token is not _CERTIFIED_VIEW_TOKEN:
             raise TypeError(
@@ -287,6 +347,11 @@ class CertifiedCampaignView(AdmittedCampaign):
         object.__setattr__(self, "decision", decision)
         object.__setattr__(
             self, "campaign_verifier_epoch", campaign_verifier_epoch,
+        )
+        object.__setattr__(
+            self,
+            "_replay_admission_capability",
+            _replay_admission_capability,
         )
         self.__post_init__()
 
@@ -1073,9 +1138,10 @@ def require_admitted_campaign(
 ) -> HistoricalCampaignView: ...
 
 
-def require_admitted_campaign(
+def _require_admitted_campaign(
     campaign: CampaignLayout | str | Path, *,
     purpose: CampaignReadPurpose,
+    _replay_capability_issuer,
 ) -> CertifiedCampaignView | HistoricalCampaignView:
     """既存 admission 後に目的別 epoch gate を適用して非互換 view を返す。"""
     _validate_read_purpose(purpose)
@@ -1096,10 +1162,36 @@ def require_admitted_campaign(
         "campaign_verifier_epoch": epoch,
     }
     if purpose is CampaignReadPurpose.CERTIFIED_ACCEPTANCE:
+        replay_capability = _replay_capability_issuer(
+            decision,
+            view_fields["records"],
+        )
         return CertifiedCampaignView(
             **view_fields, _certification_token=_CERTIFIED_VIEW_TOKEN,
+            _replay_admission_capability=replay_capability,
         )
     return HistoricalCampaignView(**view_fields)
+
+
+def _bind_require_admitted_campaign(replay_capability_issuer):
+    def require_admitted_campaign(
+        campaign: CampaignLayout | str | Path, *,
+        purpose: CampaignReadPurpose,
+    ) -> CertifiedCampaignView | HistoricalCampaignView:
+        return _require_admitted_campaign(
+            campaign,
+            purpose=purpose,
+            _replay_capability_issuer=replay_capability_issuer,
+        )
+
+    return require_admitted_campaign
+
+
+require_admitted_campaign = _bind_require_admitted_campaign(
+    _issue_replay_admission_capability,
+)
+del _bind_require_admitted_campaign
+del _issue_replay_admission_capability
 
 
 def require_certified_campaign_view(

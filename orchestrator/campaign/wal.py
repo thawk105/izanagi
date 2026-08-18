@@ -54,6 +54,7 @@ from . import trigger_gate_binding
 from ..verifier.commit_receipt import (
     RECEIPT_PAYLOAD_KEY,
     CommitReceiptError,
+    campaign_lock_sha256,
     validate_live_campaign_wal_receipt,
 )
 
@@ -444,8 +445,14 @@ def append(
                 ) from exc
 
             if record.stage == STAGE_COMMIT:
+                lock_identity_sha256 = (
+                    campaign_lock_sha256(layout)
+                    if os.path.lexists(layout.lock_file)
+                    else None
+                )
                 serialized_receipt = validate_live_campaign_wal_receipt(
                     commit_receipt,
+                    lock_identity_sha256=lock_identity_sha256,
                     variant=record.variant,
                     terminal_payload=record.payload,
                 )

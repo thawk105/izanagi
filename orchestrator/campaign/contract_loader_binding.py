@@ -7,7 +7,6 @@ import hashlib
 import os
 from pathlib import Path, PurePosixPath
 import re
-import shutil
 import stat
 import subprocess
 from typing import Mapping
@@ -17,12 +16,21 @@ from .campaign_lock import CONTRACT_LOADER_RELATIVE_PATHS
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 GIT_TIMEOUT_SECONDS = 10
+_GIT_EXECUTABLE = Path("/usr/bin/git")
+_GIT_HARDEN = (
+    "--no-pager",
+    "-c",
+    "core.useReplaceRefs=false",
+    "-c",
+    "core.commitGraph=false",
+    "-c",
+    "core.fsmonitor=false",
+)
 
 _GIT_ENV_ALLOWLIST = (
     "LANG",
     "LC_ALL",
     "LC_CTYPE",
-    "PATH",
     "SYSTEMROOT",
     "TMPDIR",
     "TZ",
@@ -242,11 +250,21 @@ def _read_regular_file_no_follow(root: Path, relative: str) -> bytes:
 
 
 def _run_git(root: Path, *args: str) -> bytes:
-    executable = shutil.which("git")
-    if executable is None:
+    if not _GIT_EXECUTABLE.is_absolute():
+        raise ContractLoaderBindingError(
+            "contract-loader-git-error: git executable が絶対 path でない"
+        )
+    try:
+        present = _GIT_EXECUTABLE.is_file()
+    except OSError as exc:
+        raise ContractLoaderBindingError(
+            "contract-loader-git-error: git executable を解決できない"
+        ) from exc
+    if not present:
         raise ContractLoaderBindingError(
             "contract-loader-git-error: git executable が見つからない"
         )
+    executable = os.fspath(_GIT_EXECUTABLE)
     contaminated = sorted(
         key for key in _FORBIDDEN_AMBIENT_GIT_ENV if key in os.environ
     )
@@ -268,7 +286,13 @@ def _run_git(root: Path, *args: str) -> bytes:
     })
     try:
         completed = subprocess.run(
-            [executable, "-C", str(root), *args],
+            [
+                executable,
+                *_GIT_HARDEN,
+                "--no-replace-objects",
+                "-C", str(root),
+                *args,
+            ],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             check=False,
