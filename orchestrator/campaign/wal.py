@@ -51,11 +51,9 @@ from .model import (
 )
 from . import trigger_gate_binding
 from ..verifier.commit_receipt import (
-    CAMPAIGN_WAL_SINK,
     RECEIPT_PAYLOAD_KEY,
     CommitReceiptError,
-    campaign_lock_sha256,
-    validate_live_receipt,
+    validate_live_campaign_wal_receipt,
 )
 
 
@@ -445,11 +443,8 @@ def append(
                 ) from exc
 
             if record.stage == STAGE_COMMIT:
-                lock_identity = campaign_lock_sha256(layout)
-                serialized_receipt = validate_live_receipt(
+                serialized_receipt = validate_live_campaign_wal_receipt(
                     commit_receipt,
-                    sink_kind=CAMPAIGN_WAL_SINK,
-                    lock_identity_sha256=lock_identity,
                     variant=record.variant,
                     terminal_payload=record.payload,
                 )
@@ -809,12 +804,6 @@ def ordered_attempt_frames(
             ))
         byte_start = byte_end
     return tuple(selected)
-
-
-def _lock_declares_admission_policy(lock_value: object) -> bool:
-    identity = _campaign_lock_identity(lock_value)
-    search = identity.get("search_config") if type(identity) is dict else None
-    return type(search) is dict and "build_admission" in search
 
 
 def _campaign_lock_value(layout: CampaignLayout) -> object:
@@ -1601,10 +1590,6 @@ def replay(
     campaign_lock = _campaign_lock_value(layout)
     validate_commit_contract_bindings(records, campaign_lock=campaign_lock)
     validate_trigger_bindings(records, campaign_lock=campaign_lock)
-    if admission_policy is None and _lock_declares_admission_policy(campaign_lock):
-        raise AttemptTopologyError(
-            "admission-aware campaign replay には current admission_policy が必要"
-        )
     attempts = (
         _validate_attempt_topology(
             records, admission_policy=admission_policy,

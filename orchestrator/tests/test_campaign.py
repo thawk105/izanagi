@@ -5345,9 +5345,16 @@ def _mock_pipeline(certified=True, median=12345.0, cv=0.01, rc=0, ncommit=100,
         def fake_verify(tdir, *, expected_commits=None):
             bench_calls.verify_witnesses.append(expected_commits)
             fixture = "g1_serial" if certified else "r1_write_skew"
-            return real_verify_trace_dir_with_capability(
+            result, capability = real_verify_trace_dir_with_capability(
                 os.path.join(_HERE, "fixtures", fixture)
             )
+            # The pre-receipt pipeline fixture intentionally exposes txn 1→2
+            # and keys aa/bb in its structured red payload.  A red capability
+            # is never eligible for receipt issuance, so preserve that exact
+            # diagnostic while still returning a verifier-issued opaque value.
+            if not certified:
+                result = _red_vr()
+            return result, capability
         patch("verify_trace_dir_with_capability", fake_verify)
     else:
         def wrapped_real_verify(tdir, *, expected_commits=None):

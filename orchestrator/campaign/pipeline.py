@@ -1247,7 +1247,15 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
     def _receipt_for(payload: Dict):
         if qualification_policy is None:
             sink_kind = CAMPAIGN_WAL_SINK
-            lock_identity = campaign_lock_sha256(layout)
+            # Preserve the raw lock identity used by certified replay whenever
+            # a lock exists.  Some direct producer layouts intentionally have
+            # no physical lock; their issuer still binds the receipt to the
+            # COMMIT contract identity, while wal.append never re-opens a lock.
+            lock_identity = (
+                campaign_lock_sha256(layout)
+                if os.path.lexists(layout.lock_file)
+                else payload[COMMIT_CONTRACT_SHA256_KEY]
+            )
         else:
             sink_kind = QUALIFICATION_SINK
             lock_identity = (

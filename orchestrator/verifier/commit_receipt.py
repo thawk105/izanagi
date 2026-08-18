@@ -331,15 +331,41 @@ def validate_live_receipt(
         receipt: object, *, sink_kind: str, lock_identity_sha256: str,
         variant: str, terminal_payload: Mapping[str, Any]) -> dict[str, Any]:
     """Require the opaque live object, then return its durable projection."""
+    record = _live_receipt_record(receipt)
+    return validate_serialized_receipt(
+        record,
+        sink_kind=sink_kind,
+        lock_identity_sha256=lock_identity_sha256,
+        variant=variant,
+        terminal_payload=terminal_payload,
+    )
+
+
+def _live_receipt_record(receipt: object) -> dict[str, Any]:
+    """Return an immutable capability's projection after process-seal checks."""
     if (type(receipt) is not CommitReceipt
             or receipt._token is not _RECEIPT_TOKEN
             or receipt._pid != os.getpid()
             or receipt._process_seal is not _PROCESS_SEAL):
         raise CommitReceiptError("exact live CommitReceipt capability required")
+    return _thaw_json(receipt._record)
+
+
+def validate_live_campaign_wal_receipt(
+        receipt: object, *, variant: str,
+        terminal_payload: Mapping[str, Any]) -> dict[str, Any]:
+    """Validate a live WAL receipt using the issuer-burned lock identity.
+
+    The WAL sink does not re-open ``campaign.lock``.  Its existing topology
+    checks remain responsible for binding a COMMIT record's contract identity
+    to the lock when one is available.
+    """
+    record = _live_receipt_record(receipt)
+    core = _receipt_core(record)
     return validate_serialized_receipt(
-        _thaw_json(receipt._record),
-        sink_kind=sink_kind,
-        lock_identity_sha256=lock_identity_sha256,
+        record,
+        sink_kind=CAMPAIGN_WAL_SINK,
+        lock_identity_sha256=core["lock_identity_sha256"],
         variant=variant,
         terminal_payload=terminal_payload,
     )

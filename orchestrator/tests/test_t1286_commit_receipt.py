@@ -60,6 +60,9 @@ from orchestrator.verifier import (  # noqa: E402
 
 
 _CANON = "silo|BACK_OFF=0,NO_WAIT_LOCKING_IN_VALIDATION=1,NO_WAIT_OF_TICTOC=0,WAL=0"
+_TEST_ADMISSION_POLICY = build_run_context(
+    generator_id=GeneratorId.BACKOFF_SWEEP,
+).policy
 
 
 def _v1_layout(tmp_path: Path, name: str = "campaign") -> CampaignLayout:
@@ -68,6 +71,7 @@ def _v1_layout(tmp_path: Path, name: str = "campaign") -> CampaignLayout:
         spec_slug="t1286", search_tag="receipt", spec_content="fixture",
         ccbench_commit="deadbeef",
     )
+    cfg = ident.bind_admission_policy(cfg, _TEST_ADMISSION_POLICY)
     wal.write_lock(layout, ident.canonical_preimage(cfg))
     decoded = campaign_lock.decode_campaign_lock(
         Path(layout.lock_file).read_text(encoding="utf-8")
@@ -150,7 +154,13 @@ def test_receipt_rejects_changed_lock_and_changed_payload_without_write(tmp_path
 
     Path(layout.lock_file).write_text('{"different":"lock"}\n', encoding="utf-8")
     with pytest.raises(CommitReceiptError, match="binding mismatch"):
-        wal.append(layout, _record(payload), commit_receipt=receipt)
+        validate_live_receipt(
+            receipt,
+            sink_kind=CAMPAIGN_WAL_SINK,
+            lock_identity_sha256=campaign_lock_sha256(layout),
+            variant="v",
+            terminal_payload=payload,
+        )
     assert Path(layout.wal_file).read_bytes() == before
 
     layout2 = _v1_layout(tmp_path, "campaign-two")
@@ -162,14 +172,28 @@ def test_receipt_rejects_changed_lock_and_changed_payload_without_write(tmp_path
     assert Path(layout2.wal_file).read_bytes() == b""
 
 
-@pytest.mark.parametrize("fixture", ["empty", "r1_write_skew"])
-def test_uncertified_verifier_capability_cannot_issue_receipt(
-        tmp_path: Path, fixture: str,
-):
-    trace_dir = tmp_path / "empty" if fixture == "empty" else (
-        _HERE / "fixtures/r1_write_skew"
+def test_wal_append_accepts_issuer_bound_receipt_without_physical_lock(tmp_path: Path):
+    layout = _v1_layout(tmp_path)
+    payload = {"fitness_tps": 2.0}
+    receipt = receipt_support.campaign_receipt(layout, "v", payload)
+    lock_identity = campaign_lock_sha256(layout)
+    Path(layout.lock_file).unlink()
+
+    wal.append(layout, _record(payload), commit_receipt=receipt)
+
+    rows = wal.read_records(layout)
+    assert len(rows) == 1
+    assert (
+        rows[0].payload["commit_verification_receipt"]["lock_identity_sha256"]
+        == lock_identity
     )
-    trace_dir.mkdir(exist_ok=True)
+
+
+@pytest.mark.parametrize("fixture", ["r1_write_skew", "r2_lost_update"])
+def test_uncertified_verifier_capability_cannot_issue_receipt(
+        fixture: str,
+):
+    trace_dir = _HERE / "fixtures" / fixture
     result, capability = verify_trace_dir_with_capability(str(trace_dir))
     assert result.certified is False
     assert result.verdict in {"indeterminate", "non-serializable"}
@@ -314,8 +338,9 @@ def test_legacy_receiptless_replay_and_recovery_are_byte_stable(tmp_path: Path):
         layout, "legacy", "test", {"fitness_tps": 1.0})
     before = Path(layout.wal_file).read_bytes()
     assert wal.replay(layout)["legacy"].committed
-    policy = build_run_context(generator_id=GeneratorId.BACKOFF_SWEEP).policy
-    assert wal.recover_interrupted_attempts(layout, admission_policy=policy) == []
+    assert wal.recover_interrupted_attempts(
+        layout, admission_policy=_TEST_ADMISSION_POLICY,
+    ) == []
     assert wal.replay(layout)["legacy"].committed
     assert Path(layout.wal_file).read_bytes() == before
 
