@@ -698,6 +698,7 @@ def _fixture_observation_sha256(trial: R.TrialSpec) -> str:
 
 def _fixture_campaign_identity(trial: R.TrialSpec) -> tuple[str, str]:
     workload = R.HOLDOUT_BINDINGS[trial.holdout]["workload"]
+    entry = producer.resolve_workload_entry(workload)
     arm_execution = _fixture_arm_execution(trial)
     build_context = producer.build_run_context(
         generator_id=producer.GeneratorId.S8A_TRIGGER_SWEEP,
@@ -712,11 +713,11 @@ def _fixture_campaign_identity(trial: R.TrialSpec) -> tuple[str, str]:
             "descriptor_sha256": arm_execution["content_digest_sha256"],
             "generation_budget": trial.generations,
             "pilot_scope": "exploratory-ycsb-abc",
-            "records": 100_000,
+            "records": entry["records"],
             "reflux": "on",
             "scale": "silo",
             "stop_policy": "fixed-generations-no-performance-early-stop",
-            "threads": 4,
+            "threads": entry["threads"],
             "trigger_gate_binding_schema": (
                 "izanagi-trigger-gate-binding/v1"
             ),
@@ -825,6 +826,7 @@ def _complete_report(
         repository_root, manifest,
     )
     workload = R.HOLDOUT_BINDINGS[trial.holdout]["workload"]
+    entry = producer.resolve_workload_entry(workload)
     workload_flags = _fixture_workload_flags(trial)
     descriptor = _fixture_execution_descriptor(trial)
     arm_execution = _fixture_arm_execution(trial)
@@ -930,6 +932,10 @@ def _complete_report(
     report["cells"] = [{
         "workload": workload,
         "workload_flags": workload_flags,
+        "perf_config_scale": {
+            "records": entry["records"],
+            "threads": entry["threads"],
+        },
         "descriptor": descriptor,
         "descriptor_binding": descriptor_binding,
         "campaign_id": campaign_id,

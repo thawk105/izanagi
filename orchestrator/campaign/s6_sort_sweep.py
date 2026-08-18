@@ -368,6 +368,7 @@ def _eval_one(name: str, cfg: CampaignConfig, perf: PerfConfig, layout, sub: str
                                    log=log, ccbench_dir=sub, cache_root=cache_root,
                                    authorization_contract=env_contract.authorize(ENV_TAG),
                                    build_context=build_context,
+                                   declared_use_class="official",
                                    capability_resolver=capability_resolver)
             r = summary.results[0] if summary.results else None
         else:

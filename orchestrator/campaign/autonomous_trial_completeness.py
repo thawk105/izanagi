@@ -27,6 +27,8 @@ if __package__ in {None, ""}:  # pragma: no cover - direct CLI execution
 
 from . import campaign_lock
 from . import layer3_report as _layer3_report
+from . import s8b_holdout_freeze
+from . import s8b_ratified_freeze
 from .artifact_admission import (
     ArtifactAdmissionError,
     CampaignReadPurpose,
@@ -525,7 +527,7 @@ def _campaign_lock_identity(
 
 def _check_cell_campaign_identity(
     *, cell: Mapping[str, Any], cell_index: int, workload: str,
-    workload_flags: Mapping[str, Any], trial_id: str, budget: int,
+    entry: Mapping[str, Any], trial_id: str, budget: int,
     campaign_root: Path, arm_binding_digest: str | None,
 ) -> None:
     label = f"cells[{cell_index}]"
@@ -551,6 +553,19 @@ def _check_cell_campaign_identity(
         _fail("campaign-chain", f"{label}.descriptor schema digest differs")
     if descriptor.get("schema_version") != "8b-v1":
         _fail("campaign-chain", f"{label}.descriptor schema differs")
+    descriptor_scale = _mapping(
+        descriptor.get("scale"), gate="campaign-chain",
+        label=f"{label}.descriptor.scale",
+    )
+    perf_config_scale = _mapping(
+        cell.get("perf_config_scale"), gate="campaign-chain",
+        label=f"{label}.perf_config_scale",
+    )
+    if (
+        frozenset(descriptor_scale) != frozenset({"records", "threads"})
+        or frozenset(perf_config_scale) != frozenset({"records", "threads"})
+    ):
+        _fail("campaign-chain", f"{label} workload scale keys differ")
     if arm_binding_digest is not None and (
         descriptor_binding.get("input_sha256") != content_digest
         or descriptor_binding.get("content_digest_sha256") != content_digest
@@ -584,19 +599,32 @@ def _check_cell_campaign_identity(
         "descriptor_sha256": content_digest,
         "generation_budget": budget,
         "pilot_scope": "exploratory-ycsb-abc",
-        "records": 100_000,
         "reflux": "on",
         "scale": "silo",
         "stop_policy": "fixed-generations-no-performance-early-stop",
-        "threads": 4,
         "trigger_gate_binding_schema": "izanagi-trigger-gate-binding/v1",
         "verify": "legacy+s2",
         "workload": workload,
-        "ycsb": dict(workload_flags),
+        "ycsb": dict(entry.get("ycsb", {})),
     }
     for field, expected in expected_search_values.items():
         if search_config.get(field) != expected:
             _fail("campaign-chain", f"{label} search_config.{field} differs")
+    expected_scale = {
+        "records": entry.get("records"),
+        "threads": entry.get("threads"),
+    }
+    campaign_scale = {
+        "records": search_config.get("records"),
+        "threads": search_config.get("threads"),
+    }
+    if not (
+        dict(descriptor_scale)
+        == dict(perf_config_scale)
+        == campaign_scale
+        == expected_scale
+    ):
+        _fail("campaign-chain", f"{label} workload scale differs from producer")
     if not isinstance(search_config.get("build_admission"), Mapping):
         _fail("campaign-chain", f"{label} search_config.build_admission is absent")
     if arm_binding_digest is not None and (
@@ -731,8 +759,9 @@ def _check_arm_digest_chain(
     cells: Sequence[Mapping[str, Any]], run_root: Path,
 ) -> None:
     # ``trial_registry`` imports this module, so the registry authority must be
-    # acquired lazily after both modules have finished initializing.  Do not
-    # use the exploratory producer's WORKLOADS table for registered holdouts.
+    # acquired lazily after both modules have finished initializing.  Registry
+    # membership remains independent of the producer's exploratory table; the
+    # entry itself is obtained through the producer's shared resolver below.
     from .trial_registry import HOLDOUT_BINDINGS, HOLDOUT_WORKLOADS
 
     launch = _mapping(
@@ -841,6 +870,13 @@ def _check_arm_digest_chain(
     )
     if actual_content_digest != content_digest:
         _fail("arm-digest-chain", "cell descriptor content digest differs")
+    producer = _producer_module()
+    try:
+        entry = producer.resolve_workload_entry(workload)
+    except producer.AutonomousTrialError:
+        _fail("arm-digest-chain", "registered workload has no producer entry")
+    if dict(entry.get("ycsb", {})) != dict(workload_flags):
+        _fail("arm-digest-chain", "benchmark workload_flags differs from producer")
     descriptor_binding = _mapping(
         cell.get("descriptor_binding"), gate="arm-digest-chain",
         label=f"cells[{cell_index}].descriptor_binding",
@@ -877,7 +913,7 @@ def _check_arm_digest_chain(
     if report.get("do_build") is True or lock_path.exists() or lock_path.is_symlink():
         _check_cell_campaign_identity(
             cell=cell, cell_index=cell_index, workload=workload,
-            workload_flags=workload_flags, trial_id=report.get("trial_id"),
+            entry=entry, trial_id=report.get("trial_id"),
             budget=report.get("generation_budget_per_workload"),
             campaign_root=campaign_root,
             arm_binding_digest=arm_binding_digest,
@@ -2710,6 +2746,66 @@ def _canonical_bytes(value: Any) -> bytes:
         ) from exc
 
 
+def assert_legacy_workload_profile_source(
+    *, source_record: Mapping[str, Any],
+    producer_entries: Mapping[str, Mapping[str, Any]],
+    repository_root: Path,
+) -> None:
+    """Independently reload and reproject the legacy formal source."""
+    try:
+        legacy = s8b_ratified_freeze.load_legacy_freeze(repository_root)
+    except s8b_ratified_freeze.RatifiedFreezeError as exc:
+        raise AutonomousTrialCompletenessError(
+            f"[workload-profile-source] legacy source unavailable: {exc.reason}"
+        ) from exc
+    expected_source = {
+        "schema_version": "p3-workload-profile-source/v1",
+        "selector": "formal-holdout-legacy-v1",
+        "source": "legacy-v1",
+        "loader": "s8b_ratified_freeze.load_legacy_freeze",
+        "path": s8b_ratified_freeze.V1_FREEZE_PATH,
+        "sha256": legacy.sha256,
+    }
+    if (
+        frozenset(source_record) != frozenset(expected_source)
+        or _canonical_bytes(dict(source_record)) != _canonical_bytes(expected_source)
+    ):
+        _fail("workload-profile-source", "source record differs from fresh legacy load")
+    legacy_holdouts = legacy.document.get("holdouts")
+    if not isinstance(legacy_holdouts, Mapping) or set(legacy_holdouts) != set(
+        s8b_holdout_freeze.HOLDOUTS
+    ):
+        _fail("workload-profile-source", "legacy holdout universe differs")
+
+    def projection(entry: Mapping[str, Any]) -> dict[str, Any]:
+        try:
+            return {
+                "candidate_id": entry["candidate_id"],
+                "records": entry["records"],
+                "threads": entry["threads"],
+                "ycsb": dict(entry["ycsb"]),
+            }
+        except (KeyError, TypeError, ValueError) as exc:
+            raise AutonomousTrialCompletenessError(
+                "[workload-profile-source] four-key projection is invalid"
+            ) from exc
+
+    for name, module_entry in s8b_holdout_freeze.HOLDOUTS.items():
+        producer_entry = producer_entries.get(name)
+        legacy_entry = legacy_holdouts.get(name)
+        if not isinstance(producer_entry, Mapping) or not isinstance(
+            legacy_entry, Mapping
+        ):
+            _fail("workload-profile-source", "formal authority entry is absent")
+        values = (
+            projection(module_entry),
+            projection(legacy_entry),
+            projection(producer_entry),
+        )
+        if len({_canonical_bytes(value) for value in values}) != 1:
+            _fail("workload-profile-source", "four-key authority bytes differ")
+
+
 def _fresh_layer3_for_comparison(
     *, campaign_root: Path, persisted_path: Path,
     persisted: Mapping[str, Any], output_root: Path,
@@ -2915,8 +3011,11 @@ def assert_campaign_layer3_chain(
         if not isinstance(campaign_id, str) or not campaign_id or campaign_id in seen:
             _fail("campaign-chain", f"cells[{index}] campaign_id is invalid or duplicated")
         seen.add(campaign_id)
-        workload_flags = producer.WORKLOADS[workload]
-        if cell.get("workload_flags") != workload_flags:
+        entry = producer.resolve_workload_entry(workload)
+        workload_flags = entry.get("ycsb")
+        if not isinstance(workload_flags, Mapping):
+            _fail("campaign-chain", f"cells[{index}] producer entry has no ycsb")
+        if cell.get("workload_flags") != dict(workload_flags):
             _fail("campaign-chain", f"cells[{index}].workload_flags differs from producer")
         campaign_root = _path_identity(
             campaign_root_value, gate="campaign-chain",
@@ -2958,7 +3057,7 @@ def assert_campaign_layer3_chain(
                 _fail("campaign-chain", "report.arm_execution is invalid")
         _check_cell_campaign_identity(
             cell=cell, cell_index=index, workload=workload,
-            workload_flags=workload_flags, trial_id=trial_id, budget=budget,
+            entry=entry, trial_id=trial_id, budget=budget,
             campaign_root=campaign_root,
             arm_binding_digest=arm_binding_digest,
         )

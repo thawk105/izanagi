@@ -9,11 +9,14 @@ verifier の入力は **trace と optional な trace 外 commit counter のみ**
 from __future__ import annotations
 
 from dataclasses import replace
+import os
 from typing import Dict, Optional
 
 from .dsg import DSG
 from .model import VerifyResult
 from .parse import parse_trace_dir
+from .commit_receipt import CommitReceiptError, _domain_digest
+from .report import result_to_dict
 
 
 def verify_trace_dir(
@@ -151,3 +154,155 @@ def verify_trace_dir(
         total_cycles=total,
         abort_reasons=dict(issues.abort_reasons),
     )
+
+
+def _bind_verifier_capability_entrypoint():
+    """Create the only issuer together with an unexported issuer token."""
+    issuer_token = object()
+    issued_capabilities: dict[object, tuple[object, ...]] = {}
+    consumed_nonces: set[object] = set()
+
+    class _VerificationCapability:
+        """Opaque, operation-bound evidence from one verifier invocation."""
+
+        __slots__ = (
+            "_verdict", "_certified", "_result_sha256", "_pid",
+            "_sink_kind", "_lock_identity_sha256", "_variant",
+            "_operation_identity", "_workload_tag", "_nonce",
+            "_sealed",
+        )
+
+        def __init__(
+                self, result: VerifyResult, *, sink_kind: str,
+                lock_identity_sha256: str, variant: str,
+                operation_identity: str, workload_tag: str,
+                _token: object = None,
+        ) -> None:
+            if _token is not issuer_token or type(result) is not VerifyResult:
+                raise TypeError("VerificationCapability is verifier-issued")
+            projection = result_to_dict(result)
+            projection.pop("trace_dir", None)
+            object.__setattr__(self, "_verdict", result.verdict)
+            object.__setattr__(self, "_certified", result.certified)
+            object.__setattr__(
+                self, "_result_sha256",
+                _domain_digest(b"izanagi-verifier-result-v1", projection),
+            )
+            object.__setattr__(self, "_pid", os.getpid())
+            object.__setattr__(self, "_sink_kind", sink_kind)
+            object.__setattr__(
+                self, "_lock_identity_sha256", lock_identity_sha256,
+            )
+            object.__setattr__(self, "_variant", variant)
+            object.__setattr__(self, "_operation_identity", operation_identity)
+            object.__setattr__(self, "_workload_tag", workload_tag)
+            nonce = object()
+            issued_capabilities[nonce] = (
+                result.verdict,
+                result.certified,
+                self._result_sha256,
+                os.getpid(),
+                sink_kind,
+                lock_identity_sha256,
+                variant,
+                operation_identity,
+                workload_tag,
+            )
+            object.__setattr__(self, "_nonce", nonce)
+            object.__setattr__(self, "_sealed", True)
+
+        def __setattr__(self, name, value):
+            if getattr(self, "_sealed", False):
+                raise AttributeError("VerificationCapability is immutable")
+            object.__setattr__(self, name, value)
+
+        def _assert_matches(
+                self, *, sink_kind: str, lock_identity_sha256: str,
+                variant: str, operation_identity: str, workload_tag: str,
+        ) -> None:
+            try:
+                authority = issued_capabilities.get(self._nonce)
+            except (AttributeError, TypeError):
+                authority = None
+            if authority is None:
+                raise CommitReceiptError(
+                    "verification capability has no issuer authority"
+                )
+            (
+                verdict, certified, _result_sha256, issuer_pid,
+                bound_sink, bound_lock, bound_variant, bound_operation,
+                bound_workload,
+            ) = authority
+            if (type(self) is not _VerificationCapability
+                    or issuer_pid != os.getpid()
+                    or verdict != "serializable"
+                    or certified is not True):
+                raise CommitReceiptError(
+                    "verification capability is not certified in this process"
+                )
+            if self._nonce in consumed_nonces:
+                raise CommitReceiptError(
+                    "verification capability was already consumed"
+                )
+            if (bound_sink != sink_kind
+                    or bound_lock != lock_identity_sha256
+                    or bound_variant != variant
+                    or bound_operation != operation_identity
+                    or bound_workload != workload_tag):
+                raise CommitReceiptError(
+                    "verification capability is bound to a different operation"
+                )
+
+        def _receipt_evidence(self) -> tuple[str, bool, str]:
+            try:
+                authority = issued_capabilities[self._nonce]
+            except (AttributeError, KeyError, TypeError) as exc:
+                raise CommitReceiptError(
+                    "verification capability has no issuer authority"
+                ) from exc
+            return authority[0], authority[1], authority[2]
+
+        def _consume(self) -> None:
+            try:
+                issued = self._nonce in issued_capabilities
+                consumed = self._nonce in consumed_nonces
+            except (AttributeError, TypeError):
+                issued = False
+                consumed = False
+            if not issued or consumed:
+                raise CommitReceiptError(
+                    "verification capability was already consumed"
+                )
+            consumed_nonces.add(self._nonce)
+
+    def _verify_trace_dir_with_capability(
+            trace_dir: str, max_report: Optional[int] = 20, *,
+            expected_commits: Optional[int] = None,
+            receipt_sink_kind: str,
+            receipt_lock_identity_sha256: str,
+            receipt_variant: str,
+            receipt_operation_identity: str,
+            receipt_workload_tag: str,
+    ) -> tuple[VerifyResult, _VerificationCapability]:
+        """Run verification and issue one capability for this exact operation."""
+        result = verify_trace_dir(
+            trace_dir, max_report=max_report, expected_commits=expected_commits,
+        )
+        capability = _VerificationCapability(
+            result,
+            sink_kind=receipt_sink_kind,
+            lock_identity_sha256=receipt_lock_identity_sha256,
+            variant=receipt_variant,
+            operation_identity=receipt_operation_identity,
+            workload_tag=receipt_workload_tag,
+            _token=issuer_token,
+        )
+        return result, capability
+
+    return _VerificationCapability, _verify_trace_dir_with_capability
+
+
+VerificationCapability, verify_trace_dir_with_capability = (
+    _bind_verifier_capability_entrypoint()
+)
+del _bind_verifier_capability_entrypoint

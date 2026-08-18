@@ -741,7 +741,7 @@ _PRE_T1311_ROLE_PAYLOAD_SHA256 = {
 def _pre_t1311_descriptor(
     workload: str,
 ) -> tuple[dict[str, object], dict[str, str]]:
-    flags = A.WORKLOADS[workload]
+    flags = A.WORKLOADS[workload]["ycsb"]
     projected_input = {
         "records": 100_000,
         "threads": 4,
@@ -914,6 +914,8 @@ def _project_t1311_arm_authority_to_pre_wave(
             "content_digest_sha256", "arm_binding_digest_sha256",
         }
         for cell in report["cells"]:
+            perf_config_scale = cell.pop("perf_config_scale")
+            assert perf_config_scale == cell["descriptor"]["scale"]
             descriptor, descriptor_binding = _pre_t1311_descriptor(
                 cell["workload"]
             )
