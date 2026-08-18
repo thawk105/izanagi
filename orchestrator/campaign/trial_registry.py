@@ -1865,6 +1865,20 @@ def record_trial_start_once(
         lifecycle_path, root, create_parent=True,
     )
 
+    with _TRIAL_LIFECYCLE_CAPABILITIES_LOCK:
+        if any(
+            state.repository_root == root
+            and state.lifecycle_path == ledger
+            and state.trial_id == admission.trial_id
+            and state.started_once
+            and state.restart_forbidden
+            for state in _TRIAL_LIFECYCLE_CAPABILITIES.values()
+        ):
+            _fail(
+                "lifecycle-restart-forbidden",
+                f"trial_id is forbidden from restart: {admission.trial_id}",
+            )
+
     def append_start(rows):
         if any(item["event"] == "start" and item["trial_id"] == admission.trial_id for item in rows):
             _fail(

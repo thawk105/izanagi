@@ -2041,6 +2041,11 @@ def test_run_trial_reservation_rejects_each_live_binding_mismatch_before_launch(
     valid_reservation_environment,
     mismatch,
 ) -> None:
+    monkeypatch.setattr(
+        A.trigger,
+        "_current_site",
+        lambda: A.trigger.site_policy.PEGASUS_COMPUTE,
+    )
     environment = dict(valid_reservation_environment)
     if mismatch == "job-id":
         environment["PBS_JOBID"] = "different.pegasus"
@@ -2092,6 +2097,11 @@ def test_reservation_error_stays_outside_run_trial_crash_terminalizer(
     monkeypatch,
     valid_reservation_environment,
 ) -> None:
+    monkeypatch.setattr(
+        A.trigger,
+        "_current_site",
+        lambda: A.trigger.site_policy.PEGASUS_COMPUTE,
+    )
     for key, value in valid_reservation_environment.items():
         monkeypatch.setenv(key, value)
 
@@ -2147,6 +2157,107 @@ def test_run_trial_does_not_read_reservation_for_other_isolation(
         allow_unregistered_exploratory=True,
     )
     assert report["status"] == "complete"
+    assert read_calls == []
+
+
+def test_run_trial_no_build_uses_actual_compute_site_for_reservation(
+    tmp_path, monkeypatch,
+) -> None:
+    site_calls: list[str] = []
+    monkeypatch.setattr(
+        A.trigger,
+        "_current_site",
+        lambda: site_calls.append(A.trigger.site_policy.PEGASUS_COMPUTE)
+        or A.trigger.site_policy.PEGASUS_COMPUTE,
+    )
+    read_calls: list[object] = []
+
+    def reject_unreserved_compute(environ):
+        read_calls.append(environ)
+        raise A.reservation.ReservationError(
+            "actual compute site requires a reservation"
+        )
+
+    monkeypatch.setattr(A.reservation, "read_binding", reject_unreserved_compute)
+    launches: list[str] = []
+
+    def blocked_provider(**_kwargs):
+        launches.append("provider")
+        raise AssertionError("provider launch preceded the reservation gate")
+
+    def blocked_campaign(*_args, **_kwargs):
+        launches.append("campaign")
+        raise AssertionError("campaign launch preceded the reservation gate")
+
+    monkeypatch.setattr(A, "_provider_set", blocked_provider)
+    monkeypatch.setattr(A.trigger, "drive_iteration", blocked_campaign)
+    run_root = tmp_path / "actual-compute-no-build"
+    with pytest.raises(
+        A.reservation.ReservationError,
+        match="actual compute site requires a reservation",
+    ):
+        A.run_trial(
+            trial_id="actual-compute-no-build",
+            workloads=["ycsb-a"],
+            generations=1,
+            provider_kind="fixture",
+            run_root=run_root,
+            sub="/unused",
+            do_build=False,
+            allow_pegasus_compute_transport=False,
+            allow_unregistered_exploratory=True,
+        )
+    assert site_calls == [A.trigger.site_policy.PEGASUS_COMPUTE]
+    assert len(read_calls) == 1
+    assert launches == []
+    assert not run_root.exists()
+
+
+def test_run_trial_no_build_other_site_is_not_overrejected_by_transport_opt_in(
+    tmp_path, monkeypatch,
+) -> None:
+    site_calls: list[str] = []
+
+    def current_site():
+        site_calls.append(A.trigger.site_policy.OTHER)
+        return A.trigger.site_policy.OTHER
+
+    monkeypatch.setattr(A.trigger, "_current_site", current_site)
+    admission, _receipt = _pegasus_transport_fixture()
+    monkeypatch.setattr(
+        A,
+        "admit_claude_transport",
+        lambda **_kwargs: admission,
+    )
+    monkeypatch.setattr(
+        A,
+        "_provider_set",
+        lambda **_kwargs: {
+            role: A.FixtureRoleProvider(role) for role in A.ROLE_FILES
+        },
+    )
+    monkeypatch.setattr(A.trigger, "drive_iteration", _fake_drive)
+    monkeypatch.setattr(A, "_preview", _fake_preview)
+    read_calls: list[object] = []
+
+    def forbidden_read(*args, **kwargs):
+        read_calls.append((args, kwargs))
+        raise AssertionError("OTHER site must not read reservation binding")
+
+    monkeypatch.setattr(A.reservation, "read_binding", forbidden_read)
+    # Fake-drive terminal status is incidental; returning without ReservationError is the invariant.
+    A.run_trial(
+        trial_id="actual-other-no-build-opt-in",
+        workloads=["ycsb-a"],
+        generations=1,
+        provider_kind="claude-headless",
+        run_root=tmp_path / "actual-other-no-build-opt-in",
+        sub="/unused",
+        do_build=False,
+        allow_pegasus_compute_transport=True,
+        allow_unregistered_exploratory=True,
+    )
+    assert site_calls == [A.trigger.site_policy.OTHER] * 2
     assert read_calls == []
 
 
@@ -6341,6 +6452,45 @@ def test_formal_forbid_failure_still_records_indeterminate_terminal(
     rows = [json.loads(line) for line in lifecycle.read_text().splitlines()]
     assert [row["event"] for row in rows] == ["start", "terminal"]
     assert rows[-1]["terminal_status"] == "indeterminate"
+
+
+def test_indeterminate_note_fallback_replaces_non_list_and_reraises_original(
+    monkeypatch,
+) -> None:
+    class PathologicalCrash(BaseException):
+        add_note = None
+
+    cause = PathologicalCrash("original crash")
+    cause.__notes__ = "not-a-list"
+    monkeypatch.setattr(
+        A.trial_registry,
+        "forbid_trial_restart",
+        lambda _token: (_ for _ in ()).throw(OSError("restart failure")),
+    )
+    monkeypatch.setattr(
+        A.trial_registry,
+        "record_trial_terminal",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            OSError("terminal failure")
+        ),
+    )
+
+    with pytest.raises(PathologicalCrash) as captured:
+        A.mark_experiment_indeterminate(
+            object(),
+            cause=cause,
+            experiment_status="indeterminate",
+            remaining_cells=("ycsb-a",),
+        )
+
+    assert captured.value is cause
+    assert isinstance(cause.__notes__, list)
+    assert any(
+        "restart-forbid=OSError" in note for note in cause.__notes__
+    )
+    assert any(
+        "terminal-record=OSError" in note for note in cause.__notes__
+    )
 
 
 def test_p9_exploratory_run_with_absent_registry_preserves_report_shape(

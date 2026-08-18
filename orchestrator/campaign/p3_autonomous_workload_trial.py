@@ -2161,12 +2161,18 @@ def _provider_set(
 
 
 def _assert_build_site_opted_in(
-    do_build: bool, *, allow_pegasus_compute_transport: bool
+    do_build: bool,
+    *,
+    allow_pegasus_compute_transport: bool,
+    site: str | None = None,
 ) -> str | None:
     """成果物作成前に build site と transport の明示 opt-in を閉じる。"""
-    if not do_build:
+    if site is None and not do_build:
         return None
-    site = trigger._current_site()
+    if site is None:
+        site = trigger._current_site()
+    if not do_build:
+        return site
     if site == trigger.site_policy.OTHER:
         return site
     if site == trigger.site_policy.PEGASUS_COMPUTE:
@@ -3460,17 +3466,19 @@ def mark_experiment_indeterminate(
             "indeterminate crash bookkeeping encountered independent failures: "
             + detail
         )
-        add_note = getattr(cause, "add_note", None)
-        if callable(add_note):
-            add_note(note)
-        else:
-            notes = getattr(cause, "__notes__", None)
-            if notes is None:
-                notes = []
-                cause.__notes__ = notes
-            if not isinstance(notes, list):
-                raise TypeError("cause.__notes__ must be a list")
+        notes = getattr(cause, "__notes__", None)
+        if isinstance(notes, list):
             notes.append(note)
+        elif notes is not None:
+            notes = []
+            cause.__notes__ = notes
+            notes.append(note)
+        else:
+            add_note = getattr(cause, "add_note", None)
+            if callable(add_note):
+                add_note(note)
+            else:
+                cause.__notes__ = [note]
     raise cause
 
 
@@ -3627,9 +3635,11 @@ def run_trial(
     gating_spec_snapshot = snapshot_gating_spec(GATING_SPEC)
     generation_driver = _generation_driver_identity(drive)
     accounting_authority = _accounting_authority(drive)
-    preflight_site = _assert_build_site_opted_in(
+    preflight_site = trigger._current_site()
+    _assert_build_site_opted_in(
         do_build,
         allow_pegasus_compute_transport=allow_pegasus_compute_transport,
+        site=preflight_site,
     )
     if do_build and coder_authority is None:
         raise AutonomousTrialError(
@@ -3659,12 +3669,6 @@ def run_trial(
             effective_preregistration=effective_preregistration,
             build_context=preflight_build_context,
             arm_execution=arm_execution,
-        )
-    if preflight_site is None:
-        preflight_site = (
-            trigger.site_policy.PEGASUS_COMPUTE
-            if allow_pegasus_compute_transport
-            else trigger.site_policy.OTHER
         )
     _assert_reservation_preflight(
         site=preflight_site,

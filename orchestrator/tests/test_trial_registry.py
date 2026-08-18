@@ -2142,6 +2142,11 @@ def test_registered_admission_and_lifecycle_are_non_certifying_and_start_once(
             lifecycle_path=alternate_lifecycle,
         )
     assert not alternate_lifecycle.exists()
+    R.reject_started_trial(
+        trial_id=admission.trial_id,
+        repository_root=repo,
+        lifecycle_path=lifecycle,
+    )
     first = R.record_trial_start_once(
         admission=admission,
         effective_preregistration=_effective_capability(manifest, monkeypatch),
@@ -2185,6 +2190,21 @@ def test_registered_admission_and_lifecycle_are_non_certifying_and_start_once(
     second_state = R._TRIAL_LIFECYCLE_CAPABILITIES[id(second)]
     assert second_state.started_once is True
     assert second_state.restart_forbidden is True
+    lifecycle_before_forbidden_reject = lifecycle.read_bytes()
+    with pytest.raises(
+        R.TrialRegistryError,
+        match=r"\[lifecycle-restart-forbidden\] ",
+    ):
+        R.record_trial_start_once(
+            admission=second_admission,
+            effective_preregistration=_effective_capability(manifest, monkeypatch),
+            manifest_path=manifest_path,
+            run_root=repo / "forbidden-rerun-root",
+            repository_root=repo,
+            registry_path=registry,
+            lifecycle_path=lifecycle,
+        )
+    assert lifecycle.read_bytes() == lifecycle_before_forbidden_reject
     full_field_replacement = dataclasses.replace(
         first,
         repository_root=second.repository_root,
