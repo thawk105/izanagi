@@ -1,0 +1,229 @@
+{
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "estimated_run_seconds": 120,
+ "timeout_seconds": 1800,
+ "hang_timeout_seconds": 1800,
+ "mutations": [
+  {
+   "id": "M01",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s8c_preregistration.py",
+     "old": "        validator = _SECTION5_VALUE_VALIDATORS.get(name)\n        if status is FieldStatus.FILLED and validator is not None:\n            violations.extend(validator(_parse_filled_section5_value(cells[1])))\n",
+     "new": "        validator = None\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_s8c_preregistration_core.py::test_section5_iteration_contrast_value_violations_are_structured[root-type]",
+    "orchestrator/tests/test_s8c_preregistration_core.py::test_section5_iteration_contrast_value_violations_are_structured[root-keys-missing]",
+    "orchestrator/tests/test_s8c_preregistration_core.py::test_section5_iteration_contrast_value_violations_are_structured[root-keys-extra]",
+    "orchestrator/tests/test_s8c_preregistration_core.py::test_section5_iteration_contrast_value_violations_are_structured[block-type]",
+    "orchestrator/tests/test_s8c_preregistration_core.py::test_section5_iteration_contrast_value_violations_are_structured[block-keys-missing]",
+    "orchestrator/tests/test_s8c_preregistration_core.py::test_section5_iteration_contrast_value_violations_are_structured[block-keys-extra]",
+    "orchestrator/tests/test_s8c_preregistration_core.py::test_section5_iteration_contrast_value_violations_are_structured[n-bool]",
+    "orchestrator/tests/test_s8c_preregistration_core.py::test_section5_iteration_contrast_value_violations_are_structured[n-float]",
+    "orchestrator/tests/test_s8c_preregistration_core.py::test_section5_iteration_contrast_value_violations_are_structured[n-range]",
+    "orchestrator/tests/test_s8c_preregistration_core.py::test_section5_iteration_contrast_value_violations_are_structured[delta-min-type]",
+    "orchestrator/tests/test_s8c_preregistration_core.py::test_section5_iteration_contrast_value_violations_are_structured[delta-min-zero]",
+    "orchestrator/tests/test_s8c_preregistration_core.py::test_section5_iteration_contrast_value_violations_are_structured[delta-min-negative-zero]",
+    "orchestrator/tests/test_s8c_preregistration_core.py::test_section5_iteration_contrast_value_violations_are_structured[sd-max-type]",
+    "orchestrator/tests/test_s8c_preregistration_core.py::test_section5_iteration_contrast_value_violations_are_structured[sd-max-negative]",
+    "orchestrator/tests/test_s8c_preregistration_core.py::test_section5_iteration_contrast_value_violations_are_structured[unit-type]",
+    "orchestrator/tests/test_s8c_preregistration_core.py::test_section5_iteration_contrast_value_violations_are_structured[unit-empty]",
+    "orchestrator/tests/test_s8c_preregistration_core.py::test_section5_iteration_contrast_value_violations_are_structured[direction-type]",
+    "orchestrator/tests/test_s8c_preregistration_core.py::test_section5_iteration_contrast_value_violations_are_structured[direction-empty]",
+    "orchestrator/tests/test_s8c_preregistration_core.py::test_section5_iteration_contrast_reports_all_value_violations",
+    "orchestrator/tests/test_s8c_preregistration_core.py::test_section5_iteration_contrast_violations_reach_parse_at",
+    "orchestrator/tests/test_s8c_preregistration_invariant.py::test_living_doc_section5_value_validator_positive_control"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M02",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s8c_preregistration.py",
+     "old": "                if type(field_value) is not int:\n                    add(field_path, \"n-type\")\n",
+     "new": "                if not isinstance(field_value, int):\n                    add(field_path, \"n-type\")\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_s8c_preregistration_core.py::test_section5_iteration_contrast_reports_all_value_violations",
+    "orchestrator/tests/test_s8c_preregistration_core.py::test_section5_iteration_contrast_value_violations_are_structured[n-bool]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M03",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s8c_preregistration.py",
+     "old": "                elif field_value < 2:\n                    add(field_path, \"n-range\")\n",
+     "new": "                elif field_value < 1:\n                    add(field_path, \"n-range\")\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_s8c_preregistration_core.py::test_section5_iteration_contrast_value_violations_are_structured[n-range]",
+    "orchestrator/tests/test_s8c_preregistration_invariant.py::test_living_doc_section5_value_validator_positive_control"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M04",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s8c_preregistration.py",
+     "old": "    if set(value) != expected_root_keys:\n        add(\"\", \"root-keys\")\n",
+     "new": "    if not expected_root_keys <= set(value):\n        add(\"\", \"root-keys\")\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_s8c_preregistration_core.py::test_section5_iteration_contrast_value_violations_are_structured[root-keys-extra]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M05",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s8c_preregistration.py",
+     "old": "        if set(block) != expected_block_keys:\n            add(block_name, \"block-keys\")\n",
+     "new": "        if False:\n            add(block_name, \"block-keys\")\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_s8c_preregistration_core.py::test_section5_iteration_contrast_value_violations_are_structured[block-keys-missing]",
+    "orchestrator/tests/test_s8c_preregistration_core.py::test_section5_iteration_contrast_value_violations_are_structured[block-keys-extra]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M06",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s8c_preregistration.py",
+     "old": "                    or field_value <= 0\n                ):\n                    add(field_path, \"delta-min-range\")\n",
+     "new": "                    or field_value < 0\n                ):\n                    add(field_path, \"delta-min-range\")\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_s8c_preregistration_core.py::test_section5_iteration_contrast_reports_all_value_violations",
+    "orchestrator/tests/test_s8c_preregistration_core.py::test_section5_iteration_contrast_value_violations_are_structured[delta-min-negative-zero]",
+    "orchestrator/tests/test_s8c_preregistration_core.py::test_section5_iteration_contrast_value_violations_are_structured[delta-min-zero]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M07",
+   "category": "positive",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s8c_preregistration.py",
+     "old": "                    or field_value < 0\n                ):\n                    add(field_path, \"sd-max-range\")\n",
+     "new": "                    or field_value <= 0\n                ):\n                    add(field_path, \"sd-max-range\")\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_s8c_preregistration_core.py::test_section5_iteration_contrast_canonical_value_is_filled",
+    "orchestrator/tests/test_s8c_preregistration_core.py::test_section5_iteration_contrast_reports_all_value_violations",
+    "orchestrator/tests/test_s8c_preregistration_core.py::test_section5_iteration_contrast_sd_negative_zero_is_accepted",
+    "orchestrator/tests/test_s8c_preregistration_core.py::test_section5_iteration_contrast_value_violations_are_structured[block-keys-extra]",
+    "orchestrator/tests/test_s8c_preregistration_core.py::test_section5_iteration_contrast_value_violations_are_structured[block-keys-missing]",
+    "orchestrator/tests/test_s8c_preregistration_core.py::test_section5_iteration_contrast_value_violations_are_structured[block-type]",
+    "orchestrator/tests/test_s8c_preregistration_core.py::test_section5_iteration_contrast_value_violations_are_structured[delta-min-negative-zero]",
+    "orchestrator/tests/test_s8c_preregistration_core.py::test_section5_iteration_contrast_value_violations_are_structured[delta-min-type]",
+    "orchestrator/tests/test_s8c_preregistration_core.py::test_section5_iteration_contrast_value_violations_are_structured[delta-min-zero]",
+    "orchestrator/tests/test_s8c_preregistration_core.py::test_section5_iteration_contrast_value_violations_are_structured[direction-empty]",
+    "orchestrator/tests/test_s8c_preregistration_core.py::test_section5_iteration_contrast_value_violations_are_structured[direction-type]",
+    "orchestrator/tests/test_s8c_preregistration_core.py::test_section5_iteration_contrast_value_violations_are_structured[n-bool]",
+    "orchestrator/tests/test_s8c_preregistration_core.py::test_section5_iteration_contrast_value_violations_are_structured[n-float]",
+    "orchestrator/tests/test_s8c_preregistration_core.py::test_section5_iteration_contrast_value_violations_are_structured[n-range]",
+    "orchestrator/tests/test_s8c_preregistration_core.py::test_section5_iteration_contrast_value_violations_are_structured[root-keys-extra]",
+    "orchestrator/tests/test_s8c_preregistration_core.py::test_section5_iteration_contrast_value_violations_are_structured[root-keys-missing]",
+    "orchestrator/tests/test_s8c_preregistration_core.py::test_section5_iteration_contrast_value_violations_are_structured[sd-max-negative]",
+    "orchestrator/tests/test_s8c_preregistration_core.py::test_section5_iteration_contrast_value_violations_are_structured[sd-max-type]",
+    "orchestrator/tests/test_s8c_preregistration_core.py::test_section5_iteration_contrast_value_violations_are_structured[unit-empty]",
+    "orchestrator/tests/test_s8c_preregistration_core.py::test_section5_iteration_contrast_value_violations_are_structured[unit-type]",
+    "orchestrator/tests/test_s8c_preregistration_core.py::test_section5_iteration_contrast_violations_reach_parse_at",
+    "orchestrator/tests/test_s8c_preregistration_invariant.py::test_living_doc_section5_value_validator_positive_control"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M08",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s8c_preregistration.py",
+     "old": "                elif not field_value.strip():\n                    add(field_path, \"unit-empty\")\n",
+     "new": "                elif not field_value:\n                    add(field_path, \"unit-empty\")\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_s8c_preregistration_core.py::test_section5_iteration_contrast_value_violations_are_structured[unit-empty]",
+    "orchestrator/tests/test_s8c_preregistration_core.py::test_section5_iteration_contrast_reports_all_value_violations"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M09",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s8c_preregistration.py",
+     "old": "                elif not field_value.strip():\n                    add(field_path, \"direction-empty\")\n",
+     "new": "                elif not field_value:\n                    add(field_path, \"direction-empty\")\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_s8c_preregistration_core.py::test_section5_iteration_contrast_value_violations_are_structured[direction-empty]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M10",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s8c_preregistration.py",
+     "old": "    for field_name in _SECTION5_VALUE_VALIDATORS:\n        if field_name not in names:\n            violations.append(\n",
+     "new": "    for field_name in ():\n        if field_name not in names:\n            violations.append(\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_s8c_preregistration_core.py::test_section5_validator_field_missing_is_reported_without_exception"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M11",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s8c_preregistration.py",
+     "old": "                    (type(field_value) is float and not math.isfinite(field_value))\n                    or field_value <= 0\n",
+     "new": "                    False\n                    or field_value <= 0\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  }
+ ]
+}
