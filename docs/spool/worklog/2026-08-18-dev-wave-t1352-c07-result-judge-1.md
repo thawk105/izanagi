@@ -52,6 +52,14 @@ title: 8c 条件 7 の consumer (result judge) と静的 evaluator を新設す�
   欠落を exclusion pin で隠さない。あわせて、公式性能表を消費する acceptance 配線
   (現行 receipt は構造的に `certifying: false`)、実走層 (schedule / master seed /
   attempt registry / correctness gate / observation producer)、§5 の 8 欄記入も本 wave の scope 外である。
+- **段 8 の自己改善候補 3 件は dev-wave docs の予算満杯のため実装せずユーザー裁定へ返す。**
+  command 入口は 9492 / 9500 bytes で空きが 8 bytes しかなく、reference 3 層も満杯である。
+  (a) `DW-S01` の段 1 前実測に「command 引数どうしの両立不能を測る」観点を明示する
+  (本 wave で実際に発火した)。(b) `DW-M04` へ「注入不全の赤を kill と数えない」を
+  対称義務として明示する (F33 再発として failures には記録済み)。
+  (c) `DW-O01` へ「codex 子の再投入は prompt の**内容**を変えないと job-id が同一になり
+  既存受領証を上書きできず rc=2 で止まる」「review 子は既定の CLI 報告トークン上限
+  1,000,000 で SIGTERM し出力 0 bytes になりうる」を追記する (どちらも本 wave で実測)。
 - 子の工数: plan 1 本、敵対相談 2 本、実装 2 本、敵対レビュー 2 本 (1 本は CLI 報告トークン上限で
   2 回失敗し、上限を上げて 3 回目で成功)、fix 2 本。
 
