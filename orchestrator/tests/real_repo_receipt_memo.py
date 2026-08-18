@@ -1,43 +1,24 @@
 # -*- coding: utf-8 -*-
-"""実 repo の T-080 receipt 解決を pytest process 内で 1 回に畳む test 支援 ([T-057])。
+"""実 repo の T-080 receipt を pytest session の固定 snapshot から読む支援。
 
-**なぜ必要か (実測)**: `t080_freeze_migration.verify_receipt(root=<実 repo>)` は 1 回
-22.4 秒かかる (git subprocess 1845 本。うち `cat-file blob` 1607 本は異なる oid が 52 個
-しかない重複で、コストは repo の commit 数 = 712 に比例する)。oracle driver 系テストは
-`root=ROOT` を渡してこれを 50〜75 回払っており、計算ノードでの全走 327 秒に対し
-duration 合計 3694 秒の 90% がこの解決だった。commit を積むほど遅くなる構造のため、
-7/20 の全走 11 秒が 7/26 に 1811 秒へ悪化していた。
+receipt の production resolver は実 working tree と共有 submodule を走査する。pytest の
+test body が走り始めてから最初の consumer が解決すると、並行 writer と観測時点が競合する。
+この module は controller の collection barrier で一度だけ解決する ``prewarm`` 経路と、
+その結果だけを読む consumer 経路を分離する。
 
-**受理集合を変えないための設計**:
+受理集合は変えない。prewarm が保存するのは production resolver の戻り object そのもので、
+canned 値や deepcopy は作らない。固定 snapshot X に対し、同じ pytest session の全 consumer
+が同じ ``R(X)`` を観測する。prewarm 前の miss、cache/lock 障害、壊れた cache、store 障害は
+production resolver へ倒さず ``ReceiptMemoError`` で fail-closed にする。
 
-- canned な `ReceiptResolution` を作らない。最初の miss は必ず本番の
-  `verify_receipt(root=ROOT)` へ委譲し、戻り値を再構築・deepcopy せずそのまま返す。
-  したがってテストが観測する値は memo 導入前と同一である。
-- xdist では worker ごとに process が分かれるので、process memo だけだと worker 数だけ
-  実解決が走る。`-n 32` では 32 本が同時に走って 1 回 22 秒が **129 秒**へ膨らむのを実測した。
-  そのため session 限定 (xdist run ID + HEAD で key 付け) の cache を repo 外の一時領域へ置き、
-  flock 下で 1 セッション 1 回に落とす。cache が読めない・型が違う場合は実解決へ倒す。
-- ROOT 以外を渡されたら即 `AssertionError`。tmp repo / tamper 検出系へ patch が漏れた
-  場合に「cached な valid 値で偽緑」にせず赤で止める (fail-closed)。
-- patch 先は**テストが実際に import する module object** = `campaign.s8b_oracle_driver`。
-  同じファイルでも `orchestrator.campaign.s8b_oracle_driver` は別 module object で、
-  そちらを patch すると memo が 1 度も発火しない静かな空振りになる (実測で踏んだ)。
-  この空振りは `test_s8b_binding_driftguards.py` の positive control が殺す。
-- `mock.patch.object(..., side_effect=...)` の spy にするので、
-  `driver._resolve_t080_receipt` の**呼び出し回数を観測しているテストの計数は壊れない**。
-  畳むのは内側の実 `verify_receipt` だけである。
-
-**使ってはいけない場所**: 解決の回数・世代差 (epoch drift)・tamper 検出そのものを検査対象に
-しているテスト。memo はその機序を消してしまう。現在の該当は
-`test_s8b_oracle_driver.py` の
-`test_run_block_resolves_receipt_once_and_propagates_observation_to_wal_and_result` と
-`test_run_block_rejects_receipt_epoch_drift_before_campaign_start_g4` の 2 関数で、
-どちらも `_run(..., memo_receipt=False)` で明示的に opt-out する。
+ROOT 以外は従来どおり拒否する。解決回数や epoch drift 自体を検査する test は
+``memo_receipt=False`` でこの支援を使わない。
 """
 from __future__ import annotations
 
 import fcntl
-import functools
+import hashlib
+import json
 import os
 import pickle
 import re
@@ -46,7 +27,7 @@ import sys
 import tempfile
 import time
 from pathlib import Path
-from typing import Optional
+from typing import Callable, Optional
 from unittest import mock
 
 ORCHESTRATOR = Path(__file__).resolve().parents[1]
@@ -57,21 +38,53 @@ if str(ORCHESTRATOR.parent) not in sys.path:
 from orchestrator.campaign import s8b_oracle_driver as driver  # noqa: E402
 from orchestrator.campaign import t080_freeze_migration as migration  # noqa: E402
 
-# import 時点の本番実装を捕まえる。`migration.verify_receipt` を直接呼ぶのではなく
-# **本番の resolver そのもの**を memo することで、MigrationError → 構造化 refusal の翻訳を含めて
-# 挙動が完全に一致する (memo 経由と patch 前で観測される値が同一)。
-# patch は `driver._resolve_t080_receipt` を差し替えるが、ここで捕まえた参照は差し替え前の
-# 本番実装なので再帰しない。
+# import 時点の production resolver を捕まえる。patch 先と同じ参照を動的に読むと再帰する。
 _PRODUCTION_RESOLVE = driver._resolve_t080_receipt
-
 
 _RUN_ID_ENV = "PYTEST_XDIST_TESTRUNUID"
 _CACHE_PREFIX = "izanagi-t057-receipt-"
 _CACHE_STALE_S = 6 * 3600
+_ERROR_PREFIX = "IZANAGI_RECEIPT_MEMO_FAIL_CLOSED_V1 "
+_MISSING = object()
+_SESSION_UNBOUND = object()
+
+
+class ReceiptMemoError(RuntimeError):
+    """receipt memo の fail-closed 診断。message は canonical JSON。"""
+
+    def __init__(
+        self,
+        reason: str,
+        *,
+        cache_path: Optional[Path],
+        run_id: Optional[str],
+        head: Optional[str],
+        prewarm: bool,
+        process_prewarmed: bool,
+        cause: Optional[BaseException] = None,
+    ) -> None:
+        payload = {
+            "cache_path": str(cache_path) if cache_path is not None else None,
+            "head": head,
+            "prewarm": prewarm,
+            "process_prewarmed": process_prewarmed,
+            "reason": reason,
+            "run_id": run_id,
+        }
+        if cause is not None:
+            payload["errno"] = getattr(cause, "errno", None)
+            payload["exception_type"] = type(cause).__name__
+        self.payload = payload
+        super().__init__(
+            _ERROR_PREFIX
+            + json.dumps(
+                payload, ensure_ascii=True, separators=(",", ":"), sort_keys=True,
+            )
+        )
 
 
 def _resolve_now():
-    """本番 resolver をそのまま 1 回呼ぶ (memo なし)。"""
+    """production resolver を呼ぶ唯一の低水準 seam。caller は prewarm だけ。"""
     return _PRODUCTION_RESOLVE(root=ROOT)
 
 
@@ -86,35 +99,64 @@ def _repo_head() -> Optional[str]:
     return out if re.fullmatch(r"[0-9a-f]{40}", out) else None
 
 
-def _session_cache_path() -> Optional[Path]:
-    """xdist の 1 セッションに閉じた cache パス。非 xdist なら None。
+def _cache_path_for(run_id: str, head: str) -> Path:
+    """任意の xdist UID を拒否せず、内容 hash だけを安全な file 名へ使う。"""
+    uid_hash = hashlib.sha256(
+        run_id.encode("utf-8", errors="surrogatepass")
+    ).hexdigest()
+    return Path(tempfile.gettempdir()) / (
+        f"{_CACHE_PREFIX}{uid_hash}-{head}.pickle"
+    )
 
-    xdist では worker ごとに process が分かれるため、process memo だけでは worker 数だけ
-    実解決が走る。**-n 32 では 32 本の解決が同時に走って 1 回 22 秒が 129 秒へ膨らむ**
-    (計算ノードで実測)。これを 1 セッション 1 回へ落とすため、repo 外の一時領域へ
-    session 限定の cache を置く。key は xdist の run ID + HEAD なので、別セッション・
-    別 commit と混ざらない。
-    """
-    run_id = os.environ.get(_RUN_ID_ENV, "")
-    if not re.fullmatch(r"[0-9a-zA-Z]{8,64}", run_id):
+
+def _session_cache_path(
+    *, run_id: Optional[str] = None, head: Optional[str] = None,
+) -> Optional[Path]:
+    """xdist session cache path。UID の内容は検査せず hash だけを使う。"""
+    if run_id is None:
+        run_id = os.environ.get(_RUN_ID_ENV)
+    if run_id is None:
         return None
-    head = _repo_head()
+    if head is None:
+        head = _repo_head()
     if head is None:
         return None
-    return Path(tempfile.gettempdir()) / f"{_CACHE_PREFIX}{run_id}-{head}.pickle"
+    return _cache_path_for(run_id, head)
 
 
-def _cache_load(path: Path):
-    """cache を読む。読めない・型が違うなら None (呼び出し側が実解決へ倒す)。"""
+def _cache_load(
+    path: Path,
+    *,
+    run_id: Optional[str] = None,
+    head: Optional[str] = None,
+    prewarm: bool = False,
+    process_prewarmed: bool = False,
+):
+    """cache を strict に読む。read、pickle、型不一致を構造化して拒否する。"""
     try:
-        value = pickle.loads(path.read_bytes())
-    except Exception:
-        return None
-    return value if isinstance(value, migration.ReceiptResolution) else None
+        raw = path.read_bytes()
+    except Exception as exc:
+        raise ReceiptMemoError(
+            "cache-read-failed", cache_path=path, run_id=run_id, head=head,
+            prewarm=prewarm, process_prewarmed=process_prewarmed, cause=exc,
+        ) from exc
+    try:
+        value = pickle.loads(raw)
+    except Exception as exc:
+        raise ReceiptMemoError(
+            "cache-unpickle-failed", cache_path=path, run_id=run_id, head=head,
+            prewarm=prewarm, process_prewarmed=process_prewarmed, cause=exc,
+        ) from exc
+    if not isinstance(value, migration.ReceiptResolution):
+        raise ReceiptMemoError(
+            "cache-type-invalid", cache_path=path, run_id=run_id, head=head,
+            prewarm=prewarm, process_prewarmed=process_prewarmed,
+        )
+    return value
 
 
 def _cache_store(path: Path, resolution) -> None:
-    """同一 dir 内の tmp へ書いてから rename する (部分書き込みを読ませない)。"""
+    """同一 directory の tmp へ書き、replace 失敗を握り潰さない。"""
     tmp = path.with_name(f"{path.name}.{os.getpid()}.tmp")
     try:
         tmp.write_bytes(pickle.dumps(resolution))
@@ -124,16 +166,21 @@ def _cache_store(path: Path, resolution) -> None:
             tmp.unlink()
         except OSError:
             pass
+        raise
 
 
-def _prune_stale_caches(directory: Path) -> None:
-    """古い session cache を捨てる (一時領域へ無限に溜めない)。"""
+def _prune_stale_caches(
+    directory: Path, *, current_path: Optional[Path] = None,
+) -> None:
+    """古い pickle cache だけを捨て、lock と現 session key は触らない。"""
     cutoff = time.time() - _CACHE_STALE_S
     try:
-        entries = list(directory.glob(f"{_CACHE_PREFIX}*"))
+        entries = list(directory.glob(f"{_CACHE_PREFIX}*.pickle"))
     except OSError:
         return
     for entry in entries:
+        if current_path is not None and entry == current_path:
+            continue
         try:
             if entry.stat().st_mtime < cutoff:
                 entry.unlink()
@@ -141,35 +188,270 @@ def _prune_stale_caches(directory: Path) -> None:
             pass
 
 
-@functools.lru_cache(maxsize=1)
-def real_repo_receipt():
-    """実 repo の T-080 receipt 解決。実評価は 1 process 1 回、xdist では 1 session 1 回。"""
-    path = _session_cache_path()
-    if path is None:
-        return _resolve_now()
-    lock = path.with_name(f"{path.name}.lock")
-    try:
-        handle = open(lock, "a+b")
-    except OSError:
-        return _resolve_now()
-    try:
-        fcntl.flock(handle.fileno(), fcntl.LOCK_EX)
-        cached = _cache_load(path) if path.exists() else None
-        if cached is not None:
-            return cached
-        resolution = _resolve_now()
-        _prune_stale_caches(path.parent)
-        _cache_store(path, resolution)
-        return resolution
-    finally:
+class _ReceiptMemo:
+    """prewarm writer と consumer reader を能力として分けた private memo。"""
+
+    def __init__(self, resolve: Optional[Callable[[], object]] = None) -> None:
+        self._resolve_override = resolve
+        self._process_resolution = _MISSING
+        self._process_session_id = _SESSION_UNBOUND
+        self._suspended_sessions: list[tuple[object, object]] = []
+
+    @property
+    def process_prewarmed(self) -> bool:
+        return self._process_resolution is not _MISSING
+
+    def _error(
+        self,
+        reason: str,
+        *,
+        cache_path: Optional[Path],
+        run_id: Optional[str],
+        head: Optional[str],
+        prewarm: bool,
+        cause: Optional[BaseException] = None,
+    ) -> ReceiptMemoError:
+        return ReceiptMemoError(
+            reason, cache_path=cache_path, run_id=run_id, head=head,
+            prewarm=prewarm, process_prewarmed=self.process_prewarmed,
+            cause=cause,
+        )
+
+    def _locked(
+        self,
+        path: Path,
+        *,
+        run_id: str,
+        head: str,
+        prewarm: bool,
+        operation: Callable[[], object],
+    ):
+        lock = path.with_name(f"{path.name}.lock")
+        try:
+            handle = open(lock, "a+b")
+        except OSError as exc:
+            raise self._error(
+                "lock-open-failed", cache_path=path, run_id=run_id,
+                head=head, prewarm=prewarm, cause=exc,
+            ) from exc
+        try:
+            fcntl.flock(handle.fileno(), fcntl.LOCK_EX)
+        except OSError as exc:
+            try:
+                handle.close()
+            except OSError:
+                pass
+            raise self._error(
+                "lock-acquire-failed", cache_path=path, run_id=run_id,
+                head=head, prewarm=prewarm, cause=exc,
+            ) from exc
+        try:
+            result = operation()
+        except BaseException:
+            try:
+                fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
+            except OSError:
+                pass
+            try:
+                handle.close()
+            except OSError:
+                pass
+            raise
         try:
             fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
-        finally:
+        except OSError as exc:
+            try:
+                handle.close()
+            except OSError:
+                pass
+            raise self._error(
+                "lock-release-failed", cache_path=path, run_id=run_id,
+                head=head, prewarm=prewarm, cause=exc,
+            ) from exc
+        try:
             handle.close()
+        except OSError as exc:
+            raise self._error(
+                "lock-close-failed", cache_path=path, run_id=run_id,
+                head=head, prewarm=prewarm, cause=exc,
+            ) from exc
+        return result
+
+    def prewarm(
+        self,
+        *,
+        run_id: Optional[str] = None,
+        session_id: Optional[str] = None,
+    ):
+        """production resolver を呼べる唯一の経路。成功後だけ process state を公開する。"""
+        # pytest.main() は同じ process へ複数 session を再入できる。config ごとの
+        # token が変わったら、前 session の snapshot を読める状態を先に捨てる。
+        if self._process_session_id is _SESSION_UNBOUND:
+            self._process_session_id = session_id
+        elif self._process_session_id != session_id:
+            self._suspended_sessions.append((
+                self._process_session_id,
+                self._process_resolution,
+            ))
+            self._process_resolution = _MISSING
+            self._process_session_id = session_id
+        if self.process_prewarmed:
+            return self._process_resolution
+
+        if run_id is None:
+            try:
+                resolution = (
+                    self._resolve_override()
+                    if self._resolve_override is not None
+                    else _resolve_now()
+                )
+            except Exception as exc:
+                raise self._error(
+                    "resolver-failed", cache_path=None, run_id=None, head=None,
+                    prewarm=True, cause=exc,
+                ) from exc
+            self._process_resolution = resolution
+            return resolution
+
+        run_id = str(run_id)
+        head = _repo_head()
+        if head is None:
+            raise self._error(
+                "cache-path-unavailable", cache_path=None, run_id=run_id,
+                head=None, prewarm=True,
+            )
+        path = _session_cache_path(run_id=run_id, head=head)
+        if path is None:
+            raise self._error(
+                "cache-path-unavailable", cache_path=None, run_id=run_id,
+                head=head, prewarm=True,
+            )
+
+        def write_once():
+            if self.process_prewarmed:
+                return self._process_resolution
+            if path.exists():
+                raise self._error(
+                    "cache-preexists-before-prewarm", cache_path=path,
+                    run_id=run_id, head=head, prewarm=True,
+                )
+            try:
+                resolution = (
+                    self._resolve_override()
+                    if self._resolve_override is not None
+                    else _resolve_now()
+                )
+            except Exception as exc:
+                raise self._error(
+                    "resolver-failed", cache_path=path, run_id=run_id,
+                    head=head, prewarm=True, cause=exc,
+                ) from exc
+            _prune_stale_caches(path.parent, current_path=path)
+            try:
+                _cache_store(path, resolution)
+            except Exception as exc:
+                raise self._error(
+                    "cache-store-failed", cache_path=path, run_id=run_id,
+                    head=head, prewarm=True, cause=exc,
+                ) from exc
+            return resolution
+
+        resolution = self._locked(
+            path, run_id=run_id, head=head, prewarm=True,
+            operation=write_once,
+        )
+        self._process_resolution = resolution
+        return resolution
+
+    def finish_session(self, *, session_id: Optional[str]) -> None:
+        """終了 session の state を捨て、入れ子なら外側 session を復元する。"""
+        if self._process_session_id != session_id:
+            raise RuntimeError(
+                "receipt memo pytest session finish mismatch: "
+                f"current={self._process_session_id!r} finished={session_id!r}"
+            )
+        self._process_resolution = _MISSING
+        self._process_session_id = _SESSION_UNBOUND
+        if self._suspended_sessions:
+            (
+                self._process_session_id,
+                self._process_resolution,
+            ) = self._suspended_sessions.pop()
+
+    def get(self):
+        """prewarm 済み process state または既存 session cache だけを読む。"""
+        if self.process_prewarmed:
+            return self._process_resolution
+
+        run_id = os.environ.get(_RUN_ID_ENV)
+        if run_id is None:
+            raise self._error(
+                "cache-path-unavailable", cache_path=None, run_id=None,
+                head=None, prewarm=False,
+            )
+        head = _repo_head()
+        if head is None:
+            raise self._error(
+                "cache-path-unavailable", cache_path=None, run_id=run_id,
+                head=None, prewarm=False,
+            )
+        path = _session_cache_path(run_id=run_id, head=head)
+        if path is None:
+            raise self._error(
+                "cache-path-unavailable", cache_path=None, run_id=run_id,
+                head=head, prewarm=False,
+            )
+
+        def read_existing():
+            if not path.exists():
+                raise self._error(
+                    "cache-missing", cache_path=path, run_id=run_id,
+                    head=head, prewarm=False,
+                )
+            return _cache_load(
+                path, run_id=run_id, head=head, prewarm=False,
+                process_prewarmed=self.process_prewarmed,
+            )
+
+        resolution = self._locked(
+            path, run_id=run_id, head=head, prewarm=False,
+            operation=read_existing,
+        )
+        self._process_resolution = resolution
+        return resolution
+
+
+def _make_receipt_memo(
+    resolve: Optional[Callable[[], object]] = None,
+) -> _ReceiptMemo:
+    """共有 singleton を汚さず検査できる private memo factory。"""
+    return _ReceiptMemo(resolve)
+
+
+_RECEIPT_MEMO = _make_receipt_memo()
+
+
+def prewarm_real_repo_receipt(
+    *,
+    run_id: Optional[str] = None,
+    session_id: Optional[str] = None,
+):
+    """pytest controller/serial collection barrier から呼ぶ writer endpoint。"""
+    return _RECEIPT_MEMO.prewarm(run_id=run_id, session_id=session_id)
+
+
+def finish_real_repo_receipt_session(*, session_id: Optional[str]) -> None:
+    """pytest unconfigure から呼び、process state を session 境界で破棄する。"""
+    _RECEIPT_MEMO.finish_session(session_id=session_id)
+
+
+def real_repo_receipt():
+    """test consumer 用 read-only endpoint。miss から実解決しない。"""
+    return _RECEIPT_MEMO.get()
 
 
 def memo_resolver(*, root):
-    """`driver._resolve_t080_receipt` と同じ signature の memo 経由 resolver。"""
+    """``driver._resolve_t080_receipt`` と同じ signature の consumer endpoint。"""
     assert Path(root).resolve() == ROOT.resolve(), (
         "real-repo receipt memo を実 repo 以外へ適用してはならない "
         f"(tmp / tamper 経路への漏れ): {root}"
@@ -178,7 +460,7 @@ def memo_resolver(*, root):
 
 
 def patch_driver_resolver():
-    """`driver._resolve_t080_receipt` を memo 経由 wrapper へ差し替える context manager。"""
+    """test が import する canonical driver module を consumer endpoint へ差し替える。"""
     return mock.patch.object(
         driver, "_resolve_t080_receipt", side_effect=memo_resolver,
     )

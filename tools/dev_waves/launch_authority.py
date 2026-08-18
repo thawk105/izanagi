@@ -9,7 +9,7 @@ import re
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Mapping, Sequence
+from typing import Literal, Mapping, Sequence
 
 
 STAGES = ("plan", "consult", "author", "review", "fix", "focus")
@@ -28,10 +28,14 @@ _FENCE_OPEN_RE = re.compile(
 _H2_RE = re.compile(
     r"^## (?P<id>DW-[A-Z][0-9]{2}(?:-[A-Z])?)(?:\s+—[^\r\n]*)?[ \t]*$"
 )
-_MODEL_LINE_RE = re.compile(
+_MODEL_LINE_V1_RE = re.compile(
     r"`<model>`: 段 3 のみ 2 本で `(?P<sol>gpt-[A-Za-z0-9._-]+)`"
     r"→`(?P<luna>gpt-[A-Za-z0-9._-]+)`、他段 "
     r"`(?P<other>gpt-[A-Za-z0-9._-]+)`。"
+)
+_MODEL_LINE_V2_RE = re.compile(
+    r"`<model>`: 全段 `(?P<model>gpt-[A-Za-z0-9._-]+)` "
+    r"\(段 3 の 2 本も同じ\)。"
 )
 _REVIEW_EFFORT_LINE_RE = re.compile(
     r"実装 wave は異なるレンズの敵対レビューを "
@@ -70,6 +74,7 @@ class AuthoritySnapshot:
     other_model: str
     review_effort: str
     focus_effort: str
+    model_authority_version: Literal["v1", "v2"]
 
     def as_dict(self) -> dict[str, object]:
         return {
@@ -87,6 +92,26 @@ class LaunchRequirement:
     effort: str | None
     effort_authority: str
     sections: tuple[AuthoritySection, ...]
+
+
+def _validate_model_mapping(
+    version: Literal["v1", "v2"],
+    consult_models: tuple[str, str],
+    other_model: str,
+) -> None:
+    if version == "v1":
+        if consult_models[0] == consult_models[1]:
+            raise AuthorityError("DW-O01: v1 の consult 2 レンズ model が同一")
+        if other_model != consult_models[0]:
+            raise AuthorityError(
+                "DW-O01: 他段 model と consult sol model が一致しない"
+            )
+        return
+    if version == "v2":
+        if consult_models != (other_model, other_model):
+            raise AuthorityError("DW-O01: v2 の全段 model が一致しない")
+        return
+    raise AuthorityError("DW-O01: model authority version が不正")
 
 
 def _mask_html_comments(line: str, in_comment: bool) -> tuple[str, bool]:
@@ -310,6 +335,25 @@ def _one_normative_line(section_text: str, pattern: re.Pattern[str], label: str)
     return matches[0]
 
 
+def _one_model_normative_line(
+    section_text: str,
+) -> tuple[Literal["v1", "v2"], re.Match[str]]:
+    matches: list[tuple[Literal["v1", "v2"], re.Match[str]]] = []
+    for version, pattern in (
+        ("v1", _MODEL_LINE_V1_RE),
+        ("v2", _MODEL_LINE_V2_RE),
+    ):
+        matches.extend(
+            (version, match)
+            for match in visible_top_level_matches(
+                section_text, pattern, label=_MODEL_SECTION
+            )
+        )
+    if len(matches) != 1:
+        raise AuthorityError(f"{_MODEL_SECTION}: 規範行が {len(matches)} 件")
+    return matches[0]
+
+
 def _git(repo_root: Path, arguments: Sequence[str], *, text: bool = False) -> bytes | str:
     try:
         completed = subprocess.run(
@@ -386,15 +430,23 @@ def snapshot_authority(
     model_section = _one_section(documents, _AUTHORITY_PATHS[0], _MODEL_SECTION)
     review_section = _one_section(documents, _AUTHORITY_PATHS[1], _REVIEW_SECTION)
     focus_section = _one_section(documents, _AUTHORITY_PATHS[1], _FOCUS_SECTION)
-    model_match = _one_normative_line(model_section, _MODEL_LINE_RE, _MODEL_SECTION)
+    model_version, model_match = _one_model_normative_line(model_section)
     review_match = _one_normative_line(
         review_section, _REVIEW_EFFORT_LINE_RE, _REVIEW_SECTION
     )
     focus_match = _one_normative_line(
         focus_section, _FOCUS_EFFORT_LINE_RE, _FOCUS_SECTION
     )
-    if model_match.group("other") != model_match.group("sol"):
-        raise AuthorityError("DW-O01: 他段 model と consult sol model が一致しない")
+    if commit is None and model_version != "v2":
+        raise AuthorityError("DW-O01: live authority は v2 でなければならない")
+    if model_version == "v1":
+        consult_models = (model_match.group("sol"), model_match.group("luna"))
+        other_model = model_match.group("other")
+    else:
+        model = model_match.group("model")
+        consult_models = (model, model)
+        other_model = model
+    _validate_model_mapping(model_version, consult_models, other_model)
     sections = tuple(
         AuthoritySection(
             path=path,
@@ -411,16 +463,22 @@ def snapshot_authority(
         authority_commit=resolved,
         sections=sections,
         digest=_aggregate_digest(resolved, sections),
-        consult_models=(model_match.group("sol"), model_match.group("luna")),
-        other_model=model_match.group("other"),
+        consult_models=consult_models,
+        other_model=other_model,
         review_effort=review_match.group("effort"),
         focus_effort=focus_match.group("effort"),
+        model_authority_version=model_version,
     )
 
 
 def derive_launch(
     snapshot: AuthoritySnapshot, *, stage: str, lane: str | None
 ) -> LaunchRequirement:
+    _validate_model_mapping(
+        snapshot.model_authority_version,
+        snapshot.consult_models,
+        snapshot.other_model,
+    )
     if stage not in STAGES:
         raise AuthorityError(f"未知 stage: {stage}")
     if stage == "consult":

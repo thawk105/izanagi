@@ -20,7 +20,9 @@ import re
 import stat
 import subprocess
 import sys
+from dataclasses import dataclass, field
 from pathlib import Path
+from types import MappingProxyType
 from typing import Dict, Iterable, Mapping, Optional, Sequence, Tuple
 
 if __package__ in {None, ""}:  # pragma: no cover - direct CLI execution
@@ -489,32 +491,91 @@ def _read_search_text(path: Path) -> Optional[str]:
         return None
 
 
+@dataclass(frozen=True)
+class _ScanMemo:
+    """同一 ``texts`` object の内容が不変な間だけ、
+    exact ``str`` expression ごとの hit 集合を再利用する。
+    """
+
+    texts: Mapping[str, str]
+    hits_by_expression: Dict[str, frozenset[str]] = field(default_factory=dict)
+    _mutable_texts_snapshot: Optional[Dict[str, str]] = field(
+        init=False, repr=False, compare=False,
+    )
+
+    def __post_init__(self) -> None:
+        snapshot = (
+            None
+            if isinstance(self.texts, MappingProxyType)
+            else dict(self.texts.items())
+        )
+        object.__setattr__(self, "_mutable_texts_snapshot", snapshot)
+
+
 def _scan_one(
     texts: Mapping[str, str], candidate_id: str, expressions: Mapping[str, str],
+    *, memo: Optional[_ScanMemo] = None,
 ) -> Dict:
+    """各 expression の軸別 count と、全軸に一致する sorted path を返す。
+
+    memo は同じ texts object に限り、内容が不変な間だけ exact ``str``
+    expression の hit 集合を再利用する。
+    """
     expression_snapshot = dict(expressions.items())
     compiled = {
         axis: re.compile(expression)
         for axis, expression in expression_snapshot.items()
     }
-    per_axis_paths = {axis: [] for axis in expression_snapshot}
-    conjunction_hits = []
     required_literal = (
         _derive_required_literal(expression_snapshot)
         if all(type(expression) is str for expression in expression_snapshot.values())
         else None
     )
-    for rel, text in texts.items():
-        if required_literal is not None and required_literal not in text:
-            continue
-        matched = {axis: bool(pattern.search(text)) for axis, pattern in compiled.items()}
-        for axis, is_match in matched.items():
-            if is_match:
-                per_axis_paths[axis].append(rel)
-        if all(matched.values()):
-            conjunction_hits.append(rel)
-    per_axis_counts = {axis: len(paths) for axis, paths in per_axis_paths.items()}
-    conjunction_hits.sort()
+    axis_literals = (
+        {
+            axis: _derive_required_literal({axis: expression})
+            for axis, expression in expression_snapshot.items()
+        }
+        if required_literal is not None
+        else {axis: None for axis in expression_snapshot}
+    )
+    memo_hits = None
+    if memo is not None and memo.texts is texts:
+        if (memo._mutable_texts_snapshot is not None
+                and dict(texts.items()) != memo._mutable_texts_snapshot):
+            raise FreezeError("_ScanMemo の texts 内容が再利用前に変化した")
+        memo_hits = memo.hits_by_expression
+    matched_paths = {}
+    for axis, expression in expression_snapshot.items():
+        hits = (
+            memo_hits.get(expression)
+            if memo_hits is not None and type(expression) is str
+            else None
+        )
+        if hits is None:
+            found = set()
+            for rel, text in texts.items():
+                if required_literal is not None and required_literal not in text:
+                    continue
+                axis_literal = axis_literals[axis]
+                if axis_literal is not None and axis_literal not in text:
+                    continue
+                if compiled[axis].search(text):
+                    found.add(rel)
+            hits = frozenset(found)
+            if memo_hits is not None and type(expression) is str:
+                memo_hits[expression] = hits
+        matched_paths[axis] = hits
+    per_axis_counts = {
+        axis: len(hits) for axis, hits in matched_paths.items()
+    }
+    hit_sets = iter(matched_paths.values())
+    first_hit_set = next(hit_sets, None)
+    conjunction_hits = (
+        sorted(first_hit_set.intersection(*hit_sets))
+        if first_hit_set is not None
+        else sorted(texts)
+    )
     hash_input = {
         "candidate_id": candidate_id,
         "expressions": expression_snapshot,
@@ -538,6 +599,9 @@ def search_repository(
     scan から免除する。指定時は ``output/s8b-freeze/`` の prefix 除外を無効化し、
     path が未指定または hash 不一致の file は通常どおり scan する。列挙結果からは
     免除しない。既定の ``None`` では v1 互換のため従来の prefix 除外を維持する。
+
+    列挙・open・read・decode は全対象 file について維持し、prefilter と call-local
+    memo は regex search の係数だけを減らす。
     """
     root = Path(root)
     enumerated = enumerate_repository_files(root) if files is None else tuple(files)
@@ -584,18 +648,22 @@ def search_repository(
         "excluded_paths": list(EXCLUDED_PATHS) if exempt_exact is None else [],
     }
 
+    texts = MappingProxyType(texts)
+    memo = _ScanMemo(texts)
     holdout_results = {}
     for name, holdout in HOLDOUTS.items():
         ycsb = holdout["ycsb"]
         expressions = _expressions(ycsb[RRATIO_KEY], ycsb[SKEW_KEY], ycsb[RMW_KEY])
         holdout_results[name] = _scan_one(
-            texts, holdout["candidate_id"], expressions,
+            texts, holdout["candidate_id"], expressions, memo=memo,
         )
 
     positive_expressions = _expressions(
         _POSITIVE_RATIO, _FIXED_SKEW, _FIXED_RMW,
     )
-    positive = _scan_one(texts, "rr50-positive-control", positive_expressions)
+    positive = _scan_one(
+        texts, "rr50-positive-control", positive_expressions, memo=memo,
+    )
     positive_control = {
         "expressions": positive["expressions"],
         "per_axis_counts": positive["per_axis_counts"],

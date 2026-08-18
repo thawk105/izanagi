@@ -166,6 +166,20 @@ _SYNTHETIC_DW_O25_SECTION = """## DW-O25 — ff-only land の全史 provenance �
 D254 に従い、land は `locked_main != tested_tip` のときだけ lock を解放して全史 provenance 監査を自ら走らせ、480 秒以内の rc=0 を必須とする。赤は `RC_PROVENANCE = 29` で main を 1 bit も変えず拒否し、CLI flag・環境変数・警告化の逃がし道を作らない。
 lock 再取得後に全検査をやり直し、`tip_sha` / `checker_blob_sha` / `executed_bytes_sha` / `returncode` を束縛した receipt を lock 内で再照合する。`already-landed` の no-op と active fold transaction の recovery では監査を起動しない。
 """
+_SYNTHETIC_DW_C01_SECTION = """## DW-C01 — 実測で是正した作法
+
+`DW-O01`/`DW-O08`/`DW-O17`/`DW-O20` に優先する。
+- `--lane`は`--stage consult`専用。他段はrc=2で落ちる。
+- 待ち手はpid file実在後に張る。先行は子の生存中でも即戻る。
+- 隔離worktreeのdetachはrunnerとlauncherの`.sh`へ外出しする。定型はguardが拒む。
+- 複数起点の判別は全隣接区間へ異なる正値を入れる。
+- 変異harnessはbaseline緑必須。既存赤は`--deselect`で外し根拠を台帳へ書く。
+- submoduleは`git -c protocol.file.allow=always submodule update --init --recursive`。素は拒否、再帰なしはpreflight rc=2。
+- 呼出し規約を変える取込は、両親の変更行が非競合でも全呼出しを数える。
+- 段6のfixも受理・拒否の含意の向きを2文へ分け、通る正例を添える。
+- mergeは親。子は競合解決だけ、`add`とcommitも親。
+- 子のWeb検索を禁じる。成果物が全損する。
+"""
 
 _SYNTHETIC_OPERATION_SECTION_IDS = (
     "DW-O01", "DW-O02", "DW-O03", "DW-O04", "DW-O05", "DW-O06",
@@ -186,6 +200,10 @@ _SYNTHETIC_STAGE_5_6_CONDITIONAL_ROWS = (
 _SYNTHETIC_CONDITION_25_ROW = (
     "| 25 | main を進める land を起動する直前 | "
     "`docs/dev-wave/operations.md`: `DW-O25` |"
+)
+_SYNTHETIC_CONDITION_26_ROW = (
+    "| 26 | 起動/待機/検査/submodule/取込/fix前 | "
+    "`docs/dev-wave/core.md`: `DW-C01` |"
 )
 
 _SYNTHETIC_ADMISSION_ENTRIES = {
@@ -668,9 +686,10 @@ def _write_command_guard_docs(root: str) -> None:
             f"| {key} | {check_docs.CONDITION_TRIGGER_CONTRACT[key]} | "
             f"{refs(pairs)} |"
             for key, pairs in check_docs.CONDITION_DISPATCH_CONTRACT.items()
-            if key != "25"
+            if key not in {"25", "26"}
         ),
         _SYNTHETIC_CONDITION_25_ROW,
+        _SYNTHETIC_CONDITION_26_ROW,
     ])
     dev_wave = f"""---
 description: synthetic dev-wave
@@ -785,9 +804,9 @@ description: synthetic Codex rulings skill
             if rel == "docs/dev-wave/workers.md" and section == "DW-S03":
                 body += "\n\n" + check_docs.DEV_WAVE_DW_S03_REASONING_MAX_LITERAL
             if rel == "docs/dev-wave/workers.md" and section == "DW-S06-A":
-                body += "\n\n" + check_docs.DEV_WAVE_DW_S06_A_REASONING_HIGH_SENTENCE
+                body += "\n\n" + check_docs.DEV_WAVE_DW_S06_A_REASONING_MAX_SENTENCE
             if rel == "docs/dev-wave/workers.md" and section == "DW-S06-C":
-                body += "\n\n" + check_docs.DEV_WAVE_DW_S06_C_REASONING_HIGH_SENTENCE
+                body += "\n\n" + check_docs.DEV_WAVE_DW_S06_C_REASONING_MAX_SENTENCE
             if rel == "docs/dev-wave/operations.md" and section == "DW-O01":
                 body += (
                     "\n\n"
@@ -810,6 +829,8 @@ description: synthetic Codex rulings skill
                 body += "\n\n`tools/dev_wave_land.py`"
             if rel == "docs/dev-wave/operations.md" and section == "DW-O25":
                 rendered_sections.append(_SYNTHETIC_DW_O25_SECTION.rstrip("\n"))
+            elif rel == "docs/dev-wave/core.md" and section == "DW-C01":
+                rendered_sections.append(_SYNTHETIC_DW_C01_SECTION.rstrip("\n"))
             else:
                 rendered_sections.append(f"## {section} — synthetic\n\n{body}")
         text = "# synthetic reference\n\n" + "\n\n".join(rendered_sections) + "\n"
@@ -2237,6 +2258,7 @@ def test_dev_wave_layer_budget_contract_is_literal():
           for section in ('DW-O01', 'DW-O02', 'DW-O05')),
     }
     assert l2 == {
+        ('docs/dev-wave/core.md', 'DW-C01'),
         ('docs/dev-wave/mutation.md', 'DW-M07'),
         *(('docs/dev-wave/operations.md', section) for section in (
             'DW-O03', 'DW-O04', 'DW-O06', 'DW-O08', 'DW-O09', 'DW-O10',
@@ -2674,6 +2696,7 @@ _TEST_DEV_WAVE_LAYERS = {
           for section in ('DW-O01', 'DW-O02', 'DW-O05')),
     },
     "L2": {
+        ('docs/dev-wave/core.md', 'DW-C01'),
         ('docs/dev-wave/mutation.md', 'DW-M07'),
         *(('docs/dev-wave/operations.md', section) for section in (
             'DW-O03', 'DW-O04', 'DW-O06', 'DW-O08', 'DW-O09', 'DW-O10',
@@ -5879,6 +5902,31 @@ def _mutate_command_guard(root: str, case: str) -> None:
                 1,
             ),
         )
+    elif case == "condition_26_deleted":
+        _rewrite_matching_lines(
+            root,
+            ".claude/commands/dev-wave.md",
+            lambda line: line.startswith("| 26 |"),
+            lambda line: "",
+        )
+    elif case == "condition_26_trigger_broadened":
+        _rewrite_matching_lines(
+            root,
+            ".claude/commands/dev-wave.md",
+            lambda line: line.startswith("| 26 |"),
+            lambda line: line.replace(
+                "起動/待機/検査/submodule/取込/fix前",
+                "起動/待機/検査/submodule/取込/fix前後",
+                1,
+            ),
+        )
+    elif case == "condition_26_target_changed":
+        _rewrite_matching_lines(
+            root,
+            ".claude/commands/dev-wave.md",
+            lambda line: line.startswith("| 26 |"),
+            lambda line: line.replace("`DW-C01`", "`DW-C00`", 1),
+        )
     elif case == "self_heading_deleted":
         rel = "docs/skill-self-improvement.md"
         _write(root, rel, _read(root, rel).replace(
@@ -6220,6 +6268,9 @@ _COMMAND_GUARD_CASES = [
     "condition_waiter_deleted",
     "condition_25_deleted",
     "condition_25_trigger_broadened",
+    "condition_26_deleted",
+    "condition_26_trigger_broadened",
+    "condition_26_target_changed",
     "self_heading_deleted",
     "self_h3_deleted",
     "self_long_line",
@@ -6311,6 +6362,9 @@ _COMMAND_GUARD_NEEDLES = {
     "condition_waiter_deleted": "条件 dispatch '24' が契約と不一致",
     "condition_25_deleted": "条件 dispatch '25' が契約と不一致",
     "condition_25_trigger_broadened": "条件 dispatch '25' が契約と不一致",
+    "condition_26_deleted": "条件 dispatch '26' が契約と不一致",
+    "condition_26_trigger_broadened": "条件 dispatch '26' が契約と不一致",
+    "condition_26_target_changed": "条件 dispatch '26' が契約と不一致",
     "self_heading_deleted": "H2 見出し '発火 gate' が 0 件",
     "self_h3_deleted": "H3 見出し 'cleanup-branches' が 0 件",
     "self_long_line": "最長行予算",
@@ -6366,6 +6420,10 @@ _COMMAND_GUARD_EXPECTED_COUNTS["condition_all_operations_deleted"] = len(
     _OPERATION_CONDITION_KEYS
 )
 _COMMAND_GUARD_EXPECTED_COUNTS.update({
+    "condition_26_deleted": 2,
+    "condition_26_target_changed": 2,
+})
+_COMMAND_GUARD_EXPECTED_COUNTS.update({
     "dispatch_allowlist": 2,
     "codex_startup_wave_pre_form": 2,
 })
@@ -6385,13 +6443,16 @@ def test_dev_wave_waiter_consumer_pins_accept_current_docs_contract():
 
 
 def test_command_guard_case_registration_is_complete():
-    """条件 24/25、L2 再追加、新節 pin と guard 登録表を固定する。"""
+    """条件 24/25/26、L2 再追加、新節 pin と guard 登録表を固定する。"""
 
     case_keys = set(_COMMAND_GUARD_CASES)
     assert "condition_waiter_deleted" in case_keys
     assert {
         "condition_25_deleted",
         "condition_25_trigger_broadened",
+        "condition_26_deleted",
+        "condition_26_trigger_broadened",
+        "condition_26_target_changed",
         "stage2_o03_readded",
         "stage3_o03_readded",
         "stage3_o13_readded",
@@ -6423,9 +6484,12 @@ def test_command_guard_case_registration_is_complete():
         source = source_file.read()
     for test_name in (
         "test_condition_25_contract_pins_exact_trigger_and_target",
+        "test_condition_26_contract_pins_exact_trigger_and_target",
         "test_normative_exact_section_contract_is_handwritten_and_complete",
         "test_normative_exact_section_pins_reject_raw_html_inside_pinned_sections",
         "test_dev_wave_operation_order_rejects_titleless_reorder_and_missing_target",
+        "test_dw_o20_points_to_dw_c01_and_drops_legacy_submodule_command",
+        "test_dw_c01_is_immediately_before_dw_stop",
         "test_normative_exact_section_pins_accept_real_repo",
         "test_dev_wave_waiter_consumer_pins_accept_current_docs_contract",
     ):
@@ -6509,6 +6573,18 @@ def test_condition_25_contract_pins_exact_trigger_and_target():
     assert "25" in _OPERATION_CONDITION_KEYS
 
 
+def test_condition_26_contract_pins_exact_trigger_and_target():
+    """fixture から独立した literal で条件 26 の trigger/target を固定する。"""
+
+    assert check_docs.CONDITION_TRIGGER_CONTRACT["26"] == (
+        "起動/待機/検査/submodule/取込/fix前"
+    )
+    assert check_docs.CONDITION_DISPATCH_CONTRACT["26"] == {
+        ("docs/dev-wave/core.md", "DW-C01")
+    }
+    assert "26" not in _OPERATION_CONDITION_KEYS
+
+
 def _replace_workers_section_literal(text, section_id, replacement):
     match = re.search(
         rf"^## {re.escape(section_id)}(?:\s+—[^\n]*)?\s*$\n.*?(?=^## |\Z)",
@@ -6520,8 +6596,8 @@ def _replace_workers_section_literal(text, section_id, replacement):
     literal = {
         "DW-S02": check_docs.DEV_WAVE_DW_S02_REASONING_MAX_LITERAL,
         "DW-S03": check_docs.DEV_WAVE_DW_S03_REASONING_MAX_LITERAL,
-        "DW-S06-A": check_docs.DEV_WAVE_DW_S06_A_REASONING_HIGH_LITERAL,
-        "DW-S06-C": check_docs.DEV_WAVE_DW_S06_C_REASONING_HIGH_LITERAL,
+        "DW-S06-A": check_docs.DEV_WAVE_DW_S06_A_REASONING_MAX_LITERAL,
+        "DW-S06-C": check_docs.DEV_WAVE_DW_S06_C_REASONING_MAX_LITERAL,
     }[section_id]
     changed_section = section.replace(literal, replacement, 1)
     assert changed_section != section
@@ -6537,8 +6613,8 @@ def _replace_workers_section_sentence(text, section_id, replacement):
     assert match is not None
     section = match.group(0)
     sentence = {
-        "DW-S06-A": check_docs.DEV_WAVE_DW_S06_A_REASONING_HIGH_SENTENCE,
-        "DW-S06-C": check_docs.DEV_WAVE_DW_S06_C_REASONING_HIGH_SENTENCE,
+        "DW-S06-A": check_docs.DEV_WAVE_DW_S06_A_REASONING_MAX_SENTENCE,
+        "DW-S06-C": check_docs.DEV_WAVE_DW_S06_C_REASONING_MAX_SENTENCE,
     }[section_id]
     assert section.count(sentence) == 1
     changed_section = section.replace(sentence, replacement, 1)
@@ -6658,12 +6734,12 @@ def test_dev_wave_reasoning_effort_pin_rejects_missing_dw_s03_value():
         shutil.rmtree(root, ignore_errors=True)
 
 
-def test_dev_wave_reasoning_effort_pin_rejects_dw_s06_a_max():
+def test_dev_wave_reasoning_effort_pin_rejects_dw_s06_a_high():
     root = tempfile.mkdtemp(prefix="izanagi_reasoning_pin_")
     try:
-        text = _mutated_workers_text(root, "DW-S06-A", "`reasoning=max`")
+        text = _mutated_workers_text(root, "DW-S06-A", "`reasoning=high`")
         assert _reasoning_effort_pin_findings(text) == [
-            check_docs.DEV_WAVE_DW_S06_A_REASONING_HIGH_FINDING
+            check_docs.DEV_WAVE_DW_S06_A_REASONING_MAX_FINDING
         ]
     finally:
         shutil.rmtree(root, ignore_errors=True)
@@ -6674,18 +6750,18 @@ def test_dev_wave_reasoning_effort_pin_rejects_missing_dw_s06_a_value():
     try:
         text = _mutated_workers_text(root, "DW-S06-A", "")
         assert _reasoning_effort_pin_findings(text) == [
-            check_docs.DEV_WAVE_DW_S06_A_REASONING_HIGH_FINDING
+            check_docs.DEV_WAVE_DW_S06_A_REASONING_MAX_FINDING
         ]
     finally:
         shutil.rmtree(root, ignore_errors=True)
 
 
-def test_dev_wave_reasoning_effort_pin_rejects_dw_s06_c_max():
+def test_dev_wave_reasoning_effort_pin_rejects_dw_s06_c_high():
     root = tempfile.mkdtemp(prefix="izanagi_reasoning_pin_")
     try:
-        text = _mutated_workers_text(root, "DW-S06-C", "`reasoning=max`")
+        text = _mutated_workers_text(root, "DW-S06-C", "`reasoning=high`")
         assert _reasoning_effort_pin_findings(text) == [
-            check_docs.DEV_WAVE_DW_S06_C_REASONING_HIGH_FINDING
+            check_docs.DEV_WAVE_DW_S06_C_REASONING_MAX_FINDING
         ]
     finally:
         shutil.rmtree(root, ignore_errors=True)
@@ -6723,12 +6799,12 @@ def test_dev_wave_reasoning_effort_pin_rejects_dw_s03_decoys_and_duplicates():
 
 
 def test_dev_wave_reasoning_effort_pin_rejects_dw_s06_a_decoys_and_duplicates():
-    finding = check_docs.DEV_WAVE_DW_S06_A_REASONING_HIGH_FINDING
+    finding = check_docs.DEV_WAVE_DW_S06_A_REASONING_MAX_FINDING
     replacements = (
-        "`reasoning=max` <!-- `reasoning=high` -->",
-        "`reasoning=max`\n\n```\n`reasoning=high`\n```\ncontinuation",
-        "`reasoning=high` and `reasoning=max`",
-        "`reasoning=high` and `reasoning=high`",
+        "`reasoning=high` <!-- `reasoning=max` -->",
+        "`reasoning=high`\n\n```\n`reasoning=max`\n```\ncontinuation",
+        "`reasoning=max` and `reasoning=high`",
+        "`reasoning=max` and `reasoning=max`",
     )
     for replacement in replacements:
         root = tempfile.mkdtemp(prefix="izanagi_reasoning_pin_")
@@ -6772,7 +6848,7 @@ def test_dev_wave_reasoning_effort_pin_rejects_dw_s03_real_keys_and_quotes():
 
 
 def test_dev_wave_reasoning_effort_pin_rejects_dw_s06_a_real_keys_and_quotes():
-    finding = check_docs.DEV_WAVE_DW_S06_A_REASONING_HIGH_FINDING
+    finding = check_docs.DEV_WAVE_DW_S06_A_REASONING_MAX_FINDING
     replacements = (
         "`reasoning_effort=high`",
         '`model_reasoning_effort="high"`',
@@ -6790,7 +6866,7 @@ def test_dev_wave_reasoning_effort_pin_rejects_dw_s06_a_real_keys_and_quotes():
 
 
 def test_dev_wave_reasoning_effort_pin_rejects_dw_s06_a_ambiguous_values():
-    finding = check_docs.DEV_WAVE_DW_S06_A_REASONING_HIGH_FINDING
+    finding = check_docs.DEV_WAVE_DW_S06_A_REASONING_MAX_FINDING
     for replacement, invalid_value in (
         ("`reasoning=high/max`", "high/max"),
         ("`reasoning=high.max`", "high.max"),
@@ -6815,8 +6891,8 @@ def test_dev_wave_reasoning_effort_pins_ignore_comment_and_fence_examples():
     cases = (
         ("DW-S02", "high"),
         ("DW-S03", "high"),
-        ("DW-S06-A", "max"),
-        ("DW-S06-C", "max"),
+        ("DW-S06-A", "high"),
+        ("DW-S06-C", "high"),
     )
     for section_id, decoy in cases:
         additions = (
@@ -6847,8 +6923,8 @@ def test_dev_wave_reasoning_effort_pin_rejects_hidden_whole_s06_sections():
     with open(workers, encoding="utf-8") as stream:
         text = stream.read()
     cases = (
-        ("DW-S06-A", check_docs.DEV_WAVE_DW_S06_A_REASONING_HIGH_FINDING),
-        ("DW-S06-C", check_docs.DEV_WAVE_DW_S06_C_REASONING_HIGH_FINDING),
+        ("DW-S06-A", check_docs.DEV_WAVE_DW_S06_A_REASONING_MAX_FINDING),
+        ("DW-S06-C", check_docs.DEV_WAVE_DW_S06_C_REASONING_MAX_FINDING),
     )
     wrappers = (
         ("```\n", "```\n"),
@@ -6895,7 +6971,7 @@ def test_dev_wave_reasoning_effort_pin_production_path_rejects_dw_s03_high():
     )
 
 
-def test_dev_wave_reasoning_effort_pin_production_path_rejects_dw_s06_a_max_exact(
+def test_dev_wave_reasoning_effort_pin_production_path_rejects_dw_s06_a_high_exact(
 ):
     root = _build_min_repo()
     try:
@@ -6906,19 +6982,19 @@ def test_dev_wave_reasoning_effort_pin_production_path_rejects_dw_s06_a_max_exac
             _replace_workers_section_literal(
                 _read(root, rel),
                 "DW-S06-A",
-                "`reasoning=max`",
+                "`reasoning=high`",
             ),
         )
         res = _run_check(root)
         assert res.returncode != 0, res.stdout
         assert _finding_set(res) == {
-            check_docs.DEV_WAVE_DW_S06_A_REASONING_HIGH_FINDING
+            check_docs.DEV_WAVE_DW_S06_A_REASONING_MAX_FINDING
         }
     finally:
         shutil.rmtree(root, ignore_errors=True)
 
 
-def test_dev_wave_reasoning_effort_pin_production_path_rejects_dw_s06_c_max_exact(
+def test_dev_wave_reasoning_effort_pin_production_path_rejects_dw_s06_c_high_exact(
 ):
     root = _build_min_repo()
     try:
@@ -6929,13 +7005,13 @@ def test_dev_wave_reasoning_effort_pin_production_path_rejects_dw_s06_c_max_exac
             _replace_workers_section_literal(
                 _read(root, rel),
                 "DW-S06-C",
-                "`reasoning=max`",
+                "`reasoning=high`",
             ),
         )
         res = _run_check(root)
         assert res.returncode != 0, res.stdout
         assert _finding_set(res) == {
-            check_docs.DEV_WAVE_DW_S06_C_REASONING_HIGH_FINDING
+            check_docs.DEV_WAVE_DW_S06_C_REASONING_MAX_FINDING
         }
     finally:
         shutil.rmtree(root, ignore_errors=True)
@@ -6943,7 +7019,7 @@ def test_dev_wave_reasoning_effort_pin_production_path_rejects_dw_s06_c_max_exac
 
 def test_dev_wave_reasoning_effort_pin_production_path_rejects_s06_decoys_exact(
 ):
-    finding = check_docs.DEV_WAVE_DW_S06_A_REASONING_HIGH_FINDING
+    finding = check_docs.DEV_WAVE_DW_S06_A_REASONING_MAX_FINDING
     for replacement in (
         "参考リンク: [例: `reasoning=high`](https://e.invalid/example)",
         "参考値: outer=`reasoning=high`",
@@ -6970,13 +7046,13 @@ def test_dev_wave_reasoning_effort_pin_production_path_rejects_s06_decoys_exact(
 def test_dev_wave_reasoning_effort_pin_production_path_requires_independent_s06_lines_exact(
 ):
     cases = (
-        ("DW-S06-A", check_docs.DEV_WAVE_DW_S06_A_REASONING_HIGH_FINDING),
-        ("DW-S06-C", check_docs.DEV_WAVE_DW_S06_C_REASONING_HIGH_FINDING),
+        ("DW-S06-A", check_docs.DEV_WAVE_DW_S06_A_REASONING_MAX_FINDING),
+        ("DW-S06-C", check_docs.DEV_WAVE_DW_S06_C_REASONING_MAX_FINDING),
     )
     for section_id, finding in cases:
         sentence = {
-            "DW-S06-A": check_docs.DEV_WAVE_DW_S06_A_REASONING_HIGH_SENTENCE,
-            "DW-S06-C": check_docs.DEV_WAVE_DW_S06_C_REASONING_HIGH_SENTENCE,
+            "DW-S06-A": check_docs.DEV_WAVE_DW_S06_A_REASONING_MAX_SENTENCE,
+            "DW-S06-C": check_docs.DEV_WAVE_DW_S06_C_REASONING_MAX_SENTENCE,
         }[section_id]
         replacements = (
             f"> {sentence}",
@@ -7015,14 +7091,14 @@ def test_dev_wave_reasoning_effort_pin_production_path_requires_independent_s06_
 def test_dev_wave_reasoning_effort_pin_production_path_rejects_unicode_line_separators_exact(
 ):
     cases = (
-        ("DW-S06-A", check_docs.DEV_WAVE_DW_S06_A_REASONING_HIGH_FINDING),
-        ("DW-S06-C", check_docs.DEV_WAVE_DW_S06_C_REASONING_HIGH_FINDING),
+        ("DW-S06-A", check_docs.DEV_WAVE_DW_S06_A_REASONING_MAX_FINDING),
+        ("DW-S06-C", check_docs.DEV_WAVE_DW_S06_C_REASONING_MAX_FINDING),
     )
     separators = ("\u2028", "\u2029", "\v", "\f", "\u0085")
     for section_id, finding in cases:
         sentence = {
-            "DW-S06-A": check_docs.DEV_WAVE_DW_S06_A_REASONING_HIGH_SENTENCE,
-            "DW-S06-C": check_docs.DEV_WAVE_DW_S06_C_REASONING_HIGH_SENTENCE,
+            "DW-S06-A": check_docs.DEV_WAVE_DW_S06_A_REASONING_MAX_SENTENCE,
+            "DW-S06-C": check_docs.DEV_WAVE_DW_S06_C_REASONING_MAX_SENTENCE,
         }[section_id]
         for separator in separators:
             root = _build_min_repo()
@@ -7083,7 +7159,7 @@ def test_dev_wave_reasoning_effort_pin_production_path_rejects_dw_s06_a_extra_vi
 ):
     _assert_s06_extra_visible_effort_rejected(
         "DW-S06-A",
-        check_docs.DEV_WAVE_DW_S06_A_REASONING_HIGH_FINDING,
+        check_docs.DEV_WAVE_DW_S06_A_REASONING_MAX_FINDING,
     )
 
 
@@ -7091,7 +7167,7 @@ def test_dev_wave_reasoning_effort_pin_production_path_rejects_dw_s06_c_extra_vi
 ):
     _assert_s06_extra_visible_effort_rejected(
         "DW-S06-C",
-        check_docs.DEV_WAVE_DW_S06_C_REASONING_HIGH_FINDING,
+        check_docs.DEV_WAVE_DW_S06_C_REASONING_MAX_FINDING,
     )
 
 
@@ -7112,7 +7188,7 @@ def test_dev_wave_reasoning_effort_pin_production_path_rejects_dw_s06_a_ambiguou
         res = _run_check(root)
         assert res.returncode != 0, res.stdout
         assert _finding_set(res) == {
-            check_docs.DEV_WAVE_DW_S06_A_REASONING_HIGH_FINDING
+            check_docs.DEV_WAVE_DW_S06_A_REASONING_MAX_FINDING
         }
     finally:
         shutil.rmtree(root, ignore_errors=True)
@@ -7150,7 +7226,7 @@ def test_dev_wave_reasoning_effort_pin_production_path_rejects_hidden_s06_a_exac
         rel = "docs/dev-wave/workers.md"
         baseline = _read(root, rel)
         expected = {
-            check_docs.DEV_WAVE_DW_S06_A_REASONING_HIGH_FINDING,
+            check_docs.DEV_WAVE_DW_S06_A_REASONING_MAX_FINDING,
             (
                 "docs/dev-wave/workers.md: H2 見出し DW-S06-A が 0 件 — "
                 "dispatch先は一意でなければならない"
@@ -7246,19 +7322,19 @@ def test_dev_wave_reasoning_effort_pin_findings_are_time_invariant():
         "docs/dev-wave/workers.md: DW-S03 の `reasoning=max` は D207 に基づく"
         + expected_suffix
     )
-    assert check_docs.DEV_WAVE_DW_S06_A_REASONING_HIGH_FINDING == (
-        "docs/dev-wave/workers.md: DW-S06-A の `reasoning=high` は段 6 敵対レビューの"
+    assert check_docs.DEV_WAVE_DW_S06_A_REASONING_MAX_FINDING == (
+        "docs/dev-wave/workers.md: DW-S06-A の `reasoning=max` は段 6 敵対レビューの"
         "現行 adoption pin と不一致 — 変更には採用裁定と pin の同時更新が必要"
     )
-    assert check_docs.DEV_WAVE_DW_S06_C_REASONING_HIGH_FINDING == (
-        "docs/dev-wave/workers.md: DW-S06-C の `reasoning=high` は段 6 焦点再レビューの"
+    assert check_docs.DEV_WAVE_DW_S06_C_REASONING_MAX_FINDING == (
+        "docs/dev-wave/workers.md: DW-S06-C の `reasoning=max` は段 6 焦点再レビューの"
         "現行 adoption pin と不一致 — 変更には採用裁定と pin の同時更新が必要"
     )
-    assert check_docs.DEV_WAVE_DW_S06_A_REASONING_HIGH_SENTENCE == (
-        "実装 wave は異なるレンズの敵対レビューを `reasoning=high` で必ず 2 本並列で行う。"
+    assert check_docs.DEV_WAVE_DW_S06_A_REASONING_MAX_SENTENCE == (
+        "実装 wave は異なるレンズの敵対レビューを `reasoning=max` で必ず 2 本並列で行う。"
     )
-    assert check_docs.DEV_WAVE_DW_S06_C_REASONING_HIGH_SENTENCE == (
-        "並列 fix の統合後、焦点再レビューは全体へ `reasoning=high` で 1 本でよい。"
+    assert check_docs.DEV_WAVE_DW_S06_C_REASONING_MAX_SENTENCE == (
+        "並列 fix の統合後、焦点再レビューは全体へ `reasoning=max` で 1 本でよい。"
     )
 
 
@@ -7636,8 +7712,7 @@ def test_dev_wave_model_pins_accept_current_docs_contract():
 
 def test_dev_wave_model_pin_contract_is_time_invariant():
     assert check_docs.DEV_WAVE_DW_O01_MODEL_AUTHORITY_LITERAL == (
-        "`<model>`: 段 3 のみ 2 本で `gpt-5.6-sol`→`gpt-5.6-luna`、"
-        "他段 `gpt-5.6-sol`。"
+        "`<model>`: 全段 `gpt-5.6-luna` (段 3 の 2 本も同じ)。"
     )
     assert check_docs.DEV_WAVE_MODEL_SLUG_RE.findall(
         "`gpt-5.6-sol` -m gpt-5.6-sol --model=gpt-5.6-luna\n"
@@ -7705,6 +7780,10 @@ def test_normative_exact_section_contract_is_handwritten_and_complete():
     assert check_docs.DEV_WAVE_DW_O25_SECTION_LITERAL == (
         _SYNTHETIC_DW_O25_SECTION
     )
+    assert check_docs.DEV_WAVE_DW_C01_SECTION_LITERAL == (
+        _SYNTHETIC_DW_C01_SECTION
+    )
+    assert len(_SYNTHETIC_DW_C01_SECTION.encode("utf-8")) == 990
     assert check_docs.DEV_WAVE_EXACT_VISIBLE_SECTIONS == {
         (".claude/commands/dev-wave.md", "入力と開始"):
             _SYNTHETIC_DEV_WAVE_COMMAND_START_SECTION,
@@ -7714,11 +7793,18 @@ def test_normative_exact_section_contract_is_handwritten_and_complete():
             "docs/dev-wave/operations.md",
             "DW-O25 — ff-only land の全史 provenance 関門",
         ): _SYNTHETIC_DW_O25_SECTION,
+        (
+            "docs/dev-wave/core.md",
+            "DW-C01 — 実測で是正した作法",
+        ): _SYNTHETIC_DW_C01_SECTION + "\n",
     }
+    assert len(check_docs.DEV_WAVE_EXACT_VISIBLE_SECTIONS[
+        ("docs/dev-wave/core.md", "DW-C01 — 実測で是正した作法")
+    ].encode("utf-8")) == 991
 
 
 def test_normative_exact_section_pins_reject_raw_html_inside_pinned_sections():
-    """pin 済み 4 節の内側へ raw HTML block を差し込むと拒否する。"""
+    """pin 済み 5 節の内側へ raw HTML block を差し込むと拒否する。"""
 
     cases = (
         (
@@ -7732,6 +7818,10 @@ def test_normative_exact_section_pins_reject_raw_html_inside_pinned_sections():
         (
             "docs/dev-wave/operations.md",
             "DW-O25 — ff-only land の全史 provenance 関門",
+        ),
+        (
+            "docs/dev-wave/core.md",
+            "DW-C01 — 実測で是正した作法",
         ),
         (
             ".agents/skills/dev-wave/SKILL.md",
@@ -7802,6 +7892,29 @@ def test_dev_wave_operation_order_rejects_titleless_reorder_and_missing_target()
         )
     finally:
         shutil.rmtree(root, ignore_errors=True)
+
+
+def test_dw_o20_points_to_dw_c01_and_drops_legacy_submodule_command():
+    """DW-O20 内だけで新ポインタと旧 submodule 命令の不在を固定する。"""
+
+    _, sections = _test_reference_slices(
+        _REPO, "docs/dev-wave/operations.md"
+    )
+    dw_o20 = sections["DW-O20"]
+    assert dw_o20.count("`DW-C01`") == 1
+    assert "`DW-C01`に従い初期化して" in dw_o20
+    assert "`git submodule update --init`" not in dw_o20
+
+
+def test_dw_c01_is_immediately_before_dw_stop():
+    """既存 core slice を動かさず C01 を DW-STOP の直前へ置く。"""
+
+    text = _read(_REPO, "docs/dev-wave/core.md")
+    section_ids = re.findall(r"^##\s+([^\s—]+)", text, re.MULTILINE)
+    assert section_ids.count("DW-C01") == 1
+    assert section_ids.count("DW-STOP") == 1
+    c01_index = section_ids.index("DW-C01")
+    assert section_ids[c01_index + 1] == "DW-STOP"
 
 
 def test_normative_exact_section_pins_accept_real_repo():
