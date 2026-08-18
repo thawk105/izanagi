@@ -105,12 +105,16 @@ _FIXTURE_PYTHON = "/fixture/python"
 _FIXTURE_TARGET = "/fixture/orchestrator/tests"
 
 
-def _command(args, *, use_xdist=True, has_target=False, default_nproc=7):
+def _command(
+    args, *, use_xdist=True, has_target=False, default_nproc=7,
+    xdist_version="3.8.0",
+):
     return RT._build_pytest_command(
         args,
         use_xdist=use_xdist,
         default_nproc=default_nproc,
         has_target=has_target,
+        xdist_version=xdist_version,
         python_executable=_FIXTURE_PYTHON,
         default_target=_FIXTURE_TARGET,
     )
@@ -152,7 +156,7 @@ def _forbid_execution():
 def test_build_command_xdist_default_uses_loadgroup():
     assert _command([]) == [
         _FIXTURE_PYTHON, "-m", "pytest", _FIXTURE_TARGET,
-        "-n", "7", "--dist", "loadgroup",
+        "-n", "7", "--no-loadscope-reorder", "--dist", "loadgroup",
     ]
 
 
@@ -170,7 +174,7 @@ def test_build_command_recognizes_all_parallel_nproc_spellings():
     ):
         assert _command(args) == [
             _FIXTURE_PYTHON, "-m", "pytest", _FIXTURE_TARGET,
-            "--dist", "loadgroup", *args,
+            "--no-loadscope-reorder", "--dist", "loadgroup", *args,
         ], args
 
 
@@ -185,7 +189,8 @@ def test_build_command_nonacceptance_user_dist_is_postposed_and_wins():
     args = ["--dist", "load", target]
     assert _command(args, has_target=True) == [
         _FIXTURE_PYTHON, "-m", "pytest",
-        "-n", "7", "--dist", "loadgroup", "--dist", "load", target,
+        "-n", "7", "--no-loadscope-reorder", "--dist", "loadgroup",
+        "--dist", "load", target,
     ]
 
 
@@ -193,7 +198,21 @@ def test_build_command_explicit_target_omits_default_target():
     target = "orchestrator/tests/test_campaign.py::test_source_digest_parse_options_defaults"
     assert _command([target], has_target=True) == [
         _FIXTURE_PYTHON, "-m", "pytest", "-n", "7",
-        "--dist", "loadgroup", target,
+        "--no-loadscope-reorder", "--dist", "loadgroup", target,
+    ]
+
+
+def test_build_command_reorder_flag_is_version_gated():
+    assert "--no-loadscope-reorder" not in _command([], xdist_version="3.7.9")
+    assert "--no-loadscope-reorder" in _command([], xdist_version="3.8.0")
+
+
+def test_build_command_reorder_flag_precedes_all_user_arguments():
+    args = ["--loadscope-reorder", "test_file.py::test_node"]
+    command = _command(args, has_target=True)
+    assert command == [
+        _FIXTURE_PYTHON, "-m", "pytest", "-n", "7",
+        "--no-loadscope-reorder", "--dist", "loadgroup", *args,
     ]
 
 
@@ -203,6 +222,13 @@ def test_xdist_loadgroup_version_gate():
     assert not RT._xdist_supports_loadgroup("2.4.0")
     assert not RT._xdist_supports_loadgroup(None)
     assert not RT._xdist_supports_loadgroup("not-a-version")
+
+
+def test_xdist_reorder_version_gate():
+    assert not RT._xdist_supports_loadscope_reorder("3.7.9")
+    assert RT._xdist_supports_loadscope_reorder("3.8.0")
+    assert not RT._xdist_supports_loadscope_reorder(None)
+    assert not RT._xdist_supports_loadscope_reorder("not-a-version")
 
 
 def test_main_warns_on_user_dist_override_without_reordering_args():

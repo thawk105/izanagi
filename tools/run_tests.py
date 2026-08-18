@@ -62,6 +62,10 @@ from orchestrator.campaign import site_policy  # noqa: E402
 _NPROC_CAP = 32
 _MIN_XDIST_VERSION = Version("2.5")
 
+
+_MIN_XDIST_REORDER_VERSION = Version("3.8")
+"""pytest-xdist 3.8 introduced the supported no-reorder option."""
+
 _TASK_RUN_ID_ENV = "IZANAGI_TASK_RUN_ID"
 _TASK_RUNS_ROOT_ENV = "IZANAGI_TASK_RUNS_ROOT"
 _TASK_RUN_SIDECAR_ENV = "IZANAGI_TASK_RUN_SIDECAR"
@@ -251,6 +255,22 @@ def _xdist_supports_loadgroup(version: Optional[str]) -> bool:
         return False
 
 
+def _xdist_supports_loadscope_reorder(version: Optional[str]) -> bool:
+    """Return whether xdist exposes ``--no-loadscope-reorder``.
+
+    The lower bound is pytest-xdist 3.8, the version measured by the wave and
+    the first release whose plugin option is part of this runner contract.
+    Older xdist versions keep their existing scheduler behavior instead of
+    receiving an unknown command-line option.
+    """
+    if version is None:
+        return False
+    try:
+        return Version(version) >= _MIN_XDIST_REORDER_VERSION
+    except InvalidVersion:
+        return False
+
+
 def _xdist_runtime_importable() -> bool:
     try:
         importlib.import_module("xdist")
@@ -379,7 +399,8 @@ def _has_non_loadgroup_user_dist(args: Sequence[str]) -> bool:
 
 def _build_pytest_command(
         args: Sequence[str], *, use_xdist: bool, default_nproc: int,
-        has_target: bool, python_executable: str = sys.executable,
+        has_target: bool, xdist_version: Optional[str] = None,
+        python_executable: str = sys.executable,
         default_target: str = _DEFAULT_TARGET) -> list[str]:
     """外部状態を読まず pytest argv を組み立てる純関数。
 
@@ -395,6 +416,8 @@ def _build_pytest_command(
         if _explicit_nproc(user_args) is None:
             cmd += ["-n", str(default_nproc)]
         if _xdist_requested(user_args, default_nproc):
+            if _xdist_supports_loadscope_reorder(xdist_version):
+                cmd.append("--no-loadscope-reorder")
             cmd += ["--dist", "loadgroup"]
     return cmd + user_args
 
@@ -1909,6 +1932,7 @@ def main(
         use_xdist=use_xdist,
         default_nproc=default_nproc,
         has_target=bool(_positional_tokens(args)),
+        xdist_version=version if use_xdist else None,
     )
     task_run_id = os.environ.get(_TASK_RUN_ID_ENV)
     if not task_run_id:
