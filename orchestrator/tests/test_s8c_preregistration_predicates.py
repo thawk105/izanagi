@@ -148,7 +148,7 @@ def test_current_repository_gap_reason_snapshot_requires_cross_wave_review(
     assert {
         item.id: (item.status, item.reason_code) for item in results
     } == {
-        "C01": (core.PredicateStatus.UNSATISFIED, "workload-projection-mismatch"),
+        "C01": (core.PredicateStatus.UNSATISFIED, "ratified-generation-reference-absent"),
         "C02": (core.PredicateStatus.EVIDENCE_UNDEFINED, "arm-binding-declared-only"),
         "C03": (core.PredicateStatus.EVIDENCE_UNDEFINED, "manifest-registry-proof-undefined"),
         "C04": (core.PredicateStatus.UNSATISFIED, "crash-policy-cell-partial"),
