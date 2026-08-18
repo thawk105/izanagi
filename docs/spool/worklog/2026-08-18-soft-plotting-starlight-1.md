@@ -42,4 +42,4 @@ title: '[T-715] は entry (655) で択 (b) 実装・記録・land まで完了�
   carry の完了節記入漏れを是正するための記録のみ。real-repo 焦点テストで健全性を実測確認
   (42 passed / 3 skipped、0 failed)。
   remaining: none
-  base: ca2c02439a446ddee3820041a3c5625ad0a8a2e4dfbee093300b00861fba742b
+  base: 79f3be9a26c7adccc15a09173eb27bd485e9b27da65d4efd2df1cf0ca4111b04
