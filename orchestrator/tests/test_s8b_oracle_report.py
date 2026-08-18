@@ -2,6 +2,7 @@
 """8b oracle report の manifest 限定・物理 trial 区間復元を検査する。"""
 from __future__ import annotations
 
+import ast
 import copy
 import dataclasses
 import hashlib
@@ -13,7 +14,7 @@ import subprocess
 import sys
 from collections.abc import Mapping
 from pathlib import Path
-from types import MappingProxyType
+from types import MappingProxyType, SimpleNamespace
 from unittest import mock
 
 import pytest
@@ -26,6 +27,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import s8b_v2_freeze_fixture as v2_fixture  # noqa: E402
 import s8b_oracle_spec_fixture as spec_fixture  # noqa: E402
 import test_s8b_ratified_freeze as ratified_fixture  # noqa: E402
+from orchestrator.tests import commit_receipt_support as receipt_support  # noqa: E402
 from orchestrator.campaign import (  # noqa: E402
     artifact_admission as admission,
     env_contract,
@@ -43,6 +45,8 @@ from orchestrator.campaign import (  # noqa: E402
 from orchestrator.campaign import s8b_oracle_artifacts as artifacts  # noqa: E402
 from orchestrator.campaign.layout import campaign_layout, exploration_campaign_layout  # noqa: E402
 from orchestrator.calibrator import perf_preflight  # noqa: E402
+
+pytestmark = pytest.mark.usefixtures("ratified_enforcement_source")
 
 
 # 注意: holdout の三軸 conjunction はテストへ静止させない。
@@ -376,6 +380,23 @@ def _ratified_cli_manifest(
 
 
 def _judge(observations, *, manifest_sha256=None, spec_sha256=None):
+    observations = artifacts.OfficialObservations(copy.deepcopy(observations))
+    if (observations.get("manifest_kind") == "official"
+            and "store_reverification" not in observations):
+        logical_cell_ids = sorted({
+            f"{entry['holdout_id']}::{entry['configuration_id']}"
+            for entry in observations.get("expected_cells", [])
+        })
+        observations["store_reverification"] = {
+            "state": "verified",
+            "cells": [{
+                "cell_id": cell_id,
+                "store_path": f"fixture-store/{cell_id.replace('::', '--')}",
+                "expected_sha256": "c" * 64,
+                "actual_sha256": "c" * 64,
+                "state": "match",
+            } for cell_id in logical_cell_ids],
+        }
     schedule_projection = judge.ManifestScheduleProjection(
         n_per_cell=observations.get("n_per_cell", 1),
         expected_cells=frozenset(
@@ -407,6 +428,38 @@ def _judge(observations, *, manifest_sha256=None, spec_sha256=None):
             if spec_sha256 is None else spec_sha256
         ),
     )
+
+
+def _reverified_store_fixture(
+        verified_manifest: oracle_manifest.VerifiedManifest,
+        output_root: Path,
+) -> tuple[object, dict[str, dict]]:
+    binaries: dict[str, dict] = {}
+    for row in verified_manifest.document["schedule"]["rows"]:
+        cell_id = f"{row['holdout_id']}::{row['configuration_id']}"
+        if cell_id in binaries:
+            continue
+        raw = f"store bytes for {cell_id}\n".encode("utf-8")
+        relative_path = f"fixture-store/{cell_id.replace('::', '--')}/binary"
+        path = output_root / relative_path
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(raw)
+        binaries[cell_id] = {
+            "cell_id": cell_id,
+            "store_path": relative_path,
+            "binary_sha256": hashlib.sha256(raw).hexdigest(),
+        }
+    token = report.s8b_ratified_freeze.ReverifiedFreeze(
+        ratified=SimpleNamespace(
+            sha256=verified_manifest.document["freeze"]["sha256"],
+        ),
+        activation_head="a" * 40,
+        search_digest="b" * 64,
+        symlink_gitlink_inventory=(),
+        floor_artifact=SimpleNamespace(),
+        binaries_by_cell=MappingProxyType(binaries),
+    )
+    return token, binaries
 
 
 def _session(layout, event: str, payload: dict) -> None:
@@ -489,6 +542,11 @@ def _verify(layout, variant: str, tag: str, certified: bool) -> None:
 def _fixture_log(layout, variant: str, stage: str, payload: object) -> None:
     """不正 payload の負例だけ writer を迂回し、raw WAL 接点へ注入する。"""
     if isinstance(payload, dict):
+        if stage == "commit":
+            receipt_support.append_legacy_raw_commit(
+                layout, variant, "fixture-env", payload,
+            )
+            return
         wal.log(layout, variant, stage, "fixture-env", payload)
         return
     record = {
@@ -592,10 +650,12 @@ def _trial(layout, item: dict, outcome: str, *, variant: str = VARIANT,
                         if bench_payload_extra is not None:
                             payload.update(dict(bench_payload_extra))
                         wal.log(layout, variant, "bench_done", "fixture-env", payload)
-                        wal.log(layout, variant, "commit", "fixture-env", {
-                            "fitness_tps": sum(tps) / len(tps),
-                            "verify_configs": ["legacy", "s2"],
-                        })
+                        receipt_support.append_legacy_raw_commit(
+                            layout, variant, "fixture-env", {
+                                "fitness_tps": sum(tps) / len(tps),
+                                "verify_configs": ["legacy", "s2"],
+                            },
+                        )
     declared = {
         "legacy-red": "correctness-red",
         "s2-red": "correctness-red",
@@ -713,6 +773,11 @@ def _retry(layout, item: dict, next_attempt: int = 2, **payload_overrides) -> No
 
 def _append_pipeline(layout, pipeline: list[tuple[str, object]] | None = None) -> None:
     for stage, payload in pipeline or _valid_committed_pipeline():
+        if stage == "commit":
+            receipt_support.append_legacy_raw_commit(
+                layout, VARIANT, "fixture-env", payload,
+            )
+            continue
         wal.log(layout, VARIANT, stage, "fixture-env", payload)
 
 
@@ -1458,6 +1523,7 @@ def test_cli_official_resolves_ratified_freeze_and_verifies(tmp_path):
     output = tmp_path / "official-cli-observations.json"
     real_reverify = report.s8b_ratified_freeze.reverify_published_freeze
     real_verify = oracle_manifest.verify_manifest
+    real_build = report.build_observations
     recorded: dict[str, object] = {}
 
     def reverify_recording_wrapper(ratified, reverify_root):
@@ -1477,6 +1543,10 @@ def test_cli_official_resolves_ratified_freeze_and_verifies(tmp_path):
             approved_spec=approved_spec,
         )
 
+    def build_recording_wrapper(**kwargs):
+        recorded["build_reverified_freeze"] = kwargs.get("reverified_freeze")
+        return real_build(**kwargs)
+
     with mock.patch.object(
             oracle_spec, "APPROVED_SPEC_SHA256", approved.sha256,
     ), mock.patch.object(
@@ -1488,22 +1558,39 @@ def test_cli_official_resolves_ratified_freeze_and_verifies(tmp_path):
             "verify_manifest",
             side_effect=verify_recording_wrapper,
     ) as verify_spy:
-        rc = report.main([
-            "report",
-            "--manifest", str(manifest_path),
-            "--output-root", str(root / "report-output"),
-            "--out", str(output),
-            "--repo-root", str(root),
-        ])
+        with mock.patch.object(
+                report, "build_observations",
+                side_effect=build_recording_wrapper,
+        ) as build_spy:
+            rc = report.main([
+                "report",
+                "--manifest", str(manifest_path),
+                "--output-root", str(root / "output"),
+                "--out", str(output),
+                "--repo-root", str(root),
+            ])
 
     assert rc == 0
     assert output.exists()
     assert reverify_spy.call_count == 1
     assert verify_spy.call_count == 1
+    assert build_spy.call_count == 1
     reverified = recorded["reverified"]
     assert type(reverified) is report.s8b_ratified_freeze.ReverifiedFreeze
     assert recorded["freeze_document"] is reverified.ratified.document
     assert recorded["freeze_sha256"] == reverified.ratified.sha256
+    assert recorded["build_reverified_freeze"] is reverified
+    receipt = json.loads(output.read_text(encoding="utf-8"))["store_reverification"]
+    assert receipt == {
+        "state": "verified",
+        "cells": [{
+            "cell_id": cell_id,
+            "store_path": reverified.binaries_by_cell[cell_id]["store_path"],
+            "expected_sha256": reverified.binaries_by_cell[cell_id]["binary_sha256"],
+            "actual_sha256": reverified.binaries_by_cell[cell_id]["binary_sha256"],
+            "state": "match",
+        } for cell_id in sorted(reverified.binaries_by_cell)],
+    }
 
 
 def test_report_rejects_unverifiable_floor_admission_without_output(tmp_path):
@@ -1588,6 +1675,34 @@ def test_report_cli_accepts_matching_spec_then_rejects_one_other_spec_without_ou
         ])
     assert negative_rc == 2
     assert not negative_output.exists()
+
+
+def test_official_missing_output_root_reports_missing_and_judges_indeterminate(
+        tmp_path):
+    root, manifest_path, _document, approved = _ratified_cli_manifest(tmp_path)
+    output_root = root / "missing-report-output"
+    observations_path = tmp_path / "missing-store-observations.json"
+    assert not output_root.exists()
+
+    with mock.patch.object(
+            oracle_spec, "APPROVED_SPEC_SHA256", approved.sha256):
+        assert report.main([
+            "report", "--manifest", str(manifest_path),
+            "--output-root", str(output_root),
+            "--out", str(observations_path), "--repo-root", str(root),
+        ]) == 0
+
+    observations = json.loads(observations_path.read_text(encoding="utf-8"))
+    receipt = observations["store_reverification"]
+    assert receipt["state"] == "unverified"
+    assert {cell["state"] for cell in receipt["cells"]} == {"missing"}
+    assert {cell["actual_sha256"] for cell in receipt["cells"]} == {None}
+    verdict = _judge(observations)
+    assert verdict["status"] == "indeterminate"
+    assert any(
+        reason["code"] == "store-reverification-store-missing"
+        for reason in verdict["reasons"]
+    )
 
 
 def test_judge_cli_reverifies_official_manifest_and_legacy_cannot_reach_verdict(
@@ -4422,13 +4537,389 @@ def test_all_perf_report_preserves_exact_official_keys(tmp_path):
     manifest = _manifest(tmp_path)
     layout = _layout(tmp_path, manifest)
     _finish_campaign(layout, manifest)
+    verified = _verify_for_report(tmp_path, manifest)
+    reverified, _binaries = _reverified_store_fixture(verified, tmp_path)
 
     observations = report.build_observations(
-        manifest=_verify_for_report(tmp_path, manifest), output_root=tmp_path,
+        manifest=verified, output_root=tmp_path,
+        reverified_freeze=reverified,
     )
 
     assert set(observations) == {
         "schema_version", "manifest_kind", "manifest_sha256", "spec_sha256",
         "n_per_cell", "expected_cells", "rows", "manifest_issues",
         "campaign_verifier_epochs", "t080_freeze_migration_observation",
+        "store_reverification",
     }
+
+
+def test_official_direct_api_without_reverified_freeze_is_non_certifying(tmp_path):
+    manifest = _manifest(tmp_path)
+    layout = _layout(tmp_path, manifest)
+    _finish_campaign(layout, manifest)
+
+    observations = report.build_observations(
+        manifest=_verify_for_report(tmp_path, manifest), output_root=tmp_path,
+    )
+
+    assert "store_reverification" not in observations
+
+
+def test_store_reverification_rejects_empty_binary_authority(tmp_path):
+    verified = _verify_for_report(tmp_path, _manifest(tmp_path))
+    reverified, _binaries = _reverified_store_fixture(verified, tmp_path)
+    empty = dataclasses.replace(
+        reverified, binaries_by_cell=MappingProxyType({}),
+    )
+
+    with pytest.raises(report.ReportError, match="binaries_by_cell.*空"):
+        report.build_observations(
+            manifest=verified, output_root=tmp_path,
+            reverified_freeze=empty,
+        )
+
+
+@pytest.mark.parametrize("coverage", ["missing", "extra"])
+def test_store_reverification_rejects_binary_cell_coverage(tmp_path, coverage):
+    verified = _verify_for_report(tmp_path, _manifest(tmp_path))
+    reverified, binaries = _reverified_store_fixture(verified, tmp_path)
+    damaged = copy.deepcopy(binaries)
+    if coverage == "missing":
+        damaged.pop(next(iter(damaged)))
+    else:
+        damaged["outside::schedule"] = {
+            "cell_id": "outside::schedule",
+            "store_path": "fixture-store/outside--schedule/binary",
+            "binary_sha256": "d" * 64,
+        }
+    forged = dataclasses.replace(
+        reverified, binaries_by_cell=MappingProxyType(damaged),
+    )
+
+    with pytest.raises(report.ReportError, match="完全被覆"):
+        report.build_observations(
+            manifest=verified, output_root=tmp_path,
+            reverified_freeze=forged,
+        )
+
+
+@pytest.mark.parametrize("path_kind", ["absolute", "parent", "control", "backslash"])
+def test_store_reverification_rejects_out_of_root_store_path(tmp_path, path_kind):
+    verified = _verify_for_report(tmp_path, _manifest(tmp_path))
+    reverified, binaries = _reverified_store_fixture(verified, tmp_path)
+    damaged = copy.deepcopy(binaries)
+    victim = damaged[next(iter(sorted(damaged)))]
+    victim["store_path"] = {
+        "absolute": str(tmp_path / "absolute-store"),
+        "parent": "../outside-store",
+        "control": "fixture-store/control\x01store",
+        "backslash": "fixture-store\\outside-store",
+    }[path_kind]
+    forged = dataclasses.replace(
+        reverified, binaries_by_cell=MappingProxyType(damaged),
+    )
+
+    with pytest.raises(report.ReportError, match="store_path"):
+        report.build_observations(
+            manifest=verified, output_root=tmp_path,
+            reverified_freeze=forged,
+        )
+
+
+@pytest.mark.parametrize("symlink_kind", ["parent", "leaf"])
+def test_store_reverification_rejects_out_of_root_symlink(tmp_path, symlink_kind):
+    output_root = tmp_path / "output"
+    output_root.mkdir()
+    verified = _verify_for_report(tmp_path, _manifest(tmp_path))
+    reverified, binaries = _reverified_store_fixture(verified, output_root)
+    victim = binaries[next(iter(sorted(binaries)))]
+    victim_path = output_root / victim["store_path"]
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    if symlink_kind == "parent":
+        outside_binary = outside / "binary"
+        outside_binary.write_bytes(victim_path.read_bytes())
+        victim_path.unlink()
+        victim_path.parent.rmdir()
+        victim_path.parent.symlink_to(outside, target_is_directory=True)
+    else:
+        outside_binary = outside / "binary"
+        outside_binary.write_bytes(victim_path.read_bytes())
+        victim_path.unlink()
+        victim_path.symlink_to(outside_binary)
+
+    with pytest.raises(report.ReportError, match="store_path|symlink"):
+        report.build_observations(
+            manifest=verified, output_root=output_root,
+            reverified_freeze=reverified,
+        )
+
+
+def test_store_reverification_parent_nofollow_blocks_stat_open_race(tmp_path):
+    """O_NOFOLLOW を消すと raced parent open は hash 成功側へ転び、この対照が落ちる。"""
+    output_root = tmp_path / "output"
+    victim_parent = output_root / "store" / "cell"
+    victim_parent.mkdir(parents=True)
+    victim = victim_parent / "binary"
+    raw = b"parent race control\n"
+    victim.write_bytes(raw)
+    outside = tmp_path / "outside-parent"
+    outside.mkdir()
+    (outside / "binary").write_bytes(raw)
+    real_open = report.os.open
+    exchanged = False
+
+    def racing_open(path, flags, mode=0o777, *, dir_fd=None):
+        nonlocal exchanged
+        if path == "cell" and dir_fd is not None and not exchanged:
+            exchanged = True
+            victim.unlink()
+            victim_parent.rmdir()
+            victim_parent.symlink_to(outside, target_is_directory=True)
+        return real_open(path, flags, mode, dir_fd=dir_fd)
+
+    with mock.patch.object(report.os, "open", side_effect=racing_open):
+        with pytest.raises(report.ReportError, match="parent component.*no-follow"):
+            report._store_sha256_nofollow(
+                output_root=output_root, store_path="store/cell/binary",
+            )
+    assert exchanged
+
+
+def test_store_reverification_leaf_nofollow_blocks_stat_open_race(tmp_path):
+    """O_NOFOLLOW を消すと raced leaf open は hash 成功側へ転び、この対照が落ちる。"""
+    output_root = tmp_path / "output"
+    victim_parent = output_root / "store" / "cell"
+    victim_parent.mkdir(parents=True)
+    victim = victim_parent / "binary"
+    raw = b"leaf race control\n"
+    victim.write_bytes(raw)
+    outside = tmp_path / "outside-leaf"
+    outside.write_bytes(raw)
+    real_open = report.os.open
+    exchanged = False
+
+    def racing_open(path, flags, mode=0o777, *, dir_fd=None):
+        nonlocal exchanged
+        if path == "binary" and dir_fd is not None and not exchanged:
+            exchanged = True
+            victim.unlink()
+            victim.symlink_to(outside)
+        return real_open(path, flags, mode, dir_fd=dir_fd)
+
+    with mock.patch.object(report.os, "open", side_effect=racing_open):
+        with pytest.raises(report.ReportError, match="leaf.*no-follow"):
+            report._store_sha256_nofollow(
+                output_root=output_root, store_path="store/cell/binary",
+            )
+    assert exchanged
+
+
+def test_store_reverification_requires_exact_token_and_manifest_freeze_binding(
+        tmp_path):
+    verified = _verify_for_report(tmp_path, _manifest(tmp_path))
+    reverified, _binaries = _reverified_store_fixture(verified, tmp_path)
+    with pytest.raises(report.ReportError, match="exact type"):
+        report.build_observations(
+            manifest=verified, output_root=tmp_path,
+            reverified_freeze=SimpleNamespace(
+                ratified=reverified.ratified,
+                binaries_by_cell=reverified.binaries_by_cell,
+            ),
+        )
+
+    wrong_freeze = dataclasses.replace(
+        reverified, ratified=SimpleNamespace(sha256="f" * 64),
+    )
+    with pytest.raises(report.ReportError, match="manifest.freeze.sha256"):
+        report.build_observations(
+            manifest=verified, output_root=tmp_path,
+            reverified_freeze=wrong_freeze,
+        )
+
+
+def test_legacy_manifest_rejects_reverified_freeze(tmp_path):
+    manifest = _manifest(tmp_path)
+    verified = _verify_for_report(tmp_path, manifest)
+    reverified, _binaries = _reverified_store_fixture(verified, tmp_path)
+
+    with pytest.raises(report.ReportError, match="legacy manifest"):
+        report.build_observations(
+            manifest=_schema_less_legacy(manifest), output_root=tmp_path,
+            reverified_freeze=reverified,
+        )
+
+
+def test_store_reverification_expected_sha_comes_from_reverified_freeze(tmp_path):
+    verified = _verify_for_report(tmp_path, _manifest(tmp_path))
+    reverified, binaries = _reverified_store_fixture(verified, tmp_path)
+    damaged = copy.deepcopy(binaries)
+    victim_id = next(iter(sorted(damaged)))
+    damaged[victim_id]["binary_sha256"] = "f" * 64
+    forged = dataclasses.replace(
+        reverified, binaries_by_cell=MappingProxyType(damaged),
+    )
+
+    observations = report.build_observations(
+        manifest=verified, output_root=tmp_path,
+        reverified_freeze=forged,
+    )
+    victim = next(
+        cell for cell in observations["store_reverification"]["cells"]
+        if cell["cell_id"] == victim_id
+    )
+    assert victim["expected_sha256"] == "f" * 64
+    assert victim["actual_sha256"] == binaries[victim_id]["binary_sha256"]
+    assert victim["state"] == "mismatch"
+    assert observations["store_reverification"]["state"] == "unverified"
+
+
+def test_store_reverification_requires_regular_leaf_fstat(tmp_path):
+    verified = _verify_for_report(tmp_path, _manifest(tmp_path))
+    reverified, _binaries = _reverified_store_fixture(verified, tmp_path)
+
+    with mock.patch.object(report.os, "fstat", return_value=tmp_path.stat()):
+        with pytest.raises(report.ReportError, match="regular file"):
+            report.build_observations(
+                manifest=verified, output_root=tmp_path,
+                reverified_freeze=reverified,
+            )
+
+
+def test_store_reverification_hashes_store_in_bounded_chunks(tmp_path):
+    verified = _verify_for_report(tmp_path, _manifest(tmp_path))
+    reverified, binaries = _reverified_store_fixture(verified, tmp_path)
+    damaged = copy.deepcopy(binaries)
+    victim_id = next(iter(sorted(damaged)))
+    raw = b"x" * (1024 * 1024 + 1)
+    (tmp_path / damaged[victim_id]["store_path"]).write_bytes(raw)
+    damaged[victim_id]["binary_sha256"] = hashlib.sha256(raw).hexdigest()
+    reverified = dataclasses.replace(
+        reverified, binaries_by_cell=MappingProxyType(damaged),
+    )
+    real_read = report.os.read
+    requested_sizes = []
+
+    def recording_read(descriptor, size):
+        requested_sizes.append(size)
+        return real_read(descriptor, size)
+
+    with mock.patch.object(report.os, "read", side_effect=recording_read):
+        observations = report.build_observations(
+            manifest=verified, output_root=tmp_path,
+            reverified_freeze=reverified,
+        )
+
+    assert observations["store_reverification"]["state"] == "verified"
+    assert requested_sizes
+    assert set(requested_sizes) == {1024 * 1024}
+    assert len(requested_sizes) > 2 * len(damaged)
+
+
+def test_build_observations_production_caller_is_main_only():
+    target_module = "orchestrator.campaign.s8b_oracle_report"
+    callers = []
+    function_types = (ast.FunctionDef, ast.AsyncFunctionDef)
+
+    def dotted_name(node):
+        if isinstance(node, ast.Name):
+            return node.id
+        if isinstance(node, ast.Attribute):
+            prefix = dotted_name(node.value)
+            if prefix is not None:
+                return f"{prefix}.{node.attr}"
+        return None
+
+    for source_path in sorted(ORCH.rglob("*.py")):
+        relative_path = source_path.relative_to(ORCH)
+        if "tests" in relative_path.parts:
+            continue
+        tree = ast.parse(
+            source_path.read_text(encoding="utf-8"), filename=str(source_path),
+        )
+        module_parts = ["orchestrator", *relative_path.with_suffix("").parts]
+        if module_parts[-1] == "__init__":
+            module_parts.pop()
+        module_name = ".".join(module_parts)
+        package_parts = module_parts.copy()
+        if source_path.name != "__init__.py":
+            package_parts.pop()
+        parents = {
+            child: parent
+            for parent in ast.walk(tree)
+            for child in ast.iter_child_nodes(parent)
+        }
+
+        def function_chain(node):
+            chain = []
+            parent = parents.get(node)
+            while parent is not None:
+                if isinstance(parent, function_types):
+                    chain.append(parent)
+                parent = parents.get(parent)
+            return list(reversed(chain))
+
+        direct_bindings = {None: set()}
+        module_bindings = {None: set()}
+        if module_name == target_module:
+            direct_bindings[None].add("build_observations")
+
+        for node in ast.walk(tree):
+            if not isinstance(node, (ast.Import, ast.ImportFrom)):
+                continue
+            chain = function_chain(node)
+            scope = chain[-1] if chain else None
+            direct_bindings.setdefault(scope, set())
+            module_bindings.setdefault(scope, set())
+            if isinstance(node, ast.Import):
+                for alias in node.names:
+                    if alias.name == target_module:
+                        module_bindings[scope].add(
+                            alias.asname if alias.asname else target_module
+                        )
+                continue
+            if node.level:
+                keep = len(package_parts) - node.level + 1
+                if keep < 0:
+                    continue
+                imported_parts = package_parts[:keep]
+            else:
+                imported_parts = []
+            if node.module:
+                imported_parts.extend(node.module.split("."))
+            imported_module = ".".join(imported_parts)
+            for alias in node.names:
+                bound_name = alias.asname if alias.asname else alias.name
+                if (imported_module == target_module
+                        and alias.name == "build_observations"):
+                    direct_bindings[scope].add(bound_name)
+                elif ".".join(
+                        part for part in (imported_module, alias.name) if part
+                ) == target_module:
+                    module_bindings[scope].add(bound_name)
+
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Call):
+                continue
+            chain = function_chain(node)
+            visible_scopes = [None, *chain]
+            visible_direct = set().union(*(
+                direct_bindings.get(scope, set()) for scope in visible_scopes
+            ))
+            visible_modules = set().union(*(
+                module_bindings.get(scope, set()) for scope in visible_scopes
+            ))
+            called_name = dotted_name(node.func)
+            direct_call = (
+                isinstance(node.func, ast.Name)
+                and node.func.id in visible_direct
+            )
+            module_call = any(
+                called_name == f"{binding}.build_observations"
+                for binding in visible_modules
+            )
+            if direct_call or module_call:
+                scope_name = chain[-1].name if chain else "<module>"
+                callers.append((source_path.name, scope_name))
+
+    assert callers == [("s8b_oracle_report.py", "main")]

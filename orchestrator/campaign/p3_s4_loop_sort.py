@@ -97,6 +97,7 @@ from ..critic.digest import load_diff_rejections                     # noqa: E40
 
 # ---- campaign 定数 (s5_permutation_coverage.py 様式。実走前に pin/env を確認する) ----
 PIN = pin.CURRENT_PIN                 # 511c953 (izanagi-trace, permutation 保存 assert 込み)
+DECLARED_USE_CLASS = "exploration"
 ENV_TAG = "linux-baremetal"
 CLK = 1800
 NUMA = ["numactl", "--interleave=all"]
@@ -329,7 +330,7 @@ def run_one_iteration(cfg: CampaignConfig, perf, planner: L.PlannerProposal,
                               ccbench_dir=sub, cache_root=cache_root,
                               authorization_contract=env_contract.authorize(ENV_TAG),
                               build_context=build_context,
-                              campaign_namespace="exploration")
+                              declared_use_class=DECLARED_USE_CLASS)
     v = next((r.variant for r in summary.results), None)
     if v is None and summary.skipped > 0:
         return _resolve_duplicate(layout, planner, state, summary, log=log)

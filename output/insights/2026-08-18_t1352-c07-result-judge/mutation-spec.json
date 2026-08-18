@@ -1,0 +1,92 @@
+{
+    "estimated_run_seconds": 120,
+    "hang_timeout_seconds": 2400,
+    "mutations": [
+        {
+            "category": "negative",
+            "expected_nodes": [],
+            "expected_status": "SURVIVED",
+            "hang_risk": false,
+            "id": "t1352.m1-c3-delta-min-boundary",
+            "replacements": [
+                {
+                    "file": "orchestrator/campaign/s8c_result_judge.py",
+                    "new": "                if mean_delta >= float(params.delta_min) and sample_sd <= float(params.sd_max)\n",
+                    "old": "                if mean_delta > float(params.delta_min) and sample_sd <= float(params.sd_max)\n"
+                }
+            ]
+        },
+        {
+            "category": "negative",
+            "expected_nodes": [],
+            "expected_status": "SURVIVED",
+            "hang_risk": false,
+            "id": "t1352.m2-sample-sd-denominator",
+            "replacements": [
+                {
+                    "file": "orchestrator/campaign/s8c_result_judge.py",
+                    "new": "                sample_sd = float(statistics.pstdev(deltas))\n",
+                    "old": "                sample_sd = float(statistics.stdev(deltas))\n"
+                }
+            ]
+        },
+        {
+            "category": "negative",
+            "expected_nodes": [],
+            "expected_status": "SURVIVED",
+            "hang_risk": false,
+            "id": "t1352.m3-cell-set-exact-match",
+            "replacements": [
+                {
+                    "file": "orchestrator/campaign/s8c_result_judge.py",
+                    "new": "    if False and (len(generated_ids) != len(predeclared_cells) or set(generated_ids) != set(predeclared_cells)):\n",
+                    "old": "    if len(generated_ids) != len(predeclared_cells) or set(generated_ids) != set(predeclared_cells):\n"
+                }
+            ]
+        },
+        {
+            "category": "negative",
+            "expected_nodes": [],
+            "expected_status": "SURVIVED",
+            "hang_risk": false,
+            "id": "t1352.m4-publish-requires-floor-receipt",
+            "replacements": [
+                {
+                    "file": "orchestrator/campaign/s8c_result_judge.py",
+                    "new": "    if False and type(evidence) is not _VerifiedFloorEvidence:\n",
+                    "old": "    if type(evidence) is not _VerifiedFloorEvidence:\n"
+                }
+            ]
+        },
+        {
+            "category": "negative",
+            "expected_nodes": [],
+            "expected_status": "SURVIVED",
+            "hang_risk": false,
+            "id": "t1352.m5-c07-entrypoint-presence",
+            "replacements": [
+                {
+                    "file": "orchestrator/campaign/s8c_preregistration_evidence.py",
+                    "new": "    if False and (verify is None or judge is None or publish is None):\n",
+                    "old": "    if verify is None or judge is None or publish is None:\n"
+                }
+            ]
+        },
+        {
+            "category": "negative",
+            "expected_nodes": [],
+            "expected_status": "SURVIVED",
+            "hang_risk": false,
+            "id": "t1352.m6-c07-return-value-consumed",
+            "replacements": [
+                {
+                    "file": "orchestrator/campaign/s8c_preregistration_evidence.py",
+                    "new": "    if False and not all(_c07_returns_value(function) for function in (verify, judge, publish)):\n",
+                    "old": "    if not all(_c07_returns_value(function) for function in (verify, judge, publish)):\n"
+                }
+            ]
+        }
+    ],
+    "schema": "izanagi-dev-wave-mutation-spec/v1",
+    "timeout_seconds": 1200
+}

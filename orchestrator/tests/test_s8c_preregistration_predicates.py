@@ -22,9 +22,77 @@ from orchestrator.campaign import s8b_holdout_freeze  # noqa: E402
 from orchestrator.campaign import s8c_generation_projection as projection  # noqa: E402
 from orchestrator.campaign import s8c_preregistration as core  # noqa: E402
 from orchestrator.campaign import s8c_preregistration_evidence as M  # noqa: E402
+from orchestrator.campaign import s8c_schedule as S  # noqa: E402
 
 
 CONTRACT_FILE = _ROOT / core.EVIDENCE_CONTRACT_PATH
+_C06_CANDIDATE_PATHS = (
+    core.EVIDENCE_CONTRACT_PATH,
+    "orchestrator/campaign/s8c_budget.py",
+    "orchestrator/campaign/s8b_ratified_freeze.py",
+    "orchestrator/campaign/p3_autonomous_workload_trial.py",
+)
+
+
+def _c05_authority() -> dict[str, object]:
+    return {
+        "arms": ["on", "off", "swapped"],
+        "designated_source_context": "axis:silo-backoff-trigger-gating/v1",
+        "descriptor_bindings": {
+            "H1": {"workload": "rr80", "ycsb_rratio": "80"},
+            "H2": {"workload": "rr20", "ycsb_rratio": "20"},
+        },
+        "gating_spec": "five-bit-wire:v1",
+        "holdout_bindings": {
+            "H1": {"workload": "rr80", "ycsb_rratio": "80"},
+            "H2": {"workload": "rr20", "ycsb_rratio": "20"},
+        },
+        "holdouts": ["H1", "H2"],
+        "role_contracts": {
+            "auditor": "auditor-contract:v1",
+            "coder": "coder-contract:v1",
+            "critic": "critic-contract:v1",
+            "planner": "planner-contract:v1",
+        },
+        "role_files": {
+            "auditor": "auditor.md",
+            "coder": "coder.md",
+            "critic": "critic.md",
+            "planner": "planner.md",
+        },
+        "role_payload_allowlist": {
+            "auditor": ["working_diff", "correctness_digest"],
+            "coder": ["gating_spec", "baseline"],
+            "critic": ["harness_result", "critic_digest"],
+            "planner": ["current_perf", "whiteboard"],
+        },
+        "workloads": {
+            "rr20": {"records": 100000, "threads": 4},
+            "rr80": {"records": 100000, "threads": 4},
+        },
+        "attempt_policy": {"max_attempts": 1, "retry": False},
+        "baseline": {"kind": "stock", "trace": False},
+        "descriptor_binding": {
+            "schema_version": "8b-v1",
+            "descriptor_sha256": "descriptor-hash",
+        },
+        "gating_snapshot": {"schema_version": "gating-snapshot/v1", "wire": "10100"},
+        "initial_role_metrics": {
+            "abort_rate": None,
+            "ipc": None,
+            "latency_ns": None,
+            "llc_miss_rate": None,
+            "throughput_ops_sec": None,
+        },
+        "leakproof_context": {
+            "tools": ["declared-tool-set"],
+            "projected_input_only": True,
+        },
+        "stop_policy": {
+            "reasons": ["converged", "budget-iterations", "budget-walltime"],
+        },
+        "whiteboard": [{"status": "initial"}],
+    }
 
 
 def _git(root: Path, *args: str, input_bytes: bytes | None = None) -> bytes:
@@ -148,18 +216,33 @@ def test_current_repository_gap_reason_snapshot_requires_cross_wave_review(
     assert {
         item.id: (item.status, item.reason_code) for item in results
     } == {
-        "C01": (core.PredicateStatus.UNSATISFIED, "workload-projection-mismatch"),
-        "C02": (core.PredicateStatus.EVIDENCE_UNDEFINED, "arm-binding-declared-only"),
+        "C01": (core.PredicateStatus.UNSATISFIED, "ratified-generation-reference-absent"),
+        "C02": (
+            core.PredicateStatus.EVIDENCE_UNDEFINED,
+            "completion-proof-not-machine-checkable",
+        ),
         "C03": (core.PredicateStatus.EVIDENCE_UNDEFINED, "manifest-registry-proof-undefined"),
-        "C04": (core.PredicateStatus.UNSATISFIED, "crash-policy-cell-partial"),
+        "C04": (
+            core.PredicateStatus.EVIDENCE_UNDEFINED,
+            "completion-proof-not-machine-checkable",
+        ),
         "C05": (core.PredicateStatus.EVIDENCE_UNDEFINED, "schedule-schema-absent"),
         "C06": (core.PredicateStatus.EVIDENCE_UNDEFINED, "budget-consumer-contract-undefined"),
         "C07": (core.PredicateStatus.EVIDENCE_UNDEFINED, "floor-judge-contract-undefined"),
         "C08": (core.PredicateStatus.EVIDENCE_UNDEFINED, "prereg-binding-proof-undefined"),
-        "C09": (core.PredicateStatus.UNSATISFIED, "formal-acceptance-layer3-consumer-absent"),
-        "C10": (core.PredicateStatus.UNSATISFIED, "cross-binding-verifier-incomplete"),
+        "C09": (
+            core.PredicateStatus.EVIDENCE_UNDEFINED,
+            "completion-proof-not-machine-checkable",
+        ),
+        "C10": (
+            core.PredicateStatus.EVIDENCE_UNDEFINED,
+            "completion-proof-not-machine-checkable",
+        ),
         "C11": (core.PredicateStatus.EVIDENCE_UNDEFINED, "completion-proof-not-machine-checkable"),
-        "C12": (core.PredicateStatus.UNSATISFIED, "allocation-enforcement-consumer-absent"),
+        "C12": (
+            core.PredicateStatus.EVIDENCE_UNDEFINED,
+            "completion-proof-not-machine-checkable",
+        ),
     }
 
 
@@ -170,8 +253,24 @@ def test_current_repository_c12_registry_reports_unwired_allocation_consumer(
     root, head = current_commit_snapshot
     results = M.get_registry().evaluate_all(head, repo_root=root)
     c12 = {item.id: item for item in results}["C12"]
-    assert c12.status is core.PredicateStatus.UNSATISFIED
-    assert c12.reason_code == "allocation-enforcement-consumer-absent"
+    assert c12.status is core.PredicateStatus.EVIDENCE_UNDEFINED
+    assert c12.reason_code == "completion-proof-not-machine-checkable"
+
+
+def test_c02_missing_registry_preserves_capability_absent_reason(
+    tmp_path: Path,
+) -> None:
+    root = _init_repo(tmp_path)
+    _write(
+        root,
+        "orchestrator/campaign/p3_autonomous_workload_trial.py",
+        TOKEN_ONLY_C02_PRODUCER,
+    )
+    head = _commit(root, "C02 registry absent")
+
+    result = _result(root, head, "C02")
+    assert result.status is core.PredicateStatus.EVIDENCE_UNDEFINED
+    assert result.reason_code == "trial-registry-capability-absent"
 
 
 def test_current_repository_c12_allocation_binding_helper_reports_unwired_consumer(
@@ -195,10 +294,7 @@ def test_current_repository_c12_allocation_binding_helper_reports_unwired_consum
     supervisor = ast.parse(supervisor_raw)
     allocation = ast.parse(allocation_raw)
     assert {"read_binding", "check_reservation"} <= M._functions(allocation).keys()
-    assert M._c12_allocation_binding_verdict(supervisor, allocation) == (
-        core.PredicateStatus.UNSATISFIED,
-        M.ReasonCode.ALLOCATION_ENFORCEMENT_CONSUMER_ABSENT,
-    )
+    assert M._c12_allocation_binding_verdict(supervisor, allocation) is None
 
 
 def test_evidence_undefined_is_never_satisfied() -> None:
@@ -414,6 +510,46 @@ def main():
     return run_trial()
 """
 
+TOKEN_ONLY_C02_REGISTRY = """
+def assert_issued_trial_binding(): pass
+def resolve_arm_input(): pass
+def assert_issued_resolved_arm_input(): pass
+def validate_execution_input_descriptor(): pass
+def assert_execution_digest_chain(): pass
+def bind_trial_arm():
+    assert_issued_trial_binding()
+    resolve_arm_input()
+def assert_issued_trial_arm_execution():
+    assert_issued_trial_binding()
+    assert_issued_resolved_arm_input()
+def assert_rederived_trial_arm_execution():
+    assert_issued_trial_arm_execution()
+    bind_trial_arm()
+def _expected_registered_arm_execution_record():
+    resolve_arm_input()
+    return {
+        "input_schema_version": "v1",
+        "content_digest_sha256": "a" * 64,
+        "arm_binding_digest_sha256": "b" * 64,
+    }
+def assert_trial_registry_acceptance():
+    arm_execution = {"arm_execution": _expected_registered_arm_execution_record()}
+    validate_execution_input_descriptor()
+    assert_execution_digest_chain()
+    return arm_execution
+"""
+
+TOKEN_ONLY_C02_PRODUCER = """
+def _invocation_namespace(*, arm, digest):
+    return f"arm-{arm}.exec-{digest}"
+def _invocation_id(*, arm, digest):
+    return _invocation_namespace(arm=arm, digest=digest)
+def _run_workload(*, arm, digest):
+    return _invocation_namespace(arm=arm, digest=digest)
+def run_trial(*, arm, digest):
+    return _invocation_namespace(arm=arm, digest=digest)
+"""
+
 TOKEN_ONLY_C04 = """
 from .trial_registry import forbid_trial_restart
 def launch_cells(): pass
@@ -438,7 +574,7 @@ def main():
 
 TOKEN_ONLY_C09_REGISTRY = """
 from .autonomous_trial_completeness import assert_campaign_layer3_chain
-def accept_trial():
+def assert_trial_registry_acceptance():
     policy = {"no-build": False, "certifying": False}
     assert_campaign_layer3_chain()
     return policy
@@ -459,7 +595,7 @@ def verify_s8c_cross_binding():
 
 TOKEN_ONLY_C10_REGISTRY = """
 def verify_s8c_cross_binding(): pass
-def accept_trial():
+def assert_trial_registry_acceptance():
     return verify_s8c_cross_binding()
 """
 
@@ -504,6 +640,103 @@ def main():
     return run_trial()
 """
 
+TOKEN_ONLY_C07 = """
+__all__ = ("verify_floor_bytes", "judge", "publish_result_table")
+_CONDITION_IDS = (
+    "on_off_prediction_difference",
+    "swapped_follow_through",
+    "paired_repeat_contrast",
+)
+_TABLE_NAMES = ("descriptive_only", "official_status", "selection_evaluation")
+_FLOOR_ARTIFACT_KINDS = ("floor_protocol", "floor_source")
+
+def _validate_floor_reference(path, sha256, env_tag, measurement_head, ratified):
+    return path, sha256, env_tag, measurement_head, ratified
+
+def _validate_contrast_params(params):
+    return params
+
+def _validate_complete_block(manifest, params):
+    return manifest, params
+
+def _validate_exact_cell_set(generated, expected):
+    return tuple(generated) if set(generated) == set(expected) else None
+
+def _validate_verified_floor(receipt):
+    return receipt
+
+def _table_bytes(name, cells):
+    return {"table": name, "result_table": {"cells": cells}}
+
+def verify_floor_bytes(floor_refs):
+    ratified = load_ratified_freeze()
+    if not ratified["sha256"]:
+        raise ValueError("missing ratified digest")
+    if tuple(_FLOOR_ARTIFACT_KINDS) != ("floor_protocol", "floor_source"):
+        raise ValueError("wrong floor artifacts")
+    floor_protocol = floor_refs[0]
+    floor_source = floor_refs[1]
+    path = floor_protocol["path"]
+    sha256 = floor_protocol["sha256"]
+    source_path = floor_source["path"]
+    source_sha256 = floor_source["sha256"]
+    env_tag = ratified["env_tag"]
+    measurement_head = ratified["frozen_at_head"]
+    validated = _validate_floor_reference(
+        path, sha256, env_tag, measurement_head, ratified
+    )
+    source_validated = _validate_floor_reference(
+        source_path, source_sha256, env_tag, measurement_head, ratified
+    )
+    if not validated or not source_validated:
+        raise ValueError("invalid floor reference")
+    return (validated, source_validated)
+
+def judge(params, manifest=None):
+    validated = _validate_contrast_params(params)
+    complete = _validate_complete_block(manifest, params)
+    if not validated or not complete:
+        raise ValueError("invalid params")
+    conditions = {
+        _CONDITION_IDS[0]: "UNSATISFIED",
+        _CONDITION_IDS[1]: "UNSATISFIED",
+        _CONDITION_IDS[2]: "UNSATISFIED",
+    }
+    return conditions
+
+def publish_result_table(result, predeclared_cells, verified_floor):
+    checked_floor = _validate_verified_floor(verified_floor)
+    if not checked_floor:
+        raise ValueError("floor receipt required")
+    cells = result["result_table"]["cells"]
+    descriptive = _validate_exact_cell_set(cells, predeclared_cells)
+    if descriptive is None:
+        raise ValueError("cell set mismatch")
+    return {
+        name: _table_bytes(name, descriptive)
+        for name in _TABLE_NAMES
+    }
+"""
+
+TOKEN_ONLY_C07_RATIFIED = """
+def load_ratified_freeze():
+    return {
+        "sha256": "a" * 64,
+        "env_tag": "fixture-env",
+        "frozen_at_head": "b" * 40,
+    }
+"""
+
+TOKEN_ONLY_C07_DECLARED_PATH_DECOY = """
+__all__ = ("verify_floor_bytes", "judge", "publish_result_table")
+def verify_floor_bytes(*args, **kwargs):
+    return None
+def judge(*args, **kwargs):
+    return None
+def publish_result_table(*args, **kwargs):
+    return None
+"""
+
 
 def test_c12_allocation_binding_helper_rejects_check_without_read_binding() -> None:
     reservation = "orchestrator/campaign/reservation.py"
@@ -545,50 +778,26 @@ def test_c12_allocation_binding_gate_precedes_environment_gate(
     assert result.reason_code == "allocation-enforcement-consumer-absent"
 
 
-def test_current_repository_c12_allocation_binding_helper_accepts_both_calls_overlay(
-) -> None:
+def test_current_repository_c12_allocation_binding_helper_accepts_both_calls() -> None:
     condition = M.load_contract_bytes(CONTRACT_FILE.read_bytes()).condition(12)
     paths = {
         item.artifact_kind: item.path for item in condition.required_evidence
     }
     supervisor_raw = _git(
-        _ROOT,
-        "show",
-        f"HEAD:{paths['workload_supervisor']}",
+        _ROOT, "show", f"HEAD:{paths['workload_supervisor']}"
     )
     allocation_raw = _git(
         _ROOT,
         "show",
         f"HEAD:{paths['allocation_consumer']}",
     )
-    anchor = b"""    if drive is _DRIVE_NOT_PROVIDED:
-        drive = trigger.drive_iteration
-    if preview is _PREVIEW_NOT_PROVIDED:
-        preview = _preview
-    _validate_generation_budget(generations)
-"""
-    injection = anchor + b"""    from .reservation import check_reservation, read_binding
-    allocation_binding = read_binding(os.environ)
-    check_reservation(
-        allocation_binding,
-        required_s=max_wall_s,
-        safety_margin_s=0,
-        environ=os.environ,
-    )
-"""
-    assert supervisor_raw.count(anchor) == 1
-    overlay_raw = supervisor_raw.replace(anchor, injection)
-    assert overlay_raw != supervisor_raw
-
-    baseline_calls = M._reachable_calls(ast.parse(supervisor_raw), "run_trial")
-    assert {"read_binding", "check_reservation"}.isdisjoint(baseline_calls)
-    overlay = ast.parse(overlay_raw)
+    supervisor = ast.parse(supervisor_raw)
     assert {"read_binding", "check_reservation"} <= M._reachable_calls(
-        overlay,
+        supervisor,
         "run_trial",
     )
     allocation = ast.parse(allocation_raw)
-    assert M._c12_allocation_binding_verdict(overlay, allocation) is None
+    assert M._c12_allocation_binding_verdict(supervisor, allocation) is None
 
 
 def _negative_control_case(
@@ -606,6 +815,19 @@ def _negative_control_case(
             'def _perf_for(*, holdout, ratified_sha256):\n    return {"records": 1_000_000',
             'def _perf_for(*, holdout, ratified_sha256):\n    return {"records": 100_000',
         )
+    if identifier == "nc_c02_proposal_path_arm_collision":
+        sources = {
+            registry: TOKEN_ONLY_C02_REGISTRY,
+            p3: TOKEN_ONLY_C02_PRODUCER,
+        }
+        namespace_token = 'f"arm-{arm}.exec-{digest}"'
+        collision_token = '"arm-shared.exec-shared"'
+        assert TOKEN_ONLY_C02_PRODUCER.count(namespace_token) == 1
+        mutated = TOKEN_ONLY_C02_PRODUCER.replace(
+            namespace_token, collision_token, 1
+        )
+        assert mutated.count(collision_token) == 1
+        return sources, p3, mutated
     if identifier == "nc_c04_partial_crash_survives":
         sources = {p3: TOKEN_ONLY_C04, registry: "def forbid_trial_restart(): pass\n"}
         return sources, p3, TOKEN_ONLY_C04.replace(
@@ -657,17 +879,55 @@ def _negative_control_case(
             reservation: _git(_ROOT, "show", f"HEAD:{reservation}"),
         }
         return sources, p3, mutated
+    if identifier == "nc_c07_floor_or_result_cell_removed":
+        result_judge = "orchestrator/campaign/s8c_result_judge.py"
+        ratified = "orchestrator/campaign/s8b_ratified_freeze.py"
+        floor_field = '    measurement_head = ratified["frozen_at_head"]\n'
+        assert TOKEN_ONLY_C07.count(floor_field) == 1
+        mutated = TOKEN_ONLY_C07.replace(floor_field, "", 1)
+        assert mutated != TOKEN_ONLY_C07
+        sources = {
+            result_judge: TOKEN_ONLY_C07,
+            ratified: TOKEN_ONLY_C07_RATIFIED,
+        }
+        return sources, result_judge, mutated
     raise AssertionError(identifier)
 
 
 NEGATIVE_CONTROL_CASES = {
     "nc_c01_perf_scale_regression": "C01",
+    "nc_c02_proposal_path_arm_collision": "C02",
     "nc_c04_partial_crash_survives": "C04",
     "nc_c09_acceptance_skips_layer3": "C09",
     "nc_c10_raw_response_unbound": "C10",
     "nc_c11_generation_cap_reverts_to_one": "C11",
     "nc_c12_reservation_check_bypassed": "C12",
 }
+
+
+NON_MACHINE_CHECKABLE_NEGATIVE_CONTROL_CASES = {
+    "nc_c05_initial_state_hash_bitflip": "C05",
+}
+
+
+def test_c02_negative_control_collides_two_arms_by_one_namespace_token() -> None:
+    _, mutated_path, mutated_source = _negative_control_case(
+        "nc_c02_proposal_path_arm_collision"
+    )
+    assert mutated_path == "orchestrator/campaign/p3_autonomous_workload_trial.py"
+    assert isinstance(mutated_source, str)
+    baseline_scope: dict[str, object] = {}
+    mutated_scope: dict[str, object] = {}
+    exec(TOKEN_ONLY_C02_PRODUCER, baseline_scope)
+    exec(mutated_source, mutated_scope)
+    baseline_namespace = baseline_scope["_invocation_namespace"]
+    mutated_namespace = mutated_scope["_invocation_namespace"]
+    assert callable(baseline_namespace)
+    assert callable(mutated_namespace)
+    first = {"arm": "on", "digest": "a" * 64}
+    second = {"arm": "off", "digest": "b" * 64}
+    assert baseline_namespace(**first) != baseline_namespace(**second)
+    assert mutated_namespace(**first) == mutated_namespace(**second)
 
 
 def _terminal_result(
@@ -681,6 +941,234 @@ def _terminal_result(
     assert result.status is core.PredicateStatus.EVIDENCE_UNDEFINED
     assert result.reason_code == "completion-proof-not-machine-checkable"
     return root, head, result
+
+
+def _c07_probe(
+    tmp_path: Path,
+    name: str,
+    *,
+    result_source: str = TOKEN_ONLY_C07,
+    ratified_source: str | None = TOKEN_ONLY_C07_RATIFIED,
+    extra_sources: dict[str, str] | None = None,
+) -> M._ConditionProbe:
+    root = _init_repo(tmp_path, name)
+    _write(root, "orchestrator/campaign/s8c_result_judge.py", result_source)
+    if ratified_source is not None:
+        _write(
+            root,
+            "orchestrator/campaign/s8b_ratified_freeze.py",
+            ratified_source,
+        )
+    for path, source in (extra_sources or {}).items():
+        _write(root, path, source)
+    head = _commit(root, name)
+    contract_raw = core.read_blob_at(
+        root, head, core.EVIDENCE_CONTRACT_PATH, required=True
+    )
+    contract = M.load_contract_bytes(contract_raw).condition(7)
+    return M._ConditionProbe(
+        root,
+        head,
+        contract,
+        core.EvidenceRef(core.EVIDENCE_CONTRACT_PATH, core._sha256(contract_raw)),
+        {},
+        {},
+        declared_paths=M.load_contract_bytes(contract_raw).evidence_paths,
+    )
+
+
+def test_c07_token_only_direct_evaluation_is_terminal_undefined(
+    tmp_path: Path,
+) -> None:
+    probe = _c07_probe(tmp_path, "c07-token-only")
+    result = M._evaluate_c07(probe)
+    assert result.status is core.PredicateStatus.EVIDENCE_UNDEFINED
+    assert result.reason_code == "completion-proof-not-machine-checkable"
+
+
+def test_c07_negative_control_removes_one_floor_field_only(
+    tmp_path: Path,
+) -> None:
+    baseline = M._evaluate_c07(_c07_probe(tmp_path, "c07-negative-baseline"))
+    assert baseline.status is core.PredicateStatus.EVIDENCE_UNDEFINED
+    assert baseline.reason_code == "completion-proof-not-machine-checkable"
+
+    sources, mutated_path, mutated_source = _negative_control_case(
+        "nc_c07_floor_or_result_cell_removed"
+    )
+    assert set(sources) == {
+        "orchestrator/campaign/s8c_result_judge.py",
+        "orchestrator/campaign/s8b_ratified_freeze.py",
+    }
+    assert mutated_path == "orchestrator/campaign/s8c_result_judge.py"
+    assert isinstance(mutated_source, str)
+    result = M._evaluate_c07(
+        _c07_probe(
+            tmp_path,
+            "c07-negative-floor-field",
+            result_source=mutated_source,
+        )
+    )
+    assert result.status is core.PredicateStatus.UNSATISFIED
+    assert result.reason_code == "result-judge-consumer-incomplete"
+
+
+def test_c07_missing_ratified_loader_has_dedicated_reason(
+    tmp_path: Path,
+) -> None:
+    result = M._evaluate_c07(
+        _c07_probe(tmp_path, "c07-ratified-loader-missing", ratified_source=None)
+    )
+    assert result.status is core.PredicateStatus.UNSATISFIED
+    assert result.reason_code == "ratified-generation-reference-absent"
+
+
+def test_c07_removed_ratified_loader_call_is_not_a_consumer(
+    tmp_path: Path,
+) -> None:
+    loader_call = "    ratified = load_ratified_freeze()\n"
+    without_loader_call = TOKEN_ONLY_C07.replace(
+        loader_call,
+        "    ratified = {\"sha256\": \"a\" * 64, \"env_tag\": \"fixture-env\", \"frozen_at_head\": \"b\" * 40}\n",
+        1,
+    )
+    assert without_loader_call != TOKEN_ONLY_C07
+    result = M._evaluate_c07(
+        _c07_probe(
+            tmp_path,
+            "c07-ratified-loader-call-removed",
+            result_source=without_loader_call,
+        )
+    )
+    assert result.status is core.PredicateStatus.UNSATISFIED
+    assert result.reason_code == "ratified-generation-reference-absent"
+
+
+def test_c07_contract_path_rejects_same_name_decoy_module(
+    tmp_path: Path,
+) -> None:
+    decoy_path = "orchestrator/campaign/s8b_verdict.py"
+    probe = _c07_probe(
+        tmp_path,
+        "c07-decoy-module",
+        result_source="# contract path intentionally has no consumer\n",
+        extra_sources={decoy_path: TOKEN_ONLY_C07},
+    )
+    result = M._evaluate_c07(probe)
+    assert result.status is core.PredicateStatus.UNSATISFIED
+    assert result.reason_code == "result-judge-consumer-incomplete"
+    assert decoy_path not in probe.cache
+
+
+def test_c07_declared_contract_path_decoy_is_not_a_consumer(
+    tmp_path: Path,
+) -> None:
+    result = M._evaluate_c07(
+        _c07_probe(
+            tmp_path,
+            "c07-declared-path-decoy",
+            result_source=TOKEN_ONLY_C07_DECLARED_PATH_DECOY,
+        )
+    )
+    assert result.status is core.PredicateStatus.UNSATISFIED
+    assert result.reason_code == "result-judge-consumer-incomplete"
+
+
+def test_c07_discarded_validator_return_is_incomplete(
+    tmp_path: Path,
+) -> None:
+    call = (
+        "    validated = _validate_floor_reference(\n"
+        "        path, sha256, env_tag, measurement_head, ratified\n"
+        "    )\n"
+    )
+    discarded = TOKEN_ONLY_C07.replace(
+        call,
+        "    _validate_floor_reference(\n"
+        "        path, sha256, env_tag, measurement_head, ratified\n"
+        "    )\n",
+        1,
+    )
+    assert discarded != TOKEN_ONLY_C07
+    result = M._evaluate_c07(
+        _c07_probe(tmp_path, "c07-discarded-validator", result_source=discarded)
+    )
+    assert result.status is core.PredicateStatus.UNSATISFIED
+    assert result.reason_code == "result-judge-consumer-incomplete"
+
+
+def test_c07_dead_validator_assignment_is_not_a_consumer(
+    tmp_path: Path,
+) -> None:
+    call = (
+        "    validated = _validate_floor_reference(\n"
+        "        path, sha256, env_tag, measurement_head, ratified\n"
+        "    )\n"
+    )
+    dead_assignment = TOKEN_ONLY_C07.replace(
+        "    validated = _validate_floor_reference(\n",
+        "    discarded_validation = _validate_floor_reference(\n",
+        1,
+    )
+    assert call in TOKEN_ONLY_C07
+    assert dead_assignment != TOKEN_ONLY_C07
+    result = M._evaluate_c07(
+        _c07_probe(
+            tmp_path,
+            "c07-dead-validator-assignment",
+            result_source=dead_assignment,
+        )
+    )
+    assert result.status is core.PredicateStatus.UNSATISFIED
+    assert result.reason_code == "result-judge-consumer-incomplete"
+
+
+def test_c07_literal_floor_fields_without_verification_are_incomplete(
+    tmp_path: Path,
+) -> None:
+    literal_floor = TOKEN_ONLY_C07
+    replacements = {
+        '    path = floor_protocol["path"]\n': '    path = "literal-path"\n',
+        '    sha256 = floor_protocol["sha256"]\n': '    sha256 = "literal-sha"\n',
+        '    source_path = floor_source["path"]\n': '    source_path = "literal-source-path"\n',
+        '    source_sha256 = floor_source["sha256"]\n': '    source_sha256 = "literal-source-sha"\n',
+        '    env_tag = ratified["env_tag"]\n': '    env_tag = "literal-env"\n',
+        '    measurement_head = ratified["frozen_at_head"]\n': '    measurement_head = "literal-head"\n',
+    }
+    for original, replacement in replacements.items():
+        assert literal_floor.count(original) == 1
+        literal_floor = literal_floor.replace(original, replacement, 1)
+    result = M._evaluate_c07(
+        _c07_probe(
+            tmp_path,
+            "c07-literal-floor-fields",
+            result_source=literal_floor,
+        )
+    )
+    assert result.status is core.PredicateStatus.UNSATISFIED
+    assert result.reason_code == "result-judge-consumer-incomplete"
+
+
+def test_c07_is_not_registered_or_added_to_negative_controls() -> None:
+    assert 7 not in M._MACHINE_EVALUATORS
+    assert "nc_c07_floor_or_result_cell_removed" not in NEGATIVE_CONTROL_CASES
+
+
+def test_c07_real_result_judge_blob_is_static_only(
+    tmp_path: Path,
+) -> None:
+    result_judge = (
+        _ROOT / "orchestrator/campaign/s8c_result_judge.py"
+    ).read_text(encoding="utf-8")
+    result = M._evaluate_c07(
+        _c07_probe(
+            tmp_path,
+            "c07-real-result-judge",
+            result_source=result_judge,
+        )
+    )
+    assert result.status is core.PredicateStatus.EVIDENCE_UNDEFINED
+    assert result.reason_code == "completion-proof-not-machine-checkable"
 
 
 def _c12_modules(supervisor: str) -> dict[str, str]:
@@ -1168,6 +1656,7 @@ def test_c12_allocation_absence_shapes_are_independent_from_definition(
     ("identifier", "mutation", "expected"),
     [
         pytest.param("C01", "ratified = load_ratified_freeze()", "ratified-generation-reference-absent", id="C01"),
+        pytest.param("C02", "assert_execution_digest_chain()", "arm-binding-consumer-unreachable", id="C02"),
         pytest.param("C04", "mark_experiment_indeterminate()", "crash-policy-cell-partial", id="C04"),
         pytest.param("C09", "assert_campaign_layer3_chain()", "layer3-producer-unreachable", id="C09"),
         pytest.param("C12", "execution_guard.attest_and_build_receipt(contract)", "environment-contract-consumer-absent", id="C12"),
@@ -1199,6 +1688,59 @@ def test_reachable_consumers_reject_absence_shapes_with_single_reason(
     result = _result(tmp_path / "baseline", head, identifier)
     assert result.status is core.PredicateStatus.UNSATISFIED
     assert result.reason_code == expected
+
+
+def test_c02_namespace_fstring_must_flow_to_return_value(tmp_path: Path) -> None:
+    sources, _, _ = _negative_control_case(
+        "nc_c02_proposal_path_arm_collision"
+    )
+    root, _, _ = _terminal_result(tmp_path, "baseline", "C02", sources)
+    old = '    return f"arm-{arm}.exec-{digest}"'
+    replacement = (
+        '    f"arm-{arm}.exec-{digest}"\n'
+        '    return "arm-shared.exec-shared"'
+    )
+    assert TOKEN_ONLY_C02_PRODUCER.count(old) == 1
+    _write(
+        root,
+        "orchestrator/campaign/p3_autonomous_workload_trial.py",
+        TOKEN_ONLY_C02_PRODUCER.replace(old, replacement, 1),
+    )
+    head = _commit(root, "namespace f-string is unused")
+
+    result = _result(root, head, "C02")
+    assert result.status is core.PredicateStatus.UNSATISFIED
+    assert result.reason_code == "arm-binding-consumer-unreachable"
+
+
+def test_c02_call_after_literal_true_return_is_dead(tmp_path: Path) -> None:
+    sources, _, _ = _negative_control_case(
+        "nc_c02_proposal_path_arm_collision"
+    )
+    root, _, _ = _terminal_result(tmp_path, "baseline", "C02", sources)
+    old = (
+        "def bind_trial_arm():\n"
+        "    assert_issued_trial_binding()\n"
+        "    resolve_arm_input()\n"
+    )
+    replacement = (
+        "def bind_trial_arm():\n"
+        "    assert_issued_trial_binding()\n"
+        "    if True:\n"
+        "        return None\n"
+        "    resolve_arm_input()\n"
+    )
+    assert TOKEN_ONLY_C02_REGISTRY.count(old) == 1
+    _write(
+        root,
+        "orchestrator/campaign/trial_registry.py",
+        TOKEN_ONLY_C02_REGISTRY.replace(old, replacement, 1),
+    )
+    head = _commit(root, "C02 call follows literal true return")
+
+    result = _result(root, head, "C02")
+    assert result.status is core.PredicateStatus.UNSATISFIED
+    assert result.reason_code == "arm-binding-consumer-unreachable"
 
 
 @pytest.mark.parametrize(
@@ -1831,7 +2373,9 @@ def test_satisfiable_predicate_requires_negative_control() -> None:
         identifier for identifier, row in rows.items() if row.machine_checkable
     }
     assert machine_checkable == M.MACHINE_CHECKABLE_CONDITION_IDS
-    assert machine_checkable == {"C01", "C04", "C09", "C10", "C11", "C12"}
+    assert machine_checkable == {
+        "C01", "C02", "C04", "C09", "C10", "C11", "C12"
+    }
     assert M.SATISFIABLE_CONDITION_IDS == frozenset()
     assert M.SATISFIABLE_CONDITION_IDS <= M.MACHINE_CHECKABLE_CONDITION_IDS
     exercised = 0
@@ -1840,7 +2384,7 @@ def test_satisfiable_predicate_requires_negative_control() -> None:
         row = rows[identifier]
         assert row.negative_control_id in NEGATIVE_CONTROL_CASES
         assert NEGATIVE_CONTROL_CASES[row.negative_control_id] == identifier
-    assert exercised == 6
+    assert exercised == 7
     assert set(NEGATIVE_CONTROL_CASES) == {
         rows[identifier].negative_control_id for identifier in machine_checkable
     }
@@ -1867,6 +2411,7 @@ def test_noop_and_token_only_fixtures_never_satisfy(
     mutated_result = _result(root, mutated, identifier)
     expected_reasons = {
         "C01": "workload-projection-mismatch",
+        "C02": "arm-binding-consumer-unreachable",
         "C04": "crash-policy-cell-partial",
         "C09": "formal-acceptance-layer3-consumer-absent",
         "C10": "cross-binding-verifier-incomplete",
@@ -1875,6 +2420,30 @@ def test_noop_and_token_only_fixtures_never_satisfy(
     }
     assert mutated_result.status is core.PredicateStatus.UNSATISFIED
     assert mutated_result.reason_code == expected_reasons[identifier]
+
+
+def test_runtime_satisfiable_allowlist_rejects_unlisted_evaluator_success(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    root = _init_repo(tmp_path)
+    sources, _, _ = _negative_control_case(
+        "nc_c02_proposal_path_arm_collision"
+    )
+    for path, source in sources.items():
+        _write(root, path, source)
+    head = _commit(root, "spuriously satisfied C02 evaluator")
+
+    def spuriously_satisfied(probe: M._ConditionProbe) -> core.PredicateResult:
+        return M._result(
+            probe,
+            core.PredicateStatus.SATISFIED,
+            M.ReasonCode.COMPLETION_PROOF_NOT_MACHINE_CHECKABLE,
+        )
+
+    monkeypatch.setitem(M._MACHINE_EVALUATORS, 2, spuriously_satisfied)
+    result = _result(root, head, "C02")
+    assert result.status is core.PredicateStatus.ERROR
+    assert result.reason_code == "evaluator-internal-error"
 
 
 def test_evidence_reads_commit_blob_not_dirty_worktree(tmp_path: Path) -> None:
@@ -1947,16 +2516,16 @@ def test_c11_prohibition_ruling_blob_alone_is_not_compliance(tmp_path: Path) -> 
 
 def test_machine_checkable_condition_without_evaluator_is_error(tmp_path: Path) -> None:
     value = json.loads(CONTRACT_FILE.read_bytes())
-    value["conditions"][1]["machine_checkable"] = True
+    value["conditions"][2]["machine_checkable"] = True
     root = _init_repo(tmp_path)
     _write(
         root,
         core.EVIDENCE_CONTRACT_PATH,
         json.dumps(value, ensure_ascii=False).encode("utf-8"),
     )
-    head = _commit(root, "C02 falsely marked machine checkable")
+    head = _commit(root, "C03 falsely marked machine checkable")
 
-    result = _result(root, head, "C02")
+    result = _result(root, head, "C03")
     assert result.status is core.PredicateStatus.ERROR
     assert result.reason_code == "commit-blob-read-error"
 
@@ -2022,6 +2591,131 @@ def test_c11_generation_projection_is_required_before_terminal_undefined(
     assert result.reason_code == "critic-feedback-consumer-absent"
 
 
+def _current_head_c05_probe() -> M._ConditionProbe:
+    contract_raw = CONTRACT_FILE.read_bytes()
+    contract = M.load_contract_bytes(contract_raw)
+    condition = contract.condition(5)
+    paths = {
+        item.artifact_kind: item.path for item in condition.required_evidence
+    }
+    artifact_path = paths["schedule_artifact"]
+    consumer_path = paths["schedule_consumer"]
+    workload_path = "orchestrator/campaign/p3_autonomous_workload_trial.py"
+    artifact = S.regenerate("c05-direct-probe", authority=_c05_authority())
+    consumer_raw = (_ROOT / consumer_path).read_bytes()
+    workload_raw = _git(_ROOT, "show", f"HEAD:{workload_path}")
+    return M._ConditionProbe(
+        _ROOT,
+        "HEAD",
+        condition,
+        core.EvidenceRef(
+            core.EVIDENCE_CONTRACT_PATH,
+            core._sha256(contract_raw),
+        ),
+        {},
+        {
+            artifact_path: artifact,
+            consumer_path: consumer_raw,
+            workload_path: workload_raw,
+        },
+        python_cache={
+            consumer_path: ast.parse(
+                consumer_raw.decode("utf-8"), filename=consumer_path
+            ),
+            workload_path: ast.parse(
+                workload_raw.decode("utf-8"), filename=workload_path
+            ),
+        },
+        declared_paths=contract.evidence_paths,
+    )
+
+
+def test_c05_direct_evaluator_reports_current_head_unreachable() -> None:
+    result = M._evaluate_c05(_current_head_c05_probe())
+    assert result.status is core.PredicateStatus.UNSATISFIED
+    assert result.reason_code == "schedule-consumer-unreachable"
+
+
+def test_c05_evaluator_reports_undefined_when_consumer_commit_module_is_absent(
+    tmp_path: Path,
+) -> None:
+    contract_raw = CONTRACT_FILE.read_bytes()
+    contract = M.load_contract_bytes(contract_raw)
+    condition = contract.condition(5)
+    paths = {
+        item.artifact_kind: item.path
+        for item in condition.required_evidence
+    }
+    artifact_path = paths["schedule_artifact"]
+    consumer_path = paths["schedule_consumer"]
+    artifact = S.regenerate("c05-consumer-absent", authority=_c05_authority())
+    root = _init_repo(tmp_path, "c05-consumer-absent")
+    _write(root, artifact_path, artifact)
+    commit = _commit(root, "C05 artifact without consumer module")
+    probe = M._ConditionProbe(
+        root,
+        commit,
+        condition,
+        core.EvidenceRef(
+            core.EVIDENCE_CONTRACT_PATH,
+            core._sha256(contract_raw),
+        ),
+        {},
+        {
+            artifact_path: artifact,
+            consumer_path: None,
+        },
+        declared_paths=contract.evidence_paths,
+    )
+
+    result = M._evaluate_c05(probe)
+    assert result.status is core.PredicateStatus.EVIDENCE_UNDEFINED
+    assert result.reason_code == "schedule-consumer-undefined"
+
+
+@pytest.mark.parametrize(
+    ("negative_control_id", "identifier"),
+    tuple(NON_MACHINE_CHECKABLE_NEGATIVE_CONTROL_CASES.items()),
+)
+def test_c05_initial_state_hash_bitflip_is_single_shared_layer_failure(
+    negative_control_id: str, identifier: str
+) -> None:
+    assert negative_control_id == "nc_c05_initial_state_hash_bitflip"
+    assert identifier == "C05"
+    authority = _c05_authority()
+    master_seed = "c05-negative-control"
+    baseline = S.regenerate(master_seed, authority=authority)
+    schedule = S.verify_schedule(
+        baseline,
+        master_seed=master_seed,
+        authority=authority,
+    )
+    expected_search = S.search_space_digest(authority)
+    expected_initial = S.initial_state_digest(authority)
+    assert all(cell.search_space_sha256 == expected_search for cell in schedule.cells)
+    assert all(cell.initial_state_sha256 == expected_initial for cell in schedule.cells)
+
+    flipped_bytes = bytearray.fromhex(expected_initial)
+    flipped_bytes[0] ^= 0x01
+    flipped_initial = bytes(flipped_bytes).hex()
+    assert (
+        int(expected_initial, 16) ^ int(flipped_initial, 16)
+    ).bit_count() == 1
+    assert expected_initial[2:] == flipped_initial[2:]
+
+    with pytest.raises(S.ScheduleError):
+        S.verify_shared_search_space_and_initial_state(
+            schedule,
+            expected_search_space_sha256=expected_search,
+            expected_initial_state_sha256=flipped_initial,
+        )
+    S.verify_exact_schedule_bytes(
+        baseline,
+        master_seed=master_seed,
+        authority=authority,
+    )
+
+
 def test_c03_c08_contract_uses_two_stage_binding_without_self_reference() -> None:
     contract = M.load_contract_bytes(CONTRACT_FILE.read_bytes())
     for number in (3, 8):
@@ -2063,3 +2757,352 @@ def test_machine_checkable_contract_and_evaluator_registry_are_bijective() -> No
         f"C{number:02d}" for number in M._MACHINE_EVALUATORS
     )
     assert contract_ids == evaluator_ids == M.MACHINE_CHECKABLE_CONDITION_IDS
+
+
+TOKEN_ONLY_C06_BUDGET = """
+import os
+from dataclasses import dataclass
+from typing import Literal, Mapping
+
+@dataclass(frozen=True, slots=True)
+class BudgetLimits:
+    total_bench_s: float
+    per_arm_bench_s: Mapping[str, float]
+    per_holdout_bench_s: Mapping[str, float]
+
+@dataclass(frozen=True, slots=True)
+class ReservationCell:
+    cell_id: str
+    holdout: str
+    arm: str
+    reserved_bench_s: float
+
+@dataclass(frozen=True, slots=True)
+class Reservation:
+    cells: tuple[ReservationCell, ...]
+    budget_bench_s: float
+    total_reserved_bench_s: float
+    state: Literal["held", "insufficient"]
+
+@dataclass(frozen=True, slots=True)
+class SettlementCell:
+    cell_id: str
+    actual_bench_s: float
+
+@dataclass(frozen=True, slots=True)
+class Settlement:
+    cells: tuple[SettlementCell, ...]
+    total_actual_bench_s: float
+
+@dataclass(frozen=True, slots=True)
+class Ledger:
+    manifest_sha256: str
+    freeze_sha256: str
+    schedule_sha256: str
+    ratified_generation_sha256: str
+    reservation: Reservation
+    settlement: Settlement
+    cell_ids: frozenset[str]
+
+_EXPECTED_CELL_ROWS = (
+    ("H1", "on"),
+    ("H1", "off"),
+    ("H1", "swapped"),
+    ("H2", "on"),
+    ("H2", "off"),
+    ("H2", "swapped"),
+)
+
+def _ledger_lock():
+    return os.O_CREAT | os.O_EXCL
+
+def _check_limit_state(cells, limits):
+    total_reserved_bench_s = sum(cell.reserved_bench_s for cell in cells)
+    total_ok = total_reserved_bench_s <= limits.total_bench_s
+    arm_ok = all(value <= limits.per_arm_bench_s[arm] for arm, value in {})
+    holdout_ok = all(value <= limits.per_holdout_bench_s[holdout] for holdout, value in {})
+    return total_ok and arm_ok and holdout_ok
+
+def _make_limits():
+    return BudgetLimits(1.0, {}, {})
+
+def _make_cells():
+    return (
+        ReservationCell("cell", "H1", "on", 0.0),
+        SettlementCell("cell", 0.0),
+    )
+
+def reserve_all_cells(ledger_path, *, manifest_sha256, freeze_sha256,
+                      schedule_sha256, ratified_generation_sha256,
+                      cells, limits):
+    cells = tuple(cells)
+    state = "held" if _check_limit_state(cells, limits) else "insufficient"
+    reservation = Reservation(cells, limits.total_bench_s,
+                              sum(cell.reserved_bench_s for cell in cells), state)
+    settlement = Settlement(tuple(), 0.0)
+    return Ledger(manifest_sha256, freeze_sha256, schedule_sha256,
+                  ratified_generation_sha256, reservation, settlement,
+                  frozenset(cell.cell_id for cell in cells))
+
+def settle(ledger_path, *, cell_id, actual_bench_s):
+    if actual_bench_s <= 1.0:
+        return ledger_path
+    raise RuntimeError("actual_bench_s")
+
+def symmetric_indeterminate(ledger, *, launched_cell_ids=()):
+    if ledger.reservation.state == "insufficient":
+        return frozenset(ledger.cell_ids) - frozenset(launched_cell_ids)
+    return frozenset()
+
+def _document(ledger, limits):
+    return {
+        "schema_version": "s8c-budget-ledger/v1",
+        "manifest_sha256": ledger.manifest_sha256,
+        "freeze_sha256": ledger.freeze_sha256,
+        "schedule_sha256": ledger.schedule_sha256,
+        "ratified_generation_sha256": ledger.ratified_generation_sha256,
+        "reservation": {
+            "cells": [
+                {
+                    "cell_id": cell.cell_id,
+                    "holdout": cell.holdout,
+                    "arm": cell.arm,
+                    "reserved_bench_s": cell.reserved_bench_s,
+                }
+                for cell in ledger.reservation.cells
+            ],
+            "budget_bench_s": ledger.reservation.budget_bench_s,
+            "total_reserved_bench_s": ledger.reservation.total_reserved_bench_s,
+            "state": ledger.reservation.state,
+            "limits": {
+                "total_bench_s": limits.total_bench_s,
+                "per_arm_bench_s": dict(limits.per_arm_bench_s),
+                "per_holdout_bench_s": dict(limits.per_holdout_bench_s),
+            },
+        },
+        "settlement": {
+            "cells": [
+                {
+                    "cell_id": cell.cell_id,
+                    "actual_bench_s": cell.actual_bench_s,
+                }
+                for cell in ledger.settlement.cells
+            ],
+            "total_actual_bench_s": ledger.settlement.total_actual_bench_s,
+        },
+        "cell_ids": sorted(ledger.cell_ids),
+    }
+"""
+
+TOKEN_ONLY_C06_RATIFIED = """
+class Ratified:
+    sha256 = "a" * 64
+    sha256_field = "sha256"
+def load_ratified_freeze():
+    return Ratified()
+"""
+
+TOKEN_ONLY_C06_SUPERVISOR = """
+from .s8b_ratified_freeze import load_ratified_freeze
+from .s8c_budget import reserve_all_cells, settle, symmetric_indeterminate
+def _budget():
+    ratified = load_ratified_freeze()
+    generation_sha256 = ratified.sha256
+    ledger = reserve_all_cells(None, manifest_sha256="a", freeze_sha256="b",
+                               schedule_sha256="c", ratified_generation_sha256=generation_sha256,
+                               cells=(), limits=None)
+    settle(None, cell_id="cell", actual_bench_s=0.0)
+    return symmetric_indeterminate(ledger)
+def run_trial():
+    return _budget()
+"""
+
+
+def _c06_contract_with_machine_flag() -> bytes:
+    value = json.loads(CONTRACT_FILE.read_bytes())
+    value["conditions"][5]["machine_checkable"] = True
+    return json.dumps(value, ensure_ascii=False, sort_keys=True).encode("utf-8")
+
+
+def _staged_c06_result(
+    tmp_path: Path,
+    name: str,
+    *,
+    budget_source: str,
+    monkeypatch: pytest.MonkeyPatch,
+) -> tuple[Path, str, core.PredicateResult]:
+    root = _init_repo(tmp_path, name)
+    _write(root, core.EVIDENCE_CONTRACT_PATH, _c06_contract_with_machine_flag())
+    _write(root, "orchestrator/campaign/s8c_budget.py", budget_source)
+    _write(root, "orchestrator/campaign/s8b_ratified_freeze.py", TOKEN_ONLY_C06_RATIFIED)
+    _write(
+        root,
+        "orchestrator/campaign/p3_autonomous_workload_trial.py",
+        TOKEN_ONLY_C06_SUPERVISOR,
+    )
+    head = _commit(root, name)
+    monkeypatch.setitem(M._MACHINE_EVALUATORS, 6, M._STAGED_EVALUATORS[6])
+    return root, head, _result(root, head, "C06")
+
+
+def _negative_control_c06(
+    identifier: str,
+) -> tuple[dict[str, bytes | str], str, bytes | str]:
+    if identifier != "nc_c06_one_arm_reservation_removed":
+        raise AssertionError(identifier)
+    path = "orchestrator/campaign/s8c_budget.py"
+    marker = '    ("H2", "swapped"),\n'
+    assert TOKEN_ONLY_C06_BUDGET.count(marker) == 1
+    mutated = TOKEN_ONLY_C06_BUDGET.replace(marker, "", 1)
+    return (
+        {
+            path: TOKEN_ONLY_C06_BUDGET,
+            "orchestrator/campaign/s8b_ratified_freeze.py": TOKEN_ONLY_C06_RATIFIED,
+            "orchestrator/campaign/p3_autonomous_workload_trial.py": TOKEN_ONLY_C06_SUPERVISOR,
+        },
+        path,
+        mutated,
+    )
+
+
+# Keep the pre-existing control table untouched while extending its dispatcher
+# with the staged C06 mutation required by this wave.
+_BASE_NEGATIVE_CONTROL_CASE = _negative_control_case
+
+
+def _negative_control_case(
+    identifier: str,
+) -> tuple[dict[str, bytes | str], str, bytes | str]:
+    if identifier == "nc_c06_one_arm_reservation_removed":
+        return _negative_control_c06(identifier)
+    return _BASE_NEGATIVE_CONTROL_CASE(identifier)
+
+
+STAGED_NEGATIVE_CONTROL_CASES = {
+    "nc_c06_one_arm_reservation_removed": "C06",
+}
+
+
+def test_current_contract_keeps_c06_staged_only() -> None:
+    contract = M.load_contract_bytes(CONTRACT_FILE.read_bytes())
+    assert contract.condition(6).machine_checkable is False
+    assert 6 not in M._MACHINE_EVALUATORS
+    assert set(M._STAGED_EVALUATORS) == {6}
+    assert len(M.MACHINE_CHECKABLE_CONDITION_IDS) == 7
+
+
+def test_c06_staged_fixture_is_not_a_contract_promotion(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """これは mutation fixture であり凍結された契約ではない。"""
+    root, head, result = _staged_c06_result(
+        tmp_path,
+        "staged-c06",
+        budget_source=TOKEN_ONLY_C06_BUDGET,
+        monkeypatch=monkeypatch,
+    )
+    assert result.status is core.PredicateStatus.EVIDENCE_UNDEFINED
+    assert result.reason_code == "completion-proof-not-machine-checkable"
+    report = core.activation_report_at(root, head)
+    assert report.effective is False
+
+
+def test_c06_staged_negative_control_removes_one_arm_reservation(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    control_id = next(
+        key for key, value in STAGED_NEGATIVE_CONTROL_CASES.items()
+        if value == "C06"
+    )
+    sources, mutated_path, mutated_source = _negative_control_case(control_id)
+    root = _init_repo(tmp_path, "staged-c06-negative")
+    _write(root, core.EVIDENCE_CONTRACT_PATH, _c06_contract_with_machine_flag())
+    for path, source in sources.items():
+        _write(root, path, source)
+    baseline = _commit(root, "staged C06 baseline")
+    monkeypatch.setitem(M._MACHINE_EVALUATORS, 6, M._STAGED_EVALUATORS[6])
+    baseline_result = _result(root, baseline, "C06")
+    assert baseline_result.status is core.PredicateStatus.EVIDENCE_UNDEFINED
+    _write(root, mutated_path, mutated_source)
+    mutated = _commit(root, "staged C06 one arm removed")
+    mutated_result = _result(root, mutated, "C06")
+    assert mutated_result.status is core.PredicateStatus.UNSATISFIED
+
+
+@pytest.mark.parametrize(
+    "source",
+    [
+        "def reserve_all_cells():\n    return {'ledger.manifest_sha256': 'x'}\n",
+        "class Ledger:\n    manifest_sha256: str\n",
+        TOKEN_ONLY_C06_BUDGET + "\ndef dynamic(ledger, name, value):\n    setattr(ledger, name, value)\n",
+    ],
+    ids=("dict-literal-only", "annotation-only", "dynamic-field-generation"),
+)
+def test_c06_field_path_checker_rejects_non_closed_shapes(source: str) -> None:
+    assert M._c06_field_path_verdict(ast.parse(source)) is False
+
+
+def _candidate_commit_with_worktree(tmp_path: Path) -> str:
+    index = tmp_path / "candidate.index"
+    env = os.environ.copy()
+    env.update(
+        {
+            "GIT_INDEX_FILE": str(index),
+            "GIT_AUTHOR_NAME": "s8c candidate fixture",
+            "GIT_AUTHOR_EMAIL": "s8c-candidate@example.invalid",
+            "GIT_COMMITTER_NAME": "s8c candidate fixture",
+            "GIT_COMMITTER_EMAIL": "s8c-candidate@example.invalid",
+        }
+    )
+
+    def run(args: list[str], *, input_bytes: bytes | None = None) -> str:
+        result = subprocess.run(
+            ["git", *args],
+            cwd=_ROOT,
+            env=env,
+            input=input_bytes,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            check=True,
+            timeout=20,
+        )
+        return result.stdout.decode("utf-8").strip()
+
+    run(["read-tree", "HEAD"])
+    run(["add", "-A", "--", *_C06_CANDIDATE_PATHS])
+    tree = run(["write-tree"])
+    return run(
+        ["commit-tree", tree, "-p", "HEAD"],
+        input_bytes=b"s8c budget candidate\n",
+    )
+
+
+@pytest.fixture(scope="session")
+def repository_candidate_commit(
+    tmp_path_factory: pytest.TempPathFactory,
+) -> str:
+    """実 repo の index/worktree bytes を candidate commit へ合成する。"""
+    return _candidate_commit_with_worktree(tmp_path_factory.mktemp("c06-candidate"))
+
+
+def _direct_c06_result(root: Path, commit: str) -> core.PredicateResult:
+    raw = CONTRACT_FILE.read_bytes()
+    contract = M.load_contract_bytes(raw)
+    probe = M._ConditionProbe(
+        root,
+        commit,
+        contract.condition(6),
+        core.EvidenceRef(core.EVIDENCE_CONTRACT_PATH, core._sha256(raw)),
+        {},
+        {core.EVIDENCE_CONTRACT_PATH: raw},
+        declared_paths=contract.evidence_paths,
+    )
+    return M._evaluate_c06(probe)
+
+
+def test_repository_candidate_uses_real_s8c_budget_module(
+    repository_candidate_commit: str,
+) -> None:
+    result = _direct_c06_result(_ROOT, repository_candidate_commit)
+    assert result.status is core.PredicateStatus.EVIDENCE_UNDEFINED
+    assert result.reason_code == "completion-proof-not-machine-checkable"

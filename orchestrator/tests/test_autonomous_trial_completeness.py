@@ -13,6 +13,9 @@ from types import SimpleNamespace
 import pytest
 
 
+pytestmark = pytest.mark.usefixtures("ratified_enforcement_source")
+
+
 _ROOT = Path(__file__).resolve().parents[2]
 if str(_ROOT) not in sys.path:
     sys.path.insert(0, str(_ROOT))
@@ -227,7 +230,7 @@ def _t428_descriptor_campaign_id(trial_id: str, workload: str) -> str:
     descriptor, descriptor_record = A._descriptor_for(workload_flags)
     cfg = A._campaign_for(
         workload=workload,
-        workload_flags=workload_flags,
+        entry=workload_flags,
         descriptor=descriptor,
         descriptor_record=descriptor_record,
         trial_id=trial_id,
@@ -277,6 +280,7 @@ def _golden_cell_metadata(
             "ycsb_rratio": golden["rratio"],
             "ycsb_rmw": "0",
         },
+        "perf_config_scale": {"records": 100_000, "threads": 4},
         "descriptor": {
             "schema_version": "8b-v1",
             "source": "campaign_search_config_projection",
@@ -719,6 +723,7 @@ def _registered_digest_chain_trial(tmp_path: Path):
         s8b_holdout_freeze.RRATIO_KEY: holdout_high,
         s8b_holdout_freeze.RMW_KEY: fixed_rmw,
     }
+    entry = A.FORMAL_WORKLOADS[workload]
     descriptor = {
         "schema_version": "8b-v1",
         "source": "campaign_search_config_projection",
@@ -735,6 +740,10 @@ def _registered_digest_chain_trial(tmp_path: Path):
     events[0]["workloads"] = [workload]
     cell["workload"] = workload
     cell["workload_flags"] = workload_flags
+    cell["perf_config_scale"] = {
+        "records": entry["records"],
+        "threads": entry["threads"],
+    }
     cell["descriptor"] = descriptor
     for event in events:
         if event.get("event") in {"role-attempt", "generation-accounting"}:
@@ -769,11 +778,11 @@ def _registered_digest_chain_trial(tmp_path: Path):
             "descriptor_sha256": content_digest,
             "generation_budget": 1,
             "pilot_scope": "exploratory-ycsb-abc",
-            "records": 100_000,
+            "records": entry["records"],
             "reflux": "on",
             "scale": "silo",
             "stop_policy": "fixed-generations-no-performance-early-stop",
-            "threads": 4,
+            "threads": entry["threads"],
             "trigger_gate_binding_schema": "izanagi-trigger-gate-binding/v1",
             "verify": "legacy+s2",
             "workload": workload,
@@ -2797,6 +2806,7 @@ def _file_ref(path: Path, root: Path) -> dict:
 def _layer3_campaign(
     tmp_path: Path, *, trial_id: str = "fixture-completeness",
     workload: str = "ycsb-a", output_root: Path | None = None,
+    include_trigger_binding: bool = True, include_bench_wall_s: bool = True,
 ):
     output_root = output_root or tmp_path / "output"
     metadata = _golden_cell_metadata(output_root, workload, trial_id=trial_id)
@@ -2804,6 +2814,31 @@ def _layer3_campaign(
     descriptor = metadata["descriptor"]
     descriptor_binding = metadata["descriptor_binding"]
     context = build_run_context(generator_id=GeneratorId.S8A_TRIGGER_SWEEP)
+    search_config = {
+        "axis": "silo-backoff-trigger-gating",
+        "descriptor_schema": "8b-v1",
+        "descriptor_sha256": descriptor_binding["output_sha256"],
+        "generation_budget": 1,
+        "pilot_scope": "exploratory-ycsb-abc",
+        "records": 100_000,
+        "reflux": "on",
+        "scale": "silo",
+        "stop_policy": "fixed-generations-no-performance-early-stop",
+        "threads": 4,
+        "trigger_gate_binding_schema": TGB.SCHEMA_VERSION,
+        "verify": "legacy+s2",
+        "workload": workload,
+        "ycsb": workload_flags,
+        "build_admission": dict(context.policy.as_preimage()),
+    }
+    if not include_trigger_binding:
+        # Layer 3 intentionally projects trigger_binding WAL records out of
+        # variants.  This dedicated cross-binding fixture therefore models a
+        # non-trigger campaign so the verifier's full WAL coverage has no
+        # excluded record to account for.
+        search_config["axis"] = "fixture"
+        search_config.pop("reflux")
+        search_config.pop("trigger_gate_binding_schema")
     campaign_cfg = CampaignConfig(
         spec_slug=f"p3-t178-{workload}",
         search_tag="workload-conditioned-autonomous",
@@ -2814,23 +2849,7 @@ def _layer3_campaign(
             "Fixed generations, no performance-target early stop, no formal descriptor claim."
         ),
         ccbench_commit=CURRENT_PIN,
-        search_config={
-            "axis": "silo-backoff-trigger-gating",
-            "descriptor_schema": "8b-v1",
-            "descriptor_sha256": descriptor_binding["output_sha256"],
-            "generation_budget": 1,
-            "pilot_scope": "exploratory-ycsb-abc",
-            "records": 100_000,
-            "reflux": "on",
-            "scale": "silo",
-            "stop_policy": "fixed-generations-no-performance-early-stop",
-            "threads": 4,
-            "trigger_gate_binding_schema": TGB.SCHEMA_VERSION,
-            "verify": "legacy+s2",
-            "workload": workload,
-            "ycsb": workload_flags,
-            "build_admission": dict(context.policy.as_preimage()),
-        },
+        search_config=search_config,
         trial=f"{trial_id}-{workload}",
     )
     campaign_cfg = ident.bind_environment_contract(
@@ -2838,7 +2857,8 @@ def _layer3_campaign(
     )
     campaign_id = str(ident.campaign_id(campaign_cfg))
     # T-671 で H が identity から外れ、current は policy-bound 値になる。
-    assert campaign_id == _CURRENT_POLICY_BOUND_CAMPAIGN_IDS[(trial_id, workload)]
+    if include_trigger_binding:
+        assert campaign_id == _CURRENT_POLICY_BOUND_CAMPAIGN_IDS[(trial_id, workload)]
     metadata["campaign_id"] = campaign_id
     metadata["campaign_root"] = str(output_root / "campaigns" / campaign_id)
     campaign = output_root / "campaigns" / campaign_id
@@ -2883,25 +2903,35 @@ def _layer3_campaign(
         "build_attempt_id": attempt_id,
         "build_admission_receipt_sha256": receipt["receipt_sha256"],
     }
-    records = [
-        {
+    build_start = {
+        "ts": 1.0, "stage": "build_start", "variant": variant,
+        "env_tag": _T530_LAYER3_CONTRACT.env_tag, "payload": {
+            "build_attempt_id": attempt_id,
+            "genome": genome,
+            "src_token": "stock",
+            "build_admission": receipt,
+            "build_admission_receipt_sha256": receipt["receipt_sha256"],
+        },
+    }
+    if include_trigger_binding:
+        records = [{
             "ts": 0.5, "stage": TGB.WAL_RECORD_STAGE, "variant": variant,
             "env_tag": _T530_LAYER3_CONTRACT.env_tag, "payload": {
                 "build_attempt_id": attempt_id,
                 "trigger_gate_binding": TGB.to_record(binding),
             },
-        },
-        {
-            "ts": 1.0, "stage": "build_start", "variant": variant,
-            "env_tag": _T530_LAYER3_CONTRACT.env_tag, "payload": {
-                "build_attempt_id": attempt_id,
-                "genome": genome,
-                "src_token": "stock",
-                "build_admission": receipt,
-                "build_admission_receipt_sha256": receipt["receipt_sha256"],
-                "trigger_gate_binding_commitment": binding_commitment,
-            },
-        },
+        }]
+        build_start["payload"]["trigger_gate_binding_commitment"] = binding_commitment
+    else:
+        records = []
+    bench_payload = {
+        "tps": [1.0], "median_tps": 1.0, "cv": 0.0, "rounds": 1,
+    }
+    if include_bench_wall_s:
+        bench_payload["bench_wall_s"] = 0.0
+    bench_payload["leading_indicators"] = {}
+    records.extend([
+        build_start,
         {
             "ts": 2.0, "stage": "build_done", "variant": variant,
             "env_tag": _T530_LAYER3_CONTRACT.env_tag, "payload": dict(terminal),
@@ -2909,10 +2939,7 @@ def _layer3_campaign(
         {
             "ts": 3.0, "stage": "bench_done", "variant": variant,
             "env_tag": _T530_LAYER3_CONTRACT.env_tag,
-            "payload": {
-                "tps": [1.0], "median_tps": 1.0, "cv": 0.0, "rounds": 1,
-                "leading_indicators": {},
-            },
+            "payload": bench_payload,
         },
         {
             "ts": 4.0, "stage": "commit", "variant": variant,
@@ -2921,24 +2948,25 @@ def _layer3_campaign(
                 "contract_sha256": _T530_CONTRACT_SHA256,
             },
         },
-    ]
+    ])
     wal_path = campaign / "runs" / "wal.jsonl"
     wal_path.write_text(
         "".join(json.dumps(record) + "\n" for record in records),
         encoding="utf-8",
     )
-    (campaign / "reports" / "p3_s8a_trigger_loop_provenance.json").write_text(
-        json.dumps({
-            "entries": {
-                "fixture": {
-                    "variant": variant,
-                    "build_attempt_id": attempt_id,
-                    "trigger_gate_binding_commitment": binding_commitment,
+    if include_trigger_binding:
+        (campaign / "reports" / "p3_s8a_trigger_loop_provenance.json").write_text(
+            json.dumps({
+                "entries": {
+                    "fixture": {
+                        "variant": variant,
+                        "build_attempt_id": attempt_id,
+                        "trigger_gate_binding_commitment": binding_commitment,
+                    },
                 },
-            },
-        }),
-        encoding="utf-8",
-    )
+            }),
+            encoding="utf-8",
+        )
     persisted = L3.build_report(
         campaign, generated_from_head="a" * 40, output_root=output_root,
     )
@@ -2957,6 +2985,272 @@ def _layer3_campaign(
     return output_root, campaign, persisted_path, persisted, cell
 
 
+def _cross_binding_fixture(
+    tmp_path: Path, *, include_bench_wall_s: bool = True,
+):
+    output_root, campaign, persisted_path, persisted, cell = _layer3_campaign(
+        tmp_path, include_bench_wall_s=include_bench_wall_s,
+    )
+    run_root = tmp_path / "cross-binding-run"
+    (run_root / "raw").mkdir(parents=True)
+    (run_root / "provider").mkdir()
+    (run_root / "proposals").mkdir()
+    raw_path = run_root / "raw" / "response.txt"
+    payload_path = run_root / "provider" / "payload_invocation.json"
+    envelope_path = run_root / "provider" / "envelope_invocation.json"
+    proposal_path = run_root / "proposals" / "proposal.json"
+    raw_path.write_bytes(b"fixture raw response\n")
+    payload_path.write_bytes(b"fixture provider payload\n")
+    envelope_path.write_bytes(b"fixture provider envelope\n")
+    proposal_path.write_bytes(b"{\"proposal\":true}")
+
+    def digest(path: Path) -> str:
+        return hashlib.sha256(path.read_bytes()).hexdigest()
+
+    event = {
+        "event": "role-attempt",
+        "invocation_id": "fixture.invocation",
+        "raw_response_path": str(raw_path.relative_to(run_root)),
+        "raw_response_sha256": digest(raw_path),
+        "input_payload_sha256": digest(payload_path),
+        "provider_payload_sha256": digest(payload_path),
+        "provider_envelope_sha256": digest(envelope_path),
+        "provider_artifacts": {
+            "payload_path": str(payload_path.relative_to(run_root)),
+            "envelope_path": str(envelope_path.relative_to(run_root)),
+            "arm_binding_digest_sha256": "a" * 64,
+        },
+    }
+    wal_lines = [
+        json.loads(line)
+        for line in (campaign / "runs" / "wal.jsonl").read_text().splitlines()
+    ]
+    bench = next(row for row in wal_lines if row["stage"] == "bench_done")
+    proposal = {
+        "path": str(proposal_path.relative_to(run_root)),
+        "sha256": digest(proposal_path),
+        "digest": "b" * 64,
+    }
+    cell = copy.deepcopy(cell)
+    bench_payload = copy.deepcopy(bench["payload"])
+    cell["generations"] = [{
+        "generation": 1,
+        "proposal": proposal,
+        "harness": {
+            "variant": bench["variant"],
+            "records": {"bench_done": bench_payload},
+        },
+        "bench_wall_seconds": bench_payload.get("bench_wall_s", 0.0),
+    }]
+    report = {
+        "trial_id": "fixture-completeness",
+        "do_build": True,
+        "cells": [cell],
+    }
+    return {
+        "output_root": output_root,
+        "campaign": campaign,
+        "persisted_path": persisted_path,
+        "persisted": persisted,
+        "run_root": run_root,
+        "report": report,
+        "events": [event],
+    }
+
+
+def _write_cross_binding_layer3(path: Path, value: dict) -> None:
+    path.write_text(
+        json.dumps(value, ensure_ascii=False, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+
+
+def test_read_and_verify_bytes_rejects_changed_bytes(tmp_path: Path) -> None:
+    root = tmp_path / "bytes"
+    root.mkdir()
+    path = root / "value.bin"
+    path.write_bytes(b"original")
+    expected = hashlib.sha256(path.read_bytes()).hexdigest()
+    resolved, raw = C.read_and_verify_bytes(
+        "value.bin", root=root, expected_sha256=expected,
+        gate="cross-binding-bytes", label="fixture bytes",
+    )
+    assert resolved == path
+    assert raw == b"original"
+    path.write_bytes(b"mutated")
+    with pytest.raises(
+        C.AutonomousTrialCompletenessError,
+        match=r"\[cross-binding-bytes\] fixture bytes bytes differ",
+    ):
+        C.read_and_verify_bytes(
+            "value.bin", root=root, expected_sha256=expected,
+            gate="cross-binding-bytes", label="fixture bytes",
+        )
+
+
+def test_verify_s8c_cross_binding_positive_binds_all_fields(tmp_path: Path) -> None:
+    fixture = _cross_binding_fixture(tmp_path)
+    wal_lines = [
+        json.loads(line)
+        for line in (fixture["campaign"] / "runs" / "wal.jsonl").read_text().splitlines()
+    ]
+    assert any(
+        row["stage"] == TGB.WAL_RECORD_STAGE for row in wal_lines
+    )
+    receipt = C.verify_s8c_cross_binding(
+        report=fixture["report"], events=fixture["events"],
+        run_root=fixture["run_root"], output_root=fixture["output_root"],
+    )
+    assert receipt["mode"] == "build"
+    assert set(receipt["bindings"]) == set(C.S8C_CROSS_BINDING_FIELDS)
+    assert receipt["unbound_fields"] == []
+    assert len(receipt["receipt_sha256"]) == 64
+
+
+def test_verify_s8c_cross_binding_projects_from_verified_wal_bytes(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    fixture = _cross_binding_fixture(tmp_path)
+
+    class Decision:
+        def as_receipt(self):
+            return copy.deepcopy(fixture["persisted"]["admission_decision"])
+
+    class View:
+        decision = Decision()
+
+    def forbidden_reread(*_args, **_kwargs):
+        raise AssertionError("C10 reread the WAL from disk")
+
+    monkeypatch.setattr(C, "require_admitted_campaign", lambda *_args, **_kwargs: View())
+    monkeypatch.setattr(C.wal, "read_records_checked", forbidden_reread)
+    receipt = C.verify_s8c_cross_binding(
+        report=fixture["report"], events=fixture["events"],
+        run_root=fixture["run_root"], output_root=fixture["output_root"],
+    )
+    assert receipt["mode"] == "build"
+    assert receipt["bindings"]["build_records"]
+
+
+def test_verify_s8c_cross_binding_rejects_missing_bench_wall_s(
+    tmp_path: Path,
+) -> None:
+    fixture = _cross_binding_fixture(tmp_path, include_bench_wall_s=False)
+    report = fixture["report"]
+    with pytest.raises(
+        C.AutonomousTrialCompletenessError,
+        match=r"\[cross-binding-bench\] WAL bench_done\.payload is missing bench_wall_s$",
+    ):
+        C.verify_s8c_cross_binding(
+            report=report, events=fixture["events"],
+            run_root=fixture["run_root"], output_root=fixture["output_root"],
+        )
+
+
+def test_verify_s8c_cross_binding_no_build_is_explicitly_unbound(
+    tmp_path: Path,
+) -> None:
+    report = {"trial_id": "fixture-no-build", "do_build": False, "cells": []}
+    receipt = C.verify_s8c_cross_binding(
+        report=report, events=[], run_root=tmp_path,
+    )
+    assert receipt["mode"] == "no-build"
+    assert receipt["bindings"] == {}
+    assert receipt["unbound_fields"] == list(C.S8C_CROSS_BINDING_FIELDS)
+
+
+@pytest.mark.parametrize("mutation", C.S8C_CROSS_BINDING_FIELDS)
+def test_verify_s8c_cross_binding_rejects_each_reference_mutation(
+    tmp_path: Path, mutation: str,
+) -> None:
+    fixture = _cross_binding_fixture(tmp_path)
+    report = fixture["report"]
+    events = fixture["events"]
+    persisted = fixture["persisted"]
+    if mutation == "input_payload_sha256":
+        events[0]["input_payload_sha256"] = "c" * 64
+    elif mutation == "raw_response_path":
+        events[0]["raw_response_path"] = "raw/missing.txt"
+    elif mutation == "raw_response_sha256":
+        events[0]["raw_response_sha256"] = "c" * 64
+    elif mutation == "provider_payload_sha256":
+        events[0]["provider_payload_sha256"] = "c" * 64
+    elif mutation == "provider_envelope_sha256":
+        events[0]["provider_envelope_sha256"] = "c" * 64
+    elif mutation == "proposal_path":
+        report["cells"][0]["generations"][0]["proposal"]["path"] = (
+            "proposals/missing.json"
+        )
+    elif mutation == "proposal_sha256":
+        report["cells"][0]["generations"][0]["proposal"]["sha256"] = "c" * 64
+    elif mutation == "build_records":
+        persisted["variants"][0]["events"][0]["payload"]["genome"] = "mutated"
+        _write_cross_binding_layer3(fixture["persisted_path"], persisted)
+    elif mutation == "bench_records":
+        persisted["runs"][0]["median_tps"] = 999.0
+        _write_cross_binding_layer3(fixture["persisted_path"], persisted)
+    elif mutation == "artifact_refs":
+        persisted["artifact_refs"].sort(
+            key=lambda ref: ref["path"] != "loop_state.json"
+        )
+        target_ref = next(
+            ref for ref in persisted["artifact_refs"]
+            if ref["path"].endswith("p3_s8a_trigger_loop_provenance.json")
+        )
+        assert persisted["artifact_refs"][0]["path"] == "loop_state.json"
+        assert target_ref["path"] != persisted["artifact_refs"][0]["path"]
+        target = fixture["campaign"] / target_ref["path"]
+        target.write_bytes(target.read_bytes() + b"mutation")
+    elif mutation == "source_refs":
+        persisted["source_refs"].pop()
+        _write_cross_binding_layer3(fixture["persisted_path"], persisted)
+    elif mutation == "admission_decision":
+        report["cells"][0]["admission_decision"]["classification"] = "mutated"
+    else:
+        raise AssertionError(mutation)
+    with pytest.raises(C.AutonomousTrialCompletenessError):
+        C.verify_s8c_cross_binding(
+            report=report, events=events,
+            run_root=fixture["run_root"], output_root=fixture["output_root"],
+        )
+
+
+def test_verify_s8c_cross_binding_rejects_an_unclassified_wal_record(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    fixture = _cross_binding_fixture(tmp_path)
+    persisted = copy.deepcopy(fixture["persisted"])
+    extra = C.wal.WalRecord(
+        variant="fixture-variant",
+        stage="unclassified",
+        env_tag=_T530_LAYER3_CONTRACT.env_tag,
+        ts=5.0,
+        payload={"fixture": "unclassified"},
+    )
+    original_parser = C._cross_binding_verified_wal_records
+
+    def with_extra(raw: bytes):
+        records, truncated = original_parser(raw)
+        return [*records, extra], truncated
+
+    monkeypatch.setattr(C, "_cross_binding_verified_wal_records", with_extra)
+    extra_dict = C._cross_binding_wal_dict(extra)
+    persisted["variants"][0]["events"].append(extra_dict)
+    persisted["source_refs"].append(_test_wal_ref(extra_dict))
+    _write_cross_binding_layer3(fixture["persisted_path"], persisted)
+    with pytest.raises(
+        C.AutonomousTrialCompletenessError,
+        match=(
+            r"\[cross-binding-wal\] build/bench WAL projection does not cover "
+            r"all layer3 records$"
+        ),
+    ):
+        C.verify_s8c_cross_binding(
+            report=fixture["report"], events=fixture["events"],
+            run_root=fixture["run_root"], output_root=fixture["output_root"],
+        )
+
+
 def _campaign_report(cell: dict, *, trial_id: str = "fixture-completeness") -> dict:
     return {
         "trial_id": trial_id,
@@ -2965,6 +3259,186 @@ def _campaign_report(cell: dict, *, trial_id: str = "fixture-completeness") -> d
         "launch_admission": {"certifying": False},
         "cells": [copy.deepcopy(cell)],
     }
+
+
+def _rewrite_cell_campaign_identity(
+    campaign: Path, cell: dict, mutate_identity,
+) -> None:
+    decoded = C._campaign_lock_identity(campaign, gate="fixture")
+    identity = json.loads(decoded.identity_preimage)
+    mutate_identity(identity)
+    identity_preimage = C.campaign_lock.canonical_json(identity)
+    (campaign / "campaign.lock").write_text(
+        build_v2_lock(identity_preimage), encoding="utf-8",
+    )
+    workload = identity["search_config"]["workload"]
+    cell["campaign_id"] = (
+        f"p3-t178-{workload}-workload-conditioned-autonomous-"
+        f"{hashlib.sha256(identity_preimage.encode('utf-8')).hexdigest()[:8]}"
+    )
+
+
+def test_t1333_campaign_chain_reprojects_descriptor_scale_from_entry(
+    tmp_path,
+) -> None:
+    _output_root, campaign, _path, _persisted, cell = _layer3_campaign(tmp_path)
+    entry = A.WORKLOADS["ycsb-a"]
+    C._check_cell_campaign_identity(
+        cell=cell,
+        cell_index=0,
+        workload="ycsb-a",
+        entry=entry,
+        trial_id="fixture-completeness",
+        budget=1,
+        campaign_root=campaign,
+        arm_binding_digest=None,
+    )
+    mutated_records = entry["records"] + 1
+    cell["descriptor"]["scale"]["records"] = mutated_records
+    cell["perf_config_scale"]["records"] = mutated_records
+    descriptor_sha256 = hashlib.sha256(
+        C._canonical_bytes(cell["descriptor"])
+    ).hexdigest()
+    projected_input_sha256 = hashlib.sha256(C._canonical_bytes({
+        "records": mutated_records,
+        "threads": entry["threads"],
+        "ycsb": dict(entry["ycsb"]),
+    })).hexdigest()
+    cell["descriptor_binding"]["input_sha256"] = projected_input_sha256
+    cell["descriptor_binding"]["output_sha256"] = descriptor_sha256
+
+    def mutate_identity(identity):
+        identity["search_config"]["records"] = mutated_records
+        identity["search_config"]["descriptor_sha256"] = descriptor_sha256
+
+    _rewrite_cell_campaign_identity(campaign, cell, mutate_identity)
+    with pytest.raises(
+        C.AutonomousTrialCompletenessError,
+        match=(
+            r"^\[campaign-chain\] cells\[0\] workload scale "
+            r"differs from producer$"
+        ),
+    ):
+        C._check_cell_campaign_identity(
+            cell=cell,
+            cell_index=0,
+            workload="ycsb-a",
+            entry=entry,
+            trial_id="fixture-completeness",
+            budget=1,
+            campaign_root=campaign,
+            arm_binding_digest=None,
+        )
+
+
+def test_m5_exploratory_workload_flags_are_the_only_mismatch(tmp_path) -> None:
+    output_root, _campaign, _path, _persisted, cell = _layer3_campaign(tmp_path)
+    key = A.s8b_holdout_freeze.SKEW_KEY
+    cell["workload_flags"][key] += "0"
+    with pytest.raises(
+        C.AutonomousTrialCompletenessError,
+        match=r"cells\[0\]\.workload_flags differs from producer$",
+    ):
+        C.assert_campaign_layer3_chain(
+            report=_campaign_report(cell), output_root=output_root,
+        )
+
+
+def test_perf_config_scale_is_independently_bound_to_the_entry(tmp_path) -> None:
+    _output_root, campaign, _path, _persisted, cell = _layer3_campaign(tmp_path)
+    entry = A.WORKLOADS["ycsb-a"]
+    cell["perf_config_scale"]["threads"] = entry["threads"] + 1
+    with pytest.raises(
+        C.AutonomousTrialCompletenessError,
+        match=r"cells\[0\] workload scale differs from producer$",
+    ):
+        C._check_cell_campaign_identity(
+            cell=cell,
+            cell_index=0,
+            workload="ycsb-a",
+            entry=entry,
+            trial_id="fixture-completeness",
+            budget=1,
+            campaign_root=campaign,
+            arm_binding_digest=None,
+        )
+
+
+def test_m6_formal_campaign_scale_is_the_only_mismatch(tmp_path) -> None:
+    _run, _events, report, arm_execution = _registered_digest_chain_trial(tmp_path)
+    cell = report["cells"][0]
+    workload = cell["workload"]
+    entry = A.FORMAL_WORKLOADS[workload]
+    campaign = Path(cell["campaign_root"])
+    mutated_records = entry["records"] + 1
+
+    def mutate_identity(identity):
+        identity["search_config"]["records"] = mutated_records
+
+    _rewrite_cell_campaign_identity(campaign, cell, mutate_identity)
+    with pytest.raises(
+        C.AutonomousTrialCompletenessError,
+        match=r"cells\[0\] workload scale differs from producer$",
+    ):
+        C._check_cell_campaign_identity(
+            cell=cell,
+            cell_index=0,
+            workload=workload,
+            entry=entry,
+            trial_id="fixture-completeness",
+            budget=1,
+            campaign_root=campaign,
+            arm_binding_digest=arm_execution["arm_binding_digest_sha256"],
+        )
+
+
+def test_t1310_consumer_independently_reloads_legacy_source_and_four_keys(
+    monkeypatch,
+) -> None:
+    source_record = A._formal_profile_source_record(repository_root=A.ROOT)
+    original_loader = C.s8b_ratified_freeze.load_legacy_freeze
+    calls = []
+
+    def recording_loader(root):
+        calls.append(Path(root))
+        return original_loader(root)
+
+    monkeypatch.setattr(
+        C.s8b_ratified_freeze, "load_legacy_freeze", recording_loader,
+    )
+    C.assert_legacy_workload_profile_source(
+        source_record=source_record,
+        producer_entries=A.FORMAL_WORKLOADS,
+        repository_root=A.ROOT,
+    )
+    assert calls == [A.ROOT]
+
+    tampered_source = {**source_record, "sha256": "0" * 64}
+    with pytest.raises(
+        C.AutonomousTrialCompletenessError,
+        match=r"source record differs from fresh legacy load$",
+    ):
+        C.assert_legacy_workload_profile_source(
+            source_record=tampered_source,
+            producer_entries=A.FORMAL_WORKLOADS,
+            repository_root=A.ROOT,
+        )
+
+    tampered_entries = copy.deepcopy(A.FORMAL_WORKLOADS)
+    formal_name = next(iter(A.s8b_holdout_freeze.HOLDOUTS))
+    tampered_entries[formal_name] = {
+        **A.FORMAL_WORKLOADS[formal_name],
+        "records": A.FORMAL_WORKLOADS[formal_name]["records"] + 1,
+    }
+    with pytest.raises(
+        C.AutonomousTrialCompletenessError,
+        match=r"four-key authority bytes differ$",
+    ):
+        C.assert_legacy_workload_profile_source(
+            source_record=source_record,
+            producer_entries=tampered_entries,
+            repository_root=A.ROOT,
+        )
 
 
 def test_m10_campaign_chain_rejects_persisted_performance_mutation(tmp_path) -> None:

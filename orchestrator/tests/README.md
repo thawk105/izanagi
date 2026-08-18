@@ -181,6 +181,8 @@ pytest 専用テストで、`python3 file.py` 直接実行は no-op (偽緑で�
 - test_wave_land_window.py
 <!-- PYTEST_ONLY_ALLOWLIST_END -->
 
+- self-run: `test_s8c_acceptance_receipt_v2.py` — receipt v2 の正例・負の対照
+
 ## 依存物不在時の skip (可視化)
 
 gnuplot / 実 Silo サンプル / submodule / C++ toolchain (g++-13) が無い環境では、

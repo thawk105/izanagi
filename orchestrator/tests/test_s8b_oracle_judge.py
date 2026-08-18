@@ -34,6 +34,23 @@ SPEC_SHA256 = "b" * 64
 CAMPAIGN_ID = "oracle-b0"
 
 
+def _store_reverification(expected_cells) -> dict:
+    logical_cell_ids = sorted({
+        f"{entry['holdout_id']}::{entry['configuration_id']}"
+        for entry in expected_cells
+    })
+    return {
+        "state": "verified",
+        "cells": [{
+            "cell_id": cell_id,
+            "store_path": f"fixture-store/{cell_id.replace('::', '--')}",
+            "expected_sha256": "c" * 64,
+            "actual_sha256": "c" * 64,
+            "state": "match",
+        } for cell_id in logical_cell_ids],
+    }
+
+
 def _e1_evidence() -> list[dict]:
     return [{
         "campaign_id": CAMPAIGN_ID,
@@ -76,6 +93,11 @@ def _observations(
                     "reason": None,
                 })
                 index += 1
+    expected_cells = [{
+        "schedule_index": row["schedule_index"],
+        "holdout_id": row["holdout_id"],
+        "configuration_id": row["configuration_id"],
+    } for row in rows]
     return artifacts.OfficialObservations({
         "schema_version": judge.INPUT_SCHEMA,
         "manifest_kind": "official",
@@ -83,11 +105,8 @@ def _observations(
         "spec_sha256": SPEC_SHA256,
         "n_per_cell": n,
         "campaign_verifier_epochs": _e1_evidence(),
-        "expected_cells": [{
-            "schedule_index": row["schedule_index"],
-            "holdout_id": row["holdout_id"],
-            "configuration_id": row["configuration_id"],
-        } for row in rows],
+        "expected_cells": expected_cells,
+        "store_reverification": _store_reverification(expected_cells),
         "rows": rows,
     })
 
@@ -129,6 +148,120 @@ def test_complete_data_has_unique_best():
     assert _holdout(result)["verdict"] == "unique-best"
     assert _holdout(result)["winner_configuration_id"] == CONFIGURATIONS[-1]
     assert result["status"] == "determinate"
+
+
+def test_official_store_reverification_absence_is_indeterminate():
+    observations = _observations()
+    assert _judge(observations)["status"] == "determinate"
+
+    observations.pop("store_reverification")
+    result = _judge(observations)
+
+    assert result["status"] == "indeterminate"
+    assert {reason["code"] for reason in result["reasons"]} == {
+        "store-reverification-absent",
+    }
+    assert all(
+        cell["status"] == "unknown"
+        for holdout in result["holdouts"].values()
+        for cell in holdout["configurations"].values()
+    )
+
+
+@pytest.mark.parametrize(
+    ("damage", "reason_code"),
+    [
+        ("empty-mapping", "store-reverification-schema"),
+        ("empty-cells", "store-reverification-cells"),
+        ("missing-cell", "store-reverification-cell-coverage"),
+        ("duplicate-cell", "store-reverification-duplicate"),
+        ("verified-with-mismatch", "store-reverification-state"),
+        ("unverified-with-all-match", "store-reverification-state"),
+        ("mismatch-with-equal-sha", "store-reverification-cell-state"),
+        ("missing-with-actual-sha", "store-reverification-cell-state"),
+    ],
+)
+def test_store_reverification_rejects_non_tautological_receipts(
+        damage, reason_code):
+    observations = _observations()
+    assert _judge(observations)["status"] == "determinate"
+    receipt = observations["store_reverification"]
+    if damage == "empty-mapping":
+        observations["store_reverification"] = {}
+    elif damage == "empty-cells":
+        receipt["cells"] = []
+    elif damage == "missing-cell":
+        receipt["cells"].pop()
+    elif damage == "duplicate-cell":
+        receipt["cells"].append(copy.deepcopy(receipt["cells"][0]))
+    elif damage == "verified-with-mismatch":
+        receipt["cells"][0]["actual_sha256"] = "d" * 64
+        receipt["cells"][0]["state"] = "mismatch"
+    elif damage == "unverified-with-all-match":
+        receipt["state"] = "unverified"
+    elif damage == "mismatch-with-equal-sha":
+        receipt["state"] = "unverified"
+        receipt["cells"][0]["state"] = "mismatch"
+    elif damage == "missing-with-actual-sha":
+        receipt["state"] = "unverified"
+        receipt["cells"][0]["state"] = "missing"
+    else:  # pragma: no cover - parameter table is closed above
+        raise AssertionError(damage)
+
+    result = _judge(observations)
+    assert result["status"] == "indeterminate"
+    assert reason_code in {reason["code"] for reason in result["reasons"]}
+
+
+@pytest.mark.parametrize("level", ["outer-extra", "cell-extra"])
+def test_store_reverification_requires_exact_keys(level):
+    observations = _observations()
+    assert _judge(observations)["status"] == "determinate"
+    if level == "outer-extra":
+        observations["store_reverification"]["extra"] = None
+        expected = "store-reverification-schema"
+    else:
+        observations["store_reverification"]["cells"][0]["extra"] = None
+        expected = "store-reverification-cell-schema"
+
+    result = _judge(observations)
+    assert result["status"] == "indeterminate"
+    assert expected in {reason["code"] for reason in result["reasons"]}
+
+
+def test_store_reverification_rejects_receipt_cell_outside_schedule():
+    observations = _observations()
+    assert _judge(observations)["status"] == "determinate"
+    observations["store_reverification"]["cells"].append({
+        "cell_id": "outside::schedule",
+        "store_path": "fixture-store/outside--schedule",
+        "expected_sha256": "d" * 64,
+        "actual_sha256": "d" * 64,
+        "state": "match",
+    })
+
+    result = _judge(observations)
+    assert result["status"] == "indeterminate"
+    assert "store-reverification-cell-coverage" in {
+        reason["code"] for reason in result["reasons"]
+    }
+
+
+@pytest.mark.parametrize(
+    "store_path",
+    ["/absolute/store", "../parent/store", "control\x01store", "back\\slash"],
+    ids=["absolute", "parent", "control", "backslash"],
+)
+def test_store_reverification_rejects_noncanonical_path(store_path):
+    observations = _observations()
+    assert _judge(observations)["status"] == "determinate"
+    observations["store_reverification"]["cells"][0]["store_path"] = store_path
+
+    result = _judge(observations)
+    assert result["status"] == "indeterminate"
+    assert "store-reverification-store-path" in {
+        reason["code"] for reason in result["reasons"]
+    }
 
 
 @pytest.mark.parametrize(
@@ -431,6 +564,11 @@ def _asymmetric_observations() -> artifacts.OfficialObservations:
                 "reason": None,
             })
             index += 1
+    expected_cells = [{
+        "schedule_index": row["schedule_index"],
+        "holdout_id": row["holdout_id"],
+        "configuration_id": row["configuration_id"],
+    } for row in rows]
     return artifacts.OfficialObservations({
         "schema_version": judge.INPUT_SCHEMA,
         "manifest_kind": "official",
@@ -438,11 +576,8 @@ def _asymmetric_observations() -> artifacts.OfficialObservations:
         "spec_sha256": SPEC_SHA256,
         "n_per_cell": 3,
         "campaign_verifier_epochs": _e1_evidence(),
-        "expected_cells": [{
-            "schedule_index": row["schedule_index"],
-            "holdout_id": row["holdout_id"],
-            "configuration_id": row["configuration_id"],
-        } for row in rows],
+        "expected_cells": expected_cells,
+        "store_reverification": _store_reverification(expected_cells),
         "rows": rows,
     })
 
@@ -571,6 +706,11 @@ def _cli_observations(document, approved_sha256):
             "screen_outcome": "not_enabled",
             "reason": None,
         })
+    expected_cells = [{
+        "schedule_index": row["schedule_index"],
+        "holdout_id": row["holdout_id"],
+        "configuration_id": row["configuration_id"],
+    } for row in rows]
     return {
         "schema_version": judge.INPUT_SCHEMA,
         "manifest_kind": "official",
@@ -580,11 +720,8 @@ def _cli_observations(document, approved_sha256):
         "campaign_verifier_epochs": [{
             **_e1_evidence()[0], "campaign_id": campaign_id,
         }],
-        "expected_cells": [{
-            "schedule_index": row["schedule_index"],
-            "holdout_id": row["holdout_id"],
-            "configuration_id": row["configuration_id"],
-        } for row in rows],
+        "expected_cells": expected_cells,
+        "store_reverification": _store_reverification(expected_cells),
         "rows": rows,
     }
 

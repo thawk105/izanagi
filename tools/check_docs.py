@@ -263,8 +263,7 @@ CODEX_DEV_WAVE_STAGE9_LAND_LITERAL = (
     "Codex 固有の取り込み手順を重ねない。"
 )
 DEV_WAVE_DW_O01_MODEL_AUTHORITY_LITERAL = (
-    "`<model>`: 段 3 のみ 2 本で `gpt-5.6-sol`→`gpt-5.6-luna`、"
-    "他段 `gpt-5.6-sol`。"
+    "`<model>`: 全段 `gpt-5.6-luna` (段 3 の 2 本も同じ)。"
 )
 DEV_WAVE_DW_O01_MODEL_AUTHORITY_FINDING = (
     "docs/dev-wave/operations.md: DW-O01 の可視本文に model 権威行が "
@@ -347,13 +346,13 @@ DEV_WAVE_MODEL_SLUG_RE = re.compile(
 )
 DEV_WAVE_DW_S02_REASONING_MAX_LITERAL = "`reasoning=max`"
 DEV_WAVE_DW_S03_REASONING_MAX_LITERAL = "`reasoning=max`"
-DEV_WAVE_DW_S06_A_REASONING_HIGH_LITERAL = "`reasoning=high`"
-DEV_WAVE_DW_S06_C_REASONING_HIGH_LITERAL = "`reasoning=high`"
-DEV_WAVE_DW_S06_A_REASONING_HIGH_SENTENCE = (
-    "実装 wave は異なるレンズの敵対レビューを `reasoning=high` で必ず 2 本並列で行う。"
+DEV_WAVE_DW_S06_A_REASONING_MAX_LITERAL = "`reasoning=max`"
+DEV_WAVE_DW_S06_C_REASONING_MAX_LITERAL = "`reasoning=max`"
+DEV_WAVE_DW_S06_A_REASONING_MAX_SENTENCE = (
+    "実装 wave は異なるレンズの敵対レビューを `reasoning=max` で必ず 2 本並列で行う。"
 )
-DEV_WAVE_DW_S06_C_REASONING_HIGH_SENTENCE = (
-    "並列 fix の統合後、焦点再レビューは全体へ `reasoning=high` で 1 本でよい。"
+DEV_WAVE_DW_S06_C_REASONING_MAX_SENTENCE = (
+    "並列 fix の統合後、焦点再レビューは全体へ `reasoning=max` で 1 本でよい。"
 )
 DEV_WAVE_DW_S02_REASONING_MAX_FINDING = (
     "docs/dev-wave/workers.md: DW-S02 の `reasoning=max` は D207 に基づく"
@@ -365,12 +364,12 @@ DEV_WAVE_DW_S03_REASONING_MAX_FINDING = (
     "現行 adoption pin と不一致 — "
     "変更には paired・blind・非劣性 A/B に基づく採用裁定と pin の同時更新が必要"
 )
-DEV_WAVE_DW_S06_A_REASONING_HIGH_FINDING = (
-    "docs/dev-wave/workers.md: DW-S06-A の `reasoning=high` は段 6 敵対レビューの"
+DEV_WAVE_DW_S06_A_REASONING_MAX_FINDING = (
+    "docs/dev-wave/workers.md: DW-S06-A の `reasoning=max` は段 6 敵対レビューの"
     "現行 adoption pin と不一致 — 変更には採用裁定と pin の同時更新が必要"
 )
-DEV_WAVE_DW_S06_C_REASONING_HIGH_FINDING = (
-    "docs/dev-wave/workers.md: DW-S06-C の `reasoning=high` は段 6 焦点再レビューの"
+DEV_WAVE_DW_S06_C_REASONING_MAX_FINDING = (
+    "docs/dev-wave/workers.md: DW-S06-C の `reasoning=max` は段 6 焦点再レビューの"
     "現行 adoption pin と不一致 — 変更には採用裁定と pin の同時更新が必要"
 )
 DEV_WAVE_DW_O16_REASONING_EFFORT_FINDING = (
@@ -437,6 +436,20 @@ DEV_WAVE_DW_O25_SECTION_LITERAL = """## DW-O25 — ff-only land の全史 proven
 D254 に従い、land は `locked_main != tested_tip` のときだけ lock を解放して全史 provenance 監査を自ら走らせ、480 秒以内の rc=0 を必須とする。赤は `RC_PROVENANCE = 29` で main を 1 bit も変えず拒否し、CLI flag・環境変数・警告化の逃がし道を作らない。
 lock 再取得後に全検査をやり直し、`tip_sha` / `checker_blob_sha` / `executed_bytes_sha` / `returncode` を束縛した receipt を lock 内で再照合する。`already-landed` の no-op と active fold transaction の recovery では監査を起動しない。
 """
+DEV_WAVE_DW_C01_SECTION_LITERAL = """## DW-C01 — 実測で是正した作法
+
+`DW-O01`/`DW-O08`/`DW-O17`/`DW-O20` に優先する。
+- `--lane`は`--stage consult`専用。他段はrc=2で落ちる。
+- 待ち手はpid file実在後に張る。先行は子の生存中でも即戻る。
+- 隔離worktreeのdetachはrunnerとlauncherの`.sh`へ外出しする。定型はguardが拒む。
+- 複数起点の判別は全隣接区間へ異なる正値を入れる。
+- 変異harnessはbaseline緑必須。既存赤は`--deselect`で外し根拠を台帳へ書く。
+- submoduleは`git -c protocol.file.allow=always submodule update --init --recursive`。素は拒否、再帰なしはpreflight rc=2。
+- 呼出し規約を変える取込は、両親の変更行が非競合でも全呼出しを数える。
+- 段6のfixも受理・拒否の含意の向きを2文へ分け、通る正例を添える。
+- mergeは親。子は競合解決だけ、`add`とcommitも親。
+- 子のWeb検索を禁じる。成果物が全損する。
+"""
 DEV_WAVE_EXACT_VISIBLE_SECTIONS = {
     (".claude/commands/dev-wave.md", "入力と開始"):
         DEV_WAVE_COMMAND_START_SECTION_LITERAL,
@@ -444,6 +457,8 @@ DEV_WAVE_EXACT_VISIBLE_SECTIONS = {
         DEV_WAVE_SELF_ROUTING_SECTION_LITERAL,
     ("docs/dev-wave/operations.md", "DW-O25 — ff-only land の全史 provenance 関門"):
         DEV_WAVE_DW_O25_SECTION_LITERAL,
+    ("docs/dev-wave/core.md", "DW-C01 — 実測で是正した作法"):
+        DEV_WAVE_DW_C01_SECTION_LITERAL + "\n",
 }
 
 CODEX_DEV_WAVE_SKILL_LITERALS = (
@@ -567,7 +582,7 @@ DIRECT_MAIN_FF_COMMAND = re.compile(
 
 REQUIRED_REFERENCE_SECTIONS = {
     "docs/dev-wave/core.md": {
-        "DW-C00", "DW-STOP", "DW-S01", "DW-G01", "DW-G02",
+        "DW-C00", "DW-C01", "DW-STOP", "DW-S01", "DW-G01", "DW-G02",
         "DW-G03", "DW-G04", "DW-G05", "DW-S04", "DW-S07",
         "DW-S08", "DW-S09", "DW-CTX",
     },
@@ -695,6 +710,7 @@ CONDITION_DISPATCH_CONTRACT.update({
     "21": _pairs(_CORE, "DW-CTX"),
     "22": _pairs(_CORE, "DW-CTX"),
     "24": _pairs(_CORE, "DW-C00"),
+    "26": _pairs(_CORE, "DW-C01"),
 })
 CONDITION_TRIGGER_CONTRACT = {
     "01": "codex subprocess を起動する直前",
@@ -721,6 +737,7 @@ CONDITION_TRIGGER_CONTRACT = {
     "23": "local main を取り込む直前",
     "24": "背景 producer・待ち手の生成 / 再利用 / 停止、通知処理、待ち条件作成の直前",
     "25": "main を進める land を起動する直前",
+    "26": "起動/待機/検査/submodule/取込/fix前",
 }
 
 D2_ROLLBACK_STRUCTURE = re.compile(
@@ -4504,15 +4521,15 @@ def _check_dev_wave_reasoning_effort_pins(
         ),
         (
             "DW-S06-A",
-            "high",
-            DEV_WAVE_DW_S06_A_REASONING_HIGH_SENTENCE,
-            DEV_WAVE_DW_S06_A_REASONING_HIGH_FINDING,
+            "max",
+            DEV_WAVE_DW_S06_A_REASONING_MAX_SENTENCE,
+            DEV_WAVE_DW_S06_A_REASONING_MAX_FINDING,
         ),
         (
             "DW-S06-C",
-            "high",
-            DEV_WAVE_DW_S06_C_REASONING_HIGH_SENTENCE,
-            DEV_WAVE_DW_S06_C_REASONING_HIGH_FINDING,
+            "max",
+            DEV_WAVE_DW_S06_C_REASONING_MAX_SENTENCE,
+            DEV_WAVE_DW_S06_C_REASONING_MAX_FINDING,
         ),
     ):
         sections = _reference_id_sections(visible_workers_text, section_id)

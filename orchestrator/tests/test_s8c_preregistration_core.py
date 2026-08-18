@@ -53,13 +53,20 @@ LEGACY_CRLF_CONTRACT_POINTER = "/conditions/0/consumer_requirement/path"
 FIELD_NAMES = (
     "累積ベンチ実時間の総上限と arm ごと・holdout ごとの上限",
     "env_tag (実測環境)",
-    "対象別 between-run floor (H1 / H2)",
+    "反復単位対比の判定パラメータ (H1 / H2: n・平均差の下限・差の標本 SD の上限)",
     "master_seed",
     "検定 4 点 (n / 検定単位 / 検定力 / 総予算)",
     "未既知性再確認の証跡 (a) 検索対象 dir 一覧 / (b) 検索式 / (c) 一致 0 件の出力 hash / (d) positive control の hit 数 / (e) 確認者",
     "swapped 対応表の固定日時と bytes hash",
     "実走前に確定する 6 cell manifest (trial id、arm、holdout、campaign id)",
     "実行責任者・開始時刻",
+)
+ITERATION_CONTRAST_FIELD = FIELD_NAMES[2]
+VALID_ITERATION_CONTRAST_JSON = (
+    '{"H1":{"delta_min":1,"direction":"on-minus-off","n":2,'
+    '"sd_max":0,"unit":"ops_per_second"},'
+    '"H2":{"delta_min":1,"direction":"on-minus-off","n":2,'
+    '"sd_max":0,"unit":"ops_per_second"}}'
 )
 
 
@@ -92,6 +99,26 @@ def _markdown(*, filled: bool = False, condition_word: str = "保証") -> bytes:
         "freeze と全述語の conjunction。approval 宣言物は置かない。\n\n"
         "## 7. 全件報告\n本文 epsilon。\n"
     ).encode("utf-8")
+
+
+def _markdown_with_iteration_contrast(value: str) -> bytes:
+    return _markdown().replace(
+        f"|{ITERATION_CONTRAST_FIELD}|未記入|".encode(),
+        f"|{ITERATION_CONTRAST_FIELD}|`{value}`|".encode(),
+    )
+
+
+def _valid_iteration_contrast() -> dict[str, object]:
+    return json.loads(VALID_ITERATION_CONTRAST_JSON)
+
+
+def _canonical_json(value: object) -> str:
+    return json.dumps(
+        value,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    )
 
 
 def _git(root: Path, *args: str, input_bytes: bytes | None = None) -> str:
@@ -582,7 +609,7 @@ def test_normalization_v2_conformance_corpus() -> None:
             "1. 条件一の先頭句を保証する。   この継続行".encode(),
         ).replace("本文 **alpha**。".encode(), "本文     alpha。".encode()),
     }
-    field_hash = "4d082de6c6a19691dd8bad27127e9ebb03fdacc500aab555310c7883b7ba2635"
+    field_hash = "8ad36ad81439089be797c43133ce19b6082c0a9a3e21f6ead43b079f4c22107e"
     condition_hash = "c2427eb7c76956a94e495ab32bb7d2c41b3dd14fb9b7b025e95370dbe7caf967"
     normative_hashes = {
         "base": "f691f266877b5b4eb9f3339e4942b41176a231851c42d840d738eafb82917d5a",
@@ -642,7 +669,7 @@ def test_evidence_contract_hash_is_semantic_canonical_json() -> None:
 
 
 def test_contract_path_inventory_has_expected_count() -> None:
-    assert len(EVIDENCE_CONTRACT_PATH_CASES) == 39
+    assert len(EVIDENCE_CONTRACT_PATH_CASES) == 40
 
 
 @pytest.mark.parametrize(
@@ -766,17 +793,17 @@ def test_evidence_contract_hash_rejects_crlf_path_controls(
     [
         pytest.param(
             "\x00",
-            "8569c023aeb473fd4a02078ff392445af4174a70accd63efee70351460d0685c",
+            "e72b5b12d12c570bb13a7407024e921959023371f08b3671f58c32de83c911cc",
             id="nul",
         ),
         pytest.param(
             "\r",
-            "8401901107438f127bc164bfe3fc754f108bcdc19cb2af198c93e1cec0a29768",
+            "e1b6e7f5b33ce38d201c86efd548f07e57e7e59198ec1406913c43d1f8aec436",
             id="cr",
         ),
         pytest.param(
             "\n",
-            "8cec35e8879b6b611ee2c1afcf80cfca2f0095c203dc0b17eb6aba158d18998a",
+            "83eb67e76235cc292aab2f854b54bfcc8d1b461dc2d96febf4c81d55c5eace55",
             id="lf",
         ),
     ],
@@ -1157,7 +1184,7 @@ def test_evidence_contract_hash_preserves_canonicalization_reason_before_crlf(
 
 def test_current_evidence_contract_hash_is_frozen() -> None:
     assert M.evidence_contract_sha256(EVIDENCE_CONTRACT_FILE.read_bytes()) == (
-        "6944a0b0eed75917c9d489dd43c3b58e637f3d85b97203d1dc60d2cf96fbdf29"
+        "c626566ea79eaaf6f5a958b3f418d5995b044d06edaac33fe012c29e8218997c"
     )
 
 
@@ -1216,6 +1243,245 @@ def test_condition_order_and_continuation_are_part_of_hash() -> None:
 )
 def test_parser_rejects_numbering_fence_reference_definition_and_html(mutation, reason) -> None:
     _assert_reason(reason, M.parse_preregistration_markdown, mutation(_markdown()))
+
+
+def test_section5_iteration_contrast_canonical_value_is_filled() -> None:
+    contract = M.parse_preregistration_markdown(
+        _markdown_with_iteration_contrast(VALID_ITERATION_CONTRAST_JSON)
+    )
+    finding = next(
+        item
+        for item in contract.section5_findings
+        if item.name == ITERATION_CONTRAST_FIELD
+    )
+    assert finding.status is M.FieldStatus.FILLED
+    assert finding.reason_code == "canonical-json"
+    assert contract.section5_value_violations == ()
+
+
+@pytest.mark.parametrize(
+    ("mutation", "path", "code"),
+    [
+        pytest.param(lambda value: [1], "", "root-type", id="root-type"),
+        pytest.param(
+            lambda value: {"H1": value["H1"]},
+            "",
+            "root-keys",
+            id="root-keys-missing",
+        ),
+        pytest.param(
+            lambda value: {**value, "H3": value["H1"]},
+            "",
+            "root-keys",
+            id="root-keys-extra",
+        ),
+        pytest.param(
+            lambda value: {**value, "H1": [1]},
+            "H1",
+            "block-type",
+            id="block-type",
+        ),
+        pytest.param(
+            lambda value: {
+                **value,
+                "H1": {
+                    key: item for key, item in value["H1"].items() if key != "unit"
+                },
+            },
+            "H1",
+            "block-keys",
+            id="block-keys-missing",
+        ),
+        pytest.param(
+            lambda value: {
+                **value,
+                "H1": {**value["H1"], "extra": 0},
+            },
+            "H1",
+            "block-keys",
+            id="block-keys-extra",
+        ),
+        pytest.param(
+            lambda value: {**value, "H1": {**value["H1"], "n": True}},
+            "H1.n",
+            "n-type",
+            id="n-bool",
+        ),
+        pytest.param(
+            lambda value: {**value, "H1": {**value["H1"], "n": 2.0}},
+            "H1.n",
+            "n-type",
+            id="n-float",
+        ),
+        pytest.param(
+            lambda value: {**value, "H1": {**value["H1"], "n": 1}},
+            "H1.n",
+            "n-range",
+            id="n-range",
+        ),
+        pytest.param(
+            lambda value: {
+                **value,
+                "H1": {**value["H1"], "delta_min": "1"},
+            },
+            "H1.delta_min",
+            "delta-min-type",
+            id="delta-min-type",
+        ),
+        pytest.param(
+            lambda value: {**value, "H1": {**value["H1"], "delta_min": 0}},
+            "H1.delta_min",
+            "delta-min-range",
+            id="delta-min-zero",
+        ),
+        pytest.param(
+            lambda value: {**value, "H1": {**value["H1"], "delta_min": -0.0}},
+            "H1.delta_min",
+            "delta-min-range",
+            id="delta-min-negative-zero",
+        ),
+        pytest.param(
+            lambda value: {**value, "H1": {**value["H1"], "sd_max": "0"}},
+            "H1.sd_max",
+            "sd-max-type",
+            id="sd-max-type",
+        ),
+        pytest.param(
+            lambda value: {**value, "H1": {**value["H1"], "sd_max": -1}},
+            "H1.sd_max",
+            "sd-max-range",
+            id="sd-max-negative",
+        ),
+        pytest.param(
+            lambda value: {**value, "H1": {**value["H1"], "unit": 1}},
+            "H1.unit",
+            "unit-type",
+            id="unit-type",
+        ),
+        pytest.param(
+            lambda value: {**value, "H1": {**value["H1"], "unit": "   "}},
+            "H1.unit",
+            "unit-empty",
+            id="unit-empty",
+        ),
+        pytest.param(
+            lambda value: {**value, "H1": {**value["H1"], "direction": [1]}},
+            "H1.direction",
+            "direction-type",
+            id="direction-type",
+        ),
+        pytest.param(
+            lambda value: {**value, "H1": {**value["H1"], "direction": "   "}},
+            "H1.direction",
+            "direction-empty",
+            id="direction-empty",
+        ),
+    ],
+)
+def test_section5_iteration_contrast_value_violations_are_structured(
+    mutation, path: str, code: str
+) -> None:
+    value = mutation(_valid_iteration_contrast())
+    contract = M.parse_preregistration_markdown(
+        _markdown_with_iteration_contrast(_canonical_json(value))
+    )
+    finding = next(
+        item
+        for item in contract.section5_findings
+        if item.name == ITERATION_CONTRAST_FIELD
+    )
+    assert finding.status is M.FieldStatus.FILLED
+    assert contract.section5_value_violations == (
+        M.Section5ValueViolation(ITERATION_CONTRAST_FIELD, path, code),
+    )
+
+
+def test_section5_iteration_contrast_sd_negative_zero_is_accepted() -> None:
+    value = _valid_iteration_contrast()
+    value["H1"]["sd_max"] = -0.0
+    contract = M.parse_preregistration_markdown(
+        _markdown_with_iteration_contrast(_canonical_json(value))
+    )
+    finding = next(
+        item
+        for item in contract.section5_findings
+        if item.name == ITERATION_CONTRAST_FIELD
+    )
+    assert finding.status is M.FieldStatus.FILLED
+    assert contract.section5_value_violations == ()
+
+
+def test_section5_iteration_contrast_reports_all_value_violations() -> None:
+    value = _valid_iteration_contrast()
+    value["H1"]["n"] = True
+    value["H1"]["unit"] = " "
+    value["H2"]["delta_min"] = 0
+    value["H2"]["direction"] = []
+    contract = M.parse_preregistration_markdown(
+        _markdown_with_iteration_contrast(_canonical_json(value))
+    )
+    assert contract.section5_value_violations == (
+        M.Section5ValueViolation(ITERATION_CONTRAST_FIELD, "H1.n", "n-type"),
+        M.Section5ValueViolation(ITERATION_CONTRAST_FIELD, "H1.unit", "unit-empty"),
+        M.Section5ValueViolation(
+            ITERATION_CONTRAST_FIELD, "H2.delta_min", "delta-min-range"
+        ),
+        M.Section5ValueViolation(
+            ITERATION_CONTRAST_FIELD, "H2.direction", "direction-type"
+        ),
+    )
+
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        VALID_ITERATION_CONTRAST_JSON.replace('"delta_min":1', '"delta_min":1e309', 1),
+        VALID_ITERATION_CONTRAST_JSON.replace('"delta_min":1', '"delta_min":NaN', 1),
+    ],
+    ids=["infinity", "nan"],
+)
+def test_section5_iteration_contrast_nonfinite_values_stay_in_existing_invalid_path(
+    value: str,
+) -> None:
+    contract = M.parse_preregistration_markdown(_markdown_with_iteration_contrast(value))
+    finding = next(
+        item
+        for item in contract.section5_findings
+        if item.name == ITERATION_CONTRAST_FIELD
+    )
+    assert finding.status is M.FieldStatus.INVALID
+    assert finding.reason_code == "invalid-json"
+    assert contract.section5_value_violations == ()
+
+
+def test_section5_iteration_contrast_violations_reach_parse_at(tmp_path: Path) -> None:
+    root = _init_repo(tmp_path)
+    _write(
+        root,
+        M.SOURCE_PATH,
+        _markdown_with_iteration_contrast(
+            _canonical_json({"H1": [1], "H2": _valid_iteration_contrast()["H2"]})
+        ),
+    )
+    head = _commit(root, "add section5 iteration contrast value")
+    contract = M.parse_preregistration_at(root, head)
+    assert contract.section5_value_violations == (
+        M.Section5ValueViolation(ITERATION_CONTRAST_FIELD, "H1", "block-type"),
+    )
+
+
+def test_section5_validator_field_missing_is_reported_without_exception(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        M,
+        "_SECTION5_VALUE_VALIDATORS",
+        {"missing validator field": M._validate_iteration_contrast_parameters},
+    )
+    contract = M.parse_preregistration_markdown(_markdown())
+    assert contract.section5_value_violations == (
+        M.Section5ValueViolation("missing validator field", "", "validator-field-missing"),
+    )
 
 
 def test_section5_placeholder_and_arbitrary_nonempty_are_not_filled() -> None:
@@ -2013,8 +2279,8 @@ def test_matching_decider_version_preserves_activation_conjunction(tmp_path: Pat
     assert report.effective is True
 
 
-def test_decider_version_binds_cross_module_semantics_to_v2() -> None:
-    assert M.DECIDER_VERSION == "s8c-decider/v2"
+def test_decider_version_binds_cross_module_semantics_to_v3() -> None:
+    assert M.DECIDER_VERSION == "s8c-decider/v3"
 
 
 def test_mismatched_decider_version_is_not_effective(tmp_path: Path) -> None:
@@ -2064,7 +2330,7 @@ def test_invalid_running_decider_version_cannot_activate(
     report = M._activation_report_at_for_test(
         root, head, registry=_Registry(M.PredicateStatus.SATISFIED)
     )
-    assert report.decider_version == "s8c-decider/v2"
+    assert report.decider_version == "s8c-decider/v3"
     assert report.decider_version_matches is False
     assert report.decider_version_reason_code == "decider-version-mismatch"
     assert report.effective is False
@@ -2087,7 +2353,7 @@ def test_valid_hostile_str_subclass_cannot_fake_decider_version_match(
     report = M._activation_report_at_for_test(
         root, head, registry=_Registry(M.PredicateStatus.SATISFIED)
     )
-    assert report.decider_version == "s8c-decider/v2"
+    assert report.decider_version == "s8c-decider/v3"
     assert report.decider_version_matches is False
     assert report.decider_version_reason_code == "decider-version-mismatch"
     assert report.effective is False

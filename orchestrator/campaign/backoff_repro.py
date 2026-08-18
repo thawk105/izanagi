@@ -113,6 +113,7 @@ def run_workload(tag: str, log=print) -> dict:
     s = run_campaign(cfg, gs, perf, ENV_TAG, CLK, numactl=NUMA, log=log,
                      authorization_contract=env_contract.authorize(ENV_TAG),
                      build_context=build_context,
+                     declared_use_class="official",
                      capability_resolver=capability_resolver)
 
     layout = campaign_layout(str(ident.campaign_id(cfg)))

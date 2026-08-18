@@ -306,7 +306,7 @@ def _verified_non_certifying_receipt(
         ["git", "-C", str(repo), "rev-parse", "HEAD"], text=True,
     ).strip()
     value = {
-        "schema_version": s8c_acceptance_receipt.SCHEMA_VERSION,
+        "schema_version": s8c_acceptance_receipt.LEGACY_SCHEMA_VERSION,
         "manifest_path": manifest_path,
         "manifest_sha256": manifest_sha,
         "prereg_commit": head,
@@ -319,7 +319,7 @@ def _verified_non_certifying_receipt(
         "lifecycle_prefix_sha256": lifecycle_sha,
         "certifying": False,
         "non_certifying_reason_codes": sorted(
-            s8c_acceptance_receipt.MANDATORY_NON_CERTIFYING_REASONS
+            s8c_acceptance_receipt.LEGACY_MANDATORY_NON_CERTIFYING_REASONS
         ),
         "trials": sorted(trial_rows, key=lambda item: item["trial_id"]),
     }
@@ -1056,8 +1056,15 @@ def certifying_completeness_chain(tmp_path: Path, monkeypatch):
 
     producer = SimpleNamespace(
         MAX_APPROVED_GENERATIONS=2,
-        WORKLOADS={workload: workload_flags},
+        WORKLOADS={
+            workload: {
+                "ycsb": workload_flags,
+                "records": 100_000,
+                "threads": 4,
+            }
+        },
     )
+    producer.resolve_workload_entry = lambda name: producer.WORKLOADS[name]
     monkeypatch.setattr(
         autonomous_trial_completeness, "_producer_module", lambda: producer,
     )
@@ -1094,6 +1101,7 @@ def certifying_completeness_chain(tmp_path: Path, monkeypatch):
         "campaign_root": str(campaign_root),
         "workload": workload,
         "workload_flags": workload_flags,
+        "perf_config_scale": {"records": 100_000, "threads": 4},
         "descriptor": descriptor,
         "descriptor_binding": descriptor_binding,
     }
@@ -1198,7 +1206,7 @@ def test_completeness_reads_contract_from_v2_authority_and_identity_excludes_it(
     campaign_ids = {
         str(producer.ident.campaign_id(producer._campaign_for(
             workload=workload,
-            workload_flags=workload_flags,
+            entry=workload_flags,
             descriptor=descriptor,
             descriptor_record=descriptor_binding,
             trial_id="fixture",

@@ -60,13 +60,16 @@ class ReasonCode(str, enum.Enum):
     TRIAL_REGISTRY_CAPABILITY_ABSENT = "trial-registry-capability-absent"
     ARM_BINDING_DECLARED_ONLY = "arm-binding-declared-only"
     ARM_BINDING_PROOF_UNDEFINED = "arm-binding-proof-undefined"
+    ARM_BINDING_CONSUMER_UNREACHABLE = "arm-binding-consumer-unreachable"
     MANIFEST_REGISTRY_PROOF_UNDEFINED = "manifest-registry-proof-undefined"
     CRASH_POLICY_CELL_PARTIAL = "crash-policy-cell-partial"
     RESTART_GUARD_ABSENT = "restart-guard-absent"
     SCHEDULE_SCHEMA_ABSENT = "schedule-schema-absent"
     SCHEDULE_CONSUMER_UNDEFINED = "schedule-consumer-undefined"
+    SCHEDULE_CONSUMER_UNREACHABLE = "schedule-consumer-unreachable"
     BUDGET_CONSUMER_UNDEFINED = "budget-consumer-contract-undefined"
     FLOOR_JUDGE_CONSUMER_UNDEFINED = "floor-judge-contract-undefined"
+    RESULT_JUDGE_CONSUMER_INCOMPLETE = "result-judge-consumer-incomplete"
     PREREG_BINDING_CAPABILITY_ABSENT = "prereg-binding-capability-absent"
     PREREG_BINDING_PROOF_UNDEFINED = "prereg-binding-proof-undefined"
     LAYER3_PRODUCER_UNREACHABLE = "layer3-producer-unreachable"
@@ -308,6 +311,65 @@ def _called_names(node: ast.AST) -> set[str]:
     return names
 
 
+def _live_called_names(node: ast.FunctionDef | ast.AsyncFunctionDef) -> set[str]:
+    names: set[str] = set()
+    for current in _live_nodes(node):
+        if not isinstance(current, ast.Call):
+            continue
+        function = current.func
+        if isinstance(function, ast.Name):
+            names.add(function.id)
+        elif isinstance(function, ast.Attribute):
+            names.add(function.attr)
+    return names
+
+
+def _returns_joined_string_using(
+    node: ast.FunctionDef | ast.AsyncFunctionDef,
+    required_names: set[str],
+) -> bool:
+    assignments: dict[str, list[tuple[int, int, ast.AST]]] = {}
+    returns: list[ast.Return] = []
+    for current in _live_nodes(node):
+        if isinstance(current, ast.Assign):
+            targets = [target.id for target in current.targets if isinstance(target, ast.Name)]
+            for target in targets:
+                assignments.setdefault(target, []).append(
+                    (current.lineno, current.col_offset, current.value)
+                )
+        elif isinstance(current, ast.AnnAssign) and isinstance(current.target, ast.Name):
+            if current.value is not None:
+                assignments.setdefault(current.target.id, []).append(
+                    (current.lineno, current.col_offset, current.value)
+                )
+        elif isinstance(current, ast.Return):
+            returns.append(current)
+
+    def joined_string_uses_required_names(value: ast.AST) -> bool:
+        return isinstance(value, ast.JoinedStr) and required_names <= {
+            child.id
+            for child in ast.walk(value)
+            if isinstance(child, ast.Name) and isinstance(child.ctx, ast.Load)
+        }
+
+    for returned in returns:
+        value = returned.value
+        if value is not None and joined_string_uses_required_names(value):
+            return True
+        if not isinstance(value, ast.Name):
+            continue
+        preceding = [
+            item
+            for item in assignments.get(value.id, ())
+            if (item[0], item[1]) < (returned.lineno, returned.col_offset)
+        ]
+        if preceding and joined_string_uses_required_names(
+            max(preceding, key=lambda item: item[:2])[2]
+        ):
+            return True
+    return False
+
+
 def _strings(node: ast.AST) -> set[str]:
     return {
         child.value
@@ -543,6 +605,12 @@ def _live_nodes(node: ast.AST) -> list[ast.AST]:
         for statement in statements:
             visit(statement)
             if isinstance(statement, (ast.Return, ast.Raise, ast.Continue, ast.Break)):
+                break
+            if (
+                isinstance(statement, ast.If)
+                and _literal_truth(statement.test) is True
+                and any(isinstance(child, ast.Return) for child in statement.body)
+            ):
                 break
 
     def visit(current: ast.AST, *, root: bool = False) -> None:
@@ -1445,6 +1513,94 @@ def _evaluate_c01(probe: _ConditionProbe) -> core.PredicateResult:
     )
 
 
+def _evaluate_c02(probe: _ConditionProbe) -> core.PredicateResult:
+    registry = probe.python_kind("trial_registry")
+    if registry is None:
+        return _result(
+            probe,
+            core.PredicateStatus.EVIDENCE_UNDEFINED,
+            ReasonCode.TRIAL_REGISTRY_CAPABILITY_ABSENT,
+        )
+    functions = _functions(registry)
+    required_calls = {
+        "bind_trial_arm": {"assert_issued_trial_binding", "resolve_arm_input"},
+        "assert_issued_trial_arm_execution": {
+            "assert_issued_trial_binding",
+            "assert_issued_resolved_arm_input",
+        },
+        "assert_rederived_trial_arm_execution": {
+            "assert_issued_trial_arm_execution",
+            "bind_trial_arm",
+        },
+        "_expected_registered_arm_execution_record": {"resolve_arm_input"},
+        "assert_trial_registry_acceptance": {
+            "_expected_registered_arm_execution_record",
+            "validate_execution_input_descriptor",
+            "assert_execution_digest_chain",
+        },
+    }
+    for name, expected in required_calls.items():
+        function = functions.get(name)
+        if function is None:
+            return _result(
+                probe,
+                core.PredicateStatus.UNSATISFIED,
+                ReasonCode.ARM_BINDING_CONSUMER_UNREACHABLE,
+            )
+        if not expected <= _live_called_names(function):
+            return _result(
+                probe,
+                core.PredicateStatus.UNSATISFIED,
+                ReasonCode.ARM_BINDING_CONSUMER_UNREACHABLE,
+            )
+
+    binding_fields = {
+        current.value
+        for current in _live_nodes(functions["_expected_registered_arm_execution_record"])
+        if isinstance(current, ast.Constant) and isinstance(current.value, str)
+    }
+    acceptance_fields = {
+        current.value
+        for current in _live_nodes(functions["assert_trial_registry_acceptance"])
+        if isinstance(current, ast.Constant) and isinstance(current.value, str)
+    }
+    if not {
+        "input_schema_version",
+        "content_digest_sha256",
+        "arm_binding_digest_sha256",
+    } <= binding_fields or "arm_execution" not in acceptance_fields:
+        return _result(
+            probe,
+            core.PredicateStatus.UNSATISFIED,
+            ReasonCode.ARM_BINDING_CONSUMER_UNREACHABLE,
+        )
+
+    producer = probe.python_kind("proposal_namespace_producer")
+    producer_functions = _functions(producer) if producer is not None else {}
+    namespace = producer_functions.get("_invocation_namespace")
+    producer_consumers = ("_invocation_id", "_run_workload", "run_trial")
+    namespace_binds_arm_and_digest = (
+        namespace is not None
+        and _returns_joined_string_using(namespace, {"arm", "digest"})
+    )
+    consumers_use_namespace = all(
+        name in producer_functions
+        and "_invocation_namespace" in _live_called_names(producer_functions[name])
+        for name in producer_consumers
+    )
+    if not namespace_binds_arm_and_digest or not consumers_use_namespace:
+        return _result(
+            probe,
+            core.PredicateStatus.UNSATISFIED,
+            ReasonCode.ARM_BINDING_CONSUMER_UNREACHABLE,
+        )
+    return _result(
+        probe,
+        core.PredicateStatus.EVIDENCE_UNDEFINED,
+        ReasonCode.COMPLETION_PROOF_NOT_MACHINE_CHECKABLE,
+    )
+
+
 def _evaluate_c04(probe: _ConditionProbe) -> core.PredicateResult:
     workload_path = probe.requirement("workload_supervisor").path
     tree = probe.python_kind("workload_supervisor")
@@ -1472,6 +1628,118 @@ def _evaluate_c04(probe: _ConditionProbe) -> core.PredicateResult:
     )
 
 
+def _evaluate_c05(probe: _ConditionProbe) -> core.PredicateResult:
+    if probe.read_kind("schedule_artifact") is None:
+        return _result(
+            probe,
+            core.PredicateStatus.EVIDENCE_UNDEFINED,
+            ReasonCode.SCHEDULE_SCHEMA_ABSENT,
+        )
+
+    consumer = probe.python_kind("schedule_consumer")
+    if consumer is None:
+        return _result(
+            probe,
+            core.PredicateStatus.EVIDENCE_UNDEFINED,
+            ReasonCode.SCHEDULE_CONSUMER_UNDEFINED,
+        )
+
+    functions = _functions(consumer)
+    required_functions = {
+        "validate_authority",
+        "search_space_digest",
+        "initial_state_digest",
+        "regenerate",
+        "load_schedule",
+        "verify_exact_schedule_bytes",
+        "verify_shared_search_space_and_initial_state",
+        "verify_schedule",
+        "consume_schedule",
+    }
+    if not required_functions <= functions.keys():
+        return _result(
+            probe,
+            core.PredicateStatus.UNSATISFIED,
+            ReasonCode.SCHEDULE_CONSUMER_UNDEFINED,
+        )
+
+    required_calls = {
+        "verify_schedule": {
+            "verify_exact_schedule_bytes",
+            "verify_shared_search_space_and_initial_state",
+            "validate_authority",
+        },
+        "consume_schedule": {"verify_schedule"},
+        "verify_exact_schedule_bytes": {"regenerate"},
+    }
+    for name, expected in required_calls.items():
+        if not expected <= _live_called_names(functions[name]):
+            return _result(
+                probe,
+                core.PredicateStatus.UNSATISFIED,
+                ReasonCode.SCHEDULE_CONSUMER_UNREACHABLE,
+            )
+
+    field_literals = {
+        current.value
+        for name in required_functions
+        for current in _live_nodes(functions[name])
+        if isinstance(current, ast.Constant) and isinstance(current.value, str)
+    }
+    if not {
+        "schema_version",
+        "master_seed",
+        "cells",
+        "schedule_index",
+        "arm",
+        "holdout",
+        "search_space_sha256",
+        "initial_state_sha256",
+    } <= field_literals:
+        return _result(
+            probe,
+            core.PredicateStatus.UNSATISFIED,
+            ReasonCode.SCHEDULE_CONSUMER_UNDEFINED,
+        )
+
+    workload_path = "orchestrator/campaign/p3_autonomous_workload_trial.py"
+    try:
+        workload = probe.python_kind("workload_supervisor")
+    except EvidenceContractError as exc:
+        if exc.reason_code != "contract-artifact-kind":
+            raise
+        # C05 declares the two reachable evidence edges, not a third artifact
+        # kind.  Resolve the named production supervisor path directly for
+        # the reachability part of this static check.
+        workload = probe.python_path(workload_path)
+    if workload is None or "run_trial" not in _functions(workload):
+        return _result(
+            probe,
+            core.PredicateStatus.UNSATISFIED,
+            ReasonCode.SCHEDULE_CONSUMER_UNREACHABLE,
+        )
+
+    graph = _ReachabilityExplorer(probe).walk((workload_path, "run_trial"))
+    consumer_path = probe.requirement("schedule_consumer").path
+    required_targets = {
+        (consumer_path, "verify_schedule"),
+        (consumer_path, "consume_schedule"),
+        (consumer_path, "load_schedule"),
+    }
+    if not required_targets <= graph.calls:
+        return _result(
+            probe,
+            core.PredicateStatus.UNSATISFIED,
+            ReasonCode.SCHEDULE_CONSUMER_UNREACHABLE,
+        )
+
+    return _result(
+        probe,
+        core.PredicateStatus.EVIDENCE_UNDEFINED,
+        ReasonCode.COMPLETION_PROOF_NOT_MACHINE_CHECKABLE,
+    )
+
+
 def _evaluate_c09(probe: _ConditionProbe) -> core.PredicateResult:
     producer_path = probe.requirement("layer3_producer").path
     producer = probe.python_kind("layer3_producer")
@@ -1487,7 +1755,7 @@ def _evaluate_c09(probe: _ConditionProbe) -> core.PredicateResult:
         return _result(probe, core.PredicateStatus.UNSATISFIED, ReasonCode.LAYER3_PRODUCER_UNREACHABLE)
     registry = probe.python_kind("trial_registry")
     functions = _functions(registry) if registry is not None else {}
-    accept = functions.get("accept_trial")
+    accept = functions.get("assert_trial_registry_acceptance")
     if accept is None or "assert_campaign_layer3_chain" not in _called_names(accept):
         return _result(probe, core.PredicateStatus.UNSATISFIED, ReasonCode.FORMAL_ACCEPTANCE_LAYER3_ABSENT)
     strings = _strings(accept)
@@ -1529,7 +1797,11 @@ def _evaluate_c10(probe: _ConditionProbe) -> core.PredicateResult:
     ):
         return _result(probe, core.PredicateStatus.UNSATISFIED, ReasonCode.CROSS_BINDING_VERIFIER_INCOMPLETE)
     registry = probe.python_kind("trial_registry")
-    accept = _functions(registry).get("accept_trial") if registry is not None else None
+    accept = (
+        _functions(registry).get("assert_trial_registry_acceptance")
+        if registry is not None
+        else None
+    )
     if accept is None or "verify_s8c_cross_binding" not in _called_names(accept):
         return _result(probe, core.PredicateStatus.UNSATISFIED, ReasonCode.CROSS_BINDING_ACCEPTANCE_UNREACHABLE)
     return _result(
@@ -1645,8 +1917,696 @@ def _evaluate_c12(probe: _ConditionProbe) -> core.PredicateResult:
     )
 
 
+def _c07_string_sequence(value: ast.AST) -> tuple[str, ...] | None:
+    if not isinstance(value, (ast.Tuple, ast.List, ast.Set)):
+        return None
+    result: list[str] = []
+    for item in value.elts:
+        if not isinstance(item, ast.Constant) or type(item.value) is not str:
+            return None
+        result.append(item.value)
+    return tuple(result)
+
+
+def _c07_assignment_names(node: ast.stmt) -> set[str]:
+    if isinstance(node, ast.Assign):
+        targets = node.targets
+    elif isinstance(node, ast.AnnAssign):
+        targets = (node.target,)
+    else:
+        return set()
+    return {
+        target.id
+        for target in targets
+        if isinstance(target, ast.Name)
+    }
+
+
+def _c07_name_loads(node: ast.AST) -> set[str]:
+    return {
+        current.id
+        for current in ast.walk(node)
+        if isinstance(current, ast.Name) and isinstance(current.ctx, ast.Load)
+    }
+
+
+def _c07_contains_dict_key(node: ast.AST, key: str) -> bool:
+    return any(
+        isinstance(current, ast.Dict)
+        and any(
+            isinstance(item, ast.Constant) and item.value == key
+            for item in current.keys
+        )
+        for current in ast.walk(node)
+    )
+
+
+def _c07_returns_value(node: ast.FunctionDef | ast.AsyncFunctionDef) -> bool:
+    return any(
+        isinstance(current, ast.Return) and current.value is not None
+        for current in _live_nodes(node)
+    )
+
+
+def _c07_call_name(call: ast.Call) -> str | None:
+    if isinstance(call.func, ast.Name):
+        return call.func.id
+    if isinstance(call.func, ast.Attribute):
+        return call.func.attr
+    return None
+
+
+def _c07_call_value_is_consumed(
+    function: ast.FunctionDef | ast.AsyncFunctionDef,
+    call: ast.Call,
+) -> bool:
+    """Return whether a call result reaches a non-dead consumer in ``function``."""
+    return _c07_call_has_reachable_use(function, call)
+
+
+def _c07_parent_map(function: ast.FunctionDef | ast.AsyncFunctionDef) -> dict[int, ast.AST]:
+    parents: dict[int, ast.AST] = {}
+    for parent in ast.walk(function):
+        for child in ast.iter_child_nodes(parent):
+            parents[id(child)] = parent
+    return parents
+
+
+def _c07_assignment_targets(node: ast.AST) -> tuple[str, ...]:
+    if isinstance(node, ast.Assign):
+        targets = node.targets
+    elif isinstance(node, ast.AnnAssign):
+        targets = (node.target,)
+    else:
+        return ()
+    return tuple(
+        name
+        for target in targets
+        for name in sorted(_bound_names_in_target(target))
+    )
+
+
+def _c07_is_assignment_value(parent: ast.AST, child: ast.AST) -> bool:
+    if isinstance(parent, (ast.Assign, ast.AnnAssign)):
+        value = parent.value
+        return value is not None and any(current is child for current in ast.walk(value))
+    return False
+
+
+def _c07_is_call_argument(parent: ast.Call, child: ast.AST) -> bool:
+    return any(current is child for current in (*parent.args, *(item.value for item in parent.keywords)))
+
+
+def _c07_assignment_defines(node: ast.AST, name: str) -> bool:
+    return name in _c07_assignment_targets(node)
+
+
+def _c07_is_latest_definition(
+    function: ast.FunctionDef | ast.AsyncFunctionDef,
+    name: str,
+    assignment: ast.AST,
+    load: ast.Name,
+) -> bool:
+    load_position = (
+        getattr(load, "lineno", -1),
+        getattr(load, "col_offset", -1),
+    )
+    definitions = [
+        current
+        for current in _live_nodes(function)
+        if isinstance(current, (ast.Assign, ast.AnnAssign))
+        and _c07_assignment_defines(current, name)
+        and (
+            getattr(current, "lineno", -1),
+            getattr(current, "col_offset", -1),
+        ) < load_position
+    ]
+    if not definitions:
+        return False
+    latest = max(
+        definitions,
+        key=lambda current: (
+            getattr(current, "lineno", -1),
+            getattr(current, "col_offset", -1),
+        ),
+    )
+    return latest is assignment
+
+
+def _c07_load_reaches_sink(
+    function: ast.FunctionDef | ast.AsyncFunctionDef,
+    load: ast.Name,
+    parents: Mapping[int, ast.AST],
+    seen: set[tuple[str, int]],
+    *,
+    allow_return: bool = True,
+) -> bool:
+    current: ast.AST = load
+    while id(current) in parents:
+        parent = parents[id(current)]
+        if isinstance(parent, (ast.Assign, ast.AnnAssign)) and _c07_is_assignment_value(parent, current):
+            return any(
+                _c07_name_reaches_sink(
+                    function,
+                    name,
+                    parent,
+                    parents,
+                    seen,
+                    allow_return=allow_return,
+                )
+                for name in _c07_assignment_targets(parent)
+            )
+        if isinstance(parent, ast.NamedExpr) and parent.value is current:
+            if isinstance(parent.target, ast.Name):
+                return _c07_name_reaches_sink(
+                    function,
+                    parent.target.id,
+                    parent,
+                    parents,
+                    seen,
+                    allow_return=allow_return,
+                )
+        if isinstance(parent, ast.Call):
+            if _c07_is_call_argument(parent, current):
+                return True
+            if parent.func is current:
+                return True
+        if isinstance(parent, ast.Return):
+            return allow_return
+        if isinstance(parent, (ast.If, ast.While, ast.Assert, ast.Raise, ast.For, ast.AsyncFor)):
+            return True
+        if isinstance(parent, ast.Expr):
+            return False
+        current = parent
+    return False
+
+
+def _c07_name_reaches_sink(
+    function: ast.FunctionDef | ast.AsyncFunctionDef,
+    name: str,
+    assignment: ast.AST,
+    parents: Mapping[int, ast.AST],
+    seen: set[tuple[str, int]],
+    *,
+    allow_return: bool = True,
+) -> bool:
+    marker = (name, id(assignment))
+    if marker in seen:
+        return False
+    seen.add(marker)
+    assignment_line = getattr(assignment, "lineno", -1)
+    for current in _live_nodes(function):
+        if not isinstance(current, ast.Name) or current.id != name:
+            continue
+        if not isinstance(current.ctx, ast.Load) or getattr(current, "lineno", -1) <= assignment_line:
+            continue
+        if not _c07_is_latest_definition(function, name, assignment, current):
+            continue
+        if _c07_load_reaches_sink(
+            function,
+            current,
+            parents,
+            seen,
+            allow_return=allow_return,
+        ):
+            return True
+    return False
+
+
+def _c07_expression_reaches_check(
+    function: ast.FunctionDef | ast.AsyncFunctionDef,
+    expression: ast.AST,
+    parents: Mapping[int, ast.AST],
+    seen: set[tuple[str, int]],
+    *,
+    allow_return: bool = True,
+) -> bool:
+    """Trace a value to a comparison, condition, return, or call argument."""
+    current = expression
+    while id(current) in parents:
+        parent = parents[id(current)]
+        if isinstance(parent, (ast.Assign, ast.AnnAssign)) and _c07_is_assignment_value(parent, current):
+            return any(
+                _c07_name_reaches_sink(
+                    function,
+                    name,
+                    parent,
+                    parents,
+                    seen,
+                    allow_return=allow_return,
+                )
+                for name in _c07_assignment_targets(parent)
+            )
+        if isinstance(parent, ast.NamedExpr) and parent.value is current:
+            if isinstance(parent.target, ast.Name):
+                return _c07_name_reaches_sink(
+                    function,
+                    parent.target.id,
+                    parent,
+                    parents,
+                    seen,
+                    allow_return=allow_return,
+                )
+        if isinstance(parent, ast.Call):
+            if _c07_is_call_argument(parent, current):
+                return True
+            if parent.func is current:
+                return True
+        if isinstance(parent, ast.Compare):
+            return True
+        if isinstance(parent, ast.Return):
+            return allow_return
+        if isinstance(parent, (ast.If, ast.While, ast.Assert, ast.Raise, ast.For, ast.AsyncFor)):
+            return True
+        if isinstance(parent, ast.Expr):
+            return False
+        current = parent
+    return False
+
+
+def _c07_call_has_reachable_use(
+    function: ast.FunctionDef | ast.AsyncFunctionDef,
+    call: ast.Call,
+) -> bool:
+    parents = _c07_parent_map(function)
+    return _c07_expression_reaches_check(function, call, parents, set())
+
+
+def _c07_live_calls(
+    function: ast.FunctionDef | ast.AsyncFunctionDef,
+) -> tuple[ast.Call, ...]:
+    live = {id(node) for node in _live_nodes(function)}
+    return tuple(
+        node
+        for node in ast.walk(function)
+        if isinstance(node, ast.Call) and id(node) in live
+    )
+
+
+def _c07_reachable_functions(
+    tree: ast.Module,
+    start: str,
+) -> dict[str, ast.FunctionDef | ast.AsyncFunctionDef]:
+    functions = _functions(tree)
+    reached: set[str] = set()
+    pending = [start]
+    while pending:
+        name = pending.pop()
+        if name in reached or name not in functions:
+            continue
+        reached.add(name)
+        pending.extend(_live_called_names(functions[name]) & functions.keys())
+    return {
+        name: functions[name]
+        for name in reached
+        if name in functions
+    }
+
+
+_C07_FLOOR_FIELDS = frozenset(
+    {"path", "sha256", "env_tag", "measurement_head"}
+)
+_C07_FLOOR_ARTIFACTS = frozenset({"floor_protocol", "floor_source"})
+_C07_FLOOR_FIELD_ALIASES = {"frozen_at_head": "measurement_head"}
+
+
+def _c07_string_call_key(node: ast.Call) -> str | None:
+    if not node.args or not isinstance(node.args[0], ast.Constant):
+        return None
+    if type(node.args[0].value) is not str:
+        return None
+    if isinstance(node.func, ast.Attribute) and node.func.attr in {"get", "pop"}:
+        return node.args[0].value
+    if isinstance(node.func, ast.Name) and node.func.id in {"_first", "get_field"}:
+        return node.args[0].value
+    return None
+
+
+def _c07_field_key(node: ast.AST) -> str | None:
+    if isinstance(node, ast.Subscript):
+        slice_node = node.slice
+        if isinstance(slice_node, ast.Constant) and type(slice_node.value) is str:
+            return slice_node.value
+    if isinstance(node, ast.Call):
+        return _c07_string_call_key(node)
+    return None
+
+
+def _c07_live_constant_uses(
+    function: ast.FunctionDef | ast.AsyncFunctionDef,
+    values: frozenset[str],
+) -> set[str]:
+    parents = _c07_parent_map(function)
+    used: set[str] = set()
+    for node in _live_nodes(function):
+        if not isinstance(node, ast.Constant) or type(node.value) is not str:
+            continue
+        if node.value not in values:
+            continue
+        if _c07_expression_reaches_check(
+            function, node, parents, set(), allow_return=False
+        ):
+            used.add(node.value)
+    return used
+
+
+def _c07_floor_field_uses(
+    functions: Mapping[str, ast.FunctionDef | ast.AsyncFunctionDef],
+) -> set[str]:
+    used: set[str] = set()
+    for function in functions.values():
+        parents = _c07_parent_map(function)
+        for node in _live_nodes(function):
+            field = _c07_field_key(node)
+            field = _C07_FLOOR_FIELD_ALIASES.get(field, field)
+            if field in _C07_FLOOR_FIELDS and _c07_expression_reaches_check(
+                function, node, parents, set(), allow_return=False
+            ):
+                used.add(field)
+    return used
+
+
+def _c07_receipt_parameters(
+    function: ast.FunctionDef | ast.AsyncFunctionDef,
+) -> set[str]:
+    arguments = (
+        *function.args.posonlyargs,
+        *function.args.args,
+        *function.args.kwonlyargs,
+    )
+    if function.args.vararg is not None:
+        arguments += (function.args.vararg,)
+    if function.args.kwarg is not None:
+        arguments += (function.args.kwarg,)
+    return {
+        argument.arg
+        for argument in arguments
+        if any(token in argument.arg.lower() for token in ("receipt", "evidence", "floor"))
+    }
+
+
+def _evaluate_c07(probe: _ConditionProbe) -> core.PredicateResult:
+    """静的な C07 構造検査を行う。
+
+    動的 dispatch、実行時の例外経路、実 bytes と結果値の対応は静的に完全証明できないため、
+    構造と到達使用を検査しても証拠 undefined に留める。
+    """
+    requirement = probe.contract.consumer_requirement
+    expected_entrypoints = (
+        "verify_floor_bytes",
+        "judge",
+        "publish_result_table",
+    )
+    entrypoints = tuple(requirement.entrypoints)
+    result_requirement = probe.requirement("result_judge")
+    declared_chain = " -> ".join(expected_entrypoints)
+    if (
+        entrypoints != expected_entrypoints
+        or not any(
+            declared_chain in reachable
+            for reachable in result_requirement.reachable_from
+        )
+    ):
+        return _result(
+            probe,
+            core.PredicateStatus.UNSATISFIED,
+            ReasonCode.RESULT_JUDGE_CONSUMER_INCOMPLETE,
+        )
+    result_path = result_requirement.path
+    if result_path != requirement.path:
+        return _result(
+            probe,
+            core.PredicateStatus.UNSATISFIED,
+            ReasonCode.RESULT_JUDGE_CONSUMER_INCOMPLETE,
+        )
+    tree = probe.python_path(result_path)
+    if tree is None:
+        return _result(
+            probe,
+            core.PredicateStatus.UNSATISFIED,
+            ReasonCode.RESULT_JUDGE_CONSUMER_INCOMPLETE,
+        )
+    functions = _functions(tree)
+    public_functions = {name for name in functions if not name.startswith("_")}
+    if public_functions != set(entrypoints) or any(
+        name not in functions for name in entrypoints
+    ):
+        return _result(
+            probe,
+            core.PredicateStatus.UNSATISFIED,
+            ReasonCode.RESULT_JUDGE_CONSUMER_INCOMPLETE,
+        )
+    declared_names = []
+    for statement in tree.body:
+        if not isinstance(statement, ast.Assign):
+            continue
+        if not any(
+            isinstance(target, ast.Name) and target.id == "__all__"
+            for target in statement.targets
+        ):
+            continue
+        sequence = _c07_string_sequence(statement.value)
+        if sequence is not None:
+            declared_names.extend(sequence)
+    if tuple(declared_names) != expected_entrypoints:
+        return _result(
+            probe,
+            core.PredicateStatus.UNSATISFIED,
+            ReasonCode.RESULT_JUDGE_CONSUMER_INCOMPLETE,
+        )
+
+    verify = functions.get("verify_floor_bytes")
+    judge = functions.get("judge")
+    publish = functions.get("publish_result_table")
+    if verify is None or judge is None or publish is None:
+        return _result(
+            probe,
+            core.PredicateStatus.UNSATISFIED,
+            ReasonCode.RESULT_JUDGE_CONSUMER_INCOMPLETE,
+        )
+    if not all(_c07_returns_value(function) for function in (verify, judge, publish)):
+        return _result(
+            probe,
+            core.PredicateStatus.UNSATISFIED,
+            ReasonCode.RESULT_JUDGE_CONSUMER_INCOMPLETE,
+        )
+    verify_reachable = _c07_reachable_functions(tree, "verify_floor_bytes")
+    floor_fields = _c07_floor_field_uses(verify_reachable)
+    floor_artifacts = set().union(
+        *(
+            _c07_live_constant_uses(function, _C07_FLOOR_ARTIFACTS)
+            for function in verify_reachable.values()
+        )
+    )
+    if floor_fields != set(_C07_FLOOR_FIELDS) or floor_artifacts != set(_C07_FLOOR_ARTIFACTS):
+        return _result(
+            probe,
+            core.PredicateStatus.UNSATISFIED,
+            ReasonCode.RESULT_JUDGE_CONSUMER_INCOMPLETE,
+        )
+
+    expected_condition_ids = {
+        "on_off_prediction_difference",
+        "swapped_follow_through",
+        "paired_repeat_contrast",
+    }
+    judge_loads = _c07_name_loads(judge)
+    condition_candidates: list[tuple[str, tuple[str, ...]]] = []
+    for statement in tree.body:
+        names = _c07_assignment_names(statement)
+        if not any("condition" in name.lower() for name in names):
+            continue
+        value = (
+            statement.value
+            if isinstance(statement, (ast.Assign, ast.AnnAssign))
+            else None
+        )
+        if value is None:
+            continue
+        sequence = _c07_string_sequence(value)
+        if sequence is not None and names & judge_loads:
+            condition_candidates.extend(
+                (name, sequence)
+                for name in names & judge_loads
+            )
+    conditions_assignment = any(
+        isinstance(current, (ast.Assign, ast.AnnAssign))
+        and "conditions" in _c07_assignment_names(current)
+        and _c07_contains_dict_key(current, "condition")
+        and _c07_name_reaches_sink(
+            judge,
+            "conditions",
+            current,
+            _c07_parent_map(judge),
+            set(),
+        )
+        for current in _live_nodes(judge)
+    ) or any(
+        isinstance(current, (ast.Assign, ast.AnnAssign))
+        and "conditions" in _c07_assignment_names(current)
+        and any(isinstance(child, ast.Dict) for child in ast.walk(current.value))
+        and _c07_name_reaches_sink(
+            judge,
+            "conditions",
+            current,
+            _c07_parent_map(judge),
+            set(),
+        )
+        for current in _live_nodes(judge)
+        if isinstance(current, (ast.Assign, ast.AnnAssign))
+        and getattr(current, "value", None) is not None
+    )
+    if (
+        len(condition_candidates) != 1
+        or len(condition_candidates[0][1]) != 3
+        or len(set(condition_candidates[0][1])) != 3
+        or set(condition_candidates[0][1]) != expected_condition_ids
+        or not conditions_assignment
+        or condition_candidates[0][0] not in judge_loads
+    ):
+        return _result(
+            probe,
+            core.PredicateStatus.UNSATISFIED,
+            ReasonCode.RESULT_JUDGE_CONSUMER_INCOMPLETE,
+        )
+
+    publish_reachable = _c07_reachable_functions(tree, "publish_result_table")
+    publish_nodes = tuple(
+        node
+        for function in publish_reachable.values()
+        for node in _live_nodes(function)
+    )
+    table_markers = {"descriptive_only", "official_status", "selection_evaluation"}
+    table_candidates: list[tuple[str, tuple[str, ...]]] = []
+    publish_loads = _c07_name_loads(publish)
+    for statement in tree.body:
+        names = _c07_assignment_names(statement)
+        if not any("table" in name.lower() for name in names):
+            continue
+        value = (
+            statement.value
+            if isinstance(statement, (ast.Assign, ast.AnnAssign))
+            else None
+        )
+        if value is None:
+            continue
+        sequence = _c07_string_sequence(value)
+        if sequence is not None and names & publish_loads:
+            table_candidates.extend(
+                (name, sequence)
+                for name in names & publish_loads
+            )
+    has_cells_structure = any(
+        isinstance(node, ast.Dict)
+        and any(
+            isinstance(key, ast.Constant) and key.value == "cells"
+            for key in node.keys
+        )
+        for node in publish_nodes
+    )
+    cell_validator_names = {
+        name
+        for name, function in functions.items()
+        if "cell" in name.lower()
+        and any(token in name.lower() for token in ("validat", "exact", "check"))
+        and _c07_returns_value(function)
+    }
+    cell_calls = tuple(
+        (function, call)
+        for function in publish_reachable.values()
+        for call in _c07_live_calls(function)
+        if _c07_call_name(call) in cell_validator_names
+    )
+    if (
+        len(table_candidates) != 1
+        or len(table_candidates[0][1]) != 3
+        or len(set(table_candidates[0][1])) != 3
+        or set(table_candidates[0][1]) != table_markers
+        or not has_cells_structure
+        or not cell_calls
+        or any(
+            not _c07_call_value_is_consumed(function, call)
+            for function, call in cell_calls
+        )
+    ):
+        return _result(
+            probe,
+            core.PredicateStatus.UNSATISFIED,
+            ReasonCode.RESULT_JUDGE_CONSUMER_INCOMPLETE,
+        )
+
+    receipt_parameters = _c07_receipt_parameters(publish)
+    publish_loads = _c07_name_loads(publish)
+    if not receipt_parameters or not receipt_parameters & publish_loads:
+        return _result(
+            probe,
+            core.PredicateStatus.UNSATISFIED,
+            ReasonCode.RESULT_JUDGE_CONSUMER_INCOMPLETE,
+        )
+
+    validation_names = {
+        name
+        for name, function in functions.items()
+        if name not in cell_validator_names
+        and (
+            "validat" in name.lower()
+            or name.lower().startswith(("verify", "check"))
+        )
+        and _c07_returns_value(function)
+    }
+    validation_calls = tuple(
+        (function, call)
+        for entrypoint in entrypoints
+        for function in _c07_reachable_functions(tree, entrypoint).values()
+        for call in _c07_live_calls(function)
+        if _c07_call_name(call) in validation_names
+    )
+    if (
+        not validation_calls
+        or any(
+            not _c07_call_value_is_consumed(function, call)
+            for function, call in validation_calls
+        )
+    ):
+        return _result(
+            probe,
+            core.PredicateStatus.UNSATISFIED,
+            ReasonCode.RESULT_JUDGE_CONSUMER_INCOMPLETE,
+        )
+
+    ratified_path = probe.requirement("ratified_generation_reference").path
+    ratified = probe.python_path(ratified_path)
+    if ratified is None or "load_ratified_freeze" not in _functions(ratified):
+        return _result(
+            probe,
+            core.PredicateStatus.UNSATISFIED,
+            ReasonCode.RATIFIED_GENERATION_REFERENCE_ABSENT,
+        )
+    loader_calls = tuple(
+        (function, call)
+        for function in verify_reachable.values()
+        for call in _c07_live_calls(function)
+        if _c07_call_name(call) == "load_ratified_freeze"
+    )
+    if not loader_calls or any(
+        not _c07_call_has_reachable_use(function, call)
+        for function, call in loader_calls
+    ):
+        return _result(
+            probe,
+            core.PredicateStatus.UNSATISFIED,
+            ReasonCode.RATIFIED_GENERATION_REFERENCE_ABSENT,
+        )
+    return _result(
+        probe,
+        core.PredicateStatus.EVIDENCE_UNDEFINED,
+        ReasonCode.COMPLETION_PROOF_NOT_MACHINE_CHECKABLE,
+    )
+
+
 _MACHINE_EVALUATORS = {
     1: _evaluate_c01,
+    2: _evaluate_c02,
     4: _evaluate_c04,
     9: _evaluate_c09,
     10: _evaluate_c10,
@@ -1665,14 +2625,6 @@ def _evaluate_undefined(probe: _ConditionProbe) -> core.PredicateResult:
         for item in probe.contract.required_evidence:
             probe.read_kind(item.artifact_kind)
         reason = ReasonCode.COMPLETION_PROOF_NOT_MACHINE_CHECKABLE
-    elif number == 2:
-        raw = probe.read_kind("trial_registry")
-        if raw is None:
-            reason = ReasonCode.TRIAL_REGISTRY_CAPABILITY_ABSENT
-        elif b"declared-only" in raw:
-            reason = ReasonCode.ARM_BINDING_DECLARED_ONLY
-        else:
-            reason = ReasonCode.ARM_BINDING_PROOF_UNDEFINED
     elif number == 3:
         raw = probe.read_kind("trial_registry")
         reason = (
@@ -1770,6 +2722,15 @@ class PredicateRegistry:
                             "contract-machine-evaluator", condition.identifier
                         )
                     result = evaluator(probe)
+                    if (
+                        is_satisfied(result.status)
+                        and condition.identifier not in SATISFIABLE_CONDITION_IDS
+                    ):
+                        result = _result(
+                            probe,
+                            core.PredicateStatus.ERROR,
+                            ReasonCode.EVALUATOR_INTERNAL_ERROR,
+                        )
                 else:
                     result = _evaluate_undefined(probe)
             except (core.PreregistrationError, EvidenceContractError) as exc:
@@ -1816,3 +2777,308 @@ def evaluate_all(
 ) -> Sequence[core.PredicateResult]:
     """module 自身も registry として使える protocol adapter。"""
     return _REGISTRY.evaluate_all(commit, repo_root=repo_root)
+
+
+# C06 は契約が false の間は production dispatch に登録しない。ここに置く
+# staged registry は、将来の契約反転を検査する test 専用の待機場所である。
+from types import MappingProxyType as _MappingProxyType  # noqa: E402
+
+_C06_EXPECTED_FIELD_PATHS = frozenset(
+    {
+        "ledger.manifest_sha256",
+        "ledger.freeze_sha256",
+        "ledger.schedule_sha256",
+        "ledger.ratified_generation_sha256",
+        "reservation.cells[*].reserved_bench_s",
+        "settlement.cells[*].actual_bench_s",
+    }
+)
+_C06_EXPECTED_CELL_ROWS = frozenset(
+    {
+        ("H1", "on"),
+        ("H1", "off"),
+        ("H1", "swapped"),
+        ("H2", "on"),
+        ("H2", "off"),
+        ("H2", "swapped"),
+    }
+)
+
+
+def _c06_annotation_names(node: ast.AST) -> frozenset[str]:
+    return frozenset(
+        current.id
+        for current in ast.walk(node)
+        if isinstance(current, ast.Name)
+    ) | frozenset(
+        current.attr
+        for current in ast.walk(node)
+        if isinstance(current, ast.Attribute)
+    )
+
+
+def _c06_dataclass_fields(
+    tree: ast.Module,
+    name: str,
+) -> tuple[dict[str, ast.AST], bool]:
+    matches = [
+        node
+        for node in tree.body
+        if isinstance(node, ast.ClassDef) and node.name == name
+    ]
+    if len(matches) != 1:
+        return {}, False
+    node = matches[0]
+    dataclass_decorator = False
+    frozen = False
+    for decorator in node.decorator_list:
+        target = decorator.func if isinstance(decorator, ast.Call) else decorator
+        if (
+            isinstance(target, ast.Name) and target.id == "dataclass"
+        ) or (
+            isinstance(target, ast.Attribute) and target.attr == "dataclass"
+        ):
+            dataclass_decorator = True
+            if isinstance(decorator, ast.Call):
+                frozen = any(
+                    keyword.arg == "frozen"
+                    and isinstance(keyword.value, ast.Constant)
+                    and keyword.value.value is True
+                    for keyword in decorator.keywords
+                )
+    fields = {
+        statement.target.id: statement.annotation
+        for statement in node.body
+        if isinstance(statement, ast.AnnAssign)
+        and isinstance(statement.target, ast.Name)
+    }
+    return fields, dataclass_decorator and frozen
+
+
+def _c06_expected_rows(tree: ast.Module) -> frozenset[tuple[str, str]]:
+    for statement in tree.body:
+        if not isinstance(statement, (ast.Assign, ast.AnnAssign)):
+            continue
+        targets = (
+            statement.targets
+            if isinstance(statement, ast.Assign)
+            else (statement.target,)
+        )
+        if not any(
+            isinstance(target, ast.Name) and target.id == "_EXPECTED_CELL_ROWS"
+            for target in targets
+        ):
+            continue
+        value = statement.value
+        if not isinstance(value, ast.Tuple):
+            return frozenset()
+        rows: set[tuple[str, str]] = set()
+        for row in value.elts:
+            if not isinstance(row, ast.Tuple) or len(row.elts) != 2:
+                return frozenset()
+            if not all(
+                isinstance(item, ast.Constant) and type(item.value) is str
+                for item in row.elts
+            ):
+                return frozenset()
+            rows.add((row.elts[0].value, row.elts[1].value))
+        return frozenset(rows)
+    return frozenset()
+
+
+def _c06_has_attribute_chain(tree: ast.Module, chain: tuple[str, ...]) -> bool:
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Attribute):
+            continue
+        parts: list[str] = [node.attr]
+        current = node.value
+        while isinstance(current, ast.Attribute):
+            parts.append(current.attr)
+            current = current.value
+        if isinstance(current, ast.Name):
+            parts.append(current.id)
+        if tuple(reversed(parts)) == chain:
+            return True
+    return False
+
+
+def _c06_field_path_verdict(tree: ast.Module) -> bool:
+    """C06 の field path を実 dataclass と instance access から検査する。"""
+    fields: dict[str, dict[str, ast.AST]] = {}
+    for name in (
+        "BudgetLimits",
+        "ReservationCell",
+        "Reservation",
+        "SettlementCell",
+        "Settlement",
+        "Ledger",
+    ):
+        current, valid = _c06_dataclass_fields(tree, name)
+        if not valid:
+            return False
+        fields[name] = current
+    required_fields = {
+        "BudgetLimits": {"total_bench_s", "per_arm_bench_s", "per_holdout_bench_s"},
+        "ReservationCell": {"cell_id", "holdout", "arm", "reserved_bench_s"},
+        "Reservation": {"cells", "budget_bench_s", "total_reserved_bench_s", "state"},
+        "SettlementCell": {"cell_id", "actual_bench_s"},
+        "Settlement": {"cells", "total_actual_bench_s"},
+        "Ledger": {
+            "manifest_sha256",
+            "freeze_sha256",
+            "schedule_sha256",
+            "ratified_generation_sha256",
+            "reservation",
+            "settlement",
+            "cell_ids",
+        },
+    }
+    if any(
+        not required_fields[name] <= set(class_fields)
+        for name, class_fields in fields.items()
+    ):
+        return False
+    if not {"tuple", "frozenset"} <= {
+        current.func.id
+        for current in ast.walk(tree)
+        if isinstance(current, ast.Call) and isinstance(current.func, ast.Name)
+    }:
+        return False
+    constructor_names = {
+        current.func.id
+        for current in ast.walk(tree)
+        if isinstance(current, ast.Call) and isinstance(current.func, ast.Name)
+    }
+    if not {
+        "BudgetLimits",
+        "ReservationCell",
+        "Reservation",
+        "SettlementCell",
+        "Settlement",
+        "Ledger",
+    } <= constructor_names:
+        return False
+    annotation_names = {
+        name: _c06_annotation_names(annotation)
+        for class_name, class_fields in fields.items()
+        for name, annotation in class_fields.items()
+    }
+    if "tuple" not in annotation_names["cells"]:
+        return False
+    if "frozenset" not in annotation_names["cell_ids"]:
+        return False
+    if _c06_expected_rows(tree) != _C06_EXPECTED_CELL_ROWS:
+        return False
+    required_strings = {
+        "total_bench_s",
+        "per_arm_bench_s",
+        "per_holdout_bench_s",
+        "total_reserved_bench_s",
+        "reserved_bench_s",
+        "actual_bench_s",
+        "insufficient",
+    }
+    strings = _strings(tree)
+    if not required_strings <= strings:
+        return False
+    comparisons = {
+        type(current.ops[0])
+        for current in ast.walk(tree)
+        if isinstance(current, ast.Compare) and current.ops
+    }
+    if ast.LtE not in comparisons:
+        return False
+    if not any(
+        isinstance(current, ast.Attribute) and current.attr == "O_EXCL"
+        for current in ast.walk(tree)
+    ):
+        return False
+    for chain in (
+        ("ledger", "manifest_sha256"),
+        ("ledger", "freeze_sha256"),
+        ("ledger", "schedule_sha256"),
+        ("ledger", "ratified_generation_sha256"),
+        ("ledger", "reservation", "cells"),
+        ("ledger", "settlement", "cells"),
+    ):
+        if not _c06_has_attribute_chain(tree, chain):
+            return False
+    if any(
+        isinstance(current, ast.Call)
+        and isinstance(current.func, ast.Name)
+        and current.func.id == "setattr"
+        for current in ast.walk(tree)
+    ):
+        return False
+    return True
+
+
+def _c06_unsatisfied(probe: _ConditionProbe) -> core.PredicateResult:
+    return _result(
+        probe,
+        core.PredicateStatus.UNSATISFIED,
+        ReasonCode.BUDGET_CONSUMER_UNDEFINED,
+    )
+
+
+def _evaluate_c06(probe: _ConditionProbe) -> core.PredicateResult:
+    """C06 の staged evaluator。充足を返さず、完了証明は常に未定義にする。"""
+    budget = probe.python_kind("budget_consumer")
+    if budget is None:
+        return _result(
+            probe,
+            core.PredicateStatus.EVIDENCE_UNDEFINED,
+            ReasonCode.BUDGET_CONSUMER_UNDEFINED,
+        )
+    requirement = probe.requirement("budget_consumer")
+    if frozenset(requirement.field_paths) != _C06_EXPECTED_FIELD_PATHS:
+        return _c06_unsatisfied(probe)
+    if not _c06_field_path_verdict(budget):
+        return _c06_unsatisfied(probe)
+    functions = _functions(budget)
+    if not {
+        "reserve_all_cells",
+        "settle",
+        "symmetric_indeterminate",
+    } <= functions.keys():
+        return _c06_unsatisfied(probe)
+    if not {
+        "_ledger_lock",
+        "_check_limit_state",
+    } <= functions.keys():
+        return _c06_unsatisfied(probe)
+    reference = probe.python_kind("ratified_generation_reference")
+    if (
+        reference is None
+        or "load_ratified_freeze" not in _functions(reference)
+        or "sha256" not in _strings(reference)
+    ):
+        return _c06_unsatisfied(probe)
+    supervisor_path = "orchestrator/campaign/p3_autonomous_workload_trial.py"
+    supervisor = probe.python_path(supervisor_path)
+    if supervisor is not None:
+        reachable = _reachable_functions(supervisor, "run_trial")
+        reachable_calls = _reachable_calls(supervisor, "run_trial")
+        if "run_trial" not in _functions(supervisor) or not {
+            "load_ratified_freeze",
+            "reserve_all_cells",
+            "settle",
+            "symmetric_indeterminate",
+        } <= reachable_calls:
+            return _c06_unsatisfied(probe)
+        if not reachable or len(reachable) > _MAX_REACHABILITY_STATES:
+            return _c06_unsatisfied(probe)
+        if not any(
+            isinstance(current, ast.Attribute) and current.attr == "sha256"
+            for current in ast.walk(supervisor)
+        ):
+            return _c06_unsatisfied(probe)
+    # static_only_note の通り、実時間の値は readiness の充足条件にしない。
+    return _result(
+        probe,
+        core.PredicateStatus.EVIDENCE_UNDEFINED,
+        ReasonCode.COMPLETION_PROOF_NOT_MACHINE_CHECKABLE,
+    )
+
+
+_STAGED_EVALUATORS = _MappingProxyType({6: _evaluate_c06})

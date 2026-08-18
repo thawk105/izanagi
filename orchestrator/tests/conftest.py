@@ -30,13 +30,28 @@ fsync を呼ぶコード経路は変えていない (検査は弱めない) — 
 import hashlib
 import json
 import os
+import shutil
+import subprocess
 import sys
+import time
+import uuid
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 from types import MappingProxyType, SimpleNamespace
 from typing import Callable, Iterable, Sequence
 
 import pytest
+
+
+_RATIFICATION_GIT_ENV_ALLOWLIST = (
+    "LANG",
+    "LC_ALL",
+    "LC_CTYPE",
+    "PATH",
+    "SYSTEMROOT",
+    "TMPDIR",
+    "TZ",
+)
 
 try:
     from orchestrator.tests.growth_test_holds import (
@@ -87,6 +102,108 @@ def _ensure_growth_test_holds_loaded() -> None:
 @pytest.fixture
 def _detect_site_under_test():
     """Allow site-policy unit tests to exercise the real detector explicitly."""
+
+
+def _ratification_fixture_git(repo: Path, *args: str) -> bytes:
+    executable = shutil.which("git")
+    if executable is None:
+        pytest.fail("ratified enforcement-source fixture requires git")
+    env = {
+        key: os.environ[key]
+        for key in _RATIFICATION_GIT_ENV_ALLOWLIST
+        if key in os.environ
+    }
+    env.update({
+        "GIT_CONFIG_GLOBAL": os.devnull,
+        "GIT_CONFIG_NOSYSTEM": "1",
+        "GIT_NO_REPLACE_OBJECTS": "1",
+        "GIT_OPTIONAL_LOCKS": "0",
+    })
+    completed = subprocess.run(
+        [executable, "-C", str(repo), *args],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        check=False,
+        env=env,
+        timeout=30,
+    )
+    if completed.returncode != 0:
+        pytest.fail(
+            "ratified enforcement-source fixture git failed: "
+            f"args={args!r} "
+            f"stderr={completed.stderr.decode(errors='replace')!r}"
+        )
+    return completed.stdout
+
+
+@pytest.fixture
+def ratified_enforcement_source(
+    tmp_path_factory: pytest.TempPathFactory,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """Opt in to a committed temporary ledger for the current exact closure."""
+    from orchestrator.campaign import contract_loader_binding
+    from orchestrator.campaign import enforcement_source_ratification as ratification
+
+    binding = contract_loader_binding.capture_contract_loader_binding()
+    digest = ratification.closure_digest_sha256(
+        binding.contract_loader_blob_sha256s
+    )
+    repo = tmp_path_factory.mktemp("ratified-enforcement-source") / "repo"
+    repo.mkdir()
+    _ratification_fixture_git(repo, "init", "-q")
+    marker = repo / "marker"
+    marker.write_text("ratification fixture\n", encoding="ascii")
+    _ratification_fixture_git(repo, "add", "--", "marker")
+    identity = (
+        "-c", "user.email=ratification-fixture@example.invalid",
+        "-c", "user.name=Ratification fixture",
+    )
+    _ratification_fixture_git(
+        repo, *identity, "commit", "-q", "-m", "initialize fixture",
+    )
+    ledger = repo / ratification.RATIFICATION_LEDGER_RELATIVE_PATH
+    ledger.parent.mkdir(parents=True, exist_ok=True)
+    ledger.write_bytes(
+        json.dumps(
+            {"schema_version": 1, "closure_digest_sha256": digest},
+            sort_keys=True,
+            separators=(",", ":"),
+        ).encode("ascii") + b"\n"
+    )
+    _ratification_fixture_git(
+        repo, "add", "--", ratification.RATIFICATION_LEDGER_RELATIVE_PATH,
+    )
+    _ratification_fixture_git(
+        repo, *identity, "commit", "-q", "-m", "record ratification",
+    )
+    monkeypatch.setattr(ratification, "_REPO_ROOT", repo)
+    return digest
+
+
+@pytest.fixture
+def valid_reservation_environment() -> dict[str, str]:
+    """Return one live, internally consistent Pegasus reservation binding."""
+    requested_s = 7200
+    scheduler_started_epoch = time.time() - 60
+    boot_id = Path("/proc/sys/kernel/random/boot_id").read_text(
+        encoding="ascii"
+    ).strip()
+    return {
+        "PBS_JOBID": "987654.pegasus",
+        "IZANAGI_RESERVATION_JOB_ID": "987654.pegasus",
+        "IZANAGI_RESERVATION_REQUESTED_S": str(requested_s),
+        "IZANAGI_RESERVATION_SCHEDULER_STARTED_EPOCH": str(
+            scheduler_started_epoch
+        ),
+        "IZANAGI_RESERVATION_DEADLINE_EPOCH": str(
+            scheduler_started_epoch + requested_s
+        ),
+        "IZANAGI_RESERVATION_HOST": "test-host",
+        "IZANAGI_RESERVATION_BOOT_ID": boot_id,
+        "IZANAGI_RESERVATION_SCRIPT_SHA256": "a" * 64,
+        "IZANAGI_RESERVATION_NONCE": "fixture-nonce",
+    }
 
 
 @pytest.fixture
@@ -260,12 +377,50 @@ REAL_REPO_SERIAL_NODES = frozenset({
     "test_ruleops.py::test_real_checkout_independent_maximum_package_and_runner_preflight",
 })
 
-# real-repo worker の先頭で独立 CLI 解決を開始し、次に共有 cache barrier を置く。
+# real-repo worker の先頭で独立 CLI 解決を開始し、旧 lazy payer node の優先順を保つ。
+# receipt cache の correctness barrier は test scheduling 前の prewarm hook が担う。
 # この 2 node 以外は collection 時点の相対順を維持する。
 REAL_REPO_EXECUTION_PRIORITY = (
     "test_s8b_oracle_driver.py::test_cli_subprocess_returns_rc_2_on_gate_refused",
     "test_s8b_binding_driftguards.py::test_run_block_broken_binding_manifest_refuses_and_writes_nothing",
 )
+
+# production receipt memo を test body 内で読む関数の完全 inventory。parametrize suffix と
+# loadgroup suffix は除いた ``file::function`` 形で固定する。32 関数 / 35 node。
+RECEIPT_MEMO_CONSUMER_NODES = frozenset({
+    "test_s8b_oracle_driver.py::test_success_wal_order_budget_and_evaluate_contract",
+    "test_s8b_oracle_driver.py::test_oracle_pipeline_contract_keyword_is_mandatory_positive_control",
+    "test_s8b_oracle_driver.py::test_build_result_contract_mismatch_aborts_campaign_before_measurement",
+    "test_s8b_oracle_driver.py::test_binding_mismatch_refuses_only_that_row_before_evaluate",
+    "test_s8b_oracle_driver.py::test_v8_bulk_reservation_unavailable_runs_nothing",
+    "test_s8b_oracle_driver.py::test_reservation_envelope_exceeded_is_fail_closed",
+    "test_s8b_oracle_driver.py::test_verify_inconclusive_and_unknown_abort_reasons_are_fail_closed",
+    "test_s8b_oracle_driver.py::test_probe_error_reason_is_fail_closed_unknown_abort",
+    "test_s8b_oracle_driver.py::test_v3_all_rows_binding_refused_is_protocol_violation",
+    "test_s8b_oracle_driver.py::test_v3_partial_binding_refused_is_protocol_violation",
+    "test_s8b_oracle_driver.py::test_v6_freeze_swap_after_verify_is_not_observed",
+    "test_s8b_oracle_driver.py::test_v7_manifest_swap_after_verify_is_not_observed",
+    "test_s8b_oracle_driver.py::test_v2_resume_rejected_at_s1_s2_s3_boundaries",
+    "test_s8b_oracle_driver.py::test_atomic_one_shot_lock_rejects_second_start",
+    "test_s8b_oracle_driver.py::test_resume_wal_lstat_eio_propagates_fail_closed_from_public_driver",
+    "test_s8b_oracle_driver.py::test_driver_full_frame_fsync_eio_is_not_folded_or_followed_up",
+    "test_s8b_oracle_driver.py::test_v4_marker_fires_across_output_root_change",
+    "test_s8b_oracle_driver.py::test_v5_truncated_wal_rejects_resume_even_with_zero_parseable_records",
+    "test_s8b_oracle_driver.py::test_official_driver_records_returncodes_through_real_producer_flow",
+    "test_s8b_oracle_driver.py::test_unavailable_preflight_creates_bound_measurement_manifest_and_passes_false_kwargs",
+    "test_s8b_oracle_driver.py::test_available_preflight_preserves_call_and_artifact_shape",
+    "test_s8b_oracle_driver.py::test_probe_error_precedes_claim_marker_wal_and_budget",
+    "test_s8b_oracle_driver.py::test_real_freeze_gate_lists_floor_and_budget_null",
+    "test_s8b_oracle_driver.py::test_run_block_refusal_writes_no_campaign_or_budget_and_calls_nothing",
+    "test_s8b_oracle_driver.py::test_nonnull_floor_without_active_generation_is_refused",
+    "test_s8b_oracle_driver.py::test_active_resolution_and_manifest_structure_refusals_are_aggregated",
+    "test_s8b_oracle_driver.py::test_run_block_reuses_launch_validated_and_legacy_loader_is_dead",
+    "test_s8b_oracle_driver.py::test_run_block_verifies_manifest_once_and_reuses_object",
+    "test_s8b_binding_driftguards.py::test_run_block_broken_binding_manifest_refuses_and_writes_nothing",
+    "test_s8b_binding_driftguards.py::test_gate_check_broken_binding_manifest_stacks_manifest_verify_refusal",
+    "test_s8b_binding_driftguards.py::test_receipt_memo_delegates_to_production_verifier_exactly_once",
+    "test_s8b_binding_driftguards.py::test_receipt_memo_patches_the_driver_module_the_tests_import",
+})
 
 # 意図的な除外（正本リストの境界）:
 # - test_s1_measurement_freeze.py のうち fixture 非利用 3 node (AST import 検査 +
@@ -309,6 +464,82 @@ def _real_repo_node_id(item) -> str:
     """Collected item を正本の ``module::function`` 形へ正規化する。"""
     function = getattr(item, "originalname", None) or item.name.split("[", 1)[0]
     return f"{os.path.basename(str(item.path))}::{function}"
+
+
+def _receipt_memo_node_id_from_nodeid(nodeid: str) -> str | None:
+    parts = nodeid.split("::")
+    if len(parts) < 2:
+        return None
+    function = parts[1].split("[", 1)[0].split("@", 1)[0]
+    return f"{os.path.basename(parts[0])}::{function}"
+
+
+def _receipt_memo_module():
+    """consumer 検出後にだけ canonical memo module を import する。"""
+    from orchestrator.tests import real_repo_receipt_memo
+
+    return real_repo_receipt_memo
+
+
+_RECEIPT_MEMO_PREWARMED_ATTR = "_izanagi_receipt_memo_prewarmed"
+_RECEIPT_MEMO_RUN_ID_ATTR = "_izanagi_receipt_memo_run_id"
+_RECEIPT_MEMO_SESSION_ID_ATTR = "_izanagi_receipt_memo_session_id"
+_RECEIPT_MEMO_SESSION_ACTIVE_ATTR = "_izanagi_receipt_memo_session_active"
+
+
+def _prewarm_receipt_memo(config, nodeids, *, run_id: str | None) -> None:
+    """consumer がある controller/serial collection だけを一度 prewarm する。"""
+    # pytest_collection_finish の外側 guard と意図的に冗長な defense-in-depth。
+    # worker payer は両 guard が同時に失われない限り再発しない。
+    if hasattr(config, "workerinput"):
+        return
+    nodeids = tuple(nodeids)
+    if not _receipt_memo_prewarm_prerequisites(config, nodeids):
+        return
+    if getattr(config, _RECEIPT_MEMO_PREWARMED_ATTR, False):
+        previous = getattr(config, _RECEIPT_MEMO_RUN_ID_ATTR, None)
+        if previous != run_id:
+            raise pytest.UsageError(
+                "receipt memo prewarm の xdist run ID が worker 間で不一致: "
+                f"first={previous!r} current={run_id!r}"
+            )
+        return
+    session_id = getattr(config, _RECEIPT_MEMO_SESSION_ID_ATTR, None)
+    if session_id is None:
+        raise pytest.UsageError("receipt memo prewarm に pytest session ID が無い")
+    memo_module = _receipt_memo_module()
+    try:
+        memo_module.prewarm_real_repo_receipt(
+            run_id=run_id,
+            session_id=session_id,
+        )
+    except BaseException:
+        # 入れ子 pytest.main() の内側 prewarm が失敗しても外側 snapshot を戻す。
+        memo_module.finish_real_repo_receipt_session(session_id=session_id)
+        raise
+    setattr(config, _RECEIPT_MEMO_SESSION_ACTIVE_ATTR, True)
+    setattr(config, _RECEIPT_MEMO_RUN_ID_ATTR, run_id)
+    setattr(config, _RECEIPT_MEMO_PREWARMED_ATTR, True)
+
+
+def _receipt_memo_prewarm_prerequisites(config, nodeids) -> bool:
+    """prewarm 前提を読めない pytest 以外の hook 引数は安全側で無視する。"""
+    try:
+        getoption = getattr(config, "getoption", None)
+        if not callable(getoption):
+            return False
+        if getoption("collectonly", False):
+            return False
+        return _receipt_memo_consumer_selected(nodeids)
+    except Exception:
+        return False
+
+
+def _receipt_memo_consumer_selected(nodeids) -> bool:
+    return any(
+        _receipt_memo_node_id_from_nodeid(nodeid) in RECEIPT_MEMO_CONSUMER_NODES
+        for nodeid in nodeids
+    )
 
 
 _GROWTH_HOLD_IDS_ATTR = "_izanagi_collected_growth_hold_ids"
@@ -470,6 +701,14 @@ def pytest_collection_finish(session) -> None:
     """cacheprovider の後で順序を固定し、任意の task-run stats を収集する。"""
     # collection_finish は --ff / --nf の post-yield より後に来るため、最終順を固定できる。
     _prioritize_real_repo_items(session.items)
+    # xdist worker もこの hook を通る。内側 helper guard と意図的に冗長な
+    # defense-in-depth で、実解決を controller hook だけに限定する。
+    if not hasattr(session.config, "workerinput"):
+        _prewarm_receipt_memo(
+            session.config,
+            (_real_repo_node_id(item) for item in session.items),
+            run_id=None,
+        )
     if not os.environ.get("IZANAGI_TASK_RUN_SIDECAR"):
         return
     try:
@@ -483,10 +722,27 @@ def pytest_collection_finish(session) -> None:
 @pytest.hookimpl(optionalhook=True)
 def pytest_xdist_node_collection_finished(node, ids) -> None:
     """Collect controller-visible node IDs without persisting their names."""
+    ids = tuple(ids)
     for nodeid in ids:
         hold_id = _growth_hold_id_from_nodeid(nodeid)
         if hold_id in GROWTH_TEST_HOLDS:
             _note_growth_hold(node.config, hold_id)
+    if (
+        not hasattr(node.config, "workerinput")
+        and _receipt_memo_prewarm_prerequisites(node.config, ids)
+    ):
+        run_id_available = True
+        try:
+            run_id = getattr(node, "workerinput", {}).get("testrunuid")
+            if run_id is None:
+                run_id = node.config.getoption("testrunuid", None)
+        except Exception:
+            run_id = None
+            run_id_available = False
+        if run_id_available and run_id is None:
+            raise pytest.UsageError("xdist receipt memo consumer に testrunuid が無い")
+        if run_id_available:
+            _prewarm_receipt_memo(node.config, ids, run_id=run_id)
     if not os.environ.get("IZANAGI_TASK_RUN_SIDECAR"):
         return
     try:
@@ -613,7 +869,37 @@ class _FailureDigestItem:
 _FAILURE_REPORTS: list[_StashedFailure] = []
 
 
+def _configure_receipt_memo_run_id(config) -> None:
+    """xdist NodeManager が読む前に controller の UID を確定する。"""
+    if hasattr(config, "workerinput"):
+        return
+    numprocesses = config.getoption("numprocesses", None)
+    if numprocesses in (None, 0, "0"):
+        return
+    run_id = config.getoption("testrunuid", None)
+    if run_id is None:
+        config.option.testrunuid = uuid.uuid4().hex
+
+
+def _configure_receipt_memo_session(config) -> None:
+    """pytest.main() 再入を含め、Config ごとに一意な process-state token を置く。"""
+    setattr(config, _RECEIPT_MEMO_SESSION_ID_ATTR, uuid.uuid4().hex)
+
+
+def _finish_receipt_memo_session(config) -> None:
+    """終了 Config の memo state を破棄し、入れ子なら外側 state を復元する。"""
+    if not getattr(config, _RECEIPT_MEMO_SESSION_ACTIVE_ATTR, False):
+        return
+    session_id = getattr(config, _RECEIPT_MEMO_SESSION_ID_ATTR, None)
+    _receipt_memo_module().finish_real_repo_receipt_session(
+        session_id=session_id,
+    )
+    setattr(config, _RECEIPT_MEMO_SESSION_ACTIVE_ATTR, False)
+
+
 def pytest_configure(config) -> None:
+    _configure_receipt_memo_session(config)
+    _configure_receipt_memo_run_id(config)
     _growth_holds_opted_in()
     if mark_pytest_session_enforcing is not None:
         mark_pytest_session_enforcing(config)
@@ -1008,6 +1294,13 @@ def pytest_unconfigure(config):
     finally:
         if unmark_pytest_session_enforcing is not None:
             unmark_pytest_session_enforcing(config)
+        if inner_exception is None:
+            _finish_receipt_memo_session(config)
+        else:
+            try:
+                _finish_receipt_memo_session(config)
+            except BaseException:
+                pass
         stashed = tuple(_FAILURE_REPORTS)
         _FAILURE_REPORTS.clear()
         # finally 内で return すると inner hook の例外を StopIteration で消すため、

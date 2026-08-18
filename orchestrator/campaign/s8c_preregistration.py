@@ -22,6 +22,7 @@ import enum
 import hashlib
 import importlib
 import json
+import math
 import os
 import re
 import subprocess
@@ -30,7 +31,7 @@ import tempfile
 import unicodedata
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Iterable, Mapping, Optional, Protocol, Sequence
+from typing import Any, Callable, Iterable, Mapping, Optional, Protocol, Sequence
 
 if __package__ in {None, ""}:  # pragma: no cover - direct CLI execution
     sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
@@ -47,7 +48,7 @@ EVALUATOR_MODULE_PATH = "orchestrator/campaign/s8c_preregistration_evidence.py"
 CORE_MODULE_PATH = "orchestrator/campaign/s8c_preregistration.py"
 PROJECTION_MODULE_PATH = "orchestrator/campaign/s8c_generation_projection.py"
 # core/evaluator/projection の受理意味を変える変更は同じ commit で版を bump する。
-DECIDER_VERSION = "s8c-decider/v2"
+DECIDER_VERSION = "s8c-decider/v3"
 LEGACY_SCHEMA_VERSION = "s8c-prereg-condition-freeze/v1"
 SCHEMA_VERSION = "s8c-prereg-condition-freeze/v2"
 NORMALIZATION_VERSION = "s8c-prereg-markdown/v2"
@@ -121,6 +122,9 @@ _DOMAIN_NORMATIVE = b"izanagi:s8c:normative-body:v1\0"
 _DOMAIN_EVIDENCE = b"izanagi:s8c:evidence-contract:v1\0"
 _DOMAIN_PROTECTED = b"izanagi:s8c:protected-contract:v1\0"
 _DOMAIN_ACTIVATION_REPORT = b"izanagi:s8c:activation-report:v1\0"
+SECTION5_ITERATION_CONTRAST_FIELD = (
+    "反復単位対比の判定パラメータ (H1 / H2: n・平均差の下限・差の標本 SD の上限)"
+)
 
 
 class PreregistrationError(RuntimeError):
@@ -178,9 +182,17 @@ class Section5Finding:
 
 
 @dataclass(frozen=True)
+class Section5ValueViolation:
+    field_name: str
+    path: str
+    code: str
+
+
+@dataclass(frozen=True)
 class MarkdownContract:
     section5_field_names: frozenset[str]
     section5_findings: tuple[Section5Finding, ...]
+    section5_value_violations: tuple[Section5ValueViolation, ...]
     section6_conditions: tuple[tuple[int, str], ...]
     normative_body: str
     section5_field_names_sha256: str
@@ -758,7 +770,11 @@ def split_markdown_table_row(row: str) -> list[str]:
 
 def _parse_section5(
     lines: Sequence[str], fenced: Sequence[bool]
-) -> tuple[frozenset[str], tuple[Section5Finding, ...]]:
+) -> tuple[
+    frozenset[str],
+    tuple[Section5Finding, ...],
+    tuple[Section5ValueViolation, ...],
+]:
     tables: list[tuple[int, list[str]]] = []
     for index in range(len(lines) - 1):
         if fenced[index] or fenced[index + 1]:
@@ -779,6 +795,7 @@ def _parse_section5(
         raise PreregistrationError("table-duplicate", "§5 の 欄/値 table が複数ある")
     start = tables[0][0] + 2
     findings: list[Section5Finding] = []
+    violations: list[Section5ValueViolation] = []
     names: set[str] = set()
     for line, in_fence in zip(lines[start:], fenced[start:]):
         if in_fence:
@@ -798,9 +815,21 @@ def _parse_section5(
         names.add(name)
         status, reason = _classify_section5_value(cells[1])
         findings.append(Section5Finding(name, status, reason))
+        validator = _SECTION5_VALUE_VALIDATORS.get(name)
+        if status is FieldStatus.FILLED and validator is not None:
+            violations.extend(validator(_parse_filled_section5_value(cells[1])))
     if not findings:
         raise PreregistrationError("table-empty", "§5 table に data row が無い")
-    return frozenset(names), tuple(findings)
+    for field_name in _SECTION5_VALUE_VALIDATORS:
+        if field_name not in names:
+            violations.append(
+                Section5ValueViolation(
+                    field_name=field_name,
+                    path="",
+                    code="validator-field-missing",
+                )
+            )
+    return frozenset(names), tuple(findings), tuple(violations)
 
 
 def _classify_section5_value(raw_value: str) -> tuple[FieldStatus, str]:
@@ -833,6 +862,94 @@ def _classify_section5_value(raw_value: str) -> tuple[FieldStatus, str]:
     if isinstance(value, (list, dict)) and not value:
         return FieldStatus.UNFILLED, "json-empty-container"
     return FieldStatus.FILLED, "canonical-json"
+
+
+def _parse_filled_section5_value(raw_value: str) -> Any:
+    match = re.fullmatch(r"(`+)([\s\S]*)\1", raw_value.strip())
+    if match is None:
+        raise PreregistrationError("canonical-json-code-span-required")
+    return _strict_json(match.group(2).encode("utf-8"), what="§5 value")
+
+
+def _validate_iteration_contrast_parameters(
+    value: Any,
+) -> tuple[Section5ValueViolation, ...]:
+    """8b §10.2 が凍結するのは、`n` の整数・2 以上、`delta_min` の有限・正、
+    `sd_max` の有限・非負、単位と向きの同時固定である。
+    `H1` / `H2` の exact key 集合と block の exact key 集合は 8c 側の表現裁定であり、8b が凍結した制約ではない。変更は 8c 側の改訂で行う。
+    """
+    violations: list[Section5ValueViolation] = []
+
+    def add(path: str, code: str) -> None:
+        violations.append(
+            Section5ValueViolation(
+                field_name=SECTION5_ITERATION_CONTRAST_FIELD,
+                path=path,
+                code=code,
+            )
+        )
+
+    expected_root_keys = {"H1", "H2"}
+    expected_block_keys = {"delta_min", "direction", "n", "sd_max", "unit"}
+    if type(value) is not dict:
+        add("", "root-type")
+        return tuple(violations)
+    if set(value) != expected_root_keys:
+        add("", "root-keys")
+
+    for block_name in ("H1", "H2"):
+        if block_name not in value:
+            continue
+        block = value[block_name]
+        if type(block) is not dict:
+            add(block_name, "block-type")
+            continue
+        if set(block) != expected_block_keys:
+            add(block_name, "block-keys")
+        for key in sorted(expected_block_keys):
+            if key not in block:
+                continue
+            field_path = f"{block_name}.{key}"
+            field_value = block[key]
+            if key == "n":
+                if type(field_value) is not int:
+                    add(field_path, "n-type")
+                elif field_value < 2:
+                    add(field_path, "n-range")
+            elif key == "delta_min":
+                if type(field_value) not in (int, float):
+                    add(field_path, "delta-min-type")
+                elif (
+                    (type(field_value) is float and not math.isfinite(field_value))
+                    or field_value <= 0
+                ):
+                    add(field_path, "delta-min-range")
+            elif key == "sd_max":
+                if type(field_value) not in (int, float):
+                    add(field_path, "sd-max-type")
+                elif (
+                    (type(field_value) is float and not math.isfinite(field_value))
+                    or field_value < 0
+                ):
+                    add(field_path, "sd-max-range")
+            elif key == "unit":
+                if type(field_value) is not str:
+                    add(field_path, "unit-type")
+                elif not field_value.strip():
+                    add(field_path, "unit-empty")
+            elif key == "direction":
+                if type(field_value) is not str:
+                    add(field_path, "direction-type")
+                elif not field_value.strip():
+                    add(field_path, "direction-empty")
+    return tuple(violations)
+
+
+_SECTION5_VALUE_VALIDATORS: dict[
+    str, Callable[[Any], tuple[Section5ValueViolation, ...]]
+] = {
+    SECTION5_ITERATION_CONTRAST_FIELD: _validate_iteration_contrast_parameters,
+}
 
 
 def _parse_section6(
@@ -891,7 +1008,9 @@ def parse_preregistration_markdown(raw: bytes) -> MarkdownContract:
     bounds = _section_bounds(lines, fenced)
     section5_slice = slice(*bounds[5])
     section6_slice = slice(*bounds[6])
-    section5_names, findings = _parse_section5(lines[section5_slice], fenced[section5_slice])
+    section5_names, findings, value_violations = _parse_section5(
+        lines[section5_slice], fenced[section5_slice]
+    )
     conditions = _parse_section6(lines[section6_slice], fenced[section6_slice])
     normative_sections = [
         {
@@ -923,6 +1042,7 @@ def parse_preregistration_markdown(raw: bytes) -> MarkdownContract:
     return MarkdownContract(
         section5_field_names=frozenset(section5_names),
         section5_findings=findings,
+        section5_value_violations=value_violations,
         section6_conditions=conditions,
         normative_body=normative_body,
         section5_field_names_sha256=field_hash,

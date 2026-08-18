@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
 """Phase 3 8c trial manifest registration and acceptance gates.
 
-The registry records declarations only.  In particular, a successful
-acceptance result does not certify that the declared experimental arm was the
-arm that ran.
+The v2 receipt projects the execution binding already checked against report,
+run-start, historical input derivation, and cell descriptor bytes.  Approval
+authority remains unresolved, so acceptance is still structurally
+non-certifying.
 """
 from __future__ import annotations
 
@@ -29,8 +30,12 @@ if __package__ in {None, ""}:  # pragma: no cover - direct CLI execution
 
 from .autonomous_trial_completeness import (
     AutonomousTrialCompletenessError,
+    assert_campaign_layer3_chain,
     assert_autonomous_trial_completeness,
     assert_execution_digest_chain,
+    is_exact_campaignless_failure_fallback_cell,
+    is_exact_cell_admission_failure_decision,
+    verify_s8c_cross_binding,
 )
 from . import s8c_preregistration
 from . import s8c_acceptance_receipt
@@ -223,6 +228,8 @@ class _TrialLifecycleCapabilityState:
     launch_admission_sha256: str
     origin_binding: OriginBindingCapability | None
     consumed: bool = False
+    started_once: bool = False
+    restart_forbidden: bool = False
 
 
 _TRIAL_LIFECYCLE_CAPABILITIES: dict[int, _TrialLifecycleCapabilityState] = {}
@@ -243,7 +250,7 @@ class AcceptanceSummary:
     receipt_path: str
     receipt_sha256: str
     certifying: bool = False
-    arm_binding: str = "declared-only"
+    arm_binding: str = "execution-bound"
 
 
 @dataclasses.dataclass(slots=True)
@@ -1862,6 +1869,20 @@ def record_trial_start_once(
         lifecycle_path, root, create_parent=True,
     )
 
+    with _TRIAL_LIFECYCLE_CAPABILITIES_LOCK:
+        if any(
+            state.repository_root == root
+            and state.lifecycle_path == ledger
+            and state.trial_id == admission.trial_id
+            and state.started_once
+            and state.restart_forbidden
+            for state in _TRIAL_LIFECYCLE_CAPABILITIES.values()
+        ):
+            _fail(
+                "lifecycle-restart-forbidden",
+                f"trial_id is forbidden from restart: {admission.trial_id}",
+            )
+
     def append_start(rows):
         if any(item["event"] == "start" and item["trial_id"] == admission.trial_id for item in rows):
             _fail(
@@ -1886,6 +1907,7 @@ def record_trial_start_once(
             start_row_sha256=token.start_row_sha256,
             launch_admission_sha256=admission_sha256,
             origin_binding=origin_binding,
+            started_once=True,
         )
         return payload, (token, state)
 
@@ -1899,6 +1921,66 @@ def record_trial_start_once(
             _fail("lifecycle-token", "issued token identity is not unique")
         _TRIAL_LIFECYCLE_CAPABILITIES[id(token)] = state
     return token
+
+
+def reject_started_trial(
+    *,
+    trial_id: str,
+    repository_root: Path,
+    lifecycle_path: Path = DEFAULT_LIFECYCLE_PATH,
+) -> None:
+    """Reject a second launch before issuing a lifecycle capability.
+
+    The check is deliberately read-only with respect to lifecycle rows.  The
+    shared lifecycle lock still makes the observation atomic with the later
+    start append, while the existing start-once append remains the final
+    race-safe defense.
+    """
+    if type(trial_id) is not str or _TRIAL_ID_RE.fullmatch(trial_id) is None:
+        _fail("lifecycle-start-once", "trial_id is not lexically valid")
+    root = _repository_root(repository_root)
+    ledger, _relative = _canonical_lifecycle_target(
+        lifecycle_path, root, create_parent=True,
+    )
+
+    def inspect(rows):
+        if any(
+            item["event"] == "start" and item["trial_id"] == trial_id
+            for item in rows
+        ):
+            _fail(
+                "lifecycle-start-once",
+                f"trial_id already has a start row: {trial_id}",
+            )
+        return None, None
+
+    _locked_lifecycle_update(
+        repository_root=root,
+        lifecycle_path=ledger,
+        update=inspect,
+    )
+
+
+def forbid_trial_restart(token: TrialLifecycleToken) -> None:
+    """Consume the in-process restart capability for a started trial.
+
+    The durable start and indeterminate terminal rows remain the cross-process
+    refusal proof.  This capability flag makes the no-restart state explicit
+    to the process that owns the issued token without adding lifecycle keys.
+    """
+    if (
+        type(token) is not TrialLifecycleToken
+        or token._seal is not _TRIAL_LIFECYCLE_TOKEN_SEAL
+    ):
+        _fail("lifecycle-token", "restart refusal requires an issued lifecycle token")
+    with _TRIAL_LIFECYCLE_CAPABILITIES_LOCK:
+        state = _TRIAL_LIFECYCLE_CAPABILITIES.get(id(token))
+        if state is None or state.token is not token or not state.started_once:
+            _fail(
+                "lifecycle-token",
+                "restart refusal requires the exact started capability",
+            )
+        state.restart_forbidden = True
 
 
 def record_trial_terminal(
@@ -2622,6 +2704,9 @@ def assert_trial_registry_acceptance(
 
         manifest_by_id = {trial.trial_id: trial for trial in manifest.trials}
         accepted: list[AcceptedTrial] = []
+        no_build_seen = False
+        layer3_chain_absent_seen = False
+        cross_binding_receipts: dict[str, dict[str, Any]] = {}
         history_checked: set[str] = set()
         common_measurement_head: str | None = None
         for item in loaded:
@@ -2794,40 +2879,52 @@ def assert_trial_registry_acceptance(
                 cell = cells[0]
                 if not isinstance(cell, Mapping):
                     _fail("terminal-projection", "report cell is not an object")
+                failure_cell = (
+                    is_exact_cell_admission_failure_decision(
+                        cell.get("admission_decision")
+                    )
+                    and is_exact_campaignless_failure_fallback_cell(cell)
+                )
                 flags = cell.get("workload_flags")
-                if (
-                    cell.get("workload") != expected_workload["workload"]
-                    or not isinstance(flags, Mapping)
+                if cell.get("workload") != expected_workload["workload"]:
+                    _fail("terminal-projection", "report cell differs from manifest projection")
+                if not failure_cell and (
+                    not isinstance(flags, Mapping)
                     or flags.get("ycsb_rratio") != expected_workload["ycsb_rratio"]
                     or cell.get("campaign_id") != trial.campaign_id
                 ):
                     _fail("terminal-projection", "report cell differs from manifest projection")
                 descriptor = cell.get("descriptor")
                 descriptor_binding = cell.get("descriptor_binding")
-                if not isinstance(descriptor, Mapping) or not isinstance(
-                    descriptor_binding, Mapping
+                if failure_cell:
+                    descriptor = None
+                    descriptor_binding = None
+                if not failure_cell and (
+                    not isinstance(descriptor, Mapping)
+                    or not isinstance(descriptor_binding, Mapping)
                 ):
                     _fail(
                         "acceptance-arm-execution",
                         "cell descriptor authority is absent",
                     )
-                try:
-                    descriptor_raw = (
-                        s8c_arm_inputs.validate_execution_input_descriptor(descriptor)
-                    )
-                except s8c_arm_inputs.ArmInputError as exc:
-                    _fail("acceptance-arm-execution", str(exc))
-                descriptor_digest = hashlib.sha256(descriptor_raw).hexdigest()
-                if (
-                    descriptor_digest
-                    != expected_arm_execution["content_digest_sha256"]
-                    or descriptor_binding.get("output_sha256")
-                    != descriptor_digest
-                ):
-                    _fail(
-                        "acceptance-arm-execution",
-                        "cell descriptor differs from sealed execution input",
-                    )
+                if not failure_cell:
+                    try:
+                        descriptor_raw = (
+                            s8c_arm_inputs.validate_execution_input_descriptor(descriptor)
+                        )
+                    except s8c_arm_inputs.ArmInputError as exc:
+                        _fail("acceptance-arm-execution", str(exc))
+                    descriptor_digest = hashlib.sha256(descriptor_raw).hexdigest()
+                    if (
+                        descriptor_digest
+                        != expected_arm_execution["content_digest_sha256"]
+                        or descriptor_binding.get("output_sha256")
+                        != descriptor_digest
+                    ):
+                        _fail(
+                            "acceptance-arm-execution",
+                            "cell descriptor differs from sealed execution input",
+                        )
             status = report.get("status")
             if not isinstance(status, str):
                 _fail("terminal-projection", "report status is not a string")
@@ -2839,6 +2936,93 @@ def assert_trial_registry_acceptance(
                 )
             except AutonomousTrialCompletenessError as exc:
                 raise TrialRegistryError(f"[terminal-completeness] {exc}") from exc
+            do_build = report.get("do_build")
+            if type(do_build) is not bool:
+                _fail("campaign-chain", "report.do_build is not a bool")
+            run_root = item.journal_path.resolve().parent
+            if do_build is False:
+                no_build_seen = True
+                layer3_output_root = None
+            else:
+                cells = report.get("cells")
+                if not isinstance(cells, list) or not cells:
+                    _fail(
+                        "campaign-chain",
+                        "do_build=True requires a non-empty report.cells list",
+                    )
+                campaign_roots: list[Path] = []
+                for index, cell in enumerate(cells):
+                    if not isinstance(cell, Mapping):
+                        _fail("campaign-chain", f"cells[{index}] is not an object")
+                    if is_exact_campaignless_failure_fallback_cell(cell):
+                        layer3_chain_absent_seen = True
+                        continue
+                    campaign_root_value = cell.get("campaign_root")
+                    if type(campaign_root_value) is not str or not campaign_root_value:
+                        _fail(
+                            "campaign-chain",
+                            f"cells[{index}].campaign_root is required for build",
+                        )
+                    try:
+                        declared_campaign_root = Path(campaign_root_value)
+                        campaign_root = (
+                            declared_campaign_root
+                            if declared_campaign_root.is_absolute()
+                            else run_root / declared_campaign_root
+                        ).resolve(strict=True)
+                    except (OSError, ValueError) as exc:
+                        raise TrialRegistryError(
+                            f"[campaign-chain] cells[{index}].campaign_root cannot be resolved"
+                        ) from exc
+                    if not campaign_root.is_dir():
+                        _fail(
+                            "campaign-chain",
+                            f"cells[{index}].campaign_root is not a directory",
+                        )
+                    campaign_roots.append(campaign_root)
+                if campaign_roots:
+                    layer3_output_root = campaign_roots[0].parent.parent
+                    if any(
+                        campaign_root.parent.parent != layer3_output_root
+                        for campaign_root in campaign_roots
+                    ):
+                        _fail(
+                            "campaign-chain",
+                            "build cells do not share one campaign output root",
+                        )
+                    report_output_root = run_root.parent.parent
+                    if layer3_output_root != report_output_root:
+                        _fail(
+                            "campaign-chain",
+                            "campaign output root differs from report run root",
+                        )
+                else:
+                    layer3_output_root = None
+                try:
+                    assert_campaign_layer3_chain(
+                        report=report,
+                        output_root=(
+                            layer3_output_root
+                            if layer3_output_root is not None
+                            else run_root / "_no_campaign_output"
+                        ),
+                    )
+                except AutonomousTrialCompletenessError as exc:
+                    raise TrialRegistryError(f"[campaign-chain] {exc}") from exc
+                if any(
+                    not (campaign_root / "reports" / "layer3_report.json").is_file()
+                    for campaign_root in campaign_roots
+                ):
+                    layer3_chain_absent_seen = True
+            try:
+                cross_binding_receipts[trial_id] = verify_s8c_cross_binding(
+                    report=report,
+                    events=events,
+                    run_root=run_root,
+                    output_root=layer3_output_root,
+                )
+            except AutonomousTrialCompletenessError as exc:
+                raise TrialRegistryError(f"[cross-binding] {exc}") from exc
             accepted.append(AcceptedTrial(trial_id, status, measurement_head))
         accepted.sort(key=lambda accepted_trial: accepted_trial.trial_id)
         accepted_by_id = {item.trial_id: item for item in accepted}
@@ -2859,6 +3043,7 @@ def assert_trial_registry_acceptance(
             current_head=current_head,
         )
         receipt_trials: list[dict[str, Any]] = []
+        descriptor_proofs: list[bool] = []
         for trial in sorted(manifest.trials, key=lambda item: item.trial_id):
             item = loaded_by_id[trial.trial_id]
             accepted_trial = accepted_by_id[trial.trial_id]
@@ -2889,7 +3074,12 @@ def assert_trial_registry_acceptance(
                 "attempt_journal_sha256": hashlib.sha256(
                     item.journal_bytes
                 ).hexdigest(),
+                "arm_execution": dict(item.report["arm_execution"]),
+                "cross_binding_receipt_sha256": cross_binding_receipts[
+                    trial.trial_id
+                ]["receipt_sha256"],
             }
+            descriptor_proofs.append(len(item.report.get("cells", ())) == 1)
             if "origin_terminal_projection" in item.report:
                 receipt_trial["origin_terminal_projection"] = (
                     _validate_origin_terminal_projection(
@@ -2900,6 +3090,29 @@ def assert_trial_registry_acceptance(
             receipt_trials.append(receipt_trial)
         reason_codes = sorted(
             s8c_acceptance_receipt.MANDATORY_NON_CERTIFYING_REASONS
+        )
+        if not all(descriptor_proofs):
+            reason_codes.append(
+                s8c_acceptance_receipt.C02_ARM_BINDING_UNPROVEN
+            )
+            reason_codes.sort()
+        if no_build_seen:
+            reason_codes.append("no-build")
+            reason_codes.sort()
+        if layer3_chain_absent_seen:
+            reason_codes.append("layer3-chain-absent")
+            reason_codes.sort()
+        cross_binding_leaf_rows = [
+            {
+                "trial_id": trial["trial_id"],
+                "receipt_sha256": trial["cross_binding_receipt_sha256"],
+            }
+            for trial in receipt_trials
+        ]
+        cross_binding_receipt_sha256 = (
+            s8c_acceptance_receipt.cross_binding_aggregate_sha256(
+                cross_binding_leaf_rows
+            )
         )
         receipt_value = {
             "schema_version": s8c_acceptance_receipt.SCHEMA_VERSION,
@@ -2921,6 +3134,7 @@ def assert_trial_registry_acceptance(
             ).hexdigest(),
             "certifying": False,
             "non_certifying_reason_codes": reason_codes,
+            "cross_binding_receipt_sha256": cross_binding_receipt_sha256,
             "trials": receipt_trials,
         }
         receipt_path, receipt_sha256 = _exclusive_create_acceptance_receipt(

@@ -339,7 +339,7 @@ def _actual_campaign_layout(
     descriptor, descriptor_record = A._descriptor_for(flags)
     cfg = A._campaign_for(
         workload="ycsb-a",
-        workload_flags=flags,
+        entry=flags,
         descriptor=descriptor,
         descriptor_record=descriptor_record,
         trial_id=trial_id,
@@ -357,7 +357,7 @@ def test_no_build_campaign_identity_binds_shared_policy_context() -> None:
     descriptor, descriptor_record = A._descriptor_for(flags)
     context = _no_build_context()
     cfg = A._campaign_for(
-        workload="ycsb-a", workload_flags=flags,
+        workload="ycsb-a", entry=flags,
         descriptor=descriptor, descriptor_record=descriptor_record,
         trial_id="fixture-completeness", generations=1,
         contract=_T530_CONTRACT, build_context=context,
@@ -372,6 +372,308 @@ def test_no_build_campaign_identity_binds_shared_policy_context() -> None:
         "p3-t178-ycsb-a-workload-conditioned-autonomous-948f4c43"
     )
     assert str(A.ident.campaign_id(cfg)) != _T530_NO_BUILD_CAMPAIGN_ID
+
+
+def test_t1333_exploratory_entries_preserve_baseline_projection_bytes() -> None:
+    expected = {
+        "ycsb-a": "8e7d4c370177086b9e3c4fdb87f8db85b169328c253378d962a4c694993a6e5c",
+        "ycsb-b": "c749c20173488ec03424a96f367b04aab428eeae8ba76aed7ff2679878d2c016",
+        "ycsb-c": "36be6867728e7c195174f7fd2aab9486e23783850e9f6c9e3af423b823dfc4c6",
+    }
+    assert tuple(A.WORKLOADS) == ("ycsb-a", "ycsb-b", "ycsb-c")
+    for workload, expected_sha256 in expected.items():
+        entry = A.WORKLOADS[workload]
+        assert set(entry) == {"ycsb", "records", "threads"}
+        descriptor, descriptor_record = A._descriptor_for(entry)
+        value = {
+            "descriptor": descriptor,
+            "descriptor_record": descriptor_record,
+            "perf": dataclasses.asdict(A._perf_for(entry)),
+            "workload_flags": dict(entry["ycsb"]),
+        }
+        assert hashlib.sha256(A._canonical_json_bytes(value)).hexdigest() == (
+            expected_sha256
+        )
+
+
+def test_t1333_all_three_sinks_use_the_same_synthetic_scale_entry() -> None:
+    entry = A.WorkloadEntry(
+        ycsb=dict(A.WORKLOADS["ycsb-a"]["ycsb"]),
+        records=123_457,
+        threads=13,
+    )
+    descriptor, descriptor_record = A._descriptor_for(entry)
+    campaign = A._campaign_for(
+        workload="ycsb-a",
+        entry=entry,
+        descriptor=descriptor,
+        descriptor_record=descriptor_record,
+        trial_id="synthetic-entry",
+        generations=1,
+        contract=_T530_CONTRACT,
+        build_context=_no_build_context(),
+    )
+    perf = A._perf_for(entry)
+    assert campaign.search_config["records"] == perf.records == 123_457
+    assert campaign.search_config["threads"] == perf.threads == 13
+    assert descriptor["scale"] == {"records": 123_457, "threads": 13}
+    assert campaign.search_config["ycsb"] == perf.workload == entry["ycsb"]
+
+
+def test_t1349_formal_entries_bind_legacy_module_and_arm_descriptor() -> None:
+    known_digests = {
+        "rr80": "80501db0235d88314edd4a4c29a1949e67acc2b466ae426fbbb1cb3da4b7d843",
+        "rr20": "53230b8b1f0e0d82def3c384f4d8d8b050a1ce872afd2ed9e2a403c61c3c550b",
+    }
+    source_record = A._formal_profile_source_record(repository_root=A.ROOT)
+    legacy = A.s8b_ratified_freeze.load_legacy_freeze(A.ROOT)
+    assert source_record["path"] == A.s8b_ratified_freeze.V1_FREEZE_PATH
+    assert source_record["sha256"] == legacy.sha256
+    for name, authority in A.s8b_holdout_freeze.HOLDOUTS.items():
+        entry = A.FORMAL_WORKLOADS[name]
+        assert set(entry) == {"candidate_id", "ycsb", "records", "threads"}
+        descriptor, record = A._descriptor_for(entry)
+        perf = A._perf_for(entry)
+        campaign = A._campaign_for(
+            workload=name,
+            entry=entry,
+            descriptor=descriptor,
+            descriptor_record=record,
+            trial_id=f"formal-{name}",
+            generations=1,
+            contract=_T530_CONTRACT,
+            build_context=_no_build_context(),
+        )
+        selected_name, arm_descriptor = A.s8c_arm_inputs._descriptor_for_candidate(
+            authority["candidate_id"]
+        )
+        assert selected_name == name
+        assert descriptor == arm_descriptor
+        assert record["output_sha256"] == known_digests[name]
+        assert campaign.search_config["records"] == perf.records == entry["records"]
+        assert campaign.search_config["threads"] == perf.threads == entry["threads"]
+        assert campaign.search_config["ycsb"] == perf.workload == entry["ycsb"]
+
+
+def test_t1349_formal_ycsb_entries_do_not_alias_module_authority(
+    monkeypatch,
+) -> None:
+    name = next(iter(A.FORMAL_WORKLOADS))
+    formal_ycsb = A.FORMAL_WORKLOADS[name]["ycsb"]
+    module_ycsb = A.s8b_holdout_freeze.HOLDOUTS[name]["ycsb"]
+    assert formal_ycsb == module_ycsb
+    assert formal_ycsb is not module_ycsb
+    key = A.s8b_holdout_freeze.SKEW_KEY
+    original = module_ycsb[key]
+    monkeypatch.setitem(formal_ycsb, key, original + "0")
+    assert module_ycsb[key] == original
+
+
+def test_t1333_each_formal_sink_rejects_a_wrong_scale() -> None:
+    name = next(iter(A.FORMAL_WORKLOADS))
+    valid = A.FORMAL_WORKLOADS[name]
+    descriptor, descriptor_record = A._descriptor_for(valid)
+    invalid = A.WorkloadEntry(copy.deepcopy(valid))
+    invalid["records"] += 1
+    with pytest.raises(A.AutonomousTrialError, match="formal workload campaign scale"):
+        A._campaign_for(
+            workload=name,
+            entry=invalid,
+            descriptor=descriptor,
+            descriptor_record=descriptor_record,
+            trial_id="wrong-formal-campaign-scale",
+            generations=1,
+            contract=_T530_CONTRACT,
+            build_context=_no_build_context(),
+        )
+    with pytest.raises(A.AutonomousTrialError, match="formal workload perf scale"):
+        A._perf_for(invalid)
+    with pytest.raises(A.AutonomousTrialError, match="formal workload descriptor scale"):
+        A._descriptor_for(invalid)
+
+
+def test_t1349_formal_binding_rejects_module_projection_mismatch(
+    monkeypatch,
+) -> None:
+    name = next(iter(A.FORMAL_WORKLOADS))
+    descriptor, _record = A._descriptor_for(A.FORMAL_WORKLOADS[name])
+    tampered = copy.deepcopy(A.s8b_holdout_freeze.HOLDOUTS)
+    tampered[name]["candidate_id"] += "-tampered"
+    monkeypatch.setattr(A.s8b_holdout_freeze, "HOLDOUTS", tampered)
+    monkeypatch.setattr(
+        A.s8c_arm_inputs,
+        "_descriptor_for_candidate",
+        lambda _candidate_id: (name, descriptor),
+    )
+    with pytest.raises(A.AutonomousTrialError, match="module bytes differ"):
+        A._assert_formal_entry_binding(name, A.FORMAL_WORKLOADS[name])
+
+
+def test_t1349_formal_binding_rejects_producer_projection_mismatch(
+    monkeypatch,
+) -> None:
+    name = next(iter(A.FORMAL_WORKLOADS))
+    original = A.FORMAL_WORKLOADS[name]
+    descriptor, _record = A._descriptor_for(original)
+    tampered = A.WorkloadEntry(copy.deepcopy(original))
+    tampered["candidate_id"] += "-tampered"
+    monkeypatch.setattr(
+        A.s8c_arm_inputs,
+        "_descriptor_for_candidate",
+        lambda _candidate_id: (name, descriptor),
+    )
+    with pytest.raises(A.AutonomousTrialError, match="module bytes differ"):
+        A._assert_formal_entry_binding(name, tampered)
+
+
+def test_t1349_formal_source_rejects_legacy_projection_mismatch(
+    monkeypatch,
+) -> None:
+    original_loader = A.s8b_ratified_freeze.load_legacy_freeze
+    legacy = original_loader(A.ROOT)
+    document = json.loads(json.dumps(legacy.document, default=dict))
+    name = next(iter(A.FORMAL_WORKLOADS))
+    document["holdouts"][name]["candidate_id"] += "-tampered"
+    monkeypatch.setattr(
+        A.s8b_ratified_freeze,
+        "load_legacy_freeze",
+        lambda _root: SimpleNamespace(document=document, sha256=legacy.sha256),
+    )
+    with pytest.raises(A.AutonomousTrialError, match="authority bytes differ"):
+        A._formal_profile_source_record(repository_root=A.ROOT)
+
+
+def test_t1349_formal_binding_rejects_arm_descriptor_mismatch(
+    monkeypatch,
+) -> None:
+    name = next(iter(A.FORMAL_WORKLOADS))
+    entry = A.FORMAL_WORKLOADS[name]
+    descriptor, _record = A._descriptor_for(entry)
+    mismatched = copy.deepcopy(descriptor)
+    mismatched["read_write"]["read_ratio_percent"] += 1
+    monkeypatch.setattr(
+        A.s8c_arm_inputs,
+        "_descriptor_for_candidate",
+        lambda _candidate_id: (name, mismatched),
+    )
+    with pytest.raises(A.AutonomousTrialError, match="descriptor authority differs"):
+        A._assert_formal_entry_binding(name, entry)
+
+
+def test_t1310_producer_source_has_no_holdout_conjunction() -> None:
+    source = Path(A.__file__).read_text(encoding="utf-8")
+    hits = A.s8b_holdout_freeze.holdout_conjunction_hits(
+        {Path(A.__file__).name: source}
+    )
+    assert set(hits) == set(A.s8b_holdout_freeze.HOLDOUTS)
+    assert all(not paths for paths in hits.values())
+
+
+def test_m12_scale_tokens_alone_do_not_create_a_holdout_conjunction() -> None:
+    source = Path(A.__file__).read_text(encoding="utf-8")
+    scale_only_mutation = source + "\nrecords = 1_000_000\nthreads = 48\n"
+    hits = A.s8b_holdout_freeze.holdout_conjunction_hits(
+        {Path(A.__file__).name: scale_only_mutation}
+    )
+    assert all(not paths for paths in hits.values())
+
+
+def test_formal_selector_rederives_source_then_fails_closed_before_run_root(
+    tmp_path,
+) -> None:
+    run_root = tmp_path / "must-not-exist"
+    with pytest.raises(
+        A.AutonomousTrialError,
+        match=(
+            r"^formal launch is not admissible: effective "
+            r"preregistration unavailable$"
+        ),
+    ):
+        A.run_trial(
+            trial_id="formal-blocked",
+            workloads=list(A.s8b_holdout_freeze.HOLDOUTS),
+            generations=1,
+            provider_kind="fixture",
+            run_root=run_root,
+            sub="/unused",
+            do_build=False,
+            workload_profile=A.FORMAL_LEGACY_WORKLOAD_PROFILE,
+        )
+    assert not run_root.exists()
+
+
+def test_programmatic_workload_profile_is_a_plain_string_closed_set(tmp_path) -> None:
+    for selector in ("not-a-profile", None, 1):
+        with pytest.raises(A.AutonomousTrialError, match="unknown workload profile"):
+            A.run_trial(
+                trial_id="profile-closed-set",
+                workloads=["ycsb-a"],
+                generations=1,
+                provider_kind="fixture",
+                run_root=tmp_path / f"run-{selector}",
+                sub="/unused",
+                do_build=False,
+                workload_profile=selector,
+            )
+
+
+def test_cli_default_workloads_stay_exploratory_after_formal_entries(
+    tmp_path, monkeypatch,
+) -> None:
+    observed = {}
+
+    def stop_at_admission(**kwargs):
+        observed.update(kwargs)
+        raise _CliGateReached
+
+    monkeypatch.setattr(A, "_trial_launch_admission", stop_at_admission)
+    with pytest.raises(_CliGateReached):
+        A.main([
+            "--trial-id", "default-workload-profile",
+            "--provider", "fixture",
+            "--no-build",
+            "--allow-unregistered-exploratory",
+            "--ccbench-dir", str(tmp_path / "ccbench"),
+            "--run-root", str(tmp_path / "run"),
+        ])
+    assert observed["workloads"] == list(A.WORKLOADS)
+
+
+def test_cli_formal_selector_fails_before_launch_admission(
+    tmp_path, monkeypatch,
+) -> None:
+    def unexpected_admission(**_kwargs):
+        pytest.fail("formal selector reached launch admission")
+
+    monkeypatch.setattr(A, "_trial_launch_admission", unexpected_admission)
+    with pytest.raises(
+        A.AutonomousTrialError,
+        match=(
+            r"^formal launch is not admissible: effective "
+            r"preregistration unavailable$"
+        ),
+    ):
+        A.main([
+            "--trial-id", "formal-cli-blocked",
+            "--provider", "fixture",
+            "--workload-profile", A.FORMAL_LEGACY_WORKLOAD_PROFILE,
+            "--no-build",
+            "--ccbench-dir", str(tmp_path / "ccbench"),
+            "--run-root", str(tmp_path / "run"),
+        ])
+
+
+def test_cli_workload_profile_rejects_values_outside_closed_set(tmp_path) -> None:
+    run_root = tmp_path / "must-not-exist"
+    with pytest.raises(SystemExit):
+        A.main([
+            "--trial-id", "unknown-profile-cli",
+            "--provider", "fixture",
+            "--workload-profile", "not-a-profile",
+            "--no-build",
+            "--run-root", str(run_root),
+        ])
+    assert not run_root.exists()
 
 
 def test_prepare_campaign_identity_uses_injected_contract_once(monkeypatch) -> None:
@@ -1070,7 +1372,7 @@ def test_fixture_trial_runs_ycsb_abc_and_binds_descriptor(tmp_path) -> None:
 
 
 def test_fixture_no_build_cli_uses_public_drive_without_critic_digest(
-    tmp_path, monkeypatch,
+    tmp_path, monkeypatch, ratified_enforcement_source,
 ) -> None:
     """P+1: documented 8c CLI reaches the real public drive on a fresh layout."""
     from orchestrator.campaign import patchharness
@@ -1729,6 +2031,290 @@ def test_run_trial_rejects_unapproved_budget_before_artifact_creation(tmp_path) 
     assert not run_root.exists()
 
 
+@pytest.mark.parametrize(
+    "mismatch",
+    ("job-id", "boot-id", "remaining-time"),
+)
+def test_run_trial_reservation_rejects_each_live_binding_mismatch_before_launch(
+    tmp_path,
+    monkeypatch,
+    valid_reservation_environment,
+    mismatch,
+) -> None:
+    monkeypatch.setattr(
+        A.trigger,
+        "_current_site",
+        lambda: A.trigger.site_policy.PEGASUS_COMPUTE,
+    )
+    environment = dict(valid_reservation_environment)
+    if mismatch == "job-id":
+        environment["PBS_JOBID"] = "different.pegasus"
+    elif mismatch == "boot-id":
+        environment["IZANAGI_RESERVATION_BOOT_ID"] = "different-boot"
+    else:
+        requested_s = int(environment["IZANAGI_RESERVATION_REQUESTED_S"])
+        scheduler_started = time.time() - requested_s + 1
+        environment["IZANAGI_RESERVATION_SCHEDULER_STARTED_EPOCH"] = str(
+            scheduler_started
+        )
+        environment["IZANAGI_RESERVATION_DEADLINE_EPOCH"] = str(
+            scheduler_started + requested_s
+        )
+    for key, value in environment.items():
+        monkeypatch.setenv(key, value)
+
+    launches: list[str] = []
+
+    def blocked_provider(**_kwargs):
+        launches.append("provider")
+        raise AssertionError("provider launch must remain after reservation gate")
+
+    def blocked_campaign(*_args, **_kwargs):
+        launches.append("campaign")
+        raise AssertionError("campaign launch must remain after reservation gate")
+
+    monkeypatch.setattr(A, "_provider_set", blocked_provider)
+    monkeypatch.setattr(A.trigger, "drive_iteration", blocked_campaign)
+    run_root = tmp_path / f"reservation-{mismatch}"
+    with pytest.raises(A.reservation.ReservationError):
+        A.run_trial(
+            trial_id=f"reservation-{mismatch}",
+            workloads=["ycsb-a"],
+            generations=1,
+            provider_kind="claude-headless",
+            run_root=run_root,
+            sub="/unused",
+            do_build=False,
+            allow_pegasus_compute_transport=True,
+            allow_unregistered_exploratory=True,
+        )
+    assert launches == []
+    assert not run_root.exists()
+
+
+def test_run_trial_reservation_rejects_when_remaining_time_is_less_than_max_wall(
+    tmp_path,
+    monkeypatch,
+    valid_reservation_environment,
+) -> None:
+    monkeypatch.setattr(
+        A.trigger,
+        "_current_site",
+        lambda: A.trigger.site_policy.PEGASUS_COMPUTE,
+    )
+    environment = dict(valid_reservation_environment)
+    now = time.time()
+    requested_s = 1860
+    scheduler_started = now - 60
+    environment["IZANAGI_RESERVATION_REQUESTED_S"] = str(requested_s)
+    environment["IZANAGI_RESERVATION_SCHEDULER_STARTED_EPOCH"] = str(
+        scheduler_started
+    )
+    environment["IZANAGI_RESERVATION_DEADLINE_EPOCH"] = str(
+        scheduler_started + requested_s
+    )
+    for key, value in environment.items():
+        monkeypatch.setenv(key, value)
+
+    launches: list[str] = []
+
+    def blocked_provider(**_kwargs):
+        launches.append("provider")
+        raise AssertionError("provider launch must remain after reservation gate")
+
+    def blocked_campaign(*_args, **_kwargs):
+        launches.append("campaign")
+        raise AssertionError("campaign launch must remain after reservation gate")
+
+    monkeypatch.setattr(A, "_provider_set", blocked_provider)
+    monkeypatch.setattr(A.trigger, "drive_iteration", blocked_campaign)
+    run_root = tmp_path / "reservation-max-wall"
+    with pytest.raises(A.reservation.ReservationError):
+        A.run_trial(
+            trial_id="reservation-max-wall",
+            workloads=["ycsb-a"],
+            generations=1,
+            provider_kind="claude-headless",
+            run_root=run_root,
+            sub="/unused",
+            do_build=False,
+            max_wall_s=3600,
+            allow_pegasus_compute_transport=True,
+            allow_unregistered_exploratory=True,
+        )
+    assert launches == []
+    assert not run_root.exists()
+
+
+def test_reservation_error_stays_outside_run_trial_crash_terminalizer(
+    tmp_path,
+    monkeypatch,
+    valid_reservation_environment,
+) -> None:
+    monkeypatch.setattr(
+        A.trigger,
+        "_current_site",
+        lambda: A.trigger.site_policy.PEGASUS_COMPUTE,
+    )
+    for key, value in valid_reservation_environment.items():
+        monkeypatch.setenv(key, value)
+
+    def fail_check(*_args, **_kwargs):
+        raise A.reservation.ReservationError("synthetic reservation rejection")
+
+    terminal_calls: list[object] = []
+
+    def forbidden_terminal(*args, **kwargs):
+        terminal_calls.append((args, kwargs))
+        raise AssertionError("preflight reservation errors have no lifecycle token")
+
+    monkeypatch.setattr(A.reservation, "check_reservation", fail_check)
+    monkeypatch.setattr(A.trial_registry, "record_trial_terminal", forbidden_terminal)
+    with pytest.raises(
+        A.reservation.ReservationError,
+        match="synthetic reservation rejection",
+    ):
+        A.run_trial(
+            trial_id="reservation-error-order",
+            workloads=["ycsb-a"],
+            generations=1,
+            provider_kind="claude-headless",
+            run_root=tmp_path / "reservation-error-order",
+            sub="/unused",
+            do_build=False,
+            allow_pegasus_compute_transport=True,
+            allow_unregistered_exploratory=True,
+        )
+    assert terminal_calls == []
+
+
+def test_run_trial_does_not_read_reservation_for_other_isolation(
+    tmp_path, monkeypatch,
+) -> None:
+    read_calls: list[object] = []
+
+    def forbidden_read(*args, **kwargs):
+        read_calls.append((args, kwargs))
+        raise AssertionError("reservation binding is not needed for OTHER")
+
+    monkeypatch.setattr(A.reservation, "read_binding", forbidden_read)
+    report = A.run_trial(
+        trial_id="reservation-not-required",
+        workloads=["ycsb-a"],
+        generations=1,
+        provider_kind="fixture",
+        run_root=tmp_path / "reservation-not-required",
+        sub="/unused",
+        do_build=False,
+        drive=_fake_drive,
+        preview=_fake_preview,
+        allow_unregistered_exploratory=True,
+    )
+    assert report["status"] == "complete"
+    assert read_calls == []
+
+
+def test_run_trial_no_build_uses_actual_compute_site_for_reservation(
+    tmp_path, monkeypatch,
+) -> None:
+    site_calls: list[str] = []
+    monkeypatch.setattr(
+        A.trigger,
+        "_current_site",
+        lambda: site_calls.append(A.trigger.site_policy.PEGASUS_COMPUTE)
+        or A.trigger.site_policy.PEGASUS_COMPUTE,
+    )
+    read_calls: list[object] = []
+
+    def reject_unreserved_compute(environ):
+        read_calls.append(environ)
+        raise A.reservation.ReservationError(
+            "actual compute site requires a reservation"
+        )
+
+    monkeypatch.setattr(A.reservation, "read_binding", reject_unreserved_compute)
+    launches: list[str] = []
+
+    def blocked_provider(**_kwargs):
+        launches.append("provider")
+        raise AssertionError("provider launch preceded the reservation gate")
+
+    def blocked_campaign(*_args, **_kwargs):
+        launches.append("campaign")
+        raise AssertionError("campaign launch preceded the reservation gate")
+
+    monkeypatch.setattr(A, "_provider_set", blocked_provider)
+    monkeypatch.setattr(A.trigger, "drive_iteration", blocked_campaign)
+    run_root = tmp_path / "actual-compute-no-build"
+    with pytest.raises(
+        A.reservation.ReservationError,
+        match="actual compute site requires a reservation",
+    ):
+        A.run_trial(
+            trial_id="actual-compute-no-build",
+            workloads=["ycsb-a"],
+            generations=1,
+            provider_kind="fixture",
+            run_root=run_root,
+            sub="/unused",
+            do_build=False,
+            allow_pegasus_compute_transport=False,
+            allow_unregistered_exploratory=True,
+        )
+    assert site_calls == [A.trigger.site_policy.PEGASUS_COMPUTE]
+    assert len(read_calls) == 1
+    assert launches == []
+    assert not run_root.exists()
+
+
+def test_run_trial_no_build_other_site_is_not_overrejected_by_transport_opt_in(
+    tmp_path, monkeypatch,
+) -> None:
+    site_calls: list[str] = []
+
+    def current_site():
+        site_calls.append(A.trigger.site_policy.OTHER)
+        return A.trigger.site_policy.OTHER
+
+    monkeypatch.setattr(A.trigger, "_current_site", current_site)
+    admission, _receipt = _pegasus_transport_fixture()
+    monkeypatch.setattr(
+        A,
+        "admit_claude_transport",
+        lambda **_kwargs: admission,
+    )
+    monkeypatch.setattr(
+        A,
+        "_provider_set",
+        lambda **_kwargs: {
+            role: A.FixtureRoleProvider(role) for role in A.ROLE_FILES
+        },
+    )
+    monkeypatch.setattr(A.trigger, "drive_iteration", _fake_drive)
+    monkeypatch.setattr(A, "_preview", _fake_preview)
+    read_calls: list[object] = []
+
+    def forbidden_read(*args, **kwargs):
+        read_calls.append((args, kwargs))
+        raise AssertionError("OTHER site must not read reservation binding")
+
+    monkeypatch.setattr(A.reservation, "read_binding", forbidden_read)
+    # Fake-drive terminal status is incidental; returning without ReservationError is the invariant.
+    A.run_trial(
+        trial_id="actual-other-no-build-opt-in",
+        workloads=["ycsb-a"],
+        generations=1,
+        provider_kind="claude-headless",
+        run_root=tmp_path / "actual-other-no-build-opt-in",
+        sub="/unused",
+        do_build=False,
+        allow_pegasus_compute_transport=True,
+        allow_unregistered_exploratory=True,
+    )
+    assert site_calls == [A.trigger.site_policy.OTHER] * 2
+    assert read_calls == []
+
+
 def test_run_trial_rejects_compute_build_before_artifact_or_provider(
     tmp_path, monkeypatch,
 ) -> None:
@@ -1957,7 +2543,7 @@ def test_compute_build_requires_matching_t276_transport_admission(
 
 
 def test_transport_admission_error_persists_verified_partial_report(
-    tmp_path, monkeypatch,
+    tmp_path, monkeypatch, valid_reservation_environment,
 ) -> None:
     class FixtureTransportAdmissionError(RuntimeError):
         pass
@@ -1972,6 +2558,8 @@ def test_transport_admission_error_persists_verified_partial_report(
         A.trigger, "_current_site",
         lambda: A.trigger.site_policy.PEGASUS_COMPUTE,
     )
+    for key, value in valid_reservation_environment.items():
+        monkeypatch.setenv(key, value)
     monkeypatch.setattr(A, "admit_claude_transport", reject_transport_admission)
     run_root = tmp_path / "transport-admission-error"
     report = A.run_trial(
@@ -3695,7 +4283,7 @@ def test_role_metric_payloads_do_not_alias_frozen_validator_expectations(
 
 
 def test_standard_drive_two_generation_no_build_uses_s8c_wrapper(
-    tmp_path, monkeypatch,
+    tmp_path, monkeypatch, ratified_enforcement_source,
 ) -> None:
     from orchestrator.campaign import patchharness
 
@@ -5247,9 +5835,8 @@ def test_t1311_provider_payload_and_envelope_are_bound_to_arm_digest(
     )
 
 
-# T-325 supervisor/registry integration.  These fixtures deliberately extend
-# the supervisor's closed workload set so the new registry gate, rather than
-# the pre-existing unknown-workload gate, is the reason under test.
+# T-325 supervisor/registry integration.  The formal entries now come from the
+# shared holdout authority; the registry gate remains the reason under test.
 def _t325_git(repo: Path, *args: str) -> str:
     completed = subprocess.run(
         ["git", "-C", str(repo), *args],
@@ -5288,16 +5875,12 @@ def t325_registered_trial(tmp_path, monkeypatch):
     arm_input_commit = _t325_git(repo, "rev-parse", "HEAD")
 
     monkeypatch.setattr(A, "ROOT", repo)
-    monkeypatch.setitem(A.WORKLOADS, "rr80", {
-        "ycsb_zipf_skew": "0" + ".9",
-        "ycsb_rratio": "8" + "0",
-        "ycsb_rmw": "" + "0",
-    })
-    monkeypatch.setitem(A.WORKLOADS, "rr20", {
-        "ycsb_zipf_skew": "0" + ".9",
-        "ycsb_rratio": "2" + "0",
-        "ycsb_rmw": "" + "0",
-    })
+    for name, formal_entry in A.FORMAL_WORKLOADS.items():
+        monkeypatch.setitem(
+            A.WORKLOADS,
+            name,
+            A.WorkloadEntry(copy.deepcopy(formal_entry)),
+        )
 
     trials = []
     for holdout, workload in (("H1", "rr80"), ("H2", "rr20")):
@@ -5446,7 +6029,7 @@ def test_prepare_campaign_identity_exactly_matches_existing_derivation(
     descriptor, descriptor_record = A._descriptor_for(flags)
     legacy_campaign = A._campaign_for(
         workload="rr80",
-        workload_flags=flags,
+        entry=flags,
         descriptor=descriptor,
         descriptor_record=descriptor_record,
         trial_id=t325_registered_trial.trial_id,
@@ -5510,6 +6093,31 @@ def test_manifest_identity_preflight_does_not_consume_coder_authority(
         )
 
 
+def test_t1333_manifest_identity_reuses_the_formal_entry_scale(
+    t325_registered_trial,
+) -> None:
+    arm_execution = A.trial_registry.bind_trial_arm(
+        t325_registered_trial.binding,
+        repository_root=t325_registered_trial.repo,
+    )
+    prepared = A._prepare_manifest_campaign_identity(
+        workload="rr80",
+        trial_id=t325_registered_trial.trial_id,
+        generations=2,
+        site=A.trigger.site_policy.OTHER,
+        contract=_T530_CONTRACT,
+        build_context=_no_build_context(),
+        resolved_arm_input=arm_execution.resolved_input,
+    )
+    entry = A.FORMAL_WORKLOADS["rr80"]
+    assert prepared.campaign.search_config["records"] == entry["records"]
+    assert prepared.campaign.search_config["threads"] == entry["threads"]
+    assert prepared.campaign.search_config["ycsb"] == entry["ycsb"]
+    assert prepared.perf.records == entry["records"]
+    assert prepared.perf.threads == entry["threads"]
+    assert prepared.perf.workload == entry["ycsb"]
+
+
 def test_t1311_registered_identity_consumes_issued_arm_bytes(
     t325_registered_trial,
 ) -> None:
@@ -5545,7 +6153,9 @@ def test_t1311_registered_identity_consumes_issued_arm_bytes(
     assert prepared.campaign.search_config["arm_binding_digest_sha256"] == (
         record["arm_binding_digest_sha256"]
     )
-    assert prepared.campaign.search_config["ycsb"] == A.WORKLOADS["rr80"]
+    assert prepared.campaign.search_config["ycsb"] == (
+        A.FORMAL_WORKLOADS["rr80"]["ycsb"]
+    )
     assert prepared.campaign_id == t325_registered_trial.binding.campaign_id
 
 
@@ -5616,7 +6226,11 @@ def test_t1311_registered_workload_binds_proposal_and_all_invocations(
         A._ACTIVE_TRIAL_BINDING.reset(token)
     digest = arm_execution.arm_binding_digest_sha256
     assert cell["descriptor_binding"]["arm_binding_digest_sha256"] == digest
-    assert cell["workload_flags"] == A.WORKLOADS["rr80"]
+    assert cell["workload_flags"] == A.FORMAL_WORKLOADS["rr80"]["ycsb"]
+    assert cell["perf_config_scale"] == {
+        "records": A.FORMAL_WORKLOADS["rr80"]["records"],
+        "threads": A.FORMAL_WORKLOADS["rr80"]["threads"],
+    }
     for generation in cell["generations"]:
         for role, event in generation["roles"].items():
             assert event["invocation_id"] == A._invocation_id(
@@ -5635,6 +6249,20 @@ def test_t1311_registered_workload_binds_proposal_and_all_invocations(
         assert hashlib.sha256(Path(proposal["path"]).read_bytes()).hexdigest() == (
             proposal["sha256"]
         )
+
+
+def test_formal_registered_launch_requires_explicit_test_injection(
+    tmp_path, monkeypatch, t325_registered_trial,
+) -> None:
+    monkeypatch.delitem(A.WORKLOADS, "rr80")
+    run_root = tmp_path / "formal-default-selector-denied"
+    with pytest.raises(
+        A.AutonomousTrialError,
+        match=r"^unknown workloads: \['rr80'\]$",
+    ):
+        _t325_run(t325_registered_trial, run_root)
+    assert "rr80" in A.FORMAL_WORKLOADS
+    assert not run_root.exists()
 
 
 def test_p8_m25_manifest_run_burns_exact_binding_without_arm_fields(
@@ -5715,8 +6343,16 @@ def test_formal_start_is_recorded_before_run_root_and_blocks_other_root(
     t325_registered_trial,
 ) -> None:
     first_root = tmp_path / "formal-first-root"
+    original_reject = A.trial_registry.reject_started_trial
     original = A.trial_registry.record_trial_start_once
+    current_root: list[Path | None] = [None]
+    reject_observations: list[bool] = []
     observations: list[bool] = []
+
+    def observe_reject(**kwargs):
+        assert current_root[0] is not None
+        reject_observations.append(current_root[0].exists())
+        return original_reject(**kwargs)
 
     def observe_start(**kwargs):
         observations.append(Path(kwargs["run_root"]).exists())
@@ -5724,19 +6360,29 @@ def test_formal_start_is_recorded_before_run_root_and_blocks_other_root(
 
     monkeypatch.setattr(
         A.trial_registry,
+        "reject_started_trial",
+        observe_reject,
+    )
+    monkeypatch.setattr(
+        A.trial_registry,
         "record_trial_start_once",
         observe_start,
     )
+    current_root[0] = first_root
     first = _t325_run(t325_registered_trial, first_root)
     assert first["status"] == "complete"
+    assert reject_observations == [False]
     assert observations == [False]
 
     second_root = tmp_path / "formal-second-root"
+    current_root[0] = second_root
     with pytest.raises(
         A.trial_registry.TrialRegistryError,
         match=r"\[lifecycle-start-once\] ",
     ):
         _t325_run(t325_registered_trial, second_root)
+    assert reject_observations == [False, False]
+    assert observations == [False]
     assert not second_root.exists()
 
 
@@ -5746,6 +6392,18 @@ def test_formal_post_start_io_failure_records_indeterminate_and_stays_consumed(
     t325_registered_trial,
 ) -> None:
     run_root = tmp_path / "formal-post-start-failure"
+    original_forbid = A.trial_registry.forbid_trial_restart
+    forbid_calls: list[str] = []
+
+    def observe_forbid(token):
+        forbid_calls.append(token.trial_id)
+        return original_forbid(token)
+
+    monkeypatch.setattr(
+        A.trial_registry,
+        "forbid_trial_restart",
+        observe_forbid,
+    )
 
     def fail_namespace(_path: str) -> None:
         raise OSError("fixture namespace I/O failure")
@@ -5765,6 +6423,7 @@ def test_formal_post_start_io_failure_records_indeterminate_and_stays_consumed(
         "report_sha256": None,
         "attempt_journal_sha256": None,
     }
+    assert forbid_calls == [t325_registered_trial.trial_id]
     with pytest.raises(
         A.trial_registry.TrialRegistryError,
         match=r"\[lifecycle-start-once\] ",
@@ -5782,6 +6441,18 @@ def test_formal_terminal_write_failure_is_explicit_and_does_not_allow_rerun(
         "ensure_exploration_namespace",
         lambda _path: (_ for _ in ()).throw(OSError("original I/O failure")),
     )
+    original_forbid = A.trial_registry.forbid_trial_restart
+    forbid_calls: list[str] = []
+
+    def observe_forbid(token):
+        forbid_calls.append(token.trial_id)
+        return original_forbid(token)
+
+    monkeypatch.setattr(
+        A.trial_registry,
+        "forbid_trial_restart",
+        observe_forbid,
+    )
     original_terminal = A.trial_registry.record_trial_terminal
     monkeypatch.setattr(
         A.trial_registry,
@@ -5790,11 +6461,13 @@ def test_formal_terminal_write_failure_is_explicit_and_does_not_allow_rerun(
             OSError("terminal I/O failure")
         ),
     )
-    with pytest.raises(
-        A.AutonomousTrialError,
-        match="start remains consumed: original=OSError; terminal=OSError$",
-    ):
+    with pytest.raises(OSError, match="original I/O failure") as captured:
         _t325_run(t325_registered_trial, tmp_path / "terminal-write-failure")
+    assert any(
+        "terminal-record=OSError" in note
+        for note in getattr(captured.value, "__notes__", ())
+    )
+    assert forbid_calls == [t325_registered_trial.trial_id]
 
     monkeypatch.setattr(A.trial_registry, "record_trial_terminal", original_terminal)
     with pytest.raises(
@@ -5802,6 +6475,76 @@ def test_formal_terminal_write_failure_is_explicit_and_does_not_allow_rerun(
         match=r"\[lifecycle-start-once\] ",
     ):
         _t325_run(t325_registered_trial, tmp_path / "terminal-write-rerun")
+
+
+def test_formal_forbid_failure_still_records_indeterminate_terminal(
+    tmp_path,
+    monkeypatch,
+    t325_registered_trial,
+) -> None:
+    monkeypatch.setattr(
+        A,
+        "ensure_exploration_namespace",
+        lambda _path: (_ for _ in ()).throw(OSError("original crash")),
+    )
+    monkeypatch.setattr(
+        A.trial_registry,
+        "forbid_trial_restart",
+        lambda _token: (_ for _ in ()).throw(
+            OSError("restart bookkeeping failure")
+        ),
+    )
+
+    with pytest.raises(OSError, match="original crash") as captured:
+        _t325_run(t325_registered_trial, tmp_path / "forbid-write-failure")
+    assert any(
+        "restart-forbid=OSError" in note
+        for note in getattr(captured.value, "__notes__", ())
+    )
+
+    lifecycle = t325_registered_trial.repo / A.trial_registry.DEFAULT_LIFECYCLE_PATH
+    rows = [json.loads(line) for line in lifecycle.read_text().splitlines()]
+    assert [row["event"] for row in rows] == ["start", "terminal"]
+    assert rows[-1]["terminal_status"] == "indeterminate"
+
+
+def test_indeterminate_note_fallback_replaces_non_list_and_reraises_original(
+    monkeypatch,
+) -> None:
+    class PathologicalCrash(BaseException):
+        add_note = None
+
+    cause = PathologicalCrash("original crash")
+    cause.__notes__ = "not-a-list"
+    monkeypatch.setattr(
+        A.trial_registry,
+        "forbid_trial_restart",
+        lambda _token: (_ for _ in ()).throw(OSError("restart failure")),
+    )
+    monkeypatch.setattr(
+        A.trial_registry,
+        "record_trial_terminal",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            OSError("terminal failure")
+        ),
+    )
+
+    with pytest.raises(PathologicalCrash) as captured:
+        A.mark_experiment_indeterminate(
+            object(),
+            cause=cause,
+            experiment_status="indeterminate",
+            remaining_cells=("ycsb-a",),
+        )
+
+    assert captured.value is cause
+    assert isinstance(cause.__notes__, list)
+    assert any(
+        "restart-forbid=OSError" in note for note in cause.__notes__
+    )
+    assert any(
+        "terminal-record=OSError" in note for note in cause.__notes__
+    )
 
 
 def test_p9_exploratory_run_with_absent_registry_preserves_report_shape(

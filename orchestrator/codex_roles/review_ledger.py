@@ -18,7 +18,8 @@ SOURCE_FILE_SHA256 = {
     "calibrator": "dbe696286856738afb79369e772998bfad97bbdaccbcef5a8e0d1773f6c35b62",
     "coder": "5aac447ae26f53d3d61dac47c353201d96039231f930a968a36a68951d8f5c34",
     "coder-v4-autonomous": "4f1b5018a9d3f8077167adf9a8ebbc69ba83a0b8f9cfd9f18a7c6fbabe9fbf13",
-    "coder-v4-autonomous-sort": "577af0d4246933f128f77836c7b85786683ed3dbeca01403f9d4b7aa828e941f",
+    # Reviewed 2026-08-18: T-396 A; enforcement ownership split, prohibition set unchanged.
+    "coder-v4-autonomous-sort": "fbabef04095f73b7fc517290afc66d4fb8779144184eaf7c078fc17d50d7ca9a",
     # Reviewed 2026-08-04: stage5-agent-review.md approved the T-428 wire contract.
     "coder-v4-autonomous-trigger-gating": "a03045c86027ec09e01d0727557eaa653c8f04d0929c007a4f129902742a2db0",
     "critic": "cd1c365204fd1a68260d0454b4599bfd8cea12c5d845fb24f4e21f154733df15",

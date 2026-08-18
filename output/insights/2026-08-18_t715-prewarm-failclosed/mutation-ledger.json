@@ -1,0 +1,730 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t715-memo-failclosed/output/pegasus-dispatch/e4c6cced1f2c36b97e85ffb5e94b85ea/izdw-e4c6cced1f.o921235",
+      "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t715-memo-failclosed/output/pegasus-dispatch/e4c6cced1f2c36b97e85ffb5e94b85ea/receipt.json",
+      "runner_mode": "dispatch",
+      "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t715-memo-failclosed\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncollected 45 items\n\norchestrator/tests/test_real_repo_serialization.py ......                [ 13%]\norchestrator/tests/test_s8b_binding_driftguards.py s                     [ 15%]\norchestrator/tests/test_real_repo_serialization.py ...................   [ 57%]\norchestrator/tests/test_s8b_binding_driftguards.py .......               [ 73%]\norchestrator/tests/test_real_repo_serialization.py s                     [ 75%]\norchestrator/tests/test_s8b_binding_driftguards.py s..........           [100%]\nIZANAGI_GROWTH_HOLD_SUMMARY_V1 {\"collected_hold_functions\":3,\"opted_in\":false}\nIZANAGI_GROWTH_HOLD_V1 {\"correctness_gate\":true,\"hold_axis\":\"tracked_files\",\"node_id\":\"test_real_repo_serialization.py::test_protocol_builder_repo_tree_guard_is_wired_to_real_root\",\"reason\":\"Runs full real-repository git status snapshots before and after the action, so cost grows with tracked files.\",\"release_condition\":\"explicit-user-command-only\",\"ruling\":\"2026-08-12 rulings \\u7b2c 3 \\u675f\"}\nIZANAGI_GROWTH_HOLD_V1 {\"correctness_gate\":true,\"hold_axis\":\"commits\",\"node_id\":\"test_s8b_binding_driftguards.py::test_gate_check_broken_binding_manifest_stacks_manifest_verify_refusal\",\"reason\":\"Runs real-repository receipt and active-generation history resolution over the reachable commit graph, so cost grows with commit history.\",\"release_condition\":\"explicit-user-command-only\",\"ruling\":\"2026-08-12 rulings \\u7b2c 3 \\u675f\"}\nIZANAGI_GROWTH_HOLD_V1 {\"correctness_gate\":true,\"hold_axis\":\"commits\",\"node_id\":\"test_s8b_binding_driftguards.py::test_run_block_broken_binding_manifest_refuses_and_writes_nothing\",\"reason\":\"Runs the real repository binding/history gate whose cost grows with commit history.\",\"release_condition\":\"explicit-user-command-only\",\"ruling\":\"2026-08-12 rulings \\u7b2c 3 \\u675f\"}\n\n======================== 42 passed, 3 skipped in 40.92s ========================\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"serial\"}\n",
+      "stdout_sha256": "44c1ffc88953304e3ee40c5e40b62233894e5b39f659aebccbdd965338f746ba"
+    },
+    "artifact_error": null,
+    "collection_sha256": "5722ca147805e5db96b71fb67da7a8704364c05787c7cca83587d98e09247ced",
+    "duration_s": 62.807,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "877e86c27952756535838f9c3312c0c65d46fd8364073320300998faf3fc9868",
+    "repo_head": "dd1fefa928def8945a331e085359b6d625fa399c",
+    "runner_sha256": "77fb4e18340f4d64b723f28c7d2551f0d18707bf1792944661bb68d289fbe2fd",
+    "spec_sha256": "7f52469a5776625e5bd69c9f558f30f52a095e7993a676efc63a3866835cc6ad",
+    "status": "PASSED",
+    "test_output_sha256": "44c1ffc88953304e3ee40c5e40b62233894e5b39f659aebccbdd965338f746ba",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "ab292b26c01c795429087e339572ea8cddb5c10ace8347477e94653d852a7d09"
+  },
+  "date": "2026-08-18T05:33:31.505211+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t715-memo-failclosed/output/pegasus-dispatch/b154d7bc77e7835e991470ea53fef158/izdw-b154d7bc77.o921238",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t715-memo-failclosed/output/pegasus-dispatch/b154d7bc77e7835e991470ea53fef158/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t715-memo-failclosed\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncollected 45 items\n\norchestrator/tests/test_real_repo_serialization.py ......                [ 13%]\norchestrator/tests/test_s8b_binding_driftguards.py s                     [ 15%]\norchestrator/tests/test_real_repo_serialization.py ..F.F......F.......   [ 57%]\norchestrator/tests/test_s8b_binding_driftguards.py .......               [ 73%]\norchestrator/tests/test_real_repo_serialization.py s                     [ 75%]\norchestrator/tests/test_s8b_binding_driftguards.py s...F......           [100%]\nIZANAGI_GROWTH_HOLD_SUMMARY_V1 {\"collected_hold_functions\":3,\"opted_in\":false}\nIZANAGI_GROWTH_HOLD_V1 {\"correctness_gate\":true,\"hold_axis\":\"tracked_files\",\"node_id\":\"test_real_repo_serialization.py::test_protocol_builder_repo_tree_guard_is_wired_to_real_root\",\"reason\":\"Runs full real-repository git status snapshots before and after the action, so cost grows with tracked files.\",\"release_condition\":\"explicit-user-command-only\",\"ruling\":\"2026-08-12 rulings \\u7b2c 3 \\u675f\"}\nIZANAGI_GROWTH_HOLD_V1 {\"correctness_gate\":true,\"hold_axis\":\"commits\",\"node_id\":\"test_s8b_binding_driftguards.py::test_gate_check_broken_binding_manifest_stacks_manifest_verify_refusal\",\"reason\":\"Runs real-repository receipt and active-generation history resolution over the reachable commit graph, so cost grows with commit history.\",\"release_condition\":\"explicit-user-command-only\",\"ruling\":\"2026-08-12 rulings \\u7b2c 3 \\u675f\"}\nIZANAGI_GROWTH_HOLD_V1 {\"correctness_gate\":true,\"hold_axis\":\"commits\",\"node_id\":\"test_s8b_binding_driftguards.py::test_run_block_broken_binding_manifest_refuses_and_writes_nothing\",\"reason\":\"Runs the real repository binding/history gate whose cost grows with commit history.\",\"release_condition\":\"explicit-user-command-only\",\"ruling\":\"2026-08-12 rulings \\u7b2c 3 \\u675f\"}\n\n=================================== FAILURES ===================================\n_________ test_receipt_memo_l1_to_l5_are_fail_closed_and_uid_is_hashed _________\n\n    def test_receipt_memo_l1_to_l5_are_fail_closed_and_uid_is_hashed():\n        from orchestrator.tests import real_repo_receipt_memo as memo_module\n    \n        resolution = memo_module.migration.ReceiptResolution(\n            \"never-issued\", (), None, \"c\" * 40,\n        )\n        calls = []\n    \n        def resolve():\n            calls.append(\"resolve\")\n            return resolution\n    \n        serial = memo_module._make_receipt_memo(resolve=resolve)\n        with mock.patch.dict(os.environ, {}, clear=False):\n            os.environ.pop(memo_module._RUN_ID_ENV, None)\n>           error = _receipt_error(\n                serial.get, memo_module, \"cache-path-unavailable\",\n            )\n\norchestrator/tests/test_real_repo_serialization.py:1351: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\ncall = <bound method _ReceiptMemo.get of <orchestrator.tests.real_repo_receipt_memo._ReceiptMemo object at 0x14a2bb5a5810>>\nmemo_module = <module 'orchestrator.tests.real_repo_receipt_memo' from '/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t715-memo-failclosed/orchestrator/tests/real_repo_receipt_memo.py'>\nexpected_reason = 'cache-path-unavailable'\n\n    def _receipt_error(call, memo_module, expected_reason):\n        try:\n            call()\n        except memo_module.ReceiptMemoError as exc:\n            assert exc.payload[\"reason\"] == expected_reason, exc.payload\n            raw = str(exc).removeprefix(memo_module._ERROR_PREFIX)\n            assert str(exc).startswith(memo_module._ERROR_PREFIX)\n            assert raw == json.dumps(\n                exc.payload, ensure_ascii=True, separators=(\",\", \":\"), sort_keys=True,\n            )\n            assert set((\n                \"reason\", \"cache_path\", \"run_id\", \"head\", \"prewarm\",\n                \"process_prewarmed\",\n            )) <= set(exc.payload)\n            return exc\n>       raise AssertionError(f\"structured receipt error が無い: {expected_reason}\")\nE       AssertionError: structured receipt error が無い: cache-path-unavailable\n\norchestrator/tests/test_real_repo_serialization.py:1333: AssertionError\n_________ test_receipt_memo_process_state_is_scoped_to_pytest_session __________\n\n    def test_receipt_memo_process_state_is_scoped_to_pytest_session():\n        \"\"\"反復 session は旧 snapshot を捨て、入れ子終了時は外側だけを復元する。\"\"\"\n        from orchestrator.tests import real_repo_receipt_memo as memo_module\n    \n        first = object()\n        second = object()\n        snapshots = iter((first, second))\n        calls = []\n    \n        def resolve():\n            value = next(snapshots)\n            calls.append(value)\n            return value\n    \n        memo = memo_module._make_receipt_memo(resolve=resolve)\n        assert memo.prewarm(run_id=None, session_id=\"session-a\") is first\n        assert memo.get() is first\n        assert memo.prewarm(run_id=None, session_id=\"session-a\") is first\n        assert memo.prewarm(run_id=None, session_id=\"session-b\") is second\n        assert memo.get() is second\n        memo.finish_session(session_id=\"session-b\")\n        assert memo.get() is first\n        memo.finish_session(session_id=\"session-a\")\n        with mock.patch.dict(os.environ, {}, clear=False):\n            os.environ.pop(memo_module._RUN_ID_ENV, None)\n>           _receipt_error(memo.get, memo_module, \"cache-path-unavailable\")\n\norchestrator/tests/test_real_repo_serialization.py:1554: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\ncall = <bound method _ReceiptMemo.get of <orchestrator.tests.real_repo_receipt_memo._ReceiptMemo object at 0x14a2bb5ad660>>\nmemo_module = <module 'orchestrator.tests.real_repo_receipt_memo' from '/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t715-memo-failclosed/orchestrator/tests/real_repo_receipt_memo.py'>\nexpected_reason = 'cache-path-unavailable'\n\n    def _receipt_error(call, memo_module, expected_reason):\n        try:\n            call()\n        except memo_module.ReceiptMemoError as exc:\n            assert exc.payload[\"reason\"] == expected_reason, exc.payload\n            raw = str(exc).removeprefix(memo_module._ERROR_PREFIX)\n            assert str(exc).startswith(memo_module._ERROR_PREFIX)\n            assert raw == json.dumps(\n                exc.payload, ensure_ascii=True, separators=(\",\", \":\"), sort_keys=True,\n            )\n            assert set((\n                \"reason\", \"cache_path\", \"run_id\", \"head\", \"prewarm\",\n                \"process_prewarmed\",\n            )) <= set(exc.payload)\n            return exc\n>       raise AssertionError(f\"structured receipt error が無い: {expected_reason}\")\nE       AssertionError: structured receipt error が無い: cache-path-unavailable\n\norchestrator/tests/test_real_repo_serialization.py:1333: AssertionError\n_______ test_receipt_memo_module_identity_and_resolver_caller_are_fixed ________\n\n    def test_receipt_memo_module_identity_and_resolver_caller_are_fixed():\n        import importlib\n    \n        suite_conftest = _load_suite_conftest()\n        canonical = importlib.import_module(\n            \"orchestrator.tests.real_repo_receipt_memo\"\n        )\n        driver_tests = importlib.import_module(\n            \"orchestrator.tests.test_s8b_oracle_driver\"\n        )\n        drift_tests = importlib.import_module(\n            \"orchestrator.tests.test_s8b_binding_driftguards\"\n        )\n        identities = (\n            suite_conftest._receipt_memo_module(),\n            driver_tests.receipt_memo,\n            drift_tests.receipt_memo,\n        )\n        assert all(module is canonical for module in identities)\n        assert \"real_repo_receipt_memo\" not in sys.modules\n    \n        memo_source = (HERE / \"real_repo_receipt_memo.py\").read_text(encoding=\"utf-8\")\n>       assert _receipt_call_owners(memo_source) == {\n            \"_resolve_now\", \"_ReceiptMemo.prewarm\",\n        }\nE       AssertionError: assert {'_ReceiptMem..._resolve_now'} == {'_ReceiptMem..._resolve_now'}\nE         \nE         Extra items in the left set:\nE         '_ReceiptMemo.get'\nE         Use -v to get more diff\n\norchestrator/tests/test_real_repo_serialization.py:2138: AssertionError\n_______ test_receipt_memo_public_endpoint_is_fail_closed_before_prewarm ________\n\n    def test_receipt_memo_public_endpoint_is_fail_closed_before_prewarm():\n        \"\"\"公開 memo_resolver も miss から production resolver へ fallback しない。\"\"\"\n        calls = 0\n    \n        def fake_production_resolve(*, root):\n            nonlocal calls\n            assert Path(root).resolve() == ROOT.resolve()\n            calls += 1\n            return object()\n    \n        memo = receipt_memo._make_receipt_memo()\n        with pytest.MonkeyPatch.context() as patcher:\n            patcher.delenv(receipt_memo._RUN_ID_ENV, raising=False)\n            patcher.setattr(receipt_memo, \"_RECEIPT_MEMO\", memo)\n            patcher.setattr(\n                receipt_memo, \"_PRODUCTION_RESOLVE\", fake_production_resolve,\n            )\n>           with pytest.raises(receipt_memo.ReceiptMemoError) as direct:\nE           Failed: DID NOT RAISE ReceiptMemoError\n\norchestrator/tests/test_s8b_binding_driftguards.py:442: Failed\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_real_repo_serialization.py::test_receipt_memo_l1_to_l5_are_fail_closed_and_uid_is_hashed\nFAILED orchestrator/tests/test_real_repo_serialization.py::test_receipt_memo_process_state_is_scoped_to_pytest_session\nFAILED orchestrator/tests/test_real_repo_serialization.py::test_receipt_memo_module_identity_and_resolver_caller_are_fixed\nFAILED orchestrator/tests/test_s8b_binding_driftguards.py::test_receipt_memo_public_endpoint_is_fail_closed_before_prewarm\n============= 4 failed, 38 passed, 3 skipped in 126.20s (0:02:06) ==============\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"serial\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_real_repo_serialization.py::test_receipt_memo_process_state_is_scoped_to_pytest_session\" nodeid_bytes=111 nodeid_omitted_bytes=0 source_bytes=2607 retained_bytes=2607 omitted_bytes=0 rendered_excerpt_bytes=2807 sha256=7e1d14eca4b801510179e6154b5e7d400aa8627a1c3393ac3a1f12ed5173412c\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> def test_receipt_memo_process_state_is_scoped_to_pytest_session():\n>         \"\"\"\\u53cd\\u5fa9 session \\u306f\\u65e7 snapshot \\u3092\\u6368\\u3066\\u3001\\u5165\\u308c\\u5b50\\u7d42\\u4e86\\u6642\\u306f\\u5916\\u5074\\u3060\\u3051\\u3092\\u5fa9\\u5143\\u3059\\u308b\\u3002\"\"\"\n>         from orchestrator.tests import real_repo_receipt_memo as memo_module\n>     \n>         first = object()\n>         second = object()\n>         snapshots = iter((first, second))\n>         calls = []\n>     \n>         def resolve():\n>             value = next(snapshots)\n>             calls.append(value)\n>             return value\n>     \n>         memo = memo_module._make_receipt_memo(resolve=resolve)\n>         assert memo.prewarm(run_id=None, session_id=\"session-a\") is first\n>         assert memo.get() is first\n>         assert memo.prewarm(run_id=None, session_id=\"session-a\") is first\n>         assert memo.prewarm(run_id=None, session_id=\"session-b\") is second\n>         assert memo.get() is second\n>         memo.finish_session(session_id=\"session-b\")\n>         assert memo.get() is first\n>         memo.finish_session(session_id=\"session-a\")\n>         with mock.patch.dict(os.environ, {}, clear=False):\n>             os.environ.pop(memo_module._RUN_ID_ENV, None)\n> >           _receipt_error(memo.get, memo_module, \"cache-path-unavailable\")\n> \n> orchestrator/tests/test_real_repo_serialization.py:1554: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> call = <bound method _ReceiptMemo.get of <orchestrator.tests.real_repo_receipt_memo._ReceiptMemo object at 0x14a2bb5ad660>>\n> memo_module = <module 'orchestrator.tests.real_repo_receipt_memo' from '/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t715-memo-failclosed/orchestrator/tests/real_repo_receipt_memo.py'>\n> expected_reason = 'cache-path-unavailable'\n> \n>     def _receipt_error(call, memo_module, expected_reason):\n>         try:\n>             call()\n>         except memo_module.ReceiptMemoError as exc:\n>             assert exc.payload[\"reason\"] == expected_reason, exc.payload\n>             raw = str(exc).removeprefix(memo_module._ERROR_PREFIX)\n>             assert str(exc).startswith(memo_module._ERROR_PREFIX)\n>             assert raw == json.dumps(\n>                 exc.payload, ensure_ascii=True, separators=(\",\", \":\"), sort_keys=True,\n>             )\n>             assert set((\n>                 \"reason\", \"cache_path\", \"run_id\", \"head\", \"prewarm\",\n>                 \"process_prewarmed\",\n>             )) <= set(exc.payload)\n>             return exc\n> >       raise AssertionError(f\"structured receipt error \\u304c\\u7121\\u3044: {expected_reason}\")\n> E       AssertionError: structured receipt error \\u304c\\u7121\\u3044: cache-path-unavailable\n> \n> orchestrator/tests/test_real_repo_serialization.py:1333: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_s8b_binding_driftguards.py::test_receipt_memo_public_endpoint_is_fail_closed_before_prewarm\" nodeid_bytes=115 nodeid_omitted_bytes=0 source_bytes=922 retained_bytes=922 omitted_bytes=0 rendered_excerpt_bytes=995 sha256=b7186abf6218886416999f1f01565b81c4500c7c6c3dbfed73a92dda900d477c\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> def test_receipt_memo_public_endpoint_is_fail_closed_before_prewarm():\n>         \"\"\"\\u516c\\u958b memo_resolver \\u3082 miss \\u304b\\u3089 production resolver \\u3078 fallback \\u3057\\u306a\\u3044\\u3002\"\"\"\n>         calls = 0\n>     \n>         def fake_production_resolve(*, root):\n>             nonlocal calls\n>             assert Path(root).resolve() == ROOT.resolve()\n>             calls += 1\n>             return object()\n>     \n>         memo = receipt_memo._make_receipt_memo()\n>         with pytest.MonkeyPatch.context() as patcher:\n>             patcher.delenv(receipt_memo._RUN_ID_ENV, raising=False)\n>             patcher.setattr(receipt_memo, \"_RECEIPT_MEMO\", memo)\n>             patcher.setattr(\n>                 receipt_memo, \"_PRODUCTION_RESOLVE\", fake_production_resolve,\n>             )\n> >           with pytest.raises(receipt_memo.ReceiptMemoError) as direct:\n> E           Failed: DID NOT RAISE ReceiptMemoError\n> \n> orchestrator/tests/test_s8b_binding_driftguards.py:442: Failed\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE rank=3 category=failed when=call nodeid=\"orchestrator/tests/test_real_repo_serialization.py::test_receipt_memo_l1_to_l5_are_fail_closed_and_uid_is_hashed\" nodeid_bytes=112 nodeid_omitted_bytes=0 source_bytes=2109 retained_bytes=2109 omitted_bytes=0 rendered_excerpt_bytes=2218 sha256=fd7cc70c1967692da55b05981d3f98de63afe951c4e5ffe37373bca27b4cfac8\n--- IZANAGI FAILURE EXCERPT rank=3 BEGIN ---\n> def test_receipt_memo_l1_to_l5_are_fail_closed_and_uid_is_hashed():\n>         from orchestrator.tests import real_repo_receipt_memo as memo_module\n>     \n>         resolution = memo_module.migration.ReceiptResolution(\n>             \"never-issued\", (), None, \"c\" * 40,\n>         )\n>         calls = []\n>     \n>         def resolve():\n>             calls.append(\"resolve\")\n>             return resolution\n>     \n>         serial = memo_module._make_receipt_memo(resolve=resolve)\n>         with mock.patch.dict(os.environ, {}, clear=False):\n>             os.environ.pop(memo_module._RUN_ID_ENV, None)\n> >           error = _receipt_error(\n>                 serial.get, memo_module, \"cache-path-unavailable\",\n>             )\n> \n> orchestrator/tests/test_real_repo_serialization.py:1351: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> call = <bound method _ReceiptMemo.get of <orchestrator.tests.real_repo_receipt_memo._ReceiptMemo object at 0x14a2bb5a5810>>\n> memo_module = <module 'orchestrator.tests.real_repo_receipt_memo' from '/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t715-memo-failclosed/orchestrator/tests/real_repo_receipt_memo.py'>\n> expected_reason = 'cache-path-unavailable'\n> \n>     def _receipt_error(call, memo_module, expected_reason):\n>         try:\n>             call()\n>         except memo_module.ReceiptMemoError as exc:\n>             assert exc.payload[\"reason\"] == expected_reason, exc.payload\n>             raw = str(exc).removeprefix(memo_module._ERROR_PREFIX)\n>             assert str(exc).startswith(memo_module._ERROR_PREFIX)\n>             assert raw == json.dumps(\n>                 exc.payload, ensure_ascii=True, separators=(\",\", \":\"), sort_keys=True,\n>             )\n>             assert set((\n>                 \"reason\", \"cache_path\", \"run_id\", \"head\", \"prewarm\",\n>                 \"process_prewarmed\",\n>             )) <= set(exc.payload)\n>             return exc\n> >       raise AssertionError(f\"structured receipt error \\u304c\\u7121\\u3044: {expected_reason}\")\n> E       AssertionError: structured receipt error \\u304c\\u7121\\u3044: cache-path-unavailable\n> \n> orchestrator/tests/test_real_repo_serialization.py:1333: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=3 END ---\nIZANAGI_FAILURE rank=4 category=failed when=call nodeid=\"orchestrator/tests/test_real_repo_serialization.py::test_receipt_memo_module_identity_and_resolver_caller_are_fixed\" nodeid_bytes=115 nodeid_omitted_bytes=0 source_bytes=1267 retained_bytes=1267 omitted_bytes=0 rendered_excerpt_bytes=1332 sha256=8ae39aefa828ce42e62910dbe7caa359f1c4d7addbbeb079bf2d95951e899df6\n--- IZANAGI FAILURE EXCERPT rank=4 BEGIN ---\n> def test_receipt_memo_module_identity_and_resolver_caller_are_fixed():\n>         import importlib\n>     \n>         suite_conftest = _load_suite_conftest()\n>         canonical = importlib.import_module(\n>             \"orchestrator.tests.real_repo_receipt_memo\"\n>         )\n>         driver_tests = importlib.import_module(\n>             \"orchestrator.tests.test_s8b_oracle_driver\"\n>         )\n>         drift_tests = importlib.import_module(\n>             \"orchestrator.tests.test_s8b_binding_driftguards\"\n>         )\n>         identities = (\n>             suite_conftest._receipt_memo_module(),\n>             driver_tests.receipt_memo,\n>             drift_tests.receipt_memo,\n>         )\n>         assert all(module is canonical for module in identities)\n>         assert \"real_repo_receipt_memo\" not in sys.modules\n>     \n>         memo_source = (HERE / \"real_repo_receipt_memo.py\").read_text(encoding=\"utf-8\")\n> >       assert _receipt_call_owners(memo_source) == {\n>             \"_resolve_now\", \"_ReceiptMemo.prewarm\",\n>         }\n> E       AssertionError: assert {'_ReceiptMem..._resolve_now'} == {'_ReceiptMem..._resolve_now'}\n> E         \n> E         Extra items in the left set:\n> E         '_ReceiptMemo.get'\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_real_repo_serialization.py:2138: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=4 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=4 failed=4 errors=0 selected=4 omitted_failures=0 source_bytes=6905 retained_bytes=6905 omitted_bytes=0 budget_bytes=49152 rendered_bytes=9453 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "335b181555c3f35515a7f8d837fb5876ce07684349b3bf942733d984ea4502fd"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "5722ca147805e5db96b71fb67da7a8704364c05787c7cca83587d98e09247ced",
+      "duration_s": 149.804,
+      "expected_nodes": [
+        "orchestrator/tests/test_real_repo_serialization.py::test_receipt_memo_l1_to_l5_are_fail_closed_and_uid_is_hashed",
+        "orchestrator/tests/test_real_repo_serialization.py::test_receipt_memo_module_identity_and_resolver_caller_are_fixed",
+        "orchestrator/tests/test_s8b_binding_driftguards.py::test_receipt_memo_public_endpoint_is_fail_closed_before_prewarm"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_real_repo_serialization.py::test_receipt_memo_l1_to_l5_are_fail_closed_and_uid_is_hashed",
+        "orchestrator/tests/test_real_repo_serialization.py::test_receipt_memo_process_state_is_scoped_to_pytest_session",
+        "orchestrator/tests/test_real_repo_serialization.py::test_receipt_memo_module_identity_and_resolver_caller_are_fixed",
+        "orchestrator/tests/test_s8b_binding_driftguards.py::test_receipt_memo_public_endpoint_is_fail_closed_before_prewarm"
+      ],
+      "hang_risk": false,
+      "id": "MT1",
+      "injection_diff_sha256": "584772ebeb8ee26db023e82bd2810a684657689690a11fd827b57ef2d9fc6d5e",
+      "matches_expectation": false,
+      "rc": 1,
+      "registration_sha256": "4cfd7bf09237b4d7e2d6d5f7dce4669bcdb5b1396c1c9f515e1cbbc0edd9a99d",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/real_repo_receipt_memo.py",
+          "new": "        run_id = os.environ.get(_RUN_ID_ENV)\n        if run_id is None:\n            return _resolve_now()",
+          "old": "        run_id = os.environ.get(_RUN_ID_ENV)\n        if run_id is None:\n            raise self._error(\n                \"cache-path-unavailable\", cache_path=None, run_id=None,\n                head=None, prewarm=False,\n            )"
+        }
+      ],
+      "repo_head": "dd1fefa928def8945a331e085359b6d625fa399c",
+      "runner_sha256": "77fb4e18340f4d64b723f28c7d2551f0d18707bf1792944661bb68d289fbe2fd",
+      "spec_sha256": "7f52469a5776625e5bd69c9f558f30f52a095e7993a676efc63a3866835cc6ad",
+      "status": "MISMATCH",
+      "test_output_sha256": "335b181555c3f35515a7f8d837fb5876ce07684349b3bf942733d984ea4502fd",
+      "test_output_tail": [
+        ">         resolution = memo_module.migration.ReceiptResolution(",
+        ">             \"never-issued\", (), None, \"c\" * 40,",
+        ">         )",
+        ">         calls = []",
+        ">     ",
+        ">         def resolve():",
+        ">             calls.append(\"resolve\")",
+        ">             return resolution",
+        ">     ",
+        ">         serial = memo_module._make_receipt_memo(resolve=resolve)",
+        ">         with mock.patch.dict(os.environ, {}, clear=False):",
+        ">             os.environ.pop(memo_module._RUN_ID_ENV, None)",
+        "> >           error = _receipt_error(",
+        ">                 serial.get, memo_module, \"cache-path-unavailable\",",
+        ">             )",
+        "> ",
+        "> orchestrator/tests/test_real_repo_serialization.py:1351: ",
+        "> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ ",
+        "> ",
+        "> call = <bound method _ReceiptMemo.get of <orchestrator.tests.real_repo_receipt_memo._ReceiptMemo object at 0x14a2bb5a5810>>",
+        "> memo_module = <module 'orchestrator.tests.real_repo_receipt_memo' from '/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t715-memo-failclosed/orchestrator/tests/real_repo_receipt_memo.py'>",
+        "> expected_reason = 'cache-path-unavailable'",
+        "> ",
+        ">     def _receipt_error(call, memo_module, expected_reason):",
+        ">         try:",
+        ">             call()",
+        ">         except memo_module.ReceiptMemoError as exc:",
+        ">             assert exc.payload[\"reason\"] == expected_reason, exc.payload",
+        ">             raw = str(exc).removeprefix(memo_module._ERROR_PREFIX)",
+        ">             assert str(exc).startswith(memo_module._ERROR_PREFIX)",
+        ">             assert raw == json.dumps(",
+        ">                 exc.payload, ensure_ascii=True, separators=(\",\", \":\"), sort_keys=True,",
+        ">             )",
+        ">             assert set((",
+        ">                 \"reason\", \"cache_path\", \"run_id\", \"head\", \"prewarm\",",
+        ">                 \"process_prewarmed\",",
+        ">             )) <= set(exc.payload)",
+        ">             return exc",
+        "> >       raise AssertionError(f\"structured receipt error \\u304c\\u7121\\u3044: {expected_reason}\")",
+        "> E       AssertionError: structured receipt error \\u304c\\u7121\\u3044: cache-path-unavailable",
+        "> ",
+        "> orchestrator/tests/test_real_repo_serialization.py:1333: AssertionError",
+        "--- IZANAGI FAILURE EXCERPT rank=3 END ---",
+        "IZANAGI_FAILURE rank=4 category=failed when=call nodeid=\"orchestrator/tests/test_real_repo_serialization.py::test_receipt_memo_module_identity_and_resolver_caller_are_fixed\" nodeid_bytes=115 nodeid_omitted_bytes=0 source_bytes=1267 retained_bytes=1267 omitted_bytes=0 rendered_excerpt_bytes=1332 sha256=8ae39aefa828ce42e62910dbe7caa359f1c4d7addbbeb079bf2d95951e899df6",
+        "--- IZANAGI FAILURE EXCERPT rank=4 BEGIN ---",
+        "> def test_receipt_memo_module_identity_and_resolver_caller_are_fixed():",
+        ">         import importlib",
+        ">     ",
+        ">         suite_conftest = _load_suite_conftest()",
+        ">         canonical = importlib.import_module(",
+        ">             \"orchestrator.tests.real_repo_receipt_memo\"",
+        ">         )",
+        ">         driver_tests = importlib.import_module(",
+        ">             \"orchestrator.tests.test_s8b_oracle_driver\"",
+        ">         )",
+        ">         drift_tests = importlib.import_module(",
+        ">             \"orchestrator.tests.test_s8b_binding_driftguards\"",
+        ">         )",
+        ">         identities = (",
+        ">             suite_conftest._receipt_memo_module(),",
+        ">             driver_tests.receipt_memo,",
+        ">             drift_tests.receipt_memo,",
+        ">         )",
+        ">         assert all(module is canonical for module in identities)",
+        ">         assert \"real_repo_receipt_memo\" not in sys.modules",
+        ">     ",
+        ">         memo_source = (HERE / \"real_repo_receipt_memo.py\").read_text(encoding=\"utf-8\")",
+        "> >       assert _receipt_call_owners(memo_source) == {",
+        ">             \"_resolve_now\", \"_ReceiptMemo.prewarm\",",
+        ">         }",
+        "> E       AssertionError: assert {'_ReceiptMem..._resolve_now'} == {'_ReceiptMem..._resolve_now'}",
+        "> E         ",
+        "> E         Extra items in the left set:",
+        "> E         '_ReceiptMemo.get'",
+        "> E         Use -v to get more diff",
+        "> ",
+        "> orchestrator/tests/test_real_repo_serialization.py:2138: AssertionError",
+        "--- IZANAGI FAILURE EXCERPT rank=4 END ---",
+        "IZANAGI_FAILURE_DIGEST_ACCOUNT failures=4 failed=4 errors=0 selected=4 omitted_failures=0 source_bytes=6905 retained_bytes=6905 omitted_bytes=0 budget_bytes=49152 rendered_bytes=9453 omitted_manifest_sha256=-",
+        "=== IZANAGI FAILURE DIGEST v1 END ==="
+      ],
+      "timed_out": false,
+      "tool_sha256": "ab292b26c01c795429087e339572ea8cddb5c10ace8347477e94653d852a7d09"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t715-memo-failclosed/output/pegasus-dispatch/77c0b5929800e01fcb900a6ffd0f9509/izdw-77c0b59298.o921252",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t715-memo-failclosed/output/pegasus-dispatch/77c0b5929800e01fcb900a6ffd0f9509/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t715-memo-failclosed\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncollected 45 items\n\norchestrator/tests/test_real_repo_serialization.py ......                [ 13%]\norchestrator/tests/test_s8b_binding_driftguards.py s                     [ 15%]\norchestrator/tests/test_real_repo_serialization.py ...................   [ 57%]\norchestrator/tests/test_s8b_binding_driftguards.py .......               [ 73%]\norchestrator/tests/test_real_repo_serialization.py s                     [ 75%]\norchestrator/tests/test_s8b_binding_driftguards.py s..........           [100%]\nIZANAGI_GROWTH_HOLD_SUMMARY_V1 {\"collected_hold_functions\":3,\"opted_in\":false}\nIZANAGI_GROWTH_HOLD_V1 {\"correctness_gate\":true,\"hold_axis\":\"tracked_files\",\"node_id\":\"test_real_repo_serialization.py::test_protocol_builder_repo_tree_guard_is_wired_to_real_root\",\"reason\":\"Runs full real-repository git status snapshots before and after the action, so cost grows with tracked files.\",\"release_condition\":\"explicit-user-command-only\",\"ruling\":\"2026-08-12 rulings \\u7b2c 3 \\u675f\"}\nIZANAGI_GROWTH_HOLD_V1 {\"correctness_gate\":true,\"hold_axis\":\"commits\",\"node_id\":\"test_s8b_binding_driftguards.py::test_gate_check_broken_binding_manifest_stacks_manifest_verify_refusal\",\"reason\":\"Runs real-repository receipt and active-generation history resolution over the reachable commit graph, so cost grows with commit history.\",\"release_condition\":\"explicit-user-command-only\",\"ruling\":\"2026-08-12 rulings \\u7b2c 3 \\u675f\"}\nIZANAGI_GROWTH_HOLD_V1 {\"correctness_gate\":true,\"hold_axis\":\"commits\",\"node_id\":\"test_s8b_binding_driftguards.py::test_run_block_broken_binding_manifest_refuses_and_writes_nothing\",\"reason\":\"Runs the real repository binding/history gate whose cost grows with commit history.\",\"release_condition\":\"explicit-user-command-only\",\"ruling\":\"2026-08-12 rulings \\u7b2c 3 \\u675f\"}\n\n=================== 42 passed, 3 skipped in 98.62s (0:01:38) ===================\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"serial\"}\n",
+        "stdout_sha256": "e6e69e4f272fde1e417cade17692789a30018e9e84c51fc9ed415daf392a914a"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "5722ca147805e5db96b71fb67da7a8704364c05787c7cca83587d98e09247ced",
+      "duration_s": 119.056,
+      "expected_nodes": [
+        "orchestrator/tests/test_real_repo_serialization.py::test_receipt_memo_l1_to_l5_are_fail_closed_and_uid_is_hashed"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [],
+      "hang_risk": false,
+      "id": "MT2",
+      "injection_diff_sha256": "b637c5909ebcab056f832462f8e12f7d0f891d00b3de430b10aabc73a6921279",
+      "matches_expectation": false,
+      "rc": 0,
+      "registration_sha256": "fc1573be025e54f6083faa9aa7002ac500397b9c5214fc9fde11c6b50569bb34",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/real_repo_receipt_memo.py",
+          "new": "    except Exception:\n        try:\n            tmp.unlink()\n        except OSError:\n            pass",
+          "old": "    except Exception:\n        try:\n            tmp.unlink()\n        except OSError:\n            pass\n        raise"
+        }
+      ],
+      "repo_head": "dd1fefa928def8945a331e085359b6d625fa399c",
+      "runner_sha256": "77fb4e18340f4d64b723f28c7d2551f0d18707bf1792944661bb68d289fbe2fd",
+      "spec_sha256": "7f52469a5776625e5bd69c9f558f30f52a095e7993a676efc63a3866835cc6ad",
+      "status": "SURVIVED",
+      "test_output_sha256": "e6e69e4f272fde1e417cade17692789a30018e9e84c51fc9ed415daf392a914a",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "ab292b26c01c795429087e339572ea8cddb5c10ace8347477e94653d852a7d09"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t715-memo-failclosed/output/pegasus-dispatch/04735a09dd5081897696bea4974cc2b2/izdw-04735a09dd.o921258",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t715-memo-failclosed/output/pegasus-dispatch/04735a09dd5081897696bea4974cc2b2/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t715-memo-failclosed\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncollected 45 items\n\norchestrator/tests/test_real_repo_serialization.py ......                [ 13%]\norchestrator/tests/test_s8b_binding_driftguards.py s                     [ 15%]\norchestrator/tests/test_real_repo_serialization.py ...F.......F.......   [ 57%]\norchestrator/tests/test_s8b_binding_driftguards.py .......               [ 73%]\norchestrator/tests/test_real_repo_serialization.py s                     [ 75%]\norchestrator/tests/test_s8b_binding_driftguards.py s...F......           [100%]\nIZANAGI_GROWTH_HOLD_SUMMARY_V1 {\"collected_hold_functions\":3,\"opted_in\":false}\nIZANAGI_GROWTH_HOLD_V1 {\"correctness_gate\":true,\"hold_axis\":\"tracked_files\",\"node_id\":\"test_real_repo_serialization.py::test_protocol_builder_repo_tree_guard_is_wired_to_real_root\",\"reason\":\"Runs full real-repository git status snapshots before and after the action, so cost grows with tracked files.\",\"release_condition\":\"explicit-user-command-only\",\"ruling\":\"2026-08-12 rulings \\u7b2c 3 \\u675f\"}\nIZANAGI_GROWTH_HOLD_V1 {\"correctness_gate\":true,\"hold_axis\":\"commits\",\"node_id\":\"test_s8b_binding_driftguards.py::test_gate_check_broken_binding_manifest_stacks_manifest_verify_refusal\",\"reason\":\"Runs real-repository receipt and active-generation history resolution over the reachable commit graph, so cost grows with commit history.\",\"release_condition\":\"explicit-user-command-only\",\"ruling\":\"2026-08-12 rulings \\u7b2c 3 \\u675f\"}\nIZANAGI_GROWTH_HOLD_V1 {\"correctness_gate\":true,\"hold_axis\":\"commits\",\"node_id\":\"test_s8b_binding_driftguards.py::test_run_block_broken_binding_manifest_refuses_and_writes_nothing\",\"reason\":\"Runs the real repository binding/history gate whose cost grows with commit history.\",\"release_condition\":\"explicit-user-command-only\",\"ruling\":\"2026-08-12 rulings \\u7b2c 3 \\u675f\"}\n\n=================================== FAILURES ===================================\n______ test_receipt_memo_public_endpoints_reject_all_xdist_reader_faults _______\n\n    def test_receipt_memo_public_endpoints_reject_all_xdist_reader_faults():\n        \"\"\"公開 2 endpoint は UID 下の miss・破損・lock 不能でも実解決しない。\"\"\"\n        from orchestrator.tests import real_repo_receipt_memo as memo_module\n    \n        calls = []\n    \n        def production_resolve(*, root):\n            calls.append(Path(root))\n            return object()\n    \n        head = \"b\" * 40\n        run_id = \"public-fail-closed\"\n        with tempfile.TemporaryDirectory(prefix=\"receipt-public-test-\") as raw_tmp, \\\n                mock.patch.object(memo_module, \"_repo_head\", return_value=head), \\\n                mock.patch.object(memo_module.tempfile, \"gettempdir\", return_value=raw_tmp), \\\n                mock.patch.object(\n                    memo_module, \"_PRODUCTION_RESOLVE\", production_resolve,\n                ), mock.patch.dict(\n                    os.environ, {memo_module._RUN_ID_ENV: run_id}, clear=False,\n                ):\n            path = memo_module._cache_path_for(run_id, head)\n            cases = (\n                (\"cache-missing\", None),\n                (\"cache-unpickle-failed\", b\"not a pickle\"),\n                (\"lock-open-failed\", b\"unused\"),\n            )\n            for reason, cache_bytes in cases:\n                for endpoint_name in (\"real_repo_receipt\", \"memo_resolver\"):\n                    if path.exists():\n                        path.unlink()\n                    if cache_bytes is not None:\n                        path.write_bytes(cache_bytes)\n                    memo = memo_module._make_receipt_memo()\n                    with mock.patch.object(memo_module, \"_RECEIPT_MEMO\", memo):\n                        if endpoint_name == \"real_repo_receipt\":\n                            call = memo_module.real_repo_receipt\n                        else:\n                            call = lambda: memo_module.memo_resolver(root=memo_module.ROOT)\n                        if reason == \"lock-open-failed\":\n                            with mock.patch.object(\n                                memo_module, \"open\",\n                                side_effect=OSError(13, \"denied\"), create=True,\n                            ):\n                                error = _receipt_error(call, memo_module, reason)\n                        else:\n>                           error = _receipt_error(call, memo_module, reason)\n\norchestrator/tests/test_real_repo_serialization.py:1523: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\ncall = <function real_repo_receipt at 0x152f8a102b00>\nmemo_module = <module 'orchestrator.tests.real_repo_receipt_memo' from '/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t715-memo-failclosed/orchestrator/tests/real_repo_receipt_memo.py'>\nexpected_reason = 'cache-missing'\n\n    def _receipt_error(call, memo_module, expected_reason):\n        try:\n            call()\n        except memo_module.ReceiptMemoError as exc:\n            assert exc.payload[\"reason\"] == expected_reason, exc.payload\n            raw = str(exc).removeprefix(memo_module._ERROR_PREFIX)\n            assert str(exc).startswith(memo_module._ERROR_PREFIX)\n            assert raw == json.dumps(\n                exc.payload, ensure_ascii=True, separators=(\",\", \":\"), sort_keys=True,\n            )\n            assert set((\n                \"reason\", \"cache_path\", \"run_id\", \"head\", \"prewarm\",\n                \"process_prewarmed\",\n            )) <= set(exc.payload)\n            return exc\n>       raise AssertionError(f\"structured receipt error が無い: {expected_reason}\")\nE       AssertionError: structured receipt error が無い: cache-missing\n\norchestrator/tests/test_real_repo_serialization.py:1333: AssertionError\n_______ test_receipt_memo_module_identity_and_resolver_caller_are_fixed ________\n\n    def test_receipt_memo_module_identity_and_resolver_caller_are_fixed():\n        import importlib\n    \n        suite_conftest = _load_suite_conftest()\n        canonical = importlib.import_module(\n            \"orchestrator.tests.real_repo_receipt_memo\"\n        )\n        driver_tests = importlib.import_module(\n            \"orchestrator.tests.test_s8b_oracle_driver\"\n        )\n        drift_tests = importlib.import_module(\n            \"orchestrator.tests.test_s8b_binding_driftguards\"\n        )\n        identities = (\n            suite_conftest._receipt_memo_module(),\n            driver_tests.receipt_memo,\n            drift_tests.receipt_memo,\n        )\n        assert all(module is canonical for module in identities)\n        assert \"real_repo_receipt_memo\" not in sys.modules\n    \n        memo_source = (HERE / \"real_repo_receipt_memo.py\").read_text(encoding=\"utf-8\")\n>       assert _receipt_call_owners(memo_source) == {\n            \"_resolve_now\", \"_ReceiptMemo.prewarm\",\n        }\nE       AssertionError: assert {'_ReceiptMem...repo_receipt'} == {'_ReceiptMem..._resolve_now'}\nE         \nE         Extra items in the left set:\nE         'real_repo_receipt'\nE         Use -v to get more diff\n\norchestrator/tests/test_real_repo_serialization.py:2138: AssertionError\n_______ test_receipt_memo_public_endpoint_is_fail_closed_before_prewarm ________\n\n    def test_receipt_memo_public_endpoint_is_fail_closed_before_prewarm():\n        \"\"\"公開 memo_resolver も miss から production resolver へ fallback しない。\"\"\"\n        calls = 0\n    \n        def fake_production_resolve(*, root):\n            nonlocal calls\n            assert Path(root).resolve() == ROOT.resolve()\n            calls += 1\n            return object()\n    \n        memo = receipt_memo._make_receipt_memo()\n        with pytest.MonkeyPatch.context() as patcher:\n            patcher.delenv(receipt_memo._RUN_ID_ENV, raising=False)\n            patcher.setattr(receipt_memo, \"_RECEIPT_MEMO\", memo)\n            patcher.setattr(\n                receipt_memo, \"_PRODUCTION_RESOLVE\", fake_production_resolve,\n            )\n            with pytest.raises(receipt_memo.ReceiptMemoError) as direct:\n                memo.get()\n>           with pytest.raises(receipt_memo.ReceiptMemoError) as public:\nE           Failed: DID NOT RAISE ReceiptMemoError\n\norchestrator/tests/test_s8b_binding_driftguards.py:444: Failed\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_real_repo_serialization.py::test_receipt_memo_public_endpoints_reject_all_xdist_reader_faults\nFAILED orchestrator/tests/test_real_repo_serialization.py::test_receipt_memo_module_identity_and_resolver_caller_are_fixed\nFAILED orchestrator/tests/test_s8b_binding_driftguards.py::test_receipt_memo_public_endpoint_is_fail_closed_before_prewarm\n============== 3 failed, 39 passed, 3 skipped in 94.64s (0:01:34) ==============\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"serial\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_real_repo_serialization.py::test_receipt_memo_public_endpoints_reject_all_xdist_reader_faults\" nodeid_bytes=117 nodeid_omitted_bytes=0 source_bytes=3701 retained_bytes=3701 omitted_bytes=0 rendered_excerpt_bytes=3935 sha256=907a0ae59b34eca915efefa4b48d2187fb395bbc44010201b520947d2eb0c01d\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> def test_receipt_memo_public_endpoints_reject_all_xdist_reader_faults():\n>         \"\"\"\\u516c\\u958b 2 endpoint \\u306f UID \\u4e0b\\u306e miss\\u30fb\\u7834\\u640d\\u30fblock \\u4e0d\\u80fd\\u3067\\u3082\\u5b9f\\u89e3\\u6c7a\\u3057\\u306a\\u3044\\u3002\"\"\"\n>         from orchestrator.tests import real_repo_receipt_memo as memo_module\n>     \n>         calls = []\n>     \n>         def production_resolve(*, root):\n>             calls.append(Path(root))\n>             return object()\n>     \n>         head = \"b\" * 40\n>         run_id = \"public-fail-closed\"\n>         with tempfile.TemporaryDirectory(prefix=\"receipt-public-test-\") as raw_tmp, \\x5c\n>                 mock.patch.object(memo_module, \"_repo_head\", return_value=head), \\x5c\n>                 mock.patch.object(memo_module.tempfile, \"gettempdir\", return_value=raw_tmp), \\x5c\n>                 mock.patch.object(\n>                     memo_module, \"_PRODUCTION_RESOLVE\", production_resolve,\n>                 ), mock.patch.dict(\n>                     os.environ, {memo_module._RUN_ID_ENV: run_id}, clear=False,\n>                 ):\n>             path = memo_module._cache_path_for(run_id, head)\n>             cases = (\n>                 (\"cache-missing\", None),\n>                 (\"cache-unpickle-failed\", b\"not a pickle\"),\n>                 (\"lock-open-failed\", b\"unused\"),\n>             )\n>             for reason, cache_bytes in cases:\n>                 for endpoint_name in (\"real_repo_receipt\", \"memo_resolver\"):\n>                     if path.exists():\n>                         path.unlink()\n>                     if cache_bytes is not None:\n>                         path.write_bytes(cache_bytes)\n>                     memo = memo_module._make_receipt_memo()\n>                     with mock.patch.object(memo_module, \"_RECEIPT_MEMO\", memo):\n>                         if endpoint_name == \"real_repo_receipt\":\n>                             call = memo_module.real_repo_receipt\n>                         else:\n>                             call = lambda: memo_module.memo_resolver(root=memo_module.ROOT)\n>                         if reason == \"lock-open-failed\":\n>                             with mock.patch.object(\n>                                 memo_module, \"open\",\n>                                 side_effect=OSError(13, \"denied\"), create=True,\n>                             ):\n>                                 error = _receipt_error(call, memo_module, reason)\n>                         else:\n> >                           error = _receipt_error(call, memo_module, reason)\n> \n> orchestrator/tests/test_real_repo_serialization.py:1523: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> call = <function real_repo_receipt at 0x152f8a102b00>\n> memo_module = <module 'orchestrator.tests.real_repo_receipt_memo' from '/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t715-memo-failclosed/orchestrator/tests/real_repo_receipt_memo.py'>\n> expected_reason = 'cache-missing'\n> \n>     def _receipt_error(call, memo_module, expected_reason):\n>         try:\n>             call()\n>         except memo_module.ReceiptMemoError as exc:\n>             assert exc.payload[\"reason\"] == expected_reason, exc.payload\n>             raw = str(exc).removeprefix(memo_module._ERROR_PREFIX)\n>             assert str(exc).startswith(memo_module._ERROR_PREFIX)\n>             assert raw == json.dumps(\n>                 exc.payload, ensure_ascii=True, separators=(\",\", \":\"), sort_keys=True,\n>             )\n>             assert set((\n>                 \"reason\", \"cache_path\", \"run_id\", \"head\", \"prewarm\",\n>                 \"process_prewarmed\",\n>             )) <= set(exc.payload)\n>             return exc\n> >       raise AssertionError(f\"structured receipt error \\u304c\\u7121\\u3044: {expected_reason}\")\n> E       AssertionError: structured receipt error \\u304c\\u7121\\u3044: cache-missing\n> \n> orchestrator/tests/test_real_repo_serialization.py:1333: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_s8b_binding_driftguards.py::test_receipt_memo_public_endpoint_is_fail_closed_before_prewarm\" nodeid_bytes=115 nodeid_omitted_bytes=0 source_bytes=1022 retained_bytes=1022 omitted_bytes=0 rendered_excerpt_bytes=1099 sha256=65cc7c5c353a681a082e24394dc87300562db6bc2f6789df3f9e2c35f72b34c2\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> def test_receipt_memo_public_endpoint_is_fail_closed_before_prewarm():\n>         \"\"\"\\u516c\\u958b memo_resolver \\u3082 miss \\u304b\\u3089 production resolver \\u3078 fallback \\u3057\\u306a\\u3044\\u3002\"\"\"\n>         calls = 0\n>     \n>         def fake_production_resolve(*, root):\n>             nonlocal calls\n>             assert Path(root).resolve() == ROOT.resolve()\n>             calls += 1\n>             return object()\n>     \n>         memo = receipt_memo._make_receipt_memo()\n>         with pytest.MonkeyPatch.context() as patcher:\n>             patcher.delenv(receipt_memo._RUN_ID_ENV, raising=False)\n>             patcher.setattr(receipt_memo, \"_RECEIPT_MEMO\", memo)\n>             patcher.setattr(\n>                 receipt_memo, \"_PRODUCTION_RESOLVE\", fake_production_resolve,\n>             )\n>             with pytest.raises(receipt_memo.ReceiptMemoError) as direct:\n>                 memo.get()\n> >           with pytest.raises(receipt_memo.ReceiptMemoError) as public:\n> E           Failed: DID NOT RAISE ReceiptMemoError\n> \n> orchestrator/tests/test_s8b_binding_driftguards.py:444: Failed\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE rank=3 category=failed when=call nodeid=\"orchestrator/tests/test_real_repo_serialization.py::test_receipt_memo_module_identity_and_resolver_caller_are_fixed\" nodeid_bytes=115 nodeid_omitted_bytes=0 source_bytes=1268 retained_bytes=1268 omitted_bytes=0 rendered_excerpt_bytes=1333 sha256=cd6bbb2de67203c338654e3036731fa9edecabf59646611f0d19d5d1810ade63\n--- IZANAGI FAILURE EXCERPT rank=3 BEGIN ---\n> def test_receipt_memo_module_identity_and_resolver_caller_are_fixed():\n>         import importlib\n>     \n>         suite_conftest = _load_suite_conftest()\n>         canonical = importlib.import_module(\n>             \"orchestrator.tests.real_repo_receipt_memo\"\n>         )\n>         driver_tests = importlib.import_module(\n>             \"orchestrator.tests.test_s8b_oracle_driver\"\n>         )\n>         drift_tests = importlib.import_module(\n>             \"orchestrator.tests.test_s8b_binding_driftguards\"\n>         )\n>         identities = (\n>             suite_conftest._receipt_memo_module(),\n>             driver_tests.receipt_memo,\n>             drift_tests.receipt_memo,\n>         )\n>         assert all(module is canonical for module in identities)\n>         assert \"real_repo_receipt_memo\" not in sys.modules\n>     \n>         memo_source = (HERE / \"real_repo_receipt_memo.py\").read_text(encoding=\"utf-8\")\n> >       assert _receipt_call_owners(memo_source) == {\n>             \"_resolve_now\", \"_ReceiptMemo.prewarm\",\n>         }\n> E       AssertionError: assert {'_ReceiptMem...repo_receipt'} == {'_ReceiptMem..._resolve_now'}\n> E         \n> E         Extra items in the left set:\n> E         'real_repo_receipt'\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_real_repo_serialization.py:2138: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=3 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=3 failed=3 errors=0 selected=3 omitted_failures=0 source_bytes=5991 retained_bytes=5991 omitted_bytes=0 budget_bytes=49152 rendered_bytes=8024 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "c31ac4a8421212637577a3149eb9850fa79afd51bf1db26257c583e843148908"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "5722ca147805e5db96b71fb67da7a8704364c05787c7cca83587d98e09247ced",
+      "duration_s": 118.984,
+      "expected_nodes": [
+        "orchestrator/tests/test_real_repo_serialization.py::test_receipt_memo_module_identity_and_resolver_caller_are_fixed",
+        "orchestrator/tests/test_real_repo_serialization.py::test_receipt_memo_public_endpoints_reject_all_xdist_reader_faults",
+        "orchestrator/tests/test_s8b_binding_driftguards.py::test_receipt_memo_public_endpoint_is_fail_closed_before_prewarm"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_real_repo_serialization.py::test_receipt_memo_public_endpoints_reject_all_xdist_reader_faults",
+        "orchestrator/tests/test_real_repo_serialization.py::test_receipt_memo_module_identity_and_resolver_caller_are_fixed",
+        "orchestrator/tests/test_s8b_binding_driftguards.py::test_receipt_memo_public_endpoint_is_fail_closed_before_prewarm"
+      ],
+      "hang_risk": false,
+      "id": "MT3",
+      "injection_diff_sha256": "21d16675e0645f37d267ec7f96744ffe50aeaac06571420af1c85a110744381b",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "c173c192467824974b8473abf989ea6f6ebf7a8067ebec316df63eaed9b9a558",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/real_repo_receipt_memo.py",
+          "new": "def real_repo_receipt():\n    try:\n        return _RECEIPT_MEMO.get()\n    except ReceiptMemoError:\n        return _PRODUCTION_RESOLVE(root=ROOT)\n\n\ndef _t715_mutant_unused():",
+          "old": "def real_repo_receipt():"
+        }
+      ],
+      "repo_head": "dd1fefa928def8945a331e085359b6d625fa399c",
+      "runner_sha256": "77fb4e18340f4d64b723f28c7d2551f0d18707bf1792944661bb68d289fbe2fd",
+      "spec_sha256": "7f52469a5776625e5bd69c9f558f30f52a095e7993a676efc63a3866835cc6ad",
+      "status": "KILLED",
+      "test_output_sha256": "c31ac4a8421212637577a3149eb9850fa79afd51bf1db26257c583e843148908",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "ab292b26c01c795429087e339572ea8cddb5c10ace8347477e94653d852a7d09"
+    },
+    {
+      "anchor_counts": {
+        "0": 1,
+        "1": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t715-memo-failclosed/output/pegasus-dispatch/95f3b36d74647760ab46f31c8d551b23/izdw-95f3b36d74.o921266",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t715-memo-failclosed/output/pegasus-dispatch/95f3b36d74647760ab46f31c8d551b23/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t715-memo-failclosed\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncollected 45 items\n\norchestrator/tests/test_real_repo_serialization.py ......                [ 13%]\norchestrator/tests/test_s8b_binding_driftguards.py s                     [ 15%]\norchestrator/tests/test_real_repo_serialization.py ......F.FF.........   [ 57%]\norchestrator/tests/test_s8b_binding_driftguards.py .......               [ 73%]\norchestrator/tests/test_real_repo_serialization.py s                     [ 75%]\norchestrator/tests/test_s8b_binding_driftguards.py s..........           [100%]\nIZANAGI_GROWTH_HOLD_SUMMARY_V1 {\"collected_hold_functions\":3,\"opted_in\":false}\nIZANAGI_GROWTH_HOLD_V1 {\"correctness_gate\":true,\"hold_axis\":\"tracked_files\",\"node_id\":\"test_real_repo_serialization.py::test_protocol_builder_repo_tree_guard_is_wired_to_real_root\",\"reason\":\"Runs full real-repository git status snapshots before and after the action, so cost grows with tracked files.\",\"release_condition\":\"explicit-user-command-only\",\"ruling\":\"2026-08-12 rulings \\u7b2c 3 \\u675f\"}\nIZANAGI_GROWTH_HOLD_V1 {\"correctness_gate\":true,\"hold_axis\":\"commits\",\"node_id\":\"test_s8b_binding_driftguards.py::test_gate_check_broken_binding_manifest_stacks_manifest_verify_refusal\",\"reason\":\"Runs real-repository receipt and active-generation history resolution over the reachable commit graph, so cost grows with commit history.\",\"release_condition\":\"explicit-user-command-only\",\"ruling\":\"2026-08-12 rulings \\u7b2c 3 \\u675f\"}\nIZANAGI_GROWTH_HOLD_V1 {\"correctness_gate\":true,\"hold_axis\":\"commits\",\"node_id\":\"test_s8b_binding_driftguards.py::test_run_block_broken_binding_manifest_refuses_and_writes_nothing\",\"reason\":\"Runs the real repository binding/history gate whose cost grows with commit history.\",\"release_condition\":\"explicit-user-command-only\",\"ruling\":\"2026-08-12 rulings \\u7b2c 3 \\u675f\"}\n\n=================================== FAILURES ===================================\n_________ test_receipt_memo_prewarm_wiring_is_controller_only_and_lazy _________\n\n    def test_receipt_memo_prewarm_wiring_is_controller_only_and_lazy():\n        suite_conftest = _load_suite_conftest()\n        consumer = (\n            \"test_s8b_oracle_driver.py::\"\n            \"test_success_wal_order_budget_and_evaluate_contract\"\n        )\n        calls = []\n        fake_module = SimpleNamespace(\n            prewarm_real_repo_receipt=(\n                lambda *, run_id, session_id: calls.append(run_id)\n            ),\n        )\n    \n        worker_config = _ReceiptHookConfig(\n            {\"collectonly\": False, \"testrunuid\": \"ci-job-42\"}, worker=True,\n        )\n        worker_session = SimpleNamespace(\n            config=worker_config, items=[_receipt_hook_item(consumer)],\n        )\n        controller_config = _ReceiptHookConfig(\n            {\"collectonly\": False, \"testrunuid\": \"ci-job-42\"},\n        )\n        controller_node = SimpleNamespace(\n            config=controller_config,\n            workerinput={\"testrunuid\": \"ci-job-42\"},\n        )\n        events = []\n        with mock.patch.object(\n            suite_conftest, \"_receipt_memo_module\", return_value=fake_module,\n        ):\n            events.append(\"worker-hook\")\n            suite_conftest.pytest_collection_finish(worker_session)\n>           assert calls == []\nE           assert [None] == []\nE             \nE             Left contains one more item: None\nE             Use -v to get more diff\n\norchestrator/tests/test_real_repo_serialization.py:1644: AssertionError\n____ test_receipt_memo_both_worker_guards_are_required_as_redundant_defense ____\n\n    def test_receipt_memo_both_worker_guards_are_required_as_redundant_defense():\n        \"\"\"outer/helper 両 guard を同時に外す source 変異は worker payer を再発させる。\"\"\"\n        suite_conftest = _load_suite_conftest()\n        source = (HERE / \"conftest.py\").read_text(encoding=\"utf-8\")\n        inner_guard = (\n            \"    # pytest_collection_finish の外側 guard と意図的に冗長な defense-in-depth。\\n\"\n            \"    # worker payer は両 guard が同時に失われない限り再発しない。\\n\"\n            '    if hasattr(config, \"workerinput\"):\\n'\n            \"        return\\n\"\n        )\n        outer_guard = (\n            '    if not hasattr(session.config, \"workerinput\"):\\n'\n            \"        _prewarm_receipt_memo(\\n\"\n            \"            session.config,\\n\"\n            \"            (_real_repo_node_id(item) for item in session.items),\\n\"\n            \"            run_id=None,\\n\"\n            \"        )\\n\"\n        )\n        outer_mutant = (\n            \"    _prewarm_receipt_memo(\\n\"\n            \"        session.config,\\n\"\n            \"        (_real_repo_node_id(item) for item in session.items),\\n\"\n            \"        run_id=None,\\n\"\n            \"    )\\n\"\n        )\n>       assert source.count(inner_guard) == 1\nE       assert 0 == 1\nE        +  where 0 = <built-in method count of str object at 0x5591dcaf2cb0>('    # pytest_collection_finish の外側 guard と意図的に冗長な defense-in-depth。\\n    # worker payer は両 guard が同時に失われない限り再発しない。\\n    if hasattr(config, \"workerinput\"):\\n        return\\n')\nE        +    where <built-in method count of str object at 0x5591dcaf2cb0> = '\"\"\"orchestrator/tests 共通 pytest 設定 — TMPDIR は設定しない。\\n\\nかつてここは TMPDIR を tmpfs (``/dev/shm``) へ向けていたが撤去した。tmpfs の\\n使用量は...\\n                    _emit_failure_digest(stashed)\\n                except BaseException:\\n                    pass\\n'.count\n\norchestrator/tests/test_real_repo_serialization.py:1788: AssertionError\n____________ test_receipt_memo_real_xdist_order_has_no_worker_payer ____________\n\n    def test_receipt_memo_real_xdist_order_has_no_worker_payer():\n        \"\"\"実 xdist 順序を worker collection hook から controller hook まで固定する。\"\"\"\n        _require_loadgroup_capability()\n        with tempfile.TemporaryDirectory(prefix=\"receipt-xdist-order-\") as raw_tmp:\n            directory = Path(raw_tmp)\n            events = directory / \"events.log\"\n            (directory / \"test_s8b_oracle_driver.py\").write_text(\n                \"def test_success_wal_order_budget_and_evaluate_contract():\\n\"\n                \"    pass\\n\",\n                encoding=\"utf-8\",\n            )\n            (directory / \"receipt_order_plugin.py\").write_text(\n                textwrap.dedent(\n                    f\"\"\"\n                    import os\n                    from pathlib import Path\n    \n                    EVENTS = Path({str(events)!r})\n    \n                    def record(value):\n                        with EVENTS.open(\"a\", encoding=\"utf-8\") as handle:\n                            handle.write(value + \"\\\\n\")\n    \n                    class FakeMemo:\n                        @staticmethod\n                        def prewarm_real_repo_receipt(*, run_id, session_id):\n                            side = \"worker\" if os.environ.get(\"PYTEST_XDIST_WORKER\") else \"controller\"\n                            record(f\"prewarm-{{side}}\")\n    \n                        @staticmethod\n                        def finish_real_repo_receipt_session(*, session_id):\n                            record(\"finish-controller\")\n    \n                    def pytest_sessionstart(session):\n                        from orchestrator.tests import conftest as suite_conftest\n                        suite_conftest._receipt_memo_module = lambda: FakeMemo\n    \n                    def pytest_collection_finish(session):\n                        if hasattr(session.config, \"workerinput\"):\n                            record(\"worker-hook\")\n    \n                    def pytest_xdist_node_collection_finished(node, ids):\n                        record(\"controller-hook\")\n                    \"\"\"\n                ),\n                encoding=\"utf-8\",\n            )\n            env = os.environ.copy()\n            for name in (\n                \"PYTEST_XDIST_WORKER\", \"PYTEST_XDIST_WORKER_COUNT\",\n                \"PYTEST_XDIST_TESTRUNUID\",\n            ):\n                env.pop(name, None)\n            env[\"PYTHONPATH\"] = os.pathsep.join(\n                part for part in (\n                    str(directory), str(ROOT), env.get(\"PYTHONPATH\", \"\"),\n                ) if part\n            )\n            result = _run_subprocess(\n                [\n                    sys.executable, \"-m\", \"pytest\", \"-n\", \"1\", \"-q\",\n                    \"-p\", \"orchestrator.tests.conftest\",\n                    \"-p\", \"receipt_order_plugin\",\n                    str(directory / \"test_s8b_oracle_driver.py\"),\n                ],\n                cwd=ROOT,\n                env=env,\n            )\n            assert result.returncode == 0, (\n                f\"xdist order probe failed:\\nstdout={result.stdout}\\nstderr={result.stderr}\"\n            )\n            trace = events.read_text(encoding=\"utf-8\").splitlines()\n        assert trace.count(\"worker-hook\") == 1, trace\n        assert trace.count(\"controller-hook\") == 1, trace\n        assert trace.count(\"prewarm-controller\") == 1, trace\n>       assert trace.count(\"finish-controller\") == 1, trace\nE       AssertionError: ['prewarm-worker', 'worker-hook', 'controller-hook', 'prewarm-controller', 'finish-controller', 'finish-controller']\nE       assert 2 == 1\nE        +  where 2 = <built-in method count of list object at 0x14b96750cc40>('finish-controller')\nE        +    where <built-in method count of list object at 0x14b96750cc40> = ['prewarm-worker', 'worker-hook', 'controller-hook', 'prewarm-controller', 'finish-controller', 'finish-controller'].count\n\norchestrator/tests/test_real_repo_serialization.py:1906: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_real_repo_serialization.py::test_receipt_memo_prewarm_wiring_is_controller_only_and_lazy\nFAILED orchestrator/tests/test_real_repo_serialization.py::test_receipt_memo_both_worker_guards_are_required_as_redundant_defense\nFAILED orchestrator/tests/test_real_repo_serialization.py::test_receipt_memo_real_xdist_order_has_no_worker_payer\n============== 3 failed, 39 passed, 3 skipped in 95.47s (0:01:35) ==============\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"serial\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_real_repo_serialization.py::test_receipt_memo_real_xdist_order_has_no_worker_payer\" nodeid_bytes=106 nodeid_omitted_bytes=0 source_bytes=3930 retained_bytes=3874 omitted_bytes=56 rendered_excerpt_bytes=4096 sha256=c6f0e34be59e6e3846832acf4aec13bde361bf54f791c418d25813d337beb452\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> er():\n>         \"\"\"\\u5b9f xdist \\u9806\\u5e8f\\u3092 worker collection hook \\u304b\\u3089 controller hook \\u307e\\u3067\\u56fa\\u5b9a\\u3059\\u308b\\u3002\"\"\"\n>         _require_loadgroup_capability()\n>         with tempfile.TemporaryDirectory(prefix=\"receipt-xdist-order-\") as raw_tmp:\n>             directory = Path(raw_tmp)\n>             events = directory / \"events.log\"\n>             (directory / \"test_s8b_oracle_driver.py\").write_text(\n>                 \"def test_success_wal_order_budget_and_evaluate_contract():\\x5cn\"\n>                 \"    pass\\x5cn\",\n>                 encoding=\"utf-8\",\n>             )\n>             (directory / \"receipt_order_plugin.py\").write_text(\n>                 textwrap.dedent(\n>                     f\"\"\"\n>                     import os\n>                     from pathlib import Path\n>     \n>                     EVENTS = Path({str(events)!r})\n>     \n>                     def record(value):\n>                         with EVENTS.open(\"a\", encoding=\"utf-8\") as handle:\n>                             handle.write(value + \"\\x5c\\x5cn\")\n>     \n>                     class FakeMemo:\n>                         @staticmethod\n>                         def prewarm_real_repo_receipt(*, run_id, session_id):\n>                             side = \"worker\" if os.environ.get(\"PYTEST_XDIST_WORKER\") else \"controller\"\n>                             record(f\"prewarm-{{side}}\")\n>     \n>                         @staticmethod\n>                         def finish_real_repo_receipt_session(*, session_id):\n>                             record(\"finish-controller\")\n>     \n>                     def pytest_sessionstart(session):\n>                         from orchestrator.tests import conftest as suite_conftest\n>                         suite_conftest._receipt_memo_module = lambda: FakeMemo\n>     \n>                     def pytest_collection_finish(session):\n>                         if hasattr(session.config, \"workerinput\"):\n>                             record(\"worker-hook\")\n>     \n>                     def pytest_xdist_node_collection_finished(node, ids):\n>                         record(\"controller-hook\")\n>                     \"\"\"\n>                 ),\n>                 encoding=\"utf-8\",\n>             )\n>             env = os.environ.copy()\n>             for name in (\n>                 \"PYTEST_XDIST_WORKER\", \"PYTEST_XDIST_WORKER_COUNT\",\n>                 \"PYTEST_XDIST_TESTRUNUID\",\n>             ):\n>                 env.pop(name, None)\n>             env[\"PYTHONPATH\"] = os.pathsep.join(\n>                 part for part in (\n>                     str(directory), str(ROOT), env.get(\"PYTHONPATH\", \"\"),\n>                 ) if part\n>             )\n>             result = _run_subprocess(\n>                 [\n>                     sys.executable, \"-m\", \"pytest\", \"-n\", \"1\", \"-q\",\n>                     \"-p\", \"orchestrator.tests.conftest\",\n>                     \"-p\", \"receipt_order_plugin\",\n>                     str(directory / \"test_s8b_oracle_driver.py\"),\n>                 ],\n>                 cwd=ROOT,\n>                 env=env,\n>             )\n>             assert result.returncode == 0, (\n>                 f\"xdist order probe failed:\\x5cnstdout={result.stdout}\\x5cnstderr={result.stderr}\"\n>             )\n>             trace = events.read_text(encoding=\"utf-8\").splitlines()\n>         assert trace.count(\"worker-hook\") == 1, trace\n>         assert trace.count(\"controller-hook\") == 1, trace\n>         assert trace.count(\"prewarm-controller\") == 1, trace\n> >       assert trace.count(\"finish-controller\") == 1, trace\n> E       AssertionError: ['prewarm-worker', 'worker-hook', 'controller-hook', 'prewarm-controller', 'finish-controller', 'finish-controller']\n> E       assert 2 == 1\n> E        +  where 2 = <built-in method count of list object at 0x14b96750cc40>('finish-controller')\n> E        +    where <built-in method count of list object at 0x14b96750cc40> = ['prewarm-worker', 'worker-hook', 'controller-hook', 'prewarm-controller', 'finish-controller', 'finish-controller'].count\n> \n> orchestrator/tests/test_real_repo_serialization.py:1906: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_real_repo_serialization.py::test_receipt_memo_both_worker_guards_are_required_as_redundant_defense\" nodeid_bytes=122 nodeid_omitted_bytes=0 source_bytes=2079 retained_bytes=2079 omitted_bytes=0 rendered_excerpt_bytes=2565 sha256=d1b883bcd2bdd12bec702008fc1c5c1fa298e0a3a21e328c1f4ac3b29d82e37f\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> def test_receipt_memo_both_worker_guards_are_required_as_redundant_defense():\n>         \"\"\"outer/helper \\u4e21 guard \\u3092\\u540c\\u6642\\u306b\\u5916\\u3059 source \\u5909\\u7570\\u306f worker payer \\u3092\\u518d\\u767a\\u3055\\u305b\\u308b\\u3002\"\"\"\n>         suite_conftest = _load_suite_conftest()\n>         source = (HERE / \"conftest.py\").read_text(encoding=\"utf-8\")\n>         inner_guard = (\n>             \"    # pytest_collection_finish \\u306e\\u5916\\u5074 guard \\u3068\\u610f\\u56f3\\u7684\\u306b\\u5197\\u9577\\u306a defense-in-depth\\u3002\\x5cn\"\n>             \"    # worker payer \\u306f\\u4e21 guard \\u304c\\u540c\\u6642\\u306b\\u5931\\u308f\\u308c\\u306a\\u3044\\u9650\\u308a\\u518d\\u767a\\u3057\\u306a\\u3044\\u3002\\x5cn\"\n>             '    if hasattr(config, \"workerinput\"):\\x5cn'\n>             \"        return\\x5cn\"\n>         )\n>         outer_guard = (\n>             '    if not hasattr(session.config, \"workerinput\"):\\x5cn'\n>             \"        _prewarm_receipt_memo(\\x5cn\"\n>             \"            session.config,\\x5cn\"\n>             \"            (_real_repo_node_id(item) for item in session.items),\\x5cn\"\n>             \"            run_id=None,\\x5cn\"\n>             \"        )\\x5cn\"\n>         )\n>         outer_mutant = (\n>             \"    _prewarm_receipt_memo(\\x5cn\"\n>             \"        session.config,\\x5cn\"\n>             \"        (_real_repo_node_id(item) for item in session.items),\\x5cn\"\n>             \"        run_id=None,\\x5cn\"\n>             \"    )\\x5cn\"\n>         )\n> >       assert source.count(inner_guard) == 1\n> E       assert 0 == 1\n> E        +  where 0 = <built-in method count of str object at 0x5591dcaf2cb0>('    # pytest_collection_finish \\u306e\\u5916\\u5074 guard \\u3068\\u610f\\u56f3\\u7684\\u306b\\u5197\\u9577\\u306a defense-in-depth\\u3002\\x5cn    # worker payer \\u306f\\u4e21 guard \\u304c\\u540c\\u6642\\u306b\\u5931\\u308f\\u308c\\u306a\\u3044\\u9650\\u308a\\u518d\\u767a\\u3057\\u306a\\u3044\\u3002\\x5cn    if hasattr(config, \"workerinput\"):\\x5cn        return\\x5cn')\n> E        +    where <built-in method count of str object at 0x5591dcaf2cb0> = '\"\"\"orchestrator/tests \\u5171\\u901a pytest \\u8a2d\\u5b9a \\u2014 TMPDIR \\u306f\\u8a2d\\u5b9a\\u3057\\u306a\\u3044\\u3002\\x5cn\\x5cn\\u304b\\u3064\\u3066\\u3053\\u3053\\u306f TMPDIR \\u3092 tmpfs (``/dev/shm``) \\u3078\\u5411\\u3051\\u3066\\u3044\\u305f\\u304c\\u64a4\\u53bb\\u3057\\u305f\\u3002tmpfs \\u306e\\x5cn\\u4f7f\\u7528\\u91cf\\u306f...\\x5cn                    _emit_failure_digest(stashed)\\x5cn                except BaseException:\\x5cn                    pass\\x5cn'.count\n> \n> orchestrator/tests/test_real_repo_serialization.py:1788: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE rank=3 category=failed when=call nodeid=\"orchestrator/tests/test_real_repo_serialization.py::test_receipt_memo_prewarm_wiring_is_controller_only_and_lazy\" nodeid_bytes=112 nodeid_omitted_bytes=0 source_bytes=1455 retained_bytes=1455 omitted_bytes=0 rendered_excerpt_bytes=1534 sha256=09dc7cd31393196c02884dae981e04ef097129a94227ab1b1c90cce1455c9bab\n--- IZANAGI FAILURE EXCERPT rank=3 BEGIN ---\n> def test_receipt_memo_prewarm_wiring_is_controller_only_and_lazy():\n>         suite_conftest = _load_suite_conftest()\n>         consumer = (\n>             \"test_s8b_oracle_driver.py::\"\n>             \"test_success_wal_order_budget_and_evaluate_contract\"\n>         )\n>         calls = []\n>         fake_module = SimpleNamespace(\n>             prewarm_real_repo_receipt=(\n>                 lambda *, run_id, session_id: calls.append(run_id)\n>             ),\n>         )\n>     \n>         worker_config = _ReceiptHookConfig(\n>             {\"collectonly\": False, \"testrunuid\": \"ci-job-42\"}, worker=True,\n>         )\n>         worker_session = SimpleNamespace(\n>             config=worker_config, items=[_receipt_hook_item(consumer)],\n>         )\n>         controller_config = _ReceiptHookConfig(\n>             {\"collectonly\": False, \"testrunuid\": \"ci-job-42\"},\n>         )\n>         controller_node = SimpleNamespace(\n>             config=controller_config,\n>             workerinput={\"testrunuid\": \"ci-job-42\"},\n>         )\n>         events = []\n>         with mock.patch.object(\n>             suite_conftest, \"_receipt_memo_module\", return_value=fake_module,\n>         ):\n>             events.append(\"worker-hook\")\n>             suite_conftest.pytest_collection_finish(worker_session)\n> >           assert calls == []\n> E           assert [None] == []\n> E             \n> E             Left contains one more item: None\n> E             Use -v to get more diff\n> \n> orchestrator/tests/test_real_repo_serialization.py:1644: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=3 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=3 failed=3 errors=0 selected=3 omitted_failures=0 source_bytes=7464 retained_bytes=7408 omitted_bytes=56 budget_bytes=49152 rendered_bytes=9847 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "515db3a52db82c3e1331d48088f750c5d782bdad3bd2da764f152905e25553a0"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "5722ca147805e5db96b71fb67da7a8704364c05787c7cca83587d98e09247ced",
+      "duration_s": 119.082,
+      "expected_nodes": [
+        "orchestrator/tests/test_real_repo_serialization.py::test_receipt_memo_both_worker_guards_are_required_as_redundant_defense",
+        "orchestrator/tests/test_real_repo_serialization.py::test_receipt_memo_prewarm_wiring_is_controller_only_and_lazy",
+        "orchestrator/tests/test_real_repo_serialization.py::test_receipt_memo_real_xdist_order_has_no_worker_payer"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_real_repo_serialization.py::test_receipt_memo_prewarm_wiring_is_controller_only_and_lazy",
+        "orchestrator/tests/test_real_repo_serialization.py::test_receipt_memo_both_worker_guards_are_required_as_redundant_defense",
+        "orchestrator/tests/test_real_repo_serialization.py::test_receipt_memo_real_xdist_order_has_no_worker_payer"
+      ],
+      "hang_risk": false,
+      "id": "MT4",
+      "injection_diff_sha256": "5a4f6df0619d0e031aeb1c2dc77215d302c4af4e75cd36cc6e451b21fe604b85",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "a731599496a21d829d1f84115c903e4cf19e7a015901b2c18d3047a4c3629a9c",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/conftest.py",
+          "new": "    # pytest_collection_finish の外側 guard と意図的に冗長な defense-in-depth。\n    # worker payer は両 guard が同時に失われない限り再発しない。\n    if False:\n        return",
+          "old": "    # pytest_collection_finish の外側 guard と意図的に冗長な defense-in-depth。\n    # worker payer は両 guard が同時に失われない限り再発しない。\n    if hasattr(config, \"workerinput\"):\n        return"
+        },
+        {
+          "file": "orchestrator/tests/conftest.py",
+          "new": "    if True:\n        _prewarm_receipt_memo(\n            session.config,\n            (_real_repo_node_id(item) for item in session.items),\n            run_id=None,",
+          "old": "    if not hasattr(session.config, \"workerinput\"):\n        _prewarm_receipt_memo(\n            session.config,\n            (_real_repo_node_id(item) for item in session.items),\n            run_id=None,"
+        }
+      ],
+      "repo_head": "dd1fefa928def8945a331e085359b6d625fa399c",
+      "runner_sha256": "77fb4e18340f4d64b723f28c7d2551f0d18707bf1792944661bb68d289fbe2fd",
+      "spec_sha256": "7f52469a5776625e5bd69c9f558f30f52a095e7993a676efc63a3866835cc6ad",
+      "status": "KILLED",
+      "test_output_sha256": "515db3a52db82c3e1331d48088f750c5d782bdad3bd2da764f152905e25553a0",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "ab292b26c01c795429087e339572ea8cddb5c10ace8347477e94653d852a7d09"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t715-memo-failclosed/output/pegasus-dispatch/8c8c94555cb45428dfb5fd2a9ea9a69a/izdw-8c8c94555c.o921269",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t715-memo-failclosed/output/pegasus-dispatch/8c8c94555cb45428dfb5fd2a9ea9a69a/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t715-memo-failclosed\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncollected 45 items\n\norchestrator/tests/test_real_repo_serialization.py ......                [ 13%]\norchestrator/tests/test_s8b_binding_driftguards.py s                     [ 15%]\norchestrator/tests/test_real_repo_serialization.py ......FF...........   [ 57%]\norchestrator/tests/test_s8b_binding_driftguards.py .......               [ 73%]\norchestrator/tests/test_real_repo_serialization.py s                     [ 75%]\norchestrator/tests/test_s8b_binding_driftguards.py s..........           [100%]\nIZANAGI_GROWTH_HOLD_SUMMARY_V1 {\"collected_hold_functions\":3,\"opted_in\":false}\nIZANAGI_GROWTH_HOLD_V1 {\"correctness_gate\":true,\"hold_axis\":\"tracked_files\",\"node_id\":\"test_real_repo_serialization.py::test_protocol_builder_repo_tree_guard_is_wired_to_real_root\",\"reason\":\"Runs full real-repository git status snapshots before and after the action, so cost grows with tracked files.\",\"release_condition\":\"explicit-user-command-only\",\"ruling\":\"2026-08-12 rulings \\u7b2c 3 \\u675f\"}\nIZANAGI_GROWTH_HOLD_V1 {\"correctness_gate\":true,\"hold_axis\":\"commits\",\"node_id\":\"test_s8b_binding_driftguards.py::test_gate_check_broken_binding_manifest_stacks_manifest_verify_refusal\",\"reason\":\"Runs real-repository receipt and active-generation history resolution over the reachable commit graph, so cost grows with commit history.\",\"release_condition\":\"explicit-user-command-only\",\"ruling\":\"2026-08-12 rulings \\u7b2c 3 \\u675f\"}\nIZANAGI_GROWTH_HOLD_V1 {\"correctness_gate\":true,\"hold_axis\":\"commits\",\"node_id\":\"test_s8b_binding_driftguards.py::test_run_block_broken_binding_manifest_refuses_and_writes_nothing\",\"reason\":\"Runs the real repository binding/history gate whose cost grows with commit history.\",\"release_condition\":\"explicit-user-command-only\",\"ruling\":\"2026-08-12 rulings \\u7b2c 3 \\u675f\"}\n\n=================================== FAILURES ===================================\n_________ test_receipt_memo_prewarm_wiring_is_controller_only_and_lazy _________\n\n    def test_receipt_memo_prewarm_wiring_is_controller_only_and_lazy():\n        suite_conftest = _load_suite_conftest()\n        consumer = (\n            \"test_s8b_oracle_driver.py::\"\n            \"test_success_wal_order_budget_and_evaluate_contract\"\n        )\n        calls = []\n        fake_module = SimpleNamespace(\n            prewarm_real_repo_receipt=(\n                lambda *, run_id, session_id: calls.append(run_id)\n            ),\n        )\n    \n        worker_config = _ReceiptHookConfig(\n            {\"collectonly\": False, \"testrunuid\": \"ci-job-42\"}, worker=True,\n        )\n        worker_session = SimpleNamespace(\n            config=worker_config, items=[_receipt_hook_item(consumer)],\n        )\n        controller_config = _ReceiptHookConfig(\n            {\"collectonly\": False, \"testrunuid\": \"ci-job-42\"},\n        )\n        controller_node = SimpleNamespace(\n            config=controller_config,\n            workerinput={\"testrunuid\": \"ci-job-42\"},\n        )\n        events = []\n        with mock.patch.object(\n            suite_conftest, \"_receipt_memo_module\", return_value=fake_module,\n        ):\n            events.append(\"worker-hook\")\n            suite_conftest.pytest_collection_finish(worker_session)\n            assert calls == []\n            events.append(\"controller-hook\")\n            suite_conftest.pytest_xdist_node_collection_finished(\n                controller_node, [consumer + \"@real-repo\"],\n            )\n            suite_conftest.pytest_xdist_node_collection_finished(\n                controller_node, [consumer + \"@real-repo\"],\n            )\n        assert events == [\"worker-hook\", \"controller-hook\"]\n        assert calls == [\"ci-job-42\"]\n    \n        # serial controller は run_id=None で一回だけ prewarm する。\n        serial_calls = []\n        serial_module = SimpleNamespace(\n            prewarm_real_repo_receipt=(\n                lambda *, run_id, session_id: serial_calls.append(run_id)\n            ),\n        )\n        serial_config = _ReceiptHookConfig({\"collectonly\": False})\n        serial_session = SimpleNamespace(\n            config=serial_config, items=[_receipt_hook_item(consumer)],\n        )\n        with mock.patch.object(\n            suite_conftest, \"_receipt_memo_module\", return_value=serial_module,\n        ):\n            suite_conftest.pytest_collection_finish(serial_session)\n        assert serial_calls == [None]\n    \n        # conftest の inventory に consumer が無い選択では lazy import seam へ到達しない。\n        # consumer file 自体を collect すれば、その module-scope import は別に発生する。\n        no_consumer = \"test_example.py::test_unrelated\"\n        with mock.patch.object(\n            suite_conftest, \"_receipt_memo_module\",\n            side_effect=AssertionError(\"consumer なしで memo import\"),\n        ) as lazy_import:\n>           suite_conftest.pytest_collection_finish(SimpleNamespace(\n                config=_ReceiptHookConfig({\"collectonly\": False}),\n                items=[_receipt_hook_item(no_consumer)],\n            ))\n\norchestrator/tests/test_real_repo_serialization.py:1679: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \norchestrator/tests/conftest.py:579: in pytest_collection_finish\n    _prewarm_receipt_memo(\norchestrator/tests/conftest.py:395: in _prewarm_receipt_memo\n    memo_module = _receipt_memo_module()\n/usr/lib/python3.10/unittest/mock.py:1114: in __call__\n    return self._mock_call(*args, **kwargs)\n/usr/lib/python3.10/unittest/mock.py:1118: in _mock_call\n    return self._execute_mock_call(*args, **kwargs)\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nself = <MagicMock name='_receipt_memo_module' id='22493323043184'>, args = ()\nkwargs = {}\n\n    def _execute_mock_call(self, /, *args, **kwargs):\n        # separate from _increment_mock_call so that awaited functions are\n        # executed separately from their call, also AsyncMock overrides this method\n    \n        effect = self.side_effect\n        if effect is not None:\n            if _is_exception(effect):\n>               raise effect\nE               AssertionError: consumer なしで memo import\n\n/usr/lib/python3.10/unittest/mock.py:1173: AssertionError\n___________ test_receipt_memo_optout_only_selection_does_not_prewarm ___________\n\n    def test_receipt_memo_optout_only_selection_does_not_prewarm():\n        \"\"\"opt-out 2 関数だけの node 集合は memo import も prewarm もしない。\"\"\"\n        suite_conftest = _load_suite_conftest()\n        optouts = sorted(_RECEIPT_MEMO_OPTOUT_GOLDEN)\n        config = _ReceiptHookConfig({\"collectonly\": False})\n        session = SimpleNamespace(\n            config=config,\n            items=[_receipt_hook_item(nodeid) for nodeid in optouts],\n        )\n        with mock.patch.object(\n            suite_conftest, \"_receipt_memo_module\",\n            side_effect=AssertionError(\"opt-out only で memo import\"),\n        ) as lazy_import:\n>           suite_conftest.pytest_collection_finish(session)\n\norchestrator/tests/test_real_repo_serialization.py:1738: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \norchestrator/tests/conftest.py:579: in pytest_collection_finish\n    _prewarm_receipt_memo(\norchestrator/tests/conftest.py:395: in _prewarm_receipt_memo\n    memo_module = _receipt_memo_module()\n/usr/lib/python3.10/unittest/mock.py:1114: in __call__\n    return self._mock_call(*args, **kwargs)\n/usr/lib/python3.10/unittest/mock.py:1118: in _mock_call\n    return self._execute_mock_call(*args, **kwargs)\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nself = <MagicMock name='_receipt_memo_module' id='22493321336992'>, args = ()\nkwargs = {}\n\n    def _execute_mock_call(self, /, *args, **kwargs):\n        # separate from _increment_mock_call so that awaited functions are\n        # executed separately from their call, also AsyncMock overrides this method\n    \n        effect = self.side_effect\n        if effect is not None:\n            if _is_exception(effect):\n>               raise effect\nE               AssertionError: opt-out only で memo import\n\n/usr/lib/python3.10/unittest/mock.py:1173: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_real_repo_serialization.py::test_receipt_memo_prewarm_wiring_is_controller_only_and_lazy\nFAILED orchestrator/tests/test_real_repo_serialization.py::test_receipt_memo_optout_only_selection_does_not_prewarm\n============== 2 failed, 40 passed, 3 skipped in 99.55s (0:01:39) ==============\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"serial\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_real_repo_serialization.py::test_receipt_memo_prewarm_wiring_is_controller_only_and_lazy\" nodeid_bytes=112 nodeid_omitted_bytes=0 source_bytes=4233 retained_bytes=3781 omitted_bytes=452 rendered_excerpt_bytes=4096 sha256=370ebdc255e611a2d73b70d83c2998e8530d1f812b5dabec4611312faa483ed4\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n>       worker_config = _ReceiptHookConfig(\n>             {\"collectonly\": False, \"testrunuid\": \"ci-job-42\"}, worker=True,\n>         )\n>         worker_session = SimpleNamespace(\n>             config=worker_config, items=[_receipt_hook_item(consumer)],\n>         )\n>         controller_config = _ReceiptHookConfig(\n>             {\"collectonly\": False, \"testrunuid\": \"ci-job-42\"},\n>         )\n>         controller_node = SimpleNamespace(\n>             config=controller_config,\n>             workerinput={\"testrunuid\": \"ci-job-42\"},\n>         )\n>         events = []\n>         with mock.patch.object(\n>             suite_conftest, \"_receipt_memo_module\", return_value=fake_module,\n>         ):\n>             events.append(\"worker-hook\")\n>             suite_conftest.pytest_collection_finish(worker_session)\n>             assert calls == []\n>             events.append(\"controller-hook\")\n>             suite_conftest.pytest_xdist_node_collection_finished(\n>                 controller_node, [consumer + \"@real-repo\"],\n>             )\n>             suite_conftest.pytest_xdist_node_collection_finished(\n>                 controller_node, [consumer + \"@real-repo\"],\n>             )\n>         assert events == [\"worker-hook\", \"controller-hook\"]\n>         assert calls == [\"ci-job-42\"]\n>     \n>         # serial controller \\u306f run_id=None \\u3067\\u4e00\\u56de\\u3060\\u3051 prewarm \\u3059\\u308b\\u3002\n>         serial_calls = []\n>         serial_module = SimpleNamespace(\n>             prewarm_real_repo_receipt=(\n>                 lambda *, run_id, session_id: serial_calls.append(run_id)\n>             ),\n>         )\n>         serial_config = _ReceiptHookConfig({\"collectonly\": False})\n>         serial_session = SimpleNamespace(\n>             config=serial_config, items=[_receipt_hook_item(consumer)],\n>         )\n>         with mock.patch.object(\n>             suite_conftest, \"_receipt_memo_module\", return_value=serial_module,\n>         ):\n>             suite_conftest.pytest_collection_finish(serial_session)\n>         assert serial_calls == [None]\n>     \n>         # conftest \\u306e inventory \\u306b consumer \\u304c\\u7121\\u3044\\u9078\\u629e\\u3067\\u306f lazy import seam \\u3078\\u5230\\u9054\\u3057\\u306a\\u3044\\u3002\n>         # consumer file \\u81ea\\u4f53\\u3092 collect \\u3059\\u308c\\u3070\\u3001\\u305d\\u306e module-scope import \\u306f\\u5225\\u306b\\u767a\\u751f\\u3059\\u308b\\u3002\n>         no_consumer = \"test_example.py::test_unrelated\"\n>         with mock.patch.object(\n>             suite_conftest, \"_receipt_memo_module\",\n>             side_effect=AssertionError(\"consumer \\u306a\\u3057\\u3067 memo import\"),\n>         ) as lazy_import:\n> >           suite_conftest.pytest_collection_finish(SimpleNamespace(\n>                 config=_ReceiptHookConfig({\"collectonly\": False}),\n>                 items=[_receipt_hook_item(no_consumer)],\n>             ))\n> \n> orchestrator/tests/test_real_repo_serialization.py:1679: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> orchestrator/tests/conftest.py:579: in pytest_collection_finish\n>     _prewarm_receipt_memo(\n> orchestrator/tests/conftest.py:395: in _prewarm_receipt_memo\n>     memo_module = _receipt_memo_module()\n> /usr/lib/python3.10/unittest/mock.py:1114: in __call__\n>     return self._mock_call(*args, **kwargs)\n> /usr/lib/python3.10/unittest/mock.py:1118: in _mock_call\n>     return self._execute_mock_call(*args, **kwargs)\n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> self = <MagicMock name='_receipt_memo_module' id='22493323043184'>, args = ()\n> kwargs = {}\n> \n>     def _execute_mock_call(self, /, *args, **kwargs):\n>         # separate from _increment_mock_call so that awaited functions are\n>         # executed separately from their call, also AsyncMock overrides this method\n>     \n>         effect = self.side_effect\n>         if effect is not None:\n>             if _is_exception(effect):\n> >               raise effect\n> E               AssertionError: consumer \\u306a\\u3057\\u3067 memo import\n> \n> /usr/lib/python3.10/unittest/mock.py:1173: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_real_repo_serialization.py::test_receipt_memo_optout_only_selection_does_not_prewarm\" nodeid_bytes=108 nodeid_omitted_bytes=0 source_bytes=1889 retained_bytes=1889 omitted_bytes=0 rendered_excerpt_bytes=2020 sha256=4e60fb7576d555a28ee0f81ffdd6e1c285fa611dc8cffb20d44ee95126a00947\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> def test_receipt_memo_optout_only_selection_does_not_prewarm():\n>         \"\"\"opt-out 2 \\u95a2\\u6570\\u3060\\u3051\\u306e node \\u96c6\\u5408\\u306f memo import \\u3082 prewarm \\u3082\\u3057\\u306a\\u3044\\u3002\"\"\"\n>         suite_conftest = _load_suite_conftest()\n>         optouts = sorted(_RECEIPT_MEMO_OPTOUT_GOLDEN)\n>         config = _ReceiptHookConfig({\"collectonly\": False})\n>         session = SimpleNamespace(\n>             config=config,\n>             items=[_receipt_hook_item(nodeid) for nodeid in optouts],\n>         )\n>         with mock.patch.object(\n>             suite_conftest, \"_receipt_memo_module\",\n>             side_effect=AssertionError(\"opt-out only \\u3067 memo import\"),\n>         ) as lazy_import:\n> >           suite_conftest.pytest_collection_finish(session)\n> \n> orchestrator/tests/test_real_repo_serialization.py:1738: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> orchestrator/tests/conftest.py:579: in pytest_collection_finish\n>     _prewarm_receipt_memo(\n> orchestrator/tests/conftest.py:395: in _prewarm_receipt_memo\n>     memo_module = _receipt_memo_module()\n> /usr/lib/python3.10/unittest/mock.py:1114: in __call__\n>     return self._mock_call(*args, **kwargs)\n> /usr/lib/python3.10/unittest/mock.py:1118: in _mock_call\n>     return self._execute_mock_call(*args, **kwargs)\n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> self = <MagicMock name='_receipt_memo_module' id='22493321336992'>, args = ()\n> kwargs = {}\n> \n>     def _execute_mock_call(self, /, *args, **kwargs):\n>         # separate from _increment_mock_call so that awaited functions are\n>         # executed separately from their call, also AsyncMock overrides this method\n>     \n>         effect = self.side_effect\n>         if effect is not None:\n>             if _is_exception(effect):\n> >               raise effect\n> E               AssertionError: opt-out only \\u3067 memo import\n> \n> /usr/lib/python3.10/unittest/mock.py:1173: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=6122 retained_bytes=5670 omitted_bytes=452 budget_bytes=49152 rendered_bytes=7309 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "8cec927dfe8096defd14cd5da0ff73996d07e917592139e6443f72a509548230"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "5722ca147805e5db96b71fb67da7a8704364c05787c7cca83587d98e09247ced",
+      "duration_s": 375.251,
+      "expected_nodes": [
+        "orchestrator/tests/test_real_repo_serialization.py::test_receipt_memo_prewarm_wiring_is_controller_only_and_lazy",
+        "orchestrator/tests/test_real_repo_serialization.py::test_receipt_memo_optout_only_selection_does_not_prewarm"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_real_repo_serialization.py::test_receipt_memo_prewarm_wiring_is_controller_only_and_lazy",
+        "orchestrator/tests/test_real_repo_serialization.py::test_receipt_memo_optout_only_selection_does_not_prewarm"
+      ],
+      "hang_risk": false,
+      "id": "MT5",
+      "injection_diff_sha256": "8d109ab9bdef6a53d1dede272109f8636a637f65a1e0390d1f3cc02e53572c0f",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "958c07d0a3a58c78f007d16afdce994c3e46688ce6b2cb491231caf3a473a89e",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/conftest.py",
+          "new": "    if False:\n        return",
+          "old": "    if not _receipt_memo_consumer_selected(nodeids):\n        return"
+        }
+      ],
+      "repo_head": "dd1fefa928def8945a331e085359b6d625fa399c",
+      "runner_sha256": "77fb4e18340f4d64b723f28c7d2551f0d18707bf1792944661bb68d289fbe2fd",
+      "spec_sha256": "7f52469a5776625e5bd69c9f558f30f52a095e7993a676efc63a3866835cc6ad",
+      "status": "KILLED",
+      "test_output_sha256": "8cec927dfe8096defd14cd5da0ff73996d07e917592139e6443f72a509548230",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "ab292b26c01c795429087e339572ea8cddb5c10ace8347477e94653d852a7d09"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t715-memo-failclosed/output/pegasus-dispatch/3e0961ac6b7e04681183d2f71aeac3a9/izdw-3e0961ac6b.o921279",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t715-memo-failclosed/output/pegasus-dispatch/3e0961ac6b7e04681183d2f71aeac3a9/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t715-memo-failclosed\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncollected 45 items\n\norchestrator/tests/test_real_repo_serialization.py ......                [ 13%]\norchestrator/tests/test_s8b_binding_driftguards.py s                     [ 15%]\norchestrator/tests/test_real_repo_serialization.py ...........F.......   [ 57%]\norchestrator/tests/test_s8b_binding_driftguards.py .......               [ 73%]\norchestrator/tests/test_real_repo_serialization.py s                     [ 75%]\norchestrator/tests/test_s8b_binding_driftguards.py s..........           [100%]\nIZANAGI_GROWTH_HOLD_SUMMARY_V1 {\"collected_hold_functions\":3,\"opted_in\":false}\nIZANAGI_GROWTH_HOLD_V1 {\"correctness_gate\":true,\"hold_axis\":\"tracked_files\",\"node_id\":\"test_real_repo_serialization.py::test_protocol_builder_repo_tree_guard_is_wired_to_real_root\",\"reason\":\"Runs full real-repository git status snapshots before and after the action, so cost grows with tracked files.\",\"release_condition\":\"explicit-user-command-only\",\"ruling\":\"2026-08-12 rulings \\u7b2c 3 \\u675f\"}\nIZANAGI_GROWTH_HOLD_V1 {\"correctness_gate\":true,\"hold_axis\":\"commits\",\"node_id\":\"test_s8b_binding_driftguards.py::test_gate_check_broken_binding_manifest_stacks_manifest_verify_refusal\",\"reason\":\"Runs real-repository receipt and active-generation history resolution over the reachable commit graph, so cost grows with commit history.\",\"release_condition\":\"explicit-user-command-only\",\"ruling\":\"2026-08-12 rulings \\u7b2c 3 \\u675f\"}\nIZANAGI_GROWTH_HOLD_V1 {\"correctness_gate\":true,\"hold_axis\":\"commits\",\"node_id\":\"test_s8b_binding_driftguards.py::test_run_block_broken_binding_manifest_refuses_and_writes_nothing\",\"reason\":\"Runs the real repository binding/history gate whose cost grows with commit history.\",\"release_condition\":\"explicit-user-command-only\",\"ruling\":\"2026-08-12 rulings \\u7b2c 3 \\u675f\"}\n\n=================================== FAILURES ===================================\n_______ test_receipt_memo_module_identity_and_resolver_caller_are_fixed ________\n\n    def test_receipt_memo_module_identity_and_resolver_caller_are_fixed():\n        import importlib\n    \n        suite_conftest = _load_suite_conftest()\n        canonical = importlib.import_module(\n            \"orchestrator.tests.real_repo_receipt_memo\"\n        )\n        driver_tests = importlib.import_module(\n            \"orchestrator.tests.test_s8b_oracle_driver\"\n        )\n        drift_tests = importlib.import_module(\n            \"orchestrator.tests.test_s8b_binding_driftguards\"\n        )\n        identities = (\n            suite_conftest._receipt_memo_module(),\n            driver_tests.receipt_memo,\n            drift_tests.receipt_memo,\n        )\n        assert all(module is canonical for module in identities)\n        assert \"real_repo_receipt_memo\" not in sys.modules\n    \n        memo_source = (HERE / \"real_repo_receipt_memo.py\").read_text(encoding=\"utf-8\")\n        assert _receipt_call_owners(memo_source) == {\n            \"_resolve_now\", \"_ReceiptMemo.prewarm\",\n        }\n        conftest_source = (HERE / \"conftest.py\").read_text(encoding=\"utf-8\")\n>       assert _module_scope_receipt_imports(conftest_source) == []\nE       assert [361] == []\nE         \nE         Left contains one more item: 361\nE         Use -v to get more diff\n\norchestrator/tests/test_real_repo_serialization.py:2142: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_real_repo_serialization.py::test_receipt_memo_module_identity_and_resolver_caller_are_fixed\n============== 1 failed, 41 passed, 3 skipped in 95.51s (0:01:35) ==============\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"serial\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_real_repo_serialization.py::test_receipt_memo_module_identity_and_resolver_caller_are_fixed\" nodeid_bytes=115 nodeid_omitted_bytes=0 source_bytes=1318 retained_bytes=1318 omitted_bytes=0 rendered_excerpt_bytes=1385 sha256=bb80489285ada1bc41dfd6db95add4ee09112ba26d1af3d9281e63bbf7273108\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> def test_receipt_memo_module_identity_and_resolver_caller_are_fixed():\n>         import importlib\n>     \n>         suite_conftest = _load_suite_conftest()\n>         canonical = importlib.import_module(\n>             \"orchestrator.tests.real_repo_receipt_memo\"\n>         )\n>         driver_tests = importlib.import_module(\n>             \"orchestrator.tests.test_s8b_oracle_driver\"\n>         )\n>         drift_tests = importlib.import_module(\n>             \"orchestrator.tests.test_s8b_binding_driftguards\"\n>         )\n>         identities = (\n>             suite_conftest._receipt_memo_module(),\n>             driver_tests.receipt_memo,\n>             drift_tests.receipt_memo,\n>         )\n>         assert all(module is canonical for module in identities)\n>         assert \"real_repo_receipt_memo\" not in sys.modules\n>     \n>         memo_source = (HERE / \"real_repo_receipt_memo.py\").read_text(encoding=\"utf-8\")\n>         assert _receipt_call_owners(memo_source) == {\n>             \"_resolve_now\", \"_ReceiptMemo.prewarm\",\n>         }\n>         conftest_source = (HERE / \"conftest.py\").read_text(encoding=\"utf-8\")\n> >       assert _module_scope_receipt_imports(conftest_source) == []\n> E       assert [361] == []\n> E         \n> E         Left contains one more item: 361\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_real_repo_serialization.py:2142: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1318 retained_bytes=1318 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2128 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "992192c0e0959fb66119f7371bd8d09a94bdf7f88a2f65a6bad3e1e96a3921dd"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "5722ca147805e5db96b71fb67da7a8704364c05787c7cca83587d98e09247ced",
+      "duration_s": 117.819,
+      "expected_nodes": [
+        "orchestrator/tests/test_real_repo_serialization.py::test_receipt_memo_module_identity_and_resolver_caller_are_fixed",
+        "orchestrator/tests/test_real_repo_serialization.py::test_receipt_memo_prewarm_wiring_is_controller_only_and_lazy"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_real_repo_serialization.py::test_receipt_memo_module_identity_and_resolver_caller_are_fixed"
+      ],
+      "hang_risk": false,
+      "id": "MT6",
+      "injection_diff_sha256": "2e1505552851d2c8dc24e5f471eb0edf8642bb9baac88b5eb097dcc869165bb0",
+      "matches_expectation": false,
+      "rc": 1,
+      "registration_sha256": "6579d7bf4122f6330be24ee28049e5d17f1201a37bea1aeaea311da23ef04621",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/conftest.py",
+          "new": "from orchestrator.tests import real_repo_receipt_memo as _t715_eager_memo\n\n\ndef _receipt_memo_module():\n    \"\"\"consumer 検出後にだけ canonical memo module を import する。\"\"\"\n    return _t715_eager_memo",
+          "old": "def _receipt_memo_module():\n    \"\"\"consumer 検出後にだけ canonical memo module を import する。\"\"\"\n    from orchestrator.tests import real_repo_receipt_memo\n\n    return real_repo_receipt_memo"
+        }
+      ],
+      "repo_head": "dd1fefa928def8945a331e085359b6d625fa399c",
+      "runner_sha256": "77fb4e18340f4d64b723f28c7d2551f0d18707bf1792944661bb68d289fbe2fd",
+      "spec_sha256": "7f52469a5776625e5bd69c9f558f30f52a095e7993a676efc63a3866835cc6ad",
+      "status": "MISMATCH",
+      "test_output_sha256": "992192c0e0959fb66119f7371bd8d09a94bdf7f88a2f65a6bad3e1e96a3921dd",
+      "test_output_tail": [
+        "",
+        "=================================== FAILURES ===================================",
+        "_______ test_receipt_memo_module_identity_and_resolver_caller_are_fixed ________",
+        "",
+        "    def test_receipt_memo_module_identity_and_resolver_caller_are_fixed():",
+        "        import importlib",
+        "    ",
+        "        suite_conftest = _load_suite_conftest()",
+        "        canonical = importlib.import_module(",
+        "            \"orchestrator.tests.real_repo_receipt_memo\"",
+        "        )",
+        "        driver_tests = importlib.import_module(",
+        "            \"orchestrator.tests.test_s8b_oracle_driver\"",
+        "        )",
+        "        drift_tests = importlib.import_module(",
+        "            \"orchestrator.tests.test_s8b_binding_driftguards\"",
+        "        )",
+        "        identities = (",
+        "            suite_conftest._receipt_memo_module(),",
+        "            driver_tests.receipt_memo,",
+        "            drift_tests.receipt_memo,",
+        "        )",
+        "        assert all(module is canonical for module in identities)",
+        "        assert \"real_repo_receipt_memo\" not in sys.modules",
+        "    ",
+        "        memo_source = (HERE / \"real_repo_receipt_memo.py\").read_text(encoding=\"utf-8\")",
+        "        assert _receipt_call_owners(memo_source) == {",
+        "            \"_resolve_now\", \"_ReceiptMemo.prewarm\",",
+        "        }",
+        "        conftest_source = (HERE / \"conftest.py\").read_text(encoding=\"utf-8\")",
+        ">       assert _module_scope_receipt_imports(conftest_source) == []",
+        "E       assert [361] == []",
+        "E         ",
+        "E         Left contains one more item: 361",
+        "E         Use -v to get more diff",
+        "",
+        "orchestrator/tests/test_real_repo_serialization.py:2142: AssertionError",
+        "=========================== short test summary info ============================",
+        "FAILED orchestrator/tests/test_real_repo_serialization.py::test_receipt_memo_module_identity_and_resolver_caller_are_fixed",
+        "============== 1 failed, 41 passed, 3 skipped in 95.51s (0:01:35) ==============",
+        "IZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"serial\"}",
+        "=== IZANAGI FAILURE DIGEST v1 BEGIN ===",
+        "IZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_real_repo_serialization.py::test_receipt_memo_module_identity_and_resolver_caller_are_fixed\" nodeid_bytes=115 nodeid_omitted_bytes=0 source_bytes=1318 retained_bytes=1318 omitted_bytes=0 rendered_excerpt_bytes=1385 sha256=bb80489285ada1bc41dfd6db95add4ee09112ba26d1af3d9281e63bbf7273108",
+        "--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---",
+        "> def test_receipt_memo_module_identity_and_resolver_caller_are_fixed():",
+        ">         import importlib",
+        ">     ",
+        ">         suite_conftest = _load_suite_conftest()",
+        ">         canonical = importlib.import_module(",
+        ">             \"orchestrator.tests.real_repo_receipt_memo\"",
+        ">         )",
+        ">         driver_tests = importlib.import_module(",
+        ">             \"orchestrator.tests.test_s8b_oracle_driver\"",
+        ">         )",
+        ">         drift_tests = importlib.import_module(",
+        ">             \"orchestrator.tests.test_s8b_binding_driftguards\"",
+        ">         )",
+        ">         identities = (",
+        ">             suite_conftest._receipt_memo_module(),",
+        ">             driver_tests.receipt_memo,",
+        ">             drift_tests.receipt_memo,",
+        ">         )",
+        ">         assert all(module is canonical for module in identities)",
+        ">         assert \"real_repo_receipt_memo\" not in sys.modules",
+        ">     ",
+        ">         memo_source = (HERE / \"real_repo_receipt_memo.py\").read_text(encoding=\"utf-8\")",
+        ">         assert _receipt_call_owners(memo_source) == {",
+        ">             \"_resolve_now\", \"_ReceiptMemo.prewarm\",",
+        ">         }",
+        ">         conftest_source = (HERE / \"conftest.py\").read_text(encoding=\"utf-8\")",
+        "> >       assert _module_scope_receipt_imports(conftest_source) == []",
+        "> E       assert [361] == []",
+        "> E         ",
+        "> E         Left contains one more item: 361",
+        "> E         Use -v to get more diff",
+        "> ",
+        "> orchestrator/tests/test_real_repo_serialization.py:2142: AssertionError",
+        "--- IZANAGI FAILURE EXCERPT rank=1 END ---",
+        "IZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1318 retained_bytes=1318 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2128 omitted_manifest_sha256=-",
+        "=== IZANAGI FAILURE DIGEST v1 END ==="
+      ],
+      "timed_out": false,
+      "tool_sha256": "ab292b26c01c795429087e339572ea8cddb5c10ace8347477e94653d852a7d09"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t715-memo-failclosed/output/pegasus-dispatch/db7077f61b7f539c07dbb51be8573104/izdw-db7077f61b.o921233",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t715-memo-failclosed/output/pegasus-dispatch/db7077f61b7f539c07dbb51be8573104/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "orchestrator/tests/test_real_repo_serialization.py::test_real_repo_group_collection_exactly_matches_canonical_nodes\norchestrator/tests/test_real_repo_serialization.py::test_xdist_group_audit_rejects_synthetic_negative_controls\norchestrator/tests/test_real_repo_serialization.py::test_xdist_group_name_set_audit_rejects_isolated_negative_controls\norchestrator/tests/test_real_repo_serialization.py::test_canonical_real_repo_nodes_have_no_handwritten_xdist_group_decorator\norchestrator/tests/test_real_repo_serialization.py::test_handwritten_xdist_group_decorator_control_is_rejected\norchestrator/tests/test_real_repo_serialization.py::test_real_repo_priority_order_is_literal_and_writers_follow_barrier\norchestrator/tests/test_s8b_binding_driftguards.py::test_run_block_broken_binding_manifest_refuses_and_writes_nothing\norchestrator/tests/test_real_repo_serialization.py::test_ratified_memo_has_a_real_resolution_payer\norchestrator/tests/test_real_repo_serialization.py::test_receipt_memo_consumer_inventory_and_optouts_are_complete\norchestrator/tests/test_real_repo_serialization.py::test_receipt_memo_l1_to_l5_are_fail_closed_and_uid_is_hashed\norchestrator/tests/test_real_repo_serialization.py::test_receipt_memo_public_endpoints_reject_all_xdist_reader_faults\norchestrator/tests/test_real_repo_serialization.py::test_receipt_memo_process_state_is_scoped_to_pytest_session\norchestrator/tests/test_real_repo_serialization.py::test_receipt_memo_prune_keeps_locks_and_current_session_key\norchestrator/tests/test_real_repo_serialization.py::test_receipt_memo_prewarm_wiring_is_controller_only_and_lazy\norchestrator/tests/test_real_repo_serialization.py::test_receipt_memo_optout_only_selection_does_not_prewarm\norchestrator/tests/test_real_repo_serialization.py::test_receipt_memo_both_worker_guards_are_required_as_redundant_defense\norchestrator/tests/test_real_repo_serialization.py::test_receipt_memo_real_xdist_order_has_no_worker_payer\norchestrator/tests/test_real_repo_serialization.py::test_receipt_memo_uid_configuration_respects_xdist_and_no_xdist\norchestrator/tests/test_real_repo_serialization.py::test_receipt_memo_module_identity_and_resolver_caller_are_fixed\norchestrator/tests/test_real_repo_serialization.py::test_receipt_memo_consumers_do_not_resolve_during_collection\norchestrator/tests/test_real_repo_serialization.py::test_loadgroup_scheduler_keeps_same_group_on_one_worker_and_control_detects_absence\norchestrator/tests/test_real_repo_serialization.py::test_effective_tempdir_is_not_tmpfs\norchestrator/tests/test_real_repo_serialization.py::test_suite_conftest_does_not_wire_tmpdir_to_tmpfs\norchestrator/tests/test_real_repo_serialization.py::test_tmpdir_fstype_lookup_positive_and_negative_control\norchestrator/tests/test_real_repo_serialization.py::test_tmpfs_tmpdir_wiring_scanner_positive_and_negative_control\norchestrator/tests/test_real_repo_serialization.py::test_tmpdir_guards_are_present_and_load_bearing\norchestrator/tests/test_s8b_binding_driftguards.py::test_nan_binding_rejected_by_manifest_validator\norchestrator/tests/test_s8b_binding_driftguards.py::test_nan_binding_rejected_by_report_schema_issues\norchestrator/tests/test_s8b_binding_driftguards.py::test_report_list_form_wrong_cell_is_not_returned\norchestrator/tests/test_s8b_binding_driftguards.py::test_report_nested_mapping_form_wrong_cell_is_flagged\norchestrator/tests/test_s8b_binding_driftguards.py::test_report_composite_key_form_wrong_cell_is_flagged[:]\norchestrator/tests/test_s8b_binding_driftguards.py::test_report_composite_key_form_wrong_cell_is_flagged[/]\norchestrator/tests/test_s8b_binding_driftguards.py::test_report_matching_cell_entry_has_no_issue_non_vacuity\norchestrator/tests/test_real_repo_serialization.py::test_protocol_builder_repo_tree_guard_is_wired_to_real_root\norchestrator/tests/test_s8b_binding_driftguards.py::test_gate_check_broken_binding_manifest_stacks_manifest_verify_refusal\norchestrator/tests/test_s8b_binding_driftguards.py::test_receipt_memo_delegates_to_production_verifier_exactly_once\norchestrator/tests/test_s8b_binding_driftguards.py::test_receipt_memo_patches_the_driver_module_the_tests_import\norchestrator/tests/test_s8b_binding_driftguards.py::test_receipt_memo_refuses_roots_other_than_the_real_repository\norchestrator/tests/test_s8b_binding_driftguards.py::test_receipt_memo_public_endpoint_is_fail_closed_before_prewarm\norchestrator/tests/test_s8b_binding_driftguards.py::test_receipt_memo_session_cache_round_trip_preserves_the_resolution\norchestrator/tests/test_s8b_binding_driftguards.py::test_ratified_memo_delegates_to_production_loader_exactly_once\norchestrator/tests/test_s8b_binding_driftguards.py::test_ratified_memo_reraises_the_production_exception_object[<lambda>0]\norchestrator/tests/test_s8b_binding_driftguards.py::test_ratified_memo_reraises_the_production_exception_object[<lambda>1]\norchestrator/tests/test_s8b_binding_driftguards.py::test_ratified_memo_patches_the_module_object_the_driver_uses\norchestrator/tests/test_s8b_binding_driftguards.py::test_ratified_memo_refuses_roots_other_than_the_real_repository\nIZANAGI_GROWTH_HOLD_SUMMARY_V1 {\"collected_hold_functions\":3,\"opted_in\":false}\nIZANAGI_GROWTH_HOLD_V1 {\"correctness_gate\":true,\"hold_axis\":\"tracked_files\",\"node_id\":\"test_real_repo_serialization.py::test_protocol_builder_repo_tree_guard_is_wired_to_real_root\",\"reason\":\"Runs full real-repository git status snapshots before and after the action, so cost grows with tracked files.\",\"release_condition\":\"explicit-user-command-only\",\"ruling\":\"2026-08-12 rulings \\u7b2c 3 \\u675f\"}\nIZANAGI_GROWTH_HOLD_V1 {\"correctness_gate\":true,\"hold_axis\":\"commits\",\"node_id\":\"test_s8b_binding_driftguards.py::test_gate_check_broken_binding_manifest_stacks_manifest_verify_refusal\",\"reason\":\"Runs real-repository receipt and active-generation history resolution over the reachable commit graph, so cost grows with commit history.\",\"release_condition\":\"explicit-user-command-only\",\"ruling\":\"2026-08-12 rulings \\u7b2c 3 \\u675f\"}\nIZANAGI_GROWTH_HOLD_V1 {\"correctness_gate\":true,\"hold_axis\":\"commits\",\"node_id\":\"test_s8b_binding_driftguards.py::test_run_block_broken_binding_manifest_refuses_and_writes_nothing\",\"reason\":\"Runs the real repository binding/history gate whose cost grows with commit history.\",\"release_condition\":\"explicit-user-command-only\",\"ruling\":\"2026-08-12 rulings \\u7b2c 3 \\u675f\"}\n\n45 tests collected in 0.75s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"serial\"}\n",
+        "stdout_sha256": "63b0bbf4659d4956ba33700989f35537128459e9d2700c4156a7ac6f22908266"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_real_repo_serialization.py::test_real_repo_group_collection_exactly_matches_canonical_nodes",
+        "orchestrator/tests/test_real_repo_serialization.py::test_xdist_group_audit_rejects_synthetic_negative_controls",
+        "orchestrator/tests/test_real_repo_serialization.py::test_xdist_group_name_set_audit_rejects_isolated_negative_controls",
+        "orchestrator/tests/test_real_repo_serialization.py::test_canonical_real_repo_nodes_have_no_handwritten_xdist_group_decorator",
+        "orchestrator/tests/test_real_repo_serialization.py::test_handwritten_xdist_group_decorator_control_is_rejected",
+        "orchestrator/tests/test_real_repo_serialization.py::test_real_repo_priority_order_is_literal_and_writers_follow_barrier",
+        "orchestrator/tests/test_s8b_binding_driftguards.py::test_run_block_broken_binding_manifest_refuses_and_writes_nothing",
+        "orchestrator/tests/test_real_repo_serialization.py::test_ratified_memo_has_a_real_resolution_payer",
+        "orchestrator/tests/test_real_repo_serialization.py::test_receipt_memo_consumer_inventory_and_optouts_are_complete",
+        "orchestrator/tests/test_real_repo_serialization.py::test_receipt_memo_l1_to_l5_are_fail_closed_and_uid_is_hashed",
+        "orchestrator/tests/test_real_repo_serialization.py::test_receipt_memo_public_endpoints_reject_all_xdist_reader_faults",
+        "orchestrator/tests/test_real_repo_serialization.py::test_receipt_memo_process_state_is_scoped_to_pytest_session",
+        "orchestrator/tests/test_real_repo_serialization.py::test_receipt_memo_prune_keeps_locks_and_current_session_key",
+        "orchestrator/tests/test_real_repo_serialization.py::test_receipt_memo_prewarm_wiring_is_controller_only_and_lazy",
+        "orchestrator/tests/test_real_repo_serialization.py::test_receipt_memo_optout_only_selection_does_not_prewarm",
+        "orchestrator/tests/test_real_repo_serialization.py::test_receipt_memo_both_worker_guards_are_required_as_redundant_defense",
+        "orchestrator/tests/test_real_repo_serialization.py::test_receipt_memo_real_xdist_order_has_no_worker_payer",
+        "orchestrator/tests/test_real_repo_serialization.py::test_receipt_memo_uid_configuration_respects_xdist_and_no_xdist",
+        "orchestrator/tests/test_real_repo_serialization.py::test_receipt_memo_module_identity_and_resolver_caller_are_fixed",
+        "orchestrator/tests/test_real_repo_serialization.py::test_receipt_memo_consumers_do_not_resolve_during_collection",
+        "orchestrator/tests/test_real_repo_serialization.py::test_loadgroup_scheduler_keeps_same_group_on_one_worker_and_control_detects_absence",
+        "orchestrator/tests/test_real_repo_serialization.py::test_effective_tempdir_is_not_tmpfs",
+        "orchestrator/tests/test_real_repo_serialization.py::test_suite_conftest_does_not_wire_tmpdir_to_tmpfs",
+        "orchestrator/tests/test_real_repo_serialization.py::test_tmpdir_fstype_lookup_positive_and_negative_control",
+        "orchestrator/tests/test_real_repo_serialization.py::test_tmpfs_tmpdir_wiring_scanner_positive_and_negative_control",
+        "orchestrator/tests/test_real_repo_serialization.py::test_tmpdir_guards_are_present_and_load_bearing",
+        "orchestrator/tests/test_s8b_binding_driftguards.py::test_nan_binding_rejected_by_manifest_validator",
+        "orchestrator/tests/test_s8b_binding_driftguards.py::test_nan_binding_rejected_by_report_schema_issues",
+        "orchestrator/tests/test_s8b_binding_driftguards.py::test_report_list_form_wrong_cell_is_not_returned",
+        "orchestrator/tests/test_s8b_binding_driftguards.py::test_report_nested_mapping_form_wrong_cell_is_flagged",
+        "orchestrator/tests/test_s8b_binding_driftguards.py::test_report_composite_key_form_wrong_cell_is_flagged[:]",
+        "orchestrator/tests/test_s8b_binding_driftguards.py::test_report_composite_key_form_wrong_cell_is_flagged[/]",
+        "orchestrator/tests/test_s8b_binding_driftguards.py::test_report_matching_cell_entry_has_no_issue_non_vacuity",
+        "orchestrator/tests/test_real_repo_serialization.py::test_protocol_builder_repo_tree_guard_is_wired_to_real_root",
+        "orchestrator/tests/test_s8b_binding_driftguards.py::test_gate_check_broken_binding_manifest_stacks_manifest_verify_refusal",
+        "orchestrator/tests/test_s8b_binding_driftguards.py::test_receipt_memo_delegates_to_production_verifier_exactly_once",
+        "orchestrator/tests/test_s8b_binding_driftguards.py::test_receipt_memo_patches_the_driver_module_the_tests_import",
+        "orchestrator/tests/test_s8b_binding_driftguards.py::test_receipt_memo_refuses_roots_other_than_the_real_repository",
+        "orchestrator/tests/test_s8b_binding_driftguards.py::test_receipt_memo_public_endpoint_is_fail_closed_before_prewarm",
+        "orchestrator/tests/test_s8b_binding_driftguards.py::test_receipt_memo_session_cache_round_trip_preserves_the_resolution",
+        "orchestrator/tests/test_s8b_binding_driftguards.py::test_ratified_memo_delegates_to_production_loader_exactly_once",
+        "orchestrator/tests/test_s8b_binding_driftguards.py::test_ratified_memo_reraises_the_production_exception_object[<lambda>0]",
+        "orchestrator/tests/test_s8b_binding_driftguards.py::test_ratified_memo_reraises_the_production_exception_object[<lambda>1]",
+        "orchestrator/tests/test_s8b_binding_driftguards.py::test_ratified_memo_patches_the_module_object_the_driver_uses",
+        "orchestrator/tests/test_s8b_binding_driftguards.py::test_ratified_memo_refuses_roots_other_than_the_real_repository",
+        "IZANAGI_GROWTH_HOLD_V1 {\"correctness_gate\":true,\"hold_axis\":\"tracked_files\",\"node_id\":\"test_real_repo_serialization.py::test_protocol_builder_repo_tree_guard_is_wired_to_real_root\",\"reason\":\"Runs full real-repository git status snapshots before and after the action, so cost grows with tracked files.\",\"release_condition\":\"explicit-user-command-only\",\"ruling\":\"2026-08-12 rulings /u7b2c 3 /u675f\"}",
+        "IZANAGI_GROWTH_HOLD_V1 {\"correctness_gate\":true,\"hold_axis\":\"commits\",\"node_id\":\"test_s8b_binding_driftguards.py::test_gate_check_broken_binding_manifest_stacks_manifest_verify_refusal\",\"reason\":\"Runs real-repository receipt and active-generation history resolution over the reachable commit graph, so cost grows with commit history.\",\"release_condition\":\"explicit-user-command-only\",\"ruling\":\"2026-08-12 rulings /u7b2c 3 /u675f\"}",
+        "IZANAGI_GROWTH_HOLD_V1 {\"correctness_gate\":true,\"hold_axis\":\"commits\",\"node_id\":\"test_s8b_binding_driftguards.py::test_run_block_broken_binding_manifest_refuses_and_writes_nothing\",\"reason\":\"Runs the real repository binding/history gate whose cost grows with commit history.\",\"release_condition\":\"explicit-user-command-only\",\"ruling\":\"2026-08-12 rulings /u7b2c 3 /u675f\"}"
+      ],
+      "duration_s": 21.718,
+      "rc": 0,
+      "repo_head": "dd1fefa928def8945a331e085359b6d625fa399c",
+      "runner_sha256": "77fb4e18340f4d64b723f28c7d2551f0d18707bf1792944661bb68d289fbe2fd",
+      "spec_sha256": "7f52469a5776625e5bd69c9f558f30f52a095e7993a676efc63a3866835cc6ad",
+      "status": "PASSED",
+      "tool_sha256": "ab292b26c01c795429087e339572ea8cddb5c10ace8347477e94653d852a7d09"
+    },
+    "hang_timeout_seconds": 300.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "MT1": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_real_repo_serialization.py::test_receipt_memo_l1_to_l5_are_fail_closed_and_uid_is_hashed",
+          "orchestrator/tests/test_real_repo_serialization.py::test_receipt_memo_module_identity_and_resolver_caller_are_fixed",
+          "orchestrator/tests/test_s8b_binding_driftguards.py::test_receipt_memo_public_endpoint_is_fail_closed_before_prewarm"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "584772ebeb8ee26db023e82bd2810a684657689690a11fd827b57ef2d9fc6d5e",
+        "replacements": [
+          {
+            "file": "orchestrator/tests/real_repo_receipt_memo.py",
+            "new": "        run_id = os.environ.get(_RUN_ID_ENV)\n        if run_id is None:\n            return _resolve_now()",
+            "old": "        run_id = os.environ.get(_RUN_ID_ENV)\n        if run_id is None:\n            raise self._error(\n                \"cache-path-unavailable\", cache_path=None, run_id=None,\n                head=None, prewarm=False,\n            )"
+          }
+        ]
+      },
+      "MT2": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_real_repo_serialization.py::test_receipt_memo_l1_to_l5_are_fail_closed_and_uid_is_hashed"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "b637c5909ebcab056f832462f8e12f7d0f891d00b3de430b10aabc73a6921279",
+        "replacements": [
+          {
+            "file": "orchestrator/tests/real_repo_receipt_memo.py",
+            "new": "    except Exception:\n        try:\n            tmp.unlink()\n        except OSError:\n            pass",
+            "old": "    except Exception:\n        try:\n            tmp.unlink()\n        except OSError:\n            pass\n        raise"
+          }
+        ]
+      },
+      "MT3": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_real_repo_serialization.py::test_receipt_memo_module_identity_and_resolver_caller_are_fixed",
+          "orchestrator/tests/test_real_repo_serialization.py::test_receipt_memo_public_endpoints_reject_all_xdist_reader_faults",
+          "orchestrator/tests/test_s8b_binding_driftguards.py::test_receipt_memo_public_endpoint_is_fail_closed_before_prewarm"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "21d16675e0645f37d267ec7f96744ffe50aeaac06571420af1c85a110744381b",
+        "replacements": [
+          {
+            "file": "orchestrator/tests/real_repo_receipt_memo.py",
+            "new": "def real_repo_receipt():\n    try:\n        return _RECEIPT_MEMO.get()\n    except ReceiptMemoError:\n        return _PRODUCTION_RESOLVE(root=ROOT)\n\n\ndef _t715_mutant_unused():",
+            "old": "def real_repo_receipt():"
+          }
+        ]
+      },
+      "MT4": {
+        "anchor_counts": {
+          "0": 1,
+          "1": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_real_repo_serialization.py::test_receipt_memo_both_worker_guards_are_required_as_redundant_defense",
+          "orchestrator/tests/test_real_repo_serialization.py::test_receipt_memo_prewarm_wiring_is_controller_only_and_lazy",
+          "orchestrator/tests/test_real_repo_serialization.py::test_receipt_memo_real_xdist_order_has_no_worker_payer"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "5a4f6df0619d0e031aeb1c2dc77215d302c4af4e75cd36cc6e451b21fe604b85",
+        "replacements": [
+          {
+            "file": "orchestrator/tests/conftest.py",
+            "new": "    # pytest_collection_finish の外側 guard と意図的に冗長な defense-in-depth。\n    # worker payer は両 guard が同時に失われない限り再発しない。\n    if False:\n        return",
+            "old": "    # pytest_collection_finish の外側 guard と意図的に冗長な defense-in-depth。\n    # worker payer は両 guard が同時に失われない限り再発しない。\n    if hasattr(config, \"workerinput\"):\n        return"
+          },
+          {
+            "file": "orchestrator/tests/conftest.py",
+            "new": "    if True:\n        _prewarm_receipt_memo(\n            session.config,\n            (_real_repo_node_id(item) for item in session.items),\n            run_id=None,",
+            "old": "    if not hasattr(session.config, \"workerinput\"):\n        _prewarm_receipt_memo(\n            session.config,\n            (_real_repo_node_id(item) for item in session.items),\n            run_id=None,"
+          }
+        ]
+      },
+      "MT5": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_real_repo_serialization.py::test_receipt_memo_prewarm_wiring_is_controller_only_and_lazy",
+          "orchestrator/tests/test_real_repo_serialization.py::test_receipt_memo_optout_only_selection_does_not_prewarm"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "8d109ab9bdef6a53d1dede272109f8636a637f65a1e0390d1f3cc02e53572c0f",
+        "replacements": [
+          {
+            "file": "orchestrator/tests/conftest.py",
+            "new": "    if False:\n        return",
+            "old": "    if not _receipt_memo_consumer_selected(nodeids):\n        return"
+          }
+        ]
+      },
+      "MT6": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_real_repo_serialization.py::test_receipt_memo_module_identity_and_resolver_caller_are_fixed",
+          "orchestrator/tests/test_real_repo_serialization.py::test_receipt_memo_prewarm_wiring_is_controller_only_and_lazy"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "2e1505552851d2c8dc24e5f471eb0edf8642bb9baac88b5eb097dcc869165bb0",
+        "replacements": [
+          {
+            "file": "orchestrator/tests/conftest.py",
+            "new": "from orchestrator.tests import real_repo_receipt_memo as _t715_eager_memo\n\n\ndef _receipt_memo_module():\n    \"\"\"consumer 検出後にだけ canonical memo module を import する。\"\"\"\n    return _t715_eager_memo",
+            "old": "def _receipt_memo_module():\n    \"\"\"consumer 検出後にだけ canonical memo module を import する。\"\"\"\n    from orchestrator.tests import real_repo_receipt_memo\n\n    return real_repo_receipt_memo"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "877e86c27952756535838f9c3312c0c65d46fd8364073320300998faf3fc9868",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "dispatch",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "/usr/bin/python3",
+      "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t715-memo-failclosed/tools/run_tests.py",
+      "orchestrator/tests/test_real_repo_serialization.py",
+      "orchestrator/tests/test_s8b_binding_driftguards.py",
+      "-n",
+      "0",
+      "-rf",
+      "--force-dispatch",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 600.0
+  },
+  "repo_head": "dd1fefa928def8945a331e085359b6d625fa399c",
+  "runner_identity": {
+    "command": [
+      "/usr/bin/python3",
+      "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t715-memo-failclosed/tools/run_tests.py",
+      "orchestrator/tests/test_real_repo_serialization.py",
+      "orchestrator/tests/test_s8b_binding_driftguards.py",
+      "-n",
+      "0",
+      "-rf",
+      "--force-dispatch",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t715-memo-failclosed/tools/pegasus/dispatch_compute.py",
+    "dispatch_entrypoint_sha256": "c2de5f0edfac383e4d35555ffa377d8df9aebd59cc981650716eac0d5e2a70df",
+    "dispatch_head_blob_sha256": "c2de5f0edfac383e4d35555ffa377d8df9aebd59cc981650716eac0d5e2a70df",
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t715-memo-failclosed/tools/run_tests.py",
+    "entrypoint_sha256": "7d892e4a670ef336cba605ef633c214a3318b7bd29825d1121e7baa18816350d",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+    "head_blob_sha256": "7d892e4a670ef336cba605ef633c214a3318b7bd29825d1121e7baa18816350d",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "a4d4d64023bea5b2fd9ac12bbb873a38545e6631",
+    "runner_mode": "dispatch"
+  },
+  "runner_sha256": "77fb4e18340f4d64b723f28c7d2551f0d18707bf1792944661bb68d289fbe2fd",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "7f52469a5776625e5bd69c9f558f30f52a095e7993a676efc63a3866835cc6ad",
+  "summary": {
+    "KILLED": 3,
+    "MISMATCH": 2,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 1,
+    "TIMEOUT": 0,
+    "completed": 6,
+    "matching": 3,
+    "recorded": 6,
+    "registered": 6
+  },
+  "tool_identity": {
+    "head_blob_sha256": "766f168f1da5b8b67c49374a2ad24928526b3658863d2a3291cfdc8ff5d705ac",
+    "path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t715-memo-failclosed/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "766f168f1da5b8b67c49374a2ad24928526b3658863d2a3291cfdc8ff5d705ac"
+  },
+  "tool_sha256": "ab292b26c01c795429087e339572ea8cddb5c10ace8347477e94653d852a7d09",
+  "updated_at": "2026-08-18T05:51:35.690902+00:00"
+}

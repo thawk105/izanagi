@@ -15,6 +15,7 @@ sys.path.insert(0, str(ORCH.parent))
 from orchestrator.campaign import model, pipeline, s1_direct_comparison as driver, wal  # noqa: E402
 from orchestrator.campaign import s1_report as report  # noqa: E402
 from orchestrator.campaign import t080_freeze_migration as T080  # noqa: E402
+from orchestrator.tests import commit_receipt_support as receipt_support  # noqa: E402
 
 
 WORKLOADS = ("balanced", "write-heavy", "read-heavy")
@@ -113,7 +114,14 @@ def _write_session(layout, item, role: str, *, fitness: float,
         }
         if role != "develop":
             payload.update({"cv": 0.01, "high_variance": False, "unstable": False})
-        wal.log(layout, variant, "commit", driver.ENV_TAG, payload)
+        receipt_support.log_receipted_commit(
+            layout, variant, driver.ENV_TAG, payload,
+            operation_identity=(
+                f"s1-{role}-{item.schedule_index}-{item.lap}-{item.freeze_cell_id}"
+            ),
+            tags=tuple(verify_configs),
+            lock_identity_sha256="0" * 64,
+        )
     else:
         wal.log(layout, variant, "bench_done", driver.ENV_TAG,
                 {"fitness_tps": fitness})

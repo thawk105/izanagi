@@ -41,7 +41,7 @@ from orchestrator.campaign import s8b_oracle_report as report_module  # noqa: E4
 # (編集はしない)。helper は freeze/manifest を公開 API 経由で構築するため、loader
 # の定義位置には依存しない。
 import test_s8b_oracle_driver as driver_fixtures  # noqa: E402
-import real_repo_receipt_memo as receipt_memo  # noqa: E402
+from orchestrator.tests import real_repo_receipt_memo as receipt_memo  # noqa: E402
 import real_repo_ratified_memo as ratified_memo  # noqa: E402
 
 
@@ -336,10 +336,6 @@ def test_gate_check_broken_binding_manifest_stacks_manifest_verify_refusal(tmp_p
 #    退行すると、これらが赤になる。
 
 
-def _clear_receipt_memo():
-    receipt_memo.real_repo_receipt.cache_clear()
-
-
 def test_receipt_memo_delegates_to_production_verifier_exactly_once():
     """memo は本番 verify_receipt を root=実 repo でちょうど 1 回呼び、戻り object を
     再構築せずそのまま返す (canned 値・deepcopy への退行を殺す)。
@@ -358,16 +354,13 @@ def test_receipt_memo_delegates_to_production_verifier_exactly_once():
         seen.append(Path(root))
         return resolution
 
-    _clear_receipt_memo()
-    try:
-        with pytest.MonkeyPatch.context() as patcher:
-            # session cache (xdist 用) を切って process 内経路だけを検査する。
-            patcher.setattr(receipt_memo, "_session_cache_path", lambda: None)
-            patcher.setattr(receipt_memo.migration, "verify_receipt", fake_verify)
-            first = receipt_memo.real_repo_receipt()
-            second = receipt_memo.real_repo_receipt()
-    finally:
-        _clear_receipt_memo()
+    memo = receipt_memo._make_receipt_memo()
+    with pytest.MonkeyPatch.context() as patcher:
+        patcher.setattr(receipt_memo.migration, "verify_receipt", fake_verify)
+        patcher.setattr(receipt_memo, "_RECEIPT_MEMO", memo)
+        receipt_memo.prewarm_real_repo_receipt(run_id=None)
+        first = receipt_memo.real_repo_receipt()
+        second = receipt_memo.real_repo_receipt()
 
     assert seen == [receipt_memo.ROOT], seen
     assert first is resolution and second is resolution
@@ -391,17 +384,14 @@ def test_receipt_memo_patches_the_driver_module_the_tests_import():
         calls["real"] += 1
         return resolution
 
-    _clear_receipt_memo()
-    try:
-        with pytest.MonkeyPatch.context() as patcher:
-            # session cache (xdist 用) を切って process 内経路だけを検査する。
-            patcher.setattr(receipt_memo, "_session_cache_path", lambda: None)
-            patcher.setattr(receipt_memo.migration, "verify_receipt", fake_verify)
-            with receipt_memo.patch_driver_resolver() as spy:
-                got_a = driver._resolve_t080_receipt(root=ROOT)
-                got_b = driver._resolve_t080_receipt(root=ROOT)
-    finally:
-        _clear_receipt_memo()
+    memo = receipt_memo._make_receipt_memo()
+    with pytest.MonkeyPatch.context() as patcher:
+        patcher.setattr(receipt_memo.migration, "verify_receipt", fake_verify)
+        patcher.setattr(receipt_memo, "_RECEIPT_MEMO", memo)
+        memo.prewarm(run_id=None)
+        with receipt_memo.patch_driver_resolver() as spy:
+            got_a = driver._resolve_t080_receipt(root=ROOT)
+            got_b = driver._resolve_t080_receipt(root=ROOT)
 
     assert got_a is resolution and got_b is resolution
     assert spy.call_count == 2, spy.call_args_list
@@ -414,12 +404,70 @@ def test_receipt_memo_refuses_roots_other_than_the_real_repository(tmp_path):
         receipt_memo.memo_resolver(root=tmp_path)
 
 
+def _assert_receipt_memo_error(exc, *, reason, prewarm):
+    message = str(exc)
+    assert message.startswith(receipt_memo._ERROR_PREFIX), message
+    raw = message.removeprefix(receipt_memo._ERROR_PREFIX)
+    payload = json.loads(raw)
+    assert payload == exc.payload
+    assert raw == json.dumps(
+        payload, ensure_ascii=True, separators=(",", ":"), sort_keys=True,
+    )
+    assert payload["reason"] == reason
+    assert payload["prewarm"] is prewarm
+    assert set((
+        "reason", "cache_path", "run_id", "head", "prewarm",
+        "process_prewarmed",
+    )) <= set(payload)
+    return payload
+
+
+def test_receipt_memo_public_endpoint_is_fail_closed_before_prewarm():
+    """公開 memo_resolver も miss から production resolver へ fallback しない。"""
+    calls = 0
+
+    def fake_production_resolve(*, root):
+        nonlocal calls
+        assert Path(root).resolve() == ROOT.resolve()
+        calls += 1
+        return object()
+
+    memo = receipt_memo._make_receipt_memo()
+    with pytest.MonkeyPatch.context() as patcher:
+        patcher.delenv(receipt_memo._RUN_ID_ENV, raising=False)
+        patcher.setattr(receipt_memo, "_RECEIPT_MEMO", memo)
+        patcher.setattr(
+            receipt_memo, "_PRODUCTION_RESOLVE", fake_production_resolve,
+        )
+        with pytest.raises(receipt_memo.ReceiptMemoError) as direct:
+            memo.get()
+        with pytest.raises(receipt_memo.ReceiptMemoError) as public:
+            receipt_memo.memo_resolver(root=ROOT)
+        assert public.value.payload == direct.value.payload
+        _assert_receipt_memo_error(
+            public.value, reason="cache-path-unavailable", prewarm=False,
+        )
+        assert calls == 0
+
+        # 合成 fail-open endpoint は同じ assertion を通らず resolver を 1 回呼ぶ。
+        def synthetic_fail_open_endpoint():
+            try:
+                return receipt_memo.memo_resolver(root=ROOT)
+            except receipt_memo.ReceiptMemoError:
+                return fake_production_resolve(root=ROOT)
+
+        try:
+            synthetic_fail_open_endpoint()
+        except receipt_memo.ReceiptMemoError:
+            raise AssertionError("合成 fail-open endpoint が fallback しなかった")
+        assert calls == 1
+
+
 def test_receipt_memo_session_cache_round_trip_preserves_the_resolution(tmp_path):
-    """xdist 用 session cache は値を保存し、壊れた cache では実解決へ倒す。
+    """xdist 用 session cache は値を保存し、壊れた cache は構造化して拒否する。
 
     worker 間共有は pickle 往復になるため、observation・refusals・raw bytes が
-    落ちないことを固定する (frozen dataclass の等値比較)。cache が読めない場合に
-    None を返す (= 呼び出し側が実解決へ倒す) ことも同時に固定する。
+    落ちないことを固定する (frozen dataclass の等値比較)。
     """
     resolution = driver_fixtures.migration.ReceiptResolution(
         state="active-valid",
@@ -435,7 +483,12 @@ def test_receipt_memo_session_cache_round_trip_preserves_the_resolution(tmp_path
     assert receipt_memo._cache_load(path) == resolution
 
     path.write_bytes(b"not a pickle")
-    assert receipt_memo._cache_load(path) is None
+    with pytest.raises(receipt_memo.ReceiptMemoError) as caught:
+        receipt_memo._cache_load(path)
+    payload = _assert_receipt_memo_error(
+        caught.value, reason="cache-unpickle-failed", prewarm=False,
+    )
+    assert payload["exception_type"] == "UnpicklingError"
 
 
 #

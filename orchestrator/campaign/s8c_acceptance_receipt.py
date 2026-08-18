@@ -20,17 +20,24 @@ from pathlib import Path, PurePosixPath
 from typing import Any
 
 
-SCHEMA_VERSION = "p3-8c-trial-acceptance-receipt/v1"
+LEGACY_SCHEMA_VERSION = "p3-8c-trial-acceptance-receipt/v1"
+PREVIOUS_SCHEMA_VERSION = "p3-8c-trial-acceptance-receipt/v2"
+SCHEMA_VERSION = "p3-8c-trial-acceptance-receipt/v3"
+CROSS_BINDING_RECEIPT_SCHEMA_VERSION = "p3-8c-cross-binding-receipt/v1"
 DEFAULT_RECEIPT_DIR = PurePosixPath("output/s8c-trial-registry/receipts")
-MANDATORY_NON_CERTIFYING_REASONS = frozenset({
+LEGACY_MANDATORY_NON_CERTIFYING_REASONS = frozenset({
     "c02-arm-binding-unproven",
     "t468-approval-authority-absent",
 })
+MANDATORY_NON_CERTIFYING_REASONS = frozenset({
+    "t468-approval-authority-absent",
+})
+C02_ARM_BINDING_UNPROVEN = "c02-arm-binding-unproven"
 
 _COMMIT_RE = re.compile(r"[0-9a-f]{40}")
 _SHA256_RE = re.compile(r"[0-9a-f]{64}")
 _TRIAL_ID_RE = re.compile(r"[a-z0-9][a-z0-9._-]{0,63}")
-_TOP_LEVEL_KEYS = frozenset({
+_BASE_TOP_LEVEL_KEYS = frozenset({
     "schema_version",
     "manifest_path",
     "manifest_sha256",
@@ -46,7 +53,13 @@ _TOP_LEVEL_KEYS = frozenset({
     "non_certifying_reason_codes",
     "trials",
 })
-_TRIAL_KEYS = frozenset({
+_V1_TOP_LEVEL_KEYS = frozenset(_BASE_TOP_LEVEL_KEYS)
+_V2_TOP_LEVEL_KEYS = frozenset(_BASE_TOP_LEVEL_KEYS)
+_V3_TOP_LEVEL_KEYS = _BASE_TOP_LEVEL_KEYS | {
+    "cross_binding_receipt_sha256",
+}
+_TOP_LEVEL_KEYS = _V3_TOP_LEVEL_KEYS
+_V1_TRIAL_KEYS = frozenset({
     "trial_id",
     "arm",
     "holdout",
@@ -58,6 +71,18 @@ _TRIAL_KEYS = frozenset({
     "attempt_journal_path",
     "attempt_journal_sha256",
 })
+_V2_TRIAL_KEYS = _V1_TRIAL_KEYS | {"arm_execution"}
+_V2_TRIAL_KEYS_WITH_ORIGIN = _V2_TRIAL_KEYS | {"origin_terminal_projection"}
+_V3_TRIAL_KEYS = _V2_TRIAL_KEYS | {"cross_binding_receipt_sha256"}
+_V3_TRIAL_KEYS_WITH_ORIGIN = (
+    _V3_TRIAL_KEYS | {"origin_terminal_projection"}
+)
+_ARM_EXECUTION_KEYS = frozenset({
+    "input_schema_version",
+    "content_digest_sha256",
+    "arm_binding_digest_sha256",
+})
+_ARM_BINDING_DOMAIN_SEPARATOR_V1 = b"izanagi-s8c-arm-binding/v1\0"
 _VERIFIED_RECEIPT_SEAL = object()
 _GIT_ENV_ALLOW = frozenset({
     "LANG", "LC_ALL", "LC_CTYPE", "PATH", "SYSTEMROOT", "TMPDIR",
@@ -73,6 +98,13 @@ def _fail(gate: str, message: str) -> None:
 
 
 @dataclasses.dataclass(frozen=True, slots=True)
+class AcceptanceReceiptArmExecution:
+    input_schema_version: str
+    content_digest_sha256: str
+    arm_binding_digest_sha256: str
+
+
+@dataclasses.dataclass(frozen=True, slots=True)
 class AcceptanceReceiptTrial:
     trial_id: str
     arm: str
@@ -84,6 +116,9 @@ class AcceptanceReceiptTrial:
     report_sha256: str
     attempt_journal_path: str
     attempt_journal_sha256: str
+    arm_execution: AcceptanceReceiptArmExecution | None
+    cross_binding_receipt_sha256: str | None
+    origin_terminal_projection: dict[str, Any] | None
 
 
 @dataclasses.dataclass(frozen=True, slots=True)
@@ -101,6 +136,7 @@ class AcceptanceReceipt:
     lifecycle_prefix_sha256: str
     certifying: bool
     non_certifying_reason_codes: tuple[str, ...]
+    cross_binding_receipt_sha256: str | None
     trials: tuple[AcceptanceReceiptTrial, ...]
 
 
@@ -134,10 +170,37 @@ def _canonical_bytes(value: Any) -> bytes:
             separators=(",", ":"),
             allow_nan=False,
         ).encode("utf-8")
-    except (TypeError, ValueError) as exc:
+    except (TypeError, ValueError, UnicodeEncodeError) as exc:
         raise AcceptanceReceiptError(
             f"[receipt-json] value is not canonical JSON: {exc}"
         ) from exc
+
+
+def cross_binding_aggregate_sha256(
+    trials: Sequence[Mapping[str, Any]],
+) -> str:
+    """Hash the sorted per-trial cross-binding leaves for receipt v3."""
+    leaves: list[dict[str, str]] = []
+    for index, trial in enumerate(trials):
+        if not isinstance(trial, Mapping):
+            _fail("receipt-cross-binding", f"leaf {index} is not an object")
+        if set(trial) != {"trial_id", "receipt_sha256"}:
+            _fail("receipt-cross-binding", f"leaf {index} exact keys differ")
+        trial_id = trial.get("trial_id")
+        if not isinstance(trial_id, str) or _TRIAL_ID_RE.fullmatch(trial_id) is None:
+            _fail("receipt-cross-binding", f"leaf {index} trial_id is invalid")
+        digest = _require_sha256(
+            trial.get("receipt_sha256"),
+            f"leaf {index}.receipt_sha256",
+        )
+        leaves.append({"trial_id": trial_id, "receipt_sha256": digest})
+    if len({leaf["trial_id"] for leaf in leaves}) != len(leaves):
+        _fail("receipt-cross-binding", "cross-binding leaves reuse a trial_id")
+    payload = {
+        "schema_version": CROSS_BINDING_RECEIPT_SCHEMA_VERSION,
+        "trials": sorted(leaves, key=lambda leaf: leaf["trial_id"]),
+    }
+    return hashlib.sha256(_canonical_bytes(payload)).hexdigest()
 
 
 def _reject_constant(value: str) -> None:
@@ -222,13 +285,50 @@ def _require_nonempty_reason_codes(value: Any) -> tuple[str, ...]:
     return tuple(value)
 
 
-def _require_mandatory_reason_codes(reasons: Sequence[str]) -> None:
-    """Validate only the unresolved-authority reasons required by v1."""
-    if not MANDATORY_NON_CERTIFYING_REASONS.issubset(reasons):
+def _require_mandatory_reason_codes(
+    reasons: Sequence[str],
+    required: frozenset[str] = MANDATORY_NON_CERTIFYING_REASONS,
+) -> None:
+    """Validate one schema generation's unresolved-authority reasons."""
+    if not required.issubset(reasons):
         _fail(
             "receipt-mandatory-reasons",
             "mandatory unresolved-authority reason codes are absent",
         )
+
+
+def _require_legacy_mandatory_reason_codes(reasons: Sequence[str]) -> None:
+    _require_mandatory_reason_codes(
+        reasons, LEGACY_MANDATORY_NON_CERTIFYING_REASONS,
+    )
+
+
+def _parse_arm_execution(
+    value: Any, *, label: str,
+) -> AcceptanceReceiptArmExecution:
+    if not isinstance(value, Mapping):
+        _fail("receipt-schema", f"{label} is not an object")
+    _exact_keys(value, _ARM_EXECUTION_KEYS, label)
+    input_schema_version = value["input_schema_version"]
+    if input_schema_version != "8b-v1":
+        _fail("receipt-arm-binding", f"{label}.input_schema_version differs")
+    return AcceptanceReceiptArmExecution(
+        input_schema_version=input_schema_version,
+        content_digest_sha256=_require_sha256(
+            value["content_digest_sha256"],
+            f"{label}.content_digest_sha256",
+        ),
+        arm_binding_digest_sha256=_require_sha256(
+            value["arm_binding_digest_sha256"],
+            f"{label}.arm_binding_digest_sha256",
+        ),
+    )
+
+
+def _parse_origin_terminal_projection(value: Any, *, label: str) -> dict[str, Any]:
+    if not isinstance(value, Mapping):
+        _fail("receipt-schema", f"{label} is not an object")
+    return dict(value)
 
 
 def parse_acceptance_receipt_bytes(data: bytes) -> AcceptanceReceipt:
@@ -242,9 +342,19 @@ def parse_acceptance_receipt_bytes(data: bytes) -> AcceptanceReceipt:
         _fail("receipt-schema", "receipt root is not an object")
     if _canonical_bytes(value) + b"\n" != data:
         _fail("receipt-canonical", "receipt bytes are not canonical JSON plus LF")
-    _exact_keys(value, _TOP_LEVEL_KEYS, "receipt")
-    if value["schema_version"] != SCHEMA_VERSION:
+    if "schema_version" not in value:
+        _fail("receipt-schema", "receipt.schema_version is missing")
+    schema_version = value["schema_version"]
+    if schema_version not in {
+        LEGACY_SCHEMA_VERSION, PREVIOUS_SCHEMA_VERSION, SCHEMA_VERSION,
+    }:
         _fail("receipt-schema", "unsupported schema_version")
+    expected_top_keys = {
+        LEGACY_SCHEMA_VERSION: _V1_TOP_LEVEL_KEYS,
+        PREVIOUS_SCHEMA_VERSION: _V2_TOP_LEVEL_KEYS,
+        SCHEMA_VERSION: _V3_TOP_LEVEL_KEYS,
+    }[schema_version]
+    _exact_keys(value, expected_top_keys, "receipt")
 
     manifest_path = _require_posix_path(value["manifest_path"], "manifest_path")
     manifest_sha256 = _require_sha256(value["manifest_sha256"], "manifest_sha256")
@@ -271,13 +381,24 @@ def parse_acceptance_receipt_bytes(data: bytes) -> AcceptanceReceipt:
     lifecycle_prefix_digest = _require_sha256(
         value["lifecycle_prefix_sha256"], "lifecycle_prefix_sha256"
     )
+    cross_binding_digest = (
+        None
+        if schema_version != SCHEMA_VERSION
+        else _require_sha256(
+            value["cross_binding_receipt_sha256"],
+            "cross_binding_receipt_sha256",
+        )
+    )
 
-    # v1 records the explicitly unresolved authority state.  A future wave
-    # that can certify must introduce a new schema instead of flipping this.
+    # Both generations structurally record unresolved approval authority.
+    # No accepted bytes can turn either generation into a certifying receipt.
     if value["certifying"] is not False:
-        _fail("receipt-certifying", "v1 receipts are structurally non-certifying")
+        _fail("receipt-certifying", "receipts are structurally non-certifying")
     reasons = _require_nonempty_reason_codes(value["non_certifying_reason_codes"])
-    _require_mandatory_reason_codes(reasons)
+    if schema_version == LEGACY_SCHEMA_VERSION:
+        _require_legacy_mandatory_reason_codes(reasons)
+    else:
+        _require_mandatory_reason_codes(reasons)
 
     trials_value = value["trials"]
     if not isinstance(trials_value, list) or len(trials_value) != 6:
@@ -286,7 +407,24 @@ def parse_acceptance_receipt_bytes(data: bytes) -> AcceptanceReceipt:
     for index, raw in enumerate(trials_value):
         if not isinstance(raw, Mapping):
             _fail("receipt-schema", f"trials[{index}] is not an object")
-        _exact_keys(raw, _TRIAL_KEYS, f"trials[{index}]")
+        expected_trial_keys = (
+            _V1_TRIAL_KEYS
+            if schema_version == LEGACY_SCHEMA_VERSION
+            else (
+                (
+                    _V3_TRIAL_KEYS_WITH_ORIGIN
+                    if "origin_terminal_projection" in raw
+                    else _V3_TRIAL_KEYS
+                )
+                if schema_version == SCHEMA_VERSION
+                else (
+                    _V2_TRIAL_KEYS_WITH_ORIGIN
+                    if "origin_terminal_projection" in raw
+                    else _V2_TRIAL_KEYS
+                )
+            )
+        )
+        _exact_keys(raw, expected_trial_keys, f"trials[{index}]")
         trial_id = raw["trial_id"]
         if not isinstance(trial_id, str) or _TRIAL_ID_RE.fullmatch(trial_id) is None:
             _fail("receipt-schema", f"trials[{index}].trial_id is invalid")
@@ -325,6 +463,29 @@ def parse_acceptance_receipt_bytes(data: bytes) -> AcceptanceReceipt:
                 raw["attempt_journal_sha256"],
                 f"trials[{index}].attempt_journal_sha256",
             ),
+            arm_execution=(
+                None
+                if schema_version == LEGACY_SCHEMA_VERSION
+                else _parse_arm_execution(
+                    raw["arm_execution"], label=f"trials[{index}].arm_execution",
+                )
+            ),
+            cross_binding_receipt_sha256=(
+                None
+                if schema_version != SCHEMA_VERSION
+                else _require_sha256(
+                    raw["cross_binding_receipt_sha256"],
+                    f"trials[{index}].cross_binding_receipt_sha256",
+                )
+            ),
+            origin_terminal_projection=(
+                None
+                if "origin_terminal_projection" not in raw
+                else _parse_origin_terminal_projection(
+                    raw["origin_terminal_projection"],
+                    label=f"trials[{index}].origin_terminal_projection",
+                )
+            ),
         ))
     if [trial.trial_id for trial in trials] != sorted(
         trial.trial_id for trial in trials
@@ -339,9 +500,29 @@ def parse_acceptance_receipt_bytes(data: bytes) -> AcceptanceReceipt:
             "receipt-measurement-head-coherence",
             "trials do not share one measurement_head",
         )
+    if schema_version in {PREVIOUS_SCHEMA_VERSION, SCHEMA_VERSION}:
+        expected_cells = {
+            (holdout, arm)
+            for holdout in ("H1", "H2")
+            for arm in ("on", "off", "swapped")
+        }
+        actual_cells = {(trial.holdout, trial.arm) for trial in trials}
+        if actual_cells != expected_cells:
+            _fail("receipt-arm-binding", "current trials are not the closed six arm cells")
+        for holdout in ("H1", "H2"):
+            digests = [
+                trial.arm_execution.content_digest_sha256
+                for trial in trials
+                if trial.holdout == holdout and trial.arm_execution is not None
+            ]
+            if len(set(digests)) != 3:
+                _fail(
+                    "receipt-arm-binding",
+                    f"{holdout} content digests are not pairwise distinct",
+                )
 
     return AcceptanceReceipt(
-        schema_version=SCHEMA_VERSION,
+        schema_version=schema_version,
         manifest_path=manifest_path,
         manifest_sha256=manifest_sha256,
         prereg_commit=prereg_commit,
@@ -354,6 +535,7 @@ def parse_acceptance_receipt_bytes(data: bytes) -> AcceptanceReceipt:
         lifecycle_prefix_sha256=lifecycle_prefix_digest,
         certifying=False,
         non_certifying_reason_codes=reasons,
+        cross_binding_receipt_sha256=cross_binding_digest,
         trials=tuple(trials),
     )
 
@@ -478,12 +660,173 @@ def _resolved_reference(root: Path, relative_path: str, label: str) -> Path:
     return resolved
 
 
-def _assert_digest(root: Path, relative_path: str, expected: str, label: str) -> None:
+def _assert_digest(
+    root: Path, relative_path: str, expected: str, label: str,
+) -> bytes:
     data = _read_regular_bytes(
         _resolved_reference(root, relative_path, label), label=label,
     )
     if hashlib.sha256(data).hexdigest() != expected:
         _fail("receipt-reference-hash", f"{label} bytes differ from receipt")
+    return data
+
+
+def _arm_execution_record(
+    arm_execution: AcceptanceReceiptArmExecution,
+) -> dict[str, str]:
+    return {
+        "input_schema_version": arm_execution.input_schema_version,
+        "content_digest_sha256": arm_execution.content_digest_sha256,
+        "arm_binding_digest_sha256": arm_execution.arm_binding_digest_sha256,
+    }
+
+
+def _arm_binding_digest(
+    *, holdout: str, arm: str, content_digest: str,
+) -> str:
+    return hashlib.sha256(
+        _ARM_BINDING_DOMAIN_SEPARATOR_V1
+        + holdout.encode("utf-8")
+        + arm.encode("utf-8")
+        + content_digest.encode("ascii")
+    ).hexdigest()
+
+
+def _reference_object(data: bytes, *, label: str) -> Mapping[str, Any]:
+    value = _decode_json(data)
+    if not isinstance(value, Mapping):
+        _fail("receipt-arm-binding", f"{label} root is not an object")
+    return value
+
+
+def _journal_events(data: bytes) -> tuple[Mapping[str, Any], ...]:
+    if not data or not data.endswith(b"\n"):
+        _fail("receipt-arm-binding", "attempt journal is not newline terminated")
+    events = []
+    for index, line in enumerate(data.splitlines(), 1):
+        value = _decode_json(line)
+        if not isinstance(value, Mapping):
+            _fail(
+                "receipt-arm-binding",
+                f"attempt journal line {index} is not an object",
+            )
+        events.append(value)
+    return tuple(events)
+
+
+def _verify_v2_trial_arm_execution(
+    trial: AcceptanceReceiptTrial,
+    *,
+    report_bytes: bytes,
+    journal_bytes: bytes,
+) -> bool:
+    """Verify summary equality and rederive content from named report bytes.
+
+    ``False`` means the report has no executed cell descriptor, so the legacy
+    C02 reason cannot be dropped.  Any contradictory bytes fail closed.
+    """
+    arm_execution = trial.arm_execution
+    if arm_execution is None:
+        _fail("receipt-arm-binding", "v2 trial arm_execution is absent")
+    expected_arm_execution = _arm_execution_record(arm_execution)
+    report = _reference_object(report_bytes, label="trial report")
+
+    if report.get("trial_id") != trial.trial_id:
+        _fail("receipt-arm-binding", "trial report trial_id differs from receipt")
+    if report.get("measurement_head") != trial.measurement_head:
+        _fail(
+            "receipt-arm-binding",
+            "trial report measurement_head differs from receipt",
+        )
+    if report.get("status") != trial.status:
+        _fail("receipt-arm-binding", "trial report status differs from receipt")
+    report_has_origin = "origin_terminal_projection" in report
+    receipt_has_origin = trial.origin_terminal_projection is not None
+    if report_has_origin != receipt_has_origin:
+        _fail(
+            "receipt-origin-projection",
+            "trial report origin_terminal_projection presence differs from receipt",
+        )
+    if receipt_has_origin:
+        report_origin = report.get("origin_terminal_projection")
+        if not isinstance(report_origin, Mapping):
+            _fail(
+                "receipt-origin-projection",
+                "trial report origin_terminal_projection is not an object",
+            )
+        if _canonical_bytes(report_origin) != _canonical_bytes(
+            trial.origin_terminal_projection
+        ):
+            _fail(
+                "receipt-origin-projection",
+                "trial report origin_terminal_projection differs from receipt",
+            )
+    launch = report.get("launch_admission")
+    binding = launch.get("binding") if isinstance(launch, Mapping) else None
+    if not isinstance(binding, Mapping) or any(
+        binding.get(field) != expected
+        for field, expected in (
+            ("arm", trial.arm),
+            ("holdout", trial.holdout),
+            ("campaign_id", trial.campaign_id),
+        )
+    ):
+        _fail("receipt-arm-binding", "trial report arm cell differs from receipt")
+
+    cells = report.get("cells")
+    if not isinstance(cells, list) or len(cells) > 1:
+        _fail("receipt-arm-binding", "trial report cells are not a zero/one list")
+    descriptor_proven = False
+    if cells:
+        cell = cells[0]
+        descriptor = cell.get("descriptor") if isinstance(cell, Mapping) else None
+        if not isinstance(descriptor, Mapping):
+            _fail("receipt-arm-binding", "trial report cell descriptor is absent")
+        workload = binding.get("workload")
+        if cell.get("workload") != workload:
+            _fail("receipt-arm-binding", "trial report descriptor cell is not bound")
+        actual_content_digest = hashlib.sha256(
+            _canonical_bytes(descriptor)
+        ).hexdigest()
+        if actual_content_digest != arm_execution.content_digest_sha256:
+            _fail(
+                "receipt-arm-binding",
+                "cell descriptor content digest differs from receipt",
+            )
+        descriptor_proven = True
+
+    if report.get("arm_execution") != expected_arm_execution:
+        _fail(
+            "receipt-arm-binding",
+            "trial report arm_execution differs from receipt",
+        )
+    expected_binding_digest = _arm_binding_digest(
+        holdout=trial.holdout,
+        arm=trial.arm,
+        content_digest=arm_execution.content_digest_sha256,
+    )
+    if arm_execution.arm_binding_digest_sha256 != expected_binding_digest:
+        _fail("receipt-arm-binding", "arm binding digest differs from receipt inputs")
+
+    starts = [
+        event for event in _journal_events(journal_bytes)
+        if event.get("event") == "run-start"
+    ]
+    if len(starts) != 1:
+        _fail("receipt-arm-binding", "attempt journal run-start is not unique")
+    if starts[0].get("arm_execution") != expected_arm_execution:
+        _fail(
+            "receipt-arm-binding",
+            "run-start arm_execution differs from report and receipt",
+        )
+    return descriptor_proven
+
+
+def _arm_execution_authorizes_reason_drop(
+    descriptor_proofs: Sequence[bool],
+) -> bool:
+    """The only v2 gate allowed to remove the legacy C02 reason."""
+    return len(descriptor_proofs) == 6 and all(descriptor_proofs)
 
 
 def _assert_prefix_digest(
@@ -616,14 +959,45 @@ def verify_acceptance_receipt(
         receipt.lifecycle_prefix_sha256,
         "lifecycle",
     )
+    descriptor_proofs: list[bool] = []
     for trial in receipt.trials:
-        _assert_digest(root, trial.report_path, trial.report_sha256, "trial report")
-        _assert_digest(
+        report_bytes = _assert_digest(
+            root, trial.report_path, trial.report_sha256, "trial report",
+        )
+        journal_bytes = _assert_digest(
             root,
             trial.attempt_journal_path,
             trial.attempt_journal_sha256,
             "attempt journal",
         )
+        if receipt.schema_version in {PREVIOUS_SCHEMA_VERSION, SCHEMA_VERSION}:
+            descriptor_proofs.append(_verify_v2_trial_arm_execution(
+                trial,
+                report_bytes=report_bytes,
+                journal_bytes=journal_bytes,
+            ))
+    if (
+        receipt.schema_version in {PREVIOUS_SCHEMA_VERSION, SCHEMA_VERSION}
+        and C02_ARM_BINDING_UNPROVEN not in receipt.non_certifying_reason_codes
+        and not _arm_execution_authorizes_reason_drop(descriptor_proofs)
+    ):
+        _fail(
+            "receipt-mandatory-reasons",
+            "c02-arm-binding-unproven was dropped without descriptor proof",
+        )
+    if receipt.schema_version == SCHEMA_VERSION:
+        aggregate = cross_binding_aggregate_sha256([
+            {
+                "trial_id": trial.trial_id,
+                "receipt_sha256": trial.cross_binding_receipt_sha256,
+            }
+            for trial in receipt.trials
+        ])
+        if receipt.cross_binding_receipt_sha256 != aggregate:
+            _fail(
+                "receipt-cross-binding",
+                "top-level cross-binding aggregate differs from trial leaves",
+            )
     return VerifiedAcceptanceReceipt(
         repository_root=root,
         path=path,

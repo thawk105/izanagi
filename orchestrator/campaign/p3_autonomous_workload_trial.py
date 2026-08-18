@@ -43,12 +43,15 @@ from . import reflux_origin_binding
 from . import reflux_origin_client
 from . import reflux_origin_ledger
 from . import reflux_origin_topology
+from . import s8b_holdout_freeze
+from . import s8b_ratified_freeze
 from . import s8c_arm_inputs
 from . import s8c_preregistration
 from . import trial_registry
 from .reflux_source_closure import ValidatedSourceClosure
 from .reflux_ir import emit_predicate, parse_wire
 from .autonomous_trial_completeness import (
+    assert_legacy_workload_profile_source,
     assert_campaign_layer3_chain,
     assert_autonomous_trial_completeness,
     assert_autonomous_trial_execution_digest_chain,
@@ -97,13 +100,22 @@ from .s8c_generation_projection import (
     validate_coder_payload,
     validate_planner_payload,
 )
+from .s8b_ratified_freeze import load_ratified_freeze
+from .s8c_budget import (
+    BudgetLimits,
+    Ledger,
+    ReservationCell,
+    reserve_all_cells,
+    settle,
+    symmetric_indeterminate,
+)
 
 
 
 # The axis driver imports the campaign namespace directly.  Keep the U1 run
 # context and identity types on that same module identity so exact-type seals
 # survive package and direct-script entry points alike.
-from . import env_contract, ident  # noqa: E402
+from . import env_contract, ident, reservation  # noqa: E402
 from .artifact_admission import (  # noqa: E402
     CampaignReadPurpose,
     require_admitted_campaign,
@@ -120,6 +132,7 @@ from .build_admission import (  # noqa: E402
 
 
 ROOT = Path(__file__).resolve().parents[2]
+DECLARED_USE_CLASS = "exploration"
 SCHEMA_VERSION = "p3-autonomous-workload-trial/v3"
 REPORT_SCHEMA_VERSION = "p3-autonomous-workload-trial-report/v3"
 MAX_GENERATIONS = 10
@@ -188,11 +201,55 @@ AUDITOR_DIFF_DECLASSIFICATION_POLICY_SHA256 = _sha256(
     _canonical_json_bytes(AUDITOR_DIFF_DECLASSIFICATION_POLICY)
 )
 
-WORKLOADS: dict[str, dict[str, str]] = {
-    "ycsb-a": {"ycsb_zipf_skew": "0.9", "ycsb_rratio": "50", "ycsb_rmw": "0"},
-    "ycsb-b": {"ycsb_zipf_skew": "0.9", "ycsb_rratio": "95", "ycsb_rmw": "0"},
-    "ycsb-c": {"ycsb_zipf_skew": "0.9", "ycsb_rratio": "100", "ycsb_rmw": "0"},
+EXPLORATORY_WORKLOAD_PROFILE = "exploratory-ycsb-abc"
+FORMAL_LEGACY_WORKLOAD_PROFILE = "formal-holdout-legacy-v1"
+WORKLOAD_PROFILES = frozenset({
+    EXPLORATORY_WORKLOAD_PROFILE,
+    FORMAL_LEGACY_WORKLOAD_PROFILE,
+})
+_WORKLOAD_PROFILE_SOURCE_SCHEMA = "p3-workload-profile-source/v1"
+_WORKLOAD_PROFILE_SOURCE_LOADER = "s8b_ratified_freeze.load_legacy_freeze"
+
+
+class WorkloadEntry(dict[str, Any]):
+    """Structured workload authority entry."""
+
+
+WORKLOADS: dict[str, WorkloadEntry] = {
+    "ycsb-a": WorkloadEntry(
+        ycsb={"ycsb_zipf_skew": "0.9", "ycsb_rratio": "50", "ycsb_rmw": "0"},
+        records=100_000,
+        threads=4,
+    ),
+    "ycsb-b": WorkloadEntry(
+        ycsb={"ycsb_zipf_skew": "0.9", "ycsb_rratio": "95", "ycsb_rmw": "0"},
+        records=100_000,
+        threads=4,
+    ),
+    "ycsb-c": WorkloadEntry(
+        ycsb={"ycsb_zipf_skew": "0.9", "ycsb_rratio": "100", "ycsb_rmw": "0"},
+        records=100_000,
+        threads=4,
+    ),
 }
+FORMAL_WORKLOADS: dict[str, WorkloadEntry] = {}
+for _formal_name, _formal_authority in s8b_holdout_freeze.HOLDOUTS.items():
+    FORMAL_WORKLOADS[_formal_name] = WorkloadEntry(
+        candidate_id=_formal_authority["candidate_id"],
+        ycsb=copy.deepcopy(_formal_authority["ycsb"]),
+        records=_formal_authority["records"],
+        threads=_formal_authority["threads"],
+    )
+
+
+def resolve_workload_entry(workload: str) -> WorkloadEntry:
+    """Resolve one producer entry without enlarging exploratory admission."""
+    entry = WORKLOADS.get(workload)
+    if entry is None:
+        entry = FORMAL_WORKLOADS.get(workload)
+    if not isinstance(entry, WorkloadEntry):
+        raise AutonomousTrialError(f"unknown workload entry: {workload!r}")
+    return entry
 
 ROLE_FILES = {
     "planner": (ROOT / ".claude/agents/planner-v4.md", "planner-v4"),
@@ -317,6 +374,7 @@ class PreparedCampaignIdentity:
     descriptor_record: Mapping[str, Any]
     campaign: CampaignConfig
     campaign_id: str
+    perf: PerfConfig
 
 
 @dataclasses.dataclass(frozen=True, slots=True)
@@ -385,6 +443,17 @@ class _RunScopeBinding:
     _seal: object = dataclasses.field(repr=False)
     origin_capability: reflux_origin_binding.OriginBindingCapability | None = None
     arm_execution: trial_registry.TrialArmExecutionBinding | None = None
+
+
+@dataclasses.dataclass(frozen=True, slots=True)
+class _S8CBudgetInputs:
+    ledger_path: Path
+    manifest_sha256: str
+    freeze_sha256: str
+    schedule_sha256: str
+    ratified_generation_sha256: str
+    cells: tuple[ReservationCell, ...]
+    limits: BudgetLimits
 
 
 _ACTIVE_TRIAL_BINDING: contextvars.ContextVar[
@@ -639,19 +708,24 @@ class AttemptJournal:
 
 
 def _campaign_for(
-    *, workload: str, workload_flags: Mapping[str, str], descriptor: Mapping[str, Any],
+    *, workload: str, entry: Mapping[str, Any], descriptor: Mapping[str, Any],
     descriptor_record: Mapping[str, Any], trial_id: str, generations: int,
     contract: env_contract.ExecutionEnvironmentContract,
     build_context: BuildRunContext | None = None,
     arm_binding_digest_sha256: str | None = None,
 ) -> CampaignConfig:
+    records = entry["records"]
+    threads = entry["threads"]
+    ycsb = entry["ycsb"]
+    if "candidate_id" in entry and (records, threads) != (1_000_000, 48):
+        raise AutonomousTrialError("formal workload campaign scale differs")
     base = trigger.default_cfg(reflux=True)
     search_config = dict(base.search_config)
     search_config.update({
         "workload": workload,
-        "ycsb": dict(workload_flags),
-        "records": 100_000,
-        "threads": 4,
+        "ycsb": dict(ycsb),
+        "records": records,
+        "threads": threads,
         "descriptor_schema": descriptor["schema_version"],
         "descriptor_sha256": descriptor_record["output_sha256"],
         "generation_budget": generations,
@@ -688,25 +762,138 @@ def _campaign_for(
     return ident.bind_environment_contract(cfg, contract)
 
 
-def _perf_for(workload_flags: Mapping[str, str]) -> PerfConfig:
+def _perf_for(entry: Mapping[str, Any]) -> PerfConfig:
+    records = entry["records"]
+    threads = entry["threads"]
+    ycsb = entry["ycsb"]
+    if "candidate_id" in entry and (records, threads) != (1_000_000, 48):
+        raise AutonomousTrialError("formal workload perf scale differs")
     return PerfConfig(
-        records=100_000,
-        threads=4,
-        workload=dict(workload_flags),
+        records=records,
+        threads=threads,
+        workload=dict(ycsb),
         extime=1,
         reps=2,
     )
 
 
-def _descriptor_for(workload_flags: Mapping[str, str]) -> tuple[dict, dict]:
+def _descriptor_for(entry: Mapping[str, Any]) -> tuple[dict, dict]:
+    records = entry["records"]
+    threads = entry["threads"]
+    ycsb = entry["ycsb"]
+    if "candidate_id" in entry and (records, threads) != (1_000_000, 48):
+        raise AutonomousTrialError("formal workload descriptor scale differs")
     projected_input = {
-        "records": 100_000,
-        "threads": 4,
-        "ycsb": dict(workload_flags),
+        "records": records,
+        "threads": threads,
+        "ycsb": dict(ycsb),
     }
     descriptor = project_from_search_config(projected_input)
     validate_descriptor(descriptor)
     return descriptor, projection_record(projected_input, descriptor)
+
+
+def _holdout_projection(entry: Mapping[str, Any]) -> dict[str, Any]:
+    try:
+        projection = {
+            "candidate_id": entry["candidate_id"],
+            "records": entry["records"],
+            "threads": entry["threads"],
+            "ycsb": dict(entry["ycsb"]),
+        }
+    except (KeyError, TypeError, ValueError) as exc:
+        raise AutonomousTrialError("formal workload projection is invalid") from exc
+    if (
+        type(projection["candidate_id"]) is not str
+        or type(projection["records"]) is not int
+        or type(projection["threads"]) is not int
+        or projection["records"] < 1
+        or projection["threads"] < 1
+    ):
+        raise AutonomousTrialError("formal workload projection is invalid")
+    return projection
+
+
+def _assert_formal_entry_binding(
+    name: str, producer_entry: Mapping[str, Any],
+) -> None:
+    module_entry = s8b_holdout_freeze.HOLDOUTS.get(name)
+    if not isinstance(module_entry, Mapping):
+        raise AutonomousTrialError("formal workload module authority is absent")
+    module_projection = _holdout_projection(module_entry)
+    producer_projection = _holdout_projection(producer_entry)
+    if _canonical_json_bytes(module_projection) != _canonical_json_bytes(
+        producer_projection
+    ):
+        raise AutonomousTrialError("formal workload module bytes differ")
+    descriptor, descriptor_record = _descriptor_for(producer_entry)
+    try:
+        selected_name, arm_descriptor = s8c_arm_inputs._descriptor_for_candidate(
+            producer_projection["candidate_id"]
+        )
+        producer_bytes = s8c_arm_inputs.canonical_execution_input_bytes(descriptor)
+        arm_bytes = s8c_arm_inputs.canonical_execution_input_bytes(arm_descriptor)
+    except s8c_arm_inputs.ArmInputError as exc:
+        raise AutonomousTrialError(str(exc)) from exc
+    producer_digest = hashlib.sha256(producer_bytes).hexdigest()
+    arm_digest = hashlib.sha256(arm_bytes).hexdigest()
+    if (
+        selected_name != name
+        or producer_bytes != arm_bytes
+        or producer_digest != arm_digest
+        or descriptor_record["output_sha256"] != arm_digest
+    ):
+        raise AutonomousTrialError("formal workload descriptor authority differs")
+
+
+def _formal_profile_source_record(*, repository_root: Path = ROOT) -> dict[str, Any]:
+    try:
+        legacy = s8b_ratified_freeze.load_legacy_freeze(repository_root)
+    except s8b_ratified_freeze.RatifiedFreezeError as exc:
+        raise AutonomousTrialError(
+            f"formal legacy workload source is unavailable: {exc.reason}"
+        ) from exc
+    legacy_holdouts = legacy.document.get("holdouts")
+    if not isinstance(legacy_holdouts, Mapping) or set(legacy_holdouts) != set(
+        s8b_holdout_freeze.HOLDOUTS
+    ):
+        raise AutonomousTrialError("formal legacy workload universe differs")
+    for name in s8b_holdout_freeze.HOLDOUTS:
+        producer_entry = FORMAL_WORKLOADS.get(name)
+        legacy_entry = legacy_holdouts.get(name)
+        if not isinstance(producer_entry, Mapping) or not isinstance(
+            legacy_entry, Mapping
+        ):
+            raise AutonomousTrialError("formal workload authority is absent")
+        _assert_formal_entry_binding(name, producer_entry)
+        if _canonical_json_bytes(_holdout_projection(legacy_entry)) != (
+            _canonical_json_bytes(_holdout_projection(producer_entry))
+        ):
+            raise AutonomousTrialError("formal workload authority bytes differ")
+    return {
+        "schema_version": _WORKLOAD_PROFILE_SOURCE_SCHEMA,
+        "selector": FORMAL_LEGACY_WORKLOAD_PROFILE,
+        "source": "legacy-v1",
+        "loader": _WORKLOAD_PROFILE_SOURCE_LOADER,
+        "path": s8b_ratified_freeze.V1_FREEZE_PATH,
+        "sha256": legacy.sha256,
+    }
+
+
+def _preflight_workload_profile(selector: str) -> None:
+    if type(selector) is not str or selector not in WORKLOAD_PROFILES:
+        raise AutonomousTrialError(f"unknown workload profile: {selector!r}")
+    if selector == EXPLORATORY_WORKLOAD_PROFILE:
+        return
+    source_record = _formal_profile_source_record(repository_root=ROOT)
+    assert_legacy_workload_profile_source(
+        source_record=source_record,
+        producer_entries=FORMAL_WORKLOADS,
+        repository_root=ROOT,
+    )
+    raise AutonomousTrialError(
+        "formal launch is not admissible: effective preregistration unavailable"
+    )
 
 
 def _descriptor_from_resolved_arm_input(
@@ -845,9 +1032,11 @@ def _prepare_campaign_identity(
     arm_execution: trial_registry.TrialArmExecutionBinding | None = None,
 ) -> PreparedCampaignIdentity:
     """Derive an exploratory or registry-authorized campaign identity."""
-    flags = WORKLOADS[workload]
+    entry = resolve_workload_entry(workload)
+    if "candidate_id" in entry:
+        _assert_formal_entry_binding(workload, entry)
     if arm_execution is None:
-        descriptor, descriptor_record = _descriptor_for(flags)
+        descriptor, descriptor_record = _descriptor_for(entry)
         arm_binding_digest = None
     else:
         if arm_execution.binding.workload != workload:
@@ -860,7 +1049,7 @@ def _prepare_campaign_identity(
         arm_binding_digest = arm_execution.arm_binding_digest_sha256
     campaign = _campaign_for(
         workload=workload,
-        workload_flags=flags,
+        entry=entry,
         descriptor=descriptor,
         descriptor_record=descriptor_record,
         trial_id=trial_id,
@@ -877,6 +1066,7 @@ def _prepare_campaign_identity(
         descriptor_record=descriptor_record,
         campaign=campaign,
         campaign_id=str(ident.campaign_id(campaign)),
+        perf=_perf_for(entry),
     )
 
 
@@ -899,10 +1089,12 @@ def _prepare_manifest_campaign_identity(
     descriptor, descriptor_record = _descriptor_from_resolved_arm_input(
         resolved_arm_input
     )
-    flags = WORKLOADS[workload]
+    entry = resolve_workload_entry(workload)
+    if "candidate_id" in entry:
+        _assert_formal_entry_binding(workload, entry)
     campaign = _campaign_for(
         workload=workload,
-        workload_flags=flags,
+        entry=entry,
         descriptor=descriptor,
         descriptor_record=descriptor_record,
         trial_id=trial_id,
@@ -921,6 +1113,7 @@ def _prepare_manifest_campaign_identity(
         descriptor_record=descriptor_record,
         campaign=campaign,
         campaign_id=str(ident.campaign_id(campaign)),
+        perf=_perf_for(entry),
     )
 
 
@@ -1359,6 +1552,116 @@ def _accounting_authority(
     )
 
 
+def _load_s8c_schedule_authority(*, root: Path) -> Mapping[str, Any]:
+    """C05 の schedule 正本を要求する。未実装の hash は推測しない。"""
+    del root
+    raise AutonomousTrialError(
+        "8c schedule authority is unavailable; schedule_sha256 を推測できない"
+    )
+
+
+def _prepare_s8c_budget_inputs(
+    *,
+    admission: trial_registry.TrialLaunchAdmission,
+    trial_manifest: Path | None,
+    ratified_freeze: Any,
+) -> _S8CBudgetInputs:
+    if admission.mode != "registered-effective" or admission.binding is None:
+        raise AutonomousTrialError(
+            "C06 budget requires registered-effective admission"
+        )
+    if trial_manifest is None:
+        raise AutonomousTrialError("C06 budget requires a registered manifest")
+    manifest = trial_registry.load_trial_manifest(Path(trial_manifest))
+    if manifest.sha256 != admission.binding.manifest_sha256:
+        raise AutonomousTrialError("C06 manifest hash binding changed")
+    document = getattr(ratified_freeze, "document", None)
+    if not isinstance(document, Mapping):
+        raise AutonomousTrialError("ratified freeze document is unavailable")
+    freeze_sha256 = document.get("freeze_sha256")
+    if (
+        type(freeze_sha256) is not str
+        or _LOWER_HEX_RE.fullmatch(freeze_sha256) is None
+    ):
+        raise AutonomousTrialError("ratified freeze sha256 is unavailable")
+    ratified_generation_sha256 = getattr(ratified_freeze, "sha256", None)
+    if (
+        type(ratified_generation_sha256) is not str
+        or _LOWER_HEX_RE.fullmatch(ratified_generation_sha256) is None
+    ):
+        raise AutonomousTrialError("ratified generation sha256 is unavailable")
+    schedule = _load_s8c_schedule_authority(root=ROOT)
+    if not isinstance(schedule, Mapping):
+        raise AutonomousTrialError("8c schedule authority is not an object")
+    required = {
+        "ledger_path",
+        "schedule_sha256",
+        "cells",
+        "limits",
+    }
+    if set(schedule) != required:
+        raise AutonomousTrialError("8c schedule authority schema is incomplete")
+    schedule_sha256 = schedule["schedule_sha256"]
+    if type(schedule_sha256) is not str or _LOWER_HEX_RE.fullmatch(schedule_sha256) is None:
+        raise AutonomousTrialError("8c schedule sha256 is unavailable")
+    ledger_path = schedule["ledger_path"]
+    if not isinstance(ledger_path, Path):
+        raise AutonomousTrialError("8c schedule ledger path is not a Path")
+    cells = tuple(schedule["cells"])
+    if any(type(cell) is not ReservationCell for cell in cells):
+        raise AutonomousTrialError("8c schedule cells are not ReservationCell values")
+    limits = schedule["limits"]
+    if type(limits) is not BudgetLimits:
+        raise AutonomousTrialError("8c schedule limits are not BudgetLimits")
+    return _S8CBudgetInputs(
+        ledger_path=ledger_path,
+        manifest_sha256=manifest.sha256,
+        freeze_sha256=freeze_sha256,
+        schedule_sha256=schedule_sha256,
+        ratified_generation_sha256=ratified_generation_sha256,
+        cells=cells,
+        limits=limits,
+    )
+
+
+def _budget_indeterminate_report(
+    *,
+    trial_id: str,
+    provider_kind: str,
+    selected: Sequence[str],
+    generations: int,
+    ledger: Ledger,
+    indeterminate_cells: frozenset[str],
+) -> dict[str, Any]:
+    cells = [
+        {
+            "cell_id": cell_id,
+            "status": "indeterminate",
+            "reason": "budget-insufficient",
+        }
+        for cell_id in sorted(indeterminate_cells)
+    ]
+    return {
+        "schema_version": REPORT_SCHEMA_VERSION,
+        "trial_id": trial_id,
+        "status": "partial",
+        "provider": provider_kind,
+        "do_build": True,
+        "workloads_requested": list(selected),
+        "generation_budget_per_workload": generations,
+        "budget": {
+            "state": ledger.reservation.state,
+            "manifest_sha256": ledger.manifest_sha256,
+            "freeze_sha256": ledger.freeze_sha256,
+            "schedule_sha256": ledger.schedule_sha256,
+            "ratified_generation_sha256": ledger.ratified_generation_sha256,
+            "indeterminate_cells": cells,
+        },
+        "cells": cells,
+        "lifecycle_terminal_status": "indeterminate",
+    }
+
+
 def _bench_wall_seconds(
     outcome: Mapping[str, Any], *, authoritative: bool,
 ) -> float:
@@ -1372,7 +1675,9 @@ def _bench_wall_seconds(
         return 0.0
     records = outcome.get("records")
     if not isinstance(records, Mapping):
-        return 0.0
+        raise AutonomousTrialError(
+            "ran=True の current attempt に bench_wall_s がない"
+        )
     candidates: list[float] = []
     for record in records.values():
         if not isinstance(record, Mapping) or "bench_wall_s" not in record:
@@ -1386,7 +1691,51 @@ def _bench_wall_seconds(
         candidates.append(value)
     if len(candidates) > 1:
         raise AutonomousTrialError("current attempt の bench_wall_s が一意でない")
-    return candidates[0] if candidates else 0.0
+    if len(candidates) != 1:
+        raise AutonomousTrialError(
+            "ran=True の current attempt の bench_wall_s が一意でない"
+        )
+    return candidates[0]
+
+
+def _settle_budget_cell(
+    *,
+    ledger_path: Path,
+    cell: Mapping[str, Any],
+    cell_id: str,
+) -> None:
+    """terminal cell の世代 accounting だけを ledger へ精算する。"""
+    stop_reason = cell.get("stop_reason")
+    if stop_reason == "supervisor-error":
+        raise AutonomousTrialError(
+            "budget cell は supervisor error のため indeterminate"
+        )
+    generations = cell.get("generations")
+    if not isinstance(generations, list):
+        raise AutonomousTrialError("budget cell generations が list でない")
+    actual_bench_s = 0.0
+    if not generations and stop_reason not in {
+        "stopped-before",
+        "supervisor-wall-budget",
+    }:
+        raise AutonomousTrialError(
+            "budget cell の bench accounting が無く indeterminate"
+        )
+    for generation in generations:
+        if not isinstance(generation, Mapping):
+            raise AutonomousTrialError("budget generation accounting が object でない")
+        value = generation.get("bench_wall_seconds")
+        if isinstance(value, bool) or not isinstance(value, (int, float)):
+            raise AutonomousTrialError(
+                "budget cell の bench_wall_seconds が一意でない"
+            )
+        value = float(value)
+        if not math.isfinite(value) or value < 0.0:
+            raise AutonomousTrialError(
+                "budget cell の bench_wall_seconds が有限非負でない"
+            )
+        actual_bench_s += value
+    settle(ledger_path, cell_id=cell_id, actual_bench_s=actual_bench_s)
 
 
 def _new_generation_accounting(
@@ -1989,17 +2338,23 @@ def _provider_set(
 
 
 def _assert_build_site_opted_in(
-    do_build: bool, *, allow_pegasus_compute_transport: bool
-) -> None:
+    do_build: bool,
+    *,
+    allow_pegasus_compute_transport: bool,
+    site: str | None = None,
+) -> str | None:
     """成果物作成前に build site と transport の明示 opt-in を閉じる。"""
+    if site is None and not do_build:
+        return None
+    if site is None:
+        site = trigger._current_site()
     if not do_build:
-        return
-    site = trigger._current_site()
+        return site
     if site == trigger.site_policy.OTHER:
-        return
+        return site
     if site == trigger.site_policy.PEGASUS_COMPUTE:
         if allow_pegasus_compute_transport:
-            return
+            return site
         raise AutonomousTrialError(
             "8c の Pegasus compute build は T-276 の明示 transport opt-in が必要"
         )
@@ -2051,6 +2406,24 @@ def _assert_build_transport_admitted_for_site(
     )
     _validate_transport_receipt(
         dict(transport_receipt), expected=admitted_receipt
+    )
+
+
+def _assert_reservation_preflight(
+    *,
+    site: str,
+    max_wall_s: int,
+) -> reservation.ReservationCheck | None:
+    """Consume the registered reservation binding before lifecycle start."""
+    contract = trigger._admit_env_contract(site)
+    if not reservation.is_reservation_required(contract.isolation_policy):
+        return None
+    binding = reservation.read_binding(os.environ)
+    return reservation.check_reservation(
+        binding,
+        required_s=max_wall_s,
+        safety_margin_s=0,
+        environ=os.environ,
     )
 
 
@@ -2366,6 +2739,7 @@ def _finish_trial(
     gating_spec_snapshot: GatingSpecSnapshot,
     generation_driver: Mapping[str, str] | None = None,
     accounting_authority: str | None = None,
+    budget_ledger_path: Path | None = None,
     effective_preregistration: (
         s8c_preregistration.EffectivePreregistration | None
     ) = None,
@@ -2504,6 +2878,10 @@ def _finish_trial(
                         "error": dict(fatal_error),
                     }
                 cells.append(cell)
+                if budget_ledger_path is not None:
+                    raise AutonomousTrialError(
+                        "budget cell terminal is indeterminate after supervisor error"
+                    )
                 admission_succeeded = _finalize_cell_admission(
                     cell,
                     do_build=do_build,
@@ -2571,6 +2949,10 @@ def _finish_trial(
                     ))
                     cell["stop_reason"] = "supervisor-error"
                     cell["error"] = dict(fatal_error)
+                    if budget_ledger_path is not None:
+                        raise AutonomousTrialError(
+                            "budget cell terminal is indeterminate after critic error"
+                        )
                     break
             deferred_wall_generation = cell.pop(
                 "_deferred_wall_generation", None
@@ -2596,6 +2978,17 @@ def _finish_trial(
                         transport_receipt,
                     ))
                 break
+            if budget_ledger_path is not None:
+                binding = launch_admission.binding
+                if binding is None:
+                    raise AutonomousTrialError(
+                        "budget settlement requires a registered cell binding"
+                    )
+                _settle_budget_cell(
+                    ledger_path=budget_ledger_path,
+                    cell=cell,
+                    cell_id=binding.trial_id,
+                )
             if not admission_succeeded:
                 break
     status = (
@@ -2813,7 +3206,7 @@ def _run_workload(
         raise AutonomousTrialError(
             "workload requires the trial's shared BuildRunContext"
         )
-    flags = WORKLOADS[workload]
+    entry = resolve_workload_entry(workload)
     prepared = _prepare_campaign_identity(
         workload=workload,
         trial_id=trial_id,
@@ -2827,6 +3220,7 @@ def _run_workload(
     descriptor_record = prepared.descriptor_record
     cfg = prepared.campaign
     campaign_id = prepared.campaign_id
+    perf = prepared.perf
     if do_build:
         layout = exploration_campaign_layout(campaign_id)
     else:
@@ -2842,7 +3236,11 @@ def _run_workload(
         )
     result: dict[str, Any] = {
         "workload": workload,
-        "workload_flags": dict(flags),
+        "workload_flags": dict(entry["ycsb"]),
+        "perf_config_scale": {
+            "records": perf.records,
+            "threads": perf.threads,
+        },
         "descriptor": descriptor,
         "descriptor_binding": descriptor_record,
         "campaign_id": campaign_id,
@@ -2853,7 +3251,6 @@ def _run_workload(
     }
     if _partial is not None:
         _partial["cell"] = result
-    perf = _perf_for(flags)
     prior_reverse: bool | None = None
     critic_feedback: Mapping[str, Any] | None = None
     current_metrics = dict(_INITIAL_ROLE_METRICS)
@@ -3209,23 +3606,46 @@ def _run_workload(
     return result
 
 
-def _record_indeterminate_terminal(
+def mark_experiment_indeterminate(
     token: trial_registry.TrialLifecycleToken,
     *,
     cause: BaseException,
+    experiment_status: str,
+    remaining_cells: Sequence[str],
     origin_terminal_projection: (
         reflux_formal_consumer.OriginTerminalProjection | None
     ) = None,
 ) -> None:
-    """Terminalize a consumed formal trial or expose irrecoverable ledger I/O.
+    """Record an experiment-wide indeterminate state and forbid a rerun.
 
-    If the terminal append itself fails, the original start remains consumed
-    and rerun stays forbidden.  The raised error names both the original
-    failure and the failed terminalization instead of implying recovery.
+    Lifecycle v1 has no field for a remaining-cell projection, so the
+    projection is accepted and validated at this boundary but is not added to
+    the frozen row shape.  Restart refusal and terminalization are attempted
+    independently; failures are attached to the original crash and the caller
+    re-raises that original object.
     """
+    if not isinstance(cause, BaseException):
+        raise TypeError("cause must be a BaseException")
+    if experiment_status != "indeterminate":
+        raise AutonomousTrialError(
+            "experiment_status must be indeterminate at crash terminalization"
+        )
+    if (
+        isinstance(remaining_cells, (str, bytes))
+        or not isinstance(remaining_cells, Sequence)
+        or any(type(cell) is not str or not cell for cell in remaining_cells)
+    ):
+        raise AutonomousTrialError("remaining_cells must be a sequence of non-empty strings")
+
+    failures: list[tuple[str, BaseException]] = []
+    try:
+        trial_registry.forbid_trial_restart(token)
+    except BaseException as restart_error:
+        failures.append(("restart-forbid", restart_error))
+
     try:
         terminal_arguments: dict[str, Any] = {
-            "terminal_status": "indeterminate",
+            "terminal_status": experiment_status,
         }
         if origin_terminal_projection is not None:
             terminal_arguments["origin_terminal_projection"] = (
@@ -3233,12 +3653,30 @@ def _record_indeterminate_terminal(
             )
         trial_registry.record_trial_terminal(token, **terminal_arguments)
     except BaseException as terminal_error:
-        raise AutonomousTrialError(
-            "formal trial failed after lifecycle start and indeterminate "
-            "terminalization also failed; the start remains consumed: "
-            f"original={type(cause).__name__}; "
-            f"terminal={type(terminal_error).__name__}"
-        ) from terminal_error
+        failures.append(("terminal-record", terminal_error))
+
+    if failures:
+        detail = "; ".join(
+            f"{label}={type(error).__name__}" for label, error in failures
+        )
+        note = (
+            "indeterminate crash bookkeeping encountered independent failures: "
+            + detail
+        )
+        notes = getattr(cause, "__notes__", None)
+        if isinstance(notes, list):
+            notes.append(note)
+        elif notes is not None:
+            notes = []
+            cause.__notes__ = notes
+            notes.append(note)
+        else:
+            add_note = getattr(cause, "add_note", None)
+            if callable(add_note):
+                add_note(note)
+            else:
+                cause.__notes__ = [note]
+    raise cause
 
 
 def run_trial(
@@ -3266,7 +3704,9 @@ def run_trial(
     trial_admission: trial_registry.TrialLaunchAdmission | None = None,
     origin_binding_request: OriginBindingRequest | None = None,
     origin_producer_inputs: OriginProducerInputs | None = None,
+    workload_profile: str = EXPLORATORY_WORKLOAD_PROFILE,
 ) -> dict[str, Any]:
+    _preflight_workload_profile(workload_profile)
     if _TRIAL_ID_RE.fullmatch(trial_id) is None:
         raise AutonomousTrialError(f"trial_id が安全な形式でない: {trial_id!r}")
     if type(provider_kind) is not str:
@@ -3392,9 +3832,18 @@ def run_trial(
     gating_spec_snapshot = snapshot_gating_spec(GATING_SPEC)
     generation_driver = _generation_driver_identity(drive)
     accounting_authority = _accounting_authority(drive)
+    preflight_site = trigger._current_site()
+    c06_budget_enabled = (
+        trial_admission.mode == "registered-effective" and do_build
+    )
+    if c06_budget_enabled and accounting_authority != _AUTHORITATIVE_ACCOUNTING:
+        raise AutonomousTrialError(
+            "registered-effective build requires authoritative accounting drive"
+        )
     _assert_build_site_opted_in(
         do_build,
         allow_pegasus_compute_transport=allow_pegasus_compute_transport,
+        site=preflight_site,
     )
     if do_build and coder_authority is None:
         raise AutonomousTrialError(
@@ -3425,8 +3874,17 @@ def run_trial(
             build_context=preflight_build_context,
             arm_execution=arm_execution,
         )
+    _assert_reservation_preflight(
+        site=preflight_site,
+        max_wall_s=max_wall_s,
+    )
     lifecycle_token: trial_registry.TrialLifecycleToken | None = None
     if trial_admission.mode == "registered-effective":
+        trial_registry.reject_started_trial(
+            trial_id=trial_admission.trial_id,
+            repository_root=ROOT,
+            lifecycle_path=ROOT / trial_registry.DEFAULT_LIFECYCLE_PATH,
+        )
         lifecycle_arguments = dict(
             admission=trial_admission,
             effective_preregistration=effective_preregistration,
@@ -3441,7 +3899,45 @@ def run_trial(
         lifecycle_token = trial_registry.record_trial_start_once(
             **lifecycle_arguments
         )
+    budget_ledger_path: Path | None = None
+    lifecycle_terminalized = False
     try:
+        if c06_budget_enabled:
+            ratified_freeze = load_ratified_freeze(ROOT)
+            budget_inputs = _prepare_s8c_budget_inputs(
+                admission=trial_admission,
+                trial_manifest=trial_manifest,
+                ratified_freeze=ratified_freeze,
+            )
+            budget_ledger_path = budget_inputs.ledger_path
+            budget_ledger = reserve_all_cells(
+                budget_ledger_path,
+                manifest_sha256=budget_inputs.manifest_sha256,
+                freeze_sha256=budget_inputs.freeze_sha256,
+                schedule_sha256=budget_inputs.schedule_sha256,
+                ratified_generation_sha256=(
+                    budget_inputs.ratified_generation_sha256
+                ),
+                cells=budget_inputs.cells,
+                limits=budget_inputs.limits,
+            )
+            if budget_ledger.reservation.state == "insufficient":
+                indeterminate_cells = symmetric_indeterminate(budget_ledger)
+                report = _budget_indeterminate_report(
+                    trial_id=trial_id,
+                    provider_kind=provider_kind,
+                    selected=selected,
+                    generations=generations,
+                    ledger=budget_ledger,
+                    indeterminate_cells=indeterminate_cells,
+                )
+                if lifecycle_token is not None:
+                    trial_registry.record_trial_terminal(
+                        lifecycle_token,
+                        terminal_status="indeterminate",
+                    )
+                    lifecycle_terminalized = True
+                return report
         run_root.mkdir(parents=True)
         ensure_exploration_namespace(str(run_root))
         if arm_execution is not None:
@@ -3523,19 +4019,21 @@ def run_trial(
         journal.append(run_start)
     except BaseException as exc:
         if lifecycle_token is not None:
-            _record_indeterminate_terminal(
+            mark_experiment_indeterminate(
                 lifecycle_token,
                 cause=exc,
+                experiment_status="indeterminate",
+                remaining_cells=tuple(selected),
                 origin_terminal_projection=(
                     None
                     if origin_runtime is None
                     else origin_runtime.terminal_projection
                 ),
             )
-        raise
+        else:
+            raise
     owns_active_providers = providers is None
     active_providers: dict[str, Any] = {}
-    lifecycle_terminalized = False
     fatal_error: dict[str, str] | None = (
         {
             "type": type(admission_error).__name__,
@@ -3603,6 +4101,7 @@ def run_trial(
                 gating_spec_snapshot=gating_spec_snapshot,
                 generation_driver=generation_driver,
                 accounting_authority=accounting_authority,
+                budget_ledger_path=budget_ledger_path,
                 effective_preregistration=effective_preregistration,
                 trial_manifest=trial_manifest,
                 allow_unregistered_exploratory=(
@@ -3614,7 +4113,9 @@ def run_trial(
             report = _finish_trial(**finish_arguments)
             if lifecycle_token is not None:
                 terminal_arguments: dict[str, Any] = {
-                    "terminal_status": report["status"],
+                    "terminal_status": report.get(
+                        "lifecycle_terminal_status", report["status"]
+                    ),
                 }
                 if origin_runtime is not None:
                     terminal_arguments["origin_terminal_projection"] = (
@@ -3629,16 +4130,19 @@ def run_trial(
             _ACTIVE_TRIAL_BINDING.reset(scope_token)
     except BaseException as exc:
         if lifecycle_token is not None and not lifecycle_terminalized:
-            _record_indeterminate_terminal(
+            mark_experiment_indeterminate(
                 lifecycle_token,
                 cause=exc,
+                experiment_status="indeterminate",
+                remaining_cells=tuple(selected),
                 origin_terminal_projection=(
                     None
                     if origin_runtime is None
                     else origin_runtime.terminal_projection
                 ),
             )
-        raise
+        else:
+            raise
     finally:
         if owns_active_providers:
             _close_owned_providers(active_providers)
@@ -3738,7 +4242,14 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument(
         "--provider", required=True, choices=tuple(sorted(PROVIDER_KINDS))
     )
-    parser.add_argument("--workloads", type=_parse_workloads, default=list(WORKLOADS))
+    parser.add_argument(
+        "--workload-profile",
+        choices=tuple(sorted(WORKLOAD_PROFILES)),
+        default=EXPLORATORY_WORKLOAD_PROFILE,
+    )
+    parser.add_argument(
+        "--workloads", type=_parse_workloads, default=list(WORKLOADS)
+    )
     parser.add_argument("--max-generations", type=int, default=1)
     parser.add_argument("--max-wall-seconds", type=int, default=DEFAULT_MAX_WALL_S)
     parser.add_argument("--no-build", action="store_true")
@@ -3769,6 +4280,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         ),
     )
     args = parser.parse_args(argv)
+    _preflight_workload_profile(args.workload_profile)
     _validate_generation_budget(args.max_generations)
     if args.provider == "fixture" and not args.no_build:
         raise AutonomousTrialError(
@@ -3843,6 +4355,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             ),
             effective_preregistration=effective_preregistration,
             trial_admission=launch_admission,
+            workload_profile=args.workload_profile,
         )
     print(json.dumps({
         "status": report["status"],
