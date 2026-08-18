@@ -43,12 +43,15 @@ from . import reflux_origin_binding
 from . import reflux_origin_client
 from . import reflux_origin_ledger
 from . import reflux_origin_topology
+from . import s8b_holdout_freeze
+from . import s8b_ratified_freeze
 from . import s8c_arm_inputs
 from . import s8c_preregistration
 from . import trial_registry
 from .reflux_source_closure import ValidatedSourceClosure
 from .reflux_ir import emit_predicate, parse_wire
 from .autonomous_trial_completeness import (
+    assert_legacy_workload_profile_source,
     assert_campaign_layer3_chain,
     assert_autonomous_trial_completeness,
     assert_autonomous_trial_execution_digest_chain,
@@ -188,11 +191,55 @@ AUDITOR_DIFF_DECLASSIFICATION_POLICY_SHA256 = _sha256(
     _canonical_json_bytes(AUDITOR_DIFF_DECLASSIFICATION_POLICY)
 )
 
-WORKLOADS: dict[str, dict[str, str]] = {
-    "ycsb-a": {"ycsb_zipf_skew": "0.9", "ycsb_rratio": "50", "ycsb_rmw": "0"},
-    "ycsb-b": {"ycsb_zipf_skew": "0.9", "ycsb_rratio": "95", "ycsb_rmw": "0"},
-    "ycsb-c": {"ycsb_zipf_skew": "0.9", "ycsb_rratio": "100", "ycsb_rmw": "0"},
+EXPLORATORY_WORKLOAD_PROFILE = "exploratory-ycsb-abc"
+FORMAL_LEGACY_WORKLOAD_PROFILE = "formal-holdout-legacy-v1"
+WORKLOAD_PROFILES = frozenset({
+    EXPLORATORY_WORKLOAD_PROFILE,
+    FORMAL_LEGACY_WORKLOAD_PROFILE,
+})
+_WORKLOAD_PROFILE_SOURCE_SCHEMA = "p3-workload-profile-source/v1"
+_WORKLOAD_PROFILE_SOURCE_LOADER = "s8b_ratified_freeze.load_legacy_freeze"
+
+
+class WorkloadEntry(dict[str, Any]):
+    """Structured workload authority entry."""
+
+
+WORKLOADS: dict[str, WorkloadEntry] = {
+    "ycsb-a": WorkloadEntry(
+        ycsb={"ycsb_zipf_skew": "0.9", "ycsb_rratio": "50", "ycsb_rmw": "0"},
+        records=100_000,
+        threads=4,
+    ),
+    "ycsb-b": WorkloadEntry(
+        ycsb={"ycsb_zipf_skew": "0.9", "ycsb_rratio": "95", "ycsb_rmw": "0"},
+        records=100_000,
+        threads=4,
+    ),
+    "ycsb-c": WorkloadEntry(
+        ycsb={"ycsb_zipf_skew": "0.9", "ycsb_rratio": "100", "ycsb_rmw": "0"},
+        records=100_000,
+        threads=4,
+    ),
 }
+FORMAL_WORKLOADS: dict[str, WorkloadEntry] = {}
+for _formal_name, _formal_authority in s8b_holdout_freeze.HOLDOUTS.items():
+    FORMAL_WORKLOADS[_formal_name] = WorkloadEntry(
+        candidate_id=_formal_authority["candidate_id"],
+        ycsb=copy.deepcopy(_formal_authority["ycsb"]),
+        records=_formal_authority["records"],
+        threads=_formal_authority["threads"],
+    )
+
+
+def resolve_workload_entry(workload: str) -> WorkloadEntry:
+    """Resolve one producer entry without enlarging exploratory admission."""
+    entry = WORKLOADS.get(workload)
+    if entry is None:
+        entry = FORMAL_WORKLOADS.get(workload)
+    if not isinstance(entry, WorkloadEntry):
+        raise AutonomousTrialError(f"unknown workload entry: {workload!r}")
+    return entry
 
 ROLE_FILES = {
     "planner": (ROOT / ".claude/agents/planner-v4.md", "planner-v4"),
@@ -317,6 +364,7 @@ class PreparedCampaignIdentity:
     descriptor_record: Mapping[str, Any]
     campaign: CampaignConfig
     campaign_id: str
+    perf: PerfConfig
 
 
 @dataclasses.dataclass(frozen=True, slots=True)
@@ -639,19 +687,24 @@ class AttemptJournal:
 
 
 def _campaign_for(
-    *, workload: str, workload_flags: Mapping[str, str], descriptor: Mapping[str, Any],
+    *, workload: str, entry: Mapping[str, Any], descriptor: Mapping[str, Any],
     descriptor_record: Mapping[str, Any], trial_id: str, generations: int,
     contract: env_contract.ExecutionEnvironmentContract,
     build_context: BuildRunContext | None = None,
     arm_binding_digest_sha256: str | None = None,
 ) -> CampaignConfig:
+    records = entry["records"]
+    threads = entry["threads"]
+    ycsb = entry["ycsb"]
+    if "candidate_id" in entry and (records, threads) != (1_000_000, 48):
+        raise AutonomousTrialError("formal workload campaign scale differs")
     base = trigger.default_cfg(reflux=True)
     search_config = dict(base.search_config)
     search_config.update({
         "workload": workload,
-        "ycsb": dict(workload_flags),
-        "records": 100_000,
-        "threads": 4,
+        "ycsb": dict(ycsb),
+        "records": records,
+        "threads": threads,
         "descriptor_schema": descriptor["schema_version"],
         "descriptor_sha256": descriptor_record["output_sha256"],
         "generation_budget": generations,
@@ -688,25 +741,138 @@ def _campaign_for(
     return ident.bind_environment_contract(cfg, contract)
 
 
-def _perf_for(workload_flags: Mapping[str, str]) -> PerfConfig:
+def _perf_for(entry: Mapping[str, Any]) -> PerfConfig:
+    records = entry["records"]
+    threads = entry["threads"]
+    ycsb = entry["ycsb"]
+    if "candidate_id" in entry and (records, threads) != (1_000_000, 48):
+        raise AutonomousTrialError("formal workload perf scale differs")
     return PerfConfig(
-        records=100_000,
-        threads=4,
-        workload=dict(workload_flags),
+        records=records,
+        threads=threads,
+        workload=dict(ycsb),
         extime=1,
         reps=2,
     )
 
 
-def _descriptor_for(workload_flags: Mapping[str, str]) -> tuple[dict, dict]:
+def _descriptor_for(entry: Mapping[str, Any]) -> tuple[dict, dict]:
+    records = entry["records"]
+    threads = entry["threads"]
+    ycsb = entry["ycsb"]
+    if "candidate_id" in entry and (records, threads) != (1_000_000, 48):
+        raise AutonomousTrialError("formal workload descriptor scale differs")
     projected_input = {
-        "records": 100_000,
-        "threads": 4,
-        "ycsb": dict(workload_flags),
+        "records": records,
+        "threads": threads,
+        "ycsb": dict(ycsb),
     }
     descriptor = project_from_search_config(projected_input)
     validate_descriptor(descriptor)
     return descriptor, projection_record(projected_input, descriptor)
+
+
+def _holdout_projection(entry: Mapping[str, Any]) -> dict[str, Any]:
+    try:
+        projection = {
+            "candidate_id": entry["candidate_id"],
+            "records": entry["records"],
+            "threads": entry["threads"],
+            "ycsb": dict(entry["ycsb"]),
+        }
+    except (KeyError, TypeError, ValueError) as exc:
+        raise AutonomousTrialError("formal workload projection is invalid") from exc
+    if (
+        type(projection["candidate_id"]) is not str
+        or type(projection["records"]) is not int
+        or type(projection["threads"]) is not int
+        or projection["records"] < 1
+        or projection["threads"] < 1
+    ):
+        raise AutonomousTrialError("formal workload projection is invalid")
+    return projection
+
+
+def _assert_formal_entry_binding(
+    name: str, producer_entry: Mapping[str, Any],
+) -> None:
+    module_entry = s8b_holdout_freeze.HOLDOUTS.get(name)
+    if not isinstance(module_entry, Mapping):
+        raise AutonomousTrialError("formal workload module authority is absent")
+    module_projection = _holdout_projection(module_entry)
+    producer_projection = _holdout_projection(producer_entry)
+    if _canonical_json_bytes(module_projection) != _canonical_json_bytes(
+        producer_projection
+    ):
+        raise AutonomousTrialError("formal workload module bytes differ")
+    descriptor, descriptor_record = _descriptor_for(producer_entry)
+    try:
+        selected_name, arm_descriptor = s8c_arm_inputs._descriptor_for_candidate(
+            producer_projection["candidate_id"]
+        )
+        producer_bytes = s8c_arm_inputs.canonical_execution_input_bytes(descriptor)
+        arm_bytes = s8c_arm_inputs.canonical_execution_input_bytes(arm_descriptor)
+    except s8c_arm_inputs.ArmInputError as exc:
+        raise AutonomousTrialError(str(exc)) from exc
+    producer_digest = hashlib.sha256(producer_bytes).hexdigest()
+    arm_digest = hashlib.sha256(arm_bytes).hexdigest()
+    if (
+        selected_name != name
+        or producer_bytes != arm_bytes
+        or producer_digest != arm_digest
+        or descriptor_record["output_sha256"] != arm_digest
+    ):
+        raise AutonomousTrialError("formal workload descriptor authority differs")
+
+
+def _formal_profile_source_record(*, repository_root: Path = ROOT) -> dict[str, Any]:
+    try:
+        legacy = s8b_ratified_freeze.load_legacy_freeze(repository_root)
+    except s8b_ratified_freeze.RatifiedFreezeError as exc:
+        raise AutonomousTrialError(
+            f"formal legacy workload source is unavailable: {exc.reason}"
+        ) from exc
+    legacy_holdouts = legacy.document.get("holdouts")
+    if not isinstance(legacy_holdouts, Mapping) or set(legacy_holdouts) != set(
+        s8b_holdout_freeze.HOLDOUTS
+    ):
+        raise AutonomousTrialError("formal legacy workload universe differs")
+    for name in s8b_holdout_freeze.HOLDOUTS:
+        producer_entry = FORMAL_WORKLOADS.get(name)
+        legacy_entry = legacy_holdouts.get(name)
+        if not isinstance(producer_entry, Mapping) or not isinstance(
+            legacy_entry, Mapping
+        ):
+            raise AutonomousTrialError("formal workload authority is absent")
+        _assert_formal_entry_binding(name, producer_entry)
+        if _canonical_json_bytes(_holdout_projection(legacy_entry)) != (
+            _canonical_json_bytes(_holdout_projection(producer_entry))
+        ):
+            raise AutonomousTrialError("formal workload authority bytes differ")
+    return {
+        "schema_version": _WORKLOAD_PROFILE_SOURCE_SCHEMA,
+        "selector": FORMAL_LEGACY_WORKLOAD_PROFILE,
+        "source": "legacy-v1",
+        "loader": _WORKLOAD_PROFILE_SOURCE_LOADER,
+        "path": s8b_ratified_freeze.V1_FREEZE_PATH,
+        "sha256": legacy.sha256,
+    }
+
+
+def _preflight_workload_profile(selector: str) -> None:
+    if type(selector) is not str or selector not in WORKLOAD_PROFILES:
+        raise AutonomousTrialError(f"unknown workload profile: {selector!r}")
+    if selector == EXPLORATORY_WORKLOAD_PROFILE:
+        return
+    source_record = _formal_profile_source_record(repository_root=ROOT)
+    assert_legacy_workload_profile_source(
+        source_record=source_record,
+        producer_entries=FORMAL_WORKLOADS,
+        repository_root=ROOT,
+    )
+    raise AutonomousTrialError(
+        "formal launch is not admissible: effective preregistration unavailable"
+    )
 
 
 def _descriptor_from_resolved_arm_input(
@@ -845,9 +1011,11 @@ def _prepare_campaign_identity(
     arm_execution: trial_registry.TrialArmExecutionBinding | None = None,
 ) -> PreparedCampaignIdentity:
     """Derive an exploratory or registry-authorized campaign identity."""
-    flags = WORKLOADS[workload]
+    entry = resolve_workload_entry(workload)
+    if "candidate_id" in entry:
+        _assert_formal_entry_binding(workload, entry)
     if arm_execution is None:
-        descriptor, descriptor_record = _descriptor_for(flags)
+        descriptor, descriptor_record = _descriptor_for(entry)
         arm_binding_digest = None
     else:
         if arm_execution.binding.workload != workload:
@@ -860,7 +1028,7 @@ def _prepare_campaign_identity(
         arm_binding_digest = arm_execution.arm_binding_digest_sha256
     campaign = _campaign_for(
         workload=workload,
-        workload_flags=flags,
+        entry=entry,
         descriptor=descriptor,
         descriptor_record=descriptor_record,
         trial_id=trial_id,
@@ -877,6 +1045,7 @@ def _prepare_campaign_identity(
         descriptor_record=descriptor_record,
         campaign=campaign,
         campaign_id=str(ident.campaign_id(campaign)),
+        perf=_perf_for(entry),
     )
 
 
@@ -899,10 +1068,12 @@ def _prepare_manifest_campaign_identity(
     descriptor, descriptor_record = _descriptor_from_resolved_arm_input(
         resolved_arm_input
     )
-    flags = WORKLOADS[workload]
+    entry = resolve_workload_entry(workload)
+    if "candidate_id" in entry:
+        _assert_formal_entry_binding(workload, entry)
     campaign = _campaign_for(
         workload=workload,
-        workload_flags=flags,
+        entry=entry,
         descriptor=descriptor,
         descriptor_record=descriptor_record,
         trial_id=trial_id,
@@ -921,6 +1092,7 @@ def _prepare_manifest_campaign_identity(
         descriptor_record=descriptor_record,
         campaign=campaign,
         campaign_id=str(ident.campaign_id(campaign)),
+        perf=_perf_for(entry),
     )
 
 
@@ -2813,7 +2985,7 @@ def _run_workload(
         raise AutonomousTrialError(
             "workload requires the trial's shared BuildRunContext"
         )
-    flags = WORKLOADS[workload]
+    entry = resolve_workload_entry(workload)
     prepared = _prepare_campaign_identity(
         workload=workload,
         trial_id=trial_id,
@@ -2827,6 +2999,7 @@ def _run_workload(
     descriptor_record = prepared.descriptor_record
     cfg = prepared.campaign
     campaign_id = prepared.campaign_id
+    perf = prepared.perf
     if do_build:
         layout = exploration_campaign_layout(campaign_id)
     else:
@@ -2842,7 +3015,11 @@ def _run_workload(
         )
     result: dict[str, Any] = {
         "workload": workload,
-        "workload_flags": dict(flags),
+        "workload_flags": dict(entry["ycsb"]),
+        "perf_config_scale": {
+            "records": perf.records,
+            "threads": perf.threads,
+        },
         "descriptor": descriptor,
         "descriptor_binding": descriptor_record,
         "campaign_id": campaign_id,
@@ -2853,7 +3030,6 @@ def _run_workload(
     }
     if _partial is not None:
         _partial["cell"] = result
-    perf = _perf_for(flags)
     prior_reverse: bool | None = None
     critic_feedback: Mapping[str, Any] | None = None
     current_metrics = dict(_INITIAL_ROLE_METRICS)
@@ -3266,7 +3442,9 @@ def run_trial(
     trial_admission: trial_registry.TrialLaunchAdmission | None = None,
     origin_binding_request: OriginBindingRequest | None = None,
     origin_producer_inputs: OriginProducerInputs | None = None,
+    workload_profile: str = EXPLORATORY_WORKLOAD_PROFILE,
 ) -> dict[str, Any]:
+    _preflight_workload_profile(workload_profile)
     if _TRIAL_ID_RE.fullmatch(trial_id) is None:
         raise AutonomousTrialError(f"trial_id が安全な形式でない: {trial_id!r}")
     if type(provider_kind) is not str:
@@ -3738,7 +3916,14 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument(
         "--provider", required=True, choices=tuple(sorted(PROVIDER_KINDS))
     )
-    parser.add_argument("--workloads", type=_parse_workloads, default=list(WORKLOADS))
+    parser.add_argument(
+        "--workload-profile",
+        choices=tuple(sorted(WORKLOAD_PROFILES)),
+        default=EXPLORATORY_WORKLOAD_PROFILE,
+    )
+    parser.add_argument(
+        "--workloads", type=_parse_workloads, default=list(WORKLOADS)
+    )
     parser.add_argument("--max-generations", type=int, default=1)
     parser.add_argument("--max-wall-seconds", type=int, default=DEFAULT_MAX_WALL_S)
     parser.add_argument("--no-build", action="store_true")
@@ -3769,6 +3954,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         ),
     )
     args = parser.parse_args(argv)
+    _preflight_workload_profile(args.workload_profile)
     _validate_generation_budget(args.max_generations)
     if args.provider == "fixture" and not args.no_build:
         raise AutonomousTrialError(
@@ -3843,6 +4029,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             ),
             effective_preregistration=effective_preregistration,
             trial_admission=launch_admission,
+            workload_profile=args.workload_profile,
         )
     print(json.dumps({
         "status": report["status"],
