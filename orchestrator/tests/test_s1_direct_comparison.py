@@ -1696,6 +1696,9 @@ def test_dry_run_refuses_unframed_tail_without_physical_change(tmp_path):
 def test_pipeline_bench_rounds_default_three_and_opt_in_one(tmp_path, monkeypatch):
     """未指定は従来3、S-1 opt-inだけ1を remeasure_until_stable へ渡す。"""
     captured = []
+    verified = pipeline.verify_trace_dir_with_capability(
+        str(TESTS / "fixtures/g1_serial"),
+    )
 
     @contextlib.contextmanager
     def unlocked():
@@ -1727,9 +1730,8 @@ def test_pipeline_bench_rounds_default_three_and_opt_in_one(tmp_path, monkeypatc
         ),
     )
     monkeypatch.setattr(
-        pipeline, "verify_trace_dir",
-        lambda path, *, expected_commits=None: types.SimpleNamespace(
-            verdict="serializable", certified=True, anomalies=[]),
+        pipeline, "verify_trace_dir_with_capability",
+        lambda path, *, expected_commits=None: verified,
     )
     monkeypatch.setattr(pipeline, "bench_lock", unlocked)
     monkeypatch.setattr(pipeline, "competing_bench_pids", lambda: [])

@@ -30,6 +30,7 @@ from typing import Dict, Iterator, List, Optional
 from .build_admission import (
     BuildAdmissionError,
     BuildAdmissionPolicy,
+    resolve_current_build_admission_policy,
     validate_build_admission_receipt,
 )
 from . import campaign_lock as campaign_lock_codec
@@ -1590,6 +1591,19 @@ def replay(
     campaign_lock = _campaign_lock_value(layout)
     validate_commit_contract_bindings(records, campaign_lock=campaign_lock)
     validate_trigger_bindings(records, campaign_lock=campaign_lock)
+    if admission_policy is None:
+        identity = _campaign_lock_identity(campaign_lock)
+        search = identity.get("search_config") if type(identity) is dict else None
+        declared_policy = (
+            search.get("build_admission") if type(search) is dict else None
+        )
+        if declared_policy is not None:
+            current_policy = resolve_current_build_admission_policy()
+            if declared_policy != current_policy.as_preimage():
+                raise AttemptTopologyError(
+                    "campaign.lock の build admission_policy が現行 policy と不一致"
+                )
+            admission_policy = current_policy
     attempts = (
         _validate_attempt_topology(
             records, admission_policy=admission_policy,
@@ -1654,7 +1668,9 @@ def records_by_stage(layout: CampaignLayout, variant: str) -> Dict[str, Dict]:
         if (r.variant == variant
                 and r.stage != trigger_gate_binding.WAL_RECORD_STAGE
                 and not _is_trigger_orphan_tombstone_at(records, index)):
-            out[r.stage] = r.payload
+            payload = dict(r.payload)
+            payload.pop(RECEIPT_PAYLOAD_KEY, None)
+            out[r.stage] = payload
     return out
 
 

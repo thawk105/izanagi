@@ -37,6 +37,7 @@ from orchestrator.campaign.layout import CampaignLayout
 from orchestrator.campaign.pin import CURRENT_PIN
 from orchestrator.campaign.source_digest import EMPTY_TRACKED_DIFF_SHA256, SourceEvidence
 from orchestrator.tests.campaign_lock_test_support import build_v2_campaign_lock
+from orchestrator.tests import commit_receipt_support as receipt_support
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -584,11 +585,13 @@ def test_recovered_attempt_then_retry_is_admitted_without_read_mutation(tmp_path
     wal.log(layout, start.variant, "build_done", start.env_tag, terminal_payload)
     decoded = campaign_lock.decode_campaign_lock(Path(layout.lock_file).read_text())
     assert decoded.authority is not None
-    wal.log(layout, start.variant, "commit", start.env_tag, {
+    receipt_support.log_receipted_commit(
+        layout, start.variant, start.env_tag, {
         **terminal_payload,
         COMMIT_CONTRACT_SHA256_KEY:
             decoded.authority.environment_contract_sha256,
-    })
+        }, operation_identity="attempt-2",
+    )
     before_admission = (campaign / "runs/wal.jsonl").read_bytes()
 
     admitted = A.require_admitted_campaign(campaign, purpose=HISTORICAL)
@@ -674,11 +677,13 @@ def _append_committed_retry(layout, start, attempt_id: str) -> None:
     wal.log(layout, start.variant, "build_done", start.env_tag, terminal)
     decoded = campaign_lock.decode_campaign_lock(Path(layout.lock_file).read_text())
     assert decoded.authority is not None
-    wal.log(layout, start.variant, "commit", start.env_tag, {
+    receipt_support.log_receipted_commit(
+        layout, start.variant, start.env_tag, {
         **terminal,
         COMMIT_CONTRACT_SHA256_KEY:
             decoded.authority.environment_contract_sha256,
-    })
+        }, operation_identity=attempt_id,
+    )
 
 
 def test_historical_signal_does_not_overreject_later_start_only_recovery(tmp_path):

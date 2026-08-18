@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from functools import lru_cache
 from pathlib import Path
 
 from orchestrator.campaign import wal
@@ -21,20 +22,30 @@ from orchestrator.verifier import (
 _FIXTURE = Path(__file__).resolve().parent / "fixtures/g1_serial"
 
 
-def verification_capabilities(tags=("legacy",)):
-    results = [verify_trace_dir_with_capability(str(_FIXTURE)) for _ in tags]
+@lru_cache(maxsize=None)
+def _cached_verification_capabilities(tags: tuple[str, ...]):
+    results = tuple(
+        verify_trace_dir_with_capability(str(_FIXTURE)) for _ in tags
+    )
     assert all(result.certified for result, _capability in results)
-    return [capability for _result, capability in results]
+    return tuple(capability for _result, capability in results)
+
+
+def verification_capabilities(tags=("legacy",)):
+    return list(_cached_verification_capabilities(tuple(tags)))
 
 
 def campaign_receipt(
         layout, variant: str, payload: dict, *, operation_identity: str = "test-op",
-        tags=("legacy",)):
+        tags=("legacy",), lock_identity_sha256: str | None = None):
     return issue_commit_receipt(
         verification_capabilities(tags),
         workload_tags=list(tags),
         sink_kind=CAMPAIGN_WAL_SINK,
-        lock_identity_sha256=campaign_lock_sha256(layout),
+        lock_identity_sha256=(
+            campaign_lock_sha256(layout)
+            if lock_identity_sha256 is None else lock_identity_sha256
+        ),
         variant=variant,
         operation_identity=operation_identity,
         terminal_payload=payload,
@@ -44,14 +55,17 @@ def campaign_receipt(
 def log_receipted_commit(
         layout, variant: str, env_tag: str, payload: dict, *,
         operation_identity: str = "test-op", tags=("legacy",),
+        lock_identity_sha256: str | None = None, ts: float | None = None,
 ):
     receipt = campaign_receipt(
         layout, variant, payload,
         operation_identity=operation_identity,
         tags=tags,
+        lock_identity_sha256=lock_identity_sha256,
     )
     return wal.log(
         layout, variant, STAGE_COMMIT, env_tag, payload,
+        ts=ts,
         commit_receipt=receipt,
     )
 

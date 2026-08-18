@@ -22,7 +22,7 @@ from orchestrator.campaign.build_admission import (  # noqa: E402
 )
 from orchestrator.campaign.layout import campaign_layout                     # noqa: E402
 from orchestrator.campaign.model import (STAGE_BENCH_DONE, STAGE_BUILD_DONE,  # noqa: E402
-                            STAGE_BUILD_START, STAGE_COMMIT,
+                            STAGE_BUILD_START,
                             CampaignConfig, Genome)
 from orchestrator.campaign.pipeline import EvalResult, PerfConfig             # noqa: E402
 from orchestrator.campaign.source_digest import (  # noqa: E402
@@ -30,6 +30,7 @@ from orchestrator.campaign.source_digest import (  # noqa: E402
     SOURCE_EVIDENCE_SCHEMA,
     SourceEvidence,
 )
+from orchestrator.tests import commit_receipt_support as receipt_support  # noqa: E402
 from campaign_lock_test_support import build_v2_lock              # noqa: E402
 
 
@@ -111,9 +112,11 @@ def _log_completed_attempt(layout, variant: str, genome: Genome) -> None:
         "build_admission": admission.as_wal_receipt(),
     })
     wal.log(layout, variant, STAGE_BUILD_DONE, _CONTRACT.env_tag, common)
-    wal.log(layout, variant, STAGE_COMMIT, _CONTRACT.env_tag, {
+    receipt_support.log_receipted_commit(
+        layout, variant, _CONTRACT.env_tag, {
         **common, "contract_sha256": _CONTRACT.contract_sha256,
-    })
+        }, operation_identity=attempt_id,
+    )
 
 
 def _cfg():
@@ -150,10 +153,12 @@ def test_prepare_screening_bakes_identity_and_uses_new_same_campaign_baseline(
             "median_tps": 10000.0,
             "leading_indicators": {"abort_rate": 0.04},
         }, ts=1234.0)
-        wal.log(layout, "baseline-v1", STAGE_COMMIT, _CONTRACT.env_tag, {
+        receipt_support.log_receipted_commit(
+            layout, "baseline-v1", _CONTRACT.env_tag, {
             "fitness_tps": 10000.0,
             "contract_sha256": _CONTRACT.contract_sha256,
-        }, ts=1235.0)
+            }, operation_identity="baseline-v1", ts=1235.0,
+        )
 
     prepared = screening_driver.prepare_screening_campaign(
         _cfg(), WORKLOAD, "baseline-v1", measure,
@@ -235,9 +240,11 @@ def test_prepare_screening_requires_complete_baseline_evidence(
             payload["leading_indicators"].pop("abort_rate")
         wal.log(layout, "baseline-v1", STAGE_BENCH_DONE, "test", payload, ts=10.0)
         if missing != "commit":
-            wal.log(layout, "baseline-v1", STAGE_COMMIT, _CONTRACT.env_tag, {
+            receipt_support.log_receipted_commit(
+                layout, "baseline-v1", _CONTRACT.env_tag, {
                 "contract_sha256": _CONTRACT.contract_sha256,
-            }, ts=11.0)
+                }, operation_identity=f"baseline-{missing}", ts=11.0,
+            )
 
     with pytest.raises(ValueError):
         screening_driver.prepare_screening_campaign(
@@ -274,10 +281,11 @@ def test_prepare_repairs_tail_before_baseline_callback(
             "median_tps": 100.0,
             "leading_indicators": {"abort_rate": 0.1},
         }, ts=10.0)
-        wal.log(callback_layout, "baseline-v1", STAGE_COMMIT,
-                _CONTRACT.env_tag, {
+        receipt_support.log_receipted_commit(
+            callback_layout, "baseline-v1", _CONTRACT.env_tag, {
                     "contract_sha256": _CONTRACT.contract_sha256,
-                }, ts=11.0)
+                }, operation_identity="baseline-after-repair", ts=11.0,
+        )
 
     screening_driver.prepare_screening_campaign(
         _cfg(), WORKLOAD, "baseline-v1", measure,

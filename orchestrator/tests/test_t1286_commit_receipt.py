@@ -150,7 +150,8 @@ def test_receipt_rejects_changed_lock_and_changed_payload_without_write(tmp_path
     layout = _v1_layout(tmp_path)
     payload = {"fitness_tps": 2.0}
     receipt = receipt_support.campaign_receipt(layout, "v", payload)
-    before = Path(layout.wal_file).read_bytes() if Path(layout.wal_file).exists() else b""
+    Path(layout.wal_file).touch()
+    before = Path(layout.wal_file).read_bytes()
 
     Path(layout.lock_file).write_text('{"different":"lock"}\n', encoding="utf-8")
     with pytest.raises(CommitReceiptError, match="binding mismatch"):

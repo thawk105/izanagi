@@ -62,6 +62,7 @@ from orchestrator.campaign.pipeline import VERIFY_LEGACY_PLUS_S2                
 from orchestrator.campaign.source_digest import (EMPTY_TRACKED_DIFF_SHA256,      # noqa: E402
                                     STOCK, SourceEvidence)
 from campaign_lock_test_support import build_v2_lock                 # noqa: E402
+from orchestrator.tests import commit_receipt_support as receipt_support  # noqa: E402
 
 _REAL_E0_CAMPAIGN = (
     Path(_ORCH).parent
@@ -963,11 +964,13 @@ def test_screen_reject_row_and_report_hide_uncertified_bench_values(
         },
     })
     # post-policy COMMIT は attempt と receipt SHA を必須にする。
-    W.wal.log(layout, certified_variant, W.STAGE_COMMIT, W.ENV_TAG, {
+    receipt_support.log_receipted_commit(
+        layout, certified_variant, W.ENV_TAG, {
         "build_attempt_id": certified_attempt,
         "build_admission_receipt_sha256": certified_receipt["receipt_sha256"],
         COMMIT_CONTRACT_SHA256_KEY: contract_sha256,
-    })
+        }, operation_identity=certified_attempt,
+    )
 
     entries = {
         "screened-out": {"variant_id": screen_variant, "category": "subset"},
