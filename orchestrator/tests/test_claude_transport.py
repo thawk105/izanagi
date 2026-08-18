@@ -1587,10 +1587,12 @@ def test_p1_flag_omitted_run_trial_has_no_transport_io_or_fields(
 
 def test_p2_flag_on_run_trial_admits_compute_wrapper_with_real_providers(
     tmp_path: Path,
+    valid_reservation_environment: dict[str, str],
 ) -> None:
     source = _source(
         "http://10.120.96.1:8080", "http://10.120.96.1:8080"
     )
+    source.update(valid_reservation_environment)
     calls = {"site": 0, "policy": 0}
     original_environ = A.os.environ
     original_site = T.site_policy.current_site
