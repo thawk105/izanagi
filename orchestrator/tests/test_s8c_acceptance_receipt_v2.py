@@ -366,6 +366,26 @@ def test_run_start_mismatch_is_rejected_after_reference_hashes_match(
         receipt.verify_acceptance_receipt(path, repository_root=repo)
 
 
+def test_trial_report_arm_execution_mismatch_is_rejected_after_reference_hashes_match(
+    tmp_path: Path,
+) -> None:
+    repo, path, value = _fixture(tmp_path)
+    row = _trial(value, "H2", "swapped")
+    report_path = repo / row["report_path"]
+    report = json.loads(report_path.read_bytes())
+    report["arm_execution"]["content_digest_sha256"] = "e" * 64
+    report_bytes = _canonical(report)
+    report_path.write_bytes(report_bytes)
+    row["report_sha256"] = hashlib.sha256(report_bytes).hexdigest()
+    _rewrite_receipt(repo, path, value, "trial report arm_execution mismatch")
+    with pytest.raises(
+        receipt.AcceptanceReceiptError,
+        match=(r"^\[receipt-arm-binding\] trial report arm_execution differs "
+               r"from receipt$"),
+    ):
+        receipt.verify_acceptance_receipt(path, repository_root=repo)
+
+
 def test_v2_never_routes_through_v1_mandatory_reason_set(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
