@@ -1,0 +1,59 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 60,
+  "timeout_seconds": 2400,
+  "hang_timeout_seconds": 2400,
+  "mutations": [
+    {
+      "id": "t1336.m1-field-name-revert",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_s8c_preregistration_core.py",
+          "old": "    \"反復単位対比の判定パラメータ (H1 / H2: n・平均差の下限・差の標本 SD の上限)\",",
+          "new": "    \"対象別 between-run floor (H1 / H2)\","
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_current_markdown_extracts_nine_fields_and_conditions_1_to_12",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_normalization_v2_conformance_corpus"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "t1336.m2-field-hash-revert",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_s8c_preregistration_core.py",
+          "old": "    field_hash = \"8ad36ad81439089be797c43133ce19b6082c0a9a3e21f6ead43b079f4c22107e\"",
+          "new": "    field_hash = \"4d082de6c6a19691dd8bad27127e9ebb03fdacc500aab555310c7883b7ba2635\""
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_normalization_v2_conformance_corpus"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "t1336.m3-doc-field-name-prewave-form",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "docs/phase3-8c-preregistration.md",
+          "old": "|反復単位対比の判定パラメータ (H1 / H2: n・平均差の下限・差の標本 SD の上限)|未記入|",
+          "new": "|対象別 between-run floor (H1 / H2)|未記入|"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_current_markdown_extracts_nine_fields_and_conditions_1_to_12",
+        "orchestrator/tests/test_s8c_preregistration_invariant.py::test_candidate_freeze_matches_contract_and_generation_chain",
+        "orchestrator/tests/test_s8c_preregistration_invariant.py::test_repository_tip_binds_current_decider_version_without_activation"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}
