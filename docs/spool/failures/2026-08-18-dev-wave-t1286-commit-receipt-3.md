@@ -24,6 +24,35 @@ seq: 3
   issuer / sink の call-site census を production 全走査で置く。
   **緑の焦点走を「塞がった証拠」と数えない。** 門を壊す変異が赤を出すことでのみ検出力を主張する。
 
+### {{F:closure-member-drift-misattributes-reds}}. 認証閉包 member を未 commit のまま測り、無関係な赤 29 件を実装差分へ帰属しかけた [手順漏れ]
+
+- 事象: 閉包 member (`pipeline.py` / `wal.py`) を編集した working tree で焦点走を回したところ
+  66 failed になった。実装を commit して閉包を再 pin してから同じ走行を回すと 37 failed に落ちた。
+  差の 29 件はすべて `contract-loader-drift: disk bytes が記録 commit blob と不一致` であり、
+  実装の欠陥ではなく測定条件の産物だった。
+- 根本原因: live binding 検査は disk bytes を HEAD blob と突き合わせる。閉包 member を
+  編集した未 commit の木では必ず drift が出るが、これが semantic gate より**手前で**落ちるため、
+  本来の失敗が隠れたまま件数だけが膨らむ。
+- 恒久対応: 閉包 member を編集する wave は、焦点走の前に必ず統合 commit を作る。
+  赤の件数を commit 前後で比較し、差分を drift として分離してから帰属を判定する。
+  **この手順を `DW-O18` へ書き足せなかった** — 同節は 995 bytes で L2 単節予算 1000 bytes に対し
+  余白 5 bytes しかない。手順の追記はユーザー裁定へ返す。
+- 再発検知: 閉包 member を含む差分で焦点走が大量の赤を返したとき、
+  最初に `contract-loader-drift` の件数を数える。
+
+### {{F:codex-resubmit-blocked-by-identical-prompt}}. 一過性で死んだ codex 子を同一 prompt で再投入できず 1 巡を失った [手順漏れ]
+
+- 事象: 段 3 の敵対 2 レンズが codex 認証の 401 で出力ゼロのまま即死した。同じ prompt で
+  再投入したところ `NG: 既存の完全な receipt は上書きできない` の rc=2 で起動せず、
+  prompt 本文を書き換えて job-id を変えるまで再投入できなかった。
+- 根本原因: job-id が prompt の sha256 から導かれるため、**内容が同じ再投入は常に同一 job-id** に
+  なる。既存 receipt の保護 (正しい設計) と、一過性失敗の再投入 (正当な運用) が同じ鍵を共有している。
+- 恒久対応: 一過性失敗の再投入は、prompt へ再投入の事実と新しい実測を追記して job-id を変える。
+  子の意味を変えない空白追加だけの回避はしない (何度目の投入かが receipt から読めなくなる)。
+  **この手順を `DW-O01` へ書き足せなかった** — 同節は既に 1275 bytes ある。追記はユーザー裁定へ返す。
+- 再発検知: rc=2 と「既存の完全な receipt は上書きできない」を見たら、
+  子の失敗が一過性かを先に判定し、prompt の更新で job-id を変える。
+
 ### {{F:concurrent-wave-collision-by-plan}}. 並行 wave との編集面衝突を相手の plan で判定し、着地結果と食い違った [手順漏れ]
 
 - 事象: 並行 wave の段 2 プランが closure 定数・exact-list pin・資格 identity を編集すると
