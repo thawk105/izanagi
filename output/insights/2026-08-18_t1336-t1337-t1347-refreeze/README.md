@@ -76,6 +76,17 @@ unpaired 推定への退避を禁じる。
   8b 文書の編集でこれらが赤にならないことを実測した — golden が持つ現行 bytes hash は
   受領証 `output/t080-migration/legacy-freeze-repin.receipt.json` の歴史値であり、
   照合先は basis commit の git blob である
+- 変異 matrix: **baseline PASSED、KILLED 3 / 3、SURVIVED 0、MISMATCH 0、TIMEOUT 0**
+  (`mutation-out.json`、dispatch runner、4 走行)。3 変異はいずれも事前登録 §5 の欄名集合の凍結が
+  実際に発火するかを撃つ。`t1336.m3-doc-field-name-prewave-form` は **wave 前の実文書の形**
+  そのものである
+- **erratum (初回結果を消さない)。** 変異 matrix は 3 巡した。1 巡目 (`mutation-probe-out.json`) は
+  全件 SURVIVED 期待の probe で観測 node を集めた (3 件とも MISMATCH = 検出力あり)。
+  2 巡目 (`mutation-run2-out.json`) は m1 / m2 が KILLED、m3 が MISMATCH。原因は変異 node ID の
+  2 空間で、harness の collection 検査は接尾辞なし形を要求する一方、失敗 node 抽出は
+  pytest-xdist の `@<group>` 接尾辞付きで返していた。3 巡目で runner argv へ `-n0` を足し
+  xdist を無効化して両者を同じ空間へ揃え、3 / 3 KILLED を得た。**期待 node 自体は 1 度も
+  緩めていない**
 - `python3 tools/check_docs.py`: rc=0
 - g6 の `protected_sha256` は段 6 焦点子が独立に再計算して一致した
 
