@@ -4,7 +4,7 @@ ledger: worklog
 authored: 2026-08-18
 wave: dev-wave-t1333-t1310-workload-profile
 seq: 1
-title: workload 表 entry を scale の単一権威にした — 新しい検査が repo の受入 fixture に埋まっていた矛盾を捕まえた (コード + テスト + 記録、branch worktree-dev-wave-t1333-t1310-workload-profile、変異 matrix = PLACEHOLDER)
+title: workload 表 entry を scale の単一権威にした — 新しい検査が repo の受入 fixture に埋まっていた矛盾を捕まえた (コード + テスト + 記録、branch worktree-dev-wave-t1333-t1310-workload-profile、変異 matrix = baseline PASSED・6/6 KILLED・SURVIVED 0・MISMATCH 0)
 ---
 
 ## 本文

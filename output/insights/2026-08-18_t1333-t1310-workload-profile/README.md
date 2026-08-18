@@ -133,3 +133,33 @@ Layer-3 が entry から独立再投影して descriptor・cell perf・campaign�
   恒久保留であり、解除はユーザーの明示命令のみである。本 package が示すのは、
   変更した file 本文に対する `holdout_conjunction_hits` の結果 (0 hit) だけである。
 - 還元判断: 本 package に CCBench 上流への還元候補は含まれない。
+
+## 変異 matrix (本走)
+
+baseline PASSED・**6/6 KILLED**・SURVIVED 0・MISMATCH 0。期待 node は完全集合で突き合わせている。
+
+| 変異 | 内容 | 期待 node 数 |
+|---|---|---|
+| `mu1-campaign-sink-scale` | `_campaign_for` の scale を **wave 前の形** (100_000 / 4 固定) へ戻す | 4 |
+| `mu2-perf-sink-scale` | `_perf_for` を同上 (**wave 前の形**) | 5 |
+| `mu3-descriptor-sink-scale` | `_descriptor_for` を同上 (**wave 前の形**) | 7 |
+| `mu4-layer3-four-way-scale` | Layer-3 の descriptor / cell perf / campaign / entry 四者比較を無効化 | 3 |
+| `mu5-formal-entry-alias` | 正式 entry の `ycsb` を module 表と同一 object へ戻す | 1 |
+| `mu6-resolver-merges-formal-into-exploratory` | `FORMAL_WORKLOADS` を `WORKLOADS` と同一にする | 14 |
+
+期待 node は probe 走行 (全件 SURVIVED 期待) で観測集合を集めてから完全集合として再登録した
+(`DW-M08`)。probe は 6 件とも MISMATCH で、観測 node を返す目的を果たした。
+
+**登録から外した変異** — 段 3 レンズ B と段 6 焦点再レビューが独立に帰属不成立と判定したもの。
+
+- descriptor digest 単独比較の削除 — 同じ `if` 内の canonical bytes 比較に**論理的に包含される等価変異**。
+- 正式 selector の fail-closed 単独削除 — `trial_registry` の `u4-holdout-workload` と
+  producer の closed-set gate に mask され、殺せるのは拒否順序と診断文字列だけ。
+- consumer call-edge の削除 — 現テストが pin していない。
+
+そのまま走らせていれば**偽の KILLED を台帳へ記録していた**。
+
+`mu5` が 1 件だけで殺されることは、mutable alias 検査の単一理由性が完全に立っていることを示す。
+`mu4` の期待 node には `test_perf_config_scale_is_independently_bound_to_the_entry` が含まれ、
+これは段 3 レンズ B の所見 B-01 (実測に使う `PerfConfig` が artifact へ束縛されていない) を
+直接塞いだテストである。
