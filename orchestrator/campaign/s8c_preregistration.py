@@ -48,7 +48,7 @@ EVALUATOR_MODULE_PATH = "orchestrator/campaign/s8c_preregistration_evidence.py"
 CORE_MODULE_PATH = "orchestrator/campaign/s8c_preregistration.py"
 PROJECTION_MODULE_PATH = "orchestrator/campaign/s8c_generation_projection.py"
 # core/evaluator/projection の受理意味を変える変更は同じ commit で版を bump する。
-DECIDER_VERSION = "s8c-decider/v3"
+DECIDER_VERSION = "s8c-decider/v4"
 LEGACY_SCHEMA_VERSION = "s8c-prereg-condition-freeze/v1"
 SCHEMA_VERSION = "s8c-prereg-condition-freeze/v2"
 NORMALIZATION_VERSION = "s8c-prereg-markdown/v2"
