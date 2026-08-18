@@ -73,7 +73,6 @@ _ACCEPTANCE_AUTHORITY_KINDS = {
     "tested-main": "dev-wave-acceptance-launcher",
     "tested-tip-bootstrap": "dev-wave-acceptance-launcher-bootstrap-tip",
 }
-_ACCEPTANCE_BOOTSTRAP_MAIN = "a160f4aac1a929e3f7d489c8d30c75fb8cb8c5db"
 _ACCEPTANCE_LAUNCHER_PATH = "tools/acceptance_launcher.py"
 _ACCEPTED_EFFECTIVE_SCHEDULERS = frozenset({"loadgroup", "serial"})
 _RECEIPT_TEMP_PREFIX = ".dev-wave-acceptance-receipt-"
@@ -721,6 +720,7 @@ def _verify_acceptance_receipt(
     acceptance_wave: str,
     tested_main: str,
     tested_tip: str,
+    locked_main: str,
 ) -> _AcceptanceVerification:
     raw = _read_acceptance_receipt(receipt_path)
     receipt = _receipt_object(raw)
@@ -835,8 +835,13 @@ def _verify_acceptance_receipt(
         launcher_entry = main_launcher_entry
     else:
         if (
-            tested_main != _ACCEPTANCE_BOOTSTRAP_MAIN
-            or main_launcher_entry is not None
+            main_launcher_entry is not None
+            or _acceptance_tree_entry(
+                repository,
+                locked_main,
+                _ACCEPTANCE_LAUNCHER_PATH,
+            )
+            is not None
         ):
             raise _acceptance_rejected()
         launcher_entry = _acceptance_tree_entry(
@@ -3216,6 +3221,7 @@ def land(request: LandRequest) -> LandResult:
                 acceptance_wave=request.acceptance_wave,
                 tested_main=tested_main,
                 tested_tip=tested_tip,
+                locked_main=preflight.locked_main,
             )
             fold = preflight.fold
             active_plan = preflight.active_plan

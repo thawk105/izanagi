@@ -14,6 +14,7 @@ import signal
 import shutil
 import subprocess
 import sys
+import textwrap
 import threading
 import time
 import tracemalloc
@@ -26,6 +27,7 @@ import pytest
 _ROOT = Path(__file__).resolve().parents[2]
 _TOOL = _ROOT / "tools" / "dev_wave_wait.py"
 _LAUNCHER = _ROOT / "tools" / "acceptance_launcher.py"
+_RED_CHECKER = _ROOT / "tools" / "check_acceptance_reds.py"
 _LEASE_HELPER = _ROOT / "tools" / "wave_land_window.py"
 _DISPATCHER = _ROOT / "tools" / "pegasus" / "dispatch_compute.py"
 _SPEC = importlib.util.spec_from_file_location("dev_wave_wait_under_test", _TOOL)
@@ -272,7 +274,7 @@ class _FakeLauncherSession:
             waiter_executed_sha256=self.options[
                 "--waiter-executed-sha256"
             ],
-            waiter_blob_sha=self.options["--waiter-blob-sha"],
+            waiter_blob_sha=self.options.get("--waiter-blob-sha"),
             receipt_file=Path(self.options["--receipt-file"]),
             log_file=Path(self.options["--log-file"]),
             outcome_fd=10,
@@ -284,14 +286,17 @@ class _FakeLauncherSession:
                 self.options["--env-projection-json"]
             ),
         )
-        self.fake.receipt_content = LA._receipt_bytes(
-            config,
-            ("python3", "tools/run_tests.py"),
-            self.child_rc,
-            hashlib.sha256(b"runner source").hexdigest(),
-            self.log_sha256,
-            completion,
-        )
+        try:
+            self.fake.receipt_content = LA._receipt_bytes(
+                config,
+                ("python3", "tools/run_tests.py"),
+                self.child_rc,
+                hashlib.sha256(b"runner source").hexdigest(),
+                self.log_sha256,
+                completion,
+            )
+        except LA.LauncherFailure:
+            self.fake.launcher_returncode = 1
 
     def wait(self) -> object:
         return DW._CommandResult(self.fake.launcher_returncode)
@@ -388,17 +393,6 @@ class _FakeEffects:
         ):
             assert self.last_claim_main_sha is not None
             confirmed_main_sha = self.last_claim_main_sha
-            self.run_queue.append(
-                (
-                    (
-                        "git",
-                        "rev-parse",
-                        f"{_SHA_A}:tools/dev_wave_wait.py",
-                    ),
-                    True,
-                    DW._CommandResult(0, _WAITER_BLOB + "\n"),
-                )
-            )
             self.run_queue.append((argv, capture, result))
             if not unchanged_postrun:
                 return
@@ -414,7 +408,38 @@ class _FakeEffects:
                     (_DIFF_ARGV, True, DW._CommandResult(0, "")),
                     (_SUBMODULE_STATUS_ARGV, True, DW._CommandResult(0, "")),
             ]
-            if result.returncode == 0:
+            scheduler: str | None = None
+            if result.returncode in (0, 1):
+                try:
+                    _digest, payloads = DW._scan_acceptance_log_chunks(
+                        [self.logged_bytes]
+                    )
+                    scheduler = DW._scheduler_from_marker_payloads(payloads)
+                except DW._StageFailure:
+                    pass
+                else:
+                    postrun.append(
+                        (
+                            (
+                                "git",
+                                "rev-parse",
+                                f"{_SHA_A}:tools/dev_wave_wait.py",
+                            ),
+                            True,
+                            DW._CommandResult(0, _WAITER_BLOB + "\n"),
+                        )
+                    )
+            waiter_values = self.running_waiter_bytes_result
+            postlaunch_waiter_matches = not (
+                isinstance(waiter_values, list)
+                and len(waiter_values) >= 3
+                and waiter_values[1] != waiter_values[2]
+            )
+            if (
+                result.returncode == 0
+                and scheduler in LA._EFFECTIVE_SCHEDULERS
+                and postlaunch_waiter_matches
+            ):
                 postrun.extend(
                     [
                     (
@@ -494,6 +519,16 @@ class _FakeEffects:
         assert repo == _REPO
         assert isinstance(tested_main, str)
         assert isinstance(tested_tip, str)
+        if self.launcher_binding.waiter_blob_sha is not None:
+            argv = (
+                "git",
+                "rev-parse",
+                f"{tested_tip}:tools/dev_wave_wait.py",
+            )
+            if self.run_queue and self.run_queue[0][0] == argv:
+                self.run(argv, repo, True)
+            else:
+                self.events.append(("run", argv, repo, True))
         return self.launcher_binding
 
     def launch_launcher(
@@ -932,10 +967,6 @@ def _queue_checker(
 
 def _queue_non_attributable_receipt_tail(fake: _FakeEffects) -> None:
     fake.expect_run(
-        ("git", "rev-parse", f"{_SHA_A}:tools/dev_wave_wait.py"),
-        DW._CommandResult(0, _WAITER_BLOB + "\n"),
-    )
-    fake.expect_run(
         ("git", "rev-parse", "main"),
         DW._CommandResult(0, _SHA_A + "\n"),
     )
@@ -951,7 +982,7 @@ def _checker_execution_events(
     tested_tip: str = _SHA_A,
     include_runner_gate: bool = False,
 ) -> list[tuple[object, ...]]:
-    events: list[tuple[object, ...]] = []
+    events = [*_WAITER_BLOB_RESOLUTION_EVENTS]
     for revision in (tested_main, tested_tip):
         events.append((
             "run_with_input",
@@ -1046,7 +1077,7 @@ def _valid_receipt_arguments() -> dict[str, object]:
         "tested_main": _SHA_A,
         "tested_tip": _SHA_A,
         "command": ("python3", "tools/run_tests.py"),
-        "resolved_runner_path": "/repo/tools/run_tests.py",
+        "resolved_runner_path": "tools/run_tests.py",
         "pre_fingerprint": fingerprint,
         "post_fingerprint": fingerprint,
         "waiter_blob_sha": _WAITER_BLOB,
@@ -1139,15 +1170,21 @@ def _red_check(
 
 
 _LAUNCHER_START_EVENTS = [
+    ("write_receipt_temp", _RECEIPT),
+]
+_LAUNCHER_FAILURE_CLEANUP_EVENTS = [
+    ("unlink", _RECEIPT_TEMP),
+]
+_WAITER_BLOB_RESOLUTION_EVENTS = [
     (
         "run",
         ("git", "rev-parse", f"{_SHA_A}:tools/dev_wave_wait.py"),
         _REPO,
         True,
     ),
-    ("write_receipt_temp", _RECEIPT),
 ]
 _SUCCESS_RECEIPT_EVENTS = [
+    *_WAITER_BLOB_RESOLUTION_EVENTS,
     ("running_waiter_bytes_sha256",),
     ("run", ("git", "rev-parse", "main"), _REPO, True),
     ("run", _helper("claim", _SHA_A), _REPO, True),
@@ -1191,6 +1228,19 @@ def _write_test_provenance_checker(repo: Path) -> None:
     )
 
 
+def _write_exact_runner(repo: Path, source: str) -> None:
+    body = textwrap.indent(source, "    ")
+    if not body.endswith("\n"):
+        body += "\n"
+    (repo / "tools" / "run_tests.py").write_text(
+        "def main(argv):\n"
+        "    del argv\n"
+        f"{body}"
+        "    return 0\n",
+        encoding="utf-8",
+    )
+
+
 def _real_waiter_repo(
     tmp_path: Path,
     *,
@@ -1204,11 +1254,13 @@ def _real_waiter_repo(
     tools.mkdir()
     shutil.copy2(_TOOL, tools / "dev_wave_wait.py")
     shutil.copy2(_LEASE_HELPER, tools / "wave_land_window.py")
-    (tools / "run_tests.py").write_text(
+    shutil.copy2(_LAUNCHER, tools / "acceptance_launcher.py")
+    shutil.copy2(_RED_CHECKER, tools / "check_acceptance_reds.py")
+    _write_exact_runner(
+        repo,
         "print('IZANAGI_EFFECTIVE_SCHEDULER_V1 "
         "{\"effective_scheduler\":\"serial\"}')\n"
         "raise SystemExit(0)\n",
-        encoding="utf-8",
     )
     env = {
         **{
@@ -2346,7 +2398,7 @@ def test_success_receipt_binds_tip_argv_rc_fingerprints_holder_waiter_and_schedu
     assert receipt["tested_main"] == _SHA_A
     assert receipt["tested_tip"] == _SHA_A
     assert receipt["argv"] == ["python3", "tools/run_tests.py"]
-    assert receipt["resolved_runner_path"] == "/repo/tools/run_tests.py"
+    assert receipt["resolved_runner_path"] == "tools/run_tests.py"
     assert receipt["child_rc"] == 0
     assert receipt["pre_fingerprint"] == receipt["post_fingerprint"]
     assert receipt["pre_fingerprint"]["head_sha"] == _SHA_A
@@ -2367,7 +2419,7 @@ def test_success_receipt_binds_tip_argv_rc_fingerprints_holder_waiter_and_schedu
         "IZANAGI_TASK_RUN_ID": None,
         "IZANAGI_TASK_RUNS_ROOT": None,
     }
-    assert fake.events.count(("running_waiter_bytes_sha256",)) == 1
+    assert fake.events.count(("running_waiter_bytes_sha256",)) == 3
     assert fake.events.count(
         ("tip_waiter_bytes_sha256", _REPO, _SHA_A)
     ) == 1
@@ -2864,6 +2916,38 @@ def test_attestation_detail_preserves_exact_serialized_byte_limit() -> None:
     assert json.loads(detail) == expected
 
 
+def test_diagnostic_generation_failure_preserves_receipt_stage_and_rc() -> None:
+    class ExplodingString(str):
+        def encode(self, *args: object, **kwargs: object) -> bytes:
+            del args, kwargs
+            raise RuntimeError("NORMALIZER-SECRET-SENTINEL")
+
+    fake = _FakeEffects()
+    argv = ("git", "rev-parse", f"{_SHA_A}:tools/dev_wave_wait.py")
+    fake.expect_run(argv, DW._CommandResult(0, "not-a-sha\n"))
+
+    with pytest.raises(DW._StageFailure) as failure:
+        DW._blob_sha(
+            fake.effects,
+            _REPO,
+            _SHA_A,
+            "tools/dev_wave_wait.py",
+            "acceptance-receipt",
+            diagnostic_reason=ExplodingString("receipt-waiter-blob"),
+        )
+
+    outcome = failure.value.outcome
+    assert (outcome.rc, outcome.stage) == (70, "acceptance-receipt")
+    assert outcome.detail is not None
+    assert len(outcome.detail.encode("ascii")) <= 2048
+    assert json.loads(outcome.detail) == {
+        "reason": "detail",
+        "observed": {"detail_generation_failed": True},
+    }
+    assert "NORMALIZER-SECRET-SENTINEL" not in outcome.detail
+    fake.assert_drained()
+
+
 def test_exception_normalizer_ignores_hostile_errno_accessor() -> None:
     class HostileErrno(OSError):
         @property
@@ -2891,17 +2975,19 @@ def test_launcher_verdict_mismatch_omits_hostile_text() -> None:
     assert "NORMALIZER-SECRET-SENTINEL" not in str(failure.value)
 
 
-def test_unknown_scheduler_is_recorded_in_receipt() -> None:
+def test_unknown_scheduler_is_rejected_by_launcher() -> None:
     fake = _FakeEffects()
     fake.logged_bytes = _scheduler_marker("unknown")
     lifecycle = DW._AcceptanceLifecycle()
     _queue_clean_acceptance_prefix(fake)
     fake.expect_run(_COMMAND, DW._CommandResult(0), capture=False)
+    _release(fake)
 
     outcome = _run_acceptance(fake, lifecycle=lifecycle)
 
-    assert outcome == DW._Outcome(0)
-    assert json.loads(fake.receipt_content)["effective_scheduler"] == "unknown"
+    assert outcome == DW._Outcome(70, "acceptance-launcher", source_rc=1)
+    assert fake.receipt_content is None
+    assert fake.receipt_published is False
     fake.assert_drained()
 
 
@@ -3954,7 +4040,7 @@ def test_non_pytest_failure_rc_rejected_without_red_checker(
     assert outcome == DW._Outcome(
         70,
         "acceptance-command",
-        raw_child_rc,
+        DW._normalize_child_rc(raw_child_rc),
     )
     assert not any(_is_checker_execution_event(event) for event in fake.events)
     assert fake.receipt_content is None
@@ -4437,16 +4523,42 @@ def test_launcher_receipt_invalid_argv_omits_exception_text() -> None:
     assert sentinel not in str(failure.value)
 
 
-def test_m8_launcher_nonzero_does_not_publish_receipt() -> None:
+def _assert_launcher_rc_zero_publishes() -> None:
     fake = _FakeEffects()
     _queue_clean_acceptance_prefix(fake)
+    _postrun_integrity(fake)
     fake.expect_run(
         ("git", "rev-parse", f"{_SHA_A}:tools/dev_wave_wait.py"),
         DW._CommandResult(0, _WAITER_BLOB + "\n"),
     )
-    _postrun_integrity(fake)
     fake.launcher_outcome_without_runner = True
-    fake.launcher_generate_receipt = False
+    fake.expect_run(
+        ("git", "rev-parse", "main"),
+        DW._CommandResult(0, _SHA_A + "\n"),
+    )
+    fake.expect_run(
+        _helper("claim", _SHA_A),
+        DW._CommandResult(0, _held_self_payload()),
+    )
+
+    outcome = _run_acceptance(fake)
+
+    assert outcome == DW._Outcome(0)
+    assert fake.receipt_content is not None
+    assert fake.receipt_published is True
+    fake.assert_drained()
+
+
+def test_m8_launcher_nonzero_does_not_publish_receipt() -> None:
+    _assert_launcher_rc_zero_publishes()
+    fake = _FakeEffects()
+    _queue_clean_acceptance_prefix(fake)
+    _postrun_integrity(fake)
+    fake.expect_run(
+        ("git", "rev-parse", f"{_SHA_A}:tools/dev_wave_wait.py"),
+        DW._CommandResult(0, _WAITER_BLOB + "\n"),
+    )
+    fake.launcher_outcome_without_runner = True
     fake.launcher_returncode = 70
     _release(fake)
 
@@ -4456,7 +4568,7 @@ def test_m8_launcher_nonzero_does_not_publish_receipt() -> None:
     assert outcome.stage == "acceptance-launcher"
     assert outcome.source_rc == 70
     assert fake.launcher_argv is not None
-    assert fake.receipt_content is None
+    assert fake.receipt_content is not None
     assert fake.receipt_published is False
     assert not any(
         event[:2] == ("run", _COMMAND) for event in fake.events
@@ -4643,7 +4755,7 @@ def test_launcher_argv_and_runner_tail_are_exact() -> None:
         ),
         "--env-projection-json",
         (
-            '{"IZANAGI_TASK_RUN_ID":null,"IZANAGI_TASK_RUNS_ROOT":null,'
+            '{"IZANAGI_TASK_RUNS_ROOT":null,"IZANAGI_TASK_RUN_ID":null,'
             '"PYTEST_ADDOPTS":null,"PYTEST_PLUGINS":null}'
         ),
         "--outcome-fd",
@@ -7822,6 +7934,7 @@ def test_acceptance_command_red_is_propagated_after_release() -> None:
         *_LAUNCHER_START_EVENTS,
         ("run", _COMMAND, _REPO, False),
         *_POSTRUN_INTEGRITY_EVENTS,
+        *_LAUNCHER_FAILURE_CLEANUP_EVENTS,
         ("run", _helper("release"), _REPO, True),
     ]
     fake.assert_drained()
@@ -7913,9 +8026,11 @@ def test_release_failure_overrides_primary_result() -> None:
         ("run", _STATUS_ARGV, _REPO, True),
         *_FINGERPRINT_EVENTS,
         *_WAITER_GATE_EVENTS,
+        *_LAUNCHER_START_EVENTS,
         ("run", _COMMAND, _REPO, False),
         *_POSTRUN_INTEGRITY_EVENTS,
         *_checker_execution_events(),
+        *_LAUNCHER_FAILURE_CLEANUP_EVENTS,
         ("run", _helper("release"), _REPO, True),
     ]
     fake.assert_drained()
@@ -7988,9 +8103,11 @@ def test_release_subprocess_failures_are_cleanup_failures(release_result: object
         ("run", _STATUS_ARGV, _REPO, True),
         *_FINGERPRINT_EVENTS,
         *_WAITER_GATE_EVENTS,
+        *_LAUNCHER_START_EVENTS,
         ("run", _COMMAND, _REPO, False),
         *_POSTRUN_INTEGRITY_EVENTS,
         *_checker_execution_events(),
+        *_LAUNCHER_FAILURE_CLEANUP_EVENTS,
         ("run", _helper("release"), _REPO, True),
     ]
     fake.assert_drained()
@@ -8554,6 +8671,7 @@ def test_signal_after_core_success_uses_restored_real_handler(
         ("run", _STATUS_ARGV, _REPO, True),
         *_FINGERPRINT_EVENTS,
         *_WAITER_GATE_EVENTS,
+        *_LAUNCHER_START_EVENTS,
         ("run", _COMMAND, _REPO, False),
         *_POSTRUN_INTEGRITY_EVENTS,
         *_SUCCESS_RECEIPT_EVENTS,
@@ -8911,7 +9029,14 @@ def test_real_git_production_provenance_rejects_malformed_merge_message(
     tools.mkdir()
     shutil.copy2(_LEASE_HELPER, tools / "wave_land_window.py")
     shutil.copy2(_TOOL, tools / "dev_wave_wait.py")
+    shutil.copy2(_LAUNCHER, tools / "acceptance_launcher.py")
+    shutil.copy2(_RED_CHECKER, tools / "check_acceptance_reds.py")
     shutil.copy2(_ROOT / "tools" / "check_ai_provenance.py", tools)
+    _write_exact_runner(
+        repo,
+        "print('IZANAGI_EFFECTIVE_SCHEDULER_V1 "
+        "{\"effective_scheduler\":\"serial\"}')\n",
+    )
     campaign = repo / "orchestrator" / "campaign"
     campaign.mkdir(parents=True)
     shutil.copy2(_ROOT / "orchestrator" / "campaign" / "__init__.py", campaign)
@@ -9012,7 +9137,18 @@ def test_default_wiring_with_real_git_and_lease_helper(tmp_path: Path) -> None:
     tools.mkdir()
     shutil.copy2(_LEASE_HELPER, tools / "wave_land_window.py")
     shutil.copy2(_TOOL, tools / "dev_wave_wait.py")
+    shutil.copy2(_LAUNCHER, tools / "acceptance_launcher.py")
+    shutil.copy2(_RED_CHECKER, tools / "check_acceptance_reds.py")
     _write_test_provenance_checker(repo)
+    _write_exact_runner(
+        repo,
+        "from pathlib import Path\n"
+        "assert Path.cwd() == Path(__file__).resolve().parents[1]\n"
+        "print('CHILD-STDOUT-SENTINEL')\n"
+        "print('IZANAGI_EFFECTIVE_SCHEDULER_V1 "
+        "{\"effective_scheduler\":\"serial\"}')\n"
+        "print('CHILD-STDERR-SENTINEL', file=__import__('sys').stderr)\n",
+    )
 
     git_env = {
         **{key: value for key, value in os.environ.items() if key not in DW._GIT_ENV_KEYS},
@@ -9036,6 +9172,9 @@ def test_default_wiring_with_real_git_and_lease_helper(tmp_path: Path) -> None:
         "tracked.txt",
         "tools/wave_land_window.py",
         "tools/dev_wave_wait.py",
+        "tools/acceptance_launcher.py",
+        "tools/check_acceptance_reds.py",
+        "tools/run_tests.py",
         "tools/check_ai_provenance.py",
     )
     git("commit", "-m", "base")
@@ -9146,15 +9285,17 @@ def _run_runtime_waiter_bytes_case(
     tools.mkdir()
     shutil.copy2(_TOOL, tools / "dev_wave_wait.py")
     shutil.copy2(_LEASE_HELPER, tools / "wave_land_window.py")
+    shutil.copy2(_LAUNCHER, tools / "acceptance_launcher.py")
+    shutil.copy2(_RED_CHECKER, tools / "check_acceptance_reds.py")
     _write_test_provenance_checker(main_repo)
-    (tools / "run_tests.py").write_text(
+    counter = tmp_path / "command-runs.txt"
+    _write_exact_runner(
+        main_repo,
         "from pathlib import Path\n"
-        "import sys\n"
-        "with Path(sys.argv[1]).open('a', encoding='ascii') as stream:\n"
+        f"with Path({str(counter)!r}).open('a', encoding='ascii') as stream:\n"
         "    stream.write('run\\n')\n"
         "print('IZANAGI_EFFECTIVE_SCHEDULER_V1 "
         "{\"effective_scheduler\":\"serial\"}')\n",
-        encoding="utf-8",
     )
     env = {
         **{
@@ -9209,7 +9350,6 @@ def _run_runtime_waiter_bytes_case(
     )
     receipt = tmp_path / "acceptance-receipt.json"
     log = tmp_path / "acceptance.log"
-    counter = tmp_path / "command-runs.txt"
     result = subprocess.run(
         [
             sys.executable,
@@ -9302,7 +9442,15 @@ def test_default_wiring_second_acceptance_reuses_self_held_lease(
     helper = repo / "tools" / "wave_land_window.py"
     shutil.copy2(_LEASE_HELPER, helper)
     shutil.copy2(_TOOL, repo / "tools" / "dev_wave_wait.py")
+    shutil.copy2(_LAUNCHER, repo / "tools" / "acceptance_launcher.py")
+    shutil.copy2(_RED_CHECKER, repo / "tools" / "check_acceptance_reds.py")
     _write_test_provenance_checker(repo)
+    _write_exact_runner(
+        repo,
+        "print('SECOND-ACCEPTANCE-SENTINEL')\n"
+        "print('IZANAGI_EFFECTIVE_SCHEDULER_V1 "
+        "{\"effective_scheduler\":\"serial\"}')\n",
+    )
     git_env = {
         **{key: value for key, value in os.environ.items() if key not in DW._GIT_ENV_KEYS},
         "GIT_AUTHOR_NAME": "Test",
@@ -9328,6 +9476,9 @@ def test_default_wiring_second_acceptance_reuses_self_held_lease(
         "tracked.txt",
         "tools/wave_land_window.py",
         "tools/dev_wave_wait.py",
+        "tools/acceptance_launcher.py",
+        "tools/check_acceptance_reds.py",
+        "tools/run_tests.py",
         "tools/check_ai_provenance.py",
     )
     git("commit", "-m", "base")
@@ -9405,7 +9556,14 @@ def test_public_main_real_signal_releases_lease(tmp_path: Path) -> None:
     (repo / "tools").mkdir()
     shutil.copy2(_LEASE_HELPER, repo / "tools" / "wave_land_window.py")
     shutil.copy2(_TOOL, repo / "tools" / "dev_wave_wait.py")
+    shutil.copy2(_LAUNCHER, repo / "tools" / "acceptance_launcher.py")
+    shutil.copy2(_RED_CHECKER, repo / "tools" / "check_acceptance_reds.py")
     _write_test_provenance_checker(repo)
+    _write_exact_runner(
+        repo,
+        "import os, signal\n"
+        "os.kill(os.getppid(), signal.SIGTERM)\n",
+    )
     git_env = {
         **{key: value for key, value in os.environ.items() if key not in DW._GIT_ENV_KEYS},
         "GIT_AUTHOR_NAME": "Test",
@@ -9427,6 +9585,9 @@ def test_public_main_real_signal_releases_lease(tmp_path: Path) -> None:
         "tracked.txt",
         "tools/wave_land_window.py",
         "tools/dev_wave_wait.py",
+        "tools/acceptance_launcher.py",
+        "tools/check_acceptance_reds.py",
+        "tools/run_tests.py",
         "tools/check_ai_provenance.py",
     )
     git("commit", "-m", "base")
@@ -9473,7 +9634,14 @@ def test_public_main_real_signal_after_success_uses_restored_handler(
     (repo / "tools").mkdir()
     shutil.copy2(_LEASE_HELPER, repo / "tools" / "wave_land_window.py")
     shutil.copy2(_TOOL, repo / "tools" / "dev_wave_wait.py")
+    shutil.copy2(_LAUNCHER, repo / "tools" / "acceptance_launcher.py")
+    shutil.copy2(_RED_CHECKER, repo / "tools" / "check_acceptance_reds.py")
     _write_test_provenance_checker(repo)
+    _write_exact_runner(
+        repo,
+        "print('IZANAGI_EFFECTIVE_SCHEDULER_V1 "
+        "{\"effective_scheduler\":\"serial\"}')\n",
+    )
     git_env = {
         **{key: value for key, value in os.environ.items() if key not in DW._GIT_ENV_KEYS},
         "GIT_AUTHOR_NAME": "Test",
@@ -9495,6 +9663,9 @@ def test_public_main_real_signal_after_success_uses_restored_handler(
         "tracked.txt",
         "tools/wave_land_window.py",
         "tools/dev_wave_wait.py",
+        "tools/acceptance_launcher.py",
+        "tools/check_acceptance_reds.py",
+        "tools/run_tests.py",
         "tools/check_ai_provenance.py",
     )
     git("commit", "-m", "base")

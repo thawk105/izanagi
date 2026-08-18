@@ -9,6 +9,7 @@ import json
 import os
 from pathlib import Path
 import re
+import signal
 import stat
 import subprocess
 import sys
@@ -24,7 +25,7 @@ _AUTHORITY_KINDS = {
     "tested-main": "dev-wave-acceptance-launcher",
     "tested-tip-bootstrap": "dev-wave-acceptance-launcher-bootstrap-tip",
 }
-_EFFECTIVE_SCHEDULERS = frozenset({"loadgroup", "serial", "unknown"})
+_EFFECTIVE_SCHEDULERS = frozenset({"loadgroup", "serial"})
 _SHA1_RE = re.compile(r"[0-9a-f]{40}\Z")
 _SHA256_RE = re.compile(r"[0-9a-f]{64}\Z")
 _HOLDER_RE = re.compile(r"[0-9a-f]{12}\Z")
@@ -76,7 +77,7 @@ class _Config:
     launcher_blob_sha: str
     launcher_executed_sha256: str
     waiter_executed_sha256: str
-    waiter_blob_sha: str
+    waiter_blob_sha: str | None
     receipt_file: Path
     log_file: Path
     outcome_fd: int
@@ -139,10 +140,14 @@ def _validate_config(config: _Config, runner_argv: Sequence[str]) -> None:
         ("tested_main", config.tested_main),
         ("tested_tip", config.tested_tip),
         ("launcher_blob_sha", config.launcher_blob_sha),
-        ("waiter_blob_sha", config.waiter_blob_sha),
     ):
         if _SHA1_RE.fullmatch(value) is None:
             raise LauncherFailure(f"invalid {name}")
+    if (
+        config.waiter_blob_sha is not None
+        and _SHA1_RE.fullmatch(config.waiter_blob_sha) is None
+    ):
+        raise LauncherFailure("invalid waiter_blob_sha")
     for name, value in (
         ("launcher_executed_sha256", config.launcher_executed_sha256),
         ("waiter_executed_sha256", config.waiter_executed_sha256),
@@ -196,6 +201,14 @@ def _run_blob(
     canonical_runner_path: Path,
     log_file: Path,
 ) -> int:
+    def forward_to_waiter(signum: int, _frame: object) -> None:
+        os.kill(os.getppid(), signum)
+        raise SystemExit(128 + signum)
+
+    previous_handlers = {
+        signum: signal.signal(signum, forward_to_waiter)
+        for signum in (signal.SIGINT, signal.SIGTERM)
+    }
     try:
         with log_file.open("xb") as stream:
             result = subprocess.run(
@@ -214,6 +227,9 @@ def _run_blob(
             )
     except OSError as exc:
         raise LauncherFailure("cannot execute runner blob") from exc
+    finally:
+        for signum, previous in previous_handlers.items():
+            signal.signal(signum, previous)
     return _normalize_child_rc(result.returncode)
 
 
@@ -255,16 +271,23 @@ def _read_completion_fd(fd: int) -> Mapping[str, object]:
 
 def _validated_completion(
     completion: Mapping[str, object], child_rc: int
-) -> tuple[Mapping[str, object], str, Mapping[str, object] | None, str]:
-    if set(completion) != {
+) -> tuple[Mapping[str, object], str, Mapping[str, object] | None, str, str | None]:
+    required = {
         "effective_scheduler",
         "post_fingerprint",
         "red_check",
-    }:
+    }
+    if set(completion) not in (required, required | {"waiter_blob_sha"}):
         raise LauncherFailure("completion protocol has unexpected fields")
     post_fingerprint = completion["post_fingerprint"]
     scheduler = completion["effective_scheduler"]
     red_check = completion["red_check"]
+    waiter_blob_sha = completion.get("waiter_blob_sha")
+    if waiter_blob_sha is not None and (
+        not isinstance(waiter_blob_sha, str)
+        or _SHA1_RE.fullmatch(waiter_blob_sha) is None
+    ):
+        raise LauncherFailure("invalid waiter blob digest")
     if not isinstance(post_fingerprint, dict):
         raise LauncherFailure("post fingerprint must be an object")
     _validate_fingerprint(post_fingerprint, "post")
@@ -273,7 +296,7 @@ def _validated_completion(
     if child_rc == 0:
         if red_check is not None:
             raise LauncherFailure("child-green cannot contain red-check data")
-        return post_fingerprint, scheduler, None, "child-green"
+        return post_fingerprint, scheduler, None, "child-green", waiter_blob_sha
     if child_rc != 1 or not isinstance(red_check, dict):
         raise LauncherFailure("runner result is not receiptable")
     required = {
@@ -312,7 +335,13 @@ def _validated_completion(
         or not (red_nodeids or flake_nodeids)
     ):
         raise LauncherFailure("invalid red-check nodeid sets")
-    return post_fingerprint, scheduler, red_check, "non-attributable-only"
+    return (
+        post_fingerprint,
+        scheduler,
+        red_check,
+        "non-attributable-only",
+        waiter_blob_sha,
+    )
 
 
 def _receipt_bytes(
@@ -323,9 +352,16 @@ def _receipt_bytes(
     log_sha256: str,
     completion: Mapping[str, object],
 ) -> bytes:
-    post_fingerprint, scheduler, red_check, verdict = _validated_completion(
-        completion, child_rc
+    post_fingerprint, scheduler, red_check, verdict, completion_waiter_blob = (
+        _validated_completion(
+            completion, child_rc
+        )
     )
+    if (config.waiter_blob_sha is None) == (completion_waiter_blob is None):
+        raise LauncherFailure("waiter blob digest must have one source")
+    waiter_blob_sha = config.waiter_blob_sha or completion_waiter_blob
+    if waiter_blob_sha is None:
+        raise LauncherFailure("missing waiter blob digest")
     receipt = {
         "schema_version": _SCHEMA_VERSION,
         "authority_kind": _AUTHORITY_KINDS[config.launcher_source_revision],
@@ -334,11 +370,11 @@ def _receipt_bytes(
         "tested_main": config.tested_main,
         "tested_tip": config.tested_tip,
         "argv": list(runner_argv),
-        "resolved_runner_path": str(config.repo_root / _RUNNER_PATH),
+        "resolved_runner_path": _RUNNER_PATH,
         "child_rc": child_rc,
         "pre_fingerprint": dict(config.pre_fingerprint),
         "post_fingerprint": dict(post_fingerprint),
-        "waiter_blob_sha": config.waiter_blob_sha,
+        "waiter_blob_sha": waiter_blob_sha,
         "env_projection": dict(config.env_projection),
         "verdict": verdict,
         "log_sha256": log_sha256,
@@ -457,7 +493,7 @@ def _parse_args(argv: Sequence[str]) -> tuple[_Config, tuple[str, ...]]:
     parser.add_argument("--launcher-blob-sha", required=True)
     parser.add_argument("--launcher-executed-sha256", required=True)
     parser.add_argument("--waiter-executed-sha256", required=True)
-    parser.add_argument("--waiter-blob-sha", required=True)
+    parser.add_argument("--waiter-blob-sha")
     parser.add_argument("--receipt-file", required=True, type=Path)
     parser.add_argument("--log-file", required=True, type=Path)
     parser.add_argument("--outcome-fd", required=True, type=int)

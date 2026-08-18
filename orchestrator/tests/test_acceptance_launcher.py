@@ -84,6 +84,16 @@ def test_m3_runner_digest_mismatch_is_rejected():
         root = Path(raw_root).resolve()
         config = _config(root)
         _touch_empty(config.receipt_file)
+        launcher._launch(
+            config,
+            ("python3", "tools/run_tests.py"),
+            blob_reader=lambda _repo, _tip: _SOURCE,
+            blob_runner=_successful_blob_runner,
+            outcome_writer=lambda _value: None,
+            completion_reader=_completion,
+        )
+        assert config.receipt_file.read_bytes()
+        config.receipt_file.write_bytes(b"")
         sources = iter((_SOURCE, _SOURCE + b"# drift\n"))
         try:
             launcher._launch(
@@ -169,8 +179,8 @@ def test_receipt_is_exact_canonical_json_bytes():
             '"checker_blob_sha":null,"checker_rc":null,'
             '"checker_receipt_sha256":null,"checker_status":null,'
             '"child_rc":0,"effective_scheduler":"loadgroup",'
-            '"env_projection":{"IZANAGI_TASK_RUN_ID":"run-1",'
-            '"IZANAGI_TASK_RUNS_ROOT":"/tmp/task-runs",'
+            '"env_projection":{"IZANAGI_TASK_RUNS_ROOT":"/tmp/task-runs",'
+            '"IZANAGI_TASK_RUN_ID":"run-1",'
             '"PYTEST_ADDOPTS":"-q","PYTEST_PLUGINS":null},'
             '"flake_nodeids":[],'
             '"launcher_blob_sha":"' + _SHA1_C + '",'
@@ -183,9 +193,8 @@ def test_receipt_is_exact_canonical_json_bytes():
             '"pre_fingerprint":{"diff_bytes":1,"digest":"' + _SHA256_3
             + '","head_sha":"' + _SHA1_A
             + '","status_bytes":0,"submodule_status_bytes":2},'
-            '"red_nodeids":[],"resolved_runner_path":"'
-            + str(root / "tools/run_tests.py")
-            + '","runner_executed_sha256":"' + runner_sha + '",'
+            '"red_nodeids":[],"resolved_runner_path":"tools/run_tests.py",'
+            '"runner_executed_sha256":"' + runner_sha + '",'
             '"schema_version":"dev-wave-acceptance-receipt/v5",'
             '"tested_main":"' + _SHA1_A + '","tested_tip":"' + _SHA1_B + '",'
             '"verdict":"child-green","waiter_blob_sha":"' + _SHA1_D + '",'
@@ -209,6 +218,27 @@ def test_trusted_mode_authority_kind():
         assert json.loads(receipt)["authority_kind"] == (
             "dev-wave-acceptance-launcher"
         )
+
+
+def test_unknown_effective_scheduler_is_rejected() -> None:
+    with tempfile.TemporaryDirectory() as raw_root:
+        config = _config(Path(raw_root).resolve())
+        completion = _completion()
+        completion["effective_scheduler"] = "unknown"
+
+        try:
+            launcher._receipt_bytes(
+                config,
+                ("python3", "tools/run_tests.py"),
+                0,
+                "1" * 64,
+                "2" * 64,
+                completion,
+            )
+        except launcher.LauncherFailure as exc:
+            assert str(exc) == "invalid effective scheduler"
+        else:
+            raise AssertionError("unknown effective scheduler was accepted")
 
 
 def test_bootstrap_mode_authority_kind():

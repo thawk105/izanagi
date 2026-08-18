@@ -517,6 +517,7 @@ class _LauncherBinding:
     source: bytes
     blob_sha: str
     source_revision: str
+    waiter_blob_sha: str | None = None
 
 
 class _LauncherSession:
@@ -2572,6 +2573,10 @@ def _launcher_binding(
         not in {"tested-main", "tested-tip-bootstrap"}
         or _SHA_RE.fullmatch(binding.blob_sha) is None
         or not isinstance(binding.source, bytes)
+        or (
+            binding.waiter_blob_sha is not None
+            and _SHA_RE.fullmatch(binding.waiter_blob_sha) is None
+        )
     ):
         raise _StageFailure("acceptance-launcher")
     return binding
@@ -3034,13 +3039,13 @@ def _launcher_argv(
     tested_tip: str,
     binding: _LauncherBinding,
     waiter_executed_sha256: str,
-    waiter_blob_sha: str,
+    waiter_blob_sha: str | None,
     receipt_temp: Path,
     log_file: Path,
     pre_fingerprint: _TreeFingerprint,
     environment: _AcceptanceEnvironment,
 ) -> tuple[str, ...]:
-    return (
+    prefix = (
         sys.executable,
         "-I",
         "-c",
@@ -3062,8 +3067,10 @@ def _launcher_argv(
         binding.blob_sha,
         "--waiter-executed-sha256",
         waiter_executed_sha256,
-        "--waiter-blob-sha",
-        waiter_blob_sha,
+    )
+    if waiter_blob_sha is not None:
+        prefix += ("--waiter-blob-sha", waiter_blob_sha)
+    return prefix + (
         "--receipt-file",
         str(receipt_temp),
         "--log-file",
@@ -3083,6 +3090,7 @@ def _launcher_completion(
     post_fingerprint: _TreeFingerprint,
     effective_scheduler: str,
     red_check: _RedCheckResult | None,
+    waiter_blob_sha: str | None = None,
 ) -> bytes:
     red_json: dict[str, object] | None = None
     if red_check is not None:
@@ -3094,13 +3102,14 @@ def _launcher_completion(
             "flake_nodeids": list(red_check.flake_nodeids),
             "red_nodeids": list(red_check.red_nodeids),
         }
-    return _canonical_json_line(
-        {
+    payload: dict[str, object] = {
             "effective_scheduler": effective_scheduler,
             "post_fingerprint": _fingerprint_json(post_fingerprint),
             "red_check": red_json,
-        }
-    )
+    }
+    if waiter_blob_sha is not None:
+        payload["waiter_blob_sha"] = waiter_blob_sha
+    return _canonical_json_line(payload)
 
 
 def _cleanup_after_claim(
@@ -3747,11 +3756,6 @@ def _run_acceptance_attempt(
             diagnostic_reason="full-history-provenance",
             capture_failure_output=True,
         )
-        if not owned_paths:
-            print(
-                "acceptance: --owned-path 未指定のため所有実装面 overlap 判定を省略します",
-                file=sys.stderr,
-            )
         absolute_deadline = deadline.get(effects)
         # 期限値そのものは run_acceptance 入口で固定済みであり、この
         # attempt 境界の再確認で延長しない。
@@ -3890,20 +3894,13 @@ def _run_acceptance_attempt(
         )
         assert resolved_log_file is not None
         assert claim_context is not None and claim_context.holder is not None
-        waiter_blob_sha = _blob_sha(
-            effects,
-            repo,
-            prerun_fingerprint.head_sha,
-            "tools/dev_wave_wait.py",
-            "acceptance-launcher",
-            diagnostic_reason="launcher-waiter-blob",
-        )
         binding = _launcher_binding(
             effects,
             repo,
             claim_context.main_sha,
             prerun_fingerprint.head_sha,
         )
+        waiter_blob_sha = binding.waiter_blob_sha
         receipt_temp = _prepare_acceptance_receipt(
             effects=effects,
             receipt_file=receipt_file,
@@ -3976,6 +3973,15 @@ def _run_acceptance_attempt(
         )
         if log_sha256 != launcher_log_sha256:
             raise _StageFailure("acceptance-launcher")
+        if waiter_blob_sha is None:
+            waiter_blob_sha = _blob_sha(
+                effects,
+                repo,
+                prerun_fingerprint.head_sha,
+                "tools/dev_wave_wait.py",
+                "acceptance-receipt",
+                diagnostic_reason="receipt-waiter-blob",
+            )
         assert claim_context is not None and claim_context.holder is not None
         red_check: _RedCheckResult | None = None
         verdict = "child-green"
@@ -3999,6 +4005,11 @@ def _run_acceptance_attempt(
                     postrun_fingerprint,
                     effective_scheduler,
                     red_check,
+                    waiter_blob_sha=(
+                        waiter_blob_sha
+                        if binding.waiter_blob_sha is None
+                        else None
+                    ),
                 )
             )
             launcher_result = launcher_session.wait()
@@ -4303,6 +4314,11 @@ def run_acceptance(
     # preflight の所要で attempt ごとの待ち上限へ作り直されないよう、
     # invocation 入口で共有 deadline を確定する。
     deadline.start(effects)
+    if not owned_paths:
+        print(
+            "acceptance: --owned-path 未指定のため所有実装面 overlap 判定を省略します",
+            file=sys.stderr,
+        )
     last = _Outcome(RC_FAIL_CLOSED, "internal")
     for attempt_no in range(1, _MAX_ACCEPTANCE_ATTEMPTS + 1):
         attempt = _run_acceptance_attempt(

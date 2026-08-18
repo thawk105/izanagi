@@ -913,7 +913,43 @@ def test_land_accepts_effective_scheduler(scheduler: str) -> None:
         assert (result.rc, result.status) == (LAND.RC_OK, "landed"), result
 
 
+def _assert_standard_v5_positive_control() -> None:
+    with _repo() as repo:
+        wave = repo.waves["one"]
+        tip = repo.commit(wave, "wave.txt", "wave\n")
+        result = _land(repo.request(wave, tip=tip))
+        assert (result.rc, result.status) == (LAND.RC_OK, "landed"), result
+
+
+def _assert_tip_launcher_positive_control() -> None:
+    with _repo() as repo:
+        wave = repo.waves["one"]
+        tip = repo.commit(
+            wave,
+            "tools/acceptance_launcher.py",
+            "raise SystemExit(9)\n",
+        )
+        result = _land(repo.request(wave, tip=tip))
+        assert (result.rc, result.status) == (LAND.RC_OK, "landed"), result
+
+
+def _assert_bootstrap_positive_control() -> None:
+    with _repo(waves=()) as repo:
+        _git(repo.main, "rm", "tools/acceptance_launcher.py")
+        _git(repo.main, "commit", "-qm", "remove launcher")
+        repo.base = _git(repo.main, "rev-parse", "HEAD")
+        wave = repo.add_wave("codex", "one")
+        tip = repo.commit(
+            wave,
+            "tools/acceptance_launcher.py",
+            "raise SystemExit(0)\n",
+        )
+        result = _land(repo.request(wave, base=repo.base, tip=tip))
+        assert (result.rc, result.status) == (LAND.RC_OK, "landed"), result
+
+
 def test_m4_runner_executed_digest_mismatch_is_rejected() -> None:
+    _assert_standard_v5_positive_control()
     with _repo() as repo:
         wave = repo.waves["one"]
         tip = repo.commit(wave, "wave.txt", "wave\n")
@@ -933,6 +969,7 @@ def test_m4_runner_executed_digest_mismatch_is_rejected() -> None:
 
 
 def test_m5_waiter_executed_digest_mismatch_is_rejected() -> None:
+    _assert_standard_v5_positive_control()
     with _repo() as repo:
         wave = repo.waves["one"]
         tip = repo.commit(wave, "wave.txt", "wave\n")
@@ -952,6 +989,7 @@ def test_m5_waiter_executed_digest_mismatch_is_rejected() -> None:
 
 
 def test_m6_trusted_launcher_digest_is_selected_from_tested_main() -> None:
+    _assert_tip_launcher_positive_control()
     with _repo() as repo:
         wave = repo.waves["one"]
         tip = repo.commit(
@@ -1000,6 +1038,7 @@ def test_m6_trusted_launcher_digest_is_selected_from_tested_main() -> None:
 
 
 def test_m7_bootstrap_is_rejected_when_tested_main_has_launcher() -> None:
+    _assert_tip_launcher_positive_control()
     with _repo() as repo:
         wave = repo.waves["one"]
         tip = repo.commit(
@@ -1033,23 +1072,24 @@ def test_m7_bootstrap_is_rejected_when_tested_main_has_launcher() -> None:
         )
         _write_receipt(request.acceptance_receipt, payload)
 
-        with _patched_land_attr(
-            "_ACCEPTANCE_BOOTSTRAP_MAIN",
-            request.tested_main_sha,
-        ):
-            assert request.tested_main_sha == LAND._ACCEPTANCE_BOOTSTRAP_MAIN
-            result = _land(request)
+        result = _land(request)
 
         assert result.rc == LAND.RC_AUDIT, result
         assert result.reason == "acceptance-receipt-rejected"
 
 
-def test_m10_bootstrap_rejects_unpinned_main_without_launcher() -> None:
+def test_m10_bootstrap_rejects_locked_main_with_launcher() -> None:
+    _assert_bootstrap_positive_control()
     with _repo() as repo:
         wave = repo.waves["one"]
         _git(repo.main, "rm", "tools/acceptance_launcher.py")
         _git(repo.main, "commit", "-qm", "remove launcher")
         repo.base = _git(repo.main, "rev-parse", "HEAD")
+        (repo.main / "tools/acceptance_launcher.py").write_text(
+            "raise SystemExit(0)\n", encoding="utf-8"
+        )
+        _git(repo.main, "add", "tools/acceptance_launcher.py")
+        _git(repo.main, "commit", "-qm", "restore trusted launcher")
         _git(wave, "merge", "--ff-only", "main")
         tip = repo.commit(
             wave,
@@ -1060,11 +1100,17 @@ def test_m10_bootstrap_rejects_unpinned_main_without_launcher() -> None:
         payload = _receipt_payload(request.acceptance_receipt)
         _assert_v5_binding_baseline(request, payload)
         assert payload["launcher_source_revision"] == "tested-tip-bootstrap"
-        assert request.tested_main_sha != LAND._ACCEPTANCE_BOOTSTRAP_MAIN
         assert not _git(
             wave,
             "ls-tree",
             request.tested_main_sha,
+            "--",
+            "tools/acceptance_launcher.py",
+        )
+        assert _git(
+            repo.main,
+            "ls-tree",
+            "HEAD",
             "--",
             "tools/acceptance_launcher.py",
         )
@@ -1077,6 +1123,7 @@ def test_m10_bootstrap_rejects_unpinned_main_without_launcher() -> None:
 
 
 def test_m11_otherwise_valid_complete_v4_receipt_is_rejected() -> None:
+    _assert_standard_v5_positive_control()
     with _repo() as repo:
         wave = repo.waves["one"]
         tip = repo.commit(wave, "wave.txt", "wave\n")
@@ -1646,6 +1693,14 @@ def test_already_landed_still_requires_acceptance_receipt() -> None:
 def test_real_waiter_receipt_is_consumed_by_real_land_end_to_end() -> None:
     with _repo() as repo:
         wave = repo.waves["one"]
+        shutil.copy2(
+            ROOT / "tools" / "acceptance_launcher.py",
+            repo.main / "tools",
+        )
+        _git(repo.main, "add", "tools/acceptance_launcher.py")
+        _git(repo.main, "commit", "-qm", "install real acceptance launcher")
+        repo.base = _git(repo.main, "rev-parse", "HEAD")
+        _git(wave, "merge", "--ff-only", "main")
         shutil.copy2(ROOT / "tools" / "dev_wave_wait.py", wave / "tools")
         shutil.copy2(ROOT / "tools" / "wave_land_window.py", wave / "tools")
         (wave / "tools" / "run_tests.py").write_text(
@@ -1746,11 +1801,16 @@ def test_real_non_attributable_waiter_receipt_passes_real_land_end_to_end() -> N
             ROOT / "tools" / "check_acceptance_reds.py",
             repo.main / "tools",
         )
+        shutil.copy2(
+            ROOT / "tools" / "acceptance_launcher.py",
+            repo.main / "tools",
+        )
         _git(
             repo.main,
             "add",
             "tools/run_tests.py",
             "tools/check_acceptance_reds.py",
+            "tools/acceptance_launcher.py",
         )
         _git(repo.main, "commit", "-qm", "install synthetic known red checker")
         repo.base = _git(repo.main, "rev-parse", "HEAD")
