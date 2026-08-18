@@ -259,6 +259,25 @@ def test_external_symlink_or_banned_namespace_is_rejected_before_create(
     assert not (git_repo / "output").exists()
 
 
+def test_external_banned_namespace_is_rejected_with_existing_intermediates(
+    git_repo: Path, monkeypatch: pytest.MonkeyPatch,
+):
+    intermediate = git_repo / "output" / "campaigns"
+    intermediate.mkdir(parents=True)
+    series_base = intermediate / "task-runs"
+    monkeypatch.setattr(
+        generation,
+        "series_base_for_repo",
+        lambda _repo: series_base,
+    )
+
+    run, diagnostic = start_automatic_test_run(git_repo)
+
+    assert run is None
+    assert diagnostic == "recording-unavailable:filesystem"
+    assert not series_base.exists()
+
+
 def test_external_root_toctou_swap_creates_no_generation_bytes(
     git_repo: Path, monkeypatch: pytest.MonkeyPatch, tmp_path: Path,
 ):
