@@ -1404,6 +1404,7 @@ def test_s8c_acceptance_no_build_verifier_leaf_is_independently_recomputed(
         ]
 
 
+@pytest.mark.usefixtures("ratified_enforcement_source")
 def test_s8c_acceptance_registered_build_reports_are_unreachable_until_workload_definition(
     tmp_path: Path,
 ) -> None:
@@ -1487,6 +1488,7 @@ def test_s8c_acceptance_failure_cell_pins_layer3_chain_absent_reason(
     ]
 
 
+@pytest.mark.usefixtures("ratified_enforcement_source")
 def test_s8c_acceptance_rejects_campaign_from_different_output_root(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
 ) -> None:
