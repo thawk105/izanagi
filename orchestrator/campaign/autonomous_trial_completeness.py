@@ -29,6 +29,8 @@ from . import campaign_lock
 from . import layer3_report as _layer3_report
 from . import s8b_holdout_freeze
 from . import s8b_ratified_freeze
+from . import trigger_gate_binding
+from . import wal
 from .artifact_admission import (
     ArtifactAdmissionError,
     CampaignReadPurpose,
@@ -161,6 +163,21 @@ _COMMON_PAYLOAD_KEYS = frozenset({
     "generation", "workload_descriptor", "descriptor_binding",
     "attempt_policy", "stop_policy",
 })
+S8C_CROSS_BINDING_SCHEMA_VERSION = "p3-8c-cross-binding-receipt/v1"
+S8C_CROSS_BINDING_FIELDS = (
+    "input_payload_sha256",
+    "raw_response_path",
+    "raw_response_sha256",
+    "provider_payload_sha256",
+    "provider_envelope_sha256",
+    "proposal_path",
+    "proposal_sha256",
+    "build_records",
+    "bench_records",
+    "artifact_refs",
+    "source_refs",
+    "admission_decision",
+)
 
 
 def is_positive_cell_admission_decision(decision: Any) -> bool:
@@ -232,6 +249,13 @@ def _is_exact_campaignless_failure_fallback_cell(
         )
         and cell["pending_critic_disposition"]["count"] == 0
     )
+
+
+def is_exact_campaignless_failure_fallback_cell(
+    cell: Mapping[str, Any],
+) -> bool:
+    """Expose the producer's campaignless failure-cell projection to consumers."""
+    return _is_exact_campaignless_failure_fallback_cell(cell)
 
 
 def cell_admission_failure_projection(
@@ -449,7 +473,10 @@ def _bound_regular_bytes(
     if type(value) is not str or not value:
         _fail(gate, f"{label} is not a non-empty path string")
     root = Path(run_root).resolve(strict=True)
-    lexical = Path(os.path.abspath(value))
+    declared = Path(value)
+    lexical = Path(os.path.abspath(
+        os.fspath(declared if declared.is_absolute() else root / declared)
+    ))
     try:
         relative = lexical.relative_to(root)
     except ValueError:
@@ -474,6 +501,75 @@ def _bound_regular_bytes(
         raise AutonomousTrialCompletenessError(
             f"[{gate}] {label} cannot be read as a run-root regular file"
         ) from exc
+
+
+def read_and_verify_bytes(
+    value: Any,
+    *,
+    root: Path,
+    expected_sha256: Any,
+    gate: str,
+    label: str,
+) -> tuple[Path, bytes]:
+    """Read one declared byte stream beneath an explicit authority root.
+
+    This helper intentionally does not delegate relative-path resolution to
+    ``_bound_regular_bytes``.  The latter is retained for older producer
+    checks, while this consumer must bind a relative reference to the root
+    supplied by its caller rather than to the process working directory.
+    """
+    if type(value) is not str or not value:
+        _fail(gate, f"{label} is not a non-empty path string")
+    if type(expected_sha256) is not str or _SHA256_RE.fullmatch(expected_sha256) is None:
+        _fail(gate, f"{label} expected_sha256 is not a lowercase SHA-256")
+    try:
+        authority_root = Path(root).resolve(strict=True)
+        if not authority_root.is_dir():
+            _fail(gate, f"{label} authority root is not a directory")
+    except AutonomousTrialCompletenessError:
+        raise
+    except (OSError, ValueError) as exc:
+        raise AutonomousTrialCompletenessError(
+            f"[{gate}] {label} authority root cannot be resolved"
+        ) from exc
+
+    declared = Path(value)
+    lexical = Path(os.path.abspath(
+        os.fspath(declared if declared.is_absolute() else authority_root / declared)
+    ))
+    try:
+        relative = lexical.relative_to(authority_root)
+    except ValueError:
+        _fail(gate, f"{label} is outside the authority root")
+    if not relative.parts:
+        _fail(gate, f"{label} is not a regular file")
+
+    cursor = authority_root
+    try:
+        for component in relative.parts:
+            cursor = cursor / component
+            metadata = cursor.lstat()
+            if stat.S_ISLNK(metadata.st_mode):
+                _fail(gate, f"{label} traverses a symlink")
+            if component != relative.parts[-1] and not stat.S_ISDIR(metadata.st_mode):
+                _fail(gate, f"{label} traverses a non-directory component")
+        if not stat.S_ISREG(metadata.st_mode):
+            _fail(gate, f"{label} is not a regular file")
+        resolved = lexical.resolve(strict=True)
+        if resolved != lexical:
+            _fail(gate, f"{label} traverses a symlink")
+        resolved.relative_to(authority_root)
+        raw = resolved.read_bytes()
+    except AutonomousTrialCompletenessError:
+        raise
+    except (OSError, ValueError) as exc:
+        raise AutonomousTrialCompletenessError(
+            f"[{gate}] {label} cannot be read as an authority-root regular file"
+        ) from exc
+    actual_sha256 = hashlib.sha256(raw).hexdigest()
+    if actual_sha256 != expected_sha256:
+        _fail(gate, f"{label} bytes differ from expected_sha256")
+    return resolved, raw
 
 
 def _canonical_descriptor_digest(
@@ -846,6 +942,12 @@ def _check_arm_digest_chain(
         return
     cell = matching_cells[0]
     cell_index = cells.index(cell)
+    if is_exact_cell_admission_failure_decision(
+        cell.get("admission_decision")
+    ):
+        if not is_exact_campaignless_failure_fallback_cell(cell):
+            _fail("arm-digest-chain", "cell admission failure projection is not exact")
+        return
     workload_flags = _mapping(
         cell.get("workload_flags"), gate="arm-digest-chain",
         label=f"cells[{cell_index}].workload_flags",
@@ -2731,6 +2833,727 @@ def _canonical_bytes(value: Any) -> bytes:
         ) from exc
 
 
+def _cross_binding_wal_dict(record: Any) -> dict[str, Any]:
+    if not isinstance(record, wal.WalRecord):
+        _fail("cross-binding-wal", "WAL reader returned a non-record value")
+    return {
+        "variant": record.variant,
+        "stage": record.stage,
+        "env_tag": record.env_tag,
+        "ts": record.ts,
+        "payload": dict(record.payload),
+    }
+
+
+def _cross_binding_verified_wal_records(
+    raw: bytes,
+) -> tuple[list[wal.WalRecord], bool]:
+    """Parse WAL records from the bytes already verified by the caller.
+
+    The cross-binding consumer must not validate one WAL byte stream and then
+    derive its projection from a second filesystem read.  This parser mirrors
+    the checked WAL reader's framing contract while keeping the verified byte
+    snapshot as the sole source of records.
+    """
+    if not isinstance(raw, bytes):
+        _fail("cross-binding-wal", "verified WAL bytes are not bytes")
+    if not raw:
+        return [], False
+    frames = raw.split(b"\n")
+    truncated = not raw.endswith(b"\n")
+    if truncated:
+        frames = frames[:-1]
+    else:
+        frames = frames[:-1]
+    records: list[wal.WalRecord] = []
+    for line_number, frame in enumerate(frames, 1):
+        try:
+            records.append(wal.parse_line(frame.decode("utf-8")))
+        except (UnicodeDecodeError, json.JSONDecodeError, wal.WalLineError) as exc:
+            raise AutonomousTrialCompletenessError(
+                f"[cross-binding-wal] verified WAL line {line_number} is invalid"
+            ) from exc
+    return records, truncated
+
+
+def _cross_binding_layer3_wal_records(
+    records: Sequence[Mapping[str, Any]],
+) -> list[Mapping[str, Any]]:
+    """Apply Layer 3's WAL normalization to an already verified projection."""
+    return [
+        record for record in records
+        if record.get("stage") != trigger_gate_binding.WAL_RECORD_STAGE
+    ]
+
+
+def _cross_binding_relative_path(path: Path, root: Path, *, label: str) -> str:
+    try:
+        return path.resolve(strict=True).relative_to(root.resolve(strict=True)).as_posix()
+    except (OSError, ValueError) as exc:
+        raise AutonomousTrialCompletenessError(
+            f"[cross-binding] {label} is outside its authority root"
+        ) from exc
+
+
+def _cross_binding_regular_path(path: Path, *, label: str) -> None:
+    try:
+        metadata = path.lstat()
+    except OSError as exc:
+        raise AutonomousTrialCompletenessError(
+            f"[cross-binding] {label} cannot be stated"
+        ) from exc
+    if stat.S_ISLNK(metadata.st_mode) or not stat.S_ISREG(metadata.st_mode):
+        _fail("cross-binding", f"{label} is not a regular non-symlink file")
+
+
+def _cross_binding_campaign_files(
+    campaign_root: Path, *, persisted_path: Path,
+) -> set[str]:
+    files: set[str] = set()
+    try:
+        candidates = campaign_root.rglob("*")
+        for candidate in candidates:
+            if candidate.is_symlink():
+                _fail("cross-binding-artifacts", "campaign artifact tree traverses a symlink")
+            if candidate.is_file():
+                relative = candidate.relative_to(campaign_root).as_posix()
+                if candidate.resolve(strict=True) != persisted_path.resolve(strict=True):
+                    files.add(relative)
+    except AutonomousTrialCompletenessError:
+        raise
+    except (OSError, ValueError) as exc:
+        raise AutonomousTrialCompletenessError(
+            "[cross-binding-artifacts] campaign artifact tree cannot be scanned"
+        ) from exc
+    return files
+
+
+def _cross_binding_artifact_refs(
+    persisted: Mapping[str, Any], *, campaign_root: Path, persisted_path: Path,
+) -> tuple[list[dict[str, str]], dict[str, bytes]]:
+    raw_refs = _list(
+        persisted.get("artifact_refs"), gate="cross-binding-artifacts",
+        label="layer3_report.artifact_refs",
+    )
+    refs: list[dict[str, str]] = []
+    verified_bytes: dict[str, bytes] = {}
+    declared_refs: list[tuple[int, str, str]] = []
+    declared_paths: set[str] = set()
+    seen: set[str] = set()
+    for index, raw_ref in enumerate(raw_refs):
+        ref = _mapping(
+            raw_ref, gate="cross-binding-artifacts",
+            label=f"layer3_report.artifact_refs[{index}]",
+        )
+        if set(ref) != {"path", "sha256"}:
+            _fail(
+                "cross-binding-artifacts",
+                f"artifact_refs[{index}] exact keys differ",
+            )
+        path_value = ref.get("path")
+        if type(path_value) is not str or not path_value:
+            _fail("cross-binding-artifacts", "artifact ref path is invalid")
+        path = Path(path_value)
+        if (
+            path.is_absolute()
+            or path.as_posix() != path_value
+            or any(part in {"", ".", ".."} for part in path.parts)
+        ):
+            _fail("cross-binding-artifacts", "artifact ref path is not canonical")
+        expected = ref.get("sha256")
+        if type(expected) is not str or _SHA256_RE.fullmatch(expected) is None:
+            _fail("cross-binding-artifacts", "artifact ref sha256 is invalid")
+        declared_paths.add(path_value)
+        if path_value in seen:
+            _fail("cross-binding-artifacts", "artifact_refs contain a duplicate path")
+        seen.add(path_value)
+        declared_refs.append((index, path_value, expected))
+    if declared_paths != _cross_binding_campaign_files(
+        campaign_root, persisted_path=persisted_path,
+    ):
+        _fail(
+            "cross-binding-artifacts",
+            "artifact_refs do not enumerate exactly the campaign artifact files",
+        )
+    for index, path_value, expected in declared_refs:
+        resolved, raw = read_and_verify_bytes(
+            path_value,
+            root=campaign_root,
+            expected_sha256=expected,
+            gate="cross-binding-artifacts",
+            label=f"artifact_refs[{index}]",
+        )
+        relative = _cross_binding_relative_path(
+            resolved, campaign_root, label=f"artifact_refs[{index}]",
+        )
+        if resolved == persisted_path.resolve(strict=True):
+            _fail("cross-binding-artifacts", "artifact_refs must not self-reference layer3 report")
+        if relative != path_value:
+            _fail("cross-binding-artifacts", "artifact ref path changed while being read")
+        verified_bytes[relative] = raw
+        refs.append({"path": relative, "sha256": expected})
+    return refs, verified_bytes
+
+
+def _cross_binding_whiteboard(
+    campaign_root: Path, *, artifact_paths: set[str],
+    verified_bytes: Mapping[str, bytes],
+) -> list[Mapping[str, Any]]:
+    state_path = campaign_root / "loop_state.json"
+    if state_path.exists() or state_path.is_symlink():
+        if "loop_state.json" not in artifact_paths:
+            _fail("cross-binding-source", "loop_state.json is absent from artifact_refs")
+        _cross_binding_regular_path(state_path, label="loop_state.json")
+        state_raw = verified_bytes.get("loop_state.json")
+        if state_raw is None:
+            _fail("cross-binding-source", "loop_state.json bytes were not verified")
+        state = _mapping(
+            _decode_json(state_raw, label="loop_state.json"),
+            gate="cross-binding-source", label="loop_state.json",
+        )
+        whiteboard = _list(
+            state.get("whiteboard"), gate="cross-binding-source",
+            label="loop_state.whiteboard",
+        )
+        return [
+            _mapping(
+                item, gate="cross-binding-source",
+                label="loop_state.whiteboard item",
+            )
+            for item in whiteboard
+        ]
+    return []
+
+
+def _cross_binding_role_events(
+    events: Sequence[Mapping[str, Any]],
+) -> list[Mapping[str, Any]]:
+    role_events = [
+        _mapping(event, gate="cross-binding-role", label=f"events[{index}]")
+        for index, event in enumerate(events)
+        if isinstance(event, Mapping) and event.get("event") == "role-attempt"
+    ]
+    if not role_events:
+        _fail("cross-binding-role", "build report has no role-attempt events")
+    for index, event in enumerate(role_events):
+        invocation_id = event.get("invocation_id")
+        if type(invocation_id) is not str or not invocation_id:
+            _fail("cross-binding-role", f"role event {index} invocation_id is invalid")
+    return role_events
+
+
+def _cross_binding_proposals(
+    report: Mapping[str, Any], *, run_root: Path,
+) -> tuple[list[str], list[str]]:
+    paths: list[str] = []
+    digests: list[str] = []
+    for cell_index, raw_cell in enumerate(
+        _list(report.get("cells"), gate="cross-binding-proposal", label="report.cells")
+    ):
+        cell = _mapping(
+            raw_cell, gate="cross-binding-proposal", label=f"cells[{cell_index}]",
+        )
+        generations = _list(
+            cell.get("generations"), gate="cross-binding-proposal",
+            label=f"cells[{cell_index}].generations",
+        )
+        for generation_index, raw_generation in enumerate(generations):
+            generation = _mapping(
+                raw_generation, gate="cross-binding-proposal",
+                label=f"cells[{cell_index}].generations[{generation_index}]",
+            )
+            if "proposal" not in generation:
+                continue
+            proposal = _mapping(
+                generation.get("proposal"), gate="cross-binding-proposal",
+                label="generation.proposal",
+            )
+            path_value = proposal.get("path")
+            expected = proposal.get("sha256")
+            resolved, _raw = read_and_verify_bytes(
+                path_value,
+                root=run_root,
+                expected_sha256=expected,
+                gate="cross-binding-proposal",
+                label="generation.proposal",
+            )
+            proposal_root = (run_root / "proposals").resolve(strict=True)
+            if resolved.parent != proposal_root:
+                _fail("cross-binding-proposal", "proposal path is outside run_root/proposals")
+            paths.append(_cross_binding_relative_path(
+                resolved, run_root, label="proposal path",
+            ))
+            digests.append(expected)
+    if not paths:
+        _fail("cross-binding-proposal", "build report has no proposal bytes")
+    return paths, digests
+
+
+def _cross_binding_supervisor_records(
+    report: Mapping[str, Any], *, bench_records: Sequence[Mapping[str, Any]],
+) -> None:
+    by_variant: dict[str, list[Mapping[str, Any]]] = {}
+    for record in bench_records:
+        by_variant.setdefault(str(record.get("variant")), []).append(record)
+    seen: set[str] = set()
+    for raw_cell in _list(
+        report.get("cells"), gate="cross-binding-bench", label="report.cells",
+    ):
+        cell = _mapping(raw_cell, gate="cross-binding-bench", label="cell")
+        for raw_generation in _list(
+            cell.get("generations"), gate="cross-binding-bench",
+            label="cell.generations",
+        ):
+            generation = _mapping(
+                raw_generation, gate="cross-binding-bench", label="generation",
+            )
+            harness = _mapping(
+                generation.get("harness"), gate="cross-binding-bench",
+                label="generation.harness",
+            )
+            variant = harness.get("variant")
+            if variant is None:
+                continue
+            if type(variant) is not str or not variant:
+                _fail("cross-binding-bench", "harness.variant is invalid")
+            if variant in seen:
+                _fail("cross-binding-bench", "harness variants are not unique")
+            seen.add(variant)
+            matches = by_variant.get(variant, [])
+            if len(matches) != 1:
+                _fail("cross-binding-bench", "harness variant does not bind one bench record")
+            bench = matches[0]
+            harness_records = _mapping(
+                harness.get("records"), gate="cross-binding-bench",
+                label="generation.harness.records",
+            )
+            if dict(harness_records.get("bench_done", {})) != dict(
+                bench.get("payload", {})
+            ):
+                _fail("cross-binding-bench", "harness bench_done payload differs from WAL")
+            bench_payload = _mapping(
+                bench.get("payload"), gate="cross-binding-bench",
+                label="WAL bench_done.payload",
+            )
+            if "bench_wall_s" not in bench_payload:
+                _fail(
+                    "cross-binding-bench",
+                    "WAL bench_done.payload is missing bench_wall_s",
+                )
+            expected_wall = bench_payload["bench_wall_s"]
+            if (
+                isinstance(expected_wall, bool)
+                or not isinstance(expected_wall, (int, float))
+                or not math.isfinite(float(expected_wall))
+                or float(expected_wall) < 0.0
+            ):
+                _fail("cross-binding-bench", "WAL bench_wall_s is invalid")
+            if generation.get("bench_wall_seconds") != expected_wall:
+                _fail("cross-binding-bench", "generation bench_wall_seconds differs from WAL")
+    if seen != set(by_variant):
+        _fail("cross-binding-bench", "a WAL bench record has no supervisor harness")
+
+
+def _cross_binding_no_build_receipt(
+    report: Mapping[str, Any], events: Sequence[Mapping[str, Any]],
+) -> dict[str, Any]:
+    logical_ids: list[str] = []
+    for event in events:
+        if not isinstance(event, Mapping):
+            continue
+        if event.get("event") == "role-attempt":
+            invocation = event.get("invocation_id")
+            if isinstance(invocation, str):
+                logical_ids.append(invocation)
+    receipt: dict[str, Any] = {
+        "schema_version": S8C_CROSS_BINDING_SCHEMA_VERSION,
+        "trial_id": report.get("trial_id"),
+        "mode": "no-build",
+        "cells": len(report.get("cells", []))
+        if isinstance(report.get("cells"), list) else None,
+        "journal_role_attempt_ids": sorted(logical_ids),
+        "bindings": {},
+        "unbound_fields": list(S8C_CROSS_BINDING_FIELDS),
+    }
+    receipt["receipt_sha256"] = hashlib.sha256(
+        _canonical_bytes(receipt)
+    ).hexdigest()
+    return receipt
+
+
+def _cross_binding_failure_receipt(
+    report: Mapping[str, Any], events: Sequence[Mapping[str, Any]],
+) -> dict[str, Any]:
+    logical_ids = sorted(
+        event["invocation_id"]
+        for event in events
+        if isinstance(event, Mapping)
+        and event.get("event") == "role-attempt"
+        and isinstance(event.get("invocation_id"), str)
+    )
+    receipt: dict[str, Any] = {
+        "schema_version": S8C_CROSS_BINDING_SCHEMA_VERSION,
+        "trial_id": report.get("trial_id"),
+        "mode": "build-failure",
+        "cells": len(report.get("cells", [])),
+        "journal_role_attempt_ids": logical_ids,
+        "bindings": {},
+        "unbound_fields": list(S8C_CROSS_BINDING_FIELDS),
+    }
+    receipt["receipt_sha256"] = hashlib.sha256(
+        _canonical_bytes(receipt)
+    ).hexdigest()
+    return receipt
+
+
+def verify_s8c_cross_binding(
+    *,
+    report: Mapping[str, Any],
+    events: Sequence[Mapping[str, Any]],
+    run_root: Path,
+    output_root: Path | None = None,
+) -> dict[str, Any]:
+    """Re-read every S8C build binding and return one sealed projection."""
+    report = _mapping(report, gate="cross-binding", label="report")
+    do_build = report.get("do_build")
+    if type(do_build) is not bool:
+        _fail("cross-binding", "report.do_build is not a bool")
+    if do_build is False:
+        return _cross_binding_no_build_receipt(report, events)
+
+    run_root = Path(run_root).resolve(strict=True)
+    if not run_root.is_dir():
+        _fail("cross-binding", "run_root is not a directory")
+    cells = _list(report.get("cells"), gate="cross-binding", label="report.cells")
+    if not cells:
+        _fail("cross-binding", "build report must contain at least one cell")
+    campaign_roots: list[Path | None] = []
+    normalized_cells: list[Mapping[str, Any]] = []
+    for index, raw_cell in enumerate(cells):
+        cell = _mapping(raw_cell, gate="cross-binding", label=f"cells[{index}]")
+        if is_exact_campaignless_failure_fallback_cell(cell):
+            campaign_roots.append(None)
+            normalized_cells.append(cell)
+            continue
+        campaign_root_value = cell.get("campaign_root")
+        if type(campaign_root_value) is not str or not campaign_root_value:
+            _fail("cross-binding", f"cells[{index}].campaign_root is required")
+        declared_campaign_root = Path(campaign_root_value)
+        campaign_root = (
+            declared_campaign_root
+            if declared_campaign_root.is_absolute()
+            else run_root / declared_campaign_root
+        ).resolve()
+        if not campaign_root.is_dir():
+            _fail("cross-binding", f"cells[{index}].campaign_root is not a directory")
+        campaign_roots.append(campaign_root)
+        normalized_cells.append(cell)
+    materialized_roots = [root for root in campaign_roots if root is not None]
+    if not materialized_roots:
+        return _cross_binding_failure_receipt(report, events)
+    derived_output_root = materialized_roots[0].parent.parent
+    if any(root.parent.parent != derived_output_root for root in materialized_roots):
+        _fail("cross-binding", "build cells do not share one output root")
+    if output_root is not None:
+        supplied_output_root = Path(output_root).resolve(strict=True)
+        if supplied_output_root != derived_output_root:
+            _fail("cross-binding", "campaign output root differs from cell campaign roots")
+        derived_output_root = supplied_output_root
+
+    role_rows: list[dict[str, Any]] = []
+    for event in _cross_binding_role_events(events):
+        invocation_id = event["invocation_id"]
+        artifacts = _mapping(
+            event.get("provider_artifacts"), gate="cross-binding-provider",
+            label=f"role {invocation_id}.provider_artifacts",
+        )
+        if set(artifacts) != _PROVIDER_ARTIFACT_KEYS:
+            _fail("cross-binding-provider", "provider_artifacts exact keys differ")
+        raw_path, _raw = read_and_verify_bytes(
+            event.get("raw_response_path"),
+            root=run_root,
+            expected_sha256=event.get("raw_response_sha256"),
+            gate="cross-binding-raw",
+            label=f"role {invocation_id} raw response",
+        )
+        payload_path, payload_raw = read_and_verify_bytes(
+            artifacts["payload_path"],
+            root=run_root,
+            expected_sha256=event.get("provider_payload_sha256"),
+            gate="cross-binding-provider",
+            label=f"role {invocation_id} provider payload",
+        )
+        envelope_path, _envelope_raw = read_and_verify_bytes(
+            artifacts["envelope_path"],
+            root=run_root,
+            expected_sha256=event.get("provider_envelope_sha256"),
+            gate="cross-binding-provider",
+            label=f"role {invocation_id} provider envelope",
+        )
+        payload_sha256 = hashlib.sha256(payload_raw).hexdigest()
+        if event.get("input_payload_sha256") != payload_sha256:
+            _fail(
+                "cross-binding-provider",
+                "input_payload_sha256 differs from provider payload bytes",
+            )
+        role_rows.append({
+            "invocation_id": invocation_id,
+            "input_payload_sha256": event.get("input_payload_sha256"),
+            "raw_response_path": _cross_binding_relative_path(
+                raw_path, run_root, label="raw response",
+            ),
+            "raw_response_sha256": event.get("raw_response_sha256"),
+            "provider_payload_sha256": event.get("provider_payload_sha256"),
+            "provider_envelope_sha256": event.get("provider_envelope_sha256"),
+            "provider_payload_path": _cross_binding_relative_path(
+                payload_path, run_root, label="provider payload",
+            ),
+            "provider_envelope_path": _cross_binding_relative_path(
+                envelope_path, run_root, label="provider envelope",
+            ),
+        })
+    role_rows.sort(key=lambda item: item["invocation_id"])
+    role_bindings = {
+        field: [row[field] for row in role_rows]
+        for field in (
+            "input_payload_sha256",
+            "raw_response_path",
+            "raw_response_sha256",
+            "provider_payload_sha256",
+            "provider_envelope_sha256",
+        )
+    }
+    proposal_paths, proposal_digests = _cross_binding_proposals(
+        report, run_root=run_root,
+    )
+    build_records: list[dict[str, Any]] = []
+    bench_records: list[dict[str, Any]] = []
+    artifact_bindings: list[dict[str, Any]] = []
+    source_bindings: list[dict[str, Any]] = []
+    admission_bindings: list[dict[str, Any]] = []
+
+    for index, (cell, campaign_root) in enumerate(
+        zip(normalized_cells, campaign_roots, strict=True)
+    ):
+        if campaign_root is None:
+            admission_bindings.append({
+                "campaign_id": None,
+                "cell": dict(cell.get("admission_decision", {})),
+                "layer3": None,
+                "independent": None,
+            })
+            continue
+        campaign_id = cell.get("campaign_id")
+        if type(campaign_id) is not str or not campaign_id:
+            _fail("cross-binding", f"cells[{index}].campaign_id is invalid")
+        persisted_path = campaign_root / "reports" / "layer3_report.json"
+        if persisted_path.is_symlink():
+            _fail("cross-binding", "layer3 report is a symlink")
+        if not persisted_path.exists():
+            if not is_exact_cell_admission_failure_decision(
+                cell.get("admission_decision")
+            ):
+                _fail("cross-binding", "build cell has no persisted layer3 report")
+            admission_bindings.append({
+                "campaign_id": campaign_id,
+                "cell": dict(cell.get("admission_decision", {})),
+                "layer3": None,
+                "independent": None,
+            })
+            continue
+        _cross_binding_regular_path(
+            persisted_path, label=f"cells[{index}] layer3 report",
+        )
+        persisted_path, persisted_raw = _bound_regular_bytes(
+            "reports/layer3_report.json", run_root=campaign_root,
+            gate="cross-binding-layer3", label=f"cells[{index}] layer3 report",
+        )
+        persisted = _mapping(
+            _decode_json(persisted_raw, label=f"cells[{index}] layer3 report"),
+            gate="cross-binding-layer3",
+            label=f"cells[{index}] layer3 report",
+        )
+        refs, verified_artifact_bytes = _cross_binding_artifact_refs(
+            persisted, campaign_root=campaign_root, persisted_path=persisted_path,
+        )
+        artifact_paths = {ref["path"] for ref in refs}
+        whiteboard = _cross_binding_whiteboard(
+            campaign_root, artifact_paths=artifact_paths,
+            verified_bytes=verified_artifact_bytes,
+        )
+        cell_decision = _mapping(
+            cell.get("admission_decision"), gate="cross-binding-admission",
+            label=f"cells[{index}].admission_decision",
+        )
+        persisted_decision = _mapping(
+            persisted.get("admission_decision"), gate="cross-binding-admission",
+            label="layer3_report.admission_decision",
+        )
+        if (
+            dict(cell_decision) != dict(persisted_decision)
+        ):
+            _fail("cross-binding-admission", "cell/layer3/independent admission decisions differ")
+        _lock_path, _lock_raw = read_and_verify_bytes(
+            "campaign.lock", root=campaign_root,
+            expected_sha256=persisted_decision["campaign_lock_sha256"],
+            gate="cross-binding-admission", label="campaign.lock",
+        )
+        _wal_path, _wal_raw = read_and_verify_bytes(
+            "runs/wal.jsonl", root=campaign_root,
+            expected_sha256=persisted_decision["wal_sha256"],
+            gate="cross-binding-admission", label="campaign WAL",
+        )
+        try:
+            certified_view = require_admitted_campaign(
+                campaign_root,
+                purpose=CampaignReadPurpose.CERTIFIED_ACCEPTANCE,
+            )
+        except ArtifactAdmissionError as exc:
+            raise AutonomousTrialCompletenessError(
+                "[cross-binding-admission] independent campaign admission validation failed"
+            ) from exc
+        expected_decision = certified_view.decision.as_receipt()
+        if (
+            expected_decision.get("campaign_lock_sha256")
+            != hashlib.sha256(_lock_raw).hexdigest()
+            or expected_decision.get("wal_sha256")
+            != hashlib.sha256(_wal_raw).hexdigest()
+        ):
+            _fail(
+                "cross-binding-admission",
+                "admission reread bytes differ from verified campaign bytes",
+            )
+        if (
+            dict(cell_decision) != dict(expected_decision)
+            or dict(persisted_decision) != dict(expected_decision)
+        ):
+            _fail("cross-binding-admission", "cell/layer3/independent admission decisions differ")
+        records, truncated = _cross_binding_verified_wal_records(_wal_raw)
+        if truncated:
+            _fail("cross-binding-wal", "campaign WAL has a truncated tail")
+        if not records:
+            _fail("cross-binding-wal", "campaign WAL is empty")
+        raw_records = [_cross_binding_wal_dict(record) for record in records]
+        build_stages = frozenset({
+            "build_start",
+            "build_done",
+            "verify_done",
+            "commit",
+            "abort",
+        })
+        bench_stages = frozenset({"bench_done"})
+        build_side = [
+            record for record in raw_records if record["stage"] in build_stages
+        ]
+        bench_side = [
+            record for record in raw_records if record["stage"] in bench_stages
+        ]
+        normalized_records = _cross_binding_layer3_wal_records(raw_records)
+        if Counter(
+            canonical_record_ref("wal", record) for record in build_side + bench_side
+        ) != Counter(
+            canonical_record_ref("wal", record) for record in normalized_records
+        ):
+            _fail(
+                "cross-binding-wal",
+                "build/bench WAL projection does not cover all layer3 records",
+            )
+
+        persisted_primary: list[Mapping[str, Any]] = []
+        for row in _list(
+            persisted.get("variants"), gate="cross-binding-wal",
+            label="layer3_report.variants",
+        ):
+            variant_row = _mapping(row, gate="cross-binding-wal", label="variant row")
+            for event in _list(
+                variant_row.get("events"), gate="cross-binding-wal",
+                label="variant.events",
+            ):
+                persisted_primary.append(
+                    _mapping(event, gate="cross-binding-wal", label="variant event")
+                )
+        non_binding = _cross_binding_layer3_wal_records(raw_records)
+        if Counter(
+            canonical_record_ref("wal", record) for record in persisted_primary
+        ) != Counter(canonical_record_ref("wal", record) for record in non_binding):
+            _fail("cross-binding-wal", "layer3 variants do not cover the campaign WAL")
+        expected_runs = [
+            _layer3_report._view_row(record)
+            for record in sorted(
+                non_binding,
+                key=lambda item: (
+                    item["ts"], canonical_record_ref("wal", item),
+                ),
+            )
+            if record["stage"] == "bench_done"
+        ]
+        persisted_runs = _list(
+            persisted.get("runs"), gate="cross-binding-bench",
+            label="layer3_report.runs",
+        )
+        if _canonical_bytes(persisted_runs) != _canonical_bytes(expected_runs):
+            _fail("cross-binding-bench", "layer3 runs differ from WAL bench projection")
+        expected_source = Counter(
+            canonical_record_ref("wal", record) for record in non_binding
+        )
+        expected_source.update(canonical_record_ref("wb", item) for item in whiteboard)
+        persisted_source = _list(
+            persisted.get("source_refs"), gate="cross-binding-source",
+            label="layer3_report.source_refs",
+        )
+        if Counter(persisted_source) != expected_source:
+            _fail("cross-binding-source", "layer3 source_refs differ from WAL/loop-state refs")
+        _cross_binding_supervisor_records(
+            {"cells": [cell]}, bench_records=bench_side,
+        )
+        build_records.append({
+            "campaign_id": campaign_id,
+            "records": build_side,
+        })
+        bench_records.append({
+            "campaign_id": campaign_id,
+            "records": expected_runs,
+        })
+        artifact_bindings.append({
+            "campaign_id": campaign_id,
+            "refs": refs,
+        })
+        source_bindings.append({
+            "campaign_id": campaign_id,
+            "refs": sorted(persisted_source),
+        })
+        admission_bindings.append({
+            "campaign_id": campaign_id,
+            "cell": dict(cell_decision),
+            "layer3": dict(persisted_decision),
+            "independent": dict(expected_decision),
+        })
+
+    bindings: dict[str, Any] = {
+        **role_bindings,
+        "proposal_path": proposal_paths,
+        "proposal_sha256": proposal_digests,
+        "build_records": build_records,
+        "bench_records": bench_records,
+        "artifact_refs": artifact_bindings,
+        "source_refs": source_bindings,
+        "admission_decision": admission_bindings,
+    }
+    if set(bindings) != set(S8C_CROSS_BINDING_FIELDS):
+        _fail("cross-binding", "cross-binding field set is incomplete")
+    receipt: dict[str, Any] = {
+        "schema_version": S8C_CROSS_BINDING_SCHEMA_VERSION,
+        "trial_id": report.get("trial_id"),
+        "mode": "build",
+        "bindings": bindings,
+        "unbound_fields": [],
+    }
+    receipt["receipt_sha256"] = hashlib.sha256(
+        _canonical_bytes(receipt)
+    ).hexdigest()
+    return receipt
+
+
 def assert_legacy_workload_profile_source(
     *, source_record: Mapping[str, Any],
     producer_entries: Mapping[str, Mapping[str, Any]],
@@ -2977,14 +3800,17 @@ def assert_campaign_layer3_chain(
         ):
             _fail("campaign-chain", f"cells[{index}] failure disposition is not exact")
         workload = cell.get("workload")
-        if not isinstance(workload, str) or workload not in producer.WORKLOADS:
-            _fail("campaign-chain", f"cells[{index}].workload is not producer-supported")
+        if not isinstance(workload, str) or not workload:
+            _fail("campaign-chain", f"cells[{index}].workload is invalid")
+        failure_decision = is_exact_cell_admission_failure_decision(
+            cell.get("admission_decision")
+        )
         campaign_id = cell.get("campaign_id")
         campaign_root_value = cell.get("campaign_root")
         if campaign_id is None and campaign_root_value is None:
             if (
                 failure_decision
-                and _is_exact_campaignless_failure_fallback_cell(cell)
+                and is_exact_campaignless_failure_fallback_cell(cell)
             ):
                 continue
             if failure_decision:
@@ -2993,6 +3819,8 @@ def assert_campaign_layer3_chain(
                     f"cells[{index}] campaignless failure is not the exact producer fallback",
                 )
             _fail("campaign-chain", f"cells[{index}] has no campaign identity")
+        if workload not in producer.WORKLOADS:
+            _fail("campaign-chain", f"cells[{index}].workload is not producer-supported")
         if not isinstance(campaign_id, str) or not campaign_id or campaign_id in seen:
             _fail("campaign-chain", f"cells[{index}] campaign_id is invalid or duplicated")
         seen.add(campaign_id)
@@ -3121,22 +3949,49 @@ def verify_autonomous_trial_files(
     assert_autonomous_trial_execution_digest_chain(
         report=report, attempt_journal=Path(attempt_journal),
     )
+    _journal_bytes, events = _read_journal(Path(attempt_journal))
+    fatal_without_cells = (
+        report.get("do_build") is True
+        and isinstance(report.get("fatal_error"), Mapping)
+        and report.get("cells") == []
+    )
+    failure_without_campaign = (
+        report.get("do_build") is True
+        and isinstance(report.get("cells"), list)
+        and bool(report["cells"])
+        and all(
+            isinstance(cell, Mapping)
+            and is_exact_campaignless_failure_fallback_cell(cell)
+            for cell in report["cells"]
+        )
+    )
     if report.get("do_build") is True and campaign_output_root is None:
         # Completeness has already proved that fatal_error has one matching
-        # terminal journal event.  Only a zero-cell fatal outcome has no
-        # campaign root to verify.
-        fatal_without_cells = (
-            isinstance(report.get("fatal_error"), Mapping)
-            and report.get("cells") == []
-        )
-        if not fatal_without_cells:
+        # terminal journal event.  A campaignless admission-failure cell also
+        # has no campaign root to verify, but still goes through the chain gate.
+        if not fatal_without_cells and not failure_without_campaign:
             _fail(
                 "campaign-chain",
                 "build trial verification requires campaign_output_root",
             )
+    if not fatal_without_cells:
+        verify_s8c_cross_binding(
+            report=report,
+            events=events,
+            run_root=Path(attempt_journal).resolve().parent,
+            output_root=(
+                Path(campaign_output_root)
+                if campaign_output_root is not None else None
+            ),
+        )
     if campaign_output_root is not None:
         assert_campaign_layer3_chain(
             report=report, output_root=Path(campaign_output_root),
+        )
+    elif failure_without_campaign:
+        assert_campaign_layer3_chain(
+            report=report,
+            output_root=Path(attempt_journal).resolve().parent / "_no_campaign_output",
         )
 
 

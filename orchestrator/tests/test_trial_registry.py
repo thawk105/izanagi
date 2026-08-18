@@ -18,13 +18,23 @@ import pytest
 from orchestrator.campaign import p3_autonomous_workload_trial as producer
 from orchestrator.campaign import autonomous_trial_completeness as completeness
 from orchestrator.campaign import campaign_lock
+from orchestrator.campaign import layer3_report as L3
+from orchestrator.campaign import pipeline
 from orchestrator.campaign import reflux_formal_consumer as formal
 from orchestrator.campaign import reflux_origin_binding as origin_binding
 from orchestrator.campaign import s8b_descriptor
 from orchestrator.campaign import s8c_arm_inputs
+from orchestrator.campaign import trigger_gate_binding as TGB
 from orchestrator.campaign import trial_registry as R
+from orchestrator.campaign.build_admission import derive_build_admission
+from orchestrator.campaign.source_digest import (
+    EMPTY_TRACKED_DIFF_SHA256,
+    SourceEvidence,
+)
 from orchestrator.tests.campaign_lock_test_support import build_v2_lock
 from orchestrator.tests import reflux_origin_fixture_builder as origin_fixtures
+from orchestrator.campaign.layout import CampaignLayout
+from orchestrator.campaign.model import Genome
 
 
 _SOURCE_REPO = Path(__file__).resolve().parents[2]
@@ -36,6 +46,8 @@ _GENERATION_DRIVER = {
 _GATING_SPEC_SHA256 = hashlib.sha256(
     producer.GATING_SPEC.encode("utf-8")
 ).hexdigest()
+_REGISTERED_FIXTURE_GENOME = Genome("fixture", {})
+_REGISTERED_FIXTURE_VARIANT = pipeline.variant_id(_REGISTERED_FIXTURE_GENOME)
 
 
 def _run(repo: Path, *args: str) -> subprocess.CompletedProcess[str]:
@@ -793,6 +805,248 @@ def _complete_report(
     return _persist(run, events, report)
 
 
+def _build_registered_campaign(
+    *, output_root: Path, trial: R.TrialSpec,
+) -> tuple[Path, dict]:
+    workload = R.HOLDOUT_BINDINGS[trial.holdout]["workload"]
+    entry = producer.resolve_workload_entry(workload)
+    descriptor = _fixture_execution_descriptor(trial)
+    arm_execution = _fixture_arm_execution(trial)
+    descriptor_record = _fixture_descriptor_binding(descriptor, arm_execution)
+    context = producer.build_run_context(
+        generator_id=producer.GeneratorId.S8A_TRIGGER_SWEEP,
+    )
+    contract = producer.env_contract.GENERATIONS["linux-baremetal"][0].contract
+    config = producer._campaign_for(
+        workload=workload,
+        entry=entry,
+        descriptor=descriptor,
+        descriptor_record=descriptor_record,
+        trial_id=trial.trial_id,
+        generations=trial.generations,
+        contract=contract,
+        build_context=context,
+        arm_binding_digest_sha256=arm_execution["arm_binding_digest_sha256"],
+    )
+    campaign_id = str(producer.ident.campaign_id(config))
+    assert campaign_id == trial.campaign_id
+    campaign = output_root / "campaigns" / campaign_id
+    layout = CampaignLayout(root=str(campaign)).ensure()
+    assert producer.ident.ensure_campaign_identity(
+        config, layout, admission_policy=context.policy,
+    )
+    state_path = campaign / "loop_state.json"
+    state_path.write_text(json.dumps({"whiteboard": []}), encoding="utf-8")
+    genome = _REGISTERED_FIXTURE_GENOME.canonical()
+    variant = _REGISTERED_FIXTURE_VARIANT
+    evidence = SourceEvidence(
+        schema_version="source-evidence/v1",
+        source_root=str(output_root.resolve()),
+        ccbench_commit=completeness._CURRENT_CCBENCH_PIN,
+        genome_sha256=hashlib.sha256(genome.encode("utf-8")).hexdigest(),
+        src_token="stock",
+        source_bytes_sha256="a" * 64,
+        tracked_clean=True,
+        tracked_diff_sha256=EMPTY_TRACKED_DIFF_SHA256,
+        tracked_paths=(),
+    )
+    admission = derive_build_admission(context, evidence).as_wal_receipt()
+    binding = TGB.TriggerGateBinding(
+        mask=0,
+        predicate_sha256=TGB.expected_predicate_sha256(0),
+        nonce="1" * 64,
+        source=TGB.SourceBinding(
+            src_token=evidence.src_token,
+            source_bytes_sha256=evidence.source_bytes_sha256,
+        ),
+    )
+    binding_commitment = TGB.commitment(binding)
+    attempt_id = "attempt-1"
+    terminal = {
+        "build_attempt_id": attempt_id,
+        "build_admission_receipt_sha256": admission["receipt_sha256"],
+    }
+    records = [
+        {
+            "ts": 0.5,
+            "stage": TGB.WAL_RECORD_STAGE,
+            "variant": variant,
+            "env_tag": contract.env_tag,
+            "payload": {
+                "build_attempt_id": attempt_id,
+                "trigger_gate_binding": TGB.to_record(binding),
+            },
+        },
+        {
+            "ts": 1.0,
+            "stage": "build_start",
+            "variant": variant,
+            "env_tag": contract.env_tag,
+            "payload": {
+                "build_attempt_id": attempt_id,
+                "genome": genome,
+                "src_token": "stock",
+                "build_admission": admission,
+                "build_admission_receipt_sha256": admission["receipt_sha256"],
+                "trigger_gate_binding_commitment": binding_commitment,
+            },
+        },
+        {
+            "ts": 2.0,
+            "stage": "build_done",
+            "variant": variant,
+            "env_tag": contract.env_tag,
+            "payload": dict(terminal),
+        },
+        {
+            "ts": 3.0,
+            "stage": "bench_done",
+            "variant": variant,
+            "env_tag": contract.env_tag,
+            "payload": {
+                "tps": [1.0],
+                "median_tps": 1.0,
+                "cv": 0.0,
+                "rounds": 1,
+                "bench_wall_s": 0.0,
+                "leading_indicators": {},
+            },
+        },
+        {
+            "ts": 4.0,
+            "stage": "commit",
+            "variant": variant,
+            "env_tag": contract.env_tag,
+            "payload": {
+                **terminal,
+                "contract_sha256": contract.contract_sha256,
+            },
+        },
+    ]
+    wal_path = campaign / "runs" / "wal.jsonl"
+    wal_path.write_text(
+        "".join(json.dumps(record, sort_keys=True) + "\n" for record in records),
+        encoding="utf-8",
+    )
+    (campaign / "reports" / "p3_s8a_trigger_loop_provenance.json").write_text(
+        json.dumps({
+            "entries": {
+                variant: {
+                    "variant": variant,
+                    "build_attempt_id": attempt_id,
+                    "trigger_gate_binding_commitment": binding_commitment,
+                },
+            },
+        }),
+        encoding="utf-8",
+    )
+    persisted = L3.build_report(
+        campaign,
+        generated_from_head="a" * 40,
+        output_root=output_root,
+    )
+    persisted_path = campaign / "reports" / "layer3_report.json"
+    persisted_path.write_text(
+        json.dumps(persisted, ensure_ascii=False, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+    return campaign, persisted
+
+
+def _prepare_registered_build_report(
+    root: Path,
+    trial: R.TrialSpec,
+    manifest: R.TrialManifest,
+    measurement_head: str,
+) -> Path:
+    report_path = _complete_report(root, trial, manifest, measurement_head)
+    events, report = _load_report_bundle(report_path)
+    run_root = report_path.parent
+    output_root = run_root.parent.parent
+    campaign, persisted = _build_registered_campaign(
+        output_root=output_root, trial=trial,
+    )
+    report["do_build"] = True
+    events[0]["do_build"] = True
+    cell = report["cells"][0]
+    cell["campaign_root"] = str(campaign)
+    cell["admission_decision"] = copy.deepcopy(persisted["admission_decision"])
+    bench = next(
+        row for row in persisted["runs"]
+        if row.get("variant") == _REGISTERED_FIXTURE_VARIANT
+    )
+    first_generation = cell["generations"][0]
+    first_generation["harness"].update({
+        "variant": _REGISTERED_FIXTURE_VARIANT,
+        "records": {"bench_done": {
+            key: value for key, value in bench.items()
+            if key != "source_ref"
+        }},
+    })
+    first_generation["harness"]["records"]["bench_done"].pop(
+        "variant", None,
+    )
+    first_generation["bench_wall_seconds"] = 0.0
+    by_invocation = {
+        event["invocation_id"]: event
+        for event in events if event.get("event") == "role-attempt"
+    }
+    for ordinal, event in enumerate(by_invocation.values(), 1):
+        role_root = run_root / "provider" / str(ordinal)
+        role_root.mkdir(parents=True, exist_ok=True)
+        raw_path = run_root / "raw" / f"response-{ordinal}.txt"
+        raw_path.parent.mkdir(parents=True, exist_ok=True)
+        payload_path = role_root / f"payload_{event['invocation_id']}.json"
+        envelope_path = role_root / f"envelope_{event['invocation_id']}.json"
+        raw_path.write_bytes(f"raw response {ordinal}\n".encode())
+        payload_path.write_bytes(_canonical({
+            "workload_descriptor": cell["descriptor"],
+            "descriptor_binding": cell["descriptor_binding"],
+        }))
+        envelope_path.write_bytes(_canonical({
+            "result": "fixture",
+            "type": "result",
+        }))
+        payload_sha = hashlib.sha256(payload_path.read_bytes()).hexdigest()
+        envelope_sha = hashlib.sha256(envelope_path.read_bytes()).hexdigest()
+        raw_sha = hashlib.sha256(raw_path.read_bytes()).hexdigest()
+        update = {
+            "raw_response_path": str(raw_path),
+            "raw_response_sha256": raw_sha,
+            "input_payload_sha256": payload_sha,
+            "provider_payload_sha256": payload_sha,
+            "provider_envelope_sha256": envelope_sha,
+            "provider_artifacts": {
+                "payload_path": str(payload_path),
+                "envelope_path": str(envelope_path),
+                "arm_binding_digest_sha256": report["arm_execution"][
+                    "arm_binding_digest_sha256"
+                ],
+            },
+            "provenance": {
+                "payload_sha256": payload_sha,
+                "envelope_sha256": envelope_sha,
+            },
+        }
+        if event["role"] in {"planner", "coder"}:
+            spec_key = (
+                "planner-generation-1"
+                if event["role"] == "planner" and event["generation"] == 1
+                else "planner-generation-next"
+                if event["role"] == "planner"
+                else "coder"
+            )
+            update["payload_validation_receipt"] = _payload_validation_receipt(
+                {**event, **update}, spec_key, cell["descriptor"],
+            )
+        event.update(copy.deepcopy(update))
+        for generation in cell["generations"]:
+            for role_event in generation["roles"].values():
+                if role_event["invocation_id"] == event["invocation_id"]:
+                    role_event.update(copy.deepcopy(update))
+    return _persist(run_root, events, report)
+
+
 def _partial_report(
     root: Path,
     trial: R.TrialSpec,
@@ -823,6 +1077,60 @@ def _partial_report(
         _finish_event(run, "partial", 3, 0),
     ]
     return _persist(run, events, report)
+
+
+def _campaignless_failure_report(
+    root: Path,
+    trial: R.TrialSpec,
+    manifest: R.TrialManifest,
+    measurement_head: str,
+) -> Path:
+    path = _partial_report(root, trial, manifest, measurement_head)
+    events, report = _load_report_bundle(path)
+    workload = R.HOLDOUT_BINDINGS[trial.holdout]["workload"]
+    error = {"type": "RuntimeError", "message": "fixture supervisor failure"}
+    failure = {
+        "schema_version": (
+            "p3-autonomous-workload-trial-cell-admission-failure/v1"
+        ),
+        "admission_status": "failed",
+        "error": {
+            "type": "AutonomousTrialError",
+            "message": "build cell has no campaign_root for admission validation",
+        },
+    }
+    cell = {
+        "workload": workload,
+        "generations": [],
+        "stop_reason": "supervisor-error",
+        "error": error,
+        "admission_decision": failure,
+        "pending_critic_disposition": {
+            "schema_version": (
+                "p3-autonomous-workload-trial-pending-critic-disposition/v1"
+            ),
+            "action": "discarded",
+            "reason": "cell-admission-failure",
+            "count": 0,
+        },
+    }
+    report["do_build"] = True
+    report["status"] = "partial"
+    report["fatal_error"] = error
+    report["cells"] = [cell]
+    events[0]["do_build"] = True
+    events[1] = {
+        "event": "supervisor-error",
+        "workload": workload,
+        **error,
+        "seq": 2,
+        "ts": "2026-08-01T00:00:02+00:00",
+    }
+    events[-1]["status"] = "partial"
+    events[-1]["cell_admission_failures"] = (
+        completeness.cell_admission_failure_projection([cell])
+    )
+    return _persist(path.parent, events, report)
 
 
 def _one_cell_partial_report(
@@ -993,6 +1301,12 @@ def test_p5_six_complete_terminal_reports_pass_acceptance(tmp_path: Path) -> Non
         report = json.loads(report_bytes)
         journal_path = report_path.with_name("attempts.jsonl")
         journal_bytes = journal_path.read_bytes()
+        events = [json.loads(line) for line in journal_bytes.splitlines()]
+        cross_binding = completeness.verify_s8c_cross_binding(
+            report=report,
+            events=events,
+            run_root=report_path.parent,
+        )
         expected_trials.append({
             "trial_id": trial.trial_id,
             "arm": trial.arm,
@@ -1005,12 +1319,13 @@ def test_p5_six_complete_terminal_reports_pass_acceptance(tmp_path: Path) -> Non
             "attempt_journal_path": journal_path.relative_to(repo).as_posix(),
             "attempt_journal_sha256": hashlib.sha256(journal_bytes).hexdigest(),
             "arm_execution": report["arm_execution"],
+            "cross_binding_receipt_sha256": cross_binding["receipt_sha256"],
         })
     lifecycle_bytes = (repo / R.DEFAULT_LIFECYCLE_PATH).read_bytes()
     registry_bytes = registry.read_bytes()
     first_report = json.loads(reports[0].read_bytes())
     expected_receipt = {
-        "schema_version": "p3-8c-trial-acceptance-receipt/v2",
+        "schema_version": "p3-8c-trial-acceptance-receipt/v3",
         "manifest_path": manifest_path.relative_to(repo).as_posix(),
         "manifest_sha256": manifest.sha256,
         "prereg_commit": manifest.prereg_commit,
@@ -1024,7 +1339,18 @@ def test_p5_six_complete_terminal_reports_pass_acceptance(tmp_path: Path) -> Non
         "lifecycle_prefix_bytes": len(lifecycle_bytes),
         "lifecycle_prefix_sha256": hashlib.sha256(lifecycle_bytes).hexdigest(),
         "certifying": False,
-        "non_certifying_reason_codes": ["t468-approval-authority-absent"],
+        "non_certifying_reason_codes": [
+            "no-build", "t468-approval-authority-absent",
+        ],
+        "cross_binding_receipt_sha256": (
+            R.s8c_acceptance_receipt.cross_binding_aggregate_sha256([
+                {
+                    "trial_id": row["trial_id"],
+                    "receipt_sha256": row["cross_binding_receipt_sha256"],
+                }
+                for row in expected_trials
+            ])
+        ),
         "trials": expected_trials,
     }
     # No volatile leaf is omitted: commit-dependent leaves are rederived from
@@ -1037,7 +1363,168 @@ def test_p5_six_complete_terminal_reports_pass_acceptance(tmp_path: Path) -> Non
         receipt_path, repository_root=repo,
     )
     assert verified.receipt.non_certifying_reason_codes == (
+        "no-build",
         "t468-approval-authority-absent",
+    )
+
+
+def test_s8c_acceptance_no_build_verifier_leaf_is_independently_recomputed(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo, manifest_path, registry, manifest = _registered_repo(tmp_path)
+    reports = _reports(repo / "reports", manifest, _head(repo), complete=True)
+    original = completeness.verify_s8c_cross_binding
+    observed: dict[str, dict] = {}
+
+    def wrapped(**kwargs):
+        leaf = original(**kwargs)
+        observed[kwargs["report"]["trial_id"]] = leaf
+        return leaf
+
+    monkeypatch.setattr(R, "verify_s8c_cross_binding", wrapped)
+    summary = _accept(
+        manifest_path=manifest_path,
+        report_paths=reports,
+        repository_root=repo,
+        registry_path=registry,
+    )
+    receipt = json.loads((repo / summary.receipt_path).read_bytes())
+    assert len(observed) == 6
+    for row in receipt["trials"]:
+        report_path = repo / row["report_path"]
+        report = json.loads(report_path.read_bytes())
+        journal_path = report_path.with_name("attempts.jsonl")
+        events = [json.loads(line) for line in journal_path.read_bytes().splitlines()]
+        independent = original(
+            report=report, events=events, run_root=report_path.parent,
+        )
+        assert row["cross_binding_receipt_sha256"] == independent["receipt_sha256"]
+        assert observed[row["trial_id"]]["receipt_sha256"] == independent[
+            "receipt_sha256"
+        ]
+
+
+@pytest.mark.usefixtures("ratified_enforcement_source")
+def test_s8c_acceptance_registered_build_reports_are_unreachable_until_workload_definition(
+    tmp_path: Path,
+) -> None:
+    """前提条件 1 (H1/H2 workload 定義) が未実装であるため、登録済み build 正例は現時点では到達不能である。
+
+    acceptance が Layer 3 gate へ到達し、exact な理由で fail-closed することを証明する。
+    """
+    repo, manifest_path, registry, manifest = _registered_repo(tmp_path)
+    build_root = repo / "output" / "exploration" / "autonomous-trials"
+    reports = [
+        _prepare_registered_build_report(
+            build_root, trial, manifest, _head(repo),
+        )
+        for trial in manifest.trials
+    ]
+    with pytest.raises(R.TrialRegistryError) as exc_info:
+        _accept(
+            manifest_path=manifest_path,
+            report_paths=reports,
+            repository_root=repo,
+            registry_path=registry,
+        )
+    assert str(exc_info.value) == (
+        "[campaign-chain] [campaign-chain] "
+        "cells[0].workload is not producer-supported"
+    )
+    receipt_dir = repo / R.s8c_acceptance_receipt.DEFAULT_RECEIPT_DIR
+    assert not receipt_dir.exists() or not any(receipt_dir.iterdir())
+
+
+def test_s8c_acceptance_build_with_empty_cells_fails_closed_before_receipt(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo, manifest_path, registry, manifest = _registered_repo(tmp_path)
+    reports = _reports(repo / "reports", manifest, _head(repo), complete=False)
+    first = reports[0]
+    events, report = _load_report_bundle(first)
+    report["do_build"] = True
+    events[0]["do_build"] = True
+    _persist(first.parent, events, report)
+    monkeypatch.setattr(
+        R,
+        "verify_s8c_cross_binding",
+        lambda **_: {"receipt_sha256": "a" * 64},
+    )
+    with pytest.raises(R.TrialRegistryError) as exc_info:
+        _accept(
+            manifest_path=manifest_path,
+            report_paths=reports,
+            repository_root=repo,
+            registry_path=registry,
+        )
+    assert str(exc_info.value) == (
+        "[campaign-chain] do_build=True requires a non-empty report.cells list"
+    )
+    receipt_dir = repo / R.s8c_acceptance_receipt.DEFAULT_RECEIPT_DIR
+    assert not receipt_dir.exists() or not any(receipt_dir.iterdir())
+
+
+def test_s8c_acceptance_failure_cell_pins_layer3_chain_absent_reason(
+    tmp_path: Path,
+) -> None:
+    repo, manifest_path, registry, manifest = _registered_repo(tmp_path)
+    reports = _reports(repo / "reports", manifest, _head(repo), complete=False)
+    reports[0] = _campaignless_failure_report(
+        repo / "reports-failure", manifest.trials[0], manifest, _head(repo),
+    )
+    summary = _accept(
+        manifest_path=manifest_path,
+        report_paths=reports,
+        repository_root=repo,
+        registry_path=registry,
+    )
+    receipt = json.loads((repo / summary.receipt_path).read_bytes())
+    assert "layer3-chain-absent" in receipt["non_certifying_reason_codes"]
+    assert receipt["non_certifying_reason_codes"] == [
+        "c02-arm-binding-unproven",
+        "layer3-chain-absent",
+        "no-build",
+        "t468-approval-authority-absent",
+    ]
+
+
+@pytest.mark.usefixtures("ratified_enforcement_source")
+def test_s8c_acceptance_rejects_campaign_from_different_output_root(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo, manifest_path, registry, manifest = _registered_repo(tmp_path)
+    build_root = repo / "output" / "exploration" / "autonomous-trials"
+    reports = [
+        _prepare_registered_build_report(
+            build_root, trial, manifest, _head(repo),
+        )
+        for trial in manifest.trials
+    ]
+    first = reports[0]
+    events, report = _load_report_bundle(first)
+    original_campaign = Path(report["cells"][0]["campaign_root"])
+    alternate_campaign = repo / "output" / "alternate" / "campaigns" / original_campaign.name
+    alternate_campaign.parent.mkdir(parents=True, exist_ok=True)
+    original_campaign.rename(alternate_campaign)
+    report["cells"][0]["campaign_root"] = str(alternate_campaign)
+    _persist(first.parent, events, report)
+
+    monkeypatch.setattr(R, "assert_execution_digest_chain", lambda **_: None)
+    monkeypatch.setattr(R, "assert_campaign_layer3_chain", lambda **_: None)
+    monkeypatch.setattr(
+        R,
+        "verify_s8c_cross_binding",
+        lambda **_: {"receipt_sha256": "a" * 64},
+    )
+    with pytest.raises(R.TrialRegistryError) as exc_info:
+        _accept(
+            manifest_path=manifest_path,
+            report_paths=reports,
+            repository_root=repo,
+            registry_path=registry,
+        )
+    assert str(exc_info.value) == (
+        "[campaign-chain] campaign output root differs from report run root"
     )
 
 
@@ -1546,6 +2033,7 @@ def test_p6_one_cell_partial_terminal_outcome_passes_acceptance(tmp_path: Path) 
     receipt_value = json.loads((repo / summary.receipt_path).read_bytes())
     assert receipt_value["non_certifying_reason_codes"] == [
         "c02-arm-binding-unproven",
+        "no-build",
         "t468-approval-authority-absent",
     ]
     parsed = R.s8c_acceptance_receipt.parse_acceptance_receipt_bytes(
@@ -2597,7 +3085,7 @@ def test_m11_acceptance_receipt_is_exclusive_create(tmp_path: Path) -> None:
     assert receipt.read_bytes() == original
 
 
-def test_acceptance_v2_has_no_certifying_issuance_branch(tmp_path: Path) -> None:
+def test_acceptance_v3_has_no_certifying_issuance_branch(tmp_path: Path) -> None:
     repo, manifest_path, registry, manifest = _registered_repo(tmp_path)
     reports = _reports(repo / "reports", manifest, _head(repo), complete=True)
     summary = _accept(
@@ -2617,9 +3105,12 @@ def test_acceptance_v2_has_no_certifying_issuance_branch(tmp_path: Path) -> None
     )
     assert receipt["certifying"] is False
     assert receipt["non_certifying_reason_codes"] == [
+        "no-build",
         "t468-approval-authority-absent"
     ]
     assert all("arm_execution" in trial for trial in receipt["trials"])
+    assert all("cross_binding_receipt_sha256" in trial for trial in receipt["trials"])
+    assert "cross_binding_receipt_sha256" in receipt
     source = Path(R.__file__).read_text(encoding="utf-8")
     receipt_block = source.split("receipt_value =", 1)[1].split(
         "_exclusive_create_acceptance_receipt", 1

@@ -21966,3 +21966,145 @@ dispatch からは参照しない。テストは `_MACHINE_EVALUATORS` を monke
   1 度も通らないため、昇格時に初めて発覚する欠陥を残す。
 - 契約と registry を同時に反転して即座に機械検査対象へ載せる形 — 凍結世代の発行を伴うため、
   同じ評価器面を触る並行 wave と世代が衝突する。世代の衝突は merge では解けない。
+
+## D534. 8c §5 の値制約違反は記入済み判定を変えず構造化報告と repo 不変検査で塞ぐ (2026-08-18)
+
+**決定:** `docs/phase3-8c-preregistration.md` §5 の欄別値制約 (現在は反復単位対比の判定パラメータ欄
+のみ) を検証する validator を `orchestrator/campaign/s8c_preregistration.py` に置き、production の
+parse 経路から到達可能にする。ただし次を守る。
+
+- `_classify_section5_value` が返す `FieldStatus` (記入済み / 未記入 / 不正) と、
+  `ActivationReport.effective` の連言式を**変えない**。制約違反値は記入済みのままである。
+- 違反は `Section5ValueViolation` (欄名・違反位置・違反軸ごとの理由コード) として
+  `MarkdownContract` に載せ、最初の 1 件で打ち切らず全件返す。
+- `ActivationReport` と `Section5Finding` の field 集合は変えない (report digest を動かさないため)。
+- **実効的な閂は repo の不変検査に置く。** 生きた文書の §5 に制約違反値が入ると受入が赤になる。
+  恒真化を避けるため、生き文書の bytes へ 1 軸だけ違反する値を差し込んで production の parse 経路で
+  違反が出ることを確かめる positive control を同じ検査 file に置き、置換の空振りも検出させる。
+- validator table の key が文書の §5 欄名集合に実在することを meta-test で pin する。
+- 8b §10.2 が凍結するのは `n` の整数・2 以上、平均差の下限の有限・正、標本 SD 上限の有限・非負、
+  単位と向きの同時固定だけである。`H1` / `H2` の exact key 集合は 8c 側の表現裁定であり、
+  表現を変えるときは 8c 側の改訂で行う。単位と向きは非空文字列までを構文的に担保し、実値の
+  意味整合 (judge が引く向きと一致するか) は judge の責務とする。上限値の負のゼロは
+  「有限の非負」に合致するため受理する。
+
+**理由:**
+- 8c の凍結本文は「記入済み」を canonical JSON か否かだけで定義し、続けて
+  「欄ごとの型・単位・範囲の検証は本手続きの対象外である」と明記している。違反値を記入済み判定で
+  倒す形はこの凍結本文と直接矛盾し、改訂には docs 編集と新世代 record が要る。
+- D458 は判定器の受理集合・拒否理由を変える変更に版 bump と新世代 record を要求する。新世代 record の
+  裁定参照はその commit 時点の decisions 見出しの実在を要求し、番号は land の fold でしか確定しない。
+  並行 wave が複数走る状況で世代番号を先取りすると、衝突を merge で解けない。
+- 8c §6 の前提条件 7 は「validator が production 経路から到達可能でなければ充足しない」と名指しで
+  要求している。本決定はその必要条件を満たす実体であり、条件の充足判定そのものは変えない。
+- 8b §10.2 は「同欄を記入してよいのは、それらを機械検証する consumer が実在するときに限る」と
+  述べている。repo 不変検査に閂を置けば、違反値を含む変更は land できなくなり、この順序が実際に
+  強制される。
+
+**却下した選択肢:**
+- 違反値を不正扱いにして未発効へ倒す — 凍結本文と矛盾し、版 bump と新世代 record を伴う。
+  いずれも本 wave の scope 外指定に一致するため、裁定パッケージとしてユーザーへ返した。
+- 発効の連言式へ第 4 項を足す — 凍結本文が発効を 3 項の連言として定義しているため同じ矛盾を生む。
+- 違反を `ActivationReport` へ載せる — report digest が動く。現在 capability を持つ成果物は無いが、
+  D458 の「射影された判定入力の意味」に触れうるため裁定なしには実施しない。
+- 単位と向きに固定語彙を強制する — 8b は語彙を凍結しておらず、将来の正当な記入を拒む過剰拒否になる。
+
+## D535. cross-binding 受領証は leaf を保存し aggregate を再計算する (2026-08-18)
+
+**決定:** 正式 acceptance 受領証を v3 へ上げ、trial ごとの cross-binding 受領証 digest (leaf) を
+受領証本体へ保存する。top-level の `cross_binding_receipt_sha256` は検証時に leaf から
+再計算して照合する。再計算しない v3 検証は採用しない。v1 / v2 の受領証は
+schema 別の exact key 集合で従来どおり parse できる状態を保つ。
+
+**理由:**
+- aggregate を 1 値だけ保存する形では、任意の正しい形式の SHA-256 へ差し替えても
+  受領証検証が通る。「参照された byte 列を束縛した」という受領証の主張を独立に検証できない。
+- leaf を持てば、受領証だけを見て aggregate を再導出でき、
+  改竄は受領証の内部整合性の破れとして現れる。
+- 段 3 と段 6 の敵対子が独立に同じ blocker を出した。片方だけの所見ではない。
+
+**却下した選択肢:**
+- v2 の exact key 集合を黙って拡張する — 凍結済みの v1 / v2 受領証が
+  unknown key または missing key で拒否され、既存の受理参照が失われる。
+- aggregate を受領証の外へ出す — 既存 parser と受領証検証の信頼境界の外になり、
+  受領証だけでは束縛を確かめられない。
+- leaf を持たず aggregate だけ必須にする — schema の外観だけが増え、検証力が増えない。
+
+## D536. 層3 chain の欠落は条件付き non-certifying reason で表す (2026-08-18)
+
+**決定:** 正式 registry 権威は、build report に対して層3 chain を実走し、
+`do_build=False` の report には `no-build`、層3 レポートを持たない build cell を含む report には
+`layer3-chain-absent` を non-certifying reason として積む。どちらも受領証の
+mandatory reason 集合には入れず、report の実値から導く条件付き reason とする。
+build report の chain 検証そのものは reason ではなく fail-closed の例外で止める。
+
+**理由:**
+- acceptance は構造的に `certifying: False` であり、「certify を止める」を新たな停止として
+  表現する余地が無い。内容由来の reason code を積むのが実装可能な唯一の意味である。
+- reason code だけでは恒真になりうる。build report に対する chain の**実走**を
+  fail-closed の本体に置くことで、reason は補助的な記録に留まる。
+- mandatory 集合へ入れると build mode の非 certify 受領証まで一律に拒否され、
+  入れないと欠落を parser が検出できない。条件付き reason はこの二者択一を避ける。
+
+**却下した選択肢:**
+- no-build report の受理そのものを拒否する — 既存の acceptance 経路が総崩れになり、
+  本条件が要求していない受理集合の縮小を持ち込む。
+- `no-build` を mandatory non-certifying reason に加える — build mode の受領証まで巻き込む。
+
+## D537. 8c 条件 7 の consumer は evaluator 登録より先に land する (2026-08-18)
+
+**決定:** 8c 事前登録の条件 7 について、consumer (`orchestrator/campaign/s8c_result_judge.py`) と
+静的 evaluator (`_evaluate_c07`) を先に land し、`_MACHINE_EVALUATORS` への登録・
+`NEGATIVE_CONTROL_CASES` への追加・証拠契約 JSON の `machine_checkable` 反転・
+条件凍結 record の新世代発行は、後続の束ね wave が 1 回で行う。
+
+**理由:**
+- 登録だけを行うと必ず赤になる。`MACHINE_CHECKABLE_CONDITION_IDS` は `_MACHINE_EVALUATORS` から
+  導出され、契約 JSON の `machine_checkable` から導出した集合との全単射を 2 つのテストが要求する。
+  契約を反転せずに登録する組み合わせは、evaluator の中身によらず成立しない (実測)。
+- 契約 C07 の `reachable_from` には repo に実在しない `accept_trial` が 2 箇所あり、
+  `s8b_ratified_freeze.py` 側の `verify_floor_bytes` も実在しない。反転は契約本文の
+  入口名の是正と `MACHINE_CONTRACT_FUNCTION_CHECKS` への mapping 追加を同時に要求する。
+- 凍結世代の衝突は merge で解けないため、世代発行は 1 wave 1 回に限る。
+
+**却下した選択肢:**
+- 未登録 evaluator を production から呼ぶ別 registry (staged registry) の新設 — 条件を迂回する
+  機構の新設に当たる。門に阻まれたら門を回り込む口を作らない。
+- 全単射検査の緩和 — 正しさゲートを緩める方向であり採らない。
+- 登録を諦めて evaluator を書かない — 束ね wave が反転できる形が存在しなくなる。
+
+## D538. 床値 artifact は出所検証だけに使い、判定の入力にしない (2026-08-18)
+
+**決定:** 8c 条件 7 の consumer では、床 artifact の検証 (`verify_floor_bytes`) は
+`floor_protocol` と `floor_source` の 2 件を ratified 世代 document 由来の
+path / sha256 / `env_tag` / `frozen_at_head` と突き合わせる出所検証に限る。
+その結果は床値を一切持たない receipt として `publish_result_table` の必須入力になるが、
+`judge` の引数型には現れない。判定が消費してよい主量は対差の有限な平均と有限な標本 SD
+(分母 n-1) だけとする。
+
+**理由:**
+- 8b の再凍結 (§10.1) が対象別 between-run floor との比較を撤去し、8c 条件 7 も
+  「床値 artifact は本条件の入力にしない」と明記している。
+- 一方で条件 7 は `verify_floor_bytes` を entrypoint として凍結しているため、関数は必要である。
+  出所検証と判定入力を型で分離すると、両方の要求を同時に満たせる。
+- 検証を publish の必須前提にしないと、未検証の床のまま公式性能表を生成できてしまう。
+
+**却下した選択肢:**
+- 検証結果を module 変数や共有 state に置く — 呼び出し順への暗黙依存を作り、
+  検証を飛ばした publish を静的に塞げない。
+- 床値を診断値として judge へ渡す — 「診断値」という名目で判定へ再流入する経路を残す。
+
+## D539. 事前宣言 cell 集合は生成物から導出しない (2026-08-18)
+
+**決定:** 結果表の cell 集合の完全一致検査は、期待集合を生成行から導出せず、
+独立の必須引数として受け取る。引数省略時に生成行から埋める経路を作らない。
+`judge` の入力が空集合のときは 3 条件すべてを判定不能へ固定し、
+`all()` / `any()` の空集合既定値で成立側へ倒さない。
+
+**理由:**
+- 期待集合を対象から導出する検査は恒真であり、manifest と observations を同時に削っても通る。
+- 空集合に対する全称量化は真になるため、入力が無いことが「条件成立」の証拠に化ける。
+  これは謳うだけで発火しない保証の典型である。
+
+**却下した選択肢:**
+- 件数だけの検査 (6 件なら通す) — 任意の cell ID で通ってしまう。
