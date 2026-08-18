@@ -56,6 +56,8 @@ C3_BOUNDARIES = (
     "sample_sd inclusive upper boundary",
     "sample statistics are re-derived",
     "condition IDs are an exact set",
+    "raw observation attestation is bound to values",
+    "empty complete blocks are indeterminate",
 )
 C4_BOUNDARIES = (
     "predeclared cell set is independent",
@@ -67,6 +69,7 @@ C4_BOUNDARIES = (
     "repository exclusion after symlink resolution",
     "create-only destination",
     "rollback leaves no table",
+    "rollback failure is reported",
 )
 
 
@@ -156,6 +159,10 @@ def _observations(
             "throughput": value,
             "correctness_gate_passed": True,
             "trace_enabled": False,
+            "attestation": {
+                "raw_values_sha256": M._observation_raw_digest((float(value),)),
+                "issuer": "test-gate-issuer",
+            },
         }
         if extra:
             item.update(extra)
@@ -184,6 +191,41 @@ def _output_paths(root: Path) -> dict[str, Path]:
     return {name: root / f"{name}.json" for name in M._TABLE_NAMES}
 
 
+def _verified_floor(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    *,
+    protocol_payload: bytes = b"protocol-bytes",
+    source_payload: bytes = b"source-bytes",
+    frozen_at_head: str = "a" * 40,
+) -> M._VerifiedFloorEvidence:
+    protocol = tmp_path / "floor-protocol.bin"
+    source = tmp_path / "floor-source.bin"
+    protocol.write_bytes(protocol_payload)
+    source.write_bytes(source_payload)
+    document = {
+        "floor_protocol": {
+            "path": str(protocol),
+            "sha256": hashlib.sha256(protocol_payload).hexdigest(),
+        },
+        "floor_source": {
+            "path": str(source),
+            "sha256": hashlib.sha256(source_payload).hexdigest(),
+        },
+        "env_tag": "test-env",
+        "frozen_at_head": frozen_at_head,
+    }
+    monkeypatch.setattr(
+        M,
+        "load_ratified_freeze",
+        lambda: SimpleNamespace(document=document),
+    )
+    return M.verify_floor_bytes([
+        document["floor_protocol"],
+        document["floor_source"],
+    ])
+
+
 def test_public_names_are_exactly_three() -> None:
     assert set(M.__all__) == {"verify_floor_bytes", "judge", "publish_result_table"}
     assert len(M.__all__) == 3
@@ -208,7 +250,9 @@ def test_judge_signature_has_no_floor_argument() -> None:
 
 @pytest.mark.parametrize("case", C2_BOUNDARIES)
 def test_c2_boundary_list_is_documented(case: str) -> None:
+    result = _judge()
     assert case in C2_BOUNDARIES
+    assert set(result.conditions) == set(M._CONDITION_IDS)
 
 
 @pytest.mark.parametrize(
@@ -421,6 +465,16 @@ def test_gate_failure_trace_enabled_and_nonfinite_observation_are_indeterminate(
     result = _judge(manifest=manifest, observations=observations)
     assert _status(result, "paired_repeat_contrast") is M._Status.INDETERMINATE
 
+    observations = _observations(manifest)
+    observations[0].pop("attestation")
+    result = _judge(manifest=manifest, observations=observations)
+    assert _status(result, "paired_repeat_contrast") is M._Status.INDETERMINATE
+
+    observations = _observations(manifest)
+    observations[0]["throughput"] = 999.0
+    result = _judge(manifest=manifest, observations=observations)
+    assert _status(result, "paired_repeat_contrast") is M._Status.INDETERMINATE
+
 
 def test_caller_median_delta_and_rank_fields_are_rejected() -> None:
     manifest = _manifest()
@@ -437,9 +491,6 @@ def test_caller_median_delta_and_rank_fields_are_rejected() -> None:
 
 def test_same_prediction_with_complete_block_is_unsatisfied_not_indeterminate() -> None:
     manifest = _manifest()
-    for cell in manifest["cells"]:
-        if cell["arm"] == "off":
-            cell["configuration_id"] = cell["configuration_id"].replace("off", "on")
     result = _judge(manifest=manifest, prediction=_prediction(same=True))
     assert _status(result, "paired_repeat_contrast") is M._Status.UNSATISFIED
     assert result.conditions["paired_repeat_contrast"].diagnostics["holdouts"]["H1"]["same_prediction"] is True
@@ -497,74 +548,227 @@ def test_source_binding_mismatch_is_indeterminate_not_a_new_status() -> None:
     assert _status(result, "paired_repeat_contrast") is M._Status.INDETERMINATE
 
 
+def test_missing_source_binding_is_indeterminate_not_a_match() -> None:
+    manifest = _manifest()
+    manifest.pop("source_binding")
+    result = _judge(manifest=manifest)
+    assert _status(result, "paired_repeat_contrast") is M._Status.INDETERMINATE
+
+
+def test_duplicate_holdout_configuration_ids_are_indeterminate() -> None:
+    manifest = _manifest()
+    manifest["cells"][1]["configuration_id"] = manifest["cells"][0]["configuration_id"]
+    result = _judge(manifest=manifest)
+    assert all(
+        condition.status is M._Status.INDETERMINATE
+        for condition in result.conditions.values()
+    )
+
+
+def test_prediction_cell_ids_are_canonicalized_to_configuration_ids() -> None:
+    baseline = _judge()
+    prediction = _prediction()
+    prediction["on_off"]["H1"]["on"] = "H1-on"
+    prediction["on_off"]["H1"]["off"] = "H1-off"
+    prediction["on_off"]["H2"]["on"] = "H2-on"
+    prediction["on_off"]["H2"]["off"] = "H2-off"
+    prediction["swapped"]["H1"] = "H2-on"
+    prediction["swapped"]["H2"] = "H1-on"
+    result = _judge(prediction=prediction)
+    assert result.conclusion is baseline.conclusion
+    swapped = next(
+        row for row in result.selection_rows if row["cell_id"] == "H1-swapped"
+    )
+    assert swapped["predicted_configuration_id"] == "cfg-H2-on"
+
+
+def test_empty_manifest_does_not_make_any_condition_satisfied() -> None:
+    manifest = _manifest()
+    manifest["cells"] = []
+    manifest["schedule"] = []
+    result = _judge(manifest=manifest)
+    assert all(
+        condition.status is M._Status.INDETERMINATE
+        for condition in result.conditions.values()
+    )
+    assert result.conclusion is M._Status.INDETERMINATE
+
+
+def test_missing_complete_block_does_not_make_any_condition_satisfied() -> None:
+    manifest = _manifest()
+    manifest["schedule"] = []
+    result = _judge(manifest=manifest, observations=[])
+    assert all(
+        condition.status is M._Status.INDETERMINATE
+        for condition in result.conditions.values()
+    )
+    assert result.conclusion is M._Status.INDETERMINATE
+
+
+def test_missing_observation_block_does_not_make_any_condition_satisfied() -> None:
+    manifest = _manifest()
+    result = _judge(manifest=manifest, observations=[])
+    assert all(
+        condition.status is M._Status.INDETERMINATE
+        for condition in result.conditions.values()
+    )
+    assert result.conclusion is M._Status.INDETERMINATE
+
+
 def test_floor_verification_derives_expectations_from_ratified_freeze(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    artifact = tmp_path / "floor.json"
-    measurement_head = "a" * 40
+    protocol = tmp_path / "floor-protocol.bin"
+    source = tmp_path / "floor-source.bin"
+    protocol_raw = b"protocol"
+    source_raw = b"source"
+    protocol.write_bytes(protocol_raw)
+    source.write_bytes(source_raw)
+    frozen_at_head = "a" * 40
     document = {
-        "floor_source": {"path": str(artifact), "sha256": ""},
+        "floor_protocol": {
+            "path": str(protocol),
+            "sha256": hashlib.sha256(protocol_raw).hexdigest(),
+        },
+        "floor_source": {
+            "path": str(source),
+            "sha256": hashlib.sha256(source_raw).hexdigest(),
+        },
         "env_tag": "test-env",
-        "measurement_head": measurement_head,
+        "frozen_at_head": frozen_at_head,
     }
-    raw = json.dumps({
-        "env_tag": "test-env",
-        "measurement_head": measurement_head,
-        "floor": 1.0,
-    }, sort_keys=True, separators=(",", ":")).encode()
-    artifact.write_bytes(raw)
-    document["floor_source"]["sha256"] = hashlib.sha256(raw).hexdigest()
     monkeypatch.setattr(
         M,
         "load_ratified_freeze",
-        lambda: SimpleNamespace(document=document, generation_commit=measurement_head),
+        lambda: SimpleNamespace(document=document),
     )
     evidence = M.verify_floor_bytes([{
-        "path": str(artifact),
-        "sha256": "caller-value-is-not-used",
-        "env_tag": "caller-value-is-not-used",
-        "measurement_head": "caller-value-is-not-used",
+        "path": str(protocol),
+        "sha256": document["floor_protocol"]["sha256"],
+    }, {
+        "path": str(source),
+        "sha256": document["floor_source"]["sha256"],
     }])
-    assert evidence.path == str(artifact)
-    assert evidence.sha256 == document["floor_source"]["sha256"]
+    assert evidence.floor_protocol_path == str(protocol)
+    assert evidence.floor_protocol_sha256 == document["floor_protocol"]["sha256"]
+    assert evidence.floor_source_path == str(source)
+    assert evidence.floor_source_sha256 == document["floor_source"]["sha256"]
     assert evidence.env_tag == "test-env"
-    assert evidence.measurement_head == measurement_head
-    assert set(vars(evidence)) == {"path", "sha256", "env_tag", "measurement_head"}
+    assert evidence.frozen_at_head == frozen_at_head
+    assert set(vars(evidence)) == {
+        "floor_protocol_path", "floor_protocol_sha256",
+        "floor_source_path", "floor_source_sha256", "env_tag", "frozen_at_head",
+    }
+
+
+def test_floor_verification_requires_both_ratified_artifacts(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    evidence = _verified_floor(tmp_path, monkeypatch)
+    with pytest.raises(M._FloorVerificationError):
+        M.verify_floor_bytes([{
+            "path": evidence.floor_source_path,
+            "sha256": evidence.floor_source_sha256,
+        }])
 
 
 def test_floor_bytes_mismatch_raises_dedicated_exception(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    artifact = tmp_path / "floor.json"
-    artifact.write_text(json.dumps({"env_tag": "test-env", "measurement_head": "b" * 40, "floor": 1.0}))
+    protocol = tmp_path / "floor-protocol.bin"
+    source = tmp_path / "floor-source.bin"
+    protocol.write_bytes(b"protocol")
+    source.write_bytes(b"source")
     document = {
-        "floor_source": {"path": str(artifact), "sha256": "0" * 64},
+        "floor_protocol": {
+            "path": str(protocol),
+            "sha256": hashlib.sha256(protocol.read_bytes()).hexdigest(),
+        },
+        "floor_source": {"path": str(source), "sha256": "0" * 64},
         "env_tag": "test-env",
-        "measurement_head": "b" * 40,
+        "frozen_at_head": "b" * 40,
     }
     monkeypatch.setattr(M, "load_ratified_freeze", lambda: SimpleNamespace(document=document))
     with pytest.raises(M._FloorVerificationError):
-        M.verify_floor_bytes([artifact])
+        M.verify_floor_bytes([document["floor_protocol"], document["floor_source"]])
 
 
-def test_floor_bytes_or_floor_value_cannot_change_judge_result(tmp_path: Path) -> None:
+def test_floor_bytes_or_floor_value_cannot_change_judge_result(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
     manifest = _manifest()
     observations = _observations(manifest)
     prediction = _prediction()
     params = _params()
-    artifact = tmp_path / "floor.json"
-    artifact.write_text(json.dumps({"floor": 1.0, "env_tag": "test-env"}))
+    first_dir = tmp_path / "first"
+    first_dir.mkdir()
+    first_evidence = _verified_floor(
+        first_dir,
+        monkeypatch,
+        protocol_payload=b'{"floor":1}',
+        source_payload=b'{"floor":1}',
+    )
     first = M.judge(manifest, observations, prediction, params)
-    floor_a = {"floor": 1.0, "env_tag": "test-env", "path": str(artifact)}
-    artifact.write_text(json.dumps({"floor": 999999.0, "env_tag": "other-env"}))
-    floor_b = {"floor": 999999.0, "env_tag": "other-env", "threshold": -1.0, "path": str(artifact)}
-    assert floor_a != floor_b
+    second_dir = tmp_path / "second"
+    second_dir.mkdir()
+    second_evidence = _verified_floor(
+        second_dir,
+        monkeypatch,
+        protocol_payload=b'{"floor":999999}',
+        source_payload=b'{"floor":999999}',
+        frozen_at_head="b" * 40,
+    )
     second = M.judge(manifest, observations, prediction, params)
+    assert first_evidence != second_evidence
     assert first == second
     assert not hasattr(first, "floor")
     assert not hasattr(first, "threshold")
 
 
-def test_publish_creates_three_separate_tables_from_independent_six_cell_set(tmp_path: Path) -> None:
-    result = _judge(params=_params(delta_min=1.0, sd_max=math.sqrt(2.0)))
+def test_publish_requires_current_ratified_floor_receipt(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    result = _judge()
+    expected = [cell["cell_id"] for cell in _cells()]
     paths = _output_paths(tmp_path)
-    published = M.publish_result_table(result, [cell["cell_id"] for cell in _cells()], paths)
+    evidence = _verified_floor(tmp_path, monkeypatch)
+    with pytest.raises(TypeError):
+        M.publish_result_table(result, expected, paths)
+    with pytest.raises(M._ResultTableError):
+        M.publish_result_table(result, expected, paths, None)
+    foreign_dir = tmp_path / "foreign"
+    foreign_dir.mkdir()
+    foreign = _verified_floor(
+        foreign_dir,
+        monkeypatch,
+        frozen_at_head="b" * 40,
+    )
+    monkeypatch.setattr(
+        M,
+        "load_ratified_freeze",
+        lambda: SimpleNamespace(document={
+            "floor_protocol": {
+                "path": evidence.floor_protocol_path,
+                "sha256": evidence.floor_protocol_sha256,
+            },
+            "floor_source": {
+                "path": evidence.floor_source_path,
+                "sha256": evidence.floor_source_sha256,
+            },
+            "env_tag": evidence.env_tag,
+            "frozen_at_head": evidence.frozen_at_head,
+        }),
+    )
+    with pytest.raises(M._ResultTableError):
+        M.publish_result_table(result, expected, paths, foreign)
+    assert all(not path.exists() for path in paths.values())
+
+
+def test_publish_creates_three_separate_tables_from_independent_six_cell_set(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    result = _judge(params=_params(delta_min=1.0, sd_max=math.sqrt(2.0)))
+    evidence = _verified_floor(tmp_path, monkeypatch)
+    paths = _output_paths(tmp_path)
+    published = M.publish_result_table(
+        result, [cell["cell_id"] for cell in _cells()], paths, evidence,
+    )
     assert set(published) == set(M._TABLE_NAMES)
     assert all(path.is_file() for path in paths.values())
     tables = [json.loads(path.read_text())["table"] for path in paths.values()]
@@ -583,9 +787,12 @@ def test_publish_creates_three_separate_tables_from_independent_six_cell_set(tmp
     assert {"predicted_configuration_id", "predicted_rank"} <= set(selection[0])
 
 
-@pytest.mark.parametrize("mutation", ["missing", "extra", "duplicate"])
-def test_publish_cell_missing_extra_duplicate_leaves_no_table(tmp_path: Path, mutation: str) -> None:
+@pytest.mark.parametrize("mutation", ["missing", "extra", "duplicate", "second-write-failure"])
+def test_publish_cell_missing_extra_duplicate_leaves_no_table(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, mutation: str,
+) -> None:
     result = _judge()
+    paths = _output_paths(tmp_path)
     if mutation == "missing":
         broken = replace(result, cell_rows=result.cell_rows[:-1])
     elif mutation == "extra":
@@ -595,66 +802,134 @@ def test_publish_cell_missing_extra_duplicate_leaves_no_table(tmp_path: Path, mu
             "within_config_median": None, "rank": None,
         })
         broken = replace(result, cell_rows=result.cell_rows + (extra,))
-    else:
+    elif mutation == "duplicate":
         duplicate = dict(result.cell_rows[-1])
         duplicate["cell_id"] = result.cell_rows[0]["cell_id"]
         broken = replace(result, cell_rows=result.cell_rows[:-1] + (M._freeze(duplicate),))
-    paths = _output_paths(tmp_path)
+    else:
+        broken = result
+        original_write = M._exclusive_write
+        calls = 0
+
+        def fail_on_second_write(path: Path, raw: bytes) -> None:
+            nonlocal calls
+            if path in paths.values():
+                calls += 1
+                if calls == 2:
+                    raise OSError("injected second table write failure")
+            original_write(path, raw)
+
+        monkeypatch.setattr(M, "_exclusive_write", fail_on_second_write)
+    evidence = _verified_floor(tmp_path, monkeypatch)
     with pytest.raises(M._ResultTableError):
-        M.publish_result_table(broken, [cell["cell_id"] for cell in _cells()], paths)
+        M.publish_result_table(
+            broken, [cell["cell_id"] for cell in _cells()], paths, evidence,
+        )
     assert all(not path.exists() for path in paths.values())
 
 
-def test_publish_rejects_predeclared_set_mutation_without_deriving_it_from_rows(tmp_path: Path) -> None:
+def test_publish_rollback_failure_is_not_reported_as_success(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
     result = _judge()
+    evidence = _verified_floor(tmp_path, monkeypatch)
+    paths = _output_paths(tmp_path)
+    original_write = M._exclusive_write
+
+    def fail_second_destination(path: Path, raw: bytes) -> None:
+        if path == paths["official_status"]:
+            raise OSError("injected destination failure")
+        original_write(path, raw)
+
+    monkeypatch.setattr(M, "_exclusive_write", fail_second_destination)
+    original_unlink = Path.unlink
+
+    def fail_rollback(path: Path, *args: object, **kwargs: object) -> None:
+        if path == paths["descriptive_only"]:
+            raise OSError("injected rollback failure")
+        original_unlink(path, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "unlink", fail_rollback)
+    with pytest.raises(M._ResultTableError, match="rollback"):
+        M.publish_result_table(
+            result, [cell["cell_id"] for cell in _cells()], paths, evidence,
+        )
+    assert paths["descriptive_only"].exists()
+
+
+def test_publish_rejects_predeclared_set_mutation_without_deriving_it_from_rows(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    result = _judge()
+    evidence = _verified_floor(tmp_path, monkeypatch)
     expected = [cell["cell_id"] for cell in _cells()]
     expected[-1] = "unregistered-cell"
     paths = _output_paths(tmp_path)
     with pytest.raises(M._ResultTableError):
-        M.publish_result_table(result, expected, paths)
+        M.publish_result_table(result, expected, paths, evidence)
     assert all(not path.exists() for path in paths.values())
 
 
-def test_publish_requires_absolute_paths_and_excludes_repo(tmp_path: Path) -> None:
+def test_publish_requires_absolute_paths_and_excludes_repo(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
     result = _judge()
+    evidence = _verified_floor(tmp_path, monkeypatch)
     expected = [cell["cell_id"] for cell in _cells()]
     paths = _output_paths(tmp_path)
     relative = dict(paths)
     relative["official_status"] = Path("relative-result.json")
     with pytest.raises(M._ResultTableError):
-        M.publish_result_table(result, expected, relative)
+        M.publish_result_table(result, expected, relative, evidence)
 
     inside = dict(paths)
     inside["official_status"] = M._REPO_ROOT / "result.json"
     with pytest.raises(M._ResultTableError):
-        M.publish_result_table(result, expected, inside)
+        M.publish_result_table(result, expected, inside, evidence)
 
 
-def test_publish_is_create_only_and_does_not_overwrite_bytes(tmp_path: Path) -> None:
+def test_publish_is_create_only_and_does_not_overwrite_bytes(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
     result = _judge()
+    evidence = _verified_floor(tmp_path, monkeypatch)
     paths = _output_paths(tmp_path)
     paths["official_status"].write_bytes(b"keep")
     with pytest.raises(M._ResultTableError):
-        M.publish_result_table(result, [cell["cell_id"] for cell in _cells()], paths)
+        M.publish_result_table(
+            result, [cell["cell_id"] for cell in _cells()], paths, evidence,
+        )
     assert paths["official_status"].read_bytes() == b"keep"
     assert not paths["descriptive_only"].exists()
     assert not paths["selection_evaluation"].exists()
 
 
-def test_publish_rejects_symlink_resolving_inside_repo(tmp_path: Path) -> None:
+def test_publish_rejects_symlink_resolving_inside_repo(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
     result = _judge()
+    evidence = _verified_floor(tmp_path, monkeypatch)
     expected = [cell["cell_id"] for cell in _cells()]
     link_parent = tmp_path / "outside-link"
     link_parent.symlink_to(M._REPO_ROOT, target_is_directory=True)
     paths = _output_paths(tmp_path)
     paths["official_status"] = link_parent / "result.json"
     with pytest.raises(M._ResultTableError):
-        M.publish_result_table(result, expected, paths)
+        M.publish_result_table(result, expected, paths, evidence)
 
 
-def test_c3_and_c4_boundary_catalogues_are_present() -> None:
+def test_c3_and_c4_boundary_catalogues_are_present(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    result = _judge()
+    evidence = _verified_floor(tmp_path, monkeypatch)
+    paths = _output_paths(tmp_path)
+    published = M.publish_result_table(
+        result, [cell["cell_id"] for cell in _cells()], paths, evidence,
+    )
     assert len(C3_BOUNDARIES) >= 10
     assert len(C4_BOUNDARIES) >= 8
+    assert set(published) == set(M._TABLE_NAMES)
 
 
 def _run() -> int:

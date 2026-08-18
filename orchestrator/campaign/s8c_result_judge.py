@@ -4,13 +4,17 @@
 The module deliberately keeps its public surface small.  The private frozen
 records are the boundary between the preregistration consumer and callers;
 in particular, a floor receipt is never an input to :func:`judge`.
+Observation attestations are checked for raw-value binding here, but the
+external producer/issuer is the trust root and remains outside this wave.
 """
 from __future__ import annotations
 
 import hashlib
+import hmac
 import json
 import math
 import os
+import shutil
 import statistics
 import tempfile
 from dataclasses import dataclass
@@ -82,13 +86,30 @@ class _ContrastParams:
 
 
 @dataclass(frozen=True)
-class _VerifiedFloorEvidence:
-    """Provenance only; no floor value, threshold, or raw measurement lives here."""
-
+class _FloorArtifactBinding:
     path: str
     sha256: str
+
+
+@dataclass(frozen=True)
+class _RatifiedFloorBinding:
+    floor_protocol: _FloorArtifactBinding
+    floor_source: _FloorArtifactBinding
     env_tag: str
-    measurement_head: str
+    frozen_at_head: str
+    root: Path
+
+
+@dataclass(frozen=True)
+class _VerifiedFloorEvidence:
+    """Verification provenance only; no floor value or raw measurement lives here."""
+
+    floor_protocol_path: str
+    floor_protocol_sha256: str
+    floor_source_path: str
+    floor_source_sha256: str
+    env_tag: str
+    frozen_at_head: str
 
 
 @dataclass(frozen=True)
@@ -249,6 +270,7 @@ def _normalise_cells(manifest: Mapping[str, Any]) -> tuple[tuple[_Cell, ...], tu
     cells: list[_Cell] = []
     seen: set[str] = set()
     by_holdout_arm: set[tuple[str, str]] = set()
+    by_holdout_configuration: set[tuple[str, str]] = set()
     for index, raw in enumerate(raw_cells):
         item = _mapping(raw, f"manifest.cells[{index}]")
         cell_id = _text(item.get("cell_id"), f"cells[{index}].cell_id")
@@ -260,10 +282,15 @@ def _normalise_cells(manifest: Mapping[str, Any]) -> tuple[tuple[_Cell, ...], tu
             _first(item, "configuration_id", "config_id"),
             f"cells[{index}].configuration_id",
         )
-        if cell_id in seen or (holdout_id, arm) in by_holdout_arm:
+        if (
+            cell_id in seen
+            or (holdout_id, arm) in by_holdout_arm
+            or (holdout_id, configuration_id) in by_holdout_configuration
+        ):
             raise _InputContractError("cell identity or holdout/arm is duplicated")
         seen.add(cell_id)
         by_holdout_arm.add((holdout_id, arm))
+        by_holdout_configuration.add((holdout_id, configuration_id))
         cells.append(
             _Cell(
                 cell_id=cell_id,
@@ -389,6 +416,43 @@ def _raw_values(item: Mapping[str, Any]) -> tuple[float, ...]:
     return tuple(values)
 
 
+def _observation_raw_digest(values: Sequence[float]) -> str:
+    canonical = json.dumps(
+        [float(value) for value in values],
+        ensure_ascii=False,
+        separators=(",", ":"),
+        allow_nan=False,
+    ).encode("utf-8")
+    return hashlib.sha256(canonical).hexdigest()
+
+
+def _observation_attestation_matches(
+    item: Mapping[str, Any], values: Sequence[float],
+) -> bool:
+    attestation_keys = [
+        key for key in ("attestation", "gate_attestation", "observation_attestation")
+        if key in item
+    ]
+    if len(attestation_keys) != 1:
+        return False
+    attestation = item[attestation_keys[0]]
+    if not isinstance(attestation, Mapping):
+        return False
+    if set(attestation) != {"raw_values_sha256", "issuer"}:
+        return False
+    digest = attestation.get("raw_values_sha256")
+    issuer = attestation.get("issuer")
+    if (
+        type(digest) is not str
+        or len(digest) != 64
+        or any(char not in "0123456789abcdef" for char in digest)
+        or type(issuer) is not str
+        or not issuer
+    ):
+        return False
+    return hmac.compare_digest(digest, _observation_raw_digest(values))
+
+
 def _build_observation_context(
     observations: Any,
     schedule: Mapping[int, _ScheduleRow],
@@ -424,9 +488,13 @@ def _build_observation_context(
                 or item[field] != expected
             ):
                 raise _InputContractError(f"observation {field} differs from schedule binding")
-        if not _gate_passed(item) or not _trace_disabled(item):
-            raise _InputContractError("observation did not pass the correctness/trace gate")
         values = _raw_values(item)
+        if (
+            not _gate_passed(item)
+            or not _trace_disabled(item)
+            or not _observation_attestation_matches(item, values)
+        ):
+            raise _InputContractError("observation did not pass the correctness/trace gate attestation")
         median = float(statistics.median(values))
         if not math.isfinite(median):
             raise _InputContractError("derived configuration median is non-finite")
@@ -452,8 +520,23 @@ def _prediction_value(item: Mapping[str, Any], keys: tuple[str, ...], label: str
     return _text(value, label)
 
 
+def _canonical_configuration_id(
+    value: Any, cells: Sequence[_Cell],
+) -> str | None:
+    if type(value) is not str or not value:
+        return None
+    matches = {
+        cell.configuration_id
+        for cell in cells
+        if value == cell.cell_id or value == cell.configuration_id
+    }
+    if len(matches) != 1:
+        return None
+    return next(iter(matches))
+
+
 def _normalise_on_off(
-    prediction: Any, holdouts: Sequence[str],
+    prediction: Any, holdouts: Sequence[str], cells: Sequence[_Cell] | None = None,
 ) -> dict[str, tuple[str, str]] | None:
     if not isinstance(prediction, Mapping):
         return None
@@ -502,6 +585,15 @@ def _normalise_on_off(
             result[holdout_id] = (on[holdout_id], off[holdout_id])
     if set(result) != set(holdouts) or len(result) != len(holdouts):
         return None
+    if cells is not None:
+        canonical: dict[str, tuple[str, str]] = {}
+        for holdout_id, pair in result.items():
+            on = _canonical_configuration_id(pair[0], cells)
+            off = _canonical_configuration_id(pair[1], cells)
+            if on is None or off is None:
+                return None
+            canonical[holdout_id] = (on, off)
+        return canonical
     return result
 
 
@@ -532,7 +624,7 @@ def _normalise_swap_mapping(
 
 
 def _normalise_swapped_prediction(
-    prediction: Any, holdouts: Sequence[str],
+    prediction: Any, holdouts: Sequence[str], cells: Sequence[_Cell] | None = None,
 ) -> dict[str, str] | None:
     if not isinstance(prediction, Mapping):
         return None
@@ -570,6 +662,14 @@ def _normalise_swapped_prediction(
         return None
     if set(result) != set(holdouts):
         return None
+    if cells is not None:
+        canonical: dict[str, str] = {}
+        for holdout_id, value in result.items():
+            configuration_id = _canonical_configuration_id(value, cells)
+            if configuration_id is None:
+                return None
+            canonical[holdout_id] = configuration_id
+        return canonical
     return result
 
 
@@ -580,10 +680,10 @@ def _condition(
 
 
 def _evaluate_prediction_difference(
-    prediction: Any, holdouts: Sequence[str],
+    prediction: Any, holdouts: Sequence[str], cells: Sequence[_Cell],
 ) -> tuple[_ConditionResult, dict[str, tuple[str, str]] | None]:
-    values = _normalise_on_off(prediction, holdouts)
-    if values is None:
+    values = _normalise_on_off(prediction, holdouts, cells)
+    if not holdouts or values is None:
         return _condition(
             _CONDITION_IDS[0], _Status.INDETERMINATE,
             {"reason": "prediction-missing-or-invalid"},
@@ -598,11 +698,11 @@ def _evaluate_prediction_difference(
 
 def _evaluate_swapped(
     manifest: Mapping[str, Any], prediction: Any, holdouts: Sequence[str],
-    on_off: Mapping[str, tuple[str, str]] | None,
+    on_off: Mapping[str, tuple[str, str]] | None, cells: Sequence[_Cell],
 ) -> _ConditionResult:
     mapping = _normalise_swap_mapping(manifest, holdouts)
-    swapped = _normalise_swapped_prediction(prediction, holdouts)
-    if mapping is None or swapped is None or on_off is None:
+    swapped = _normalise_swapped_prediction(prediction, holdouts, cells)
+    if not holdouts or mapping is None or swapped is None or on_off is None:
         return _condition(
             _CONDITION_IDS[1], _Status.INDETERMINATE,
             {"reason": "swapped-mapping-or-prediction-invalid"},
@@ -657,7 +757,7 @@ def _safe_diagnostic(function: Any) -> Any:
 
 
 def _cell_matches(cell: _Cell, prediction: str) -> bool:
-    return prediction in {cell.cell_id, cell.configuration_id}
+    return prediction == cell.configuration_id
 
 
 def _evaluate_contrast(
@@ -667,7 +767,7 @@ def _evaluate_contrast(
     params: _ContrastParams,
     source_binding_ok: bool,
 ) -> tuple[_ConditionResult, dict[str, _Status]]:
-    if context is None or on_off is None or not source_binding_ok:
+    if not holdouts or context is None or on_off is None or not source_binding_ok:
         return _condition(
             _CONDITION_IDS[2], _Status.INDETERMINATE,
             {"reason": "observation-block-or-source-binding-invalid"},
@@ -679,6 +779,15 @@ def _evaluate_contrast(
         on_cell = by_holdout_arm[(holdout_id, "on")]
         off_cell = by_holdout_arm[(holdout_id, "off")]
         on_prediction, off_prediction = on_off[holdout_id]
+        same_prediction = on_prediction == off_prediction
+        if same_prediction:
+            holdout_statuses[holdout_id] = _Status.UNSATISFIED
+            holdout_diagnostics[holdout_id] = {
+                "status": _Status.UNSATISFIED.value,
+                "same_prediction": True,
+                "reason": "prediction-configurations-are-identical",
+            }
+            continue
         if not _cell_matches(on_cell, on_prediction) or not _cell_matches(off_cell, off_prediction):
             holdout_statuses[holdout_id] = _Status.INDETERMINATE
             holdout_diagnostics[holdout_id] = {"status": _Status.INDETERMINATE.value, "reason": "prediction-cell-binding-invalid"}
@@ -757,15 +866,11 @@ def _evaluate_contrast(
                     if statistics.stdev(off_values) != 0 else None
                 )
             )
-            same_prediction = on_prediction == off_prediction
-            if same_prediction:
-                status = _Status.UNSATISFIED
-            else:
-                status = (
-                    _Status.SATISFIED
-                    if mean_delta > float(params.delta_min) and sample_sd <= float(params.sd_max)
-                    else _Status.UNSATISFIED
-                )
+            status = (
+                _Status.SATISFIED
+                if mean_delta > float(params.delta_min) and sample_sd <= float(params.sd_max)
+                else _Status.UNSATISFIED
+            )
             holdout_statuses[holdout_id] = status
             holdout_diagnostics[holdout_id] = {
                 "status": status.value,
@@ -839,36 +944,41 @@ def _derived_cell_rows(
 
 
 def _source_binding_matches(manifest: Mapping[str, Any], params: _ContrastParams) -> bool:
-    declared = manifest.get("params_source_binding", manifest.get("source_binding", _MISSING))
-    return declared is _MISSING or declared == params.source_binding
+    declared = manifest.get("source_binding", _MISSING)
+    return type(declared) is str and bool(declared) and declared == params.source_binding
 
 
 def _selection_evaluation_rows(
     cells: Sequence[_Cell],
     rows: Sequence[Mapping[str, Any]],
+    manifest: Mapping[str, Any],
     prediction: Any,
     holdouts: Sequence[str],
     conditions: Mapping[str, _ConditionResult],
 ) -> tuple[Mapping[str, Any], ...]:
     """Keep selection evidence separate from the official performance table."""
-    on_off = _normalise_on_off(prediction, holdouts)
-    swapped = _normalise_swapped_prediction(prediction, holdouts)
+    on_off = _normalise_on_off(prediction, holdouts, cells)
+    swapped = _normalise_swapped_prediction(prediction, holdouts, cells)
+    swap_mapping = _normalise_swap_mapping(manifest, holdouts)
     on_off_status = conditions[_CONDITION_IDS[0]].status.value
     swapped_status = conditions[_CONDITION_IDS[1]].status.value
     by_cell_id = {cell.cell_id: row for cell, row in zip(cells, rows)}
     enriched: list[Mapping[str, Any]] = []
     for cell, row in zip(cells, rows):
         predicted: str | None = None
+        rank_holdout_id = cell.holdout_id
         if on_off is not None and cell.arm in {"on", "off"}:
             pair = on_off.get(cell.holdout_id)
             if pair is not None:
                 predicted = pair[0] if cell.arm == "on" else pair[1]
         elif swapped is not None and cell.arm == "swapped":
             predicted = swapped.get(cell.holdout_id)
+            if swap_mapping is not None:
+                rank_holdout_id = swap_mapping.get(cell.holdout_id, cell.holdout_id)
         predicted_rank: int | None = None
         if predicted is not None:
             for candidate in cells:
-                if candidate.holdout_id == cell.holdout_id and _cell_matches(candidate, predicted):
+                if candidate.holdout_id == rank_holdout_id and _cell_matches(candidate, predicted):
                     candidate_row = by_cell_id[candidate.cell_id]
                     predicted_rank = candidate_row.get("within_config_rank")
                     break
@@ -879,6 +989,7 @@ def _selection_evaluation_rows(
             "configuration_id": row["configuration_id"],
             "within_config_rank": row["within_config_rank"],
             "predicted_configuration_id": predicted,
+            "prediction_rank_holdout_id": rank_holdout_id,
             "predicted_rank": predicted_rank,
             "prediction_matches_rank": (
                 predicted_rank is not None and row["within_config_rank"] == predicted_rank
@@ -915,27 +1026,40 @@ def judge(
     except _InputContractError:
         cells = ()
         holdouts = ()
+    complete_block = False
     context: _ObservationContext | None = None
     if cells:
         try:
             schedule, by_cell_replicate = _validate_complete_block(manifest_map, cells, params.n)
             context = _build_observation_context(observations, schedule, by_cell_replicate)
+            complete_block = True
         except _InputContractError:
             context = None
-    first, on_off = _evaluate_prediction_difference(prediction, holdouts)
-    second = _evaluate_swapped(manifest_map, prediction, holdouts, on_off)
-    third, official_by_holdout = _evaluate_contrast(
-        cells, holdouts, context, on_off, params,
-        _source_binding_matches(manifest_map, params),
-    )
-    conditions = MappingProxyType({
-        _CONDITION_IDS[0]: first,
-        _CONDITION_IDS[1]: second,
-        _CONDITION_IDS[2]: third,
-    })
+    if not cells or not holdouts or not complete_block:
+        conditions = MappingProxyType({
+            condition_id: _condition(
+                condition_id,
+                _Status.INDETERMINATE,
+                {"reason": "manifest-or-complete-block-missing"},
+            )
+            for condition_id in _CONDITION_IDS
+        })
+        official_by_holdout: Mapping[str, _Status] = MappingProxyType({})
+    else:
+        first, on_off = _evaluate_prediction_difference(prediction, holdouts, cells)
+        second = _evaluate_swapped(manifest_map, prediction, holdouts, on_off, cells)
+        third, official_by_holdout = _evaluate_contrast(
+            cells, holdouts, context, on_off, params,
+            _source_binding_matches(manifest_map, params),
+        )
+        conditions = MappingProxyType({
+            _CONDITION_IDS[0]: first,
+            _CONDITION_IDS[1]: second,
+            _CONDITION_IDS[2]: third,
+        })
     cell_rows, selection_rows = _derived_cell_rows(cells, context, holdouts)
     selection_rows = _selection_evaluation_rows(
-        cells, selection_rows, prediction, holdouts, conditions,
+        cells, selection_rows, manifest_map, prediction, holdouts, conditions,
     )
     return _JudgeResult(
         conditions=conditions,
@@ -946,121 +1070,196 @@ def judge(
     )
 
 
-def _ratified_floor_binding(ratified: Any) -> tuple[str, str, str, str, Path]:
-    document = _mapping(getattr(ratified, "document", None), "ratified freeze document")
-    source = document.get("floor_source")
-    if not isinstance(source, Mapping):
-        source = document.get("floor", _MISSING)
-    if not isinstance(source, Mapping):
-        raise _FloorVerificationError("ratified freeze has no floor source record")
-    path = _text(source.get("path"), "ratified floor source path")
-    sha256 = _text(source.get("sha256"), "ratified floor source sha256")
+def _ratified_artifact_binding(
+    document: Mapping[str, Any], field: str,
+) -> _FloorArtifactBinding:
+    value = document.get(field, _MISSING)
+    if not isinstance(value, Mapping) or set(value) != {"path", "sha256"}:
+        raise _FloorVerificationError(f"ratified {field} record is invalid")
+    path = _text(value.get("path"), f"ratified {field} path")
+    sha256 = _text(value.get("sha256"), f"ratified {field} sha256")
     if len(sha256) != 64 or any(char not in "0123456789abcdef" for char in sha256):
-        raise _FloorVerificationError("ratified floor source sha256 is invalid")
-    env_tag = document.get("env_tag", _MISSING)
-    if env_tag is _MISSING and isinstance(document.get("floor_protocol"), Mapping):
-        env_tag = document["floor_protocol"].get("env_tag", _MISSING)
-    env_tag = _text(env_tag, "ratified env_tag")
-    measurement_head = document.get("measurement_head", _MISSING)
-    if measurement_head is _MISSING:
-        measurement_head = getattr(ratified, "measurement_head", _MISSING)
-    if measurement_head is _MISSING and isinstance(document.get("measurement"), Mapping):
-        measurement_head = document["measurement"].get("measurement_head", _MISSING)
-    if measurement_head is _MISSING:
-        measurement_head = document.get("frozen_at_head", _MISSING)
-    if measurement_head is _MISSING:
-        measurement_head = getattr(ratified, "generation_commit", _MISSING)
-    measurement_head = _text(measurement_head, "ratified measurement_head")
-    if len(measurement_head) != 40 or any(char not in "0123456789abcdef" for char in measurement_head):
-        raise _FloorVerificationError("ratified measurement_head is invalid")
+        raise _FloorVerificationError(f"ratified {field} sha256 is invalid")
+    return _FloorArtifactBinding(path=path, sha256=sha256)
+
+
+def _ratified_floor_binding(ratified: Any) -> _RatifiedFloorBinding:
+    document = _mapping(getattr(ratified, "document", None), "ratified freeze document")
+    floor_protocol = _ratified_artifact_binding(document, "floor_protocol")
+    floor_source = _ratified_artifact_binding(document, "floor_source")
+    env_tag = _text(document.get("env_tag", _MISSING), "ratified env_tag")
+    frozen_at_head = _text(
+        document.get("frozen_at_head", _MISSING), "ratified frozen_at_head",
+    )
+    if len(frozen_at_head) != 40 or any(
+        char not in "0123456789abcdef" for char in frozen_at_head
+    ):
+        raise _FloorVerificationError("ratified frozen_at_head is invalid")
     root = Path(getattr(ratified, "root", _REPO_ROOT))
-    artifact_path = Path(path)
-    if not artifact_path.is_absolute():
-        artifact_path = root / artifact_path
-    return path, sha256, env_tag, measurement_head, artifact_path
+    protocol_path = Path(floor_protocol.path)
+    source_path = Path(floor_source.path)
+    if not protocol_path.is_absolute():
+        protocol_path = root / protocol_path
+    if not source_path.is_absolute():
+        source_path = root / source_path
+    if protocol_path.resolve(strict=False) == source_path.resolve(strict=False):
+        raise _FloorVerificationError("ratified floor artifacts resolve to one path")
+    return _RatifiedFloorBinding(
+        floor_protocol=floor_protocol,
+        floor_source=floor_source,
+        env_tag=env_tag,
+        frozen_at_head=frozen_at_head,
+        root=root,
+    )
 
 
-def _floor_candidate_path(floor_refs: Any) -> Path:
-    if isinstance(floor_refs, Mapping) or isinstance(floor_refs, (str, os.PathLike)):
-        candidates = (floor_refs,)
+def _floor_candidate_path(floor_refs: Any) -> tuple[tuple[Path, str], ...]:
+    if isinstance(floor_refs, Mapping):
+        if set(floor_refs) != {"floor_protocol", "floor_source"}:
+            raise _FloorVerificationError(
+                "floor_refs must name floor_protocol and floor_source",
+            )
+        candidates = (floor_refs["floor_protocol"], floor_refs["floor_source"])
     else:
         candidates = tuple(_sequence(floor_refs, "floor_refs"))
-    if len(candidates) != 1:
-        raise _FloorVerificationError("floor_refs must contain exactly one artifact location")
-    candidate = candidates[0]
-    if isinstance(candidate, Mapping):
+    if len(candidates) != 2:
+        raise _FloorVerificationError(
+            "floor_refs must contain exactly two artifact references",
+        )
+    result: list[tuple[Path, str]] = []
+    resolved_seen: set[Path] = set()
+    for index, candidate in enumerate(candidates):
+        if not isinstance(candidate, Mapping):
+            raise _FloorVerificationError(f"floor ref {index} is not a mapping")
+        named = [
+            key for key in ("floor_protocol", "floor_source")
+            if key in candidate
+        ]
+        if len(named) == 1 and isinstance(candidate[named[0]], Mapping):
+            candidate = candidate[named[0]]
         path = candidate.get("path")
-    else:
-        path = candidate
-    if not isinstance(path, (str, os.PathLike)):
-        raise _FloorVerificationError("floor ref path is invalid")
-    return Path(path)
-
-
-def _strict_json_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
-    result: dict[str, Any] = {}
-    for key, value in pairs:
-        if key in result:
-            raise ValueError("floor artifact has a duplicate JSON key")
-        result[key] = value
-    return result
-
-
-def _reject_json_constant(value: str) -> None:
-    raise ValueError(f"floor artifact has a non-finite JSON constant: {value}")
+        sha256 = candidate.get("sha256")
+        if not isinstance(path, (str, os.PathLike)):
+            raise _FloorVerificationError(f"floor ref {index} path is invalid")
+        if type(sha256) is not str or len(sha256) != 64 or any(
+            char not in "0123456789abcdef" for char in sha256
+        ):
+            raise _FloorVerificationError(f"floor ref {index} sha256 is invalid")
+        resolved = Path(path).resolve(strict=False)
+        if resolved in resolved_seen:
+            raise _FloorVerificationError("floor refs contain a duplicate artifact path")
+        resolved_seen.add(resolved)
+        result.append((Path(path), sha256))
+    return tuple(result)
 
 
 def verify_floor_bytes(
-    floor_refs: Sequence[Mapping[str, Any] | os.PathLike[str] | str],
+    floor_refs: Sequence[Mapping[str, Any]] | Mapping[str, Mapping[str, Any]],
 ) -> _VerifiedFloorEvidence:
-    """Verify real floor bytes against the binding derived from ratified freeze."""
+    """Verify both ratified floor artifacts and return provenance only."""
     try:
         ratified = load_ratified_freeze()
-        expected_path, expected_sha256, expected_env_tag, expected_measurement_head, artifact_path = _ratified_floor_binding(ratified)
-        ratified_binding = {
-            "path": expected_path,
-            "sha256": expected_sha256,
-            "env_tag": expected_env_tag,
-            "measurement_head": expected_measurement_head,
-        }
-        candidate_path = _floor_candidate_path(floor_refs)
-        expected_resolved = artifact_path.resolve(strict=False)
-        candidate_resolved = candidate_path.resolve(strict=False)
-        if candidate_resolved != expected_resolved:
-            raise _FloorVerificationError("caller path differs from ratified floor source path")
-        raw = artifact_path.read_bytes()
-        actual_sha256 = hashlib.sha256(raw).hexdigest()
-        if actual_sha256 != ratified_binding["sha256"]:
-            raise _FloorVerificationError("floor bytes sha256 differs from ratified source")
-        try:
-            artifact = json.loads(
-                raw.decode("utf-8"),
-                object_pairs_hook=_strict_json_object,
-                parse_constant=_reject_json_constant,
+        binding = _ratified_floor_binding(ratified)
+        candidates = _floor_candidate_path(floor_refs)
+        expected = (
+            (binding.floor_protocol, "floor_protocol"),
+            (binding.floor_source, "floor_source"),
+        )
+        candidate_by_path: dict[Path, tuple[Path, str]] = {}
+        for candidate_path, candidate_sha256 in candidates:
+            effective_path = (
+                candidate_path
+                if candidate_path.is_absolute()
+                else binding.root / candidate_path
             )
-        except (UnicodeDecodeError, json.JSONDecodeError) as exc:
-            raise _FloorVerificationError("floor artifact is not strict JSON") from exc
-        artifact = _mapping(artifact, "floor artifact")
-        actual_env_tag = artifact.get("env_tag", _MISSING)
-        if actual_env_tag is _MISSING and isinstance(artifact.get("metadata"), Mapping):
-            actual_env_tag = artifact["metadata"].get("env_tag", _MISSING)
-        actual_measurement_head = artifact.get("measurement_head", _MISSING)
-        if actual_measurement_head is _MISSING and isinstance(artifact.get("metadata"), Mapping):
-            actual_measurement_head = artifact["metadata"].get("measurement_head", _MISSING)
-        if actual_env_tag != ratified_binding["env_tag"]:
-            raise _FloorVerificationError("floor artifact env_tag differs from ratified freeze")
-        if actual_measurement_head != ratified_binding["measurement_head"]:
-            raise _FloorVerificationError("floor artifact measurement_head differs from ratified freeze")
+            resolved = effective_path.resolve(strict=False)
+            if resolved in candidate_by_path:
+                raise _FloorVerificationError("floor refs contain a duplicate artifact path")
+            candidate_by_path[resolved] = (effective_path, candidate_sha256)
+        for artifact_binding, label in expected:
+            expected_path = Path(artifact_binding.path)
+            if not expected_path.is_absolute():
+                expected_path = binding.root / expected_path
+            expected_resolved = expected_path.resolve(strict=False)
+            candidate = candidate_by_path.get(expected_resolved)
+            if candidate is None:
+                raise _FloorVerificationError(
+                    f"caller floor refs do not contain ratified {label} path",
+                )
+            candidate_path, candidate_sha256 = candidate
+            if candidate_sha256 != artifact_binding.sha256:
+                raise _FloorVerificationError(
+                    f"caller {label} sha256 differs from ratified binding",
+                )
+            try:
+                raw = candidate_path.read_bytes()
+            except OSError as exc:
+                raise _FloorVerificationError(
+                    f"ratified {label} artifact cannot be read",
+                ) from exc
+            actual_sha256 = hashlib.sha256(raw).hexdigest()
+            if actual_sha256 != artifact_binding.sha256:
+                raise _FloorVerificationError(
+                    f"{label} bytes sha256 differs from ratified binding",
+                )
         return _VerifiedFloorEvidence(
-            path=ratified_binding["path"],
-            sha256=ratified_binding["sha256"],
-            env_tag=ratified_binding["env_tag"],
-            measurement_head=ratified_binding["measurement_head"],
+            floor_protocol_path=binding.floor_protocol.path,
+            floor_protocol_sha256=binding.floor_protocol.sha256,
+            floor_source_path=binding.floor_source.path,
+            floor_source_sha256=binding.floor_source.sha256,
+            env_tag=binding.env_tag,
+            frozen_at_head=binding.frozen_at_head,
         )
     except _FloorVerificationError:
         raise
     except Exception as exc:  # noqa: BLE001 - public boundary is one dedicated error
         raise _FloorVerificationError("floor artifact verification failed") from exc
+
+
+def _validate_verified_floor(evidence: Any) -> _VerifiedFloorEvidence:
+    if type(evidence) is not _VerifiedFloorEvidence:
+        raise _ResultTableError("publish requires a verified floor receipt")
+    for field_name in (
+        "floor_protocol_path", "floor_protocol_sha256",
+        "floor_source_path", "floor_source_sha256", "env_tag", "frozen_at_head",
+    ):
+        try:
+            _text(getattr(evidence, field_name), f"floor receipt {field_name}")
+        except _InputContractError as exc:
+            raise _ResultTableError("floor receipt is invalid") from exc
+    if any(
+        len(getattr(evidence, field_name)) != 64
+        or any(char not in "0123456789abcdef" for char in getattr(evidence, field_name))
+        for field_name in ("floor_protocol_sha256", "floor_source_sha256")
+    ):
+        raise _ResultTableError("floor receipt contains an invalid artifact sha256")
+    if len(evidence.frozen_at_head) != 40 or any(
+        char not in "0123456789abcdef" for char in evidence.frozen_at_head
+    ):
+        raise _ResultTableError("floor receipt contains an invalid frozen_at_head")
+    try:
+        current = _ratified_floor_binding(load_ratified_freeze())
+    except Exception as exc:  # noqa: BLE001 - publish has one fail-closed boundary
+        raise _ResultTableError("current ratified floor binding is unavailable") from exc
+    expected = (
+        current.floor_protocol.path,
+        current.floor_protocol.sha256,
+        current.floor_source.path,
+        current.floor_source.sha256,
+        current.env_tag,
+        current.frozen_at_head,
+    )
+    actual = (
+        evidence.floor_protocol_path,
+        evidence.floor_protocol_sha256,
+        evidence.floor_source_path,
+        evidence.floor_source_sha256,
+        evidence.env_tag,
+        evidence.frozen_at_head,
+    )
+    if actual != expected:
+        raise _ResultTableError("floor receipt is not from the current ratified freeze")
+    return evidence
 
 
 def _expected_cell_ids(predeclared_cells: Any) -> tuple[str, ...]:
@@ -1166,32 +1365,65 @@ def _selection_rows(
 def _exclusive_write(path: Path, raw: bytes) -> None:
     flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL
     no_follow = getattr(os, "O_NOFOLLOW", 0)
-    fd = os.open(path, flags | no_follow, 0o644)
+    fd: int | None = None
     try:
+        fd = os.open(path, flags | no_follow, 0o644)
         view = memoryview(raw)
         while view:
             written = os.write(fd, view)
             if written <= 0:
                 raise OSError("short result table write")
             view = view[written:]
-    except Exception:
-        try:
-            path.unlink()
-        except OSError:
-            pass
+        os.fsync(fd)
+    except BaseException:
+        if fd is not None:
+            try:
+                os.close(fd)
+            except OSError as close_exc:
+                raise _ResultTableError("result table write close failed") from close_exc
+        if fd is not None:
+            try:
+                path.unlink()
+            except FileNotFoundError:
+                pass
+            except OSError as cleanup_exc:
+                raise _ResultTableError("result table write rollback failed") from cleanup_exc
         raise
     finally:
+        if fd is not None:
+            try:
+                os.close(fd)
+            except OSError:
+                pass
+
+
+def _sync_directory(path: Path) -> None:
+    fd = os.open(path, os.O_RDONLY)
+    try:
+        os.fsync(fd)
+    finally:
         os.close(fd)
+
+
+def _remove_transaction_directory(path: Path) -> None:
+    try:
+        shutil.rmtree(path)
+    except FileNotFoundError:
+        return
+    except OSError as exc:
+        raise _ResultTableError("result transaction rollback failed") from exc
 
 
 def publish_result_table(
     result: _JudgeResult,
     predeclared_cells: Sequence[Mapping[str, Any] | str],
     output_paths: Mapping[str, os.PathLike[str] | str],
+    floor_receipt: _VerifiedFloorEvidence,
 ) -> Mapping[str, Path]:
-    """Stage all three tables, then publish create-only files outside the repo."""
+    """Publish three create-only tables from one completed transaction."""
     if type(result) is not _JudgeResult:
         raise _ResultTableError("publish requires a judge result object")
+    floor_receipt = _validate_verified_floor(floor_receipt)
     expected = _expected_cell_ids(predeclared_cells)
     paths = _safe_output_paths(output_paths)
     descriptive_rows = _validate_exact_cell_set(result.cell_rows, expected)
@@ -1203,22 +1435,51 @@ def publish_result_table(
         "selection_evaluation": _table_bytes("selection_evaluation", selection_rows, result),
     }
     created: list[Path] = []
+    transaction_dir: Path | None = None
     try:
-        with tempfile.TemporaryDirectory(prefix="s8c-result-staging-") as stage_dir:
-            stage_root = Path(stage_dir)
-            for name, raw in staged.items():
-                (stage_root / f"{name}.json").write_bytes(raw)
-            for name in _TABLE_NAMES:
-                destination = paths[name]
-                _exclusive_write(destination, (stage_root / f"{name}.json").read_bytes())
-                created.append(destination)
-    except Exception as exc:
+        transaction_dir = Path(tempfile.mkdtemp(
+            prefix=".s8c-result-transaction-",
+            dir=str(paths[_TABLE_NAMES[0]].parent),
+        ))
+        for name, raw in staged.items():
+            _exclusive_write(transaction_dir / f"{name}.json", raw)
+        _sync_directory(transaction_dir)
+        for name in _TABLE_NAMES:
+            destination = paths[name]
+            _exclusive_write(destination, staged[name])
+            created.append(destination)
+        marker = {
+            "schema": "s8c-result-transaction/v1",
+            "tables": {
+                name: hashlib.sha256(staged[name]).hexdigest()
+                for name in _TABLE_NAMES
+            },
+        }
+        _exclusive_write(
+            transaction_dir / "COMPLETE",
+            (json.dumps(marker, sort_keys=True, separators=(",", ":")) + "\n").encode("utf-8"),
+        )
+        _sync_directory(transaction_dir)
+    except BaseException as exc:
+        cleanup_errors: list[BaseException] = []
         for destination in created:
             try:
                 destination.unlink()
-            except OSError:
+            except FileNotFoundError:
                 pass
+            except OSError as cleanup_exc:
+                cleanup_errors.append(cleanup_exc)
+        if transaction_dir is not None:
+            try:
+                _remove_transaction_directory(transaction_dir)
+            except _ResultTableError as cleanup_exc:
+                cleanup_errors.append(cleanup_exc)
+        if cleanup_errors:
+            raise _ResultTableError("result table publication rollback failed") from cleanup_errors[0]
         if isinstance(exc, _ResultTableError):
             raise
         raise _ResultTableError("result table publication failed") from exc
+    else:
+        if transaction_dir is not None:
+            _remove_transaction_directory(transaction_dir)
     return MappingProxyType(dict(paths))
