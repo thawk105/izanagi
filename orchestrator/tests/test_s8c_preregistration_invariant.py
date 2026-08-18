@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import ast
 import json
 import os
 import subprocess
@@ -38,6 +39,92 @@ WAVE_REQUIRED_PATHS = frozenset(
         "orchestrator/tests/test_s8c_preregistration_invariant.py",
         "orchestrator/tests/test_s8c_preregistration_predicates.py",
     }
+)
+MACHINE_CONTRACT_FUNCTION_CHECKS = frozenset(
+    {
+        ("C01", "orchestrator/campaign/p3_autonomous_workload_trial.py", "_campaign_for"),
+        ("C01", "orchestrator/campaign/p3_autonomous_workload_trial.py", "_descriptor_for"),
+        ("C01", "orchestrator/campaign/p3_autonomous_workload_trial.py", "_perf_for"),
+        ("C01", "orchestrator/campaign/p3_autonomous_workload_trial.py", "_run_workload"),
+        ("C01", "orchestrator/campaign/p3_autonomous_workload_trial.py", "main"),
+        ("C01", "orchestrator/campaign/p3_autonomous_workload_trial.py", "run_trial"),
+        ("C01", "orchestrator/campaign/s8b_ratified_freeze.py", "load_ratified_freeze"),
+        ("C02", "orchestrator/campaign/p3_autonomous_workload_trial.py", "_invocation_namespace"),
+        ("C02", "orchestrator/campaign/trial_registry.py", "assert_issued_trial_arm_execution"),
+        ("C02", "orchestrator/campaign/trial_registry.py", "assert_issued_trial_binding"),
+        ("C02", "orchestrator/campaign/trial_registry.py", "assert_issued_resolved_arm_input"),
+        ("C02", "orchestrator/campaign/trial_registry.py", "assert_rederived_trial_arm_execution"),
+        ("C02", "orchestrator/campaign/trial_registry.py", "assert_trial_registry_acceptance"),
+        ("C02", "orchestrator/campaign/trial_registry.py", "bind_trial_arm"),
+        ("C02", "orchestrator/campaign/trial_registry.py", "resolve_arm_input"),
+        ("C02", "orchestrator/campaign/trial_registry.py", "_expected_registered_arm_execution_record"),
+        ("C02", "orchestrator/campaign/trial_registry.py", "validate_execution_input_descriptor"),
+        ("C02", "orchestrator/campaign/trial_registry.py", "assert_execution_digest_chain"),
+        ("C02", "orchestrator/campaign/p3_autonomous_workload_trial.py", "_invocation_id"),
+        ("C02", "orchestrator/campaign/p3_autonomous_workload_trial.py", "_run_workload"),
+        ("C02", "orchestrator/campaign/p3_autonomous_workload_trial.py", "proposal_path"),
+        ("C02", "orchestrator/campaign/p3_autonomous_workload_trial.py", "run_trial"),
+        ("C04", "orchestrator/campaign/p3_autonomous_workload_trial.py", "main"),
+        ("C04", "orchestrator/campaign/p3_autonomous_workload_trial.py", "run_trial"),
+        ("C09", "orchestrator/campaign/p3_autonomous_workload_trial.py", "assert_campaign_layer3_chain"),
+        ("C09", "orchestrator/campaign/p3_autonomous_workload_trial.py", "main"),
+        ("C09", "orchestrator/campaign/trial_registry.py", "assert_trial_registry_acceptance"),
+        ("C09", "orchestrator/campaign/p3_autonomous_workload_trial.py", "run_trial"),
+        ("C10", "orchestrator/campaign/trial_registry.py", "assert_trial_registry_acceptance"),
+        ("C11", "orchestrator/campaign/p3_autonomous_workload_trial.py", "_run_workload"),
+        ("C11", "orchestrator/campaign/p3_autonomous_workload_trial.py", "apply_critic_feedback"),
+        ("C11", "orchestrator/campaign/p3_autonomous_workload_trial.py", "main"),
+        ("C11", "orchestrator/campaign/p3_autonomous_workload_trial.py", "run_trial"),
+        ("C11", "orchestrator/campaign/s8c_generation_projection.py", "_validate_critic_projection"),
+        ("C11", "orchestrator/campaign/s8c_generation_projection.py", "apply_critic_feedback"),
+        ("C11", "orchestrator/campaign/s8c_generation_projection.py", "validate_planner_payload"),
+        ("C12", "orchestrator/campaign/env_contract.py", "lookup"),
+        ("C12", "orchestrator/campaign/execution_guard.py", "attest_and_build_receipt"),
+        ("C12", "orchestrator/campaign/p3_autonomous_workload_trial.py", "main"),
+        ("C12", "orchestrator/campaign/p3_autonomous_workload_trial.py", "run_trial"),
+    }
+)
+MACHINE_CONTRACT_FUNCTION_EXCLUSIONS = frozenset(
+    {
+        ("C01", "orchestrator/campaign/s8b_ratified_freeze.py", "_run_workload", "different-module-token"),
+        ("C01", "orchestrator/campaign/s8b_ratified_freeze.py", "run_trial", "different-module-token"),
+        ("C02", "orchestrator/campaign/p3_autonomous_workload_trial.py", "invocation namespace", "non-identifier-token"),
+        ("C02", "orchestrator/campaign/p3_autonomous_workload_trial.py", "provider invocation_id", "non-identifier-token"),
+        ("C04", "orchestrator/campaign/p3_autonomous_workload_trial.py", "crash handler", "non-identifier-token"),
+        ("C04", "orchestrator/campaign/p3_autonomous_workload_trial.py", "mark_experiment_indeterminate", "declared-unimplemented-token"),
+        ("C04", "orchestrator/campaign/trial_registry.py", "forbid_trial_restart", "declared-unimplemented-token"),
+        ("C04", "orchestrator/campaign/trial_registry.py", "reject_started_trial", "declared-unimplemented-token"),
+        ("C04", "orchestrator/campaign/trial_registry.py", "run_trial crash handler", "non-identifier-token"),
+        ("C04", "orchestrator/campaign/trial_registry.py", "run_trial preflight", "non-identifier-token"),
+        ("C09", "orchestrator/campaign/p3_autonomous_workload_trial.py", "report publish", "non-identifier-token"),
+        ("C09", "orchestrator/campaign/trial_registry.py", "assert_campaign_layer3_chain", "different-module-token"),
+        ("C09", "orchestrator/campaign/trial_registry.py", "registry append", "non-identifier-token"),
+        ("C10", "orchestrator/campaign/autonomous_trial_completeness.py", "assert_trial_registry_acceptance", "different-module-token"),
+        ("C10", "orchestrator/campaign/autonomous_trial_completeness.py", "authoritative bytes reread", "non-identifier-token"),
+        ("C10", "orchestrator/campaign/autonomous_trial_completeness.py", "verify_s8c_cross_binding", "declared-unimplemented-token"),
+        ("C10", "orchestrator/campaign/trial_registry.py", "registry append", "non-identifier-token"),
+        ("C10", "orchestrator/campaign/trial_registry.py", "verify_s8c_cross_binding", "declared-unimplemented-token"),
+        ("C11", "orchestrator/campaign/p3_autonomous_workload_trial.py", "next generation", "non-identifier-token"),
+        ("C11", "orchestrator/campaign/s8c_generation_projection.py", "AppliedCriticFeedback.planner_projection", "non-identifier-token"),
+        ("C12", "orchestrator/campaign/env_contract.py", "attestation consumer", "non-identifier-token"),
+        ("C12", "orchestrator/campaign/env_contract.py", "run_trial", "different-module-token"),
+        ("C12", "orchestrator/campaign/execution_guard.py", "campaign launch", "non-identifier-token"),
+        ("C12", "orchestrator/campaign/execution_guard.py", "run_trial", "different-module-token"),
+        ("C12", "orchestrator/campaign/p3_autonomous_workload_trial.py", "campaign launch", "non-identifier-token"),
+        ("C12", "orchestrator/campaign/p3_autonomous_workload_trial.py", "env_contract.lookup", "non-identifier-token"),
+        ("C12", "orchestrator/campaign/p3_autonomous_workload_trial.py", "execution_guard.attest_and_build_receipt", "non-identifier-token"),
+        ("C12", "orchestrator/campaign/p3_autonomous_workload_trial.py", "reservation.check_reservation", "non-identifier-token"),
+        ("C12", "orchestrator/campaign/p3_autonomous_workload_trial.py", "reservation.read_binding", "non-identifier-token"),
+        ("C12", "orchestrator/campaign/reservation.py", "campaign launch", "non-identifier-token"),
+        ("C12", "orchestrator/campaign/reservation.py", "reservation.check_reservation", "non-identifier-token"),
+        ("C12", "orchestrator/campaign/reservation.py", "reservation.read_binding", "non-identifier-token"),
+        ("C12", "orchestrator/campaign/reservation.py", "run_trial", "different-module-token"),
+    }
+)
+_DECLARED_UNIMPLEMENTED_CONTRACT_FUNCTIONS = frozenset(
+    (condition, path, name)
+    for condition, path, name, reason in MACHINE_CONTRACT_FUNCTION_EXCLUSIONS
+    if reason == "declared-unimplemented-token"
 )
 
 
@@ -116,6 +203,132 @@ def _wave_paths(paths: set[str]) -> set[str]:
     }
 
 
+def _machine_contract_function_findings(
+    value: dict[str, object],
+) -> tuple[
+    frozenset[tuple[str, str, str]],
+    frozenset[tuple[str, str, str, str]],
+    frozenset[tuple[str, str, str]],
+]:
+    checked: set[tuple[str, str, str]] = set()
+    excluded: set[tuple[str, str, str, str]] = set()
+    missing: set[tuple[str, str, str]] = set()
+    function_names_by_path: dict[str, frozenset[str]] = {}
+    symbol_names_by_path: dict[str, frozenset[str]] = {}
+
+    def parse_module(path: str) -> None:
+        if path not in symbol_names_by_path:
+            assert path.endswith(".py")
+            tree = ast.parse((ROOT / path).read_bytes(), filename=path)
+            function_names_by_path[path] = frozenset(
+                node.name
+                for node in tree.body
+                if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+            )
+            symbols = set(function_names_by_path[path])
+            for node in ast.walk(tree):
+                if isinstance(node, ast.Name):
+                    symbols.add(node.id)
+                elif isinstance(node, ast.Attribute):
+                    symbols.add(node.attr)
+                elif isinstance(node, (ast.Import, ast.ImportFrom)):
+                    symbols.update(
+                        alias.asname or alias.name.rsplit(".", 1)[-1]
+                        for alias in node.names
+                    )
+            symbol_names_by_path[path] = frozenset(symbols)
+
+    def classify(
+        identifier: str,
+        path: str,
+        name: str,
+        *,
+        entrypoint: bool = False,
+    ) -> None:
+        key = (identifier, path, name)
+        parse_module(path)
+        if entrypoint:
+            if name in function_names_by_path[path]:
+                checked.add(key)
+            else:
+                missing.add(key)
+            return
+        if not name.isidentifier():
+            excluded.add((*key, "non-identifier-token"))
+        elif key in _DECLARED_UNIMPLEMENTED_CONTRACT_FUNCTIONS:
+            excluded.add((*key, "declared-unimplemented-token"))
+        elif name in symbol_names_by_path[path]:
+            checked.add(key)
+        elif any(
+            name in symbols
+            for other_path, symbols in symbol_names_by_path.items()
+            if other_path != path
+        ):
+            excluded.add((*key, "different-module-token"))
+        else:
+            missing.add(key)
+
+    conditions = value["conditions"]
+    assert isinstance(conditions, list)
+    module_paths: set[str] = set()
+    for row in conditions:
+        assert isinstance(row, dict)
+        if row["machine_checkable"] is not True:
+            continue
+        consumer = row["consumer_requirement"]
+        assert isinstance(consumer, dict)
+        consumer_path = consumer["path"]
+        assert isinstance(consumer_path, str)
+        module_paths.add(consumer_path)
+        required_evidence = row["required_evidence"]
+        assert isinstance(required_evidence, list)
+        for evidence in required_evidence:
+            assert isinstance(evidence, dict)
+            path = evidence["path"]
+            assert isinstance(path, str)
+            module_paths.add(path)
+    for path in module_paths:
+        parse_module(path)
+
+    for row in conditions:
+        assert isinstance(row, dict)
+        if row["machine_checkable"] is not True:
+            continue
+        identifier = f"C{row['condition_number']:02d}"
+        consumer = row["consumer_requirement"]
+        assert isinstance(consumer, dict)
+        consumer_path = consumer["path"]
+        assert isinstance(consumer_path, str)
+        for name in consumer["entrypoints"]:
+            assert isinstance(name, str)
+            classify(identifier, consumer_path, name, entrypoint=True)
+        required_evidence = row["required_evidence"]
+        assert isinstance(required_evidence, list)
+        for evidence in required_evidence:
+            assert isinstance(evidence, dict)
+            path = evidence["path"]
+            assert isinstance(path, str)
+            for chain in evidence["reachable_from"]:
+                assert isinstance(chain, str)
+                tokens = chain.split(" -> ")
+                assert tokens and all(tokens)
+                for token in tokens:
+                    classify(identifier, path, token)
+
+    return frozenset(checked), frozenset(excluded), frozenset(missing)
+
+
+def _assert_machine_contract_function_pins(
+    value: dict[str, object],
+    *,
+    excluded_pin: frozenset[tuple[str, str, str, str]],
+) -> None:
+    checked, excluded, missing = _machine_contract_function_findings(value)
+    assert checked == MACHINE_CONTRACT_FUNCTION_CHECKS
+    assert excluded == excluded_pin
+    assert missing == frozenset()
+
+
 @pytest.fixture(scope="session")
 def repository_candidate_commit(tmp_path_factory: pytest.TempPathFactory) -> str:
     """実 repository の候補 commit を session 内で一度だけ合成する。"""
@@ -192,6 +405,48 @@ def test_repository_tip_binds_current_decider_version_without_activation(
     assert report.decider_version_matches is True
     assert report.decider_version_reason_code == "decider-version-match"
     assert report.effective is False
+
+
+def test_machine_contract_function_names_exist_and_checked_set_is_exact() -> None:
+    value = json.loads((ROOT / prereg.EVIDENCE_CONTRACT_PATH).read_bytes())
+    _assert_machine_contract_function_pins(
+        value,
+        excluded_pin=MACHINE_CONTRACT_FUNCTION_EXCLUSIONS,
+    )
+
+
+def test_machine_contract_exclusion_pin_cannot_be_omitted() -> None:
+    value = json.loads((ROOT / prereg.EVIDENCE_CONTRACT_PATH).read_bytes())
+    with pytest.raises(AssertionError):
+        _assert_machine_contract_function_pins(
+            value,
+            excluded_pin=frozenset(),
+        )
+
+
+def test_machine_contract_rejects_prewave_accept_trial_name() -> None:
+    value = json.loads((ROOT / prereg.EVIDENCE_CONTRACT_PATH).read_bytes())
+    c09 = value["conditions"][8]
+    serialized = json.dumps(c09, ensure_ascii=False)
+    assert serialized.count("assert_trial_registry_acceptance") == 4
+    value["conditions"][8] = json.loads(
+        serialized.replace("assert_trial_registry_acceptance", "accept_trial")
+    )
+
+    checked, excluded, missing = _machine_contract_function_findings(value)
+    old = (
+        "C09",
+        "orchestrator/campaign/trial_registry.py",
+        "assert_trial_registry_acceptance",
+    )
+    prewave = (
+        "C09",
+        "orchestrator/campaign/trial_registry.py",
+        "accept_trial",
+    )
+    assert checked == MACHINE_CONTRACT_FUNCTION_CHECKS - {old}
+    assert excluded == MACHINE_CONTRACT_FUNCTION_EXCLUSIONS
+    assert missing == frozenset({prewave})
 
 
 def test_generation_4_changes_revision_procedure_without_changing_condition_contract(

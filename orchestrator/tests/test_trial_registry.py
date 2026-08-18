@@ -972,7 +972,7 @@ def test_p5_six_complete_terminal_reports_pass_acceptance(tmp_path: Path) -> Non
         registry_path=registry,
     )
     assert summary.certifying is False
-    assert summary.arm_binding == "declared-only"
+    assert summary.arm_binding == "execution-bound"
     assert {trial.status for trial in summary.trials} == {"complete"}
     receipt_bytes = (repo / summary.receipt_path).read_bytes()
     receipt = json.loads(receipt_bytes)
@@ -998,12 +998,13 @@ def test_p5_six_complete_terminal_reports_pass_acceptance(tmp_path: Path) -> Non
             "report_sha256": hashlib.sha256(report_bytes).hexdigest(),
             "attempt_journal_path": journal_path.relative_to(repo).as_posix(),
             "attempt_journal_sha256": hashlib.sha256(journal_bytes).hexdigest(),
+            "arm_execution": report["arm_execution"],
         })
     lifecycle_bytes = (repo / R.DEFAULT_LIFECYCLE_PATH).read_bytes()
     registry_bytes = registry.read_bytes()
     first_report = json.loads(reports[0].read_bytes())
     expected_receipt = {
-        "schema_version": "p3-8c-trial-acceptance-receipt/v1",
+        "schema_version": "p3-8c-trial-acceptance-receipt/v2",
         "manifest_path": manifest_path.relative_to(repo).as_posix(),
         "manifest_sha256": manifest.sha256,
         "prereg_commit": manifest.prereg_commit,
@@ -1017,16 +1018,21 @@ def test_p5_six_complete_terminal_reports_pass_acceptance(tmp_path: Path) -> Non
         "lifecycle_prefix_bytes": len(lifecycle_bytes),
         "lifecycle_prefix_sha256": hashlib.sha256(lifecycle_bytes).hexdigest(),
         "certifying": False,
-        "non_certifying_reason_codes": [
-            "c02-arm-binding-unproven",
-            "t468-approval-authority-absent",
-        ],
+        "non_certifying_reason_codes": ["t468-approval-authority-absent"],
         "trials": expected_trials,
     }
     # No volatile leaf is omitted: commit-dependent leaves are rederived from
     # the fixture repository and every key, leaf, and trial-array position is
     # compared.
     assert receipt == expected_receipt
+    receipt_path = repo / summary.receipt_path
+    _commit(repo, "track acceptance receipt v2", receipt_path)
+    verified = R.s8c_acceptance_receipt.verify_acceptance_receipt(
+        receipt_path, repository_root=repo,
+    )
+    assert verified.receipt.non_certifying_reason_codes == (
+        "t468-approval-authority-absent",
+    )
 
 
 def test_t822_acceptance_allows_coherent_past_measurement_head(
@@ -1173,7 +1179,12 @@ def test_acceptance_projects_identical_terminal_bytes_in_all_json_boundaries(
         repository_root=repo,
         registry_path=registry,
     )
-    receipt = json.loads((repo / summary.receipt_path).read_bytes())
+    receipt_bytes = (repo / summary.receipt_path).read_bytes()
+    receipt = json.loads(receipt_bytes)
+    parsed_receipt = R.s8c_acceptance_receipt.parse_acceptance_receipt_bytes(
+        receipt_bytes
+    )
+    assert parsed_receipt.schema_version == R.s8c_acceptance_receipt.SCHEMA_VERSION
     lifecycle = [
         json.loads(line)
         for line in (repo / R.DEFAULT_LIFECYCLE_PATH).read_bytes().splitlines()
@@ -1181,6 +1192,7 @@ def test_acceptance_projects_identical_terminal_bytes_in_all_json_boundaries(
     terminals = {
         row["trial_id"]: row for row in lifecycle if row["event"] == "terminal"
     }
+    parsed_trials = {trial.trial_id: trial for trial in parsed_receipt.trials}
     for receipt_trial in receipt["trials"]:
         trial_id = receipt_trial["trial_id"]
         expected = expected_by_id[trial_id]
@@ -1195,6 +1207,9 @@ def test_acceptance_projects_identical_terminal_bytes_in_all_json_boundaries(
                 "origin_terminal_projection"
             ],
         }) == expected_bytes
+        assert parsed_trials[trial_id].origin_terminal_projection == (
+            receipt_trial["origin_terminal_projection"]
+        )
         if rejected:
             assert receipt_trial["origin_terminal_projection"][
                 "formal_receipt_sha256"
@@ -1522,6 +1537,15 @@ def test_p6_one_cell_partial_terminal_outcome_passes_acceptance(tmp_path: Path) 
         registry_path=registry,
     )
     assert [trial.status for trial in summary.trials].count("partial") == 6
+    receipt_value = json.loads((repo / summary.receipt_path).read_bytes())
+    assert receipt_value["non_certifying_reason_codes"] == [
+        "c02-arm-binding-unproven",
+        "t468-approval-authority-absent",
+    ]
+    parsed = R.s8c_acceptance_receipt.parse_acceptance_receipt_bytes(
+        (repo / summary.receipt_path).read_bytes()
+    )
+    assert parsed.schema_version == R.s8c_acceptance_receipt.SCHEMA_VERSION
 
 
 def test_t1185_pb_partial_one_generation_with_budget_two_passes_acceptance(
@@ -2535,7 +2559,7 @@ def test_m11_acceptance_receipt_is_exclusive_create(tmp_path: Path) -> None:
     assert receipt.read_bytes() == original
 
 
-def test_acceptance_v1_has_no_certifying_issuance_branch(tmp_path: Path) -> None:
+def test_acceptance_v2_has_no_certifying_issuance_branch(tmp_path: Path) -> None:
     repo, manifest_path, registry, manifest = _registered_repo(tmp_path)
     reports = _reports(repo / "reports", manifest, _head(repo), complete=True)
     summary = _accept(
@@ -2554,10 +2578,10 @@ def test_acceptance_v1_has_no_certifying_issuance_branch(tmp_path: Path) -> None
         f"output/s8c-trial-registry/receipts/{manifest.sha256}.json"
     )
     assert receipt["certifying"] is False
-    assert set(receipt["non_certifying_reason_codes"]) >= {
-        "c02-arm-binding-unproven",
-        "t468-approval-authority-absent",
-    }
+    assert receipt["non_certifying_reason_codes"] == [
+        "t468-approval-authority-absent"
+    ]
+    assert all("arm_execution" in trial for trial in receipt["trials"])
     source = Path(R.__file__).read_text(encoding="utf-8")
     receipt_block = source.split("receipt_value =", 1)[1].split(
         "_exclusive_create_acceptance_receipt", 1
@@ -2654,7 +2678,7 @@ def test_p12_accept_cli_runs_from_clean_pythonpath(tmp_path: Path) -> None:
     assert result.returncode == 0, result.stdout + result.stderr
     output = json.loads(result.stdout)
     assert output["certifying"] is False
-    assert output["arm_binding"] == "declared-only"
+    assert output["arm_binding"] == "execution-bound"
     assert output["check"] == "trial-ID completeness (registry)"
 
 
