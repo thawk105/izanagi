@@ -21646,3 +21646,209 @@ keyword 3) と judge CLI の引数は変更しない。期待 SHA の唯一の�
 **却下した選択肢:**
 - **outer state だけを見る単純形** — 上記の恒真枝をそのまま残す。
 - **producer の定数を judge が import する案** — 検査の独立性を失う。
+
+## D524. 受入受領証の著者を候補外 launcher にし、bootstrap は SHA でなく構造的述語で自己限定する (2026-08-18)
+
+**決定:** ユーザー裁定 [T-1283] (2026-08-18) の択 (b) + 暫定 (c) を次の範囲で実装する。
+
+1. **著者の分離。** 受入受領証の内容は `tools/acceptance_launcher.py` が生成する。
+   待ち手は launcher の source を Git blob から取り、`python3 -I -c` の stdin へ渡して実行し、
+   保管と publish だけを担う。launcher が非 0 で終われば final receipt を publish しない。
+2. **runner の実行。** launcher は `tested_tip:tools/run_tests.py` の blob bytes を同じ形で
+   exec する。pathname から import しない。**この形は runner が `main(argv)` を公開している
+   ことを暗黙に要求する。**
+3. **schema。** outer acceptance receipt を `dev-wave-acceptance-receipt/v5` とし、
+   `launcher_source_revision` / `launcher_blob_sha` / `launcher_executed_sha256` /
+   `waiter_executed_sha256` / `runner_executed_sha256` を必須にする。v4 fallback を作らない。
+4. **land の照合。** land は receipt の値を信用せず、Git tree から Git object ID と blob 内容の
+   SHA-256 を独立に再計算して照合する。**`verdict == "child-green"` にも適用する。**
+   `runner_executed_sha256` は `tested_tip` との一致だけを要求し、`tested_main` との等値は
+   要求しない (runner を改訂した wave を恒久 land 不能にしないため)。
+5. **bootstrap の自己限定。** `tested-tip-bootstrap` を許すのは、`tested_main` と
+   `locked_main` の双方に launcher が存在せず、`tested_tip` に regular blob として存在する
+   ときだけとする。**exact main SHA の pin は使わない。**
+6. 既存の受理条件は 1 つも削らない。拒否は既存 `RC_AUDIT = 23` を使い、新 RC を作らない。
+
+**閉じていない残余を決定の一部として明記する。** (i) 改変された tip 側待ち手は launcher を
+起動せず受領証を自作できる、(ii) bounded / dispatch の内側の子は pathname を読み直すため
+実行 bytes の束縛外にある、(iii) land verifier 自身も候補コードである。
+**したがって本決定は F385 を閉じない。** いずれも [T-696] の協調境界に残す。
+
+**理由:**
+- 既存 `waiter_blob_sha` は発行側も land 側も同じ tip の tree から算出するため恒真である
+  (D403 本文が自ら明記)。実測では受領証の 99.0% (全期間 103 本中 102 本) が `child-green` で、
+  D487 決定 4 の main 束縛が発火したのは 1 本だけだった。穴は受入の主経路そのものにあった。
+- 択 (a) (両経路で main==tip 等値を要求) は `tools/dev_wave_wait.py` と `tools/run_tests.py` を
+  編集した wave をどの経路でも land 不能にする。ユーザーはこれを不採用とした。
+- **exact main SHA の pin は使えない。** 本 wave の実測で main は 3 時間に 2 度動いた
+  (`a160f4aa` → `8e76c41a` → `b30b95bd`)。並行 wave が常時 land する運用では、
+  段 4 で pin した値は受入までに必ず stale になる。加えて pin だけでは一度限り性を担保しない
+  — land は `tested_main` しか見ておらず、`_main_is_allowed` が `current != tested_main` を
+  許すため、古い base の bootstrap 受領証が main へ launcher が入った後でも通り得た。
+  構造的述語は SHA を含まないので stale にならず、本決定が land した瞬間に自己限定される。
+- **runner の実行 bytes を自己申告させる形は採らない。** 段 3 の敵対レビューが、
+  FD を束縛して pathname を実行する形には TOCTOU 窓があること、runner に marker を出させる形は
+  既存テスト `test_acceptance_main_does_not_emit_nonacceptance_warning` (受入形で stdout と
+  stderr がともに空であることを要求) を壊すことを実証した。blob bytes を exec する形は
+  観測した bytes と実行した bytes を同一物にし、`tools/run_tests.py` を 1 行も編集しないので
+  非帰属経路の runner 等値検査が本 wave 自身を弾く問題も同時に避ける。
+
+**却下した選択肢:**
+- **v4 / v5 の併存。** land が新 field を要求しない downgrade 経路が残り、F385 と同型の
+  恒真ゲートを新設することになる。D487 決定 3 は 1 日前に同じ artifact で
+  「v3 fallback・互換受理・警告 mode は作らない」を実行しており、その先例に従う。
+- **D404 の一般則の改訂。** D404 は schema 世代交代による旧版締め出しを却下しているが、
+  その具体的根拠 (並行 wave の巻き添え) は今回の母集団では実測により成立しない
+  — v4 受領証を持つ wave 10 件は全件 land 済みで branch も消滅しており、稼働中 branch で
+  v4 受領証を持つものは 0 件だった。**本決定は D404 の一般則には触れない。**
+  ユーザーが逆を望むなら差し戻せるよう、この判断を明示して報告する。
+- **親の固定起動点を launcher へ移すこと。** 起動権を wave tip の外へ出す唯一の形だが、
+  lease の claim / release の主体が変わり D253 の待ち札意味論に触れる。同じ wave で
+  2 つの正しさ防壁を同時に動かさないため次段へ送る
+  ([T-1373])。
+- **D403 が却下した「受領証へ実行 bytes field を追加する」。** 2026-08-18 のユーザー裁定
+  (択 (c)) が直接上書きするため、この点で D403 を supersede する。
+  D403 の gate 自体 (投入前の待ち手 source 照合) は無改変で残す。
+
+## D525. COMMIT receipt は verifier 実走行の内側でだけ発行する (2026-08-18)
+
+**決定:** COMMIT receipt を発行する capability は、実 verifier entrypoint が trace を検証した
+その呼び出しの内側でだけ生成する。呼び手が構築した `VerifyResult` や、呼び手が組み立てた
+serialized dict / hash を authority にしない。capability は operation・variant・workload・sink・
+lock context を焼き込み、receipt 発行時に完全一致と一回消費を要求する。
+
+**理由:**
+- 「receipt を要求する検査を足す」ことと「receipt が verifier 由来である」ことは別である。
+  前者だけを実装すると、テストも同じ呼び手側の経路で receipt を作るため全緑になり、
+  検査は恒真になる。本 wave では焦点走 1388 passed の状態で、trace を一度も読まずに
+  live receipt を発行できた。
+- 呼び手が立てる真偽値は非権威である。最適化圧力は必ず正しさの門を攻撃しに来るという前提
+  (規律 2) に立てば、門の入力は門自身が生成しなければならない。
+- capability を operation へ束縛しないと、正常な trace を 1 回検証するだけで任意の
+  variant / payload 向けの receipt を量産できる。単発の検証を無制限の発行権に変えてはならない。
+
+**却下した選択肢:**
+- 既成 `VerifyResult` を受け取る issuer を残し、呼び手の規律で運用する — 規律で守る門は
+  門ではない。実装子は実際にこの経路を作った。
+- receipt を producer 側だけで要求する — 低層 writer を直接呼べば素通りするため支配点にならない。
+- 一回限りを in-memory object の消費だけで表す — durable な根拠にならない。
+  ledger 内の消費済み集合を flock 下で走査する。
+
+## D526. 新 certified lock は批准済み closure digest とだけ突き合わせる (2026-08-18)
+
+**決定:** 新しい certified lock を作るとき、enforcement source closure の path→blob map 全体の
+canonical hash を、`hooks/` 配下の read-only 台帳が持つ批准済み digest 集合と比較する。
+一致しなければ lock を作らない。台帳は 0 行で land し、追記 API・CLI・自動更新処理を作らない。
+台帳データ自身は自己参照を避けるため closure から除外する。
+**この機構を「人間が批准したことの機械的証明」と記述してはならない。**
+
+**理由:**
+- 従来の live 検査は disk bytes が HEAD blob と一致するかという自己整合しか見ておらず、
+  verifier を弱化して commit すればその bytes が新しい正規として記録できた。
+  規律 2 が名指しする reward hacking の経路である。
+- 批准単位を path ごとにすると、個別には批准済みでも組合せとして未審査の closure を作れる。
+  map 全体の hash 1 本にする。Git commit SHA は含めない — 同一 bytes が別 commit へ
+  移っただけで批准を失わせない。
+- `hooks/` 配下は Write でも Bash リダイレクトでも書き込みが機械的に拒否される。
+  規律 2 の脅威主体は AI 実装者なので、この配置は実効的な障壁である。
+- ただし hook 側の障壁は暗号学的証明ではない。謳える性質は「AI 実装者が追記できない集合との
+  比較」までであり、それを超える主張をすると恒真な保証を新設したことになる。
+- 比較処理と receipt 実装面を closure の外に置くと、比較を改変して迂回でき、
+  弱化しても批准対象 digest が変わらない。どちらも closure へ収載する。
+
+**却下した選択肢:**
+- 実装を見送りユーザー裁定へ戻す — 裁定は実害の観測を待たないと明記しており、
+  fail-closed の既定は live 影響ゼロ (v2 lock が 1 件も存在しない) で実現できる。
+- 批准値を持つ台帳を wave 側で作って land する — 弱化した本人が批准する形になる。
+- 外部 trust root と署名を本 wave で新設する — 粗い provenance 方針に触れるため裁定へ返す。
+
+## D527. activation の検証済み wrapper は head 用と prefix 用で契約を分ける (2026-08-18)
+
+**決定:** `env_contract` が公開する検証済み activation wrapper を 2 つに分ける。
+current head 全体を検証するものと、`(activation_serial, activation_state_sha256)` を取って
+前置部分列へ同じ検査を適用するものである。identity 側はこの 2 つだけを使い、
+activation の leaf 関数を直接呼ばない。
+
+**理由:**
+- 記録済み activation tuple の検証は、current chain head 全体の健全性と、記録 serial までの
+  前置部分列の健全性という**別々の 2 つ**を要求する。head 用 wrapper を prefix にそのまま
+  流用すると正当な過去 lock を誤拒否し、prefix 用だけに置換すると現在の head の破損を見逃す。
+- 直接呼びは wrapper が足す 4 検査 (行ごとの calibration 検証・registry 交差検査・
+  verified hash 集合の更新・fork 安全 cache) をすべて素通りする。
+- 経由化を AST 検査だけで固定すると恒真になる。runtime の負の対照が要る。ただし
+  successor callback が実行される serial では直接 validator も同じ拒否をするため、
+  差が出るのは callback が呼ばれない初期 serial である。負の対照はそこへ置く。
+
+**却下した選択肢:**
+- 単一 wrapper で両用途を賄う — 上記のとおりどちらかの意味が壊れる。
+- AST 検査だけで直接呼びを禁じる — 呼び出し形は縛れても検査内容の回復を示せない。
+
+## D528. campaign producer の利用意図 field を `declared_use_class` と確定し、旧 literal 指定を明示 supersede して族の外延を宣言由来にする (2026-08-18)
+
+**背景:** D162 決定 (11) は種別軸の field 名を確定させず、「名前が決まるまで種別 field を持つ
+新しい producer を land しない」と定めてユーザー再裁定へ返した。その再裁定 (2026-08-05 /rulings、
+T-479 択 (b)) が「`artifact_role` を使わず別名とし、実装 wave の新 D で確定して旧 literal 指定を
+明示 supersede する」と決めた。本 D はその委任を履行する条文である。
+一次資料 = `output/insights/2026-08-18_t337-t479-t318-declared-use-class/`。
+
+**決定 (1): 名前を `declared_use_class` に確定する。** 値の閉表は
+`official` / `exploration` / `qualification` / `dry` の 4 値とする。この名前と閉表は
+D282 が pin した受領証 schema に既に存在し、D500 決定 (4) も本文で同じ意味に用いている。
+本 D は新たな候補を選ぶのではなく、既に実成果物へ pin されている名前を条文として固定する。
+
+**決定 (2): T-318 / T-337 の裁定文にある literal `artifact_role` 指定を本 D で明示 supersede する。**
+`artifact_role` は `orchestrator/campaign/s8b_oracle_exploration.py` と
+`s8b_oracle_artifacts.py` で探索 oracle の文書種別 (`manifest` / `observations` / `verdict`) として
+現用であり、同名を種別軸へ再利用すれば D75 の二義化になる。oracle 側の改名は T-479 が不採用と
+裁定済みである。
+
+**決定 (3): D162 決定 (11) の land 禁止は、campaign producer の宣言に限って解除する。**
+解除の権威は D282 の schema pin ではなく T-479 の委任である。schema pin は名前の実在を証明するが、
+D162 が指定した解除条件ではない。RF 側 9 層の実装禁止 (D162 決定 (10)) と producer 実装禁止
+(D500 決定 (1)(2)(3)) はそのまま維持する。**本 D は RF producer の実装ではない。**
+
+**決定 (4): 宣言は利用意図であり、namespace はそこから導く非 identity の派生値である。**
+`declared_use_class` を `CampaignConfig`・canonical preimage・campaign-id のいずれにも入れない
+(D123 決定 (3) の維持)。したがって同じ cfg の campaign-id は宣言を跨いで同一である。
+
+**決定 (5): `run_campaign` は宣言を既定値なしの必須 keyword-only 引数として要求し、
+`campaign_namespace` は削除する。** 二つの selector を併存させない。併存させれば宣言値と
+実配線が乖離しうる。省略は signature binding の `TypeError` で止まり、
+**従来の「省略すると暗黙に official」という配線は無くなる。**
+
+**決定 (6): campaign sink が materialize できるのは `official` と `exploration` だけとする。**
+`qualification` と `dry` は、campaign-id の計算と `layout.ensure()` より**前**に `ValueError` で
+拒否する。拒否時に campaign-id も出力 directory も作られない。`qualification` は
+「適格性審査へ提出する」意図であって合格宣言ではなく (D162 決定 (1))、`dry` は qsub 事実の
+免除ではない (D500 決定 (4))。既存 2 layout へ暗黙変換せず、別 layout も新設しない。
+
+**決定 (7): 族の外延を宣言由来にする。** 手書きの driver tuple と位置依存の除外を、
+`orchestrator/campaign/` の production module を AST で走査して「campaign root を作る module は
+module-level の `DECLARED_USE_CLASS` を宣言する」を固定する閉包検査へ置換した。
+走査は `ast.Name` 形と `ast.Attribute` 形の両方を見る。module 修飾の呼び出し
+(`layout.exploration_campaign_layout(...)`) で閉包を素通りできない。
+producer ごとの layout / `run_campaign` 呼出し個数の pin は維持する。
+
+**決定 (8): 宣言は権威ではない。** 防げるのは宣言の省略であって、`official` と誤って申告する事故
+ではない。caller の自己申告が意味 gate にならないことは D162 決定 (1) が既に条文化している。
+producer identity 束縛による誤申告検出は本 D の射程外とする。
+
+**決定 (9): `run_campaign` を通らない producer の runtime gate は本 D で作らない。**
+8c (`p3_autonomous_workload_trial.py`) は `exploration_campaign_layout` を直接呼ぶため、
+宣言と閉包検査の対象ではあるが必須引数の gate は通らない。その trial-local layout の型分離は
+D123 決定 (4) が別裁定へ送済みであり、本 D はその境界を動かさない。
+
+**却下した選択肢:**
+
+- `artifact_role` を種別軸へ再利用する — production 2 file で別軸に現用であり D75 の二義化になる。
+- 宣言を module-level 定数だけに置く — 定数は runtime の分岐に届かず、宣言なしの producer を
+  実際には止められない。段 2 プランがこの形を反証した。
+- `campaign_namespace` を残して宣言と併存させる — 不一致時にどちらが実配線を決めるかが曖昧になる。
+- `qualification` / `dry` を既存 2 layout へ暗黙変換する — 適格性を producer の自己申告で
+  昇格させる経路が開く。
+- 宣言を campaign-id へ入れる — 歴史 campaign の identity と proof chain 参照が壊れる。
+
+**研究状態への影響:** 既存 6 producer の出力 root、凍結 3 artifact の bytes、campaign-id、
+certified 選択の値、材料レポート、proof chain はいずれも**不変**である。受理集合は狭まる方向にだけ
+変わる — 宣言を省略した caller が実行前に止まり、`qualification` / `dry` / 未知値が出力生成前に
+拒否される。RF/qualification の 9 層は 0/9 のまま動かしていない。

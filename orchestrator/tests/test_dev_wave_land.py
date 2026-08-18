@@ -36,6 +36,41 @@ LAND = importlib.util.module_from_spec(SPEC)
 sys.modules[SPEC.name] = LAND
 SPEC.loader.exec_module(LAND)
 REAL_GIT = "/usr/bin/git"
+_EXPECTED_AUTHORITY_KINDS = {
+    "tested-main": "dev-wave-acceptance-launcher",
+    "tested-tip-bootstrap": "dev-wave-acceptance-launcher-bootstrap-tip",
+}
+_V5_BINDING_FIELDS = frozenset({
+    "launcher_source_revision",
+    "launcher_blob_sha",
+    "launcher_executed_sha256",
+    "waiter_executed_sha256",
+    "runner_executed_sha256",
+})
+_V4_RECEIPT_FIELDS = frozenset({
+    "schema_version",
+    "authority_kind",
+    "acceptance_wave",
+    "lease_holder",
+    "tested_main",
+    "tested_tip",
+    "argv",
+    "resolved_runner_path",
+    "child_rc",
+    "pre_fingerprint",
+    "post_fingerprint",
+    "waiter_blob_sha",
+    "env_projection",
+    "effective_scheduler",
+    "verdict",
+    "log_sha256",
+    "checker_rc",
+    "checker_status",
+    "checker_blob_sha",
+    "checker_receipt_sha256",
+    "red_nodeids",
+    "flake_nodeids",
+})
 
 
 def _git_env() -> dict[str, str]:
@@ -65,6 +100,26 @@ def _git(repo: Path, *args: str, check: bool = True) -> str:
     if check:
         assert result.returncode == 0, (repo, args, result.stderr)
     return result.stdout.strip()
+
+
+def _git_blob_sha256(repo: Path, revision: str, path: str) -> str:
+    result = subprocess.run(
+        [REAL_GIT, "-C", str(repo), "cat-file", "blob", f"{revision}:{path}"],
+        env=_git_env(),
+        stdin=subprocess.DEVNULL,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        check=False,
+    )
+    assert result.returncode == 0, (repo, revision, path, result.stderr)
+    return hashlib.sha256(result.stdout).hexdigest()
+
+
+def _receipt_blob_sha256(repo: Path, revision: str, path: str) -> str:
+    try:
+        return _git_blob_sha256(repo, revision, path)
+    except AssertionError:
+        return "0" * 64
 
 
 @contextlib.contextmanager
@@ -140,6 +195,10 @@ class _Repo:
             "raise SystemExit(0)\n",
             encoding="utf-8",
         )
+        (tools / "acceptance_launcher.py").write_text(
+            "raise SystemExit(0)\n",
+            encoding="utf-8",
+        )
         _git(
             self.main,
             "add",
@@ -150,6 +209,7 @@ class _Repo:
             "tools/dev_wave_wait.py",
             "tools/check_acceptance_reds.py",
             "tools/run_tests.py",
+            "tools/acceptance_launcher.py",
         )
         _git(self.main, "commit", "-qm", "base")
         self.base = _git(self.main, "rev-parse", "HEAD")
@@ -189,6 +249,7 @@ class _Repo:
         audited: tuple[str, ...] | None = None,
         acceptance_wave: str = "test-wave",
         acceptance_receipt: Path | None = None,
+        make_acceptance_receipt: bool = True,
     ):
         tested_base = base or self.base
         tested_tip = tip or _git(wave, "rev-parse", "HEAD")
@@ -197,12 +258,16 @@ class _Repo:
             if audited is not None
             else self.audited(tested_base, tested_tip, wave)
         )
-        receipt_path = acceptance_receipt or self._acceptance_receipt(
-            wave,
-            tested_base,
-            tested_tip,
-            acceptance_wave,
-        )
+        receipt_path = acceptance_receipt
+        if receipt_path is None and make_acceptance_receipt:
+            receipt_path = self._acceptance_receipt(
+                wave,
+                tested_base,
+                tested_tip,
+                acceptance_wave,
+            )
+        if receipt_path is None:
+            receipt_path = self.root / "acceptance-receipt-not-created.json"
         return LAND.LandRequest(
             main_worktree=self.main,
             wave_worktree=wave,
@@ -228,6 +293,22 @@ class _Repo:
         )
         if re.fullmatch(r"[0-9a-f]{40}", waiter_blob) is None:
             waiter_blob = "0" * 40
+        launcher_blob = _git(
+            wave,
+            "rev-parse",
+            f"{tested_main}:tools/acceptance_launcher.py",
+            check=False,
+        )
+        launcher_source_revision = "tested-main"
+        launcher_revision = tested_main
+        if re.fullmatch(r"[0-9a-f]{40}", launcher_blob) is None:
+            launcher_source_revision = "tested-tip-bootstrap"
+            launcher_revision = tested_tip
+            launcher_blob = _git(
+                wave,
+                "rev-parse",
+                f"{tested_tip}:tools/acceptance_launcher.py",
+            )
         fingerprint = {
             "digest": hashlib.sha256(tested_tip.encode("ascii")).hexdigest(),
             "head_sha": tested_tip,
@@ -237,7 +318,9 @@ class _Repo:
         }
         receipt = {
             "schema_version": LAND._ACCEPTANCE_RECEIPT_SCHEMA,
-            "authority_kind": LAND._ACCEPTANCE_AUTHORITY_KIND,
+            "authority_kind": LAND._ACCEPTANCE_AUTHORITY_KINDS[
+                launcher_source_revision
+            ],
             "acceptance_wave": acceptance_wave,
             "lease_holder": hashlib.sha256(
                 acceptance_wave.encode("utf-8")
@@ -250,6 +333,23 @@ class _Repo:
             "pre_fingerprint": fingerprint,
             "post_fingerprint": dict(fingerprint),
             "waiter_blob_sha": waiter_blob,
+            "launcher_source_revision": launcher_source_revision,
+            "launcher_blob_sha": launcher_blob,
+            "launcher_executed_sha256": _git_blob_sha256(
+                wave,
+                launcher_revision,
+                "tools/acceptance_launcher.py",
+            ),
+            "waiter_executed_sha256": _git_blob_sha256(
+                wave,
+                tested_tip,
+                "tools/dev_wave_wait.py",
+            ),
+            "runner_executed_sha256": _receipt_blob_sha256(
+                wave,
+                tested_tip,
+                "tools/run_tests.py",
+            ),
             "env_projection": {
                 "PYTEST_ADDOPTS": None,
                 "PYTEST_PLUGINS": None,
@@ -420,6 +520,91 @@ def _write_receipt(path: Path, payload: dict[str, object]) -> None:
         json.dumps(payload, sort_keys=True, separators=(",", ":")) + "\n",
         encoding="ascii",
     )
+
+
+def _assert_v5_binding_baseline(
+    request: object,
+    payload: dict[str, object],
+    *,
+    launcher_matches_selected_revision: bool = True,
+) -> None:
+    assert LAND._ACCEPTANCE_RECEIPT_SCHEMA == "dev-wave-acceptance-receipt/v5"
+    assert payload["schema_version"] == "dev-wave-acceptance-receipt/v5"
+    assert LAND._ACCEPTANCE_RECEIPT_FIELDS == (
+        _V4_RECEIPT_FIELDS | _V5_BINDING_FIELDS
+    )
+    assert set(payload) == LAND._ACCEPTANCE_RECEIPT_FIELDS
+    source = payload["launcher_source_revision"]
+    assert LAND._ACCEPTANCE_AUTHORITY_KINDS == _EXPECTED_AUTHORITY_KINDS
+    assert source in _EXPECTED_AUTHORITY_KINDS
+    assert payload["authority_kind"] == _EXPECTED_AUTHORITY_KINDS[source]
+    launcher_revision = (
+        request.tested_main_sha
+        if source == "tested-main"
+        else request.tested_wave_tip_sha
+    )
+    launcher_line = _git(
+        request.wave_worktree,
+        "ls-tree",
+        launcher_revision,
+        "--",
+        "tools/acceptance_launcher.py",
+    )
+    launcher_fields = launcher_line.split()
+    assert launcher_fields[:2] in (["100644", "blob"], ["100755", "blob"])
+    launcher_blob = launcher_fields[2]
+    assert _git(
+        request.wave_worktree,
+        "cat-file",
+        "-t",
+        launcher_blob,
+    ) == "blob"
+    if launcher_matches_selected_revision:
+        assert payload["launcher_blob_sha"] == launcher_blob
+        assert payload["launcher_executed_sha256"] == _git_blob_sha256(
+            request.wave_worktree,
+            launcher_revision,
+            "tools/acceptance_launcher.py",
+        )
+    waiter_blob = _git(
+        request.wave_worktree,
+        "rev-parse",
+        f"{request.tested_wave_tip_sha}:tools/dev_wave_wait.py",
+    )
+    assert payload["waiter_blob_sha"] == waiter_blob
+    assert _git(
+        request.wave_worktree,
+        "cat-file",
+        "-t",
+        waiter_blob,
+    ) == "blob"
+    assert payload["waiter_executed_sha256"] == _git_blob_sha256(
+        request.wave_worktree,
+        request.tested_wave_tip_sha,
+        "tools/dev_wave_wait.py",
+    )
+    runner_blob = _git(
+        request.wave_worktree,
+        "rev-parse",
+        f"{request.tested_wave_tip_sha}:tools/run_tests.py",
+    )
+    assert _git(
+        request.wave_worktree,
+        "cat-file",
+        "-t",
+        runner_blob,
+    ) == "blob"
+    assert payload["runner_executed_sha256"] == _git_blob_sha256(
+        request.wave_worktree,
+        request.tested_wave_tip_sha,
+        "tools/run_tests.py",
+    )
+
+
+def _change_one_hex_digit(value: object) -> str:
+    assert isinstance(value, str) and re.fullmatch(r"[0-9a-f]+", value)
+    replacement = "1" if value[0] == "0" else "0"
+    return replacement + value[1:]
 
 
 def _non_attributable_payload(
@@ -731,6 +916,236 @@ def test_land_accepts_effective_scheduler(scheduler: str) -> None:
         result = _land(request)
 
         assert (result.rc, result.status) == (LAND.RC_OK, "landed"), result
+
+
+def _assert_standard_v5_positive_control() -> None:
+    with _repo() as repo:
+        wave = repo.waves["one"]
+        tip = repo.commit(wave, "wave.txt", "wave\n")
+        result = _land(repo.request(wave, tip=tip))
+        assert (result.rc, result.status) == (LAND.RC_OK, "landed"), result
+
+
+def _assert_tip_launcher_positive_control() -> None:
+    with _repo() as repo:
+        wave = repo.waves["one"]
+        tip = repo.commit(
+            wave,
+            "tools/acceptance_launcher.py",
+            "raise SystemExit(9)\n",
+        )
+        result = _land(repo.request(wave, tip=tip))
+        assert (result.rc, result.status) == (LAND.RC_OK, "landed"), result
+
+
+def _assert_bootstrap_positive_control() -> None:
+    with _repo(waves=()) as repo:
+        _git(repo.main, "rm", "tools/acceptance_launcher.py")
+        _git(repo.main, "commit", "-qm", "remove launcher")
+        repo.base = _git(repo.main, "rev-parse", "HEAD")
+        wave = repo.add_wave("codex", "one")
+        tip = repo.commit(
+            wave,
+            "tools/acceptance_launcher.py",
+            "raise SystemExit(0)\n",
+        )
+        result = _land(repo.request(wave, base=repo.base, tip=tip))
+        assert (result.rc, result.status) == (LAND.RC_OK, "landed"), result
+
+
+def test_m4_runner_executed_digest_mismatch_is_rejected() -> None:
+    _assert_standard_v5_positive_control()
+    with _repo() as repo:
+        wave = repo.waves["one"]
+        tip = repo.commit(wave, "wave.txt", "wave\n")
+        request = repo.request(wave, tip=tip)
+        payload = _receipt_payload(request.acceptance_receipt)
+        _assert_v5_binding_baseline(request, payload)
+        payload["runner_executed_sha256"] = _change_one_hex_digit(
+            payload["runner_executed_sha256"]
+        )
+        _write_receipt(request.acceptance_receipt, payload)
+
+        result = _land(request)
+
+        assert result.rc == LAND.RC_AUDIT, result
+        assert result.reason == "acceptance-receipt-rejected"
+        assert result.retryable_same_request is False
+
+
+def test_m5_waiter_executed_digest_mismatch_is_rejected() -> None:
+    _assert_standard_v5_positive_control()
+    with _repo() as repo:
+        wave = repo.waves["one"]
+        tip = repo.commit(wave, "wave.txt", "wave\n")
+        request = repo.request(wave, tip=tip)
+        payload = _receipt_payload(request.acceptance_receipt)
+        _assert_v5_binding_baseline(request, payload)
+        payload["waiter_executed_sha256"] = _change_one_hex_digit(
+            payload["waiter_executed_sha256"]
+        )
+        _write_receipt(request.acceptance_receipt, payload)
+
+        result = _land(request)
+
+        assert result.rc == LAND.RC_AUDIT, result
+        assert result.reason == "acceptance-receipt-rejected"
+        assert result.retryable_same_request is False
+
+
+def test_m6_trusted_launcher_digest_is_selected_from_tested_main() -> None:
+    _assert_tip_launcher_positive_control()
+    with _repo() as repo:
+        wave = repo.waves["one"]
+        tip = repo.commit(
+            wave,
+            "tools/acceptance_launcher.py",
+            "raise SystemExit(6)\n",
+        )
+        request = repo.request(wave, tip=tip)
+        payload = _receipt_payload(request.acceptance_receipt)
+        tip_launcher_blob = _git(
+            wave,
+            "rev-parse",
+            f"{tip}:tools/acceptance_launcher.py",
+        )
+        assert tip_launcher_blob != payload["launcher_blob_sha"]
+        payload["launcher_blob_sha"] = tip_launcher_blob
+        payload["launcher_executed_sha256"] = _git_blob_sha256(
+            wave,
+            tip,
+            "tools/acceptance_launcher.py",
+        )
+        assert _git(wave, "cat-file", "-t", tip_launcher_blob) == "blob"
+        assert payload["launcher_blob_sha"] == tip_launcher_blob
+        assert payload["launcher_executed_sha256"] == _git_blob_sha256(
+            wave,
+            tip,
+            "tools/acceptance_launcher.py",
+        )
+        _assert_v5_binding_baseline(
+            request,
+            payload,
+            launcher_matches_selected_revision=False,
+        )
+        assert payload["launcher_executed_sha256"] != _git_blob_sha256(
+            wave,
+            request.tested_main_sha,
+            "tools/acceptance_launcher.py",
+        )
+        _write_receipt(request.acceptance_receipt, payload)
+
+        result = _land(request)
+
+        assert result.rc == LAND.RC_AUDIT, result
+        assert result.reason == "acceptance-receipt-rejected"
+        assert result.retryable_same_request is False
+
+
+def test_m7_bootstrap_is_rejected_when_tested_main_has_launcher() -> None:
+    _assert_tip_launcher_positive_control()
+    with _repo() as repo:
+        wave = repo.waves["one"]
+        tip = repo.commit(
+            wave,
+            "tools/acceptance_launcher.py",
+            "raise SystemExit(7)\n",
+        )
+        request = repo.request(wave, tip=tip)
+        payload = _receipt_payload(request.acceptance_receipt)
+        payload["launcher_source_revision"] = "tested-tip-bootstrap"
+        payload["authority_kind"] = LAND._ACCEPTANCE_AUTHORITY_KINDS[
+            "tested-tip-bootstrap"
+        ]
+        payload["launcher_blob_sha"] = _git(
+            wave,
+            "rev-parse",
+            f"{tip}:tools/acceptance_launcher.py",
+        )
+        payload["launcher_executed_sha256"] = _git_blob_sha256(
+            wave,
+            tip,
+            "tools/acceptance_launcher.py",
+        )
+        _assert_v5_binding_baseline(request, payload)
+        assert _git(
+            wave,
+            "ls-tree",
+            request.tested_main_sha,
+            "--",
+            "tools/acceptance_launcher.py",
+        )
+        _write_receipt(request.acceptance_receipt, payload)
+
+        result = _land(request)
+
+        assert result.rc == LAND.RC_AUDIT, result
+        assert result.reason == "acceptance-receipt-rejected"
+
+
+def test_m10_bootstrap_rejects_locked_main_with_launcher() -> None:
+    _assert_bootstrap_positive_control()
+    with _repo() as repo:
+        wave = repo.waves["one"]
+        _git(repo.main, "rm", "tools/acceptance_launcher.py")
+        _git(repo.main, "commit", "-qm", "remove launcher")
+        repo.base = _git(repo.main, "rev-parse", "HEAD")
+        (repo.main / "tools/acceptance_launcher.py").write_text(
+            "raise SystemExit(0)\n", encoding="utf-8"
+        )
+        _git(repo.main, "add", "tools/acceptance_launcher.py")
+        _git(repo.main, "commit", "-qm", "restore trusted launcher")
+        _git(wave, "merge", "--ff-only", "main")
+        tip = repo.commit(
+            wave,
+            "tools/acceptance_launcher.py",
+            "raise SystemExit(10)\n",
+        )
+        request = repo.request(wave, base=repo.base, tip=tip)
+        payload = _receipt_payload(request.acceptance_receipt)
+        _assert_v5_binding_baseline(request, payload)
+        assert payload["launcher_source_revision"] == "tested-tip-bootstrap"
+        assert not _git(
+            wave,
+            "ls-tree",
+            request.tested_main_sha,
+            "--",
+            "tools/acceptance_launcher.py",
+        )
+        assert _git(
+            repo.main,
+            "ls-tree",
+            "HEAD",
+            "--",
+            "tools/acceptance_launcher.py",
+        )
+        _write_receipt(request.acceptance_receipt, payload)
+
+        result = _land(request)
+
+        assert result.rc == LAND.RC_AUDIT, result
+        assert result.reason == "acceptance-receipt-rejected"
+
+
+def test_m11_otherwise_valid_complete_v4_receipt_is_rejected() -> None:
+    _assert_standard_v5_positive_control()
+    with _repo() as repo:
+        wave = repo.waves["one"]
+        tip = repo.commit(wave, "wave.txt", "wave\n")
+        request = repo.request(wave, tip=tip)
+        payload = _receipt_payload(request.acceptance_receipt)
+        _assert_v5_binding_baseline(request, payload)
+        payload["schema_version"] = "dev-wave-acceptance-receipt/v4"
+        payload["authority_kind"] = "dev-wave-wait-acceptance"
+        for field in _V5_BINDING_FIELDS:
+            del payload[field]
+        assert set(payload) == _V4_RECEIPT_FIELDS
+        _write_receipt(request.acceptance_receipt, payload)
+
+        result = _land(request)
+
+        assert result.rc == LAND.RC_AUDIT, result
+        assert result.reason == "acceptance-receipt-rejected"
 
 
 _TAMPER_CASES = (
@@ -1283,6 +1698,14 @@ def test_already_landed_still_requires_acceptance_receipt() -> None:
 def test_real_waiter_receipt_is_consumed_by_real_land_end_to_end() -> None:
     with _repo() as repo:
         wave = repo.waves["one"]
+        shutil.copy2(
+            ROOT / "tools" / "acceptance_launcher.py",
+            repo.main / "tools",
+        )
+        _git(repo.main, "add", "tools/acceptance_launcher.py")
+        _git(repo.main, "commit", "-qm", "install real acceptance launcher")
+        repo.base = _git(repo.main, "rev-parse", "HEAD")
+        _git(wave, "merge", "--ff-only", "main")
         shutil.copy2(ROOT / "tools" / "dev_wave_wait.py", wave / "tools")
         shutil.copy2(ROOT / "tools" / "wave_land_window.py", wave / "tools")
         (wave / "tools" / "run_tests.py").write_text(
@@ -1383,11 +1806,16 @@ def test_real_non_attributable_waiter_receipt_passes_real_land_end_to_end() -> N
             ROOT / "tools" / "check_acceptance_reds.py",
             repo.main / "tools",
         )
+        shutil.copy2(
+            ROOT / "tools" / "acceptance_launcher.py",
+            repo.main / "tools",
+        )
         _git(
             repo.main,
             "add",
             "tools/run_tests.py",
             "tools/check_acceptance_reds.py",
+            "tools/acceptance_launcher.py",
         )
         _git(repo.main, "commit", "-qm", "install synthetic known red checker")
         repo.base = _git(repo.main, "rev-parse", "HEAD")
@@ -3406,7 +3834,9 @@ def test_provenance_checker_missing_and_symlink_components_are_rejected_clean() 
             _git(wave, "commit", "-qm", f"make checker {kind}")
             assert _git(wave, "status", "--porcelain=v1") == ""
             tip = _git(wave, "rev-parse", "HEAD")
-            result = _land(repo.request(wave, tip=tip))
+            result = _land(
+                repo.request(wave, tip=tip, make_acceptance_receipt=False)
+            )
             assert (result.rc, result.status) == (
                 LAND.RC_PROVENANCE,
                 "rejected",
@@ -6143,6 +6573,7 @@ def test_cli_emits_json_and_uses_only_sha_target_ff() -> None:
         assert _git(repo.main, "rev-parse", "HEAD") == tip
 
 
+@pytest.mark.usefixtures("ratified_enforcement_source")
 def test_exploration_external_root_keeps_wave_clean() -> None:
     """F98 正例: fake evaluator の exploration campaign は wave 外だけを汚す。"""
     with _campaign_import_scope():
@@ -6215,7 +6646,7 @@ def test_exploration_external_root_keeps_wave_clean() -> None:
                 contract.clocks_per_us, numactl=contract.numactl,
                 do_bench=False, log=lambda *_args: None,
                 authorization_contract=authorization,
-                build_context=context, campaign_namespace="exploration",
+                build_context=context, declared_use_class="exploration",
             )
             campaign_root = Path(summary.layout_root)
             assert campaign_root.is_relative_to(external)

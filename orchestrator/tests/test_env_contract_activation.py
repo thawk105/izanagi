@@ -1969,9 +1969,13 @@ def test_ident_current_chain_serial2_fires_artifact_admission(
     monkeypatch.setattr(
         ec, "_ACTIVATION_HEAD_STATE_SHA256", head["activation_state_sha256"],
     )
+    ec._clear_authority_cache_for_tests()
 
-    with pytest.raises(activation.ActivationRecordError) as exc_info:
-        ident._load_current_activation_state()
+    try:
+        with pytest.raises(ec.EnvContractError) as exc_info:
+            ident._load_current_activation_state()
+    finally:
+        ec._clear_authority_cache_for_tests()
     assert "self-consistency" in _exception_chain_text(exc_info.value)
 
 

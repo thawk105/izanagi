@@ -56,7 +56,8 @@ def main() -> int:
     print("=== run 1 (cold: build → verify → bench → commit) ===")
     s1 = run_campaign(cfg, GENOMES, perf, ENV_TAG, CLK, numactl=NUMA,
                       authorization_contract=env_contract.authorize(ENV_TAG),
-                      build_context=build_context)
+                      build_context=build_context,
+                      declared_use_class="official")
     print(f"  committed={s1.committed} aborted={s1.aborted} skipped={s1.skipped}")
     for r in s1.results:
         print(f"    {r.genome.canonical()}: certified={r.certified} "
@@ -65,7 +66,8 @@ def main() -> int:
     print("\n=== run 2 (recovery: 評価済みは WAL から skip) ===")
     s2 = run_campaign(cfg, GENOMES, perf, ENV_TAG, CLK, numactl=NUMA,
                       authorization_contract=env_contract.authorize(ENV_TAG),
-                      build_context=build_context)
+                      build_context=build_context,
+                      declared_use_class="official")
     print(f"  evaluated={s2.evaluated} skipped={s2.skipped}")
 
     ok = (s1.committed == 2 and s1.aborted == 0
