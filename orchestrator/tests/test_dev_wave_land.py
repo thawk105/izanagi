@@ -249,6 +249,7 @@ class _Repo:
         audited: tuple[str, ...] | None = None,
         acceptance_wave: str = "test-wave",
         acceptance_receipt: Path | None = None,
+        make_acceptance_receipt: bool = True,
     ):
         tested_base = base or self.base
         tested_tip = tip or _git(wave, "rev-parse", "HEAD")
@@ -257,12 +258,16 @@ class _Repo:
             if audited is not None
             else self.audited(tested_base, tested_tip, wave)
         )
-        receipt_path = acceptance_receipt or self._acceptance_receipt(
-            wave,
-            tested_base,
-            tested_tip,
-            acceptance_wave,
-        )
+        receipt_path = acceptance_receipt
+        if receipt_path is None and make_acceptance_receipt:
+            receipt_path = self._acceptance_receipt(
+                wave,
+                tested_base,
+                tested_tip,
+                acceptance_wave,
+            )
+        if receipt_path is None:
+            receipt_path = self.root / "acceptance-receipt-not-created.json"
         return LAND.LandRequest(
             main_worktree=self.main,
             wave_worktree=wave,
@@ -3829,7 +3834,9 @@ def test_provenance_checker_missing_and_symlink_components_are_rejected_clean() 
             _git(wave, "commit", "-qm", f"make checker {kind}")
             assert _git(wave, "status", "--porcelain=v1") == ""
             tip = _git(wave, "rev-parse", "HEAD")
-            result = _land(repo.request(wave, tip=tip))
+            result = _land(
+                repo.request(wave, tip=tip, make_acceptance_receipt=False)
+            )
             assert (result.rc, result.status) == (
                 LAND.RC_PROVENANCE,
                 "rejected",
