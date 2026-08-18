@@ -82,8 +82,8 @@ canonical 綴りで書くと**この文書自身が hit となり**、未既知�
 |holdout の条件と未既知性の確認手続き|8b §3|実走開始前に同手続きを再実行し、証跡 (a)〜(e) を §5 へ記入する|
 |on / off / swapped の arm と derangement|8b §4|8c では descriptor は planner / coder への入力である。arm を journal・report・campaign ID・proposal file 名・invocation ID の識別子に含める (§6 の前提条件 2)|
 |correctness gate (legacy + S2)、build 分離|8b §5.2 / CLAUDE.md 絶対規律 1・2|8c の diff quarantine と禁止識別子 gate は driver 側を authoritative path とする。supervisor 側 preview を判定根拠にしない|
-|判定基準の表|8b §6|本書で列・成立条件・判定不能条件を書き換えない|
-|crash 時の扱い|8b §9 項 8 (択 (a) = 実験全体を判定不能、再走なし)|8c supervisor の現行 state machine はこれに従っていない (cell 単位の停止 + 新 trial id での再走)。整合は §6 の前提条件 4|
+|判定基準の表|8b §6 (§10 が 2026-08-18 に条件 3 と結論を上書き)|本書で列・成立条件・判定不能条件を書き換えない|
+|crash 時の扱い|8b §10.5 (事前割当 attempt registry。§9 項 8 の再走全拒否を上書き)|8c supervisor の現行 state machine はこれに従っていない (cell 単位の停止 + 新 trial id での再走)。整合は §6 の前提条件 4|
 |探索予算の第一単位 (累積ベンチ実時間)|8b §5.2|generation 予算は 8c 固有として §4 に置く。generation cap は bench 秒予算の代替にならない|
 
 ## 4. 8c 固有の事項
@@ -93,6 +93,20 @@ canonical 綴りで書くと**この文書自身が hit となり**、未既知�
   累積ベンチ実時間予算の代替ではない。承認上限は 3 入口 (CLI・`run_trial()`・`_run_workload()`) で
   機械強制する。**起動側の既定値は `G=2` ではないため、本系列の投入は世代数を明示的に
   指定する形でのみ行う** (§7 の起動形)。`G=2` を宣言だけで満たしたと見なさない。
+- **role が真の workload を識別できないこと (非干渉性)**: role へ渡す payload と、provider へ
+  実際に送る bytes は、**真の holdout を跨いで byte 同一**でなければならない (`off` arm)。
+  これは payload の key 集合から作業種別名を除くことでは満たされない — 値・識別子・path・
+  binding digest・whiteboard・baseline・designated source context・provider envelope の
+  いずれからも真の対象を復元できず、対象間を安定に区別するラベルにもならないことを要求する。
+  比較対象は次の 3 領域へ分解し、**領域ごとに個別に規定する**。(i) role が受け取る最終的な
+  入力 bytes — 例外なしで byte 同一。(ii) provider へ送る request の本体 — 例外なしで byte 同一。
+  (iii) role からも provider の応答からも不可視な transport の metadata — 比較対象外とするが、
+  除外する field を事前登録に**列挙**し、それが対象別のラベルになりえない根拠を書く。
+  列挙されていない field を除外根拠なしに (iii) へ分類してはならない。
+  この性質が破れている間、6 cell の on/off 差と swapped 追従を descriptor 効果として解釈しない。
+  **本書の発効時点でこの性質は成立していない** — role payload の閉じた key 集合が作業種別名を
+  含み、descriptor binding の digest が真の holdout と arm から導出される。是正は §6 の
+  前提条件 2 に含め、充足するまで本系列を起動しない。
 - **世代間で運んでよいものの閉じた集合**: 次の 3 群だけを次世代 role 入力へ運ぶ。
   1. workload ごとに世代ループ前に生成した descriptor とその binding。同じ bytes を全世代で用い、
      前世代の結果で更新しない。
@@ -107,11 +121,12 @@ canonical 綴りで書くと**この文書自身が hit となり**、未既知�
   真偽 2 値を介して次世代へ間接的に伝播しうる。本書は「還流を遮断した」とは主張せず、
   **運ぶチャネルの種別と、それが結果依存であること**を登録する。
   実走成果物は、この 3 群以外が世代を跨いだ形跡が無いことを検査結果として報告する。
-- **標本設計**: 事前列挙した 6 cell を報告単位とし、欠測 cell を補完・再走・除外しない。
+- **標本設計**: 事前列挙した 6 cell を報告単位とし、欠測 cell を補完・除外しない。
+  **再走は 8b §10.5 の事前割当 attempt registry の範囲だけで許す** — 落ちた構成の同じ反復に
+  ついてのみ次の事前割当 slot を消費し、無傷の構成と成功済みの観測値を巻き込まない。
   **本登録版では仮説検定・p 値・統計的有意を用いず**、8b §6 の効果量と全件記述で報告する。
-  この選択は 8b §6 が「対象別 floor が未再測定のため検定数値は floor 再実測後に確定」と
-  保留していることに従う。**検定を加える改訂には、floor の再実測だけでなく、8b §8 の再凍結、
-  ユーザー承認、および結果を見る前に commit された新しい本書の版がすべて要る。**
+  **検定を加える改訂には、8b §10.2 の数値パラメータの確定、8b §8 の再凍結、ユーザー承認、
+  および結果を見る前に commit された新しい本書の版がすべて要る。**
   これらを欠く改訂を当該結果の事前登録として数えない。
 - **報告母集団は 6 cell に縮約しない**: 6 cell は報告の**単位**であって母集団ではない。
   全件報告の母集団は 8b §3.3 が凍結する範囲 (全 holdout × 全 arm × 全 variant × 全試行の行、
@@ -139,12 +154,19 @@ canonical 綴りで書くと**この文書自身が hit となり**、未既知�
 - **累積ベンチ実時間の上限**: 実 consumer (§6 の前提条件 6) と、正式 workload の事前コスト計画が
   揃うまで記入しない。arm ごとの上限は対称とし、holdout ごとの上限の和が総上限に一致する形で、
   結果を見る前に固定する。
-- **env_tag**: 正式系列の実行 site が確定し、同じ環境で対象別 floor を再実測した後に記入する。
-- **対象別 between-run floor**: floor の再実測、8b §8 の再凍結、ユーザー承認、成果物 hash が
-  揃うまで記入しない。
+- **env_tag**: 正式系列の実行 site、環境契約、schedule、実行責任者が確定した時点で記入する。
+  対象別 floor の再実測は解除条件ではない (8b §10 が床値を判定の基礎から外した)。
+- **反復単位対比の判定パラメータ**: 8b §10.2 の解除条件がすべて成立するまで記入しない。
+  値は同節の制約 (`n` は 2 以上の整数、下限は有限の正、上限は有限の非負、単位と向きを同時固定) を
+  満たさなければならず、満たさない値は本書を未発効へ倒す。**本書の発効判定は値の型・単位・範囲を
+  検証しない**ため、この制約の現在の担保は欄が空であることだけである。したがって同欄を記入して
+  よいのは、それらを機械検証する consumer が実在するときに限る。
 - **master_seed**: schedule generator の版・schedule の bytes・arm 順序を束縛する機構
   (§6 の前提条件 5) と同じ改訂単位で記入する。seed だけを先に固定しない。
 - **検定 4 点**: 本登録版は仮説検定を行わない。再開条件は本節「標本設計」に従う。
+  **§5 の当該値セルに残る `reopen_requires` / `reporting` は非権威である** — 値セルは凍結範囲外で
+  あり世代 record に記録されないため、再開条件と報告義務の正本は本節だけとする。値セルの記述が
+  本節と食い違う場合は本節が勝つ。値の是正は、正式記入を行う次の改訂で同時に行う。
 - **未既知性再確認の証跡**: 8b §3.1 の手続を**実走開始の直前に**再実行して記入する。
   先に記入して実走まで持ち越さない。**証跡は自己参照してはならない** — 検索式の canonical 綴りを
   本書または検索対象 tree 内の追跡ファイルへ書くと、その記述自身が三軸の一致となって
@@ -154,9 +176,10 @@ canonical 綴りで書くと**この文書自身が hit となり**、未既知�
   確認者だけを記入する。
 - **swapped 対応表**: 8b §4 により対応表は実走者とエージェントへ非公開である。
   人間の管理下で排他的に作成した bytes と時刻を得たうえで、hash と時刻だけを記入する。
-- **6 cell manifest**: arm binding (§6 の前提条件 2) と registry (同 3)、および §1 の二段束縛を
-  実際に消費する起動・registry・受入の配線が揃うまで記入しない。契約と規範本文が二段束縛の形を
-  取ったことだけでは解除しない。
+- **6 cell manifest**: arm binding (§6 の前提条件 2) と registry (同 3・同 4)、および §1 の
+  二段束縛を実際に消費する起動・registry・受入の配線が揃うまで記入しない。契約と規範本文が
+  二段束縛の形を取ったことだけでは解除しない。8b §10.5 の事前割当 slot を消費し、
+  観測値の差し替えと第二 registry を拒否する consumer も解除条件に含む。
 - **実行責任者・開始時刻**: 正式投入の枠と責任者が決まった時点で、開始前の時刻を固定する。
 
 ## 5. 実走前に数値で埋める欄 (空欄のまま実走しない)
@@ -165,7 +188,7 @@ canonical 綴りで書くと**この文書自身が hit となり**、未既知�
 |---|---|
 |累積ベンチ実時間の総上限と arm ごと・holdout ごとの上限|未記入|
 |env_tag (実測環境)|未記入|
-|対象別 between-run floor (H1 / H2)|未記入|
+|反復単位対比の判定パラメータ (H1 / H2: n・平均差の下限・差の標本 SD の上限)|未記入|
 |master_seed|未記入|
 |検定 4 点 (n / 検定単位 / 検定力 / 総予算)|`{"mode":"no_hypothesis_test","n":"not_applicable","power":"not_applicable","reopen_requires":["floor_remeasurement","8b_refreeze_and_user_approval","new_pre_run_8c_revision"],"reporting":["effect_sizes_per_8b_section_6","all_predeclared_cells"],"test_unit":"not_applicable","total_budget":"not_applicable"}`|
 |未既知性再確認の証跡 (a) 検索対象 dir 一覧 / (b) 検索式 / (c) 一致 0 件の出力 hash / (d) positive control の hit 数 / (e) 確認者|未記入|
@@ -179,22 +202,36 @@ canonical 綴りで書くと**この文書自身が hit となり**、未既知�
    現行の `WORKLOADS` は rr50 / rr95 / rr100 の 3 点だけで、records と threads も
    `_campaign_for` / `_perf_for` / `_descriptor_for` に 100k / 4 で hard-code されている。
 2. **off / swapped arm** が実装され、arm が journal・report・campaign ID・proposal file 名・
-   invocation ID の識別子に入っている。現行 pilot は descriptor-on だけで、識別子は workload 名のみで
+   invocation ID の識別子に入っている。あわせて §4 の非干渉性 — `off` の role payload と
+   provider へ送る bytes が真の holdout を跨いで byte 同一であること — が成立している。現行 pilot は descriptor-on だけで、識別子は workload 名のみで
    あるため arm を増やすと path が衝突する。
 3. **実走前の 6 cell manifest** と、それに対する append-only の trial registry が存在し、
    manifest 外の trial を結果へ混入させず manifest 内の trial を黙って落とさない。
    manifest の bytes は内容 commit `P` が導入し、発効束縛 record が `P` と manifest の
    bytes hash を指す (§1 の二段束縛)。registry は内容 commit と発効 commit を別の欄で持ち、
    manifest の cell 集合との完全一致を欠落・余剰の両方向で拒否する。
-4. **crash 時の扱い**が 8b §9 項 8 (実験全体を判定不能、再走なし) に整合している。
+4. **crash 時の扱い**が 8b §10.5 の事前割当 attempt registry に整合している。すなわち
+   freeze 全体の全 (holdout, 構成, 反復, attempt) slot が最初の観測前に閉じた集合として
+   割り当てられ、追記専用 registry へ束縛されている。落ちた構成の同じ反復についてのみ次の
+   事前割当 slot を消費でき、slot の後出し追加・成績を見た後の再走選択・観測済み値の差し替え・
+   成功済み構成の再測定を拒否する。再走を許す失敗理由は閉じた集合であり、信頼側が当該 attempt の
+   性能出力を読める前に確定する。freeze ごとに master registry root は 1 つだけで、slot は
+   schedule 行・run-start 受領証・process identity・raw output hash・terminal status へ
+   一対一に束縛される。割当の枯渇は当該対比を判定不能にする。
 5. **schedule・master seed・arm 順序**が実走前に生成・固定され、全 arm が同一の search space と
    同一の開始状態から出発することが機械的に保証されている。
 6. **累積ベンチ実時間の予算**に実 consumer があり、予算不足時に未実施 arm を**対称に**判定不能へ
    倒す停止が実装されている。値の欄 (§5) だけを埋めて consumer を作らない形は、
    8b が拒否する恒真保証である。
-7. **対象別 between-run floor** が H1 / H2 について再実測され、§5 に記入されている。さらに
-   floor の consumer、§7 の 3 条件を計算する judge、6 セル結果表の生成が実装されている
-   (現行 supervisor は成功判定を計算しない)。
+7. **反復単位対比の判定パラメータ**が H1 / H2 について §5 に記入され、manifest の schedule 行が
+   持つ反復添字と observations 側の schedule 添字から**完全 block** を復元でき、
+   全 cell の観測反復集合が §5 に登録した `n` と exact に一致する。さらに、
+   対差の有限な平均と有限な標本 SD だけを主量として 8b §6 の 3 条件を計算する judge と、
+   `descriptive_only` の順位表・三値 `official_status` を持つ公式性能表 (この 2 つが性能主張の
+   二層である)・独立した第三の表である選択評価表の**計 3 表**を分離して 6 セル分を出力する生成が
+   実装されている (現行 supervisor は成功判定を計算しない)。あわせて、§5 の判定パラメータの
+   型・有限性・符号・単位・向きを検査する validator が production 経路から到達可能でなければ
+   本条件を充足しない。**床値 artifact は本条件の入力にしない。**
 8. **内容 commit・発効 commit・measurement HEAD の三者束縛**が実走成果物に焼かれ、機械検査できる。
    run-start・terminal report・registry のいずれもが内容 commit と発効 commit を**別の欄**で持ち、
    発効 commit の親集合が内容 commit ただ 1 つに一致すること、発効束縛 record の digest が
@@ -268,6 +305,35 @@ dispatch された条件が返す理由は一様ではない — 登録済みの
 いずれも非充足であり、この区別を充足側へ倒す根拠に使ってはならない。したがって §6 の 12 機構をすべて実装し §5 を埋めても、**充足判定器を
 実装しない限り本書は発効しない**。条件ごとの充足判定器 (production consumer を実証するもの) の
 実装は後続タスクである。
+
+**2026-08-18 改訂で生じた、条件本文と証拠契約のずれ (第 6 世代)。** 本改訂は条件 4 と条件 7 の
+**規範本文だけ**を変え、証拠契約 `s8c_preregistration_evidence_contract.v1.json` と条件別評価器を
+変更していない。したがって条件 4 の機械証拠は依然として「実験全体を判定不能にし再走を禁じる」
+経路を要求し、条件 7 の機械証拠は依然として床値 artifact を要求する。**両条件は引き続き非充足で
+あり、本改訂で受理集合は 1 bit も広がらない。** 証拠契約・評価器・負の対照を新しい規範へ追随させる
+wave は、受理意味を変えるため `DECIDER_VERSION` を bump し、その版を持つ次世代 record を発行
+しなければならない (D458)。追随が済むまで、条件 4 / 7 の本文が新しいことを充足の根拠に使っては
+ならない。
+
+**本改訂の発効は仕様だけを対象とし、測定を認可しない (epoch 境界)。** 第 6 世代 record と
+8b §10 が揃っても、判定器・証拠契約・attempt registry・結果 judge が追随するまで本系列は
+起動しない。追随前に走った run は legacy・exploratory であり、後から formal へ昇格・再解釈・
+混合しない。最終判定層の現用実装は依然として旧条件 3 (床値超) と scale gate を使う。
+
+**世代 record の裁定参照の限界。** 世代 record は単一の `ruling_reference` しか持たず、
+検査は `docs/decisions.md` に当該見出しが存在することだけを見る (本文は読まない)。
+第 6 世代が指す D496 は**本改訂が改訂する対象**の決定であって、改訂を承認した決定ではない。
+承認したのは 2026-08-18 のユーザー裁定 ([T-1336] / [T-1337] / [T-1347]) であり、その canonical な
+決定は本改訂と同じ wave の記録として着地する。**承認した決定の番号を record が指すことは構造的に
+できない** — 番号は台帳への統合時に採番される一方、record の裁定参照は record を導入する commit の
+時点で存在する見出ししか検査できないためである。したがって record 単体から「どの裁定がどの条件 hash を
+動かしたか」を機械復元することはできない。改訂内容を識別できるのは `revision_reason` の本文だけである。
+裁定本文の digest 束縛と条件単位の対応表は後続の課題である。
+
+**世代 record は 8b の bytes を束縛しない。** record が照合するのは本書と証拠契約だけであり、
+本改訂が依存する 8b §10 の内容は含まれない。したがって record 生成後に 8b を書き換えても record は
+stale にならない。本改訂では両文書を確定してから record を 1 度だけ生成する運用でこれを補うが、
+それは機械閉包の代替ではない。
 
 この改訂の実利は受理側にはなく、**条件別の負の対照が初めて拒否能力を持つ**ことにある。
 契約が「機械証拠を定義していない」と記す限り、評価器は呼ばれず、対照の期待値は fixture の
@@ -412,8 +478,11 @@ D116 決定 (3) は「層3 双射検査の適用範囲を H1/H2 へ広げるこ�
    性能による早期停止を置かず、全 arm で同一の探索空間・開始状態・予算規則を用いる。
 4. **manifest の全数実行**。manifest 外の試行を結果へ混入させず、manifest 内の cell を
    黙って落とさない。欠測・crash・不一致は 8b の規則に従って判定不能とする。
-5. **受入の順序**。correctness gate、予算、対象別 floor、判定、層3 材料レポート、
-   cross-binding のすべての consumer を通過した後にだけ正式受入へ渡す。
+5. **受入の順序**。correctness gate、予算、反復単位対比とその分散を計算する judge、
+   結果表 3 表 (二層の性能主張 = 順位事実と公式性能、および独立した選択評価)、
+   層3 材料レポート、cross-binding の
+   すべての consumer を通過した後にだけ正式受入へ渡す。**certified な選択を作る consumer は
+   公式性能表の三値 `official_status` だけを受理し、順位表 (`descriptive_only`) を根拠にしない。**
 6. **現時点で起動できないことの明示**。実測 (2026-08-15) では、現行の受入経路は
    本系列を certified として発行する形になっておらず、現行の workload 定義は
    H1 / H2 を正式 workload として起動できない。**したがって本節の起動形は、

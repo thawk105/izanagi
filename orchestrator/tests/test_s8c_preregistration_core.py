@@ -53,7 +53,7 @@ LEGACY_CRLF_CONTRACT_POINTER = "/conditions/0/consumer_requirement/path"
 FIELD_NAMES = (
     "累積ベンチ実時間の総上限と arm ごと・holdout ごとの上限",
     "env_tag (実測環境)",
-    "対象別 between-run floor (H1 / H2)",
+    "反復単位対比の判定パラメータ (H1 / H2: n・平均差の下限・差の標本 SD の上限)",
     "master_seed",
     "検定 4 点 (n / 検定単位 / 検定力 / 総予算)",
     "未既知性再確認の証跡 (a) 検索対象 dir 一覧 / (b) 検索式 / (c) 一致 0 件の出力 hash / (d) positive control の hit 数 / (e) 確認者",
@@ -582,7 +582,7 @@ def test_normalization_v2_conformance_corpus() -> None:
             "1. 条件一の先頭句を保証する。   この継続行".encode(),
         ).replace("本文 **alpha**。".encode(), "本文     alpha。".encode()),
     }
-    field_hash = "4d082de6c6a19691dd8bad27127e9ebb03fdacc500aab555310c7883b7ba2635"
+    field_hash = "8ad36ad81439089be797c43133ce19b6082c0a9a3e21f6ead43b079f4c22107e"
     condition_hash = "c2427eb7c76956a94e495ab32bb7d2c41b3dd14fb9b7b025e95370dbe7caf967"
     normative_hashes = {
         "base": "f691f266877b5b4eb9f3339e4942b41176a231851c42d840d738eafb82917d5a",
