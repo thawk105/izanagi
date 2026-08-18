@@ -68,6 +68,7 @@ class ReasonCode(str, enum.Enum):
     SCHEDULE_CONSUMER_UNDEFINED = "schedule-consumer-undefined"
     BUDGET_CONSUMER_UNDEFINED = "budget-consumer-contract-undefined"
     FLOOR_JUDGE_CONSUMER_UNDEFINED = "floor-judge-contract-undefined"
+    RESULT_JUDGE_CONSUMER_INCOMPLETE = "result-judge-consumer-incomplete"
     PREREG_BINDING_CAPABILITY_ABSENT = "prereg-binding-capability-absent"
     PREREG_BINDING_PROOF_UNDEFINED = "prereg-binding-proof-undefined"
     LAYER3_PRODUCER_UNREACHABLE = "layer3-producer-unreachable"
@@ -1796,6 +1797,351 @@ def _evaluate_c12(probe: _ConditionProbe) -> core.PredicateResult:
         )
     ):
         return _result(probe, core.PredicateStatus.UNSATISFIED, ReasonCode.ENVIRONMENT_CONTRACT_CONSUMER_ABSENT)
+    return _result(
+        probe,
+        core.PredicateStatus.EVIDENCE_UNDEFINED,
+        ReasonCode.COMPLETION_PROOF_NOT_MACHINE_CHECKABLE,
+    )
+
+
+def _c07_string_sequence(value: ast.AST) -> tuple[str, ...] | None:
+    if not isinstance(value, (ast.Tuple, ast.List, ast.Set)):
+        return None
+    result: list[str] = []
+    for item in value.elts:
+        if not isinstance(item, ast.Constant) or type(item.value) is not str:
+            return None
+        result.append(item.value)
+    return tuple(result)
+
+
+def _c07_assignment_names(node: ast.stmt) -> set[str]:
+    if isinstance(node, ast.Assign):
+        targets = node.targets
+    elif isinstance(node, ast.AnnAssign):
+        targets = (node.target,)
+    else:
+        return set()
+    return {
+        target.id
+        for target in targets
+        if isinstance(target, ast.Name)
+    }
+
+
+def _c07_name_loads(node: ast.AST) -> set[str]:
+    return {
+        current.id
+        for current in ast.walk(node)
+        if isinstance(current, ast.Name) and isinstance(current.ctx, ast.Load)
+    }
+
+
+def _c07_contains_dict_key(node: ast.AST, key: str) -> bool:
+    return any(
+        isinstance(current, ast.Dict)
+        and any(
+            isinstance(item, ast.Constant) and item.value == key
+            for item in current.keys
+        )
+        for current in ast.walk(node)
+    )
+
+
+def _c07_returns_value(node: ast.FunctionDef | ast.AsyncFunctionDef) -> bool:
+    return any(
+        isinstance(current, ast.Return) and current.value is not None
+        for current in _live_nodes(node)
+    )
+
+
+def _c07_call_name(call: ast.Call) -> str | None:
+    if isinstance(call.func, ast.Name):
+        return call.func.id
+    if isinstance(call.func, ast.Attribute):
+        return call.func.attr
+    return None
+
+
+def _c07_call_value_is_consumed(
+    function: ast.FunctionDef | ast.AsyncFunctionDef,
+    call: ast.Call,
+) -> bool:
+    parents: dict[int, ast.AST] = {}
+    for parent in ast.walk(function):
+        for child in ast.iter_child_nodes(parent):
+            parents[id(child)] = parent
+    current: ast.AST = call
+    while id(current) in parents:
+        parent = parents[id(current)]
+        if isinstance(parent, ast.Expr):
+            return parent.value is not call
+        if isinstance(
+            parent,
+            (
+                ast.Assign,
+                ast.AnnAssign,
+                ast.AugAssign,
+                ast.NamedExpr,
+                ast.Return,
+                ast.If,
+                ast.While,
+                ast.Assert,
+                ast.Raise,
+                ast.For,
+                ast.AsyncFor,
+            ),
+        ):
+            return True
+        current = parent
+    return False
+
+
+def _c07_live_calls(
+    function: ast.FunctionDef | ast.AsyncFunctionDef,
+) -> tuple[ast.Call, ...]:
+    live = {id(node) for node in _live_nodes(function)}
+    return tuple(
+        node
+        for node in ast.walk(function)
+        if isinstance(node, ast.Call) and id(node) in live
+    )
+
+
+def _c07_reachable_functions(
+    tree: ast.Module,
+    start: str,
+) -> dict[str, ast.FunctionDef | ast.AsyncFunctionDef]:
+    functions = _functions(tree)
+    return {
+        name: functions[name]
+        for name in _reachable_functions(tree, start)
+        if name in functions
+    }
+
+
+def _evaluate_c07(probe: _ConditionProbe) -> core.PredicateResult:
+    """静的な C07 構造検査を行う。
+
+    呼出し結果が変数、条件式、または return に現れることまでは AST で検査する。
+    動的 dispatch、実行時の例外経路、実際の bytes と result 値の対応までを完全に
+    証明することは静的検査だけではできないため、ここでは証拠 undefined に留める。
+    """
+    requirement = probe.contract.consumer_requirement
+    entrypoints = tuple(requirement.entrypoints)
+    if len(entrypoints) != 3 or len(set(entrypoints)) != 3:
+        return _result(
+            probe,
+            core.PredicateStatus.UNSATISFIED,
+            ReasonCode.RESULT_JUDGE_CONSUMER_INCOMPLETE,
+        )
+    result_path = probe.requirement("result_judge").path
+    if result_path != requirement.path:
+        return _result(
+            probe,
+            core.PredicateStatus.UNSATISFIED,
+            ReasonCode.RESULT_JUDGE_CONSUMER_INCOMPLETE,
+        )
+    tree = probe.python_path(result_path)
+    if tree is None:
+        return _result(
+            probe,
+            core.PredicateStatus.UNSATISFIED,
+            ReasonCode.RESULT_JUDGE_CONSUMER_INCOMPLETE,
+        )
+    functions = _functions(tree)
+    public_functions = {name for name in functions if not name.startswith("_")}
+    if public_functions != set(entrypoints) or any(
+        name not in functions for name in entrypoints
+    ):
+        return _result(
+            probe,
+            core.PredicateStatus.UNSATISFIED,
+            ReasonCode.RESULT_JUDGE_CONSUMER_INCOMPLETE,
+        )
+
+    verify = functions.get("verify_floor_bytes")
+    judge = functions.get("judge")
+    publish = functions.get("publish_result_table")
+    if verify is None or judge is None or publish is None:
+        return _result(
+            probe,
+            core.PredicateStatus.UNSATISFIED,
+            ReasonCode.RESULT_JUDGE_CONSUMER_INCOMPLETE,
+        )
+    verify_reachable = _c07_reachable_functions(tree, "verify_floor_bytes")
+    floor_fields = {
+        current.value
+        for function in verify_reachable.values()
+        for current in _live_nodes(function)
+        if isinstance(current, ast.Constant) and type(current.value) is str
+    }
+    if not {
+        "path",
+        "sha256",
+        "env_tag",
+        "measurement_head",
+    } <= floor_fields:
+        return _result(
+            probe,
+            core.PredicateStatus.UNSATISFIED,
+            ReasonCode.RESULT_JUDGE_CONSUMER_INCOMPLETE,
+        )
+
+    expected_condition_ids = {
+        "on_off_prediction_difference",
+        "swapped_follow_through",
+        "paired_repeat_contrast",
+    }
+    judge_loads = _c07_name_loads(judge)
+    condition_candidates: list[tuple[str, tuple[str, ...]]] = []
+    for statement in tree.body:
+        names = _c07_assignment_names(statement)
+        if not any("condition" in name.lower() for name in names):
+            continue
+        value = (
+            statement.value
+            if isinstance(statement, (ast.Assign, ast.AnnAssign))
+            else None
+        )
+        if value is None:
+            continue
+        sequence = _c07_string_sequence(value)
+        if sequence is not None and names & judge_loads:
+            condition_candidates.extend(
+                (name, sequence)
+                for name in names & judge_loads
+            )
+    conditions_assignment = any(
+        isinstance(current, (ast.Assign, ast.AnnAssign))
+        and "conditions" in _c07_assignment_names(current)
+        and _c07_contains_dict_key(current, "condition")
+        for current in _live_nodes(judge)
+    ) or any(
+        isinstance(current, (ast.Assign, ast.AnnAssign))
+        and "conditions" in _c07_assignment_names(current)
+        and any(isinstance(child, ast.Dict) for child in ast.walk(current.value))
+        for current in _live_nodes(judge)
+        if isinstance(current, (ast.Assign, ast.AnnAssign))
+        and getattr(current, "value", None) is not None
+    )
+    if (
+        len(condition_candidates) != 1
+        or len(condition_candidates[0][1]) != 3
+        or len(set(condition_candidates[0][1])) != 3
+        or set(condition_candidates[0][1]) != expected_condition_ids
+        or not conditions_assignment
+        or condition_candidates[0][0] not in judge_loads
+    ):
+        return _result(
+            probe,
+            core.PredicateStatus.UNSATISFIED,
+            ReasonCode.RESULT_JUDGE_CONSUMER_INCOMPLETE,
+        )
+
+    publish_reachable = _c07_reachable_functions(tree, "publish_result_table")
+    publish_nodes = tuple(
+        node
+        for function in publish_reachable.values()
+        for node in _live_nodes(function)
+    )
+    table_markers = {"descriptive_only", "official_status", "selection_evaluation"}
+    table_candidates: list[tuple[str, tuple[str, ...]]] = []
+    publish_loads = _c07_name_loads(publish)
+    for statement in tree.body:
+        names = _c07_assignment_names(statement)
+        if not any("table" in name.lower() for name in names):
+            continue
+        value = (
+            statement.value
+            if isinstance(statement, (ast.Assign, ast.AnnAssign))
+            else None
+        )
+        if value is None:
+            continue
+        sequence = _c07_string_sequence(value)
+        if sequence is not None and names & publish_loads:
+            table_candidates.extend(
+                (name, sequence)
+                for name in names & publish_loads
+            )
+    has_cells_structure = any(
+        isinstance(node, ast.Dict)
+        and any(
+            isinstance(key, ast.Constant) and key.value == "cells"
+            for key in node.keys
+        )
+        for node in publish_nodes
+    )
+    cell_validator_names = {
+        name
+        for name, function in functions.items()
+        if "cell" in name.lower()
+        and any(token in name.lower() for token in ("validat", "exact", "check"))
+        and _c07_returns_value(function)
+    }
+    cell_calls = tuple(
+        (function, call)
+        for function in publish_reachable.values()
+        for call in _c07_live_calls(function)
+        if _c07_call_name(call) in cell_validator_names
+    )
+    if (
+        len(table_candidates) != 1
+        or len(table_candidates[0][1]) != 3
+        or len(set(table_candidates[0][1])) != 3
+        or set(table_candidates[0][1]) != table_markers
+        or not has_cells_structure
+        or not cell_calls
+        or any(
+            not _c07_call_value_is_consumed(function, call)
+            for function, call in cell_calls
+        )
+    ):
+        return _result(
+            probe,
+            core.PredicateStatus.UNSATISFIED,
+            ReasonCode.RESULT_JUDGE_CONSUMER_INCOMPLETE,
+        )
+
+    validation_names = {
+        name
+        for name, function in functions.items()
+        if name not in cell_validator_names
+        and (
+            "validat" in name.lower()
+            or name.lower().startswith(("verify", "check"))
+        )
+        and _c07_returns_value(function)
+    }
+    validation_calls = tuple(
+        (function, call)
+        for entrypoint in entrypoints
+        for function in _c07_reachable_functions(tree, entrypoint).values()
+        for call in _c07_live_calls(function)
+        if _c07_call_name(call) in validation_names
+    )
+    if (
+        not validation_calls
+        or any(
+            not _c07_call_value_is_consumed(function, call)
+            for function, call in validation_calls
+        )
+    ):
+        return _result(
+            probe,
+            core.PredicateStatus.UNSATISFIED,
+            ReasonCode.RESULT_JUDGE_CONSUMER_INCOMPLETE,
+        )
+
+    ratified_path = probe.requirement("ratified_generation_reference").path
+    ratified = probe.python_path(ratified_path)
+    if ratified is None or "load_ratified_freeze" not in _functions(ratified):
+        return _result(
+            probe,
+            core.PredicateStatus.UNSATISFIED,
+            ReasonCode.RATIFIED_GENERATION_REFERENCE_ABSENT,
+        )
     return _result(
         probe,
         core.PredicateStatus.EVIDENCE_UNDEFINED,
