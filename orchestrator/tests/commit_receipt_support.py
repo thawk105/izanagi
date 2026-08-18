@@ -10,6 +10,7 @@ from orchestrator.campaign import artifact_admission, wal
 from orchestrator.campaign.model import STAGE_COMMIT, WalRecord
 from orchestrator.verifier import (
     CAMPAIGN_WAL_SINK,
+    QUALIFICATION_SINK,
     RECEIPT_PAYLOAD_KEY,
     admit_replay_evidence,
     campaign_lock_sha256,
@@ -61,6 +62,46 @@ def campaign_receipt(
         lock_identity_sha256=lock_identity,
         variant=variant,
         operation_identity=operation_identity,
+        terminal_payload=payload,
+    )
+
+
+def qualification_receipt(
+        variant: str, payload: dict, *, lock_identity_sha256: str,
+        operation_identity: str = "qualification-test-op", tags=("legacy",),
+):
+    return issue_commit_receipt(
+        verification_capabilities(
+            tags,
+            sink_kind=QUALIFICATION_SINK,
+            lock_identity_sha256=lock_identity_sha256,
+            variant=variant,
+            operation_identity=operation_identity,
+        ),
+        workload_tags=list(tags),
+        sink_kind=QUALIFICATION_SINK,
+        lock_identity_sha256=lock_identity_sha256,
+        variant=variant,
+        operation_identity=operation_identity,
+        terminal_payload=payload,
+    )
+
+
+def serialized_qualification_receipt(
+        variant: str, payload: dict, *, lock_identity_sha256: str,
+        operation_identity: str = "qualification-test-op", tags=("legacy",),
+):
+    receipt = qualification_receipt(
+        variant, payload,
+        lock_identity_sha256=lock_identity_sha256,
+        operation_identity=operation_identity,
+        tags=tags,
+    )
+    return validate_live_receipt(
+        receipt,
+        sink_kind=QUALIFICATION_SINK,
+        lock_identity_sha256=lock_identity_sha256,
+        variant=variant,
         terminal_payload=payload,
     )
 

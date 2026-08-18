@@ -59,6 +59,8 @@ from orchestrator.qualification.t126_driver import (  # noqa: E402
 from orchestrator.qualification import t126_driver  # noqa: E402
 from test_schema_v2 import _valid_document  # noqa: E402
 
+pytestmark = pytest.mark.usefixtures("ratified_enforcement_source")
+
 
 def _unavailable_receipt():
     events = ["LLC-load-misses", "LLC-loads", "instructions", "cycles"]
@@ -285,9 +287,11 @@ def test_qualification_entry_constructs_run_context_for_live_member_build():
 
 
 def test_qualification_policy_rejects_unadmitted_coder_before_build_spy(tmp_path):
-    _, capability, layout, _ = _fsm(tmp_path)
+    protocol, capability, layout, _ = _fsm(tmp_path)
     sink = QualificationEventSink(
-        capability, layout, round_index=1, role="subject")
+        capability, layout, round_index=1, role="subject",
+        source_lock_identity_sha256=protocol["source"]["campaign_lock_sha256"],
+    )
     policy = pipeline.QualificationPipelinePolicy.t126_pegasus(sink)
     pegasus_authorization = env_contract.authorize("pegasus")
     pegasus = pegasus_authorization.contract
@@ -344,10 +348,11 @@ def test_qualification_policy_rejects_unadmitted_coder_before_build_spy(tmp_path
 
 
 def test_qualification_policy_missing_context_is_separate_signature_error(tmp_path):
-    _, capability, layout, _ = _fsm(tmp_path)
+    protocol, capability, layout, _ = _fsm(tmp_path)
     policy = pipeline.QualificationPipelinePolicy.t126_pegasus(
         QualificationEventSink(
             capability, layout, round_index=1, role="subject",
+            source_lock_identity_sha256=protocol["source"]["campaign_lock_sha256"],
         )
     )
     pegasus_authorization = env_contract.authorize("pegasus")
@@ -373,10 +378,11 @@ def test_qualification_policy_missing_context_is_separate_signature_error(tmp_pa
 
 def test_qualification_stock_source_reaches_build_with_exact_class(
         tmp_path, monkeypatch):
-    _, capability, layout, _ = _fsm(tmp_path)
+    protocol, capability, layout, _ = _fsm(tmp_path)
     policy = pipeline.QualificationPipelinePolicy.t126_pegasus(
         QualificationEventSink(
             capability, layout, round_index=1, role="subject",
+            source_lock_identity_sha256=protocol["source"]["campaign_lock_sha256"],
         )
     )
     pegasus_authorization = env_contract.authorize("pegasus")
@@ -582,7 +588,9 @@ def test_attestation_failure_is_terminal_reject_with_exact_rc(tmp_path):
 def test_exact_pegasus_empty_numactl_opt_in_emits_nonformal_evidence(tmp_path):
     protocol, capability, layout, _ = _fsm(tmp_path)
     sink = QualificationEventSink(
-        capability, layout, round_index=1, role="subject")
+        capability, layout, round_index=1, role="subject",
+        source_lock_identity_sha256=protocol["source"]["campaign_lock_sha256"],
+    )
     policy = pipeline.QualificationPipelinePolicy.t126_pegasus(sink)
     pegasus_authorization = env_contract.authorize("pegasus")
     pegasus = pegasus_authorization.contract
@@ -613,7 +621,9 @@ def test_exact_pegasus_empty_numactl_opt_in_emits_nonformal_evidence(tmp_path):
         layout.attempt_dir / "rounds/0001/subject/evaluation-events.jsonl")
     admitted = validate_member_evidence(
         records, expected_role="subject", expected_round=1,
-        expected_perf_observation=None)
+        expected_perf_observation=None,
+        expected_lock_identity_sha256=protocol["source"]["campaign_lock_sha256"],
+    )
     assert admitted["verify_order"] == ["legacy", "s2"]
     assert calls.lock_enters == 2
     assert calls.competition_probes == 2
@@ -622,9 +632,11 @@ def test_exact_pegasus_empty_numactl_opt_in_emits_nonformal_evidence(tmp_path):
 
 def test_m4a_producer_settled_gate_rejects_before_terminal_commit(
         tmp_path, monkeypatch):
-    _, capability, layout, _ = _fsm(tmp_path)
+    protocol, capability, layout, _ = _fsm(tmp_path)
     sink = QualificationEventSink(
-        capability, layout, round_index=1, role="subject")
+        capability, layout, round_index=1, role="subject",
+        source_lock_identity_sha256=protocol["source"]["campaign_lock_sha256"],
+    )
     policy = pipeline.QualificationPipelinePolicy.t126_pegasus(sink)
     pegasus_authorization = env_contract.authorize("pegasus")
     pegasus = pegasus_authorization.contract
@@ -669,7 +681,9 @@ def test_qualification_opt_in_rejects_nonexact_numactl_before_writes(
     protocol, capability, layout, _ = _fsm(tmp_path)
     policy = pipeline.QualificationPipelinePolicy.t126_pegasus(
         QualificationEventSink(
-            capability, layout, round_index=1, role="subject"))
+            capability, layout, round_index=1, role="subject",
+            source_lock_identity_sha256=protocol["source"]["campaign_lock_sha256"],
+        ))
     pegasus_authorization = env_contract.authorize("pegasus")
     pegasus = pegasus_authorization.contract
     perf = pipeline.PerfConfig(
@@ -698,7 +712,7 @@ def test_qualification_opt_in_rejects_nonexact_numactl_before_writes(
 
 def test_exact_sink_layout_capability_chain_rejects_laundering_before_write(
         tmp_path):
-    _, capability, layout, _ = _fsm(tmp_path)
+    protocol, capability, layout, _ = _fsm(tmp_path)
 
     class DuckSink:
         def emit(self, *_args):
@@ -712,7 +726,9 @@ def test_exact_sink_layout_capability_chain_rejects_laundering_before_write(
         capability._root = tmp_path / "laundered"
 
     sink = QualificationEventSink(
-        capability, layout, round_index=1, role="subject")
+        capability, layout, round_index=1, role="subject",
+        source_lock_identity_sha256=protocol["source"]["campaign_lock_sha256"],
+    )
     for name, value in (
             ("_capability", object()), ("_layout", object()),
             ("_round_index", 2), ("_role", "reference"),
@@ -749,9 +765,11 @@ def test_exact_sink_layout_capability_chain_rejects_laundering_before_write(
 
 def test_sink_rejects_capability_ancestor_replacement_before_first_write(
         tmp_path):
-    _, capability, layout, _ = _fsm(tmp_path)
+    protocol, capability, layout, _ = _fsm(tmp_path)
     sink = QualificationEventSink(
-        capability, layout, round_index=1, role="subject")
+        capability, layout, round_index=1, role="subject",
+        source_lock_identity_sha256=protocol["source"]["campaign_lock_sha256"],
+    )
     env_dir = layout.root.parents[2]
     moved = layout.root.parents[4] / "moved-env"
     env_dir.rename(moved)
