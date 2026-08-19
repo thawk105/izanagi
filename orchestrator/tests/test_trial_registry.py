@@ -1586,13 +1586,9 @@ def test_s8c_acceptance_no_build_verifier_leaf_is_independently_recomputed(
 
 
 @pytest.mark.usefixtures("ratified_enforcement_source")
-def test_s8c_acceptance_registered_build_reports_are_unreachable_until_workload_definition(
+def test_s8c_acceptance_registered_build_reports_reach_receipt_for_h1_h2_workloads(
     tmp_path: Path,
 ) -> None:
-    """前提条件 1 (H1/H2 workload 定義) が未実装であるため、登録済み build 正例は現時点では到達不能である。
-
-    acceptance が Layer 3 gate へ到達し、exact な理由で fail-closed することを証明する。
-    """
     repo, manifest_path, registry, manifest = _registered_repo(tmp_path)
     build_root = repo / "output" / "exploration" / "autonomous-trials"
     reports = [
@@ -1605,19 +1601,114 @@ def test_s8c_acceptance_registered_build_reports_are_unreachable_until_workload_
         )
         for trial in manifest.trials
     ]
-    with pytest.raises(R.TrialRegistryError) as exc_info:
+    observed_workloads = {}
+    for report_path in reports:
+        report = json.loads(report_path.read_bytes())
+        observed_workloads[report["trial_id"]] = report["cells"][0]["workload"]
+    expected_workloads = {
+        trial.trial_id: R.HOLDOUT_BINDINGS[trial.holdout]["workload"]
+        for trial in manifest.trials
+    }
+    assert observed_workloads == expected_workloads
+
+    summary = _accept(
+        manifest_path=manifest_path,
+        report_paths=reports,
+        repository_root=repo,
+        registry_path=registry,
+    )
+    assert len(summary.trials) == len(manifest.trials) == 6
+    receipt = json.loads((repo / summary.receipt_path).read_bytes())
+    assert len(receipt["trials"]) == 6
+    assert {
+        row["trial_id"] for row in receipt["trials"]
+    } == {trial.trial_id for trial in manifest.trials}
+
+
+@pytest.mark.usefixtures("ratified_enforcement_source")
+def test_s8c_acceptance_registered_build_reports_remain_fail_closed_for_unknown_workload(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """producer が特定 workload の対応を打ち切った場合、Layer 3 gate で fail-closed にする。"""
+    repo, manifest_path, registry, manifest = _registered_repo(tmp_path)
+    build_root = repo / "output" / "exploration" / "autonomous-trials"
+    reports = [
+        _prepare_registered_build_report(
+            build_root,
+            trial,
+            manifest,
+            _head(repo),
+            repository_root=repo,
+        )
+        for trial in manifest.trials
+    ]
+    rejected_workload = R.HOLDOUT_BINDINGS[manifest.trials[0].holdout]["workload"]
+    original_resolve = producer.resolve_workload_entry
+
+    def reject_one_workload(workload):
+        if workload == rejected_workload:
+            raise producer.AutonomousTrialError(
+                f"deliberately unsupported for test: {workload!r}"
+            )
+        return original_resolve(workload)
+
+    report = json.loads(reports[0].read_bytes())
+    output_root = Path(report["cells"][0]["campaign_root"]).parent.parent
+    monkeypatch.setattr(producer, "resolve_workload_entry", reject_one_workload)
+    with pytest.raises(completeness.AutonomousTrialCompletenessError) as exc_info:
+        completeness.assert_campaign_layer3_chain(
+            report=report,
+            output_root=output_root,
+        )
+    assert str(exc_info.value) == (
+        "[campaign-chain] "
+        "cells[0].workload is not producer-supported"
+    )
+    with pytest.raises(R.TrialRegistryError) as acceptance_exc_info:
         _accept(
             manifest_path=manifest_path,
             report_paths=reports,
             repository_root=repo,
             registry_path=registry,
         )
-    assert str(exc_info.value) == (
-        "[campaign-chain] [campaign-chain] "
-        "cells[0].workload is not producer-supported"
-    )
+    assert type(acceptance_exc_info.value) is R.TrialRegistryError
     receipt_dir = repo / R.s8c_acceptance_receipt.DEFAULT_RECEIPT_DIR
     assert not receipt_dir.exists() or not any(receipt_dir.iterdir())
+
+
+@pytest.mark.usefixtures("ratified_enforcement_source")
+def test_s8c_acceptance_does_not_swallow_unexpected_workload_resolver_error(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo, _manifest_path, _registry, manifest = _registered_repo(tmp_path)
+    build_root = repo / "output" / "exploration" / "autonomous-trials"
+    report_path = _prepare_registered_build_report(
+        build_root,
+        manifest.trials[0],
+        manifest,
+        _head(repo),
+        repository_root=repo,
+    )
+    report = json.loads(report_path.read_bytes())
+    output_root = Path(report["cells"][0]["campaign_root"]).parent.parent
+
+    def raise_unexpected_resolver_error(_workload: str):
+        raise RuntimeError("unexpected workload resolver failure")
+
+    monkeypatch.setattr(
+        producer, "resolve_workload_entry", raise_unexpected_resolver_error,
+    )
+    with pytest.raises(
+        RuntimeError, match="unexpected workload resolver failure",
+    ) as exc_info:
+        completeness.assert_campaign_layer3_chain(
+            report=report,
+            output_root=output_root,
+        )
+    assert type(exc_info.value) is RuntimeError
+    assert not isinstance(
+        exc_info.value, completeness.AutonomousTrialCompletenessError,
+    )
 
 
 def test_s8c_acceptance_build_with_empty_cells_fails_closed_before_receipt(
