@@ -6441,25 +6441,42 @@ def test_registered_slot_is_reserved_before_first_performance_observation(
     monkeypatch,
     t325_registered_trial,
 ) -> None:
+    origin_request, origin_producer = _origin_public_inputs(
+        tmp_path, monkeypatch, t325_registered_trial
+    )
     events: list[str] = []
     original_reserve = A._reserve_registered_attempt_slot
+    original_read = reflux_origin_client.OriginLedgerClient.read_origin
 
     def observe_reservation(**kwargs):
         events.append("slot-reservation")
         return original_reserve(**kwargs)
+
+    def observe_origin_read(self, capability):
+        events.append("origin-read")
+        return original_read(self, capability)
 
     def observe_performance(*args, **kwargs):
         events.append("performance-observation")
         return _fake_drive(*args, **kwargs)
 
     monkeypatch.setattr(A, "_reserve_registered_attempt_slot", observe_reservation)
+    monkeypatch.setattr(
+        reflux_origin_client.OriginLedgerClient,
+        "read_origin",
+        observe_origin_read,
+    )
     report = _t325_run(
         t325_registered_trial,
         tmp_path / "reservation-before-performance",
         drive=observe_performance,
+        origin_binding_request=origin_request,
+        origin_producer_inputs=origin_producer,
     )
     assert report["status"] == "complete"
-    assert events[:2] == ["slot-reservation", "performance-observation"]
+    assert events[0] == "slot-reservation"
+    assert events.index("origin-read") > 0
+    assert events.index("performance-observation") > 0
 
 
 def test_registered_budget_insufficient_closes_as_not_consumed(
