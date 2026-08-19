@@ -3014,6 +3014,39 @@ def test_dev_wave_dispatch_rejects_bare_path(case):
         shutil.rmtree(root, ignore_errors=True)
 
 
+@pytest.mark.parametrize(
+    ("line_prefix", "old", "new"),
+    (
+        (
+            "| 段 9 |U|",
+            "`docs/dev-wave/operations.md`: `DW-O23`",
+            "`docs/dev-wave/operations.md` 全文: `DW-O23`",
+        ),
+        (
+            "| 01 |",
+            "`docs/dev-wave/operations.md`: `DW-O01`",
+            "`docs/dev-wave/operations.md` 全文: `DW-O01`",
+        ),
+    ),
+)
+def test_dev_wave_dispatch_rejects_unchecked_text_between_path_and_section(
+    line_prefix, old, new
+):
+    root = _build_min_repo()
+    try:
+        _rewrite_matching_lines(
+            root,
+            ".claude/commands/dev-wave.md",
+            lambda line: line.startswith(line_prefix) and old in line,
+            lambda line: line.replace(old, new, 1),
+        )
+        result = _assert_violation(root, "参照 cell grammar が不一致")
+        assert _violation_count(result) == 1, result.stdout
+        assert "cell 全文が参照 grammar に fullmatch しない" in result.stdout
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
 def test_dev_wave_dispatch_accepts_self_all_sections():
     root = _build_min_repo()
     try:
@@ -3030,6 +3063,15 @@ def test_dev_wave_dispatch_accepts_self_all_sections():
         shutil.rmtree(root, ignore_errors=True)
 
 
+def test_dev_wave_dispatch_rejects_backtick_in_annotation():
+    cell = (
+        "`docs/dev-wave/operations.md`: `DW-O01`（F23/F24; "
+        "`docs/dev-wave/core.md`: `DW-C00`）"
+    )
+    errors = check_docs._dispatch_reference_cell_errors(cell)
+    assert "cell 全文が参照 grammar に fullmatch しない" in errors[-1]
+
+
 def test_dev_wave_dispatch_rejects_unquoted_raw_path():
     root = _build_min_repo()
     try:
@@ -3044,6 +3086,7 @@ def test_dev_wave_dispatch_rejects_unquoted_raw_path():
         result = _assert_violation(root, "参照 cell grammar が不一致")
         assert _violation_count(result) == 1, result.stdout
         assert "unquoted=['docs/dev-wave/operations.md']" in result.stdout
+        assert "cell 全文が参照 grammar に fullmatch しない" in result.stdout
     finally:
         shutil.rmtree(root, ignore_errors=True)
 
@@ -3061,6 +3104,7 @@ def test_dev_wave_dispatch_rejects_all_sections_on_non_self_path():
         result = _assert_violation(root, "参照 cell grammar が不一致")
         assert _violation_count(result) == 1, result.stdout
         assert "exact fragment 以外に の全節がある" in result.stdout
+        assert "cell 全文が参照 grammar に fullmatch しない" in result.stdout
     finally:
         shutil.rmtree(root, ignore_errors=True)
 

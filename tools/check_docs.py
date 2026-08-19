@@ -2336,6 +2336,25 @@ _DISPATCH_TOKEN_RE = re.compile(
     r"`(?P<path>(?:docs|\.claude)/[^`]+\.md)`"
     rf"|`(?P<section>{_DISPATCH_SECTION_ID})`"
 )
+_BASE = r"DW-[A-Z][0-9]{2}"
+_DISPATCH_PATH_TOKEN = r"`(?:docs|\.claude)/[^`\r\n]+\.md`"
+_DISPATCH_SECTION_TOKEN = rf"`{_DISPATCH_SECTION_ID}`"
+_DISPATCH_ANNOTATION = r"(?:（[^（）\r\n`]*）)?"
+_DISPATCH_SECTION_ITEM = (
+    rf"(?:`{_BASE}`〜`{_BASE}`|{_DISPATCH_SECTION_TOKEN})"
+    rf"{_DISPATCH_ANNOTATION}"
+)
+_DISPATCH_SECTION_LIST = (
+    rf"{_DISPATCH_SECTION_ITEM}(?:, {_DISPATCH_SECTION_ITEM})*"
+)
+_DISPATCH_REFERENCE_GROUP = (
+    rf"{_DISPATCH_PATH_TOKEN}: {_DISPATCH_SECTION_LIST}"
+)
+_DISPATCH_SELF_GROUP = rf"`{re.escape(_SELF_PATH)}` の全節"
+_DISPATCH_REFERENCE_CELL_RE = re.compile(
+    rf"(?:{_DISPATCH_REFERENCE_GROUP}|{_DISPATCH_SELF_GROUP})"
+    rf"(?:; (?:{_DISPATCH_REFERENCE_GROUP}|{_DISPATCH_SELF_GROUP}))*"
+)
 _SELF_ALL_SECTIONS_RE = re.compile(
     rf"(?:^|;[ \t]*)`{re.escape(_SELF_PATH)}` の全節(?=;|$)"
 )
@@ -2373,6 +2392,11 @@ def _dispatch_reference_cell_errors(cell: str) -> tuple[str, ...]:
         errors.append(
             "`docs/skill-self-improvement.md` の exact fragment 以外に "
             f"の全節がある — all={all_sections_count}, exact={exact_self_count}"
+        )
+    if _DISPATCH_REFERENCE_CELL_RE.fullmatch(cell) is None:
+        errors.append(
+            "cell 全文が参照 grammar に fullmatch しない — "
+            f"cell={cell!r}"
         )
     return tuple(errors)
 
