@@ -483,6 +483,38 @@ def _manifest(run: ValidatedRun) -> Mapping[str, object]:
     }
 
 
+def _managed_series_health(root: Path) -> Mapping[str, object] | None:
+    """Read full-series health only for automatic generation roots.
+
+    A report remains scoped to its target root.  The optional projection makes
+    a damaged sibling generation visible without changing checkout-local
+    manual report behavior.
+    """
+
+    from . import generation
+
+    if not generation.is_managed_generation_root(root):
+        return None
+    try:
+        series = generation.validate_series(root)
+    except Exception:
+        return {
+            "scope": "managed-series",
+            "status": "invalid",
+            "reasons": ("series-reader-error",),
+        }
+    reasons = tuple(series.invalid_codes)
+    if series.is_empty:
+        reasons = ("empty-series",)
+    elif series.is_valid is not True and not reasons:
+        reasons = ("series-invalid",)
+    return {
+        "scope": "managed-series",
+        "status": "valid" if series.is_valid is True else "invalid",
+        "reasons": reasons,
+    }
+
+
 def render_report(
     validated_runs: Sequence[ValidatedRun],
     *,
@@ -490,6 +522,7 @@ def render_report(
     damaged: Sequence[tuple[str, str]] = (),
     diagnostic: bool = False,
     report_time: str | None = None,
+    series_health: Mapping[str, object] | None = None,
 ) -> bytes:
     """検査済み cohort を deterministic Markdown bytes にする。"""
 
@@ -529,11 +562,33 @@ def render_report(
         f"- diagnostic: {'yes' if diagnostic else 'no'}",
         "",
     ]
+    if series_health is not None:
+        status = str(series_health["status"])
+        reasons = tuple(str(reason) for reason in series_health.get("reasons", ()))
+        reason_text = ", ".join(reasons) if reasons else "none"
+        lines.extend([
+            f"- series全体の健全性: {status} ({reason_text})",
+            "- 個別root reportの範囲: 対象generation rootのみ。series全体の状態は別掲。",
+            "",
+        ])
     if damaged:
         lines.extend(["## Damaged entries", "", "| entry | reason |", "|---|---|"])
         for name, reason in sorted(damaged):
             lines.append(f"| `{name}` | {reason.replace('|', '&#124;')} |")
         lines.append("")
+
+    if series_health is not None:
+        status = str(series_health["status"])
+        reasons = tuple(str(reason) for reason in series_health.get("reasons", ()))
+        lines.extend([
+            "## Series health manifest",
+            "",
+            "| scope | status | reasons |",
+            "|---|---|---|",
+            f"| {series_health.get('scope', 'managed-series')} | `{status}` | "
+            f"{', '.join(reasons) if reasons else 'none'} |",
+            "",
+        ])
 
     lines.extend([
         "## Input binding", "",
@@ -799,6 +854,7 @@ def publish_report(
     reports = root_resolved / "reports"
     if destination.parent.resolve(strict=False) != reports or destination.name in {"", ".", ".."}:
         raise ReportError("destination は root/reports/ 直下でなければならない")
+    series_health = _managed_series_health(root_resolved)
     root_fd = _open_root_lock(root_resolved)
     temp_path: Path | None = None
     try:
@@ -833,6 +889,7 @@ def publish_report(
                 damaged=problems,
                 diagnostic=diagnostic,
                 report_time=report_time,
+                series_health=series_health,
             )
         reports.mkdir(mode=0o700, exist_ok=True)
         if reports.is_symlink() or not reports.is_dir():

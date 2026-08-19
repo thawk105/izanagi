@@ -57,9 +57,19 @@ DEFAULT_CLEANUP_BUDGET_S = 90.0
 _TASK_RUN_ENV = "IZANAGI_TASK_RUN_ID"
 _TASK_RUN_ROOT_ENV = "IZANAGI_TASK_RUNS_ROOT"
 _TASK_RUN_SIDECAR_ENV = "IZANAGI_TASK_RUN_SIDECAR"
+_TASK_RUN_AUTO_RECORD_ENV = "IZANAGI_TASK_RUN_AUTO_RECORD"
 _COMPUTE_MARKER_NAME = "compute-visible.json"
 _ORPHAN_HOLD_NAME = "orphan-hold.json"
 _ORPHAN_HOLD_SCHEMA = "pegasus-orphan-hold/v1"
+
+
+class _DispatchResult(int):
+    """整数 rc と child 起動証拠を同時に返す親向け dispatcher receipt。"""
+
+    def __new__(cls, value: int, *, child_started: bool):
+        result = int.__new__(cls, value)
+        result.child_started = child_started
+        return result
 
 
 @dataclass(frozen=True)
@@ -80,6 +90,10 @@ TASKS = {
             "PYTEST_ADDOPTS",
             "IZANAGI_TEST_NPROC",
             "IZANAGI_TEST_TRIGGER",
+            # Parent-owned automatic observation transport.  The marker keeps
+            # a compute-side run_tests.py from creating a second generation.
+            _TASK_RUN_SIDECAR_ENV,
+            _TASK_RUN_AUTO_RECORD_ENV,
             # 計算ノードに bytecode を書かせない指定を伝える。
             "PYTHONDONTWRITEBYTECODE",
             # T-080 E2E の opt-in を計算ノードへ伝える。
@@ -190,6 +204,7 @@ def _return_infra(
     *,
     child_started: bool,
     child_rc: Optional[int] = None,
+    allow_unstarted: bool = False,
 ) -> int:
     """dispatcher 自身の infra 終端を 1 行 attest して既存 rc を返す。"""
 
@@ -198,7 +213,7 @@ def _return_infra(
     )
     normalized_child_rc = child_rc if type(child_rc) is int else None
     normalized_started = child_started if type(child_started) is bool else True
-    if not normalized_started and (
+    if not normalized_started and not allow_unstarted and (
         normalized_reason != "queue-wait-timeout"
         or normalized_child_rc is not None
     ):
@@ -219,7 +234,7 @@ def _return_infra(
         file=sys.stderr,
         flush=True,
     )
-    return INFRA_RC
+    return _DispatchResult(INFRA_RC, child_started=normalized_started)
 
 
 def _walltime_seconds(value: str) -> int:
@@ -514,6 +529,7 @@ def _job_script(
     probe_path: Path,
     walltime: str,
     dispatcher_path: Optional[Path] = None,
+    task: str = DEFAULT_TASK,
 ) -> str:
     result_path = submission_dir / "result.json"
     marker_path = submission_dir / _COMPUTE_MARKER_NAME
@@ -521,6 +537,11 @@ def _job_script(
     dispatcher = (
         repo_root / "tools" / "pegasus" / "dispatch_compute.py"
         if dispatcher_path is None else Path(dispatcher_path)
+    )
+    task_transport_unset = (
+        ""
+        if task == "tests"
+        else f"unset {_TASK_RUN_SIDECAR_ENV} {_TASK_RUN_AUTO_RECORD_ENV}\n"
     )
     candidates = " ".join(shlex.quote(value) for value in _INTERPRETER_CANDIDATES)
     return f"""#!/bin/bash
@@ -575,8 +596,8 @@ if ! cd "$REPO"; then
 fi
 
 export PATH="$(dirname "$selected"):$PATH"
-unset {_TASK_RUN_ENV} {_TASK_RUN_ROOT_ENV} {_TASK_RUN_SIDECAR_ENV}
-exec "$selected" "$DISPATCHER" --job-run "$REQUEST"
+unset {_TASK_RUN_ENV} {_TASK_RUN_ROOT_ENV}
+{task_transport_unset}exec "$selected" "$DISPATCHER" --job-run "$REQUEST"
 """
 
 
@@ -657,7 +678,9 @@ def _job_run(request_path: Path) -> int:
         child_env.update(requested_env)
         child_env.pop(_TASK_RUN_ENV, None)
         child_env.pop(_TASK_RUN_ROOT_ENV, None)
-        child_env.pop(_TASK_RUN_SIDECAR_ENV, None)
+        for name in (_TASK_RUN_SIDECAR_ENV, _TASK_RUN_AUTO_RECORD_ENV):
+            if name not in spec.env_allowlist:
+                child_env.pop(name, None)
         executable_dir = str(Path(sys.executable).resolve().parent)
         child_env["PATH"] = executable_dir + os.pathsep + child_env.get("PATH", "")
         stage = "child"
@@ -1511,13 +1534,16 @@ def _dispatch_impl(
     }
     command_env.pop(_TASK_RUN_ENV, None)
     command_env.pop(_TASK_RUN_ROOT_ENV, None)
-    command_env.pop(_TASK_RUN_SIDECAR_ENV, None)
 
     root.mkdir(parents=True, exist_ok=True)
     latch = root / "submission-disabled.json"
     if latch.exists():
         _print_terminal_handoff(latch, "既存の F47 型ラッチ")
-        return _return_infra("submission-disabled", child_started=True)
+        return _return_infra(
+            "submission-disabled",
+            child_started=False,
+            allow_unstarted=True,
+        )
     orphan_hold = _orphan_hold_path(root)
     if _orphan_hold_present(root):
         print(
@@ -1527,7 +1553,11 @@ def _dispatch_impl(
             file=sys.stderr,
             flush=True,
         )
-        return _return_infra("orphan-hold", child_started=True)
+        return _return_infra(
+            "orphan-hold",
+            child_started=False,
+            allow_unstarted=True,
+        )
 
     nonce_value = nonce or secrets.token_hex(16)
     if re.fullmatch(r"[A-Za-z0-9._-]+", nonce_value) is None:
@@ -1569,6 +1599,7 @@ def _dispatch_impl(
             request_path=request_path,
             probe_path=probe_path,
             walltime=walltime,
+            task=task,
         ),
         mode=0o700,
     )
@@ -1577,6 +1608,7 @@ def _dispatch_impl(
 
     request_id: Optional[str] = None
     active = False
+    qsub_submitted = False
     qsub_result_unknown = False
     request_was_visible = False
     run_seen = False
@@ -1593,6 +1625,8 @@ def _dispatch_impl(
     def infra_child_started(reason: str) -> bool:
         """肯定的な未開始証拠がある queue timeout だけを false にする。"""
 
+        if not qsub_submitted:
+            return False
         return not (
             reason == "queue-wait-timeout"
             and queue_timeout_queued_evidence
@@ -1692,6 +1726,7 @@ def _dispatch_impl(
             # SIGINT/SIGTERM でも discovery + fresh-qstat gate を通し、
             # 直前 snapshot が許可した場合だけ qdel を要求する。
             active = True
+            qsub_submitted = True
         qsub_result_unknown = False
         receipt["qsub"] = _capture(qsub)
         if qsub.returncode != 0:
@@ -1998,7 +2033,10 @@ def _dispatch_impl(
             request_id=request_id,
             successful=child_rc == 0,
         )
-        return child_rc
+        # Keep the child-start receipt explicit for the parent-side recording
+        # gate.  _DispatchResult is an int subclass, so callers retaining the
+        # historical rc-only contract see the same value.
+        return _DispatchResult(child_rc, child_started=True)
     except BaseException as exc:
         receipt["outcome"] = {
             "kind": "infra",
@@ -2081,6 +2119,7 @@ def _dispatch_impl(
             infra_reason,
             child_started=infra_child_started(infra_reason),
             child_rc=observed_child_rc,
+            allow_unstarted=True,
         )
     finally:
         for signum, handler in old_handlers.items():
@@ -2178,7 +2217,12 @@ def dispatch(
         )
         # _dispatch_impl の run_seen が参照不能な setup 終端は、再試行を
         # 許さない向きへ fail-closed に倒す。
-        return _return_infra("setup-failure", child_started=True)
+        setup_child_started = task not in TASKS
+        return _return_infra(
+            "setup-failure",
+            child_started=setup_child_started,
+            allow_unstarted=not setup_child_started,
+        )
     finally:
         for signum, handler in old_handlers.items():
             try:

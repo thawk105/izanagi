@@ -72,7 +72,7 @@
           "type": "string",
           "minLength": 1,
           "maxLength": 240,
-          "pattern": "^(?!.*://)[^\\r\\n]+$"
+          "pattern": "^(?!.*(?:[/\\\\]|::|\\.pyc?|test_))[^\\r\\n]+$"
         },
         "task_class": {"enum": [1, 2, 3]},
         "task_kind": {
