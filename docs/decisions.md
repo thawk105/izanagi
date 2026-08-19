@@ -22329,3 +22329,101 @@ checkpoint path と evidence root の環境変数は、driver が runner を呼�
 - **checkpoint を repo 内 `output/` へ置いて既存 consumer をそのまま使う。** 却下。`output/` は
   dirty 検査から除外されるため誤書き込みが受入で見えず、かつ診断が計測値の権威へ昇格する経路を
   残す。consumer 側 (`floor_liveness`) を同じ wave で拡張する方を採った。
+
+## D547. D143 決定 (3) を択 (b) 実質完了として終端する (2026-08-19)
+
+**決定:** D143 決定 (3) (壁 1 を塞ぐ実行時 attestation の述語と凍結較正のどちらを正とするかの
+択一) は、択 (b) 「述語を正とし、較正を取り直して登録し直す + 取得時受入検査」を実質完了として
+終端する。新たな実装は行わない。
+
+**理由:**
+- 較正の取り直しと取得時受入検査は完了している。取り直した較正
+  (`calibration-94a4b79fa31bba3c.json`、bnode048、方式 α、request 892707.nqsv) は自分の述語を
+  48 本中 0 本の外れで通る。契約がなお束縛している旧較正
+  (`calibration-753f535a8d024727.json`) は 48 本中 1 本が外れ (index 40) で自分の述語を通らない
+  (F97 の実体)。
+- 2026-08-16 の実機走行 (request `0:913859.nqsv`、bnode006) は `attestation_mode="required"` の
+  Pegasus 契約下で `loop.py` の `_authorize_measurement` が最初の WAL 書込みより前に
+  `attest_and_build_receipt` を通し、`build_done` / `verify_done`
+  (`verdict=serializable` / `certified=true`) まで到達した。中断は bench 段の
+  `perf not found for kernel 5.15.0-173` のみである。D143 原文が特定した壁 1
+  (`execution_guard` の `effective_clock.samples_mhz` 比較で build 前に停止する) は、
+  現行 HEAD の実行では再現していない。
+- D143 原文の「裁定後に同じ使い捨て driver を再走させれば追加実装なしで確かめられる」という
+  前提は、12 日分の production 進化 (絶対 import への修正 2 件、keyword-only 引数 1 件、
+  `IZANAGI_EXPLORATION_OUTPUT_ROOT` 供給 1 件の適応が要る) により偽になっていた。確認は再走では
+  なく上記実機走行の記録で足りるとして決着した。
+- 択 (a) (述語を緩める) は受理集合を広げる側の変更であり、現に通っている今それを選ぶ理由がない。
+
+**この決定が変えないもの:** D437 (環境契約 g2 の活性化は上位権限束の人間 lockstep に従属する)
+は本決定でも不変である。D143 決定 (3) の「較正を取り直して登録し直す」のうち、環境契約世代を
+g1 から g2 へ切り替える活性化そのものは、D437 が裁定したとおり未実施のまま人間 lockstep 待ちで
+ある。D431 の member inventory のうち member 2 (runtime attestation) の positive control
+(登録済み較正自身が自分の述語を通ることを示す nodeid test) は、g1 が活性である限り unmet の
+ままであり、本決定はこれを met へ変更しない (中央値・tolerance 帯が g1/g2 で同一なため、
+run 単位の attestation 通過は g1/g2 いずれが活性かに依存しないという区別による)。member 8
+(provider live env / receipt 一致の実在値未取得) も無関係に未解決のまま残る。本決定が閉じるのは
+「D143 決定 (3) の a/b/c のどれを選ぶか」であって、g2 活性化の可否ではない。
+
+**却下した選択肢:**
+- 択 (a) 述語を緩める — 受理集合を広げる根拠がない。現行 HEAD は緩めなくても実機で通っている。
+- 未決着のまま持ち越す — 判断材料 (較正品質、実機走行結果、production の drift) は出揃っており、
+  これ以上 a/b/c のどれかを保留する実益がない。
+
+**研究状態への影響:** 本決定は certified 選択・材料レポート・試行台帳の現在値を 1 件も変えない
+(docs のみ、実装差分ゼロ)。変わるのは decisions.md 上で D143 決定 (3) が「ユーザー裁定へ返す」
+状態から終端済みへ遷移する点だけである。
+
+## D548. D233 決定 4 の理由文を訂正する — fail-closed の機械化は収集開始を意味しない (2026-08-19)
+
+**決定:** D233 決定 4 の理由の最終文「fail-closed を機械化すれば、分類が済んだ時点で同じ契約のまま
+収集が始まる。」を撤回する。正しい理解は次のとおりである — **手動実行であることはこの分類を
+免除せず、fail-closed の契約は機械化の有無によらず変わらない。** 収集を login 側から自動起動する
+結線は存在せず、新設もしない (/rulings 第 9 回 #4)。決定 4 の本体 (実行場所が確証できないときは
+収集しない・分類の実測はユーザー端末の手番である) は変更しない。
+
+**理由:**
+- 元の文は「分類が済んだ時点で同じ契約のまま収集が始まる」と読め、あたかも login 側に
+  分類完了を引き金とする収集の自動結線が存在するか、機械化すれば新設されるかのような誤った
+  含意を持つ。実装にそのような結線は無く、新設もしない方針である。
+- 決定 4 本体の要求 (未確証の実行体を軽い側へ倒さない・分類の実測はユーザー端末の手番) は
+  正しく、変える必要が無い。訂正するのは理由文の言い回しだけである。
+
+**却下した選択肢:**
+- 理由文をそのまま残す — 読み手に「機械化すれば収集が自動で始まる」という誤った期待を残す。
+- D233 の当該 bytes を直接書き換える — canonical 3 台帳の既存 bytes は fold 以外が変更しない
+  (`docs/spool/README.md` 不変条件)。fold 自身も既存 D エントリ本体への挿入経路を持たず、
+  訂正は新規エントリの追記でのみ表せる。
+
+## D549. C05 activation は§5 記入・schedule artifact commit を含めず、権威の実体配線完了まで scope 外とする (2026-08-19)
+
+**決定:** 8c 条件5 (C05) の activation (契約反転・`_MACHINE_EVALUATORS` 登録・
+`DECIDER_VERSION` bump・凍結世代発行) は実施するが、§5 `master_seed` の記入と
+`output/s8c-preregistration/schedule.v1.json` の commit は本改訂単位に含めず、
+`run_trial -> load_schedule -> verify_schedule -> consume_schedule -> launch` の配線と
+権威 (`WORKLOADS`/`ROLE_FILES`/`ROLE_CONTRACTS`/`GATING_SPEC`/descriptor binding) の
+実体供給が完了する別 wave (T-1380) まで scope 外として保留する。
+
+**理由:**
+- §5 の記入規約は「seed だけを先に固定しない」と定める。`master_seed` を記入するなら
+  同じ改訂単位で `schedule.v1.json` の bytes も確定させる必要があるが、その bytes は
+  authority の digest に依存する。
+- production 側の権威解決関数 (`p3_autonomous_workload_trial.py` の
+  `_load_s8c_schedule_authority` 相当) は現状明示的に unavailable を送出し、意味の
+  定義された本物の authority をこの wave の scope 内だけで構築する経路が無い。
+  `p3_autonomous_workload_trial.py` の `WORKLOADS` 定数は探索用 (ycsb-a/b/c) であり、
+  正式な H1/H2 (rr80/rr20、`s8b_holdout_freeze.py` 定義) とも一致しない。
+- テスト fixture 相当の暫定 authority で `schedule.v1.json` を正式 artifact として commit
+  すると、将来 T-1380 が本物の authority を使った際に artifact bytes が再現不能になり、
+  「seed だけ先に固定した」ことと実質的に同じ結果になる。
+- `_evaluate_c05` は静的到達可能性検査であり、artifact/authority の中身の正当性を
+  問わない。§5・artifact を保留しても、C05 の activation 自体 (契約反転・registry 登録・
+  DECIDER_VERSION bump・凍結世代発行) は独立に完結できる。
+
+**却下した選択肢:**
+- 暫定 authority (test helper 相当の 18-key mapping) を明示的に provisional と
+  marking した上で 6 項目全部を実装する — 機械的に暫定性を拒否できる仕組みが無く、
+  正式 artifact として repo に残ってしまう。段3 の敵対相談 2 本が独立に不採用を推奨した。
+- T-1380 の配線・権威供給を本 wave の scope へ先取りして含める — D529 が定める
+  不可分の改訂単位 (契約反転・registry 登録・DECIDER_VERSION bump・凍結世代発行) を
+  大きく超える新設作業になり、規律5 (段階導入・盛らない) に反する。

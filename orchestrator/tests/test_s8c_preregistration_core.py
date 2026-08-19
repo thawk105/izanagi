@@ -793,17 +793,17 @@ def test_evidence_contract_hash_rejects_crlf_path_controls(
     [
         pytest.param(
             "\x00",
-            "3be3f8004c32e50f4bd5ca3032ade961e96fcb757a19a58502aa0d56281825cc",
+            "14941898efe991b339f62f56dcc9562fff0f3ab9ece942d0657a853e63e6404e",
             id="nul",
         ),
         pytest.param(
             "\r",
-            "ad93b10c2f1d1cfd2ef3252a72f23cc13b564562b1af255426127594326b2440",
+            "45461ad6a39c452d6954fec6482e17550aa46ad74ce24fd8fca11121ae5ded71",
             id="cr",
         ),
         pytest.param(
             "\n",
-            "033fde03368b23c55b5be5395bdb61f3e1251bc08b8d6d1bcc2933dd31babb2d",
+            "afd4cefb702dac473989cae0ec0944429f0ca93288ebe4ac819b7c88cd563016",
             id="lf",
         ),
     ],
@@ -1184,7 +1184,7 @@ def test_evidence_contract_hash_preserves_canonicalization_reason_before_crlf(
 
 def test_current_evidence_contract_hash_is_frozen() -> None:
     assert M.evidence_contract_sha256(EVIDENCE_CONTRACT_FILE.read_bytes()) == (
-        "17615da0773f56d3ceb0a968d35693f997d85f601e47bec386209700894757be"
+        "a40fc173d6b59bd18fef2028d7f202ec5a2a885f37310ff2b44407e04b17b5a6"
     )
 
 
@@ -2279,8 +2279,8 @@ def test_matching_decider_version_preserves_activation_conjunction(tmp_path: Pat
     assert report.effective is True
 
 
-def test_decider_version_binds_cross_module_semantics_to_v4() -> None:
-    assert M.DECIDER_VERSION == "s8c-decider/v4"
+def test_decider_version_binds_cross_module_semantics_to_v5() -> None:
+    assert M.DECIDER_VERSION == "s8c-decider/v5"
 
 
 def test_mismatched_decider_version_is_not_effective(tmp_path: Path) -> None:
@@ -2330,7 +2330,7 @@ def test_invalid_running_decider_version_cannot_activate(
     report = M._activation_report_at_for_test(
         root, head, registry=_Registry(M.PredicateStatus.SATISFIED)
     )
-    assert report.decider_version == "s8c-decider/v4"
+    assert report.decider_version == "s8c-decider/v5"
     assert report.decider_version_matches is False
     assert report.decider_version_reason_code == "decider-version-mismatch"
     assert report.effective is False
@@ -2353,7 +2353,7 @@ def test_valid_hostile_str_subclass_cannot_fake_decider_version_match(
     report = M._activation_report_at_for_test(
         root, head, registry=_Registry(M.PredicateStatus.SATISFIED)
     )
-    assert report.decider_version == "s8c-decider/v4"
+    assert report.decider_version == "s8c-decider/v5"
     assert report.decider_version_matches is False
     assert report.decider_version_reason_code == "decider-version-mismatch"
     assert report.effective is False
