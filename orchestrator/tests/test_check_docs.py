@@ -2967,6 +2967,31 @@ def test_dev_wave_dispatch_conditionality_retyping_is_rejected(case):
                 shutil.rmtree(pin_root, ignore_errors=True)
 
 
+def test_dev_wave_dispatch_condition_token_smuggling_is_diagnostic_sensitivity():
+    root = _build_min_repo()
+    try:
+        rel = ".claude/commands/dev-wave.md"
+        trigger = check_docs.CONDITION_TRIGGER_CONTRACT["01"]
+        _rewrite_matching_lines(
+            root,
+            rel,
+            lambda line: line.startswith("| 01 |"),
+            lambda line: line.replace(
+                trigger,
+                trigger + " `docs/dev-wave/operations.md`: `DW-O01`",
+                1,
+            ),
+        )
+        _assert_violation(
+            root,
+            ".claude/commands/dev-wave.md: diagnostic sensitivity — "
+            "条件 dispatch '01' の条件セルに reference token="
+            "['`DW-O01`', '`docs/dev-wave/operations.md`']",
+        )
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
 def test_dev_wave_condition_dispatch_header_mismatch_is_dedicated():
     root = _build_min_repo()
     try:

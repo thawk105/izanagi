@@ -2608,6 +2608,7 @@ _MACHINE_EVALUATORS = {
     1: _evaluate_c01,
     2: _evaluate_c02,
     4: _evaluate_c04,
+    5: _evaluate_c05,
     7: _evaluate_c07,
     9: _evaluate_c09,
     10: _evaluate_c10,
