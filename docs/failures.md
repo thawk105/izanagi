@@ -1624,6 +1624,15 @@
   最終的に repo 外の `/work` 配下へ置いた。
   恒久対応 = `DW-O20` の当該語を byte 中立で「背景jobはrepo外」へ是正 (本 wave の段 8) と、
   auto-memory `pegasus-keep-home-clean`。
+
+- **再発: 2026-08-19** — [T-1316] wave (背景 job + worktree 隔離) で、wave 開始時の brief 読み込みが
+  `DW-C00`/`DW-STOP` の通読に留まり、条件 dispatch 表の「20 | 背景 job + worktree 隔離の wave 開始時」
+  行を辿らなかったため、段4裁定完了・段5投入準備の直前まで `tools/check_wave_startup.py` を
+  実行しなかった。実行して初めて submodule 未初期化・専用 handoff の worktree 内残留・HEAD が
+  local main から6 commit 遅れの3件を検出し、実装着手前 (段5 投入前) に是正した (実害なし)。
+  過去2回 (2026-07-29, 2026-08-03) の再発と同じ「置き場・読了タイミングを誤る」型で、F50 の
+  恒久対応 (dispatch 前倒し、条件表20番の文言是正) は既に適用済みだったにもかかわらず、
+  wave 開始時にその条件表自体を辿らなかったことが根本原因である。
 ### F51. cleanup-branches が背景セッション自身の worktree を削除しかけた near-miss [手順漏れ]
 - 事象: /cleanup-branches 実行セッションの cwd が削除対象 worktree に固定されており (背景 job)、
   スキル §2 の「先に main checkout 側へ抜ける」が実行不能だった — ExitWorktree は EnterWorktree
