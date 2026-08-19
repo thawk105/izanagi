@@ -1,11 +1,5 @@
 # -*- coding: utf-8 -*-
-"""8b 結合 judge (§6 判定表 v2) の三値・同一 holdout 束縛・per-pair floor・scale gate・型分離。
-
-fixture は workload 値を持たず opaque な holdout ID (h1/h2) と choice_id (c01..c06) を使う。
-oracle の configurations と floor の pairs は「構成名 (binding_key)」を key とし、prediction の
-choice (c01..c06) とは名前空間が異なる (C3-1)。テストは choice→binding を明示的に翻訳して両者を
-構成し、verdict が trusted projector で解決することを検証する。
-"""
+"""8b 結合 judge (§6 判定表 v3) の三値・holdout 束縛・型分離。"""
 from __future__ import annotations
 
 from copy import deepcopy
@@ -45,7 +39,6 @@ H1, H2 = "h1", "h2"
 DERANGEMENT = {H1: H2, H2: H1}
 # 凍結 holdout 集合 (裁定 5 項 1 の全称量化の領域)。judge_combined に必ず渡す。
 EXPECTED = frozenset({H1, H2})
-TOL = "0.10"  # protocol 由来の scale tolerance (十進文字列で厳密 Fraction 化)
 
 
 def make_prediction(holdouts: dict) -> dict:
@@ -60,7 +53,7 @@ def make_prediction(holdouts: dict) -> dict:
                 "choice_id": choice,
                 "status": "valid" if choice is not None else "invalid",
             }
-            # off arm の decision_method/binding_key は projector/型検査の入力になる。
+            # off arm の decision_method/binding_key は型検査の入力になる。
             if arm == "off":
                 row["decision_method"] = "static_default"
                 row["binding_key"] = (CHOICE_TO_BINDING.get(choice)
@@ -121,23 +114,6 @@ def make_oracle(holdouts: dict) -> artifacts.OfficialVerdict:
     })
 
 
-def make_floor(pairs: dict, scale_ref) -> dict:
-    """pairs = {h: {choice_id: floor|None}} (非 stock) と scale_ref から by_holdout 表を作る。
-
-    pairs の key は choice_id で書くが、by_holdout.pairs へは binding_key (構成名) へ翻訳する。
-    scalar_alt は judge_combined が参照しないため None (per-pair 相関検査は manifest validator の責務)。
-    """
-    by = {}
-    for holdout_id, cells in pairs.items():
-        by[holdout_id] = {
-            "pairs": {CHOICE_TO_BINDING[c]: val for c, val in cells.items()},
-            "scale_ref": (scale_ref.get(holdout_id) if isinstance(scale_ref, dict)
-                          else scale_ref),
-            "scalar_alt": None,
-        }
-    return by
-
-
 def _unsafe_verified_oracle_for_judge_unit_test(
         document: artifacts.OfficialVerdict,
 ) -> verdict.VerifiedOracleVerdict:
@@ -152,14 +128,13 @@ def _unsafe_verified_oracle_for_judge_unit_test(
     return token
 
 
-def run(prediction: dict, oracle: artifacts.OfficialVerdict, floor_by_holdout: dict, *,
-        expected=EXPECTED, tol=TOL, floor_source=None) -> dict:
+def run(prediction: dict, oracle: artifacts.OfficialVerdict, *,
+        expected=EXPECTED, floor_source=None) -> dict:
     """三値判定本体だけを対象に、検証済み token 形へ包んで呼ぶ薄いラッパ。"""
     return verdict.judge_combined(
         prediction=verdict.VerifiedPrediction(document=prediction),
         oracle=_unsafe_verified_oracle_for_judge_unit_test(oracle),
-        floor_by_holdout=floor_by_holdout,
-        expected_holdouts=expected, scale_tolerance=tol,
+        expected_holdouts=expected,
         floor_source=({} if floor_source is None else floor_source))
 
 
@@ -178,9 +153,9 @@ def test_condition1_holds_when_a_holdout_differs():
         H1: {"verdict": "unique-best", "configs": {"c01": 10.0, "c06": 10.0}},
         H2: {"verdict": "unique-best", "configs": {"c06": 10.0}},
     })
-    floor = make_floor({H1: {"c01": 5.0}, H2: {}}, {H1: 10.0, H2: 10.0})
-    result = run(prediction, oracle, floor)
+    result = run(prediction, oracle)
     assert _cond(result, "on_off_prediction_difference") == verdict.HOLDS
+    assert result["status"] == verdict.HOLDS
 
 
 def test_condition1_refuted_when_all_holdouts_identical():
@@ -192,9 +167,9 @@ def test_condition1_refuted_when_all_holdouts_identical():
         H1: {"verdict": "unique-best", "configs": {"c06": 10.0}},
         H2: {"verdict": "unique-best", "configs": {"c06": 10.0}},
     })
-    floor = make_floor({H1: {}, H2: {}}, {H1: 10.0, H2: 10.0})
-    result = run(prediction, oracle, floor)
+    result = run(prediction, oracle)
     assert _cond(result, "on_off_prediction_difference") == verdict.REFUTED
+    assert result["status"] == verdict.REFUTED
 
 
 def test_condition1_indeterminate_when_missing_and_no_difference():
@@ -206,9 +181,9 @@ def test_condition1_indeterminate_when_missing_and_no_difference():
         H1: {"verdict": "unique-best", "configs": {"c06": 10.0}},
         H2: {"verdict": "unique-best", "configs": {"c06": 10.0}},
     })
-    floor = make_floor({H1: {}, H2: {}}, {H1: 10.0, H2: 10.0})
-    result = run(prediction, oracle, floor)
+    result = run(prediction, oracle)
     assert _cond(result, "on_off_prediction_difference") == verdict.INDETERMINATE
+    assert result["status"] == verdict.INDETERMINATE
 
 
 # ---- 条件 2: swapped 追従 (両 holdout 必須) --------------------------------
@@ -222,9 +197,9 @@ def test_condition2_holds_when_both_holdouts_follow():
         H1: {"verdict": "unique-best", "configs": {"c01": 10.0, "c06": 10.0}},
         H2: {"verdict": "unique-best", "configs": {"c02": 10.0, "c06": 10.0}},
     })
-    floor = make_floor({H1: {"c01": 5.0}, H2: {"c02": 5.0}}, {H1: 10.0, H2: 10.0})
-    result = run(prediction, oracle, floor)
+    result = run(prediction, oracle)
     assert _cond(result, "swapped_follow") == verdict.HOLDS
+    assert result["status"] == verdict.HOLDS
 
 
 def test_condition2_refuted_when_one_holdout_does_not_follow():
@@ -236,9 +211,9 @@ def test_condition2_refuted_when_one_holdout_does_not_follow():
         H1: {"verdict": "unique-best", "configs": {"c01": 10.0, "c06": 10.0}},
         H2: {"verdict": "unique-best", "configs": {"c02": 10.0, "c06": 10.0}},
     })
-    floor = make_floor({H1: {"c01": 5.0}, H2: {"c02": 5.0}}, {H1: 10.0, H2: 10.0})
-    result = run(prediction, oracle, floor)
+    result = run(prediction, oracle)
     assert _cond(result, "swapped_follow") == verdict.REFUTED
+    assert result["status"] == verdict.REFUTED
 
 
 def test_condition2_indeterminate_when_a_swapped_cell_is_missing():
@@ -250,310 +225,79 @@ def test_condition2_indeterminate_when_a_swapped_cell_is_missing():
         H1: {"verdict": "unique-best", "configs": {"c01": 10.0, "c06": 10.0}},
         H2: {"verdict": "unique-best", "configs": {"c02": 10.0, "c06": 10.0}},
     })
-    floor = make_floor({H1: {"c01": 5.0}, H2: {"c02": 5.0}}, {H1: 10.0, H2: 10.0})
-    result = run(prediction, oracle, floor)
+    result = run(prediction, oracle)
     assert _cond(result, "swapped_follow") == verdict.INDETERMINATE
-
-
-# ---- 条件 3: oracle per-pair floor 超 (方向付き) ---------------------------
-
-def test_condition3_holds_when_directional_diff_exceeds_floor():
-    prediction = make_prediction({
-        H1: {"on": "c01", "off": "c06", "swapped": "c06"},
-        H2: {"on": "c06", "off": "c06", "swapped": "c01"},
-    })
-    oracle = make_oracle({
-        H1: {"verdict": "unique-best", "configs": {"c01": 100.0, "c06": 50.0}},
-        H2: {"verdict": "unique-best", "configs": {"c06": 10.0}},
-    })
-    # scale_ref = stock(c06) median なので scale adequate。pair floor c01=10。
-    floor = make_floor({H1: {"c01": 10.0}, H2: {}}, {H1: 50.0, H2: 10.0})
-    result = run(prediction, oracle, floor)
-    # oracle(on=c01)=100 − oracle(off=stock)=50 = 50 > floor 10。
-    assert _cond(result, "oracle_floor_exceeded") == verdict.HOLDS
-
-
-def test_condition3_refuted_when_diff_within_floor():
-    prediction = make_prediction({
-        H1: {"on": "c01", "off": "c06", "swapped": "c06"},
-        H2: {"on": "c06", "off": "c06", "swapped": "c01"},
-    })
-    oracle = make_oracle({
-        H1: {"verdict": "unique-best", "configs": {"c01": 55.0, "c06": 50.0}},
-        H2: {"verdict": "unique-best", "configs": {"c06": 10.0}},
-    })
-    floor = make_floor({H1: {"c01": 10.0}, H2: {}}, {H1: 50.0, H2: 10.0})
-    result = run(prediction, oracle, floor)
-    # h1: 55 − 50 = 5 ≤ 10、h2: on==off → 不成立側 (floor 照会なし)。両者確定不成立。
-    assert _cond(result, "oracle_floor_exceeded") == verdict.REFUTED
-
-
-def test_condition3_refuted_directionally_when_off_beats_on():
-    prediction = make_prediction({
-        H1: {"on": "c01", "off": "c06", "swapped": "c06"},
-        H2: {"on": "c06", "off": "c06", "swapped": "c01"},
-    })
-    oracle = make_oracle({
-        H1: {"verdict": "unique-best", "configs": {"c01": 10.0, "c06": 100.0}},
-        H2: {"verdict": "unique-best", "configs": {"c06": 10.0}},
-    })
-    floor = make_floor({H1: {"c01": 10.0}, H2: {}}, {H1: 100.0, H2: 10.0})
-    result = run(prediction, oracle, floor)
-    # h1: 10 − 100 = −90 は floor 10 を超えない (方向付き)。
-    assert _cond(result, "oracle_floor_exceeded") == verdict.REFUTED
-
-
-def test_condition3_indeterminate_when_pair_floor_null():
-    # per-pair floor が null (機械異常の伝播) → 判定不能。
-    prediction = make_prediction({
-        H1: {"on": "c01", "off": "c06", "swapped": "c06"},
-        H2: {"on": "c06", "off": "c06", "swapped": "c01"},
-    })
-    oracle = make_oracle({
-        H1: {"verdict": "unique-best", "configs": {"c01": 100.0, "c06": 50.0}},
-        H2: {"verdict": "unique-best", "configs": {"c06": 10.0}},
-    })
-    floor = make_floor({H1: {"c01": None}, H2: {}}, {H1: 50.0, H2: 10.0})
-    result = run(prediction, oracle, floor)
-    assert result["holdouts"][H1]["oracle_floor_exceeded"] == verdict.INDETERMINATE
-
-
-@pytest.mark.parametrize("bad_floor", [0.0, -5.0, float("inf"), True])
-def test_condition3_indeterminate_when_pair_floor_is_not_positive_finite(bad_floor):
-    prediction = make_prediction({
-        H1: {"on": "c01", "off": "c06", "swapped": "c06"},
-        H2: {"on": "c06", "off": "c06", "swapped": "c01"},
-    })
-    oracle = make_oracle({
-        H1: {"verdict": "unique-best", "configs": {"c01": 100.0, "c06": 50.0}},
-        H2: {"verdict": "unique-best", "configs": {"c06": 10.0}},
-    })
-    floor = make_floor({H1: {"c01": bad_floor}, H2: {}}, {H1: 50.0, H2: 10.0})
-    result = run(prediction, oracle, floor)
-    assert result["holdouts"][H1]["oracle_floor_exceeded"] == verdict.INDETERMINATE
-
-
-# ---- on == off の短絡 (floor 照会なしで不成立側。§5-iii) ---------------------
-
-def test_on_equals_off_is_refuted_without_floor_query():
-    # h2: on==off==c06 (stock)。floor 表に stock pair は存在しないが、projector は照会せず不成立側。
-    prediction = make_prediction({
-        H1: {"on": "c01", "off": "c06", "swapped": "c06"},
-        H2: {"on": "c06", "off": "c06", "swapped": "c01"},
-    })
-    oracle = make_oracle({
-        H1: {"verdict": "unique-best", "configs": {"c01": 100.0, "c06": 50.0}},
-        H2: {"verdict": "indeterminate", "configs": {}},  # oracle 判定不能でも on==off は refuted
-    })
-    floor = make_floor({H1: {"c01": 10.0}, H2: {}}, {H1: 50.0, H2: 10.0})
-    result = run(prediction, oracle, floor)
-    assert result["holdouts"][H2]["oracle_floor_exceeded"] == verdict.REFUTED
-    assert result["holdouts"][H2]["floor"] is None  # floor 照会なし
-
-
-# ---- projector の名前空間解決 (choice_id を floor key に使わない。C3-1) -------
-
-def test_projector_query_resolves_choice_to_binding():
-    floor_by_holdout = make_floor({H1: {"c01": 10.0}}, {H1: 50.0})
-    projected = verdict.project_pair_floor(
-        floor_by_holdout, CHOICE_TO_BINDING, H1, "c01", "c06")
-    assert projected.resolution == verdict._PROJECT_QUERY
-    assert projected.floor == 10.0
-    assert projected.on_binding_key == CHOICE_TO_BINDING["c01"]
-    assert projected.off_binding_key == STOCK
-
-
-def test_projector_rejects_choice_id_keyed_floor_table():
-    # 攻撃: floor pairs を choice_id ("c01") で keying する (名前空間混同)。projector は
-    # on_binding = p2_2_flag_opt を引くため見つからず判定不能 + floor-pair-missing。
-    poisoned = {H1: {"pairs": {"c01": 10.0}, "scale_ref": 50.0, "scalar_alt": None}}
-    projected = verdict.project_pair_floor(
-        poisoned, CHOICE_TO_BINDING, H1, "c01", "c06")
-    assert projected.resolution == verdict._PROJECT_INDETERMINATE
-    assert any(v["code"] == "floor-pair-missing" for v in projected.violations)
-
-
-def test_projector_off_not_stock_records_violation():
-    floor_by_holdout = make_floor({H1: {"c01": 10.0}}, {H1: 50.0})
-    projected = verdict.project_pair_floor(
-        floor_by_holdout, CHOICE_TO_BINDING, H1, "c01", "c02")  # off=c02 は非 stock
-    assert projected.resolution == verdict._PROJECT_INDETERMINATE
-    assert any(v["code"] == "off-not-stock" for v in projected.violations)
-
-
-def test_projector_on_equals_off_short_circuits_before_floor_lookup():
-    # pairs を空にしても on==off は floor 照会なしで refuted (照会されたら missing になる)。
-    empty = {H1: {"pairs": {}, "scale_ref": 50.0, "scalar_alt": None}}
-    projected = verdict.project_pair_floor(empty, CHOICE_TO_BINDING, H1, "c06", "c06")
-    assert projected.resolution == verdict._PROJECT_REFUTED
-    assert projected.violations == ()
-
-
-def test_judge_records_off_not_stock_protocol_violation():
-    # off を非 stock (c02) に改竄した prediction → 当該 holdout の条件 3 判定不能 + violation 記録。
-    prediction = make_prediction({
-        H1: {"on": "c01", "off": "c02", "swapped": "c06"},
-        H2: {"on": "c06", "off": "c06", "swapped": "c01"},
-    })
-    # off=c02 の binding_key を整合させる (型検査は verify_prediction 側。ここは judge の projector)。
-    oracle = make_oracle({
-        H1: {"verdict": "unique-best", "configs": {"c01": 100.0, "c02": 50.0, "c06": 50.0}},
-        H2: {"verdict": "unique-best", "configs": {"c06": 10.0}},
-    })
-    floor = make_floor({H1: {"c01": 10.0}, H2: {}}, {H1: 50.0, H2: 10.0})
-    result = run(prediction, oracle, floor)
-    assert result["holdouts"][H1]["oracle_floor_exceeded"] == verdict.INDETERMINATE
-    assert any(v["code"] == "off-not-stock" and v["holdout"] == H1
-               for v in result["protocol_violations"])
-
-
-# ---- scale gate (C3-8、§5-iv) ---------------------------------------------
-
-def _scale_case(stock_median: float, scale_ref: float, on_median: float = 100.0):
-    prediction = make_prediction({
-        H1: {"on": "c01", "off": "c06", "swapped": "c06"},
-        H2: {"on": "c06", "off": "c06", "swapped": "c01"},
-    })
-    oracle = make_oracle({
-        H1: {"verdict": "unique-best",
-             "configs": {"c01": on_median, "c06": stock_median}},
-        H2: {"verdict": "unique-best", "configs": {"c06": 10.0}},
-    })
-    floor = make_floor({H1: {"c01": 10.0}, H2: {}}, {H1: scale_ref, H2: 10.0})
-    return prediction, oracle, floor
-
-
-def test_scale_gate_boundary_exactly_tolerance_is_adequate():
-    # observed 110 / scale_ref 100 → 相対差 1/10 == tolerance 0.10 → adequate。条件 3 は通常判定。
-    prediction, oracle, floor = _scale_case(stock_median=110.0, scale_ref=100.0, on_median=200.0)
-    result = run(prediction, oracle, floor)
-    assert result["holdouts"][H1]["scale"]["state"] == verdict.SCALE_ADEQUATE
-    # on(200) − stock(110) = 90 > floor 10 → HOLDS (scale gate に潰されていない)。
-    assert result["holdouts"][H1]["oracle_floor_exceeded"] == verdict.HOLDS
-
-
-def test_scale_gate_over_tolerance_is_inadequate_and_condition3_indeterminate():
-    # observed 111 / scale_ref 100 → 11/100 > 0.10 → inadequate → 条件 3 のみ判定不能。
-    prediction, oracle, floor = _scale_case(stock_median=111.0, scale_ref=100.0, on_median=200.0)
-    result = run(prediction, oracle, floor)
-    assert result["holdouts"][H1]["scale"]["state"] == verdict.SCALE_INADEQUATE
-    assert result["holdouts"][H1]["oracle_floor_exceeded"] == verdict.INDETERMINATE
-    # 他条件 (1) は不変: on(c01)≠off(c06) → 予測差は成立のまま。
-    assert result["holdouts"][H1]["on_off_prediction_difference"] == verdict.HOLDS
-
-
-def test_scale_gate_stock_ineligible_makes_condition3_indeterminate():
-    prediction = make_prediction({
-        H1: {"on": "c01", "off": "c06", "swapped": "c06"},
-        H2: {"on": "c06", "off": "c06", "swapped": "c01"},
-    })
-    oracle = make_oracle({
-        H1: {"verdict": "unique-best", "configs": {
-            "c01": 200.0,
-            "c06": {"status": "disqualified", "median_of_medians": None,
-                    "trial_medians": [], "reasons": []}}},
-        H2: {"verdict": "unique-best", "configs": {"c06": 10.0}},
-    })
-    floor = make_floor({H1: {"c01": 10.0}, H2: {}}, {H1: 100.0, H2: 10.0})
-    result = run(prediction, oracle, floor)
-    assert result["holdouts"][H1]["scale"]["state"] == verdict.SCALE_STOCK_INELIGIBLE
-    assert result["holdouts"][H1]["oracle_floor_exceeded"] == verdict.INDETERMINATE
-
-
-def test_scale_gate_scale_ref_null_makes_condition3_indeterminate():
-    prediction, oracle, _floor = _scale_case(stock_median=100.0, scale_ref=100.0, on_median=200.0)
-    floor = make_floor({H1: {"c01": 10.0}, H2: {}}, {H1: None, H2: 10.0})
-    result = run(prediction, oracle, floor)
-    assert result["holdouts"][H1]["scale"]["state"] == verdict.SCALE_REF_NULL
-    assert result["holdouts"][H1]["oracle_floor_exceeded"] == verdict.INDETERMINATE
-
-
-def test_invalid_scale_tolerance_is_rejected():
-    prediction, oracle, floor = _scale_case(stock_median=100.0, scale_ref=100.0)
-    for bad in (None, -1, "abc", float("inf"), True):
-        with pytest.raises(verdict.VerdictError):
-            run(prediction, oracle, floor, tol=bad)
-
-
-# ---- tie 写像: oracle exact tie → oracle 非一意 → 判定不能 ------------------
-
-def test_oracle_exact_tie_maps_to_indeterminate():
-    prediction = make_prediction({
-        H1: {"on": "c01", "off": "c06", "swapped": "c06"},
-        H2: {"on": "c06", "off": "c06", "swapped": "c01"},
-    })
-    oracle = make_oracle({
-        H1: {"verdict": "tie", "tied": ["c01", "c06"],
-             "configs": {"c01": 100.0, "c06": 100.0}},
-        H2: {"verdict": "unique-best", "configs": {"c06": 10.0}},
-    })
-    floor = make_floor({H1: {"c01": 10.0}, H2: {}}, {H1: 100.0, H2: 10.0})
-    result = run(prediction, oracle, floor)
-    assert result["holdouts"][H1]["oracle_floor_exceeded"] == verdict.INDETERMINATE
-    assert _cond(result, "oracle_floor_exceeded") == verdict.INDETERMINATE
     assert result["status"] == verdict.INDETERMINATE
 
 
-def test_oracle_indeterminate_holdout_maps_to_indeterminate():
-    # scale adequate (stock eligible) を保ち、oracle verdict=indeterminate 経由の判定不能を切り分ける。
+# ---- oracle 状態は診断専用 --------------------------------------------------
+
+@pytest.mark.parametrize("oracle_verdict", ["tie", "indeterminate"])
+def test_oracle_verdict_is_diagnostic_only(oracle_verdict):
     prediction = make_prediction({
-        H1: {"on": "c01", "off": "c06", "swapped": "c06"},
-        H2: {"on": "c06", "off": "c06", "swapped": "c01"},
+        H1: {"on": "c01", "off": "c06", "swapped": "c02"},
+        H2: {"on": "c02", "off": "c06", "swapped": "c01"},
     })
     oracle = make_oracle({
-        H1: {"verdict": "indeterminate", "configs": {"c06": 50.0}},
-        H2: {"verdict": "unique-best", "configs": {"c06": 10.0}},
+        H1: {"verdict": oracle_verdict, "tied": ["c01", "c06"],
+             "configs": {"c01": 100.0, "c06": 100.0}},
+        H2: {"verdict": "unique-best", "configs": {"c02": 100.0, "c06": 50.0}},
     })
-    floor = make_floor({H1: {"c01": 10.0}, H2: {}}, {H1: 50.0, H2: 10.0})
-    result = run(prediction, oracle, floor)
-    assert result["holdouts"][H1]["scale"]["state"] == verdict.SCALE_ADEQUATE
-    assert result["holdouts"][H1]["oracle_floor_exceeded"] == verdict.INDETERMINATE
+    oracle["status"] = "indeterminate" if oracle_verdict == "indeterminate" else "determinate"
 
+    result = run(prediction, oracle)
 
-def test_disqualified_predicted_config_is_indeterminate():
-    prediction = make_prediction({
-        H1: {"on": "c01", "off": "c06", "swapped": "c06"},
-        H2: {"on": "c06", "off": "c06", "swapped": "c01"},
-    })
-    oracle = make_oracle({
-        H1: {"verdict": "unique-best", "configs": {
-            "c01": {"status": "disqualified", "median_of_medians": None,
-                    "trial_medians": [], "reasons": []},
-            "c06": 50.0}},
-        H2: {"verdict": "unique-best", "configs": {"c06": 10.0}},
-    })
-    floor = make_floor({H1: {"c01": 10.0}, H2: {}}, {H1: 50.0, H2: 10.0})
-    result = run(prediction, oracle, floor)
-    assert result["holdouts"][H1]["oracle_floor_exceeded"] == verdict.INDETERMINATE
-
-
-# ---- 同一 holdout 束縛の反例 ----------------------------------------------
-
-def test_same_holdout_binding_refutes_cross_holdout_evidence():
-    prediction = make_prediction({
-        H1: {"on": "c01", "off": "c06", "swapped": "c06"},
-        H2: {"on": "c06", "off": "c06", "swapped": "c01"},
-    })
-    oracle = make_oracle({
-        H1: {"verdict": "unique-best", "configs": {"c01": 100.0, "c06": 100.0}},
-        H2: {"verdict": "unique-best",
-             "winner": "c01", "configs": {"c01": 500.0, "c06": 100.0}},
-    })
-    floor = make_floor({H1: {"c01": 5.0}, H2: {}}, {H1: 100.0, H2: 100.0})
-    result = run(prediction, oracle, floor)
-
+    assert result["status"] == verdict.HOLDS
     assert _cond(result, "on_off_prediction_difference") == verdict.HOLDS
     assert _cond(result, "swapped_follow") == verdict.HOLDS
-    # 条件 3 は on/off 予測構成の差なので h2 の勝者 c01 を使わず、両 holdout で不成立。
-    assert _cond(result, "oracle_floor_exceeded") == verdict.REFUTED
-    assert result["holdouts"][H2]["oracle_floor_exceeded"] == verdict.REFUTED
-    assert result["same_holdout_coupled_verdict"] == verdict.REFUTED
+    assert result["holdouts"][H1]["oracle_verdict"] == oracle_verdict
+    assert result["evidence"]["oracle_status"] == oracle["status"]
+    assert "oracle_floor_exceeded" not in result["conditions"]
+    assert "same_holdout_coupled_verdict" not in result
+    assert "protocol_violations" not in result
+
+
+@pytest.mark.parametrize("oracle_verdict", ["tie", "indeterminate"])
+def test_oracle_verdict_does_not_mask_refuted_prediction_difference(oracle_verdict):
+    prediction = make_prediction({
+        H1: {"on": "c06", "off": "c06", "swapped": "c06"},
+        H2: {"on": "c06", "off": "c06", "swapped": "c06"},
+    })
+    oracle = make_oracle({
+        H1: {"verdict": oracle_verdict, "tied": ["c01", "c06"],
+             "configs": {"c01": 100.0, "c06": 100.0}},
+        H2: {"verdict": "unique-best", "configs": {"c06": 100.0}},
+    })
+    oracle["status"] = "indeterminate" if oracle_verdict == "indeterminate" else "determinate"
+
+    result = run(prediction, oracle)
+
     assert result["status"] == verdict.REFUTED
+    assert _cond(result, "on_off_prediction_difference") == verdict.REFUTED
+
+
+@pytest.mark.parametrize("oracle_verdict", ["tie", "indeterminate"])
+def test_oracle_verdict_does_not_mask_refuted_swapped_follow(oracle_verdict):
+    prediction = make_prediction({
+        H1: {"on": "c01", "off": "c06", "swapped": "c03"},
+        H2: {"on": "c02", "off": "c06", "swapped": "c01"},
+    })
+    oracle = make_oracle({
+        H1: {"verdict": oracle_verdict, "tied": ["c01", "c06"],
+             "configs": {"c01": 100.0, "c06": 100.0}},
+        H2: {"verdict": "unique-best", "configs": {"c02": 100.0, "c06": 50.0}},
+    })
+    oracle["status"] = "indeterminate" if oracle_verdict == "indeterminate" else "determinate"
+
+    result = run(prediction, oracle)
+
+    assert result["status"] == verdict.REFUTED
+    assert _cond(result, "swapped_follow") == verdict.REFUTED
 
 
 # ---- 結論の連言 (成立の代表) ----------------------------------------------
 
-def test_conclusion_holds_when_all_conditions_hold_on_same_holdout():
+def test_conclusion_holds_when_both_conditions_hold():
     prediction = make_prediction({
         H1: {"on": "c01", "off": "c06", "swapped": "c02"},
         H2: {"on": "c02", "off": "c06", "swapped": "c01"},
@@ -562,12 +306,9 @@ def test_conclusion_holds_when_all_conditions_hold_on_same_holdout():
         H1: {"verdict": "unique-best", "configs": {"c01": 100.0, "c06": 50.0}},
         H2: {"verdict": "unique-best", "configs": {"c02": 100.0, "c06": 50.0}},
     })
-    floor = make_floor({H1: {"c01": 10.0}, H2: {"c02": 10.0}}, {H1: 50.0, H2: 50.0})
-    result = run(prediction, oracle, floor)
+    result = run(prediction, oracle)
     assert _cond(result, "on_off_prediction_difference") == verdict.HOLDS
     assert _cond(result, "swapped_follow") == verdict.HOLDS
-    assert _cond(result, "oracle_floor_exceeded") == verdict.HOLDS
-    assert result["same_holdout_coupled_verdict"] == verdict.HOLDS
     assert result["status"] == verdict.HOLDS
 
 
@@ -580,8 +321,7 @@ def test_conclusion_indeterminate_propagates_from_a_condition():
         H1: {"verdict": "unique-best", "configs": {"c01": 100.0, "c06": 50.0}},
         H2: {"verdict": "unique-best", "configs": {"c02": 100.0, "c06": 50.0}},
     })
-    floor = make_floor({H1: {"c01": 10.0}, H2: {"c02": 10.0}}, {H1: 50.0, H2: 50.0})
-    result = run(prediction, oracle, floor)
+    result = run(prediction, oracle)
     assert _cond(result, "swapped_follow") == verdict.INDETERMINATE
     assert result["status"] == verdict.INDETERMINATE
 
@@ -592,11 +332,9 @@ def test_malformed_prediction_is_fully_indeterminate():
     oracle = make_oracle({
         H1: {"verdict": "unique-best", "configs": {"c01": 100.0, "c06": 50.0}},
     })
-    floor = make_floor({H1: {"c01": 10.0}}, {H1: 50.0})
-    result = run({"schema_version": "wrong", "rows": "not-a-list"}, oracle, floor)
+    result = run({"schema_version": "wrong", "rows": "not-a-list"}, oracle)
     assert result["status"] == verdict.INDETERMINATE
-    for name in ("on_off_prediction_difference", "swapped_follow",
-                 "oracle_floor_exceeded"):
+    for name in ("on_off_prediction_difference", "swapped_follow"):
         assert _cond(result, name) == verdict.INDETERMINATE
     assert result["reasons"]
 
@@ -610,15 +348,10 @@ def test_evidence_pointers_are_recorded():
         H1: {"verdict": "unique-best", "configs": {"c01": 100.0, "c06": 50.0}},
         H2: {"verdict": "unique-best", "configs": {"c06": 10.0}},
     })
-    floor = make_floor({H1: {"c01": 10.0}, H2: {}}, {H1: 50.0, H2: 10.0})
-    result = run(prediction, oracle, floor)
-    floor_ev = result["conditions"]["oracle_floor_exceeded"]["evidence"]
-    assert floor_ev["prediction_body_sha256"] == "a" * 64
-    assert floor_ev["oracle_manifest_sha256"] == "manifest-sha"
-    # per-pair 化: h1 は投影された pair floor、h2 は on==off 短絡で None。
-    assert floor_ev["floors"] == {H1: 10.0, H2: None}
-    assert floor_ev["scale_tolerance"] == TOL
-    assert floor_ev["scale_states"][H1] == verdict.SCALE_ADEQUATE
+    result = run(prediction, oracle)
+    assert result["evidence"]["prediction_body_sha256"] == "a" * 64
+    assert result["evidence"]["oracle_manifest_sha256"] == "manifest-sha"
+    assert result["evidence"]["oracle_status"] == "determinate"
     pred_ev = result["conditions"]["on_off_prediction_difference"]["evidence"]
     assert pred_ev["selector_basis_sha256"] == "b" * 64
 
@@ -634,11 +367,10 @@ def test_judge_combined_rejects_unverified_raw_dict():
         H1: {"verdict": "unique-best", "configs": {"c01": 100.0, "c06": 50.0}},
         H2: {"verdict": "unique-best", "configs": {"c02": 100.0, "c06": 50.0}},
     })
-    floor = make_floor({H1: {"c01": 10.0}, H2: {"c02": 10.0}}, {H1: 50.0, H2: 50.0})
     with pytest.raises(verdict.VerdictError, match="VerifiedPrediction"):
         verdict.judge_combined(
-            prediction=prediction, oracle=oracle, floor_by_holdout=floor,
-            expected_holdouts=EXPECTED, scale_tolerance=TOL, floor_source={})
+            prediction=prediction, oracle=oracle,
+            expected_holdouts=EXPECTED, floor_source={})
 
 
 def test_judge_combined_rejects_unverified_official_oracle_verdict():
@@ -650,15 +382,12 @@ def test_judge_combined_rejects_unverified_official_oracle_verdict():
         H1: {"verdict": "unique-best", "configs": {"c01": 100.0, "c06": 50.0}},
         H2: {"verdict": "unique-best", "configs": {"c02": 100.0, "c06": 50.0}},
     })
-    floor = make_floor(
-        {H1: {"c01": 10.0}, H2: {"c02": 10.0}}, {H1: 50.0, H2: 50.0},
-    )
     for unverified in (
             official, dict(official), artifacts.ExplorationArtifact(official)):
         with pytest.raises(verdict.VerdictError, match="VerifiedOracleVerdict"):
             verdict.judge_combined(
-                prediction=prediction, oracle=unverified, floor_by_holdout=floor,
-                expected_holdouts=EXPECTED, scale_tolerance=TOL, floor_source={},
+                prediction=prediction, oracle=unverified,
+                expected_holdouts=EXPECTED, floor_source={},
             )
 
 
@@ -671,17 +400,11 @@ def test_judge_combined_rejects_duck_typed_oracle_wrapper():
         H1: {"verdict": "unique-best", "configs": {"c01": 100.0, "c06": 50.0}},
         H2: {"verdict": "unique-best", "configs": {"c02": 100.0, "c06": 50.0}},
     })
-    floor = make_floor(
-        {H1: {"c01": 10.0}, H2: {"c02": 10.0}}, {H1: 50.0, H2: 50.0},
-    )
-
     with pytest.raises(verdict.VerdictError, match="VerifiedOracleVerdict"):
         verdict.judge_combined(
             prediction=prediction,
             oracle=SimpleNamespace(document=official),
-            floor_by_holdout=floor,
             expected_holdouts=EXPECTED,
-            scale_tolerance=TOL,
             floor_source={},
         )
 
@@ -715,9 +438,7 @@ def test_judge_combined_rejects_post_issuance_oracle_document_tampering(tmp_path
         verdict.judge_combined(
             prediction=prediction,
             oracle=verified_oracle,
-            floor_by_holdout={},
             expected_holdouts=EXPECTED,
-            scale_tolerance=TOL,
             floor_source={},
         )
 
@@ -733,15 +454,6 @@ def test_judge_combined_rejects_nested_semantic_subclass_in_sealed_document(tmp_
     first_holdout = next(iter(verified_oracle.document["holdouts"].values()))
     configurations = first_holdout["configurations"]
     original_cell = configurations[STOCK]
-    floor_by_holdout = {
-        holdout_id: {
-            "pairs": {},
-            "scale_ref": holdout["configurations"][STOCK]["median_of_medians"],
-            "scalar_alt": None,
-        }
-        for holdout_id, holdout in verified_oracle.document["holdouts"].items()
-    }
-
     class MisleadingMedianCell(dict):
         def __getitem__(self, key):
             value = dict.__getitem__(self, key)
@@ -774,9 +486,7 @@ def test_judge_combined_rejects_nested_semantic_subclass_in_sealed_document(tmp_
         verdict.judge_combined(
             prediction=prediction,
             oracle=verified_oracle,
-            floor_by_holdout=floor_by_holdout,
             expected_holdouts=set(verified_oracle.document["holdouts"]),
-            scale_tolerance=TOL,
             floor_source={},
         )
 
@@ -950,120 +660,6 @@ def _oracle_verifier_case(tmp_path: Path) -> SimpleNamespace:
         schedule_projection=schedule_projection,
         reverified=reverified,
     )
-
-
-def test_store_reverification_failure_propagates_to_combined_verdict():
-    configurations = (CHOICE_TO_BINDING["c01"], CHOICE_TO_BINDING["c06"])
-    rows = []
-    expected_cells = []
-    schedule_index = 0
-    for holdout_id in (H1, H2):
-        for configuration_id in configurations:
-            expected_cells.append({
-                "schedule_index": schedule_index,
-                "holdout_id": holdout_id,
-                "configuration_id": configuration_id,
-            })
-            rows.append({
-                "schedule_index": schedule_index,
-                "campaign_id": "oracle-b0",
-                "block_id": "b0",
-                "holdout_id": holdout_id,
-                "configuration_id": configuration_id,
-                "attempt": 1,
-                "status": "completed",
-                "outcome": "committed",
-                "binding_ok": True,
-                "legacy_verify": "pass",
-                "s2_verify": "pass",
-                "bench_values": [
-                    100.0 if configuration_id == CHOICE_TO_BINDING["c01"] else 50.0
-                ],
-                "excluded_reason": None,
-                "screen_outcome": "not_enabled",
-                "reason": None,
-            })
-            schedule_index += 1
-    logical_cell_ids = sorted({
-        f"{entry['holdout_id']}::{entry['configuration_id']}"
-        for entry in expected_cells
-    })
-    observations = artifacts.OfficialObservations({
-        "schema_version": artifacts.OFFICIAL_OBSERVATIONS_SCHEMA,
-        "manifest_kind": "official",
-        "manifest_sha256": "a" * 64,
-        "spec_sha256": "b" * 64,
-        "n_per_cell": 1,
-        "campaign_verifier_epochs": [{
-            "campaign_id": "oracle-b0",
-            "campaign_verifier_epoch": f"E1:{'e' * 64}",
-            "state": "E1",
-            "reason_code": "recorded-closure",
-            "identity_scope": "fixture enforcement closure",
-            "excluded_scope": "fixture excluded verifier implementation",
-            "certified_eligible": True,
-            "rejection": None,
-        }],
-        "expected_cells": expected_cells,
-        "store_reverification": {
-            "state": "verified",
-            "cells": [{
-                "cell_id": cell_id,
-                "store_path": f"fixture-store/{cell_id.replace('::', '--')}",
-                "expected_sha256": "c" * 64,
-                "actual_sha256": "c" * 64,
-                "state": "match",
-            } for cell_id in logical_cell_ids],
-        },
-        "rows": rows,
-    })
-    projection = oracle_judge.ManifestScheduleProjection(
-        n_per_cell=1,
-        expected_cells=frozenset(
-            (entry["schedule_index"], entry["holdout_id"], entry["configuration_id"])
-            for entry in expected_cells
-        ),
-        expected_campaign_ids=frozenset({"oracle-b0"}),
-    )
-    prediction = make_prediction({
-        H1: {"on": "c01", "off": "c06", "swapped": "c01"},
-        H2: {"on": "c01", "off": "c06", "swapped": "c01"},
-    })
-    floor = make_floor(
-        {H1: {"c01": 1.0}, H2: {"c01": 1.0}},
-        {H1: 50.0, H2: 50.0},
-    )
-    baseline_oracle = oracle_judge.judge_oracle(
-        observations,
-        schedule_projection=projection,
-        verified_manifest_sha256="a" * 64,
-        approved_spec_sha256="b" * 64,
-    )
-    baseline = run(prediction, baseline_oracle, floor)
-    assert baseline_oracle["status"] == "determinate"
-    assert baseline["status"] == verdict.HOLDS
-
-    for damage in ("absent", "mismatch"):
-        damaged = artifacts.OfficialObservations(deepcopy(observations))
-        if damage == "absent":
-            damaged.pop("store_reverification")
-        else:
-            damaged["store_reverification"]["state"] = "unverified"
-            damaged["store_reverification"]["cells"][0].update(
-                actual_sha256="d" * 64, state="mismatch",
-            )
-        damaged_oracle = oracle_judge.judge_oracle(
-            damaged,
-            schedule_projection=projection,
-            verified_manifest_sha256="a" * 64,
-            approved_spec_sha256="b" * 64,
-        )
-        combined = run(prediction, damaged_oracle, floor)
-        assert damaged_oracle["status"] == "indeterminate", damage
-        assert combined["conditions"]["oracle_floor_exceeded"]["verdict"] == (
-            verdict.INDETERMINATE
-        ), damage
-        assert combined["status"] == verdict.INDETERMINATE, damage
 
 
 def _write_oracle_variant(path: Path, document) -> None:
@@ -1321,8 +917,7 @@ def test_single_holdout_prediction_cannot_conclude_holds():
     oracle = make_oracle({
         H1: {"verdict": "unique-best", "configs": {"c01": 100.0, "c06": 50.0}},
     })
-    floor = make_floor({H1: {"c01": 10.0}}, {H1: 50.0})
-    result = run(prediction, oracle, floor)
+    result = run(prediction, oracle)
     assert result["status"] != verdict.HOLDS
     assert result["status"] == verdict.INDETERMINATE
     assert _cond(result, "swapped_follow") == verdict.INDETERMINATE
@@ -1334,8 +929,7 @@ def test_single_holdout_would_hold_without_cardinality_guard():
     oracle = make_oracle({
         H1: {"verdict": "unique-best", "configs": {"c01": 100.0, "c06": 50.0}},
     })
-    floor = make_floor({H1: {"c01": 10.0}}, {H1: 50.0})
-    degenerate = run(prediction, oracle, floor, expected=frozenset({H1}))
+    degenerate = run(prediction, oracle, expected=frozenset({H1}))
     assert degenerate["status"] == verdict.HOLDS
 
 
@@ -1351,8 +945,7 @@ def test_unexpected_holdout_in_prediction_is_structural_indeterminate():
         H1: {"verdict": "unique-best", "configs": {"c01": 100.0, "c06": 50.0}},
         H2: {"verdict": "unique-best", "configs": {"c02": 100.0, "c06": 50.0}},
     })
-    floor = make_floor({H1: {"c01": 10.0}, H2: {"c02": 10.0}}, {H1: 50.0, H2: 50.0})
-    result = run(prediction, oracle, floor)
+    result = run(prediction, oracle)
     assert result["status"] == verdict.INDETERMINATE
     assert any(reason["code"] == "unexpected-holdout" for reason in result["reasons"])
 
@@ -1369,18 +962,16 @@ def test_invalid_expected_holdouts_is_indeterminate(bad_expected):
         H1: {"verdict": "unique-best", "configs": {"c01": 100.0, "c06": 50.0}},
         H2: {"verdict": "unique-best", "configs": {"c02": 100.0, "c06": 50.0}},
     })
-    floor = make_floor({H1: {"c01": 10.0}, H2: {"c02": 10.0}}, {H1: 50.0, H2: 50.0})
-    result = run(prediction, oracle, floor, expected=bad_expected)
+    result = run(prediction, oracle, expected=bad_expected)
     assert result["status"] == verdict.INDETERMINATE
-    for name in ("on_off_prediction_difference", "swapped_follow",
-                 "oracle_floor_exceeded"):
+    for name in ("on_off_prediction_difference", "swapped_follow"):
         assert _cond(result, name) == verdict.INDETERMINATE
 
 
-# ---- CLI (C2-7): floors/holdouts 廃止 + freeze 導出 --------------------------
+# ---- CLI (C2-7): floors/holdouts 廃止 + freeze / floor_source 検証 -----------
 
-def _v2_freeze_document() -> dict:
-    """_validate_execution_snapshot を通す最小の v2 per-pair freeze を組む。"""
+def _freeze_document() -> dict:
+    """_validate_execution_snapshot を通す最小の freeze を組む。"""
     non_stock = [b for b in CHOICE_TO_BINDING.values() if b != STOCK]
     entries = {name: {} for name in list(CHOICE_TO_BINDING.values())}
     holdouts = {
@@ -1422,12 +1013,9 @@ def test_cli_rejects_removed_floors_and_holdouts_args(tmp_path, capsys):
         verdict.main(args2)
 
 
-def test_cli_derives_floor_and_tolerance_from_freeze(tmp_path, monkeypatch):
-    # 外部 authority I/O は個別 E2E で覆うため、ここは CLI の順序・freeze 導出・wiring を検証する。
-    freeze_doc = _v2_freeze_document()
-    protocol_path = tmp_path / "protocol.json"
-    protocol_sha = _write_json(protocol_path, {"scale_adequacy_rel_tolerance": "0.10"})
-    freeze_doc["floor_protocol"] = {"path": "protocol.json", "sha256": protocol_sha}
+def test_cli_preserves_freeze_and_floor_source_wiring(tmp_path, monkeypatch):
+    # 外部 authority I/O は個別 E2E で覆うため、ここは CLI の順序・freeze 検証・floor_source wiring を検証する。
+    freeze_doc = _freeze_document()
     freeze_path = tmp_path / "freeze.json"
     freeze_sha = _write_json(freeze_path, freeze_doc)
 
@@ -1490,6 +1078,16 @@ def test_cli_derives_floor_and_tolerance_from_freeze(tmp_path, monkeypatch):
         assert kwargs["approved_spec"] is approved
         return _unsafe_verified_oracle_for_judge_unit_test(oracle)
 
+    real_judge_combined = verdict.judge_combined
+
+    def judge_combined(**kwargs):
+        calls.append("judge")
+        assert kwargs["expected_holdouts"] == EXPECTED
+        assert kwargs["floor_source"] == {}
+        assert "floor_by_holdout" not in kwargs
+        assert "scale_tolerance" not in kwargs
+        return real_judge_combined(**kwargs)
+
     monkeypatch.setattr(verdict, "load_verified_freeze", load_freeze)
     monkeypatch.setattr(verdict.s8b_ratified_freeze, "load_ratified_freeze", load_ratified)
     monkeypatch.setattr(
@@ -1500,9 +1098,9 @@ def test_cli_derives_floor_and_tolerance_from_freeze(tmp_path, monkeypatch):
     monkeypatch.setattr(
         verdict.s8b_ratified_freeze, "read_floor_source_blob", read_floor_source,
     )
-    monkeypatch.setattr(verdict, "_resolve_scale_tolerance", lambda document, *, root: TOL)
     monkeypatch.setattr(verdict, "verify_prediction", verify_prediction)
     monkeypatch.setattr(verdict, "verify_oracle_verdict", verify_oracle)
+    monkeypatch.setattr(verdict, "judge_combined", judge_combined)
 
     rc = verdict.main([
         "judge", "--prediction", str(pred_path), "--oracle", str(oracle_path),
@@ -1513,16 +1111,15 @@ def test_cli_derives_floor_and_tolerance_from_freeze(tmp_path, monkeypatch):
     assert rc == 0
     assert calls == [
         "freeze", "ratified", "reverify", "approved", "manifest",
-        "floor-source", "prediction", "oracle",
+        "floor-source", "prediction", "oracle", "judge",
     ]
     out = json.loads(out_path.read_text(encoding="utf-8"))
-    floor_ev = out["conditions"]["oracle_floor_exceeded"]["evidence"]
-    # freeze 由来の pair floor (c01→p2_2_flag_opt = 10.0) が投影される。
-    assert floor_ev["floors"][H1] == 10.0
-    assert floor_ev["scale_tolerance"] == "0.10"
-    # scale_ref 50 と stock median 50 が一致 → adequate、100−50=50>10 → HOLDS。
-    assert out["holdouts"][H1]["oracle_floor_exceeded"] == verdict.HOLDS
+    assert out["status"] == verdict.HOLDS
+    assert out["holdouts"][H1]["oracle_verdict"] == "unique-best"
     assert out["schema_version"] == "8b-combined-verdict/v2"
+    assert "oracle_floor_exceeded" not in out["conditions"]
+    assert "same_holdout_coupled_verdict" not in out
+    assert "protocol_violations" not in out
 
 
 @pytest.mark.parametrize("schema", [
@@ -1534,10 +1131,7 @@ def test_cli_derives_floor_and_tolerance_from_freeze(tmp_path, monkeypatch):
 def test_cli_rejects_non_verdict_oracle_schema_without_output(
     tmp_path, monkeypatch, schema,
 ):
-    freeze_doc = _v2_freeze_document()
-    protocol_path = tmp_path / "protocol.json"
-    protocol_sha = _write_json(protocol_path, {"scale_adequacy_rel_tolerance": "0.10"})
-    freeze_doc["floor_protocol"] = {"path": "protocol.json", "sha256": protocol_sha}
+    freeze_doc = _freeze_document()
     freeze_path = tmp_path / "freeze.json"
     freeze_sha = _write_json(freeze_path, freeze_doc)
     prediction_path = tmp_path / "prediction.json"
@@ -1585,8 +1179,7 @@ def test_cli_rejects_non_verdict_oracle_schema_without_output(
 
 
 def test_cli_rejects_freeze_sha_mismatch(tmp_path, monkeypatch):
-    freeze_doc = _v2_freeze_document()
-    freeze_doc["floor_protocol"] = {"path": "protocol.json", "sha256": "0" * 64}
+    freeze_doc = _freeze_document()
     freeze_path = tmp_path / "freeze.json"
     _write_json(freeze_path, freeze_doc)
     rc = verdict.main([
@@ -1600,7 +1193,7 @@ def test_cli_rejects_freeze_sha_mismatch(tmp_path, monkeypatch):
 
 
 def test_cli_rejects_freeze_identity_mismatch_before_consumers(tmp_path, monkeypatch):
-    freeze_doc = _v2_freeze_document()
+    freeze_doc = _freeze_document()
     freeze_path = tmp_path / "freeze.json"
     freeze_sha = _write_json(freeze_path, freeze_doc)
     published = SimpleNamespace(
@@ -1701,11 +1294,7 @@ def _combined_measurement_case(observation: dict):
         },
     })
     oracle["measurement_conditions"] = [_measurement_condition(observation)]
-    floor = make_floor(
-        {H1: {"c01": 5.0}, H2: {}},
-        {H1: 10.0, H2: 10.0},
-    )
-    return prediction, oracle, floor
+    return prediction, oracle
 
 
 def test_verify_oracle_verdict_rejects_handwritten_measurement_conditions(tmp_path):
@@ -1739,31 +1328,25 @@ def test_verify_oracle_verdict_rejects_handwritten_measurement_conditions(tmp_pa
 
 def test_combined_verdict_measurement_mismatch_is_indeterminate():
     observation = _degraded_observation()
-    prediction, oracle, floor = _combined_measurement_case(observation)
+    prediction, oracle = _combined_measurement_case(observation)
 
-    result = run(prediction, oracle, floor, floor_source={})
+    result = run(prediction, oracle, floor_source={})
 
     assert result["status"] == verdict.INDETERMINATE
     assert {entry["code"] for entry in result["reasons"]} == {
         "measurement-conditions-mismatch",
     }
-    assert all(
-        row["scale"]["state"]
-        == verdict.SCALE_MEASUREMENT_CONDITIONS_MISMATCH
-        for row in result["holdouts"].values()
-    )
-    assert _cond(result, "oracle_floor_exceeded") == verdict.INDETERMINATE
-    assert result["holdouts"][H1]["oracle_floor_exceeded"] == verdict.INDETERMINATE
+    assert _cond(result, "on_off_prediction_difference") == verdict.INDETERMINATE
+    assert _cond(result, "swapped_follow") == verdict.INDETERMINATE
 
 
 def test_combined_verdict_matching_degraded_conditions_propagate():
     observation = _degraded_observation()
-    prediction, oracle, floor = _combined_measurement_case(observation)
+    prediction, oracle = _combined_measurement_case(observation)
 
     result = run(
         prediction,
         oracle,
-        floor,
         floor_source=_degraded_floor_source(observation),
     )
 
@@ -1778,12 +1361,11 @@ def test_combined_verdict_different_floor_and_oracle_observations_indeterminate(
     floor_observation = _degraded_observation()
     oracle_observation = deepcopy(floor_observation)
     oracle_observation["preflight"]["stderr_sha256"] = "1" * 64
-    prediction, oracle, floor = _combined_measurement_case(oracle_observation)
+    prediction, oracle = _combined_measurement_case(oracle_observation)
 
     result = run(
         prediction,
         oracle,
-        floor,
         floor_source=_degraded_floor_source(floor_observation),
     )
 
@@ -1795,13 +1377,12 @@ def test_combined_verdict_different_floor_and_oracle_observations_indeterminate(
 
 def test_combined_verdict_empty_oracle_observations_with_floor_indeterminate():
     floor_observation = _degraded_observation()
-    prediction, oracle, floor = _combined_measurement_case(floor_observation)
+    prediction, oracle = _combined_measurement_case(floor_observation)
     oracle["measurement_conditions"] = []
 
     result = run(
         prediction,
         oracle,
-        floor,
         floor_source=_degraded_floor_source(floor_observation),
     )
 
@@ -1813,12 +1394,11 @@ def test_combined_verdict_empty_oracle_observations_with_floor_indeterminate():
 
 def test_combined_verdict_exact_floor_and_oracle_observations_not_indeterminate():
     observation = _degraded_observation()
-    prediction, oracle, floor = _combined_measurement_case(observation)
+    prediction, oracle = _combined_measurement_case(observation)
 
     result = run(
         prediction,
         oracle,
-        floor,
         floor_source=_degraded_floor_source(observation),
     )
 
@@ -1830,7 +1410,7 @@ def test_combined_verdict_exact_floor_and_oracle_observations_not_indeterminate(
 
 def test_combined_verdict_calls_claim_gate_before_condition_comparison(monkeypatch):
     observation = _degraded_observation()
-    prediction, oracle, floor = _combined_measurement_case(observation)
+    prediction, oracle = _combined_measurement_case(observation)
     calls = []
     monkeypatch.setattr(
         verdict._perf_preflight,
@@ -1841,7 +1421,6 @@ def test_combined_verdict_calls_claim_gate_before_condition_comparison(monkeypat
     result = run(
         prediction,
         oracle,
-        floor,
         floor_source=_degraded_floor_source(observation),
     )
 
@@ -1854,12 +1433,11 @@ def test_combined_verdict_calls_claim_gate_before_condition_comparison(monkeypat
 
 def test_all_perf_combined_verdict_preserves_exact_keys():
     observation = _degraded_observation()
-    prediction, oracle, floor = _combined_measurement_case(observation)
+    prediction, oracle = _combined_measurement_case(observation)
     oracle.pop("measurement_conditions")
 
-    result = run(prediction, oracle, floor, floor_source={})
+    result = run(prediction, oracle, floor_source={})
 
     assert set(result) == {
-        "schema_version", "status", "same_holdout_coupled_verdict",
-        "conditions", "holdouts", "protocol_violations", "evidence", "reasons",
+        "schema_version", "status", "conditions", "holdouts", "evidence", "reasons",
     }
