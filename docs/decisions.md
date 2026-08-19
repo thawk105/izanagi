@@ -23324,3 +23324,44 @@ AST 判定は次の2段の shallow heuristic に限定する。
   ファイルが存在しなくなり実質的に削除と等価になる (dev-wave は wave ごとに新規 worktree を
   作るため特に有害)。「削除ではなく」という要求と矛盾するため不採用。
 - basename 単位の除外リスト — 上記理由により path exact 除外へ変更。
+
+## D578. kill2 (親系列ID自己申告リセット) の防御は family_root 固定 literal + 全履歴一意性だけで完結し、series_id との対応式は作らない (2026-08-20)
+
+**決定:** T-139 の a13 α予約について、D229決定(8)の必須kill2件目 (「新しい親系列IDを自己申告して
+累積有意水準をリセットする」攻撃) の防御は、次の2点だけで完結する。
+
+1. 受領証が宣言する `ledger_evidence.family_root` を、D282
+   (`docs/decisions.md:12941-12958`) が固定した literal
+   `dce4ae4fed6f4fb33747165c5b92c16d01822850` と reject-only で比較する。
+2. その固定 root 1つの台帳 (`output/registry/t139-alpha-reservations.jsonl`) に対する
+   `(family_root, ordinal)` の全履歴一意性を検査する (record-items-v2.md §6.7)。
+
+**`series_id` / `parent_series_id` は一切関与しない。** 対応式 (「この series_id は
+どの family_root に属するか」を決める写像) を作らない設計そのものが防御の要である —
+family_root が producer の自己申告ではなく固定 literal である以上、受領証がどんな
+`series_id`/`parent_series_id` を名乗っても、台帳側の一意性検査は同じ1つの root に対して
+働き続ける。
+
+**理由:**
+- addendum-a.md (`output/insights/2026-08-08_t139-addendum-a/addendum-a.md:810`) の逐語
+  「新しい親系列IDの自己申告で `k` をリセットできない」は、対応式の不在によって成立する。
+  対応式を作れば、その式自体が新しい攻撃面 (「対応式が受理する family_root を偽装する」) を開く。
+- D509実装wave (単位3/4) の段2 plan・段3敵対レンズ2本は、いずれも「family_rootとseries_idの
+  対応が未定義だからkill2は不完全」と独立に懸念したが、これは前提が誤っていた。
+  対応式が**無いこと**が設計であり、**不足ではない**。
+- 実地検証: `test_parent_series_id_reset_is_killed_by_full_history`
+  (`orchestrator/tests/test_t338_submission_gate_unit4.py`) で、異なる`series_id`/
+  `parent_series_id`を持つ受領証が同一`(family_root, ordinal)`を宣言すると拒否されることを
+  確認し、変異matrixで該当防御ロジックの除去がKILLEDになることも確認した
+  (`family_root reject-only`除去・`(family_root,ordinal)`重複検出除去のいずれも変異でKILLED)。
+
+**却下した選択肢:**
+- `series_id`/`parent_series_id`から`family_root`を導出する写像を新設する — 対応式自体が
+  producerの自己申告を経由する新しい攻撃面になり、規律6(信頼境界)に反する。
+- kill2を「本waveでは未達成」として単位5/6へ持ち越す — 台帳の全履歴一意性検査は既に
+  単位4で実装・変異matrixで実地確認済みであり、持ち越す実体が無い。
+
+**主張の範囲:** 本決定はD229決定(8)のkill2 (親系列IDリセット) だけを扱う。kill1 (失敗投入を
+台帳とrawの双方から落とす) はproducer外のdurable intent authorityとPBS driver結線を要し、
+本waveの射程外のまま (D500決定5)。kill3 (anomaly clean申告) は単位3のcorrectness raw再計算で
+別途達成した。
