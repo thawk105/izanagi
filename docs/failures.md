@@ -2251,6 +2251,15 @@
   再利用して同じ地点で再び中止する。**baseline のフレークからは resume で復帰できない。**
   新しい `--scratch-root` / `--out` / `--attempt-out` で最初から走らせ直す必要がある。
   やり直した走行は baseline PASSED で完走した。
+
+- **再発: 2026-08-19** — `orchestrator/tests/test_codex_worker_launch.py` の全体スイート実行
+  (`-n` 既定の高並列 xdist) で、共有計算機の負荷が高い時間帯に毎回50〜70件前後の
+  非決定的失敗が発生した (`codex_exit_code=-15`・`evidence_status='missing'`・
+  `stop_reason='max_wall_clock_s'`/`'max_attempts'` の signature、失敗node集合は
+  走行ごとに異なる)。fix 適用前 commit (`0333abe6`) 単独でも対照実験で同数程度の
+  flake を再現し、本 wave の変更とは無関係と確定した。`-n 4`/`-n 8` へ並列度を下げると
+  flake 数は大きく減るが 0 にはならない。新設テストは分離実行 (タイミング非依存) で
+  毎回全緑だった。
 ### F58. 並行 wave が land 済みの「次の一手」ID を別内容へ再利用し、裁定待ち 2 件が正本から消えた [手順漏れ] [恒真ゲート]
 
 - **事象 (2026-07-31, `/rulings`):** worklog (72) が land した 2 つの ID を、並行して走っていた
@@ -9722,6 +9731,13 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   手動 `qdel` は使っていない (それは別ラッチを武装させ、解除がユーザー手番になる)。
   **変異走行を中止させると、テスト実行系まで巻き添えで止まる**という結合を記録しておく。
 
+
+- **再発: 2026-08-19** — `tools/check_acceptance_reds.py` の probe worktree dispatch が、
+  変異走行や tree 編集を伴わない単発起動 (T-1362 の受入非帰属判定、3回試行) でも
+  3/3 の頻度で同型の `orphan-hold` (`job-may-remain-without-terminal-evidence`) に到達した。
+  F383 が記録した根本原因 (変異走行中の docs 編集による共有木 byte 変化検出) は今回のトリガー
+  ではなく、単発 dispatch そのもので発生している。復旧手順 (`qstat` 出力内容で不在確認 →
+  probe worktree の clean/HEAD 確認 → 手動 qdel を使わず hold を削除) は F383 と同じ形で機能した。
 ### F384. 所有 file の合計行数が大きい実装子が SIGKILL され成果物ゼロで終わる [セッション死・救出] [コンテキスト浪費]
 
 - 事象: dev-wave 段 5 の実装子 2 体が `codex_exit_code = -9` で終了した。1 体目は
@@ -10309,3 +10325,23 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: `test_batch_request_count_ignores_no_touch_history_length` が、
   no-touch commit 数を変えた 2 ケースで要求数の合計が一致することを要求する。
   path filtering が無効化されて全 commit を要求する退行もこのテストが殺す。
+
+### F417. s8c_preregistration の MAX_BATCH_REQUESTS を repo 履歴成長が超過し、無関係な wave の受入を赤にした [ドリフト]
+
+- 事象: T-1362 の受入全走で `test_s8c_preregistration_invariant.py` の2テスト
+  (`test_candidate_freeze_matches_contract_and_generation_chain`、
+  `test_repository_tip_binds_current_decider_version_without_activation`) が赤になった。
+  `orchestrator/campaign/s8c_preregistration.py:_batch_oids` の
+  `len(commits) * len(paths) > MAX_BATCH_REQUESTS` (`MAX_BATCH_REQUESTS = 50_000`) を
+  実測50072で超過していた。T-1362 は `orchestrator/campaign/s8c_preregistration.py` や
+  関連docsを一切変更していない。
+- 根本原因: `commits` は repo 履歴 (候補commitからの範囲) に比例して増える。main単独
+  (`b7f7d934`) では合格、T-1362 の tip (`b7fd16d8`、main比 commit 7件追加) では失敗を
+  直接実測した — 内容でなく commit 数の増加だけで超過している。main は既に限界のごく
+  近傍にあり、次にlandする**どの** wave もこの形で赤を踏みうる。
+- 恒久対応: 未着手。ユーザー裁定へ返した (worklog [T-1408])。
+  候補: (a) `MAX_BATCH_REQUESTS` を引き上げる、(b) `_batch_oids` の呼び出し側で対象範囲を
+  絞る、(c) `test-time-regression-rule` に従い当該2テストを成長比例costとして恒久保留する。
+  いずれも本 fragment の時点では未選択。
+- 再発検知: 未実装。この2テストが受入全走で赤になった時点で本エントリへ「再発」を追記する
+  運用に留める (機械的な事前検知は恒久対応と併せて設計する)。
