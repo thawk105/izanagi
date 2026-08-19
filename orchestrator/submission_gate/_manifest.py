@@ -29,6 +29,7 @@ _ERRATUM_ROLE: Final = {
     "t139-core-s15-exactkey-v1": "erratum_t139_core_s15_exactkey_v1",
     "t139-core-s7-stresscheck-v1": "erratum_t139_core_s7_stresscheck_v1",
 }
+# Module-private convention only; importing this name is not prevented.
 _MANIFEST_CAPABILITY_TOKEN: Final = object()
 
 

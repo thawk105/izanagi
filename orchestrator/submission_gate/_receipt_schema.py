@@ -169,8 +169,10 @@ def validate_receipt_shape(
     except ImportError as exc:
         raise ReceiptSchemaError("jsonschema is required for receipt schemas") from exc
     try:
+        schema_value = _thaw_json_value(schema.document)
+        receipt_value = _thaw_json_value(receipt)
         errors = sorted(
-            Draft7Validator(_thaw_json_value(schema.document)).iter_errors(receipt),
+            Draft7Validator(schema_value).iter_errors(receipt_value),
             key=lambda error: tuple(str(part) for part in error.absolute_path),
         )
     except Exception as exc:

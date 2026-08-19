@@ -4,6 +4,7 @@ import hashlib
 import inspect
 import json
 import os
+import signal
 from pathlib import Path
 
 import pytest
@@ -124,14 +125,27 @@ def test_safe_io_requires_regular_final_target(repository_root: Path):
 def test_safe_io_rejects_fifo_leaf_without_blocking(repository_root: Path):
     if not hasattr(os, "mkfifo"):
         pytest.skip("FIFO is unavailable on this platform")
+    if not hasattr(signal, "SIGALRM") or not hasattr(signal, "alarm"):
+        pytest.skip("SIGALRM is unavailable on this platform")
     fifo = repository_root / "nested" / "fifo"
     os.mkfifo(fifo)
-    with pytest.raises(safe_io.SafeIOError):
-        safe_io.read_relative_regular_bytes(
-            repository_root,
-            "nested/fifo",
-            max_bytes=1024,
-        )
+
+    def timeout_handler(signum: int, frame: object) -> None:
+        raise RuntimeError("FIFO leaf read exceeded the test timeout")
+
+    previous_handler = signal.getsignal(signal.SIGALRM)
+    signal.signal(signal.SIGALRM, timeout_handler)
+    signal.alarm(3)
+    try:
+        with pytest.raises(safe_io.SafeIOError):
+            safe_io.read_relative_regular_bytes(
+                repository_root,
+                "nested/fifo",
+                max_bytes=1024,
+            )
+    finally:
+        signal.alarm(0)
+        signal.signal(signal.SIGALRM, previous_handler)
 
 
 def test_safe_io_uses_no_follow_and_dir_fd_for_every_component(
@@ -497,6 +511,22 @@ def test_validate_receipt_shape_checks_draft7_top_level_required_key():
         receipt_schema.ReceiptSchemaError, match="additionalProperties"
     ):
         receipt_schema.validate_receipt_shape(extra, schema=schema)
+
+
+def test_validate_receipt_shape_accepts_frozen_parsed_receipt_and_schema():
+    raw_schema = json.dumps(_minimal_schema(), separators=(",", ":")).encode("utf-8")
+    schema = receipt_schema._parse_schema_bytes(raw_schema, ref=_blob_ref(raw_schema))
+    raw_receipt = (
+        b'{"schema_version":"unit2/v1","compile_commands":'
+        b'{"path":"build/compile_commands.json","size":17,"sha256":"'
+        + b"a" * 64
+        + b'"}}'
+    )
+    document = receipt_io.parse_receipt_bytes(raw_receipt)
+
+    assert not isinstance(document.value, dict)
+    assert not isinstance(schema.document, dict)
+    receipt_schema.validate_receipt_shape(document.value, schema=schema)
 
 
 @pytest.mark.parametrize(

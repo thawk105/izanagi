@@ -33,6 +33,7 @@ from ._manifest import (
 from orchestrator.preregistration.blobref import BlobRef
 
 
+# Module-private convention only; importing this name is not prevented.
 _CAPABILITY_TOKEN: Final = object()
 
 
