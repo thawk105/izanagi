@@ -8,6 +8,7 @@ import os
 import re
 import subprocess
 import sys
+import textwrap
 from decimal import Decimal
 from pathlib import Path
 from typing import Sequence
@@ -36,6 +37,12 @@ _HEX40_RE = re.compile(r"[0-9a-f]{40}\Z")
 _NON_AUTHORITY_HELP = "これは非権威の運用既定であり docs 権威ではない"
 
 
+class _NoHyphenBreakFormatter(argparse.HelpFormatter):
+    def _split_lines(self, text: str, width: int) -> list[str]:
+        text = self._whitespace_matcher.sub(" ", text).strip()
+        return textwrap.wrap(text, width, break_on_hyphens=False)
+
+
 def _positive_int(value: str) -> int:
     try:
         parsed = int(value)
@@ -50,7 +57,8 @@ def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description=(
             "dev-wave の入力から codex_worker_launch.py run の必須 argv を生成する"
-        )
+        ),
+        formatter_class=_NoHyphenBreakFormatter,
     )
     parser.add_argument("--stage", choices=STAGES, required=True)
     parser.add_argument("--lane", choices=LANES)
