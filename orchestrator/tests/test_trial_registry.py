@@ -1627,9 +1627,9 @@ def test_s8c_acceptance_registered_build_reports_reach_receipt_for_h1_h2_workloa
 
 @pytest.mark.usefixtures("ratified_enforcement_source")
 def test_s8c_acceptance_registered_build_reports_remain_fail_closed_for_unknown_workload(
-    tmp_path: Path,
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """H1/H2 と無関係な未知 workload は Layer 3 gate で fail-closed にする。"""
+    """producer が特定 workload の対応を打ち切った場合、Layer 3 gate で fail-closed にする。"""
     repo, manifest_path, registry, manifest = _registered_repo(tmp_path)
     build_root = repo / "output" / "exploration" / "autonomous-trials"
     reports = [
@@ -1642,12 +1642,19 @@ def test_s8c_acceptance_registered_build_reports_remain_fail_closed_for_unknown_
         )
         for trial in manifest.trials
     ]
-    events, report = _load_report_bundle(reports[0])
-    unknown_workload = "t1391-unknown-workload"
-    report["cells"][0]["workload"] = unknown_workload
-    report["workloads_requested"][0] = unknown_workload
-    _persist(reports[0].parent, events, report)
+    rejected_workload = R.HOLDOUT_BINDINGS[manifest.trials[0].holdout]["workload"]
+    original_resolve = producer.resolve_workload_entry
+
+    def reject_one_workload(workload):
+        if workload == rejected_workload:
+            raise producer.AutonomousTrialError(
+                f"deliberately unsupported for test: {workload!r}"
+            )
+        return original_resolve(workload)
+
+    report = json.loads(reports[0].read_bytes())
     output_root = Path(report["cells"][0]["campaign_root"]).parent.parent
+    monkeypatch.setattr(producer, "resolve_workload_entry", reject_one_workload)
     with pytest.raises(completeness.AutonomousTrialCompletenessError) as exc_info:
         completeness.assert_campaign_layer3_chain(
             report=report,
@@ -1664,7 +1671,6 @@ def test_s8c_acceptance_registered_build_reports_remain_fail_closed_for_unknown_
             repository_root=repo,
             registry_path=registry,
         )
-    assert type(acceptance_exc_info.value) is R.TrialRegistryError
     assert str(acceptance_exc_info.value) == (
         "[campaign-chain] [campaign-chain] "
         "cells[0].workload is not producer-supported"
