@@ -22329,3 +22329,47 @@ checkpoint path と evidence root の環境変数は、driver が runner を呼�
 - **checkpoint を repo 内 `output/` へ置いて既存 consumer をそのまま使う。** 却下。`output/` は
   dirty 検査から除外されるため誤書き込みが受入で見えず、かつ診断が計測値の権威へ昇格する経路を
   残す。consumer 側 (`floor_liveness`) を同じ wave で拡張する方を採った。
+
+## D547. D143 決定 (3) を択 (b) 実質完了として終端する (2026-08-19)
+
+**決定:** D143 決定 (3) (壁 1 を塞ぐ実行時 attestation の述語と凍結較正のどちらを正とするかの
+択一) は、択 (b) 「述語を正とし、較正を取り直して登録し直す + 取得時受入検査」を実質完了として
+終端する。新たな実装は行わない。
+
+**理由:**
+- 較正の取り直しと取得時受入検査は完了している。取り直した較正
+  (`calibration-94a4b79fa31bba3c.json`、bnode048、方式 α、request 892707.nqsv) は自分の述語を
+  48 本中 0 本の外れで通る。契約がなお束縛している旧較正
+  (`calibration-753f535a8d024727.json`) は 48 本中 1 本が外れ (index 40) で自分の述語を通らない
+  (F97 の実体)。
+- 2026-08-16 の実機走行 (request `0:913859.nqsv`、bnode006) は `attestation_mode="required"` の
+  Pegasus 契約下で `loop.py` の `_authorize_measurement` が最初の WAL 書込みより前に
+  `attest_and_build_receipt` を通し、`build_done` / `verify_done`
+  (`verdict=serializable` / `certified=true`) まで到達した。中断は bench 段の
+  `perf not found for kernel 5.15.0-173` のみである。D143 原文が特定した壁 1
+  (`execution_guard` の `effective_clock.samples_mhz` 比較で build 前に停止する) は、
+  現行 HEAD の実行では再現していない。
+- D143 原文の「裁定後に同じ使い捨て driver を再走させれば追加実装なしで確かめられる」という
+  前提は、12 日分の production 進化 (絶対 import への修正 2 件、keyword-only 引数 1 件、
+  `IZANAGI_EXPLORATION_OUTPUT_ROOT` 供給 1 件の適応が要る) により偽になっていた。確認は再走では
+  なく上記実機走行の記録で足りるとして決着した。
+- 択 (a) (述語を緩める) は受理集合を広げる側の変更であり、現に通っている今それを選ぶ理由がない。
+
+**この決定が変えないもの:** D437 (環境契約 g2 の活性化は上位権限束の人間 lockstep に従属する)
+は本決定でも不変である。D143 決定 (3) の「較正を取り直して登録し直す」のうち、環境契約世代を
+g1 から g2 へ切り替える活性化そのものは、D437 が裁定したとおり未実施のまま人間 lockstep 待ちで
+ある。D431 の member inventory のうち member 2 (runtime attestation) の positive control
+(登録済み較正自身が自分の述語を通ることを示す nodeid test) は、g1 が活性である限り unmet の
+ままであり、本決定はこれを met へ変更しない (中央値・tolerance 帯が g1/g2 で同一なため、
+run 単位の attestation 通過は g1/g2 いずれが活性かに依存しないという区別による)。member 8
+(provider live env / receipt 一致の実在値未取得) も無関係に未解決のまま残る。本決定が閉じるのは
+「D143 決定 (3) の a/b/c のどれを選ぶか」であって、g2 活性化の可否ではない。
+
+**却下した選択肢:**
+- 択 (a) 述語を緩める — 受理集合を広げる根拠がない。現行 HEAD は緩めなくても実機で通っている。
+- 未決着のまま持ち越す — 判断材料 (較正品質、実機走行結果、production の drift) は出揃っており、
+  これ以上 a/b/c のどれかを保留する実益がない。
+
+**研究状態への影響:** 本決定は certified 選択・材料レポート・試行台帳の現在値を 1 件も変えない
+(docs のみ、実装差分ゼロ)。変わるのは decisions.md 上で D143 決定 (3) が「ユーザー裁定へ返す」
+状態から終端済みへ遷移する点だけである。
