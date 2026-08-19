@@ -21,6 +21,7 @@ _AUTHORITY_PATHS = (
 _MODEL_SECTION = "DW-O01"
 _REVIEW_SECTION = "DW-S06-A"
 _FOCUS_SECTION = "DW-S06-C"
+_AUTHOR_SECTION = "DW-S05-A"
 _COMMIT_RE = re.compile(r"[0-9a-f]{40}")
 _FENCE_OPEN_RE = re.compile(
     r"^(?P<indent>[ \t]{0,3})(?P<marker>`{3,}|~{3,})(?P<info>.*)$"
@@ -44,6 +45,10 @@ _REVIEW_EFFORT_LINE_RE = re.compile(
 _FOCUS_EFFORT_LINE_RE = re.compile(
     r"並列 fix の統合後、焦点再レビューは全体へ "
     r"`reasoning=(?P<effort>[A-Za-z0-9_-]+)` で 1 本でよい。"
+)
+_AUTHOR_EFFORT_LINE_RE = re.compile(
+    r"codex は `reasoning=(?P<effort>[A-Za-z0-9_-]+)`、"
+    r"`sandbox=workspace-write` とする。"
 )
 
 
@@ -74,6 +79,7 @@ class AuthoritySnapshot:
     other_model: str
     review_effort: str
     focus_effort: str
+    author_effort: str
     model_authority_version: Literal["v1", "v2"]
 
     def as_dict(self) -> dict[str, object]:
@@ -430,12 +436,16 @@ def snapshot_authority(
     model_section = _one_section(documents, _AUTHORITY_PATHS[0], _MODEL_SECTION)
     review_section = _one_section(documents, _AUTHORITY_PATHS[1], _REVIEW_SECTION)
     focus_section = _one_section(documents, _AUTHORITY_PATHS[1], _FOCUS_SECTION)
+    author_section = _one_section(documents, _AUTHORITY_PATHS[1], _AUTHOR_SECTION)
     model_version, model_match = _one_model_normative_line(model_section)
     review_match = _one_normative_line(
         review_section, _REVIEW_EFFORT_LINE_RE, _REVIEW_SECTION
     )
     focus_match = _one_normative_line(
         focus_section, _FOCUS_EFFORT_LINE_RE, _FOCUS_SECTION
+    )
+    author_match = _one_normative_line(
+        author_section, _AUTHOR_EFFORT_LINE_RE, _AUTHOR_SECTION
     )
     if commit is None and model_version != "v2":
         raise AuthorityError("DW-O01: live authority は v2 でなければならない")
@@ -457,6 +467,7 @@ def snapshot_authority(
             (_AUTHORITY_PATHS[0], _MODEL_SECTION, model_section),
             (_AUTHORITY_PATHS[1], _REVIEW_SECTION, review_section),
             (_AUTHORITY_PATHS[1], _FOCUS_SECTION, focus_section),
+            (_AUTHORITY_PATHS[1], _AUTHOR_SECTION, author_section),
         )
     )
     return AuthoritySnapshot(
@@ -467,6 +478,7 @@ def snapshot_authority(
         other_model=other_model,
         review_effort=review_match.group("effort"),
         focus_effort=focus_match.group("effort"),
+        author_effort=author_match.group("effort"),
         model_authority_version=model_version,
     )
 
@@ -501,6 +513,10 @@ def derive_launch(
         effort = snapshot.focus_effort
         effort_authority = "docs"
         used.append(section_by_id[_FOCUS_SECTION])
+    elif stage in ("author", "fix"):
+        effort = snapshot.author_effort
+        effort_authority = "docs"
+        used.append(section_by_id[_AUTHOR_SECTION])
     return LaunchRequirement(
         stage=stage,
         lane=lane,

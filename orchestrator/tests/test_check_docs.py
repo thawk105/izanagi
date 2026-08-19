@@ -803,6 +803,8 @@ description: synthetic Codex rulings skill
                 body += "\n\n" + check_docs.DEV_WAVE_DW_S02_REASONING_MAX_LITERAL
             if rel == "docs/dev-wave/workers.md" and section == "DW-S03":
                 body += "\n\n" + check_docs.DEV_WAVE_DW_S03_REASONING_MAX_LITERAL
+            if rel == "docs/dev-wave/workers.md" and section == "DW-S05-A":
+                body += "\n\n" + check_docs.DEV_WAVE_DW_S05_A_REASONING_MAX_SENTENCE
             if rel == "docs/dev-wave/workers.md" and section == "DW-S06-A":
                 body += "\n\n" + check_docs.DEV_WAVE_DW_S06_A_REASONING_MAX_SENTENCE
             if rel == "docs/dev-wave/workers.md" and section == "DW-S06-C":
@@ -3039,6 +3041,39 @@ def test_dev_wave_dispatch_rejects_bare_path(case):
         shutil.rmtree(root, ignore_errors=True)
 
 
+@pytest.mark.parametrize(
+    ("line_prefix", "old", "new"),
+    (
+        (
+            "| 段 9 |U|",
+            "`docs/dev-wave/operations.md`: `DW-O23`",
+            "`docs/dev-wave/operations.md` 全文: `DW-O23`",
+        ),
+        (
+            "| 01 |",
+            "`docs/dev-wave/operations.md`: `DW-O01`",
+            "`docs/dev-wave/operations.md` 全文: `DW-O01`",
+        ),
+    ),
+)
+def test_dev_wave_dispatch_rejects_unchecked_text_between_path_and_section(
+    line_prefix, old, new
+):
+    root = _build_min_repo()
+    try:
+        _rewrite_matching_lines(
+            root,
+            ".claude/commands/dev-wave.md",
+            lambda line: line.startswith(line_prefix) and old in line,
+            lambda line: line.replace(old, new, 1),
+        )
+        result = _assert_violation(root, "参照 cell grammar が不一致")
+        assert _violation_count(result) == 1, result.stdout
+        assert "cell 全文が参照 grammar に fullmatch しない" in result.stdout
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
 def test_dev_wave_dispatch_accepts_self_all_sections():
     root = _build_min_repo()
     try:
@@ -3055,6 +3090,15 @@ def test_dev_wave_dispatch_accepts_self_all_sections():
         shutil.rmtree(root, ignore_errors=True)
 
 
+def test_dev_wave_dispatch_rejects_backtick_in_annotation():
+    cell = (
+        "`docs/dev-wave/operations.md`: `DW-O01`（F23/F24; "
+        "`docs/dev-wave/core.md`: `DW-C00`）"
+    )
+    errors = check_docs._dispatch_reference_cell_errors(cell)
+    assert "cell 全文が参照 grammar に fullmatch しない" in errors[-1]
+
+
 def test_dev_wave_dispatch_rejects_unquoted_raw_path():
     root = _build_min_repo()
     try:
@@ -3069,6 +3113,7 @@ def test_dev_wave_dispatch_rejects_unquoted_raw_path():
         result = _assert_violation(root, "参照 cell grammar が不一致")
         assert _violation_count(result) == 1, result.stdout
         assert "unquoted=['docs/dev-wave/operations.md']" in result.stdout
+        assert "cell 全文が参照 grammar に fullmatch しない" in result.stdout
     finally:
         shutil.rmtree(root, ignore_errors=True)
 
@@ -3086,6 +3131,7 @@ def test_dev_wave_dispatch_rejects_all_sections_on_non_self_path():
         result = _assert_violation(root, "参照 cell grammar が不一致")
         assert _violation_count(result) == 1, result.stdout
         assert "exact fragment 以外に の全節がある" in result.stdout
+        assert "cell 全文が参照 grammar に fullmatch しない" in result.stdout
     finally:
         shutil.rmtree(root, ignore_errors=True)
 
@@ -6621,6 +6667,7 @@ def _replace_workers_section_literal(text, section_id, replacement):
     literal = {
         "DW-S02": check_docs.DEV_WAVE_DW_S02_REASONING_MAX_LITERAL,
         "DW-S03": check_docs.DEV_WAVE_DW_S03_REASONING_MAX_LITERAL,
+        "DW-S05-A": "`reasoning=max`",
         "DW-S06-A": check_docs.DEV_WAVE_DW_S06_A_REASONING_MAX_LITERAL,
         "DW-S06-C": check_docs.DEV_WAVE_DW_S06_C_REASONING_MAX_LITERAL,
     }[section_id]
@@ -6638,6 +6685,7 @@ def _replace_workers_section_sentence(text, section_id, replacement):
     assert match is not None
     section = match.group(0)
     sentence = {
+        "DW-S05-A": check_docs.DEV_WAVE_DW_S05_A_REASONING_MAX_SENTENCE,
         "DW-S06-A": check_docs.DEV_WAVE_DW_S06_A_REASONING_MAX_SENTENCE,
         "DW-S06-C": check_docs.DEV_WAVE_DW_S06_C_REASONING_MAX_SENTENCE,
     }[section_id]
@@ -6792,6 +6840,23 @@ def test_dev_wave_reasoning_effort_pin_rejects_dw_s06_c_high():
         shutil.rmtree(root, ignore_errors=True)
 
 
+def test_dev_wave_reasoning_effort_pin_accepts_dw_s05_a_current_sentence():
+    workers = os.path.join(_REPO, "docs", "dev-wave", "workers.md")
+    with open(workers, encoding="utf-8") as stream:
+        assert _reasoning_effort_pin_findings(stream.read()) == []
+
+
+def test_dev_wave_reasoning_effort_pin_rejects_dw_s05_a_high():
+    root = tempfile.mkdtemp(prefix="izanagi_reasoning_pin_")
+    try:
+        text = _mutated_workers_text(root, "DW-S05-A", "`reasoning=high`")
+        assert _reasoning_effort_pin_findings(text) == [
+            check_docs.DEV_WAVE_DW_S05_A_REASONING_MAX_FINDING
+        ]
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
 def _assert_reasoning_effort_decoys_rejected(section_id, finding):
     replacements = (
         "`reasoning=high` <!-- `reasoning=max` -->",
@@ -6838,6 +6903,13 @@ def test_dev_wave_reasoning_effort_pin_rejects_dw_s06_a_decoys_and_duplicates():
             assert _reasoning_effort_pin_findings(text) == [finding]
         finally:
             shutil.rmtree(root, ignore_errors=True)
+
+
+def test_dev_wave_reasoning_effort_pin_rejects_dw_s05_a_decoys_and_duplicates():
+    _assert_reasoning_effort_decoys_rejected(
+        "DW-S05-A",
+        check_docs.DEV_WAVE_DW_S05_A_REASONING_MAX_FINDING,
+    )
 
 
 def _assert_reasoning_effort_real_keys_and_quotes_rejected(section_id, finding):
@@ -7040,6 +7112,55 @@ def test_dev_wave_reasoning_effort_pin_production_path_rejects_dw_s06_c_high_exa
         }
     finally:
         shutil.rmtree(root, ignore_errors=True)
+
+
+def test_dev_wave_reasoning_effort_pin_production_path_rejects_dw_s05_a_high_exact(
+):
+    root = _build_min_repo()
+    try:
+        rel = "docs/dev-wave/workers.md"
+        _write(
+            root,
+            rel,
+            _replace_workers_section_literal(
+                _read(root, rel),
+                "DW-S05-A",
+                "`reasoning=high`",
+            ),
+        )
+        res = _run_check(root)
+        assert res.returncode != 0, res.stdout
+        assert _finding_set(res) == {
+            check_docs.DEV_WAVE_DW_S05_A_REASONING_MAX_FINDING
+        }
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_dev_wave_reasoning_effort_pin_production_path_rejects_dw_s05_a_decoys_exact(
+):
+    finding = check_docs.DEV_WAVE_DW_S05_A_REASONING_MAX_FINDING
+    for replacement in (
+        "参考リンク: [例: `reasoning=high`](https://e.invalid/example)",
+        "参考値: outer=`reasoning=high`",
+    ):
+        root = _build_min_repo()
+        try:
+            rel = "docs/dev-wave/workers.md"
+            _write(
+                root,
+                rel,
+                _replace_workers_section_literal(
+                    _read(root, rel),
+                    "DW-S05-A",
+                    replacement,
+                ),
+            )
+            res = _run_check(root)
+            assert res.returncode != 0, res.stdout
+            assert _finding_set(res) == {finding}
+        finally:
+            shutil.rmtree(root, ignore_errors=True)
 
 
 def test_dev_wave_reasoning_effort_pin_production_path_rejects_s06_decoys_exact(
@@ -7753,7 +7874,7 @@ def test_dev_wave_model_pin_contract_is_time_invariant():
     ]
     assert check_docs.DEV_WAVE_DW_O01_DISPATCH_ROUTE_LITERAL == (
         "`tools/dev_wave_codex.py --stage <stage> [--lane <lane>] -o <出力>.md` "
-        "で起動（他の引数は `--help`）。model は全段、effort は段 6 の review / focus "
+        "で起動（他の引数は `--help`）。model は全段、effort は段 5 / 6 "
         "が docs 権威から導出。caller 指定は不可。"
     )
 
