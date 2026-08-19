@@ -1726,3 +1726,5 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 
 - {"allocations":{"T:backoff-screening-ablation":"[T-1416]"},"authored":"2026-08-19","base":"35442bd1a415dc22f5c7cf05effb2618bd7b0431","content_sha256":"c09bb500005cf0815023e84672a1f2f93d3f5afe655b795cf742a892525269c0","seq":1,"tested_tip":"dde43fbe0bbb7cba3a80f8df58d568e46a43ee8b","wave":"dev-wave-backoff-screening-2","wave_ref":"refs/heads/worktree-dev-wave-backoff-screening-2"}
 - {"allocations":{},"authored":"2026-08-19","base":"35442bd1a415dc22f5c7cf05effb2618bd7b0431","content_sha256":"6a5f130a77cf393c5bcfc219120241403ed98629ec35b52a55f1bd64884cb54d","seq":2,"tested_tip":"dde43fbe0bbb7cba3a80f8df58d568e46a43ee8b","wave":"dev-wave-backoff-screening-2","wave_ref":"refs/heads/worktree-dev-wave-backoff-screening-2"}
+
+- {"allocations":{},"authored":"2026-08-19","base":"a6b2734dfb5de0ebb76a2fc0d2065fa7ae745c3c","content_sha256":"a08e9bfb22041bca0facb547a266e041bbf9db985cb04e4ed478fa5bfb31d0a5","seq":1,"tested_tip":"d4e6c879850a74a11a0e4eae31fc8b75f1416119","wave":"dev-wave-task-inventory-cleanup","wave_ref":"refs/heads/worktree-dev-wave-task-inventory-cleanup"}
