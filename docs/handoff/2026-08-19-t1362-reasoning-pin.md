@@ -1,8 +1,8 @@
 # [T-1362] 段5 author・段6 fix の reasoning 機械強制
 - 目的: dev-wave launcher/runner が段5(author)・段6(fix) の codex 起動で reasoning=max を機械的に強制する
 - 状態: 作業中
-- 最終更新: 2026-08-19 段6 レビュー・fix 完了
-- 基準コミット: 9861ed2e22979925104f43a83684567778377431 (worktree: dev-wave-t1362-reasoning-pin)
+- 最終更新: 2026-08-19 段7・段8 完了、段9 (受入・local main) 待ち
+- 基準コミット: 70fb8eab9b246c0e6fa56ada13e5d007ef670630 (worktree: dev-wave-t1362-reasoning-pin)
 
 ## 段5 完了実績
 統合commit 0333abe6。単位1(launch_authority.py+テスト)・単位2(codex_worker_launch.py・
@@ -268,5 +268,27 @@ real 3件をfixで解消:
   「docs が言っている値を runtime が確実に使う」であって「docs の文言自体を守る」は別レイヤーで
   既に閉じている
 
-## dev-wave 改善候補
-(段8 で一度だけ裁定。現時点で発見した候補は無し — 段6 レビュー・fix を経て記入する)
+## dev-wave 改善候補 (段8 裁定)
+候補3件を発見。dev-wave docs (core/operations/workers/mutation.md) の3層予算は既知で満杯
+(command引数が明記、`dev-wave-docs-compression-breaks-exact-pins`と一致) のため、
+即時のreference節統合は試みず、候補記録のみに留めユーザー裁定へ返す
+(予算を上げる変更は通常の自己改善に含めない、per `docs/skill-self-improvement.md`)。
+
+1. **authority-snapshotのdirty-tree検査が、段5複数unit分割の中間状態でも二重に発火しうる。**
+   launch_authority.py (深い層) を先にunit1で適用すると、codex_worker_launch.py/dev_wave_codex.py
+   (浅い層、まだunit2未適用) との間で「--reasoningの要否」が矛盾し、以降のcodex dispatch
+   (unit2実装子自身の起動を含む) が構造的にブロックされる。回避には「git diff>patchで退避→
+   dispatch→git applyで復元」が必要だった。`DW-C01`への追加候補
+   (「2層のauthority/受理判定を跨ぐ複数unit分割では、後続unitのdispatch自体が前unitの中間状態で
+   ブロックされ得る」)。
+2. **`mutation_harness.py --detached` は内部daemonize フラグではなく自己申告フラグ**で、
+   呼び手が別途 `nohup setsid ... &` で実際に detach している前提を要求する
+   (`DW-M05` の「起動前の見積り・detached経路はtoolが検証できない自己申告」を初見で誤読し、
+   1回失敗した)。DW-O01のcodex dispatchと同じnohup setsidパターンを踏むことを明示する候補。
+3. **単一の新規条件分岐でも、default fixtureで全テストが経由する箇所を変異させると
+   カスケードが数百nodeへ広がりDW-M01の単一理由性判定が困難になる**(本waveのM3/M5/M7で実測)。
+   「single reason」は失敗理由の因果的単一性であってnode数の少なさではないが、実務上は
+   数百node分のexpected_nodesを手で確定するのが非現実的になる。「default fixtureが全テストの
+   経由点になっている行を変異対象にする際は、まずprobe走 (expected_nodes概算) → 実測で
+   カスケード規模を確認 → 広すぎればnarrow spotへ retarget、を先に行う」という手順を
+   `DW-M01`へ追加する候補。
