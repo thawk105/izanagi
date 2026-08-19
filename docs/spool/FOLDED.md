@@ -1772,3 +1772,5 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 
 - {"allocations":{},"authored":"2026-08-19","base":"722f316cc870afd7c7cda3ecfb9560f65f2be429","content_sha256":"496f336410b41f40843b112a8d5232fddccd6af34e0b614bcb77995e049cf1c4","seq":1,"tested_tip":"2de545a5db6a683058372815dd8ed0199f014feb","wave":"dev-wave-t1316-postclaim-merge-escalation","wave_ref":"refs/heads/worktree-dev-wave-t1316-postclaim-merge-escalation"}
 - {"allocations":{},"authored":"2026-08-19","base":"722f316cc870afd7c7cda3ecfb9560f65f2be429","content_sha256":"ef5407518247a49cebfae018b95427e1329c01a4d92a61844fca5e9c6fe7b2fe","seq":2,"tested_tip":"2de545a5db6a683058372815dd8ed0199f014feb","wave":"dev-wave-t1316-postclaim-merge-escalation","wave_ref":"refs/heads/worktree-dev-wave-t1316-postclaim-merge-escalation"}
+
+- {"allocations":{},"authored":"2026-08-20","base":"2474d4d3959f844ab32d7db5d3e244520707a996","content_sha256":"f993622d73f62c0d0a7712fd6d29ce57c827b82b5e0f54bddd2133b0cc7a88a2","seq":1,"tested_tip":"8803cc94e8b789b58f1b5e85634a71acc98a430d","wave":"synchronous-orbiting-harbor","wave_ref":"refs/heads/worktree-synchronous-orbiting-harbor"}
