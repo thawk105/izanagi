@@ -222,15 +222,27 @@ def test_current_repository_gap_reason_snapshot_requires_cross_wave_review(
             "completion-proof-not-machine-checkable",
         ),
         "C03": (core.PredicateStatus.EVIDENCE_UNDEFINED, "manifest-registry-proof-undefined"),
-        "C04": (core.PredicateStatus.UNSATISFIED, "crash-policy-cell-partial"),
+        "C04": (
+            core.PredicateStatus.EVIDENCE_UNDEFINED,
+            "completion-proof-not-machine-checkable",
+        ),
         "C05": (core.PredicateStatus.EVIDENCE_UNDEFINED, "schedule-schema-absent"),
         "C06": (core.PredicateStatus.EVIDENCE_UNDEFINED, "budget-consumer-contract-undefined"),
-        "C07": (core.PredicateStatus.EVIDENCE_UNDEFINED, "floor-judge-contract-undefined"),
+        "C07": (core.PredicateStatus.EVIDENCE_UNDEFINED, "completion-proof-not-machine-checkable"),
         "C08": (core.PredicateStatus.EVIDENCE_UNDEFINED, "prereg-binding-proof-undefined"),
-        "C09": (core.PredicateStatus.UNSATISFIED, "formal-acceptance-layer3-consumer-absent"),
-        "C10": (core.PredicateStatus.UNSATISFIED, "cross-binding-verifier-incomplete"),
+        "C09": (
+            core.PredicateStatus.EVIDENCE_UNDEFINED,
+            "completion-proof-not-machine-checkable",
+        ),
+        "C10": (
+            core.PredicateStatus.EVIDENCE_UNDEFINED,
+            "completion-proof-not-machine-checkable",
+        ),
         "C11": (core.PredicateStatus.EVIDENCE_UNDEFINED, "completion-proof-not-machine-checkable"),
-        "C12": (core.PredicateStatus.UNSATISFIED, "allocation-enforcement-consumer-absent"),
+        "C12": (
+            core.PredicateStatus.EVIDENCE_UNDEFINED,
+            "completion-proof-not-machine-checkable",
+        ),
     }
 
 
@@ -241,8 +253,8 @@ def test_current_repository_c12_registry_reports_unwired_allocation_consumer(
     root, head = current_commit_snapshot
     results = M.get_registry().evaluate_all(head, repo_root=root)
     c12 = {item.id: item for item in results}["C12"]
-    assert c12.status is core.PredicateStatus.UNSATISFIED
-    assert c12.reason_code == "allocation-enforcement-consumer-absent"
+    assert c12.status is core.PredicateStatus.EVIDENCE_UNDEFINED
+    assert c12.reason_code == "completion-proof-not-machine-checkable"
 
 
 def test_c02_missing_registry_preserves_capability_absent_reason(
@@ -282,10 +294,7 @@ def test_current_repository_c12_allocation_binding_helper_reports_unwired_consum
     supervisor = ast.parse(supervisor_raw)
     allocation = ast.parse(allocation_raw)
     assert {"read_binding", "check_reservation"} <= M._functions(allocation).keys()
-    assert M._c12_allocation_binding_verdict(supervisor, allocation) == (
-        core.PredicateStatus.UNSATISFIED,
-        M.ReasonCode.ALLOCATION_ENFORCEMENT_CONSUMER_ABSENT,
-    )
+    assert M._c12_allocation_binding_verdict(supervisor, allocation) is None
 
 
 def test_evidence_undefined_is_never_satisfied() -> None:
@@ -809,6 +818,103 @@ def main():
     return run_trial()
 """
 
+TOKEN_ONLY_C07 = """
+__all__ = ("verify_floor_bytes", "judge", "publish_result_table")
+_CONDITION_IDS = (
+    "on_off_prediction_difference",
+    "swapped_follow_through",
+    "paired_repeat_contrast",
+)
+_TABLE_NAMES = ("descriptive_only", "official_status", "selection_evaluation")
+_FLOOR_ARTIFACT_KINDS = ("floor_protocol", "floor_source")
+
+def _validate_floor_reference(path, sha256, env_tag, measurement_head, ratified):
+    return path, sha256, env_tag, measurement_head, ratified
+
+def _validate_contrast_params(params):
+    return params
+
+def _validate_complete_block(manifest, params):
+    return manifest, params
+
+def _validate_exact_cell_set(generated, expected):
+    return tuple(generated) if set(generated) == set(expected) else None
+
+def _validate_verified_floor(receipt):
+    return receipt
+
+def _table_bytes(name, cells):
+    return {"table": name, "result_table": {"cells": cells}}
+
+def verify_floor_bytes(floor_refs):
+    ratified = load_ratified_freeze()
+    if not ratified["sha256"]:
+        raise ValueError("missing ratified digest")
+    if tuple(_FLOOR_ARTIFACT_KINDS) != ("floor_protocol", "floor_source"):
+        raise ValueError("wrong floor artifacts")
+    floor_protocol = floor_refs[0]
+    floor_source = floor_refs[1]
+    path = floor_protocol["path"]
+    sha256 = floor_protocol["sha256"]
+    source_path = floor_source["path"]
+    source_sha256 = floor_source["sha256"]
+    env_tag = ratified["env_tag"]
+    measurement_head = ratified["frozen_at_head"]
+    validated = _validate_floor_reference(
+        path, sha256, env_tag, measurement_head, ratified
+    )
+    source_validated = _validate_floor_reference(
+        source_path, source_sha256, env_tag, measurement_head, ratified
+    )
+    if not validated or not source_validated:
+        raise ValueError("invalid floor reference")
+    return (validated, source_validated)
+
+def judge(params, manifest=None):
+    validated = _validate_contrast_params(params)
+    complete = _validate_complete_block(manifest, params)
+    if not validated or not complete:
+        raise ValueError("invalid params")
+    conditions = {
+        _CONDITION_IDS[0]: "UNSATISFIED",
+        _CONDITION_IDS[1]: "UNSATISFIED",
+        _CONDITION_IDS[2]: "UNSATISFIED",
+    }
+    return conditions
+
+def publish_result_table(result, predeclared_cells, verified_floor):
+    checked_floor = _validate_verified_floor(verified_floor)
+    if not checked_floor:
+        raise ValueError("floor receipt required")
+    cells = result["result_table"]["cells"]
+    descriptive = _validate_exact_cell_set(cells, predeclared_cells)
+    if descriptive is None:
+        raise ValueError("cell set mismatch")
+    return {
+        name: _table_bytes(name, descriptive)
+        for name in _TABLE_NAMES
+    }
+"""
+
+TOKEN_ONLY_C07_RATIFIED = """
+def load_ratified_freeze():
+    return {
+        "sha256": "a" * 64,
+        "env_tag": "fixture-env",
+        "frozen_at_head": "b" * 40,
+    }
+"""
+
+TOKEN_ONLY_C07_DECLARED_PATH_DECOY = """
+__all__ = ("verify_floor_bytes", "judge", "publish_result_table")
+def verify_floor_bytes(*args, **kwargs):
+    return None
+def judge(*args, **kwargs):
+    return None
+def publish_result_table(*args, **kwargs):
+    return None
+"""
+
 
 def test_c12_allocation_binding_helper_rejects_check_without_read_binding() -> None:
     reservation = "orchestrator/campaign/reservation.py"
@@ -850,50 +956,26 @@ def test_c12_allocation_binding_gate_precedes_environment_gate(
     assert result.reason_code == "allocation-enforcement-consumer-absent"
 
 
-def test_current_repository_c12_allocation_binding_helper_accepts_both_calls_overlay(
-) -> None:
+def test_current_repository_c12_allocation_binding_helper_accepts_both_calls() -> None:
     condition = M.load_contract_bytes(CONTRACT_FILE.read_bytes()).condition(12)
     paths = {
         item.artifact_kind: item.path for item in condition.required_evidence
     }
     supervisor_raw = _git(
-        _ROOT,
-        "show",
-        f"HEAD:{paths['workload_supervisor']}",
+        _ROOT, "show", f"HEAD:{paths['workload_supervisor']}"
     )
     allocation_raw = _git(
         _ROOT,
         "show",
         f"HEAD:{paths['allocation_consumer']}",
     )
-    anchor = b"""    if drive is _DRIVE_NOT_PROVIDED:
-        drive = trigger.drive_iteration
-    if preview is _PREVIEW_NOT_PROVIDED:
-        preview = _preview
-    _validate_generation_budget(generations)
-"""
-    injection = anchor + b"""    from .reservation import check_reservation, read_binding
-    allocation_binding = read_binding(os.environ)
-    check_reservation(
-        allocation_binding,
-        required_s=max_wall_s,
-        safety_margin_s=0,
-        environ=os.environ,
-    )
-"""
-    assert supervisor_raw.count(anchor) == 1
-    overlay_raw = supervisor_raw.replace(anchor, injection)
-    assert overlay_raw != supervisor_raw
-
-    baseline_calls = M._reachable_calls(ast.parse(supervisor_raw), "run_trial")
-    assert {"read_binding", "check_reservation"}.isdisjoint(baseline_calls)
-    overlay = ast.parse(overlay_raw)
+    supervisor = ast.parse(supervisor_raw)
     assert {"read_binding", "check_reservation"} <= M._reachable_calls(
-        overlay,
+        supervisor,
         "run_trial",
     )
     allocation = ast.parse(allocation_raw)
-    assert M._c12_allocation_binding_verdict(overlay, allocation) is None
+    assert M._c12_allocation_binding_verdict(supervisor, allocation) is None
 
 
 def _negative_control_case(
@@ -994,6 +1076,18 @@ def _negative_control_case(
             reservation: _git(_ROOT, "show", f"HEAD:{reservation}"),
         }
         return sources, p3, mutated
+    if identifier == "nc_c07_floor_or_result_cell_removed":
+        result_judge = "orchestrator/campaign/s8c_result_judge.py"
+        ratified = "orchestrator/campaign/s8b_ratified_freeze.py"
+        floor_field = '    measurement_head = ratified["frozen_at_head"]\n'
+        assert TOKEN_ONLY_C07.count(floor_field) == 1
+        mutated = TOKEN_ONLY_C07.replace(floor_field, "", 1)
+        assert mutated != TOKEN_ONLY_C07
+        sources = {
+            result_judge: TOKEN_ONLY_C07,
+            ratified: TOKEN_ONLY_C07_RATIFIED,
+        }
+        return sources, result_judge, mutated
     raise AssertionError(identifier)
 
 
@@ -1001,6 +1095,7 @@ NEGATIVE_CONTROL_CASES = {
     "nc_c01_perf_scale_regression": "C01",
     "nc_c02_proposal_path_arm_collision": "C02",
     "nc_c04_partial_crash_survives": "C04",
+    "nc_c07_floor_or_result_cell_removed": "C07",
     "nc_c09_acceptance_skips_layer3": "C09",
     "nc_c10_raw_response_unbound": "C10",
     "nc_c11_generation_cap_reverts_to_one": "C11",
@@ -1055,6 +1150,234 @@ def _terminal_result(
     assert result.status is core.PredicateStatus.EVIDENCE_UNDEFINED
     assert result.reason_code == expected_reason
     return root, head, result
+
+
+def _c07_probe(
+    tmp_path: Path,
+    name: str,
+    *,
+    result_source: str = TOKEN_ONLY_C07,
+    ratified_source: str | None = TOKEN_ONLY_C07_RATIFIED,
+    extra_sources: dict[str, str] | None = None,
+) -> M._ConditionProbe:
+    root = _init_repo(tmp_path, name)
+    _write(root, "orchestrator/campaign/s8c_result_judge.py", result_source)
+    if ratified_source is not None:
+        _write(
+            root,
+            "orchestrator/campaign/s8b_ratified_freeze.py",
+            ratified_source,
+        )
+    for path, source in (extra_sources or {}).items():
+        _write(root, path, source)
+    head = _commit(root, name)
+    contract_raw = core.read_blob_at(
+        root, head, core.EVIDENCE_CONTRACT_PATH, required=True
+    )
+    contract = M.load_contract_bytes(contract_raw).condition(7)
+    return M._ConditionProbe(
+        root,
+        head,
+        contract,
+        core.EvidenceRef(core.EVIDENCE_CONTRACT_PATH, core._sha256(contract_raw)),
+        {},
+        {},
+        declared_paths=M.load_contract_bytes(contract_raw).evidence_paths,
+    )
+
+
+def test_c07_token_only_direct_evaluation_is_terminal_undefined(
+    tmp_path: Path,
+) -> None:
+    probe = _c07_probe(tmp_path, "c07-token-only")
+    result = M._evaluate_c07(probe)
+    assert result.status is core.PredicateStatus.EVIDENCE_UNDEFINED
+    assert result.reason_code == "completion-proof-not-machine-checkable"
+
+
+def test_c07_negative_control_removes_one_floor_field_only(
+    tmp_path: Path,
+) -> None:
+    baseline = M._evaluate_c07(_c07_probe(tmp_path, "c07-negative-baseline"))
+    assert baseline.status is core.PredicateStatus.EVIDENCE_UNDEFINED
+    assert baseline.reason_code == "completion-proof-not-machine-checkable"
+
+    sources, mutated_path, mutated_source = _negative_control_case(
+        "nc_c07_floor_or_result_cell_removed"
+    )
+    assert set(sources) == {
+        "orchestrator/campaign/s8c_result_judge.py",
+        "orchestrator/campaign/s8b_ratified_freeze.py",
+    }
+    assert mutated_path == "orchestrator/campaign/s8c_result_judge.py"
+    assert isinstance(mutated_source, str)
+    result = M._evaluate_c07(
+        _c07_probe(
+            tmp_path,
+            "c07-negative-floor-field",
+            result_source=mutated_source,
+        )
+    )
+    assert result.status is core.PredicateStatus.UNSATISFIED
+    assert result.reason_code == "result-judge-consumer-incomplete"
+
+
+def test_c07_missing_ratified_loader_has_dedicated_reason(
+    tmp_path: Path,
+) -> None:
+    result = M._evaluate_c07(
+        _c07_probe(tmp_path, "c07-ratified-loader-missing", ratified_source=None)
+    )
+    assert result.status is core.PredicateStatus.UNSATISFIED
+    assert result.reason_code == "ratified-generation-reference-absent"
+
+
+def test_c07_removed_ratified_loader_call_is_not_a_consumer(
+    tmp_path: Path,
+) -> None:
+    loader_call = "    ratified = load_ratified_freeze()\n"
+    without_loader_call = TOKEN_ONLY_C07.replace(
+        loader_call,
+        "    ratified = {\"sha256\": \"a\" * 64, \"env_tag\": \"fixture-env\", \"frozen_at_head\": \"b\" * 40}\n",
+        1,
+    )
+    assert without_loader_call != TOKEN_ONLY_C07
+    result = M._evaluate_c07(
+        _c07_probe(
+            tmp_path,
+            "c07-ratified-loader-call-removed",
+            result_source=without_loader_call,
+        )
+    )
+    assert result.status is core.PredicateStatus.UNSATISFIED
+    assert result.reason_code == "ratified-generation-reference-absent"
+
+
+def test_c07_contract_path_rejects_same_name_decoy_module(
+    tmp_path: Path,
+) -> None:
+    decoy_path = "orchestrator/campaign/s8b_verdict.py"
+    probe = _c07_probe(
+        tmp_path,
+        "c07-decoy-module",
+        result_source="# contract path intentionally has no consumer\n",
+        extra_sources={decoy_path: TOKEN_ONLY_C07},
+    )
+    result = M._evaluate_c07(probe)
+    assert result.status is core.PredicateStatus.UNSATISFIED
+    assert result.reason_code == "result-judge-consumer-incomplete"
+    assert decoy_path not in probe.cache
+
+
+def test_c07_declared_contract_path_decoy_is_not_a_consumer(
+    tmp_path: Path,
+) -> None:
+    result = M._evaluate_c07(
+        _c07_probe(
+            tmp_path,
+            "c07-declared-path-decoy",
+            result_source=TOKEN_ONLY_C07_DECLARED_PATH_DECOY,
+        )
+    )
+    assert result.status is core.PredicateStatus.UNSATISFIED
+    assert result.reason_code == "result-judge-consumer-incomplete"
+
+
+def test_c07_discarded_validator_return_is_incomplete(
+    tmp_path: Path,
+) -> None:
+    call = (
+        "    validated = _validate_floor_reference(\n"
+        "        path, sha256, env_tag, measurement_head, ratified\n"
+        "    )\n"
+    )
+    discarded = TOKEN_ONLY_C07.replace(
+        call,
+        "    _validate_floor_reference(\n"
+        "        path, sha256, env_tag, measurement_head, ratified\n"
+        "    )\n",
+        1,
+    )
+    assert discarded != TOKEN_ONLY_C07
+    result = M._evaluate_c07(
+        _c07_probe(tmp_path, "c07-discarded-validator", result_source=discarded)
+    )
+    assert result.status is core.PredicateStatus.UNSATISFIED
+    assert result.reason_code == "result-judge-consumer-incomplete"
+
+
+def test_c07_dead_validator_assignment_is_not_a_consumer(
+    tmp_path: Path,
+) -> None:
+    call = (
+        "    validated = _validate_floor_reference(\n"
+        "        path, sha256, env_tag, measurement_head, ratified\n"
+        "    )\n"
+    )
+    dead_assignment = TOKEN_ONLY_C07.replace(
+        "    validated = _validate_floor_reference(\n",
+        "    discarded_validation = _validate_floor_reference(\n",
+        1,
+    )
+    assert call in TOKEN_ONLY_C07
+    assert dead_assignment != TOKEN_ONLY_C07
+    result = M._evaluate_c07(
+        _c07_probe(
+            tmp_path,
+            "c07-dead-validator-assignment",
+            result_source=dead_assignment,
+        )
+    )
+    assert result.status is core.PredicateStatus.UNSATISFIED
+    assert result.reason_code == "result-judge-consumer-incomplete"
+
+
+def test_c07_literal_floor_fields_without_verification_are_incomplete(
+    tmp_path: Path,
+) -> None:
+    literal_floor = TOKEN_ONLY_C07
+    replacements = {
+        '    path = floor_protocol["path"]\n': '    path = "literal-path"\n',
+        '    sha256 = floor_protocol["sha256"]\n': '    sha256 = "literal-sha"\n',
+        '    source_path = floor_source["path"]\n': '    source_path = "literal-source-path"\n',
+        '    source_sha256 = floor_source["sha256"]\n': '    source_sha256 = "literal-source-sha"\n',
+        '    env_tag = ratified["env_tag"]\n': '    env_tag = "literal-env"\n',
+        '    measurement_head = ratified["frozen_at_head"]\n': '    measurement_head = "literal-head"\n',
+    }
+    for original, replacement in replacements.items():
+        assert literal_floor.count(original) == 1
+        literal_floor = literal_floor.replace(original, replacement, 1)
+    result = M._evaluate_c07(
+        _c07_probe(
+            tmp_path,
+            "c07-literal-floor-fields",
+            result_source=literal_floor,
+        )
+    )
+    assert result.status is core.PredicateStatus.UNSATISFIED
+    assert result.reason_code == "result-judge-consumer-incomplete"
+
+
+def test_c07_is_registered_and_added_to_negative_controls() -> None:
+    assert 7 in M._MACHINE_EVALUATORS
+    assert "nc_c07_floor_or_result_cell_removed" in NEGATIVE_CONTROL_CASES
+
+
+def test_c07_real_result_judge_blob_is_static_only(
+    tmp_path: Path,
+) -> None:
+    result_judge = (
+        _ROOT / "orchestrator/campaign/s8c_result_judge.py"
+    ).read_text(encoding="utf-8")
+    result = M._evaluate_c07(
+        _c07_probe(
+            tmp_path,
+            "c07-real-result-judge",
+            result_source=result_judge,
+        )
+    )
+    assert result.status is core.PredicateStatus.EVIDENCE_UNDEFINED
+    assert result.reason_code == "completion-proof-not-machine-checkable"
 
 
 def _c12_modules(supervisor: str) -> dict[str, str]:
@@ -2260,7 +2583,7 @@ def test_satisfiable_predicate_requires_negative_control() -> None:
     }
     assert machine_checkable == M.MACHINE_CHECKABLE_CONDITION_IDS
     assert machine_checkable == {
-        "C01", "C02", "C04", "C09", "C10", "C11", "C12"
+        "C01", "C02", "C04", "C07", "C09", "C10", "C11", "C12"
     }
     assert M.SATISFIABLE_CONDITION_IDS == frozenset()
     assert M.SATISFIABLE_CONDITION_IDS <= M.MACHINE_CHECKABLE_CONDITION_IDS
@@ -2270,7 +2593,7 @@ def test_satisfiable_predicate_requires_negative_control() -> None:
         row = rows[identifier]
         assert row.negative_control_id in NEGATIVE_CONTROL_CASES
         assert NEGATIVE_CONTROL_CASES[row.negative_control_id] == identifier
-    assert exercised == 7
+    assert exercised == 8
     assert set(NEGATIVE_CONTROL_CASES) == {
         rows[identifier].negative_control_id for identifier in machine_checkable
     }
@@ -2322,6 +2645,7 @@ def test_noop_and_token_only_fixtures_never_satisfy(
         "C01": "workload-projection-mismatch",
         "C02": "arm-binding-consumer-unreachable",
         "C04": "crash-policy-cell-partial",
+        "C07": "result-judge-consumer-incomplete",
         "C09": "formal-acceptance-layer3-consumer-absent",
         "C10": "cross-binding-verifier-incomplete",
         "C11": "generation-cap-not-lifted",
@@ -3249,7 +3573,7 @@ def test_current_contract_keeps_c06_staged_only() -> None:
     assert contract.condition(6).machine_checkable is False
     assert 6 not in M._MACHINE_EVALUATORS
     assert set(M._STAGED_EVALUATORS) == {6}
-    assert len(M.MACHINE_CHECKABLE_CONDITION_IDS) == 7
+    assert len(M.MACHINE_CHECKABLE_CONDITION_IDS) == 8
 
 
 def test_c06_staged_fixture_is_not_a_contract_promotion(

@@ -27,6 +27,7 @@ def _invoke(
     extra: tuple[str, ...] = (),
 ) -> subprocess.CompletedProcess[str]:
     (root / "prompt.md").write_text(prompt_text, encoding="utf-8")
+    (root / "artifacts").mkdir(exist_ok=True)
     command = [
         sys.executable,
         os.fspath(_DISPATCHER),
@@ -350,12 +351,19 @@ def test_sandbox_is_caller_required() -> None:
         assert "--sandbox" in result.stderr
 
 
-def test_dry_run_does_not_create_generated_directories() -> None:
+def test_dry_run_creates_generated_directories() -> None:
     with tempfile.TemporaryDirectory() as tmp:
         root = Path(tmp)
+        (root / "artifacts").mkdir()
         result = _invoke(root, stage="review")
         assert result.returncode == 0, result.stderr
-        assert not (root / "artifacts").exists()
+        argv = _argv(result)
+        wave_artifact_root = root / "artifacts" / "wave-alpha"
+        artifact_dir = Path(_option(argv, "--artifact-dir"))
+        assert wave_artifact_root.is_dir()
+        assert artifact_dir.is_dir()
+        assert stat.S_IMODE(wave_artifact_root.stat().st_mode) == 0o700
+        assert stat.S_IMODE(artifact_dir.stat().st_mode) == 0o700
 
 
 def _prepare_fake_repo(root: Path) -> None:

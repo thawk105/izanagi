@@ -21966,3 +21966,366 @@ dispatch からは参照しない。テストは `_MACHINE_EVALUATORS` を monke
   1 度も通らないため、昇格時に初めて発覚する欠陥を残す。
 - 契約と registry を同時に反転して即座に機械検査対象へ載せる形 — 凍結世代の発行を伴うため、
   同じ評価器面を触る並行 wave と世代が衝突する。世代の衝突は merge では解けない。
+
+## D534. 8c §5 の値制約違反は記入済み判定を変えず構造化報告と repo 不変検査で塞ぐ (2026-08-18)
+
+**決定:** `docs/phase3-8c-preregistration.md` §5 の欄別値制約 (現在は反復単位対比の判定パラメータ欄
+のみ) を検証する validator を `orchestrator/campaign/s8c_preregistration.py` に置き、production の
+parse 経路から到達可能にする。ただし次を守る。
+
+- `_classify_section5_value` が返す `FieldStatus` (記入済み / 未記入 / 不正) と、
+  `ActivationReport.effective` の連言式を**変えない**。制約違反値は記入済みのままである。
+- 違反は `Section5ValueViolation` (欄名・違反位置・違反軸ごとの理由コード) として
+  `MarkdownContract` に載せ、最初の 1 件で打ち切らず全件返す。
+- `ActivationReport` と `Section5Finding` の field 集合は変えない (report digest を動かさないため)。
+- **実効的な閂は repo の不変検査に置く。** 生きた文書の §5 に制約違反値が入ると受入が赤になる。
+  恒真化を避けるため、生き文書の bytes へ 1 軸だけ違反する値を差し込んで production の parse 経路で
+  違反が出ることを確かめる positive control を同じ検査 file に置き、置換の空振りも検出させる。
+- validator table の key が文書の §5 欄名集合に実在することを meta-test で pin する。
+- 8b §10.2 が凍結するのは `n` の整数・2 以上、平均差の下限の有限・正、標本 SD 上限の有限・非負、
+  単位と向きの同時固定だけである。`H1` / `H2` の exact key 集合は 8c 側の表現裁定であり、
+  表現を変えるときは 8c 側の改訂で行う。単位と向きは非空文字列までを構文的に担保し、実値の
+  意味整合 (judge が引く向きと一致するか) は judge の責務とする。上限値の負のゼロは
+  「有限の非負」に合致するため受理する。
+
+**理由:**
+- 8c の凍結本文は「記入済み」を canonical JSON か否かだけで定義し、続けて
+  「欄ごとの型・単位・範囲の検証は本手続きの対象外である」と明記している。違反値を記入済み判定で
+  倒す形はこの凍結本文と直接矛盾し、改訂には docs 編集と新世代 record が要る。
+- D458 は判定器の受理集合・拒否理由を変える変更に版 bump と新世代 record を要求する。新世代 record の
+  裁定参照はその commit 時点の decisions 見出しの実在を要求し、番号は land の fold でしか確定しない。
+  並行 wave が複数走る状況で世代番号を先取りすると、衝突を merge で解けない。
+- 8c §6 の前提条件 7 は「validator が production 経路から到達可能でなければ充足しない」と名指しで
+  要求している。本決定はその必要条件を満たす実体であり、条件の充足判定そのものは変えない。
+- 8b §10.2 は「同欄を記入してよいのは、それらを機械検証する consumer が実在するときに限る」と
+  述べている。repo 不変検査に閂を置けば、違反値を含む変更は land できなくなり、この順序が実際に
+  強制される。
+
+**却下した選択肢:**
+- 違反値を不正扱いにして未発効へ倒す — 凍結本文と矛盾し、版 bump と新世代 record を伴う。
+  いずれも本 wave の scope 外指定に一致するため、裁定パッケージとしてユーザーへ返した。
+- 発効の連言式へ第 4 項を足す — 凍結本文が発効を 3 項の連言として定義しているため同じ矛盾を生む。
+- 違反を `ActivationReport` へ載せる — report digest が動く。現在 capability を持つ成果物は無いが、
+  D458 の「射影された判定入力の意味」に触れうるため裁定なしには実施しない。
+- 単位と向きに固定語彙を強制する — 8b は語彙を凍結しておらず、将来の正当な記入を拒む過剰拒否になる。
+
+## D535. cross-binding 受領証は leaf を保存し aggregate を再計算する (2026-08-18)
+
+**決定:** 正式 acceptance 受領証を v3 へ上げ、trial ごとの cross-binding 受領証 digest (leaf) を
+受領証本体へ保存する。top-level の `cross_binding_receipt_sha256` は検証時に leaf から
+再計算して照合する。再計算しない v3 検証は採用しない。v1 / v2 の受領証は
+schema 別の exact key 集合で従来どおり parse できる状態を保つ。
+
+**理由:**
+- aggregate を 1 値だけ保存する形では、任意の正しい形式の SHA-256 へ差し替えても
+  受領証検証が通る。「参照された byte 列を束縛した」という受領証の主張を独立に検証できない。
+- leaf を持てば、受領証だけを見て aggregate を再導出でき、
+  改竄は受領証の内部整合性の破れとして現れる。
+- 段 3 と段 6 の敵対子が独立に同じ blocker を出した。片方だけの所見ではない。
+
+**却下した選択肢:**
+- v2 の exact key 集合を黙って拡張する — 凍結済みの v1 / v2 受領証が
+  unknown key または missing key で拒否され、既存の受理参照が失われる。
+- aggregate を受領証の外へ出す — 既存 parser と受領証検証の信頼境界の外になり、
+  受領証だけでは束縛を確かめられない。
+- leaf を持たず aggregate だけ必須にする — schema の外観だけが増え、検証力が増えない。
+
+## D536. 層3 chain の欠落は条件付き non-certifying reason で表す (2026-08-18)
+
+**決定:** 正式 registry 権威は、build report に対して層3 chain を実走し、
+`do_build=False` の report には `no-build`、層3 レポートを持たない build cell を含む report には
+`layer3-chain-absent` を non-certifying reason として積む。どちらも受領証の
+mandatory reason 集合には入れず、report の実値から導く条件付き reason とする。
+build report の chain 検証そのものは reason ではなく fail-closed の例外で止める。
+
+**理由:**
+- acceptance は構造的に `certifying: False` であり、「certify を止める」を新たな停止として
+  表現する余地が無い。内容由来の reason code を積むのが実装可能な唯一の意味である。
+- reason code だけでは恒真になりうる。build report に対する chain の**実走**を
+  fail-closed の本体に置くことで、reason は補助的な記録に留まる。
+- mandatory 集合へ入れると build mode の非 certify 受領証まで一律に拒否され、
+  入れないと欠落を parser が検出できない。条件付き reason はこの二者択一を避ける。
+
+**却下した選択肢:**
+- no-build report の受理そのものを拒否する — 既存の acceptance 経路が総崩れになり、
+  本条件が要求していない受理集合の縮小を持ち込む。
+- `no-build` を mandatory non-certifying reason に加える — build mode の受領証まで巻き込む。
+
+## D537. 8c 条件 7 の consumer は evaluator 登録より先に land する (2026-08-18)
+
+**決定:** 8c 事前登録の条件 7 について、consumer (`orchestrator/campaign/s8c_result_judge.py`) と
+静的 evaluator (`_evaluate_c07`) を先に land し、`_MACHINE_EVALUATORS` への登録・
+`NEGATIVE_CONTROL_CASES` への追加・証拠契約 JSON の `machine_checkable` 反転・
+条件凍結 record の新世代発行は、後続の束ね wave が 1 回で行う。
+
+**理由:**
+- 登録だけを行うと必ず赤になる。`MACHINE_CHECKABLE_CONDITION_IDS` は `_MACHINE_EVALUATORS` から
+  導出され、契約 JSON の `machine_checkable` から導出した集合との全単射を 2 つのテストが要求する。
+  契約を反転せずに登録する組み合わせは、evaluator の中身によらず成立しない (実測)。
+- 契約 C07 の `reachable_from` には repo に実在しない `accept_trial` が 2 箇所あり、
+  `s8b_ratified_freeze.py` 側の `verify_floor_bytes` も実在しない。反転は契約本文の
+  入口名の是正と `MACHINE_CONTRACT_FUNCTION_CHECKS` への mapping 追加を同時に要求する。
+- 凍結世代の衝突は merge で解けないため、世代発行は 1 wave 1 回に限る。
+
+**却下した選択肢:**
+- 未登録 evaluator を production から呼ぶ別 registry (staged registry) の新設 — 条件を迂回する
+  機構の新設に当たる。門に阻まれたら門を回り込む口を作らない。
+- 全単射検査の緩和 — 正しさゲートを緩める方向であり採らない。
+- 登録を諦めて evaluator を書かない — 束ね wave が反転できる形が存在しなくなる。
+
+## D538. 床値 artifact は出所検証だけに使い、判定の入力にしない (2026-08-18)
+
+**決定:** 8c 条件 7 の consumer では、床 artifact の検証 (`verify_floor_bytes`) は
+`floor_protocol` と `floor_source` の 2 件を ratified 世代 document 由来の
+path / sha256 / `env_tag` / `frozen_at_head` と突き合わせる出所検証に限る。
+その結果は床値を一切持たない receipt として `publish_result_table` の必須入力になるが、
+`judge` の引数型には現れない。判定が消費してよい主量は対差の有限な平均と有限な標本 SD
+(分母 n-1) だけとする。
+
+**理由:**
+- 8b の再凍結 (§10.1) が対象別 between-run floor との比較を撤去し、8c 条件 7 も
+  「床値 artifact は本条件の入力にしない」と明記している。
+- 一方で条件 7 は `verify_floor_bytes` を entrypoint として凍結しているため、関数は必要である。
+  出所検証と判定入力を型で分離すると、両方の要求を同時に満たせる。
+- 検証を publish の必須前提にしないと、未検証の床のまま公式性能表を生成できてしまう。
+
+**却下した選択肢:**
+- 検証結果を module 変数や共有 state に置く — 呼び出し順への暗黙依存を作り、
+  検証を飛ばした publish を静的に塞げない。
+- 床値を診断値として judge へ渡す — 「診断値」という名目で判定へ再流入する経路を残す。
+
+## D539. 事前宣言 cell 集合は生成物から導出しない (2026-08-18)
+
+**決定:** 結果表の cell 集合の完全一致検査は、期待集合を生成行から導出せず、
+独立の必須引数として受け取る。引数省略時に生成行から埋める経路を作らない。
+`judge` の入力が空集合のときは 3 条件すべてを判定不能へ固定し、
+`all()` / `any()` の空集合既定値で成立側へ倒さない。
+
+**理由:**
+- 期待集合を対象から導出する検査は恒真であり、manifest と observations を同時に削っても通る。
+- 空集合に対する全称量化は真になるため、入力が無いことが「条件成立」の証拠に化ける。
+  これは謳うだけで発火しない保証の典型である。
+
+**却下した選択肢:**
+- 件数だけの検査 (6 件なら通す) — 任意の cell ID で通ってしまう。
+
+## D540. 負txid false-green (ruling-inbox 2026-08-12 finding#1) は実装しないと裁定する (2026-08-19)
+
+**決定:** `orchestrator/verifier/parse.py:213` 周りの負txid false-green
+(`C -1 ...`/`E -1` が `missing=-1` になり欠番検出をすり抜ける) について、修正・
+新規回帰テストのいずれも実装しない。
+
+**理由:**
+- 現行main (HEAD `a31832d9`) への直接実測で `C -1 0 2 1 0 0`/`E -1` を含むtraceを
+  `parse_trace_dir()` に通すと `ParseError: txid must be a non-negative integer: -1`
+  が即座に発生し、false-greenは再現しない。負txid拒否は commit `fb5e74a1`
+  (2026-08-12, [T-816] 手順4) で既に追加され、後続の是正commit `a80daf83`
+  (同日) でも維持されている。
+- `orchestrator/tests/test_verifier.py:269-282`
+  `test_negative_txid_is_rejected_before_gap_math_can_cancel_it` が同じ入力
+  パターンを `verify_trace_dir()` 経由で既にpinしている (docstring:「{-1, 1} は旧
+  max(txid)+1-len(txns) だと欠番を相殺できた。構文で拒否する。」)。
+- 独立コンテキストの敵対チェック (fresh subagent, general-purpose, opus) が13通りの
+  手動variantと1554通りの全数探索で追試し、反証できなかった。
+- 密連番gap-checkロジック自体は commit `36a11936` (2026-07-02) から存在し、負txid
+  guard (`fb5e74a1`, 2026-08-12) までの約6週間は構文レベルの穴が実在したが、
+  実CCBench trace-hookはtxidを0始まりの単調atomic counterでのみ採番するため
+  (`patches/README.md:385`)、負txidが実evaluation/mutationのtraceに出現することは
+  構造的にありえない。過去のreal走行がこの穴を通過した実例はない。
+
+**副次所見 (対応不要と裁定):** 同じ敵対チェックで、隣接するが別種のfalse-green
+(「末尾txid丸ごと欠落」、witnessなしoptional APIパス) が見つかったが、これは既に
+`orchestrator/tests/test_verifier.py:882-940` で「既知偽陰性のcharacterization」
+として文書化・テスト済みの意図的挙動であり、実本番経路2つで独立に緩和されている
+ことを確認した: `orchestrator/campaign/pipeline.py:1118`
+(`expected_commits=trace_result.commit_count_witness` を渡し、witness欠落時は
+fail-closed reject) と `orchestrator/campaign/silo_ladder_rung1.py:828-839,855`
+(`_validate_correctness_commit_witness` がstdout witnessと記録txn数を独立照合)。
+新規T番号・追加実装は不要と裁定する。一次資料:
+`output/insights/2026-08-18_t816-negtxid-refute/README.md`。
+
+**却下した選択肢:**
+- 依頼どおり parse.py を編集し新規回帰テストを追加する — 既に同一シナリオをpinする
+  テストが存在するため、追加は「純増検出力ゼロ」の重複になる (DW-S01 の既存被覆
+  確認原則に反する)。
+- 副次所見 (末尾txid欠落) を本waveのscopeへ繰り込んで実装まで行う — 依頼が明示
+  した対象 (負txid) と異なるベクトルであり、段階導入/盛らない原則 (絶対規律5) と
+  DW-S04 の「scope外のreal所見は実装せず裁定パッケージで返す」に従い見送る。
+  実本番経路は既に保護されているため緊急性もない。
+
+## D541. 予約束縛は実 site から導いた要否判定に従い lifecycle start 前に消費する (2026-08-19)
+
+**決定:** 8c launcher (`run_trial`) は preflight 帯の末尾、lifecycle start と run_root 生成より
+前に予約束縛を消費する。要否は `reservation.is_reservation_required(contract.isolation_policy)`
+で決め、contract は **preflight で一度だけ解決した実 site** から `_admit_env_contract` で得る。
+予約が要らない isolation policy では binding を読まない。job 不一致・boot 不一致・残時間不足の
+判定は `reservation.check_reservation` へ委譲し、launcher 側で再実装しない。要求時間は
+trial の実行時間上限 (`max_wall_s`) に束縛する。
+
+**理由:**
+- 実行 site を transport の opt-in flag から推定すると、実際に予約が要る計算ノード上の
+  no-build 実行が opt-out というだけで検査を迂回し、逆に予約不要な site の実行が
+  opt-in というだけで拒否される。どちらも受理集合を誤って動かす。
+- 無条件に binding を読むと、予約という概念を持たない実行形の受理集合を狭める。
+- 判定を launcher 側へ写すと二重権威になり、片方だけが直る。
+- 要求時間を上限へ束縛しないと、残り時間が実行時間に満たない予約の上で起動できてしまう。
+
+**却下した選択肢:**
+- 全 launch 経路 (探索層の CLI や将来の dispatch wrapper) へ同じ gate を広げる — 別 module への
+  新設であり、保証範囲の裁定が要る。裁定パッケージへ回した。
+- campaign launch ごとの再検査 — preflight から launch までの時間差は小さく、
+  上限束縛が主要な穴を塞ぐ。強化は別途裁定する。
+- 予約事実を report / lifecycle へ永続束縛する — 新しい証拠面の新設であり別裁定。
+
+## D542. crash 終端は再起動禁止と indeterminate 記録を独立に試行し元例外を必ず再送出する (2026-08-19)
+
+**決定:** 捕捉した crash を実験全体の indeterminate として終端する経路は、registry の
+再起動禁止と terminal 記録を**独立に試行**し、いずれかが失敗しても他方を実行し、失敗を
+元例外へ note として集約したうえで**元例外そのものを再送出**する。note 付与の実装は
+実行環境の Python に `BaseException.add_note` が無い場合へ fallback を持ち、
+付与に失敗しても元例外を失わない。再起動禁止 flag は同一 process 内で実際に読まれて拒否に
+使われ、durable な start row による拒否と二重の防壁を成す。
+
+**理由:**
+- 片方の失敗で他方を落とすと、indeterminate 行・再起動拒否・元 crash の三者が食い違う。
+- 例外を握り潰す guard は、環境差で常に失敗する経路と組み合わさると「謳うだけで発火しない
+  保証」になる。実際にこの型が 1 件発火していた。
+- 立てるだけで誰も読まない flag は証拠面として恒真である。
+
+**却下した選択肢:**
+- 失敗を握り潰して先へ進む — 台帳と例外が食い違う。
+- 記録の失敗で元例外を差し替える — 呼び出し元が真因を失う。
+- flag を契約から外す — 契約が要求する証拠面を実装しないまま通すことになる。
+
+## D543. 測定が落ちたら落ちた構成だけを測り直す — D496 決定 3 の測り直し単位を改訂する (2026-08-19)
+
+**決定:**
+
+1. D496 決定 3 の「その campaign を比べる構成ごと測り直す」を改訂し、**測り直しの単位を
+   落ちた構成だけ**とする。A と B を測って比較する設計で B だけが落ちたなら、測り直すのは B
+   だけであり、A を測り直す必要はない。
+2. 決定 3 の残る趣旨 —「特定の環境・手順で二度と測定できなくなる設計上の終端は認めない」— は
+   維持する。落ちた構成の再走を機構が拒否する形は閂として扱い、外す。
+3. 比較の主張の強さは測定の近接性で決まる。**同一機で連続して測った値同士の比較が最も強い。**
+   仕事や生活の都合で数日ずれることは現実として許容するが、**意図的に過去の凍結値と比較する形は
+   これに含めない** (D496 決定 1 のとおり採らない)。過去に同一機で測った値との比較は参考には
+   なるが、過去であるほど、測定環境が異なるほど信頼性が弱まるものとして扱う。
+4. 観測済みの値を後から差し替える経路は、再走を可能にした後も許さない。事前登録の目的
+   (評価基準および測定値の後出し調整の防止) は本改訂で変更しない。
+
+**理由:**
+
+- 落ちていない構成まで測り直すのは計算資源と待ち時間の純粋な浪費である。共有計算環境では
+  1 campaign の再走が数時間規模の queue 待ちを伴い、事故 1 回あたりの費用が構成数に比例して膨らむ
+  (ユーザー裁定 2026-08-18)。
+- 落ちた構成だけを測り直すと、再測定した構成と既存構成の間に時間差が生じる。これは決定 3 の
+  「同じ campaign の中で測って突き合わせる」の理想から外れるが、**理想は直後の再測定であり、
+  現実の数日規模のずれは許容範囲**である。許容しないのは、過去に凍結した値を意図的に比較の基礎に
+  据える形であって、事故からの復旧に伴う時間差ではない。両者を区別せずに扱うと、復旧のたびに
+  無傷の構成を捨てることになる。
+- 測り直しの単位を狭めても事前登録の目的は損なわれない。比較規則・構成集合・holdout 集合は
+  凍結されたままで、変わるのは落ちた 1 構成の観測値を取り直す範囲だけである。
+
+**却下した選択肢:**
+
+- campaign 全体を測り直す (D496 決定 3 の原文) — 無傷の構成の測定値を毎回捨てる。費用が構成数に
+  比例し、事故率の高い共有環境では実運用に耐えない。
+- 落ちた campaign を terminal と扱う — D496 が既に却下済み。事故 1 回で当該環境が恒久に死ぬ。
+- 時間差の生じた比較を一律に非 certified へ落とす — 復旧を事実上禁止するのと同じで、決定 3 の
+  「設計上の終端を認めない」に反する。近接性の弱まりは主張の強さの問題として扱い、可否の問題に
+  しない。
+
+## D544. 8c 条件7契約の `accept_trial` は exclusion pin でなく完全削除する (2026-08-19)
+
+**決定:** 証拠契約 JSON の条件7 `reachable_from` から `accept_trial ->` prefix を削除し、
+実在する consumer 関数だけを残す形にする。`MACHINE_CONTRACT_FUNCTION_EXCLUSIONS` へ
+理由コード付きで pin する対処は採らない。
+
+**理由:**
+- `MACHINE_CONTRACT_FUNCTION_EXCLUSIONS` の既存3理由コード (`non-identifier-token`,
+  `declared-unimplemented-token`, `different-module-token`) のいずれも `accept_trial` の実体に
+  正しく当てはまらない。`accept_trial` は特定の未実装関数ではなく、契約書内の複数条件が共有する
+  汎用的な「受理経路」を表す文字列であり、無理に理由コードを選べば虚偽の pin になる。
+- 条件7の評価器 `_evaluate_c07` 自体は `reachable_from` の宣言済み chain を部分文字列一致で
+  検査するだけであり、`accept_trial` prefix の実在を要求しない。削除しても評価器の判定ロジックは
+  変わらない。
+- 条件9 (`trial_registry.py` の `assert_trial_registry_acceptance`) が過去に踏んだ同種の是正
+  (`accept_trial` を実在名へ改名) は、条件9の consumer file には実在する関数への改名だったから
+  成立した。条件7の consumer (`s8c_result_judge.py`) には対応する実在関数が無いため、同じ
+  改名パターンは適用できない。
+
+**却下した選択肢:**
+- `accept_trial` を `MACHINE_CONTRACT_FUNCTION_EXCLUSIONS` へ pin する — 3理由コードいずれにも
+  正しく当てはまらず、機械的整合性のためだけの虚偽 pin になる。
+- `accept_trial` を条件9と同様に実在関数名へ改名する — 条件7の consumer file に対応する実在
+  関数が無く、存在しない名前を捏造することになる。
+
+## D545. 8c 世代 record の裁定本文 digest・8b bytes 束縛は現状維持とする (2026-08-19)
+
+**決定:** 8c condition-freeze record (schema v2) の構造的欠落2点 — (1) `ruling_reference` が
+裁定"番号"の文字列のみで裁定本文の digest を持たない、(2) 8b (ratified freeze) の bytes を
+束縛するフィールドが無い — のいずれも是正しない。次世代 record は既存 v2 schema のまま発行し、
+`ruling_reference` には既に着地済みの D458 を用いる。
+
+**理由:**
+- D458 は「判定器・評価器・射影の bytes 全体を凍結範囲へ入れず、`DECIDER_VERSION` 1定数へ
+  受理意味を代表させる」という coarse provenance 方針を明示的に採用している。裁定本文へ digest
+  束縛を追加することは、決定文の bytes を新たに凍結対象へ加える動きであり、この既存方針と
+  哲学的に衝突する。8b bytes 束縛も同型の bytes 級凍結である。
+- 新世代 record が本 wave 自身の新規裁定を `ruling_reference` に持つことは構造的に不可能である。
+  wave 内で新設する決定は land 時の fold で初めて `## D<N>.` 見出しを得るため、その番号は
+  同じ wave の record 導入 commit からは参照できない (`_assert_rulings_exist` は commit 時点で
+  実在する見出ししか検査できない)。したがって `ruling_reference` は既に着地済みの決定を指す
+  必要があり、本 wave の変更が D458 の枠内で行う定型の bump + 発行である以上、D458 自身を
+  指すのが最も正確である。
+
+**却下した選択肢:**
+- `ruling_reference_sha256` を additive field として追加する — D458 の coarse provenance 方針と
+  衝突する。技術的には低結合な追加ができるとしても、方針との整合を優先した。
+- `ratified_generation_sha256` (8b bytes 束縛) を追加する — 同上に加え、commit-pure な
+  cross-module resolver の新設を要し、本 wave のスコープ (条件7の昇格) を大きく超える。
+- 本 wave 自身の新規裁定を `ruling_reference` にする — fold 前の D 番号は record 導入 commit から
+  構造的に参照できず、実現不能。
+
+## D546. 床値 job の signal trap を到達可能にし、主張は配送に限る (2026-08-19)
+
+**決定 (1): `tools/pegasus/floor_campaign.sh` へ `#PBS --accept-sigterm=yes` を置く。**
+記法は単一トークン形とする。根拠は repo 内の既存 probe
+(`output/insights/2026-08-03_t361-t362-cluster-probes/driver/signal_walltime_mitigation.pbs`) と
+既裁定本文であり、空白区切りの実例は repo 内に存在しない。
+
+**決定 (2): この変更が主張するのは「SIGTERM が送られてくれば受け取れる」までである。**
+walltime 打ち切りで NQSV が SIGTERM を送るかは未解決のままとする。既裁定が、捕捉可能な構成には
+`elapstim_req="max,warn"` (warn < max) と `--warning-signal=elapstim:SIGTERM` も要ると記し、
+**実測するまで結論しない**と定めている。本 wave はその実測を行っていない。
+したがって「walltime で `signalled` が残るようになった」と書いてはならない。
+
+**決定 (3): 診断のための値を計測 process へ到達させない。**
+checkpoint path と evidence root の環境変数は、driver が runner を呼ぶ前に private state へ
+取り込んで `os.environ` から削除する。実測 subprocess の環境に checkpoint 系 key が存在しない
+ことを production 形のテストで固定する。
+
+**決定 (4): partial-log と checkpoint は診断専用であり、計測値・certified 選択の権威にしない。**
+書き込み先を repository の外に置くことでこれを構造的に担保する。`output/` へ untracked を
+1 つも足さない。権威 `journal.jsonl` の strict 性 (末尾不完全行で全体を拒否する挙動) は
+1 bit も変えず、緩和は診断専用 reader 側にだけ作る。
+
+**理由:**
+- NQSV は既定で `Accept Sigterm = No` であり、その状態が PBS job から `bash -c` まで継承される。
+  そのため床値 job の signal trap は一度も発火しえず、`signalled` の記録は原理的に不可能だった
+  (F409)。checkpoint 機構を足すだけではこの経路は死んだままになる。
+- 決定 (2) を明記するのは、直したことと被覆できたことを混同しないためである。qdel のように
+  外から TERM が送られる経路では実際に記録されるが、walltime は別問題である。
+- 決定 (3) は絶対規律 1 (観測者効果の分離) の直接の適用である。診断設定が計測入力に混入すれば、
+  将来それを解釈する binary が入ったとき sample・walltime・失敗判定、ひいては certified 選択が
+  診断設定に依存しうる。
+
+**却下した選択肢:**
+- **W1 (interpreter 解決前) を保証範囲から外す。** 却下。そこは G1 の最重要窓であり、外すと機構の
+  目的が消える。T-688 が名指しする SIGKILL・OOM・walltime はいずれも process 単位の kill であり、
+  `write()` が戻った時点でデータは失われない。`fsync` が防ぐのは node crash であって process kill
+  ではない。したがって素の bash 追記で足りる。ただし過剰主張を避けるため、行ごとに
+  `durability` を `process-kill` と `fsynced` で書き分ける。
+- **checkpoint を repo 内 `output/` へ置いて既存 consumer をそのまま使う。** 却下。`output/` は
+  dirty 検査から除外されるため誤書き込みが受入で見えず、かつ診断が計測値の権威へ昇格する経路を
+  残す。consumer 側 (`floor_liveness`) を同じ wave で拡張する方を採った。

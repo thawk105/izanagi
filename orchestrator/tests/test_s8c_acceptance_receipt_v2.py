@@ -134,7 +134,7 @@ def _fixture(tmp_path: Path) -> tuple[Path, Path, dict]:
 
     introduction = _commit_all(repo, "receipt references")
     value = {
-        "schema_version": receipt.SCHEMA_VERSION,
+        "schema_version": receipt.PREVIOUS_SCHEMA_VERSION,
         "manifest_path": manifest_path.relative_to(repo).as_posix(),
         "manifest_sha256": manifest_sha,
         "prereg_commit": introduction,
@@ -166,6 +166,23 @@ def _trial(value: dict, holdout: str, arm: str) -> dict:
     return next(
         row for row in value["trials"]
         if row["holdout"] == holdout and row["arm"] == arm
+    )
+
+
+def _upgrade_to_v3(value: dict) -> None:
+    value["schema_version"] = receipt.SCHEMA_VERSION
+    for index, row in enumerate(value["trials"]):
+        row["cross_binding_receipt_sha256"] = hashlib.sha256(
+            f"cross-binding-leaf-{index}".encode("ascii")
+        ).hexdigest()
+    value["cross_binding_receipt_sha256"] = (
+        receipt.cross_binding_aggregate_sha256([
+            {
+                "trial_id": row["trial_id"],
+                "receipt_sha256": row["cross_binding_receipt_sha256"],
+            }
+            for row in value["trials"]
+        ])
     )
 
 
@@ -229,7 +246,7 @@ def test_verifier_keeps_registry_and_layer3_import_independence() -> None:
 def test_v2_producer_equivalent_full_verify_drops_only_c02(tmp_path: Path) -> None:
     repo, path, value = _fixture(tmp_path)
     verified = receipt.verify_acceptance_receipt(path, repository_root=repo)
-    assert verified.receipt.schema_version == receipt.SCHEMA_VERSION
+    assert verified.receipt.schema_version == receipt.PREVIOUS_SCHEMA_VERSION
     assert verified.receipt.certifying is False
     assert verified.receipt.non_certifying_reason_codes == (
         "t468-approval-authority-absent",
@@ -399,7 +416,59 @@ def test_v2_never_routes_through_v1_mandatory_reason_set(
         receipt, "_require_legacy_mandatory_reason_codes", reject_legacy_path,
     )
     verified = receipt.verify_acceptance_receipt(path, repository_root=repo)
+    assert verified.receipt.schema_version == receipt.PREVIOUS_SCHEMA_VERSION
+
+
+def test_v3_requires_cross_binding_receipt_sha256(tmp_path: Path) -> None:
+    repo, path, value = _fixture(tmp_path)
+    _upgrade_to_v3(value)
+    _rewrite_receipt(repo, path, value, "receipt v3")
+    verified = receipt.verify_acceptance_receipt(path, repository_root=repo)
     assert verified.receipt.schema_version == receipt.SCHEMA_VERSION
+    assert verified.receipt.cross_binding_receipt_sha256 == value[
+        "cross_binding_receipt_sha256"
+    ]
+
+    value.pop("cross_binding_receipt_sha256")
+    _rewrite_receipt(repo, path, value, "receipt v3 missing aggregate")
+    with pytest.raises(
+        receipt.AcceptanceReceiptError,
+        match=r"\[receipt-schema\] receipt key set differs: ",
+    ):
+        receipt.parse_acceptance_receipt_bytes(_canonical_line(value))
+
+
+@pytest.mark.parametrize(
+    "schema_version",
+    [receipt.LEGACY_SCHEMA_VERSION, receipt.PREVIOUS_SCHEMA_VERSION, receipt.SCHEMA_VERSION],
+)
+def test_missing_schema_version_is_acceptance_receipt_error(
+    tmp_path: Path, schema_version: str,
+) -> None:
+    _repo, _path, value = _fixture(tmp_path)
+    value["schema_version"] = schema_version
+    value.pop("schema_version")
+    with pytest.raises(
+        receipt.AcceptanceReceiptError,
+        match=r"^\[receipt-schema\] receipt\.schema_version is missing$",
+    ):
+        receipt.parse_acceptance_receipt_bytes(_canonical_line(value))
+
+
+def test_v3_aggregate_is_recomputed_from_trial_leaves(tmp_path: Path) -> None:
+    repo, path, value = _fixture(tmp_path)
+    _upgrade_to_v3(value)
+    _rewrite_receipt(repo, path, value, "receipt v3 aggregate")
+    value["cross_binding_receipt_sha256"] = "f" * 64
+    _rewrite_receipt(repo, path, value, "receipt v3 forged aggregate")
+    with pytest.raises(
+        receipt.AcceptanceReceiptError,
+        match=(
+            r"\[receipt-cross-binding\] top-level cross-binding aggregate "
+            r"differs from trial leaves$"
+        ),
+    ):
+        receipt.verify_acceptance_receipt(path, repository_root=repo)
 
 
 def test_binding_digest_is_rederived_from_self_consistent_three_way_claim(

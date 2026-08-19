@@ -1,0 +1,24 @@
+{
+    "estimated_run_seconds": 120,
+    "hang_timeout_seconds": 2400,
+    "mutations": [
+        {
+            "category": "negative",
+            "expected_nodes": [
+                "orchestrator/tests/test_s8c_preregistration_predicates.py::test_c07_removed_ratified_loader_call_is_not_a_consumer"
+            ],
+            "expected_status": "KILLED",
+            "hang_risk": false,
+            "id": "t1352.m7c-c07-ratified-loader-both-layers",
+            "replacements": [
+                {
+                    "file": "orchestrator/campaign/s8c_preregistration_evidence.py",
+                    "new": "    if False and not loader_calls or any(\n        False and _c07_call_has_reachable_use(function, call)\n",
+                    "old": "    if not loader_calls or any(\n        not _c07_call_has_reachable_use(function, call)\n"
+                }
+            ]
+        }
+    ],
+    "schema": "izanagi-dev-wave-mutation-spec/v1",
+    "timeout_seconds": 1200
+}

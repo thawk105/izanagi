@@ -115,7 +115,7 @@ from .s8c_budget import (
 # The axis driver imports the campaign namespace directly.  Keep the U1 run
 # context and identity types on that same module identity so exact-type seals
 # survive package and direct-script entry points alike.
-from . import env_contract, ident  # noqa: E402
+from . import env_contract, ident, reservation  # noqa: E402
 from .artifact_admission import (  # noqa: E402
     CampaignReadPurpose,
     require_admitted_campaign,
@@ -1275,23 +1275,11 @@ def _reserve_registered_attempt_slot(
 
 def _reject_registered_lifecycle_duplicate(*, trial_id: str) -> None:
     """Reject a previously started trial before issuing a new slot."""
-    lifecycle = ROOT / trial_registry.DEFAULT_LIFECYCLE_PATH
-    if not lifecycle.exists() and not lifecycle.is_symlink():
-        return
-    rows = trial_registry._load_lifecycle_rows(
-        trial_registry._read_regular_bytes(
-            lifecycle,
-            gate="lifecycle-read",
-            label="lifecycle ledger",
-        )
+    trial_registry.reject_started_trial(
+        trial_id=trial_id,
+        repository_root=ROOT,
+        lifecycle_path=ROOT / trial_registry.DEFAULT_LIFECYCLE_PATH,
     )
-    if any(
-        row.get("event") == "start" and row.get("trial_id") == trial_id
-        for row in rows
-    ):
-        raise trial_registry.TrialRegistryError(
-            f"[lifecycle-start-once] trial_id already has a start row: {trial_id}"
-        )
 
 
 def _prepare_origin_trial_runtime(
@@ -2467,17 +2455,23 @@ def _provider_set(
 
 
 def _assert_build_site_opted_in(
-    do_build: bool, *, allow_pegasus_compute_transport: bool
-) -> None:
+    do_build: bool,
+    *,
+    allow_pegasus_compute_transport: bool,
+    site: str | None = None,
+) -> str | None:
     """成果物作成前に build site と transport の明示 opt-in を閉じる。"""
+    if site is None and not do_build:
+        return None
+    if site is None:
+        site = trigger._current_site()
     if not do_build:
-        return
-    site = trigger._current_site()
+        return site
     if site == trigger.site_policy.OTHER:
-        return
+        return site
     if site == trigger.site_policy.PEGASUS_COMPUTE:
         if allow_pegasus_compute_transport:
-            return
+            return site
         raise AutonomousTrialError(
             "8c の Pegasus compute build は T-276 の明示 transport opt-in が必要"
         )
@@ -2529,6 +2523,24 @@ def _assert_build_transport_admitted_for_site(
     )
     _validate_transport_receipt(
         dict(transport_receipt), expected=admitted_receipt
+    )
+
+
+def _assert_reservation_preflight(
+    *,
+    site: str,
+    max_wall_s: int,
+) -> reservation.ReservationCheck | None:
+    """Consume the registered reservation binding before lifecycle start."""
+    contract = trigger._admit_env_contract(site)
+    if not reservation.is_reservation_required(contract.isolation_policy):
+        return None
+    binding = reservation.read_binding(os.environ)
+    return reservation.check_reservation(
+        binding,
+        required_s=max_wall_s,
+        safety_margin_s=0,
+        environ=os.environ,
     )
 
 
@@ -3873,6 +3885,79 @@ def _record_indeterminate_terminal(
         ) from terminal_error
 
 
+def mark_experiment_indeterminate(
+    token: trial_registry.TrialLifecycleToken,
+    *,
+    cause: BaseException,
+    experiment_status: str,
+    remaining_cells: Sequence[str],
+    origin_terminal_projection: (
+        reflux_formal_consumer.OriginTerminalProjection | None
+    ) = None,
+) -> None:
+    """Record an experiment-wide indeterminate state and forbid a rerun.
+
+    Lifecycle v1 has no field for a remaining-cell projection, so the
+    projection is accepted and validated at this boundary but is not added to
+    the frozen row shape.  Restart refusal and terminalization are attempted
+    independently; failures are attached to the original crash and the caller
+    re-raises that original object.
+    """
+    if not isinstance(cause, BaseException):
+        raise TypeError("cause must be a BaseException")
+    if experiment_status != "indeterminate":
+        raise AutonomousTrialError(
+            "experiment_status must be indeterminate at crash terminalization"
+        )
+    if (
+        isinstance(remaining_cells, (str, bytes))
+        or not isinstance(remaining_cells, Sequence)
+        or any(type(cell) is not str or not cell for cell in remaining_cells)
+    ):
+        raise AutonomousTrialError("remaining_cells must be a sequence of non-empty strings")
+
+    failures: list[tuple[str, BaseException]] = []
+    try:
+        trial_registry.forbid_trial_restart(token)
+    except BaseException as restart_error:
+        failures.append(("restart-forbid", restart_error))
+
+    try:
+        terminal_arguments: dict[str, Any] = {
+            "terminal_status": experiment_status,
+        }
+        if origin_terminal_projection is not None:
+            terminal_arguments["origin_terminal_projection"] = (
+                origin_terminal_projection
+            )
+        trial_registry.record_trial_terminal(token, **terminal_arguments)
+    except BaseException as terminal_error:
+        failures.append(("terminal-record", terminal_error))
+
+    if failures:
+        detail = "; ".join(
+            f"{label}={type(error).__name__}" for label, error in failures
+        )
+        note = (
+            "indeterminate crash bookkeeping encountered independent failures: "
+            + detail
+        )
+        notes = getattr(cause, "__notes__", None)
+        if isinstance(notes, list):
+            notes.append(note)
+        elif notes is not None:
+            notes = []
+            cause.__notes__ = notes
+            notes.append(note)
+        else:
+            add_note = getattr(cause, "add_note", None)
+            if callable(add_note):
+                add_note(note)
+            else:
+                cause.__notes__ = [note]
+    raise cause
+
+
 def run_trial(
     *,
     trial_id: str,
@@ -4026,6 +4111,7 @@ def run_trial(
     gating_spec_snapshot = snapshot_gating_spec(GATING_SPEC)
     generation_driver = _generation_driver_identity(drive)
     accounting_authority = _accounting_authority(drive)
+    preflight_site = trigger._current_site()
     c06_budget_enabled = (
         trial_admission.mode == "registered-effective" and do_build
     )
@@ -4036,6 +4122,7 @@ def run_trial(
     _assert_build_site_opted_in(
         do_build,
         allow_pegasus_compute_transport=allow_pegasus_compute_transport,
+        site=preflight_site,
     )
     if do_build and coder_authority is None:
         raise AutonomousTrialError(
@@ -4070,6 +4157,10 @@ def run_trial(
             arm_execution=arm_execution,
             defer_initial_snapshot=True,
         )
+    _assert_reservation_preflight(
+        site=preflight_site,
+        max_wall_s=max_wall_s,
+    )
     attempt_slot: trial_registry.AttemptSlotCapability | None = None
     if trial_admission.mode == "registered-effective":
         attempt_slot = _reserve_registered_attempt_slot(
@@ -4253,16 +4344,19 @@ def run_trial(
             )
             attempt_terminalized = True
         if lifecycle_token is not None:
-            _record_indeterminate_terminal(
+            mark_experiment_indeterminate(
                 lifecycle_token,
                 cause=exc,
+                experiment_status="indeterminate",
+                remaining_cells=tuple(selected),
                 origin_terminal_projection=(
                     None
                     if origin_runtime is None
                     else origin_runtime.terminal_projection
                 ),
             )
-        raise
+        else:
+            raise
     owns_active_providers = providers is None
     active_providers: dict[str, Any] = {}
     fatal_error: dict[str, str] | None = (
@@ -4379,16 +4473,19 @@ def run_trial(
             )
             attempt_terminalized = True
         if lifecycle_token is not None and not lifecycle_terminalized:
-            _record_indeterminate_terminal(
+            mark_experiment_indeterminate(
                 lifecycle_token,
                 cause=exc,
+                experiment_status="indeterminate",
+                remaining_cells=tuple(selected),
                 origin_terminal_projection=(
                     None
                     if origin_runtime is None
                     else origin_runtime.terminal_projection
                 ),
             )
-        raise
+        else:
+            raise
     finally:
         if owns_active_providers:
             _close_owned_providers(active_providers)

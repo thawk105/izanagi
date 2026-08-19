@@ -983,6 +983,16 @@
 - 現行実体: `docs/dev-wave/mutation.md` の `DW-M04` と `DW-M08`。
 - 記録: worklog 2026-07-22 (6)、erratum = `output/insights/2026-07-22_t004-wal-framing-mutation-ledger.md`
 
+
+- **再発: 2026-08-18** ([T-1352] wave)。今回は偽 SURVIVED ではなく**偽 KILL の帰属**で、
+  向きが逆の同型である。段 1 前の前提実測で親が `_MACHINE_EVALUATORS` へ key 7 を足し
+  負例辞書へ C07 を足したが、`_negative_control_case` の C07 分岐を作らなかったため、
+  赤 4 件のうち 1 件は helper の AssertionError で落ちていた。親はこれを
+  「C07 を登録すると赤になる」証拠の一部として数え、段 3 の敵対レンズが独立に検出するまで
+  範囲を誤ったまま報告した。結論 (登録は見送る) 自体は残り 2 件の全単射検査だけで成立していた。
+  恒久対応 4 = **変異の赤も、注入が意図した層に届いたことを確認するまで kill と数えない。**
+  注入不全で前段の helper が落ちた赤は対象への帰属証拠にならない。`DW-M04` の
+  「注入なしを緑と報告しない」と対称の義務であり、現行実体は同じ `DW-M04` である。
 ### F34. 受入全走の後に積んだ docs commit が repo scan invariant を破り、main が赤のまま次 wave まで残った [手順漏れ]
 
 - 事象: wave2 は受入全走を fix2 commit (d4b6271) で緑にした後、docs commit (441babc) で凍結逐語
@@ -1057,6 +1067,17 @@
   本件は F35 の既知の構造的穴 —「恒久対応 1 は `DW-S01` にしか入っておらず `/rulings` の
   収集手順は射程外」— の 2 度目の顕在化であり、**起票から投入までの時間差**という新しい面を足す。
   `DW-S01` は投入後の防壁として今回も機能したが、投入前 (起票資料の鮮度) には効かない。
+
+- **再発: 2026-08-18** — [T-715] の実装記録 commit (2026-08-18 15:15 JST、archive worklog
+  エントリ (655)) が次の一手 delta で自 task ID を `完了` 節へ明示しなかったため、
+  `docs/spool/README.md` の暗黙 carry (「触れなかった active な T は自動的に carry される」) が
+  [T-715] を未着手のまま (656)〜(666) へ再送出し続けた。実装完了 (17:10 land 完了) から
+  着手 (今回の /dev-wave 起票) までの時間差は無く、記録 commit そのものが「済んだのに
+  未消化の carry を残す」唯一の発生源だった点が、2026-07-24 (承認記録側の照合漏れ) /
+  2026-08-13 (起票から投入までの約 12 時間差) の既知 2 形態と異なる新しい面である。
+  恒久対応 1 (`DW-S01` の照合義務) は今回も投入前に機能し実装は行われなかった。
+  恒久対応候補 (段 7 記録テンプレートへ「自 task ID を完了節へ明示する」チェックを追加) は
+  dev-wave docs 予算満杯のため未実装 — ユーザー裁定へ返す。
 ### F36. 受入・検査の結果欄をプレースホルダのまま記録 commit し、恒久対応の実行が空証明になった [恒真ゲート] [手順漏れ]
 
 - 事象: `<受入結果を反映>` `<反映>` というリテラルのプレースホルダが埋められないまま記録 commit に
@@ -1157,6 +1178,14 @@
   `output/insights/2026-08-09_t139-f37-land-gate/`。
 
 - **再発: 2026-08-17** — 親が焦点走を `run_tests.py ... -q 2>&1 | tail -15` で投げ、報告された exit code 0 が `tail` のものだった。dispatch epilogue しか残らず pytest の集計行が切り落とされていたため偽緑には至っていない (near miss、2026-08-04 と同型で 3 例目)。パイプを外し出力を file へ落として rc を別 file へ取る形へ組み直したところ、真の rc=0 と 651 passed / 3 skipped を確認できた。恒久対応は F37 既存のとおり変わらない。
+
+- **再発: 2026-08-19** — 親が統合 commit 後の `check_ai_provenance.py` full-history 監査を
+  `python3 tools/check_ai_provenance.py 2>&1 | tail -40; echo "RC=$?"` で投げ、報告された
+  exit code 0 が `tail` のものだった (真の rc=1、新規違反1件を看過)。統合 commit の AI-Agent
+  trailer 不備 (`role=author` が2製品にまたがるのに一方に `scope` が無い) を一時的に見逃したが、
+  後続の別目的の再監査でパイプを外し `; echo $?` で直接確認したところ真の rc=1 に気づき、是正
+  (`git reset --hard` → amend → merge 再実行) した。誤った trailer が main へ着地することはなく、
+  偽緑の実害は無かった (near miss)。恒久対応は F37 既存のとおり変わらない。
 ### F38. 記録後検査の値を埋める amend で、worklog 内の記録 commit hash が dangling になった [ドリフト] [手順漏れ]
 
 - 事象: `DW-S07` の F34 恒久対応 (記録 commit の後に再走) と F36 恒久対応 (実測前に欄を作らない) を
@@ -1376,6 +1405,14 @@
 - 記録: worklog 2026-07-28 (28)、逐語 = `output/insights/2026-07-28_t147-review-verbatim/README.md`
   (破損原文を凍結)
 
+
+- **再発: 2026-08-18** — 段 6 の敵対レビュー子が `## 総括` を fenced code block の**内側**へ
+  書いたため `check_codex_output.py` が rc=1 で不受理にした (`output_bytes=3141`、
+  `codex_exit_code=0`)。中身は有効で real 所見を 1 件当てていたため、親が未完了と明記して保全し
+  fix の入力に使った。加えて同日、極小作業 (2 行の取り込み) の実装子が正常終了 (exit 0、84 秒) しつつ
+  報告 327 bytes で 500 bytes 下限に届かず不受理になった。後者は「2〜5 行で書け」と書いた親の
+  prompt 側の誤りであり、作業自体は差分を親が逐語照合して採った。**出力形式の指示は
+  「fence の外に `## 総括` を置く」と「下限 500 bytes」を両方明示する**。
 ### F44. pipefail 下の `producer | grep -q` が SIGPIPE で計測ジョブを偽赤停止させた [手順漏れ]
 - 事象: [T-140] set-size 実測ジョブ 1 回目 (872881.nqsv、2026-07-28) が、trace シンボル存在検査
   `nm -C bin | grep -qi izanagi_trace` で「シンボル無し」と誤判定し 43 秒で停止した。実際は
@@ -10027,3 +10064,145 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   ノード速度に依存しない正規化量 (`wall − 直列鎖長`) を主指標に併記する。
 - 再発検知: 判定に使う走行の実行ホストを receipt から列挙し、arm 間でホスト集合が素なら
   その比較を採否根拠にしない。
+
+### F404. 段 3 の敵対レンズが 2 回とも成果物ゼロで落ち、6600 秒を失った [コンテキスト浪費]
+
+- 事象: 段 3 の敵対相談レンズ 1 本を投入したところ、1 回目は wall-clock 3600 秒で SIGTERM
+  (`stop_reason=max_wall_clock_s`、`codex_exit_code=-15`、model call 26、`output_bytes=0`)。
+  読みすぎと判断して読む範囲を行範囲で限定し 40 分の締め切りを本文へ書いて再投入したところ、
+  2 回目は **model call 4 件で 3000 秒**を使い切り、やはり出力ゼロで落ちた。合計 6600 秒を失い、
+  段 3 の敵対はもう 1 本のレンズと親の一次資料確認だけで成立させることになった。
+- 根本原因: 2 回目の受領証が示すのは読みすぎではなく**外部応答の停滞**である
+  (1 回目は 2.3 分/call、2 回目は 12 分/call、同時刻に走った別レンズは 27 call を 502 秒で完了)。
+  子側の prompt を直しても解消しない要因に対して、同じ待ちへ 2 度目の全予算を投じたのが浪費である。
+- 恒久対応: memory `waiter-failure-modes` に「出力ゼロで壁時計上限に達した子は、受領証の
+  `model_calls / wall_clock_s` を見て**読みすぎ (call 数が多い) と停滞 (call 数が少ない) を区別**し、
+  停滞なら同一レンズを再投入せず担当を後段のレビューへ移す」を追記する。判定に使う値は
+  `receipt.json` の `actuals` にあり、親が 1 コマンドで読める。
+- 再発検知: 受領証の `outcome=not_accepted` かつ `output_bytes=0` の子について、
+  `actuals.model_calls / actuals.wall_clock_s` を worklog へ書くこと。停滞側 (1 call あたり
+  10 分超) が同一 wave で 2 回出たら再投入せず段構成で吸収する。
+
+### F405. ある gate のために書いた専用の負例が、隣接 gate と正例に先取りされて発火しない [テスト代表性]
+
+- 事象: 事前登録した 11 変異のうち 2 件で、その gate のために新設した負例テストが
+  変異注入後も緑のままだった。M09 (WAL 被覆検査の削除) では
+  `..._rejects_an_unclassified_wal_record` が発火せず `[build_records]` の別負例が捕え、
+  M10 (`artifact_refs` の全件再読を 1 件目へ縮小) では `[artifact_refs]` の負例が発火せず
+  **正例 4 本が赤になって**検出した。いずれも SURVIVED ではないため、
+  検出力そのものは失われていない。
+- 根本原因: 負例 fixture が、狙った gate より手前で発火する隣接 gate の入力も同時に壊していた。
+  M09 は layer3 側の射影も動かしてしまい、被覆検査の手前で別の完全一致検査が落ちた。
+  M10 は再読を縮小すると下流が使う検証済み bytes が欠け、負例より先に正例が壊れた。
+  段 6 の敵対レビューが「別ゲートに隠れる」と事前に指摘していたが、
+  fix はその 2 件について単一理由化を達成できていなかった。
+- 恒久対応: 変異の期待 node は書き手の意図ではなく**実測 node を権威**とする。
+  probe 走で実測してから再登録する運用を守る (`DW-M08`)。
+  専用負例が発火しなかった変異は、KILLED であっても
+  「その負例は当該 gate の単独証拠にならない」と台帳へ明記する。
+- 再発検知: probe 走の期待 node と実測 node の差分。
+  期待した node が実測集合に**含まれない**変異は、KILLED でも検出力の注記対象とする。
+
+### F406. version 差で常に失敗する API を握り潰し恒真な保証を作った [恒真ゲート]
+
+- 事象: crash 終端の失敗集約を `try: cause.add_note(...) except BaseException: pass` で書いた。
+  `BaseException.add_note` は Python 3.11 以降の API で、実行環境は 3.10.12 である。
+  この経路は必ず失敗し必ず握り潰され、集約 note は 1 度も発火しなかった。
+- 根本原因: 「起きないはず」の例外に対して握り潰し guard を置き、guard が守る API が
+  実行環境に実在するかを version で確かめなかった。
+- 恒久対応: D542 — fallback を持ち、付与に失敗しても
+  元例外を失わない形にし、握り潰しを除いた。
+- 再発検知: note が実際に載ることを要求する対照 2 件と、集約ブロックを無効化する変異
+  (本走で KILLED)。テストが赤いときに期待値を緩める前に、実装が発火しているかを実測する。
+
+### F407. 実 site でなく opt-in flag から site を推定して gate を迂回可能にした [恒真ゲート]
+
+- 事象: 予約検査の対象 site を、`do_build=False` のとき transport の opt-in flag から推定した。
+  実際に予約が要る計算ノード上の no-build 実行が opt-out なら検査を迂回し、逆に予約不要な
+  site の実行が opt-in なら過剰拒否された。
+- 根本原因: 既存 helper が `do_build=False` で site を返さないため、代わりに意味の異なる
+  flag を代理値として使った。代理値と実測値の差を検査しなかった。
+- 恒久対応: D541 — preflight で実 site を一度だけ解決し、
+  build gate と予約 gate で共有する。
+- 再発検知: flag 推定へ戻す変異 (本走で KILLED)、実 site が compute の no-build で発火する対照、
+  実 site が OTHER の no-build で過剰拒否されない対照の 3 点。
+
+### F408. 変異 harness が `xdist_group` 付きテストの node ID を扱えない [手順漏れ]
+
+- 事象: `tools/mutation_harness.py` の変異事前登録で、`@pytest.mark.xdist_group(name=...)` 付き
+  テスト2件 (`test_candidate_freeze_matches_contract_and_generation_chain`,
+  `test_repository_tip_binds_current_decider_version_without_activation`) の `expected_nodes` を
+  どちらの形式で書いても一致しなかった。素の node ID (`path::test_name`) は harness の
+  collection-preflight (`--collect-only` 出力を解析) を通るが、実行結果 (`_failed_nodes` が
+  parse する pytest 標準の "FAILED " summary 行) はこの2件に限り
+  `path::test_name@<xdist_group名>` の形式で報告される。pytest-xdist の `loadgroup` scheduler が
+  実行時のみ group suffix を付与するため (collection 単独では xdist 分散が発生せず scheduler が
+  "serial" になり suffix が出ない)、`_normalize_node` (単純なパス正規化のみ、suffix は非対応) を
+  介しても一致する単一の文字列表現が存在しない。
+- 根本原因: `tools/mutation_harness.py` の node ID 正規化が pytest-xdist の `loadgroup`
+  scheduler 固有の実行時 suffix 付与を考慮していない。collection フェーズと実行フェーズで
+  同一テストの報告形式が変わりうるという前提が harness に欠けている。
+- 恒久対応: 未実装 (harness 自体の改修は本 wave の scope 外)。本 wave は runner argv へ
+  `--deselect "<path>::<test>"` でこの2 test を mutation harness の実行対象から個別に除外する
+  workaround で回避した (この2 test は統合 commit 後の焦点走で別途緑を確認済み、wave 全体の
+  カバレッジからは除外していない)。
+- 再発検知: 未実装。`@CANDIDATE_XDIST_GROUP` (または同種の `xdist_group` marker) を持つテストを
+  変異 harness の対象に含める次の wave が、同じ collection/実行の representation gap を踏む
+  可能性が高い。恒久対応としては `_normalize_node` に xdist group suffix の除去を追加するのが
+  妥当と考えられるが、本 wave では実装しなかった。
+
+### F409. 床値 job の signal trap が最初から到達不能だった [恒真ゲート] [テスト代表性]
+
+- 事象: `tools/pegasus/floor_campaign.sh` は INT / TERM / HUP に trap を張り、受信時に
+  `failure.json` を書いて `128 + signal` で終了する設計だった。しかしこの trap は一度も
+  発火しえなかった。NQSV は既定で `Accept Sigterm = No` であり、SIGTERM が job script へ
+  配送されない。`kill -TERM $$` は builtin として成功し rc=0 を返すため `set -e` も ERR trap も
+  発火せず、shell はそのまま正常終了する。
+- 根本原因: signal 受信を有効化する `#PBS --accept-sigterm=yes` を job script が持たず、
+  「trap を書けば受信できる」という前提を誰も実測で確かめていなかった。無効化された signal 状態は
+  PBS job から pytest、xdist worker、`subprocess.run()`、`bash -c` まで継承されるため、
+  テスト側でも同じ盲点が再現していた。
+- 影響: kill 時の診断を残す設計上の経路が 1 本、宣言だけで存在し続けた。恒真ゲートの一種であり、
+  「保証があるように見えて発火しない」形そのものである。
+- 恒久対応: D546 決定 (1) で `#PBS --accept-sigterm=yes` を置く。
+  対応するテストは外側の signal 状態へ依存せず、新しい process で TERM を `SIG_DFL` へ戻して
+  mask から外し、`execvp` で bash へ置換してから実際の `kill -TERM $$` を実行する形へ変えた。
+  trap が消えれば rc が `-15` になり `143` の assertion が赤になる。
+- 再発検知: 変異 V4 (`rejected` checkpoint の削除) と、上記 signal 経路テストの
+  `[false-1]` / `[kill -TERM $$-143]` の 2 param。変異本走で KILLED を実測済み。
+- 併せて記録: 同一 commit に対しログインノードでは 168 tests / 0 failures、計算ノードでは
+  1 failed / 132 passed だった。**ログインノードだけで判定していれば緑に見え、受入全走で
+  初めて落ちていた。** signal・scheduler に触る検査は実行環境をまたいで測る。
+
+### F410. 変異 harness の local mode が collection を切り、期待 node を不在と誤判定した [テスト代表性]
+
+- 事象: 期待 node 16 件すべてが「pytest collection に実在しない」として変異本走が rc=2 で中止した。
+  16 件はいずれも直前の probe 走が実際に観測した node である。
+- 根本原因: `--runner-mode local` で runner が自己判断で計算ノードへ dispatch すると、
+  成功時の relay が出力を上限で切る。`--collect-only -q` の出力が途中で切れ、
+  133 件中 34 件しか collection に見えなかった。harness は残りを「不在」と判定した。
+- 影響: 実在する検査を不在と誤判定し、変異本走を 1 回空振りさせた。誤判定の向きが
+  fail-closed だったため偽の緑は生じていない。
+- 恒久対応: 本走は `--runner-mode dispatch` を既定とし runner argv へ `--force-dispatch` を
+  入れる、という既存手順に従う。この経路は relay ではなく job stdout 全文を読む。
+- 再発検知: 手順どおりの dispatch mode で本走し直し、baseline PASSED・10/10 KILLED を実測した。
+
+### F411. codex 子の一過性即死を資源枯渇と断定し wave を畳んだ [セッション死・救出] [捏造/幻覚]
+
+- 事象: 段 3 の codex 子 2 本が即死し、events に `You've hit your usage limit ... try again at
+  Aug 20th` が出ていた。親はこれを恒久的な枠切れと断定し、wave を fail-closed 停止として
+  worktree まで畳んだ。実際には一過性で、**8 分後には回復していた**。
+- 根本原因: 表層メッセージの日付表記を額面どおり受け取り、再投入で確かめずに恒久性を結論した。
+  外形 (`codex_exit_code=1` / `model_calls=0` / token 0 / log 0 byte) だけでは一過性か恒久かを
+  区別できない。
+- 影響: 実装可能な wave を停止扱いにし、worktree の作り直しと段 3 の再投入を要した。
+  成果物は repo 外へ保全していたため失われなかった。
+- 併せて判明: 同時刻に並行 2 wave が**別症状**で同じ即死をしていた。一方は同じ usage limit 型、
+  もう一方は `401 Unauthorized: Missing bearer or basic authentication in header` の連打型で、
+  `codex login status` は正常のままだった。**外形は両者とも同一で、log の空だけでは区別できない。**
+  いずれも数分で自然回復した。独立 2 例が揃うため一般化してよい。
+- 恒久対応: 停止を断定する前に (1) receipt の `codex_exit_code` を読む、(2)
+  `attempt-*.events.jsonl` の message 本文で症状を確定する、(3) 数分あけて 1 度だけ再投入する。
+  再投入は prompt bytes を変える必要がある (job-id が prompt hash から決まるため)。
+  この手順の dev-wave 入口への明文化は [T-1404] で裁定する。
+- 再発検知: 現時点では機械検査が無い。手順の明文化と併せて裁定へ返す。

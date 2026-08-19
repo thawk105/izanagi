@@ -11,6 +11,8 @@ import shutil
 import stat
 import subprocess
 import sys
+import time
+from collections import Counter
 from pathlib import Path
 
 import pytest
@@ -18,7 +20,12 @@ import pytest
 REPO = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO))
 
-from orchestrator.campaign import floor_liveness, reservation, s8b_floor_campaign
+from orchestrator.campaign import (
+    floor_job_checkpoint,
+    floor_liveness,
+    reservation,
+    s8b_floor_campaign,
+)
 from orchestrator.qualification import artifacts
 
 
@@ -97,7 +104,14 @@ def _pbs_directives(path: Path) -> dict[str, str]:
         if header_open and (not line.strip() or line.startswith("#")):
             if not line.startswith("#PBS "):
                 continue
-            option, value = line[len("#PBS ") :].split(maxsplit=1)
+            fields = line[len("#PBS ") :].split(maxsplit=1)
+            if len(fields) == 1:
+                option, separator, value = fields[0].partition("=")
+                assert option.startswith("--") and separator and value, (
+                    f"malformed PBS directive at {path}:{line_number}"
+                )
+            else:
+                option, value = fields
             assert option not in directives, (
                 f"duplicate PBS directive {option} at {path}:{line_number}"
             )
@@ -183,6 +197,16 @@ def _fixture_repo(tmp_path: Path) -> Path:
     calibrator.mkdir(parents=True)
     for name in ("__init__.py", "schema_v2.py"):
         shutil.copy2(REPO / "orchestrator" / "calibrator" / name, calibrator / name)
+    campaign = repo / "orchestrator" / "campaign"
+    campaign.mkdir()
+    shutil.copy2(
+        REPO / "orchestrator" / "campaign" / "__init__.py",
+        campaign / "__init__.py",
+    )
+    shutil.copy2(
+        REPO / "orchestrator" / "campaign" / "floor_job_checkpoint.py",
+        campaign / "floor_job_checkpoint.py",
+    )
     output = repo / "output"
     output.mkdir()
     (output / ".tracked-fixture").write_text("clean\n", encoding="utf-8")
@@ -251,9 +275,18 @@ def _path_tree_snapshot(root: Path) -> object:
     return tuple(snapshot)
 
 
+def _checkpoint_records(path: Path) -> tuple[list[dict[str, object]], bool]:
+    payload = path.read_bytes()
+    incomplete = bool(payload) and not payload.endswith(b"\n")
+    complete = payload if not incomplete else payload[: payload.rfind(b"\n") + 1]
+    return [json.loads(line) for line in complete.splitlines()], incomplete
+
+
 def _run_floor_admission_fixture(
     tmp_path: Path, *, preflight_rc: int
-) -> tuple[subprocess.CompletedProcess[str], Path, Path, Path, Path, object, object]:
+) -> tuple[
+    subprocess.CompletedProcess[str], Path, Path, Path, Path, Path, object, object,
+]:
     repo = _fixture_repo(tmp_path)
     source_commit = _install_fixture_preflight(repo)
     # The floor wrapper's existing source-identity gate requires current HEAD
@@ -273,9 +306,14 @@ def _run_floor_admission_fixture(
     mkdir_marker = tmp_path / "mkdir-invoked"
     driver_marker = tmp_path / "driver-invoked"
     (bin_dir / "mkdir").write_text(
-        "#!/bin/sh\n"
-        f": > {shlex.quote(str(mkdir_marker))}\n"
-        "exit 1\n",
+        "#!/bin/bash\n"
+        "case \"${!#}\" in\n"
+        "  /scr/*)\n"
+        f"    : > {shlex.quote(str(mkdir_marker))}\n"
+        "    exit 1\n"
+        "    ;;\n"
+        "esac\n"
+        "exec /bin/mkdir \"$@\"\n",
         encoding="utf-8",
     )
     (bin_dir / "mkdir").chmod(0o755)
@@ -293,6 +331,10 @@ def _run_floor_admission_fixture(
         str(tmp_path).encode("utf-8")
     ).hexdigest()[:12]
     scratch = Path("/scr") / job_id
+    evidence_root = tmp_path / "job-evidence"
+    checkpoint = (
+        evidence_root / "pegasus" / job_id / nonce / "checkpoint.jsonl"
+    )
     output_before = _path_tree_snapshot(repo / "output")
     scratch_before = _path_tree_snapshot(scratch)
     env = _git_env(repo)
@@ -303,6 +345,7 @@ def _run_floor_admission_fixture(
             "PBS_O_WORKDIR": str(repo),
             "IZANAGI_SUBMISSION_NONCE": nonce,
             "IZANAGI_TEST_PREFLIGHT_RC": str(preflight_rc),
+            "IZANAGI_FLOOR_JOB_EVIDENCE_ROOT": str(evidence_root),
         }
     )
     completed = subprocess.run(
@@ -319,6 +362,7 @@ def _run_floor_admission_fixture(
         scratch,
         mkdir_marker,
         driver_marker,
+        checkpoint,
         output_before,
         scratch_before,
     )
@@ -426,6 +470,7 @@ def test_floor_wrapper_preflight_rejection_is_nonmutating_and_starts_no_driver(
         scratch,
         mkdir_marker,
         driver_marker,
+        checkpoint,
         output_before,
         scratch_before,
     ) = _run_floor_admission_fixture(tmp_path, preflight_rc=3)
@@ -437,6 +482,16 @@ def test_floor_wrapper_preflight_rejection_is_nonmutating_and_starts_no_driver(
     assert _path_tree_snapshot(scratch) == scratch_before
     assert not mkdir_marker.exists()
     assert not driver_marker.exists()
+    records, incomplete = _checkpoint_records(checkpoint)
+    assert incomplete is False
+    assert [
+        (record["stage"], record["transition"], record["durability"], record["rc"])
+        for record in records
+    ] == [
+        ("bootstrap", "entered", "process-kill", None),
+        ("static-admission", "entered", "fsynced", None),
+        ("static-admission", "rejected", "fsynced", 3),
+    ]
     assert not list((repo / "output").rglob("failure.json"))
     assert not list((repo / "output").rglob("failure-interpreter.txt"))
     assert not list((repo / "output").rglob("floor-driver.launch-attempted"))
@@ -451,17 +506,23 @@ def test_floor_wrapper_accepting_source_commit_preflight_reaches_first_write(
         scratch,
         mkdir_marker,
         driver_marker,
+        checkpoint,
         output_before,
         scratch_before,
     ) = _run_floor_admission_fixture(tmp_path, preflight_rc=0)
 
-    # The mkdir sentinel is the first wrapper-owned mutation attempt.  It
-    # deliberately fails so the test does not create real /scr state.
+    # The mkdir sentinel is the first non-diagnostic scratch mutation attempt.
+    # It deliberately fails so the test does not create real /scr state.
     assert completed.returncode == 2
     assert completed.stdout == ""
     assert "TMPDIR already exists or cannot be created" in completed.stderr
     assert mkdir_marker.is_file()
     assert not driver_marker.exists()
+    records, incomplete = _checkpoint_records(checkpoint)
+    assert incomplete is False
+    assert records[-1]["stage"] == "attempt-setup"
+    assert records[-1]["transition"] == "failed"
+    assert records[-1]["rc"] == 2
     assert _path_tree_snapshot(repo / "output") == output_before
     assert _path_tree_snapshot(scratch) == scratch_before
 
@@ -514,6 +575,7 @@ def test_floor_pbs_directives_match_shared_and_floor_policies() -> None:
     shared_policy = json.loads(SHARED_POLICY.read_text(encoding="utf-8"))
     floor_policy = json.loads(FLOOR_POLICY.read_text(encoding="utf-8"))
     directives = _pbs_directives(JOB)
+    assert directives.pop("--accept-sigterm") == "yes"
     assert directives == {
         "-A": shared_policy["project"],
         "-q": shared_policy["queue"],
@@ -605,6 +667,7 @@ def test_floor_job_binds_repo_blob_hash(tmp_path: Path) -> None:
             f"ATTEMPT_DIR={shlex.quote(str(attempt))}",
             f"TMPDIR={shlex.quote(str(scratch))}",
             f"PY={shlex.quote(sys.executable)}",
+            "checkpoint_event() { return 0; }",
             "write_failure() { return 0; }",
             "",
         ]
@@ -655,6 +718,7 @@ def test_floor_job_rejects_working_tree_script_that_differs_from_blob(
             f"ATTEMPT_DIR={shlex.quote(str(attempt))}",
             f"TMPDIR={shlex.quote(str(scratch))}",
             f"PY={shlex.quote(sys.executable)}",
+            "checkpoint_event() { return 0; }",
             "write_failure() { return 0; }",
             "",
         ]
@@ -686,6 +750,23 @@ def test_floor_job_uses_scheduler_requested_seconds() -> None:
     )
 
 
+def _shell_interpreter_invocations(source: str) -> Counter[tuple[str, str, str]]:
+    lexer = shlex.shlex(source, posix=True, punctuation_chars=True)
+    lexer.commenters = "#"
+    lexer.whitespace_split = True
+    tokens = list(lexer)
+    candidates: list[tuple[str, str, str]] = []
+    for index, token in enumerate(tokens[:-2]):
+        variable = re.fullmatch(r"\$\{?[A-Za-z_][A-Za-z0-9_]*\}?", token)
+        executable = re.fullmatch(r"(?:.*/)?python(?:3(?:\.\d+)?)?", token)
+        if (
+            tokens[index + 1:index + 3] == ["-I", "-B"]
+            and (variable is not None or executable is not None)
+        ):
+            candidates.append((token, "-I", "-B"))
+    return Counter(candidates)
+
+
 def test_floor_job_hardens_interpreter() -> None:
     source = JOB.read_text(encoding="utf-8")
     submit = SUBMIT.read_text(encoding="utf-8")
@@ -696,10 +777,689 @@ def test_floor_job_hardens_interpreter() -> None:
     assert '"$PY" -I -B --version' in source
     assert '"$PY" -I -B "$REPO_ROOT/orchestrator/campaign/s8b_floor_campaign.py"' in source
     assert "-E -s -B" not in source
-    assert source.count('"$PY" -I -B') == 16
-    assert len(re.findall(r"(?<![A-Za-z0-9_])python3(?=\s)", submit)) == 5
-    assert submit.count("python3 -I -B") == 5
+    role_anchors = (
+        '"$PY" -I -B - "$ATTEMPT_DIR/failure.json"',
+        '"$PY" -I -B --version',
+        '"$PY" -I -B - "$POLICY" "$FLOOR_POLICY"',
+        '"$PY" -I -B - "$SUBMIT_SOURCE"',
+        '"$PY" -I -B - "$ATTEMPT_DIR/submit-receipt.json" "$IZANAGI_SUBMISSION_NONCE"',
+        'RECEIPT_SCRIPT_SHA256=$("$PY" -I -B',
+        'RECEIPT_SOURCE_COMMIT=$("$PY" -I -B',
+        'qstat_output=$("$PY" -I -B',
+        '"$PY" -I -B - "$ATTEMPT_DIR/allocation-unavailable.json"',
+        '"$PY" -I -B - "$ATTEMPT_DIR/scheduler-elapse.json"',
+        '"$PY" -I -B - "$ATTEMPT_DIR/reservation.json"',
+        '"$PY" -I -B - "$ATTEMPT_DIR/cmake-prefix-path.json"',
+        'protocol_resolution_output=$(\n  "$PY" -I -B',
+        'driver_argv=(\n  "$PY" -I -B',
+        '"$PY" -I -B - "$ATTEMPT_DIR/floor-driver.stdout"',
+        '"$PY" -I -B - "$ATTEMPT_DIR/job-result.json"',
+    )
+    assert all(source.count(anchor) == 1 for anchor in role_anchors)
+    invocation_counts = {
+        "interpreter-version-gates": source.count('"$py_resolved" -I -B -c'),
+        "preflight-checkpoint-and-admission": source.count(
+            '"$PREFLIGHT_PY" -I -B'
+        ),
+        "runtime-driver-and-records": len(role_anchors),
+    }
+    assert invocation_counts == {
+        "interpreter-version-gates": 2,
+        "preflight-checkpoint-and-admission": 3,
+        "runtime-driver-and-records": 16,
+    }
+    assert sum(invocation_counts.values()) == 21
+    assert _shell_interpreter_invocations(source) == Counter({
+        ("$py_resolved", "-I", "-B"): 2,
+        ("$PREFLIGHT_PY", "-I", "-B"): 3,
+        ("$PY", "-I", "-B"): 16,
+    })
+    assert _shell_interpreter_invocations(submit) == Counter({
+        ("python3", "-I", "-B"): 6,
+    })
+    normal_checkpoint_stages = re.findall(
+        r'^CURRENT_STAGE=([^\n]+)\nif ! checkpoint_event "\$CURRENT_STAGE" entered',
+        source,
+        re.MULTILINE,
+    )
+    assert normal_checkpoint_stages == [
+        "static-admission", "attempt-setup", "policy", "submit-binding",
+        "source-identity", "allocation-reservation", "gflags-build",
+        "glog-build", "protocol-resolution", "floor-driver", "job-result",
+    ]
+    assert len(re.findall(r"(?<![A-Za-z0-9_])python3(?=\s)", submit)) == 6
+    assert submit.count("python3 -I -B") == 6
     assert re.search(r"(?<![A-Za-z0-9_])python3\s+(?!-I -B)", submit) is None
+
+
+@pytest.mark.parametrize(
+    ("extra", "signature"),
+    [
+        ('\nOTHER_PY="$PY"\n"$OTHER_PY" -I -B -c pass\n', "$OTHER_PY"),
+        ("\nenv python3 -I -B -c pass\n", "python3"),
+        ("\n/usr/bin/python3 -I -B -c pass\n", "/usr/bin/python3"),
+    ],
+)
+def test_floor_interpreter_inventory_rejects_every_unregistered_spelling(
+    extra: str, signature: str,
+) -> None:
+    source = JOB.read_text(encoding="utf-8")
+    expected = _shell_interpreter_invocations(source)
+    observed = _shell_interpreter_invocations(source + extra)
+    assert observed != expected
+    assert observed[(signature, "-I", "-B")] == (
+        expected[(signature, "-I", "-B")] + 1
+    )
+
+
+def _append_fixture_checkpoint(
+    root: Path,
+    *,
+    job_id: str = "0:98765.nqsv",
+    nonce: str = "a" * 32,
+    stage: str = "bootstrap",
+    transition: str = "entered",
+    rc: int | None = None,
+    command: str | None = None,
+    run_dir: str | None = None,
+    journal_path: str | None = None,
+    bounded_timeout_s: float | None = None,
+) -> bool:
+    writer = (
+        floor_job_checkpoint.try_append_checkpoint
+        if bounded_timeout_s is None
+        else floor_job_checkpoint.try_append_checkpoint_bounded
+    )
+    return writer(
+        **({"timeout_s": bounded_timeout_s} if bounded_timeout_s is not None else {}),
+        path=floor_job_checkpoint.checkpoint_path(root, job_id, nonce),
+        job_id=job_id,
+        nonce=nonce,
+        producer=(
+            "s8b_floor_campaign.py"
+            if transition == "run-linked" else "floor_campaign.sh"
+        ),
+        stage=stage,
+        transition=transition,
+        rc=rc,
+        command=command,
+        durability="fsynced",
+        repo_root="/fixture/repo",
+        attempt_dir="/fixture/attempt",
+        run_dir=run_dir,
+        journal_path=journal_path,
+    )
+
+
+def test_floor_driver_consumes_checkpoint_environment_before_core_dispatch(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    path = floor_job_checkpoint.checkpoint_path(
+        tmp_path / "evidence", "0:98765.nqsv", "a" * 32,
+    )
+    monkeypatch.setenv(floor_job_checkpoint.CHECKPOINT_ENV, str(path))
+    monkeypatch.setenv(
+        floor_job_checkpoint.EVIDENCE_ROOT_ENV, str(tmp_path / "evidence"),
+    )
+    monkeypatch.setenv("IZANAGI_RESERVATION_JOB_ID", "0:98765.nqsv")
+    monkeypatch.setenv("IZANAGI_RESERVATION_NONCE", "a" * 32)
+
+    def reject_mode(_mode: object) -> str:
+        assert floor_job_checkpoint.CHECKPOINT_ENV not in os.environ
+        assert floor_job_checkpoint.EVIDENCE_ROOT_ENV not in os.environ
+        observed = subprocess.run(
+            [
+                sys.executable,
+                "-I",
+                "-B",
+                "-c",
+                "import json,os; print(json.dumps(sorted(k for k in os.environ "
+                "if k.startswith('IZANAGI_FLOOR_JOB_'))))",
+            ],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        assert json.loads(observed.stdout) == []
+        raise s8b_floor_campaign.FloorCampaignError("core dispatch sentinel")
+
+    monkeypatch.setattr(s8b_floor_campaign, "_validate_mode", reject_mode)
+    with pytest.raises(
+        s8b_floor_campaign.FloorCampaignError, match="core dispatch sentinel",
+    ):
+        s8b_floor_campaign._run_campaign_core(
+            {}, object(), out_root=tmp_path / "out", mode="pilot",
+        )
+
+
+def test_floor_driver_links_fresh_run_before_build_with_bounded_diagnostic_child() -> None:
+    source = Path(s8b_floor_campaign.__file__).read_text(encoding="utf-8")
+    fresh_start = source.index("if resume_dir is None:", source.index("def _run_campaign_core"))
+    journal_index = source.index('journal_path = run_dir / "journal.jsonl"', fresh_start)
+    link_index = source.index(
+        "floor_job_checkpoint.try_append_checkpoint_bounded(", journal_index,
+    )
+    build_index = source.index("runtime_built = build_cells(", link_index)
+    assert journal_index < link_index < build_index
+    link_block = source[link_index:build_index]
+    assert 'transition="run-linked"' in link_block
+    assert 'journal_path=str(journal_path)' in link_block
+    assert not re.search(r"subprocess|Popen|system\(", link_block)
+    helper_source = Path(floor_job_checkpoint.__file__).read_text(encoding="utf-8")
+    bounded_start = helper_source.index("def _bounded_boolean_child(")
+    bounded_end = helper_source.index("def normalize_job_id(", bounded_start)
+    bounded = helper_source[bounded_start:bounded_end]
+    assert "select.select(" in bounded
+    assert "os.kill(child, signal.SIGALRM)" in bounded
+    assert "os.waitpid(child, os.WNOHANG)" in bounded
+
+
+@pytest.mark.parametrize(
+    "fault_name", ["open", "mkdir", "write", "fsync"],
+)
+def test_floor_checkpoint_writer_faults_never_escape(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, fault_name: str,
+) -> None:
+    root = tmp_path / "evidence"
+    root.mkdir()
+
+    def fail(*_args: object, **_kwargs: object) -> object:
+        raise OSError(f"injected {fault_name} failure")
+
+    monkeypatch.setattr(floor_job_checkpoint.os, fault_name, fail)
+    assert _append_fixture_checkpoint(
+        root, bounded_timeout_s=0.04,
+    ) is False
+
+
+@pytest.mark.parametrize("fault_name", ["open", "write", "fsync"])
+def test_floor_checkpoint_filesystem_hang_has_a_wall_clock_bound(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, fault_name: str,
+) -> None:
+    root = tmp_path / "evidence"
+    root.mkdir()
+    monkeypatch.setattr(floor_job_checkpoint, "_DIAGNOSTIC_IO_TIMEOUT_S", 0.02)
+
+    def hang(*_args: object, **_kwargs: object) -> object:
+        time.sleep(5)
+        raise AssertionError("diagnostic timeout did not interrupt the syscall")
+
+    monkeypatch.setattr(floor_job_checkpoint.os, fault_name, hang)
+    started = time.monotonic()
+    assert _append_fixture_checkpoint(
+        root, bounded_timeout_s=0.04,
+    ) is False
+    assert time.monotonic() - started < 0.5
+
+
+def test_floor_checkpoint_writer_reopens_after_transient_failure(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    root = tmp_path / "evidence"
+    root.mkdir()
+    real_write = floor_job_checkpoint.os.write
+    calls = 0
+
+    def fail_once(descriptor: int, payload: bytes) -> int:
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            raise OSError("transient write failure")
+        return real_write(descriptor, payload)
+
+    monkeypatch.setattr(floor_job_checkpoint.os, "write", fail_once)
+    assert _append_fixture_checkpoint(root) is True
+    records, incomplete, _path = floor_job_checkpoint.read_checkpoint(
+        root, "98765.nqsv", "a" * 32,
+    )
+    assert len(records) == 1
+    assert incomplete is False
+
+
+def test_floor_checkpoint_short_write_is_bounded_and_never_escapes(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    root = tmp_path / "evidence"
+    root.mkdir()
+    assert _append_fixture_checkpoint(root) is True
+    checkpoint = floor_job_checkpoint.checkpoint_path(
+        root, "98765.nqsv", "a" * 32,
+    )
+    existing = checkpoint.read_bytes()
+    real_write = floor_job_checkpoint.os.write
+    calls = 0
+
+    def write_prefix_then_fail(descriptor: int, payload: bytes) -> int:
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            return real_write(descriptor, payload[:-1])
+        raise OSError("injected failure after a real short write")
+
+    monkeypatch.setattr(
+        floor_job_checkpoint.os, "write", write_prefix_then_fail,
+    )
+    assert _append_fixture_checkpoint(root, stage="policy") is False
+    assert checkpoint.read_bytes() == existing
+    monkeypatch.setattr(floor_job_checkpoint.os, "write", real_write)
+    assert _append_fixture_checkpoint(root, stage="policy") is True
+    records, incomplete, _path = floor_job_checkpoint.read_checkpoint(
+        root, "98765.nqsv", "a" * 32,
+    )
+    assert incomplete is False
+    assert [record["stage"] for record in records] == ["bootstrap", "policy"]
+
+
+def test_floor_checkpoint_failure_does_not_disable_later_events(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    root = tmp_path / "evidence"
+    root.mkdir()
+    real_write = floor_job_checkpoint.os.write
+    monkeypatch.setattr(
+        floor_job_checkpoint.os, "write",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(OSError("offline")),
+    )
+    assert _append_fixture_checkpoint(root) is False
+    monkeypatch.setattr(floor_job_checkpoint.os, "write", real_write)
+    assert _append_fixture_checkpoint(root, stage="policy") is True
+    source = JOB.read_text(encoding="utf-8")
+    assert source.count("CHECKPOINT_ENABLED=0") == 1
+    assert "for writer_attempt in 1 2; do" in source
+
+
+@pytest.mark.parametrize("symlink_level", ["root", "intermediate", "leaf"])
+def test_floor_checkpoint_rejects_symlink_at_every_namespace_level(
+    tmp_path: Path, symlink_level: str,
+) -> None:
+    protected = tmp_path / "repo-output"
+    protected.mkdir()
+    sentinel = protected / "sentinel"
+    sentinel.write_text("unchanged\n", encoding="utf-8")
+    root = tmp_path / "evidence"
+    job = "98765.nqsv"
+    nonce = "a" * 32
+    if symlink_level == "root":
+        root.symlink_to(protected, target_is_directory=True)
+    else:
+        root.mkdir()
+        if symlink_level == "intermediate":
+            (root / "pegasus").symlink_to(protected, target_is_directory=True)
+        else:
+            leaf_parent = root / "pegasus" / job / nonce
+            leaf_parent.mkdir(parents=True)
+            (leaf_parent / "checkpoint.jsonl").symlink_to(sentinel)
+
+    assert _append_fixture_checkpoint(root) is False
+    assert sentinel.read_text(encoding="utf-8") == "unchanged\n"
+    assert not list(protected.rglob("checkpoint.jsonl"))
+
+
+def test_floor_checkpoint_dirfd_contains_post_validation_root_swap(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    root = tmp_path / "evidence"
+    root.mkdir()
+    moved = tmp_path / "evidence-opened"
+    protected = tmp_path / "repo-output"
+    protected.mkdir()
+    real_open_root = floor_job_checkpoint._open_absolute_directory
+
+    def swap_after_open(path: Path) -> int:
+        descriptor = real_open_root(path)
+        path.rename(moved)
+        path.symlink_to(protected, target_is_directory=True)
+        return descriptor
+
+    monkeypatch.setattr(
+        floor_job_checkpoint, "_open_absolute_directory", swap_after_open,
+    )
+    assert _append_fixture_checkpoint(root) is True
+    assert not list(protected.rglob("checkpoint.jsonl"))
+    assert list(moved.rglob("checkpoint.jsonl"))
+
+
+def _run_floor_bootstrap(
+    repo: Path, evidence_root: Path, *, path_prefix: Path | None = None,
+) -> subprocess.CompletedProcess[str]:
+    source = JOB.read_text(encoding="utf-8")
+    bootstrap = source[:source.index('PREFLIGHT_PY=""')]
+    environment = dict(os.environ)
+    environment.update({
+        "PBS_JOBID": "0:98765.nqsv",
+        "PBS_O_WORKDIR": str(repo),
+        "IZANAGI_SUBMISSION_NONCE": "c" * 32,
+        floor_job_checkpoint.EVIDENCE_ROOT_ENV: str(evidence_root),
+    })
+    if path_prefix is not None:
+        environment["PATH"] = f"{path_prefix}:{environment['PATH']}"
+    return subprocess.run(
+        ["/bin/bash", "-c", bootstrap],
+        capture_output=True,
+        text=True,
+        env=environment,
+    )
+
+
+@pytest.mark.parametrize("symlink_level", ["root", "intermediate", "leaf"])
+def test_floor_bootstrap_w1_rejects_each_symlink_level(
+    tmp_path: Path, symlink_level: str,
+) -> None:
+    repo = _fixture_repo(tmp_path)
+    protected = repo / "output" / "w1-protected"
+    protected.mkdir()
+    sentinel = protected / "sentinel"
+    sentinel.write_text("unchanged\n", encoding="utf-8")
+    root = tmp_path / "w1-evidence"
+    nonce = "c" * 32
+    if symlink_level == "root":
+        root.symlink_to(protected, target_is_directory=True)
+    else:
+        root.mkdir()
+        if symlink_level == "intermediate":
+            (root / "pegasus").symlink_to(protected, target_is_directory=True)
+        else:
+            parent = root / "pegasus" / "98765.nqsv" / nonce
+            parent.mkdir(parents=True)
+            (parent / "checkpoint.jsonl").symlink_to(sentinel)
+
+    completed = _run_floor_bootstrap(repo, root)
+    assert completed.returncode == 0, completed.stderr
+    assert sentinel.read_text(encoding="utf-8") == "unchanged\n"
+    assert not list(protected.rglob("checkpoint.jsonl"))
+
+
+def test_floor_bootstrap_w1_parent_fd_rejects_post_validation_swap(
+    tmp_path: Path,
+) -> None:
+    repo = _fixture_repo(tmp_path)
+    root = tmp_path / "w1-evidence"
+    protected = repo / "output" / "w1-swap-target"
+    protected.mkdir()
+    nonce = "c" * 32
+    parent = root / "pegasus" / "98765.nqsv" / nonce
+    moved = parent.with_name(nonce + "-opened")
+    marker = tmp_path / "stat-swap-fired"
+    bin_dir = tmp_path / "swap-bin"
+    bin_dir.mkdir()
+    real_stat = shutil.which("stat")
+    assert real_stat is not None
+    (bin_dir / "stat").write_text(
+        "#!/bin/bash\n"
+        f"target={shlex.quote(str(parent))}\n"
+        f"moved={shlex.quote(str(moved))}\n"
+        f"protected={shlex.quote(str(protected))}\n"
+        f"marker={shlex.quote(str(marker))}\n"
+        f"real_stat={shlex.quote(real_stat)}\n"
+        "if [[ ! -e \"$marker\" && \"${!#}\" == \"$target\" ]]; then\n"
+        "  observed=$(\"$real_stat\" \"$@\") || exit $?\n"
+        "  : >\"$marker\"\n"
+        "  mv -- \"$target\" \"$moved\" || exit $?\n"
+        "  ln -s -- \"$protected\" \"$target\" || exit $?\n"
+        "  printf '%s\\n' \"$observed\"\n"
+        "  exit 0\n"
+        "fi\n"
+        "exec \"$real_stat\" \"$@\"\n",
+        encoding="utf-8",
+    )
+    (bin_dir / "stat").chmod(0o755)
+
+    completed = _run_floor_bootstrap(repo, root, path_prefix=bin_dir)
+    assert completed.returncode == 0, completed.stderr
+    assert marker.exists()
+    assert not (protected / "checkpoint.jsonl").exists()
+    assert not (moved / "checkpoint.jsonl").exists()
+    source = JOB.read_text(encoding="utf-8")
+    assert '"/proc/self/fd/$CHECKPOINT_BOOTSTRAP_PARENT_FD"' in source
+    assert 'exec {CHECKPOINT_BOOTSTRAP_FD}>"$checkpoint_fd_leaf"' in source
+
+
+def test_floor_checkpoint_shell_helper_preserves_original_rc_when_stderr_is_closed(
+    tmp_path: Path,
+) -> None:
+    source = JOB.read_text(encoding="utf-8")
+    start = source.index("checkpoint_event() {")
+    end = source.index("CURRENT_STAGE=static-admission", start)
+    checkpoint = tmp_path / "checkpoint.jsonl"
+    checkpoint.write_text("sentinel\n", encoding="utf-8")
+    prefix = "\n".join([
+        "set -Eeuo pipefail",
+        "CHECKPOINT_ENABLED=1",
+        f"PREFLIGHT_PY={shlex.quote('/bin/false')}",
+        f"REPO_ROOT={shlex.quote(str(tmp_path))}",
+        f"CHECKPOINT_PATH={shlex.quote(str(checkpoint))}",
+        "PBS_JOBID=0:98765.nqsv",
+        f"IZANAGI_SUBMISSION_NONCE={'a' * 32}",
+        "ATTEMPT_DIR=/fixture/attempt",
+        "",
+    ])
+    result = subprocess.run(
+        [
+            "bash", "-c",
+            prefix + source[start:end]
+            + "\nexec 2>&-\ncheckpoint_event floor-driver failed 7 injected\nexit 7\n",
+        ],
+    )
+    assert result.returncode == 7
+    assert checkpoint.read_text(encoding="utf-8") == "sentinel\n"
+
+
+@pytest.mark.parametrize(
+    ("trigger", "expected_rc"),
+    [("false", 1), ("kill -TERM $$", 143)],
+)
+def test_floor_checkpoint_failure_in_err_and_signal_traps_preserves_evidence(
+    tmp_path: Path, trigger: str, expected_rc: int,
+) -> None:
+    source = JOB.read_text(encoding="utf-8")
+    assert source.index("#PBS --accept-sigterm=yes") < source.index(
+        "set -Eeuo pipefail"
+    )
+    start = source.index("failure_written=0")
+    end = source.index("CURRENT_STAGE=policy", start)
+    attempt = tmp_path / "attempt"
+    attempt.mkdir()
+    failure = attempt / "failure.json"
+    original = b'{"existing":"authority"}\n'
+    failure.write_bytes(original)
+    prefix = "\n".join([
+        "set -Eeuo pipefail",
+        f"PY={shlex.quote(sys.executable)}",
+        f"ATTEMPT_DIR={shlex.quote(str(attempt))}",
+        "PBS_JOBID=0:98765.nqsv",
+        "CURRENT_STAGE=floor-driver",
+        "checkpoint_event() { return 1; }",
+        "",
+    ])
+    command = [
+        "bash", "-c", prefix + source[start:end] + "\n" + trigger + "\n",
+    ]
+    if trigger == "kill -TERM $$":
+        # A batch/xdist parent may leave TERM ignored or blocked.  Normalize it
+        # in an exec launcher so this test controls the signal-delivery premise.
+        signal_reset_launcher = (
+            "import os,signal,sys\n"
+            "signal.signal(signal.SIGTERM,signal.SIG_DFL)\n"
+            "signal.pthread_sigmask(signal.SIG_UNBLOCK,{signal.SIGTERM})\n"
+            "os.execvp(sys.argv[1],sys.argv[1:])\n"
+        )
+        command = [
+            sys.executable, "-I", "-S", "-B", "-c", signal_reset_launcher,
+            *command,
+        ]
+    result = subprocess.run(
+        command,
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == expected_rc
+    assert failure.read_bytes() == original
+
+
+def test_floor_checkpoint_stage_machine_and_completed_boundaries_are_fixed() -> None:
+    source = JOB.read_text(encoding="utf-8")
+    assert source.index("CURRENT_STAGE=bootstrap") < source.index("trap on_err ERR")
+    assert 'local command=${BASH_COMMAND:-unknown}' in source
+    assert (
+        'checkpoint_event "$CURRENT_STAGE" failed "$rc" "$command"' in source
+    )
+    write_failure = source[
+        source.index("write_failure() {"):source.index("write_interpreter_failure() {")
+    ]
+    assert 'checkpoint_event "$stage" "$checkpoint_transition"' in write_failure
+    assert 'checkpoint_event "$CURRENT_STAGE" "$checkpoint_transition"' not in write_failure
+    transitions = re.findall(
+        r'checkpoint_event "\$CURRENT_STAGE" ([a-z-]+)', source,
+    )
+    assert "completed" not in transitions
+    assert {"entered", "failed", "signalled"}.issubset(transitions)
+    assert '\\"durability\\":\\"process-kill\\"' in source
+    bootstrap_line = next(
+        line for line in source.splitlines() if "process-kill" in line
+    )
+    assert "fsynced" not in bootstrap_line
+
+
+def test_floor_evidence_index_is_create_only_and_time_bounded(tmp_path: Path) -> None:
+    root = tmp_path / "evidence"
+    root.mkdir()
+    nonce = "a" * 32
+    assert floor_job_checkpoint.try_create_index(
+        root=root,
+        job_id="98765.nqsv",
+        nonce=nonce,
+        submitted_at=1700000000,
+        requested_root=None,
+        login_probe_status="default-readable",
+    ) is True
+    job_path, time_path = floor_job_checkpoint.index_paths(
+        root, "98765.nqsv", nonce, 1700000000,
+    )
+    before = (job_path.read_bytes(), time_path.read_bytes())
+    assert floor_job_checkpoint.try_create_index(
+        root=root,
+        job_id="0:98765.nqsv",
+        nonce=nonce,
+        submitted_at=1700000000,
+        requested_root=None,
+        login_probe_status="default-readable",
+    ) is True
+    assert (job_path.read_bytes(), time_path.read_bytes()) == before
+    assert floor_job_checkpoint.try_create_index(
+        root=root,
+        job_id="98765.nqsv",
+        nonce=nonce,
+        submitted_at=1700000000,
+        requested_root="/different",
+        login_probe_status="override-readable",
+    ) is False
+    assert (job_path.read_bytes(), time_path.read_bytes()) == before
+    resolved = floor_job_checkpoint.resolve_indices_by_time(
+        root, earliest=1699999999, latest=1700000001, max_entries=1,
+    )
+    assert [record["submission_nonce"] for record in resolved] == [nonce]
+
+
+@pytest.mark.parametrize("fault_name", ["open", "write", "fsync"])
+def test_floor_evidence_index_recovers_each_second_leaf_fault(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, fault_name: str,
+) -> None:
+    root = tmp_path / "evidence"
+    root.mkdir()
+    nonce = "b" * 32
+    real_operation = getattr(floor_job_checkpoint.os, fault_name)
+    injected = False
+
+    def is_time_leaf(descriptor: int) -> bool:
+        try:
+            return "/index/by-time/" in os.readlink(f"/proc/self/fd/{descriptor}")
+        except OSError:
+            return False
+
+    if fault_name == "open":
+        def fail_second_open(
+            path: object, flags: int, mode: int = 0o777, *, dir_fd: int | None = None,
+        ) -> int:
+            nonlocal injected
+            if (
+                not injected
+                and type(path) is str
+                and path.endswith(".json")
+                and dir_fd is not None
+                and is_time_leaf(dir_fd)
+            ):
+                injected = True
+                raise OSError("injected second index create failure")
+            return real_operation(path, flags, mode, dir_fd=dir_fd)
+
+        monkeypatch.setattr(floor_job_checkpoint.os, "open", fail_second_open)
+    elif fault_name == "write":
+        def fail_second_write(descriptor: int, payload: bytes) -> int:
+            nonlocal injected
+            if not injected and is_time_leaf(descriptor):
+                injected = True
+                raise OSError("injected second index write failure")
+            return real_operation(descriptor, payload)
+
+        monkeypatch.setattr(floor_job_checkpoint.os, "write", fail_second_write)
+    else:
+        def fail_second_fsync(descriptor: int) -> None:
+            nonlocal injected
+            if not injected and is_time_leaf(descriptor):
+                injected = True
+                raise OSError("injected second index fsync failure")
+            real_operation(descriptor)
+
+        monkeypatch.setattr(floor_job_checkpoint.os, "fsync", fail_second_fsync)
+
+    arguments = {
+        "root": root,
+        "job_id": "98765.nqsv",
+        "nonce": nonce,
+        "submitted_at": 1700000001,
+        "requested_root": None,
+        "login_probe_status": "default-readable",
+    }
+    assert floor_job_checkpoint.try_create_index(**arguments) is False
+    assert injected is True
+    monkeypatch.setattr(floor_job_checkpoint.os, fault_name, real_operation)
+    assert floor_job_checkpoint.try_create_index(**arguments) is True
+    job_path, time_path = floor_job_checkpoint.index_paths(
+        root, "98765.nqsv", nonce, 1700000001,
+    )
+    assert job_path.read_bytes() == time_path.read_bytes()
+    assert floor_job_checkpoint.resolve_indices_by_time(
+        root, earliest=1700000001, latest=1700000001, max_entries=1,
+    )[0]["submission_nonce"] == nonce
+
+
+def test_floor_time_resolver_bound_counts_matches_not_lifetime_history(
+    tmp_path: Path,
+) -> None:
+    root = tmp_path / "evidence"
+    root.mkdir()
+    for ordinal in range(129):
+        assert floor_job_checkpoint.try_create_index(
+            root=root,
+            job_id=f"old-{ordinal}.nqsv",
+            nonce=f"{ordinal:032x}",
+            submitted_at=1690000000 + ordinal,
+            requested_root=None,
+            login_probe_status="default-readable",
+        )
+    target_nonce = "f" * 32
+    assert floor_job_checkpoint.try_create_index(
+        root=root,
+        job_id="target.nqsv",
+        nonce=target_nonce,
+        submitted_at=1700000000,
+        requested_root=None,
+        login_probe_status="default-readable",
+    )
+    resolved = floor_job_checkpoint.resolve_indices_by_time(
+        root, earliest=1700000000, latest=1700000000, max_entries=1,
+    )
+    assert [record["submission_nonce"] for record in resolved] == [target_nonce]
 
 
 def test_floor_job_records_interpreter_resolution_failure_after_attempt_creation(
@@ -722,6 +1482,8 @@ def test_floor_job_records_interpreter_resolution_failure_after_attempt_creation
             "set -Eeuo pipefail",
             "set -o noclobber",
             f"ATTEMPT_DIR={shlex.quote(str(attempt))}",
+            "CURRENT_STAGE=attempt-setup",
+            "checkpoint_event() { return 0; }",
             "",
         ]
     )
@@ -765,6 +1527,8 @@ def _run_interpreter_selection(
             "set -Eeuo pipefail",
             "set -o noclobber",
             f"ATTEMPT_DIR={shlex.quote(str(attempt))}",
+            "CURRENT_STAGE=attempt-setup",
+            "checkpoint_event() { return 0; }",
             "",
         ]
     )
@@ -879,6 +1643,7 @@ def test_floor_job_builds_and_exports_dependency_prefixes(tmp_path: Path) -> Non
             f"PY={shlex.quote(sys.executable)}",
             "CC_PATH=/bin/true",
             "CXX_PATH=/bin/true",
+            "checkpoint_event() { return 0; }",
             "write_failure() { return 0; }",
             "",
         ]
@@ -1060,6 +1825,7 @@ def _run_floor_driver_tail(
         f"IZANAGI_SUBMISSION_NONCE={'d' * 32}",
         "REQUESTED_S=36000",
         "export STUB_DRIVER_RC=0",
+        "checkpoint_event() { return 0; }",
         "write_failure() { return 0; }",
     ]
     if confirmation is not None:
@@ -1332,6 +2098,116 @@ def test_submit_floor_non_dry_run_success_writes_real_submission_record(
     assert stat.S_IMODE(claims.stat().st_mode) == 0o700
 
 
+def test_submit_floor_probes_and_indexes_explicit_external_evidence_root(
+    tmp_path: Path,
+) -> None:
+    evidence_root = tmp_path / "shared-evidence"
+    repo, submission, qsub_args_path, _qsub_cwd = _successful_submission(
+        tmp_path,
+        extra_env={
+            floor_job_checkpoint.EVIDENCE_ROOT_ENV: str(evidence_root),
+        },
+    )
+    receipt = artifacts.load_json_strict(submission / "submit-receipt.json")
+    catalog_root = repo.parent / "izanagi-job-evidence"
+    index = floor_job_checkpoint.load_bound_index(
+        catalog_root,
+        job_id=receipt["job_id"],
+        nonce=receipt["nonce"],
+        submitted_at=receipt["submitted_at"],
+    )
+    assert index["login_probe_status"] == "override-readable"
+    assert index["requested_evidence_root"] == str(evidence_root)
+    assert index["catalog_root"] == str(catalog_root)
+    assert index["evidence_root"] == str(evidence_root)
+    qsub_args = [
+        item.decode("utf-8")
+        for item in qsub_args_path.read_bytes().split(b"\0")
+        if item
+    ]
+    export_spec = qsub_args[qsub_args.index("-v") + 1]
+    assert export_spec == (
+        f"IZANAGI_SUBMISSION_NONCE={receipt['nonce']},"
+        f"IZANAGI_FLOOR_JOB_EVIDENCE_ROOT={evidence_root}"
+    )
+    assert not list(repo.rglob("checkpoint.jsonl"))
+
+
+def test_submit_floor_unreadable_override_falls_back_and_records_probe(
+    tmp_path: Path,
+) -> None:
+    repo = _fixture_repo(tmp_path)
+    bin_dir, qsub_args_path, _qsub_cwd = _successful_bin(tmp_path)
+    unsafe = repo / "output" / "inside-repository"
+    result = _submit(
+        repo,
+        bin_dir,
+        extra_env={floor_job_checkpoint.EVIDENCE_ROOT_ENV: str(unsafe)},
+    )
+    assert result.returncode == 0, result.stderr
+    assert "using default" in result.stderr
+    submission = _only_submission(
+        repo, "output/env/pegasus/floor/attempts",
+    )
+    receipt = artifacts.load_json_strict(submission / "submit-receipt.json")
+    default_root = repo.parent / "izanagi-job-evidence"
+    index = floor_job_checkpoint.load_bound_index(
+        default_root,
+        job_id=receipt["job_id"],
+        nonce=receipt["nonce"],
+        submitted_at=receipt["submitted_at"],
+    )
+    assert index["login_probe_status"] == "override-unreadable-fallback"
+    assert index["requested_evidence_root"] == str(unsafe)
+    qsub_args = [
+        item.decode("utf-8")
+        for item in qsub_args_path.read_bytes().split(b"\0")
+        if item
+    ]
+    assert floor_job_checkpoint.EVIDENCE_ROOT_ENV not in (
+        qsub_args[qsub_args.index("-v") + 1]
+    )
+
+
+def test_submit_floor_unreadable_default_persists_sidecar_for_consumer(
+    tmp_path: Path,
+) -> None:
+    repo = _fixture_repo(tmp_path)
+    bin_dir, _qsub_args_path, _qsub_cwd = _successful_bin(tmp_path)
+    default_root = repo.parent / "izanagi-job-evidence"
+    default_root.symlink_to(repo / "output", target_is_directory=True)
+    result = _submit(repo, bin_dir)
+    assert result.returncode == 0, result.stderr
+    assert "default floor evidence root is not login-readable" in result.stderr
+    assert "external floor evidence index create-only write failed" in result.stderr
+    submission = _only_submission(repo, "output/env/pegasus/floor/attempts")
+    receipt = artifacts.load_json_strict(submission / "submit-receipt.json")
+    status_path = submission / "evidence-index-status.json"
+    status = floor_job_checkpoint.load_index_status(
+        status_path,
+        job_id=receipt["job_id"],
+        nonce=receipt["nonce"],
+        submitted_at=receipt["submitted_at"],
+    )
+    assert status["login_probe_status"] == "default-unreadable"
+    assert status["index_write_status"] == "failed"
+
+    classified = floor_liveness.classify(
+        receipt["job_id"], receipt["nonce"], timeout_s=5,
+        repo_root=repo,
+        run_command=lambda _command, **_kwargs: _qstat_result(
+            receipt["job_id"], present=False,
+        ),
+    )
+    external = next(
+        item for item in classified["evidence"]
+        if item["kind"] == "external-job-index-status"
+    )
+    assert external["index_status_path"] == str(status_path)
+    assert external["index_probe_status"] == "default-unreadable"
+    assert external["index_write_status"] == "failed"
+
+
 def test_submit_floor_explicit_confirmation_exports_submission_nonce(
     tmp_path: Path,
 ) -> None:
@@ -1523,6 +2399,43 @@ def test_floor_liveness_classifies_queue_wait_without_success_claim(
     assert result["request_disappeared_is_success"] is False
 
 
+def test_floor_liveness_cli_resolves_evidence_by_job_id_and_time(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str],
+) -> None:
+    repo, submission, _qsub_args, _qsub_cwd = _successful_submission(tmp_path)
+    receipt = artifacts.load_json_strict(submission / "submit-receipt.json")
+    catalog_root = repo.parent / "izanagi-job-evidence"
+
+    assert floor_liveness.main([
+        "--resolve-job-id", "0:" + receipt["job_id"],
+        "--evidence-root", str(catalog_root),
+    ]) == 0
+    by_job = json.loads(capsys.readouterr().out)
+    assert by_job["query"] == {
+        "kind": "job-id", "job_id": "0:" + receipt["job_id"],
+    }
+    assert [item["submission_nonce"] for item in by_job["matches"]] == [
+        receipt["nonce"],
+    ]
+    assert Path(by_job["matches"][0]["checkpoint_path"]).is_absolute()
+
+    assert floor_liveness.main([
+        "--resolve-time", str(receipt["submitted_at"]),
+        str(receipt["submitted_at"]),
+        "--max-index-results", "1",
+        "--evidence-root", str(catalog_root),
+    ]) == 0
+    by_time = json.loads(capsys.readouterr().out)
+    assert by_time["query"] == {
+        "kind": "submitted-at",
+        "earliest": receipt["submitted_at"],
+        "latest": receipt["submitted_at"],
+    }
+    assert [item["submission_nonce"] for item in by_time["matches"]] == [
+        receipt["nonce"],
+    ]
+
+
 def test_floor_liveness_requires_bound_compute_marker_for_running(
     tmp_path: Path,
 ) -> None:
@@ -1581,15 +2494,34 @@ def test_floor_liveness_disappearance_is_terminal_not_success_and_reads_stderr(
     assert result["request_disappeared"] is True
     assert result["job_success"] is None
     assert result["request_disappeared_is_success"] is False
-    assert result["evidence"] == [{
-        "path": str(submission / "scheduler.stderr"),
-        "kind": "structured-stderr",
-        "fields": {
-            "gate": "admission",
-            "reason": "floor receipt strict read failed",
+    evidence_root = tmp_path / "izanagi-job-evidence"
+    assert result["evidence"] == [
+        {
+            "path": str(submission / "scheduler.stderr"),
+            "kind": "structured-stderr",
+            "fields": {
+                "gate": "admission",
+                "reason": "floor receipt strict read failed",
+            },
+            "accounting_present": False,
         },
-        "accounting_present": False,
-    }]
+        {
+            "kind": "external-job-index",
+            "index_path": str(
+                evidence_root / "index" / "by-job" / "98765.nqsv"
+                / f"{receipt['nonce']}.json"
+            ),
+            "checkpoint_path": str(
+                evidence_root / "pegasus" / "98765.nqsv"
+                / receipt["nonce"] / "checkpoint.jsonl"
+            ),
+            "index_probe_status": "default-readable",
+            "index_write_status": "published",
+            "last_observed_stage": None,
+            "cause": "unknown",
+            "rerun_eligible": None,
+        },
+    ]
 
 
 def test_floor_liveness_nonzero_unknown_job_is_also_finished(
@@ -1656,6 +2588,324 @@ def test_floor_liveness_terminal_reads_job_staging_failure_json(
             "rc": 2,
         },
     }
+
+
+def _external_liveness_fixture(
+    tmp_path: Path,
+    *,
+    journal_nonce: str | None = None,
+    incomplete_checkpoint: bool = False,
+    incomplete_journal: bool = False,
+) -> tuple[Path, dict[str, object], Path, Path]:
+    evidence_root = tmp_path / "external-evidence"
+    repo, submission, _qsub_args, _qsub_cwd = _successful_submission(
+        tmp_path,
+        extra_env={
+            floor_job_checkpoint.EVIDENCE_ROOT_ENV: str(evidence_root),
+        },
+    )
+    receipt = artifacts.load_json_strict(submission / "submit-receipt.json")
+    job_id = receipt["job_id"]
+    nonce = receipt["nonce"]
+    run_dir = tmp_path / "external-run"
+    run_dir.mkdir()
+    journal = run_dir / "journal.jsonl"
+    binding_nonce = nonce if journal_nonce is None else journal_nonce
+    journal.write_text(
+        json.dumps({
+            "event": "reservation-preflight",
+            "required_s": 28800,
+            "safety_margin_s": 600,
+            "formula": "fixed floor reservation formula",
+            "build_cap_per_cell_s": 900,
+            "shared_dependency_prebuild": True,
+            "dependency_configure_cap_s": 900,
+            "dependency_target_cap_s": 900,
+            "verify_cap_per_attempt_s": 120,
+            "finalize_reserve_s": 600,
+            "pbs_jobid": "0:" + job_id,
+            "submission_nonce": binding_nonce,
+        }, sort_keys=True)
+        + "\n"
+        + json.dumps({
+            "event": "session-start",
+            "seq": 0,
+            "kind": "planned",
+            "cell_id": "rr79/candidate",
+            "round": 1,
+            "retry_ordinal": None,
+            "attempt_id": "rr79/candidate::seq0",
+            "trigger": None,
+            "started_iso": "2026-08-18T00:00:00+00:00",
+        }, sort_keys=True)
+        + "\n",
+        encoding="utf-8",
+    )
+    assert _append_fixture_checkpoint(
+        evidence_root, job_id=job_id, nonce=nonce,
+    )
+    assert _append_fixture_checkpoint(
+        evidence_root,
+        job_id=job_id,
+        nonce=nonce,
+        stage="floor-driver",
+        transition="run-linked",
+        run_dir=str(run_dir),
+        journal_path=str(journal),
+    )
+    checkpoint = floor_job_checkpoint.checkpoint_path(
+        evidence_root, job_id, nonce,
+    )
+    if incomplete_checkpoint:
+        with checkpoint.open("ab") as handle:
+            handle.write(b'{"schema_version":')
+    if incomplete_journal:
+        with journal.open("ab") as handle:
+            handle.write(b'{"event":')
+    catalog_root = repo.parent / "izanagi-job-evidence"
+    return repo, receipt, catalog_root, journal
+
+
+def test_floor_liveness_consumes_external_checkpoint_and_incomplete_prefix(
+    tmp_path: Path,
+) -> None:
+    repo, receipt, evidence_root, journal = _external_liveness_fixture(
+        tmp_path, incomplete_checkpoint=True, incomplete_journal=True,
+    )
+
+    result = floor_liveness.classify(
+        receipt["job_id"],
+        receipt["nonce"],
+        timeout_s=5,
+        repo_root=repo,
+        evidence_root=evidence_root,
+        run_command=lambda _command, **_kwargs: _qstat_result(
+            receipt["job_id"], present=False,
+        ),
+    )
+
+    external = next(
+        item for item in result["evidence"]
+        if item["kind"] == "external-job-checkpoint"
+    )
+    assert external["incomplete_tail"] is True
+    assert external["last_observed_stage"] == "floor-driver"
+    assert external["last_transition"] == "run-linked"
+    assert external["cause"] == "unknown"
+    assert external["rerun_eligible"] is None
+    assert external["run_link"] == {
+        "present": True,
+        "valid": True,
+        "run_dir": str(journal.parent),
+        "journal_path": str(journal),
+        "journal_incomplete_tail": True,
+        "last_session_cell_id": "rr79/candidate",
+    }
+    with pytest.raises(
+        s8b_floor_campaign.FloorCampaignError, match="truncated crash",
+    ):
+        s8b_floor_campaign._read_journal(journal)
+
+
+def test_floor_liveness_rejects_run_link_with_mismatched_nonce(
+    tmp_path: Path,
+) -> None:
+    repo, receipt, evidence_root, _journal = _external_liveness_fixture(
+        tmp_path, journal_nonce="b" * 32,
+    )
+    result = floor_liveness.classify(
+        receipt["job_id"],
+        receipt["nonce"],
+        timeout_s=5,
+        repo_root=repo,
+        evidence_root=evidence_root,
+        run_command=lambda _command, **_kwargs: _qstat_result(
+            receipt["job_id"], present=False,
+        ),
+    )
+    external = next(
+        item for item in result["evidence"]
+        if item["kind"].startswith("external-job-checkpoint")
+    )
+    assert external["kind"] == "external-job-checkpoint-unusable"
+    assert "bindings disagree" in external["reason"]
+
+
+def test_floor_liveness_rejects_binding_fields_on_an_arbitrary_event(
+    tmp_path: Path,
+) -> None:
+    repo, receipt, catalog_root, journal = _external_liveness_fixture(tmp_path)
+    journal.write_text(
+        json.dumps({
+            "event": "session",
+            "pbs_jobid": receipt["job_id"],
+            "submission_nonce": receipt["nonce"],
+        }) + "\n",
+        encoding="utf-8",
+    )
+    result = floor_liveness.classify(
+        receipt["job_id"], receipt["nonce"], timeout_s=5,
+        repo_root=repo, evidence_root=catalog_root,
+        run_command=lambda _command, **_kwargs: _qstat_result(
+            receipt["job_id"], present=False,
+        ),
+    )
+    external = next(
+        item for item in result["evidence"]
+        if item["kind"].startswith("external-job-checkpoint")
+    )
+    assert external["kind"] == "external-job-checkpoint-unusable"
+    assert "non-binding event" in external["reason"]
+
+
+def test_floor_liveness_campaign_start_binding_requires_exact_shape_and_agreement() -> None:
+    job_id = "98765.nqsv"
+    nonce = "a" * 32
+    campaign_start = {
+        "event": "campaign-start",
+        "schema": "s8b-floor-journal/v3",
+        "protocol_sha256": "1" * 64,
+        "freeze_sha256": "2" * 64,
+        "manifest_sha256": "3" * 64,
+        "hostname": "bnode1",
+        "boot_id": None,
+        "job_id": "0:" + job_id,
+        "cpuset": "0-47",
+        "utc": "2026-08-18T00:00:00+00:00",
+        "pid": 123,
+        "starttime": 456,
+        "execution_uuid": "4" * 32,
+        "pbs_jobid": job_id,
+        "submission_nonce": nonce,
+    }
+    assert floor_liveness._validate_journal_binding(
+        [campaign_start], job_id="0:" + job_id, nonce=nonce,
+    ) == (None, False)
+    with pytest.raises(
+        floor_job_checkpoint.CheckpointError, match="campaign-start binding shape",
+    ):
+        floor_liveness._validate_journal_binding(
+            [{**campaign_start, "unexpected": True}],
+            job_id=job_id,
+            nonce=nonce,
+        )
+    reservation = {
+        "event": "reservation-preflight",
+        "required_s": 28800,
+        "safety_margin_s": 600,
+        "formula": "fixed floor reservation formula",
+        "build_cap_per_cell_s": 900,
+        "shared_dependency_prebuild": True,
+        "dependency_configure_cap_s": 900,
+        "dependency_target_cap_s": 900,
+        "verify_cap_per_attempt_s": 120,
+        "finalize_reserve_s": 600,
+        "pbs_jobid": job_id,
+        "submission_nonce": "b" * 32,
+    }
+    with pytest.raises(
+        floor_job_checkpoint.CheckpointError, match="bindings disagree",
+    ):
+        floor_liveness._validate_journal_binding(
+            [campaign_start, reservation], job_id=job_id, nonce=nonce,
+        )
+
+
+def test_floor_liveness_rejects_duplicate_binding_and_noncanonical_session(
+    tmp_path: Path,
+) -> None:
+    repo, receipt, catalog_root, journal = _external_liveness_fixture(tmp_path)
+    records = [json.loads(line) for line in journal.read_text().splitlines()]
+    journal.write_text(
+        "\n".join(json.dumps(record) for record in [records[0], records[0]])
+        + "\n",
+        encoding="utf-8",
+    )
+    duplicated = floor_liveness.classify(
+        receipt["job_id"], receipt["nonce"], timeout_s=5,
+        repo_root=repo, evidence_root=catalog_root,
+        run_command=lambda _command, **_kwargs: _qstat_result(
+            receipt["job_id"], present=False,
+        ),
+    )
+    duplicate_evidence = next(
+        item for item in duplicated["evidence"]
+        if item["kind"].startswith("external-job-checkpoint")
+    )
+    assert "not unique" in duplicate_evidence["reason"]
+
+    malformed_session = dict(records[1])
+    malformed_session.pop("started_iso")
+    journal.write_text(
+        "\n".join(json.dumps(record) for record in [records[0], malformed_session])
+        + "\n",
+        encoding="utf-8",
+    )
+    malformed = floor_liveness.classify(
+        receipt["job_id"], receipt["nonce"], timeout_s=5,
+        repo_root=repo, evidence_root=catalog_root,
+        run_command=lambda _command, **_kwargs: _qstat_result(
+            receipt["job_id"], present=False,
+        ),
+    )
+    malformed_evidence = next(
+        item for item in malformed["evidence"]
+        if item["kind"].startswith("external-job-checkpoint")
+    )
+    assert "session-start exact shape" in malformed_evidence["reason"]
+
+
+def test_floor_liveness_external_index_uses_receipt_job_id_after_normalized_match(
+    tmp_path: Path,
+) -> None:
+    repo, receipt, catalog_root, _journal = _external_liveness_fixture(tmp_path)
+    result = floor_liveness.classify(
+        "0:" + receipt["job_id"], receipt["nonce"], timeout_s=5,
+        repo_root=repo, evidence_root=catalog_root,
+        run_command=lambda _command, **_kwargs: _qstat_result(
+            receipt["job_id"], present=False,
+        ),
+    )
+    external = next(
+        item for item in result["evidence"]
+        if item["kind"] == "external-job-checkpoint"
+    )
+    assert external["run_link"]["valid"] is True
+
+
+def test_floor_liveness_reports_signal_observation_without_scheduler_cause(
+    tmp_path: Path,
+) -> None:
+    repo, receipt, catalog_root, _journal = _external_liveness_fixture(tmp_path)
+    index = floor_job_checkpoint.load_bound_index(
+        catalog_root,
+        job_id=receipt["job_id"],
+        nonce=receipt["nonce"],
+        submitted_at=receipt["submitted_at"],
+    )
+    assert _append_fixture_checkpoint(
+        Path(index["evidence_root"]),
+        job_id=receipt["job_id"],
+        nonce=receipt["nonce"],
+        stage="floor-driver",
+        transition="signalled",
+        rc=143,
+        command="signal TERM",
+    )
+    result = floor_liveness.classify(
+        receipt["job_id"], receipt["nonce"], timeout_s=5,
+        repo_root=repo, evidence_root=catalog_root,
+        run_command=lambda _command, **_kwargs: _qstat_result(
+            receipt["job_id"], present=False,
+        ),
+    )
+    external = next(
+        item for item in result["evidence"]
+        if item["kind"] == "external-job-checkpoint"
+    )
+    assert external["last_transition"] == "signalled"
+    assert external["cause"] == "unknown"
+    assert external["observed_signal"] == "TERM"
 
 
 def test_floor_liveness_running_without_marker_times_out_indeterminate(
@@ -2170,7 +3420,9 @@ def test_submit_receipt_round_trips_through_job_validator(
 
 def _driver_tail() -> str:
     source = JOB.read_text(encoding="utf-8")
-    return source[source.index("protocol_resolution_rc=0") :]
+    return "CHECKPOINT_PATH=${CHECKPOINT_PATH:-}\n" + source[
+        source.index("protocol_resolution_rc=0") :
+    ]
 
 
 def _floor_driver_stub_source(*, invalid_metric: str | None = None) -> str:
@@ -2277,6 +3529,7 @@ def _run_driver_tail_with_resolver(
             f"export STUB_CALL_LOG={shlex.quote(str(call_log))}",
             "export STUB_RESOLVER_OUTPUT=" + shlex.quote(resolver_output),
             f"export STUB_RESOLVER_RC={resolver_rc}",
+            "checkpoint_event() { return 0; }",
             "write_failure() {",
             f"  printf '%s|%s|%s\\n' \"$1\" \"$2\" \"$3\" > {shlex.quote(str(failure_call))}",
             "}",
@@ -2397,6 +3650,7 @@ def test_floor_reservation_record_has_exact_schema(tmp_path: Path) -> None:
             "BOOT_ID=11111111-2222-3333-4444-555555555555",
             f"JOB_SCRIPT_SHA256={script_sha}",
             f"IZANAGI_SUBMISSION_NONCE={nonce}",
+            "checkpoint_event() { return 0; }",
             "",
         ]
     )
@@ -2448,6 +3702,7 @@ def test_floor_driver_failure_propagates_rc(
             f"IZANAGI_SUBMISSION_NONCE={'d' * 32}",
             "REQUESTED_S=36000",
             "export STUB_DRIVER_RC=" + str(driver_rc),
+            "checkpoint_event() { return 0; }",
             "write_failure() {",
             f"  printf '%s|%s|%s\\n' \"$1\" \"$2\" \"$3\" > {shlex.quote(str(failure_call))}",
             "}",
@@ -2518,6 +3773,7 @@ def test_floor_driver_zero_rc_rejects_missing_w2_floor_metric(
             f"IZANAGI_SUBMISSION_NONCE={'d' * 32}",
             "REQUESTED_S=36000",
             "export STUB_DRIVER_RC=0",
+            "checkpoint_event() { return 0; }",
             "write_failure() {",
             f"  printf '%s|%s|%s\\n' \"$1\" \"$2\" \"$3\" > {shlex.quote(str(failure_call))}",
             "}",
@@ -2579,6 +3835,7 @@ def test_floor_driver_fd_setup_failure_does_not_mark_launch(
             f"EXECUTING_SCRIPT_SHA256={'c' * 64}",
             f"IZANAGI_SUBMISSION_NONCE={'d' * 32}",
             "REQUESTED_S=36000",
+            "checkpoint_event() { return 0; }",
             "write_failure() {",
             f"  printf '%s|%s|%s\\n' \"$1\" \"$2\" \"$3\" > {shlex.quote(str(failure_call))}",
             "}",
@@ -2634,6 +3891,7 @@ def test_floor_job_result_writer_failure_preserves_driver_rc(
             f"EXECUTING_SCRIPT_SHA256={'c' * 64}",
             f"IZANAGI_SUBMISSION_NONCE={'d' * 32}",
             "REQUESTED_S=36000",
+            "checkpoint_event() { return 0; }",
             "write_failure() {",
             f"  printf '%s|%s|%s\\n' \"$1\" \"$2\" \"$3\" >> {shlex.quote(str(failure_call))}",
             "}",

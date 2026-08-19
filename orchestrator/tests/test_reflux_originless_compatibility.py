@@ -13,6 +13,16 @@ from orchestrator.campaign import p3_autonomous_workload_trial as A
 from orchestrator.tests import test_p3_autonomous_workload_trial as p3_test
 
 
+def _canonical(value: object) -> bytes:
+    return json.dumps(
+        value,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+        allow_nan=False,
+    ).encode("utf-8")
+
+
 def _pin_fixture_commit_dates(monkeypatch: pytest.MonkeyPatch) -> None:
     """Make the rebuilt fixture repository's commit identities deterministic."""
     original_git_env = A.trial_registry._git_env
@@ -851,10 +861,10 @@ _PRE_T822_ACTIVATION_REPORT_DIGEST_SHA256 = (
 )
 
 
-def _project_t822_receipt_v2_to_v1(
+def _project_t822_receipt_v3_to_v1(
     bundle: dict[str, object],
 ) -> dict[str, object]:
-    """Validate and consume receipt-v2 additions before the frozen view."""
+    """Validate and consume receipt-v3 additions before the frozen view."""
 
     projected = copy.deepcopy(bundle)
     acceptance = projected["acceptance"]
@@ -863,13 +873,14 @@ def _project_t822_receipt_v2_to_v1(
     assert type(acceptance) is dict
     assert type(reports) is list
     assert type(journals) is list
-    assert acceptance["schema_version"] == (
-        "p3-8c-trial-acceptance-receipt/v2"
-    )
+    assert acceptance["schema_version"] == "p3-8c-trial-acceptance-receipt/v3"
     assert acceptance["certifying"] is False
     assert acceptance["non_certifying_reason_codes"] == [
-        "t468-approval-authority-absent"
+        "no-build",
+        "t468-approval-authority-absent",
     ]
+    aggregate = acceptance.pop("cross_binding_receipt_sha256")
+    assert type(aggregate) is str and len(aggregate) == 64
     current_activation_digest = acceptance[
         "activation_report_digest_sha256"
     ]
@@ -921,10 +932,14 @@ def _project_t822_receipt_v2_to_v1(
     receipt_trials = acceptance["trials"]
     assert type(receipt_trials) is list
     assert {trial["trial_id"] for trial in receipt_trials} == set(reports_by_id)
+    leaf_rows = []
     for trial in receipt_trials:
         assert type(trial) is dict
         trial_id = trial["trial_id"]
         arm_execution = trial.pop("arm_execution")
+        leaf = trial.pop("cross_binding_receipt_sha256")
+        assert type(leaf) is str and len(leaf) == 64
+        leaf_rows.append({"trial_id": trial_id, "receipt_sha256": leaf})
         assert set(arm_execution) == {
             "input_schema_version",
             "content_digest_sha256",
@@ -937,6 +952,12 @@ def _project_t822_receipt_v2_to_v1(
             "content_digest_sha256",
             "arm_binding_digest_sha256",
         }
+    assert hashlib.sha256(
+        _canonical({
+            "schema_version": "p3-8c-cross-binding-receipt/v1",
+            "trials": sorted(leaf_rows, key=lambda row: row["trial_id"]),
+        })
+    ).hexdigest() == aggregate
 
     acceptance["schema_version"] = "p3-8c-trial-acceptance-receipt/v1"
     acceptance["activation_report_digest_sha256"] = (
@@ -1034,7 +1055,7 @@ def _project_t244_additions_to_pre_wave(bundle: dict[str, object]) -> dict[str, 
     """Consume each adjudicated addition explicitly, then expose the old view."""
 
     projected = _project_t1185_generation_binding_to_generation_one(bundle)
-    projected = _project_t822_receipt_v2_to_v1(projected)
+    projected = _project_t822_receipt_v3_to_v1(projected)
     projected = _project_t1311_arm_authority_to_pre_wave(projected)
     for report in projected["reports"]:
         assert report["schema_version"] == A.REPORT_SCHEMA_VERSION
@@ -1135,7 +1156,7 @@ def test_originless_default_preserves_every_nonvolatile_leaf_and_closed_key_set(
         "content_digest_sha256"
     ] = "f" * 64
     with pytest.raises(AssertionError):
-        _project_t822_receipt_v2_to_v1(receipt_binding_mutant)
+        _project_t822_receipt_v3_to_v1(receipt_binding_mutant)
     run_start_mutant = copy.deepcopy(omitted)
     start = next(
         event for event in run_start_mutant["journals"][0]
@@ -1143,7 +1164,7 @@ def test_originless_default_preserves_every_nonvolatile_leaf_and_closed_key_set(
     )
     start["arm_execution"]["content_digest_sha256"] = "e" * 64
     with pytest.raises(AssertionError):
-        _project_t822_receipt_v2_to_v1(run_start_mutant)
+        _project_t822_receipt_v3_to_v1(run_start_mutant)
     input_schema_mutant = copy.deepcopy(omitted)
     receipt_trial = input_schema_mutant["acceptance"]["trials"][0]
     trial_id = receipt_trial["trial_id"]

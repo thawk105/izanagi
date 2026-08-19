@@ -67,12 +67,26 @@ MACHINE_CONTRACT_FUNCTION_CHECKS = frozenset(
         ("C02", "orchestrator/campaign/p3_autonomous_workload_trial.py", "proposal_path"),
         ("C02", "orchestrator/campaign/p3_autonomous_workload_trial.py", "run_trial"),
         ("C04", "orchestrator/campaign/p3_autonomous_workload_trial.py", "main"),
+        (
+            "C04",
+            "orchestrator/campaign/p3_autonomous_workload_trial.py",
+            "mark_experiment_indeterminate",
+        ),
         ("C04", "orchestrator/campaign/p3_autonomous_workload_trial.py", "run_trial"),
+        ("C04", "orchestrator/campaign/trial_registry.py", "forbid_trial_restart"),
+        ("C04", "orchestrator/campaign/trial_registry.py", "reject_started_trial"),
+        ("C07", "orchestrator/campaign/s8c_result_judge.py", "verify_floor_bytes"),
+        ("C07", "orchestrator/campaign/s8c_result_judge.py", "judge"),
+        ("C07", "orchestrator/campaign/s8c_result_judge.py", "publish_result_table"),
+        ("C07", "orchestrator/campaign/s8b_ratified_freeze.py", "load_ratified_freeze"),
         ("C09", "orchestrator/campaign/p3_autonomous_workload_trial.py", "assert_campaign_layer3_chain"),
         ("C09", "orchestrator/campaign/p3_autonomous_workload_trial.py", "main"),
         ("C09", "orchestrator/campaign/trial_registry.py", "assert_trial_registry_acceptance"),
         ("C09", "orchestrator/campaign/p3_autonomous_workload_trial.py", "run_trial"),
+        ("C09", "orchestrator/campaign/trial_registry.py", "assert_campaign_layer3_chain"),
         ("C10", "orchestrator/campaign/trial_registry.py", "assert_trial_registry_acceptance"),
+        ("C10", "orchestrator/campaign/autonomous_trial_completeness.py", "verify_s8c_cross_binding"),
+        ("C10", "orchestrator/campaign/trial_registry.py", "verify_s8c_cross_binding"),
         ("C11", "orchestrator/campaign/p3_autonomous_workload_trial.py", "_run_workload"),
         ("C11", "orchestrator/campaign/p3_autonomous_workload_trial.py", "apply_critic_feedback"),
         ("C11", "orchestrator/campaign/p3_autonomous_workload_trial.py", "main"),
@@ -93,19 +107,14 @@ MACHINE_CONTRACT_FUNCTION_EXCLUSIONS = frozenset(
         ("C02", "orchestrator/campaign/p3_autonomous_workload_trial.py", "invocation namespace", "non-identifier-token"),
         ("C02", "orchestrator/campaign/p3_autonomous_workload_trial.py", "provider invocation_id", "non-identifier-token"),
         ("C04", "orchestrator/campaign/p3_autonomous_workload_trial.py", "crash handler", "non-identifier-token"),
-        ("C04", "orchestrator/campaign/p3_autonomous_workload_trial.py", "mark_experiment_indeterminate", "declared-unimplemented-token"),
-        ("C04", "orchestrator/campaign/trial_registry.py", "forbid_trial_restart", "declared-unimplemented-token"),
-        ("C04", "orchestrator/campaign/trial_registry.py", "reject_started_trial", "declared-unimplemented-token"),
         ("C04", "orchestrator/campaign/trial_registry.py", "run_trial crash handler", "non-identifier-token"),
         ("C04", "orchestrator/campaign/trial_registry.py", "run_trial preflight", "non-identifier-token"),
+        ("C07", "orchestrator/campaign/s8b_ratified_freeze.py", "verify_floor_bytes", "different-module-token"),
         ("C09", "orchestrator/campaign/p3_autonomous_workload_trial.py", "report publish", "non-identifier-token"),
-        ("C09", "orchestrator/campaign/trial_registry.py", "assert_campaign_layer3_chain", "different-module-token"),
         ("C09", "orchestrator/campaign/trial_registry.py", "registry append", "non-identifier-token"),
         ("C10", "orchestrator/campaign/autonomous_trial_completeness.py", "assert_trial_registry_acceptance", "different-module-token"),
         ("C10", "orchestrator/campaign/autonomous_trial_completeness.py", "authoritative bytes reread", "non-identifier-token"),
-        ("C10", "orchestrator/campaign/autonomous_trial_completeness.py", "verify_s8c_cross_binding", "declared-unimplemented-token"),
         ("C10", "orchestrator/campaign/trial_registry.py", "registry append", "non-identifier-token"),
-        ("C10", "orchestrator/campaign/trial_registry.py", "verify_s8c_cross_binding", "declared-unimplemented-token"),
         ("C11", "orchestrator/campaign/p3_autonomous_workload_trial.py", "next generation", "non-identifier-token"),
         ("C11", "orchestrator/campaign/s8c_generation_projection.py", "AppliedCriticFeedback.planner_projection", "non-identifier-token"),
         ("C12", "orchestrator/campaign/env_contract.py", "attestation consumer", "non-identifier-token"),
@@ -594,6 +603,55 @@ def test_s8c_preregistration_is_an_enumerated_living_doc() -> None:
     assert check_docs.REPO == ROOT
     assert PREREG_DOC in check_docs.LIVING_DOCS
     assert PREREG_DOC in check_docs._ENUMERATED_DOCS
+
+
+def test_living_doc_section5_value_violations_are_empty() -> None:
+    contract = prereg.parse_preregistration_worktree(ROOT)
+    assert contract.section5_value_violations == ()
+    target = next(
+        item
+        for item in contract.section5_findings
+        if item.name == prereg.SECTION5_ITERATION_CONTRAST_FIELD
+    )
+    assert target.status is prereg.FieldStatus.UNFILLED
+
+
+def test_living_doc_section5_value_validator_positive_control() -> None:
+    source = PREREG_DOC.read_bytes()
+    field = prereg.SECTION5_ITERATION_CONTRAST_FIELD.encode("utf-8")
+    old_cell = b"|" + field + "|未記入|".encode("utf-8")
+    mutated_value = (
+        b'{"H1":{"delta_min":1,"direction":"on-minus-off","n":1,'
+        b'"sd_max":0,"unit":"ops_per_second"},'
+        b'"H2":{"delta_min":1,"direction":"on-minus-off","n":2,'
+        b'"sd_max":0,"unit":"ops_per_second"}}'
+    )
+    new_cell = b"|" + field + b"|`" + mutated_value + b"`|"
+    assert source.count(old_cell) == 1
+    mutated = source.replace(old_cell, new_cell)
+    assert mutated != source
+
+    contract = prereg.parse_preregistration_markdown(mutated)
+    target = next(
+        item
+        for item in contract.section5_findings
+        if item.name == prereg.SECTION5_ITERATION_CONTRAST_FIELD
+    )
+    assert target.status is prereg.FieldStatus.FILLED
+    assert contract.section5_value_violations == (
+        prereg.Section5ValueViolation(
+            prereg.SECTION5_ITERATION_CONTRAST_FIELD,
+            "H1.n",
+            "n-range",
+        ),
+    )
+
+
+def test_section5_validator_keys_exist_in_living_doc_field_names() -> None:
+    contract = prereg.parse_preregistration_worktree(ROOT)
+    validator_keys = set(prereg._SECTION5_VALUE_VALIDATORS)
+    assert validator_keys == {prereg.SECTION5_ITERATION_CONTRAST_FIELD}
+    assert validator_keys <= set(contract.section5_field_names)
 
 
 def test_s8c_living_doc_reference_negative_controls(monkeypatch, capsys) -> None:

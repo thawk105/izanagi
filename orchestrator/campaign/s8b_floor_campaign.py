@@ -108,7 +108,7 @@ from . import s8b_approved  # noqa: E402  (承認定数の単一源 C4-3/C4-4)
 from . import env_contract as _env_contract  # noqa: E402
 from . import env_attestation  # noqa: E402
 from . import execution_guard  # noqa: E402  (共有 machine-pin + receipt)
-from . import campaign_claim, floor_submit_receipt, reservation  # noqa: E402
+from . import campaign_claim, floor_job_checkpoint, floor_submit_receipt, reservation  # noqa: E402
 from .durable_root import DurableRootError, DurableRootPolicy, WriteCapability  # noqa: E402
 from . import s8b_holdout_freeze as _holdout_freeze  # noqa: E402  (launch certificate の clean scan)
 from . import s8b_freeze_io as _freeze_io  # noqa: E402
@@ -4532,7 +4532,7 @@ class _Runner:
                  records=None, host_provenance_fn=None, process_identity_fn=None,
                  reservation_check=None, write_capability=None,
                  perf_preflight=None, mode="official",
-                 holdout_assert_fn=None):
+                 holdout_assert_fn=None, external_checkpoint_binding=None):
         self.protocol = protocol
         self.contract = contract
         self.cells = cells
@@ -4562,6 +4562,10 @@ class _Runner:
         self.host_provenance_fn = host_provenance_fn or _host_provenance
         self.process_identity_fn = process_identity_fn or _process_identity
         self.reservation_check = reservation_check
+        self.external_checkpoint_binding = (
+            None if external_checkpoint_binding is None
+            else dict(external_checkpoint_binding)
+        )
         self.write_capability = write_capability
         self.mode = _validate_mode(mode)
         self.perf_preflight = perf_preflight
@@ -4957,6 +4961,10 @@ class _Runner:
                 # 実行機 attestation)。report/verifier が env 契約と照合する。
                 **({"execution_receipt": self.execution_receipt}
                    if self.execution_receipt is not None else {}),
+                **({
+                    "pbs_jobid": self.external_checkpoint_binding["job_id"],
+                    "submission_nonce": self.external_checkpoint_binding["nonce"],
+                } if self.external_checkpoint_binding is not None else {}),
             })
         else:
             # resume: 新 process の identity を記録する (γ-5)。result には含めない (決定性維持)。
@@ -5672,6 +5680,11 @@ def _run_campaign_core(protocol, freeze_doc, *, out_root, mode, resume_dir=None,
     identity、session competition probe は ``runner.run()`` 内で claim 後に行う。それ以前に
     保護比率を実測しようとしても、最下層 ``run_once`` gateway が attempt token 無しで拒否する。
     """
+    external_checkpoint_binding = floor_job_checkpoint.take_checkpoint_environment(
+        os.environ,
+    )
+    if resume_dir is not None:
+        external_checkpoint_binding = None
     mode = _validate_mode(mode)
     nondefault_seams = _nondefault_campaign_seams(
         measure_fn=measure_fn, probe_fn=probe_fn, sleep_fn=sleep_fn,
@@ -5991,8 +6004,7 @@ def _run_campaign_core(protocol, freeze_doc, *, out_root, mode, resume_dir=None,
         if reservation_check is not None:
             assert reservation_required_s is not None
             assert reservation_safety_margin_s is not None
-            _journal_append(
-                journal_path, {
+            reservation_record = {
                     "event": "reservation-preflight",
                     "required_s": reservation_required_s,
                     "safety_margin_s": reservation_safety_margin_s,
@@ -6006,8 +6018,31 @@ def _run_campaign_core(protocol, freeze_doc, *, out_root, mode, resume_dir=None,
                     "dependency_target_cap_s": _FLOOR_DEPENDENCY_TARGET_CAP_S,
                     "verify_cap_per_attempt_s": _FLOOR_VERIFY_CAP_PER_ATTEMPT_S,
                     "finalize_reserve_s": _FLOOR_FINALIZE_RESERVE_S,
-                },
+                }
+            if external_checkpoint_binding is not None:
+                reservation_record.update({
+                    "pbs_jobid": external_checkpoint_binding["job_id"],
+                    "submission_nonce": external_checkpoint_binding["nonce"],
+                })
+            _journal_append(
+                journal_path, reservation_record,
                 write_capability=run_write_capability,
+            )
+        if external_checkpoint_binding is not None:
+            floor_job_checkpoint.try_append_checkpoint_bounded(
+                path=external_checkpoint_binding["path"],
+                job_id=external_checkpoint_binding["job_id"],
+                nonce=external_checkpoint_binding["nonce"],
+                producer="s8b_floor_campaign.py",
+                stage="floor-driver",
+                transition="run-linked",
+                rc=None,
+                command=None,
+                durability="fsynced",
+                repo_root=str(repo_root),
+                attempt_dir=os.environ.get(_FLOOR_JOB_STAGING_ENV),
+                run_dir=str(run_dir),
+                journal_path=str(journal_path),
             )
         runtime_built = build_cells(
             freeze, cells, ccbench_pin=protocol["ccbench_pin"],
@@ -6292,6 +6327,7 @@ def _run_campaign_core(protocol, freeze_doc, *, out_root, mode, resume_dir=None,
         host_provenance_fn=host_provenance_fn,
         process_identity_fn=process_identity_fn,
         reservation_check=reservation_check,
+        external_checkpoint_binding=external_checkpoint_binding,
         write_capability=run_write_capability,
         perf_preflight=perf_preflight_receipt, mode=mode,
     )
