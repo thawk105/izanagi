@@ -9472,6 +9472,18 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   受入経路そのものへ関門を入れた。**rc だけでなく理由本文を呼び手へ返す**のも同じ理由で、
   rc だけ返すと次の呼び手が同じ「rc を自前分類する」ループを書く。
 
+
+- **再発: 2026-08-20** — `dev-wave-t470-accepted-consumer` wave で、main 取り込み merge
+  (`0e07ad03`) が main 側 (workload-policy-hint-impl wave) と本 wave の両方が
+  `orchestrator/campaign/layer3_report.py`/`orchestrator/tests/test_layer3_report.py` を
+  実装面として変更していたことにより (競合なしの自動 merge、`git merge` は
+  "Automatic merge went well")、`tools/check_ai_provenance.py` の combined-path 判定
+  (両親からの積集合が非空) で新規違反として検出された。F365 の恒久対応
+  (`preclaim-history-provenance`: claim 前に無条件で全史監査) が意図どおり機能し、
+  lease を一切消費せず (`claimed_main: null`) `tools/dev_wave_wait.py acceptance` が
+  rc=70・25秒で早期に land 不能を検出した (queue 待ち行列への影響ゼロ)。
+  checker ソース中の「(ユーザー選択: known-violation 登録)」の指示どおり、
+  この新規違反の台帳登録可否は AI 単独で判断せずユーザーへ返した。
 ### F366. 呼び手を確認したと書きながら入れ子の exact 検査を見落とし、修正が end-to-end で 1 度も発効しなかった [恒真ゲート] [手順漏れ]
 
 - 事象: 2026-08-16 の commit `8a2b735b` が受入赤の分類へ第 3 分類 `flake` を足した。
