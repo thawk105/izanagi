@@ -496,3 +496,258 @@ def read_commit_blob(
             f"固定 blob の SHA-256 が不一致: expected={expected_sha256}, actual={actual}"
         )
     return result.stdout
+
+
+# T-338 unit 4 extension.  The functions above are part of unit 1's frozen
+# interface; the history reader is deliberately appended so those semantics
+# remain unchanged.
+from dataclasses import dataclass
+
+
+@dataclass(frozen=True, slots=True)
+class GitPathRevision:
+    """One regular-file generation observed in a bounded Git path history."""
+
+    commit: str
+    mode: str | None
+    blob_object: str | None
+    data: bytes | None
+
+
+def _history_commit_ids(
+    root: Path,
+    *,
+    start_commit: str,
+    end_commit: str,
+    path: str,
+) -> tuple[str, ...]:
+    result = _git(
+        root,
+        [
+            "log",
+            "--format=%H",
+            "--reverse",
+            "--full-history",
+            f"{start_commit}..{end_commit}",
+            "--",
+            path,
+        ],
+        max_output_bytes=MAX_GIT_METADATA_OUTPUT_BYTES,
+    )
+    if result.returncode != 0:
+        raise GitSupportError("対象 path の full-history walk が失敗した")
+    commits: list[str] = []
+    for raw in result.stdout.splitlines():
+        try:
+            commit = raw.decode("ascii")
+        except UnicodeDecodeError as exc:
+            raise GitSupportError(
+                "対象 path の history commit ID が ASCII でない"
+            ) from exc
+        commits.append(_require_commit_id(commit, "history commit"))
+    return tuple(commits)
+
+
+def _tree_blob_at_commit(
+    root: Path,
+    *,
+    commit: str,
+    path: str,
+) -> tuple[str, str] | None:
+    listing = _git(root, ["ls-tree", "-z", "--full-name", commit, "--", path])
+    if listing.returncode != 0:
+        raise GitSupportError("対象 path の tree entry を解決できない")
+    entries = [entry for entry in listing.stdout.split(b"\0") if entry]
+    if not entries:
+        return None
+    if len(entries) != 1:
+        raise GitSupportError("対象 path の tree entry が一意でない")
+    metadata, separator, entry_path = entries[0].partition(b"\t")
+    fields = metadata.split()
+    if separator != b"\t" or len(fields) != 3:
+        raise GitSupportError("対象 path の tree entry 形式が不正である")
+    mode, object_kind, object_id = fields
+    if entry_path != os.fsencode(path):
+        raise GitSupportError("対象 path の tree entry path が一致しない")
+    if object_kind != b"blob":
+        raise GitSupportError("対象 path は blob でなければならない")
+    try:
+        mode_text = mode.decode("ascii")
+        object_text = object_id.decode("ascii")
+    except UnicodeDecodeError as exc:
+        raise GitSupportError("対象 path の tree metadata が ASCII でない") from exc
+    if mode_text != "100644":
+        raise GitSupportError("対象 path は regular 100644 blob でなければならない")
+    if _COMMIT_RE.fullmatch(object_text) is None:
+        raise GitSupportError("対象 path の blob object ID が不正である")
+    return mode_text, object_text
+
+
+def _read_history_blob(
+    root: Path,
+    *,
+    commit: str,
+    object_name: str,
+    max_bytes: int,
+) -> bytes:
+    size_result = _git(root, ["cat-file", "-s", object_name])
+    if size_result.returncode != 0 or not re.fullmatch(
+        rb"[0-9]+\n", size_result.stdout
+    ):
+        raise GitSupportError("対象 path の blob size を解決できない")
+    blob_size = int(size_result.stdout[:-1])
+    if blob_size > max_bytes:
+        raise GitSupportError("対象 path の blob が size 上限を超える")
+    result = _git(
+        root,
+        ["cat-file", "blob", object_name],
+        work_bytes=blob_size,
+        max_output_bytes=max_bytes,
+    )
+    if result.returncode != 0:
+        raise GitSupportError(
+            f"対象 path の blob を commit {commit} から読み取れない"
+        )
+    if len(result.stdout) != blob_size:
+        raise GitSupportError("対象 path の blob size と読取 size が一致しない")
+    return result.stdout
+
+
+def _reject_path_rename_or_copy(root: Path, *, commit: str, path: str) -> None:
+    """Reject Git rename/copy provenance touching the protected path."""
+
+    arguments = [
+        "diff-tree",
+        "--no-commit-id",
+        "--root",
+        "--name-status",
+        "-r",
+        "-M",
+        "-C",
+        commit,
+    ]
+    result = _git(
+        root,
+        arguments,
+        max_output_bytes=MAX_GIT_METADATA_OUTPUT_BYTES,
+    )
+    if result.returncode != 0:
+        raise GitSupportError("対象 path の rename/copy provenance を検査できない")
+    possible_copy = False
+    for raw in result.stdout.splitlines():
+        try:
+            fields = raw.decode("utf-8", errors="strict").split("\t")
+        except UnicodeDecodeError as exc:
+            raise GitSupportError("rename/copy provenance が UTF-8 でない") from exc
+        if not fields:
+            continue
+        status = fields[0]
+        if status.startswith(("R", "C")) and path in fields[1:]:
+            raise GitSupportError(
+                f"対象 path は commit {commit} で rename/copy から導入されている"
+            )
+        if status.startswith("A") and path in fields[1:]:
+            possible_copy = True
+    if not possible_copy:
+        return
+    # Normal copy detection is intentionally the fast path.  Escalate only
+    # for a commit that adds this exact path; running --find-copies-harder for
+    # every large measurement commit exceeds the hardened Git timeout.
+    hard_result = _git(
+        root,
+        [*arguments[:-1], "--find-copies-harder", arguments[-1]],
+        max_output_bytes=MAX_GIT_METADATA_OUTPUT_BYTES,
+    )
+    if hard_result.returncode != 0:
+        raise GitSupportError("対象 path の copy provenance を検査できない")
+    for raw in hard_result.stdout.splitlines():
+        try:
+            fields = raw.decode("utf-8", errors="strict").split("\t")
+        except UnicodeDecodeError as exc:
+            raise GitSupportError("copy provenance が UTF-8 でない") from exc
+        if fields and fields[0].startswith("C") and path in fields[1:]:
+            raise GitSupportError(
+                f"対象 path は commit {commit} で copy から導入されている"
+            )
+
+
+def read_full_history(
+    repository_root: Path,
+    *,
+    start_commit: str,
+    end_commit: str,
+    path: str,
+    max_bytes: int = MAX_BLOB_BYTES,
+) -> tuple[GitPathRevision, ...]:
+    """Read every regular 100644 blob generation between two commits.
+
+    The walk is intentionally path-scoped, reverse ordered, and hardened by
+    the unit-1 Git boundary.  A missing generation, mode change, non-blob
+    entry, or non-prefix byte transition fails closed instead of returning a
+    partial history.  ``start_commit`` itself is included when the path is
+    already present there; the final commit is checked even when it did not
+    itself modify the path.
+    """
+
+    start_commit = _require_commit_id(start_commit, "start_commit")
+    end_commit = _require_commit_id(end_commit, "end_commit")
+    path = _validate_repo_relative_path(path)
+    if type(max_bytes) is not int or max_bytes < 0:
+        raise GitSupportError("history blob size 上限が不正である")
+    root = require_git_repository(repository_root)
+    require_safe_history(root)
+    require_ancestor(root, ancestor=start_commit, descendant=end_commit)
+    require_commit_object(root, start_commit)
+    require_commit_object(root, end_commit)
+
+    changed_commits = _history_commit_ids(
+        root,
+        start_commit=start_commit,
+        end_commit=end_commit,
+        path=path,
+    )
+    candidates: list[str] = [start_commit, *changed_commits, end_commit]
+    ordered: list[str] = []
+    seen: set[str] = set()
+    for commit in candidates:
+        if commit not in seen:
+            seen.add(commit)
+            ordered.append(commit)
+
+    revisions: list[GitPathRevision] = []
+    previous: bytes | None = None
+    for position, commit in enumerate(ordered):
+        _reject_path_rename_or_copy(root, commit=commit, path=path)
+        entry = _tree_blob_at_commit(root, commit=commit, path=path)
+        if entry is None:
+            if position == 0:
+                # The family root may precede the ledger introduction.  The
+                # first later path generation is the only permitted creation.
+                continue
+            raise GitSupportError(
+                f"対象 path が commit {commit} で削除または rename されている"
+            )
+        mode, object_name = entry
+        data = _read_history_blob(
+            root,
+            commit=commit,
+            object_name=object_name,
+            max_bytes=max_bytes,
+        )
+        if previous is not None and not data.startswith(previous):
+            raise GitSupportError(
+                f"対象 path の blob が commit {commit} で byte-prefix 継続でない"
+            )
+        revisions.append(
+            GitPathRevision(
+                commit=commit,
+                mode=mode,
+                blob_object=object_name,
+                data=data,
+            )
+        )
+        previous = data
+
+    if not revisions:
+        raise GitSupportError("対象 path の regular blob 世代が存在しない")
+    return tuple(revisions)
