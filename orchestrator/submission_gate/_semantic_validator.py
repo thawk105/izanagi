@@ -12,14 +12,18 @@ producer が書いた ``reason_code``、digest、schedule digest、qsub returnco
 
 下位層の parse/schema/safe-I/O/manifest/Git 例外は、原因を失わないよう
 ``SemanticValidationError`` へ ``raise ... from exc`` で変換する。なお、CCBench
-の生ログ形式は ``external/ccbench/cc/mocc/util.cc:116-134`` の
-``#FLAGS_<name>:\t<value>`` 出力と同 ``:224-225`` の
+の生ログ形式は T-139 の対象 protocol である silo の
+``external/ccbench/cc/silo/util.cc:91-104`` の
+``#FLAGS_<name>:\t<value>`` 出力、共通 YCSB driver の
+``external/ccbench/include/ycsb.hh:206-211``、および同 silo util の
+``external/ccbench/cc/silo/util.cc:162-177`` の
 ``#ShowOptParameters() ...`` 出力に固定している。
 """
 
 from __future__ import annotations
 
 from collections.abc import Iterable, Mapping, Sequence
+from contextvars import ContextVar
 from dataclasses import dataclass
 import hashlib
 import json
@@ -104,12 +108,12 @@ _FLAG_ALIASES: Final = {
     "clocks_per_us": "clocks_per_us",
     "epoch_time": "epoch_time",
     "extime": "extime",
-    "max_ope": "ycsb_max_ope",
-    "rmw": "ycsb_rmw",
-    "rratio": "ycsb_rratio",
+    "ycsb_max_ope": "ycsb_max_ope",
+    "ycsb_rmw": "ycsb_rmw",
+    "ycsb_rratio": "ycsb_rratio",
     "thread_num": "thread_num",
-    "tuple_num": "ycsb_tuple_num",
-    "zipf_skew": "ycsb_zipf_skew",
+    "ycsb_tuple_num": "ycsb_tuple_num",
+    "ycsb_zipf_skew": "ycsb_zipf_skew",
 }
 _OPT_PARAMETER_KEYS: Final = frozenset(
     {
@@ -137,6 +141,9 @@ _EXPECTED_OPT_PARAMETERS: Final = {
     "VAL_SIZE": 4,
     "WAL": 0,
 }
+_OPTIONAL_SILO_OPT_PARAMETERS: Final = frozenset(
+    {"INSERT_READ_DELAY_MS", "INSERT_BATCH_DELAY_MS"}
+)
 _EXPECTED_FLAGS: Final = {
     "W1": {
         "clocks_per_us": 2100,
@@ -197,6 +204,9 @@ _VERIFICATION_PHASE_CAPS: Final = {
 }
 _PERFORMANCE_PHASES: Final = frozenset(_PERFORMANCE_PHASE_CAPS)
 _VERIFICATION_PHASES: Final = frozenset(_VERIFICATION_PHASE_CAPS)
+_VALIDATION_ROOT_IDENTITY: ContextVar[tuple[int, int] | None] = ContextVar(
+    "semantic_validation_root_identity", default=None
+)
 
 
 class SemanticValidationError(ValueError):
@@ -266,6 +276,39 @@ def _receipt_value(receipt: ReceiptDocument | Mapping[str, Any]) -> Mapping[str,
     _semantic("shape", "receipt must be ReceiptDocument or Mapping")
 
 
+def _capture_root_identity(
+    repository_root: str | os.PathLike[str],
+) -> tuple[int, int]:
+    """入口時の repository root identity を捕捉する。"""
+
+    try:
+        stat_result = os.stat(repository_root)
+        return (stat_result.st_dev, stat_result.st_ino)
+    except (OSError, TypeError, ValueError) as exc:
+        _semantic("authority", "repository root identity cannot be captured", exc)
+
+
+def _assert_root_identity(
+    repository_root: str | os.PathLike[str],
+    expected: tuple[int, int] | None = None,
+) -> None:
+    """authority 検査後の I/O が同じ root snapshot に属することを確認する。"""
+
+    pinned = expected if expected is not None else _VALIDATION_ROOT_IDENTITY.get()
+    if pinned is None:
+        return
+    try:
+        stat_result = os.stat(repository_root)
+        current = (stat_result.st_dev, stat_result.st_ino)
+    except (OSError, TypeError, ValueError) as exc:
+        _semantic("authority", "repository root identity cannot be rechecked", exc)
+    if current != pinned:
+        _semantic(
+            "authority",
+            "repository root identity changed between authority and artifact I/O",
+        )
+
+
 def _read_file_record(
     repository_root: str | os.PathLike[str],
     record: Mapping[str, object],
@@ -301,6 +344,7 @@ def _read_file_record(
     except (TypeError, ValueError) as exc:
         _semantic("pointer", f"{label} is not a fileRecord", exc)
 
+    _assert_root_identity(repository_root)
     try:
         raw = read_relative_regular_bytes(
             repository_root,
@@ -309,6 +353,7 @@ def _read_file_record(
         )
     except (SafeIOError, ValueError) as exc:
         _semantic("pointer", f"{label} cannot be read safely: {exc}", exc)
+    _assert_root_identity(repository_root)
     if len(raw) != size_int:
         _semantic(
             "pointer",
@@ -387,10 +432,13 @@ def _strict_json(raw: bytes, *, label: str) -> object:
 def _parse_number(value: str, *, label: str) -> int | float:
     text = value.strip()
     if re.fullmatch(r"-?[0-9]+", text):
-        return int(text)
+        try:
+            return int(text)
+        except (TypeError, ValueError) as exc:
+            _semantic("run_log", f"{label} is not a representable integer", exc)
     try:
         result = float(text)
-    except ValueError as exc:
+    except (TypeError, ValueError, OverflowError) as exc:
         _semantic("run_log", f"{label} is not numeric", exc)
     if not math.isfinite(result):
         _semantic("run_log", f"{label} is not finite")
@@ -437,7 +485,7 @@ def _parse_show_opt_parameters(raw: bytes) -> dict[str, int]:
     if "\r" in text:
         _semantic("run_log", "CCBench log must use LF, not CRLF")
     found: dict[str, int] = {}
-    prefix = "#ShowOptParameters() "
+    prefix = "#ShowOptParameters():"
     for line_number, line in enumerate(text.split("\n"), 1):
         if not line.startswith(prefix):
             continue
@@ -455,7 +503,14 @@ def _parse_show_opt_parameters(raw: bytes) -> dict[str, int]:
             name, value = match.groups()
             if name in found:
                 _semantic("run_log", f"duplicate ShowOptParameters field: {name}")
-            found[name] = int(value)
+            try:
+                found[name] = int(value)
+            except (TypeError, ValueError) as exc:
+                _semantic(
+                    "run_log",
+                    f"ShowOptParameters {name} is not a representable integer",
+                    exc,
+                )
     return found
 
 
@@ -516,6 +571,15 @@ def _validate_ccbench_run_log(raw: bytes, *, workload: str) -> None:
         _semantic("run_log", "CCBench log JSON/encoding parse failed", exc)
     required_flags = _EXPECTED_FLAGS[workload]
     _compare_numeric_maps(flags, required_flags, label="effective_flags")
+    unexpected_options = set(options) - set(_OPT_PARAMETER_KEYS) - set(
+        _OPTIONAL_SILO_OPT_PARAMETERS
+    )
+    if unexpected_options:
+        _semantic(
+            "run_log",
+            "ShowOptParameters contains options outside the silo protocol: "
+            f"{sorted(unexpected_options)!r}",
+        )
     projected_options = {
         key: options[key] for key in options if key in _OPT_PARAMETER_KEYS
     }
@@ -603,7 +667,9 @@ def _validate_blob_refs(
     repository_root: str | os.PathLike[str], record: PreregistrationRecord
 ) -> None:
     try:
+        _assert_root_identity(repository_root)
         root = _git.require_git_repository(repository_root)
+        _assert_root_identity(repository_root)
     except _git.GitSupportError as exc:
         _semantic("preregistration", "repository cannot be opened for blob verification", exc)
     refs: list[tuple[str, object]] = [
@@ -624,12 +690,14 @@ def _validate_blob_refs(
     for label, reference in refs:
         try:
             if hasattr(reference, "path"):
+                _assert_root_identity(repository_root)
                 _git.read_commit_blob(
                     root,
                     commit=reference.commit,
                     path=reference.path,
                     expected_sha256=reference.sha256,
                 )
+                _assert_root_identity(repository_root)
         except _git.GitSupportError as exc:
             _semantic("preregistration", f"{label} blob cannot be verified", exc)
 
@@ -884,23 +952,39 @@ def _argv_from_compile_entry(entry: Mapping[str, Any], label: str) -> tuple[str,
         _semantic("compile", f"{label}.command cannot be tokenized", exc)
 
 
+def _load_compile_command_entries(
+    repository_root: str | os.PathLike[str], record: Mapping[str, object], *, label: str
+) -> tuple[tuple[Mapping[str, Any], tuple[str, ...]], ...]:
+    raw = _read_file_record(repository_root, record, label=label)
+    try:
+        document = _strict_json(raw, label=label)
+    except ReceiptParseError as exc:
+        _semantic("compile", f"{label} cannot be parsed", exc)
+    if not isinstance(document, list):
+        _semantic("compile", f"{label} root must be an array")
+    result: list[tuple[Mapping[str, Any], tuple[str, ...]]] = []
+    for index, item in enumerate(document):
+        entry = _mapping(item, f"{label}[{index}]")
+        result.append(
+            (
+                entry,
+                _argv_from_compile_entry(entry, f"{label}[{index}]"),
+            )
+        )
+    if not result:
+        _semantic("compile", f"{label} must not be empty")
+    return tuple(result)
+
+
 def _load_compile_commands(
     repository_root: str | os.PathLike[str], record: Mapping[str, object]
 ) -> tuple[tuple[str, ...], ...]:
-    raw = _read_file_record(repository_root, record, label="compile_commands")
-    try:
-        document = _strict_json(raw, label="compile_commands")
-    except ReceiptParseError as exc:
-        _semantic("compile", "compile_commands cannot be parsed", exc)
-    if not isinstance(document, list):
-        _semantic("compile", "compile_commands root must be an array")
-    result: list[tuple[str, ...]] = []
-    for index, item in enumerate(document):
-        entry = _mapping(item, f"compile_commands[{index}]")
-        result.append(_argv_from_compile_entry(entry, f"compile_commands[{index}]"))
-    if not result:
-        _semantic("compile", "compile_commands must not be empty")
-    return tuple(result)
+    return tuple(
+        argv
+        for _, argv in _load_compile_command_entries(
+            repository_root, record, label="compile_commands"
+        )
+    )
 
 
 def _macro_value(argv: Sequence[str], name: str, *, label: str) -> int:
@@ -997,11 +1081,13 @@ def _validate_compile_legs(
             _semantic("compile", f"{label} CMakeCache sidecar is unavailable", exc)
     else:
         try:
+            _assert_root_identity(repository_root)
             cache_raw = read_relative_regular_bytes(
                 repository_root,
                 cache_path,
                 max_bytes=_MAX_POINTER_BYTES,
             )
+            _assert_root_identity(repository_root)
         except (SafeIOError, ValueError) as exc:
             _semantic("compile", f"{label} CMakeCache sidecar is unavailable", exc)
     cache = _parse_cmake_cache(cache_raw)
@@ -1045,10 +1131,10 @@ def _validate_correctness_builds(
         performance_compile = _mapping(
             arm_record.get("compile"), f"arms.{arm}.compile"
         )
-        if compile_record.get("source") != performance_compile.get("source"):
+        if build.get("source") != performance_compile.get("source"):
             _semantic(
                 "correctness",
-                f"correctness_evidence[{index}].build.compile.source differs from the performance source",
+                f"correctness_evidence[{index}].build.source differs from the performance source",
             )
         _validate_compile_legs(
             repository_root,
@@ -1084,14 +1170,83 @@ def _tree_object_for_commit(
     repository_root: str | os.PathLike[str], commit: str, *, label: str
 ) -> str:
     try:
+        _assert_root_identity(repository_root)
         root = _git.require_git_repository(repository_root)
         _git.require_commit_object(root, commit)
         result = _git._git(root, ["rev-parse", "--verify", f"{commit}^{{tree}}"])
+        _assert_root_identity(repository_root)
     except _git.GitSupportError as exc:
         _semantic("source", f"{label} commit cannot be verified", exc)
     if result.returncode != 0 or not re.fullmatch(rb"[0-9a-f]{40}\n", result.stdout):
         _semantic("source", f"{label} tree object cannot be derived")
     return result.stdout[:-1].decode("ascii")
+
+
+def _strict_repo_relative_path(value: object, *, label: str) -> str:
+    if (
+        type(value) is not str
+        or not value
+        or value.startswith("/")
+        or "\x00" in value
+        or "\r" in value
+        or "\n" in value
+    ):
+        _semantic("source", f"{label} is not a strict repo-relative path")
+    path = PurePosixPath(value)
+    if (
+        not path.parts
+        or path.as_posix() != value
+        or any(part in {"", ".", ".."} for part in path.parts)
+    ):
+        _semantic("source", f"{label} is not POSIX-normalized")
+    return value
+
+
+def _compile_command_file_path(
+    repository_root: str | os.PathLike[str],
+    entry: Mapping[str, Any],
+    *,
+    label: str,
+) -> str:
+    raw_file = entry.get("file")
+    if type(raw_file) is not str or not raw_file:
+        _semantic("source", f"{label}.file is missing or invalid")
+    file_path = PurePosixPath(raw_file)
+    if any(part in {"..", ""} for part in file_path.parts):
+        _semantic("source", f"{label}.file contains an unsafe component")
+    root_absolute = PurePosixPath(os.path.abspath(os.fspath(repository_root))).as_posix()
+    if file_path.is_absolute():
+        if raw_file == root_absolute:
+            _semantic("source", f"{label}.file points at the repository directory")
+        prefix = root_absolute.rstrip("/") + "/"
+        if not raw_file.startswith(prefix):
+            _semantic("source", f"{label}.file is outside repository_root")
+        candidate = raw_file[len(prefix) :]
+    else:
+        directory = entry.get("directory", ".")
+        if type(directory) is not str or not directory:
+            _semantic("source", f"{label}.directory is invalid")
+        directory_path = PurePosixPath(directory)
+        if directory_path.is_absolute():
+            directory_text = directory_path.as_posix()
+            prefix = root_absolute.rstrip("/") + "/"
+            if not directory_text.startswith(prefix):
+                _semantic("source", f"{label}.directory is outside repository_root")
+            directory_path = PurePosixPath(directory_text[len(prefix) :])
+        candidate = (directory_path / file_path).as_posix()
+    normalized = PurePosixPath(candidate).as_posix()
+    return _strict_repo_relative_path(normalized, label=f"{label}.file")
+
+
+def _compile_command_entity_bytes(path: str, argv: Sequence[str]) -> bytes:
+    """source が無い生成 TU 用の compile_commands 実体の canonical bytes。"""
+
+    return json.dumps(
+        {"file": path, "arguments": list(argv)},
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    ).encode("utf-8")
 
 
 def _validate_source_identity(
@@ -1133,11 +1288,59 @@ def _validate_source_identity(
             compile_record.get("translation_units"),
             f"arms.{arm}.compile.translation_units",
         )
+        if not translation_units:
+            _semantic(
+                "source",
+                f"arms.{arm}.compile.translation_units must not be empty",
+            )
+        # Reject an unnormalized declaration before consulting any unrelated
+        # compile_commands leg so the negative vector remains single-cause.
+        for path in translation_units:
+            _strict_repo_relative_path(
+                path,
+                label=f"arms.{arm}.compile.translation_units key",
+            )
+        compile_commands = _mapping(
+            compile_record.get("compile_commands"),
+            f"arms.{arm}.compile.compile_commands",
+        )
+        command_entries = _load_compile_command_entries(
+            repository_root,
+            compile_commands,
+            label=f"arms.{arm}.compile.compile_commands",
+        )
+        command_by_path: dict[str, tuple[str, ...]] = {}
+        for command_index, (entry, argv) in enumerate(command_entries):
+            command_path = _compile_command_file_path(
+                repository_root,
+                entry,
+                label=f"arms.{arm}.compile.compile_commands[{command_index}]",
+            )
+            if command_path in command_by_path:
+                _semantic(
+                    "source",
+                    f"{arm} compile_commands repeats translation unit {command_path!r}",
+                )
+            command_by_path[command_path] = argv
+        declared_paths = {
+            _strict_repo_relative_path(
+                path,
+                label=f"arms.{arm}.compile.translation_units key",
+            )
+            for path in translation_units
+        }
+        if declared_paths != set(command_by_path):
+            _semantic(
+                "source",
+                f"{arm} translation_units do not cover compile_commands: "
+                f"declared={sorted(declared_paths)!r} "
+                f"commands={sorted(command_by_path)!r}",
+            )
         for path, unit in translation_units.items():
-            if type(path) is not str or path != PurePosixPath(path).as_posix() or any(
-                part in {"", ".", ".."} for part in PurePosixPath(path).parts
-            ):
-                _semantic("source", f"translation unit key is not normalized: {path!r}")
+            normalized_path = _strict_repo_relative_path(
+                path,
+                label=f"arms.{arm}.compile.translation_units[{path!r}]",
+            )
             unit_map = _mapping(unit, f"translation_units[{path!r}]")
             _exact_keys(
                 unit_map,
@@ -1152,7 +1355,35 @@ def _validate_source_identity(
                     "source",
                     f"translation_units[{path!r}].normalized_argv is not a string vector",
                 )
-            _hex(unit_map.get("sha256"), f"translation_units[{path!r}].sha256", 64)
+            command_argv = command_by_path[normalized_path]
+            if tuple(normalized_argv) != command_argv:
+                _semantic(
+                    "source",
+                    f"translation_units[{path!r}].normalized_argv differs from "
+                    "compile_commands",
+                )
+            declared_digest = _hex(
+                unit_map.get("sha256"), f"translation_units[{path!r}].sha256", 64
+            )
+            _assert_root_identity(repository_root)
+            try:
+                actual_unit_bytes = read_relative_regular_bytes(
+                    repository_root,
+                    normalized_path,
+                    max_bytes=_MAX_POINTER_BYTES,
+                )
+            except (SafeIOError, ValueError):
+                actual_unit_bytes = _compile_command_entity_bytes(
+                    normalized_path, command_argv
+                )
+            _assert_root_identity(repository_root)
+            actual_digest = hashlib.sha256(actual_unit_bytes).hexdigest()
+            if declared_digest != actual_digest:
+                _semantic(
+                    "source",
+                    f"translation_units[{path!r}].sha256 does not match the "
+                    "source or compile_commands entity",
+                )
         derived_tree = _tree_object_for_commit(
             repository_root, source_commit, label=f"arms.{arm}.source.repo_commit"
         )
@@ -1232,6 +1463,18 @@ def _validate_reference_graph(
             allocation_slot = allocation.get("cluster_slot_or_null")
             if slot != allocation_slot:
                 _semantic("reference", f"attempts[{index}] crosses slot/allocation identities")
+    for start_attempt_id in attempt_by_id:
+        visited: set[str] = set()
+        current: str | None = start_attempt_id
+        while current is not None:
+            if current in visited:
+                _semantic(
+                    "reference",
+                    f"replacement chain cycles at attempt {current}",
+                )
+            visited.add(current)
+            target = attempt_by_id[current].get("replaces_attempt_id")
+            current = target if type(target) is str else None
     for index, item in enumerate(allocations):
         entry = _mapping(item, f"allocations[{index}]")
         role = entry.get("allocation_role")
@@ -1503,37 +1746,67 @@ def _raw_correctness_has_anomaly(raw: bytes, *, label: str) -> bool:
 
     ``verdict``, ``clean``、``match`` などの申告だけは見ない。比較可能な
     expected/actual payload が raw に存在する場合だけ、その実体を比較する。
+    解析不能な bytes、比較対象を持たない JSON、認識不能なテキストは
+    ``clean`` として扱わず fail-closed で拒否する。
     """
 
-    mapping = _raw_mapping_from_output(raw, label=label)
-    if mapping is not None:
+    def compare_json(value: object) -> tuple[bool, bool]:
         pairs = (
             ("expected", "actual"),
             ("expected_output", "actual_output"),
             ("expected_sha256", "actual_sha256"),
             ("expected_value", "actual_value"),
         )
-        for left, right in pairs:
-            if left in mapping and right in mapping:
-                return mapping[left] != mapping[right]
-        # Nested per-arm/workload records are also raw evidence.
-        for child in mapping.values():
-            if isinstance(child, Mapping) and _raw_correctness_has_anomaly(
-                json.dumps(child, sort_keys=True, separators=(",", ":")).encode(),
-                label=label,
-            ):
-                return True
-        return False
+        if isinstance(value, Mapping):
+            anomaly = False
+            comparable = False
+            for left, right in pairs:
+                if left in value and right in value:
+                    comparable = True
+                    anomaly = (value[left] != value[right]) or anomaly
+            for child in value.values():
+                child_anomaly, child_comparable = compare_json(child)
+                anomaly = child_anomaly or anomaly
+                comparable = child_comparable or comparable
+            return anomaly, comparable
+        if isinstance(value, (list, tuple)):
+            anomaly = False
+            comparable = False
+            for child in value:
+                child_anomaly, child_comparable = compare_json(child)
+                anomaly = child_anomaly or anomaly
+                comparable = child_comparable or comparable
+            return anomaly, comparable
+        return False, False
+
+    stripped = raw.lstrip()
+    if stripped.startswith((b"{", b"[")):
+        try:
+            parsed = _strict_json(raw, label=label)
+        except ReceiptParseError as exc:
+            _semantic("correctness", f"{label} JSON output cannot be parsed", exc)
+        anomaly, comparable = compare_json(parsed)
+        if not comparable:
+            _semantic(
+                "correctness",
+                f"{label} contains no comparable expected/actual raw evidence",
+            )
+        return anomaly
     try:
         text = raw.decode("utf-8", errors="strict")
-    except UnicodeDecodeError:
-        return False
+    except UnicodeDecodeError as exc:
+        _semantic("correctness", f"{label} is not UTF-8 raw evidence", exc)
     values: dict[str, str] = {}
     for line in text.splitlines():
         match = re.fullmatch(r"\s*(expected|actual)(?:_output|_value)?\s*[:=]\s*(.*?)\s*", line)
         if match:
             values[match.group(1)] = match.group(2)
-    return "expected" in values and "actual" in values and values["expected"] != values["actual"]
+    if "expected" not in values or "actual" not in values:
+        _semantic(
+            "correctness",
+            f"{label} contains no comparable expected/actual raw evidence",
+        )
+    return values["expected"] != values["actual"]
 
 
 def _validate_correctness_raw_evidence(
@@ -1579,9 +1852,9 @@ def _observation_failure(
             "a03",
             "malformed_reason does not equal the first raw-derived failure",
         )
-    if result.stat_before and tuple(observation.get("stat_before", ())) != result.stat_before:
+    if len(result.stat_before) > 0 and tuple(observation.get("stat_before", ())) != result.stat_before:
         _semantic("a03", "stat_before declaration is not the raw stat row")
-    if result.stat_after and tuple(observation.get("stat_after", ())) != result.stat_after:
+    if len(result.stat_after) > 0 and tuple(observation.get("stat_after", ())) != result.stat_after:
         _semantic("a03", "stat_after declaration is not the raw stat row")
     return result
 
@@ -1672,8 +1945,18 @@ def _actual_runs_for_attempt(value: Mapping[str, Any], attempt_id: object) -> tu
 def _attempt_observation_failures(
     observations: Mapping[str, A03Result], attempt_id: object
 ) -> tuple[A03Result, ...]:
-    prefix = f"attempt:{attempt_id}:"
-    return tuple(result for key, result in observations.items() if key.startswith(prefix))
+    if type(attempt_id) is not str:
+        return ()
+    prefix = "attempt:"
+    results: list[A03Result] = []
+    for key, result in observations.items():
+        if not key.startswith(prefix):
+            continue
+        owner_and_index = key[len(prefix) :]
+        owner, separator, index = owner_and_index.rpartition(":")
+        if separator and index.isdigit() and owner == attempt_id:
+            results.append(result)
+    return tuple(results)
 
 
 def _validate_reason_branches(
@@ -2257,6 +2540,26 @@ def _validate_receipt_semantics(
     schema: ReceiptSchema,
     binding: _PreregBinding,
 ) -> None:
+    root_identity = _capture_root_identity(repository_root)
+    token = _VALIDATION_ROOT_IDENTITY.set(root_identity)
+    try:
+        _validate_receipt_semantics_inner(
+            repository_root,
+            receipt,
+            schema=schema,
+            binding=binding,
+        )
+    finally:
+        _VALIDATION_ROOT_IDENTITY.reset(token)
+
+
+def _validate_receipt_semantics_inner(
+    repository_root: str | os.PathLike[str],
+    receipt: ReceiptDocument,
+    *,
+    schema: ReceiptSchema,
+    binding: _PreregBinding,
+) -> None:
     """shape 合格後も raw 再計算だけで受領証の受理条件を評価する。"""
 
     value = _receipt_value(receipt)
@@ -2318,12 +2621,35 @@ def _validate_study_receipts(
     schema: ReceiptSchema,
     binding: _PreregBinding,
 ) -> None:
-    """同一 study の stage 間 verification allocation を照合する。"""
-
     if isinstance(receipts, (str, bytes, bytearray)) or not isinstance(receipts, Sequence):
         _semantic("study", "receipts must be a sequence")
-    if not receipts:
-        _semantic("study", "at least one receipt is required")
+    root_identity = _capture_root_identity(repository_root)
+    token = _VALIDATION_ROOT_IDENTITY.set(root_identity)
+    try:
+        _validate_study_receipts_inner(
+            repository_root,
+            receipts,
+            schema=schema,
+            binding=binding,
+        )
+    finally:
+        _VALIDATION_ROOT_IDENTITY.reset(token)
+
+
+def _validate_study_receipts_inner(
+    repository_root: str | os.PathLike[str],
+    receipts: Sequence[ReceiptDocument],
+    *,
+    schema: ReceiptSchema,
+    binding: _PreregBinding,
+) -> None:
+    """同一 study の pilot/main receipt と verification allocation を照合する。"""
+
+    if len(receipts) != 2:
+        _semantic(
+            "study",
+            "a study must be covered by exactly one pilot and one main_run receipt",
+        )
     values: list[Mapping[str, Any]] = []
     for receipt in receipts:
         _validate_receipt_semantics(
@@ -2333,10 +2659,16 @@ def _validate_study_receipts(
             binding=binding,
         )
         values.append(_receipt_value(receipt))
+    stages = [value.get("study_stage") for value in values]
+    if stages != ["pilot", "main_run"]:
+        _semantic(
+            "study",
+            "study receipts must appear once each in pilot then main_run order",
+        )
     first = values[0]
     study_id = first.get("study_id")
     series_id = first.get("series_id")
-    verification_signatures: list[tuple[object, object, object]] = []
+    verification_signatures: list[tuple[object, str, str]] = []
     for value in values:
         if value.get("study_id") != study_id or value.get("series_id") != series_id:
             _semantic("study", "stage receipts do not belong to one study series")
@@ -2348,11 +2680,22 @@ def _validate_study_receipts(
         if len(verification) != 1:
             _semantic("study", "each stage must carry exactly one verification allocation")
         allocation = verification[0]
+        accounting_raw = _read_file_record(
+            repository_root,
+            _mapping(allocation.get("accounting_trace"), "verification.accounting_trace"),
+            label="verification.accounting_trace",
+        )
+        exclusivity = _mapping(allocation.get("exclusivity"), "verification.exclusivity")
+        exclusivity_raw = _read_file_record(
+            repository_root,
+            _mapping(exclusivity.get("raw"), "verification.exclusivity.raw"),
+            label="verification.exclusivity.raw",
+        )
         verification_signatures.append(
             (
                 allocation.get("allocation_id"),
-                allocation.get("accounting_trace"),
-                _mapping(allocation.get("exclusivity"), "verification.exclusivity").get("raw"),
+                hashlib.sha256(accounting_raw).hexdigest(),
+                hashlib.sha256(exclusivity_raw).hexdigest(),
             )
         )
     if any(signature != verification_signatures[0] for signature in verification_signatures[1:]):

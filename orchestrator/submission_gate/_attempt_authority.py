@@ -62,6 +62,8 @@ _COMMIT_RE: Final = re.compile(r"[0-9a-f]{40}\Z")
 _SHA256_RE: Final = re.compile(r"[0-9a-f]{64}\Z")
 _EVENT_NAME_RE: Final = re.compile(r"[0-9]+\.json\Z")
 _MAX_EVENT_BYTES: Final = 4 * 1024 * 1024
+_MAX_EVENT_FILES: Final = 4096
+_MAX_EVENT_DIRECTORY_BYTES: Final = 64 * 1024 * 1024
 _ALPHA_CAPABILITY_TOKEN: Final = object()
 _ATTEMPT_CAPABILITY_TOKEN: Final = object()
 
@@ -217,9 +219,16 @@ def _open_relative_directory(
 
 def _directory_entries(root: Path, relative_path: str) -> tuple[tuple[str, ...], tuple[int, int]]:
     descriptor, identity = _open_relative_directory(root, relative_path)
+    entries: list[str] = []
     try:
         try:
-            entries = tuple(os.listdir(descriptor))
+            with os.scandir(descriptor) as iterator:
+                for entry in iterator:
+                    entries.append(entry.name)
+                    if len(entries) > _MAX_EVENT_FILES:
+                        raise EventSinkError(
+                            "event directory contains too many entries"
+                        )
         except OSError as exc:
             raise EventSinkError("event directory cannot be enumerated") from exc
     finally:
@@ -227,7 +236,7 @@ def _directory_entries(root: Path, relative_path: str) -> tuple[tuple[str, ...],
             os.close(descriptor)
         except OSError:
             pass
-    return entries, identity
+    return tuple(entries), identity
 
 
 def _validate_evidence(value: object) -> dict[str, object]:
@@ -566,8 +575,15 @@ def _frozen_events(
 def _load_event_files(
     root: Path,
     event_directory: str,
+    *,
+    expected_directory_identity: tuple[int, int] | None = None,
 ) -> tuple[tuple[_FrozenEvent, ...], tuple[int, int]]:
     entries, directory_identity = _directory_entries(root, event_directory)
+    if (
+        expected_directory_identity is not None
+        and directory_identity != expected_directory_identity
+    ):
+        raise EventSinkError("event directory identity changed before read")
     numbered: list[tuple[int, str]] = []
     for name in entries:
         if _EVENT_NAME_RE.fullmatch(name) is None:
@@ -579,6 +595,7 @@ def _load_event_files(
         numbered.append((index, name))
     numbered.sort()
     envelopes: list[Mapping[str, Any]] = []
+    total_bytes = 0
     for expected_index, (index, name) in enumerate(numbered):
         if index != expected_index:
             raise EventSinkError("event files are not a contiguous zero-based sequence")
@@ -591,6 +608,9 @@ def _load_event_files(
             )
         except SafeIOError:
             raise
+        total_bytes += len(raw)
+        if total_bytes > _MAX_EVENT_DIRECTORY_BYTES:
+            raise EventSinkError("event directory exceeds the total byte limit")
         if not raw.endswith(b"\n") or raw[:-1].endswith(b"\n") or not raw[:-1]:
             raise EventSinkError(f"event {name!r} is not one canonical LF-terminated line")
         line = raw[:-1]
@@ -611,6 +631,11 @@ def _load_event_files(
             raise EventSinkError(f"event {name!r} index does not match its filename")
         envelopes.append(value)
     final_entries, final_identity = _directory_entries(root, event_directory)
+    if (
+        expected_directory_identity is not None
+        and final_identity != expected_directory_identity
+    ):
+        raise EventSinkError("event directory identity changed while being read")
     if final_identity != directory_identity or set(final_entries) != set(entries):
         raise EventSinkError("event directory changed while being read")
     return _frozen_events(envelopes), directory_identity
@@ -687,7 +712,11 @@ class _AttemptAuthority:
             if _root_identity(root) != self._root_identity:
                 raise AttemptAuthorityError("repository root identity changed")
             self.reservation.assert_intact(root)
-            fresh_events, directory_identity = _load_event_files(root, self.event_directory)
+            fresh_events, directory_identity = _load_event_files(
+                root,
+                self.event_directory,
+                expected_directory_identity=self._event_directory_identity,
+            )
             if directory_identity != self._event_directory_identity:
                 raise AttemptAuthorityError("event directory identity changed")
             if fresh_events != self.events:
@@ -785,7 +814,10 @@ def _append_attempt_event(
         fresh_events, directory_identity = _load_event_files(
             root,
             authority.event_directory,
+            expected_directory_identity=authority._event_directory_identity,
         )
+        if not fresh_events or _event_envelope(fresh_events[-1]) != new_event:
+            raise EventSinkError("appended event does not match the durable last event")
         expected = (*authority.events, fresh_events[-1]) if fresh_events else ()
         if fresh_events != expected:
             raise EventSinkError("appended event replay differs from authority")

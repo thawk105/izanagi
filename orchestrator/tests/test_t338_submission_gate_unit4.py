@@ -348,30 +348,60 @@ def test_history_is_rewalked_without_cache(alpha_fixture: SimpleNamespace) -> No
 def test_parent_series_id_reset_is_killed_by_full_history(
     alpha_fixture: SimpleNamespace,
 ) -> None:
-    receipt_a = {"series_id": "a" * 64, "parent_series_id": None}
-    assert receipt_a["series_id"] != "b" * 64
-    accepted = _inspect(alpha_fixture)
+    receipt_a = {
+        "series_id": "a" * 64,
+        "parent_series_id": None,
+        "ledger_evidence": dict(alpha_fixture.evidence),
+    }
+    assert receipt_a["ledger_evidence"]["family_root"] == alpha_fixture.family_root
+    assert receipt_a["ledger_evidence"]["ordinal"] == 1
+    accepted = authority._inspect_alpha_reservation(
+        alpha_fixture.root,
+        ledger_evidence=receipt_a["ledger_evidence"],
+        measurement_head=alpha_fixture.measurement_head,
+    )
     assert accepted.ordinal == 1
+
+    # Attack C attempts to create a new family root by declaration.  The
+    # comparison is reject-only and happens before any root selection, while
+    # every other condition is still the positive fixture.
+    receipt_c = {
+        **receipt_a,
+        "ledger_evidence": {
+            **receipt_a["ledger_evidence"],
+            "family_root": "f" * 40,
+        },
+    }
+    with pytest.raises(authority.AlphaReservationError):
+        authority._inspect_alpha_reservation(
+            alpha_fixture.root,
+            ledger_evidence=receipt_c["ledger_evidence"],
+            measurement_head=alpha_fixture.measurement_head,
+        )
 
     # Attack B is a new parent/series declaration backed by a second ledger
     # row with the same fixed identity.  No series_id -> family_root mapping is
     # used; the full history sees the duplicate reservation itself.
-    receipt_b = {"series_id": "b" * 64, "parent_series_id": "c" * 64}
+    receipt_b = {
+        "series_id": "b" * 64,
+        "parent_series_id": "c" * 64,
+        "ledger_evidence": dict(receipt_a["ledger_evidence"]),
+    }
     assert receipt_b["series_id"] != receipt_a["series_id"]
+    assert receipt_b["parent_series_id"] != receipt_a["parent_series_id"]
+    assert receipt_b["ledger_evidence"] == receipt_a["ledger_evidence"]
+    assert receipt_b["ledger_evidence"] is not receipt_a["ledger_evidence"]
     attack_b_head = _commit_ledger(
         alpha_fixture,
         alpha_fixture.row + b"\n" + alpha_fixture.row + b"\n",
         "attack B duplicate ordinal",
     )
     with pytest.raises(authority.AlphaReservationError):
-        _inspect(alpha_fixture, head=attack_b_head)
-
-    # Attack C attempts to create a new family root by declaration.  The
-    # comparison is reject-only and happens before any root selection.
-    receipt_c = dict(alpha_fixture.evidence)
-    receipt_c["family_root"] = "f" * 40
-    with pytest.raises(authority.AlphaReservationError):
-        _inspect(alpha_fixture, evidence=receipt_c)
+        authority._inspect_alpha_reservation(
+            alpha_fixture.root,
+            ledger_evidence=receipt_b["ledger_evidence"],
+            measurement_head=attack_b_head,
+        )
 
 
 def test_alpha_authority_rejects_wrong_token_and_subclass(

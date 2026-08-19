@@ -8,6 +8,7 @@ unit 1, so a semantic failure is not accidentally a schema failure.
 
 from __future__ import annotations
 
+import copy
 import hashlib
 import json
 import os
@@ -136,19 +137,15 @@ def _ccbench_log(workload: str) -> bytes:
         f"#FLAGS_clocks_per_us:\t{flags['clocks_per_us']}",
         f"#FLAGS_epoch_time:\t{flags['epoch_time']}",
         f"#FLAGS_extime:\t{flags['extime']}",
-        f"#FLAGS_max_ope:\t{flags['ycsb_max_ope']}",
-        "#FLAGS_per_xx_temp\t100",
-        "#FLAGS_temp_threshold\t0",
-        f"#FLAGS_rmw:\t{flags['ycsb_rmw']}",
-        f"#FLAGS_rratio:\t{flags['ycsb_rratio']}",
         f"#FLAGS_thread_num:\t{flags['thread_num']}",
-        f"#FLAGS_tuple_num:\t{flags['ycsb_tuple_num']}",
-        "#FLAGS_ycsb:\t1",
-        f"#FLAGS_zipf_skew:\t{flags['ycsb_zipf_skew']}",
-        "#ShowOptParameters() : ADD_ANALYSIS 0 : BACK_OFF 0 : KEY_SIZE 8 : "
-        "MASSTREE_USE 1 : KEY_SORT 0 : TEMPERATURE_RESET_OPT 0 : VAL_SIZE 4 : "
-        "NO_WAIT_LOCKING_IN_VALIDATION 1 : PARTITION_TABLE 0 : PROCEDURE_SORT 0 : "
-        "SLEEP_READ_PHASE 0 : WAL 0",
+        f"#FLAGS_ycsb_max_ope:\t{flags['ycsb_max_ope']}",
+        f"#FLAGS_ycsb_rmw:\t{flags['ycsb_rmw']}",
+        f"#FLAGS_ycsb_rratio:\t{flags['ycsb_rratio']}",
+        f"#FLAGS_ycsb_tuple_num:\t{flags['ycsb_tuple_num']}",
+        f"#FLAGS_ycsb_zipf_skew:\t{flags['ycsb_zipf_skew']}",
+        "#ShowOptParameters(): ADD_ANALYSIS 0 : BACK_OFF 0 : KEY_SIZE 8 : "
+        "MASSTREE_USE 1 : NO_WAIT_LOCKING_IN_VALIDATION 1 : PARTITION_TABLE 0 : "
+        "PROCEDURE_SORT 0 : SLEEP_READ_PHASE 0 : VAL_SIZE 4 : WAL 0",
     ]
     return ("\n".join(lines) + "\n").encode("utf-8")
 
@@ -178,6 +175,7 @@ def _make_git_fixture(tmp_path: Path) -> SimpleNamespace:
     # All raw artifacts are in the measurement commit so source/tree identity
     # and every pointer have one stable checkout anchor.
     tree_files: dict[str, bytes] = {
+        "transaction.cc": b"int transaction_fixture() { return 0; }\n",
         "build/compile_commands.json": json.dumps(
             [
                 {
@@ -195,6 +193,23 @@ def _make_git_fixture(tmp_path: Path) -> SimpleNamespace:
             separators=(",", ":"),
         ).encode(),
         "build/CMakeCache.txt": b"CCBENCH_TRACE:STRING=0\nCCBENCH_ADD_ANALYSIS:STRING=0\n",
+        "correctness/compile_commands.json": json.dumps(
+            [
+                {
+                    "directory": ".",
+                    "file": "transaction.cc",
+                    "arguments": [
+                        "g++",
+                        "-DCCBENCH_TRACE=1",
+                        "-DCCBENCH_ADD_ANALYSIS=1",
+                        "-c",
+                        "transaction.cc",
+                    ],
+                }
+            ],
+            separators=(",", ":"),
+        ).encode(),
+        "correctness/CMakeCache.txt": b"CCBENCH_TRACE:STRING=1\nCCBENCH_ADD_ANALYSIS:STRING=1\n",
         "build/argv-w1.json": json.dumps(list(semantic._EXPECTED_DRIVER_ARGV["W1"]), separators=(",", ":")).encode(),
         "build/argv-w2.json": json.dumps(list(semantic._EXPECTED_DRIVER_ARGV["W2"]), separators=(",", ":")).encode(),
         "build/run-w1.log": _ccbench_log("W1"),
@@ -217,6 +232,10 @@ def _make_git_fixture(tmp_path: Path) -> SimpleNamespace:
         "build/telemetry-stress": b"stress\n",
         "build/stat-before": b"cpu 0 0 0 0 0 0 0 0\n",
         "build/stat-after": b"cpu 1 0 0 99 0 0 0 0\n",
+        "correctness/stock.bin": b"correctness-stock\n",
+        "correctness/mode1.bin": b"correctness-mode1\n",
+        "correctness/modeX.bin": b"correctness-modeX\n",
+        "correctness/stock-w1.json": b'{"expected":{"value":1},"actual":{"value":1}}\n',
     }
     for index, arm in enumerate(semantic._ARMS):
         tree_files[f"build/{arm}.bin"] = f"performance-{arm}\n".encode()
@@ -365,7 +384,18 @@ def _full_receipt(fixture: SimpleNamespace) -> tuple[dict[str, Any], ReceiptSche
             },
             "mode_macro": mode_macro,
             "configure_argv": ["-DCCBENCH_TRACE=0", "-DCCBENCH_ADD_ANALYSIS=0"],
-            "translation_units": {},
+            "translation_units": {
+                "transaction.cc": {
+                    "normalized_argv": [
+                        "g++",
+                        "-DCCBENCH_TRACE=0",
+                        "-DCCBENCH_ADD_ANALYSIS=0",
+                        "-c",
+                        "transaction.cc",
+                    ],
+                    "sha256": hashlib.sha256(fixture.tree_files["transaction.cc"]).hexdigest(),
+                }
+            },
             "identity_sha256": "a" * 64,
             "trace_enabled": False,
             "analysis_enabled": False,
@@ -516,6 +546,28 @@ def _full_receipt(fixture: SimpleNamespace) -> tuple[dict[str, Any], ReceiptSche
         {"ordinal": 1, "kind": "alpha_reservation", "receipt": pointer("build/telemetry-alpha"), "fixed_inputs": {"input_sha256": "c" * 64, "B_or_null": None, "seed_or_null": None}, "ledger_evidence": {"ledger_path": "output/registry/t139-alpha-reservations.jsonl", "family_root": "a" * 40, "ordinal": 1, "reservation_entry_sha256": "b" * 64, "reservation_commit": "c" * 40}},
         {"ordinal": 2, "kind": "stress_check_simulation", "receipt": pointer("build/telemetry-stress"), "fixed_inputs": {"input_sha256": "d" * 64, "B_or_null": 1, "seed_or_null": "e" * 64}, "ledger_evidence": None},
     ]
+    correctness_source = dict(arms["stock"]["compile"]["source"])  # type: ignore[index]
+    correctness_evidence = [
+        {
+            "ordinal": 1,
+            "arm": "stock",
+            "workload": "W1",
+            "build": {
+                "source": correctness_source,
+                "compile": {
+                    "identity_sha256": "d" * 64,
+                    "argv": ["-DCCBENCH_TRACE=1", "-DCCBENCH_ADD_ANALYSIS=1"],
+                    "trace_enabled": True,
+                    "analysis_enabled": True,
+                    "cmake_cache": {"trace": 1, "add_analysis": 1},
+                    "compile_commands": pointer("correctness/compile_commands.json"),
+                },
+                "binary": pointer("correctness/stock.bin"),
+            },
+            "run_scope": {"allocation_id": "alloc-verification", "run_ordinal": 1},
+            "outputs": [pointer("correctness/stock-w1.json")],
+        }
+    ]
     value: dict[str, Any] = {
         "schema_version": "t139-receipt/v1",
         "study_id": "unit3-study",
@@ -550,7 +602,7 @@ def _full_receipt(fixture: SimpleNamespace) -> tuple[dict[str, Any], ReceiptSche
             "runs": run_rows,
         },
         "actual_runs": actual_runs,
-        "correctness_evidence": [],
+        "correctness_evidence": correctness_evidence,
         "liveness": [],
         "admission_telemetry": telemetry,
         "attempts": attempts,
@@ -567,15 +619,20 @@ def _assert_semantic(code: str, callable_object, *args, **kwargs) -> None:
     assert info.value.reason_code == code
 
 
+def _receipt_document(value: dict[str, Any]) -> ReceiptDocument:
+    raw_bytes = json.dumps(value, separators=(",", ":")).encode()
+    return ReceiptDocument(
+        raw_bytes=raw_bytes,
+        value=value,
+        sha256=hashlib.sha256(raw_bytes).hexdigest(),
+    )
+
+
 def test_semantic_validator_accepts_complete_performance_receipt(tmp_path: Path) -> None:
     """この入力は shape を通過し、全 raw pointer と slot1 の36-run facts が整合する。"""
     fixture = _make_git_fixture(tmp_path)
     value, schema = _full_receipt(fixture)
-    document = ReceiptDocument(
-        raw_bytes=json.dumps(value, separators=(",", ":")).encode(),
-        value=value,
-        sha256=hashlib.sha256(json.dumps(value, separators=(",", ":")).encode()).hexdigest(),
-    )
+    document = _receipt_document(value)
     semantic._validate_receipt_semantics(
         fixture.root, document, schema=schema, binding=fixture.binding
     )
@@ -644,6 +701,44 @@ def test_replacement_only_targets_infra_failure_and_reuses_slot() -> None:
     """対象外条件を正例に保ち、post-performance attemptのreplacementだけを破る。"""
     value = {"planned_execution": {"consumed_cluster_slots": [1]}, "attempts": [{"attempt_id": "a", "cluster_slot_or_null": 1, "reason_code": "post_performance_failure", "replaces_attempt_id": "old", "performance_started_marker": {}, "failure_evidence": {"kind": "driver"}}], "actual_runs": []}
     _assert_semantic("reason", semantic._validate_reason_branches, value, {}, anomaly=False)
+
+
+def test_replacement_chain_rejects_cycles() -> None:
+    value = {
+        "attempts": [
+            {"attempt_id": "a", "replaces_attempt_id": "b", "parent_attempt_id": None, "allocation_id": None},
+            {"attempt_id": "b", "replaces_attempt_id": "a", "parent_attempt_id": None, "allocation_id": None},
+        ],
+        "allocations": [],
+        "actual_runs": [],
+        "liveness": [],
+        "correctness_evidence": [],
+        "planned_execution": {"runs": []},
+    }
+    _assert_semantic("reference", semantic._validate_reference_graph, value, {})
+
+
+def test_top_level_replacement_cycle_is_rejected(tmp_path: Path) -> None:
+    fixture = _make_git_fixture(tmp_path)
+    value, schema = _full_receipt(fixture)
+    value["attempts"][0]["replaces_attempt_id"] = "attempt-verification"
+    value["attempts"][1]["replaces_attempt_id"] = "attempt-performance"
+    _assert_semantic(
+        "reference",
+        semantic._validate_receipt_semantics,
+        fixture.root,
+        _receipt_document(value),
+        schema=schema,
+        binding=fixture.binding,
+    )
+
+
+def test_a03_failure_is_assigned_to_an_exact_attempt_id() -> None:
+    own = semantic.A03Result("short_columns", None, True, (), ())
+    child = semantic.A03Result(None, 0.0, False, (0,) * 8, (0,) * 8)
+    observations = {"attempt:a:0": own, "attempt:a:child:0": child}
+    assert semantic._attempt_observation_failures(observations, "a") == (own,)
+    assert semantic._attempt_observation_failures(observations, "a:child") == (child,)
 
 
 def test_reference_graph_rejects_dangling_and_duplicate_ids() -> None:
@@ -715,6 +810,14 @@ def test_argv_raw_and_run_log_are_exact(tmp_path: Path) -> None:
     _assert_semantic("run_log", semantic._validate_ccbench_run_log, bad, workload="W1")
 
 
+def test_ccbench_rejects_unrepresentable_integer_token() -> None:
+    raw = _ccbench_log("W1").replace(
+        b"#FLAGS_thread_num:\t48",
+        b"#FLAGS_thread_num:\t" + b"9" * 5000,
+    )
+    _assert_semantic("run_log", semantic._validate_ccbench_run_log, raw, workload="W1")
+
+
 def test_observation_window_cardinality_and_cpu_formula(tmp_path: Path) -> None:
     """正例の36窓を通過させ、raw counterだけから busy core を再計算する。"""
     fixture = _make_git_fixture(tmp_path)
@@ -756,6 +859,33 @@ def test_translation_unit_key_and_base_tree_are_redriven(tmp_path: Path) -> None
     """shape検査を通過し、POSIX正規化不能なTU keyだけを置いて拒否する。"""
     value = {"measurement_checkout": {"repository_head": "a" * 40, "ccbench_head": semantic._CCBENCH_PIN}, "arms": {arm: {"compile": {"source": {"repo_commit": "a" * 40, "ccbench_pin": semantic._CCBENCH_PIN, "base_tree_sha": "b" * 40, "patch_path": None if arm == "stock" else semantic._EXPECTED_PATCH_PATH, "patch_sha256": None if arm == "stock" else semantic._EXPECTED_PATCH_SHA256}, "mode_macro": semantic._EXPECTED_MODE_MACROS[arm], "translation_units": {"src/../bad.cc": {"sha256": "c" * 64}}}} for arm in semantic._ARMS}}
     _assert_semantic("source", semantic._validate_source_identity, tmp_path, value)
+
+
+def test_translation_units_are_nonempty_and_match_source_digest(tmp_path: Path) -> None:
+    fixture = _make_git_fixture(tmp_path)
+    value, schema = _full_receipt(fixture)
+    value["arms"]["stock"]["compile"]["translation_units"] = {}
+    _assert_semantic(
+        "source",
+        semantic._validate_receipt_semantics,
+        fixture.root,
+        _receipt_document(value),
+        schema=schema,
+        binding=fixture.binding,
+    )
+
+    value, schema = _full_receipt(fixture)
+    value["arms"]["stock"]["compile"]["translation_units"]["transaction.cc"][
+        "sha256"
+    ] = "0" * 64
+    _assert_semantic(
+        "source",
+        semantic._validate_receipt_semantics,
+        fixture.root,
+        _receipt_document(value),
+        schema=schema,
+        binding=fixture.binding,
+    )
 
 
 def test_pointer_reader_checks_size_digest_and_symlink(tmp_path: Path) -> None:
@@ -816,35 +946,47 @@ def test_fixed_inputs_and_declared_digest_are_reject_only(tmp_path: Path) -> Non
 
 
 def test_anomaly_clean_declaration_is_killed_by_raw_evidence(tmp_path: Path) -> None:
-    """shape検査を通過し、expected/actual raw不一致のsemantic一点でclean申告を殺す。"""
-    raw = json.dumps({"expected": {"value": 10}, "actual": {"value": 11}, "clean": True}, separators=(",", ":")).encode()
-    output = _file_record(tmp_path, "correctness.json", raw)
-    value = {"correctness_evidence": [{"outputs": [output]}]}
-    schema_raw = b'{"type":"object","required":["correctness_evidence"]}'
-    shape_schema = ReceiptSchema(
-        ref=BlobRef("schema.json", "a" * 40, hashlib.sha256(schema_raw).hexdigest()),
-        sha256=hashlib.sha256(schema_raw).hexdigest(),
-        document={"type": "object", "required": ["correctness_evidence"]},
-    )
-    validate_receipt_shape(value, schema=shape_schema)
-    assert semantic._validate_correctness_raw_evidence(tmp_path, value) is True
-    planned = [
-        {"run_id": f"p-{index}", "cluster_slot": 1}
-        for index in range(36)
+    """top-level入口で、clean申告ではraw不一致を覆せないことを確認する。"""
+    fixture = _make_git_fixture(tmp_path)
+    value, schema = _full_receipt(fixture)
+    bad_raw = json.dumps(
+        {"expected": {"value": 10}, "actual": {"value": 11}, "clean": True},
+        separators=(",", ":"),
+    ).encode()
+    value["correctness_evidence"][0]["outputs"] = [
+        _file_record(fixture.root, "correctness/stock-w1.json", bad_raw)
     ]
-    clean_value = {
-        "planned_execution": {"consumed_cluster_slots": [1], "runs": planned},
-        "attempts": [{
-            "attempt_id": "a",
-            "cluster_slot_or_null": 1,
-            "reason_code": "completed",
-            "allocation_id": "a",
-            "performance_started_marker": {},
-            "failure_evidence": None,
-        }],
-        "actual_runs": [{"attempt_id": "a", "run_id": row["run_id"]} for row in planned],
-    }
-    _assert_semantic("correctness", semantic._validate_reason_branches, clean_value, {}, anomaly=True)
+    _assert_semantic(
+        "correctness",
+        semantic._validate_receipt_semantics,
+        fixture.root,
+        _receipt_document(value),
+        schema=schema,
+        binding=fixture.binding,
+    )
+
+
+@pytest.mark.parametrize(
+    "raw",
+    [b"[]", b"not correctness evidence\n", b"\xff\xfe"],
+    ids=["json-array", "unrecognized-text", "invalid-utf8"],
+)
+def test_correctness_raw_without_comparable_pair_is_rejected_top_level(
+    tmp_path: Path, raw: bytes
+) -> None:
+    fixture = _make_git_fixture(tmp_path)
+    value, schema = _full_receipt(fixture)
+    value["correctness_evidence"][0]["outputs"] = [
+        _file_record(fixture.root, "correctness/stock-w1.json", raw)
+    ]
+    _assert_semantic(
+        "correctness",
+        semantic._validate_receipt_semantics,
+        fixture.root,
+        _receipt_document(value),
+        schema=schema,
+        binding=fixture.binding,
+    )
 
 
 def test_preregistration_eight_key_adapter_compares_all_nine_fields(tmp_path: Path) -> None:
@@ -855,6 +997,57 @@ def test_preregistration_eight_key_adapter_compares_all_nine_fields(tmp_path: Pa
     assert adapted == fixture.record
     value["composed_core_sha256"] = "0" * 64
     _assert_semantic("preregistration", semantic._parse_preregistration_8key, value, binding=fixture.binding)
+
+
+def test_study_receipts_require_order_coverage_and_verification_digest_identity(
+    tmp_path: Path,
+) -> None:
+    fixture = _make_git_fixture(tmp_path)
+    pilot, schema = _full_receipt(fixture)
+    main = copy.deepcopy(pilot)
+    main["study_stage"] = "main_run"
+    pilot_document = _receipt_document(pilot)
+    main_document = _receipt_document(main)
+    semantic._validate_study_receipts(
+        fixture.root,
+        [pilot_document, main_document],
+        schema=schema,
+        binding=fixture.binding,
+    )
+
+    _assert_semantic(
+        "study",
+        semantic._validate_study_receipts,
+        fixture.root,
+        [pilot_document],
+        schema=schema,
+        binding=fixture.binding,
+    )
+    duplicate_main = copy.deepcopy(main)
+    duplicate_main["study_stage"] = "pilot"
+    _assert_semantic(
+        "study",
+        semantic._validate_study_receipts,
+        fixture.root,
+        [pilot_document, _receipt_document(duplicate_main)],
+        schema=schema,
+        binding=fixture.binding,
+    )
+
+    changed_trace = copy.deepcopy(main)
+    changed_trace["allocations"][1]["accounting_trace"] = _file_record(
+        fixture.root,
+        "build/accounting-verification-changed",
+        b"changed-accounting\n",
+    )
+    _assert_semantic(
+        "study",
+        semantic._validate_study_receipts,
+        fixture.root,
+        [pilot_document, _receipt_document(changed_trace)],
+        schema=schema,
+        binding=fixture.binding,
+    )
 
 
 def test_forged_binding_like_object_is_rejected(tmp_path: Path) -> None:
