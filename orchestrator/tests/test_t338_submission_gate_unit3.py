@@ -888,6 +888,38 @@ def test_translation_units_are_nonempty_and_match_source_digest(tmp_path: Path) 
     )
 
 
+def test_nonexistent_translation_unit_rejects_synthetic_compile_digest(
+    tmp_path: Path,
+) -> None:
+    """実在しないTUをcompile_commands由来の合成digestで偽装できない。"""
+    fixture = _make_git_fixture(tmp_path)
+    value, schema = _full_receipt(fixture)
+    (fixture.root / "transaction.cc").unlink()
+
+    command_argv = value["arms"]["stock"]["compile"]["translation_units"][
+        "transaction.cc"
+    ]["normalized_argv"]
+    synthetic = json.dumps(
+        {"file": "transaction.cc", "arguments": command_argv},
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    ).encode("utf-8")
+    for arm in semantic._ARMS:
+        value["arms"][arm]["compile"]["translation_units"]["transaction.cc"][
+            "sha256"
+        ] = hashlib.sha256(synthetic).hexdigest()
+
+    _assert_semantic(
+        "source",
+        semantic._validate_receipt_semantics,
+        fixture.root,
+        _receipt_document(value),
+        schema=schema,
+        binding=fixture.binding,
+    )
+
+
 def test_pointer_reader_checks_size_digest_and_symlink(tmp_path: Path) -> None:
     """各独立 fixture は shape を通過し、digestまたはsymlink traversalの1点だけを破る。"""
     record = _file_record(tmp_path, "safe.txt", b"safe")

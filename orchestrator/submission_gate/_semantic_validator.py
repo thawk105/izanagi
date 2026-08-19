@@ -1238,17 +1238,6 @@ def _compile_command_file_path(
     return _strict_repo_relative_path(normalized, label=f"{label}.file")
 
 
-def _compile_command_entity_bytes(path: str, argv: Sequence[str]) -> bytes:
-    """source が無い生成 TU 用の compile_commands 実体の canonical bytes。"""
-
-    return json.dumps(
-        {"file": path, "arguments": list(argv)},
-        ensure_ascii=False,
-        sort_keys=True,
-        separators=(",", ":"),
-    ).encode("utf-8")
-
-
 def _validate_source_identity(
     repository_root: str | os.PathLike[str],
     value: Mapping[str, Any],
@@ -1372,9 +1361,11 @@ def _validate_source_identity(
                     normalized_path,
                     max_bytes=_MAX_POINTER_BYTES,
                 )
-            except (SafeIOError, ValueError):
-                actual_unit_bytes = _compile_command_entity_bytes(
-                    normalized_path, command_argv
+            except (SafeIOError, ValueError) as exc:
+                _semantic(
+                    "source",
+                    f"arms.{arm}.compile.translation_units[{path!r}] cannot be read",
+                    exc,
                 )
             _assert_root_identity(repository_root)
             actual_digest = hashlib.sha256(actual_unit_bytes).hexdigest()
