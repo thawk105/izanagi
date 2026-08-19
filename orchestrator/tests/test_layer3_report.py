@@ -1017,7 +1017,7 @@ def certifying_completeness_chain(tmp_path: Path, monkeypatch):
         "output_sha256": descriptor_sha256,
         "projection_version": "8b-descriptor-projection/v1",
         "schema_sha256": (
-            "e60203b021a77a6d5a7d09bafd59525acd4173fa1ade099ec145a2b9d3ddc653"
+            "5a9e2696b8fba18f8f7cf01183673a1bd6f5781cc9cb1fe8641f9d667fe11549"
         ),
     }
     identity_preimage = campaign_lock.canonical_json({
