@@ -485,6 +485,10 @@ _RECEIPT_MEMO_PREWARMED_ATTR = "_izanagi_receipt_memo_prewarmed"
 _RECEIPT_MEMO_RUN_ID_ATTR = "_izanagi_receipt_memo_run_id"
 _RECEIPT_MEMO_SESSION_ID_ATTR = "_izanagi_receipt_memo_session_id"
 _RECEIPT_MEMO_SESSION_ACTIVE_ATTR = "_izanagi_receipt_memo_session_active"
+_RECEIPT_MEMO_NONCE_ENV = "IZANAGI_RECEIPT_MEMO_NONCE"
+_RECEIPT_MEMO_NONCE_PREVIOUS_ATTR = "_izanagi_receipt_memo_nonce_previous"
+_RECEIPT_MEMO_NONCE_ACTIVE_ATTR = "_izanagi_receipt_memo_nonce_active"
+_RECEIPT_MEMO_ENV_UNSET = object()
 
 
 def _prewarm_receipt_memo(config, nodeids, *, run_id: str | None) -> None:
@@ -720,6 +724,20 @@ def pytest_collection_finish(session) -> None:
 
 
 @pytest.hookimpl(optionalhook=True)
+def pytest_configure_node(node) -> None:
+    """controller の session nonce を xdist workerinput へ wire する。"""
+    if hasattr(node.config, "workerinput"):
+        return
+    session_id = getattr(node.config, _RECEIPT_MEMO_SESSION_ID_ATTR, None)
+    if not isinstance(session_id, str) or not session_id:
+        raise pytest.UsageError("receipt memo controller session nonce が無い")
+    workerinput = getattr(node, "workerinput", None)
+    if not isinstance(workerinput, dict):
+        raise pytest.UsageError("xdist workerinput が receipt memo nonce を受け取れない")
+    workerinput[_RECEIPT_MEMO_SESSION_ID_ATTR] = session_id
+
+
+@pytest.hookimpl(optionalhook=True)
 def pytest_xdist_node_collection_finished(node, ids) -> None:
     """Collect controller-visible node IDs without persisting their names."""
     ids = tuple(ids)
@@ -882,8 +900,48 @@ def _configure_receipt_memo_run_id(config) -> None:
 
 
 def _configure_receipt_memo_session(config) -> None:
-    """pytest.main() 再入を含め、Config ごとに一意な process-state token を置く。"""
-    setattr(config, _RECEIPT_MEMO_SESSION_ID_ATTR, uuid.uuid4().hex)
+    """Config ごとに nonce を保存し、worker は controller nonce を再利用する。"""
+    previous = os.environ.get(
+        _RECEIPT_MEMO_NONCE_ENV, _RECEIPT_MEMO_ENV_UNSET,
+    )
+    setattr(config, _RECEIPT_MEMO_NONCE_PREVIOUS_ATTR, previous)
+    setattr(config, _RECEIPT_MEMO_NONCE_ACTIVE_ATTR, True)
+    try:
+        if hasattr(config, "workerinput"):
+            session_id = getattr(config, "workerinput", {}).get(
+                _RECEIPT_MEMO_SESSION_ID_ATTR,
+            )
+            if not isinstance(session_id, str) or not session_id:
+                raise pytest.UsageError(
+                    "receipt memo worker に controller session nonce が無い"
+                )
+        else:
+            session_id = uuid.uuid4().hex
+        setattr(config, _RECEIPT_MEMO_SESSION_ID_ATTR, session_id)
+        os.environ[_RECEIPT_MEMO_NONCE_ENV] = session_id
+    except BaseException:
+        try:
+            _restore_receipt_memo_nonce(config)
+        except BaseException:
+            # The configure failure is the useful exception and must remain primary.
+            pass
+        raise
+
+
+def _restore_receipt_memo_nonce(config) -> None:
+    """Config ごとの旧 env 値を、入れ子・例外経路を含めて一度だけ戻す。"""
+    if not getattr(config, _RECEIPT_MEMO_NONCE_ACTIVE_ATTR, False):
+        return
+    previous = getattr(
+        config, _RECEIPT_MEMO_NONCE_PREVIOUS_ATTR, _RECEIPT_MEMO_ENV_UNSET,
+    )
+    try:
+        if previous is _RECEIPT_MEMO_ENV_UNSET:
+            os.environ.pop(_RECEIPT_MEMO_NONCE_ENV, None)
+        else:
+            os.environ[_RECEIPT_MEMO_NONCE_ENV] = previous
+    finally:
+        setattr(config, _RECEIPT_MEMO_NONCE_ACTIVE_ATTR, False)
 
 
 def _finish_receipt_memo_session(config) -> None:
@@ -898,12 +956,20 @@ def _finish_receipt_memo_session(config) -> None:
 
 
 def pytest_configure(config) -> None:
-    _configure_receipt_memo_session(config)
-    _configure_receipt_memo_run_id(config)
-    _growth_holds_opted_in()
-    if mark_pytest_session_enforcing is not None:
-        mark_pytest_session_enforcing(config)
-    _FAILURE_REPORTS.clear()
+    try:
+        _configure_receipt_memo_session(config)
+        _configure_receipt_memo_run_id(config)
+        _growth_holds_opted_in()
+        if mark_pytest_session_enforcing is not None:
+            mark_pytest_session_enforcing(config)
+        _FAILURE_REPORTS.clear()
+    except BaseException:
+        try:
+            _restore_receipt_memo_nonce(config)
+        except BaseException:
+            # Preserve the configure failure instead of replacing it with cleanup.
+            pass
+        raise
 
 
 def pytest_runtest_logreport(report) -> None:
@@ -1292,34 +1358,48 @@ def pytest_unconfigure(config):
         inner_exception = exc
         raise
     finally:
-        if unmark_pytest_session_enforcing is not None:
-            unmark_pytest_session_enforcing(config)
-        if inner_exception is None:
-            _finish_receipt_memo_session(config)
-        else:
-            try:
+        cleanup_exception: BaseException | None = None
+        try:
+            if unmark_pytest_session_enforcing is not None:
+                unmark_pytest_session_enforcing(config)
+            if inner_exception is None:
                 _finish_receipt_memo_session(config)
-            except BaseException:
-                pass
-        stashed = tuple(_FAILURE_REPORTS)
-        _FAILURE_REPORTS.clear()
-        # finally 内で return すると inner hook の例外を StopIteration で消すため、
-        # worker/green とも条件分岐だけで通過する。
-        if not hasattr(config, "workerinput"):
-            if inner_exception is None:
-                _emit_effective_scheduler_marker(config)
             else:
                 try:
+                    _finish_receipt_memo_session(config)
+                except BaseException:
+                    pass
+            stashed = tuple(_FAILURE_REPORTS)
+            _FAILURE_REPORTS.clear()
+            # finally 内で return すると inner hook の例外を StopIteration で消すため、
+            # worker/green とも条件分岐だけで通過する。
+            if not hasattr(config, "workerinput"):
+                if inner_exception is None:
                     _emit_effective_scheduler_marker(config)
-                except BaseException:
-                    pass
-        if not hasattr(config, "workerinput") and stashed:
-            if inner_exception is None:
-                _emit_failure_digest(stashed)
-            else:
-                # inner hook の元例外を最優先する。digest は試みるが、同時に
-                # emitter が投げた BaseException も含めて元例外を置換させない。
-                try:
+                else:
+                    try:
+                        _emit_effective_scheduler_marker(config)
+                    except BaseException:
+                        pass
+            if not hasattr(config, "workerinput") and stashed:
+                if inner_exception is None:
                     _emit_failure_digest(stashed)
-                except BaseException:
+                else:
+                    # inner hook の元例外を最優先する。digest は試みるが、同時に
+                    # emitter が投げた BaseException も含めて元例外を置換させない。
+                    try:
+                        _emit_failure_digest(stashed)
+                    except BaseException:
+                        pass
+        except BaseException as exc:
+            cleanup_exception = exc
+            raise
+        finally:
+            try:
+                _restore_receipt_memo_nonce(config)
+            except BaseException:
+                # yield または cleanup の元例外を env cleanup で隠さない。
+                if inner_exception is not None or cleanup_exception is not None:
                     pass
+                else:
+                    raise
