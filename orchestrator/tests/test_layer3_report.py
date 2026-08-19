@@ -823,6 +823,30 @@ def test_m14_non_certifying_receipt_is_rejected_downstream(
         )
 
 
+def test_render_accepted_rejects_non_certifying_receipt_before_write(
+    tmp_path: Path,
+) -> None:
+    campaign, output_root = _campaign(
+        tmp_path, [_record("build_start", genome="g", src_token="s")],
+    )
+    verified = _verified_non_certifying_receipt(campaign, output_root)
+    out = tmp_path / "accepted-report.json"
+
+    with pytest.raises(
+        layer3_report.Layer3ReportError,
+        match="certifying=true でない",
+    ):
+        layer3_report.render_accepted(
+            campaign,
+            out,
+            acceptance_receipt=verified,
+            generated_from_head="fixed",
+            output_root=output_root,
+        )
+
+    assert not out.exists()
+
+
 def test_accepted_report_api_has_no_return_code_or_stdout_parameter() -> None:
     import inspect
 
@@ -915,6 +939,41 @@ def test_accepted_report_requires_e1_and_records_epoch(
         "path": verified.relative_path,
         "sha256": verified.sha256,
     }
+
+
+def test_render_accepted_persists_certifying_report(
+    tmp_path: Path, monkeypatch,
+) -> None:
+    campaign, output_root = _campaign(
+        tmp_path, [_record("build_start", genome="g", src_token="s")],
+    )
+    verified = _certifying_receipt_for(campaign)
+    monkeypatch.setattr(
+        layer3_report.s8c_acceptance_receipt,
+        "require_current_verified_receipt",
+        lambda _receipt: verified,
+    )
+    out = tmp_path / "accepted-report.json"
+
+    report = layer3_report.render_accepted(
+        campaign,
+        out,
+        acceptance_receipt=object(),
+        generated_from_head="fixed",
+        output_root=output_root,
+    )
+
+    assert report["certifying_input"] is True
+    assert report["campaign_verifier_epoch"]["state"] == "E1"
+    assert report["campaign_verifier_epoch"][
+        "campaign_verifier_epoch"
+    ].startswith("E1:")
+    assert report["acceptance_receipt"] == {
+        "path": verified.relative_path,
+        "sha256": verified.sha256,
+    }
+    assert out.is_file()
+    assert json.loads(out.read_text(encoding="utf-8")) == report
 
 
 def test_accepted_report_rejects_external_v2_campaign_without_git_head(
@@ -1762,6 +1821,84 @@ def test_existing_output_fails_closed(tmp_path):
     out.write_text("already here", encoding="utf-8")
     with pytest.raises(layer3_report.Layer3ReportError, match="既に存在"):
         layer3_report.render(campaign, out, generated_from_head="fixed", output_root=output_root)
+
+
+def test_render_accepted_existing_output_fails_before_builder(
+    tmp_path: Path, monkeypatch,
+) -> None:
+    campaign, output_root = _campaign(
+        tmp_path, [_record("build_start", genome="g", src_token="s")],
+    )
+    out = tmp_path / "exists-accepted.json"
+    out.write_text("already here", encoding="utf-8")
+    called = False
+
+    def fail_builder(*_args, **_kwargs):
+        nonlocal called
+        called = True
+        raise AssertionError("builder must not run for an existing output")
+
+    monkeypatch.setattr(layer3_report, "build_accepted_report", fail_builder)
+    with pytest.raises(layer3_report.Layer3ReportError, match="既に存在"):
+        layer3_report.render_accepted(
+            campaign,
+            out,
+            acceptance_receipt=object(),
+            generated_from_head="fixed",
+            output_root=output_root,
+        )
+
+    assert called is False
+    assert out.read_text(encoding="utf-8") == "already here"
+
+
+@pytest.mark.parametrize("first", ["render", "render_accepted"])
+def test_render_and_render_accepted_race_rejects_second_writer(
+    tmp_path: Path, monkeypatch, first: str,
+) -> None:
+    campaign, output_root = _campaign(
+        tmp_path, [_record("build_start", genome="g", src_token="s")],
+    )
+    verified = _certifying_receipt_for(campaign)
+    monkeypatch.setattr(
+        layer3_report.s8c_acceptance_receipt,
+        "require_current_verified_receipt",
+        lambda _receipt: verified,
+    )
+    out = tmp_path / "shared-report.json"
+
+    if first == "render":
+        layer3_report.render(
+            campaign, out, generated_from_head="fixed", output_root=output_root,
+        )
+    else:
+        layer3_report.render_accepted(
+            campaign,
+            out,
+            acceptance_receipt=object(),
+            generated_from_head="fixed",
+            output_root=output_root,
+        )
+    original = out.read_bytes()
+
+    with pytest.raises(layer3_report.Layer3ReportError, match="出力先が既に存在する"):
+        if first == "render":
+            layer3_report.render_accepted(
+                campaign,
+                out,
+                acceptance_receipt=object(),
+                generated_from_head="fixed",
+                output_root=output_root,
+            )
+        else:
+            layer3_report.render(
+                campaign,
+                out,
+                generated_from_head="fixed",
+                output_root=output_root,
+            )
+
+    assert out.read_bytes() == original
 
 
 def test_variant_without_commit_is_reject_with_primary_reference(tmp_path):
