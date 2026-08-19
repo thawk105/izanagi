@@ -161,3 +161,9 @@ docs/handoff直下とGit adminに双方向束縛したClaude/Codex worktreeは�
 
 D254 に従い、land は `locked_main != tested_tip` のときだけ lock を解放して全史 provenance 監査を自ら走らせ、480 秒以内の rc=0 を必須とする。赤は `RC_PROVENANCE = 29` で main を 1 bit も変えず拒否し、CLI flag・環境変数・警告化の逃がし道を作らない。
 lock 再取得後に全検査をやり直し、`tip_sha` / `checker_blob_sha` / `executed_bytes_sha` / `returncode` を束縛した receipt を lock 内で再照合する。`already-landed` の no-op と active fold transaction の recovery では監査を起動しない。
+## DW-O26 — 焦点走の consumer test 拡張
+
+`DW-O18` の焦点走対象 file 集合は、変更した test file だけでなく、変更した production file を
+参照する consumer test も含める。名前の推測でなく参照関係で引く（例: 変更した production module 名で
+`orchestrator/tests/` を grep する）。この拡張を欠く焦点走は、静的レビューが見落とした破れを
+初回実測でも取り逃す（F242）。

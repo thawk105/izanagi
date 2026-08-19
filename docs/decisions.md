@@ -22561,3 +22561,327 @@ DW-S05-A は parse しない」という決定、および D275 が却下した�
   呼び手ゼロの経路に備える schema 移行は規律5 (段階導入/盛らない) に反する。構造検査を
   `len(sections) not in (3, 4)` と `effort_authority in ("docs", "unbound")` の許容へ緩め、
   意味検査 (`_audit_receipt_value` の commit 由来再構成との厳密一致) は変更しない対応で十分。
+
+## D553. `loop.py` の postclaim 強制は D419 決定 (4) の「(c)→(a)」順を継続し、(a) (sink-local な `single_process` 強制) を今回採用する (2026-08-19)
+
+**決定:** `orchestrator/campaign/loop.py` の `_authorize_measurement` (`loop.py:61-89`) へ、`contract.isolation_policy.single_process is True` のときだけ発火する sink-local な claim 取得・reservation 検査を追加する。caller は当面 repo 外の 8c job script のままとし、tracked wrapper 化 ([T-1097] / [T-276] の所有範囲) は本決定の対象外とする。2026-08-03 の裁定 (D419 決定 1 が引用) が明示した「発火 caller を持たない wave では部分実装を採らない」という禁止は、**単独性が未検査のまま既に実在する呼び手を持つ本件に限り解除する。**
+
+**理由:**
+- D419 決定 (4) は「発火 caller が既に実在する穴を先に直す方を推奨する」として (c) を先に選び、
+  (a) は「再訪する」前提で保留された (D419 決定 3:「本決定は現状維持を推奨するものではない」)。
+  (c) の実装 (claim identity の生存プロセス単位化・submitter receipt authority) は
+  2026-08-16 に完了している (D464/D465)。保留の前提だった作業は終わっている。
+- 2026-08-03 の禁止が守ろうとしていたのは「発火 caller が存在しない gate を作らない」ことであり、
+  その趣旨は「caller が tracked なテストで固定できない」こととは別である。本件の caller
+  (8c live pilot job script、`/work/1/SFC/tanab/dev-wave-jobs/2026-08-15_t1097-s8c-live-abc/live/live.pbs`)
+  は実在し、実際にこの経路を通っている — untracked なだけで、死んだコードではない。
+- 契約 (`single_process=True`) は既に宣言されている一方、宣言を検査する強制は一度も無い。
+  [T-1097] の transport 欠陥が直った瞬間、単独性を一度も検査しないまま exploratory の
+  WAL・report・binary SHA・throughput を受理し始める (F322)。規律 3 (正しさシグナルを
+  後付けにしない) に照らし、宣言だけで強制がない期間を漫然と延ばす理由はない。
+
+**却下した選択肢:**
+- 現状維持 ([T-1097] / [T-276] 完了まで待つ) — 完了時期が不明であり、その間 `single_process`
+  契約は無検査のまま通り続ける。
+- 本決定で tracked wrapper を新設する — D125 決定 (6)・D108 決定 (2)〜(5) の campaign task
+  凍結境界を割る。[T-1097] / [T-276] の所有範囲であり、本決定はその境界を開かない。
+
+## D554. 受入 postclaim merge の author 要件は、実装面で本当に衝突したときだけ Codex を要求する条件付き昇格にする (2026-08-19)
+
+**決定:** 受入 lease 取得後・受入 command 投入前に main が進んだ場合の postclaim merge (`tools/dev_wave_wait.py`) は、呼び出し元の軽量な自己申告 (例: `product=claude; role=integrator`) をその場で使って commit してよい。ただし merge 結果が main と wave branch の**両方**と食い違う実装面 path が実際に生じた場合 (真の衝突) に限り、そこで初めて Codex `role=author` の事前検証済みファイルを要求する。事前に用意されたファイルを毎回無条件で要求する設計は採らない。
+
+**理由:**
+- `tools/dev_wave_wait.py` は呼び出し元の製品 (Claude/Codex/人間) を判別する手段を持たない (env var 等の参照なし、実装を実測して確認)。self-report する主体は「今それを呼んでいる側」であり、その主体が自分の役割を申告すること自体は虚偽にならない。
+- `tools/check_ai_provenance.py` の `_message_file_paths` / `validate_implementation_author` は、merge 結果が**両親双方と食い違う実装面 path がある場合だけ** Codex `role=author` を要求する。両親のどちらか一方だけを反映した通常の (衝突なしの) 合流では、この要求自体が発生しない。
+- `owned-path-overlap` 検査が並行 wave 間の path 重複を事前に防いでいるため、実装面での真の衝突 (両親と異なる新規内容の発生) は構造的に稀となる。
+- 現行実装 (`tools/dev_wave_wait.py:3793-3794`) は `behind > 0` の時点で、実際に衝突するかを試す前に無条件で `merge_message_file` を要求しており、稀にしか要らない保証を毎回課す過剰な fail-closed になっている。
+
+**却下した選択肢:**
+- P1 (運用ルールのみ、コード変更ゼロ) — `docs/pegasus-runbook.md:921-922` に近い規約が既にあったにもかかわらず t1180 で実際に省略され 52 分のロスが発生した実績があり、人間の記憶に依存する対策として弱いと再確認した。
+- P2 (`--merge-message-file` を常に必須化し claim 前に検証・保存する) — 安全だが、衝突が起きない大多数のケースでも毎回 Codex 名義ファイルの事前用意を要求し続ける点で過剰。
+- P3 (ファイル省略時にツールが自動で trailer を生成する) — 却下は維持。呼び出し元が Claude であるにもかかわらず `product=codex` を名乗れば虚偽の author 記録になる。今回の決定は「呼び出し元が“自分自身”を正直に名乗る」ものであり、P3 (他者を騙る) とは異なる。
+
+## D555. 最終判定層の条件3・scale gate 撤去は意図的な受理拡大であり、[T-1336]/8b §10.1 が明示承認している (2026-08-19)
+
+**決定:** `orchestrator/campaign/s8b_verdict.py` の `judge_combined` から旧条件3
+(oracle per-pair floor 超過判定) と scale gate を撤去し、結論を条件1 (on/off 予測差の
+存在量化) ∧ 条件2 (swapped 追従の全称量化) の2条件連言へ縮退させる。この変更は
+「floor を判定基盤から外す」という設計変更であって、受理集合を変えない中立的な整理では
+ない — 具体的な反例 (条件1 が成立するが旧条件3 は floor 未超過だった holdout の組み合わせで、
+旧結論 REFUTED/INDETERMINATE が新結論では HOLDS になる) が存在する。これは規律2 が禁じる
+無許可の検証弱体化ではなく、`docs/phase3-8b-descriptor-design.md` §10.1/§10.3 と D510
+(2026-08-18) が between-run floor・scale gate・oracle unique-best 確定・両構成
+eligibility 判定の4保証の撤去を名指しで明示承認した範囲内の実装である。
+
+**理由:**
+- §10.6 が「最終判定層の現用実装は依然として旧条件3とscale gateを使う。本節はその実装を
+  変更しない。実装の追随は別waveが行う」と明記しており、本 wave が名指しされた「追随」に
+  当たる。
+- production consumer はゼロ (`judge_combined` を外部 import するのは
+  `test_s8b_verdict.py` のみ、CLI `main` は in-module entrypoint) であり、実際の
+  certified selection 受理集合への実害はない。
+
+**却下した選択肢:**
+- 「受理を広げる操作ではない」という当初の brief の理解のまま実装する — 段6 敵対レビューが
+  具体的な反例で反証した。裁定済みの意図的な設計変更として正確に記述する方を採った。
+
+## D556. `COMBINED_VERDICT_SCHEMA` は v2 のまま維持し v3 bump を撤回する (2026-08-19)
+
+**決定:** `s8b_oracle_artifacts.py` の `COMBINED_VERDICT_SCHEMA` を `"8b-combined-verdict/v2"`
+のまま維持する。段4裁定では出力 shape 変更 (floor/scale フィールド消滅) に合わせて v3 へ
+bump する方向を一度採用したが、これを撤回する。
+
+**理由:**
+- `s8b_oracle_artifacts.py` 自体の source bytes の sha256 が
+  `test_s8b_oracle_manifest.py::PIN_GATE_SPEC_RAW` (generator_versions.artifacts.sha256) に
+  literal pin されていることを、bump 判断時 (段4) には見落としていた。bump した状態で受入を
+  投入したところ、この pin との不一致で無関係な2テストが赤になった。
+- schema version の実体との乖離は production consumer ゼロのため実害がなく、bytes pin を
+  壊してまで解消する価値がない。
+
+**却下した選択肢:**
+- pin (`PIN_GATE_SPEC_RAW` 内の sha256 literal) を新しい bytes へ更新する — このテストが
+  「production serializer から独立した golden」として意図的に固定した値であり、意味を
+  理解しないまま書き換えるのは危険。schema 変更自体を撤回する方が安全側。
+
+## D557. main checkout 側絶対 path からの waiter 起動は D403 と構造的に矛盾するため見送る (2026-08-19)
+
+**決定:** 「`.claude/commands/dev-wave.md` の受入 lease claim/release 呼出しを、wave tip 側
+worktree の相対パスから main checkout 側の絶対 path へ書き換える」案は実装しない。
+
+**理由:**
+- D403 は「claim 前に main の blob と比較する早期照合」を、待ち手を編集する wave を永久に
+  受入不能にするという理由で明示的に却下している。本提案は main checkout 側の絶対 path から
+  waiter を直接起動するため、`_verify_waiter_source_bytes` (tools/dev_wave_wait.py:2001-2080)
+  が比較する running source bytes が main 側 (未反映) のものになり、待ち手を編集する wave では
+  tested_tip の blob と恒久的に不一致になる。D403 が却下した設計と実質的に同型の帰結である。
+- D524 は「親の固定起動点を launcher へ移すこと」を「起動権を wave tip の外へ出す唯一の形」と
+  認めつつ D253 抵触懸念を理由に後続タスクへ先送りしたが、D403 との整合性確保の方法は示して
+  いなかった。本決定はその欠落を明確化する。
+- main checkout を cwd にして起動する代替案 (waiter CLI に main path 専用引数が無いため cwd を
+  変える以外の実行経路が無い) も、`docs/pegasus-runbook.md` が明記する既存の復旧手順 (mismatch
+  時は新しい tip の木から待ち手を起動し直すことだけが直し方) と構造的に矛盾する。
+- 独立した 2 レンズの敵対相談 (正しさ境界 / 実効性・所有範囲) が、それぞれ file:line で
+  この帰結と技術的不整合を実証した。
+
+**却下した選択肢:**
+- main 絶対 path を argv へ埋め込むメタ変数記法 — waiter の acceptance サブコマンド
+  (tools/dev_wave_wait.py:1607-1625) に main path を受け取る引数が無く実行不能。
+- main checkout を cwd にして waiter を起動する — 待ち手を編集する wave の受入を恒久的に閉じる
+  (上記理由と同じ)。
+
+**閉じていない残余:** 協調境界に残る「改変された tip 側待ち手は launcher を起動せず受領証を
+自作できる」は未解決のまま。解くには acceptance_launcher.py と同型の bootstrap 層 (main 側固定
+entry point が tip 側 tree から waiter ロジックの blob を exec する) を waiter にも新設するか、
+launcher 呼出しの正しさを land 側でより厳密に検証する方向への転換が要る。いずれも本決定の
+scope 外であり、設計選択はユーザー裁定に委ねる。
+
+## D558. 前提条件1のscopeはacceptance gateに閉じ、run_trial起動経路は前提条件8へ残す (2026-08-19)
+
+**決定:** 前提条件1 (H1/H2 workload定義) の実装scopeを、登録済みbuild reportの
+acceptance判定gate (`orchestrator/campaign/autonomous_trial_completeness.py`の
+`assert_campaign_layer3_chain`内producer-supported判定) 1箇所に閉じる。
+`run_trial` (`orchestrator/campaign/p3_autonomous_workload_trial.py`) にも同型の
+`WORKLOADS`単独参照gateが存在するが、修正しない。
+
+**理由:**
+- `run_trial`は自身のgateへ到達する前に`_preflight_workload_profile`を通り、これは
+  exploratory以外のprofile選択を「effective preregistration unavailable」で無条件拒否する。
+  正式holdout起動には二段束縛 (`prereg_content_commit`/`prereg_effective_commit`) の消費が
+  要るが現行実装は未消費であり、`docs/phase3-s8c-autonomous-trial-runbook.md`が
+  「現repositoryは12述語のSATISFIEDが0件、正式H1/H2起動が通ることを期待してはならない」と
+  明言している。
+- この二段束縛は`docs/phase3-8c-preregistration.md`§6の前提条件8に相当し、前提条件1とは
+  別項目である。`run_trial`のgateを直しても`_preflight_workload_profile`が先に阻むため、
+  受理集合・値・参照のいずれも1件も変わらない (成果物影響を1行で書けない = must-fixにしない
+  基準に該当)。
+
+**却下した選択肢:**
+- `run_trial`のgateも同時に直す — 前提条件8が未充足のままでは観測可能な効果が無く、
+  「実起動が今回で通るようになった」という誤った印象を記録に残すリスクがある。
+
+## D559. HOLDOUT_BINDINGS/WORKLOADS/FORMAL_WORKLOADSの構造分離を維持したまま参照だけ広げる (2026-08-19)
+
+**決定:** producer-supported gateの修正は、`trial_registry.HOLDOUT_BINDINGS`
+(holdoutラベルH1/H2→workload名の束縛)、`p3_autonomous_workload_trial.WORKLOADS`
+(exploratory hardcode)、同`FORMAL_WORKLOADS` (freeze由来derived) の3辞書の**値を複製・統合せず**、
+gateが参照する集合を`WORKLOADS`単独から既存resolver (`resolve_workload_entry`、両辞書を順に見る)
+経由へ広げる形で実装した。
+
+**理由:**
+- 3辞書は元々「exploratory hardcode」「freeze由来derived」「holdoutラベル」という異なる性質を
+  持ち、意図的に分離されている。値を複製すると将来freeze側の値が変わった際に不整合が生まれる。
+- command引数の「非交差にする」という制約は、この既存の構造分離を壊すな (HOLDOUT_BINDINGSの
+  キーH1/H2をWORKLOADSへ混入させるな、WORKLOADSとFORMAL_WORKLOADSも統合するな) という意味と
+  解釈した。この解釈は段3敵対相談2レンズでも反証されず (コード上に明示的な非交差assertionは
+  無いが、既存resolverの設計そのものが分離を前提にしている)。
+
+**却下した選択肢:**
+- rr80/rr20の値を`WORKLOADS`へ直接追加する — `FORMAL_WORKLOADS`と値が重複し、将来の
+  freeze値変更で乖離しうる。
+
+## D560. 有界 task-run 観測 pilot v2 — D341 の実装を確定する (2026-08-19)
+
+**決定:** D341 (Q1〜Q3=(a)(a)(a) 確定) の制約下で、`tools/task_runs/generation.py` を新設し、
+`tools/run_tests.py` の実行を repo 外の repo 兄弟 (git-common-dir 由来) へ自動記録する
+series/generation manager を実装した。既存の `task-run/v1` schema は変更しない。以下の設計判断を
+本 wave で確定させた。
+
+1. **記録先の導出は digest 方式を採らない。** `git rev-parse --git-common-dir` の realpath の
+   親を repo root とし、`<親>/<repo名>-task-runs/` を既定 base にする。repo 兄弟は親ディレクトリ内で
+   既に一意 (別 clone は親が違うので自然に分離) であり、D341 が言及した precedent
+   (`izanagi-thirdparty-cache` 等) の解決アルゴリズムを踏襲する digest 方式は不要と判断した。
+2. **B4 (bounded scope の非 CHILD_RC outcome) は診断のみへ scope 縮小する。** 段2 plan は
+   route/outcome/child_started を record するため schema field 追加を伴う設計だったが、
+   `task-run/v1` の exact-key 契約を変更しない brief の不変条件を優先し、CAP_OOM・timeout・
+   dispatch infra 失敗では task_run event を作らず固定 diagnostic 1 行のみにする形へ縮小した。
+3. **explicit-only な次世代生成の強制は call-graph meta-test で行い、opaque capability は
+   採用しない。** 本機構の脅威モデル (dev-only observability tool、単一マシン、無敵対者) では
+   Python レベルの呼出し規約保護で十分であり、暗号学的な capability 機構は D205 のプロトタイプ
+   基準に照らして過剰と判断した。
+4. **damaged/unknown な root への `start_run()` は拒否しない (pre-existing v1 互換を維持)。**
+   段5〜6 で「damaged 時に拒否すべきか」の往復があったが、既存テスト
+   `test_validate_root_classifies_damaged_and_unknown` が pre-existing v1 の意図的な設計
+   (診断専用の `validate_root()` と書込み可否は独立) を明示していたため、これに合わせた。
+   cap 判定の分母を published+incomplete+damaged の合計にすることで、damaged を使った
+   cap 突破という実害は別途閉じている。
+5. **sidecar は専用 0700 lease directory + 固定 basename** (`pytest-stats.json`)。
+   既存 `tools/task_runs/pytest_stats.py` の `_create_sidecar()` は basename 完全一致と
+   `O_EXCL` (未存在必須) を要求するため、generation.py 側は directory だけを予約しファイル自体は
+   子プロセス側 (pytest_stats.py) に作らせる設計にした (既存の manual 経路
+   `_private_sidecar()` と同型)。
+
+**理由:**
+- D341 は Q1〜Q3 (再開の形・記録先・被覆範囲) を確定させたが、実装レベルの技術選択
+  (schema 変更の可否、TOCTOU 対策の強度、cap 計算式) までは決めていなかった。本 wave はこれらを
+  段4裁定と段6の敵対レビュー・fix サイクルを通じて確定させた。
+- 段6 の2レンズによる敵対レビューが、cap 判定の迂回 (damaged/incomplete が cap を消費しない)
+  という最重要のバグを独立に検出した。これは D66/D341 が意図した「有界 pilot」という前提を
+  直接損なうものであり、最優先で修正した。
+
+**却下した選択肢:**
+- schema 世代を増やして route/outcome/child_started を record する (B4 の当初案) —
+  `task-run/v1` の exact-key 契約を変更することになり、D66 の privacy-by-simplicity 設計と
+  brief の不変条件に反する。
+- opaque capability token による explicit-only 生成の強制 — 本機構の脅威モデルに対して
+  過剰な複雑性。
+- damaged/unknown な root への `start_run()` を拒否する設計 — pre-existing v1 の既存テストが
+  明示的に禁じている挙動であり、cap 分母修正で実害は既に閉じている。
+
+6. **変異matrix検証専用に、`run_tests.py` の dispatch walltime を環境変数
+   (`IZANAGI_DISPATCH_WALLTIME_OVERRIDE`) で上書き可能にした。** hang_risk 変異
+   (m04) の検証で PBS 既定 walltime (1時間) 固定のまま毎回待たされる非効率をユーザーが
+   指摘し、`dispatch_compute.dispatch()` が元々公開している `walltime` kwarg へ
+   `run_tests.py` から到達できなかった構造的欠落を解消した。未設定時は従来どおり挙動不変。
+   本体コードでなくテスト・運用専用の逃げ道であり、ユーザー向け機能としては文書化しない。
+
+**未閉鎖として記録する残件 (段7時点):**
+- **m04 (lock timeout保護を外す変異) は変異matrixから除外した。** 3回の実dispatch観測
+  (各30分以上ノータイムアウト、うち2回はPBS壁時間まで完走を確認) により「保護を外すと
+  無限にblockする」という被験対象の性質自体は十二分に実証済みだが、`dispatch_compute.py`
+  が「PBS強制終了されたjobは正常完了マーカーを残せない」ため、walltime値に関わらず
+  毎回 orphan-hold に落ちる構造的非互換がある。これは `tools/mutation_harness.py` /
+  `tools/pegasus/dispatch_compute.py` 側のtooling限界であり、本waveの実装コードの
+  問題ではない。次にhang_risk変異を使うwaveで再発した場合の改善候補は
+  handoffの自己改善候補3を参照。
+- 実 dispatch (Pegasus compute node) での sidecar 往復は、テストとしては実装済みだが
+  `IZANAGI_RUN_REAL_DISPATCH_TEST=1` を明示しないと skip される。親が受入検証時に実測できたかは
+  worklog 本文を参照。
+- signal (KeyboardInterrupt/SystemExit) 発生時の lease cleanup は主要経路で `finally` により
+  保証したが、一部の稀な例外経路 (admission/queue/Popen wait 中) では未保証のまま残る。
+  D205 の脅威モデル (単一マシン、無敵対者) に照らし許容できる残存リスクと判断し、追加の fix
+  ラウンドは行わなかった。
+
+## D561. 新規 L2 節は `_OPERATION_NUMBERS` から独立した union で登録する (2026-08-19)
+
+**決定:** `docs/dev-wave/operations.md` へ新規 L2 節を追加するとき、`tools/check_docs.py` の
+`REQUIRED_REFERENCE_SECTIONS["docs/dev-wave/operations.md"]` は `_OPERATION_NUMBERS` 由来の
+内包表記と新節 ID の union (`{f"DW-O{i:02d}" for i in _OPERATION_NUMBERS} | {"DW-O<NN>"}`) で
+登録し、`_OPERATION_NUMBERS` 自体は変更しない。番号は過去に削除された ID (現在 `DW-O07`/
+`DW-O15`) を再利用せず、未使用の番号を新たに使う。
+
+**理由:**
+- `_OPERATION_NUMBERS` を変更すると `_ALL_OPERATIONS` も連動して広がり、
+  `.claude/commands/dev-wave.md` の段5/段6 `|C|` 行 (range 表記のセル) も編集対象になる。
+  同ファイルは L0 command entry として byte 予算の余白がほぼ無い (実測 8 bytes/9500) ため、
+  この波及コストを負えない。独立 union なら波及しない。
+- 削除済み ID の再利用は復活そのものに新規裁定が要る (2026-08-18 commit `ebf6b133` の
+  コミットメッセージが明記)。
+
+**却下した選択肢:**
+- `_OPERATION_NUMBERS` へ新番号を直接追加する — 上記の波及コストを負う。
+- 削除済み番号 (`DW-O07`) を再利用する — 復活の新規裁定が別途要る。
+- `docs/dev-wave/core.md` の `DW-C0x` 系 (前例 `DW-C01`) へ収容する — 既存 `DW-C01` は
+  991/1000 bytes で新規追加の余地がなく、新設 `DW-C02` も選べたが、`operations.md` 内に
+  留めるほうが `DW-O18` と主題的に近く、条件 dispatch 側の変更も row 18 の cell 拡張だけで
+  済み最小コストだった。
+
+## D562. exact-match schema 抽出器は record 名の短縮 anchor 一意性を、詳細な table_prefix 検索より前に検査する (2026-08-19)
+
+**決定:** 設計 doc の一節から「marker + header + 行」を string search で抽出する contract
+validator (`calibration_freeze_authority_contract.py` の `_extract_design_revocation_schema` /
+`_extract_design_cancellation_schema` 等) は、詳細な table_prefix (marker 全文 + header) の
+一意性検査だけでなく、その**手前**で record 名 (bold 短縮 anchor、例 `**上位取消 record C**`)
+単体の section 内出現回数を、NFKC 正規化した文字列に対して検査し、ちょうど 1 件でなければ
+拒否する。
+
+**理由:**
+- table_prefix 検索は「本物の marker の一部 (改行→空白、ASCII→全角等) を軽微に破壊しつつ、
+  canonical な marker + header + 全行を別の場所へ挿入する」decoy に対して脆弱である。本物が
+  table_prefix に一致しなくなり decoy だけが一致するため、relaxed な本物の内容を見過ごした
+  まま受理してしまう (F423)。
+- record 名の一意性を先に検査すれば、decoy が record 名を含まない限り「それらしい」table
+  decoy として機能せず、record 名を含めば本物と衝突して拒否できる。
+- NFKC 正規化は全角/半角のような「畳み込み可能」な homoglyph だけを閉じる。それでも
+  byte-exact 一致だけの検査より防御範囲が広く、実装コストも 1 関数呼び出しの追加に留まる。
+
+**却下した選択肢:**
+- table_prefix 検索の対象文字列を単純に拡張する — 「本物のどこかを破壊し decoy で補う」という
+  攻撃の型そのものは閉じず、対症療法にしかならない。
+- Cyrillic/Greek 等の視覚的 homoglyph まで含めた Unicode confusables (TR39 相当) の全体
+  ホワイトリスト化 — CFAB-R4 gate を resolved にするという本 wave の scope に対して
+  不釣り合いに大きい変更であり、DW-G03 の一般化ライセンス (同型欠陥の独立 2 件再現) の
+  射程を超える。既知の残存限界として F423
+  へ記録し、追加対応は再訪条件が生じたときに起票する。
+
+## D563. 投入gate 単位1/2は opaque capability sealing + freeze/thaw で構造的整合性を保証する (2026-08-19)
+
+**決定:** D509 決定(6)(7)が確定した単位1(manifest/binding/Git基盤)・単位2(受領証IO/schema)の
+実装で、段3敵対相談・段6敵対レビューが発見した3件の脆弱性を踏まえ、次の3パターンを
+`orchestrator/submission_gate/` の設計規約として固定する。
+
+1. **既存 `orchestrator/preregistration/blobref.py` は一切変更しない。** D509 決定(6)の
+   「衛生化Git実行面を公開helperへ抽出して使う」は、wrapper化ではなく**独立実装として複製する**
+   形で満たす。既存 `blobref._git`/`_git_env`/`_GIT_EXECUTABLE`/`MAX_BLOB_BYTES` を直接
+   monkeypatchする既存test (`test_t139_blobref_git_trust.py` 等) と、4種の異なる例外型
+   (`BlobResolutionError`/`InvalidBlobRefError`/`BlobDigestMismatchError`は非subclass関係) を
+   壊さないことを、抽出の再利用性より優先する。
+2. **将来 (単位3以降) が公開してはいけない値を持つ型は、単純なpublic dataclassにしない。**
+   `_PreregBinding`・`ApprovedManifest`はどちらもmodule-privateなcapability tokenを
+   keyword-only必須引数として要求し、`type(self) is not <Class> or token is not <TOKEN>` を
+   `__init__`/`__post_init__`で検査する。これは「型が合っていれば正当」という偽陽性
+   (callerが直接構築した偽の manifest/binding を受理する) を防ぐ。Pythonの private名は
+   importされれば偽造できるという限界はあるが、それでも型検査だけの実装より安全である。
+3. **digest固定後に内容を書き換えられる可変構造 (dict/list) を外部へ渡さない。** JSON parse結果
+   (`ReceiptDocument.value`)・schema document (`ReceiptSchema.document`) は
+   `MappingProxyType`/`tuple`へ再帰的に凍結して保持する。ただし `jsonschema.Draft7Validator`
+   (この環境は3.2.0) はexact `dict`/`list`型でしか instance を認識しないため、
+   検証の**直前にだけ**再帰的に「解凍」した可変コピーを作って渡し、格納側は凍結のまま保つ。
+
+**理由:**
+- 段3敵対相談(正しさ境界レンズ)が、`blobref.py`のwrapper化案が既存consumerの例外契約を
+  壊しうると指摘した。段6独立コードレビューが、`ApprovedManifest`が偽造可能な単なる
+  public dataclassであること、`ReceiptDocument.value`が凍結を謳いながらdict実体を晒すことの
+  2件を実際にfile:lineで示した。
+- fixで凍結を追加した直後、fix後の焦点再レビューが「正当な受領証がjsonschemaのexact型判定
+  (`isinstance(x, dict)`)と衝突して誤って拒否される」という新規regressionを検出した
+  (両立しないconflicting requirementではなく、検証直前の解凍で両立する)。
+
+**却下した選択肢:**
+- `blobref.py`を互換wrapper化して`read_pinned_blob`を再利用する — D509決定(6)の文言には近いが、
+  4種の例外型をすべて保持するwrapperは既存consumer 2件・既存test 3件の例外契約を精査せずには
+  安全と言えず、独立実装のほうが低リスクで同等の再利用効果 (ゼロから設計しない) を得られる。
+- `ApprovedManifest`/`_PreregBinding`を型検査だけで閉じる (token検査を持たない) —
+  D509決定(5)(8)が避けた「自己申告を信用する恒真相当」の再発になる。
+- 受領証・schemaを凍結しない (mutableなまま保持する) — digest固定後に呼び手が
+  `document["properties"]`等を書き換えられ、pin検証の意味が失われる。

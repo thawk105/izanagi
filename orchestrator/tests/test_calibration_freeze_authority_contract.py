@@ -177,7 +177,7 @@ def test_current_repository_is_rejected_as_stage0_incomplete() -> None:
     except contract.ContractError as exc:
         assert str(exc) == (
             "stage 0 is incomplete: status=incomplete, pending=5, "
-            "applicable_unresolved=2, blocking_gates=5"
+            "applicable_unresolved=2, blocking_gates=4"
         )
     else:
         raise AssertionError("the incomplete repository was accepted as stage 0 complete")
@@ -215,7 +215,7 @@ def test_adjudicated_ruling_and_gate_projection_is_exact() -> None:
         ("CFAB-R1-REVOCATION-RECORD", "user", "resolved"),
         ("CFAB-R2-STAGE0-COMPLETION", "user", "resolved"),
         ("CFAB-R3-STAGE6-PREDICATE", "user", "resolved"),
-        ("CFAB-R4-CANCELLATION-RECORD", "user", "unresolved"),
+        ("CFAB-R4-CANCELLATION-RECORD", "user", "resolved"),
         ("CFAB-S8-S10-CONTRADICTION", "user", "resolved"),
         ("CFAB-STAGE6-POLICY-PREDICATE", "user", "unresolved"),
         (
@@ -249,6 +249,25 @@ def test_design_revocation_record_schema_matches_validator() -> None:
     }.intersection(key for key, _constraint in schema)
 
 
+def test_design_cancellation_record_schema_matches_validator() -> None:
+    schema = contract._extract_design_cancellation_schema(contract.DESIGN_DOC)
+
+    assert schema == contract._UPPER_CANCELLATION_SCHEMA
+    assert tuple(key for key, _constraint in schema) == (
+        "schema_version",
+        "pointer_raw_sha256",
+        "cancelled_by",
+        "cancelled_at",
+        "scope",
+        "reason",
+    )
+    assert not {
+        "approver",
+        "components",
+        "authority_bundle_generation",
+    }.intersection(key for key, _constraint in schema)
+
+
 def test_design_stage6_structural_contract_matches_validator() -> None:
     predicates, control, execution_boundary, policy_gate = (
         contract._extract_stage6_contract(contract.DESIGN_DOC)
@@ -265,7 +284,7 @@ def test_design_stage6_structural_contract_matches_validator() -> None:
     assert policy_gate in contract._EXPECTED_REQUIRED_GATES
 
 
-def test_stage0_remains_incomplete_after_r1_r2_r3_projection() -> None:
+def test_stage0_remains_incomplete_after_r1_r2_r3_r4_projection() -> None:
     result = contract.validate_repository()
     assert result["status"] == "incomplete"
     assert result["pending_count"] == 5
@@ -278,7 +297,6 @@ def test_stage0_remains_incomplete_after_r1_r2_r3_projection() -> None:
         for gate in manifest["required_gates"]["entries"]
         if gate["status"] in blocking_statuses
     ) == (
-        "CFAB-R4-CANCELLATION-RECORD",
         "CFAB-STAGE6-POLICY-PREDICATE",
         "CFAB-STAGES1-4-AND6-8-FIXTURE-ASSIGNMENT",
         "FREEZE-AX-TOPOLOGY",
@@ -290,10 +308,10 @@ def test_stage0_remains_incomplete_after_r1_r2_r3_projection() -> None:
     except contract.ContractError as exc:
         assert str(exc) == (
             "stage 0 is incomplete: status=incomplete, pending=5, "
-            "applicable_unresolved=2, blocking_gates=5"
+            "applicable_unresolved=2, blocking_gates=4"
         )
     else:
-        raise AssertionError("the R1/R2/R3 projection completed stage 0 early")
+        raise AssertionError("the R1/R2/R3/R4 projection completed stage 0 early")
 
 
 def test_required_gate_entries_have_independent_module_sha_pin() -> None:
@@ -841,11 +859,177 @@ def test_design_fenced_decoy_is_not_authoritative(tmp_path: Path) -> None:
     )
 
 
+def test_design_cancellation_fenced_decoy_is_not_authoritative(
+    tmp_path: Path,
+) -> None:
+    fixture_root, design_doc = _synthetic_repository(tmp_path)
+    text = design_doc.read_text(encoding="utf-8")
+    marker = contract._UPPER_CANCELLATION_TABLE_MARKER
+    table = (
+        marker
+        + "\n\n"
+        + contract._UPPER_CANCELLATION_TABLE_HEADER
+        + "\n".join(
+            f"| `{key}` | {constraint} |"
+            for key, constraint in contract._UPPER_CANCELLATION_SCHEMA
+        )
+    )
+    target = "| `scope` | 逐語 `fork-loser-only` |"
+    replacement = "| `scope` | 非空 string |"
+    assert text.count(marker) == 1
+    assert text.count(target) == 1
+    text = text.replace(target, replacement, 1)
+    text = text.replace(marker, f"```text\n{table}\n\n```\n\n{marker}", 1)
+    design_doc.write_text(text, encoding="utf-8")
+    _assert_rejected(
+        fixture_root,
+        design_doc,
+        "design §7.5 cancellation record schema does not exactly match validator schema",
+    )
+
+
+def test_design_revocation_plaintext_decoy_declaration_is_rejected(
+    tmp_path: Path,
+) -> None:
+    fixture_root, design_doc = _synthetic_repository(tmp_path)
+    text = design_doc.read_text(encoding="utf-8")
+    marker = contract._UPPER_REVOCATION_TABLE_MARKER
+    table = (
+        marker
+        + "\n\n"
+        + contract._UPPER_REVOCATION_TABLE_HEADER
+        + "\n".join(
+            f"| `{key}` | {constraint} |"
+            for key, constraint in contract._UPPER_REVOCATION_SCHEMA
+        )
+    )
+    broken_marker = marker.replace("束当たり 0/1 件", "束当たり 0/1件")
+    assert broken_marker != marker
+    assert text.count(marker) == 1
+    text = text.replace(marker, f"注記: {table}\n\n{broken_marker}", 1)
+    design_doc.write_text(text, encoding="utf-8")
+    _assert_rejected(
+        fixture_root,
+        design_doc,
+        "design §7.5 revocation record declaration is missing or duplicated",
+    )
+
+
+def test_design_cancellation_plaintext_decoy_declaration_is_rejected(
+    tmp_path: Path,
+) -> None:
+    fixture_root, design_doc = _synthetic_repository(tmp_path)
+    text = design_doc.read_text(encoding="utf-8")
+    marker = contract._UPPER_CANCELLATION_TABLE_MARKER
+    table = (
+        marker
+        + "\n\n"
+        + contract._UPPER_CANCELLATION_TABLE_HEADER
+        + "\n".join(
+            f"| `{key}` | {constraint} |"
+            for key, constraint in contract._UPPER_CANCELLATION_SCHEMA
+        )
+    )
+    broken_marker = marker.replace(
+        "取消対象 pointer あたり\n0/1 件",
+        "取消対象 pointer あたり 0/1 件",
+    )
+    assert broken_marker != marker
+    assert text.count(marker) == 1
+    text = text.replace(marker, f"注記: {table}\n\n{broken_marker}", 1)
+    design_doc.write_text(text, encoding="utf-8")
+    _assert_rejected(
+        fixture_root,
+        design_doc,
+        "design §7.5 cancellation record declaration is missing or duplicated",
+    )
+
+
+def test_design_revocation_fullwidth_homoglyph_decoy_is_rejected(
+    tmp_path: Path,
+) -> None:
+    fixture_root, design_doc = _synthetic_repository(tmp_path)
+    text = design_doc.read_text(encoding="utf-8")
+    marker = contract._UPPER_REVOCATION_TABLE_MARKER
+    table = _revocation_table(text)
+    fullwidth_marker = marker.replace("record R", "record Ｒ")
+    assert fullwidth_marker != marker
+    mutated_table = table.replace(marker, fullwidth_marker, 1)
+    target = "| `scope` | 逐語 `bundle-only` |"
+    assert mutated_table.count(target) == 1
+    mutated_table = mutated_table.replace(target, "| `scope` | 非空 string |", 1)
+    decoy_table = (
+        marker
+        + "\n\n"
+        + contract._UPPER_REVOCATION_TABLE_HEADER
+        + "\n".join(
+            f"| `{key}` | {constraint} |"
+            for key, constraint in contract._UPPER_REVOCATION_SCHEMA
+        )
+    )
+    assert text.count(table) == 1
+    poisoned = text.replace(table, decoy_table + "\n\n" + mutated_table, 1)
+    assert poisoned.count(marker) == 1
+    assert poisoned.count(fullwidth_marker) == 1
+    design_doc.write_text(poisoned, encoding="utf-8")
+    _assert_rejected(
+        fixture_root,
+        design_doc,
+        "design §7.5 revocation record declaration is missing or duplicated",
+    )
+
+
+def test_design_cancellation_fullwidth_homoglyph_decoy_is_rejected(
+    tmp_path: Path,
+) -> None:
+    fixture_root, design_doc = _synthetic_repository(tmp_path)
+    text = design_doc.read_text(encoding="utf-8")
+    marker = contract._UPPER_CANCELLATION_TABLE_MARKER
+    table = _cancellation_table(text)
+    fullwidth_marker = marker.replace("record C", "record Ｃ")
+    assert fullwidth_marker != marker
+    mutated_table = table.replace(marker, fullwidth_marker, 1)
+    target = "| `scope` | 逐語 `fork-loser-only` |"
+    assert mutated_table.count(target) == 1
+    mutated_table = mutated_table.replace(target, "| `scope` | 非空 string |", 1)
+    decoy_table = (
+        marker
+        + "\n\n"
+        + contract._UPPER_CANCELLATION_TABLE_HEADER
+        + "\n".join(
+            f"| `{key}` | {constraint} |"
+            for key, constraint in contract._UPPER_CANCELLATION_SCHEMA
+        )
+    )
+    assert text.count(table) == 1
+    poisoned = text.replace(table, decoy_table + "\n\n" + mutated_table, 1)
+    assert poisoned.count(marker) == 1
+    assert poisoned.count(fullwidth_marker) == 1
+    design_doc.write_text(poisoned, encoding="utf-8")
+    _assert_rejected(
+        fixture_root,
+        design_doc,
+        "design §7.5 cancellation record declaration is missing or duplicated",
+    )
+
+
 def _revocation_table(text: str) -> str:
     prefix = (
         contract._UPPER_REVOCATION_TABLE_MARKER
         + "\n\n"
         + contract._UPPER_REVOCATION_TABLE_HEADER
+    )
+    assert text.count(prefix) == 1
+    start = text.index(prefix)
+    end = text.index("\n\n", start + len(prefix))
+    return text[start:end]
+
+
+def _cancellation_table(text: str) -> str:
+    prefix = (
+        contract._UPPER_CANCELLATION_TABLE_MARKER
+        + "\n\n"
+        + contract._UPPER_CANCELLATION_TABLE_HEADER
     )
     assert text.count(prefix) == 1
     start = text.index(prefix)
@@ -860,12 +1044,37 @@ def _move_revocation_table_into_fence(
 ) -> None:
     text = design_doc.read_text(encoding="utf-8")
     table = _revocation_table(text)
+    marker = contract._UPPER_REVOCATION_TABLE_MARKER
+    assert table.startswith(marker)
+    table_body = table[len(marker) :].lstrip("\n")
     table_with_terminator = table + "\n\n"
     assert text.count(table_with_terminator) == 1
     design_doc.write_text(
         text.replace(
             table_with_terminator,
-            f"{fence}text\n{table}\n\n{fence}\n\n",
+            f"{marker}\n\n{fence}text\n{table_body}\n{fence}\n\n",
+            1,
+        ),
+        encoding="utf-8",
+    )
+
+
+def _move_cancellation_table_into_fence(
+    design_doc: Path,
+    *,
+    fence: str,
+) -> None:
+    text = design_doc.read_text(encoding="utf-8")
+    table = _cancellation_table(text)
+    marker = contract._UPPER_CANCELLATION_TABLE_MARKER
+    assert table.startswith(marker)
+    table_body = table[len(marker) :].lstrip("\n")
+    table_with_terminator = table + "\n\n"
+    assert text.count(table_with_terminator) == 1
+    design_doc.write_text(
+        text.replace(
+            table_with_terminator,
+            f"{marker}\n\n{fence}text\n{table_body}\n{fence}\n\n",
             1,
         ),
         encoding="utf-8",
@@ -908,6 +1117,30 @@ def test_design_revocation_table_only_in_long_backtick_fence_is_rejected(
         fixture_root,
         design_doc,
         "design §7.5 revocation table is missing or duplicated",
+    )
+
+
+def test_design_cancellation_table_only_in_tilde_fence_is_rejected(
+    tmp_path: Path,
+) -> None:
+    fixture_root, design_doc = _synthetic_repository(tmp_path)
+    _move_cancellation_table_into_fence(design_doc, fence="~~~")
+    _assert_rejected(
+        fixture_root,
+        design_doc,
+        "design §7.5 cancellation table is missing or duplicated",
+    )
+
+
+def test_design_cancellation_table_only_in_long_backtick_fence_is_rejected(
+    tmp_path: Path,
+) -> None:
+    fixture_root, design_doc = _synthetic_repository(tmp_path)
+    _move_cancellation_table_into_fence(design_doc, fence="````")
+    _assert_rejected(
+        fixture_root,
+        design_doc,
+        "design §7.5 cancellation table is missing or duplicated",
     )
 
 
@@ -1211,16 +1444,64 @@ def test_design_revocation_constraint_relaxation_is_rejected(
 def test_design_revocation_key_substitution_is_rejected(tmp_path: Path) -> None:
     fixture_root, design_doc = _synthetic_repository(tmp_path)
     text = design_doc.read_text(encoding="utf-8")
+    table = _revocation_table(text)
     target = "| `reason` | 非空 string |"
-    assert text.count(target) == 1
+    assert table.count(target) == 1
+    mutated_table = table.replace(
+        target,
+        "| `revocation_reason` | 非空 string |",
+        1,
+    )
+    assert text.count(table) == 1
     design_doc.write_text(
-        text.replace(target, "| `revocation_reason` | 非空 string |", 1),
+        text.replace(table, mutated_table, 1),
         encoding="utf-8",
     )
     _assert_rejected(
         fixture_root,
         design_doc,
         "design §7.5 revocation record schema does not exactly match validator schema",
+    )
+
+
+def test_design_cancellation_constraint_relaxation_is_rejected(
+    tmp_path: Path,
+) -> None:
+    fixture_root, design_doc = _synthetic_repository(tmp_path)
+    text = design_doc.read_text(encoding="utf-8")
+    target = "| `scope` | 逐語 `fork-loser-only` |"
+    assert text.count(target) == 1
+    design_doc.write_text(
+        text.replace(target, "| `scope` | 非空 string |", 1),
+        encoding="utf-8",
+    )
+    _assert_rejected(
+        fixture_root,
+        design_doc,
+        "design §7.5 cancellation record schema does not exactly match validator schema",
+    )
+
+
+def test_design_cancellation_key_substitution_is_rejected(tmp_path: Path) -> None:
+    fixture_root, design_doc = _synthetic_repository(tmp_path)
+    text = design_doc.read_text(encoding="utf-8")
+    table = _cancellation_table(text)
+    target = "| `reason` | 非空 string |"
+    assert table.count(target) == 1
+    mutated_table = table.replace(
+        target,
+        "| `cancellation_reason` | 非空 string |",
+        1,
+    )
+    assert text.count(table) == 1
+    design_doc.write_text(
+        text.replace(table, mutated_table, 1),
+        encoding="utf-8",
+    )
+    _assert_rejected(
+        fixture_root,
+        design_doc,
+        "design §7.5 cancellation record schema does not exactly match validator schema",
     )
 
 

@@ -4,7 +4,7 @@ argument-hint: [任意: 対象タスク。省略時は worklog 末尾の「次�
 disable-model-invocation: true
 ---
 
-あなたは izanagi の開発 wave の manager である。これは開発作業のループであり、
+あなたは izanagi の開発 wave の manager である。これは開発ループであり、
 CC 合成 campaign の実行ループではない。
 
 ## 入力と開始
@@ -82,7 +82,7 @@ CC 合成 campaign の実行ループではない。
 | 段 9 |U| `docs/dev-wave/core.md`: `DW-S09`, `DW-CTX`, `DW-STOP`; `docs/dev-wave/operations.md`: `DW-O23` |
 
 段 6 で fix を codex へ再投する子は、段 5 の実装子契約 `DW-S05-A`、`DW-S05-B`、`DW-S05-C` を
-全文継承する。段 6 時点で成立している全条件の `DW-Oxx` も、fix 操作の直前に読む。
+全文継承する。段 6 時点で成立している全条件の `DW-Oxx`をfix 操作の直前に読む。
 
 ## 条件 dispatch
 
@@ -104,7 +104,7 @@ CC 合成 campaign の実行ループではない。
 | 15 | fix 後に変異を走らせる直前 | `docs/dev-wave/mutation.md`: `DW-M07` |
 | 16 | fix 後の焦点再レビューを行う直前 | `docs/dev-wave/operations.md`: `DW-O16` |
 | 17 | commit を作る直前 | `docs/dev-wave/operations.md`: `DW-O17` |
-| 18 | 親がテスト・受入を走らせる直前 | `docs/dev-wave/operations.md`: `DW-O18` |
+| 18 | 親がテスト・受入を走らせる直前 | `docs/dev-wave/operations.md`: `DW-O18`, `DW-O26` |
 | 19 | tracked file を一時変異する直前 | `docs/dev-wave/operations.md`: `DW-O19` |
 | 20 | 背景 job + worktree 隔離の wave 開始時（最遅: clean-tree gate を worktree で走らせる直前） | `docs/dev-wave/operations.md`: `DW-O20` |
 | 21 | 無人継続を構成し最初の process を起動する前 | `docs/dev-wave/core.md`: `DW-CTX` |
@@ -115,7 +115,7 @@ CC 合成 campaign の実行ループではない。
 | 26 | 起動/待機/検査/submodule/取込/fix前 | `docs/dev-wave/core.md`: `DW-C01` |
 
 各条件の詳細は参照節だけを正本とし、事故の物語は `docs/failures.md` の F 番号へ置く。
-同じ物語を入口や reference へ再掲しない。
+同じ物語を入口・referenceへ再掲しない。
 
 ## 終端
 

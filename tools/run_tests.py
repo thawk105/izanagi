@@ -46,7 +46,7 @@ from contextvars import ContextVar
 from enum import Enum
 from importlib import metadata
 from pathlib import Path
-from typing import Mapping, NamedTuple, Optional, Sequence
+from typing import Any, Mapping, NamedTuple, Optional, Sequence
 
 from packaging.version import InvalidVersion, Version
 
@@ -65,8 +65,10 @@ _MIN_XDIST_VERSION = Version("2.5")
 _TASK_RUN_ID_ENV = "IZANAGI_TASK_RUN_ID"
 _TASK_RUNS_ROOT_ENV = "IZANAGI_TASK_RUNS_ROOT"
 _TASK_RUN_SIDECAR_ENV = "IZANAGI_TASK_RUN_SIDECAR"
+_TASK_RUN_AUTO_RECORD_ENV = "IZANAGI_TASK_RUN_AUTO_RECORD"
 _TEST_TRIGGER_ENV = "IZANAGI_TEST_TRIGGER"
 _RUN_GROWTH_HELD_TESTS_ENV = "IZANAGI_RUN_GROWTH_HELD_TESTS"
+_DISPATCH_WALLTIME_OVERRIDE_ENV = "IZANAGI_DISPATCH_WALLTIME_OVERRIDE"
 _RUN_GROWTH_HELD_TESTS_TOKEN = "explicit-user-command"
 _TRIGGERS = frozenset({
     "baseline", "after-change", "after-failure", "final", "review-fix",
@@ -153,6 +155,13 @@ class _ScopeOutcome(Enum):
 class _ScopeResult(NamedTuple):
     outcome: _ScopeOutcome
     child_rc: Optional[int] = None
+
+
+class _DispatchCallResult(NamedTuple):
+    """親が dispatch の child 起動証拠を失わずに受け取る結果。"""
+
+    rc: int
+    child_started: bool
 
 
 def _consume_runner_options(args: Sequence[str]) -> tuple[list[str], bool]:
@@ -822,6 +831,181 @@ def _growth_held_tests_opted_in(environ: Mapping[str, str]) -> bool:
     return environ.get(_RUN_GROWTH_HELD_TESTS_ENV) == _RUN_GROWTH_HELD_TESTS_TOKEN
 
 
+def _emit_recording_diagnostic(diagnostic: Optional[str]) -> None:
+    """Emit one fixed task-run diagnostic without exposing exception details."""
+
+    if (
+        not isinstance(diagnostic, str)
+        or (
+            not diagnostic.startswith("recording-unavailable:")
+            and not diagnostic.startswith("pilot-closed:")
+        )
+    ):
+        return
+    try:
+        print(
+            f"IZANAGI_TASK_RUN_DIAGNOSTIC_V1 {diagnostic}",
+            file=sys.stderr,
+            flush=True,
+        )
+    except Exception:
+        # Diagnostics are fail-open too; never replace the child result.
+        pass
+
+
+class _RecordingSession:
+    """Lazy owner for one manual or automatic wrapper observation."""
+
+    def __init__(
+        self,
+        repo_root: Path = Path(_REPO),
+        task_run_id: Optional[str] = None,
+    ) -> None:
+        self.repo_root = Path(repo_root)
+        self.task_run_id = (
+            os.environ.get(_TASK_RUN_ID_ENV)
+            if task_run_id is None else task_run_id
+        )
+        self._start_attempted = False
+        self._automatic_run: Any = None
+        self._finish_attempted = False
+        self._manual_sidecar_path: Optional[Path] = None
+        self._manual_sidecar_required = False
+        self._diagnostics_emitted: set[str] = set()
+
+    @property
+    def is_manual(self) -> bool:
+        return bool(self.task_run_id)
+
+    @property
+    def recording_enabled(self) -> bool:
+        return self.is_manual or os.environ.get(_TASK_RUN_AUTO_RECORD_ENV) != "0"
+
+    @property
+    def sidecar_path(self) -> Optional[Path]:
+        if self._automatic_run is None:
+            return self._manual_sidecar_path
+        value = getattr(self._automatic_run, "sidecar_path", None)
+        return None if value is None else Path(value)
+
+    @property
+    def automatic_run(self) -> Any:
+        return self._automatic_run
+
+    @property
+    def root(self) -> Path:
+        if self._automatic_run is not None:
+            return Path(self._automatic_run.generation_root)
+        return Path(os.environ.get(
+            _TASK_RUNS_ROOT_ENV, os.path.join(_REPO, "output", "task-runs"),
+        ))
+
+    @property
+    def effective_task_run_id(self) -> Optional[str]:
+        if self._automatic_run is not None:
+            return str(self._automatic_run.task_run_id)
+        return self.task_run_id
+
+    @property
+    def trigger(self) -> str:
+        # An automatic observation deliberately never inherits the manual
+        # trigger classification from its parent environment.
+        if not self.is_manual:
+            return "unspecified"
+        trigger = os.environ.get(_TEST_TRIGGER_ENV, "unspecified")
+        return trigger if trigger in _TRIGGERS else "unspecified"
+
+    def ensure_started(self) -> None:
+        """Resolve automatic recording exactly once, immediately before a child."""
+
+        if self._start_attempted:
+            return
+        self._start_attempted = True
+        if self.is_manual or os.environ.get(_TASK_RUN_AUTO_RECORD_ENV) == "0":
+            return
+        try:
+            from tools.task_runs import start_automatic_test_run
+
+            run, diagnostic = start_automatic_test_run(self.repo_root)
+        except Exception:
+            run, diagnostic = None, "recording-unavailable:filesystem"
+        if diagnostic is None and run is None:
+            diagnostic = "recording-unavailable:filesystem"
+        if diagnostic is not None:
+            self._emit(diagnostic)
+        self._automatic_run = run
+
+    def _emit(self, diagnostic: Optional[str]) -> None:
+        if not isinstance(diagnostic, str) or diagnostic in self._diagnostics_emitted:
+            return
+        self._diagnostics_emitted.add(diagnostic)
+        _emit_recording_diagnostic(diagnostic)
+
+    def child_environment(
+        self, base: Optional[Mapping[str, str]] = None,
+    ) -> dict[str, str]:
+        """Return a child environment with nested automatic recording disabled."""
+
+        child_env = dict(os.environ if base is None else base)
+        child_env[_TASK_RUN_AUTO_RECORD_ENV] = "0"
+        child_env.pop(_TASK_RUN_SIDECAR_ENV, None)
+        if self._automatic_run is not None:
+            child_env.pop(_TASK_RUN_ID_ENV, None)
+            child_env.pop(_TASK_RUNS_ROOT_ENV, None)
+            sidecar = self.sidecar_path
+            if sidecar is not None:
+                child_env[_TASK_RUN_SIDECAR_ENV] = str(sidecar)
+        elif self._manual_sidecar_path is not None:
+            child_env[_TASK_RUN_SIDECAR_ENV] = str(self._manual_sidecar_path)
+        return child_env
+
+    def set_manual_sidecar(self, path: Optional[Path]) -> None:
+        self._manual_sidecar_path = path
+        self._manual_sidecar_required = True
+
+    def record(
+        self, *, suite_id: str, suite_kind: str, duration_s: float,
+        exit_status: int,
+    ) -> tuple[bool, Optional[str]]:
+        task_run_id = self.effective_task_run_id
+        if task_run_id is None:
+            return False, None
+        sidecar = self.sidecar_path
+        try:
+            result = _record_task_run(
+                task_run_id=task_run_id,
+                root=self.root,
+                suite_id=suite_id,
+                suite_kind=suite_kind,
+                duration_s=duration_s,
+                exit_status=exit_status,
+                trigger=self.trigger,
+                sidecar=sidecar,
+                sidecar_required=(
+                    self._automatic_run is not None
+                    or self._manual_sidecar_required
+                ),
+            )
+        except Exception:
+            result = (False, "recording-unavailable:filesystem")
+        if not isinstance(result, tuple) or len(result) != 2:
+            result = (True, None)
+        self._emit(result[1])
+        return result
+
+    def finish(self, outcome: str) -> None:
+        if self._automatic_run is None or self._finish_attempted:
+            return
+        self._finish_attempted = True
+        try:
+            from tools.task_runs import finish_automatic_test_run
+
+            diagnostic = finish_automatic_test_run(self._automatic_run, outcome)
+        except Exception:
+            diagnostic = "recording-unavailable:finish"
+        self._emit(diagnostic)
+
+
 def _private_sidecar() -> tuple[Path, Path]:
     """Create a repo-external 0700 directory; the hook creates the file."""
 
@@ -836,22 +1020,26 @@ def _private_sidecar() -> tuple[Path, Path]:
 def _record_task_run(
     *, task_run_id: str, root: Path, suite_id: str, suite_kind: str,
     duration_s: float, exit_status: int, trigger: str, sidecar: Optional[Path],
-) -> None:
-    """Best-effort single E1 call; never emit output or catch interrupts."""
+    sidecar_required: bool = False,
+) -> tuple[bool, Optional[str]]:
+    """Best-effort single E1 call, returning only fixed diagnostics."""
 
     counts = None
     digest = None
+    sidecar_diagnostic: Optional[str] = None
     if _REPO not in sys.path:
         sys.path.insert(0, _REPO)
-    if sidecar is not None:
+    if sidecar is not None or sidecar_required:
         try:
             from tools.task_runs.pytest_stats import read_sidecar
 
-            stats = read_sidecar(sidecar)
+            stats = None if sidecar is None else read_sidecar(sidecar)
             if stats is not None:
                 counts, digest = stats
+            else:
+                sidecar_diagnostic = "recording-unavailable:sidecar"
         except Exception:
-            pass
+            sidecar_diagnostic = "recording-unavailable:sidecar"
     try:
         from tools.task_runs import record_test_run
 
@@ -861,10 +1049,15 @@ def _record_task_run(
             trigger=trigger, collected_node_digest=digest,
         )
     except Exception:
-        pass
+        return False, "recording-unavailable:filesystem"
+    return True, sidecar_diagnostic
 
 
-def _call_and_record(cmd: Sequence[str], args: Sequence[str], task_run_id: str) -> int:
+def _call_and_record(
+    cmd: Sequence[str], args: Sequence[str], task_run_id: Optional[str] = None,
+    *, recording_session: Optional[_RecordingSession] = None,
+) -> int:
+    session = recording_session or _RecordingSession(task_run_id=task_run_id)
     recording_ready = True
     try:
         suite_kind, suite_id = _suite_identity(
@@ -874,22 +1067,16 @@ def _call_and_record(cmd: Sequence[str], args: Sequence[str], task_run_id: str) 
     except Exception:
         recording_ready = False
         suite_kind, suite_id = "targeted", "pytest-targeted-unavailable"
-    trigger = os.environ.get(_TEST_TRIGGER_ENV, "unspecified")
-    if trigger not in _TRIGGERS:
-        trigger = "unspecified"
-    root = Path(os.environ.get(
-        _TASK_RUNS_ROOT_ENV, os.path.join(_REPO, "output", "task-runs"),
-    ))
     sidecar_dir: Optional[Path] = None
     sidecar: Optional[Path] = None
-    child_env = None
     try:
-        sidecar_dir, sidecar = _private_sidecar()
-        child_env = os.environ.copy()
-        child_env[_TASK_RUN_SIDECAR_ENV] = str(sidecar)
+        if session.is_manual:
+            sidecar_dir, sidecar = _private_sidecar()
     except Exception:
         sidecar_dir = None
         sidecar = None
+    if session.is_manual:
+        session.set_manual_sidecar(sidecar)
 
     try:
         try:
@@ -897,10 +1084,14 @@ def _call_and_record(cmd: Sequence[str], args: Sequence[str], task_run_id: str) 
         except Exception:
             started = None
             recording_ready = False
-        if child_env is None:
-            rc = subprocess.call(list(cmd), cwd=_REPO)
-        else:
-            rc = subprocess.call(list(cmd), env=child_env, cwd=_REPO)
+        # This is the direct-route child boundary: lazy automatic bootstrap is
+        # deliberately the last recording operation before the child process
+        # is started.  Environment construction is part of the call argument
+        # evaluation, so the automatic task-run cannot precede it.
+        session.ensure_started()
+        rc = subprocess.call(
+            list(cmd), env=session.child_environment(), cwd=_REPO,
+        )
         if started is not None:
             try:
                 duration_s = time.monotonic() - started
@@ -910,14 +1101,15 @@ def _call_and_record(cmd: Sequence[str], args: Sequence[str], task_run_id: str) 
         else:
             duration_s = 0.0
         if recording_ready:
-            try:
-                _record_task_run(
-                    task_run_id=task_run_id, root=root, suite_id=suite_id,
-                    suite_kind=suite_kind, duration_s=duration_s, exit_status=rc,
-                    trigger=trigger, sidecar=sidecar,
-                )
-            except Exception:
-                pass
+            session.record(
+                suite_id=suite_id,
+                suite_kind=suite_kind,
+                duration_s=duration_s,
+                exit_status=rc,
+            )
+        elif session.recording_enabled:
+            session._emit("recording-unavailable:filesystem")
+        session.finish("completed")
         return rc
     finally:
         if sidecar_dir is not None:
@@ -927,27 +1119,39 @@ def _call_and_record(cmd: Sequence[str], args: Sequence[str], task_run_id: str) 
                 pass
 
 
-def _dispatch_environment() -> dict[str, str]:
+def _dispatch_environment(
+    recording_session: Optional[_RecordingSession] = None,
+) -> dict[str, str]:
     """計算ノード子へ渡す環境から親だけが所有する台帳状態を除く。"""
 
     child_env = os.environ.copy()
     child_env.pop(_TASK_RUN_ID_ENV, None)
     child_env.pop(_TASK_RUN_SIDECAR_ENV, None)
     child_env.pop(_TASK_RUNS_ROOT_ENV, None)
+    child_env[_TASK_RUN_AUTO_RECORD_ENV] = "0"
+    if recording_session is not None:
+        sidecar = recording_session.sidecar_path
+        if sidecar is not None:
+            child_env[_TASK_RUN_SIDECAR_ENV] = str(sidecar)
     return child_env
 
 
 def _default_dispatch(
     args: Sequence[str], *, environ: dict[str, str],
 ) -> int:
+    """テスト用に dispatch の walltime を環境変数で短縮できる。"""
     from tools.pegasus import dispatch_compute
 
-    return dispatch_compute.dispatch(
-        args,
-        task="tests",
-        repo_root=Path(_REPO),
-        environ=environ,
-    )
+    dispatch_kwargs = {
+        "task": "tests",
+        "repo_root": Path(_REPO),
+        "environ": environ,
+    }
+    walltime = environ.get(_DISPATCH_WALLTIME_OVERRIDE_ENV)
+    if walltime:
+        dispatch_kwargs["walltime"] = walltime
+    result = dispatch_compute.dispatch(args, **dispatch_kwargs)
+    return result
 
 
 def _invoke_dispatch(
@@ -955,30 +1159,46 @@ def _invoke_dispatch(
     args: Sequence[str],
     *,
     environ: dict[str, str],
-) -> int:
+) -> _DispatchCallResult:
     """dispatcher の想定外例外も top-level infra rc へ一義化する。"""
 
     try:
-        return int(dispatch_fn(args, environ=environ))
-    except (Exception, KeyboardInterrupt) as exc:
-        print(
-            f"Pegasus dispatcher を完了できませんでした: "
-            f"{type(exc).__name__}: {exc}",
-            file=sys.stderr,
-            flush=True,
-        )
-        return _PEGASUS_DISPATCH_RC
+        result = dispatch_fn(args, environ=environ)
+    except Exception:
+        _emit_recording_diagnostic("recording-unavailable:dispatch")
+        return _DispatchCallResult(_PEGASUS_DISPATCH_RC, False)
+    try:
+        rc = int(result)
+    except (TypeError, ValueError):
+        _emit_recording_diagnostic("recording-unavailable:dispatch")
+        return _DispatchCallResult(_PEGASUS_DISPATCH_RC, False)
+    # Receipt evidence is deliberately fail-closed: absent, non-bool, or
+    # false is never promoted to "child started".  An infra rc is also not a
+    # pytest-child observation, even if an older dispatcher labelled it true
+    # after qsub accepted the job.
+    try:
+        marker = getattr(result, "child_started", None)
+    except Exception:
+        marker = None
+    child_started = (
+        type(marker) is bool
+        and marker is True
+        and rc != _PEGASUS_DISPATCH_RC
+    )
+    return _DispatchCallResult(rc, child_started)
 
 
 def _dispatch_and_record(
     dispatch_fn,
     args: Sequence[str],
-    task_run_id: str,
+    task_run_id: Optional[str] = None,
     *,
     environ: dict[str, str],
+    recording_session: Optional[_RecordingSession] = None,
 ) -> int:
     """親の wall time と最終 rc を task_run へ一度だけ記録する。"""
 
+    session = recording_session or _RecordingSession(task_run_id=task_run_id)
     recording_ready = True
     try:
         suite_kind, suite_id = _suite_identity(
@@ -988,18 +1208,24 @@ def _dispatch_and_record(
     except Exception:
         recording_ready = False
         suite_kind, suite_id = "targeted", "pytest-targeted-unavailable"
-    trigger = os.environ.get(_TEST_TRIGGER_ENV, "unspecified")
-    if trigger not in _TRIGGERS:
-        trigger = "unspecified"
-    root = Path(os.environ.get(
-        _TASK_RUNS_ROOT_ENV, os.path.join(_REPO, "output", "task-runs"),
-    ))
     try:
         started = time.monotonic()
     except Exception:
         started = None
         recording_ready = False
-    rc = _invoke_dispatch(dispatch_fn, args, environ=environ)
+    # This is the dispatch-route receipt boundary.  Automatic bootstrap is
+    # intentionally deferred until the dispatcher has returned a strict
+    # positive child-start receipt.
+    environ = dict(environ)
+    environ[_TASK_RUN_AUTO_RECORD_ENV] = "0"
+    environ.pop(_TASK_RUN_ID_ENV, None)
+    environ.pop(_TASK_RUNS_ROOT_ENV, None)
+    if session.sidecar_path is not None:
+        environ[_TASK_RUN_SIDECAR_ENV] = str(session.sidecar_path)
+    else:
+        environ.pop(_TASK_RUN_SIDECAR_ENV, None)
+    dispatch_result = _invoke_dispatch(dispatch_fn, args, environ=environ)
+    rc = dispatch_result.rc
     if started is not None:
         try:
             duration_s = time.monotonic() - started
@@ -1008,20 +1234,19 @@ def _dispatch_and_record(
             recording_ready = False
     else:
         duration_s = 0.0
-    if recording_ready:
-        try:
-            _record_task_run(
-                task_run_id=task_run_id,
-                root=root,
-                suite_id=suite_id,
-                suite_kind=suite_kind,
-                duration_s=duration_s,
-                exit_status=rc,
-                trigger=trigger,
-                sidecar=None,
-            )
-        except Exception:
-            pass
+    if not dispatch_result.child_started and not session.is_manual:
+        session._emit("recording-unavailable:dispatch-no-child")
+    elif recording_ready:
+        session.ensure_started()
+        session.record(
+            suite_id=suite_id,
+            suite_kind=suite_kind,
+            duration_s=duration_s,
+            exit_status=rc,
+        )
+    elif session.recording_enabled:
+        session._emit("recording-unavailable:filesystem")
+    session.finish("completed")
     return rc
 
 
@@ -1061,7 +1286,7 @@ def _evaluate_login_admission(admit_fn, *, min_bytes=None, operation=None):
         else:
             # 未 land テスト用の旧 admission seam。実運用は grant_budget だけを通る。
             decision = admit_fn(module.MAX_LOCAL_BUDGET_BYTES)
-    except (Exception, KeyboardInterrupt) as exc:
+    except Exception as exc:
         print(
             "login headroom admission を完了できないため、"
             f"計算ノードへ dispatch します: {type(exc).__name__}: {exc}",
@@ -1103,7 +1328,7 @@ def _safe_bind_scope(grant, cgroup: Optional[Path]) -> None:
         bind_scope = getattr(grant, "bind_scope", None)
         if callable(bind_scope):
             bind_scope(cgroup)
-    except (Exception, KeyboardInterrupt):
+    except Exception:
         pass
 
 
@@ -1114,7 +1339,7 @@ def _safe_release_grant(grant) -> None:
         release = getattr(grant, "release", None)
         if callable(release):
             release()
-    except (Exception, KeyboardInterrupt):
+    except Exception:
         pass
 
 
@@ -1123,7 +1348,7 @@ def _safe_remember_peak(module, operation: Optional[str], peak: Optional[int]) -
         return
     try:
         module.remember_peak(operation, peak)
-    except (Exception, KeyboardInterrupt):
+    except Exception:
         pass
 
 
@@ -1138,7 +1363,7 @@ def _queue_dispatch_possible() -> tuple[bool, str]:
         if not possible and ("ENA=" not in reason or "STS=" not in reason):
             raise ValueError("queue refusal lacks ENA/STS diagnostics")
         return possible, reason
-    except (Exception, KeyboardInterrupt):
+    except Exception:
         return (
             True,
             "キューは ENA=不明、STS=不明です（観測不能のため可用扱い）。",
@@ -1393,11 +1618,17 @@ def _stop_bounded_scope(process, unit: str) -> None:
             pass
 
 
-def _run_bounded_scope(args: Sequence[str], cap: int) -> _ScopeResult:
+def _run_bounded_scope(
+    args: Sequence[str], cap: int,
+    *, recording_session: Optional[_RecordingSession] = None,
+) -> _ScopeResult:
     unit = _new_scope_unit()
     # task_run は scope 親が結果確定後に所有する。子へ渡すと CAP_OOM 後の
     # compute fallback と二重記録になり得る。
-    child_env = _dispatch_environment()
+    session = recording_session or _RecordingSession()
+    # Popen と scope attestation が成功するまでは task-run を作らない。
+    # 失敗時は scope diagnostic だけを返し、cap を消費する空の task を残さない。
+    child_env = _dispatch_environment(session)
     child_env[_BOUNDED_SCOPE_UNIT_ENV] = unit
     child_env[_BOUNDED_SCOPE_CAP_ENV] = str(cap)
     try:
@@ -1428,6 +1659,16 @@ def _run_bounded_scope(args: Sequence[str], cap: int) -> _ScopeResult:
             flush=True,
         )
         return _ScopeResult(_ScopeOutcome.DISPATCH_INFRA)
+
+    session.ensure_started()
+    # Keep the injected mapping coherent for tests and callers that inspect the
+    # launch environment after a successful Popen.  A real Popen has already
+    # copied its environment; missing late transport is fail-open and is
+    # reported by the normal sidecar diagnostic path.
+    child_env.clear()
+    child_env.update(_dispatch_environment(session))
+    child_env[_BOUNDED_SCOPE_UNIT_ENV] = unit
+    child_env[_BOUNDED_SCOPE_CAP_ENV] = str(cap)
 
     accounting = _scope_accounting.get()
     if accounting is not None:
@@ -1518,13 +1759,23 @@ def _termination_signal(returncode: int) -> Optional[int]:
         return signum if signum == signal.SIGKILL else None
 
 
+def _scope_recording_diagnostic(result: _ScopeResult) -> str:
+    code = {
+        _ScopeOutcome.CAP_OOM: "cap-oom",
+        _ScopeOutcome.HEADROOM_SHORT: "headroom-short",
+        _ScopeOutcome.DISPATCH_INFRA: "dispatch-infra",
+    }.get(result.outcome, result.outcome.value.replace("_", "-"))
+    return f"recording-unavailable:scope-outcome-{code}"
+
+
 def _run_bounded_scope_and_record(
     args: Sequence[str], cap: int,
+    *, recording_session: Optional[_RecordingSession] = None,
 ) -> _ScopeResult:
-    task_run_id = os.environ.get(_TASK_RUN_ID_ENV)
-    if not task_run_id:
-        return _run_bounded_scope(args, cap)
-
+    session = recording_session or _RecordingSession()
+    if not session.is_manual and not session.recording_enabled:
+        # Explicit opt-out retains the pre-existing plain scope route.
+        return _run_bounded_scope(args, cap, recording_session=session)
     recording_ready = True
     try:
         suite_kind, suite_id = _suite_identity(
@@ -1534,19 +1785,18 @@ def _run_bounded_scope_and_record(
     except Exception:
         recording_ready = False
         suite_kind, suite_id = "targeted", "pytest-targeted-unavailable"
-    trigger = os.environ.get(_TEST_TRIGGER_ENV, "unspecified")
-    if trigger not in _TRIGGERS:
-        trigger = "unspecified"
-    root = Path(os.environ.get(
-        _TASK_RUNS_ROOT_ENV, os.path.join(_REPO, "output", "task-runs"),
-    ))
     try:
         started = time.monotonic()
     except Exception:
         started = None
         recording_ready = False
-    result = _run_bounded_scope(args, cap)
+    result = _run_bounded_scope(args, cap, recording_session=session)
     if result.outcome is not _ScopeOutcome.CHILD_RC:
+        # R-B4SCOPE: a scope outcome without CHILD_RC is not a pytest
+        # observation.  Keep only the fixed diagnostic; main() decides later
+        # whether a CAP_OOM fallback dispatch will reuse this session.
+        if session.recording_enabled:
+            _emit_recording_diagnostic(_scope_recording_diagnostic(result))
         return result
     if started is not None:
         try:
@@ -1557,20 +1807,15 @@ def _run_bounded_scope_and_record(
     else:
         duration_s = 0.0
     if recording_ready:
-        try:
-            assert result.child_rc is not None
-            _record_task_run(
-                task_run_id=task_run_id,
-                root=root,
-                suite_id=suite_id,
-                suite_kind=suite_kind,
-                duration_s=duration_s,
-                exit_status=result.child_rc,
-                trigger=trigger,
-                sidecar=None,
-            )
-        except Exception:
-            pass
+        assert result.child_rc is not None
+        session.record(
+            suite_id=suite_id,
+            suite_kind=suite_kind,
+            duration_s=duration_s,
+            exit_status=result.child_rc,
+        )
+    elif session.recording_enabled:
+        _emit_recording_diagnostic("recording-unavailable:filesystem")
     return result
 
 
@@ -1675,22 +1920,32 @@ def _cap_oom_fingerprint_refusal(
     return _PEGASUS_DISPATCH_RC
 
 
-def _dispatch_result(dispatch_fn, args: Sequence[str]) -> int:
+def _dispatch_result(
+    dispatch_fn,
+    args: Sequence[str],
+    *, recording_session: Optional[_RecordingSession] = None,
+) -> int:
     selected_dispatch = _default_dispatch if dispatch_fn is None else dispatch_fn
-    child_env = _dispatch_environment()
-    task_run_id = os.environ.get(_TASK_RUN_ID_ENV)
-    if task_run_id:
-        return _dispatch_and_record(
-            selected_dispatch,
-            args,
-            task_run_id,
-            environ=child_env,
-        )
-    return _invoke_dispatch(selected_dispatch, args, environ=child_env)
+    session = recording_session or _RecordingSession()
+    if not session.is_manual and not session.recording_enabled:
+        # Explicit opt-out retains the pre-existing plain dispatch route while
+        # _dispatch_environment still installs the nested-run marker.
+        return _invoke_dispatch(
+            selected_dispatch, args, environ=_dispatch_environment(session),
+        ).rc
+    child_env = _dispatch_environment(session)
+    return _dispatch_and_record(
+        selected_dispatch,
+        args,
+        session.task_run_id,
+        environ=child_env,
+        recording_session=session,
+    )
 
 
 def _launch_local_scope(
     args: Sequence[str], cap: int, *, module=None, operation=None, grant=None,
+    recording_session: Optional[_RecordingSession] = None,
 ):
     accounting = (
         _ScopeAccounting(module, operation, grant)
@@ -1699,7 +1954,9 @@ def _launch_local_scope(
     )
     token = _scope_accounting.set(accounting)
     try:
-        return _run_bounded_scope_and_record(args, cap)
+        return _run_bounded_scope_and_record(
+            args, cap, recording_session=recording_session,
+        )
     finally:
         _scope_accounting.reset(token)
 
@@ -1800,6 +2057,7 @@ def main(
                 return _PEGASUS_DISPATCH_RC
             _print_granted_budget(cap, headroom_reason)
             tree_before = _tree_and_submodules_fingerprint(Path(_REPO))
+            recording_session = _RecordingSession()
             try:
                 scope_result = _launch_local_scope(
                     args,
@@ -1807,16 +2065,21 @@ def main(
                     module=module,
                     operation=operation,
                     grant=grant,
+                    recording_session=recording_session,
                 )
             finally:
                 _safe_release_grant(grant)
             if scope_result.outcome is _ScopeOutcome.CHILD_RC:
                 if scope_result.child_rc is None:
+                    recording_session.finish("blocked")
                     return _PEGASUS_DISPATCH_RC
+                recording_session.finish("completed")
                 return scope_result.child_rc
             if scope_result.outcome is _ScopeOutcome.DISPATCH_INFRA:
+                recording_session.finish("blocked")
                 return _PEGASUS_DISPATCH_RC
             if scope_result.outcome is not _ScopeOutcome.CAP_OOM:
+                recording_session.finish("blocked")
                 return _PEGASUS_DISPATCH_RC
             tree_after = _tree_and_submodules_fingerprint(Path(_REPO))
             if (
@@ -1824,10 +2087,14 @@ def main(
                 or tree_after is None
                 or tree_before != tree_after
             ):
+                recording_session.finish("blocked")
                 return _cap_oom_fingerprint_refusal(tree_before, tree_after)
             if queue_unavailable:
+                recording_session.finish("blocked")
                 return _no_execution_capacity(headroom_reason, queue_reason)
-            return _dispatch_result(dispatch_fn, args)
+            return _dispatch_result(
+                dispatch_fn, args, recording_session=recording_session,
+            )
 
     preflight_rc = _preflight_unstaged_deletions(args, Path(_REPO))
     if preflight_rc:
@@ -1912,8 +2179,15 @@ def main(
     )
     task_run_id = os.environ.get(_TASK_RUN_ID_ENV)
     if not task_run_id:
-        return subprocess.call(cmd, cwd=_REPO)
-    return _call_and_record(cmd, args, task_run_id)
+        if os.environ.get(_TASK_RUN_AUTO_RECORD_ENV) == "0":
+            return subprocess.call(cmd, cwd=_REPO)
+        return _call_and_record(
+            cmd, args, recording_session=_RecordingSession(),
+        )
+    return _call_and_record(
+        cmd, args, task_run_id,
+        recording_session=_RecordingSession(task_run_id=task_run_id),
+    )
 
 
 if __name__ == "__main__":

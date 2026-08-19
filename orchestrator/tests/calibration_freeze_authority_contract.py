@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 import re
+import unicodedata
 from pathlib import Path
 from types import MappingProxyType
 from typing import Any, Mapping
@@ -55,12 +56,25 @@ _RULING_TABLE_ROW_RE = re.compile(
     re.MULTILINE,
 )
 _SELECTION_LITERAL_RE = re.compile(r"`([^`]+)`")
+_UPPER_REVOCATION_RECORD_NAME = "**失効 record R**"
 _UPPER_REVOCATION_TABLE_MARKER = (
-    "**失効 record R** — `revocations/<bundle_digest>.json`、"
+    _UPPER_REVOCATION_RECORD_NAME
+    + " — `revocations/<bundle_digest>.json`、"
     "束当たり 0/1 件、top-level exact 7 key。"
 )
 _UPPER_REVOCATION_TABLE_HEADER = "| key | 型・制約 |\n|---|---|\n"
 _UPPER_REVOCATION_TABLE_ROW_RE = re.compile(
+    r"^\|\s*`([a-z][a-z0-9_]*)`\s*\|\s*(.*?)\s*\|$"
+)
+_UPPER_CANCELLATION_RECORD_NAME = "**上位取消 record C**"
+_UPPER_CANCELLATION_TABLE_MARKER = (
+    _UPPER_CANCELLATION_RECORD_NAME
+    + " — `cancellations/<pointer_raw_sha256>.json`、"
+    "取消対象 pointer あたり\n"
+    "0/1 件、top-level exact 6 key。"
+)
+_UPPER_CANCELLATION_TABLE_HEADER = "| key | 型・制約 |\n|---|---|\n"
+_UPPER_CANCELLATION_TABLE_ROW_RE = re.compile(
     r"^\|\s*`([a-z][a-z0-9_]*)`\s*\|\s*(.*?)\s*\|$"
 )
 _STAGE6_TABLE_ROW_RE = re.compile(
@@ -148,6 +162,21 @@ _UPPER_REVOCATION_SCHEMA = (
     ("scope", "逐語 `bundle-only`"),
     ("reason", "非空 string"),
 )
+_UPPER_CANCELLATION_SCHEMA = (
+    (
+        "schema_version",
+        "逐語 `calibration-freeze-authority-cancellation/v1`",
+    ),
+    (
+        "pointer_raw_sha256",
+        "64 lower-hex。取消対象 (敗者側の上位 pointer X 自身) の raw bytes の sha256 および "
+        "`active/<raw sha256>.json` の file 名 stem と一致",
+    ),
+    ("cancelled_by", "NFC、trim 済み、1〜128 code point"),
+    ("cancelled_at", "exact int の UTC 秒。`bool` を int として受理しない"),
+    ("scope", "逐語 `fork-loser-only`"),
+    ("reason", "非空 string"),
+)
 _EXPECTED_STAGE6_STRUCTURAL_PREDICATES = (
     "X は `active/<raw sha256>.json` に置く top-level exact 5 key "
     "(`schema_version` / `authority_bundle_generation` / "
@@ -213,7 +242,7 @@ _EXPECTED_REQUIRED_GATES = frozenset({
     ("CFAB-R1-REVOCATION-RECORD", "user", "resolved"),
     ("CFAB-R2-STAGE0-COMPLETION", "user", "resolved"),
     ("CFAB-R3-STAGE6-PREDICATE", "user", "resolved"),
-    ("CFAB-R4-CANCELLATION-RECORD", "user", "unresolved"),
+    ("CFAB-R4-CANCELLATION-RECORD", "user", "resolved"),
     ("CFAB-S8-S10-CONTRADICTION", "user", "resolved"),
     ("CFAB-STAGE6-POLICY-PREDICATE", "user", "unresolved"),
     (
@@ -226,7 +255,7 @@ _EXPECTED_REQUIRED_GATES = frozenset({
     ("FREEZE-U-A1", "user", "resolved"),
 })
 _EXPECTED_REQUIRED_GATES_ENTRIES_SHA256 = (
-    "167d5c2e9fc365fc7945ddad7549b147be3f288e26a1182bd410712eb81cffd2"
+    "51efdac40cd987636046d88fd10197bac1f60f8d547d9e43bcbc3e52bcd0164d"
 )
 
 
@@ -516,6 +545,12 @@ def _extract_design_revocation_schema(path: Path) -> tuple[tuple[str, str], ...]
     if end < 0:
         raise ContractError("design §7.5 terminator is missing")
     section = text[start:end]
+    # NFKC folds fullwidth/halfwidth homoglyphs, but visual homoglyphs such as Cyrillic С remain.
+    # This fix intentionally leaves non-NFKC-foldable Cyrillic/Greek variants as a known residual.
+    if unicodedata.normalize("NFKC", section).count(_UPPER_REVOCATION_RECORD_NAME) != 1:
+        raise ContractError(
+            "design §7.5 revocation record declaration is missing or duplicated"
+        )
     table_prefix = (
         _UPPER_REVOCATION_TABLE_MARKER
         + "\n\n"
@@ -540,6 +575,47 @@ def _extract_design_revocation_schema(path: Path) -> tuple[tuple[str, str], ...]
     keys = [key for key, _constraint in rows]
     if len(keys) != len(set(keys)):
         raise ContractError("design §7.5 revocation table has duplicate keys")
+    return tuple(rows)
+
+
+def _extract_design_cancellation_schema(path: Path) -> tuple[tuple[str, str], ...]:
+    text = _read_design(path)
+    start_marker = "### 7.5 上位層の namespace と record schema"
+    start = text.find(start_marker)
+    if start < 0 or text.find(start_marker, start + 1) >= 0:
+        raise ContractError("design §7.5 heading is missing or duplicated")
+    end = text.find("\n---", start)
+    if end < 0:
+        raise ContractError("design §7.5 terminator is missing")
+    section = text[start:end]
+    if unicodedata.normalize("NFKC", section).count(_UPPER_CANCELLATION_RECORD_NAME) != 1:
+        raise ContractError(
+            "design §7.5 cancellation record declaration is missing or duplicated"
+        )
+    table_prefix = (
+        _UPPER_CANCELLATION_TABLE_MARKER
+        + "\n\n"
+        + _UPPER_CANCELLATION_TABLE_HEADER
+    )
+    table_start = section.find(table_prefix)
+    if table_start < 0 or section.find(table_prefix, table_start + 1) >= 0:
+        raise ContractError("design §7.5 cancellation table is missing or duplicated")
+    body_start = table_start + len(table_prefix)
+    body_end = section.find("\n\n", body_start)
+    if body_end < 0:
+        raise ContractError("design §7.5 cancellation table terminator is missing")
+    body_lines = section[body_start:body_end].splitlines()
+    rows: list[tuple[str, str]] = []
+    for line in body_lines:
+        match = _UPPER_CANCELLATION_TABLE_ROW_RE.fullmatch(line)
+        if match is None:
+            raise ContractError("design §7.5 cancellation table has a malformed row")
+        rows.append((match.group(1), match.group(2)))
+    if not rows:
+        raise ContractError("design §7.5 cancellation table is empty")
+    keys = [key for key, _constraint in rows]
+    if len(keys) != len(set(keys)):
+        raise ContractError("design §7.5 cancellation table has duplicate keys")
     return tuple(rows)
 
 
@@ -801,6 +877,11 @@ def _validate_ruling_profile(document: dict[str, Any], *, design_doc: Path) -> N
     if design_revocation_schema != _UPPER_REVOCATION_SCHEMA:
         raise ContractError(
             "design §7.5 revocation record schema does not exactly match validator schema"
+        )
+    design_cancellation_schema = _extract_design_cancellation_schema(design_doc)
+    if design_cancellation_schema != _UPPER_CANCELLATION_SCHEMA:
+        raise ContractError(
+            "design §7.5 cancellation record schema does not exactly match validator schema"
         )
     actual_ids: list[str] = []
     by_id: dict[str, dict[str, Any]] = {}
