@@ -742,6 +742,77 @@ def main():
     return run_trial()
 """
 
+TOKEN_ONLY_C05_SCHEDULE = """
+def validate_authority(authority):
+    return (
+        "schema_version",
+        "master_seed",
+        "cells",
+        "schedule_index",
+        "arm",
+        "holdout",
+        "search_space_sha256",
+        "initial_state_sha256",
+    )
+
+def search_space_digest(authority):
+    return "search_space_sha256"
+
+def initial_state_digest(authority):
+    return "initial_state_sha256"
+
+def regenerate(master_seed, *, authority):
+    return master_seed, authority
+
+def load_schedule(path):
+    return path
+
+def verify_exact_schedule_bytes(artifact_bytes, *, master_seed, authority):
+    regenerate(master_seed, authority=authority)
+    return artifact_bytes
+
+def verify_shared_search_space_and_initial_state(
+    schedule, *, expected_search_space_sha256, expected_initial_state_sha256
+):
+    return schedule, expected_search_space_sha256, expected_initial_state_sha256
+
+def verify_schedule(artifact_bytes, *, master_seed, authority):
+    validate_authority(authority)
+    verify_exact_schedule_bytes(
+        artifact_bytes, master_seed=master_seed, authority=authority
+    )
+    verify_shared_search_space_and_initial_state(
+        artifact_bytes,
+        expected_search_space_sha256=search_space_digest(authority),
+        expected_initial_state_sha256=initial_state_digest(authority),
+    )
+    return artifact_bytes
+
+def consume_schedule(
+    artifact_bytes, *, master_seed, authority, schedule_index
+):
+    verify_schedule(
+        artifact_bytes, master_seed=master_seed, authority=authority
+    )
+    return schedule_index
+"""
+
+TOKEN_ONLY_C05_SUPERVISOR = """
+from .s8c_schedule import consume_schedule, load_schedule
+
+def run_trial():
+    artifact = load_schedule("output/s8c-preregistration/schedule.v1.json")
+    return consume_schedule(
+        artifact,
+        master_seed="fixture-seed",
+        authority={},
+        schedule_index=0,
+    )
+
+def main():
+    return run_trial()
+"""
+
 TOKEN_ONLY_C09_PRODUCER = """
 from .autonomous_trial_completeness import assert_campaign_layer3_chain
 def run_trial():
@@ -1032,6 +1103,29 @@ def _negative_control_case(
             "        keep_completed_cells_certifying()",
             1,
         )
+    if identifier == "nc_c05_initial_state_hash_bitflip":
+        consumer = "orchestrator/campaign/s8c_schedule.py"
+        artifact = "output/s8c-preregistration/schedule.v1.json"
+        sources = {
+            p3: TOKEN_ONLY_C05_SUPERVISOR,
+            consumer: TOKEN_ONLY_C05_SCHEDULE,
+            artifact: S.regenerate("fixture-seed", authority=_c05_authority()),
+        }
+        consume_call = """    return consume_schedule(
+        artifact,
+        master_seed="fixture-seed",
+        authority={},
+        schedule_index=0,
+    )"""
+        assert TOKEN_ONLY_C05_SUPERVISOR.count(consume_call) == 1
+        mutated = TOKEN_ONLY_C05_SUPERVISOR.replace(
+            consume_call,
+            "    return artifact",
+            1,
+        )
+        assert mutated != TOKEN_ONLY_C05_SUPERVISOR
+        assert mutated.count(consume_call) == 0
+        return sources, p3, mutated
     if identifier == "nc_c09_acceptance_skips_layer3":
         sources = {
             p3: TOKEN_ONLY_C09_PRODUCER,
@@ -1095,6 +1189,7 @@ NEGATIVE_CONTROL_CASES = {
     "nc_c01_perf_scale_regression": "C01",
     "nc_c02_proposal_path_arm_collision": "C02",
     "nc_c04_partial_crash_survives": "C04",
+    "nc_c05_initial_state_hash_bitflip": "C05",
     "nc_c07_floor_or_result_cell_removed": "C07",
     "nc_c09_acceptance_skips_layer3": "C09",
     "nc_c10_raw_response_unbound": "C10",
@@ -1110,7 +1205,6 @@ STATIC_NEGATIVE_CONTROL_CASES = {
 
 
 NON_MACHINE_CHECKABLE_NEGATIVE_CONTROL_CASES = {
-    "nc_c05_initial_state_hash_bitflip": "C05",
 }
 
 
@@ -2583,7 +2677,7 @@ def test_satisfiable_predicate_requires_negative_control() -> None:
     }
     assert machine_checkable == M.MACHINE_CHECKABLE_CONDITION_IDS
     assert machine_checkable == {
-        "C01", "C02", "C04", "C07", "C09", "C10", "C11", "C12"
+        "C01", "C02", "C04", "C05", "C07", "C09", "C10", "C11", "C12"
     }
     assert M.SATISFIABLE_CONDITION_IDS == frozenset()
     assert M.SATISFIABLE_CONDITION_IDS <= M.MACHINE_CHECKABLE_CONDITION_IDS
@@ -2593,7 +2687,7 @@ def test_satisfiable_predicate_requires_negative_control() -> None:
         row = rows[identifier]
         assert row.negative_control_id in NEGATIVE_CONTROL_CASES
         assert NEGATIVE_CONTROL_CASES[row.negative_control_id] == identifier
-    assert exercised == 8
+    assert exercised == 9
     assert set(NEGATIVE_CONTROL_CASES) == {
         rows[identifier].negative_control_id for identifier in machine_checkable
     }
@@ -2645,6 +2739,7 @@ def test_noop_and_token_only_fixtures_never_satisfy(
         "C01": "workload-projection-mismatch",
         "C02": "arm-binding-consumer-unreachable",
         "C04": "crash-policy-cell-partial",
+        "C05": "schedule-consumer-unreachable",
         "C07": "result-judge-consumer-incomplete",
         "C09": "formal-acceptance-layer3-consumer-absent",
         "C10": "cross-binding-verifier-incomplete",
@@ -3260,7 +3355,7 @@ def test_c05_evaluator_reports_undefined_when_consumer_commit_module_is_absent(
 
 @pytest.mark.parametrize(
     ("negative_control_id", "identifier"),
-    tuple(NON_MACHINE_CHECKABLE_NEGATIVE_CONTROL_CASES.items()),
+    [("nc_c05_initial_state_hash_bitflip", "C05")],
 )
 def test_c05_initial_state_hash_bitflip_is_single_shared_layer_failure(
     negative_control_id: str, identifier: str
@@ -3573,7 +3668,7 @@ def test_current_contract_keeps_c06_staged_only() -> None:
     assert contract.condition(6).machine_checkable is False
     assert 6 not in M._MACHINE_EVALUATORS
     assert set(M._STAGED_EVALUATORS) == {6}
-    assert len(M.MACHINE_CHECKABLE_CONDITION_IDS) == 8
+    assert len(M.MACHINE_CHECKABLE_CONDITION_IDS) == 9
 
 
 def test_c06_staged_fixture_is_not_a_contract_promotion(
