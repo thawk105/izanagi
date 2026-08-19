@@ -57,8 +57,21 @@ title: "[T-944] 有界 task-run 観測 pilot v2 を実装した (コード+テ�
   実際の失敗集合へexpected_nodesを補正のうえ再走して確定させた** (baseline
   無変異dispatch実行は415 passed/1 skippedで全緑を確認し、環境要因ではないことを
   裏取り済み)。
+- **受入全走で main 39 commit 取り込み後、本waveが一度も検証していなかった既存テスト
+  3ファイルが計24件赤になった (consumer取り残し)。** 原因はいずれもこのwaveが意図した
+  新規挙動に既存テストの期待値が追随していなかっただけ: (1)
+  `test_run_tests_preflight.py` 22件は `main()` が `_run_bounded_scope_and_record()`
+  経由になり下位関数へ常に `recording_session` kwargが渡るようになったため、(2)
+  `test_plain_runner_coverage.py` 1件は新設した2テストファイルに自走harnessが無く
+  偽緑ガードに引っかかったため、(3) `test_task_run_aggregate.py` 1件は新設
+  `PilotClosedError` のメッセージ変更に既存の日本語match文言が追随していなかったため。
+  専用worktreeでCodexにtest-onlyのfixを依頼しcommit `1d5695fc` で解消した。
+  **教訓: 5ファイルの焦点test選定に固執し、変更したproduction file
+  (`run_tests.py`・`ledger.py`) の他の既存consumerを一度も検証しなかった**
+  (焦点走は変更したproduction fileの検査側も含める、という既知の教訓の再発)。
 - 子の工数: plan 1本、敵対相談 2本、実装 2本 (Unit A/B)、敵対レビュー 2本、fix 9本
-  (Unit A ×5、Unit B ×3、変異テスト fix ×1)、変異spec 1本、walltime override実装 1本。
+  (Unit A ×5、Unit B ×3、変異テスト fix ×1)、変異spec 1本、walltime override実装 1本、
+  受入fix (consumer取り残し3件) 1本。
 
 ## 次の一手差分
 
