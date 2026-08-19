@@ -2176,6 +2176,7 @@ def test_launcher_failure_artifact_reporter_live_wiring() -> None:
     env[_LIVE_WIRING_PROBE_ENV] = "1"
     env["PBS_JOBID"] = pbs_job_id
     env["PYTEST_XDIST_WORKER"] = "live-probe"
+    env["PYTHONDONTWRITEBYTECODE"] = "1"
     nodeid = (
         os.fspath(Path(__file__).resolve())
         + "::test_launcher_failure_artifact_live_wiring_probe"
@@ -2234,6 +2235,7 @@ def test_launcher_failure_artifact_archive_error_probe(
 def test_launcher_failure_artifact_exception_safety_live() -> None:
     env = dict(os.environ)
     env[_LIVE_ARCHIVE_FAILURE_PROBE_ENV] = "1"
+    env["PYTHONDONTWRITEBYTECODE"] = "1"
     nodeid = (
         os.fspath(Path(__file__).resolve())
         + "::test_launcher_failure_artifact_archive_error_probe"

@@ -1,0 +1,513 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1115-env-bytecode-check/output/pegasus-dispatch/f543bd906687f15f039847aaac52ec12/izdw-f543bd9066.o925608",
+      "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1115-env-bytecode-check/output/pegasus-dispatch/f543bd906687f15f039847aaac52ec12/receipt.json",
+      "runner_mode": "dispatch",
+      "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1115-env-bytecode-check\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [6 items]\n\n......                                                                   [100%]\n============================== 6 passed in 10.62s ==============================\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+      "stdout_sha256": "019575ee351e2a62072ee9f578ea09fd0c707cbf48a945d44498816289417bb6"
+    },
+    "artifact_error": null,
+    "collection_sha256": "2a58169577e88cccde0dae8add1deb19423f8d91f931e41068038584f63df042",
+    "duration_s": 32.064,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "44009af521157d31614823a960daa3edae81137ab3299db07ee491fe385a130d",
+    "repo_head": "12a8d8f8fb6285cff57534850e0b8b278e90e857",
+    "runner_sha256": "630a40990a3003d75bb639dd6a13a26367046b032a02abda491c0d66fdd02a5b",
+    "spec_sha256": "89c6e73cf7dc7f126eb50216824881b762ee9d93258094ef706032455d541fad",
+    "status": "PASSED",
+    "test_output_sha256": "019575ee351e2a62072ee9f578ea09fd0c707cbf48a945d44498816289417bb6",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "990c1570d1cd7b15f1f75bfe8fe7b94bf8961519df08eda783edb17e3debf531"
+  },
+  "date": "2026-08-19T15:52:57.292874+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1115-env-bytecode-check/output/pegasus-dispatch/4f134e6075dfe6a8d5de11c9d9a05369/izdw-4f134e6075.o925610",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1115-env-bytecode-check/output/pegasus-dispatch/4f134e6075dfe6a8d5de11c9d9a05369/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1115-env-bytecode-check\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [6 items]\n\n.FFFFF                                                                   [100%]\n=================================== FAILURES ===================================\n_______________ test_dict_unpack_guard_and_nested_scope_boundary _______________\n[gw3] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw3/test_dict_unpack_guard_and_nes0')\ncapsys = <_pytest.capture.CaptureFixture object at 0x1478f6e77580>\n\n    def test_dict_unpack_guard_and_nested_scope_boundary(tmp_path, capsys):\n        root = _repo(tmp_path)\n        _write(\n            root,\n            \"tools/cases.py\",\n            \"\"\"\\\n            import subprocess\n            import sys\n    \n            def dict_unpack_guard():\n                subprocess.run([sys.executable, \"case.py\"], env=dict(**{\"PYTHONDONTWRITEBYTECODE\": \"1\"}))\n    \n            def nested_guard_is_not_local():\n                environment = {}\n    \n                def nested():\n                    return {\"PYTHONDONTWRITEBYTECODE\": \"1\"}\n    \n                subprocess.run([sys.executable, \"case.py\"], env=environment)\n            \"\"\",\n        )\n    \n        rc = checker.main([\"--repo\", str(root)])\n        output = capsys.readouterr().out\n    \n>       assert rc == checker.VIOLATION_RC\nE       assert 0 == 1\nE        +  where 1 = checker.VIOLATION_RC\n\norchestrator/tests/test_check_subprocess_bytecode_guard.py:197: AssertionError\n___________ test_broken_python_is_indeterminate_even_with_violation ____________\n[gw4] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw4/test_broken_python_is_indeterm0')\ncapsys = <_pytest.capture.CaptureFixture object at 0x14ac87a740d0>\n\n    def test_broken_python_is_indeterminate_even_with_violation(tmp_path, capsys):\n        root = _repo(tmp_path)\n        _write(\n            root,\n            \"orchestrator/bad.py\",\n            \"\"\"\n            import subprocess, sys\n            subprocess.run([sys.executable, \"bad.py\"], env={})\n            \"\"\",\n        )\n        _write(root, \"tools/broken.py\", \"def broken(:\\n\")\n    \n        rc = checker.main([\"--repo\", str(root)])\n        captured = capsys.readouterr()\n    \n        assert rc == checker.INDETERMINATE_RC\n>       assert \"bad.py:\" in captured.out\nE       AssertionError: assert 'bad.py:' in ''\nE        +  where '' = CaptureResult(out='', err='tools/broken.py:parse-error: invalid syntax (broken.py, line 1)\\n').out\n\norchestrator/tests/test_check_subprocess_bytecode_guard.py:219: AssertionError\n____________________ test_guard_patterns_and_direct_callees ____________________\n[gw0] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw0/test_guard_patterns_and_direct0')\ncapsys = <_pytest.capture.CaptureFixture object at 0x1460d29b74f0>\n\n    def test_guard_patterns_and_direct_callees(tmp_path, capsys):\n        root = _repo(tmp_path)\n        _write(\n            root,\n            \"orchestrator/cases.py\",\n            \"\"\"\n            import os\n            import subprocess\n            import sys\n    \n            def dict_guard():\n                subprocess.run([sys.executable, \"case.py\"], env={\"PYTHONDONTWRITEBYTECODE\": \"1\"})\n    \n            def dict_call_guard():\n                subprocess.run([sys.executable, \"case.py\"], env=dict(PYTHONDONTWRITEBYTECODE=\"1\"))\n    \n            def name_guard():\n                environment = {\"PYTHONDONTWRITEBYTECODE\": \"1\"}\n                subprocess.run([sys.executable, \"case.py\"], env=environment)\n    \n            def make_environment(extra=None):\n                return {\"PYTHONDONTWRITEBYTECODE\": \"1\"}\n    \n            module_environment = make_environment()\n    \n            def one_hop_guard():\n                environment = make_environment()\n                subprocess.run([sys.executable, \"case.py\"], env=environment)\n    \n            def module_one_hop_guard():\n                subprocess.run([sys.executable, \"case.py\"], env=module_environment)\n    \n            def flag_guard():\n                subprocess.run([sys.executable, \"-B\", \"-c\", \"pass\"], env={})\n    \n            def all_callees():\n                subprocess.run([sys.executable, \"case.py\"], env={})\n                subprocess.Popen([sys.executable, \"case.py\"], env={})\n                subprocess.call([sys.executable, \"case.py\"], env={})\n                subprocess.check_call([sys.executable, \"case.py\"], env={})\n                subprocess.check_output([sys.executable, \"case.py\"], env={})\n            \"\"\",\n        )\n    \n        rc = checker.main([\"--repo\", str(root)])\n        output = capsys.readouterr().out\n    \n>       assert rc == checker.VIOLATION_RC\nE       assert 0 == 1\nE        +  where 1 = checker.VIOLATION_RC\n\norchestrator/tests/test_check_subprocess_bytecode_guard.py:90: AssertionError\n__________________ test_non_python_argv_and_function_boundary __________________\n[gw1] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw1/test_non_python_argv_and_funct0')\ncapsys = <_pytest.capture.CaptureFixture object at 0x148a35408c40>\n\n    def test_non_python_argv_and_function_boundary(tmp_path, capsys):\n        root = _repo(tmp_path)\n        _write(\n            root,\n            \"tools/cases.py\",\n            \"\"\"\n            import subprocess\n            import sys\n    \n            PYTHONDONTWRITEBYTECODE = \"1\"\n    \n            def make_environment():\n                return {\"PYTHONDONTWRITEBYTECODE\": \"1\"}\n    \n            module_environment = make_environment()\n    \n            def git_calls():\n                subprocess.run([\"git\", \"add\", \"tools/case.py\"], env={})\n                subprocess.run([\"git\", \"-m\", \"pytest\"], env={})\n    \n            def python_call_without_local_guard():\n                environment = {}\n                subprocess.run([sys.executable, \"case.py\"], env=environment)\n    \n            def module_one_hop_is_not_a_literal_leak():\n                subprocess.run([sys.executable, \"case.py\"], env=module_environment)\n            \"\"\",\n        )\n        _write(\n            root,\n            \"orchestrator/__pycache__/ignored.py\",\n            \"\"\"\n            import subprocess, sys\n            subprocess.run([sys.executable, \"ignored.py\"], env={})\n            \"\"\",\n        )\n    \n        rc = checker.main([\"--repo\", str(root)])\n        output = capsys.readouterr().out\n    \n        assert rc == checker.VIOLATION_RC\n>       assert _parse_violations(output) == {\n            (\"tools/cases.py\", 18, \"run\"),\n        }\nE       AssertionError: assert {('tools/case...', 14, 'run')} == {('tools/case...', 18, 'run')}\nE         \nE         Extra items in the left set:\nE         ('tools/cases.py', 14, 'run')\nE         ('tools/cases.py', 13, 'run')\nE         Extra items in the right set:\nE         ('tools/cases.py', 18, 'run')\nE         Use -v to get more diff\n\norchestrator/tests/test_check_subprocess_bytecode_guard.py:141: AssertionError\n_____________________________ test_real_repo_clean _____________________________\n[gw5] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_real_repo_clean():\n>       assert checker.main([\"--repo\", str(_REPO)]) == checker.CLEAN_RC\nE       AssertionError: assert 1 == 0\nE        +  where 1 = <function main at 0x14ee5c57b910>(['--repo', '/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1115-env-bytecode-check'])\nE        +    where <function main at 0x14ee5c57b910> = checker.main\nE        +  and   0 = checker.CLEAN_RC\n\norchestrator/tests/test_check_subprocess_bytecode_guard.py:224: AssertionError\n----------------------------- Captured stdout call -----------------------------\norchestrator/campaign/buildcache.py:759:21:run\norchestrator/campaign/contract_loader_binding.py:288:21:run\norchestrator/campaign/enforcement_source_ratification.py:197:16:run\norchestrator/campaign/patchharness.py:288:18:run\norchestrator/campaign/reflux_origin_ledger.py:1707:21:run\norchestrator/campaign/s8b_floor_campaign.py:2184:21:run\norchestrator/campaign/s8c_acceptance_receipt.py:557:12:run\norchestrator/campaign/source_digest.py:613:13:run\norchestrator/campaign/source_digest.py:781:13:run\norchestrator/campaign/source_digest.py:820:13:run\norchestrator/campaign/t080_freeze_migration.py:579:21:run\norchestrator/campaign/t080_freeze_migration.py:623:16:run\norchestrator/campaign/t810_validator.py:350:12:run\norchestrator/campaign/trial_registry.py:812:12:run\norchestrator/codex_roles/launcher.py:737:17:run\norchestrator/preregistration/blobref.py:209:25:run\norchestrator/publication/ledger.py:264:16:run\norchestrator/publication/report.py:137:15:run\norchestrator/publication/report.py:160:18:run\norchestrator/submission_gate/_git.py:113:25:run\norchestrator/tests/calibration_freeze_authority_execution.py:268:12:run\norchestrator/tests/certified_writer_fixtures.py:34:17:run\norchestrator/tests/conftest.py:122:17:run\norchestrator/tests/repo_tree_util.py:36:16:run\norchestrator/tests/repo_tree_util.py:116:15:run\norchestrator/tests/test_artifact_admission.py:345:21:run\norchestrator/tests/test_audit_dangling_commits.py:35:17:run\norchestrator/tests/test_check_ai_provenance.py:97:14:run\norchestrator/tests/test_check_wave_startup.py:24:17:run\norchestrator/tests/test_codex_hooks.py:856:16:run\norchestrator/tests/test_codex_hooks.py:889:25:run\norchestrator/tests/test_codex_reasoning_ab.py:879:21:run\norchestrator/tests/test_codex_reasoning_ab.py:1059:20:run\norchestrator/tests/test_dev_wave_land.py:91:14:run\norchestrator/tests/test_dev_wave_land.py:106:14:run\norchestrator/tests/test_dev_wave_land.py:153:9:run\norchestrator/tests/test_dev_wave_land.py:2151:9:run\norchestrator/tests/test_dev_wave_land.py:2158:15:run\norchestrator/tests/test_dev_wave_wait.py:1284:9:run\norchestrator/tests/test_dev_wave_wait.py:2701:5:run\norchestrator/tests/test_dev_wave_wait.py:2709:5:run\norchestrator/tests/test_dev_wave_wait.py:2717:5:run\norchestrator/tests/test_dev_wave_wait.py:3547:17:run\norchestrator/tests/test_dev_wave_wait.py:3564:19:run\norchestrator/tests/test_dev_wave_wait.py:3626:19:run\norchestrator/tests/test_dev_wave_wait.py:3855:16:run\norchestrator/tests/test_dev_wave_wait.py:8972:16:run\norchestrator/tests/test_dev_wave_wait.py:9056:16:run\norchestrator/tests/test_dev_wave_wait.py:9166:16:run\norchestrator/tests/test_dev_wave_wait.py:9329:16:run\norchestrator/tests/test_dev_wave_wait.py:9430:23:run\norchestrator/tests/test_dev_wave_wait.py:9473:16:run\norchestrator/tests/test_dev_wave_wait.py:9587:9:run\norchestrator/tests/test_dev_wave_wait.py:9669:9:run\norchestrator/tests/test_dev_waves_checker.py:37:14:run\norchestrator/tests/test_dev_waves_git_state.py:43:14:run\norchestrator/tests/test_dev_waves_git_state.py:269:14:run\norchestrator/tests/test_dev_waves_git_state.py:908:16:run\norchestrator/tests/test_enforcement_source_ratification.py:44:17:run\norchestrator/tests/test_p3_autonomous_workload_trial.py:5841:17:run\norchestrator/tests/test_pegasus_floor_tools.py:213:5:run\norchestrator/tests/test_pegasus_floor_tools.py:351:17:run\norchestrator/tests/test_pegasus_floor_tools.py:426:12:run\norchestrator/tests/test_pegasus_floor_tools.py:675:14:run\norchestrator/tests/test_pegasus_floor_tools.py:726:14:run\norchestrator/tests/test_pegasus_floor_tools.py:1136:12:run\norchestrator/tests/test_pegasus_floor_tools.py:1490:14:run\norchestrator/tests/test_pegasus_floor_tools.py:1536:14:run\norchestrator/tests/test_pegasus_floor_tools.py:1653:14:run\norchestrator/tests/test_pegasus_floor_tools.py:3121:14:run\norchestrator/tests/test_pegasus_floor_tools.py:3145:14:run\norchestrator/tests/test_pegasus_thirdparty_fetch.py:58:12:run\norchestrator/tests/test_pegasus_thirdparty_fetch.py:69:5:run\norchestrator/tests/test_pegasus_tools.py:460:14:run\norchestrator/tests/test_pegasus_tools.py:565:14:run\norchestrator/tests/test_pegasus_tools.py:1124:14:run\norchestrator/tests/test_pegasus_tools.py:1148:14:run\norchestrator/tests/test_pegasus_tools.py:1176:14:run\norchestrator/tests/test_pegasus_tools.py:1248:14:run\norchestrator/tests/test_reflux_origin_binding.py:40:12:run\norchestrator/tests/test_reflux_origin_client.py:40:17:run\norchestrator/tests/test_reflux_origin_ledger.py:380:14:run\norchestrator/tests/test_s8b_oracle_driver.py:280:12:run\norchestrator/tests/test_s8b_oracle_driver.py:289:11:run\norchestrator/tests/test_s8b_oracle_driver.py:304:11:run\norchestrator/tests/test_s8b_oracle_driver.py:314:12:run\norchestrator/tests/test_s8b_oracle_driver.py:323:20:run\norchestrator/tests/test_s8b_oracle_driver.py:482:21:run\norchestrator/tests/test_s8b_oracle_driver.py:1128:23:run\norchestrator/tests/test_s8b_oracle_driver.py:1242:12:run\norchestrator/tests/test_s8b_oracle_driver.py:3478:25:run\norchestrator/tests/test_s8b_oracle_driver.py:4951:11:run\norchestrator/tests/test_s8b_protocol_builder.py:1753:32:run\norchestrator/tests/test_s8b_ratified_freeze.py:235:12:run\norchestrator/tests/test_s8c_preregistration_predicates.py:3740:18:run\norchestrator/tests/test_t126_pegasus_tools.py:908:17:run\norchestrator/tests/test_t126_pegasus_tools.py:5935:17:run\norchestrator/tests/test_t139_r4_env_probe.py:818:15:Popen\norchestrator/tests/test_t139_r4_env_probe.py:931:14:run\norchestrator/tests/test_t338_submission_gate_unit1.py:37:14:run\norchestrator/tests/test_t338_submission_gate_unit1.py:60:5:run\norchestrator/tests/test_t338_submission_gate_unit1.py:84:20:run\norchestrator/tests/test_t671_source_binding.py:87:21:run\norchestrator/tests/test_t810_coordinator.py:988:14:run\norchestrator/tests/test_trial_registry.py:54:12:run\ntools/acceptance_launcher.py:176:14:run\ntools/audit_dangling_commits.py:83:12:run\ntools/audit_dangling_commits.py:105:12:run\ntools/check_wave_startup.py:51:21:run\ntools/dev_wave_land.py:400:21:run\ntools/dev_waves/worker.py:396:12:Popen\ntools/mutation_harness.py:625:12:run\ntools/mutation_worktree.py:145:12:run\ntools/run_tests.py:623:18:run\ntools/run_tests.py:740:25:run\ntools/run_tests.py:770:18:run\ntools/task_runs/ledger.py:454:16:run\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_check_subprocess_bytecode_guard.py::test_dict_unpack_guard_and_nested_scope_boundary\nFAILED orchestrator/tests/test_check_subprocess_bytecode_guard.py::test_broken_python_is_indeterminate_even_with_violation\nFAILED orchestrator/tests/test_check_subprocess_bytecode_guard.py::test_guard_patterns_and_direct_callees\nFAILED orchestrator/tests/test_check_subprocess_bytecode_guard.py::test_non_python_argv_and_function_boundary\nFAILED orchestrator/tests/test_check_subprocess_bytecode_guard.py::test_real_repo_clean\n========================= 5 failed, 1 passed in 10.36s =========================\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_check_subprocess_bytecode_guard.py::test_guard_patterns_and_direct_callees\" nodeid_bytes=98 nodeid_omitted_bytes=0 source_bytes=2193 retained_bytes=2193 omitted_bytes=0 rendered_excerpt_bytes=2308 sha256=296849806e574dd77e0c488da01365bd21014a6606e32821182566c6cfd60288\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw0] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw0/test_guard_patterns_and_direct0')\n> capsys = <_pytest.capture.CaptureFixture object at 0x1460d29b74f0>\n> \n>     def test_guard_patterns_and_direct_callees(tmp_path, capsys):\n>         root = _repo(tmp_path)\n>         _write(\n>             root,\n>             \"orchestrator/cases.py\",\n>             \"\"\"\n>             import os\n>             import subprocess\n>             import sys\n>     \n>             def dict_guard():\n>                 subprocess.run([sys.executable, \"case.py\"], env={\"PYTHONDONTWRITEBYTECODE\": \"1\"})\n>     \n>             def dict_call_guard():\n>                 subprocess.run([sys.executable, \"case.py\"], env=dict(PYTHONDONTWRITEBYTECODE=\"1\"))\n>     \n>             def name_guard():\n>                 environment = {\"PYTHONDONTWRITEBYTECODE\": \"1\"}\n>                 subprocess.run([sys.executable, \"case.py\"], env=environment)\n>     \n>             def make_environment(extra=None):\n>                 return {\"PYTHONDONTWRITEBYTECODE\": \"1\"}\n>     \n>             module_environment = make_environment()\n>     \n>             def one_hop_guard():\n>                 environment = make_environment()\n>                 subprocess.run([sys.executable, \"case.py\"], env=environment)\n>     \n>             def module_one_hop_guard():\n>                 subprocess.run([sys.executable, \"case.py\"], env=module_environment)\n>     \n>             def flag_guard():\n>                 subprocess.run([sys.executable, \"-B\", \"-c\", \"pass\"], env={})\n>     \n>             def all_callees():\n>                 subprocess.run([sys.executable, \"case.py\"], env={})\n>                 subprocess.Popen([sys.executable, \"case.py\"], env={})\n>                 subprocess.call([sys.executable, \"case.py\"], env={})\n>                 subprocess.check_call([sys.executable, \"case.py\"], env={})\n>                 subprocess.check_output([sys.executable, \"case.py\"], env={})\n>             \"\"\",\n>         )\n>     \n>         rc = checker.main([\"--repo\", str(root)])\n>         output = capsys.readouterr().out\n>     \n> >       assert rc == checker.VIOLATION_RC\n> E       assert 0 == 1\n> E        +  where 1 = checker.VIOLATION_RC\n> \n> orchestrator/tests/test_check_subprocess_bytecode_guard.py:90: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_check_subprocess_bytecode_guard.py::test_non_python_argv_and_function_boundary\" nodeid_bytes=102 nodeid_omitted_bytes=0 source_bytes=2044 retained_bytes=2044 omitted_bytes=0 rendered_excerpt_bytes=2163 sha256=bde62ca813dcf0fea06b027b2590d5eb25453ea1c3c58f7290b7b9088665c41f\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw1] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw1/test_non_python_argv_and_funct0')\n> capsys = <_pytest.capture.CaptureFixture object at 0x148a35408c40>\n> \n>     def test_non_python_argv_and_function_boundary(tmp_path, capsys):\n>         root = _repo(tmp_path)\n>         _write(\n>             root,\n>             \"tools/cases.py\",\n>             \"\"\"\n>             import subprocess\n>             import sys\n>     \n>             PYTHONDONTWRITEBYTECODE = \"1\"\n>     \n>             def make_environment():\n>                 return {\"PYTHONDONTWRITEBYTECODE\": \"1\"}\n>     \n>             module_environment = make_environment()\n>     \n>             def git_calls():\n>                 subprocess.run([\"git\", \"add\", \"tools/case.py\"], env={})\n>                 subprocess.run([\"git\", \"-m\", \"pytest\"], env={})\n>     \n>             def python_call_without_local_guard():\n>                 environment = {}\n>                 subprocess.run([sys.executable, \"case.py\"], env=environment)\n>     \n>             def module_one_hop_is_not_a_literal_leak():\n>                 subprocess.run([sys.executable, \"case.py\"], env=module_environment)\n>             \"\"\",\n>         )\n>         _write(\n>             root,\n>             \"orchestrator/__pycache__/ignored.py\",\n>             \"\"\"\n>             import subprocess, sys\n>             subprocess.run([sys.executable, \"ignored.py\"], env={})\n>             \"\"\",\n>         )\n>     \n>         rc = checker.main([\"--repo\", str(root)])\n>         output = capsys.readouterr().out\n>     \n>         assert rc == checker.VIOLATION_RC\n> >       assert _parse_violations(output) == {\n>             (\"tools/cases.py\", 18, \"run\"),\n>         }\n> E       AssertionError: assert {('tools/case...', 14, 'run')} == {('tools/case...', 18, 'run')}\n> E         \n> E         Extra items in the left set:\n> E         ('tools/cases.py', 14, 'run')\n> E         ('tools/cases.py', 13, 'run')\n> E         Extra items in the right set:\n> E         ('tools/cases.py', 18, 'run')\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_check_subprocess_bytecode_guard.py:141: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE rank=3 category=failed when=call nodeid=\"orchestrator/tests/test_check_subprocess_bytecode_guard.py::test_dict_unpack_guard_and_nested_scope_boundary\" nodeid_bytes=108 nodeid_omitted_bytes=0 source_bytes=1173 retained_bytes=1173 omitted_bytes=0 rendered_excerpt_bytes=1247 sha256=916d12c193786d1853a1989b875d75cd48b2f3f92091507939a13b4197f54dd5\n--- IZANAGI FAILURE EXCERPT rank=3 BEGIN ---\n> [gw3] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw3/test_dict_unpack_guard_and_nes0')\n> capsys = <_pytest.capture.CaptureFixture object at 0x1478f6e77580>\n> \n>     def test_dict_unpack_guard_and_nested_scope_boundary(tmp_path, capsys):\n>         root = _repo(tmp_path)\n>         _write(\n>             root,\n>             \"tools/cases.py\",\n>             \"\"\"\\x5c\n>             import subprocess\n>             import sys\n>     \n>             def dict_unpack_guard():\n>                 subprocess.run([sys.executable, \"case.py\"], env=dict(**{\"PYTHONDONTWRITEBYTECODE\": \"1\"}))\n>     \n>             def nested_guard_is_not_local():\n>                 environment = {}\n>     \n>                 def nested():\n>                     return {\"PYTHONDONTWRITEBYTECODE\": \"1\"}\n>     \n>                 subprocess.run([sys.executable, \"case.py\"], env=environment)\n>             \"\"\",\n>         )\n>     \n>         rc = checker.main([\"--repo\", str(root)])\n>         output = capsys.readouterr().out\n>     \n> >       assert rc == checker.VIOLATION_RC\n> E       assert 0 == 1\n> E        +  where 1 = checker.VIOLATION_RC\n> \n> orchestrator/tests/test_check_subprocess_bytecode_guard.py:197: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=3 END ---\nIZANAGI_FAILURE rank=4 category=failed when=call nodeid=\"orchestrator/tests/test_check_subprocess_bytecode_guard.py::test_broken_python_is_indeterminate_even_with_violation\" nodeid_bytes=115 nodeid_omitted_bytes=0 source_bytes=1026 retained_bytes=1026 omitted_bytes=0 rendered_excerpt_bytes=1085 sha256=2515bb14046f438fe58d5dbe00bb75d49dbaeae09a2dd411de433d6a9ed844b7\n--- IZANAGI FAILURE EXCERPT rank=4 BEGIN ---\n> [gw4] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw4/test_broken_python_is_indeterm0')\n> capsys = <_pytest.capture.CaptureFixture object at 0x14ac87a740d0>\n> \n>     def test_broken_python_is_indeterminate_even_with_violation(tmp_path, capsys):\n>         root = _repo(tmp_path)\n>         _write(\n>             root,\n>             \"orchestrator/bad.py\",\n>             \"\"\"\n>             import subprocess, sys\n>             subprocess.run([sys.executable, \"bad.py\"], env={})\n>             \"\"\",\n>         )\n>         _write(root, \"tools/broken.py\", \"def broken(:\\x5cn\")\n>     \n>         rc = checker.main([\"--repo\", str(root)])\n>         captured = capsys.readouterr()\n>     \n>         assert rc == checker.INDETERMINATE_RC\n> >       assert \"bad.py:\" in captured.out\n> E       AssertionError: assert 'bad.py:' in ''\n> E        +  where '' = CaptureResult(out='', err='tools/broken.py:parse-error: invalid syntax (broken.py, line 1)\\x5cn').out\n> \n> orchestrator/tests/test_check_subprocess_bytecode_guard.py:219: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=4 END ---\nIZANAGI_FAILURE rank=5 category=failed when=call nodeid=\"orchestrator/tests/test_check_subprocess_bytecode_guard.py::test_real_repo_clean\" nodeid_bytes=80 nodeid_omitted_bytes=0 source_bytes=525 retained_bytes=525 omitted_bytes=0 rendered_excerpt_bytes=546 sha256=342039e62d097b775791d8b784a095f4f52d4a81c215434bc9c745663a908181\n--- IZANAGI FAILURE EXCERPT rank=5 BEGIN ---\n> [gw5] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_real_repo_clean():\n> >       assert checker.main([\"--repo\", str(_REPO)]) == checker.CLEAN_RC\n> E       AssertionError: assert 1 == 0\n> E        +  where 1 = <function main at 0x14ee5c57b910>(['--repo', '/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1115-env-bytecode-check'])\n> E        +    where <function main at 0x14ee5c57b910> = checker.main\n> E        +  and   0 = checker.CLEAN_RC\n> \n> orchestrator/tests/test_check_subprocess_bytecode_guard.py:224: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=5 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=5 failed=5 errors=0 selected=5 omitted_failures=0 source_bytes=6961 retained_bytes=6961 omitted_bytes=0 budget_bytes=49152 rendered_bytes=9839 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "8ad9e537b15645b41c6690ea0c9b7e0e518c7d477fadf9d72b7fa1ed352f9bf6"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "2a58169577e88cccde0dae8add1deb19423f8d91f931e41068038584f63df042",
+      "duration_s": 32.076,
+      "expected_nodes": [
+        "orchestrator/tests/test_check_subprocess_bytecode_guard.py::test_guard_patterns_and_direct_callees",
+        "orchestrator/tests/test_check_subprocess_bytecode_guard.py::test_non_python_argv_and_function_boundary",
+        "orchestrator/tests/test_check_subprocess_bytecode_guard.py::test_dict_unpack_guard_and_nested_scope_boundary",
+        "orchestrator/tests/test_check_subprocess_bytecode_guard.py::test_broken_python_is_indeterminate_even_with_violation",
+        "orchestrator/tests/test_check_subprocess_bytecode_guard.py::test_real_repo_clean"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_check_subprocess_bytecode_guard.py::test_dict_unpack_guard_and_nested_scope_boundary",
+        "orchestrator/tests/test_check_subprocess_bytecode_guard.py::test_broken_python_is_indeterminate_even_with_violation",
+        "orchestrator/tests/test_check_subprocess_bytecode_guard.py::test_guard_patterns_and_direct_callees",
+        "orchestrator/tests/test_check_subprocess_bytecode_guard.py::test_non_python_argv_and_function_boundary",
+        "orchestrator/tests/test_check_subprocess_bytecode_guard.py::test_real_repo_clean"
+      ],
+      "hang_risk": false,
+      "id": "M1",
+      "injection_diff_sha256": "27dbfff686e815c003ab5c8127641822969c494fc7b199b588c21c0a789b7b5f",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "8cbc407be338d817976d1b6dba1dcf20baca1f9bae13624745ebb9d2eacf8876",
+      "replacements": [
+        {
+          "file": "tools/check_subprocess_bytecode_guard.py",
+          "new": "    if not _is_sys_executable(argv0):\n        return True\n",
+          "old": "    if _is_sys_executable(argv0):\n        return True\n"
+        }
+      ],
+      "repo_head": "12a8d8f8fb6285cff57534850e0b8b278e90e857",
+      "runner_sha256": "630a40990a3003d75bb639dd6a13a26367046b032a02abda491c0d66fdd02a5b",
+      "spec_sha256": "89c6e73cf7dc7f126eb50216824881b762ee9d93258094ef706032455d541fad",
+      "status": "KILLED",
+      "test_output_sha256": "8ad9e537b15645b41c6690ea0c9b7e0e518c7d477fadf9d72b7fa1ed352f9bf6",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "990c1570d1cd7b15f1f75bfe8fe7b94bf8961519df08eda783edb17e3debf531"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1115-env-bytecode-check/output/pegasus-dispatch/cbc25d7d66029c3ff889d4de1c316726/izdw-cbc25d7d66.o925611",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1115-env-bytecode-check/output/pegasus-dispatch/cbc25d7d66029c3ff889d4de1c316726/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1115-env-bytecode-check\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [6 items]\n\n....FF                                                                   [100%]\n=================================== FAILURES ===================================\n____________________ test_guard_patterns_and_direct_callees ____________________\n[gw0] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw0/test_guard_patterns_and_direct0')\ncapsys = <_pytest.capture.CaptureFixture object at 0x149f73e0c100>\n\n    def test_guard_patterns_and_direct_callees(tmp_path, capsys):\n        root = _repo(tmp_path)\n        _write(\n            root,\n            \"orchestrator/cases.py\",\n            \"\"\"\n            import os\n            import subprocess\n            import sys\n    \n            def dict_guard():\n                subprocess.run([sys.executable, \"case.py\"], env={\"PYTHONDONTWRITEBYTECODE\": \"1\"})\n    \n            def dict_call_guard():\n                subprocess.run([sys.executable, \"case.py\"], env=dict(PYTHONDONTWRITEBYTECODE=\"1\"))\n    \n            def name_guard():\n                environment = {\"PYTHONDONTWRITEBYTECODE\": \"1\"}\n                subprocess.run([sys.executable, \"case.py\"], env=environment)\n    \n            def make_environment(extra=None):\n                return {\"PYTHONDONTWRITEBYTECODE\": \"1\"}\n    \n            module_environment = make_environment()\n    \n            def one_hop_guard():\n                environment = make_environment()\n                subprocess.run([sys.executable, \"case.py\"], env=environment)\n    \n            def module_one_hop_guard():\n                subprocess.run([sys.executable, \"case.py\"], env=module_environment)\n    \n            def flag_guard():\n                subprocess.run([sys.executable, \"-B\", \"-c\", \"pass\"], env={})\n    \n            def all_callees():\n                subprocess.run([sys.executable, \"case.py\"], env={})\n                subprocess.Popen([sys.executable, \"case.py\"], env={})\n                subprocess.call([sys.executable, \"case.py\"], env={})\n                subprocess.check_call([sys.executable, \"case.py\"], env={})\n                subprocess.check_output([sys.executable, \"case.py\"], env={})\n            \"\"\",\n        )\n    \n        rc = checker.main([\"--repo\", str(root)])\n        output = capsys.readouterr().out\n    \n        assert rc == checker.VIOLATION_RC\n>       assert _parse_violations(output) == {\n            (\"orchestrator/cases.py\", 32, \"run\"),\n            (\"orchestrator/cases.py\", 33, \"Popen\"),\n            (\"orchestrator/cases.py\", 34, \"call\"),\n            (\"orchestrator/cases.py\", 35, \"check_call\"),\n            (\"orchestrator/cases.py\", 36, \"check_output\"),\n        }\nE       AssertionError: assert {('orchestrat...heck_output')} == {('orchestrat...heck_output')}\nE         \nE         Extra items in the left set:\nE         ('orchestrator/cases.py', 29, 'run')\nE         Use -v to get more diff\n\norchestrator/tests/test_check_subprocess_bytecode_guard.py:91: AssertionError\n_____________________________ test_real_repo_clean _____________________________\n[gw5] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_real_repo_clean():\n>       assert checker.main([\"--repo\", str(_REPO)]) == checker.CLEAN_RC\nE       AssertionError: assert 1 == 0\nE        +  where 1 = <function main at 0x14726ba33910>(['--repo', '/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1115-env-bytecode-check'])\nE        +    where <function main at 0x14726ba33910> = checker.main\nE        +  and   0 = checker.CLEAN_RC\n\norchestrator/tests/test_check_subprocess_bytecode_guard.py:224: AssertionError\n----------------------------- Captured stdout call -----------------------------\norchestrator/tests/test_s8b_oracle_driver.py:930:17:run\norchestrator/tests/test_s8b_oracle_driver.py:1537:17:run\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_check_subprocess_bytecode_guard.py::test_guard_patterns_and_direct_callees\nFAILED orchestrator/tests/test_check_subprocess_bytecode_guard.py::test_real_repo_clean\n========================= 2 failed, 4 passed in 10.36s =========================\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_check_subprocess_bytecode_guard.py::test_guard_patterns_and_direct_callees\" nodeid_bytes=98 nodeid_omitted_bytes=0 source_bytes=2680 retained_bytes=2680 omitted_bytes=0 rendered_excerpt_bytes=2815 sha256=6a310bfbd5fa8feb828c77273ac897a645bdec74f2c49c8f014d80a403a1baae\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw0] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw0/test_guard_patterns_and_direct0')\n> capsys = <_pytest.capture.CaptureFixture object at 0x149f73e0c100>\n> \n>     def test_guard_patterns_and_direct_callees(tmp_path, capsys):\n>         root = _repo(tmp_path)\n>         _write(\n>             root,\n>             \"orchestrator/cases.py\",\n>             \"\"\"\n>             import os\n>             import subprocess\n>             import sys\n>     \n>             def dict_guard():\n>                 subprocess.run([sys.executable, \"case.py\"], env={\"PYTHONDONTWRITEBYTECODE\": \"1\"})\n>     \n>             def dict_call_guard():\n>                 subprocess.run([sys.executable, \"case.py\"], env=dict(PYTHONDONTWRITEBYTECODE=\"1\"))\n>     \n>             def name_guard():\n>                 environment = {\"PYTHONDONTWRITEBYTECODE\": \"1\"}\n>                 subprocess.run([sys.executable, \"case.py\"], env=environment)\n>     \n>             def make_environment(extra=None):\n>                 return {\"PYTHONDONTWRITEBYTECODE\": \"1\"}\n>     \n>             module_environment = make_environment()\n>     \n>             def one_hop_guard():\n>                 environment = make_environment()\n>                 subprocess.run([sys.executable, \"case.py\"], env=environment)\n>     \n>             def module_one_hop_guard():\n>                 subprocess.run([sys.executable, \"case.py\"], env=module_environment)\n>     \n>             def flag_guard():\n>                 subprocess.run([sys.executable, \"-B\", \"-c\", \"pass\"], env={})\n>     \n>             def all_callees():\n>                 subprocess.run([sys.executable, \"case.py\"], env={})\n>                 subprocess.Popen([sys.executable, \"case.py\"], env={})\n>                 subprocess.call([sys.executable, \"case.py\"], env={})\n>                 subprocess.check_call([sys.executable, \"case.py\"], env={})\n>                 subprocess.check_output([sys.executable, \"case.py\"], env={})\n>             \"\"\",\n>         )\n>     \n>         rc = checker.main([\"--repo\", str(root)])\n>         output = capsys.readouterr().out\n>     \n>         assert rc == checker.VIOLATION_RC\n> >       assert _parse_violations(output) == {\n>             (\"orchestrator/cases.py\", 32, \"run\"),\n>             (\"orchestrator/cases.py\", 33, \"Popen\"),\n>             (\"orchestrator/cases.py\", 34, \"call\"),\n>             (\"orchestrator/cases.py\", 35, \"check_call\"),\n>             (\"orchestrator/cases.py\", 36, \"check_output\"),\n>         }\n> E       AssertionError: assert {('orchestrat...heck_output')} == {('orchestrat...heck_output')}\n> E         \n> E         Extra items in the left set:\n> E         ('orchestrator/cases.py', 29, 'run')\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_check_subprocess_bytecode_guard.py:91: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_check_subprocess_bytecode_guard.py::test_real_repo_clean\" nodeid_bytes=80 nodeid_omitted_bytes=0 source_bytes=525 retained_bytes=525 omitted_bytes=0 rendered_excerpt_bytes=546 sha256=b3dfdd3b33709e45707875f1f6b58e06ddb7ff380120bcd22083c8c861d63adb\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw5] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_real_repo_clean():\n> >       assert checker.main([\"--repo\", str(_REPO)]) == checker.CLEAN_RC\n> E       AssertionError: assert 1 == 0\n> E        +  where 1 = <function main at 0x14726ba33910>(['--repo', '/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1115-env-bytecode-check'])\n> E        +    where <function main at 0x14726ba33910> = checker.main\n> E        +  and   0 = checker.CLEAN_RC\n> \n> orchestrator/tests/test_check_subprocess_bytecode_guard.py:224: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=3205 retained_bytes=3205 omitted_bytes=0 budget_bytes=49152 rendered_bytes=4503 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "31068a761e4bf16b75641758292d2fedf7ee7c4009bf6230aff6c40fc8880eb1"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "2a58169577e88cccde0dae8add1deb19423f8d91f931e41068038584f63df042",
+      "duration_s": 32.068,
+      "expected_nodes": [
+        "orchestrator/tests/test_check_subprocess_bytecode_guard.py::test_guard_patterns_and_direct_callees",
+        "orchestrator/tests/test_check_subprocess_bytecode_guard.py::test_real_repo_clean"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_check_subprocess_bytecode_guard.py::test_guard_patterns_and_direct_callees",
+        "orchestrator/tests/test_check_subprocess_bytecode_guard.py::test_real_repo_clean"
+      ],
+      "hang_risk": false,
+      "id": "M2",
+      "injection_diff_sha256": "bd616ed77404d6201f28509fac5019d288b09b23b9b8afc83e62edc1f9d65c10",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "9f7206fab5e0f54893d75352b62775985aa2f5599fd4714690262de77e1ce783",
+      "replacements": [
+        {
+          "file": "tools/check_subprocess_bytecode_guard.py",
+          "new": "    return any(_literal_string(element) == \"-C\" for element in call.args[0].elts)\n",
+          "old": "    return any(_literal_string(element) == \"-B\" for element in call.args[0].elts)\n"
+        }
+      ],
+      "repo_head": "12a8d8f8fb6285cff57534850e0b8b278e90e857",
+      "runner_sha256": "630a40990a3003d75bb639dd6a13a26367046b032a02abda491c0d66fdd02a5b",
+      "spec_sha256": "89c6e73cf7dc7f126eb50216824881b762ee9d93258094ef706032455d541fad",
+      "status": "KILLED",
+      "test_output_sha256": "31068a761e4bf16b75641758292d2fedf7ee7c4009bf6230aff6c40fc8880eb1",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "990c1570d1cd7b15f1f75bfe8fe7b94bf8961519df08eda783edb17e3debf531"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1115-env-bytecode-check/output/pegasus-dispatch/1e3bcf1d77e2c3673eebfc805bb298a0/izdw-1e3bcf1d77.o925613",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1115-env-bytecode-check/output/pegasus-dispatch/1e3bcf1d77e2c3673eebfc805bb298a0/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1115-env-bytecode-check\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [6 items]\n\n...FFF                                                                   [100%]\n=================================== FAILURES ===================================\n_______________ test_dict_unpack_guard_and_nested_scope_boundary _______________\n[gw3] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw3/test_dict_unpack_guard_and_nes0')\ncapsys = <_pytest.capture.CaptureFixture object at 0x14d0abc3c070>\n\n    def test_dict_unpack_guard_and_nested_scope_boundary(tmp_path, capsys):\n        root = _repo(tmp_path)\n        _write(\n            root,\n            \"tools/cases.py\",\n            \"\"\"\\\n            import subprocess\n            import sys\n    \n            def dict_unpack_guard():\n                subprocess.run([sys.executable, \"case.py\"], env=dict(**{\"PYTHONDONTWRITEBYTECODE\": \"1\"}))\n    \n            def nested_guard_is_not_local():\n                environment = {}\n    \n                def nested():\n                    return {\"PYTHONDONTWRITEBYTECODE\": \"1\"}\n    \n                subprocess.run([sys.executable, \"case.py\"], env=environment)\n            \"\"\",\n        )\n    \n        rc = checker.main([\"--repo\", str(root)])\n        output = capsys.readouterr().out\n    \n        assert rc == checker.VIOLATION_RC\n>       assert _parse_violations(output) == {\n            (\"tools/cases.py\", 13, \"run\"),\n        }\nE       AssertionError: assert {('tools/case...', 13, 'run')} == {('tools/case...', 13, 'run')}\nE         \nE         Extra items in the left set:\nE         ('tools/cases.py', 5, 'run')\nE         Use -v to get more diff\n\norchestrator/tests/test_check_subprocess_bytecode_guard.py:198: AssertionError\n____________________ test_guard_patterns_and_direct_callees ____________________\n[gw0] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw0/test_guard_patterns_and_direct0')\ncapsys = <_pytest.capture.CaptureFixture object at 0x1496da1ac070>\n\n    def test_guard_patterns_and_direct_callees(tmp_path, capsys):\n        root = _repo(tmp_path)\n        _write(\n            root,\n            \"orchestrator/cases.py\",\n            \"\"\"\n            import os\n            import subprocess\n            import sys\n    \n            def dict_guard():\n                subprocess.run([sys.executable, \"case.py\"], env={\"PYTHONDONTWRITEBYTECODE\": \"1\"})\n    \n            def dict_call_guard():\n                subprocess.run([sys.executable, \"case.py\"], env=dict(PYTHONDONTWRITEBYTECODE=\"1\"))\n    \n            def name_guard():\n                environment = {\"PYTHONDONTWRITEBYTECODE\": \"1\"}\n                subprocess.run([sys.executable, \"case.py\"], env=environment)\n    \n            def make_environment(extra=None):\n                return {\"PYTHONDONTWRITEBYTECODE\": \"1\"}\n    \n            module_environment = make_environment()\n    \n            def one_hop_guard():\n                environment = make_environment()\n                subprocess.run([sys.executable, \"case.py\"], env=environment)\n    \n            def module_one_hop_guard():\n                subprocess.run([sys.executable, \"case.py\"], env=module_environment)\n    \n            def flag_guard():\n                subprocess.run([sys.executable, \"-B\", \"-c\", \"pass\"], env={})\n    \n            def all_callees():\n                subprocess.run([sys.executable, \"case.py\"], env={})\n                subprocess.Popen([sys.executable, \"case.py\"], env={})\n                subprocess.call([sys.executable, \"case.py\"], env={})\n                subprocess.check_call([sys.executable, \"case.py\"], env={})\n                subprocess.check_output([sys.executable, \"case.py\"], env={})\n            \"\"\",\n        )\n    \n        rc = checker.main([\"--repo\", str(root)])\n        output = capsys.readouterr().out\n    \n        assert rc == checker.VIOLATION_RC\n>       assert _parse_violations(output) == {\n            (\"orchestrator/cases.py\", 32, \"run\"),\n            (\"orchestrator/cases.py\", 33, \"Popen\"),\n            (\"orchestrator/cases.py\", 34, \"call\"),\n            (\"orchestrator/cases.py\", 35, \"check_call\"),\n            (\"orchestrator/cases.py\", 36, \"check_output\"),\n        }\nE       AssertionError: assert {('orchestrat...heck_output')} == {('orchestrat...heck_output')}\nE         \nE         Extra items in the left set:\nE         ('orchestrator/cases.py', 7, 'run')\nE         Use -v to get more diff\n\norchestrator/tests/test_check_subprocess_bytecode_guard.py:91: AssertionError\n_____________________________ test_real_repo_clean _____________________________\n[gw5] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_real_repo_clean():\n>       assert checker.main([\"--repo\", str(_REPO)]) == checker.CLEAN_RC\nE       AssertionError: assert 1 == 0\nE        +  where 1 = <function main at 0x14f6fd583910>(['--repo', '/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1115-env-bytecode-check'])\nE        +    where <function main at 0x14f6fd583910> = checker.main\nE        +  and   0 = checker.CLEAN_RC\n\norchestrator/tests/test_check_subprocess_bytecode_guard.py:224: AssertionError\n----------------------------- Captured stdout call -----------------------------\norchestrator/tests/test_autonomous_trial_completeness.py:4292:12:run\norchestrator/tests/test_collect_wave_usage.py:80:12:run\norchestrator/tests/test_dev_wave_wait.py:9611:14:run\norchestrator/tests/test_dev_wave_wait.py:9729:14:run\norchestrator/tests/test_pytest_collection_config.py:63:12:run\norchestrator/tests/test_reflux_origin_ledger.py:1131:25:Popen\norchestrator/tests/test_reflux_origin_ledger.py:1145:26:Popen\norchestrator/tests/test_reflux_origin_ledger.py:1455:21:run\norchestrator/tests/test_reflux_origin_ledger.py:1833:17:run\norchestrator/tests/test_reflux_origin_ledger.py:2339:19:run\norchestrator/tests/test_reflux_origin_ledger.py:3720:17:run\norchestrator/tests/test_reflux_origin_ledger.py:3885:17:run\norchestrator/tests/test_t126_qualification_driver.py:830:15:Popen\ntools/dev_wave_land.py:2675:17:run\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_check_subprocess_bytecode_guard.py::test_dict_unpack_guard_and_nested_scope_boundary\nFAILED orchestrator/tests/test_check_subprocess_bytecode_guard.py::test_guard_patterns_and_direct_callees\nFAILED orchestrator/tests/test_check_subprocess_bytecode_guard.py::test_real_repo_clean\n========================= 3 failed, 3 passed in 10.38s =========================\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_check_subprocess_bytecode_guard.py::test_guard_patterns_and_direct_callees\" nodeid_bytes=98 nodeid_omitted_bytes=0 source_bytes=2679 retained_bytes=2679 omitted_bytes=0 rendered_excerpt_bytes=2814 sha256=2fdd76f0c6526ddb98876872c22b8a9158c01e5bb6dbddaa95268889536d1c1b\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw0] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw0/test_guard_patterns_and_direct0')\n> capsys = <_pytest.capture.CaptureFixture object at 0x1496da1ac070>\n> \n>     def test_guard_patterns_and_direct_callees(tmp_path, capsys):\n>         root = _repo(tmp_path)\n>         _write(\n>             root,\n>             \"orchestrator/cases.py\",\n>             \"\"\"\n>             import os\n>             import subprocess\n>             import sys\n>     \n>             def dict_guard():\n>                 subprocess.run([sys.executable, \"case.py\"], env={\"PYTHONDONTWRITEBYTECODE\": \"1\"})\n>     \n>             def dict_call_guard():\n>                 subprocess.run([sys.executable, \"case.py\"], env=dict(PYTHONDONTWRITEBYTECODE=\"1\"))\n>     \n>             def name_guard():\n>                 environment = {\"PYTHONDONTWRITEBYTECODE\": \"1\"}\n>                 subprocess.run([sys.executable, \"case.py\"], env=environment)\n>     \n>             def make_environment(extra=None):\n>                 return {\"PYTHONDONTWRITEBYTECODE\": \"1\"}\n>     \n>             module_environment = make_environment()\n>     \n>             def one_hop_guard():\n>                 environment = make_environment()\n>                 subprocess.run([sys.executable, \"case.py\"], env=environment)\n>     \n>             def module_one_hop_guard():\n>                 subprocess.run([sys.executable, \"case.py\"], env=module_environment)\n>     \n>             def flag_guard():\n>                 subprocess.run([sys.executable, \"-B\", \"-c\", \"pass\"], env={})\n>     \n>             def all_callees():\n>                 subprocess.run([sys.executable, \"case.py\"], env={})\n>                 subprocess.Popen([sys.executable, \"case.py\"], env={})\n>                 subprocess.call([sys.executable, \"case.py\"], env={})\n>                 subprocess.check_call([sys.executable, \"case.py\"], env={})\n>                 subprocess.check_output([sys.executable, \"case.py\"], env={})\n>             \"\"\",\n>         )\n>     \n>         rc = checker.main([\"--repo\", str(root)])\n>         output = capsys.readouterr().out\n>     \n>         assert rc == checker.VIOLATION_RC\n> >       assert _parse_violations(output) == {\n>             (\"orchestrator/cases.py\", 32, \"run\"),\n>             (\"orchestrator/cases.py\", 33, \"Popen\"),\n>             (\"orchestrator/cases.py\", 34, \"call\"),\n>             (\"orchestrator/cases.py\", 35, \"check_call\"),\n>             (\"orchestrator/cases.py\", 36, \"check_output\"),\n>         }\n> E       AssertionError: assert {('orchestrat...heck_output')} == {('orchestrat...heck_output')}\n> E         \n> E         Extra items in the left set:\n> E         ('orchestrator/cases.py', 7, 'run')\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_check_subprocess_bytecode_guard.py:91: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_check_subprocess_bytecode_guard.py::test_dict_unpack_guard_and_nested_scope_boundary\" nodeid_bytes=108 nodeid_omitted_bytes=0 source_bytes=1426 retained_bytes=1426 omitted_bytes=0 rendered_excerpt_bytes=1512 sha256=8cface8b8e956d90a71e6186ab97e07078bf3ce80aa99bc5f2f010001719474e\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw3] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw3/test_dict_unpack_guard_and_nes0')\n> capsys = <_pytest.capture.CaptureFixture object at 0x14d0abc3c070>\n> \n>     def test_dict_unpack_guard_and_nested_scope_boundary(tmp_path, capsys):\n>         root = _repo(tmp_path)\n>         _write(\n>             root,\n>             \"tools/cases.py\",\n>             \"\"\"\\x5c\n>             import subprocess\n>             import sys\n>     \n>             def dict_unpack_guard():\n>                 subprocess.run([sys.executable, \"case.py\"], env=dict(**{\"PYTHONDONTWRITEBYTECODE\": \"1\"}))\n>     \n>             def nested_guard_is_not_local():\n>                 environment = {}\n>     \n>                 def nested():\n>                     return {\"PYTHONDONTWRITEBYTECODE\": \"1\"}\n>     \n>                 subprocess.run([sys.executable, \"case.py\"], env=environment)\n>             \"\"\",\n>         )\n>     \n>         rc = checker.main([\"--repo\", str(root)])\n>         output = capsys.readouterr().out\n>     \n>         assert rc == checker.VIOLATION_RC\n> >       assert _parse_violations(output) == {\n>             (\"tools/cases.py\", 13, \"run\"),\n>         }\n> E       AssertionError: assert {('tools/case...', 13, 'run')} == {('tools/case...', 13, 'run')}\n> E         \n> E         Extra items in the left set:\n> E         ('tools/cases.py', 5, 'run')\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_check_subprocess_bytecode_guard.py:198: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE rank=3 category=failed when=call nodeid=\"orchestrator/tests/test_check_subprocess_bytecode_guard.py::test_real_repo_clean\" nodeid_bytes=80 nodeid_omitted_bytes=0 source_bytes=525 retained_bytes=525 omitted_bytes=0 rendered_excerpt_bytes=546 sha256=d1e5dadd8f24820795453153fd128f54ff578c0823a440b8322ef85cade0b1bb\n--- IZANAGI FAILURE EXCERPT rank=3 BEGIN ---\n> [gw5] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_real_repo_clean():\n> >       assert checker.main([\"--repo\", str(_REPO)]) == checker.CLEAN_RC\n> E       AssertionError: assert 1 == 0\n> E        +  where 1 = <function main at 0x14f6fd583910>(['--repo', '/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1115-env-bytecode-check'])\n> E        +    where <function main at 0x14f6fd583910> = checker.main\n> E        +  and   0 = checker.CLEAN_RC\n> \n> orchestrator/tests/test_check_subprocess_bytecode_guard.py:224: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=3 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=3 failed=3 errors=0 selected=3 omitted_failures=0 source_bytes=4630 retained_bytes=4630 omitted_bytes=0 budget_bytes=49152 rendered_bytes=6463 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "4b2d13f8d61c24ed6b9847e829359b30e09f974133ae9c1f927159c89fac5ce8"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "2a58169577e88cccde0dae8add1deb19423f8d91f931e41068038584f63df042",
+      "duration_s": 32.099,
+      "expected_nodes": [
+        "orchestrator/tests/test_check_subprocess_bytecode_guard.py::test_guard_patterns_and_direct_callees",
+        "orchestrator/tests/test_check_subprocess_bytecode_guard.py::test_dict_unpack_guard_and_nested_scope_boundary",
+        "orchestrator/tests/test_check_subprocess_bytecode_guard.py::test_real_repo_clean"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_check_subprocess_bytecode_guard.py::test_dict_unpack_guard_and_nested_scope_boundary",
+        "orchestrator/tests/test_check_subprocess_bytecode_guard.py::test_guard_patterns_and_direct_callees",
+        "orchestrator/tests/test_check_subprocess_bytecode_guard.py::test_real_repo_clean"
+      ],
+      "hang_risk": false,
+      "id": "M3",
+      "injection_diff_sha256": "d6f146ddb558925d63db5de9a01843786af9908fc9f150af17593d095e1669df",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "24f48ef2c438f902562efb2a6031bc1451e8e084678355d805d8659884a57489",
+      "replacements": [
+        {
+          "file": "tools/check_subprocess_bytecode_guard.py",
+          "new": "    return False\n",
+          "old": "    return any(_literal_string(key) == GUARD_NAME for key in node.keys)\n"
+        }
+      ],
+      "repo_head": "12a8d8f8fb6285cff57534850e0b8b278e90e857",
+      "runner_sha256": "630a40990a3003d75bb639dd6a13a26367046b032a02abda491c0d66fdd02a5b",
+      "spec_sha256": "89c6e73cf7dc7f126eb50216824881b762ee9d93258094ef706032455d541fad",
+      "status": "KILLED",
+      "test_output_sha256": "4b2d13f8d61c24ed6b9847e829359b30e09f974133ae9c1f927159c89fac5ce8",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "990c1570d1cd7b15f1f75bfe8fe7b94bf8961519df08eda783edb17e3debf531"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1115-env-bytecode-check/output/pegasus-dispatch/c37c3b593b71abd8ce0255b393cb6048/izdw-c37c3b593b.o925616",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1115-env-bytecode-check/output/pegasus-dispatch/c37c3b593b71abd8ce0255b393cb6048/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1115-env-bytecode-check\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [6 items]\n\n...FFF                                                                   [100%]\n=================================== FAILURES ===================================\n__________________ test_non_python_argv_and_function_boundary __________________\n[gw1] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw1/test_non_python_argv_and_funct0')\ncapsys = <_pytest.capture.CaptureFixture object at 0x147db2bdcd00>\n\n    def test_non_python_argv_and_function_boundary(tmp_path, capsys):\n        root = _repo(tmp_path)\n        _write(\n            root,\n            \"tools/cases.py\",\n            \"\"\"\n            import subprocess\n            import sys\n    \n            PYTHONDONTWRITEBYTECODE = \"1\"\n    \n            def make_environment():\n                return {\"PYTHONDONTWRITEBYTECODE\": \"1\"}\n    \n            module_environment = make_environment()\n    \n            def git_calls():\n                subprocess.run([\"git\", \"add\", \"tools/case.py\"], env={})\n                subprocess.run([\"git\", \"-m\", \"pytest\"], env={})\n    \n            def python_call_without_local_guard():\n                environment = {}\n                subprocess.run([sys.executable, \"case.py\"], env=environment)\n    \n            def module_one_hop_is_not_a_literal_leak():\n                subprocess.run([sys.executable, \"case.py\"], env=module_environment)\n            \"\"\",\n        )\n        _write(\n            root,\n            \"orchestrator/__pycache__/ignored.py\",\n            \"\"\"\n            import subprocess, sys\n            subprocess.run([sys.executable, \"ignored.py\"], env={})\n            \"\"\",\n        )\n    \n        rc = checker.main([\"--repo\", str(root)])\n        output = capsys.readouterr().out\n    \n        assert rc == checker.VIOLATION_RC\n>       assert _parse_violations(output) == {\n            (\"tools/cases.py\", 18, \"run\"),\n        }\nE       AssertionError: assert {('tools/case...', 21, 'run')} == {('tools/case...', 18, 'run')}\nE         \nE         Extra items in the left set:\nE         ('tools/cases.py', 21, 'run')\nE         Use -v to get more diff\n\norchestrator/tests/test_check_subprocess_bytecode_guard.py:141: AssertionError\n____________________ test_guard_patterns_and_direct_callees ____________________\n[gw0] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw0/test_guard_patterns_and_direct0')\ncapsys = <_pytest.capture.CaptureFixture object at 0x150de93fb610>\n\n    def test_guard_patterns_and_direct_callees(tmp_path, capsys):\n        root = _repo(tmp_path)\n        _write(\n            root,\n            \"orchestrator/cases.py\",\n            \"\"\"\n            import os\n            import subprocess\n            import sys\n    \n            def dict_guard():\n                subprocess.run([sys.executable, \"case.py\"], env={\"PYTHONDONTWRITEBYTECODE\": \"1\"})\n    \n            def dict_call_guard():\n                subprocess.run([sys.executable, \"case.py\"], env=dict(PYTHONDONTWRITEBYTECODE=\"1\"))\n    \n            def name_guard():\n                environment = {\"PYTHONDONTWRITEBYTECODE\": \"1\"}\n                subprocess.run([sys.executable, \"case.py\"], env=environment)\n    \n            def make_environment(extra=None):\n                return {\"PYTHONDONTWRITEBYTECODE\": \"1\"}\n    \n            module_environment = make_environment()\n    \n            def one_hop_guard():\n                environment = make_environment()\n                subprocess.run([sys.executable, \"case.py\"], env=environment)\n    \n            def module_one_hop_guard():\n                subprocess.run([sys.executable, \"case.py\"], env=module_environment)\n    \n            def flag_guard():\n                subprocess.run([sys.executable, \"-B\", \"-c\", \"pass\"], env={})\n    \n            def all_callees():\n                subprocess.run([sys.executable, \"case.py\"], env={})\n                subprocess.Popen([sys.executable, \"case.py\"], env={})\n                subprocess.call([sys.executable, \"case.py\"], env={})\n                subprocess.check_call([sys.executable, \"case.py\"], env={})\n                subprocess.check_output([sys.executable, \"case.py\"], env={})\n            \"\"\",\n        )\n    \n        rc = checker.main([\"--repo\", str(root)])\n        output = capsys.readouterr().out\n    \n        assert rc == checker.VIOLATION_RC\n>       assert _parse_violations(output) == {\n            (\"orchestrator/cases.py\", 32, \"run\"),\n            (\"orchestrator/cases.py\", 33, \"Popen\"),\n            (\"orchestrator/cases.py\", 34, \"call\"),\n            (\"orchestrator/cases.py\", 35, \"check_call\"),\n            (\"orchestrator/cases.py\", 36, \"check_output\"),\n        }\nE       AssertionError: assert {('orchestrat...k_call'), ...} == {('orchestrat...heck_output')}\nE         \nE         Extra items in the left set:\nE         ('orchestrator/cases.py', 23, 'run')\nE         ('orchestrator/cases.py', 26, 'run')\nE         Use -v to get more diff\n\norchestrator/tests/test_check_subprocess_bytecode_guard.py:91: AssertionError\n_____________________________ test_real_repo_clean _____________________________\n[gw5] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_real_repo_clean():\n>       assert checker.main([\"--repo\", str(_REPO)]) == checker.CLEAN_RC\nE       AssertionError: assert 1 == 0\nE        +  where 1 = <function main at 0x14a4b29c3a30>(['--repo', '/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1115-env-bytecode-check'])\nE        +    where <function main at 0x14a4b29c3a30> = checker.main\nE        +  and   0 = checker.CLEAN_RC\n\norchestrator/tests/test_check_subprocess_bytecode_guard.py:224: AssertionError\n----------------------------- Captured stdout call -----------------------------\ntools/dev_waves/checker.py:202:22:run\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_check_subprocess_bytecode_guard.py::test_non_python_argv_and_function_boundary\nFAILED orchestrator/tests/test_check_subprocess_bytecode_guard.py::test_guard_patterns_and_direct_callees\nFAILED orchestrator/tests/test_check_subprocess_bytecode_guard.py::test_real_repo_clean\n========================= 3 failed, 3 passed in 10.50s =========================\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_check_subprocess_bytecode_guard.py::test_guard_patterns_and_direct_callees\" nodeid_bytes=98 nodeid_omitted_bytes=0 source_bytes=2727 retained_bytes=2727 omitted_bytes=0 rendered_excerpt_bytes=2864 sha256=e2ede593f3c1d45bc15d99f5994fd8c7b9a2671b0c73daa2db2af9679c189be1\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw0] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw0/test_guard_patterns_and_direct0')\n> capsys = <_pytest.capture.CaptureFixture object at 0x150de93fb610>\n> \n>     def test_guard_patterns_and_direct_callees(tmp_path, capsys):\n>         root = _repo(tmp_path)\n>         _write(\n>             root,\n>             \"orchestrator/cases.py\",\n>             \"\"\"\n>             import os\n>             import subprocess\n>             import sys\n>     \n>             def dict_guard():\n>                 subprocess.run([sys.executable, \"case.py\"], env={\"PYTHONDONTWRITEBYTECODE\": \"1\"})\n>     \n>             def dict_call_guard():\n>                 subprocess.run([sys.executable, \"case.py\"], env=dict(PYTHONDONTWRITEBYTECODE=\"1\"))\n>     \n>             def name_guard():\n>                 environment = {\"PYTHONDONTWRITEBYTECODE\": \"1\"}\n>                 subprocess.run([sys.executable, \"case.py\"], env=environment)\n>     \n>             def make_environment(extra=None):\n>                 return {\"PYTHONDONTWRITEBYTECODE\": \"1\"}\n>     \n>             module_environment = make_environment()\n>     \n>             def one_hop_guard():\n>                 environment = make_environment()\n>                 subprocess.run([sys.executable, \"case.py\"], env=environment)\n>     \n>             def module_one_hop_guard():\n>                 subprocess.run([sys.executable, \"case.py\"], env=module_environment)\n>     \n>             def flag_guard():\n>                 subprocess.run([sys.executable, \"-B\", \"-c\", \"pass\"], env={})\n>     \n>             def all_callees():\n>                 subprocess.run([sys.executable, \"case.py\"], env={})\n>                 subprocess.Popen([sys.executable, \"case.py\"], env={})\n>                 subprocess.call([sys.executable, \"case.py\"], env={})\n>                 subprocess.check_call([sys.executable, \"case.py\"], env={})\n>                 subprocess.check_output([sys.executable, \"case.py\"], env={})\n>             \"\"\",\n>         )\n>     \n>         rc = checker.main([\"--repo\", str(root)])\n>         output = capsys.readouterr().out\n>     \n>         assert rc == checker.VIOLATION_RC\n> >       assert _parse_violations(output) == {\n>             (\"orchestrator/cases.py\", 32, \"run\"),\n>             (\"orchestrator/cases.py\", 33, \"Popen\"),\n>             (\"orchestrator/cases.py\", 34, \"call\"),\n>             (\"orchestrator/cases.py\", 35, \"check_call\"),\n>             (\"orchestrator/cases.py\", 36, \"check_output\"),\n>         }\n> E       AssertionError: assert {('orchestrat...k_call'), ...} == {('orchestrat...heck_output')}\n> E         \n> E         Extra items in the left set:\n> E         ('orchestrator/cases.py', 23, 'run')\n> E         ('orchestrator/cases.py', 26, 'run')\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_check_subprocess_bytecode_guard.py:91: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_check_subprocess_bytecode_guard.py::test_non_python_argv_and_function_boundary\" nodeid_bytes=102 nodeid_omitted_bytes=0 source_bytes=1924 retained_bytes=1924 omitted_bytes=0 rendered_excerpt_bytes=2037 sha256=4a6994ddf17c7834942e942a10151553ebb50141ec6689919d58684c91e27059\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw1] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw1/test_non_python_argv_and_funct0')\n> capsys = <_pytest.capture.CaptureFixture object at 0x147db2bdcd00>\n> \n>     def test_non_python_argv_and_function_boundary(tmp_path, capsys):\n>         root = _repo(tmp_path)\n>         _write(\n>             root,\n>             \"tools/cases.py\",\n>             \"\"\"\n>             import subprocess\n>             import sys\n>     \n>             PYTHONDONTWRITEBYTECODE = \"1\"\n>     \n>             def make_environment():\n>                 return {\"PYTHONDONTWRITEBYTECODE\": \"1\"}\n>     \n>             module_environment = make_environment()\n>     \n>             def git_calls():\n>                 subprocess.run([\"git\", \"add\", \"tools/case.py\"], env={})\n>                 subprocess.run([\"git\", \"-m\", \"pytest\"], env={})\n>     \n>             def python_call_without_local_guard():\n>                 environment = {}\n>                 subprocess.run([sys.executable, \"case.py\"], env=environment)\n>     \n>             def module_one_hop_is_not_a_literal_leak():\n>                 subprocess.run([sys.executable, \"case.py\"], env=module_environment)\n>             \"\"\",\n>         )\n>         _write(\n>             root,\n>             \"orchestrator/__pycache__/ignored.py\",\n>             \"\"\"\n>             import subprocess, sys\n>             subprocess.run([sys.executable, \"ignored.py\"], env={})\n>             \"\"\",\n>         )\n>     \n>         rc = checker.main([\"--repo\", str(root)])\n>         output = capsys.readouterr().out\n>     \n>         assert rc == checker.VIOLATION_RC\n> >       assert _parse_violations(output) == {\n>             (\"tools/cases.py\", 18, \"run\"),\n>         }\n> E       AssertionError: assert {('tools/case...', 21, 'run')} == {('tools/case...', 18, 'run')}\n> E         \n> E         Extra items in the left set:\n> E         ('tools/cases.py', 21, 'run')\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_check_subprocess_bytecode_guard.py:141: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE rank=3 category=failed when=call nodeid=\"orchestrator/tests/test_check_subprocess_bytecode_guard.py::test_real_repo_clean\" nodeid_bytes=80 nodeid_omitted_bytes=0 source_bytes=525 retained_bytes=525 omitted_bytes=0 rendered_excerpt_bytes=546 sha256=14f1a88a467ba41b230ec849cc876b1128882e472cf1a1bc016f6cc3cb230056\n--- IZANAGI FAILURE EXCERPT rank=3 BEGIN ---\n> [gw5] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_real_repo_clean():\n> >       assert checker.main([\"--repo\", str(_REPO)]) == checker.CLEAN_RC\n> E       AssertionError: assert 1 == 0\n> E        +  where 1 = <function main at 0x14a4b29c3a30>(['--repo', '/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1115-env-bytecode-check'])\n> E        +    where <function main at 0x14a4b29c3a30> = checker.main\n> E        +  and   0 = checker.CLEAN_RC\n> \n> orchestrator/tests/test_check_subprocess_bytecode_guard.py:224: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=3 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=3 failed=3 errors=0 selected=3 omitted_failures=0 source_bytes=5176 retained_bytes=5176 omitted_bytes=0 budget_bytes=49152 rendered_bytes=7032 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "bc76e2c0ef9b39f6902b1648c93d87d68b7f2034da345f3f6558c0abc9665aac"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "2a58169577e88cccde0dae8add1deb19423f8d91f931e41068038584f63df042",
+      "duration_s": 32.288,
+      "expected_nodes": [
+        "orchestrator/tests/test_check_subprocess_bytecode_guard.py::test_guard_patterns_and_direct_callees",
+        "orchestrator/tests/test_check_subprocess_bytecode_guard.py::test_non_python_argv_and_function_boundary",
+        "orchestrator/tests/test_check_subprocess_bytecode_guard.py::test_real_repo_clean"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_check_subprocess_bytecode_guard.py::test_non_python_argv_and_function_boundary",
+        "orchestrator/tests/test_check_subprocess_bytecode_guard.py::test_guard_patterns_and_direct_callees",
+        "orchestrator/tests/test_check_subprocess_bytecode_guard.py::test_real_repo_clean"
+      ],
+      "hang_risk": false,
+      "id": "M4",
+      "injection_diff_sha256": "08ded4058c29fe11f3673340caed1172110dc592d991c8b9effebd04cd38ec71",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "252427030fa07b43ff741f0cd5e74682c74904d24fde825620936fc3699c9ca1",
+      "replacements": [
+        {
+          "file": "tools/check_subprocess_bytecode_guard.py",
+          "new": "    return False\n",
+          "old": "    return _scope_has_guard(definition)\n"
+        }
+      ],
+      "repo_head": "12a8d8f8fb6285cff57534850e0b8b278e90e857",
+      "runner_sha256": "630a40990a3003d75bb639dd6a13a26367046b032a02abda491c0d66fdd02a5b",
+      "spec_sha256": "89c6e73cf7dc7f126eb50216824881b762ee9d93258094ef706032455d541fad",
+      "status": "KILLED",
+      "test_output_sha256": "bc76e2c0ef9b39f6902b1648c93d87d68b7f2034da345f3f6558c0abc9665aac",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "990c1570d1cd7b15f1f75bfe8fe7b94bf8961519df08eda783edb17e3debf531"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1115-env-bytecode-check/output/pegasus-dispatch/6496727b7a037f7f026b1b9c6264eb9a/izdw-6496727b7a.o925618",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1115-env-bytecode-check/output/pegasus-dispatch/6496727b7a037f7f026b1b9c6264eb9a/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1115-env-bytecode-check\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [6 items]\n\n....F.                                                                   [100%]\n=================================== FAILURES ===================================\n_______________ test_dict_unpack_guard_and_nested_scope_boundary _______________\n[gw3] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw3/test_dict_unpack_guard_and_nes0')\ncapsys = <_pytest.capture.CaptureFixture object at 0x14e8cb2e4100>\n\n    def test_dict_unpack_guard_and_nested_scope_boundary(tmp_path, capsys):\n        root = _repo(tmp_path)\n        _write(\n            root,\n            \"tools/cases.py\",\n            \"\"\"\\\n            import subprocess\n            import sys\n    \n            def dict_unpack_guard():\n                subprocess.run([sys.executable, \"case.py\"], env=dict(**{\"PYTHONDONTWRITEBYTECODE\": \"1\"}))\n    \n            def nested_guard_is_not_local():\n                environment = {}\n    \n                def nested():\n                    return {\"PYTHONDONTWRITEBYTECODE\": \"1\"}\n    \n                subprocess.run([sys.executable, \"case.py\"], env=environment)\n            \"\"\",\n        )\n    \n        rc = checker.main([\"--repo\", str(root)])\n        output = capsys.readouterr().out\n    \n>       assert rc == checker.VIOLATION_RC\nE       assert 0 == 1\nE        +  where 1 = checker.VIOLATION_RC\n\norchestrator/tests/test_check_subprocess_bytecode_guard.py:197: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_check_subprocess_bytecode_guard.py::test_dict_unpack_guard_and_nested_scope_boundary\n========================= 1 failed, 5 passed in 10.44s =========================\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_check_subprocess_bytecode_guard.py::test_dict_unpack_guard_and_nested_scope_boundary\" nodeid_bytes=108 nodeid_omitted_bytes=0 source_bytes=1173 retained_bytes=1173 omitted_bytes=0 rendered_excerpt_bytes=1247 sha256=d87545f64161f7b644bc2ca1ff9fbd3b68b863ae192a7952e4eb890ab588da37\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw3] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw3/test_dict_unpack_guard_and_nes0')\n> capsys = <_pytest.capture.CaptureFixture object at 0x14e8cb2e4100>\n> \n>     def test_dict_unpack_guard_and_nested_scope_boundary(tmp_path, capsys):\n>         root = _repo(tmp_path)\n>         _write(\n>             root,\n>             \"tools/cases.py\",\n>             \"\"\"\\x5c\n>             import subprocess\n>             import sys\n>     \n>             def dict_unpack_guard():\n>                 subprocess.run([sys.executable, \"case.py\"], env=dict(**{\"PYTHONDONTWRITEBYTECODE\": \"1\"}))\n>     \n>             def nested_guard_is_not_local():\n>                 environment = {}\n>     \n>                 def nested():\n>                     return {\"PYTHONDONTWRITEBYTECODE\": \"1\"}\n>     \n>                 subprocess.run([sys.executable, \"case.py\"], env=environment)\n>             \"\"\",\n>         )\n>     \n>         rc = checker.main([\"--repo\", str(root)])\n>         output = capsys.readouterr().out\n>     \n> >       assert rc == checker.VIOLATION_RC\n> E       assert 0 == 1\n> E        +  where 1 = checker.VIOLATION_RC\n> \n> orchestrator/tests/test_check_subprocess_bytecode_guard.py:197: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1173 retained_bytes=1173 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1983 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "491e7e72cb4596b86dd00c158b0b933e899152b586087f9cf1b07974dc88cf27"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "2a58169577e88cccde0dae8add1deb19423f8d91f931e41068038584f63df042",
+      "duration_s": 32.126,
+      "expected_nodes": [
+        "orchestrator/tests/test_check_subprocess_bytecode_guard.py::test_dict_unpack_guard_and_nested_scope_boundary"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_check_subprocess_bytecode_guard.py::test_dict_unpack_guard_and_nested_scope_boundary"
+      ],
+      "hang_risk": false,
+      "id": "M5",
+      "injection_diff_sha256": "1fccbb57a30418825d5026c6f6e1c8c3135ae2b030206be83bdf3fdab1b0137f",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "377cdf4e9c3293dadbbe6f892e334975f55ed03387f598a9753ba44263493134",
+      "replacements": [
+        {
+          "file": "tools/check_subprocess_bytecode_guard.py",
+          "new": "    def visit_FunctionDef(self, node: ast.FunctionDef) -> None:\n        self.generic_visit(node)\n",
+          "old": "    def visit_FunctionDef(self, node: ast.FunctionDef) -> None:\n        if node is self.root:\n            self.generic_visit(node)\n"
+        }
+      ],
+      "repo_head": "12a8d8f8fb6285cff57534850e0b8b278e90e857",
+      "runner_sha256": "630a40990a3003d75bb639dd6a13a26367046b032a02abda491c0d66fdd02a5b",
+      "spec_sha256": "89c6e73cf7dc7f126eb50216824881b762ee9d93258094ef706032455d541fad",
+      "status": "KILLED",
+      "test_output_sha256": "491e7e72cb4596b86dd00c158b0b933e899152b586087f9cf1b07974dc88cf27",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "990c1570d1cd7b15f1f75bfe8fe7b94bf8961519df08eda783edb17e3debf531"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1115-env-bytecode-check/output/pegasus-dispatch/ab549427606838838b376af16c233fad/izdw-ab54942760.o925620",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1115-env-bytecode-check/output/pegasus-dispatch/ab549427606838838b376af16c233fad/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1115-env-bytecode-check\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [6 items]\n\n....F.                                                                   [100%]\n=================================== FAILURES ===================================\n___________ test_broken_python_is_indeterminate_even_with_violation ____________\n[gw4] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw4/test_broken_python_is_indeterm0')\ncapsys = <_pytest.capture.CaptureFixture object at 0x145f65a64280>\n\n    def test_broken_python_is_indeterminate_even_with_violation(tmp_path, capsys):\n        root = _repo(tmp_path)\n        _write(\n            root,\n            \"orchestrator/bad.py\",\n            \"\"\"\n            import subprocess, sys\n            subprocess.run([sys.executable, \"bad.py\"], env={})\n            \"\"\",\n        )\n        _write(root, \"tools/broken.py\", \"def broken(:\\n\")\n    \n        rc = checker.main([\"--repo\", str(root)])\n        captured = capsys.readouterr()\n    \n>       assert rc == checker.INDETERMINATE_RC\nE       assert 1 == 2\nE        +  where 2 = checker.INDETERMINATE_RC\n\norchestrator/tests/test_check_subprocess_bytecode_guard.py:218: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_check_subprocess_bytecode_guard.py::test_broken_python_is_indeterminate_even_with_violation\n========================= 1 failed, 5 passed in 10.39s =========================\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_check_subprocess_bytecode_guard.py::test_broken_python_is_indeterminate_even_with_violation\" nodeid_bytes=115 nodeid_omitted_bytes=0 source_bytes=885 retained_bytes=885 omitted_bytes=0 rendered_excerpt_bytes=939 sha256=c7a47d499ab6f68f951ba9536da09c63bd082d17b87fe1f416a16543c575c918\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw4] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw4/test_broken_python_is_indeterm0')\n> capsys = <_pytest.capture.CaptureFixture object at 0x145f65a64280>\n> \n>     def test_broken_python_is_indeterminate_even_with_violation(tmp_path, capsys):\n>         root = _repo(tmp_path)\n>         _write(\n>             root,\n>             \"orchestrator/bad.py\",\n>             \"\"\"\n>             import subprocess, sys\n>             subprocess.run([sys.executable, \"bad.py\"], env={})\n>             \"\"\",\n>         )\n>         _write(root, \"tools/broken.py\", \"def broken(:\\x5cn\")\n>     \n>         rc = checker.main([\"--repo\", str(root)])\n>         captured = capsys.readouterr()\n>     \n> >       assert rc == checker.INDETERMINATE_RC\n> E       assert 1 == 2\n> E        +  where 2 = checker.INDETERMINATE_RC\n> \n> orchestrator/tests/test_check_subprocess_bytecode_guard.py:218: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=885 retained_bytes=885 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1677 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "ed75dbc5f27ba4aa0809b3c9de3b57ec1dfb407a7ef804a25831307759c6e697"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "2a58169577e88cccde0dae8add1deb19423f8d91f931e41068038584f63df042",
+      "duration_s": 32.055,
+      "expected_nodes": [
+        "orchestrator/tests/test_check_subprocess_bytecode_guard.py::test_broken_python_is_indeterminate_even_with_violation"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_check_subprocess_bytecode_guard.py::test_broken_python_is_indeterminate_even_with_violation"
+      ],
+      "hang_risk": false,
+      "id": "M6",
+      "injection_diff_sha256": "d1a07cf1d3a39c63764c5dce21400392be1320b16745403a0566fa142a104c96",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "46f9874af439715622cca12aff8517502345b2acddeb735e038467c0d67fd79f",
+      "replacements": [
+        {
+          "file": "tools/check_subprocess_bytecode_guard.py",
+          "new": "    if report.violations:\n        return VIOLATION_RC\n    return INDETERMINATE_RC if report.issues else CLEAN_RC\n",
+          "old": "    if report.issues:\n        return INDETERMINATE_RC\n    return VIOLATION_RC if report.violations else CLEAN_RC\n"
+        }
+      ],
+      "repo_head": "12a8d8f8fb6285cff57534850e0b8b278e90e857",
+      "runner_sha256": "630a40990a3003d75bb639dd6a13a26367046b032a02abda491c0d66fdd02a5b",
+      "spec_sha256": "89c6e73cf7dc7f126eb50216824881b762ee9d93258094ef706032455d541fad",
+      "status": "KILLED",
+      "test_output_sha256": "ed75dbc5f27ba4aa0809b3c9de3b57ec1dfb407a7ef804a25831307759c6e697",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "990c1570d1cd7b15f1f75bfe8fe7b94bf8961519df08eda783edb17e3debf531"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1115-env-bytecode-check/output/pegasus-dispatch/bd3305c1db7e7675781c82d57c1fc6b9/izdw-bd3305c1db.o925607",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1115-env-bytecode-check/output/pegasus-dispatch/bd3305c1db7e7675781c82d57c1fc6b9/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "orchestrator/tests/test_check_subprocess_bytecode_guard.py::test_guard_patterns_and_direct_callees\norchestrator/tests/test_check_subprocess_bytecode_guard.py::test_non_python_argv_and_function_boundary\norchestrator/tests/test_check_subprocess_bytecode_guard.py::test_literal_python_argv0_variants\norchestrator/tests/test_check_subprocess_bytecode_guard.py::test_dict_unpack_guard_and_nested_scope_boundary\norchestrator/tests/test_check_subprocess_bytecode_guard.py::test_broken_python_is_indeterminate_even_with_violation\norchestrator/tests/test_check_subprocess_bytecode_guard.py::test_real_repo_clean\n\n6 tests collected in 0.25s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"serial\"}\n",
+        "stdout_sha256": "f96cbc7fab9620ea0d0ba2fbd990d4945307498d167742437d7af20e80e5d97e"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_check_subprocess_bytecode_guard.py::test_guard_patterns_and_direct_callees",
+        "orchestrator/tests/test_check_subprocess_bytecode_guard.py::test_non_python_argv_and_function_boundary",
+        "orchestrator/tests/test_check_subprocess_bytecode_guard.py::test_literal_python_argv0_variants",
+        "orchestrator/tests/test_check_subprocess_bytecode_guard.py::test_dict_unpack_guard_and_nested_scope_boundary",
+        "orchestrator/tests/test_check_subprocess_bytecode_guard.py::test_broken_python_is_indeterminate_even_with_violation",
+        "orchestrator/tests/test_check_subprocess_bytecode_guard.py::test_real_repo_clean"
+      ],
+      "duration_s": 26.917,
+      "rc": 0,
+      "repo_head": "12a8d8f8fb6285cff57534850e0b8b278e90e857",
+      "runner_sha256": "630a40990a3003d75bb639dd6a13a26367046b032a02abda491c0d66fdd02a5b",
+      "spec_sha256": "89c6e73cf7dc7f126eb50216824881b762ee9d93258094ef706032455d541fad",
+      "status": "PASSED",
+      "tool_sha256": "990c1570d1cd7b15f1f75bfe8fe7b94bf8961519df08eda783edb17e3debf531"
+    },
+    "hang_timeout_seconds": 1800.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "M1": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_check_subprocess_bytecode_guard.py::test_guard_patterns_and_direct_callees",
+          "orchestrator/tests/test_check_subprocess_bytecode_guard.py::test_non_python_argv_and_function_boundary",
+          "orchestrator/tests/test_check_subprocess_bytecode_guard.py::test_dict_unpack_guard_and_nested_scope_boundary",
+          "orchestrator/tests/test_check_subprocess_bytecode_guard.py::test_broken_python_is_indeterminate_even_with_violation",
+          "orchestrator/tests/test_check_subprocess_bytecode_guard.py::test_real_repo_clean"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "27dbfff686e815c003ab5c8127641822969c494fc7b199b588c21c0a789b7b5f",
+        "replacements": [
+          {
+            "file": "tools/check_subprocess_bytecode_guard.py",
+            "new": "    if not _is_sys_executable(argv0):\n        return True\n",
+            "old": "    if _is_sys_executable(argv0):\n        return True\n"
+          }
+        ]
+      },
+      "M2": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_check_subprocess_bytecode_guard.py::test_guard_patterns_and_direct_callees",
+          "orchestrator/tests/test_check_subprocess_bytecode_guard.py::test_real_repo_clean"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "bd616ed77404d6201f28509fac5019d288b09b23b9b8afc83e62edc1f9d65c10",
+        "replacements": [
+          {
+            "file": "tools/check_subprocess_bytecode_guard.py",
+            "new": "    return any(_literal_string(element) == \"-C\" for element in call.args[0].elts)\n",
+            "old": "    return any(_literal_string(element) == \"-B\" for element in call.args[0].elts)\n"
+          }
+        ]
+      },
+      "M3": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_check_subprocess_bytecode_guard.py::test_guard_patterns_and_direct_callees",
+          "orchestrator/tests/test_check_subprocess_bytecode_guard.py::test_dict_unpack_guard_and_nested_scope_boundary",
+          "orchestrator/tests/test_check_subprocess_bytecode_guard.py::test_real_repo_clean"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "d6f146ddb558925d63db5de9a01843786af9908fc9f150af17593d095e1669df",
+        "replacements": [
+          {
+            "file": "tools/check_subprocess_bytecode_guard.py",
+            "new": "    return False\n",
+            "old": "    return any(_literal_string(key) == GUARD_NAME for key in node.keys)\n"
+          }
+        ]
+      },
+      "M4": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_check_subprocess_bytecode_guard.py::test_guard_patterns_and_direct_callees",
+          "orchestrator/tests/test_check_subprocess_bytecode_guard.py::test_non_python_argv_and_function_boundary",
+          "orchestrator/tests/test_check_subprocess_bytecode_guard.py::test_real_repo_clean"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "08ded4058c29fe11f3673340caed1172110dc592d991c8b9effebd04cd38ec71",
+        "replacements": [
+          {
+            "file": "tools/check_subprocess_bytecode_guard.py",
+            "new": "    return False\n",
+            "old": "    return _scope_has_guard(definition)\n"
+          }
+        ]
+      },
+      "M5": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_check_subprocess_bytecode_guard.py::test_dict_unpack_guard_and_nested_scope_boundary"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "1fccbb57a30418825d5026c6f6e1c8c3135ae2b030206be83bdf3fdab1b0137f",
+        "replacements": [
+          {
+            "file": "tools/check_subprocess_bytecode_guard.py",
+            "new": "    def visit_FunctionDef(self, node: ast.FunctionDef) -> None:\n        self.generic_visit(node)\n",
+            "old": "    def visit_FunctionDef(self, node: ast.FunctionDef) -> None:\n        if node is self.root:\n            self.generic_visit(node)\n"
+          }
+        ]
+      },
+      "M6": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_check_subprocess_bytecode_guard.py::test_broken_python_is_indeterminate_even_with_violation"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "d1a07cf1d3a39c63764c5dce21400392be1320b16745403a0566fa142a104c96",
+        "replacements": [
+          {
+            "file": "tools/check_subprocess_bytecode_guard.py",
+            "new": "    if report.violations:\n        return VIOLATION_RC\n    return INDETERMINATE_RC if report.issues else CLEAN_RC\n",
+            "old": "    if report.issues:\n        return INDETERMINATE_RC\n    return VIOLATION_RC if report.violations else CLEAN_RC\n"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "44009af521157d31614823a960daa3edae81137ab3299db07ee491fe385a130d",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "dispatch",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "/usr/bin/python3",
+      "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1115-env-bytecode-check/tools/run_tests.py",
+      "--force-dispatch",
+      "orchestrator/tests/test_check_subprocess_bytecode_guard.py",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 1800.0
+  },
+  "repo_head": "12a8d8f8fb6285cff57534850e0b8b278e90e857",
+  "runner_identity": {
+    "command": [
+      "/usr/bin/python3",
+      "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1115-env-bytecode-check/tools/run_tests.py",
+      "--force-dispatch",
+      "orchestrator/tests/test_check_subprocess_bytecode_guard.py",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1115-env-bytecode-check/tools/pegasus/dispatch_compute.py",
+    "dispatch_entrypoint_sha256": "3bbf31b3dfe365754d85d778a17789f8f4b3865807380e9ea9f6ab859bf5a4e7",
+    "dispatch_head_blob_sha256": "3bbf31b3dfe365754d85d778a17789f8f4b3865807380e9ea9f6ab859bf5a4e7",
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1115-env-bytecode-check/tools/run_tests.py",
+    "entrypoint_sha256": "9f7292812cfa9a362bfa376d077b3ae21a22efb4be00e394f1a47f4dac8e5187",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+    "head_blob_sha256": "9f7292812cfa9a362bfa376d077b3ae21a22efb4be00e394f1a47f4dac8e5187",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "dc4065e146c957500fa5e9c3fc0a1480e33ac7b2",
+    "runner_mode": "dispatch"
+  },
+  "runner_sha256": "630a40990a3003d75bb639dd6a13a26367046b032a02abda491c0d66fdd02a5b",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "89c6e73cf7dc7f126eb50216824881b762ee9d93258094ef706032455d541fad",
+  "summary": {
+    "KILLED": 6,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 0,
+    "TIMEOUT": 0,
+    "completed": 6,
+    "matching": 6,
+    "recorded": 6,
+    "registered": 6
+  },
+  "tool_identity": {
+    "head_blob_sha256": "766f168f1da5b8b67c49374a2ad24928526b3658863d2a3291cfdc8ff5d705ac",
+    "path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1115-env-bytecode-check/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "766f168f1da5b8b67c49374a2ad24928526b3658863d2a3291cfdc8ff5d705ac"
+  },
+  "tool_sha256": "990c1570d1cd7b15f1f75bfe8fe7b94bf8961519df08eda783edb17e3debf531",
+  "updated_at": "2026-08-19T15:56:58.262873+00:00"
+}

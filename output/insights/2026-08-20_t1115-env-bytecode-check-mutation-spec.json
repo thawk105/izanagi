@@ -1,0 +1,113 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 120,
+  "timeout_seconds": 1800,
+  "hang_timeout_seconds": 1800,
+  "mutations": [
+    {
+      "id": "M1",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/check_subprocess_bytecode_guard.py",
+          "old": "    if _is_sys_executable(argv0):\n        return True\n",
+          "new": "    if not _is_sys_executable(argv0):\n        return True\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_check_subprocess_bytecode_guard.py::test_guard_patterns_and_direct_callees",
+        "orchestrator/tests/test_check_subprocess_bytecode_guard.py::test_non_python_argv_and_function_boundary",
+        "orchestrator/tests/test_check_subprocess_bytecode_guard.py::test_dict_unpack_guard_and_nested_scope_boundary",
+        "orchestrator/tests/test_check_subprocess_bytecode_guard.py::test_broken_python_is_indeterminate_even_with_violation",
+        "orchestrator/tests/test_check_subprocess_bytecode_guard.py::test_real_repo_clean"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M2",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/check_subprocess_bytecode_guard.py",
+          "old": "    return any(_literal_string(element) == \"-B\" for element in call.args[0].elts)\n",
+          "new": "    return any(_literal_string(element) == \"-C\" for element in call.args[0].elts)\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_check_subprocess_bytecode_guard.py::test_guard_patterns_and_direct_callees",
+        "orchestrator/tests/test_check_subprocess_bytecode_guard.py::test_real_repo_clean"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M3",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/check_subprocess_bytecode_guard.py",
+          "old": "    return any(_literal_string(key) == GUARD_NAME for key in node.keys)\n",
+          "new": "    return False\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_check_subprocess_bytecode_guard.py::test_guard_patterns_and_direct_callees",
+        "orchestrator/tests/test_check_subprocess_bytecode_guard.py::test_dict_unpack_guard_and_nested_scope_boundary",
+        "orchestrator/tests/test_check_subprocess_bytecode_guard.py::test_real_repo_clean"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M4",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/check_subprocess_bytecode_guard.py",
+          "old": "    return _scope_has_guard(definition)\n",
+          "new": "    return False\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_check_subprocess_bytecode_guard.py::test_guard_patterns_and_direct_callees",
+        "orchestrator/tests/test_check_subprocess_bytecode_guard.py::test_non_python_argv_and_function_boundary",
+        "orchestrator/tests/test_check_subprocess_bytecode_guard.py::test_real_repo_clean"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M5",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/check_subprocess_bytecode_guard.py",
+          "old": "    def visit_FunctionDef(self, node: ast.FunctionDef) -> None:\n        if node is self.root:\n            self.generic_visit(node)\n",
+          "new": "    def visit_FunctionDef(self, node: ast.FunctionDef) -> None:\n        self.generic_visit(node)\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_check_subprocess_bytecode_guard.py::test_dict_unpack_guard_and_nested_scope_boundary"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M6",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/check_subprocess_bytecode_guard.py",
+          "old": "    if report.issues:\n        return INDETERMINATE_RC\n    return VIOLATION_RC if report.violations else CLEAN_RC\n",
+          "new": "    if report.violations:\n        return VIOLATION_RC\n    return INDETERMINATE_RC if report.issues else CLEAN_RC\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_check_subprocess_bytecode_guard.py::test_broken_python_is_indeterminate_even_with_violation"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}
