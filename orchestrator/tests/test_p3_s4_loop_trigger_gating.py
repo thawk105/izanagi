@@ -1716,7 +1716,7 @@ def test_auditor_closed_entry_schema_rejects_raw_candidate_without_disclosure():
 
 
 def test_auditor_all_existing_violation_codes_and_legacy_fixed_fields_are_accepted():
-    for code in range(1, 17):
+    for code in range(1, 22):
         parsed = parse_auditor_dict({
             "verdict": "reject",
             "diff_digest": "a" * 64,

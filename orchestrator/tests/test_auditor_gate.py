@@ -136,6 +136,28 @@ def test_parse_auditor_dict_roundtrip():
     assert a.violations == [{"type": 1}] and a.uncertainty == "x"
 
 
+def test_parse_auditor_dict_accepts_sort_closed_region_violation_codes_17_through_21():
+    for code in range(17, 22):
+        parsed = parse_auditor_dict({
+            "verdict": "reject",
+            "diff_digest": "a" * 64,
+            "violations": [{"type": code}],
+        })
+        assert parsed.violations == [{"type": code}]
+
+
+def test_parse_auditor_dict_rejects_violation_code_22():
+    try:
+        parse_auditor_dict({
+            "verdict": "reject",
+            "diff_digest": "a" * 64,
+            "violations": [{"type": 22}],
+        })
+        raise AssertionError("gallery code 22 を素通しした")
+    except AuditorGateFailure:
+        pass
+
+
 def test_parse_auditor_dict_accepts_consistent_pass_and_uncertain():
     passed = parse_auditor_dict({"verdict": "pass", "diff_digest": "a" * 64})
     uncertain = parse_auditor_dict({"verdict": "uncertain", "diff_digest": "b" * 64,

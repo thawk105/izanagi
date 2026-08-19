@@ -26,7 +26,7 @@ from .diff_quarantine import DiffQuarantineResult
 from ..critic.digest import DIFF_QUARANTINE_REASON
 
 _AUDITOR_VERDICTS = {"pass", "reject", "uncertain"}
-_AUDITOR_VIOLATION_TYPES = frozenset(range(1, 17))
+_AUDITOR_VIOLATION_TYPES = frozenset(range(1, 22))
 _VIOLATION_FIELDS = frozenset({
     "type", "location", "correctness_impact", "verifier_blind_spot",
     # Legacy fixtures used these two fixed fields before the closed projection.

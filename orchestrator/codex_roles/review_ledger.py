@@ -13,7 +13,8 @@ from __future__ import annotations
 EXPECTED_ROLE_COUNT = 13
 
 SOURCE_FILE_SHA256 = {
-    "auditor": "324ff727b78935f5915fe7c685ad93ae3f3b3df74de2056990060266858f53f8",
+    # Reviewed 2026-08-19: T-1356; sort closed-region 残余の gallery型17-21追加、violation type 上限21。
+    "auditor": "fc90e79334754d54a0b735c353351335ba5568075853facd7bd0730a9f505022",
     "axis-proposer": "8b33fafbf95d530903f0e56a104147beab98151ed06c7d2fd6b2c3ebb6222be0",
     "calibrator": "dbe696286856738afb79369e772998bfad97bbdaccbcef5a8e0d1773f6c35b62",
     "coder": "5aac447ae26f53d3d61dac47c353201d96039231f930a968a36a68951d8f5c34",
@@ -40,7 +41,8 @@ SOURCE_FILE_SHA256 = {
 # 値は manifest renderer から自動更新してはならず、契約変更を人間レビューした時だけ更新する。
 ROLE_MANIFEST_SHA256 = {
     # Reviewed 2026-08-04: stage6-fix-ruling.md 2 巡目裁定 r1-3。
-    "auditor": "a6edf4fe5f8938fa3b960625d0f21f5f9a31fa3ff7183128e22b097d79d79824",
+    # Reviewed 2026-08-19: T-1356; sort closed-region 残余の gallery型17-21追加、violation type 上限21。
+    "auditor": "07b097be18a5ca528b5b402746c05a5c1b27ca8e9b3b050b83c7463df445c456",
     "axis-proposer": "57d9bd635e99c5eab2e7fb852043446ffe6c0aff1a1fa48ed5b724c4ae041ad1",
     "calibrator": "775d8e9fa963b6f2d895ffcb7be14a7ce487ea82911fd797f4f6bb840d8e9186",
     "coder": "2af1a88e8f8cae73e251d067ba47ea4b1acd5457083111d3dc719914d199e136",
@@ -85,7 +87,8 @@ SCHEMA_SHA256 = {
     "auditor": {
         "input": "1b74afcd7a4100722d600004e3dba20245e548750937b87506c1a6fe55f68094",
         # Reviewed 2026-08-04: stage6-fix-ruling.md 2 巡目裁定 r1-3。
-        "output": "1d716e740d58d9ab6d30bfc4817664d61f12b0a2c3682d8a29c57dd47508bff4",
+        # Reviewed 2026-08-19: T-1356; sort closed-region 残余の gallery型17-21追加、violation type 上限21。
+        "output": "c3de7a421aee251c533a2bd65e9a4c0b7445665072d7902d42a9c947dcf078a8",
     },
     "axis-proposer": {
         "input": "3da4142a4dda56f7c88296cb1ea6f540cd7577a9a49fa8fa25a44b0a7e4c8c10",

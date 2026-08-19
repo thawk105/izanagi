@@ -295,7 +295,7 @@ workload descriptor is context, never a reason to relax correctness. Echo the
 provided diff_digest exactly. Return JSON only, exactly:
 {"verdict":"pass|reject|uncertain","diff_digest":"string","violations":[],"nits":[],"proposed_tests":[],"uncertainty":"string"}
 Every element of violations must be exactly {"type":N}, where N is an integer
-auditor gallery code from 1 through 16. Every element of nits must be exactly
+auditor gallery code from 1 through 21. Every element of nits must be exactly
 {"type":"nit"}. Every element of proposed_tests must be an object
 with string fields mutation, expected_gate, and machine_judgment. Empty arrays
 are valid; strings directly inside any of these arrays are invalid.
