@@ -160,6 +160,16 @@ def _commit(root: Path, subject: str) -> str:
     return _git(root, "rev-parse", "HEAD")
 
 
+def _add_no_touch_commits(root: Path, count: int, *, prefix: str) -> None:
+    for index in range(count):
+        _write(
+            root,
+            f"unrelated/{prefix}-{index}.txt",
+            f"{prefix} {index}\n".encode("utf-8"),
+        )
+        _commit(root, f"unrelated {prefix} {index}")
+
+
 def _contract_path_cases() -> tuple[tuple[str, tuple[str | int, ...]], ...]:
     """production helper から独立に、実契約の全 ``path`` 位置を文書順で列挙する。"""
     value = json.loads(EVIDENCE_CONTRACT_FILE.read_bytes())
@@ -1799,6 +1809,117 @@ def test_generation_mutation_and_delete_readd_are_rejected(tmp_path: Path) -> No
     _assert_reason("generation-deleted", M.validate_condition_freeze_at, deleted, readded)
 
 
+def test_filtered_history_preserves_rejections_after_unrelated_commits(
+    tmp_path: Path,
+) -> None:
+    mutated = _init_repo(tmp_path / "mutated-filtered")
+    _, g1 = _install_g1(mutated)
+    _add_no_touch_commits(mutated, 8, prefix="mutated")
+    document = json.loads(g1)
+    document["revision_reason"] = "mutated in place"
+    _write(mutated, M.generation_path(1), M._canonical_bytes(document))
+    mutated_head = _commit(mutated, "mutate g1 after unrelated commits")
+    _assert_reason(
+        "generation-mutated", M.validate_condition_freeze_at, mutated, mutated_head
+    )
+
+    deleted = _init_repo(tmp_path / "deleted-filtered")
+    _, original = _install_g1(deleted)
+    _add_no_touch_commits(deleted, 6, prefix="before-delete")
+    (deleted / M.generation_path(1)).unlink()
+    _commit(deleted, "delete g1")
+    _add_no_touch_commits(deleted, 6, prefix="after-delete")
+    _write(deleted, M.generation_path(1), original)
+    readded = _commit(deleted, "readd g1")
+    _assert_reason(
+        "generation-deleted", M.validate_condition_freeze_at, deleted, readded
+    )
+
+    gap = _init_repo(tmp_path / "gap-filtered")
+    _add_no_touch_commits(gap, 8, prefix="gap")
+    _write(gap, M.generation_path(2), _record_raw(gap, 2, supersedes="0" * 64, ruling="D2"))
+    gap_head = _commit(gap, "generation gap after unrelated commits")
+    _assert_reason("generation-gap", M.validate_condition_freeze_at, gap, gap_head)
+
+    bad_chain = _init_repo(tmp_path / "supersedes-filtered")
+    _, g1 = _install_g1(bad_chain)
+    _add_no_touch_commits(bad_chain, 8, prefix="supersedes")
+    source = (bad_chain / M.SOURCE_PATH).read_bytes().replace(
+        b"epsilon", b"epsilon changed"
+    )
+    _write(bad_chain, M.SOURCE_PATH, source)
+    (bad_chain / "docs/decisions.md").write_text(
+        "## D2. Fixture\n", encoding="utf-8"
+    )
+    _write(
+        bad_chain,
+        M.generation_path(2),
+        _record_raw(bad_chain, 2, supersedes="0" * 64, ruling="D2"),
+    )
+    bad_head = _commit(bad_chain, "bad supersedes after unrelated commits")
+    _add_no_touch_commits(bad_chain, 5, prefix="after-supersedes")
+    bad_tip = _git(bad_chain, "rev-parse", "HEAD")
+    assert bad_tip != bad_head
+    _assert_reason(
+        "generation-supersedes", M.validate_condition_freeze_at, bad_chain, bad_tip
+    )
+
+    fork = _init_repo(tmp_path / "fork-filtered")
+    g1_head, g1 = _install_g1(fork)
+    _git(fork, "checkout", "-q", "-b", "one")
+    _add_no_touch_commits(fork, 5, prefix="one")
+    _install_revision(fork, g1, word="same", ruling="D3")
+    one_head = _git(fork, "rev-parse", "HEAD")
+    _git(fork, "checkout", "-q", "-B", "two", g1_head)
+    _write(fork, "two-marker.txt", b"make the second branch distinct\n")
+    _commit(fork, "second branch marker")
+    _add_no_touch_commits(fork, 5, prefix="two")
+    _install_revision(fork, g1, word="same", ruling="D3")
+    _git(fork, "merge", "-q", "--no-ff", "one", "-m", "same bytes fork")
+    assert _git(fork, "rev-parse", "one") == one_head
+    _assert_reason("generation-fork", M.validate_condition_freeze_at, fork, "HEAD")
+
+    protected_change = _init_repo(tmp_path / "protected-change-filtered")
+    _install_g1(protected_change)
+    _add_no_touch_commits(protected_change, 10, prefix="protected")
+    source = (protected_change / M.SOURCE_PATH).read_bytes().replace(
+        b"epsilon", b"epsilon changed"
+    )
+    _write(protected_change, M.SOURCE_PATH, source)
+    protected_head = _commit(protected_change, "unrecorded protected change")
+    _assert_reason(
+        "record-protected-mismatch",
+        M.validate_condition_freeze_at,
+        protected_change,
+        protected_head,
+    )
+
+    spurious = _init_repo(tmp_path / "spurious-filtered")
+    _, g1 = _install_g1(spurious)
+    _add_no_touch_commits(spurious, 10, prefix="spurious")
+    (spurious / "docs/decisions.md").write_text(
+        "## D2. Spurious revision\n", encoding="utf-8"
+    )
+    _write(
+        spurious,
+        M.generation_path(2),
+        _record_raw(
+            spurious,
+            2,
+            supersedes=hashlib.sha256(g1).hexdigest(),
+            ruling="D2",
+        ),
+    )
+    _commit(spurious, "spurious revision after unrelated commits")
+    _add_no_touch_commits(spurious, 5, prefix="after-spurious")
+    _assert_reason(
+        "spurious-revision",
+        M.validate_condition_freeze_at,
+        spurious,
+        "HEAD",
+    )
+
+
 def test_decider_version_mutation_is_generation_mutated(tmp_path: Path) -> None:
     root = _init_repo(tmp_path)
     _, raw = _install_g1(root)
@@ -3162,6 +3283,41 @@ def test_batch_request_limit_stops_before_git(tmp_path: Path, monkeypatch) -> No
         ("path",),
     )
     assert calls == 0
+
+
+def test_batch_request_count_ignores_no_touch_history_length(
+    tmp_path: Path, monkeypatch
+) -> None:
+    request_totals: list[int] = []
+    full_history_totals: list[int] = []
+    original = M._batch_oids
+    for name, no_touch_count in (("short", 5), ("long", 200)):
+        root = _init_repo(tmp_path / name)
+        _install_g1(root)
+        _add_no_touch_commits(root, no_touch_count, prefix=name)
+        calls: list[tuple[int, int]] = []
+
+        def counted_batch_oids(repo_root, commits, paths):
+            calls.append((len(commits), len(paths)))
+            return original(repo_root, commits, paths)
+
+        monkeypatch.setattr(M, "_batch_oids", counted_batch_oids)
+        M.validate_condition_freeze_at(root, "HEAD")
+        all_commit_count = int(_git(root, "rev-list", "--count", "HEAD"))
+        request_totals.append(
+            sum(commit_count * path_count for commit_count, path_count in calls)
+        )
+        full_history_totals.append(
+            sum(all_commit_count * path_count for _, path_count in calls)
+        )
+
+    assert request_totals[0] == request_totals[1]
+    assert all(
+        request_total < full_history_total
+        for request_total, full_history_total in zip(
+            request_totals, full_history_totals
+        )
+    )
 
 
 def test_total_blob_limit_stops_before_blob_batch(tmp_path: Path, monkeypatch) -> None:
