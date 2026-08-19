@@ -1427,6 +1427,18 @@ def test_known_violation_ledger_matches_literal_entries():
         "`cdcb257d` / `30def5d5` で書き、main 側は各 wave の land 時に監査済み。"
         "親作成 merge のため Codex 著者とは記さない。"
     )
+    t470_ruling = (
+        "2026-08-20 dev-wave-t470-accepted-consumer land 前裁定 "
+        "(ユーザー選択: known-violation 登録)"
+    )
+    t470_note = (
+        "wave branch へ local main `b8fceb8c` を取り込んだ merge。実装面で両側が触ったのは"
+        "`orchestrator/campaign/layer3_report.py` / `orchestrator/tests/test_layer3_report.py` "
+        "の2 file で、`git diff-tree --cc 0e07ad03` は SHA 行のみの完全な空 = 競合解決による"
+        "新規著作なし、結果は両側の変更の和集合。wave 側の実装面は Codex `role=author` が"
+        "commit `c0936079` / `2d111bfc` で書き、main 側 (workload-policy-hint-impl wave) は"
+        "各 wave の land 時に監査済み。親作成 merge のため Codex 著者とは記さない。"
+    )
     observed = tuple(
         (
             spec.commit,
@@ -1492,6 +1504,7 @@ def test_known_violation_ledger_matches_literal_entries():
         ("21582897ece7cf82317931a437dff61e9eaad33b", "missing-codex-author", t1142_ruling, t1142_main_merge_note, ""),
         ("a8c73d747621d4b323024fc6ca6da6372ecfb668", "missing-codex-author", t1142_ruling, t1142_pre_acceptance_merge_note, ""),
         ("3df9b0aa379f84500e3f59add9ad76e421019d50", "missing-codex-author", t1140_t330_ruling, t1140_t330_note, ""),
+        ("0e07ad03da6bfbbce1dc097ad01fb0b1957cf98b", "missing-codex-author", t470_ruling, t470_note, ""),
     )
     assert len(provenance.KNOWN_PROVENANCE_VIOLATIONS) == len(expected)
     assert observed == expected

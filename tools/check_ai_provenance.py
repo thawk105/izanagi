@@ -261,6 +261,18 @@ _T1140_T330_MERGE_NOTE = (
     "`cdcb257d` / `30def5d5` で書き、main 側は各 wave の land 時に監査済み。"
     "親作成 merge のため Codex 著者とは記さない。"
 )
+_T470_MERGE_RULING = (
+    "2026-08-20 dev-wave-t470-accepted-consumer land 前裁定 "
+    "(ユーザー選択: known-violation 登録)"
+)
+_T470_MERGE_NOTE = (
+    "wave branch へ local main `b8fceb8c` を取り込んだ merge。実装面で両側が触ったのは"
+    "`orchestrator/campaign/layer3_report.py` / `orchestrator/tests/test_layer3_report.py` "
+    "の2 file で、`git diff-tree --cc 0e07ad03` は SHA 行のみの完全な空 = 競合解決による"
+    "新規著作なし、結果は両側の変更の和集合。wave 側の実装面は Codex `role=author` が"
+    "commit `c0936079` / `2d111bfc` で書き、main 側 (workload-policy-hint-impl wave) は"
+    "各 wave の land 時に監査済み。親作成 merge のため Codex 著者とは記さない。"
+)
 _T139_MALFORMED_VALUE = (
     "product=claude; model=claude-opus-5[1m]; reasoning=high; "
     "role=orchestrator"
@@ -632,6 +644,12 @@ KNOWN_PROVENANCE_VIOLATIONS = (
         MISSING_CODEX_AUTHOR,
         _T1140_T330_MERGE_RULING,
         note=_T1140_T330_MERGE_NOTE,
+    ),
+    KnownViolationSpec(
+        "0e07ad03da6bfbbce1dc097ad01fb0b1957cf98b",
+        MISSING_CODEX_AUTHOR,
+        _T470_MERGE_RULING,
+        note=_T470_MERGE_NOTE,
     ),
 )
 
