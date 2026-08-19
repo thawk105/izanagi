@@ -197,6 +197,7 @@ _VOLATILE_LIFECYCLE_REPORT_SHA = ("lifecycle", "*", "report_sha256")
 _VOLATILE_LIFECYCLE_JOURNAL_SHA = ("lifecycle", "*", "attempt_journal_sha256")
 # Acceptance lifecycle digest transitively covers volatile lifecycle leaves above.
 _VOLATILE_ACCEPTANCE_LIFECYCLE_SHA = ("acceptance", "lifecycle_prefix_sha256")
+_VOLATILE_ACCEPTANCE_LIFECYCLE_BYTES = ("acceptance", "lifecycle_prefix_bytes")
 # Acceptance report digests transitively cover volatile report leaves above.
 _VOLATILE_ACCEPTANCE_REPORT_SHA = ("acceptance", "trials", "*", "report_sha256")
 # Acceptance journal digests transitively cover volatile journal leaves above.
@@ -284,6 +285,7 @@ _VOLATILE_LEAF_PATHS = frozenset({
     _VOLATILE_LIFECYCLE_REPORT_SHA,
     _VOLATILE_LIFECYCLE_JOURNAL_SHA,
     _VOLATILE_ACCEPTANCE_LIFECYCLE_SHA,
+    _VOLATILE_ACCEPTANCE_LIFECYCLE_BYTES,
     _VOLATILE_ACCEPTANCE_REPORT_SHA,
     _VOLATILE_ACCEPTANCE_JOURNAL_SHA,
     _VOLATILE_REPORT_RAW_OUTPUT_SHA,
@@ -391,7 +393,12 @@ _PRE_WAVE_ORIGINLESS_BASELINE = _normalize_main_derived_leaves(
 def _extend_t1353_originless_baseline(
     baseline: dict[str, list[list[object]]],
 ) -> None:
-    """Freeze the required registry/receipt fields introduced by T1353."""
+    """Freeze the required registry/receipt fields introduced by T1353.
+
+    The observed prefix byte count changes across executions (11364, 11352,
+    and 11358), and the neighboring `acceptance/lifecycle_prefix_sha256`
+    leaf is already volatile, so this leaf remains volatile.
+    """
 
     def set_keys(path: str, keys: list[str]) -> None:
         for run in baseline[path]:
@@ -546,7 +553,7 @@ def _extend_t1353_originless_baseline(
         ["t325-h1-swapped-r0-a0", 2], ["t325-h2-on-r0-a0", 2],
         ["t325-h2-off-r0-a0", 2], ["t325-h2-swapped-r0-a0", 2],
     ]
-    baseline["acceptance/lifecycle_prefix_bytes"] = [[11352, 1]]
+    baseline["acceptance/lifecycle_prefix_bytes"] = [[{"volatile": True}, 1]]
 
 
 _extend_t1353_originless_baseline(_PRE_WAVE_ORIGINLESS_BASELINE)
