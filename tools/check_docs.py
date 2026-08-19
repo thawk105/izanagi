@@ -292,7 +292,7 @@ DEV_WAVE_DW_O01_MODEL_PLACEHOLDER_FINDING = (
 )
 DEV_WAVE_DW_O01_DISPATCH_ROUTE_LITERAL = (
     "`tools/dev_wave_codex.py --stage <stage> [--lane <lane>] -o <出力>.md` "
-    "で起動（他の引数は `--help`）。model は全段、effort は段 6 の review / focus "
+    "で起動（他の引数は `--help`）。model は全段、effort は段 5 / 6 "
     "が docs 権威から導出。caller 指定は不可。"
 )
 DEV_WAVE_STAGE6_WAITER_CONSUMER_LINES = (
@@ -354,6 +354,9 @@ DEV_WAVE_DW_S06_A_REASONING_MAX_SENTENCE = (
 DEV_WAVE_DW_S06_C_REASONING_MAX_SENTENCE = (
     "並列 fix の統合後、焦点再レビューは全体へ `reasoning=max` で 1 本でよい。"
 )
+DEV_WAVE_DW_S05_A_REASONING_MAX_SENTENCE = (
+    "codex は `reasoning=max`、`sandbox=workspace-write` とする。"
+)
 DEV_WAVE_DW_S02_REASONING_MAX_FINDING = (
     "docs/dev-wave/workers.md: DW-S02 の `reasoning=max` は D207 に基づく"
     "現行 adoption pin と不一致 — "
@@ -370,6 +373,10 @@ DEV_WAVE_DW_S06_A_REASONING_MAX_FINDING = (
 )
 DEV_WAVE_DW_S06_C_REASONING_MAX_FINDING = (
     "docs/dev-wave/workers.md: DW-S06-C の `reasoning=max` は段 6 焦点再レビューの"
+    "現行 adoption pin と不一致 — 変更には採用裁定と pin の同時更新が必要"
+)
+DEV_WAVE_DW_S05_A_REASONING_MAX_FINDING = (
+    "docs/dev-wave/workers.md: DW-S05-A の `reasoning=max` は段 5 実装子の"
     "現行 adoption pin と不一致 — 変更には採用裁定と pin の同時更新が必要"
 )
 DEV_WAVE_DW_O16_REASONING_EFFORT_FINDING = (
@@ -2337,6 +2344,25 @@ _DISPATCH_TOKEN_RE = re.compile(
     r"`(?P<path>(?:docs|\.claude)/[^`]+\.md)`"
     rf"|`(?P<section>{_DISPATCH_SECTION_ID})`"
 )
+_BASE = r"DW-[A-Z][0-9]{2}"
+_DISPATCH_PATH_TOKEN = r"`(?:docs|\.claude)/[^`\r\n]+\.md`"
+_DISPATCH_SECTION_TOKEN = rf"`{_DISPATCH_SECTION_ID}`"
+_DISPATCH_ANNOTATION = r"(?:（[^（）\r\n`]*）)?"
+_DISPATCH_SECTION_ITEM = (
+    rf"(?:`{_BASE}`〜`{_BASE}`|{_DISPATCH_SECTION_TOKEN})"
+    rf"{_DISPATCH_ANNOTATION}"
+)
+_DISPATCH_SECTION_LIST = (
+    rf"{_DISPATCH_SECTION_ITEM}(?:, {_DISPATCH_SECTION_ITEM})*"
+)
+_DISPATCH_REFERENCE_GROUP = (
+    rf"{_DISPATCH_PATH_TOKEN}: {_DISPATCH_SECTION_LIST}"
+)
+_DISPATCH_SELF_GROUP = rf"`{re.escape(_SELF_PATH)}` の全節"
+_DISPATCH_REFERENCE_CELL_RE = re.compile(
+    rf"(?:{_DISPATCH_REFERENCE_GROUP}|{_DISPATCH_SELF_GROUP})"
+    rf"(?:; (?:{_DISPATCH_REFERENCE_GROUP}|{_DISPATCH_SELF_GROUP}))*"
+)
 _SELF_ALL_SECTIONS_RE = re.compile(
     rf"(?:^|;[ \t]*)`{re.escape(_SELF_PATH)}` の全節(?=;|$)"
 )
@@ -2374,6 +2400,11 @@ def _dispatch_reference_cell_errors(cell: str) -> tuple[str, ...]:
         errors.append(
             "`docs/skill-self-improvement.md` の exact fragment 以外に "
             f"の全節がある — all={all_sections_count}, exact={exact_self_count}"
+        )
+    if _DISPATCH_REFERENCE_CELL_RE.fullmatch(cell) is None:
+        errors.append(
+            "cell 全文が参照 grammar に fullmatch しない — "
+            f"cell={cell!r}"
         )
     return tuple(errors)
 
@@ -4538,6 +4569,12 @@ def _check_dev_wave_reasoning_effort_pins(
             DEV_WAVE_DW_S06_C_REASONING_MAX_SENTENCE,
             DEV_WAVE_DW_S06_C_REASONING_MAX_FINDING,
         ),
+        (
+            "DW-S05-A",
+            "max",
+            DEV_WAVE_DW_S05_A_REASONING_MAX_SENTENCE,
+            DEV_WAVE_DW_S05_A_REASONING_MAX_FINDING,
+        ),
     ):
         sections = _reference_id_sections(visible_workers_text, section_id)
         if len(sections) != 1:
@@ -4550,7 +4587,7 @@ def _check_dev_wave_reasoning_effort_pins(
         ]
         required_text_count = (
             visible_section.replace("\r\n", "\n").split("\n").count(required_text)
-            if section_id in {"DW-S06-A", "DW-S06-C"}
+            if section_id in {"DW-S05-A", "DW-S06-A", "DW-S06-C"}
             else visible_section.count(required_text)
         )
         if values != [expected] or required_text_count != 1:

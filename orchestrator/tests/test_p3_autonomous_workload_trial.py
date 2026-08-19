@@ -5849,6 +5849,54 @@ def _t325_git(repo: Path, *args: str) -> str:
     return completed.stdout.strip()
 
 
+def _t325_prepare_effective_binding(repo: Path, manifest_path: Path) -> str:
+    manifest = A.trial_registry.load_trial_manifest(manifest_path)
+    slots = []
+    for trial in manifest.trials:
+        identity = {
+            "trial_id": trial.trial_id,
+            "arm": trial.arm,
+            "holdout": trial.holdout,
+            "campaign_id": trial.campaign_id,
+            "replicate_index": 0,
+            "attempt_index": 0,
+        }
+        slots.append({
+            "slot_id": f"{trial.trial_id}-r0-a0",
+            **identity,
+            "schedule_row_sha256": hashlib.sha256(
+                A.trial_registry._canonical_json_bytes(identity)
+            ).hexdigest(),
+        })
+    attempt_path = A.trial_registry.create_attempt_registry_genesis(
+        repository_root=repo,
+        manifest_path=manifest_path,
+        manifest_sha256=manifest.sha256,
+        freeze_id=f"freeze-{manifest.sha256[:16]}",
+        slots=slots,
+    )
+    _t325_git(repo, "add", "--", str(attempt_path.relative_to(repo)))
+    _t325_git(repo, "commit", "-m", "attempt registry genesis")
+    content_commit = _t325_git(repo, "rev-parse", "HEAD")
+    genesis = json.loads(attempt_path.read_bytes().splitlines()[0])
+    binding_path = repo / A.trial_registry.DEFAULT_EFFECTIVE_BINDING_PATH
+    binding_path.parent.mkdir(parents=True, exist_ok=True)
+    binding_path.write_bytes(A.trial_registry._canonical_json_bytes({
+        "schema_version": A.trial_registry.EFFECTIVE_BINDING_SCHEMA_VERSION,
+        "prereg_content_commit": content_commit,
+        "manifest_path": manifest_path.relative_to(repo).as_posix(),
+        "manifest_sha256": manifest.sha256,
+        "freeze_id": genesis["freeze_id"],
+        "attempt_registry_path": A.trial_registry.DEFAULT_ATTEMPT_REGISTRY_PATH.as_posix(),
+        "attempt_registry_initial_sha256": hashlib.sha256(
+            attempt_path.read_bytes()
+        ).hexdigest(),
+    }))
+    _t325_git(repo, "add", "--", str(binding_path.relative_to(repo)))
+    _t325_git(repo, "commit", "-m", "effective binding")
+    return _t325_git(repo, "rev-parse", "HEAD")
+
+
 @pytest.fixture
 def t325_registered_trial(tmp_path, monkeypatch):
     monkeypatch.setattr(
@@ -5921,10 +5969,12 @@ def t325_registered_trial(tmp_path, monkeypatch):
     _t325_git(repo, "add", "manifests/trial.json")
     _t325_git(repo, "commit", "-m", "add trial manifest")
     registry_path = repo / A.trial_registry.DEFAULT_REGISTRY_PATH
+    effective_commit = _t325_prepare_effective_binding(repo, manifest_path)
     A.trial_registry.append_trial_registration(
         manifest_path=manifest_path,
         repository_root=repo,
         registry_path=registry_path,
+        prereg_effective_commit=effective_commit,
     )
     _t325_git(repo, "add", str(A.trial_registry.DEFAULT_REGISTRY_PATH))
     _t325_git(repo, "commit", "-m", "register trial manifest")
@@ -6386,6 +6436,115 @@ def test_formal_start_is_recorded_before_run_root_and_blocks_other_root(
     assert not second_root.exists()
 
 
+def test_registered_slot_is_reserved_before_first_performance_observation(
+    tmp_path,
+    monkeypatch,
+    t325_registered_trial,
+) -> None:
+    origin_request, origin_producer = _origin_public_inputs(
+        tmp_path, monkeypatch, t325_registered_trial
+    )
+    events: list[str] = []
+    original_reserve = A._reserve_registered_attempt_slot
+    original_read = reflux_origin_client.OriginLedgerClient.read_origin
+
+    def observe_reservation(**kwargs):
+        events.append("slot-reservation")
+        return original_reserve(**kwargs)
+
+    def observe_origin_read(self, capability):
+        events.append("origin-read")
+        return original_read(self, capability)
+
+    def observe_performance(*args, **kwargs):
+        events.append("performance-observation")
+        return _fake_drive(*args, **kwargs)
+
+    monkeypatch.setattr(A, "_reserve_registered_attempt_slot", observe_reservation)
+    monkeypatch.setattr(
+        reflux_origin_client.OriginLedgerClient,
+        "read_origin",
+        observe_origin_read,
+    )
+    report = _t325_run(
+        t325_registered_trial,
+        tmp_path / "reservation-before-performance",
+        drive=observe_performance,
+        origin_binding_request=origin_request,
+        origin_producer_inputs=origin_producer,
+    )
+    assert report["status"] == "complete"
+    assert events[0] == "slot-reservation"
+    assert events.index("origin-read") > 0
+    assert events.index("performance-observation") > 0
+
+
+def test_registered_budget_insufficient_closes_as_not_consumed(
+    tmp_path,
+    monkeypatch,
+    t325_registered_trial,
+) -> None:
+    ledger = SimpleNamespace(
+        manifest_sha256="a" * 64,
+        freeze_sha256="b" * 64,
+        schedule_sha256="c" * 64,
+        ratified_generation_sha256="d" * 64,
+        reservation=SimpleNamespace(state="insufficient"),
+    )
+    budget_inputs = SimpleNamespace(
+        ledger_path=tmp_path / "budget-ledger.json",
+        manifest_sha256=ledger.manifest_sha256,
+        freeze_sha256=ledger.freeze_sha256,
+        schedule_sha256=ledger.schedule_sha256,
+        ratified_generation_sha256=ledger.ratified_generation_sha256,
+        cells=(),
+        limits=object(),
+    )
+    monkeypatch.setattr(A, "load_ratified_freeze", lambda _root: object())
+    monkeypatch.setattr(
+        A,
+        "_prepare_s8c_budget_inputs",
+        lambda **_kwargs: budget_inputs,
+    )
+    monkeypatch.setattr(A, "reserve_all_cells", lambda *_args, **_kwargs: ledger)
+    monkeypatch.setattr(
+        A,
+        "symmetric_indeterminate",
+        lambda _ledger: frozenset({"fixture-cell"}),
+    )
+    report = _t325_run(
+        t325_registered_trial,
+        tmp_path / "budget-insufficient",
+        do_build=True,
+        drive=A.trigger.drive_iteration,
+        coder_authority=_coder_authority(),
+    )
+    assert report["status"] == "partial"
+    assert report["lifecycle_terminal_status"] == "indeterminate"
+    attempt_rows = [
+        json.loads(line)
+        for line in (
+            t325_registered_trial.repo
+            / A.trial_registry.DEFAULT_ATTEMPT_REGISTRY_PATH
+        ).read_text(encoding="utf-8").splitlines()
+    ]
+    attempt_terminal = next(
+        row for row in attempt_rows if row.get("event") == "terminal"
+    )
+    assert attempt_terminal["terminal_status"] == "not-consumed"
+    assert attempt_terminal["report_sha256"] is None
+    assert attempt_terminal["observation_sha256"] is None
+    assert attempt_terminal["primary_value"] is None
+    lifecycle_rows = [
+        json.loads(line)
+        for line in (
+            t325_registered_trial.repo
+            / A.trial_registry.DEFAULT_LIFECYCLE_PATH
+        ).read_text(encoding="utf-8").splitlines()
+    ]
+    assert lifecycle_rows[-1]["terminal_status"] == "indeterminate"
+
+
 def test_formal_post_start_io_failure_records_indeterminate_and_stays_consumed(
     tmp_path,
     monkeypatch,
@@ -6415,6 +6574,16 @@ def test_formal_post_start_io_failure_records_indeterminate_and_stays_consumed(
     lifecycle = t325_registered_trial.repo / A.trial_registry.DEFAULT_LIFECYCLE_PATH
     rows = [json.loads(line) for line in lifecycle.read_text().splitlines()]
     assert [row["event"] for row in rows] == ["start", "terminal"]
+    attempt_rows = [
+        json.loads(line)
+        for line in (
+            t325_registered_trial.repo
+            / A.trial_registry.DEFAULT_ATTEMPT_REGISTRY_PATH
+        ).read_text().splitlines()
+    ]
+    attempt_terminal = next(
+        row for row in attempt_rows if row.get("event") == "terminal"
+    )
     assert rows[-1] == {
         "schema_version": A.trial_registry.LIFECYCLE_SCHEMA_VERSION,
         "event": "terminal",
@@ -6422,6 +6591,14 @@ def test_formal_post_start_io_failure_records_indeterminate_and_stays_consumed(
         "terminal_status": "indeterminate",
         "report_sha256": None,
         "attempt_journal_sha256": None,
+        "prereg_commit": attempt_terminal["prereg_content_commit"],
+        "prereg_content_commit": attempt_terminal["prereg_content_commit"],
+        "prereg_effective_commit": attempt_terminal["prereg_effective_commit"],
+        "slot_id": attempt_terminal["slot_id"],
+        "classification_receipt_sha256": attempt_terminal[
+            "classification_receipt_sha256"
+        ],
+        "raw_output_sha256": attempt_terminal["raw_output_sha256"],
     }
     assert forbid_calls == [t325_registered_trial.trial_id]
     with pytest.raises(
@@ -7094,6 +7271,26 @@ def test_m32_cli_manifestless_gate_is_not_masked_by_run_trial(
 def test_m13_prime_public_launcher_rejects_producer_campaign_derivation_bypass(
     tmp_path, monkeypatch, t325_registered_trial,
 ) -> None:
+    original_branch = _t325_git(
+        t325_registered_trial.repo, "branch", "--show-current",
+    )
+    prereg_commit = t325_registered_trial.binding.prereg_commit
+    _t325_git(
+        t325_registered_trial.repo, "checkout", "-q", "-b", "m13-prime",
+        prereg_commit,
+    )
+    _t325_git(t325_registered_trial.repo, "branch", "-D", original_branch)
+    A.s8c_arm_inputs.generate_off_neutral_artifacts(
+        repository_root=t325_registered_trial.repo,
+    )
+    _t325_git(
+        t325_registered_trial.repo,
+        "add",
+        "--",
+        A.s8c_arm_inputs.OFF_DESCRIPTOR_RELATIVE_PATH.as_posix(),
+        A.s8c_arm_inputs.OFF_FREEZE_RELATIVE_PATH.as_posix(),
+    )
+    _t325_git(t325_registered_trial.repo, "commit", "-m", "m13 arm input authority")
     trials = []
     target_trial_id = "m13-prime-h1-on"
     measurement_head = _t325_git(
@@ -7128,10 +7325,11 @@ def test_m13_prime_public_launcher_rejects_producer_campaign_derivation_bypass(
                 "generations": 2,
             })
     manifest_path = t325_registered_trial.repo / "manifests" / "m13-prime.json"
+    manifest_path.parent.mkdir(parents=True, exist_ok=True)
     manifest_path.write_text(
         json.dumps({
             "schema_version": A.trial_registry.MANIFEST_SCHEMA_VERSION,
-            "prereg_commit": t325_registered_trial.binding.prereg_commit,
+            "prereg_commit": prereg_commit,
             "trials": trials,
         }, ensure_ascii=False, sort_keys=True, separators=(",", ":")) + "\n",
         encoding="utf-8",
@@ -7143,10 +7341,14 @@ def test_m13_prime_public_launcher_rejects_producer_campaign_derivation_bypass(
         str(manifest_path.relative_to(t325_registered_trial.repo)),
     )
     _t325_git(t325_registered_trial.repo, "commit", "-m", "m13 prime manifest")
+    effective_commit = _t325_prepare_effective_binding(
+        t325_registered_trial.repo, manifest_path,
+    )
     A.trial_registry.append_trial_registration(
         manifest_path=manifest_path,
         repository_root=t325_registered_trial.repo,
         registry_path=t325_registered_trial.registry_path,
+        prereg_effective_commit=effective_commit,
     )
     _t325_git(
         t325_registered_trial.repo,

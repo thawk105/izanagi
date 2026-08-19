@@ -22427,3 +22427,137 @@ run 単位の attestation 通過は g1/g2 いずれが活性かに依存しな�
 - T-1380 の配線・権威供給を本 wave の scope へ先取りして含める — D529 が定める
   不可分の改訂単位 (契約反転・registry 登録・DECIDER_VERSION bump・凍結世代発行) を
   大きく超える新設作業になり、規律5 (段階導入・盛らない) に反する。
+
+## D550. 事前登録の二段束縛は追加必須 field として入れ、anchor は祖先で束ねる (2026-08-19)
+
+**決定:**
+
+1. **manifest の既存 field を消さない。** `prereg_commit` は残し、二段束縛は binding record と
+   registry 行・launch admission・run-start・terminal への**追加必須 field**
+   (`prereg_content_commit` / `prereg_effective_commit`) として入れる。受理集合は狭まるだけで、
+   消える field は 0 である。
+2. **anchor と content commit の関係は等値ではなく祖先である。** `manifest.prereg_commit` は
+   manifest blob を含まない anchor commit であり、content commit P は manifest blob を含む。
+   両者を等値で束縛することはできない。manifest が自身の commit を書けば自己参照になる。
+   要求するのは「anchor が P の祖先であること」と「P における manifest blob が binding の
+   digest と一致すること」である。
+3. **effective commit C は親集合がちょうど {P} であることを Git から検証する。** 40 桁 lowercase
+   hex 以外の commit 引数、`rev-list` の rc 非 0、root commit、merge commit、binding blob の不在、
+   shallow、graft / replace ref を拒否する。祖先関係は **C から測定 HEAD** へ要求し、
+   P だけの祖先証明では受理しない。
+4. **manifest の trial 集合と runtime report の cell は別物として別経路で検査する。** 前者は
+   事前登録された 6 trial の集合、後者は 1 run あたり 0 または 1 個である。同じ helper で兼用せず、
+   片方の緑をもう片方の証拠にしない。
+5. **freeze-wide attempt registry は run 内 attempt journal と別物として置く。** 固定 path の
+   追記専用 JSONL を新設し、genesis が全 slot を最初の観測前に閉じた集合として列挙する。
+   第二 root の拒否は**全 ref を走査**する。current HEAD の祖先だけを走査すると、未 merge branch 上の
+   第二 genesis を見逃す。
+6. **分類は capability で束ね、時点は保証しない。** slot 予約時に capability を発行し、分類 API は
+   性能出力を引数に取れない署名とし、receipt は capability の digest を create-only で束縛する。
+   **性能出力を読む前に分類したことの時点証明は trusted launcher 層でしか作れず、保証範囲外である。**
+   これを恒真な保証として謳わない。
+7. **producer の保証は「最初の性能観測より前」に限定する。** CLI の起動口は競合 process の
+   環境 probe を `run_trial` より前に呼ぶ。予約の前倒しは予約前拒否と checkout 失敗時の slot 管理まで
+   変えるため採らず、保証の言い方を狭めて環境 probe の先行を保証境界へ書いた。
+
+**理由:**
+
+- 既存 field を消す形は、所有外の production 3 module と 13 file・148 箇所の参照を巻き込む。
+  受理集合を狭める目的は追加必須 field で達成でき、破壊的改名は目的に必要ない。
+- 等値束縛は構造的に成立しない。実装子が両立不能と判断して止まり、親が実測で裏を取って撤回した。
+  anchor は「事前登録が凍結された時点」を指すものであって manifest の所在ではない。
+- 親集合の exact 検査が無ければ、merge commit を effective commit として通せる。祖先関係だけでは
+  P と無関係な履歴を C として通せる。
+- 集合の兼用は、6 trial の manifest が正しい一方で全 report の cell が空でも「完全集合」を
+  満たしたことになる穴を作る。
+- 時点の証明を主張すると、呼び手が capability を握ったまま出力を読んだ後に分類する経路が
+  残っているのに、保証したことになる。**謳えない保証は謳わない。**
+
+**却下した選択肢:**
+
+- manifest から `prereg_commit` を削除して registration schema を置換する — live producer を壊す。
+  段 2 プランの形だが、親が実測 (13 file・148 箇所) を添えて却下した。
+- 契約 JSON の `machine_checkable` を反転して評価器を `_MACHINE_EVALUATORS` へ登録する —
+  凍結世代 record の再発行が要る。並行 wave が同型の段階登録を着地させているため、反転は
+  それらとまとめて 1 回の世代発行で行う。世代衝突は merge では解けない。
+- 内容由来で変わる leaf を凍結 baseline へ具体値で焼き込む — 取り込みのたびに赤くなる。
+  ただし volatile へ逃がすのも誤りで、fixture の日時固定と決定的 projection により pin できる。
+  pin を維持し、値の確定は最終取り込みの後に行う。
+- 分類 receipt を digest だけで突き合わせる — metadata を差し替えても通る。receipt 全体を
+  台帳 row と突き合わせる。
+
+## D551. 凍結世代の検証コストを履歴長から切り離す (2026-08-19)
+
+**決定:**
+
+1. **検証コストを履歴長に比例させない。** `validate_condition_freeze_at` の走査対象を
+   「凍結 namespace を触った commit + その直接親 + 境界」に限定する。境界の外側は oid だけを
+   取得して state を構成する。全 commit の走査はしない。
+2. **上限値の引き上げでは解決しない。** `MAX_BATCH_REQUESTS` は履歴長に依らない固定値であり、
+   開発が進むほど余裕が減っていずれ必ず 0 になる。引き上げは死の先送りである。
+   `MAX_BATCH_REQUESTS` / `MAX_COMMITS` / `GIT_TIMEOUT_*` はいずれも変更しない。
+3. **判定は 1 つも減らさない。** `generation-mutated` / `generation-deleted` /
+   `introductions` と `generation-fork` / `_assert_history_transition` の 4 種はすべて残す。
+   変えるのはコストの形であって、検査の厳しさではない。
+4. **コストが履歴長に依存しないことを検査するテストを置く。** no-touch commit 数を変えた
+   2 ケースで要求数の合計が一致することを要求する。この検査が無ければ、退行は次に上限へ
+   達したときまで気づかれない。
+
+**理由:**
+
+- commit ごとの 4 判定は、いずれも oid が親と変わる commit でしか結果が動かない。触っていない
+  commit では親と同じ oid が続き、既存の record cache と contract cache により再計算もされない。
+  したがって走査を絞っても判定結果は変わらない。**コストだけが落ちる。**
+- 実測では 4,555 commit × 11 paths = 50,105 要求が、走査 35 commit × 11 paths = 385 要求になった。
+  local main は 49,984 で上限まで残り 16 しかなく、commit を十数本積んだ wave が 2 本同時に
+  受入で止まっていた。内容とは無関係で、commit を積んだだけで踏む状態だった。
+- 「開発が進むほどコストが増える機構は、いずれ必ず死ぬ」ため、上限調整ではなく比例の除去が要る。
+
+**却下した選択肢:**
+
+- `MAX_BATCH_REQUESTS` を 200_000 へ引き上げる — 一度この方向で実装を始めたが撤回した。
+  履歴が伸びれば同じ場所で再び死ぬ。時間 cap (`GIT_TIMEOUT_CAP_SECONDS = 300`) が要求数と
+  独立に効くため引き上げ自体は安全だが、**安全であることと問題を解くことは別である。**
+- 検証を skip 可能にする / 条件付き実行にする — 検査を減らす形であり、正しさ防壁を弱める。
+- 凍結 record の数を減らして paths を小さくする — 世代記録は削除できない。比例の係数を
+  下げるだけで、比例そのものは残る。
+
+## D552. 段5 author・段6 fix の reasoning を review/focus と同じ docs 権威導出へ拡張する — D266/D275 の「parse対象を広げない」判断を再訪成立により supersede する (2026-08-19)
+
+**決定:** `tools/dev_waves/launch_authority.py` の `derive_launch()` を拡張し、
+`stage in ("author", "fix")` を `DW-S06-A`/`DW-S06-C` と同じ機構で `docs/dev-wave/workers.md`
+の `DW-S05-A` 節から `effort` を導出し `effort_authority="docs"` を返すようにする。fix は
+author と同一の section/value を再利用し (`DW-S06-B` の全文継承契約どおり)、fix 専用の
+docs 節・正規表現は新設しない。`tools/codex_worker_launch.py`・`tools/dev_wave_codex.py` の
+受理集合を review/focus/author/fix の4stageへ拡張し、`tools/check_docs.py` に
+`DW-S02`/`DW-S03`/`DW-S06-A`/`DW-S06-C` と同型の `DW-S05-A` exact-pin を追加する。
+これにより、caller (dev-wave親セッション、または将来の別 runner) が author/fix の codex
+起動へ `--reasoning` を明示指定すること自体を構造的に禁止する。
+
+**本決定は D266 (2026-08-10) の「段5のpin拡大は見送りで終端、再訪条件は当該節のdriftの実測」
+という記述と、D275 (2026-08-11) の「parse対象は DW-S02/DW-S03/DW-S06-A/DW-S06-C の3節だけ、
+DW-S05-A は parse しない」という決定、および D275 が却下した選択肢「段5のDW-S05-Aもparseする
+— 見送り裁定の射程を侵し節書式を事実上凍結する」を、当該箇所に限り supersede する。**
+両決定のその他の記述 (model導出・sandbox非導出・権威snapshotの契約等) は不変。
+
+**理由:**
+- 2026-08-18 /rulings 全件第8回 (worklog entry 671) が、D266/D275 の見送り根拠だった
+  「実害が観測されていない」という前提を実測で覆した — docs を `max` と明記した後も、
+  runner (dev-wave launcher/dispatcher の caller 側実引数) が `high` を渡し続ける事例が
+  観測された。D266 自身が明記した再訪条件 (「当該節の drift の実測」) が、docs 文言自体の
+  driftではなく caller 側の実引数 drift という形で成立した。
+- 機械強制の対象を「reasoning のみ」に絞るのはユーザー裁定 (entry 671) の文言どおりであり、
+  sandbox の docs-bound 化は scope 外として見送る (D275 の当該部分は不変)。
+
+**却下した選択肢:**
+- **check_docs.py 側だけで author/fix の reasoning=max を保証する** — docs テキストの exact-pin
+  (D223/D243/D514 と同型) は「docs が max と書いてあること」しか保証せず、caller が実引数で
+  別の値を渡す経路 (今回観測された実害そのもの) を塞がない。launcher/runner 側 (このwaveの
+  実装対象) での機械強制と併用が必須。
+- **fix 専用の docs 節・正規表現を新設する** — `DW-S06-B` が「段5の実装子契約を全文継承する」と
+  既に定めており、fix だけ別の権威を持たせると第二の権威になる。
+- **旧 (T-1362以前) の author/fix receipt の後方互換を無視し schema_version を bump する** —
+  `check-receipt` は repo 内に自動呼び出し元が無い手動フォレンジック専用 CLI であり、
+  呼び手ゼロの経路に備える schema 移行は規律5 (段階導入/盛らない) に反する。構造検査を
+  `len(sections) not in (3, 4)` と `effort_authority in ("docs", "unbound")` の許容へ緩め、
+  意味検査 (`_audit_receipt_value` の commit 由来再構成との厳密一致) は変更しない対応で十分。
