@@ -10363,6 +10363,7 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   いずれも本 fragment の時点では未選択。
 - 再発検知: 未実装。この2テストが受入全走で赤になった時点で本エントリへ「再発」を追記する
   運用に留める (機械的な事前検知は恒久対応と併せて設計する)。
+- **supersede: 2026-08-19** — 恒久対応は完了に訂正する。commit `4cc60864` (D551、`fix(s8c): 凍結世代の検証から履歴長比例のコストを取り除く`) が `_batch_oids` の走査対象を凍結 namespace を触った commit + 直接親 + 境界へ絞り、判定4種を維持したまま履歴比例 cost を解消した (50,105要求→385要求)。現行 main (`bf9f6713`) で対象2テストを含む `test_s8c_preregistration_invariant.py` + `_core.py` 計408件を Pegasus dispatch 実走し全件合格を確認した (request 924423.nqsv、57.34s)。同根本原因は F418 としても独立発見されている。worklog [T-1408] は完了として carry から落とした。
 
 ### F418. 8c preregistration の batch 上限をリポジトリ成長がわずかに超え、main への merge を伴う受入が構造的に赤くなる [恒真ゲート] [検査の非対称]
 
@@ -10398,3 +10399,4 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: `4cc60864` の走査絞り込みが将来また履歴長へ比例する形に戻されないか、
   `_batch_oids` 系のコストが commit 数に依存しないことを固定する回帰テストの有無を
   8c 側で確認するとよい (本 wave では未確認)。
+- **supersede: 2026-08-19** — 「再発検知: 8c側で確認するとよい (本waveでは未確認)」を解消する。`4cc60864` が追加した回帰テスト `orchestrator/tests/test_s8c_preregistration_invariant.py::test_candidate_freeze_batch_is_bounded_by_frozen_touch_points` (no-touch commit数を変えた2ケースで要求数合計が一致することを固定) の存在と合格を確認した。現行 main (`bf9f6713`) でこのテストを含む計408件の Pegasus dispatch 実走が全件合格した (request 924423.nqsv、57.34s)。同根本原因を指す F417 (T-1362 由来、worklog [T-1408] として発行、本 wave で完了扱い) も参照。
