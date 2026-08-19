@@ -683,6 +683,7 @@ def _job_run(request_path: Path) -> int:
                 child_env.pop(name, None)
         executable_dir = str(Path(sys.executable).resolve().parent)
         child_env["PATH"] = executable_dir + os.pathsep + child_env.get("PATH", "")
+        child_env.setdefault("PYTHONDONTWRITEBYTECODE", "1")
         stage = "child"
         child_rc = subprocess.call(
             [sys.executable, str(repo_root.joinpath(*spec.child_script)), *argv],

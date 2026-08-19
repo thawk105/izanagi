@@ -2655,6 +2655,7 @@ def test_report_projection_is_hash_seed_deterministic(tmp_path: Path) -> None:
     for seed in ("1", "987654"):
         environment = dict(os.environ)
         environment["PYTHONHASHSEED"] = seed
+        environment["PYTHONDONTWRITEBYTECODE"] = "1"
         outputs.append(
             subprocess.run(
                 [sys.executable, "-c", script, str(root), head],

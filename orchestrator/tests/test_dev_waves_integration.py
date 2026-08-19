@@ -393,6 +393,7 @@ def _start_real_daemon(
     )
     environment = os.environ.copy()
     environment["PYTHONPATH"] = str(_REPO)
+    environment["PYTHONDONTWRITEBYTECODE"] = "1"
     process = subprocess.Popen(
         [sys.executable, "-c", script, str(repo.main), str(repo.fake),
          repo.fake_digest, str(repo.runtime), str(request_waves), str(result_path),
@@ -455,6 +456,7 @@ def _restart_recovery_probe(repo: TemporaryRepo, resume_run_id: str = "-") -> st
     )
     environment = os.environ.copy()
     environment["PYTHONPATH"] = str(_REPO)
+    environment["PYTHONDONTWRITEBYTECODE"] = "1"
     result = subprocess.run(
         [sys.executable, "-c", script, str(repo.main), str(repo.fake),
          repo.fake_digest, str(repo.runtime), resume_run_id], cwd=_REPO, env=environment,

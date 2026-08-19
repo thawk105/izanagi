@@ -1342,6 +1342,7 @@ def _real_waiter_repo(
         "GIT_AUTHOR_EMAIL": "test@example.invalid",
         "GIT_COMMITTER_NAME": "Test",
         "GIT_COMMITTER_EMAIL": "test@example.invalid",
+        "PYTHONDONTWRITEBYTECODE": "1",
     }
 
     def git(*args: str) -> None:
@@ -2039,6 +2040,7 @@ def test_preflight_untracked_dirty_rejects_before_claim(tmp_path: Path) -> None:
     wave = "real-untracked"
     repo, lease, env = _real_waiter_repo(tmp_path, wave=wave)
     (repo / "untracked.py").write_text("foreign\n", encoding="utf-8")
+    env["PYTHONDONTWRITEBYTECODE"] = "1"
 
     completed = subprocess.run(
         [
@@ -6081,6 +6083,7 @@ def test_real_pytest_addopts_is_rejected_before_claim(tmp_path: Path) -> None:
     wave = "real-env-closed"
     repo, lease, env = _real_waiter_repo(tmp_path, wave=wave)
     env["PYTEST_ADDOPTS"] = "-k nothing"
+    env["PYTHONDONTWRITEBYTECODE"] = "1"
     receipt = tmp_path / "env-receipt.json"
 
     completed = subprocess.run(
@@ -9167,6 +9170,7 @@ def test_real_git_dirty_after_claim_blocks_acceptance_command(
     )
     git("commit", "-m", "base")
     git("checkout", "-b", "worktree-dirty-real")
+    git_env["PYTHONDONTWRITEBYTECODE"] = "1"
     sentinel = "REAL-DIRTY-COMMAND-SENTINEL"
 
     result = subprocess.run(
@@ -9268,6 +9272,7 @@ def test_real_git_production_provenance_rejects_malformed_merge_message(
     git("checkout", "worktree-production-provenance")
     message = tmp_path / "malformed-merge-message.txt"
     message.write_text("merge main\n\nAI-Agent: codex\n", encoding="utf-8")
+    git_env["PYTHONDONTWRITEBYTECODE"] = "1"
     sentinel = "PRODUCTION-PROVENANCE-COMMAND-SENTINEL"
 
     result = subprocess.run(
@@ -9333,6 +9338,7 @@ def _run_real_self_report_merge_case(
 ]:
     wave = "self-report-combined" if combined else "self-report-main-only"
     repo, lease, env = _real_waiter_repo(tmp_path, wave=wave)
+    env["PYTHONDONTWRITEBYTECODE"] = "1"
 
     def git(*args: str) -> str:
         return subprocess.run(
@@ -9541,7 +9547,11 @@ def test_default_wiring_with_real_git_and_lease_helper(tmp_path: Path) -> None:
         "{\"effective_scheduler\":\"serial\"}'); "
         "print('CHILD-STDERR-SENTINEL', file=sys.stderr)"
     )
-    waiter_env = {**git_env, "IZANAGI_WAVE_LEASE_DIR": str(lease)}
+    waiter_env = {
+        **git_env,
+        "IZANAGI_WAVE_LEASE_DIR": str(lease),
+        "PYTHONDONTWRITEBYTECODE": "1",
+    }
 
     result = subprocess.run(
         [
@@ -9655,6 +9665,8 @@ def _run_runtime_waiter_bytes_case(
         "GIT_COMMITTER_NAME": "Test",
         "GIT_COMMITTER_EMAIL": "test@example.invalid",
     }
+
+    env["PYTHONDONTWRITEBYTECODE"] = "1"
 
     def git(repo: Path, *args: str) -> str:
         return subprocess.run(
@@ -9825,6 +9837,7 @@ def test_default_wiring_second_acceptance_reuses_self_held_lease(
     git("commit", "-m", "base")
     git("checkout", "-b", "worktree-deadlock")
     main_sha = git("rev-parse", "main")
+    git_env["PYTHONDONTWRITEBYTECODE"] = "1"
     claim = subprocess.run(
         [
             sys.executable,
@@ -9958,7 +9971,11 @@ def test_public_main_real_signal_releases_lease(tmp_path: Path) -> None:
         capture_output=True,
         text=True,
         check=False,
-        env={**git_env, "IZANAGI_WAVE_LEASE_DIR": str(lease)},
+        env={
+            **git_env,
+            "IZANAGI_WAVE_LEASE_DIR": str(lease),
+            "PYTHONDONTWRITEBYTECODE": "1",
+        },
     )
 
     assert result.returncode == 143, result.stderr
@@ -10065,7 +10082,11 @@ def test_public_main_real_signal_after_success_uses_restored_handler(
         capture_output=True,
         text=True,
         check=False,
-        env={**git_env, "IZANAGI_WAVE_LEASE_DIR": str(lease)},
+        env={
+            **git_env,
+            "IZANAGI_WAVE_LEASE_DIR": str(lease),
+            "PYTHONDONTWRITEBYTECODE": "1",
+        },
     )
 
     assert result.returncode == 0, result.stderr

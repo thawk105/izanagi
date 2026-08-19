@@ -1995,6 +1995,7 @@ def test_noconftest_bypass_is_refused_before_held_body():
 def test_import_guard_rejects_nonempty_nonexact_release_token(release_value):
     env = _clean_subprocess_env()
     env["IZANAGI_RUN_GROWTH_HELD_TESTS"] = release_value
+    env["PYTHONDONTWRITEBYTECODE"] = "1"
     result = subprocess.run(
         [
             sys.executable,
