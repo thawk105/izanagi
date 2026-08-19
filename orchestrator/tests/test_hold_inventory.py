@@ -754,6 +754,7 @@ def test_script_and_module_entrypoints_match_without_pythonpath():
     repo_root = Path(__file__).resolve().parents[2]
     env = os.environ.copy()
     env.pop("PYTHONPATH", None)
+    env["PYTHONDONTWRITEBYTECODE"] = "1"
     script = subprocess.run(
         [sys.executable, "tools/hold_inventory.py", "--format", "json"],
         cwd=repo_root,

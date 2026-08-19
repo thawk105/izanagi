@@ -417,6 +417,7 @@ def test_three_way_reconciliation_rejects_raw_verifier_count_mismatch():
 def test_cli_without_required_ccbench_sha_fails_closed():
     env = os.environ.copy()
     env.pop("IZANAGI_T152_CCBENCH_SHA", None)
+    env["PYTHONDONTWRITEBYTECODE"] = "1"
     proc = subprocess.run(
         [
             sys.executable,

@@ -1,0 +1,204 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 180.0,
+  "timeout_seconds": 3600.0,
+  "hang_timeout_seconds": 900.0,
+  "mutations": [
+    {
+      "id": "M01",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/check_ai_provenance.py",
+          "old": "        policy = _policy_commit(head)\n        commits = _git(\n            \"rev-list\", \"--reverse\", f\"{policy}..{head}\"\n        ).splitlines()\n        return [policy, *commits]\n",
+          "new": "        policy = _policy_commit(head)\n        commits = _git(\n            \"rev-list\", \"--reverse\", \"--ancestry-path\", f\"{policy}..{head}\"\n        ).splitlines()\n        return [policy, *commits]\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_check_ai_provenance.py::test_default_commit_range_uses_plain_reachability_and_policy_prefix"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M02",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/check_ai_provenance.py",
+          "old": "    if scoped and applies_epoch(scope_epoch):\n",
+          "new": "    if scoped and scope_epoch is not None and descends(scope_epoch):\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_check_ai_provenance.py::test_authoritative_scope_epoch_predicate_covers_merged_side_branch"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M03",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/check_ai_provenance.py",
+          "old": "    if applies_epoch(implementation_epoch):\n",
+          "new": "    if implementation_epoch is not None and descends(implementation_epoch):\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_check_ai_provenance.py::test_authoritative_implementation_epoch_predicate_covers_merged_side_branch",
+        "orchestrator/tests/test_check_ai_provenance.py::test_t619_known_violation_is_absorbed_in_authoritative_audit"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M04",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/check_ai_provenance.py",
+          "old": "        return authoritative and not bool(self.cab_policy_ancestor_mask & (1 << i))\n",
+          "new": "        return False\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_check_ai_provenance.py::test_authoritative_cab_predicate_covers_merged_side_branch",
+        "orchestrator/tests/test_check_ai_provenance.py::test_ancestry_pickaxe_mask_matches_per_commit_oracle"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M05",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/check_ai_provenance.py",
+          "old": "            if authoritative:\n                _assert_head_unchanged(head)\n",
+          "new": "            if False:\n                _assert_head_unchanged(head)\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_check_ai_provenance.py::test_authoritative_history_pins_head_once_and_rejects_drift"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M06",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/check_ai_provenance.py",
+          "old": "    shallow = _git(\"rev-parse\", \"--is-shallow-repository\").strip()\n    if shallow != \"false\":\n        raise RuntimeError(\n            \"authoritative history is unavailable in a shallow repository\"\n        )\n",
+          "new": "    shallow = _git(\"rev-parse\", \"--is-shallow-repository\").strip()\n    if False:\n        raise RuntimeError(\n            \"authoritative history is unavailable in a shallow repository\"\n        )\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_check_ai_provenance.py::test_authoritative_repository_rejects_shallow_graft_and_replace[shallow]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M07",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/check_ai_provenance.py",
+          "old": "    if graft_bytes.strip():\n        raise RuntimeError(\n            f\"authoritative history is unavailable with grafts: {grafts}\"\n        )\n",
+          "new": "    if False:\n        raise RuntimeError(\n            f\"authoritative history is unavailable with grafts: {grafts}\"\n        )\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_check_ai_provenance.py::test_authoritative_repository_rejects_shallow_graft_and_replace[graft]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M08",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/check_ai_provenance.py",
+          "old": "    replacements = _git(\"replace\", \"--list\").splitlines()\n    if replacements:\n        raise RuntimeError(\n            \"authoritative history is unavailable with git replace\"\n        )\n",
+          "new": "    replacements = _git(\"replace\", \"--list\").splitlines()\n    if False:\n        raise RuntimeError(\n            \"authoritative history is unavailable with git replace\"\n        )\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_check_ai_provenance.py::test_authoritative_repository_rejects_shallow_graft_and_replace[replace]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M09",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/check_ai_provenance.py",
+          "old": "    if len(commits) != 1:\n        raise RuntimeError(\n            f\"{POLICY_PATH} の導入 commit が一意でない: \"\n            f\"hits={len(commits)}\"\n        )\n",
+          "new": "    if False:\n        raise RuntimeError(\n            f\"{POLICY_PATH} の導入 commit が一意でない: \"\n            f\"hits={len(commits)}\"\n        )\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_check_ai_provenance.py::test_authoritative_repository_rejects_nonunique_policy_add"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M10",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/check_ai_provenance.py",
+          "old": "    KnownViolationSpec(\n        \"333605d680ec15f3f74b00e9e2746ae317b85dc5\",\n        MISSING_CODEX_AUTHOR,\n        \"2026-08-07 [T-619] docs/archive/worklog-phase3-0807-299.md entry 299 (/rulings 第5回、D230 統一述語 5点採用)\",\n    ),\n)\n",
+          "new": ")\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_check_ai_provenance.py::test_known_violation_ledger_matches_literal_entries",
+        "orchestrator/tests/test_check_ai_provenance.py::test_t619_authoritative_ledger_visibility_wiring_is_explicit",
+        "orchestrator/tests/test_check_ai_provenance.py::test_t619_known_violation_is_absorbed_in_authoritative_audit"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M11",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/check_ai_provenance.py",
+          "old": "                if _ledger_policy_is_visible(\n                    spec,\n                    implementation_epoch=implementation_epoch,\n                    ancestry=ancestry,\n                    authoritative=authoritative,\n                )\n",
+          "new": "                if _ledger_policy_is_visible(\n                    spec,\n                    implementation_epoch=implementation_epoch,\n                    ancestry=ancestry,\n                    authoritative=False,\n                )\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_check_ai_provenance.py::test_t619_authoritative_ledger_visibility_wiring_is_explicit"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M12",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/check_ai_provenance.py",
+          "old": "            if authoritative:\n                _assert_authoritative_repository()\n",
+          "new": "            _assert_authoritative_repository()\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_check_ai_provenance.py::test_explicit_range_and_message_file_skip_authoritative_repository_guards"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}

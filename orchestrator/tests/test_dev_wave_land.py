@@ -1733,6 +1733,7 @@ def test_real_waiter_receipt_is_consumed_by_real_land_end_to_end() -> None:
         env.pop("PYTEST_PLUGINS", None)
         env.pop("IZANAGI_TASK_RUN_ID", None)
         env.pop("IZANAGI_TASK_RUNS_ROOT", None)
+        env["PYTHONDONTWRITEBYTECODE"] = "1"
 
         waiter = subprocess.run(
             [
@@ -1843,6 +1844,7 @@ def test_real_non_attributable_waiter_receipt_passes_real_land_end_to_end() -> N
             "IZANAGI_TASK_RUNS_ROOT",
         ):
             env.pop(name, None)
+        env["PYTHONDONTWRITEBYTECODE"] = "1"
 
         waiter = subprocess.run(
             [

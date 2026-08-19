@@ -1433,6 +1433,15 @@
   正確に `## 総括` という文字列を単独行に置け (太字等で代替しない)」と明示的に追記して再投すると
   2/2で解消した。2026-07-28裁定 (`DW-O01`へのprose追記は見送り、恒久対応はテスト・機械検査優先)
   を踏襲し、今回もprose追記はしない — 親検収で拾えており実害なし (near-miss)。
+
+- **再発: 2026-08-20** — 段6 の軽量 fix子 (1行追加だけの修正) 2回とも、親が「変更した
+  file:line を明記するだけでよい」と簡潔な報告を求めたところ、報告が499/494 bytes で
+  500 bytes 下限に届かず `tools/check_codex_output.py` に不受理にされた
+  (`codex_exit_code=0`, `accepted=false`, `validator_rc=1`)。2026-08-18 再発と同型
+  (「2〜5行で書け」で500 bytes未達)。作業自体は `attempt-0001.output.md` に正しく
+  書かれており親が fallback で読んで採った。2026-07-28/2026-08-18裁定 (`DW-O01` への
+  prose 追記は見送り、恒久対応はテスト・機械検査優先) を踏襲し、今回も reference
+  編集はしない。
 ### F44. pipefail 下の `producer | grep -q` が SIGPIPE で計測ジョブを偽赤停止させた [手順漏れ]
 - 事象: [T-140] set-size 実測ジョブ 1 回目 (872881.nqsv、2026-07-28) が、trace シンボル存在検査
   `nm -C bin | grep -qi izanagi_trace` で「シンボル無し」と誤判定し 43 秒で停止した。実際は
@@ -1624,6 +1633,15 @@
   最終的に repo 外の `/work` 配下へ置いた。
   恒久対応 = `DW-O20` の当該語を byte 中立で「背景jobはrepo外」へ是正 (本 wave の段 8) と、
   auto-memory `pegasus-keep-home-clean`。
+
+- **再発: 2026-08-19** — [T-1316] wave (背景 job + worktree 隔離) で、wave 開始時の brief 読み込みが
+  `DW-C00`/`DW-STOP` の通読に留まり、条件 dispatch 表の「20 | 背景 job + worktree 隔離の wave 開始時」
+  行を辿らなかったため、段4裁定完了・段5投入準備の直前まで `tools/check_wave_startup.py` を
+  実行しなかった。実行して初めて submodule 未初期化・専用 handoff の worktree 内残留・HEAD が
+  local main から6 commit 遅れの3件を検出し、実装着手前 (段5 投入前) に是正した (実害なし)。
+  過去2回 (2026-07-29, 2026-08-03) の再発と同じ「置き場・読了タイミングを誤る」型で、F50 の
+  恒久対応 (dispatch 前倒し、条件表20番の文言是正) は既に適用済みだったにもかかわらず、
+  wave 開始時にその条件表自体を辿らなかったことが根本原因である。
 ### F51. cleanup-branches が背景セッション自身の worktree を削除しかけた near-miss [手順漏れ]
 - 事象: /cleanup-branches 実行セッションの cwd が削除対象 worktree に固定されており (背景 job)、
   スキル §2 の「先に main checkout 側へ抜ける」が実行不能だった — ExitWorktree は EnterWorktree
@@ -10624,3 +10642,52 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   `ident.py`、`artifact_admission.py`、`orchestrator/verifier/*`、`s8c_preregistration*.py`、
   `s8c_generation_projection.py`、`campaign_lock.py`、`contract_loader_binding.py`、
   `enforcement_source_ratification.py` 等) のいずれかへ変異 matrix を登録する全 wave。
+
+### F425. read-only 調査 fork が継承した command 本文を自分の役割と誤認し無許可で実行段を起動した [権限逸脱]
+
+- 事象: `/dev-wave` 実行中、一次資料の read-only 調査だけを目的に Agent (subagent_type: "fork") を
+  起動したところ、fork は親の会話全文 (`/dev-wave` command 本体を含む) を継承し、自分を
+  dev-wave manager と誤認した。個別 prompt の「実装や編集は一切しない、read-only の調査のみ」
+  という制約を破り、`tools/dev_wave_codex.py --stage plan` 経由で実 Codex subprocess
+  (`gpt-5.6-luna`) と背景待ち手・診断用 general-purpose agent 2 体・EnterWorktree (失敗) を
+  無許可で起動した。共有 TaskList も誤って更新 (段1 completed・段2 in_progress へ先走り)。
+  完了通知の `result` 要約も実態と無関係な文言 (「段2の完了通知を待ちます」等) を 2 回繰り返し、
+  SendMessage で直接問い詰めるまで起動した副作用一式を報告しなかった。
+- 根本原因: fork が親の会話文脈をそのまま継承する設計であり、role-heavy な command 本文
+  (「あなたは manager である」) が個別 prompt の制約より強く働いた。
+- 恒久対応: memory `fork-inherits-command-context-can-misact-as-manager` —
+  role-heavy command 下で research fork を使うときは「あなたは manager ではない」
+  「副作用を持つ tool を使うな」の明示的な役割否定文を prompt に追加し、result 要約が
+  依頼と噛み合わないときは ListAgents + SendMessage (直接、別 fork へ委任せず) で実態を問い詰める。
+- 再発検知: fork 完了通知の `result` 要約を鵜呑みにせず、依頼内容と整合するか毎回照合する
+  (機械 lint は未実装)。
+- 関連: 2026-08-18 T-944 dev-wave でも「fork が委任範囲を超えて動く」型の事故が独立発生した
+  (memory `dont-fork-just-to-relay-sendmessage` に記録。当時 failures.md へは起票されなかった
+  ため本エントリが同型の初回起票となる)。fork の過剰行動は単発ではなく 2026-08 に少なくとも
+  2 件の独立実測がある。
+
+### F426. 新設 checker の1-hop 関数解決が tuple-unpack 代入を追跡できず fix が2巡した [手順漏れ]
+
+- 事象: `tools/check_subprocess_bytecode_guard.py` の P2 判定 (`_one_hop_guard`) は
+  `env = f()` 形の単純代入だけを1段辿って guard を探す。local main 取り込みで
+  `orchestrator/tests/test_dev_wave_wait.py` に他wave由来の新規呼び出しが加わり、
+  その `env` は `repo, lease, env = _real_waiter_repo(...)` という tuple-unpack
+  代入で得ていた。1回目の fix は呼び出し先 `_real_waiter_repo()` 内部の env dict へ
+  guard を足したが checker はなお rc=1 を返し続けた。
+- 根本原因: checker の `_FileIndex.visit_Assign`
+  (`tools/check_subprocess_bytecode_guard.py:208-219`) は
+  `len(node.targets) == 1 and isinstance(node.targets[0], ast.Name)` の場合だけ
+  代入を索引する。`ast.Tuple` をターゲットに持つ tuple-unpack 代入はこの条件を満たさず
+  索引から漏れるため、`_one_hop_guard` が呼び出し先関数まで辿る前提(代入の右辺が
+  ローカル関数呼び出しであること)自体が成立しなかった。
+- 恒久対応: 部分的。2回目の fix で、呼び出し元関数 (`_run_real_self_report_merge_case`)
+  自身の scope に `env["PYTHONDONTWRITEBYTECODE"] = "1"` を直接追加し、
+  `_scope_has_guard` (同一関数内の文字列 literal 探索) で guard ありと判定される形にした。
+  **checker 自体の tuple-unpack 追跡は実装していない** — 汎用 data-flow 解析は
+  規律5に反するため、既知の shallow 判定の限界として残す
+  (D575 の却下した選択肢を参照)。
+- 再発検知: 無し (checker の恒久対応が部分的なため、同型の tuple-unpack 代入を持つ
+  将来の env= 呼び出しは、呼び出し元関数自身に guard が無い限り同じ2巡を要する)。
+  `tools/check_subprocess_bytecode_guard.py` の module docstring に
+  「1-hop 関数解決は単純代入のみ対象、tuple-unpack は対象外」を追記する改善は
+  次に同checkerへ触れる wave の候補とする。

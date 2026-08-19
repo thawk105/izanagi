@@ -884,6 +884,7 @@ def test_live_xdist_controller_writes_one_sidecar_and_one_loadgroup_attestation(
     )
     env = os.environ.copy()
     env[PS.SIDECAR_ENV] = str(sidecar.resolve())
+    env["PYTHONDONTWRITEBYTECODE"] = "1"
     result = subprocess.run(
         [
             sys.executable, "-m", "pytest", "-q", "-n", "2", "--dist", "loadgroup",
@@ -926,6 +927,7 @@ def test_live_xdist_late_outer_wrapper_override_attests_unknown_once(tmp_path):
     )
     env = os.environ.copy()
     env["PYTHONPATH"] = os.pathsep.join((str(tmp_path), str(_REPO)))
+    env["PYTHONDONTWRITEBYTECODE"] = "1"
     result = subprocess.run(
         [
             sys.executable,
@@ -973,6 +975,7 @@ def test_live_xdist_loadgroup_subclass_override_attests_unknown_once(tmp_path):
     )
     env = os.environ.copy()
     env["PYTHONPATH"] = os.pathsep.join((str(tmp_path), str(_REPO)))
+    env["PYTHONDONTWRITEBYTECODE"] = "1"
     result = subprocess.run(
         [
             sys.executable,
@@ -1013,6 +1016,7 @@ def test_live_xdist_sessionfinish_scheduler_swap_keeps_runtestloop_value(tmp_pat
     )
     env = os.environ.copy()
     env["PYTHONPATH"] = os.pathsep.join((str(tmp_path), str(_REPO)))
+    env["PYTHONDONTWRITEBYTECODE"] = "1"
     result = subprocess.run(
         [
             sys.executable,

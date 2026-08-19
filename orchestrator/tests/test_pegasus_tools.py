@@ -496,6 +496,7 @@ def _run_qstat_parser(
     fixture.write_bytes(payload)
     env = os.environ.copy()
     env["TZ"] = "Asia/Tokyo"
+    env["PYTHONDONTWRITEBYTECODE"] = "1"
     result = subprocess.run(
         [sys.executable, "-", str(fixture), observed, "0"],
         input=_qstat_parser_source(), capture_output=True, text=True, env=env,
