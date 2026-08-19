@@ -11,6 +11,7 @@ import importlib.util
 import inspect
 import json
 import os
+import pickle
 import shutil
 import subprocess
 import sys
@@ -1361,14 +1362,45 @@ def test_receipt_memo_l1_to_l5_are_fail_closed_and_uid_is_hashed():
     with tempfile.TemporaryDirectory(prefix="receipt-memo-test-") as raw_tmp, \
             mock.patch.object(memo_module, "_repo_head", return_value=head), \
             mock.patch.object(memo_module.tempfile, "gettempdir", return_value=raw_tmp):
-        path = memo_module._cache_path_for(run_id, head)
+        session_id = "session-l1"
+        path = memo_module._cache_path_for(run_id, head, session_id)
         assert run_id not in path.name
-        assert path == memo_module._cache_path_for(run_id, head)
-        assert path != memo_module._cache_path_for(run_id + "x", head)
-        with mock.patch.dict(os.environ, {memo_module._RUN_ID_ENV: ""}):
+        assert path == memo_module._cache_path_for(run_id, head, session_id)
+        assert path != memo_module._cache_path_for(run_id + "x", head, session_id)
+        assert path != memo_module._cache_path_for(run_id, head, "session-l2")
+        with mock.patch.dict(
+            os.environ,
+            {
+                memo_module._RUN_ID_ENV: "",
+                memo_module._SESSION_NONCE_ENV: session_id,
+            },
+        ):
             assert memo_module._session_cache_path() == (
-                memo_module._cache_path_for("", head)
+                memo_module._cache_path_for("", head, session_id)
             )
+        with mock.patch.dict(
+            os.environ, {memo_module._SESSION_NONCE_ENV: ""}, clear=False,
+        ):
+            assert memo_module._session_cache_path(
+                run_id=run_id, head=head,
+            ) is None
+        with mock.patch.dict(os.environ, {}, clear=False):
+            os.environ.pop(memo_module._SESSION_NONCE_ENV, None)
+            assert memo_module._session_cache_path(
+                run_id=run_id, head=head,
+            ) is None
+        nonce_missing = memo_module._make_receipt_memo(resolve=resolve)
+        with mock.patch.dict(
+            os.environ,
+            {
+                memo_module._RUN_ID_ENV: run_id,
+                memo_module._SESSION_NONCE_ENV: "",
+            },
+        ):
+            _receipt_error(
+                nonce_missing.get, memo_module, "cache-path-unavailable",
+            )
+        assert calls == ["resolve"]
 
         pathless = memo_module._make_receipt_memo(resolve=resolve)
         with mock.patch.object(
@@ -1390,7 +1422,9 @@ def test_receipt_memo_l1_to_l5_are_fail_closed_and_uid_is_hashed():
             memo_module, "open", side_effect=OSError(13, "denied"), create=True,
         ):
             error = _receipt_error(
-                lambda: lock_failed.prewarm(run_id=run_id),
+                lambda: lock_failed.prewarm(
+                    run_id=run_id, session_id=session_id,
+                ),
                 memo_module,
                 "lock-open-failed",
             )
@@ -1410,22 +1444,36 @@ def test_receipt_memo_l1_to_l5_are_fail_closed_and_uid_is_hashed():
             _receipt_error(missing.get, memo_module, "cache-missing")
         assert calls == ["resolve"]
 
-        path.write_bytes(b"not a pickle")
+        path.write_bytes(b"not json")
         corrupt = memo_module._make_receipt_memo(resolve=resolve)
-        with mock.patch.dict(os.environ, {memo_module._RUN_ID_ENV: run_id}):
-            _receipt_error(corrupt.get, memo_module, "cache-unpickle-failed")
+        with mock.patch.dict(
+            os.environ,
+            {
+                memo_module._RUN_ID_ENV: run_id,
+                memo_module._SESSION_NONCE_ENV: session_id,
+            },
+        ):
+            _receipt_error(corrupt.get, memo_module, "cache-json-decode-failed")
         assert calls == ["resolve"]
-        path.write_bytes(memo_module.pickle.dumps({"wrong": "type"}))
+        path.write_bytes(json.dumps({"wrong": "type"}).encode("utf-8"))
         wrong_type = memo_module._make_receipt_memo(resolve=resolve)
-        with mock.patch.dict(os.environ, {memo_module._RUN_ID_ENV: run_id}):
-            _receipt_error(wrong_type.get, memo_module, "cache-type-invalid")
+        with mock.patch.dict(
+            os.environ,
+            {
+                memo_module._RUN_ID_ENV: run_id,
+                memo_module._SESSION_NONCE_ENV: session_id,
+            },
+        ):
+            _receipt_error(wrong_type.get, memo_module, "cache-schema-invalid")
         assert calls == ["resolve"]
         path.unlink()
 
         path.write_bytes(b"stale session")
         preexisting = memo_module._make_receipt_memo(resolve=resolve)
         _receipt_error(
-            lambda: preexisting.prewarm(run_id=run_id),
+            lambda: preexisting.prewarm(
+                run_id=run_id, session_id=session_id,
+            ),
             memo_module,
             "cache-preexists-before-prewarm",
         )
@@ -1433,9 +1481,17 @@ def test_receipt_memo_l1_to_l5_are_fail_closed_and_uid_is_hashed():
         path.unlink()
 
         controller = memo_module._make_receipt_memo(resolve=resolve)
-        assert controller.prewarm(run_id=run_id) is resolution
+        assert controller.prewarm(
+            run_id=run_id, session_id=session_id,
+        ) is resolution
         worker = memo_module._make_receipt_memo(resolve=resolve)
-        with mock.patch.dict(os.environ, {memo_module._RUN_ID_ENV: run_id}):
+        with mock.patch.dict(
+            os.environ,
+            {
+                memo_module._RUN_ID_ENV: run_id,
+                memo_module._SESSION_NONCE_ENV: session_id,
+            },
+        ):
             loaded = worker.get()
             assert loaded == resolution and worker.get() is loaded
         assert calls == ["resolve", "resolve"]
@@ -1458,14 +1514,22 @@ def test_receipt_memo_l1_to_l5_are_fail_closed_and_uid_is_hashed():
         store_error = OSError(28, "no space")
         with mock.patch.object(memo_module, "_cache_store", side_effect=store_error):
             error = _receipt_error(
-                lambda: store_failed.prewarm(run_id=run_id),
+                lambda: store_failed.prewarm(
+                    run_id=run_id, session_id=session_id,
+                ),
                 memo_module,
                 "cache-store-failed",
             )
         assert error.payload["errno"] == 28
         assert error.payload["process_prewarmed"] is False
         assert calls == ["resolve", "resolve", "resolve"]
-        with mock.patch.dict(os.environ, {memo_module._RUN_ID_ENV: run_id}):
+        with mock.patch.dict(
+            os.environ,
+            {
+                memo_module._RUN_ID_ENV: run_id,
+                memo_module._SESSION_NONCE_ENV: session_id,
+            },
+        ):
             _receipt_error(store_failed.get, memo_module, "cache-missing")
         assert calls == ["resolve", "resolve", "resolve"]
 
@@ -1488,6 +1552,151 @@ def test_receipt_memo_l1_to_l5_are_fail_closed_and_uid_is_hashed():
         assert fail_open_calls == ["fallback"]
 
 
+def test_receipt_memo_reader_rejects_cache_from_other_invocation(tmp_path):
+    """別 invocation の reader が stale cache を誤読せず fail-closed になる。"""
+    from orchestrator.tests import real_repo_receipt_memo as memo_module
+
+    head = "d" * 40
+    run_id = "same-run-id"
+    session_a = "invocation-a"
+    session_b = "invocation-b"
+    calls = []
+    resolution = memo_module.migration.ReceiptResolution(
+        "never-issued", (), None, head,
+    )
+
+    def resolve():
+        calls.append("resolve")
+        return resolution
+
+    with mock.patch.object(memo_module, "_repo_head", return_value=head), \
+            mock.patch.object(memo_module.tempfile, "gettempdir", return_value=str(tmp_path)):
+        controller = memo_module._make_receipt_memo(resolve=resolve)
+        controller.prewarm(run_id=run_id, session_id=session_a)
+        path_a = memo_module._cache_path_for(run_id, head, session_a)
+        with mock.patch.dict(
+            os.environ,
+            {
+                memo_module._RUN_ID_ENV: run_id,
+                memo_module._SESSION_NONCE_ENV: session_b,
+            },
+        ):
+            _receipt_error(
+                memo_module._make_receipt_memo(resolve=resolve).get,
+                memo_module,
+                "cache-missing",
+            )
+
+        assert path_a.exists()
+        assert calls == ["resolve"]
+
+
+def test_receipt_memo_json_cache_rejects_pickle_and_invalid_json_without_resolve(tmp_path):
+    """攻撃 payload、schema 不一致、duplicate key、NaN/Infinity を fail-closed にする。"""
+    from orchestrator.tests import real_repo_receipt_memo as memo_module
+
+    head = "e" * 40
+    run_id = "json-attack-run"
+    session_id = "json-attack-session"
+    marker = tmp_path / "pickle-marker"
+    calls = []
+
+    class _PicklePayload:
+        def __reduce__(self):
+            expression = (
+                "__import__('pathlib').Path(%r).write_text('executed')"
+                % str(marker)
+            )
+            return (eval, (expression,))
+
+    def resolve():
+        calls.append("resolve")
+        return memo_module.migration.ReceiptResolution("never-issued", (), None, head)
+
+    with mock.patch.object(memo_module, "_repo_head", return_value=head), \
+            mock.patch.object(memo_module.tempfile, "gettempdir", return_value=str(tmp_path)), \
+            mock.patch.dict(
+                os.environ,
+                {
+                    memo_module._RUN_ID_ENV: run_id,
+                    memo_module._SESSION_NONCE_ENV: session_id,
+                },
+            ):
+        path = memo_module._cache_path_for(run_id, head, session_id)
+        path.write_bytes(pickle.dumps(_PicklePayload()))
+        _receipt_error(
+            memo_module._make_receipt_memo(resolve=resolve).get,
+            memo_module,
+            "cache-json-decode-failed",
+        )
+        assert calls == []
+        assert not marker.exists()
+
+        path.write_text('{"wrong":"type"}', encoding="utf-8")
+        _receipt_error(
+            memo_module._make_receipt_memo(resolve=resolve).get,
+            memo_module,
+            "cache-schema-invalid",
+        )
+        assert calls == []
+
+        valid_document = memo_module._cache_document(
+            memo_module.migration.ReceiptResolution("never-issued", (), None, head)
+        )
+        valid_members = []
+        for key, value in valid_document.items():
+            member = (
+                json.dumps(key, ensure_ascii=False, separators=(",", ":"))
+                + ":"
+                + json.dumps(
+                    value,
+                    allow_nan=False,
+                    ensure_ascii=False,
+                    separators=(",", ":"),
+                )
+            )
+            valid_members.append(member)
+            if key == "state":
+                valid_members.append(member)
+        duplicate_state = ("{" + ",".join(valid_members) + "}").encode("utf-8")
+        for raw in (
+            duplicate_state,
+            b'{"wrong":NaN}',
+            b'{"wrong":Infinity}',
+            b'{"wrong":-Infinity}',
+        ):
+            path.write_bytes(raw)
+            _receipt_error(
+                memo_module._make_receipt_memo(resolve=resolve).get,
+                memo_module,
+                "cache-json-decode-failed",
+            )
+        assert calls == []
+        assert not marker.exists()
+
+        path.write_bytes(b"12345")
+        with mock.patch.object(memo_module, "_CACHE_MAX_BYTES", 4):
+            _receipt_error(
+                memo_module._make_receipt_memo(resolve=resolve).get,
+                memo_module,
+                "cache-size-limit",
+            )
+        assert calls == []
+
+        path.unlink()
+        writer = memo_module._make_receipt_memo(resolve=resolve)
+        with mock.patch.object(memo_module, "_CACHE_MAX_BYTES", 4):
+            _receipt_error(
+                lambda: writer.prewarm(
+                    run_id=run_id, session_id=session_id,
+                ),
+                memo_module,
+                "cache-store-failed",
+            )
+        assert calls == ["resolve"]
+        assert not path.exists()
+
+
 def test_receipt_memo_public_endpoints_reject_all_xdist_reader_faults():
     """公開 2 endpoint は UID 下の miss・破損・lock 不能でも実解決しない。"""
     from orchestrator.tests import real_repo_receipt_memo as memo_module
@@ -1506,12 +1715,17 @@ def test_receipt_memo_public_endpoints_reject_all_xdist_reader_faults():
             mock.patch.object(
                 memo_module, "_PRODUCTION_RESOLVE", production_resolve,
             ), mock.patch.dict(
-                os.environ, {memo_module._RUN_ID_ENV: run_id}, clear=False,
+                os.environ,
+                {
+                    memo_module._RUN_ID_ENV: run_id,
+                    memo_module._SESSION_NONCE_ENV: "public-session",
+                },
+                clear=False,
             ):
-        path = memo_module._cache_path_for(run_id, head)
+        path = memo_module._cache_path_for(run_id, head, "public-session")
         cases = (
             ("cache-missing", None),
-            ("cache-unpickle-failed", b"not a pickle"),
+            ("cache-json-decode-failed", b"not json"),
             ("lock-open-failed", b"unused"),
         )
         for reason, cache_bytes in cases:
@@ -1573,14 +1787,22 @@ def test_receipt_memo_prune_keeps_locks_and_current_session_key():
 
     with tempfile.TemporaryDirectory(prefix="receipt-prune-test-") as raw_tmp:
         directory = Path(raw_tmp)
-        current = directory / f"{memo_module._CACHE_PREFIX}current.pickle"
-        stale = directory / f"{memo_module._CACHE_PREFIX}stale.pickle"
-        lock = directory / f"{memo_module._CACHE_PREFIX}stale.pickle.lock"
+        current = directory / f"{memo_module._CACHE_PREFIX}current.json"
+        stale = directory / f"{memo_module._CACHE_PREFIX}stale.json"
+        lock = directory / f"{memo_module._CACHE_PREFIX}stale.json.lock"
         for path in (current, stale, lock):
             path.write_bytes(b"x")
             os.utime(path, (time.time() - memo_module._CACHE_STALE_S - 10,) * 2)
         memo_module._prune_stale_caches(directory, current_path=current)
         assert current.exists() and lock.exists() and not stale.exists()
+
+        legacy = directory / f"{memo_module._CACHE_PREFIX}legacy.pickle"
+        legacy_lock = directory / f"{memo_module._CACHE_PREFIX}legacy.pickle.lock"
+        for path in (legacy, legacy_lock):
+            path.write_bytes(b"x")
+            os.utime(path, (time.time() - memo_module._CACHE_STALE_S - 10,) * 2)
+        memo_module._prune_stale_caches(directory, current_path=current)
+        assert not legacy.exists() and not legacy_lock.exists()
 
         # 合成旧 prune は lock と current の両方を消し、この契約を満たせない。
         def synthetic_old_prune():
@@ -1605,7 +1827,12 @@ class _ReceiptHookConfig:
         self.option = SimpleNamespace(**self._options)
         self._izanagi_receipt_memo_session_id = "session-test"
         if worker:
-            self.workerinput = {"testrunuid": self._options.get("testrunuid")}
+            self.workerinput = {
+                "testrunuid": self._options.get("testrunuid"),
+                "_izanagi_receipt_memo_session_id": self._options.get(
+                    "session_nonce", "session-test",
+                ),
+            }
 
     def getoption(self, name, default=_OPTION_UNDECLARED):
         if name in self._options:
@@ -1620,6 +1847,79 @@ def _receipt_hook_item(nodeid):
     return SimpleNamespace(
         path=HERE / filename, name=function, originalname=function,
     )
+
+
+def test_receipt_memo_configure_node_wires_nonce_and_restores_nested_env():
+    import pytest
+
+    suite_conftest = _load_suite_conftest()
+    with mock.patch.dict(
+        os.environ,
+        {suite_conftest._RECEIPT_MEMO_NONCE_ENV: "outer-nonce"},
+        clear=False,
+    ):
+        controller = _ReceiptHookConfig()
+        worker = None
+        suite_conftest._configure_receipt_memo_session(controller)
+        controller_nonce = getattr(
+            controller, suite_conftest._RECEIPT_MEMO_SESSION_ID_ATTR,
+        )
+        assert isinstance(controller_nonce, str) and controller_nonce
+        assert os.environ[suite_conftest._RECEIPT_MEMO_NONCE_ENV] == controller_nonce
+        try:
+            node = SimpleNamespace(
+                config=controller, workerinput={"testrunuid": "ci-job-42"},
+            )
+            suite_conftest.pytest_configure_node(node)
+            assert node.workerinput == {
+                "testrunuid": "ci-job-42",
+                suite_conftest._RECEIPT_MEMO_SESSION_ID_ATTR: controller_nonce,
+            }
+
+            worker = SimpleNamespace(workerinput=dict(node.workerinput))
+            suite_conftest._configure_receipt_memo_session(worker)
+            assert getattr(
+                worker, suite_conftest._RECEIPT_MEMO_SESSION_ID_ATTR,
+            ) == controller_nonce
+            assert os.environ[suite_conftest._RECEIPT_MEMO_NONCE_ENV] == controller_nonce
+            suite_conftest._restore_receipt_memo_nonce(worker)
+            assert os.environ[suite_conftest._RECEIPT_MEMO_NONCE_ENV] == controller_nonce
+
+            missing = SimpleNamespace(workerinput={})
+            with pytest.raises(pytest.UsageError):
+                suite_conftest._configure_receipt_memo_session(missing)
+            assert os.environ[suite_conftest._RECEIPT_MEMO_NONCE_ENV] == controller_nonce
+        finally:
+            if worker is not None:
+                suite_conftest._restore_receipt_memo_nonce(worker)
+            suite_conftest._restore_receipt_memo_nonce(controller)
+        assert os.environ[suite_conftest._RECEIPT_MEMO_NONCE_ENV] == "outer-nonce"
+
+
+def test_receipt_memo_nonce_cleanup_preserves_unconfigure_exception():
+    suite_conftest = _load_suite_conftest()
+    config = SimpleNamespace()
+    original = RuntimeError("original pytest failure")
+    with mock.patch.dict(
+        os.environ,
+        {suite_conftest._RECEIPT_MEMO_NONCE_ENV: "outer-nonce"},
+        clear=False,
+    ):
+        suite_conftest._configure_receipt_memo_session(config)
+        wrapper = suite_conftest.pytest_unconfigure(config)
+        next(wrapper)
+        with mock.patch.object(suite_conftest, "unmark_pytest_session_enforcing", None), \
+                mock.patch.object(
+                    suite_conftest, "_emit_effective_scheduler_marker",
+                    return_value=None,
+                ):
+            try:
+                wrapper.throw(original)
+            except RuntimeError as exc:
+                assert exc is original
+            else:
+                raise AssertionError("pytest_unconfigure が元例外を握り潰した")
+        assert os.environ[suite_conftest._RECEIPT_MEMO_NONCE_ENV] == "outer-nonce"
 
 
 def test_receipt_memo_prewarm_wiring_is_controller_only_and_lazy():
@@ -1891,7 +2191,7 @@ def test_receipt_memo_real_xdist_order_has_no_worker_payer():
         env = os.environ.copy()
         for name in (
             "PYTEST_XDIST_WORKER", "PYTEST_XDIST_WORKER_COUNT",
-            "PYTEST_XDIST_TESTRUNUID",
+            "PYTEST_XDIST_TESTRUNUID", "IZANAGI_RECEIPT_MEMO_NONCE",
         ):
             env.pop(name, None)
         env["PYTHONPATH"] = os.pathsep.join(
@@ -1934,16 +2234,20 @@ def test_receipt_memo_uid_configuration_respects_xdist_and_no_xdist():
     suite_conftest = _load_suite_conftest()
     first_session = _ReceiptHookConfig({})
     second_session = _ReceiptHookConfig({})
-    suite_conftest._configure_receipt_memo_session(first_session)
-    suite_conftest._configure_receipt_memo_session(second_session)
-    first_token = getattr(
-        first_session, suite_conftest._RECEIPT_MEMO_SESSION_ID_ATTR,
-    )
-    second_token = getattr(
-        second_session, suite_conftest._RECEIPT_MEMO_SESSION_ID_ATTR,
-    )
-    assert len(first_token) == 32 and len(second_token) == 32
-    assert first_token != second_token
+    try:
+        suite_conftest._configure_receipt_memo_session(first_session)
+        suite_conftest._configure_receipt_memo_session(second_session)
+        first_token = getattr(
+            first_session, suite_conftest._RECEIPT_MEMO_SESSION_ID_ATTR,
+        )
+        second_token = getattr(
+            second_session, suite_conftest._RECEIPT_MEMO_SESSION_ID_ATTR,
+        )
+        assert len(first_token) == 32 and len(second_token) == 32
+        assert first_token != second_token
+    finally:
+        suite_conftest._restore_receipt_memo_nonce(second_session)
+        suite_conftest._restore_receipt_memo_nonce(first_session)
 
     explicit = _ReceiptHookConfig({
         "numprocesses": 4, "testrunuid": "ci-job-42",
