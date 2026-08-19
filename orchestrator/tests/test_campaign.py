@@ -12,6 +12,7 @@ import argparse
 import ast
 import collections
 import contextlib
+import datetime as dt
 import enum
 import errno
 import fcntl
@@ -8183,9 +8184,16 @@ def test_m12_loop_compute_uses_gxx_and_forwards_only_contract_and_prefix():
     L.evaluate = fake_eval
     L.source_digest = types.SimpleNamespace(STOCK="stock", resolve_evidence=resolve)
     L._compilers_for_current_site = lambda: ("gcc", "g++")
-    L._authorize_measurement = lambda *args, **kwargs: (
-        contract, {"fixture": "receipt"},
+    bound_cfg = ident.bind_environment_contract(
+        ident.bind_admission_policy(cfg, _BUILD_CONTEXT.policy), contract,
     )
+    authorization_result = L._AuthorizationResult(
+        authorized_contract=contract,
+        execution_receipt={"fixture": "receipt"},
+        bound_cfg=bound_cfg,
+        campaign_identity=str(ident.campaign_id(bound_cfg)),
+    )
+    L._authorize_measurement = lambda *args, **kwargs: authorization_result
     try:
         summary = L.run_campaign(
             cfg, [Genome("silo", {"BACK_OFF": 1})],
@@ -8205,28 +8213,69 @@ def test_m12_loop_compute_uses_gxx_and_forwards_only_contract_and_prefix():
     assert captured["evaluate"][0]["env_contract"] == contract
     assert captured["evaluate"][0]["dependency_prefix"] == prefix
     assert "site" not in inspect.signature(L.run_campaign).parameters
-    expected_cfg = ident.bind_environment_contract(
-        ident.bind_admission_policy(cfg, _BUILD_CONTEXT.policy), contract,
-    )
-    assert summary.campaign_id == str(ident.campaign_id(expected_cfg))
+    assert summary.campaign_id == authorization_result.campaign_identity
     assert summary.execution_receipt == {"fixture": "receipt"}
 
 
-@pytest.mark.usefixtures("ratified_enforcement_source")
-def test_required_contract_is_attested_once_at_run_campaign_sink():
-    from orchestrator.campaign import loop as L
+_RESERVATION_ENV_NAMES = (
+    "IZANAGI_RESERVATION_JOB_ID",
+    "IZANAGI_RESERVATION_REQUESTED_S",
+    "IZANAGI_RESERVATION_SCHEDULER_STARTED_EPOCH",
+    "IZANAGI_RESERVATION_DEADLINE_EPOCH",
+    "IZANAGI_RESERVATION_HOST",
+    "IZANAGI_RESERVATION_BOOT_ID",
+    "IZANAGI_RESERVATION_SCRIPT_SHA256",
+    "IZANAGI_RESERVATION_NONCE",
+    "PBS_JOBID",
+)
 
-    contract = ec.lookup("pegasus")
-    receipt = {"schema": "fixture-required-receipt"}
-    verified = object()
-    order = []
+
+@contextlib.contextmanager
+def _campaign_reservation_environment(present=True):
+    sentinel = object()
+    saved = {
+        name: os.environ.get(name, sentinel)
+        for name in _RESERVATION_ENV_NAMES
+    }
+    for name in _RESERVATION_ENV_NAMES:
+        os.environ.pop(name, None)
+    if present:
+        now = time.time()
+        started = now - 30.0
+        requested = 3600
+        boot_id = Path("/proc/sys/kernel/random/boot_id").read_text(
+            encoding="ascii",
+        ).strip()
+        os.environ.update({
+            "IZANAGI_RESERVATION_JOB_ID": "fixture-job-1411",
+            "IZANAGI_RESERVATION_REQUESTED_S": str(requested),
+            "IZANAGI_RESERVATION_SCHEDULER_STARTED_EPOCH": str(started),
+            "IZANAGI_RESERVATION_DEADLINE_EPOCH": str(started + requested),
+            "IZANAGI_RESERVATION_HOST": "fixture-host-1411",
+            "IZANAGI_RESERVATION_BOOT_ID": boot_id,
+            "IZANAGI_RESERVATION_SCRIPT_SHA256": "a" * 64,
+            "IZANAGI_RESERVATION_NONCE": "fixture-nonce-1411",
+            "PBS_JOBID": "fixture-job-1411",
+        })
+    try:
+        yield
+    finally:
+        for name, value in saved.items():
+            if value is sentinel:
+                os.environ.pop(name, None)
+            else:
+                os.environ[name] = value
+
+
+@contextlib.contextmanager
+def _mock_required_attestation(L, order, *, matches=True):
     saved = {
         "load": L.env_attestation.load_verified_calibration,
         "attest": L.execution_guard.attest_and_build_receipt,
         "matches": L.execution_guard.receipt_matches_contract,
-        "evaluate": L.evaluate,
-        "source_digest": L.source_digest,
     }
+    verified = object()
+    receipt = {"schema": "fixture-required-receipt"}
     L.env_attestation.load_verified_calibration = (
         lambda loaded, root: order.append("load") or verified
     )
@@ -8234,8 +8283,76 @@ def test_required_contract_is_attested_once_at_run_campaign_sink():
         lambda loaded, calibration: order.append("attest") or receipt
     )
     L.execution_guard.receipt_matches_contract = (
-        lambda loaded, **kwargs: order.append("matches") or True
+        lambda loaded, **kwargs: order.append("matches") or matches
     )
+    try:
+        yield receipt
+    finally:
+        L.env_attestation.load_verified_calibration = saved["load"]
+        L.execution_guard.attest_and_build_receipt = saved["attest"]
+        L.execution_guard.receipt_matches_contract = saved["matches"]
+
+
+def _single_process_test_policy(base: Path):
+    from orchestrator.campaign.durable_root import DurableRootPolicy
+
+    return DurableRootPolicy(
+        approved_roots=(base.resolve(),), forbidden_roots=(),
+    )
+
+
+def _assert_single_process_claim(summary, base: Path, bound_cfg: CampaignConfig):
+    claim_root = base / "env" / "pegasus" / "claims"
+    claim_files = sorted(claim_root.glob("*.claim"))
+    assert len(claim_files) == 1
+    payload = json.loads(claim_files[0].read_text(encoding="utf-8"))
+    expected_digest = hashlib.sha256(
+        ident.canonical_preimage(bound_cfg).encode("utf-8")
+    ).hexdigest()
+    assert payload["campaign_identity"] == summary.campaign_id
+    assert payload["protocol_digest"] == expected_digest
+    assert Path(summary.layout_root) == base / "campaigns" / summary.campaign_id
+    assert claim_root.parents[2] == base
+    return claim_root, payload
+
+
+@pytest.mark.usefixtures("ratified_enforcement_source")
+def test_required_contract_is_attested_once_at_run_campaign_sink():
+    from orchestrator.campaign import loop as L
+    from orchestrator.campaign import campaign_claim, reservation
+
+    contract = ec.lookup("pegasus")
+    order = []
+    campaign_id_calls = []
+    base = Path(_tmpdir("izanagi_loop_single_process_official_"))
+    (base / "env" / "pegasus" / "claims").mkdir(parents=True)
+    policy = _single_process_test_policy(base)
+    saved = {
+        "evaluate": L.evaluate,
+        "source_digest": L.source_digest,
+        "read_binding": reservation.read_binding,
+        "check_reservation": reservation.check_reservation,
+        "acquire_claim": campaign_claim.acquire_claim,
+        "campaign_id": ident.campaign_id,
+    }
+    L.reservation.read_binding = (
+        lambda environ: order.append("read_binding") or
+        saved["read_binding"](environ)
+    )
+    L.reservation.check_reservation = (
+        lambda binding, **kwargs: order.append("check_reservation") or
+        saved["check_reservation"](binding, **kwargs)
+    )
+    L.campaign_claim.acquire_claim = (
+        lambda claim_root, record: order.append("acquire_claim") or
+        saved["acquire_claim"](claim_root, record)
+    )
+
+    def campaign_id_spy(cfg):
+        campaign_id_calls.append(cfg)
+        return saved["campaign_id"](cfg)
+
+    L.ident.campaign_id = campaign_id_spy
 
     def fake_eval(genome, *args, **kwargs):
         order.append("evaluate")
@@ -8250,25 +8367,371 @@ def test_required_contract_is_attested_once_at_run_campaign_sink():
         spec_slug="t", search_tag="enum", spec_content="required-attestation-once",
         ccbench_commit="deadbeef",
     )
-    out_root = _tmpdir("izanagi_loop_attestation_once_")
+    bound_cfg = ident.bind_environment_contract(
+        ident.bind_admission_policy(cfg, _BUILD_CONTEXT.policy), contract,
+    )
     try:
-        summary = L.run_campaign(
-            cfg,
-            [Genome("silo", {"BACK_OFF": 0}), Genome("silo", {"BACK_OFF": 1})],
-            PerfConfig(records=1, threads=1), contract.env_tag,
-            contract.clocks_per_us, numactl=contract.numactl,
-            do_bench=False, output_root=out_root, log=lambda *a: None,
-            env_contract=contract, authorization_contract=ec.authorize(contract.env_tag),
-            build_context=_BUILD_CONTEXT, declared_use_class="official",
-        )
+        with _campaign_reservation_environment(), _mock_required_attestation(L, order) as receipt:
+            summary = L.run_campaign(
+                cfg,
+                [Genome("silo", {"BACK_OFF": 0}), Genome("silo", {"BACK_OFF": 1})],
+                PerfConfig(records=1, threads=1), contract.env_tag,
+                contract.clocks_per_us, numactl=contract.numactl,
+                do_bench=False, output_root=str(base), log=lambda *a: None,
+                env_contract=contract, authorization_contract=ec.authorize(contract.env_tag),
+                build_context=_BUILD_CONTEXT, declared_use_class="official",
+                durable_root_policy=policy,
+            )
     finally:
-        L.env_attestation.load_verified_calibration = saved["load"]
-        L.execution_guard.attest_and_build_receipt = saved["attest"]
-        L.execution_guard.receipt_matches_contract = saved["matches"]
         L.evaluate = saved["evaluate"]
         L.source_digest = saved["source_digest"]
-    assert order == ["load", "attest", "matches", "evaluate", "evaluate"]
+        L.reservation.read_binding = saved["read_binding"]
+        L.reservation.check_reservation = saved["check_reservation"]
+        L.campaign_claim.acquire_claim = saved["acquire_claim"]
+        L.ident.campaign_id = saved["campaign_id"]
+    assert order == [
+        "load", "attest", "matches", "read_binding", "check_reservation",
+        "acquire_claim", "evaluate", "evaluate",
+    ]
+    assert len(campaign_id_calls) == 1
     assert summary.execution_receipt is receipt
+    _assert_single_process_claim(summary, base, bound_cfg)
+
+
+@pytest.mark.usefixtures("ratified_enforcement_source")
+def test_exploration_claim_uses_environment_output_root_and_single_identity():
+    from orchestrator.campaign import campaign_claim, loop as L, reservation
+
+    contract = ec.lookup("pegasus")
+    order = []
+    campaign_id_calls = []
+    base = Path(_tmpdir("izanagi_loop_single_process_exploration_"))
+    claim_root = base / "env" / "pegasus" / "claims"
+    claim_root.mkdir(parents=True)
+    policy = _single_process_test_policy(base)
+    cfg = CampaignConfig(
+        spec_slug="t", search_tag="enum", spec_content="exploration-claim-root",
+        ccbench_commit="deadbeef",
+    )
+    bound_cfg = ident.bind_environment_contract(
+        ident.bind_admission_policy(cfg, _BUILD_CONTEXT.policy), contract,
+    )
+    saved = {
+        "evaluate": L.evaluate,
+        "source_digest": L.source_digest,
+        "read_binding": reservation.read_binding,
+        "check_reservation": reservation.check_reservation,
+        "acquire_claim": campaign_claim.acquire_claim,
+        "campaign_id": ident.campaign_id,
+    }
+
+    def fake_eval(genome, *args, **kwargs):
+        order.append("evaluate")
+        return EvalResult(
+            genome=genome, variant=pipeline.variant_id(genome, kwargs["src_token"]),
+            certified=True, aborted=False,
+        )
+
+    L.evaluate = fake_eval
+    L.source_digest = _sd_mock("stock")
+    L.reservation.read_binding = (
+        lambda environ: order.append("read_binding") or
+        saved["read_binding"](environ)
+    )
+    L.reservation.check_reservation = (
+        lambda binding, **kwargs: order.append("check_reservation") or
+        saved["check_reservation"](binding, **kwargs)
+    )
+    L.campaign_claim.acquire_claim = (
+        lambda root, record: order.append("acquire_claim") or
+        saved["acquire_claim"](root, record)
+    )
+
+    def campaign_id_spy(candidate_cfg):
+        campaign_id_calls.append(candidate_cfg)
+        return saved["campaign_id"](candidate_cfg)
+
+    L.ident.campaign_id = campaign_id_spy
+    env_name = layout_module._EXPLORATION_OUTPUT_ROOT_ENV
+    sentinel = object()
+    saved_env = os.environ.get(env_name, sentinel)
+    layout_module._reset_exploration_output_root_pin_for_tests()
+    os.environ[env_name] = str(base)
+    try:
+        with _campaign_reservation_environment(), _mock_required_attestation(L, order) as receipt:
+            summary = L.run_campaign(
+                cfg, [Genome("silo", {"BACK_OFF": 1})],
+                PerfConfig(records=1, threads=1), contract.env_tag,
+                contract.clocks_per_us, numactl=contract.numactl,
+                do_bench=False, log=lambda *a: None,
+                env_contract=contract, authorization_contract=ec.authorize(contract.env_tag),
+                build_context=_BUILD_CONTEXT, declared_use_class="exploration",
+                durable_root_policy=policy,
+            )
+    finally:
+        L.evaluate = saved["evaluate"]
+        L.source_digest = saved["source_digest"]
+        L.reservation.read_binding = saved["read_binding"]
+        L.reservation.check_reservation = saved["check_reservation"]
+        L.campaign_claim.acquire_claim = saved["acquire_claim"]
+        L.ident.campaign_id = saved["campaign_id"]
+        layout_module._reset_exploration_output_root_pin_for_tests()
+        if saved_env is sentinel:
+            os.environ.pop(env_name, None)
+        else:
+            os.environ[env_name] = saved_env
+
+    assert order == [
+        "load", "attest", "matches", "read_binding", "check_reservation",
+        "acquire_claim", "evaluate",
+    ]
+    assert len(campaign_id_calls) == 1
+    assert summary.execution_receipt is receipt
+    assert Path(summary.layout_root) == (
+        base / "exploration" / "campaigns" / summary.campaign_id
+    )
+    claim_files = sorted(claim_root.glob("*.claim"))
+    assert len(claim_files) == 1
+    payload = json.loads(claim_files[0].read_text(encoding="utf-8"))
+    expected_digest = hashlib.sha256(
+        ident.canonical_preimage(bound_cfg).encode("utf-8")
+    ).hexdigest()
+    assert payload["campaign_identity"] == summary.campaign_id
+    assert payload["protocol_digest"] == expected_digest
+    assert claim_root.parents[2] == base
+
+
+@pytest.mark.usefixtures("ratified_enforcement_source")
+def test_single_process_rejects_missing_reservation_binding_before_claim():
+    from orchestrator.campaign import loop as L, reservation
+
+    contract = ec.lookup("pegasus")
+    base = Path(_tmpdir("izanagi_loop_missing_reservation_"))
+    claim_root = base / "env" / "pegasus" / "claims"
+    claim_root.mkdir(parents=True)
+    policy = _single_process_test_policy(base)
+    cfg = CampaignConfig(
+        spec_slug="t", search_tag="enum", spec_content="missing-reservation",
+        ccbench_commit="deadbeef",
+    )
+    with _campaign_reservation_environment(False), _mock_required_attestation(L, []):
+        with pytest.raises(
+                reservation.ReservationError,
+                match="IZANAGI_RESERVATION_JOB_ID",
+        ):
+            L.run_campaign(
+                cfg, [], PerfConfig(records=1, threads=1), contract.env_tag,
+                contract.clocks_per_us, numactl=contract.numactl,
+                do_bench=False, output_root=str(base), log=lambda *a: None,
+                env_contract=contract, authorization_contract=ec.authorize(contract.env_tag),
+                build_context=_BUILD_CONTEXT, declared_use_class="official",
+                durable_root_policy=policy,
+            )
+    assert list(claim_root.glob("*.claim")) == []
+
+
+@pytest.mark.usefixtures("ratified_enforcement_source")
+def test_single_process_attestation_failure_precedes_claim_creation():
+    from orchestrator.campaign import campaign_claim, loop as L
+
+    contract = ec.lookup("pegasus")
+    base = Path(_tmpdir("izanagi_loop_attestation_failure_"))
+    claim_root = base / "env" / "pegasus" / "claims"
+    claim_root.mkdir(parents=True)
+    policy = _single_process_test_policy(base)
+    order = []
+    saved_claim = L.campaign_claim.acquire_claim
+    claim_calls = []
+    L.campaign_claim.acquire_claim = (
+        lambda *args, **kwargs: claim_calls.append((args, kwargs)) or
+        saved_claim(*args, **kwargs)
+    )
+    cfg = CampaignConfig(
+        spec_slug="t", search_tag="enum", spec_content="attestation-failure",
+        ccbench_commit="deadbeef",
+    )
+    try:
+        with _campaign_reservation_environment(), _mock_required_attestation(
+                L, order, matches=False):
+            with pytest.raises(
+                    L.execution_guard.ExecutionGuardError,
+                    match="receipt",
+            ):
+                L.run_campaign(
+                    cfg, [], PerfConfig(records=1, threads=1), contract.env_tag,
+                    contract.clocks_per_us, numactl=contract.numactl,
+                    do_bench=False, output_root=str(base), log=lambda *a: None,
+                    env_contract=contract,
+                    authorization_contract=ec.authorize(contract.env_tag),
+                    build_context=_BUILD_CONTEXT, declared_use_class="official",
+                    durable_root_policy=policy,
+                )
+    finally:
+        L.campaign_claim.acquire_claim = saved_claim
+    assert order == ["load", "attest", "matches"]
+    assert claim_calls == []
+    assert list(claim_root.glob("*.claim")) == []
+
+
+@pytest.mark.usefixtures("ratified_enforcement_source")
+def test_single_process_rejects_missing_claim_directory_before_acquire():
+    from orchestrator.campaign import loop as L
+
+    contract = ec.lookup("pegasus")
+    base = Path(_tmpdir("izanagi_loop_missing_claim_root_"))
+    policy = _single_process_test_policy(base)
+    cfg = CampaignConfig(
+        spec_slug="t", search_tag="enum", spec_content="missing-claim-root",
+        ccbench_commit="deadbeef",
+    )
+    with _campaign_reservation_environment(), _mock_required_attestation(L, []):
+        with pytest.raises(
+                L.execution_guard.ExecutionGuardError,
+                match="claim root",
+        ):
+            L.run_campaign(
+                cfg, [], PerfConfig(records=1, threads=1), contract.env_tag,
+                contract.clocks_per_us, numactl=contract.numactl,
+                do_bench=False, output_root=str(base), log=lambda *a: None,
+                env_contract=contract, authorization_contract=ec.authorize(contract.env_tag),
+                build_context=_BUILD_CONTEXT, declared_use_class="official",
+                durable_root_policy=policy,
+            )
+    assert not (base / "campaigns").exists()
+
+
+@pytest.mark.usefixtures("ratified_enforcement_source")
+def test_single_process_rejects_symlink_claim_directory_without_writing_target():
+    from orchestrator.campaign import loop as L
+
+    contract = ec.lookup("pegasus")
+    base = Path(_tmpdir("izanagi_loop_symlink_claim_root_"))
+    parent = base / "env" / "pegasus"
+    parent.mkdir(parents=True)
+    target = base / "claim-target"
+    target.mkdir()
+    claim_root = parent / "claims"
+    claim_root.symlink_to(target, target_is_directory=True)
+    policy = _single_process_test_policy(base)
+    cfg = CampaignConfig(
+        spec_slug="t", search_tag="enum", spec_content="symlink-claim-root",
+        ccbench_commit="deadbeef",
+    )
+    with _campaign_reservation_environment(), _mock_required_attestation(L, []):
+        with pytest.raises(
+                L.execution_guard.ExecutionGuardError,
+                match="claim root",
+        ):
+            L.run_campaign(
+                cfg, [], PerfConfig(records=1, threads=1), contract.env_tag,
+                contract.clocks_per_us, numactl=contract.numactl,
+                do_bench=False, output_root=str(base), log=lambda *a: None,
+                env_contract=contract, authorization_contract=ec.authorize(contract.env_tag),
+                build_context=_BUILD_CONTEXT, declared_use_class="official",
+                durable_root_policy=policy,
+            )
+    assert list(target.iterdir()) == []
+
+
+@pytest.mark.usefixtures("ratified_enforcement_source")
+def test_single_process_rejects_live_claim_for_same_protocol():
+    from orchestrator.campaign import campaign_claim, loop as L, reservation
+
+    contract = ec.lookup("pegasus")
+    base = Path(_tmpdir("izanagi_loop_live_claim_"))
+    claim_root = base / "env" / "pegasus" / "claims"
+    claim_root.mkdir(parents=True)
+    policy = _single_process_test_policy(base)
+    cfg = CampaignConfig(
+        spec_slug="t", search_tag="enum", spec_content="live-claim-conflict",
+        ccbench_commit="deadbeef",
+    )
+    bound_cfg = ident.bind_environment_contract(
+        ident.bind_admission_policy(cfg, _BUILD_CONTEXT.policy), contract,
+    )
+    protocol_digest = hashlib.sha256(
+        ident.canonical_preimage(bound_cfg).encode("utf-8")
+    ).hexdigest()
+    with _campaign_reservation_environment():
+        binding = reservation.read_binding(os.environ)
+        existing = campaign_claim.ClaimRecord(
+            campaign_identity="preexisting-live-claim",
+            protocol_digest=protocol_digest,
+            job_id=binding.job_id,
+            host=binding.host,
+            boot_id=binding.boot_id,
+            pid=os.getpid(),
+            proc_starttime=campaign_claim.read_proc_starttime(),
+            created_utc=dt.datetime.now(dt.timezone.utc).isoformat(),
+        )
+        campaign_claim.acquire_claim(claim_root, existing)
+        with _mock_required_attestation(L, []):
+            with pytest.raises(campaign_claim.ClaimError, match="同一 protocol"):
+                L.run_campaign(
+                    cfg, [], PerfConfig(records=1, threads=1), contract.env_tag,
+                    contract.clocks_per_us, numactl=contract.numactl,
+                    do_bench=False, output_root=str(base), log=lambda *a: None,
+                    env_contract=contract,
+                    authorization_contract=ec.authorize(contract.env_tag),
+                    build_context=_BUILD_CONTEXT, declared_use_class="official",
+                    durable_root_policy=policy,
+                )
+    assert [path.name for path in claim_root.glob("*.claim")] == [
+        "preexisting-live-claim.claim",
+    ]
+
+
+@pytest.mark.usefixtures("ratified_enforcement_source")
+def test_linux_baremetal_skips_reservation_and_claim_for_non_single_process():
+    from orchestrator.campaign import campaign_claim, loop as L, reservation
+
+    contract = ec.lookup("linux-baremetal")
+    calls = []
+    saved = {
+        "evaluate": L.evaluate,
+        "source_digest": L.source_digest,
+        "read_binding": reservation.read_binding,
+        "acquire_claim": campaign_claim.acquire_claim,
+    }
+    L.reservation.read_binding = (
+        lambda *args, **kwargs: calls.append("read_binding") or
+        saved["read_binding"](*args, **kwargs)
+    )
+    L.campaign_claim.acquire_claim = (
+        lambda *args, **kwargs: calls.append("acquire_claim") or
+        saved["acquire_claim"](*args, **kwargs)
+    )
+
+    def fake_eval(genome, *args, **kwargs):
+        return EvalResult(
+            genome=genome, variant=pipeline.variant_id(genome, kwargs["src_token"]),
+            certified=True, aborted=False,
+        )
+
+    L.evaluate = fake_eval
+    L.source_digest = _sd_mock("stock")
+    base = Path(_tmpdir("izanagi_loop_linux_baremetal_positive_"))
+    cfg = CampaignConfig(
+        spec_slug="t", search_tag="enum", spec_content="linux-positive-control",
+        ccbench_commit="deadbeef",
+    )
+    try:
+        with _campaign_reservation_environment(False):
+            summary = L.run_campaign(
+                cfg, [Genome("silo", {"BACK_OFF": 1})],
+                PerfConfig(records=1, threads=1), contract.env_tag,
+                contract.clocks_per_us, numactl=contract.numactl,
+                do_bench=False, output_root=str(base), log=lambda *a: None,
+                env_contract=contract, authorization_contract=ec.authorize(contract.env_tag),
+                build_context=_BUILD_CONTEXT, declared_use_class="official",
+            )
+    finally:
+        L.evaluate = saved["evaluate"]
+        L.source_digest = saved["source_digest"]
+        L.reservation.read_binding = saved["read_binding"]
+        L.campaign_claim.acquire_claim = saved["acquire_claim"]
+    assert summary.committed == 1 and summary.aborted == 0
+    assert calls == []
 
 
 # ===== STAGE2: campaign ループの堅牢性 (例外隔離 / run 内 dedup) =====

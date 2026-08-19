@@ -221,7 +221,7 @@ def _campaign_slug(campaign_id: str) -> str:
 
 def campaign_layout(campaign_id: str, output_root: str = "") -> CampaignLayout:
     cid = _campaign_slug(campaign_id)
-    root = output_root or repo_output_root()
+    root = resolve_campaign_output_root("official", output_root)
     return CampaignLayout(root=os.path.join(root, "campaigns", cid))
 
 
@@ -354,6 +354,17 @@ def _resolve_exploration_output_root(
         return value
 
 
+def resolve_campaign_output_root(
+        declared_use_class: str, output_root: str = "",
+) -> str:
+    """Resolve the output base used by the campaign and its environment scope."""
+    if declared_use_class == "official":
+        return output_root or repo_output_root()
+    if declared_use_class == "exploration":
+        return _resolve_exploration_output_root(output_root)
+    raise ValueError(f"unsupported declared_use_class: {declared_use_class!r}")
+
+
 def _reject_worktree_container(path: os.PathLike[str] | str) -> None:
     """Reject materialization below a Claude/Codex worktree container."""
     try:
@@ -481,7 +492,7 @@ def exploration_campaign_layout(
 ) -> ExplorationCampaignLayout:
     """探索 layout を明示 root > env base root > repo 既定の順で構築する。"""
     cid = _campaign_slug(campaign_id)
-    root = _resolve_exploration_output_root(output_root)
+    root = resolve_campaign_output_root("exploration", output_root)
     return ExplorationCampaignLayout(
         root=os.path.join(root, "exploration", "campaigns", cid),
     )
