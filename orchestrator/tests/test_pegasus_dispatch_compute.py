@@ -3515,6 +3515,29 @@ def test_run_tests_default_dispatch_passes_tests_task(monkeypatch):
     assert seen["kwargs"]["task"] in DC.TASKS
     assert Path(seen["kwargs"]["repo_root"]).resolve() == _REPO.resolve()
     assert seen["kwargs"]["environ"] == {"PATH": "/usr/bin"}
+    assert "walltime" not in seen["kwargs"]
+
+
+def test_run_tests_default_dispatch_passes_walltime_override(monkeypatch):
+    from tools import run_tests
+
+    seen: dict = {}
+
+    def fake_dispatch(args, **kwargs):
+        seen["args"] = list(args)
+        seen["kwargs"] = kwargs
+        return 5
+
+    monkeypatch.setattr(DC, "dispatch", fake_dispatch)
+    rc = run_tests._default_dispatch(
+        ["-q"],
+        environ={
+            "PATH": "/usr/bin",
+            "IZANAGI_DISPATCH_WALLTIME_OVERRIDE": "00:02:00",
+        },
+    )
+    assert rc == 5
+    assert seen["kwargs"]["walltime"] == "00:02:00"
 
 
 def test_dev_wave_check_maps_dispatch_infra_rc_off_provenance_reason(tmp_path):

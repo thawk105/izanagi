@@ -68,6 +68,7 @@ _TASK_RUN_SIDECAR_ENV = "IZANAGI_TASK_RUN_SIDECAR"
 _TASK_RUN_AUTO_RECORD_ENV = "IZANAGI_TASK_RUN_AUTO_RECORD"
 _TEST_TRIGGER_ENV = "IZANAGI_TEST_TRIGGER"
 _RUN_GROWTH_HELD_TESTS_ENV = "IZANAGI_RUN_GROWTH_HELD_TESTS"
+_DISPATCH_WALLTIME_OVERRIDE_ENV = "IZANAGI_DISPATCH_WALLTIME_OVERRIDE"
 _RUN_GROWTH_HELD_TESTS_TOKEN = "explicit-user-command"
 _TRIGGERS = frozenset({
     "baseline", "after-change", "after-failure", "final", "review-fix",
@@ -1138,14 +1139,18 @@ def _dispatch_environment(
 def _default_dispatch(
     args: Sequence[str], *, environ: dict[str, str],
 ) -> int:
+    """テスト用に dispatch の walltime を環境変数で短縮できる。"""
     from tools.pegasus import dispatch_compute
 
-    result = dispatch_compute.dispatch(
-        args,
-        task="tests",
-        repo_root=Path(_REPO),
-        environ=environ,
-    )
+    dispatch_kwargs = {
+        "task": "tests",
+        "repo_root": Path(_REPO),
+        "environ": environ,
+    }
+    walltime = environ.get(_DISPATCH_WALLTIME_OVERRIDE_ENV)
+    if walltime:
+        dispatch_kwargs["walltime"] = walltime
+    result = dispatch_compute.dispatch(args, **dispatch_kwargs)
     return result
 
 
