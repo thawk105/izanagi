@@ -420,10 +420,12 @@ output/calibration-freeze-authority/
   approvals/                           # 上位承認 A
   active/                              # 上位 pointer X
   revocations/                         # 上位失効 R
+  cancellations/                       # 上位取消 C
 ```
 
 file 名は原則としてその record 自身の raw sha256 (`<64hex>.json`)。候補 record だけ §6.1 の形、
-失効 record だけ**対象束の `bundle_digest`** を stem とする (§S2-1.10 と同型。R1 裁定)。
+失効 record だけ**対象束の `bundle_digest`**、取消 record だけ**対象 pointer の
+`pointer_raw_sha256`** を stem とする (それぞれ §S2-1.10 / §S2-1.11 と同型。R1 / R4 裁定)。
 
 **上位承認 A** — `approvals/<raw sha256>.json`、top-level exact 7 key。
 
@@ -501,10 +503,50 @@ record bytes が下位と交換可能であるという主張ではない。**
   「上位 X が一度も成立していない HEAD」に限る。
 - したがって失効は「解決不能」を**下位が肩代わりできない状態**として設計する。失効後に
   上位が承認していない環境と凍結の直積が再生成される経路 (段 3 レンズ A が構成) はこれで閉じる。
-- **上位の fork 敗者をどう扱うかは、本書が定めない。** R1 が答えたのは失効 record についてであり、
-  下位 §S2-1.11 の fork cancellation に相当する扱いは未裁定である (§12.3 R4)。
-  **上位が専用の cancellation record を持つかどうか自体が未裁定であり**、持つ場合の置き場・
-  粒度も決まっていない。裁定前に選ぶことは「決めない」の隠れた解除である。
+- **上位の fork 敗者は、下記の上位取消 record C で扱う (R4 裁定 = (a))。** R1 が答えたのは失効
+  record についてであり、cancellation は範囲外だった。下位 §S2-1.11 が既に同じ問題を fork
+  cancellation で解いており、上位だけ別解にする理由が無いため、下位と同型を 1 層上へ写す。
+
+**上位取消 record C** — `cancellations/<pointer_raw_sha256>.json`、取消対象 pointer あたり
+0/1 件、top-level exact 6 key。
+
+| key | 型・制約 |
+|---|---|
+| `schema_version` | 逐語 `calibration-freeze-authority-cancellation/v1` |
+| `pointer_raw_sha256` | 64 lower-hex。取消対象 (敗者側の上位 pointer X 自身) の raw bytes の sha256 および `active/<raw sha256>.json` の file 名 stem と一致 |
+| `cancelled_by` | NFC、trim 済み、1〜128 code point |
+| `cancelled_at` | exact int の UTC 秒。`bool` を int として受理しない |
+| `scope` | 逐語 `fork-loser-only` |
+| `reason` | 非空 string |
+
+**この 6 key の形と下記の有効条件は、下位 exact 正本 `docs/freeze-permanent-design-s2.md`
+§S2-1.11 の写しである** (R4 裁定 = 下位と同じ形を 1 層上へ写す)。key 名の対応は
+`pointer_sha256` → `pointer_raw_sha256` の 1 件だけが異なり、他の 5 key 名は一致する。
+
+ただし field の表現は、下位の逐語ではなく上位層自身の慣習に従う (revocation と同じ層差)。
+
+- `cancelled_at` は **exact int の UTC 秒**である。下位 §S2-1.1 は UTC を文字列
+  `YYYY-MM-DDTHH:MM:SSZ` と定めるが、上位の承認 A は `approved_at` を、失効 R は `revoked_at` を
+  既に exact int の UTC 秒として持っており、取消だけ文字列にすると上位層の中で表現が割れる。
+- `cancelled_by` の制約 (NFC、trim 済み、1〜128 code point) は、上位の `approver` / `revoked_by`
+  へ課している制約と同一である。
+- `reason` の非空制約は上位の追加である (下位は `reason` の中身を制約しない)。
+
+有効条件 (§S2-1.11 の 8 箇条を上位語彙へ写す)。
+
+- target は genesis (`parent_active_pointer_raw_sha256` が `null`) でなく、child を持たない
+  leaf の上位 pointer X。
+- CX の唯一 parent tree (`CX^`) で、同じ `parent_active_pointer_raw_sha256` を持つ uncancelled
+  child pointer 集合を再構築し、その集合が exact `{target, selected_survivor}` の 2 件である。
+  両者は同じ権限束世代の leaf。
+- `CX^` と CX は target 導入 commit および selected survivor 導入 commit の双方の後裔である。
+  どちらか一方しか履歴に含まない branch 上の先行 cancellation を拒否する。
+- cancellation 適用後の surviving child が `selected_survivor` ちょうど 1 件。
+- target 導入 commit が survivor 導入 commit の祖先なら取消を拒否する。
+- 唯一の live tip、権限束世代を下げる取消、genesis 取消を拒否する。
+- record の**変更・削除・rename・再追加を拒否する** (§11.1 `CFAB-11.1-01` と同型の履歴不変)。
+- CX 後に同 parent の別 sibling が導入された場合、その sibling は CX 時点の fork 集合に
+  含まれないため CX で取消済みとは扱わず、通常の fork/unique-tip 検査で拒否する。
 
 ---
 
@@ -830,7 +872,8 @@ row ID = `CFAB-11.2-01`。
 
 ## 12. 裁定の状態
 
-### 12.1 確定済み (ユーザー裁定 2026-08-10 = worklog 376、2026-08-11 = 同 403 と 415)
+### 12.1 確定済み (ユーザー裁定 2026-08-10 = worklog 376、2026-08-11 = 同 403 と 415、
+2026-08-12 = 同 451)
 
 規則の本文は正本節にだけ置く。本表は索引と `selection` literal だけを持つ。
 
@@ -848,6 +891,7 @@ row ID = `CFAB-11.2-01`。
 | R1 | **(a)** 失効 record は `revocations/<bundle_digest>.json`、exact 7 key、束当たり 0/1 件、時刻は UTC 秒 int。下位 §S2-1.10 への conformance | — (gate `CFAB-R1-REVOCATION-RECORD`) | §7.5 |
 | R2 | **(b)** 段 0 の完了は先送り確定 S・B の裁定後まで待つ。applicability は広げない | — (gate `CFAB-R2-STAGE0-COMPLETION`) | §10.2 |
 | R3 | **分割**。段 6 を構造部分と policy 依存部分へ分け、構造部分だけを段 0 で固定する | — (gate `CFAB-R3-STAGE6-PREDICATE`) | §10 の段 6 行 |
+| R4 | **(a)** 上位取消 record C は `cancellations/<pointer_raw_sha256>.json`、exact 6 key。下位 §S2-1.11 と同型を 1 層上へ写す | — (gate `CFAB-R4-CANCELLATION-RECORD`) | §7.5 |
 
 ### 12.2 先送り (ユーザー確定済み。本設計では決めない)
 
@@ -859,24 +903,9 @@ row ID = `CFAB-11.2-01`。
 ### 12.3 残るユーザー裁定 (親が決めない)
 
 2026-08-11 の裁定 (worklog 403) で U-A1・Q3 の残部・§8/§10 矛盾が閉じ、同 415 の裁定で
-その実施 wave が残した R1 / R2 / R3 も閉じた。3 件は §12.1 へ移し、規則本文はそれぞれ
-§7.5 (R1) / §10.2 (R2) / §10 の段 6 行 (R3) へ畳み込んだ。**その実施 wave が次の 1 件を新たに残した。**
-
-- **R4. 上位の fork 敗者をどう扱うか。** 下位 §S2-1.11 は fork cancellation を
-  `active-cancellations/<pointer_sha256>.json`・exact 6 fields で定めている。上位 pointer X も
-  fork しうるため、**その敗者の扱いを決める必要がある**。R1 が裁定したのは**失効 record** で
-  あり、cancellation は範囲外だった。**上位が専用 record を持つべきかどうかを含めて未裁定である。**
-  候補は
-  (a) 下位 §S2-1.11 と同型を 1 層上へ写す /
-  (b) 上位では cancellation を持たず、fork の回復も補償世代 (Q3 (i)) だけで行うと明示禁止する /
-  (c) 先送り確定項目として §12.2 へ移し、S / B と同じ扱いにする。
-  **親の推奨は (a)。** Q3 (i) の補償世代は「祖先へ戻さず前進する」規則であって、
-  **同一世代内で 2 本目の X が置かれた fork の敗者を無効化する手段ではない** — (b) では
-  fork 敗者が解決不能のまま残り、§7.2 の「live tip を一意に解決する」義務と衝突する。
-  また下位が既に同じ問題を fork cancellation で解いており、上位だけ別解にする理由が無い。
-  (c) は「決めなくても段 0 が閉じない」点で (a) と同じ効果を持つが、cancellation は
-  封印 S・副作用境界 B に依存しないため先送り箱へ入れる理由が無い。
-  gate = `CFAB-R4-CANCELLATION-RECORD` (owner = `user`, status = `unresolved`)。
+その実施 wave が残した R1 / R2 / R3 も閉じた。同実施 wave が新たに残した R4 も、
+2026-08-12 の裁定 (worklog 451、選択肢 (a)) で閉じた。4 件は §12.1 へ移し、規則本文はそれぞれ
+§7.5 (R1) / §10.2 (R2) / §10 の段 6 行 (R3) / §7.5 (R4) へ畳み込んだ。**残るユーザー裁定は 0 件である。**
 
 **段 0 が完了しない理由は 3 つの軸に分かれる。** §10.2 の機械算出はこれらを別々に数える。
 
@@ -884,7 +913,7 @@ row ID = `CFAB-11.2-01`。
 |---|---|---|
 | fixture manifest の `pending` | 5 | 実行可能な入力をまだ構築していない行 (段 1 以降の手番) |
 | applicable な `unresolved` 裁定 | 2 | §12.2 の先送り確定 `CFAB-S-SEAL` と `CFAB-B-SIDE-EFFECT` (R2 = (b) により段 0 の完了はこの 2 件の裁定を待つ) |
-| blocking な `required_gates` | 5 | `CFAB-R4-CANCELLATION-RECORD` / `CFAB-STAGE6-POLICY-PREDICATE` / `CFAB-STAGES1-4-AND6-8-FIXTURE-ASSIGNMENT` / `FREEZE-AX-TOPOLOGY` / `FREEZE-CONFORMANCE-LITERAL` |
+| blocking な `required_gates` | 4 | `CFAB-STAGE6-POLICY-PREDICATE` / `CFAB-STAGES1-4-AND6-8-FIXTURE-ASSIGNMENT` / `FREEZE-AX-TOPOLOGY` / `FREEZE-CONFORMANCE-LITERAL` |
 
 **この 3 軸は互いに素ではあるが、同じ項目を数えない。** S と B は 2 本目にだけ現れ、
 blocking gate には現れない。3 本のどれか 1 つを解消しても段 0 は閉じない。
