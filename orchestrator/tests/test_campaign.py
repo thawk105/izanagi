@@ -10364,7 +10364,7 @@ def test_edit_surface_constants_exact_relationship():
     template 専有) で機械検査し、片側だけの拡張 (ドリフト) をここで止める。"""
     # literal pin (対向 mask): tuple の順序は digest pre-image の一部 (parts 連結順)
     assert source_digest.EVOLVE_BLOCK_SOURCES == (
-        "include/backoff.hh", "cc/silo/transaction.cc"), \
+        "include/backoff.hh", "cc/silo/transaction.cc", "cc/mocc/transaction.cc"), \
         "EVOLVE_BLOCK_SOURCES の値/順序が変わった。意図的なら本 pin と全 consumer " \
         "(ALLOWLIST/guard_write/s6 freshness/凍結面) を明示更新する"
     assert source_digest.OPTIONS_CMAKE == "cmake/Options.cmake"
@@ -10461,7 +10461,8 @@ def test_evolve_block_markers_structure_and_inert():
 # ===== STAGE3 (Phase 3 kickoff blocking): #include 死角 / TOCTOU 再照合 / apply-revert =====
 #
 # 実 submodule を汚さず identity 系の実験を行うため、tmpdir に最小の偽 ccbench repo
-# (git + Options.cmake + backoff.hh) を作る。EVOLVE_BLOCK_SOURCES と同じ相対パスを使う。
+# (git + Options.cmake + backoff.hh + silo/mocc transaction.cc) を作る。
+# EVOLVE_BLOCK_SOURCES と同じ相対パスを使う。
 
 _FAKE_BACKOFF_HH = (
     '#include "tsc.hh"\n'
@@ -10486,6 +10487,9 @@ _FAKE_TRANSACTION_CC = (
     "  void lockWriteSet() {}\n"
     "  void writePhase() {}\n"
     "};\n")
+
+# T-755 の trace-hook 専用 mocc 編集面。実ソースの条件マクロに依存しない最小 TU。
+_FAKE_MOCC_TRANSACTION_CC = "int mocc_transaction_fixture = 0;\n"
 
 
 # 実 CMake の構造 (cmake/Options.cmake の供給表 + cc/<protocol>/CMakeLists.txt の OPTIONS) を
@@ -10516,6 +10520,7 @@ def _fake_ccbench_repo():
     os.makedirs(os.path.join(sub, "cmake"))
     os.makedirs(os.path.join(sub, "include"))
     os.makedirs(os.path.join(sub, "cc", "silo"))
+    os.makedirs(os.path.join(sub, "cc", "mocc"))
     with open(os.path.join(sub, "cmake", "Options.cmake"), "w", encoding="utf-8") as f:
         f.write(_FAKE_OPTIONS_CMAKE)
     with open(os.path.join(sub, "cc", "silo", "CMakeLists.txt"), "w", encoding="utf-8") as f:
@@ -10524,6 +10529,8 @@ def _fake_ccbench_repo():
         f.write(_FAKE_BACKOFF_HH)
     with open(os.path.join(sub, "cc", "silo", "transaction.cc"), "w", encoding="utf-8") as f:
         f.write(_FAKE_TRANSACTION_CC)
+    with open(os.path.join(sub, "cc", "mocc", "transaction.cc"), "w", encoding="utf-8") as f:
+        f.write(_FAKE_MOCC_TRANSACTION_CC)
 
     def git(*args):
         r = subprocess.run(["git", "-C", sub, *args], capture_output=True, text=True)

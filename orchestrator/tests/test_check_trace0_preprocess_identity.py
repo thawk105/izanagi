@@ -16,7 +16,9 @@ import pytest
 _ROOT = Path(__file__).resolve().parents[2]
 _CHECKER = _ROOT / "tools/check_trace0_preprocess_identity.py"
 _SOURCE = Path("cc/silo/transaction.cc")
+_MOCC_SOURCE = Path("cc/mocc/transaction.cc")
 _EXTRA_SOURCE = Path("cc/silo/extra.cpp")
+_MOCC_TRACE_INCLUDE = '#include "../../include/trace.hh"'
 _GUARANTEE = (
     "選定した macro context における TRACE=0 正規化 preprocess 出力の同一性、"
     "および include 活性の同一性"
@@ -92,6 +94,9 @@ def _base_repo(tmp_path: Path, source: str = _OLD_SOURCE, *, source_rel: Path = 
     _git(repo, "config", "user.email", "izanagi-test@example.invalid")
     _write(repo, "cmake/Options.cmake", _OPTIONS)
     _write(repo, "cc/silo/CMakeLists.txt", "# synthetic protocol file\n")
+    protocol_cmake = source_rel.parent / "CMakeLists.txt"
+    if protocol_cmake != Path("cc/silo/CMakeLists.txt"):
+        _write(repo, protocol_cmake, "# synthetic protocol file\n")
     _write(repo, source_rel, source)
     return repo, _commit(repo, "old")
 
@@ -102,6 +107,17 @@ def _modified_pair(tmp_path: Path, new_source: str, *, old_source: str = _OLD_SO
     new = _commit(repo, "new")
     _git(repo, "checkout", "-q", "--detach", old)
     assert (repo / _SOURCE).read_text(encoding="utf-8") == old_source
+    return _Pair(repo, old, new)
+
+
+def _mocc_modified_pair(
+    tmp_path: Path, new_source: str, *, old_source: str = _OLD_SOURCE
+) -> _Pair:
+    repo, old = _base_repo(tmp_path, old_source, source_rel=_MOCC_SOURCE)
+    _write(repo, _MOCC_SOURCE, new_source)
+    new = _commit(repo, "new")
+    _git(repo, "checkout", "-q", "--detach", old)
+    assert (repo / _MOCC_SOURCE).read_text(encoding="utf-8") == old_source
     return _Pair(repo, old, new)
 
 
@@ -216,6 +232,38 @@ def test_trace_only_change_passes_with_deterministic_required_evidence(tmp_path:
 def test_trace_output_outside_trace_branch_is_rejected(tmp_path: Path) -> None:
     pair = _modified_pair(tmp_path, _OLD_SOURCE + "int leaked_trace_output = 1;\n")
     _assert_rejected(_run(pair), "TRACE=0 正規化 preprocess 出力が不一致")
+
+
+def test_mocc_trace_include_addition_passes_with_expected_path(tmp_path: Path) -> None:
+    new = _OLD_SOURCE.replace("#if TRACE\n", f"#if TRACE\n{_MOCC_TRACE_INCLUDE}\n", 1)
+    pair = _mocc_modified_pair(tmp_path, new)
+    result = _run(pair, expect_paths=[_MOCC_SOURCE.as_posix()])
+    assert result.returncode == 0, result.stderr
+    report = json.loads(result.stdout)
+    assert report["expected_paths"] == [_MOCC_SOURCE.as_posix()]
+    assert report["files"][0]["path"] == _MOCC_SOURCE.as_posix()
+    assert report["files"][0]["include_line_count"] == 1
+
+
+def test_trace_include_addition_is_rejected_for_non_mocc_path(tmp_path: Path) -> None:
+    new = _OLD_SOURCE.replace("#if TRACE\n", f"#if TRACE\n{_MOCC_TRACE_INCLUDE}\n", 1)
+    pair = _modified_pair(tmp_path, new)
+    _assert_rejected(_run(pair), "include 行文字列（順序込み）が不一致")
+
+
+def test_mocc_trace_include_without_trace_guard_is_rejected(tmp_path: Path) -> None:
+    pair = _mocc_modified_pair(tmp_path, f"{_MOCC_TRACE_INCLUDE}\n{_OLD_SOURCE}")
+    _assert_rejected(_run(pair), "include 行文字列（順序込み）が不一致")
+
+
+def test_mocc_trace_include_addition_cannot_hide_another_include(tmp_path: Path) -> None:
+    new = _OLD_SOURCE.replace(
+        "#if TRACE\n",
+        f"#if TRACE\n#include \"other.hh\"\n{_MOCC_TRACE_INCLUDE}\n",
+        1,
+    )
+    pair = _mocc_modified_pair(tmp_path, new)
+    _assert_rejected(_run(pair), "include 行文字列（順序込み）が不一致")
 
 
 def test_ifdef_trace_is_rejected_when_trace_is_explicitly_zero(tmp_path: Path) -> None:
