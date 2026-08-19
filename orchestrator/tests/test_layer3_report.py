@@ -1823,6 +1823,35 @@ def test_existing_output_fails_closed(tmp_path):
         layer3_report.render(campaign, out, generated_from_head="fixed", output_root=output_root)
 
 
+def test_write_report_atomic_converts_existing_output_link_collision(
+    tmp_path: Path,
+) -> None:
+    out = tmp_path / "already-exists.json"
+    original = b"already here\n"
+    out.write_bytes(original)
+
+    with pytest.raises(layer3_report.Layer3ReportError) as exc_info:
+        layer3_report._write_report_atomic(out, {"kind": "collision"})
+
+    assert str(exc_info.value) == f"出力先が既に存在する: {out}"
+    assert out.read_bytes() == original
+
+
+def test_write_report_atomic_rejects_missing_parent_directory(
+    tmp_path: Path,
+) -> None:
+    out = tmp_path / "missing-parent" / "report.json"
+
+    with pytest.raises(layer3_report.Layer3ReportError) as exc_info:
+        layer3_report._write_report_atomic(out, {"kind": "missing-parent"})
+
+    assert str(exc_info.value) == (
+        f"出力先 parent directory が存在しない: {out.parent}"
+    )
+    assert not out.exists()
+    assert not out.parent.exists()
+
+
 def test_render_accepted_existing_output_fails_before_builder(
     tmp_path: Path, monkeypatch,
 ) -> None:
