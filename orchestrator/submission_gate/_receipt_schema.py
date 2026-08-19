@@ -16,7 +16,7 @@ from typing import Any
 
 from orchestrator.preregistration.blobref import BlobRef, read_pinned_blob
 
-from ._receipt_io import parse_receipt_bytes
+from ._receipt_io import _freeze_json_value, parse_receipt_bytes
 
 
 class ReceiptSchemaError(RuntimeError):
@@ -38,11 +38,22 @@ class ReceiptSchema:
             raise TypeError("ReceiptSchema.sha256 must be a built-in str")
         if not isinstance(self.document, Mapping):
             raise TypeError("ReceiptSchema.document must be a mapping")
+        object.__setattr__(self, "document", _freeze_json_value(self.document))
         if not hmac.compare_digest(self.sha256, self.ref.sha256):
             raise ValueError("ReceiptSchema.sha256 must match ref.sha256")
 
 
-def parse_schema_bytes(
+def _thaw_json_value(value: object) -> Any:
+    if isinstance(value, Mapping):
+        return {key: _thaw_json_value(child) for key, child in value.items()}
+    if isinstance(value, tuple):
+        return [_thaw_json_value(child) for child in value]
+    if isinstance(value, frozenset):
+        return [_thaw_json_value(child) for child in value]
+    return value
+
+
+def _parse_schema_bytes(
     raw_bytes: bytes,
     *,
     ref: BlobRef,
@@ -65,7 +76,7 @@ def parse_schema_bytes(
     except ImportError as exc:
         raise ReceiptSchemaError("jsonschema is required for receipt schemas") from exc
     try:
-        Draft7Validator.check_schema(dict(document.value))
+        Draft7Validator.check_schema(_thaw_json_value(document.value))
     except Exception as exc:  # jsonschema.SchemaError is version-specific
         raise ReceiptSchemaError(f"receipt schema is not a valid Draft-07 schema: {exc}") from exc
     return ReceiptSchema(
@@ -90,7 +101,7 @@ def _load_schema_from_ref(
     if type(ref) is not BlobRef:
         raise TypeError("ref must be a BlobRef")
     raw_bytes = read_pinned_blob(repository_root, ref)
-    return parse_schema_bytes(raw_bytes, ref=ref)
+    return _parse_schema_bytes(raw_bytes, ref=ref)
 
 
 def load_schema(
@@ -101,41 +112,35 @@ def load_schema(
     """Load only the schema reference carried by an approved manifest.
 
     ``ref`` is intentionally absent from this signature.  The public-shaped
-    convenience entry accepts the exact internal ``ApprovedManifest`` type
-    from unit 1 and extracts its approved ``receipt_schema`` field; an
+    convenience entry accepts only the sealed internal ``ApprovedManifest``
+    capability from unit 1 and extracts its approved ``receipt_schema`` field; an
     arbitrary caller-originated ``BlobRef`` is not an accepted substitute.
     Unit-2 fixtures that need a fixed reference use the private
     ``_load_schema_from_ref`` helper explicitly.
     """
 
     try:
-        from ._manifest import ApprovedManifest
+        from ._manifest import ApprovedManifest, _is_sealed_approved_manifest
     except ImportError as exc:
         raise ReceiptSchemaError(
             "approved manifest implementation is required to load a schema"
         ) from exc
-    if type(approved_manifest) is not ApprovedManifest:
+    if (
+        type(approved_manifest) is not ApprovedManifest
+        or not _is_sealed_approved_manifest(approved_manifest)
+    ):
         raise ReceiptSchemaError(
-            "load_schema requires the exact approved manifest type"
+            "load_schema requires a sealed approved manifest capability"
         )
+    approved_blobs = approved_manifest.approved_blobs
+    if not isinstance(approved_blobs, Mapping):
+        raise ReceiptSchemaError("approved manifest has no receipt_schema reference")
     try:
-        ref = approved_manifest.receipt_schema
-    except AttributeError:
-        # The unit-1 manifest view may expose the approved role through its
-        # closed ``approved_blobs`` mapping instead of a convenience property.
-        # This fallback is still gated by the exact manifest type above; a
-        # caller cannot substitute an arbitrary mapping or BlobRef.
-        approved_blobs = getattr(approved_manifest, "approved_blobs", None)
-        if not isinstance(approved_blobs, Mapping):
-            raise ReceiptSchemaError(
-                "approved manifest has no receipt_schema reference"
-            )
-        try:
-            ref = approved_blobs["receipt_schema"]
-        except (KeyError, TypeError) as exc:
-            raise ReceiptSchemaError(
-                "approved manifest has no receipt_schema reference"
-            ) from exc
+        ref = approved_blobs["receipt_schema"]
+    except (KeyError, TypeError) as exc:
+        raise ReceiptSchemaError(
+            "approved manifest has no receipt_schema reference"
+        ) from exc
     if type(ref) is not BlobRef:
         raise ReceiptSchemaError(
             "approved manifest receipt_schema is not a BlobRef"
@@ -165,7 +170,7 @@ def validate_receipt_shape(
         raise ReceiptSchemaError("jsonschema is required for receipt schemas") from exc
     try:
         errors = sorted(
-            Draft7Validator(schema.document).iter_errors(receipt),
+            Draft7Validator(_thaw_json_value(schema.document)).iter_errors(receipt),
             key=lambda error: tuple(str(part) for part in error.absolute_path),
         )
     except Exception as exc:
@@ -174,5 +179,6 @@ def validate_receipt_shape(
         first = errors[0]
         path = list(first.absolute_path)
         raise ReceiptSchemaError(
-            f"receipt shape validation failed at {path}: {first.message}"
+            "receipt shape validation failed "
+            f"({first.validator}) at {path}: {first.message}"
         )

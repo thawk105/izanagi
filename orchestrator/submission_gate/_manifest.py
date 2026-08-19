@@ -8,7 +8,7 @@ payload から供給され、manifest blob 自身が自分の commit を申告�
 from __future__ import annotations
 
 from collections.abc import Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 import re
 from types import MappingProxyType
 from typing import Final
@@ -29,6 +29,7 @@ _ERRATUM_ROLE: Final = {
     "t139-core-s15-exactkey-v1": "erratum_t139_core_s15_exactkey_v1",
     "t139-core-s7-stresscheck-v1": "erratum_t139_core_s7_stresscheck_v1",
 }
+_MANIFEST_CAPABILITY_TOKEN: Final = object()
 
 
 class ManifestError(ValueError):
@@ -134,9 +135,9 @@ class PreregistrationRecord:
         object.__setattr__(self, "prereg_commit", _commit(self.prereg_commit, "prereg_commit"))
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, init=False)
 class ApprovedManifest:
-    """D282 approval payload を caller が変更できない view へ写像する。"""
+    """D282 approval payload に束縛された opaque capability。"""
 
     approval_ref: BlobRef
     target_core: BlobRef
@@ -144,6 +145,29 @@ class ApprovedManifest:
     erratum_application_order: tuple[str, ...]
     composed_sha256: str
     prereg_commit: str | None = None
+    _seal: object = field(repr=False, compare=False)
+
+    def __init__(
+        self,
+        *,
+        token: object,
+        approval_ref: BlobRef,
+        target_core: BlobRef,
+        approved_blobs: Mapping[str, BlobRef],
+        erratum_application_order: tuple[str, ...],
+        composed_sha256: str,
+        prereg_commit: str | None = None,
+    ) -> None:
+        if type(self) is not ApprovedManifest or token is not _MANIFEST_CAPABILITY_TOKEN:
+            raise TypeError("ApprovedManifest は内部 token からのみ発行される")
+        object.__setattr__(self, "approval_ref", approval_ref)
+        object.__setattr__(self, "target_core", target_core)
+        object.__setattr__(self, "approved_blobs", approved_blobs)
+        object.__setattr__(self, "erratum_application_order", erratum_application_order)
+        object.__setattr__(self, "composed_sha256", composed_sha256)
+        object.__setattr__(self, "prereg_commit", prereg_commit)
+        object.__setattr__(self, "_seal", token)
+        self.__post_init__()
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "approval_ref", _blob_ref(self.approval_ref, "approval_ref"))
@@ -173,6 +197,13 @@ class ApprovedManifest:
         object.__setattr__(self, "prereg_commit", _commit(anchor, "prereg_commit"))
 
 
+def _is_sealed_approved_manifest(value: object) -> bool:
+    return (
+        type(value) is ApprovedManifest
+        and getattr(value, "_seal", None) is _MANIFEST_CAPABILITY_TOKEN
+    )
+
+
 def _load_approved_manifest(repository_root: str) -> ApprovedManifest:
     """固定した approval payload から承認済み view を構築する。
 
@@ -184,6 +215,7 @@ def _load_approved_manifest(repository_root: str) -> ApprovedManifest:
     payload = load_approval_payload(repository_root)
     explicit_anchor = getattr(payload, "prereg_commit", D282_DECISIONS_REF.commit)
     return ApprovedManifest(
+        token=_MANIFEST_CAPABILITY_TOKEN,
         approval_ref=D282_DECISIONS_REF,
         target_core=payload.target_core,
         approved_blobs=payload.approved_blobs,
@@ -267,7 +299,7 @@ def _require_manifest_matches_approval(
 ) -> None:
     """record が固定 approval view の閉集合と一致することを検査する。"""
 
-    if type(record) is not PreregistrationRecord or type(approved) is not ApprovedManifest:
+    if type(record) is not PreregistrationRecord or not _is_sealed_approved_manifest(approved):
         raise ManifestError("manifest view の型が不正である")
     if record.prereg_commit != approved.prereg_commit:
         raise ManifestError("prereg_commit が approval anchor と一致しない")

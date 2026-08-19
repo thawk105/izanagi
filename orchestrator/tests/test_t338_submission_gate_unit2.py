@@ -23,8 +23,10 @@ def repository_root(tmp_path: Path) -> Path:
     return root
 
 
-def _assert_rejected(callable_object, *args, **kwargs) -> None:
-    with pytest.raises(Exception):
+def _assert_rejected(
+    expected_exception: type[BaseException], callable_object, *args, **kwargs
+) -> None:
+    with pytest.raises(expected_exception):
         callable_object(*args, **kwargs)
 
 
@@ -44,12 +46,14 @@ def test_safe_io_rejects_absolute_traversal_and_empty_components(
     repository_root: Path, relative_path: str
 ):
     _assert_rejected(
+        safe_io.UnsafeRelativePathError,
         safe_io.read_relative_regular_bytes,
         repository_root,
         relative_path,
         max_bytes=1024,
     )
     _assert_rejected(
+        safe_io.UnsafeRelativePathError,
         safe_io.create_only_relative_bytes,
         repository_root,
         relative_path,
@@ -68,12 +72,14 @@ def test_safe_io_rejects_symlinked_parent_and_final_component(
 
     for relative_path in ("parent-link/receipt.json", "final-link"):
         _assert_rejected(
+            safe_io.SafeIOError,
             safe_io.read_relative_regular_bytes,
             repository_root,
             relative_path,
             max_bytes=1024,
         )
         _assert_rejected(
+            safe_io.SafeIOError,
             safe_io.create_only_relative_bytes,
             repository_root,
             relative_path,
@@ -89,6 +95,7 @@ def test_safe_io_rejects_symlinked_repository_root(tmp_path: Path):
     root_link = tmp_path / "root-link"
     root_link.symlink_to(real_root, target_is_directory=True)
     _assert_rejected(
+        safe_io.SafeIOError,
         safe_io.read_relative_regular_bytes,
         root_link,
         "receipt.json",
@@ -98,6 +105,7 @@ def test_safe_io_rejects_symlinked_repository_root(tmp_path: Path):
 
 def test_safe_io_requires_regular_final_target(repository_root: Path):
     _assert_rejected(
+        safe_io.SafeIOError,
         safe_io.read_relative_regular_bytes,
         repository_root,
         "nested",
@@ -105,11 +113,25 @@ def test_safe_io_requires_regular_final_target(repository_root: Path):
     )
     (repository_root / "not-a-directory").write_bytes(b"x")
     _assert_rejected(
+        safe_io.SafeIOError,
         safe_io.read_relative_regular_bytes,
         repository_root,
         "not-a-directory/receipt.json",
         max_bytes=1024,
     )
+
+
+def test_safe_io_rejects_fifo_leaf_without_blocking(repository_root: Path):
+    if not hasattr(os, "mkfifo"):
+        pytest.skip("FIFO is unavailable on this platform")
+    fifo = repository_root / "nested" / "fifo"
+    os.mkfifo(fifo)
+    with pytest.raises(safe_io.SafeIOError):
+        safe_io.read_relative_regular_bytes(
+            repository_root,
+            "nested/fifo",
+            max_bytes=1024,
+        )
 
 
 def test_safe_io_uses_no_follow_and_dir_fd_for_every_component(
@@ -148,6 +170,8 @@ def test_safe_io_uses_no_follow_and_dir_fd_for_every_component(
         ):
             assert not flags & directory_flag
             assert isinstance(dir_fd, int)
+            if path == "receipt.json":
+                assert flags & getattr(os, "O_NONBLOCK")
         else:
             raise AssertionError(f"unexpected open path: {path!r}")
 
@@ -193,12 +217,14 @@ def test_safe_io_fails_closed_when_no_follow_is_unavailable(
 ):
     monkeypatch.delattr(safe_io.os, "O_NOFOLLOW", raising=False)
     _assert_rejected(
+        safe_io.SafeIOError,
         safe_io.read_relative_regular_bytes,
         repository_root,
         "nested/receipt.json",
         max_bytes=1024,
     )
     _assert_rejected(
+        safe_io.SafeIOError,
         safe_io.create_only_relative_bytes,
         repository_root,
         "nested/receipt.json",
@@ -263,7 +289,13 @@ def test_parse_receipt_preserves_noncanonical_but_valid_json_bytes():
     assert document.sha256 == hashlib.sha256(raw).hexdigest()
     assert document.value["nested"]["z"] == 1
     assert document.value["first"] == 2
-    assert raw != json.dumps(document.value, sort_keys=True, separators=(",", ":")).encode()
+    assert raw != json.dumps(
+        json.loads(raw), sort_keys=True, separators=(",", ":")
+    ).encode()
+    with pytest.raises(TypeError):
+        document.value["nested"]["z"] = 99  # type: ignore[index]
+    with pytest.raises(TypeError):
+        document.value["nested"]["a"][0] = False  # type: ignore[index]
 
 
 @pytest.mark.parametrize(
@@ -285,6 +317,23 @@ def test_parse_receipt_rejects_duplicate_keys_at_every_object_level(raw: bytes):
 )
 def test_parse_receipt_rejects_nonfinite_constants(raw: bytes):
     with pytest.raises(receipt_io.ReceiptParseError, match="non-finite"):
+        receipt_io.parse_receipt_bytes(raw)
+
+
+def test_parse_receipt_rejects_nonfinite_exponent() -> None:
+    with pytest.raises(receipt_io.ReceiptParseError, match="non-finite"):
+        receipt_io.parse_receipt_bytes(b'{"x":1e999999}')
+
+
+def test_parse_receipt_converts_giant_integer_value_error() -> None:
+    raw = b'{"x":' + b"9" * 5000 + b"}"
+    with pytest.raises(receipt_io.ReceiptParseError):
+        receipt_io.parse_receipt_bytes(raw)
+
+
+def test_parse_receipt_converts_deep_nesting_recursion_error() -> None:
+    raw = b'{"x":' + b"[" * 2000 + b"0" + b"]" * 2000 + b"}"
+    with pytest.raises(receipt_io.ReceiptParseError):
         receipt_io.parse_receipt_bytes(raw)
 
 
@@ -365,10 +414,15 @@ def test_schema_digest_and_private_loader_use_exact_fixed_blob(
 ):
     raw = json.dumps(_minimal_schema(), separators=(",", ":")).encode("utf-8")
     ref = _blob_ref(raw)
-    parsed = receipt_schema.parse_schema_bytes(raw, ref=ref)
+    parsed = receipt_schema._parse_schema_bytes(raw, ref=ref)
     assert parsed.ref == ref
     assert parsed.sha256 == hashlib.sha256(raw).hexdigest()
     assert parsed.document["$schema"] == "http://json-schema.org/draft-07/schema#"
+    assert not hasattr(receipt_schema, "parse_schema_bytes")
+    with pytest.raises(TypeError):
+        parsed.document["type"] = "array"  # type: ignore[index]
+    with pytest.raises(TypeError):
+        parsed.document["properties"]["new"] = {}  # type: ignore[index]
 
     monkeypatch.setattr(
         receipt_schema,
@@ -380,7 +434,7 @@ def test_schema_digest_and_private_loader_use_exact_fixed_blob(
 
     wrong_ref = _blob_ref(raw, sha256="0" * 64)
     with pytest.raises(receipt_schema.ReceiptSchemaError, match="mismatch"):
-        receipt_schema.parse_schema_bytes(raw, ref=wrong_ref)
+        receipt_schema._parse_schema_bytes(raw, ref=wrong_ref)
 
 
 def test_approved_receipt_schema_fixture_is_draft7_and_keeps_file_record_ref():
@@ -392,7 +446,7 @@ def test_approved_receipt_schema_fixture_is_draft7_and_keeps_file_record_ref():
         / "receipt-schema-v1.json"
     )
     raw = schema_path.read_bytes()
-    schema = receipt_schema.parse_schema_bytes(raw, ref=_blob_ref(raw))
+    schema = receipt_schema._parse_schema_bytes(raw, ref=_blob_ref(raw))
     assert schema.document["$schema"] == "http://json-schema.org/draft-07/schema#"
     file_record = schema.document["definitions"]["fileRecord"]
     assert set(file_record["required"]) == {"path", "size", "sha256"}
@@ -415,11 +469,13 @@ def test_public_schema_loader_does_not_accept_caller_selected_ref():
     assert "approved_manifest" in parameters
     with pytest.raises(TypeError):
         receipt_schema.load_schema(Path("/unused"), ref=_blob_ref(b"{}"))
+    with pytest.raises(receipt_schema.ReceiptSchemaError, match="sealed"):
+        receipt_schema.load_schema(Path("/unused"), approved_manifest=object())
 
 
 def test_validate_receipt_shape_checks_draft7_top_level_required_key():
     raw = json.dumps(_minimal_schema(), separators=(",", ":")).encode("utf-8")
-    schema = receipt_schema.parse_schema_bytes(raw, ref=_blob_ref(raw))
+    schema = receipt_schema._parse_schema_bytes(raw, ref=_blob_ref(raw))
     valid = {
         "schema_version": "unit2/v1",
         "compile_commands": {
@@ -437,7 +493,9 @@ def test_validate_receipt_shape_checks_draft7_top_level_required_key():
         receipt_schema.validate_receipt_shape(missing, schema=schema)
 
     extra = {**valid, "unexpected": True}
-    with pytest.raises(receipt_schema.ReceiptSchemaError, match="additional"):
+    with pytest.raises(
+        receipt_schema.ReceiptSchemaError, match="additionalProperties"
+    ):
         receipt_schema.validate_receipt_shape(extra, schema=schema)
 
 
@@ -462,7 +520,7 @@ def test_compile_commands_preserves_file_record_shape_and_rejects_bad_values(
     compile_commands: dict[str, object]
 ):
     raw = json.dumps(_minimal_schema(), separators=(",", ":")).encode("utf-8")
-    schema = receipt_schema.parse_schema_bytes(raw, ref=_blob_ref(raw))
+    schema = receipt_schema._parse_schema_bytes(raw, ref=_blob_ref(raw))
     receipt = {
         "schema_version": "unit2/v1",
         "compile_commands": compile_commands,

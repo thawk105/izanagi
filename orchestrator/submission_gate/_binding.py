@@ -188,6 +188,19 @@ class _PreregBinding:
             path=self.record.core.path,
             expected_sha256=self.record.core.sha256,
         )
+        read_commit_blob(
+            root,
+            commit=self.prereg_content_commit,
+            path=self.record.addendum_a.path,
+            expected_sha256=self.record.addendum_a.sha256,
+        )
+        if self.record.addendum_b is not None:
+            read_commit_blob(
+                root,
+                commit=self.prereg_content_commit,
+                path=self.record.addendum_b.path,
+                expected_sha256=self.record.addendum_b.sha256,
+            )
         require_exact_parent(
             root,
             content_commit=self.prereg_content_commit,

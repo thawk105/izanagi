@@ -11,6 +11,7 @@ import hashlib
 import os
 from pathlib import Path, PurePosixPath
 import re
+import stat
 import subprocess
 import tempfile
 from typing import Final
@@ -108,25 +109,29 @@ def _git(
     if type(max_output_bytes) is not int or max_output_bytes < 0:
         raise GitSupportError("Git output 上限が不正である")
     try:
-        with tempfile.TemporaryFile() as stdout:
+        with tempfile.TemporaryFile() as stdout, tempfile.TemporaryFile() as stderr:
             completed = subprocess.run(
                 [executable, *_GIT_HARDEN, "--no-replace-objects", *arguments],
                 cwd=root,
                 env=_git_env(),
                 stdout=stdout,
-                stderr=subprocess.PIPE,
+                stderr=stderr,
                 check=False,
                 timeout=_git_timeout_seconds(work_bytes),
             )
-            output_size = stdout.tell()
-            if output_size > max_output_bytes:
+            stdout_size = stdout.tell()
+            stderr_size = stderr.tell()
+            if stdout_size > max_output_bytes:
                 raise GitSupportError("Git output が size 上限を超える")
+            if stderr_size > max_output_bytes:
+                raise GitSupportError("Git stderr output が size 上限を超える")
             stdout.seek(0)
+            stderr.seek(0)
             return subprocess.CompletedProcess(
                 completed.args,
                 completed.returncode,
                 stdout.read(),
-                completed.stderr,
+                stderr.read(),
             )
     except GitSupportError:
         raise
@@ -197,14 +202,21 @@ def _require_no_alternates_or_promisor(root: Path) -> None:
 
     pack_path = objects_path / "pack"
     try:
-        with os.scandir(pack_path) as entries:
-            has_promisor_marker = any(
-                entry.name.endswith(".promisor") for entry in entries
-            )
+        pack_stat = pack_path.lstat()
     except FileNotFoundError:
         has_promisor_marker = False
     except OSError as exc:
-        raise GitSupportError("promisor object の状態を検査できない") from exc
+        raise GitSupportError("Git pack directory の状態を検査できない") from exc
+    else:
+        if stat.S_ISLNK(pack_stat.st_mode) or not stat.S_ISDIR(pack_stat.st_mode):
+            raise GitSupportError("Git pack directory が安全でない")
+        try:
+            with os.scandir(pack_path) as entries:
+                has_promisor_marker = any(
+                    entry.name.endswith(".promisor") for entry in entries
+                )
+        except OSError as exc:
+            raise GitSupportError("promisor object の状態を検査できない") from exc
     if has_promisor_marker:
         raise GitSupportError("promisor object を持つ repository は受理しない")
 

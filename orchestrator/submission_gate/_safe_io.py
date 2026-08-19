@@ -145,6 +145,13 @@ def _open_parent_directory(
 
 
 def _open_regular_target(parent_fd: int, leaf: str, flags: int) -> int:
+    nonblock = getattr(os, "O_NONBLOCK", None)
+    if type(nonblock) is not int or nonblock == 0:
+        raise SafeIOError(
+            errno.ENOTSUP,
+            "O_NONBLOCK is unavailable; refusing relative target I/O",
+        )
+    flags |= nonblock
     try:
         descriptor = os.open(leaf, flags, dir_fd=parent_fd)
     except OSError as exc:

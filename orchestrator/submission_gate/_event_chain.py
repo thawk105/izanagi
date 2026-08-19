@@ -1,8 +1,12 @@
-"""最小の連番 hash-chain primitive。
+"""最小の連番 hash-chain primitive と単位間 handoff 契約。
 
 この module は attempt の series FSM、retry 制限、qualification lineage、親系列 ID、
-anomaly 判定を実装しない。将来の単位4がこの primitive と durable sink を組み合わせて
-authority を構築する。
+anomaly 判定を実装しない。単位3 semantic validator は ``ChainEvent`` から
+event index・previous hash・event hash・payload の構造的整合性だけを期待してよく、
+親系列 ID の意味論や retry 判定をこの型から導出してはならない。単位5 writer は
+``append_event`` が作った canonical bytes を create-only sink へ渡す境界だけを期待してよく、
+sink の永続性・認可・tamper-evidence・attempt authority は別途検査する。
+将来の単位4がこの primitive と durable sink を組み合わせて authority を構築する。
 """
 
 from __future__ import annotations
@@ -29,6 +33,8 @@ class EventChainError(ValueError):
 
 @dataclass(frozen=True, slots=True)
 class ChainEvent:
+    """hash 鎖の構造的整合性だけを表す replay 結果。意味論は保持しない。"""
+
     event_index: int
     previous_event_sha256: str
     event_type: str

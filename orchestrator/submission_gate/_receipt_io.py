@@ -10,8 +10,10 @@ from __future__ import annotations
 from dataclasses import dataclass
 import hashlib
 import json
+import math
 from collections.abc import Mapping
 from os import PathLike
+from types import MappingProxyType
 from typing import Any
 
 from ._safe_io import create_only_relative_bytes, read_relative_regular_bytes
@@ -40,6 +42,33 @@ def _reject_constant(token: str) -> None:
     raise ReceiptParseError(f"non-finite JSON number is forbidden: {token}")
 
 
+def _reject_nonfinite(value: object) -> None:
+    if isinstance(value, float) and not math.isfinite(value):
+        raise ReceiptParseError("non-finite JSON number is forbidden")
+    if isinstance(value, Mapping):
+        for child in value.values():
+            _reject_nonfinite(child)
+    elif isinstance(value, (list, tuple)):
+        for child in value:
+            _reject_nonfinite(child)
+
+
+def _freeze_json_value(value: object) -> Any:
+    """Recursively remove mutable containers from parsed JSON values."""
+
+    if isinstance(value, Mapping):
+        return MappingProxyType(
+            {key: _freeze_json_value(child) for key, child in value.items()}
+        )
+    if isinstance(value, (list, tuple)):
+        return tuple(_freeze_json_value(child) for child in value)
+    if isinstance(value, (set, frozenset)):
+        return frozenset(_freeze_json_value(child) for child in value)
+    if isinstance(value, bytearray):
+        return bytes(value)
+    return value
+
+
 @dataclass(frozen=True, slots=True)
 class ReceiptDocument:
     """A parsed receipt together with the exact bytes that produced it."""
@@ -53,6 +82,7 @@ class ReceiptDocument:
             raise TypeError("ReceiptDocument.raw_bytes must be built-in bytes")
         if not isinstance(self.value, Mapping):
             raise TypeError("ReceiptDocument.value must be a mapping")
+        object.__setattr__(self, "value", _freeze_json_value(self.value))
         expected = hashlib.sha256(self.raw_bytes).hexdigest()
         if type(self.sha256) is not str or self.sha256 != expected:
             raise ValueError("ReceiptDocument.sha256 does not match raw_bytes")
@@ -66,9 +96,9 @@ def parse_receipt_bytes(
     """Parse strict UTF-8 JSON while preserving the original bytes.
 
     Duplicate keys are rejected recursively, JSON non-finite constants are
-    rejected through ``parse_constant``, and only an object is accepted at the
-    root.  No canonical re-serialization, key ordering, whitespace, or final
-    newline requirement is applied.
+    rejected both lexically and after parsing, and only an object is accepted
+    at the root.  No canonical re-serialization, key ordering, whitespace, or
+    final newline requirement is applied.
     """
 
     if type(raw_bytes) is not bytes:
@@ -82,17 +112,21 @@ def parse_receipt_bytes(
             object_pairs_hook=_reject_duplicate_keys,
             parse_constant=_reject_constant,
         )
+        _reject_nonfinite(value)
     except ReceiptParseError:
         raise
-    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+    except (UnicodeDecodeError, json.JSONDecodeError, ValueError, RecursionError) as exc:
         raise ReceiptParseError(f"{label} is not strict UTF-8 JSON: {exc}") from exc
     if type(value) is not dict:
         raise ReceiptParseError(f"{label} root must be a JSON object")
-    return ReceiptDocument(
-        raw_bytes=raw_bytes,
-        value=value,
-        sha256=hashlib.sha256(raw_bytes).hexdigest(),
-    )
+    try:
+        return ReceiptDocument(
+            raw_bytes=raw_bytes,
+            value=value,
+            sha256=hashlib.sha256(raw_bytes).hexdigest(),
+        )
+    except RecursionError as exc:
+        raise ReceiptParseError(f"{label} is too deeply nested: {exc}") from exc
 
 
 _DEFAULT_MAX_RECEIPT_BYTES = 16 * 1024 * 1024

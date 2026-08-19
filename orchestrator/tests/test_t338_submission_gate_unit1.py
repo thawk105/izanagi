@@ -64,7 +64,8 @@ def git_fixture(tmp_path: Path) -> SimpleNamespace:
     root_commit = _commit(root, "root.txt", "root\n", "root")
     content_bytes = b"approved manifest\n"
     (root / "manifest.txt").write_bytes(content_bytes)
-    _run(root, "add", "manifest.txt")
+    (root / "other.txt").write_bytes(b"other\n")
+    _run(root, "add", "manifest.txt", "other.txt")
     _run(root, "commit", "-m", "content")
     content_commit = _run(root, "rev-parse", "HEAD")
 
@@ -112,7 +113,7 @@ def _ref(path: str, commit: str, data: bytes) -> BlobRef:
 def _record(fixture: SimpleNamespace) -> _manifest.PreregistrationRecord:
     root = fixture.root_commit
     core = _ref("manifest.txt", fixture.content_commit, fixture.content_bytes)
-    dummy = _ref("other.txt", fixture.content_commit, b"other")
+    dummy = _ref("other.txt", fixture.content_commit, b"other\n")
     return _manifest.PreregistrationRecord(
         core=core,
         addendum_a=dummy,
@@ -257,6 +258,18 @@ def test_fixed_executable_and_environment_are_scrubbed(
     assert env["GIT_NO_REPLACE_OBJECTS"] == "1"
 
 
+def test_git_rejects_stderr_over_output_limit(
+    git_fixture: SimpleNamespace, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    def noisy_run(argv, *, cwd, env, stdout, stderr, check, timeout):
+        stderr.write(b"e" * 17)
+        return subprocess.CompletedProcess(argv, 0, b"", b"")
+
+    monkeypatch.setattr(_git.subprocess, "run", noisy_run)
+    with pytest.raises(_git.GitSupportError, match="stderr"):
+        _git._git(git_fixture.root, ["version"], max_output_bytes=16)
+
+
 def test_safe_history_rejects_alternates_promisor_shallow_graft_and_replace(
     git_fixture: SimpleNamespace,
 ) -> None:
@@ -305,6 +318,27 @@ def test_safe_history_rejects_alternates_promisor_shallow_graft_and_replace(
             replacement.unlink()
 
 
+def test_safe_history_rejects_symlinked_objects_pack(
+    git_fixture: SimpleNamespace, tmp_path: Path
+) -> None:
+    git_dir = Path(_run(git_fixture.root, "rev-parse", "--git-dir"))
+    if not git_dir.is_absolute():
+        git_dir = git_fixture.root / git_dir
+    pack_path = git_dir / "objects" / "pack"
+    real_pack = git_dir / "objects" / "pack-real"
+    outside = tmp_path / "external-pack"
+    outside.mkdir()
+    pack_path.mkdir(parents=True, exist_ok=True)
+    pack_path.rename(real_pack)
+    pack_path.symlink_to(outside, target_is_directory=True)
+    try:
+        with pytest.raises(_git.GitSupportError):
+            _git.require_safe_history(git_fixture.root)
+    finally:
+        pack_path.unlink()
+        real_pack.rename(pack_path)
+
+
 def test_read_commit_blob_checks_tree_and_digest(git_fixture: SimpleNamespace) -> None:
     digest = hashlib.sha256(git_fixture.content_bytes).hexdigest()
     assert _git.read_commit_blob(
@@ -342,6 +376,7 @@ def test_manifest_views_are_immutable_and_match_approval(
     derivation = _ref("derivation.txt", git_fixture.content_commit, b"derivation")
     record_items = _ref("record-items.txt", git_fixture.content_commit, b"record-items")
     approved = _manifest.ApprovedManifest(
+        token=_manifest._MANIFEST_CAPABILITY_TOKEN,
         approval_ref=approval_ref,
         target_core=_ref("manifest.txt", anchor, git_fixture.content_bytes),
         approved_blobs={
@@ -392,6 +427,55 @@ def test_manifest_views_are_immutable_and_match_approval(
         _manifest._require_manifest_matches_approval(
             replace(record, prereg_commit=git_fixture.content_commit), approved
         )
+
+    with pytest.raises(TypeError):
+        _manifest.ApprovedManifest(
+            approval_ref=approval_ref,
+            target_core=_ref("manifest.txt", anchor, git_fixture.content_bytes),
+            approved_blobs={
+                "addendum_a": addendum,
+                "derivation_map": derivation,
+                "erratum_t139_core_s15_exactkey_v1": erratum,
+                "erratum_t139_core_s7_stresscheck_v1": erratum_two,
+                "record_items": record_items,
+                "receipt_schema": schema,
+            },
+            erratum_application_order=(
+                "t139-core-s15-exactkey-v1",
+                "t139-core-s7-stresscheck-v1",
+            ),
+            composed_sha256=hashlib.sha256(b"composed").hexdigest(),
+            prereg_commit=anchor,
+        )
+
+
+def test_binding_assert_intact_reads_addendum_blobs(
+    git_fixture: SimpleNamespace,
+) -> None:
+    addendum_b = _ref("root.txt", git_fixture.content_commit, b"root\n")
+    record = replace(_record(git_fixture), addendum_b=addendum_b)
+    _binding_for(git_fixture, record=record).assert_intact(git_fixture.root)
+
+    missing = replace(
+        _record(git_fixture),
+        addendum_a=_ref("missing.txt", git_fixture.content_commit, b"missing"),
+    )
+    with pytest.raises(_git.GitSupportError):
+        _binding_for(git_fixture, record=missing).assert_intact(git_fixture.root)
+
+    wrong_digest = replace(
+        _record(git_fixture),
+        addendum_a=_ref("other.txt", git_fixture.content_commit, b"wrong"),
+    )
+    with pytest.raises(_git.GitSupportError):
+        _binding_for(git_fixture, record=wrong_digest).assert_intact(git_fixture.root)
+
+    bad_b = replace(
+        _record(git_fixture),
+        addendum_b=_ref("missing-b.txt", git_fixture.content_commit, b"missing-b"),
+    )
+    with pytest.raises(_git.GitSupportError):
+        _binding_for(git_fixture, record=bad_b).assert_intact(git_fixture.root)
 
 
 def test_binding_assert_intact_checks_all_five_relations(
