@@ -101,6 +101,27 @@ expected_nodesを補正し独立な再走で再現性を確認して確定させ
 expected_nodes補正 + m04/m16除外後の最終specは `mutation/mutation-spec-final.json`、
 最終確定結果 (14/14 KILLED) は `mutation/mutation-out-final.json`。
 
+## 段8: 自己改善候補 (記録のみ、未実装)
+
+`docs/skill-self-improvement.md` の routing に従い判定。3件とも dev-wave 固有の手順で
+`docs/dev-wave/mutation.md` (leaf 節) が行き先だが、同ファイル群は 3層とも予算に余裕が
+乏しい既往記録があり、実測に裏付けられた短い追記でも赤になりうる。予算検証を伴わない
+実装はせず、記録のみに留めてユーザー裁定へ返す。
+
+1. **「変異harness実行中は対象repoへの一切の書込み (docs下書き含む) を避ける、
+   untracked検出で即座に中止する」を DW-M05 近傍へ追記。** 段6 mutation matrix 準備中、
+   insights下書きをrepoへ書いてharnessがrc=2で中断した実測に基づく (詳細は decisions
+   fragment 未閉鎖残件、および memory `no-tree-writes-during-mutation-run`)。
+2. **「harness本体プロセスがdispatch jobより先に死ぬorphan-holdの場合、手動qdelせず
+   qstat出力内容で終端を待つ」を DW-M07 近傍へ追記。** 段6 で複数回実測 (詳細は memory
+   `mutation-harness-orphan-hold-recovery`)。
+3. **`tools/pegasus/dispatch_compute.py` 自体の改修候補 (docs でなく共有 tool 本体):**
+   PBS 強制終了された job が正常完了マーカーを残せないケースで、cancel gate の
+   `denied()` が理由 (`request-absent` 含む) を問わず `job_may_remain=True` を返す。
+   hang_risk 変異を dispatch mode で検証する限り再現する構造的な問題であり、
+   本 wave の scope 外 (共有 tool)。次に hang_risk 変異を使う wave で再発した場合に
+   優先実装すべき。
+
 ## 逐語
 
 - `verbatim/s1-brief.md` — 段1 親brief (実測ベース、規模見積り含む)
