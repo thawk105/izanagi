@@ -12,8 +12,8 @@ python3 tools/check_ai_provenance.py --message-file <path>
 
 ## PR-A02 — commit 後と範囲監査
 
-導入 commit から `HEAD` までの欠落、排他違反、フィールド順、値と role の形式を検査する。別範囲は
-`--range <range>`。導入前の欠落は legacy とし遡及違反にしない。correction 範囲の権威は `PR-C03`。
+既定監査は各規則の内容検出 commit 自身と、その祖先でない HEAD 到達 commit の欠落、排他違反、フィールド順、値と role の形式を検査する。別範囲は
+`--range <range>`。導入祖先は legacy とし遡及違反にしない。correction 範囲の権威は `PR-C03`。
 
 ```bash
 python3 tools/check_ai_provenance.py

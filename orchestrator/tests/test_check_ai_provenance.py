@@ -132,6 +132,38 @@ def _policy_history(root: Path) -> tuple[str, str, str]:
     return legacy, epoch, violating
 
 
+def _side_branch_epoch_history(
+    root: Path,
+    *,
+    epoch_text: str,
+    side_files: dict[str, str],
+    side_message: str,
+) -> tuple[list[str], str, str, str]:
+    """epoch 導入前に分岐した side commit を merge した最小履歴。"""
+    _init_repo(root)
+    policy = _commit(
+        root,
+        {provenance.POLICY_PATH: "# legacy policy\n"},
+        CODEX_AUTHOR,
+    )
+    main_branch = _git(root, "branch", "--show-current")
+    _git(root, "switch", "-q", "-c", "side", policy)
+    side = _commit(root, side_files, side_message)
+    _git(root, "switch", "-q", main_branch)
+    epoch = _commit(
+        root,
+        {provenance.POLICY_PATH: epoch_text},
+        CODEX_AUTHOR,
+    )
+    _git(root, "merge", "--no-ff", "--no-commit", "side")
+    head = _commit(root, {}, CODEX_AUTHOR)
+    commits = [
+        policy,
+        *_git(root, "rev-list", "--reverse", f"{policy}..{head}").splitlines(),
+    ]
+    return commits, head, side, epoch
+
+
 @dataclass(frozen=True)
 class CorrectionHistory:
     base: str
@@ -757,6 +789,316 @@ def test_history_gate_starts_at_policy_epoch_and_rejects_followup(
     assert provenance.main(site=site_policy.OTHER) == 1
     captured = capsys.readouterr()
     assert "実装面に Codex role=author がない — paths=tools/new.py" in captured.err
+
+
+def test_default_commit_range_uses_plain_reachability_and_policy_prefix(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+):
+    _init_repo(tmp_path)
+    legacy = _commit(tmp_path, {"docs/base.md": "base\n"}, CODEX_AUTHOR)
+    main_branch = _git(tmp_path, "branch", "--show-current")
+    _git(tmp_path, "switch", "-q", "-c", "pre-policy-side", legacy)
+    side = _commit(tmp_path, {"docs/side.md": "side\n"}, CODEX_AUTHOR)
+    _git(tmp_path, "switch", "-q", main_branch)
+    policy = _commit(
+        tmp_path,
+        {provenance.POLICY_PATH: "# policy\n"},
+        CODEX_AUTHOR,
+    )
+    _commit(tmp_path, {"docs/main.md": "main\n"}, CODEX_AUTHOR)
+    _git(tmp_path, "merge", "--no-ff", "--no-commit", "pre-policy-side")
+    head = _commit(tmp_path, {}, CODEX_AUTHOR)
+
+    monkeypatch.setattr(provenance, "REPO", tmp_path)
+    expected = _git(
+        tmp_path, "rev-list", "--reverse", f"{policy}..{head}",
+    ).splitlines()
+    observed = provenance._commit_range(None, head=head)
+    assert observed == [policy, *expected]
+    assert side in observed
+    assert side not in _git(
+        tmp_path,
+        "rev-list",
+        "--reverse",
+        "--ancestry-path",
+        f"{policy}..{head}",
+    ).splitlines()
+
+
+def test_authoritative_scope_epoch_predicate_covers_merged_side_branch(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+):
+    side_message = (
+        "scope side\n\n"
+        "AI-Agent: product=codex; model=gpt-5.6-sol; reasoning=high; "
+        "role=author; scope=side\n"
+        "AI-Agent: product=codex; model=gpt-5.6-sol; reasoning=high; "
+        "role=author\n"
+    )
+    commits, head, side, _ = _side_branch_epoch_history(
+        tmp_path,
+        epoch_text="# policy\nscope=\n",
+        side_files={"docs/side-scope.md": "side\n"},
+        side_message=side_message,
+    )
+    monkeypatch.setattr(provenance, "REPO", tmp_path)
+
+    authoritative = provenance._audit_history(
+        commits, authoritative=True, head=head,
+    )
+    expected = (
+        f"{side[:12]} scope side: role=author が複数行あるのに scope がない: "
+        "product=codex; model=gpt-5.6-sol; reasoning=high; role=author",
+    )
+    assert authoritative.findings == list(expected)
+
+    explicit_range = provenance._audit_history(commits)
+    assert explicit_range.findings == []
+
+
+def test_authoritative_implementation_epoch_predicate_covers_merged_side_branch(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+):
+    commits, head, side, _ = _side_branch_epoch_history(
+        tmp_path,
+        epoch_text=f"# policy\n{provenance.IMPLEMENTATION_POLICY_NEEDLE}\n",
+        side_files={"tools/side-implementation.py": "side\n"},
+        side_message=CLAUDE_AUTHOR,
+    )
+    monkeypatch.setattr(provenance, "REPO", tmp_path)
+
+    authoritative = provenance._audit_history(
+        commits, authoritative=True, head=head,
+    )
+    assert authoritative.findings == [
+        f"{side[:12]} change: 実装面に Codex role=author がない — "
+        "paths=tools/side-implementation.py",
+    ]
+
+    explicit_range = provenance._audit_history(commits)
+    assert explicit_range.findings == []
+
+
+def test_authoritative_cab_predicate_covers_merged_side_branch(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+):
+    commits, head, side, _ = _side_branch_epoch_history(
+        tmp_path,
+        epoch_text=f"# policy\n{POLICY_NEEDLE_LITERAL}\n",
+        side_files={"docs/side-cab.md": "side\n"},
+        side_message=SPLIT_CAB_NONE,
+    )
+    monkeypatch.setattr(provenance, "REPO", tmp_path)
+
+    authoritative = provenance._audit_history(
+        commits, authoritative=True, head=head,
+    )
+    assert authoritative.findings == [
+        f"{side[:12]} change: Co-Authored-By trailer 配置違反: raw=1, parsed=0",
+    ]
+
+    explicit_range = provenance._audit_history(commits)
+    assert explicit_range.findings == []
+
+
+def test_authoritative_epoch_and_cab_predicates_keep_absent_rules_inactive(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+):
+    _init_repo(tmp_path)
+    scope_commit = _commit(
+        tmp_path,
+        {"docs/scope.md": "scope\n"},
+        (
+            "scope\n\n"
+            "AI-Agent: product=codex; model=gpt-5.6-sol; reasoning=high; "
+            "role=author; scope=present\n"
+            "AI-Agent: product=codex; model=gpt-5.6-sol; reasoning=high; "
+            "role=author\n"
+        ),
+    )
+    implementation_commit = _commit(
+        tmp_path,
+        {"tools/implementation.py": "implementation\n"},
+        CLAUDE_AUTHOR,
+    )
+    monkeypatch.setattr(provenance, "REPO", tmp_path)
+    ancestry = provenance._Ancestry(
+        {scope_commit: 0, implementation_commit: 1},
+        (1, 2),
+        0,
+    )
+
+    scope_audit = provenance._normal_commit_audit(
+        scope_commit,
+        scope_epoch=None,
+        implementation_epoch=None,
+        ancestry=ancestry,
+        authoritative=True,
+    )
+    implementation_audit = provenance._normal_commit_audit(
+        implementation_commit,
+        scope_epoch=None,
+        implementation_epoch=None,
+        ancestry=ancestry,
+        authoritative=True,
+    )
+    assert scope_audit.normal_findings == ()
+    assert implementation_audit.normal_findings == ()
+    assert ancestry.has_cab_policy(scope_commit, authoritative=True) is False
+    assert ancestry.has_cab_policy(implementation_commit, authoritative=True) is False
+
+
+def test_normal_commit_audit_rejects_authoritative_oracle_without_ancestry(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+):
+    _init_repo(tmp_path)
+    commit = _commit(tmp_path, {"docs/commit.md": "commit\n"}, CODEX_AUTHOR)
+    monkeypatch.setattr(provenance, "REPO", tmp_path)
+    with pytest.raises(RuntimeError, match="authoritative normal audit"):
+        provenance._normal_commit_audit(
+            commit,
+            scope_epoch=None,
+            implementation_epoch=None,
+            authoritative=True,
+        )
+
+
+def test_authoritative_history_pins_head_once_and_rejects_drift(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+):
+    _init_repo(tmp_path)
+    _commit(
+        tmp_path,
+        {provenance.POLICY_PATH: "# policy\n"},
+        CODEX_AUTHOR,
+    )
+    monkeypatch.setattr(provenance, "REPO", tmp_path)
+    real_resolve = provenance._resolve_head
+    resolve = mock.Mock(side_effect=real_resolve)
+    monkeypatch.setattr(provenance, "_resolve_head", resolve)
+
+    def drift_after_selection(commits, **kwargs):
+        _commit(tmp_path, {"docs/drift.md": "drift\n"}, CODEX_AUTHOR)
+        return provenance.HistoryAudit(
+            ["synthetic finding for drift regression"], [], [],
+        )
+
+    monkeypatch.setattr(provenance, "_audit_history", drift_after_selection)
+    assert provenance.main([], site=site_policy.OTHER) == 2
+    resolve.assert_called_once_with()
+    captured = capsys.readouterr().err
+    assert "HEAD が監査中に変化した" in captured
+    assert "synthetic finding for drift regression" not in captured
+
+
+def test_explicit_range_and_message_file_skip_authoritative_repository_guards(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+):
+    _init_repo(tmp_path)
+    commit = _commit(
+        tmp_path,
+        {provenance.POLICY_PATH: "# policy\n"},
+        CODEX_AUTHOR,
+    )
+    message = tmp_path / "message.txt"
+    message.write_text("ordinary\n\nAI-Agent: none\n", encoding="utf-8")
+    monkeypatch.setattr(provenance, "REPO", tmp_path)
+    for name in (
+        "_resolve_head",
+        "_assert_head_unchanged",
+        "_assert_authoritative_repository",
+    ):
+        monkeypatch.setattr(
+            provenance,
+            name,
+            mock.Mock(side_effect=AssertionError(f"{name} must be skipped")),
+        )
+
+    assert provenance.main(
+        ["--range", f"{commit}^!"], site=site_policy.OTHER,
+    ) == 0
+    assert provenance.main(
+        ["--message-file", str(message)], site=site_policy.OTHER,
+    ) == 0
+
+
+@pytest.mark.parametrize(
+    ("mode", "expected"),
+    [
+        ("shallow", "shallow repository"),
+        ("graft", "with grafts"),
+        ("replace", "with git replace"),
+    ],
+    ids=["shallow", "graft", "replace"],
+)
+def test_authoritative_repository_rejects_shallow_graft_and_replace(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    mode: str,
+    expected: str,
+):
+    _init_repo(tmp_path)
+    base = _commit(
+        tmp_path,
+        {provenance.POLICY_PATH: "# policy\n"},
+        CODEX_AUTHOR,
+    )
+    tip = _commit(
+        tmp_path, {"docs/tip.md": "tip\n"}, CODEX_AUTHOR,
+    )
+    if mode == "shallow":
+        head = _git(tmp_path, "rev-parse", "HEAD")
+        (tmp_path / ".git" / "shallow").write_text(
+            f"{head}\n", encoding="ascii",
+        )
+    elif mode == "graft":
+        grafts = Path(_git(tmp_path, "rev-parse", "--git-path", "info/grafts"))
+        if not grafts.is_absolute():
+            grafts = tmp_path / grafts
+        grafts.parent.mkdir(parents=True, exist_ok=True)
+        grafts.write_text(f"{tip} {base}\n", encoding="ascii")
+    else:
+        replacement = _commit(
+            tmp_path, {"docs/replacement.md": "replacement\n"}, CODEX_AUTHOR,
+        )
+        _git(tmp_path, "replace", replacement, base)
+
+    monkeypatch.setattr(provenance, "REPO", tmp_path)
+    assert provenance.main([], site=site_policy.OTHER) == 2
+    assert expected in capsys.readouterr().err
+
+
+def test_authoritative_repository_rejects_nonunique_policy_add(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+):
+    _init_repo(tmp_path)
+    _commit(
+        tmp_path,
+        {provenance.POLICY_PATH: "# first policy\n"},
+        CODEX_AUTHOR,
+    )
+    policy_path = tmp_path / provenance.POLICY_PATH
+    policy_path.unlink()
+    _commit(tmp_path, {"docs/between.md": "between\n"}, CODEX_AUTHOR)
+    _commit(
+        tmp_path,
+        {provenance.POLICY_PATH: "# second policy\n"},
+        CODEX_AUTHOR,
+    )
+    hits = _git(
+        tmp_path,
+        "log", "--full-history", "--no-renames", "--diff-filter=A",
+        "--format=%H", "HEAD", "--", provenance.POLICY_PATH,
+    ).splitlines()
+    assert len(hits) == 2
+    monkeypatch.setattr(provenance, "REPO", tmp_path)
+    assert provenance.main([], site=site_policy.OTHER) == 2
+    assert "導入 commit が一意でない: hits=2" in capsys.readouterr().err
 
 
 def test_policy_needle_literal_matches_production_and_repo_policy_exactly_once():
@@ -1492,6 +1834,13 @@ def test_known_violation_ledger_matches_literal_entries():
         ("21582897ece7cf82317931a437dff61e9eaad33b", "missing-codex-author", t1142_ruling, t1142_main_merge_note, ""),
         ("a8c73d747621d4b323024fc6ca6da6372ecfb668", "missing-codex-author", t1142_ruling, t1142_pre_acceptance_merge_note, ""),
         ("3df9b0aa379f84500e3f59add9ad76e421019d50", "missing-codex-author", t1140_t330_ruling, t1140_t330_note, ""),
+        (
+            "333605d680ec15f3f74b00e9e2746ae317b85dc5",
+            "missing-codex-author",
+            "2026-08-07 [T-619] docs/archive/worklog-phase3-0807-299.md entry 299 (/rulings 第5回、D230 統一述語 5点採用)",
+            "",
+            "",
+        ),
     )
     assert len(provenance.KNOWN_PROVENANCE_VIOLATIONS) == len(expected)
     assert observed == expected
@@ -1585,6 +1934,53 @@ def test_known_violation_ledger_matches_real_commit_findings():
         ("8ceebcdbe40fac27cb2a1fbd7a1b1e016894bd0e", "missing-codex-author"),
         ("98d07c3b0e7726a929e98381e4762973d8e4c681", "missing-codex-author"),
     ]
+
+
+def test_t619_known_violation_is_absorbed_in_authoritative_audit(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    target = "333605d680ec15f3f74b00e9e2746ae317b85dc5"
+    head = _git(REPO, "rev-parse", "HEAD")
+    assert provenance._is_descendant(target, head)
+    seen_authoritative: list[object] = []
+    real_ledger = provenance._known_violation_audit
+
+    def capture_ledger(*args, **kwargs):
+        seen_authoritative.append(kwargs.get("authoritative"))
+        return real_ledger(*args, **kwargs)
+
+    monkeypatch.setattr(provenance, "_known_violation_audit", capture_ledger)
+    audit = provenance._audit_history(
+        [target], authoritative=True, head=head,
+    )
+    assert audit.findings == []
+    assert seen_authoritative == [True]
+    assert [(spec.commit, spec.expected_finding_kind) for spec in audit.known_violations] == [
+        (target, provenance.MISSING_CODEX_AUTHOR),
+    ]
+
+
+def test_t619_authoritative_ledger_visibility_wiring_is_explicit(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    target = "333605d680ec15f3f74b00e9e2746ae317b85dc5"
+    head = _git(REPO, "rev-parse", "HEAD")
+    monkeypatch.setattr(
+        provenance,
+        "validate_implementation_author",
+        lambda *args, **kwargs: ([], False),
+    )
+    with pytest.raises(
+        RuntimeError,
+        match=(
+            "known-violation-stale: .*"
+            "reason=expected-finding-missing checker-regression-suspected"
+        ),
+    ) as excinfo:
+        provenance._audit_history(
+            [target], authoritative=True, head=head,
+        )
+    assert "policy-epoch-not-visible" not in str(excinfo.value)
 
 
 def test_known_violation_requires_exact_full_sha_positive_and_negative_pair(
@@ -3827,6 +4223,14 @@ def test_policy_anchor_literals_exist_only_in_entry_with_hard_coded_oracle():
     assert provenance.IMPLEMENTATION_POLICY_NEEDLE == anchors[0]
     assert provenance.CO_AUTHORED_BY_POLICY_NEEDLE == anchors[1]
     assert provenance.WAIVER_POLICY_LITERAL == anchors[2]
+    nonretroactive = (
+        "既定監査は各規則の内容検出 commit 自身と、その祖先でない "
+        "HEAD 到達 commit に適用する。導入祖先は legacy とし、履歴を書き換えない。"
+    )
+    assert entry.count(nonretroactive) == 1
+    assert len(entry.encode("utf-8")) == 6102
+    assert entry.count(provenance.IMPLEMENTATION_POLICY_NEEDLE) == 1
+    assert entry.count(provenance.CO_AUTHORED_BY_POLICY_NEEDLE) == 1
 
 
 def test_scope_epoch_anchor_occurs_exactly_once_in_entry():
@@ -5621,7 +6025,7 @@ def test_audit_history_is_identical_across_worker_counts_and_ancestry(
         monkeypatch.setattr(
             provenance,
             "_build_ancestry",
-            real_build if use_ancestry else (lambda selected: None),
+            real_build if use_ancestry else (lambda selected, **kwargs: None),
         )
         results[name] = provenance._audit_history(list(commits))
 
@@ -5772,11 +6176,27 @@ def test_ancestry_pickaxe_mask_matches_per_commit_oracle(
     monkeypatch.setattr(provenance, "REPO", tmp_path)
     commits = _git(tmp_path, "rev-list", "--reverse", "--all").splitlines()
     ancestry = provenance._build_ancestry(commits)
+    seeds = _git(
+        tmp_path,
+        "log", "--full-history", "--no-renames", "--format=%H",
+        "-S", POLICY_NEEDLE_LITERAL, *commits, "--", provenance.POLICY_PATH,
+    ).splitlines()
     observed = set()
     for commit in commits:
-        oracle = provenance._has_co_authored_by_policy(commit)
-        assert ancestry.has_cab_policy(commit) is oracle, commit
-        observed.add(oracle)
+        lineage_oracle = any(
+            provenance._is_descendant(seed, commit) for seed in seeds
+        )
+        assert ancestry.has_cab_policy(commit) is lineage_oracle, commit
+        authoritative_oracle = bool(seeds) and (
+            lineage_oracle
+            or not any(
+                provenance._is_descendant(commit, seed) for seed in seeds
+            )
+        )
+        assert ancestry.has_cab_policy(
+            commit, authoritative=True,
+        ) is authoritative_oracle, commit
+        observed.add(lineage_oracle)
     assert observed == {True, False}
 
 
