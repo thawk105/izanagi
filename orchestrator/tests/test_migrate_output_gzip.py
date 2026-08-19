@@ -467,3 +467,7 @@ def test_unexpected_decode_exception_is_reported(
     assert rc != 0
     assert "ERROR unexpected UnicodeDecodeError" in output
     assert "SUMMARY targets=0" in output
+
+
+if __name__ == "__main__":
+    sys.exit(pytest.main([__file__]))
