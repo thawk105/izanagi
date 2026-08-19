@@ -22843,3 +22843,121 @@ validator (`calibration_freeze_authority_contract.py` の `_extract_design_revoc
   不釣り合いに大きい変更であり、DW-G03 の一般化ライセンス (同型欠陥の独立 2 件再現) の
   射程を超える。既知の残存限界として F423
   へ記録し、追加対応は再訪条件が生じたときに起票する。
+
+## D563. 投入gate 単位1/2は opaque capability sealing + freeze/thaw で構造的整合性を保証する (2026-08-19)
+
+**決定:** D509 決定(6)(7)が確定した単位1(manifest/binding/Git基盤)・単位2(受領証IO/schema)の
+実装で、段3敵対相談・段6敵対レビューが発見した3件の脆弱性を踏まえ、次の3パターンを
+`orchestrator/submission_gate/` の設計規約として固定する。
+
+1. **既存 `orchestrator/preregistration/blobref.py` は一切変更しない。** D509 決定(6)の
+   「衛生化Git実行面を公開helperへ抽出して使う」は、wrapper化ではなく**独立実装として複製する**
+   形で満たす。既存 `blobref._git`/`_git_env`/`_GIT_EXECUTABLE`/`MAX_BLOB_BYTES` を直接
+   monkeypatchする既存test (`test_t139_blobref_git_trust.py` 等) と、4種の異なる例外型
+   (`BlobResolutionError`/`InvalidBlobRefError`/`BlobDigestMismatchError`は非subclass関係) を
+   壊さないことを、抽出の再利用性より優先する。
+2. **将来 (単位3以降) が公開してはいけない値を持つ型は、単純なpublic dataclassにしない。**
+   `_PreregBinding`・`ApprovedManifest`はどちらもmodule-privateなcapability tokenを
+   keyword-only必須引数として要求し、`type(self) is not <Class> or token is not <TOKEN>` を
+   `__init__`/`__post_init__`で検査する。これは「型が合っていれば正当」という偽陽性
+   (callerが直接構築した偽の manifest/binding を受理する) を防ぐ。Pythonの private名は
+   importされれば偽造できるという限界はあるが、それでも型検査だけの実装より安全である。
+3. **digest固定後に内容を書き換えられる可変構造 (dict/list) を外部へ渡さない。** JSON parse結果
+   (`ReceiptDocument.value`)・schema document (`ReceiptSchema.document`) は
+   `MappingProxyType`/`tuple`へ再帰的に凍結して保持する。ただし `jsonschema.Draft7Validator`
+   (この環境は3.2.0) はexact `dict`/`list`型でしか instance を認識しないため、
+   検証の**直前にだけ**再帰的に「解凍」した可変コピーを作って渡し、格納側は凍結のまま保つ。
+
+**理由:**
+- 段3敵対相談(正しさ境界レンズ)が、`blobref.py`のwrapper化案が既存consumerの例外契約を
+  壊しうると指摘した。段6独立コードレビューが、`ApprovedManifest`が偽造可能な単なる
+  public dataclassであること、`ReceiptDocument.value`が凍結を謳いながらdict実体を晒すことの
+  2件を実際にfile:lineで示した。
+- fixで凍結を追加した直後、fix後の焦点再レビューが「正当な受領証がjsonschemaのexact型判定
+  (`isinstance(x, dict)`)と衝突して誤って拒否される」という新規regressionを検出した
+  (両立しないconflicting requirementではなく、検証直前の解凍で両立する)。
+
+**却下した選択肢:**
+- `blobref.py`を互換wrapper化して`read_pinned_blob`を再利用する — D509決定(6)の文言には近いが、
+  4種の例外型をすべて保持するwrapperは既存consumer 2件・既存test 3件の例外契約を精査せずには
+  安全と言えず、独立実装のほうが低リスクで同等の再利用効果 (ゼロから設計しない) を得られる。
+- `ApprovedManifest`/`_PreregBinding`を型検査だけで閉じる (token検査を持たない) —
+  D509決定(5)(8)が避けた「自己申告を信用する恒真相当」の再発になる。
+- 受領証・schemaを凍結しない (mutableなまま保持する) — digest固定後に呼び手が
+  `document["properties"]`等を書き換えられ、pin検証の意味が失われる。
+
+## D564. 単独段 dispatch 宣言による起動分岐は AGENTS.md と SKILL.md の両方に置く (2026-08-19)
+
+**決定:** dev-wave の段2/3/5/6 で親から dispatch された Codex 子が、prompt 本文の最初の非空行に
+`単独段 dispatch: stage=<launcher の --stage 語彙>; sandbox=<read-only|workspace-write>;
+parent=<絶対パス>` 宣言 + 直後の「必読事項の射影:」節を持つ場合、`AGENTS.md`「作業開始」節と
+`.agents/skills/dev-wave/SKILL.md`「開始する」節のクラス3起動手順 (AGENTS.md+CLAUDE.md 全文読了・
+worklog 末尾検索・handoff 全読み等) を適用せず、宣言と射影が指示する資料だけを読ませる。
+宣言の stage 語彙は `tools/dev_wave_codex.py` の `STAGES` (launcher の実際の `--stage` choices)
+と完全一致させ、`kind` のような launcher に存在しない独自フィールドは持たせない。marker の解釈は
+prompt 本文の最初の視認可能な非空行に限定し、本文中盤・引用・埋め込みコンテンツ内の同一文字列では
+成立しない。
+
+**理由:**
+- 2026-08-05 /rulings 裁定 (docs/archive/worklog-phase3-0805-216.md:302-306) が
+  「親から dispatch 済みの子はクラス1 + 親 prompt の必読だけに従わせる」を採用し、
+  「親 prompt に必読事項の射影を義務付ける」を条件とした。
+- SKILL.md だけの分岐案は、Codex CLI が全起動時に自動注入する `AGENTS.md`「作業開始」節の
+  「まず CLAUDE.md を全文読め」という指示を塞げないことを段2 codex 自身の rollout ログ実測
+  (段3レンズA致命的所見) で確認した — AGENTS.md 側にも同型の例外を置かない限り実効性がない。
+- marker を宣言必須の条件付きにすることで、宣言を含まない prompt (dev-wave 以外の全 Codex
+  タスクを含む) には一切挙動を変えない設計にでき、他役割 (auditor 等) への非干渉と両立できる。
+- marker を prompt 先頭行に限定するのは、規律6 (信頼境界) を踏まえた設計 — 将来 prompt 本文が
+  外部由来のコンテンツ (diff・trace 等) を含む場合に、そこに偶然/意図的に同じ文字列が現れても
+  誤って軽量経路へ誘導されないようにするため。
+
+**却下した選択肢:**
+- AGENTS.md を変更せず SKILL.md だけを直す — 段3レンズA所見どおり実効性を保証できない。
+- 宣言の stage/kind をこの wave 独自の語彙で定義する — 段3レンズB所見どおり実 launcher の
+  `--stage` choices と乖離し、DW-O02 の「launcher 引数との一致」を検査不能にする。
+- 宣言と射影の書式を runtime (launcher) 側で完全に機械検証する — 規律5 (盛らない) に照らし
+  この wave の scope を超える。文書契約 (fail-closed 規律) + `check_docs.py` の構造検査
+  (marker の可視本文存在、stage 語彙一致、decoy 拒否) に留め、次 wave 課題として見送った。
+- 射影節本文の「宣言との直後性」「各項目ごとの path/停止指示の1対1対応」まで検査する —
+  D85 (意味全体を逐語 pin しない) 境界を超えるため却下した。
+
+## D565. workers.md への単独段射影義務の明記は撤回する (2026-08-19)
+
+**決定:** `docs/dev-wave/workers.md` の DW-S02/S03/S05-A/S06-A に「prompt には単独段 dispatch
+宣言と必読事項の射影を含める」と明記する当初案 (段4裁定 plan v2 項目3) を撤回し、
+`docs/dev-wave/operations.md` の DW-O02 側の一文だけで完結させる。
+
+**理由:**
+- dev-wave docs の L1.5 byte 予算 (9,566 bytes) が満杯で、workers.md への追加を通す余地がない。
+- `.claude/commands/dev-wave.md` の条件 dispatch 表が既に「prompt・log・patch を作る直前」に
+  `DW-O02` を読む契約を持つため、workers.md 側での重複明記は実質的に冗長だった。
+
+**却下した選択肢:**
+- workers.md 側の他の記述を削って予算を作る — 既存契約の意味変更を伴い、このwaveの scope
+  (単独段起動分岐) を超える。
+
+## D566. max_wall_clock_s を wall_clock_admission_bound_s へ改名する (2026-08-19)
+
+**決定:** receipt の `limits.max_wall_clock_s` を `limits.wall_clock_admission_bound_s` へ改名する
+(CLI flag `--max-wall-clock-s` → `--wall-clock-admission-bound-s`、
+`--expect-max-wall-clock-s` → `--expect-wall-clock-admission-bound-s`、定数
+`DEFAULT_MAX_WALL_CLOCK_S` → `DEFAULT_WALL_CLOCK_ADMISSION_BOUND_S` を含む)。挙動は変えない。
+
+**理由:**
+
+- D498 と /rulings 全件 第 7 回裁定が「max_wall_clock_s は receipt の admission bound である」と
+  明記して閉じ、「誤解を生んだのがこの名前自身であるため、受理上限であることが名前から分かる
+  形にする」ことを条件とした。物理 hard cap・外部 watchdog は絶対規律 5 に触れるため不採用。
+- `tools/codex_worker_launch.py` 自身が既に「admission」語彙を実装で使用済みだった
+  (`site="retry_admission"`、コメント「late admission gate」「新しい admission を表さない」)。
+  裁定の「admission bound」という語をこの既存語彙へ直結させ、新語を持ち込んでいない。
+- sibling の `max_model_calls`・`max_cli_reported_tokens`・`max_attempts` は `max_` prefix を
+  保つ。誤解が生じたのは時間ベースの wall-clock だけであり (カウント値は物理即時停止と誤読
+  されにくい)、`max_` と `bound` は同義反復になるため wall-clock 側だけ `max_` を落として形を
+  変え、他の 3 つと性質が違うことも名前で示した。
+
+**却下した選択肢:**
+
+- `max_` prefix を保ったまま `_admission_bound` 等を足す (例: `max_wall_clock_admission_bound_s`)
+  — 「max」と「bound」が同義反復になり、かえって読みにくい。
+- 物理 hard cap・外部 watchdog の新設 — 裁定で明示的に却下済み (新機構を要し絶対規律 5 に触れる)。

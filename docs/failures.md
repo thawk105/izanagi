@@ -6404,6 +6404,35 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: land 前に `git diff --name-only <merge-base> main` と本 wave の変更 path の交差を
   取り、実装面が交差したらこの手順へ入る。交差が無ければ通常の merge でよい。
 
+
+- **再発: 2026-08-19** — [T-497] merge 文脈ではなく、親が `docs/dev-wave/operations.md` を
+  直接編集した (docs-only、D95 により親が編集可) working tree のまま段5 author・段6 review・
+  段6 変異spec作成の Codex 子を dispatch しようとし、いずれも同じ
+  「working tree が authority commit と異なる」で rc=2 拒否された (計4回)。F225 の根本原因
+  (`docs/dev-wave/{operations,workers}.md` が authority commit と 1 byte でも異なると
+  `--stage` を問わず全 dispatch が即死する) は merge 固有ではなく、親による通常の docs 直接編集
+  でも同じ形で発火することを確認した。恒久対応 (F225 の「順序を入れ替える」) は merge 固有の
+  手順で今回には適用できず、都度「`git diff` で対象ファイルだけ退避 → `git checkout --` で
+  authority commit へ戻す → dispatch (prompt bytes を変えて新 job-id) → 完了後 `git apply` で
+  復元」を実装子・レビュー子ごとに繰り返す運用で回避した。恒久対応の一般化 (退避手順を
+  `docs/dev-wave/operations.md` のどこかへ明文化するか) は次 wave 課題として見送る
+  (この wave 自体が dev-wave docs の L1.5 byte 予算を使い切っており追記の余地がない)。
+- **再発: 2026-08-19(2回目)** — [T-497] `dev_wave_wait.py acceptance` の受入 lease 判定
+  (`owned-path-overlap`) は、`HEAD...main` の三点 diff に `--owned-path` で渡した path が
+  含まれるかどうかだけを見る独立した判定であり、DW-O17 の checker が見る「merge 結果が両親の
+  どちらとも異なる (combined path)」判定とは別物である。F225 の恒久対応 (Codex 子が main 側の
+  変更を先に wave branch のファイルへ取り込む) は前者を通過させない — wave が実装面 path を
+  変更している限り、main 側の内容をどれだけ先取り統合しても `owned-path-overlap` は
+  behind が非 0 である間ずっと発火し続ける (`git diff --name-only HEAD...main` に wave 自身の
+  変更が常に現れるため)。今回この誤解により、受入投入前に不要な Codex 統合子を1本余分に
+  投じた (main-t1361.patch の先取り統合、結果的には commit `461b600f` として無駄にはならず
+  最終的な実装統合には使えたが、受入 fail-closed の回避策としては効かなかった)。
+  **正しい恒久対応は「待ち手に自動 merge を任せず、`owned-path-overlap` で拒否されたら
+  親が `git merge --no-ff --no-commit main` → `check_ai_provenance.py --message-file` →
+  `git commit -F` で手動 merge commit を作ってから受入を再投入する」である。**
+  pegasus-runbook.md §7.3 の既存記述 (「待ち手では merge せず親へ戻す」) 自体は正確だったが、
+  F225 の恒久対応節と読み合わせた際に「Codex 子の先取り統合だけで足りる」と誤読しやすい
+  構成だった。
 ### F226. source hash を埋め込む golden が同族ファイルの全変異を道連れにする [ドリフト]
 
 - 事象: 変異 11 件のうち 4 件が MISMATCH になった。うち 2 件 (judge / report の変異) は

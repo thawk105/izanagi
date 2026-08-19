@@ -76,7 +76,7 @@ _ID_RE = re.compile(r"[A-Za-z0-9._-]{1,128}")
 _SHA256_RE = re.compile(r"[0-9a-f]{64}")
 _COMMIT_RE = re.compile(r"[0-9a-f]{40}")
 _LIMIT_REASONS = (
-    "max_wall_clock_s",
+    "wall_clock_admission_bound_s",
     "max_model_calls",
     "max_cli_reported_tokens",
 )
@@ -225,7 +225,7 @@ _RECEIPT_FIELDS_V3 = frozenset(
 )
 _LIMIT_FIELDS = frozenset(
     {
-        "max_wall_clock_s",
+        "wall_clock_admission_bound_s",
         "max_model_calls",
         "max_cli_reported_tokens",
         "max_attempts",
@@ -541,7 +541,7 @@ def _limit_conditions_met(
         else (lambda actual, limit: actual > limit)
     )
     values = {
-        "max_wall_clock_s": (elapsed, limits.max_wall_clock_s),
+        "wall_clock_admission_bound_s": (elapsed, limits.wall_clock_admission_bound_s),
         "max_model_calls": (model_calls, limits.max_model_calls),
         "max_cli_reported_tokens": (
             cli_reported,
@@ -580,7 +580,7 @@ def _record_limit_conditions(
         "elapsed_s": elapsed,
         "model_calls": model_calls,
         "cli_reported": cli_reported,
-        "max_wall_clock_s": limits.max_wall_clock_s,
+        "wall_clock_admission_bound_s": limits.wall_clock_admission_bound_s,
         "max_model_calls": limits.max_model_calls,
         "max_cli_reported_tokens": limits.max_cli_reported_tokens,
         "job_elapsed_s_at": elapsed,
@@ -1593,8 +1593,8 @@ def _seal_attempt(
         limits=limits,
     )
     if state.limit_trigger is None:
-        if job_wall_clock_s > limits.max_wall_clock_s:
-            state.limit_trigger = "max_wall_clock_s"
+        if job_wall_clock_s > limits.wall_clock_admission_bound_s:
+            state.limit_trigger = "wall_clock_admission_bound_s"
         elif (
             prior_actuals["model_calls"] + actuals["model_calls"]
             > limits.max_model_calls
@@ -1766,10 +1766,10 @@ def _attempt_loop(
             if (
                 Decimal(preflight_now_ns - job_started_ns)
                 / Decimal(1_000_000_000)
-                >= args.max_wall_clock_s
+                >= args.wall_clock_admission_bound_s
             ):
                 raise LaunchError(
-                    "Codex 起動前検証後に max_wall_clock_s へ到達した"
+                    "Codex 起動前検証後に wall_clock_admission_bound_s へ到達した"
                 )
             if attempt_diagnostics is not None:
                 attempt_diagnostics.note_boundary(
@@ -1828,8 +1828,8 @@ def _attempt_loop(
                     cli_reported=totals["cli_reported"],
                     limits=args,
                 )
-                if elapsed > args.max_wall_clock_s:
-                    state.limit_trigger = "max_wall_clock_s"
+                if elapsed > args.wall_clock_admission_bound_s:
+                    state.limit_trigger = "wall_clock_admission_bound_s"
                 elif totals["model_calls"] > args.max_model_calls:
                     state.limit_trigger = "max_model_calls"
                 elif (
@@ -1853,8 +1853,8 @@ def _attempt_loop(
                 limits=args,
             )
             pending_limit: str | None = None
-            if elapsed >= args.max_wall_clock_s:
-                pending_limit = "max_wall_clock_s"
+            if elapsed >= args.wall_clock_admission_bound_s:
+                pending_limit = "wall_clock_admission_bound_s"
             elif (
                 prior_actuals["model_calls"] + current["model_calls"]
                 >= args.max_model_calls
@@ -1868,7 +1868,7 @@ def _attempt_loop(
             if pending_limit is not None:
                 # drain と自然終了が同じ監視周期に重なった race を確定する。
                 # 待つ長さは通常の poll 1 回以下で、新しい admission を表さない。
-                if pending_limit == "max_wall_clock_s":
+                if pending_limit == "wall_clock_admission_bound_s":
                     state.limit_trigger = pending_limit
                 else:
                     try:
@@ -2229,7 +2229,7 @@ def _receipt(
         "retry_classification": "none",
         "escaped_process_containment": "not_attempted",
         "limits": {
-            "max_wall_clock_s": args.max_wall_clock_s,
+            "wall_clock_admission_bound_s": args.wall_clock_admission_bound_s,
             "max_model_calls": args.max_model_calls,
             "max_cli_reported_tokens": args.max_cli_reported_tokens,
             "max_attempts": args.max_attempts,
@@ -2454,8 +2454,8 @@ def _latch_final_job_limit(
         limits=args,
     )
     reason: str | None = None
-    if elapsed > args.max_wall_clock_s:
-        reason = "max_wall_clock_s"
+    if elapsed > args.wall_clock_admission_bound_s:
+        reason = "wall_clock_admission_bound_s"
     elif actuals["model_calls"] > args.max_model_calls:
         reason = "max_model_calls"
     elif actuals["cli_reported"] > args.max_cli_reported_tokens:
@@ -2495,7 +2495,7 @@ def _run_supervised(
     started_ns = args.launcher_started_ns
     if (
         Decimal(_monotonic_ns() - started_ns) / Decimal(1_000_000_000)
-        > args.max_wall_clock_s
+        > args.wall_clock_admission_bound_s
     ):
         receipt = _receipt(
             args,
@@ -2563,9 +2563,9 @@ def _run_supervised(
         elif (
             Decimal(retry_now_ns - started_ns)
             / Decimal(1_000_000_000)
-            >= args.max_wall_clock_s
+            >= args.wall_clock_admission_bound_s
         ):
-            retry_limit = "max_wall_clock_s"
+            retry_limit = "wall_clock_admission_bound_s"
         _record_limit_conditions(
             diagnostics.attempts[-1]
             if diagnostics is not None and diagnostics.attempts
@@ -3205,8 +3205,8 @@ def _validate_receipt(value: object) -> dict[str, Any]:
         raise LaunchError("receipt.escaped_process_containment が不正")
     limits = _closed_object(receipt["limits"], _LIMIT_FIELDS, label="limits")
     _strict_number(
-        limits["max_wall_clock_s"],
-        label="limits.max_wall_clock_s",
+        limits["wall_clock_admission_bound_s"],
+        label="limits.wall_clock_admission_bound_s",
         positive=True,
     )
     for field_name in (
@@ -3273,7 +3273,7 @@ def _validate_receipt(value: object) -> dict[str, Any]:
     if receipt["outcome"] == "accepted":
         within_limits = (
             Decimal(actuals["wall_clock_s"])
-            <= Decimal(limits["max_wall_clock_s"])
+            <= Decimal(limits["wall_clock_admission_bound_s"])
             and actuals["model_calls"] <= limits["max_model_calls"]
             and actuals["cli_reported"]
             <= limits["max_cli_reported_tokens"]
@@ -3445,7 +3445,7 @@ def _check_external_expectations(
         ):
             raise LaunchError(f"external expectation {option_name} が不一致")
     limit_names = (
-        "max_wall_clock_s",
+        "wall_clock_admission_bound_s",
         "max_model_calls",
         "max_cli_reported_tokens",
         "max_attempts",
@@ -3457,7 +3457,7 @@ def _check_external_expectations(
             self_asserted.append(field_name)
             continue
         actual = receipt["limits"][field_name]
-        if field_name == "max_wall_clock_s":
+        if field_name == "wall_clock_admission_bound_s":
             matches = Decimal(actual) == Decimal(expected)
         else:
             matches = actual == expected
@@ -3742,7 +3742,7 @@ def _parser() -> argparse.ArgumentParser:
         "--reasoning", choices=CODEX_REASONING_EFFORTS
     )
     run.add_argument(
-        "--max-wall-clock-s", type=_positive_decimal, required=True
+        "--wall-clock-admission-bound-s", type=_positive_decimal, required=True
     )
     run.add_argument("--max-model-calls", type=_positive_int, required=True)
     run.add_argument(
@@ -3786,7 +3786,7 @@ def _parser() -> argparse.ArgumentParser:
     )
     check.add_argument("--expect-cwd", type=Path)
     check.add_argument(
-        "--expect-max-wall-clock-s", type=_positive_decimal
+        "--expect-wall-clock-admission-bound-s", type=_positive_decimal
     )
     check.add_argument("--expect-max-model-calls", type=_positive_int)
     check.add_argument(
@@ -3826,7 +3826,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 if args.expect_cwd is not None
                 else None
             ),
-            "max_wall_clock_s": args.expect_max_wall_clock_s,
+            "wall_clock_admission_bound_s": args.expect_wall_clock_admission_bound_s,
             "max_model_calls": args.expect_max_model_calls,
             "max_cli_reported_tokens": (
                 args.expect_max_cli_reported_tokens
