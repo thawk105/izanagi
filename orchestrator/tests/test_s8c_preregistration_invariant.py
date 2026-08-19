@@ -395,6 +395,26 @@ def test_candidate_freeze_matches_contract_and_generation_chain(
 
 
 @CANDIDATE_XDIST_GROUP
+def test_candidate_freeze_batch_is_bounded_by_frozen_touch_points(
+    repository_candidate_commit: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    calls: list[tuple[int, int]] = []
+    original = prereg._batch_oids
+
+    def counted_batch_oids(repo_root, commits, paths):
+        calls.append((len(commits), len(paths)))
+        return original(repo_root, commits, paths)
+
+    monkeypatch.setattr(prereg, "_batch_oids", counted_batch_oids)
+    prereg.validate_condition_freeze_at(ROOT, repository_candidate_commit)
+    main_calls = [call for call in calls if call[1] > 1]
+    assert len(main_calls) == 1
+    commit_count, path_count = main_calls[0]
+    assert commit_count * path_count < prereg.MAX_BATCH_REQUESTS
+    assert commit_count < prereg.MAX_COMMITS
+
+
+@CANDIDATE_XDIST_GROUP
 def test_repository_tip_binds_current_decider_version_without_activation(
     repository_candidate_commit: str,
 ) -> None:
