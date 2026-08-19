@@ -99,9 +99,9 @@ def test_dry_run_stage_and_lane_matrix() -> None:
         ("plan", None, "max", "read-only"),
         ("consult", "sol", "max", "read-only"),
         ("consult", "luna", "max", "read-only"),
-        ("author", None, "max", "workspace-write"),
+        ("author", None, None, "workspace-write"),
         ("review", None, None, "read-only"),
-        ("fix", None, "max", "workspace-write"),
+        ("fix", None, None, "workspace-write"),
         ("focus", None, None, "read-only"),
     )
     with tempfile.TemporaryDirectory() as tmp:
@@ -128,7 +128,7 @@ def test_dry_run_stage_and_lane_matrix() -> None:
                 assert "--lane" not in argv
             else:
                 assert _option(argv, "--lane") == lane
-            if stage in ("review", "focus"):
+            if stage in ("review", "focus", "author", "fix"):
                 assert "--reasoning" not in argv
             else:
                 assert _option(argv, "--reasoning") == reasoning
@@ -443,8 +443,6 @@ def _run_fake_dispatch(
         "--sandbox",
         "read-only",
     ]
-    if stage == "fix":
-        command.extend(("--reasoning", "max"))
     return subprocess.run(
         command,
         check=False,
@@ -528,7 +526,7 @@ def test_review_fix_jobs_create_private_paths_and_share_wave_manifest() -> None:
 def test_invalid_reasoning_for_bound_stages_is_rc2() -> None:
     with tempfile.TemporaryDirectory() as tmp:
         root = Path(tmp)
-        for stage in ("review", "focus"):
+        for stage in ("review", "focus", "author", "fix"):
             result = _invoke(root, stage=stage, reasoning="high")
             assert result.returncode == 2
             assert "--reasoning" in result.stderr
@@ -579,7 +577,7 @@ def test_relative_paths_are_rc2() -> None:
 
 def test_unbound_stage_requires_reasoning() -> None:
     with tempfile.TemporaryDirectory() as tmp:
-        result = _invoke(Path(tmp), stage="author")
+        result = _invoke(Path(tmp), stage="plan")
         assert result.returncode == 2
         assert "--reasoning" in result.stderr
 

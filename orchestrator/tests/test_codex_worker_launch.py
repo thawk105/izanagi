@@ -1549,7 +1549,7 @@ def _base_command(
     stage: str = "author",
     lane: str | None = None,
     sandbox: str = "read-only",
-    reasoning: str = "high",
+    reasoning: str | None = None,
     max_attempts: int = 1,
     max_wall: str = "3",
     evidence_grace: str = "1.0",
@@ -1607,8 +1607,6 @@ def _base_command(
         os.fspath(cwd),
         "--sandbox",
         sandbox,
-        "--reasoning",
-        reasoning,
         "--max-wall-clock-s",
         max_wall,
         "--max-model-calls",
@@ -1636,6 +1634,10 @@ def _base_command(
         "--poll-interval-s",
         "0.01",
     ]
+    if reasoning is not None:
+        command.extend(("--reasoning", reasoning))
+    elif stage not in ("review", "focus", "author", "fix"):
+        command.extend(("--reasoning", "high"))
     if lane is not None:
         command[5:5] = ["--lane", lane]
     env = dict(os.environ)
@@ -2998,6 +3000,7 @@ def test_positive_p1_normal_job_is_accepted(tmp_path: Path) -> None:
         LAUNCHER.snapshot_authority(_ROOT), stage="author", lane=None
     )
     assert receipt["requested_model"] == derived.model
+    assert receipt["requested_effort"] == derived.effort
     assert receipt["requested_effort"] == receipt["recorded_effort"]
     assert receipt["recorded_model"] == derived.model
     assert receipt["recorded_turn_context_count"] >= 1
@@ -3140,6 +3143,7 @@ def test_all_repo_policy_reasoning_values_are_accepted(
         tmp_path,
         "normal",
         expected_returncode=0,
+        stage="plan",
         reasoning=reasoning,
     )
 
@@ -3152,7 +3156,32 @@ def test_authority_bound_reasoning_is_rejected_before_all_side_effects(
 ) -> None:
     fake = _write_fake_codex(tmp_path / "fake-codex")
     command, env, paths = _base_command(
-        tmp_path, fake=fake, stage="review"
+        tmp_path, fake=fake, stage="review", reasoning="high"
+    )
+    completed = _run_launcher_subprocess(
+        command, env=env, paths=paths, expected_returncode=2
+    )
+    assert "--reasoning" in completed.stderr
+    for key in (
+        "receipt",
+        "manifest",
+        "pid_dir",
+        "counter",
+        "artifact",
+        "output",
+        "codex_home",
+    ):
+        assert not paths[key].exists()
+
+
+@pytest.mark.parametrize("stage", ("author", "fix"))
+def test_author_and_fix_reasoning_is_rejected_before_all_side_effects(
+    tmp_path: Path,
+    stage: str,
+) -> None:
+    fake = _write_fake_codex(tmp_path / "fake-codex")
+    command, env, paths = _base_command(
+        tmp_path, fake=fake, stage=stage, reasoning="high"
     )
     completed = _run_launcher_subprocess(
         command, env=env, paths=paths, expected_returncode=2
@@ -3208,7 +3237,6 @@ def test_authority_bound_launch_uses_derived_model_and_effort(
     command, env, paths = _base_command(
         tmp_path, fake=fake, stage="review"
     )
-    _remove_option(command, "--reasoning")
     completed = _run_launcher_subprocess(
         command, env=env, paths=paths, expected_returncode=0
     )
@@ -3658,7 +3686,6 @@ def test_authority_bound_job_rejects_prior_invalid_attempt(
         max_attempts=2,
         sandbox="read-only",
     )
-    _remove_option(command, "--reasoning")
     env["FAKE_SEQUENCE"] = "payload_decoy,normal"
     _run_launcher_subprocess(
         command, env=env, paths=paths, expected_returncode=1
@@ -5462,7 +5489,6 @@ def test_docs_authority_alone_rejects_consistent_effort_mutation(
     command, env, paths = _base_command(
         tmp_path, fake=fake, stage="review"
     )
-    _remove_option(command, "--reasoning")
     _run_launcher_subprocess(
         command, env=env, paths=paths, expected_returncode=0
     )

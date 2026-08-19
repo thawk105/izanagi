@@ -5,7 +5,7 @@
 
 ## DW-O01 — codex subprocess 起動
 
-`tools/dev_wave_codex.py --stage <stage> [--lane <lane>] -o <出力>.md` で起動（他の引数は `--help`）。model は全段、effort は段 6 の review / focus が docs 権威から導出。caller 指定は不可。
+`tools/dev_wave_codex.py --stage <stage> [--lane <lane>] -o <出力>.md` で起動（他の引数は `--help`）。model は全段、effort は段 5 / 6 が docs 権威から導出。caller 指定は不可。
 背景 job は `nohup setsid bash -c '<cmd>; echo $? > <log>.done'` で detach する。
 prompt 非空を先に検査し、既存 `.done` は消さず再利用せず再投入を止める。
 待機は `tools/dev_wave_wait.py producer` を使い、`--pid-file` は producer script 自身が `echo $$` で書く。

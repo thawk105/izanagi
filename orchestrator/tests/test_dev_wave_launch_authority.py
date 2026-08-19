@@ -115,9 +115,11 @@ def test_snapshot_and_derive_current_authority_positive(tmp_path: Path) -> None:
     }
     assert requirements[("review", None)].effort_authority == "docs"
     assert requirements[("focus", None)].effort_authority == "docs"
-    assert requirements[("author", None)].effort is None
-    assert requirements[("author", None)].effort_authority == "unbound"
-    assert len(snapshot.sections) == 3
+    assert requirements[("author", None)].effort == "max"
+    assert requirements[("author", None)].effort_authority == "docs"
+    assert requirements[("fix", None)].effort == "max"
+    assert requirements[("fix", None)].effort_authority == "docs"
+    assert len(snapshot.sections) == 4
 
 
 def test_v2_all_stage_and_lane_models_resolve_to_single_model(
@@ -177,6 +179,22 @@ def test_review_effort_matches_independent_docs_cross_check() -> None:
         snapshot_authority(_ROOT), stage="review", lane=None
     )
     assert requirement.effort == expected
+
+
+def test_author_effort_matches_independent_docs_cross_check() -> None:
+    expected = _independent_reasoning(_ROOT / _WORKERS, "DW-S05-A")
+    requirement = derive_launch(
+        snapshot_authority(_ROOT), stage="author", lane=None
+    )
+    assert requirement.effort == expected
+
+
+def test_fix_effort_matches_author_derivation() -> None:
+    snapshot = snapshot_authority(_ROOT)
+    author = derive_launch(snapshot, stage="author", lane=None)
+    fix = derive_launch(snapshot, stage="fix", lane=None)
+    assert fix.effort == author.effort
+    assert fix.effort_authority == author.effort_authority
 
 
 def test_focus_effort_matches_independent_docs_cross_check() -> None:

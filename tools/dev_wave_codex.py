@@ -23,7 +23,7 @@ from tools.dev_waves.time_values import positive_safe_nanosecond_decimal
 
 STAGES = ("plan", "consult", "author", "review", "fix", "focus")
 LANES = ("sol", "luna")
-AUTHORITY_BOUND_STAGES = frozenset({"review", "focus"})
+AUTHORITY_BOUND_STAGES = frozenset({"review", "focus", "author", "fix"})
 
 # These are deliberately operational defaults, not docs authority.
 DEFAULT_MAX_WALL_CLOCK_S = 3600
@@ -168,11 +168,11 @@ def _validate_combinations(
     if args.stage in AUTHORITY_BOUND_STAGES:
         if args.reasoning is not None:
             parser.error(
-                "--reasoning は --stage review/focus では指定できない"
+                "--reasoning は --stage review/focus/author/fix では指定できない"
             )
     elif args.reasoning is None or not args.reasoning.strip():
         parser.error(
-            "--reasoning は --stage review/focus 以外では必須"
+            "--reasoning は --stage review/focus/author/fix 以外では必須"
         )
 
 

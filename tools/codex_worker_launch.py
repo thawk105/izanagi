@@ -2356,7 +2356,7 @@ def _preflight_run(args: argparse.Namespace) -> tuple[Path, str, str]:
     if derived.effort_authority == "docs":
         if args.reasoning is not None:
             raise LaunchError(
-                "review/focus では --reasoning を指定できない"
+                "review/focus/author/fix では --reasoning を指定できない"
             )
         args.launch_requirement = derived
     else:
@@ -3071,7 +3071,7 @@ def _validate_receipt(value: object) -> dict[str, Any]:
         cwd_field = "requested_cwd"
         if receipt["effort_authority"] not in ("docs", "unbound"):
             raise LaunchError("receipt.effort_authority が不正")
-        if (receipt["stage"] in ("review", "focus")) != (
+        if (receipt["stage"] in ("review", "focus", "author", "fix")) != (
             receipt["effort_authority"] == "docs"
         ):
             raise LaunchError("receipt effort authority と stage が不一致")
@@ -3139,7 +3139,7 @@ def _validate_receipt(value: object) -> dict[str, Any]:
         ):
             raise LaunchError("authority_snapshot.digest が不正")
         sections = snapshot["sections"]
-        if not isinstance(sections, list) or len(sections) != 3:
+        if not isinstance(sections, list) or len(sections) not in (3, 4):
             raise LaunchError("authority_snapshot.sections が不正")
         section_keys: set[tuple[str, str]] = set()
         for index, raw_section in enumerate(sections):
