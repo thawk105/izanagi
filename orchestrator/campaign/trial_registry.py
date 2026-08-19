@@ -1506,10 +1506,13 @@ def _assert_runtime_report_cells(
     cell = cells[0]
     if not isinstance(cell, Mapping):
         _fail("runtime-cell-set", "report cell is not an object")
+    if cell.get("workload") != expected_workload["workload"]:
+        _fail("runtime-cell-set", "runtime cell differs from its trial projection")
+    if is_exact_campaignless_failure_fallback_cell(cell):
+        return [cell]
     flags = cell.get("workload_flags")
     if (
-        cell.get("workload") != expected_workload["workload"]
-        or not isinstance(flags, Mapping)
+        not isinstance(flags, Mapping)
         or flags.get("ycsb_rratio") != expected_workload["ycsb_rratio"]
         or cell.get("campaign_id") != trial.campaign_id
     ):

@@ -831,11 +831,12 @@ def _complete_report(
     measurement_head: str,
     *,
     generation_budget: int = 2,
+    repository_root: Path | None = None,
 ) -> Path:
     run = root / f"run-{trial.trial_id}"
-    repository_root = root.parent
+    registration_root = root.parent if repository_root is None else repository_root
     content_commit, effective_commit = _fixture_registration_commits(
-        repository_root, manifest,
+        registration_root, manifest,
     )
     workload = R.HOLDOUT_BINDINGS[trial.holdout]["workload"]
     entry = producer.resolve_workload_entry(workload)
@@ -1114,8 +1115,16 @@ def _prepare_registered_build_report(
     trial: R.TrialSpec,
     manifest: R.TrialManifest,
     measurement_head: str,
+    *,
+    repository_root: Path | None = None,
 ) -> Path:
-    report_path = _complete_report(root, trial, manifest, measurement_head)
+    report_path = _complete_report(
+        root,
+        trial,
+        manifest,
+        measurement_head,
+        repository_root=repository_root,
+    )
     events, report = _load_report_bundle(report_path)
     run_root = report_path.parent
     output_root = run_root.parent.parent
@@ -1588,7 +1597,11 @@ def test_s8c_acceptance_registered_build_reports_are_unreachable_until_workload_
     build_root = repo / "output" / "exploration" / "autonomous-trials"
     reports = [
         _prepare_registered_build_report(
-            build_root, trial, manifest, _head(repo),
+            build_root,
+            trial,
+            manifest,
+            _head(repo),
+            repository_root=repo,
         )
         for trial in manifest.trials
     ]
@@ -1668,7 +1681,11 @@ def test_s8c_acceptance_rejects_campaign_from_different_output_root(
     build_root = repo / "output" / "exploration" / "autonomous-trials"
     reports = [
         _prepare_registered_build_report(
-            build_root, trial, manifest, _head(repo),
+            build_root,
+            trial,
+            manifest,
+            _head(repo),
+            repository_root=repo,
         )
         for trial in manifest.trials
     ]
@@ -3044,6 +3061,7 @@ def test_registered_admission_and_lifecycle_are_non_certifying_and_start_once(
             repository_root=repo,
             registry_path=registry,
             lifecycle_path=lifecycle,
+            attempt_slot=second_attempt,
         )
     assert lifecycle.read_bytes() == lifecycle_before_forbidden_reject
     full_field_replacement = dataclasses.replace(

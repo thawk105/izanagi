@@ -546,7 +546,7 @@ def _extend_t1353_originless_baseline(
         ["t325-h1-swapped-r0-a0", 2], ["t325-h2-on-r0-a0", 2],
         ["t325-h2-off-r0-a0", 2], ["t325-h2-swapped-r0-a0", 2],
     ]
-    baseline["acceptance/lifecycle_prefix_bytes"] = [[11364, 1]]
+    baseline["acceptance/lifecycle_prefix_bytes"] = [[11352, 1]]
 
 
 _extend_t1353_originless_baseline(_PRE_WAVE_ORIGINLESS_BASELINE)
