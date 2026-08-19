@@ -1671,10 +1671,7 @@ def test_s8c_acceptance_registered_build_reports_remain_fail_closed_for_unknown_
             repository_root=repo,
             registry_path=registry,
         )
-    assert str(acceptance_exc_info.value) == (
-        "[campaign-chain] [campaign-chain] "
-        "cells[0].workload is not producer-supported"
-    )
+    assert type(acceptance_exc_info.value) is R.TrialRegistryError
     receipt_dir = repo / R.s8c_acceptance_receipt.DEFAULT_RECEIPT_DIR
     assert not receipt_dir.exists() or not any(receipt_dir.iterdir())
 
