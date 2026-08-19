@@ -193,7 +193,7 @@ def test_requires_one_regular_introduction(alpha_fixture: SimpleNamespace) -> No
     target = alpha_fixture.root / authority.ALPHA_LEDGER_PATH
     target.chmod(0o755)
     _run(alpha_fixture.root, "add", authority.ALPHA_LEDGER_PATH)
-    _run(alpha_fixture.root, "commit", "change ledger mode")
+    _run(alpha_fixture.root, "commit", "-m", "change ledger mode")
     head = _run(alpha_fixture.root, "rev-parse", "HEAD")
     with pytest.raises(authority.AlphaReservationError):
         _inspect(alpha_fixture, head=head)
@@ -243,7 +243,7 @@ def test_rejects_rename_and_copy_history(alpha_fixture: SimpleNamespace) -> None
     renamed = alpha_fixture.root / "output" / "registry" / "renamed.jsonl"
     old.rename(renamed)
     _run(alpha_fixture.root, "add", "-A")
-    _run(alpha_fixture.root, "commit", "rename ledger")
+    _run(alpha_fixture.root, "commit", "-m", "rename ledger")
     head = _run(alpha_fixture.root, "rev-parse", "HEAD")
     with pytest.raises(_git.GitSupportError):
         _git.read_full_history(
@@ -280,11 +280,31 @@ def test_rejects_duplicate_json_keys_and_missing_final_lf(
         + alpha_fixture.family_root.encode("ascii")
         + b'","kind":"alpha_reservation","ordinal":1,"ordinal":1,"schema_version":"t139-alpha-reservation/v1"}\n'
     )
-    duplicate_head = _commit_ledger(alpha_fixture, duplicate, "duplicate JSON key")
+    _run(
+        alpha_fixture.root,
+        "checkout",
+        "-q",
+        "-b",
+        "duplicate-json-key",
+        alpha_fixture.measurement_head,
+    )
+    duplicate_head = _commit_ledger(
+        alpha_fixture,
+        alpha_fixture.row + b"\n" + duplicate,
+        "duplicate JSON key",
+    )
     with pytest.raises(authority.AlphaReservationError) as duplicate_error:
         _inspect(alpha_fixture, head=duplicate_head)
     assert isinstance(duplicate_error.value.__cause__, ReceiptParseError)
 
+    _run(
+        alpha_fixture.root,
+        "checkout",
+        "-q",
+        "-b",
+        "missing-final-lf",
+        alpha_fixture.family_root,
+    )
     valid_head = _commit_ledger(alpha_fixture, alpha_fixture.row, "remove final LF")
     with pytest.raises(authority.AlphaReservationError):
         _inspect(alpha_fixture, head=valid_head)
@@ -336,13 +356,8 @@ def test_history_is_rewalked_without_cache(alpha_fixture: SimpleNamespace) -> No
         "history mutation after first walk",
     )
     assert first[-1].data == alpha_fixture.row + b"\n"
-    with pytest.raises(_git.GitSupportError):
-        _git.read_full_history(
-            alpha_fixture.root,
-            start_commit=alpha_fixture.family_root,
-            end_commit=changed_head,
-            path=authority.ALPHA_LEDGER_PATH,
-        )
+    with pytest.raises(authority.AlphaReservationError):
+        _inspect(alpha_fixture, head=changed_head)
 
 
 def test_parent_series_id_reset_is_killed_by_full_history(
