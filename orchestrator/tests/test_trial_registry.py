@@ -135,6 +135,8 @@ def _registration_value(manifest: R.TrialManifest) -> dict:
         "schema_version": R.REGISTRATION_SCHEMA_VERSION,
         "manifest_sha256": manifest.sha256,
         "prereg_commit": manifest.prereg_commit,
+        "prereg_content_commit": manifest.prereg_commit,
+        "prereg_effective_commit": manifest.prereg_commit,
         "trials": [
             {
                 "trial_id": trial.trial_id,
@@ -153,6 +155,97 @@ def _write_registry(path: Path, *rows: dict) -> None:
     path.write_bytes(b"".join(_canonical(row) + b"\n" for row in rows))
 
 
+_FIXTURE_REGISTRATION_COMMITS: dict[tuple[str, str], tuple[str, str]] = {}
+
+
+def _prepare_fixture_effective_binding(
+    repo: Path,
+    manifest_path: Path,
+    manifest: R.TrialManifest,
+) -> tuple[str, str]:
+    """Create a real P/C pair and remember it for report fixtures.
+
+    ``prereg_commit`` is the legacy activation alias in the manifest.  The
+    manifest and the frozen attempt registry are introduced by P, while C is
+    its direct child containing only the effective-binding record.
+    """
+    cached = _FIXTURE_REGISTRATION_COMMITS.get(
+        (str(repo.resolve()), manifest.sha256),
+    )
+    if cached is not None:
+        return cached
+    attempt_path = repo / R.DEFAULT_ATTEMPT_REGISTRY_PATH
+    if not attempt_path.exists():
+        slots = _attempt_slots(manifest)
+        R.create_attempt_registry_genesis(
+            repository_root=repo,
+            manifest_path=manifest_path,
+            manifest_sha256=manifest.sha256,
+            freeze_id=f"freeze-{manifest.sha256[:16]}",
+            slots=slots,
+        )
+    head = _head(repo)
+    manifest_relative = manifest_path.relative_to(repo).as_posix()
+    attempt_relative = attempt_path.relative_to(repo).as_posix()
+    committed_manifest = R._blob_at_commit(
+        repo, commit_id=head, relative_path=manifest_relative,
+    )
+    committed_attempt = R._blob_at_commit(
+        repo, commit_id=head, relative_path=attempt_relative,
+    )
+    if committed_manifest != manifest.raw_bytes or committed_attempt != attempt_path.read_bytes():
+        _commit(repo, "fixture content and attempt freeze", manifest_path, attempt_path)
+    content_commit = _head(repo)
+    genesis_bytes = attempt_path.read_bytes()
+    genesis = json.loads(genesis_bytes.splitlines()[0])
+    binding_value = {
+        "schema_version": R.EFFECTIVE_BINDING_SCHEMA_VERSION,
+        "prereg_content_commit": content_commit,
+        "manifest_path": manifest_relative,
+        "manifest_sha256": manifest.sha256,
+        "freeze_id": genesis["freeze_id"],
+        "attempt_registry_path": R.DEFAULT_ATTEMPT_REGISTRY_PATH.as_posix(),
+        "attempt_registry_initial_sha256": hashlib.sha256(genesis_bytes).hexdigest(),
+    }
+    binding_path = repo / R.DEFAULT_EFFECTIVE_BINDING_PATH
+    binding_path.parent.mkdir(parents=True, exist_ok=True)
+    binding_path.write_bytes(R._canonical_json_bytes(binding_value))
+    effective_commit = _commit(repo, "fixture effective binding", binding_path)
+    _FIXTURE_REGISTRATION_COMMITS[(str(repo.resolve()), manifest.sha256)] = (
+        content_commit, effective_commit,
+    )
+    return content_commit, effective_commit
+
+
+def _fixture_registration_commits(
+    repo: Path,
+    manifest: R.TrialManifest,
+) -> tuple[str, str]:
+    return _FIXTURE_REGISTRATION_COMMITS[(str(repo.resolve()), manifest.sha256)]
+
+
+def _append_fixture_registration(
+    *,
+    manifest_path: Path,
+    repository_root: Path,
+    registry_path: Path,
+    prepare_binding: bool = True,
+) -> R.TrialRegistration:
+    manifest = R.load_trial_manifest(manifest_path)
+    if prepare_binding:
+        _content_commit, effective_commit = _prepare_fixture_effective_binding(
+            repository_root, manifest_path, manifest,
+        )
+    else:
+        effective_commit = manifest.prereg_commit
+    return R.append_trial_registration(
+        manifest_path=manifest_path,
+        repository_root=repository_root,
+        registry_path=registry_path,
+        prereg_effective_commit=effective_commit,
+    )
+
+
 def _registered_repo(
     tmp_path: Path,
     *,
@@ -163,7 +256,7 @@ def _registered_repo(
     _write_manifest(manifest_path, _manifest_value(prereg, prefix))
     _commit(repo, "manifest", manifest_path)
     registry_path = repo / "registry" / "registry.jsonl"
-    R.append_trial_registration(
+    _append_fixture_registration(
         manifest_path=manifest_path,
         repository_root=repo,
         registry_path=registry_path,
@@ -362,6 +455,9 @@ def _base_start(
         "gating_spec_sha256": _GATING_SPEC_SHA256,
         "honest_accounting_authority": "supervisor-authoritative",
         "prereg_commit": None,
+        "prereg_content_commit": None,
+        "prereg_effective_commit": None,
+        "slot_id": None,
         "measurement_head": measurement_head,
         "manifest_sha256": None,
         "seq": 1,
@@ -403,6 +499,12 @@ def _base_report(
         "honest_accounting_authority": "supervisor-authoritative",
         "cells": [],
         "prereg_commit": None,
+        "prereg_content_commit": None,
+        "prereg_effective_commit": None,
+        "slot_id": None,
+        "raw_output_sha256": None,
+        "observation_sha256": None,
+        "primary_value": None,
         "measurement_head": measurement_head,
         "manifest_sha256": None,
     }
@@ -459,9 +561,13 @@ def _fixture_launch_admission(
     manifest: R.TrialManifest,
     measurement_head: str,
     *,
+    prereg_content_commit: str | None = None,
+    prereg_effective_commit: str | None = None,
     origin_binding_record: dict | None = None,
 ) -> dict:
     workload = R.HOLDOUT_BINDINGS[trial.holdout]["workload"]
+    content_commit = prereg_content_commit or manifest.prereg_commit
+    effective_commit = prereg_effective_commit or measurement_head
     activation_digest = R.s8c_preregistration._construct_effective(
         _effective_report(manifest)
     ).report_digest_sha256
@@ -474,6 +580,8 @@ def _fixture_launch_admission(
         "binding": {
             "manifest_sha256": manifest.sha256,
             "prereg_commit": manifest.prereg_commit,
+            "prereg_content_commit": content_commit,
+            "prereg_effective_commit": effective_commit,
             "measurement_head": measurement_head,
             "trial_id": trial.trial_id,
             "arm": trial.arm,
@@ -482,6 +590,8 @@ def _fixture_launch_admission(
             "workload": workload,
             "ycsb_rratio": R.HOLDOUT_BINDINGS[trial.holdout]["ycsb_rratio"],
         },
+        "prereg_content_commit": content_commit,
+        "prereg_effective_commit": effective_commit,
         "activation_report_digest_sha256": activation_digest,
     }
     if origin_binding_record is not None:
@@ -564,6 +674,38 @@ def _fixture_workload_flags(trial: R.TrialSpec) -> dict[str, str]:
         "ycsb_rratio": R.HOLDOUT_BINDINGS[trial.holdout]["ycsb_rratio"],
         "ycsb_rmw": "0",
     }
+
+
+def _fixture_slot_id(trial: R.TrialSpec) -> str:
+    return f"{trial.trial_id}-r0-a0"
+
+
+def _fixture_schedule_row_sha256(trial: R.TrialSpec) -> str:
+    schedule = {
+        "trial_id": trial.trial_id,
+        "arm": trial.arm,
+        "holdout": trial.holdout,
+        "campaign_id": trial.campaign_id,
+        "replicate_index": 0,
+        "attempt_index": 0,
+    }
+    return hashlib.sha256(_canonical(schedule)).hexdigest()
+
+
+def _fixture_process_identity(trial: R.TrialSpec) -> dict[str, object]:
+    return {
+        "pid": 1000 + list(R.ARMS).index(trial.arm) + 10 * list(R.HOLDOUTS).index(trial.holdout),
+        "starttime": "fixture-start",
+        "execution_uuid": f"fixture-{trial.trial_id}",
+    }
+
+
+def _fixture_raw_output_sha256(trial: R.TrialSpec) -> str:
+    return hashlib.sha256(f"raw-output:{trial.trial_id}".encode("ascii")).hexdigest()
+
+
+def _fixture_observation_sha256(trial: R.TrialSpec) -> str:
+    return hashlib.sha256(f"observation:{trial.trial_id}".encode("ascii")).hexdigest()
 
 
 def _fixture_campaign_identity(trial: R.TrialSpec) -> tuple[str, str]:
@@ -689,8 +831,13 @@ def _complete_report(
     measurement_head: str,
     *,
     generation_budget: int = 2,
+    repository_root: Path | None = None,
 ) -> Path:
     run = root / f"run-{trial.trial_id}"
+    registration_root = root.parent if repository_root is None else repository_root
+    content_commit, effective_commit = _fixture_registration_commits(
+        registration_root, manifest,
+    )
     workload = R.HOLDOUT_BINDINGS[trial.holdout]["workload"]
     entry = producer.resolve_workload_entry(workload)
     workload_flags = _fixture_workload_flags(trial)
@@ -716,11 +863,21 @@ def _complete_report(
     )
     for target in (start, report):
         target["prereg_commit"] = manifest.prereg_commit
+        target["prereg_content_commit"] = content_commit
+        target["prereg_effective_commit"] = effective_commit
+        target["slot_id"] = _fixture_slot_id(trial)
         target["manifest_sha256"] = manifest.sha256
         target["arm_execution"] = copy.deepcopy(arm_execution)
         target["launch_admission"] = _fixture_launch_admission(
-            trial, manifest, measurement_head,
+            trial,
+            manifest,
+            measurement_head,
+            prereg_content_commit=content_commit,
+            prereg_effective_commit=effective_commit,
         )
+    report["raw_output_sha256"] = _fixture_raw_output_sha256(trial)
+    report["observation_sha256"] = _fixture_observation_sha256(trial)
+    report["primary_value"] = 1.0
     events = [start]
     generations = []
     seq = 2
@@ -958,8 +1115,16 @@ def _prepare_registered_build_report(
     trial: R.TrialSpec,
     manifest: R.TrialManifest,
     measurement_head: str,
+    *,
+    repository_root: Path | None = None,
 ) -> Path:
-    report_path = _complete_report(root, trial, manifest, measurement_head)
+    report_path = _complete_report(
+        root,
+        trial,
+        manifest,
+        measurement_head,
+        repository_root=repository_root,
+    )
     events, report = _load_report_bundle(report_path)
     run_root = report_path.parent
     output_root = run_root.parent.parent
@@ -1054,15 +1219,27 @@ def _partial_report(
     measurement_head: str,
 ) -> Path:
     run = root / f"run-{trial.trial_id}"
+    repository_root = root.parent
+    content_commit, effective_commit = _fixture_registration_commits(
+        repository_root, manifest,
+    )
     start = _base_start(trial, run, measurement_head)
     report = _base_report(trial, run, measurement_head)
     for target in (start, report):
         target["prereg_commit"] = manifest.prereg_commit
+        target["prereg_content_commit"] = content_commit
+        target["prereg_effective_commit"] = effective_commit
+        target["slot_id"] = _fixture_slot_id(trial)
         target["manifest_sha256"] = manifest.sha256
         target["arm_execution"] = _fixture_arm_execution(trial)
         target["launch_admission"] = _fixture_launch_admission(
-            trial, manifest, measurement_head,
+            trial,
+            manifest,
+            measurement_head,
+            prereg_content_commit=content_commit,
+            prereg_effective_commit=effective_commit,
         )
+    report["raw_output_sha256"] = _fixture_raw_output_sha256(trial)
     report["status"] = "partial"
     report["fatal_error"] = {"type": "ProviderError", "message": "init failed"}
     events = [
@@ -1151,6 +1328,10 @@ def _one_cell_partial_report(
     events[0]["generation_budget_per_workload"] = trial.generations
     report["generation_budget_per_workload"] = trial.generations
     report["status"] = "partial"
+    # The cell prefix is retained for diagnosis, but a partial terminal row
+    # has no observed top-level projection.
+    report["observation_sha256"] = None
+    report["primary_value"] = None
     report["fatal_error"] = error
     report["cells"][0]["stop_reason"] = "supervisor-error"
     report["cells"][0]["error"] = error
@@ -1238,7 +1419,7 @@ def test_p2_first_and_second_registration_append_pass(tmp_path: Path) -> None:
     manifest_b_path = repo / "manifest-b.json"
     _write_manifest(manifest_b_path, _manifest_value(prereg, "trial-b"))
     _commit(repo, "manifest-b", manifest_b_path)
-    R.append_trial_registration(
+    _append_fixture_registration(
         manifest_path=manifest_b_path,
         repository_root=repo,
         registry_path=registry,
@@ -1416,7 +1597,11 @@ def test_s8c_acceptance_registered_build_reports_are_unreachable_until_workload_
     build_root = repo / "output" / "exploration" / "autonomous-trials"
     reports = [
         _prepare_registered_build_report(
-            build_root, trial, manifest, _head(repo),
+            build_root,
+            trial,
+            manifest,
+            _head(repo),
+            repository_root=repo,
         )
         for trial in manifest.trials
     ]
@@ -1496,7 +1681,11 @@ def test_s8c_acceptance_rejects_campaign_from_different_output_root(
     build_root = repo / "output" / "exploration" / "autonomous-trials"
     reports = [
         _prepare_registered_build_report(
-            build_root, trial, manifest, _head(repo),
+            build_root,
+            trial,
+            manifest,
+            _head(repo),
+            repository_root=repo,
         )
         for trial in manifest.trials
     ]
@@ -2073,7 +2262,7 @@ def test_p7_later_registry_rows_do_not_hide_older_manifest(tmp_path: Path) -> No
     manifest_b_path = repo / "manifest-b.json"
     _write_manifest(manifest_b_path, _manifest_value(prereg, "trial-b"))
     _commit(repo, "manifest-b", manifest_b_path)
-    R.append_trial_registration(
+    _append_fixture_registration(
         manifest_path=manifest_b_path, repository_root=repo, registry_path=registry,
     )
     _commit(repo, "registry-b", registry)
@@ -2136,6 +2325,76 @@ def _effective_report(manifest: R.TrialManifest):
     )
 
 
+def _ensure_fixture_attempt_rows(
+    repo: Path,
+    manifest: R.TrialManifest,
+    reports: list[Path],
+) -> None:
+    attempt_registry = repo / R.DEFAULT_ATTEMPT_REGISTRY_PATH
+    rows = list(R.load_attempt_registry(repo, registry_path=attempt_registry))
+    terminal_by_slot = {
+        row["slot_id"]: row
+        for row in rows
+        if row.get("event") == "terminal"
+    }
+    genesis = rows[0]
+    slots_by_trial = {
+        slot["trial_id"]: slot
+        for slot in genesis["slots"]
+        if slot["attempt_index"] == 0
+    }
+    content_commit, effective_commit = _fixture_registration_commits(
+        repo, manifest,
+    )
+    for report_path in reports:
+        report = json.loads(report_path.read_text(encoding="utf-8"))
+        trial = next(
+            (
+                item for item in manifest.trials
+                if item.trial_id == report.get("trial_id")
+            ),
+            None,
+        )
+        if trial is None:
+            continue
+        slot = slots_by_trial[trial.trial_id]
+        if slot["slot_id"] in terminal_by_slot:
+            continue
+        capability = _reserve_attempt(
+            repo,
+            attempt_registry,
+            content_commit,
+            effective_commit,
+            genesis["freeze_id"],
+            slot,
+            run_start_receipt_sha256=hashlib.sha256(
+                _canonical(report["launch_admission"])
+            ).hexdigest(),
+        )
+        observed = report["status"] == "complete"
+        failure_reason = None if observed else "provider-failure"
+        R.classify_attempt(
+            capability,
+            failure_reason=failure_reason,
+            authority_id="fixture-authority",
+            authority_policy_sha256="a" * 64,
+            external_evidence_sha256="b" * 64,
+            classified_at="2026-08-18T00:00:01+00:00",
+        )
+        R.record_attempt_terminal(
+            capability,
+            terminal_status="observed" if observed else "terminal-failure",
+            raw_output_sha256=report["raw_output_sha256"],
+            report_sha256=hashlib.sha256(report_path.read_bytes()).hexdigest(),
+            observation_sha256=(
+                report["observation_sha256"] if observed else None
+            ),
+            primary_value=report["primary_value"] if observed else None,
+            finished_at="2026-08-18T00:00:02+00:00",
+        )
+        terminal_by_slot[slot["slot_id"]] = {"slot_id": slot["slot_id"]}
+
+
 def _write_acceptance_lifecycle(
     repo: Path,
     manifest: R.TrialManifest,
@@ -2144,6 +2403,20 @@ def _write_acceptance_lifecycle(
     *,
     omit_terminal_trial_id: str | None = None,
 ) -> Path:
+    _ensure_fixture_attempt_rows(repo, manifest, reports)
+    attempt_rows = R.load_attempt_registry(
+        repo, registry_path=repo / R.DEFAULT_ATTEMPT_REGISTRY_PATH,
+    )
+    attempt_starts = {
+        row["slot_id"]: row
+        for row in attempt_rows
+        if row.get("event") == "start"
+    }
+    attempt_terminals = {
+        row["slot_id"]: row
+        for row in attempt_rows
+        if row.get("event") == "terminal"
+    }
     reports_by_id: dict[str, tuple[Path, dict]] = {}
     for path in reports:
         try:
@@ -2156,6 +2429,9 @@ def _write_acceptance_lifecycle(
     rows: list[dict] = []
     for trial in manifest.trials:
         matched = reports_by_id.get(trial.trial_id)
+        content_commit, effective_commit = _fixture_registration_commits(
+            repo, manifest,
+        )
         if matched is None:
             measurement_head = _head(repo)
             path = repo / "absent-report.json"
@@ -2163,11 +2439,18 @@ def _write_acceptance_lifecycle(
                 "measurement_head": measurement_head,
                 "status": "partial",
                 "launch_admission": _fixture_launch_admission(
-                    trial, manifest, measurement_head,
+                    trial,
+                    manifest,
+                    measurement_head,
+                    prereg_content_commit=content_commit,
+                    prereg_effective_commit=effective_commit,
                 ),
             }
         else:
             path, report = matched
+        slot_id = report.get("slot_id", _fixture_slot_id(trial))
+        attempt_start = attempt_starts.get(slot_id)
+        attempt_terminal = attempt_terminals.get(slot_id)
         rows.append({
             "schema_version": R.LIFECYCLE_SCHEMA_VERSION,
             "event": "start",
@@ -2175,11 +2458,27 @@ def _write_acceptance_lifecycle(
             "run_root": str(path.parent.resolve()),
             "mode": "registered-effective",
             "manifest_sha256": manifest.sha256,
+            "prereg_commit": manifest.prereg_commit,
+            "prereg_content_commit": content_commit,
+            "prereg_effective_commit": report.get(
+                "prereg_effective_commit", effective_commit
+            ),
             "measurement_head": report["measurement_head"],
             "activation_report_digest_sha256": activation_digest,
             "launch_admission_sha256": hashlib.sha256(
                 _canonical(report["launch_admission"])
             ).hexdigest(),
+            "slot_id": slot_id,
+            "schedule_row_sha256": (
+                attempt_start["schedule_row_sha256"]
+                if attempt_start is not None
+                else _fixture_schedule_row_sha256(trial)
+            ),
+            "process_identity": copy.deepcopy(
+                attempt_start["process_identity"]
+                if attempt_start is not None
+                else _fixture_process_identity(trial)
+            ),
         })
         if trial.trial_id == omit_terminal_trial_id:
             continue
@@ -2196,6 +2495,21 @@ def _write_acceptance_lifecycle(
             "attempt_journal_sha256": (
                 hashlib.sha256(journal.read_bytes()).hexdigest()
                 if journal.is_file() else "b" * 64
+            ),
+            "prereg_commit": content_commit,
+            "prereg_content_commit": content_commit,
+            "prereg_effective_commit": report.get(
+                "prereg_effective_commit", effective_commit
+            ),
+            "slot_id": slot_id,
+            "classification_receipt_sha256": (
+                attempt_terminal["classification_receipt_sha256"]
+                if attempt_terminal is not None else "c" * 64
+            ),
+            "raw_output_sha256": (
+                attempt_terminal["raw_output_sha256"]
+                if attempt_terminal is not None
+                else report.get("raw_output_sha256", _fixture_raw_output_sha256(trial))
             ),
         }
         if "origin_terminal_projection" in report:
@@ -2254,6 +2568,50 @@ def _registered_admission(
         workloads=[R.HOLDOUT_BINDINGS[trial.holdout]["workload"]],
         repository_root=repo,
         registry_path=registry,
+    )
+
+
+def _lifecycle_attempt_slot(
+    repo: Path,
+    manifest: R.TrialManifest,
+    admission: R.TrialLaunchAdmission,
+    *,
+    origin_binding=None,
+) -> R.AttemptSlotCapability:
+    content_commit, effective_commit = _fixture_registration_commits(
+        repo, manifest,
+    )
+    attempt_registry = repo / R.DEFAULT_ATTEMPT_REGISTRY_PATH
+    genesis = json.loads(attempt_registry.read_text(encoding="utf-8").splitlines()[0])
+    slot = next(
+        item for item in genesis["slots"]
+        if item["trial_id"] == admission.trial_id
+    )
+    receipt_sha256 = hashlib.sha256(
+        _canonical(R.launch_admission_record(
+            admission, origin_binding=origin_binding,
+        ))
+    ).hexdigest()
+    return _reserve_attempt(
+        repo,
+        attempt_registry,
+        content_commit,
+        effective_commit,
+        genesis["freeze_id"],
+        slot,
+        run_start_receipt_sha256=receipt_sha256,
+    )
+
+
+def _finish_lifecycle_attempt(
+    capability: R.AttemptSlotCapability,
+    *,
+    terminal_status: str,
+) -> None:
+    _classify_and_terminal(
+        capability,
+        failure_reason=None,
+        terminal_status=terminal_status,
     )
 
 
@@ -2545,7 +2903,7 @@ def test_admit_registered_launch_rejects_ancestor_commit_capability(
     _write_manifest(manifest_path, _manifest_value(prereg_commit, "ancestor-cap"))
     _commit(repo, "manifest", manifest_path)
     registry = repo / "registry.jsonl"
-    R.append_trial_registration(
+    _append_fixture_registration(
         manifest_path=manifest_path,
         repository_root=repo,
         registry_path=registry,
@@ -2590,6 +2948,7 @@ def test_registered_admission_and_lifecycle_are_non_certifying_and_start_once(
     admission = _registered_admission(
         repo, manifest_path, registry, manifest, monkeypatch,
     )
+    first_attempt = _lifecycle_attempt_slot(repo, manifest, admission)
     terminal_parameters = inspect.signature(R.record_trial_terminal).parameters
     assert "report_sha256" not in terminal_parameters
     assert "attempt_journal_sha256" not in terminal_parameters
@@ -2611,6 +2970,7 @@ def test_registered_admission_and_lifecycle_are_non_certifying_and_start_once(
             repository_root=repo,
             registry_path=registry,
             lifecycle_path=lifecycle,
+            attempt_slot=first_attempt,
         )
     alternate_lifecycle = repo / "alternate-lifecycle.jsonl"
     with pytest.raises(
@@ -2628,6 +2988,7 @@ def test_registered_admission_and_lifecycle_are_non_certifying_and_start_once(
             repository_root=repo,
             registry_path=registry,
             lifecycle_path=alternate_lifecycle,
+            attempt_slot=first_attempt,
         )
     assert not alternate_lifecycle.exists()
     R.reject_started_trial(
@@ -2643,6 +3004,12 @@ def test_registered_admission_and_lifecycle_are_non_certifying_and_start_once(
         repository_root=repo,
         registry_path=registry,
         lifecycle_path=lifecycle,
+        attempt_slot=first_attempt,
+    )
+    attempt_start_row = next(
+        row for row in R.load_attempt_registry(repo)
+        if row.get("event") == "start"
+        and row.get("slot_id") == first_attempt.slot_id
     )
     with pytest.raises(R.TrialRegistryError, match=r"\[lifecycle-start-once\] "):
         R.record_trial_start_once(
@@ -2653,10 +3020,12 @@ def test_registered_admission_and_lifecycle_are_non_certifying_and_start_once(
             repository_root=repo,
             registry_path=registry,
             lifecycle_path=lifecycle,
+            attempt_slot=first_attempt,
         )
     second_admission = _registered_admission(
         repo, manifest_path, registry, manifest, monkeypatch, trial_index=1,
     )
+    second_attempt = _lifecycle_attempt_slot(repo, manifest, second_admission)
     second = R.record_trial_start_once(
         admission=second_admission,
         effective_preregistration=_effective_capability(manifest, monkeypatch),
@@ -2665,6 +3034,7 @@ def test_registered_admission_and_lifecycle_are_non_certifying_and_start_once(
         repository_root=repo,
         registry_path=registry,
         lifecycle_path=lifecycle,
+        attempt_slot=second_attempt,
     )
     lifecycle_before_reject = lifecycle.read_bytes()
     with pytest.raises(R.TrialRegistryError, match=r"\[lifecycle-start-once\] "):
@@ -2691,6 +3061,7 @@ def test_registered_admission_and_lifecycle_are_non_certifying_and_start_once(
             repository_root=repo,
             registry_path=registry,
             lifecycle_path=lifecycle,
+            attempt_slot=second_attempt,
         )
     assert lifecycle.read_bytes() == lifecycle_before_forbidden_reject
     full_field_replacement = dataclasses.replace(
@@ -2726,10 +3097,17 @@ def test_registered_admission_and_lifecycle_are_non_certifying_and_start_once(
     journal_bytes = b'{"event":"run-start"}\n'
     (first_run / "report.json").write_bytes(report_bytes)
     (first_run / "attempts.jsonl").write_bytes(journal_bytes)
+    _finish_lifecycle_attempt(first_attempt, terminal_status="observed")
+    attempt_terminal_row = next(
+        row for row in R.load_attempt_registry(repo)
+        if row.get("event") == "terminal"
+        and row.get("slot_id") == first_attempt.slot_id
+    )
     R.record_trial_terminal(
         first,
         terminal_status="complete",
     )
+    _finish_lifecycle_attempt(second_attempt, terminal_status="not-consumed")
     R.record_trial_terminal(second, terminal_status="indeterminate")
     with pytest.raises(
         R.TrialRegistryError,
@@ -2754,6 +3132,12 @@ def test_registered_admission_and_lifecycle_are_non_certifying_and_start_once(
         "activation_report_digest_sha256": (
             admission.activation_report_digest_sha256
         ),
+        "prereg_commit": admission.binding.prereg_commit,
+        "prereg_content_commit": admission.binding.prereg_content_commit,
+        "prereg_effective_commit": admission.binding.prereg_effective_commit,
+        "slot_id": first_attempt.slot_id,
+        "schedule_row_sha256": attempt_start_row["schedule_row_sha256"],
+        "process_identity": attempt_start_row["process_identity"],
         "launch_admission_sha256": hashlib.sha256(
             _canonical(R.launch_admission_record(admission))
         ).hexdigest(),
@@ -2775,6 +3159,14 @@ def test_registered_admission_and_lifecycle_are_non_certifying_and_start_once(
         "terminal_status": "complete",
         "report_sha256": hashlib.sha256(report_bytes).hexdigest(),
         "attempt_journal_sha256": hashlib.sha256(journal_bytes).hexdigest(),
+        "prereg_commit": first_attempt.prereg_commit,
+        "prereg_content_commit": first_attempt.prereg_content_commit,
+        "prereg_effective_commit": first_attempt.prereg_effective_commit,
+        "slot_id": first_attempt.slot_id,
+        "classification_receipt_sha256": (
+            attempt_terminal_row["classification_receipt_sha256"]
+        ),
+        "raw_output_sha256": attempt_terminal_row["raw_output_sha256"],
     }
 
 
@@ -2796,6 +3188,9 @@ def test_lifecycle_terminal_projects_the_formal_consumer_shape_by_bytes(
         monkeypatch,
         origin_binding_record=binding_record,
     )
+    attempt_slot = _lifecycle_attempt_slot(
+        repo, manifest, admission, origin_binding=capability,
+    )
     lifecycle = repo / R.DEFAULT_LIFECYCLE_PATH
     token = R.record_trial_start_once(
         admission=admission,
@@ -2806,6 +3201,7 @@ def test_lifecycle_terminal_projects_the_formal_consumer_shape_by_bytes(
         registry_path=registry,
         lifecycle_path=lifecycle,
         origin_binding=capability,
+        attempt_slot=attempt_slot,
     )
     projection = _origin_terminal_projection(
         rejected=rejected,
@@ -2814,6 +3210,7 @@ def test_lifecycle_terminal_projects_the_formal_consumer_shape_by_bytes(
             "arm_binding_digest_sha256"
         ],
     )
+    _finish_lifecycle_attempt(attempt_slot, terminal_status="not-consumed")
     R.record_trial_terminal(
         token,
         terminal_status="indeterminate",
@@ -2848,6 +3245,7 @@ def test_lifecycle_updates_take_exclusive_flock_and_fsync(
     admission = _registered_admission(
         repo, manifest_path, registry, manifest, monkeypatch,
     )
+    attempt_slot = _lifecycle_attempt_slot(repo, manifest, admission)
     original_flock = R.fcntl.flock
     original_fsync = R.os.fsync
     locks: list[int] = []
@@ -2871,6 +3269,7 @@ def test_lifecycle_updates_take_exclusive_flock_and_fsync(
         repository_root=repo,
         registry_path=registry,
         lifecycle_path=repo / R.DEFAULT_LIFECYCLE_PATH,
+        attempt_slot=attempt_slot,
     )
     assert locks == [R.fcntl.LOCK_EX]
     assert len(fsync_modes) == 2
@@ -2886,6 +3285,7 @@ def test_lifecycle_rejects_noncanonical_json_before_append(
     admission = _registered_admission(
         repo, manifest_path, registry, manifest, monkeypatch,
     )
+    attempt_slot = _lifecycle_attempt_slot(repo, manifest, admission)
     lifecycle = repo / R.DEFAULT_LIFECYCLE_PATH
     lifecycle.parent.mkdir(parents=True)
     original = b'{"event":"unknown", "schema_version":"p3-8c-trial-lifecycle/v1"}\n'
@@ -2899,6 +3299,7 @@ def test_lifecycle_rejects_noncanonical_json_before_append(
             repository_root=repo,
             registry_path=registry,
             lifecycle_path=lifecycle,
+            attempt_slot=attempt_slot,
         )
     assert lifecycle.read_bytes() == original
 
@@ -2911,6 +3312,7 @@ def test_lifecycle_rejects_canonical_unknown_event_before_append(
     admission = _registered_admission(
         repo, manifest_path, registry, manifest, monkeypatch,
     )
+    attempt_slot = _lifecycle_attempt_slot(repo, manifest, admission)
     lifecycle = repo / R.DEFAULT_LIFECYCLE_PATH
     lifecycle.parent.mkdir(parents=True)
     original = _canonical({
@@ -2927,6 +3329,7 @@ def test_lifecycle_rejects_canonical_unknown_event_before_append(
             repository_root=repo,
             registry_path=registry,
             lifecycle_path=lifecycle,
+            attempt_slot=attempt_slot,
         )
     assert lifecycle.read_bytes() == original
 
@@ -2948,6 +3351,7 @@ def test_lifecycle_git_history_rejects_non_append_only_attacks(
         repository_root=repo,
         registry_path=registry,
     )
+    first_attempt = _lifecycle_attempt_slot(repo, manifest, first)
     lifecycle = repo / R.DEFAULT_LIFECYCLE_PATH
     token = R.record_trial_start_once(
         admission=first,
@@ -2957,7 +3361,9 @@ def test_lifecycle_git_history_rejects_non_append_only_attacks(
         repository_root=repo,
         registry_path=registry,
         lifecycle_path=lifecycle,
+        attempt_slot=first_attempt,
     )
+    _finish_lifecycle_attempt(first_attempt, terminal_status="not-consumed")
     R.record_trial_terminal(
         token,
         terminal_status="indeterminate",
@@ -2984,6 +3390,7 @@ def test_lifecycle_git_history_rejects_non_append_only_attacks(
         repository_root=repo,
         registry_path=registry,
     )
+    second_attempt = _lifecycle_attempt_slot(repo, manifest, second)
     with pytest.raises(R.TrialRegistryError, match=r"\[lifecycle-history\] "):
         R.record_trial_start_once(
             admission=second,
@@ -2993,6 +3400,7 @@ def test_lifecycle_git_history_rejects_non_append_only_attacks(
             repository_root=repo,
             registry_path=registry,
             lifecycle_path=lifecycle,
+            attempt_slot=second_attempt,
         )
     assert "within one Git repository" in (R._lifecycle_history_tip.__doc__ or "")
 
@@ -3349,7 +3757,7 @@ def test_m7_append_preserves_inode_size_and_existing_prefix(tmp_path: Path) -> N
     manifest_b_path = repo / "manifest-b.json"
     _write_manifest(manifest_b_path, _manifest_value(manifest_a.prereg_commit, "m7-b"))
     _commit(repo, "manifest-b", manifest_b_path)
-    R.append_trial_registration(
+    _append_fixture_registration(
         manifest_path=manifest_b_path, repository_root=repo, registry_path=registry,
     )
     new_stat = registry.stat()
@@ -3372,7 +3780,7 @@ def test_m8_registry_global_reuse_is_rejected(tmp_path: Path, reuse: str) -> Non
         _write_manifest(manifest_path, value)
         _commit(repo, f"manifest-{reuse}", manifest_path)
     with pytest.raises(R.TrialRegistryError, match=r"\[registry-index\] "):
-        R.append_trial_registration(
+        _append_fixture_registration(
             manifest_path=manifest_path,
             repository_root=repo,
             registry_path=registry,
@@ -3386,7 +3794,7 @@ def test_m9_launcher_requires_committed_exact_registry(tmp_path: Path, state: st
     _write_manifest(manifest_path, _manifest_value(prereg, "m9"))
     _commit(repo, "manifest", manifest_path)
     registry = repo / "registry.jsonl"
-    R.append_trial_registration(
+    _append_fixture_registration(
         manifest_path=manifest_path, repository_root=repo, registry_path=registry,
     )
     if state == "dirty":
@@ -3446,7 +3854,7 @@ def test_m11_selected_manifest_membership_is_required(tmp_path: Path) -> None:
     manifest_b_path = repo / "manifest-b.json"
     _write_manifest(manifest_b_path, _manifest_value(manifest_a.prereg_commit, "m11-b"))
     _commit(repo, "manifest-b", manifest_b_path)
-    R.append_trial_registration(
+    _append_fixture_registration(
         manifest_path=manifest_b_path, repository_root=repo, registry_path=registry,
     )
     _commit(repo, "registry-b", registry)
@@ -3553,7 +3961,7 @@ def test_m17_measurement_registry_must_already_contain_registration(tmp_path: Pa
     measurement = _commit(repo, "manifest", manifest_path)
     manifest = R.load_trial_manifest(manifest_path)
     registry = repo / "registry.jsonl"
-    R.append_trial_registration(
+    _append_fixture_registration(
         manifest_path=manifest_path, repository_root=repo, registry_path=registry,
     )
     _commit(repo, "late-registry", registry)
@@ -3574,7 +3982,7 @@ def _two_registration_measurement(
     manifest_b_path = repo / "manifest-b.json"
     _write_manifest(manifest_b_path, _manifest_value(manifest_a.prereg_commit, "history-b"))
     _commit(repo, "manifest-b", manifest_b_path)
-    R.append_trial_registration(
+    _append_fixture_registration(
         manifest_path=manifest_b_path, repository_root=repo, registry_path=registry,
     )
     _commit(repo, "registry-b", registry)
@@ -3713,7 +4121,7 @@ def test_m29_intermediate_committed_rewrite_is_rejected_by_history_walk(
     manifest_a = R.load_trial_manifest(manifest_a_path)
     manifest_b = R.load_trial_manifest(manifest_b_path)
     registry = repo / "registry.jsonl"
-    R.append_trial_registration(
+    _append_fixture_registration(
         manifest_path=manifest_a_path, repository_root=repo, registry_path=registry,
     )
     measurement = _commit(repo, "registry-a", registry)
@@ -3757,7 +4165,7 @@ def test_registry_parent_real_path_must_stay_inside_repository(tmp_path: Path) -
     _commit(repo, "manifest", manifest_path)
     outside = tmp_path / "outside" / "registry.jsonl"
     with pytest.raises(R.TrialRegistryError, match=r"\[registry-path\] "):
-        R.append_trial_registration(
+        _append_fixture_registration(
             manifest_path=manifest_path,
             repository_root=repo,
             registry_path=outside,
@@ -3773,6 +4181,9 @@ def test_append_uses_nofollow_append_flags_and_fsyncs_file_then_directory(
     _write_manifest(manifest_path, _manifest_value(prereg, "append-contract"))
     _commit(repo, "manifest", manifest_path)
     registry = repo / "nested" / "registry.jsonl"
+    _prepare_fixture_effective_binding(
+        repo, manifest_path, R.load_trial_manifest(manifest_path),
+    )
     original_open = R.os.open
     original_fsync = R.os.fsync
     registry_flags: list[int] = []
@@ -3791,7 +4202,7 @@ def test_append_uses_nofollow_append_flags_and_fsyncs_file_then_directory(
 
     monkeypatch.setattr(R.os, "open", observe_open)
     monkeypatch.setattr(R.os, "fsync", observe_fsync)
-    R.append_trial_registration(
+    _append_fixture_registration(
         manifest_path=manifest_path,
         repository_root=repo,
         registry_path=registry,
@@ -4005,7 +4416,7 @@ def test_literal_pathspec_registry_history_cannot_be_hidden(tmp_path: Path) -> N
     _write_manifest(manifest_path, _manifest_value(prereg, "literal"))
     _commit(repo, "literal manifest", manifest_path)
     registry = repo / ":(glob)does-not-match"
-    R.append_trial_registration(
+    _append_fixture_registration(
         manifest_path=manifest_path,
         repository_root=repo,
         registry_path=registry,
@@ -4065,10 +4476,11 @@ def test_manifest_committed_symlink_mode_is_rejected(tmp_path: Path) -> None:
     manifest_path.unlink()
     manifest_path.write_bytes(manifest_bytes)
     with pytest.raises(R.TrialRegistryError, match=r"\[committed-mode\] "):
-        R.append_trial_registration(
+        _append_fixture_registration(
             manifest_path=manifest_path,
             repository_root=repo,
             registry_path=repo / "registry.jsonl",
+            prepare_binding=False,
         )
 
 
@@ -4104,7 +4516,7 @@ def test_registry_git_component_is_rejected_before_file_creation(tmp_path: Path)
     _commit(repo, "manifest", manifest_path)
     registry = repo / ".git" / "info" / "trial-registry.jsonl"
     with pytest.raises(R.TrialRegistryError, match=r"\[registry-path\] "):
-        R.append_trial_registration(
+        _append_fixture_registration(
             manifest_path=manifest_path,
             repository_root=repo,
             registry_path=registry,
@@ -4139,7 +4551,7 @@ def test_append_componentwise_open_rejects_parent_symlink_swap(
 
     monkeypatch.setattr(R.os, "open", swap_parent)
     with pytest.raises(R.TrialRegistryError, match=r"\[registry-path\] "):
-        R.append_trial_registration(
+        _append_fixture_registration(
             manifest_path=manifest_path,
             repository_root=repo,
             registry_path=registry,
@@ -4172,7 +4584,7 @@ def test_append_rebinds_target_inode_after_lock(
 
     monkeypatch.setattr(R.fcntl, "flock", replace_after_lock)
     with pytest.raises(R.TrialRegistryError, match=r"\[append-state\] registry path changed"):
-        R.append_trial_registration(
+        _append_fixture_registration(
             manifest_path=manifest_b_path,
             repository_root=repo,
             registry_path=registry,
@@ -4208,7 +4620,7 @@ def test_append_rebinds_parent_inode_after_lock(
         R.TrialRegistryError,
         match=r"\[append-state\] registry parent changed",
     ):
-        R.append_trial_registration(
+        _append_fixture_registration(
             manifest_path=manifest_b_path,
             repository_root=repo,
             registry_path=registry,
@@ -4267,6 +4679,904 @@ def test_registry_history_rejects_merge_dag_with_deleted_parent(
             report_paths=reports,
             repository_root=repo,
             registry_path=registry,
+        )
+
+
+def _attempt_slots(manifest: R.TrialManifest, *, repeats_for_first: int = 1) -> list[dict]:
+    slots: list[dict] = []
+    for trial_index, trial in enumerate(manifest.trials):
+        repeats = repeats_for_first if trial_index == 0 else 1
+        for attempt_index in range(repeats):
+            identity = {
+                "trial_id": trial.trial_id,
+                "arm": trial.arm,
+                "holdout": trial.holdout,
+                "campaign_id": trial.campaign_id,
+                "replicate_index": 0,
+                "attempt_index": attempt_index,
+            }
+            slots.append({
+                "slot_id": f"{trial.trial_id}-r0-a{attempt_index}",
+                **identity,
+                "schedule_row_sha256": hashlib.sha256(_canonical(identity)).hexdigest(),
+            })
+    return slots
+
+
+def _attempt_fixture(
+    tmp_path: Path,
+    *,
+    repeats_for_first: int = 1,
+    extra_replicate: bool = False,
+) -> tuple[Path, Path, R.TrialManifest, Path, str, str, str, list[dict]]:
+    repo, seed = _init_repo(tmp_path)
+    manifest_path = repo / "manifest.json"
+    _write_manifest(manifest_path, _manifest_value(seed, "attempt-fixture"))
+    _commit(repo, "attempt manifest", manifest_path)
+    manifest = R.load_trial_manifest(manifest_path)
+    slots = _attempt_slots(manifest, repeats_for_first=repeats_for_first)
+    if extra_replicate:
+        base = dict(slots[0])
+        base.update({
+            "slot_id": f"{base['trial_id']}-r1-a0",
+            "replicate_index": 1,
+            "attempt_index": 0,
+        })
+        base["schedule_row_sha256"] = hashlib.sha256(
+            _canonical({
+                key: base[key]
+                for key in (
+                    "trial_id", "arm", "holdout", "campaign_id",
+                    "replicate_index", "attempt_index",
+                )
+            })
+        ).hexdigest()
+        slots.append(base)
+    registry = R.create_attempt_registry_genesis(
+        repository_root=repo,
+        manifest_path=manifest_path,
+        manifest_sha256=manifest.sha256,
+        freeze_id="freeze-attempt-fixture",
+        slots=slots,
+    )
+    content_commit = _commit(repo, "attempt genesis", registry)
+    genesis_bytes = registry.read_bytes()
+    genesis = json.loads(genesis_bytes.splitlines()[0])
+    binding_path = repo / R.DEFAULT_EFFECTIVE_BINDING_PATH
+    binding_path.parent.mkdir(parents=True, exist_ok=True)
+    binding_path.write_bytes(R._canonical_json_bytes({
+        "schema_version": R.EFFECTIVE_BINDING_SCHEMA_VERSION,
+        "prereg_content_commit": content_commit,
+        "manifest_path": "manifest.json",
+        "manifest_sha256": manifest.sha256,
+        "freeze_id": genesis["freeze_id"],
+        "attempt_registry_path": R.DEFAULT_ATTEMPT_REGISTRY_PATH.as_posix(),
+        "attempt_registry_initial_sha256": hashlib.sha256(
+            genesis_bytes
+        ).hexdigest(),
+    }))
+    effective_commit = _commit(repo, "effective binding parent", binding_path)
+    return (
+        repo,
+        manifest_path,
+        manifest,
+        registry,
+        content_commit,
+        effective_commit,
+        "freeze-attempt-fixture",
+        slots,
+    )
+
+
+def _reserve_attempt(
+    repo: Path,
+    registry: Path,
+    content_commit: str,
+    effective_commit: str,
+    freeze_id: str,
+    slot: dict,
+    *,
+    run_start_receipt_sha256: str | None = None,
+) -> R.AttemptSlotCapability:
+    return R.reserve_attempt_slot(
+        repository_root=repo,
+        registry_path=registry,
+        freeze_id=freeze_id,
+        slot_id=slot["slot_id"],
+        prereg_content_commit=content_commit,
+        prereg_effective_commit=effective_commit,
+        run_start_receipt_sha256=(
+            run_start_receipt_sha256
+            or hashlib.sha256(
+                f"run-start:{slot['slot_id']}".encode("ascii")
+            ).hexdigest()
+        ),
+        process_identity={
+            "pid": 101,
+            "starttime": "fixture-start",
+            "execution_uuid": f"exec-{slot['slot_id']}",
+        },
+        started_at="2026-08-18T00:00:00+00:00",
+    )
+
+
+def _classify_and_terminal(
+    capability: R.AttemptSlotCapability,
+    *,
+    failure_reason: str | None,
+    terminal_status: str,
+    report_sha256: str | None = None,
+    raw_output_sha256: str | None = None,
+) -> None:
+    R.classify_attempt(
+        capability,
+        failure_reason=failure_reason,
+        authority_id="fixture-authority",
+        authority_policy_sha256="a" * 64,
+        external_evidence_sha256="b" * 64,
+        classified_at="2026-08-18T00:00:01+00:00",
+    )
+    R.record_attempt_terminal(
+        capability,
+        terminal_status=terminal_status,
+        raw_output_sha256=raw_output_sha256 or hashlib.sha256(
+            f"raw:{capability.slot_id}".encode("ascii")
+        ).hexdigest(),
+        report_sha256=(
+            report_sha256
+            or (
+                hashlib.sha256(f"report:{capability.slot_id}".encode("ascii")).hexdigest()
+                if terminal_status != "not-consumed" else None
+            )
+        ),
+        observation_sha256=(
+            hashlib.sha256(f"observation:{capability.slot_id}".encode("ascii")).hexdigest()
+            if terminal_status == "observed" else None
+        ),
+        primary_value=1.0 if terminal_status == "observed" else None,
+        finished_at="2026-08-18T00:00:02+00:00",
+    )
+
+
+def test_manifest_has_no_commit_self_reference(tmp_path: Path) -> None:
+    _repo, prereg = _init_repo(tmp_path)
+    path = tmp_path / "manifest.json"
+    _write_manifest(path, _manifest_value(prereg, "manifest-binding"))
+    manifest = R.load_trial_manifest(path)
+    assert "prereg_commit" in R._MANIFEST_KEYS
+    assert manifest.prereg_commit == prereg
+
+
+def test_effective_binding_requires_manifest_blob_at_content_commit(tmp_path: Path) -> None:
+    repo, prereg = _init_repo(tmp_path)
+    manifest_path = repo / "manifest.json"
+    _write_manifest(manifest_path, _manifest_value(prereg, "binding-missing"))
+    with pytest.raises(R.TrialRegistryError, match=r"\[effective-binding\]"):
+        R.load_effective_binding_at_commit(repo, prereg, manifest_path)
+
+
+def test_effective_commit_requires_exact_single_parent(tmp_path: Path) -> None:
+    repo, root = _init_repo(tmp_path)
+    child_marker = repo / "child.txt"
+    child_marker.write_text("child\n", encoding="utf-8")
+    child = _commit(repo, "child", child_marker)
+    with pytest.raises(R.TrialRegistryError, match=r"\[ancestry\]"):
+        R.assert_effective_commit_exact_parent(
+            repo, content_commit=child, effective_commit=root,
+        )
+
+
+def test_effective_commit_rejects_root_commit(tmp_path: Path) -> None:
+    repo, root = _init_repo(tmp_path)
+    with pytest.raises(R.TrialRegistryError, match=r"root commit"):
+        R.assert_effective_commit_exact_parent(
+            repo, content_commit=root, effective_commit=root,
+        )
+
+
+def test_effective_commit_rejects_other_parent(tmp_path: Path) -> None:
+    repo, root = _init_repo(tmp_path)
+    first_marker = repo / "first.txt"
+    first_marker.write_text("first\n", encoding="utf-8")
+    first = _commit(repo, "first", first_marker)
+    second_marker = repo / "second.txt"
+    second_marker.write_text("second\n", encoding="utf-8")
+    second = _commit(repo, "second", second_marker)
+    with pytest.raises(R.TrialRegistryError, match=r"exact content commit"):
+        R.assert_effective_commit_exact_parent(
+            repo, content_commit=root, effective_commit=second,
+        )
+    assert first != second
+
+
+def test_effective_commit_rejects_merge_commit(tmp_path: Path) -> None:
+    repo, root = _init_repo(tmp_path)
+    main_marker = repo / "main.txt"
+    main_marker.write_text("main\n", encoding="utf-8")
+    main = _commit(repo, "main", main_marker)
+    branch = _run(repo, "branch", "side")
+    assert branch.returncode == 0, branch.stderr
+    assert _run(repo, "checkout", "-q", "side").returncode == 0
+    side_marker = repo / "side.txt"
+    side_marker.write_text("side\n", encoding="utf-8")
+    _commit(repo, "side", side_marker)
+    assert _run(repo, "checkout", "-q", "-").returncode == 0
+    merge = _run(repo, "merge", "--no-ff", "-q", "-m", "merge", "side")
+    assert merge.returncode == 0, merge.stderr
+    merge_commit = _head(repo)
+    with pytest.raises(R.TrialRegistryError, match=r"merge commit"):
+        R.assert_effective_commit_exact_parent(
+            repo, content_commit=main, effective_commit=merge_commit,
+        )
+    assert root != merge_commit
+
+
+def _effective_binding_fixture(
+    tmp_path: Path,
+    *,
+    manifest_sha256: str | None = None,
+    working_manifest_mismatch: bool = False,
+) -> tuple[Path, Path, R.TrialManifest, str, str]:
+    repo, seed = _init_repo(tmp_path)
+    manifest_path = repo / "manifest.json"
+    _write_manifest(manifest_path, _manifest_value(seed, "effective-fixture"))
+    _commit(repo, "effective manifest", manifest_path)
+    manifest = R.load_trial_manifest(manifest_path)
+    slots = _attempt_slots(manifest)
+    genesis = R.create_attempt_registry_genesis(
+        repository_root=repo,
+        manifest_path=manifest_path,
+        manifest_sha256=manifest.sha256,
+        freeze_id="freeze-effective-fixture",
+        slots=slots,
+    )
+    content = _commit(repo, "content and genesis", manifest_path, genesis)
+    binding_value = {
+        "schema_version": R.EFFECTIVE_BINDING_SCHEMA_VERSION,
+        "prereg_content_commit": content,
+        "manifest_path": "manifest.json",
+        "manifest_sha256": manifest_sha256 or manifest.sha256,
+        "freeze_id": "freeze-effective-fixture",
+        "attempt_registry_path": R.DEFAULT_ATTEMPT_REGISTRY_PATH.as_posix(),
+        "attempt_registry_initial_sha256": hashlib.sha256(
+            genesis.read_bytes()
+        ).hexdigest(),
+    }
+    binding_path = repo / R.DEFAULT_EFFECTIVE_BINDING_PATH
+    binding_path.parent.mkdir(parents=True, exist_ok=True)
+    binding_path.write_bytes(R._canonical_json_bytes(binding_value))
+    effective = _commit(repo, "effective binding", binding_path)
+    if working_manifest_mismatch:
+        changed = json.loads(manifest_path.read_text(encoding="utf-8"))
+        changed["trials"][0]["campaign_id"] += "-working-mismatch"
+        _write_manifest(manifest_path, changed)
+    return repo, manifest_path, manifest, content, effective
+
+
+def test_effective_binding_parent_fixture_rejects_manifest_content_mismatch(
+    tmp_path: Path,
+) -> None:
+    repo, manifest_path, _manifest, content, effective = _effective_binding_fixture(
+        tmp_path, working_manifest_mismatch=True,
+    )
+    with pytest.raises(R.TrialRegistryError, match=r"loaded manifest differs"):
+        R.load_effective_binding_at_commit(repo, effective, manifest_path)
+    R.assert_effective_commit_exact_parent(
+        repo, content_commit=content, effective_commit=effective,
+    )
+
+
+def test_effective_binding_rejects_manifest_sha256_mismatch(tmp_path: Path) -> None:
+    repo, manifest_path, _manifest, _content, effective = _effective_binding_fixture(
+        tmp_path, manifest_sha256="f" * 64,
+    )
+    with pytest.raises(R.TrialRegistryError, match=r"manifest blob differs"):
+        R.load_effective_binding_at_commit(repo, effective, manifest_path)
+
+
+def test_effective_commit_rejects_noncanonical_commit_arguments(tmp_path: Path) -> None:
+    repo, root = _init_repo(tmp_path)
+    for bad in ("HEAD", root[:8], root.upper()):
+        with pytest.raises(R.TrialRegistryError, match=r"40-digit lowercase"):
+            R.assert_effective_commit_exact_parent(
+                repo, content_commit=root, effective_commit=bad,
+            )
+
+
+def test_effective_commit_rejects_parent_query_failure(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo, root = _init_repo(tmp_path)
+    marker = repo / "query-failure.txt"
+    marker.write_text("query\n", encoding="utf-8")
+    child = _commit(repo, "query failure child", marker)
+    original_git = R._git
+
+    def fail_parent_query(repository_root: Path, args):
+        if tuple(args) == ("rev-list", "--parents", "-n", "1", child):
+            return subprocess.CompletedProcess(
+                args=["git"], returncode=2, stdout=b"", stderr=b"broken"
+            )
+        return original_git(repository_root, args)
+
+    monkeypatch.setattr(R, "_git", fail_parent_query)
+    with pytest.raises(R.TrialRegistryError, match=r"rev-list --parents failed"):
+        R.assert_effective_commit_exact_parent(
+            repo, content_commit=root, effective_commit=child,
+        )
+
+
+def test_effective_commit_rejects_graft_file(tmp_path: Path) -> None:
+    repo, root = _init_repo(tmp_path)
+    graft_result = _run(repo, "rev-parse", "--git-path", "info/grafts")
+    assert graft_result.returncode == 0
+    graft = Path(graft_result.stdout.strip())
+    if not graft.is_absolute():
+        graft = repo / graft
+    graft.parent.mkdir(parents=True, exist_ok=True)
+    graft.write_text("", encoding="ascii")
+    with pytest.raises(R.TrialRegistryError, match=r"graft"):
+        R.assert_effective_commit_exact_parent(
+            repo, content_commit=root, effective_commit=root,
+        )
+
+
+def test_effective_commit_rejects_replace_ref(tmp_path: Path) -> None:
+    repo, root = _init_repo(tmp_path)
+    marker = repo / "replace.txt"
+    marker.write_text("replace\n", encoding="utf-8")
+    child = _commit(repo, "replace child", marker)
+    replaced = _run(repo, "replace", child, root)
+    assert replaced.returncode == 0, replaced.stderr
+    with pytest.raises(R.TrialRegistryError, match=r"replace refs"):
+        R.assert_effective_commit_exact_parent(
+            repo, content_commit=root, effective_commit=child,
+        )
+
+
+def test_effective_commit_must_ancestor_measurement_head(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo, root = _init_repo(tmp_path)
+    manifest_path = repo / "manifest.json"
+    _write_manifest(manifest_path, _manifest_value(root, "ancestor-check"))
+    marker = repo / "effective.txt"
+    marker.write_text("effective\n", encoding="utf-8")
+    effective = _commit(repo, "effective", marker)
+    binding = R.PreregEffectiveBinding(
+        schema_version=R.EFFECTIVE_BINDING_SCHEMA_VERSION,
+        prereg_content_commit=root,
+        manifest_path="manifest.json",
+        manifest_sha256="a" * 64,
+        freeze_id="freeze",
+        attempt_registry_path=R.DEFAULT_ATTEMPT_REGISTRY_PATH.as_posix(),
+        attempt_registry_initial_sha256="b" * 64,
+        raw_bytes=b"{}",
+    )
+    monkeypatch.setattr(R, "load_effective_binding_at_commit", lambda *args, **kwargs: binding)
+    with pytest.raises(R.TrialRegistryError, match=r"effective_commit.*ancestor"):
+        R.validate_preregistration_binding(
+            repo,
+            manifest_path=manifest_path,
+            effective_commit=effective,
+            measurement_commit=root,
+        )
+
+
+def _registration_with_trials(
+    manifest: R.TrialManifest,
+    trials: tuple[R.TrialSpec, ...],
+    *,
+    effective_commit: str = "e" * 40,
+) -> R.TrialRegistration:
+    return R.TrialRegistration(
+        schema_version=R.REGISTRATION_SCHEMA_VERSION,
+        manifest_sha256=manifest.sha256,
+        prereg_commit=manifest.prereg_commit,
+        prereg_content_commit=manifest.prereg_commit,
+        prereg_effective_commit=effective_commit,
+        trials=trials,
+    )
+
+
+def test_acceptance_rejects_missing_registry_trial(tmp_path: Path) -> None:
+    _repo, prereg = _init_repo(tmp_path)
+    path = tmp_path / "manifest.json"
+    _write_manifest(path, _manifest_value(prereg, "set-missing"))
+    manifest = R.load_trial_manifest(path)
+    registration = _registration_with_trials(manifest, manifest.trials[:-1])
+    with pytest.raises(R.TrialRegistryError, match=r"trial sets differ"):
+        R._assert_manifest_registry_trial_set(manifest, registration)
+
+
+def test_acceptance_rejects_extra_registry_trial(tmp_path: Path) -> None:
+    _repo, prereg = _init_repo(tmp_path)
+    path = tmp_path / "manifest.json"
+    _write_manifest(path, _manifest_value(prereg, "set-extra"))
+    manifest = R.load_trial_manifest(path)
+    extra = dataclasses.replace(manifest.trials[-1], trial_id="extra-trial")
+    registration = _registration_with_trials(manifest, manifest.trials[:-1] + (extra,))
+    with pytest.raises(R.TrialRegistryError, match=r"trial sets differ"):
+        R._assert_manifest_registry_trial_set(manifest, registration)
+
+
+@pytest.mark.parametrize("field", ["arm", "holdout", "campaign_id", "generations"])
+def test_acceptance_rejects_registry_canonical_tuple_mutation(
+    tmp_path: Path, field: str,
+) -> None:
+    _repo, prereg = _init_repo(tmp_path)
+    path = tmp_path / f"manifest-{field}.json"
+    _write_manifest(path, _manifest_value(prereg, f"tuple-{field}"))
+    manifest = R.load_trial_manifest(path)
+    trial = manifest.trials[0]
+    replacement = {
+        "arm": "off" if trial.arm == "on" else "on",
+        "holdout": "H2" if trial.holdout == "H1" else "H1",
+        "campaign_id": trial.campaign_id + "-changed",
+        "generations": 3,
+    }[field]
+    mutated = dataclasses.replace(trial, **{field: replacement})
+    registration = _registration_with_trials(manifest, (mutated,) + manifest.trials[1:])
+    with pytest.raises(R.TrialRegistryError, match=r"trial sets differ"):
+        R._assert_manifest_registry_trial_set(manifest, registration)
+
+
+def test_acceptance_rejects_content_or_effective_commit_mismatch(tmp_path: Path) -> None:
+    _repo, prereg = _init_repo(tmp_path)
+    path = tmp_path / "manifest.json"
+    _write_manifest(path, _manifest_value(prereg, "commit-mismatch"))
+    manifest = R.load_trial_manifest(path)
+    registration = dataclasses.replace(
+        _registration_with_trials(manifest, manifest.trials),
+        prereg_content_commit="f" * 40,
+    )
+    with pytest.raises(R.TrialRegistryError, match=r"no single exact"):
+        R._find_registration_for_manifest((registration,), manifest)
+
+
+def test_acceptance_rejects_content_commit_without_manifest_ancestor(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo, manifest_path, _manifest, _content, effective = _effective_binding_fixture(
+        tmp_path,
+    )
+    binding = R.load_effective_binding_at_commit(repo, effective, manifest_path)
+    tree = _run(repo, "rev-parse", f"{effective}^{{tree}}")
+    assert tree.returncode == 0, tree.stderr
+    unrelated = _run(
+        repo,
+        "commit-tree",
+        tree.stdout.strip(),
+        "-m",
+        "unrelated content root",
+    )
+    assert unrelated.returncode == 0, unrelated.stderr
+    invalid_binding = dataclasses.replace(
+        binding,
+        prereg_content_commit=unrelated.stdout.strip(),
+    )
+    monkeypatch.setattr(
+        R,
+        "load_effective_binding_at_commit",
+        lambda *args, **kwargs: invalid_binding,
+    )
+    with pytest.raises(
+        R.TrialRegistryError,
+        match=r"manifest prereg_commit is not an ancestor of prereg_content_commit",
+    ):
+        R.validate_preregistration_binding(
+            repo,
+            manifest_path=manifest_path,
+            effective_commit=effective,
+            measurement_commit=effective,
+        )
+
+
+def test_attempt_registry_genesis_is_closed_before_first_performance_observation(
+    tmp_path: Path,
+) -> None:
+    repo, _manifest_path, manifest, registry, _p, _c, _freeze, slots = _attempt_fixture(tmp_path)
+    with pytest.raises(R.TrialRegistryError, match=r"create-only"):
+        R.create_attempt_registry_genesis(
+            repository_root=repo,
+            manifest_path=repo / "manifest.json",
+            manifest_sha256=manifest.sha256,
+            freeze_id="freeze-attempt-fixture",
+            slots=slots,
+        )
+    rows = [json.loads(line) for line in registry.read_text().splitlines()]
+    rows[0]["slots"].append(dict(rows[0]["slots"][0], slot_id="late-slot"))
+    with pytest.raises(R.TrialRegistryError, match=r"trial registry|slot"):
+        R._load_attempt_registry_bytes(
+            b"".join(_canonical(row) + b"\n" for row in rows)
+        )
+
+
+def test_attempt_registry_consumes_only_next_slot_for_same_failed_repeat(
+    tmp_path: Path,
+) -> None:
+    repo, _manifest, _m, registry, p, c, freeze, slots = _attempt_fixture(
+        tmp_path, repeats_for_first=3,
+    )
+    first, second, third = slots[:3]
+    cap = _reserve_attempt(repo, registry, p, c, freeze, first)
+    _classify_and_terminal(cap, failure_reason="wall-timeout", terminal_status="retryable-failure")
+    next_cap = _reserve_attempt(repo, registry, p, c, freeze, second)
+    assert next_cap.attempt_index == 1
+    with pytest.raises(R.TrialRegistryError, match=r"next slot|retryable"):
+        _reserve_attempt(repo, registry, p, c, freeze, third)
+
+
+def test_attempt_registry_rejects_successful_rerun_and_score_selected_slot(
+    tmp_path: Path,
+) -> None:
+    repo, _manifest, _m, registry, p, c, freeze, slots = _attempt_fixture(
+        tmp_path, repeats_for_first=2,
+    )
+    first, second = slots[:2]
+    cap = _reserve_attempt(repo, registry, p, c, freeze, first)
+    _classify_and_terminal(cap, failure_reason=None, terminal_status="observed")
+    with pytest.raises(R.TrialRegistryError, match=r"non-retryable|retryable"):
+        _reserve_attempt(repo, registry, p, c, freeze, second)
+
+
+def test_attempt_registry_rejects_observation_value_replacement(tmp_path: Path) -> None:
+    repo, _manifest, _m, registry, p, c, freeze, slots = _attempt_fixture(tmp_path)
+    cap = _reserve_attempt(repo, registry, p, c, freeze, slots[0])
+    _classify_and_terminal(cap, failure_reason=None, terminal_status="observed")
+    with pytest.raises(R.TrialRegistryError, match=r"more than one terminal|already"):
+        R.record_attempt_terminal(
+            cap,
+            terminal_status="observed",
+            raw_output_sha256="c" * 64,
+            report_sha256="d" * 64,
+            observation_sha256="e" * 64,
+            primary_value=99.0,
+            finished_at="2026-08-18T00:00:03+00:00",
+        )
+
+
+def test_attempt_registry_requires_exact_external_failure_reason(tmp_path: Path) -> None:
+    repo, _manifest, _m, registry, p, c, freeze, slots = _attempt_fixture(tmp_path)
+    cap = _reserve_attempt(repo, registry, p, c, freeze, slots[0])
+    R.classify_attempt(
+        cap,
+        failure_reason="correctness-failure",
+        authority_id="fixture-authority",
+        authority_policy_sha256="a" * 64,
+        external_evidence_sha256="b" * 64,
+        classified_at="2026-08-18T00:00:01+00:00",
+    )
+    with pytest.raises(R.TrialRegistryError, match=r"null matrix"):
+        R.record_attempt_terminal(
+            cap,
+            terminal_status="retryable-failure",
+            raw_output_sha256="c" * 64,
+            report_sha256="d" * 64,
+            observation_sha256=None,
+            primary_value=None,
+            finished_at="2026-08-18T00:00:02+00:00",
+        )
+
+
+def test_attempt_registry_classification_receipt_is_create_only(tmp_path: Path) -> None:
+    repo, _manifest, _m, registry, p, c, freeze, slots = _attempt_fixture(tmp_path)
+    cap = _reserve_attempt(repo, registry, p, c, freeze, slots[0])
+    kwargs = {
+        "failure_reason": "wall-timeout",
+        "authority_id": "fixture-authority",
+        "authority_policy_sha256": "a" * 64,
+        "external_evidence_sha256": "b" * 64,
+        "classified_at": "2026-08-18T00:00:01+00:00",
+    }
+    R.classify_attempt(cap, **kwargs)
+    with pytest.raises(R.TrialRegistryError, match=r"create-only path already exists"):
+        R.classify_attempt(cap, **kwargs)
+
+
+def test_attempt_registry_classification_row_must_match_receipt(tmp_path: Path) -> None:
+    repo, _manifest, _m, registry, p, c, freeze, slots = _attempt_fixture(tmp_path)
+    cap = _reserve_attempt(repo, registry, p, c, freeze, slots[0])
+    _classify_and_terminal(cap, failure_reason="wall-timeout", terminal_status="retryable-failure")
+    rows = [json.loads(line) for line in registry.read_text().splitlines()]
+    classification = next(row for row in rows if row.get("event") == "classification")
+    classification["authority_id"] = "tampered-authority"
+    registry.write_bytes(b"".join(_canonical(row) + b"\n" for row in rows))
+    with pytest.raises(
+        R.TrialRegistryError,
+        match=r"classification receipt is not capability-bound",
+    ):
+        R.load_attempt_registry(repo)
+
+
+def test_attempt_registry_rejects_capability_digest_replacement(tmp_path: Path) -> None:
+    repo, _manifest, _m, registry, p, c, freeze, slots = _attempt_fixture(tmp_path)
+    cap = _reserve_attempt(repo, registry, p, c, freeze, slots[0])
+    _classify_and_terminal(cap, failure_reason="wall-timeout", terminal_status="retryable-failure")
+    rows = [json.loads(line) for line in registry.read_text().splitlines()]
+    classification = next(row for row in rows if row.get("event") == "classification")
+    classification["capability_digest_sha256"] = "f" * 64
+    registry.write_bytes(b"".join(_canonical(row) + b"\n" for row in rows))
+    with pytest.raises(
+        R.TrialRegistryError,
+        match=r"classification capability digest differs",
+    ):
+        R.load_attempt_registry(repo)
+
+
+def test_attempt_registry_rejects_observed_primary_value_null(tmp_path: Path) -> None:
+    repo, _manifest, _m, registry, p, c, freeze, slots = _attempt_fixture(tmp_path)
+    cap = _reserve_attempt(repo, registry, p, c, freeze, slots[0])
+    _classify_and_terminal(cap, failure_reason=None, terminal_status="observed")
+    rows = [json.loads(line) for line in registry.read_text().splitlines()]
+    terminal = next(row for row in rows if row.get("event") == "terminal")
+    terminal["primary_value"] = None
+    registry.write_bytes(b"".join(_canonical(row) + b"\n" for row in rows))
+    with pytest.raises(R.TrialRegistryError, match=r"observed null matrix"):
+        R.load_attempt_registry(repo)
+
+
+def test_attempt_registry_rejects_second_root_in_full_history(tmp_path: Path) -> None:
+    repo, manifest_path, manifest, _registry, _p, _c, _freeze, slots = _attempt_fixture(tmp_path)
+    branch = _run(repo, "branch", "alternate-root")
+    assert branch.returncode == 0, branch.stderr
+    assert _run(repo, "checkout", "-q", "alternate-root").returncode == 0
+    alternate = repo / "alternate.jsonl"
+    alternate_rows = [
+        json.loads(line)
+        for line in (repo / R.DEFAULT_ATTEMPT_REGISTRY_PATH).read_text().splitlines()
+    ]
+    alternate_rows[0]["freeze_id"] = "alternate-freeze"
+    # The fixed path is already occupied on this branch, so put the second
+    # root at another tracked path and let the all-ref scan reject it.
+    alternate.write_bytes(_canonical(alternate_rows[0]) + b"\n")
+    _commit(repo, "alternate attempt root", alternate)
+    assert _run(repo, "checkout", "-q", "-").returncode == 0
+    with pytest.raises(R.TrialRegistryError, match=r"alternate attempt registry genesis"):
+        R.load_attempt_registry(repo)
+
+
+def _attempt_report_for_acceptance(
+    repo: Path,
+    manifest: R.TrialManifest,
+    slot: dict,
+    content_commit: str,
+    effective_commit: str,
+    raw_output_sha256: str,
+) -> tuple[Path, R.PreregEffectiveBinding]:
+    report = {
+        "trial_id": slot["trial_id"],
+        "slot_id": slot["slot_id"],
+        "prereg_content_commit": content_commit,
+        "prereg_effective_commit": effective_commit,
+        "status": "complete",
+        "raw_output_sha256": raw_output_sha256,
+        "observation_sha256": hashlib.sha256(
+            f"observation:{slot['slot_id']}".encode("ascii")
+        ).hexdigest(),
+        "primary_value": 1.0,
+    }
+    report_path = repo / "reports" / f"{slot['slot_id']}.json"
+    report_path.parent.mkdir(parents=True, exist_ok=True)
+    report_path.write_bytes(_canonical(report))
+    initial = (repo / R.DEFAULT_ATTEMPT_REGISTRY_PATH).read_bytes().splitlines()[0] + b"\n"
+    binding = R.PreregEffectiveBinding(
+        schema_version=R.EFFECTIVE_BINDING_SCHEMA_VERSION,
+        prereg_content_commit=content_commit,
+        manifest_path="manifest.json",
+        manifest_sha256=manifest.sha256,
+        freeze_id="freeze-attempt-fixture",
+        attempt_registry_path=R.DEFAULT_ATTEMPT_REGISTRY_PATH.as_posix(),
+        attempt_registry_initial_sha256=hashlib.sha256(initial).hexdigest(),
+        raw_bytes=b"{}",
+    )
+    return report_path, binding
+
+
+def test_attempt_registry_accepts_correct_formal_slot_consumption(
+    tmp_path: Path,
+) -> None:
+    repo, manifest_path, manifest, registry, p, c, freeze, slots = _attempt_fixture(tmp_path)
+    cap = _reserve_attempt(
+        repo,
+        registry,
+        p,
+        c,
+        freeze,
+        slots[0],
+    )
+    raw_hash = "d" * 64
+    report_path, binding = _attempt_report_for_acceptance(
+        repo, manifest, slots[0], p, c, raw_hash,
+    )
+    _classify_and_terminal(
+        cap,
+        failure_reason=None,
+        terminal_status="observed",
+        report_sha256=hashlib.sha256(report_path.read_bytes()).hexdigest(),
+        raw_output_sha256=raw_hash,
+    )
+    rows = R.assert_attempt_registry_acceptance(
+        repository_root=repo,
+        manifest_path=manifest_path,
+        manifest=manifest,
+        effective_binding=binding,
+        effective_commit=c,
+        report_paths=[report_path],
+    )
+    assert any(row.get("event") == "terminal" for row in rows)
+
+
+def test_attempt_registry_accepts_observed_terminal_status_only(
+    tmp_path: Path,
+) -> None:
+    repo, manifest_path, manifest, registry, p, c, freeze, slots = _attempt_fixture(tmp_path)
+    cap = _reserve_attempt(repo, registry, p, c, freeze, slots[0])
+    raw_hash = "d" * 64
+    report_path, binding = _attempt_report_for_acceptance(
+        repo, manifest, slots[0], p, c, raw_hash,
+    )
+    _classify_and_terminal(
+        cap,
+        failure_reason=None,
+        terminal_status="observed",
+        report_sha256=hashlib.sha256(report_path.read_bytes()).hexdigest(),
+        raw_output_sha256=raw_hash,
+    )
+    rows = R.assert_attempt_registry_acceptance(
+        repository_root=repo,
+        manifest_path=manifest_path,
+        manifest=manifest,
+        effective_binding=binding,
+        effective_commit=c,
+        report_paths=[report_path],
+    )
+    assert rows[-1]["terminal_status"] == "observed"
+
+
+def test_attempt_acceptance_rejects_unmanifested_replicate_slot(
+    tmp_path: Path,
+) -> None:
+    repo, manifest_path, manifest, registry, p, c, freeze, slots = _attempt_fixture(
+        tmp_path,
+        extra_replicate=True,
+    )
+    cap = _reserve_attempt(repo, registry, p, c, freeze, slots[0])
+    raw_hash = "d" * 64
+    report_path, binding = _attempt_report_for_acceptance(
+        repo, manifest, slots[0], p, c, raw_hash,
+    )
+    _classify_and_terminal(
+        cap,
+        failure_reason=None,
+        terminal_status="observed",
+        report_sha256=hashlib.sha256(report_path.read_bytes()).hexdigest(),
+        raw_output_sha256=raw_hash,
+    )
+    with pytest.raises(
+        R.TrialRegistryError,
+        match=r"genesis initial slot set differs",
+    ):
+        R.assert_attempt_registry_acceptance(
+            repository_root=repo,
+            manifest_path=manifest_path,
+            manifest=manifest,
+            effective_binding=binding,
+            effective_commit=c,
+            report_paths=[report_path],
+        )
+
+
+def test_attempt_acceptance_rejects_terminal_failure_report_observed_values(
+    tmp_path: Path,
+) -> None:
+    repo, manifest_path, manifest, registry, p, c, freeze, slots = _attempt_fixture(tmp_path)
+    cap = _reserve_attempt(repo, registry, p, c, freeze, slots[0])
+    raw_hash = "d" * 64
+    report_path, binding = _attempt_report_for_acceptance(
+        repo, manifest, slots[0], p, c, raw_hash,
+    )
+    report = json.loads(report_path.read_bytes())
+    report["status"] = "partial"
+    report_path.write_bytes(_canonical(report))
+    _classify_and_terminal(
+        cap,
+        failure_reason="producer-failure",
+        terminal_status="terminal-failure",
+        report_sha256=hashlib.sha256(report_path.read_bytes()).hexdigest(),
+        raw_output_sha256=raw_hash,
+    )
+    with pytest.raises(
+        R.TrialRegistryError,
+        match=r"non-observed terminal report carries observed values",
+    ):
+        R.assert_attempt_registry_acceptance(
+            repository_root=repo,
+            manifest_path=manifest_path,
+            manifest=manifest,
+            effective_binding=binding,
+            effective_commit=c,
+            report_paths=[report_path],
+        )
+
+
+def test_attempt_registry_rejects_schedule_row_hash_replacement(tmp_path: Path) -> None:
+    repo, _manifest, _m, registry, p, c, freeze, slots = _attempt_fixture(tmp_path)
+    cap = _reserve_attempt(repo, registry, p, c, freeze, slots[0])
+    _classify_and_terminal(cap, failure_reason=None, terminal_status="observed")
+    rows = [json.loads(line) for line in registry.read_text().splitlines()]
+    rows[-1]["schedule_row_sha256"] = "f" * 64
+    registry.write_bytes(b"".join(_canonical(row) + b"\n" for row in rows))
+    with pytest.raises(R.TrialRegistryError, match=r"schedule row hash"):
+        R.load_attempt_registry(repo)
+
+
+def test_attempt_registry_rejects_process_identity_replacement(tmp_path: Path) -> None:
+    repo, _manifest, _m, registry, p, c, freeze, slots = _attempt_fixture(tmp_path)
+    cap = _reserve_attempt(repo, registry, p, c, freeze, slots[0])
+    _classify_and_terminal(cap, failure_reason=None, terminal_status="observed")
+    rows = [json.loads(line) for line in registry.read_text().splitlines()]
+    rows[-1]["process_identity"]["pid"] = 202
+    registry.write_bytes(b"".join(_canonical(row) + b"\n" for row in rows))
+    with pytest.raises(R.TrialRegistryError, match=r"process identity"):
+        R.load_attempt_registry(repo)
+
+
+def test_attempt_registry_rejects_raw_output_hash_replacement(tmp_path: Path) -> None:
+    repo, manifest_path, manifest, registry, p, c, freeze, slots = _attempt_fixture(tmp_path)
+    cap = _reserve_attempt(repo, registry, p, c, freeze, slots[0])
+    raw_hash = "d" * 64
+    report_path, binding = _attempt_report_for_acceptance(
+        repo, manifest, slots[0], p, c, raw_hash,
+    )
+    report_hash = hashlib.sha256(report_path.read_bytes()).hexdigest()
+    _classify_and_terminal(
+        cap,
+        failure_reason=None,
+        terminal_status="observed",
+        report_sha256=report_hash,
+        raw_output_sha256=raw_hash,
+    )
+    rows = [json.loads(line) for line in registry.read_text().splitlines()]
+    rows[-1]["raw_output_sha256"] = "f" * 64
+    registry.write_bytes(b"".join(_canonical(row) + b"\n" for row in rows))
+    with pytest.raises(R.TrialRegistryError, match=r"raw output hash"):
+        R.assert_attempt_registry_acceptance(
+            repository_root=repo,
+            manifest_path=manifest_path,
+            manifest=manifest,
+            effective_binding=binding,
+            effective_commit=c,
+            report_paths=[report_path],
+        )
+
+
+def test_attempt_registry_rejects_terminal_report_hash_replacement(tmp_path: Path) -> None:
+    repo, manifest_path, manifest, registry, p, c, freeze, slots = _attempt_fixture(tmp_path)
+    cap = _reserve_attempt(repo, registry, p, c, freeze, slots[0])
+    raw_hash = "d" * 64
+    report_path, binding = _attempt_report_for_acceptance(
+        repo, manifest, slots[0], p, c, raw_hash,
+    )
+    report_hash = hashlib.sha256(report_path.read_bytes()).hexdigest()
+    _classify_and_terminal(
+        cap,
+        failure_reason=None,
+        terminal_status="observed",
+        report_sha256=report_hash,
+        raw_output_sha256=raw_hash,
+    )
+    rows = [json.loads(line) for line in registry.read_text().splitlines()]
+    rows[-1]["report_sha256"] = "f" * 64
+    registry.write_bytes(b"".join(_canonical(row) + b"\n" for row in rows))
+    with pytest.raises(R.TrialRegistryError, match=r"terminal report hash"):
+        R.assert_attempt_registry_acceptance(
+            repository_root=repo,
+            manifest_path=manifest_path,
+            manifest=manifest,
+            effective_binding=binding,
+            effective_commit=c,
+            report_paths=[report_path],
         )
 
 

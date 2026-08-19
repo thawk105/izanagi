@@ -1260,6 +1260,9 @@ def _load_freeze_record(raw: bytes, *, expected_generation: int) -> FreezeRecord
 class _CommitGraph:
     commits: tuple[str, ...]
     parents: Mapping[str, tuple[str, ...]]
+    # 走査点の親のさらに外側にある OID 境界。state の入力にはするが、
+    # transition は走査しない。
+    boundary: frozenset[str] = frozenset()
 
 
 @dataclass(frozen=True)
@@ -1270,17 +1273,30 @@ class _HistoryState:
     record_oids: tuple[str, ...]
 
 
-def _commit_graph(root: Path, commit: str) -> _CommitGraph:
+def _commit_graph(
+    root: Path,
+    commit: str,
+    paths: Optional[Sequence[str]] = None,
+) -> _CommitGraph:
+    """履歴 graph を作る。
+
+    ``paths`` が指定された場合は path-limited rev-list の候補とその直接の親だけを
+    集合へ入れる。親のさらに外側は OID 境界として直接 state を構成し、全履歴を
+    batch 要求へ展開しない。
+    """
+    args = [
+        "rev-list",
+        "--reverse",
+        "--topo-order",
+        "--parents",
+        f"--max-count={MAX_COMMITS + 1}",
+        commit,
+    ]
+    if paths is not None:
+        args.extend(["--", *paths])
     output = _git_text(
         root,
-        [
-            "rev-list",
-            "--reverse",
-            "--topo-order",
-            "--parents",
-            f"--max-count={MAX_COMMITS + 1}",
-            commit,
-        ],
+        args,
     )
     commits: list[str] = []
     parents: dict[str, tuple[str, ...]] = {}
@@ -1290,9 +1306,59 @@ def _commit_graph(root: Path, commit: str) -> _CommitGraph:
             continue
         commits.append(tokens[0])
         parents[tokens[0]] = tuple(tokens[1:])
+
+    if paths is not None:
+        # path-limited rev-list は TREESAME な merge の片枝を省略し得るため、
+        # resolved とその直接親を走査集合へ戻す。親の親は OID 境界として足りる。
+        if commit not in commits:
+            commits.append(commit)
+        if len(commits) > MAX_COMMITS:
+            raise PreregistrationError("commit-limit", str(len(commits)))
+        selected = set(commits)
+        parents = _direct_commit_parents(root, commits)
+        first_boundary = [
+            parent
+            for item in commits
+            for parent in parents[item]
+            if parent not in selected
+        ]
+        first_boundary = list(dict.fromkeys(first_boundary))
+        if first_boundary:
+            parents.update(_direct_commit_parents(root, first_boundary))
+        selected.update(first_boundary)
+        second_boundary = [
+            parent
+            for item in (*commits, *first_boundary)
+            for parent in parents[item]
+            if parent not in selected
+        ]
+        second_boundary = list(dict.fromkeys(second_boundary))
+        commits = first_boundary + commits
+        boundary = second_boundary
+    else:
+        boundary = []
     if len(commits) > MAX_COMMITS:
         raise PreregistrationError("commit-limit", str(len(commits)))
-    return _CommitGraph(tuple(commits), parents)
+    return _CommitGraph(tuple(commits), parents, frozenset(boundary))
+
+
+def _direct_commit_parents(
+    root: Path, commits: Sequence[str]
+) -> dict[str, tuple[str, ...]]:
+    if not commits:
+        return {}
+    output = _git_text(
+        root,
+        ["rev-list", "--parents", "--no-walk=unsorted", *commits],
+    )
+    parents: dict[str, tuple[str, ...]] = {}
+    for line in output.splitlines():
+        tokens = line.split()
+        if tokens:
+            parents[tokens[0]] = tuple(tokens[1:])
+    if set(parents) != set(commits):
+        raise PreregistrationError("git-failed", "incomplete commit graph")
+    return parents
 
 
 def _history_namespace_paths(root: Path, commit: str) -> set[str]:
@@ -1529,7 +1595,6 @@ def validate_condition_freeze_at(
     """C の全祖先を state transition として検証し、C の freeze tip を返す。"""
     root = Path(repo_root).resolve()
     resolved = resolve_commit(root, commit)
-    graph = _commit_graph(root, resolved)
     namespace_paths = _history_namespace_paths(root, resolved)
     generations = sorted(int(_GENERATION_RE.fullmatch(path).group(1)) for path in namespace_paths)
     if not generations:
@@ -1539,12 +1604,18 @@ def validate_condition_freeze_at(
         raise PreregistrationError("generation-limit", str(max_generation))
     generation_paths = [generation_path(number) for number in range(1, max_generation + 1)]
     paths = [SOURCE_PATH, EVIDENCE_CONTRACT_PATH, *generation_paths]
-    oids = _batch_oids(root, graph.commits, paths)
+    graph = _commit_graph(root, resolved, paths)
+    state_commits = tuple(dict.fromkeys((*graph.commits, *graph.boundary)))
+    oids = _batch_oids(root, state_commits, paths)
     blobs = _batch_blob_bytes(root, (oid for oid in oids.values() if oid is not None))
 
     introductions: dict[int, list[str]] = {number: [] for number in range(1, max_generation + 1)}
     for number, path in enumerate(generation_paths, 1):
-        seen_oids = {oids[(item, path)] for item in graph.commits if oids[(item, path)] is not None}
+        seen_oids = {
+            oids[(item, path)]
+            for item in state_commits
+            if oids[(item, path)] is not None
+        }
         if len(seen_oids) > 1:
             raise PreregistrationError("generation-mutated", path)
         for item in graph.commits:
@@ -1564,7 +1635,10 @@ def validate_condition_freeze_at(
     contract_cache: dict[tuple[str, str], tuple[MarkdownContract, str]] = {}
     states: dict[str, _HistoryState] = {}
     records_by_commit: dict[str, tuple[FreezeRecord, ...]] = {}
-    for item in graph.commits:
+
+    def state_at(item: str) -> _HistoryState:
+        if item in states:
+            return states[item]
         present = [
             number
             for number, path in enumerate(generation_paths, 1)
@@ -1610,10 +1684,14 @@ def validate_condition_freeze_at(
             records[-1].raw_sha256 if records else None,
             tuple(oid for oid in record_oids if oid is not None),
         )
-        parents = graph.parents[item]
-        parent_states = [states[parent] for parent in parents]
-        _assert_history_transition(item, state, parent_states)
         states[item] = state
+        return state
+
+    for item in graph.commits:
+        state = state_at(item)
+        parents = graph.parents[item]
+        parent_states = [state_at(parent) for parent in parents]
+        _assert_history_transition(item, state, parent_states)
 
     ruling_checks: list[tuple[str, str]] = []
     for number in range(2, max_generation + 1):
