@@ -94,6 +94,9 @@ _PRE_WAVE_DEV_WAVE_COMMAND_START_SECTION = """## 入力と開始
 """
 _SYNTHETIC_CODEX_DEV_WAVE_START_SECTION = """## 開始する
 
+0. prompt 本文の最初の非空行が `AGENTS.md`「単独段 dispatch の例外」節と同一形式の宣言・射影を
+   満たす場合は、以下 1〜5 を適用せず、宣言と射影が指示する資料だけを読む。宣言が欠落・形式不正・
+   重複、または射影対象を読めない場合はこの例外を使わず、以下の手順に従う。
 1. リポジトリ直下の `AGENTS.md` と `CLAUDE.md` を全文読み、依頼をクラス 3 として起動する。
 2. ユーザーが指定した対象を優先する。対象がなければ worklog 末尾の「次の一手」から 1 件選ぶ。
 3. `.claude/commands/dev-wave.md` を全文読む。同ファイルを 9 段状態機械、段 dispatch、条件 dispatch、
@@ -204,6 +207,29 @@ _SYNTHETIC_CONDITION_25_ROW = (
 _SYNTHETIC_CONDITION_26_ROW = (
     "| 26 | 起動/待機/検査/submodule/取込/fix前 | "
     "`docs/dev-wave/core.md`: `DW-C01` |"
+)
+_SYNTHETIC_SINGLE_DISPATCH_DECLARATION = (
+    "単独段 dispatch: stage=<plan|consult|author|review|fix|focus>; "
+    "sandbox=<read-only|workspace-write>; parent=<絶対パス>"
+)
+_SYNTHETIC_SINGLE_DISPATCH_OPERATIONS_REFERENCE = (
+    "prompt 先頭は AGENTS.md の単独段例外と同形式。"
+)
+_SYNTHETIC_SINGLE_DISPATCH_PROJECTION_HEADING = "必読事項の射影:"
+_SYNTHETIC_SINGLE_DISPATCH_PROJECTION_ITEM = (
+    "- `/tmp/synthetic-required.md` — 読めなければ即停止"
+)
+_SYNTHETIC_SINGLE_DISPATCH_LAUNCHER_STAGES = (
+    'STAGES = ("plan", "consult", "author", "review", "fix", "focus")\n'
+)
+_SYNTHETIC_AGENTS_SINGLE_DISPATCH_SECTION = (
+    "# synthetic agents\n\n"
+    "## 単独段 dispatch の例外\n\n"
+    "prompt 本文の最初の非空行だけを対象にする。\n"
+    f"`{_SYNTHETIC_SINGLE_DISPATCH_DECLARATION}`\n"
+    f"{_SYNTHETIC_SINGLE_DISPATCH_PROJECTION_HEADING}\n"
+    f"{_SYNTHETIC_SINGLE_DISPATCH_PROJECTION_ITEM}\n"
+    "\n## 作業開始\n\n通常の起動手順。\n"
 )
 
 _SYNTHETIC_ADMISSION_ENTRIES = {
@@ -736,7 +762,11 @@ docs/skill-self-improvement.md
 """
     _write(root, ".claude/commands/dev-wave.md", dev_wave)
     _write(root, "tools/dev_wave_land.py", "# synthetic land helper\n")
-    _write(root, "tools/dev_wave_codex.py", "# synthetic Codex dispatcher\n")
+    _write(
+        root,
+        "tools/dev_wave_codex.py",
+        _SYNTHETIC_SINGLE_DISPATCH_LAUNCHER_STAGES,
+    )
     _write(root, "tools/dev_wave_wait.py", "# synthetic canonical waiter\n")
     _write(root, ".claude/commands/cleanup-branches.md", cleanup)
     _write(root, ".claude/commands/rulings.md", rulings)
@@ -818,6 +848,8 @@ description: synthetic Codex rulings skill
                     + "\n\n"
                     + check_docs.DEV_WAVE_DW_O01_MODEL_AUTHORITY_LITERAL
                 )
+            if rel == "docs/dev-wave/operations.md" and section == "DW-O02":
+                body += "\n\n" + _SYNTHETIC_SINGLE_DISPATCH_OPERATIONS_REFERENCE
             if rel == "docs/dev-wave/core.md" and section == "DW-C00":
                 body += "\n\n" + _SYNTHETIC_DW_C00_WAITER_LINE.rstrip("\n")
             if rel == "docs/dev-wave/core.md" and section == "DW-S09":
@@ -1012,6 +1044,7 @@ def _build_min_repo() -> str:
     )
     # backlog guard の必須構造。phase3.md は上の列挙 placeholder を上書きする。
     _write_backlog_docs(root)
+    _write(root, "AGENTS.md", _SYNTHETIC_AGENTS_SINGLE_DISPATCH_SECTION)
     _write_command_guard_docs(root)
     _write_dispatch_inventory_fixture(root)
     return root
@@ -6202,6 +6235,119 @@ def _mutate_command_guard(root: str, case: str) -> None:
                 1,
             ),
         )
+    elif case == "single_dispatch_agents_marker_deleted":
+        rel = "AGENTS.md"
+        text = _read(root, rel)
+        assert text.count(_SYNTHETIC_SINGLE_DISPATCH_DECLARATION) == 1
+        _write(
+            root,
+            rel,
+            text.replace(
+                _SYNTHETIC_SINGLE_DISPATCH_DECLARATION,
+                "single dispatch declaration omitted",
+                1,
+            ),
+        )
+    elif case == "single_dispatch_agents_projection_deleted":
+        rel = "AGENTS.md"
+        text = _read(root, rel)
+        original = f"{_SYNTHETIC_SINGLE_DISPATCH_PROJECTION_HEADING}\n"
+        assert text.count(original) == 1
+        _write(root, rel, text.replace(original, "projection omitted\n", 1))
+    elif case == "single_dispatch_agents_projection_path_deleted":
+        rel = "AGENTS.md"
+        text = _read(root, rel)
+        original = "/tmp/synthetic-required.md"
+        assert text.count(original) == 1
+        _write(root, rel, text.replace(original, "synthetic-required.md", 1))
+    elif case == "single_dispatch_agents_projection_path_placeholder_only":
+        rel = "AGENTS.md"
+        text = _read(root, rel)
+        original = "/tmp/synthetic-required.md"
+        assert text.count(original) == 1
+        _write(root, rel, text.replace(original, "絶対パス", 1))
+    elif case == "single_dispatch_agents_projection_stop_deleted":
+        rel = "AGENTS.md"
+        text = _read(root, rel)
+        original = "読めなければ即停止"
+        assert text.count(original) == 1
+        _write(root, rel, text.replace(original, "読めなければ停止", 1))
+    elif case in {
+        "single_dispatch_agents_comment_decoy",
+        "single_dispatch_agents_fence_decoy",
+        "single_dispatch_agents_blockquote_decoy",
+        "single_dispatch_agents_indented_code_decoy",
+    }:
+        rel = "AGENTS.md"
+        text = _read(root, rel)
+        original = f"`{_SYNTHETIC_SINGLE_DISPATCH_DECLARATION}`\n"
+        assert text.count(original) == 1
+        replacement = {
+            "single_dispatch_agents_comment_decoy": (
+                f"<!-- {_SYNTHETIC_SINGLE_DISPATCH_DECLARATION} -->\n"
+            ),
+            "single_dispatch_agents_fence_decoy": (
+                f"```text\n{_SYNTHETIC_SINGLE_DISPATCH_DECLARATION}\n```\n"
+            ),
+            "single_dispatch_agents_blockquote_decoy": (
+                f"> {_SYNTHETIC_SINGLE_DISPATCH_DECLARATION}\n"
+            ),
+            "single_dispatch_agents_indented_code_decoy": (
+                f"    `{_SYNTHETIC_SINGLE_DISPATCH_DECLARATION}`\n"
+            ),
+        }[case]
+        _write(root, rel, text.replace(original, replacement, 1))
+    elif case == "single_dispatch_agents_marker_duplicated":
+        rel = "AGENTS.md"
+        text = _read(root, rel)
+        original = f"`{_SYNTHETIC_SINGLE_DISPATCH_DECLARATION}`\n"
+        assert text.count(original) == 1
+        _write(root, rel, text.replace(original, original + original, 1))
+    elif case == "single_dispatch_agents_stage_mismatch":
+        rel = "tools/dev_wave_codex.py"
+        text = _read(root, rel)
+        assert text == _SYNTHETIC_SINGLE_DISPATCH_LAUNCHER_STAGES
+        _write(
+            root,
+            rel,
+            text.replace('"focus"', '"mismatch"', 1),
+        )
+    elif case == "single_dispatch_launcher_stage_unreadable":
+        _write(root, "tools/dev_wave_codex.py", "# malformed synthetic launcher\n")
+    elif case == "single_dispatch_operations_marker_deleted":
+        rel = "docs/dev-wave/operations.md"
+        text = _read(root, rel)
+        assert text.count(_SYNTHETIC_SINGLE_DISPATCH_OPERATIONS_REFERENCE) == 1
+        _write(
+            root,
+            rel,
+            text.replace(
+                _SYNTHETIC_SINGLE_DISPATCH_OPERATIONS_REFERENCE,
+                "single dispatch reference omitted",
+                1,
+            ),
+        )
+    elif case in {
+        "single_dispatch_operations_comment_decoy",
+        "single_dispatch_operations_fence_decoy",
+        "single_dispatch_operations_blockquote_decoy",
+    }:
+        rel = "docs/dev-wave/operations.md"
+        text = _read(root, rel)
+        original = f"{_SYNTHETIC_SINGLE_DISPATCH_OPERATIONS_REFERENCE}\n"
+        assert text.count(original) == 1
+        replacement = {
+            "single_dispatch_operations_comment_decoy": (
+                f"<!-- {_SYNTHETIC_SINGLE_DISPATCH_OPERATIONS_REFERENCE} -->\n"
+            ),
+            "single_dispatch_operations_fence_decoy": (
+                f"```text\n{_SYNTHETIC_SINGLE_DISPATCH_OPERATIONS_REFERENCE}\n```\n"
+            ),
+            "single_dispatch_operations_blockquote_decoy": (
+                f"> {_SYNTHETIC_SINGLE_DISPATCH_OPERATIONS_REFERENCE}\n"
+            ),
+        }[case]
+        _write(root, rel, text.replace(original, replacement, 1))
     elif case == "codex_skill_openai_changed":
         rel = ".agents/skills/dev-wave/agents/openai.yaml"
         _write(root, rel, _read(root, rel).replace(
@@ -6369,6 +6515,22 @@ _COMMAND_GUARD_CASES = [
     "codex_startup_wave_pre_form",
     "codex_startup_routing_moved",
     "codex_skill_stage9_land_literal_deleted",
+    "single_dispatch_agents_marker_deleted",
+    "single_dispatch_agents_projection_deleted",
+    "single_dispatch_agents_projection_path_deleted",
+    "single_dispatch_agents_projection_path_placeholder_only",
+    "single_dispatch_agents_projection_stop_deleted",
+    "single_dispatch_agents_comment_decoy",
+    "single_dispatch_agents_fence_decoy",
+    "single_dispatch_agents_blockquote_decoy",
+    "single_dispatch_agents_indented_code_decoy",
+    "single_dispatch_agents_marker_duplicated",
+    "single_dispatch_agents_stage_mismatch",
+    "single_dispatch_launcher_stage_unreadable",
+    "single_dispatch_operations_marker_deleted",
+    "single_dispatch_operations_comment_decoy",
+    "single_dispatch_operations_fence_decoy",
+    "single_dispatch_operations_blockquote_decoy",
     "codex_skill_openai_changed",
     "codex_skill_land_helper_duplicated",
     "command_land_helper_duplicated",
@@ -6463,6 +6625,57 @@ _COMMAND_GUARD_NEEDLES = {
     "codex_startup_wave_pre_form": "可視 H2 節 '開始する' の節全体",
     "codex_startup_routing_moved": "可視 H2 節 '開始する' の節全体",
     "codex_skill_stage9_land_literal_deleted": "exact adapter literal が 0 件",
+    "single_dispatch_agents_marker_deleted": (
+        "AGENTS.md: 単独段 dispatch の宣言テンプレート"
+    ),
+    "single_dispatch_agents_projection_deleted": (
+        "AGENTS.md: 宣言テンプレート直後の「必読事項の射影:」見出し行"
+    ),
+    "single_dispatch_agents_projection_path_deleted": (
+        "AGENTS.md: 宣言テンプレート直後の射影節本文に絶対パスらしき記述と"
+        "「読めなければ即停止」の両方がない"
+    ),
+    "single_dispatch_agents_projection_path_placeholder_only": (
+        "AGENTS.md: 宣言テンプレート直後の射影節本文に絶対パスらしき記述と"
+        "「読めなければ即停止」の両方がない"
+    ),
+    "single_dispatch_agents_projection_stop_deleted": (
+        "AGENTS.md: 宣言テンプレート直後の射影節本文に絶対パスらしき記述と"
+        "「読めなければ即停止」の両方がない"
+    ),
+    "single_dispatch_agents_comment_decoy": (
+        "AGENTS.md: 単独段 dispatch の宣言テンプレート"
+    ),
+    "single_dispatch_agents_fence_decoy": (
+        "AGENTS.md: 単独段 dispatch の宣言テンプレート"
+    ),
+    "single_dispatch_agents_blockquote_decoy": (
+        "AGENTS.md: 単独段 dispatch の宣言テンプレート"
+    ),
+    "single_dispatch_agents_indented_code_decoy": (
+        "AGENTS.md: 単独段 dispatch の宣言テンプレート"
+    ),
+    "single_dispatch_agents_marker_duplicated": (
+        "AGENTS.md: 単独段 dispatch の宣言テンプレート"
+    ),
+    "single_dispatch_agents_stage_mismatch": (
+        "AGENTS.md: 単独段 dispatch の stage 語彙"
+    ),
+    "single_dispatch_launcher_stage_unreadable": (
+        "AGENTS.md: tools/dev_wave_codex.py の STAGES を解析できない"
+    ),
+    "single_dispatch_operations_marker_deleted": (
+        "docs/dev-wave/operations.md: DW-O02 に AGENTS.md の単独段例外"
+    ),
+    "single_dispatch_operations_comment_decoy": (
+        "docs/dev-wave/operations.md: DW-O02 に AGENTS.md の単独段例外"
+    ),
+    "single_dispatch_operations_fence_decoy": (
+        "docs/dev-wave/operations.md: DW-O02 に AGENTS.md の単独段例外"
+    ),
+    "single_dispatch_operations_blockquote_decoy": (
+        "docs/dev-wave/operations.md: DW-O02 に AGENTS.md の単独段例外"
+    ),
     "codex_skill_openai_changed": "生成済み Skill interface 契約と不一致",
     "codex_skill_land_helper_duplicated": "共通 dispatcher の leaf path を重複 pin",
     "command_land_helper_duplicated": "land helper path は DW-S09 / DW-O23 だけ",
@@ -6513,6 +6726,67 @@ def test_dev_wave_waiter_consumer_pins_accept_current_docs_contract():
     assert findings == []
 
 
+def test_single_dispatch_structure_contract_accepts_handwritten_fixture():
+    """単独段 marker の正例と launcher stage 語彙の cross-check を固定する。"""
+
+    assert check_docs.DEV_WAVE_SINGLE_DISPATCH_STAGE_CHOICES == (
+        "plan", "consult", "author", "review", "fix", "focus",
+    )
+    assert check_docs.DEV_WAVE_SINGLE_DISPATCH_DECLARATION_LITERAL == (
+        _SYNTHETIC_SINGLE_DISPATCH_DECLARATION
+    )
+    assert check_docs.DEV_WAVE_SINGLE_DISPATCH_PROJECTION_HEADING == (
+        _SYNTHETIC_SINGLE_DISPATCH_PROJECTION_HEADING
+    )
+    assert check_docs.DEV_WAVE_SINGLE_DISPATCH_OPERATIONS_REFERENCE_LITERAL == (
+        _SYNTHETIC_SINGLE_DISPATCH_OPERATIONS_REFERENCE
+    )
+    assert check_docs._launcher_stage_choices() == (
+        "plan", "consult", "author", "review", "fix", "focus",
+    )
+
+    root = _build_min_repo()
+    try:
+        baseline = _run_check(root)
+        assert baseline.returncode == 0, baseline.stdout
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_single_dispatch_indented_code_block_decoy_is_ignored():
+    """4スペース以上の indented code block の marker は可視本文に数えない。"""
+
+    root = _build_min_repo()
+    try:
+        rel = "AGENTS.md"
+        text = _read(root, rel)
+        original = f"`{_SYNTHETIC_SINGLE_DISPATCH_DECLARATION}`\n"
+        assert text.count(original) == 1
+        decoy = f"    `{_SYNTHETIC_SINGLE_DISPATCH_DECLARATION}`\n"
+        _write(root, rel, text.replace(original, original + decoy, 1))
+        result = _run_check(root)
+        assert result.returncode == 0, result.stdout
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_single_dispatch_tab_indented_code_block_decoy_is_ignored():
+    """タブ1個の indented code block の marker は可視本文に数えない。"""
+
+    root = _build_min_repo()
+    try:
+        rel = "AGENTS.md"
+        text = _read(root, rel)
+        original = f"`{_SYNTHETIC_SINGLE_DISPATCH_DECLARATION}`\n"
+        assert text.count(original) == 1
+        decoy = f"\t`{_SYNTHETIC_SINGLE_DISPATCH_DECLARATION}`\n"
+        _write(root, rel, text.replace(original, original + decoy, 1))
+        result = _run_check(root)
+        assert result.returncode == 0, result.stdout
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
 def test_command_guard_case_registration_is_complete():
     """条件 24/25/26、L2 再追加、新節 pin と guard 登録表を固定する。"""
 
@@ -6535,6 +6809,22 @@ def test_command_guard_case_registration_is_complete():
         "command_startup_routing_blockquoted",
         "codex_startup_wave_pre_form",
         "codex_startup_routing_moved",
+        "single_dispatch_agents_marker_deleted",
+        "single_dispatch_agents_projection_deleted",
+        "single_dispatch_agents_projection_path_deleted",
+        "single_dispatch_agents_projection_path_placeholder_only",
+        "single_dispatch_agents_projection_stop_deleted",
+        "single_dispatch_agents_comment_decoy",
+        "single_dispatch_agents_fence_decoy",
+        "single_dispatch_agents_blockquote_decoy",
+        "single_dispatch_agents_indented_code_decoy",
+        "single_dispatch_agents_marker_duplicated",
+        "single_dispatch_agents_stage_mismatch",
+        "single_dispatch_launcher_stage_unreadable",
+        "single_dispatch_operations_marker_deleted",
+        "single_dispatch_operations_comment_decoy",
+        "single_dispatch_operations_fence_decoy",
+        "single_dispatch_operations_blockquote_decoy",
         "self_l2_admission_wave_pre_form",
         "stage6-relocated",
         "stage9-deleted",
