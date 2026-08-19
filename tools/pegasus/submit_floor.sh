@@ -414,9 +414,82 @@ provision_claim_root() {
 provision_claim_root || exit 2
 
 # 出典: submit_certify.sh:170-237 @ e9b6f69
+GIT_COMMON_DIR=$(git -C "$REPO_ROOT" rev-parse --path-format=absolute --git-common-dir) || exit 2
+GIT_COMMON_REPO=${GIT_COMMON_DIR%/.git}
+DEFAULT_EVIDENCE_ROOT="$(dirname "$(dirname "$GIT_COMMON_DIR")")/izanagi-job-evidence"
+EFFECTIVE_EVIDENCE_ROOT=$DEFAULT_EVIDENCE_ROOT
+REQUESTED_EVIDENCE_ROOT=""
+LOGIN_PROBE_STATUS=dry-run-not-probed
+FORWARD_EVIDENCE_ROOT=0
+
+probe_login_evidence_root() {
+  local root=$1
+  local current="/"
+  local component
+  local probe_path
+  local observed
+  local -a components
+  [[ "$root" == /* && "$root" =~ ^[A-Za-z0-9_./:-]+$ ]] || return 1
+  [[ "$root" != "$REPO_ROOT" && "$root" != "$REPO_ROOT/"* \
+      && "$root" != "$GIT_COMMON_REPO" && "$root" != "$GIT_COMMON_REPO/"* ]] \
+    || return 1
+  IFS='/' read -r -a components <<<"${root#/}"
+  for component in "${components[@]}"; do
+    [[ -n "$component" && "$component" != "." && "$component" != ".." ]] \
+      || return 1
+    current="${current%/}/$component"
+    [[ ! -L "$current" ]] || return 1
+  done
+  mkdir -p -m 0700 -- "$root" || return 1
+  current="/"
+  for component in "${components[@]}"; do
+    current="${current%/}/$component"
+    [[ -d "$current" && ! -L "$current" ]] || return 1
+  done
+  probe_path=$(mktemp "$root/.login-readable.XXXXXX") || return 1
+  if ! printf '%s\n' "$NONCE" >|"$probe_path"; then
+    rm -f -- "$probe_path"
+    return 1
+  fi
+  IFS= read -r observed <"$probe_path" || {
+    rm -f -- "$probe_path"
+    return 1
+  }
+  rm -f -- "$probe_path" || return 1
+  [[ "$observed" == "$NONCE" ]]
+}
+
+if [[ "$DRY_RUN" -eq 0 ]]; then
+  if [[ ${IZANAGI_FLOOR_JOB_EVIDENCE_ROOT+x} == x ]]; then
+    REQUESTED_EVIDENCE_ROOT=$IZANAGI_FLOOR_JOB_EVIDENCE_ROOT
+    if [[ "$REQUESTED_EVIDENCE_ROOT" == /* \
+        && "$REQUESTED_EVIDENCE_ROOT" =~ ^[A-Za-z0-9_./:-]+$ ]] \
+        && probe_login_evidence_root "$REQUESTED_EVIDENCE_ROOT"; then
+      EFFECTIVE_EVIDENCE_ROOT=$REQUESTED_EVIDENCE_ROOT
+      LOGIN_PROBE_STATUS=override-readable
+      FORWARD_EVIDENCE_ROOT=1
+    else
+      echo "floor evidence root override is not login-readable; using default" >&2
+      LOGIN_PROBE_STATUS=override-unreadable-fallback
+      if ! probe_login_evidence_root "$DEFAULT_EVIDENCE_ROOT"; then
+        echo "default floor evidence root is not login-readable; submission continues" >&2
+        LOGIN_PROBE_STATUS=override-and-default-unreadable
+      fi
+    fi
+  elif probe_login_evidence_root "$DEFAULT_EVIDENCE_ROOT"; then
+    LOGIN_PROBE_STATUS=default-readable
+  else
+    echo "default floor evidence root is not login-readable; submission continues" >&2
+    LOGIN_PROBE_STATUS=default-unreadable
+  fi
+fi
+
 export_spec="IZANAGI_SUBMISSION_NONCE=$NONCE"
 if [[ "$CONFIRM_IRREVERSIBLE_PILOT_HOLDOUT" -eq 1 ]]; then
   export_spec+=",IZANAGI_CONFIRM_IRREVERSIBLE_PILOT_HOLDOUT=$NONCE"
+fi
+if [[ "$FORWARD_EVIDENCE_ROOT" -eq 1 ]]; then
+  export_spec+=",IZANAGI_FLOOR_JOB_EVIDENCE_ROOT=$EFFECTIVE_EVIDENCE_ROOT"
 fi
 SCHEDULER_STDOUT="$SUBMISSION_DIR/scheduler.stdout"
 SCHEDULER_STDERR="$SUBMISSION_DIR/scheduler.stderr"
@@ -503,6 +576,39 @@ with open(target, "x", encoding="utf-8") as handle:
     )
     handle.write("\n")
 PY
+
+if [[ "$DRY_RUN" -eq 0 ]]; then
+  index_rc=0
+  timeout --signal=KILL 22s python3 -I -B -c '
+import sys
+sys.path.insert(0, sys.argv[1])
+from orchestrator.campaign import floor_job_checkpoint as checkpoint
+requested = sys.argv[7] or None
+ok = False
+for _attempt in range(3):
+    ok = checkpoint.try_create_index_bounded(
+        root=sys.argv[2], evidence_root=sys.argv[3], job_id=sys.argv[4],
+        nonce=sys.argv[5], submitted_at=int(sys.argv[6]),
+        requested_root=requested, login_probe_status=sys.argv[8],
+    )
+    if ok:
+        break
+sidecar_ok = checkpoint.try_create_index_status_bounded(
+    sys.argv[9], catalog_root=sys.argv[2], evidence_root=sys.argv[3],
+    job_id=sys.argv[4], nonce=sys.argv[5], submitted_at=int(sys.argv[6]),
+    requested_root=requested, login_probe_status=sys.argv[8],
+    index_write_status="published" if ok else "failed",
+)
+if not sidecar_ok:
+    print("floor evidence index status sidecar create-only write failed", file=sys.stderr)
+raise SystemExit(0 if ok else 1)
+' "$REPO_ROOT" "$DEFAULT_EVIDENCE_ROOT" "$EFFECTIVE_EVIDENCE_ROOT" \
+    "$REQUEST_ID" "$NONCE" "$SUBMITTED_AT" "$REQUESTED_EVIDENCE_ROOT" \
+    "$LOGIN_PROBE_STATUS" "$SUBMISSION_DIR/evidence-index-status.json" || index_rc=$?
+  if [[ "$index_rc" -ne 0 ]]; then
+    echo "external floor evidence index create-only write failed" >&2
+  fi
+fi
 
 echo "submission record: $SUBMISSION_DIR/submit-receipt.json"
 echo "request ID: $REQUEST_ID"

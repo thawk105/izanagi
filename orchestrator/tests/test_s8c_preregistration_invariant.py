@@ -75,6 +75,8 @@ MACHINE_CONTRACT_FUNCTION_CHECKS = frozenset(
         ("C04", "orchestrator/campaign/p3_autonomous_workload_trial.py", "run_trial"),
         ("C04", "orchestrator/campaign/trial_registry.py", "forbid_trial_restart"),
         ("C04", "orchestrator/campaign/trial_registry.py", "reject_started_trial"),
+        ("C05", "orchestrator/campaign/s8c_schedule.py", "consume_schedule"),
+        ("C05", "orchestrator/campaign/s8c_schedule.py", "verify_schedule"),
         ("C07", "orchestrator/campaign/s8c_result_judge.py", "verify_floor_bytes"),
         ("C07", "orchestrator/campaign/s8c_result_judge.py", "judge"),
         ("C07", "orchestrator/campaign/s8c_result_judge.py", "publish_result_table"),
@@ -109,6 +111,10 @@ MACHINE_CONTRACT_FUNCTION_EXCLUSIONS = frozenset(
         ("C04", "orchestrator/campaign/p3_autonomous_workload_trial.py", "crash handler", "non-identifier-token"),
         ("C04", "orchestrator/campaign/trial_registry.py", "run_trial crash handler", "non-identifier-token"),
         ("C04", "orchestrator/campaign/trial_registry.py", "run_trial preflight", "non-identifier-token"),
+        ("C05", "orchestrator/campaign/s8c_schedule.py", "run_trial", "different-module-token"),
+        ("C05", "output/s8c-preregistration/schedule.v1.json", "launch next cell", "non-identifier-token"),
+        ("C05", "output/s8c-preregistration/schedule.v1.json", "load_schedule", "different-module-token"),
+        ("C05", "output/s8c-preregistration/schedule.v1.json", "run_trial", "different-module-token"),
         ("C07", "orchestrator/campaign/s8b_ratified_freeze.py", "verify_floor_bytes", "different-module-token"),
         ("C09", "orchestrator/campaign/p3_autonomous_workload_trial.py", "report publish", "non-identifier-token"),
         ("C09", "orchestrator/campaign/trial_registry.py", "registry append", "non-identifier-token"),
@@ -229,7 +235,10 @@ def _machine_contract_function_findings(
 
     def parse_module(path: str) -> None:
         if path not in symbol_names_by_path:
-            assert path.endswith(".py")
+            if not path.endswith(".py"):
+                function_names_by_path[path] = frozenset()
+                symbol_names_by_path[path] = frozenset()
+                return
             tree = ast.parse((ROOT / path).read_bytes(), filename=path)
             function_names_by_path[path] = frozenset(
                 node.name
@@ -383,6 +392,26 @@ def test_candidate_freeze_matches_contract_and_generation_chain(
     assert latest["evidence_contract_sha256"] == prereg.evidence_contract_sha256(evidence_raw)
     if validation.generation_number == 1:
         assert latest["supersedes_sha256"] is None
+
+
+@CANDIDATE_XDIST_GROUP
+def test_candidate_freeze_batch_is_bounded_by_frozen_touch_points(
+    repository_candidate_commit: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    calls: list[tuple[int, int]] = []
+    original = prereg._batch_oids
+
+    def counted_batch_oids(repo_root, commits, paths):
+        calls.append((len(commits), len(paths)))
+        return original(repo_root, commits, paths)
+
+    monkeypatch.setattr(prereg, "_batch_oids", counted_batch_oids)
+    prereg.validate_condition_freeze_at(ROOT, repository_candidate_commit)
+    main_calls = [call for call in calls if call[1] > 1]
+    assert len(main_calls) == 1
+    commit_count, path_count = main_calls[0]
+    assert commit_count * path_count < prereg.MAX_BATCH_REQUESTS
+    assert commit_count < prereg.MAX_COMMITS
 
 
 @CANDIDATE_XDIST_GROUP

@@ -589,6 +589,15 @@ def _function_parameters(node: ast.FunctionDef | ast.AsyncFunctionDef) -> tuple[
 
 def _literal_truth(node: ast.AST) -> bool | None:
     """Return literal truthiness, or ``None`` for every non-literal expression."""
+    if (
+        isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Name)
+        and node.func.id == "bool"
+        and len(node.args) == 1
+        and not node.keywords
+    ):
+        nested = _literal_truth(node.args[0])
+        return nested
     if not isinstance(node, (ast.Constant, ast.Tuple, ast.List, ast.Set, ast.Dict)):
         return None
     try:
@@ -1477,6 +1486,446 @@ def _declared_call(
     probe: _ConditionProbe, graph: _Reachability, target: _CallableTarget
 ) -> bool:
     return target[0] in probe.declared_paths and target in graph.calls
+
+
+def _attribute_names(node: ast.AST) -> set[str]:
+    return {
+        current.attr
+        for current in ast.walk(node)
+        if isinstance(current, ast.Attribute)
+    }
+
+
+def _top_level_names(tree: ast.Module) -> set[str]:
+    names: set[str] = set()
+    for node in tree.body:
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+            names.add(node.name)
+        elif isinstance(node, ast.Assign):
+            names.update(
+                target.id
+                for target in node.targets
+                if isinstance(target, ast.Name)
+            )
+        elif isinstance(node, (ast.AnnAssign, ast.AugAssign)):
+            if isinstance(node.target, ast.Name):
+                names.add(node.target.id)
+    return names
+
+
+def _call_target_name(call: ast.Call) -> str | None:
+    if isinstance(call.func, ast.Name):
+        return call.func.id
+    if isinstance(call.func, ast.Attribute):
+        return call.func.attr
+    return None
+
+
+def _calls_named(node: ast.AST, name: str) -> tuple[ast.Call, ...]:
+    candidates = (
+        _live_nodes(node)
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+        else list(ast.walk(node))
+    )
+    return tuple(
+        current
+        for current in candidates
+        if isinstance(current, ast.Call) and _call_target_name(current) == name
+    )
+
+
+def _keyword_value(call: ast.Call, name: str) -> ast.AST | None:
+    for keyword in call.keywords:
+        if keyword.arg == name:
+            return keyword.value
+    return None
+
+
+def _positional_or_keyword_value(
+    call: ast.Call, *, index: int, name: str
+) -> ast.AST | None:
+    keyword_value = _keyword_value(call, name)
+    if keyword_value is not None:
+        return keyword_value
+    return call.args[index] if len(call.args) > index else None
+
+
+def _is_name(node: ast.AST | None, name: str) -> bool:
+    return isinstance(node, ast.Name) and node.id == name
+
+
+def _has_attribute(node: ast.AST | None, name: str) -> bool:
+    return isinstance(node, ast.Attribute) and node.attr == name
+
+
+def _has_live_assignment(
+    node: ast.FunctionDef | ast.AsyncFunctionDef, name: str
+) -> bool:
+    for current in _live_nodes(node):
+        targets: tuple[ast.AST, ...]
+        if isinstance(current, ast.Assign):
+            targets = tuple(current.targets)
+        elif isinstance(current, (ast.AnnAssign, ast.AugAssign)):
+            targets = (current.target,)
+        else:
+            continue
+        if any(
+            isinstance(target, ast.Name) and target.id == name for target in targets
+        ):
+            return True
+    return False
+
+
+def _contains_legacy_return(node: ast.FunctionDef | ast.AsyncFunctionDef) -> bool:
+    """Reject a legacy acceptance branch that returns before strict checks."""
+    for current in _live_nodes(node):
+        if not isinstance(current, ast.If):
+            continue
+        names = {
+            child.id
+            for child in ast.walk(current.test)
+            if isinstance(child, ast.Name)
+        }
+        names.update(
+            child.attr
+            for child in ast.walk(current.test)
+            if isinstance(child, ast.Attribute)
+        )
+        if any("legacy" in name.casefold() for name in names) and any(
+            isinstance(child, ast.Return)
+            for statement in current.body
+            for child in ast.walk(statement)
+        ):
+            return True
+    return False
+
+
+def _acceptance_function(
+    functions: Mapping[str, ast.FunctionDef | ast.AsyncFunctionDef],
+) -> tuple[str, ast.FunctionDef | ast.AsyncFunctionDef] | None:
+    for name in ("assert_trial_registry_acceptance", "accept_trial"):
+        function = functions.get(name)
+        if function is not None:
+            return name, function
+    return None
+
+
+def _evaluate_c03(probe: _ConditionProbe) -> core.PredicateResult:
+    """Inspect the C03 static shape without making it SATISFIED."""
+    registry_path = probe.requirement("trial_registry").path
+    registry = probe.python_kind("trial_registry")
+    if registry is None:
+        return _result(
+            probe,
+            core.PredicateStatus.EVIDENCE_UNDEFINED,
+            ReasonCode.TRIAL_REGISTRY_CAPABILITY_ABSENT,
+        )
+
+    functions = _functions(registry)
+    required = {
+        "load_trial_manifest",
+        "load_effective_binding_at_commit",
+        "validate_preregistration_binding",
+        "_find_registration_for_manifest",
+        "_assert_manifest_registry_trial_set",
+        "_assert_runtime_report_trial_set",
+        "_assert_runtime_report_cells",
+        "load_attempt_registry",
+        "reserve_attempt_slot",
+        "create_attempt_registry_genesis",
+        "classify_attempt",
+        "record_attempt_terminal",
+    }
+    acceptance = _acceptance_function(functions)
+    if acceptance is None or not required <= functions.keys():
+        return _result(
+            probe,
+            core.PredicateStatus.UNSATISFIED,
+            ReasonCode.MANIFEST_REGISTRY_PROOF_UNDEFINED,
+        )
+    acceptance_name, acceptance_node = acceptance
+
+    canonical = functions["_trial_canonical_tuple"] if "_trial_canonical_tuple" in functions else None
+    if canonical is None or not {
+        "trial_id", "arm", "holdout", "campaign_id", "generations"
+    } <= {
+        current.attr
+        for current in _live_nodes(canonical)
+        if isinstance(current, ast.Attribute)
+    }:
+        return _result(
+            probe,
+            core.PredicateStatus.UNSATISFIED,
+            ReasonCode.MANIFEST_REGISTRY_PROOF_UNDEFINED,
+        )
+    compare = functions["_assert_manifest_registry_trial_set"]
+    if (
+        len(_calls_named(compare, "_trial_canonical_tuple")) < 2
+        or not {"set", "len"} <= _live_called_names(compare)
+    ):
+        return _result(
+            probe,
+            core.PredicateStatus.UNSATISFIED,
+            ReasonCode.MANIFEST_REGISTRY_PROOF_UNDEFINED,
+        )
+    runtime_cells = functions["_assert_runtime_report_cells"]
+    if not {
+        "cells", "workload", "workload_flags", "ycsb_rratio", "campaign_id"
+    } <= {
+        child.value
+        for child in _live_nodes(runtime_cells)
+        if isinstance(child, ast.Constant) and isinstance(child.value, str)
+    } or "get" not in _live_called_names(runtime_cells):
+        return _result(
+            probe,
+            core.PredicateStatus.UNSATISFIED,
+            ReasonCode.MANIFEST_REGISTRY_PROOF_UNDEFINED,
+        )
+    if _contains_legacy_return(acceptance_node):
+        return _result(
+            probe,
+            core.PredicateStatus.UNSATISFIED,
+            ReasonCode.MANIFEST_REGISTRY_PROOF_UNDEFINED,
+        )
+
+    registry_graph = _ReachabilityExplorer(probe).walk(
+        (registry_path, acceptance_name)
+    )
+    required_acceptance_targets = {
+        "load_trial_manifest",
+        "load_effective_binding_at_commit",
+        "validate_preregistration_binding",
+        "_find_registration_for_manifest",
+        "_assert_manifest_registry_trial_set",
+        "_assert_runtime_report_trial_set",
+        "_assert_runtime_report_cells",
+        "load_attempt_registry",
+    }
+    if not all(
+        _declared_call(probe, registry_graph, (registry_path, name))
+        for name in required_acceptance_targets
+    ):
+        return _result(
+            probe,
+            core.PredicateStatus.UNSATISFIED,
+            ReasonCode.MANIFEST_REGISTRY_PROOF_UNDEFINED,
+        )
+
+    producer_path = "orchestrator/campaign/p3_autonomous_workload_trial.py"
+    producer = probe.python_path(producer_path)
+    if producer is None or "run_trial" not in _functions(producer):
+        return _result(
+            probe,
+            core.PredicateStatus.UNSATISFIED,
+            ReasonCode.MANIFEST_REGISTRY_PROOF_UNDEFINED,
+        )
+    if "_reserve_registered_attempt_slot" not in _reachable_calls(
+        producer, "run_trial"
+    ):
+        return _result(
+            probe,
+            core.PredicateStatus.UNSATISFIED,
+            ReasonCode.MANIFEST_REGISTRY_PROOF_UNDEFINED,
+        )
+    producer_graph = _ReachabilityExplorer(probe).walk((producer_path, "run_trial"))
+    required_producer_targets = {
+        "reserve_attempt_slot",
+        "classify_attempt",
+        "record_attempt_terminal",
+    }
+    if not all(
+        (registry_path, name) in producer_graph.calls
+        for name in required_producer_targets
+    ):
+        return _result(
+            probe,
+            core.PredicateStatus.UNSATISFIED,
+            ReasonCode.MANIFEST_REGISTRY_PROOF_UNDEFINED,
+        )
+
+    if not {
+        "MANIFEST_SCHEMA_VERSION",
+        "REGISTRATION_SCHEMA_VERSION",
+        "DEFAULT_ATTEMPT_REGISTRY_PATH",
+        "ATTEMPT_REGISTRY_SCHEMA_VERSION",
+        "ATTEMPT_STATUSES",
+        "ATTEMPT_RETRYABLE_FAILURE_REASONS",
+    } <= _top_level_names(registry):
+        return _result(
+            probe,
+            core.PredicateStatus.UNSATISFIED,
+            ReasonCode.MANIFEST_REGISTRY_PROOF_UNDEFINED,
+        )
+    fields = _attribute_names(registry) | _strings(registry)
+    if not {
+        "manifest_sha256",
+        "prereg_content_commit",
+        "prereg_effective_commit",
+        "trials",
+        "cells",
+    } <= fields:
+        return _result(
+            probe,
+            core.PredicateStatus.UNSATISFIED,
+            ReasonCode.MANIFEST_REGISTRY_PROOF_UNDEFINED,
+        )
+    return _result(
+        probe,
+        core.PredicateStatus.EVIDENCE_UNDEFINED,
+        ReasonCode.MANIFEST_REGISTRY_PROOF_UNDEFINED,
+    )
+
+
+def _evaluate_c08(probe: _ConditionProbe) -> core.PredicateResult:
+    """Inspect P/C/H binding flow on both admission and acceptance paths."""
+    registry_path = probe.requirement("trial_registry").path
+    registry = probe.python_kind("trial_registry")
+    if registry is None:
+        return _result(
+            probe,
+            core.PredicateStatus.EVIDENCE_UNDEFINED,
+            ReasonCode.PREREG_BINDING_CAPABILITY_ABSENT,
+        )
+
+    functions = _functions(registry)
+    required = {
+        "assert_effective_commit_exact_parent",
+        "load_effective_binding_at_commit",
+        "validate_preregistration_binding",
+        "_blob_at_commit",
+        "_assert_ancestor",
+        "admit_registered_launch",
+        "load_launch_binding",
+        "_derive_launch_binding",
+        "assert_trial_registry_acceptance",
+    }
+    if not required <= functions.keys():
+        return _result(
+            probe,
+            core.PredicateStatus.UNSATISFIED,
+            ReasonCode.PREREG_BINDING_PROOF_UNDEFINED,
+        )
+
+    validator = functions["validate_preregistration_binding"]
+    if _has_live_assignment(validator, "effective_commit"):
+        return _result(
+            probe,
+            core.PredicateStatus.UNSATISFIED,
+            ReasonCode.PREREG_BINDING_PROOF_UNDEFINED,
+        )
+    exact_parent_calls = _calls_named(
+        validator, "assert_effective_commit_exact_parent"
+    )
+    if len(exact_parent_calls) != 1:
+        return _result(
+            probe,
+            core.PredicateStatus.UNSATISFIED,
+            ReasonCode.PREREG_BINDING_PROOF_UNDEFINED,
+        )
+    exact_parent = exact_parent_calls[0]
+    if not (
+        _is_name(_keyword_value(exact_parent, "effective_commit"), "effective_commit")
+        and _has_attribute(
+            _keyword_value(exact_parent, "content_commit"),
+            "prereg_content_commit",
+        )
+    ):
+        return _result(
+            probe,
+            core.PredicateStatus.UNSATISFIED,
+            ReasonCode.PREREG_BINDING_PROOF_UNDEFINED,
+        )
+
+    binding_calls = _calls_named(validator, "load_effective_binding_at_commit")
+    if not any(
+        _is_name(
+            _positional_or_keyword_value(call, index=1, name="effective_commit"),
+            "effective_commit",
+        )
+        for call in binding_calls
+    ):
+        return _result(
+            probe,
+            core.PredicateStatus.UNSATISFIED,
+            ReasonCode.PREREG_BINDING_PROOF_UNDEFINED,
+        )
+    blob_loader = functions["load_effective_binding_at_commit"]
+    if not any(
+        _is_name(_keyword_value(call, "commit_id"), "effective_commit")
+        for call in _calls_named(blob_loader, "_blob_at_commit")
+    ):
+        return _result(
+            probe,
+            core.PredicateStatus.UNSATISFIED,
+            ReasonCode.PREREG_BINDING_PROOF_UNDEFINED,
+        )
+    if not any(
+        _is_name(_keyword_value(call, "ancestor"), "effective_commit")
+        and _is_name(_keyword_value(call, "descendant"), "measurement_commit")
+        for call in _calls_named(validator, "_assert_ancestor")
+    ):
+        return _result(
+            probe,
+            core.PredicateStatus.UNSATISFIED,
+            ReasonCode.PREREG_BINDING_PROOF_UNDEFINED,
+        )
+
+    admission_graph = _ReachabilityExplorer(probe).walk(
+        (registry_path, "admit_registered_launch")
+    )
+    acceptance_graph = _ReachabilityExplorer(probe).walk(
+        (registry_path, "assert_trial_registry_acceptance")
+    )
+    for graph in (admission_graph, acceptance_graph):
+        if not all(
+            _declared_call(probe, graph, (registry_path, name))
+            for name in (
+                "validate_preregistration_binding",
+                "assert_effective_commit_exact_parent",
+                "load_effective_binding_at_commit",
+                "_blob_at_commit",
+                "_assert_ancestor",
+            )
+        ):
+            return _result(
+                probe,
+                core.PredicateStatus.UNSATISFIED,
+                ReasonCode.PREREG_BINDING_PROOF_UNDEFINED,
+            )
+
+    for graph in (admission_graph, acceptance_graph):
+        for path, name in graph.functions:
+            if path != registry_path:
+                continue
+            function = functions.get(name)
+            if function is None:
+                continue
+            for call in _calls_named(function, "validate_preregistration_binding"):
+                value = _keyword_value(call, "effective_commit")
+                if value is None or any(
+                    _has_attribute(value, attribute)
+                    for attribute in ("prereg_commit", "prereg_content_commit")
+                ):
+                    return _result(
+                        probe,
+                        core.PredicateStatus.UNSATISFIED,
+                        ReasonCode.PREREG_BINDING_PROOF_UNDEFINED,
+                    )
+                if not (
+                    _is_name(value, "effective_commit")
+                    or _has_attribute(value, "prereg_effective_commit")
+                ):
+                    return _result(
+                        probe,
+                        core.PredicateStatus.UNSATISFIED,
+                        ReasonCode.PREREG_BINDING_PROOF_UNDEFINED,
+                    )
+
+    return _result(
+        probe,
+        core.PredicateStatus.EVIDENCE_UNDEFINED,
+        ReasonCode.PREREG_BINDING_PROOF_UNDEFINED,
+    )
 
 
 def _evaluate_c01(probe: _ConditionProbe) -> core.PredicateResult:
@@ -2608,6 +3057,7 @@ _MACHINE_EVALUATORS = {
     1: _evaluate_c01,
     2: _evaluate_c02,
     4: _evaluate_c04,
+    5: _evaluate_c05,
     7: _evaluate_c07,
     9: _evaluate_c09,
     10: _evaluate_c10,
@@ -2622,17 +3072,14 @@ SATISFIABLE_CONDITION_IDS: frozenset[str] = frozenset()
 
 def _evaluate_undefined(probe: _ConditionProbe) -> core.PredicateResult:
     number = probe.contract.condition_number
+    if number == 3:
+        return _evaluate_c03(probe)
+    if number == 8:
+        return _evaluate_c08(probe)
     if number in _MACHINE_EVALUATORS:
         for item in probe.contract.required_evidence:
             probe.read_kind(item.artifact_kind)
         reason = ReasonCode.COMPLETION_PROOF_NOT_MACHINE_CHECKABLE
-    elif number == 3:
-        raw = probe.read_kind("trial_registry")
-        reason = (
-            ReasonCode.TRIAL_REGISTRY_CAPABILITY_ABSENT
-            if raw is None
-            else ReasonCode.MANIFEST_REGISTRY_PROOF_UNDEFINED
-        )
     elif number == 5:
         artifact = probe.read_kind("schedule_artifact")
         consumer = probe.read_kind("schedule_consumer")
@@ -2648,13 +3095,6 @@ def _evaluate_undefined(probe: _ConditionProbe) -> core.PredicateResult:
     elif number == 7:
         probe.read_kind("result_judge")
         reason = ReasonCode.FLOOR_JUDGE_CONSUMER_UNDEFINED
-    elif number == 8:
-        raw = probe.read_kind("trial_registry")
-        reason = (
-            ReasonCode.PREREG_BINDING_CAPABILITY_ABSENT
-            if raw is None
-            else ReasonCode.PREREG_BINDING_PROOF_UNDEFINED
-        )
     else:  # schema validation makes this unreachable unless code/contract drift.
         raise EvidenceContractError("contract-machine-evaluator", probe.contract.identifier)
     return _result(probe, core.PredicateStatus.EVIDENCE_UNDEFINED, reason)
@@ -2719,21 +3159,33 @@ class PredicateRegistry:
                 if condition.machine_checkable:
                     evaluator = _MACHINE_EVALUATORS.get(condition.condition_number)
                     if evaluator is None:
-                        raise EvidenceContractError(
-                            "contract-machine-evaluator", condition.identifier
-                        )
-                    result = evaluator(probe)
-                    if (
-                        is_satisfied(result.status)
-                        and condition.identifier not in SATISFIABLE_CONDITION_IDS
-                    ):
-                        result = _result(
-                            probe,
-                            core.PredicateStatus.ERROR,
-                            ReasonCode.EVALUATOR_INTERNAL_ERROR,
-                        )
+                        if condition.condition_number in {3, 8}:
+                            # Historical contracts may have marked these static
+                            # predicates as machine-checkable.  They must fail
+                            # closed explicitly while the current contract stays
+                            # non-machine and the evaluator map stays unchanged.
+                            result = _result(
+                                probe,
+                                core.PredicateStatus.ERROR,
+                                ReasonCode.BLOB_READ_ERROR,
+                            )
+                        else:
+                            raise EvidenceContractError(
+                                "contract-machine-evaluator", condition.identifier
+                            )
+                    else:
+                        result = evaluator(probe)
                 else:
                     result = _evaluate_undefined(probe)
+                if (
+                    is_satisfied(result.status)
+                    and condition.identifier not in SATISFIABLE_CONDITION_IDS
+                ):
+                    result = _result(
+                        probe,
+                        core.PredicateStatus.ERROR,
+                        ReasonCode.EVALUATOR_INTERNAL_ERROR,
+                    )
             except (core.PreregistrationError, EvidenceContractError) as exc:
                 error_reason = getattr(exc, "reason_code", "")
                 if error_reason == "evidence-python-parse-error":

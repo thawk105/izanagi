@@ -22286,3 +22286,238 @@ trial の実行時間上限 (`max_wall_s`) に束縛する。
   cross-module resolver の新設を要し、本 wave のスコープ (条件7の昇格) を大きく超える。
 - 本 wave 自身の新規裁定を `ruling_reference` にする — fold 前の D 番号は record 導入 commit から
   構造的に参照できず、実現不能。
+
+## D546. 床値 job の signal trap を到達可能にし、主張は配送に限る (2026-08-19)
+
+**決定 (1): `tools/pegasus/floor_campaign.sh` へ `#PBS --accept-sigterm=yes` を置く。**
+記法は単一トークン形とする。根拠は repo 内の既存 probe
+(`output/insights/2026-08-03_t361-t362-cluster-probes/driver/signal_walltime_mitigation.pbs`) と
+既裁定本文であり、空白区切りの実例は repo 内に存在しない。
+
+**決定 (2): この変更が主張するのは「SIGTERM が送られてくれば受け取れる」までである。**
+walltime 打ち切りで NQSV が SIGTERM を送るかは未解決のままとする。既裁定が、捕捉可能な構成には
+`elapstim_req="max,warn"` (warn < max) と `--warning-signal=elapstim:SIGTERM` も要ると記し、
+**実測するまで結論しない**と定めている。本 wave はその実測を行っていない。
+したがって「walltime で `signalled` が残るようになった」と書いてはならない。
+
+**決定 (3): 診断のための値を計測 process へ到達させない。**
+checkpoint path と evidence root の環境変数は、driver が runner を呼ぶ前に private state へ
+取り込んで `os.environ` から削除する。実測 subprocess の環境に checkpoint 系 key が存在しない
+ことを production 形のテストで固定する。
+
+**決定 (4): partial-log と checkpoint は診断専用であり、計測値・certified 選択の権威にしない。**
+書き込み先を repository の外に置くことでこれを構造的に担保する。`output/` へ untracked を
+1 つも足さない。権威 `journal.jsonl` の strict 性 (末尾不完全行で全体を拒否する挙動) は
+1 bit も変えず、緩和は診断専用 reader 側にだけ作る。
+
+**理由:**
+- NQSV は既定で `Accept Sigterm = No` であり、その状態が PBS job から `bash -c` まで継承される。
+  そのため床値 job の signal trap は一度も発火しえず、`signalled` の記録は原理的に不可能だった
+  (F409)。checkpoint 機構を足すだけではこの経路は死んだままになる。
+- 決定 (2) を明記するのは、直したことと被覆できたことを混同しないためである。qdel のように
+  外から TERM が送られる経路では実際に記録されるが、walltime は別問題である。
+- 決定 (3) は絶対規律 1 (観測者効果の分離) の直接の適用である。診断設定が計測入力に混入すれば、
+  将来それを解釈する binary が入ったとき sample・walltime・失敗判定、ひいては certified 選択が
+  診断設定に依存しうる。
+
+**却下した選択肢:**
+- **W1 (interpreter 解決前) を保証範囲から外す。** 却下。そこは G1 の最重要窓であり、外すと機構の
+  目的が消える。T-688 が名指しする SIGKILL・OOM・walltime はいずれも process 単位の kill であり、
+  `write()` が戻った時点でデータは失われない。`fsync` が防ぐのは node crash であって process kill
+  ではない。したがって素の bash 追記で足りる。ただし過剰主張を避けるため、行ごとに
+  `durability` を `process-kill` と `fsynced` で書き分ける。
+- **checkpoint を repo 内 `output/` へ置いて既存 consumer をそのまま使う。** 却下。`output/` は
+  dirty 検査から除外されるため誤書き込みが受入で見えず、かつ診断が計測値の権威へ昇格する経路を
+  残す。consumer 側 (`floor_liveness`) を同じ wave で拡張する方を採った。
+
+## D547. D143 決定 (3) を択 (b) 実質完了として終端する (2026-08-19)
+
+**決定:** D143 決定 (3) (壁 1 を塞ぐ実行時 attestation の述語と凍結較正のどちらを正とするかの
+択一) は、択 (b) 「述語を正とし、較正を取り直して登録し直す + 取得時受入検査」を実質完了として
+終端する。新たな実装は行わない。
+
+**理由:**
+- 較正の取り直しと取得時受入検査は完了している。取り直した較正
+  (`calibration-94a4b79fa31bba3c.json`、bnode048、方式 α、request 892707.nqsv) は自分の述語を
+  48 本中 0 本の外れで通る。契約がなお束縛している旧較正
+  (`calibration-753f535a8d024727.json`) は 48 本中 1 本が外れ (index 40) で自分の述語を通らない
+  (F97 の実体)。
+- 2026-08-16 の実機走行 (request `0:913859.nqsv`、bnode006) は `attestation_mode="required"` の
+  Pegasus 契約下で `loop.py` の `_authorize_measurement` が最初の WAL 書込みより前に
+  `attest_and_build_receipt` を通し、`build_done` / `verify_done`
+  (`verdict=serializable` / `certified=true`) まで到達した。中断は bench 段の
+  `perf not found for kernel 5.15.0-173` のみである。D143 原文が特定した壁 1
+  (`execution_guard` の `effective_clock.samples_mhz` 比較で build 前に停止する) は、
+  現行 HEAD の実行では再現していない。
+- D143 原文の「裁定後に同じ使い捨て driver を再走させれば追加実装なしで確かめられる」という
+  前提は、12 日分の production 進化 (絶対 import への修正 2 件、keyword-only 引数 1 件、
+  `IZANAGI_EXPLORATION_OUTPUT_ROOT` 供給 1 件の適応が要る) により偽になっていた。確認は再走では
+  なく上記実機走行の記録で足りるとして決着した。
+- 択 (a) (述語を緩める) は受理集合を広げる側の変更であり、現に通っている今それを選ぶ理由がない。
+
+**この決定が変えないもの:** D437 (環境契約 g2 の活性化は上位権限束の人間 lockstep に従属する)
+は本決定でも不変である。D143 決定 (3) の「較正を取り直して登録し直す」のうち、環境契約世代を
+g1 から g2 へ切り替える活性化そのものは、D437 が裁定したとおり未実施のまま人間 lockstep 待ちで
+ある。D431 の member inventory のうち member 2 (runtime attestation) の positive control
+(登録済み較正自身が自分の述語を通ることを示す nodeid test) は、g1 が活性である限り unmet の
+ままであり、本決定はこれを met へ変更しない (中央値・tolerance 帯が g1/g2 で同一なため、
+run 単位の attestation 通過は g1/g2 いずれが活性かに依存しないという区別による)。member 8
+(provider live env / receipt 一致の実在値未取得) も無関係に未解決のまま残る。本決定が閉じるのは
+「D143 決定 (3) の a/b/c のどれを選ぶか」であって、g2 活性化の可否ではない。
+
+**却下した選択肢:**
+- 択 (a) 述語を緩める — 受理集合を広げる根拠がない。現行 HEAD は緩めなくても実機で通っている。
+- 未決着のまま持ち越す — 判断材料 (較正品質、実機走行結果、production の drift) は出揃っており、
+  これ以上 a/b/c のどれかを保留する実益がない。
+
+**研究状態への影響:** 本決定は certified 選択・材料レポート・試行台帳の現在値を 1 件も変えない
+(docs のみ、実装差分ゼロ)。変わるのは decisions.md 上で D143 決定 (3) が「ユーザー裁定へ返す」
+状態から終端済みへ遷移する点だけである。
+
+## D548. D233 決定 4 の理由文を訂正する — fail-closed の機械化は収集開始を意味しない (2026-08-19)
+
+**決定:** D233 決定 4 の理由の最終文「fail-closed を機械化すれば、分類が済んだ時点で同じ契約のまま
+収集が始まる。」を撤回する。正しい理解は次のとおりである — **手動実行であることはこの分類を
+免除せず、fail-closed の契約は機械化の有無によらず変わらない。** 収集を login 側から自動起動する
+結線は存在せず、新設もしない (/rulings 第 9 回 #4)。決定 4 の本体 (実行場所が確証できないときは
+収集しない・分類の実測はユーザー端末の手番である) は変更しない。
+
+**理由:**
+- 元の文は「分類が済んだ時点で同じ契約のまま収集が始まる」と読め、あたかも login 側に
+  分類完了を引き金とする収集の自動結線が存在するか、機械化すれば新設されるかのような誤った
+  含意を持つ。実装にそのような結線は無く、新設もしない方針である。
+- 決定 4 本体の要求 (未確証の実行体を軽い側へ倒さない・分類の実測はユーザー端末の手番) は
+  正しく、変える必要が無い。訂正するのは理由文の言い回しだけである。
+
+**却下した選択肢:**
+- 理由文をそのまま残す — 読み手に「機械化すれば収集が自動で始まる」という誤った期待を残す。
+- D233 の当該 bytes を直接書き換える — canonical 3 台帳の既存 bytes は fold 以外が変更しない
+  (`docs/spool/README.md` 不変条件)。fold 自身も既存 D エントリ本体への挿入経路を持たず、
+  訂正は新規エントリの追記でのみ表せる。
+
+## D549. C05 activation は§5 記入・schedule artifact commit を含めず、権威の実体配線完了まで scope 外とする (2026-08-19)
+
+**決定:** 8c 条件5 (C05) の activation (契約反転・`_MACHINE_EVALUATORS` 登録・
+`DECIDER_VERSION` bump・凍結世代発行) は実施するが、§5 `master_seed` の記入と
+`output/s8c-preregistration/schedule.v1.json` の commit は本改訂単位に含めず、
+`run_trial -> load_schedule -> verify_schedule -> consume_schedule -> launch` の配線と
+権威 (`WORKLOADS`/`ROLE_FILES`/`ROLE_CONTRACTS`/`GATING_SPEC`/descriptor binding) の
+実体供給が完了する別 wave (T-1380) まで scope 外として保留する。
+
+**理由:**
+- §5 の記入規約は「seed だけを先に固定しない」と定める。`master_seed` を記入するなら
+  同じ改訂単位で `schedule.v1.json` の bytes も確定させる必要があるが、その bytes は
+  authority の digest に依存する。
+- production 側の権威解決関数 (`p3_autonomous_workload_trial.py` の
+  `_load_s8c_schedule_authority` 相当) は現状明示的に unavailable を送出し、意味の
+  定義された本物の authority をこの wave の scope 内だけで構築する経路が無い。
+  `p3_autonomous_workload_trial.py` の `WORKLOADS` 定数は探索用 (ycsb-a/b/c) であり、
+  正式な H1/H2 (rr80/rr20、`s8b_holdout_freeze.py` 定義) とも一致しない。
+- テスト fixture 相当の暫定 authority で `schedule.v1.json` を正式 artifact として commit
+  すると、将来 T-1380 が本物の authority を使った際に artifact bytes が再現不能になり、
+  「seed だけ先に固定した」ことと実質的に同じ結果になる。
+- `_evaluate_c05` は静的到達可能性検査であり、artifact/authority の中身の正当性を
+  問わない。§5・artifact を保留しても、C05 の activation 自体 (契約反転・registry 登録・
+  DECIDER_VERSION bump・凍結世代発行) は独立に完結できる。
+
+**却下した選択肢:**
+- 暫定 authority (test helper 相当の 18-key mapping) を明示的に provisional と
+  marking した上で 6 項目全部を実装する — 機械的に暫定性を拒否できる仕組みが無く、
+  正式 artifact として repo に残ってしまう。段3 の敵対相談 2 本が独立に不採用を推奨した。
+- T-1380 の配線・権威供給を本 wave の scope へ先取りして含める — D529 が定める
+  不可分の改訂単位 (契約反転・registry 登録・DECIDER_VERSION bump・凍結世代発行) を
+  大きく超える新設作業になり、規律5 (段階導入・盛らない) に反する。
+
+## D550. 事前登録の二段束縛は追加必須 field として入れ、anchor は祖先で束ねる (2026-08-19)
+
+**決定:**
+
+1. **manifest の既存 field を消さない。** `prereg_commit` は残し、二段束縛は binding record と
+   registry 行・launch admission・run-start・terminal への**追加必須 field**
+   (`prereg_content_commit` / `prereg_effective_commit`) として入れる。受理集合は狭まるだけで、
+   消える field は 0 である。
+2. **anchor と content commit の関係は等値ではなく祖先である。** `manifest.prereg_commit` は
+   manifest blob を含まない anchor commit であり、content commit P は manifest blob を含む。
+   両者を等値で束縛することはできない。manifest が自身の commit を書けば自己参照になる。
+   要求するのは「anchor が P の祖先であること」と「P における manifest blob が binding の
+   digest と一致すること」である。
+3. **effective commit C は親集合がちょうど {P} であることを Git から検証する。** 40 桁 lowercase
+   hex 以外の commit 引数、`rev-list` の rc 非 0、root commit、merge commit、binding blob の不在、
+   shallow、graft / replace ref を拒否する。祖先関係は **C から測定 HEAD** へ要求し、
+   P だけの祖先証明では受理しない。
+4. **manifest の trial 集合と runtime report の cell は別物として別経路で検査する。** 前者は
+   事前登録された 6 trial の集合、後者は 1 run あたり 0 または 1 個である。同じ helper で兼用せず、
+   片方の緑をもう片方の証拠にしない。
+5. **freeze-wide attempt registry は run 内 attempt journal と別物として置く。** 固定 path の
+   追記専用 JSONL を新設し、genesis が全 slot を最初の観測前に閉じた集合として列挙する。
+   第二 root の拒否は**全 ref を走査**する。current HEAD の祖先だけを走査すると、未 merge branch 上の
+   第二 genesis を見逃す。
+6. **分類は capability で束ね、時点は保証しない。** slot 予約時に capability を発行し、分類 API は
+   性能出力を引数に取れない署名とし、receipt は capability の digest を create-only で束縛する。
+   **性能出力を読む前に分類したことの時点証明は trusted launcher 層でしか作れず、保証範囲外である。**
+   これを恒真な保証として謳わない。
+7. **producer の保証は「最初の性能観測より前」に限定する。** CLI の起動口は競合 process の
+   環境 probe を `run_trial` より前に呼ぶ。予約の前倒しは予約前拒否と checkout 失敗時の slot 管理まで
+   変えるため採らず、保証の言い方を狭めて環境 probe の先行を保証境界へ書いた。
+
+**理由:**
+
+- 既存 field を消す形は、所有外の production 3 module と 13 file・148 箇所の参照を巻き込む。
+  受理集合を狭める目的は追加必須 field で達成でき、破壊的改名は目的に必要ない。
+- 等値束縛は構造的に成立しない。実装子が両立不能と判断して止まり、親が実測で裏を取って撤回した。
+  anchor は「事前登録が凍結された時点」を指すものであって manifest の所在ではない。
+- 親集合の exact 検査が無ければ、merge commit を effective commit として通せる。祖先関係だけでは
+  P と無関係な履歴を C として通せる。
+- 集合の兼用は、6 trial の manifest が正しい一方で全 report の cell が空でも「完全集合」を
+  満たしたことになる穴を作る。
+- 時点の証明を主張すると、呼び手が capability を握ったまま出力を読んだ後に分類する経路が
+  残っているのに、保証したことになる。**謳えない保証は謳わない。**
+
+**却下した選択肢:**
+
+- manifest から `prereg_commit` を削除して registration schema を置換する — live producer を壊す。
+  段 2 プランの形だが、親が実測 (13 file・148 箇所) を添えて却下した。
+- 契約 JSON の `machine_checkable` を反転して評価器を `_MACHINE_EVALUATORS` へ登録する —
+  凍結世代 record の再発行が要る。並行 wave が同型の段階登録を着地させているため、反転は
+  それらとまとめて 1 回の世代発行で行う。世代衝突は merge では解けない。
+- 内容由来で変わる leaf を凍結 baseline へ具体値で焼き込む — 取り込みのたびに赤くなる。
+  ただし volatile へ逃がすのも誤りで、fixture の日時固定と決定的 projection により pin できる。
+  pin を維持し、値の確定は最終取り込みの後に行う。
+- 分類 receipt を digest だけで突き合わせる — metadata を差し替えても通る。receipt 全体を
+  台帳 row と突き合わせる。
+
+## D551. 凍結世代の検証コストを履歴長から切り離す (2026-08-19)
+
+**決定:**
+
+1. **検証コストを履歴長に比例させない。** `validate_condition_freeze_at` の走査対象を
+   「凍結 namespace を触った commit + その直接親 + 境界」に限定する。境界の外側は oid だけを
+   取得して state を構成する。全 commit の走査はしない。
+2. **上限値の引き上げでは解決しない。** `MAX_BATCH_REQUESTS` は履歴長に依らない固定値であり、
+   開発が進むほど余裕が減っていずれ必ず 0 になる。引き上げは死の先送りである。
+   `MAX_BATCH_REQUESTS` / `MAX_COMMITS` / `GIT_TIMEOUT_*` はいずれも変更しない。
+3. **判定は 1 つも減らさない。** `generation-mutated` / `generation-deleted` /
+   `introductions` と `generation-fork` / `_assert_history_transition` の 4 種はすべて残す。
+   変えるのはコストの形であって、検査の厳しさではない。
+4. **コストが履歴長に依存しないことを検査するテストを置く。** no-touch commit 数を変えた
+   2 ケースで要求数の合計が一致することを要求する。この検査が無ければ、退行は次に上限へ
+   達したときまで気づかれない。
+
+**理由:**
+
+- commit ごとの 4 判定は、いずれも oid が親と変わる commit でしか結果が動かない。触っていない
+  commit では親と同じ oid が続き、既存の record cache と contract cache により再計算もされない。
+  したがって走査を絞っても判定結果は変わらない。**コストだけが落ちる。**
+- 実測では 4,555 commit × 11 paths = 50,105 要求が、走査 35 commit × 11 paths = 385 要求になった。
+  local main は 49,984 で上限まで残り 16 しかなく、commit を十数本積んだ wave が 2 本同時に
+  受入で止まっていた。内容とは無関係で、commit を積んだだけで踏む状態だった。
+- 「開発が進むほどコストが増える機構は、いずれ必ず死ぬ」ため、上限調整ではなく比例の除去が要る。
+
+**却下した選択肢:**
+
+- `MAX_BATCH_REQUESTS` を 200_000 へ引き上げる — 一度この方向で実装を始めたが撤回した。
+  履歴が伸びれば同じ場所で再び死ぬ。時間 cap (`GIT_TIMEOUT_CAP_SECONDS = 300`) が要求数と
+  独立に効くため引き上げ自体は安全だが、**安全であることと問題を解くことは別である。**
+- 検証を skip 可能にする / 条件付き実行にする — 検査を減らす形であり、正しさ防壁を弱める。
+- 凍結 record の数を減らして paths を小さくする — 世代記録は削除できない。比例の係数を
+  下げるだけで、比例そのものは残る。
