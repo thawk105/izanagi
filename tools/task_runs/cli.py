@@ -9,21 +9,26 @@ import sys
 from pathlib import Path
 from typing import Any, Mapping, Sequence
 
-from .ledger import selfcheck
+from .ledger import PilotClosedError, selfcheck
 from .schema import DamagedRunError, LedgerError
 from . import (
+    is_managed_generation_root,
+    open_next_generation,
     append_event,
     finish_run,
     init_pilot,
     record_test_run,
     start_run,
     validate_root,
+    validate_series,
     validate_run,
 )
 
 
 _REPO = Path(__file__).resolve().parents[2]
 _DEFAULT_ROOT = _REPO / "output" / "task-runs"
+_WRITE_COMMANDS = frozenset({"init-pilot", "selfcheck", "start", "event", "finish"})
+_MANAGED_WRITE_GUARD_ERROR = "managed generation write path changed"
 
 
 def _root(args: argparse.Namespace) -> Path:
@@ -31,6 +36,26 @@ def _root(args: argparse.Namespace) -> Path:
     if command_root is not None:
         return Path(command_root)
     return Path(args.root)
+
+
+def _write_root_snapshot(root: Path) -> Path:
+    """Capture the pre-write realpath and reject managed generation roots."""
+
+    checked = root.resolve(strict=False)
+    if is_managed_generation_root(root):
+        raise LedgerError("managed generation への CLI write は禁止")
+    return checked
+
+
+def _verify_write_root(root: Path, checked: Path) -> None:
+    """Re-check the namespace immediately before a CLI write."""
+
+    try:
+        current = root.resolve(strict=False)
+    except OSError as exc:
+        raise LedgerError(_MANAGED_WRITE_GUARD_ERROR) from exc
+    if current != checked or is_managed_generation_root(root):
+        raise LedgerError(_MANAGED_WRITE_GUARD_ERROR)
 
 
 def _add_stage_reference(parser: argparse.ArgumentParser) -> None:
@@ -126,6 +151,15 @@ def _build_parser() -> argparse.ArgumentParser:
     validate.add_argument("task_run_id", nargs="?")
     validate.add_argument("--all", action="store_true", dest="validate_all")
     validate.add_argument("--require-finished", action="store_true")
+
+    commands.add_parser(
+        "validate-series",
+        help="repo sibling series を read-only に fail-closed validate",
+    )
+    commands.add_parser(
+        "open-next-generation",
+        help="明示操作として次世代 generation を作成",
+    )
     return parser
 
 
@@ -194,15 +228,41 @@ def _print_record(record: Mapping[str, object]) -> None:
     print(json.dumps(record, ensure_ascii=False, sort_keys=True, separators=(",", ":")))
 
 
+def _cli_diagnostic(exc: LedgerError) -> str:
+    """Project task-run exceptions into the fixed CLI vocabulary."""
+
+    if isinstance(exc, PilotClosedError):
+        return f"pilot-closed:{exc.reason.replace('_', '-')}"
+    if isinstance(exc, DamagedRunError):
+        return "recording-unavailable:series-invalid"
+    if exc.args and exc.args[0] in {
+        "managed generation への CLI write は禁止",
+        _MANAGED_WRITE_GUARD_ERROR,
+    }:
+        # Keep the stable human-facing phrase used by the CLI guard without
+        # echoing the exception object or any path/selector supplied to it.
+        return "recording-unavailable:managed-generation (managed generation)"
+    return "recording-unavailable:filesystem"
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     args = _build_parser().parse_args(argv)
     root = _root(args)
+    checked_write_root: Path | None = None
     try:
+        if args.command in _WRITE_COMMANDS:
+            checked_write_root = _write_root_snapshot(root)
         if args.command == "init-pilot":
+            assert checked_write_root is not None
+            _verify_write_root(root, checked_write_root)
             init_pilot(root)
         elif args.command == "selfcheck":
+            assert checked_write_root is not None
+            _verify_write_root(root, checked_write_root)
             selfcheck(root)
         elif args.command == "start":
+            assert checked_write_root is not None
+            _verify_write_root(root, checked_write_root)
             print(start_run(
                 root,
                 slug=args.slug,
@@ -211,24 +271,19 @@ def main(argv: Sequence[str] | None = None) -> int:
                 task_kind=args.task_kind,
             ))
         elif args.command == "event":
+            assert checked_write_root is not None
+            _verify_write_root(root, checked_write_root)
             _print_record(append_event(root, args.task_run_id, args.event_type, _event_payload(args)))
         elif args.command == "finish":
+            assert checked_write_root is not None
+            _verify_write_root(root, checked_write_root)
             _print_record(finish_run(root, args.task_run_id, args.outcome))
         elif args.command == "validate":
             if args.validate_all:
                 if args.task_run_id is not None:
                     raise LedgerError("validate --all と task_run_id は同時指定できない")
-                report = validate_root(root)
-                print(json.dumps({
-                    "published": [path.name for path in report.published],
-                    "incomplete": [path.name for path in report.incomplete],
-                    "damaged": [{"task_run_id": item.path.name, "reason": item.reason} for item in report.damaged],
-                    "unknown": [path.name for path in report.unknown],
-                    "published_run_count": report.published_run_count,
-                    "max_task_runs": report.max_task_runs,
-                    "cap_exceeded": report.cap_exceeded,
-                    "cap_excess": report.cap_excess,
-                }, ensure_ascii=False, sort_keys=True, separators=(",", ":")))
+                report = validate_series(root)
+                print(json.dumps(report.as_dict(), ensure_ascii=False, sort_keys=True, separators=(",", ":")))
                 if not report.is_valid:
                     return 1
             else:
@@ -236,9 +291,16 @@ def main(argv: Sequence[str] | None = None) -> int:
                     raise LedgerError("validate には task_run_id または --all が必要")
                 validated = validate_run(root / args.task_run_id, require_finished=args.require_finished)
                 print(f"valid {validated.task['task_run_id']}")
+        elif args.command == "validate-series":
+            report = validate_series(_REPO)
+            print(json.dumps(report.as_dict(), ensure_ascii=False, sort_keys=True, separators=(",", ":")))
+            if not report.is_valid:
+                return 1
+        elif args.command == "open-next-generation":
+            print(open_next_generation(_REPO))
         return 0
     except (DamagedRunError, LedgerError) as exc:
-        print(f"task-run: {exc}", file=sys.stderr)
+        print(f"task-run: {_cli_diagnostic(exc)}", file=sys.stderr)
         cause = exc.__cause__
         if isinstance(cause, OSError) and cause.errno not in {
             getattr(os, "ENOENT", 2), getattr(os, "EEXIST", 17), getattr(os, "ELOOP", 40),
@@ -246,7 +308,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             return 2
         return 1
     except OSError as exc:
-        print(f"task-run: I/O failure: {exc}", file=sys.stderr)
+        del exc
+        print("task-run: recording-unavailable:filesystem", file=sys.stderr)
         return 2
 
 

@@ -147,6 +147,7 @@ def write_session_stats(session: Any) -> None:
 def read_sidecar(path: Path) -> tuple[dict[str, int | None], str | None] | None:
     """Strictly read a sidecar; return ``None`` for absence or any corruption."""
 
+    fd: int | None = None
     try:
         path = Path(path)
         if not path.is_absolute():
@@ -156,7 +157,26 @@ def read_sidecar(path: Path) -> tuple[dict[str, int | None], str | None] | None:
             return None
         if info.st_size <= 0 or info.st_size > _MAX_SIDECAR_BYTES:
             return None
-        raw = path.read_bytes()
+        fd = os.open(path, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0))
+        opened = os.fstat(fd)
+        if (
+            (opened.st_dev, opened.st_ino) != (info.st_dev, info.st_ino)
+            or not stat.S_ISREG(opened.st_mode)
+            or opened.st_size <= 0
+            or opened.st_size > _MAX_SIDECAR_BYTES
+        ):
+            return None
+        chunks: list[bytes] = []
+        remaining = _MAX_SIDECAR_BYTES + 1
+        while remaining > 0:
+            chunk = os.read(fd, remaining)
+            if not chunk:
+                break
+            chunks.append(chunk)
+            remaining -= len(chunk)
+        raw = b"".join(chunks)
+        if len(raw) > _MAX_SIDECAR_BYTES:
+            return None
         if not raw.endswith(b"\n") or raw.count(b"\n") != 1:
             return None
         value = json.loads(raw.decode("ascii"))
@@ -180,3 +200,9 @@ def read_sidecar(path: Path) -> tuple[dict[str, int | None], str | None] | None:
         return counts, digest
     except Exception:
         return None
+    finally:
+        if fd is not None:
+            try:
+                os.close(fd)
+            except OSError:
+                pass
