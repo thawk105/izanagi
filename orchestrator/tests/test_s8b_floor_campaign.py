@@ -7907,6 +7907,7 @@ def test_deterministic_artifacts_across_roots_and_subprocess_environments(tmp_pa
         env = dict(os.environ)
         env.update(delta)
         env["TMPDIR"] = str(temp_dir)
+        env["PYTHONDONTWRITEBYTECODE"] = "1"
         completed = subprocess.run(
             [sys.executable, "-c", script, str(root)], env=env,
             capture_output=True, text=True, check=True,

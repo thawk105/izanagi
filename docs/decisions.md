@@ -23121,3 +23121,247 @@ production コードの変更は行わない。**`docs/phase3-8c-preregistration
 - **production と frozen literal の協調改変も本 wave で閉じる。** 真の攻撃対象である
   role-contract pin (`.claude/agents/coder-v4-autonomous-sort.md` 側) は別 scope のまま残るため、
   DENY_TABLE 側だけを暗号的に固めても実効性が低く、絶対規律5 に反する。
+
+## D573. receipt memo の cache は controller nonce 付き path + closed-schema JSON とする (2026-08-20)
+
+**決定:** `orchestrator/tests/real_repo_receipt_memo.py` の xdist session cache は、
+(1) cache path に UID hash・HEAD に加えて controller 限定で生成する session nonce
+(既存 `_RECEIPT_MEMO_SESSION_ID_ATTR`、新設 `pytest_configure_node` フックで
+`workerinput` 経由 worker へ伝播) を混ぜ、(2) 直列化形式を pickle から closed-schema
+JSON (許容キー完全一致、`object_pairs_hook` で重複key拒否、`parse_constant` で
+NaN/Infinity拒否、schema検証を終えてからのみ `ReceiptResolution` を構築) へ置き換える。
+読込・書込の両方に bytes 上限 (8 MiB) を設ける。
+
+nonce は cache **path** にのみ埋め込み、JSON **内容**とのbinding検証はしない。閉じるのは
+「呼出し側が `--testrunuid` を固定して未来の cache path を事前予測する」攻撃と
+「pickle 経由の任意コード実行」の2つに限定する。同一ホストの別ローカルユーザーが
+in-flight の nonce を観測してから同じ path へ偽 payload を置く race は対象外とする
+(現行設計が元々前提にしている shared `/tmp` の信頼境界の延長であり、本決定が新たに
+持ち込む縮小ではない)。リモート分散 xdist (worker が別ホストで `/tmp` を共有しない構成)
+も同様に対象外とする (UID+HEADのみだった旧設計も同じ前提を置いていた)。
+
+**理由:**
+- D518 の barrier 位置 (`pytest_xdist_node_collection_finished`/`pytest_collection_finish`)
+  と UID charset 非拒否は変更しない制約のもとで、`--testrunuid` を呼出し側が固定できる
+  ([T-202] 原文) ことへの対処は、UID そのものではなく **controller だけが知りうる
+  非再利用な値**を鍵に混ぜることでしか解けない。xdist 3.8.0 の `pytest_configure_node`
+  (`xdist/newhooks.py`) と `workerinput` 伝播 (`xdist/workermanage.py`, `xdist/remote.py`)
+  は、worker 起動 (`pytest_sessionstart`) が controller の `pytest_configure` より後に
+  発火するという既存の D518 記述と整合する経路として実在を確認した。
+- pickle の deserialize は型検査の位置に関わらず任意コード実行を持つ。JSON へ切り替えれば
+  「デシリアライズ自体は安全、構造検証してから信頼する」という設計にできる。
+  `object_pairs_hook`/`parse_constant` を欠くと重複key・NaN/Infinity という別の穴が残る
+  ([T-202] 原文の想定を段3敵対相談が具体化した)。
+
+**却下した選択肢:**
+- session 終了時に cache file を削除する — 異常終了時に残留し、worker の読取完了との
+  race を持つ (段3敵対相談レンズB)。nonce 方式は別 invocation を別 namespace に分離する
+  だけで、この race を新たに悪化させない。
+- nonce を JSON 内容にも bind する認証機構を追加する — 段4 で意図的に scope 外とした
+  (前述の「対象外」)。閉じたい脅威 (path 事前予測、任意コード実行) に対して不要な複雑化。
+- `parse_constant` 除去を独立した変異として登録する — `_is_json_tree()` の finite 検査が
+  全ネスト値に対し常に冗長に効くため、単一理由の変異にならないと段6敵対レビューが判定した
+  (コードは defense-in-depth として維持)。
+
+## D574. T-139 の RF study 受理述語の四つの穴を canonical authority で閉じる (2026-08-20)
+
+**決定 (1): D320 の既定を三つの対象に限って上書きする。** D320 が bytes 級 provenance 機構の新設・維持を既定で見送る定めは、次の三対象についてのみ個別裁定として上書きする。
+
+- schema の `preregistration.approval_manifest` が参照する approval manifest 本体。
+- D282 の `record_items` / `receipt_schema` の承認役割を後続で担う、新しい exact-byte approval payload。
+- conformance vector index の期待 digest 三つ組 `(path, commit, sha256)`。
+
+この上書きは D320 全体を supersede するものではなく、上記三対象以外の D320 の定めを変更しない。
+
+**決定 (2): 追補 A の認証契約は参照束縛だけにする。** 追補 A の承認済み三つ組
+
+`path = output/insights/2026-08-08_t139-r4-env-probe/addendum-a-reissue.md`、  
+`commit = 622bd786191d40bda388596fa2adbf119ee84c9a`、  
+`sha256 = f7db96ce8ecb12359fedf56baea24939c629d4d16a1ec167c183425ea198cfec`
+
+に含まれる `a10`（607 行の見出し）および `a11`（755 行の見出し）を、承認 payload から参照束縛する。認証区間手続き・選択規則・終端条件はこの二節の参照先を authority とし、本決定本文で書き写したり書き直したりしない。
+
+**決定 (3): 申告値を受理入力から常に除外する。** `arms.*.compile.trace_enabled`、`arms.*.compile.analysis_enabled`、`arms.*.compile.cmake_cache` は、いかなる場合も受理条件の入力に含めない。validator は申告値と独立に、schema の `argv` に現れる macro 定義、`compile_commands` の当該 TU の実 compile argv、実ファイル上の raw `CMakeCache.txt` を再読して三者を比較する。raw `CMakeCache.txt` の再 parse 結果を三者目とし、三者の不一致は拒否する。
+
+申告値との一致検査は拒否条件としてのみ行う。不一致なら拒否し、一致しても申告値を受理の根拠または受理証拠にはしない。
+
+**決定 (4): conformance vector index の trust edge を approval payload 側に置く。** vector index の期待 digest 三つ組は manifest 自身ではなく、有効な approval payload に置く。resolver は `approval_fold_commit` から有効な payload を解決し、その payload の三つ組と manifest の宣言を照合しなければならない。manifest 単独の自己 pin は受理の根拠にしない。
+
+**決定 (5): Q1 と Q2 は一つの canonical decision に維持する。** 本決定が定めるのは Q1 の受理述語だけであり、Q2 の固定 envelope と namespaced projection の詳細はここでは追加しない。manifest の root は次の二段構成とする。
+
+- `base_approval_fold_commit` は、D282 を canonical 台帳へ fold した commit `39d760985a5e37d20464c394760bf65596156566` を literal で持つ。
+- `approval_fold_commit` は、「T-139 の承認 payload として現在有効な canonical decision を fold した commit」を意味する。初期値は `base_approval_fold_commit` と同じであり、将来の supersession 後は resolver が現在有効な decision の fold commit を解決する。
+
+`approval_fold_commit` を単一の新規 literalへ固定して Q2 の後続 landを要求する構成にはしない。
+
+本決定の効力は canonical 台帳への fold 後に発生する。本決定は受理述語と authority binding を定めるものであり、producer・resolver・writer・validator・vector の機械実装が完成したことは意味しない。
+
+**理由:**
+
+- `preregistration.approval_manifest` は schema の必須 field である一方、D282 と D291 の既存承認 role には approval manifest 本体がない。manifest・exact-byte payload・vector index の三つを承認境界へ置かなければ、受理述語は安定した authority を持てない。
+- §7.1(12) は CMakeCache の再読を要求し、§8 は `arms.*.compile.trace_enabled` / `analysis_enabled` / `cmake_cache` を受理条件の入力に使うことを禁じている。schema にある CMakeCache 由来値は申告値だけなので、両要求を同時に満たすには、実ファイルの raw `CMakeCache.txt` を独立に再 parse するしかない。
+- 申告値を「単独では」使わないと書くと、他の入力との併用を許す実装が残り、engine ごとに受理集合が分岐する。常に受理入力から除外し、一致は拒否条件に限定することで、この分岐を閉じる。
+- 追補 A の `a10` / `a11` は認証区間・選択規則・終端条件を既に承認している。これらを本決定で再掲すると、数値契約や conformance vector の期待値を別の契約へ変える経路になる。
+- manifest 自身に vector index の digest だけを pin させると、manifest と index を同時に差し替えた自己整合する偽の受領が可能になる。payload 側に trust edge を置くことで、manifest の宣言とは別の authority から照合できる。
+- root を `approval_fold_commit` 一段だけにすると、新しい payload の fold 後でなければ manifest 契約を書けず、Q2 の landが Q1 の後続 landに依存する。既知の D282 fold commitを base とし、現在有効な承認 payloadを別名義で解決する二段構成なら、一本構成を保ったまま supersessionを扱える。
+
+**却下した選択肢:**
+
+- D320 全体を supersede する — 三対象を越えて既定を変更するため、裁定の scope を超える。
+- approval manifest または vector index の承認を作らない — schema 必須 fieldと受理述語の authority bindingが閉じない。
+- 追補 A の認証区間・選択規則・終端条件を本決定へ転記する — 承認済み数値契約を書き直し、受理集合と conformance vectorを動かす。
+- 申告値を「単独では」受理入力に使わないとする — 他の入力との併用を許し、実装ごとに受理集合が分岐する。
+- manifest 自身の vector pinだけを trust rootにする — manifestとindexの同時差替えによる自己整合を止められない。
+- Q1 と Q2 を二本へ分ける、または rootを一つの新規 fold commitだけにする — 一本構成を変更するか、後続 landの循環依存を残す。
+
+## D575. env= 起動の bytecode guard 欠如は検出 checker で閉じ、既存の env allowlist 修正とは独立させる (2026-08-20)
+
+**決定:** `tools/check_subprocess_bytecode_guard.py` を新設し、`orchestrator/`・`tools/`
+配下で `subprocess.{run,Popen,call,check_call,check_output}` を直接呼び出し `env=` を
+明示指定する箇所のうち、checkout 内 Python/pytest 起動を `PYTHONDONTWRITEBYTECODE`
+抑止なしで行っている既存箇所を静的検出する。F296 が示した恒久対応の方向
+(producer の env allowlist へ抑止変数を足す) そのものは実装せず、対応していない箇所を
+機械的に見つける検出レイヤーとして独立させる。
+
+AST 判定は次の2段の shallow heuristic に限定する。
+
+- **P1 (python/pytest 起動判定):** `Call.args[0]` (list/tuple) の argv[0] が
+  `sys.executable`・`"python"`/`"python3"` literal・`.py` 終端 literal のいずれかの
+  ときだけ python 起動と判定する。argv[0] がこれに該当しなければ、他要素に `.py` や
+  `"pytest"` を含んでいても python 起動とみなさない (git 呼び出し等の誤検出を排除)。
+- **P2 (env= guard 判定):** dict literal/`dict(...)` の直接キー、argv 中の `"-B"`、
+  enclosing 関数内の文字列 literal、**同一ファイル内 1-hop 関数解決** (`x = f()` の形の
+  代入だけを1段だけ辿る) のいずれかを guard とみなす。import 越し・2-hop 以上の解決・
+  tuple-unpack 代入 (`a, b = f()`) は追跡しない。
+
+**理由:**
+- command 引数の依頼は「機械的に検出する検査を新設する」であり、恒久対応 (producer 修正)
+  そのものの実装ではない。検出レイヤーとして独立させることで、対象の広さ (実測240箇所の
+  直接 subprocess 呼び出し) に対して各箇所の意味を個別判断せず機械的に洗い出せる。
+- P1/P2 とも段3 敵対相談2レンズが独立に検算し、argv[0] 起点化と `-B` 認定を real 所見として
+  一致させた。shallow 判定である以上、動的 argv・`shell=True` 文字列 argv・
+  `os.system`/`os.popen`/`multiprocessing`・pytest-xdist worker 内部起動は検出できない。
+  これらは checker の module docstring に明記し、将来の scope 拡張候補として実装しない
+  (規律5、盛らない)。
+
+**却下した選択肢:**
+- **F296 の producer 側 env allowlist を直接修正する** — 依頼の scope (検出の新設) を
+  超える。個々の producer の意味を precise に判断する必要があり、機械的な一括対応にならない。
+- **P1 を「argv のどこかに `.py`/`"pytest"` があれば python 起動」とする** (段2プランの初期案) —
+  git 等の非 python 呼び出しに含まれる `.py` パス引数を誤検出する (実測: `test_dev_wave_wait.py`
+  の `git add tools/foo.py` 型呼び出し)。段3 レンズ1・2 が独立に real 所見として指摘した。
+- **P2 に import 越し・多段関数解決の完全な data-flow 解析を持たせる** — 汎用 call-graph
+  解析が必要になり規律5に反する。1-hop・同一ファイル限定で打ち切り、限界を docstring と
+  worklog (F426) に明記するに留めた。
+
+## D576. D230 の統一述語を実装し、既定監査へ導入する (2026-08-20)
+
+**決定:** D230 が設計した統一述語 (選択集合と scope/implementation/CAB 3層の epoch 適用述語を
+同じ式へ揃える恒久形) を実装する。D230 自身の決定文は書き換えない — 「本 wave は実装しない」は
+その決定が下った時点の正しい記録であり、実装は別の decision として追記する。
+
+対象は既定監査 (`--range`/`--message-file` 未指定時) だけで、明示 `--range` の挙動は変えない。
+
+- `_commit_range(None)`: `--ancestry-path` を削除し、`policy..HEAD` の plain range + policy 前置に
+  する。選択集合と base 層の適用述語が同一式になる。
+- scope/implementation 層: epoch 適用判定を単項 lineage から `authoritative` フラグで2項化する。
+  既定監査でだけ「epoch の祖先でない commit にも適用する」第2項を有効化する。
+- CAB 層: seed 集合の「どの seed の祖先でもない」判定を追加する。CAB seed が一度もこの履歴に
+  導入されていない (空集合の) ときは、数式上の空虚な真を適用に読み替えず、常に非適用のままとする
+  — scope/implementation の epoch が `None` のときも同様に非適用とする。規則が存在しない以上、
+  規則が新たに適用対象を得ることはない。
+- HEAD を起動時に一度だけ full SHA へ解決し、監査終了時に drift していれば rc=2 とする。
+- shallow repository / git graft / git replace / `docs/ai-provenance.md` への非一意
+  `--diff-filter=A` add を、既定監査で rc=2 とする (いずれも新規実装、既存に同種の検出は無かった)。
+- 既知違反台帳へ `333605d680ec15f3f74b00e9e2746ae317b85dc5` を追加し、rc を新規違反だけで決める。
+- `docs/ai-provenance.md` の非遡及規定 (別々に4箇所へ書かれていた) を1文へ統合し、family
+  (`docs/ai-provenance.md` + `docs/provenance/**`) を net -168 bytes 縮約する。
+  `docs/provenance/audit.md` の `PR-A02` も同じ意味へ更新する。
+
+**理由:**
+- 2026-08-07 の /rulings で、D230 が実装へ回した3点 (契約本文の改訂・既知違反台帳への追加・
+  forward correction の受理集合変更) と、明示 `--range` の扱い・legacy 違反の受け皿の有無を
+  含む5点が採用側で確定した。恒久形そのものの設計判断 (統一述語の式、却下した代案) は D230 が
+  既に確定しており、本決定では再訪しない。
+- 実装直前の再実測で、D230 が実測した「epoch 層26 commit の適用外・新規違反1件」という前提は
+  12日後の HEAD でも完全に同一 (同じ26 commit、同じ1件) であり、時間経過による前提の陳腐化は
+  無かった。
+
+**却下した選択肢:**
+- D230 の決定文自体を実装内容で書き換える — 当時「実装しない」と裁定した記録の意味が変わり、
+  decision 台帳の履歴的正確性を壊す。
+- CAB seed が空集合のとき第2項を数式どおり真とする (空虚な真の字義どおりの適用) — 一度も
+  導入されていない規則が side-branch commit へ新たに適用されることになり、「規則の不在」と
+  「規則の全面適用」を混同する。既存の `cab_policy_mask == 0` 早期 return と同じ結論 (非適用) を
+  scope/implementation にも揃え、例外として明記した。
+- `_normal_commit_audit(ancestry=None, authoritative=True)` の組み合わせに対応する独立 oracle
+  実装を新設する — この組み合わせは production では発生しない (`_audit_history` は常に実
+  ancestry を渡す) ため、fail-fast で拒否するに留めた (規律5、盛らない)。
+
+## D577. output/ tracked bytes 削減は履歴保全した gzip 圧縮で行い、破壊的な履歴書き換えは使わない (2026-08-20)
+
+**決定:** `output/` 配下の tracked bytes 削減は、対象ファイルを決定的 gzip (`.gz`) へ置換する
+通常の commit (`git rm <元>` + `git add <元>.gz`) で行う。git-filter-repo や BFG 等による
+過去 commit の blob 書き換えは使わない。除外判定は path の exact 一致で行い、basename 一致は
+使わない (同名 basename が無関係な別 file にも存在しうるため)。
+
+**理由:**
+- 通常 commit なら過去 commit の tree/blob は一切書き換わらず、元 bytes は
+  `git show <旧commit>:<path>` で永久に取得可能。破壊的書き換えは全 commit hash を変え、
+  worklog / decisions / failures 台帳が張っている無数の commit hash 引用
+  (一次資料の正本性、規律6) を道連れにする。
+- 削減対象は HEAD の tracked bytes (checkout・worktree 作成・repo 内 grep 等の I/O コストに
+  直結する) であり、`.git` オブジェクトストア総量やクローン/フェッチ転送量ではない
+  (旧 blob は履歴に残り続けるため後者は変わらない)。この区別を報告・記録で混同しない。
+- basename 一致の除外は、無関係な同名 file (`manifest.json` が複数 wave の insight
+  ディレクトリに独立して存在する等) まで巻き込み、削減効果を不必要に落とす
+  (output/ tracked bytes 削減 wave の段3・段6レビューで実測)。
+
+**却下した選択肢:**
+- `git filter-repo`/BFG による全履歴書き換え — commit hash 安定性を壊し規律6 と worklog
+  citation を破壊するため不採用。
+- `git rm --cached` によるファイルの unstage (追跡解除) — 新規 checkout・worktree では
+  ファイルが存在しなくなり実質的に削除と等価になる (dev-wave は wave ごとに新規 worktree を
+  作るため特に有害)。「削除ではなく」という要求と矛盾するため不採用。
+- basename 単位の除外リスト — 上記理由により path exact 除外へ変更。
+
+## D578. kill2 (親系列ID自己申告リセット) の防御は family_root 固定 literal + 全履歴一意性だけで完結し、series_id との対応式は作らない (2026-08-20)
+
+**決定:** T-139 の a13 α予約について、D229決定(8)の必須kill2件目 (「新しい親系列IDを自己申告して
+累積有意水準をリセットする」攻撃) の防御は、次の2点だけで完結する。
+
+1. 受領証が宣言する `ledger_evidence.family_root` を、D282
+   (`docs/decisions.md:12941-12958`) が固定した literal
+   `dce4ae4fed6f4fb33747165c5b92c16d01822850` と reject-only で比較する。
+2. その固定 root 1つの台帳 (`output/registry/t139-alpha-reservations.jsonl`) に対する
+   `(family_root, ordinal)` の全履歴一意性を検査する (record-items-v2.md §6.7)。
+
+**`series_id` / `parent_series_id` は一切関与しない。** 対応式 (「この series_id は
+どの family_root に属するか」を決める写像) を作らない設計そのものが防御の要である —
+family_root が producer の自己申告ではなく固定 literal である以上、受領証がどんな
+`series_id`/`parent_series_id` を名乗っても、台帳側の一意性検査は同じ1つの root に対して
+働き続ける。
+
+**理由:**
+- addendum-a.md (`output/insights/2026-08-08_t139-addendum-a/addendum-a.md:810`) の逐語
+  「新しい親系列IDの自己申告で `k` をリセットできない」は、対応式の不在によって成立する。
+  対応式を作れば、その式自体が新しい攻撃面 (「対応式が受理する family_root を偽装する」) を開く。
+- D509実装wave (単位3/4) の段2 plan・段3敵対レンズ2本は、いずれも「family_rootとseries_idの
+  対応が未定義だからkill2は不完全」と独立に懸念したが、これは前提が誤っていた。
+  対応式が**無いこと**が設計であり、**不足ではない**。
+- 実地検証: `test_parent_series_id_reset_is_killed_by_full_history`
+  (`orchestrator/tests/test_t338_submission_gate_unit4.py`) で、異なる`series_id`/
+  `parent_series_id`を持つ受領証が同一`(family_root, ordinal)`を宣言すると拒否されることを
+  確認し、変異matrixで該当防御ロジックの除去がKILLEDになることも確認した
+  (`family_root reject-only`除去・`(family_root,ordinal)`重複検出除去のいずれも変異でKILLED)。
+
+**却下した選択肢:**
+- `series_id`/`parent_series_id`から`family_root`を導出する写像を新設する — 対応式自体が
+  producerの自己申告を経由する新しい攻撃面になり、規律6(信頼境界)に反する。
+- kill2を「本waveでは未達成」として単位5/6へ持ち越す — 台帳の全履歴一意性検査は既に
+  単位4で実装・変異matrixで実地確認済みであり、持ち越す実体が無い。
+
+**主張の範囲:** 本決定はD229決定(8)のkill2 (親系列IDリセット) だけを扱う。kill1 (失敗投入を
+台帳とrawの双方から落とす) はproducer外のdurable intent authorityとPBS driver結線を要し、
+本waveの射程外のまま (D500決定5)。kill3 (anomaly clean申告) は単位3のcorrectness raw再計算で
+別途達成した。

@@ -1610,7 +1610,14 @@ def _acceptance_parser() -> argparse.ArgumentParser:
     parser.add_argument("--lease-dir", type=Path)
     parser.add_argument("--receipt-file", type=Path, required=True)
     parser.add_argument("--log-file", type=Path, required=True)
-    parser.add_argument("--merge-message-file", type=Path)
+    parser.add_argument(
+        "--merge-message-file",
+        type=Path,
+        help=(
+            "merge message file。省略時は self-report を使い、"
+            "両親と異なる実装面 path がある場合だけ Codex role=author file が必要"
+        ),
+    )
     parser.add_argument("--owned-path", type=Path, action="append", default=[])
     parser.add_argument(
         "--poll-seconds",
@@ -2909,6 +2916,18 @@ def _validated_message_copy(path: Path, effects: _Effects) -> Path | None:
         return None
 
 
+def _self_reported_merge_message_copy(effects: _Effects) -> Path | None:
+    content = (
+        "merge main\n\n"
+        "AI-Agent: product=claude; model=not-exposed; "
+        "reasoning=not-exposed; role=integrator"
+    )
+    try:
+        return effects.write_temp(content.encode("utf-8"))
+    except (OSError, UnicodeError):
+        return None
+
+
 def _release_once(
     effects: _Effects,
     repo: Path,
@@ -3736,15 +3755,6 @@ def _run_acceptance_attempt(
             repo,
             "preclaim-behind-count",
         )
-        if preclaim_behind > 0 and merge_message_file is None:
-            raise _StageFailure(
-                "merge-message-preflight",
-                RC_USAGE,
-                detail=(
-                    f"main が {preclaim_behind} commit 進んでいるので "
-                    "`--merge-message-file` が必要"
-                ),
-            )
         _run_capture(
             effects,
             (
@@ -3791,8 +3801,12 @@ def _run_acceptance_attempt(
             if owned_paths and _owned_path_overlap(effects, repo, owned_paths):
                 raise _StageFailure("owned-path-overlap")
             if merge_message_file is None:
-                raise _StageFailure("merge-message")
-            validated_message = _validated_message_copy(merge_message_file, effects)
+                validated_message = _self_reported_merge_message_copy(effects)
+            else:
+                validated_message = _validated_message_copy(
+                    merge_message_file,
+                    effects,
+                )
             if validated_message is None:
                 raise _StageFailure("merge-message")
             active_lifecycle.merge_pending = True

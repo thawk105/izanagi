@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """AI 作業 provenance の commit trailer を決定的に監査する。
 
-既定では docs/ai-provenance.md を最初に追加した commit から HEAD までを検査する。
+既定では docs/ai-provenance.md の一意な追加 commit と、起動時に固定した HEAD へ到達する
+その後の commit を検査する。
 任意範囲は --range、commit 前の message は --message-file で検査できる。
 hook には配線しない。Izanagi の hook 2 本限定を維持しつつ、欠落を明示的に監査するための
 独立した lint である。
@@ -633,6 +634,11 @@ KNOWN_PROVENANCE_VIOLATIONS = (
         _T1140_T330_MERGE_RULING,
         note=_T1140_T330_MERGE_NOTE,
     ),
+    KnownViolationSpec(
+        "333605d680ec15f3f74b00e9e2746ae317b85dc5",
+        MISSING_CODEX_AUTHOR,
+        "2026-08-07 [T-619] docs/archive/worklog-phase3-0807-299.md entry 299 (/rulings 第5回、D230 統一述語 5点採用)",
+    ),
 )
 
 
@@ -1109,8 +1115,10 @@ def validate_message(
 ) -> tuple[list[str], list[str], list[str]]:
     """(findings, scope_findings, cab_findings) を返す。
 
-    scope_findings は「同じ role が複数行あるのに scope がない」違反。scope 規則の
-    導入 commit より前の履歴には遡及しないため、呼び出し側が適用可否を判定する。
+    scope_findings は「同じ role が複数行あるのに scope がない」違反。適用可否は呼び出し側
+    (`_normal_commit_audit` の `applies_epoch`) が判定する — 非 authoritative の明示
+    `--range` では scope 規則の子孫にのみ適用し、既定の authoritative 監査では scope 規則の
+    祖先でない HEAD 到達 commit にも適用する。
     CAB policy 導入前の履歴では check_cab=False とし、canonical parser 自体を呼ばない。
     """
     values = _ai_agent_values(message)
@@ -1167,19 +1175,22 @@ def validate_message(
     return findings, scope_findings, cab_findings
 
 
-def _scope_policy_commit() -> str | None:
+def _scope_policy_commit(head: str | None = None) -> str | None:
     """scope 規則を docs/ai-provenance.md へ導入した commit を内容検出する (SHA 非依存)。"""
+    tip = head or "HEAD"
     commits = _git(
-        "log", "--reverse", "--format=%H", "-S", "scope=", "--", POLICY_PATH
+        "log", "--reverse", "--format=%H", "-S", "scope=", tip,
+        "--", POLICY_PATH,
     ).splitlines()
     return commits[0] if commits else None
 
 
-def _implementation_policy_commit() -> str | None:
+def _implementation_policy_commit(head: str | None = None) -> str | None:
     """Codex author 契約を導入した commit を内容検出する。"""
+    tip = head or "HEAD"
     commits = _git(
         "log", "--reverse", "--format=%H", "-S", IMPLEMENTATION_POLICY_NEEDLE,
-        "--", POLICY_PATH,
+        tip, "--", POLICY_PATH,
     ).splitlines()
     return commits[0] if commits else None
 
@@ -1349,26 +1360,79 @@ def _message_file_paths(merge_parents: list[str]) -> list[str]:
     ])
 
 
-def _policy_commit() -> str:
+def _policy_commit(head: str | None = None) -> str:
+    tip = head or "HEAD"
     commits = _git(
-        "log", "--diff-filter=A", "--format=%H", "--", POLICY_PATH
+        "log", "--full-history", "--no-renames", "--diff-filter=A",
+        "--format=%H", tip, "--", POLICY_PATH,
     ).splitlines()
     if not commits:
         raise RuntimeError(
             f"{POLICY_PATH} の導入 commit が履歴にない。"
             "commit 前は --message-file で検査すること"
         )
-    return commits[-1]
+    if len(commits) != 1:
+        raise RuntimeError(
+            f"{POLICY_PATH} の導入 commit が一意でない: "
+            f"hits={len(commits)}"
+        )
+    return commits[0]
 
 
-def _commit_range(rev_range: str | None) -> list[str]:
+def _commit_range(
+    rev_range: str | None, *, head: str | None = None,
+) -> list[str]:
     if rev_range is None:
-        policy = _policy_commit()
-        descendants = _git(
-            "rev-list", "--reverse", "--ancestry-path", f"{policy}..HEAD"
+        if head is None:
+            raise RuntimeError("authoritative history requires a pinned HEAD")
+        policy = _policy_commit(head)
+        commits = _git(
+            "rev-list", "--reverse", f"{policy}..{head}"
         ).splitlines()
-        return [policy, *descendants]
+        return [policy, *commits]
     return _git("rev-list", "--reverse", rev_range).splitlines()
+
+
+def _resolve_head() -> str:
+    head = _git("rev-parse", "HEAD").strip()
+    if re.fullmatch(r"[0-9a-f]{40}|[0-9a-f]{64}", head) is None:
+        raise RuntimeError(f"git rev-parse HEAD returned invalid SHA: {head!r}")
+    return head
+
+
+def _assert_head_unchanged(start_head: str) -> None:
+    end_head = _git("rev-parse", "HEAD").strip()
+    if end_head != start_head:
+        raise RuntimeError(
+            "HEAD が監査中に変化した: "
+            f"start={start_head}, end={end_head}"
+        )
+
+
+def _assert_authoritative_repository() -> None:
+    shallow = _git("rev-parse", "--is-shallow-repository").strip()
+    if shallow != "false":
+        raise RuntimeError(
+            "authoritative history is unavailable in a shallow repository"
+        )
+
+    grafts = Path(_git("rev-parse", "--git-path", "info/grafts").strip())
+    if not grafts.is_absolute():
+        grafts = REPO / grafts
+    try:
+        graft_bytes = grafts.read_bytes()
+    except FileNotFoundError:
+        graft_bytes = b""
+    if graft_bytes.strip():
+        raise RuntimeError(
+            f"authoritative history is unavailable with grafts: {grafts}"
+        )
+
+    replacements = _git("replace", "--list").splitlines()
+    if replacements:
+        raise RuntimeError(
+            "authoritative history is unavailable with git replace"
+        )
 
 
 def _read_message(path: str) -> str:
@@ -1397,6 +1461,7 @@ class _Ancestry:
     index: dict[str, int]
     bits: tuple[int, ...]
     cab_policy_mask: int
+    cab_policy_ancestor_mask: int = 0
 
     def is_descendant(self, ancestor: str, commit: str) -> bool:
         i = self.index.get(commit)
@@ -1405,12 +1470,28 @@ class _Ancestry:
             return False
         return bool(self.bits[i] >> j & 1)
 
-    def has_cab_policy(self, commit: str) -> bool:
+    def has_cab_policy(
+        self,
+        commit: str,
+        *,
+        authoritative: bool = False,
+    ) -> bool:
         i = self.index.get(commit)
-        return False if i is None else bool(self.bits[i] & self.cab_policy_mask)
+        # CAB seed が一度も導入されていない repo では、空集合に対する
+        # 「どの seed の祖先でもない」は数式上真でも、規則自体を適用しない。
+        if i is None or not self.cab_policy_mask:
+            return False
+        if self.bits[i] & self.cab_policy_mask:
+            return True
+        return authoritative and not bool(self.cab_policy_ancestor_mask & (1 << i))
 
 
-def _build_ancestry(commits: list[str]) -> _Ancestry:
+def _build_ancestry(
+    commits: list[str],
+    *,
+    authoritative: bool = False,
+    head: str | None = None,
+) -> _Ancestry:
     """rev-list 1 本 + pickaxe 1 本で per-commit の lineage 判定を畳む。
 
     --topo-order が必須 (既定の commit-date 順では逆順走査で親が未確定になりうる)。
@@ -1419,6 +1500,9 @@ def _build_ancestry(commits: list[str]) -> _Ancestry:
     argv 前置 ("log", "--full-history", "--no-renames", "--format=%H") は
     既存 intercept テストの契約なので保存する。
     """
+    if authoritative and head is None:
+        raise RuntimeError("authoritative ancestry requires a pinned HEAD")
+
     raw = _git(
         "rev-list", "--topo-order", "--parents", "--stdin",
         input_text="".join(f"{commit}\n" for commit in commits),
@@ -1434,16 +1518,19 @@ def _build_ancestry(commits: list[str]) -> _Ancestry:
             if j is not None:  # 閉包外は shallow / graft 境界だけ
                 acc |= bits[j]
         bits[i] = acc
+    tips = [head] if authoritative else commits
     policy_hits = _git(
         "log", "--full-history", "--no-renames", "--format=%H",
-        "-S", CO_AUTHORED_BY_POLICY_NEEDLE, *commits, "--", POLICY_PATH,
+        "-S", CO_AUTHORED_BY_POLICY_NEEDLE, *tips, "--", POLICY_PATH,
     ).splitlines()
     mask = 0
+    ancestor_mask = 0
     for sha in policy_hits:
         j = index.get(sha)
         if j is not None:
             mask |= 1 << j
-    return _Ancestry(index, tuple(bits), mask)
+            ancestor_mask |= bits[j]
+    return _Ancestry(index, tuple(bits), mask, ancestor_mask)
 
 
 def _base_finding_ledger_kind(label: str, finding: str) -> str | None:
@@ -1460,11 +1547,17 @@ def _normal_commit_audit(
     scope_epoch: str | None,
     implementation_epoch: str | None,
     ancestry: _Ancestry | None = None,
+    authoritative: bool = False,
 ) -> CommitAudit:
     """ancestry=None は逐次 oracle 経路 (merge-base / per-commit pickaxe)。
 
     bitset 版と同じ判定を独立実装で持つため、等価性テストが自己参照にならない。
     """
+    if ancestry is None and authoritative:
+        raise RuntimeError(
+            "authoritative normal audit requires an ancestry index"
+        )
+
     subject = _git("show", "-s", "--format=%s", commit).strip()
     message = _git("show", "-s", "--format=%B", commit)
     label = f"{commit[:12]} {subject}"
@@ -1474,7 +1567,9 @@ def _normal_commit_audit(
         def descends(ancestor: str) -> bool:
             return _is_descendant(ancestor, commit)
     else:
-        cab_policy_applies = ancestry.has_cab_policy(commit)
+        cab_policy_applies = ancestry.has_cab_policy(
+            commit, authoritative=authoritative,
+        )
 
         def descends(ancestor: str) -> bool:
             return ancestry.is_descendant(ancestor, commit)
@@ -1489,19 +1584,27 @@ def _normal_commit_audit(
         )
         for finding in base
     ]
-    if (
-        scoped
-        and scope_epoch is not None
-        and descends(scope_epoch)
-    ):
+
+    def applies_epoch(epoch: str | None) -> bool:
+        # 規則がこの履歴に存在しない epoch=None は、空虚な第2項を
+        # 真として扱わず、常に非適用とする。
+        if epoch is None:
+            return False
+        return descends(epoch) or (
+            authoritative and not descends_from_commit(epoch)
+        )
+
+    def descends_from_commit(epoch: str) -> bool:
+        if ancestry is None:
+            return _is_descendant(commit, epoch)
+        return ancestry.is_descendant(commit, epoch)
+
+    if scoped and applies_epoch(scope_epoch):
         findings.extend(NormalFinding(finding, None) for finding in scoped)
     findings.extend(NormalFinding(finding, None) for finding in cab)
     waiver = EMPTY_WAIVER
     waived_applied = False
-    if (
-        implementation_epoch is not None
-        and descends(implementation_epoch)
-    ):
+    if applies_epoch(implementation_epoch):
         waiver = _waiver_audit(label, message)
         findings.extend(
             NormalFinding(finding, None) for finding in waiver.findings
@@ -1529,6 +1632,7 @@ def _known_violation_audit(
     registry: dict[str, KnownViolationSpec],
     suppressed_missing: tuple[str, str] | None,
     stale_eligible_commits: set[str],
+    authoritative: bool = False,
 ) -> KnownViolationAudit:
     """correction / waiver 適用後の finding を固定台帳と照合する。"""
 
@@ -1578,6 +1682,7 @@ def _ledger_policy_is_visible(
     *,
     implementation_epoch: str | None,
     ancestry: _Ancestry,
+    authoritative: bool = False,
 ) -> bool:
     """期待 finding の policy epoch を current HEAD から検証できるか。"""
 
@@ -1589,7 +1694,13 @@ def _ledger_policy_is_visible(
     if spec.expected_finding_kind == MISSING_CODEX_AUTHOR:
         return (
             implementation_epoch is not None
-            and ancestry.is_descendant(implementation_epoch, spec.commit)
+            and (
+                ancestry.is_descendant(implementation_epoch, spec.commit)
+                or (
+                    authoritative
+                    and not ancestry.is_descendant(spec.commit, implementation_epoch)
+                )
+            )
         )
     raise RuntimeError(
         "known provenance violation registry has invalid finding kind: "
@@ -1597,14 +1708,31 @@ def _ledger_policy_is_visible(
     )
 
 
-def _audit_history(commits: list[str]) -> HistoryAudit:
+def _audit_history(
+    commits: list[str],
+    *,
+    authoritative: bool = False,
+    head: str | None = None,
+) -> HistoryAudit:
     """selected revision set を順序非依存の membership/lineage 条件で監査する。"""
     registry = _known_violation_registry()
     if not commits:
         return HistoryAudit([], [], [])
-    scope_epoch = _scope_policy_commit()
-    implementation_epoch = _implementation_policy_commit()
-    ancestry = _build_ancestry(commits)
+    if authoritative:
+        if head is None:
+            raise RuntimeError("authoritative history requires a pinned HEAD")
+        scope_epoch = _scope_policy_commit(head)
+        implementation_epoch = _implementation_policy_commit(head)
+    else:
+        # Explicit --range の既存 monkeypatch seam は zero-arg 呼出しを契約と
+        # する。None を明示的に渡すと preflight の回帰になるため分岐を保つ。
+        scope_epoch = _scope_policy_commit()
+        implementation_epoch = _implementation_policy_commit()
+    ancestry = _build_ancestry(
+        commits,
+        authoritative=authoritative,
+        head=head,
+    )
 
     def audit_one(commit: str) -> CommitAudit:
         return _normal_commit_audit(
@@ -1612,6 +1740,7 @@ def _audit_history(commits: list[str]) -> HistoryAudit:
             scope_epoch=scope_epoch,
             implementation_epoch=implementation_epoch,
             ancestry=ancestry,
+            authoritative=authoritative,
         )
 
     workers = max(1, min(AUDIT_WORKERS(), len(commits)))
@@ -1710,6 +1839,7 @@ def _audit_history(commits: list[str]) -> HistoryAudit:
         registry=registry,
         suppressed_missing=suppressed_missing,
         stale_eligible_commits=stale_eligible_commits,
+        authoritative=authoritative,
     )
     if ledger_audit.stale:
         details = ", ".join(
@@ -1721,6 +1851,7 @@ def _audit_history(commits: list[str]) -> HistoryAudit:
                     spec,
                     implementation_epoch=implementation_epoch,
                     ancestry=ancestry,
+                    authoritative=authoritative,
                 )
                 else "policy-epoch-not-visible non-authoritative-invocation"
             )
@@ -2609,8 +2740,18 @@ def main(
                 correction_preflight = not findings
             checked = 1
         else:
-            commits = _commit_range(args.rev_range)
-            history = _audit_history(commits)
+            authoritative = args.rev_range is None
+            head = _resolve_head() if authoritative else None
+            if authoritative:
+                _assert_authoritative_repository()
+            commits = _commit_range(args.rev_range, head=head)
+            history = _audit_history(
+                commits,
+                authoritative=authoritative,
+                head=head,
+            )
+            if authoritative:
+                _assert_head_unchanged(head)
             findings = history.findings
             corrected = history.corrected
             waived = history.waived

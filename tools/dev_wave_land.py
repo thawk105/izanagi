@@ -2242,6 +2242,7 @@ def _run_provenance_checker(
     repository: _Repository,
     env: dict[str, str],
 ) -> subprocess.CompletedProcess[bytes]:
+    env.setdefault("PYTHONDONTWRITEBYTECODE", "1")
     return subprocess.run(
         [sys.executable, str(checker.path)],
         cwd=repository.wave,
@@ -2674,7 +2675,7 @@ def _preflight_fold_message(repository: _Repository, message_path: Path) -> None
     completed = subprocess.run(
         [sys.executable, str(checker), "--message-file", str(message_path)],
         cwd=repository.main,
-        env=_git_env(),
+        env={**_git_env(), "PYTHONDONTWRITEBYTECODE": "1"},
         stdin=subprocess.DEVNULL,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,

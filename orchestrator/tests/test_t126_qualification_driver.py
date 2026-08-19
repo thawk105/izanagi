@@ -829,7 +829,12 @@ with ActiveProcessGroups(0.2) as groups:
     ready_read, ready_write = os.pipe()
     process = subprocess.Popen(
         [sys.executable, "-c", code, str(int(sig)), str(ready_write)],
-        cwd=_ROOT, env={**os.environ, "PYTHONPATH": str(_ROOT)},
+        cwd=_ROOT,
+        env={
+            **os.environ,
+            "PYTHONPATH": str(_ROOT),
+            "PYTHONDONTWRITEBYTECODE": "1",
+        },
         pass_fds=(ready_write,), stdout=subprocess.PIPE,
         stderr=subprocess.PIPE, text=True)
     os.close(ready_write)

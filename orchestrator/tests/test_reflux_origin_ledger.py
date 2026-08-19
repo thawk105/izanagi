@@ -1133,7 +1133,7 @@ except l.RefluxOriginLedgerError:
                 process_origin_a, "process-a", marker_a, True, False
             )],
             cwd=process_repo,
-            env=_git_env(),
+            env={**_git_env(), "PYTHONDONTWRITEBYTECODE": "1"},
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
@@ -1147,7 +1147,7 @@ except l.RefluxOriginLedgerError:
                 process_origin_b, "process-b", marker_b, True, True
             )],
             cwd=process_repo,
-            env=_git_env(),
+            env={**_git_env(), "PYTHONDONTWRITEBYTECODE": "1"},
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
@@ -1455,7 +1455,7 @@ def test_v09_process_crash_boundaries_reopen_exactly_once(tmp_path: Path) -> Non
         completed = subprocess.run(
             [sys.executable, "-c", _crash_script(repo, origin, base, point, reserved)],
             cwd=repo,
-            env=_git_env(),
+            env={**_git_env(), "PYTHONDONTWRITEBYTECODE": "1"},
             stdin=subprocess.DEVNULL,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
@@ -1831,7 +1831,8 @@ assert s.origin_id=={origin!r}
 print(s.phase)
 """
     completed = subprocess.run(
-        [sys.executable, "-c", script], cwd=repo, env=_git_env(),
+        [sys.executable, "-c", script], cwd=repo,
+        env={**_git_env(), "PYTHONDONTWRITEBYTECODE": "1"},
         stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
         check=False,
         timeout=SUBPROCESS_TIMEOUT,
@@ -2338,7 +2339,7 @@ sys.exit(1)
     fifo_result = subprocess.run(
         [sys.executable, "-c", fifo_script],
         cwd=fifo_repo,
-        env=_git_env(),
+        env={**_git_env(), "PYTHONDONTWRITEBYTECODE": "1"},
         stdin=subprocess.DEVNULL,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
@@ -3719,7 +3720,7 @@ def test_v29_committed_reservation_replays_and_new_process_commits_from_binding(
     completed = subprocess.run(
         [sys.executable, "-c", recovery_source],
         cwd=repo,
-        env=_git_env(),
+        env={**_git_env(), "PYTHONDONTWRITEBYTECODE": "1"},
         stdin=subprocess.DEVNULL,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
@@ -3884,7 +3885,7 @@ def test_v33_new_process_abandons_from_public_reservation_binding(
     completed = subprocess.run(
         [sys.executable, "-c", recovery_source],
         cwd=repo,
-        env=_git_env(),
+        env={**_git_env(), "PYTHONDONTWRITEBYTECODE": "1"},
         stdin=subprocess.DEVNULL,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
