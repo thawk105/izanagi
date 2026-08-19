@@ -4354,6 +4354,7 @@ def test_settings_json_missing_hooks_is_assertion_failure():
 def test_hook_scripts_run_as_subprocess():
     """settings.json が呼ぶ形 (stdin JSON → exit code) の煙テスト。"""
     env = dict(os.environ)
+    env["PYTHONDONTWRITEBYTECODE"] = "1"
     # guard_read の煙テストは実物 decisions.md を使う — 閾値前提が崩れたら恒真化する
     # のでここで前提を明示 gate する
     decisions = os.path.join(_REPO, "docs", "decisions.md")

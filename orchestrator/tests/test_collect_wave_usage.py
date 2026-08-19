@@ -80,7 +80,10 @@ def _run_helper_process(
     return subprocess.run(
         [sys.executable, os.fspath(USAGE.__file__), *argv],
         cwd=USAGE._REPO_ROOT,
-        env=_subprocess_env(tmp_path),
+        env={
+            **_subprocess_env(tmp_path),
+            "PYTHONDONTWRITEBYTECODE": "1",
+        },
         text=True,
         capture_output=True,
         check=False,

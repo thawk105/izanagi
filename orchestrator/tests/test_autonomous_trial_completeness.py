@@ -4297,7 +4297,10 @@ def test_direct_cli_starts_with_clean_pythonpath(tmp_path) -> None:
             str(run / "report.json"),
         ],
         cwd=tmp_path,
-        env={"PATH": str(Path(sys.executable).parent)},
+        env={
+            "PATH": str(Path(sys.executable).parent),
+            "PYTHONDONTWRITEBYTECODE": "1",
+        },
         text=True,
         capture_output=True,
         check=False,

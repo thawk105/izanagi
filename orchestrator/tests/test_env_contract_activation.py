@@ -472,6 +472,7 @@ print("import-only-ok")
 '''
     env = dict(os.environ)
     env["PYTHONPATH"] = str(source_root)
+    env["PYTHONDONTWRITEBYTECODE"] = "1"
     return subprocess.run(
         [sys.executable, "-c", script],
         cwd=cwd,
@@ -2373,6 +2374,7 @@ print("current-ok-historical-rejected")
 '''
     env = dict(os.environ)
     env["PYTHONPATH"] = str(stage)
+    env["PYTHONDONTWRITEBYTECODE"] = "1"
     completed = subprocess.run(
         [sys.executable, "-c", script],
         cwd=stage,
@@ -2490,6 +2492,7 @@ def test_held_lock_fork_reinitializes_child_cache_without_deadlock():
 def test_repo_root_is_cwd_independent(tmp_path: Path):
     env = dict(os.environ)
     env["PYTHONPATH"] = str(REPO_ROOT)
+    env["PYTHONDONTWRITEBYTECODE"] = "1"
     completed = subprocess.run(
         [
             sys.executable,
