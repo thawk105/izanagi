@@ -1,8 +1,25 @@
 # [T-1362] 段5 author・段6 fix の reasoning 機械強制
 - 目的: dev-wave launcher/runner が段5(author)・段6(fix) の codex 起動で reasoning=max を機械的に強制する
 - 状態: 作業中
-- 最終更新: 2026-08-19 段5 統合commit直前
-- 基準コミット: 82c4c4e2 (worktree: dev-wave-t1362-reasoning-pin)
+- 最終更新: 2026-08-19 段5 完了・段6 着手
+- 基準コミット: 0333abe6 (worktree: dev-wave-t1362-reasoning-pin, 作業ツリー clean)
+
+## 段5 完了実績
+統合commit 0333abe6。単位1(launch_authority.py+テスト)・単位2(codex_worker_launch.py・
+dev_wave_codex.py・check_docs.py・operations.md+3テスト)とも実装完了。
+`python3 tools/run_tests.py orchestrator/tests/test_dev_wave_launch_authority.py
+orchestrator/tests/test_codex_worker_launch.py orchestrator/tests/test_dev_wave_codex.py
+orchestrator/tests/test_check_docs.py -q` = **681 passed, 3 skipped (既知のgrowth-hold), 0 failed**。
+`python3 tools/check_docs.py` = 違反なし。`python3 tools/check_ai_provenance.py` = 新規違反なし。
+
+**実装中に踏んだ罠 (次セッション/他waveへの申し送り)**: authority-snapshotのdirty-tree検査
+(`docs/dev-wave/{operations,workers}.md`がHEADと1byteでも異なると`--stage`問わず全codex
+dispatchが即rc=2で死ぬ)が、段5実装の中間状態 (launch_authority.py適用済み・
+codex_worker_launch.py未適用) でも二重に発火した — 深い層(launcher)が浅い層(dev_wave_codex.py
+wrapper)より先に新挙動を持つと、`--reasoning`要否の矛盾で子を起動できなくなる。
+`git diff > patch`で退避→dispatch→`git apply`で復元、を使って回避した。**この種の
+「authority由来の2層detectorを跨ぐ変更」を複数unitに分割するときは、後続unitの
+dispatch自体が前unitの中間状態でブロックされ得ることを事前に見込む。**
 
 ## 裁定の一次資料
 - `docs/archive/worklog-phase3-0819-671.md` 574-579 行 (entry 671, /rulings 全件第8回):
@@ -200,6 +217,31 @@ section/値を使う (fix 専用の regex 抽出は起こさない)。
    `tools/check_docs.py` (DW-S05-A exact-pin 追加) + `docs/dev-wave/operations.md` (DW-O01 prose
    置換) + `orchestrator/tests/test_codex_worker_launch.py` + `orchestrator/tests/test_dev_wave_codex.py`
    + `orchestrator/tests/test_check_docs.py`
+
+## 段6 レビュー・fix実績
+敵対レビュー2本 (`0333abe6` 対象): レンズA (実装差分の正確性) が real 3件、レンズB
+(回帰・境界条件) は real 0件 (D275 supersede 待ちのみ、段7 予定どおり)。
+
+real 3件をfixで解消:
+1. `_validate_receipt()` の stage/effort_authority 整合検査が単純な受理集合拡張のままだと、
+   本wave以前の歴史的author/fix receipt (`effort_authority="unbound"`) を拒否してしまい、
+   既存receipt上書き防止機構 (`_preflight_run`) を意図せずすり抜ける経路になっていた。
+   review/focus=常にdocs、plan/consult=常にunbound、author/fix=docsまたはunboundの両方を
+   正当とする3分岐に修正
+2. `test_fix_effort_matches_author_derivation` がD276違反 (期待値を派生関数自身から取得)
+   → 独立oracle版 `test_fix_effort_matches_author_docs_cross_check` を追加
+3. author/fixが節を取り違えても検出できないテスト構成 → DW-S05-A/S06-A/S06-Cへ異なる値を
+   仕込むfixtureテスト `test_derive_launch_uses_stage_specific_effort_sections` を追加
+
+**検証で踏んだ環境要因の罠 (次waveへの申し送り)**: 全体テストスイート
+(test_codex_worker_launch.py 中心) はwall-clock予算3秒の攻撃的なタイミング前提テストが
+多数あり、共有計算機の負荷が高いと `-n`既定 (xdist高並列) で毎回50〜70件前後
+非決定的にflakeする (`codex_exit_code=-15`・`evidence_status='missing'`のSIGTERM signature)。
+**fix適用前commit (0333abe6) 単独でも同数程度flakeすることを対照実験で確認済み**
+(本waveの変更とは無関係)。`-n 4`や`-n 8`へ並列度を落とすとflake数は大きく減るが0にはならず、
+毎回異なるnodeidが失敗する (非決定性の追加根拠)。新設テスト自体は単独実行 (タイミング非依存)
+で毎回全緑。正式な受入全走はflake許容機構 (`flake_nodeids`) を持つため、この観察は
+受入省略の根拠にはせず記録に留める。
 
 ## 未完の作業と次の一手 (段2・段3・段4裁定 完了、次は段5)
 1. **単位1 投入**: `tools/dev_waves/launch_authority.py` +

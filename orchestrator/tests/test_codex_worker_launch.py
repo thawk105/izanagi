@@ -2374,6 +2374,109 @@ def _check_command(paths: dict[str, Path]) -> list[str]:
     ]
 
 
+def _minimal_v3_receipt(
+    *, stage: str, effort_authority: str, section_count: int
+) -> dict[str, Any]:
+    section_ids = ["DW-O01", "DW-S06-A", "DW-S06-C", "DW-S05-A"]
+    sections = [
+        {
+            "path": "docs/dev-wave/operations.md"
+            if index == 0
+            else "docs/dev-wave/workers.md",
+            "section": section_ids[index],
+            "sha256": "a" * 64,
+        }
+        for index in range(section_count)
+    ]
+    return {
+        "schema_version": 3,
+        "job_id": "receipt-compatibility-test",
+        "stage": stage,
+        "lane": None,
+        "prompt_sha256": "b" * 64,
+        "requested_model": "gpt-5.6-luna",
+        "requested_effort": "max",
+        "effort_authority": effort_authority,
+        "recorded_model": None,
+        "recorded_effort": None,
+        "recorded_turn_context_count": 0,
+        "recorded_values_semantics": LAUNCHER._RECORDED_VALUES_SEMANTICS,
+        "sandbox": "read-only",
+        "requested_cwd": os.fspath(_ROOT),
+        "recorded_cwd": None,
+        "repo_root": os.fspath(_ROOT),
+        "base_commit": _BASE_COMMIT,
+        "sessions_root": os.fspath(_ROOT / "sessions"),
+        "artifact_dir": os.fspath(_ROOT / "artifact"),
+        "output_path": os.fspath(_ROOT / "output.md"),
+        "output_sha256": None,
+        "manifest_path": os.fspath(_ROOT / "manifest.json"),
+        "receipt_path": os.fspath(_ROOT / "receipt.json"),
+        "manifest_wave_id": "receipt-compatibility-wave",
+        "authority_snapshot": {
+            "authority_commit": _BASE_COMMIT,
+            "sections": sections,
+            "digest": "c" * 64,
+        },
+        "codex_version": "fake-codex",
+        "codex_executable_path": os.fspath(_LAUNCHER),
+        "codex_executable_sha256": "d" * 64,
+        "model_calls_semantics": "observed_token_count_events",
+        "possible_unobserved_overshoot": False,
+        "limits_assertion": "self_asserted",
+        "wall_clock_scope": "launcher_start_to_receipt_fields_finalized",
+        "retry_classification": "none",
+        "escaped_process_containment": "not_attempted",
+        "limits": {
+            "max_wall_clock_s": 1,
+            "max_model_calls": 1,
+            "max_cli_reported_tokens": 1,
+            "max_attempts": 1,
+        },
+        "actuals": {
+            "wall_clock_s": 0,
+            "attempt_count": 0,
+            "model_calls": 0,
+            "input_tokens": 0,
+            "cached_input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_output_tokens": 0,
+            "total_tokens_raw": 0,
+            "cli_reported": 0,
+        },
+        "outcome": "launcher_error",
+        "stop_reason": "launcher_error",
+        "launcher_rc": 2,
+        "codex_exit_code": None,
+        "validator_rc": None,
+        "attempts": [],
+    }
+
+
+@pytest.mark.parametrize(
+    ("stage", "effort_authority", "section_count", "accepted"),
+    (
+        ("author", "unbound", 3, True),
+        ("author", "docs", 4, True),
+        ("review", "unbound", 4, False),
+        ("plan", "docs", 3, False),
+    ),
+)
+def test_validate_receipt_preserves_effort_authority_compatibility(
+    stage: str, effort_authority: str, section_count: int, accepted: bool
+) -> None:
+    receipt = _minimal_v3_receipt(
+        stage=stage,
+        effort_authority=effort_authority,
+        section_count=section_count,
+    )
+    if accepted:
+        assert LAUNCHER._validate_receipt(receipt)["stage"] == stage
+    else:
+        with pytest.raises(LAUNCHER.LaunchError, match="effort authority"):
+            LAUNCHER._validate_receipt(receipt)
+
+
 def _write_legacy_v2_evidence(
     receipt_v3: dict[str, Any], paths: dict[str, Path]
 ) -> dict[str, Any]:

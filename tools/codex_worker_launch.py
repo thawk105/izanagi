@@ -3071,9 +3071,13 @@ def _validate_receipt(value: object) -> dict[str, Any]:
         cwd_field = "requested_cwd"
         if receipt["effort_authority"] not in ("docs", "unbound"):
             raise LaunchError("receipt.effort_authority が不正")
-        if (receipt["stage"] in ("review", "focus", "author", "fix")) != (
-            receipt["effort_authority"] == "docs"
-        ):
+        if receipt["stage"] in ("review", "focus"):
+            if receipt["effort_authority"] != "docs":
+                raise LaunchError("receipt effort authority と stage が不一致")
+        elif receipt["stage"] in ("author", "fix"):
+            if receipt["effort_authority"] not in ("docs", "unbound"):
+                raise LaunchError("receipt effort authority と stage が不一致")
+        elif receipt["effort_authority"] != "unbound":
             raise LaunchError("receipt effort authority と stage が不一致")
         for field_name in ("recorded_model", "recorded_effort", "recorded_cwd"):
             if receipt[field_name] is not None and (

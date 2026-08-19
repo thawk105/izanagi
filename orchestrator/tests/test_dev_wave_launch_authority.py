@@ -62,6 +62,24 @@ def _operations_with_authority_line(line: str) -> str:
     return text.replace(_authority_line(text), line, 1)
 
 
+def _workers_with_stage_reasoning() -> str:
+    text = (_ROOT / _WORKERS).read_text(encoding="utf-8")
+    replacements = (
+        (
+            "codex は `reasoning=max`、`sandbox=workspace-write` とする。",
+            "codex は `reasoning=xhigh`、`sandbox=workspace-write` とする。",
+        ),
+        (
+            "実装 wave は異なるレンズの敵対レビューを `reasoning=max` で必ず 2 本並列で行う。",
+            "実装 wave は異なるレンズの敵対レビューを `reasoning=high` で必ず 2 本並列で行う。",
+        ),
+    )
+    for old, new in replacements:
+        assert text.count(old) == 1
+        text = text.replace(old, new, 1)
+    return text
+
+
 def _independent_docs_section(path: Path, section_id: str) -> str:
     text = path.read_text(encoding="utf-8")
     matches = re.findall(
@@ -81,7 +99,12 @@ def _independent_reasoning(path: Path, section_id: str) -> str:
     return matches[0]
 
 
-def _prepare_repo(tmp_path: Path, *, operations: str | None = None) -> Path:
+def _prepare_repo(
+    tmp_path: Path,
+    *,
+    operations: str | None = None,
+    workers: str | None = None,
+) -> Path:
     root = tmp_path / "repo"
     (root / "docs/dev-wave").mkdir(parents=True)
     (root / _OPERATIONS).write_text(
@@ -91,7 +114,10 @@ def _prepare_repo(tmp_path: Path, *, operations: str | None = None) -> Path:
         encoding="utf-8",
     )
     (root / _WORKERS).write_text(
-        (_ROOT / _WORKERS).read_text(encoding="utf-8"), encoding="utf-8"
+        workers
+        if workers is not None
+        else (_ROOT / _WORKERS).read_text(encoding="utf-8"),
+        encoding="utf-8",
     )
     _git(root, "init", "-q")
     _git(root, "config", "user.name", "authority-test")
@@ -197,12 +223,30 @@ def test_fix_effort_matches_author_derivation() -> None:
     assert fix.effort_authority == author.effort_authority
 
 
+def test_fix_effort_matches_author_docs_cross_check() -> None:
+    expected = _independent_reasoning(_ROOT / _WORKERS, "DW-S05-A")
+    requirement = derive_launch(
+        snapshot_authority(_ROOT), stage="fix", lane=None
+    )
+    assert requirement.effort == expected
+
+
 def test_focus_effort_matches_independent_docs_cross_check() -> None:
     expected = _independent_reasoning(_ROOT / _WORKERS, "DW-S06-C")
     requirement = derive_launch(
         snapshot_authority(_ROOT), stage="focus", lane=None
     )
     assert requirement.effort == expected
+
+
+def test_derive_launch_uses_stage_specific_effort_sections(tmp_path: Path) -> None:
+    root = _prepare_repo(tmp_path, workers=_workers_with_stage_reasoning())
+    snapshot = snapshot_authority(root)
+
+    assert derive_launch(snapshot, stage="author", lane=None).effort == "xhigh"
+    assert derive_launch(snapshot, stage="fix", lane=None).effort == "xhigh"
+    assert derive_launch(snapshot, stage="review", lane=None).effort == "high"
+    assert derive_launch(snapshot, stage="focus", lane=None).effort == "max"
 
 
 def test_all_stage_models_match_independent_docs_cross_check() -> None:
