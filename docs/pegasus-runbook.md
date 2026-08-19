@@ -546,6 +546,9 @@ checker 自身が計算ノードへ自動 dispatch する (D105)。
     裁定パッケージ (`output/insights/2026-08-13_exec-loc-and-usage-fixes/s4-rulings-package.md` の R-3)
     でユーザー裁定を待つ。**この 1 件を「共有 cgroup 方式なら AI が測ってよい」という前例に
     してはならない。** 本節を計算ノードで動く測定手順へ改訂する案も、依然として採らない。
+  - **非 canonical 測定は evidence 記録可・class の根拠にしない (2026-08-13 /rulings 第 9 回 #5、
+    択 (b)。[T-1031])。** 上の委任下の測定のような非 canonical な結果は、台帳へ evidence として
+    残してよいが、`local-ok` など class を軽い側へ倒す根拠にはしない。
 - **投げ先。** ログインノードから**自動**で計算ノードへ dispatch されるのは下表の exact task だけ
   である (D103 決定 2 / D105 決定 3 が enum を閉じている)。表に無い重い処理は自動化されていない
   ので、`qsub` / `qlogin` で自分で計算ノードを確保して走らせる。sanctioned な経路が無ければ

@@ -2278,6 +2278,7 @@ def _check_backlog_guard(
 class _DispatchTables:
     edges: set[tuple[str, str, str, str]]
     condition_triggers: dict[str, set[str]]
+    condition_leaked_tokens: dict[str, set[str]]
     condition_row_counts: dict[str, int]
     paths: set[str]
     structure_errors: tuple[str, ...]
@@ -3891,6 +3892,7 @@ def _dispatch_tables(text: str) -> _DispatchTables | None:
 
     edges: set[tuple[str, str, str, str]] = set()
     condition_triggers: dict[str, set[str]] = {}
+    condition_leaked_tokens: dict[str, set[str]] = {}
     condition_row_counts: dict[str, int] = {}
     paths: set[str] = set()
     structure_errors: list[str] = []
@@ -3997,12 +3999,17 @@ def _dispatch_tables(text: str) -> _DispatchTables | None:
             for path, section in pairs
         )
         condition_triggers.setdefault(key, set()).add(trigger)
+        leaks = {
+            match.group(0) for match in _DISPATCH_TOKEN_RE.finditer(trigger)
+        }
+        condition_leaked_tokens.setdefault(key, set()).update(leaks)
         condition_row_counts[key] = condition_row_counts.get(key, 0) + 1
         paths.update(line_paths)
 
     return _DispatchTables(
         edges,
         condition_triggers,
+        condition_leaked_tokens,
         condition_row_counts,
         paths,
         tuple(structure_errors),
@@ -5165,6 +5172,7 @@ def _check_command_docs_guard(findings: list[str]) -> set[Path]:
                 | set(CONDITION_TRIGGER_CONTRACT)
                 | set(dispatch.conditions)
                 | set(dispatch.condition_triggers)
+                | set(dispatch.condition_leaked_tokens)
             ):
                 expected = CONDITION_DISPATCH_CONTRACT.get(key, frozenset())
                 actual = dispatch.conditions.get(key, set())
@@ -5183,6 +5191,13 @@ def _check_command_docs_guard(findings: list[str]) -> set[Path]:
                         f"triggers={sorted(actual_triggers)!r}, "
                         f"missing={sorted(expected - actual)}, "
                         f"extra={sorted(actual - expected)}"
+                    )
+                leaked = dispatch.condition_leaked_tokens.get(key, set())
+                if leaked:
+                    findings.append(
+                        ".claude/commands/dev-wave.md: diagnostic sensitivity — "
+                        f"条件 dispatch {key!r} の条件セルに "
+                        f"reference token={sorted(leaked)}"
                     )
             disallowed = sorted(
                 dispatch.paths - NORMATIVE_DISPATCH_ALLOWLIST
