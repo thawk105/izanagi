@@ -1342,6 +1342,7 @@ def _real_waiter_repo(
         "GIT_AUTHOR_EMAIL": "test@example.invalid",
         "GIT_COMMITTER_NAME": "Test",
         "GIT_COMMITTER_EMAIL": "test@example.invalid",
+        "PYTHONDONTWRITEBYTECODE": "1",
     }
 
     def git(*args: str) -> None:
@@ -9337,6 +9338,7 @@ def _run_real_self_report_merge_case(
 ]:
     wave = "self-report-combined" if combined else "self-report-main-only"
     repo, lease, env = _real_waiter_repo(tmp_path, wave=wave)
+    env["PYTHONDONTWRITEBYTECODE"] = "1"
 
     def git(*args: str) -> str:
         return subprocess.run(
