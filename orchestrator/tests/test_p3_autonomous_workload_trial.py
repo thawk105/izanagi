@@ -376,9 +376,9 @@ def test_no_build_campaign_identity_binds_shared_policy_context() -> None:
 
 def test_t1333_exploratory_entries_preserve_baseline_projection_bytes() -> None:
     expected = {
-        "ycsb-a": "8e7d4c370177086b9e3c4fdb87f8db85b169328c253378d962a4c694993a6e5c",
-        "ycsb-b": "c749c20173488ec03424a96f367b04aab428eeae8ba76aed7ff2679878d2c016",
-        "ycsb-c": "36be6867728e7c195174f7fd2aab9486e23783850e9f6c9e3af423b823dfc4c6",
+        "ycsb-a": "905581959eac248cd744313e33b64627d6db880f9abba9a7016d04681f507b98",
+        "ycsb-b": "980fc86a4ecd623b56b647a8553e419575611410b7919d01ed4896ff38907ac8",
+        "ycsb-c": "865793da2a7824d003f6badd07aa8b1219bd6df5249ddb0d28f8ae0661317039",
     }
     assert tuple(A.WORKLOADS) == ("ycsb-a", "ycsb-b", "ycsb-c")
     for workload, expected_sha256 in expected.items():

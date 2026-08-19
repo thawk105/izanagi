@@ -562,3 +562,39 @@ consumer は区別しなければならない。
   **保留は健全性の証明ではない** — 鎖は未検証のままである。pin の更新は追随 wave が行う。
 - **本節は機械 record を持たない。** 8c 側の条件契約は世代 record で改訂を記録するが、
   8b にはその機構が無い。本節の改訂が行われた事実は git 履歴と本文だけが担う。
+
+## 11. 再凍結 2026-08-19 — workload descriptor へ人間の自由記述方針ヒントを追加 (§8 手続きによる改訂)
+
+**承認記録:** roadmap.md §1 の入力契約協議改訂 (2026-08-19 ユーザー協議、branch
+`worktree-roadmap-workload-hint` commit `15b5c389`) と、その実装スコープを指定した同日の
+dev-wave 起票がユーザー承認に当たる。設計境界は decision (`{{D:workload-policy-hint}}`)
+に確定済み。本節は §8 の変更手続きに従う再凍結であり、**旧凍結本文 (§2.1 の schema ブロック、
+§2.2 の生成元、§8 の凍結列挙) は 1 byte も改変せず履歴として残す**。上書きする範囲は
+§2.1 の schema が持つ property 集合 (7 property → optional `policy_hint` を含む 8 property) と、
+§2.2 の記述が前提とする「descriptor は既知の型付きフィールドだけを持つ」という暗黙の閉包
+(hint という 8 番目の optional フィールドの存在を追加する) だけである。それ以外の凍結項目
+(禁止フィールド、生成元 `campaign_search_config_projection`/`human_declared` の二値、
+holdout・arm・variant 集合・gate・floor・判定基準) は不変である。
+
+**変更内容:** `orchestrator/campaign/s8b_descriptor_schema.json` の `properties` へ
+`"policy_hint": {"type": "string"}` を追加した (`required` には追加しない — 既存 descriptor
+は無改修のまま有効)。`orchestrator/campaign/s8b_descriptor.py` の `project_from_search_config()`
+は、入力 `search_config` に `policy_hint` キーがあるときだけ同名キーを出力 descriptor へ
+条件付きで追加する。**キーが無い入力の出力 bytes は 1 bit も変わらない** — 凍結済み
+`output/s8c-preregistration/arm-inputs/off-neutral-descriptor.v1.json` (281 bytes) は本節の
+発効後も同一 bytes・同一 SHA-256 のままである (dev-wave 実装時に実測して確認した)。
+
+**変更理由:** ユーザーとの協議で、workload descriptor に人間が任意で自由記述の方針ヒントを
+添えられるようにする方針が決まった (roadmap.md §1)。AI 側の各段はヒントが与えられれば
+そのまま判断材料に使ってよい (規律6 の未信頼入力ではなくユーザーの直接入力)。ヒントは
+workload の傾向・重視目的の記述に限り、hole や具体実装 (勝ち筋) は roadmap.md §2 D44
+「軸提案がループ内にあること」の要件により含めない。この境界は decision fragment に
+確定しているが、**本節が凍結する schema・射影関数は値の内容を検査しない** (型検査 (str) と
+禁止キー走査 (キー名のみ) だけを行う) — 内容面の境界は運用規律であり、machine gate は
+新設しない (decision fragment の裁定どおり)。
+
+**本節が発効させないもの:** 8c 自律パイプライン (`p3_autonomous_workload_trial.py` 等) は
+本節の対象外であり、`policy_hint` を投入する入力境界を持たない (本 wave では追加しない)。
+段8b の selector、段8a の axis-proposer への配線も本節の対象外。段4 の human-supervised loop
+(`p3_s4_loop.py`) への配線は本節と同じ dev-wave が別途行うが、descriptor schema の凍結対象
+ではないため本節には含めない。
