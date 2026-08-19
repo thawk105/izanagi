@@ -23029,3 +23029,187 @@ D128 (「台帳への書き込みを land lock 内の fold へ一本化する」
 - roadmap §1 を全面書き換えて「hint-conditioned synthesis」を新しい達成目標として再定義する —
   効果が未実証の段階で claim 階層を作り直すのは時期尚早。まず descriptor への最小拡張1本を実装・
   観測してから要否を判断する。
+
+## D569. 受入待ち手の起動 authority、代替設計は現状維持とし協調境界に残す (ユーザー裁定) (2026-08-20)
+
+**決定:** [T-1373] が返した代替案 3 件 (a: `acceptance_launcher.py` 同型の bootstrap 層を待ち手にも新設、
+b: 起動経路を塞ぐのは諦め land 側検証を強化する方向へ転換、c: 現状維持) のうち **(c) を採用する**。
+新規実装は行わない。既知の隙 (改変された tip 側待ち手が launcher を起動せず受領証を自作できる) は
+[T-696] の協調境界に残したまま据え置く。
+
+**理由:**
+- この環境で当該の隙を悪用する動機を持つ主体が実在しない。研究用途の内部利用に閉じており、
+  第三者の目に触れる想定が無い。
+- (a) は bootstrap 層の新規実装、(b) は land 側検証の設計変更をそれぞれ要する。いずれも実測された
+  被害の無い防御的堅牢化であり、規律 5 (段階導入・盛らない) に照らし今は投資しない。
+- D524 は本設計判断を「起動権を wave tip の外へ出す唯一の形」と位置づけたが、これは (a) の将来的な
+  価値を否定しない — 外部の目に触れる運用へ移行する際に再訪する。
+
+**却下した選択肢:**
+- (a) bootstrap 層の新設 — 実装コストに見合う実害が今は無い。
+- (b) land 側検証の強化 — 同上。加えて D403 の既存検証と重複設計になりうる。
+
+## D570. dev-wave docs 予算満杯時の一括方針は採らず、個別裁定を維持する (ユーザー裁定) (2026-08-20)
+
+**決定:** dev-wave 手順書 (`docs/dev-wave/**`) の byte 予算が満杯で小さな追記が個別に止まる問題に対し、
+一括の運用方針 (削れる分だけ足せる等の恒久ルール化) は**採らない**。従来どおり、案件ごとに
+個別裁定する運用を維持する。[T-1395] / [T-1404] / [T-956] / [T-665] はこの決定によって解消されず、
+それぞれ個別に裁定待ちのまま残る。
+
+**理由:**
+- 手順書を小さく保つ既定方針そのものは維持しつつ、どの追記を通すかは案件ごとの実害・頻度を見て
+  判断したいというユーザーの意向による。恒久ルール化は将来の柔軟性を失わせる。
+
+**却下した選択肢:**
+- 予算上限を上げる — 手順書を意図的に小さく保つ既定方針と正面から矛盾する。
+- 「削れる分だけ足せる、削れなければ足さない」の恒久ルール化 — 今回は採らない (個別裁定を維持)。
+
+## D571. 予約 gate の保証範囲を 8c CLI と `run_trial` の public boundary のみへ確定する (ユーザー裁定) (2026-08-20)
+
+**決定:** [T-1392] が返した択一 3 件 (a: 共通 launch 点へ admission を強制、b: 直接 driver を正式に禁止、
+c: 保証範囲を 8c CLI と `run_trial` の public boundary のみと明記する) のうち **(c) を採用する**。
+production コードの変更は行わない。**`docs/phase3-8c-preregistration.md` 本文への追記は行わない**
+— 同書 §1-4/6/7 は `normative_body_sha256` として hash 凍結された凍結契約
+(`orchestrator/campaign/s8c_preregistration.py` の `SOURCE_PATH`) であり、条件12「残る欠落」節
+(§6 内) への追記は正規本文の hash を変え、既存の凍結 record との照合を壊すことが受入全走で
+判明した。本決定の記録は本 decisions エントリを正本とし、文書側は変更しない。
+
+**理由:**
+- 探索層の CLI は既存機能だが、条件 12 の充足条件が要求する production consumer からは元々対象外と
+  整理されている。「将来の PBS dispatch」は現時点で存在しない経路であり、存在しない経路に対して
+  admission 強制機構を今組むのは規律 5 (段階導入・盛らない、hypothetical な将来要件への設計) に反する。
+- (a)(b) はいずれも新規の強制機構実装を要し、実装コストに見合う実害が今は観測されていない。
+  当該経路が実運用に入る wave が、その時点で必要な admission 束縛の形を判断すればよい。
+
+**却下した選択肢:**
+- (a) 共通 launch 点への admission 強制 — 対象経路 (探索層 CLI・将来の PBS dispatch) が今は
+  実運用の脅威になっていない。
+- (b) 直接 driver の正式禁止 — 同上、加えて「将来の PBS dispatch」という未実装の経路を正式に
+  禁止する文言を先に書く意味が薄い。
+
+## D572. 禁止 identifier 集合の縮小検知は、構造比較でなく意味的 probe + AST allowlist で行う (2026-08-20)
+
+**決定:** `coder_effect_gate.DENY_TABLE` のような禁止 identifier 集合が個別に黙って縮んでも
+既存テストが検知しない穴は、(1) category 別 frozen literal を独立に保持し (2) frozen の全 identifier
+について実際の scanner (`scan_host_effects` 等) を呼び出して期待挙動を assert する意味的 probe で
+閉じる。frozen literal 自身の自己参照防止は、denylist (禁止識別子の列挙) ではなく allowlist
+(単一代入の強制 + RHS ノード形状を `Dict`/`Tuple`/文字列 `Constant`/`frozenset(...)` 直呼びだけに
+限定し、`Name` は `"frozenset"` のみ許可) で AST 静的検査する。production と frozen literal を
+同一 commit で協調して縮める編集 (byte pin の同一性だけを見て意味を見ない攻撃) は、この設計では
+意図的に scope 外の既知残存として扱い、コメントで明記する。
+
+**理由:**
+- 構造比較 (`current ⊇ frozen` を identifier 集合の差分だけで見る) は、identifier 文字列が残ったまま
+  scanner の照合ロジック側が壊れる変異を見逃す。scanner を実際に呼ぶ意味的 probe はこれを内包する。
+- denylist 方式の自己参照防止 ("`DENY_TABLE` という名前を禁止する" 型) は、別名 (`_SOURCE =
+  DENY_TABLE` 等) や複数代入 (安全な代入の後に危険な再代入を続ける) で回避できる。許可される形を
+  数え上げる allowlist はこの種の回避に対して構造的に閉じている。
+- 2026-08-18 wave651 が実証した「pin は bytes 同一性しか証明しない」という一般教訓
+  (禁止 bullet を1行削り pin を整合再承認すれば緑のまま通る) は、production と frozen literal の
+  協調改変にも同型で当てはまる。`tools/mutation_harness.py` は複数ファイル同時変異を実際に
+  サポートしており技術的には閉じられるが、production 側の暗号的 pin 新設は絶対規律5 (段階導入・
+  盛らない) に反し、真の攻撃対象 (role-contract pin) を閉じない限り部分的な効果しかない。
+  この判断は [T-1357] 固有ではなく、同種の「禁止/許可集合の frozen 化」を今後行う wave 全般に
+  適用できる設計判断として記録する。
+
+**却下した選択肢:**
+- **denylist 方式のまま個別の禁止名を増やす。** 新しい迂回経路 (エイリアス等) が見つかるたびに
+  列挙を追加する後追い対応になり、閉じた保証にならない。
+- **frozen literal の hash pin を追加する。** 誰かが frozen literal を編集すれば hash も同時に
+  再計算されうるため、bytes 同一性の保証しか得られず、真に守りたい「意味」を証明しない
+  (wave651 が pin 一般について示した限界と同型)。
+- **production と frozen literal の協調改変も本 wave で閉じる。** 真の攻撃対象である
+  role-contract pin (`.claude/agents/coder-v4-autonomous-sort.md` 側) は別 scope のまま残るため、
+  DENY_TABLE 側だけを暗号的に固めても実効性が低く、絶対規律5 に反する。
+
+## D573. receipt memo の cache は controller nonce 付き path + closed-schema JSON とする (2026-08-20)
+
+**決定:** `orchestrator/tests/real_repo_receipt_memo.py` の xdist session cache は、
+(1) cache path に UID hash・HEAD に加えて controller 限定で生成する session nonce
+(既存 `_RECEIPT_MEMO_SESSION_ID_ATTR`、新設 `pytest_configure_node` フックで
+`workerinput` 経由 worker へ伝播) を混ぜ、(2) 直列化形式を pickle から closed-schema
+JSON (許容キー完全一致、`object_pairs_hook` で重複key拒否、`parse_constant` で
+NaN/Infinity拒否、schema検証を終えてからのみ `ReceiptResolution` を構築) へ置き換える。
+読込・書込の両方に bytes 上限 (8 MiB) を設ける。
+
+nonce は cache **path** にのみ埋め込み、JSON **内容**とのbinding検証はしない。閉じるのは
+「呼出し側が `--testrunuid` を固定して未来の cache path を事前予測する」攻撃と
+「pickle 経由の任意コード実行」の2つに限定する。同一ホストの別ローカルユーザーが
+in-flight の nonce を観測してから同じ path へ偽 payload を置く race は対象外とする
+(現行設計が元々前提にしている shared `/tmp` の信頼境界の延長であり、本決定が新たに
+持ち込む縮小ではない)。リモート分散 xdist (worker が別ホストで `/tmp` を共有しない構成)
+も同様に対象外とする (UID+HEADのみだった旧設計も同じ前提を置いていた)。
+
+**理由:**
+- D518 の barrier 位置 (`pytest_xdist_node_collection_finished`/`pytest_collection_finish`)
+  と UID charset 非拒否は変更しない制約のもとで、`--testrunuid` を呼出し側が固定できる
+  ([T-202] 原文) ことへの対処は、UID そのものではなく **controller だけが知りうる
+  非再利用な値**を鍵に混ぜることでしか解けない。xdist 3.8.0 の `pytest_configure_node`
+  (`xdist/newhooks.py`) と `workerinput` 伝播 (`xdist/workermanage.py`, `xdist/remote.py`)
+  は、worker 起動 (`pytest_sessionstart`) が controller の `pytest_configure` より後に
+  発火するという既存の D518 記述と整合する経路として実在を確認した。
+- pickle の deserialize は型検査の位置に関わらず任意コード実行を持つ。JSON へ切り替えれば
+  「デシリアライズ自体は安全、構造検証してから信頼する」という設計にできる。
+  `object_pairs_hook`/`parse_constant` を欠くと重複key・NaN/Infinity という別の穴が残る
+  ([T-202] 原文の想定を段3敵対相談が具体化した)。
+
+**却下した選択肢:**
+- session 終了時に cache file を削除する — 異常終了時に残留し、worker の読取完了との
+  race を持つ (段3敵対相談レンズB)。nonce 方式は別 invocation を別 namespace に分離する
+  だけで、この race を新たに悪化させない。
+- nonce を JSON 内容にも bind する認証機構を追加する — 段4 で意図的に scope 外とした
+  (前述の「対象外」)。閉じたい脅威 (path 事前予測、任意コード実行) に対して不要な複雑化。
+- `parse_constant` 除去を独立した変異として登録する — `_is_json_tree()` の finite 検査が
+  全ネスト値に対し常に冗長に効くため、単一理由の変異にならないと段6敵対レビューが判定した
+  (コードは defense-in-depth として維持)。
+
+## D574. T-139 の RF study 受理述語の四つの穴を canonical authority で閉じる (2026-08-20)
+
+**決定 (1): D320 の既定を三つの対象に限って上書きする。** D320 が bytes 級 provenance 機構の新設・維持を既定で見送る定めは、次の三対象についてのみ個別裁定として上書きする。
+
+- schema の `preregistration.approval_manifest` が参照する approval manifest 本体。
+- D282 の `record_items` / `receipt_schema` の承認役割を後続で担う、新しい exact-byte approval payload。
+- conformance vector index の期待 digest 三つ組 `(path, commit, sha256)`。
+
+この上書きは D320 全体を supersede するものではなく、上記三対象以外の D320 の定めを変更しない。
+
+**決定 (2): 追補 A の認証契約は参照束縛だけにする。** 追補 A の承認済み三つ組
+
+`path = output/insights/2026-08-08_t139-r4-env-probe/addendum-a-reissue.md`、  
+`commit = 622bd786191d40bda388596fa2adbf119ee84c9a`、  
+`sha256 = f7db96ce8ecb12359fedf56baea24939c629d4d16a1ec167c183425ea198cfec`
+
+に含まれる `a10`（607 行の見出し）および `a11`（755 行の見出し）を、承認 payload から参照束縛する。認証区間手続き・選択規則・終端条件はこの二節の参照先を authority とし、本決定本文で書き写したり書き直したりしない。
+
+**決定 (3): 申告値を受理入力から常に除外する。** `arms.*.compile.trace_enabled`、`arms.*.compile.analysis_enabled`、`arms.*.compile.cmake_cache` は、いかなる場合も受理条件の入力に含めない。validator は申告値と独立に、schema の `argv` に現れる macro 定義、`compile_commands` の当該 TU の実 compile argv、実ファイル上の raw `CMakeCache.txt` を再読して三者を比較する。raw `CMakeCache.txt` の再 parse 結果を三者目とし、三者の不一致は拒否する。
+
+申告値との一致検査は拒否条件としてのみ行う。不一致なら拒否し、一致しても申告値を受理の根拠または受理証拠にはしない。
+
+**決定 (4): conformance vector index の trust edge を approval payload 側に置く。** vector index の期待 digest 三つ組は manifest 自身ではなく、有効な approval payload に置く。resolver は `approval_fold_commit` から有効な payload を解決し、その payload の三つ組と manifest の宣言を照合しなければならない。manifest 単独の自己 pin は受理の根拠にしない。
+
+**決定 (5): Q1 と Q2 は一つの canonical decision に維持する。** 本決定が定めるのは Q1 の受理述語だけであり、Q2 の固定 envelope と namespaced projection の詳細はここでは追加しない。manifest の root は次の二段構成とする。
+
+- `base_approval_fold_commit` は、D282 を canonical 台帳へ fold した commit `39d760985a5e37d20464c394760bf65596156566` を literal で持つ。
+- `approval_fold_commit` は、「T-139 の承認 payload として現在有効な canonical decision を fold した commit」を意味する。初期値は `base_approval_fold_commit` と同じであり、将来の supersession 後は resolver が現在有効な decision の fold commit を解決する。
+
+`approval_fold_commit` を単一の新規 literalへ固定して Q2 の後続 landを要求する構成にはしない。
+
+本決定の効力は canonical 台帳への fold 後に発生する。本決定は受理述語と authority binding を定めるものであり、producer・resolver・writer・validator・vector の機械実装が完成したことは意味しない。
+
+**理由:**
+
+- `preregistration.approval_manifest` は schema の必須 field である一方、D282 と D291 の既存承認 role には approval manifest 本体がない。manifest・exact-byte payload・vector index の三つを承認境界へ置かなければ、受理述語は安定した authority を持てない。
+- §7.1(12) は CMakeCache の再読を要求し、§8 は `arms.*.compile.trace_enabled` / `analysis_enabled` / `cmake_cache` を受理条件の入力に使うことを禁じている。schema にある CMakeCache 由来値は申告値だけなので、両要求を同時に満たすには、実ファイルの raw `CMakeCache.txt` を独立に再 parse するしかない。
+- 申告値を「単独では」使わないと書くと、他の入力との併用を許す実装が残り、engine ごとに受理集合が分岐する。常に受理入力から除外し、一致は拒否条件に限定することで、この分岐を閉じる。
+- 追補 A の `a10` / `a11` は認証区間・選択規則・終端条件を既に承認している。これらを本決定で再掲すると、数値契約や conformance vector の期待値を別の契約へ変える経路になる。
+- manifest 自身に vector index の digest だけを pin させると、manifest と index を同時に差し替えた自己整合する偽の受領が可能になる。payload 側に trust edge を置くことで、manifest の宣言とは別の authority から照合できる。
+- root を `approval_fold_commit` 一段だけにすると、新しい payload の fold 後でなければ manifest 契約を書けず、Q2 の landが Q1 の後続 landに依存する。既知の D282 fold commitを base とし、現在有効な承認 payloadを別名義で解決する二段構成なら、一本構成を保ったまま supersessionを扱える。
+
+**却下した選択肢:**
+
+- D320 全体を supersede する — 三対象を越えて既定を変更するため、裁定の scope を超える。
+- approval manifest または vector index の承認を作らない — schema 必須 fieldと受理述語の authority bindingが閉じない。
+- 追補 A の認証区間・選択規則・終端条件を本決定へ転記する — 承認済み数値契約を書き直し、受理集合と conformance vectorを動かす。
+- 申告値を「単独では」受理入力に使わないとする — 他の入力との併用を許し、実装ごとに受理集合が分岐する。
+- manifest 自身の vector pinだけを trust rootにする — manifestとindexの同時差替えによる自己整合を止められない。
+- Q1 と Q2 を二本へ分ける、または rootを一つの新規 fold commitだけにする — 一本構成を変更するか、後続 landの循環依存を残す。

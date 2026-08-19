@@ -466,7 +466,7 @@ def test_receipt_memo_public_endpoint_is_fail_closed_before_prewarm():
 def test_receipt_memo_session_cache_round_trip_preserves_the_resolution(tmp_path):
     """xdist 用 session cache は値を保存し、壊れた cache は構造化して拒否する。
 
-    worker 間共有は pickle 往復になるため、observation・refusals・raw bytes が
+    worker 間共有は strict JSON 往復になるため、observation・refusals・raw bytes が
     落ちないことを固定する (frozen dataclass の等値比較)。
     """
     resolution = driver_fixtures.migration.ReceiptResolution(
@@ -478,17 +478,17 @@ def test_receipt_memo_session_cache_round_trip_preserves_the_resolution(tmp_path
         receipt={"confirmed_by": "human.test"},
         receipt_raw=b"receipt-bytes",
     )
-    path = tmp_path / "cache.pickle"
+    path = tmp_path / "cache.json"
     receipt_memo._cache_store(path, resolution)
     assert receipt_memo._cache_load(path) == resolution
 
-    path.write_bytes(b"not a pickle")
+    path.write_bytes(b"not json")
     with pytest.raises(receipt_memo.ReceiptMemoError) as caught:
         receipt_memo._cache_load(path)
     payload = _assert_receipt_memo_error(
-        caught.value, reason="cache-unpickle-failed", prewarm=False,
+        caught.value, reason="cache-json-decode-failed", prewarm=False,
     )
-    assert payload["exception_type"] == "UnpicklingError"
+    assert payload["exception_type"] == "JSONDecodeError"
 
 
 #
