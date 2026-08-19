@@ -6288,6 +6288,14 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: 段 3 の敵対レンズが実在しない前提を blocker として拾う (本件は sol / luna の
   2 レンズが独立に検出した。段 3 を省く軽量版では検出されない)。
 
+
+- **再発: 2026-08-19** — `backoff_sweep.py --screening` (D58 初回 ablation) の実際の Pegasus
+  計算ノード実行 (bnode009/021/029、3件並列 qsub) で同型の `g++-13` fails-closed (D23) を直接
+  踏んだ。今回は段2プランの手順漏れではなく、親が brief 前提測 (`DW-S01`) の一環として実測した
+  結果として判明した。D293 (2026-08-11) の「compiler 差は backoff 級の差を容易に上回る」という
+  理由により、system compiler への shim/route-around は採用せず、cygnus 到達手段または
+  D293 と同型の site 依存 compiler 解決 + toolchain 束縛検査の実装を前提条件として記録した
+  (worklog 参照)。
 ### F222. codex 子の観測トークン上限が完了直前の子を SIGTERM し、出力 0 byte にする [コンテキスト浪費] [手順漏れ]
 
 - 事象: 段 3 の敵対レンズ 1 本 (`consult`, `reasoning=max`, read-only) が 17 分走った末に

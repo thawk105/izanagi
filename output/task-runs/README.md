@@ -16,10 +16,10 @@ chain) ではない。** 全 task.json に `"authority": "development-observatio
 - 規模: **10 task run または 14 日** の早い方で新規 start を拒否 (pilot.json の create-only manifest が
   authority)。全面強制はしない — 対象はクラス 2/3 の実装・統合セッション + 長時間 class-1 監査の opt-in
 - 起動導線: worklog 次の一手の pilot 手順ポインタ (CLAUDE.md には配線しない。pilot 実証後にユーザー提案)
-- 自動記録は test_run のみ (`tools/run_tests.py` の opt-in 配線 + `tools/task_run_check.py` の
-  allowlist check wrapper)。stage/agent/wait/finding/commit/rework は親セッションが CLI で記録する
-- git 追跡: `<task-run-id>/task.json`・`events.jsonl`・`reports/`・`pilot.json` を追跡する。**git 履歴に
-  入った記録は事実上削除できない** — だから privacy 制約 (下記) は保存前に schema で機械強制する
+- 自動記録は test_run のみ (`tools/run_tests.py` が実際に child を起動した invocation)。stage/agent/wait/
+  finding/commit/rework は親セッションが CLI で記録する
+- tracked `output/task-runs/` は凍結済み旧 pilot archive。live automatic series は repo の兄弟
+  (`<repo名>-task-runs/`) に保存するため、repo 外保存について改竄検出は主張しない
 - 保持: pilot 世代は最終 report 生成後に凍結 (新規 start 拒否)。次 pilot の root 世代命名はその時に裁定
 
 ## レイアウト
@@ -34,6 +34,18 @@ output/task-runs/
 └── reports/             集計 report (atomic publish、上書き禁止)
 ```
 
+live automatic series の layout は次のとおりである。`generation-NNNNNN` は directory grouping の名前で
+あり、`task-run/v1` の schema 世代ではない。10 runs / 14 days / final marker で世代を閉じ、閉鎖後の次世代
+作成は明示 API に限る。manual CLI は managed generation へ write できず、generation manager が唯一の
+automatic write 入口である。
+
+```
+<repo の兄弟>/<repo名>-task-runs/
+├── .generation.lock
+├── transport/             一時 sidecar
+└── generation-NNNNNN/     task.json/events.jsonl は task-run/v1 のまま
+```
+
 ## CLI (正本 = `tools/task_run.py --help`)
 
 ```
@@ -43,7 +55,8 @@ python3 tools/task_run.py start --slug <slug> --objective <一行要約> --task-
 python3 tools/task_run.py event <id> {stage_start,stage_end,agent_run,test_run,wait,finding_summary,commit,rework} ...
 python3 tools/task_run.py finish <id> --outcome {completed,blocked,abandoned,interrupted}
 python3 tools/task_run.py validate [--all]                   # fail-closed 検査 (root 不在・未知 entry も赤)
-IZANAGI_TASK_RUN_ID=<id> python3 tools/run_tests.py ...      # テスト実行の自動記録 (opt-in)
+IZANAGI_TASK_RUN_AUTO_RECORD=0 python3 tools/run_tests.py ... # automatic recording の明示 opt-out
+python3 tools/run_tests.py ...                               # child 起動直前に automatic recording を試行
 python3 tools/task_run_check.py {docs-check,provenance-check,static-check}   # 固定 argv の check 記録
 python3 tools/task_run_report.py output/task-runs output/task-runs/reports/<period>_task-efficiency.md
                                                              # 集計 report 生成 (--diagnostic は破損時の診断、
@@ -60,7 +73,8 @@ python3 tools/task_run_report.py output/task-runs output/task-runs/reports/<peri
 - **token 4 区分** (input/output/cached/total): 非開示は null + `not-exposed` (0 にしない)。概算は v1
   禁止。非 null ペアに cached≤input・total=input+output 等を強制。集計は (product, model) cohort 内のみ
 - **privacy**: 自由文は objective (単一行 ≤240 字、`://` 禁止) のみ。他の全 string field は enum または
-  safe slug。prompt 本文・session URL・raw command・selector/node 名・料金は記録禁止 (schema が拒否)
+  safe slug。prompt 本文・session URL・raw command・selector/node 名・repo file path・料金は記録禁止
+  (schema が拒否)。automatic task payload には argv、selector、node ID、repo file path を保存しない
 - **fail-open / fail-closed の境界**: 記録の失敗は作業本体を止めない (run_tests は child rc を絶対に
   置換しない)。読む側 (validate / report) は fail-closed — 壊れた台帳は必ず赤くする。report は damaged
   run が 1 件でもあれば既定で生成拒否 (`--diagnostic` で破損一覧つき「不完全」診断 report のみ可)
@@ -68,11 +82,23 @@ python3 tools/task_run_report.py output/task-runs output/task-runs/reports/<peri
 ## 既知の限界 (v1 で明示的に受け入れたもの)
 
 - **append-only は writer 局所の crash-consistency 契約であり、改竄検出ではない** (外部 anchor は git
-  履歴に委ねる。hash chain は持たない)
+  履歴に委ねる。hash chain は持たない。live series は repo 外の兄弟にあるため、改竄検出を主張しない)
 - 台帳へ書けなかった event は台帳内から検出できない — report の欠測率は「観測可能な下限」である。
   記録実施の有無自体が task 間で非ランダムに偏り得る
 - 台帳 root は checkout (worktree) 局所。並行 worktree では別台帳になり、merge 後の union で cap 超過が
   起き得る (report が検出・開示する)
+- **被覆範囲**: automatic observation は `tools/run_tests.py` が実際に child を起動した direct / dispatch /
+  bounded-scope invocation だけである。raw pytest、mutation local mode、別 clone、gate/preflight reject
+  は未被覆であり、diagnostic は未記録走行の完全な分母を復元しない
+- **dispatch の起動証拠**: automatic の dispatch は receipt の `child_started` が厳密な bool `true` で、かつ
+  infrastructure rc でない場合だけ task-run / `test_run` を作る。field 欠落・`false`・型不明・qsub 後の
+  child 不明は `recording-unavailable:dispatch-no-child` の固定診断だけとする。direct は
+  `subprocess.call` の直前、dispatch はこの receipt 確認後に automatic task-run を開始する
+- **trigger**: automatic 経路の `trigger=unspecified` は既知の限界であり、route や親の manual trigger から
+  baseline/final 等を推測しない
+- bounded scope の `CHILD_RC` 以外 (`CAP_OOM`・timeout・dispatch infrastructure 等) は test_run event を
+  作らず、`recording-unavailable:scope-outcome-*` の固定診断だけを出す。pytest child 未起動を観測 event として
+  偽装しない
 - 時間分解 (lead / Σstage / Σwait / unclassified) は排他的分解ではない。負の unclassified は
   inconsistency として flag され、率は null になる
 - tmpfs 上のテスト green は Lustre 等の実 FS の flock/fsync 保証にならない — pilot 開始前に実 root で
@@ -90,8 +116,10 @@ python3 tools/task_run_report.py output/task-runs output/task-runs/reports/<peri
 
 ## report の読み方
 
-report header に主張範囲 (記録された event のみ / 自動観測は pytest + check wrapper / 他は手動記録) を
-明記する。task_kind 層内でのみ比較し、層に completed run が 1 件しかなければ比較 KPI を出さない。
+report header に主張範囲 (記録された event のみ / automatic 観測は tools/run_tests.py の
+test_run event のみ / task_run_check.py 等の check wrapper は manual ID 経路で automatic 対象外 /
+他は手動記録) を明記する。task_kind 層内でのみ比較し、層に completed run が 1 件しかなければ
+比較 KPI を出さない。
 task_end のない run は右打切りの別表 (下限値) にのみ載る。red→green は pytest rc 1 のみを red と数え、
 rc 2-5 等は infra として別掲する。published run 数と pilot cap の関係 (worktree union による超過を含む)
 は通常・診断どちらの report でも必ず表示する。10 run または 14 日到達時に `--final` で最終 report を

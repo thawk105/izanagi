@@ -399,7 +399,7 @@ def test_final_publish_creates_marker_and_freezes_new_start(healthy_root: tuple[
     marker = root / "pilot-final.json"
     marker_before = marker.read_bytes()
     assert json.loads(marker_before)["final_report"] == "final.md"
-    with pytest.raises(LedgerError, match="凍結済み"):
+    with pytest.raises(LedgerError, match="pilot closed: final"):
         start_run(
             root, slug="after-final", objective="must reject", task_class=2,
             task_kind="implementation",
