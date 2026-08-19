@@ -4,14 +4,15 @@ ledger: worklog
 authored: 2026-08-19
 wave: dev-wave-task-inventory-cleanup
 seq: 1
-title: タスク棚卸し — worklog carry 14件クローズ・見送り台帳3件転記・rulings-inbox 18件整理 (docs のみ)
+title: タスク棚卸し — worklog carry 15件クローズ・見送り台帳2件転記・rulings-inbox 18件整理 (docs のみ)
 ---
 
 ## 本文
 
 - ユーザー指示 (「タスクの棚卸し。next-tasks 使用時に『もう対応済み』『裁定で見送り』の候補が頻発して困る。一度全て確認して抹消し、優先度を研究/実験優先へ再定義してほしい」) を受けて、next-tasks が読む 3 系統 (rulings-inbox 未fold 30件、worklog active carry の P1/P2/P3、計 536 件) を並行 fork 4 本で監査した。
 - **rulings-inbox**: 30 件中 18 件が内容ベースで確認すると既に canonical へ反映済み(folded-confirmed) だった。`dev-wave-jobs/rulings-inbox/folded/` へ移動した(repo 外・git 対象外のため本 commit には含まれない)。残り 12 件は部分反映 5・真に未裁定 4・要フォロー 3 のまま維持する。
-- **worklog active carry (536 件)**: P1 45 件・P3 自己申告済み完了語 41 件・P2 同 108 件を個別監査した。P2 は close-now **0 件** — 「裁定済み」ラベルは「決定フェーズ完了」だけを意味し「実装フェーズ完了」ではないため、実装待ちの正当な backlog だった (深掘り検証 13/108、残りは同一 label 文型からの高確度パターン判定)。P3 は 41 件中 close-now 7 件。P1 は 45 件中 close-now 9 件、見送り台帳への転記漏れ 1 件 ([T-184])。本 fragment はこの合計 14 件の完了と 3 件の見送りを反映する ([T-1168] は F352 との突合せを本 wave が追加実施して条件充足を確認)。
+- **worklog active carry (536 件)**: P1 45 件・P3 自己申告済み完了語 41 件・P2 同 108 件を個別監査した。P2 は close-now **0 件** — 「裁定済み」ラベルは「決定フェーズ完了」だけを意味し「実装フェーズ完了」ではないため、実装待ちの正当な backlog だった (深掘り検証 13/108、残りは同一 label 文型からの高確度パターン判定)。P3 は 41 件中 close-now 7 件。P1 は 45 件中 close-now 9 件、見送り相当だが転記漏れ 1 件 ([T-184])。本 fragment はこの合計 15 件の完了と 2 件の見送りを反映する ([T-1168] は F352 との突合せを本 wave が追加実施して条件充足を確認)。
+- **land 時の学び**: [T-184] は当初 `docs/phase3.md` の「Codex dev-wave 資源効率化」節へ見送り転記する形で fragment 化したが、land の fold 検証で ID 重複エラーになった (同節は「## 見送り台帳」の下に `### ` で吊り下がっており、`次の一手` 側の T-184 本文自体が同節内に既存の bullet として既に存在していたため)。`spool_fold.py --dry-run` は この重複を検出しない (dry-run が省く検証があるという実測)。是正として [T-184] は 見送り台帳へ触れず `完了` (次の一手からの除去のみ) へ変更した。
 - **構造的な発見**: P1 45 件のうち CC 自動合成 / Phase 3 実験 (variant 合成・8b/8c campaign 実走) に直結する項目は **0 件**。全件が dev-wave 自体の基盤整備 (受入ゲート・freeze/世代機構・受領証 schema・worker 資源・docs 機械化) だった。次-tasks の「CC 自動合成の実験タスクを最優先する」既定方針は、優先順位の付け方でなく**候補の不在**によって発動していない。T-1391 (H1/H2 workload定義、entry 698) と T-1352 (between-run floor 撤去、entry 696) が本日 land したため、`docs/phase3-8c-preregistration.md` の正式系列着手条件が満たされたかの確認が次の一手として有力。これは本 wave の scope 外 — Phase 3 の技術判断としてユーザーへ返す。
 - **横断所見 (rulings-inbox fork より)**: 「段 8 自己改善候補が docs/dev-wave 予算満杯で見送り」というパターンが最低 4 件のファイルに渡って個別に「ユーザー裁定待ち」のまま止まっている(t657stage0 候補 2・t956budget・t665waiter・旧 t396waiver 分)。予算運用方針そのものを一括裁定すれば束ねて解消しうる。本 wave では未着手 — 裁定はユーザーへ返す。
 - entry (693) が同日に発見した「rulings-inbox の未fold判定は個票 basename しか見ておらず、round 集約ファイル (`rulings-fullN-*.md`) との two-hop 突合せを欠いていた」という教訓をrulings-inbox 監査 fork へ追加指示として展開し、同型の誤判定を再発させずに済ませた。
@@ -53,9 +54,12 @@ title: タスク棚卸し — worklog carry 14件クローズ・見送り台帳3
 - [T-531] [T-478] の A′ 世代移行機構へ統合裁定済み。次回 refreeze はこの統合の完了が前提で単独作業はない。
   remaining: none
   base: 9a1bda69f602f4a5c3a7b74882ff950d137285a6676410651530747844b92739
-- [T-181] 「完了 → [T-184] へ引き渡し可」と自己宣言。引き渡し先の [T-184] は本 fragment の見送りで処理する。
+- [T-181] 「完了 → [T-184] へ引き渡し可」と自己宣言。引き渡し先の [T-184] は本 fragment が別途完了とする。
   remaining: none
   base: 81d0935ed247d9fa9777ac0a98ea1cfaed5ffc0478c596cb021daa2769c8cac5
+- [T-184] 「Codex dev-wave 資源効率化」節に既存の bullet (P1・reasoning 面は採用済み、再発 (cap 誤爆) を発火条件に sweep 設計は保留のまま保持する、との記載) が既にあり、その保留状態の記述自体が本項の現状を正しく表しているため、見送り台帳への新規挿入は行わない(新規挿入すると同節内で ID が重複する)。次の一手からは落とし、能動的な残作業は無いとする。
+  remaining: none
+  base: 377ed41302ca0e9421d44b92b39283932e394ad69736825486d8586cde045898
 - [T-1336] 後継 [T-1352] が main へ既に land 済み (`0127144e` ほか、`de9c63f1` で取り込み確認)。T-1336 自体に残作業はない。
   remaining: none
   base: 4646a7f2c91355b87998566cc81d3bb488779d9bb3be3fc1bf5a884d92367b26
@@ -64,11 +68,6 @@ title: タスク棚卸し — worklog carry 14件クローズ・見送り台帳3
   base: 04fbfc16065f2d9981bfad514d09f535bbbf60c97c97b34cae1c5d11f413f566
 
 ### 見送り
-
-#### Codex dev-wave 資源効率化 (P1、2026-07-29 監査)
-
-- [T-184] 理由: 2026-08-13 第 7 束裁定で上限軸 1a+2a+3a+4d+5a を採用し事前登録 sweep は発令しないと確定。再発 (cap 誤爆) を発火条件に sweep 設計は保留のまま保持する。再訪条件 = 同種の cap 誤爆が再発したとき。
-  base: 377ed41302ca0e9421d44b92b39283932e394ad69736825486d8586cde045898
 
 #### プロセス文書系
 
