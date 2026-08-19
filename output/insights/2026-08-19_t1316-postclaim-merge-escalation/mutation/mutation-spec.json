@@ -1,0 +1,111 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 60,
+  "timeout_seconds": 900,
+  "hang_timeout_seconds": 600,
+  "mutations": [
+    {
+      "id": "t1316.m01-self-report-role-value",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_wave_wait.py::test_postclaim_main_race_self_report_reaches_submission_without_release",
+        "orchestrator/tests/test_dev_wave_wait.py::test_postclaim_merge_provenance_failure_rejects_self_report",
+        "orchestrator/tests/test_dev_wave_wait.py::test_postclaim_merge_without_implementation_conflict_accepts_self_report",
+        "orchestrator/tests/test_dev_wave_wait.py::test_merge_without_message_file_self_report_reaches_submission",
+        "orchestrator/tests/test_dev_wave_wait.py::test_self_reported_merge_message_has_exact_trailer",
+        "orchestrator/tests/test_dev_wave_wait.py::test_real_git_self_report_allows_main_only_implementation_merge"
+      ],
+      "replacements": [
+        {
+          "file": "tools/dev_wave_wait.py",
+          "old": "reasoning=not-exposed; role=integrator",
+          "new": "reasoning=not-exposed; role=author"
+        }
+      ]
+    },
+    {
+      "id": "t1316.m02-self-report-product-value",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_wave_wait.py::test_self_reported_merge_message_has_exact_trailer",
+        "orchestrator/tests/test_dev_wave_wait.py::test_postclaim_merge_without_implementation_conflict_accepts_self_report",
+        "orchestrator/tests/test_dev_wave_wait.py::test_merge_without_message_file_self_report_reaches_submission",
+        "orchestrator/tests/test_dev_wave_wait.py::test_postclaim_merge_provenance_failure_rejects_self_report",
+        "orchestrator/tests/test_dev_wave_wait.py::test_postclaim_main_race_self_report_reaches_submission_without_release",
+        "orchestrator/tests/test_dev_wave_wait.py::test_real_git_self_report_allows_main_only_implementation_merge"
+      ],
+      "replacements": [
+        {
+          "file": "tools/dev_wave_wait.py",
+          "old": "\"AI-Agent: product=claude; model=not-exposed; \"",
+          "new": "\"AI-Agent: product=codex; model=not-exposed; \""
+        }
+      ]
+    },
+    {
+      "id": "t1316.m03-self-report-precedence-inverted",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_wave_wait.py::test_committed_message_without_ai_agent_never_runs_acceptance",
+        "orchestrator/tests/test_dev_wave_wait.py::test_default_wiring_with_real_git_and_lease_helper",
+        "orchestrator/tests/test_dev_wave_wait.py::test_malformed_ai_agent_message_fails_provenance_before_commit",
+        "orchestrator/tests/test_dev_wave_wait.py::test_merge_abort_nonzero_is_cleanup_failure",
+        "orchestrator/tests/test_dev_wave_wait.py::test_merge_failure_aborts_before_release",
+        "orchestrator/tests/test_dev_wave_wait.py::test_merge_message_requires_nonempty_ai_agent_trailer",
+        "orchestrator/tests/test_dev_wave_wait.py::test_merge_sequence_and_postcheck_are_exact",
+        "orchestrator/tests/test_dev_wave_wait.py::test_merge_without_message_file_self_report_reaches_submission",
+        "orchestrator/tests/test_dev_wave_wait.py::test_nonzero_stage_blocks_submission_and_releases[commit-dry-run]",
+        "orchestrator/tests/test_dev_wave_wait.py::test_nonzero_stage_blocks_submission_and_releases[commit-head-postcheck]",
+        "orchestrator/tests/test_dev_wave_wait.py::test_nonzero_stage_blocks_submission_and_releases[commit-message-postcheck]",
+        "orchestrator/tests/test_dev_wave_wait.py::test_nonzero_stage_blocks_submission_and_releases[commit-rev-parse]",
+        "orchestrator/tests/test_dev_wave_wait.py::test_nonzero_stage_blocks_submission_and_releases[commit]",
+        "orchestrator/tests/test_dev_wave_wait.py::test_nonzero_stage_blocks_submission_and_releases[merge-history-provenance]",
+        "orchestrator/tests/test_dev_wave_wait.py::test_nonzero_stage_blocks_submission_and_releases[merge-message-provenance]",
+        "orchestrator/tests/test_dev_wave_wait.py::test_nonzero_stage_blocks_submission_and_releases[merge]",
+        "orchestrator/tests/test_dev_wave_wait.py::test_nonzero_stage_blocks_submission_and_releases[postcheck]",
+        "orchestrator/tests/test_dev_wave_wait.py::test_nonzero_stage_blocks_submission_and_releases[prerun-clean]",
+        "orchestrator/tests/test_dev_wave_wait.py::test_postclaim_main_race_self_report_reaches_submission_without_release",
+        "orchestrator/tests/test_dev_wave_wait.py::test_postclaim_merge_provenance_failure_rejects_self_report",
+        "orchestrator/tests/test_dev_wave_wait.py::test_postclaim_merge_without_implementation_conflict_accepts_self_report",
+        "orchestrator/tests/test_dev_wave_wait.py::test_postmerge_tracked_dirty_blocks_submission_and_releases",
+        "orchestrator/tests/test_dev_wave_wait.py::test_real_git_production_provenance_rejects_malformed_merge_message",
+        "orchestrator/tests/test_dev_wave_wait.py::test_real_git_self_report_allows_main_only_implementation_merge",
+        "orchestrator/tests/test_dev_wave_wait.py::test_real_git_self_report_rejects_combined_implementation_path_merge",
+        "orchestrator/tests/test_dev_wave_wait.py::test_real_waiter_process_accepts_merged_tip_with_same_waiter_bytes",
+        "orchestrator/tests/test_dev_wave_wait.py::test_real_waiter_process_rejects_merged_tip_with_different_waiter_bytes"
+      ],
+      "replacements": [
+        {
+          "file": "tools/dev_wave_wait.py",
+          "old": "            if merge_message_file is None:\n                validated_message = _self_reported_merge_message_copy(effects)\n",
+          "new": "            if merge_message_file is not None:\n                validated_message = _self_reported_merge_message_copy(effects)\n"
+        }
+      ]
+    },
+    {
+      "id": "t1316.m04-preclaim-gate-restored",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_wave_wait.py::test_preclaim_behind_without_message_claims_and_submits_without_release",
+        "orchestrator/tests/test_dev_wave_wait.py::test_preclaim_behind_without_message_reaches_claim",
+        "orchestrator/tests/test_dev_wave_wait.py::test_real_git_self_report_allows_main_only_implementation_merge",
+        "orchestrator/tests/test_dev_wave_wait.py::test_real_git_self_report_rejects_combined_implementation_path_merge"
+      ],
+      "replacements": [
+        {
+          "file": "tools/dev_wave_wait.py",
+          "old": "        preclaim_behind = _behind_count(\n            effects,\n            repo,\n            \"preclaim-behind-count\",\n        )\n        _run_capture(\n",
+          "new": "        preclaim_behind = _behind_count(\n            effects,\n            repo,\n            \"preclaim-behind-count\",\n        )\n        if preclaim_behind > 0 and merge_message_file is None:\n            raise _StageFailure(\n                \"merge-message-preflight\",\n                RC_USAGE,\n                detail=(\n                    f\"main が {preclaim_behind} commit 進んでいるので \"\n                    \"`--merge-message-file` が必要\"\n                ),\n            )\n        _run_capture(\n"
+        }
+      ]
+    }
+  ]
+}

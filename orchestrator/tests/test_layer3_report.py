@@ -1661,6 +1661,7 @@ def test_direct_script_starts_with_clean_pythonpath(tmp_path):
     env = os.environ.copy()
     env.pop("PYTHONPATH", None)
     env["PYTHONNOUSERSITE"] = "1"
+    env["PYTHONDONTWRITEBYTECODE"] = "1"
     completed = subprocess.run(
         [sys.executable, str(Path(layer3_report.__file__).resolve()), "--help"],
         cwd=tmp_path, env=env, text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
