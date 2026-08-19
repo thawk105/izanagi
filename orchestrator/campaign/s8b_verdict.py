@@ -612,8 +612,6 @@ def judge_combined(*, prediction: VerifiedPrediction, oracle: VerifiedOracleVerd
                    expected_holdouts: object, floor_source: Mapping) -> dict:
     """検証済み prediction と oracle verdict から §6 の2条件と結論を判定する。
 
-    出力 schema は ``"8b-combined-verdict/v3"`` である。
-
     ``expected_holdouts`` は凍結 holdout ID 集合であり、条件2の全称量化領域である。
     ``floor_source`` は ratified freeze に束縛された measurement-condition 検証用文書で、
     条件1/条件2の判定値には使わない。

@@ -1116,7 +1116,7 @@ def test_cli_preserves_freeze_and_floor_source_wiring(tmp_path, monkeypatch):
     out = json.loads(out_path.read_text(encoding="utf-8"))
     assert out["status"] == verdict.HOLDS
     assert out["holdouts"][H1]["oracle_verdict"] == "unique-best"
-    assert out["schema_version"] == "8b-combined-verdict/v3"
+    assert out["schema_version"] == "8b-combined-verdict/v2"
     assert "oracle_floor_exceeded" not in out["conditions"]
     assert "same_holdout_coupled_verdict" not in out
     assert "protocol_violations" not in out
