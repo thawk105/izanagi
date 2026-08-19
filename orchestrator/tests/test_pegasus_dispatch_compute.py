@@ -358,6 +358,14 @@ def test_child_rc_passthrough_emits_no_infra_attestation(
     assert _dispatch_attestation_lines(captured) == []
 
 
+def test_success_receipt_explicitly_attests_child_started(tmp_path):
+    result, _ = _dispatch(tmp_path, _Scheduler(child_rc=0))
+
+    assert result == 0
+    assert type(result) is DC._DispatchResult
+    assert result.child_started is True
+
+
 @pytest.mark.parametrize(
     ("raised", "expected_reason"),
     [
@@ -959,9 +967,8 @@ def test_m7_dispatcher_request_allowlist_isolated_redundant_gate(tmp_path):
 
     期待赤:
     ``orchestrator/tests/test_pegasus_dispatch_compute.py::test_m7_dispatcher_request_allowlist_isolated_redundant_gate``。
-    dispatcher の env allowlist だけを無効化すると本 node は赤くなる。ただし親 pop と
-    job script が同じ task_run 状態を除去するため、これは冗長 gate の構造 pin であり、
-    DW-M03 に従って単独変異の受理挙動証拠から外す。
+    dispatcher の env allowlist だけを無効化すると本 node は赤くなる。manual ID/root は
+    親・job-run の両方で除去し、sidecar/auto-off は transport として保持する。
     """
 
     scheduler = _Scheduler()
@@ -981,9 +988,8 @@ def test_m7_job_script_unset_isolated_redundant_gate(tmp_path):
 
     期待赤:
     ``orchestrator/tests/test_pegasus_dispatch_compute.py::test_m7_job_script_unset_isolated_redundant_gate``。
-    生成 job script の ``unset`` だけを無効化すると本 node は赤くなる。ただし親 pop、
-    dispatcher allowlist、``_job_run()`` の child-env pop が残るため冗長 gate であり、
-    DW-M03 に従って単独変異の受理挙動証拠から外す。
+    生成 job script の manual ID/root ``unset`` だけを無効化すると本 node は赤くなる。
+    sidecar/auto-off marker は意図的に job script で保持する。
     """
 
     script = DC._job_script(
@@ -994,9 +1000,93 @@ def test_m7_job_script_unset_isolated_redundant_gate(tmp_path):
         walltime="00:30:00",
     )
     assert (
-        "unset IZANAGI_TASK_RUN_ID IZANAGI_TASK_RUNS_ROOT "
-        "IZANAGI_TASK_RUN_SIDECAR\n"
+        "unset IZANAGI_TASK_RUN_ID IZANAGI_TASK_RUNS_ROOT\n"
     ) in script
+
+
+def test_tests_task_env_allowlist_carries_only_recording_transport(tmp_path):
+    scheduler = _Scheduler()
+    sidecar = str(tmp_path / "pytest-stats.json")
+    root = tmp_path / "dispatch"
+    rc = DC.dispatch(
+        ["orchestrator/tests/test_sample.py", "-q"],
+        task="tests",
+        repo_root=_REPO,
+        output_root=root,
+        environ={
+            "PATH": os.environ.get("PATH", ""),
+            "PYTEST_ADDOPTS": "-q",
+            "IZANAGI_TASK_RUN_ID": "must-not-propagate",
+            "IZANAGI_TASK_RUNS_ROOT": "/private/ledger",
+            "IZANAGI_TASK_RUN_SIDECAR": sidecar,
+            "IZANAGI_TASK_RUN_AUTO_RECORD": "0",
+            "IZANAGI_UNLISTED": "must-not-propagate",
+        },
+        run_command=scheduler,
+        clock=_Clock(),
+        sleep=lambda _seconds: None,
+        poll_interval_s=5,
+        nonce="recording-transport",
+    )
+    assert rc == 0
+    request = json.loads(
+        (root / "recording-transport" / "request.json").read_text(
+            encoding="utf-8",
+        )
+    )
+    assert request["environment"] == {
+        "PYTEST_ADDOPTS": "-q",
+        "IZANAGI_TASK_RUN_SIDECAR": sidecar,
+        "IZANAGI_TASK_RUN_AUTO_RECORD": "0",
+    }
+    assert "IZANAGI_TASK_RUN_ID" not in request["environment"]
+    assert "IZANAGI_TASK_RUNS_ROOT" not in request["environment"]
+
+
+def test_job_script_preserves_sidecar_and_auto_off(tmp_path):
+    script = DC._job_script(
+        repo_root=_REPO,
+        submission_dir=tmp_path,
+        request_path=tmp_path / "request.json",
+        probe_path=tmp_path / "interpreter_probe.py",
+        walltime="00:30:00",
+    )
+    assert "unset IZANAGI_TASK_RUN_ID IZANAGI_TASK_RUNS_ROOT\n" in script
+    assert "IZANAGI_TASK_RUN_SIDECAR" not in script.split(
+        "unset IZANAGI_TASK_RUN_ID IZANAGI_TASK_RUNS_ROOT\n", 1
+    )[1].split("exec", 1)[0]
+    assert "IZANAGI_TASK_RUN_AUTO_RECORD" not in script.split(
+        "unset IZANAGI_TASK_RUN_ID IZANAGI_TASK_RUNS_ROOT\n", 1
+    )[1].split("exec", 1)[0]
+
+
+def test_job_run_passes_sidecar_and_auto_off_to_tests_child(tmp_path):
+    request = tmp_path / "request.json"
+    request.write_text(
+        json.dumps({
+            "schema_version": "pegasus-dispatch-request/v2",
+            "repo_root": str(_REPO),
+            "task": "tests",
+            "args": ["orchestrator/tests/test_sample.py", "-q"],
+            "environment": {
+                "IZANAGI_TASK_RUN_ID": "must-not-reach-child",
+                "IZANAGI_TASK_RUNS_ROOT": "/private/ledger",
+                "IZANAGI_TASK_RUN_SIDECAR": str(tmp_path / "pytest-stats.json"),
+                "IZANAGI_TASK_RUN_AUTO_RECORD": "0",
+            },
+        }) + "\n",
+        encoding="utf-8",
+    )
+    rc, calls = _job_run_with_mocked_child(request)
+    assert rc == 0
+    assert len(calls) == 1
+    child_env = calls[0][1]["env"]
+    assert child_env["IZANAGI_TASK_RUN_SIDECAR"] == str(
+        tmp_path / "pytest-stats.json"
+    )
+    assert child_env["IZANAGI_TASK_RUN_AUTO_RECORD"] == "0"
+    assert "IZANAGI_TASK_RUN_ID" not in child_env
+    assert "IZANAGI_TASK_RUNS_ROOT" not in child_env
 
 
 def test_fa1_rc0_request_disappearance_is_terminal_within_one_poll(tmp_path):
@@ -3045,6 +3135,8 @@ def test_tests_task_env_allowlist_is_exact():
         "PYTEST_ADDOPTS",
         "IZANAGI_TEST_NPROC",
         "IZANAGI_TEST_TRIGGER",
+        "IZANAGI_TASK_RUN_SIDECAR",
+        "IZANAGI_TASK_RUN_AUTO_RECORD",
         "PYTHONDONTWRITEBYTECODE",
         "IZANAGI_T080_E2E",
         "IZANAGI_RUN_GROWTH_HELD_TESTS",
@@ -3192,6 +3284,68 @@ def test_provenance_task_binds_child_script_and_empty_env_allowlist(tmp_path):
     assert receipt["schema_version"] == "pegasus-dispatch-receipt/v2"
     assert receipt["request"]["task"] == "provenance"
     assert receipt["request"]["args"] == ["--range", "72849d3..HEAD"]
+
+
+def test_provenance_task_removes_recording_markers_at_every_hop(
+    monkeypatch, tmp_path,
+):
+    sidecar = str(tmp_path / "stale-sidecar")
+    monkeypatch.setenv("IZANAGI_TASK_RUN_SIDECAR", sidecar)
+    monkeypatch.setenv("IZANAGI_TASK_RUN_AUTO_RECORD", "0")
+    scheduler = _Scheduler()
+    root = tmp_path / "dispatch"
+    rc = DC.dispatch(
+        ["--range", "A..B"],
+        task="provenance",
+        repo_root=_REPO,
+        output_root=root,
+        environ={
+            "PATH": os.environ.get("PATH", ""),
+            "IZANAGI_TASK_RUN_SIDECAR": sidecar,
+            "IZANAGI_TASK_RUN_AUTO_RECORD": "0",
+        },
+        run_command=scheduler,
+        clock=_Clock(),
+        sleep=lambda _seconds: None,
+        poll_interval_s=5,
+        queue_wait_timeout_s=20,
+        accounting_grace_s=0,
+        nonce="provenance-markers",
+    )
+    assert rc == 0
+    submission = root / "provenance-markers"
+    request = json.loads(
+        (submission / "request.json").read_text(encoding="utf-8"),
+    )
+    assert "IZANAGI_TASK_RUN_SIDECAR" not in request["environment"]
+    assert "IZANAGI_TASK_RUN_AUTO_RECORD" not in request["environment"]
+
+    script = DC._job_script(
+        repo_root=_REPO,
+        submission_dir=submission,
+        request_path=submission / "request.json",
+        probe_path=submission / "interpreter_probe.py",
+        walltime="00:30:00",
+        task="provenance",
+    )
+    assert "unset IZANAGI_TASK_RUN_SIDECAR IZANAGI_TASK_RUN_AUTO_RECORD" in script
+
+    request_path = tmp_path / "provenance-child-request.json"
+    request_path.write_text(
+        json.dumps({
+            "schema_version": "pegasus-dispatch-request/v2",
+            "repo_root": str(_REPO),
+            "task": "provenance",
+            "args": ["--range", "A..B"],
+            "environment": {},
+        }) + chr(10),
+        encoding="utf-8",
+    )
+    child_rc, calls = _job_run_with_mocked_child(request_path)
+    assert child_rc == 0
+    child_env = calls[0][1]["env"]
+    assert "IZANAGI_TASK_RUN_SIDECAR" not in child_env
+    assert "IZANAGI_TASK_RUN_AUTO_RECORD" not in child_env
 
 
 def test_provenance_probe_omits_pytest_and_xdist_imports():
@@ -3361,6 +3515,29 @@ def test_run_tests_default_dispatch_passes_tests_task(monkeypatch):
     assert seen["kwargs"]["task"] in DC.TASKS
     assert Path(seen["kwargs"]["repo_root"]).resolve() == _REPO.resolve()
     assert seen["kwargs"]["environ"] == {"PATH": "/usr/bin"}
+    assert "walltime" not in seen["kwargs"]
+
+
+def test_run_tests_default_dispatch_passes_walltime_override(monkeypatch):
+    from tools import run_tests
+
+    seen: dict = {}
+
+    def fake_dispatch(args, **kwargs):
+        seen["args"] = list(args)
+        seen["kwargs"] = kwargs
+        return 5
+
+    monkeypatch.setattr(DC, "dispatch", fake_dispatch)
+    rc = run_tests._default_dispatch(
+        ["-q"],
+        environ={
+            "PATH": "/usr/bin",
+            "IZANAGI_DISPATCH_WALLTIME_OVERRIDE": "00:02:00",
+        },
+    )
+    assert rc == 5
+    assert seen["kwargs"]["walltime"] == "00:02:00"
 
 
 def test_dev_wave_check_maps_dispatch_infra_rc_off_provenance_reason(tmp_path):

@@ -1,0 +1,60 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 120,
+  "timeout_seconds": 900,
+  "hang_timeout_seconds": 900,
+  "mutations": [
+    {
+      "id": "M1",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/calibration_freeze_authority_contract.py",
+          "old": "    design_cancellation_schema = _extract_design_cancellation_schema(design_doc)\n    if design_cancellation_schema != _UPPER_CANCELLATION_SCHEMA:\n        raise ContractError(\n            \"design §7.5 cancellation record schema does not exactly match validator schema\"\n        )",
+          "new": "    design_cancellation_schema = _extract_design_cancellation_schema(design_doc)\n    if False:\n        raise ContractError(\n            \"design §7.5 cancellation record schema does not exactly match validator schema\"\n        )"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_calibration_freeze_authority_contract.py::test_design_cancellation_fenced_decoy_is_not_authoritative",
+        "orchestrator/tests/test_calibration_freeze_authority_contract.py::test_design_cancellation_constraint_relaxation_is_rejected",
+        "orchestrator/tests/test_calibration_freeze_authority_contract.py::test_design_cancellation_key_substitution_is_rejected"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M2",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/calibration_freeze_authority_contract.py",
+          "old": "    if unicodedata.normalize(\"NFKC\", section).count(_UPPER_CANCELLATION_RECORD_NAME) != 1:\n        raise ContractError(\n            \"design §7.5 cancellation record declaration is missing or duplicated\"\n        )",
+          "new": "    if False:\n        raise ContractError(\n            \"design §7.5 cancellation record declaration is missing or duplicated\"\n        )"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_calibration_freeze_authority_contract.py::test_design_cancellation_plaintext_decoy_declaration_is_rejected",
+        "orchestrator/tests/test_calibration_freeze_authority_contract.py::test_design_cancellation_fullwidth_homoglyph_decoy_is_rejected"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M3",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/calibration_freeze_authority_contract.py",
+          "old": "    if unicodedata.normalize(\"NFKC\", section).count(_UPPER_REVOCATION_RECORD_NAME) != 1:\n        raise ContractError(\n            \"design §7.5 revocation record declaration is missing or duplicated\"\n        )",
+          "new": "    if False:\n        raise ContractError(\n            \"design §7.5 revocation record declaration is missing or duplicated\"\n        )"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_calibration_freeze_authority_contract.py::test_design_revocation_plaintext_decoy_declaration_is_rejected",
+        "orchestrator/tests/test_calibration_freeze_authority_contract.py::test_design_revocation_fullwidth_homoglyph_decoy_is_rejected"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}

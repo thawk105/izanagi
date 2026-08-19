@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import errno
 import fcntl
+import hashlib
 import json
 import os
 import secrets
@@ -42,6 +43,7 @@ from .schema import (
 
 _LOCK_TIMEOUT_S = 2.0
 FINAL_MARKER_NAME = "pilot-final.json"
+GENERATION_SELF_CHECK_NAME = ".generation-selfcheck"
 _GIT_ENV_KEYS = frozenset({
     "GIT_DIR", "GIT_WORK_TREE", "GIT_INDEX_FILE", "GIT_OBJECT_DIRECTORY",
     "GIT_ALTERNATE_OBJECT_DIRECTORIES", "GIT_CEILING_DIRECTORIES",
@@ -49,6 +51,18 @@ _GIT_ENV_KEYS = frozenset({
 _BANNED_OUTPUT_NAMESPACES = {
     "campaigns", "env", "exploration", "s1-freeze", "s8b-freeze", "s6-rounds", "runs",
 }
+
+
+class PilotClosedError(LedgerError):
+    """pilot の正常な閉鎖理由だけを表す型付き例外。"""
+
+    _REASONS = frozenset({"final", "max_task_runs", "max_days"})
+
+    def __init__(self, reason: str) -> None:
+        if reason not in self._REASONS:
+            raise ValueError(f"unknown pilot closure reason: {reason!r}")
+        self.reason = reason
+        super().__init__(f"pilot closed: {reason}")
 
 
 @dataclass(frozen=True)
@@ -74,7 +88,10 @@ class RootReport:
 
     @property
     def published_run_count(self) -> int:
-        return len(self.published) + len(self.damaged)
+        # Every task directory that reached either a publish marker, an
+        # incomplete state, or a damaged state consumed pilot capacity.  A
+        # damaged/incomplete directory must not be a way around the cap.
+        return len(self.published) + len(self.incomplete) + len(self.damaged)
 
     @property
     def max_task_runs(self) -> int:
@@ -185,7 +202,12 @@ def _open_directory(path: Path) -> int:
 
 
 def _safe_component(name: str, *, label: str) -> str:
-    if not isinstance(name, str) or name in {"", ".", ".."} or "/" in name:
+    if (
+        not isinstance(name, str)
+        or name in {"", ".", ".."}
+        or "\x00" in name
+        or "/" in name
+    ):
         raise LedgerError(f"{label}: unsafe path component")
     return name
 
@@ -201,6 +223,101 @@ def _open_directory_at(parent_fd: int, name: str, *, label: str) -> int:
         os.close(fd)
         raise LedgerError(f"{label}: directory fd でない")
     return fd
+
+
+@dataclass
+class _DirectoryBinding:
+    """Open directory plus the identity of every component used to reach it."""
+
+    path: Path
+    fd: int
+    identities: tuple[tuple[int, int], ...]
+
+
+def _directory_identity(fd: int, *, label: str) -> tuple[int, int]:
+    try:
+        info = os.fstat(fd)
+    except OSError as exc:
+        raise LedgerError(f"{label} の identity を検査できない") from exc
+    if not stat.S_ISDIR(info.st_mode):
+        raise LedgerError(f"{label}: directory でない")
+    return info.st_dev, info.st_ino
+
+
+def _absolute_directory_path(path: Path) -> Path:
+    path = Path(path)
+    if not path.is_absolute():
+        path = Path.cwd() / path
+    return Path(os.path.normpath(os.fspath(path)))
+
+
+def _open_directory_binding(path: Path, *, label: str) -> _DirectoryBinding:
+    """Open a directory by component and retain its namespace identities."""
+
+    path = _absolute_directory_path(path)
+    if path == Path(path.anchor):
+        raise LedgerError(f"{label}: filesystem root は対象にできない")
+    flags = os.O_RDONLY | _nofollow() | getattr(os, "O_DIRECTORY", 0)
+    try:
+        current_fd = os.open(path.anchor or os.sep, flags)
+    except OSError as exc:
+        raise LedgerError(f"{label}: filesystem root を安全に開けない") from exc
+    try:
+        root_identity = _directory_identity(current_fd, label=f"{label} root")
+    except BaseException:
+        os.close(current_fd)
+        raise
+    identities = [root_identity]
+    try:
+        for component in path.parts[1:]:
+            component = _safe_component(component, label=label)
+            try:
+                next_fd = os.open(component, flags, dir_fd=current_fd)
+            except OSError as exc:
+                raise LedgerError(f"{label}: directory component を安全に開けない") from exc
+            try:
+                next_identity = _directory_identity(next_fd, label=label)
+            except BaseException:
+                os.close(next_fd)
+                raise
+            identities.append(next_identity)
+            os.close(current_fd)
+            current_fd = next_fd
+        return _DirectoryBinding(path=path, fd=current_fd, identities=tuple(identities))
+    except BaseException:
+        os.close(current_fd)
+        raise
+
+
+def _verify_directory_binding(binding: _DirectoryBinding, *, label: str = "directory") -> None:
+    """Reject a path whose ancestor or final directory was replaced."""
+
+    if _directory_identity(binding.fd, label=label) != binding.identities[-1]:
+        raise LedgerError(f"{label} filesystem identity が変化した")
+    reopened = _open_directory_binding(binding.path, label=label)
+    try:
+        if reopened.identities != binding.identities:
+            raise LedgerError(f"{label} ancestor filesystem identity が変化した")
+        if _directory_identity(reopened.fd, label=label) != _directory_identity(binding.fd, label=label):
+            raise LedgerError(f"{label} filesystem identity が変化した")
+    finally:
+        os.close(reopened.fd)
+
+
+def _close_directory_binding(binding: _DirectoryBinding | None) -> None:
+    if binding is not None:
+        os.close(binding.fd)
+
+
+def _assert_path_matches_fd(path: Path, expected_fd: int, *, label: str) -> None:
+    """Check every path component and compare the final component to an open fd."""
+
+    binding = _open_directory_binding(path, label=label)
+    try:
+        if _directory_identity(binding.fd, label=label) != _directory_identity(expected_fd, label=label):
+            raise LedgerError(f"{label} filesystem identity が変化した")
+    finally:
+        os.close(binding.fd)
 
 
 def _open_regular(path: Path, flags: int, *, label: str, mode: int = 0o600) -> int:
@@ -293,6 +410,31 @@ def _create_file_at(parent_fd: int, name: str, payload: bytes, *, label: str) ->
         os.close(fd)
 
 
+def _acquire_root_flock(
+    fd: int,
+    *,
+    bounded_wait: bool,
+    timeout_s: float | None = None,
+) -> None:
+    """root flock を手動経路は従来どおり、automatic 経路は有界で取得する。"""
+
+    if not bounded_wait:
+        fcntl.flock(fd, fcntl.LOCK_EX)
+        return
+    effective_timeout = _LOCK_TIMEOUT_S if timeout_s is None else timeout_s
+    deadline = _monotonic() + effective_timeout
+    while True:
+        try:
+            fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            return
+        except OSError as exc:
+            if exc.errno not in (errno.EAGAIN, errno.EACCES):
+                raise LedgerError(f"root lock 取得失敗: {exc}") from exc
+            if _monotonic() >= deadline:
+                raise LedgerError("root lock timeout") from exc
+            time.sleep(0.01)
+
+
 def _filesystem_repo_root(cwd: Path) -> Path:
     current = cwd.resolve(strict=True)
     if not current.is_dir():
@@ -323,7 +465,13 @@ def _git_run(cwd: Path, *args: str) -> subprocess.CompletedProcess[str]:
         raise LedgerError(f"git 実測を完遂できない: {exc}") from exc
 
 
-def _git_output(cwd: Path, *args: str) -> str:
+def _git_output(
+    cwd: Path,
+    *args: str,
+    _binding: _DirectoryBinding | None = None,
+) -> str:
+    if _binding is not None:
+        _verify_directory_binding(_binding, label="repo root")
     expected = _filesystem_repo_root(cwd)
     toplevel = _git_run(cwd, "rev-parse", "--show-toplevel")
     if toplevel.returncode != 0:
@@ -337,11 +485,13 @@ def _git_output(cwd: Path, *args: str) -> str:
     result = _git_run(cwd, *args)
     if result.returncode != 0:
         raise LedgerError("git 実測が失敗した (stderr は privacy のため非表示)")
+    if _binding is not None:
+        _verify_directory_binding(_binding, label="repo root")
     return result.stdout.strip()
 
 
-def _git_head(cwd: Path) -> str:
-    value = _git_output(cwd, "rev-parse", "--verify", "HEAD")
+def _git_head(cwd: Path, *, _binding: _DirectoryBinding | None = None) -> str:
+    value = _git_output(cwd, "rev-parse", "--verify", "HEAD", _binding=_binding)
     if len(value) != 40 or any(ch not in "0123456789abcdef" for ch in value):
         raise LedgerError("git rev-parse HEAD が lowercase 40 hex を返さなかった")
     return value
@@ -356,13 +506,121 @@ def _pilot_from_root_fd(root_fd: int) -> Mapping[str, Any]:
     return validate_pilot(strict_json_loads(raw, label="pilot.json", max_bytes=MAX_TASK_BYTES))
 
 
-def init_pilot(root: Path) -> None:
-    """pilot.json を root 排他下で create-only に publish する。"""
+def _validate_final_marker_fd(root_fd: int) -> None:
+    """存在する final marker も closure 判定前に内容まで検査する。"""
 
-    root = _ensure_root(root, create=True)
-    root_fd = _open_directory(root)
     try:
-        fcntl.flock(root_fd, fcntl.LOCK_EX)
+        info = os.stat(FINAL_MARKER_NAME, dir_fd=root_fd, follow_symlinks=False)
+    except FileNotFoundError:
+        return
+    except OSError as exc:
+        raise DamagedRunError("final marker を検査できない") from exc
+    if not stat.S_ISREG(info.st_mode):
+        raise DamagedRunError("final marker は regular file でなければならない")
+    marker_fd = _open_regular_at(root_fd, FINAL_MARKER_NAME, os.O_RDONLY, label=FINAL_MARKER_NAME)
+    try:
+        raw = _read_fd(marker_fd, limit=MAX_TASK_BYTES, label=FINAL_MARKER_NAME)
+    finally:
+        os.close(marker_fd)
+    marker = strict_json_loads(raw, label=FINAL_MARKER_NAME, max_bytes=MAX_TASK_BYTES)
+    if not isinstance(marker, Mapping):
+        raise DamagedRunError("final marker は object でなければならない")
+    if set(marker) != {"schema_version", "final_report", "report_sha256"}:
+        raise DamagedRunError("final marker の field 集合が不正")
+    if marker["schema_version"] != SCHEMA_VERSION:
+        raise DamagedRunError("final marker の schema_version が不正")
+    final_report = marker["final_report"]
+    if (
+        not isinstance(final_report, str)
+        or not final_report
+        or final_report in {".", ".."}
+        or "\x00" in final_report
+        or "/" in final_report
+        or "\\" in final_report
+    ):
+        raise DamagedRunError("final marker の report 名が不正")
+    digest = marker["report_sha256"]
+    if (
+        not isinstance(digest, str)
+        or len(digest) != 64
+        or any(char not in "0123456789abcdef" for char in digest)
+    ):
+        raise DamagedRunError("final marker の report digest が不正")
+
+    try:
+        reports_fd = _open_directory_at(root_fd, "reports", label="reports")
+    except LedgerError as exc:
+        raise DamagedRunError("final marker の reports directory が存在しない") from exc
+    try:
+        try:
+            report_fd = _open_regular_at(
+                reports_fd,
+                final_report,
+                os.O_RDONLY,
+                label=f"reports/{final_report}",
+            )
+        except LedgerError as exc:
+            raise DamagedRunError("final marker が参照する report を開けない") from exc
+        try:
+            report_digest = hashlib.sha256()
+            offset = 0
+            while True:
+                chunk = os.pread(report_fd, 64 * 1024, offset)
+                if not chunk:
+                    break
+                report_digest.update(chunk)
+                offset += len(chunk)
+        finally:
+            os.close(report_fd)
+    finally:
+        os.close(reports_fd)
+    if report_digest.hexdigest() != digest:
+        raise DamagedRunError("final marker の report digest が一致しない")
+
+
+def _generation_selfcheck_status_fd(root_fd: int) -> str | None:
+    try:
+        info = os.stat(GENERATION_SELF_CHECK_NAME, dir_fd=root_fd, follow_symlinks=False)
+    except FileNotFoundError:
+        return None
+    except OSError as exc:
+        raise DamagedRunError("generation selfcheck marker を検査できない") from exc
+    if not stat.S_ISREG(info.st_mode):
+        raise DamagedRunError("generation selfcheck marker は regular file が必要")
+    raw = _read_file_at(
+        root_fd,
+        GENERATION_SELF_CHECK_NAME,
+        limit=64,
+        label=GENERATION_SELF_CHECK_NAME,
+    )
+    if raw == b"ok\n":
+        return "ok"
+    if raw == b"failed\n":
+        return "failed"
+    raise DamagedRunError("generation selfcheck marker の値が不正")
+
+
+def _write_generation_selfcheck_status_fd(root_fd: int, status: str) -> None:
+    if status not in {"ok", "failed"}:
+        raise LedgerError("generation selfcheck marker status が不正")
+    _create_file_at(
+        root_fd,
+        GENERATION_SELF_CHECK_NAME,
+        f"{status}\n".encode("ascii"),
+        label=GENERATION_SELF_CHECK_NAME,
+    )
+    os.fsync(root_fd)
+
+
+def _init_pilot_fd(root_fd: int, *, bounded_wait: bool, lock_timeout_s: float | None = None) -> None:
+    """既に安全に open 済みの root fd へ pilot を publish する。"""
+
+    if not stat.S_ISDIR(os.fstat(root_fd).st_mode):
+        raise LedgerError("pilot root fd は directory でなければならない")
+    locked = False
+    try:
+        _acquire_root_flock(root_fd, bounded_wait=bounded_wait, timeout_s=lock_timeout_s)
+        locked = True
         pilot = {
             "schema_version": SCHEMA_VERSION,
             "pilot_started_at": _format_timestamp(_utc_now()),
@@ -373,10 +631,28 @@ def init_pilot(root: Path) -> None:
         _create_file_at(root_fd, "pilot.json", _canonical(pilot), label="pilot.json")
         os.fsync(root_fd)
     finally:
-        try:
+        if locked:
             fcntl.flock(root_fd, fcntl.LOCK_UN)
-        finally:
-            os.close(root_fd)
+
+
+def init_pilot(
+    root: Path,
+    *,
+    bounded_wait: bool = False,
+    lock_timeout_s: float | None = None,
+    _root_fd: int | None = None,
+) -> None:
+    """pilot.json を root 排他下で create-only に publish する。"""
+
+    if _root_fd is not None:
+        _init_pilot_fd(_root_fd, bounded_wait=bounded_wait, lock_timeout_s=lock_timeout_s)
+        return
+    root = _ensure_root(root, create=True)
+    root_fd = _open_directory(root)
+    try:
+        _init_pilot_fd(root_fd, bounded_wait=bounded_wait, lock_timeout_s=lock_timeout_s)
+    finally:
+        os.close(root_fd)
 
 
 def _valid_task_marker_fd(run_fd: int, run_name: str) -> bool:
@@ -403,7 +679,12 @@ def _root_candidates(
         raise LedgerError(f"root entry を列挙できない: {exc}") from exc
     for name in names:
         entry = root / name
-        if name in {"pilot.json", FINAL_MARKER_NAME, "README.md"}:
+        if name in {
+            "pilot.json",
+            FINAL_MARKER_NAME,
+            GENERATION_SELF_CHECK_NAME,
+            "README.md",
+        }:
             # README.md は文書化された layout の一部 (output/task-runs/README.md が詳細正本)。
             continue
         if name == "reports":
@@ -445,13 +726,24 @@ def _locked_root_snapshot(
 ) -> Iterator[tuple[RootReport, tuple[ValidatedRun, ...]]]:
     """Lock every candidate events fd in name order and validate those exact bytes."""
 
-    root = _ensure_root(root, create=False)
     own_root_fd = root_fd is None
-    active_root_fd = _open_directory(root) if root_fd is None else root_fd
+    if own_root_fd:
+        root = _ensure_root(root, create=False)
+        active_root_fd = _open_directory(root)
+    else:
+        root = Path(root)
+        try:
+            if not stat.S_ISDIR(os.fstat(root_fd).st_mode):
+                raise LedgerError("root fd は directory でなければならない")
+        except OSError as exc:
+            raise LedgerError("root fd を検査できない") from exc
+        active_root_fd = root_fd
     run_fds: list[int] = []
     event_fds: list[int] = []
     try:
         pilot = _pilot_from_root_fd(active_root_fd)
+        _validate_final_marker_fd(active_root_fd)
+        _generation_selfcheck_status_fd(active_root_fd)
         candidates, incomplete, unknown = _root_candidates(root, active_root_fd)
         run_fds = [run_fd for _, run_fd in candidates]
         opened: list[tuple[Path, int, int]] = []
@@ -531,74 +823,114 @@ def start_run(
     objective: str,
     task_class: int,
     task_kind: str,
+    repo_root: Path | None = None,
+    bounded_wait: bool = False,
+    lock_timeout_s: float | None = None,
+    _root_fd: int | None = None,
 ) -> str:
     """git HEAD を実測し、events→task publish marker の順で run を生成する。"""
 
     operation_now = _utc_now()
     root = _ensure_root(root, create=False)
-    root_fd = _open_directory(root)
+    repo_binding: _DirectoryBinding | None = None
+    own_root_fd = _root_fd is None
+    root_fd: int
     try:
-        fcntl.flock(root_fd, fcntl.LOCK_EX)
-        pilot = _pilot_from_root_fd(root_fd)
-        try:
-            os.stat(FINAL_MARKER_NAME, dir_fd=root_fd, follow_symlinks=False)
-        except FileNotFoundError:
-            pass
+        if repo_root is not None:
+            repo_binding = _open_directory_binding(repo_root, label="repo root")
+            _verify_directory_binding(repo_binding, label="repo root")
+            try:
+                expected_base = Path(
+                    __import__("tools.task_runs.generation", fromlist=["series_base_for_repo"])
+                    .series_base_for_repo(repo_root)
+                ).resolve(strict=False)
+                actual_parent = root.parent.resolve(strict=False)
+            except (OSError, TypeError, ValueError) as exc:
+                raise LedgerError("repo_root と generation root の binding を検査できない") from exc
+            if actual_parent != expected_base:
+                raise LedgerError("repo_root と generation root の binding が一致しない")
+        if own_root_fd:
+            root_fd = _open_directory(root)
         else:
-            raise LedgerError("pilot は final report により凍結済み")
-        with _locked_root_snapshot(root, root_fd=root_fd) as (report, _runs):
-            pass
-        if report.damaged or report.unknown:
-            raise LedgerError("root に damaged/unknown entry があるため start を拒否")
-        if len(report.published) >= int(pilot["max_task_runs"]):
-            raise LedgerError("pilot の max_task_runs に到達")
-        pilot_started = parse_timestamp(pilot["pilot_started_at"], label="pilot_started_at")
-        if operation_now >= pilot_started + timedelta(days=int(pilot["max_days"])):
-            raise LedgerError("pilot の max_days に到達")
-        if not isinstance(slug, str) or re_full_slug(slug) is False:
-            raise DamagedRunError("slug は 1..48 文字の lowercase 英数字/ハイフン")
-        run_id = f"{operation_now.astimezone(timezone.utc):%Y%m%d}-{slug}-{secrets.token_hex(4)}"
-        if RUN_ID_RE.fullmatch(run_id) is None:
-            raise DamagedRunError("生成した task_run_id が schema に適合しない")
-        base_commit = _git_head(root)
-        task: dict[str, object] = {
-            "schema_version": SCHEMA_VERSION,
-            "task_run_id": run_id,
-            "objective": objective,
-            "task_class": task_class,
-            "task_kind": task_kind,
-            "started_at": _format_timestamp(operation_now),
-            "base_commit": base_commit,
-            "base_commit_source": "git-observed",
-            "authority": "development-observation-not-evidence",
-            "measurement_policy": dict(MEASUREMENT_POLICY),
-        }
-        validate_task(task, directory_name=run_id)
+            root_fd = _root_fd
+            try:
+                if not stat.S_ISDIR(os.fstat(root_fd).st_mode):
+                    raise LedgerError("root fd は directory でなければならない")
+            except OSError as exc:
+                raise LedgerError("root fd を検査できない") from exc
+        _assert_path_matches_fd(root, root_fd, label="generation root")
+        locked = False
         try:
-            os.mkdir(run_id, 0o700, dir_fd=root_fd)
-        except FileExistsError as exc:
-            raise LedgerError(f"task-run は既に存在する: {run_id}") from exc
-        except OSError as exc:
-            raise LedgerError(f"task-run directory を作成できない: {exc}") from exc
-        # task.json が唯一の publish marker。中断時の部分物は自動削除しない。
-        run_fd = _open_directory_at(root_fd, run_id, label=f"{run_id}/")
-        try:
-            # mkdir と events の directory entry を task publish より先に durable にする。
-            # 途中停止なら task.json の無い incomplete-start として残る。
+            _acquire_root_flock(root_fd, bounded_wait=bounded_wait, timeout_s=lock_timeout_s)
+            locked = True
+            pilot = _pilot_from_root_fd(root_fd)
+            with _locked_root_snapshot(root, root_fd=root_fd) as (report, _runs):
+                pass
+            try:
+                os.stat(FINAL_MARKER_NAME, dir_fd=root_fd, follow_symlinks=False)
+            except FileNotFoundError:
+                pass
+            else:
+                raise PilotClosedError("final")
+            if report.published_run_count >= int(pilot["max_task_runs"]):
+                raise PilotClosedError("max_task_runs")
+            pilot_started = parse_timestamp(pilot["pilot_started_at"], label="pilot_started_at")
+            if operation_now >= pilot_started + timedelta(days=int(pilot["max_days"])):
+                raise PilotClosedError("max_days")
+            if not isinstance(slug, str) or re_full_slug(slug) is False:
+                raise DamagedRunError("slug は 1..48 文字の lowercase 英数字/ハイフン")
+            run_id = f"{operation_now.astimezone(timezone.utc):%Y%m%d}-{slug}-{secrets.token_hex(4)}"
+            if RUN_ID_RE.fullmatch(run_id) is None:
+                raise DamagedRunError("生成した task_run_id が schema に適合しない")
+            base_commit = _git_head(
+                repo_root if repo_root is not None else root,
+                _binding=repo_binding,
+            )
+            if repo_binding is not None:
+                _verify_directory_binding(repo_binding, label="repo root")
+            _assert_path_matches_fd(root, root_fd, label="generation root")
+            task: dict[str, object] = {
+                "schema_version": SCHEMA_VERSION,
+                "task_run_id": run_id,
+                "objective": objective,
+                "task_class": task_class,
+                "task_kind": task_kind,
+                "started_at": _format_timestamp(operation_now),
+                "base_commit": base_commit,
+                "base_commit_source": "git-observed",
+                "authority": "development-observation-not-evidence",
+                "measurement_policy": dict(MEASUREMENT_POLICY),
+            }
+            validate_task(task, directory_name=run_id)
+            try:
+                os.mkdir(run_id, 0o700, dir_fd=root_fd)
+            except FileExistsError as exc:
+                raise LedgerError(f"task-run は既に存在する: {run_id}") from exc
+            except OSError as exc:
+                raise LedgerError(f"task-run directory を作成できない: {exc}") from exc
+            # task.json が唯一の publish marker。中断時の部分物は自動削除しない。
+            run_fd = _open_directory_at(root_fd, run_id, label=f"{run_id}/")
+            try:
+                # mkdir と events の directory entry を task publish より先に durable にする。
+                # 途中停止なら task.json の無い incomplete-start として残る。
+                os.fsync(root_fd)
+                _create_file_at(run_fd, "events.jsonl", b"", label=f"{run_id}/events.jsonl")
+                os.fsync(run_fd)
+                _create_file_at(run_fd, "task.json", _canonical(task), label=f"{run_id}/task.json")
+                os.fsync(run_fd)
+            finally:
+                os.close(run_fd)
             os.fsync(root_fd)
-            _create_file_at(run_fd, "events.jsonl", b"", label=f"{run_id}/events.jsonl")
-            os.fsync(run_fd)
-            _create_file_at(run_fd, "task.json", _canonical(task), label=f"{run_id}/task.json")
-            os.fsync(run_fd)
+            return run_id
         finally:
-            os.close(run_fd)
-        os.fsync(root_fd)
-        return run_id
+            try:
+                if locked:
+                    fcntl.flock(root_fd, fcntl.LOCK_UN)
+            finally:
+                if own_root_fd:
+                    os.close(root_fd)
     finally:
-        try:
-            fcntl.flock(root_fd, fcntl.LOCK_UN)
-        finally:
-            os.close(root_fd)
+        _close_directory_binding(repo_binding)
 
 
 def re_full_slug(slug: str) -> bool:
