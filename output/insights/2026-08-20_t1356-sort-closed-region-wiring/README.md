@@ -4,6 +4,16 @@
 2026-08-18 /rulings 全件 第8回の裁定 (`docs/archive/worklog-phase3-0819-671.md:551-554`)
 「sort の closed-region 残余を auditor の入力と checklist へ結線する」の実装。
 
+**受入投入前に local main (25+ commit 先行) を `git rebase main` で取り込んだ。**
+別 wave が `orchestrator/codex_roles/review_ledger.py` の別キー (`planner-v4`、本 wave が
+触ったのは `auditor` キー) を編集済みで、merge commit にすると
+`check_ai_provenance.py` (D95) が「3方向結合の結果が両親のどちらとも異なる」として
+Codex role=author trailer を要求し、待ち手の自動 merge 手順 (`stage=merge-message-provenance`)
+が進めない状態だった。rebase で線形履歴にすることでこの検査を回避した (5 commit とも
+無競合で自動適用、`check_ai_provenance.py` 再監査 rc=0)。下記の commit hash は
+**rebase 後の値**。verbatim/ 以下の逐語ファイルと変異 matrix の JSON は生成時点の
+(rebase 前の) hash を保持したままの凍結記録であり、書き換えていない。
+
 逐語は `verbatim/` (段2 plan、段3 両レンズ、段6 両レビュー・焦点レビュー)。
 
 ## 1. 背景 — 何が未結線だったか
@@ -36,20 +46,21 @@ T-396 (2026-08-18、commit `dc87fff7`) が `coder-v4-autonomous-sort.md` の clo
 
 ## 3. 段5-6: 実装・敵対レビュー・fix
 
-- 実装 (commit `10f6d4f6`): auditor.md へ型17-21・checklist14、manifest.json の
+- 実装 (commit `a5b676c7`、rebase 前は `10f6d4f6`): auditor.md へ型17-21・checklist14、manifest.json の
   `maximum: 16→21`、review_ledger.py の3 pin、auditor_gate.py の `range(1,22)`、境界テスト2本、
   `p3_autonomous_workload_trial.py` の表示数値更新 (trigger-gating 専用 driver、型を実際には
   使わないが共有 gate の実際の上限と数値を一致させる)。
-- adapter 再生成 (commit `66e50e4b`、D105 waiver `reason=codex-sandbox-readonly-dotcodex;
+- adapter 再生成 (commit `dd9df29d`、rebase 前は `66e50e4b`、D105 waiver `reason=codex-sandbox-readonly-dotcodex;
   ratified=2026-08-18` の再利用。段3 両レンズが独立に「reason の鮮度検査は無い」と裏取り済み)。
 - **[段6 レンズB, must-fix, real] D48/D511 違反を検出・是正**: 実装時の型17-21記述が、
   機械 gate が検査しない/部分的な**具体的識別子・検出/未検出のループ形・corpus 発火条件**を
   file:line 付きで開示しており、これは合成側 LLM が読める回避手順の開示だった
   (T-396 が一度是正した同型の誤りの再演。親の段5 prompt 自体が「機序を file:line 付きで書け」と
-  指示したことが D511 と緊張関係にあった)。fix (commit `e55c3a9a`) で
+  指示したことが D511 と緊張関係にあった)。fix (commit `9edb7449`、rebase 前は `e55c3a9a`) で
   `.claude/agents/coder-v4-autonomous-sort.md` の「機械執行の範囲」表と同じ抽象度 (完全/部分的/
   なしの分類だけ) へ後退させ、機序説明は auditor 自身の構造化出力 `verifier_blind_spot`
-  (発見時の事後報告) に委ねる設計にした。adapter 再々生成 (commit `2ec1d382`)。
+  (発見時の事後報告) に委ねる設計にした。adapter 再々生成 (commit `068532c4`、
+  rebase 前は `2ec1d382`)。
 - fix commit の trailer で scope 値に大文字 (`s6-revA`/`s6-revB`) を使い、`docs/ai-provenance.md`
   の `IDENT` 正規表現 (小文字のみ) 違反で全史監査が rc=1 になった。`git reset --soft HEAD~1`
   (非破壊、ファイル内容は完全温存) で trailer だけを訂正し再commit (`amend` は使わない既定規律)。
