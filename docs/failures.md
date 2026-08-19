@@ -6787,6 +6787,7 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   手順への反映は `DW-O18` の L2 単節予算 (1000 bytes に対し現行 995 bytes、余裕 5 bytes) に
   収まらないため、`docs/skill-self-improvement.md` の「予算に収まらなければ変更を止めて
   ユーザー裁定へ返す」に従い本 wave では実装せず、裁定へ返した。
+- **supersede: 2026-08-19** — 恒久対応を実施した。[T-1361] 裁定に従い `docs/dev-wave/operations.md` へ新規節 `DW-O26` を追加し、`.claude/commands/dev-wave.md` の条件18から到達可能にした。`tools/check_docs.py` が `REQUIRED_REFERENCE_SECTIONS` 登録・`CONDITION_DISPATCH_CONTRACT` の条件18複数参照・exact pin を機械強制し、`orchestrator/tests/test_check_docs.py` の positive/negative control が焦点走で472 passed・0 failedを確認した。
 ### F243. 凍結表を共有する変異は超過検出になり単独帰属しない [テスト代表性]
 
 - 事象: [T-866] の変異本走で M7 (retry 表の変異) が MISMATCH。変異は KILLED されたが、
