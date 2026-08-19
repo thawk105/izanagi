@@ -52,6 +52,54 @@ def test_known_and_holdout_workloads_project_and_validate(workload):
         assert descriptor["contention"] == {"skew": 0.9, "label": "high"}
 
 
+def test_policy_hint_is_omitted_when_absent():
+    descriptor = s8b_descriptor.project_from_search_config(_search_config())
+
+    assert "policy_hint" not in descriptor
+    assert set(descriptor) == {
+        "schema_version", "source", "read_write", "contention",
+        "scale", "objective", "correctness",
+    }
+
+
+def test_policy_hint_is_projected_and_schema_valid():
+    search_config = _search_config()
+    hint = "prefer stable behavior; do not use winner or throughput values"
+    search_config["policy_hint"] = hint
+
+    descriptor = s8b_descriptor.project_from_search_config(search_config)
+
+    assert descriptor["policy_hint"] == hint
+    s8b_descriptor.validate_descriptor(descriptor)
+    s8b_descriptor.scan_forbidden_keys(descriptor)
+
+
+@pytest.mark.parametrize("hint", [None, True, 1, []])
+def test_policy_hint_requires_exact_string(hint):
+    search_config = _search_config()
+    search_config["policy_hint"] = hint
+
+    with pytest.raises(s8b_descriptor.DescriptorError):
+        s8b_descriptor.project_from_search_config(search_config)
+
+
+def test_schema_rejects_non_string_policy_hint_without_projection():
+    descriptor = {
+        "schema_version": "8b-v1",
+        "source": "campaign_search_config_projection",
+        "read_write": {"read_ratio_percent": 80, "rmw": 0},
+        "contention": {"skew": 0.9, "label": "high"},
+        "scale": {"records": 1_000_000, "threads": 48},
+        "objective": "maximize_throughput_tps",
+        "correctness": "serializable_legacy_and_s2",
+        "policy_hint": 123,
+    }
+
+    with pytest.raises(s8b_descriptor.DescriptorError) as caught:
+        s8b_descriptor.validate_descriptor(descriptor)
+    assert isinstance(caught.value.__cause__, jsonschema.ValidationError)
+
+
 @pytest.mark.parametrize(
     ("section", "key", "expected_path"),
     [

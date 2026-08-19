@@ -22997,3 +22997,168 @@ D128 (「台帳への書き込みを land lock 内の fold へ一本化する」
 データの一部だけを読み取り専用の新機能で使いたい場面では、「共有 helper 抽出で DRY にする」
 より「対象読み取り専用機能に必要な最小集合だけを読む独立 loader を新設する」を既定にしてよい。
 特に既存関数のエラー優先順位・副作用順序が複雑な場合はなおさら。
+
+## D568. workload descriptor に人間の自由記述方針ヒントを任意で許す (roadmap §1 協議改訂) (2026-08-19)
+
+**決定:** roadmap.md §1 の入力契約に、人間が任意で自由記述の方針ヒントを workload descriptor に
+添えられる旨を追記した。ヒントを与えた場合、システム (LLM を含む各段) はそれを合成・選択の判断材料
+としてそのまま受け取ってよい — 規律6 (信頼境界) の「外部由来の未信頼入力はデータとして扱う」対象
+ではない。ユーザーが直接与える workload 入力は同規律が定める信頼される側 (「ユーザーの直接メッセージ」
+と同枠) であり、leak 判定などの追加関門は課さない。ただし次の2点を境界とする。
+
+- **ヒントは workload の傾向・重視目的を指す記述に限る。** hole や具体実装そのもの (勝ち筋) を
+  渡すことは、roadmap.md §2 D44「軸提案がループ内にあること — 人間が毎回 hole と勝ち筋を手渡さない」
+  に反するため、hint の範囲に含めない。
+- **ヒントの有無と内容は evidence-bound な材料レポートに記録する。** 「LLM 固有の主張」
+  (roadmap.md §1 主張の階層 3) をヒント有無で区別できるようにするため。
+
+**理由:**
+- ユーザーとの協議 (2026-08-19) で、完全自律合成 (人間ヒント無し) は現状の LLM には難度が高すぎる
+  可能性があるとの懸念が示され、まず「ヒントありで到達可能なところ」を第一目標にする方が段階導入の
+  規律5に沿うと合意した。
+- roadmap.md §1 の既存文「既知の勝者名や性能値は入力に混ぜない」は無条件の禁止だったが、人間が
+  意図して与える coarse なヒントまで一律に禁じる根拠 (研究の主張階層を壊す) と、規律6 が想定する
+  未信頼入力のリスクとは別種であるため、両者を区別して条文化した。
+
+**協議改訂:** 本 D は roadmap.md 改訂の追跡ではなく、独立した設計判断の記録として書く
+(docs/roadmap-history/README.md — 協議改訂はセレモニー不要、版は上げない・history に凍結しない)。
+
+**却下した選択肢:**
+- ヒントに対して機械的な leak 判定・許可リストを新設する — 規律6 の対象 (未信頼入力) ではなく
+  人間の直接入力であり、余分な機構は規律5 (盛らない) に反する。
+- roadmap §1 を全面書き換えて「hint-conditioned synthesis」を新しい達成目標として再定義する —
+  効果が未実証の段階で claim 階層を作り直すのは時期尚早。まず descriptor への最小拡張1本を実装・
+  観測してから要否を判断する。
+
+## D569. 受入待ち手の起動 authority、代替設計は現状維持とし協調境界に残す (ユーザー裁定) (2026-08-20)
+
+**決定:** [T-1373] が返した代替案 3 件 (a: `acceptance_launcher.py` 同型の bootstrap 層を待ち手にも新設、
+b: 起動経路を塞ぐのは諦め land 側検証を強化する方向へ転換、c: 現状維持) のうち **(c) を採用する**。
+新規実装は行わない。既知の隙 (改変された tip 側待ち手が launcher を起動せず受領証を自作できる) は
+[T-696] の協調境界に残したまま据え置く。
+
+**理由:**
+- この環境で当該の隙を悪用する動機を持つ主体が実在しない。研究用途の内部利用に閉じており、
+  第三者の目に触れる想定が無い。
+- (a) は bootstrap 層の新規実装、(b) は land 側検証の設計変更をそれぞれ要する。いずれも実測された
+  被害の無い防御的堅牢化であり、規律 5 (段階導入・盛らない) に照らし今は投資しない。
+- D524 は本設計判断を「起動権を wave tip の外へ出す唯一の形」と位置づけたが、これは (a) の将来的な
+  価値を否定しない — 外部の目に触れる運用へ移行する際に再訪する。
+
+**却下した選択肢:**
+- (a) bootstrap 層の新設 — 実装コストに見合う実害が今は無い。
+- (b) land 側検証の強化 — 同上。加えて D403 の既存検証と重複設計になりうる。
+
+## D570. dev-wave docs 予算満杯時の一括方針は採らず、個別裁定を維持する (ユーザー裁定) (2026-08-20)
+
+**決定:** dev-wave 手順書 (`docs/dev-wave/**`) の byte 予算が満杯で小さな追記が個別に止まる問題に対し、
+一括の運用方針 (削れる分だけ足せる等の恒久ルール化) は**採らない**。従来どおり、案件ごとに
+個別裁定する運用を維持する。[T-1395] / [T-1404] / [T-956] / [T-665] はこの決定によって解消されず、
+それぞれ個別に裁定待ちのまま残る。
+
+**理由:**
+- 手順書を小さく保つ既定方針そのものは維持しつつ、どの追記を通すかは案件ごとの実害・頻度を見て
+  判断したいというユーザーの意向による。恒久ルール化は将来の柔軟性を失わせる。
+
+**却下した選択肢:**
+- 予算上限を上げる — 手順書を意図的に小さく保つ既定方針と正面から矛盾する。
+- 「削れる分だけ足せる、削れなければ足さない」の恒久ルール化 — 今回は採らない (個別裁定を維持)。
+
+## D571. 予約 gate の保証範囲を 8c CLI と `run_trial` の public boundary のみへ確定する (ユーザー裁定) (2026-08-20)
+
+**決定:** [T-1392] が返した択一 3 件 (a: 共通 launch 点へ admission を強制、b: 直接 driver を正式に禁止、
+c: 保証範囲を 8c CLI と `run_trial` の public boundary のみと明記する) のうち **(c) を採用する**。
+production コードの変更は行わない。**`docs/phase3-8c-preregistration.md` 本文への追記は行わない**
+— 同書 §1-4/6/7 は `normative_body_sha256` として hash 凍結された凍結契約
+(`orchestrator/campaign/s8c_preregistration.py` の `SOURCE_PATH`) であり、条件12「残る欠落」節
+(§6 内) への追記は正規本文の hash を変え、既存の凍結 record との照合を壊すことが受入全走で
+判明した。本決定の記録は本 decisions エントリを正本とし、文書側は変更しない。
+
+**理由:**
+- 探索層の CLI は既存機能だが、条件 12 の充足条件が要求する production consumer からは元々対象外と
+  整理されている。「将来の PBS dispatch」は現時点で存在しない経路であり、存在しない経路に対して
+  admission 強制機構を今組むのは規律 5 (段階導入・盛らない、hypothetical な将来要件への設計) に反する。
+- (a)(b) はいずれも新規の強制機構実装を要し、実装コストに見合う実害が今は観測されていない。
+  当該経路が実運用に入る wave が、その時点で必要な admission 束縛の形を判断すればよい。
+
+**却下した選択肢:**
+- (a) 共通 launch 点への admission 強制 — 対象経路 (探索層 CLI・将来の PBS dispatch) が今は
+  実運用の脅威になっていない。
+- (b) 直接 driver の正式禁止 — 同上、加えて「将来の PBS dispatch」という未実装の経路を正式に
+  禁止する文言を先に書く意味が薄い。
+
+## D572. 禁止 identifier 集合の縮小検知は、構造比較でなく意味的 probe + AST allowlist で行う (2026-08-20)
+
+**決定:** `coder_effect_gate.DENY_TABLE` のような禁止 identifier 集合が個別に黙って縮んでも
+既存テストが検知しない穴は、(1) category 別 frozen literal を独立に保持し (2) frozen の全 identifier
+について実際の scanner (`scan_host_effects` 等) を呼び出して期待挙動を assert する意味的 probe で
+閉じる。frozen literal 自身の自己参照防止は、denylist (禁止識別子の列挙) ではなく allowlist
+(単一代入の強制 + RHS ノード形状を `Dict`/`Tuple`/文字列 `Constant`/`frozenset(...)` 直呼びだけに
+限定し、`Name` は `"frozenset"` のみ許可) で AST 静的検査する。production と frozen literal を
+同一 commit で協調して縮める編集 (byte pin の同一性だけを見て意味を見ない攻撃) は、この設計では
+意図的に scope 外の既知残存として扱い、コメントで明記する。
+
+**理由:**
+- 構造比較 (`current ⊇ frozen` を identifier 集合の差分だけで見る) は、identifier 文字列が残ったまま
+  scanner の照合ロジック側が壊れる変異を見逃す。scanner を実際に呼ぶ意味的 probe はこれを内包する。
+- denylist 方式の自己参照防止 ("`DENY_TABLE` という名前を禁止する" 型) は、別名 (`_SOURCE =
+  DENY_TABLE` 等) や複数代入 (安全な代入の後に危険な再代入を続ける) で回避できる。許可される形を
+  数え上げる allowlist はこの種の回避に対して構造的に閉じている。
+- 2026-08-18 wave651 が実証した「pin は bytes 同一性しか証明しない」という一般教訓
+  (禁止 bullet を1行削り pin を整合再承認すれば緑のまま通る) は、production と frozen literal の
+  協調改変にも同型で当てはまる。`tools/mutation_harness.py` は複数ファイル同時変異を実際に
+  サポートしており技術的には閉じられるが、production 側の暗号的 pin 新設は絶対規律5 (段階導入・
+  盛らない) に反し、真の攻撃対象 (role-contract pin) を閉じない限り部分的な効果しかない。
+  この判断は [T-1357] 固有ではなく、同種の「禁止/許可集合の frozen 化」を今後行う wave 全般に
+  適用できる設計判断として記録する。
+
+**却下した選択肢:**
+- **denylist 方式のまま個別の禁止名を増やす。** 新しい迂回経路 (エイリアス等) が見つかるたびに
+  列挙を追加する後追い対応になり、閉じた保証にならない。
+- **frozen literal の hash pin を追加する。** 誰かが frozen literal を編集すれば hash も同時に
+  再計算されうるため、bytes 同一性の保証しか得られず、真に守りたい「意味」を証明しない
+  (wave651 が pin 一般について示した限界と同型)。
+- **production と frozen literal の協調改変も本 wave で閉じる。** 真の攻撃対象である
+  role-contract pin (`.claude/agents/coder-v4-autonomous-sort.md` 側) は別 scope のまま残るため、
+  DENY_TABLE 側だけを暗号的に固めても実効性が低く、絶対規律5 に反する。
+
+## D573. receipt memo の cache は controller nonce 付き path + closed-schema JSON とする (2026-08-20)
+
+**決定:** `orchestrator/tests/real_repo_receipt_memo.py` の xdist session cache は、
+(1) cache path に UID hash・HEAD に加えて controller 限定で生成する session nonce
+(既存 `_RECEIPT_MEMO_SESSION_ID_ATTR`、新設 `pytest_configure_node` フックで
+`workerinput` 経由 worker へ伝播) を混ぜ、(2) 直列化形式を pickle から closed-schema
+JSON (許容キー完全一致、`object_pairs_hook` で重複key拒否、`parse_constant` で
+NaN/Infinity拒否、schema検証を終えてからのみ `ReceiptResolution` を構築) へ置き換える。
+読込・書込の両方に bytes 上限 (8 MiB) を設ける。
+
+nonce は cache **path** にのみ埋め込み、JSON **内容**とのbinding検証はしない。閉じるのは
+「呼出し側が `--testrunuid` を固定して未来の cache path を事前予測する」攻撃と
+「pickle 経由の任意コード実行」の2つに限定する。同一ホストの別ローカルユーザーが
+in-flight の nonce を観測してから同じ path へ偽 payload を置く race は対象外とする
+(現行設計が元々前提にしている shared `/tmp` の信頼境界の延長であり、本決定が新たに
+持ち込む縮小ではない)。リモート分散 xdist (worker が別ホストで `/tmp` を共有しない構成)
+も同様に対象外とする (UID+HEADのみだった旧設計も同じ前提を置いていた)。
+
+**理由:**
+- D518 の barrier 位置 (`pytest_xdist_node_collection_finished`/`pytest_collection_finish`)
+  と UID charset 非拒否は変更しない制約のもとで、`--testrunuid` を呼出し側が固定できる
+  ([T-202] 原文) ことへの対処は、UID そのものではなく **controller だけが知りうる
+  非再利用な値**を鍵に混ぜることでしか解けない。xdist 3.8.0 の `pytest_configure_node`
+  (`xdist/newhooks.py`) と `workerinput` 伝播 (`xdist/workermanage.py`, `xdist/remote.py`)
+  は、worker 起動 (`pytest_sessionstart`) が controller の `pytest_configure` より後に
+  発火するという既存の D518 記述と整合する経路として実在を確認した。
+- pickle の deserialize は型検査の位置に関わらず任意コード実行を持つ。JSON へ切り替えれば
+  「デシリアライズ自体は安全、構造検証してから信頼する」という設計にできる。
+  `object_pairs_hook`/`parse_constant` を欠くと重複key・NaN/Infinity という別の穴が残る
+  ([T-202] 原文の想定を段3敵対相談が具体化した)。
+
+**却下した選択肢:**
+- session 終了時に cache file を削除する — 異常終了時に残留し、worker の読取完了との
+  race を持つ (段3敵対相談レンズB)。nonce 方式は別 invocation を別 namespace に分離する
+  だけで、この race を新たに悪化させない。
+- nonce を JSON 内容にも bind する認証機構を追加する — 段4 で意図的に scope 外とした
+  (前述の「対象外」)。閉じたい脅威 (path 事前予測、任意コード実行) に対して不要な複雑化。
+- `parse_constant` 除去を独立した変異として登録する — `_is_json_tree()` の finite 検査が
+  全ネスト値に対し常に冗長に効くため、単一理由の変異にならないと段6敵対レビューが判定した
+  (コードは defense-in-depth として維持)。

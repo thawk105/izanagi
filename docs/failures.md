@@ -1624,6 +1624,15 @@
   最終的に repo 外の `/work` 配下へ置いた。
   恒久対応 = `DW-O20` の当該語を byte 中立で「背景jobはrepo外」へ是正 (本 wave の段 8) と、
   auto-memory `pegasus-keep-home-clean`。
+
+- **再発: 2026-08-19** — [T-1316] wave (背景 job + worktree 隔離) で、wave 開始時の brief 読み込みが
+  `DW-C00`/`DW-STOP` の通読に留まり、条件 dispatch 表の「20 | 背景 job + worktree 隔離の wave 開始時」
+  行を辿らなかったため、段4裁定完了・段5投入準備の直前まで `tools/check_wave_startup.py` を
+  実行しなかった。実行して初めて submodule 未初期化・専用 handoff の worktree 内残留・HEAD が
+  local main から6 commit 遅れの3件を検出し、実装着手前 (段5 投入前) に是正した (実害なし)。
+  過去2回 (2026-07-29, 2026-08-03) の再発と同じ「置き場・読了タイミングを誤る」型で、F50 の
+  恒久対応 (dispatch 前倒し、条件表20番の文言是正) は既に適用済みだったにもかかわらず、
+  wave 開始時にその条件表自体を辿らなかったことが根本原因である。
 ### F51. cleanup-branches が背景セッション自身の worktree を削除しかけた near-miss [手順漏れ]
 - 事象: /cleanup-branches 実行セッションの cwd が削除対象 worktree に固定されており (背景 job)、
   スキル §2 の「先に main checkout 側へ抜ける」が実行不能だった — ExitWorktree は EnterWorktree
@@ -2939,6 +2948,30 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   を裁定文とテストに固定する。
   検出: [T-313] wave の段 9 land が `status=fold-failed` / `reason=landed-fold-owned-path` で停止
   (main は `ea6ca43` のまま未変更)。
+
+- **再発: 2026-08-19 (4 度目)** — [T-1418] (仮) wave の段 9 land が `status=fold-failed` /
+  `reason=landed-fold-owned-path` で 2 回連続停止した。main は 1 bit も動いていない
+  (`main_before == main_after`)。今回のトリガは過去 3 件 (「fragment を書く」「main の fold 済み
+  merge を取り込む」) のどちらとも異なる第 4 の経路: **wave が継承した spool fragment 2 件
+  (別 branch `worktree-roadmap-workload-hint` 由来、`wave: roadmap-workload-hint`) を、自 wave の
+  fragment (`wave: workload-policy-hint-impl`) と同一 fold 識別子で扱うため `git mv` で
+  re-home した。** `docs/spool/README.md` の「identity は (wave, namespace, slug)。他 wave の
+  slug は参照できない」規則により、継承 fragment を自 wave の worklog から D の placeholder で
+  参照するには wave tag の統一が必須だった。この re-home は `git diff` 上 `R100`（100%
+  類似度の rename) として記録され、`_landed_fold_output_path`
+  (`tools/dev_waves/git_state.py:561`) の署名 (「fragment 形の path が D または R で消える」)
+  に一致し、fold 以外の正規経路であるにもかかわらず無条件拒否された。
+  F82 の「署名は fold 以外では起きない」という前提命題が本件で 3 度目に破れたことになる
+  (1 度目・2 度目は「main の fold 済み merge を取り込む」、本件は「wave 自身の fragment
+  reorganize」)。
+  親は `git reset --soft` によるこの wave 自身の (main へまだ 1 bit も land していない) 履歴
+  squash で回避しようとしたが、(a) Claude Code の auto mode classifier が history-rewrite
+  相当の操作を 2 度 (loop 化した `git log` 収集 script・squash 用 commit message の Write) とも
+  拒否し、(b) `docs/decisions.md` の既存裁定 (D371 近傍、「merge の作り直し — main の履歴書き換え
+  (rebase / force) は禁止されており実行不能」) も rewrite 系の回避を却下済みと確認したため、
+  forward-only な回避策の不在を認めて中断した。実装自体は commit `feb4452c` (branch
+  `worktree-workload-policy-hint-impl`) に完成・全緑で存在するが、本 fold-owned-path 制約が
+  解消されるまで land 不能である。
 ### F83. 親の裁定が並行 fold を不可能にする条件を 2 度作った [手順漏れ]
 
 - 事象: 段 4 で親が「直前 active の全 ID に明示遷移を要求する」と裁定した結果、

@@ -83,6 +83,11 @@ _RUNNER_BLOB = "1" * 40
 _LAUNCHER_BLOB = "2" * 40
 _LAUNCHER_SOURCE = b"# acceptance launcher source\n"
 _CHECKER_SOURCE = b"# tested main checker source\n"
+_SELF_REPORTED_MERGE_MESSAGE = (
+    b"merge main\n\n"
+    b"AI-Agent: product=claude; model=not-exposed; "
+    b"reasoning=not-exposed; role=integrator"
+)
 _RELEASE_JSON = json.dumps({"state": "released"})
 _LEGACY_STATUS_ARGV = ("git", "status", "--porcelain", "--untracked-files=no")
 _STATUS_ARGV = (
@@ -1224,6 +1229,65 @@ def _write_test_provenance_checker(repo: Path) -> None:
         "role=author'\n"
         "raise SystemExit(0 if args.message_file is None or "
         "expected in args.message_file.read_text() else 1)\n",
+        encoding="utf-8",
+    )
+
+
+def _write_path_aware_provenance_checker(repo: Path) -> None:
+    checker = repo / "tools" / "check_ai_provenance.py"
+    checker.write_text(
+        "import argparse\n"
+        "import subprocess\n"
+        "from pathlib import Path\n"
+        "parser=argparse.ArgumentParser()\n"
+        "parser.add_argument('--message-file', type=Path)\n"
+        "args=parser.parse_args()\n"
+        "if args.message_file is None:\n"
+        "    raise SystemExit(0)\n"
+        "def changed(revision):\n"
+        "    result=subprocess.run([\n"
+        "        'git', 'diff', '--cached', '--name-only', '--no-renames',\n"
+        "        '--diff-filter=ACMRDTUXB',\n"
+        "        revision, '--',\n"
+        "    ], capture_output=True, text=True, check=False)\n"
+        "    if result.returncode != 0:\n"
+        "        raise SystemExit(result.returncode)\n"
+        "    return set(result.stdout.splitlines())\n"
+        "merge_head=subprocess.run([\n"
+        "    'git', 'rev-parse', '-q', '--verify', 'MERGE_HEAD',\n"
+        "], capture_output=True, text=True, check=False)\n"
+        "if merge_head.returncode != 0:\n"
+        "    raise SystemExit(1)\n"
+        "combined=changed('HEAD') & changed('MERGE_HEAD')\n"
+        "implementation_basenames = {\n"
+        "    'CMakeLists.txt', 'Makefile', 'GNUmakefile', 'pyproject.toml',\n"
+        "    'pytest.ini',\n"
+        "}\n"
+        "implementation_prefixes = (\n"
+        "    'orchestrator/', 'tools/', 'hooks/', '.github/', '.codex/',\n"
+        "    'external/',\n"
+        ")\n"
+        "implementation_suffixes = (\n"
+        "    '.py', '.sh', '.bash', '.c', '.cc', '.cpp', '.cxx',\n"
+        "    '.h', '.hh', '.hpp', '.hxx', '.cmake', '.patch', '.diff',\n"
+        ")\n"
+        "def is_implementation(path):\n"
+        "    normalized=path.removeprefix('./')\n"
+        "    basename=normalized.rsplit('/', 1)[-1]\n"
+        "    if basename in implementation_basenames:\n"
+        "        return True\n"
+        "    if normalized.endswith(implementation_suffixes):\n"
+        "        return True\n"
+        "    if normalized.startswith('patches/'):\n"
+        "        return False\n"
+        "    return (normalized.startswith(implementation_prefixes)\n"
+        "            and not normalized.endswith(('.md', '.rst')))\n"
+        "implementation={path for path in combined if is_implementation(path)}\n"
+        "if not implementation:\n"
+        "    raise SystemExit(0)\n"
+        "expected='AI-Agent: product=codex; model=gpt-5; reasoning=high; "
+        "role=author'\n"
+        "raise SystemExit(0 if expected in args.message_file.read_text() else 1)\n",
         encoding="utf-8",
     )
 
@@ -6665,35 +6729,72 @@ def test_acquired_reloads_main_before_behind_check() -> None:
     fake.assert_drained()
 
 
-def test_preclaim_merge_message_requirement_never_claims_or_creates_waiter(
-    tmp_path: Path,
-    capsys: pytest.CaptureFixture[str],
-) -> None:
-    lease_dir = tmp_path / "lease"
-    lease_dir.mkdir()
+def test_self_reported_merge_message_has_exact_trailer() -> None:
+    fake = _FakeEffects()
+
+    result = DW._self_reported_merge_message_copy(fake.effects)
+
+    assert result == _VALIDATED_MESSAGE
+    assert fake.events == [("write_temp", _SELF_REPORTED_MERGE_MESSAGE)]
+
+
+def test_preclaim_behind_without_message_claims_and_submits_without_release() -> None:
     fake = _RoutingAcceptanceEffects(
         preclaim_behind=13,
-        lease_dir=lease_dir,
+        behind=[0, 0],
     )
 
-    outcome = _run_acceptance(fake, lease_dir=lease_dir)
+    outcome = _run_acceptance(fake)
 
-    assert outcome == DW._Outcome(
-        2,
-        "merge-message-preflight",
-        detail="main が 13 commit 進んでいるので `--merge-message-file` が必要",
+    assert outcome.rc == 0
+    assert (fake.claims, fake.submissions, fake.releases) == (2, 1, 0)
+    preclaim_behind = fake.events.index(
+        (
+            "run",
+            ("git", "rev-list", "--count", "HEAD..main"),
+            _REPO,
+            True,
+        )
     )
-    assert (fake.claims, fake.submissions, fake.releases) == (0, 0, 0)
-    assert list(lease_dir.iterdir()) == []
+    preclaim_provenance = fake.events.index(
+        ("run", _history_provenance_argv(), _REPO, True)
+    )
+    first_claim = next(
+        index
+        for index, event in enumerate(fake.events)
+        if event[0] == "run"
+        and len(event[1]) > 2
+        and event[1][2] == "claim"
+    )
+    assert preclaim_behind < preclaim_provenance < first_claim
     assert not any(
-        event[0] == "run" and "claim" in event[1]
+        event[0] == "run"
+        and event[1] == _helper("release")
         for event in fake.events
     )
-    DW._print_outcome(outcome)
-    assert (
-        "main が 13 commit 進んでいるので `--merge-message-file` が必要"
-        in capsys.readouterr().err
+
+
+def test_preclaim_behind_without_message_reaches_claim() -> None:
+    fake = _RoutingAcceptanceEffects(
+        preclaim_behind=1,
+        behind=[0, 0],
     )
+
+    outcome = _run_acceptance(fake)
+
+    assert outcome.rc == 0
+    assert fake.claims == 2
+    preclaim_provenance = fake.events.index(
+        ("run", _history_provenance_argv(), _REPO, True)
+    )
+    first_claim = next(
+        index
+        for index, event in enumerate(fake.events)
+        if event[0] == "run"
+        and len(event[1]) > 2
+        and event[1][2] == "claim"
+    )
+    assert preclaim_provenance < first_claim
 
 
 def test_preclaim_behind_with_merge_message_reaches_claim() -> None:
@@ -6735,16 +6836,101 @@ def test_preclaim_not_behind_reaches_claim() -> None:
     assert fake.claims == 2
 
 
-def test_postclaim_merge_message_requirement_still_catches_main_race() -> None:
+def test_postclaim_main_race_self_report_reaches_submission_without_release() -> None:
     fake = _RoutingAcceptanceEffects(
         preclaim_behind=0,
-        behind=[1],
+        behind=[1, 0],
+        head_shas=[_SHA_C, _SHA_C],
     )
 
     outcome = _run_acceptance(fake)
 
-    assert outcome == DW._Outcome(70, "merge-message")
-    assert (fake.claims, fake.submissions, fake.releases) == (1, 0, 1)
+    assert outcome.rc == 0
+    assert (fake.claims, fake.submissions, fake.releases) == (2, 1, 0)
+    assert ("write_temp", _SELF_REPORTED_MERGE_MESSAGE) in fake.events
+    assert any(
+        event[0] == "run" and event[1] == _provenance_argv()
+        for event in fake.events
+    )
+
+
+def test_postclaim_merge_without_implementation_conflict_accepts_self_report() -> None:
+    fake = _RoutingAcceptanceEffects(
+        behind=[1, 0],
+        head_shas=[_SHA_C, _SHA_C],
+        provenance_result=DW._CommandResult(0),
+    )
+
+    outcome = _run_acceptance(fake)
+
+    assert outcome.rc == 0
+    message_index = next(
+        index
+        for index, event in enumerate(fake.events)
+        if event == ("write_temp", _SELF_REPORTED_MERGE_MESSAGE)
+    )
+    selected = [
+        event
+        for event in fake.events[message_index:]
+        if event[0] == "write_temp"
+        or (
+            len(event) > 1
+            and event[1]
+            in {
+                ("git", "merge", "--no-ff", "--no-commit", "main"),
+                _history_provenance_argv(),
+                _provenance_argv(),
+                ("git", "commit", "--dry-run", "-F", str(_VALIDATED_MESSAGE)),
+                ("git", "commit", "-F", str(_VALIDATED_MESSAGE)),
+                _COMMAND,
+            }
+        )
+    ]
+    assert [
+        (event[0], event[1]) if event[0] == "run" else event
+        for event in selected
+    ] == [
+        ("write_temp", _SELF_REPORTED_MERGE_MESSAGE),
+        ("run", ("git", "merge", "--no-ff", "--no-commit", "main")),
+        ("run", _history_provenance_argv()),
+        ("run", _provenance_argv()),
+        ("run", ("git", "commit", "--dry-run", "-F", str(_VALIDATED_MESSAGE))),
+        ("run", ("git", "commit", "-F", str(_VALIDATED_MESSAGE))),
+        ("run", _COMMAND),
+    ]
+
+
+def test_postclaim_merge_provenance_failure_rejects_self_report() -> None:
+    fake = _RoutingAcceptanceEffects(
+        behind=[1],
+        provenance_result=DW._CommandResult(1),
+    )
+
+    outcome = _run_acceptance(fake)
+
+    assert outcome == DW._Outcome(
+        70,
+        "merge-message-provenance",
+        source_rc=1,
+    )
+    assert ("write_temp", _SELF_REPORTED_MERGE_MESSAGE) in fake.events
+    assert fake.submissions == 0
+    assert fake.releases == 1
+    assert any(
+        event[0] == "run"
+        and event[1] == ("git", "merge", "--abort")
+        for event in fake.events
+    )
+    assert not any(
+        event[0] == "run"
+        and event[1]
+        in {
+            ("git", "commit", "--dry-run", "-F", str(_VALIDATED_MESSAGE)),
+            ("git", "commit", "-F", str(_VALIDATED_MESSAGE)),
+            _COMMAND,
+        }
+        for event in fake.events
+    )
 
 
 def test_preclaim_history_provenance_failure_never_claims_and_returns_reason(
@@ -6779,26 +6965,16 @@ def test_preclaim_history_provenance_failure_never_claims_and_returns_reason(
     assert violation in capsys.readouterr().err
 
 
-def test_merge_required_without_message_file_releases_before_submission() -> None:
-    fake = _FakeEffects()
-    _preflight(fake)
-    _acquired(fake)
-    fake.expect_run(("git", "rev-parse", "main"), DW._CommandResult(0, _SHA_B + "\n"))
-    fake.expect_run(("git", "rev-list", "--count", "HEAD..main"), DW._CommandResult(0, "1\n"))
-    _release(fake)
+def test_merge_without_message_file_self_report_reaches_submission() -> None:
+    fake = _RoutingAcceptanceEffects(
+        behind=[1, 0],
+        head_shas=[_SHA_C, _SHA_C],
+    )
+
     outcome = _run_acceptance(fake)
-    assert outcome.rc == 70
-    assert fake.events == [
-        *_PREFLIGHT_EVENTS,
-        ("monotonic",),
-        ("run", ("git", "rev-parse", "main"), _REPO, True),
-        ("monotonic",),
-        ("run", _helper("claim", _SHA_A), _REPO, True),
-        ("run", ("git", "rev-parse", "main"), _REPO, True),
-        ("run", ("git", "rev-list", "--count", "HEAD..main"), _REPO, True),
-        ("run", _helper("release"), _REPO, True),
-    ]
-    fake.assert_drained()
+    assert outcome.rc == 0
+    assert fake.submissions == 1
+    assert ("write_temp", _SELF_REPORTED_MERGE_MESSAGE) in fake.events
 
 
 @pytest.mark.parametrize(
@@ -8334,6 +8510,13 @@ def test_acceptance_cli_contract(case: str) -> None:
         assert args.max_wait_seconds == 7200
         assert args.owned_path == []
         assert child == ["harmless"]
+        merge_message_action = next(
+            action
+            for action in DW._acceptance_parser()._actions
+            if "--merge-message-file" in action.option_strings
+        )
+        assert "省略時は self-report を使い" in merge_message_action.help
+        assert "両親と異なる実装面 path がある場合だけ" in merge_message_action.help
         return
     with pytest.raises(DW._StageFailure) as raised:
         DW._parse_cli(argv)
@@ -9044,6 +9227,13 @@ def test_real_git_production_provenance_rejects_malformed_merge_message(
     campaign.mkdir(parents=True)
     shutil.copy2(_ROOT / "orchestrator" / "campaign" / "__init__.py", campaign)
     shutil.copy2(_ROOT / "orchestrator" / "campaign" / "site_policy.py", campaign)
+    with (campaign / "site_policy.py").open("a", encoding="utf-8") as stream:
+        stream.write(
+            "\n"
+            "def current_site(*, require_evidence=False):\n"
+            "    del require_evidence\n"
+            "    return OTHER\n"
+        )
     git_env = {
         **{key: value for key, value in os.environ.items() if key not in DW._GIT_ENV_KEYS},
         "GIT_AUTHOR_NAME": "Test",
@@ -9130,6 +9320,157 @@ def test_real_git_production_provenance_rejects_malformed_merge_message(
     )
     assert merge_head.returncode == 1
     assert not (lease / "acceptance.lease").exists()
+
+
+def _run_real_self_report_merge_case(
+    tmp_path: Path,
+    *,
+    combined: bool,
+) -> tuple[
+    subprocess.CompletedProcess[str],
+    Path,
+    Path,
+    Path,
+    Path,
+    dict[str, str],
+    str,
+]:
+    wave = "self-report-combined" if combined else "self-report-main-only"
+    repo, lease, env = _real_waiter_repo(tmp_path, wave=wave)
+
+    def git(*args: str) -> str:
+        return subprocess.run(
+            ["git", *args],
+            cwd=repo,
+            env=env,
+            check=True,
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        ).stdout.strip()
+
+    _write_path_aware_provenance_checker(repo)
+    target = repo / "tools" / "self_report_target.py"
+    target.write_text(
+        "base-one\nbase-two\nbase-three\n"
+        if combined
+        else "base\n",
+        encoding="utf-8",
+    )
+    git("add", "tools/check_ai_provenance.py", "tools/self_report_target.py")
+    git("commit", "-m", "add self-report merge target")
+    branch = f"worktree-{wave}"
+    git("checkout", "main")
+    git("merge", "--ff-only", branch)
+    git("checkout", branch)
+
+    if combined:
+        target.write_text(
+            "wave-one\nbase-two\nbase-three\n",
+            encoding="utf-8",
+        )
+        git("add", "tools/self_report_target.py")
+        git("commit", "-m", "wave changes implementation target")
+        git("checkout", "main")
+        target.write_text(
+            "base-one\nbase-two\nmain-three\n",
+            encoding="utf-8",
+        )
+        git("add", "tools/self_report_target.py")
+        git("commit", "-m", "main changes implementation target")
+        git("checkout", branch)
+    else:
+        git("checkout", "main")
+        target.write_text("main\n", encoding="utf-8")
+        git("add", "tools/self_report_target.py")
+        git("commit", "-m", "main-only implementation change")
+        git("checkout", branch)
+
+    wave_head = git("rev-parse", "HEAD")
+    receipt = tmp_path / "self-report-receipt.json"
+    log = tmp_path / "self-report.log"
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(repo / "tools" / "dev_wave_wait.py"),
+            "acceptance",
+            "--wave",
+            wave,
+            "--lease-dir",
+            str(lease),
+            "--receipt-file",
+            str(receipt),
+            "--log-file",
+            str(log),
+            "--",
+            sys.executable,
+            str(repo / "tools" / "run_tests.py"),
+        ],
+        cwd=repo,
+        env=env,
+        check=False,
+        stdin=subprocess.DEVNULL,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    return result, repo, lease, receipt, log, env, wave_head
+
+
+def test_real_git_self_report_allows_main_only_implementation_merge(
+    tmp_path: Path,
+) -> None:
+    result, repo, lease, receipt, log, env, _wave_head = (
+        _run_real_self_report_merge_case(tmp_path, combined=False)
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert receipt.is_file()
+    assert log.is_file()
+    assert "merge-message-provenance" not in result.stderr
+    message = subprocess.run(
+        ["git", "log", "-1", "--format=%B", "HEAD"],
+        cwd=repo,
+        env=env,
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout
+    assert "product=claude" in message
+    assert "role=integrator" in message
+    assert (lease / "acceptance.lease").is_file()
+
+
+def test_real_git_self_report_rejects_combined_implementation_path_merge(
+    tmp_path: Path,
+) -> None:
+    result, repo, lease, receipt, log, env, wave_head = (
+        _run_real_self_report_merge_case(tmp_path, combined=True)
+    )
+
+    assert result.returncode == 70
+    assert "error: stage=merge-message-provenance rc=70 source_rc=1" in result.stderr
+    assert "acceptance-command argv=" not in result.stderr
+    assert not receipt.exists()
+    assert not log.exists()
+    assert not (lease / "acceptance.lease").exists()
+    assert subprocess.run(
+        ["git", "rev-parse", "HEAD"],
+        cwd=repo,
+        env=env,
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout.strip() == wave_head
+    assert subprocess.run(
+        ["git", "status", "--porcelain", "--untracked-files=no"],
+        cwd=repo,
+        env=env,
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout == ""
 
 
 def test_default_wiring_with_real_git_and_lease_helper(tmp_path: Path) -> None:
@@ -10242,15 +10583,6 @@ def test_retry_does_not_remove_artifact_that_appears_between_attempts(
         for event in fake.events
     )
     assert fake.releases == 1
-
-
-def test_preclaim_failure_never_enters_attempt_retry() -> None:
-    fake = _RoutingAcceptanceEffects(preclaim_behind=1)
-
-    outcome = _run_acceptance(fake)
-
-    assert outcome.rc == 2
-    assert (fake.claims, fake.submissions, fake.releases) == (0, 0, 0)
 
 
 def test_existing_cleanup_failure_blocks_retry() -> None:

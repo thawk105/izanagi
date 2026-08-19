@@ -5,7 +5,7 @@
 reward hacking 圧力が最も高い。iteration フロー (design v1 §4 の 1 周):
 
     1. planner (LLM):  current_perf (絶対 throughput を含む) + leading-indicators +
-       whiteboard → 方向提案 (proposal スキーマは具体値 field を持たない)
+       whiteboard + optional policy_hint (このharnessが emit) → 方向提案 (proposal スキーマは具体値 field を持たない)
        checkpoint 復元時は whiteboard の delta_pct と direction / magnitude / result の
        型・値域を fail-closed に検査する。ただし in-memory 射影経路と layer3_report の
        独立 reader はこの検査を通らず、iteration 整合・件数・origin 束縛も残る ([T-287] の残余)
@@ -46,8 +46,8 @@ import re
 import secrets
 import sys
 import time
-from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Tuple
+from dataclasses import dataclass, field, replace
+from typing import Any, Dict, List, Optional, Tuple
 from pathlib import Path
 
 if __package__ in {None, ""}:  # pragma: no cover - direct CLI execution
@@ -549,6 +549,24 @@ def whiteboard_for_planner(state: LoopState) -> List[Dict]:
         out.append({"iteration": e.iteration, "direction": e.direction,
                     "magnitude": e.magnitude, "result": e.result, "delta_pct": e.delta_pct})
     return out
+
+
+def planner_context_payload(state: LoopState, cfg: CampaignConfig) -> Dict[str, Any]:
+    """段4 human-supervised loop: このharnessが権威を持つ入力 (whiteboard + 任意の
+    policy_hint) を planner-v4 spawn 用 JSON へ射影する。current_perf/leading_indicators は
+    メインセッションが別途合成し本関数の責務外。
+
+    ``policy_hint`` は search_config にキーがある場合だけ exact ``str`` を受け付ける。
+    キーが無い場合は planner payload にも出力しない。
+    """
+    payload: Dict[str, Any] = {"whiteboard": whiteboard_for_planner(state)}
+    if "policy_hint" not in cfg.search_config:
+        return payload
+    hint = cfg.search_config.get("policy_hint")
+    if type(hint) is not str:
+        raise ValueError("search_config['policy_hint'] は exact str が必要")
+    payload["policy_hint"] = hint
+    return payload
 
 
 # ==== 停止判定 (design v1 §4、D39) ===========================================
@@ -1104,7 +1122,8 @@ def main(argv: Optional[List[str]] = None) -> int:
 
     実 LLM (planner/coder/critic) はメインセッションが spawn する — 本 main は harness
     の機械経路 (挿入→検疫→評価→WAL→digest→whiteboard→停止判定) が通ることを、人間が
-    与えた fixture backoff 値で確認する口。--no-build で build/verify/bench を省く。"""
+    与えた fixture backoff 値で確認する口。--no-build で build/verify/bench を省く。
+    --emit-planner-context は proposal 生成前の planner-v4 入力 JSON を出力する。"""
     ap = argparse.ArgumentParser(description="P3 後続段 4 coder 自律ループ (機械 E2E)")
     ap.add_argument("--no-build", action="store_true",
                     help="build/verify/bench を省き挿入→検疫の配線のみ確認")
@@ -1119,10 +1138,30 @@ def main(argv: Optional[List[str]] = None) -> int:
     ap.add_argument("--run-iteration", metavar="PROPOSAL.json",
                     help="段 4b 駆動: 実 planner/coder proposal (JSON) を受けて checkpoint 継続で "
                          "1 iteration を回す (メインセッションが毎 iteration これを呼ぶ)")
+    ap.add_argument("--emit-planner-context", metavar="PATH.json",
+                    help="proposal 生成前の planner-v4 入力 (whiteboard + 任意の policy_hint) を JSON 出力")
+    ap.add_argument("--policy-hint", metavar="TEXT", default=None,
+                    help="planner-v4 へ渡す任意の policy hint (--emit-planner-context と併用)")
     ap.add_argument("--isolate-worktree", action="store_true",
                     help="段5 git worktree 隔離: 共有 external/ccbench でなく使い捨て "
                          "worktree で apply/build/verify する (既定 OFF = 既存動作と完全互換)")
     a = ap.parse_args(argv if argv is not None else sys.argv[1:])
+    if a.emit_planner_context:
+        cfg = default_cfg(reflux=(a.reflux == "on"))
+        if a.policy_hint is not None:
+            cfg = replace(
+                cfg,
+                search_config={**cfg.search_config, "policy_hint": a.policy_hint},
+            )
+        layout = exploration_campaign_layout(str(ident.campaign_id(cfg)))
+        state = load_loop_state(layout)
+        if state is None:
+            state = LoopState(start_wall=time.time())
+        payload = planner_context_payload(state, cfg)
+        with open(a.emit_planner_context, "w", encoding="utf-8") as f:
+            f.write(json.dumps(payload, ensure_ascii=False))
+        print(f"planner context を出力しました: {a.emit_planner_context}")
+        return 0
     if not a.no_build and a.coder_build_authority is None:
         raise BuildAdmissionError("--allow-coder-derived-build の明示 opt-in が必要")
     build_context = build_run_context(
