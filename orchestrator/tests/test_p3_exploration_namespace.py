@@ -148,7 +148,7 @@ _MAIN_DRIVERS = tuple(
 _EXPECTED_CALL_COUNTS = {
     "p3_autonomous_workload_trial": (1, 0),
     "p3_kickoff": (1, 2),
-    "p3_s4_loop": (5, 1),
+    "p3_s4_loop": (6, 1),
     "p3_s4_loop_sort": (5, 1),
     "p3_s4_loop_trigger_gating": (5, 1),
     "p3_s4_red": (1, 2),

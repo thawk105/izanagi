@@ -3,6 +3,7 @@
   "required": ["schema_version", "source", "read_write", "contention", "scale", "objective", "correctness"],
   "additionalProperties": false,
   "properties": {
+    "policy_hint": {"type": "string"},
     "schema_version": {"const": "8b-v1"},
     "source": {"enum": ["campaign_search_config_projection", "human_declared"]},
     "read_write": {

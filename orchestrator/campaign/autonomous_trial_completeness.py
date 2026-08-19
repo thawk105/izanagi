@@ -132,7 +132,7 @@ _REGISTERED_DESCRIPTOR_BINDING_KEYS = frozenset({
     "content_digest_sha256", "arm_binding_digest_sha256",
 })
 _DESCRIPTOR_SCHEMA_SHA256 = (
-    "e60203b021a77a6d5a7d09bafd59525acd4173fa1ade099ec145a2b9d3ddc653"
+    "5a9e2696b8fba18f8f7cf01183673a1bd6f5781cc9cb1fe8641f9d667fe11549"
 )
 _AUTONOMOUS_SEARCH_CONFIG_KEYS = frozenset({
     "axis", "descriptor_schema", "descriptor_sha256", "generation_budget",
