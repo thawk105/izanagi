@@ -24,7 +24,7 @@ from orchestrator.calibrator import perf_preflight as _perf_preflight
 OFFICIAL_MANIFEST_SCHEMA = "8b-oracle-manifest/v1"
 OFFICIAL_OBSERVATIONS_SCHEMA = "8b-oracle-observations/v1"
 OFFICIAL_VERDICT_SCHEMA = "8b-oracle-verdict/v1"
-COMBINED_VERDICT_SCHEMA = "8b-combined-verdict/v2"
+COMBINED_VERDICT_SCHEMA = "8b-combined-verdict/v3"
 EXPLORATION_ARTIFACT_SCHEMA = "8b-oracle-exploration-artifact/v1"
 MEASUREMENT_MANIFEST_SCHEMA = "8b-oracle-measurement-manifest/v1"
 
