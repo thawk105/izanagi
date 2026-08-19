@@ -1118,3 +1118,7 @@ def test_force_dispatch_real_path_sidecar_roundtrip_when_enabled(tmp_path, monke
         assert isinstance(digest, str) and len(digest) == 12
     finally:
         shutil.rmtree(sidecar_parent, ignore_errors=True)
+
+
+if __name__ == "__main__":
+    raise SystemExit(pytest.main(["-q", str(Path(__file__).resolve())]))

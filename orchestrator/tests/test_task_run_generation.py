@@ -786,3 +786,7 @@ def test_call_graph_pins_explicit_generation_and_repo_binding():
     CallerVisitor("cli.py").visit(cli_tree)
     assert open_callers == [("cli.py", "main")]
     assert start_repo_callers == [("generation.py", "start_automatic_test_run")]
+
+
+if __name__ == "__main__":
+    raise SystemExit(pytest.main(["-q", str(Path(__file__).resolve())]))
