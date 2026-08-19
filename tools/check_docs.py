@@ -499,6 +499,13 @@ DEV_WAVE_DW_O25_SECTION_LITERAL = """## DW-O25 — ff-only land の全史 proven
 D254 に従い、land は `locked_main != tested_tip` のときだけ lock を解放して全史 provenance 監査を自ら走らせ、480 秒以内の rc=0 を必須とする。赤は `RC_PROVENANCE = 29` で main を 1 bit も変えず拒否し、CLI flag・環境変数・警告化の逃がし道を作らない。
 lock 再取得後に全検査をやり直し、`tip_sha` / `checker_blob_sha` / `executed_bytes_sha` / `returncode` を束縛した receipt を lock 内で再照合する。`already-landed` の no-op と active fold transaction の recovery では監査を起動しない。
 """
+DEV_WAVE_DW_O26_SECTION_LITERAL = """## DW-O26 — 焦点走の consumer test 拡張
+
+`DW-O18` の焦点走対象 file 集合は、変更した test file だけでなく、変更した production file を
+参照する consumer test も含める。名前の推測でなく参照関係で引く（例: 変更した production module 名で
+`orchestrator/tests/` を grep する）。この拡張を欠く焦点走は、静的レビューが見落とした破れを
+初回実測でも取り逃す（F242）。
+"""
 DEV_WAVE_DW_C01_SECTION_LITERAL = """## DW-C01 — 実測で是正した作法
 
 `DW-O01`/`DW-O08`/`DW-O17`/`DW-O20` に優先する。
@@ -520,6 +527,8 @@ DEV_WAVE_EXACT_VISIBLE_SECTIONS = {
         DEV_WAVE_SELF_ROUTING_SECTION_LITERAL,
     ("docs/dev-wave/operations.md", "DW-O25 — ff-only land の全史 provenance 関門"):
         DEV_WAVE_DW_O25_SECTION_LITERAL,
+    ("docs/dev-wave/operations.md", "DW-O26 — 焦点走の consumer test 拡張"):
+        DEV_WAVE_DW_O26_SECTION_LITERAL,
     ("docs/dev-wave/core.md", "DW-C01 — 実測で是正した作法"):
         DEV_WAVE_DW_C01_SECTION_LITERAL + "\n",
 }
@@ -658,9 +667,10 @@ REQUIRED_REFERENCE_SECTIONS = {
         "DW-M01", "DW-M02", "DW-M03", "DW-M04",
         "DW-M05", "DW-M06", "DW-M07", "DW-M08",
     },
-    "docs/dev-wave/operations.md": {
-        f"DW-O{i:02d}" for i in _OPERATION_NUMBERS
-    },
+    "docs/dev-wave/operations.md": (
+        # O26 は既存の削除済み ID を含む番号列から独立した新規節。
+        {f"DW-O{i:02d}" for i in _OPERATION_NUMBERS} | {"DW-O26"}
+    ),
 }
 DEV_WAVE_REFERENCE_FILES = frozenset(REQUIRED_REFERENCE_SECTIONS)
 NORMATIVE_DISPATCH_ALLOWLIST = (
@@ -769,6 +779,9 @@ CONDITION_DISPATCH_CONTRACT = {
     for i in _OPERATION_NUMBERS
 }
 CONDITION_DISPATCH_CONTRACT["15"] = _pairs(_MUTATION, "DW-M07")
+CONDITION_DISPATCH_CONTRACT["18"] = _pairs(
+    _OPERATIONS, "DW-O18", "DW-O26"
+)
 CONDITION_DISPATCH_CONTRACT.update({
     "21": _pairs(_CORE, "DW-CTX"),
     "22": _pairs(_CORE, "DW-CTX"),

@@ -169,6 +169,13 @@ _SYNTHETIC_DW_O25_SECTION = """## DW-O25 — ff-only land の全史 provenance �
 D254 に従い、land は `locked_main != tested_tip` のときだけ lock を解放して全史 provenance 監査を自ら走らせ、480 秒以内の rc=0 を必須とする。赤は `RC_PROVENANCE = 29` で main を 1 bit も変えず拒否し、CLI flag・環境変数・警告化の逃がし道を作らない。
 lock 再取得後に全検査をやり直し、`tip_sha` / `checker_blob_sha` / `executed_bytes_sha` / `returncode` を束縛した receipt を lock 内で再照合する。`already-landed` の no-op と active fold transaction の recovery では監査を起動しない。
 """
+_SYNTHETIC_DW_O26_SECTION = """## DW-O26 — 焦点走の consumer test 拡張
+
+`DW-O18` の焦点走対象 file 集合は、変更した test file だけでなく、変更した production file を
+参照する consumer test も含める。名前の推測でなく参照関係で引く（例: 変更した production module 名で
+`orchestrator/tests/` を grep する）。この拡張を欠く焦点走は、静的レビューが見落とした破れを
+初回実測でも取り逃す（F242）。
+"""
 _SYNTHETIC_DW_C01_SECTION = """## DW-C01 — 実測で是正した作法
 
 `DW-O01`/`DW-O08`/`DW-O17`/`DW-O20` に優先する。
@@ -189,6 +196,9 @@ _SYNTHETIC_OPERATION_SECTION_IDS = (
     "DW-O08", "DW-O09", "DW-O10", "DW-O11", "DW-O12", "DW-O13",
     "DW-O14", "DW-O16", "DW-O17", "DW-O18", "DW-O19", "DW-O20",
     "DW-O23", "DW-O25",
+)
+_SYNTHETIC_REGISTERED_OPERATION_SECTION_IDS = (
+    *_SYNTHETIC_OPERATION_SECTION_IDS, "DW-O26",
 )
 _SYNTHETIC_ALL_OPERATIONS_REF = (
     "`docs/dev-wave/operations.md`: `DW-O01`〜`DW-O06`, `DW-O08`〜`DW-O14`, "
@@ -822,7 +832,7 @@ description: synthetic Codex rulings skill
 
     for rel, contract_sections in check_docs.REQUIRED_REFERENCE_SECTIONS.items():
         sections = (
-            _SYNTHETIC_OPERATION_SECTION_IDS
+            _SYNTHETIC_REGISTERED_OPERATION_SECTION_IDS
             if rel == "docs/dev-wave/operations.md"
             else sorted(contract_sections)
         )
@@ -863,11 +873,22 @@ description: synthetic Codex rulings skill
                 body += "\n\n`tools/dev_wave_land.py`"
             if rel == "docs/dev-wave/operations.md" and section == "DW-O25":
                 rendered_sections.append(_SYNTHETIC_DW_O25_SECTION.rstrip("\n"))
+            elif rel == "docs/dev-wave/operations.md" and section == "DW-O26":
+                rendered_sections.append(_SYNTHETIC_DW_O26_SECTION.rstrip("\n"))
             elif rel == "docs/dev-wave/core.md" and section == "DW-C01":
                 rendered_sections.append(_SYNTHETIC_DW_C01_SECTION.rstrip("\n"))
             else:
                 rendered_sections.append(f"## {section} — synthetic\n\n{body}")
         text = "# synthetic reference\n\n" + "\n\n".join(rendered_sections) + "\n"
+        if rel == "docs/dev-wave/operations.md":
+            # O25 の既存 exact pin を保ったまま、確定文面を直後へ追加する。
+            text = text.replace(
+                _SYNTHETIC_DW_O25_SECTION.rstrip("\n")
+                + "\n\n## DW-O26",
+                _SYNTHETIC_DW_O25_SECTION.rstrip("\n")
+                + "\n## DW-O26",
+                1,
+            )
         literals = check_docs.CODEX_FIRST_REFERENCE_LITERALS.get(rel, ())
         if literals:
             text += "\n" + "\n".join(literals) + "\n"
@@ -2298,7 +2319,7 @@ def test_dev_wave_layer_budget_contract_is_literal():
         *(('docs/dev-wave/operations.md', section) for section in (
             'DW-O03', 'DW-O04', 'DW-O06', 'DW-O08', 'DW-O09', 'DW-O10',
             'DW-O11', 'DW-O12', 'DW-O13', 'DW-O14', 'DW-O16', 'DW-O17',
-            'DW-O18', 'DW-O19', 'DW-O20', 'DW-O25',
+            'DW-O18', 'DW-O19', 'DW-O20', 'DW-O25', 'DW-O26',
         )),
     }
 
@@ -2736,7 +2757,7 @@ _TEST_DEV_WAVE_LAYERS = {
         *(('docs/dev-wave/operations.md', section) for section in (
             'DW-O03', 'DW-O04', 'DW-O06', 'DW-O08', 'DW-O09', 'DW-O10',
             'DW-O11', 'DW-O12', 'DW-O13', 'DW-O14', 'DW-O16', 'DW-O17',
-            'DW-O18', 'DW-O19', 'DW-O20', 'DW-O25',
+            'DW-O18', 'DW-O19', 'DW-O20', 'DW-O25', 'DW-O26',
         )),
     },
 }
@@ -3241,6 +3262,37 @@ def test_dev_wave_dispatch_accepts_exact_range_delimiter():
     root = _build_min_repo()
     try:
         assert cell in _read(root, ".claude/commands/dev-wave.md")
+        result = _run_check(root)
+        assert result.returncode == 0, result.stdout
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_dev_wave_dispatch_accepts_comma_delimited_section_references():
+    """同一 path の `, ` 区切り複数節が typed edge へ展開される。"""
+
+    cell = (
+        "`docs/dev-wave/operations.md`: `DW-O18`, `DW-O26`"
+    )
+    assert check_docs._dispatch_reference_cell_errors(cell) == ()
+    pairs, paths = check_docs._dispatch_pairs_from_line(cell)
+    assert paths == {"docs/dev-wave/operations.md"}
+    assert pairs == {
+        ("docs/dev-wave/operations.md", "DW-O18"),
+        ("docs/dev-wave/operations.md", "DW-O26"),
+    }
+
+    root = _build_min_repo()
+    try:
+        command = _read(root, ".claude/commands/dev-wave.md")
+        row = next(
+            line for line in command.splitlines()
+            if line.startswith("| 18 |")
+        )
+        assert cell in row
+        dispatch = check_docs._dispatch_tables(command)
+        assert dispatch is not None and not dispatch.structure_errors
+        assert dispatch.conditions["18"] == pairs
         result = _run_check(root)
         assert result.returncode == 0, result.stdout
     finally:
@@ -5956,6 +6008,31 @@ def _mutate_command_guard(root: str, case: str) -> None:
             lambda line: line.startswith("| 13 |"),
             lambda line: "",
         )
+    elif case == "condition_18_o18_deleted":
+        _rewrite_matching_lines(
+            root,
+            ".claude/commands/dev-wave.md",
+            lambda line: line.startswith("| 18 |"),
+            lambda line: line.replace("`DW-O18`, ", "", 1),
+        )
+    elif case == "condition_18_o26_deleted":
+        _rewrite_matching_lines(
+            root,
+            ".claude/commands/dev-wave.md",
+            lambda line: line.startswith("| 18 |"),
+            lambda line: line.replace(", `DW-O26`", "", 1),
+        )
+    elif case == "condition_18_trigger_broadened":
+        _rewrite_matching_lines(
+            root,
+            ".claude/commands/dev-wave.md",
+            lambda line: line.startswith("| 18 |"),
+            lambda line: line.replace(
+                check_docs.CONDITION_TRIGGER_CONTRACT["18"],
+                "親がテスト・受入を走らせる直前後",
+                1,
+            ),
+        )
     elif case == "condition_all_operations_deleted":
         _rewrite_matching_lines(
             root,
@@ -6175,12 +6252,47 @@ def _mutate_command_guard(root: str, case: str) -> None:
         rel = "docs/dev-wave/operations.md"
         text = _read(root, rel)
         assert text.count(_SYNTHETIC_DW_O25_SECTION) == 1
-        text = text.replace("\n\n" + _SYNTHETIC_DW_O25_SECTION, "", 1)
+        text = text.replace(
+            "\n\n" + _SYNTHETIC_DW_O25_SECTION.rstrip("\n"),
+            "",
+            1,
+        )
         insertion = text.index("## DW-O01 ")
         _write(
             root,
             rel,
             text[:insertion] + _SYNTHETIC_DW_O25_SECTION + text[insertion:],
+        )
+    elif case == "o26_section_deleted":
+        rel = "docs/dev-wave/operations.md"
+        text = _read(root, rel)
+        _, section_slices = check_docs._h2_section_slices(text)
+        sections = section_slices["DW-O26 — 焦点走の consumer test 拡張"]
+        assert len(sections) == 1
+        _write(
+            root,
+            rel,
+            text.replace(sections[0], "", 1),
+        )
+    elif case == "o26_heading_only":
+        rel = "docs/dev-wave/operations.md"
+        text = _read(root, rel)
+        _, section_slices = check_docs._h2_section_slices(text)
+        sections = section_slices["DW-O26 — 焦点走の consumer test 拡張"]
+        assert len(sections) == 1
+        section = sections[0]
+        heading = section.splitlines()[0] + "\n"
+        _write(root, rel, text.replace(section, heading, 1))
+    elif case == "o26_contract_weakened":
+        rel = "docs/dev-wave/operations.md"
+        current = "静的レビューが見落とした破れを"
+        assert _read(root, rel).count(current) == 1
+        _write(
+            root,
+            rel,
+            _read(root, rel).replace(
+                current, "静的レビューが見落とした差分を", 1
+            ),
         )
     elif case == "codex_skill_deleted":
         os.remove(os.path.join(
@@ -6479,6 +6591,9 @@ _COMMAND_GUARD_CASES = [
     "stage8_self_deleted",
     "stage9_land_operation_deleted",
     "condition_o13_deleted",
+    "condition_18_o18_deleted",
+    "condition_18_o26_deleted",
+    "condition_18_trigger_broadened",
     "condition_all_operations_deleted",
     "condition_supervisor_deleted",
     "condition_land_operation_deleted",
@@ -6508,6 +6623,9 @@ _COMMAND_GUARD_CASES = [
     "operations_land_helper_outside_o23",
     "o25_contract_weakened",
     "o25_before_o01",
+    "o26_section_deleted",
+    "o26_heading_only",
+    "o26_contract_weakened",
     "codex_skill_deleted",
     "codex_skill_extra_file",
     "codex_skill_name_changed",
@@ -6589,6 +6707,9 @@ _COMMAND_GUARD_NEEDLES = {
     "stage8_self_deleted": "段 dispatch '段 8 preflight' の U edge が契約と不一致",
     "stage9_land_operation_deleted": "段 dispatch '段 9' の U edge が契約と不一致",
     "condition_o13_deleted": "条件 dispatch '13' が契約と不一致",
+    "condition_18_o18_deleted": "条件 dispatch '18' が契約と不一致",
+    "condition_18_o26_deleted": "条件 dispatch '18' が契約と不一致",
+    "condition_18_trigger_broadened": "条件 dispatch '18' が契約と不一致",
     "condition_all_operations_deleted": "条件 dispatch '01' が契約と不一致",
     "condition_supervisor_deleted": "条件 dispatch '22' が契約と不一致",
     "condition_land_operation_deleted": "条件 dispatch '23' が契約と不一致",
@@ -6618,6 +6739,9 @@ _COMMAND_GUARD_NEEDLES = {
     "operations_land_helper_outside_o23": "land helper path は全体で exact 1 件",
     "o25_contract_weakened": "可視 H2 節 'DW-O25 — ff-only land の全史 provenance 関門' の節全体",
     "o25_before_o01": "DW-O25 は DW-O23 より後に置く",
+    "o26_section_deleted": "H2 見出し DW-O26 が 0 件",
+    "o26_heading_only": "可視 H2 節 'DW-O26 — 焦点走の consumer test 拡張' の節全体",
+    "o26_contract_weakened": "可視 H2 節 'DW-O26 — 焦点走の consumer test 拡張' の節全体",
     "codex_skill_deleted": "Codex dev-wave Skill の必須 file が不在",
     "codex_skill_extra_file": "Codex dev-wave Skill の予算未登録実体",
     "codex_skill_name_changed": "name は 'dev-wave' 必須",
@@ -6700,16 +6824,18 @@ _COMMAND_GUARD_NEEDLES = {
 _COMMAND_GUARD_EXPECTED_COUNTS = {
     case: 1 for case in _COMMAND_GUARD_CASES
 }
-_COMMAND_GUARD_EXPECTED_COUNTS["condition_all_operations_deleted"] = len(
-    _OPERATION_CONDITION_KEYS
+_COMMAND_GUARD_EXPECTED_COUNTS["condition_all_operations_deleted"] = (
+    len(_OPERATION_CONDITION_KEYS) + 1
 )
 _COMMAND_GUARD_EXPECTED_COUNTS.update({
     "condition_26_deleted": 2,
     "condition_26_target_changed": 2,
 })
 _COMMAND_GUARD_EXPECTED_COUNTS.update({
+    "condition_18_o26_deleted": 2,
     "dispatch_allowlist": 2,
     "codex_startup_wave_pre_form": 2,
+    "o26_section_deleted": 2,
 })
 
 
@@ -6830,6 +6956,12 @@ def test_command_guard_case_registration_is_complete():
         "stage9-deleted",
         "dw-c00-fenced",
         "dw-o01-wrong-pid-source",
+        "condition_18_o18_deleted",
+        "condition_18_o26_deleted",
+        "condition_18_trigger_broadened",
+        "o26_section_deleted",
+        "o26_heading_only",
+        "o26_contract_weakened",
         "target-symlinked",
         "decoy-optional",
         "decoy-negated",
@@ -6846,6 +6978,8 @@ def test_command_guard_case_registration_is_complete():
     for test_name in (
         "test_condition_25_contract_pins_exact_trigger_and_target",
         "test_condition_26_contract_pins_exact_trigger_and_target",
+        "test_dev_wave_dispatch_accepts_comma_delimited_section_references",
+        "test_dw_o26_exact_section_pin_accepts_synthetic_fixture",
         "test_normative_exact_section_contract_is_handwritten_and_complete",
         "test_normative_exact_section_pins_reject_raw_html_inside_pinned_sections",
         "test_dev_wave_operation_order_rejects_titleless_reorder_and_missing_target",
@@ -6858,7 +6992,7 @@ def test_command_guard_case_registration_is_complete():
 
 
 def test_operation_contract_pins_exact_section_set():
-    """operations 契約の外延と配線を literal で固定する (O15 削除後の 20 節)。
+    """operations 契約の外延と配線を literal で固定する (O15 削除後の 20 節 + O26)。
 
     checker とテスト fixture は同じ `_OPERATION_NUMBERS` から導出される (F9 型の
     自己整合面)。fixture の literal range 表記が単純な縮小・拡大を先に赤くし、
@@ -6873,7 +7007,12 @@ def test_operation_contract_pins_exact_section_set():
         "DW-O23", "DW-O25",
     }
     assert set(_SYNTHETIC_OPERATION_SECTION_IDS) == expected
-    assert check_docs.REQUIRED_REFERENCE_SECTIONS[operations] == expected
+    assert set(_SYNTHETIC_REGISTERED_OPERATION_SECTION_IDS) == (
+        expected | {"DW-O26"}
+    )
+    assert check_docs.REQUIRED_REFERENCE_SECTIONS[operations] == (
+        expected | {"DW-O26"}
+    )
     assert check_docs._ALL_OPERATIONS == frozenset(
         (operations, section) for section in expected
     )
@@ -6884,9 +7023,17 @@ def test_operation_contract_pins_exact_section_set():
             for pair in check_docs.CONDITION_DISPATCH_CONTRACT[key]
             if pair[0] == operations
         }
-        assert operations_pairs == {(operations, section)}, (
+        expected_pairs = {(operations, section)}
+        if section == "DW-O18":
+            expected_pairs.add((operations, "DW-O26"))
+        assert operations_pairs == expected_pairs, (
             f"条件 {key} の operations 配線が {section} 単独でない"
         )
+    assert check_docs.CONDITION_DISPATCH_CONTRACT["18"] == {
+        (operations, "DW-O18"),
+        (operations, "DW-O26"),
+    }
+    assert "26" not in _OPERATION_CONDITION_KEYS
     assert check_docs.CONDITION_DISPATCH_CONTRACT["15"] == {
         ("docs/dev-wave/mutation.md", "DW-M07")
     }
@@ -8216,9 +8363,13 @@ def test_normative_exact_section_contract_is_handwritten_and_complete():
     assert check_docs.DEV_WAVE_DW_O25_SECTION_LITERAL == (
         _SYNTHETIC_DW_O25_SECTION
     )
+    assert check_docs.DEV_WAVE_DW_O26_SECTION_LITERAL == (
+        _SYNTHETIC_DW_O26_SECTION
+    )
     assert check_docs.DEV_WAVE_DW_C01_SECTION_LITERAL == (
         _SYNTHETIC_DW_C01_SECTION
     )
+    assert len(_SYNTHETIC_DW_O26_SECTION.encode("utf-8")) == 470
     assert len(_SYNTHETIC_DW_C01_SECTION.encode("utf-8")) == 990
     assert check_docs.DEV_WAVE_EXACT_VISIBLE_SECTIONS == {
         (".claude/commands/dev-wave.md", "入力と開始"):
@@ -8230,6 +8381,10 @@ def test_normative_exact_section_contract_is_handwritten_and_complete():
             "DW-O25 — ff-only land の全史 provenance 関門",
         ): _SYNTHETIC_DW_O25_SECTION,
         (
+            "docs/dev-wave/operations.md",
+            "DW-O26 — 焦点走の consumer test 拡張",
+        ): _SYNTHETIC_DW_O26_SECTION,
+        (
             "docs/dev-wave/core.md",
             "DW-C01 — 実測で是正した作法",
         ): _SYNTHETIC_DW_C01_SECTION + "\n",
@@ -8239,8 +8394,22 @@ def test_normative_exact_section_contract_is_handwritten_and_complete():
     ].encode("utf-8")) == 991
 
 
+def test_dw_o26_exact_section_pin_accepts_synthetic_fixture():
+    """DW-O26 の全文・見出しが exact pin と一致する正例を固定する。"""
+
+    root = _build_min_repo()
+    try:
+        operations = _read(root, "docs/dev-wave/operations.md")
+        assert operations.count(_SYNTHETIC_DW_O26_SECTION) == 1
+        result = _run_check(root)
+        assert result.returncode == 0, result.stdout + result.stderr
+        assert "違反なし" in result.stdout
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
 def test_normative_exact_section_pins_reject_raw_html_inside_pinned_sections():
-    """pin 済み 5 節の内側へ raw HTML block を差し込むと拒否する。"""
+    """pin 済み 6 節の内側へ raw HTML block を差し込むと拒否する。"""
 
     cases = (
         (
@@ -8254,6 +8423,10 @@ def test_normative_exact_section_pins_reject_raw_html_inside_pinned_sections():
         (
             "docs/dev-wave/operations.md",
             "DW-O25 — ff-only land の全史 provenance 関門",
+        ),
+        (
+            "docs/dev-wave/operations.md",
+            "DW-O26 — 焦点走の consumer test 拡張",
         ),
         (
             "docs/dev-wave/core.md",
@@ -8297,7 +8470,11 @@ def test_dev_wave_operation_order_rejects_titleless_reorder_and_missing_target()
             1,
         )
         assert text.count(_SYNTHETIC_DW_O25_SECTION) == 1
-        text = text.replace("\n\n" + _SYNTHETIC_DW_O25_SECTION, "", 1)
+        text = text.replace(
+            "\n\n" + _SYNTHETIC_DW_O25_SECTION.rstrip("\n"),
+            "",
+            1,
+        )
         marker = "## DW-O23\n"
         assert text.count(marker) == 1
         text = text.replace(
