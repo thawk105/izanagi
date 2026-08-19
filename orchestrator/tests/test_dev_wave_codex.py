@@ -175,7 +175,7 @@ def test_resource_defaults_and_overrides() -> None:
     with tempfile.TemporaryDirectory() as tmp:
         root = Path(tmp)
         defaults = _argv(_invoke(root, stage="plan", reasoning="max"))
-        assert _option(defaults, "--max-wall-clock-s") == "3600"
+        assert _option(defaults, "--wall-clock-admission-bound-s") == "3600"
         assert _option(defaults, "--max-model-calls") == "100"
         assert _option(defaults, "--max-cli-reported-tokens") == "1000000"
         overridden = _argv(
@@ -185,7 +185,7 @@ def test_resource_defaults_and_overrides() -> None:
                 reasoning="max",
                 sandbox="workspace-write",
                 extra=(
-                    "--max-wall-clock-s",
+                    "--wall-clock-admission-bound-s",
                     "17",
                     "--max-model-calls",
                     "23",
@@ -196,7 +196,7 @@ def test_resource_defaults_and_overrides() -> None:
                 ),
             )
         )
-        assert _option(overridden, "--max-wall-clock-s") == "17"
+        assert _option(overridden, "--wall-clock-admission-bound-s") == "17"
         assert _option(overridden, "--max-model-calls") == "23"
         assert _option(overridden, "--max-cli-reported-tokens") == "29000"
         assert _option(overridden, "--sandbox") == "workspace-write"
@@ -229,7 +229,7 @@ def test_evidence_grace_default_and_decimal_override_are_forwarded_once() -> Non
                 root,
                 stage="plan",
                 reasoning="max",
-                extra=("--max-wall-clock-s", "17"),
+                extra=("--wall-clock-admission-bound-s", "17"),
             )
         )
         assert low_wall_clock.count("--evidence-grace-s") == 1
@@ -305,7 +305,7 @@ def test_evidence_grace_must_not_exceed_max_wall_clock() -> None:
             extra=(
                 "--evidence-grace-s",
                 "90",
-                "--max-wall-clock-s",
+                "--wall-clock-admission-bound-s",
                 "3600",
             ),
         )
@@ -320,13 +320,13 @@ def test_evidence_grace_must_not_exceed_max_wall_clock() -> None:
             extra=(
                 "--evidence-grace-s",
                 "90.5",
-                "--max-wall-clock-s",
+                "--wall-clock-admission-bound-s",
                 "90",
             ),
         )
         assert rejected.returncode == 2
         assert (
-            "--evidence-grace-s は --max-wall-clock-s 以下"
+            "--evidence-grace-s は --wall-clock-admission-bound-s 以下"
             in rejected.stderr
         )
 
@@ -593,7 +593,7 @@ def test_help_marks_resource_defaults_non_authoritative() -> None:
     assert result.returncode == 0, result.stderr
     phrase = "これは非権威の運用既定であり docs 権威ではない"
     for option in (
-        "--max-wall-clock-s",
+        "--wall-clock-admission-bound-s",
         "--max-model-calls",
         "--max-cli-reported-tokens",
         "--evidence-grace-s",
@@ -606,7 +606,7 @@ def test_help_marks_resource_defaults_non_authoritative() -> None:
     assert "受理集合に影響する" in evidence_block
     assert "暫定運用値であり測定された最小値ではない" in evidence_block
     assert "90 秒を上限" in evidence_block
-    assert "--max-wall-clock-s が 90 未満ならそれに切り下げる" in evidence_block
+    assert "--wall-clock-admission-bound-s が 90 未満ならそれに切り下げる" in evidence_block
 
 
 def _run() -> int:

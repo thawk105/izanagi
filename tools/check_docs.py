@@ -295,6 +295,59 @@ DEV_WAVE_DW_O01_DISPATCH_ROUTE_LITERAL = (
     "で起動（他の引数は `--help`）。model は全段、effort は段 5 / 6 "
     "が docs 権威から導出。caller 指定は不可。"
 )
+DEV_WAVE_SINGLE_DISPATCH_STAGE_CHOICES = (
+    "plan",
+    "consult",
+    "author",
+    "review",
+    "fix",
+    "focus",
+)
+DEV_WAVE_SINGLE_DISPATCH_DECLARATION_LITERAL = (
+    "単独段 dispatch: stage=<plan|consult|author|review|fix|focus>; "
+    "sandbox=<read-only|workspace-write>; parent=<絶対パス>"
+)
+DEV_WAVE_SINGLE_DISPATCH_PROJECTION_HEADING = "必読事項の射影:"
+DEV_WAVE_SINGLE_DISPATCH_PROJECTION_PATH_RE = re.compile(
+    r"/[^\s`<>]+"
+)
+DEV_WAVE_SINGLE_DISPATCH_PROJECTION_STOP_LITERAL = "読めなければ即停止"
+DEV_WAVE_SINGLE_DISPATCH_AGENTS_HEADING = "単独段 dispatch の例外"
+DEV_WAVE_SINGLE_DISPATCH_OPERATIONS_REFERENCE_LITERAL = (
+    "prompt 先頭は AGENTS.md の単独段例外と同形式。"
+)
+DEV_WAVE_SINGLE_DISPATCH_AGENTS_SECTION_FINDING = (
+    "AGENTS.md: 単独段 dispatch の例外節が可視 H2 で一意でない — "
+    "単独段 prompt の適用範囲を検査できない"
+)
+DEV_WAVE_SINGLE_DISPATCH_DECLARATION_FINDING = (
+    "AGENTS.md: 単独段 dispatch の宣言テンプレートが可視本文に "
+    "exact 1 件ない — launcher の stage/sandbox/parent 契約を検査できない"
+)
+DEV_WAVE_SINGLE_DISPATCH_PROJECTION_FINDING = (
+    "AGENTS.md: 宣言テンプレート直後の「必読事項の射影:」見出し行が "
+    "可視本文にない — 必読資料の射影契約を検査できない"
+)
+DEV_WAVE_SINGLE_DISPATCH_PROJECTION_CONTENT_FINDING = (
+    "AGENTS.md: 宣言テンプレート直後の射影節本文に絶対パスらしき記述と"
+    "「読めなければ即停止」の両方がない — 必読資料の射影契約を検査できない"
+)
+DEV_WAVE_SINGLE_DISPATCH_LAUNCHER_FINDING = (
+    "AGENTS.md: tools/dev_wave_codex.py の STAGES を解析できない — "
+    "単独段 dispatch の stage 検査を実行できない"
+)
+DEV_WAVE_SINGLE_DISPATCH_STAGE_FINDING = (
+    "AGENTS.md: 単独段 dispatch の stage 語彙が "
+    "tools/dev_wave_codex.py の --stage choices と不一致"
+)
+DEV_WAVE_SINGLE_DISPATCH_OPERATIONS_SECTION_FINDING = (
+    "docs/dev-wave/operations.md: DW-O02 節が可視本文で一意でない — "
+    "単独段 dispatch の到達契約を検査できない"
+)
+DEV_WAVE_SINGLE_DISPATCH_OPERATIONS_REFERENCE_FINDING = (
+    "docs/dev-wave/operations.md: DW-O02 に AGENTS.md の単独段例外を"
+    "参照する可視文言が exact 1 件ない"
+)
 DEV_WAVE_STAGE6_WAITER_CONSUMER_LINES = (
     "6. **レビュー・fix (codex 並列):** 敵対レビュー 2 本、fix、変異 matrix、受入再走を行う。",
     "   受入直前に受入 lease を `tools/dev_wave_wait.py acceptance` で `claim` し、",
@@ -405,6 +458,9 @@ CODEX_DEV_WAVE_STARTUP_ROUTING_ITEM_LITERAL = """4. `docs/skill-self-improvement
    `dev-wave 改善候補` 節を作る。"""
 CODEX_DEV_WAVE_START_SECTION_LITERAL = """## 開始する
 
+0. prompt 本文の最初の非空行が `AGENTS.md`「単独段 dispatch の例外」節と同一形式の宣言・射影を
+   満たす場合は、以下 1〜5 を適用せず、宣言と射影が指示する資料だけを読む。宣言が欠落・形式不正・
+   重複、または射影対象を読めない場合はこの例外を使わず、以下の手順に従う。
 1. リポジトリ直下の `AGENTS.md` と `CLAUDE.md` を全文読み、依頼をクラス 3 として起動する。
 2. ユーザーが指定した対象を優先する。対象がなければ worklog 末尾の「次の一手」から 1 件選ぶ。
 3. `.claude/commands/dev-wave.md` を全文読む。同ファイルを 9 段状態機械、段 dispatch、条件 dispatch、
@@ -4340,6 +4396,166 @@ def _check_dev_wave_layer_budget(
         )
 
 
+def _launcher_stage_choices() -> tuple[str, ...] | None:
+    """dev-wave launcher の `STAGES` 定数を import せずに読む。"""
+
+    path = REPO / "tools" / "dev_wave_codex.py"
+    try:
+        source = path.read_text(encoding="utf-8")
+    except (OSError, UnicodeError):
+        return None
+    try:
+        tree = ast.parse(source, filename=str(path))
+    except SyntaxError:
+        return None
+    for node in tree.body:
+        targets: list[ast.expr] = []
+        value: ast.expr | None = None
+        if isinstance(node, ast.Assign):
+            targets = list(node.targets)
+            value = node.value
+        elif isinstance(node, ast.AnnAssign):
+            targets = [node.target]
+            value = node.value
+        if value is None or not any(
+            isinstance(target, ast.Name) and target.id == "STAGES"
+            for target in targets
+        ):
+            continue
+        try:
+            choices = ast.literal_eval(value)
+        except (ValueError, TypeError):
+            return None
+        if isinstance(choices, (tuple, list)) and all(
+            isinstance(choice, str) for choice in choices
+        ):
+            return tuple(choices)
+        return None
+    return None
+
+
+def _visible_single_dispatch_lines(
+    text: str,
+) -> list[tuple[str, int, str]]:
+    """単独段 marker 用に Markdown の不可視行を除いた可視行を返す。"""
+
+    try:
+        lines = visible_top_level_lines(text, reject_unicode_separators=False)
+    except AuthorityError:
+        return []
+    visible: list[tuple[str, int, str]] = []
+    for line, offset, newline in lines:
+        stripped = line.lstrip(" \t")
+        leading = line[: len(line) - len(stripped)]
+        indent = len(leading.replace("\t", "    "))
+        if indent >= 4 or stripped.startswith(">"):
+            continue
+        visible.append((line, offset, newline))
+    return visible
+
+
+def _visible_marker_occurrences(text: str, marker: str) -> int:
+    """不可視 Markdown・blockquote・indented code 内を除いた marker 数。"""
+
+    return sum(
+        line.count(marker)
+        for line, _offset, _newline in _visible_single_dispatch_lines(text)
+    )
+
+
+def _check_dev_wave_single_dispatch_structure(
+    agents_text: str | None,
+    operations_text: str | None,
+    findings: list[str],
+) -> None:
+    """単独段 dispatch の AGENTS marker と DW-O02 到達文を構造 pin する。"""
+
+    if agents_text is not None:
+        _, visible_sections = _visible_h2_section_slices(agents_text)
+        agents_sections = visible_sections.get(
+            DEV_WAVE_SINGLE_DISPATCH_AGENTS_HEADING,
+            [],
+        )
+        if len(agents_sections) != 1:
+            findings.append(DEV_WAVE_SINGLE_DISPATCH_AGENTS_SECTION_FINDING)
+        else:
+            visible_agents_lines = _visible_single_dispatch_lines(
+                agents_sections[0]
+            )
+            declaration_positions = [
+                index
+                for index, (line, _offset, _newline) in enumerate(
+                    visible_agents_lines
+                )
+                if DEV_WAVE_SINGLE_DISPATCH_DECLARATION_LITERAL in line
+            ]
+            declaration_count = len(declaration_positions)
+            if declaration_count != 1:
+                findings.append(DEV_WAVE_SINGLE_DISPATCH_DECLARATION_FINDING)
+            else:
+                projection_positions = [
+                    index
+                    for index, (line, _offset, _newline) in enumerate(
+                        visible_agents_lines
+                    )
+                    if (
+                        index > declaration_positions[0]
+                        and DEV_WAVE_SINGLE_DISPATCH_PROJECTION_HEADING in line
+                    )
+                ]
+                if len(projection_positions) != 1:
+                    findings.append(DEV_WAVE_SINGLE_DISPATCH_PROJECTION_FINDING)
+                else:
+                    projection_body = "\n".join(
+                        line
+                        for line, _offset, _newline in visible_agents_lines[
+                            projection_positions[0]:
+                        ]
+                    )
+                    if (
+                        DEV_WAVE_SINGLE_DISPATCH_PROJECTION_PATH_RE.search(
+                            projection_body
+                        ) is None
+                        or DEV_WAVE_SINGLE_DISPATCH_PROJECTION_STOP_LITERAL
+                        not in projection_body
+                    ):
+                        findings.append(
+                            DEV_WAVE_SINGLE_DISPATCH_PROJECTION_CONTENT_FINDING
+                        )
+                stage_match = re.search(
+                    r"stage=<([^>]+)>",
+                    DEV_WAVE_SINGLE_DISPATCH_DECLARATION_LITERAL,
+                )
+                launcher_choices = _launcher_stage_choices()
+                if launcher_choices is None:
+                    findings.append(DEV_WAVE_SINGLE_DISPATCH_LAUNCHER_FINDING)
+                elif (
+                    stage_match is not None
+                    and tuple(stage_match.group(1).split("|"))
+                    != launcher_choices
+                ):
+                    findings.append(DEV_WAVE_SINGLE_DISPATCH_STAGE_FINDING)
+
+    if operations_text is not None:
+        visible_operations = _visible_dispatch_inventory_text(operations_text)
+        operations_sections = _reference_id_sections(
+            visible_operations,
+            "DW-O02",
+        )
+        if len(operations_sections) != 1:
+            findings.append(DEV_WAVE_SINGLE_DISPATCH_OPERATIONS_SECTION_FINDING)
+        elif (
+            _visible_marker_occurrences(
+                operations_sections[0],
+                DEV_WAVE_SINGLE_DISPATCH_OPERATIONS_REFERENCE_LITERAL,
+            )
+            != 1
+        ):
+            findings.append(
+                DEV_WAVE_SINGLE_DISPATCH_OPERATIONS_REFERENCE_FINDING
+            )
+
+
 def _dev_wave_visible_inventory_is_exact(decoded: Mapping[str, str]) -> bool:
     """既存 inventory finding がある入力では層 finding を重ねない。"""
 
@@ -4716,9 +4932,10 @@ def _check_command_docs_guard(findings: list[str]) -> set[Path]:
         **PROVENANCE_LIMITS,
         **PROVENANCE_REFERENCE_LIMITS,
     }
-    all_text_files: dict[str, TextLimit | None] = {
-        rel: None for rel in DEV_WAVE_REFERENCE_FILES
-    }
+    all_text_files: dict[str, TextLimit | None] = {"AGENTS.md": None}
+    all_text_files.update(
+        {rel: None for rel in DEV_WAVE_REFERENCE_FILES}
+    )
     all_text_files.update(bounded_limits)
     decoded: dict[str, str] = {}
     sizes: dict[str, int] = {}
@@ -4774,8 +4991,14 @@ def _check_command_docs_guard(findings: list[str]) -> set[Path]:
             )
 
     dev_wave_text = decoded.get(".claude/commands/dev-wave.md")
+    agents_text = decoded.get("AGENTS.md")
     workers_text = decoded.get(_WORKERS)
     operations_text = decoded.get(_OPERATIONS)
+    _check_dev_wave_single_dispatch_structure(
+        agents_text,
+        operations_text,
+        findings,
+    )
     _check_dev_wave_model_pins(
         dev_wave_text,
         workers_text,

@@ -24,6 +24,7 @@ artifact と共有しない。専用場所を確保できなければ作成を�
 読ませる。その prompt には読めなければ即停止する指示を入れ、context 無しの子出力をレビュー結果と
 数えない。必読資料は job dir へ取り出して渡す（repo 内 path は worktree の遅れで fail-closed する）。
 出力へ結合文字 U+0300〜U+036F を使わせない。
+prompt 先頭は AGENTS.md の単独段例外と同形式。
 
 ## DW-O03 — 防護パスを含む prompt
 

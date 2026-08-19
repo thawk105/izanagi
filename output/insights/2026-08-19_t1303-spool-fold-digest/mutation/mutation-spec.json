@@ -1,0 +1,105 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 30,
+  "timeout_seconds": 600,
+  "hang_timeout_seconds": 300,
+  "mutations": [
+    {
+      "id": "t1303.m01-task-re-invert",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_spool_fold.py::test_cli_base_digest_returns_non_carry_item_digest_without_writes",
+        "orchestrator/tests/test_spool_fold.py::test_cli_base_digest_resolves_mixed_carry_chain_across_ordinals",
+        "orchestrator/tests/test_spool_fold.py::test_cli_base_digest_real_corpus_resolves_active_and_rejects_completed",
+        "orchestrator/tests/test_spool_fold.py::test_cli_base_digest_rejects_not_active_id_without_writes",
+        "orchestrator/tests/test_spool_fold.py::test_cli_base_digest_rejects_malformed_task_ids_before_file_read",
+        "orchestrator/tests/test_spool_fold.py::test_cli_base_digest_accepts_four_digit_task_id",
+        "orchestrator/tests/test_spool_fold.py::test_cli_base_digest_rejects_conflicting_modes_without_writes",
+        "orchestrator/tests/test_spool_fold.py::test_cli_base_digest_ignores_transaction_state"
+      ],
+      "replacements": [
+        {
+          "file": "tools/spool_fold.py",
+          "old": "    if TASK_RE.fullmatch(value) is None:\n",
+          "new": "    if TASK_RE.fullmatch(value) is not None:\n"
+        }
+      ]
+    },
+    {
+      "id": "t1303.m02-item-none-invert",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_spool_fold.py::test_cli_base_digest_accepts_four_digit_task_id",
+        "orchestrator/tests/test_spool_fold.py::test_cli_base_digest_returns_non_carry_item_digest_without_writes",
+        "orchestrator/tests/test_spool_fold.py::test_cli_base_digest_resolves_mixed_carry_chain_across_ordinals",
+        "orchestrator/tests/test_spool_fold.py::test_cli_base_digest_ignores_transaction_state",
+        "orchestrator/tests/test_spool_fold.py::test_cli_base_digest_rejects_not_active_id_without_writes",
+        "orchestrator/tests/test_spool_fold.py::test_cli_base_digest_real_corpus_resolves_active_and_rejects_completed"
+      ],
+      "replacements": [
+        {
+          "file": "tools/spool_fold.py",
+          "old": "    item = next((item for item in active if item.task_id == task_id), None)\n    if item is None:\n",
+          "new": "    item = next((item for item in active if item.task_id == task_id), None)\n    if item is not None:\n"
+        }
+      ]
+    },
+    {
+      "id": "t1303.m03-drop-dry-run-conflict",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_spool_fold.py::test_cli_base_digest_rejects_conflicting_modes_without_writes"
+      ],
+      "replacements": [
+        {
+          "file": "tools/spool_fold.py",
+          "old": "    if args.base_digest is not None:\n        if args.dry_run:\n",
+          "new": "    if args.base_digest is not None:\n        if False:\n"
+        }
+      ]
+    },
+    {
+      "id": "t1303.m04-break-archive-glob",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_spool_fold.py::test_cli_base_digest_resolves_mixed_carry_chain_across_ordinals",
+        "orchestrator/tests/test_spool_fold.py::test_cli_base_digest_real_corpus_resolves_active_and_rejects_completed"
+      ],
+      "replacements": [
+        {
+          "file": "tools/spool_fold.py",
+          "old": "def _load_base_digest_sources(repo: Path) -> tuple[str, dict[str, str]]:\n    \"\"\"base-digest 用に worklog と worklog archive だけをロードする。\"\"\"\n\n    worklog_raw = _read_required(repo, \"docs/worklog.md\")\n    worklog = _decode_canonical(\"docs/worklog.md\", worklog_raw)\n    archives: dict[str, str] = {}\n    archive_dir = repo / \"docs/archive\"\n    if archive_dir.is_symlink() or not archive_dir.is_dir():\n        raise SpoolValidationError([Issue(\"docs/archive\", 1, \"archive\", \"archive directory が不正\")])\n    for path in sorted(archive_dir.glob(\"worklog-*.md\"), key=lambda item: item.name):\n",
+          "new": "def _load_base_digest_sources(repo: Path) -> tuple[str, dict[str, str]]:\n    \"\"\"base-digest 用に worklog と worklog archive だけをロードする。\"\"\"\n\n    worklog_raw = _read_required(repo, \"docs/worklog.md\")\n    worklog = _decode_canonical(\"docs/worklog.md\", worklog_raw)\n    archives: dict[str, str] = {}\n    archive_dir = repo / \"docs/archive\"\n    if archive_dir.is_symlink() or not archive_dir.is_dir():\n        raise SpoolValidationError([Issue(\"docs/archive\", 1, \"archive\", \"archive directory が不正\")])\n    for path in sorted(archive_dir.glob(\"worklog-nonexistent-*.md\"), key=lambda item: item.name):\n"
+        }
+      ]
+    },
+    {
+      "id": "t1303.m05-break-stdout-format",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_spool_fold.py::test_cli_base_digest_returns_non_carry_item_digest_without_writes",
+        "orchestrator/tests/test_spool_fold.py::test_cli_base_digest_ignores_transaction_state",
+        "orchestrator/tests/test_spool_fold.py::test_cli_base_digest_accepts_four_digit_task_id",
+        "orchestrator/tests/test_spool_fold.py::test_cli_base_digest_resolves_mixed_carry_chain_across_ordinals",
+        "orchestrator/tests/test_spool_fold.py::test_cli_base_digest_real_corpus_resolves_active_and_rejects_completed"
+      ],
+      "replacements": [
+        {
+          "file": "tools/spool_fold.py",
+          "old": "            print(_resolve_base_digest(repo, args.base_digest))\n            return 0\n",
+          "new": "            print(json.dumps({\"digest\": _resolve_base_digest(repo, args.base_digest)}))\n            return 0\n"
+        }
+      ]
+    }
+  ]
+}

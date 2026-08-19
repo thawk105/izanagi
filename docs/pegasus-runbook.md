@@ -961,16 +961,18 @@ script が担う判定は次のとおりで、**同じ内容を別 shell loop �
 - claim の前に tree identity を検査する — git worktree の中であること、HEAD が detached で
   ないこと、`git rev-parse --show-toplevel` が起動 cwd と一致すること、branch 名が wave slug で
   終わること、木が clean であること。自動 merge/commit が別 checkout へ入るのを止めるためである。
-  **clean の述語は `git status --porcelain --untracked-files=no --ignore-submodules=none` の
-  stdout が空**である ([T-725])。`--ignore-submodules=none` は `tools/run_tests.py` と
-  `tools/dev_wave_land.py` に揃えたもので、**submodule の dirt を拒否する** — land が既に
-  submodule dirt を拒否する以上、受入側で拒否しても新たに止まる wave はない。汚れていれば
-  **claim せず rc=2** で返るので **lease を消費しない**。
-  **untracked は拒否しない。** F191 の逐語は option なしの `git status --porcelain` だが、
-  untracked まで拒否すると `output/env/pegasus/floor/attempts/submissions/` と
-  `.../job-staging/` のように **`.gitignore` に無い実在の生成物**を持つ wave の受入が
-  claim 前に止まる (2026-08-12 実測)。これらを commit すべきか repo 外へ出すべきかは
-  未裁定なので、untracked の扱いは裁定パッケージへ返した (F191 点 3 の erratum)。
+  **clean の述語は `git status --porcelain --untracked-files=all --ignore-submodules=none` の
+  stdout が空**である ([T-725]、`tools/dev_wave_wait.py` の `_CLEAN_STATUS_ARGV` で実測、
+  2026-08-19 [T-1303] で `--untracked-files=no` という旧記載との食い違いを確認し是正)。
+  `--ignore-submodules=none` は `tools/run_tests.py` と `tools/dev_wave_land.py` に揃えたもので、
+  **submodule の dirt を拒否する** — land が既に submodule dirt を拒否する以上、受入側で
+  拒否しても新たに止まる wave はない。汚れていれば **claim せず rc=2** で返るので
+  **lease を消費しない**。
+  **untracked も現在は拒否する (`--untracked-files=all`)。** F191 が観測した
+  2026-08-12 時点の挙動 (`output/env/pegasus/floor/attempts/submissions/` 等の
+  `.gitignore` に無い実在の生成物を持つ wave でも untracked は claim を止めなかった) から
+  変わっている。commit されていない生成物・記録 fragment があると `preflight-clean` で
+  claim 前 rc=2 になるため、受入投入前に untracked を repo 外へ退避するか commit すること。
 - **受理 (`acquired` / `held-self`) の直後に待ち手自身が local main を取り直して取り込む
   ([T-732] 裁定 (a) の正本)。**
   待っている間に先行 holder が land するので、`claim` 時の `main_sha` は取得時点の main では

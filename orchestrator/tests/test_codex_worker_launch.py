@@ -978,7 +978,7 @@ def _runtime_context_lines(
         f"PYTEST_XDIST_WORKER={worker!r} PBS_JOBID={pbs_job_id!r} "
         f"test_pid={os.getpid()} loadavg={load_average!r}",
         "launcher_budgets: "
-        f"wall={_command_option(command, '--max-wall-clock-s')!r} "
+        f"wall={_command_option(command, '--wall-clock-admission-bound-s')!r} "
         f"evidence={_command_option(command, '--evidence-grace-s')!r} "
         f"termination={_command_option(command, '--termination-grace-s')!r} "
         f"poll={_command_option(command, '--poll-interval-s')!r}",
@@ -1607,7 +1607,7 @@ def _base_command(
         os.fspath(cwd),
         "--sandbox",
         sandbox,
-        "--max-wall-clock-s",
+        "--wall-clock-admission-bound-s",
         max_wall,
         "--max-model-calls",
         str(max_calls),
@@ -2428,7 +2428,7 @@ def _minimal_v3_receipt(
         "retry_classification": "none",
         "escaped_process_containment": "not_attempted",
         "limits": {
-            "max_wall_clock_s": 1,
+            "wall_clock_admission_bound_s": 1,
             "max_model_calls": 1,
             "max_cli_reported_tokens": 1,
             "max_attempts": 1,
@@ -2649,7 +2649,7 @@ def _write_valid_diagnostic_receipt(
         "retry_classification": "none",
         "escaped_process_containment": "not_attempted",
         "limits": {
-            "max_wall_clock_s": max(100, len(attempts) + 1),
+            "wall_clock_admission_bound_s": max(100, len(attempts) + 1),
             "max_model_calls": 100,
             "max_cli_reported_tokens": 100000,
             "max_attempts": len(attempts),
@@ -2700,7 +2700,7 @@ def test_launcher_failure_diagnostic_reports_failed_predicates(
     assert "launcher_budgets: wall='3' evidence='1.0'" in message
     assert "termination='0.05' poll='0.01'" in message
     assert "receipt_limits={" in message
-    assert "'max_wall_clock_s'" in message
+    assert "'wall_clock_admission_bound_s'" in message
     assert "receipt_actuals={" in message
     assert "'attempt_count'" in message
 
@@ -4047,9 +4047,9 @@ def test_sigterm_ignoring_child_is_killed(tmp_path: Path) -> None:
     assert child_pid_registered, (
         f"child.pid was not registered before deadline; stderr={stderr!r}"
     )
-    assert receipt["stop_reason"] == "max_wall_clock_s"
+    assert receipt["stop_reason"] == "wall_clock_admission_bound_s"
     assert receipt["actuals"]["attempt_count"] == 1
-    assert receipt["attempts"][0]["limit_trigger"] == "max_wall_clock_s"
+    assert receipt["attempts"][0]["limit_trigger"] == "wall_clock_admission_bound_s"
     assert receipt["attempts"][0]["process_group_residual"] == 0
     assert receipt["possible_unobserved_overshoot"] is True
     child_pid = int(child_pid_path.read_text(encoding="ascii"))
@@ -4641,7 +4641,7 @@ def test_launcher_diagnostics_limit_conditions_negative_and_exact_boundary() -> 
         "Limits",
         (),
         {
-            "max_wall_clock_s": 3,
+            "wall_clock_admission_bound_s": 3,
             "max_model_calls": 5,
             "max_cli_reported_tokens": 7,
         },
@@ -4673,13 +4673,13 @@ def test_launcher_diagnostics_records_all_conditions_and_site_values() -> None:
         "Limits",
         (),
         {
-            "max_wall_clock_s": 3,
+            "wall_clock_admission_bound_s": 3,
             "max_model_calls": 5,
             "max_cli_reported_tokens": 7,
         },
     )()
     cases = {
-        "running_poll": (3, 4, 6, ["max_wall_clock_s"]),
+        "running_poll": (3, 4, 6, ["wall_clock_admission_bound_s"]),
         "natural_exit": (2, 6, 6, ["max_model_calls"]),
         "attempt_seal": (2, 4, 8, ["max_cli_reported_tokens"]),
         "retry_admission": (
@@ -4711,7 +4711,7 @@ def test_launcher_diagnostics_keeps_control_trigger_separate_from_all_conditions
         "Limits",
         (),
         {
-            "max_wall_clock_s": 3,
+            "wall_clock_admission_bound_s": 3,
             "max_model_calls": 5,
             "max_cli_reported_tokens": 7,
         },
@@ -4728,10 +4728,10 @@ def test_launcher_diagnostics_keeps_control_trigger_separate_from_all_conditions
         cli_reported=7,
         limits=limits,
     )
-    attempt.control_limit_trigger = "max_wall_clock_s"
+    attempt.control_limit_trigger = "wall_clock_admission_bound_s"
     document = attempt.as_document()
 
-    assert document["control_limit_trigger"] == "max_wall_clock_s"
+    assert document["control_limit_trigger"] == "wall_clock_admission_bound_s"
     assert document["limit_condition_snapshots"] == [
         {
             "site": "running_poll",
@@ -4740,7 +4740,7 @@ def test_launcher_diagnostics_keeps_control_trigger_separate_from_all_conditions
             "elapsed_s": 3,
             "model_calls": 5,
             "cli_reported": 7,
-            "max_wall_clock_s": 3,
+            "wall_clock_admission_bound_s": 3,
             "max_model_calls": 5,
             "max_cli_reported_tokens": 7,
             "job_elapsed_s_at": 3,
@@ -5040,14 +5040,14 @@ def test_receipt_staging_wall_overrun_flips_to_not_accepted_and_removes_output(
 
     assert stage_calls == 2
     assert receipt["outcome"] == "not_accepted"
-    assert receipt["stop_reason"] == "max_wall_clock_s"
+    assert receipt["stop_reason"] == "wall_clock_admission_bound_s"
     assert receipt["launcher_rc"] == 1
     assert receipt["attempts"][-1]["accepted"] is False
-    assert receipt["attempts"][-1]["limit_trigger"] == "max_wall_clock_s"
+    assert receipt["attempts"][-1]["limit_trigger"] == "wall_clock_admission_bound_s"
     assert not paths["output"].exists()
     assert list(tmp_path.glob(".receipt.json.tmp.*")) == []
     snapshots = _diagnostic_snapshots(paths, "post_receipt_staging")
-    assert snapshots[-1]["conditions_met"] == ["max_wall_clock_s"]
+    assert snapshots[-1]["conditions_met"] == ["wall_clock_admission_bound_s"]
 
 
 def test_receipt_audit_wall_overrun_flips_to_not_accepted(
@@ -5081,13 +5081,13 @@ def test_receipt_audit_wall_overrun_flips_to_not_accepted(
 
     assert published_audits == 1
     assert receipt["outcome"] == "not_accepted"
-    assert receipt["stop_reason"] == "max_wall_clock_s"
+    assert receipt["stop_reason"] == "wall_clock_admission_bound_s"
     assert receipt["launcher_rc"] == 1
     assert receipt["attempts"][-1]["accepted"] is False
-    assert receipt["attempts"][-1]["limit_trigger"] == "max_wall_clock_s"
+    assert receipt["attempts"][-1]["limit_trigger"] == "wall_clock_admission_bound_s"
     assert not paths["output"].exists()
     snapshots = _diagnostic_snapshots(paths, "post_receipt_staging")
-    assert snapshots[-1]["conditions_met"] == ["max_wall_clock_s"]
+    assert snapshots[-1]["conditions_met"] == ["wall_clock_admission_bound_s"]
 
 
 def test_accepted_publication_reuses_the_staged_receipt_temp(
@@ -5647,7 +5647,7 @@ def test_check_receipt_marks_self_asserted_limits_and_accepts_external_expectati
     summary = json.loads(self_checked.stdout)
     assert self_checked.returncode == 0, self_checked.stderr
     assert summary["limits_self_asserted"] == [
-        "max_wall_clock_s",
+        "wall_clock_admission_bound_s",
         "max_model_calls",
         "max_cli_reported_tokens",
         "max_attempts",
@@ -5657,7 +5657,7 @@ def test_check_receipt_marks_self_asserted_limits_and_accepts_external_expectati
         + [
             "--expect-prompt-sha256",
             receipt["prompt_sha256"],
-            "--expect-max-wall-clock-s",
+            "--expect-wall-clock-admission-bound-s",
             "3",
             "--expect-max-model-calls",
             "100",

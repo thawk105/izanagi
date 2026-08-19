@@ -3352,6 +3352,182 @@ def _run_cli(repo: Path, *args: str) -> subprocess.CompletedProcess[bytes]:
     )
 
 
+def test_cli_base_digest_returns_non_carry_item_digest_without_writes(tmp_path: Path) -> None:
+    repo = _repo(tmp_path)
+    _install_cli(repo)
+    item_bytes = next(
+        line
+        for line in (repo / "docs/worklog.md").read_bytes().splitlines(keepends=True)
+        if line.startswith(b"- [T-001] ")
+    )
+    expected = (hashlib.sha256(item_bytes).hexdigest() + "\n").encode("ascii")
+    before = _cli_snapshot(repo)
+
+    completed = _run_cli(repo, "--base-digest", "[T-001]")
+
+    assert completed.returncode == 0
+    assert completed.stdout == expected
+    assert completed.stderr == b""
+    assert _cli_snapshot(repo) == before
+
+
+def test_cli_base_digest_resolves_mixed_carry_chain_across_ordinals(tmp_path: Path) -> None:
+    repo = _repo(tmp_path)
+    substantive = "- [T-001] 元実体 A\n".encode("utf-8")
+    archive = (
+        _global_entry(1, substantive.decode("utf-8"), title="substantive")
+        + "\n"
+        + _global_entry(
+            2,
+            "- [T-001] 変わらず ((1) 参照)\n",
+            title="legacy carry",
+        )
+    )
+    _write(repo / "docs/archive/worklog-global-chain.md", archive)
+    _write(
+        repo / "docs/worklog.md",
+        _synthetic_worklog(
+            _global_entry(3, "- [T-001] (2)\n", title="compact carry")
+        ),
+    )
+    _install_cli(repo)
+    archive_bytes = (repo / "docs/archive/worklog-global-chain.md").read_bytes()
+    assert archive_bytes.count(substantive) == 1
+    expected = (hashlib.sha256(substantive).hexdigest() + "\n").encode("ascii")
+    before = _cli_snapshot(repo)
+
+    completed = _run_cli(repo, "--base-digest", "[T-001]")
+
+    assert completed.returncode == 0
+    assert completed.stdout == expected
+    assert completed.stderr == b""
+    assert _cli_snapshot(repo) == before
+
+
+def test_cli_base_digest_real_corpus_resolves_active_and_rejects_completed(
+    tmp_path: Path,
+) -> None:
+    repo = _copy_real_canonical_family(tmp_path)
+    _install_cli(repo)
+    source = repo / "docs/archive/worklog-phase3-0813-537.md"
+    source_bytes = source.read_bytes()
+    start = source_bytes.index(b"- [T-139] **P1")
+    end = source_bytes.index(b"- [T-337]", start)
+    substantive = source_bytes[start:end]
+    expected = (hashlib.sha256(substantive).hexdigest() + "\n").encode("ascii")
+    before = _cli_snapshot(repo)
+
+    active = _run_cli(repo, "--base-digest", "[T-139]")
+    completed = _run_cli(repo, "--base-digest", "[T-1049]")
+
+    assert active.returncode == 0
+    assert active.stdout == expected
+    assert active.stderr == b""
+    assert completed.returncode == 1
+    assert completed.stdout == b""
+    assert completed.stderr
+    payload = json.loads(completed.stderr)
+    assert [issue["code"] for issue in payload["issues"]] == [
+        "base-digest-not-active"
+    ]
+    assert _cli_snapshot(repo) == before
+
+
+def test_cli_base_digest_rejects_not_active_id_without_writes(tmp_path: Path) -> None:
+    repo = _repo(tmp_path)
+    _install_cli(repo)
+    before = _cli_snapshot(repo)
+
+    completed = _run_cli(repo, "--base-digest", "[T-999]")
+
+    assert completed.returncode == 1
+    assert completed.stdout == b""
+    payload = json.loads(completed.stderr)
+    assert [issue["code"] for issue in payload["issues"]] == [
+        "base-digest-not-active"
+    ]
+    assert _cli_snapshot(repo) == before
+
+
+def test_cli_base_digest_rejects_malformed_task_ids_before_file_read(tmp_path: Path) -> None:
+    repo = _repo(tmp_path)
+    _install_cli(repo)
+    worklog = repo / "docs/worklog.md"
+    worklog.write_bytes(b"not valid UTF-8: \xff\n")
+    before = _cli_snapshot(repo)
+
+    for task_id in ("[T-1]", "[T-0001]", "[T-000]", "T-001"):
+        completed = _run_cli(repo, "--base-digest", task_id)
+        assert completed.returncode == 2
+        assert completed.stdout == b""
+        assert b"argument --base-digest: canonical task ID" in completed.stderr
+        assert b"canonical-utf8" not in completed.stderr
+
+    assert _cli_snapshot(repo) == before
+
+
+def test_cli_base_digest_accepts_four_digit_task_id(tmp_path: Path) -> None:
+    repo = _repo(tmp_path, active=("[T-1000]",))
+    _install_cli(repo)
+    item_bytes = next(
+        line
+        for line in (repo / "docs/worklog.md").read_bytes().splitlines(keepends=True)
+        if line.startswith(b"- [T-1000] ")
+    )
+    expected = (hashlib.sha256(item_bytes).hexdigest() + "\n").encode("ascii")
+    before = _cli_snapshot(repo)
+
+    completed = _run_cli(repo, "--base-digest", "[T-1000]")
+
+    assert completed.returncode == 0
+    assert completed.stdout == expected
+    assert completed.stderr == b""
+    assert _cli_snapshot(repo) == before
+
+
+def test_cli_base_digest_rejects_conflicting_modes_without_writes(tmp_path: Path) -> None:
+    repo = _repo(tmp_path)
+    _install_cli(repo)
+    before = _cli_snapshot(repo)
+    cases = (
+        (("--dry-run",), b"--base-digest cannot be combined with --dry-run"),
+        (("--show-diff",), b"--base-digest cannot be combined with --show-diff"),
+        (("--fold-date", "2026-08-02"), b"--base-digest cannot be combined with --fold-date"),
+    )
+
+    for extra_args, message in cases:
+        completed = _run_cli(repo, "--base-digest", "[T-001]", *extra_args)
+        assert completed.returncode == 2
+        assert completed.stdout == b""
+        assert message in completed.stderr
+        assert b"--show-diff requires --dry-run" not in completed.stderr
+
+    assert _cli_snapshot(repo) == before
+
+
+def test_cli_base_digest_ignores_transaction_state(tmp_path: Path) -> None:
+    repo = _repo(tmp_path)
+    _install_cli(repo)
+    item_bytes = next(
+        line
+        for line in (repo / "docs/worklog.md").read_bytes().splitlines(keepends=True)
+        if line.startswith(b"- [T-001] ")
+    )
+    expected = (hashlib.sha256(item_bytes).hexdigest() + "\n").encode("ascii")
+    state_path = spool_fold._state_path(repo)
+    state_path.parent.mkdir(parents=True, exist_ok=True)
+    state_path.write_bytes(b"sentinel transaction state\n")
+    before = _cli_snapshot(repo)
+
+    completed = _run_cli(repo, "--base-digest", "[T-001]")
+
+    assert completed.returncode == 0
+    assert completed.stdout == expected
+    assert completed.stderr == b""
+    assert state_path.read_bytes() == b"sentinel transaction state\n"
+    assert _cli_snapshot(repo) == before
+
+
 def _run_cli_with_plan(repo: Path, plan: spool_fold.FoldPlan) -> subprocess.CompletedProcess[bytes]:
     """固定済み plan を CLI へ渡し、planning 後の on-disk fault を注入する。"""
 

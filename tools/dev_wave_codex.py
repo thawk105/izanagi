@@ -8,6 +8,7 @@ import os
 import re
 import subprocess
 import sys
+import textwrap
 from decimal import Decimal
 from pathlib import Path
 from typing import Sequence
@@ -26,7 +27,7 @@ LANES = ("sol", "luna")
 AUTHORITY_BOUND_STAGES = frozenset({"review", "focus", "author", "fix"})
 
 # These are deliberately operational defaults, not docs authority.
-DEFAULT_MAX_WALL_CLOCK_S = 3600
+DEFAULT_WALL_CLOCK_ADMISSION_BOUND_S = 3600
 DEFAULT_MAX_MODEL_CALLS = 100
 DEFAULT_MAX_CLI_REPORTED_TOKENS = 1_000_000
 DEFAULT_EVIDENCE_GRACE_S = Decimal("90")
@@ -34,6 +35,12 @@ DEFAULT_EVIDENCE_GRACE_S = Decimal("90")
 _SLUG_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]*\Z")
 _HEX40_RE = re.compile(r"[0-9a-f]{40}\Z")
 _NON_AUTHORITY_HELP = "これは非権威の運用既定であり docs 権威ではない"
+
+
+class _NoHyphenBreakFormatter(argparse.HelpFormatter):
+    def _split_lines(self, text: str, width: int) -> list[str]:
+        text = self._whitespace_matcher.sub(" ", text).strip()
+        return textwrap.wrap(text, width, break_on_hyphens=False)
 
 
 def _positive_int(value: str) -> int:
@@ -50,7 +57,8 @@ def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description=(
             "dev-wave の入力から codex_worker_launch.py run の必須 argv を生成する"
-        )
+        ),
+        formatter_class=_NoHyphenBreakFormatter,
     )
     parser.add_argument("--stage", choices=STAGES, required=True)
     parser.add_argument("--lane", choices=LANES)
@@ -65,11 +73,11 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--repo-root", type=Path, default=_ROOT)
     parser.add_argument("--job-id")
     parser.add_argument(
-        "--max-wall-clock-s",
+        "--wall-clock-admission-bound-s",
         type=_positive_int,
-        default=DEFAULT_MAX_WALL_CLOCK_S,
+        default=DEFAULT_WALL_CLOCK_ADMISSION_BOUND_S,
         help=(
-            f"wall-clock 上限 (既定: {DEFAULT_MAX_WALL_CLOCK_S}); "
+            f"wall-clock 上限 (既定: {DEFAULT_WALL_CLOCK_ADMISSION_BOUND_S}); "
             f"{_NON_AUTHORITY_HELP}"
         ),
     )
@@ -97,10 +105,10 @@ def _parser() -> argparse.ArgumentParser:
         default=None,
         help=(
             "evidence 待機猶予 "
-            "(既定: min(90, --max-wall-clock-s); 90 秒を上限とする"
+            "(既定: min(90, --wall-clock-admission-bound-s); 90 秒を上限とする"
             "暫定運用値であり測定された最小値ではない); "
             f"{_NON_AUTHORITY_HELP}。ただし受理集合に影響するため、"
-            "--max-wall-clock-s が 90 未満ならそれに切り下げる "
+            "--wall-clock-admission-bound-s が 90 未満ならそれに切り下げる "
             "(子の起動完了時を起点とする)"
         ),
     )
@@ -150,11 +158,11 @@ def _validate_combinations(
 ) -> None:
     if args.evidence_grace_s is None:
         args.evidence_grace_s = min(
-            DEFAULT_EVIDENCE_GRACE_S, Decimal(args.max_wall_clock_s)
+            DEFAULT_EVIDENCE_GRACE_S, Decimal(args.wall_clock_admission_bound_s)
         )
-    if args.evidence_grace_s > args.max_wall_clock_s:
+    if args.evidence_grace_s > args.wall_clock_admission_bound_s:
         parser.error(
-            "--evidence-grace-s は --max-wall-clock-s 以下でなければならない"
+            "--evidence-grace-s は --wall-clock-admission-bound-s 以下でなければならない"
         )
     if _SLUG_RE.fullmatch(args.wave) is None:
         parser.error("--wave は path separator を含まない slug が必要")
@@ -235,8 +243,8 @@ def _launcher_argv(
         argv.extend(("--reasoning", args.reasoning))
     argv.extend(
         (
-            "--max-wall-clock-s",
-            str(args.max_wall_clock_s),
+            "--wall-clock-admission-bound-s",
+            str(args.wall_clock_admission_bound_s),
             "--evidence-grace-s",
             canonical_decimal(args.evidence_grace_s),
             "--max-model-calls",
