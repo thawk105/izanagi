@@ -1,8 +1,30 @@
 # [T-1362] 段5 author・段6 fix の reasoning 機械強制
 - 目的: dev-wave launcher/runner が段5(author)・段6(fix) の codex 起動で reasoning=max を機械的に強制する
-- 状態: 作業中
-- 最終更新: 2026-08-19 段7・段8 完了、段9 (受入・local main) 待ち
-- 基準コミット: 70fb8eab9b246c0e6fa56ada13e5d007ef670630 (worktree: dev-wave-t1362-reasoning-pin)
+- 状態: 中断
+- 最終更新: 2026-08-19 段9 受入がT-1362と無関係な repo 全体のブロッカー2件で完走不能、ユーザー裁定待ち
+- 基準コミット: 85f6003a441a15ab26008f365bdc84c38e68fe19 (worktree: dev-wave-t1362-reasoning-pin, 作業ツリー clean)
+
+## 段9 で停止した理由 (次セッションが最初に読む節)
+T-1362 本体 (段1〜8) は commit `70fb8eab` までで完全に完了・記録済み。段9 で
+local main (`b7f7d934`) を merge (`b7fd16d8`、check_docs.py/test_check_docs.pyのoverlapは
+非重複で自動merge成功、provenance監査も通過) したうえで受入全走
+(`tools/dev_wave_wait.py acceptance`) を投入したところ、T-1362 と無関係な2件の
+repo全体ブロッカーで受入が完走できなかった (詳細は commit `85f6003a` の fragment、
+folded後は worklog {{T:s8c-batch-limit-blocks-land}} 相当・F412・F383再発を参照)。
+
+1. `orchestrator/campaign/s8c_preregistration.py` の `MAX_BATCH_REQUESTS=50_000` を
+   repo履歴成長が実測50072で超過。main単独では合格・本waveのtipでは失敗を直接確認済み
+   (内容でなくcommit数由来、次にlandする任意のwaveが同じ形で赤を踏みうる)。
+2. `tools/check_acceptance_reds.py` のprobe worktree dispatchが3/3でorphan-holdに到達
+   (F383と同じ復旧手順で解消したが根本原因は別、単発起動でも再現)。
+
+**次の一手**: ユーザー裁定 (上記1の恒久対応方針) が下りてから、
+(a) main側で1が解消されるのを待つか回避策が決まる、(b) 2の原因が切り分けられる、
+のいずれかを満たしたうえで受入を再投入する。T-1362自体の実装をやり直す必要はない。
+受入lease状態は解放済み (`wave_land_window.py status --wave dev-wave-t1362-reasoning-pin`
+で`state=free`確認済み)。repo外の受入ログは
+`/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t1362-reasoning-pin/acceptance-child-1.log`
+に保全済み。
 
 ## 段5 完了実績
 統合commit 0333abe6。単位1(launch_authority.py+テスト)・単位2(codex_worker_launch.py・
