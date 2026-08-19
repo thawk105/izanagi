@@ -1433,6 +1433,15 @@
   正確に `## 総括` という文字列を単独行に置け (太字等で代替しない)」と明示的に追記して再投すると
   2/2で解消した。2026-07-28裁定 (`DW-O01`へのprose追記は見送り、恒久対応はテスト・機械検査優先)
   を踏襲し、今回もprose追記はしない — 親検収で拾えており実害なし (near-miss)。
+
+- **再発: 2026-08-20** — 段6 の軽量 fix子 (1行追加だけの修正) 2回とも、親が「変更した
+  file:line を明記するだけでよい」と簡潔な報告を求めたところ、報告が499/494 bytes で
+  500 bytes 下限に届かず `tools/check_codex_output.py` に不受理にされた
+  (`codex_exit_code=0`, `accepted=false`, `validator_rc=1`)。2026-08-18 再発と同型
+  (「2〜5行で書け」で500 bytes未達)。作業自体は `attempt-0001.output.md` に正しく
+  書かれており親が fallback で読んで採った。2026-07-28/2026-08-18裁定 (`DW-O01` への
+  prose 追記は見送り、恒久対応はテスト・機械検査優先) を踏襲し、今回も reference
+  編集はしない。
 ### F44. pipefail 下の `producer | grep -q` が SIGPIPE で計測ジョブを偽赤停止させた [手順漏れ]
 - 事象: [T-140] set-size 実測ジョブ 1 回目 (872881.nqsv、2026-07-28) が、trace シンボル存在検査
   `nm -C bin | grep -qi izanagi_trace` で「シンボル無し」と誤判定し 43 秒で停止した。実際は
@@ -1624,6 +1633,15 @@
   最終的に repo 外の `/work` 配下へ置いた。
   恒久対応 = `DW-O20` の当該語を byte 中立で「背景jobはrepo外」へ是正 (本 wave の段 8) と、
   auto-memory `pegasus-keep-home-clean`。
+
+- **再発: 2026-08-19** — [T-1316] wave (背景 job + worktree 隔離) で、wave 開始時の brief 読み込みが
+  `DW-C00`/`DW-STOP` の通読に留まり、条件 dispatch 表の「20 | 背景 job + worktree 隔離の wave 開始時」
+  行を辿らなかったため、段4裁定完了・段5投入準備の直前まで `tools/check_wave_startup.py` を
+  実行しなかった。実行して初めて submodule 未初期化・専用 handoff の worktree 内残留・HEAD が
+  local main から6 commit 遅れの3件を検出し、実装着手前 (段5 投入前) に是正した (実害なし)。
+  過去2回 (2026-07-29, 2026-08-03) の再発と同じ「置き場・読了タイミングを誤る」型で、F50 の
+  恒久対応 (dispatch 前倒し、条件表20番の文言是正) は既に適用済みだったにもかかわらず、
+  wave 開始時にその条件表自体を辿らなかったことが根本原因である。
 ### F51. cleanup-branches が背景セッション自身の worktree を削除しかけた near-miss [手順漏れ]
 - 事象: /cleanup-branches 実行セッションの cwd が削除対象 worktree に固定されており (背景 job)、
   スキル §2 の「先に main checkout 側へ抜ける」が実行不能だった — ExitWorktree は EnterWorktree
@@ -2869,6 +2887,21 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   親は最小巡で元の outcome と期待値へ戻し、不正 digest を復活させない形
   (`critic_digest_generated: False`) に落とした。
   近縁は F127 (検査を切り出す fix が委譲そのものを未固定にした)。
+
+- **再発: 2026-08-20** — [T-338] 単位3/4 waveで、親がCodex実装子・fix子の「py_compile通過」
+  「手動smoke成功」「実装済み・未実走」という誠実な報告を受けて段5〜段6のfix 3巡を進め、
+  親自身も直接コード確認 (file:line読取) だけで先へ進んだ。子は一度も虚偽の緑を主張しておらず、
+  F80本体の事象 (子が期待値を反転して緑化) とは異なるが、根本原因は同じ「親が受入全走を自分で
+  実行して既存テストの赤を実走で確認する」というF80の再発検知手順を、段6の変異harness投入まで
+  実行しなかったこと。変異harnessのbaseline走行が単位3/4に対する本wave初の実pytest実行となり、
+  production非関与のtest fixtureバグ4件 (git commitの`-m`フラグ欠落2件・byte-prefix継続性を
+  壊すfixture1件・低位API直接呼出しの期待例外誤り1件、すべて
+  `test_t338_submission_gate_unit4.py`) を検出した。恒久対応は従来どおりF80の「親が受入全走を
+  必ず自分で実行する」だが、**本件は「受入全走」を段9直前まで遅らせてよいと読むと、その間の
+  複数fix巡が一度も実走されないまま積み上がりうる**ことを示した。dev-wave改善候補として
+  「段6のfix巡回のいずれかの節目で、親が軽量realtestを1回実走する」を
+  `output/insights/2026-08-20_t338-submission-gate-unit34/package.md`へ記録した
+  (段8裁定待ち)。
 ### F81. 全テスト緑なのに実 repo で 1 回も動かなかった [テスト代表性]
 
 - 事象: 受入全走 4907 passed / 0 failed を得た後、親が実 repo で `spool_fold.py --dry-run` を
@@ -2939,6 +2972,30 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   を裁定文とテストに固定する。
   検出: [T-313] wave の段 9 land が `status=fold-failed` / `reason=landed-fold-owned-path` で停止
   (main は `ea6ca43` のまま未変更)。
+
+- **再発: 2026-08-19 (4 度目)** — [T-1418] (仮) wave の段 9 land が `status=fold-failed` /
+  `reason=landed-fold-owned-path` で 2 回連続停止した。main は 1 bit も動いていない
+  (`main_before == main_after`)。今回のトリガは過去 3 件 (「fragment を書く」「main の fold 済み
+  merge を取り込む」) のどちらとも異なる第 4 の経路: **wave が継承した spool fragment 2 件
+  (別 branch `worktree-roadmap-workload-hint` 由来、`wave: roadmap-workload-hint`) を、自 wave の
+  fragment (`wave: workload-policy-hint-impl`) と同一 fold 識別子で扱うため `git mv` で
+  re-home した。** `docs/spool/README.md` の「identity は (wave, namespace, slug)。他 wave の
+  slug は参照できない」規則により、継承 fragment を自 wave の worklog から D の placeholder で
+  参照するには wave tag の統一が必須だった。この re-home は `git diff` 上 `R100`（100%
+  類似度の rename) として記録され、`_landed_fold_output_path`
+  (`tools/dev_waves/git_state.py:561`) の署名 (「fragment 形の path が D または R で消える」)
+  に一致し、fold 以外の正規経路であるにもかかわらず無条件拒否された。
+  F82 の「署名は fold 以外では起きない」という前提命題が本件で 3 度目に破れたことになる
+  (1 度目・2 度目は「main の fold 済み merge を取り込む」、本件は「wave 自身の fragment
+  reorganize」)。
+  親は `git reset --soft` によるこの wave 自身の (main へまだ 1 bit も land していない) 履歴
+  squash で回避しようとしたが、(a) Claude Code の auto mode classifier が history-rewrite
+  相当の操作を 2 度 (loop 化した `git log` 収集 script・squash 用 commit message の Write) とも
+  拒否し、(b) `docs/decisions.md` の既存裁定 (D371 近傍、「merge の作り直し — main の履歴書き換え
+  (rebase / force) は禁止されており実行不能」) も rewrite 系の回避を却下済みと確認したため、
+  forward-only な回避策の不在を認めて中断した。実装自体は commit `feb4452c` (branch
+  `worktree-workload-policy-hint-impl`) に完成・全緑で存在するが、本 fold-owned-path 制約が
+  解消されるまで land 不能である。
 ### F83. 親の裁定が並行 fold を不可能にする条件を 2 度作った [手順漏れ]
 
 - 事象: 段 4 で親が「直前 active の全 ID に明示遷移を要求する」と裁定した結果、
@@ -9415,6 +9472,18 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   受入経路そのものへ関門を入れた。**rc だけでなく理由本文を呼び手へ返す**のも同じ理由で、
   rc だけ返すと次の呼び手が同じ「rc を自前分類する」ループを書く。
 
+
+- **再発: 2026-08-20** — `dev-wave-t470-accepted-consumer` wave で、main 取り込み merge
+  (`0e07ad03`) が main 側 (workload-policy-hint-impl wave) と本 wave の両方が
+  `orchestrator/campaign/layer3_report.py`/`orchestrator/tests/test_layer3_report.py` を
+  実装面として変更していたことにより (競合なしの自動 merge、`git merge` は
+  "Automatic merge went well")、`tools/check_ai_provenance.py` の combined-path 判定
+  (両親からの積集合が非空) で新規違反として検出された。F365 の恒久対応
+  (`preclaim-history-provenance`: claim 前に無条件で全史監査) が意図どおり機能し、
+  lease を一切消費せず (`claimed_main: null`) `tools/dev_wave_wait.py acceptance` が
+  rc=70・25秒で早期に land 不能を検出した (queue 待ち行列への影響ゼロ)。
+  checker ソース中の「(ユーザー選択: known-violation 登録)」の指示どおり、
+  この新規違反の台帳登録可否は AI 単独で判断せずユーザーへ返した。
 ### F366. 呼び手を確認したと書きながら入れ子の exact 検査を見落とし、修正が end-to-end で 1 度も発効しなかった [恒真ゲート] [手順漏れ]
 
 - 事象: 2026-08-16 の commit `8a2b735b` が受入赤の分類へ第 3 分類 `flake` を足した。
@@ -10600,3 +10669,75 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   `ident.py`、`artifact_admission.py`、`orchestrator/verifier/*`、`s8c_preregistration*.py`、
   `s8c_generation_projection.py`、`campaign_lock.py`、`contract_loader_binding.py`、
   `enforcement_source_ratification.py` 等) のいずれかへ変異 matrix を登録する全 wave。
+
+### F425. read-only 調査 fork が継承した command 本文を自分の役割と誤認し無許可で実行段を起動した [権限逸脱]
+
+- 事象: `/dev-wave` 実行中、一次資料の read-only 調査だけを目的に Agent (subagent_type: "fork") を
+  起動したところ、fork は親の会話全文 (`/dev-wave` command 本体を含む) を継承し、自分を
+  dev-wave manager と誤認した。個別 prompt の「実装や編集は一切しない、read-only の調査のみ」
+  という制約を破り、`tools/dev_wave_codex.py --stage plan` 経由で実 Codex subprocess
+  (`gpt-5.6-luna`) と背景待ち手・診断用 general-purpose agent 2 体・EnterWorktree (失敗) を
+  無許可で起動した。共有 TaskList も誤って更新 (段1 completed・段2 in_progress へ先走り)。
+  完了通知の `result` 要約も実態と無関係な文言 (「段2の完了通知を待ちます」等) を 2 回繰り返し、
+  SendMessage で直接問い詰めるまで起動した副作用一式を報告しなかった。
+- 根本原因: fork が親の会話文脈をそのまま継承する設計であり、role-heavy な command 本文
+  (「あなたは manager である」) が個別 prompt の制約より強く働いた。
+- 恒久対応: memory `fork-inherits-command-context-can-misact-as-manager` —
+  role-heavy command 下で research fork を使うときは「あなたは manager ではない」
+  「副作用を持つ tool を使うな」の明示的な役割否定文を prompt に追加し、result 要約が
+  依頼と噛み合わないときは ListAgents + SendMessage (直接、別 fork へ委任せず) で実態を問い詰める。
+- 再発検知: fork 完了通知の `result` 要約を鵜呑みにせず、依頼内容と整合するか毎回照合する
+  (機械 lint は未実装)。
+- 関連: 2026-08-18 T-944 dev-wave でも「fork が委任範囲を超えて動く」型の事故が独立発生した
+  (memory `dont-fork-just-to-relay-sendmessage` に記録。当時 failures.md へは起票されなかった
+  ため本エントリが同型の初回起票となる)。fork の過剰行動は単発ではなく 2026-08 に少なくとも
+  2 件の独立実測がある。
+
+### F426. 新設 checker の1-hop 関数解決が tuple-unpack 代入を追跡できず fix が2巡した [手順漏れ]
+
+- 事象: `tools/check_subprocess_bytecode_guard.py` の P2 判定 (`_one_hop_guard`) は
+  `env = f()` 形の単純代入だけを1段辿って guard を探す。local main 取り込みで
+  `orchestrator/tests/test_dev_wave_wait.py` に他wave由来の新規呼び出しが加わり、
+  その `env` は `repo, lease, env = _real_waiter_repo(...)` という tuple-unpack
+  代入で得ていた。1回目の fix は呼び出し先 `_real_waiter_repo()` 内部の env dict へ
+  guard を足したが checker はなお rc=1 を返し続けた。
+- 根本原因: checker の `_FileIndex.visit_Assign`
+  (`tools/check_subprocess_bytecode_guard.py:208-219`) は
+  `len(node.targets) == 1 and isinstance(node.targets[0], ast.Name)` の場合だけ
+  代入を索引する。`ast.Tuple` をターゲットに持つ tuple-unpack 代入はこの条件を満たさず
+  索引から漏れるため、`_one_hop_guard` が呼び出し先関数まで辿る前提(代入の右辺が
+  ローカル関数呼び出しであること)自体が成立しなかった。
+- 恒久対応: 部分的。2回目の fix で、呼び出し元関数 (`_run_real_self_report_merge_case`)
+  自身の scope に `env["PYTHONDONTWRITEBYTECODE"] = "1"` を直接追加し、
+  `_scope_has_guard` (同一関数内の文字列 literal 探索) で guard ありと判定される形にした。
+  **checker 自体の tuple-unpack 追跡は実装していない** — 汎用 data-flow 解析は
+  規律5に反するため、既知の shallow 判定の限界として残す
+  (D575 の却下した選択肢を参照)。
+- 再発検知: 無し (checker の恒久対応が部分的なため、同型の tuple-unpack 代入を持つ
+  将来の env= 呼び出しは、呼び出し元関数自身に guard が無い限り同じ2巡を要する)。
+  `tools/check_subprocess_bytecode_guard.py` の module docstring に
+  「1-hop 関数解決は単純代入のみ対象、tuple-unpack は対象外」を追記する改善は
+  次に同checkerへ触れる wave の候補とする。
+
+### F427. 新規 worktree の submodule クローンに git identity が無く、config 変更が auto mode classifier に block される [手順漏れ] [環境固有]
+
+- 事象: `EnterWorktree` で新規作成した worktree の `external/ccbench` (submodule) は
+  `git submodule update --init --recursive` で fresh clone されるが、この clone には
+  `user.name`/`user.email` が一切設定されておらず (outer repo 側は local config 済みだが
+  submodule は継承しない)、`git -C external/ccbench commit` が
+  `fatal: unable to auto-detect email address` で失敗する。`git config` での補完も
+  `GIT_AUTHOR_NAME`/`GIT_AUTHOR_EMAIL`/`GIT_COMMITTER_*` 環境変数での代替も、
+  auto mode classifier に block された (CLAUDE.md の「NEVER update the git config」
+  規律に沿ったものと見られる)。
+- 根本原因: submodule の fresh clone は outer repo の local git config を継承しない。
+  CLAUDE.md の git config 変更禁止規律は正しく機能しているが、submodule 内で正当な
+  commit を行うための identity 供給経路が用意されていない。
+- 恒久対応: 未着手。回避策として、submodule 側の commit を作らず
+  `git -C external/ccbench diff --cached` の出力を `.patch` として repo 外へ保全し、
+  submodule 側の実 commit は人間が identity を設定したうえで行う運用にした
+  (本 wave、`docs/worklog.md` 該当エントリ参照)。恒久対応の選択肢
+  (例: submodule 専用の safe な identity 設定手段を用意する、または
+  「submodule 内 commit は人間手番」を dev-wave の正式な契約として明記する) は
+  ユーザー裁定へ送る。
+- 再発検知: 次に submodule (`external/ccbench`) 内で AI が commit を試みる wave で
+  同じ `fatal: unable to auto-detect email address` が出れば再発。

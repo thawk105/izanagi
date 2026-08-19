@@ -136,6 +136,7 @@ else:
 '''
     env = dict(os.environ)
     env["PYTHONPATH"] = str(ORCHESTRATOR.parent)
+    env["PYTHONDONTWRITEBYTECODE"] = "1"
     children = [
         subprocess.Popen(
             [sys.executable, "-c", script, str(ready_w), str(start_r), str(tmp_path)],
@@ -530,6 +531,7 @@ else:
 '''
     env = dict(os.environ)
     env["PYTHONPATH"] = str(ORCHESTRATOR.parent)
+    env["PYTHONDONTWRITEBYTECODE"] = "1"
     children = [
         subprocess.Popen(
             [sys.executable, "-c", script, identity, str(claim_root), str(sync_root)],

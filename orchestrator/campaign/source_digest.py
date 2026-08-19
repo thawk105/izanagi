@@ -74,12 +74,18 @@ from .model import Genome
 OPTIONS_CMAKE = "cmake/Options.cmake"
 # cc/silo/transaction.cc = 後続段 3 (D38) の lock 経路。編集面への追加は段 5 (D38 決定5) で
 # auditor live 機械 4 点 (test_lock_path_edit_surface_requires_auditor_live) の gate 下に解禁。
+# cc/mocc/transaction.cc = T-755 の trace-hook 目的だけの編集面拡張。D38 の auditor-live 前提は
+# test_campaign.py:10394-10412 の cc/silo/transaction.cc リテラル検査に限られ、mocc には適用しない。
 # 段 4 の coder loop (p3_s4_loop.SOURCE_REL) はまだ backoff.hh 単一マーカーのみを駆動する —
 # ここでの追加は identity/allowlist 層の地ならしで、実マーケット化 (template patch) は別タスク。
-EVOLVE_BLOCK_SOURCES = ("include/backoff.hh", "cc/silo/transaction.cc")
+EVOLVE_BLOCK_SOURCES = (
+    "include/backoff.hh", "cc/silo/transaction.cc", "cc/mocc/transaction.cc")
 # template patch (silo-backoff-fixed.patch) が touch するファイル。working-tree の
 # tracked 改変がこれを超えたら coder の編集面が EVOLVE-BLOCK を逸脱した印 → 停止。
-ALLOWLIST = frozenset({"cmake/Options.cmake", "include/backoff.hh", "cc/silo/transaction.cc"})
+ALLOWLIST = frozenset({
+    "cmake/Options.cmake", "include/backoff.hh", "cc/silo/transaction.cc",
+    "cc/mocc/transaction.cc",
+})
 
 STOCK = "stock"        # 後方互換: working-tree==HEAD baseline のときの src トークン
 SOURCE_EVIDENCE_SCHEMA = "source-evidence/v1"

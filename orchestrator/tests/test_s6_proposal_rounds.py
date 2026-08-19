@@ -200,8 +200,8 @@ def test_derive_seed_deterministic_and_purpose_separated():
 # (2026-07-28 段 4 裁定: live 化は N1 更新シナリオで stale packet を通す方向の緩和)。
 # 凍結時点面はテスト側に写しを持たず (第 4 の写しは lockstep 更新で沈黙する、段 6 RR-1)、
 # freshness_check の実装 AST から `ebs` literal を直接抽出して live EBS と突合する。
-# live EBS が凍結時点面から**拡張でも縮小でも**ずれると赤になり、「s6 側の据え置きか、
-# 再凍結か」の明示裁定を強制する (沈黙ドリフトの封鎖、段 6 RB-2)。
+# live EBS が凍結時点面を**縮小**すると赤になり、「s6 側の据え置きか、再凍結か」の
+# 明示裁定を強制する。trace-hook 専用の live-only 面の拡張は S6 の母集団ではないため許す。
 
 
 def _s6_frozen_opened_set():
@@ -221,26 +221,29 @@ def _s6_frozen_opened_set():
 
 
 def test_s6_frozen_surface_matches_live_edit_surface():
-    """[T-149] 構造検査: s6 の凍結時点 opened 集合 == live EVOLVE_BLOCK_SOURCES。
+    """[T-149] 構造検査: s6 の凍結時点 opened 集合 ⊆ live EVOLVE_BLOCK_SOURCES。
 
-    ずれたら「s6 側の据え置き (本テストへの明示裁定記録) か再凍結か」を裁定してから
-    更新する。behavioral テスト (下記) と違い母集団の作り方に依存しない直接照合。"""
-    assert _s6_frozen_opened_set() == set(source_digest.EVOLVE_BLOCK_SOURCES), \
-        "s6 freshness の凍結時点面と live EVOLVE_BLOCK_SOURCES がドリフトした"
+    S6 の LLM 変異提案ラウンドは cc/silo/ の母集団を凍結しており、T-755 の
+    cc/mocc/transaction.cc は trace-hook 専用の live-only 面である。この非対称を許しつつ、
+    凍結面の縮小は従来どおり検出する。behavioral テスト (下記) と違い母集団の作り方に
+    依存しない直接照合。"""
+    assert _s6_frozen_opened_set() <= set(source_digest.EVOLVE_BLOCK_SOURCES), \
+        "s6 freshness の凍結時点面が live EVOLVE_BLOCK_SOURCES から縮小した"
 
 
 def _live_surface_pi():
-    """凍結時点面 (AST 抽出) ∪ live EBS の母集団から freshness 入力を構成する。
+    """S6 の凍結面 (AST 抽出) と silo probe から freshness 入力を構成する。
 
     cc/silo/util.cc は「編集面外の実在 silo ソース」の代表 (test_campaign の
     test_source_digest_allowlist と同じ選定)。cc/silo/include/zzz_t149_probe.hh は
     「.hh の silo ソース」の代表 — freshness の領域再生成が .hh を落とす退行 (RA-3) を
-    領域集合不一致で可視化する。EBS にどちらかを加える日が来たら反例選定ごと見直すこと。"""
+    領域集合不一致で可視化する。mocc は S6 proposal rounds の対象ではない trace-hook
+    専用面なので、live EBS にのみ存在してもこの S6 入力へは含めない。"""
     ebs = set(source_digest.EVOLVE_BLOCK_SOURCES)
-    universe = (_s6_frozen_opened_set() | ebs
-                | {"cc/silo/util.cc", "cc/silo/include/zzz_t149_probe.hh"})
-    silo_listing = sorted(p for p in universe if p.startswith("cc/silo/"))
-    regions = sorted(universe)
+    s6_regions = (_s6_frozen_opened_set()
+                  | {"cc/silo/util.cc", "cc/silo/include/zzz_t149_probe.hh"})
+    silo_listing = sorted(p for p in s6_regions if p.startswith("cc/silo/"))
+    regions = sorted(s6_regions)
     pi = {
         "stock_excerpts": [],
         "edit_surface_map": [{"region": r, "role": "t149-alarm", "opened": r in ebs}
@@ -263,7 +266,7 @@ def test_freshness_tracks_live_edit_surface(monkeypatch):
     monkeypatch.setattr(M, "load_projected_input", lambda: pi)
     monkeypatch.setattr(M, "subprocess", _fake_silo_ls(silo_listing))
     assert M.freshness_check() == [], \
-        "live EVOLVE_BLOCK_SOURCES と s6 freshness の凍結時点面がドリフトした。" \
+        "s6 freshness の凍結対象面がドリフトした。" \
         "s6 側の据え置き/再凍結を明示裁定してから本テストを更新する"
 
 

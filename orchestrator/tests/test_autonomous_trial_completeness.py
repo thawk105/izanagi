@@ -264,7 +264,7 @@ _LITERAL_ADMISSION_DECISION = {
     },
 }
 _DESCRIPTOR_SCHEMA_SHA256 = (
-    "e60203b021a77a6d5a7d09bafd59525acd4173fa1ade099ec145a2b9d3ddc653"
+    "5a9e2696b8fba18f8f7cf01183673a1bd6f5781cc9cb1fe8641f9d667fe11549"
 )
 
 
@@ -4297,7 +4297,10 @@ def test_direct_cli_starts_with_clean_pythonpath(tmp_path) -> None:
             str(run / "report.json"),
         ],
         cwd=tmp_path,
-        env={"PATH": str(Path(sys.executable).parent)},
+        env={
+            "PATH": str(Path(sys.executable).parent),
+            "PYTHONDONTWRITEBYTECODE": "1",
+        },
         text=True,
         capture_output=True,
         check=False,

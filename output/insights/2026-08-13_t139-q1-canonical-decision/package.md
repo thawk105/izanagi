@@ -229,3 +229,23 @@ D264 の 4 名非 export も維持されている (`test_module_exports_no_admis
 scope 外所見 (`s1-startup-gate-deadlock.md`)。**実装面差分はゼロ。**
 
 **land しなかった:** canonical decision 本文 (decisions fragment)。
+
+## 追記 (2026-08-20、後続 wave `dev-wave-t139-q1-canonical-decision-land`)
+
+上記 V1〜V5 は 2026-08-13 /rulings 第9回#8 (K1〜K4) + 第10回#1 (V1〜V5) で全問 (a) 裁定された
+(`/work/SFC/tanab/dev-wave-jobs/rulings-inbox/2026-08-13-rulings{9-29,10-15}rulings.md`)。
+本 wave はこの裁定どおりに canonical decision 本文を起草し、`docs/decisions.md` へ land する
+fragment を `docs/spool/decisions/2026-08-20-dev-wave-t139-q1-canonical-decision-land-1.md`
+(placeholder `{{D:t139-q1-canonical-predicate}}`、fold 時に実 D 番号確定) として書いた
+(段2 codex plan 起草 + 段3 敵対相談2レンズで fact-check・scope 整合性を検証、real 所見は非拘束の
+付録のみで fragment 本体は無修正)。**land 後にこの段落を実 D 番号へ amend すること
+(fold 前は forward reference を確定値として書かない)。**
+
+**B1〜B4 の状態:** 本 decision が閉じたのは B1 (V3。§7.1(12)/§8 の矛盾を raw `CMakeCache.txt`
+独立再 parse で解消) と B4 (V2。追補 A `a10`/`a11` への参照束縛)。**B2
+(`series_id`/sealed set/`receipt-set.json`、本文 211 行) は投入経路 wave (K2) へ委譲されたまま
+未着手。** B3 は本 package 内に個別定義が無い。
+
+**pilot / 本走は依然として投入不可である。** D292 の解除は本 wave の対象外であり 1 bit も
+動いていない。次の一手は `output/insights/2026-08-13_t139-land2-q4/package.md` の K2/K3 に従う
+投入経路 wave (manifest+resolver+writer+validator+vectors の実装)。

@@ -388,6 +388,26 @@ guided.py の replay-fake certified 経路は live variant に絶対再利用し
    一歩目は**カタログ化の試作 1 枚** (他 CC の最適化 1 つを「前提/効果/競合」でカード化し、移植先で前提が満たせるかを
    判定) で、本格投資はその結果で決める。cicada/oze への空間拡大 (S1 移植を伴う) と束ねるのが自然。カタログ化の
    成果物は移植を見送っても層3 の説明生成に流用できるため無駄にならない。
+
+   **(2026-08-20 TicToc/Cicada タスク分解、段7 発火まで全項目未着手・T 番号なし)** D32 の「一歩目」を
+   TicToc/Cicada 2 protocol へ具体化した。[T-109] (2026-07-26、MOCC 対象、3 レンズ全 NO-GO) の
+   blocker を今回再実測し、D16 は「一回限りの試作例外」が既に追記済みだが buildcache/source_digest の
+   ALLOWLIST は今も silo 専用のままと確認した。技術根拠・precedent 再確認・(P1) 順序推奨の正本は
+   `output/insights/2026-08-20_tictoc-cicada-cross-protocol-task-definition.md`:
+   - Group A (共有基盤、S1 = native trace-hook strand): (a) buildcache/source_digest の
+     protocol-aware 化 (D23 が予約していた繰延先)、(b) SPACES 登録 + protocol 別 calibration/floor
+     (段6 dormant (b) と同一項目)、(c) `Integrity.clean()` 非対称ゲート解消設計 (silo 専用 2 カウンタ
+     問題)、(d) D16 一回限り試作例外を TicToc/Cicada どちらに使うかの裁定
+   - Group B (TicToc、S1 strand): (e) `TsWord` 版 ID の trace-hook 設計、(f) 実装 + positive control
+   - Group C (Cicada、S1 strand — cicada は真の多版 MVCC で [T-109] 時点未分析・既存 playbook が
+     通用しない構造的新規ケース): (g) MVCC 版管理の feasibility 調査 (カタログ化試作の充当先)、
+     (h) ((g) 次第) 実装 + positive control
+   - Group D (b2 strand、Group A の blocker を一切踏まない最安の入口): (i) 最適化技法 1 つの
+     カタログ化試作 (前提/効果/競合の三つ組、D32 原文どおりの文字通りの一歩目)
+   - **(P1) 親の暫定推奨順序 (攻撃対象・ユーザー上書き可):** (i) → (a)(b)(c)(d) → (e)(f)[TicToc] →
+     (g) → 分岐[Cicada 着手 or 見送り]。理由 = TicToc は既存 (mocc/silo) playbook に近く低リスク、
+     Cicada は playbook 非依存の新規調査が要るため `DW-G03` (族一般化には独立 2 例) の精神で
+     2 例目に位置づける。(d) は一方向消費のため着手時に改めて裁定を仰ぐ。
 8. **探索側を防壁の水準へ引き上げる 3 機構 (8a 完了、8b 進行中、8c は bounded MVP 済み・正式実験と resume は未完)** — 外部評価
    (worklog 2026-07-10 (3)) が特定した「CC 自動合成の主張と機構のギャップ」への対策。各々着手時に
    リスクに応じてレビューする。新しい統計主張・不可逆な決定は D41 相当の 3 レンズ、可逆な schema/文言は

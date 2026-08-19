@@ -434,6 +434,7 @@ def test_same_out_from_different_scratch_is_rejected_between_observation_points(
             "IZANAGI_FAKE_HARNESS_RC": "0",
         }
     )
+    environment["PYTHONDONTWRITEBYTECODE"] = "1"
     first = subprocess.Popen(
         [sys.executable, str(_TOOL), *_wrapper_argv(fixture, plan_only=True)],
         env=environment,
@@ -837,6 +838,7 @@ def test_sigint_and_sigterm_are_forwarded_between_observation_points(
             "IZANAGI_SIGNAL_RECORD": str(signal_record),
         }
     )
+    environment["PYTHONDONTWRITEBYTECODE"] = "1"
     process = subprocess.Popen(
         [sys.executable, str(_TOOL), *_wrapper_argv(fixture, plan_only=True)],
         env=environment,

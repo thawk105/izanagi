@@ -66,7 +66,7 @@ def _collect(root: Path, *args: str) -> subprocess.CompletedProcess[str]:
             "--color=no", "-p", "no:cacheprovider", *args,
         ],
         cwd=root,
-        env=_child_env(),
+        env={**_child_env(), "PYTHONDONTWRITEBYTECODE": "1"},
         capture_output=True,
         text=True,
         timeout=120,
@@ -282,6 +282,7 @@ def test_conftest_scheduler_attestation_loads_without_xdist(tmp_path: Path):
     env = _child_env()
     env["PYTEST_DISABLE_PLUGIN_AUTOLOAD"] = "1"
     env["PYTHONPATH"] = os.pathsep.join((str(tmp_path), str(_REPO)))
+    env["PYTHONDONTWRITEBYTECODE"] = "1"
     result = subprocess.run(
         [
             sys.executable,
