@@ -567,6 +567,8 @@ def _origin_bound_launch_admission() -> dict:
         "binding": {
             "manifest_sha256": "b" * 64,
             "prereg_commit": "c" * 40,
+            "prereg_content_commit": "e" * 40,
+            "prereg_effective_commit": "f" * 40,
             "measurement_head": "7" * 40,
             "trial_id": "fixture-completeness",
             "arm": "on",
@@ -578,6 +580,8 @@ def _origin_bound_launch_admission() -> dict:
             "ycsb_rratio": "70",
         },
         "activation_report_digest_sha256": "d" * 64,
+        "prereg_content_commit": "e" * 40,
+        "prereg_effective_commit": "f" * 40,
         "origin_binding": _origin_binding(),
     }
 
@@ -821,6 +825,8 @@ def _registered_digest_chain_trial(tmp_path: Path):
         "binding": {
             "manifest_sha256": "b" * 64,
             "prereg_commit": "c" * 40,
+            "prereg_content_commit": "e" * 40,
+            "prereg_effective_commit": "f" * 40,
             "measurement_head": "7" * 40,
             "trial_id": "fixture-completeness",
             "arm": arm,
@@ -830,6 +836,8 @@ def _registered_digest_chain_trial(tmp_path: Path):
             "ycsb_rratio": workload_flags["ycsb_rratio"],
         },
         "activation_report_digest_sha256": "d" * 64,
+        "prereg_content_commit": "e" * 40,
+        "prereg_effective_commit": "f" * 40,
     }
     report["launch_admission"] = copy.deepcopy(launch_admission)
     report["arm_execution"] = copy.deepcopy(arm_execution)

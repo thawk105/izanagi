@@ -1078,6 +1078,18 @@
   恒久対応 1 (`DW-S01` の照合義務) は今回も投入前に機能し実装は行われなかった。
   恒久対応候補 (段 7 記録テンプレートへ「自 task ID を完了節へ明示する」チェックを追加) は
   dev-wave docs 予算満杯のため未実装 — ユーザー裁定へ返す。
+
+- **再発: 2026-08-19** — [T-1198] (2026-08-16 entry 585 起票、
+  `docs/archive/worklog-phase3-0816-585.md`) が (586) から (684) まで stale のまま carry され
+  続けた。従来の F35 型 (完了節への明示漏れ) とは異なる新しい発生角度: 同じ症状 (C12 の
+  `machine_checkable` 反転で `UNSATISFIED`/`environment-contract-consumer-absent` を誤って返す)
+  を指す**別の task ID ([T-1197]・[T-1202])** が 2026-08-17 の commit
+  (`ccb9ee65`/`0862ac11`/`9aee98f3`/`47146d74`) で先に fix・完了節記入されたが、fix した側は
+  [T-1197]・[T-1202] だけを名指しし [T-1198] を知らないまま閉じたため、carry 台帳の
+  [T-1198] 側との突合せをする者がいなかった。恒久対応 1 (`DW-S01`: 人間手番待ちの前提を
+  brief 前に git・実成果物へ照合する) は本件にも有効に働いた (今回の検出経路そのもの) が、
+  「同一症状の兄弟 finding が別 ID で fix された」場合の横断照合は `DW-S01` の射程外であり、
+  機械防壁は無いまま。
 ### F36. 受入・検査の結果欄をプレースホルダのまま記録 commit し、恒久対応の実行が空証明になった [恒真ゲート] [手順漏れ]
 
 - 事象: `<受入結果を反映>` `<反映>` というリテラルのプレースホルダが埋められないまま記録 commit に
@@ -1413,6 +1425,14 @@
   報告 327 bytes で 500 bytes 下限に届かず不受理になった。後者は「2〜5 行で書け」と書いた親の
   prompt 側の誤りであり、作業自体は差分を親が逐語照合して採った。**出力形式の指示は
   「fence の外に `## 総括` を置く」と「下限 500 bytes」を両方明示する**。
+
+- **再発: 2026-08-19** — 段3敵対相談2レンズ (各1回目) が、prompt側で `## 総括` をfence外の
+  section見出しとして明示していたにもかかわらず、出力では `**総括（重大度）：**` のような太字
+  表記で代替し、`check_codex_output.py` に不受理 (rc≠0) にされた。2026-08-18再発 (fence内配置・
+  500 bytes未達) とは異なる第3の型 (見出し記法そのものの非再現)。プロンプトへ「独立した行として
+  正確に `## 総括` という文字列を単独行に置け (太字等で代替しない)」と明示的に追記して再投すると
+  2/2で解消した。2026-07-28裁定 (`DW-O01`へのprose追記は見送り、恒久対応はテスト・機械検査優先)
+  を踏襲し、今回もprose追記はしない — 親検収で拾えており実害なし (near-miss)。
 ### F44. pipefail 下の `producer | grep -q` が SIGPIPE で計測ジョブを偽赤停止させた [手順漏れ]
 - 事象: [T-140] set-size 実測ジョブ 1 回目 (872881.nqsv、2026-07-28) が、trace シンボル存在検査
   `nm -C bin | grep -qi izanagi_trace` で「シンボル無し」と誤判定し 43 秒で停止した。実際は
@@ -10216,3 +10236,76 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   再投入は prompt bytes を変える必要がある (job-id が prompt hash から決まるため)。
   この手順の dev-wave 入口への明文化は [T-1404] で裁定する。
 - 再発検知: 現時点では機械検査が無い。手順の明文化と併せて裁定へ返す。
+
+### F412. 親が成立不能な束縛を裁定し、実装子の停止報告で初めて露見した [恒真ゲート] [手順漏れ]
+
+- 事象: 段 6 で親が「`prereg_content_commit` を manifest の `prereg_commit` と等値で束縛せよ」と
+  裁定した。実装子が入れると既存テストが 84 件赤になった。実装子は 2 巡目で
+  「binding を anchor へ合わせると P 側に manifest blob が無くなり、manifest を P へ合わせると
+  自己参照になる」と報告して**修正を止めた**。親が実測したところ、fixture の anchor は
+  `seed.txt` だけを含む commit で manifest blob を持たず、等値は構造的に成立しないと確定した。
+  撤回後、赤は 85 件から 2 件へ落ちた。
+- 根本原因: 親がレビューの所見 (「束縛が緩い」= real) と、レビューが添えた修正案 (「等値にせよ」)
+  を分けずに裁定した。所見の real 判定と、提案された修正形の実現可能性は別の検査である。
+  親は前者だけを実測し、後者を実測せずに子へ渡した。
+- 恒久対応: D550 決定 2 が anchor と content commit の関係を祖先として
+  固定する。段 5 / 段 6 の実装子 prompt が持つ「両立しないと判断したら実装を変えず報告して止まれ」の
+  条項がこの検出経路であり、本件で実際に発火した。
+- 再発検知: 実装子の「報告して止まる」出力を親が受けたら、**まず親自身の裁定を実測で再検査する**。
+  子の停止を「子の能力不足」と読み替えて同じ指示を再投入しない。
+
+### F413. merge 競合の解決で競合 file だけを stage し、子の合成編集が commit から落ちた [手順漏れ]
+
+- 事象: local main 取り込みで Codex 実装子が競合 3 箇所を解決したのち、親が競合した 2 file だけを
+  `git add` して merge commit を作った。子は自動 merge 済みの `s8c_preregistration_evidence.py` にも
+  合成の本体 (評価器 dispatch の分岐順序) を書いていたため、その編集が commit に入らなかった。
+  次のテスト実走で `contract-loader-drift: disk bytes が HEAD blob と不一致` が 190 件出て発覚した。
+- 根本原因: 親が「競合 file = 子が触った file」と暗黙に同一視した。子は競合マーカーの外も編集する。
+- 恒久対応: D550 と同 wave の運用として、merge 子の後は
+  `git status` の全変更を確認してから commit する。`contract-loader-drift` の guard が
+  fails-closed の検出経路として実在し、本件で 190 件の赤として発火した。
+- 再発検知: merge commit の直後に working tree が clean であることを確認する。
+  clean でなければ子の編集が落ちている。
+
+### F414. 凍結 baseline へ内容由来の値を焼き込み、取り込みのたびに赤くした [テスト代表性]
+
+- 事象: 本 wave が凍結 baseline を拡張したとき、`prereg_content_commit` などに当時の具体的な
+  commit SHA を書き込んだ。local main を取り込んで fixture の内容が変わると SHA が変わり、
+  baseline テストが赤になった。親は「内容由来だから volatile」と判断して 17 leaf を volatile 化させたが、
+  敵対レビューが「fixture の日時は固定されており、P/C も schedule hash も observation projection も
+  決定的であるから 17 件とも pin 可能」と実測で反論した。親はこれを採用し pin へ戻す裁定にした。
+- 根本原因: 「取り込みで値が変わる」ことと「実行ごとに値が変わる」ことを親が同一視した。前者は
+  内容由来で決定的であり pin できる。volatile 化は pin の検出力を落とす。
+- 恒久対応: D550 却下選択肢の 4 番目が、焼き込みも volatile 化も採らず
+  「pin を維持し、値の確定は最終取り込みの後に行う」形を固定する。
+- 再発検知: volatile へ移す leaf ごとに「実行ごとに変わる」根拠を書かせる。書けない leaf は pin する。
+
+### F415. 凍結 pin の閉包検査で test file 内に埋め込まれた baseline を取りこぼした [手順漏れ]
+
+- 事象: 段 1 の凍結 bytes pin 閉包検査で、成果物ディレクトリと契約 JSON だけを検索し
+  「凍結 bytes の pin は無い」と判定した。実際には `test_reflux_originless_compatibility.py` に
+  `_PRE_WAVE_ORIGINLESS_BASELINE` という凍結 literal があり、reports / journals / lifecycle /
+  acceptance の key 集合と digest を pin していた。段 5 の実測で初めて赤として現れた。
+- 根本原因: pin の探索範囲を「成果物 path」と「契約 file」に限った。pin は test file 内の
+  literal としても存在する。
+- 恒久対応: D550 と同 wave の運用として、pin 閉包検索に
+  test file 内の埋め込み literal (`_PRE_WAVE_*` / `BASELINE` / 大きな JSON literal) を含める。
+- 再発検知: pin 閉包の判定を「path 検索 0 件」で終えない。編集する record の field 名でも検索する。
+
+### F416. 凍結検証が全 commit を走査し、履歴の伸びだけで受入が死んだ [恒真ゲート] [テスト代表性]
+
+- 事象: 受入で `test_s8c_preregistration_invariant.py` の 2 本が
+  `condition_freeze_valid is True` に失敗した。理由 code は `batch-request-limit`。
+  `validate_condition_freeze_at` が全 commit × 凍結 paths を git へ batch 要求しており、
+  local main は 4544 × 11 = 49,984 で上限 50,000 まで**残り 16** しかなかった。
+  commit を十数本積んだ wave はどれも超える。本 wave (50,105) と並行 wave (50,006) の
+  2 本が同時に止まった。**内容とは無関係で、commit を積んだだけで踏む。**
+- 根本原因: 検証コストが履歴長に正比例する設計だった。上限値は履歴長に依らない固定値なので、
+  開発が進むほど余裕が減り、いずれ必ず 0 になる。既裁定 (D257) は
+  「要求数は commits × paths で増える」と明記していたが、上限到達時の扱いは決めていなかった。
+- 恒久対応: 走査対象を「凍結 namespace を触った commit + その直接親 + 境界」に限定し、
+  コストを履歴長から切り離した (D551)。要求数は 50,105 → 385。
+  **上限引き上げは採らない** — 死を先送りするだけで、ユーザーが禁止した型そのものである。
+- 再発検知: `test_batch_request_count_ignores_no_touch_history_length` が、
+  no-touch commit 数を変えた 2 ケースで要求数の合計が一致することを要求する。
+  path filtering が無効化されて全 commit を要求する退行もこのテストが殺す。

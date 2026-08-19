@@ -197,10 +197,77 @@ _VOLATILE_LIFECYCLE_REPORT_SHA = ("lifecycle", "*", "report_sha256")
 _VOLATILE_LIFECYCLE_JOURNAL_SHA = ("lifecycle", "*", "attempt_journal_sha256")
 # Acceptance lifecycle digest transitively covers volatile lifecycle leaves above.
 _VOLATILE_ACCEPTANCE_LIFECYCLE_SHA = ("acceptance", "lifecycle_prefix_sha256")
+_VOLATILE_ACCEPTANCE_LIFECYCLE_BYTES = ("acceptance", "lifecycle_prefix_bytes")
 # Acceptance report digests transitively cover volatile report leaves above.
 _VOLATILE_ACCEPTANCE_REPORT_SHA = ("acceptance", "trials", "*", "report_sha256")
 # Acceptance journal digests transitively cover volatile journal leaves above.
 _VOLATILE_ACCEPTANCE_JOURNAL_SHA = ("acceptance", "trials", "*", "attempt_journal_sha256")
+# Attempt output digests cover the journal's wall clock and temporary paths.
+_VOLATILE_REPORT_RAW_OUTPUT_SHA = ("reports", "*", "raw_output_sha256")
+_VOLATILE_LIFECYCLE_CLASSIFICATION_SHA = (
+    "lifecycle", "*", "classification_receipt_sha256",
+)
+_VOLATILE_LIFECYCLE_RAW_OUTPUT_SHA = (
+    "lifecycle", "*", "raw_output_sha256",
+)
+_VOLATILE_LIFECYCLE_PROCESS_IDENTITY = (
+    "lifecycle", "*", "process_identity", "*",
+)
+# T1353's P/C registry identities are commit IDs derived from fixture-repository
+# contents; the same binding is copied into each consumer record.
+# The observation and schedule digests below are also derived from the changed
+# fixture content, rather than from the pre-wave compatibility contract.
+_VOLATILE_REPORT_OBSERVATION_SHA = ("reports", "*", "observation_sha256")
+_VOLATILE_REPORT_PREREG_CONTENT_COMMIT = (
+    "reports", "*", "prereg_content_commit",
+)
+_VOLATILE_REPORT_PREREG_EFFECTIVE_COMMIT = (
+    "reports", "*", "prereg_effective_commit",
+)
+_VOLATILE_REPORT_ADMISSION_PREREG_CONTENT_COMMIT = (
+    "reports", "*", "launch_admission", "prereg_content_commit",
+)
+_VOLATILE_REPORT_ADMISSION_PREREG_EFFECTIVE_COMMIT = (
+    "reports", "*", "launch_admission", "prereg_effective_commit",
+)
+_VOLATILE_REPORT_BINDING_PREREG_CONTENT_COMMIT = (
+    "reports", "*", "launch_admission", "binding", "prereg_content_commit",
+)
+_VOLATILE_REPORT_BINDING_PREREG_EFFECTIVE_COMMIT = (
+    "reports", "*", "launch_admission", "binding", "prereg_effective_commit",
+)
+_VOLATILE_JOURNAL_PREREG_CONTENT_COMMIT = (
+    "journals", "*", "*", "prereg_content_commit",
+)
+_VOLATILE_JOURNAL_PREREG_EFFECTIVE_COMMIT = (
+    "journals", "*", "*", "prereg_effective_commit",
+)
+_VOLATILE_JOURNAL_ADMISSION_PREREG_CONTENT_COMMIT = (
+    "journals", "*", "*", "launch_admission", "prereg_content_commit",
+)
+_VOLATILE_JOURNAL_ADMISSION_PREREG_EFFECTIVE_COMMIT = (
+    "journals", "*", "*", "launch_admission", "prereg_effective_commit",
+)
+_VOLATILE_JOURNAL_BINDING_PREREG_CONTENT_COMMIT = (
+    "journals", "*", "*", "launch_admission", "binding",
+    "prereg_content_commit",
+)
+_VOLATILE_JOURNAL_BINDING_PREREG_EFFECTIVE_COMMIT = (
+    "journals", "*", "*", "launch_admission", "binding",
+    "prereg_effective_commit",
+)
+_VOLATILE_LIFECYCLE_TERMINAL_PREREG_COMMIT = (
+    "lifecycle", "*", "terminal", "prereg_commit",
+)
+_VOLATILE_LIFECYCLE_PREREG_CONTENT_COMMIT = (
+    "lifecycle", "*", "prereg_content_commit",
+)
+_VOLATILE_LIFECYCLE_PREREG_EFFECTIVE_COMMIT = (
+    "lifecycle", "*", "prereg_effective_commit",
+)
+_VOLATILE_LIFECYCLE_SCHEDULE_ROW_SHA = (
+    "lifecycle", "*", "schedule_row_sha256",
+)
 
 _VOLATILE_LEAF_PATHS = frozenset({
     _VOLATILE_ROLE_TS,
@@ -218,8 +285,30 @@ _VOLATILE_LEAF_PATHS = frozenset({
     _VOLATILE_LIFECYCLE_REPORT_SHA,
     _VOLATILE_LIFECYCLE_JOURNAL_SHA,
     _VOLATILE_ACCEPTANCE_LIFECYCLE_SHA,
+    _VOLATILE_ACCEPTANCE_LIFECYCLE_BYTES,
     _VOLATILE_ACCEPTANCE_REPORT_SHA,
     _VOLATILE_ACCEPTANCE_JOURNAL_SHA,
+    _VOLATILE_REPORT_RAW_OUTPUT_SHA,
+    _VOLATILE_LIFECYCLE_CLASSIFICATION_SHA,
+    _VOLATILE_LIFECYCLE_RAW_OUTPUT_SHA,
+    _VOLATILE_LIFECYCLE_PROCESS_IDENTITY,
+    _VOLATILE_REPORT_OBSERVATION_SHA,
+    _VOLATILE_REPORT_PREREG_CONTENT_COMMIT,
+    _VOLATILE_REPORT_PREREG_EFFECTIVE_COMMIT,
+    _VOLATILE_REPORT_ADMISSION_PREREG_CONTENT_COMMIT,
+    _VOLATILE_REPORT_ADMISSION_PREREG_EFFECTIVE_COMMIT,
+    _VOLATILE_REPORT_BINDING_PREREG_CONTENT_COMMIT,
+    _VOLATILE_REPORT_BINDING_PREREG_EFFECTIVE_COMMIT,
+    _VOLATILE_JOURNAL_PREREG_CONTENT_COMMIT,
+    _VOLATILE_JOURNAL_PREREG_EFFECTIVE_COMMIT,
+    _VOLATILE_JOURNAL_ADMISSION_PREREG_CONTENT_COMMIT,
+    _VOLATILE_JOURNAL_ADMISSION_PREREG_EFFECTIVE_COMMIT,
+    _VOLATILE_JOURNAL_BINDING_PREREG_CONTENT_COMMIT,
+    _VOLATILE_JOURNAL_BINDING_PREREG_EFFECTIVE_COMMIT,
+    _VOLATILE_LIFECYCLE_TERMINAL_PREREG_COMMIT,
+    _VOLATILE_LIFECYCLE_PREREG_CONTENT_COMMIT,
+    _VOLATILE_LIFECYCLE_PREREG_EFFECTIVE_COMMIT,
+    _VOLATILE_LIFECYCLE_SCHEDULE_ROW_SHA,
 })
 
 # campaign identity は main の identity contract の進行で変わる値であり、
@@ -299,6 +388,175 @@ def _normalize_main_derived_leaves(
 _PRE_WAVE_ORIGINLESS_BASELINE = _normalize_main_derived_leaves(
     _PRE_WAVE_ORIGINLESS_BASELINE
 )
+
+
+def _extend_t1353_originless_baseline(
+    baseline: dict[str, list[list[object]]],
+) -> None:
+    """Freeze the required registry/receipt fields introduced by T1353.
+
+    The observed prefix byte count changes across executions (11364, 11352,
+    and 11358), and the neighboring `acceptance/lifecycle_prefix_sha256`
+    leaf is already volatile, so this leaf remains volatile.
+    """
+
+    def set_keys(path: str, keys: list[str]) -> None:
+        for run in baseline[path]:
+            assert type(run[0]) is dict
+            run[0]["dict_keys"] = list(keys)
+
+    def set_value(path: str, value: object, count: int) -> None:
+        baseline[path] = [[value, count]]
+
+    set_keys("reports/*", [
+        "attempt_journal", "attempt_journal_sha256", "cells", "claim_scope",
+        "do_build", "finished_at", "generation_budget_per_workload",
+        "launch_admission", "manifest_sha256", "measurement_head",
+        "observation_sha256", "prereg_commit", "prereg_content_commit",
+        "prereg_effective_commit", "primary_value", "provider",
+        "raw_output_sha256", "schema_version", "slot_id", "started_at",
+        "status", "stop_policy", "trial_id", "workloads_requested",
+    ])
+    set_keys("reports/*/launch_admission", [
+        "activation_report_digest_sha256", "binding", "certifying", "mode",
+        "prereg_content_commit", "prereg_effective_commit", "reason_code",
+        "trial_id", "workloads",
+    ])
+    set_keys("reports/*/launch_admission/binding", [
+        "arm", "campaign_id", "holdout", "manifest_sha256",
+        "measurement_head", "prereg_commit", "prereg_content_commit",
+        "prereg_effective_commit", "trial_id", "workload", "ycsb_rratio",
+    ])
+    baseline["reports/*/observation_sha256"] = [
+        [{"volatile": True}, 6],
+    ]
+    set_value(
+        "reports/*/prereg_content_commit",
+        {"volatile": True},
+        6,
+    )
+    set_value(
+        "reports/*/prereg_effective_commit",
+        {"volatile": True},
+        6,
+    )
+    set_value("reports/*/primary_value", 0.0, 6)
+    set_value("reports/*/raw_output_sha256", {"volatile": True}, 6)
+    baseline["reports/*/slot_id"] = [
+        ["t325-h1-on-r0-a0", 1], ["t325-h1-off-r0-a0", 1],
+        ["t325-h1-swapped-r0-a0", 1], ["t325-h2-on-r0-a0", 1],
+        ["t325-h2-off-r0-a0", 1], ["t325-h2-swapped-r0-a0", 1],
+    ]
+    for path in (
+        "reports/*/launch_admission/prereg_content_commit",
+        "reports/*/launch_admission/prereg_effective_commit",
+        "reports/*/launch_admission/binding/prereg_content_commit",
+        "reports/*/launch_admission/binding/prereg_effective_commit",
+    ):
+        set_value(path, {"volatile": True}, 6)
+
+    journal_runs = baseline["journals/*/*"]
+    run_start_keys = [
+        "do_build", "event", "generation_budget_per_workload",
+        "launch_admission", "manifest_sha256", "max_wall_s",
+        "measurement_head", "performance_early_stop", "prereg_commit",
+        "prereg_content_commit", "prereg_effective_commit", "provider",
+        "schema_version", "scientific_claim", "seq", "slot_id", "trial_id",
+        "ts", "workloads",
+    ]
+    for index in range(0, len(journal_runs), 3):
+        journal_runs[index][0]["dict_keys"] = list(run_start_keys)
+    set_keys("journals/*/*/launch_admission", [
+        "activation_report_digest_sha256", "binding", "certifying", "mode",
+        "prereg_content_commit", "prereg_effective_commit", "reason_code",
+        "trial_id", "workloads",
+    ])
+    set_keys("journals/*/*/launch_admission/binding", [
+        "arm", "campaign_id", "holdout", "manifest_sha256",
+        "measurement_head", "prereg_commit", "prereg_content_commit",
+        "prereg_effective_commit", "trial_id", "workload", "ycsb_rratio",
+    ])
+    set_value(
+        "journals/*/*/prereg_content_commit",
+        {"volatile": True},
+        6,
+    )
+    set_value(
+        "journals/*/*/prereg_effective_commit",
+        {"volatile": True},
+        6,
+    )
+    baseline["journals/*/*/slot_id"] = [
+        ["t325-h1-on-r0-a0", 1], ["t325-h1-off-r0-a0", 1],
+        ["t325-h1-swapped-r0-a0", 1], ["t325-h2-on-r0-a0", 1],
+        ["t325-h2-off-r0-a0", 1], ["t325-h2-swapped-r0-a0", 1],
+    ]
+    for path in (
+        "journals/*/*/launch_admission/prereg_content_commit",
+        "journals/*/*/launch_admission/prereg_effective_commit",
+        "journals/*/*/launch_admission/binding/prereg_content_commit",
+        "journals/*/*/launch_admission/binding/prereg_effective_commit",
+    ):
+        set_value(path, {"volatile": True}, 6)
+
+    lifecycle_runs = baseline["lifecycle/*"]
+    lifecycle_start_keys = [
+        "activation_report_digest_sha256", "event", "launch_admission_sha256",
+        "manifest_sha256", "measurement_head", "mode", "prereg_commit",
+        "prereg_content_commit", "prereg_effective_commit", "process_identity",
+        "run_root", "schedule_row_sha256", "schema_version", "slot_id",
+        "trial_id",
+    ]
+    lifecycle_terminal_keys = [
+        "attempt_journal_sha256", "classification_receipt_sha256", "event",
+        "prereg_commit", "prereg_content_commit", "prereg_effective_commit",
+        "raw_output_sha256", "report_sha256", "schema_version", "slot_id",
+        "terminal_status", "trial_id",
+    ]
+    for index, run in enumerate(lifecycle_runs):
+        run[0]["dict_keys"] = list(
+            lifecycle_start_keys if index % 2 == 0 else lifecycle_terminal_keys
+        )
+    baseline["lifecycle/*/start/prereg_commit"] = [
+        ["bcb3912d3380451505a2cd5de3138e310dd659b6", 6],
+    ]
+    baseline["lifecycle/*/terminal/prereg_commit"] = [
+        [{"volatile": True}, 6],
+    ]
+    set_value(
+        "lifecycle/*/prereg_content_commit",
+        {"volatile": True},
+        12,
+    )
+    set_value(
+        "lifecycle/*/prereg_effective_commit",
+        {"volatile": True},
+        12,
+    )
+    set_value("lifecycle/*/schema_version", "p3-8c-trial-lifecycle/v2", 12)
+    set_value(
+        "lifecycle/*/process_identity",
+        {"dict_keys": ["execution_uuid", "pid", "starttime"]},
+        6,
+    )
+    for field in ("execution_uuid", "pid", "starttime"):
+        set_value(f"lifecycle/*/process_identity/{field}", {"volatile": True}, 6)
+    set_value(
+        "lifecycle/*/classification_receipt_sha256",
+        {"volatile": True},
+        6,
+    )
+    set_value("lifecycle/*/raw_output_sha256", {"volatile": True}, 6)
+    baseline["lifecycle/*/schedule_row_sha256"] = [[{"volatile": True}, 6]]
+    baseline["lifecycle/*/slot_id"] = [
+        ["t325-h1-on-r0-a0", 2], ["t325-h1-off-r0-a0", 2],
+        ["t325-h1-swapped-r0-a0", 2], ["t325-h2-on-r0-a0", 2],
+        ["t325-h2-off-r0-a0", 2], ["t325-h2-swapped-r0-a0", 2],
+    ]
+    baseline["acceptance/lifecycle_prefix_bytes"] = [[{"volatile": True}, 1]]
+
+
+_extend_t1353_originless_baseline(_PRE_WAVE_ORIGINLESS_BASELINE)
 
 
 def _assert_same_structure(left: object, right: object, path=()) -> None:
@@ -399,7 +657,16 @@ def _baseline_structure(value: object) -> dict[str, list[list[object]]]:
         if type(item) is dict:
             add(path, {"dict_keys": list(item)})
             for key, child in item.items():
-                walk(child, (*path, key))
+                child_path = (*path, key)
+                # T1353's lifecycle ``prereg_commit`` is the stable manifest
+                # anchor on start rows but the content commit on terminal rows.
+                if (
+                    path == ("lifecycle", "*")
+                    and key == "prereg_commit"
+                    and item.get("event") in {"start", "terminal"}
+                ):
+                    child_path = (*path, item["event"], key)
+                walk(child, child_path)
             return
         if type(item) is list:
             add(path, {"list_length": len(item)})

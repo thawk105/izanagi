@@ -410,7 +410,7 @@ class OriginTrialRuntime:
     binding_request: OriginBindingRequest
     producer_inputs: OriginProducerInputs
     launch_admission_record_sha256: str
-    initial_snapshot: reflux_origin_ledger.OriginSnapshot
+    initial_snapshot: reflux_origin_ledger.OriginSnapshot | None
     terminal_projection: (
         reflux_formal_consumer.OriginTerminalProjection | None
     ) = None
@@ -1195,6 +1195,93 @@ def _trial_launch_admission(
     return admission
 
 
+def _process_identity_for_attempt() -> dict[str, Any]:
+    """Return the producer's immutable identity projection for one attempt."""
+    pid = os.getpid()
+    return {
+        "pid": pid,
+        "starttime": time.monotonic_ns(),
+        "execution_uuid": f"p3-{pid}-{time.time_ns()}",
+    }
+
+
+def _reserve_registered_attempt_slot(
+    *,
+    admission: trial_registry.TrialLaunchAdmission,
+    origin_binding: reflux_origin_binding.OriginBindingCapability | None,
+    started_at: str,
+) -> trial_registry.AttemptSlotCapability:
+    """Reserve the declared r0 slot before the first performance observation.
+
+    The CLI build path can perform its non-performance environment probe before
+    entering ``run_trial``; that probe is outside this reservation guarantee.
+    """
+    trial_registry.assert_issued_trial_launch_admission(admission)
+    if admission.mode != "registered-effective" or admission.binding is None:
+        raise trial_registry.TrialRegistryError(
+            "[attempt-slot] only registered-effective launches consume slots"
+        )
+    binding = admission.binding
+    registry_path = ROOT / trial_registry.DEFAULT_ATTEMPT_REGISTRY_PATH
+    rows = trial_registry.load_attempt_registry(
+        ROOT,
+        registry_path=registry_path,
+        prereg_content_commit=binding.prereg_content_commit,
+        prereg_effective_commit=binding.prereg_effective_commit,
+    )
+    genesis = rows[0]
+    candidates = [
+        slot for slot in genesis["slots"]
+        if (
+            slot["trial_id"] == binding.trial_id
+            and slot["arm"] == binding.arm
+            and slot["holdout"] == binding.holdout
+            and slot["campaign_id"] == binding.campaign_id
+            and slot["replicate_index"] == 0
+        )
+    ]
+    candidates.sort(key=lambda slot: (slot["attempt_index"], slot["slot_id"]))
+    started_slots = {
+        row["slot_id"]
+        for row in rows
+        if row.get("event") == "start"
+    }
+    slot = next(
+        (candidate for candidate in candidates
+         if candidate["slot_id"] not in started_slots),
+        None,
+    )
+    if slot is None:
+        raise trial_registry.TrialRegistryError(
+            "[attempt-slot] registered trial has no unconsumed declared slot"
+        )
+    launch_record = trial_registry.launch_admission_record(
+        admission, origin_binding=origin_binding,
+    )
+    return trial_registry.reserve_attempt_slot(
+        repository_root=ROOT,
+        registry_path=registry_path,
+        freeze_id=genesis["freeze_id"],
+        slot_id=slot["slot_id"],
+        prereg_content_commit=binding.prereg_content_commit,
+        prereg_effective_commit=binding.prereg_effective_commit,
+        run_start_receipt_sha256=hashlib.sha256(
+            _canonical_json_bytes(launch_record)
+        ).hexdigest(),
+        process_identity=_process_identity_for_attempt(),
+        started_at=started_at,
+    )
+
+
+def _reject_registered_lifecycle_duplicate(*, trial_id: str) -> None:
+    """Reject a previously started trial before issuing a new slot."""
+    trial_registry.reject_started_trial(
+        trial_id=trial_id,
+        repository_root=ROOT,
+        lifecycle_path=ROOT / trial_registry.DEFAULT_LIFECYCLE_PATH,
+    )
+
+
 def _prepare_origin_trial_runtime(
     *,
     admission: trial_registry.TrialLaunchAdmission,
@@ -1209,8 +1296,9 @@ def _prepare_origin_trial_runtime(
     ),
     build_context: BuildRunContext,
     arm_execution: trial_registry.TrialArmExecutionBinding,
+    defer_initial_snapshot: bool = False,
 ) -> OriginTrialRuntime:
-    """Issue and exercise the fixture capability before lifecycle start."""
+    """Issue the origin capability; optionally defer its first ledger read."""
 
     if type(request) is not OriginBindingRequest:
         raise TypeError("origin_binding_request must be an OriginBindingRequest")
@@ -1330,7 +1418,7 @@ def _prepare_origin_trial_runtime(
     client = reflux_origin_client.require_origin_ledger_client(
         capability, request.client
     )
-    initial_snapshot = client.read_origin(capability)
+    initial_snapshot = None if defer_initial_snapshot else client.read_origin(capability)
     launch_record = trial_registry.launch_admission_record(
         admission, origin_binding=capability
     )
@@ -1550,6 +1638,35 @@ def _accounting_authority(
         if drive is trigger.drive_iteration
         else _UNSUPPORTED_ACCOUNTING
     )
+
+
+_OBSERVATION_VOLATILE_KEYS = frozenset({
+    "started_at", "classified_at", "finished_at", "ts",
+    "pid", "starttime", "execution_uuid",
+    "campaign_root", "campaign_path", "path",
+})
+
+
+def _observation_digest(value: object) -> str:
+    """Hash only the stable observation projection, not run-local metadata."""
+    def project(item: object) -> object:
+        if isinstance(item, Mapping):
+            return {
+                key: project(child)
+                for key, child in item.items()
+                if not (
+                    isinstance(key, str)
+                    and (
+                        key in _OBSERVATION_VOLATILE_KEYS
+                        or key.endswith("_path")
+                    )
+                )
+            }
+        if isinstance(item, (list, tuple)):
+            return [project(child) for child in item]
+        return item
+
+    return _sha256(_canonical_json_bytes(project(value)))
 
 
 def _load_s8c_schedule_authority(*, root: Path) -> Mapping[str, Any]:
@@ -2745,6 +2862,7 @@ def _finish_trial(
     ) = None,
     trial_manifest: Path | None = None,
     allow_unregistered_exploratory: bool = True,
+    attempt_slot: trial_registry.AttemptSlotCapability | None = None,
     origin_runtime: OriginTrialRuntime | None = None,
 ) -> dict[str, Any]:
     if type(gating_spec_snapshot) is not GatingSpecSnapshot:
@@ -3076,8 +3194,26 @@ def _finish_trial(
         )
     trial_binding = launch_admission.binding
     if trial_binding is not None:
+        if attempt_slot is None:
+            raise trial_registry.TrialRegistryError(
+                "[attempt-slot] registered finish has no reserved slot"
+            )
+        trial_registry._assert_attempt_capability(attempt_slot)
+        if (
+            attempt_slot.trial_id != trial_binding.trial_id
+            or attempt_slot.prereg_content_commit
+            != trial_binding.prereg_content_commit
+            or attempt_slot.prereg_effective_commit
+            != trial_binding.prereg_effective_commit
+        ):
+            raise trial_registry.TrialRegistryError(
+                "[attempt-slot] finish slot differs from launch binding"
+            )
         report.update({
             "prereg_commit": trial_binding.prereg_commit,
+            "prereg_content_commit": trial_binding.prereg_content_commit,
+            "prereg_effective_commit": trial_binding.prereg_effective_commit,
+            "slot_id": attempt_slot.slot_id,
             "measurement_head": trial_binding.measurement_head,
             "manifest_sha256": trial_binding.manifest_sha256,
             "arm_execution": trial_registry.arm_execution_record(
@@ -3101,6 +3237,16 @@ def _finish_trial(
         transport_receipt,
     ))
     report["attempt_journal_sha256"] = _sha256((run_root / "attempts.jsonl").read_bytes())
+    if trial_binding is not None:
+        report["raw_output_sha256"] = report["attempt_journal_sha256"]
+        report["observation_sha256"] = (
+            _observation_digest(cells) if status == "complete" else None
+        )
+        report["primary_value"] = (
+            honest_accounting["bench_wall_seconds"]
+            if status == "complete"
+            else None
+        )
     assert_autonomous_trial_completeness(
         report=report,
         attempt_journal=run_root / "attempts.jsonl",
@@ -3606,6 +3752,139 @@ def _run_workload(
     return result
 
 
+def _record_attempt_terminal_for_run(
+    capability: trial_registry.AttemptSlotCapability,
+    *,
+    report: Mapping[str, Any] | None,
+    cause: BaseException | None = None,
+) -> None:
+    """Close the reserved slot with the producer's terminal projection."""
+    lifecycle_terminal_status = (
+        report.get("lifecycle_terminal_status")
+        if isinstance(report, Mapping)
+        else None
+    )
+    if lifecycle_terminal_status == "indeterminate":
+        terminal_status = "not-consumed"
+        failure_reason = None
+    elif report is not None and report.get("status") == "complete":
+        terminal_status = "observed"
+        failure_reason = None
+    elif report is not None:
+        terminal_status = "terminal-failure"
+        failure_reason = "producer-failure"
+    else:
+        terminal_status = "not-consumed"
+        failure_reason = None
+
+    report_path: Path | None = None
+    journal_path: Path | None = None
+    if isinstance(report, Mapping):
+        journal_value = report.get("attempt_journal")
+        if isinstance(journal_value, str):
+            journal_path = Path(journal_value)
+            report_path = journal_path.resolve().parent / "report.json"
+
+    try:
+        journal_bytes = (
+            journal_path.read_bytes()
+            if journal_path is not None and journal_path.is_file()
+            else b""
+        )
+    except OSError:
+        journal_bytes = b""
+    raw_output_sha256 = hashlib.sha256(journal_bytes).hexdigest()
+
+    report_bytes: bytes | None = None
+    if (
+        terminal_status != "not-consumed"
+        and report_path is not None
+        and report_path.is_file()
+    ):
+        try:
+            report_bytes = report_path.read_bytes()
+        except OSError:
+            report_bytes = None
+    if report_bytes is None and report is not None and terminal_status != "not-consumed":
+        report_bytes = _canonical_json_bytes(report) + b"\n"
+    report_sha256 = (
+        None if report_bytes is None else hashlib.sha256(report_bytes).hexdigest()
+    )
+    observation_sha256 = None
+    primary_value: Any = None
+    if terminal_status == "observed":
+        observation_sha256 = _observation_digest(report.get("cells", ()))
+        accounting = report.get("honest_accounting")
+        primary_value = (
+            accounting.get("bench_wall_seconds")
+            if isinstance(accounting, Mapping)
+            else 0.0
+        )
+        if primary_value is None:
+            primary_value = 0.0
+
+    evidence = {
+        "cause": None if cause is None else type(cause).__name__,
+        "report_sha256": report_sha256,
+        "status": terminal_status,
+    }
+    evidence_sha256 = hashlib.sha256(
+        _canonical_json_bytes(evidence)
+    ).hexdigest()
+    trial_registry.classify_attempt(
+        capability,
+        failure_reason=failure_reason,
+        authority_id="p3-autonomous-workload-trial",
+        authority_policy_sha256=hashlib.sha256(
+            b"izanagi-p3-attempt-classification/v1"
+        ).hexdigest(),
+        external_evidence_sha256=evidence_sha256,
+        classified_at=_now_iso(),
+    )
+    trial_registry.record_attempt_terminal(
+        capability,
+        terminal_status=terminal_status,
+        raw_output_sha256=raw_output_sha256,
+        report_sha256=report_sha256,
+        observation_sha256=observation_sha256,
+        primary_value=primary_value,
+        finished_at=_now_iso(),
+        failure_reason=failure_reason,
+    )
+
+
+def _record_indeterminate_terminal(
+    token: trial_registry.TrialLifecycleToken,
+    *,
+    cause: BaseException,
+    origin_terminal_projection: (
+        reflux_formal_consumer.OriginTerminalProjection | None
+    ) = None,
+) -> None:
+    """Terminalize a consumed formal trial or expose irrecoverable ledger I/O.
+
+    If the terminal append itself fails, the original start remains consumed
+    and rerun stays forbidden.  The raised error names both the original
+    failure and the failed terminalization instead of implying recovery.
+    """
+    try:
+        terminal_arguments: dict[str, Any] = {
+            "terminal_status": "indeterminate",
+        }
+        if origin_terminal_projection is not None:
+            terminal_arguments["origin_terminal_projection"] = (
+                origin_terminal_projection
+            )
+        trial_registry.record_trial_terminal(token, **terminal_arguments)
+    except BaseException as terminal_error:
+        raise AutonomousTrialError(
+            "formal trial failed after lifecycle start and indeterminate "
+            "terminalization also failed; the start remains consumed: "
+            f"original={type(cause).__name__}; "
+            f"terminal={type(terminal_error).__name__}"
+        ) from terminal_error
+
+
 def mark_experiment_indeterminate(
     token: trial_registry.TrialLifecycleToken,
     *,
@@ -3855,8 +4134,11 @@ def run_trial(
         raise AutonomousTrialError(
             f"run_root は新規 directory 必須 (resume は MVP 範囲外): {run_root}"
         )
+    if trial_admission.mode == "registered-effective":
+        _reject_registered_lifecycle_duplicate(trial_id=trial_id)
     origin_runtime: OriginTrialRuntime | None = None
     preflight_build_context: BuildRunContext | None = None
+    attempt_started_at = _now_iso()
     if origin_binding_request is not None:
         preflight_build_context = build_run_context(
             generator_id=GeneratorId.S8A_TRIGGER_SWEEP,
@@ -3873,32 +4155,56 @@ def run_trial(
             effective_preregistration=effective_preregistration,
             build_context=preflight_build_context,
             arm_execution=arm_execution,
+            defer_initial_snapshot=True,
         )
     _assert_reservation_preflight(
         site=preflight_site,
         max_wall_s=max_wall_s,
     )
-    lifecycle_token: trial_registry.TrialLifecycleToken | None = None
+    attempt_slot: trial_registry.AttemptSlotCapability | None = None
     if trial_admission.mode == "registered-effective":
-        trial_registry.reject_started_trial(
-            trial_id=trial_admission.trial_id,
-            repository_root=ROOT,
-            lifecycle_path=ROOT / trial_registry.DEFAULT_LIFECYCLE_PATH,
-        )
-        lifecycle_arguments = dict(
+        attempt_slot = _reserve_registered_attempt_slot(
             admission=trial_admission,
-            effective_preregistration=effective_preregistration,
-            manifest_path=Path(trial_manifest),
-            run_root=run_root,
-            repository_root=ROOT,
-            registry_path=ROOT / trial_registry.DEFAULT_REGISTRY_PATH,
-            lifecycle_path=ROOT / trial_registry.DEFAULT_LIFECYCLE_PATH,
+            origin_binding=(
+                None if origin_runtime is None else origin_runtime.capability
+            ),
+            started_at=attempt_started_at,
         )
+    lifecycle_token: trial_registry.TrialLifecycleToken | None = None
+    attempt_terminalized = False
+    attempt_terminalization_started = False
+    report: dict[str, Any] | None = None
+    try:
         if origin_runtime is not None:
-            lifecycle_arguments["origin_binding"] = origin_runtime.capability
-        lifecycle_token = trial_registry.record_trial_start_once(
-            **lifecycle_arguments
-        )
+            # The first performance observation is after the freeze-wide
+            # reservation.  The CLI environment probe is outside this bound.
+            origin_runtime.initial_snapshot = origin_runtime.client.read_origin(
+                origin_runtime.capability
+            )
+        if trial_admission.mode == "registered-effective":
+            lifecycle_arguments = dict(
+                admission=trial_admission,
+                effective_preregistration=effective_preregistration,
+                manifest_path=Path(trial_manifest),
+                run_root=run_root,
+                repository_root=ROOT,
+                registry_path=ROOT / trial_registry.DEFAULT_REGISTRY_PATH,
+                lifecycle_path=ROOT / trial_registry.DEFAULT_LIFECYCLE_PATH,
+                attempt_slot=attempt_slot,
+            )
+            if origin_runtime is not None:
+                lifecycle_arguments["origin_binding"] = origin_runtime.capability
+            lifecycle_token = trial_registry.record_trial_start_once(
+                **lifecycle_arguments
+            )
+    except BaseException as exc:
+        if attempt_slot is not None:
+            attempt_terminalization_started = True
+            _record_attempt_terminal_for_run(
+                attempt_slot, report=report, cause=exc,
+            )
+            attempt_terminalized = True
+        raise
     budget_ledger_path: Path | None = None
     lifecycle_terminalized = False
     try:
@@ -3931,6 +4237,12 @@ def run_trial(
                     ledger=budget_ledger,
                     indeterminate_cells=indeterminate_cells,
                 )
+                if attempt_slot is not None:
+                    attempt_terminalization_started = True
+                    _record_attempt_terminal_for_run(
+                        attempt_slot, report=report,
+                    )
+                    attempt_terminalized = True
                 if lifecycle_token is not None:
                     trial_registry.record_trial_terminal(
                         lifecycle_token,
@@ -3956,7 +4268,7 @@ def run_trial(
         for child in run_children:
             (run_root / child).mkdir()
         journal = AttemptJournal(run_root / "attempts.jsonl")
-        started = _now_iso()
+        started = attempt_started_at
         started_monotonic = time.monotonic()
         build_context = preflight_build_context or build_run_context(
             generator_id=GeneratorId.S8A_TRIGGER_SWEEP,
@@ -4010,6 +4322,9 @@ def run_trial(
         if trial_binding is not None:
             run_start.update({
                 "prereg_commit": trial_binding.prereg_commit,
+                "prereg_content_commit": trial_binding.prereg_content_commit,
+                "prereg_effective_commit": trial_binding.prereg_effective_commit,
+                "slot_id": attempt_slot.slot_id,
                 "measurement_head": trial_binding.measurement_head,
                 "manifest_sha256": trial_binding.manifest_sha256,
                 "arm_execution": trial_registry.arm_execution_record(
@@ -4018,6 +4333,16 @@ def run_trial(
             })
         journal.append(run_start)
     except BaseException as exc:
+        if (
+            attempt_slot is not None
+            and not attempt_terminalized
+            and not attempt_terminalization_started
+        ):
+            attempt_terminalization_started = True
+            _record_attempt_terminal_for_run(
+                attempt_slot, report=report, cause=exc,
+            )
+            attempt_terminalized = True
         if lifecycle_token is not None:
             mark_experiment_indeterminate(
                 lifecycle_token,
@@ -4108,9 +4433,17 @@ def run_trial(
                     allow_unregistered_exploratory
                 ),
             )
+            if attempt_slot is not None:
+                finish_arguments["attempt_slot"] = attempt_slot
             if origin_runtime is not None:
                 finish_arguments["origin_runtime"] = origin_runtime
             report = _finish_trial(**finish_arguments)
+            if attempt_slot is not None:
+                attempt_terminalization_started = True
+                _record_attempt_terminal_for_run(
+                    attempt_slot, report=report,
+                )
+                attempt_terminalized = True
             if lifecycle_token is not None:
                 terminal_arguments: dict[str, Any] = {
                     "terminal_status": report.get(
@@ -4129,6 +4462,16 @@ def run_trial(
         finally:
             _ACTIVE_TRIAL_BINDING.reset(scope_token)
     except BaseException as exc:
+        if (
+            attempt_slot is not None
+            and not attempt_terminalized
+            and not attempt_terminalization_started
+        ):
+            attempt_terminalization_started = True
+            _record_attempt_terminal_for_run(
+                attempt_slot, report=report, cause=exc,
+            )
+            attempt_terminalized = True
         if lifecycle_token is not None and not lifecycle_terminalized:
             mark_experiment_indeterminate(
                 lifecycle_token,
@@ -4326,6 +4669,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     else:
         from ..calibrator.runner import competing_bench_pids
 
+        # This is a non-performance environment probe.  It intentionally
+        # precedes run_trial's slot reservation and is outside that guarantee.
         competitors = competing_bench_pids()
         if competitors:
             raise AutonomousTrialError(
