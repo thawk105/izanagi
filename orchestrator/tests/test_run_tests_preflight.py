@@ -337,7 +337,7 @@ def test_nonacceptance_bounded_child_marker_warns_exactly_once_in_parent(
     monkeypatch.setattr(RT.subprocess, "call", lambda command, **kwargs: 9)
     monkeypatch.setattr(RT, "_print_granted_budget", lambda cap, reason: None)
 
-    def run_bounded_child(args, cap):
+    def run_bounded_child(args, cap, *, recording_session=None):
         with monkeypatch.context() as child:
             child.setenv(
                 RT._BOUNDED_SCOPE_UNIT_ENV,
@@ -408,7 +408,9 @@ def test_nonacceptance_bounded_then_dispatch_warns_in_parent_and_compute_child(
     monkeypatch.setattr(
         RT,
         "_run_bounded_scope",
-        lambda args, cap: RT._ScopeResult(RT._ScopeOutcome.CAP_OOM),
+        lambda args, cap, *, recording_session=None: RT._ScopeResult(
+            RT._ScopeOutcome.CAP_OOM,
+        ),
     )
     fingerprint = RT._TreeFingerprint("a" * 64, (1, 2, 3, 4, 5))
     monkeypatch.setattr(
@@ -1174,7 +1176,9 @@ def test_without_force_dispatch_login_with_headroom_still_runs_local(
         dispatch_fn=mock.Mock(side_effect=AssertionError("must stay local")),
     ) == 0
     grant.assert_called_once_with(operation=RT._test_operation(["test_target.py"]))
-    scope.assert_called_once_with(["test_target.py"], 1234)
+    scope.assert_called_once_with(
+        ["test_target.py"], 1234, recording_session=mock.ANY,
+    )
 
 
 def test_default_login_admission_calls_login_headroom_grant_budget(monkeypatch):
@@ -1250,7 +1254,7 @@ def test_login_headroom_and_queue_four_quadrants(
         queue_checks.append(True)
         return queue_available, "キュー gen_S は ENA=DIS、STS=INA"
 
-    def run_scope(args, cap):
+    def run_scope(args, cap, *, recording_session=None):
         caps.append(cap)
         return RT._ScopeResult(RT._ScopeOutcome.CHILD_RC, 0)
 
@@ -1306,7 +1310,9 @@ def test_headroom_short_queue_unavailable_cap_oom_stops_without_dispatch(
     monkeypatch.setattr(
         RT,
         "_run_bounded_scope",
-        lambda args, cap: RT._ScopeResult(RT._ScopeOutcome.CAP_OOM),
+        lambda args, cap, *, recording_session=None: RT._ScopeResult(
+            RT._ScopeOutcome.CAP_OOM,
+        ),
     )
 
     assert RT.main(
@@ -1392,7 +1398,7 @@ def test_m7_local_enters_scope_before_parent_preflights(monkeypatch):
     monkeypatch.setattr(
         RT,
         "_run_bounded_scope",
-        lambda args, cap: events.append("scope")
+        lambda args, cap, *, recording_session=None: events.append("scope")
         or RT._ScopeResult(RT._ScopeOutcome.CHILD_RC, 0),
     )
 
@@ -1679,7 +1685,9 @@ def test_local_child_test_failure_never_falls_back(monkeypatch):
     monkeypatch.setattr(
         RT,
         "_run_bounded_scope",
-        lambda args, cap: RT._ScopeResult(RT._ScopeOutcome.CHILD_RC, 5),
+        lambda args, cap, *, recording_session=None: RT._ScopeResult(
+            RT._ScopeOutcome.CHILD_RC, 5,
+        ),
     )
     monkeypatch.setattr(
         RT, "_preflight_unstaged_deletions",
@@ -1703,7 +1711,9 @@ def test_cap_oom_dirty_before_unchanged_after_dispatches_once(monkeypatch):
     monkeypatch.setattr(
         RT,
         "_run_bounded_scope",
-        lambda args, cap: RT._ScopeResult(RT._ScopeOutcome.CAP_OOM),
+        lambda args, cap, *, recording_session=None: RT._ScopeResult(
+            RT._ScopeOutcome.CAP_OOM,
+        ),
     )
     fingerprint = mock.Mock(side_effect=[dirty, dirty])
     monkeypatch.setattr(RT, "_tree_and_submodules_fingerprint", fingerprint)
@@ -1725,7 +1735,9 @@ def test_cap_oom_changed_tree_does_not_dispatch(monkeypatch, capsys):
     monkeypatch.setattr(
         RT,
         "_run_bounded_scope",
-        lambda args, cap: RT._ScopeResult(RT._ScopeOutcome.CAP_OOM),
+        lambda args, cap, *, recording_session=None: RT._ScopeResult(
+            RT._ScopeOutcome.CAP_OOM,
+        ),
     )
     monkeypatch.setattr(
         RT,
@@ -1751,7 +1763,9 @@ def test_cap_oom_fingerprint_failure_does_not_dispatch(monkeypatch, capsys):
     monkeypatch.setattr(
         RT,
         "_run_bounded_scope",
-        lambda args, cap: RT._ScopeResult(RT._ScopeOutcome.CAP_OOM),
+        lambda args, cap, *, recording_session=None: RT._ScopeResult(
+            RT._ScopeOutcome.CAP_OOM,
+        ),
     )
     monkeypatch.setattr(
         RT,
@@ -2048,7 +2062,9 @@ def test_login_non_immediate_dispatch_exempt_flags_enter_bounded_scope(
         dispatch_fn=dispatch,
         admit_fn=lambda estimate: (LH.Admission.LOCAL, "test"),
     ) == 0
-    scope.assert_called_once_with([flag], LH.MAX_LOCAL_BUDGET_BYTES)
+    scope.assert_called_once_with(
+        [flag], LH.MAX_LOCAL_BUDGET_BYTES, recording_session=mock.ANY,
+    )
     dispatch.assert_not_called()
 
 
@@ -2067,7 +2083,9 @@ def test_login_collect_only_from_pytest_addopts_enters_bounded_scope(
         dispatch_fn=mock.Mock(side_effect=AssertionError("must stay local")),
         admit_fn=lambda estimate: (LH.Admission.LOCAL, "test"),
     ) == 0
-    scope.assert_called_once_with([], LH.MAX_LOCAL_BUDGET_BYTES)
+    scope.assert_called_once_with(
+        [], LH.MAX_LOCAL_BUDGET_BYTES, recording_session=mock.ANY,
+    )
 
 
 def test_login_collect_only_dispatches_when_bounded_budget_is_denied(
@@ -2211,7 +2229,9 @@ def test_small_partial_estimate_still_tries_local_scope(monkeypatch):
         dispatch_fn=mock.Mock(side_effect=AssertionError("must stay local")),
     ) == 0
     assert grants == [{"operation": RT._test_operation(["test_target.py"])}]
-    scope.assert_called_once_with(["test_target.py"], 1234)
+    scope.assert_called_once_with(
+        ["test_target.py"], 1234, recording_session=mock.ANY,
+    )
 
 
 def test_login_local_scope_releases_budget_lease_on_infra(monkeypatch):
@@ -2221,7 +2241,9 @@ def test_login_local_scope_releases_budget_lease_on_infra(monkeypatch):
     monkeypatch.setattr(
         RT,
         "_run_bounded_scope",
-        lambda args, cap: RT._ScopeResult(RT._ScopeOutcome.DISPATCH_INFRA),
+        lambda args, cap, *, recording_session=None: RT._ScopeResult(
+            RT._ScopeOutcome.DISPATCH_INFRA,
+        ),
     )
 
     assert RT.main(

@@ -22,6 +22,7 @@ from tools.task_runs import (  # noqa: E402
     SCHEMA_VERSION,
     DamagedRunError,
     LedgerError,
+    PilotClosedError,
     append_event,
     discover_runs,
     finish_run,
@@ -144,6 +145,7 @@ def test_schema_document_is_valid_draft7_and_public_api_is_v3_closed():
     assert "timestamp" not in inspect.signature(append_event).parameters
     assert "measurement_source" not in inspect.signature(append_event).parameters
     assert "base_commit" not in inspect.signature(start_run).parameters
+    assert "repo_root" in inspect.signature(start_run).parameters
     assert "started_at" not in inspect.signature(start_run).parameters
     assert "timestamp" not in inspect.signature(finish_run).parameters
     assert "timestamp" not in inspect.signature(record_test_run).parameters
@@ -818,6 +820,29 @@ def test_privacy_slug_rejects_raw_command_like_suite_id_before_append(run: tuple
     assert _events_path(root, run_id).read_bytes() == before
 
 
+@pytest.mark.parametrize("objective", ["a/b", r"a\\b", "a::b", "source.py", "source.pyc", "test_secret"])
+def test_objective_privacy_blocklist_is_shared_by_python_and_json_schema(
+    root: Path, objective: str,
+):
+    jsonschema = pytest.importorskip("jsonschema")
+    task = {
+        "schema_version": SCHEMA_VERSION,
+        "task_run_id": "20260720-objective-aaaaaaaa",
+        "objective": objective,
+        "task_class": 2,
+        "task_kind": "implementation",
+        "started_at": "2026-07-20T00:00:00Z",
+        "base_commit": "a" * 40,
+        "base_commit_source": "git-observed",
+        "authority": "development-observation-not-evidence",
+        "measurement_policy": dict(ledger.MEASUREMENT_POLICY),
+    }
+    with pytest.raises(DamagedRunError):
+        ledger.validate_task(task)  # type: ignore[attr-defined]
+    with pytest.raises(jsonschema.ValidationError):
+        jsonschema.validate(task, load_schema())
+
+
 def test_incomplete_start_without_publish_marker_is_classified_not_counted(root: Path):
     incomplete = root / "20260720-incomplete-aaaaaaaa"
     incomplete.mkdir()
@@ -861,6 +886,15 @@ def test_validate_root_classifies_damaged_and_unknown(run: tuple[Path, str]):
     assert [item.path.name for item in report.damaged] == [run_id]
     assert [path.name for path in report.unknown] == ["surprise.txt"]
     assert discover_runs(root) == (root / run_id,)
+    new_run_id = start_run(
+        root, slug="allowed", objective="allowed", task_class=2,
+        task_kind="implementation",
+    )
+    assert new_run_id != run_id
+    report = validate_root(root)
+    assert [item.path.name for item in report.damaged] == [run_id]
+    assert [path.name for path in report.unknown] == ["surprise.txt"]
+    assert [path.name for path in report.published] == [new_run_id]
 
 
 def test_validate_root_accepts_documented_readme(run: tuple[Path, str]):
@@ -888,11 +922,12 @@ def test_pilot_cap_rejects_eleventh_published_run(root: Path):
             root, slug=f"run-{index}", objective=f"run {index}", task_class=2,
             task_kind="implementation",
         )
-    with pytest.raises(LedgerError):
+    with pytest.raises(PilotClosedError) as exc_info:
         start_run(
             root, slug="run-10", objective="eleventh", task_class=2,
             task_kind="implementation",
         )
+    assert exc_info.value.reason == "max_task_runs"
 
 
 def test_pilot_age_cap_uses_manifest_clock(git_repo: Path, monkeypatch: pytest.MonkeyPatch):
@@ -901,11 +936,12 @@ def test_pilot_age_cap_uses_manifest_clock(git_repo: Path, monkeypatch: pytest.M
     monkeypatch.setattr(ledger, "_utc_now", lambda: start)
     init_pilot(root)
     monkeypatch.setattr(ledger, "_utc_now", lambda: start + timedelta(days=14))
-    with pytest.raises(LedgerError):
+    with pytest.raises(PilotClosedError) as exc_info:
         start_run(
             root, slug="late", objective="late", task_class=2,
             task_kind="implementation",
         )
+    assert exc_info.value.reason == "max_days"
 
 
 @pytest.mark.parametrize(

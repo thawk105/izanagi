@@ -23,6 +23,10 @@ MAX_EVENTS = 10_000
 MAX_DURATION_S = 10_000_000
 
 SAFE_SLUG_RE = re.compile(r"^[a-z0-9][a-z0-9._-]{0,63}$")
+# Keep this literal synchronized with schema_v1.json.  Objective text is still
+# free-form observation text, but it must not become a path/selector carrier.
+OBJECTIVE_PATTERN = r"^(?!.*(?:[/\\]|::|\.pyc?|test_))[^\r\n]+$"
+OBJECTIVE_RE = re.compile(OBJECTIVE_PATTERN)
 RUN_ID_RE = re.compile(r"^[0-9]{8}-[a-z0-9](?:[a-z0-9-]{0,46}[a-z0-9])?-[0-9a-f]{8}$")
 SHA_RE = re.compile(r"^[0-9a-f]{40}$")
 EVENT_ID_RE = re.compile(r"^[0-9a-f]{16}$")
@@ -285,8 +289,11 @@ def validate_task(task: Any, *, directory_name: str | None = None) -> Mapping[st
     if directory_name is not None and task_run_id != directory_name:
         _fail("directory 名と task_run_id が一致しない")
     objective = _string(task["objective"], label="task.json.objective")
-    if not 1 <= len(objective) <= 240 or "\n" in objective or "\r" in objective or "://" in objective:
-        _fail("task.json.objective: 1..240 文字の単一行かつ URI 禁止")
+    if (
+        not 1 <= len(objective) <= 240
+        or OBJECTIVE_RE.fullmatch(objective) is None
+    ):
+        _fail("task.json.objective: 1..240 文字の安全な単一行 (path/selector/source 名は禁止)")
     if (
         isinstance(task["task_class"], bool)
         or not isinstance(task["task_class"], int)

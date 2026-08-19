@@ -1,0 +1,289 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 900,
+  "timeout_seconds": 3600,
+  "hang_timeout_seconds": 300,
+  "mutations": [
+    {
+      "id": "t944.m01-cap-counts-published-incomplete-damaged",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_task_run_generation.py::test_cap_counts_damaged_and_incomplete_runs[damaged]",
+        "orchestrator/tests/test_task_run_generation.py::test_cap_counts_damaged_and_incomplete_runs[incomplete]"
+      ],
+      "replacements": [
+        {
+          "file": "tools/task_runs/ledger.py",
+          "old": "        return len(self.published) + len(self.incomplete) + len(self.damaged)\n",
+          "new": "        return len(self.published)\n"
+        }
+      ]
+    },
+    {
+      "id": "t944.m03-banned-namespace-check",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_task_run_generation.py::test_external_banned_namespace_is_rejected_with_existing_intermediates"
+      ],
+      "replacements": [
+        {
+          "file": "tools/task_runs/generation.py",
+          "old": "def _check_banned_components(path: Path) -> None:\n    parts = path.parts\n    for index, part in enumerate(parts[:-1]):\n        if part == \"output\" and parts[index + 1] in _BANNED_OUTPUT_NAMESPACES:\n            raise GenerationError(\"証拠 namespace 配下に series base を置けない\")\n",
+          "new": "def _check_banned_components(path: Path) -> None:\n    return None\n"
+        }
+      ]
+    },
+    {
+      "id": "t944.m04-series-lock-timeout",
+      "category": "negative",
+      "hang_risk": true,
+      "expected_status": "TIMEOUT",
+      "expected_nodes": [],
+      "replacements": [
+        {
+          "file": "tools/task_runs/generation.py",
+          "old": "def _acquire_series_lock(lock_fd: int, *, timeout_s: float) -> None:\n    deadline = time.monotonic() + timeout_s\n    while True:\n        try:\n            fcntl.flock(lock_fd, fcntl.LOCK_EX | fcntl.LOCK_NB)\n            return\n        except OSError as exc:\n            if exc.errno not in (errno.EAGAIN, errno.EACCES):\n                raise GenerationError(\"series lock 取得に失敗\") from exc\n            if time.monotonic() >= deadline:\n                raise SeriesLockTimeout(\"series lock timeout\") from exc\n            time.sleep(0.01)\n",
+          "new": "def _acquire_series_lock(lock_fd: int, *, timeout_s: float) -> None:\n    fcntl.flock(lock_fd, fcntl.LOCK_EX)\n"
+        }
+      ]
+    },
+    {
+      "id": "t944.m05-explicit-generation-only",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_task_run_generation.py::test_call_graph_pins_explicit_generation_and_repo_binding"
+      ],
+      "replacements": [
+        {
+          "file": "tools/task_runs/generation.py",
+          "old": "            nonblocking = _root_diagnostics_are_nonblocking(report)\n",
+          "new": "            nonblocking = _root_diagnostics_are_nonblocking(report)\n            if False:\n                open_next_generation(repo_root)\n"
+        }
+      ]
+    },
+    {
+      "id": "t944.m06a-reraise-bootstrap-signal",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_run_tests_testops_observation.py::test_recording_signal_is_re_raised_bootstrap[KeyboardInterrupt]",
+        "orchestrator/tests/test_run_tests_testops_observation.py::test_recording_signal_is_re_raised_bootstrap[SystemExit]"
+      ],
+      "replacements": [
+        {
+          "file": "tools/run_tests.py",
+          "old": "        try:\n            from tools.task_runs import start_automatic_test_run\n\n            run, diagnostic = start_automatic_test_run(self.repo_root)\n        except Exception:\n            run, diagnostic = None, \"recording-unavailable:filesystem\"\n",
+          "new": "        try:\n            from tools.task_runs import start_automatic_test_run\n\n            run, diagnostic = start_automatic_test_run(self.repo_root)\n        except BaseException:\n            run, diagnostic = None, \"recording-unavailable:filesystem\"\n"
+        }
+      ]
+    },
+    {
+      "id": "t944.m06b-reraise-dispatch-signal",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_run_tests_testops_observation.py::test_recording_signal_is_re_raised_dispatch_setup[KeyboardInterrupt]",
+        "orchestrator/tests/test_run_tests_testops_observation.py::test_recording_signal_is_re_raised_dispatch_setup[SystemExit]"
+      ],
+      "replacements": [
+        {
+          "file": "tools/run_tests.py",
+          "old": "    try:\n        result = dispatch_fn(args, environ=environ)\n    except Exception:\n        _emit_recording_diagnostic(\"recording-unavailable:dispatch\")\n        return _DispatchCallResult(_PEGASUS_DISPATCH_RC, False)\n",
+          "new": "    try:\n        result = dispatch_fn(args, environ=environ)\n    except BaseException:\n        _emit_recording_diagnostic(\"recording-unavailable:dispatch\")\n        return _DispatchCallResult(_PEGASUS_DISPATCH_RC, False)\n"
+        }
+      ]
+    },
+    {
+      "id": "t944.m07-no-event-without-child-rc",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_run_tests_testops_observation.py::test_bounded_scope_non_child_outcome_is_diagnostic_only"
+      ],
+      "replacements": [
+        {
+          "file": "tools/run_tests.py",
+          "old": "    if result.outcome is not _ScopeOutcome.CHILD_RC:\n        # R-B4SCOPE: a scope outcome without CHILD_RC is not a pytest\n        # observation.  Keep only the fixed diagnostic; main() decides later\n        # whether a CAP_OOM fallback dispatch will reuse this session.\n        if session.recording_enabled:\n            _emit_recording_diagnostic(_scope_recording_diagnostic(result))\n        return result\n",
+          "new": "    if result.outcome is not _ScopeOutcome.CHILD_RC:\n        # R-B4SCOPE: a scope outcome without CHILD_RC is not a pytest\n        # observation.  Keep only the fixed diagnostic; main() decides later\n        # whether a CAP_OOM fallback dispatch will reuse this session.\n        if session.recording_enabled:\n            _emit_recording_diagnostic(_scope_recording_diagnostic(result))\n        result = _ScopeResult(_ScopeOutcome.CHILD_RC, _PEGASUS_DISPATCH_RC)\n"
+        }
+      ]
+    },
+    {
+      "id": "t944.m08-strict-child-started",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_run_tests_testops_observation.py::test_dispatch_without_strict_child_started_is_diagnostic_only[missing-0]"
+      ],
+      "replacements": [
+        {
+          "file": "tools/run_tests.py",
+          "old": "    child_started = (\n        type(marker) is bool\n        and marker is True\n        and rc != _PEGASUS_DISPATCH_RC\n    )\n",
+          "new": "    child_started = True\n"
+        }
+      ]
+    },
+    {
+      "id": "t944.m09-child-auto-record-off",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_tests_task_env_allowlist_carries_only_recording_transport",
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_job_run_passes_sidecar_and_auto_off_to_tests_child"
+      ],
+      "replacements": [
+        {
+          "file": "tools/pegasus/dispatch_compute.py",
+          "old": "            _TASK_RUN_SIDECAR_ENV,\n            _TASK_RUN_AUTO_RECORD_ENV,\n",
+          "new": "            _TASK_RUN_SIDECAR_ENV,\n"
+        }
+      ]
+    },
+    {
+      "id": "t944.m10-objective-slash",
+      "category": "both-layers",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_task_run_ledger.py::test_objective_privacy_blocklist_is_shared_by_python_and_json_schema[a/b]"
+      ],
+      "replacements": [
+        {
+          "file": "tools/task_runs/schema.py",
+          "old": "OBJECTIVE_PATTERN = r\"^(?!.*(?:[/\\\\]|::|\\.pyc?|test_))[^\\r\\n]+$\"\n",
+          "new": "OBJECTIVE_PATTERN = r\"^(?!.*(?:[\\\\]|::|\\.pyc?|test_))[^\\r\\n]+$\"\n"
+        },
+        {
+          "file": "tools/task_runs/schema_v1.json",
+          "old": "          \"pattern\": \"^(?!.*(?:[/\\\\\\\\]|::|\\\\.pyc?|test_))[^\\\\r\\\\n]+$\"\n",
+          "new": "          \"pattern\": \"^(?!.*(?:[\\\\\\\\]|::|\\\\.pyc?|test_))[^\\\\r\\\\n]+$\"\n"
+        }
+      ]
+    },
+    {
+      "id": "t944.m11-cli-managed-generation-guard",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_task_run_generation.py::test_managed_generation_write_is_rejected_by_cli",
+        "orchestrator/tests/test_task_run_generation.py::test_managed_generation_selfcheck_is_rejected_before_writing",
+        "orchestrator/tests/test_task_run_generation.py::test_managed_generation_remains_rejected_after_repo_rename"
+      ],
+      "replacements": [
+        {
+          "file": "tools/task_runs/cli.py",
+          "old": "    if is_managed_generation_root(root):\n        raise LedgerError(\"managed generation への CLI write は禁止\")\n",
+          "new": "    if False:\n        raise LedgerError(\"managed generation への CLI write は禁止\")\n"
+        },
+        {
+          "file": "tools/task_runs/cli.py",
+          "old": "    if current != checked or is_managed_generation_root(root):\n        raise LedgerError(_MANAGED_WRITE_GUARD_ERROR)\n",
+          "new": "    if current != checked:\n        raise LedgerError(_MANAGED_WRITE_GUARD_ERROR)\n"
+        }
+      ]
+    },
+    {
+      "id": "t944.m12-sidecar-basename",
+      "category": "both-layers",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_task_run_generation.py::test_automatic_lifecycle_creates_one_task_and_cleans_sidecar",
+        "orchestrator/tests/test_task_run_generation.py::test_automatic_sidecar_round_trips_through_pytest_stats"
+      ],
+      "replacements": [
+        {
+          "file": "tools/task_runs/generation.py",
+          "old": "_SIDECAR_BASENAME = \"pytest-stats.json\"\n",
+          "new": "_SIDECAR_BASENAME = \"sidecar.json\"\n"
+        },
+        {
+          "file": "tools/task_runs/pytest_stats.py",
+          "old": "_SIDECAR_BASENAME = \"pytest-stats.json\"\n",
+          "new": "_SIDECAR_BASENAME = \"sidecar.json\"\n"
+        },
+        {
+          "file": "tools/run_tests.py",
+          "old": "    return directory, directory / \"pytest-stats.json\"\n",
+          "new": "    return directory, directory / \"sidecar.json\"\n"
+        }
+      ]
+    },
+    {
+      "id": "t944.m13-four-gate-constant",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_run_tests_testops_observation.py::test_four_gate_truth_table_is_fixed_literal_across_recording_routes"
+      ],
+      "replacements": [
+        {
+          "file": "tools/run_tests.py",
+          "old": "_NO_EXECUTION_FLAGS = frozenset({\n    \"--help\", \"--version\", \"--setup-only\", \"--setup-plan\", \"--collect-only\",\n    \"--co\", \"--fixtures\", \"--fixtures-per-test\", \"--markers\", \"--trace-config\",\n})\n",
+          "new": "_NO_EXECUTION_FLAGS = frozenset({\n    \"--help\", \"--version\", \"--setup-only\", \"--setup-plan\",\n    \"--co\", \"--fixtures\", \"--fixtures-per-test\", \"--markers\", \"--trace-config\",\n})\n"
+        }
+      ]
+    },
+    {
+      "id": "t944.m14-automatic-trigger-unspecified",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_run_tests_testops_observation.py::test_unset_id_starts_one_lazy_auto_run_after_preflight"
+      ],
+      "replacements": [
+        {
+          "file": "tools/run_tests.py",
+          "old": "    @property\n    def trigger(self) -> str:\n        # An automatic observation deliberately never inherits the manual\n        # trigger classification from its parent environment.\n        if not self.is_manual:\n            return \"unspecified\"\n        trigger = os.environ.get(_TEST_TRIGGER_ENV, \"unspecified\")\n        return trigger if trigger in _TRIGGERS else \"unspecified\"\n",
+          "new": "    @property\n    def trigger(self) -> str:\n        trigger = os.environ.get(_TEST_TRIGGER_ENV, \"unspecified\")\n        return trigger if trigger in _TRIGGERS else \"unspecified\"\n"
+        }
+      ]
+    },
+    {
+      "id": "t944.m16-repo-head-toctou",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_task_run_generation.py::test_repo_identity_swap_is_rejected_before_head_is_recorded"
+      ],
+      "replacements": [
+        {
+          "file": "tools/task_runs/ledger.py",
+          "old": "            base_commit = _git_head(\n                repo_root if repo_root is not None else root,\n                _binding=repo_binding,\n            )\n            if repo_binding is not None:\n                _verify_directory_binding(repo_binding, label=\"repo root\")\n",
+          "new": "            base_commit = _git_head(\n                repo_root if repo_root is not None else root,\n                _binding=repo_binding,\n            )\n            if repo_binding is not None:\n                pass\n"
+        }
+      ]
+    },
+    {
+      "id": "t944.m18-empty-series-invalid",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_task_run_generation.py::test_empty_series_is_explicitly_undecidable"
+      ],
+      "replacements": [
+        {
+          "file": "tools/task_runs/generation.py",
+          "old": "    @property\n    def is_valid(self) -> bool | None:\n        if not self.generations:\n            # Empty is not a healthy series.  It is an explicit, undecidable\n            # state so callers cannot accidentally present it as validated.\n            return None\n        return not self.invalid_codes and all(report.is_valid for report in self.root_reports)\n",
+          "new": "    @property\n    def is_valid(self) -> bool | None:\n        if not self.generations:\n            # Empty is not a healthy series.  It is an explicit, undecidable\n            # state so callers cannot accidentally present it as validated.\n            return True\n        return not self.invalid_codes and all(report.is_valid for report in self.root_reports)\n"
+        }
+      ]
+    }
+  ]
+}
