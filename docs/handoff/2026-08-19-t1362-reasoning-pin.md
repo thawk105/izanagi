@@ -1,8 +1,8 @@
 # [T-1362] 段5 author・段6 fix の reasoning 機械強制
 - 目的: dev-wave launcher/runner が段5(author)・段6(fix) の codex 起動で reasoning=max を機械的に強制する
 - 状態: 作業中
-- 最終更新: 2026-08-19 段5 完了・段6 着手
-- 基準コミット: 0333abe6 (worktree: dev-wave-t1362-reasoning-pin, 作業ツリー clean)
+- 最終更新: 2026-08-19 段6 レビュー・fix 完了
+- 基準コミット: 9861ed2e22979925104f43a83684567778377431 (worktree: dev-wave-t1362-reasoning-pin)
 
 ## 段5 完了実績
 統合commit 0333abe6。単位1(launch_authority.py+テスト)・単位2(codex_worker_launch.py・

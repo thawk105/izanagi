@@ -1,0 +1,124 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 60,
+  "timeout_seconds": 300,
+  "hang_timeout_seconds": 300,
+  "mutations": [
+    {
+      "id": "M1",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/dev_waves/launch_authority.py",
+          "old": "    elif stage in (\"author\", \"fix\"):",
+          "new": "    elif stage == \"author\":"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_wave_launch_authority.py::test_fix_effort_matches_author_docs_cross_check",
+        "orchestrator/tests/test_dev_wave_launch_authority.py::test_derive_launch_uses_stage_specific_effort_sections",
+        "orchestrator/tests/test_dev_wave_launch_authority.py::test_snapshot_and_derive_current_authority_positive",
+        "orchestrator/tests/test_dev_wave_launch_authority.py::test_fix_effort_matches_author_derivation"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M2",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/dev_waves/launch_authority.py",
+          "old": "        effort = snapshot.author_effort\n        effort_authority = \"docs\"\n        used.append(section_by_id[_AUTHOR_SECTION])",
+          "new": "        effort = snapshot.review_effort\n        effort_authority = \"docs\"\n        used.append(section_by_id[_AUTHOR_SECTION])"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_wave_launch_authority.py::test_derive_launch_uses_stage_specific_effort_sections"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M3",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/dev_waves/launch_authority.py",
+          "old": "        effort = snapshot.author_effort\n        effort_authority = \"docs\"\n        used.append(section_by_id[_AUTHOR_SECTION])",
+          "new": "        effort = snapshot.author_effort\n        effort_authority = \"unbound\"\n        used.append(section_by_id[_AUTHOR_SECTION])"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_wave_launch_authority.py::test_snapshot_and_derive_current_authority_positive"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M4",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/codex_worker_launch.py",
+          "old": "        if receipt[\"stage\"] in (\"review\", \"focus\"):\n            if receipt[\"effort_authority\"] != \"docs\":\n                raise LaunchError(\"receipt effort authority と stage が不一致\")\n        elif receipt[\"stage\"] in (\"author\", \"fix\"):\n            if receipt[\"effort_authority\"] not in (\"docs\", \"unbound\"):\n                raise LaunchError(\"receipt effort authority と stage が不一致\")\n        elif receipt[\"effort_authority\"] != \"unbound\":\n            raise LaunchError(\"receipt effort authority と stage が不一致\")",
+          "new": "        if (receipt[\"stage\"] in (\"review\", \"focus\", \"author\", \"fix\")) != (\n            receipt[\"effort_authority\"] == \"docs\"\n        ):\n            raise LaunchError(\"receipt effort authority と stage が不一致\")"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_codex_worker_launch.py::test_validate_receipt_preserves_effort_authority_compatibility[author-unbound-3-True]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M5",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/codex_worker_launch.py",
+          "old": "        if not isinstance(sections, list) or len(sections) not in (3, 4):",
+          "new": "        if not isinstance(sections, list) or len(sections) != 3:"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_codex_worker_launch.py::test_validate_receipt_preserves_effort_authority_compatibility[author-docs-4-True]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M6",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/dev_wave_codex.py",
+          "old": "AUTHORITY_BOUND_STAGES = frozenset({\"review\", \"focus\", \"author\", \"fix\"})",
+          "new": "AUTHORITY_BOUND_STAGES = frozenset({\"review\", \"focus\"})"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_wave_codex.py::test_invalid_reasoning_for_bound_stages_is_rc2",
+        "orchestrator/tests/test_dev_wave_codex.py::test_dry_run_stage_and_lane_matrix"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M7",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/check_docs.py",
+          "old": "            \"DW-S05-A\",\n            \"max\",",
+          "new": "            \"DW-S05-A\",\n            \"high\","
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_check_docs.py::test_dev_wave_reasoning_effort_pin_accepts_dw_s05_a_current_sentence"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}
