@@ -52,6 +52,7 @@ LEGACY_TRIGGER_SWEEP_CAMPAIGN = (
 YCSB = {"ycsb_zipf_skew": "0.9", "ycsb_rratio": "50", "ycsb_rmw": "0"}
 ABORTED_FIXTURE_VARIANT = "2225adf39fa3"
 REJECTED_FIXTURE_VARIANT = "d85dc0fc5a6e"
+_UNSET = object()
 
 
 def _binding_from_recorded_head() -> contract_loader_binding.ContractLoaderBinding:
@@ -183,7 +184,7 @@ def _admission_bound_records(tmp_path: Path, records: list[dict]) -> tuple[list[
 
 
 def _campaign(tmp_path: Path, records, whiteboard=None, *, loop_state=True,
-              ycsb=None) -> tuple[Path, Path]:
+              ycsb=None, policy_hint=_UNSET) -> tuple[Path, Path]:
     output_root = tmp_path / "repo" / "output"
     records, admission_policy = _admission_bound_records(tmp_path, records)
     search_config = {
@@ -193,6 +194,8 @@ def _campaign(tmp_path: Path, records, whiteboard=None, *, loop_state=True,
     }
     if ycsb is not None:
         search_config["ycsb"] = ycsb
+    if policy_hint is not _UNSET:
+        search_config["policy_hint"] = policy_hint
     identity_preimage = campaign_lock.canonical_json({
         "ccbench_commit": CURRENT_PIN, "search_config": search_config,
         "search_tag": "test", "spec_content": "test", "trial": "trial",
@@ -660,6 +663,34 @@ def test_v2_lock_projects_only_inner_identity_without_authority_or_new_source_re
     assert '"environment_contract_sha256"' not in rendered
 
 
+def test_report_records_present_policy_hint_at_top_level_and_workload(tmp_path):
+    hint = "prefer stable behavior; do not infer a winner"
+    campaign, output_root = _campaign(
+        tmp_path, [_record("build_start", genome="g", src_token="s")],
+        policy_hint=hint,
+    )
+
+    report = layer3_report.build_report(
+        campaign, generated_from_head="fixed", output_root=output_root,
+    )
+
+    assert report["policy_hint"] == hint
+    assert report["workload"]["policy_hint"] == hint
+
+
+def test_report_uses_null_for_absent_policy_hint(tmp_path):
+    campaign, output_root = _campaign(
+        tmp_path, [_record("build_start", genome="g", src_token="s")],
+    )
+
+    report = layer3_report.build_report(
+        campaign, generated_from_head="fixed", output_root=output_root,
+    )
+
+    assert report["policy_hint"] is None
+    assert "policy_hint" not in report["workload"]
+
+
 def test_legacy_v2_report_schema_remains_readable(tmp_path):
     campaign, output_root = _campaign(
         tmp_path, [_record("build_start", genome="g", src_token="s")],
@@ -672,6 +703,35 @@ def test_legacy_v2_report_schema_remains_readable(tmp_path):
     del legacy["acceptance_receipt"]
     del legacy["certifying_input"]
     layer3_report._validate_schema(legacy)
+
+
+def test_legacy_v2_without_policy_hint_remains_readable(tmp_path):
+    campaign, output_root = _campaign(
+        tmp_path, [_record("build_start", genome="g", src_token="s")],
+    )
+    legacy = layer3_report.build_report(
+        campaign, generated_from_head="fixed", output_root=output_root,
+    )
+    legacy["schema_version"] = "layer3-material-report/v2"
+    legacy.pop("policy_hint", None)
+    del legacy["admission_decision"]
+    del legacy["acceptance_receipt"]
+    del legacy["certifying_input"]
+
+    layer3_report._validate_schema(legacy)
+
+
+def test_report_policy_hint_rejects_non_string_top_level(tmp_path):
+    campaign, output_root = _campaign(
+        tmp_path, [_record("build_start", genome="g", src_token="s")],
+    )
+    report = layer3_report.build_report(
+        campaign, generated_from_head="fixed", output_root=output_root,
+    )
+    report["policy_hint"] = False
+
+    with pytest.raises(layer3_report.Layer3ReportError):
+        layer3_report._validate_schema(report)
 
 
 def test_existing_v3_missing_new_admission_fields_remains_readable(
@@ -1017,7 +1077,7 @@ def certifying_completeness_chain(tmp_path: Path, monkeypatch):
         "output_sha256": descriptor_sha256,
         "projection_version": "8b-descriptor-projection/v1",
         "schema_sha256": (
-            "e60203b021a77a6d5a7d09bafd59525acd4173fa1ade099ec145a2b9d3ddc653"
+            "5a9e2696b8fba18f8f7cf01183673a1bd6f5781cc9cb1fe8641f9d667fe11549"
         ),
     }
     identity_preimage = campaign_lock.canonical_json({

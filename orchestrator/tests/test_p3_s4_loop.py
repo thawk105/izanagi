@@ -11,6 +11,7 @@ pytest でも 素の `python3 orchestrator/tests/test_p3_s4_loop.py` でも走�
 from __future__ import annotations
 
 import ast
+from dataclasses import replace
 import hashlib
 import inspect
 import json
@@ -22,6 +23,8 @@ import tempfile
 import textwrap
 import time
 import unittest.mock
+
+import pytest
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _ORCH = os.path.dirname(_HERE)
@@ -1705,6 +1708,91 @@ def test_whiteboard_for_planner_rejects_nonnull_delta_pct():
         raise AssertionError("planner 射影が非 None delta_pct を素通しした")
     except L.WhiteboardLeakError:
         pass
+
+
+def test_planner_context_payload_omits_absent_policy_hint():
+    payload = L.planner_context_payload(L.LoopState(), L.default_cfg())
+    assert "whiteboard" in payload
+    assert "policy_hint" not in payload
+
+
+def test_planner_context_payload_includes_string_policy_hint():
+    hint = "write-heavy workload を優先"
+    base_cfg = L.default_cfg()
+    cfg = replace(
+        base_cfg,
+        search_config={**base_cfg.search_config, "policy_hint": hint},
+    )
+    payload = L.planner_context_payload(L.LoopState(), cfg)
+    assert payload["policy_hint"] == hint
+
+
+def test_planner_context_payload_includes_empty_string_policy_hint():
+    base_cfg = L.default_cfg()
+    cfg = replace(
+        base_cfg,
+        search_config={**base_cfg.search_config, "policy_hint": ""},
+    )
+    payload = L.planner_context_payload(L.LoopState(), cfg)
+    assert payload["policy_hint"] == ""
+
+
+@pytest.mark.parametrize("hint", [None, True, 1, []])
+def test_planner_context_payload_rejects_non_string_policy_hint(hint):
+    base_cfg = L.default_cfg()
+    cfg = replace(
+        base_cfg,
+        search_config={**base_cfg.search_config, "policy_hint": hint},
+    )
+    with pytest.raises(ValueError):
+        L.planner_context_payload(L.LoopState(), cfg)
+
+
+def test_main_emits_planner_context_from_new_state(tmp_path, monkeypatch):
+    layout = _tmp_layout("emit-planner-context-new-state")
+    monkeypatch.setattr(L, "exploration_campaign_layout", lambda _id: layout)
+
+    output = tmp_path / "planner-context.json"
+    assert L.main(["--emit-planner-context", str(output)]) == 0
+    assert output.is_file()
+    payload = json.loads(output.read_text(encoding="utf-8"))
+    assert "whiteboard" in payload
+    assert "policy_hint" not in payload
+
+
+def test_main_emits_planner_context_with_policy_hint(tmp_path, monkeypatch):
+    base_cfg = L.default_cfg()
+    hint = "read/write balance を重視"
+    hinted_cfg = replace(
+        base_cfg,
+        search_config={**base_cfg.search_config, "policy_hint": hint},
+    )
+    monkeypatch.setattr(L, "default_cfg", lambda reflux=True: hinted_cfg)
+    layout = _tmp_layout("emit-planner-context-monkeypatch-hint")
+    monkeypatch.setattr(L, "exploration_campaign_layout", lambda _id: layout)
+
+    output = tmp_path / "planner-context-with-hint.json"
+    assert L.main(["--emit-planner-context", str(output)]) == 0
+    assert output.is_file()
+    payload = json.loads(output.read_text(encoding="utf-8"))
+    assert "whiteboard" in payload
+    assert payload["policy_hint"] == hint
+
+
+def test_main_emits_planner_context_with_cli_policy_hint(tmp_path, monkeypatch):
+    layout = _tmp_layout("emit-planner-context-cli-hint")
+    monkeypatch.setattr(L, "exploration_campaign_layout", lambda _id: layout)
+
+    hint = "CLI から workload policy を渡す"
+    output = tmp_path / "planner-context-cli-hint.json"
+    assert L.main([
+        "--emit-planner-context", str(output),
+        "--policy-hint", hint,
+    ]) == 0
+    assert output.is_file()
+    payload = json.loads(output.read_text(encoding="utf-8"))
+    assert "whiteboard" in payload
+    assert payload["policy_hint"] == hint
 
 
 def test_load_loop_state_missing_returns_none():

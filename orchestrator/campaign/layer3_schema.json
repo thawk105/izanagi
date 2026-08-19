@@ -8,6 +8,7 @@
     "schema_version": {"const": "layer3-material-report/v3"},
     "meta": {"type": "object", "additionalProperties": false, "required": ["campaign_id", "campaign_path", "ccbench_commit", "generated_from_head", "generator"], "properties": {"campaign_id": {"type": "string", "minLength": 1}, "campaign_path": {"type": "string", "minLength": 1}, "ccbench_commit": {"type": "string"}, "generated_from_head": {"type": "string", "minLength": 1, "description": "provenance only; excluded from deterministic comparison because HEAD can move"}, "generator": {"type": "object", "additionalProperties": false, "required": ["identity", "sha256"], "properties": {"identity": {"const": "orchestrator.campaign.layer3_report"}, "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}}}}},
     "workload": {"type": "object"},
+    "policy_hint": {"type": ["string", "null"]},
     "variants": {"type": "array", "items": {"type": "object", "additionalProperties": false, "required": ["variant", "genome", "src_token", "events"], "properties": {"variant": {"type": "string"}, "genome": {"type": "array", "items": {"type": "string"}}, "src_token": {"type": "array", "items": {"type": "string"}}, "events": {"type": "array", "items": {"type": "object"}}}}},
     "runs": {
       "type": "array",
