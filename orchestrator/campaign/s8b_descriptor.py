@@ -118,7 +118,7 @@ def project_from_search_config(search_config) -> dict:
         _required(ycsb, "ycsb_rmw", "$.ycsb"), "$.ycsb.ycsb_rmw"
     )
 
-    return {
+    descriptor = {
         "schema_version": "8b-v1",
         "source": "campaign_search_config_projection",
         "read_write": {"read_ratio_percent": read_ratio, "rmw": rmw},
@@ -130,6 +130,12 @@ def project_from_search_config(search_config) -> dict:
         "objective": "maximize_throughput_tps",
         "correctness": "serializable_legacy_and_s2",
     }
+    if "policy_hint" in search_config:
+        policy_hint = search_config["policy_hint"]
+        if type(policy_hint) is not str:
+            raise DescriptorError("型不正: $.policy_hint は str でなければならない")
+        descriptor["policy_hint"] = policy_hint
+    return descriptor
 
 
 def _json_path(parent: str, key: Any) -> str:

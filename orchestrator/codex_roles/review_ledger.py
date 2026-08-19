@@ -24,7 +24,12 @@ SOURCE_FILE_SHA256 = {
     "coder-v4-autonomous-trigger-gating": "a03045c86027ec09e01d0727557eaa653c8f04d0929c007a4f129902742a2db0",
     "critic": "cd1c365204fd1a68260d0454b4599bfd8cea12c5d845fb24f4e21f154733df15",
     "critic-experiment": "fc20aa7ef1bf9af45eaa2e56313b8b5221a3ff2a2413110fa333ba470ff9456e",
-    "planner-v4": "0a52dd4feada41167aa62711cc8cf1ad81e306ad706e99825b9709595b412ef2",
+    # Reviewed 2026-08-19: workload-policy-hint-impl; 「## 入力」節へ optional policy_hint
+    # フィールドの説明文を追記 (JSON 例本体には含めない — source 入力 shape parity 検査が
+    # 例中の全 key を ROLE_IO_CONTRACTS 宣言と exact 照合するため)。ROLE_IO_CONTRACTS の
+    # input_required_fields (3 field) は不変 (hint は任意であり「常に必須」の宣言に加えない、
+    # dormant Codex adapter parity は対象外)。
+    "planner-v4": "0893644a9eae73a18fcf822c582f6007e8795f314fc1c97a3db7a6d8d439cb0e",
     "profiler": "8a3f5bc1cba31d366c7ea3f0149e04917c07fe7677aa609ce6f05f5c8decbd6d",
     "selector-8b": "23483aeb871ad7363060a183d85df6dd10b9e74b40337037a6cf6bbcc34c799c",
     "verifier": "80ce00b78832cb18a95d0ee8047124fbb8435cf2ec4d312b9d4ed2e6c7f0300f",

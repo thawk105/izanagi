@@ -1,0 +1,112 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 120,
+  "timeout_seconds": 1800,
+  "hang_timeout_seconds": 900,
+  "mutations": [
+    {
+      "id": "t1357.m1-drop-fork-process-shell",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_coder_effect_gate.py::test_frozen_deny_identifier_still_triggers_its_category[process-shell-fork]"
+      ],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/coder_effect_gate.py",
+          "old": "\"pclose\", \"fork\", \"vfork\",",
+          "new": "\"pclose\", \"vfork\","
+        }
+      ]
+    },
+    {
+      "id": "t1357.m2-drop-fopen-file-stdio",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_coder_effect_gate.py::test_frozen_deny_identifier_still_triggers_its_category[file-stdio-fopen]"
+      ],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/coder_effect_gate.py",
+          "old": "\"basic_filebuf\", \"fopen\",\n            \"freopen\"",
+          "new": "\"basic_filebuf\",\n            \"freopen\""
+        }
+      ]
+    },
+    {
+      "id": "t1357.m3-drop-socket-network",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_coder_effect_gate.py::test_frozen_deny_identifier_still_triggers_its_category[network-socket]"
+      ],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/coder_effect_gate.py",
+          "old": "\"socket\", \"socketpair\",",
+          "new": "\"socketpair\","
+        }
+      ]
+    },
+    {
+      "id": "t1357.m4-drop-pthread-create-sleep-block-thread",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_coder_effect_gate.py::test_frozen_deny_identifier_still_triggers_its_category[sleep-block-thread-pthread_create]"
+      ],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/coder_effect_gate.py",
+          "old": "\"epoll_wait\", \"pthread_create\", \"thrd_create\",",
+          "new": "\"epoll_wait\", \"thrd_create\","
+        }
+      ]
+    },
+    {
+      "id": "t1357.m5-drop-syscall-escape-hatch",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_coder_effect_gate.py::test_frozen_deny_identifier_still_triggers_its_category[escape-hatch-syscall]"
+      ],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/coder_effect_gate.py",
+          "old": "(\"syscall\", \"dlopen\",",
+          "new": "(\"dlopen\","
+        }
+      ]
+    },
+    {
+      "id": "t1357.m6-coordinated-shrink-known-residual",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/coder_effect_gate.py",
+          "old": "\"pclose\", \"fork\", \"vfork\",",
+          "new": "\"pclose\", \"vfork\","
+        },
+        {
+          "file": "orchestrator/tests/test_coder_effect_gate.py",
+          "old": "\"pclose\", \"fork\", \"vfork\", \"clone\", \"clone3\",",
+          "new": "\"pclose\", \"vfork\", \"clone\", \"clone3\","
+        },
+        {
+          "file": "orchestrator/tests/test_coder_effect_gate.py",
+          "old": "    assert sum(len(v) for v in _FROZEN_DENY_IDENTIFIERS.values()) == 96\n",
+          "new": "    assert sum(len(v) for v in _FROZEN_DENY_IDENTIFIERS.values()) == 95\n"
+        }
+      ]
+    }
+  ]
+}
