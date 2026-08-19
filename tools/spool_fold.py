@@ -1409,6 +1409,23 @@ def _decode_canonical(rel: str, raw: bytes) -> str:
     return text
 
 
+def _load_base_digest_sources(repo: Path) -> tuple[str, dict[str, str]]:
+    """base-digest 用に worklog と worklog archive だけをロードする。"""
+
+    worklog_raw = _read_required(repo, "docs/worklog.md")
+    worklog = _decode_canonical("docs/worklog.md", worklog_raw)
+    archives: dict[str, str] = {}
+    archive_dir = repo / "docs/archive"
+    if archive_dir.is_symlink() or not archive_dir.is_dir():
+        raise SpoolValidationError([Issue("docs/archive", 1, "archive", "archive directory が不正")])
+    for path in sorted(archive_dir.glob("worklog-*.md"), key=lambda item: item.name):
+        if path.is_symlink() or not path.is_file():
+            raise SpoolValidationError([Issue(path.relative_to(repo).as_posix(), 1, "archive", "archive worklog が regular file でない")])
+        rel = path.relative_to(repo).as_posix()
+        archives[path.name] = _decode_canonical(rel, _read_required(repo, rel))
+    return worklog, archives
+
+
 def _entry_active_items(text: str, heading: re.Match[str], end: int, rel: str) -> list[_TaskItem]:
     body = text[heading.end():end]
     headings = list(NEXT_ACTION_HEADING_RE.finditer(body))
@@ -1595,6 +1612,31 @@ def _extract_latest_active(worklog: str, archives: Mapping[str, str] | None = No
         _TaskItem(item.task_id, item.block, substantive_digest(item.task_id, latest_ordinal, frozenset()))
         for item in latest_items
     ]
+
+
+def _resolve_base_digest(repo: Path, task_id: str) -> str:
+    worklog, archives = _load_base_digest_sources(repo)
+    _, active = _extract_latest_active(worklog, archives)
+    item = next((item for item in active if item.task_id == task_id), None)
+    if item is None:
+        raise SpoolValidationError([
+            Issue(
+                "docs/worklog.md",
+                1,
+                "base-digest-not-active",
+                f"{task_id}: 現行 active item に存在しない",
+            )
+        ])
+    if item.substantive_digest is None:
+        raise SpoolValidationError([
+            Issue(
+                "docs/worklog.md",
+                1,
+                "base-digest-unresolved",
+                f"{task_id}: substantive digest を解決できない",
+            )
+        ])
+    return item.substantive_digest
 
 
 def _deferred_region(phase: str) -> tuple[int, int, dict[str, tuple[int, int]]]:
@@ -3396,6 +3438,14 @@ def _iter_plan_diff(repo: Path, plan: FoldPlan) -> Iterable[bytes]:
         )
 
 
+def _task_id_arg(value: str) -> str:
+    if TASK_RE.fullmatch(value) is None:
+        raise argparse.ArgumentTypeError(
+            "canonical task ID like '[T-001]' is required"
+        )
+    return value
+
+
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="spool fragment を canonical 台帳へ fold する")
     parser.add_argument("--dry-run", action="store_true", help="計画 JSON のみを出力し、変更しない")
@@ -3411,16 +3461,35 @@ def _parser() -> argparse.ArgumentParser:
         "--fold-date",
         help="canonical に使う ISO date。dry-run と apply で同じ値を渡せば同じ plan になる",
     )
+    parser.add_argument(
+        "--base-digest",
+        metavar="TASK_ID",
+        type=_task_id_arg,
+        help=(
+            "worklog item 本文の carry 解決済み digest を1行出力する "
+            "（FoldOrigin.base の git commit OID とは別概念）"
+        ),
+    )
     return parser
 
 
 def main(argv: Sequence[str] | None = None) -> int:
     parser = _parser()
     args = parser.parse_args(argv)
+    if args.base_digest is not None:
+        if args.dry_run:
+            parser.error("--base-digest cannot be combined with --dry-run")
+        if args.show_diff:
+            parser.error("--base-digest cannot be combined with --show-diff")
+        if args.fold_date is not None:
+            parser.error("--base-digest cannot be combined with --fold-date")
     if args.show_diff and not args.dry_run:
         parser.error("--show-diff requires --dry-run")
     repo = Path(__file__).resolve().parents[1]
     try:
+        if args.base_digest is not None:
+            print(_resolve_base_digest(repo, args.base_digest))
+            return 0
         state_path = _state_path(repo)
         if not args.dry_run and state_path.exists():
             plan = _state_plan(_load_state(state_path))
