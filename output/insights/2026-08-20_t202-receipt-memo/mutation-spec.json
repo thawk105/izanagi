@@ -1,0 +1,58 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 240,
+  "timeout_seconds": 3600,
+  "hang_timeout_seconds": 600,
+  "mutations": [
+    {
+      "id": "M1",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/real_repo_receipt_memo.py",
+          "old": "    try:\n        _validate_cache_document(document)\n    except (TypeError, _CacheSchemaError, RecursionError) as exc:",
+          "new": "    try:\n        pass\n    except (TypeError, _CacheSchemaError, RecursionError) as exc:"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_real_repo_serialization.py::test_receipt_memo_json_cache_rejects_pickle_and_invalid_json_without_resolve",
+        "orchestrator/tests/test_real_repo_serialization.py::test_receipt_memo_l1_to_l5_are_fail_closed_and_uid_is_hashed"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M2",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/real_repo_receipt_memo.py",
+          "old": "        document = json.loads(\n            text,\n            object_pairs_hook=_reject_duplicate_json_keys,\n            parse_constant=_reject_json_constant,\n        )",
+          "new": "        document = json.loads(\n            text,\n            parse_constant=_reject_json_constant,\n        )"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_real_repo_serialization.py::test_receipt_memo_json_cache_rejects_pickle_and_invalid_json_without_resolve"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M4",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/real_repo_receipt_memo.py",
+          "old": "    return Path(tempfile.gettempdir()) / (\n        f\"{_CACHE_PREFIX}{uid_hash}-{session_hash}-{head}.json\"\n    )",
+          "new": "    return Path(tempfile.gettempdir()) / (\n        f\"{_CACHE_PREFIX}{uid_hash}-{head}.json\"\n    )"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_real_repo_serialization.py::test_receipt_memo_l1_to_l5_are_fail_closed_and_uid_is_hashed",
+        "orchestrator/tests/test_real_repo_serialization.py::test_receipt_memo_reader_rejects_cache_from_other_invocation"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}
