@@ -2,6 +2,8 @@
 """Unit contract for the finite coder-hole lexical effect gate."""
 from __future__ import annotations
 
+import ast
+import pathlib
 from dataclasses import asdict, fields
 
 import pytest
@@ -64,6 +66,38 @@ def test_identifier_substrings_strings_and_comments_do_not_match(implementation)
     assert scan_host_effects(implementation) == ()
 
 
+_FROZEN_DENY_IDENTIFIERS: dict[str, frozenset[str]] = {
+    "process-shell": frozenset((
+        "system", "popen", "pclose", "fork", "vfork", "clone", "clone3",
+        "execl", "execle", "execlp", "execv", "execve", "execvp",
+        "execvpe", "fexecve", "posix_spawn", "posix_spawnp", "wordexp",
+    )),
+    "file-stdio": frozenset((
+        "ifstream", "ofstream", "fstream", "filebuf", "basic_ifstream",
+        "basic_ofstream", "basic_fstream", "basic_filebuf", "fopen",
+        "freopen", "fdopen", "tmpfile", "open", "openat", "creat", "read",
+        "write", "pread", "pwrite", "readv", "writev", "fread", "fwrite",
+        "remove", "rename", "unlink", "unlinkat", "mkdir", "mkdirat",
+        "rmdir", "truncate", "ftruncate", "mmap", "shm_open", "filesystem",
+    )),
+    "network": frozenset((
+        "socket", "socketpair", "connect", "bind", "listen", "accept",
+        "accept4", "send", "sendto", "sendmsg", "recv", "recvfrom",
+        "recvmsg", "shutdown", "getaddrinfo", "getnameinfo",
+        "curl_easy_init", "curl_easy_perform",
+    )),
+    "sleep-block-thread": frozenset((
+        "sleep", "usleep", "nanosleep", "clock_nanosleep", "sleep_for",
+        "sleep_until", "pause", "sigsuspend", "select", "pselect", "poll",
+        "ppoll", "epoll_wait", "pthread_create", "thrd_create", "async",
+        "thread", "jthread",
+    )),
+    "escape-hatch": frozenset((
+        "syscall", "dlopen", "dlsym", "dlvsym", "asm", "__asm", "__asm__",
+    )),
+}
+
+
 _CATEGORY_PROBES = {
     "process-shell": ("host-effect.process-shell.v1", "posix_spawnp();"),
     "file-stdio": ("host-effect.file-stdio.v1", "read();"),
@@ -86,6 +120,79 @@ def test_each_deny_table_category_has_a_mutation_killing_probe(category):
     assert [(finding.rule_id, finding.category) for finding in findings] == [
         (expected_rule_id, category),
     ]
+
+
+# Known residual: a same-commit coordinated shrink of production and this frozen
+# literal is out of scope; the dev-wave adversarial review owns it ([T-1357] stage 4 ruling).
+@pytest.mark.parametrize(
+    ("category", "identifier"),
+    [
+        (category, identifier)
+        for category, identifiers in _FROZEN_DENY_IDENTIFIERS.items()
+        for identifier in sorted(identifiers)
+    ],
+)
+def test_frozen_deny_identifier_still_triggers_its_category(category, identifier):
+    findings = scan_host_effects(f"{identifier}();")
+    assert any(finding.category == category for finding in findings), (
+        f"{identifier!r} no longer triggers category {category!r}"
+    )
+
+
+def test_frozen_deny_identifiers_total_is_96():
+    assert sum(len(v) for v in _FROZEN_DENY_IDENTIFIERS.values()) == 96
+
+
+def test_frozen_deny_identifiers_is_a_literal_not_derived_from_deny_table():
+    source = pathlib.Path(__file__).read_text(encoding="utf-8")
+    tree = ast.parse(source)
+    assignments = []
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Assign):
+            targets = node.targets
+        elif isinstance(node, ast.AnnAssign):
+            targets = (node.target,)
+        else:
+            continue
+        if any(
+            isinstance(target, ast.Name)
+            and target.id == "_FROZEN_DENY_IDENTIFIERS"
+            for target in targets
+        ):
+            assignments.append(node)
+
+    assert len(assignments) == 1, (
+        "_FROZEN_DENY_IDENTIFIERS must have exactly one assignment"
+    )
+    assignment = assignments[0]
+    for node in ast.walk(assignment.value):
+        if isinstance(node, ast.Name):
+            assert node.id == "frozenset", (
+                "frozen baseline may only reference frozenset"
+            )
+        elif isinstance(node, ast.Attribute):
+            pytest.fail("frozen baseline must not contain attribute access")
+        elif isinstance(
+            node, (ast.DictComp, ast.SetComp, ast.ListComp, ast.GeneratorExp)
+        ):
+            pytest.fail("frozen baseline must be a plain literal, not a comprehension")
+        elif isinstance(node, ast.Constant):
+            assert isinstance(node.value, str), (
+                "frozen baseline constants must be strings"
+            )
+        elif isinstance(node, ast.Call):
+            assert (
+                isinstance(node.func, ast.Name) and node.func.id == "frozenset"
+            ), "frozen baseline calls must invoke frozenset directly"
+            assert not node.keywords, (
+                "frozen baseline frozenset calls must not use keywords"
+            )
+        elif isinstance(node, (ast.Dict, ast.Tuple, ast.Load)):
+            continue
+        else:
+            pytest.fail(
+                f"frozen baseline contains disallowed AST node: {type(node).__name__}"
+            )
 
 
 def test_deny_table_rule_ids_and_identifiers_are_unique():
