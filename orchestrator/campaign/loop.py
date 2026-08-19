@@ -11,17 +11,24 @@ Phase 1 は探索 = 列挙 (全 genome)。Phase 2 で LLM 誘導の選択/変異
 """
 from __future__ import annotations
 
+import datetime as dt
+import hashlib
 import json
+import os
 import secrets
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Callable, List, Optional, Sequence
 
 from ..calibrator import perf_preflight as _perf_preflight
-from . import buildcache, env_attestation, execution_guard, ident, source_digest, wal
+from . import (buildcache, campaign_claim, env_attestation, execution_guard, ident,
+               reservation, source_digest, wal)
 from .build_admission import BuildRunContext
 from .env_contract import AuthorizedContract, ExecutionEnvironmentContract
-from .layout import campaign_layout, exploration_campaign_layout
+from .layout import (campaign_layout, env_scope_dir,
+                     exploration_campaign_layout,
+                     resolve_campaign_output_root,
+                     validate_campaign_id, write_capability_for_directory)
 from .model import CampaignConfig, Genome, STAGE_ABORT, STAGE_BUILD_START
 from .pipeline import (AdmissionCapabilityResolver, EvalResult, PerfConfig, S2_TAG,
                        SEARCH_CONFIG_VERIFY_KEY,
@@ -54,6 +61,14 @@ class CampaignSummary:
     results: List[EvalResult] = field(default_factory=list)
     execution_receipt: Optional[dict] = None
     perf_preflight_receipt: Optional[dict] = None
+
+
+@dataclass(frozen=True)
+class _AuthorizationResult:
+    authorized_contract: ExecutionEnvironmentContract
+    execution_receipt: Optional[dict]
+    bound_cfg: CampaignConfig
+    campaign_identity: str
 
 
 def _repo_root() -> Path:
@@ -90,11 +105,15 @@ def _perform_perf_preflight(
 
 
 def _authorize_measurement(
+        cfg: CampaignConfig,
         authorization_contract: AuthorizedContract, *,
         env_tag: str, clocks_per_us: int,
         numactl: Optional[Sequence[str]],
         env_contract: Optional[ExecutionEnvironmentContract] = None,
-) -> tuple[ExecutionEnvironmentContract, Optional[dict]]:
+        declared_use_class: str,
+        output_root: str,
+        durable_root_policy=None,
+) -> _AuthorizationResult:
     """明示 contract と required attestation を最初の書込みより前に検査する。"""
     contract = execution_guard.require_certified_writer_authorization(
         authorization_contract,
@@ -103,21 +122,64 @@ def _authorize_measurement(
         numactl=numactl,
         env_contract=env_contract,
     )
-    if contract.attestation_mode != "required":
-        return contract, None
-    verified = env_attestation.load_verified_calibration(contract, _repo_root())
-    receipt = execution_guard.attest_and_build_receipt(contract, verified)
-    if not execution_guard.receipt_matches_contract(
-        receipt,
-        env_tag=contract.env_tag,
-        contract_sha256=contract.contract_sha256,
-        attestation_mode=contract.attestation_mode,
-        verified_calibration=verified,
-    ):
-        raise execution_guard.ExecutionGuardError(
-            "execution receipt の契約再検算に失敗"
+    receipt = None
+    if contract.attestation_mode == "required":
+        verified = env_attestation.load_verified_calibration(contract, _repo_root())
+        receipt = execution_guard.attest_and_build_receipt(contract, verified)
+        if not execution_guard.receipt_matches_contract(
+            receipt,
+            env_tag=contract.env_tag,
+            contract_sha256=contract.contract_sha256,
+            attestation_mode=contract.attestation_mode,
+            verified_calibration=verified,
+        ):
+            raise execution_guard.ExecutionGuardError(
+                "execution receipt の契約再検算に失敗"
+            )
+
+    bound_cfg = ident.bind_environment_contract(cfg, contract)
+    campaign_identity = str(ident.campaign_id(bound_cfg))
+    validate_campaign_id(campaign_identity)
+
+    if reservation.is_reservation_required(contract.isolation_policy):
+        env = os.environ
+        binding = reservation.read_binding(env)
+        # presence gate であり、campaign 実行時間の保護を意味しない。
+        reservation.check_reservation(
+            binding,
+            required_s=1,
+            safety_margin_s=0,
+            environ=env,
         )
-    return contract, receipt
+        base_root = resolve_campaign_output_root(declared_use_class, output_root)
+        claim_root = Path(env_scope_dir(contract.env_tag, base_root)) / "claims"
+        if claim_root.is_symlink() or not claim_root.is_dir():
+            raise execution_guard.ExecutionGuardError(
+                "campaign claim root が durable output root 下に事前 provisioning "
+                f"済みでない: {claim_root}"
+            )
+        write_capability_for_directory(claim_root, policy=durable_root_policy)
+        protocol_digest = hashlib.sha256(
+            ident.canonical_preimage(bound_cfg).encode("utf-8")
+        ).hexdigest()
+        record = campaign_claim.ClaimRecord(
+            campaign_identity=campaign_identity,
+            protocol_digest=protocol_digest,
+            job_id=binding.job_id,
+            host=binding.host,
+            boot_id=binding.boot_id,
+            pid=os.getpid(),
+            proc_starttime=campaign_claim.read_proc_starttime(),
+            created_utc=dt.datetime.now(dt.timezone.utc).isoformat(),
+        )
+        campaign_claim.acquire_claim(claim_root, record)
+
+    return _AuthorizationResult(
+        authorized_contract=contract,
+        execution_receipt=receipt,
+        bound_cfg=bound_cfg,
+        campaign_identity=campaign_identity,
+    )
 
 
 def run_campaign(cfg: CampaignConfig, genomes: Sequence[Genome],
@@ -132,6 +194,7 @@ def run_campaign(cfg: CampaignConfig, genomes: Sequence[Genome],
                  declared_use_class: str,
                  trigger_gate_binding=None,
                  perf_preflight_fn: Optional[Callable[..., object]] = None,
+                 durable_root_policy=None,
                  ) -> CampaignSummary:
     """`ccbench_dir`/`cache_root` (段5 git worktree 隔離): pipeline.evaluate と同じ実行時
     引数の素通し。`declared_use_class` は official / exploration の閉じた
@@ -167,19 +230,23 @@ def run_campaign(cfg: CampaignConfig, genomes: Sequence[Genome],
           or trigger_gate_binding.source is not None):
         raise TypeError("trigger campaign は source-null candidate binding が必要")
     cfg = ident.bind_admission_policy(cfg, build_context.policy)
-    authorized_contract, execution_receipt = _authorize_measurement(
-        authorization_contract, env_tag=env_tag, clocks_per_us=clocks_per_us,
+    authorization = _authorize_measurement(
+        cfg, authorization_contract, env_tag=env_tag, clocks_per_us=clocks_per_us,
         numactl=numactl, env_contract=env_contract,
+        declared_use_class=declared_use_class, output_root=output_root,
+        durable_root_policy=durable_root_policy,
     )
+    authorized_contract = authorization.authorized_contract
+    execution_receipt = authorization.execution_receipt
+    cfg = authorization.bound_cfg
+    cid = authorization.campaign_identity
     perf_preflight_receipt = None
     use_perf = True
     if do_bench:
         perf_preflight_receipt, use_perf = _perform_perf_preflight(
             perf_preflight_fn or _perf_preflight.probe_perf_availability,
         )
-    cfg = ident.bind_environment_contract(cfg, authorized_contract)
-    cid = ident.campaign_id(cfg)
-    layout = layout_constructor(str(cid), output_root).ensure()
+    layout = layout_constructor(cid, output_root).ensure()
 
     # D36 決定4-1: search_config[SEARCH_CONFIG_VERIFY_KEY]=="legacy+s2" で S2 構成
     # (t48 フルロード規模、データパス被覆担当) を legacy (検出力担当) に追加する。
