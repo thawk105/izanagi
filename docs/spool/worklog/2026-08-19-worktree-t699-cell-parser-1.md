@@ -45,8 +45,10 @@ title: T-699 (入口 command の参照 cell を完全な grammar で full-match 
   わずかに (50017 対 上限50000) 超えており、main への divergence を merge するあらゆる
   wave の受入が構造的に赤くなる状態だった。fork で先例を調査したが同型の記録は無く、
   新規 finding と判断した。
-- 上記理由で land を進められず、branch `worktree-t699-cell-parser` へ commit まで留め置いて
-  終了する。コード面は健全 (敵対レビュー・変異 matrix とも通過済み)。
+- 上記理由で一旦 land を進められず、branch `worktree-t699-cell-parser` へ commit まで
+  留め置いて中断した。ユーザーから「最新 main でも状況は変わらないか」と問われ再確認した
+  ところ、別 wave が commit `4cc60864` で該当箇所 (履歴長比例のコスト) を根本修正済みと
+  判明したため、同じセッション内で worktree を作り直し受入から再開した。
 
 ## 次の一手差分
 
@@ -59,11 +61,3 @@ title: T-699 (入口 command の参照 cell を完全な grammar で full-match 
   ため、その解消を待って次 wave (fresh context) で受入以降を再開する。
   base: 9d6e25d0d83f55a191a0f9469b387f63c7f35585ca28b5c74b09c252cca9b552
 
-### 新規
-
-- {{T:s8c-batch-limit-fix}} **P1・新規**: {{F:s8c-batch-limit-blocks-any-merge}} — 
-  `orchestrator/campaign/s8c_preregistration.py` の `MAX_BATCH_REQUESTS` (50,000、107行) を
-  ancestor 祖先集合 × 追跡 path 数の積が超過し (実測50017)、main への divergence を merge する
-  受入が構造的に全滅する。`MAX_BATCH_REQUESTS` の引き上げか `_batch_oids`
-  (`s8c_preregistration.py:1316`) の祖先集合計算を見直す、8c 側の専用 wave が必要。
-  [T-699] を含む divergence のある全 wave の land を現在ブロックしている。

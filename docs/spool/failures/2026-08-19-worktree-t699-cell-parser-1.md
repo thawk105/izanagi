@@ -32,10 +32,13 @@ seq: 1
   (2/2 KILLED, MISMATCH 0) まで完了しコード面は健全だが、この理由で land を進められず
   branch `worktree-t699-cell-parser` (commit `7147bf91`、main 取り込み後 `eff98184`) へ
   留め置いた。
-- 恒久対応: 未実施 (`orchestrator/campaign/s8c_preregistration.py` は Phase 3 8c 側の実装面で
-  本 wave の scope 外。`MAX_BATCH_REQUESTS` の引き上げ、または `_batch_oids`/祖先集合計算の
-  重複排除・分割 batch 化のいずれかを、8c 側の専用 wave が判断すべき設計選択)。
-- 再発検知: 未実装。次に main へ divergence を持つどの wave が受入 merge を試みても、
-  `orchestrator/campaign/s8c_preregistration.py:107` の `MAX_BATCH_REQUESTS` と実測
-  `len(commits) * len(paths)` の差が縮み続けている限り同型が起きる。差分 (実測値 − 上限) を
-  受入の関門で可視化する監視が無い。
+- 恒久対応: 本 wave の scope 外の別 wave が commit `4cc60864`
+  (`fix(s8c): 凍結世代の検証から履歴長比例のコストを取り除く`) で解消済みと事後に確認した。
+  上限を上げる対処ではなく、`validate_condition_freeze_at` の走査対象を
+  「凍結 namespace を触った commit + その直接親 + 境界」へ絞り、判定結果が変わらない
+  commit の再計算を避けることで履歴長比例のコストそのものを除いている。同 commit の
+  message は local main 実測 `4544 × 11 = 49,984` (残り16) と、本 finding (実測50017) を
+  含む複数 wave が同時に受入で止まったことを裏付けている。
+- 再発検知: `4cc60864` の走査絞り込みが将来また履歴長へ比例する形に戻されないか、
+  `_batch_oids` 系のコストが commit 数に依存しないことを固定する回帰テストの有無を
+  8c 側で確認するとよい (本 wave では未確認)。
