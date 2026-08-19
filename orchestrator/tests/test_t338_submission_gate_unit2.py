@@ -574,3 +574,7 @@ def test_compile_commands_file_record_is_kept_without_reader_recalculation():
         "path": "build/compile_commands.json",
     }
     assert set(record) == {"path", "size", "sha256"}
+
+
+if __name__ == "__main__":
+    raise SystemExit(pytest.main([__file__, "-q"]))

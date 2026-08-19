@@ -539,3 +539,7 @@ def test_hash_chain_replays_and_rejects_gaps_previous_hash_and_duplicates() -> N
         _event_chain.replay_event_chain([first, wrong_previous])
     with pytest.raises(_event_chain.EventChainError):
         _event_chain.replay_event_chain([first, first])
+
+
+if __name__ == "__main__":
+    raise SystemExit(pytest.main([__file__, "-q"]))
