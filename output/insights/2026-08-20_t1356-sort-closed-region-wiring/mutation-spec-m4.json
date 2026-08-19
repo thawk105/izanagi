@@ -1,0 +1,28 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 30,
+  "hang_timeout_seconds": 600,
+  "timeout_seconds": 900,
+  "mutations": [
+    {
+      "id": "t1356.m4-adapter-internal-pin-mismatch",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_codex_agents.py::test_any_native_discovery_toml_is_rejected",
+        "orchestrator/tests/test_codex_agents.py::test_project_config_native_role_is_rejected_and_globals_are_allowed",
+        "orchestrator/tests/test_codex_agents.py::test_current_sources_render_byte_exact_and_native_is_empty",
+        "orchestrator/tests/test_codex_agents.py::test_consumer_required_field_drift_is_detected_from_source_ast",
+        "orchestrator/tests/test_codex_agents.py::test_all_adapters_pin_model_policy_and_blocked_runtime_activation"
+      ],
+      "replacements": [
+        {
+          "file": ".codex/role-adapters/auditor.json",
+          "old": "\"source_file_sha256\": \"e33c65d446bedb5bc1d372f8bcdd1b59968a0a3093ff23f300cb0af0dddebc3e\"",
+          "new": "\"source_file_sha256\": \"0000000000000000000000000000000000000000000000000000000000000\""
+        }
+      ]
+    }
+  ]
+}

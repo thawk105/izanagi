@@ -1,0 +1,200 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": null,
+      "receipt_path": null,
+      "runner_mode": "local",
+      "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\n警告: submodule marker /work/1/SFC/tanab/izanagi/.claude/worktrees/t1356-sort-closed-region-wiring/external/ccbench/CMakeLists.txt がありません。targeted run のため初期化せず続行します。\n[Pegasus dispatch] job を gen_S へ投入します (izdw-e00b10af51)\n[Pegasus dispatch] request ID 925676.nqsv を受理しました\n[Pegasus dispatch] request 925676.nqsv の状態: QUE\n[Pegasus dispatch] request 925676.nqsv の状態: RUN\n[Pegasus dispatch] request 925676.nqsv の状態: END\n[Pegasus dispatch] request 925676.nqsv の成果物収集を開始します\n[Pegasus dispatch] receipt を /work/1/SFC/tanab/izanagi/.claude/worktrees/t1356-sort-closed-region-wiring/output/pegasus-dispatch/e00b10af51821646a9c3a2b468123b23/receipt.json へ保存しました (child rc=0)\n[Pegasus dispatch] request 925676.nqsv child stdout begin\n| bringing up nodes...\n| bringing up nodes...\n| \n| .....                                                                    [100%]\n| 5 passed in 2.44s\n| IZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n[Pegasus dispatch] request 925676.nqsv child stdout end\n[Pegasus dispatch] request 925676.nqsv child stderr begin\n| 警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\n| 警告: submodule marker /work/1/SFC/tanab/izanagi/.claude/worktrees/t1356-sort-closed-region-wiring/external/ccbench/CMakeLists.txt がありません。targeted run のため初期化せず続行します。\n| \n| ============================================================\n| Request ID:             925676.nqsv\n| Request Name:           izdw-e00b10af51\n| Queue:                  gen_S@nqsv\n| Number of Jobs:         1\n| User Name:              tanab\n| Group Name:             SFC\n| Created Request Time:   Thu Aug 20 01:10:55 2026\n| Started Request Time:   Thu Aug 20 01:11:07 2026\n| Ended Request Time:     Thu Aug 20 01:11:10 2026\n| Resources Information:\n|   Elapse:               7S\n|   Remaining Elapse:     3593S\n| ============================================================\n[Pegasus dispatch] request 925676.nqsv child stderr end\nIZANAGI_TASK_RUN_DIAGNOSTIC_V1 pilot-closed:max-task-runs\n",
+      "stdout_sha256": "3a3707c9a524b17ece0391ab7117bacf03f2de910a07f9ef827b111c5af4c0f1"
+    },
+    "artifact_error": null,
+    "collection_sha256": "9ff382dd1fe300d7feeca6cbcb705b77eb0395eb0e46361c6177710403762ae9",
+    "duration_s": 28.045,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "6a50d4d3e3196476dfa81efc6ff364951c81ff0b5adce87d9095b1e28e36b419",
+    "repo_head": "2ec1d382767f8ffb5ff68882c4c6294efb99cb9d",
+    "runner_sha256": "8c02bee2f5eac08b47c5f29901bf7bfaa1d734bff35688c57389baec5cf7e1e5",
+    "spec_sha256": "10cba832d2f59f9ee97775c1c79132188cdafc406fde7136cb09c14d68a95d37",
+    "status": "PASSED",
+    "test_output_sha256": "3a3707c9a524b17ece0391ab7117bacf03f2de910a07f9ef827b111c5af4c0f1",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "c5a33eb6112256e27361b79647ca5d15f1fe02eb7b2679d8efdb6100dbe1a6e8"
+  },
+  "date": "2026-08-19T16:10:51.739554+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": null,
+        "receipt_path": null,
+        "runner_mode": "local",
+        "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\n警告: submodule marker /work/1/SFC/tanab/izanagi/.claude/worktrees/t1356-sort-closed-region-wiring/external/ccbench/CMakeLists.txt がありません。targeted run のため初期化せず続行します。\n[Pegasus dispatch] job を gen_S へ投入します (izdw-f36e83cc2e)\n[Pegasus dispatch] request ID 925678.nqsv を受理しました\n[Pegasus dispatch] request 925678.nqsv の状態: QUE\n[Pegasus dispatch] request 925678.nqsv の状態: RUN\n[Pegasus dispatch] request 925678.nqsv の状態: END\n[Pegasus dispatch] request 925678.nqsv の成果物収集を開始します\n[Pegasus dispatch] receipt を /work/1/SFC/tanab/izanagi/.claude/worktrees/t1356-sort-closed-region-wiring/output/pegasus-dispatch/f36e83cc2e005cc8744e7e88c726bd88/receipt.json へ保存しました (child rc=1)\n[Pegasus dispatch] request 925678.nqsv child stdout begin\n| bringing up nodes...\n| bringing up nodes...\n| \n| FFFFF                                                                    [100%]\n| =================================== FAILURES ===================================\n| ______ test_all_adapters_pin_model_policy_and_blocked_runtime_activation _______\n| [gw4] linux -- Python 3.10.12 /bin/python3.10\n| \n|     def test_all_adapters_pin_model_policy_and_blocked_runtime_activation():\n|         specs = CCA.ROLE_SPEC.load_role_specs(_REPO)\n|         for role, spec in specs.items():\n|             adapter = CCA.ROLE_SPEC.load_json_strict(\n|                 _REPO / \".codex\" / \"role-adapters\" / f\"{role}.json\"\n|             )\n|             assert adapter[\"model\"] == spec.codex_model\n|             assert adapter[\"model_reasoning_effort\"] == spec.codex_reasoning_effort\n|             assert adapter[\"mode\"] == \"static-dormant\"\n|             assert adapter[\"runtime_boundary\"] == \"static-only-runtime-blocked\"\n|             assert adapter[\"runtime_activation\"] == {\n|                 \"status\": \"blocked\",\n|                 \"reason\": \"uncontrollable_additional_tools\",\n|                 \"uncontrollable_surface\": \"input.additional_tools\",\n|                 \"evidence_owner\": \"runtime-launcher-additional-tools-attestation\",\n|             }\n|             contract = ROLE_IO_CONTRACTS[role]\n| >           assert adapter[\"review_ledger\"] == {\n|                 \"role_manifest_sha256\": ROLE_MANIFEST_SHA256[role],\n|                 \"developer_instruction_template_sha256\": (\n|                     DEVELOPER_INSTRUCTION_TEMPLATE_SHA256\n|                 ),\n|                 \"source_file_sha256\": SOURCE_FILE_SHA256[role],\n|                 \"description_sha256\": DESCRIPTION_SHA256[role],\n|                 \"input_schema_sha256\": SCHEMA_SHA256[role][\"input\"],\n|                 \"output_schema_sha256\": SCHEMA_SHA256[role][\"output\"],\n|                 \"io_contract\": {\n|                     \"mode\": contract[\"mode\"],\n|                     \"input_required_fields\": list(contract[\"input_required_fields\"]),\n|                     \"output_required_fields\": list(contract[\"output_required_fields\"]),\n|                     \"source_obligations\": contract[\"source_obligations\"],\n|                 },\n|             }\n| E           AssertionError: assert {'description...', ...}}, ...} == {'role_manife...e2edae2', ...}\n| E             \n| E             Omitting 6 identical items, use -vv to show\n| E             Differing items:\n| E             {'source_file_sha256': '0000000000000000000000000000000000000000000000000000000000000'} != {'source_file_sha256': 'e33c65d446bedb5bc1d372f8bcdd1b59968a0a3093ff23f300cb0af0dddebc3e'}\n| E             Use -v to get more diff\n| \n| orchestrator/tests/test_codex_agents.py:181: AssertionError\n| __________ test_current_sources_render_byte_exact_and_native_is_empty __________\n| [gw2] linux -- Python 3.10.12 /bin/python3.10\n| \n|     def test_current_sources_render_byte_exact_and_native_is_empty():\n| >       assert CCA.check(_REPO) == []\n| E       AssertionError: assert ['/work/1/SFC...ourceから再生成する'] == []\n| E         \n| E         Left contains one more item: '/work/1/SFC/tanab/izanagi/.claude/worktrees/t1356-sort-closed-region-wiring/.codex/role-adapters/auditor.json: rendered adapter byte parity drift。manifest/Claude sourceから再生成する'\n| E         Use -v to get more diff\n| \n| orchestrator/tests/test_codex_agents.py:160: AssertionError\n| ________ test_consumer_required_field_drift_is_detected_from_source_ast ________\n| [gw3] linux -- Python 3.10.12 /bin/python3.10\n| \n|     def test_consumer_required_field_drift_is_detected_from_source_ast():\n|         root = _fixture()\n|         try:\n|             path = root / \"orchestrator\" / \"campaign\" / \"auditor_gate.py\"\n|             text = path.read_text(encoding=\"utf-8\")\n|             assert 'digest = a[\"diff_digest\"]' in text\n|             path.write_text(text.replace('digest = a[\"diff_digest\"]',\n|                                          'digest = a.get(\"diff_digest\")', 1), encoding=\"utf-8\")\n| >           assert any(\"consumer required field drift\" in finding for finding in CCA.check(root))\n| E           assert False\n| E            +  where False = any(<generator object test_consumer_required_field_drift_is_detected_from_source_ast.<locals>.<genexpr> at 0x14ccf581fa70>)\n| \n| orchestrator/tests/test_codex_agents.py:1194: AssertionError\n| _____ test_project_config_native_role_is_rejected_and_globals_are_allowed ______\n| [gw1] linux -- Python 3.10.12 /bin/python3.10\n| \n|     def test_project_config_native_role_is_rejected_and_globals_are_allowed():\n|         root = _fixture()\n|         try:\n|             config = root / \".codex\" / \"config.toml\"\n|             config.write_text(\n|                 \"[agents]\\nmax_threads = 4\\nmax_depth = 1\\ninterrupt_message = true\\n\",\n|                 encoding=\"utf-8\",\n|             )\n| >           assert CCA.check(root) == []\n| E           AssertionError: assert ['/tmp/izanag...ourceから再生成する'] == []\n| E             \n| E             Left contains one more item: '/tmp/izanagi-codex-agents-w9cfl9nn/.codex/role-adapters/auditor.json: rendered adapter byte parity drift。manifest/Claude sourceから再生成する'\n| E             Use -v to get more diff\n| \n| orchestrator/tests/test_codex_agents.py:274: AssertionError\n| __________________ test_any_native_discovery_toml_is_rejected __________________\n| [gw0] linux -- Python 3.10.12 /bin/python3.10\n| \n|     def test_any_native_discovery_toml_is_rejected():\n|         root = _fixture()\n|         try:\n|             for name in (\"auditor.toml\", \"planner-v4.toml\", \"mystery.toml\"):\n|                 (root / \".codex\" / \"agents\" / name).write_text(\n|                     \"not even valid TOML\\n\", encoding=\"utf-8\"\n|                 )\n|             findings = CCA.check(root)\n| >           assert len(findings) == 3\n| E           AssertionError: assert 1 == 3\n| E            +  where 1 = len(['/tmp/izanagi-codex-agents-88847ua6/.codex/role-adapters/auditor.json: rendered adapter byte parity drift。manifest/Claude sourceから再生成する'])\n| \n| orchestrator/tests/test_codex_agents.py:260: AssertionError\n| =========================== short test summary info ============================\n| FAILED orchestrator/tests/test_codex_agents.py::test_all_adapters_pin_model_policy_and_blocked_runtime_activation\n| FAILED orchestrator/tests/test_codex_agents.py::test_current_sources_render_byte_exact_and_native_is_empty\n| FAILED orchestrator/tests/test_codex_agents.py::test_consumer_required_field_drift_is_detected_from_source_ast\n| FAILED orchestrator/tests/test_codex_agents.py::test_project_config_native_role_is_rejected_and_globals_are_allowed\n| FAILED orchestrator/tests/test_codex_agents.py::test_any_native_discovery_toml_is_rejected\n| 5 failed in 2.44s\n| IZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n| === IZANAGI FAILURE DIGEST v1 BEGIN ===\n| IZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_codex_agents.py::test_all_adapters_pin_model_policy_and_blocked_runtime_activation\" nodeid_bytes=106 nodeid_omitted_bytes=0 source_bytes=2372 retained_bytes=2372 omitted_bytes=0 rendered_excerpt_bytes=2459 sha256=a130061e2f58d2eb3a5594de82a1ddf8baff74c2e707c92eb2200731cb6795fc\n| --- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n| > [gw4] linux -- Python 3.10.12 /bin/python3.10\n| > \n| >     def test_all_adapters_pin_model_policy_and_blocked_runtime_activation():\n| >         specs = CCA.ROLE_SPEC.load_role_specs(_REPO)\n| >         for role, spec in specs.items():\n| >             adapter = CCA.ROLE_SPEC.load_json_strict(\n| >                 _REPO / \".codex\" / \"role-adapters\" / f\"{role}.json\"\n| >             )\n| >             assert adapter[\"model\"] == spec.codex_model\n| >             assert adapter[\"model_reasoning_effort\"] == spec.codex_reasoning_effort\n| >             assert adapter[\"mode\"] == \"static-dormant\"\n| >             assert adapter[\"runtime_boundary\"] == \"static-only-runtime-blocked\"\n| >             assert adapter[\"runtime_activation\"] == {\n| >                 \"status\": \"blocked\",\n| >                 \"reason\": \"uncontrollable_additional_tools\",\n| >                 \"uncontrollable_surface\": \"input.additional_tools\",\n| >                 \"evidence_owner\": \"runtime-launcher-additional-tools-attestation\",\n| >             }\n| >             contract = ROLE_IO_CONTRACTS[role]\n| > >           assert adapter[\"review_ledger\"] == {\n| >                 \"role_manifest_sha256\": ROLE_MANIFEST_SHA256[role],\n| >                 \"developer_instruction_template_sha256\": (\n| >                     DEVELOPER_INSTRUCTION_TEMPLATE_SHA256\n| >                 ),\n| >                 \"source_file_sha256\": SOURCE_FILE_SHA256[role],\n| >                 \"description_sha256\": DESCRIPTION_SHA256[role],\n| >                 \"input_schema_sha256\": SCHEMA_SHA256[role][\"input\"],\n| >                 \"output_schema_sha256\": SCHEMA_SHA256[role][\"output\"],\n| >                 \"io_contract\": {\n| >                     \"mode\": contract[\"mode\"],\n| >                     \"input_required_fields\": list(contract[\"input_required_fields\"]),\n| >                     \"output_required_fields\": list(contract[\"output_required_fields\"]),\n| >                     \"source_obligations\": contract[\"source_obligations\"],\n| >                 },\n| >             }\n| > E           AssertionError: assert {'description...', ...}}, ...} == {'role_manife...e2edae2', ...}\n| > E             \n| > E             Omitting 6 identical items, use -vv to show\n| > E             Differing items:\n| > E             {'source_file_sha256': '0000000000000000000000000000000000000000000000000000000000000'} != {'source_file_sha256': 'e33c65d446bedb5bc1d372f8bcdd1b59968a0a3093ff23f300cb0af0dddebc3e'}\n| > E             Use -v to get more diff\n| > \n| > orchestrator/tests/test_codex_agents.py:181: AssertionError\n| --- IZANAGI FAILURE EXCERPT rank=1 END ---\n| IZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_codex_agents.py::test_consumer_required_field_drift_is_detected_from_source_ast\" nodeid_bytes=103 nodeid_omitted_bytes=0 source_bytes=845 retained_bytes=845 omitted_bytes=0 rendered_excerpt_bytes=876 sha256=bf4bf6698b741c52f805fe754b860158eeb0bccbb99317cdc5c75de2cb32107b\n| --- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n| > [gw3] linux -- Python 3.10.12 /bin/python3.10\n| > \n| >     def test_consumer_required_field_drift_is_detected_from_source_ast():\n| >         root = _fixture()\n| >         try:\n| >             path = root / \"orchestrator\" / \"campaign\" / \"auditor_gate.py\"\n| >             text = path.read_text(encoding=\"utf-8\")\n| >             assert 'digest = a[\"diff_digest\"]' in text\n| >             path.write_text(text.replace('digest = a[\"diff_digest\"]',\n| >                                          'digest = a.get(\"diff_digest\")', 1), encoding=\"utf-8\")\n| > >           assert any(\"consumer required field drift\" in finding for finding in CCA.check(root))\n| > E           assert False\n| > E            +  where False = any(<generator object test_consumer_required_field_drift_is_detected_from_source_ast.<locals>.<genexpr> at 0x14ccf581fa70>)\n| > \n| > orchestrator/tests/test_codex_agents.py:1194: AssertionError\n| --- IZANAGI FAILURE EXCERPT rank=2 END ---\n| IZANAGI_FAILURE rank=3 category=failed when=call nodeid=\"orchestrator/tests/test_codex_agents.py::test_project_config_native_role_is_rejected_and_globals_are_allowed\" nodeid_bytes=108 nodeid_omitted_bytes=0 source_bytes=821 retained_bytes=821 omitted_bytes=0 rendered_excerpt_bytes=913 sha256=0acd5bd4adc3e3517be5a44df8b657bc2c9fa8209ef76061a7776dc7fc2f4c62\n| --- IZANAGI FAILURE EXCERPT rank=3 BEGIN ---\n| > [gw1] linux -- Python 3.10.12 /bin/python3.10\n| > \n| >     def test_project_config_native_role_is_rejected_and_globals_are_allowed():\n| >         root = _fixture()\n| >         try:\n| >             config = root / \".codex\" / \"config.toml\"\n| >             config.write_text(\n| >                 \"[agents]\\x5cnmax_threads = 4\\x5cnmax_depth = 1\\x5cninterrupt_message = true\\x5cn\",\n| >                 encoding=\"utf-8\",\n| >             )\n| > >           assert CCA.check(root) == []\n| > E           AssertionError: assert ['/tmp/izanag...ource\\u304b\\u3089\\u518d\\u751f\\u6210\\u3059\\u308b'] == []\n| > E             \n| > E             Left contains one more item: '/tmp/izanagi-codex-agents-w9cfl9nn/.codex/role-adapters/auditor.json: rendered adapter byte parity drift\\u3002manifest/Claude source\\u304b\\u3089\\u518d\\u751f\\u6210\\u3059\\u308b'\n| > E             Use -v to get more diff\n| > \n| > orchestrator/tests/test_codex_agents.py:274: AssertionError\n| --- IZANAGI FAILURE EXCERPT rank=3 END ---\n| IZANAGI_FAILURE rank=4 category=failed when=call nodeid=\"orchestrator/tests/test_codex_agents.py::test_any_native_discovery_toml_is_rejected\" nodeid_bytes=83 nodeid_omitted_bytes=0 source_bytes=726 retained_bytes=726 omitted_bytes=0 rendered_excerpt_bytes=784 sha256=2be5dab25b12d5b52612192d30b8e102aaebf0457e3203c3e8a969a0a3a29a2b\n| --- IZANAGI FAILURE EXCERPT rank=4 BEGIN ---\n| > [gw0] linux -- Python 3.10.12 /bin/python3.10\n| > \n| >     def test_any_native_discovery_toml_is_rejected():\n| >         root = _fixture()\n| >         try:\n| >             for name in (\"auditor.toml\", \"planner-v4.toml\", \"mystery.toml\"):\n| >                 (root / \".codex\" / \"agents\" / name).write_text(\n| >                     \"not even valid TOML\\x5cn\", encoding=\"utf-8\"\n| >                 )\n| >             findings = CCA.check(root)\n| > >           assert len(findings) == 3\n| > E           AssertionError: assert 1 == 3\n| > E            +  where 1 = len(['/tmp/izanagi-codex-agents-88847ua6/.codex/role-adapters/auditor.json: rendered adapter byte parity drift\\u3002manifest/Claude source\\u304b\\u3089\\u518d\\u751f\\u6210\\u3059\\u308b'])\n| > \n| > orchestrator/tests/test_codex_agents.py:260: AssertionError\n| --- IZANAGI FAILURE EXCERPT rank=4 END ---\n| IZANAGI_FAILURE rank=5 category=failed when=call nodeid=\"orchestrator/tests/test_codex_agents.py::test_current_sources_render_byte_exact_and_native_is_empty\" nodeid_bytes=99 nodeid_omitted_bytes=0 source_bytes=575 retained_bytes=575 omitted_bytes=0 rendered_excerpt_bytes=641 sha256=0a2ac69ece08dcccce73fe8b44e1c2ad8e2cb60efad32cd59d138c632f702ad7\n| --- IZANAGI FAILURE EXCERPT rank=5 BEGIN ---\n| > [gw2] linux -- Python 3.10.12 /bin/python3.10\n| > \n| >     def test_current_sources_render_byte_exact_and_native_is_empty():\n| > >       assert CCA.check(_REPO) == []\n| > E       AssertionError: assert ['/work/1/SFC...ource\\u304b\\u3089\\u518d\\u751f\\u6210\\u3059\\u308b'] == []\n| > E         \n| > E         Left contains one more item: '/work/1/SFC/tanab/izanagi/.claude/worktrees/t1356-sort-closed-region-wiring/.codex/role-adapters/auditor.json: rendered adapter byte parity drift\\u3002manifest/Claude source\\u304b\\u3089\\u518d\\u751f\\u6210\\u3059\\u308b'\n| > E         Use -v to get more diff\n| > \n| > orchestrator/tests/test_codex_agents.py:160: AssertionError\n| --- IZANAGI FAILURE EXCERPT rank=5 END ---\n| IZANAGI_FAILURE_DIGEST_ACCOUNT failures=5 failed=5 errors=0 selected=5 omitted_failures=0 source_bytes=5339 retained_bytes=5339 omitted_bytes=0 budget_bytes=49152 rendered_bytes=8150 omitted_manifest_sha256=-\n| === IZANAGI FAILURE DIGEST v1 END ===\n[Pegasus dispatch] request 925678.nqsv child stdout end\n[Pegasus dispatch] request 925678.nqsv child stderr begin\n| 警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\n| 警告: submodule marker /work/1/SFC/tanab/izanagi/.claude/worktrees/t1356-sort-closed-region-wiring/external/ccbench/CMakeLists.txt がありません。targeted run のため初期化せず続行します。\n| \n| ============================================================\n| Request ID:             925678.nqsv\n| Request Name:           izdw-f36e83cc2e\n| Queue:                  gen_S@nqsv\n| Number of Jobs:         1\n| User Name:              tanab\n| Group Name:             SFC\n| Created Request Time:   Thu Aug 20 01:11:25 2026\n| Started Request Time:   Thu Aug 20 01:11:36 2026\n| Ended Request Time:     Thu Aug 20 01:11:40 2026\n| Resources Information:\n|   Elapse:               8S\n|   Remaining Elapse:     3592S\n| ============================================================\n[Pegasus dispatch] request 925678.nqsv child stderr end\nIZANAGI_TASK_RUN_DIAGNOSTIC_V1 pilot-closed:max-task-runs\n",
+        "stdout_sha256": "cb136711142ace36045a34a199af5e9024f20c10b8225e15fe4d25b96a46d0f0"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "9ff382dd1fe300d7feeca6cbcb705b77eb0395eb0e46361c6177710403762ae9",
+      "duration_s": 28.051,
+      "expected_nodes": [
+        "orchestrator/tests/test_codex_agents.py::test_any_native_discovery_toml_is_rejected",
+        "orchestrator/tests/test_codex_agents.py::test_project_config_native_role_is_rejected_and_globals_are_allowed",
+        "orchestrator/tests/test_codex_agents.py::test_current_sources_render_byte_exact_and_native_is_empty",
+        "orchestrator/tests/test_codex_agents.py::test_consumer_required_field_drift_is_detected_from_source_ast",
+        "orchestrator/tests/test_codex_agents.py::test_all_adapters_pin_model_policy_and_blocked_runtime_activation"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_codex_agents.py::test_all_adapters_pin_model_policy_and_blocked_runtime_activation",
+        "orchestrator/tests/test_codex_agents.py::test_current_sources_render_byte_exact_and_native_is_empty",
+        "orchestrator/tests/test_codex_agents.py::test_consumer_required_field_drift_is_detected_from_source_ast",
+        "orchestrator/tests/test_codex_agents.py::test_project_config_native_role_is_rejected_and_globals_are_allowed",
+        "orchestrator/tests/test_codex_agents.py::test_any_native_discovery_toml_is_rejected"
+      ],
+      "hang_risk": false,
+      "id": "t1356.m4-adapter-internal-pin-mismatch",
+      "injection_diff_sha256": "6af80d88207122270ab6ac79a2f76f845a0a8a1b64ec8867e5d4493b665fb5b9",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "69f0d73cdbd3eea759de5827d60128f1b3beb26a7b87df990df8eab16c77d109",
+      "replacements": [
+        {
+          "file": ".codex/role-adapters/auditor.json",
+          "new": "\"source_file_sha256\": \"0000000000000000000000000000000000000000000000000000000000000\"",
+          "old": "\"source_file_sha256\": \"e33c65d446bedb5bc1d372f8bcdd1b59968a0a3093ff23f300cb0af0dddebc3e\""
+        }
+      ],
+      "repo_head": "2ec1d382767f8ffb5ff68882c4c6294efb99cb9d",
+      "runner_sha256": "8c02bee2f5eac08b47c5f29901bf7bfaa1d734bff35688c57389baec5cf7e1e5",
+      "spec_sha256": "10cba832d2f59f9ee97775c1c79132188cdafc406fde7136cb09c14d68a95d37",
+      "status": "KILLED",
+      "test_output_sha256": "cb136711142ace36045a34a199af5e9024f20c10b8225e15fe4d25b96a46d0f0",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "c5a33eb6112256e27361b79647ca5d15f1fe02eb7b2679d8efdb6100dbe1a6e8"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": null,
+        "receipt_path": null,
+        "runner_mode": "local",
+        "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\n[Pegasus dispatch] job を gen_S へ投入します (izdw-2d14a882fc)\n[Pegasus dispatch] request ID 925672.nqsv を受理しました\n[Pegasus dispatch] request 925672.nqsv の状態: QUE\n[Pegasus dispatch] request 925672.nqsv の状態: RUN\n[Pegasus dispatch] request 925672.nqsv の状態: END\n[Pegasus dispatch] request 925672.nqsv の成果物収集を開始します\n[Pegasus dispatch] receipt を /work/1/SFC/tanab/izanagi/.claude/worktrees/t1356-sort-closed-region-wiring/output/pegasus-dispatch/2d14a882fc2b6bcecefc01a319b5c2ad/receipt.json へ保存しました (child rc=0)\n[Pegasus dispatch] request 925672.nqsv child stdout begin\n| orchestrator/tests/test_codex_agents.py::test_any_native_discovery_toml_is_rejected\n| orchestrator/tests/test_codex_agents.py::test_project_config_native_role_is_rejected_and_globals_are_allowed\n| orchestrator/tests/test_codex_agents.py::test_current_sources_render_byte_exact_and_native_is_empty\n| orchestrator/tests/test_codex_agents.py::test_consumer_required_field_drift_is_detected_from_source_ast\n| orchestrator/tests/test_codex_agents.py::test_all_adapters_pin_model_policy_and_blocked_runtime_activation\n| \n| 5 tests collected in 0.19s\n| IZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"serial\"}\n[Pegasus dispatch] request 925672.nqsv child stdout end\n[Pegasus dispatch] request 925672.nqsv child stderr begin\n| 警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\n| \n| ============================================================\n| Request ID:             925672.nqsv\n| Request Name:           izdw-2d14a882fc\n| Queue:                  gen_S@nqsv\n| Number of Jobs:         1\n| User Name:              tanab\n| Group Name:             SFC\n| Created Request Time:   Thu Aug 20 01:10:25 2026\n| Started Request Time:   Thu Aug 20 01:10:36 2026\n| Ended Request Time:     Thu Aug 20 01:10:37 2026\n| Resources Information:\n|   Elapse:               5S\n|   Remaining Elapse:     3595S\n| ============================================================\n[Pegasus dispatch] request 925672.nqsv child stderr end\nIZANAGI_TASK_RUN_DIAGNOSTIC_V1 pilot-closed:max-task-runs\n",
+        "stdout_sha256": "e69dfc17aeea4f98f2d9ec197292237b322869e5e4a78649312ff31f13965140"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_codex_agents.py::test_any_native_discovery_toml_is_rejected",
+        "orchestrator/tests/test_codex_agents.py::test_project_config_native_role_is_rejected_and_globals_are_allowed",
+        "orchestrator/tests/test_codex_agents.py::test_current_sources_render_byte_exact_and_native_is_empty",
+        "orchestrator/tests/test_codex_agents.py::test_consumer_required_field_drift_is_detected_from_source_ast",
+        "orchestrator/tests/test_codex_agents.py::test_all_adapters_pin_model_policy_and_blocked_runtime_activation"
+      ],
+      "duration_s": 28.1,
+      "rc": 0,
+      "repo_head": "2ec1d382767f8ffb5ff68882c4c6294efb99cb9d",
+      "runner_sha256": "8c02bee2f5eac08b47c5f29901bf7bfaa1d734bff35688c57389baec5cf7e1e5",
+      "spec_sha256": "10cba832d2f59f9ee97775c1c79132188cdafc406fde7136cb09c14d68a95d37",
+      "status": "PASSED",
+      "tool_sha256": "c5a33eb6112256e27361b79647ca5d15f1fe02eb7b2679d8efdb6100dbe1a6e8"
+    },
+    "hang_timeout_seconds": 600.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "t1356.m4-adapter-internal-pin-mismatch": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_codex_agents.py::test_any_native_discovery_toml_is_rejected",
+          "orchestrator/tests/test_codex_agents.py::test_project_config_native_role_is_rejected_and_globals_are_allowed",
+          "orchestrator/tests/test_codex_agents.py::test_current_sources_render_byte_exact_and_native_is_empty",
+          "orchestrator/tests/test_codex_agents.py::test_consumer_required_field_drift_is_detected_from_source_ast",
+          "orchestrator/tests/test_codex_agents.py::test_all_adapters_pin_model_policy_and_blocked_runtime_activation"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "6af80d88207122270ab6ac79a2f76f845a0a8a1b64ec8867e5d4493b665fb5b9",
+        "replacements": [
+          {
+            "file": ".codex/role-adapters/auditor.json",
+            "new": "\"source_file_sha256\": \"0000000000000000000000000000000000000000000000000000000000000\"",
+            "old": "\"source_file_sha256\": \"e33c65d446bedb5bc1d372f8bcdd1b59968a0a3093ff23f300cb0af0dddebc3e\""
+          }
+        ]
+      }
+    },
+    "registration_sha256": "6a50d4d3e3196476dfa81efc6ff364951c81ff0b5adce87d9095b1e28e36b419",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "local",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "python3",
+      "tools/run_tests.py",
+      "orchestrator/tests/test_codex_agents.py::test_any_native_discovery_toml_is_rejected",
+      "orchestrator/tests/test_codex_agents.py::test_project_config_native_role_is_rejected_and_globals_are_allowed",
+      "orchestrator/tests/test_codex_agents.py::test_current_sources_render_byte_exact_and_native_is_empty",
+      "orchestrator/tests/test_codex_agents.py::test_consumer_required_field_drift_is_detected_from_source_ast",
+      "orchestrator/tests/test_codex_agents.py::test_all_adapters_pin_model_policy_and_blocked_runtime_activation",
+      "-rf",
+      "-q",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 900.0
+  },
+  "repo_head": "2ec1d382767f8ffb5ff68882c4c6294efb99cb9d",
+  "runner_identity": {
+    "command": [
+      "python3",
+      "tools/run_tests.py",
+      "orchestrator/tests/test_codex_agents.py::test_any_native_discovery_toml_is_rejected",
+      "orchestrator/tests/test_codex_agents.py::test_project_config_native_role_is_rejected_and_globals_are_allowed",
+      "orchestrator/tests/test_codex_agents.py::test_current_sources_render_byte_exact_and_native_is_empty",
+      "orchestrator/tests/test_codex_agents.py::test_consumer_required_field_drift_is_detected_from_source_ast",
+      "orchestrator/tests/test_codex_agents.py::test_all_adapters_pin_model_policy_and_blocked_runtime_activation",
+      "-rf",
+      "-q",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": null,
+    "dispatch_entrypoint_sha256": null,
+    "dispatch_head_blob_sha256": null,
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/t1356-sort-closed-region-wiring/tools/run_tests.py",
+    "entrypoint_sha256": "9f7292812cfa9a362bfa376d077b3ae21a22efb4be00e394f1a47f4dac8e5187",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+    "head_blob_sha256": "9f7292812cfa9a362bfa376d077b3ae21a22efb4be00e394f1a47f4dac8e5187",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "3fddaebfd0a66aa30363f14b10e4e82423388478",
+    "runner_mode": "local"
+  },
+  "runner_sha256": "8c02bee2f5eac08b47c5f29901bf7bfaa1d734bff35688c57389baec5cf7e1e5",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "10cba832d2f59f9ee97775c1c79132188cdafc406fde7136cb09c14d68a95d37",
+  "summary": {
+    "KILLED": 1,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 0,
+    "TIMEOUT": 0,
+    "completed": 1,
+    "matching": 1,
+    "recorded": 1,
+    "registered": 1
+  },
+  "tool_identity": {
+    "head_blob_sha256": "766f168f1da5b8b67c49374a2ad24928526b3658863d2a3291cfdc8ff5d705ac",
+    "path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/t1356-sort-closed-region-wiring/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "766f168f1da5b8b67c49374a2ad24928526b3658863d2a3291cfdc8ff5d705ac"
+  },
+  "tool_sha256": "c5a33eb6112256e27361b79647ca5d15f1fe02eb7b2679d8efdb6100dbe1a6e8",
+  "updated_at": "2026-08-19T16:11:51.173387+00:00"
+}
