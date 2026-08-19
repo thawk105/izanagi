@@ -219,8 +219,13 @@ def _campaign_slug(campaign_id: str) -> str:
     return cid
 
 
+def validate_campaign_id(campaign_id: str) -> str:
+    """campaign layout と同じ規則で campaign-id を検証する。"""
+    return _campaign_slug(campaign_id)
+
+
 def campaign_layout(campaign_id: str, output_root: str = "") -> CampaignLayout:
-    cid = _campaign_slug(campaign_id)
+    cid = validate_campaign_id(campaign_id)
     root = resolve_campaign_output_root("official", output_root)
     return CampaignLayout(root=os.path.join(root, "campaigns", cid))
 
@@ -491,7 +496,7 @@ def exploration_campaign_layout(
     campaign_id: str, output_root: str = "",
 ) -> ExplorationCampaignLayout:
     """探索 layout を明示 root > env base root > repo 既定の順で構築する。"""
-    cid = _campaign_slug(campaign_id)
+    cid = validate_campaign_id(campaign_id)
     root = resolve_campaign_output_root("exploration", output_root)
     return ExplorationCampaignLayout(
         root=os.path.join(root, "exploration", "campaigns", cid),

@@ -8502,6 +8502,43 @@ def test_exploration_claim_uses_environment_output_root_and_single_identity():
 
 
 @pytest.mark.usefixtures("ratified_enforcement_source")
+def test_single_process_rejects_layout_invalid_campaign_identity_before_claim():
+    from orchestrator.campaign import campaign_claim, loop as L
+
+    contract = ec.lookup("pegasus")
+    base = Path(_tmpdir("izanagi_loop_invalid_campaign_identity_"))
+    claim_root = base / "env" / "pegasus" / "claims"
+    claim_root.mkdir(parents=True)
+    policy = _single_process_test_policy(base)
+    claim_calls = []
+    saved_claim = campaign_claim.acquire_claim
+    campaign_claim.acquire_claim = (
+        lambda *args, **kwargs: claim_calls.append((args, kwargs)) or
+        saved_claim(*args, **kwargs)
+    )
+    cfg = CampaignConfig(
+        spec_slug=".hidden", search_tag="enum",
+        spec_content="layout-invalid-campaign-identity", ccbench_commit="deadbeef",
+    )
+    try:
+        with _campaign_reservation_environment(), _mock_required_attestation(L, []):
+            with pytest.raises(ValueError, match="不正な campaign_id"):
+                L.run_campaign(
+                    cfg, [], PerfConfig(records=1, threads=1), contract.env_tag,
+                    contract.clocks_per_us, numactl=contract.numactl,
+                    do_bench=False, output_root=str(base), log=lambda *a: None,
+                    env_contract=contract,
+                    authorization_contract=ec.authorize(contract.env_tag),
+                    build_context=_BUILD_CONTEXT, declared_use_class="official",
+                    durable_root_policy=policy,
+                )
+    finally:
+        campaign_claim.acquire_claim = saved_claim
+    assert claim_calls == []
+    assert list(claim_root.glob("*.claim")) == []
+
+
+@pytest.mark.usefixtures("ratified_enforcement_source")
 def test_single_process_rejects_missing_reservation_binding_before_claim():
     from orchestrator.campaign import loop as L, reservation
 

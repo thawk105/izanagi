@@ -28,7 +28,7 @@ from .env_contract import AuthorizedContract, ExecutionEnvironmentContract
 from .layout import (campaign_layout, env_scope_dir,
                      exploration_campaign_layout,
                      resolve_campaign_output_root,
-                     write_capability_for_directory)
+                     validate_campaign_id, write_capability_for_directory)
 from .model import CampaignConfig, Genome, STAGE_ABORT, STAGE_BUILD_START
 from .pipeline import (AdmissionCapabilityResolver, EvalResult, PerfConfig, S2_TAG,
                        SEARCH_CONFIG_VERIFY_KEY,
@@ -139,6 +139,7 @@ def _authorize_measurement(
 
     bound_cfg = ident.bind_environment_contract(cfg, contract)
     campaign_identity = str(ident.campaign_id(bound_cfg))
+    validate_campaign_id(campaign_identity)
 
     if reservation.is_reservation_required(contract.isolation_policy):
         env = os.environ
