@@ -14,7 +14,8 @@ EXPECTED_ROLE_COUNT = 13
 
 SOURCE_FILE_SHA256 = {
     # Reviewed 2026-08-19: T-1356; sort closed-region 残余の gallery型17-21追加、violation type 上限21。
-    "auditor": "fc90e79334754d54a0b735c353351335ba5568075853facd7bd0730a9f505022",
+    # Reviewed 2026-08-20: T-1356 fix; 型17-21の具体的な境界条件を削除し、verifier_blind_spot への事後報告へ移管。
+    "auditor": "e33c65d446bedb5bc1d372f8bcdd1b59968a0a3093ff23f300cb0af0dddebc3e",
     "axis-proposer": "8b33fafbf95d530903f0e56a104147beab98151ed06c7d2fd6b2c3ebb6222be0",
     "calibrator": "dbe696286856738afb79369e772998bfad97bbdaccbcef5a8e0d1773f6c35b62",
     "coder": "5aac447ae26f53d3d61dac47c353201d96039231f930a968a36a68951d8f5c34",

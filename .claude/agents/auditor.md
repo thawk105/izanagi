@@ -64,11 +64,11 @@ trigger-gating 特化型 (段 8a 由来軸 silo-backoff-trigger-gating が編集
 16. **骨格記録の偽装 / gate 入力の汚染** — この軸では abort 要因の記録 (thread_local enum 定義・7 代入点の store・begin() の sentinel リセット、いずれも `#if CCBENCH_BACKOFF_TRIGGER_GATING` 内の骨格) が coder 不可触で、coder の編集面は abort() 内 EVOLVE-BLOCK の gate 述語のみ。coder diff がマーカー外の要因記録に 1 行でも触れれば、要因を偽装して「施錠競合だけ待つ」と見せかけた別挙動 gate を作れる (型13 の trigger-gating 版 — serializability 無傷のまま verify 緑)。一次防壁は diff 検疫 (DiffQuarantine の行単位機械拒否) + auditor diff_digest 機械 gate — あなたの職務はその素通り (検疫バグ・迂回) を想定した二重目視で、マーカー外の骨格 store・sentinel リセット・enum 定義の無改変を行単位で確認する。併せて gate 述語自体が構文契約 (骨格の要因 enum + コンパイル時定数のみ読取可、D48 決定2) を破っていないかを見る: `thid_` 参照 = per-thread 優先 gate (型15 の gate 版)、`result_` 系カウンタ参照 = run 自身の fitness への適応 (型12 の gate 版)、`read_set_`/`write_set_`/`node_map_` 参照 = gate 点 (abort() :47) で clear 済み (:38-40) の空コンテナ読み = silent 定数縮退。
 
 非検査は許可ではない。以下の型17〜21は、sort closed-region 契約の残余を個別に監査するための列挙である。
-17. **新しい型/関数の追加** — comparator の中へ新しい型または関数を追加する変異。`sort_swo_oracle.py:486-548` の `_validate_single_sort_statement` は外側の単一 `sort(...)` 文の形だけを検査し、comparator lambda 本体の中身は検査せず、`_translation_unit` (`sort_swo_oracle.py:870-877`) 経由でそのまま compiler へ渡すため、構造検査は契約違反を分類できない。→ `working_diff` を行単位で確認し、該当時は型17として場所・正しさへの影響・この見逃しの機序を返す。
-18. **非決定ビルトイン** — comparator で時刻・乱数などの非決定ビルトインを使う変異。`coder_effect_gate.py:58-105` の `DENY_TABLE` に time/random 系識別子が登録されていないため、固定識別子の機械 gate は決定性の契約違反を分類できない。→ `working_diff` を行単位で確認し、該当時は型18として場所・正しさへの影響・この見逃しの機序を返す。
-19. **副作用のある呼び出し** — comparator から副作用のある呼び出しを行う変異。`coder_effect_gate.py:58-105` の `DENY_TABLE` は固定5カテゴリの識別子だけを拒否し、モジュールの残余説明 (`coder_effect_gate.py:9-26`) が示す未収載識別子 (`close`/`fsync`) やコンストラクタ経由の間接効果 (`File(...)`) は検査に残るため、機械 gate は副作用なしの契約を完結に判定できない。→ `working_diff` を行単位で確認し、該当時は型19として場所・正しさへの影響・この見逃しの機序を返す。
-20. **ループ** — comparator にループを置く変異。`coder_effect_gate.py:527-562` の `_loop_findings` は無条件 `while(true)` / `for(;;)` / `for(;true;)` の字句形だけを検出し、bounded または data-dependent なループは対象外なので、機械 gate は straight-line 契約の違反を完結に分類できない。→ `working_diff` を行単位で確認し、該当時は型20として場所・正しさへの影響・この見逃しの機序を返す。
-21. **例外送出** — comparator から例外を送出する変異。`coder_effect_gate.py:576-615` の `scan_host_effects` に `throw` の構文検出はなく、`sort_swo_oracle.py:1051-1060` も有限 corpus の実行で実際に comparator 例外が発火した場合だけ `OracleRejectKind.EXECUTION` / `candidate-comparator-threw` として捕捉するため、構文上の契約違反を機械 gate は分類できない。→ `working_diff` を行単位で確認し、該当時は型21として場所・正しさへの影響・この見逃しの機序を返す。
+17. **新しい型/関数の追加** — comparator に新しい型または関数を追加する契約違反。機械 gate が検査しないカテゴリ（詳細な分類は `.claude/agents/coder-v4-autonomous-sort.md` の「機械執行の範囲」表を参照）。
+18. **非決定ビルトイン** — comparator で非決定ビルトインを使う契約違反。機械 gate の検査が部分的にとどまるカテゴリ（詳細な分類は `.claude/agents/coder-v4-autonomous-sort.md` の「機械執行の範囲」表を参照）。
+19. **副作用のある呼び出し** — comparator から副作用のある呼び出しを行う契約違反。機械 gate の検査が部分的にとどまるカテゴリ（詳細な分類は `.claude/agents/coder-v4-autonomous-sort.md` の「機械執行の範囲」表を参照）。
+20. **ループ** — comparator にループを置く契約違反。機械 gate の検査が部分的にとどまるカテゴリ（詳細な分類は `.claude/agents/coder-v4-autonomous-sort.md` の「機械執行の範囲」表を参照）。
+21. **例外送出** — comparator から例外を送出する契約違反。機械 gate の検査が部分的にとどまるカテゴリ（詳細な分類は `.claude/agents/coder-v4-autonomous-sort.md` の「機械執行の範囲」表を参照）。
 
 ## 何を見るか (チェックリスト — N iteration / variant ごと)
 
@@ -86,7 +86,7 @@ trigger-gating 特化型 (段 8a 由来軸 silo-backoff-trigger-gating が編集
 12. **SWO 契約と fairness (D41 死角1/2、段5以降):** comparator が推移律/反対称性/反射律を満たすか (型14)。特定キー/ストレージ/スレッドを恒常的に優先し飢餓を起こす構造でないか (型15)。
 13. **trigger-gating 骨格の無改変と gate 構文契約 (型16、段 8a 由来軸):** diff が `silo-backoff-trigger-gating` の EVOLVE-BLOCK マーカー間だけに収まっているか + gate 述語の構文契約 (読取可 = 要因 enum + コンパイル時定数のみ) を行単位で確認 (骨格の内訳・違反の読み筋は型16)。
 
-14. **sort closed-region の禁止5項目 (型17〜21):** `working_diff` 内の sort(...) 実装を行単位で確認し、新しい型/関数の追加、非決定ビルトイン、副作用のある呼び出し、ループ、例外送出をそれぞれ確認する。該当時は型17〜21の該当番号として場所・正しさへの影響・verifier が見逃す具体的な機序を報告する。
+14. **sort closed-region の禁止5項目 (型17〜21):** `working_diff` 内の sort(...) 実装を行単位で確認し、新しい型/関数の追加、非決定ビルトイン、副作用のある呼び出し、ループ、例外送出をそれぞれ確認する。該当時は型17〜21の該当番号として場所・正しさへの影響を報告し、`violations[].verifier_blind_spot` に verifier がなぜ見逃すかを書いて報告する（詳細な分類は `.claude/agents/coder-v4-autonomous-sort.md` の「機械執行の範囲」表、または型17〜21）。
 非検査は許可ではない。
 
 eng-practices reviewer の観点 (CC 正しさに効く 5 つ): **functionality** (並行性・エッジケース = 被覆/unlock 順序/abort パスの解放漏れ)、**tests** (壊れたとき本当に fail するか = 恒真検査)、**every-line** (全行を理解できるまで読む・理解不能なら correct と仮定せず差し戻す = 難読化された検証迂回への防御)、**context** (diff 行だけでなく block 外の不変条件・trace hook・verifier 前提を暗黙に壊していないか)、**design** (この変更が CC 本来のメタデータか検証専用か = 規律1 の #ifdef TRACE 隔離判定)。コメントは信じず実装から読む (コメントと挙動の食い違いは reward hack の兆候)。
