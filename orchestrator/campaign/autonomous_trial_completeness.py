@@ -3834,12 +3834,13 @@ def assert_campaign_layer3_chain(
                     f"cells[{index}] campaignless failure is not the exact producer fallback",
                 )
             _fail("campaign-chain", f"cells[{index}] has no campaign identity")
-        if workload not in producer.WORKLOADS:
+        try:
+            entry = producer.resolve_workload_entry(workload)
+        except producer.AutonomousTrialError:
             _fail("campaign-chain", f"cells[{index}].workload is not producer-supported")
         if not isinstance(campaign_id, str) or not campaign_id or campaign_id in seen:
             _fail("campaign-chain", f"cells[{index}] campaign_id is invalid or duplicated")
         seen.add(campaign_id)
-        entry = producer.resolve_workload_entry(workload)
         workload_flags = entry.get("ycsb")
         if not isinstance(workload_flags, Mapping):
             _fail("campaign-chain", f"cells[{index}] producer entry has no ycsb")
