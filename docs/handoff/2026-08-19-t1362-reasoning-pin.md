@@ -18,9 +18,18 @@ folded後は worklog {{T:s8c-batch-limit-blocks-land}} 相当・F412・F383再�
 2. `tools/check_acceptance_reds.py` のprobe worktree dispatchが3/3でorphan-holdに到達
    (F383と同じ復旧手順で解消したが根本原因は別、単発起動でも再現)。
 
-**次の一手**: ユーザー裁定 (上記1の恒久対応方針) が下りてから、
-(a) main側で1が解消されるのを待つか回避策が決まる、(b) 2の原因が切り分けられる、
-のいずれかを満たしたうえで受入を再投入する。T-1362自体の実装をやり直す必要はない。
+**次の一手 (2026-08-20 /rulings 裁定で更新)**: 上記1の恒久対応方針が確定した。
+上限値の引き上げは不採用 — ユーザー裁定「コミット数に比例してコストが増えるテストはやらない。
+それはテストの仕方が間違っている。このリポジトリは成長し続けるから」。調査の結果これは
+D551 (2026-08-19) が既に確立した原則の再確認であり、D551 の narrowing (`validate_condition_
+freeze_at` 1経路のみ) が `_batch_oids` の他経路 (F418系、candidate commit祖先集合 ×
+generation-freeze追跡ファイル) を履歴比例のまま残していたことが再発の原因と判明した (詳細は
+F417 の2026-08-20再発追記、worklog {{T:s8c-batch-limit-d551-residual-proportionality}} 相当
+= fold後の実T番号は worklog を `s8c-batch-limit-d551-residual-proportionality` または
+「D551」「_batch_oids」で検索)。
+(a) この恒久対応 (`_batch_oids` の残る全呼び出し経路をD551と同じ設計でnarrowingし、no-touch
+commit数に依存しない回帰テストを経路ごとに置く) が着地する、(b) 2 (orphan-hold) の原因が
+切り分けられる、両方を満たしたうえで受入を再投入する。T-1362自体の実装をやり直す必要はない。
 受入lease状態は解放済み (`wave_land_window.py status --wave dev-wave-t1362-reasoning-pin`
 で`state=free`確認済み)。repo外の受入ログは
 `/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t1362-reasoning-pin/acceptance-child-1.log`
