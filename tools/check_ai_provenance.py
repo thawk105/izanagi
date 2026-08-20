@@ -288,6 +288,19 @@ _T470_MERGE2_NOTE = (
     "`role=author` が commit `c0936079` / `2d111bfc` / `d59f53d4` で書き、main 側は各 wave "
     "の land 時に監査済み。親作成 merge のため Codex 著者とは記さない。"
 )
+_T1337_PRE_ACCEPTANCE_MERGE_RULING = (
+    "2026-08-20 dev-wave-t1337-launcher-timing-proof 受入前裁定 "
+    "(ユーザー選択: known-violation 登録)"
+)
+_T1337_PRE_ACCEPTANCE_MERGE_NOTE = (
+    "受入前に親が作成した local main 取り込み merge。実装面で両側が触ったのは "
+    "`orchestrator/tests/test_trial_registry.py` と "
+    "`orchestrator/tests/test_s8c_preregistration_predicates.py` の 2 file で、"
+    "`git diff-tree --cc` は commit 行のみで実質空だったことを確認済み。競合解決による"
+    "新規著作はなく、結果は両側の変更の和集合。wave 側の実装面はこの wave 内の fix commit 等で"
+    "Codex `role=author` が既に書いており、main 側は各 wave land 時に監査済み。親作成 merge の"
+    "ため Codex 著者とは記さない。"
+)
 _T139_MALFORMED_VALUE = (
     "product=claude; model=claude-opus-5[1m]; reasoning=high; "
     "role=orchestrator"
@@ -676,6 +689,12 @@ KNOWN_PROVENANCE_VIOLATIONS = (
         "333605d680ec15f3f74b00e9e2746ae317b85dc5",
         MISSING_CODEX_AUTHOR,
         "2026-08-07 [T-619] docs/archive/worklog-phase3-0807-299.md entry 299 (/rulings 第5回、D230 統一述語 5点採用)",
+    ),
+    KnownViolationSpec(
+        "1d268405f1769fed86565d548fd061b894095a2c",
+        MISSING_CODEX_AUTHOR,
+        _T1337_PRE_ACCEPTANCE_MERGE_RULING,
+        note=_T1337_PRE_ACCEPTANCE_MERGE_NOTE,
     ),
 )
 
