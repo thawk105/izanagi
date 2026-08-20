@@ -23747,3 +23747,90 @@ genuine dot-attribute消費) は、`_load_s8c_schedule_authority`(C05、未実�
 **研究状態への影響:** なし。production の CC variant 受理集合・certified 選択・材料レポートの
 値は変更しない。変わるのは auditor が引用できる violation type の語彙と、それを裏付ける
 schema/gate/pin/adapter の整合だけである。
+
+## D588. attempt 分類の時点証明を registry 内の論理順序偽装不能性として機構化する (2026-08-20)
+
+**決定:**
+
+1. 分類 (classify_attempt) が性能出力を読む前に確定したことの証明を、attempt registry 内での
+   イベント順序の偽装不能性として機構化する。freeze→start→pre-observation-seal→classification→
+   observation-start→terminal の全行を hash chain (event_index / previous_event_sha256 /
+   event_sha256) で結び、registry の genesis が持つ schema_version を以後の全行へ強制する
+   (genesis と異なる schema_version の行は reject する)。retry admission は直前 slot の terminal に
+   observation_start_event_sha256 が存在しないことを必須条件とし、report_sha256 を持つ
+   terminal-failure も同様に observation-start を必須とする。
+2. この機構が証明するのは「registry に記録された論理順序が事後偽装不能である」ことであり、
+   「trusted launcher 自体が実際に OS レベルで性能出力を先読みしていない」ことの独立検証では
+   ない。後者は launcher (呼び出し側コード) の誠実な実装を前提とし続ける。
+3. 性能 read API 自体を registry capability で包み、launcher 自体が信頼できない場合の時点保証を
+   追加する拡張は、本決定の scope 外とする。
+
+**理由:**
+
+- D510 決定4は「分類は信頼側の起動器が...確定する」と、起動器の信頼性を前提として書いている。
+  D550 決定6/7 はこの前提の下で保証範囲を「最初の性能観測より前」へ既に狭めていた。本決定は
+  その系譜のまま「登録された分類が事後に偽装できない」という具体的な機構を追加するものであり、
+  前提そのものを検証する新しい保証を作るものではない。
+- 敵対レビューは、hash chain 単独では「OS レベルで実際に性能出力を先に読んだ上で後から正しい
+  順序を偽装できないか」という別の脅威モデルを閉じないと指摘した。この指摘は正しいが、D510の
+  前提 (起動器は信頼側) の範囲では、レビューが示した迂回はいずれも起動器自身が不誠実である
+  ケースに限られ、正直な起動器を前提とする限り機構は機能する。
+- プロトタイプ基準の下では、完全に敵対的な launcher への防御より、事後監査可能性 (改ざん検出)
+  を優先する。
+
+**却下した選択肢:**
+
+- 性能 read API を capability で包み、launcher 自体の信頼性も機構的に保証する — 呼び出し側の
+  広範な再設計を要し、既存の trusted launcher 前提 (D510) を覆す再裁定に相当するため、
+  本 wave の scope を超える。将来 task 候補として起票する。
+- per-slot の3イベントだけを hash 連鎖し全行連鎖は見送る — 検討したが、既存の full-ref 履歴検査と
+  同じ層への統合であり実装複雑度がむしろ下がること、registry 全体の tamper-evidence という
+  副次的価値もあることから、全行連鎖を採用した。
+
+## D589. 床値 protocol path 固定読取り consumer 6 件の現況を確定し、resolver 化は追加不要と裁定する (2026-08-20)
+
+**決定:** 床値 protocol の固定 path を読む consumer 6 件のうち、「現在の protocol を caller に
+選ばせず index authority 経由で解決する」設計 (D460 型) は既に `certified_writer_admission.py`・
+`s8b_holdout_admission.py._authority()`・`tools/pegasus/floor_campaign.sh` の3件へ適用済みと確認した。
+残り3件のうち `s8b_prediction_runner.py` と `s8b_ratified_freeze.py` は、呼び手が渡す
+`pre_oracle_head` (ただし seal 時点の `git rev-parse HEAD` との一致検査で拘束される) 時点の
+protocol bytes を証明鎖として再検証する設計であり、これを current resolver 経由に置き換えると
+過去 commit 時点の証明が別の protocol bytes で再検証されてしまうため、literal path のまま維持する
+のが正しい。残り1件 (`s8b_holdout_freeze.py:1362-1365`、v2 candidate 生成の working tree 直読) は
+性質上 current の literal read で D460 型変換の対象になり得るが、既存の別チケット
+(生成移行 chain の候補生成 CLI) が (a) `output/s8b-freeze-budget-approvals/g1.json` (承認 artifact)
+不在、(b) `BUDGET_APPROVAL_SHA256` 未 ratify、(c) official mode の result.json 不在、の3条件が
+揃わず今日も到達不能であることを実測し、本 wave では実装しない。
+
+**理由:**
+
+- `pre_oracle_head` の安全性の実体は「歴史 commit だから安全」という抽象論ではなく、
+  seal 時点の `git rev-parse HEAD` との一致検査 (`s8b_prediction_runner.py:1523-1529`) にある。
+  呼び手が任意の過去 commit を自由選択できる経路は実測で確認できなかった。
+- 過去の別 wave の完了記録 (2026-08-17) は「証明鎖の歴史錨定3件」と表現していたが、
+  実際は2件が歴史錨定、1件は current literal read (別チケットで休眠中) であり不正確だった。
+  本決定はこの分類を訂正する。
+- D460 自身は `certified_writer_admission` の current resolver 化だけを決定しており、
+  他 module・shell wrapper の配線は「後続の裁定パッケージ」へ明示的に deferred されていた
+  (恒久除外ではない)。歴史錨定 consumer を対象外とする論拠は D460 が既に決めていたからではなく、
+  証明鎖の再現性を守るという本決定独自の判断である。
+
+**却下した選択肢:**
+
+- 残り3件を一律 resolver 経由へ変換する — 歴史錨定2件では過去の証明鎖が別 bytes で
+  再検証されることになり、未承認 path 差し替えを防ぐという当初の目的と正面から矛盾する。
+- 発火条件不成立のまま v2 candidate 生成側を先行実装する — 条件付き機能は発火条件を満たす
+  既存 artifact が無ければ実装しない (dev-wave `DW-G04`)。承認 artifact も official result も
+  存在しない状態での実装は投機的である。
+
+**残る既知の限界 (このwaveでは対応せず、別チケットで裁定パッケージとして扱う):**
+
+- ratified document 内の `floor_protocol.path` は canonical な相対 POSIX path であること以外の
+  namespace 制約が無い dynamic pointer で、`s8b_ratified_freeze.py` の literal
+  `_SELECTOR_PROTOCOL_PATH` (本決定が対象とする経路) とは独立しクロスチェックもされていない。
+  literal path 側が安全でも、この dynamic pointer 側の受理拡大は未解決のまま残る (T-1216 が対象、
+  本 wave の敵対相談で再確認・file:line 証跡を追加)。
+- `s8b_prediction_runner.py` (`_git_bytes`)、`s8b_floor_campaign.py` (`_pre_oracle_blob`)、
+  `s8b_ratified_freeze.py` の間で、ambient `GIT_DIR` / replace-refs 等を除去する Git 読取り衛生化の
+  適用が不統一であり、`source_digest._sanitized_git_env` と同型の穴が複数 producer/consumer に
+  またがる可能性がある (T-1215 が対象、族一般化の第2 consumer 候補として file:line 証跡を追加)。
