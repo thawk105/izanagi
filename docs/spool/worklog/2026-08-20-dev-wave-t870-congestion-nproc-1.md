@@ -42,34 +42,39 @@ title: '[T-870] 受入全走のボトルネック分析 — item (e) 並列度�
 
 ### 更新
 
-- [T-870] **P2・(a)(b)(c)は別wave実測中・(e)は受入全走で不成立**:
-  `IZANAGI_DISPATCH_QUEUE_WAIT_TIMEOUT_OVERRIDE`/`IZANAGI_DISPATCH_OVERALL_GRACE_OVERRIDE`
-  (`tools/run_tests.py`、commit `dd29fd9c`) により operator が自身の文脈を把握した上で明示的に
-  上書きできるようになったが、既定挙動 (900秒/300秒) は変わらないため、通常の受入・焦点走は
-  queue 混雑時に引き続き rc=16 で落ちる。(a) 受入lease claim〜land/release実時間の実測、
-  (b) 既定walltime(3600秒)とlease TTL(2400秒)の関係、(c) `dev_wave_wait.py`の
-  `--max-wait-seconds`不介入は、別wave (`dev-wave-t870-lease-timing`) が実測中/実測済み — 同wave
-  の記録を正とする。(d) mutation harness自身へcaller-budget-awareな値を明示的に渡す設計
-  (harnessの`timeout_seconds`/`hang_timeout_seconds`を読み、opt-in環境変数経由で安全な値を渡す)
-  は未着手のまま持ち越す。(e) 「queue混雑時は待つのでなく並列度を下げる」
-  (`IZANAGI_TEST_NPROC=4`が単独file実行 (`test_s8b_verdict.py`) では実例で有効だった) は、
-  **受入全走 (フルスイート) には現evidenceでは不成立と確認した**: `login_headroom.grant_budget()`
-  の admission 判定は `IZANAGI_TEST_NPROC` を入力に含まず、`tests-full` operation key の
-  peak履歴 (2026-08-06付、4GiB上限相当の値が残存) の1.25倍見積りだけで判定するため、既定の
-  呼出し経路ではnprocの値や現在の空き容量に関わらず恒常的にDISPATCHになる (実測含め詳細は
-  `output/insights/2026-08-20_t870-congestion-nproc/README.md`)。この経路には
-  staleness/expiry/decayによる自然回復が無い。(f) D299が既に裁定パッケージへ送っている
+- [T-870] **P2・(a)(b)(c)は別wave実測で既定値下は安全と確認済み・(e)は受入全走で不成立**:
+  `dev-wave-t870-lease-timing`waveがclaim→land/release実時間を実測した
+  (`output/insights/2026-08-20_t870-acceptance-lease-timing/README.md`、3サンプル326〜1103秒、
+  TTL2400秒に対し余裕あり)。(a)実時間実測は完了、(b)既定walltime(3600秒)>TTL(2400秒)は既定値下では
+  latentなまま (実行は300秒未満、天井到達の実例なし)、(c)`_LauncherSession.wait()`のtimeout=none
+  は実運用ログで意図された設計 (バグでない) と確認済み。同waveはさらに、opt-in override
+  (`IZANAGI_DISPATCH_QUEUE_WAIT_TIMEOUT_OVERRIDE`/`_OVERALL_GRACE_OVERRIDE`) をその想定用途
+  (83分/6時間congestion) で使うとlease保持想定がTTLの2.2〜9.2倍に達する — override自体とTTLが
+  未接続 — と定量化した。(d) mutation harness自身へcaller-budget-awareな値を渡す設計は未着手のまま
+  持ち越す。(e) 「queue混雑時は待つのでなく並列度を下げる」(`IZANAGI_TEST_NPROC=4`が単独file実行
+  (`test_s8b_verdict.py`) では実例で有効だった) は、**受入全走 (フルスイート) には現evidenceでは
+  不成立と確認した**: `login_headroom.grant_budget()`のadmission判定は`IZANAGI_TEST_NPROC`を
+  入力に含まず、`tests-full` operation keyのpeak履歴 (2026-08-06付、4GiB上限相当の値が残存) の
+  1.25倍見積りだけで判定するため、既定の呼出し経路ではnprocの値や現在の空き容量に関わらず
+  恒常的にDISPATCHになる (実測含め詳細は`output/insights/2026-08-20_t870-congestion-nproc/README.md`)。
+  この経路にはstaleness/expiry/decayによる自然回復が無い。(f) D299が既に裁定パッケージへ送っている
   lease invocation識別・fencing機構は、T-870固有の課題ではなくプロジェクトレベルで別途解決すべき
-  前提条件として扱い、T-870側で先回りして解こうとしない。次回試行が設計に含めるべき新規の点
-  (h): peak履歴を無視して一回限りlocal admissionを再試行できる明示opt-in機構。既存safety機構
-  (lock・atomic write・`MIN_LOCAL_BUDGET_BYTES`・`MemoryMax`・CAP_OOM時のdispatch fallback) は
-  すべて維持し、D612 (`docs/decisions.md:24540`) が禁止した既定値自動選択・`is_acceptance`分岐の
-  いずれにも該当しない設計に限る。実装するなら専用のbrief→plan→consultを経ること。nproc実測は
-  このrecovery機構と併せて次waveで行う (recoveryが無いとlocal試行自体が起こらないため、nproc単独
-  の実測は今のままでは意味を持たない)。次回試行が設計に含めるべきもう1点 (i):
-  opt-in override (`IZANAGI_DISPATCH_QUEUE_WAIT_TIMEOUT_OVERRIDE`/`_OVERALL_GRACE_OVERRIDE`) を
-  受入・焦点走launcherの環境射影 (`tools/dev_wave_wait.py`の`_acceptance_environment_preflight`)
-  へ、既定不変・自動選択なしのまま到達させる設計を検討する。現状はad hocな手動dispatchにしか効かず、
-  `PYTEST_ADDOPTS`/`PYTEST_PLUGINS`拒否 (再現性保証) と衝突しない形が要る。専用のbrief→plan→consult
-  を要する。
-  base: 427d55c749e3af25a62be5618ea67bb81e0e5b22e6485171d84c8162835fa1ef
+  前提条件として扱い、T-870側で先回りして解こうとしない。(g) `tools/dev_wave_land.py`
+  呼出しに`--lease-dir`を渡さないと`lease_renew`/`lease_release`が
+  `reason=lease-dir-required`でunavailableになる件 (`dev-wave-t870-lease-timing`waveが新規発見)
+  は、本waveの実land投入 (`lease_renew state=unavailable reason=lease-dir-required`/
+  `lease_release`同様) でも独立に再現し確認した。安全性は両wave未検証のまま次候補として残る。
+  次回試行が設計に含めるべき新規の点 (h): peak履歴を無視して一回限りlocal admissionを再試行できる
+  明示opt-in機構。既存safety機構 (lock・atomic write・`MIN_LOCAL_BUDGET_BYTES`・`MemoryMax`・
+  CAP_OOM時のdispatch fallback) はすべて維持し、D612 (`docs/decisions.md:24540`) が禁止した
+  既定値自動選択・`is_acceptance`分岐のいずれにも該当しない設計に限る。実装するなら専用の
+  brief→plan→consultを経ること。nproc実測はこのrecovery機構と併せて次waveで行う (recoveryが無いと
+  local試行自体が起こらないため、nproc単独の実測は今のままでは意味を持たない)。(i): opt-in override
+  (`IZANAGI_DISPATCH_QUEUE_WAIT_TIMEOUT_OVERRIDE`/`_OVERALL_GRACE_OVERRIDE`) を受入・焦点走
+  launcherの環境射影 (`tools/dev_wave_wait.py`の`_acceptance_environment_preflight`が
+  `pytest_addopts`/`pytest_plugins`/`task_run_id`/`task_runs_root`の4 field固定) へ、既定不変・
+  自動選択なしのまま到達させる設計を検討する。現状はad hocな手動dispatchにしか効かず、通常の受入・
+  焦点走自体には構造的に届かないことを本waveがコードと実観測 (`--env-projection-json`の4キーのみ、
+  かつ本wave自身の受入投入がqueue-wait-timeoutで2回失敗) で確認した。`PYTEST_ADDOPTS`/
+  `PYTEST_PLUGINS`拒否 (再現性保証) と衝突しない形が要り、専用のbrief→plan→consultを要する。
+  base: 9877a402cea36128393a85f36142d0f6f24a8b77a0a67de8a2d5502d63d8458e
