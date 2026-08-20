@@ -10744,8 +10744,18 @@ _FAKE_TRANSACTION_CC = (
     "  void writePhase() {}\n"
     "};\n")
 
-# T-755 の trace-hook 専用 mocc 編集面。実ソースの条件マクロに依存しない最小 TU。
-_FAKE_MOCC_TRANSACTION_CC = "int mocc_transaction_fixture = 0;\n"
+# T-755 の trace-hook 専用 mocc 編集面。source owner 分離・裸 option・非対称
+# cache 名を同時に通す最小 TU。
+_FAKE_MOCC_TRANSACTION_CC = (
+    "#ifdef RWLOCK\n"
+    "int mocc_rwlock_fixture = 1;\n"
+    "#endif\n"
+    "#ifdef DLR1\n"
+    "int mocc_dlr1_fixture = 1;\n"
+    "#endif\n"
+    "#if INLINE_VERSION_OPT == 17\n"
+    "int mocc_inline_fixture = 17;\n"
+    "#endif\n")
 
 
 # 実 CMake の構造 (cmake/Options.cmake の供給表 + cc/<protocol>/CMakeLists.txt の OPTIONS) を
@@ -10755,7 +10765,9 @@ _FAKE_MOCC_TRANSACTION_CC = "int mocc_transaction_fixture = 0;\n"
 # と同じ役回りで、乖離マクロの回帰検査に使う。
 _FAKE_OPTIONS_CMAKE = (
     'set(CCBENCH_BACK_OFF 1 CACHE STRING "exponential backoff")\n'
+    'set(CCBENCH_WAL 0 CACHE STRING "silo fixture")\n'
     'set(CCBENCH_DEBUG_MSG 0 CACHE STRING "oze only — not supplied to silo TUs")\n'
+    'set(CCBENCH_INLINE_VERSION_OPT_X 17 CACHE STRING "asymmetric fixture")\n'
     "function(ccbench_universal_definitions out_var)\n"
     "  set(${out_var}\n"
     "    BACK_OFF=${CCBENCH_BACK_OFF}\n"
@@ -10767,6 +10779,15 @@ _FAKE_SILO_CMAKE = (
     "  WORKLOADS ycsb\n"
     "  OPTIONS\n"
     "    WAL=${CCBENCH_WAL}\n"
+    ")\n")
+_FAKE_MOCC_CMAKE = (
+    "ccbench_add_protocol(mocc\n"
+    "  SOURCES transaction.cc util.cc lock.cc\n"
+    "  WORKLOADS ycsb tpcc bomb sbomb\n"
+    "  OPTIONS\n"
+    "    RWLOCK\n"
+    "    DLR1\n"
+    "    INLINE_VERSION_OPT=${CCBENCH_INLINE_VERSION_OPT_X}\n"
     ")\n")
 
 
@@ -10781,6 +10802,8 @@ def _fake_ccbench_repo():
         f.write(_FAKE_OPTIONS_CMAKE)
     with open(os.path.join(sub, "cc", "silo", "CMakeLists.txt"), "w", encoding="utf-8") as f:
         f.write(_FAKE_SILO_CMAKE)
+    with open(os.path.join(sub, "cc", "mocc", "CMakeLists.txt"), "w", encoding="utf-8") as f:
+        f.write(_FAKE_MOCC_CMAKE)
     with open(os.path.join(sub, "include", "backoff.hh"), "w", encoding="utf-8") as f:
         f.write(_FAKE_BACKOFF_HH)
     with open(os.path.join(sub, "cc", "silo", "transaction.cc"), "w", encoding="utf-8") as f:
@@ -10800,6 +10823,185 @@ def _fake_ccbench_repo():
     git("commit", "-q", "-m", "stock")
     head = git("rev-parse", "HEAD").strip()
     return sub, head, git
+
+
+def test_source_digest_source_protocol_registry_is_exact_and_unknown_is_runtime_error():
+    """source owner の drift と未知 path は KeyError にせず variant 単位で停止する。"""
+    assert tuple(source_digest.EVOLVE_BLOCK_SOURCE_PROTOCOLS) == source_digest.EVOLVE_BLOCK_SOURCES
+    g = Genome("silo", {})
+    try:
+        source_digest._source_protocol("cc/unknown/transaction.cc", g)
+        assert False, "未知 source は RuntimeError で停止すべき"
+    except RuntimeError as exc:
+        assert "未知 source" in str(exc)
+    with unittest_mock.patch.dict(
+            source_digest.EVOLVE_BLOCK_SOURCE_PROTOCOLS,
+            {"cc/extra/transaction.cc": "extra"}, clear=False):
+        try:
+            source_digest._source_protocol("include/backoff.hh", g)
+            assert False, "source owner registry の余分な key は exact-match で停止すべき"
+        except RuntimeError as exc:
+            assert "不一致" in str(exc)
+
+
+def test_source_digest_real_mocc_resolve_succeeds_with_source_owned_defines():
+    """実 mocc positive control:裸 RWLOCK と MQLOCK absent registry を実 source で通す。"""
+    cxx = _any_cxx()
+    _require_ccbench_file("cmake/Options.cmake")
+    _require_ccbench_file("include/backoff.hh")
+    _require_ccbench_file("cc/silo/transaction.cc")
+    _require_ccbench_file("cc/mocc/CMakeLists.txt")
+    _require_ccbench_file("cc/mocc/transaction.cc")
+    sub = buildcache._ccbench_dir()
+    head = _ccbench_head_or_skip()
+    assert head is not None, "init 済み ccbench の HEAD を解決できない (skip に化けてはいけない)"
+    g = Genome("mocc", {})
+    defines = source_digest._worktree_defines(sub, g, "cc/mocc/transaction.cc")
+    assert defines.get("RWLOCK") == "1", "mocc の裸 OPTIONS RWLOCK が -DRWLOCK=1 に反映されていない"
+    source_digest.assert_conditional_macros_covered(g, sub, cxx)
+    token = source_digest.resolve(g, head, sub, cxx)
+    # clean stock checkout では HEAD roundtrip も同時に固定する。template patch
+    # 適用中の共有 checkout では、resolve 成功と供給表検査だけを受け入れる。
+    if "EVOLVE-BLOCK-BEGIN" not in source_digest._read(
+            os.path.join(sub, "include", "backoff.hh")):
+        assert token == source_digest.STOCK
+        assert source_digest.compute(g, sub, cxx) == source_digest.baseline(g, head, sub, cxx)
+
+
+def test_source_digest_real_silo_resolve_succeeds_after_source_protocol_split():
+    """実 silo 回帰: silo source と mocc source に各 owner の供給表を適用する。"""
+    cxx = _any_cxx()
+    for rel in (
+            "cmake/Options.cmake", "include/backoff.hh", "cc/silo/CMakeLists.txt",
+            "cc/silo/transaction.cc", "cc/mocc/CMakeLists.txt", "cc/mocc/transaction.cc"):
+        _require_ccbench_file(rel)
+    sub = buildcache._ccbench_dir()
+    head = _ccbench_head_or_skip()
+    assert head is not None, "init 済み ccbench の HEAD を解決できない (skip に化けてはいけない)"
+    g = Genome("silo", {
+        "BACK_OFF": 1,
+        "NO_WAIT_LOCKING_IN_VALIDATION": 1,
+        "NO_WAIT_OF_TICTOC": 0,
+        "WAL": 0,
+    })
+    source_digest.assert_conditional_macros_covered(g, sub, cxx)
+    token = source_digest.resolve(g, head, sub, cxx)
+    if "EVOLVE-BLOCK-BEGIN" not in source_digest._read(
+            os.path.join(sub, "include", "backoff.hh")):
+        assert token == source_digest.STOCK
+        assert source_digest.compute(g, sub, cxx) == source_digest.baseline(g, head, sub, cxx)
+
+
+def test_source_digest_parse_bare_asymmetric_options_and_malformed_scope():
+    """裸/KV option の positive と OPTIONS 範囲外・括弧不整合の fails-closed。"""
+    cxx = _any_cxx()
+    sub, head, _git = _fake_ccbench_repo()
+    supplied = source_digest.parse_supplied_macros(_FAKE_OPTIONS_CMAKE, _FAKE_MOCC_CMAKE)
+    assert {"BACK_OFF", "RWLOCK", "DLR1", "INLINE_VERSION_OPT"} <= supplied
+    for name in ("SOURCES", "WORKLOADS", "mocc", "transaction", "ycsb", "INLINE_VERSION_OPT_X"):
+        assert name not in supplied, name
+    g = Genome("mocc", {})
+    mocc_defines = source_digest._worktree_defines(sub, g, "cc/mocc/transaction.cc")
+    silo_defines = source_digest._worktree_defines(sub, g, "cc/silo/transaction.cc")
+    assert mocc_defines["RWLOCK"] == "1" and mocc_defines["DLR1"] == "1"
+    assert mocc_defines["INLINE_VERSION_OPT"] == "17"
+    assert "INLINE_VERSION_OPT_X" not in mocc_defines
+    assert "RWLOCK" not in silo_defines and silo_defines["WAL"] == "0"
+    assert source_digest.resolve(g, head, sub, cxx) == source_digest.STOCK
+    source_digest.assert_trace_diff_matches_head(g, head, sub, cxx)
+
+    unbalanced = _FAKE_MOCC_CMAKE.rstrip().rstrip(")") + "\n"
+    try:
+        source_digest.parse_supplied_macros(_FAKE_OPTIONS_CMAKE, unbalanced)
+        assert False, "OPTIONS 呼び出しの閉じ括弧欠落は停止すべき"
+    except RuntimeError as exc:
+        assert "括弧" in str(exc)
+
+    # A source/workload token with an option-like name remains outside the
+    # OPTIONS range and is not a supplied macro.  An assignment-shaped token
+    # outside that range is structurally ambiguous and must stop.
+    scoped = (
+        "ccbench_add_protocol(mocc SOURCES INLINE_VERSION_OPT WORKLOADS ycsb "
+        "OPTIONS RWLOCK)\n")
+    scoped_names = source_digest.parse_supplied_macros(_FAKE_OPTIONS_CMAKE, scoped)
+    assert "INLINE_VERSION_OPT" not in scoped_names
+    malformed_scope = (
+        "ccbench_add_protocol(mocc SOURCES transaction.cc "
+        "INLINE_VERSION_OPT=${CCBENCH_INLINE_VERSION_OPT_X} "
+        "WORKLOADS ycsb OPTIONS RWLOCK)\n")
+    try:
+        source_digest.parse_supplied_macros(_FAKE_OPTIONS_CMAKE, malformed_scope)
+        assert False, "OPTIONS 範囲外の供給形 token は停止すべき"
+    except RuntimeError as exc:
+        assert "OPTIONS 外" in str(exc)
+
+
+def test_source_digest_proven_absent_macro_registry_self_checks_supply_sources():
+    """MQLOCK は参照だけなら通るが、bare OPTIONS/#define 出現で registry stale を検知する。"""
+    real_sub = buildcache._ccbench_dir()
+    _require_ccbench_file("cc/mocc/transaction.cc")
+    assert source_digest._assert_proven_repo_absent_macros(real_sub) == (
+        source_digest.PROVEN_REPO_ABSENT_MACROS)
+
+    sub, _head, _git = _fake_ccbench_repo()
+    mocc_src = os.path.join(sub, "cc", "mocc", "transaction.cc")
+    with open(mocc_src, "a", encoding="utf-8") as f:
+        f.write("#ifdef MQLOCK\nint mqlock_reference_only;\n#endif\n")
+    assert source_digest._assert_proven_repo_absent_macros(sub) == (
+        source_digest.PROVEN_REPO_ABSENT_MACROS)
+
+    sub, _head, _git = _fake_ccbench_repo()
+    with open(os.path.join(sub, "cc", "mocc", "CMakeLists.txt"), "a", encoding="utf-8") as f:
+        f.write(
+            '\ntarget_compile_definitions(mocc_extra PRIVATE '
+            '"$<INSTALL_INTERFACE:UNRELATED_FLAG=1>")\n'
+        )
+    assert source_digest._assert_proven_repo_absent_macros(sub) == (
+        source_digest.PROVEN_REPO_ABSENT_MACROS)
+
+    sub, _head, _git = _fake_ccbench_repo()
+    with open(os.path.join(sub, "cc", "mocc", "CMakeLists.txt"), "a", encoding="utf-8") as f:
+        f.write(
+            '\ntarget_compile_definitions(mocc_extra PRIVATE '
+            '"$<$<CONFIG:Debug>:MQLOCK>")\n'
+        )
+    try:
+        source_digest._assert_proven_repo_absent_macros(sub)
+        assert False, "MQLOCK を含む generator expression で停止すべき"
+    except RuntimeError as exc:
+        assert "CMake supply" in str(exc)
+        assert "stale" in str(exc) or "静的な供給元を確定できない" in str(exc)
+
+    sub, _head, _git = _fake_ccbench_repo()
+    with open(os.path.join(sub, "cc", "mocc", "CMakeLists.txt"), "a", encoding="utf-8") as f:
+        f.write("\n# stale supply case is intentionally live\n")
+        f.write("ccbench_add_protocol(mocc_extra SOURCES x.cc WORKLOADS ycsb OPTIONS MQLOCK)\n")
+    try:
+        source_digest._assert_proven_repo_absent_macros(sub)
+        assert False, "bare OPTIONS MQLOCK で registry stale を検知すべき"
+    except RuntimeError as exc:
+        assert "stale" in str(exc) and "CMake supply" in str(exc)
+
+    sub, _head, _git = _fake_ccbench_repo()
+    with open(os.path.join(sub, "cc", "mocc", "transaction.cc"), "a", encoding="utf-8") as f:
+        f.write("#define MQLOCK 1\n")
+    try:
+        source_digest._assert_proven_repo_absent_macros(sub)
+        assert False, "#define MQLOCK で registry stale を検知すべき"
+    except RuntimeError as exc:
+        assert "stale" in str(exc) and "#define MQLOCK" in str(exc)
+
+    sub, _head, _git = _fake_ccbench_repo()
+    with open(os.path.join(sub, "cc", "mocc", "CMakeLists.txt"), "a", encoding="utf-8") as f:
+        f.write(
+            '\nset_target_properties(mocc_extra PROPERTIES '
+            'COMPILE_DEFINITIONS "FOO;MQLOCK")\n'
+        )
+    try:
+        source_digest._assert_proven_repo_absent_macros(sub)
+        assert False, "semicolon-list COMPILE_DEFINITIONS MQLOCK で registry stale を検知すべき"
+    except RuntimeError as exc:
+        assert "stale" in str(exc) and "CMake supply" in str(exc)
 
 
 def test_source_digest_builtin_ifdef_not_aliased_to_stock():
@@ -11168,7 +11370,7 @@ def test_source_digest_read_failure_is_runtime_error():
     sub, _head, _git = _fake_ccbench_repo()
     os.remove(os.path.join(sub, "cc", "silo", "CMakeLists.txt"))
     try:
-        source_digest._worktree_defines(sub, g)
+        source_digest._worktree_defines(sub, g, "cc/silo/transaction.cc")
         assert False, "protocol CMakeLists 不在で停止すべき"
     except RuntimeError as e:
         assert "CMakeLists.txt" in str(e)
@@ -11188,7 +11390,7 @@ def test_source_digest_defines_match_real_tu_supply():
     supplied = source_digest.parse_supplied_macros(_FAKE_OPTIONS_CMAKE, _FAKE_SILO_CMAKE)
     assert "BACK_OFF" in supplied and "WAL" in supplied     # universal + protocol OPTIONS
     assert "DEBUG_MSG" not in supplied                       # CACHE には居るが TU 非供給
-    defines = source_digest._worktree_defines(sub, g)
+    defines = source_digest._worktree_defines(sub, g, "cc/silo/transaction.cc")
     assert "DEBUG_MSG" not in defines, "TU 非供給マクロが digest の -D に残っている"
     assert defines.get("Linux") == "1", "実 TU の -DLinux が digest に無い"
     # 非供給マクロの definedness テストは未知マクロとして停止する (両環境の枝逆転を沈黙させない)
