@@ -49,7 +49,10 @@ from . import s8b_ratified_freeze  # noqa: E402
 from . import s8b_oracle_artifacts as _oracle_artifacts  # noqa: E402
 from . import t080_freeze_migration as _t080_migration  # noqa: E402
 from . import freeze_verification_hold as _freeze_hold  # noqa: E402
-from .layout import campaign_layout, repo_output_root  # noqa: E402
+from .layout import (  # noqa: E402
+    _OFFICIAL_OUTPUT_ROOT_ENV,
+    campaign_layout,
+)
 from .layout import write_capability_for_directory  # noqa: E402
 from .durable_root import DurableRootError, DurableRootPolicy  # noqa: E402
 from .p2_2 import ENV_TAG as MACHINE_ENV_TAG  # noqa: E402  (machine-pin 名のみ)
@@ -1296,7 +1299,6 @@ def run_block(
         )
         return {"status": "refused", **asdict(decision)}
 
-    output_root = Path(output_root)
     budget_path = Path(budget_path)
     # マーカーは --output-root 非依存 (freeze 正本側)。既定は freeze ファイルと同じ
     # ディレクトリ = production では output/s8b-freeze/ 配下。
@@ -1317,7 +1319,17 @@ def run_block(
     # Human-reviewed admission の persistent receipt に generator id は入らない。run context
     # の閉じた registry member には S8b の直前 producer である S8a を用いる。
     build_context = build_run_context(generator_id=GeneratorId.S8A_TRIGGER_SWEEP)
-    layout = campaign_layout(campaign_id, output_root=str(output_root))
+    raw_output_root = "" if output_root is None else os.fspath(output_root)
+    try:
+        layout = campaign_layout(campaign_id, output_root=raw_output_root)
+    except ValueError as exc:
+        decision = _make_gate_decision(
+            t080_resolution, refusals=[f"official-output-root: {exc}"],
+        )
+        return {"status": "refused", **asdict(decision)}
+    # campaign_layout has already applied the central resolver.  Reuse that
+    # canonical base for every later cache and durable-root consumer.
+    output_root = Path(layout.root).parent.parent
 
     # v2 実走前の一括検査 (run marker 作成前・第一防壁): launch_validate +
     # env 契約導出 + 共有 execution guard/receipt + binary store 消費。いずれの
@@ -1780,7 +1792,7 @@ def _parser() -> argparse.ArgumentParser:
     run.add_argument("--block-id", required=True)
     run.add_argument("--freeze", type=Path, default=DEFAULT_FREEZE_PATH)
     run.add_argument("--root", type=Path, default=ROOT)
-    run.add_argument("--output-root", type=Path, default=Path(repo_output_root()))
+    run.add_argument("--output-root", type=Path, default=None)
     # 実走済みマーカーの置き場は CLI から上書きできない (freeze ファイルと同じ
     # ディレクトリ = production では output/s8b-freeze/ 配下に固定)。R6: --output-root を
     # 変えても同じ場所を指すため resume 拒否を出力先付け替えで迂回できない。--budget と
@@ -1812,6 +1824,33 @@ def _exit_code(status: object) -> int:
     return _EXIT_CODE_BY_STATUS.get(status, 1)
 
 
+def _cli_durable_root_policy(
+        output_root: Optional[Path],
+) -> Optional[DurableRootPolicy]:
+    """Build the narrow official policy without performing the root gate early.
+
+    The central resolver remains the source of truth for admission and refusal
+    ordering.  This helper only canonicalizes the candidate so the CLI can
+    inject a policy into ``run_block``; invalid candidates are still rejected
+    at the existing campaign-layout choke point.
+    """
+    raw = (
+        os.fspath(output_root)
+        if output_root is not None
+        else os.environ.get(_OFFICIAL_OUTPUT_ROOT_ENV)
+    )
+    if not raw:
+        return None
+    candidate = Path(raw)
+    if not candidate.is_absolute():
+        candidate = candidate.absolute()
+    try:
+        resolved = candidate.resolve(strict=False)
+    except OSError:
+        return None
+    return DurableRootPolicy(approved_roots=(resolved,), forbidden_roots=())
+
+
 def main(argv: Optional[Sequence[str]] = None) -> int:
     args = _parser().parse_args(argv)
     try:
@@ -1825,6 +1864,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             manifest_path=args.manifest, block_id=args.block_id,
             freeze_path=args.freeze, root=args.root,
             output_root=args.output_root, budget_path=DEFAULT_BUDGET_PATH,
+            durable_root_policy=_cli_durable_root_policy(args.output_root),
         )
         print(json.dumps(result, ensure_ascii=False, sort_keys=True))
         return _exit_code(result.get("status"))

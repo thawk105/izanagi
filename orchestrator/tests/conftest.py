@@ -484,6 +484,19 @@ def _isolate_exploration_output_root_env(monkeypatch):
         module._reset_exploration_output_root_pin_for_tests()
 
 
+@pytest.fixture(autouse=True)
+def _isolate_official_output_root_env(monkeypatch):
+    """Official root selection and its process pin never leak across tests."""
+    monkeypatch.delenv("IZANAGI_OFFICIAL_OUTPUT_ROOT", raising=False)
+    module = sys.modules.get("orchestrator.campaign.layout")
+    if module is not None:
+        module._reset_official_output_root_pin_for_tests()
+    yield
+    module = sys.modules.get("orchestrator.campaign.layout")
+    if module is not None:
+        module._reset_official_output_root_pin_for_tests()
+
+
 def _real_repo_node_id(item) -> str:
     """Collected item を正本の ``module::function`` 形へ正規化する。"""
     function = getattr(item, "originalname", None) or item.name.split("[", 1)[0]

@@ -233,8 +233,14 @@ def campaign_layout(campaign_id: str, output_root: str = "") -> CampaignLayout:
 _EXPLORATION_NAMESPACE_BYTES = b'{"namespace":"exploration"}\n'
 _EXPLORATION_OUTPUT_ROOT_ENV = "IZANAGI_EXPLORATION_OUTPUT_ROOT"
 _EXPLORATION_OUTPUT_ROOT_STATE_KEY = "_izanagi_exploration_output_root_state_v1"
+_OFFICIAL_OUTPUT_ROOT_ENV = "IZANAGI_OFFICIAL_OUTPUT_ROOT"
+_OFFICIAL_OUTPUT_ROOT_STATE_KEY = "_izanagi_official_output_root_state_v1"
 _exploration_output_root_state = sys.__dict__.setdefault(
     _EXPLORATION_OUTPUT_ROOT_STATE_KEY,
+    {"lock": threading.Lock(), "pin": None},
+)
+_official_output_root_state = sys.__dict__.setdefault(
+    _OFFICIAL_OUTPUT_ROOT_STATE_KEY,
     {"lock": threading.Lock(), "pin": None},
 )
 
@@ -245,12 +251,20 @@ def _reset_exploration_output_root_pin_for_tests() -> None:
         _exploration_output_root_state["pin"] = None
 
 
+def _reset_official_output_root_pin_for_tests() -> None:
+    """Test-only reset for the process-wide official root binding."""
+    with _official_output_root_state["lock"]:
+        _official_output_root_state["pin"] = None
+
+
 def _effective_uid() -> int:
     """Return the effective uid through a layout-local test seam."""
     return os.geteuid()
 
 
-def _lstat_directory_components(path: Path) -> None:
+def _lstat_directory_components(
+        path: Path, *, label: str = _EXPLORATION_OUTPUT_ROOT_ENV,
+) -> None:
     """Reject existing symlink/non-directory components without following them."""
     current = Path(path.anchor)
     for part in path.parts[1:]:
@@ -261,19 +275,17 @@ def _lstat_directory_components(path: Path) -> None:
             break
         except OSError as exc:
             raise ValueError(
-                f"{_EXPLORATION_OUTPUT_ROOT_ENV} の component を検査できない"
+                f"{label} の component を検査できない"
             ) from exc
         if stat.S_ISLNK(metadata.st_mode):
-            raise ValueError(
-                f"{_EXPLORATION_OUTPUT_ROOT_ENV} に symlink component がある"
-            )
+            raise ValueError(f"{label} に symlink component がある")
         if not stat.S_ISDIR(metadata.st_mode):
-            raise ValueError(
-                f"{_EXPLORATION_OUTPUT_ROOT_ENV} に非 directory component がある"
-            )
+            raise ValueError(f"{label} に非 directory component がある")
 
 
-def _has_git_ancestor(path: Path) -> bool:
+def _has_git_ancestor(
+        path: Path, *, label: str = _EXPLORATION_OUTPUT_ROOT_ENV,
+) -> bool:
     for ancestor in (path, *path.parents):
         try:
             (ancestor / ".git").lstat()
@@ -281,10 +293,57 @@ def _has_git_ancestor(path: Path) -> bool:
             continue
         except OSError as exc:
             raise ValueError(
-                f"{_EXPLORATION_OUTPUT_ROOT_ENV} の祖先を検査できない"
+                f"{label} の祖先を検査できない"
             ) from exc
         return True
     return False
+
+
+def _validate_external_output_root(
+        raw: str | os.PathLike[str], *, label: str,
+        suffixes: tuple[Path, ...],
+        reject_worktree_container: bool = False,
+) -> str:
+    """Validate and canonicalize an output root outside every repository.
+
+    ``suffixes`` lists directory components whose existing entries are included
+    in the lstat inspection.  It is an inspection target list, not an allowlist
+    and never exempts a path under a repository or another forbidden location.
+    """
+    if raw is None or os.fspath(raw) == "":
+        raise ValueError(f"{label} は非空でなければならない")
+    candidate = Path(raw)
+    if not candidate.is_absolute():
+        raise ValueError(f"{label} は絶対 path 必須")
+    if ".." in candidate.parts:
+        raise ValueError(f"{label} に .. component を指定できない")
+
+    normalized_suffixes = tuple(Path(suffix) for suffix in suffixes)
+    for suffix in normalized_suffixes:
+        _lstat_directory_components(candidate / suffix, label=label)
+    try:
+        resolved = candidate.resolve(strict=False)
+    except OSError as exc:
+        raise ValueError(f"{label} を解決できない") from exc
+    for suffix in normalized_suffixes:
+        _lstat_directory_components(resolved / suffix, label=label)
+    if _has_git_ancestor(resolved, label=label):
+        raise ValueError(f"{label} は repository 外でなければならない")
+    if reject_worktree_container:
+        _reject_worktree_container(
+            resolved, label=label, root_name=label,
+        )
+    try:
+        metadata = resolved.lstat()
+    except FileNotFoundError:
+        metadata = None
+    except OSError as exc:
+        raise ValueError(f"{label} を検査できない") from exc
+    if metadata is not None and not stat.S_ISDIR(metadata.st_mode):
+        raise ValueError(f"{label} の解決済み base が directory でない")
+    if metadata is not None and metadata.st_uid != _effective_uid():
+        raise ValueError(f"{label} は実効 uid の所有でなければならない")
+    return str(resolved)
 
 
 def _resolve_exploration_output_root(
@@ -311,46 +370,16 @@ def _resolve_exploration_output_root(
             return legacy_base or repo_output_root()
         if configured == "":
             raise ValueError(f"{_EXPLORATION_OUTPUT_ROOT_ENV} は非空でなければならない")
-
-        candidate = Path(configured)
-        if not candidate.is_absolute():
-            raise ValueError(f"{_EXPLORATION_OUTPUT_ROOT_ENV} は絶対 path 必須")
-        if ".." in candidate.parts:
-            raise ValueError(
-                f"{_EXPLORATION_OUTPUT_ROOT_ENV} に .. component を指定できない"
-            )
         suffixes = (
             Path("exploration", "campaigns"),
             Path("exploration", "autonomous-trials"),
         )
-        for suffix in suffixes:
-            _lstat_directory_components(candidate / suffix)
-        try:
-            resolved = candidate.resolve(strict=False)
-        except OSError as exc:
-            raise ValueError(f"{_EXPLORATION_OUTPUT_ROOT_ENV} を解決できない") from exc
-        for suffix in suffixes:
-            _lstat_directory_components(resolved / suffix)
-        if _has_git_ancestor(resolved):
-            raise ValueError(
-                f"{_EXPLORATION_OUTPUT_ROOT_ENV} は repository 外でなければならない"
-            )
-        try:
-            metadata = resolved.lstat()
-        except FileNotFoundError:
-            metadata = None
-        except OSError as exc:
-            raise ValueError(f"{_EXPLORATION_OUTPUT_ROOT_ENV} を検査できない") from exc
-        if metadata is not None and not stat.S_ISDIR(metadata.st_mode):
-            raise ValueError(
-                f"{_EXPLORATION_OUTPUT_ROOT_ENV} の解決済み base が directory でない"
-            )
-        if metadata is not None and metadata.st_uid != _effective_uid():
-            raise ValueError(
-                f"{_EXPLORATION_OUTPUT_ROOT_ENV} は実効 uid の所有でなければならない"
-            )
+        resolved = _validate_external_output_root(
+            configured, label=_EXPLORATION_OUTPUT_ROOT_ENV,
+            suffixes=suffixes, reject_worktree_container=False,
+        )
 
-        value = str(resolved)
+        value = resolved
         proposed_pin = (configured, value)
         if current_pin is None:
             _exploration_output_root_state["pin"] = proposed_pin
@@ -359,18 +388,60 @@ def _resolve_exploration_output_root(
         return value
 
 
+def _resolve_official_output_root(output_root: str = "") -> str:
+    """Resolve an official base with no repository-local fallback."""
+    if output_root:
+        return _validate_external_output_root(
+            output_root, label="official output_root",
+            suffixes=(Path("campaigns"), Path("env")),
+            reject_worktree_container=True,
+        )
+
+    with _official_output_root_state["lock"]:
+        configured = os.environ.get(_OFFICIAL_OUTPUT_ROOT_ENV)
+        current_pin = _official_output_root_state["pin"]
+        if configured is None:
+            if current_pin is not None:
+                raise ValueError(
+                    f"{_OFFICIAL_OUTPUT_ROOT_ENV} が process 内で変更された"
+                )
+            raise ValueError(
+                "official output_root は明示必須: --output-root または "
+                f"{_OFFICIAL_OUTPUT_ROOT_ENV} を指定してください"
+            )
+        if configured == "":
+            raise ValueError("official output_root は非空でなければならない")
+        value = _validate_external_output_root(
+            configured, label="official output_root",
+            suffixes=(Path("campaigns"), Path("env")),
+            reject_worktree_container=True,
+        )
+        proposed_pin = (configured, value)
+        if current_pin is None:
+            _official_output_root_state["pin"] = proposed_pin
+        elif current_pin != proposed_pin:
+            raise ValueError(
+                f"{_OFFICIAL_OUTPUT_ROOT_ENV} が process 内で変更された"
+            )
+        return value
+
+
 def resolve_campaign_output_root(
         declared_use_class: str, output_root: str = "",
 ) -> str:
     """Resolve the output base used by the campaign and its environment scope."""
     if declared_use_class == "official":
-        return output_root or repo_output_root()
+        return _resolve_official_output_root(output_root)
     if declared_use_class == "exploration":
         return _resolve_exploration_output_root(output_root)
     raise ValueError(f"unsupported declared_use_class: {declared_use_class!r}")
 
 
-def _reject_worktree_container(path: os.PathLike[str] | str) -> None:
+def _reject_worktree_container(
+        path: os.PathLike[str] | str, *,
+        label: str = _EXPLORATION_OUTPUT_ROOT_ENV,
+        root_name: str = "exploration root",
+) -> None:
     """Reject materialization below a Claude/Codex worktree container."""
     try:
         parts = Path(path).resolve(strict=False).parts
@@ -381,11 +452,13 @@ def _reject_worktree_container(path: os.PathLike[str] | str) -> None:
             parts[index:index + 2] == (family, "worktrees")
             for index in range(len(parts) - 1)
         ):
-            raise ValueError(
-                "exploration root を worktree container 配下に作成できない; "
-                f"{_EXPLORATION_OUTPUT_ROOT_ENV}=<絶対 path の job 専用 base> "
-                "を設定する (base は exploration/ 自体ではない)"
-            )
+            if label == _EXPLORATION_OUTPUT_ROOT_ENV:
+                raise ValueError(
+                    "exploration root を worktree container 配下に作成できない; "
+                    f"{_EXPLORATION_OUTPUT_ROOT_ENV}=<絶対 path の job 専用 base> "
+                    "を設定する (base は exploration/ 自体ではない)"
+                )
+            raise ValueError(f"{root_name} を worktree container 配下に作成できない")
 
 
 def ensure_exploration_namespace(output_root: str = "") -> str:
