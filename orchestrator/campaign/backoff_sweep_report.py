@@ -30,6 +30,15 @@ from ..critic.digest import load_workload                          # noqa: E402
 from ..reports.plot import DatFile, PlotSpec, Series, make_plot     # noqa: E402
 
 
+def _format_ipc(value: int | float | None, *, dat: bool) -> int | float | str:
+    """Format IPC for the machine-readable dat or human-readable Markdown view."""
+    if value is None:
+        return float("nan") if dat else "—"
+    if dat:
+        return round(value, 3)
+    return f"{value:.2f}"
+
+
 
 def _classify(g):
     """genome を (種別, 量) に。種別 = none / adaptive / static。"""
@@ -74,7 +83,7 @@ def report_workload(tag: str, workload: dict, log=print) -> dict:
 
     # 静的曲線の .dat
     rows = [[amt, round(tp(g) or 0), round((g.li.get("abort_rate") or 0) * 100, 2),
-             round(g.li.get("ipc") or 0, 3)] for amt, g in static]
+             _format_ipc(g.li.get("ipc"), dat=True)] for amt, g in static]
     none_tp, adap_tp = tp(none_g), tp(adaptive_g)
     best_amt, best_g = max(static, key=lambda t: tp(t[1]) or 0)
     wl_str = ", ".join(f"{k}={v}" for k, v in sorted(workload.items()))
@@ -166,12 +175,17 @@ def _md(tag, wl_str, cid, static, none_tp, adap_tp, best_amt, best_g, tp,
         t = tp(g)
         rel = f"{(t/none_tp-1)*100:+.1f}%" if (none_tp and t) else "—"
         L.append(f"| {amt} | {t:,.0f} | {(g.li.get('abort_rate') or 0)*100:.1f}% | "
-                 f"{g.li.get('ipc') or 0:.2f} | {rel} |")
+                 f"{_format_ipc(g.li.get('ipc'), dat=False)} | {rel} |")
+    if any(g.li.get("ipc") is None for _, g in static):
+        reading = ("IPC が実測できた点に限り、backoff を増やすと abort は下がるが "
+                   "ipc が落ちる trade-off が量の関数として見える。")
+    else:
+        reading = ("abort% と ipc の列で「backoff を増やすと abort は下がるが ipc が落ちる」"
+                   "trade-off が量の関数として見える。")
     L += ["",
           "## 読み (critic 帰属の検証)", "",
           "stock 適応 backoff が静的最良に対してどこに居るか = Cicada の hill-climbing が "
-          "sweet spot を捉えているか/逃しているかの直接証拠。abort% と ipc の列で「backoff を増やすと "
-          "abort は下がるが ipc が落ちる」trade-off が量の関数として見える。", ""]
+          "sweet spot を捉えているか/逃しているかの直接証拠。", reading, ""]
     return "\n".join(L)
 
 
