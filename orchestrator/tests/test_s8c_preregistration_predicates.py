@@ -281,23 +281,9 @@ def test_current_repository_c12_allocation_binding_helper_reports_unwired_consum
 ) -> None:
     # production が正しく配線されたら反転させる snapshot tripwire である。
     root, head = current_commit_snapshot
-    condition = M.load_contract_bytes(CONTRACT_FILE.read_bytes()).condition(12)
-    paths = {
-        item.artifact_kind: item.path for item in condition.required_evidence
-    }
-    supervisor_raw = core.read_blob_at(
-        root, head, paths["workload_supervisor"]
-    )
-    allocation_raw = core.read_blob_at(
-        root, head, paths["allocation_consumer"]
-    )
-    assert supervisor_raw is not None
-    assert allocation_raw is not None
-
-    supervisor = ast.parse(supervisor_raw)
-    allocation = ast.parse(allocation_raw)
-    assert {"read_binding", "check_reservation"} <= M._functions(allocation).keys()
-    assert M._c12_allocation_binding_verdict(supervisor, allocation) is None
+    result = _result(root, head, "C12")
+    assert result.status is core.PredicateStatus.EVIDENCE_UNDEFINED
+    assert result.reason_code == "completion-proof-not-machine-checkable"
 
 
 def test_evidence_undefined_is_never_satisfied() -> None:
@@ -879,6 +865,7 @@ def validate_planner_payload(): pass
 
 TOKEN_ONLY_C12 = """
 from . import env_contract, execution_guard
+from .reservation import read_binding, check_reservation
 environ = {}
 def run_trial():
     contract = env_contract.lookup()
@@ -993,26 +980,23 @@ def publish_result_table(*args, **kwargs):
 """
 
 
-def test_c12_allocation_binding_helper_rejects_check_without_read_binding() -> None:
-    reservation = "orchestrator/campaign/reservation.py"
-    baseline = TOKEN_ONLY_C12.encode("utf-8")
-    read_binding_call = b"    binding = read_binding(environ)"
-    assert baseline.count(read_binding_call) == 1
-    without_read_binding = baseline.replace(
+def test_c12_allocation_binding_helper_rejects_check_without_read_binding(
+    tmp_path: Path,
+) -> None:
+    read_binding_call = "    binding = read_binding(environ)"
+    without_read_binding = TOKEN_ONLY_C12.replace(
         read_binding_call,
-        b"    binding = object()",
+        "    binding = object()",
     )
-    assert without_read_binding != baseline
+    assert without_read_binding != TOKEN_ONLY_C12
 
-    supervisor = ast.parse(without_read_binding)
-    calls = M._reachable_calls(supervisor, "run_trial")
-    assert "check_reservation" in calls
-    assert "read_binding" not in calls
-    allocation = ast.parse(_git(_ROOT, "show", f"HEAD:{reservation}"))
-    assert M._c12_allocation_binding_verdict(supervisor, allocation) == (
-        core.PredicateStatus.UNSATISFIED,
-        M.ReasonCode.ALLOCATION_ENFORCEMENT_CONSUMER_ABSENT,
-    )
+    root = _init_repo(tmp_path)
+    for path, source in _c12_modules(without_read_binding).items():
+        _write(root, path, source)
+    head = _commit(root, "C12 read_binding call edge removed")
+    result = _result(root, head, "C12")
+    assert result.status is core.PredicateStatus.UNSATISFIED
+    assert result.reason_code == "allocation-enforcement-consumer-absent"
 
 
 def test_c12_allocation_binding_gate_precedes_environment_gate(
@@ -1033,26 +1017,13 @@ def test_c12_allocation_binding_gate_precedes_environment_gate(
     assert result.reason_code == "allocation-enforcement-consumer-absent"
 
 
-def test_current_repository_c12_allocation_binding_helper_accepts_both_calls() -> None:
-    condition = M.load_contract_bytes(CONTRACT_FILE.read_bytes()).condition(12)
-    paths = {
-        item.artifact_kind: item.path for item in condition.required_evidence
-    }
-    supervisor_raw = _git(
-        _ROOT, "show", f"HEAD:{paths['workload_supervisor']}"
-    )
-    allocation_raw = _git(
-        _ROOT,
-        "show",
-        f"HEAD:{paths['allocation_consumer']}",
-    )
-    supervisor = ast.parse(supervisor_raw)
-    assert {"read_binding", "check_reservation"} <= M._reachable_calls(
-        supervisor,
-        "run_trial",
-    )
-    allocation = ast.parse(allocation_raw)
-    assert M._c12_allocation_binding_verdict(supervisor, allocation) is None
+def test_current_repository_c12_allocation_binding_helper_accepts_both_calls(
+    current_commit_snapshot: tuple[Path, str],
+) -> None:
+    root, head = current_commit_snapshot
+    result = _result(root, head, "C12")
+    assert result.status is core.PredicateStatus.EVIDENCE_UNDEFINED
+    assert result.reason_code == "completion-proof-not-machine-checkable"
 
 
 def _negative_control_case(
@@ -1544,7 +1515,10 @@ def _c12_modules(supervisor: str) -> dict[str, str]:
 def test_cross_module_import_forms_resolve_exact_bound_target(
     tmp_path: Path, imports_and_calls: str
 ) -> None:
-    supervisor = imports_and_calls + """
+    supervisor = (
+        imports_and_calls
+        + "from .reservation import read_binding, check_reservation\n"
+        + """
 environ = {}
 def run_trial():
     contract = ENV()
@@ -1554,6 +1528,7 @@ def run_trial():
     return binding
 def main(): return run_trial()
 """
+    )
     _, _, result = _terminal_result(
         tmp_path, "import-form", "C12", _c12_modules(supervisor)
     )
@@ -1974,6 +1949,85 @@ def test_c12_allocation_absence_shapes_are_independent_from_definition(
     result = _result(root, head, "C12")
     assert result.status is core.PredicateStatus.UNSATISFIED
     assert result.reason_code == "allocation-enforcement-consumer-absent"
+
+
+def _assert_c12_allocation_consumer_absent(
+    tmp_path: Path,
+    name: str,
+    supervisor: str,
+    extra_sources: dict[str, str] | None = None,
+) -> None:
+    sources = _c12_modules(supervisor)
+    sources.update(extra_sources or {})
+    root = _init_repo(tmp_path)
+    for path, source in sources.items():
+        _write(root, path, source)
+    head = _commit(root, name)
+    result = _result(root, head, "C12")
+    assert result.status is core.PredicateStatus.UNSATISFIED
+    assert result.reason_code == "allocation-enforcement-consumer-absent"
+
+
+def test_c12_allocation_rejects_import_alias_consumer(tmp_path: Path) -> None:
+    supervisor = TOKEN_ONLY_C12.replace(
+        "from .reservation import read_binding, check_reservation\n",
+        "from .unrelated_decoy import foo as read_binding, bar as check_reservation\n",
+    )
+    _assert_c12_allocation_consumer_absent(
+        tmp_path,
+        "C12 import alias allocation decoy",
+        supervisor,
+        {
+            "orchestrator/campaign/unrelated_decoy.py": (
+                "def foo(*args): return object()\n"
+                "def bar(*args, **kwargs): pass\n"
+            ),
+        },
+    )
+
+
+def test_c12_allocation_rejects_local_decoy_consumer(tmp_path: Path) -> None:
+    supervisor = TOKEN_ONLY_C12.replace(
+        "environ = {}",
+        "def read_binding(*args):\n"
+        "    return object()\n"
+        "def check_reservation(*args, **kwargs):\n"
+        "    pass\n"
+        "environ = {}",
+    )
+    _assert_c12_allocation_consumer_absent(
+        tmp_path,
+        "C12 local allocation decoy",
+        supervisor,
+    )
+
+
+def test_c12_allocation_rejects_dead_code_after_return(tmp_path: Path) -> None:
+    check_and_return = """    check_reservation(
+        binding,
+        required_s=1,
+        safety_margin_s=0,
+        environ=environ,
+    )
+    return binding
+"""
+    dead_after_return = TOKEN_ONLY_C12.replace(
+        check_and_return,
+        """    return binding
+    check_reservation(
+        binding,
+        required_s=1,
+        safety_margin_s=0,
+        environ=environ,
+    )
+""",
+    )
+    assert dead_after_return != TOKEN_ONLY_C12
+    _assert_c12_allocation_consumer_absent(
+        tmp_path,
+        "C12 dead allocation check after return",
+        dead_after_return,
+    )
 
 
 @pytest.mark.parametrize(
@@ -2656,7 +2710,7 @@ def test_evaluate_all_shares_blob_ast_binding_and_root_graph_caches(
     assert read_counts
     assert resolve_calls == 1
     assert max(read_counts.values()) == 1
-    assert graph_cache_hits == [False, True, True]
+    assert graph_cache_hits == [False, True, False, True]
     assert len(set(cache_identities)) == 1
 
 
