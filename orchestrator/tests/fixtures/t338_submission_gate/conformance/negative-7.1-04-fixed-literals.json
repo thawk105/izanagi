@@ -1,0 +1,1 @@
+{"schema_version":"t338-conformance-vector/v2","id":"negative-7.1-04-fixed-literals","kind":"negative","classification":"relabel","covers":["7.1(4)"],"unit3_reference":"test_argv_raw_and_run_log_are_exact","entrypoint":"receipt","mutation":{"op":"set","path":["planned_execution","workloads","W1","driver_argv",0],"value":"--mutated-fixed-argv"},"expected_reason":"a07"}

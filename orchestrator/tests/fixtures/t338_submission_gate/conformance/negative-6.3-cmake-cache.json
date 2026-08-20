@@ -1,0 +1,1 @@
+{"schema_version":"t338-conformance-vector/v2","id":"negative-6.3-cmake-cache","kind":"negative","classification":"relabel","covers":["6.3","7.1(12)"],"unit3_reference":"test_cmake_cache_is_reject_only","entrypoint":"receipt","mutation":{"op":"replace_file","path":"build/CMakeCache.txt","old":"CCBENCH_TRACE:STRING=0","new":"CCBENCH_TRACE:STRING=1"},"expected_reason":"compile"}
