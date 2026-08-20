@@ -2310,6 +2310,8 @@ def _evaluate_c11(probe: _ConditionProbe) -> core.PredicateResult:
 
 
 def _c12_allocation_binding_verdict(
+    probe: _ConditionProbe,
+    workload_path: str,
     workload_supervisor: ast.Module,
     allocation_consumer: ast.Module | None,
 ) -> tuple[core.PredicateStatus, ReasonCode] | None:
@@ -2317,8 +2319,18 @@ def _c12_allocation_binding_verdict(
     if (
         allocation_consumer is None
         or not required_functions <= _functions(allocation_consumer).keys()
-        or not required_functions
-        <= _reachable_calls(workload_supervisor, "run_trial")
+        or "run_trial" not in _functions(workload_supervisor)
+    ):
+        return (
+            core.PredicateStatus.UNSATISFIED,
+            ReasonCode.ALLOCATION_ENFORCEMENT_CONSUMER_ABSENT,
+        )
+
+    graph = _ReachabilityExplorer(probe).walk((workload_path, "run_trial"))
+    allocation_path = probe.requirement("allocation_consumer").path
+    if not all(
+        _declared_call(probe, graph, (allocation_path, name))
+        for name in required_functions
     ):
         return (
             core.PredicateStatus.UNSATISFIED,
@@ -2331,12 +2343,17 @@ def _evaluate_c12(probe: _ConditionProbe) -> core.PredicateResult:
     tree = probe.python_kind("workload_supervisor")
     if tree is None:
         return _result(probe, core.PredicateStatus.EVIDENCE_UNDEFINED, ReasonCode.WORKLOAD_SUPERVISOR_ABSENT)
+    workload_path = probe.requirement("workload_supervisor").path
     allocation = probe.python_kind("allocation_consumer")
-    allocation_verdict = _c12_allocation_binding_verdict(tree, allocation)
+    allocation_verdict = _c12_allocation_binding_verdict(
+        probe,
+        workload_path,
+        tree,
+        allocation,
+    )
     if allocation_verdict is not None:
         status, reason = allocation_verdict
         return _result(probe, status, reason)
-    workload_path = probe.requirement("workload_supervisor").path
     functions = _functions(tree)
     if functions.get("run_trial") is None or functions.get("main") is None:
         return _result(probe, core.PredicateStatus.UNSATISFIED, ReasonCode.ENVIRONMENT_CONTRACT_CONSUMER_ABSENT)
