@@ -1814,6 +1814,25 @@ def test_known_violation_ledger_matches_literal_entries():
         "`2a34b7b0473db3d7be3b16ea0e230fdf00b6f493` として各 wave の land 時に監査済み。"
         "親作成 merge のため Codex 著者とは記さない。"
     )
+    t567_merge2_ruling = (
+        "2026-08-21 dev-wave-t567-attempt-binding land 前裁定 "
+        "(2回目、ユーザー選択: known-violation 登録)"
+    )
+    t567_merge2_note = (
+        "2回目の受入投入前 local main 取り込み merge "
+        "`5823caf328a5985476cd2f6f7aa0d13daa5b08f6`。`tools/check_ai_provenance.py` / "
+        "`orchestrator/tests/test_check_ai_provenance.py` で、本 wave が追加した T-567 の "
+        "known-violation エントリと main 側の別 wave (T-565、merge "
+        "`76248294bf40eb7fa0d806ce4df5010d685036de`) のエントリが同じ末尾へ競合し、"
+        "両方を残すだけの union で解決した。`orchestrator/tests/test_campaign.py` は "
+        "main 側の新規変更と衝突しなかった。`git diff-tree --cc "
+        "5823caf328a5985476cd2f6f7aa0d13daa5b08f6 -- "
+        "orchestrator/tests/test_campaign.py orchestrator/tests/test_check_ai_provenance.py "
+        "tools/check_ai_provenance.py` では `test_campaign.py` が combined diff に現れず、"
+        "2 checker file の追加行もいずれかの親に既存で、両親のどちらにも無い新規行はない。"
+        "結果は両側の known-violation エントリを並べただけの union で、競合解決による新規著作なし。"
+        "親作成 merge のため Codex 著者とは記さない。"
+    )
     observed = tuple(
         (
             spec.commit,
@@ -1917,6 +1936,7 @@ def test_known_violation_ledger_matches_literal_entries():
             "",
         ),
         ("c44b981c4a765b8f189d30ca69ba7b461b71efd1", "missing-codex-author", t567_merge_ruling, t567_merge_note, ""),
+        ("5823caf328a5985476cd2f6f7aa0d13daa5b08f6", "missing-codex-author", t567_merge2_ruling, t567_merge2_note, ""),
     )
     assert len(provenance.KNOWN_PROVENANCE_VIOLATIONS) == len(expected)
     assert observed == expected
