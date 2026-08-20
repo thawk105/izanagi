@@ -44,20 +44,25 @@ title: '[T-183] F43/F45型の早期分類・retry上限・fail-closed回復を�
   見落とした)、runner は harness と同じ Python executable (`sys.executable` の絶対パス、
   今回は `/usr/bin/python3`) で起動しないと `同じPython executableに束縛する必要がある` で
   rc=2 (こちらは docs 未記載)。
-- **受入全走を2回投入し、いずれも同一の3件の赤 ([T-183] の差分に帰属しない) で
+- **受入全走を3回投入し、3回とも同一の3件の赤 ([T-183] の差分に帰属しない) で
   `check_acceptance_reds.py` が `probe worktree is not clean, including ignored files`
   (rc=2、[T-1053] として既に裁定済み・未実装の既知バグ) を返し、受領証を発行できなかった。**
   赤3件は (1)(2) `test_codex_worker_launch.py` の `test_launcher_failure_diagnostic_reports_all_visible_failures_and_guard`・
   `test_thread_missing_after_grace_kills_process_group` (両方とも `codex_exit_code=-9`、
   wall-clock 予算 3 秒という攻撃的なタイミング前提テスト、直前 wave の worklog entry 725 (T-755)
-  が対照実験で確認済みの環境要因) と (3) `test_spool_fold.py::test_cli_base_digest_real_corpus_resolves_active_and_rejects_completed`
+  が対照実験で確認済みの環境要因。3走とも寸分違わず同じ2件が失敗しており、現在の計算ノード
+  割当てでは flake というより構造的に厳しいタイミング予算になっている可能性が高い) と
+  (3) `test_spool_fold.py::test_cli_base_digest_real_corpus_resolves_active_and_rejects_completed`
   (単独再走で直接確認: `docs/archive/worklog-phase3-0813-537.md` 内の `[T-139]` 固定テキストに
   対する期待 SHA256 が、`[T-139]` が別 wave (worklog entry 720) で完了済みになった現在の
   real corpus 解決結果と食い違う、main 側の pre-existing drift。同型が同日の worklog entry 723
-  ([T-201]) でも「non-attributable、本waveと無関係」と記録されている)。
+  ([T-201]) でも「non-attributable、本waveと無関係」と記録され、さらに同日 land 済みの
+  [T-222] (entry 729、fold dry-run で発見) は同じ赤 1 件だけの受入で checker が
+  non-attributable 判定に成功している — 赤が 1 件なら通る checker が、赤 3 件 (本wave) では
+  probe cleanliness 検査そのものに失敗する形で壊れている可能性を示唆する)。
   DW-O18 「rc=2 は判定不能で非帰属の根拠にしない」に従い rc=2 を非帰属の確認として扱わず、
-  かつ各赤を個別に単独再走・直接コード読解で非帰属と確認したうえで、
-  3回目の機械的な再試行 (同じ決定的な赤を再現するだけの見込みが高い) はせず停止した。
+  かつ各赤を個別に単独再走・直接コード読解で非帰属と確認したうえで、3回とも寸分違わず
+  同一の3件が再現し収束の見込みが薄いため、4回目の機械的な再試行はせず停止した。
   T-183 自体の実装・レビュー・変異検証は完了しており、受入は [T-1053] の解消または
   該当赤の解消 (main 側) を待って再投入すればよい状態にある。
 
@@ -73,7 +78,9 @@ title: '[T-183] F43/F45型の早期分類・retry上限・fail-closed回復を�
   は無改修。統合commit `ac52eae3` (branch `worktree-dev-wave-t183-codex-failure-recovery`)。
   テスト新設10関数(15ケース、workspace-write×分類の網羅・late limit trigger後の
   failure_class保持回帰・既定値1でのobservability・positive control3種を含む)、
-  変異matrix = baseline PASSED・4/4 KILLED・SURVIVED 0・MISMATCH 0。受入全走2回とも
-  [T-1053] (既知・裁定済み・未実装) でブロックされ受領証未発行。次の一手は受入の再投入
-  ([T-1053] 解消後、または該当赤が別 wave の対応で解消した後)。
+  変異matrix = baseline PASSED・4/4 KILLED・SURVIVED 0・MISMATCH 0。受入全走3回とも
+  同一の3件の赤 (差分に無関係と個別確認済み) が [T-1053] (既知・裁定済み・未実装) の
+  probe cleanliness検査でブロックされ受領証未発行。次の一手は受入の再投入
+  ([T-1053] 解消後、または該当赤 2件 (計算ノードのtimingタイト) ・1件
+  (test_spool_foldのreal corpus drift) が別途解消した後)。
   base: 72a3732e19231ef094307a36dd084b089be4041072faa9143cfe145ba5513765
