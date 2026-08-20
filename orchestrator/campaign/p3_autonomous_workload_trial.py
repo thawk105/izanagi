@@ -295,7 +295,7 @@ workload descriptor is context, never a reason to relax correctness. Echo the
 provided diff_digest exactly. Return JSON only, exactly:
 {"verdict":"pass|reject|uncertain","diff_digest":"string","violations":[],"nits":[],"proposed_tests":[],"uncertainty":"string"}
 Every element of violations must be exactly {"type":N}, where N is an integer
-auditor gallery code from 1 through 16. Every element of nits must be exactly
+auditor gallery code from 1 through 21. Every element of nits must be exactly
 {"type":"nit"}. Every element of proposed_tests must be an object
 with string fields mutation, expected_gate, and machine_judgment. Empty arrays
 are valid; strings directly inside any of these arrays are invalid.
@@ -1760,6 +1760,16 @@ def _prepare_s8c_budget_inputs(
     limits = schedule["limits"]
     if type(limits) is not BudgetLimits:
         raise AutonomousTrialError("8c schedule limits are not BudgetLimits")
+    # C05 schedule authority is currently unavailable; validate this required
+    # activation-time invariant before the authority becomes executable.
+    freeze_holdout_ids = frozenset(
+        entry["candidate_id"] for entry in ratified_freeze.holdouts.values()
+    )
+    schedule_holdout_ids = frozenset(cell.holdout for cell in cells)
+    if freeze_holdout_ids != schedule_holdout_ids:
+        raise AutonomousTrialError(
+            "8c schedule holdout set does not match the ratified freeze holdout set"
+        )
     return _S8CBudgetInputs(
         ledger_path=ledger_path,
         manifest_sha256=manifest.sha256,

@@ -119,7 +119,7 @@
                 "type": {
                   "type": "integer",
                   "minimum": 1,
-                  "maximum": 16
+                  "maximum": 21
                 },
                 "location": {
                   "type": "string"

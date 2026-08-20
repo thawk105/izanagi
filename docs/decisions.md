@@ -23592,3 +23592,158 @@ tip 側待ち手が `tools/acceptance_launcher.py` を経由せず受領証を�
   bootstrap 例外・completion protocol 経路に real な未解決点を発見しており、
   無条件の記録は次に読む wave を誤導する。
 - 記録自体を見送る — D569 が明記した「将来的な価値」を再導出コストなしに再訪できなくする。
+
+## D584. 8b oracle n-pilot の R=33 拡張実測は admission 機構の再設計が要り、当 wave では実装を見送り統合設計をinsightへ記録する (2026-08-20)
+
+**決定:** indifference-zone 選択のサンプルサイズ較正 n-pilot を事前登録済み目標 R>=32
+(コード上の制約により実質 33) まで拡張実測するための投入物を準備しようとしたが、
+admission 機構自体の非自明な再設計が要ることが判明したため、当 wave では実装せず、
+段2 codex plan と段3 敵対相談 2 レンズ (正しさ境界・整合実効性、計15件の real 所見) を
+統合した改訂アーキテクチャ設計を
+`output/insights/2026-08-20_t1142-n-pilot-r33-admission-redesign/README.md` へ記録する
+に留める。実装は次の独立 wave へ送る。既存 R=11 実測 (`measured_distributions.md`) は
+「予備的下限」として削除・改変せず保存し続ける。
+
+**理由:**
+
+- pegasus02 実機の admission ledger を直接確認したところ、n-pilot の観測許可
+  (`reserve_n_pilot_holdout_observations()`) は cell を
+  `(freeze_sha256, freeze_holdout_key, configuration_id, ccbench_pin, env_tag,
+  observation_role)` の6項目 (campaign_run_id を含まない) で排他的に claim する
+  一発勝負ロックであり、既存の R=11 実測がこのロックを既に消費済みだった。同一条件での
+  「追加」は admission 機構の設計上、構造的に不可能である。
+- この壁を解く方向性 (observation_role に新世代を追加し reserve/consume を分離する) は
+  段2 codex plan が示したが、正しい実装には以下がすべて必要と段3 敵対相談 (2 レンズ、
+  計15件の real 所見) で判明した: 世代の一回限り性を role allowlist だけに頼らない機構
+  (role 追加自体を機械的に一回限りへ縛る仕組み)、consume-only job 間の build cache
+  独立性の保証、`build_schedule(n=33)` を一括生成してから 132-row ずつ 3 allocation へ
+  slice する canonical schedule 生成方式 (3 個の 11-round schedule を連結する方式は
+  `complete-block-v1` の deterministic 生成と一致しない)、claim 発行の all-or-nothing
+  transaction化、`consume_n_pilot_attempt_ticket()` の関数契約変更、
+  `aggregate_results()`/`_result_document()` の同時書き換え、CLI の相互排他バリデーション、
+  job script に加え submission wrapper の変更。これは「投入スクリプトの準備」という
+  当初 scope を大きく超える規模である。
+- 変更対象 (admission の排他 claim) は、事前登録が「不可逆・一度きり」と明記した観測承認
+  を機械的に強制する安全装置であり、正しさゲートに準じる慎重さを要する。1 回の軽量 wave
+  で拙速に実装するのは、必要なコンポーネントだけを段階的に足す方針と衝突する。
+- 既存 R=11 実測は「対象条件の between-run 実測が0件だった状態を初めて埋めた予備的下限」
+  として既に使用可能な形で保存済みであり、R=33 への精緻化は緊急ではない。
+
+**却下した選択肢:**
+
+- **そのまま段5実装へ進める** — admission 機構という正しさゲート隣接領域の再設計を、
+  実装単位分割・敵対レビュー2本・変異matrix・受入まで含めて1軽量waveで安全にやりきる
+  にはリスクが高すぎる。
+- **scope を絞った部分実装** — durable receipt 無しでは CLI/job script だけを先に作っても
+  「動く投入物」にならず、当初の目的 (投入スクリプトの準備) を達成しない。
+- **新しい git clone で admission root を分離し既存 key を再 claim する** — 段2 codex
+  plan が「一度きりの安全装置を回避する」として明示的に却下済み。本決定もこの回避策を
+  前提にしない。
+
+## D585. 受入 real-repo 鎖の per-test snapshot コピーの hardlink 化は効果が無いと実測した (2026-08-20)
+
+**決定:** `orchestrator/tests/test_codex_reasoning_ab.py` の `benchmark_snapshots` 由来 snapshot
+を各テストが `shutil.copytree(..., copy_function=shutil.copy2)` で複製している 8 箇所について、
+`.git` (root・submodule marker とも) および既知の書込み対象 path 以外を hardlink 化する案を
+実測し、**採用しない。** D531/D532 が正本とする「real-repo 鎖の短縮」(D532 (a)) の具体案として
+このコピー手段を選ばない。
+
+**理由:**
+- 対象 snapshot 1 個 (POS、82.67MB、4726 file) を実際に構築し (`test_snapshot_submodule_object_store_is_recursive`
+  を単独実走、bounded local、24.89 秒)、pytest の basetemp と同じ filesystem (`/`、XFS、`/dev/md0`)
+  上で `cp -a` (copy2 相当) と `cp -al` (hardlink 相当) を実測した。**`cp -a` = 0.158 秒、
+  `cp -al` = 0.043 秒。差はわずか 0.115 秒であり、対象 8 箇所すべてに適用しても短縮は
+  高々 1 秒程度**で、鎖長 77.5〜94.9 秒 (D531) や当該テスト個々の所要 (19〜22 秒) に対し
+  無視できる。pytest の一時領域が高速なローカル disk 上にあるため、コピーの raw I/O は
+  そもそも支配的ではない。
+- 段2 codex プランと段3 敵対相談 2 レンズが、対象 8 箇所の in-place 書込み・submodule `.git`
+  marker (ディレクトリでなく `gitdir: ...` を書いた通常ファイル)・symlinks 引数の意味論の
+  差異など、実装すれば必ず踏む欠陥を独立に複数検出した (段6 相当の敵対レビューを待たず、
+  実測ゲートの時点で採否が決着した)。
+- D315 (docs/decisions.md:14373) が守る clone/seal コア (`--no-hardlinks`、
+  `_seal_git_object_closure` 系) には触れていない。今回不採用と決めたのは、
+  D315 の範囲外である per-test copytree の方であり、D315 の適用範囲を変えるものではない。
+
+**却下した選択肢:**
+- 8 箇所専用の copier を実装する — 実測で得られる短縮 (高々 1 秒) が、8 箇所の in-place 書込み
+  監査・submodule marker 対応・symlinks 意味論保持という実装・監査コストに見合わない。
+- 効果測定なしに実装へ進む — 段3 レンズB (整合性・実効性) が BLOCKER として指摘し、
+  段5 実装子 (workspace-write) 自身に測定させる設計にしたが、Codex 子は sandbox が
+  scheduler (`qstat`) 呼出しを拒むため測定不能だった (`ESYSCAL`/`EACCTAUTH: Unknown user-id`)。
+  親が代わりに `tools/run_tests.py` 経由の bounded local 実行で測定し直した。
+
+## D586. C06 holdout集合cross-checkは現状非実行到達のまま先行実装する (2026-08-20)
+
+**決定:** `p3_autonomous_workload_trial.py`の`_prepare_s8c_budget_inputs`に追加した
+ratified freezeとC05 scheduleのholdout ID集合cross-check (`ratified_freeze.holdouts`の
+genuine dot-attribute消費) は、`_load_s8c_schedule_authority`(C05、未実装のため常時raise)
+より後段にあり現行実行では到達しない。この非到達性を解消する再配置・C05実装の前倒しは
+行わず、静的到達性のみを要求するC01契約 (`static_only_note`: "no run output is required")
+を満たす先行実装として受け入れる。
+
+**理由:**
+- 同じ関数内で既に確立している`.sha256`消費 (`manifest.sha256`等) も、同じ
+  `load_ratified_freeze()`呼び出し (repo全体でv2世代が未活性のため常に
+  `RatifiedFreezeError("no-active", ...)`で失敗する) より後段にあり、同じ意味で
+  現状非実行到達である。新設コードだけを特別扱いして再配置する理由がない。
+- `_load_s8c_schedule_authority`のdocstring「C05の schedule 正本を要求する。未実装の
+  hashは推測しない。」が示すとおり、C06予算経路全体が意図的な staged scaffolding であり、
+  この一部分だけを実行到達させるための変更はC05側の別waveの scope。
+- cross-check自体はdecorativeではない — 到達すれば`AutonomousTrialError`を実際に送出し
+  `reserve_all_cells`への到達を止める。`candidate_id`をexact一致で検証する
+  `.holdouts`propertyと組み合わせることで、`{H1,H2}`集合比較が恒真にならない
+  (段6敵対レビュー2レンズが独立に指摘、fixで解消)。
+
+**却下した選択肢:**
+- schedule検証の前に配置する — `load_ratified_freeze()`自体が repo 全体で現状必ず
+  失敗するため、位置を変えても「現状非到達」は解消しない。
+- `_load_s8c_schedule_authority`を本waveで実装する — C05は別条件・別waveの scope
+  (command引数が明示的に除外)。
+- cross-checkの追加自体を見送る — 契約JSON
+  (`s8c_preregistration_evidence_contract.v1.json`condition_number=1)の
+  `required_evidence[1].field_paths`が`load_ratified_freeze().holdouts`を明記しており、
+  genuine attributeとして露出・消費しないとC01のgapが閉じない。
+
+## D587. auditor の violation type 語彙を16から21へ拡張し、sort closed-region 残余5項目を独立番号で結線する (2026-08-20)
+
+**決定:** [T-1356] (2026-08-18 /rulings 全件 第8回) の実装として、auditor の reward-hack
+ギャラリーへ sort closed-region 契約の残余5項目 (新しい型/関数の追加・非決定ビルトイン・
+副作用のある呼び出し・ループ・例外送出) を型17〜21として**個別番号**で追加した。
+`orchestrator/codex_roles/manifest.json` の output schema (`violations.items.type.maximum`)
+と `orchestrator/campaign/auditor_gate.py` の `_AUDITOR_VIOLATION_TYPES` を両方
+`16→21` へ広げ、`orchestrator/codex_roles/review_ledger.py` の3 pin
+(`SOURCE_FILE_SHA256`/`ROLE_MANIFEST_SHA256`/`SCHEMA_SHA256["output"]`、いずれも `"auditor"`
+キー) と `.codex/role-adapters/auditor.json` を同期させた。
+
+**理由:**
+- 型番号は8-12 (5個の独立 lock 系統) を前例とし、16 (1個への集約) は「同一骨格汚染の複数具体形」
+  という単一メカニズムの多面性であり今回とは前例として遠い。1個集約案 (段2 codex plan の
+  当初案) は `location`/`note` が任意フィールドのため、将来「5項目のうちどれを検査したか」の
+  集計を不能にし、規律3 (verifier が見逃した理由の構造化) の要求を弱める。
+- 機械 gate の受理範囲拡張は auditor の**指摘語彙**の拡張であり、CC variant 側の raw 受理集合
+  (`coder_effect_gate.py` の DENY_TABLE、`sort_swo_oracle.py` の判定ロジック) には一切触れない。
+  schema と gate の両方を同時に広げないと、auditor が新しい型を引用した瞬間
+  `AuditorGateFailure` で reject される (型5「consumer 取り残し」の自己再演になるため、
+  両方を同一実装単位に含めた)。
+- gallery 本文の記述は、機械執行の粒度 (完全/部分的/なし) だけを示し、なぜ verifier/機械 gate が
+  見逃すかの具体的機序 (識別子名・コード形状・corpus 発火条件) は書かない。境界条件の開示は
+  D511 の禁止事項であり、段6 敵対レビューが「file:line 付きの機序説明」自体が回避手順の開示に
+  当たると指摘し是正した。機序の報告は auditor 自身の構造化出力
+  (`violations[].verifier_blind_spot`、発見時の事後報告) に委ね、role prompt (事前に読める
+  回避手順) には書かない。
+
+**却下した選択肢:**
+- **型17への1個集約 (段2 codex plan の当初案)。** schema/gate 変更コストは
+  `maximum: 16→17` も `16→21` も同型 (frozenset range の終端値のみ) で実装コスト差が
+  無視できる一方、5項目の内訳が追跡不能になる。段3 敵対相談レンズBの指摘を採用し上書きした。
+- **auditor.md の型17-21記述に file:line 付きの具体的機序を書く (段5 実装子の初版)。**
+  D48/D511 の境界条件非開示に違反すると段6 敵対レビューが判定し、fix で「完全/部分的/なし」の
+  分類だけへ後退させた。
+- **`coder-v4-autonomous-sort.md` の禁止5bulletや「機械執行の範囲」表を書き換える。**
+  T-396/D511 の「禁止文は1byteも変えない」原則を維持し、契約文への反映
+  (「残余は auditor が拒否する」等) は本 wave の scope 外とした。段3 レンズBは「字義上は
+  T-1356 裁定を満たす」と確認したが、契約文反映が必要かは別 scope の判断に委ねる。
+
+**研究状態への影響:** なし。production の CC variant 受理集合・certified 選択・材料レポートの
+値は変更しない。変わるのは auditor が引用できる violation type の語彙と、それを裏付ける
+schema/gate/pin/adapter の整合だけである。

@@ -216,7 +216,10 @@ def test_current_repository_gap_reason_snapshot_requires_cross_wave_review(
     assert {
         item.id: (item.status, item.reason_code) for item in results
     } == {
-        "C01": (core.PredicateStatus.UNSATISFIED, "ratified-generation-reference-absent"),
+        "C01": (
+            core.PredicateStatus.EVIDENCE_UNDEFINED,
+            "completion-proof-not-machine-checkable",
+        ),
         "C02": (
             core.PredicateStatus.EVIDENCE_UNDEFINED,
             "completion-proof-not-machine-checkable",

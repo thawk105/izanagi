@@ -10784,3 +10784,88 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   波及するか」を検討し、波及する変異は最初から絞り込んだ node 集合で登録するとよい。
 - 再発検知: 同種の「ほぼ全ての呼び出しで False/True を返す」型の変異を伴う手動変異検証で、
   full-file 実走が baseline (数秒〜十数秒) の5倍以上を要して停止していなければ、この節を疑う。
+
+### F430. 段5 実装子 (workspace-write) に計算ノード dispatch を要する実測をさせ、権限不足で 530 秒・32 model call を空費した [手順漏れ] [コンテキスト浪費]
+
+- 事象: 段4 裁定で「実装前に snapshot の bytes 内訳・copy wall time を実測するゲートを通す」ことを
+  段5 実装子 (`--stage author`、`sandbox=workspace-write`) の prompt へ書いた。子は測定を試みたが
+  `qstat -Q` が `ESYSCAL`/`EACCTAUTH: Unknown user-id` で rc=1 となり、計算ノード dispatch も
+  bounded local 実行の preflight も完了しなかった。子は実装へ進まず作業ツリーを clean に保って
+  正直に報告したが、`wall_clock_s=530.3`、`model_calls=32`、`cached_input_tokens=2,535,424` を
+  費やした後だった。
+- 根本原因: Codex 子の sandbox は socket 経由の scheduler 通信を構造的に拒む
+  (既存 memory `codex-child-cannot-dispatch-or-write-outside`、`run-tests-bounded-local-bypasses-dispatch-latch`
+  が同型の制約を既に記録していたが、本 wave の段5 prompt 設計時にこれを prompt へ反映しなかった)。
+  `tools/run_tests.py` 経由のテスト実走・実測は親が行うものであり、実装子に委ねてよい作業ではない。
+- 恒久対応: 既存 memory (`run-tests-bounded-local-bypasses-dispatch-latch`,
+  `codex-child-cannot-dispatch-or-write-outside`) を、本 wave のように「実装子に測定ゲートを
+  持たせる」設計をする際に必ず参照する。`docs/dev-wave/workers.md` の `DW-S05-C` へ
+  「実装子に計算ノード dispatch や `tools/run_tests.py` 実走を要する事前測定をさせない、
+  親が測定した数値を prompt へ渡す」旨を追加する候補を段8 へ送る (docs 予算が満杯のため
+  即時反映はしない可能性が高いが、候補として記録する)。
+- 再発検知: 実装子 prompt に「dispatch」「qstat」「tools/run_tests.py の実走」を要求する文言が
+  無いかを、段5 prompt 作成直後に目視で確認する (機械検査は未整備)。
+
+### F431. mutation_harness.py の node 抽出が pytest collection ERROR を扱えない [手順漏れ]
+
+- 事象: [T-1356] で role-spec pin (review_ledger.py の SHA256、manifest.json の schema 値) を
+  変異登録しようとしたところ、`tools/mutation_harness.py` が「rc=1 だが canonical stdout から
+  failed node を確実に抽出できないため停止」「期待 node が pytest collection に実在しない」で
+  2回 abort した (rc=2、作業ツリーは正しく復元、実害なし)。
+- 根本原因: `tools/check_codex_agents.py:44` の
+  `STATIC_ADAPTERS = frozenset(ROLE_SPEC.load_role_specs(REPO))` が module top-level で
+  13 role 全部の pin を即時評価するため、`orchestrator/tests/test_codex_agents.py` を巻き込む
+  role-spec pin drift 系の変異は、個別 `::test_name` ノードでなく `ERROR collecting <file>`
+  という pytest collection error (ファイル全体1件、xdist worker数だけ重複表示) になる。
+  harness の canonical node 抽出器は個別 test の `FAILED test::name` 行を前提としており、
+  collection error 形状を扱わない (fail-closed で正しく abort、無理な推測はしない設計自体は
+  正しい)。[T-1411] が踏んだ `ratified_enforcement_source` fixture の disk==HEAD blob 検査
+  (`CONTRACT_LOADER_RELATIVE_PATHS` 経由) との harness 非互換と同系統 (harness の
+  file-swap/node 前提と実際のテスト構造が噛み合わないパターンの2件目)。
+- 恒久対応: memory `mutation-harness-collection-error-needs-manual-verify` —
+  role-spec 系 pin 変異は Edit→`tools/run_tests.py`実走→単一原因のエラー文言確認→
+  `git checkout --`復元、を手動で行う (T-1411 の代替手法と同型、DW-M05 の「独自harnessは
+  同等の検査を備えると段4で事前登録する」に該当)。
+- 再発検知: 次に role-spec pin 系の変異を harness へ登録しようとして同じ abort メッセージが
+  出た時点で顕在化する (lint 化は未実装、目視)。
+
+### F432. mutation_harness.py の collect-only 出力が dispatch capture のバイト上限で切り詰まる [手順漏れ]
+
+- 事象: [T-1356] で `test_auditor_gate.py`+`test_p3_s4_loop_trigger_gating.py`+
+  `test_codex_agents.py` (計166 test) を1つの runner argv にまとめて変異登録したところ、
+  期待した2 node のうち一部が「pytest collection に実在しない」と誤検出され harness が
+  abort した (rc=2、作業ツリーは無害に復元)。52 test (2 file) に絞っても同じ誤検出が再現した。
+- 根本原因: `_collect_expected_nodes` の `pytest --collect-only -q` 出力を Pegasus dispatch
+  経由で取得する際、capture にバイト上限があり (実測: 166 test 分 18414 bytes 中
+  14318 bytes が omitted、76%が切り詰め)、切り詰めがちょうど1行の途中で起きるとその行が
+  nodeid として parse できなくなる。`test_auditor_gate.py` 分がまるごと消え、
+  `test_codex_agents.py` 側も1行が先頭欠落で壊れていた。
+- 恒久対応: memory `mutation-harness-collection-output-byte-cap` — 複数 file にまたがる変異は
+  runner argv を file 全体でなく期待 node に対応する `file::test_name` 直接指定にする
+  (対象 test 数を一桁〜十数個に抑える)。本 wave はこの対応で2件とも標準harnessで
+  KILLED・matches_expectation=True を確定できた。
+- 再発検知: 次に複数 file 合計60〜80 test 超を1つの runner argv にまとめて登録し、
+  期待 node の一部が実在しないと誤検出された時点で顕在化する (lint 化は未実装、目視)。
+
+### F433. role file 変更が別ファイルの frozen baseline を追随なしで壊す [手順漏れ]
+
+- 事象: [T-1356] の `.claude/agents/auditor.md` 編集後、受入全走で
+  `orchestrator/tests/test_reflux_originless_compatibility.py` が赤になった。
+  acceptance-red-check の実測 (`main_rerun_rc=0`・`wave_rerun_rc=1`) で本 wave 由来と
+  確定するまで、一見無関係な別 wave の変更が原因と誤診断した (詳細は worklog 本文)。
+- 根本原因: 同ファイル360行の `_PRE_WAVE_ORIGINLESS_BASELINE` (frozen JSON blob 定数) が
+  auditor role の `role_file_sha256`・`effective_prompt_sha256` の2値を保持しており、
+  この2つのフィールドは `_MAIN_DERIVED_LEAF_PATHS` (main 進行で変わる値として意図的に
+  マスクされる4カテゴリ) に含まれない設計のため、**role file (`.claude/agents/*.md`) を
+  変更するたびに、このファイルの frozen baseline を手動で追随させる必要がある**。
+  この consumer は本 wave の段1-4 の pin 閉包調査 (`grep -rn "coder-v4-autonomous-sort\.md
+  \|agents/auditor\.md"`) では発見できなかった — baseline が opaque な単一行 JSON blob で
+  path を literal 参照しないため。
+- 恒久対応: なし (機械検査は未整備)。当面は role file を変更する wave が受入全走で
+  この赤を実測してから気づき、都度追随修正する運用に留まる。恒久対応候補としては
+  (a) `_MAIN_DERIVED_LEAF_PATHS` へ role hash 系フィールドを追加してマスク対象にする
+  (baseline がこれらの値を意味的に検証しなくなるトレードオフが要る、別 scope の判断)、
+  (b) role file 変更を検知して baseline 自動再生成する script、のいずれも本 wave では
+  実装しない (規律5、scope外)。
+- 再発検知: 次に role file (`.claude/agents/*.md`) を変更する wave が受入全走で
+  `test_reflux_originless_compatibility.py` の赤を踏んだ時点で顕在化する (lint 化は未実装)。

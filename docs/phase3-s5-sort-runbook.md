@@ -103,7 +103,11 @@ python3 -m orchestrator.campaign.p3_s4_loop_sort --preview-diff <scratch>/impl.t
 }
 ```
 `abort_digest` がある場合は、直近 iteration の赤 digest から verdict/liveness の形状だけを入れ、
-性能数値は含めない。
+性能数値は含めない。`designated_sources` には
+`.claude/agents/coder-v4-autonomous-sort.md` の「利用可能な API」節 (`storage_`/`key_`/
+`rcdptr_` の宣言) を必ず含める ([T-1356])。closed-region 契約のうち「新しい型/関数の追加」残余
+(auditor ギャラリー参照) は、宣言済み API 範囲を auditor 自身が知らなければ判定できない。
+欠落させたまま spawn しない。
 - 出力 (`auditor.md` の出力節どおり) =
   `{verdict, diff_digest, violations, nits, proposed_tests, uncertainty}`。`diff_digest` は auditor が
   `working_diff` を監査した後、入力で受けた事前計算値を変更せずに echo する。

@@ -6500,6 +6500,93 @@ def test_registered_slot_is_reserved_before_first_performance_observation(
     assert events.index("performance-observation") > 0
 
 
+def _s8c_budget_test_setup(tmp_path, monkeypatch, scheduled_holdouts):
+    manifest_sha256 = "a" * 64
+    manifest_path = tmp_path / "manifest.json"
+    monkeypatch.setattr(
+        A.trial_registry,
+        "load_trial_manifest",
+        lambda _path: SimpleNamespace(sha256=manifest_sha256),
+    )
+    cells = tuple(
+        A.ReservationCell(
+            cell_id=f"{holdout}-on",
+            holdout=holdout,
+            arm="on",
+            reserved_bench_s=1.0,
+        )
+        for holdout in scheduled_holdouts
+    )
+    schedule = {
+        "ledger_path": tmp_path / "budget-ledger.json",
+        "schedule_sha256": "b" * 64,
+        "cells": cells,
+        "limits": A.BudgetLimits(
+            total_bench_s=2.0,
+            per_arm_bench_s={"on": 2.0, "off": 2.0, "swapped": 2.0},
+            per_holdout_bench_s={"H1": 2.0, "H2": 2.0},
+        ),
+    }
+    monkeypatch.setattr(
+        A,
+        "_load_s8c_schedule_authority",
+        lambda *, root: schedule,
+    )
+    ratified_freeze = A.s8b_ratified_freeze.RatifiedFreeze(
+        document={
+            "freeze_sha256": "c" * 64,
+            "holdouts": {
+                "rr80": {"candidate_id": "H1"},
+                "rr20": {"candidate_id": "H2"},
+            },
+        },
+        sha256="d" * 64,
+        generation_number=1,
+        activation_head="e" * 40,
+        generation_commit="f" * 40,
+    )
+    admission = SimpleNamespace(
+        mode="registered-effective",
+        binding=SimpleNamespace(manifest_sha256=manifest_sha256),
+    )
+    return admission, manifest_path, ratified_freeze, schedule
+
+
+def test_prepare_s8c_budget_inputs_accepts_matching_ratified_holdout_ids(
+    tmp_path, monkeypatch,
+) -> None:
+    admission, manifest_path, ratified_freeze, schedule = _s8c_budget_test_setup(
+        tmp_path, monkeypatch, ("H1", "H2"),
+    )
+
+    inputs = A._prepare_s8c_budget_inputs(
+        admission=admission,
+        trial_manifest=manifest_path,
+        ratified_freeze=ratified_freeze,
+    )
+
+    assert inputs.cells == schedule["cells"]
+    assert {cell.holdout for cell in inputs.cells} == {"H1", "H2"}
+
+
+def test_prepare_s8c_budget_inputs_rejects_mismatched_holdout_id_set(
+    tmp_path, monkeypatch,
+) -> None:
+    admission, manifest_path, ratified_freeze, _schedule = _s8c_budget_test_setup(
+        tmp_path, monkeypatch, ("H1",),
+    )
+
+    with pytest.raises(
+        A.AutonomousTrialError,
+        match="8c schedule holdout set does not match the ratified freeze holdout set",
+    ):
+        A._prepare_s8c_budget_inputs(
+            admission=admission,
+            trial_manifest=manifest_path,
+            ratified_freeze=ratified_freeze,
+        )
+
+
 def test_registered_budget_insufficient_closes_as_not_consumed(
     tmp_path,
     monkeypatch,
