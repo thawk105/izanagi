@@ -1,0 +1,96 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 300,
+  "timeout_seconds": 3000,
+  "hang_timeout_seconds": 5400,
+  "mutations": [
+    {
+      "id": "M-A",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/wal.py",
+          "old": "            current = active.get(record.variant)\n            if current is not attempt:",
+          "new": "            current = active.get(record.variant)\n            if False:"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_campaign.py::test_attempt_topology_rejects_delayed_signal_from_finished_same_variant_attempt",
+        "orchestrator/tests/test_campaign.py::test_attempt_topology_rejects_delayed_verify_signal_after_retry",
+        "orchestrator/tests/test_campaign.py::test_attempt_topology_rejects_delayed_bench_signal_after_retry",
+        "orchestrator/tests/test_campaign.py::test_resumable_wal_rejects_truncated_tail_with_active_attempt_before_repair"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M-B",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/wal.py",
+          "old": "            if not attempt.build_done:\n                raise AttemptTopologyError(\n                    f\"{record.stage}: build_done より前の attempt に属する\"\n                )",
+          "new": "            if False:\n                raise AttemptTopologyError(\n                    f\"{record.stage}: build_done より前の attempt に属する\"\n                )"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_campaign.py::test_attempt_topology_rejects_verify_before_build_done",
+        "orchestrator/tests/test_campaign.py::test_resumable_wal_rejects_truncated_tail_with_active_attempt_before_repair"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M-C",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/wal.py",
+          "old": "            if (record.stage == STAGE_BENCH_DONE\n                    and STAGE_BENCH_DONE in attempt.stages_seen):",
+          "new": "            if False:"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_campaign.py::test_attempt_topology_rejects_duplicate_bench_within_attempt",
+        "orchestrator/tests/test_campaign.py::test_resumable_wal_rejects_truncated_tail_with_active_attempt_before_repair"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M-D",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/wal.py",
+          "old": "                if (later.variant == variant\n                    and later.stage in {\n                        STAGE_BUILD_DONE, STAGE_VERIFY_DONE, STAGE_BENCH_DONE,\n                    })",
+          "new": "                if (later.variant == variant\n                    and False)"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_campaign.py::test_recovery_fail_closed_after_build_done_but_accepts_start_only",
+        "orchestrator/tests/test_campaign.py::test_resumable_wal_rejects_truncated_tail_with_active_attempt_before_repair",
+        "orchestrator/tests/test_campaign.py::test_recovery_fail_closed_after_verify_or_bench_signal"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M-E",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/wal.py",
+          "old": "            if (_is_trigger_orphan_tombstone_at(records, index)\n                    or record.variant != variant\n                    or record.payload.get(\"build_attempt_id\")\n                    != committed_attempt_id):\n                continue\n            if record.stage == STAGE_BUILD_START:\n                state.committed_build_start = record",
+          "new": "            if (_is_trigger_orphan_tombstone_at(records, index)\n                    or record.variant != variant):\n                continue\n            if record.stage == STAGE_BUILD_START:\n                state.committed_build_start = record"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_campaign.py::test_replay_committed_projection_excludes_prior_aborted_attempt_signals",
+        "orchestrator/tests/test_campaign.py::test_resumable_wal_rejects_truncated_tail_with_active_attempt_before_repair"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}
