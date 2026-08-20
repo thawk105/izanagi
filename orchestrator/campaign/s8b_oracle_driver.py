@@ -337,7 +337,7 @@ def _manifest_structural_refusal(path: Path) -> Optional[str]:
             raise _oracle_manifest.ManifestError("manifest top-level schema が不一致")
         if document.get("schema_version") != _oracle_manifest.SCHEMA_VERSION:
             raise _oracle_manifest.ManifestError("manifest schema_version が不一致")
-        _oracle_manifest._validate_schedule(document.get("schedule"))
+        _oracle_manifest.validate_schedule(document.get("schedule"))
         _oracle_manifest._validate_binding_identity(
             document.get("binding_identity"), schedule=document["schedule"],
         )

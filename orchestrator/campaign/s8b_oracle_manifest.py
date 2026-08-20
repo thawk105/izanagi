@@ -275,7 +275,7 @@ def schedule_sha256(schedule) -> str:
     return _canonical_sha256(schedule)
 
 
-def _validate_schedule(schedule: Mapping) -> None:
+def validate_schedule(schedule: Mapping) -> None:
     if not isinstance(schedule, Mapping) or set(schedule) != {
         "n", "master_seed", "blocks", "rows",
     }:
@@ -721,7 +721,7 @@ def _build_manifest_from_snapshot(
     )
     _find_recorded_source(known_axes_record, freeze_path=freeze_source_path)
 
-    _validate_schedule(schedule)
+    validate_schedule(schedule)
     schedule_copy = copy.deepcopy(dict(schedule))
     blocks = [block["block_id"] for block in schedule_copy["blocks"]]
     if not isinstance(campaign_ids, Mapping) or set(campaign_ids) != set(blocks):
@@ -1035,7 +1035,7 @@ def verify_manifest(
     if freeze.get("known_axes_freeze") != known_record:
         raise ManifestError("freeze と manifest の known_axes 参照が不一致")
 
-    _validate_schedule(document.get("schedule"))
+    validate_schedule(document.get("schedule"))
     if document.get("schedule_sha256") != schedule_sha256(document["schedule"]):
         raise ManifestError("schedule_sha256 が再計算値と不一致")
     actual_cells = _schedule_cells(document["schedule"])
