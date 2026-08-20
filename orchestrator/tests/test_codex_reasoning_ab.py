@@ -410,6 +410,8 @@ def _manual_run(
     partial_output: bool = False,
     empty_turn: bool = False,
     token_infos: list[Any] | None = None,
+    mutate_launch: Callable[[dict[str, Any]], None] | None = None,
+    mutate_launch_after_identity: Callable[[dict[str, Any]], None] | None = None,
 ) -> dict[str, Any]:
     root.mkdir(parents=True, exist_ok=True)
     run_dir = root / "r01"
@@ -526,7 +528,11 @@ def _manual_run(
         "schedule_sha256": "a" * 64,
         "dry_run": True,
     }
+    if mutate_launch is not None:
+        mutate_launch(launch)
     launch["treatment_identity_sha256"] = TOOL._launch_identity_value(launch)
+    if mutate_launch_after_identity is not None:
+        mutate_launch_after_identity(launch)
     launch_path = _canonical(run_dir / "launch.json", launch)
     thread = "019fac00-0000-7000-8000-000000000001"
     session_id = "different" if id_mismatch else thread
@@ -637,8 +643,33 @@ def _manual_run(
         sessions_root=sessions,
         snapshot=snapshot,
         launch_receipt=launch_path,
+        expected_requested_model=TOOL.MODEL,
     )
     return {"receipt": receipt, "rc": rc, "rollout": rollout}
+
+
+def _collect_manual_run(
+    root: Path,
+    expected_requested_model: str,
+) -> tuple[dict[str, Any], int]:
+    launch_path = next(root.rglob("launch.json"))
+    launch = json.loads(launch_path.read_text(encoding="utf-8"))
+    oracle = json.loads(
+        Path(launch["snapshot_oracle"]["path"]).read_text(encoding="utf-8")
+    )
+    return TOOL.collect_run(
+        run_id="r01",
+        case="POS",
+        requested_effort="max",
+        events=Path(launch["events"]["path"]),
+        done=Path(launch["done"]["path"]),
+        output=Path(launch["output_path"]),
+        prompt=Path(launch["prompt"]["path"]),
+        sessions_root=root / "sessions",
+        snapshot=Path(oracle["snapshot"]),
+        launch_receipt=launch_path,
+        expected_requested_model=expected_requested_model,
+    )
 
 
 def _supervisor_pair(
@@ -669,6 +700,63 @@ def _supervisor_pair(
         dry_run=True,
     )
     return result, schedule_path, slots
+
+
+def _direct_supervisor_launch(
+    root: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    requested_model: str | None = None,
+) -> dict[str, Any]:
+    snapshot = root / "snapshot"
+    snapshot.mkdir(parents=True)
+    prompt = root / "prompt.txt"
+    prompt.write_text("prompt", encoding="utf-8")
+    config = root / "config-source.toml"
+    config.write_text("model='gpt-5.6-sol'\n", encoding="utf-8")
+    auth = root / "auth-source.json"
+    auth.write_text('{"token":"synthetic"}\n', encoding="utf-8")
+    codex = _make_fake_codex(root / "fake-codex")
+    bwrap = _make_executable(
+        root / "fake-bwrap",
+        "#!/bin/sh\n[ \"$1\" = \"--version\" ] && printf 'bwrap 0.6.1\\n'\n",
+    )
+    monkeypatch.setattr(
+        TOOL,
+        "verify_snapshot",
+        lambda actual_snapshot, case: {
+            "schema_version": TOOL.SCHEMA_VERSION,
+            "case": case,
+            "snapshot": os.fspath(Path(actual_snapshot).resolve()),
+            "valid": True,
+        },
+    )
+    slot: dict[str, Any] = {
+        "slot_id": "s01",
+        "case": "POS",
+        "arm": "max",
+        "block_id": "b01",
+        "block_order": 1,
+    }
+    if requested_model is not None:
+        slot["requested_model"] = requested_model
+    completion = TOOL._supervise_one(
+        run_id="r01",
+        slot=slot,
+        attempt=1,
+        parent_run_id=None,
+        schedule_sha256="a" * 64,
+        run_root=root / "run-root",
+        snapshot=snapshot,
+        prompt=prompt,
+        config_source=config,
+        auth_source=auth,
+        codex_binary=codex,
+        bwrap_binary=bwrap,
+        dry_run=True,
+    )
+    return json.loads(
+        Path(completion["launch_receipt"]).read_text(encoding="utf-8")
+    )
 
 
 def _identity_receipt_for_model(model: str) -> dict[str, Any]:
@@ -807,6 +895,151 @@ def test_model_argv_is_explicit_and_identity_is_model_bound() -> None:
     assert sol_hash != luna_hash
 
 
+def test_supervisor_falls_back_to_default_model_without_requested_model(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    launch = _direct_supervisor_launch(tmp_path, monkeypatch)
+    assert launch["requested_model"] == TOOL.MODEL
+    assert launch["argv"][launch["argv"].index("-m") + 1] == TOOL.MODEL
+    assert launch["normalized_argv"] == TOOL._normalized_exec_argv(
+        launch["argv"], TOOL.MODEL, "max"
+    )
+    assert launch["treatment_identity_sha256"] == TOOL._launch_identity_value(
+        launch
+    )
+
+
+def test_supervisor_binds_requested_model_to_argv_receipt_and_identity(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    luna = "gpt-5.6-luna"
+    launch = _direct_supervisor_launch(tmp_path, monkeypatch, luna)
+    assert launch["requested_model"] == luna
+    assert launch["argv"][launch["argv"].index("-m") + 1] == luna
+    assert launch["normalized_argv"] == TOOL._normalized_exec_argv(
+        launch["argv"], luna, "max"
+    )
+    assert launch["actual_process_argv"] == launch["argv"]
+    assert launch["actual_process_argv_normalized"] == launch["normalized_argv"]
+    assert launch["treatment_identity_sha256"] == TOOL._launch_identity_value(
+        launch
+    )
+
+    sol_receipt = copy.deepcopy(launch)
+    for field in (
+        "argv",
+        "normalized_argv",
+        "bwrap_argv",
+        "actual_process_argv",
+        "actual_process_argv_normalized",
+    ):
+        sol_receipt[field] = [
+            TOOL.MODEL if value == luna else value for value in sol_receipt[field]
+        ]
+    sol_receipt["requested_model"] = TOOL.MODEL
+    assert TOOL._launch_identity_value(sol_receipt) != launch[
+        "treatment_identity_sha256"
+    ]
+
+
+def test_collect_run_expected_requested_model_context_mismatch_is_routing(
+    tmp_path: Path,
+) -> None:
+    run = _manual_run(tmp_path)
+    rollout = run["rollout"]
+    rows = [
+        json.loads(line)
+        for line in rollout.read_text(encoding="utf-8").splitlines()
+    ]
+    for row in rows:
+        if row.get("type") == "turn_context":
+            row["payload"]["model"] = "gpt-5.6-luna"
+    rollout.write_text(
+        "".join(json.dumps(row, ensure_ascii=False) + "\n" for row in rows),
+        encoding="utf-8",
+    )
+    receipt, rc = _collect_manual_run(tmp_path, TOOL.MODEL)
+    assert rc == TOOL.RC_ROUTING
+    assert receipt["failure_reasons"] == ["model mismatch"]
+
+
+def test_collect_run_expected_requested_model_argv_mismatch_is_receipt_rc(
+    tmp_path: Path,
+) -> None:
+    run = _manual_run(tmp_path)
+    rollout = run["rollout"]
+    rows = [
+        json.loads(line)
+        for line in rollout.read_text(encoding="utf-8").splitlines()
+    ]
+    for row in rows:
+        if row.get("type") == "turn_context":
+            row["payload"]["model"] = "gpt-5.6-luna"
+    rollout.write_text(
+        "".join(json.dumps(row, ensure_ascii=False) + "\n" for row in rows),
+        encoding="utf-8",
+    )
+    receipt, rc = _collect_manual_run(tmp_path, "gpt-5.6-luna")
+    assert rc == TOOL.RC_RECEIPT
+    assert receipt["failure_reasons"] == [
+        "requested model does not match the -m argv value"
+    ]
+
+
+def test_collect_run_argv_model_mismatch_is_receipt_rc(
+    tmp_path: Path,
+) -> None:
+    luna = "gpt-5.6-luna"
+
+    def mutate_launch(launch: dict[str, Any]) -> None:
+        launch["requested_model"] = luna
+        model_position = launch["argv"].index("-m") + 1
+        launch["argv"][model_position] = luna
+        launch["normalized_argv"] = TOOL._normalized_exec_argv(
+            launch["argv"], luna, "max"
+        )
+        launch["actual_process_argv"] = list(launch["argv"])
+        launch["actual_process_argv_normalized"] = list(launch["normalized_argv"])
+        launch["bwrap_argv"] = TOOL._bwrap_exec_argv(
+            Path(launch["bwrap_binary"]),
+            launch["argv"],
+            Path(
+                json.loads(
+                    Path(launch["snapshot_oracle"]["path"]).read_text(
+                        encoding="utf-8"
+                    )
+                )["snapshot"]
+            ),
+            Path(launch["codex_home"]),
+            Path(launch["output_path"]),
+            Path(launch["events"]["path"]),
+            Path(launch["stderr_path"]),
+            launch["environment"],
+        )
+        launch["treatment_identity_sha256"] = TOOL._launch_identity_value(launch)
+
+    _manual_run(tmp_path, mutate_launch=mutate_launch)
+    receipt, rc = _collect_manual_run(tmp_path, TOOL.MODEL)
+    assert rc == TOOL.RC_RECEIPT
+    assert receipt["failure_reasons"] == [
+        "requested model does not match the -m argv value"
+    ]
+
+
+def test_collect_run_receipt_model_field_mismatch_is_receipt_rc(
+    tmp_path: Path,
+) -> None:
+    def mutate_launch(launch: dict[str, Any]) -> None:
+        launch["requested_model"] = "gpt-5.6-luna"
+
+    _manual_run(tmp_path, mutate_launch_after_identity=mutate_launch)
+    receipt, rc = _collect_manual_run(tmp_path, TOOL.MODEL)
+    assert rc == TOOL.RC_RECEIPT
+    assert receipt["failure_reasons"] == [
+        "launch receipt requested model does not match argv"
+    ]
+
+
 def test_completed_ledger_row_records_launch_requested_model(tmp_path: Path) -> None:
     launch_path = tmp_path / "launch.json"
     launch_path.write_bytes(
@@ -882,6 +1115,7 @@ def _full_manifest(
             sessions_root=run_root,
             snapshot=Path(oracle_value["snapshot"]),
             launch_receipt=launch_path,
+            expected_requested_model=TOOL.MODEL,
         )
         assert receipt_rc == 0
         score, score_rc = TOOL.score_run(output, completion["run_id"])
@@ -5655,6 +5889,170 @@ def test_supervisor_cli_removed_caller_attestation_command() -> None:
     assert "create-launch" not in help_text
     assert "argv-json" not in help_text
     assert "environment-json" not in help_text
+
+
+def test_collect_run_cli_binds_expected_model_to_requested_dest(
+    tmp_path: Path,
+) -> None:
+    parsed = TOOL._parser().parse_args(
+        [
+            "collect-run",
+            "--run-id",
+            "r01",
+            "--case",
+            "POS",
+            "--requested-effort",
+            "max",
+            "--events",
+            os.fspath(tmp_path / "events.jsonl"),
+            "--done",
+            os.fspath(tmp_path / "done.json"),
+            "--output",
+            os.fspath(tmp_path / "answer.md"),
+            "--prompt",
+            os.fspath(tmp_path / "prompt.txt"),
+            "--sessions-root",
+            os.fspath(tmp_path / "sessions"),
+            "--snapshot",
+            os.fspath(tmp_path / "snapshot"),
+            "--launch-receipt",
+            os.fspath(tmp_path / "launch.json"),
+            "--expected-model",
+            "gpt-5.6-luna",
+        ]
+    )
+    assert parsed.expected_requested_model == "gpt-5.6-luna"
+    assert not hasattr(parsed, "expected_model")
+
+
+def test_replay_passes_schedule_requested_model_to_collect_run(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    luna = "gpt-5.6-luna"
+    root = tmp_path
+    run_root = root / "run-root"
+    attempts_root = run_root / "attempts"
+    sessions_root = root / "sessions"
+    snapshot = root / "snapshot"
+    attempts_root.mkdir(parents=True)
+    sessions_root.mkdir()
+    snapshot.mkdir()
+    slot = {
+        "slot_id": "s01",
+        "case": "POS",
+        "arm": "max",
+        "requested_model": luna,
+        "block_id": "b01",
+        "block_order": 1,
+        "prompt_sha256": "1" * 64,
+        "snapshot_manifest_sha256": "2" * 64,
+        "submodule_manifest_sha256": "3" * 64,
+    }
+    schedule_path = _canonical(run_root / "schedule.json", {"slots": [slot]})
+    schedule_sha = TOOL._sha256(schedule_path.read_bytes())
+    prompt = _canonical(root / "prompt.txt", {"prompt": True})
+    output = _canonical(root / "output.md", {"output": True})
+    events = _canonical(root / "events.jsonl", {"events": True})
+    done = _canonical(root / "done.json", {"done": True})
+    oracle_value = {
+        "snapshot": os.fspath(snapshot.resolve()),
+        "submodule_manifest_sha256": slot["submodule_manifest_sha256"],
+    }
+    oracle = _canonical(root / "oracle.json", oracle_value)
+    oracle_after = _canonical(root / "oracle-after.json", oracle_value)
+    rollout = _canonical(sessions_root / "rollout-r01.jsonl", {"rollout": True})
+    launch = _canonical(
+        attempts_root / "launch.json",
+        {
+            "run_id": "r01",
+            "slot_id": "s01",
+            "attempt": 1,
+            "parent_run_id": None,
+            "case": "POS",
+            "arm": "max",
+            "requested_model": luna,
+            "schedule_sha256": schedule_sha,
+            "prompt": {"sha256": slot["prompt_sha256"]},
+            "snapshot_oracle": {
+                "sha256": slot["snapshot_manifest_sha256"]
+            },
+        },
+    )
+    receipt = _canonical(
+        root / "receipt.json",
+        {"rollout_path": os.fspath(rollout.resolve()), "wall_clock_ms": 0},
+    )
+    score = _canonical(root / "score.json", {})
+    ledger = _canonical(run_root / "attempt-ledger.jsonl", {})
+    attempts = [
+        {
+            "run_id": "r01",
+            "slot_id": "s01",
+            "attempt": 1,
+            "parent_run_id": None,
+            "launch_receipt": _descriptor(launch, root),
+            "events": _descriptor(events, root),
+            "done": _descriptor(done, root),
+            "prompt": _descriptor(prompt, root),
+            "output": _descriptor(output, root),
+            "snapshot_oracle": _descriptor(oracle, root),
+            "snapshot_after": _descriptor(oracle_after, root),
+            "rollout": _descriptor(rollout, root),
+            "receipt": _descriptor(receipt, root),
+            "score": _descriptor(score, root),
+        }
+    ]
+    manifest = {
+        "schedule": _descriptor(schedule_path, root),
+        "schedule_sha256": schedule_sha,
+        "run_root": "run-root",
+        "attempts_root": "run-root/attempts",
+        "attempt_ledger": _descriptor(ledger, root),
+        "max_schedule_gap_ms": TOOL.MAX_SCHEDULE_GAP_MS,
+        "max_inter_block_gap_ms": TOOL.MAX_INTER_BLOCK_GAP_MS,
+        "attempts": attempts,
+    }
+    manifest_path = _canonical(root / "manifest.json", manifest)
+    captured: list[str] = []
+
+    def fake_validate_schedule(schedule: dict[str, Any]) -> tuple[list[dict[str, Any]], list[str]]:
+        assert schedule["slots"][0]["requested_model"] == luna
+        return schedule["slots"], []
+
+    def fake_collect_run(**kwargs: Any) -> tuple[dict[str, Any], int]:
+        captured.append(kwargs["expected_requested_model"])
+        return (
+            {
+                "rollout_path": os.fspath(rollout.resolve()),
+                "wall_clock_ms": 0,
+            },
+            0,
+        )
+
+    monkeypatch.setattr(TOOL, "_validate_schedule", fake_validate_schedule)
+    monkeypatch.setattr(
+        TOOL,
+        "_validate_supervisor_ledger",
+        lambda *args, **kwargs: (
+            [
+                {
+                    "run_id": "r01",
+                    "process_started": True,
+                    "process_wall_ms": 0,
+                }
+            ],
+            [],
+        ),
+    )
+    monkeypatch.setattr(TOOL, "_load_adjudication", lambda *args: ({}, []))
+    monkeypatch.setattr(TOOL, "_apply_pair_invalidations", lambda attempts: None)
+    monkeypatch.setattr(TOOL, "_retry_lineage_reasons", lambda grouped: [])
+    monkeypatch.setattr(TOOL, "verify_snapshot", lambda actual, case: oracle_value)
+    monkeypatch.setattr(TOOL, "collect_run", fake_collect_run)
+    monkeypatch.setattr(TOOL, "score_run", lambda *args: ({}, 0))
+
+    TOOL._replay_manifest(manifest_path, sessions_root)
+    assert captured == [luna]
 
 
 def test_cli_benchmark_task_id_is_parsed_and_resolved(

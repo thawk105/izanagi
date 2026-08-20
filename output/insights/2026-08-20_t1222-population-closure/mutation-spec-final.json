@@ -1,0 +1,24 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 120,
+  "timeout_seconds": 1800,
+  "hang_timeout_seconds": 2400,
+  "mutations": [
+    {
+      "id": "M2-growth-contract-expects-old-self-load",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_growth_test_holds_contract.py",
+          "old": "\"test_dev_waves_integration.py\": (False, ()),",
+          "new": "\"test_dev_waves_integration.py\": (True, ()),"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_self_load_detection_handles_real_nested_consumers"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}

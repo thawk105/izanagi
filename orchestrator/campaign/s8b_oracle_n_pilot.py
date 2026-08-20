@@ -13,6 +13,7 @@ import json
 import math
 import os
 import random
+import re
 import shutil
 import stat
 import statistics
@@ -65,8 +66,19 @@ PROTOCOL_SCHEMA = "pilot-protocol/v1"
 RESULT_SCHEMA = "pilot-result/v1"
 AGGREGATE_SCHEMA = "pilot-aggregate/v1"
 SCHEDULE_ALGORITHM = "s8b-oracle-manifest/complete-block-v1"
+R33_RESULT_ROLE = "n_pilot_r33"
 _HEX40 = frozenset("0123456789abcdef")
 _HEX64 = _HEX40
+_SAFE_IDENTIFIER = re.compile(r"[A-Za-z0-9._-]+\Z")
+_BINARY_REQUIRED_KEYS = frozenset({
+    "cell_id", "cache_hit", "entry_sha256", "binding_sha256", "binary_sha256",
+})
+_BINARY_ALLOWED_KEYS = frozenset({
+    "cell_id", "cache_hit", "cache_state", "entry_sha256", "binding_sha256",
+    "binary_sha256", "materialize_elapsed_s", "worktree_identity_sha256",
+    "isolated_worktree", "pre_materialization_clean_assertion",
+    "source_clean_assertion",
+})
 
 
 class PilotError(RuntimeError):
@@ -114,6 +126,40 @@ class PilotInputs:
     freeze_verification_status: str
     contract: object
     observed_repo_head: str
+
+
+@dataclass(frozen=True)
+class GlobalPilotSchedule:
+    """The one canonical R33 schedule and its three local projections.
+
+    ``rows`` is the schedule projection used by the R33 admission layer.  It
+    therefore keeps global coordinates and has one row for every one of the
+    396 attempts.  ``allocation_slices`` are execution projections: ``seq``
+    and ``pilot_round`` are local to the allocation while the two global
+    coordinates remain bound to the canonical schedule.
+    """
+
+    rows: tuple[dict[str, object], ...]
+    allocation_slices: tuple[tuple[dict[str, object], ...], ...]
+    schedule_sha256: str
+
+    @property
+    def global_rows(self) -> tuple[dict[str, object], ...]:
+        return self.rows
+
+    def allocation_slice(self, allocation_index: int) -> tuple[dict[str, object], ...]:
+        return slice_global_pilot_schedule(self, allocation_index)
+
+    # Keep the object usable by the pre-R33 sequence-oriented callers while
+    # exposing the structured global schedule to new callers.
+    def __iter__(self):
+        return iter(self.rows)
+
+    def __len__(self) -> int:
+        return len(self.rows)
+
+    def __getitem__(self, index):
+        return self.rows[index]
 
 
 @dataclass(frozen=True)
@@ -179,9 +225,11 @@ class SessionObservation:
     binary_sha256_at_measure: str
     cache_hit: bool
     materialize_elapsed_s: float
+    global_schedule_index: int | None = None
+    global_pilot_round: int | None = None
 
     def as_record(self) -> dict[str, object]:
-        return {
+        record = {
             "seq": self.seq,
             "pilot_round": self.pilot_round,
             "position": self.position,
@@ -201,6 +249,16 @@ class SessionObservation:
             "cache_state": "hit" if self.cache_hit else "miss",
             "materialize_elapsed_s": self.materialize_elapsed_s,
         }
+        if self.global_schedule_index is not None or self.global_pilot_round is not None:
+            record["global_schedule_index"] = (
+                self.seq if self.global_schedule_index is None
+                else self.global_schedule_index
+            )
+            record["global_pilot_round"] = (
+                self.pilot_round if self.global_pilot_round is None
+                else self.global_pilot_round
+            )
+        return record
 
 
 def _is_hex(value: object, length: int) -> bool:
@@ -210,6 +268,53 @@ def _is_hex(value: object, length: int) -> bool:
         and value == value.lower()
         and all(character in _HEX64 for character in value)
     )
+
+
+def _require_identifier(value: object, label: str = "identifier") -> str:
+    """Validate the delimiter-free identifier used in an allocation key."""
+    if type(value) is not str or not value or "::" in value or not _SAFE_IDENTIFIER.fullmatch(value):
+        raise PilotError(
+            f"{label} が安全な identifier でない; [A-Za-z0-9._-]+ が必要"
+        )
+    return value
+
+
+def _require_allocation_index(value: object, label: str = "allocation_index") -> int:
+    """Validate the three-way R33 allocation index without accepting bool."""
+    if type(value) is not int or value not in {0, 1, 2}:
+        raise PilotError(f"{label} は 0, 1, 2 のいずれかでなければならない")
+    return value
+
+
+def _allocation_identity_key(identity: Mapping[str, object]) -> str:
+    """Return the sole hashable representation of an allocation identity."""
+    if not isinstance(identity, Mapping):
+        raise PilotError("allocation identity が mapping でない")
+    role = _require_identifier(identity.get("role"), "allocation role")
+    campaign = _require_identifier(
+        identity.get("campaign_run_id"), "campaign_run_id"
+    )
+    allocation_index = _require_allocation_index(identity.get("allocation_index"))
+    return f"{role}::{campaign}::{allocation_index}"
+
+
+def _allocation_identity(
+    value: Mapping[str, object], *, label: str = "allocation identity",
+) -> dict[str, object]:
+    """Normalize and validate the JSON object used as allocation identity."""
+    if not isinstance(value, Mapping):
+        raise PilotError(f"{label} が mapping でない")
+    identity = {
+        "role": _require_identifier(value.get("role"), f"{label}.role"),
+        "campaign_run_id": _require_identifier(
+            value.get("campaign_run_id"), f"{label}.campaign_run_id"
+        ),
+        "allocation_index": _require_allocation_index(
+            value.get("allocation_index"), f"{label}.allocation_index"
+        ),
+    }
+    _allocation_identity_key(identity)
+    return identity
 
 
 def _strict_object_pairs(pairs: Sequence[tuple[str, object]]) -> dict[str, object]:
@@ -663,6 +768,17 @@ def _assert_directory_identity(
         raise PilotError(f"{label} identity が使用中に変化した")
 
 
+def _assert_empty_directory(path: Path, label: str) -> None:
+    try:
+        entries = tuple(path.iterdir())
+    except OSError as exc:
+        raise PilotError(f"{label} の空 directory 状態を検査できない: {exc}") from exc
+    if entries:
+        raise PilotError(
+            f"{label} は build 呼出し前に空 directory (empty) でなければならない"
+        )
+
+
 def _observe_toolchain(cc: str, cxx: str) -> dict[str, dict[str, str]]:
     result: dict[str, dict[str, str]] = {}
     for role, requested in (("cc", cc), ("cxx", cxx), ("cmake", "cmake")):
@@ -726,6 +842,7 @@ def build_binaries(
     build_fn: Callable[..., object] = buildcache.build_v2,
     repo_root: Path = ROOT,
     worktree_roots: Sequence[Path] | None = None,
+    allocation_mode: bool | None = None,
     monotonic_fn: Callable[[], float] = time.monotonic,
     toolchain_fn: Callable[[str, str], Mapping[str, object]] = _observe_toolchain,
     compiler_fn: Callable[[], tuple[str, str]] = buildcache.compilers_for_current_site,
@@ -737,10 +854,16 @@ def build_binaries(
     context_fn: Callable[..., object] = build_run_context,
 ) -> dict[str, PilotBinary]:
     """Build all 12 trace-disabled binaries after a side-effect-free containment gate."""
+    if allocation_mode is None:
+        allocation_mode = _is_r33_inputs(inputs)
+    if type(allocation_mode) is not bool:
+        raise PilotError("allocation_mode は exact bool でなければならない")
     canonical_cache = assert_external_cache_root(
         cache_root, repo_root=repo_root, worktree_roots=worktree_roots,
     )
     cache_identity = _directory_identity(canonical_cache, "cache_root")
+    if allocation_mode:
+        _assert_empty_directory(canonical_cache, "allocation cache_root")
     try:
         cc, cxx = compiler_fn()
         toolchain_manifest = toolchain_fn(cc, cxx)
@@ -838,6 +961,11 @@ def build_binaries(
                 _assert_directory_identity(canonical_cache, cache_identity, "cache_root")
             if getattr(built, "trace", None) is not False:
                 raise PilotError(f"trace-disabled build receipt でない: {cell_id}")
+            cached = getattr(built, "cached", None)
+            if allocation_mode and cached is not False:
+                raise PilotError(
+                    f"allocation build は cached=True/cache hit を許容しない: {cell_id}"
+                )
             if getattr(built, "contract_sha256", None) != getattr(
                 inputs.contract, "contract_sha256", None
             ):
@@ -854,7 +982,7 @@ def build_binaries(
                 binding_sha256=str(identity["binding_sha256"]),
                 binary_sha256=str(binary_sha),
                 binary_path=binary_path,
-                cache_hit=bool(getattr(built, "cached", False)),
+                cache_hit=(False if allocation_mode else bool(cached)),
                 materialize_elapsed_s=elapsed,
                 worktree_identity_sha256=hashlib.sha256(worktree.encode("utf-8")).hexdigest(),
                 isolated_worktree=True,
@@ -864,34 +992,235 @@ def build_binaries(
             )
     if set(results) != {str(cell["cell_id"]) for cell in inputs.cells}:
         raise PilotError("全 cell の build receipt が揃わない")
+    _assert_directory_identity(canonical_cache, cache_identity, "cache_root")
     return results
 
 
-def build_pilot_schedule(
+def _is_r33_protocol(protocol: PilotProtocol | Mapping[str, object]) -> bool:
+    if isinstance(protocol, PilotProtocol):
+        document: Mapping[str, object] = protocol.document
+        pilot_rounds = protocol.pilot_rounds
+        allocation_count = protocol.allocation_count
+        allocation_role = protocol.allocation_role
+    else:
+        document = protocol
+        design = document.get("design")
+        if not isinstance(design, Mapping):
+            return document.get("observation_role") == (
+                s8b_holdout_admission.OBSERVATION_ROLE_N_PILOT_R33
+            )
+        pilot_rounds = design.get("pilot_rounds")
+        allocation_count = design.get("allocation_count")
+        allocation_role = design.get("allocation_role")
+    return (
+        pilot_rounds == 33
+        and allocation_count == 3
+        and allocation_role == "primary-segment"
+    )
+
+
+def _is_r33_inputs(inputs: PilotInputs) -> bool:
+    return _is_r33_protocol(inputs.protocol)
+
+
+def _schedule_projection_sha256(rows: Sequence[Mapping[str, object]]) -> str:
+    try:
+        payload = json.dumps(
+            [dict(row) for row in rows], ensure_ascii=False, sort_keys=True,
+            separators=(",", ":"), allow_nan=False,
+        ).encode("utf-8")
+    except (TypeError, ValueError) as exc:
+        raise PilotError(f"schedule を canonical JSON にできない: {exc}") from exc
+    return hashlib.sha256(payload).hexdigest()
+
+
+def build_global_pilot_schedule(
+    inputs: PilotInputs,
+    *,
+    master_seed: str | None = None,
+) -> GlobalPilotSchedule:
+    """Build the canonical 33-round schedule exactly once.
+
+    The manifest generator's replicate index is globally domain-separated;
+    constructing three 11-round schedules would therefore be a different
+    experiment.  All R33 callers use this single 396-row projection.
+    """
+    effective_seed = inputs.protocol.master_seed if master_seed is None else master_seed
+    holdout_ids = sorted({str(cell["holdout_id"]) for cell in inputs.cells})
+    configuration_ids = sorted({str(cell["configuration_id"]) for cell in inputs.cells})
+    manifest = s8b_oracle_manifest.build_schedule(
+        n=33,
+        master_seed=effective_seed,
+        block_sizes={"pilot": 33},
+        holdout_ids=holdout_ids,
+        configuration_ids=configuration_ids,
+    )
+    raw_rows = manifest.get("rows") if isinstance(manifest, Mapping) else None
+    if not isinstance(raw_rows, list) or len(raw_rows) != 396:
+        raise PilotError("global R33 schedule は exact 396 行でなければならない")
+    expected_cells = {
+        f"{holdout_id}::{configuration_id}"
+        for holdout_id in holdout_ids for configuration_id in configuration_ids
+    }
+    rows: list[dict[str, object]] = []
+    for expected_index, row in enumerate(raw_rows):
+        if not isinstance(row, Mapping):
+            raise PilotError("global schedule row が mapping でない")
+        if row.get("schedule_index") != expected_index:
+            raise PilotError("global schedule index が連続していない")
+        pilot_round = row.get("replicate_index")
+        holdout_id = row.get("holdout_id")
+        configuration_id = row.get("configuration_id")
+        if (
+            type(pilot_round) is not int or not 0 <= pilot_round < 33
+            or type(holdout_id) is not str or type(configuration_id) is not str
+        ):
+            raise PilotError("global schedule row の座標が不正")
+        cell_id = f"{holdout_id}::{configuration_id}"
+        if cell_id not in expected_cells:
+            raise PilotError("global schedule row が未知 cell を参照している")
+        global_round = pilot_round + 1
+        rows.append({
+            "seq": expected_index,
+            "pilot_round": global_round,
+            "global_schedule_index": expected_index,
+            "global_pilot_round": global_round,
+            "cell_id": cell_id,
+        })
+    if len({row["cell_id"] for row in rows}) != len(expected_cells):
+        raise PilotError("global schedule の cell coverage が不正")
+    cells_by_round: dict[int, set[str]] = {}
+    for row in rows:
+        cells_by_round.setdefault(int(row["global_pilot_round"]), set()).add(
+            str(row["cell_id"])
+        )
+    if (
+        sorted(cells_by_round) != list(range(1, 34))
+        or any(cell_set != expected_cells for cell_set in cells_by_round.values())
+    ):
+        raise PilotError("global schedule が 33 complete block でない")
+    global_rows = tuple(rows)
+    slices = tuple(
+        slice_global_pilot_schedule(global_rows, allocation_index)
+        for allocation_index in range(3)
+    )
+    return GlobalPilotSchedule(
+        rows=global_rows,
+        allocation_slices=slices,
+        schedule_sha256=_schedule_projection_sha256(global_rows),
+    )
+
+
+def slice_global_pilot_schedule(
+    schedule: GlobalPilotSchedule | Sequence[Mapping[str, object]],
+    allocation_index: int,
+) -> tuple[dict[str, object], ...]:
+    """Return one 132-row local projection of the canonical global schedule."""
+    if type(allocation_index) is not int or allocation_index not in {0, 1, 2}:
+        raise PilotError("allocation_index は 0, 1, 2 のいずれかでなければならない")
+    rows = schedule.rows if isinstance(schedule, GlobalPilotSchedule) else schedule
+    if len(rows) != 396:
+        raise PilotError("allocation slice の source schedule は exact 396 行が必要")
+    start = allocation_index * 132
+    result: list[dict[str, object]] = []
+    for local_seq, source in enumerate(rows[start:start + 132]):
+        row = dict(source)
+        global_index = row.get("global_schedule_index")
+        global_round = row.get("global_pilot_round")
+        if (
+            type(global_index) is not int or global_index != start + local_seq
+            or type(global_round) is not int
+            or global_round != allocation_index * 11 + (local_seq // 12) + 1
+        ):
+            raise PilotError("allocation slice の global coordinate が不正")
+        row["seq"] = local_seq
+        row["pilot_round"] = (local_seq // 12) + 1
+        result.append(row)
+    if len(result) != 132:
+        raise PilotError("allocation slice は exact 132 行でなければならない")
+    return tuple(result)
+
+
+def _legacy_schedule_projection(
+    global_schedule: GlobalPilotSchedule,
+    *,
+    rounds: int,
+    allocation_index: int = 0,
+) -> tuple[dict[str, object], ...]:
+    if rounds > 11:
+        raise PilotError("legacy schedule rounds は 11 以下でなければならない")
+    selected = slice_global_pilot_schedule(global_schedule, allocation_index)
+    width = 12
+    return tuple(
+        {
+            "seq": local_seq,
+            "pilot_round": (local_seq // width) + 1,
+            "cell_id": row["cell_id"],
+        }
+        for local_seq, row in enumerate(selected[:rounds * width])
+    )
+
+
+def _build_legacy_pilot_schedule(
     inputs: PilotInputs,
     *,
     master_seed: str,
     rounds: int,
 ) -> tuple[dict[str, object], ...]:
-    """Use the oracle manifest complete-block scheduler, never the floor scheduler."""
+    """Retain the already-issued legacy n-pilot scheduler byte-for-byte."""
     rounds = _positive_int(rounds, "rounds")
     holdout_ids = sorted({str(cell["holdout_id"]) for cell in inputs.cells})
     configuration_ids = sorted({str(cell["configuration_id"]) for cell in inputs.cells})
-    schedule = s8b_oracle_manifest.build_schedule(
+    manifest = s8b_oracle_manifest.build_schedule(
         n=rounds,
         master_seed=master_seed,
         block_sizes={"pilot": rounds},
         holdout_ids=holdout_ids,
         configuration_ids=configuration_ids,
     )
-    rows = []
-    for row in schedule["rows"]:
-        rows.append({
+    return tuple(
+        {
             "seq": int(row["schedule_index"]),
             "pilot_round": int(row["replicate_index"]) + 1,
             "cell_id": f"{row['holdout_id']}::{row['configuration_id']}",
-        })
-    return tuple(rows)
+        }
+        for row in manifest["rows"]
+    )
+
+
+def build_pilot_schedule(
+    inputs: PilotInputs,
+    *,
+    master_seed: str | None = None,
+    rounds: int | None = None,
+    allocation_index: int | None = None,
+) -> GlobalPilotSchedule | tuple[dict[str, object], ...]:
+    """Build the global R33 schedule, with a legacy local projection escape hatch.
+
+    ``rounds=None`` or ``rounds=33`` returns the structured global schedule.
+    For the R33 fixture, the shorter ``rounds`` form is only a local projection
+    used by statistical helpers and still derives its rows from one global
+    ``n=33`` manifest.  A non-R33 protocol uses the original legacy generator.
+    """
+    if not _is_r33_inputs(inputs):
+        if rounds is None:
+            raise PilotError("legacy schedule には rounds が必要")
+        return _build_legacy_pilot_schedule(
+            inputs,
+            master_seed=(inputs.protocol.master_seed if master_seed is None else master_seed),
+            rounds=rounds,
+        )
+    global_schedule = build_global_pilot_schedule(inputs, master_seed=master_seed)
+    if rounds is None or rounds == 33:
+        if allocation_index is None:
+            return global_schedule
+        return global_schedule.allocation_slice(allocation_index)
+    rounds = _positive_int(rounds, "rounds")
+    if allocation_index is None:
+        allocation_index = 0
+    return _legacy_schedule_projection(
+        global_schedule, rounds=rounds, allocation_index=allocation_index,
+    )
 
 
 def _load1() -> float:
@@ -922,6 +1251,8 @@ def run_sessions(
     repo_root: Path = ROOT,
     irreversible_pilot_holdout_approved: bool = False,
     n_pilot_admissions: Mapping[int, object] | None = None,
+    reservation_receipt: Mapping[str, object] | None = None,
+    schedule_sha256: str | None = None,
     consume_n_pilot_attempt_ticket_fn: Callable[..., object] = (
         s8b_holdout_admission.consume_n_pilot_attempt_ticket
     ),
@@ -931,7 +1262,18 @@ def run_sessions(
         raise PilotError(
             "holdout observation requires --confirm-irreversible-pilot-holdout"
         )
-    if n_pilot_admissions is None or set(n_pilot_admissions) != set(range(len(schedule))):
+    receipt_mode = reservation_receipt is not None
+    if receipt_mode:
+        if n_pilot_admissions is not None:
+            raise PilotError("R33 receipt run cannot receive legacy n_pilot_admissions")
+        if not isinstance(reservation_receipt, Mapping):
+            raise PilotError("R33 reservation receipt が mapping でない")
+        receipt_schedule_sha256 = reservation_receipt.get("schedule_sha256")
+        if schedule_sha256 is None and _is_hex(receipt_schedule_sha256, 64):
+            schedule_sha256 = str(receipt_schedule_sha256)
+        if not _is_hex(schedule_sha256, 64):
+            raise PilotError("R33 run の schedule_sha256 が不正")
+    elif n_pilot_admissions is None or set(n_pilot_admissions) != set(range(len(schedule))):
         raise PilotError("n pilot holdout admission coverage is incomplete")
     perf_mode = resolve_perf_mode(
         repo_root=repo_root,
@@ -944,9 +1286,32 @@ def run_sessions(
     single_tenant_fn()
     observations = []
     width = len(cells)
+    seen_global_indexes: set[int] = set()
     for expected_seq, row in enumerate(schedule):
-        if set(row) != {"seq", "pilot_round", "cell_id"} or row["seq"] != expected_seq:
-            raise PilotError("schedule row schema/seq が不正")
+        if receipt_mode:
+            required = {
+                "seq", "pilot_round", "global_schedule_index",
+                "global_pilot_round", "cell_id",
+            }
+            if set(row) != required or row["seq"] != expected_seq:
+                raise PilotError("R33 schedule row schema/seq が不正")
+            global_schedule_index = row["global_schedule_index"]
+            global_pilot_round = row["global_pilot_round"]
+            if (
+                type(global_schedule_index) is not int
+                or not 0 <= global_schedule_index < 396
+                or global_schedule_index in seen_global_indexes
+                or type(global_pilot_round) is not int
+                or not 1 <= global_pilot_round <= 33
+                or global_pilot_round != global_schedule_index // width + 1
+            ):
+                raise PilotError("R33 schedule global coordinate が不正")
+            seen_global_indexes.add(global_schedule_index)
+        else:
+            if set(row) != {"seq", "pilot_round", "cell_id"} or row["seq"] != expected_seq:
+                raise PilotError("schedule row schema/seq が不正")
+            global_schedule_index = expected_seq
+            global_pilot_round = int(row["pilot_round"])
         cell_id = str(row["cell_id"])
         if cell_id not in cells:
             raise PilotError(f"schedule に未知 cell がある: {cell_id}")
@@ -962,9 +1327,21 @@ def run_sessions(
         point = None
         measure_error: BaseException | None = None
         try:
-            observation_admission = consume_n_pilot_attempt_ticket_fn(
-                n_pilot_admissions[expected_seq], schedule_index=expected_seq,
-            )
+            if receipt_mode:
+                observation_admission = consume_n_pilot_attempt_ticket_fn(
+                    reservation_receipt,
+                    repo_root=Path(repo_root),
+                    protocol=inputs.protocol.document,
+                    verified_freeze_document=inputs.freeze,
+                    freeze_sha256=inputs.freeze_sha256,
+                    schedule_sha256=schedule_sha256,
+                    global_schedule_index=global_schedule_index,
+                    expected_cell_id=cell_id,
+                )
+            else:
+                observation_admission = consume_n_pilot_attempt_ticket_fn(
+                    n_pilot_admissions[expected_seq], schedule_index=expected_seq,
+                )
         except s8b_holdout_admission.HoldoutAdmissionError as exc:
             raise PilotError(f"n pilot attempt admission failed: {exc}") from exc
         try:
@@ -1022,7 +1399,11 @@ def run_sessions(
             binary_sha256_at_measure=measured_sha,
             cache_hit=binary.cache_hit,
             materialize_elapsed_s=binary.materialize_elapsed_s,
+            global_schedule_index=(global_schedule_index if receipt_mode else None),
+            global_pilot_round=(global_pilot_round if receipt_mode else None),
         ))
+    if receipt_mode and len(seen_global_indexes) != len(schedule):
+        raise PilotError("R33 schedule global coordinate coverage is incomplete")
     return tuple(observations), perf_mode
 
 
@@ -1594,13 +1975,26 @@ def _record_float(value: object, label: str, *, positive: bool = False) -> float
 
 
 def _observation_from_record(record: object, label: str) -> SessionObservation:
-    checked = _exact_mapping(record, {
+    base_keys = {
         "seq", "pilot_round", "position", "cell_id", "monotonic_start_s",
         "monotonic_end_s", "duration_s", "load1_before", "load1_after",
         "throughputs", "throughput_binary64_hex", "outer_median", "abort_rate",
         "returncodes", "binary_sha256_at_measure", "cache_hit", "cache_state",
         "materialize_elapsed_s",
-    }, label)
+    }
+    global_keys = base_keys | {"global_schedule_index", "global_pilot_round"}
+    if isinstance(record, Mapping) and set(record) == base_keys:
+        checked = _exact_mapping(record, base_keys, label)
+        global_schedule_index = checked["seq"]
+        global_pilot_round = checked["pilot_round"]
+    elif isinstance(record, Mapping) and set(record) == global_keys:
+        checked = _exact_mapping(record, global_keys, label)
+        global_schedule_index = checked["global_schedule_index"]
+        global_pilot_round = checked["global_pilot_round"]
+    else:
+        checked = _exact_mapping(record, base_keys, label)
+        global_schedule_index = checked["seq"]
+        global_pilot_round = checked["pilot_round"]
     throughputs_raw = checked["throughputs"]
     hex_raw = checked["throughput_binary64_hex"]
     returncodes_raw = checked["returncodes"]
@@ -1648,6 +2042,13 @@ def _observation_from_record(record: object, label: str) -> SessionObservation:
         raise PilotError(f"{label}.cache_hit が bool でない")
     if checked["cache_state"] != ("hit" if checked["cache_hit"] else "miss"):
         raise PilotError(f"{label}.cache_state が cache_hit と不一致")
+    if (
+        type(global_schedule_index) is not int or global_schedule_index < 0
+        or global_schedule_index >= 396
+        or type(global_pilot_round) is not int or global_pilot_round <= 0
+        or global_pilot_round > 33
+    ):
+        raise PilotError(f"{label} の global schedule coordinate が不正")
     return SessionObservation(
         seq=checked["seq"],
         pilot_round=pilot_round,
@@ -1668,6 +2069,8 @@ def _observation_from_record(record: object, label: str) -> SessionObservation:
         materialize_elapsed_s=_record_float(
             checked["materialize_elapsed_s"], f"{label}.materialize_elapsed_s"
         ),
+        global_schedule_index=global_schedule_index,
+        global_pilot_round=global_pilot_round,
     )
 
 
@@ -1703,23 +2106,34 @@ def _aggregation_inputs(
 
 
 def _allocation_shift(
-    allocations: Sequence[tuple[str, Sequence[SessionObservation]]],
+    allocations: Sequence[
+        tuple[Mapping[str, object], Sequence[SessionObservation]]
+    ],
     cell_ids: set[str],
 ) -> dict[str, object]:
+    normalized: list[tuple[dict[str, object], str, Sequence[SessionObservation]]] = []
+    seen_keys: set[str] = set()
+    for identity, observations in allocations:
+        normalized_identity = _allocation_identity(identity)
+        key = _allocation_identity_key(normalized_identity)
+        if key in seen_keys:
+            raise PilotError("allocation identity が重複している")
+        seen_keys.add(key)
+        normalized.append((normalized_identity, key, observations))
     result: dict[str, object] = {}
     for cell_id in sorted(cell_ids):
         medians = {
-            attempt_id: statistics.median([
+            key: statistics.median([
                 observation.outer_median
                 for observation in observations
                 if observation.cell_id == cell_id
             ])
-            for attempt_id, observations in allocations
+            for _identity, key, observations in normalized
         }
-        attempts = list(medians)
+        allocation_keys = list(medians)
         differences = []
-        for left_index, left in enumerate(attempts):
-            for right in attempts[left_index + 1:]:
+        for left_index, left in enumerate(allocation_keys):
+            for right in allocation_keys[left_index + 1:]:
                 difference = medians[right] - medians[left]
                 differences.append({
                     "from": left,
@@ -1736,29 +2150,146 @@ def _allocation_shift(
         }
     return {
         "interpretation": "presence-and-direction-only;not-a-variance-component-estimate",
-        "allocation_count": len(allocations),
+        "allocation_count": len(normalized),
         "cells": result,
     }
+
+
+def _manifest_hashes(
+    document: Mapping[str, object], raw: bytes, label: str,
+) -> tuple[str, str]:
+    """Return the manifest file digest and its receipt digest.
+
+    R33 public manifests expose the durable receipt digest as
+    ``authoritative_receipt_sha256``.  Older receipt-shaped inputs may expose
+    ``receipt_sha256`` directly (or under ``receipt``); inputs without either
+    field remain bound to their exact canonical file bytes.
+    """
+    manifest_sha256 = hashlib.sha256(raw).hexdigest()
+    if "authoritative_receipt_sha256" in document:
+        declared = document["authoritative_receipt_sha256"]
+        declared_field = "authoritative_receipt_sha256"
+        declared_present = True
+    elif "receipt_sha256" in document:
+        declared = document["receipt_sha256"]
+        declared_field = "receipt_sha256"
+        declared_present = True
+    else:
+        declared = None
+        declared_field = "receipt_sha256"
+        declared_present = False
+    nested = document.get("receipt")
+    if not declared_present and isinstance(nested, Mapping):
+        declared = nested.get("receipt_sha256")
+        declared_field = "receipt.receipt_sha256"
+        declared_present = True
+    if declared_present and not _is_hex(declared, 64):
+        raise PilotError(f"{label}.{declared_field} が不正")
+    return manifest_sha256, (manifest_sha256 if not declared_present else str(declared))
+
+
+def _aggregate_binary_identity(
+    binary: object, *, label: str,
+) -> tuple[str, tuple[str, str, str]]:
+    if not isinstance(binary, Mapping):
+        raise PilotError(f"{label} binary schema が不正")
+    keys = set(binary)
+    if not _BINARY_REQUIRED_KEYS.issubset(keys) or not keys.issubset(
+        _BINARY_ALLOWED_KEYS
+    ):
+        raise PilotError(f"{label} binary schema が不正")
+    cell_id = binary.get("cell_id")
+    if type(cell_id) is not str or not cell_id:
+        raise PilotError(f"{label}.cell_id が不正")
+    if binary.get("cache_hit") is not False:
+        raise PilotError("aggregate result binary に cache hit がある")
+    for field in ("entry_sha256", "binding_sha256", "binary_sha256"):
+        if not _is_hex(binary.get(field), 64):
+            raise PilotError(f"{label}.{field} が不正")
+
+    if "cache_state" in binary and binary["cache_state"] != "miss":
+        raise PilotError(f"{label}.cache_state が cache_hit と不一致")
+    if "materialize_elapsed_s" in binary:
+        _record_float(binary["materialize_elapsed_s"], f"{label}.materialize_elapsed_s")
+    if "worktree_identity_sha256" in binary and not _is_hex(
+        binary["worktree_identity_sha256"], 64
+    ):
+        raise PilotError(f"{label}.worktree_identity_sha256 が不正")
+    if "isolated_worktree" in binary and type(binary["isolated_worktree"]) is not bool:
+        raise PilotError(f"{label}.isolated_worktree が不正")
+
+    if "pre_materialization_clean_assertion" in binary:
+        pre_materialization = binary["pre_materialization_clean_assertion"]
+        if (
+            not isinstance(pre_materialization, Mapping)
+            or set(pre_materialization) != {"passed", "gateway"}
+            or type(pre_materialization["passed"]) is not bool
+            or type(pre_materialization["gateway"]) is not str
+            or not pre_materialization["gateway"]
+        ):
+            raise PilotError(f"{label}.pre_materialization_clean_assertion が不正")
+
+    if "source_clean_assertion" in binary:
+        source_clean = binary["source_clean_assertion"]
+        if (
+            not isinstance(source_clean, Mapping)
+            or set(source_clean) != {"tracked_clean", "tracked_paths", "allowlist_checked"}
+            or type(source_clean["tracked_clean"]) is not bool
+            or type(source_clean["allowlist_checked"]) is not bool
+            or not isinstance(source_clean["tracked_paths"], list)
+            or any(type(path) is not str for path in source_clean["tracked_paths"])
+        ):
+            raise PilotError(f"{label}.source_clean_assertion が不正")
+
+    return cell_id, (
+        str(binary["entry_sha256"]),
+        str(binary["binding_sha256"]),
+        str(binary["binary_sha256"]),
+    )
 
 
 def aggregate_results(
     protocol: PilotProtocol,
     result_paths: Sequence[Path],
+    manifest_paths: Sequence[Path] | None = None,
 ) -> dict[str, object]:
-    """Aggregate exactly three same-protocol allocation results before deriving n."""
-    if len(result_paths) != protocol.allocation_count:
-        raise PilotError("aggregate result 数が protocol allocation_count と不一致")
+    """Aggregate three R33 allocation results against their three receipts."""
+    if protocol.allocation_count != 3:
+        raise PilotError("R33 aggregate は allocation_count=3 が必要")
+    if len(result_paths) != 3:
+        raise PilotError("aggregate result 数が3でない")
+    if manifest_paths is None or len(manifest_paths) != 3:
+        raise PilotError("aggregate manifest 数が3でない")
+
+    manifest_by_sha: dict[str, tuple[Mapping[str, object], str, str]] = {}
+    for index, path in enumerate(manifest_paths):
+        document, raw = _load_strict_json_mapping(
+            Path(path), f"aggregate admission manifest[{index}]"
+        )
+        manifest_sha256, receipt_sha256 = _manifest_hashes(
+            document, raw, f"aggregate admission manifest[{index}]"
+        )
+        manifest_by_sha[manifest_sha256] = (
+            document, manifest_sha256, receipt_sha256
+        )
+
     parsed = []
-    canonical_schedule = None
     canonical_identity = None
     canonical_design = None
     canonical_binary_identity = None
+    canonical_schedule_sha256 = None
     cell_ids: set[str] | None = None
-    attempts: set[str] = set()
+    allocation_keys: set[str] = set()
+    allocation_indexes: set[int] = set()
+    canonical_campaign_run_id: str | None = None
     observed_repo_heads: set[str] = set()
-    rounds_per_allocation: int | None = None
+    global_indexes: set[int] = set()
+    manifest_hashes_by_index: dict[int, str] = {}
+    expected_global_schedule: GlobalPilotSchedule | None = None
     for index, path in enumerate(result_paths):
-        document, raw = _load_strict_json_mapping(Path(path), f"aggregate result[{index}]")
+        document, raw = _load_strict_json_mapping(
+            Path(path), f"aggregate result[{index}]"
+        )
         expected_fields = {
             "schema_version", "status", "eligibility", "input_identity", "design",
             "allocation", "measurement_declaration", "schedule", "binaries", "sessions",
@@ -1770,6 +2301,7 @@ def aggregate_results(
             raise PilotError(f"aggregate result[{index}] が解析前 completed result でない")
         if document["n_analysis_null_reason"] != "per-allocation-result-does-not-derive-n":
             raise PilotError(f"aggregate result[{index}] の per-allocation n null 理由が不正")
+
         identity = document["input_identity"]
         design = document["design"]
         allocation = document["allocation"]
@@ -1813,114 +2345,175 @@ def aggregate_results(
             canonical_identity = stable_identity
         elif stable_identity != canonical_identity:
             raise PilotError("aggregate results の input identity が不一致")
+
         if not isinstance(design, Mapping) or design.get("master_seed") != protocol.master_seed:
             raise PilotError("aggregate results が同一 schedule seed でない")
         if design.get("allocation_count") != protocol.allocation_count:
             raise PilotError("aggregate result allocation_count が protocol と不一致")
+        if design.get("total_pilot_rounds") != 33 or design.get("rounds_this_allocation") != 11:
+            raise PilotError("aggregate result の R33 allocation round 数が不正")
         if canonical_design is None:
             canonical_design = dict(design)
         elif design != canonical_design:
             raise PilotError("aggregate results の design が不一致")
         if document["measurement_declaration"] != protocol.measurement_declaration:
             raise PilotError("aggregate result measurement declaration が protocol と不一致")
+
+        normalized_allocation = _allocation_identity(
+            allocation, label=f"aggregate result[{index}].allocation"
+        )
+        if normalized_allocation["role"] != R33_RESULT_ROLE:
+            raise PilotError("aggregate result role が n_pilot_r33 でない")
+        if allocation.get("holdout_admission") != normalized_allocation:
+            raise PilotError("aggregate result holdout admission identity が不正")
+        allocation_key = _allocation_identity_key(normalized_allocation)
+        allocation_index = int(normalized_allocation["allocation_index"])
+        if canonical_campaign_run_id is None:
+            canonical_campaign_run_id = str(normalized_allocation["campaign_run_id"])
+        elif normalized_allocation["campaign_run_id"] != canonical_campaign_run_id:
+            raise PilotError("aggregate results の campaign_run_id が不一致")
+        if allocation_key in allocation_keys or allocation_index in allocation_indexes:
+            raise PilotError("aggregate result allocation identity が重複")
+        allocation_keys.add(allocation_key)
+        allocation_indexes.add(allocation_index)
+        expected_start = allocation_index * 132
+        expected_end = expected_start + 131
+        if (
+            type(allocation.get("global_schedule_start")) is not int
+            or type(allocation.get("global_schedule_end")) is not int
+            or allocation.get("global_schedule_start") != expected_start
+            or allocation.get("global_schedule_end") != expected_end
+        ):
+            raise PilotError("aggregate result global schedule range が不正")
+        for field in (
+            "receipt_sha256", "admission_manifest_sha256", "schedule_sha256",
+        ):
+            if not _is_hex(allocation.get(field), 64):
+                raise PilotError(f"aggregate result {field} が不正")
+        manifest_sha256 = str(allocation["admission_manifest_sha256"])
+        manifest_entry = manifest_by_sha.get(manifest_sha256)
+        if manifest_entry is None:
+            raise PilotError("aggregate result admission manifest が入力集合にない")
+        _manifest_document, _manifest_sha256, manifest_receipt_sha256 = manifest_entry
+        if allocation["admission_manifest_sha256"] != manifest_sha256:
+            raise PilotError("aggregate result admission manifest hash が不一致")
+        if allocation["receipt_sha256"] != manifest_receipt_sha256:
+            raise PilotError("aggregate result receipt hash が不一致")
+        manifest_hashes_by_index[allocation_index] = manifest_sha256
+        if canonical_schedule_sha256 is None:
+            canonical_schedule_sha256 = allocation["schedule_sha256"]
+        elif allocation["schedule_sha256"] != canonical_schedule_sha256:
+            raise PilotError("aggregate results の schedule hash が不一致")
+
         binaries = document["binaries"]
         if not isinstance(binaries, list) or not binaries:
             raise PilotError("aggregate result binaries が空でない list でない")
-        binary_identity = {
-            str(binary.get("cell_id")): (
-                binary.get("entry_sha256"),
-                binary.get("binding_sha256"),
-                binary.get("binary_sha256"),
+        binary_identity: dict[str, tuple[str, str, str]] = {}
+        for binary_index, binary in enumerate(binaries):
+            cell_id, identity = _aggregate_binary_identity(
+                binary, label=f"aggregate result[{index}].binaries[{binary_index}]",
             )
-            for binary in binaries if isinstance(binary, Mapping)
-        }
-        if len(binary_identity) != len(binaries):
-            raise PilotError("aggregate result binary identity が不正または重複")
+            if cell_id in binary_identity:
+                raise PilotError("aggregate result binary identity が不正または重複")
+            binary_identity[cell_id] = identity
         if canonical_binary_identity is None:
             canonical_binary_identity = binary_identity
         elif binary_identity != canonical_binary_identity:
             raise PilotError("aggregate results の binary identity が不一致")
-        if not isinstance(allocation, Mapping) or type(allocation.get("attempt_id")) is not str:
-            raise PilotError("aggregate result attempt identity が不正")
-        attempt_id = allocation["attempt_id"]
-        if not attempt_id or attempt_id in attempts:
-            raise PilotError("aggregate result attempt identity が空または重複")
-        if allocation.get("holdout_admission") != {
-            "role": s8b_holdout_admission.OBSERVATION_ROLE_N_PILOT,
-            "campaign_run_id": attempt_id,
-        }:
-            raise PilotError("aggregate result holdout admission identity が不正")
-        attempts.add(attempt_id)
+
         schedule = document["schedule"]
-        if not isinstance(schedule, list) or not schedule:
-            raise PilotError("aggregate result schedule が空でない list でない")
-        if canonical_schedule is None:
-            canonical_schedule = schedule
-        elif schedule != canonical_schedule:
-            raise PilotError("aggregate results の schedule が同一 seed の出力と不一致")
+        if not isinstance(schedule, list) or len(schedule) != 132:
+            raise PilotError("aggregate result schedule が exact 132 行でない")
         sessions_raw = document["sessions"]
-        if not isinstance(sessions_raw, list) or not sessions_raw:
-            raise PilotError("aggregate result sessions が空でない list でない")
+        if not isinstance(sessions_raw, list) or len(sessions_raw) != 132:
+            raise PilotError("aggregate result sessions が exact 132 件でない")
         observations = tuple(
             _observation_from_record(record, f"result[{index}].sessions[{record_index}]")
             for record_index, record in enumerate(sessions_raw)
         )
         observed_cells = {observation.cell_id for observation in observations}
+        schedule_cells = {
+            row.get("cell_id")
+            for row in schedule
+            if isinstance(row, Mapping) and type(row.get("cell_id")) is str
+        }
+        if (
+            len(binary_identity) != 12
+            or len(observed_cells) != 12
+            or len(schedule_cells) != 12
+            or set(binary_identity) != observed_cells
+            or set(binary_identity) != schedule_cells
+        ):
+            raise PilotError(
+                "aggregate result binary が schedule/sessions の 12-cell coverage と不一致"
+            )
         if cell_ids is None:
             cell_ids = observed_cells
+            aggregate_inputs = _aggregation_inputs(protocol, cell_ids)
+            expected_global_schedule = build_global_pilot_schedule(aggregate_inputs)
         elif observed_cells != cell_ids:
             raise PilotError("aggregate results の cell 集合が不一致")
-        assert cell_ids is not None
-        inputs = _aggregation_inputs(protocol, cell_ids)
-        rounds, _by_cell = _observation_matrix(inputs, observations)
+        assert cell_ids is not None and expected_global_schedule is not None
         expected_schedule = [
-            dict(row) for row in build_pilot_schedule(
-                inputs,
-                master_seed=protocol.master_seed,
-                rounds=len(rounds),
-            )
+            dict(row) for row in expected_global_schedule.allocation_slice(allocation_index)
         ]
         if schedule != expected_schedule:
-            raise PilotError("aggregate result schedule が preregistered seed の出力でない")
-        if len(observations) != len(schedule):
-            raise PilotError("aggregate result sessions と schedule の長さが不一致")
+            raise PilotError("aggregate result local schedule が global slice と不一致")
+        if allocation["schedule_sha256"] != expected_global_schedule.schedule_sha256:
+            raise PilotError("aggregate result schedule hash が preregistered seed と不一致")
         width = len(cell_ids)
+        local_rounds: set[int] = set()
         for expected_seq, (row, observation) in enumerate(zip(schedule, observations)):
+            expected_global_index = expected_start + expected_seq
+            expected_global_round = allocation_index * 11 + (expected_seq // width) + 1
             if (
                 row.get("seq") != expected_seq
+                or row.get("pilot_round") != (expected_seq // width) + 1
+                or row.get("global_schedule_index") != expected_global_index
+                or row.get("global_pilot_round") != expected_global_round
                 or observation.seq != expected_seq
                 or observation.pilot_round != row.get("pilot_round")
+                or observation.global_schedule_index != expected_global_index
+                or observation.global_pilot_round != expected_global_round
                 or observation.cell_id != row.get("cell_id")
                 or observation.position != (expected_seq % width) + 1
             ):
-                raise PilotError("aggregate result session が schedule row と不一致")
-        if rounds_per_allocation is None:
-            rounds_per_allocation = len(rounds)
-        elif len(rounds) != rounds_per_allocation:
-            raise PilotError("aggregate results の allocation round 数が不一致")
-        parsed.append((attempt_id, observations, hashlib.sha256(raw).hexdigest()))
-    assert cell_ids is not None and rounds_per_allocation is not None
-    if protocol.pilot_rounds is None or rounds_per_allocation * len(parsed) != protocol.pilot_rounds:
-        raise PilotError("aggregate total round 数が protocol.pilot_rounds と不一致")
-    parsed.sort(key=lambda item: item[0])
+                raise PilotError("aggregate result session が global schedule row と不一致")
+            local_rounds.add(observation.pilot_round)
+            if expected_global_index in global_indexes:
+                raise PilotError("aggregate global schedule index が重複")
+            global_indexes.add(expected_global_index)
+        if local_rounds != set(range(1, 12)):
+            raise PilotError("aggregate result の allocation round 数が不一致")
+        parsed.append((normalized_allocation, observations, hashlib.sha256(raw).hexdigest()))
+
+    assert cell_ids is not None and expected_global_schedule is not None
+    if allocation_indexes != {0, 1, 2}:
+        raise PilotError("aggregate allocation index が0/1/2を完全被覆しない")
+    if global_indexes != set(range(396)):
+        raise PilotError("aggregate global schedule が396 indexを完全被覆しない")
+    if protocol.pilot_rounds != 33 or canonical_schedule_sha256 != expected_global_schedule.schedule_sha256:
+        raise PilotError("aggregate total round 数または schedule hash が protocol と不一致")
+    parsed.sort(key=lambda item: int(item[0]["allocation_index"]))
     combined = []
-    for allocation_index, (_attempt, observations, _sha) in enumerate(parsed):
-        round_offset = allocation_index * rounds_per_allocation
+    for identity, observations, _sha in parsed:
         for observation in observations:
+            assert observation.global_schedule_index is not None
+            assert observation.global_pilot_round is not None
             combined.append(replace(
                 observation,
-                seq=len(combined),
-                pilot_round=round_offset + observation.pilot_round,
+                seq=observation.global_schedule_index,
+                pilot_round=observation.global_pilot_round,
             ))
     aggregate_inputs = _aggregation_inputs(protocol, cell_ids)
     statistics_document = summarize_sessions(aggregate_inputs, combined)
     allocation_drifts = {
-        attempt: diagnose_drift(aggregate_inputs, observations)
-        for attempt, observations, _sha in parsed
+        _allocation_identity_key(identity): diagnose_drift(aggregate_inputs, observations)
+        for identity, observations, _sha in parsed
     }
     drift_reasons = [
-        f"{attempt}:{reason}"
-        for attempt, diagnostics in allocation_drifts.items()
+        f"{key}:{reason}"
+        for key, diagnostics in allocation_drifts.items()
         for reason in diagnostics["invalidation_reasons"]
     ]
     drift = {
@@ -1935,8 +2528,8 @@ def aggregate_results(
         "allocations": allocation_drifts,
     }
     statistics_document["drift_diagnostics"] = drift
+    assert canonical_identity is not None
     if drift["valid_for_n_analysis"]:
-        assert canonical_identity is not None
         n_analysis = derive_n_table(
             aggregate_inputs,
             combined,
@@ -1967,6 +2560,7 @@ def aggregate_results(
             "irreversible_pilot_holdout_approved": True,
             "use_perf": canonical_identity["use_perf"],
             "perf_preflight": canonical_identity["perf_preflight"],
+            "schedule_sha256": expected_global_schedule.schedule_sha256,
         },
         "design": {
             "master_seed": protocol.master_seed,
@@ -1976,12 +2570,18 @@ def aggregate_results(
             "allocation_variation_in_ucl": False,
         },
         "source_results": [
-            {"attempt_id": attempt, "sha256": sha}
-            for attempt, _observations, sha in parsed
+            {
+                "identity": dict(identity),
+                "sha256": sha,
+                "admission_manifest_sha256": manifest_hashes_by_index[
+                    int(identity["allocation_index"])
+                ],
+            }
+            for identity, _observations, sha in parsed
         ],
         "statistics": statistics_document,
         "allocation_shift": _allocation_shift(
-            [(attempt, observations) for attempt, observations, _sha in parsed],
+            [(identity, observations) for identity, observations, _sha in parsed],
             cell_ids,
         ),
         "n_analysis": n_analysis,
@@ -1993,15 +2593,21 @@ def _result_document(
     inputs: PilotInputs,
     binaries: Mapping[str, PilotBinary],
     *,
-    attempt_id: str,
-    rounds: int | None,
-    build_only: bool,
-    schedule: Sequence[Mapping[str, object]],
-    observations: Sequence[SessionObservation],
-    statistics_document: Mapping[str, object] | None,
-    n_analysis: Mapping[str, object] | None,
-    run_wall_time_s: float | None,
-    perf_mode: PerfMode,
+    campaign_run_id: str | None = None,
+    allocation_index: int | None = None,
+    receipt_sha256: str | None = None,
+    admission_manifest_sha256: str | None = None,
+    schedule_sha256: str | None = None,
+    global_schedule_start: int | None = None,
+    global_schedule_end: int | None = None,
+    rounds: int | None = None,
+    build_only: bool = False,
+    schedule: Sequence[Mapping[str, object]] = (),
+    observations: Sequence[SessionObservation] = (),
+    statistics_document: Mapping[str, object] | None = None,
+    n_analysis: Mapping[str, object] | None = None,
+    run_wall_time_s: float | None = None,
+    perf_mode: PerfMode | None = None,
     n_analysis_null_reason: str | None = None,
     irreversible_pilot_holdout_approved: bool = False,
     holdout_admission_identifier: Mapping[str, object] | None = None,
@@ -2013,6 +2619,8 @@ def _result_document(
             "build-only-result" if build_only
             else "per-allocation-result-does-not-derive-n"
         )
+    if perf_mode is None:
+        raise PilotError("result perf mode が欠落している")
     try:
         normalized_perf = _perf_preflight.validate_perf_preflight_receipt(
             perf_mode.receipt
@@ -2025,16 +2633,46 @@ def _result_document(
     if type(irreversible_pilot_holdout_approved) is not bool:
         raise PilotError("result irreversible pilot approval が exact bool でない")
     if not build_only:
+        if _is_r33_protocol(inputs.protocol) is not True:
+            raise PilotError("completed result は R33 protocol に限る")
+        if type(campaign_run_id) is not str:
+            raise PilotError("completed result campaign_run_id が欠落している")
+        _require_identifier(campaign_run_id, "campaign_run_id")
+        _require_allocation_index(allocation_index)
         expected_identifier = {
-            "role": s8b_holdout_admission.OBSERVATION_ROLE_N_PILOT,
-            "campaign_run_id": attempt_id,
+            "role": R33_RESULT_ROLE,
+            "campaign_run_id": campaign_run_id,
+            "allocation_index": allocation_index,
         }
         if irreversible_pilot_holdout_approved is not True:
             raise PilotError("completed pilot result lacks irreversible approval")
         if holdout_admission_identifier != expected_identifier:
             raise PilotError("completed pilot result admission identifier is invalid")
+        for field, value in (
+            ("receipt_sha256", receipt_sha256),
+            ("admission_manifest_sha256", admission_manifest_sha256),
+            ("schedule_sha256", schedule_sha256),
+        ):
+            if not _is_hex(value, 64):
+                raise PilotError(f"completed result {field} が欠落または不正")
+        if (
+            type(global_schedule_start) is not int
+            or type(global_schedule_end) is not int
+            or global_schedule_start < 0
+            or global_schedule_end < global_schedule_start
+            or global_schedule_start >= 396
+            or global_schedule_end >= 396
+            or global_schedule_end - global_schedule_start + 1 != len(schedule)
+        ):
+            raise PilotError("completed result global schedule range が不正")
     elif holdout_admission_identifier is not None:
         raise PilotError("build-only result cannot carry a holdout admission identifier")
+    elif any(value is not None for value in (
+        receipt_sha256, admission_manifest_sha256, schedule_sha256,
+        global_schedule_start, global_schedule_end,
+    )):
+        raise PilotError("build-only result cannot carry R33 receipt identity")
+    allocation_role = R33_RESULT_ROLE if not build_only else inputs.protocol.allocation_role
     return {
         "schema_version": RESULT_SCHEMA,
         "status": "built" if build_only else "completed",
@@ -2093,13 +2731,19 @@ def _result_document(
             "retry_rule": "new-attempt-only",
         },
         "allocation": {
-            "attempt_id": attempt_id,
-            "role": inputs.protocol.allocation_role,
+            "role": allocation_role,
+            "campaign_run_id": campaign_run_id,
+            "allocation_index": allocation_index,
             "pbs_job_id": os.environ.get("PBS_JOBID"),
             "hostname": os.uname().nodename,
             "boot_id": _read_boot_id(),
             "run_wall_time_s": run_wall_time_s,
             "one_round_wall_time_s": run_wall_time_s if rounds == 1 else None,
+            "receipt_sha256": receipt_sha256,
+            "admission_manifest_sha256": admission_manifest_sha256,
+            "schedule_sha256": schedule_sha256,
+            "global_schedule_start": global_schedule_start,
+            "global_schedule_end": global_schedule_end,
             "holdout_admission": (
                 None if holdout_admission_identifier is None
                 else dict(holdout_admission_identifier)
@@ -2133,50 +2777,268 @@ def _parse_args(argv: Sequence[str] | None) -> argparse.Namespace:
     parser.add_argument("--protocol", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--attempt-id")
+    parser.add_argument("--campaign-run-id")
     parser.add_argument("--observed-repo-head")
     parser.add_argument("--cache-root", type=Path)
     parser.add_argument("--build-only", action="store_true")
+    parser.add_argument("--reserve-only", action="store_true")
+    parser.add_argument("--consume-only", action="store_true")
+    parser.add_argument(
+        "--mode", choices=("build", "reserve", "consume", "aggregate")
+    )
+    parser.add_argument("--allocation-index", type=int)
+    parser.add_argument(
+        "--admission-manifest", type=Path, action="append", nargs="+"
+    )
     parser.add_argument(
         "--confirm-irreversible-pilot-holdout", action="store_true",
     )
     parser.add_argument("--rounds", type=int)
-    parser.add_argument("--aggregate", type=Path, nargs="+")
+    parser.add_argument("--aggregate", type=Path, action="append", nargs="+")
     return parser.parse_args(argv)
+
+
+def _flatten_paths(value: object) -> list[Path]:
+    if value is None:
+        return []
+    if not isinstance(value, list):
+        raise PilotError("path option の内部 shape が不正")
+    result: list[Path] = []
+    for occurrence in value:
+        if not isinstance(occurrence, list) or not occurrence:
+            raise PilotError("path option の occurrence が空である")
+        if any(not isinstance(path, Path) for path in occurrence):
+            raise PilotError("path option に Path でない値がある")
+        result.extend(occurrence)
+    return result
+
+
+def _cli_mode(args: argparse.Namespace) -> str:
+    flag_modes: list[str] = []
+    if args.reserve_only:
+        flag_modes.append("reserve")
+    if args.consume_only:
+        flag_modes.append("consume")
+    if args.build_only:
+        flag_modes.append("build")
+    aggregate_present = args.aggregate is not None
+    if aggregate_present:
+        flag_modes.append("aggregate")
+    if len(flag_modes) > 1:
+        raise PilotError("CLI mode flag は同時に1つだけ指定できる")
+    if args.mode is not None:
+        if flag_modes and flag_modes[0] != args.mode:
+            raise PilotError("--mode と mode flag が矛盾している")
+        return args.mode
+    if flag_modes:
+        return flag_modes[0]
+    raise PilotError("R33 driver には --reserve-only/--consume-only/--aggregate が必要")
+
+
+def _same_path(left: Path, right: Path) -> bool:
+    return left.resolve(strict=False) == right.resolve(strict=False)
+
+
+def _validate_cli_args(args: argparse.Namespace) -> str:
+    """Reject every mode/field combination before protocol or build work."""
+    mode = _cli_mode(args)
+    manifest_paths = _flatten_paths(args.admission_manifest)
+    result_paths = _flatten_paths(args.aggregate)
+    if args.aggregate is not None and len(args.aggregate) > 1:
+        raise PilotError("--aggregate は1回だけ指定できる")
+    if args.admission_manifest is not None and len(args.admission_manifest) > 1:
+        raise PilotError("--admission-manifest は1回だけ指定できる")
+
+    if mode == "aggregate":
+        if (
+            args.reserve_only or args.consume_only or args.build_only
+            or args.mode in {"reserve", "consume", "build"}
+        ):
+            raise PilotError("--aggregate は reserve/consume/build-only と併用できない")
+        if any(value is not None for value in (
+            args.attempt_id, args.campaign_run_id, args.observed_repo_head,
+            args.cache_root, args.allocation_index, args.rounds,
+        )) or args.confirm_irreversible_pilot_holdout:
+            raise PilotError(
+                "--aggregate は campaign/allocation/cache/rounds/confirmation/attempt-id "
+                "と併用できない"
+            )
+        if len(result_paths) != 3:
+            raise PilotError("--aggregate の result path は3件必要")
+        if len(manifest_paths) != 3:
+            raise PilotError("--aggregate の admission manifest は3件必要")
+        return mode
+    elif result_paths:
+        raise PilotError("--aggregate は aggregate mode でのみ指定できる")
+
+    if mode == "reserve":
+        if args.consume_only or args.build_only:
+            raise PilotError("reserve-only は consume-only/build-only と併用できない")
+        if args.attempt_id is not None:
+            raise PilotError("R33 reserve では --attempt-id を使用できない")
+        if args.campaign_run_id is None:
+            raise PilotError("reserve-only には --campaign-run-id が必要")
+        _require_identifier(args.campaign_run_id, "campaign_run_id")
+        if args.rounds is not None or args.allocation_index is not None or args.cache_root is not None:
+            raise PilotError("reserve-only は rounds/allocation-index/cache-root と併用できない")
+        if not args.confirm_irreversible_pilot_holdout:
+            raise PilotError("reserve-only には confirmation が必要")
+        if len(manifest_paths) != 1:
+            raise PilotError("reserve-only の admission manifest は1件だけ必要")
+        if _same_path(args.output, manifest_paths[0]):
+            raise PilotError("reserve output と admission manifest output は別 path が必要")
+        if result_paths:
+            raise PilotError("reserve-only と aggregate は併用できない")
+        return mode
+
+    if mode == "consume":
+        if args.reserve_only or args.build_only:
+            raise PilotError("consume-only は reserve-only/build-only と併用できない")
+        if args.attempt_id is not None:
+            raise PilotError("R33 consume では --attempt-id を使用できない")
+        if args.campaign_run_id is None:
+            raise PilotError("consume-only には --campaign-run-id が必要")
+        _require_identifier(args.campaign_run_id, "campaign_run_id")
+        _require_allocation_index(args.allocation_index)
+        if args.rounds != 11:
+            raise PilotError("consume-only の --rounds は必ず11である")
+        if args.cache_root is None:
+            raise PilotError("consume-only には --cache-root が必要")
+        if len(manifest_paths) != 1:
+            raise PilotError("consume-only の admission manifest は1件だけ必要")
+        if not args.confirm_irreversible_pilot_holdout:
+            raise PilotError("consume-only には confirmation が必要")
+        return mode
+
+    if mode == "build":
+        if args.reserve_only or args.consume_only:
+            raise PilotError("build-only は reserve-only/consume-only と併用できない")
+        if args.campaign_run_id is not None or args.allocation_index is not None:
+            raise PilotError("build-only は campaign/allocation-index と併用できない")
+        if args.admission_manifest is not None or args.confirm_irreversible_pilot_holdout:
+            raise PilotError("build-only は admission manifest/confirmation と併用できない")
+        if result_paths:
+            raise PilotError("build-only と aggregate は併用できない")
+        if args.attempt_id is not None:
+            _require_identifier(args.attempt_id, "attempt-id")
+        return mode
+
+    raise PilotError("未対応の CLI mode である")
+
+
+def _load_admission_manifest(path: Path) -> tuple[Mapping[str, object], str, str]:
+    document, raw = _load_strict_json_mapping(path, "admission manifest")
+    manifest_sha256, receipt_sha256 = _manifest_hashes(
+        document, raw, "admission manifest"
+    )
+    return document, manifest_sha256, receipt_sha256
+
+
+def _reserve_only(args: argparse.Namespace, protocol: PilotProtocol) -> None:
+    if not _is_r33_protocol(protocol):
+        raise PilotError("reserve-only は R33 protocol に限る")
+    inputs = load_inputs(protocol, observed_repo_head=args.observed_repo_head)
+    global_schedule = build_global_pilot_schedule(inputs)
+    try:
+        receipt = s8b_holdout_admission.reserve_n_pilot_holdout_observations(
+            repo_root=ROOT,
+            protocol=protocol.document,
+            protocol_sha256=protocol.protocol_sha256,
+            verified_freeze_document=inputs.freeze,
+            freeze_sha256=inputs.freeze_sha256,
+            cells=inputs.cells,
+            schedule=global_schedule.rows,
+            campaign_run_id=args.campaign_run_id,
+            irreversible_pilot_approved=args.confirm_irreversible_pilot_holdout,
+        )
+    except s8b_holdout_admission.HoldoutAdmissionError as exc:
+        raise PilotError(f"n pilot holdout reservation failed: {exc}") from exc
+    if not isinstance(receipt, Mapping):
+        raise PilotError("reserve が receipt mapping を返さない")
+    manifest = getattr(receipt, "manifest", None)
+    if not isinstance(manifest, Mapping):
+        raise PilotError("reserve が public admission manifest を返さない")
+    write_guarded_result(_flatten_paths(args.admission_manifest)[0], manifest)
+
+
+def _consume_only(args: argparse.Namespace, protocol: PilotProtocol) -> None:
+    if not _is_r33_protocol(protocol):
+        raise PilotError("consume-only は R33 protocol に限る")
+    receipt, manifest_sha256, receipt_sha256 = _load_admission_manifest(
+        _flatten_paths(args.admission_manifest)[0]
+    )
+    inputs = load_inputs(protocol, observed_repo_head=args.observed_repo_head)
+    global_schedule = build_global_pilot_schedule(inputs)
+    schedule = global_schedule.allocation_slice(args.allocation_index)
+    binaries = build_binaries(
+        inputs,
+        cache_root=args.cache_root,
+        allocation_mode=True,
+    )
+    run_start = time.monotonic()
+    observations, perf_mode = run_sessions(
+        inputs,
+        binaries,
+        schedule,
+        irreversible_pilot_holdout_approved=args.confirm_irreversible_pilot_holdout,
+        reservation_receipt=receipt,
+        schedule_sha256=global_schedule.schedule_sha256,
+    )
+    result = _result_document(
+        inputs,
+        binaries,
+        campaign_run_id=args.campaign_run_id,
+        allocation_index=args.allocation_index,
+        receipt_sha256=receipt_sha256,
+        admission_manifest_sha256=manifest_sha256,
+        schedule_sha256=global_schedule.schedule_sha256,
+        global_schedule_start=args.allocation_index * 132,
+        global_schedule_end=args.allocation_index * 132 + 131,
+        rounds=11,
+        build_only=False,
+        schedule=schedule,
+        observations=observations,
+        statistics_document=summarize_sessions(inputs, observations),
+        n_analysis=None,
+        run_wall_time_s=time.monotonic() - run_start,
+        perf_mode=perf_mode,
+        n_analysis_null_reason="per-allocation-result-does-not-derive-n",
+        irreversible_pilot_holdout_approved=args.confirm_irreversible_pilot_holdout,
+        holdout_admission_identifier={
+            "role": R33_RESULT_ROLE,
+            "campaign_run_id": args.campaign_run_id,
+            "allocation_index": args.allocation_index,
+        },
+    )
+    write_guarded_result(args.output, result)
 
 
 def main(argv: Sequence[str] | None = None) -> int:
     args = _parse_args(argv)
     try:
+        mode = _validate_cli_args(args)
         protocol = load_protocol(args.protocol)
-        if args.aggregate is not None:
-            if (
-                args.attempt_id is not None
-                or args.observed_repo_head is not None
-                or args.cache_root is not None
-                or args.build_only
-                or args.confirm_irreversible_pilot_holdout
-                or args.rounds is not None
-            ):
-                raise PilotError(
-                    "--aggregate は --attempt-id/--observed-repo-head/--cache-root/"
-                    "--build-only/--confirm-irreversible-pilot-holdout/--rounds "
-                    "と併用できない"
-                )
-            write_guarded_result(args.output, aggregate_results(protocol, args.aggregate))
-            return 0
-        if (
-            args.attempt_id is None
-            or args.observed_repo_head is None
-            or args.cache_root is None
-        ):
-            raise PilotError(
-                "allocation run には --attempt-id、--observed-repo-head、--cache-root が必要"
+        if mode == "aggregate":
+            write_guarded_result(
+                args.output,
+                aggregate_results(
+                    protocol,
+                    _flatten_paths(args.aggregate),
+                    _flatten_paths(args.admission_manifest),
+                ),
             )
-        if type(args.attempt_id) is not str or not args.attempt_id or any(
-            character not in "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789._-"
-            for character in args.attempt_id
-        ):
-            raise PilotError("attempt-id が安全な identifier でない")
+            return 0
+        if mode == "reserve":
+            _reserve_only(args, protocol)
+            return 0
+        if mode == "consume":
+            _consume_only(args, protocol)
+            return 0
+
+        if args.attempt_id is None or args.observed_repo_head is None or args.cache_root is None:
+            raise PilotError(
+                "build-only には --attempt-id、--observed-repo-head、--cache-root が必要"
+            )
         if args.rounds is not None:
             rounds = _positive_int(args.rounds, "--rounds")
             registered_allocation_rounds = (
@@ -2194,84 +3056,26 @@ def main(argv: Sequence[str] | None = None) -> int:
                 None if protocol.pilot_rounds is None
                 else protocol.pilot_rounds // protocol.allocation_count
             )
-        if not args.build_only and rounds is None:
-            raise PilotError("実走には protocol.pilot_rounds または --rounds が必要")
-        if not args.build_only and not args.confirm_irreversible_pilot_holdout:
-            raise PilotError(
-                "holdout observation requires "
-                "--confirm-irreversible-pilot-holdout"
-            )
         inputs = load_inputs(protocol, observed_repo_head=args.observed_repo_head)
-        binaries = build_binaries(inputs, cache_root=args.cache_root)
-        schedule: tuple[Mapping[str, object], ...] = ()
-        observations: tuple[SessionObservation, ...] = ()
-        statistics_document = None
-        n_analysis = None
-        n_analysis_null_reason = "build-only-result" if args.build_only else None
-        run_wall_time = None
-        perf_mode = None
-        n_pilot_admissions = None
-        holdout_admission_identifier = None
-        if not args.build_only:
-            assert rounds is not None
-            schedule = build_pilot_schedule(
-                inputs, master_seed=protocol.master_seed, rounds=rounds,
-            )
-            try:
-                n_pilot_admissions = (
-                    s8b_holdout_admission.reserve_n_pilot_holdout_observations(
-                        repo_root=ROOT,
-                        protocol=protocol.document,
-                        protocol_sha256=protocol.protocol_sha256,
-                        verified_freeze_document=inputs.freeze,
-                        freeze_sha256=inputs.freeze_sha256,
-                        cells=inputs.cells,
-                        schedule=schedule,
-                        campaign_run_id=args.attempt_id,
-                        irreversible_pilot_approved=(
-                            args.confirm_irreversible_pilot_holdout
-                        ),
-                    )
-                )
-            except s8b_holdout_admission.HoldoutAdmissionError as exc:
-                raise PilotError(f"n pilot holdout reservation failed: {exc}") from exc
-            holdout_admission_identifier = {
-                "role": s8b_holdout_admission.OBSERVATION_ROLE_N_PILOT,
-                "campaign_run_id": args.attempt_id,
-            }
-            run_start = time.monotonic()
-            observations, perf_mode = run_sessions(
-                inputs,
-                binaries,
-                schedule,
-                irreversible_pilot_holdout_approved=(
-                    args.confirm_irreversible_pilot_holdout
-                ),
-                n_pilot_admissions=n_pilot_admissions,
-            )
-            run_wall_time = time.monotonic() - run_start
-            statistics_document = summarize_sessions(inputs, observations)
-            n_analysis_null_reason = "per-allocation-result-does-not-derive-n"
-        else:
-            perf_mode = resolve_perf_mode()
-        assert perf_mode is not None
+        binaries = build_binaries(
+            inputs,
+            cache_root=args.cache_root,
+            allocation_mode=False,
+        )
+        perf_mode = resolve_perf_mode()
         result = _result_document(
             inputs,
             binaries,
-            attempt_id=args.attempt_id,
+            campaign_run_id=args.attempt_id,
             rounds=rounds,
-            build_only=args.build_only,
-            schedule=schedule,
-            observations=observations,
-            statistics_document=statistics_document,
-            n_analysis=n_analysis,
-            run_wall_time_s=run_wall_time,
+            build_only=True,
+            schedule=(),
+            observations=(),
+            statistics_document=None,
+            n_analysis=None,
+            run_wall_time_s=None,
             perf_mode=perf_mode,
-            n_analysis_null_reason=n_analysis_null_reason,
-            irreversible_pilot_holdout_approved=(
-                args.confirm_irreversible_pilot_holdout
-            ),
-            holdout_admission_identifier=holdout_admission_identifier,
+            n_analysis_null_reason="build-only-result",
         )
         write_guarded_result(args.output, result)
         return 0

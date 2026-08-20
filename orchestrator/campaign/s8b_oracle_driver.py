@@ -371,7 +371,7 @@ def _manifest_structural_refusal(path: Path) -> Optional[str]:
             raise _oracle_manifest.ManifestError("manifest top-level schema が不一致")
         if document.get("schema_version") != _oracle_manifest.SCHEMA_VERSION:
             raise _oracle_manifest.ManifestError("manifest schema_version が不一致")
-        _oracle_manifest._validate_schedule(document.get("schedule"))
+        _oracle_manifest.validate_schedule(document.get("schedule"))
         _oracle_manifest._validate_binding_identity(
             document.get("binding_identity"), schedule=document["schedule"],
         )
@@ -783,6 +783,19 @@ def _is_transient_prepare_failure(exc: BaseException) -> bool:
 def _perf_for_holdout(freeze: Mapping, holdout_id: str,
                       run_contract: Mapping) -> pipeline.PerfConfig:
     try:
+        authority = s8b_holdout_freeze.HOLDOUTS[holdout_id]
+        expected_projection = {
+            "candidate_id": authority["candidate_id"],
+            "records": authority["records"],
+            "threads": authority["threads"],
+            "ycsb": dict(authority["ycsb"]),
+        }
+    except (KeyError, TypeError, ValueError) as exc:
+        raise OracleDriverError(
+            f"holdout perf binding が不正: {holdout_id}"
+        ) from exc
+
+    try:
         holdout = freeze["holdouts"][holdout_id]
         records = holdout["records"]
         threads = holdout["threads"]
@@ -795,6 +808,17 @@ def _perf_for_holdout(freeze: Mapping, holdout_id: str,
             or isinstance(threads, bool) or not isinstance(threads, int) or threads <= 0
             or not isinstance(workload, Mapping)):
         raise OracleDriverError(f"holdout perf schema が不正: {holdout_id}")
+    actual_projection = {
+        "candidate_id": holdout.get("candidate_id"),
+        "records": records,
+        "threads": threads,
+        "ycsb": dict(workload),
+    }
+    if _canonical_bytes(actual_projection) != _canonical_bytes(
+            expected_projection):
+        raise OracleDriverError(
+            f"holdout perf binding が不正: {holdout_id}"
+        )
     return pipeline.PerfConfig(
         records=records, threads=threads, workload=dict(workload),
         extime=extime, reps=reps,
