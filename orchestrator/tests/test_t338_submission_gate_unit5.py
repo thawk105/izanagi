@@ -559,3 +559,7 @@ def test_conformance_vector_is_executed(
         return
 
     _assert_semantic_vector(fixture, value, schema, item, vector)
+
+
+if __name__ == "__main__":
+    raise SystemExit(pytest.main([__file__, "-q"]))
