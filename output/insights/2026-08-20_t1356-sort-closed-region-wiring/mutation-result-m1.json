@@ -1,0 +1,182 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": null,
+      "receipt_path": null,
+      "runner_mode": "local",
+      "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\n警告: submodule marker /work/1/SFC/tanab/izanagi/.claude/worktrees/t1356-sort-closed-region-wiring/external/ccbench/CMakeLists.txt がありません。targeted run のため初期化せず続行します。\n[Pegasus dispatch] job を gen_S へ投入します (izdw-41fd282e4e)\n[Pegasus dispatch] request ID 925667.nqsv を受理しました\n[Pegasus dispatch] request 925667.nqsv の状態: QUE\n[Pegasus dispatch] request 925667.nqsv の状態: RUN\n[Pegasus dispatch] request 925667.nqsv の状態: END\n[Pegasus dispatch] request 925667.nqsv の成果物収集を開始します\n[Pegasus dispatch] receipt を /work/1/SFC/tanab/izanagi/.claude/worktrees/t1356-sort-closed-region-wiring/output/pegasus-dispatch/41fd282e4e806a6fb8f37eb89813d221/receipt.json へ保存しました (child rc=0)\n[Pegasus dispatch] request 925667.nqsv child stdout begin\n| bringing up nodes...\n| bringing up nodes...\n| \n| ..                                                                       [100%]\n| 2 passed in 2.55s\n| IZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n[Pegasus dispatch] request 925667.nqsv child stdout end\n[Pegasus dispatch] request 925667.nqsv child stderr begin\n| 警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\n| 警告: submodule marker /work/1/SFC/tanab/izanagi/.claude/worktrees/t1356-sort-closed-region-wiring/external/ccbench/CMakeLists.txt がありません。targeted run のため初期化せず続行します。\n| \n| ============================================================\n| Request ID:             925667.nqsv\n| Request Name:           izdw-41fd282e4e\n| Queue:                  gen_S@nqsv\n| Number of Jobs:         1\n| User Name:              tanab\n| Group Name:             SFC\n| Created Request Time:   Thu Aug 20 01:08:16 2026\n| Started Request Time:   Thu Aug 20 01:08:23 2026\n| Ended Request Time:     Thu Aug 20 01:08:27 2026\n| Resources Information:\n|   Elapse:               8S\n|   Remaining Elapse:     3592S\n| ============================================================\n[Pegasus dispatch] request 925667.nqsv child stderr end\nIZANAGI_TASK_RUN_DIAGNOSTIC_V1 pilot-closed:max-task-runs\n",
+      "stdout_sha256": "2a89a7dd74ea754d7ac73ffe1e110e0a3f24503938753a964398aebeb7ec3b74"
+    },
+    "artifact_error": null,
+    "collection_sha256": "c0d2535c77b4de38c87f2eba2f1d892ebf8d07afde679f925b57aeda22fddb95",
+    "duration_s": 28.068,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "4b9afdeba3ce7a4df82482db85efa629470a41b92103cc48431d830d113311b0",
+    "repo_head": "2ec1d382767f8ffb5ff68882c4c6294efb99cb9d",
+    "runner_sha256": "e2abd8e5c5903fe9a56a0e0b0f76f68d252b08572acdf65d4965c08e1552142e",
+    "spec_sha256": "88491823764370ec6ce38d7f5ac772a9ce08210da2167a013e63679cbd6686e8",
+    "status": "PASSED",
+    "test_output_sha256": "2a89a7dd74ea754d7ac73ffe1e110e0a3f24503938753a964398aebeb7ec3b74",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "c5a33eb6112256e27361b79647ca5d15f1fe02eb7b2679d8efdb6100dbe1a6e8"
+  },
+  "date": "2026-08-19T16:08:12.500601+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": null,
+        "receipt_path": null,
+        "runner_mode": "local",
+        "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\n警告: submodule marker /work/1/SFC/tanab/izanagi/.claude/worktrees/t1356-sort-closed-region-wiring/external/ccbench/CMakeLists.txt がありません。targeted run のため初期化せず続行します。\n[Pegasus dispatch] job を gen_S へ投入します (izdw-71d2278666)\n[Pegasus dispatch] request ID 925668.nqsv を受理しました\n[Pegasus dispatch] request 925668.nqsv の状態: QUE\n[Pegasus dispatch] request 925668.nqsv の状態: RUN\n[Pegasus dispatch] request 925668.nqsv の状態: END\n[Pegasus dispatch] request 925668.nqsv の成果物収集を開始します\n[Pegasus dispatch] receipt を /work/1/SFC/tanab/izanagi/.claude/worktrees/t1356-sort-closed-region-wiring/output/pegasus-dispatch/71d2278666e5e4d054f0f0e3e475edfb/receipt.json へ保存しました (child rc=1)\n[Pegasus dispatch] request 925668.nqsv child stdout begin\n| bringing up nodes...\n| bringing up nodes...\n| \n| FF                                                                       [100%]\n| =================================== FAILURES ===================================\n| _ test_parse_auditor_dict_accepts_sort_closed_region_violation_codes_17_through_21 _\n| [gw0] linux -- Python 3.10.12 /bin/python3.10\n| \n|     def test_parse_auditor_dict_accepts_sort_closed_region_violation_codes_17_through_21():\n|         for code in range(17, 22):\n| >           parsed = parse_auditor_dict({\n|                 \"verdict\": \"reject\",\n|                 \"diff_digest\": \"a\" * 64,\n|                 \"violations\": [{\"type\": code}],\n|             })\n| \n| orchestrator/tests/test_auditor_gate.py:141: \n| _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n| orchestrator/campaign/auditor_gate.py:288: in parse_auditor_dict\n|     _validate_auditor_entries(\n| orchestrator/campaign/auditor_gate.py:69: in _validate_auditor_entries\n|     _reject_schema(\"violations\")\n| _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n| \n| field = 'violations'\n| \n|     def _reject_schema(field: str) -> None:\n|         # Raw entry values are deliberately absent from this message.  Auditor input\n|         # is untrusted and may contain a candidate wire/mask which must not escape in\n|         # exception text.\n| >       raise AuditorGateFailure(\n|             f\"auditor.{field} が閉じた構造化 schema に一致しない (規律2/6)\"\n|         )\n| E       orchestrator.campaign.auditor_gate.AuditorGateFailure: auditor.violations が閉じた構造化 schema に一致しない (規律2/6)\n| \n| orchestrator/campaign/auditor_gate.py:49: AuditorGateFailure\n| _ test_auditor_all_existing_violation_codes_and_legacy_fixed_fields_are_accepted _\n| [gw1] linux -- Python 3.10.12 /bin/python3.10\n| \n|     def test_auditor_all_existing_violation_codes_and_legacy_fixed_fields_are_accepted():\n|         for code in range(1, 22):\n| >           parsed = parse_auditor_dict({\n|                 \"verdict\": \"reject\",\n|                 \"diff_digest\": \"a\" * 64,\n|                 \"violations\": [{\"type\": code}],\n|             })\n| \n| orchestrator/tests/test_p3_s4_loop_trigger_gating.py:1720: \n| _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n| orchestrator/campaign/auditor_gate.py:288: in parse_auditor_dict\n|     _validate_auditor_entries(\n| orchestrator/campaign/auditor_gate.py:69: in _validate_auditor_entries\n|     _reject_schema(\"violations\")\n| _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n| \n| field = 'violations'\n| \n|     def _reject_schema(field: str) -> None:\n|         # Raw entry values are deliberately absent from this message.  Auditor input\n|         # is untrusted and may contain a candidate wire/mask which must not escape in\n|         # exception text.\n| >       raise AuditorGateFailure(\n|             f\"auditor.{field} が閉じた構造化 schema に一致しない (規律2/6)\"\n|         )\n| E       orchestrator.campaign.auditor_gate.AuditorGateFailure: auditor.violations が閉じた構造化 schema に一致しない (規律2/6)\n| \n| orchestrator/campaign/auditor_gate.py:49: AuditorGateFailure\n| =========================== short test summary info ============================\n| FAILED orchestrator/tests/test_auditor_gate.py::test_parse_auditor_dict_accepts_sort_closed_region_violation_codes_17_through_21\n| FAILED orchestrator/tests/test_p3_s4_loop_trigger_gating.py::test_auditor_all_existing_violation_codes_and_legacy_fixed_fields_are_accepted\n| 2 failed in 2.71s\n| IZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n| === IZANAGI FAILURE DIGEST v1 BEGIN ===\n| IZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_p3_s4_loop_trigger_gating.py::test_auditor_all_existing_violation_codes_and_legacy_fixed_fields_are_accepted\" nodeid_bytes=132 nodeid_omitted_bytes=0 source_bytes=1379 retained_bytes=1379 omitted_bytes=0 rendered_excerpt_bytes=1530 sha256=dc90636a5cc8366abbf5313b17cefbbd403519370ae94cab16dfd22979a4bdd9\n| --- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n| > [gw1] linux -- Python 3.10.12 /bin/python3.10\n| > \n| >     def test_auditor_all_existing_violation_codes_and_legacy_fixed_fields_are_accepted():\n| >         for code in range(1, 22):\n| > >           parsed = parse_auditor_dict({\n| >                 \"verdict\": \"reject\",\n| >                 \"diff_digest\": \"a\" * 64,\n| >                 \"violations\": [{\"type\": code}],\n| >             })\n| > \n| > orchestrator/tests/test_p3_s4_loop_trigger_gating.py:1720: \n| > _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n| > orchestrator/campaign/auditor_gate.py:288: in parse_auditor_dict\n| >     _validate_auditor_entries(\n| > orchestrator/campaign/auditor_gate.py:69: in _validate_auditor_entries\n| >     _reject_schema(\"violations\")\n| > _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n| > \n| > field = 'violations'\n| > \n| >     def _reject_schema(field: str) -> None:\n| >         # Raw entry values are deliberately absent from this message.  Auditor input\n| >         # is untrusted and may contain a candidate wire/mask which must not escape in\n| >         # exception text.\n| > >       raise AuditorGateFailure(\n| >             f\"auditor.{field} \\u304c\\u9589\\u3058\\u305f\\u69cb\\u9020\\u5316 schema \\u306b\\u4e00\\u81f4\\u3057\\u306a\\u3044 (\\u898f\\u5f8b2/6)\"\n| >         )\n| > E       orchestrator.campaign.auditor_gate.AuditorGateFailure: auditor.violations \\u304c\\u9589\\u3058\\u305f\\u69cb\\u9020\\u5316 schema \\u306b\\u4e00\\u81f4\\u3057\\u306a\\u3044 (\\u898f\\u5f8b2/6)\n| > \n| > orchestrator/campaign/auditor_gate.py:49: AuditorGateFailure\n| --- IZANAGI FAILURE EXCERPT rank=1 END ---\n| IZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_auditor_gate.py::test_parse_auditor_dict_accepts_sort_closed_region_violation_codes_17_through_21\" nodeid_bytes=121 nodeid_omitted_bytes=0 source_bytes=1368 retained_bytes=1368 omitted_bytes=0 rendered_excerpt_bytes=1519 sha256=e9aff4328c3ab56c1fbc7e66d43578011efbf7cf2feaf5c897bed0c0ca197464\n| --- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n| > [gw0] linux -- Python 3.10.12 /bin/python3.10\n| > \n| >     def test_parse_auditor_dict_accepts_sort_closed_region_violation_codes_17_through_21():\n| >         for code in range(17, 22):\n| > >           parsed = parse_auditor_dict({\n| >                 \"verdict\": \"reject\",\n| >                 \"diff_digest\": \"a\" * 64,\n| >                 \"violations\": [{\"type\": code}],\n| >             })\n| > \n| > orchestrator/tests/test_auditor_gate.py:141: \n| > _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n| > orchestrator/campaign/auditor_gate.py:288: in parse_auditor_dict\n| >     _validate_auditor_entries(\n| > orchestrator/campaign/auditor_gate.py:69: in _validate_auditor_entries\n| >     _reject_schema(\"violations\")\n| > _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n| > \n| > field = 'violations'\n| > \n| >     def _reject_schema(field: str) -> None:\n| >         # Raw entry values are deliberately absent from this message.  Auditor input\n| >         # is untrusted and may contain a candidate wire/mask which must not escape in\n| >         # exception text.\n| > >       raise AuditorGateFailure(\n| >             f\"auditor.{field} \\u304c\\u9589\\u3058\\u305f\\u69cb\\u9020\\u5316 schema \\u306b\\u4e00\\u81f4\\u3057\\u306a\\u3044 (\\u898f\\u5f8b2/6)\"\n| >         )\n| > E       orchestrator.campaign.auditor_gate.AuditorGateFailure: auditor.violations \\u304c\\u9589\\u3058\\u305f\\u69cb\\u9020\\u5316 schema \\u306b\\u4e00\\u81f4\\u3057\\u306a\\u3044 (\\u898f\\u5f8b2/6)\n| > \n| > orchestrator/campaign/auditor_gate.py:49: AuditorGateFailure\n| --- IZANAGI FAILURE EXCERPT rank=2 END ---\n| IZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=2747 retained_bytes=2747 omitted_bytes=0 budget_bytes=49152 rendered_bytes=4271 omitted_manifest_sha256=-\n| === IZANAGI FAILURE DIGEST v1 END ===\n[Pegasus dispatch] request 925668.nqsv child stdout end\n[Pegasus dispatch] request 925668.nqsv child stderr begin\n| 警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\n| 警告: submodule marker /work/1/SFC/tanab/izanagi/.claude/worktrees/t1356-sort-closed-region-wiring/external/ccbench/CMakeLists.txt がありません。targeted run のため初期化せず続行します。\n| \n| ============================================================\n| Request ID:             925668.nqsv\n| Request Name:           izdw-71d2278666\n| Queue:                  gen_S@nqsv\n| Number of Jobs:         1\n| User Name:              tanab\n| Group Name:             SFC\n| Created Request Time:   Thu Aug 20 01:08:45 2026\n| Started Request Time:   Thu Aug 20 01:08:53 2026\n| Ended Request Time:     Thu Aug 20 01:08:56 2026\n| Resources Information:\n|   Elapse:               8S\n|   Remaining Elapse:     3592S\n| ============================================================\n[Pegasus dispatch] request 925668.nqsv child stderr end\nIZANAGI_TASK_RUN_DIAGNOSTIC_V1 pilot-closed:max-task-runs\n",
+        "stdout_sha256": "5ac1781c3699dd8c6a38b8a9a7a85e9d50a17762b5c9a0ce73bf92e7fd48c656"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "c0d2535c77b4de38c87f2eba2f1d892ebf8d07afde679f925b57aeda22fddb95",
+      "duration_s": 28.013,
+      "expected_nodes": [
+        "orchestrator/tests/test_auditor_gate.py::test_parse_auditor_dict_accepts_sort_closed_region_violation_codes_17_through_21",
+        "orchestrator/tests/test_p3_s4_loop_trigger_gating.py::test_auditor_all_existing_violation_codes_and_legacy_fixed_fields_are_accepted"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_auditor_gate.py::test_parse_auditor_dict_accepts_sort_closed_region_violation_codes_17_through_21",
+        "orchestrator/tests/test_p3_s4_loop_trigger_gating.py::test_auditor_all_existing_violation_codes_and_legacy_fixed_fields_are_accepted"
+      ],
+      "hang_risk": false,
+      "id": "t1356.m1-auditor-gate-range-narrowed",
+      "injection_diff_sha256": "c0352b40302c101d6747e05251c6c984e8acf611f42785a2568a6c8e00465089",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "2de29277c4448d4da26345a53740022487da5c5f7ec48b22d52569818d2c5848",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/auditor_gate.py",
+          "new": "_AUDITOR_VIOLATION_TYPES = frozenset(range(1, 17))",
+          "old": "_AUDITOR_VIOLATION_TYPES = frozenset(range(1, 22))"
+        }
+      ],
+      "repo_head": "2ec1d382767f8ffb5ff68882c4c6294efb99cb9d",
+      "runner_sha256": "e2abd8e5c5903fe9a56a0e0b0f76f68d252b08572acdf65d4965c08e1552142e",
+      "spec_sha256": "88491823764370ec6ce38d7f5ac772a9ce08210da2167a013e63679cbd6686e8",
+      "status": "KILLED",
+      "test_output_sha256": "5ac1781c3699dd8c6a38b8a9a7a85e9d50a17762b5c9a0ce73bf92e7fd48c656",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "c5a33eb6112256e27361b79647ca5d15f1fe02eb7b2679d8efdb6100dbe1a6e8"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": null,
+        "receipt_path": null,
+        "runner_mode": "local",
+        "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\n[Pegasus dispatch] job を gen_S へ投入します (izdw-c704bc1b4b)\n[Pegasus dispatch] request ID 925666.nqsv を受理しました\n[Pegasus dispatch] request 925666.nqsv の状態: QUE\n[Pegasus dispatch] request 925666.nqsv の状態: RUN\n[Pegasus dispatch] request 925666.nqsv の状態: END\n[Pegasus dispatch] request 925666.nqsv の成果物収集を開始します\n[Pegasus dispatch] receipt を /work/1/SFC/tanab/izanagi/.claude/worktrees/t1356-sort-closed-region-wiring/output/pegasus-dispatch/c704bc1b4b5b1924b345de67eaf24708/receipt.json へ保存しました (child rc=0)\n[Pegasus dispatch] request 925666.nqsv child stdout begin\n| orchestrator/tests/test_auditor_gate.py::test_parse_auditor_dict_accepts_sort_closed_region_violation_codes_17_through_21\n| orchestrator/tests/test_p3_s4_loop_trigger_gating.py::test_auditor_all_existing_violation_codes_and_legacy_fixed_fields_are_accepted\n| \n| 2 tests collected in 0.31s\n| IZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"serial\"}\n[Pegasus dispatch] request 925666.nqsv child stdout end\n[Pegasus dispatch] request 925666.nqsv child stderr begin\n| 警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\n| \n| ============================================================\n| Request ID:             925666.nqsv\n| Request Name:           izdw-c704bc1b4b\n| Queue:                  gen_S@nqsv\n| Number of Jobs:         1\n| User Name:              tanab\n| Group Name:             SFC\n| Created Request Time:   Thu Aug 20 01:07:51 2026\n| Started Request Time:   Thu Aug 20 01:07:59 2026\n| Ended Request Time:     Thu Aug 20 01:08:00 2026\n| Resources Information:\n|   Elapse:               5S\n|   Remaining Elapse:     3595S\n| ============================================================\n[Pegasus dispatch] request 925666.nqsv child stderr end\nIZANAGI_TASK_RUN_DIAGNOSTIC_V1 pilot-closed:max-task-runs\n",
+        "stdout_sha256": "28ba028d3885432937ef21639c0dc3187e2dec1ee5a0d14f1a68368e954e41b9"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_auditor_gate.py::test_parse_auditor_dict_accepts_sort_closed_region_violation_codes_17_through_21",
+        "orchestrator/tests/test_p3_s4_loop_trigger_gating.py::test_auditor_all_existing_violation_codes_and_legacy_fixed_fields_are_accepted"
+      ],
+      "duration_s": 22.941,
+      "rc": 0,
+      "repo_head": "2ec1d382767f8ffb5ff68882c4c6294efb99cb9d",
+      "runner_sha256": "e2abd8e5c5903fe9a56a0e0b0f76f68d252b08572acdf65d4965c08e1552142e",
+      "spec_sha256": "88491823764370ec6ce38d7f5ac772a9ce08210da2167a013e63679cbd6686e8",
+      "status": "PASSED",
+      "tool_sha256": "c5a33eb6112256e27361b79647ca5d15f1fe02eb7b2679d8efdb6100dbe1a6e8"
+    },
+    "hang_timeout_seconds": 600.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "t1356.m1-auditor-gate-range-narrowed": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_auditor_gate.py::test_parse_auditor_dict_accepts_sort_closed_region_violation_codes_17_through_21",
+          "orchestrator/tests/test_p3_s4_loop_trigger_gating.py::test_auditor_all_existing_violation_codes_and_legacy_fixed_fields_are_accepted"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "c0352b40302c101d6747e05251c6c984e8acf611f42785a2568a6c8e00465089",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/auditor_gate.py",
+            "new": "_AUDITOR_VIOLATION_TYPES = frozenset(range(1, 17))",
+            "old": "_AUDITOR_VIOLATION_TYPES = frozenset(range(1, 22))"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "4b9afdeba3ce7a4df82482db85efa629470a41b92103cc48431d830d113311b0",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "local",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "python3",
+      "tools/run_tests.py",
+      "orchestrator/tests/test_auditor_gate.py::test_parse_auditor_dict_accepts_sort_closed_region_violation_codes_17_through_21",
+      "orchestrator/tests/test_p3_s4_loop_trigger_gating.py::test_auditor_all_existing_violation_codes_and_legacy_fixed_fields_are_accepted",
+      "-rf",
+      "-q",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 900.0
+  },
+  "repo_head": "2ec1d382767f8ffb5ff68882c4c6294efb99cb9d",
+  "runner_identity": {
+    "command": [
+      "python3",
+      "tools/run_tests.py",
+      "orchestrator/tests/test_auditor_gate.py::test_parse_auditor_dict_accepts_sort_closed_region_violation_codes_17_through_21",
+      "orchestrator/tests/test_p3_s4_loop_trigger_gating.py::test_auditor_all_existing_violation_codes_and_legacy_fixed_fields_are_accepted",
+      "-rf",
+      "-q",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": null,
+    "dispatch_entrypoint_sha256": null,
+    "dispatch_head_blob_sha256": null,
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/t1356-sort-closed-region-wiring/tools/run_tests.py",
+    "entrypoint_sha256": "9f7292812cfa9a362bfa376d077b3ae21a22efb4be00e394f1a47f4dac8e5187",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+    "head_blob_sha256": "9f7292812cfa9a362bfa376d077b3ae21a22efb4be00e394f1a47f4dac8e5187",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "3fddaebfd0a66aa30363f14b10e4e82423388478",
+    "runner_mode": "local"
+  },
+  "runner_sha256": "e2abd8e5c5903fe9a56a0e0b0f76f68d252b08572acdf65d4965c08e1552142e",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "88491823764370ec6ce38d7f5ac772a9ce08210da2167a013e63679cbd6686e8",
+  "summary": {
+    "KILLED": 1,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 0,
+    "TIMEOUT": 0,
+    "completed": 1,
+    "matching": 1,
+    "recorded": 1,
+    "registered": 1
+  },
+  "tool_identity": {
+    "head_blob_sha256": "766f168f1da5b8b67c49374a2ad24928526b3658863d2a3291cfdc8ff5d705ac",
+    "path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/t1356-sort-closed-region-wiring/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "766f168f1da5b8b67c49374a2ad24928526b3658863d2a3291cfdc8ff5d705ac"
+  },
+  "tool_sha256": "c5a33eb6112256e27361b79647ca5d15f1fe02eb7b2679d8efdb6100dbe1a6e8",
+  "updated_at": "2026-08-19T16:09:11.614295+00:00"
+}
