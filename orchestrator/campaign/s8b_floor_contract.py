@@ -765,17 +765,101 @@ _RESUME_STATES = frozenset({
     "L", "M-prestart", "M-running", "M-finalize-pending",
 })
 
+# L/M-prestart には、ここで明示的に許可した診断だけを含められる。
+# 許可リストにしておくことで、event の絞り込みによる暗黙の受理を避け、
+# 別の診断を追加する際は契約変更として明示的に扱える。
+_RESUME_DIAGNOSTIC_EVENT_KEYS = {
+    "perf-preflight": frozenset({
+        "event", "schema", "perf_preflight_receipt",
+    }),
+}
+_RESUME_DIAGNOSTIC_EVENTS = frozenset(_RESUME_DIAGNOSTIC_EVENT_KEYS)
+_RESUME_DIAGNOSTIC_POSITION_BLOCKERS = frozenset({
+    "campaign-start", "resume-start", "round-start", "round-complete",
+    "session-start", "session", "terminal",
+})
+_RESUME_DIAGNOSTIC_EXPECTED_UNSET = object()
+
+
+def _validate_resume_diagnostic_events(
+        records, *, expected_perf_preflight=_RESUME_DIAGNOSTIC_EXPECTED_UNSET):
+    """resume journal の許可済み pre-measure 診断を検証する。
+
+    classifier が不正な record を無視して無害化してはならない。したがって、
+    許可する診断は外側の閉じた schema、正準の内側 receipt、単一出現、
+    測定前の位置をすべて満たさなければならない。sealed manifest がある場合は
+    manifest を考慮する resume verifier から ``expected_perf_preflight`` が渡される。
+    manifest field が無い場合は ``None`` として表現し、event とは互換にしない。
+    """
+    seen_events = set()
+    expected_normalized = _RESUME_DIAGNOSTIC_EXPECTED_UNSET
+    if expected_perf_preflight is not _RESUME_DIAGNOSTIC_EXPECTED_UNSET:
+        if expected_perf_preflight is not None:
+            try:
+                expected_normalized = (
+                    _perf_preflight.validate_perf_preflight_receipt(
+                        expected_perf_preflight
+                    )
+                )
+            except _perf_preflight.PerfPreflightError as exc:
+                raise FloorContractError(
+                    f"resume manifest の perf_preflight が不正: {exc}"
+                ) from exc
+        else:
+            expected_normalized = None
+
+    for index, record in enumerate(records):
+        event = record.get("event")
+        if not isinstance(event, str):
+            raise FloorContractError("resume journal の event が文字列でない")
+        expected_keys = _RESUME_DIAGNOSTIC_EVENT_KEYS.get(event)
+        if expected_keys is None:
+            continue
+        if event in seen_events:
+            raise FloorContractError(
+                f"resume journal の diagnostic event が重複している: {event}"
+            )
+        if set(record) != expected_keys:
+            raise FloorContractError(
+                f"resume journal の {event} exact key 集合が不一致"
+            )
+        if record.get("schema") != JOURNAL_SCHEMA:
+            raise FloorContractError(
+                f"resume journal の {event}.schema が {JOURNAL_SCHEMA} でない"
+            )
+        if any(
+                previous.get("event") in _RESUME_DIAGNOSTIC_POSITION_BLOCKERS
+                for previous in records[:index]
+        ):
+            raise FloorContractError(
+                f"resume journal の {event} が pre-measure 位置にない"
+            )
+        try:
+            normalized = _perf_preflight.validate_perf_preflight_receipt(
+                record["perf_preflight_receipt"]
+            )
+        except _perf_preflight.PerfPreflightError as exc:
+            raise FloorContractError(
+                f"resume journal の {event} receipt が不正: {exc}"
+            ) from exc
+        if expected_normalized is not _RESUME_DIAGNOSTIC_EXPECTED_UNSET:
+            if expected_normalized is None or normalized != expected_normalized:
+                raise FloorContractError(
+                    "resume journal の perf-preflight receipt が manifest と不一致"
+                )
+        seen_events.add(event)
+
 
 def classify_journal_resume_state(
         records, *, manifest_exists: bool, result_published: bool,
         markdown_published: bool) -> str:
     """L/M resume の構造 substate を fail-closed に分類する共有 pure helper。
 
-    ``L`` は manifest 無し・journal が launch-start 1 件だけ、``M-prestart`` は
-    sealed manifest 有り・campaign-start 無し、``M-running`` は一意 campaign-start
-    有り・terminal 無し、``M-finalize-pending`` は一意 completed terminal が最終 record
-    だが result/md publish が片方以上未完、である。cert bytes/path/time、event ごとの exact
-    schema、manifest/result bytes は issuer/verifier の各境界で別途厳密検証する。
+    ``L`` は manifest 無し・先頭 launch-start と allowlisted pre-measure diagnostic、
+    ``M-prestart`` は sealed manifest 有り・campaign-start 無し、``M-running`` は一意
+    campaign-start 有り・terminal 無し、``M-finalize-pending`` は一意 completed terminal
+    が最終 record だが result/md publish が片方以上未完、である。cert bytes/path/time と
+    manifest/result bytes は issuer/verifier の各境界で別途厳密検証する。
 
     aborted / artifact-invalid / terminal 重複 / completed 後の record / publish 完了済みは
     再開可能状態に分類しない。L の自己整合 bundle 全体をゼロから捏造する攻撃は、この
@@ -790,6 +874,8 @@ def classify_journal_resume_state(
     }.items():
         if type(value) is not bool:
             raise FloorContractError(f"resume state {name} が bool でない")
+
+    _validate_resume_diagnostic_events(records)
 
     terminals = [r for r in records if r.get("event") == "terminal"]
     if len(terminals) > 1:
@@ -810,15 +896,21 @@ def classify_journal_resume_state(
     if len(campaign_starts) > 1:
         raise FloorContractError("resume journal の campaign-start が重複している")
     if not manifest_exists:
-        if (len(records) == 1 and records[0].get("event") == "launch-start"
+        allowed_l_events = {"launch-start"} | _RESUME_DIAGNOSTIC_EVENTS
+        if (records and records[0].get("event") == "launch-start"
+                and sum(r.get("event") == "launch-start" for r in records) == 1
+                and all(r.get("event") in allowed_l_events for r in records)
                 and not result_published and not markdown_published):
             return "L"
         raise FloorContractError("manifest 無し journal は厳密な L 状態でない")
     if result_published or markdown_published:
         raise FloorContractError("completed terminal 前に result/md が publish されている")
     if not campaign_starts:
-        if any(r.get("event") != "launch-start" for r in records):
-            raise FloorContractError("M-prestart に launch-start 以外の record がある")
+        allowed_prestart_events = {"launch-start"} | _RESUME_DIAGNOSTIC_EVENTS
+        if any(r.get("event") not in allowed_prestart_events for r in records):
+            raise FloorContractError(
+                "M-prestart に許可されていない record がある"
+            )
         if sum(r.get("event") == "launch-start" for r in records) > 1:
             raise FloorContractError("M-prestart の launch-start が重複している")
         return "M-prestart"

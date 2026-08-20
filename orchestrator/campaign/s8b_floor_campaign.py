@@ -6044,6 +6044,18 @@ def _run_campaign_core(protocol, freeze_doc, *, out_root, mode, resume_dir=None,
                 run_dir=str(run_dir),
                 journal_path=str(journal_path),
             )
+        if perf_preflight_receipt is not None:
+            _journal_append(
+                journal_path,
+                {
+                    "event": "perf-preflight",
+                    "schema": JOURNAL_SCHEMA,
+                    "perf_preflight_receipt": _normalize_perf_preflight(
+                        perf_preflight_receipt
+                    ),
+                },
+                write_capability=run_write_capability,
+            )
         runtime_built = build_cells(
             freeze, cells, ccbench_pin=protocol["ccbench_pin"],
             out_root=out_root, prepare_fn=prepare_fn, contract=contract,
@@ -6178,6 +6190,11 @@ def _run_campaign_core(protocol, freeze_doc, *, out_root, mode, resume_dir=None,
             protocol_sha256=protocol_sha256, freeze_sha256=freeze_sha256,
             manifest_sha256=manifest_sha256, resume_state=resume_state,
             expected_use_perf=_assert_perf_mode(mode, perf_preflight_receipt),
+            expected_perf_preflight=(
+                manifest.get("perf_preflight")
+                if "perf_preflight" in manifest
+                else None
+            ),
             retry_slots_per_cell=protocol["retry_slots_per_cell"],
         )
         _transition_pre_measure_journal_to_v3(
@@ -6551,6 +6568,9 @@ def _verify_resume_journal(records: list[dict], *, run_dir: Path, mode: str,
                            freeze_sha256: str, manifest_sha256: Optional[str],
                            resume_state: str = "M-running",
                            expected_use_perf: Optional[bool] = None,
+                           expected_perf_preflight=(
+                               _floor_contract._RESUME_DIAGNOSTIC_EXPECTED_UNSET
+                           ),
                            retry_slots_per_cell: int) -> Optional[str]:
     """resume: journal を状態機械で全件検証する (β-6)。
 
@@ -6561,6 +6581,12 @@ def _verify_resume_journal(records: list[dict], *, run_dir: Path, mode: str,
     cell/round 一致 + retry (cell_id, retry_ordinal) 一意、session 完了→start 対応を検査する。
     """
     _validate_mode(mode)
+    try:
+        _floor_contract._validate_resume_diagnostic_events(
+            records, expected_perf_preflight=expected_perf_preflight,
+        )
+    except _floor_contract.FloorContractError as exc:
+        raise FloorCampaignError(f"resume: {exc}") from exc
     if resume_state not in _floor_contract._RESUME_STATES:
         raise FloorCampaignError(f"resume state が未知: {resume_state!r}")
     run_dir = Path(run_dir)
