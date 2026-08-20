@@ -4186,6 +4186,7 @@ def run_trial(
             started_at=attempt_started_at,
         )
     lifecycle_token: trial_registry.TrialLifecycleToken | None = None
+    attempt_classified = False
     attempt_terminalized = False
     attempt_terminalization_started = False
     report: dict[str, Any] | None = None
@@ -4214,6 +4215,7 @@ def run_trial(
                 external_evidence_sha256=external_evidence_sha256,
                 classified_at=_now_iso(),
             )
+            attempt_classified = True
         if origin_runtime is not None:
             # The first performance observation is after the freeze-wide
             # reservation.  The CLI environment probe is outside this bound.
@@ -4239,7 +4241,7 @@ def run_trial(
                 **lifecycle_arguments
             )
     except BaseException as exc:
-        if attempt_slot is not None:
+        if attempt_slot is not None and attempt_classified:
             attempt_terminalization_started = True
             _record_attempt_terminal_for_run(
                 attempt_slot, report=report, cause=exc,
@@ -4376,6 +4378,7 @@ def run_trial(
     except BaseException as exc:
         if (
             attempt_slot is not None
+            and attempt_classified
             and not attempt_terminalized
             and not attempt_terminalization_started
         ):

@@ -394,6 +394,12 @@ class AttemptSlotCapability:
     pre_observation_seal_sha256: str
     capability_digest_sha256: str
     _seal: object = dataclasses.field(repr=False, compare=False)
+    _classification_receipt_sha256: str | None = dataclasses.field(
+        default=None, init=False, repr=False, compare=False,
+    )
+    _classification_owner: tuple[int, int] | None = dataclasses.field(
+        default=None, init=False, repr=False, compare=False,
+    )
 
 
 @dataclasses.dataclass(frozen=True, slots=True)
@@ -493,7 +499,7 @@ def _attempt_v2_event_row(
 
 
 def _attempt_v2_previous_hash(rows: Sequence[Mapping[str, Any]]) -> str:
-    """Return the current v2 chain tip, or a fresh tip after legacy rows."""
+    """Return the current v2 chain tip, or the genesis zero hash."""
     for row in reversed(rows):
         if row.get("schema_version") == ATTEMPT_REGISTRY_SCHEMA_VERSION:
             return row["event_sha256"]
@@ -1919,7 +1925,10 @@ def _assert_attempt_slot_layout(slots: Sequence[Mapping[str, Any]]) -> None:
 
 def _attempt_schema_version(value: Mapping[str, Any], *, label: str) -> str:
     schema_version = value.get("schema_version")
-    if schema_version not in _ATTEMPT_REGISTRY_SCHEMA_VERSIONS:
+    if (
+        not isinstance(schema_version, str)
+        or schema_version not in _ATTEMPT_REGISTRY_SCHEMA_VERSIONS
+    ):
         _fail("attempt-registry-schema", f"{label}.schema_version is unsupported")
     return schema_version
 
@@ -2028,9 +2037,10 @@ def _attempt_capability_payload(
     slot: Mapping[str, Any],
     prereg_content_commit: str,
     prereg_effective_commit: str,
+    schema_version: str = ATTEMPT_REGISTRY_SCHEMA_VERSION,
 ) -> dict[str, Any]:
     return {
-        "schema_version": ATTEMPT_REGISTRY_SCHEMA_VERSION,
+        "schema_version": schema_version,
         "freeze_id": freeze_id,
         "slot_id": slot["slot_id"],
         "trial_id": slot["trial_id"],
@@ -2051,6 +2061,7 @@ def _attempt_capability_digest(
     slot: Mapping[str, Any],
     prereg_content_commit: str,
     prereg_effective_commit: str,
+    schema_version: str = ATTEMPT_REGISTRY_SCHEMA_VERSION,
 ) -> str:
     return hashlib.sha256(
         _canonical_json_bytes(
@@ -2059,6 +2070,7 @@ def _attempt_capability_digest(
                 slot=slot,
                 prereg_content_commit=prereg_content_commit,
                 prereg_effective_commit=prereg_effective_commit,
+                schema_version=schema_version,
             )
         )
     ).hexdigest()
@@ -2248,9 +2260,10 @@ def _assert_attempt_null_matrix(
             _fail("attempt-null-matrix", f"{label} retryable-failure null matrix differs")
     elif status == "terminal-failure":
         reason = row.get("failure_reason")
+        # A truly pre-observation failure may have no report; a present report
+        # is coupled to observation-start by the v2 phase checks below.
         if (
-            row.get("report_sha256") is None
-            or row.get("observation_sha256") is not None
+            row.get("observation_sha256") is not None
             or row.get("primary_value") is not None
             or not isinstance(reason, str)
             or reason in retryable_reasons
@@ -2274,11 +2287,11 @@ def _assert_attempt_registry_rows(
 ) -> tuple[dict[str, Any], ...]:
     """Accept one ordered genesis/lifecycle state machine with immutable slots.
 
-    Legacy v1 rows retain their old exact-key and lifecycle checks.  v2 rows
-    additionally form a replayed hash chain and the explicit
-    start/seal/classification/observation/terminal phase machine.  This
-    per-row schema dispatch is required when an old committed freeze is
-    extended by a v2 writer.
+    Legacy v1 registries retain their old exact-key and lifecycle checks.  v2
+    registries additionally form a replayed hash chain and the explicit
+    start/seal/classification/observation/terminal phase machine.  The genesis
+    schema is authoritative for the entire registry; a registry cannot mix v1
+    and v2 lifecycle rows.
     """
     if not rows or rows[0].get("event") != "freeze":
         _fail("attempt-registry-genesis", "attempt registry must begin with one freeze row")
@@ -2303,6 +2316,11 @@ def _assert_attempt_registry_rows(
             freeze_id=genesis["freeze_id"],
         )
         row_schema = row["schema_version"]
+        if row_schema != genesis_schema:
+            _fail(
+                "attempt-registry-schema",
+                "attempt registry row schema_version differs from genesis",
+            )
         if row_schema == ATTEMPT_REGISTRY_SCHEMA_VERSION:
             expected_previous = last_v2_event_sha256 or _ATTEMPT_ZERO_SHA256
             _assert_attempt_v2_chain(
@@ -2395,6 +2413,7 @@ def _assert_attempt_registry_rows(
                 slot=slot,
                 prereg_content_commit=row["prereg_content_commit"],
                 prereg_effective_commit=row["prereg_effective_commit"],
+                schema_version=row_schema,
             )
             if row["capability_digest_sha256"] != expected_digest:
                 _fail("attempt-classification", "classification capability digest differs")
@@ -2470,6 +2489,15 @@ def _assert_attempt_registry_rows(
                     _fail(
                         "attempt-phase-order",
                         "observed terminal requires observation-start",
+                    )
+                if (
+                    row["terminal_status"] == "terminal-failure"
+                    and row["report_sha256"] is not None
+                    and expected_observation is None
+                ):
+                    _fail(
+                        "attempt-phase-order",
+                        "terminal-failure with a report requires observation-start",
                     )
                 if row["pre_observation_failure_reason_echo"] != classification[
                     "pre_observation_failure_reason"
@@ -3055,7 +3083,9 @@ def reserve_attempt_slot(
         # A crash can leave the non-atomic start+seal append with a start row
         # but no seal; later classification/observation is rejected by the
         # existing checks, so the slot is safely orphaned (unreusable waste,
-        # never an invalidly accepted attempt).
+        # never an invalidly accepted attempt).  An unlocked reader may also
+        # transiently observe that start-only prefix between the two writes;
+        # downstream validation treats it as incomplete rather than accepted.
         return (
             _canonical_json_bytes(start)
             + b"\n"
@@ -3195,14 +3225,18 @@ def classify_attempt(
         )
         return _canonical_json_bytes(row) + b"\n", dict(receipt)
 
-    try:
-        return _locked_attempt_registry_update(
-            repository_root=capability.repository_root,
-            registry_path=capability.registry_path,
-            update=append_classification,
-        )
-    except BaseException:
-        raise
+    result = _locked_attempt_registry_update(
+        repository_root=capability.repository_root,
+        registry_path=capability.registry_path,
+        update=append_classification,
+    )
+    object.__setattr__(capability, "_classification_receipt_sha256", receipt_digest)
+    object.__setattr__(
+        capability,
+        "_classification_owner",
+        (os.getpid(), threading.get_ident()),
+    )
+    return result
 
 
 classify_attempt_failure = classify_attempt
@@ -3323,6 +3357,18 @@ def record_attempt_terminal(
             capability.pre_observation_seal_sha256
         ):
             _fail("attempt-slot", "capability pre-observation seal differs from classification")
+        if capability._classification_owner != (os.getpid(), threading.get_ident()):
+            _fail(
+                "attempt-terminal",
+                "terminal append is not owned by the classification executor",
+            )
+        if capability._classification_receipt_sha256 != (
+            classification["classification_receipt_sha256"]
+        ):
+            _fail(
+                "attempt-terminal",
+                "terminal append classification receipt differs from capability",
+            )
         starts_row = starts[0]
         observations = [
             row for row in rows
