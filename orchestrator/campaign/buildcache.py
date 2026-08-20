@@ -1125,6 +1125,8 @@ def _validate_v2_entry(
 
     cache contract は ``binary + host-generated metadata`` である。旧実装が発行した
     entry の extra member は互換性のため hit 時に拒否しない、という残余を意図的に保つ。
+    ただし、許容される extra member は ``complete_toolchain_manifest`` /
+    ``complete_toolchain_manifest_sha256`` の optional pair に限られる。
     """
     if parent_fd is None:
         bdir_fd = _open_directory_path_nofollow(bdir, label="v2 cache publish 先")

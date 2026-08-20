@@ -884,7 +884,10 @@ def test_v2_cache_hit_rejects_complete_toolchain_version_drift(
     monkeypatch.setattr(
         buildcache, "_run", lambda *args, **kwargs: build_calls.append((args, kwargs)),
     )
-    with pytest.raises(buildcache.BuildCacheError, match="complete toolchain manifest"):
+    with pytest.raises(
+            buildcache.BuildCacheError,
+            match="complete toolchain manifest 完全一致検査に失敗",
+    ):
         _build(
             tmp_path, _contract(1), expected_toolchain_manifest=expected_b,
             declared_use_class="official",
@@ -906,7 +909,10 @@ def test_v2_official_hit_rejects_legacy_entry_without_complete_manifest(
     monkeypatch.setattr(
         buildcache, "_run", lambda *args, **kwargs: build_calls.append((args, kwargs)),
     )
-    with pytest.raises(buildcache.BuildCacheError, match="complete toolchain manifest"):
+    with pytest.raises(
+            buildcache.BuildCacheError,
+            match="complete toolchain manifest 完全一致検査に失敗",
+    ):
         _build(
             tmp_path, _contract(1),
             expected_toolchain_manifest=_expected_toolchain_manifest(bindir),
@@ -919,11 +925,20 @@ def test_v2_nonofficial_hit_accepts_entry_with_complete_manifest(
         tmp_path, monkeypatch):
     bindir = _install_toolchain(tmp_path, monkeypatch)
     _fake_build_environment(monkeypatch, tmp_path)
+    expected = _expected_toolchain_manifest(bindir)
     first = _build(
         tmp_path, _contract(1),
-        expected_toolchain_manifest=_expected_toolchain_manifest(bindir),
+        expected_toolchain_manifest=expected,
         declared_use_class="official",
     )
+    manifest = json.loads(
+        (Path(first.build_dir) / "completion.json").read_text(encoding="utf-8")
+    )
+    assert manifest["complete_toolchain_manifest"] == expected
+    assert manifest["complete_toolchain_manifest_sha256"] == hashlib.sha256(
+        json.dumps(expected, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    ).hexdigest()
+
     build_calls = []
     monkeypatch.setattr(
         buildcache, "_run", lambda *args, **kwargs: build_calls.append((args, kwargs)),
@@ -934,6 +949,43 @@ def test_v2_nonofficial_hit_accepts_entry_with_complete_manifest(
     assert hit.build_dir == first.build_dir
     assert hit.toolchain_manifest is None
     assert hit.toolchain_manifest_sha256 is None
+    assert build_calls == []
+
+
+def test_v2_expected_manifest_gate_fires_without_official_declared_use_class(
+        tmp_path, monkeypatch):
+    bindir = _install_toolchain(tmp_path, monkeypatch)
+    _fake_build_environment(monkeypatch, tmp_path)
+    expected_a = _expected_toolchain_manifest(bindir)
+    first = _build(
+        tmp_path, _contract(1), expected_toolchain_manifest=expected_a,
+    )
+    manifest = json.loads(
+        (Path(first.build_dir) / "completion.json").read_text(encoding="utf-8")
+    )
+    assert manifest["complete_toolchain_manifest"] == expected_a
+    assert manifest["complete_toolchain_manifest_sha256"] == hashlib.sha256(
+        json.dumps(expected_a, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    ).hexdigest()
+
+    _write_multiline_tool(
+        bindir / "test-cxx", ("cxx version A", "Copyright changed"),
+    )
+    expected_b = dict(
+        expected_a,
+        cxx=dict(expected_a["cxx"], version="cxx version A\nCopyright changed"),
+    )
+    build_calls = []
+    monkeypatch.setattr(
+        buildcache, "_run", lambda *args, **kwargs: build_calls.append((args, kwargs)),
+    )
+    with pytest.raises(
+            buildcache.BuildCacheError,
+            match="complete toolchain manifest 完全一致検査に失敗",
+    ):
+        _build(
+            tmp_path, _contract(1), expected_toolchain_manifest=expected_b,
+        )
     assert build_calls == []
 
 
