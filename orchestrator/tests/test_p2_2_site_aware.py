@@ -19,6 +19,7 @@ from orchestrator.campaign import (  # noqa: E402
     backoff_sweep,
     env_contract,
     p2_2,
+    screening_driver,
     site_policy,
 )
 
@@ -107,6 +108,106 @@ def test_p2_2_login_suspect_and_unknown_sites_are_rejected(site, monkeypatch):
 
     with pytest.raises(RuntimeError, match="site"):
         p2_2.resolve_site_runtime()
+
+
+def test_p2_2_compute_resolver_rejects_empty_required_registry(monkeypatch):
+    monkeypatch.setattr(
+        p2_2.site_policy, "current_site", lambda: site_policy.PEGASUS_COMPUTE,
+    )
+    monkeypatch.setattr(p2_2.env_contract, "REGISTRY", {})
+
+    with pytest.raises(env_contract.EnvContractError, match="一意"):
+        p2_2.resolve_site_runtime()
+
+
+def test_p2_2_compute_resolver_rejects_ambiguous_required_registry(monkeypatch):
+    required = env_contract.lookup("pegasus")
+    alternate = replace(required, env_tag="pegasus-alternate")
+    monkeypatch.setattr(
+        p2_2.site_policy, "current_site", lambda: site_policy.PEGASUS_COMPUTE,
+    )
+    monkeypatch.setattr(
+        p2_2.env_contract,
+        "REGISTRY",
+        {required.env_tag: required, alternate.env_tag: alternate},
+    )
+
+    with pytest.raises(env_contract.EnvContractError, match="一意"):
+        p2_2.resolve_site_runtime()
+
+
+def test_p2_2_compute_resolver_propagates_required_lookup_failure(monkeypatch):
+    monkeypatch.setattr(
+        p2_2.site_policy, "current_site", lambda: site_policy.PEGASUS_COMPUTE,
+    )
+
+    def fail_lookup():
+        raise env_contract.EnvContractError("fixture lookup failure")
+
+    monkeypatch.setattr(
+        p2_2.env_contract, "lookup_required_attestation_contract", fail_lookup,
+    )
+
+    with pytest.raises(env_contract.EnvContractError, match="fixture lookup failure"):
+        p2_2.resolve_site_runtime()
+
+
+def test_screening_required_attestation_is_issued_and_revalidated(monkeypatch):
+    contract = _expected_contract(site_policy.PEGASUS_COMPUTE)
+    verified = object()
+    receipt = {"schema": "fixture-v2-receipt"}
+    loaded = []
+    issued = []
+    checked = []
+
+    monkeypatch.setattr(
+        screening_driver.env_attestation,
+        "load_verified_calibration",
+        lambda received_contract, repo_root: loaded.append(
+            (received_contract, repo_root)
+        ) or verified,
+    )
+    monkeypatch.setattr(
+        screening_driver.execution_guard,
+        "attest_and_build_receipt",
+        lambda received_contract, received_verified: issued.append(
+            (received_contract, received_verified)
+        ) or receipt,
+    )
+    monkeypatch.setattr(
+        screening_driver.execution_guard,
+        "receipt_matches_contract",
+        lambda received_receipt, **kwargs: checked.append(
+            (received_receipt, kwargs)
+        ) or True,
+    )
+
+    received_receipt, received_verified = screening_driver.attest_runtime_contract(
+        contract,
+    )
+
+    assert received_receipt is receipt
+    assert received_verified is verified
+    assert loaded and loaded[0][0] is contract
+    assert issued == [(contract, verified)]
+    assert checked[0][0] is receipt
+    assert checked[0][1]["env_tag"] == contract.env_tag
+    assert checked[0][1]["contract_sha256"] == contract.contract_sha256
+    assert checked[0][1]["attestation_mode"] == "required"
+
+
+def test_screening_default_floor_scope_uses_resolved_env_tag(monkeypatch):
+    observed = []
+    monkeypatch.setattr(
+        screening_driver,
+        "env_scope_dir",
+        lambda env_tag: observed.append(env_tag) or "/fixture/env/" + env_tag,
+    )
+
+    assert screening_driver._default_calibration_dir("pegasus") == (
+        "/fixture/env/pegasus/calibration"
+    )
+    assert observed == ["pegasus"]
 
 
 def test_p2_2_assert_matches_registered_v2_by_calibration_ref(monkeypatch):
@@ -277,6 +378,8 @@ def test_backoff_sweep_screening_reuses_one_resolved_runtime(monkeypatch):
     compiler_observations = []
     prepare_calls = []
     evaluate_calls = []
+    screening_receipt = {"schema": "fixture-screening-receipt"}
+    screening_verified_calibration = object()
 
     monkeypatch.setattr(p2_2.site_policy, "current_site", lambda: site)
     runtime = p2_2.resolve_site_runtime()
@@ -286,6 +389,13 @@ def test_backoff_sweep_screening_reuses_one_resolved_runtime(monkeypatch):
         lambda: resolver_calls.append(True) or runtime,
     )
     monkeypatch.setattr(backoff_sweep, "_assert_single_tenant", lambda: None)
+    monkeypatch.setattr(
+        backoff_sweep.screening_driver,
+        "attest_runtime_contract",
+        lambda contract, *, verified_calibration=None: (
+            screening_receipt, screening_verified_calibration,
+        ),
+    )
     monkeypatch.setattr(
         p2_2,
         "_assert_matches_calibration",
@@ -355,6 +465,9 @@ def test_backoff_sweep_screening_reuses_one_resolved_runtime(monkeypatch):
     assert prepare_kwargs["env_tag"] == expected.env_tag
     assert prepare_kwargs["clocks_per_us"] == expected.clocks_per_us
     assert prepare_kwargs["numactl"] == list(expected.numactl)
+    assert prepare_kwargs["env_contract"] == expected
+    assert prepare_kwargs["execution_receipt"] is screening_receipt
+    assert prepare_kwargs["verified_calibration"] is screening_verified_calibration
     assert prepare_kwargs["authorization_contract"].contract == expected
     assert len(evaluate_calls) == 2
     for args, kwargs in evaluate_calls:

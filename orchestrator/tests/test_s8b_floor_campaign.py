@@ -4795,6 +4795,64 @@ def test_machine_env_tag_for_site_uses_required_registry_contract(monkeypatch):
     )
 
 
+def test_machine_env_tag_for_site_rejects_zero_required_contracts(monkeypatch):
+    monkeypatch.setattr(
+        s8b_floor_campaign.site_policy,
+        "current_site",
+        lambda: s8b_floor_campaign.site_policy.PEGASUS_COMPUTE,
+    )
+    monkeypatch.setattr(s8b_floor_campaign._env_contract, "REGISTRY", {})
+    with pytest.raises(s8b_floor_campaign.FloorCampaignError, match="required attestation"):
+        s8b_floor_campaign._machine_env_tag_for_site(
+            s8b_floor_campaign.site_policy.current_site()
+        )
+
+
+def test_machine_env_tag_for_site_rejects_multiple_required_contracts(monkeypatch):
+    monkeypatch.setattr(
+        s8b_floor_campaign.site_policy,
+        "current_site",
+        lambda: s8b_floor_campaign.site_policy.PEGASUS_COMPUTE,
+    )
+    monkeypatch.setattr(
+        s8b_floor_campaign._env_contract,
+        "REGISTRY",
+        {
+            "required-first": SimpleNamespace(
+                env_tag="fixture-required-first", attestation_mode="required",
+            ),
+            "required-second": SimpleNamespace(
+                env_tag="fixture-required-second", attestation_mode="required",
+            ),
+        },
+    )
+    with pytest.raises(s8b_floor_campaign.FloorCampaignError, match="required attestation"):
+        s8b_floor_campaign._machine_env_tag_for_site(
+            s8b_floor_campaign.site_policy.current_site()
+        )
+
+
+def test_machine_env_tag_for_site_rejects_required_lookup_exception(monkeypatch):
+    monkeypatch.setattr(
+        s8b_floor_campaign.site_policy,
+        "current_site",
+        lambda: s8b_floor_campaign.site_policy.PEGASUS_COMPUTE,
+    )
+
+    def fail_required_lookup():
+        raise ec.EnvContractError("fixture required lookup failure")
+
+    monkeypatch.setattr(
+        s8b_floor_campaign._env_contract,
+        "lookup_required_attestation_contract",
+        fail_required_lookup,
+    )
+    with pytest.raises(s8b_floor_campaign.FloorCampaignError, match="required attestation"):
+        s8b_floor_campaign._machine_env_tag_for_site(
+            s8b_floor_campaign.site_policy.current_site()
+        )
+
+
 def test_machine_env_tag_for_site_uses_unique_none_registry_contract(monkeypatch):
     expected_tags = {
         contract.env_tag
@@ -4839,6 +4897,30 @@ def test_machine_env_tag_for_site_rejects_multiple_none_contracts(monkeypatch):
         {
             "first": SimpleNamespace(env_tag="fixture-none-first", attestation_mode="none"),
             "second": SimpleNamespace(env_tag="fixture-none-second", attestation_mode="none"),
+        },
+    )
+    with pytest.raises(s8b_floor_campaign.FloorCampaignError, match="none attestation"):
+        s8b_floor_campaign._machine_env_tag_for_site(
+            s8b_floor_campaign.site_policy.current_site()
+        )
+
+
+def test_machine_env_tag_for_site_rejects_duplicate_registry_env_tag(monkeypatch):
+    monkeypatch.setattr(
+        s8b_floor_campaign.site_policy,
+        "current_site",
+        lambda: s8b_floor_campaign.site_policy.OTHER,
+    )
+    monkeypatch.setattr(
+        s8b_floor_campaign._env_contract,
+        "REGISTRY",
+        {
+            "none": SimpleNamespace(
+                env_tag="fixture-duplicate", attestation_mode="none",
+            ),
+            "required": SimpleNamespace(
+                env_tag="fixture-duplicate", attestation_mode="required",
+            ),
         },
     )
     with pytest.raises(s8b_floor_campaign.FloorCampaignError, match="none attestation"):
@@ -8041,14 +8123,17 @@ def test_each_determinism_seam_reaches_its_expected_json_pointer(tmp_path):
 def test_new_seam_defaults_delegate_to_production_functions(tmp_path, monkeypatch):
     freeze = _freeze_document()
     protocol = _protocol(freeze_sha=_freeze_sha(freeze))
+    monkeypatch.setattr(
+        s8b_floor_campaign.site_policy,
+        "current_site",
+        lambda: s8b_floor_campaign.site_policy.OTHER,
+    )
     repo_root = tmp_path / "default-root"
     _init_real_clean_repo(repo_root, freeze, protocol)
     calls = {name: 0 for name in (
         "calibration", "machine_pin", "host", "process", "receipt", "build", "after",
     )}
-    expected_machine_env_tag = s8b_floor_campaign._machine_env_tag_for_site(
-        s8b_floor_campaign.site_policy.current_site()
-    )
+    expected_machine_env_tag = "linux-baremetal"
     fake_build = _make_fake_build(tmp_path / "ignored")
     real_load = s8b_floor_campaign.env_attestation.load_verified_calibration
     real_pin = s8b_floor_campaign.execution_guard.assert_machine_pin

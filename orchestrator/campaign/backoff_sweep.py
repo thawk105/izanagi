@@ -104,7 +104,8 @@ def _run_screened_workload(cfg, gs, perf, workload, calibration_dir, log, *,
                            runtime_contract,
                            authorization_contract,
                            expected_toolchain_manifest=None,
-                           confirm_each_candidate=False):
+                           confirm_each_candidate=False,
+                           verified_calibration=None):
     baseline = gs[0]
     if expected_toolchain_manifest is None:
         _, resolved_cxx = _compilers_for_current_site()
@@ -122,6 +123,9 @@ def _run_screened_workload(cfg, gs, perf, workload, calibration_dir, log, *,
     measured = []
     execution_contract = runtime_contract
     runtime_numactl = list(runtime_contract.numactl)
+    execution_receipt, verified_calibration = screening_driver.attest_runtime_contract(
+        runtime_contract, verified_calibration=verified_calibration,
+    )
 
     def measure_baseline(screen_cfg, layout):
         measured.append(screening_driver.evaluate_candidate(
@@ -134,7 +138,9 @@ def _run_screened_workload(cfg, gs, perf, workload, calibration_dir, log, *,
             build_context=build_context,
             capability_resolver=capability_resolver,
             screening=None, numactl=runtime_numactl, force=True,
-            do_settle=True, log=log))
+            do_settle=True, log=log,
+            execution_receipt=execution_receipt,
+            verified_calibration=verified_calibration))
 
     prepared = screening_driver.prepare_screening_campaign(
         cfg, workload, baseline_ref, measure_baseline,
@@ -142,9 +148,19 @@ def _run_screened_workload(cfg, gs, perf, workload, calibration_dir, log, *,
         env_tag=runtime_contract.env_tag,
         clocks_per_us=runtime_contract.clocks_per_us,
         numactl=runtime_numactl,
-        calibration_dir=calibration_dir, build_context=build_context)
+        calibration_dir=calibration_dir, build_context=build_context,
+        env_contract=execution_contract,
+        execution_receipt=execution_receipt,
+        verified_calibration=verified_calibration)
+    prepared_execution_receipt = getattr(
+        prepared, "execution_receipt", execution_receipt,
+    )
+    prepared_verified_calibration = getattr(
+        prepared, "verified_calibration", verified_calibration,
+    )
     s = CampaignSummary(campaign_id=str(ident.campaign_id(prepared.cfg)),
-                        layout_root=prepared.layout.root, total=len(gs))
+                        layout_root=prepared.layout.root, total=len(gs),
+                        execution_receipt=prepared_execution_receipt)
     results = [measured[0]]
     for genome in gs[1:]:
         if confirm_each_candidate:
@@ -159,7 +175,9 @@ def _run_screened_workload(cfg, gs, perf, workload, calibration_dir, log, *,
             declared_use_class="official",
             build_context=build_context,
             capability_resolver=capability_resolver,
-            screening=prepared.screening, numactl=runtime_numactl, log=log))
+            screening=prepared.screening, numactl=runtime_numactl, log=log,
+            execution_receipt=prepared_execution_receipt,
+            verified_calibration=prepared_verified_calibration))
     for result in results:
         if result is None:
             s.skipped += 1
@@ -179,7 +197,7 @@ def run_workload(tag: str, workload: dict, log=print, *,
                  confirm_each_candidate: bool = False):
     _assert_single_tenant()
     site, contract, authorization = p2_2.resolve_site_runtime()
-    p2_2._assert_matches_calibration(contract)
+    loaded_calibration = p2_2._assert_matches_calibration(contract)
     gs = genomes()
     if screening_fixed_us is not None:
         if not screening_enabled:
@@ -218,7 +236,12 @@ def run_workload(tag: str, workload: dict, log=print, *,
             runtime_contract=contract,
             authorization_contract=authorization,
             expected_toolchain_manifest=expected_toolchain_manifest,
-            confirm_each_candidate=confirm_each_candidate)
+            confirm_each_candidate=confirm_each_candidate,
+            verified_calibration=(
+                getattr(loaded_calibration, "verified", None)
+                if contract.attestation_mode == "required"
+                else None
+            ))
     else:
         s = run_campaign(cfg, gs, perf, contract.env_tag,
                          contract.clocks_per_us, numactl=list(contract.numactl), log=log,
@@ -250,7 +273,7 @@ def main(argv) -> int:
     ap.add_argument("--screening", action="store_true",
                     help="bench-first screeningをopt-in (既定off)")
     ap.add_argument("--calibration-dir", default="",
-                    help="between_run_noise_*.jsonの置き場 (省略時はlinux-baremetal正本)")
+                    help="between_run_noise_*.jsonの置き場 (省略時はresolved env scope)")
     ap.add_argument("--screening-fixed-us", type=int,
                     help="screening時に baseline + 指定fixed-usの最小2点だけ実走")
     ap.add_argument("--confirm-each-candidate", action="store_true",

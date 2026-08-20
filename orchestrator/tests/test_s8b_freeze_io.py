@@ -209,14 +209,28 @@ def test_s8b_drivers_no_longer_direct_import_p2_runtime_constants():
             Path(module.__file__).read_text(encoding="utf-8"),
             filename=str(module.__file__),
         )
-        imported = {
-            alias.name
-            for node in ast.walk(tree)
-            if isinstance(node, ast.ImportFrom)
-            and (node.module == "p2_2" or (node.module or "").endswith(".p2_2"))
-            for alias in node.names
-        }
-        assert imported.isdisjoint({"ENV_TAG", "CLK", "NUMA"})
+        direct_p2_2_imports = []
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Import):
+                direct_p2_2_imports.extend(
+                    alias.name
+                    for alias in node.names
+                    if alias.name == "p2_2" or alias.name.endswith(".p2_2")
+                )
+            elif isinstance(node, ast.ImportFrom):
+                module_name = node.module or ""
+                if module_name == "p2_2" or module_name.endswith(".p2_2"):
+                    direct_p2_2_imports.extend(
+                        f"{module_name}:{alias.name}" for alias in node.names
+                    )
+                elif any(alias.name == "p2_2" for alias in node.names):
+                    # Covers ``from . import p2_2`` and package re-export forms.
+                    direct_p2_2_imports.extend(
+                        f"{module_name or '.'}:{alias.name}"
+                        for alias in node.names
+                        if alias.name == "p2_2"
+                    )
+        assert direct_p2_2_imports == []
 
     assert not hasattr(floor, "NUMACTL")   # p2_2.NUMA の直 import は削除された
     assert not hasattr(floor, "CLK")       # p2_2.CLK の直 import も削除された

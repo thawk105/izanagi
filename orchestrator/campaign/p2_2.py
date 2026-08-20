@@ -312,12 +312,13 @@ def _assert_single_tenant() -> None:
 
 def _assert_matches_calibration(
         contract: env_contract.ExecutionEnvironmentContract | None = None,
-) -> None:
+) -> _LoadedCalibration:
     """手書き動作点と contract の hash-bound calibration を実行時照合する。
 
     contract を省略した旧 caller は実測 resolver を通る。通常の実測経路は既に解決済み
     contract を渡し、resolver/authorization/calibration の世代を一つに束縛する。
     不在・schema・hash・records/threads/env/clocks の不一致は全て RuntimeError とする。
+    戻り値は同じ verified calibration bytes を使う caller が再 open しないための値である。
     """
     if contract is None:
         _, contract, _ = resolve_site_runtime()
@@ -341,6 +342,7 @@ def _assert_matches_calibration(
             "手書き動作点が contract の calibration と不一致: "
             f"expected={expected!r}, calibration={actual!r}"
         )
+    return loaded
 
 
 def config_for(tag: str, workload: dict) -> CampaignConfig:

@@ -332,20 +332,26 @@ def _machine_env_tag_for_site(site: str) -> str:
             ) from exc
     if site == site_policy.OTHER:
         try:
-            candidates = {
-                contract.env_tag
-                for contract in _env_contract.REGISTRY.values()
+            contracts = tuple(_env_contract.REGISTRY.values())
+            candidate_contracts = tuple(
+                contract
+                for contract in contracts
                 if contract.attestation_mode == "none"
-            }
+            )
+            candidate_tags = {contract.env_tag for contract in candidate_contracts}
+            registry_tags = tuple(contract.env_tag for contract in contracts)
+            registry_tag_set = set(registry_tags)
         except (_env_contract.EnvContractError, AttributeError, TypeError) as exc:
             raise FloorCampaignError(
                 "machine-pin: none attestation contract を一意に解決できない"
             ) from exc
-        if len(candidates) != 1:
+        if (len(candidate_contracts) != 1
+                or len(candidate_tags) != 1
+                or len(registry_tags) != len(registry_tag_set)):
             raise FloorCampaignError(
                 "machine-pin: none attestation contract を一意に解決できない"
             )
-        return candidates.pop()
+        return candidate_contracts[0].env_tag
     raise FloorCampaignError(f"machine-pin: 未対応 site {site!r}")
 
 
