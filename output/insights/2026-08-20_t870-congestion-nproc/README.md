@@ -127,6 +127,35 @@ no lease created (no ledger mutation)
   同一 wave 内で実装へ進むのは段階導入の規律に反する。したがって次の一手として明記し、
   今wave では実装しない。
 
+## 段9 受入全走の実施中に追加実測した事実
+
+本 wave 自身の受入全走投入 (段9) で、queue congestion による dispatch 失敗を実地に観測した
+(1回目試行: main 前進後の全史 provenance 再監査が 480 秒枠で `TimeoutExpired`。2回目試行:
+merge・全史監査は通過したが `[Pegasus dispatch] request ... の状態: QUE` の後
+`queue-wait-timeout` (900秒既定) で `child_started=false`)。投入時、`ps` で少なくとも 15 以上の
+別 wave が同じ受入 lease・compute dispatch queue を同時に奪い合っていることを確認した。
+
+この2回目試行の失敗を受け、T-870 が新設した opt-in override
+(`IZANAGI_DISPATCH_QUEUE_WAIT_TIMEOUT_OVERRIDE`) が使えるか検討し、**受入形の launcher には
+そもそも届かないことをコードで確認した**:
+
+- `tools/dev_wave_wait.py` の `_acceptance_environment_preflight`
+  (`tools/dev_wave_wait.py:2423-2456`) は `_AcceptanceEnvironment` を
+  `pytest_addopts`/`pytest_plugins`/`task_run_id`/`task_runs_root` の **4 field 固定**で構築する。
+  `PYTEST_ADDOPTS`/`PYTEST_PLUGINS` が非空なら即座に `_StageFailure` で受入自体を拒否する
+  (`:2432-2433`)。
+- 実際に観測した子 process の起動引数にも
+  `--env-projection-json {"IZANAGI_TASK_RUNS_ROOT":null,"IZANAGI_TASK_RUN_ID":null,
+  "PYTEST_ADDOPTS":null,"PYTEST_PLUGINS":null}` という**閉じた4キーの射影**だけが現れ、
+  `IZANAGI_DISPATCH_QUEUE_WAIT_TIMEOUT_OVERRIDE`/`IZANAGI_DISPATCH_OVERALL_GRACE_OVERRIDE`/
+  `IZANAGI_TEST_NPROC` はいずれも含まれない。
+- したがって、operator が受入投入前に自分のシェルでこれらの override 環境変数を export しても、
+  `tools/acceptance_launcher.py` 経由で起動される受入形の `python3 tools/run_tests.py` 子
+  プロセスには一切伝播しない。**T-870 (entry 769) が今日実装した opt-in override は、通常の
+  受入・焦点走そのものには構造的に適用できない** (ad hoc な `--force-dispatch <target>` 手動実行
+  にだけ効く)。これは entry 769 自身の文言「通常の受入・焦点走は queue 混雑時に引き続き rc=16 で
+  落ちる」と整合する挙動であり、今回コードで直接確認できた点が新規である。
+
 ## 次の一手 (今wave では scope 外、次 wave 候補)
 
 - **[T-870] 系列への追加候補 (h)**: `tests-full` の peak 台帳に一度 CAP_OOM 相当の値
@@ -142,3 +171,10 @@ no lease created (no ledger mutation)
   ロック・並行アクセス契約を段3 で専用レンズを立てて検証すること。
   full-suite の nproc=4 実測 (peak bytes・route) も、このrecovery機構と併せて次 wave で行うのが
   効率的 (recovery が無いと local 試行自体が起こらないため、nproc 単独の実測は今のままでは無意味)。
+- **[T-870] 系列への追加候補 (i)**: opt-in override (`IZANAGI_DISPATCH_QUEUE_WAIT_TIMEOUT_OVERRIDE`/
+  `IZANAGI_DISPATCH_OVERALL_GRACE_OVERRIDE`) を受入・焦点走の launcher 経路 (`tools/dev_wave_wait.py`
+  の `_acceptance_environment_preflight`/`_AcceptanceEnvironment`) へ、明示 opt-in のまま
+  (既定は不変・自動選択なし) 到達させる設計を検討する。現状は ad hoc な手動 dispatch にしか効かず、
+  T-870 が意図した「operator が文脈を把握して上書きできる」対象に受入・焦点走自体が含まれていない。
+  ただし `_acceptance_environment_preflight` が `PYTEST_ADDOPTS`/`PYTEST_PLUGINS` を拒否する設計
+  (再現性の保証) と衝突しない形に限る必要があり、専用の brief→plan→consult を要する。
