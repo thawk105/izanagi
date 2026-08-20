@@ -168,6 +168,8 @@ _REVIEWED_PREDICATES = (
     _Predicate("B", "orchestrator/campaign/s8b_floor_contract.py",
                "_official_perf_evidence_keys", "use_perf_from_receipt"),
     _Predicate("B", "orchestrator/campaign/s8b_floor_contract.py",
+               "_validate_resume_diagnostic_events", "validate_perf_preflight_receipt", 2),
+    _Predicate("B", "orchestrator/campaign/s8b_floor_contract.py",
                "validate_manifest_v3", "manifest_keys_for_mode"),
     _Predicate("B", "orchestrator/campaign/s8b_floor_contract.py",
                "validate_manifest_v3", "validate_perf_observation"),
