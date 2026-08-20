@@ -317,6 +317,24 @@ def test_declared_read_and_write_counts_must_match():
         assert res.verdict == "indeterminate"
         assert res.certified is False
         assert result_to_dict(res)["integrity"]["framing_violations"] == 2
+        assert result_to_dict(res)["integrity"]["framing_violation_details"] == [
+            {
+                "kind": "count-mismatch",
+                "txid": 0,
+                "expected_reads": 1,
+                "observed_reads": 0,
+                "expected_writes": 0,
+                "observed_writes": 0,
+            },
+            {
+                "kind": "count-mismatch",
+                "txid": 1,
+                "expected_reads": 0,
+                "observed_reads": 0,
+                "expected_writes": 1,
+                "observed_writes": 0,
+            },
+        ]
         assert "framing_violations=2" in render_text(res)
     finally:
         shutil.rmtree(d, ignore_errors=True)
@@ -333,6 +351,16 @@ def test_missing_end_is_indeterminate():
         assert res.serializable is True
         assert res.verdict == "indeterminate"
         assert res.certified is False
+        assert result_to_dict(res)["integrity"]["framing_violation_details"] == [
+            {
+                "kind": "missing-end",
+                "txid": 0,
+                "expected_reads": 0,
+                "observed_reads": 0,
+                "expected_writes": 0,
+                "observed_writes": 0,
+            },
+        ]
     finally:
         shutil.rmtree(d, ignore_errors=True)
 
@@ -348,6 +376,16 @@ def test_duplicate_end_is_indeterminate():
         assert res.integrity.framing_violations == 1
         assert res.verdict == "indeterminate"
         assert res.certified is False
+        assert result_to_dict(res)["integrity"]["framing_violation_details"] == [
+            {
+                "kind": "duplicate-end",
+                "txid": 0,
+                "expected_reads": None,
+                "observed_reads": None,
+                "expected_writes": None,
+                "observed_writes": None,
+            },
+        ]
     finally:
         shutil.rmtree(d, ignore_errors=True)
 
@@ -1077,6 +1115,7 @@ def test_result_to_dict_without_commit_witness_matches_frozen_json_bytes():
     "write_version_mismatch": 0,
     "malformed_keys": 0,
     "framing_violations": 0,
+    "framing_violation_details": [],
     "lock_coverage_violations": 0,
     "write_intent_violations": 0,
     "permutation_violations": 0,

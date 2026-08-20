@@ -31,7 +31,7 @@ if __package__ in {None, ""}:  # pragma: no cover - direct CLI execution
     __package__ = "orchestrator.campaign"
 
 from .genome import SILO_SPACE                          # noqa: E402
-from . import env_contract                              # noqa: E402
+from . import buildcache, env_contract                  # noqa: E402
 from .build_admission import GeneratorId, build_run_context  # noqa: E402
 from .layout import repo_output_root                    # noqa: E402
 from .loop import run_campaign                          # noqa: E402
@@ -139,10 +139,16 @@ def run_workload(tag: str, workload: dict, log=print):
     perf = PerfConfig(records=RECORDS, threads=THREADS, workload=workload,
                       extime=EXTIME, reps=REPS)
     build_context = build_run_context(generator_id=GeneratorId.BACKOFF_SWEEP)
+    resolved_cc, resolved_cxx = buildcache.compilers_for_current_site()
+    expected_toolchain_manifest = buildcache.observed_toolchain_manifest(
+        resolved_cc, resolved_cxx,
+    )
 
     log(f"\n=== P2-2 workload={tag}  ({workload})  {len(genomes)} genome ===")
     s = run_campaign(cfg, genomes, perf, ENV_TAG, CLK, numactl=NUMA, log=log,
                      authorization_contract=env_contract.authorize(ENV_TAG),
+                     env_contract=env_contract.lookup(ENV_TAG),
+                     expected_toolchain_manifest=expected_toolchain_manifest,
                      build_context=build_context,
                      declared_use_class="official")
 

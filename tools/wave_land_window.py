@@ -781,6 +781,72 @@ def claim(lease_dir: Path, wave: str, main_sha: str, ttl: int) -> dict[str, obje
         os.close(directory_fd)
 
 
+def renew(lease_dir: Path, wave: str) -> dict[str, object]:
+    self_holder = _holder_for(wave)
+    try:
+        directory_fd = _open_directory(lease_dir)
+    except OSError:
+        return _unavailable("directory-unavailable", self_holder)
+    try:
+        for _ in range(_MAX_RACE_RETRIES):
+            try:
+                names = os.listdir(directory_fd)
+            except OSError:
+                return _unavailable("directory-unavailable", self_holder)
+            if _LEASE_NAME not in names:
+                return _result("free", self_holder=self_holder)
+            try:
+                lease = _open_lease(directory_fd, exclusive=True)
+            except FileNotFoundError:
+                continue
+            except (OSError, UnicodeError, ValueError, RecursionError):
+                return _unavailable("lease-unavailable", self_holder)
+            try:
+                if not lease.stale and not lease.payload_valid:
+                    return _lease_result(
+                        "unavailable",
+                        lease,
+                        self_holder,
+                        unavailable_reason="lease-unavailable",
+                    )
+                if lease.stale:
+                    return _lease_result("stale", lease, self_holder)
+                if lease.holder != self_holder:
+                    return _lease_result("not-owner", lease, self_holder)
+                try:
+                    renewed_ns = time.time_ns()
+                    os.utime(lease.fd, ns=(renewed_ns, renewed_ns))
+                    refreshed_metadata = os.fstat(lease.fd)
+                    _validate_owned_regular(refreshed_metadata)
+                    if not _same_entry(
+                        directory_fd, _LEASE_NAME, refreshed_metadata
+                    ):
+                        raise FileNotFoundError(
+                            errno.ENOENT, "renewed lease changed"
+                        )
+                    age_seconds, stale = _mtime_state(refreshed_metadata)
+                    if stale:
+                        raise ValueError("renewed lease is stale")
+                except Exception:
+                    return _lease_result(
+                        "unavailable",
+                        lease,
+                        self_holder,
+                        unavailable_reason="self-renew-failed",
+                    )
+                return _lease_result(
+                    "held-self",
+                    lease,
+                    self_holder,
+                    age_seconds=age_seconds,
+                )
+            finally:
+                os.close(lease.fd)
+        return _unavailable("lease-race", self_holder)
+    finally:
+        os.close(directory_fd)
+
+
 def release(
     lease_dir: Path,
     wave: str,

@@ -749,14 +749,15 @@ if [[ "$calibrate_rc" -eq 0 ]]; then
     >"$ATTEMPT_DIR/attestation-post.stdout" 2>"$ATTEMPT_DIR/attestation-post.stderr"
 fi
 
-python3 - "$ATTEMPT_DIR/job-result.json" "$PBS_JOBID" "$calibrate_rc" "$BINARY_SHA" <<'PY'
+python3 - "$ATTEMPT_DIR/job-result.json" "$PBS_JOBID" "$calibrate_rc" "$BINARY_SHA" "$CURRENT_SCRIPT_SHA" <<'PY'
 import json, sys, time
-path, job_id, rc, binary_sha = sys.argv[1:]
+path, job_id, rc, binary_sha, job_script_sha = sys.argv[1:]
 payload = {
     "schema_version": "pegasus-job-result/v1",
     "pbs_jobid": job_id,
     "calibrate_rc": int(rc),
     "binary_sha256": binary_sha,
+    "job_script_sha256": job_script_sha,
     "completed_epoch": int(time.time()),
 }
 with open(path, "x", encoding="utf-8") as handle:

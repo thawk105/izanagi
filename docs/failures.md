@@ -1442,6 +1442,13 @@
   書かれており親が fallback で読んで採った。2026-07-28/2026-08-18裁定 (`DW-O01` への
   prose 追記は見送り、恒久対応はテスト・機械検査優先) を踏襲し、今回も reference
   編集はしない。
+
+- **再発: 2026-08-20** — [T-540] 段6 fix (NaN/Inf 回帰テスト追加、3回目の fix 試行) の
+  出力が 492 bytes で 500 bytes 下限に届かず `codex_worker_launch.py` に不受理にされた
+  (`accepted=false`, `validator_rc=1`, `codex_exit_code=0`)。sandbox=workspace-write での
+  実ファイル書き込み自体は正しい内容 (NaN/Inf 拒否テスト2件) で完了していたが、正式な採用
+  記録がないため、4回目の fix へ「現状確認し、既にあれば重複させない」指示で再投入し
+  accepted 記録を得た。同日中に既出の2件 (2026-08-18 型の3回目相当) と同型。
 ### F44. pipefail 下の `producer | grep -q` が SIGPIPE で計測ジョブを偽赤停止させた [手順漏れ]
 - 事象: [T-140] set-size 実測ジョブ 1 回目 (872881.nqsv、2026-07-28) が、trace シンボル存在検査
   `nm -C bin | grep -qi izanagi_trace` で「シンボル無し」と誤判定し 43 秒で停止した。実際は
@@ -5385,6 +5392,16 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: probe 直後の `git diff --stat` が probe の 1 行だけであること、および
   復元後に `git log --oneline -1` が期待する統合 commit を指すこと。
 
+
+- **再発: 2026-08-20** — [T-1381] wave の段6 post-change 変異再検証で、実装子 (Codex
+  role=author) の未 commit docstring 変更が乗った tree に対し `git status --porcelain`
+  の非空確認を怠って `git checkout -- <file>` で復元し、実装子の成果も巻き戻った。
+  直後の `git diff --stat` で対象 file が消えていることを検知し、直前に取得済みの
+  `git diff` 全文から docstring 2 箇所を Edit で verbatim 再現して完全復元した
+  (復元後 diff が元の diff と byte 一致、test 再走で確認)。実害なし。F174 の恒久対応
+  (「親が実編集 probe を行う前に `git status --porcelain` が空であることを確認する」
+  「dev-wave 入口の `DW-O19` 条件へ『親の probe でも成立する』ことを明記する」) が
+  未だ `DW-O19` 本文へ反映されていないことが 2 回目の再発で裏付けられた。
 ### F175. フレークの計装が、そのフレークの発火条件で `DID NOT RAISE` になった [テストフレーク] [恒真ゲート]
 
 - 事象: F57 の launcher フレークを観測するために新設した wiring meta-test が、
@@ -7505,6 +7522,15 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   **hit が 2 件以上なら全件を開いて選択肢集合を突き合わせる**。突き合わせずに最新 1 件だけを
   根拠にしてはならない。機械化候補は [T-508] の機械化移管枠へ回付する。
 
+
+- **再発: 2026-08-20** — 未採番のrulings-inbox候補 (DW-S07段記録容量問題、一次資料
+  `2026-08-19-t828-dw-s07-acceptance-ordering-note.md`) が同日朝の別 `/rulings` セッションで
+  既に裁定・採番済み (T-1430) だったにもかかわらずinbox未削除で残存し、後発の収集が同一内容を
+  未解決として再提示しかけた。既存の恒久対応 (`ruling-status-follow-to-latest-entry`) は既存
+  T-IDの照合を想定するが、本件は対象が**裁定後に初めて採番される**未採番候補であり、
+  T-ID化前のinboxファイルには機械的な事前照合手段が無かった。worklog全体を一次資料ファイル名で
+  全文検索し archive 側の「2026-08-20裁定」マーカー付き実体を発見して手動で回避した
+  (未機械化のまま)。
 ### F273. `test_codex_worker_launch.py` が並行 codex launcher の負荷で受入全走のときだけ 9〜10 件級で落ちる [テスト代表性] [計測汚染]
 
 - 事象: 受入全走を 2 回投入し、いずれも同ファイルが大量に赤になった。
@@ -7874,6 +7900,16 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: 台帳・定数表を触る commit の前に、その定数名で repo 全体を grep し、
   test 側に literal の写しがないかを確認する。
 
+
+- **再発: 2026-08-20** — `tools/check_ai_provenance.py` の `KNOWN_PROVENANCE_VIOLATIONS`
+  registry へ known-violation エントリを1件追加する fix 指示に、検査コマンドとして
+  監査ツール本体の実行だけを書き、対になる meta-test file
+  (`orchestrator/tests/test_check_ai_provenance.py`) を名指ししなかった。子はツール本体の
+  rc=0 を確認して完了報告したが、受入全走 (attempt 1) で
+  `test_known_violation_ledger_matches_literal_entries` が赤になり、受入を1回余分に消費した
+  (attempt 2 で解消、`verdict=non-attributable-only` で受入成立)。恒久対応・再発検知は
+  既載のとおり (台帳・定数表を編集させる指示には対になる meta-test file を必ず名指しする) で、
+  今回は指示作成時にこの既知パターンを見落とした。
 ### F291. 正例 control の期待 node を過少申告して 1 巡目が MISMATCH になった [手順漏れ]
 
 - 事象: 変異 1 巡目は 9/10 KILLED・SURVIVED 0 だったが、正例 control (pristine block の受理経路を
@@ -9245,6 +9281,7 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   対応として、実行系は codex 子と同じく runner と launcher を `.sh` へ外出しして
   `nohup setsid` で detach し、死活判定は producer の pid と `.done` の mtime だけで行った。
   旧走行の `.done` (rc=1) が残っていて新走行の結果と取り違えかけたため、mtime の照合も要る。
+- **supersede: 2026-08-20** — [T-1257] で再発検知条件 (2 例目成立時に機序を特定し待ち手側の fails-closed 検査として実装する) を満たした。`tools/dev_wave_wait.py producer` へ `--check-only`/`--receipt-file` を追加し、producer 死亡+`.done`+artifact の 3 点が揃った場合だけ atomic に durable receipt を publish する一発検査を実装、完了通知・stdout・待ち手自身の rc は完了の証拠として扱わない設計にした (D594)。実 subprocess へ SIGKILL/SIGTERM を送る統合テストで F355 の症状 (producer 生存・出力ゼロで待ち手が消える) を再現し、receipt が正しく publish されないことを確認した。変異事前登録 (producer 死亡判定の除去、3 条件 gate のバイパス) は baseline 緑・2/2 KILLED。運用契約 (`DW-C00`/`DW-O01`) への結線は `docs/dev-wave/**` の L1/L1.5 byte 予算と `.claude/commands/dev-wave.md` 自体の 9500 byte 予算がいずれも実質スラック 0 だったため本 wave では実施できず、次の一手 (`[T-1439]`) へ回した。
 ### F356. 過去の遷移を毎回再判定する chain に、可変な現行定数との比較を置いた [恒真ゲート] [誤前提]
 
 - 事象: 環境契約の後継判定へ「取得方式名が現行 probe 定数と一致すること」を足した。
@@ -9287,6 +9324,13 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   統合 commit 後の再走で切り分ける。
 - **supersede: 2026-08-17** — enforcement source closure は D473 で exact 14 path になった。「12 path」は「14 path」と読み替える。加えて本 wave の実測で偽赤の範囲が確定した — 閉包 member を編集した状態でも、`_REPO_ROOT` を一時 repo へ差し替える node (T671 / artifact admission の E1 / S6 / S8a) は偽赤にならず、統合 commit 前に赤くなったのは実 checkout の live closure を capture する `orchestrator/tests/test_layer3_report.py::test_accepted_report_requires_e1_and_records_epoch` の 1 件だけだった (commit 後の同範囲再走は 465 passed / 0 failed)。偽赤候補を「閉包 member を触る wave の広い consumer 群」と見積もるのは過大で、判定手順は既載どおり赤の理由行に `contract-loader-drift` があるかで行う。
 
+
+- **再発: 2026-08-20** — `trial_registry.py` / `p3_autonomous_workload_trial.py` /
+  `s8c_preregistration_evidence.py` を編集した状態で13ファイル consumer test 一括走を投入し、
+  19 failed + 34 errors を観測した。理由行はほぼ全て `contract-loader-drift` だった。
+  統合 commit 後に同じ範囲を再走したところ 1531 passed / 0 failed へ解消し、実装差分由来の
+  赤は0件だった。判定手順 (赤の理由行に `contract-loader-drift` があれば commit してから
+  再走する) は既載のとおりで機能した。
 ### F358. byte 束縛されたソースへの変異は、意味に無関係な共通核で全変異が KILLED に見える [テスト代表性]
 
 - 事象: `pipeline.py` を対象にした変異 13 件が全て KILLED になったが、内訳を見ると
@@ -9308,6 +9352,23 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   killer であることの証拠になる (本 wave では bench の `record_rep_returncodes=True` 分岐と
   実 trace 起動の argv がこれに該当した)。
 
+
+- **再発: 2026-08-20** — `pipeline.py`/`loop.py` (enforcement source closure member)
+  への変異 matrix (T-1416) で、`ratified_enforcement_source` fixture 経由の
+  contract-loader-drift 偽陽性 (共通核 9〜12件) に加え、**`run_campaign` が内部で
+  呼ぶ `ident.verify_against_lock` → `contract_loader_binding.verify_live_contract_loader_binding`
+  経由でも同型の ERROR (fixture setup ではなく test 実行中の IdentityMismatch) が
+  起きる**ことを実測確認した。この経路の ERROR は `tools/mutation_harness.py` の
+  `failed_nodes` 抽出 (FAILED のみを対象、ERROR は含まない) から漏れるため、
+  この経路を通るテストを変異の `expected_nodes` に含めると、実際には対象コードに
+  到達せず ERROR で落ちているだけなのに `SURVIVED` にも `KILLED` にもならず
+  静かに `MISMATCH` の中に紛れる (原因の切り分けに実 stdout の grep が必要だった)。
+  判定手順は F358 既載のとおり「共通核 (failed_nodes の交差) を差し引いた delta が
+  expected と一致するか」で行うが、**delta 不一致の原因が (a) 単なる過大な
+  expected_nodes なのか (b) 対象コードに到達しない設計ミスなのかは、実際の
+  stdout (pytest 標準の `short test summary info` セクションと ERROR excerpt) を
+  読まないと区別できない** (ledger の `failed_nodes` だけでは FAILED/ERROR の別が
+  失われる)。
 ### F359. codex 子は `.git` が read-only で `git merge` を起動できない [手順漏れ]
 
 - 事象: 実装面の main 取り込みを Codex `role=author` の子に投げたところ、
@@ -9879,6 +9940,19 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   `check_acceptance_reds.py` の probe は短時間 dispatch を複数バースト投入する利用パターンであり、
   固定 60 秒窓が相対的に厳しくなる仮説を持つが未実測。恒久対応 (grace 窓拡張・投入間隔調整・
   `request-absent` latch 条件の見直し) はユーザー裁定へ返し、本 wave では実施しない。
+
+- **再発: 2026-08-20** — `tools/mutation_harness.py --runner-mode dispatch` の1回目投入
+  (collection phase相当) が `orphan-hold` (`job-may-remain-without-terminal-evidence`) で
+  rc=2 停止した。木の変異は無く (`変異を残した状態=unchanged`)、docs編集も行っていない
+  ([T-1409] が切り分けた `dispatch_compute.py:1948` の `accounting-grace-expired` →
+  `_fresh_qstat_gated_qdel` の `request-absent` 保守的latchと同型)。対象 job
+  (`926304.nqsv`) は `output/pegasus-dispatch/<hash>/result.json` 上 `child_rc: 0` で
+  正常終了しており (12 tests collected)、非決定的 timing 事象の再現とみなせる。
+  復旧は既定手順どおり (手動qdelせずqstatの出力内容で不在を確認 → dirty file無し・
+  clean/HEAD確認 → hold jsonとsubmission_dirを削除 → 新しい`--out`/`--attempt-out`で
+  `--wrapper-attempt`を上げて再投入) で、2回目の投入は全7走 (collection・baseline・
+  変異5件) が成功した。`check_acceptance_reds.py` 以外の呼び手 (`mutation_harness.py`
+  内部のtest runner dispatch) でも同型が発生することを確認した。
 ### F384. 所有 file の合計行数が大きい実装子が SIGKILL され成果物ゼロで終わる [セッション死・救出] [コンテキスト浪費]
 
 - 事象: dev-wave 段 5 の実装子 2 体が `codex_exit_code = -9` で終了した。1 体目は
@@ -10489,6 +10563,16 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   運用に留める (機械的な事前検知は恒久対応と併せて設計する)。
 - **supersede: 2026-08-19** — 恒久対応は完了に訂正する。commit `4cc60864` (D551、`fix(s8c): 凍結世代の検証から履歴長比例のコストを取り除く`) が `_batch_oids` の走査対象を凍結 namespace を触った commit + 直接親 + 境界へ絞り、判定4種を維持したまま履歴比例 cost を解消した (50,105要求→385要求)。現行 main (`bf9f6713`) で対象2テストを含む `test_s8c_preregistration_invariant.py` + `_core.py` 計408件を Pegasus dispatch 実走し全件合格を確認した (request 924423.nqsv、57.34s)。同根本原因は F418 としても独立発見されている。worklog [T-1408] は完了として carry から落とした。
 
+
+- **再発: 2026-08-20** — 2026-08-19 の supersede (「恒久対応は完了に訂正する」、D551経由) の
+  1日後、[T-1362] のwaveが同一の `MAX_BATCH_REQUESTS` 超過に再び当たった (実測50072、main比
+  commit 7件追加のみ)。D551本文の実測 (適用直後の local main で余裕は残り16件) を読み直すと、
+  supersede 時点で既に再超過は時間の問題だったと判明する。D551が narrow したのは
+  `validate_condition_freeze_at` 1経路のcostだけで、`_batch_oids` を通る他経路 (F418が指す
+  candidate commit祖先集合 × generation-freeze追跡ファイル) は履歴比例のまま残っている疑いが
+  強い。ユーザー裁定 (2026-08-20、詳細は本fragmentの worklog 側) により、上限引き上げは
+  再度不採用のまま維持し、D551と同じ原則を `_batch_oids` の残る全呼び出し経路へ適用する恒久
+  対応を worklog 新規項目として起票した。
 ### F418. 8c preregistration の batch 上限をリポジトリ成長がわずかに超え、main への merge を伴う受入が構造的に赤くなる [恒真ゲート] [検査の非対称]
 
 - 事象: [T-699] の受入全走で `git merge --no-ff --no-commit main` 後、
@@ -10869,3 +10953,135 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   実装しない (規律5、scope外)。
 - 再発検知: 次に role file (`.claude/agents/*.md`) を変更する wave が受入全走で
   `test_reflux_originless_compatibility.py` の赤を踏んだ時点で顕在化する (lint 化は未実装)。
+
+### F434. real-corpus テストがアクティブな task_id を fixture anchor にすると、その task の実体更新で追随なしに陳腐化する [ドリフト] [手順漏れ]
+
+- 事象: `orchestrator/tests/test_spool_fold.py::test_cli_base_digest_real_corpus_resolves_active_and_rejects_completed`
+  が全体走で赤化した (13769 passed, 96 skipped 中でこの1件だけ FAILED)。テストは実 repo コーパスから
+  直接 raw bytes を読んで `[T-139]` の実質的な (carry を遡った) 根 entry を独立に特定し、
+  そのハッシュを期待値としていたが、テスト作成時点 (2026-08-13頃) 以降に `[T-139]` が実体更新され
+  (2026-08-20、ordinal 720、D574 land)、根 entry が `docs/archive/worklog-phase3-0813-537.md` から
+  `docs/archive/worklog-phase3-0820-720-721.md` へ移動したため、テストの固定ポインタ (ファイル名・
+  開始マーカー文字列) が追随なしで陳腐化した。
+- 根本原因: real-corpus テストが「まだ完了していない (`### 次の一手` で carry され続けている)」
+  task_id を fixture anchor に選ぶと、そのアンカーは定義上いつ実体更新 (単純 carry でなく新しい
+  実質的な書き直し) を受けてもおかしくない。実装 (`_extract_latest_active`/`substantive_digest`
+  の carry chain 解決) は無変更で正しく動作しており、バグはテスト側の fixture ポインタにあった。
+- 恒久対応: なし (機械検査は未整備。規律5 に基づき今回は追加機構を作らず、修正
+  (commit `2b56f5ae`) は独立 raw byte 再計算による fixture ポインタの追随に留めた — 独立オラクル
+  設計 (テストのロジックを再利用しない直接 byte 比較) は維持し、比較ロジック自体は変更していない)。
+  当面は同種の real-corpus テストが赤化した際、まず「実装のバグ」でなく「fixture ポインタの陳腐化」
+  を疑い、対象 archive ファイル内の該当 entry を独立 raw byte 計算で確認してから追随修正する。
+  恒久対応の候補 (今回は実装しない、DW-G03 の独立2例未充足): fixture anchor に、既に完了して
+  archive され二度と実体更新されない task_id を選ぶ設計へ変更する。
+- 再発検知: 同型は、real-corpus テストがまだアクティブな task_id を fixture anchor に使っている
+  場合に、その task_id が実体更新されるたびに顕在化しうる (lint 化は未整備、目視)。
+
+### F435. source_digest.py が mocc protocol の実供給マクロを認識せず床値実測がbuild段階で全滅した [ドリフト] [テスト代表性]
+
+- 事象: [T-1431] (2026-08-20) の床値pilot実測で、`s8b_floor_campaign.py` driver が
+  `build_cells` → `prepare_cell` (`orchestrator/campaign/s1_direct_comparison.py:716`) →
+  `source_digest.resolve()` → `assert_conditional_macros_covered()`
+  (`orchestrator/campaign/source_digest.py:557`) で `RuntimeError` を投げ、投入45秒で
+  rc=1 終了した。`cc/mocc/transaction.cc` の条件指令が参照する `MQLOCK`/`RWLOCK`/
+  `TEMPERATURE_RESET_OPT` が「実TU供給マクロ・先行する#define・CONTEXT_MACROS・builtinの
+  いずれでもない」と判定され、fails-closed で停止した (T-148 の設計どおりの挙動、
+  ガード自体は正しく発火した)。stock_configuration (LLM変異を含まない基準構成) で発生した。
+- 根本原因: `source_digest.py` の `parse_supplied_macros()` (269-291行) は
+  `_SUPPLY_RE = re.compile(r"(\w+)=\$\{CCBENCH_(\w+)\}")` という正規表現だけで実TU供給
+  マクロ集合を静的抽出する。`external/ccbench/cc/mocc/CMakeLists.txt` の
+  `OPTIONS` は `RWLOCK` (裸オプション、`=${CCBENCH_...}` を伴わない) と
+  `TEMPERATURE_RESET_OPT=${CCBENCH_TEMPERATURE_RESET_OPT}` (形式上マッチするはず) を含むが、
+  両方とも「未知」と判定された。前者は正規表現の構造的な非対応、後者は
+  `parse_supplied_macros(options_text, protocol_cmake_text)` へ渡る `protocol_cmake_text`
+  自体が mocc の CMakeLists.txt を指していない疑いが強い (呼出し元の特定は未実施、
+  一次資料未確認)。ccbench 側のソース/CMakeLists 構造 (または mocc protocol が
+  `source_digest.py` の想定パーサ形式に一度も適合しないまま存在し続けていた状態) と
+  `source_digest.py` のパーサ実装の drift が原因。`MQLOCK` は現行
+  `cc/mocc/CMakeLists.txt` の OPTIONS に存在せず (grep で確認、ccbench 全体でも
+  `-DMQLOCK` を注入する経路なし)、現行ビルド設定では死コードの可能性が高い
+  (transaction.cc:635-637 のコメントが RWLOCK/MQLOCK を排他的な選択肢として扱っている
+  ことを示唆)。
+- 検出: [T-1431] の床値pilot実投入 (request 926261.nqsv) で偶然発見した。`test_s8b_floor_campaign.py`
+  等の既存テストはこの経路を実exercise していない — `docs/phase3-8b-restart-runbook.md` §1 の
+  「実ビルド canary 3本。cmake/gcc-13/g++-13/nm が揃わないと skip し、Pegasus には
+  g++-13 が無い…実ビルド経路はこの緑に含まれない」が同じ穴を既に指摘していたが、
+  `source_digest.resolve()` 自体の macro-supply 解決が対象だとは特定されていなかった。
+- 恒久対応: [T-1437] で (1) `protocol_cmake_text` の
+  実体を呼出し元まで遡って確認、(2) 裸オプションの扱い方針を設計 (単純な正規表現緩和で
+  「実TU供給集合」の正確性を保てるか要検証)、(3) MQLOCK 死コード判定の確定、(4) mocc
+  (または全protocol) に対する `source_digest.resolve()` の実運用相当テストを追加
+  ([テスト代表性] gap の再発防止) の4点を行う。未着手 (2026-08-20 時点)。
+- 再発検知: 現状は lint 化なし。(4) の実運用相当テストが追加されれば、mocc protocol への
+  今後の変更が CI/受入で自動検知される。それまでは Pegasus 実機での床値/s8b系campaign
+  投入時に同じ traceback (`assert_conditional_macros_covered` からの RuntimeError) が
+  出た時点で顕在化する。
+
+### F436. buildcache.py の v2 build cache は cache hit 時に toolchain 完全 version を束縛しない [恒真ゲート]
+
+- 事象: `expected_toolchain_manifest` の完全一致検査 (`buildcache.py` の `build_v2`)
+  は、build 呼び出し時点で観測した現在の toolchain と expected を比較するだけで、
+  実際に hit した cache entry (旧 binary) がどの toolchain で生成されたかは記録・
+  照合していない。`_v2_identity` の pre-image は `version_first_line` までの短い
+  manifest しか含まないため、先頭行が同じで完全 version だけ異なる toolchain は
+  同一 cache key になり、旧 entry を hit しうる。
+- 根本原因: v2 build cache の identity/completion.json スキーマが、当初 toolchain の
+  完全 version を束縛対象に含めない設計だった (床値 campaign 系列で `expected_toolchain_manifest`
+  が導入された時点から存在する既存の限界。T-1416 が `STAGE_BUILD_DONE` へ
+  `toolchain_record_sha256` を記録する機能を新設したことで、この限界が
+  「不正確な証跡を生成しうる」という具体的なリスクとして顕在化した)。
+- 恒久対応: 未実装。D602 が緩和策 (cached フィールドと
+  組み合わせた運用注記) と scope waiver を記録し、完全解決は
+  [T-1445] へ送った。
+- 再発検知: cache hit 時に `toolchain_record_sha256` が現在観測値であることを示す
+  positive control テスト (未実装、次wave の scope)。
+
+### F437. `dev_wave_wait.py acceptance`の`--wave`は実branch名の suffix一致を要求する未文書化制約 [手順漏れ]
+
+- 事象: 背景job worktree (`EnterWorktree`が自動生成した branch `worktree-lively-juggling-ripple`)
+  で、job dir/成果物命名に使っていた task-descriptive な slug
+  (`dev-wave-t1434-4-codex-reasoning-ab-model-refactor`) をそのまま
+  `dev_wave_wait.py acceptance --wave <slug>`へ渡したところ、`error:
+  stage=preflight-branch rc=2`で即座に拒否された。
+- 根本原因: `tools/dev_wave_wait.py`の`_identity_preflight`が
+  `branch.endswith(wave)`(該当行は`git symbolic-ref --short HEAD`で得た現branch名の末尾一致)
+  を要求する。`dev_wave_codex.py --wave`にはこの制約が無いため、段2〜段6のcodex dispatchでは
+  問題が顕在化せず、段6終盤の受入投入で初めて発覚した。`docs/dev-wave/operations.md`の
+  DW-O01/DW-O20等にはこの制約の記載が無い。
+- 恒久対応: memory
+  `/home/SFC/tanab/.claude/projects/-work-1-SFC-tanab-izanagi/memory/acceptance-wave-flag-must-match-branch-suffix.md`
+  に回避策を記録した (docs追記はscope外と判断)。要旨: `dev_wave_wait.py acceptance`・
+  （推定）`dev_wave_land.py`の`--wave`引数には、job dir命名でなく実branch名の末尾一致部分
+  (`worktree-<random>`形式なら`<random>`部分) を渡す。`git symbolic-ref --short HEAD`で
+  実branch名を確認してから決める。
+- 再発検知: 未整備 (`tools/check_wave_startup.py`等の既存gateはこの不一致を検出しない)。
+
+### F438. rulings 収集補助スクリプトが陳腐化 worktree path で沈黙破損していた [ドリフト] [手順漏れ]
+
+- 事象: `/rulings all` 実行中、機械 sweep 補助 `/work/1/SFC/tanab/dev-wave-jobs/rulings-tools/
+  sweep_pending.py` / `show_resolved.py` が `REPO = .../.claude/worktrees/rulings-20260806-a`
+  という固定 worktree を参照していたが、当該 worktree は 2026-08-06 の wave 終了で既に清掃済みで
+  存在せず、起動すると `FileNotFoundError` で即死していた。エラーは stderr に出るが、
+  呼び手が結果を無視すれば「0 件」と誤読しうる沈黙破損に近い形だった。
+  同時に、PENDING 判定の正規表現 (`裁定要|裁定待ち|未裁定|再裁定待ち|裁定を求める`) が
+  「裁定パッケージ」という頻出する見出し変種を収載しておらず、この語だけで書かれた
+  [T-1216] を構造的に検出できなかった。
+- 根本原因: (1) 一時 worktree への絶対 path 依存が、worktree の生存期間を超えて残った
+  (worktree はセッション終了で消える運用が前提のため、恒久ツールが依存してはいけない対象)。
+  (2) PENDING 正規表現が特定セッションの語彙観測から作られ、見出し変種の継続的な追記が
+  仕組み化されていなかった (`rulings-collection-scope` memory が指摘する「見出し定型句は
+  変種を落とす」原則が、機械化した script 側には未反映だった)。
+- 実測された影響: 2026-08-20 (750) の `/rulings all` セッションが [T-338] (entry 741 起票)・
+  [T-1436] (entry 742 起票、旧 T-1218) を索引に出せなかった。両者とも 750 より前から
+  裁定待ちだったにもかかわらず、750 の提示 14 件には含まれていない。本 wave (rulings-tools を
+  修正後) の再走で初めて両者を検出した。時系列上、この script 破損が唯一の原因と断定はできないが
+  (750 が script を使わず手作業で行った可能性も残る)、[T-1216] の regex 漏れは本 wave が
+  script 修正の前後で再現条件付きで実測しており、こちらは機構的原因を確認済み。
+- 恒久対応: `REPO` を常時生存する main checkout (`/work/1/SFC/tanab/izanagi`) へ差し替え、
+  PENDING 正規表現へ「裁定パッケージ」を追加した (`/work/1/SFC/tanab/dev-wave-jobs/rulings-tools/
+  sweep_pending.py` / `show_resolved.py`、2026-08-20 修正・re-run 確認済み)。この2ファイルは
+  repo 外の scratch ツールのため commit 対象外 — 恒久対応の実体はファイル自体の修正であり、
+  この F エントリと memory `rulings-collection-scope` (更新済み) がポインタを保持する。
+- 再発検知: `/rulings` 実行の冒頭で `python3 rulings-tools/sweep_pending.py` の先頭数行を一瞥し、
+  `REPO` が worktree パスに戻っていないか確認する。新しい見出し変種で漏れを見つけたら
+  同 script の正規表現へ追記する (このエントリの型を再発として顕在化させる)。

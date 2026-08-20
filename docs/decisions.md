@@ -23747,3 +23747,598 @@ genuine dot-attribute消費) は、`_load_s8c_schedule_authority`(C05、未実�
 **研究状態への影響:** なし。production の CC variant 受理集合・certified 選択・材料レポートの
 値は変更しない。変わるのは auditor が引用できる violation type の語彙と、それを裏付ける
 schema/gate/pin/adapter の整合だけである。
+
+## D588. attempt 分類の時点証明を registry 内の論理順序偽装不能性として機構化する (2026-08-20)
+
+**決定:**
+
+1. 分類 (classify_attempt) が性能出力を読む前に確定したことの証明を、attempt registry 内での
+   イベント順序の偽装不能性として機構化する。freeze→start→pre-observation-seal→classification→
+   observation-start→terminal の全行を hash chain (event_index / previous_event_sha256 /
+   event_sha256) で結び、registry の genesis が持つ schema_version を以後の全行へ強制する
+   (genesis と異なる schema_version の行は reject する)。retry admission は直前 slot の terminal に
+   observation_start_event_sha256 が存在しないことを必須条件とし、report_sha256 を持つ
+   terminal-failure も同様に observation-start を必須とする。
+2. この機構が証明するのは「registry に記録された論理順序が事後偽装不能である」ことであり、
+   「trusted launcher 自体が実際に OS レベルで性能出力を先読みしていない」ことの独立検証では
+   ない。後者は launcher (呼び出し側コード) の誠実な実装を前提とし続ける。
+3. 性能 read API 自体を registry capability で包み、launcher 自体が信頼できない場合の時点保証を
+   追加する拡張は、本決定の scope 外とする。
+
+**理由:**
+
+- D510 決定4は「分類は信頼側の起動器が...確定する」と、起動器の信頼性を前提として書いている。
+  D550 決定6/7 はこの前提の下で保証範囲を「最初の性能観測より前」へ既に狭めていた。本決定は
+  その系譜のまま「登録された分類が事後に偽装できない」という具体的な機構を追加するものであり、
+  前提そのものを検証する新しい保証を作るものではない。
+- 敵対レビューは、hash chain 単独では「OS レベルで実際に性能出力を先に読んだ上で後から正しい
+  順序を偽装できないか」という別の脅威モデルを閉じないと指摘した。この指摘は正しいが、D510の
+  前提 (起動器は信頼側) の範囲では、レビューが示した迂回はいずれも起動器自身が不誠実である
+  ケースに限られ、正直な起動器を前提とする限り機構は機能する。
+- プロトタイプ基準の下では、完全に敵対的な launcher への防御より、事後監査可能性 (改ざん検出)
+  を優先する。
+
+**却下した選択肢:**
+
+- 性能 read API を capability で包み、launcher 自体の信頼性も機構的に保証する — 呼び出し側の
+  広範な再設計を要し、既存の trusted launcher 前提 (D510) を覆す再裁定に相当するため、
+  本 wave の scope を超える。将来 task 候補として起票する。
+- per-slot の3イベントだけを hash 連鎖し全行連鎖は見送る — 検討したが、既存の full-ref 履歴検査と
+  同じ層への統合であり実装複雑度がむしろ下がること、registry 全体の tamper-evidence という
+  副次的価値もあることから、全行連鎖を採用した。
+
+## D589. 床値 protocol path 固定読取り consumer 6 件の現況を確定し、resolver 化は追加不要と裁定する (2026-08-20)
+
+**決定:** 床値 protocol の固定 path を読む consumer 6 件のうち、「現在の protocol を caller に
+選ばせず index authority 経由で解決する」設計 (D460 型) は既に `certified_writer_admission.py`・
+`s8b_holdout_admission.py._authority()`・`tools/pegasus/floor_campaign.sh` の3件へ適用済みと確認した。
+残り3件のうち `s8b_prediction_runner.py` と `s8b_ratified_freeze.py` は、呼び手が渡す
+`pre_oracle_head` (ただし seal 時点の `git rev-parse HEAD` との一致検査で拘束される) 時点の
+protocol bytes を証明鎖として再検証する設計であり、これを current resolver 経由に置き換えると
+過去 commit 時点の証明が別の protocol bytes で再検証されてしまうため、literal path のまま維持する
+のが正しい。残り1件 (`s8b_holdout_freeze.py:1362-1365`、v2 candidate 生成の working tree 直読) は
+性質上 current の literal read で D460 型変換の対象になり得るが、既存の別チケット
+(生成移行 chain の候補生成 CLI) が (a) `output/s8b-freeze-budget-approvals/g1.json` (承認 artifact)
+不在、(b) `BUDGET_APPROVAL_SHA256` 未 ratify、(c) official mode の result.json 不在、の3条件が
+揃わず今日も到達不能であることを実測し、本 wave では実装しない。
+
+**理由:**
+
+- `pre_oracle_head` の安全性の実体は「歴史 commit だから安全」という抽象論ではなく、
+  seal 時点の `git rev-parse HEAD` との一致検査 (`s8b_prediction_runner.py:1523-1529`) にある。
+  呼び手が任意の過去 commit を自由選択できる経路は実測で確認できなかった。
+- 過去の別 wave の完了記録 (2026-08-17) は「証明鎖の歴史錨定3件」と表現していたが、
+  実際は2件が歴史錨定、1件は current literal read (別チケットで休眠中) であり不正確だった。
+  本決定はこの分類を訂正する。
+- D460 自身は `certified_writer_admission` の current resolver 化だけを決定しており、
+  他 module・shell wrapper の配線は「後続の裁定パッケージ」へ明示的に deferred されていた
+  (恒久除外ではない)。歴史錨定 consumer を対象外とする論拠は D460 が既に決めていたからではなく、
+  証明鎖の再現性を守るという本決定独自の判断である。
+
+**却下した選択肢:**
+
+- 残り3件を一律 resolver 経由へ変換する — 歴史錨定2件では過去の証明鎖が別 bytes で
+  再検証されることになり、未承認 path 差し替えを防ぐという当初の目的と正面から矛盾する。
+- 発火条件不成立のまま v2 candidate 生成側を先行実装する — 条件付き機能は発火条件を満たす
+  既存 artifact が無ければ実装しない (dev-wave `DW-G04`)。承認 artifact も official result も
+  存在しない状態での実装は投機的である。
+
+**残る既知の限界 (このwaveでは対応せず、別チケットで裁定パッケージとして扱う):**
+
+- ratified document 内の `floor_protocol.path` は canonical な相対 POSIX path であること以外の
+  namespace 制約が無い dynamic pointer で、`s8b_ratified_freeze.py` の literal
+  `_SELECTOR_PROTOCOL_PATH` (本決定が対象とする経路) とは独立しクロスチェックもされていない。
+  literal path 側が安全でも、この dynamic pointer 側の受理拡大は未解決のまま残る (T-1216 が対象、
+  本 wave の敵対相談で再確認・file:line 証跡を追加)。
+- `s8b_prediction_runner.py` (`_git_bytes`)、`s8b_floor_campaign.py` (`_pre_oracle_blob`)、
+  `s8b_ratified_freeze.py` の間で、ambient `GIT_DIR` / replace-refs 等を除去する Git 読取り衛生化の
+  適用が不統一であり、`source_digest._sanitized_git_env` と同型の穴が複数 producer/consumer に
+  またがる可能性がある (T-1215 が対象、族一般化の第2 consumer 候補として file:line 証跡を追加)。
+
+## D590. DW-G04 は既存コードの表示バグ是正には適用しない (backoff_sweep_report.py IPC欠測表示) (2026-08-20)
+
+**決定:** `orchestrator/campaign/backoff_sweep_report.py` のIPC欠測表示バグ修正に
+DW-G04 (条件付き機能の発火gate) は適用しない。既存の常時実行関数 (`report_workload`/`_md`)
+が既に読んでいる値 (`g.li.get("ipc")`) の表示を正すだけであり、外部callerが無いと永久に
+発火しない新規受理経路・権限機構・供給/結線ではない。
+
+**理由:**
+- `docs/decisions.md` のDW-G04先例20件超 (D120、D196/D215/D225等) はいずれも「外部caller
+  が無いと永久に発火しない新規capability」(新規受理経路、権限activation、供給/結線) を
+  対象としており、「既存の常時実行コードパスが表示するデータ整形を正す」型の事例は無い。
+- 修正対象のコード分岐は本fixの前後を問わず、このモジュールが呼ばれるたび毎回実行される。
+  追加されるのは新しいcapabilityではなく、既存経路内の1個のif/elseによるデータ表示の場合分け
+  であり、DW-G04が警戒する「呼び手不在で永久に死ぬコード」とは性質が異なる。
+
+**却下した選択肢:**
+- 「新規テストで単体検証できるから発火条件を満たす」という論法での非適用主張 —
+  段3敵対相談レンズが指摘したとおり、既存D120/D196/D215の先例は実在artifact/計測IDを要求
+  しており、単体テストの検証可能性だけでは満たさない。この論法は根拠として使わない。
+- 発火実績ゼロ (実campaign 5本・bench_done 26件でIPC欠測は現状0件) を理由に実装せず設計
+  メモへ留める — 「未測定」が「measured 0」と誤読される研究上のリスクは、実際にIPC欠測が
+  起きた時点で修正が無いと偽表示を出し続ける。既存の常時実行経路の表示不整合は発火実績を
+  待たず正すべきと判断した。
+
+## D591. sort SWO oracle の pytest collection時 import 保護は pytest fixture 化 + REAL_REPO_SERIAL_NODES 拡張とし、鎖を伸ばさない controller-prewarm 方式は見送る (2026-08-20)
+
+**決定:** `orchestrator/tests/test_sort_swo_oracle.py` の module 直下
+`_ENVIRONMENT = O.resolve_oracle_environment(_CCBENCH)` (pytest collection 時に全 xdist worker
+で実行され、`REAL_REPO_SERIAL_NODES` の実行時直列化では保護できない) を、
+`@pytest.fixture(scope="module")` の `oracle_environment` へ遅延化する。直接 consumer 16 関数 +
+`compiled_oracle_artifacts` 経由の間接 consumer 8 関数、計 24 canonical node (27 collected item)
+を `REAL_REPO_SERIAL_NODES` / 独立 golden (`test_real_repo_serialization.py`) の両方へ追加する
+(66→90件)。同ファイルの `_assert_fixture_closure_complete` が fixture 消費者の登録漏れを機械検査
+する。collection 中に resolver が呼ばれないことを検査する回帰テストを追加する。
+
+**理由:**
+- 親プロセス内で `resolve_oracle_environment` を monkeypatch し `--collect-only`
+  (テスト実行ゼロ) を走らせると実呼び出しが1回発火することを実測した。`REAL_REPO_SERIAL_NODES` の
+  `xdist_group("real-repo")` marker 付与 (`pytest_collection_modifyitems`) は collection
+  **完了後**の hook のため、import 時アクセスを構造的に保護できない。
+- 既存の `real_repo_ratified_memo.py` (`new_outcome_cache`) / `real_repo_receipt_memo.py`
+  (prewarm barrier) と同種の「lazy 化して collection 時アクセスを避ける」設計を再利用する。
+- pytest fixture 化 (候補B) は、既存の `_assert_fixture_closure_complete` が fixture 消費者の
+  `REAL_REPO_SERIAL_NODES` 登録漏れを (少なくとも 1 件が既に登録されている限り) 自動検出する
+  — 手書き `functools.lru_cache` 方式 (候補A) にはこの安全網が無い。
+
+**却下した選択肢:**
+- 候補A (`functools.lru_cache` 包みの module-level lazy singleton) — 機械的差分は小さいが、
+  `REAL_REPO_SERIAL_NODES` 登録漏れを検出する既存機構の恩恵を受けない。
+- 候補C (`real_repo_receipt_memo.py` 型の controller-only prewarm barrier + cross-worker
+  cache、`REAL_REPO_SERIAL_NODES` を一切伸ばさない) — 実装複雑度が高く、安全性が依存する
+  「controller の資源解決が worker 実行開始より必ず先行する」という hook 順序前提を本 wave では
+  file:line 粒度で実証できなかった。D531 (「配布順の変更で wall が下がるという主張は、実装した
+  上で同一 branch 上の A/B 対測定で示す」) の方法論に従い、まず候補B を実装して実測し、増分が
+  許容できない場合に候補C へ投資する順序を選んだ。
+- `REAL_REPO_SERIAL_NODES` への追加を24件未満に絞る — module scope の `oracle_environment`
+  fixture を消費する全 canonical node が、xdist の worker 割当て次第でいずれも fixture 要求時の
+  未保護トリガになりうるため、部分集合での保護は原理的に成立しない。
+
+**実測 (real-repo 直列鎖への影響):** 同一commit上で 66 canonical (追加前相当) / 90 canonical
+(現行) を明示的に node 列挙して直列実行し比較: 79.02s → 119.34s (+40.32秒、+51%)。追加27件
+(skip 0件) は事前の lens 予測 (直接16+間接7+4-parametrize展開4) と一致した。この増分は D531/D532
+(鎖はwallの74〜78%を占める) に照らし軽微とは言えないが、既知トレードオフとして受容し、
+[T-1438] で候補Cの再検討余地を記録する。
+
+## D592. verifier の予定操作数不一致を既存 dataclass 再利用で構造化返却する (2026-08-20)
+
+**決定:** `orchestrator/verifier/parse.py` の `TxnFramingViolation` (kind/txid/expected・observed
+reads・writes を完備) を新規 dataclass を発明せず再利用し、`orchestrator/verifier/model.py` の
+`Integrity` へ `framing_violation_details: List[TxnFramingViolation]` として全件保持する。
+`core.py` は既存の集計 int・text note ロジックを変えず、この新フィールドへの代入を1行追加する
+だけにする。`report.py` の `result_to_dict()`/`render_text()` で構造化 serialize する。
+「G2 anomaly と同型」とは cycle/SCC アルゴリズムの流用ではなく、**構造化 dataclass →
+`VerifyResult` 格納 → `report.py` serialize** という返却の形の踏襲だと解釈する。
+
+**理由:**
+- `parse.py` は既に必要なフィールドを完備した構造化データを全件計算していたが、`core.py` が
+  集計 int と先頭 5 件だけの平文 note に潰して捨てていた。既存データを流用するだけで閉じる。
+- verdict/serializable/certified の判定ロジックへ一切触れない (絶対規律2) — 既存シグナルへの
+  追加構造であり新しい正しさ判定ではない。
+- `_VerificationCapability` の `_result_sha256` は `result_to_dict()` の projection をハッシュ
+  入力にするため、新フィールドは `trace_dir` と同じ扱いで `projection["integrity"]` から
+  pop しハッシュ安定性を保つ。
+
+**却下した選択肢:**
+- 新規 `OperationCountAnomaly` 相当の dataclass を発明する案 — `TxnFramingViolation` が既に
+  必要なフィールドを完備しており、車輪の再発明になる。
+- `orchestrator/critic/digest.py` へ専用の分類文言を今回同時に追加する案 —
+  D593 で別途扱う。
+
+## D593. digest.py への専用分類行の追加は次wave以降へ延期する (2026-08-20)
+
+**決定:** `orchestrator/critic/digest.py` の `lock_coverage_violations`/`write_intent_violations`
+と対称な「分類: ...次手は...」行を `framing_violation_details` にも追加する案は、今回は実装せず
+延期する。`Rejection.integrity` は無制約 dict でありパススルーは既に機能しているため、
+延期してもデータそのものは (整形されない粗い形で) critic まで届く。
+
+**理由:**
+- 構造化データを JSON へ返す本体機能と、それを critic がどう見せるかは独立した価値単位であり、
+  後者を切り離しても前者の価値は成立する (段階導入、規律5)。
+- 分類行の文言には「宣言 read/write 件数の差分」を実際の DSG 依存辺 (ww/wr/rw) の特定であるかの
+  ように読める誤解リスクがあり、より正確な文言の検討が要る。
+- 分類行を書くコードは details の型・shape を検証しないと旧 WAL・不正 payload で renderer が
+  例外化しうる。今回このコード自体を書かないためリスクごと避けられる。
+
+**却下した選択肢:**
+- 今回同時に分類行も実装する — 規律5 (盛らない) に反し、上記の文言・shape 検証という別途の
+  設計判断を急いで済ませることになる。
+- 分類行を永久に実装しない — 判断を保留しただけで、着手自体は否定しない。
+
+## D594. producer 完了の確定は signal handler でなく durable receipt の実在で行う (2026-08-20)
+
+**決定:** `tools/dev_wave_wait.py producer` の完了確定は、signal handler による明示的な失敗記録ではなく、
+成功時にだけ atomic に書く durable receipt (`--check-only --receipt-file`) の実在で行う。receipt の
+staleness 対策に run-id は導入せず、呼び出しごとの一意な receipt-file path という既存規約
+(done-file/artifact-file と同型) に委ねる。
+
+**理由:**
+- SIGKILL/OOM/cgroup reap は signal handler で捕捉できないため、「途中終了時に失敗を明示的に書く」
+  設計では原理的に穴が残る。核心は「プロセスを生かす」ことではなく「成功の永続証拠が無ければ
+  成功を受理しない」ことに置くべき、と段2プランが指摘し段4裁定で採用した。
+- run-id 方式は、receipt-file が常に呼び出しごとに一意な path へ書かれる既存規約 (done-file/
+  artifact-file と同型) の上では不要な複雑さになる。`--check-only` は常に非キャッシュで
+  再検査し、成功時のみ現在の mtime を記録した receipt を上書きするため、古い receipt を
+  読んで分岐する経路自体が存在しない。
+
+**却下した選択肢:**
+- producer 分岐へ SIGTERM handler を追加し、途中終了時に明示的な失敗 receipt を書く案 —
+  段3敵対相談レンズAが「SIGKILL 等は捕捉できず受理判定の根拠にできない」と指摘し、
+  成功 receipt の不在だけで安全側に倒せるため不採用。
+- receipt に run-id/wave-id を含めて再利用を検知する案 — 呼び出し側が一意 path 規約を守る
+  前提の下では不要。呼び出し側への一意 path 要求は運用注記で明文化する (次の一手参照)。
+
+## D595. 受入 lease の land 直前 renew は非取得型 primitive で行う (2026-08-20)
+
+**決定:** `tools/wave_land_window.py` の `claim()` を land 直前の renew として再利用しない。
+同 file へ新設した `renew(lease_dir, wave)` は、既に自分 (`self_holder`) が保持し stale でない
+lease の mtime だけを touch する。`_create_lease`/`_ensure_ticket`/`_queue_head`/
+`_drop_ticket_best_effort` をどの分岐からも呼ばず、lease 不在・他者保持・stale・payload 不正・
+retry 尽きのいずれも取得を試みない。`tools/dev_wave_land.py::main()` は `land()` 呼び出し直前で
+renew を呼ぶが、stderr へのログ出力は `land()` 呼び出し後 (release ログの直前) へ遅延させる —
+renew の呼び出し自体は land 直前のまま、print だけを移すことで、land() が例外・中断を送出した
+場合の stderr 完全空文字契約 (`test_main_unexpected_exception_or_interrupt_never_releases`) を
+壊さない。
+
+**理由:**
+
+- `claim()` の再利用は、[T-1275] wave (2026-08-17) の段3 敵対相談2レンズが独立に「lease/ticket
+  を新規生成しうる」ことを実コードから成立させており、一度却下されている
+  (`docs/archive/worklog-phase3-0817-630-631.md:561-566`)。
+- 受入 lease は D253 が明記するとおり advisory 境界であり、land 自体の権威は変えない。renew の
+  失敗は best-effort として扱い、land を中断しない・rc を変えない。
+- print を land 呼び出し直後に置くと、land() が例外を送出する経路でも「renew を試みた」という
+  ログが既に stderr へ出てしまい、既存の例外時 stderr 完全空文字契約と衝突する。呼び出しと
+  ログ出力を分離することで両方の性質を保てる。
+
+**却下した選択肢:**
+
+- **`claim()` を renew として再呼び出しする** — [T-1275] の実測どおり、所有権を失う・
+  lease/ticket を新規生成するリスクを再導入するため不採用。
+- **land 直前・呼び出し直後に renew ログを即時 print する** — 実装として単純だが、land() の
+  例外経路で stderr 完全空文字契約を破る。
+- **stale 判定から `os.utime()` までの間の TOCTOU を renew 側で塞ぐ** — 既存 `claim()` の
+  self-renew 分岐 (`:733-761`) も同型の特性を持つ既存挙動であり、renew 固有の新規リスクでは
+  ないと判断した。advisory 境界の範囲内の低頻度リスクとして許容し、族一般化 (DW-G03) の閾値
+  (独立2例) を満たすまで見送る。
+- **`claim()` と共有ヘルパーへ self-renew ロジックを抽出する** — DRY だが、claim() の制御フロー
+  に触れず所有権喪失リスクを避けるという [T-1275] の裁定意図に反し、claim() の既存テスト資産
+  への波及リスクを増やす。renew() は独立実装とした。
+
+## D596. oracle 完走予約式へ attestation probe 項を足す際は「+1」を使わない (2026-08-20)
+
+**決定:** `orchestrator/campaign/s8b_oracle_driver.py` の完走予約式 2箇所
+(`_reservation_required_s`・`_recheck_required_execution`) へ attestation probe 所要時間項
+(`ORACLE_ATTESTATION_PROBE_S = 0.2`) を追加する際、どちらの式も `+1` を使わず
+`len(schedule)`/`remaining_rows` だけを掛ける。
+
+**理由:**
+- `orchestrator/campaign/reservation.py` の `check_reservation`/`ensure_remaining` は
+  いずれも「呼ばれた時点から先」だけを見積もる設計 (`remaining = deadline_epoch - now` /
+  `monotonic_deadline - now`)。
+- 初回予約検査 (`_prepare_v2_execution` 内、driver.py:925付近) は、903行の初回 attestation
+  probe が実行された**後**に呼ばれる。この時点で 903行の probe が消費した時間は、
+  `remaining` の計算に経過時間として既に自動反映されている。
+- ここへ `(N+1)×0.2` を明示的に加算すると、903行分の probe 時間を二重計上することになり、
+  scheduler 割当て (`requested_s`) が必要量ぎりぎりの境界ケースで、正当な実行を新規に
+  拒否しうる (fail-closed を不必要に厳しくする、規律2の趣旨に反する過剰拒否)。
+- recheck 側 (`_recheck_required_execution`) も同様に、`ensure_remaining` の直後
+  (driver.py:1083付近) で今回分の probe が実行される。「これから発生する probe 回数」は
+  ちょうど `remaining_rows` 回 (今回の1回 + 残り行の各1回) であり `+1` は不要。
+- schedule 全体で見ると、903行の1回は「経過時間の自然な反映」、初回検査以降の N 回
+  (各行 recheck の probe) は「明示的な安全マージン」でカバーされ、合計で N+1 回分の
+  probe 時間を過不足なく見積もる。
+
+**却下した選択肢:**
+- 両式とも `(N+1)×0.2` を明示的に加算する (段2 codex plan の当初案) — ユーザー裁定
+  「行数 N で最低 (N+1)×0.2 秒」の字面には近いが、二重計上により過剰拒否を生む。裁定の
+  実質的な意図 (N+1 回分の probe 時間を下回らない安全性) は `+1` なしの実装でも満たされる
+  (段4 裁定で reservation.py を実測し、代案の等価性を確認した上での判断)。
+
+## D597. T-139 の「投入経路 wave」と T-338 の 6 単位分割は同一実装面を指すと確定する (2026-08-20)
+
+**決定:** T-139 の 2026-08-13 裁定 (K1〜K5、`output/insights/2026-08-13_t139-land2-q4/package.md`)
+が定義した「投入経路 wave」(K2: `submit_pilot` + driver + collector + 解除decision + 束縛検査、
+同 package.md 末尾の次の一手が指す manifest+resolver+writer+validator+vectors の実装) と、D509
+決定(7)が確定したT-338の6単位分割 (manifest/binding/git基盤・受領証IO/schema・semantic
+validator・全履歴検査+attempt authority・writer+conformance vectors・統合+4名前export) は、
+同一の投入gate実装面を指す。以後、両系列は相互参照して進める。
+
+- D574 (T-139 Q1 canonical decision) の決定(1)(3)(4) が定める受理述語 (承認payload・raw
+  `CMakeCache.txt`三者照合・conformance vector indexのpayload側trust edge) は、T-338 単位3
+  (semantic validator) と単位5 (writer+conformance vectors) が実装すべき正確な要件であり、
+  D509決定(7)の各単位の記述より優先する権威である。
+- K2の「`submit_pilot`+driver+collector+解除decision+束縛検査」のうち、driver/collectorは
+  投入gateの外側にある別の実装面 (実際にpilotを投入・収集する側) であり、T-338の6単位には
+  含まれない。T-338はgate (validator/writer側) だけを担う。
+- 以後、T-139側とT-338側のworklog次の一手記述は、この対応を明記して更新する。
+
+**理由:**
+- T-338 単位5のwave (2026-08-20) が、D574 (同日land) の決定(4)が単位5の設計前提 (manifest
+  自己pin) を名指しで却下していると発見した。D574の起票wave (worklog entry 720) 自身の
+  「次の一手」は「writer」「vectors」を含む投入経路waveを残作業と明記していたが、T-338側の
+  worklog threadは一切これに触れていなかった。2本の意思決定系列が同一実装面を指しながら
+  互いに参照しない状態を放置すると、同型の齟齬が繰り返し発生する。
+- T-139のD574とT-338のD509系列は、どちらも投入gateの実装を最終目標とする点で齟齬はなく、
+  単に命名と追跡系列が分離していただけである。本決定は新しい設計上の選択を持ち込まず、
+  既存2系列の対応関係を確定するだけである。
+
+**却下した選択肢:**
+- 現状のまま2系列を維持する — 同じギャップが再発するリスクを放置する。
+- T-338の6単位分割を廃止しT-139のK系列へ一本化する — D509決定(7)の6単位分割・依存順・
+  規模上限は既に複数waveで実装が進んでおり (単位1〜4 land済み)、この構造を破棄する理由がない。
+  対応関係を確定するだけで両立する。
+
+## D598. C06 昇格による過去 commit の reason code 遷移は新規回帰ではないと裁定する (2026-08-20)
+
+**決定:** `_MACHINE_EVALUATORS` へ C06 を追加すると、過去 (昇格前) commit を現行コードで評価した
+際の reason code が `budget-consumer-contract-undefined` から `completion-proof-not-machine-checkable`
+へ変わる。これは段6 敵対レビューの一方が blocker として指摘したが、親が
+`PredicateRegistry.evaluate_all`/`_evaluate_undefined` の実装を直接読んで検証した結果、
+**新規回帰ではなく、C05/C07 等の既存 9 条件の昇格でも既に発生している既存挙動**と裁定した。
+
+**理由:**
+- `evaluate_all` の dispatch (`if condition.machine_checkable: ... else: _evaluate_undefined(probe)`)
+  は評価対象 **commit 自身の契約 blob** の `machine_checkable` で production/undefined を振り分ける。
+  historical commit の契約が false のままなら `_evaluate_undefined` へ入る。
+- `_evaluate_undefined` 内の `if number in _MACHINE_EVALUATORS:` 分岐は、**現在のコード** (実行時の
+  静的 dict) のメンバーシップで判定する。ここが commit ごとに変わらない以上、ある条件番号が
+  一度でも `_MACHINE_EVALUATORS` に載れば、その条件番号を持つ historical (昇格前) commit の
+  reason は全て汎用理由へ変わる。現在の dict には既に 1/2/4/5/7/9/10/11/12 が入っており、
+  これらの昇格前 commit を現行コードで評価しても同じ遷移が起きる (実測はしていないが、
+  コード構造上必然)。
+- `test_current_repository_gap_reason_snapshot_requires_cross_wave_review` はこの遷移を意識的に
+  吸収する設計 (テスト名の「cross wave review」どおり、reason 変化を drift ではなく明示レビュー
+  対象として記録する)。段5 実装がこの test の C06 entry を正しく更新している。
+
+**却下した選択肢:**
+- レビュー所見が提案した「`number == 6` 分岐を map membership より前に置く」— C05/C07 など既存の
+  昇格条件の挙動と非対称になり、過去の昇格を無断で書き換えることになるため不採用。
+
+## D599. C06 evaluator の reachability 検査の弱点は本 wave では修正せず後続 wave へ送る (2026-08-20)
+
+**決定:** `_evaluate_c06` の reachability 検査には (a) `supervisor is None` 時のスキップ、
+(b) reachable 呼出しの集合だけを見て順序・データフローを見ない、(c) `_ledger_lock`/
+`_check_limit_state` は存在のみ検査、という既知の弱点がある。段2 codex plan・段3 敵対相談2レンズ・
+段6 敵対レビュー2本が独立に同じ弱点を確認したが、**本 wave では評価器本体のロジックを変更せず、
+registry 登録のみを行う**。
+
+**理由:**
+- `SATISFIABLE_CONDITION_IDS` は空集合のままであり、`evaluate_all` 自身が
+  `is_satisfied(result.status) and identifier not in SATISFIABLE_CONDITION_IDS` を検知すると
+  強制的に `ERROR/evaluator-internal-error` へ倒す防御的再チェックを持つ。したがって
+  reachability 検査が甘いままでも、本 wave の昇格そのものが受理ゲートを緩めることはない
+  (規律2 は侵害されない)。
+- D533 は「評価器の実装だけを先に置くことは許すが、registry 登録は残りと切り離さない」と定めており、
+  評価器本体の改善と registry 登録操作は元々別の変更単位として扱われる設計である。
+- 名前付き negative control (`nc_c06_one_arm_reservation_removed`) 自体は正しく検出される
+  (`_c06_field_path_verdict` の `_c06_expected_rows` 比較、変異 M3 で実測確認済み)。弱いのは
+  reachability の一般性であり、登録済み negative control の検出力ではない。
+
+**却下した選択肢:**
+- 本 wave で reachability 検査を強化する — regulation5 (段階導入・盛らない) に反し、D529 が
+  定義する昇格操作 (4点の不可分な変更) の scope を超える。
+- 昇格自体を保留する (段6 レビューの一方の推奨) — 少数意見であり、上記の防御的再チェックにより
+  実害がないため、11/12 条件が既に機械検査可能な中で C06 だけを人為的に留める理由がない。
+
+## D600. real-repo group 受入 wall 帰属調査を打ち切る (2026-08-20)
+
+**決定:** worker_id/nodeid/start/finish の一時診断は実装・敵対レビュー・変異matrix
+(4/4 KILLED) まで完走させ技術的健全性を確認した上で revert し、real-repo group の
+受入 wall への帰属をこれ以上定量化する投資は行わない。D258・D358 の「排他機構の
+変更では受入は速くならない」という結論を維持する。
+
+**理由:**
+- 診断を実際に全テストスイートへ適用しようとしたところ、`tools/pegasus/dispatch_compute.py`
+  の `"tests"` task 用 `env_allowlist` が閉じた集合 (D103 決定5「任意 command 化は
+  しない」に基づく意図的設計) であり、新規診断用 env var が計算ノードへ dispatch
+  される qsub job の環境に伝播しないと判明した。この allowlist は 20 以上の並行
+  稼働セッションが共有する dispatch のセキュリティ境界であり、一時診断のためだけに
+  拡張するのは対象の重さと不釣り合いである。
+- 診断が測定する worker span (occupied interval の union) は、対象を除外した場合の
+  wall 短縮量を意味する**因果的指標ではない**。real-repo group が wall の大半を
+  占有していても、他 worker の作業が同じ時間を埋めていれば除外効果はゼロになり
+  得る。測定に成功していたとしても、この指標だけからは D358 を覆す根拠を得られない。
+- D258 (2026-08-10)・D358 (2026-08-13)・2026-08-19 wave (n=1 測定の統計的限界)・
+  本 wave (測定基盤の壁と worker span の非因果性) の4波にわたる独立した調査が、
+  いずれも同じ結論へ収束した。
+
+**再訪条件 (両方成立して初めて着手を検討する):**
+- `tools/pegasus/dispatch_compute.py` の env allowlist 拡張が、本件と独立の別用途
+  によって既に正当化されていること。
+- worker span 相当の観測から因果的な wall 短縮効果を推定する方法論 (実際に対象を
+  除外した A/B 比較、複数 run のペア比較等) が用意されていること。単発の occupied
+  span 観測では原理的に不十分。
+
+**却下した選択肢:**
+- `tools/pegasus/dispatch_compute.py` の env allowlist へ診断用 env var を追加して
+  measurement を強行する — 共有セキュリティ境界の拡張が一時診断単独の価値に対して
+  不釣り合いに重い。
+- 診断コードをそのまま残し「いつか測定する」余地を保つ — 規律5 (段階導入・盛らない)
+  に反し、使われない可能性が高いコードを test infra に恒久化することになる。
+
+## D601. backoff_sweep.py/p2_2.py へ D293 同型の site 依存 compiler 解決 + toolchain 束縛検査を実装し、ENV_TAG/Pegasus 公式実行有効化は次wave scope とする (2026-08-20)
+
+**決定:** D293 (`docs/decisions.md` の床値 campaign 決定) と同型の「site 依存 compiler
+解決 + toolchain 束縛検査を同じ変更単位で入れる」原則を、`backoff_sweep.py`/`p2_2.py`
+(D58 bench-first screening v2 の初回 ablation 対象) へ適用する。今回実装したのは
+次の4点である。
+
+1. `backoff_sweep.py`/`p2_2.py`: campaign 開始時に一度だけ site compiler の完全
+   manifest を観測し (`buildcache.observed_toolchain_manifest`)、通常経路・screening
+   経路の両方 (baseline・各 candidate) へ一貫して伝播する。
+2. `screening_driver.py`: `evaluate_candidate` から `pipeline.evaluate()` への
+   `env_contract`/`expected_toolchain_manifest`/`declared_use_class` 伝播の欠落を
+   修正した。
+3. `buildcache.py`: `declared_use_class == "official"` の v2 build では
+   `expected_toolchain_manifest` を必須化し、欠落時は build 前に fail-closed で停止
+   する。
+4. `pipeline.py`: trace/perf 両 build の toolchain 一致を検査し (不一致は
+   `STAGE_BUILD_DONE` 記録前に abort)、成功時は実 toolchain と
+   `toolchain_record_sha256` (v2 identity hash とは別キー) を `STAGE_BUILD_DONE` へ
+   記録する。
+
+**scope 境界 (今回は実装しない、次wave へ明示的に送る):** `ENV_TAG` を Pegasus
+runtime tag へ切り替え、Pegasus 公式実行そのものを可能にすること。理由は次のとおり
+実測で確認した。
+
+- `execution_guard.py` が build 前の認可検査で、`ENV_TAG="linux-baremetal"` のままの
+  Pegasus official run を構造的に拒否する。折衷案「compiler だけ site 依存化し
+  ENV_TAG は Linux のまま」も、authorization contract の不一致で別の検査に落ちる —
+  段3 敵対相談の実コード裏取りで、現行認可構造ではこの折衷は通らないと確認済み。
+- `ENV_TAG` は `p2_2.py` の共有定数であり、`s8b_floor_campaign.py`/
+  `s8b_oracle_driver.py` 等の machine pin・calibration・floor 出力・noise floor の
+  複数箇所から共有 import されている (段3 レンズB が独自 grep で段2プランの想定より
+  広い波及範囲を実測)。単純な値変更は S8b 側へ波及する。
+- Pegasus 用 calibration は `p2_2.py` が要求する固定ファイル名では存在せず
+  (registered 形式のみ)、追加の実測が要る。本wave は「実装のみ、Pegasus 実機再実行は
+  scope外」の前提のため、この実測はここでは行わない。
+
+**却下した選択肢:**
+
+- **今回のwave で ENV_TAG 対応まで含めてフルスコープ実装する** — 規律5 (段階導入・
+  盛らない) に反し、S8b machine pin への波及を伴う変更を1waveに詰め込むリスクが
+  高いため見送った。段3 レンズBも縮小スコープを明示的に推奨した。
+- **cache 機構自体 (buildcache.py の completion.json) を拡張して cache hit 時の
+  toolchain 束縛も同時に完全化する** — D602 で
+  別途扱う。
+
+## D602. v2 build の cache hit 時 toolchain 束縛欠落を明示的な scope waiver として記録する (2026-08-20)
+
+**決定:** D601 で実装した toolchain 束縛検査
+(`buildcache.py` の `expected_toolchain_manifest` 完全一致検査、`pipeline.py` の
+`STAGE_BUILD_DONE` への `toolchain_record_sha256` 記録) は、**新規 build 時にのみ
+完全に機能する**。cache hit 時の限界を、段6 焦点再レビューの要求
+(「明示的な次wave waiver なしに完全受入として land すべきでない」) に従いここへ
+記録する。
+
+**限界の内容:** `buildcache.py` の v2 build cache identity (`_v2_identity` の
+pre-image) は `version_first_line` までの短い toolchain manifest しか含まない。
+completion.json への保存も同様に短い。したがって、compiler の先頭行 (`version_first_line`)
+が同じで完全 version だけが異なる旧 cache entry を hit した場合、`STAGE_BUILD_DONE`
+へ記録される `toolchain_record_sha256` は「今回の build 呼び出し時点で観測した
+toolchain」の値であり、「そのcache entry (binary) を実際に生成した toolchain」の
+証跡ではない。新規 build 時は expected との完全一致検査 (完全 version 込み) が
+機能するため、この限界は cache hit 時に限られる (F436)。
+
+**緩和と運用注記:** `STAGE_BUILD_DONE` には既存の `trace_cached`/`perf_cached`
+フィールドが記録されている。consumer は `toolchain_record_sha256` を、
+`trace_cached`/`perf_cached` が両方 False (= 新規 build) の場合にのみ「その build を
+実際に生成した toolchain の証跡」として信頼してよい。cached=True の記録は
+「build 呼び出し時点の観測値」として扱う。
+
+**次の一手:** 完全な解決 (cache entry 自体に完全 version 込み manifest を保存し、
+hit 時に expected と照合する) は `buildcache.py` の cache 機構自体の拡張を要し、
+scope外の既存 campaign 全体 (S 系検証・S8b floor 等) に影響しうる規模のため、
+別 wave の scope とする ([T-1445])。
+
+**却下した選択肢:**
+
+- **今回の wave で cache 機構を拡張する** — 規律5、影響範囲の広さにより見送った。
+- **cache hit を無効化し常に新規 build する** — 既存の buildcache 全体の設計方針
+  (cache-first) を局所的に覆すことになり、他の caller への影響が読めないため見送った。
+
+## D603. T-1434(4) codex_reasoning_ab.py model軸refactorはWave A+Bへ narrow し、Wave C/Dは後続waveへ送る (2026-08-20)
+
+**決定:** `tools/codex_reasoning_ab.py`をmodel軸拡張向けに横断的refactorする段5実装scopeを、
+段2プランが提案したWave A (manifest/schema/provenance層) → B (argv/launch/identity層) →
+C (supervise_pair/collect_run) → D (schedule validation/adjudication/aggregate/replay/output)
+の4分割のうち、A+Bだけに narrow する。C/Dは実装しない。
+
+**理由:**
+- 段3敵対相談レンズB (scope境界) が独立に「17領域・13000行超は1waveに大きすぎる、Wave A+Bへ絞れ」
+  と提案した (規律5 段階導入/盛らない)。
+- 段3敵対相談レンズA (正しさ境界) が独立に「Wave Cの`supervise_pair`はWave D所有の
+  `_validate_schedule`に直接依存し、A→B→C→Dの逐次順ではCの実装・テストが成立しない」という
+  構造的な依存誤りを発見した。C/Dを本waveから外すことでこの依存問題自体が解消する。
+- レンズAのblocker所見のうち2件 (model-axis aggregate/decision schema未定義、reveal後
+  private binding比較先が不在) はWave D領域固有であり、Wave D自体を先送りすれば
+  「次wave着手時に設計する」という形で未閉包のまま残さずに済む。
+- Wave A+Bだけでも、`requested_model`をroutingauthorityとしてargv・identity・receiptへ通す
+  配線と、task_idキー方式のmanifestへの一般化は完成し、既存POS/NEG凍結benchmarkの動作を
+  壊さない独立した増分になる (段6敵対レビューで292 passed・0 failed・変異9/9 KILLEDを実測)。
+
+**却下した選択肢:**
+- Wave A→B→C→Dを1waveで一括実装する — レンズBの規模超過懸念とレンズAの依存関係の誤りが
+  未解決のまま残り、規律5に抵触する。
+- Wave Aだけに留める (Bも先送り) — argv/launch/identityのmodel対応はAの`TASK_MANIFEST`と
+  疎結合であり、Bまでは1waveで完結可能と段4裁定時点で判断した (実際に段6で292 passed・
+  変異9/9 KILLEDを実測し裏付けられた)。
+- Wave Dの`_validate_schedule`本体だけを先に配線する — 配線には Wave C の pair 検証拡張
+  (stage/task_type/oracle_kind/oracle_sha256/price_snapshot_sha256) が前提になり、
+  Cを飛ばしてDだけを触ると新たな未閉包を生む。
+
+## D604. `codex_reasoning_ab.py`のtask一般化フィールド名は`task_id`でなく`benchmark_task_id`にする (2026-08-20)
+
+**決定:** T-181/T-189のtask manifest一般化で新設するフィールド名を、既存の
+`orchestrator/dev_waves/checker.py`・`orchestrator/tests/test_spool_fold.py`等が使う
+「dev-wave task-run追跡ID」という別概念の`task_id`と区別するため、`benchmark_task_id`にする。
+
+**理由:**
+- D75 (decisions.md:3007) の恒久教訓「設計docのgate記述はその入力が成果物のどのfieldに
+  実在するかを書く前に実物で確認する」に従い実測したところ、`grep -rn "\btask_id\b"
+  orchestrator/ tools/`で既存の別概念衝突が実在すると判明した。
+- 両者は別ファイル・別schemaで実行時の混線は無いが、同じdev-wave生態系内で同名の別概念が
+  併存すると可読性上の曖昧さが生じる。
+
+**却下した選択肢:**
+- `task_id`のまま実装する — D75の教訓に反する。将来この2概念が同じ文書・ログに並んだときの
+  混同リスクを残す。
+
+## D605. probe worktree清浄性検査のPYTHONDONTWRITEBYTECODE伝播は現行コードで完結していると確認し、追加のロジック変更を見送る (2026-08-20)
+
+**決定:** `tools/check_acceptance_reds.py` のprobe worktree清浄性検査が計算ノードdispatch由来の
+bytecodeキャッシュ残骸で失敗する問題 (T-1053系) について、現行main HEAD上のコードには
+PYTHONDONTWRITEBYTECODE伝播の欠陥が無いと3つの独立方法で確認し、追加のロジック変更は行わない。
+
+**理由:**
+- 親が現行HEAD上でcheck_acceptance_reds.pyの実dispatch経路
+  (`_default_collection_runner`/`_default_node_runner`相当) を4回再現実験し、0/4で残骸を
+  再現しなかった。うち1回はPegasus `gen_S` キュー同時34job走行という重負荷下でも再現しなかった。
+- 段2 codex (read-only、reasoning=max) が `tools/check_acceptance_reds.py` から
+  `tools/pegasus/dispatch_compute.py` までの伝播経路を全file:lineで再読し、欠陥なしと確認した。
+- 段3敵対レンズの一つが独立に、実際にインストール済みのexecnet/xdistパッケージのソース
+  (`execnet/gateway_io.py`、`xdist/workermanage.py`、`xdist/remote.py`) を直接readし、
+  workerプロセス起動時にPYTHONDONTWRITEBYTECODEやbytecode cache設定を上書きする経路が
+  無いことを確認した。
+- 伝播を担う2つの修正 (env allowlistへの追加、dispatch子環境のsetdefault fallback追加) は、
+  いずれもT-183由来の受入試行 (2026-08-20 10:27〜) より前にmainへ着地しており、
+  「tested-mainが古かったため反映されていなかった」という説明は実測
+  (`git merge-base --is-ancestor`) で棄却される。
+
+**却下した選択肢:**
+- 証拠なしに追加のenv伝播ロジックを実装する — 3独立方法が一致して欠陥なしと確認した状況で
+  仮説だけに基づく変更を加えるのは過剰実装であり、実際の原因究明を妨げる。
+- 診断改善を見送り再現待ちにする — 診断が無いままでは次回の再現時も同じ手動調査を
+  繰り返すことになるため、診断改善 (どの汚染pathで失敗したかをメッセージへ含める) を
+  優先して実装した。
+
+## D606. oracle 側の holdout perf 束縛は module 表との canonical bytes 比較に限定し、producer 側の arm resolver digest chain は複製しない (2026-08-20)
+
+**決定:** `s8b_oracle_driver._perf_for_holdout` が freeze 文書から取り出す `records`/`threads`/
+`ycsb`/`candidate_id` を、静的単一権威 `s8b_holdout_freeze.HOLDOUTS[holdout_id]` の同一4-key
+projection と canonical bytes (`_canonical_bytes`、sort_keys=True の JSON 直列化) で比較し、
+不一致・未知 holdout_id は fail-closed で拒否する。producer 側の同型実装
+(`p3_autonomous_workload_trial._assert_formal_entry_binding`) が追加で行う arm resolver の
+descriptor digest chain・legacy freeze 照合は oracle 側では複製しない。
+
+**理由:**
+- 段階導入規律5 (盛らない) — oracle 側が今回埋める穴は「freeze 文書の値が module 表と一致するか」
+  だけであり、producer 側の arm resolver 整合は別の懸念 (どの arm が選ばれたか) を守るための
+  別レイヤーで、oracle の実走直前の役割には不要。
+- 段3敵対相談 (整合・実効性レンズ) が「producer と oracle は同一構造 (module 表束縛) だが
+  信頼境界の強度は異なる」と指摘し、DW-G03 の独立2例は「同じ保証の二重化」ではなく
+  「同一パターンの異なる強度での独立適用」として成立すると確認した。
+- 既存の関連3層 (`RatifiedFreeze.holdouts` property の candidate_id のみ束縛、
+  `s8b_holdout_freeze.verify_document()` の全field束縛だが `gate-check` CLI 限定、
+  `_verify_snapshot_layer1` の holdout 集合+unknownness hash のみ) はいずれも
+  `run_block`→`_perf_for_holdout` の実走経路を保護しておらず、既存機構の拡張より
+  自己完結の新規検査を追加する方が変更面が小さく検証しやすい。
+
+**却下した選択肢:**
+- `RatifiedFreeze.holdouts` property を records/threads/ycsb まで拡張し `run_block` 側もそれを
+  経由させる案 — 変更面が `run_block` や他の `.document` consumer にも波及し、本 wave の scope
+  (2ファイルの narrow な追加) を超えるため不採用。
+- producer 側と同じ arm resolver digest chain 照合まで複製する案 — oracle は「選ばれた arm が
+  何か」を判定する層ではなく、既に選ばれた holdout の perf 条件を実走直前に検証する層であるため、
+  同じ検証をもう一層持つ理由がない。

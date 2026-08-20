@@ -46,6 +46,7 @@ def _integrity(intent_total: int) -> dict:
     return {
         "clean": intent_total == 0,
         **counters,
+        "framing_violation_details": [],
         "notes": [],
     }
 
@@ -359,6 +360,19 @@ def test_stock_integrity_helper_checks_every_counter(counter):
     integrity = _integrity(0)
     integrity[counter] = 1
     assert driver._integrity_counters_zero(integrity) is False
+
+
+def test_integrity_helper_ignores_framing_violation_details():
+    integrity = _integrity(0)
+    integrity["framing_violation_details"] = [{
+        "kind": "count-mismatch",
+        "txid": 0,
+        "expected_reads": 1,
+        "observed_reads": 0,
+        "expected_writes": 0,
+        "observed_writes": 0,
+    }]
+    assert driver._integrity_counters_zero(integrity)
 
 
 @pytest.mark.parametrize(

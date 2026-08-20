@@ -18,7 +18,7 @@ import time
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
-from typing import Callable, Iterable, Sequence
+from typing import Callable, Iterable, Mapping, Sequence
 
 
 _WAITER_SOURCE_CHUNK_BYTES = 1024 * 1024
@@ -230,6 +230,7 @@ _STAGE_TERMINATION_SECONDS = 5
 _LEASE_TTL_SECONDS = 2400
 _RECEIPT_PUBLISH_MIN_TTL_SECONDS = _STAGE_TIMEOUT_SECONDS
 _RECEIPT_SCHEMA_VERSION = "dev-wave-acceptance-receipt/v5"
+_PRODUCER_RECEIPT_SCHEMA_VERSION = "dev-wave-producer-receipt/v1"
 _RECEIPT_AUTHORITY_KIND = "dev-wave-acceptance-launcher"
 _RECEIPT_TEMP_PREFIX = ".dev-wave-acceptance-receipt-"
 _LAUNCHER_PATH = "tools/acceptance_launcher.py"
@@ -573,6 +574,25 @@ class _PidState(Enum):
 
 
 @dataclass(frozen=True)
+class _ProducerState:
+    pid_state: _PidState
+    done_exists: bool
+    artifact_exists: bool
+
+    @property
+    def producer_dead(self) -> bool:
+        return self.pid_state is _PidState.DEAD
+
+    @property
+    def complete(self) -> bool:
+        return (
+            self.producer_dead
+            and self.done_exists
+            and self.artifact_exists
+        )
+
+
+@dataclass(frozen=True)
 class _Effects:
     run: Callable[[Sequence[str], Path, bool], _CommandResult]
     run_unbounded: Callable[[Sequence[str], Path, bool], _CommandResult]
@@ -610,6 +630,7 @@ class _Effects:
     ) = None
     archive_log: Callable[[Path, Path], None] | None = None
     acceptance_monotonic: Callable[[], float] | None = None
+    stat_mtime_ns: Callable[[Path], int] | None = None
 
 
 class _LeaseOwnership(Enum):
@@ -1567,6 +1588,7 @@ def _default_effects() -> _Effects:
         inspect_no_verdict_log=_default_inspect_no_verdict_log,
         archive_log=_default_archive_log,
         acceptance_monotonic=time.monotonic,
+        stat_mtime_ns=lambda path: path.stat().st_mtime_ns,
     )
 
 
@@ -1574,6 +1596,18 @@ class _ArgumentParser(argparse.ArgumentParser):
     def error(self, message: str) -> None:
         del message
         raise _StageFailure("cli-usage", RC_USAGE)
+
+
+class _ProducerArgumentParser(_ArgumentParser):
+    def parse_args(
+        self,
+        args: Sequence[str] | None = None,
+        namespace: argparse.Namespace | None = None,
+    ) -> argparse.Namespace:
+        parsed = super().parse_args(args, namespace)
+        if parsed.check_only and parsed.receipt_file is None:
+            self.error("--receipt-file is required with --check-only")
+        return parsed
 
 
 def _positive_int(value: str) -> int:
@@ -1594,13 +1628,15 @@ def _poll_seconds(value: str) -> int:
 
 
 def _producer_parser() -> argparse.ArgumentParser:
-    parser = _ArgumentParser(prog=f"{_PROGRAM} producer", add_help=True)
+    parser = _ProducerArgumentParser(prog=f"{_PROGRAM} producer", add_help=True)
     parser.add_argument("--done-file", type=Path, required=True)
     parser.add_argument("--artifact-file", type=Path, required=True)
     source = parser.add_mutually_exclusive_group(required=True)
     source.add_argument("--pid")
     source.add_argument("--pid-file", type=Path)
     parser.add_argument("--max-wait-seconds", type=_positive_int)
+    parser.add_argument("--check-only", action="store_true")
+    parser.add_argument("--receipt-file", type=Path)
     return parser
 
 
@@ -1744,6 +1780,156 @@ def _pid_state(pid: int, start_time: int | None, effects: _Effects) -> _PidState
     return _PidState.ALIVE if current == start_time else _PidState.DEAD
 
 
+def _producer_file_state(
+    done_file: Path,
+    artifact_file: Path,
+    effects: _Effects,
+    *,
+    check_both: bool = False,
+) -> tuple[bool, bool]:
+    done_exists = bool(effects.is_file(done_file))
+    artifact_exists = (
+        bool(effects.is_file(artifact_file))
+        if done_exists or check_both
+        else False
+    )
+    return done_exists, artifact_exists
+
+
+def _derive_producer_state(
+    pid: int,
+    done_file: Path,
+    artifact_file: Path,
+    effects: _Effects,
+) -> _ProducerState:
+    """一度だけ producer の死活と完了ファイルをディスクから観測する。"""
+
+    start_time = _initial_start_time(pid, effects)
+    pid_state = _pid_state(pid, start_time, effects)
+    done_exists, artifact_exists = _producer_file_state(
+        done_file,
+        artifact_file,
+        effects,
+        check_both=True,
+    )
+    return _ProducerState(pid_state, done_exists, artifact_exists)
+
+
+def _producer_state_outcome(state: _ProducerState) -> _Outcome:
+    if state.complete:
+        return _Outcome(RC_OK)
+    missing: list[str] = []
+    if not state.producer_dead:
+        missing.append("producer-dead")
+    if not state.done_exists:
+        missing.append("done-file")
+    if not state.artifact_exists:
+        missing.append("artifact-file")
+    stage = "producer-liveness" if not state.producer_dead else "producer-files"
+    return _Outcome(
+        RC_FAIL_CLOSED,
+        stage,
+        detail=_attestation_detail(
+            "producer-state",
+            {
+                "producer_state": state.pid_state.value,
+                "done_exists": state.done_exists,
+                "artifact_exists": state.artifact_exists,
+                "missing": missing,
+            },
+        ),
+    )
+
+
+def _absolute_path(path: Path) -> Path:
+    return Path(os.path.abspath(os.fspath(path)))
+
+
+def _producer_file_mtime_ns(
+    path: Path,
+    effects: _Effects,
+) -> int:
+    stat_mtime_ns = effects.stat_mtime_ns
+    try:
+        value = (
+            stat_mtime_ns(path)
+            if stat_mtime_ns is not None
+            else path.stat().st_mtime_ns
+        )
+    except (OSError, TypeError, ValueError):
+        raise _StageFailure(
+            "producer-files",
+            detail=_attestation_detail(
+                "producer-mtime",
+                {"path": str(_absolute_path(path))},
+            ),
+        ) from None
+    if type(value) is not int:
+        raise _StageFailure(
+            "producer-files",
+            detail=_attestation_detail(
+                "producer-mtime",
+                {
+                    "path": str(_absolute_path(path)),
+                    "value_type": type(value).__name__,
+                },
+            ),
+        )
+    return value
+
+
+def _producer_receipt_payload(
+    *,
+    pid_source: Path,
+    done_file: Path,
+    artifact_file: Path,
+    effects: _Effects,
+) -> Mapping[str, object]:
+    return {
+        "schema_version": _PRODUCER_RECEIPT_SCHEMA_VERSION,
+        "status": "success",
+        "pid_source": str(_absolute_path(pid_source)),
+        "done_file": str(_absolute_path(done_file)),
+        "artifact_file": str(_absolute_path(artifact_file)),
+        "done_mtime_ns": _producer_file_mtime_ns(done_file, effects),
+        "artifact_mtime_ns": _producer_file_mtime_ns(artifact_file, effects),
+    }
+
+
+def _publish_producer_receipt(
+    *,
+    receipt_file: Path,
+    pid_source: Path,
+    done_file: Path,
+    artifact_file: Path,
+    state: _ProducerState,
+    effects: _Effects,
+) -> _Outcome:
+    state_outcome = _producer_state_outcome(state)
+    if state_outcome.rc != RC_OK:
+        return state_outcome
+    try:
+        payload = _producer_receipt_payload(
+            pid_source=pid_source,
+            done_file=done_file,
+            artifact_file=artifact_file,
+            effects=effects,
+        )
+        _atomic_publish_json(receipt_file, payload, effects)
+    except _StageFailure as exc:
+        return exc.outcome
+    except Exception as exc:
+        return _Outcome(
+            RC_FAIL_CLOSED,
+            "producer-receipt",
+            detail=_attestation_detail(
+                "receipt-publish",
+                _exception_observed(exc),
+            ),
+        )
+    return _Outcome(RC_OK)
+
+
 def wait_for_producer(
     *,
     done_file: Path,
@@ -1771,7 +1957,12 @@ def wait_for_producer(
 
     grace_elapsed = 0
     while True:
-        if effects.is_file(done_file) and effects.is_file(artifact_file):
+        done_exists, artifact_exists = _producer_file_state(
+            done_file,
+            artifact_file,
+            effects,
+        )
+        if done_exists and artifact_exists:
             return _Outcome(RC_OK)
         if grace_elapsed >= _PRODUCER_GRACE_SECONDS:
             return _Outcome(RC_FAIL_CLOSED, "producer-files")
@@ -3570,11 +3761,12 @@ def _verify_red_check_receipt(
     )
 
 
-def _prepare_acceptance_receipt(
+def _prepare_receipt_temp(
     *,
     effects: _Effects,
     receipt_file: Path,
     content: bytes,
+    stage: str,
 ) -> Path:
     write_temp = effects.write_receipt_temp or _default_write_receipt_temp
     try:
@@ -3583,7 +3775,7 @@ def _prepare_acceptance_receipt(
         raise
     except BaseException as exc:
         raise _StageFailure(
-            "acceptance-receipt",
+            stage,
             detail=_attestation_detail(
                 "receipt-temp-write",
                 _exception_observed(exc),
@@ -3607,7 +3799,7 @@ def _prepare_acceptance_receipt(
         except OSError:
             pass
         raise _StageFailure(
-            "acceptance-receipt",
+            stage,
             detail=_attestation_detail(
                 "receipt-temp-contract",
                 {
@@ -3619,6 +3811,50 @@ def _prepare_acceptance_receipt(
     return temp_path
 
 
+def _prepare_acceptance_receipt(
+    *,
+    effects: _Effects,
+    receipt_file: Path,
+    content: bytes,
+) -> Path:
+    return _prepare_receipt_temp(
+        effects=effects,
+        receipt_file=receipt_file,
+        content=content,
+        stage="acceptance-receipt",
+    )
+
+
+def _atomic_publish_json(
+    destination: Path,
+    payload: Mapping[str, object],
+    effects: _Effects,
+    *,
+    temp_path: Path | None = None,
+) -> None:
+    """fsync 済みの同一ディレクトリ temp を final path へ atomic に公開する。"""
+
+    owned_temp = temp_path is None
+    final_path = _absolute_path(destination) if owned_temp else destination
+    if temp_path is None:
+        temp_path = _prepare_receipt_temp(
+            effects=effects,
+            receipt_file=final_path,
+            content=_canonical_json_line(payload),
+            stage="producer-receipt",
+        )
+    rename = effects.rename or os.rename
+    try:
+        rename(temp_path, final_path)
+    except BaseException:
+        if owned_temp:
+            try:
+                effects.unlink(temp_path)
+            except OSError:
+                pass
+        raise
+
+
 def _publish_acceptance_receipt(
     *,
     effects: _Effects,
@@ -3626,7 +3862,6 @@ def _publish_acceptance_receipt(
     receipt_file: Path,
     temp_path: Path,
 ) -> None:
-    rename = effects.rename or os.rename
     prior_ownership = lifecycle.ownership
     previous_mask: set[signal.Signals] | None = None
     pthread_sigmask = getattr(signal, "pthread_sigmask", None)
@@ -3647,7 +3882,12 @@ def _publish_acceptance_receipt(
         pthread_sigmask(signal.SIG_BLOCK, _HANDLED_SIGNALS)
         failure_reason = "receipt-publish-rename"
         try:
-            rename(temp_path, receipt_file)
+            _atomic_publish_json(
+                receipt_file,
+                {},
+                effects,
+                temp_path=temp_path,
+            )
         except BaseException:
             lifecycle.ownership = prior_ownership
             raise
@@ -4432,13 +4672,50 @@ def main(
         )
         if command == "producer":
             pid = _resolve_pid(args.pid, args.pid_file, active_effects)
-            outcome = wait_for_producer(
-                done_file=args.done_file,
-                artifact_file=args.artifact_file,
-                pid=pid,
-                max_wait_seconds=args.max_wait_seconds,
-                effects=active_effects,
+            pid_source = (
+                args.pid_file
+                if args.pid_file is not None
+                else Path(f"/proc/{pid}/stat")
             )
+            if args.check_only:
+                state = _derive_producer_state(
+                    pid,
+                    args.done_file,
+                    args.artifact_file,
+                    active_effects,
+                )
+                assert args.receipt_file is not None
+                outcome = _publish_producer_receipt(
+                    receipt_file=args.receipt_file,
+                    pid_source=pid_source,
+                    done_file=args.done_file,
+                    artifact_file=args.artifact_file,
+                    state=state,
+                    effects=active_effects,
+                )
+            else:
+                outcome = wait_for_producer(
+                    done_file=args.done_file,
+                    artifact_file=args.artifact_file,
+                    pid=pid,
+                    max_wait_seconds=args.max_wait_seconds,
+                    effects=active_effects,
+                )
+                if outcome.rc == RC_OK and args.receipt_file is not None:
+                    state = _derive_producer_state(
+                        pid,
+                        args.done_file,
+                        args.artifact_file,
+                        active_effects,
+                    )
+                    outcome = _publish_producer_receipt(
+                        receipt_file=args.receipt_file,
+                        pid_source=pid_source,
+                        done_file=args.done_file,
+                        artifact_file=args.artifact_file,
+                        state=state,
+                        effects=active_effects,
+                    )
         else:
             active_repo = Path.cwd() if repo is None else repo
             lease_dir = _lease_dir(args.lease_dir, active_effects)

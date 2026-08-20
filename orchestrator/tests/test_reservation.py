@@ -95,6 +95,35 @@ def test_check_reservation_accepts_bound_job_and_derives_monotonic_deadline():
     assert checked.remaining_s == 100.0
 
 
+def test_float_required_duration_respects_exact_capacity_boundary():
+    checked = _check(_environ(), required_s=90.0)
+    assert checked.required_s == 90.0
+
+    rechecked = checked.recheck(
+        required_s=90.0,
+        safety_margin_s=10,
+        monotonic_now_fn=lambda: 50.0,
+    )
+    assert rechecked.required_s == 90.0
+
+    with pytest.raises(ReservationError):
+        checked.ensure_remaining(
+            required_s=90.0000001,
+            safety_margin_s=10,
+            monotonic_now_fn=lambda: 50.0,
+        )
+
+
+@pytest.mark.parametrize(
+    "required_s",
+    [float("nan"), float("inf")],
+    ids=["nan", "inf"],
+)
+def test_check_reservation_rejects_nonfinite_required_duration(required_s):
+    with pytest.raises(ReservationError):
+        _check(_environ(), required_s=required_s)
+
+
 def test_recorded_pegasus_reservation_passes_live_admission():
     # job-staging/0:867876.nqsv/reservation.json の全 field を literal 固定する。
     environ = {

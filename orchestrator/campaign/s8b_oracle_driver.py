@@ -81,6 +81,8 @@ _BINDING_KEYS = {
 # end-to-end 上限。最大 1 retry と terminal/fsync 用 reserve を別項で数える。
 ORACLE_MAX_ATTEMPTS = 2
 ORACLE_PER_ATTEMPT_CAP_S = 30 * 60
+# attestation probe 1 回あたりの所要時間を別項で数える。
+ORACLE_ATTESTATION_PROBE_S = 0.2
 ORACLE_FINALIZE_RESERVE_S = 600
 ORACLE_RESERVATION_SAFETY_MARGIN_S = 0
 
@@ -747,6 +749,19 @@ def _is_transient_prepare_failure(exc: BaseException) -> bool:
 def _perf_for_holdout(freeze: Mapping, holdout_id: str,
                       run_contract: Mapping) -> pipeline.PerfConfig:
     try:
+        authority = s8b_holdout_freeze.HOLDOUTS[holdout_id]
+        expected_projection = {
+            "candidate_id": authority["candidate_id"],
+            "records": authority["records"],
+            "threads": authority["threads"],
+            "ycsb": dict(authority["ycsb"]),
+        }
+    except (KeyError, TypeError, ValueError) as exc:
+        raise OracleDriverError(
+            f"holdout perf binding が不正: {holdout_id}"
+        ) from exc
+
+    try:
         holdout = freeze["holdouts"][holdout_id]
         records = holdout["records"]
         threads = holdout["threads"]
@@ -759,6 +774,17 @@ def _perf_for_holdout(freeze: Mapping, holdout_id: str,
             or isinstance(threads, bool) or not isinstance(threads, int) or threads <= 0
             or not isinstance(workload, Mapping)):
         raise OracleDriverError(f"holdout perf schema が不正: {holdout_id}")
+    actual_projection = {
+        "candidate_id": holdout.get("candidate_id"),
+        "records": records,
+        "threads": threads,
+        "ycsb": dict(workload),
+    }
+    if _canonical_bytes(actual_projection) != _canonical_bytes(
+            expected_projection):
+        raise OracleDriverError(
+            f"holdout perf binding が不正: {holdout_id}"
+        )
     return pipeline.PerfConfig(
         records=records, threads=threads, workload=dict(workload),
         extime=extime, reps=reps,
@@ -823,7 +849,7 @@ class _V2Plan:
     reservation_check: Optional["_reservation.ReservationCheck"] = None
 
 
-def _reservation_required_s(schedule: Sequence[Mapping]) -> int:
+def _reservation_required_s(schedule: Sequence[Mapping]) -> float:
     """validated schedule の行数だけから worst-case 秒数を導出する。"""
     if (not isinstance(schedule, Sequence)
             or isinstance(schedule, (str, bytes, bytearray)) or not schedule):
@@ -831,6 +857,7 @@ def _reservation_required_s(schedule: Sequence[Mapping]) -> int:
     return (
         len(schedule) * ORACLE_MAX_ATTEMPTS * ORACLE_PER_ATTEMPT_CAP_S
         + ORACLE_FINALIZE_RESERVE_S
+        + len(schedule) * ORACLE_ATTESTATION_PROBE_S
     )
 
 
@@ -1074,6 +1101,7 @@ def _recheck_required_execution(plan: _V2Plan, *, remaining_rows: int) -> None:
     required_s = (
         remaining_rows * ORACLE_MAX_ATTEMPTS * ORACLE_PER_ATTEMPT_CAP_S
         + ORACLE_FINALIZE_RESERVE_S
+        + remaining_rows * ORACLE_ATTESTATION_PROBE_S
     )
     try:
         plan.reservation_check = plan.reservation_check.ensure_remaining(

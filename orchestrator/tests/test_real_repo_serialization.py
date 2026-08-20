@@ -81,6 +81,30 @@ _REAL_REPO_SERIAL_NODES_GOLDEN = frozenset({
     "test_s8b_floor_campaign.py::test_slow_real_prepare_cell_to_buildcache_v2_canary_one_configuration",
     "test_s8b_oracle_driver.py::test_slow_oracle_prepared_cell_pipeline_uses_real_build_v2",
     "test_sort_swo_oracle.py::test_real_patchharness_checkout_and_resolver_use_explicit_binding",
+    "test_sort_swo_oracle.py::test_cpp_e2e_clean_generic_lambda_positive",
+    "test_sort_swo_oracle.py::test_cpp_e2e_stable_cross_allocation_pointer_positive",
+    "test_sort_swo_oracle.py::test_real_ctor_pointer_topology_and_triplicate_have_expected_matrix_meaning",
+    "test_sort_swo_oracle.py::test_cpp_e2e_reports_each_axiom_and_exact_indices",
+    "test_sort_swo_oracle.py::test_cpp_e2e_high_storage_only_negative_kills_corpus_narrowing",
+    "test_sort_swo_oracle.py::test_cpp_e2e_rejects_corpus_mutation_with_dedicated_reason",
+    "test_sort_swo_oracle.py::test_cpp_e2e_rejects_same_process_call_count_dependence_with_witness",
+    "test_sort_swo_oracle.py::test_real_compile_budget_is_fixed_positive_and_negative_only",
+    "test_sort_swo_oracle.py::test_materialized_marker_bytes_are_exact_and_proposal_hash_is_distinct",
+    "test_sort_swo_oracle.py::test_phase_marker_runs_immediately_before_first_oracle_subprocess",
+    "test_sort_swo_oracle.py::test_scratch_failure_is_unavailable_not_candidate_reject",
+    "test_sort_swo_oracle.py::test_candidate_compile_failure_is_reject_not_unavailable",
+    "test_sort_swo_oracle.py::test_candidate_compile_failure_with_failing_postflight_is_unavailable",
+    "test_sort_swo_oracle.py::test_postflight_unavailable_retains_candidate_finding",
+    "test_sort_swo_oracle.py::test_candidate_compile_reject_postflight_control_success_stays_reject",
+    "test_sort_swo_oracle.py::test_candidate_artifact_cleanup_failure_preserves_receipt",
+    "test_sort_swo_oracle.py::test_candidate_artifact_cleanup_and_postflight_failure_preserve_evidence",
+    "test_sort_swo_oracle.py::test_candidate_compile_infrastructure_failure_with_successful_postflight_stays_unavailable",
+    "test_sort_swo_oracle.py::test_candidate_compile_infrastructure_and_postflight_failure_uses_postflight_detail",
+    "test_sort_swo_oracle.py::test_postflight_source_write_oserror_preserves_receipt",
+    "test_sort_swo_oracle.py::test_postflight_cleanup_oserror_preserves_receipt",
+    "test_sort_swo_oracle.py::test_postflight_programmer_error_is_not_infrastructure",
+    "test_sort_swo_oracle.py::test_trusted_positive_preflight_compile_failure_is_unavailable",
+    "test_sort_swo_oracle.py::test_public_api_propagates_exact_evaluator_axiom_finding",
     # module fixture が実 repo / 実 submodule を clone source として読む reader。
     "test_codex_reasoning_ab.py::test_parent_numstat_controls_remain_pinned",
     "test_codex_reasoning_ab.py::test_forbidden_commits_are_unreachable_in_both_cases",
@@ -2538,6 +2562,41 @@ def test_receipt_memo_consumers_do_not_resolve_during_collection():
         f"consumer collection probe failed:\nstdout={result.stdout}\nstderr={result.stderr}"
     )
     assert "RECEIPT_COLLECTION_CALLS=0 CONTROL=1" in result.stdout, result.stdout
+
+
+def test_sort_swo_oracle_does_not_resolve_during_collection():
+    """sort SWO oracle の collect-only 中は production resolver を呼ばない。"""
+    _require_pytest()
+    script = textwrap.dedent(
+        f"""
+        import pytest
+        from orchestrator.campaign import sort_swo_oracle as oracle
+
+        calls = []
+        def fake_resolver(*args, **kwargs):
+            calls.append((args, kwargs))
+            return object()
+        oracle.resolve_oracle_environment = fake_resolver
+        rc = pytest.main([
+            "--collect-only", "-q",
+            {str(HERE / "test_sort_swo_oracle.py")!r},
+        ])
+        collected_calls = len(calls)
+        oracle.resolve_oracle_environment("positive-control")
+        print(
+            f"SORT_SWO_COLLECTION_CALLS={{collected_calls}} "
+            f"CONTROL={{len(calls) - collected_calls}}"
+        )
+        raise SystemExit(rc)
+        """
+    )
+    result = _run_subprocess(
+        [sys.executable, "-c", script], cwd=ROOT, env=os.environ.copy(),
+    )
+    assert result.returncode == 0, (
+        f"sort SWO collection probe failed:\nstdout={result.stdout}\nstderr={result.stderr}"
+    )
+    assert "SORT_SWO_COLLECTION_CALLS=0 CONTROL=1" in result.stdout, result.stdout
 
 
 def _require_loadgroup_capability() -> None:
