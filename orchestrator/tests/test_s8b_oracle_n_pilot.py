@@ -274,6 +274,20 @@ def test_protocol_exact_schema_and_preregistered_design(tmp_path):
     ).hexdigest()
 
 
+def test_r33_protocol_document_loads_from_repository():
+    path = ROOT / "output/insights/2026-08-16_t1142-n-pilot-prereg/protocol-r33.json"
+    loaded = M.load_protocol(path)
+    assert loaded.pilot_rounds == 33
+    assert loaded.allocation_count == 3
+    assert loaded.allocation_role == "primary-segment"
+    assert loaded.driver_sha256 == hashlib.sha256(
+        (ROOT / loaded.driver_path).read_bytes()
+    ).hexdigest()
+    assert loaded.job_script_sha256 == hashlib.sha256(
+        (ROOT / loaded.job_script_path).read_bytes()
+    ).hexdigest()
+
+
 def test_driver_has_no_round_default_and_supports_build_only_mode(tmp_path):
     args = M._parse_args([
         "--protocol", str(tmp_path / "protocol.json"),
