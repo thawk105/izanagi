@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import math
 import os
 import sys
 from pathlib import Path
@@ -133,6 +134,196 @@ def test_backoff_report_declares_certified_purpose_and_epoch(
     report = Path(result["report"]).read_text(encoding="utf-8")
     assert "受理目的**: `CERTIFIED_ACCEPTANCE`" in report
     assert "campaign_verifier_epoch**: `E1:" in report
+
+
+def _report_view(tmp_path):
+    layout = CampaignLayout(str(tmp_path / "certified-campaign")).ensure()
+    epoch = SimpleNamespace(
+        campaign_verifier_epoch="E2",
+        identity_scope="fixture enforcement closure",
+        excluded_scope="fixture verifier exclusion",
+    )
+    return SimpleNamespace(
+        layout=layout,
+        read_purpose=CampaignReadPurpose.CERTIFIED_ACCEPTANCE,
+        campaign_verifier_epoch=epoch,
+    )
+
+
+def _patch_report_inputs(monkeypatch, view, genomes):
+    monkeypatch.setattr(
+        backoff_sweep_report, "config_for",
+        lambda _tag, _workload: SimpleNamespace(spec_slug="fixture", search_tag="sweep"),
+    )
+    monkeypatch.setattr(
+        backoff_sweep_report, "discover_campaign_dir",
+        lambda _slug, _tag, *, purpose: object(),
+    )
+    monkeypatch.setattr(
+        backoff_sweep_report, "require_certified_campaign_view", lambda _value: view,
+    )
+    monkeypatch.setattr(backoff_sweep_report, "load_workload", lambda _view: genomes)
+
+
+def _capture_report_plot(monkeypatch, observed):
+    def make_plot(dat, _spec, stem):
+        observed["rows"] = dat.rows
+        observed["render"] = dat.render()
+        return {"png": stem + ".png", "dat": stem + ".dat", "plt": stem + ".plt"}
+
+    monkeypatch.setattr(backoff_sweep_report, "make_plot", make_plot)
+
+
+def test_backoff_report_formats_ipc_for_dat_markdown_and_reading(tmp_path, monkeypatch):
+    view = _report_view(tmp_path)
+    genomes = [
+        SimpleNamespace(flags={"BACK_OFF": 0}, li={"throughput_tps": 100.0}),
+        SimpleNamespace(flags={"BACK_OFF": 1, "BACKOFF_FIXED": -1},
+                        li={"throughput_tps": 110.0}),
+        SimpleNamespace(
+            flags={"BACK_OFF": 1, "BACKOFF_FIXED": 5},
+            li={"throughput_tps": 120.0, "abort_rate": 0.1, "ipc": None},
+        ),
+        SimpleNamespace(
+            flags={"BACK_OFF": 1, "BACKOFF_FIXED": 10},
+            li={"throughput_tps": 130.0, "abort_rate": 0.2, "ipc": 0.0},
+        ),
+        SimpleNamespace(
+            flags={"BACK_OFF": 1, "BACKOFF_FIXED": 20},
+            li={"throughput_tps": 140.0, "abort_rate": 0.3, "ipc": 1.2},
+        ),
+    ]
+    _patch_report_inputs(monkeypatch, view, genomes)
+    observed = {}
+    _capture_report_plot(monkeypatch, observed)
+
+    result = backoff_sweep_report.report_workload("fixture", {})
+
+    rows = observed["rows"]
+    assert math.isnan(rows[0][3])
+    assert rows[1][3] == 0.0
+    assert rows[2][3] == 1.2
+    rendered = observed["render"]
+    assert "\tnan\n" in rendered
+    assert "—" not in rendered
+
+    report = Path(result["report"]).read_text(encoding="utf-8")
+    assert "| 5 | 120 | 10.0% | — | +20.0% |" in report
+    assert "| 10 | 130 | 20.0% | 0.00 | +30.0% |" in report
+    assert "| 20 | 140 | 30.0% | 1.20 | +40.0% |" in report
+    assert ("IPC が実測できた点に限り、backoff を増やすと abort は下がるが "
+            "ipc が落ちる trade-off が量の関数として見える。") in report
+
+
+def test_backoff_report_describes_all_measured_ipc(tmp_path, monkeypatch):
+    view = _report_view(tmp_path)
+    genomes = [
+        SimpleNamespace(flags={"BACK_OFF": 0}, li={"throughput_tps": 100.0}),
+        SimpleNamespace(flags={"BACK_OFF": 1, "BACKOFF_FIXED": -1},
+                        li={"throughput_tps": 110.0}),
+        SimpleNamespace(
+            flags={"BACK_OFF": 1, "BACKOFF_FIXED": 5},
+            li={"throughput_tps": 120.0, "abort_rate": 0.1, "ipc": 0.0},
+        ),
+        SimpleNamespace(
+            flags={"BACK_OFF": 1, "BACKOFF_FIXED": 10},
+            li={"throughput_tps": 130.0, "abort_rate": 0.2, "ipc": 1.2},
+        ),
+    ]
+    _patch_report_inputs(monkeypatch, view, genomes)
+    observed = {}
+    _capture_report_plot(monkeypatch, observed)
+
+    result = backoff_sweep_report.report_workload("fixture", {})
+
+    report = Path(result["report"]).read_text(encoding="utf-8")
+    assert ("abort% と ipc の列で「backoff を増やすと abort は下がるが ipc が落ちる」"
+            "trade-off が量の関数として見える。") in report
+    assert "IPC が実測できた点に限り" not in report
+
+
+def test_backoff_report_describes_all_static_ipc_as_unmeasured(tmp_path, monkeypatch):
+    view = _report_view(tmp_path)
+    genomes = [
+        SimpleNamespace(flags={"BACK_OFF": 0}, li={"throughput_tps": 100.0}),
+        SimpleNamespace(flags={"BACK_OFF": 1, "BACKOFF_FIXED": -1},
+                        li={"throughput_tps": 110.0}),
+        SimpleNamespace(
+            flags={"BACK_OFF": 1, "BACKOFF_FIXED": 5},
+            li={"throughput_tps": 120.0, "abort_rate": 0.1, "ipc": None},
+        ),
+        SimpleNamespace(
+            flags={"BACK_OFF": 1, "BACKOFF_FIXED": 10},
+            li={"throughput_tps": 130.0, "abort_rate": 0.2, "ipc": None},
+        ),
+    ]
+    assert all("ipc" in genome.li and genome.li["ipc"] is None
+               for genome in genomes[2:])
+    _patch_report_inputs(monkeypatch, view, genomes)
+    observed = {}
+    _capture_report_plot(monkeypatch, observed)
+
+    result = backoff_sweep_report.report_workload("fixture", {})
+
+    assert all(math.isnan(row[3]) for row in observed["rows"])
+    assert observed["render"].count("\tnan\n") == 2
+    report = Path(result["report"]).read_text(encoding="utf-8")
+    assert "| 5 | 120 | 10.0% | — | +20.0% |" in report
+    assert "| 10 | 130 | 20.0% | — | +30.0% |" in report
+    assert "IPC が実測できた点に限り" in report
+
+
+def test_backoff_report_treats_missing_ipc_key_as_unmeasured(tmp_path, monkeypatch):
+    view = _report_view(tmp_path)
+    explicit_none = SimpleNamespace(
+        flags={"BACK_OFF": 1, "BACKOFF_FIXED": 5},
+        li={"throughput_tps": 120.0, "abort_rate": 0.1, "ipc": None},
+    )
+    missing_key = SimpleNamespace(
+        flags={"BACK_OFF": 1, "BACKOFF_FIXED": 10},
+        li={"throughput_tps": 130.0, "abort_rate": 0.2},
+    )
+    genomes = [
+        SimpleNamespace(flags={"BACK_OFF": 0}, li={"throughput_tps": 100.0}),
+        SimpleNamespace(flags={"BACK_OFF": 1, "BACKOFF_FIXED": -1},
+                        li={"throughput_tps": 110.0}),
+        explicit_none,
+        missing_key,
+    ]
+    assert "ipc" in explicit_none.li and explicit_none.li["ipc"] is None
+    assert "ipc" not in missing_key.li
+    assert missing_key.li.get("ipc") is None
+    _patch_report_inputs(monkeypatch, view, genomes)
+    observed = {}
+    _capture_report_plot(monkeypatch, observed)
+
+    result = backoff_sweep_report.report_workload("fixture", {})
+
+    assert all(math.isnan(row[3]) for row in observed["rows"])
+    report = Path(result["report"]).read_text(encoding="utf-8")
+    assert report.count("| — |") == 2
+    assert "IPC が実測できた点に限り" in report
+
+
+def test_plot_backoff_loads_nan_ipc_as_missing(tmp_path):
+    plot = _load_plot_module()
+    layout = _fixture_layout(tmp_path)
+    dat = backoff_sweep_report.DatFile(
+        title="fixture",
+        columns=["backoff_us", "throughput_tps", "abort_pct", "ipc"],
+        rows=[[5, 123456, 1.0, backoff_sweep_report._format_ipc(None, dat=True)]],
+    )
+    rendered = dat.render()
+    assert "\tnan\n" in rendered
+    assert "—" not in rendered
+    Path(layout.reports_dir, "fixture.dat").write_text(
+        rendered, encoding="utf-8",
+    )
+
+    campaign = plot.load_campaign(layout.root)
+
+    assert campaign["abort_ipc"][5][0] == 1.0
+    assert math.isnan(campaign["abort_ipc"][5][1])
 
 
 def test_backoff_repro_bench_tps_requires_commit(tmp_path):

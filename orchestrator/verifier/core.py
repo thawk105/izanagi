@@ -63,6 +63,7 @@ def verify_trace_dir(
             f"hex; case/format drift silently splits conflict edges): {sample}")
 
     dsg.integrity.framing_violations = len(issues.framing_violations)
+    dsg.integrity.framing_violation_details = list(issues.framing_violations)
     if issues.framing_violations:
         by_kind: Dict[str, int] = {}
         for violation in issues.framing_violations:
@@ -182,6 +183,7 @@ def _bind_verifier_capability_entrypoint():
                 raise TypeError("VerificationCapability is verifier-issued")
             projection = result_to_dict(result)
             projection.pop("trace_dir", None)
+            projection["integrity"].pop("framing_violation_details", None)
             object.__setattr__(self, "_verdict", result.verdict)
             object.__setattr__(self, "_certified", result.certified)
             object.__setattr__(

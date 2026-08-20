@@ -9,7 +9,10 @@ isolation)。verifier の入力は trace のみ。
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Tuple
+from typing import TYPE_CHECKING, Dict, List, Optional, Tuple
+
+if TYPE_CHECKING:
+    from .parse import TxnFramingViolation
 
 # 版ID = (epoch, tid)。同一キー上ではこの組が producer trx を一意に決める
 # (ww 競合で tid が単調増加するため。trace-hook の実測で版重複 0 を確認済み)。
@@ -141,6 +144,8 @@ class Integrity:
     write_version_mismatch: int = 0  # W 行の版が C 行 commit と不一致の trx
     malformed_keys: int = 0     # key が小文字 hex 形式でない (表現揺れは競合辺を消す)
     framing_violations: int = 0  # C/E frame の件数・終端 integrity 違反
+    framing_violation_details: List["TxnFramingViolation"] = field(
+        default_factory=list)
     lock_coverage_violations: int = 0  # X 行の件数 (writePhase で lock 被覆が破れた write。D38)
     write_intent_violations: int = 0  # I 行の件数 (write_set_ と API write intent の被覆破れ。T-152)
     permutation_violations: int = 0  # P 行の件数 (validationPhase の sort が要素を欠落/複製。D41)

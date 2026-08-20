@@ -261,7 +261,7 @@
         "proof": "All cells must be reserved before any bench launch, actual bench seconds must be settled, and insufficiency must stop unrun arms symmetrically."
       },
       "negative_control_id": "nc_c06_one_arm_reservation_removed",
-      "machine_checkable": false,
+      "machine_checkable": true,
       "static_only_note": "Only the committed reservation/settlement consumer and its pre-run bindings are readiness evidence; spent values from a completed run are not required."
     },
     {
