@@ -3055,20 +3055,6 @@ def _evaluate_c07(probe: _ConditionProbe) -> core.PredicateResult:
     )
 
 
-_MACHINE_EVALUATORS = {
-    1: _evaluate_c01,
-    2: _evaluate_c02,
-    4: _evaluate_c04,
-    5: _evaluate_c05,
-    7: _evaluate_c07,
-    9: _evaluate_c09,
-    10: _evaluate_c10,
-    11: _evaluate_c11,
-    12: _evaluate_c12,
-}
-MACHINE_CHECKABLE_CONDITION_IDS: frozenset[str] = frozenset(
-    f"C{number:02d}" for number in _MACHINE_EVALUATORS
-)
 SATISFIABLE_CONDITION_IDS: frozenset[str] = frozenset()
 
 
@@ -3234,8 +3220,7 @@ def evaluate_all(
     return _REGISTRY.evaluate_all(commit, repo_root=repo_root)
 
 
-# C06 は契約が false の間は production dispatch に登録しない。ここに置く
-# staged registry は、将来の契約反転を検査する test 専用の待機場所である。
+# C06 の静的 evaluator は、契約の machine_checkable 宣言に対応して production registry へ登録する。
 from types import MappingProxyType as _MappingProxyType  # noqa: E402
 
 _C06_EXPECTED_FIELD_PATHS = frozenset(
@@ -3477,7 +3462,7 @@ def _c06_unsatisfied(probe: _ConditionProbe) -> core.PredicateResult:
 
 
 def _evaluate_c06(probe: _ConditionProbe) -> core.PredicateResult:
-    """C06 の staged evaluator。充足を返さず、完了証明は常に未定義にする。"""
+    """C06 の machine evaluator。充足を返さず、完了証明は常に未定義にする。"""
     budget = probe.python_kind("budget_consumer")
     if budget is None:
         return _result(
@@ -3536,4 +3521,19 @@ def _evaluate_c06(probe: _ConditionProbe) -> core.PredicateResult:
     )
 
 
-_STAGED_EVALUATORS = _MappingProxyType({6: _evaluate_c06})
+_MACHINE_EVALUATORS = {
+    1: _evaluate_c01,
+    2: _evaluate_c02,
+    4: _evaluate_c04,
+    5: _evaluate_c05,
+    6: _evaluate_c06,
+    7: _evaluate_c07,
+    9: _evaluate_c09,
+    10: _evaluate_c10,
+    11: _evaluate_c11,
+    12: _evaluate_c12,
+}
+MACHINE_CHECKABLE_CONDITION_IDS: frozenset[str] = frozenset(
+    f"C{number:02d}" for number in _MACHINE_EVALUATORS
+)
+_STAGED_EVALUATORS = _MappingProxyType({})
