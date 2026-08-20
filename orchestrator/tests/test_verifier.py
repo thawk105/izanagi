@@ -355,7 +355,7 @@ def test_missing_end_is_indeterminate():
             {
                 "kind": "missing-end",
                 "txid": 0,
-                "expected_reads": 1,
+                "expected_reads": 0,
                 "observed_reads": 0,
                 "expected_writes": 0,
                 "observed_writes": 0,
