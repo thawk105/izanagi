@@ -175,3 +175,12 @@ def test_checkpoint_record_round_trips_one_jsonl_line(tmp_path: Path) -> None:
     append_checkpoint_line(checkpoint, record)
 
     assert read_checkpoint_record(checkpoint) == record
+
+
+def _run() -> int:
+    """pytest fixtures と parametrize を含む全 node を素の runner からも実行する。"""
+    return int(pytest.main(["-q", str(Path(__file__).resolve())]))
+
+
+if __name__ == "__main__":
+    raise SystemExit(_run())
