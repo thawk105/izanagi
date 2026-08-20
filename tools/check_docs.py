@@ -1566,14 +1566,16 @@ def _r33_source_contract(
             and code[name_start:name_start + len(role_name)] == role_name
         ):
             role_matches.append(match)
-    entries = [
-        match
-        for match in R33_SOURCE_ENTRY_RE.finditer(source)
+    entries = []
+    for match in R33_SOURCE_ENTRY_RE.finditer(source):
+        opening_offset = match.group().find("{")
         if (
-            roles_span[0] <= match.start()
+            opening_offset >= 0
+            and roles_span[0] <= match.start()
             and match.end() <= roles_span[1]
-        )
-    ]
+            and code[match.start() + opening_offset] == "{"
+        ):
+            entries.append(match)
 
     if len(role_matches) != 1:
         findings.append(

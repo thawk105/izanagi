@@ -5552,6 +5552,30 @@ def test_r33_source_contract_binds_entry_to_observation_roles_dictionary():
         shutil.rmtree(root, ignore_errors=True)
 
 
+def test_r33_source_contract_ignores_entry_in_docstring_within_observation_roles():
+    root = _build_min_repo()
+    try:
+        rel = "orchestrator/campaign/s8b_holdout_admission.py"
+        source = _read(root, rel)
+        entry = (
+            '    "n_pilot_r33": {\n'
+            '        "generation_id": "n-pilot-r33",\n'
+            '        "pilot_rounds": 33,\n'
+            '        "allocation_count": 3,\n'
+            '        "cell_count": 12,\n'
+            '        "schedule_row_count": 396,\n'
+            '        "decision_pin": "t1142-n-pilot-r33-admission-authority",\n'
+            "    },\n"
+        )
+        assert source.count(entry) == 1
+        decoy = '    "R33_decoy": """\n' + entry + '    """,\n'
+        source = source.replace(entry, decoy, 1)
+        _write(root, rel, source)
+        _assert_violation(root, "R33 role contract entry は exact 1 件が必要")
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
 def test_r33_source_contract_ignores_role_literal_in_docstring():
     root = _build_min_repo()
     try:
