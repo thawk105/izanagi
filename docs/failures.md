@@ -6604,6 +6604,16 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   検出はされているので検出力の欠落ではないが、台帳の期待値としては誤りだった。
   初回結果を消さず `mutation-ledger-a.json` に残し、実測の完全集合で再登録した確認走を
   `mutation-ledger-b.json` に置いて 2 件とも KILLED を確認した。
+
+- **再発: 2026-08-20** — T-1142 n-pilot R33 admission 再設計 wave の fix 後
+  変異 matrix で、変異8件のうち4件が MISMATCH。M1 は8件への missing 拡大
+  (共有 fixture `_allocation_result_files` への連鎖影響)、M2 は逆に extra 側
+  (予測2件・実測1件、変異後も別分岐で偶然動作)、M6/M7 は
+  `s8b_oracle_n_pilot.py` 変異全てに共通する巻き添え
+  (`test_r33_protocol_document_loads_from_repository` が driver.py のバイト
+  変更で protocol document 記録 hash と不一致になる構造的性質、正しさ検出とは
+  無関係)。期待 node を机上予測でなく実測から再導出し、巻き添えテストを
+  `--deselect` で除外して再走、8/8 KILLED 一致を確認した。
 ### F231. 受入待ち手の merge 競合が競合 path を出さず、親が手で再現した [手順漏れ] [コンテキスト浪費]
 
 - 事象: `tools/dev_wave_wait.py acceptance` が lease 取得後の main 取り込みで競合し、
@@ -10573,6 +10583,7 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   強い。ユーザー裁定 (2026-08-20、詳細は本fragmentの worklog 側) により、上限引き上げは
   再度不採用のまま維持し、D551と同じ原則を `_batch_oids` の残る全呼び出し経路へ適用する恒久
   対応を worklog 新規項目として起票した。
+- **supersede: 2026-08-20** — 再発時の仮説(`_batch_oids` を通る他経路が履歴比例のまま残っている疑いが強い)は実測で否定された。真因は branch が D551 land (2026-08-19 12:51) より前の main (11:08) から分岐していたことであり、D551 親コミット時点のコードと失敗 tip での再現実験 (50061 requests) で確定した。`_batch_oids` の呼び出しは repo 全体で2経路のみ (1571行目 `_assert_rulings_exist`、1609行目 `validate_condition_freeze_at`) でどちらも履歴長非依存と確認済み。恒久対応として `_assert_rulings_exist` 経路の専用回帰テストを既存テスト拡張で追加した (D608、commit 8014d6778f1ca853b719b9d95a333d069ce17456)。
 ### F418. 8c preregistration の batch 上限をリポジトリ成長がわずかに超え、main への merge を伴う受入が構造的に赤くなる [恒真ゲート] [検査の非対称]
 
 - 事象: [T-699] の受入全走で `git merge --no-ff --no-commit main` 後、
@@ -11085,3 +11096,22 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: `/rulings` 実行の冒頭で `python3 rulings-tools/sweep_pending.py` の先頭数行を一瞥し、
   `REPO` が worktree パスに戻っていないか確認する。新しい見出し変種で漏れを見つけたら
   同 script の正規表現へ追記する (このエントリの型を再発として顕在化させる)。
+
+### F439. dev-wave段4裁定でB-057変異事前登録の手順自体が漏れた [手順漏れ]
+
+- 事象: T-1142 n-pilot R33 admission再設計waveの段4裁定 (第2wave、ユーザーが
+  「実装に着手してほしい」を選んで再開した回) で、DW-M01が求める「段4でB-057
+  の変異を実装前に登録する」を実行せず、Unit0-4実装 (段5、1756+行規模) へ
+  進んだ。段6 fixの統合commit後にDW-M01を読み返して発覚した。
+- 根本原因: 段4裁定を確定する際、docs/dev-wave/mutation.mdのDW-M01を実際には
+  適用しなかった。wave自体が「実装しない」裁定からユーザー指示で再開するという
+  複雑な経緯を辿っており、通常の段2→3→4の直線フローと異なる分岐を通ったことが
+  見落としと関係した可能性がある。
+- 恒久対応: memory (`dev-wave-stage4-mutation-registration-checklist.md`) へ、
+  段4裁定確定直前に DW-M01 の適用有無を明示確認する運用を記録した。今回は
+  事後 (段6 fix後) に B-057 変異8件を新規登録・本走し、8/8 KILLED を確認して
+  代替した (実装後だが実測ベースの検証、前例 T-172 系5度目発火・
+  `docs/phase3.md:1043` の "bounded 事後 audit" と同型)。
+- 再発検知: 段6以降で DW-M01 を読み返した際に、既存 spec ファイルの不在を
+  grep で確認する事後検知に留まる。段4時点での検知手段は本 wave では
+  新設していない。

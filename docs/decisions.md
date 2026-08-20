@@ -24342,3 +24342,112 @@ descriptor digest chain・legacy freeze 照合は oracle 側では複製しな�
 - producer 側と同じ arm resolver digest chain 照合まで複製する案 — oracle は「選ばれた arm が
   何か」を判定する層ではなく、既に選ばれた holdout の perf 条件を実走直前に検証する層であるため、
   同じ検証をもう一層持つ理由がない。
+
+## D607. layer3_report と state_from_dict の whiteboard 値域検査を共有 validator で一本化する (2026-08-20)
+
+**決定:** `orchestrator/campaign/p3_s4_loop.py` に新設した public 関数
+`assert_whiteboard_value_domains(entry, index)` (`_WB_VALUE_DOMAINS` 直後に配置) を、
+`state_from_dict` (checkpoint 復元) と `layer3_report.build_report` (層3材料レポート生成、
+`_assert_unique_refs` より前の whiteboard 抽出直後) の両方から呼ぶ。direction/magnitude/result の
+値域チェック実装を1箇所に集約し、独立実装によるドリフトを防ぐ。`layer3_report.py` 側は
+`ValueError`/`KeyError` を捕捉し同ファイル既存の流儀どおり `Layer3ReportError` へ包む。
+
+**理由:**
+- `layer3_report.py` は `loop_state.json` を直接読み whiteboard を検査しない独立 reader であり、
+  `state_from_dict` が拒否する値 (例: `direction="up"`) をそのまま層3材料レポートへ通し、
+  内容由来の `wb:` source-ref へ焼き込んでいた (adjudication package
+  `output/insights/2026-08-04_t287-checkpoint-values/adjudication-package.md` §2)。
+- schema enum 案は手作業 runbook 経由の raw whiteboard 参照を閉じず、検査省略案は値チェックの
+  主張を弱めるため、ユーザーは共有 validator 案を裁定した (2026-08-20)。
+- production 層の import 方向は既存慣習 (`p3_s4_loop_sort.py`/`p3_s4_loop_trigger_gating.py`/
+  `p3_autonomous_workload_trial.py` 等が既に `p3_s4_loop` を core module として import 済み) に
+  ただ乗りする形とし、新規の共有 module は作らなかった (循環 import は生じない。
+  `p3_s4_loop.py` 自身は `layer3_report` を import しない)。
+
+**却下した選択肢:**
+- `layer3_schema.json` へ direction/magnitude/result の enum を書く — schema 層でしか閉じず、
+  手動 runbook (`docs/phase3-s4b/s5-sort/s8a-trigger-runbook.md`) の raw whiteboard 経路は残る。
+- 検査を追加しない — 「checkpoint 値を成果物まで閉じた」という主張ができないまま。
+- 値域検査の前に entry の形状・未知キー検査を新設する再順序化 — 受理/拒否の結果 (成果物の
+  受理集合) を変えず診断分類の粒度だけが変わるため、規律5 (盛らない) により見送った。
+
+**scope外:** producer 側 (`project_whiteboard`、in-memory 射影経路) の値域検査、origin 束縛/
+integrity、エラーメッセージの redact、手動 runbook 経路のクローズは adjudication package
+§1/§3/§4 の別項であり、いずれも独立のユーザー裁定を要するため本決定に含まない。
+`autonomous_trial_completeness.py::_cross_binding_whiteboard` は raw whiteboard を読むが
+唯一の下流使用が `canonical_record_ref` によるハッシュ化 (artifact bytes の provenance/
+束縛検査) であり値域では分岐しないため対象外とした (D118 が指摘する T-287 相当ウェーブの残余の
+うち、本決定が閉じるのは layer3_report 独立 reader の値域チェック欠落だけである)。
+
+## D608. `_batch_oids` の narrow 漏れ疑いを実測で棄却し、経路別の回帰テストで確定する (2026-08-20)
+
+**決定:**
+
+1. D551 が narrow した `validate_condition_freeze_at` 経路 (`_commit_graph` 経由) に加え、
+   `_batch_oids` のもう一つの呼び出し経路 (`_assert_rulings_exist`) も、世代数
+   (`MAX_GENERATIONS=1024` 上限) にのみ比例し生の履歴 commit 数には非依存であることを
+   実測で確認した。production コードへの追加 narrowing は行わない。
+2. `test_batch_request_count_ignores_no_touch_history_length`
+   (`orchestrator/tests/test_s8c_preregistration_core.py`) を拡張し、
+   `_assert_rulings_exist` 経路の request 数が no-touch commit 数に依存しないことを
+   generation2 fixture で固定した。新規テスト関数は追加しない。
+
+**理由:**
+
+- 発端になった受入失敗の実測 (50072 requests) の真因は、branch が D551 land
+  (2026-08-19 12:51:11) より前の main (11:08:54) から分岐していたことだった。
+  D551 の親コミット時点のコードと当該 branch の失敗 tip を使った独立の再現実験で
+  50061 requests を再現し (元の実測値とほぼ一致)、「`_batch_oids` を通る他経路が
+  履歴比例のまま残っている」という疑いは実測で否定された。
+- `_batch_oids` の呼び出しは repo 全体で2箇所のみ (独立 grep で確認)。片方は D551 で
+  絞り込み済み、もう片方は元から世代数ベースの設計で安全だった。
+- 既存の2つの回帰テストはいずれも `_assert_rulings_exist` 経路を除外または実質未発火に
+  しており、この経路が将来履歴比例へ戻る退行を検出できなかった。変異 matrix
+  (新HEAD版 KILLED・旧HEAD版 SURVIVED) で純増検出力を実測確認した。
+
+**却下した選択肢:**
+
+- production コード (`_batch_oids`/`_assert_rulings_exist`) へ追加の narrowing を実装する
+  — 前提 (narrow 漏れ経路の存在) が実測で否定されたため、対象が無い。
+- 新規テスト関数を追加する — 既存テストの fixture 拡張で同じ検出力を得られ、規律5
+  「盛らない」に照らし既存関数の拡張を採用した (敵対相談レンズの推奨)。
+
+## D609. n-pilot R33 admission authority (2026-08-20)
+
+**決定:** R33 の admission role は既存 `n_pilot` と分離した `n_pilot_r33` とし、role
+contract の authority pin は numeric D 番号ではなく `t1142-n-pilot-r33-admission-authority`
+とする。
+
+**機械 pin:**
+
+- authority slug: `t1142-n-pilot-r33-admission-authority`
+- R33 admission contract: role=`n_pilot_r33`; generation=`n-pilot-r33`; pilot_rounds=33; allocation_count=3; cell_count=12; schedule_row_count=396.
+- R33 protocol distinction: `design.allocation_role`=`primary-segment`; `observation_role`=`n_pilot_r33`.
+
+**理由:** D 番号は `docs/spool/` の fold 時点で初めて確定するため、実装 commit の
+Python source が numeric D 番号を持つと、実装時点で存在しない値への依存になる。stable
+slug を role contract と decision 本文の共通 pin とする。
+
+既存の R=11 実測 (`observation_role="n_pilot"`, campaign_run_id="t1142-run-1") は
+admission 機構の排他 claim 設計 (cell key が `campaign_run_id` を含まない一発勝負ロック)
+により、既存 claim の上に追加投入することが構造的に不可能であることを pegasus02 実機で
+確認した。事前登録済み目標 R>=32 (実質 R=33、32 以上かつ 3 で割り切れる最小値) を満たす
+ためには、新しい observation role 世代での独立した admission 発行が必要であり、
+`n_pilot_r33` をその role として採用する。
+
+**限界:** この exact-pin 検査は role・decision 間の generation / round / allocation
+値のうっかりした不一致を防ぐためのものであり、role・decision・checker を意図的に同一
+commit に揃える濫用や、完全な時系列を強制するものではない。izanagi には push しない
+運用のため GitHub Actions 等の protected CI が実質的に機能せず、merge base 側の検査を
+委ねる実行主体が無い。恒久的な時系列強制が必要になった場合は別 wave の課題とする。
+
+**却下した選択肢:**
+
+- 実装 commit に `D<N>` を直接埋め込む方式 — fold 前には番号が存在しない。
+- protected CI / merge base 検査による時系列の機械強制 — izanagi は push しない
+  local main 運用のため実行主体が無い。
+- checker-only commit → decision-only commit → implementation commit の3段階land
+  — izanagi の通常 fold / land 契約 (1 wave = 1 回の受入・land) と整合しない。
+- 新しい git clone/checkout で admission root を分離し既存 key を再 claim する方式
+  — 事前登録が「不可逆・一度きり」と明記した観測承認の安全装置を回避することになり
+  不採用。
