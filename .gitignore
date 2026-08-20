@@ -24,6 +24,8 @@ output/dev-wave-supervisor/runtime/
 output/env/pegasus/silo_ladder_rung1/job-staging/
 output/env/pegasus/floor/job-staging/
 output/pegasus-dispatch/
+# campaign 単位 advisory flock の実行時 lock file ([T-565])。内容は空、識別子は layout.root の hash
+output/campaign-locks/
 
 # CCBench submodule のビルド成果物 (submodule 自体は追跡)
 external/ccbench/build/
