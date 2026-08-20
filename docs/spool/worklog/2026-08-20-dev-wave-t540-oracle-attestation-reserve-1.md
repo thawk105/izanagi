@@ -10,14 +10,9 @@ title: '[T-540] oracle の完走予約式へ attestation probe 所要時間項�
 ## 本文
 
 - 設計判断の詳細は {{D:oracle-reservation-probe-term-no-plus-one}} を参照。
-- **セッション異常:** 段6 fix (NaN/Inf 回帰テスト追加、3回目の fix 試行) が
-  `codex_worker_launch.py` の出力下限 (500 bytes) を1バイトも余裕なく下回り
-  (`output_bytes=492`) `not_accepted` (validator_rc=1) になった。sandbox=workspace-write
-  での実ファイル書き込み自体は正しい内容 (NaN/Inf 拒否テスト2件) で成功していたが、正式な
-  採用記録がないため、4回目の fix へ「現状確認し、既にあれば重複させない」という指示で
-  再投入し、正式な accepted 記録を得た (作業ツリーへの重複書き込みはなし)。教訓は memory
-  `codex-output-min-500-bytes.md` の既存知見どおりだが、今回は「短い診断報告で済むタスク」で
-  実際に踏んだ実例として記録する。
+- **セッション異常:** 段6 fix (3回目) が出力 bytes 下限未達で not_accepted になった件は
+  F43 へ再発追記した (実ファイル書き込みは正しく、4回目の fix で現状確認・重複回避のうえ
+  accepted 記録を取得)。
 - **変異 spec の見積り訂正:** `reservation.py` の NaN/Inf 拒否ロジック
   (`_validate_duration`) を削除する変異を事前登録した際、当初 NaN・Inf 両方が
   `_validate_duration` 層だけで拒否されると見積もったが、実測すると Inf 側は別層
