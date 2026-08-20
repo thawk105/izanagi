@@ -320,6 +320,7 @@ _T1337_PRE_ACCEPTANCE_MERGE_NOTE = (
     "Codex `role=author` が既に書いており、main 側は各 wave land 時に監査済み。親作成 merge の"
     "ため Codex 著者とは記さない。"
 )
+_T565_MERGE_RULING = "D554 (2026-08-19)"
 _T139_MALFORMED_VALUE = (
     "product=claude; model=claude-opus-5[1m]; reasoning=high; "
     "role=orchestrator"
@@ -714,6 +715,21 @@ KNOWN_PROVENANCE_VIOLATIONS = (
         MISSING_CODEX_AUTHOR,
         _T1337_PRE_ACCEPTANCE_MERGE_RULING,
         note=_T1337_PRE_ACCEPTANCE_MERGE_NOTE,
+    ),
+    KnownViolationSpec(
+        "76248294bf40eb7fa0d806ce4df5010d685036de",
+        MISSING_CODEX_AUTHOR,
+        _T565_MERGE_RULING,
+        note=(
+            "受入前の local main 取り込みmerge (2回目)。実装面で両側が触ったのは"
+            "orchestrator/tests/test_campaign.py の1 fileのみで、"
+            "git diff-tree --cc 76248294 はSHA行のみの完全な空 = 競合解決による新規著作なし。"
+            "wave側の追加7テストはCodex role=authorが commit 06acc7fd で既に書いており、"
+            "main側 (T-1437) は main land時に監査済み。D554の「実装面で本当に衝突したときだけ"
+            "Codexを要求する」条件付き昇格に該当するが、本merge自体はdev_wave_wait.pyの"
+            "postclaim mergeではなく手動mergeのため事前検証済みファイルを持たなかった。"
+            "親作成mergeのためCodex著者とは記さない。"
+        ),
     ),
     KnownViolationSpec(
         "c44b981c4a765b8f189d30ca69ba7b461b71efd1",
