@@ -7,8 +7,9 @@ reward hacking 圧力が最も高い。iteration フロー (design v1 §4 の 1 
     1. planner (LLM):  current_perf (絶対 throughput を含む) + leading-indicators +
        whiteboard + optional policy_hint (このharnessが emit) → 方向提案 (proposal スキーマは具体値 field を持たない)
        checkpoint 復元時は whiteboard の delta_pct と direction / magnitude / result の
-       型・値域を fail-closed に検査する。ただし in-memory 射影経路と layer3_report の
-       独立 reader はこの検査を通らず、iteration 整合・件数・origin 束縛も残る ([T-287] の残余)
+       型・値域を fail-closed に検査する。layer3_report の独立 reader も direction /
+       magnitude / result の値域検査を共有するが、in-memory 射影経路、iteration 整合・
+       entry 件数・origin 束縛は引き続き対象外である ([T-287] の残余)
        justification / uncertainty の自由文は journal / report に残る
     2. coder   (LLM):  方向 + baseline (絶対 throughput 等の現行指標) → 具体 backoff 値 +
        hole コード (過去候補の勝ち筋値・critic の機序帰属の専用 field は持たない)
@@ -136,8 +137,8 @@ class WhiteboardEntry:
     """proposal と harness result を保持する whiteboard の 1 行。
 
     passive dataclass のため値域は自身では検査しない。checkpoint 復元値は state_from_dict が
-    direction / magnitude / result の型・値域を検査するが、in-memory 射影経路と
-    layer3_report の独立 reader はその境界を通らない ([T-287] の残余)。delta_pct field は
+    direction / magnitude / result の型・値域を検査するが、in-memory 射影経路はその境界を
+    通らない。layer3_report の独立 reader は同じ値域検査を共有する ([T-287] の残余)。delta_pct field は
     planner 射影時にも None を fail-closed 強制する。"""
     iteration: int
     direction: str
@@ -518,8 +519,8 @@ def project_whiteboard(state: LoopState, planner: PlannerProposal,
     """proposal と harness result を whiteboard の 5 field へ射影する (design v1 §4)。
 
     この in-memory 射影経路は direction / magnitude / result の型・値域を検査しない。
-    checkpoint 復元値は state_from_dict が検査するが、layer3_report の独立 reader もその境界を
-    通らない ([T-287] の残余)。delta_pct field は planner 射影時に None を fail-closed 強制する。
+    checkpoint 復元値は state_from_dict が検査するが、layer3_report の独立 reader は同じ値域検査を
+    共有する ([T-287] の残余)。delta_pct field は planner 射影時に None を fail-closed 強制する。
     result の想定値は success (certified 緑) | fail (verify/liveness 赤) |
     rejected (diff 検疫 reject)。"""
     e = WhiteboardEntry(iteration=state.iteration, direction=planner.direction,
@@ -534,7 +535,7 @@ def whiteboard_for_planner(state: LoopState) -> List[Dict]:
     段 4 はこの whiteboard 射影経路の delta_pct field に限って None を fail-closed
     強制する (規律2/6)。checkpoint 復元時の direction / magnitude / result は
     state_from_dict が型・値域を検査するが、project_whiteboard からの in-memory 値は無検査で、
-    layer3_report の独立 reader も復元境界を通らない ([T-287] の残余)。これは planner 入力全体の
+    layer3_report の独立 reader は同じ値域検査を共有する ([T-287] の残余)。これは planner 入力全体の
     性能値遮断ではない。絶対
     throughput は別 field の current_perf で planner へ、baseline で coder へ渡り、
     planner には leading_indicators も渡る。delta_pct field は load 側 state_from_dict
@@ -656,6 +657,22 @@ _WB_VALUE_DOMAINS = (
 )
 
 
+def assert_whiteboard_value_domains(
+        entry: Dict, index: int) -> Dict[str, str]:
+    """1 件の whiteboard entry の direction/magnitude/result 値域を検査する。"""
+    checked = {}
+    for field_name, allowed in _WB_VALUE_DOMAINS:
+        value = entry[field_name]
+        if type(value) is not str or value not in allowed:
+            sorted_allowed = sorted(allowed)
+            raise ValueError(
+                f"whiteboard entry[{index}].{field_name} は str の許可値 "
+                f"{sorted_allowed!r} のいずれか必須 (受領型={type(value).__name__}) — "
+                f"checkpoint schema drift/改竄の疑い (規律6)")
+        checked[field_name] = value
+    return checked
+
+
 def state_from_dict(d: Dict) -> LoopState:
     """checkpoint 辞書から復元 — checkpoint はディスク上の外部状態 (信頼境界の外、規律6) ゆえ
     schema を fail-closed に強制する (監査 2026-07-08)。
@@ -668,8 +685,8 @@ def state_from_dict(d: Dict) -> LoopState:
         **delta_pct≡None を値契約として強制**する (型で名前を whitelist するだけでは勝ち筋チャネル
         の混入を防げない、規律2/6)。
     (3) checkpoint 復元時の direction / magnitude / result は exact str と閉じた値域を要求する。
-        in-memory 射影経路と layer3_report の独立 reader はこの検査を通らず、iteration 整合・
-        entry 件数・campaign/run origin も本関数では検査しない。"""
+        layer3_report の独立 reader も同じ共有検査を呼ぶが、in-memory 射影経路は引き続き
+        検査せず、iteration 整合・entry 件数・campaign/run origin も本関数では検査しない。"""
     unknown = set(d) - _TOP_FIELDS
     if unknown:
         raise ValueError(f"checkpoint top-level に未知フィールド {unknown} — schema drift/改竄の疑い (規律6)")
@@ -688,16 +705,7 @@ def state_from_dict(d: Dict) -> LoopState:
                 f"段 4 の delta_pct≡None 不変が破れた (delta_pct={delta!r}) — 勝ち筋チャネルの "
                 f"checkpoint 経由混入 (規律2/6)。段 6 で live 化するまで None 固定")
         entry_iteration = int(e["iteration"])
-        checked = {}
-        for field_name, allowed in _WB_VALUE_DOMAINS:
-            value = e[field_name]
-            if type(value) is not str or value not in allowed:
-                sorted_allowed = sorted(allowed)
-                raise ValueError(
-                    f"whiteboard entry[{index}].{field_name} は str の許可値 "
-                    f"{sorted_allowed!r} のいずれか必須 (受領型={type(value).__name__}) — "
-                    f"checkpoint schema drift/改竄の疑い (規律6)")
-            checked[field_name] = value
+        checked = assert_whiteboard_value_domains(e, index)
         wb.append(WhiteboardEntry(
             iteration=entry_iteration, direction=checked["direction"],
             magnitude=checked["magnitude"], result=checked["result"], delta_pct=delta))

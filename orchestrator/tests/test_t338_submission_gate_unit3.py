@@ -183,8 +183,8 @@ def _make_git_fixture(tmp_path: Path) -> SimpleNamespace:
                     "file": "transaction.cc",
                     "arguments": [
                         "g++",
-                        "-DCCBENCH_TRACE=0",
-                        "-DCCBENCH_ADD_ANALYSIS=0",
+                        "-DTRACE=0",
+                        "-DADD_ANALYSIS=0",
                         "-c",
                         "transaction.cc",
                     ],
@@ -200,8 +200,8 @@ def _make_git_fixture(tmp_path: Path) -> SimpleNamespace:
                     "file": "transaction.cc",
                     "arguments": [
                         "g++",
-                        "-DCCBENCH_TRACE=1",
-                        "-DCCBENCH_ADD_ANALYSIS=1",
+                        "-DTRACE=1",
+                        "-DADD_ANALYSIS=1",
                         "-c",
                         "transaction.cc",
                     ],
@@ -388,8 +388,8 @@ def _full_receipt(fixture: SimpleNamespace) -> tuple[dict[str, Any], ReceiptSche
                 "transaction.cc": {
                     "normalized_argv": [
                         "g++",
-                        "-DCCBENCH_TRACE=0",
-                        "-DCCBENCH_ADD_ANALYSIS=0",
+                        "-DTRACE=0",
+                        "-DADD_ANALYSIS=0",
                         "-c",
                         "transaction.cc",
                     ],
@@ -765,8 +765,8 @@ def test_compile_flags_require_three_legs(tmp_path: Path) -> None:
 def test_compile_commands_reject_nonfinite_json_with_parse_cause(tmp_path: Path) -> None:
     """shapeを通過するcompile_commands pointerで、JSON数値の非有限値だけを破る。"""
     commands = (
-        b'[{"arguments":["g++","-DCCBENCH_TRACE=0",'
-        b'"-DCCBENCH_ADD_ANALYSIS=0"],"diagnostic":1e999999}]'
+        b'[{"arguments":["g++","-DTRACE=0",'
+        b'"-DADD_ANALYSIS=0"],"diagnostic":1e999999}]'
     )
     record = _file_record(tmp_path, "build/compile_commands.json", commands)
     _file_record(
@@ -793,7 +793,7 @@ def test_compile_commands_reject_nonfinite_json_with_parse_cause(tmp_path: Path)
 
 def test_cmake_cache_is_reject_only(tmp_path: Path) -> None:
     """shape検査を通過し、raw CMakeCacheの不一致だけで拒否する。"""
-    commands = json.dumps([{"arguments": ["g++", "-DCCBENCH_TRACE=0", "-DCCBENCH_ADD_ANALYSIS=0"]}], separators=(",", ":")).encode()
+    commands = json.dumps([{"arguments": ["g++", "-DTRACE=0", "-DADD_ANALYSIS=0"]}], separators=(",", ":")).encode()
     record = _file_record(tmp_path, "build/compile_commands.json", commands)
     _file_record(tmp_path, "build/CMakeCache.txt", b"CCBENCH_TRACE:STRING=1\nCCBENCH_ADD_ANALYSIS:STRING=0\n")
     data = {"configure_argv": ["-DCCBENCH_TRACE=0", "-DCCBENCH_ADD_ANALYSIS=0"], "compile_commands": record, "cmake_cache": {"trace": 0, "add_analysis": 0}, "trace_enabled": False, "analysis_enabled": False}

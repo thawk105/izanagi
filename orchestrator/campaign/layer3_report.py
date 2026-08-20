@@ -52,6 +52,7 @@ _HERE = Path(__file__).resolve().parent
 from ..calibrator import perf_preflight as _perf_preflight  # noqa: E402
 from . import (  # noqa: E402
     campaign_lock,
+    p3_s4_loop,
     s8c_acceptance_receipt,
     trigger_gate_binding,
     wal,
@@ -495,6 +496,13 @@ def build_report(campaign_dir: Path, generated_from_head: Optional[str] = None, 
         if not isinstance(whiteboard, list) or not all(isinstance(item, dict) for item in whiteboard):
             raise Layer3ReportError("loop_state.whiteboard が object の list でない")
         whiteboard_provenance = "loop_state"
+    for index, entry in enumerate(whiteboard):
+        try:
+            p3_s4_loop.assert_whiteboard_value_domains(entry, index)
+        except (ValueError, KeyError) as exc:
+            raise Layer3ReportError(
+                f"whiteboard entry[{index}] の値域検査に失敗: {exc}"
+            ) from exc
     if not isinstance(lock, dict):
         raise Layer3ReportError("campaign.lock が object でない")
     if _contains_qualification_lineage(lock):

@@ -5392,6 +5392,16 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: probe 直後の `git diff --stat` が probe の 1 行だけであること、および
   復元後に `git log --oneline -1` が期待する統合 commit を指すこと。
 
+
+- **再発: 2026-08-20** — [T-1381] wave の段6 post-change 変異再検証で、実装子 (Codex
+  role=author) の未 commit docstring 変更が乗った tree に対し `git status --porcelain`
+  の非空確認を怠って `git checkout -- <file>` で復元し、実装子の成果も巻き戻った。
+  直後の `git diff --stat` で対象 file が消えていることを検知し、直前に取得済みの
+  `git diff` 全文から docstring 2 箇所を Edit で verbatim 再現して完全復元した
+  (復元後 diff が元の diff と byte 一致、test 再走で確認)。実害なし。F174 の恒久対応
+  (「親が実編集 probe を行う前に `git status --porcelain` が空であることを確認する」
+  「dev-wave 入口の `DW-O19` 条件へ『親の probe でも成立する』ことを明記する」) が
+  未だ `DW-O19` 本文へ反映されていないことが 2 回目の再発で裏付けられた。
 ### F175. フレークの計装が、そのフレークの発火条件で `DID NOT RAISE` になった [テストフレーク] [恒真ゲート]
 
 - 事象: F57 の launcher フレークを観測するために新設した wiring meta-test が、
@@ -6594,6 +6604,16 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   検出はされているので検出力の欠落ではないが、台帳の期待値としては誤りだった。
   初回結果を消さず `mutation-ledger-a.json` に残し、実測の完全集合で再登録した確認走を
   `mutation-ledger-b.json` に置いて 2 件とも KILLED を確認した。
+
+- **再発: 2026-08-20** — T-1142 n-pilot R33 admission 再設計 wave の fix 後
+  変異 matrix で、変異8件のうち4件が MISMATCH。M1 は8件への missing 拡大
+  (共有 fixture `_allocation_result_files` への連鎖影響)、M2 は逆に extra 側
+  (予測2件・実測1件、変異後も別分岐で偶然動作)、M6/M7 は
+  `s8b_oracle_n_pilot.py` 変異全てに共通する巻き添え
+  (`test_r33_protocol_document_loads_from_repository` が driver.py のバイト
+  変更で protocol document 記録 hash と不一致になる構造的性質、正しさ検出とは
+  無関係)。期待 node を机上予測でなく実測から再導出し、巻き添えテストを
+  `--deselect` で除外して再走、8/8 KILLED 一致を確認した。
 ### F231. 受入待ち手の merge 競合が競合 path を出さず、親が手で再現した [手順漏れ] [コンテキスト浪費]
 
 - 事象: `tools/dev_wave_wait.py acceptance` が lease 取得後の main 取り込みで競合し、
@@ -10563,6 +10583,7 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   強い。ユーザー裁定 (2026-08-20、詳細は本fragmentの worklog 側) により、上限引き上げは
   再度不採用のまま維持し、D551と同じ原則を `_batch_oids` の残る全呼び出し経路へ適用する恒久
   対応を worklog 新規項目として起票した。
+- **supersede: 2026-08-20** — 再発時の仮説(`_batch_oids` を通る他経路が履歴比例のまま残っている疑いが強い)は実測で否定された。真因は branch が D551 land (2026-08-19 12:51) より前の main (11:08) から分岐していたことであり、D551 親コミット時点のコードと失敗 tip での再現実験 (50061 requests) で確定した。`_batch_oids` の呼び出しは repo 全体で2経路のみ (1571行目 `_assert_rulings_exist`、1609行目 `validate_condition_freeze_at`) でどちらも履歴長非依存と確認済み。恒久対応として `_assert_rulings_exist` 経路の専用回帰テストを既存テスト拡張で追加した (D608、commit 8014d6778f1ca853b719b9d95a333d069ce17456)。
 ### F418. 8c preregistration の batch 上限をリポジトリ成長がわずかに超え、main への merge を伴う受入が構造的に赤くなる [恒真ゲート] [検査の非対称]
 
 - 事象: [T-699] の受入全走で `git merge --no-ff --no-commit main` 後、
@@ -11075,3 +11096,43 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: `/rulings` 実行の冒頭で `python3 rulings-tools/sweep_pending.py` の先頭数行を一瞥し、
   `REPO` が worktree パスに戻っていないか確認する。新しい見出し変種で漏れを見つけたら
   同 script の正規表現へ追記する (このエントリの型を再発として顕在化させる)。
+
+### F439. dev-wave段4裁定でB-057変異事前登録の手順自体が漏れた [手順漏れ]
+
+- 事象: T-1142 n-pilot R33 admission再設計waveの段4裁定 (第2wave、ユーザーが
+  「実装に着手してほしい」を選んで再開した回) で、DW-M01が求める「段4でB-057
+  の変異を実装前に登録する」を実行せず、Unit0-4実装 (段5、1756+行規模) へ
+  進んだ。段6 fixの統合commit後にDW-M01を読み返して発覚した。
+- 根本原因: 段4裁定を確定する際、docs/dev-wave/mutation.mdのDW-M01を実際には
+  適用しなかった。wave自体が「実装しない」裁定からユーザー指示で再開するという
+  複雑な経緯を辿っており、通常の段2→3→4の直線フローと異なる分岐を通ったことが
+  見落としと関係した可能性がある。
+- 恒久対応: memory (`dev-wave-stage4-mutation-registration-checklist.md`) へ、
+  段4裁定確定直前に DW-M01 の適用有無を明示確認する運用を記録した。今回は
+  事後 (段6 fix後) に B-057 変異8件を新規登録・本走し、8/8 KILLED を確認して
+  代替した (実装後だが実測ベースの検証、前例 T-172 系5度目発火・
+  `docs/phase3.md:1043` の "bounded 事後 audit" と同型)。
+- 再発検知: 段6以降で DW-M01 を読み返した際に、既存 spec ファイルの不在を
+  grep で確認する事後検知に留まる。段4時点での検知手段は本 wave では
+  新設していない。
+
+### F440. 段4裁定確定時に dispatch 表の複合行から `docs/dev-wave/mutation.md: DW-M01` 部分だけを読み落とす [手順漏れ]
+
+- 事象: [T-1442] wave で、段4裁定 (通常の 1→2→3→4→5→6 直線フロー) を確定する際、command
+  dispatch 表の「段4 |U| `docs/dev-wave/core.md`: `DW-S04`, `DW-G01`〜`DW-G05`;
+  `docs/dev-wave/mutation.md`: `DW-M01`」という複合行のうち `core.md` 側だけを読み、
+  `mutation.md: DW-M01` を見落とした。段6 fix 完了後、変異 matrix 投入直前になって
+  `docs/dev-wave/mutation.md` を一度も読んでいないことに気づき、事後的に DW-M01 の変異
+  事前登録を遡及して行った。同型の1例目は [T-1142] n-pilot R33 admission 再設計 wave
+  (2026-08-19、非直線フロー「実装しない→ユーザー指示で再開」を経由) で発生している。
+- 根本原因: 1 つの dispatch 表 row に複数の参照節 (`;` 区切りで異なる文書 2 つ) が
+  併記されている箇所で、先頭の文書だけを読んで後続を読み飛ばす。通常の直線フローでも
+  非直線フローでも共通に起きうる (1例目は非直線フロー、2例目は直線フロー)。
+- 恒久対応: Claude 個人 memory `dev-wave-stage4-mutation-registration-checklist`
+  (段4裁定確定直前に DW-M01 適用有無を自問し、handoff へ「変異事前登録: 済/対象なし(理由)」を
+  明示欄として含める運用) が次回セッション以降の再発防止策として機能する。dev-wave command
+  本体 (dispatch 表複合行の分割・強調) の是正は、`docs/dev-wave/*.md` 3層の byte 予算が
+  既知で満杯 (`dev-wave-docs-compression-breaks-exact-pins` 系の既存制約と一致) のため
+  本 wave では見送り、ユーザー裁定へ返す。
+- 再発検知: なし (dispatch 表複合行の読了を機械的に検査する仕組みは未整備。Claude memory は
+  同一ユーザーの別セッションへは伝播するが、Codex 子や他 AI 作業者には伝播しない)。
