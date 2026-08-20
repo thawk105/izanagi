@@ -18,6 +18,7 @@ import shlex
 import shutil
 import subprocess
 import sys
+from collections import UserDict
 from pathlib import Path
 from types import SimpleNamespace
 from unittest import mock
@@ -1396,6 +1397,15 @@ def test_happy_path_resolves_and_loads(tmp_path):
     assert freeze.sha256 == gen_sha
     assert freeze.activation_head == res.activation_head
     assert freeze.document["schema_version"] == "8b-holdout-freeze/v2"
+    assert freeze.holdouts == freeze.document["holdouts"]
+    assert {
+        name: entry["candidate_id"]
+        for name, entry in freeze.holdouts.items()
+    } == {name: frozen["candidate_id"] for name, frozen in HF.HOLDOUTS.items()}
+    with pytest.raises(TypeError):
+        freeze.holdouts["rr80"] = {}  # type: ignore[index]
+    with pytest.raises(TypeError):
+        freeze.holdouts["rr80"]["candidate_id"] = "H2"  # type: ignore[index]
     assert topology["result"]["eligible_for_refreeze"] is True
     assert set(topology["manifest"]) == set(M._MANIFEST_KEYS)
     assert set(topology["result"]) == set(FC.result_keys_for_mode("official"))
@@ -2115,6 +2125,100 @@ def test_generation_supersedes_mismatch_rejected(tmp_path):
 # --------------------------------------------------------------------------
 # 深い不変性 / shallow / dirty / 型分離 / static
 # --------------------------------------------------------------------------
+
+def _direct_ratified_freeze(document: dict) -> M.RatifiedFreeze:
+    return M.RatifiedFreeze(
+        document=document,
+        sha256="a" * 64,
+        generation_number=1,
+        activation_head="b" * 40,
+        generation_commit="c" * 40,
+    )
+
+
+def _direct_holdouts_document() -> dict:
+    return {
+        "holdouts": {
+            name: {"candidate_id": frozen["candidate_id"]}
+            for name, frozen in HF.HOLDOUTS.items()
+        }
+    }
+
+
+@pytest.mark.parametrize(
+    ("case", "expected_reason"),
+    [
+        ("missing", "holdouts-schema"),
+        ("non-mapping", "holdouts-schema"),
+        ("entry-non-mapping", "holdout-entry"),
+        ("candidate-id-swap", "holdout-entry"),
+    ],
+)
+def test_ratified_freeze_holdouts_property_rejects_invalid_projection(
+    case: str, expected_reason: str,
+) -> None:
+    document = _direct_holdouts_document()
+    if case == "missing":
+        del document["holdouts"]
+    elif case == "non-mapping":
+        document["holdouts"] = []
+    elif case == "entry-non-mapping":
+        document["holdouts"]["rr80"] = []
+    elif case == "candidate-id-swap":
+        document["holdouts"]["rr80"]["candidate_id"] = "H2"
+        document["holdouts"]["rr20"]["candidate_id"] = "H1"
+    else:  # pragma: no cover - parameter values are exhaustive
+        raise AssertionError(case)
+
+    with pytest.raises(M.RatifiedFreezeError) as error:
+        _direct_ratified_freeze(document).holdouts
+    assert error.value.reason == expected_reason
+
+
+def test_ratified_freeze_holdouts_property_freezes_direct_mutable_document() -> None:
+    document = {
+        "holdouts": {
+            name: {
+                "candidate_id": frozen["candidate_id"],
+                "metadata": {"tags": [name]},
+            }
+            for name, frozen in HF.HOLDOUTS.items()
+        }
+    }
+    projection = _direct_ratified_freeze(document).holdouts
+
+    with pytest.raises(TypeError):
+        projection["rr80"]["candidate_id"] = "mutated"  # type: ignore[index]
+    with pytest.raises(TypeError):
+        projection["rr80"]["metadata"]["tags"] = ()  # type: ignore[index]
+    assert document["holdouts"]["rr80"]["candidate_id"] == "H1"
+
+    document["holdouts"]["rr80"]["candidate_id"] = "changed-after-read"
+    assert projection["rr80"]["candidate_id"] == "H1"
+
+
+def test_ratified_freeze_holdouts_property_normalizes_non_dict_mappings() -> None:
+    document = {
+        "holdouts": UserDict(
+            {
+                name: UserDict(
+                    {
+                        "candidate_id": frozen["candidate_id"],
+                        "metadata": {"tags": [name]},
+                    }
+                )
+                for name, frozen in HF.HOLDOUTS.items()
+            }
+        )
+    }
+    projection = _direct_ratified_freeze(document).holdouts
+
+    with pytest.raises(TypeError):
+        projection["rr80"]["candidate_id"] = "mutated"  # type: ignore[index]
+    with pytest.raises(TypeError):
+        projection["rr80"]["metadata"]["tags"] = ()  # type: ignore[index]
+    assert projection["rr80"]["metadata"]["tags"] == ("rr80",)
+
 
 def test_ratified_freeze_deep_immutability(tmp_path):
     if not _REAL_V1.is_file():
