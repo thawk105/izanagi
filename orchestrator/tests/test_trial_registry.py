@@ -5036,6 +5036,8 @@ def _append_legacy_v1_attempt_rows(
     classification = {
         **receipt,
         "event": "classification",
+        "prereg_content_commit": content_commit,
+        "prereg_effective_commit": effective_commit,
         "classification_receipt_sha256": receipt_digest,
     }
     terminal = {
@@ -5937,6 +5939,7 @@ def test_attempt_registry_rejects_previous_event_sha256_tampering(tmp_path: Path
     rows = [json.loads(line) for line in registry.read_text().splitlines()]
     classification = next(row for row in rows if row.get("event") == "classification")
     classification["previous_event_sha256"] = "e" * 64
+    classification["event_sha256"] = R._attempt_event_sha256(classification)
     _write_attempt_rows(registry, rows)
     with pytest.raises(
         R.TrialRegistryError,
@@ -5952,6 +5955,7 @@ def test_attempt_registry_rejects_event_index_tampering(tmp_path: Path) -> None:
     rows = [json.loads(line) for line in registry.read_text().splitlines()]
     classification = next(row for row in rows if row.get("event") == "classification")
     classification["event_index"] = 99
+    classification["event_sha256"] = R._attempt_event_sha256(classification)
     _write_attempt_rows(registry, rows)
     with pytest.raises(
         R.TrialRegistryError,
