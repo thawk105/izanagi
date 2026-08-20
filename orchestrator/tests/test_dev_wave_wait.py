@@ -320,6 +320,7 @@ class _FakeEffects:
         self.kill_queue: list[object] = []
         self.is_file_queue: list[tuple[Path, object]] = []
         self.read_text_queue: list[tuple[Path, object]] = []
+        self.stat_mtime_queue: list[tuple[Path, object]] = []
         self.monotonic_queue: list[float] = []
         self.clock = 0.0
         self.env: dict[str, str] = {}
@@ -328,6 +329,7 @@ class _FakeEffects:
         self.directories: set[Path] = {_RECEIPT.parent}
         self.symlinks: set[Path] = set()
         self.receipt_temp_result: object = _RECEIPT_TEMP
+        self.receipt_temp_payload: bytes | None = None
         self.rename_result: object = None
         self.receipt_content: bytes | None = None
         self.receipt_published = False
@@ -378,6 +380,7 @@ class _FakeEffects:
             inspect_no_verdict_log=self.inspect_no_verdict_log,
             archive_log=self.archive_log,
             acceptance_monotonic=lambda: self.clock,
+            stat_mtime_ns=self.stat_mtime_ns,
         )
 
     def expect_run(
@@ -599,6 +602,15 @@ class _FakeEffects:
             raise result
         return str(result)
 
+    def stat_mtime_ns(self, path: Path) -> int:
+        self.events.append(("stat_mtime_ns", path))
+        assert self.stat_mtime_queue, f"unexpected stat_mtime_ns: {path}"
+        expected, result = self.stat_mtime_queue.pop(0)
+        assert path == expected
+        if isinstance(result, BaseException):
+            raise result
+        return int(result)
+
     def getenv(self, name: str) -> str | None:
         return self.env.get(name)
 
@@ -635,7 +647,14 @@ class _FakeEffects:
 
     def write_receipt_temp(self, final_path: Path, content: bytes) -> Path:
         self.events.append(("write_receipt_temp", final_path))
-        assert content == b""
+        if content:
+            assert (
+                json.loads(content)["schema_version"]
+                == "dev-wave-producer-receipt/v1"
+            )
+        else:
+            assert content == b""
+        self.receipt_temp_payload = content
         if isinstance(self.receipt_temp_result, BaseException):
             raise self.receipt_temp_result
         return self.receipt_temp_result
@@ -665,6 +684,7 @@ class _FakeEffects:
         assert self.kill_queue == []
         assert self.is_file_queue == []
         assert self.read_text_queue == []
+        assert self.stat_mtime_queue == []
         assert self.monotonic_queue == []
 
 
@@ -6269,6 +6289,8 @@ def test_producer_cli_surface_has_no_pattern_input(capsys: pytest.CaptureFixture
         "--pid",
         "--pid-file",
         "--max-wait-seconds",
+        "--check-only",
+        "--receipt-file",
     }
     actual_options = {
         option
@@ -6285,6 +6307,283 @@ def test_producer_cli_surface_has_no_pattern_input(capsys: pytest.CaptureFixture
         captured = capsys.readouterr()
         assert captured.out == ""
         assert "Traceback" not in captured.err
+
+
+def test_producer_check_only_requires_receipt_file() -> None:
+    parser = DW._producer_parser()
+    with pytest.raises(DW._StageFailure) as raised:
+        parser.parse_args(
+            [
+                "--done-file",
+                "done",
+                "--artifact-file",
+                "artifact",
+                "--pid",
+                "1",
+                "--check-only",
+            ]
+        )
+    assert raised.value.outcome == DW._Outcome(2, "cli-usage")
+
+
+def test_atomic_publish_json_moves_fsynced_temp_to_final_path() -> None:
+    fake = _FakeEffects()
+    payload = {
+        "schema_version": "dev-wave-producer-receipt/v1",
+        "status": "success",
+    }
+
+    DW._atomic_publish_json(_RECEIPT, payload, fake.effects)
+
+    assert fake.events == [
+        ("write_receipt_temp", _RECEIPT),
+        ("rename", _RECEIPT_TEMP, _RECEIPT),
+    ]
+    assert fake.receipt_temp_payload == DW._canonical_json_line(payload)
+    assert _RECEIPT in fake.existing_paths
+    fake.assert_drained()
+
+
+def test_producer_check_only_success_is_single_pass_and_publishes_receipt() -> None:
+    fake = _FakeEffects()
+    pid = 123
+    stat_path = Path(f"/proc/{pid}/stat")
+    fake.read_text_queue.append((stat_path, _stat_text(pid, 17)))
+    fake.kill_queue.append(ProcessLookupError(errno.ESRCH, "gone"))
+    fake.is_file_queue.extend(
+        [(Path("done"), True), (Path("artifact"), True)]
+    )
+    fake.stat_mtime_queue.extend(
+        [(Path("done"), 101), (Path("artifact"), 202)]
+    )
+
+    outcome = DW.main(
+        [
+            "producer",
+            "--done-file",
+            "done",
+            "--artifact-file",
+            "artifact",
+            "--pid",
+            str(pid),
+            "--check-only",
+            "--receipt-file",
+            str(_RECEIPT),
+        ],
+        effects=fake.effects,
+    )
+
+    assert outcome == DW.RC_OK
+    assert not any(event[0] == "sleep" for event in fake.events)
+    assert json.loads(fake.receipt_temp_payload) == {
+        "artifact_file": str(DW._absolute_path(Path("artifact"))),
+        "artifact_mtime_ns": 202,
+        "done_file": str(DW._absolute_path(Path("done"))),
+        "done_mtime_ns": 101,
+        "pid_source": str(DW._absolute_path(Path(f"/proc/{pid}/stat"))),
+        "schema_version": "dev-wave-producer-receipt/v1",
+        "status": "success",
+    }
+    assert _RECEIPT in fake.existing_paths
+    fake.assert_drained()
+
+
+@pytest.mark.parametrize(
+    "missing",
+    ["producer", "done", "artifact"],
+    ids=["producer-alive", "done-missing", "artifact-missing"],
+)
+def test_producer_check_only_missing_condition_is_fail_closed(
+    missing: str,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    fake = _FakeEffects()
+    pid = 124
+    stat_path = Path(f"/proc/{pid}/stat")
+    if missing == "producer":
+        fake.read_text_queue.extend(
+            [(stat_path, _stat_text(pid, 18)), (stat_path, _stat_text(pid, 18))]
+        )
+        fake.kill_queue.append(None)
+    else:
+        fake.read_text_queue.append((stat_path, _stat_text(pid, 18)))
+        fake.kill_queue.append(ProcessLookupError(errno.ESRCH, "gone"))
+    fake.is_file_queue.extend(
+        [
+            (Path("done"), missing != "done"),
+            (Path("artifact"), missing != "artifact"),
+        ]
+    )
+
+    outcome = DW.main(
+        [
+            "producer",
+            "--done-file",
+            "done",
+            "--artifact-file",
+            "artifact",
+            "--pid",
+            str(pid),
+            "--check-only",
+            "--receipt-file",
+            str(_RECEIPT),
+        ],
+        effects=fake.effects,
+    )
+
+    assert outcome == DW.RC_FAIL_CLOSED
+    assert fake.receipt_temp_payload is None
+    assert _RECEIPT not in fake.existing_paths
+    assert not any(event[0] == "sleep" for event in fake.events)
+    diagnostic = capsys.readouterr()
+    expected_missing = {
+        "producer": "producer-dead",
+        "done": "done-file",
+        "artifact": "artifact-file",
+    }[missing]
+    assert expected_missing in diagnostic.err
+    fake.assert_drained()
+
+
+@pytest.mark.parametrize(
+    "state",
+    [
+        pytest.param(
+            DW._ProducerState(DW._PidState.ALIVE, True, True),
+            id="producer-alive",
+        ),
+        pytest.param(
+            DW._ProducerState(DW._PidState.DEAD, False, True),
+            id="done-missing",
+        ),
+        pytest.param(
+            DW._ProducerState(DW._PidState.DEAD, True, False),
+            id="artifact-missing",
+        ),
+    ],
+)
+def test_producer_receipt_gate_rejects_incomplete_state_with_real_files(
+    tmp_path: Path,
+    state: DW._ProducerState,
+) -> None:
+    done_file = tmp_path / "producer.done"
+    artifact_file = tmp_path / "artifact.json"
+    receipt_file = tmp_path / "producer-receipt.json"
+    done_file.write_text("0\n", encoding="utf-8")
+    artifact_file.write_text("{}\n", encoding="utf-8")
+
+    # Keep both files real so a gate-bypassing mutation reaches real stat()
+    # calls instead of being masked by an injected mtime failure.
+    outcome = DW._publish_producer_receipt(
+        receipt_file=receipt_file,
+        pid_source=tmp_path / "pid-source",
+        done_file=done_file,
+        artifact_file=artifact_file,
+        state=state,
+        effects=DW._default_effects(),
+    )
+
+    assert outcome.rc == DW.RC_FAIL_CLOSED
+    assert not receipt_file.exists()
+
+
+@pytest.mark.parametrize(
+    "signal_to_send",
+    [signal.SIGKILL, signal.SIGTERM],
+    ids=["sigkill", "sigterm"],
+)
+def test_producer_waiter_kill_requires_later_check_only_receipt(
+    tmp_path: Path,
+    signal_to_send: signal.Signals,
+) -> None:
+    done_file = tmp_path / "producer.done"
+    artifact_file = tmp_path / "artifact.json"
+    receipt_file = tmp_path / "producer-receipt.json"
+    producer = subprocess.Popen(
+        [sys.executable, "-c", "import time; time.sleep(60)"],
+        cwd=_ROOT,
+        stdin=subprocess.DEVNULL,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+    )
+    waiter: subprocess.Popen[str] | None = None
+    try:
+        waiter = subprocess.Popen(
+            [
+                sys.executable,
+                str(_TOOL),
+                "producer",
+                "--done-file",
+                str(done_file),
+                "--artifact-file",
+                str(artifact_file),
+                "--pid",
+                str(producer.pid),
+                "--max-wait-seconds",
+                "60",
+                "--receipt-file",
+                str(receipt_file),
+            ],
+            cwd=_ROOT,
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        deadline = time.monotonic() + 30
+        while waiter.poll() is None and time.monotonic() < deadline:
+            if receipt_file.exists():
+                break
+            time.sleep(0.02)
+        assert waiter.poll() is None
+        assert not receipt_file.exists()
+
+        waiter.send_signal(signal_to_send)
+        waiter.wait(timeout=120)
+        assert not receipt_file.exists()
+
+        done_file.write_text("0\n", encoding="utf-8")
+        artifact_file.write_text("{}\n", encoding="utf-8")
+        producer.terminate()
+        producer.wait(timeout=120)
+
+        checked = subprocess.run(
+            [
+                sys.executable,
+                str(_TOOL),
+                "producer",
+                "--done-file",
+                str(done_file),
+                "--artifact-file",
+                str(artifact_file),
+                "--pid",
+                str(producer.pid),
+                "--check-only",
+                "--receipt-file",
+                str(receipt_file),
+            ],
+            cwd=_ROOT,
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            check=False,
+            timeout=120,
+        )
+        assert checked.returncode == DW.RC_OK, checked.stderr
+        assert receipt_file.exists()
+        receipt = json.loads(receipt_file.read_text(encoding="utf-8"))
+        assert receipt["schema_version"] == "dev-wave-producer-receipt/v1"
+        assert receipt["status"] == "success"
+        assert receipt["done_file"] == str(done_file)
+        assert receipt["artifact_file"] == str(artifact_file)
+    finally:
+        if waiter is not None and waiter.poll() is None:
+            waiter.kill()
+            waiter.wait(timeout=120)
+        if producer.poll() is None:
+            producer.kill()
+            producer.wait(timeout=120)
 
 
 def test_producer_start_time_change_is_original_process_death() -> None:

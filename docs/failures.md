@@ -9255,6 +9255,7 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   対応として、実行系は codex 子と同じく runner と launcher を `.sh` へ外出しして
   `nohup setsid` で detach し、死活判定は producer の pid と `.done` の mtime だけで行った。
   旧走行の `.done` (rc=1) が残っていて新走行の結果と取り違えかけたため、mtime の照合も要る。
+- **supersede: 2026-08-20** — [T-1257] で再発検知条件 (2 例目成立時に機序を特定し待ち手側の fails-closed 検査として実装する) を満たした。`tools/dev_wave_wait.py producer` へ `--check-only`/`--receipt-file` を追加し、producer 死亡+`.done`+artifact の 3 点が揃った場合だけ atomic に durable receipt を publish する一発検査を実装、完了通知・stdout・待ち手自身の rc は完了の証拠として扱わない設計にした (D594)。実 subprocess へ SIGKILL/SIGTERM を送る統合テストで F355 の症状 (producer 生存・出力ゼロで待ち手が消える) を再現し、receipt が正しく publish されないことを確認した。変異事前登録 (producer 死亡判定の除去、3 条件 gate のバイパス) は baseline 緑・2/2 KILLED。運用契約 (`DW-C00`/`DW-O01`) への結線は `docs/dev-wave/**` の L1/L1.5 byte 予算と `.claude/commands/dev-wave.md` 自体の 9500 byte 予算がいずれも実質スラック 0 だったため本 wave では実施できず、次の一手 (`[T-1439]`) へ回した。
 ### F356. 過去の遷移を毎回再判定する chain に、可変な現行定数との比較を置いた [恒真ゲート] [誤前提]
 
 - 事象: 環境契約の後継判定へ「取得方式名が現行 probe 定数と一致すること」を足した。
@@ -9896,6 +9897,19 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   `check_acceptance_reds.py` の probe は短時間 dispatch を複数バースト投入する利用パターンであり、
   固定 60 秒窓が相対的に厳しくなる仮説を持つが未実測。恒久対応 (grace 窓拡張・投入間隔調整・
   `request-absent` latch 条件の見直し) はユーザー裁定へ返し、本 wave では実施しない。
+
+- **再発: 2026-08-20** — `tools/mutation_harness.py --runner-mode dispatch` の1回目投入
+  (collection phase相当) が `orphan-hold` (`job-may-remain-without-terminal-evidence`) で
+  rc=2 停止した。木の変異は無く (`変異を残した状態=unchanged`)、docs編集も行っていない
+  ([T-1409] が切り分けた `dispatch_compute.py:1948` の `accounting-grace-expired` →
+  `_fresh_qstat_gated_qdel` の `request-absent` 保守的latchと同型)。対象 job
+  (`926304.nqsv`) は `output/pegasus-dispatch/<hash>/result.json` 上 `child_rc: 0` で
+  正常終了しており (12 tests collected)、非決定的 timing 事象の再現とみなせる。
+  復旧は既定手順どおり (手動qdelせずqstatの出力内容で不在を確認 → dirty file無し・
+  clean/HEAD確認 → hold jsonとsubmission_dirを削除 → 新しい`--out`/`--attempt-out`で
+  `--wrapper-attempt`を上げて再投入) で、2回目の投入は全7走 (collection・baseline・
+  変異5件) が成功した。`check_acceptance_reds.py` 以外の呼び手 (`mutation_harness.py`
+  内部のtest runner dispatch) でも同型が発生することを確認した。
 ### F384. 所有 file の合計行数が大きい実装子が SIGKILL され成果物ゼロで終わる [セッション死・救出] [コンテキスト浪費]
 
 - 事象: dev-wave 段 5 の実装子 2 体が `codex_exit_code = -9` で終了した。1 体目は

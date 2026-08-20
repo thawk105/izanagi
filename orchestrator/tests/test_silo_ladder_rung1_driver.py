@@ -81,6 +81,7 @@ def _integrity() -> dict:
         "write_version_mismatch": 0,
         "malformed_keys": 0,
         "framing_violations": 0,
+        "framing_violation_details": [],
         "lock_coverage_violations": 0,
         "write_intent_violations": 0,
         "permutation_violations": 0,
