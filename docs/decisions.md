@@ -24284,3 +24284,294 @@ C (supervise_pair/collect_run) → D (schedule validation/adjudication/aggregate
 **却下した選択肢:**
 - `task_id`のまま実装する — D75の教訓に反する。将来この2概念が同じ文書・ログに並んだときの
   混同リスクを残す。
+
+## D605. probe worktree清浄性検査のPYTHONDONTWRITEBYTECODE伝播は現行コードで完結していると確認し、追加のロジック変更を見送る (2026-08-20)
+
+**決定:** `tools/check_acceptance_reds.py` のprobe worktree清浄性検査が計算ノードdispatch由来の
+bytecodeキャッシュ残骸で失敗する問題 (T-1053系) について、現行main HEAD上のコードには
+PYTHONDONTWRITEBYTECODE伝播の欠陥が無いと3つの独立方法で確認し、追加のロジック変更は行わない。
+
+**理由:**
+- 親が現行HEAD上でcheck_acceptance_reds.pyの実dispatch経路
+  (`_default_collection_runner`/`_default_node_runner`相当) を4回再現実験し、0/4で残骸を
+  再現しなかった。うち1回はPegasus `gen_S` キュー同時34job走行という重負荷下でも再現しなかった。
+- 段2 codex (read-only、reasoning=max) が `tools/check_acceptance_reds.py` から
+  `tools/pegasus/dispatch_compute.py` までの伝播経路を全file:lineで再読し、欠陥なしと確認した。
+- 段3敵対レンズの一つが独立に、実際にインストール済みのexecnet/xdistパッケージのソース
+  (`execnet/gateway_io.py`、`xdist/workermanage.py`、`xdist/remote.py`) を直接readし、
+  workerプロセス起動時にPYTHONDONTWRITEBYTECODEやbytecode cache設定を上書きする経路が
+  無いことを確認した。
+- 伝播を担う2つの修正 (env allowlistへの追加、dispatch子環境のsetdefault fallback追加) は、
+  いずれもT-183由来の受入試行 (2026-08-20 10:27〜) より前にmainへ着地しており、
+  「tested-mainが古かったため反映されていなかった」という説明は実測
+  (`git merge-base --is-ancestor`) で棄却される。
+
+**却下した選択肢:**
+- 証拠なしに追加のenv伝播ロジックを実装する — 3独立方法が一致して欠陥なしと確認した状況で
+  仮説だけに基づく変更を加えるのは過剰実装であり、実際の原因究明を妨げる。
+- 診断改善を見送り再現待ちにする — 診断が無いままでは次回の再現時も同じ手動調査を
+  繰り返すことになるため、診断改善 (どの汚染pathで失敗したかをメッセージへ含める) を
+  優先して実装した。
+
+## D606. oracle 側の holdout perf 束縛は module 表との canonical bytes 比較に限定し、producer 側の arm resolver digest chain は複製しない (2026-08-20)
+
+**決定:** `s8b_oracle_driver._perf_for_holdout` が freeze 文書から取り出す `records`/`threads`/
+`ycsb`/`candidate_id` を、静的単一権威 `s8b_holdout_freeze.HOLDOUTS[holdout_id]` の同一4-key
+projection と canonical bytes (`_canonical_bytes`、sort_keys=True の JSON 直列化) で比較し、
+不一致・未知 holdout_id は fail-closed で拒否する。producer 側の同型実装
+(`p3_autonomous_workload_trial._assert_formal_entry_binding`) が追加で行う arm resolver の
+descriptor digest chain・legacy freeze 照合は oracle 側では複製しない。
+
+**理由:**
+- 段階導入規律5 (盛らない) — oracle 側が今回埋める穴は「freeze 文書の値が module 表と一致するか」
+  だけであり、producer 側の arm resolver 整合は別の懸念 (どの arm が選ばれたか) を守るための
+  別レイヤーで、oracle の実走直前の役割には不要。
+- 段3敵対相談 (整合・実効性レンズ) が「producer と oracle は同一構造 (module 表束縛) だが
+  信頼境界の強度は異なる」と指摘し、DW-G03 の独立2例は「同じ保証の二重化」ではなく
+  「同一パターンの異なる強度での独立適用」として成立すると確認した。
+- 既存の関連3層 (`RatifiedFreeze.holdouts` property の candidate_id のみ束縛、
+  `s8b_holdout_freeze.verify_document()` の全field束縛だが `gate-check` CLI 限定、
+  `_verify_snapshot_layer1` の holdout 集合+unknownness hash のみ) はいずれも
+  `run_block`→`_perf_for_holdout` の実走経路を保護しておらず、既存機構の拡張より
+  自己完結の新規検査を追加する方が変更面が小さく検証しやすい。
+
+**却下した選択肢:**
+- `RatifiedFreeze.holdouts` property を records/threads/ycsb まで拡張し `run_block` 側もそれを
+  経由させる案 — 変更面が `run_block` や他の `.document` consumer にも波及し、本 wave の scope
+  (2ファイルの narrow な追加) を超えるため不採用。
+- producer 側と同じ arm resolver digest chain 照合まで複製する案 — oracle は「選ばれた arm が
+  何か」を判定する層ではなく、既に選ばれた holdout の perf 条件を実走直前に検証する層であるため、
+  同じ検証をもう一層持つ理由がない。
+
+## D607. layer3_report と state_from_dict の whiteboard 値域検査を共有 validator で一本化する (2026-08-20)
+
+**決定:** `orchestrator/campaign/p3_s4_loop.py` に新設した public 関数
+`assert_whiteboard_value_domains(entry, index)` (`_WB_VALUE_DOMAINS` 直後に配置) を、
+`state_from_dict` (checkpoint 復元) と `layer3_report.build_report` (層3材料レポート生成、
+`_assert_unique_refs` より前の whiteboard 抽出直後) の両方から呼ぶ。direction/magnitude/result の
+値域チェック実装を1箇所に集約し、独立実装によるドリフトを防ぐ。`layer3_report.py` 側は
+`ValueError`/`KeyError` を捕捉し同ファイル既存の流儀どおり `Layer3ReportError` へ包む。
+
+**理由:**
+- `layer3_report.py` は `loop_state.json` を直接読み whiteboard を検査しない独立 reader であり、
+  `state_from_dict` が拒否する値 (例: `direction="up"`) をそのまま層3材料レポートへ通し、
+  内容由来の `wb:` source-ref へ焼き込んでいた (adjudication package
+  `output/insights/2026-08-04_t287-checkpoint-values/adjudication-package.md` §2)。
+- schema enum 案は手作業 runbook 経由の raw whiteboard 参照を閉じず、検査省略案は値チェックの
+  主張を弱めるため、ユーザーは共有 validator 案を裁定した (2026-08-20)。
+- production 層の import 方向は既存慣習 (`p3_s4_loop_sort.py`/`p3_s4_loop_trigger_gating.py`/
+  `p3_autonomous_workload_trial.py` 等が既に `p3_s4_loop` を core module として import 済み) に
+  ただ乗りする形とし、新規の共有 module は作らなかった (循環 import は生じない。
+  `p3_s4_loop.py` 自身は `layer3_report` を import しない)。
+
+**却下した選択肢:**
+- `layer3_schema.json` へ direction/magnitude/result の enum を書く — schema 層でしか閉じず、
+  手動 runbook (`docs/phase3-s4b/s5-sort/s8a-trigger-runbook.md`) の raw whiteboard 経路は残る。
+- 検査を追加しない — 「checkpoint 値を成果物まで閉じた」という主張ができないまま。
+- 値域検査の前に entry の形状・未知キー検査を新設する再順序化 — 受理/拒否の結果 (成果物の
+  受理集合) を変えず診断分類の粒度だけが変わるため、規律5 (盛らない) により見送った。
+
+**scope外:** producer 側 (`project_whiteboard`、in-memory 射影経路) の値域検査、origin 束縛/
+integrity、エラーメッセージの redact、手動 runbook 経路のクローズは adjudication package
+§1/§3/§4 の別項であり、いずれも独立のユーザー裁定を要するため本決定に含まない。
+`autonomous_trial_completeness.py::_cross_binding_whiteboard` は raw whiteboard を読むが
+唯一の下流使用が `canonical_record_ref` によるハッシュ化 (artifact bytes の provenance/
+束縛検査) であり値域では分岐しないため対象外とした (D118 が指摘する T-287 相当ウェーブの残余の
+うち、本決定が閉じるのは layer3_report 独立 reader の値域チェック欠落だけである)。
+
+## D608. `_batch_oids` の narrow 漏れ疑いを実測で棄却し、経路別の回帰テストで確定する (2026-08-20)
+
+**決定:**
+
+1. D551 が narrow した `validate_condition_freeze_at` 経路 (`_commit_graph` 経由) に加え、
+   `_batch_oids` のもう一つの呼び出し経路 (`_assert_rulings_exist`) も、世代数
+   (`MAX_GENERATIONS=1024` 上限) にのみ比例し生の履歴 commit 数には非依存であることを
+   実測で確認した。production コードへの追加 narrowing は行わない。
+2. `test_batch_request_count_ignores_no_touch_history_length`
+   (`orchestrator/tests/test_s8c_preregistration_core.py`) を拡張し、
+   `_assert_rulings_exist` 経路の request 数が no-touch commit 数に依存しないことを
+   generation2 fixture で固定した。新規テスト関数は追加しない。
+
+**理由:**
+
+- 発端になった受入失敗の実測 (50072 requests) の真因は、branch が D551 land
+  (2026-08-19 12:51:11) より前の main (11:08:54) から分岐していたことだった。
+  D551 の親コミット時点のコードと当該 branch の失敗 tip を使った独立の再現実験で
+  50061 requests を再現し (元の実測値とほぼ一致)、「`_batch_oids` を通る他経路が
+  履歴比例のまま残っている」という疑いは実測で否定された。
+- `_batch_oids` の呼び出しは repo 全体で2箇所のみ (独立 grep で確認)。片方は D551 で
+  絞り込み済み、もう片方は元から世代数ベースの設計で安全だった。
+- 既存の2つの回帰テストはいずれも `_assert_rulings_exist` 経路を除外または実質未発火に
+  しており、この経路が将来履歴比例へ戻る退行を検出できなかった。変異 matrix
+  (新HEAD版 KILLED・旧HEAD版 SURVIVED) で純増検出力を実測確認した。
+
+**却下した選択肢:**
+
+- production コード (`_batch_oids`/`_assert_rulings_exist`) へ追加の narrowing を実装する
+  — 前提 (narrow 漏れ経路の存在) が実測で否定されたため、対象が無い。
+- 新規テスト関数を追加する — 既存テストの fixture 拡張で同じ検出力を得られ、規律5
+  「盛らない」に照らし既存関数の拡張を採用した (敵対相談レンズの推奨)。
+
+## D609. n-pilot R33 admission authority (2026-08-20)
+
+**決定:** R33 の admission role は既存 `n_pilot` と分離した `n_pilot_r33` とし、role
+contract の authority pin は numeric D 番号ではなく `t1142-n-pilot-r33-admission-authority`
+とする。
+
+**機械 pin:**
+
+- authority slug: `t1142-n-pilot-r33-admission-authority`
+- R33 admission contract: role=`n_pilot_r33`; generation=`n-pilot-r33`; pilot_rounds=33; allocation_count=3; cell_count=12; schedule_row_count=396.
+- R33 protocol distinction: `design.allocation_role`=`primary-segment`; `observation_role`=`n_pilot_r33`.
+
+**理由:** D 番号は `docs/spool/` の fold 時点で初めて確定するため、実装 commit の
+Python source が numeric D 番号を持つと、実装時点で存在しない値への依存になる。stable
+slug を role contract と decision 本文の共通 pin とする。
+
+既存の R=11 実測 (`observation_role="n_pilot"`, campaign_run_id="t1142-run-1") は
+admission 機構の排他 claim 設計 (cell key が `campaign_run_id` を含まない一発勝負ロック)
+により、既存 claim の上に追加投入することが構造的に不可能であることを pegasus02 実機で
+確認した。事前登録済み目標 R>=32 (実質 R=33、32 以上かつ 3 で割り切れる最小値) を満たす
+ためには、新しい observation role 世代での独立した admission 発行が必要であり、
+`n_pilot_r33` をその role として採用する。
+
+**限界:** この exact-pin 検査は role・decision 間の generation / round / allocation
+値のうっかりした不一致を防ぐためのものであり、role・decision・checker を意図的に同一
+commit に揃える濫用や、完全な時系列を強制するものではない。izanagi には push しない
+運用のため GitHub Actions 等の protected CI が実質的に機能せず、merge base 側の検査を
+委ねる実行主体が無い。恒久的な時系列強制が必要になった場合は別 wave の課題とする。
+
+**却下した選択肢:**
+
+- 実装 commit に `D<N>` を直接埋め込む方式 — fold 前には番号が存在しない。
+- protected CI / merge base 検査による時系列の機械強制 — izanagi は push しない
+  local main 運用のため実行主体が無い。
+- checker-only commit → decision-only commit → implementation commit の3段階land
+  — izanagi の通常 fold / land 契約 (1 wave = 1 回の受入・land) と整合しない。
+- 新しい git clone/checkout で admission root を分離し既存 key を再 claim する方式
+  — 事前登録が「不可逆・一度きり」と明記した観測承認の安全装置を回避することになり
+  不採用。
+
+## D610. T-338単位3のB1実装をD574決定(3)の三者比較が実際に機能する状態へ修正する (2026-08-20)
+
+**決定:** `orchestrator/submission_gate/_semantic_validator.py`の`_validate_compile_legs`
+(D574決定(3)が要求する schema argv・compile_commands実体・raw CMakeCache.txtの三者比較を
+実装するB1本体) について、compile_commands脚が検索するmacro名を`"CCBENCH_TRACE"`/
+`"CCBENCH_ADD_ANALYSIS"`から`"TRACE"`/`"ADD_ANALYSIS"`へ修正する。schema argv脚
+(`configure_argv`/`argv`) とraw CMakeCache脚は無改修のまま`CCBENCH_`プレフィックス付きを
+維持する。
+
+**理由:**
+- `external/ccbench/cmake/Options.cmake`の`ccbench_universal_definitions`は、CMakeキャッシュ
+  変数`CCBENCH_TRACE`/`CCBENCH_ADD_ANALYSIS`を`TRACE=`/`ADD_ANALYSIS=`というプレフィックス
+  なしの名前へリネームしてコンパイラへ渡す (`ProtocolHelpers.cmake`の`target_compile_definitions`
+  経由)。したがって実際の`compile_commands.json`には`-DTRACE=`/`-DADD_ANALYSIS=`が現れ、
+  修正前が検索していた`-DCCBENCH_TRACE=`/`-DCCBENCH_ADD_ANALYSIS=`は決して現れない。
+- 修正前の実装は、正当なCCBenchビルドから生成された受領証を含め、compile_commands脚が
+  常に拒否する状態だった。これはD509裁定パッケージV1が言及した「semantic validatorを
+  常時拒否 (受理集合が空)」の状態そのものであり、D574決定(3)が字面上要求する三者比較の
+  「構造」はあっても「機能」していなかった。
+- schema argv脚 (CMake configureコマンドライン形式、`cmake -S . -B build -DCCBENCH_TRACE=0`)
+  は、CMakeキャッシュ変数への直接代入構文であるため`CCBENCH_`プレフィックス付きが正しく、
+  こちらは修正不要と判定した。configure時の変数名とコンパイラマクロ名が異なるという
+  CCBench側の構造 (`ccbench_add_protocol`によるリネーム) を、修正前の実装は考慮していなかった。
+- 段6敵対レビュー2本 (裁定準拠監査レンズ・回帰境界条件レンズ) がいずれもreal所見なしと判定し、
+  変異事前登録2件 (compile_commands脚の各macro名を旧値へ戻す変異) が本走で2/2 KILLED・
+  SURVIVED 0・MISMATCH 0となったことで、修正が意図どおり機能することを確認した。
+
+**却下した選択肢:**
+- 修正せず監査結果のみ記録してユーザー裁定へ返す — ユーザー裁定 (Q-B=択(a)) は「別waveとして
+  直ちに監査する」ことを求めており、監査の結果 (D574決定(3)を満たしていない) が判明した場合の
+  fix自体は、修正内容が小規模・設計択一の余地がない明確なバグ修正であったため、本wave内で
+  完結させる方が規律5 (段階導入・盛らない、不要な追加waveの起票を避ける) に照らして適切と
+  判断した。
+- correctness_evidence脚のminItems制約や`ReceiptSchema`のdocument再ハッシュ欠如も同時に
+  修正する — いずれもD574決定(3)自体が要求する三者比較の欠陥ではなく、別契約 (§7.1(1)の
+  correctness_evidence必須件数、schema loaderの構築経路) に属する。scope creepを避け、
+  次のtaskへ切り出して記録するに留めた (worklog fragment参照)。
+
+## D611. v2 build cache hit 時にも expected_toolchain_manifest との完全一致を照合する (D602 の恒久対応) (2026-08-20)
+
+**決定:** `buildcache.py` の v2 build cache completion.json へ、`expected_toolchain_manifest`
+付き caller (`complete_toolchain_manifest is not None`) のときだけ full-version toolchain
+manifest とその sha256 を条件付きフィールド (`complete_toolchain_manifest`/
+`complete_toolchain_manifest_sha256`) として保存し、`_validate_v2_entry` の hit 経路でも
+同じ値との完全一致・sha256 一致を要求する。D602 が「次wave scope」として明示的に切り出した
+既知の限界 (cache hit 時に toolchain 束縛を検査しない) の恒久対応であり、D602 自体は編集せず
+本 D が同 waiver をこの範囲 (expected 付き v2 hit) に限って supersede する。
+
+**設計の核心 (cross-lane 衝突の回避):** 新2 field は `_validate_v2_entry` の既存 `expected_keys`
+完全一致集合に**含めない**。`expected_toolchain_manifest`/`declared_use_class` は
+`_v2_identity` の preimage に一切含まれず cache digest に無関係なため、同一 digest を
+official/非 official caller が両方 hit しうる (段2 codex プラン・段3 敵対相談で実コード
+grep により確認済み — pipeline.py の cache_root は既定で共有固定パス、screening_driver.py
+は同一 admission のまま expected の有無を切り替え可能)。新2 field は「今回の caller が
+要求する場合だけ存在確認+完全一致を要求し、要求しなければ存在有無を問わない」独立 gate
+にした。これにより `expected_toolchain_manifest=None` の既存呼び出し (大多数の Phase 3
+探索 build) の挙動・completion.json 形状は不変。
+
+**運用影響の訂正:** 段1 brief 時点では「hit 不一致時に campaign 全体が fatal stop する」と
+懸念したが、段3 敵対相談レンズBが実コードで反証した。`BuildCacheError` は `RuntimeError`
+を継承し `pipeline.py` の `except (RuntimeError, subprocess.SubprocessError)` が捕捉して
+`_abort("build-error", ...)` に変換するため、影響は該当 variant 1 件の `build-error` abort
+(non-retryable terminal) に留まり、campaign プロセス自体は継続する。ただし同一 campaign
+内での自動再評価は無く、cache entry 削除だけでは変異が復旧しない (WAL 側の再評価手段が
+別途必要)。この復旧手順の要否は本 D の scope 外とし、裁定パッケージ候補として worklog へ
+記録する。
+
+**根拠:**
+- D602 (`docs/decisions.md`) が明示的に次wave へ送った「完全な解決」の実装である。
+- 段3 敵対相談2レンズが独立に P1-1 (digest 非依存)・P1-3 (cross-lane 衝突の実在性) を実コードで
+  確認し、段2 codex プランの結論を追認した。
+- 段6 敵対レビュー2本 + fix + 焦点再レビューで real 所見4件 (DW-M01単一理由性の担保・
+  expected付き非official経路の網羅・completion assertion・docstring精度) をすべて closed に
+  した。変異matrix (2変異事前登録、DW-M01) は 2/2 KILLED・MISMATCH 0・SURVIVED 0。
+
+**却下した選択肢:**
+- **新2 field を既存 `expected_keys` へ常時混入する (widen the exact-match set
+  unconditionally)** — official が書いた entry を非 official caller が読めなくなる
+  (逆方向も同様)、cross-lane 衝突を悪化させるため見送った。
+- **cache hit を無効化し常に新規 build する** — D602 が既に却下した選択肢と同じ理由
+  (buildcache 全体の cache-first 設計方針を局所的に覆す) で見送った。
+- **既存 v2 cache entry を本 wave で一括無効化・再構築する** — 規律5 (段階導入・盛らない)、
+  影響範囲の広さ (既存 official 系 campaign 全体) により見送った。fail-closed な hit 時検査を
+  追加すれば、旧 entry を実際に hit した時点で個別に検出される。
+
+## D612. dispatch の queue-wait/overall-grace は opt-in 上書きだけに留め、自動選択も is_acceptance ベース分岐も採用しない (2026-08-20)
+
+**決定:** `tools/run_tests.py` の `_default_dispatch` へ、`IZANAGI_DISPATCH_QUEUE_WAIT_TIMEOUT_OVERRIDE`/
+`IZANAGI_DISPATCH_OVERALL_GRACE_OVERRIDE` という2つの opt-in 環境変数上書きを追加する
+(`_DISPATCH_WALLTIME_OVERRIDE_ENV` と同型)。未設定時は現行既定 (900秒/300秒) を完全に維持する。
+次の2つの設計は**採用しない**。
+
+1. lease TTL (2400秒) 内に収まる新しい既定値へ引き上げる。
+2. `_is_acceptance_run(args)` (受入形の closed shape 判定) を使い、受入形かどうかで既定値を
+   自動的に切り替える。
+
+**理由:**
+
+- (1) は算術的に成立しない。TTL 2400秒から D239 の通常走行実測 (1055〜1338秒、記録により幅がある)・
+  `accounting_grace_s` (60秒)・claim/land 保守予算 (未測定) を差し引くと、`queue_wait_timeout_s +
+  overall_grace_s` の残り予算は現行900秒とほぼ同等かそれ以下になる。加えて既定 walltime (3600秒)
+  自体が既に TTL (2400秒) を超えており、Q/G の調整だけでは「構造的に TTL を超えない」という
+  保証を字義通りには満たせない。
+- (2) は `_is_acceptance_run` が「受入argv pinと同じ closed shape」を判定するだけで、lease の
+  所有・残余 TTL を判定しないため成立しない。具体的な反例: 受入 lease 保持中 (land/release 前)
+  に同一 operator が targeted な `python3 tools/run_tests.py --force-dispatch <target>` を実行
+  すると `is_acceptance=False` になり、lease 保持下で大きい timeout を選べてしまう。D299
+  (13848行目) が「lease 自己保持は wave slug digest だけで invocation を識別しない」ことを
+  既に文書化し、fencing 機構を裁定パッケージへ送る対象と明記している — この分岐は D299 が
+  既に認めている限界を、T-870 固有の判断で無断に広げることになる。
+- mutation harness の個別 runner timeout (900〜5400秒、spec ごとに異なる) と衝突しない
+  「制約なしに大きい」既定値は存在しない。collection は `_default_dispatch` を経由せず
+  `dispatch_compute.py` を直接呼ぶため、いずれにせよ対象外である。
+- 実際の queue congestion は数十分〜時間オーダーで発生する (`docs/archive/worklog-phase3-0816-566-567.md`
+  の83分間・`docs/archive/worklog-phase3-0804-187.md` の6時間grace実例)。TTL(2400秒)に
+  収まる値では、この規模の congestion を解消できない。
+
+**却下した選択肢:**
+- 前 wave 由来の「55分/2.5時間に耐える値」への引き上げ — 出典不明の数字を根拠にしていた
+  (再確認済み、本 repo に一次資料なし)。
+- opt-in 機構自体を作らず現状維持のまま次回へ送る — 既存の `IZANAGI_DISPATCH_WALLTIME_OVERRIDE`
+  と同型の低リスクな拡張であり、operator が自身の文脈を把握した上で明示的に上書きできる価値は
+  既定値変更なしでも成立するため、実装した。

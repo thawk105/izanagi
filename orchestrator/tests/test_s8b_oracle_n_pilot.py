@@ -65,8 +65,14 @@ def _perf_mode(status: str = "available") -> M.PerfMode:
     )
 
 
-def _holdout_admission_identifier(attempt_id: str) -> dict[str, str]:
-    return {"role": "n_pilot", "campaign_run_id": attempt_id}
+def _holdout_admission_identifier(
+    campaign_run_id: str, allocation_index: int = 0,
+) -> dict[str, object]:
+    return {
+        "role": "n_pilot_r33",
+        "campaign_run_id": campaign_run_id,
+        "allocation_index": allocation_index,
+    }
 
 
 def _protocol_document() -> dict:
@@ -268,6 +274,20 @@ def test_protocol_exact_schema_and_preregistered_design(tmp_path):
     ).hexdigest()
 
 
+def test_r33_protocol_document_loads_from_repository():
+    path = ROOT / "output/insights/2026-08-16_t1142-n-pilot-prereg/protocol-r33.json"
+    loaded = M.load_protocol(path)
+    assert loaded.pilot_rounds == 33
+    assert loaded.allocation_count == 3
+    assert loaded.allocation_role == "primary-segment"
+    assert loaded.driver_sha256 == hashlib.sha256(
+        (ROOT / loaded.driver_path).read_bytes()
+    ).hexdigest()
+    assert loaded.job_script_sha256 == hashlib.sha256(
+        (ROOT / loaded.job_script_path).read_bytes()
+    ).hexdigest()
+
+
 def test_driver_has_no_round_default_and_supports_build_only_mode(tmp_path):
     args = M._parse_args([
         "--protocol", str(tmp_path / "protocol.json"),
@@ -285,6 +305,233 @@ def test_driver_has_no_round_default_and_supports_build_only_mode(tmp_path):
         "--confirm-irreversible-pilot-holdout",
     ])
     assert confirmed.confirm_irreversible_pilot_holdout is True
+
+
+def _cli_base(tmp_path: Path, *extra: str) -> list[str]:
+    return [
+        "--protocol", str(tmp_path / "protocol.json"),
+        "--output", str(tmp_path / "output.json"),
+        *extra,
+    ]
+
+
+def _assert_cli_rejects(tmp_path: Path, *extra: str):
+    args = M._parse_args(_cli_base(tmp_path, *extra))
+    with pytest.raises(M.PilotError):
+        M._validate_cli_args(args)
+
+
+@pytest.mark.parametrize("other_mode", ["--reserve-only", "--consume-only", "--build-only"])
+def test_cli_rejects_aggregate_with_every_other_mode(tmp_path, other_mode):
+    _assert_cli_rejects(
+        tmp_path,
+        "--aggregate", "r0", "r1", "r2",
+        "--admission-manifest", "m0", "m1", "m2",
+        other_mode,
+    )
+
+
+def test_cli_rejects_reserve_and_consume_together(tmp_path):
+    _assert_cli_rejects(tmp_path, "--reserve-only", "--consume-only")
+
+
+@pytest.mark.parametrize("forbidden", [
+    ("--rounds", "11"),
+    ("--allocation-index", "0"),
+    ("--cache-root", "cache"),
+])
+def test_cli_rejects_reserve_forbidden_fields(tmp_path, forbidden):
+    _assert_cli_rejects(
+        tmp_path,
+        "--reserve-only", "--campaign-run-id", "campaign",
+        "--admission-manifest", "manifest",
+        "--confirm-irreversible-pilot-holdout",
+        *forbidden,
+    )
+
+
+@pytest.mark.parametrize("rounds", [None, "10", "12"])
+def test_cli_rejects_consume_without_exact_eleven_rounds(tmp_path, rounds):
+    extra = [
+        "--consume-only", "--campaign-run-id", "campaign",
+        "--allocation-index", "0", "--admission-manifest", "manifest",
+        "--cache-root", "cache", "--confirm-irreversible-pilot-holdout",
+    ]
+    if rounds is not None:
+        extra.extend(["--rounds", rounds])
+    _assert_cli_rejects(tmp_path, *extra)
+
+
+@pytest.mark.parametrize("allocation_index", ["3", "-1"])
+def test_cli_rejects_consume_out_of_range_allocation_index(tmp_path, allocation_index):
+    _assert_cli_rejects(
+        tmp_path,
+        "--consume-only", "--campaign-run-id", "campaign",
+        "--allocation-index", allocation_index, "--admission-manifest", "manifest",
+        "--cache-root", "cache", "--rounds", "11",
+        "--confirm-irreversible-pilot-holdout",
+    )
+
+
+def test_allocation_index_validator_rejects_bool():
+    with pytest.raises(M.PilotError):
+        M._require_allocation_index(True)
+
+
+@pytest.mark.parametrize("bad_campaign", ["campaign::nested", "campaign space", ""])
+def test_allocation_identity_rejects_unsafe_identifier(bad_campaign):
+    with pytest.raises(M.PilotError):
+        M._allocation_identity_key({
+            "role": "n_pilot_r33",
+            "campaign_run_id": bad_campaign,
+            "allocation_index": 0,
+        })
+
+
+def test_cli_rejects_reserve_with_multiple_manifests_luna_counterexample(tmp_path):
+    _assert_cli_rejects(
+        tmp_path,
+        "--reserve-only", "--campaign-run-id", "campaign",
+        "--admission-manifest", "m1", "m2",
+        "--confirm-irreversible-pilot-holdout",
+    )
+
+
+def test_cli_rejects_consume_with_multiple_manifests_luna_counterexample(tmp_path):
+    _assert_cli_rejects(
+        tmp_path,
+        "--consume-only", "--campaign-run-id", "campaign",
+        "--allocation-index", "0", "--rounds", "11", "--cache-root", "cache",
+        "--admission-manifest", "m1", "m2",
+        "--confirm-irreversible-pilot-holdout",
+    )
+
+
+def test_cli_rejects_reserve_without_campaign_luna_counterexample(tmp_path):
+    _assert_cli_rejects(
+        tmp_path,
+        "--reserve-only", "--admission-manifest", "manifest",
+        "--confirm-irreversible-pilot-holdout",
+    )
+
+
+def test_cli_rejects_reserve_without_manifest_luna_counterexample(tmp_path):
+    _assert_cli_rejects(
+        tmp_path,
+        "--reserve-only", "--campaign-run-id", "campaign",
+        "--confirm-irreversible-pilot-holdout",
+    )
+
+
+@pytest.mark.parametrize("missing", ["campaign", "manifest", "cache"])
+def test_cli_rejects_consume_missing_required_field(tmp_path, missing):
+    extra = [
+        "--consume-only", "--campaign-run-id", "campaign",
+        "--allocation-index", "0", "--rounds", "11",
+        "--admission-manifest", "manifest", "--cache-root", "cache",
+        "--confirm-irreversible-pilot-holdout",
+    ]
+    if missing == "campaign":
+        extra.remove("--campaign-run-id")
+        extra.remove("campaign")
+    elif missing == "manifest":
+        extra.remove("--admission-manifest")
+        extra.remove("manifest")
+    else:
+        extra.remove("--cache-root")
+        extra.remove("cache")
+    _assert_cli_rejects(tmp_path, *extra)
+
+
+@pytest.mark.parametrize("mode_args", [
+    ("--reserve-only", "--campaign-run-id", "campaign", "--admission-manifest", "manifest"),
+    ("--consume-only", "--campaign-run-id", "campaign", "--allocation-index", "0",
+     "--rounds", "11", "--admission-manifest", "manifest", "--cache-root", "cache"),
+])
+def test_cli_rejects_missing_irreversible_confirmation(tmp_path, mode_args):
+    _assert_cli_rejects(tmp_path, *mode_args)
+
+
+@pytest.mark.parametrize("mode_args", [
+    ("--reserve-only", "--campaign-run-id", "campaign", "--admission-manifest", "manifest",
+     "--confirm-irreversible-pilot-holdout"),
+    ("--consume-only", "--campaign-run-id", "campaign", "--allocation-index", "0",
+     "--rounds", "11", "--admission-manifest", "manifest", "--cache-root", "cache",
+     "--confirm-irreversible-pilot-holdout"),
+])
+def test_cli_rejects_attempt_id_in_r33_reserve_or_consume(tmp_path, mode_args):
+    _assert_cli_rejects(tmp_path, *mode_args, "--attempt-id", "legacy")
+
+
+def test_cli_rejects_attempt_id_and_other_forbidden_fields_in_aggregate(tmp_path):
+    _assert_cli_rejects(
+        tmp_path,
+        "--aggregate", "r0", "r1", "r2", "--admission-manifest", "m0", "m1", "m2",
+        "--attempt-id", "legacy",
+    )
+
+
+def test_reserve_only_does_not_build_or_measure(tmp_path, monkeypatch):
+    calls = []
+    public_manifest = {
+        "schema_version": "s8b-n-pilot-admission-manifest/v1",
+        "observation_role": "n_pilot_r33",
+        "campaign_run_id": "campaign",
+        "authoritative_receipt_sha256": "a" * 64,
+        "receipt_ref": "b" * 64,
+        "protocol_sha256": "c" * 64,
+        "freeze_sha256": "d" * 64,
+        "schedule_sha256": "e" * 64,
+        "pilot_rounds": 33,
+        "allocation_count": 3,
+        "cells": [],
+        "allocation_slices": [],
+    }
+
+    class _FakeReceipt(dict):
+        @property
+        def manifest(self):
+            return public_manifest
+
+    receipt = _FakeReceipt({"private": "receipt"})
+    monkeypatch.setattr(M, "load_protocol", lambda _path: _protocol())
+    monkeypatch.setattr(M, "load_inputs", lambda *_args, **_kwargs: _inputs())
+    monkeypatch.setattr(
+        M.s8b_holdout_admission,
+        "reserve_n_pilot_holdout_observations",
+        lambda **kwargs: calls.append(("reserve", kwargs)) or receipt,
+    )
+    monkeypatch.setattr(M, "build_binaries", lambda *_args, **_kwargs: calls.append("build"))
+    monkeypatch.setattr(M, "run_sessions", lambda *_args, **_kwargs: calls.append("measure"))
+    written = []
+    monkeypatch.setattr(
+        M, "write_guarded_result", lambda path, value: written.append((path, value))
+    )
+    manifest = tmp_path / "manifest.json"
+    assert M.main([
+        "--protocol", str(tmp_path / "protocol.json"),
+        "--output", str(tmp_path / "output.json"),
+        "--reserve-only", "--campaign-run-id", "campaign",
+        "--admission-manifest", str(manifest),
+        "--confirm-irreversible-pilot-holdout",
+    ]) == 0
+    assert calls and calls[0][0] == "reserve"
+    assert "build" not in calls and "measure" not in calls
+    assert set(public_manifest) == M.s8b_holdout_admission._R33_MANIFEST_KEYS  # noqa: SLF001
+    assert written == [(manifest, public_manifest)]
+
+
+@pytest.mark.parametrize("bad_option", [
+    ("--aggregate", "r0", "r1"),
+    ("--admission-manifest", "m0", "m1"),
+])
+def test_cli_rejects_aggregate_cardinality(tmp_path, bad_option):
+    _assert_cli_rejects(
+        tmp_path,
+        "--aggregate", "r0", "r1", "r2",
+        "--admission-manifest", "m0", "m1", "m2",
+        *bad_option,
+    )
 
 
 @pytest.mark.parametrize("mutation", ["duplicate", "nonfinite", "unknown", "short-rounds"])
@@ -354,6 +601,8 @@ def _build_with_fakes(
     inputs=None,
     oracle_fetchcontent_base_fn=None,
     oracle_dependency_fn=None,
+    cached: bool = False,
+    allocation_mode: bool | None = None,
 ):
     inputs = inputs or _inputs()
     prepare_calls = []
@@ -396,7 +645,7 @@ def _build_with_fakes(
             contract_sha256=inputs.contract.contract_sha256,
             binary=str(binary.resolve()),
             bin_sha256=hashlib.sha256(binary.read_bytes()).hexdigest(),
-            cached=index % 2 == 0,
+            cached=cached,
         )
 
     evidence = SimpleNamespace(src_token="stock", tracked_clean=True, tracked_paths=())
@@ -418,6 +667,7 @@ def _build_with_fakes(
         build_fn=build_fn,
         repo_root=ROOT,
         worktree_roots=(ROOT,),
+        allocation_mode=allocation_mode,
         monotonic_fn=lambda: next(counter),
         toolchain_fn=lambda _cc, _cxx: {
             "cxx": {"realpath": str((tmp_path / "cxx-sentinel").resolve())},
@@ -565,7 +815,35 @@ def test_m4_build_is_trace_disabled_and_uses_exact_external_cache(tmp_path):
     assert all("admission" in call and "source_evidence" in call for call in build_calls)
     assert len({call["ccbench_dir"] for call in build_calls}) == 12
     assert len({item.worktree_identity_sha256 for item in result.values()}) == 12
-    assert {item.cache_hit for item in result.values()} == {True, False}
+    assert {item.cache_hit for item in result.values()} == {False}
+
+
+def test_allocation_cache_requires_an_empty_directory_before_build(tmp_path):
+    cache_root = tmp_path / "allocation-cache"
+    cache_root.mkdir()
+    (cache_root / "stale-entry").write_text("stale", encoding="utf-8")
+    with pytest.raises(M.PilotError, match="空 directory"):
+        M.build_binaries(
+            _inputs(),
+            cache_root=cache_root,
+            repo_root=ROOT,
+            worktree_roots=(ROOT,),
+            compiler_fn=lambda: pytest.fail("compiler preflight must not run"),
+        )
+
+
+def test_allocation_cache_hit_is_rejected_but_legacy_cache_hit_is_retained(tmp_path):
+    with pytest.raises(M.PilotError, match="cache hit"):
+        _build_with_fakes(tmp_path, cached=True)
+
+    legacy_protocol = replace(_protocol(), pilot_rounds=11)
+    legacy_inputs = replace(_inputs(), protocol=legacy_protocol)
+    legacy_root = tmp_path / "legacy"
+    legacy_root.mkdir()
+    _inputs_value, _cache, _prepare, _build, result = _build_with_fakes(
+        legacy_root, inputs=legacy_inputs, cached=True,
+    )
+    assert {item.cache_hit for item in result.values()} == {True}
 
 
 def _run_one_round(
@@ -651,7 +929,13 @@ def test_measure_gateway_uses_no_perf_only_when_preflight_is_unavailable(tmp_pat
     result = M._result_document(
         inputs,
         _binary_receipts(tmp_path, inputs),
-        attempt_id="no-perf",
+        campaign_run_id="no-perf",
+        allocation_index=0,
+        receipt_sha256="a" * 64,
+        admission_manifest_sha256="b" * 64,
+        schedule_sha256="c" * 64,
+        global_schedule_start=0,
+        global_schedule_end=len(schedule) - 1,
         rounds=1,
         build_only=False,
         schedule=schedule,
@@ -799,6 +1083,88 @@ def test_m11_oracle_schedule_is_deterministic_seeded_complete_blocks():
         assert {row["cell_id"] for row in first if row["pilot_round"] == round_no} == expected
 
 
+def test_global_schedule_is_built_once_and_sliced_into_three_local_allocations(
+    monkeypatch,
+):
+    inputs = _inputs()
+    original = M.s8b_oracle_manifest.build_schedule
+    calls = []
+
+    def recording_build_schedule(**kwargs):
+        calls.append(dict(kwargs))
+        return original(**kwargs)
+
+    monkeypatch.setattr(M.s8b_oracle_manifest, "build_schedule", recording_build_schedule)
+    schedule = M.build_pilot_schedule(
+        inputs, master_seed=inputs.protocol.master_seed, rounds=33,
+    )
+    assert isinstance(schedule, M.GlobalPilotSchedule)
+    assert len(calls) == 1
+    assert calls[0]["n"] == 33
+    assert calls[0]["block_sizes"] == {"pilot": 33}
+    assert len(schedule.rows) == 396
+    assert [row["global_schedule_index"] for row in schedule.rows] == list(range(396))
+    for allocation_index, allocation in enumerate(schedule.allocation_slices):
+        assert len(allocation) == 132
+        assert [row["seq"] for row in allocation] == list(range(132))
+        assert [row["global_schedule_index"] for row in allocation] == list(
+            range(allocation_index * 132, allocation_index * 132 + 132)
+        )
+        assert {row["pilot_round"] for row in allocation} == set(range(1, 12))
+        assert {row["global_pilot_round"] for row in allocation} == set(
+            range(allocation_index * 11 + 1, allocation_index * 11 + 12)
+        )
+
+
+def test_r33_run_sessions_consumes_receipt_with_global_coordinates(tmp_path):
+    inputs = _inputs()
+    binaries = _binary_receipts(tmp_path, inputs)
+    global_schedule = M.build_global_pilot_schedule(
+        inputs, master_seed=inputs.protocol.master_seed,
+    )
+    schedule = global_schedule.allocation_slice(1)[:12]
+    consume_calls = []
+    ticks = iter(float(index) for index in range(100))
+
+    def consume(receipt, **kwargs):
+        consume_calls.append((receipt, kwargs))
+        return object()
+
+    def measure_fn(_binary, records, threads, clocks_per_us, **kwargs):
+        kwargs["rep_returncodes"].extend([0] * M.APPROVED_REPS)
+        return ScalePoint(
+            records=records, threads=threads,
+            throughputs=[1.0, 2.0, 3.0, 4.0, 5.0],
+            abort_rate=0.0, run_cmd="discarded",
+        )
+
+    receipt = {"schedule_sha256": global_schedule.schedule_sha256}
+    observations, _perf = M.run_sessions(
+        inputs,
+        binaries,
+        schedule,
+        measure_fn=measure_fn,
+        single_tenant_fn=lambda: None,
+        monotonic_fn=lambda: next(ticks),
+        load1_fn=lambda: 0.0,
+        perf_preflight_fn=lambda **_kwargs: _perf_receipt(),
+        perf_candidates_fn=lambda _root: (),
+        repo_root=tmp_path,
+        irreversible_pilot_holdout_approved=True,
+        reservation_receipt=receipt,
+        consume_n_pilot_attempt_ticket_fn=consume,
+    )
+    assert len(observations) == 12
+    assert [item.global_schedule_index for item in observations] == list(range(132, 144))
+    assert [item.global_pilot_round for item in observations] == [12] * 12
+    assert len(consume_calls) == 12
+    assert all(call[0] is receipt for call in consume_calls)
+    assert [call[1]["global_schedule_index"] for call in consume_calls] == list(
+        range(132, 144)
+    )
+    assert all(call[1]["schedule_sha256"] == global_schedule.schedule_sha256 for call in consume_calls)
+
+
 def test_schedule_generator_is_the_oracle_manifest_gateway_not_floor_contract():
     path = ROOT / "orchestrator/campaign/s8b_oracle_n_pilot.py"
     tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
@@ -881,6 +1247,8 @@ def _counterbalanced_observations(inputs: M.PilotInputs, schedule):
             position=(seq % len(inputs.cells)) + 1,
             monotonic_start_s=float(seq),
             monotonic_end_s=float(seq) + 0.5,
+            global_schedule_index=row.get("global_schedule_index"),
+            global_pilot_round=row.get("global_pilot_round"),
         ))
     return tuple(result)
 
@@ -1145,7 +1513,7 @@ def test_m10_result_eligibility_is_exactly_all_false(tmp_path):
     result = M._result_document(
         inputs,
         binaries,
-        attempt_id="attempt-1",
+        campaign_run_id="attempt-1",
         rounds=None,
         build_only=True,
         schedule=(),
@@ -1179,7 +1547,13 @@ def test_complete_fake_scalepoint_result_discards_run_cmd_and_workload_object(tm
     result = M._result_document(
         inputs,
         binaries,
-        attempt_id="attempt-complete",
+        campaign_run_id="attempt-complete",
+        allocation_index=0,
+        receipt_sha256="a" * 64,
+        admission_manifest_sha256="b" * 64,
+        schedule_sha256="c" * 64,
+        global_schedule_start=0,
+        global_schedule_end=len(schedule) - 1,
         rounds=1,
         build_only=False,
         schedule=schedule,
@@ -1209,13 +1583,49 @@ def test_complete_fake_scalepoint_result_discards_run_cmd_and_workload_object(tm
     assert loaded["n_analysis_null_reason"] == "per-allocation-result-does-not-derive-n"
 
 
+@pytest.mark.parametrize("missing_field", [
+    "receipt_sha256", "admission_manifest_sha256", "schedule_sha256",
+    "global_schedule_start", "global_schedule_end",
+])
+def test_completed_result_requires_receipt_manifest_and_global_range(tmp_path, missing_field):
+    inputs, schedule, _calls, _tenant, observations, perf_mode, _preflight = (
+        _run_one_round(tmp_path)
+    )
+    values = {
+        "campaign_run_id": "campaign",
+        "allocation_index": 0,
+        "receipt_sha256": "a" * 64,
+        "admission_manifest_sha256": "b" * 64,
+        "schedule_sha256": "c" * 64,
+        "global_schedule_start": 0,
+        "global_schedule_end": len(schedule) - 1,
+    }
+    values[missing_field] = None
+    with pytest.raises(M.PilotError):
+        M._result_document(
+            inputs,
+            _binary_receipts(tmp_path, inputs),
+            **values,
+            rounds=1,
+            build_only=False,
+            schedule=schedule,
+            observations=observations,
+            statistics_document=M.summarize_sessions(inputs, observations),
+            n_analysis=None,
+            run_wall_time_s=1.0,
+            perf_mode=perf_mode,
+            irreversible_pilot_holdout_approved=True,
+            holdout_admission_identifier=_holdout_admission_identifier("campaign"),
+        )
+
+
 def test_per_allocation_result_cannot_publish_n_analysis(tmp_path):
     inputs = _inputs()
     with pytest.raises(M.PilotError, match="aggregate"):
         M._result_document(
             inputs,
             _binary_receipts(tmp_path, inputs),
-            attempt_id="allocation-only",
+            campaign_run_id="allocation-only",
             rounds=1,
             build_only=False,
             schedule=(),
@@ -1229,11 +1639,55 @@ def test_per_allocation_result_cannot_publish_n_analysis(tmp_path):
 
 def _allocation_result_files(tmp_path: Path):
     inputs = _inputs()
-    binaries = _binary_receipts(tmp_path, inputs)
-    schedule = M.build_pilot_schedule(inputs, master_seed=inputs.protocol.master_seed, rounds=11)
-    base = _counterbalanced_observations(inputs, schedule)
+    binaries = {
+        cell_id: replace(binary, cache_hit=False)
+        for cell_id, binary in _binary_receipts(tmp_path, inputs).items()
+    }
+    global_schedule = M.build_global_pilot_schedule(
+        inputs, master_seed=inputs.protocol.master_seed,
+    )
     paths = []
+    manifests = []
+    campaign = "campaign"
+    receipt_sha256 = "1" * 64
+    manifest = {
+        "schema_version": "s8b-n-pilot-admission-manifest/v1",
+        "observation_role": "n_pilot_r33",
+        "campaign_run_id": campaign,
+        "authoritative_receipt_sha256": receipt_sha256,
+        "receipt_ref": "2" * 64,
+        "protocol_sha256": inputs.protocol.protocol_sha256,
+        "freeze_sha256": inputs.protocol.freeze_sha256,
+        "schedule_sha256": global_schedule.schedule_sha256,
+        "pilot_rounds": 33,
+        "allocation_count": 3,
+        "cells": [
+            {
+                "cell_ref": f"{index + 1:064x}",
+                "global_schedule_indexes": [
+                    row["global_schedule_index"]
+                    for row in global_schedule.rows
+                    if row["cell_id"] == cell_id
+                ],
+            }
+            for index, cell_id in enumerate(sorted(str(cell["cell_id"]) for cell in inputs.cells))
+        ],
+        "allocation_slices": [
+            {
+                "allocation_index": allocation_index,
+                "global_schedule_start": allocation_index * 132,
+                "global_schedule_end": allocation_index * 132 + 131,
+            }
+            for allocation_index in range(3)
+        ],
+    }
+    manifest_path = tmp_path / "shared-manifest.json"
+    manifest_bytes = M.canonical_result_bytes(manifest)
+    manifest_path.write_bytes(manifest_bytes)
+    manifest_sha256 = hashlib.sha256(manifest_bytes).hexdigest()
     for allocation_index in range(3):
+        schedule = global_schedule.allocation_slice(allocation_index)
+        base = _counterbalanced_observations(inputs, schedule)
         shifted = []
         for observation in base:
             outer = observation.outer_median + allocation_index
@@ -1247,7 +1701,13 @@ def _allocation_result_files(tmp_path: Path):
         result = M._result_document(
             inputs,
             binaries,
-            attempt_id=f"allocation-{allocation_index + 1}",
+            campaign_run_id=campaign,
+            allocation_index=allocation_index,
+            receipt_sha256=receipt_sha256,
+            admission_manifest_sha256=manifest_sha256,
+            schedule_sha256=global_schedule.schedule_sha256,
+            global_schedule_start=allocation_index * 132,
+            global_schedule_end=allocation_index * 132 + 131,
             rounds=11,
             build_only=False,
             schedule=schedule,
@@ -1259,18 +1719,66 @@ def _allocation_result_files(tmp_path: Path):
             n_analysis_null_reason="per-allocation-result-does-not-derive-n",
             irreversible_pilot_holdout_approved=True,
             holdout_admission_identifier=_holdout_admission_identifier(
-                f"allocation-{allocation_index + 1}"
+                campaign, allocation_index,
             ),
         )
+        result["allocation"]["admission_manifest_sha256"] = manifest_sha256
         path = tmp_path / f"allocation-{allocation_index + 1}.json"
         path.write_bytes(M.canonical_result_bytes(result))
         paths.append(path)
-    return inputs.protocol, paths
+        manifests.append(manifest_path)
+    return inputs.protocol, paths, manifests
+
+
+def test_manifest_hashes_prefer_authoritative_public_manifest_receipt_digest():
+    document = {
+        "authoritative_receipt_sha256": "a" * 64,
+        "receipt_sha256": "b" * 64,
+    }
+    raw = M.canonical_result_bytes(document)
+    assert M._manifest_hashes(document, raw, "manifest") == (
+        hashlib.sha256(raw).hexdigest(), "a" * 64,
+    )
+
+
+def test_aggregate_rejects_incomplete_binary_cell_coverage(tmp_path):
+    _protocol, paths, manifests = _allocation_result_files(tmp_path)
+    document = json.loads(paths[0].read_text(encoding="utf-8"))
+    document["binaries"] = document["binaries"][:-1]
+    paths[0].write_bytes(M.canonical_result_bytes(document))
+
+    with pytest.raises(M.PilotError, match="12-cell coverage"):
+        M.aggregate_results(_protocol, paths, manifests)
+
+
+def test_aggregate_rejects_unknown_binary_schema_field(tmp_path):
+    protocol, paths, manifests = _allocation_result_files(tmp_path)
+    document = json.loads(paths[0].read_text(encoding="utf-8"))
+    document["binaries"][0]["unexpected"] = True
+    paths[0].write_bytes(M.canonical_result_bytes(document))
+
+    with pytest.raises(M.PilotError, match="binary schema"):
+        M.aggregate_results(protocol, paths, manifests)
+
+
+def test_aggregate_accepts_minimal_binary_identity_records(tmp_path):
+    protocol, paths, manifests = _allocation_result_files(tmp_path)
+    required = M._BINARY_REQUIRED_KEYS  # noqa: SLF001
+    for path in paths:
+        document = json.loads(path.read_text(encoding="utf-8"))
+        document["binaries"] = [
+            {key: binary[key] for key in required}
+            for binary in document["binaries"]
+        ]
+        path.write_bytes(M.canonical_result_bytes(document))
+
+    aggregate = M.aggregate_results(protocol, paths, manifests)
+    assert aggregate["n_analysis"] is not None
 
 
 def test_three_allocation_aggregate_derives_n_once_and_reports_shift(tmp_path):
-    protocol, paths = _allocation_result_files(tmp_path)
-    result = M.aggregate_results(protocol, paths)
+    protocol, paths, manifests = _allocation_result_files(tmp_path)
+    result = M.aggregate_results(protocol, paths, manifests)
     assert result["schema_version"] == M.AGGREGATE_SCHEMA
     assert result["n_analysis"] is not None
     assert result["n_analysis_null_reason"] is None
@@ -1282,16 +1790,26 @@ def test_three_allocation_aggregate_derives_n_once_and_reports_shift(tmp_path):
     }
     for cell in result["allocation_shift"]["cells"].values():
         assert list(cell["allocation_medians"]) == [
-            "allocation-1", "allocation-2", "allocation-3",
+            "n_pilot_r33::campaign::0",
+            "n_pilot_r33::campaign::1",
+            "n_pilot_r33::campaign::2",
         ]
         assert cell["max_minus_min"] == 2.0
+        assert [
+            (item["from"], item["to"])
+            for item in cell["pairwise_differences"]
+        ] == [
+            ("n_pilot_r33::campaign::0", "n_pilot_r33::campaign::1"),
+            ("n_pilot_r33::campaign::0", "n_pilot_r33::campaign::2"),
+            ("n_pilot_r33::campaign::1", "n_pilot_r33::campaign::2"),
+        ]
         assert [item["direction"] for item in cell["pairwise_differences"]] == [
             "higher", "higher", "higher",
         ]
 
 
 def test_aggregate_treats_repo_heads_as_observations_not_identity_pins(tmp_path):
-    protocol, paths = _allocation_result_files(tmp_path)
+    protocol, paths, manifests = _allocation_result_files(tmp_path)
     observed_heads = []
     for index, path in enumerate(paths, start=1):
         document = json.loads(path.read_text(encoding="utf-8"))
@@ -1299,21 +1817,21 @@ def test_aggregate_treats_repo_heads_as_observations_not_identity_pins(tmp_path)
         document["input_identity"]["observed_repo_head"] = observed_head
         path.write_bytes(M.canonical_result_bytes(document))
         observed_heads.append(observed_head)
-    result = M.aggregate_results(protocol, paths)
+    result = M.aggregate_results(protocol, paths, manifests)
     assert result["input_identity"]["observed_repo_heads"] == observed_heads
 
 
 def test_aggregate_rejects_protocol_or_schedule_seed_mismatch(tmp_path):
-    protocol, paths = _allocation_result_files(tmp_path)
+    protocol, paths, manifests = _allocation_result_files(tmp_path)
     document = json.loads(paths[1].read_text(encoding="utf-8"))
     document["design"]["master_seed"] = "different-seed"
     paths[1].write_bytes(M.canonical_result_bytes(document))
     with pytest.raises(M.PilotError, match="schedule seed"):
-        M.aggregate_results(protocol, paths)
+        M.aggregate_results(protocol, paths, manifests)
 
 
 def test_aggregate_writes_guarded_output_and_drift_failure_leaves_n_null(tmp_path):
-    protocol, paths = _allocation_result_files(tmp_path)
+    protocol, paths, manifests = _allocation_result_files(tmp_path)
     for path in paths:
         document = json.loads(path.read_text(encoding="utf-8"))
         for session in document["sessions"]:
@@ -1322,7 +1840,7 @@ def test_aggregate_writes_guarded_output_and_drift_failure_leaves_n_null(tmp_pat
             session["throughput_binary64_hex"] = [M._binary64_hex(outer)] * M.APPROVED_REPS
             session["outer_median"] = outer
         path.write_bytes(M.canonical_result_bytes(document))
-    aggregate = M.aggregate_results(protocol, paths)
+    aggregate = M.aggregate_results(protocol, paths, manifests)
     assert aggregate["n_analysis"] is None
     assert aggregate["n_analysis_null_reason"].startswith("drift-diagnostics-invalid:")
     protocol_path = _write_protocol(tmp_path / "protocol.json", _protocol_document())
@@ -1331,6 +1849,7 @@ def test_aggregate_writes_guarded_output_and_drift_failure_leaves_n_null(tmp_pat
         "--protocol", str(protocol_path),
         "--output", str(destination),
         "--aggregate", *(str(path) for path in paths),
+        "--admission-manifest", *(str(path) for path in manifests),
     ]) == 0
     assert json.loads(destination.read_text(encoding="utf-8"))["n_analysis"] is None
 
