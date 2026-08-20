@@ -6446,11 +6446,21 @@ def test_registered_slot_is_reserved_before_first_performance_observation(
     )
     events: list[str] = []
     original_reserve = A._reserve_registered_attempt_slot
+    original_classify = A.trial_registry.classify_attempt
+    original_observation_start = A.trial_registry.begin_attempt_observation
     original_read = reflux_origin_client.OriginLedgerClient.read_origin
 
     def observe_reservation(**kwargs):
         events.append("slot-reservation")
         return original_reserve(**kwargs)
+
+    def observe_classification(*args, **kwargs):
+        events.append("classification")
+        return original_classify(*args, **kwargs)
+
+    def observe_observation_start(*args, **kwargs):
+        events.append("observation-start")
+        return original_observation_start(*args, **kwargs)
 
     def observe_origin_read(self, capability):
         events.append("origin-read")
@@ -6461,6 +6471,14 @@ def test_registered_slot_is_reserved_before_first_performance_observation(
         return _fake_drive(*args, **kwargs)
 
     monkeypatch.setattr(A, "_reserve_registered_attempt_slot", observe_reservation)
+    monkeypatch.setattr(
+        A.trial_registry, "classify_attempt", observe_classification,
+    )
+    monkeypatch.setattr(
+        A.trial_registry,
+        "begin_attempt_observation",
+        observe_observation_start,
+    )
     monkeypatch.setattr(
         reflux_origin_client.OriginLedgerClient,
         "read_origin",
@@ -6475,6 +6493,9 @@ def test_registered_slot_is_reserved_before_first_performance_observation(
     )
     assert report["status"] == "complete"
     assert events[0] == "slot-reservation"
+    assert events.index("classification") > events.index("slot-reservation")
+    assert events.index("observation-start") > events.index("classification")
+    assert events.index("observation-start") < events.index("origin-read")
     assert events.index("origin-read") > 0
     assert events.index("performance-observation") > 0
 
