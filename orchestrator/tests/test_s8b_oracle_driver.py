@@ -5041,6 +5041,7 @@ def test_official_driver_records_returncodes_through_real_producer_flow(tmp_path
             aborted, bench = pipeline._run_bench(
                 "/fake/ycsb.exe", perf, clocks_per_us, kwargs["numactl"], False,
                 layout, variant, env_tag, abort, log=lambda _message: None,
+                build_attempt_id=f"oracle-test-{variant}",
                 bench_max_rounds=kwargs["bench_max_rounds"],
                 record_rep_returncodes=opted_in,
                 holdout_observation_admission=(

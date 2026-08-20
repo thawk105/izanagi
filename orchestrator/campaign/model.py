@@ -155,6 +155,13 @@ class EvalState:
     # (BUILD_START が最後)」で判定から漏れ、permanent skip が復活する (D25 の破れ)。
     last_terminal: Optional[WalRecord] = None
     attempts: Dict[str, BuildAttemptState] = field(default_factory=dict)
+    # Committed-attempt-only projection. These fields are populated by the
+    # admission-aware WAL projector; the legacy variant-wide fields above stay
+    # unchanged for existing consumers.
+    committed_attempt_id: Optional[str] = None
+    committed_build_start: Optional[WalRecord] = None
+    committed_verify: List[WalRecord] = field(default_factory=list)
+    committed_bench: Optional[WalRecord] = None
 
     @property
     def terminal(self) -> bool:
