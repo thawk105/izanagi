@@ -343,6 +343,33 @@ def test_each_replicate_is_complete_product_and_each_cell_occurs_n_times():
     assert sum(block["size"] for block in schedule["blocks"]) == n
 
 
+def test_build_schedule_uses_replicate_major_cell_ordinals():
+    n = 3
+    holdout_ids = _holdout_ids()
+    configuration_ids = CONFIGURATION_IDS
+    schedule = manifest.build_schedule(
+        n=n,
+        master_seed="schedule-index-seed",
+        block_sizes={"b0": n},
+        holdout_ids=holdout_ids,
+        configuration_ids=configuration_ids,
+    )
+    cell_count = len(holdout_ids) * len(configuration_ids)
+    positions_by_replicate = defaultdict(list)
+    for row in schedule["rows"]:
+        assert row["schedule_index"] // cell_count == row["replicate_index"]
+        positions_by_replicate[row["replicate_index"]].append(
+            row["schedule_index"] % cell_count
+        )
+
+    expected_positions = set(range(cell_count))
+    assert set(positions_by_replicate) == set(range(n))
+    for positions in positions_by_replicate.values():
+        assert len(positions) == cell_count
+        assert len(set(positions)) == cell_count
+        assert set(positions) == expected_positions
+
+
 def test_same_seed_is_byte_identical_and_different_seed_changes_hash():
     first = _schedule(seed="stable")
     second = _schedule(seed="stable")
