@@ -10573,6 +10573,7 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   強い。ユーザー裁定 (2026-08-20、詳細は本fragmentの worklog 側) により、上限引き上げは
   再度不採用のまま維持し、D551と同じ原則を `_batch_oids` の残る全呼び出し経路へ適用する恒久
   対応を worklog 新規項目として起票した。
+- **supersede: 2026-08-20** — 再発時の仮説(`_batch_oids` を通る他経路が履歴比例のまま残っている疑いが強い)は実測で否定された。真因は branch が D551 land (2026-08-19 12:51) より前の main (11:08) から分岐していたことであり、D551 親コミット時点のコードと失敗 tip での再現実験 (50061 requests) で確定した。`_batch_oids` の呼び出しは repo 全体で2経路のみ (1571行目 `_assert_rulings_exist`、1609行目 `validate_condition_freeze_at`) でどちらも履歴長非依存と確認済み。恒久対応として `_assert_rulings_exist` 経路の専用回帰テストを既存テスト拡張で追加した (D608、commit 8014d6778f1ca853b719b9d95a333d069ce17456)。
 ### F418. 8c preregistration の batch 上限をリポジトリ成長がわずかに超え、main への merge を伴う受入が構造的に赤くなる [恒真ゲート] [検査の非対称]
 
 - 事象: [T-699] の受入全走で `git merge --no-ff --no-commit main` 後、
