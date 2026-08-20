@@ -4,7 +4,7 @@ ledger: worklog
 authored: 2026-08-21
 wave: rulings-20260821-self-improve
 seq: 1
-title: /rulings all (第四回) で entry772・T-287裁定パッケージ・T-1434 handoff由来の計3件の裁定待ち未追跡を発見し新規5件を起票、[T-1446]を更新した (docsのみ、branch worktree-rulings-20260821-self-improve)
+title: /rulings all (第四回) で entry772・T-287裁定パッケージ・T-1434 handoff由来の裁定待ち未追跡を発見し新規5件を起票・[T-1446]を更新、ユーザーが6件を「推奨通りで」裁定した (docsのみ、branch worktree-rulings-20260821-self-improve)
 ---
 
 ## 本文
@@ -48,6 +48,11 @@ title: /rulings all (第四回) で entry772・T-287裁定パッケージ・T-14
   残り12 bytesしかなく、意味を保った追記が収まらない。契約 (`docs/skill-self-improvement.md`
   「予算値を上げる変更は通常の自己改善に含めず、理由付きの独立審査対象にする」) に従い、
   是正は実施せず本 fragment へ候補として記録し独立審査へ回す。
+- **ユーザー裁定 (2026-08-21)**: 上記索引を提示した直後、ユーザーが「推奨通りで」と全6件
+  (§1・§3・§4・[T-1090]・[T-1446]枠・rulings予算枠) を一括で裁定した。§3 (origin束縛/
+  integrity) だけは rulings 自身の推奨 (d 実施しない) が一次資料の親推奨 (a→b) と異なる旨を
+  索引提示時に明示した上での裁定であり、ユーザーは rulings 推奨を採った。実装 (§1・§4・
+  [T-1090] の3件) は本 fragment では行わず、次の dev-wave 起票へ回す。
 
 ## 次の一手差分
 
@@ -73,7 +78,8 @@ title: /rulings all (第四回) で entry772・T-287裁定パッケージ・T-14
   止める経路に限る」旨の確認義務を足す候補、274 bytes、一次資料=
   `output/insights/2026-08-04_t287-checkpoint-values/adjudication-package.md`§5、
   2026-08-04起票、2026-08-21 rulings発見で合流)。他の docs 予算超過候補 ([T-1430] 等) と
-  同じ「独立審査へ回す」枠へ合流させ、次に手が空いた小 wave でまとめて処理する。一次資料 =
+  同じ「独立審査へ回す」枠へ合流させ、次に手が空いた小 wave でまとめて処理する
+  (2026-08-21 ユーザーがこの対応方針を「推奨通りで」と明示的に確認した)。一次資料 =
   rulings-inbox `2026-08-11-t657-stage0-followups.md` §2・
   `2026-08-11-t665-waiter-self-match-second-instance.md`・worktree
   `dev-wave-t989-realrepo-worker-diag` の
@@ -83,32 +89,38 @@ title: /rulings all (第四回) で entry772・T-287裁定パッケージ・T-14
 
 ### 新規
 
-- {{T:t287-producer-value-domain}} **P2・新規 (2026-08-21 rulings発見)**: [T-287] 裁定パッケージ
-  §1。core/sort/trigger の 3 driver の `load_proposal_file` が direction/magnitude を値域未検査の
-  まま checkpoint へ永続化し、次回 resume 時にだけ driver 自身がそれを拒否する非対称
-  (自己汚染checkpoint) が残る。択一 = (a) 各 driver の ingress で検査 (b) `project_whiteboard()`
-  で一括検査 (c) 現状維持。一次資料の親推奨は (b)。一次資料 =
+- {{T:t287-producer-value-domain}} **P2・実装待ち (2026-08-21 ユーザー裁定「推奨通りで」)**:
+  [T-287] 裁定パッケージ§1。core/sort/trigger の 3 driver の `load_proposal_file` が
+  direction/magnitude を値域未検査のまま checkpoint へ永続化し、次回 resume 時にだけ driver
+  自身がそれを拒否する非対称 (自己汚染checkpoint) が残る。**裁定 = (b) `project_whiteboard()`
+  で一括検査を実装する** (択一 (a) 各driver ingressで検査・(c) 現状維持は不採用)。rulings推奨・
+  一次資料の親推奨とも (b) で一致。一次資料 =
   `output/insights/2026-08-04_t287-checkpoint-values/adjudication-package.md` §1。
-- {{T:t287-origin-binding-integrity}} **P2・新規 (2026-08-21 rulings発見)**: [T-287] 裁定パッケージ
-  §3。値域検査では in-domain 改竄 (許可値の範囲内で `rejected`→`fail`+`increase`+`small` に
-  書き換える等) を防げない。択一 = (a) iteration単調性+entry件数上限 (b) campaign/run origin
-  束縛 (c) checkpoint自体にHMAC等のintegrity (d) 実施しない (計測規律が並行実行を禁じ改竄は
-  運用外)。一次資料の親推奨は (a)→(b)。一次資料は同 package §3。
-- {{T:t287-untrusted-string-redaction}} **P2・新規 (2026-08-21 rulings発見)**: [T-287] 裁定パッケージ
-  §4。`state_from_dict` 等の既存 (本 wave 導入以前からの) 検査エラーが未信頼文字列を素通しで
-  例外に含め、`attempts.jsonl`/`report.json` の error message へ保存される (規律6 = 信頼境界の
-  射程)。certified 受理集合は不変。択一 = (a) 診断側で未信頼値をredact (既存テスト期待値変更を
-  伴う) (b) 長さ上限付きrepr+制御文字除去 (c) `p3_autonomous_workload_trial` の保存側だけで
-  redact (d) 実施しない。一次資料の親推奨は (c)。一次資料は同 package §4。
-- {{T:t1090-deferred-condition-stale}} **P3・新規 (2026-08-21 rulings発見)**: `docs/phase3.md`
-  見送り台帳の [T-1090] (1 dispatch job で複数node を扱う設計、有界並列化の不採用) の再訪条件
-  「[T-1116] の実装完了」は、[T-1116] が実装でなく「R2 は一度も発効していないと実測で確定」する
-  終端で閉じた (`docs/archive/worklog-phase3-0817-622.md`) ため文言と実態が乖離している。
-  [T-1090] が懸念した「既知赤registryが入ると再走回数の見積りが無効になる」の前提
-  (registryが作られる) 自体が別経路で解消済み。台帳の文言修正のみに留めるか、この機会に
-  元の設計問い自体を取り上げるかの判断が要る。
-- {{T:rulings-command-budget-full}} **P3・新規 (2026-08-21 rulings発見)**: `.claude/commands/rulings.md`
-  の収集手順に2件の是正 (前回セッションの既読entry範囲を無検証で信頼しない/`docs/decisions.md`
-  の「scope外・独立のユーザー裁定を要する」注記を収集源に加える) が要るが、同ファイルは
-  4988/5000 bytes (`tools/check_docs.py` の `COMMAND_LIMITS`) で残り12 bytesしかなく収まらない。
-  他の docs 予算超過候補と同じ「独立審査へ回す」枠へ合流させる。一次資料は本 worklog entry。
+- {{T:t287-origin-binding-integrity}} **P3・裁定済み・実施しない (2026-08-21 ユーザー裁定
+  「推奨通りで」)**: [T-287] 裁定パッケージ§3。値域検査では in-domain 改竄 (許可値の範囲内で
+  `rejected`→`fail`+`increase`+`small` に書き換える等) を防げない。**裁定 = (d) 実施しない**
+  (択一 (a) iteration単調性+entry件数上限・(b) campaign/run origin束縛・(c) HMAC等のintegrity
+  は不採用。理由 = 計測規律が並行実行を禁じ改竄は運用外、研究優先・防御的堅牢化は既定で見送り
+  の既定方針と整合)。**rulings推奨は(d)で、一次資料の親推奨(a)→(b)とは異なる。ユーザーは
+  rulings推奨を採った (相違点を索引提示時に明示した上での裁定)。** 再訪条件 = 防御的堅牢化を
+  要する実需の発生。一次資料は同 package §3。
+- {{T:t287-untrusted-string-redaction}} **P2・実装待ち (2026-08-21 ユーザー裁定「推奨通りで」)**:
+  [T-287] 裁定パッケージ§4。`state_from_dict` 等の既存 (本 wave 導入以前からの) 検査エラーが
+  未信頼文字列を素通しで例外に含め、`attempts.jsonl`/`report.json` の error message へ保存
+  される (規律6 = 信頼境界の射程)。certified 受理集合は不変。**裁定 = (c)
+  `p3_autonomous_workload_trial` の保存側だけでredactする** (択一 (a) 診断側redact・(b) 長さ
+  上限付きrepr+制御文字除去・(d) 実施しないは不採用)。rulings推奨・一次資料の親推奨とも (c)
+  で一致。一次資料は同 package §4。
+- {{T:t1090-deferred-condition-stale}} **P3・実装待ち (2026-08-21 ユーザー裁定「推奨通りで」)**:
+  `docs/phase3.md` 見送り台帳の [T-1090] (1 dispatch job で複数node を扱う設計、有界並列化の
+  不採用) の再訪条件「[T-1116] の実装完了」は、[T-1116] が実装でなく「R2 は一度も発効して
+  いないと実測で確定」する終端で閉じた (`docs/archive/worklog-phase3-0817-622.md`) ため文言と
+  実態が乖離している。**裁定 = (a) 台帳の文言を実態に合わせて訂正するに留め、元の設計問い
+  (1 dispatch jobで複数nodeを扱う) 自体は取り上げない** (択一 (b) 設計問い自体を検討し直すは
+  不採用)。実装は `docs/phase3.md` [T-1090] 本文の再訪条件1文を書き換えるだけの軽微な docs 修正。
+- {{T:rulings-command-budget-full}} **P3・実施待ち (2026-08-21 ユーザー裁定「推奨通りで」)**:
+  `.claude/commands/rulings.md` の収集手順に2件の是正 (前回セッションの既読entry範囲を無検証で
+  信頼しない/`docs/decisions.md` の「scope外・独立のユーザー裁定を要する」注記を収集源に加える)
+  が要るが、同ファイルは 4988/5000 bytes (`tools/check_docs.py` の `COMMAND_LIMITS`) で残り
+  12 bytesしかなく収まらない。**裁定 = [T-1446] と同じ「独立審査へ回す」枠へ合流させ、
+  容量見直しと一緒にまとめて処理する**。一次資料は本 worklog entry。
