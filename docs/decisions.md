@@ -24624,3 +24624,41 @@ limit 超過検出に委ね削除する。
 **scope外:** 同じファイル内の `_evaluate_c12` が使う helper も C06 改修前と同じ
 `_reachable_calls` 名前一致弱点を持つが、本決定は `_evaluate_c06` だけを対象とする
 (次 task 候補として worklog に記録)。
+
+## D614. T-1434(4) Wave C は `collect_run` の既定値廃止 + `_replay_manifest` 1行だけを Wave D 境界の許可された越境とする (2026-08-21)
+
+**決定:** `tools/codex_reasoning_ab.py` の model 軸拡張 Wave C (`supervise_pair`/`collect_run` 層) を、
+D603 が定めた「Wave D 所有関数 (`_validate_schedule`/`_load_adjudication`/`_aggregate_verified`/
+`_validate_supervisor_ledger`/`make_packets`) の本体は変更しない」制約の下で実装した。
+唯一の例外として、`collect_run` の `expected_model: str = MODEL` という暗黙既定値を廃止し
+`expected_requested_model: str` を必須化したことに追従する形で、`_replay_manifest` (Wave D 所有) 内の
+唯一の呼出し箇所へ `expected_requested_model=slot.get("requested_model", MODEL)` という 1 行の
+機械的な呼出し規約更新だけを許可した。adjudication・aggregate・replay の判定ロジック自体は
+無改修である。
+
+**理由:**
+- 段2 codex plan・段3 敵対相談 2 レンズ・段6 敵対レビュー 2 レンズが、計 4 回独立に
+  `supervise_pair`→`_validate_schedule` という既存の C→D 呼出し自体が実在することを確認したが、
+  `_validate_schedule` が受理した schedule slot の行 dict を pass-through する既存特性
+  (未知 field を削らない) により、Wave C の `requested_model` 配線がこの経路を無改修で安全に
+  通過することも同じく複数回確認した。D 本体の書き換えは不要という結論が独立検証で揺らがなかった。
+- `collect_run` の既定値を残したまま (`expected_model: str = MODEL` を維持したまま) 実装する案も
+  検討したが、これは前 wave の段6 敵対レビューが `normalize_schedule` 系について指摘した
+  「fail-closed gate が実効しない」と同型の欠陥 (model 不一致が既定値で静かに見逃される) を
+  再導入する。`DW-C01`「呼出し規約を変える取込は全呼出しを数える」の範囲内として、
+  唯一の call site (`_replay_manifest`) への 1 行更新を許可する方が安全側だと判断した。
+- 段6 レビュー中の親自身の変異事前登録の準備で、`_verify_launch_receipt` の明示
+  `requested_model` 引数が「turn_context は一致・argv だけ不一致」という組合せで単独検査されて
+  いない被覆漏れを発見した。実在する到達可能経路 (`_replay_manifest` が将来 model-axis schedule で
+  luna を渡す、CLI `--expected-model` は任意文字列を受理する) であるため、1 テストを追加して
+  塞いだ (production 側は無改修)。
+
+**却下した選択肢:**
+- Wave A→B→C→D を本 wave でまとめて実装する — D603 の narrow 判断を覆す新事実は本 wave で
+  一切出なかった。
+- `_validate_schedule`/`normalize_schedule` 系を Wave C で配線する — D 所有関数の書き換えを伴い
+  D603 の境界を破る。Wave A が残した "Wave C/D must wire" という docstring は、配線の必要性を
+  示すが所有の移管は意味しないと解釈した。
+- `collect_run` の `expected_model` 既定値を維持する — 上記理由のとおり静かな見逃しを再導入する。
+
+変異事前登録 8 件、baseline 300 passed・20 skipped、8/8 KILLED・SURVIVED 0・MISMATCH 0。
