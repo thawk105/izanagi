@@ -510,7 +510,7 @@ def _parse_supply_tokens(
 def _parse_universal_macro_details(
         options_text: str,
 ) -> tuple[set[str], set[str], Dict[str, str]]:
-    """universal definitions function の set(...) だけから供給詳細を取る。"""
+    """universal definitions function の供給 call から供給詳細を取る。"""
     clean = _strip_cmake_comments(options_text)
     match = re.search(
         r"\bfunction\s*\(\s*ccbench_universal_definitions\b",
@@ -535,6 +535,14 @@ def _parse_universal_macro_details(
     names: set[str] = set()
     bare_names: set[str] = set()
     cache_names: Dict[str, str] = {}
+
+    def merge(parsed: tuple[set[str], set[str], Dict[str, str]]) -> None:
+        for left in parsed[0]:
+            _add_supply_detail(
+                names, bare_names, cache_names, left, parsed[2].get(left),
+                "ccbench_universal_definitions()",
+            )
+
     for set_body in _cmake_calls(body, "set"):
         tokens = _cmake_tokens(set_body)
         if not tokens:
@@ -544,12 +552,21 @@ def _parse_universal_macro_details(
         except ValueError:
             continue
         payload = [token for token in tokens[1:end] if not token.startswith("${")]
-        parsed = _parse_supply_tokens(payload, "ccbench_universal_definitions()")
-        for left in parsed[0]:
-            _add_supply_detail(
-                names, bare_names, cache_names, left, parsed[2].get(left),
-                "ccbench_universal_definitions()",
-            )
+        merge(_parse_supply_tokens(payload, "ccbench_universal_definitions()"))
+
+    visibility = {"PRIVATE", "PUBLIC", "INTERFACE"}
+    for definitions_body in _cmake_calls(body, "target_compile_definitions"):
+        tokens = _cmake_tokens(definitions_body)
+        if not tokens:
+            continue
+        payload = [
+            token for index, token in enumerate(tokens)
+            if index > 0
+            and not token.startswith("${")
+            and token.upper() not in visibility
+        ]
+        if payload:
+            merge(_parse_supply_tokens(payload, "ccbench_universal_definitions()"))
     return names, bare_names, cache_names
 
 
