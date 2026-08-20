@@ -78,6 +78,22 @@ def test_backoff_minimal_screening_selection_and_identity():
 def test_backoff_minimal_screening_runs_only_baseline_and_selected(monkeypatch):
     seen = {}
 
+    monkeypatch.setattr(
+        B, "_compilers_for_current_site", lambda: ("test-cc", "test-cxx"),
+    )
+    monkeypatch.setattr(
+        B.buildcache, "observed_toolchain_manifest",
+        lambda _cc, _cxx: {
+            role: {
+                "requested": f"test-{role}",
+                "realpath": f"/fixture/test-{role}",
+                "version_first_line": f"{role} version A",
+                "version": f"{role} version A",
+            }
+            for role in ("cc", "cxx", "cmake")
+        },
+    )
+
     def fake_screened(cfg, gs, perf, workload, calibration_dir, log, **kwargs):
         seen["canonical"] = [g.canonical() for g in gs]
         return _summary("minimal")

@@ -30,6 +30,7 @@ if __package__ in {None, ""}:  # pragma: no cover - direct CLI execution
     __package__ = "orchestrator.campaign"
 
 from .loop import run_campaign                          # noqa: E402
+from . import buildcache                                 # noqa: E402
 from .build_admission import (BuildRunContext, GeneratorId,  # noqa: E402
                                       attest_generator_output, build_run_context)
 from .layout import CampaignLayout                      # noqa: E402
@@ -41,6 +42,10 @@ from . import (env_contract, ident, pin, screening_driver,
                       source_digest, wal)  # noqa: E402
 from .loop import CampaignSummary                       # noqa: E402
 from .pipeline import SCREEN_REJECTION_REASON, variant_id  # noqa: E402
+
+
+_DEFAULT_CXX = buildcache.DEFAULT_CXX
+_compilers_for_current_site = buildcache.compilers_for_current_site
 
 
 CCBENCH_COMMIT = pin.CURRENT_PIN      # 511c953 — literal 保持をやめ pin 正本へ (between_run_floor と同型)
@@ -90,16 +95,32 @@ def config_for(tag: str, workload: dict, *,
 def _run_screened_workload(cfg, gs, perf, workload, calibration_dir, log, *,
                            build_context: BuildRunContext,
                            capability_resolver,
+                           expected_toolchain_manifest=None,
                            confirm_each_candidate=False):
     baseline = gs[0]
+    if expected_toolchain_manifest is None:
+        _, resolved_cxx = _compilers_for_current_site()
+    else:
+        _, resolved_cxx = buildcache.toolchain_compilers_from_manifest(
+            expected_toolchain_manifest,
+        )
+    evidence_cxx = _DEFAULT_CXX if resolved_cxx == _DEFAULT_CXX else resolved_cxx
     baseline_ref = variant_id(
-        baseline, source_digest.resolve(baseline, cfg.ccbench_commit))
+        baseline,
+        source_digest.resolve(
+            baseline, cfg.ccbench_commit, cxx=evidence_cxx,
+        ),
+    )
     measured = []
+    execution_contract = env_contract.lookup(ENV_TAG)
 
     def measure_baseline(screen_cfg, layout):
         measured.append(screening_driver.evaluate_candidate(
             screen_cfg, layout, baseline, perf, ENV_TAG, CLK,
             authorization_contract=env_contract.authorize(ENV_TAG),
+            env_contract=execution_contract,
+            expected_toolchain_manifest=expected_toolchain_manifest,
+            declared_use_class="official",
             build_context=build_context,
             capability_resolver=capability_resolver,
             screening=None, numactl=NUMA, force=True, do_settle=True, log=log))
@@ -119,6 +140,9 @@ def _run_screened_workload(cfg, gs, perf, workload, calibration_dir, log, *,
         results.append(screening_driver.evaluate_candidate(
             prepared.cfg, prepared.layout, genome, perf, ENV_TAG, CLK,
             authorization_contract=env_contract.authorize(ENV_TAG),
+            env_contract=execution_contract,
+            expected_toolchain_manifest=expected_toolchain_manifest,
+            declared_use_class="official",
             build_context=build_context,
             capability_resolver=capability_resolver,
             screening=prepared.screening, numactl=NUMA, log=log))
@@ -152,6 +176,10 @@ def run_workload(tag: str, workload: dict, log=print, *,
                 f"screening_fixed_us は既存 sweep 点から一意に選ぶ: {screening_fixed_us}")
         gs = [gs[0], selected[0]]
     cfg = config_for(tag, workload, screening_fixed_us=screening_fixed_us)
+    resolved_cc, resolved_cxx = _compilers_for_current_site()
+    expected_toolchain_manifest = buildcache.observed_toolchain_manifest(
+        resolved_cc, resolved_cxx,
+    )
     build_context = build_run_context(generator_id=GeneratorId.BACKOFF_SWEEP)
     cfg = ident.bind_admission_policy(cfg, build_context.policy)
     capability_resolver = lambda evidence: attest_generator_output(
@@ -168,10 +196,13 @@ def run_workload(tag: str, workload: dict, log=print, *,
             cfg, gs, perf, workload, calibration_dir, log,
             build_context=build_context,
             capability_resolver=capability_resolver,
+            expected_toolchain_manifest=expected_toolchain_manifest,
             confirm_each_candidate=confirm_each_candidate)
     else:
         s = run_campaign(cfg, gs, perf, ENV_TAG, CLK, numactl=NUMA, log=log,
                          authorization_contract=env_contract.authorize(ENV_TAG),
+                         env_contract=env_contract.lookup(ENV_TAG),
+                         expected_toolchain_manifest=expected_toolchain_manifest,
                          build_context=build_context,
                          declared_use_class="official",
                          capability_resolver=capability_resolver)
