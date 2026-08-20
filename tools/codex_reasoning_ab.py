@@ -3408,6 +3408,7 @@ def _supervise_one(
     slot_id = str(slot["slot_id"])
     case = str(slot["case"])
     arm = str(slot["arm"])
+    requested_model = str(slot.get("requested_model", MODEL))
     attempt_dir = run_root / "attempts" / f"run-{run_id}"
     _assert_arm_neutral_paths((run_root, attempt_dir, snapshot, prompt))
     attempt_dir.mkdir(parents=True, exist_ok=False)
@@ -3463,8 +3464,12 @@ def _supervise_one(
     )
     if any(key.startswith("GIT_") for key in environment):
         raise ValidationError("GIT_* survived supervisor environment scrub", RC_ROUTING)
-    codex_argv = _codex_exec_argv(actual_cli, arm, snapshot, output)
-    normalized_argv = _normalized_exec_argv(codex_argv, arm)
+    codex_argv = _codex_exec_argv(
+        actual_cli, requested_model, arm, snapshot, output
+    )
+    normalized_argv = _normalized_exec_argv(
+        codex_argv, requested_model, arm
+    )
     bwrap_argv = _bwrap_exec_argv(
         actual_bwrap,
         codex_argv,
@@ -3519,6 +3524,7 @@ def _supervise_one(
             "parent_run_id": parent_run_id,
             "case": case,
             "arm": arm,
+            "requested_model": requested_model,
             "created_at": started_at,
             "process_start_monotonic_ns": start_monotonic_ns,
             "process_pid": process.pid,
@@ -3949,7 +3955,10 @@ def _thread_id_from_events(path: Path) -> str:
 
 
 def _verify_launch_receipt(
-    launch_path: Path, launch: Mapping[str, Any], arm: str
+    launch_path: Path,
+    launch: Mapping[str, Any],
+    arm: str,
+    requested_model: str,
 ) -> list[str]:
     reasons: list[str] = []
     if (
@@ -3975,7 +3984,7 @@ def _verify_launch_receipt(
         reasons.append("launch receipt attestation schema mismatch")
     try:
         if launch.get("normalized_argv") != _normalized_exec_argv(
-            launch.get("argv", []), arm
+            launch.get("argv", []), requested_model, arm
         ):
             reasons.append("launch normalized argv mismatch")
     except ValidationError as exc:
@@ -4265,7 +4274,7 @@ def collect_run(
     sessions_root: Path,
     snapshot: Path,
     launch_receipt: Path,
-    expected_model: str = MODEL,
+    expected_requested_model: str,
 ) -> tuple[dict[str, Any], int]:
     reasons: list[str] = []
     launch = _load_json_object(launch_receipt)
@@ -4276,7 +4285,14 @@ def collect_run(
     ):
         if launch.get(field) != expected_value:
             reasons.append(f"launch receipt {field} mismatch")
-    reasons.extend(_verify_launch_receipt(launch_receipt, launch, requested_effort))
+    reasons.extend(
+        _verify_launch_receipt(
+            launch_receipt,
+            launch,
+            requested_effort,
+            expected_requested_model,
+        )
+    )
     before = _parse_timestamp(launch.get("created_at"))
     start_monotonic_ns = launch.get("process_start_monotonic_ns")
     if (
@@ -4407,7 +4423,7 @@ def collect_run(
         turn_id = contexts[0].get("turn_id") if contexts else None
         if contexts and effective_effort != requested_effort:
             reasons.append("requested/effective effort mismatch")
-        if contexts and contexts[0].get("model") != expected_model:
+        if contexts and contexts[0].get("model") != expected_requested_model:
             reasons.append("model mismatch")
         if contexts and contexts[0].get("cwd") != os.fspath(snapshot.resolve()):
             reasons.append("turn_context cwd mismatch")
@@ -6126,6 +6142,7 @@ def _replay_manifest(
                 sessions_root=sessions_root,
                 snapshot=Path(oracle["snapshot"]),
                 launch_receipt=launch_path,
+                expected_requested_model=slot.get("requested_model", MODEL),
             )
             if _canonical_bytes(replay_receipt) != receipt_path.read_bytes():
                 reasons.append(f"{run_id}: receipt canonical replay mismatch")
@@ -6727,7 +6744,9 @@ def _parser() -> argparse.ArgumentParser:
     collect.add_argument("--sessions-root", type=Path, default=_sessions_default())
     collect.add_argument("--snapshot", type=Path, required=True)
     collect.add_argument("--launch-receipt", type=Path, required=True)
-    collect.add_argument("--expected-model", default=MODEL)
+    collect.add_argument(
+        "--expected-model", dest="expected_requested_model", default=MODEL
+    )
 
     supervisor = sub.add_parser("supervise-pair")
     supervisor.add_argument("--schedule", type=Path, required=True)
@@ -6829,7 +6848,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 sessions_root=args.sessions_root,
                 snapshot=args.snapshot,
                 launch_receipt=args.launch_receipt,
-                expected_model=args.expected_model,
+                expected_requested_model=args.expected_requested_model,
             )
         elif args.command == "supervise-pair":
             result = supervise_pair(
