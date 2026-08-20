@@ -23747,3 +23747,155 @@ genuine dot-attribute消費) は、`_load_s8c_schedule_authority`(C05、未実�
 **研究状態への影響:** なし。production の CC variant 受理集合・certified 選択・材料レポートの
 値は変更しない。変わるのは auditor が引用できる violation type の語彙と、それを裏付ける
 schema/gate/pin/adapter の整合だけである。
+
+## D588. attempt 分類の時点証明を registry 内の論理順序偽装不能性として機構化する (2026-08-20)
+
+**決定:**
+
+1. 分類 (classify_attempt) が性能出力を読む前に確定したことの証明を、attempt registry 内での
+   イベント順序の偽装不能性として機構化する。freeze→start→pre-observation-seal→classification→
+   observation-start→terminal の全行を hash chain (event_index / previous_event_sha256 /
+   event_sha256) で結び、registry の genesis が持つ schema_version を以後の全行へ強制する
+   (genesis と異なる schema_version の行は reject する)。retry admission は直前 slot の terminal に
+   observation_start_event_sha256 が存在しないことを必須条件とし、report_sha256 を持つ
+   terminal-failure も同様に observation-start を必須とする。
+2. この機構が証明するのは「registry に記録された論理順序が事後偽装不能である」ことであり、
+   「trusted launcher 自体が実際に OS レベルで性能出力を先読みしていない」ことの独立検証では
+   ない。後者は launcher (呼び出し側コード) の誠実な実装を前提とし続ける。
+3. 性能 read API 自体を registry capability で包み、launcher 自体が信頼できない場合の時点保証を
+   追加する拡張は、本決定の scope 外とする。
+
+**理由:**
+
+- D510 決定4は「分類は信頼側の起動器が...確定する」と、起動器の信頼性を前提として書いている。
+  D550 決定6/7 はこの前提の下で保証範囲を「最初の性能観測より前」へ既に狭めていた。本決定は
+  その系譜のまま「登録された分類が事後に偽装できない」という具体的な機構を追加するものであり、
+  前提そのものを検証する新しい保証を作るものではない。
+- 敵対レビューは、hash chain 単独では「OS レベルで実際に性能出力を先に読んだ上で後から正しい
+  順序を偽装できないか」という別の脅威モデルを閉じないと指摘した。この指摘は正しいが、D510の
+  前提 (起動器は信頼側) の範囲では、レビューが示した迂回はいずれも起動器自身が不誠実である
+  ケースに限られ、正直な起動器を前提とする限り機構は機能する。
+- プロトタイプ基準の下では、完全に敵対的な launcher への防御より、事後監査可能性 (改ざん検出)
+  を優先する。
+
+**却下した選択肢:**
+
+- 性能 read API を capability で包み、launcher 自体の信頼性も機構的に保証する — 呼び出し側の
+  広範な再設計を要し、既存の trusted launcher 前提 (D510) を覆す再裁定に相当するため、
+  本 wave の scope を超える。将来 task 候補として起票する。
+- per-slot の3イベントだけを hash 連鎖し全行連鎖は見送る — 検討したが、既存の full-ref 履歴検査と
+  同じ層への統合であり実装複雑度がむしろ下がること、registry 全体の tamper-evidence という
+  副次的価値もあることから、全行連鎖を採用した。
+
+## D589. 床値 protocol path 固定読取り consumer 6 件の現況を確定し、resolver 化は追加不要と裁定する (2026-08-20)
+
+**決定:** 床値 protocol の固定 path を読む consumer 6 件のうち、「現在の protocol を caller に
+選ばせず index authority 経由で解決する」設計 (D460 型) は既に `certified_writer_admission.py`・
+`s8b_holdout_admission.py._authority()`・`tools/pegasus/floor_campaign.sh` の3件へ適用済みと確認した。
+残り3件のうち `s8b_prediction_runner.py` と `s8b_ratified_freeze.py` は、呼び手が渡す
+`pre_oracle_head` (ただし seal 時点の `git rev-parse HEAD` との一致検査で拘束される) 時点の
+protocol bytes を証明鎖として再検証する設計であり、これを current resolver 経由に置き換えると
+過去 commit 時点の証明が別の protocol bytes で再検証されてしまうため、literal path のまま維持する
+のが正しい。残り1件 (`s8b_holdout_freeze.py:1362-1365`、v2 candidate 生成の working tree 直読) は
+性質上 current の literal read で D460 型変換の対象になり得るが、既存の別チケット
+(生成移行 chain の候補生成 CLI) が (a) `output/s8b-freeze-budget-approvals/g1.json` (承認 artifact)
+不在、(b) `BUDGET_APPROVAL_SHA256` 未 ratify、(c) official mode の result.json 不在、の3条件が
+揃わず今日も到達不能であることを実測し、本 wave では実装しない。
+
+**理由:**
+
+- `pre_oracle_head` の安全性の実体は「歴史 commit だから安全」という抽象論ではなく、
+  seal 時点の `git rev-parse HEAD` との一致検査 (`s8b_prediction_runner.py:1523-1529`) にある。
+  呼び手が任意の過去 commit を自由選択できる経路は実測で確認できなかった。
+- 過去の別 wave の完了記録 (2026-08-17) は「証明鎖の歴史錨定3件」と表現していたが、
+  実際は2件が歴史錨定、1件は current literal read (別チケットで休眠中) であり不正確だった。
+  本決定はこの分類を訂正する。
+- D460 自身は `certified_writer_admission` の current resolver 化だけを決定しており、
+  他 module・shell wrapper の配線は「後続の裁定パッケージ」へ明示的に deferred されていた
+  (恒久除外ではない)。歴史錨定 consumer を対象外とする論拠は D460 が既に決めていたからではなく、
+  証明鎖の再現性を守るという本決定独自の判断である。
+
+**却下した選択肢:**
+
+- 残り3件を一律 resolver 経由へ変換する — 歴史錨定2件では過去の証明鎖が別 bytes で
+  再検証されることになり、未承認 path 差し替えを防ぐという当初の目的と正面から矛盾する。
+- 発火条件不成立のまま v2 candidate 生成側を先行実装する — 条件付き機能は発火条件を満たす
+  既存 artifact が無ければ実装しない (dev-wave `DW-G04`)。承認 artifact も official result も
+  存在しない状態での実装は投機的である。
+
+**残る既知の限界 (このwaveでは対応せず、別チケットで裁定パッケージとして扱う):**
+
+- ratified document 内の `floor_protocol.path` は canonical な相対 POSIX path であること以外の
+  namespace 制約が無い dynamic pointer で、`s8b_ratified_freeze.py` の literal
+  `_SELECTOR_PROTOCOL_PATH` (本決定が対象とする経路) とは独立しクロスチェックもされていない。
+  literal path 側が安全でも、この dynamic pointer 側の受理拡大は未解決のまま残る (T-1216 が対象、
+  本 wave の敵対相談で再確認・file:line 証跡を追加)。
+- `s8b_prediction_runner.py` (`_git_bytes`)、`s8b_floor_campaign.py` (`_pre_oracle_blob`)、
+  `s8b_ratified_freeze.py` の間で、ambient `GIT_DIR` / replace-refs 等を除去する Git 読取り衛生化の
+  適用が不統一であり、`source_digest._sanitized_git_env` と同型の穴が複数 producer/consumer に
+  またがる可能性がある (T-1215 が対象、族一般化の第2 consumer 候補として file:line 証跡を追加)。
+
+## D590. DW-G04 は既存コードの表示バグ是正には適用しない (backoff_sweep_report.py IPC欠測表示) (2026-08-20)
+
+**決定:** `orchestrator/campaign/backoff_sweep_report.py` のIPC欠測表示バグ修正に
+DW-G04 (条件付き機能の発火gate) は適用しない。既存の常時実行関数 (`report_workload`/`_md`)
+が既に読んでいる値 (`g.li.get("ipc")`) の表示を正すだけであり、外部callerが無いと永久に
+発火しない新規受理経路・権限機構・供給/結線ではない。
+
+**理由:**
+- `docs/decisions.md` のDW-G04先例20件超 (D120、D196/D215/D225等) はいずれも「外部caller
+  が無いと永久に発火しない新規capability」(新規受理経路、権限activation、供給/結線) を
+  対象としており、「既存の常時実行コードパスが表示するデータ整形を正す」型の事例は無い。
+- 修正対象のコード分岐は本fixの前後を問わず、このモジュールが呼ばれるたび毎回実行される。
+  追加されるのは新しいcapabilityではなく、既存経路内の1個のif/elseによるデータ表示の場合分け
+  であり、DW-G04が警戒する「呼び手不在で永久に死ぬコード」とは性質が異なる。
+
+**却下した選択肢:**
+- 「新規テストで単体検証できるから発火条件を満たす」という論法での非適用主張 —
+  段3敵対相談レンズが指摘したとおり、既存D120/D196/D215の先例は実在artifact/計測IDを要求
+  しており、単体テストの検証可能性だけでは満たさない。この論法は根拠として使わない。
+- 発火実績ゼロ (実campaign 5本・bench_done 26件でIPC欠測は現状0件) を理由に実装せず設計
+  メモへ留める — 「未測定」が「measured 0」と誤読される研究上のリスクは、実際にIPC欠測が
+  起きた時点で修正が無いと偽表示を出し続ける。既存の常時実行経路の表示不整合は発火実績を
+  待たず正すべきと判断した。
+
+## D591. sort SWO oracle の pytest collection時 import 保護は pytest fixture 化 + REAL_REPO_SERIAL_NODES 拡張とし、鎖を伸ばさない controller-prewarm 方式は見送る (2026-08-20)
+
+**決定:** `orchestrator/tests/test_sort_swo_oracle.py` の module 直下
+`_ENVIRONMENT = O.resolve_oracle_environment(_CCBENCH)` (pytest collection 時に全 xdist worker
+で実行され、`REAL_REPO_SERIAL_NODES` の実行時直列化では保護できない) を、
+`@pytest.fixture(scope="module")` の `oracle_environment` へ遅延化する。直接 consumer 16 関数 +
+`compiled_oracle_artifacts` 経由の間接 consumer 8 関数、計 24 canonical node (27 collected item)
+を `REAL_REPO_SERIAL_NODES` / 独立 golden (`test_real_repo_serialization.py`) の両方へ追加する
+(66→90件)。同ファイルの `_assert_fixture_closure_complete` が fixture 消費者の登録漏れを機械検査
+する。collection 中に resolver が呼ばれないことを検査する回帰テストを追加する。
+
+**理由:**
+- 親プロセス内で `resolve_oracle_environment` を monkeypatch し `--collect-only`
+  (テスト実行ゼロ) を走らせると実呼び出しが1回発火することを実測した。`REAL_REPO_SERIAL_NODES` の
+  `xdist_group("real-repo")` marker 付与 (`pytest_collection_modifyitems`) は collection
+  **完了後**の hook のため、import 時アクセスを構造的に保護できない。
+- 既存の `real_repo_ratified_memo.py` (`new_outcome_cache`) / `real_repo_receipt_memo.py`
+  (prewarm barrier) と同種の「lazy 化して collection 時アクセスを避ける」設計を再利用する。
+- pytest fixture 化 (候補B) は、既存の `_assert_fixture_closure_complete` が fixture 消費者の
+  `REAL_REPO_SERIAL_NODES` 登録漏れを (少なくとも 1 件が既に登録されている限り) 自動検出する
+  — 手書き `functools.lru_cache` 方式 (候補A) にはこの安全網が無い。
+
+**却下した選択肢:**
+- 候補A (`functools.lru_cache` 包みの module-level lazy singleton) — 機械的差分は小さいが、
+  `REAL_REPO_SERIAL_NODES` 登録漏れを検出する既存機構の恩恵を受けない。
+- 候補C (`real_repo_receipt_memo.py` 型の controller-only prewarm barrier + cross-worker
+  cache、`REAL_REPO_SERIAL_NODES` を一切伸ばさない) — 実装複雑度が高く、安全性が依存する
+  「controller の資源解決が worker 実行開始より必ず先行する」という hook 順序前提を本 wave では
+  file:line 粒度で実証できなかった。D531 (「配布順の変更で wall が下がるという主張は、実装した
+  上で同一 branch 上の A/B 対測定で示す」) の方法論に従い、まず候補B を実装して実測し、増分が
+  許容できない場合に候補C へ投資する順序を選んだ。
+- `REAL_REPO_SERIAL_NODES` への追加を24件未満に絞る — module scope の `oracle_environment`
+  fixture を消費する全 canonical node が、xdist の worker 割当て次第でいずれも fixture 要求時の
+  未保護トリガになりうるため、部分集合での保護は原理的に成立しない。
+
+**実測 (real-repo 直列鎖への影響):** 同一commit上で 66 canonical (追加前相当) / 90 canonical
+(現行) を明示的に node 列挙して直列実行し比較: 79.02s → 119.34s (+40.32秒、+51%)。追加27件
+(skip 0件) は事前の lens 予測 (直接16+間接7+4-parametrize展開4) と一致した。この増分は D531/D532
+(鎖はwallの74〜78%を占める) に照らし軽微とは言えないが、既知トレードオフとして受容し、
+[T-1438] で候補Cの再検討余地を記録する。
