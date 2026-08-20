@@ -1074,6 +1074,23 @@ def test_v2_schedule_normalizer_is_explicit_and_non_mutating() -> None:
     }
 
 
+def test_expected_schedule_rejects_non_null_v2_cache_condition() -> None:
+    legacy = {
+        "schema_version": 2,
+        "slots": [
+            {
+                "slot_id": "s01",
+                "case": "POS",
+                "arm": "max",
+                "cache_condition": "cold",
+                "price_version": None,
+            }
+        ],
+    }
+    with pytest.raises(TOOL.ValidationError, match="non-null values are not supported"):
+        TOOL.expected_schedule_from_manifest(TOOL.TASK_MANIFEST, legacy)
+
+
 def test_v3_nullable_dimensions_distinguish_missing_from_null() -> None:
     row = {
         "benchmark_task_id": "POS",
@@ -1120,22 +1137,21 @@ def test_benchmark_task_id_and_case_alias_conflict_is_rejected() -> None:
 
 
 def test_manifest_schedule_and_findings_are_dynamic() -> None:
-    manifest = {
-        "schema_version": 3,
-        "manifest_kind": "t181-task-manifest",
-        "tasks": {
-            "alpha": {
-                "benchmark_task_id": "alpha",
-                "legacy_case": "legacy-alpha",
-                "known_finding_ids": ["A-1"],
-            },
-            "beta": {
-                "benchmark_task_id": "beta",
-                "legacy_case": "legacy-beta",
-                "known_finding_ids": ["B-9"],
-            },
-        },
-    }
+    manifest = copy.deepcopy(TOOL.TASK_MANIFEST)
+    manifest["tasks"] = {}
+    for task_id, legacy_case, finding_id, source_case in (
+        ("alpha", "legacy-alpha", "A-1", "POS"),
+        ("beta", "legacy-beta", "B-9", "NEG"),
+    ):
+        task = copy.deepcopy(TOOL.TASK_MANIFEST["tasks"][source_case])
+        task.update(
+            {
+                "benchmark_task_id": task_id,
+                "legacy_case": legacy_case,
+                "known_finding_ids": [finding_id],
+            }
+        )
+        manifest["tasks"][task_id] = task
     schedule = {
         "schema_version": 3,
         "slots": [
@@ -1170,6 +1186,30 @@ def test_manifest_schedule_and_findings_are_dynamic() -> None:
         ("beta", "high"): 1,
     }
     assert TOOL.known_finding_ids_for_manifest(manifest) == {"A-1", "B-9"}
+
+
+@pytest.mark.parametrize("normalizer, schema_version", [
+    (TOOL.normalize_schedule, 3),
+    (TOOL.normalize_legacy_schedule, 2),
+])
+@pytest.mark.parametrize("bad_manifest", ["empty_tasks", "invalid_finding_id"])
+def test_schedule_normalizers_reject_malformed_manifest(
+    normalizer: Callable[..., dict[str, Any]],
+    schema_version: int,
+    bad_manifest: str,
+) -> None:
+    manifest = copy.deepcopy(TOOL.TASK_MANIFEST)
+    if bad_manifest == "empty_tasks":
+        manifest["tasks"] = {}
+    else:
+        task = copy.deepcopy(manifest["tasks"]["POS"])
+        task["known_finding_ids"] = [1]
+        manifest["tasks"] = {"POS": task}
+    with pytest.raises(TOOL.ValidationError):
+        normalizer(
+            {"schema_version": schema_version, "slots": []},
+            manifest=manifest,
+        )
 
 
 def test_parent_numstat_controls_remain_pinned(
@@ -5615,6 +5655,71 @@ def test_supervisor_cli_removed_caller_attestation_command() -> None:
     assert "create-launch" not in help_text
     assert "argv-json" not in help_text
     assert "environment-json" not in help_text
+
+
+def test_cli_benchmark_task_id_is_parsed_and_resolved(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    parsed = TOOL._parser().parse_args(
+        [
+            "build-snapshot",
+            "--snapshot",
+            os.fspath(tmp_path / "snapshot"),
+            "--benchmark-task-id",
+            "POS",
+        ]
+    )
+    assert parsed.benchmark_task_id == "POS"
+    assert parsed.case is None
+
+    observed: dict[str, Any] = {}
+
+    def fake_resolve(
+        benchmark_task_id: str | None = None,
+        *,
+        case: str | None = None,
+        legacy_case: str | None = None,
+        manifest: Any = TOOL.TASK_MANIFEST,
+    ) -> str:
+        observed.update(
+            {
+                "benchmark_task_id": benchmark_task_id,
+                "case": case,
+            }
+        )
+        return "POS"
+
+    monkeypatch.setattr(TOOL, "resolve_benchmark_task_id", fake_resolve)
+    monkeypatch.setattr(TOOL, "build_snapshot", lambda *args: {"ok": True})
+    rc = TOOL.main(
+        [
+            "build-snapshot",
+            "--snapshot",
+            os.fspath(tmp_path / "snapshot"),
+            "--benchmark-task-id",
+            "POS",
+        ]
+    )
+    assert rc == 0
+    assert observed == {"benchmark_task_id": "POS", "case": None}
+
+
+def test_cli_case_and_benchmark_task_id_conflict_is_fail_closed(
+    tmp_path: Path,
+) -> None:
+    rc = TOOL.main(
+        [
+            "build-snapshot",
+            "--snapshot",
+            os.fspath(tmp_path / "snapshot"),
+            "--case",
+            "POS",
+            "--benchmark-task-id",
+            "NEG",
+        ]
+    )
+    assert rc == TOOL.RC_ROUTING
 
 
 def _timing_rows() -> tuple[list[dict[str, Any]], list[dict[str, Any]], list[dict[str, Any]]]:

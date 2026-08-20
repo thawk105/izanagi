@@ -2312,6 +2312,9 @@ def validate_nullable_dimensions(
     v3 requires both keys to be present.  A v2 row may omit them and receives
     explicit nulls only in the normalized copy.  Non-null values are rejected
     deliberately: no provider attestation exists in this wave.
+
+    This helper is not yet called by the live supervise_pair/_validate_schedule
+    path; Wave C/D must wire that production path to this validator.
     """
     if not isinstance(slot, Mapping):
         raise ValidationError("schedule slot is not an object", RC_ROUTING)
@@ -2379,7 +2382,12 @@ def normalize_legacy_schedule(
     *,
     manifest: Mapping[str, Any] = TASK_MANIFEST,
 ) -> dict[str, Any]:
-    """Convert a v2 schedule to a v3 view without changing its source bytes."""
+    """Convert a v2 schedule to a v3 view without changing its source bytes.
+
+    This normalizer is not yet called by the live supervise_pair/_validate_schedule
+    path; Wave C/D must wire that production path to this validator.
+    """
+    _validate_task_manifest(manifest)
     if (
         not isinstance(schedule, Mapping)
         or schedule.get("schema_version") != LEGACY_SCHEMA_VERSION
@@ -2405,7 +2413,12 @@ def normalize_schedule(
     *,
     manifest: Mapping[str, Any] = TASK_MANIFEST,
 ) -> dict[str, Any]:
-    """Return the canonical v3 schedule view, dispatching v2 explicitly."""
+    """Return the canonical v3 schedule view, dispatching v2 explicitly.
+
+    This normalizer is not yet called by the live supervise_pair/_validate_schedule
+    path; Wave C/D must wire that production path to this validator.
+    """
+    _validate_task_manifest(manifest)
     if not isinstance(schedule, Mapping):
         raise ValidationError("schedule is not an object", RC_ROUTING)
     version = schedule.get("schema_version")
@@ -2459,6 +2472,7 @@ def expected_schedule_from_manifest(
             "slots": list(schedule),
         }
     if source.get("schema_version") == LEGACY_SCHEMA_VERSION:
+        normalize_legacy_schedule(source, manifest=manifest)
         return dict(LEGACY_EXPECTED_SCHEDULE)
     normalized = normalize_schedule(source, manifest=manifest)
     counts: dict[tuple[str, str], int] = {}
@@ -6677,6 +6691,11 @@ def _sessions_default() -> Path:
     )
 
 
+def _add_benchmark_task_selector(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument("--case", choices=("POS", "NEG"))
+    parser.add_argument("--benchmark-task-id")
+
+
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     sub = parser.add_subparsers(dest="command", required=True)
@@ -6685,21 +6704,21 @@ def _parser() -> argparse.ArgumentParser:
     build.add_argument("--repo", type=Path, default=_ROOT)
     build.add_argument("--snapshot", type=Path, required=True)
     build.add_argument("--sessions-root", type=Path, default=_sessions_default())
-    build.add_argument("--case", choices=("POS", "NEG"), required=True)
+    _add_benchmark_task_selector(build)
 
     snapshot = sub.add_parser("verify-snapshot")
     snapshot.add_argument("--snapshot", type=Path, required=True)
-    snapshot.add_argument("--case", choices=("POS", "NEG"), required=True)
+    _add_benchmark_task_selector(snapshot)
 
     prompt = sub.add_parser("render-prompt")
     prompt.add_argument("--sessions-root", type=Path, default=_sessions_default())
-    prompt.add_argument("--case", choices=("POS", "NEG"), required=True)
+    _add_benchmark_task_selector(prompt)
     prompt.add_argument("--new-root", type=Path, required=True)
     prompt.add_argument("--output", type=Path)
 
     collect = sub.add_parser("collect-run")
     collect.add_argument("--run-id", required=True)
-    collect.add_argument("--case", choices=("POS", "NEG"), required=True)
+    _add_benchmark_task_selector(collect)
     collect.add_argument("--requested-effort", choices=("max", "high"), required=True)
     collect.add_argument("--events", type=Path, required=True)
     collect.add_argument("--done", type=Path, required=True)
@@ -6765,17 +6784,28 @@ def _parser() -> argparse.ArgumentParser:
 def main(argv: Sequence[str] | None = None) -> int:
     args = _parser().parse_args(argv)
     try:
+        benchmark_task_id: str | None = None
+        if args.command in {
+            "build-snapshot",
+            "verify-snapshot",
+            "render-prompt",
+            "collect-run",
+        }:
+            benchmark_task_id = resolve_benchmark_task_id(
+                args.benchmark_task_id,
+                case=args.case,
+            )
         if args.command == "build-snapshot":
             result = build_snapshot(
-                args.repo, args.snapshot, args.sessions_root, args.case
+                args.repo, args.snapshot, args.sessions_root, benchmark_task_id
             )
             rc = 0
         elif args.command == "verify-snapshot":
-            result = verify_snapshot(args.snapshot, args.case)
+            result = verify_snapshot(args.snapshot, benchmark_task_id)
             rc = 0
         elif args.command == "render-prompt":
             data, result = render_prompt(
-                args.sessions_root, args.case, args.new_root
+                args.sessions_root, benchmark_task_id, args.new_root
             )
             if args.output:
                 if args.output.exists():
@@ -6790,7 +6820,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         elif args.command == "collect-run":
             result, rc = collect_run(
                 run_id=args.run_id,
-                case=args.case,
+                case=benchmark_task_id,
                 requested_effort=args.requested_effort,
                 events=args.events,
                 done=args.done,
