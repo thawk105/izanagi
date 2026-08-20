@@ -9896,6 +9896,19 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   `check_acceptance_reds.py` の probe は短時間 dispatch を複数バースト投入する利用パターンであり、
   固定 60 秒窓が相対的に厳しくなる仮説を持つが未実測。恒久対応 (grace 窓拡張・投入間隔調整・
   `request-absent` latch 条件の見直し) はユーザー裁定へ返し、本 wave では実施しない。
+
+- **再発: 2026-08-20** — `tools/mutation_harness.py --runner-mode dispatch` の1回目投入
+  (collection phase相当) が `orphan-hold` (`job-may-remain-without-terminal-evidence`) で
+  rc=2 停止した。木の変異は無く (`変異を残した状態=unchanged`)、docs編集も行っていない
+  ([T-1409] が切り分けた `dispatch_compute.py:1948` の `accounting-grace-expired` →
+  `_fresh_qstat_gated_qdel` の `request-absent` 保守的latchと同型)。対象 job
+  (`926304.nqsv`) は `output/pegasus-dispatch/<hash>/result.json` 上 `child_rc: 0` で
+  正常終了しており (12 tests collected)、非決定的 timing 事象の再現とみなせる。
+  復旧は既定手順どおり (手動qdelせずqstatの出力内容で不在を確認 → dirty file無し・
+  clean/HEAD確認 → hold jsonとsubmission_dirを削除 → 新しい`--out`/`--attempt-out`で
+  `--wrapper-attempt`を上げて再投入) で、2回目の投入は全7走 (collection・baseline・
+  変異5件) が成功した。`check_acceptance_reds.py` 以外の呼び手 (`mutation_harness.py`
+  内部のtest runner dispatch) でも同型が発生することを確認した。
 ### F384. 所有 file の合計行数が大きい実装子が SIGKILL され成果物ゼロで終わる [セッション死・救出] [コンテキスト浪費]
 
 - 事象: dev-wave 段 5 の実装子 2 体が `codex_exit_code = -9` で終了した。1 体目は
