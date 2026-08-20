@@ -956,7 +956,9 @@ def _finish_receipt_memo_session(config) -> None:
 
 
 def pytest_configure(config) -> None:
+    global _T989_WORKER_SPAN_ENABLED
     try:
+        _T989_WORKER_SPAN_ENABLED = bool(os.environ.get(_T989_WORKER_SPAN_ENV))
         _configure_receipt_memo_session(config)
         _configure_receipt_memo_run_id(config)
         _growth_holds_opted_in()
@@ -972,7 +974,14 @@ def pytest_configure(config) -> None:
         raise
 
 
+_T989_WORKER_SPAN_ENV = "IZANAGI_T989_WORKER_SPAN_LOG"
+_T989_RECORDABLE_WHEN = frozenset({"setup", "call", "teardown"})
+_T989_WORKER_SPAN_ENABLED = False
+
+
 def pytest_runtest_logreport(report) -> None:
+    if _T989_WORKER_SPAN_ENABLED:
+        _record_t989_worker_span(report)
     if report.failed:
         category = "failed" if getattr(report, "when", "") == "call" else "error"
         _FAILURE_REPORTS.append(_StashedFailure(category, report))
@@ -1086,6 +1095,59 @@ def _render_nodeid(nodeid: str) -> tuple[str, int, int]:
         nodeid, _FAILURE_NODEID_DISPLAY_MAX_BYTES,
     )
     return rendered, source_bytes, source_bytes - retained_bytes
+
+
+def _record_t989_worker_span(report) -> None:
+    try:
+        if report.when not in _T989_RECORDABLE_WHEN:
+            return
+        value = os.environ.get(_T989_WORKER_SPAN_ENV)
+        if not value:
+            return
+        output = Path(value).expanduser().absolute()
+        repo_root = Path(__file__).resolve().parents[2]
+        lexical_parent = output.parent
+        resolved_parent = lexical_parent.resolve(strict=False)
+        if (
+            lexical_parent == repo_root
+            or repo_root in lexical_parent.parents
+            or resolved_parent == repo_root
+            or repo_root in resolved_parent.parents
+        ):
+            return
+
+        nodeid, nodeid_bytes, nodeid_omitted_bytes = _render_nodeid(report.nodeid)
+        payload = {
+            "worker": os.environ.get("PYTEST_XDIST_WORKER", "controller"),
+            "nodeid": nodeid,
+            "nodeid_bytes": nodeid_bytes,
+            "nodeid_omitted_bytes": nodeid_omitted_bytes,
+            "when": report.when,
+            "start": report.start,
+            "stop": report.stop,
+        }
+        raw = (
+            json.dumps(
+                payload, sort_keys=True, ensure_ascii=True,
+                separators=(",", ":"), allow_nan=False,
+            ) + "\n"
+        ).encode("ascii")
+
+        nofollow = getattr(os, "O_NOFOLLOW", None)
+        if nofollow is None:
+            return
+
+        fd = os.open(
+            output, os.O_WRONLY | os.O_CREAT | os.O_APPEND | nofollow, 0o600,
+        )
+        try:
+            written = os.write(fd, raw)
+            if written != len(raw):
+                raise OSError("short worker-span append")
+        finally:
+            os.close(fd)
+    except Exception:
+        pass
 
 
 def _item_sort_key(item: _FailureDigestItem) -> tuple[object, ...]:

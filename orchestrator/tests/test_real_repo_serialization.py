@@ -2836,6 +2836,482 @@ def test_tmpfs_tmpdir_wiring_scanner_positive_and_negative_control():
     )
 
 
+# T-989 の新規テスト関数は REAL_REPO_SERIAL_NODES に無く fake report だけで完結するため real-repo stamp・group marker・growth-hold 機構のいずれの分岐にも入らない。
+def _t989_worker_span_report(
+    nodeid,
+    *,
+    when="call",
+    start=1.0,
+    stop=2.0,
+    failed=False,
+):
+    return SimpleNamespace(
+        failed=failed,
+        nodeid=nodeid,
+        when=when,
+        start=start,
+        stop=stop,
+    )
+
+
+def test_t989_worker_span_unset_is_noop():
+    suite_conftest = _load_suite_conftest()
+    report = _t989_worker_span_report(
+        "tests/fake.py::test_unset", failed=True,
+    )
+    with tempfile.TemporaryDirectory(prefix="izanagi-t989-unset-") as raw_tmp:
+        with mock.patch.dict(os.environ, {}, clear=False):
+            os.environ.pop(suite_conftest._T989_WORKER_SPAN_ENV, None)
+            with mock.patch.object(
+                suite_conftest, "_render_nodeid",
+            ) as renderer, mock.patch.object(suite_conftest.os, "open") as opener:
+                suite_conftest._record_t989_worker_span(report)
+                suite_conftest.pytest_runtest_logreport(report)
+            renderer.assert_not_called()
+            opener.assert_not_called()
+            assert list(Path(raw_tmp).iterdir()) == []
+    assert len(suite_conftest._FAILURE_REPORTS) == 1
+    stashed = suite_conftest._FAILURE_REPORTS[0]
+    assert stashed.category == "failed"
+    assert stashed.report is report
+
+
+def test_t989_worker_span_json_is_canonical():
+    suite_conftest = _load_suite_conftest()
+    report = _t989_worker_span_report(
+        "tests/長い.py::test_日本", when="call", start=1.25, stop=3.5,
+    )
+    with tempfile.TemporaryDirectory(prefix="izanagi-t989-json-") as raw_tmp:
+        output = Path(raw_tmp) / "worker-spans.jsonl"
+        with mock.patch.dict(
+            os.environ,
+            {
+                suite_conftest._T989_WORKER_SPAN_ENV: str(output),
+                "PYTEST_XDIST_WORKER": "gw3",
+            },
+            clear=False,
+        ), mock.patch.object(
+            suite_conftest, "_T989_WORKER_SPAN_ENABLED", True,
+        ):
+            suite_conftest.pytest_runtest_logreport(report)
+
+        raw = output.read_text(encoding="ascii")
+        actual = json.loads(raw)
+        rendered, nodeid_bytes, nodeid_omitted_bytes = suite_conftest._render_nodeid(
+            report.nodeid,
+        )
+        expected_payload = {
+            "worker": "gw3",
+            "nodeid": rendered,
+            "nodeid_bytes": nodeid_bytes,
+            "nodeid_omitted_bytes": nodeid_omitted_bytes,
+            "when": "call",
+            "start": 1.25,
+            "stop": 3.5,
+        }
+        assert set(actual) == set(expected_payload)
+        assert isinstance(actual["worker"], str)
+        assert isinstance(actual["nodeid"], str)
+        assert isinstance(actual["nodeid_bytes"], int)
+        assert isinstance(actual["nodeid_omitted_bytes"], int)
+        assert isinstance(actual["when"], str)
+        assert isinstance(actual["start"], float)
+        assert isinstance(actual["stop"], float)
+        assert actual == expected_payload
+        expected = (
+            json.dumps(
+                expected_payload,
+                sort_keys=True,
+                ensure_ascii=True,
+                separators=(",", ":"),
+                allow_nan=False,
+            )
+            + "\n"
+        )
+        assert raw == expected
+
+
+def test_t989_worker_span_appends_each_report():
+    suite_conftest = _load_suite_conftest()
+    reports = (
+        _t989_worker_span_report(
+            "tests/fake.py::test_append", when="setup", start=1.0, stop=1.1,
+        ),
+        _t989_worker_span_report(
+            "tests/fake.py::test_append", when="call", start=1.1, stop=1.9,
+        ),
+        _t989_worker_span_report(
+            "tests/fake.py::test_append", when="teardown", start=1.9, stop=2.0,
+        ),
+    )
+    with tempfile.TemporaryDirectory(prefix="izanagi-t989-append-") as raw_tmp:
+        output = Path(raw_tmp) / "worker-spans.jsonl"
+        with mock.patch.dict(os.environ, clear=False):
+            os.environ[suite_conftest._T989_WORKER_SPAN_ENV] = str(output)
+            os.environ.pop("PYTEST_XDIST_WORKER", None)
+            with mock.patch.object(
+                suite_conftest, "_T989_WORKER_SPAN_ENABLED", True,
+            ):
+                for report in reports:
+                    suite_conftest.pytest_runtest_logreport(report)
+
+        lines = output.read_text(encoding="ascii").splitlines()
+        assert len(lines) == 3
+        payloads = [json.loads(line) for line in lines]
+        assert [payload["worker"] for payload in payloads] == [
+            "controller", "controller", "controller",
+        ]
+        assert [payload["when"] for payload in payloads] == [
+            "setup", "call", "teardown",
+        ]
+        assert [payload["start"] for payload in payloads] == [1.0, 1.1, 1.9]
+        assert [payload["stop"] for payload in payloads] == [1.1, 1.9, 2.0]
+
+
+def test_t989_worker_span_reuses_render_nodeid_for_long_nodeid():
+    suite_conftest = _load_suite_conftest()
+    long_nodeid = "tests/" + ("長い-node::" * 80) + "test_long"
+    report = _t989_worker_span_report(long_nodeid)
+    rendered_values = suite_conftest._render_nodeid(long_nodeid)
+    with tempfile.TemporaryDirectory(prefix="izanagi-t989-render-") as raw_tmp:
+        output = Path(raw_tmp) / "worker-spans.jsonl"
+        with mock.patch.dict(
+            os.environ,
+            {suite_conftest._T989_WORKER_SPAN_ENV: str(output)},
+            clear=False,
+        ), mock.patch.object(
+            suite_conftest, "_T989_WORKER_SPAN_ENABLED", True,
+        ), mock.patch.object(
+            suite_conftest,
+            "_render_nodeid",
+            return_value=rendered_values,
+        ) as renderer:
+            suite_conftest.pytest_runtest_logreport(report)
+
+        renderer.assert_called_once_with(long_nodeid)
+        payload = json.loads(output.read_text(encoding="ascii"))
+        assert payload["nodeid"] == rendered_values[0]
+        assert payload["nodeid_bytes"] == rendered_values[1]
+        assert payload["nodeid_omitted_bytes"] == rendered_values[2]
+        assert len(long_nodeid.encode("utf-8")) > 256
+
+
+def test_t989_worker_span_invalid_destination_is_fail_open():
+    suite_conftest = _load_suite_conftest()
+    report = _t989_worker_span_report("tests/fake.py::test_invalid_destination")
+    repo_root = Path(suite_conftest.__file__).resolve().parents[2]
+    denied = repo_root / f".t989-denied-{os.getpid()}.jsonl"
+    assert not denied.exists()
+    with tempfile.TemporaryDirectory(prefix="izanagi-t989-invalid-") as raw_tmp:
+        with mock.patch.dict(
+            os.environ,
+            {suite_conftest._T989_WORKER_SPAN_ENV: str(denied)},
+            clear=False,
+        ), mock.patch.object(
+            suite_conftest, "_T989_WORKER_SPAN_ENABLED", True,
+        ), mock.patch.object(suite_conftest, "_render_nodeid") as renderer:
+            suite_conftest.pytest_runtest_logreport(report)
+            renderer.assert_not_called()
+        assert not denied.exists()
+
+        repo_link = Path(raw_tmp) / "repo-root-link"
+        repo_link.symlink_to(repo_root, target_is_directory=True)
+        resolved_repo_output = repo_link / "worker-spans.jsonl"
+        with mock.patch.dict(
+            os.environ,
+            {suite_conftest._T989_WORKER_SPAN_ENV: str(resolved_repo_output)},
+            clear=False,
+        ), mock.patch.object(
+            suite_conftest, "_T989_WORKER_SPAN_ENABLED", True,
+        ), mock.patch.object(
+            suite_conftest, "_render_nodeid",
+        ) as renderer, mock.patch.object(suite_conftest.os, "open") as opener:
+            suite_conftest.pytest_runtest_logreport(report)
+            renderer.assert_not_called()
+            opener.assert_not_called()
+        assert not resolved_repo_output.exists()
+
+        missing_parent = Path(raw_tmp) / "missing-parent" / "worker-spans.jsonl"
+        with mock.patch.dict(
+            os.environ,
+            {suite_conftest._T989_WORKER_SPAN_ENV: str(missing_parent)},
+            clear=False,
+        ):
+            suite_conftest.pytest_runtest_logreport(report)
+        assert not missing_parent.exists()
+
+        renderer_error = Path(raw_tmp) / "renderer-error.jsonl"
+        with mock.patch.dict(
+            os.environ,
+            {suite_conftest._T989_WORKER_SPAN_ENV: str(renderer_error)},
+            clear=False,
+        ), mock.patch.object(
+            suite_conftest, "_render_nodeid", side_effect=OSError("renderer failed"),
+        ):
+            suite_conftest.pytest_runtest_logreport(report)
+        assert not renderer_error.exists()
+
+
+def test_t989_worker_span_missing_o_nofollow_is_noop():
+    suite_conftest = _load_suite_conftest()
+    report = _t989_worker_span_report("tests/fake.py::test_missing_nofollow")
+    with tempfile.TemporaryDirectory(prefix="izanagi-t989-nofollow-") as raw_tmp:
+        output = Path(raw_tmp) / "worker-spans.jsonl"
+        with mock.patch.dict(
+            os.environ,
+            {suite_conftest._T989_WORKER_SPAN_ENV: str(output)},
+            clear=False,
+        ), mock.patch.object(
+            suite_conftest, "_T989_WORKER_SPAN_ENABLED", True,
+        ), mock.patch.object(
+            suite_conftest.os, "O_NOFOLLOW", None, create=True,
+        ), mock.patch.object(suite_conftest.os, "open") as opener:
+            suite_conftest.pytest_runtest_logreport(report)
+        opener.assert_not_called()
+        assert not output.exists()
+
+
+def test_t989_worker_span_short_write_is_fail_open():
+    suite_conftest = _load_suite_conftest()
+    report = _t989_worker_span_report("tests/fake.py::test_short_write")
+    with tempfile.TemporaryDirectory(prefix="izanagi-t989-short-write-") as raw_tmp:
+        output = Path(raw_tmp) / "worker-spans.jsonl"
+        with mock.patch.dict(
+            os.environ,
+            {suite_conftest._T989_WORKER_SPAN_ENV: str(output)},
+            clear=False,
+        ), mock.patch.object(
+            suite_conftest, "_T989_WORKER_SPAN_ENABLED", True,
+        ), mock.patch.object(
+            suite_conftest.os, "write", return_value=0,
+        ) as writer, mock.patch.object(
+            suite_conftest.os, "close", wraps=os.close,
+        ) as closer:
+            suite_conftest.pytest_runtest_logreport(report)
+        writer.assert_called_once()
+        closer.assert_called_once()
+        assert output.exists()
+
+
+def test_t989_worker_span_ignores_non_phase_when():
+    suite_conftest = _load_suite_conftest()
+    report = _t989_worker_span_report(
+        "tests/fake.py::test_crash_synthetic", when="???",
+    )
+    with tempfile.TemporaryDirectory(prefix="izanagi-t989-when-") as raw_tmp:
+        output = Path(raw_tmp) / "worker-spans.jsonl"
+        with mock.patch.dict(
+            os.environ,
+            {suite_conftest._T989_WORKER_SPAN_ENV: str(output)},
+            clear=False,
+        ), mock.patch.object(
+            suite_conftest, "_T989_WORKER_SPAN_ENABLED", True,
+        ), mock.patch.object(suite_conftest, "_render_nodeid") as renderer, \
+                mock.patch.object(suite_conftest.os, "open") as opener:
+            suite_conftest.pytest_runtest_logreport(report)
+        renderer.assert_not_called()
+        opener.assert_not_called()
+        assert not output.exists()
+
+
+def test_t989_worker_span_disabled_gate_skips_recording():
+    suite_conftest = _load_suite_conftest()
+    report = _t989_worker_span_report("tests/fake.py::test_disabled_gate")
+    with tempfile.TemporaryDirectory(prefix="izanagi-t989-disabled-") as raw_tmp:
+        output = Path(raw_tmp) / "worker-spans.jsonl"
+        with mock.patch.dict(
+            os.environ,
+            {suite_conftest._T989_WORKER_SPAN_ENV: str(output)},
+            clear=False,
+        ), mock.patch.object(
+            suite_conftest, "_T989_WORKER_SPAN_ENABLED", False,
+        ), mock.patch.object(
+            suite_conftest, "_record_t989_worker_span",
+        ) as recorder:
+            suite_conftest.pytest_runtest_logreport(report)
+
+        recorder.assert_not_called()
+        assert not output.exists()
+
+
+def test_t989_worker_span_unset_env_skips_path_construction():
+    suite_conftest = _load_suite_conftest()
+    report = _t989_worker_span_report("tests/fake.py::test_unset_path")
+    with mock.patch.dict(os.environ, {}, clear=False):
+        os.environ.pop(suite_conftest._T989_WORKER_SPAN_ENV, None)
+        with mock.patch.object(
+            suite_conftest, "_T989_WORKER_SPAN_ENABLED", True,
+        ), mock.patch.object(
+            suite_conftest, "Path", wraps=suite_conftest.Path,
+        ) as path_factory:
+            suite_conftest.pytest_runtest_logreport(report)
+
+        path_factory.assert_not_called()
+
+
+def test_t989_worker_span_rejects_repo_descendant_destinations():
+    suite_conftest = _load_suite_conftest()
+    report = _t989_worker_span_report("tests/fake.py::test_repo_descendant")
+    repo_root = Path(suite_conftest.__file__).resolve().parents[2]
+    with tempfile.TemporaryDirectory(prefix="izanagi-t989-descendant-") as raw_tmp:
+        repo_child = repo_root / "orchestrator" / "tests"
+        direct = repo_child / f".t989-descendant-{os.getpid()}-{id(report)}.jsonl"
+        repo_link = Path(raw_tmp) / "repo-tests-link"
+        repo_link.symlink_to(repo_child, target_is_directory=True)
+        destinations = (direct, repo_link / "worker-spans.jsonl")
+
+        for output in destinations:
+            assert not output.exists()
+            with mock.patch.dict(
+                os.environ,
+                {suite_conftest._T989_WORKER_SPAN_ENV: str(output)},
+                clear=False,
+            ), mock.patch.object(
+                suite_conftest, "_T989_WORKER_SPAN_ENABLED", True,
+            ), mock.patch.object(
+                suite_conftest, "_render_nodeid",
+            ) as renderer, mock.patch.object(
+                suite_conftest.os, "open",
+            ) as opener:
+                suite_conftest.pytest_runtest_logreport(report)
+
+            renderer.assert_not_called()
+            opener.assert_not_called()
+            assert not output.exists()
+
+
+def test_t989_worker_span_short_write_receives_canonical_raw():
+    suite_conftest = _load_suite_conftest()
+    report = _t989_worker_span_report("tests/fake.py::test_short_write_raw")
+    rendered, nodeid_bytes, nodeid_omitted_bytes = suite_conftest._render_nodeid(
+        report.nodeid,
+    )
+    expected_payload = {
+        "worker": "controller",
+        "nodeid": rendered,
+        "nodeid_bytes": nodeid_bytes,
+        "nodeid_omitted_bytes": nodeid_omitted_bytes,
+        "when": report.when,
+        "start": report.start,
+        "stop": report.stop,
+    }
+    expected_raw = (
+        json.dumps(
+            expected_payload,
+            sort_keys=True,
+            ensure_ascii=True,
+            separators=(",", ":"),
+            allow_nan=False,
+        ) + "\n"
+    ).encode("ascii")
+
+    with tempfile.TemporaryDirectory(prefix="izanagi-t989-short-raw-") as raw_tmp:
+        output = Path(raw_tmp) / "worker-spans.jsonl"
+        with mock.patch.dict(
+            os.environ,
+            {
+                suite_conftest._T989_WORKER_SPAN_ENV: str(output),
+                "PYTEST_XDIST_WORKER": "controller",
+            },
+            clear=False,
+        ), mock.patch.object(
+            suite_conftest, "_T989_WORKER_SPAN_ENABLED", True,
+        ), mock.patch.object(
+            suite_conftest.os, "write", return_value=0,
+        ) as writer, mock.patch.object(
+            suite_conftest.os, "close", wraps=os.close,
+        ) as closer:
+            suite_conftest.pytest_runtest_logreport(report)
+
+        writer.assert_called_once()
+        assert writer.call_args.args[1] == expected_raw
+        closer.assert_called_once()
+
+
+def test_t989_worker_span_configure_caches_env_gate():
+    suite_conftest = _load_suite_conftest()
+    with mock.patch.object(
+        suite_conftest, "_configure_receipt_memo_session",
+    ), mock.patch.object(
+        suite_conftest, "_configure_receipt_memo_run_id",
+    ), mock.patch.object(
+        suite_conftest, "_growth_holds_opted_in",
+    ), mock.patch.object(
+        suite_conftest, "mark_pytest_session_enforcing", None,
+    ):
+        with mock.patch.dict(
+            os.environ,
+            {suite_conftest._T989_WORKER_SPAN_ENV: "configured.jsonl"},
+            clear=False,
+        ):
+            suite_conftest.pytest_configure(_ReceiptHookConfig())
+            assert suite_conftest._T989_WORKER_SPAN_ENABLED is True
+
+        with mock.patch.dict(os.environ, {}, clear=False):
+            os.environ.pop(suite_conftest._T989_WORKER_SPAN_ENV, None)
+            suite_conftest.pytest_configure(_ReceiptHookConfig())
+            assert suite_conftest._T989_WORKER_SPAN_ENABLED is False
+
+
+def test_t989_worker_span_keyboard_interrupt_propagates_without_stash_mutation():
+    import pytest
+
+    suite_conftest = _load_suite_conftest()
+    report = _t989_worker_span_report(
+        "tests/fake.py::test_keyboard_interrupt", failed=True,
+    )
+    sentinel = object()
+    suite_conftest._FAILURE_REPORTS.append(sentinel)
+    try:
+        with tempfile.TemporaryDirectory(prefix="izanagi-t989-keyboard-") as raw_tmp:
+            output = Path(raw_tmp) / "worker-spans.jsonl"
+            with mock.patch.dict(
+                os.environ,
+                {suite_conftest._T989_WORKER_SPAN_ENV: str(output)},
+                clear=False,
+            ), mock.patch.object(
+                suite_conftest, "_T989_WORKER_SPAN_ENABLED", True,
+            ), mock.patch.object(
+                suite_conftest, "_render_nodeid",
+                side_effect=KeyboardInterrupt,
+            ):
+                with pytest.raises(KeyboardInterrupt):
+                    suite_conftest.pytest_runtest_logreport(report)
+
+            assert suite_conftest._FAILURE_REPORTS == [sentinel]
+    finally:
+        suite_conftest._FAILURE_REPORTS.clear()
+
+
+def test_t989_worker_span_tests_are_not_growth_holds():
+    from orchestrator.tests.growth_test_holds import GROWTH_TEST_HOLDS
+
+    t989_tests = {
+        "test_t989_worker_span_unset_is_noop",
+        "test_t989_worker_span_json_is_canonical",
+        "test_t989_worker_span_appends_each_report",
+        "test_t989_worker_span_reuses_render_nodeid_for_long_nodeid",
+        "test_t989_worker_span_invalid_destination_is_fail_open",
+        "test_t989_worker_span_missing_o_nofollow_is_noop",
+        "test_t989_worker_span_short_write_is_fail_open",
+        "test_t989_worker_span_ignores_non_phase_when",
+        "test_t989_worker_span_disabled_gate_skips_recording",
+        "test_t989_worker_span_unset_env_skips_path_construction",
+        "test_t989_worker_span_rejects_repo_descendant_destinations",
+        "test_t989_worker_span_short_write_receives_canonical_raw",
+        "test_t989_worker_span_configure_caches_env_gate",
+        "test_t989_worker_span_keyboard_interrupt_propagates_without_stash_mutation",
+        "test_t989_worker_span_tests_are_not_growth_holds",
+    }
+    node_ids = {
+        f"{Path(__file__).name}::{test_name}" for test_name in t989_tests
+    }
+    assert node_ids.isdisjoint(GROWTH_TEST_HOLDS), (
+        "T-989 の新設8テストが恒久保留集合に入っている: "
+        f"{sorted(node_ids & set(GROWTH_TEST_HOLDS))!r}"
+    )
+
+
 # tmpfs 回帰ガード node と、その node 内で load-bearing な token。関数の外に置くのは
 # 自己適用を恒真にしないため — 関数内の dict リテラルだと、自分自身の token 検査が
 # 「dict にその文字列が書いてあるから通る」だけになる。
