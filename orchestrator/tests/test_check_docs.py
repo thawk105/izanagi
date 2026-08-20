@@ -5533,8 +5533,10 @@ def test_r33_role_decision_pin_accepts_exact_pending_fragment():
     [
         ('"generation_id": "n-pilot-r33"',
          '"generation_id": "n-pilot-r32"'),
-        ('"pilot_rounds": 33', '"pilot_rounds": 32'),
-        ('"allocation_count": 3', '"allocation_count": 2'),
+        ('"generation_id": "n-pilot-r33",\n        "pilot_rounds": 33,',
+         '"generation_id": "n-pilot-r33",\n        "pilot_rounds": 32,'),
+        ('"allocation_count": 3,\n        "cell_count": 12,',
+         '"allocation_count": 2,\n        "cell_count": 12,'),
     ],
     ids=["generation", "round", "allocation"],
 )

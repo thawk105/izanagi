@@ -20,6 +20,7 @@ import hashlib
 import json
 import os
 from pathlib import Path, PurePosixPath
+import secrets
 import stat
 import subprocess
 import threading
@@ -44,6 +45,8 @@ __all__ = (
     "FloorHoldoutEvidenceError",
     "FloorHoldoutReservation",
     "HoldoutAdmissionError",
+    "NPilotReservationReceipt",
+    "TransactionInspection",
     "NPilotCellHoldoutAdmission",
     "OracleCellHoldoutAdmission",
     "OBSERVATION_ROLE_FLOOR_CAMPAIGN",
@@ -54,6 +57,13 @@ __all__ = (
     "consume_attempt_ticket",
     "consume_n_pilot_attempt_ticket",
     "consume_oracle_attempt_ticket",
+    "abort_unpublished_n_pilot_transaction",
+    "write_guarded_create_bytes",
+    "assert_holdout_safe_bytes",
+    "_canonical_n_pilot_attempt_ledger_row",
+    "_inspect_n_pilot_transaction_locked",
+    "_recover_n_pilot_attempt_ledger_locked",
+    "_recover_n_pilot_transactions_locked",
     "finalize_floor_holdout_admissions",
     "inspect_floor_holdout_admission_evidence",
     "provision_shared_admission_root",
@@ -68,6 +78,15 @@ _ROOT_REL = Path("izanagi") / "s8b-holdout-admission-v1"
 _LOCK_NAME = "ledger.lock"
 _LEDGER_NAME = "ledger.jsonl"
 _ATTEMPT_LEDGER_NAME = "attempt-ledger.jsonl"
+_R33_RECEIPT_SCHEMA = "s8b-n-pilot-reservation/v2"
+_R33_MANIFEST_SCHEMA = "s8b-n-pilot-admission-manifest/v1"
+_R33_TRANSACTION_SCHEMA = "s8b-n-pilot-admission-transaction/v2"
+_R33_ABORT_SCHEMA = "s8b-n-pilot-transaction-abort/v1"
+_R33_TRANSACTION_DIR = "transactions"
+_R33_RECEIPT_DIR = "receipts"
+_R33_MANIFEST_DIR = "manifests"
+_R33_QUARANTINE_DIR = "transaction-quarantine"
+_R33_CLAIM_SCHEMA = "s8b-n-pilot-r33-cell-claim/v1"
 _CLAIM_SCHEMA_V1 = "s8b-holdout-cell-claim/v1"
 _CLAIM_SCHEMA_V2 = "s8b-holdout-cell-claim/v2"
 _CLAIM_SCHEMA = _CLAIM_SCHEMA_V2
@@ -181,6 +200,88 @@ class NPilotCellHoldoutAdmission:
     trial_workload_name: str
     configuration_id: str
     cell_id: str
+
+
+class NPilotReservationReceipt(dict[str, object]):
+    """Durable R33 reservation receipt.
+
+    The mapping is the authoritative receipt document.  The two private
+    attributes only identify where the document was published; they are not
+    serialized and therefore cannot accidentally become part of the public
+    schema.  Keeping this as a mapping also makes a JSON-loaded receipt usable
+    by a later process without any reservation state in this interpreter.
+    """
+
+    __slots__ = ("_receipt_sha256", "_root")
+
+    def __init__(
+        self, document: Mapping[str, object], *, receipt_sha256: str, root: Path,
+    ) -> None:
+        super().__init__(_mutable_json_tree(document))
+        self._receipt_sha256 = receipt_sha256
+        self._root = root
+
+    @property
+    def receipt_sha256(self) -> str:
+        return self._receipt_sha256
+
+    @property
+    def document(self) -> Mapping[str, object]:
+        return self
+
+    def __getattr__(self, name: str) -> object:
+        try:
+            return self[name]
+        except KeyError as exc:
+            raise AttributeError(name) from exc
+
+    @property
+    def root(self) -> Path:
+        return self._root
+
+    @property
+    def receipt_path(self) -> Path:
+        return self._root / _R33_RECEIPT_DIR / f"{self._receipt_sha256}.json"
+
+    @property
+    def authoritative_receipt_path(self) -> Path:
+        return self.receipt_path
+
+    @property
+    def manifest_path(self) -> Path:
+        return self._root / _R33_MANIFEST_DIR / f"{self._receipt_sha256}.json"
+
+    @property
+    def external_manifest_path(self) -> Path:
+        return self.manifest_path
+
+
+class TransactionInspection(dict[str, object]):
+    """Read-only transaction inspection result used by recovery and tooling."""
+
+    __slots__ = ()
+
+    @property
+    def transaction_id(self) -> str:
+        return str(self["transaction_id"])
+
+    @property
+    def state(self) -> str:
+        return str(self["state"])
+
+    @property
+    def visible_publish(self) -> bool:
+        return bool(self["visible_publish"])
+
+    @property
+    def manual_reconcile_required(self) -> bool:
+        return bool(self["manual_reconcile_required"])
+
+    def __getattr__(self, name: str) -> object:
+        try:
+            return self[name]
+        except KeyError as exc:
+            raise AttributeError(name) from exc
 
 
 @dataclass(frozen=True, slots=True)
@@ -383,7 +484,11 @@ def provision_shared_admission_root(repo_root: Path) -> Path:
 
     root = shared_admission_root(repo_root)
     _ensure_private_directory(root)
-    for name in ("claims", "consumed", _REFREEZE_DISQUALIFICATION_DIR):
+    for name in (
+        "claims", "consumed", _REFREEZE_DISQUALIFICATION_DIR,
+        _R33_TRANSACTION_DIR, _R33_RECEIPT_DIR, _R33_MANIFEST_DIR,
+        _R33_QUARANTINE_DIR,
+    ):
         child = root / name
         _ensure_private_directory(child)
         _fsync_directory(child)
@@ -713,6 +818,115 @@ def _write_exclusive(path: Path, document: Mapping[str, object]) -> None:
     _fsync_directory(path.parent)
 
 
+def _assert_holdout_safe_bytes(logical_name: str, payload: bytes) -> None:
+    """Apply the same literal holdout gate used by result writers.
+
+    Importing the freeze scanner locally keeps the admission module below the
+    campaign/driver layer and avoids the circular import that existed when
+    the driver owned the guarded writer.
+    """
+
+    if type(logical_name) is not str or not logical_name:
+        raise HoldoutAdmissionError("guarded writer logical_name is invalid")
+    if type(payload) is not bytes:
+        raise HoldoutAdmissionError("guarded writer payload must be bytes")
+    try:
+        from .s8b_holdout_freeze import holdout_conjunction_hits
+
+        hits = holdout_conjunction_hits({logical_name: payload.decode("utf-8")})
+    except UnicodeError as exc:
+        raise HoldoutAdmissionError(
+            f"{logical_name} is not valid UTF-8 for holdout-safe scanning"
+        ) from exc
+    except Exception as exc:
+        raise HoldoutAdmissionError("holdout-safe scanner is unavailable") from exc
+    contaminated = {key: value for key, value in hits.items() if value}
+    if contaminated:
+        raise HoldoutAdmissionError(
+            f"holdout conjunction contamination: {sorted(contaminated)}"
+        )
+
+
+def assert_holdout_safe_bytes(logical_name: str, payload: bytes) -> None:
+    """Public admission-side spelling of the shared holdout-safe byte gate."""
+
+    _assert_holdout_safe_bytes(logical_name, payload)
+
+
+def _assert_no_symlink_components(path: Path) -> None:
+    absolute = Path(os.path.abspath(os.fspath(path)))
+    components = [Path(absolute.anchor)]
+    current = Path(absolute.anchor)
+    for part in absolute.parts[1:]:
+        current /= part
+        components.append(current)
+    for component in components:
+        try:
+            mode = component.lstat().st_mode
+        except FileNotFoundError:
+            continue
+        except OSError as exc:
+            raise HoldoutAdmissionError(
+                f"guarded writer path is unavailable: {component}"
+            ) from exc
+        if component.is_symlink():
+            raise HoldoutAdmissionError(
+                f"guarded writer path is symlinked: {component}"
+            )
+        if component != absolute and not stat.S_ISDIR(mode):
+            raise HoldoutAdmissionError(
+                f"guarded writer parent is not a directory: {component}"
+            )
+
+
+def write_guarded_create_bytes(
+    path: Path,
+    payload: bytes,
+    *,
+    logical_name: str,
+) -> str:
+    """Holdout-scan and durably create one file without replacing it.
+
+    The scan deliberately happens before parent creation and before opening
+    the destination.  This is the authoritative-receipt equivalent of the
+    driver's guarded result writer, with ``O_EXCL`` rather than replacement
+    semantics.
+    """
+
+    assert_holdout_safe_bytes(logical_name, payload)
+    destination = Path(os.path.abspath(os.fspath(path)))
+    parent = destination.parent
+    _assert_no_symlink_components(parent)
+    parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+    _assert_no_symlink_components(parent)
+    nofollow = getattr(os, "O_NOFOLLOW", None)
+    if nofollow is None:
+        raise HoldoutAdmissionError("O_NOFOLLOW is unavailable")
+    flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL | nofollow
+    try:
+        fd = os.open(destination, flags, 0o600)
+    except FileExistsError:
+        raise
+    except OSError as exc:
+        raise HoldoutAdmissionError(
+            f"guarded durable create failed: {destination.name}"
+        ) from exc
+    try:
+        if not stat.S_ISREG(os.fstat(fd).st_mode):
+            raise HoldoutAdmissionError("guarded destination is not regular")
+        view = memoryview(payload)
+        while view:
+            written = os.write(fd, view)
+            if written <= 0:
+                raise HoldoutAdmissionError("short guarded durable write")
+            view = view[written:]
+        os.fsync(fd)
+    finally:
+        os.close(fd)
+    _fsync_directory(parent)
+    return hashlib.sha256(payload).hexdigest()
+
+
 def _read_canonical_document(path: Path) -> dict[str, Any]:
     try:
         mode = path.lstat().st_mode
@@ -726,6 +940,28 @@ def _read_canonical_document(path: Path) -> dict[str, Any]:
     value = _strict_json(raw[:-1], path.name)
     if _canonical_line(value) != raw:
         raise HoldoutAdmissionError(f"durable admission record is not canonical: {path.name}")
+    return value
+
+
+def _read_canonical_json_bytes(path: Path) -> dict[str, Any]:
+    """Read a canonical JSON object whose bytes intentionally have no LF."""
+
+    try:
+        mode = path.lstat().st_mode
+        raw = path.read_bytes()
+    except OSError as exc:
+        raise HoldoutAdmissionError(
+            f"cannot read durable JSON record: {path.name}"
+        ) from exc
+    if not stat.S_ISREG(mode) or path.is_symlink():
+        raise HoldoutAdmissionError(
+            f"durable JSON record is not regular: {path.name}"
+        )
+    value = _strict_json(raw, path.name)
+    if _canonical_bytes(value) != raw:
+        raise HoldoutAdmissionError(
+            f"durable JSON record is not canonical bytes: {path.name}"
+        )
     return value
 
 
@@ -1619,13 +1855,1215 @@ def consume_oracle_attempt_ticket(
     return observation
 
 
+def _is_r33_reservation_request(
+    protocol: Mapping[str, object],
+    cells: Sequence[Mapping[str, object]],
+    schedule: Sequence[Mapping[str, object]],
+) -> bool:
+    """Distinguish the new generation from the retained legacy n-pilot API."""
+
+    if not isinstance(protocol, Mapping):
+        return False
+    design = protocol.get("design")
+    if not isinstance(design, Mapping):
+        return protocol.get("observation_role") == OBSERVATION_ROLE_N_PILOT_R33
+    return (
+        protocol.get("observation_role") == OBSERVATION_ROLE_N_PILOT_R33
+        or (
+            design.get("pilot_rounds") == 33
+            and design.get("allocation_count") == 3
+            and design.get("allocation_role") == "primary-segment"
+            and len(cells) == 12
+            and len(schedule) == 396
+        )
+    )
+
+
+def _canonical_value_sha256(value: object) -> str:
+    return hashlib.sha256(_canonical_bytes(value)).hexdigest()
+
+
+def _r33_protocol_and_freeze(
+    *, protocol: Mapping[str, object], protocol_sha256: str,
+    verified_freeze_document: Mapping[str, object], freeze_sha256: str,
+) -> tuple[dict[str, Any], str, dict[str, Any], str, str, str, int]:
+    protocol_document = _mutable_json_tree(protocol)
+    if not isinstance(protocol_document, dict):
+        raise HoldoutAdmissionError("n pilot R33 protocol document is invalid")
+    protocol_sha256 = _require_sha256(protocol_sha256, "protocol_sha256")
+    actual_protocol_sha256 = _canonical_value_sha256(protocol_document)
+    if actual_protocol_sha256 != protocol_sha256:
+        raise HoldoutAdmissionError(
+            "n pilot R33 protocol digest does not match canonical JSON bytes"
+        )
+    freeze_document = _mutable_json_tree(verified_freeze_document)
+    if not isinstance(freeze_document, dict):
+        raise HoldoutAdmissionError("n pilot R33 verified freeze document is invalid")
+    freeze_sha256 = _require_sha256(freeze_sha256, "freeze_sha256")
+    freeze_canonical_sha256 = _canonical_value_sha256(freeze_document)
+    if freeze_canonical_sha256 != freeze_sha256:
+        raise HoldoutAdmissionError(
+            "n pilot R33 freeze digest does not match canonical JSON bytes"
+        )
+    freeze_ref = protocol_document.get("freeze")
+    if (
+        not isinstance(freeze_ref, Mapping)
+        or freeze_ref.get("path") != _FREEZE_REL
+        or freeze_ref.get("sha256") != freeze_sha256
+    ):
+        raise HoldoutAdmissionError("n pilot R33 protocol is not bound to the freeze hash")
+    environment = protocol_document.get("environment")
+    design = protocol_document.get("design")
+    if not isinstance(environment, Mapping) or not isinstance(design, Mapping):
+        raise HoldoutAdmissionError("n pilot R33 protocol authority fields are unavailable")
+    if design.get("pilot_rounds") != 33:
+        raise HoldoutAdmissionError("n pilot R33 pilot_rounds must be exactly 33")
+    if design.get("allocation_count") != 3:
+        raise HoldoutAdmissionError("n pilot R33 allocation_count must be exactly 3")
+    if design.get("allocation_role") != "primary-segment":
+        raise HoldoutAdmissionError("n pilot R33 allocation_role is not the fixed protocol value")
+    ccbench_pin = _require_text(environment.get("ccbench_pin"), "ccbench_pin")
+    env_tag = _require_text(environment.get("env_tag"), "env_tag")
+    pilot_reps = design.get("reps")
+    if type(pilot_reps) is not int or pilot_reps <= 0:
+        raise HoldoutAdmissionError("n pilot R33 protocol reps is invalid")
+    return (
+        protocol_document, protocol_sha256, freeze_document, freeze_sha256,
+        freeze_canonical_sha256, ccbench_pin, env_tag, pilot_reps,
+    )
+
+
+def _r33_cells_and_schedule(
+    *, freeze_document: Mapping[str, object], cells: Sequence[Mapping[str, object]],
+    schedule: Sequence[Mapping[str, object]], signatures: Sequence[MinimalHoldoutSignature],
+) -> tuple[dict[str, dict[str, Any]], list[dict[str, Any]], str]:
+    holdouts = freeze_document.get("holdouts")
+    if not isinstance(holdouts, Mapping):
+        raise HoldoutAdmissionError("n pilot R33 freeze holdouts are unavailable")
+    signature_by_key = {item.freeze_holdout_key: item for item in signatures}
+    normalized_cells = [dict(cell) for cell in cells]
+    allowed_cell_keys = {
+        "cell_id", "holdout_id", "freeze_holdout_key", "configuration_id",
+        "records", "threads", "workload",
+    }
+    if len(normalized_cells) != 12:
+        raise HoldoutAdmissionError("n pilot R33 cell set is not exact 12-cell schema")
+    cells_by_id: dict[str, dict[str, Any]] = {}
+    for cell in normalized_cells:
+        if set(cell) - allowed_cell_keys or "cell_id" not in cell:
+            raise HoldoutAdmissionError("n pilot R33 cell set has an unknown field")
+        raw_holdout = cell.get("holdout_id", cell.get("freeze_holdout_key"))
+        freeze_holdout_key = _require_text(raw_holdout, "holdout_id")
+        configuration_id = _require_text(
+            cell.get("configuration_id"), "configuration_id",
+        )
+        cell_id = _require_text(cell.get("cell_id"), "cell_id")
+        if cell_id != f"{freeze_holdout_key}::{configuration_id}":
+            raise HoldoutAdmissionError(
+                "n pilot R33 cell_id does not bind holdout and configuration"
+            )
+        if cell_id in cells_by_id:
+            raise HoldoutAdmissionError("n pilot R33 cell_id is duplicated")
+        signature = signature_by_key.get(freeze_holdout_key)
+        freeze_entry = holdouts.get(freeze_holdout_key)
+        if signature is None or not isinstance(freeze_entry, Mapping):
+            raise HoldoutAdmissionError("n pilot R33 cell freeze key is not protected")
+        variant_binding = freeze_entry.get("variant_binding")
+        entries = (
+            variant_binding.get("entries")
+            if isinstance(variant_binding, Mapping) else None
+        )
+        if not isinstance(entries, Mapping) or configuration_id not in entries:
+            raise HoldoutAdmissionError("n pilot R33 configuration is not freeze-bound")
+        workload = freeze_entry.get("ycsb")
+        if not isinstance(workload, Mapping) or (
+            cell.get("records") != freeze_entry.get("records")
+            or cell.get("threads") != freeze_entry.get("threads")
+            or cell.get("workload") != dict(workload)
+        ):
+            raise HoldoutAdmissionError("n pilot R33 cell differs from freeze projection")
+        normalized = dict(cell)
+        normalized["holdout_id"] = freeze_holdout_key
+        normalized.pop("freeze_holdout_key", None)
+        cells_by_id[cell_id] = normalized
+
+    normalized_schedule = [dict(row) for row in schedule]
+    if len(normalized_schedule) != 396:
+        raise HoldoutAdmissionError("n pilot R33 schedule must contain 396 rows")
+    schedule_indexes_by_cell: dict[str, list[int]] = {
+        cell_id: [] for cell_id in cells_by_id
+    }
+    cells_by_round: dict[int, set[str]] = {}
+    for expected_seq, row in enumerate(normalized_schedule):
+        required = {"seq", "pilot_round", "cell_id"}
+        if not required.issubset(row) or set(row) - {
+            "seq", "pilot_round", "cell_id", "global_schedule_index",
+            "global_pilot_round",
+        }:
+            raise HoldoutAdmissionError("n pilot R33 schedule row schema is invalid")
+        if row.get("seq") != expected_seq:
+            raise HoldoutAdmissionError("n pilot R33 schedule seq is not contiguous")
+        if "global_schedule_index" in row and row["global_schedule_index"] != expected_seq:
+            raise HoldoutAdmissionError("n pilot R33 global schedule index is not canonical")
+        pilot_round = row.get("pilot_round")
+        if type(pilot_round) is not int or not 1 <= pilot_round <= 33:
+            raise HoldoutAdmissionError("n pilot R33 schedule round is invalid")
+        if "global_pilot_round" in row and row["global_pilot_round"] != pilot_round:
+            raise HoldoutAdmissionError("n pilot R33 global pilot round is not canonical")
+        cell_id = _require_text(row.get("cell_id"), "cell_id")
+        if cell_id not in cells_by_id:
+            raise HoldoutAdmissionError("n pilot R33 schedule contains an unknown cell")
+        if cell_id in cells_by_round.setdefault(pilot_round, set()):
+            raise HoldoutAdmissionError("n pilot R33 schedule repeats a cell within a round")
+        cells_by_round[pilot_round].add(cell_id)
+        schedule_indexes_by_cell[cell_id].append(expected_seq)
+    if (
+        sorted(cells_by_round) != list(range(1, 34))
+        or any(cell_set != set(cells_by_id) for cell_set in cells_by_round.values())
+    ):
+        raise HoldoutAdmissionError("n pilot R33 schedule is not 33 complete blocks")
+    schedule_sha256 = _canonical_value_sha256(normalized_schedule)
+    for cell_id, normalized in cells_by_id.items():
+        normalized["schedule_indexes"] = schedule_indexes_by_cell[cell_id]
+    return cells_by_id, normalized_schedule, schedule_sha256
+
+
+def _r33_claim_and_ledger_documents(
+    *, cells_by_id: Mapping[str, Mapping[str, object]], signatures: Sequence[MinimalHoldoutSignature],
+    protocol_sha256: str, freeze_sha256: str, schedule_sha256: str,
+    ccbench_pin: str, env_tag: str, campaign_run_id: str, pilot_reps: int,
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    signature_by_key = {item.freeze_holdout_key: item for item in signatures}
+    claims: list[dict[str, Any]] = []
+    ledger_rows: list[dict[str, Any]] = []
+    for cell_id in sorted(cells_by_id):
+        cell = cells_by_id[cell_id]
+        freeze_holdout_key = _require_text(cell.get("holdout_id"), "holdout_id")
+        configuration_id = _require_text(
+            cell.get("configuration_id"), "configuration_id",
+        )
+        signature = signature_by_key[freeze_holdout_key]
+        schedule_indexes = list(cell["schedule_indexes"])
+        attempt_ids = [
+            f"{campaign_run_id}::{cell_id}::schedule{schedule_index}"
+            for schedule_index in schedule_indexes
+        ]
+        key = _key_fields(
+            freeze_sha256=freeze_sha256,
+            freeze_holdout_key=freeze_holdout_key,
+            configuration_id=configuration_id,
+            ccbench_pin=ccbench_pin,
+            env_tag=env_tag,
+            observation_role=OBSERVATION_ROLE_N_PILOT_R33,
+        )
+        common = {
+            "protocol_sha256": protocol_sha256,
+            "freeze_sha256": freeze_sha256,
+            "schedule_sha256": schedule_sha256,
+            "freeze_candidate_id": signature.freeze_candidate_id,
+            "trial_workload_name": signature.trial_workload_name,
+            "cell_id": cell_id,
+            "records": cell["records"],
+            "threads": cell["threads"],
+            "workload": dict(cell["workload"]),
+            "campaign_run_id": campaign_run_id,
+            "irreversible_pilot_approved": True,
+            "schedule_indexes": schedule_indexes,
+            "attempt_ids": attempt_ids,
+            "attempt_count": len(attempt_ids),
+        }
+        claims.append({
+            "schema_version": _R33_CLAIM_SCHEMA,
+            "event": "claim",
+            "key": key,
+            **common,
+        })
+        ledger_rows.append({
+            "schema_version": _LEDGER_SCHEMA,
+            "event": "admit",
+            **key,
+            **common,
+            "reps": pilot_reps,
+        })
+    return claims, ledger_rows
+
+
+def _r33_transaction_root(root: Path, transaction_id: str) -> Path:
+    transaction_id = _require_sha256(transaction_id, "transaction_id")
+    return root / _R33_TRANSACTION_DIR / transaction_id
+
+
+def _r33_raw(path: Path, *, missing: bytes | None = None) -> bytes:
+    try:
+        mode = path.lstat().st_mode
+        raw = path.read_bytes()
+    except FileNotFoundError:
+        if missing is not None:
+            return missing
+        raise HoldoutAdmissionError(f"durable R33 file is missing: {path.name}")
+    except OSError as exc:
+        raise HoldoutAdmissionError(f"cannot read durable R33 file: {path.name}") from exc
+    if not stat.S_ISREG(mode) or path.is_symlink():
+        raise HoldoutAdmissionError(f"durable R33 file is not regular: {path.name}")
+    return raw
+
+
+def _r33_create_raw(path: Path, payload: bytes) -> None:
+    """Create internal transaction bytes without treating private claims as public."""
+
+    parent = path.parent
+    _ensure_private_directory(parent)
+    nofollow = getattr(os, "O_NOFOLLOW", None)
+    if nofollow is None:
+        raise HoldoutAdmissionError("O_NOFOLLOW is unavailable")
+    try:
+        fd = os.open(
+            path, os.O_WRONLY | os.O_CREAT | os.O_EXCL | nofollow, 0o600,
+        )
+    except FileExistsError:
+        raise
+    except OSError as exc:
+        raise HoldoutAdmissionError(f"internal R33 create failed: {path.name}") from exc
+    try:
+        view = memoryview(payload)
+        while view:
+            written = os.write(fd, view)
+            if written <= 0:
+                raise HoldoutAdmissionError("short internal R33 write")
+            view = view[written:]
+        os.fsync(fd)
+    finally:
+        os.close(fd)
+    _fsync_directory(parent)
+
+
+def _r33_line_rows(raw: bytes, field: str) -> list[dict[str, Any]]:
+    if raw and not raw.endswith(b"\n"):
+        raise HoldoutAdmissionError(f"R33 {field} has a truncated final row")
+    rows: list[dict[str, Any]] = []
+    for index, line in enumerate(raw.splitlines(), 1):
+        if not line:
+            raise HoldoutAdmissionError(f"R33 {field} has a blank row: {index}")
+        row = _strict_json(line, f"{field}:{index}")
+        if _canonical_line(row) != line + b"\n":
+            raise HoldoutAdmissionError(f"R33 {field} row is not canonical: {index}")
+        rows.append(row)
+    return rows
+
+
+def _r33_staged_bytes_sha256(transaction_root: Path) -> str:
+    staged = transaction_root / "staged"
+    digest = hashlib.sha256()
+    try:
+        paths = sorted(
+            path for path in staged.rglob("*") if path.is_file() and not path.is_symlink()
+        )
+    except OSError as exc:
+        raise HoldoutAdmissionError("R33 transaction staging cannot be enumerated") from exc
+    for path in paths:
+        relative = path.relative_to(transaction_root).as_posix().encode("utf-8")
+        payload = _r33_raw(path)
+        digest.update(len(relative).to_bytes(8, "big"))
+        digest.update(relative)
+        digest.update(len(payload).to_bytes(8, "big"))
+        digest.update(payload)
+    return digest.hexdigest()
+
+
+def _r33_claim_key_digest(document: Mapping[str, object]) -> str:
+    key = document.get("key")
+    if not isinstance(key, Mapping):
+        raise HoldoutAdmissionError("R33 claim key is unavailable")
+    normalized = _key_fields(
+        freeze_sha256=key.get("freeze_sha256"),
+        freeze_holdout_key=key.get("freeze_holdout_key"),
+        configuration_id=key.get("configuration_id"),
+        ccbench_pin=key.get("ccbench_pin"),
+        env_tag=key.get("env_tag"),
+        observation_role=key.get("observation_role"),
+    )
+    if normalized["observation_role"] != OBSERVATION_ROLE_N_PILOT_R33:
+        raise HoldoutAdmissionError("R33 transaction contains a non-R33 claim")
+    return _claim_digest(normalized)
+
+
+def _r33_ledger_key_digest(row: Mapping[str, object]) -> str:
+    try:
+        key = _key_fields(
+            freeze_sha256=row["freeze_sha256"],
+            freeze_holdout_key=row["freeze_holdout_key"],
+            configuration_id=row["configuration_id"],
+            ccbench_pin=row["ccbench_pin"],
+            env_tag=row["env_tag"],
+            observation_role=row["observation_role"],
+        )
+    except (KeyError, HoldoutAdmissionError) as exc:
+        raise HoldoutAdmissionError("R33 ledger row key is invalid") from exc
+    if key["observation_role"] != OBSERVATION_ROLE_N_PILOT_R33:
+        raise HoldoutAdmissionError("R33 ledger identity is not n_pilot_r33")
+    return _claim_digest(key)
+
+
+def _r33_read_staged_claims(transaction_root: Path) -> list[tuple[str, dict[str, Any], bytes]]:
+    claims_root = transaction_root / "staged" / "claims"
+    try:
+        paths = sorted(claims_root.iterdir(), key=lambda path: path.name)
+    except OSError as exc:
+        raise HoldoutAdmissionError("R33 staged claim directory is unavailable") from exc
+    claims: list[tuple[str, dict[str, Any], bytes]] = []
+    for path in paths:
+        if path.suffix != ".claim" or path.name != f"{path.stem}.claim":
+            raise HoldoutAdmissionError("R33 staged claim filename is noncanonical")
+        raw = _r33_raw(path)
+        document = _read_canonical_document(path)
+        digest = _r33_claim_key_digest(document)
+        if path.stem != digest:
+            raise HoldoutAdmissionError("R33 staged claim filename does not bind its key")
+        claims.append((digest, document, raw))
+    if len(claims) != 12:
+        raise HoldoutAdmissionError("R33 transaction must stage exactly 12 claims")
+    return claims
+
+
+def _r33_read_staged_transaction(
+    root: Path, transaction_id: str,
+) -> tuple[Path, dict[str, Any], list[tuple[str, dict[str, Any], bytes]], list[dict[str, Any]], bytes, dict[str, Any], bytes]:
+    transaction_root = _r33_transaction_root(root, transaction_id)
+    staged = transaction_root / "staged"
+    claims = _r33_read_staged_claims(transaction_root)
+    base_raw = _r33_raw(staged / "base-ledger.jsonl", missing=b"")
+    _r33_line_rows(base_raw, "staged base ledger")
+    append_raw = _r33_raw(staged / "ledger-append.jsonl")
+    append_rows = _r33_line_rows(append_raw, "staged ledger append")
+    if len(append_rows) != 12:
+        raise HoldoutAdmissionError("R33 transaction must stage exactly 12 ledger rows")
+    receipt_path = staged / "receipt.json"
+    receipt_raw = _r33_raw(receipt_path)
+    receipt = _read_canonical_json_bytes(receipt_path)
+    manifest_path = staged / "manifest.json"
+    manifest_raw = _r33_raw(manifest_path)
+    manifest = _read_canonical_json_bytes(manifest_path)
+    return (
+        transaction_root, receipt, claims, append_rows, append_raw,
+        manifest, manifest_raw,
+    )
+
+
+_R33_RECEIPT_KEYS = frozenset({
+    "schema_version", "observation_role", "campaign_run_id",
+    "protocol_sha256", "freeze_sha256", "freeze_canonical_sha256",
+    "schedule_sha256", "pilot_rounds", "allocation_count",
+    "schedule_row_count", "cell_count", "attempt_count", "transaction_id",
+    "receipt_ref", "cells", "allocation_slices",
+})
+_R33_RECEIPT_CELL_KEYS = frozenset({
+    "cell_ref", "cell_id", "global_schedule_indexes", "claim_digest",
+    "claim_file_sha256", "ledger_row_sha256",
+})
+_R33_MANIFEST_KEYS = frozenset({
+    "schema_version", "observation_role", "campaign_run_id",
+    "authoritative_receipt_sha256", "receipt_ref", "protocol_sha256",
+    "freeze_sha256", "schedule_sha256", "pilot_rounds", "allocation_count",
+    "cells", "allocation_slices",
+})
+_R33_MANIFEST_CELL_KEYS = frozenset({"cell_ref", "global_schedule_indexes"})
+_R33_TRANSACTION_KEYS = frozenset({
+    "schema_version", "transaction_id", "state", "base_ledger_sha256",
+    "base_ledger_line_count", "ledger_append_sha256", "ledger_append_row_count",
+    "claim_files", "receipt_path", "receipt_sha256",
+})
+
+
+def _r33_validate_receipt(
+    receipt: Mapping[str, object], *, expected_transaction_id: str | None = None,
+) -> dict[str, Any]:
+    if not isinstance(receipt, Mapping) or set(receipt) != set(_R33_RECEIPT_KEYS):
+        raise HoldoutAdmissionError("R33 authoritative receipt schema is invalid")
+    if receipt.get("schema_version") != _R33_RECEIPT_SCHEMA:
+        raise HoldoutAdmissionError("R33 authoritative receipt schema version is invalid")
+    if receipt.get("observation_role") != OBSERVATION_ROLE_N_PILOT_R33:
+        raise HoldoutAdmissionError("R33 authoritative receipt role is invalid")
+    for field in (
+        "campaign_run_id", "protocol_sha256", "freeze_sha256",
+        "freeze_canonical_sha256", "schedule_sha256", "transaction_id",
+        "receipt_ref",
+    ):
+        _require_text(receipt.get(field), f"receipt.{field}")
+    for field in (
+        "protocol_sha256", "freeze_sha256", "freeze_canonical_sha256",
+        "schedule_sha256", "transaction_id", "receipt_ref",
+    ):
+        _require_sha256(receipt.get(field), f"receipt.{field}")
+    if expected_transaction_id is not None and receipt["transaction_id"] != expected_transaction_id:
+        raise HoldoutAdmissionError("R33 receipt transaction identity mismatch")
+    for field, expected in (
+        ("pilot_rounds", 33), ("allocation_count", 3),
+        ("schedule_row_count", 396), ("cell_count", 12), ("attempt_count", 396),
+    ):
+        if receipt.get(field) != expected:
+            raise HoldoutAdmissionError(f"R33 receipt {field} is not fixed")
+    cells = receipt.get("cells")
+    if not isinstance(cells, list) or len(cells) != 12:
+        raise HoldoutAdmissionError("R33 receipt cells are not exact 12-cell coverage")
+    indexes_seen: set[int] = set()
+    cell_ids: set[str] = set()
+    for cell in cells:
+        if not isinstance(cell, Mapping) or set(cell) != set(_R33_RECEIPT_CELL_KEYS):
+            raise HoldoutAdmissionError("R33 receipt cell schema is invalid")
+        _require_sha256(cell.get("cell_ref"), "receipt.cell_ref")
+        _require_sha256(cell.get("claim_digest"), "receipt.claim_digest")
+        _require_sha256(cell.get("claim_file_sha256"), "receipt.claim_file_sha256")
+        _require_sha256(cell.get("ledger_row_sha256"), "receipt.ledger_row_sha256")
+        cell_id = _require_text(cell.get("cell_id"), "receipt.cell_id")
+        if cell_id in cell_ids:
+            raise HoldoutAdmissionError("R33 receipt cell identity is duplicated")
+        cell_ids.add(cell_id)
+        indexes = cell.get("global_schedule_indexes")
+        if (
+            not isinstance(indexes, list)
+            or any(type(index) is not int or not 0 <= index < 396 for index in indexes)
+            or indexes != sorted(indexes)
+            or len(indexes) != 33
+            or len(set(indexes)) != len(indexes)
+        ):
+            raise HoldoutAdmissionError("R33 receipt cell schedule indexes are invalid")
+        overlap = indexes_seen.intersection(indexes)
+        if overlap:
+            raise HoldoutAdmissionError("R33 receipt schedule indexes overlap")
+        indexes_seen.update(indexes)
+    if indexes_seen != set(range(396)):
+        raise HoldoutAdmissionError("R33 receipt schedule coverage is incomplete")
+    slices = receipt.get("allocation_slices")
+    if not isinstance(slices, list) or len(slices) != 3:
+        raise HoldoutAdmissionError("R33 receipt allocation slices are invalid")
+    expected_slices = []
+    for allocation_index in range(3):
+        start = allocation_index * 132
+        expected_slices.append({
+            "allocation_index": allocation_index,
+            "global_schedule_start": start,
+            "global_schedule_end": start + 131,
+        })
+    if slices != expected_slices:
+        raise HoldoutAdmissionError("R33 receipt allocation slices are not canonical")
+    return dict(receipt)
+
+
+def _r33_manifest_from_receipt(
+    receipt: Mapping[str, object], receipt_sha256: str,
+) -> dict[str, object]:
+    _r33_validate_receipt(receipt)
+    return {
+        "schema_version": _R33_MANIFEST_SCHEMA,
+        "observation_role": receipt["observation_role"],
+        "campaign_run_id": receipt["campaign_run_id"],
+        "authoritative_receipt_sha256": receipt_sha256,
+        "receipt_ref": receipt["receipt_ref"],
+        "protocol_sha256": receipt["protocol_sha256"],
+        "freeze_sha256": receipt["freeze_sha256"],
+        "schedule_sha256": receipt["schedule_sha256"],
+        "pilot_rounds": receipt["pilot_rounds"],
+        "allocation_count": receipt["allocation_count"],
+        "cells": [
+            {
+                "cell_ref": cell["cell_ref"],
+                "global_schedule_indexes": list(cell["global_schedule_indexes"]),
+            }
+            for cell in receipt["cells"]  # type: ignore[index]
+        ],
+        "allocation_slices": [dict(item) for item in receipt["allocation_slices"]],
+    }
+
+
+def _r33_validate_manifest(
+    manifest: Mapping[str, object], *, receipt: Mapping[str, object], receipt_sha256: str,
+) -> None:
+    if not isinstance(manifest, Mapping) or set(manifest) != set(_R33_MANIFEST_KEYS):
+        raise HoldoutAdmissionError("R33 public admission manifest schema is invalid")
+    expected = _r33_manifest_from_receipt(receipt, receipt_sha256)
+    if dict(manifest) != expected:
+        raise HoldoutAdmissionError("R33 public admission manifest is not the receipt projection")
+    cells = manifest.get("cells")
+    if not isinstance(cells, list) or any(
+        not isinstance(cell, Mapping) or set(cell) != set(_R33_MANIFEST_CELL_KEYS)
+        for cell in cells
+    ):
+        raise HoldoutAdmissionError("R33 public admission manifest cell schema is invalid")
+    forbidden = {
+        "claim_digest", "claim_file_sha256", "ledger_row_sha256", "ledger_row",
+        "claim", "workload", "ycsb", "records", "threads", "run_cmd",
+        "binary_path", "absolute_binary_path",
+    }
+    if any(forbidden.intersection(cell) for cell in cells if isinstance(cell, Mapping)):
+        raise HoldoutAdmissionError("R33 public admission manifest contains private fields")
+
+
+def _r33_validate_commit(
+    root: Path, transaction_id: str,
+) -> tuple[dict[str, Any], Path, dict[str, Any], list[tuple[str, dict[str, Any], bytes]], list[dict[str, Any]], bytes, dict[str, Any], bytes]:
+    transaction_root, receipt, claims, append_rows, append_raw, manifest, manifest_raw = (
+        _r33_read_staged_transaction(root, transaction_id)
+    )
+    commit_path = transaction_root / "commit.json"
+    commit = _read_canonical_document(commit_path)
+    if set(commit) != set(_R33_TRANSACTION_KEYS):
+        raise HoldoutAdmissionError("R33 transaction commit marker schema is invalid")
+    if commit.get("schema_version") != _R33_TRANSACTION_SCHEMA:
+        raise HoldoutAdmissionError("R33 transaction commit marker version is invalid")
+    if commit.get("transaction_id") != transaction_id or commit.get("state") != "committed":
+        raise HoldoutAdmissionError("R33 transaction commit marker identity is invalid")
+    base_raw = _r33_raw(transaction_root / "staged" / "base-ledger.jsonl")
+    if _r33_line_rows(base_raw, "staged base ledger") is None:  # pragma: no cover
+        raise HoldoutAdmissionError("unreachable base ledger state")
+    if commit.get("base_ledger_sha256") != hashlib.sha256(base_raw).hexdigest():
+        raise HoldoutAdmissionError("R33 transaction base ledger digest mismatch")
+    if commit.get("base_ledger_line_count") != len(_r33_line_rows(base_raw, "staged base ledger")):
+        raise HoldoutAdmissionError("R33 transaction base ledger line count mismatch")
+    if commit.get("ledger_append_sha256") != hashlib.sha256(append_raw).hexdigest():
+        raise HoldoutAdmissionError("R33 transaction ledger append digest mismatch")
+    if commit.get("ledger_append_row_count") != len(append_rows):
+        raise HoldoutAdmissionError("R33 transaction ledger append count mismatch")
+    receipt_raw = _r33_raw(transaction_root / "staged" / "receipt.json")
+    receipt_sha256 = hashlib.sha256(receipt_raw).hexdigest()
+    _r33_validate_receipt(receipt, expected_transaction_id=transaction_id)
+    if receipt_sha256 != commit.get("receipt_sha256"):
+        raise HoldoutAdmissionError("R33 transaction receipt digest mismatch")
+    if commit.get("receipt_path") != f"{_R33_RECEIPT_DIR}/{receipt_sha256}.json":
+        raise HoldoutAdmissionError("R33 transaction receipt path is not canonical")
+    _r33_validate_manifest(manifest, receipt=receipt, receipt_sha256=receipt_sha256)
+    if hashlib.sha256(manifest_raw).hexdigest() != hashlib.sha256(
+        _canonical_bytes(manifest)
+    ).hexdigest():
+        raise HoldoutAdmissionError("R33 transaction manifest bytes are not canonical")
+    commit_claim_files = commit.get("claim_files")
+    if not isinstance(commit_claim_files, list) or len(commit_claim_files) != len(claims):
+        raise HoldoutAdmissionError("R33 transaction claim file list is invalid")
+    expected_claim_files = [
+        {
+            "claim_digest": digest,
+            "path": f"claims/{digest}.claim",
+            "sha256": hashlib.sha256(raw).hexdigest(),
+        }
+        for digest, _claim, raw in claims
+    ]
+    if commit_claim_files != expected_claim_files:
+        raise HoldoutAdmissionError("R33 transaction claim file binding is invalid")
+    claim_by_digest = {digest: claim for digest, claim, _raw in claims}
+    row_by_digest: dict[str, dict[str, Any]] = {}
+    for row in append_rows:
+        digest = _r33_ledger_key_digest(row)
+        if digest in row_by_digest or digest not in claim_by_digest:
+            raise HoldoutAdmissionError("R33 transaction ledger identity is invalid")
+        row_by_digest[digest] = row
+    if set(row_by_digest) != set(claim_by_digest):
+        raise HoldoutAdmissionError("R33 transaction claim/ledger coverage is incomplete")
+    for digest, claim, raw in claims:
+        row = row_by_digest[digest]
+        if (
+            claim.get("campaign_run_id") != receipt["campaign_run_id"]
+            or row.get("campaign_run_id") != receipt["campaign_run_id"]
+            or claim.get("protocol_sha256") != receipt["protocol_sha256"]
+            or claim.get("freeze_sha256") != receipt["freeze_sha256"]
+            or claim.get("schedule_sha256") != receipt["schedule_sha256"]
+            or row.get("protocol_sha256") != receipt["protocol_sha256"]
+            or row.get("freeze_sha256") != receipt["freeze_sha256"]
+            or row.get("schedule_sha256") != receipt["schedule_sha256"]
+        ):
+            raise HoldoutAdmissionError("R33 transaction campaign identity is invalid")
+        # The role is part of the effect key; an explicit duplicate role field
+        # in a claim is forbidden so it cannot drift independently.
+        if claim.get("observation_role") is not None:
+            raise HoldoutAdmissionError("R33 claim has a duplicate role field")
+        if row.get("observation_role") != OBSERVATION_ROLE_N_PILOT_R33:
+            raise HoldoutAdmissionError("R33 transaction ledger role is invalid")
+        try:
+            receipt_cell = next(
+                cell for cell in receipt["cells"]
+                if cell["claim_digest"] == digest  # type: ignore[index]
+            )
+        except StopIteration as exc:
+            raise HoldoutAdmissionError(
+                "R33 receipt claim coverage is incomplete"
+            ) from exc
+        if receipt_cell["claim_file_sha256"] != hashlib.sha256(raw).hexdigest():
+            raise HoldoutAdmissionError("R33 receipt claim file hash mismatch")
+        row_raw = _canonical_line(row)
+        if receipt_cell["ledger_row_sha256"] != hashlib.sha256(row_raw).hexdigest():
+            raise HoldoutAdmissionError("R33 receipt ledger row hash mismatch")
+    return (
+        commit, transaction_root, receipt, claims, append_rows, append_raw,
+        manifest, manifest_raw,
+    )
+
+
+def _r33_transaction_visible_publish(
+    root: Path, transaction_id: str, *, receipt_sha256: str | None,
+    claim_digests: Sequence[str],
+) -> bool:
+    if receipt_sha256 is not None and (
+        root / _R33_RECEIPT_DIR / f"{receipt_sha256}.json"
+    ).exists():
+        return True
+    if any((root / "claims" / f"{digest}.claim").exists() for digest in claim_digests):
+        return True
+    receipts_root = root / _R33_RECEIPT_DIR
+    if receipts_root.is_dir() and not receipts_root.is_symlink():
+        for path in sorted(receipts_root.iterdir(), key=lambda item: item.name):
+            if not path.is_file() or path.is_symlink():
+                raise HoldoutAdmissionError("R33 receipt directory contains an unsafe entry")
+            raw = _r33_raw(path)
+            document = _read_canonical_json_bytes(path)
+            _r33_validate_receipt(document)
+            digest = hashlib.sha256(raw).hexdigest()
+            if path.name != f"{digest}.json":
+                raise HoldoutAdmissionError("R33 receipt filename is not canonical")
+            if document.get("transaction_id") == transaction_id:
+                return True
+    ledger_path = root / _LEDGER_NAME
+    if ledger_path.exists():
+        for row in _read_ledger(ledger_path):
+            if row.get("observation_role") != OBSERVATION_ROLE_N_PILOT_R33:
+                continue
+            try:
+                if _r33_ledger_key_digest(row) in claim_digests:
+                    return True
+            except HoldoutAdmissionError:
+                raise
+    return False
+
+
+def _inspect_n_pilot_transaction_locked(
+    root: Path,
+    transaction_id: str,
+) -> TransactionInspection:
+    """Inspect one R33 transaction while the shared admission lock is held."""
+
+    transaction_root = _r33_transaction_root(root, transaction_id)
+    if not transaction_root.is_dir() or transaction_root.is_symlink():
+        raise HoldoutAdmissionError("R33 transaction is unavailable")
+    abort_path = transaction_root / "abort.json"
+    commit_path = transaction_root / "commit.json"
+    if abort_path.exists():
+        abort = _read_canonical_document(abort_path)
+        if set(abort) != {
+            "schema_version", "transaction_id", "reason", "approved_by",
+            "approval_ref", "staged_bytes_sha256", "base_ledger_sha256",
+            "visible_publish",
+        } or abort.get("schema_version") != _R33_ABORT_SCHEMA:
+            raise HoldoutAdmissionError("R33 abort marker schema is invalid")
+        if (
+            abort.get("transaction_id") != transaction_id
+            or abort.get("reason") != "crash-before-commit-marker"
+            or abort.get("visible_publish") is not False
+        ):
+            raise HoldoutAdmissionError("R33 abort marker identity is invalid")
+        _require_text(abort.get("approved_by"), "abort.approved_by")
+        _require_text(abort.get("approval_ref"), "abort.approval_ref")
+        _require_sha256(abort.get("staged_bytes_sha256"), "abort.staged_bytes_sha256")
+        _require_sha256(abort.get("base_ledger_sha256"), "abort.base_ledger_sha256")
+        return TransactionInspection({
+            "transaction_id": transaction_id,
+            "state": "aborted",
+            "visible_publish": False,
+            "manual_reconcile_required": False,
+            "staged_bytes_sha256": abort["staged_bytes_sha256"],
+            "base_ledger_sha256": abort["base_ledger_sha256"],
+            "claim_count": 0,
+            "ledger_row_count": 0,
+        })
+
+    if commit_path.exists():
+        commit, staged_root, receipt, claims, rows, _append_raw, _manifest, _manifest_raw = (
+            _r33_validate_commit(root, transaction_id)
+        )
+        claim_digests = [digest for digest, _claim, _raw in claims]
+        receipt_sha256 = hashlib.sha256(
+            _r33_raw(staged_root / "staged" / "receipt.json")
+        ).hexdigest()
+        visible = _r33_transaction_visible_publish(
+            root, transaction_id, receipt_sha256=receipt_sha256,
+            claim_digests=claim_digests,
+        )
+        return TransactionInspection({
+            "transaction_id": transaction_id,
+            "state": "committed",
+            "visible_publish": visible,
+            "manual_reconcile_required": False,
+            "staged_bytes_sha256": _r33_staged_bytes_sha256(staged_root),
+            "base_ledger_sha256": commit["base_ledger_sha256"],
+            "receipt_sha256": receipt_sha256,
+            "claim_count": len(claims),
+            "ledger_row_count": len(rows),
+        })
+
+    staged = transaction_root / "staged"
+    if not staged.is_dir() or staged.is_symlink():
+        raise HoldoutAdmissionError("R33 transaction staging directory is unavailable")
+    claim_digests: list[str] = []
+    claims_root = staged / "claims"
+    if claims_root.is_dir() and not claims_root.is_symlink():
+        for path in sorted(claims_root.iterdir(), key=lambda item: item.name):
+            if path.is_file() and path.suffix == ".claim":
+                claim = _read_canonical_document(path)
+                digest = _r33_claim_key_digest(claim)
+                if path.stem != digest:
+                    raise HoldoutAdmissionError("R33 staged claim filename is invalid")
+                claim_digests.append(digest)
+    receipt_sha256 = None
+    receipt_path = staged / "receipt.json"
+    if receipt_path.exists():
+        receipt_raw = _r33_raw(receipt_path)
+        receipt = _read_canonical_json_bytes(receipt_path)
+        _r33_validate_receipt(receipt, expected_transaction_id=transaction_id)
+        receipt_sha256 = hashlib.sha256(receipt_raw).hexdigest()
+    visible = _r33_transaction_visible_publish(
+        root, transaction_id, receipt_sha256=receipt_sha256,
+        claim_digests=claim_digests,
+    )
+    if visible:
+        return TransactionInspection({
+            "transaction_id": transaction_id,
+            "state": "manual-reconcile-required",
+            "visible_publish": True,
+            "manual_reconcile_required": True,
+            "staged_bytes_sha256": _r33_staged_bytes_sha256(transaction_root),
+            "claim_count": len(claim_digests),
+        })
+    base_path = staged / "base-ledger.jsonl"
+    base_raw = _r33_raw(base_path, missing=b"")
+    _r33_line_rows(base_raw, "staged base ledger")
+    return TransactionInspection({
+        "transaction_id": transaction_id,
+        "state": "staged",
+        "visible_publish": False,
+        "manual_reconcile_required": False,
+        "staged_bytes_sha256": _r33_staged_bytes_sha256(transaction_root),
+        "base_ledger_sha256": hashlib.sha256(base_raw).hexdigest(),
+        "claim_count": len(claim_digests),
+    })
+
+
+def _r33_existing_ledger_rows(root: Path) -> tuple[bytes, list[dict[str, Any]]]:
+    ledger_path = root / _LEDGER_NAME
+    raw = _r33_raw(ledger_path, missing=b"")
+    return raw, _read_ledger(ledger_path) if raw else []
+
+
+def _r33_publish_exact(path: Path, payload: bytes, *, logical_name: str, guarded: bool) -> None:
+    try:
+        if guarded:
+            write_guarded_create_bytes(path, payload, logical_name=logical_name)
+        else:
+            _r33_create_raw(path, payload)
+    except FileExistsError:
+        existing = _r33_raw(path)
+        if existing != payload:
+            raise HoldoutAdmissionError(
+                f"R33 published file differs from staged bytes: {path.name}"
+            )
+
+
+def _r33_apply_committed_transaction_locked(root: Path, transaction_id: str) -> None:
+    (
+        commit, transaction_root, receipt, claims, append_rows, append_raw,
+        manifest, manifest_raw,
+    ) = _r33_validate_commit(root, transaction_id)
+    base_raw = _r33_raw(transaction_root / "staged" / "base-ledger.jsonl")
+    current_raw, current_rows = _r33_existing_ledger_rows(root)
+    if not current_raw.startswith(base_raw):
+        raise HoldoutAdmissionError(
+            "R33 transaction base ledger prefix changed; manual reconcile required"
+        )
+    current_by_digest: dict[str, dict[str, Any]] = {}
+    for row in current_rows:
+        if row.get("observation_role") != OBSERVATION_ROLE_N_PILOT_R33:
+            continue
+        digest = _r33_ledger_key_digest(row)
+        if digest in current_by_digest and current_by_digest[digest] != row:
+            raise HoldoutAdmissionError("R33 ledger identity has conflicting rows")
+        current_by_digest[digest] = row
+    base_rows = _r33_line_rows(base_raw, "staged base ledger")
+    base_r33_digests = {
+        _r33_ledger_key_digest(row)
+        for row in base_rows
+        if row.get("observation_role") == OBSERVATION_ROLE_N_PILOT_R33
+    }
+    append_by_digest: dict[str, dict[str, Any]] = {}
+    for row in append_rows:
+        digest = _r33_ledger_key_digest(row)
+        if digest in append_by_digest and append_by_digest[digest] != row:
+            raise HoldoutAdmissionError("R33 staged ledger identity is duplicated")
+        append_by_digest[digest] = row
+        prior = current_by_digest.get(digest)
+        if prior is not None and prior != row:
+            raise HoldoutAdmissionError("R33 ledger row conflicts with staged row")
+    unexpected_r33 = set(current_by_digest) - base_r33_digests - set(append_by_digest)
+    if unexpected_r33:
+        raise HoldoutAdmissionError(
+            "R33 ledger contains an unknown partial publication; manual reconcile required"
+        )
+    missing_rows = [row for digest, row in append_by_digest.items() if digest not in current_by_digest]
+    if missing_rows:
+        # Only the missing suffix is appended.  Other roles may have appended
+        # after the captured prefix while this transaction was staged.
+        _append_ledger(root / _LEDGER_NAME, missing_rows)
+
+    for digest, _claim, raw in claims:
+        _r33_publish_exact(
+            root / "claims" / f"{digest}.claim", raw,
+            logical_name=f"{digest}.claim", guarded=False,
+        )
+    receipt_raw = _r33_raw(transaction_root / "staged" / "receipt.json")
+    receipt_sha256 = hashlib.sha256(receipt_raw).hexdigest()
+    _r33_publish_exact(
+        root / _R33_RECEIPT_DIR / f"{receipt_sha256}.json", receipt_raw,
+        logical_name=f"{receipt_sha256}.json", guarded=True,
+    )
+    _r33_publish_exact(
+        root / _R33_MANIFEST_DIR / f"{receipt_sha256}.json", manifest_raw,
+        logical_name=f"{receipt_sha256}.json", guarded=True,
+    )
+    # A marker must be self-consistent even if recovery is invoked after all
+    # final files already exist.
+    if commit["ledger_append_sha256"] != hashlib.sha256(append_raw).hexdigest():
+        raise HoldoutAdmissionError("R33 transaction append bytes changed")
+
+
+def _recover_n_pilot_transactions_locked(root: Path) -> None:
+    """Recover every committed R33 transaction without replacing shared ledger bytes."""
+
+    transaction_root = root / _R33_TRANSACTION_DIR
+    if not transaction_root.exists():
+        return
+    try:
+        paths = sorted(transaction_root.iterdir(), key=lambda path: path.name)
+    except OSError as exc:
+        raise HoldoutAdmissionError("R33 transaction directory is unavailable") from exc
+    for path in paths:
+        if not path.is_dir() or path.is_symlink():
+            raise HoldoutAdmissionError("R33 transaction directory contains an unsafe entry")
+        transaction_id = path.name
+        _require_sha256(transaction_id, "transaction_id")
+        if (path / "abort.json").exists():
+            _inspect_n_pilot_transaction_locked(root, transaction_id)
+            continue
+        if (path / "commit.json").exists():
+            _r33_apply_committed_transaction_locked(root, transaction_id)
+            continue
+        inspection = _inspect_n_pilot_transaction_locked(root, transaction_id)
+        if inspection.manual_reconcile_required:
+            raise HoldoutAdmissionError("R33 transaction manual reconcile required")
+
+
+def _r33_copy_tree_create(source: Path, destination: Path) -> None:
+    if source.is_symlink() or not source.is_dir():
+        raise HoldoutAdmissionError("R33 quarantine source is unsafe")
+    _ensure_private_directory(destination)
+    for path in sorted(source.rglob("*"), key=lambda item: item.as_posix()):
+        relative = path.relative_to(source)
+        target = destination / relative
+        if path.is_symlink():
+            raise HoldoutAdmissionError("R33 quarantine refuses symlink staging")
+        if path.is_dir():
+            _ensure_private_directory(target)
+            continue
+        if not path.is_file():
+            raise HoldoutAdmissionError("R33 quarantine source contains an unsafe entry")
+        _r33_publish_exact(
+            target, _r33_raw(path), logical_name=target.name, guarded=False,
+        )
+
+
+def abort_unpublished_n_pilot_transaction(
+    *,
+    repo_root: Path,
+    transaction_id: str,
+    approval: Mapping[str, object],
+) -> Path:
+    """Quarantine a pre-commit R33 transaction after explicit operator approval."""
+
+    root = provision_shared_admission_root(Path(repo_root))
+    transaction_id = _require_sha256(transaction_id, "transaction_id")
+    if not isinstance(approval, Mapping):
+        raise HoldoutAdmissionError("R33 abort approval is unavailable")
+    approved_by = _require_text(approval.get("approved_by"), "approved_by")
+    approval_ref = _require_text(approval.get("approval_ref"), "approval_ref")
+    path = _r33_transaction_root(root, transaction_id)
+    abort_path = path / "abort.json"
+    with _locked(root):
+        if not path.is_dir() or path.is_symlink():
+            raise HoldoutAdmissionError("R33 transaction is unavailable")
+        if abort_path.exists():
+            existing = _read_canonical_document(abort_path)
+            if (
+                existing.get("approved_by") != approved_by
+                or existing.get("approval_ref") != approval_ref
+            ):
+                raise HoldoutAdmissionError("R33 abort approval does not match existing marker")
+            return abort_path
+        if (path / "commit.json").exists():
+            raise HoldoutAdmissionError("manual reconcile required: R33 commit marker exists")
+        staged = path / "staged"
+        if not staged.is_dir() or staged.is_symlink():
+            raise HoldoutAdmissionError("R33 transaction staging is unavailable")
+        staged_bytes_sha256 = _r33_staged_bytes_sha256(path)
+        base_raw = _r33_raw(staged / "base-ledger.jsonl", missing=b"")
+        _r33_line_rows(base_raw, "staged base ledger")
+        claim_digests: list[str] = []
+        claims_root = staged / "claims"
+        if claims_root.is_dir() and not claims_root.is_symlink():
+            for claim_path in sorted(claims_root.iterdir(), key=lambda item: item.name):
+                if not claim_path.is_file() or claim_path.suffix != ".claim":
+                    raise HoldoutAdmissionError("R33 staged claim entry is unsafe")
+                claim = _read_canonical_document(claim_path)
+                digest = _r33_claim_key_digest(claim)
+                if claim_path.stem != digest:
+                    raise HoldoutAdmissionError("R33 staged claim filename is invalid")
+                claim_digests.append(digest)
+        receipt_sha256 = None
+        receipt_path = staged / "receipt.json"
+        if receipt_path.exists():
+            receipt_raw = _r33_raw(receipt_path)
+            receipt = _read_canonical_json_bytes(receipt_path)
+            _r33_validate_receipt(receipt, expected_transaction_id=transaction_id)
+            receipt_sha256 = hashlib.sha256(receipt_raw).hexdigest()
+        visible = _r33_transaction_visible_publish(
+            root, transaction_id, receipt_sha256=receipt_sha256,
+            claim_digests=claim_digests,
+        )
+        if visible:
+            raise HoldoutAdmissionError(
+                "manual reconcile required: R33 transaction has visible publication"
+            )
+        quarantine = root / _R33_QUARANTINE_DIR / transaction_id
+        _r33_copy_tree_create(path, quarantine)
+        document = {
+            "schema_version": _R33_ABORT_SCHEMA,
+            "transaction_id": transaction_id,
+            "reason": "crash-before-commit-marker",
+            "approved_by": approved_by,
+            "approval_ref": approval_ref,
+            "staged_bytes_sha256": staged_bytes_sha256,
+            "base_ledger_sha256": hashlib.sha256(base_raw).hexdigest(),
+            "visible_publish": False,
+        }
+        _write_exclusive(abort_path, document)
+    return abort_path
+
+
+def _r33_build_receipt(
+    *, transaction_id: str, campaign_run_id: str, protocol_sha256: str,
+    freeze_sha256: str, freeze_canonical_sha256: str, schedule_sha256: str,
+    claims: Sequence[Mapping[str, object]], ledger_rows: Sequence[Mapping[str, object]],
+) -> tuple[dict[str, object], str, dict[str, object]]:
+    row_by_digest = {
+        _r33_ledger_key_digest(row): row for row in ledger_rows
+    }
+    claim_by_digest = {
+        _r33_claim_key_digest(claim): claim for claim in claims
+    }
+    if set(row_by_digest) != set(claim_by_digest) or len(claims) != 12:
+        raise HoldoutAdmissionError("R33 receipt claim/ledger coverage is incomplete")
+    receipt_cells: list[dict[str, object]] = []
+    for digest in sorted(claim_by_digest):
+        claim = claim_by_digest[digest]
+        row = row_by_digest[digest]
+        claim_raw = _canonical_line(claim)
+        row_raw = _canonical_line(row)
+        indexes = claim.get("schedule_indexes")
+        if not isinstance(indexes, list) or len(indexes) != 33:
+            raise HoldoutAdmissionError("R33 claim attempt coverage is invalid")
+        receipt_cells.append({
+            "cell_ref": secrets.token_hex(32),
+            "cell_id": claim["cell_id"],
+            "global_schedule_indexes": list(indexes),
+            "claim_digest": digest,
+            "claim_file_sha256": hashlib.sha256(claim_raw).hexdigest(),
+            "ledger_row_sha256": hashlib.sha256(row_raw).hexdigest(),
+        })
+    receipt_ref = secrets.token_hex(32)
+    receipt: dict[str, object] = {
+        "schema_version": _R33_RECEIPT_SCHEMA,
+        "observation_role": OBSERVATION_ROLE_N_PILOT_R33,
+        "campaign_run_id": campaign_run_id,
+        "protocol_sha256": protocol_sha256,
+        "freeze_sha256": freeze_sha256,
+        "freeze_canonical_sha256": freeze_canonical_sha256,
+        "schedule_sha256": schedule_sha256,
+        "pilot_rounds": 33,
+        "allocation_count": 3,
+        "schedule_row_count": 396,
+        "cell_count": 12,
+        "attempt_count": 396,
+        "transaction_id": transaction_id,
+        "receipt_ref": receipt_ref,
+        "cells": receipt_cells,
+        "allocation_slices": [
+            {
+                "allocation_index": allocation_index,
+                "global_schedule_start": allocation_index * 132,
+                "global_schedule_end": allocation_index * 132 + 131,
+            }
+            for allocation_index in range(3)
+        ],
+    }
+    _r33_validate_receipt(receipt, expected_transaction_id=transaction_id)
+    receipt_raw = _canonical_bytes(receipt)
+    receipt_sha256 = hashlib.sha256(receipt_raw).hexdigest()
+    manifest = _r33_manifest_from_receipt(receipt, receipt_sha256)
+    return receipt, receipt_sha256, manifest
+
+
+def _r33_stage_and_commit(
+    *, root: Path, campaign_run_id: str, protocol_sha256: str,
+    freeze_sha256: str, freeze_canonical_sha256: str, schedule_sha256: str,
+    claims: Sequence[Mapping[str, object]], ledger_rows: Sequence[Mapping[str, object]],
+) -> NPilotReservationReceipt:
+    transaction_id = secrets.token_hex(32)
+    transaction_root = root / _R33_TRANSACTION_DIR / transaction_id
+    staged = transaction_root / "staged"
+    _ensure_private_directory(transaction_root)
+    _ensure_private_directory(staged)
+    _ensure_private_directory(staged / "claims")
+    current_raw, current_rows = _r33_existing_ledger_rows(root)
+    current_r33: dict[str, dict[str, Any]] = {}
+    for row in current_rows:
+        if row.get("observation_role") != OBSERVATION_ROLE_N_PILOT_R33:
+            continue
+        digest = _r33_ledger_key_digest(row)
+        if digest in current_r33:
+            raise HoldoutAdmissionError("R33 admission ledger has a duplicate cell key")
+        current_r33[digest] = row
+    claim_digests = [_r33_claim_key_digest(claim) for claim in claims]
+    if len(set(claim_digests)) != len(claim_digests):
+        raise HoldoutAdmissionError("R33 claim key is duplicated")
+    if set(current_r33).intersection(claim_digests):
+        raise HoldoutAdmissionError("n pilot R33 holdout cell key was already consumed")
+    for digest in claim_digests:
+        if (root / "claims" / f"{digest}.claim").exists():
+            raise HoldoutAdmissionError("n pilot R33 durable claim was already published")
+
+    _r33_create_raw(staged / "base-ledger.jsonl", current_raw)
+    append_raw = b"".join(_canonical_line(dict(row)) for row in ledger_rows)
+    _r33_create_raw(staged / "ledger-append.jsonl", append_raw)
+    for claim in claims:
+        digest = _r33_claim_key_digest(claim)
+        _r33_create_raw(
+            staged / "claims" / f"{digest}.claim", _canonical_line(dict(claim))
+        )
+    receipt, receipt_sha256, manifest = _r33_build_receipt(
+        transaction_id=transaction_id, campaign_run_id=campaign_run_id,
+        protocol_sha256=protocol_sha256, freeze_sha256=freeze_sha256,
+        freeze_canonical_sha256=freeze_canonical_sha256,
+        schedule_sha256=schedule_sha256,
+        claims=claims, ledger_rows=ledger_rows,
+    )
+    receipt_raw = _canonical_bytes(receipt)
+    manifest_raw = _canonical_bytes(manifest)
+    # These are intentionally the only transaction bytes that pass the public
+    # holdout-safe writer before the commit marker exists.
+    write_guarded_create_bytes(
+        staged / "receipt.json", receipt_raw, logical_name="receipt.json",
+    )
+    write_guarded_create_bytes(
+        staged / "manifest.json", manifest_raw, logical_name="manifest.json",
+    )
+    commit = {
+        "schema_version": _R33_TRANSACTION_SCHEMA,
+        "transaction_id": transaction_id,
+        "state": "committed",
+        "base_ledger_sha256": hashlib.sha256(current_raw).hexdigest(),
+        "base_ledger_line_count": len(current_rows),
+        "ledger_append_sha256": hashlib.sha256(append_raw).hexdigest(),
+        "ledger_append_row_count": len(ledger_rows),
+        "claim_files": [
+            {
+                "claim_digest": digest,
+                "path": f"claims/{digest}.claim",
+                "sha256": hashlib.sha256(_canonical_line(dict(claim))).hexdigest(),
+            }
+            for digest, claim in sorted(
+                zip(claim_digests, claims, strict=True), key=lambda item: item[0]
+            )
+        ],
+        "receipt_path": f"{_R33_RECEIPT_DIR}/{receipt_sha256}.json",
+        "receipt_sha256": receipt_sha256,
+    }
+    _write_exclusive(transaction_root / "commit.json", commit)
+    _r33_apply_committed_transaction_locked(root, transaction_id)
+    return NPilotReservationReceipt(
+        receipt, receipt_sha256=receipt_sha256, root=root,
+    )
+
+
+def _reserve_n_pilot_r33_holdout_observations(
+    *, repo_root: Path, protocol: Mapping[str, object], protocol_sha256: str,
+    verified_freeze_document: Mapping[str, object], freeze_sha256: str,
+    cells: Sequence[Mapping[str, object]], schedule: Sequence[Mapping[str, object]],
+    campaign_run_id: str, irreversible_pilot_approved: bool,
+) -> NPilotReservationReceipt:
+    if irreversible_pilot_approved is not True:
+        raise HoldoutAdmissionError(
+            "n pilot holdout observation requires irreversible one-shot approval"
+        )
+    campaign_run_id = _require_text(campaign_run_id, "campaign_run_id")
+    (
+        protocol_document, protocol_sha256, freeze_document, freeze_sha256,
+        freeze_canonical_sha256, ccbench_pin, env_tag, pilot_reps,
+    ) = _r33_protocol_and_freeze(
+        protocol=protocol, protocol_sha256=protocol_sha256,
+        verified_freeze_document=verified_freeze_document, freeze_sha256=freeze_sha256,
+    )
+    try:
+        signatures = _protected_signatures_from_verified_freeze_core(freeze_document)
+    except HoldoutObservationError as exc:
+        raise HoldoutAdmissionError(
+            f"cannot derive n pilot R33 protected signatures: {exc}"
+        ) from exc
+    cells_by_id, normalized_schedule, schedule_sha256 = _r33_cells_and_schedule(
+        freeze_document=freeze_document, cells=cells, schedule=schedule,
+        signatures=signatures,
+    )
+    claims, ledger_rows = _r33_claim_and_ledger_documents(
+        cells_by_id=cells_by_id, signatures=signatures,
+        protocol_sha256=protocol_sha256, freeze_sha256=freeze_sha256,
+        schedule_sha256=schedule_sha256, ccbench_pin=ccbench_pin, env_tag=env_tag,
+        campaign_run_id=campaign_run_id, pilot_reps=pilot_reps,
+    )
+    root = provision_shared_admission_root(Path(repo_root))
+    with _locked(root):
+        _recover_n_pilot_transactions_locked(root)
+        _recover_n_pilot_attempt_ledger_locked(root)
+        return _r33_stage_and_commit(
+            root=root, campaign_run_id=campaign_run_id,
+            protocol_sha256=protocol_sha256, freeze_sha256=freeze_sha256,
+            freeze_canonical_sha256=freeze_canonical_sha256,
+            schedule_sha256=schedule_sha256, claims=claims, ledger_rows=ledger_rows,
+        )
+
+
 def reserve_n_pilot_holdout_observations(
     *, repo_root: Path, protocol: Mapping[str, object], protocol_sha256: str,
     verified_freeze_document: Mapping[str, object], freeze_sha256: str,
     cells: Sequence[Mapping[str, object]], schedule: Sequence[Mapping[str, object]],
     campaign_run_id: str, irreversible_pilot_approved: bool,
-) -> dict[int, NPilotCellHoldoutAdmission]:
-    """Reserve pilot complete-block cells with protocol-owned rep allowances."""
+) -> NPilotReservationReceipt | dict[int, NPilotCellHoldoutAdmission]:
+    """Reserve legacy n-pilot cells or a receipt-backed R33 admission.
+
+    The legacy branch is intentionally retained for the already-issued
+    ``observation_role=n_pilot`` generation.  A protocol carrying the fixed
+    R33 contract always takes the receipt/transaction branch and never creates
+    an ``NPilotCellHoldoutAdmission`` or process-local cell state.
+    """
+
+    if _is_r33_reservation_request(protocol, cells, schedule):
+        return _reserve_n_pilot_r33_holdout_observations(
+            repo_root=repo_root, protocol=protocol, protocol_sha256=protocol_sha256,
+            verified_freeze_document=verified_freeze_document,
+            freeze_sha256=freeze_sha256, cells=cells, schedule=schedule,
+            campaign_run_id=campaign_run_id,
+            irreversible_pilot_approved=irreversible_pilot_approved,
+        )
 
     if irreversible_pilot_approved is not True:
         raise HoldoutAdmissionError(
@@ -1871,6 +3309,282 @@ def reserve_n_pilot_holdout_observations(
     return admissions_by_schedule_index
 
 
+_R33_ATTEMPT_MARKER_KEYS = frozenset({
+    "schema_version", "event", "claim_digest", "attempt_id",
+    "protocol_sha256", "freeze_sha256", "schedule_sha256",
+    "campaign_run_id", "schedule_index", "cell_id", "freeze_holdout_key",
+    "configuration_id", "observation_role",
+})
+
+
+def _r33_canonical_marker_path(root: Path, marker: Mapping[str, object]) -> Path:
+    marker_raw = _canonical_line(dict(marker))
+    marker_digest = hashlib.sha256(marker_raw).hexdigest()
+    claim_digest = _require_sha256(marker.get("claim_digest"), "claim_digest")
+    return root / "consumed" / f"{claim_digest}-{marker_digest}.json"
+
+
+def _canonical_n_pilot_attempt_ledger_row(
+    *,
+    root: Path,
+    marker: Mapping[str, object],
+) -> dict[str, object]:
+    """Rebuild one R33 attempt row from its marker and private claim."""
+
+    if not isinstance(marker, Mapping) or set(marker) != set(_R33_ATTEMPT_MARKER_KEYS):
+        raise HoldoutAdmissionError("R33 consume marker schema is invalid")
+    if marker.get("schema_version") != _ATTEMPT_SCHEMA or marker.get("event") != "consume":
+        raise HoldoutAdmissionError("R33 consume marker version is invalid")
+    if marker.get("observation_role") != OBSERVATION_ROLE_N_PILOT_R33:
+        raise HoldoutAdmissionError("R33 consume marker role is invalid")
+    claim_digest = _require_sha256(marker.get("claim_digest"), "claim_digest")
+    attempt_id = _require_text(marker.get("attempt_id"), "attempt_id")
+    schedule_index = marker.get("schedule_index")
+    if type(schedule_index) is not int or not 0 <= schedule_index < 396:
+        raise HoldoutAdmissionError("R33 consume marker schedule index is invalid")
+    claim_path = _claim_path(root, claim_digest)
+    claim = _read_canonical_document(claim_path)
+    if claim.get("schema_version") != _R33_CLAIM_SCHEMA or claim.get("event") != "claim":
+        raise HoldoutAdmissionError("R33 consume claim schema is invalid")
+    if _r33_claim_key_digest(claim) != claim_digest:
+        raise HoldoutAdmissionError("R33 consume claim digest mismatch")
+    indexes = claim.get("schedule_indexes")
+    attempt_ids = claim.get("attempt_ids")
+    if (
+        not isinstance(indexes, list) or not isinstance(attempt_ids, list)
+        or len(indexes) != len(attempt_ids)
+        or schedule_index not in indexes
+    ):
+        raise HoldoutAdmissionError("R33 consume claim attempt coverage is invalid")
+    ordinal = indexes.index(schedule_index)
+    expected_attempt_id = attempt_ids[ordinal]
+    if expected_attempt_id != attempt_id:
+        raise HoldoutAdmissionError("R33 consume marker attempt identity mismatch")
+    key = claim["key"]
+    if not isinstance(key, Mapping):
+        raise HoldoutAdmissionError("R33 consume claim key is invalid")
+    expected = {
+        "schema_version": _ATTEMPT_SCHEMA,
+        "event": "consume",
+        "claim_digest": claim_digest,
+        "attempt_id": attempt_id,
+        "protocol_sha256": claim["protocol_sha256"],
+        "freeze_sha256": claim["freeze_sha256"],
+        "schedule_sha256": claim["schedule_sha256"],
+        "campaign_run_id": claim["campaign_run_id"],
+        "schedule_index": schedule_index,
+        "cell_id": claim["cell_id"],
+        "freeze_holdout_key": key["freeze_holdout_key"],
+        "configuration_id": key["configuration_id"],
+        "observation_role": OBSERVATION_ROLE_N_PILOT_R33,
+    }
+    if dict(marker) != expected:
+        raise HoldoutAdmissionError("R33 consume marker does not match its claim")
+    return expected
+
+
+def _recover_n_pilot_attempt_ledger_locked(root: Path) -> None:
+    """Recover missing R33 attempt-ledger rows from durable consume markers."""
+
+    attempt_path = root / _ATTEMPT_LEDGER_NAME
+    existing_rows = _read_ledger(attempt_path)
+    by_identity: dict[tuple[str, str], dict[str, Any]] = {}
+    for row in existing_rows:
+        if row.get("observation_role") != OBSERVATION_ROLE_N_PILOT_R33:
+            continue
+        expected = _canonical_n_pilot_attempt_ledger_row(root=root, marker=row)
+        identity = (str(row["claim_digest"]), str(row["attempt_id"]))
+        if identity in by_identity:
+            raise HoldoutAdmissionError("R33 attempt ledger has a duplicate identity")
+        if row != expected:
+            raise HoldoutAdmissionError("R33 attempt ledger row differs from canonical marker row")
+        by_identity[identity] = row
+
+    consumed = root / "consumed"
+    try:
+        paths = sorted(consumed.iterdir(), key=lambda path: path.name)
+    except OSError as exc:
+        raise HoldoutAdmissionError("R33 consumed marker directory is unavailable") from exc
+    expected_rows: dict[tuple[str, str], dict[str, object]] = {}
+    for path in paths:
+        if not path.is_file() or path.is_symlink():
+            raise HoldoutAdmissionError("R33 consumed marker directory contains an unsafe entry")
+        marker = _read_canonical_document(path)
+        if marker.get("observation_role") != OBSERVATION_ROLE_N_PILOT_R33:
+            continue
+        expected = _canonical_n_pilot_attempt_ledger_row(root=root, marker=marker)
+        expected_path = _r33_canonical_marker_path(root, expected)
+        if path != expected_path:
+            raise HoldoutAdmissionError("R33 consume marker filename is not canonical")
+        identity = (str(expected["claim_digest"]), str(expected["attempt_id"]))
+        if identity in expected_rows and expected_rows[identity] != expected:
+            raise HoldoutAdmissionError("R33 consume marker identity is conflicting")
+        expected_rows[identity] = expected
+    for identity, row in by_identity.items():
+        if identity not in expected_rows:
+            raise HoldoutAdmissionError("R33 attempt ledger row has no consume marker")
+    missing = [row for identity, row in expected_rows.items() if identity not in by_identity]
+    if missing:
+        _append_ledger(attempt_path, missing)
+
+
+def _r33_receipt_from_input(
+    *, receipt: NPilotReservationReceipt | Mapping[str, object], root: Path,
+) -> tuple[dict[str, Any], str]:
+    if not isinstance(receipt, Mapping):
+        raise HoldoutAdmissionError("R33 consume requires a reservation receipt")
+    supplied = dict(_mutable_json_tree(receipt))
+    supplied_raw = _canonical_bytes(supplied)
+    receipt_sha256 = hashlib.sha256(supplied_raw).hexdigest()
+    path = root / _R33_RECEIPT_DIR / f"{receipt_sha256}.json"
+    stored_raw = _r33_raw(path)
+    if stored_raw != supplied_raw:
+        raise HoldoutAdmissionError("R33 supplied receipt does not match authoritative bytes")
+    stored = _read_canonical_json_bytes(path)
+    _r33_validate_receipt(stored)
+    return stored, receipt_sha256
+
+
+def _consume_n_pilot_r33_attempt_ticket(
+    receipt: NPilotReservationReceipt | Mapping[str, object], *, repo_root: Path,
+    protocol: Mapping[str, object], verified_freeze_document: Mapping[str, object],
+    freeze_sha256: str, schedule_sha256: str, global_schedule_index: int,
+    expected_cell_id: str,
+) -> HoldoutObservationAdmission:
+    if type(global_schedule_index) is not int or not 0 <= global_schedule_index < 396:
+        raise HoldoutAdmissionError("global_schedule_index must be in the R33 schedule")
+    expected_cell_id = _require_text(expected_cell_id, "expected_cell_id")
+    root = provision_shared_admission_root(Path(repo_root))
+    supplied_receipt = receipt
+    # The receipt is read before entering the lock, but the authoritative file
+    # and all claim/ledger checks below remain under the lock.
+    receipt_document, receipt_sha256 = _r33_receipt_from_input(
+        receipt=supplied_receipt, root=root,
+    )
+    _r33_protocol_and_freeze(
+        protocol=protocol, protocol_sha256=receipt_document["protocol_sha256"],
+        verified_freeze_document=verified_freeze_document,
+        freeze_sha256=freeze_sha256,
+    )
+    if schedule_sha256 != receipt_document["schedule_sha256"]:
+        raise HoldoutAdmissionError("R33 schedule digest is not receipt-bound")
+    _require_sha256(schedule_sha256, "schedule_sha256")
+    if receipt_document["freeze_sha256"] != freeze_sha256:
+        raise HoldoutAdmissionError("R33 freeze digest is not receipt-bound")
+    if receipt_document["freeze_canonical_sha256"] != _canonical_value_sha256(
+        verified_freeze_document
+    ):
+        raise HoldoutAdmissionError("R33 canonical freeze digest is not receipt-bound")
+    if receipt_document["protocol_sha256"] != _canonical_value_sha256(protocol):
+        raise HoldoutAdmissionError("R33 protocol digest is not canonical")
+    manifest_path = root / _R33_MANIFEST_DIR / f"{receipt_sha256}.json"
+    manifest = _read_canonical_json_bytes(manifest_path)
+    _r33_validate_manifest(
+        manifest, receipt=receipt_document, receipt_sha256=receipt_sha256,
+    )
+    cell = next(
+        (
+            item for item in receipt_document["cells"]
+            if global_schedule_index in item["global_schedule_indexes"]
+        ),
+        None,
+    )
+    if not isinstance(cell, Mapping) or cell.get("cell_id") != expected_cell_id:
+        raise HoldoutAdmissionError("R33 global schedule index does not match expected cell")
+    claim_digest = _require_sha256(cell.get("claim_digest"), "claim_digest")
+    with _locked(root):
+        _recover_n_pilot_transactions_locked(root)
+        _recover_n_pilot_attempt_ledger_locked(root)
+        claim_path = _claim_path(root, claim_digest)
+        claim = _read_canonical_document(claim_path)
+        claim_raw = _r33_raw(claim_path)
+        if hashlib.sha256(claim_raw).hexdigest() != cell["claim_file_sha256"]:
+            raise HoldoutAdmissionError("R33 claim file hash is not receipt-bound")
+        if _r33_claim_key_digest(claim) != claim_digest:
+            raise HoldoutAdmissionError("R33 claim digest is not receipt-bound")
+        row_candidates = [
+            row for row in _read_ledger(root / _LEDGER_NAME)
+            if row.get("observation_role") == OBSERVATION_ROLE_N_PILOT_R33
+            and _r33_ledger_key_digest(row) == claim_digest
+        ]
+        if len(row_candidates) != 1:
+            raise HoldoutAdmissionError("R33 claim has no unique durable ledger row")
+        row = row_candidates[0]
+        if hashlib.sha256(_canonical_line(row)).hexdigest() != cell["ledger_row_sha256"]:
+            raise HoldoutAdmissionError("R33 ledger row hash is not receipt-bound")
+        if (
+            claim.get("protocol_sha256") != receipt_document["protocol_sha256"]
+            or claim.get("freeze_sha256") != receipt_document["freeze_sha256"]
+            or claim.get("schedule_sha256") != receipt_document["schedule_sha256"]
+            or row.get("protocol_sha256") != claim.get("protocol_sha256")
+            or row.get("freeze_sha256") != claim.get("freeze_sha256")
+            or row.get("schedule_sha256") != claim.get("schedule_sha256")
+            or claim.get("campaign_run_id") != receipt_document["campaign_run_id"]
+            or row.get("campaign_run_id") != receipt_document["campaign_run_id"]
+            or row.get("reps") is None
+        ):
+            raise HoldoutAdmissionError("R33 claim/ledger receipt binding is invalid")
+        marker = {
+            "schema_version": _ATTEMPT_SCHEMA,
+            "event": "consume",
+            "claim_digest": claim_digest,
+            "attempt_id": claim["attempt_ids"][claim["schedule_indexes"].index(global_schedule_index)],
+            "protocol_sha256": claim["protocol_sha256"],
+            "freeze_sha256": claim["freeze_sha256"],
+            "schedule_sha256": claim["schedule_sha256"],
+            "campaign_run_id": claim["campaign_run_id"],
+            "schedule_index": global_schedule_index,
+            "cell_id": claim["cell_id"],
+            "freeze_holdout_key": claim["key"]["freeze_holdout_key"],
+            "configuration_id": claim["key"]["configuration_id"],
+            "observation_role": OBSERVATION_ROLE_N_PILOT_R33,
+        }
+        marker = _canonical_n_pilot_attempt_ledger_row(root=root, marker=marker)
+        marker_path = _r33_canonical_marker_path(root, marker)
+        try:
+            _write_exclusive(marker_path, marker)
+        except FileExistsError as exc:
+            raise HoldoutAdmissionError(
+                "n pilot R33 attempt ticket was already consumed"
+            ) from exc
+        _append_ledger(root / _ATTEMPT_LEDGER_NAME, [marker])
+        try:
+            signatures = _protected_signatures_from_verified_freeze_core(
+                _mutable_json_tree(verified_freeze_document)
+            )
+        except HoldoutObservationError as exc:
+            raise HoldoutAdmissionError(
+                f"cannot derive n pilot R33 protected signatures: {exc}"
+            ) from exc
+        neutral_holdouts = {
+            item.freeze_holdout_key: {
+                "candidate_id": item.freeze_candidate_id,
+                "ycsb": {"ycsb_rratio": item.ycsb_rratio},
+            }
+            for item in signatures
+        }
+        freeze_document = _mutable_json_tree(verified_freeze_document)
+        pilot_reps = row.get("reps")
+        if type(pilot_reps) is not int or pilot_reps <= 0:
+            raise HoldoutAdmissionError("R33 ledger reps is invalid")
+    try:
+        observation_receipt = _new_durable_attempt_consumption_receipt(
+            attempt_id=marker["attempt_id"], permitted_run_once_calls=pilot_reps,
+        )
+        observation = _issue_holdout_observation_admission_from_receipt(
+            receipt=observation_receipt,
+            verified_freeze_document=freeze_document,
+            freeze_holdout_key=marker["freeze_holdout_key"],
+            _neutral_holdouts=neutral_holdouts,
+        )
+        assert_issued_holdout_observation(observation)
+    except HoldoutObservationError as exc:
+        raise HoldoutAdmissionError(
+            f"cannot issue n pilot R33 attempt observation: {exc}"
+        ) from exc
+    return observation
+
+
 def _n_pilot_cell_state(admission: object) -> _NPilotCellState:
     with _state_lock:
         state = _n_pilot_cell_states.get(id(admission))
@@ -1880,9 +3594,42 @@ def _n_pilot_cell_state(admission: object) -> _NPilotCellState:
 
 
 def consume_n_pilot_attempt_ticket(
-    admission: NPilotCellHoldoutAdmission, *, schedule_index: int,
+    receipt: NPilotReservationReceipt | Mapping[str, object] | NPilotCellHoldoutAdmission,
+    *, repo_root: Path | None = None, protocol: Mapping[str, object] | None = None,
+    verified_freeze_document: Mapping[str, object] | None = None,
+    freeze_sha256: str | None = None, schedule_sha256: str | None = None,
+    global_schedule_index: int | None = None, expected_cell_id: str | None = None,
+    schedule_index: int | None = None,
 ) -> HoldoutObservationAdmission:
-    """Consume one pilot schedule ticket and issue its protocol-reps token."""
+    """Consume an R33 receipt or retain the legacy n-pilot cell API.
+
+    The R33 branch has no dependency on ``_n_pilot_cell_states``.  The final
+    ``schedule_index`` keyword exists solely for the already-issued legacy
+    ``n_pilot`` role and is intentionally not accepted by the receipt branch.
+    """
+
+    if isinstance(receipt, Mapping) or isinstance(receipt, NPilotReservationReceipt):
+        if (
+            repo_root is None or protocol is None
+            or verified_freeze_document is None or freeze_sha256 is None
+            or schedule_sha256 is None or global_schedule_index is None
+            or expected_cell_id is None
+        ):
+            raise HoldoutAdmissionError(
+                "R33 consume requires receipt, repo_root, protocol, freeze, schedule, and cell"
+            )
+        return _consume_n_pilot_r33_attempt_ticket(
+            receipt, repo_root=repo_root, protocol=protocol,
+            verified_freeze_document=verified_freeze_document,
+            freeze_sha256=freeze_sha256, schedule_sha256=schedule_sha256,
+            global_schedule_index=global_schedule_index,
+            expected_cell_id=expected_cell_id,
+        )
+    admission = receipt
+    if not isinstance(admission, NPilotCellHoldoutAdmission):
+        raise HoldoutAdmissionError("n pilot admission is not a recognized receipt or legacy token")
+    if schedule_index is None:
+        raise HoldoutAdmissionError("legacy n pilot consume requires schedule_index")
 
     state = _n_pilot_cell_state(admission)
     if type(schedule_index) is not int or schedule_index < 0:

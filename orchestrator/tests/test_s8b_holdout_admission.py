@@ -393,6 +393,63 @@ def _n_pilot_fixture(protocol: dict, freeze: dict):
     return pilot_protocol, protocol_sha256, cells, schedule
 
 
+def _r33_fixture(protocol: dict, freeze: dict):
+    floor_cells, _floor_schedule = _cells_and_schedule(protocol, freeze)
+    cells = [
+        {
+            "cell_id": cell["cell_id"],
+            "holdout_id": cell["freeze_holdout_key"],
+            "configuration_id": cell["configuration_id"],
+            "records": cell["records"],
+            "threads": cell["threads"],
+            "workload": cell["workload"],
+        }
+        for cell in floor_cells
+    ]
+    schedule = []
+    for pilot_round in range(1, 34):
+        for cell in cells:
+            schedule.append({
+                "seq": len(schedule),
+                "pilot_round": pilot_round,
+                "cell_id": cell["cell_id"],
+            })
+    pilot_protocol = {
+        "freeze": {
+            "path": "output/s8b-freeze/holdout_freeze.json",
+            "sha256": protocol["freeze"]["sha256"],
+        },
+        "environment": {
+            "ccbench_pin": protocol["ccbench_pin"],
+            "env_tag": protocol["env_tag"],
+        },
+        "design": {
+            "pilot_rounds": 33,
+            "allocation_count": 3,
+            "allocation_role": "primary-segment",
+            "reps": protocol["reps"],
+        },
+    }
+    protocol_sha256 = hashlib.sha256(_canonical(pilot_protocol)).hexdigest()
+    return pilot_protocol, protocol_sha256, cells, schedule
+
+
+def _reserve_r33(root: Path, protocol: dict, freeze: dict, *, run_id: str):
+    r33_protocol, protocol_sha256, cells, schedule = _r33_fixture(protocol, freeze)
+    receipt = admission.reserve_n_pilot_holdout_observations(
+        repo_root=root,
+        protocol=r33_protocol,
+        protocol_sha256=protocol_sha256,
+        verified_freeze_document=freeze,
+        freeze_sha256=protocol["freeze"]["sha256"],
+        cells=cells,
+        schedule=schedule,
+        campaign_run_id=run_id,
+        irreversible_pilot_approved=True,
+    )
+    return r33_protocol, protocol_sha256, cells, schedule, receipt
+
+
 def test_n_pilot_requires_exact_irreversible_approval_before_claim(tmp_path):
     root, floor_protocol, freeze = _init_repo(tmp_path)
     protocol, protocol_sha256, cells, schedule = _n_pilot_fixture(
@@ -497,6 +554,187 @@ def test_n_pilot_ledger_and_attempt_allowance_are_durable_and_protocol_bound(tmp
     )
     assert len(attempt_rows) == 1
     assert attempt_rows[0]["observation_role"] == admission.OBSERVATION_ROLE_N_PILOT
+
+
+def test_r33_reserve_returns_authoritative_receipt_and_opaque_manifest(tmp_path):
+    root, protocol, freeze = _init_repo(tmp_path)
+    _r33_protocol, _protocol_sha256, _cells, _schedule, receipt = _reserve_r33(
+        root, protocol, freeze, run_id="r33-receipt",
+    )
+
+    assert isinstance(receipt, admission.NPilotReservationReceipt)
+    assert receipt["observation_role"] == admission.OBSERVATION_ROLE_N_PILOT_R33
+    assert receipt["pilot_rounds"] == 33
+    assert receipt["allocation_count"] == 3
+    assert receipt["cell_count"] == 12
+    assert receipt["schedule_row_count"] == 396
+    assert receipt["attempt_count"] == 396
+    assert len({cell["cell_ref"] for cell in receipt["cells"]}) == 12
+    assert all(len(cell["global_schedule_indexes"]) == 33 for cell in receipt["cells"])
+
+    shared = admission.shared_admission_root(root)
+    assert len(list((shared / "claims").iterdir())) == 12
+    rows = admission._read_ledger(shared / "ledger.jsonl")
+    assert len(rows) == 12
+    assert {row["observation_role"] for row in rows} == {
+        admission.OBSERVATION_ROLE_N_PILOT_R33,
+    }
+    receipt_raw = receipt.receipt_path.read_bytes()
+    assert not receipt_raw.endswith(b"\n")
+    assert hashlib.sha256(receipt_raw).hexdigest() == receipt.receipt_sha256
+
+    manifest = json.loads(receipt.manifest_path.read_bytes())
+    assert manifest["schema_version"] == "s8b-n-pilot-admission-manifest/v1"
+    assert manifest["observation_role"] == admission.OBSERVATION_ROLE_N_PILOT_R33
+    forbidden = {
+        "claim_digest", "claim_file_sha256", "ledger_row_sha256", "claim",
+        "ledger_row", "workload", "ycsb", "records", "threads", "run_cmd",
+        "binary_path", "absolute_binary_path",
+    }
+    assert not forbidden.intersection(json.dumps(manifest))
+    assert all(set(cell) == {"cell_ref", "global_schedule_indexes"}
+               for cell in manifest["cells"])
+
+
+def test_r33_consume_reloads_receipt_without_process_local_state(tmp_path, monkeypatch):
+    root, protocol, freeze = _init_repo(tmp_path)
+    r33_protocol, _protocol_sha256, _cells, _schedule, receipt = _reserve_r33(
+        root, protocol, freeze, run_id="r33-consume",
+    )
+    raw_receipt = json.loads(receipt.receipt_path.read_bytes())
+    before = len(admission._n_pilot_cell_states)  # noqa: SLF001
+    monkeypatch.setattr(
+        admission, "_n_pilot_cell_state",
+        lambda _admission: pytest.fail("R33 consume used process-local cell state"),
+    )
+    first_cell = next(cell for cell in raw_receipt["cells"] if 0 in cell["global_schedule_indexes"])
+    first = admission.consume_n_pilot_attempt_ticket(
+        raw_receipt,
+        repo_root=root,
+        protocol=r33_protocol,
+        verified_freeze_document=freeze,
+        freeze_sha256=protocol["freeze"]["sha256"],
+        schedule_sha256=raw_receipt["schedule_sha256"],
+        global_schedule_index=0,
+        expected_cell_id=first_cell["cell_id"],
+    )
+    second = next(
+        cell for cell in raw_receipt["cells"] if 12 in cell["global_schedule_indexes"]
+    )
+    second_token = admission.consume_n_pilot_attempt_ticket(
+        dict(raw_receipt),
+        repo_root=root,
+        protocol=r33_protocol,
+        verified_freeze_document=freeze,
+        freeze_sha256=protocol["freeze"]["sha256"],
+        schedule_sha256=raw_receipt["schedule_sha256"],
+        global_schedule_index=12,
+        expected_cell_id=second["cell_id"],
+    )
+    assert first.attempt_id != second_token.attempt_id
+    assert first.permitted_run_once_calls == second_token.permitted_run_once_calls == 5
+    assert len(admission._n_pilot_cell_states) == before  # noqa: SLF001
+
+
+def test_r33_precommit_failure_has_no_visible_claim_and_can_be_aborted(tmp_path, monkeypatch):
+    root, protocol, freeze = _init_repo(tmp_path)
+    original = admission.write_guarded_create_bytes
+
+    def fail_before_commit(*_args, **_kwargs):
+        raise admission.HoldoutAdmissionError("injected receipt staging failure")
+
+    monkeypatch.setattr(admission, "write_guarded_create_bytes", fail_before_commit)
+    with pytest.raises(admission.HoldoutAdmissionError, match="staging failure"):
+        _reserve_r33(root, protocol, freeze, run_id="r33-precommit")
+    monkeypatch.setattr(admission, "write_guarded_create_bytes", original)
+
+    shared = admission.shared_admission_root(root)
+    assert not (shared / "ledger.jsonl").exists()
+    assert list((shared / "claims").iterdir()) == []
+    transaction = next((shared / "transactions").iterdir())
+    abort = admission.abort_unpublished_n_pilot_transaction(
+        repo_root=root,
+        transaction_id=transaction.name,
+        approval={"approved_by": "test-operator", "approval_ref": "test-approval"},
+    )
+    assert abort.is_file()
+    assert (shared / "transaction-quarantine" / transaction.name / "staged").is_dir()
+    assert json.loads(abort.read_bytes())["visible_publish"] is False
+
+
+def test_r33_commit_recovery_allows_foreign_append_and_is_idempotent(tmp_path, monkeypatch):
+    root, protocol, freeze = _init_repo(tmp_path)
+    original = admission._r33_apply_committed_transaction_locked  # noqa: SLF001
+
+    def crash_after_marker(*_args, **_kwargs):
+        raise RuntimeError("injected post-marker crash")
+
+    monkeypatch.setattr(
+        admission, "_r33_apply_committed_transaction_locked", crash_after_marker,
+    )
+    with pytest.raises(RuntimeError, match="post-marker"):
+        _reserve_r33(root, protocol, freeze, run_id="r33-recovery")
+    monkeypatch.setattr(
+        admission, "_r33_apply_committed_transaction_locked", original,
+    )
+    shared = admission.shared_admission_root(root)
+    transaction = next((shared / "transactions").iterdir())
+    foreign = {
+        "schema_version": "s8b-holdout-observation-ledger/v1",
+        "event": "admit",
+        "freeze_sha256": "a" * 64,
+        "freeze_holdout_key": "foreign",
+        "configuration_id": "foreign",
+        "ccbench_pin": "1" * 40,
+        "env_tag": "fixture-env",
+        "observation_role": admission.OBSERVATION_ROLE_FLOOR_CAMPAIGN,
+    }
+    (shared / "ledger.jsonl").write_bytes(admission._canonical_line(foreign))
+    with admission._locked(shared):
+        admission._recover_n_pilot_transactions_locked(shared)  # noqa: SLF001
+    once = (shared / "ledger.jsonl").read_bytes()
+    with admission._locked(shared):
+        admission._recover_n_pilot_transactions_locked(shared)  # noqa: SLF001
+    assert (shared / "ledger.jsonl").read_bytes() == once
+    rows = admission._read_ledger(shared / "ledger.jsonl")
+    assert len(rows) == 13
+    assert len(list((shared / "claims").iterdir())) == 12
+    assert len(list((shared / "receipts").iterdir())) == 1
+    assert transaction.is_dir()
+
+
+def test_r33_consume_marker_recovery_rebuilds_missing_attempt_row(tmp_path, monkeypatch):
+    root, protocol, freeze = _init_repo(tmp_path)
+    r33_protocol, _protocol_sha256, _cells, _schedule, receipt = _reserve_r33(
+        root, protocol, freeze, run_id="r33-marker-recovery",
+    )
+    original = admission._append_ledger  # noqa: SLF001
+
+    def fail_attempt_append(path, rows):
+        if Path(path).name == "attempt-ledger.jsonl":
+            raise admission.HoldoutAdmissionError("injected attempt append crash")
+        return original(path, rows)
+
+    monkeypatch.setattr(admission, "_append_ledger", fail_attempt_append)
+    cell = next(cell for cell in receipt["cells"] if 0 in cell["global_schedule_indexes"])
+    with pytest.raises(admission.HoldoutAdmissionError, match="attempt append crash"):
+        admission.consume_n_pilot_attempt_ticket(
+            receipt,
+            repo_root=root,
+            protocol=r33_protocol,
+            verified_freeze_document=freeze,
+            freeze_sha256=protocol["freeze"]["sha256"],
+            schedule_sha256=receipt["schedule_sha256"],
+            global_schedule_index=0,
+            expected_cell_id=cell["cell_id"],
+        )
+    monkeypatch.setattr(admission, "_append_ledger", original)
+    shared = admission.shared_admission_root(root)
+    assert len(list((shared / "consumed").iterdir())) == 1
+    with admission._locked(shared):
+        admission._recover_n_pilot_attempt_ledger_locked(shared)  # noqa: SLF001
+        admission._recover_n_pilot_attempt_ledger_locked(shared)  # noqa: SLF001
+    assert len(admission._read_ledger(shared / "attempt-ledger.jsonl")) == 1
 
 
 def test_pilot_claim_requires_irreversible_approval_before_claim(tmp_path):
