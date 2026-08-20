@@ -35,10 +35,11 @@ from .build_admission import (BuildRunContext, GeneratorId,  # noqa: E402
                                       attest_generator_output, build_run_context)
 from .layout import CampaignLayout                      # noqa: E402
 from .model import CampaignConfig, Genome               # noqa: E402
-from .p2_2 import (CLK, ENV_TAG, EXTIME, NUMA, RECORDS,  # noqa: E402
-                           REPS, THREADS, _assert_single_tenant)
+from . import p2_2                                       # noqa: E402
+from .p2_2 import (EXTIME, RECORDS, REPS, THREADS,        # noqa: E402
+                           _assert_single_tenant)
 from .pipeline import PerfConfig                        # noqa: E402
-from . import (env_contract, ident, pin, screening_driver,
+from . import (ident, pin, screening_driver,
                       source_digest, wal)  # noqa: E402
 from .loop import CampaignSummary                       # noqa: E402
 from .pipeline import SCREEN_REJECTION_REASON, variant_id  # noqa: E402
@@ -75,7 +76,8 @@ def genomes():
 
 
 def config_for(tag: str, workload: dict, *,
-               screening_fixed_us: Optional[int] = None) -> CampaignConfig:
+               screening_fixed_us: Optional[int] = None,
+               contract=None) -> CampaignConfig:
     search_config = {"scale": "silo-backoff", "base": "L-W0",
                      "sweep_us": SWEEP_US, "workload": tag,
                      "records": RECORDS, "threads": THREADS, "ycsb": workload}
@@ -89,12 +91,18 @@ def config_for(tag: str, workload: dict, *,
         ccbench_commit=CCBENCH_COMMIT,
         search_config=search_config,
         trial="p2-backoff")
-    return ident.bind_environment_contract(cfg, env_contract.lookup(ENV_TAG))
+    if contract is None:
+        # Preserve the historical non-measurement config-builder contract. The
+        # actual run path always supplies the resolved runtime contract below.
+        contract = p2_2._legacy_linux_contract()
+    return ident.bind_environment_contract(cfg, contract)
 
 
 def _run_screened_workload(cfg, gs, perf, workload, calibration_dir, log, *,
                            build_context: BuildRunContext,
                            capability_resolver,
+                           runtime_contract,
+                           authorization_contract,
                            expected_toolchain_manifest=None,
                            confirm_each_candidate=False):
     baseline = gs[0]
@@ -112,23 +120,28 @@ def _run_screened_workload(cfg, gs, perf, workload, calibration_dir, log, *,
         ),
     )
     measured = []
-    execution_contract = env_contract.lookup(ENV_TAG)
+    execution_contract = runtime_contract
+    runtime_numactl = list(runtime_contract.numactl)
 
     def measure_baseline(screen_cfg, layout):
         measured.append(screening_driver.evaluate_candidate(
-            screen_cfg, layout, baseline, perf, ENV_TAG, CLK,
-            authorization_contract=env_contract.authorize(ENV_TAG),
+            screen_cfg, layout, baseline, perf,
+            runtime_contract.env_tag, runtime_contract.clocks_per_us,
+            authorization_contract=authorization_contract,
             env_contract=execution_contract,
             expected_toolchain_manifest=expected_toolchain_manifest,
             declared_use_class="official",
             build_context=build_context,
             capability_resolver=capability_resolver,
-            screening=None, numactl=NUMA, force=True, do_settle=True, log=log))
+            screening=None, numactl=runtime_numactl, force=True,
+            do_settle=True, log=log))
 
     prepared = screening_driver.prepare_screening_campaign(
         cfg, workload, baseline_ref, measure_baseline,
-        authorization_contract=env_contract.authorize(ENV_TAG),
-        env_tag=ENV_TAG, clocks_per_us=CLK, numactl=NUMA,
+        authorization_contract=authorization_contract,
+        env_tag=runtime_contract.env_tag,
+        clocks_per_us=runtime_contract.clocks_per_us,
+        numactl=runtime_numactl,
         calibration_dir=calibration_dir, build_context=build_context)
     s = CampaignSummary(campaign_id=str(ident.campaign_id(prepared.cfg)),
                         layout_root=prepared.layout.root, total=len(gs))
@@ -138,14 +151,15 @@ def _run_screened_workload(cfg, gs, perf, workload, calibration_dir, log, *,
             input("screened candidate 直前の単一テナント/高CPU確認後に Enter: ")
         _assert_single_tenant()
         results.append(screening_driver.evaluate_candidate(
-            prepared.cfg, prepared.layout, genome, perf, ENV_TAG, CLK,
-            authorization_contract=env_contract.authorize(ENV_TAG),
+            prepared.cfg, prepared.layout, genome, perf,
+            runtime_contract.env_tag, runtime_contract.clocks_per_us,
+            authorization_contract=authorization_contract,
             env_contract=execution_contract,
             expected_toolchain_manifest=expected_toolchain_manifest,
             declared_use_class="official",
             build_context=build_context,
             capability_resolver=capability_resolver,
-            screening=prepared.screening, numactl=NUMA, log=log))
+            screening=prepared.screening, numactl=runtime_numactl, log=log))
     for result in results:
         if result is None:
             s.skipped += 1
@@ -164,6 +178,8 @@ def run_workload(tag: str, workload: dict, log=print, *,
                  screening_fixed_us: Optional[int] = None,
                  confirm_each_candidate: bool = False):
     _assert_single_tenant()
+    site, contract, authorization = p2_2.resolve_site_runtime()
+    p2_2._assert_matches_calibration(contract)
     gs = genomes()
     if screening_fixed_us is not None:
         if not screening_enabled:
@@ -175,7 +191,10 @@ def run_workload(tag: str, workload: dict, log=print, *,
             raise ValueError(
                 f"screening_fixed_us は既存 sweep 点から一意に選ぶ: {screening_fixed_us}")
         gs = [gs[0], selected[0]]
-    cfg = config_for(tag, workload, screening_fixed_us=screening_fixed_us)
+    cfg = config_for(
+        tag, workload, screening_fixed_us=screening_fixed_us, contract=contract,
+    )
+    cfg = p2_2._campaign_cfg_for_site(cfg, site, contract)
     resolved_cc, resolved_cxx = _compilers_for_current_site()
     expected_toolchain_manifest = buildcache.observed_toolchain_manifest(
         resolved_cc, resolved_cxx,
@@ -196,12 +215,15 @@ def run_workload(tag: str, workload: dict, log=print, *,
             cfg, gs, perf, workload, calibration_dir, log,
             build_context=build_context,
             capability_resolver=capability_resolver,
+            runtime_contract=contract,
+            authorization_contract=authorization,
             expected_toolchain_manifest=expected_toolchain_manifest,
             confirm_each_candidate=confirm_each_candidate)
     else:
-        s = run_campaign(cfg, gs, perf, ENV_TAG, CLK, numactl=NUMA, log=log,
-                         authorization_contract=env_contract.authorize(ENV_TAG),
-                         env_contract=env_contract.lookup(ENV_TAG),
+        s = run_campaign(cfg, gs, perf, contract.env_tag,
+                         contract.clocks_per_us, numactl=list(contract.numactl), log=log,
+                         authorization_contract=authorization,
+                         env_contract=contract,
                          expected_toolchain_manifest=expected_toolchain_manifest,
                          build_context=build_context,
                          declared_use_class="official",

@@ -9,6 +9,7 @@ pin している (期待の先決めをしない)。
 """
 from __future__ import annotations
 
+import ast
 import hashlib
 import shlex
 import json
@@ -195,18 +196,32 @@ def test_verified_freeze_class_identity_is_single():
 
 
 # --------------------------------------------------------------------------- #
-# env 配線 (F4): NUMACTL/CLK は p2_2 直 import でなく env_contract 経由           #
+# env 配線 (F4): ENV_TAG/NUMACTL/CLK は p2_2 直 import でなく registry 経由      #
 # --------------------------------------------------------------------------- #
 
-def test_floor_no_longer_direct_imports_clk_or_numactl():
-    """F4 結線後、floor は CLK/NUMA を p2_2 から直 import しない (env_contract 経由)。
-
-    旧 wave の ``floor.NUMACTL is p2_2.NUMA`` identity は contract 化で消える。ENV_TAG のみ
-    machine-pin 用に残す。"""
+def test_s8b_drivers_no_longer_direct_import_p2_runtime_constants():
+    """F4 結線後、S8b driver は p2_2 の runtime 定数を直接 import しない。"""
     from orchestrator.campaign import s8b_floor_campaign as floor
+    from orchestrator.campaign import s8b_oracle_driver as oracle
+
+    for module in (floor, oracle):
+        tree = ast.parse(
+            Path(module.__file__).read_text(encoding="utf-8"),
+            filename=str(module.__file__),
+        )
+        imported = {
+            alias.name
+            for node in ast.walk(tree)
+            if isinstance(node, ast.ImportFrom)
+            and (node.module == "p2_2" or (node.module or "").endswith(".p2_2"))
+            for alias in node.names
+        }
+        assert imported.isdisjoint({"ENV_TAG", "CLK", "NUMA"})
+
     assert not hasattr(floor, "NUMACTL")   # p2_2.NUMA の直 import は削除された
     assert not hasattr(floor, "CLK")       # p2_2.CLK の直 import も削除された
-    assert hasattr(floor, "ENV_TAG")       # machine-pin 用にのみ残す
+    assert not hasattr(floor, "ENV_TAG")   # machine-pin は site 起点へ分離された
+    assert not hasattr(oracle, "MACHINE_ENV_TAG")
     assert floor._env_contract is not None  # env_contract を結線している
 
 
