@@ -11097,6 +11097,12 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   `REPO` が worktree パスに戻っていないか確認する。新しい見出し変種で漏れを見つけたら
   同 script の正規表現へ追記する (このエントリの型を再発として顕在化させる)。
 
+
+- **再発: 2026-08-20** — `sweep_pending.py` の PENDING 正規表現が、[T-870] 本文中の
+  「D299が既に裁定パッケージへ送っている」(別項目 D299 への既送り言及) を部分文字列一致だけで
+  拾い、自項目自身の裁定待ちと誤検出していた (今回は語彙の不足でなく過検出)。`/rulings all`
+  セッションが `ALREADY_SENT_ELSEWHERE` 除外パターンを追加し是正した (対象は F438 と同じ repo 外
+  scratch ツール2ファイル中の `sweep_pending.py`)。
 ### F439. dev-wave段4裁定でB-057変異事前登録の手順自体が漏れた [手順漏れ]
 
 - 事象: T-1142 n-pilot R33 admission再設計waveの段4裁定 (第2wave、ユーザーが
