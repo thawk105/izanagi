@@ -1883,6 +1883,20 @@ def test_known_violation_ledger_matches_literal_entries():
             "ため Codex 著者とは記さない。",
             "",
         ),
+        (
+            "76248294bf40eb7fa0d806ce4df5010d685036de",
+            "missing-codex-author",
+            "D554 (2026-08-19)",
+            "受入前の local main 取り込みmerge (2回目)。実装面で両側が触ったのは"
+            "orchestrator/tests/test_campaign.py の1 fileのみで、"
+            "git diff-tree --cc 76248294 はSHA行のみの完全な空 = 競合解決による新規著作なし。"
+            "wave側の追加7テストはCodex role=authorが commit 06acc7fd で既に書いており、"
+            "main側 (T-1437) は main land時に監査済み。D554の「実装面で本当に衝突したときだけ"
+            "Codexを要求する」条件付き昇格に該当するが、本merge自体はdev_wave_wait.pyの"
+            "postclaim mergeではなく手動mergeのため事前検証済みファイルを持たなかった。"
+            "親作成mergeのためCodex著者とは記さない。",
+            "",
+        ),
     )
     assert len(provenance.KNOWN_PROVENANCE_VIOLATIONS) == len(expected)
     assert observed == expected
