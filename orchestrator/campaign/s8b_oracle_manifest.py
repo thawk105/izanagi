@@ -1,5 +1,17 @@
 # -*- coding: utf-8 -*-
-"""8b oracle の決定論的 schedule と immutable manifest。"""
+"""8b oracle の決定論的 schedule と immutable manifest。
+
+``schedule_index`` は ``rows`` を平坦化した通し番号 (cell ordinal) である。
+``build_schedule`` の現在の生成順序では、反復内の row 添字は
+``schedule_index % C`` (``C`` は holdout×configuration の cell 数) になる。
+これは構築時の性質であり、``_validate_schedule`` が独立に再検証する
+manifest-schema 上の不変条件ではない。``s8b_oracle_n_pilot`` の observation
+``seq`` はこの値をそのまま渡したもの (rename のみ) で、反復内の
+``position`` は表示専用の派生値であり、admission ticket 消費の鍵は
+``schedule_index`` 自身である。``s1_direct_comparison`` の attempt 添字は
+別モジュールの別 namespace に属し、同一 ``schedule_index`` 内の retry 回数を
+数える独立カウンタである。これらの field 名は契約で固定されており、改名できない。
+"""
 from __future__ import annotations
 
 import argparse
@@ -222,7 +234,23 @@ def build_schedule(
     *, n: int, master_seed: str, block_sizes: Mapping[str, int],
     holdout_ids: Sequence[str], configuration_ids: Sequence[str],
 ) -> dict:
-    """完全ブロック replicate を time block へ割り当てて決定論的に並べる。"""
+    """完全ブロック replicate を time block へ割り当てて決定論的に並べる。
+
+    各 row の ``schedule_index`` は ``rows`` の平坦化された通し番号
+    (cell ordinal) である。現在の実装が replicate-major, cell-minor の順に
+    生成するため、反復内 row 添字は ``schedule_index % C`` (``C`` は
+    holdout×configuration の cell 数) となり、``schedule_index // C`` は
+    ``replicate_index`` となる。ただしこれは ``build_schedule`` の生成順序に
+    よる構築時の性質であり、``_validate_schedule`` が独立に検証する
+    manifest-schema 上の不変条件ではない。
+
+    ``s8b_oracle_n_pilot`` の observation ``seq`` は ``schedule_index`` をそのまま
+    渡した値 (rename のみ) で、反復内 ``position`` は表示専用の派生値である。
+    admission ticket 消費の鍵は ``schedule_index`` 自身である。なお
+    ``s1_direct_comparison`` の attempt 添字は別モジュールの別 namespace にある、
+    同一 ``schedule_index`` 内の retry 回数を数える独立カウンタである。field 名は
+    契約で固定されており、改名できない。
+    """
     if not _is_int(n) or n <= 0:
         raise ManifestError("n が正整数でない")
     _identifier(master_seed, field="master_seed")
