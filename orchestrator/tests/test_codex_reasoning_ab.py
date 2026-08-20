@@ -859,6 +859,158 @@ def test_corrected_case_allowlists_are_literal() -> None:
     )
 
 
+def test_task_manifest_binds_frozen_provenance_to_literal_values() -> None:
+    pos = TOOL.TASK_MANIFEST["tasks"]["POS"]
+    assert TOOL.TASK_MANIFEST["schema_version"] == 3
+    assert pos["benchmark_task_id"] == "POS"
+    assert pos["legacy_case"] == "POS"
+    assert pos["provenance"]["session_id"] == (
+        "019faca2-6e1f-7601-bfc7-be27edcfb4ba"
+    )
+    assert pos["provenance"]["rollout_sha256"] == (
+        "9b90d51079e6a2be4603b366d77283950fff79535f59dbb8b4f4eecb1374032b"
+    )
+    assert pos["provenance"]["prompt_source"]["sha256"] == (
+        "511941738fd39a20ac9fb41ce2f4c3ed0039c35fca637ded0fa2fb6679667829"
+    )
+    assert pos["snapshot"]["numstat"] == [
+        [3, 3, "docs/ai-provenance.md"],
+        [45, 0, "docs/decisions.md"],
+        [693, 0, "orchestrator/tests/test_check_ai_provenance.py"],
+        [37, 0, "orchestrator/tests/test_check_docs.py"],
+        [123, 10, "tools/check_ai_provenance.py"],
+        [9, 1, "tools/check_docs.py"],
+    ]
+    assert TOOL.TASK_MANIFEST["shared_provenance"]["auxiliary_sessions"]["fix1"] == {
+        "session_id": "019fac91-8cde-7f73-bce1-77a9d63b4269",
+        "rollout_sha256": "f210f2e135f6cfdb2e6c2a40e81b784a2a8f4ac51135c353cf859365e17fb475",
+    }
+
+
+def test_v2_schedule_normalizer_is_explicit_and_non_mutating() -> None:
+    legacy = {
+        "schema_version": 2,
+        "slots": [
+            {"slot_id": "s01", "case": "POS", "arm": "max"},
+            {"slot_id": "s02", "case": "NEG", "arm": "high"},
+        ],
+    }
+    original = copy.deepcopy(legacy)
+    normalized = TOOL.normalize_legacy_schedule(legacy)
+
+    assert legacy == original
+    assert normalized["schema_version"] == 3
+    assert normalized["manifest_kind"] == "t181-task-manifest"
+    assert normalized["slots"][0]["benchmark_task_id"] == "POS"
+    assert normalized["slots"][0]["legacy_case"] == "POS"
+    assert normalized["slots"][0]["cache_condition"] is None
+    assert normalized["slots"][0]["price_version"] is None
+    assert TOOL.expected_schedule_from_manifest(TOOL.TASK_MANIFEST, legacy) == {
+        ("POS", "max"): 3,
+        ("POS", "high"): 3,
+        ("NEG", "max"): 2,
+        ("NEG", "high"): 2,
+    }
+
+
+def test_v3_nullable_dimensions_distinguish_missing_from_null() -> None:
+    row = {
+        "benchmark_task_id": "POS",
+        "case": "POS",
+        "cache_condition": None,
+        "price_version": None,
+    }
+    assert TOOL.validate_nullable_dimensions(row) == row
+    for field in ("cache_condition", "price_version"):
+        missing = dict(row)
+        del missing[field]
+        with pytest.raises(TOOL.ValidationError, match=f"missing required field: {field}"):
+            TOOL.normalize_schedule({"schema_version": 3, "slots": [missing]})
+
+
+@pytest.mark.parametrize("field", ("cache_condition", "price_version"))
+def test_non_null_nullable_dimension_is_fail_closed(field: str) -> None:
+    row = {
+        "benchmark_task_id": "POS",
+        "case": "POS",
+        "cache_condition": None,
+        "price_version": None,
+    }
+    row[field] = "opaque-version-token"
+    with pytest.raises(TOOL.ValidationError, match="non-null values are not supported"):
+        TOOL.normalize_schedule({"schema_version": 3, "slots": [row]})
+
+
+def test_benchmark_task_id_and_case_alias_conflict_is_rejected() -> None:
+    with pytest.raises(TOOL.ValidationError, match="aliases conflict"):
+        TOOL.normalize_schedule(
+            {
+                "schema_version": 3,
+                "slots": [
+                    {
+                        "benchmark_task_id": "POS",
+                        "case": "NEG",
+                        "cache_condition": None,
+                        "price_version": None,
+                    }
+                ],
+            }
+        )
+
+
+def test_manifest_schedule_and_findings_are_dynamic() -> None:
+    manifest = {
+        "schema_version": 3,
+        "manifest_kind": "t181-task-manifest",
+        "tasks": {
+            "alpha": {
+                "benchmark_task_id": "alpha",
+                "legacy_case": "legacy-alpha",
+                "known_finding_ids": ["A-1"],
+            },
+            "beta": {
+                "benchmark_task_id": "beta",
+                "legacy_case": "legacy-beta",
+                "known_finding_ids": ["B-9"],
+            },
+        },
+    }
+    schedule = {
+        "schema_version": 3,
+        "slots": [
+            {
+                "slot_id": "x01",
+                "benchmark_task_id": "alpha",
+                "legacy_case": "legacy-alpha",
+                "arm": "low",
+                "cache_condition": None,
+                "price_version": None,
+            },
+            {
+                "slot_id": "x02",
+                "benchmark_task_id": "alpha",
+                "case": "legacy-alpha",
+                "arm": "low",
+                "cache_condition": None,
+                "price_version": None,
+            },
+            {
+                "slot_id": "x03",
+                "benchmark_task_id": "beta",
+                "legacy_case": "legacy-beta",
+                "arm": "high",
+                "cache_condition": None,
+                "price_version": None,
+            },
+        ],
+    }
+    assert TOOL.expected_schedule_from_manifest(manifest, schedule) == {
+        ("alpha", "low"): 2,
+        ("beta", "high"): 1,
+    }
+    assert TOOL.known_finding_ids_for_manifest(manifest) == {"A-1", "B-9"}
+
+
 def test_parent_numstat_controls_remain_pinned(
     benchmark_snapshots: dict[str, Any],
 ) -> None:

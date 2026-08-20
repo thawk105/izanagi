@@ -41,7 +41,13 @@ finally:
     sys.dont_write_bytecode = _ORIGINAL_DONT_WRITE_BYTECODE
 
 
-SCHEMA_VERSION = 2
+LEGACY_SCHEMA_VERSION = 2
+TASK_MANIFEST_SCHEMA_VERSION = 3
+SCHEDULE_SCHEMA_VERSION = 3
+# Existing snapshot/receipt serializers remain v2 until their owning waves add
+# an explicit v3 serializer.  The manifest and normalized schedule have their
+# own version so that a v2 artifact is never compared as a v3 artifact.
+SCHEMA_VERSION = LEGACY_SCHEMA_VERSION
 BASE_COMMIT = "8c8dc5e0a337677e213b4ebabbeff5ea188111ae"
 INTEGRATED_COMMIT = "9b26b3bd3acc10df95ef6ef6684a91d2ff3fa2ec"
 ARTIFACT_COMMIT = "08a7e5f2fc08d57309a86ef70d00e9b050ebec9c"
@@ -53,21 +59,21 @@ OLD_ROOT = (
 )
 ARTIFACT_DIR = "output/insights/2026-07-29_t153e-t15423-review-verbatim"
 
-SESSION_IDS = {
+_LEGACY_SESSION_IDS = {
     "POS": "019faca2-6e1f-7601-bfc7-be27edcfb4ba",
     "NEG": "019facbe-9584-7642-aa30-37f1c77e6c5f",
     "fix2": "019facb2-7ddb-7102-814d-eeddcb1102ed",
     "author": "019fac6b-4f74-7a03-aa4d-8a9de22b352c",
     "fix1": "019fac91-8cde-7f73-bce1-77a9d63b4269",
 }
-ROLLOUT_SHA256 = {
+_LEGACY_ROLLOUT_SHA256 = {
     "POS": "9b90d51079e6a2be4603b366d77283950fff79535f59dbb8b4f4eecb1374032b",
     "NEG": "40a14e9089c2a9931b661023d104dcde2d965452e7c5ce3c630dbd2662ff4012",
     "fix2": "b07581b4f0e6ef9935549e9b9783a8ebb6877d87a10265ac7916a7d4a89c880a",
     "author": "e1ffc1e5b5e6d354701798d41a97a5e6da622423214531f356db3f1bb3ce6cbe",
     "fix1": "f210f2e135f6cfdb2e6c2a40e81b784a2a8f4ac51135c353cf859365e17fb475",
 }
-PROMPT_SOURCE = {
+_LEGACY_PROMPT_SOURCE = {
     "POS": {
         "sha256": "511941738fd39a20ac9fb41ce2f4c3ed0039c35fca637ded0fa2fb6679667829",
         "chars": 2000,
@@ -109,7 +115,7 @@ ARTIFACT_HASHES = {
     "fix2.md": "ffdff13cbe4d98aa56fe4502be63beb0a5acfb36c35a818b76462bb6f6d847cd",
     "focus1.md": "901ad02256524bac35c56ae4e3a2b7c5fbc01a618670182885040c6912b82771",
 }
-CASE_ARTIFACTS = {
+_LEGACY_CASE_ARTIFACTS = {
     "POS": ("review-a.md", "review-b.md", "fix1.md"),
     "NEG": (
         "brief.md",
@@ -120,14 +126,14 @@ CASE_ARTIFACTS = {
         "fix2.md",
     ),
 }
-CASE_HASHES = {
+_LEGACY_CASE_HASHES = {
     "POS": {
         **TRACKED_HASHES,
         "tools/check_ai_provenance.py": "bc3f5f95f5c9c3f44955bbd1b2e3affbbafb6e62fda8e836173e1b9d5998c3af",
         "orchestrator/tests/test_check_ai_provenance.py": "ed3f93d196e7c43c8ba61c83f91f065d3fc829f0d12bdc4d9ead31b2ec3d57ed",
         **{
             f"{ARTIFACT_DIR}/{name}": ARTIFACT_HASHES[name]
-            for name in CASE_ARTIFACTS["POS"]
+            for name in _LEGACY_CASE_ARTIFACTS["POS"]
         },
     },
     "NEG": {
@@ -136,11 +142,11 @@ CASE_HASHES = {
         "orchestrator/tests/test_check_ai_provenance.py": "c4f5f04b8a06c03f4c7e85900e54a2c34a9ea65873e37a340f81b926df098e74",
         **{
             f"{ARTIFACT_DIR}/{name}": ARTIFACT_HASHES[name]
-            for name in CASE_ARTIFACTS["NEG"]
+            for name in _LEGACY_CASE_ARTIFACTS["NEG"]
         },
     },
 }
-CASE_NUMSTAT = {
+_LEGACY_CASE_NUMSTAT = {
     "POS": (
         (3, 3, "docs/ai-provenance.md"),
         (45, 0, "docs/decisions.md"),
@@ -158,15 +164,124 @@ CASE_NUMSTAT = {
         (9, 1, "tools/check_docs.py"),
     ),
 }
-EXPECTED_SCHEDULE = {
+LEGACY_EXPECTED_SCHEDULE = {
     ("POS", "max"): 3,
     ("POS", "high"): 3,
     ("NEG", "max"): 2,
     ("NEG", "high"): 2,
 }
-KNOWN_FINDINGS = {
+_LEGACY_KNOWN_FINDINGS = {
     "A-1", "A-2", "A-3", "A-4",
     "B-1", "B-2", "B-3", "B-4", "B-5", "B-6", "R-1",
+}
+
+
+def _manifest_task_entry(
+    benchmark_task_id: str, *, oracle_kind: str
+) -> dict[str, Any]:
+    """Build one manifest entry from the frozen v2 provenance values.
+
+    The old constants are kept in private staging names only while this
+    literal manifest is assembled.  Public legacy aliases below are derived
+    from the manifest, so callers cannot accidentally acquire a second source
+    of truth for POS/NEG provenance.
+    """
+    return {
+        "benchmark_task_id": benchmark_task_id,
+        "legacy_case": benchmark_task_id,
+        "task_type": "t181-frozen",
+        "stage": None,
+        "oracle_kind": oracle_kind,
+        "provenance": {
+            "session_id": _LEGACY_SESSION_IDS[benchmark_task_id],
+            "rollout_sha256": _LEGACY_ROLLOUT_SHA256[benchmark_task_id],
+            "prompt_source": dict(_LEGACY_PROMPT_SOURCE[benchmark_task_id]),
+        },
+        "snapshot": {
+            "artifact_names": list(_LEGACY_CASE_ARTIFACTS[benchmark_task_id]),
+            "hashes": dict(_LEGACY_CASE_HASHES[benchmark_task_id]),
+            "numstat": [list(row) for row in _LEGACY_CASE_NUMSTAT[benchmark_task_id]],
+        },
+        "known_finding_ids": sorted(_LEGACY_KNOWN_FINDINGS),
+    }
+
+
+TASK_MANIFEST: dict[str, Any] = {
+    "schema_version": TASK_MANIFEST_SCHEMA_VERSION,
+    "manifest_kind": "t181-task-manifest",
+    "tasks": {
+        "POS": _manifest_task_entry("POS", oracle_kind="positive"),
+        "NEG": _manifest_task_entry("NEG", oracle_kind="negative"),
+    },
+    "shared_provenance": {
+        "auxiliary_sessions": {
+            role: {
+                "session_id": _LEGACY_SESSION_IDS[role],
+                "rollout_sha256": _LEGACY_ROLLOUT_SHA256[role],
+            }
+            for role in ("fix1", "fix2", "author")
+        },
+        "tracked_hashes": dict(TRACKED_HASHES),
+        "artifact_hashes": dict(ARTIFACT_HASHES),
+    },
+}
+
+# These aliases are deliberately derived from TASK_MANIFEST.  They preserve
+# the v2 API and byte-level values while making the manifest the only POS/NEG
+# provenance definition.
+SESSION_IDS = {
+    **{
+        task["legacy_case"]: task["provenance"]["session_id"]
+        for task in TASK_MANIFEST["tasks"].values()
+    },
+    **{
+        role: row["session_id"]
+        for role, row in TASK_MANIFEST["shared_provenance"][
+            "auxiliary_sessions"
+        ].items()
+    },
+}
+ROLLOUT_SHA256 = {
+    **{
+        task["legacy_case"]: task["provenance"]["rollout_sha256"]
+        for task in TASK_MANIFEST["tasks"].values()
+    },
+    **{
+        role: row["rollout_sha256"]
+        for role, row in TASK_MANIFEST["shared_provenance"][
+            "auxiliary_sessions"
+        ].items()
+    },
+}
+PROMPT_SOURCE = {
+    task["legacy_case"]: dict(task["provenance"]["prompt_source"])
+    for task in TASK_MANIFEST["tasks"].values()
+}
+CASE_ARTIFACTS = {
+    task["legacy_case"]: tuple(task["snapshot"]["artifact_names"])
+    for task in TASK_MANIFEST["tasks"].values()
+}
+CASE_HASHES = {
+    task["legacy_case"]: dict(task["snapshot"]["hashes"])
+    for task in TASK_MANIFEST["tasks"].values()
+}
+CASE_NUMSTAT = {
+    task["legacy_case"]: tuple(tuple(row) for row in task["snapshot"]["numstat"])
+    for task in TASK_MANIFEST["tasks"].values()
+}
+# The public name remains a v2 compatibility alias for the downstream legacy
+# validator.  New schedule consumers must call expected_schedule_from_manifest
+# so their expected set comes from the manifest/schedule rows.
+EXPECTED_SCHEDULE = dict(
+    {
+        (task_id, arm): count
+        for (task_id, arm), count in LEGACY_EXPECTED_SCHEDULE.items()
+    }
+)
+KNOWN_FINDINGS = {
+    finding_id
+    for task in TASK_MANIFEST["tasks"].values()
+    for finding_id in task["known_finding_ids"]
 }
 ZERO_COMPONENT_TOTAL_ONLY = "zero_component_total_only"
 _ZERO_COMPONENT_FIELDS = (
@@ -693,20 +808,29 @@ def derive_independent_golden(
 
 
 def _snapshot_spec(case: str) -> dict[str, Any]:
+    try:
+        task = _manifest_task(case=case)
+    except ValidationError as exc:
+        raise ValidationError(exc.reasons, RC_SNAPSHOT) from exc
+    legacy_case = task["legacy_case"]
+    snapshot = task["snapshot"]
+    hashes = dict(snapshot["hashes"])
     return {
-        "case": case,
+        "case": legacy_case,
+        "benchmark_task_id": task["benchmark_task_id"],
+        "legacy_case": legacy_case,
         "head": BASE_COMMIT,
         "branch": BRANCH,
         "tracked_paths": list(TRACKED_PATHS),
-        "hashes": CASE_HASHES[case],
-        "numstat": [list(row) for row in CASE_NUMSTAT[case]],
+        "hashes": hashes,
+        "numstat": [list(row) for row in snapshot["numstat"]],
         "untracked": [
-            f"{ARTIFACT_DIR}/{name}" for name in CASE_ARTIFACTS[case]
+            f"{ARTIFACT_DIR}/{name}" for name in snapshot["artifact_names"]
         ],
-        "modes": {path: stat.S_IFREG | 0o644 for path in CASE_HASHES[case]},
+        "modes": {path: stat.S_IFREG | 0o644 for path in hashes},
         "forbidden": (
             [f"{ARTIFACT_DIR}/focus1.md", f"{ARTIFACT_DIR}/focus2.md"]
-            if case == "POS"
+            if legacy_case == "POS"
             else [f"{ARTIFACT_DIR}/focus2.md"]
         ),
     }
@@ -1996,14 +2120,407 @@ def _resolve_snapshot_destination(repo: Path, snapshot: Path) -> tuple[Path, Pat
     return repo, snapshot
 
 
+def _manifest_tasks(manifest: Mapping[str, Any]) -> Mapping[str, Any]:
+    if not isinstance(manifest, Mapping):
+        raise ValidationError("task manifest is not an object", RC_ROUTING)
+    tasks = manifest.get("tasks")
+    if not isinstance(tasks, Mapping) or not tasks:
+        raise ValidationError("task manifest.tasks is required", RC_ROUTING)
+    return tasks
+
+
+def _task_ids_for_alias(
+    alias: str, manifest: Mapping[str, Any]
+) -> set[str]:
+    matches: set[str] = set()
+    for key, raw_task in _manifest_tasks(manifest).items():
+        if not isinstance(key, str) or not isinstance(raw_task, Mapping):
+            continue
+        aliases = (
+            key,
+            raw_task.get("benchmark_task_id"),
+            raw_task.get("legacy_case"),
+        )
+        if any(isinstance(candidate, str) and candidate == alias for candidate in aliases):
+            matches.add(key)
+    return matches
+
+
+def resolve_benchmark_task_id(
+    benchmark_task_id: str | None = None,
+    *,
+    case: str | None = None,
+    legacy_case: str | None = None,
+    manifest: Mapping[str, Any] = TASK_MANIFEST,
+) -> str:
+    """Resolve the canonical benchmark identifier and reject alias conflicts."""
+    supplied = (
+        ("benchmark_task_id", benchmark_task_id),
+        ("case", case),
+        ("legacy_case", legacy_case),
+    )
+    candidates: set[str] | None = None
+    supplied_names: list[str] = []
+    for name, value in supplied:
+        if value is None:
+            continue
+        supplied_names.append(name)
+        if not isinstance(value, str) or not value:
+            raise ValidationError(f"{name} must be a non-empty string", RC_ROUTING)
+        matches = _task_ids_for_alias(value, manifest)
+        if not matches:
+            raise ValidationError(f"unknown benchmark task alias: {value}", RC_ROUTING)
+        candidates = matches if candidates is None else candidates & matches
+    if not supplied_names:
+        raise ValidationError(
+            "benchmark_task_id or legacy case alias is required", RC_ROUTING
+        )
+    if not candidates:
+        raise ValidationError(
+            "benchmark_task_id and legacy case aliases conflict", RC_ROUTING
+        )
+    if len(candidates) != 1:
+        raise ValidationError(
+            "benchmark task alias is ambiguous", RC_ROUTING
+        )
+    task_id = next(iter(candidates))
+    task = _manifest_tasks(manifest)[task_id]
+    if not isinstance(task, Mapping):
+        raise ValidationError(f"manifest task is not an object: {task_id}", RC_ROUTING)
+    if task.get("benchmark_task_id") != task_id:
+        raise ValidationError(
+            f"manifest task key does not match benchmark_task_id: {task_id}",
+            RC_ROUTING,
+        )
+    return task_id
+
+
+def _manifest_task(
+    benchmark_task_id: str | None = None,
+    *,
+    case: str | None = None,
+    legacy_case: str | None = None,
+    manifest: Mapping[str, Any] = TASK_MANIFEST,
+) -> Mapping[str, Any]:
+    task_id = resolve_benchmark_task_id(
+        benchmark_task_id,
+        case=case,
+        legacy_case=legacy_case,
+        manifest=manifest,
+    )
+    task = _manifest_tasks(manifest)[task_id]
+    if not isinstance(task, Mapping):
+        raise ValidationError(f"manifest task is not an object: {task_id}", RC_ROUTING)
+    if not isinstance(task.get("legacy_case"), str) or not task["legacy_case"]:
+        raise ValidationError(
+            f"manifest task legacy_case is invalid: {task_id}", RC_ROUTING
+        )
+    return task
+
+
+_resolve_benchmark_task_id = resolve_benchmark_task_id
+
+
+def _validate_task_manifest(
+    manifest: Mapping[str, Any] = TASK_MANIFEST,
+) -> None:
+    """Validate the v3 manifest envelope without validating live artifacts."""
+    if not isinstance(manifest, Mapping):
+        raise ValidationError("task manifest is not an object", RC_ROUTING)
+    if manifest.get("schema_version") != TASK_MANIFEST_SCHEMA_VERSION:
+        raise ValidationError("task manifest schema_version must be 3", RC_ROUTING)
+    if manifest.get("manifest_kind") != "t181-task-manifest":
+        raise ValidationError("task manifest kind mismatch", RC_ROUTING)
+    tasks = _manifest_tasks(manifest)
+    for key, task in tasks.items():
+        if not isinstance(key, str) or not isinstance(task, Mapping):
+            raise ValidationError("task manifest task row is malformed", RC_ROUTING)
+        required = (
+            "benchmark_task_id",
+            "legacy_case",
+            "task_type",
+            "stage",
+            "oracle_kind",
+            "provenance",
+            "snapshot",
+            "known_finding_ids",
+        )
+        missing = [field for field in required if field not in task]
+        if missing:
+            raise ValidationError(
+                f"task manifest task {key} missing fields: {missing}", RC_ROUTING
+            )
+        if task["benchmark_task_id"] != key:
+            raise ValidationError(
+                f"task manifest task key mismatch: {key}", RC_ROUTING
+            )
+        if not isinstance(task["legacy_case"], str) or not task["legacy_case"]:
+            raise ValidationError(
+                f"task manifest legacy_case is invalid: {key}", RC_ROUTING
+            )
+        if key in {"POS", "NEG"} and task["legacy_case"] != key:
+            raise ValidationError(
+                f"frozen task legacy_case mismatch: {key}", RC_ROUTING
+            )
+        if not isinstance(task["provenance"], Mapping):
+            raise ValidationError(
+                f"task manifest provenance is invalid: {key}", RC_ROUTING
+            )
+        if not isinstance(task["snapshot"], Mapping):
+            raise ValidationError(
+                f"task manifest snapshot is invalid: {key}", RC_ROUTING
+            )
+        finding_ids = task["known_finding_ids"]
+        if not isinstance(finding_ids, (list, tuple, set, frozenset)) or not all(
+            isinstance(value, str) and value for value in finding_ids
+        ):
+            raise ValidationError(
+                f"task manifest known_finding_ids is invalid: {key}", RC_ROUTING
+            )
+    shared = manifest.get("shared_provenance")
+    if not isinstance(shared, Mapping):
+        raise ValidationError(
+            "task manifest shared_provenance is required", RC_ROUTING
+        )
+    auxiliary = shared.get("auxiliary_sessions")
+    if not isinstance(auxiliary, Mapping):
+        raise ValidationError(
+            "task manifest auxiliary_sessions is required", RC_ROUTING
+        )
+    for role in ("fix1", "fix2", "author"):
+        row = auxiliary.get(role)
+        if (
+            not isinstance(row, Mapping)
+            or "session_id" not in row
+            or "rollout_sha256" not in row
+        ):
+            raise ValidationError(
+                f"auxiliary session provenance is incomplete: {role}", RC_ROUTING
+            )
+
+
+validate_task_manifest = _validate_task_manifest
+
+
+def validate_nullable_dimensions(
+    slot: Mapping[str, Any],
+    *,
+    schema_version: int = TASK_MANIFEST_SCHEMA_VERSION,
+) -> dict[str, Any]:
+    """Validate nullable dimensions and return a non-mutating normalized row.
+
+    v3 requires both keys to be present.  A v2 row may omit them and receives
+    explicit nulls only in the normalized copy.  Non-null values are rejected
+    deliberately: no provider attestation exists in this wave.
+    """
+    if not isinstance(slot, Mapping):
+        raise ValidationError("schedule slot is not an object", RC_ROUTING)
+    if schema_version not in (LEGACY_SCHEMA_VERSION, TASK_MANIFEST_SCHEMA_VERSION):
+        raise ValidationError(
+            f"unsupported schedule schema_version: {schema_version}", RC_ROUTING
+        )
+    normalized = dict(slot)
+    for field in ("cache_condition", "price_version"):
+        if field not in normalized:
+            if schema_version == LEGACY_SCHEMA_VERSION:
+                normalized[field] = None
+            else:
+                raise ValidationError(
+                    f"schedule slot missing required field: {field}", RC_ROUTING
+                )
+        value = normalized[field]
+        if value is not None and not isinstance(value, str):
+            raise ValidationError(
+                f"schedule slot {field} must be a string or null", RC_ROUTING
+            )
+        if value == "":
+            raise ValidationError(
+                f"schedule slot {field} must be non-empty when present", RC_ROUTING
+            )
+        if value is not None:
+            raise ValidationError(
+                f"schedule slot {field} non-null values are not supported without attestation",
+                RC_ROUTING,
+            )
+    return normalized
+
+
+_validate_nullable_dimensions = validate_nullable_dimensions
+
+
+def _normalize_schedule_slot(
+    slot: Mapping[str, Any],
+    *,
+    schema_version: int,
+    manifest: Mapping[str, Any],
+) -> dict[str, Any]:
+    if not isinstance(slot, Mapping):
+        raise ValidationError("schedule slot is not an object", RC_ROUTING)
+    normalized = dict(slot)
+    task_id = resolve_benchmark_task_id(
+        normalized.get("benchmark_task_id"),
+        case=normalized.get("case"),
+        legacy_case=normalized.get("legacy_case"),
+        manifest=manifest,
+    )
+    task = _manifest_task(task_id, manifest=manifest)
+    normalized["benchmark_task_id"] = task_id
+    normalized.setdefault("legacy_case", task["legacy_case"])
+    if normalized.get("legacy_case") != task["legacy_case"]:
+        raise ValidationError(
+            "schedule legacy_case does not match benchmark task", RC_ROUTING
+        )
+    normalized.setdefault("case", task["legacy_case"])
+    return validate_nullable_dimensions(normalized, schema_version=schema_version)
+
+
+def normalize_legacy_schedule(
+    schedule: Mapping[str, Any],
+    *,
+    manifest: Mapping[str, Any] = TASK_MANIFEST,
+) -> dict[str, Any]:
+    """Convert a v2 schedule to a v3 view without changing its source bytes."""
+    if (
+        not isinstance(schedule, Mapping)
+        or schedule.get("schema_version") != LEGACY_SCHEMA_VERSION
+    ):
+        raise ValidationError("legacy schedule schema_version must be 2", RC_ROUTING)
+    slots = schedule.get("slots")
+    if not isinstance(slots, list):
+        raise ValidationError("legacy schedule.slots is not an array", RC_ROUTING)
+    normalized = dict(schedule)
+    normalized["schema_version"] = TASK_MANIFEST_SCHEMA_VERSION
+    normalized["manifest_kind"] = "t181-task-manifest"
+    normalized["slots"] = [
+        _normalize_schedule_slot(
+            row, schema_version=LEGACY_SCHEMA_VERSION, manifest=manifest
+        )
+        for row in slots
+    ]
+    return normalized
+
+
+def normalize_schedule(
+    schedule: Mapping[str, Any],
+    *,
+    manifest: Mapping[str, Any] = TASK_MANIFEST,
+) -> dict[str, Any]:
+    """Return the canonical v3 schedule view, dispatching v2 explicitly."""
+    if not isinstance(schedule, Mapping):
+        raise ValidationError("schedule is not an object", RC_ROUTING)
+    version = schedule.get("schema_version")
+    if version == LEGACY_SCHEMA_VERSION:
+        return normalize_legacy_schedule(schedule, manifest=manifest)
+    if version != TASK_MANIFEST_SCHEMA_VERSION:
+        raise ValidationError(
+            f"unsupported schedule schema_version: {version}", RC_ROUTING
+        )
+    slots = schedule.get("slots")
+    if not isinstance(slots, list):
+        raise ValidationError("schedule.slots is not an array", RC_ROUTING)
+    normalized = dict(schedule)
+    normalized["slots"] = [
+        _normalize_schedule_slot(
+            row, schema_version=TASK_MANIFEST_SCHEMA_VERSION, manifest=manifest
+        )
+        for row in slots
+    ]
+    return normalized
+
+
+_normalize_legacy_schedule = normalize_legacy_schedule
+_normalize_schedule = normalize_schedule
+
+
+def expected_schedule_from_manifest(
+    manifest: Mapping[str, Any] = TASK_MANIFEST,
+    schedule: Mapping[str, Any] | Sequence[Mapping[str, Any]] | None = None,
+) -> dict[tuple[str, str], int]:
+    """Derive task/arm counts from a schedule, retaining v2 counts as a gate."""
+    source: Mapping[str, Any]
+    if schedule is None:
+        candidate = manifest.get("schedule")
+        if isinstance(candidate, Mapping):
+            source = candidate
+        else:
+            candidate = manifest.get("slots")
+            if isinstance(candidate, list):
+                source = {
+                    "schema_version": TASK_MANIFEST_SCHEMA_VERSION,
+                    "slots": candidate,
+                }
+            else:
+                return {}
+    elif isinstance(schedule, Mapping):
+        source = schedule
+    else:
+        source = {
+            "schema_version": TASK_MANIFEST_SCHEMA_VERSION,
+            "slots": list(schedule),
+        }
+    if source.get("schema_version") == LEGACY_SCHEMA_VERSION:
+        return dict(LEGACY_EXPECTED_SCHEDULE)
+    normalized = normalize_schedule(source, manifest=manifest)
+    counts: dict[tuple[str, str], int] = {}
+    for row in normalized["slots"]:
+        arm = row.get("arm")
+        if not isinstance(arm, str) or not arm:
+            raise ValidationError(
+                "schedule slot arm must be a non-empty string", RC_ROUTING
+            )
+        key = (row["benchmark_task_id"], arm)
+        counts[key] = counts.get(key, 0) + 1
+    return counts
+
+
+_expected_schedule_from_manifest = expected_schedule_from_manifest
+
+
+def known_finding_ids_for_manifest(
+    manifest: Mapping[str, Any] = TASK_MANIFEST,
+    *,
+    benchmark_task_id: str | None = None,
+    case: str | None = None,
+) -> set[str]:
+    tasks = _manifest_tasks(manifest)
+    if benchmark_task_id is None and case is None:
+        selected = tasks.values()
+    else:
+        selected = (
+            _manifest_task(
+                benchmark_task_id,
+                case=case,
+                manifest=manifest,
+            ),
+        )
+    finding_ids: set[str] = set()
+    for task in selected:
+        if not isinstance(task, Mapping):
+            raise ValidationError("task manifest task row is malformed", RC_ROUTING)
+        values = task.get("known_finding_ids")
+        if not isinstance(values, (list, tuple, set, frozenset)):
+            raise ValidationError("known_finding_ids must be an array", RC_ROUTING)
+        finding_ids.update(values)
+    return finding_ids
+
+
+_known_finding_ids_for_manifest = known_finding_ids_for_manifest
+
+
 def _prepare_snapshot_case(
     repo: Path, sessions_root: Path, case: str
 ) -> dict[str, bytes]:
-    if case not in CASE_HASHES:
+    try:
+        task = _manifest_task(case=case)
+    except ValidationError as exc:
+        raise ValidationError(exc.reasons, RC_SNAPSHOT) from exc
+    if not isinstance(task.get("snapshot"), Mapping) or not isinstance(
+        task["snapshot"].get("hashes"), Mapping
+    ):
         raise ValidationError(f"unknown case: {case}", RC_SNAPSHOT)
     return (
         derive_independent_golden(repo, sessions_root)
-        if case == "POS"
+        if task["oracle_kind"] == "positive"
         else {}
     )
 
@@ -2043,18 +2560,23 @@ def _finish_snapshot_case(
     case: str,
     golden: Mapping[str, bytes],
 ) -> dict[str, Any]:
-    if case == "POS":
+    try:
+        task = _manifest_task(case=case)
+    except ValidationError as exc:
+        raise ValidationError(exc.reasons, RC_SNAPSHOT) from exc
+    legacy_case = task["legacy_case"]
+    if task["oracle_kind"] == "positive":
         for path, data in golden.items():
             target = snapshot / path
             target.write_bytes(data)
             target.chmod(0o644)
-    for name in CASE_ARTIFACTS[case]:
+    for name in task["snapshot"]["artifact_names"]:
         relative = f"{ARTIFACT_DIR}/{name}"
         target = snapshot / relative
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_bytes(_git(repo, "show", f"{ARTIFACT_COMMIT}:{relative}"))
         target.chmod(0o644)
-    return verify_snapshot(snapshot, case)
+    return verify_snapshot(snapshot, legacy_case)
 
 
 def _derive_snapshot_from_base(
@@ -2077,8 +2599,10 @@ def _derive_snapshot_from_base(
                 RC_SNAPSHOT,
             )
         repo, snapshot = prepared_repo, prepared_snapshot
-    if case not in CASE_HASHES:
-        raise ValidationError(f"unknown case: {case}", RC_SNAPSHOT)
+    try:
+        _manifest_task(case=case)
+    except ValidationError as exc:
+        raise ValidationError(exc.reasons, RC_SNAPSHOT) from exc
     golden = (
         _prepare_snapshot_case(repo, sessions_root, case)
         if prepared_golden is None
@@ -2358,18 +2882,22 @@ def render_prompt(
     *,
     verify_source: bool = True,
 ) -> tuple[bytes, dict[str, Any]]:
-    if case not in ("POS", "NEG"):
-        raise ValidationError(f"unknown case: {case}", RC_SNAPSHOT)
+    try:
+        task = _manifest_task(case=case)
+    except ValidationError as exc:
+        raise ValidationError(exc.reasons, RC_SNAPSHOT) from exc
+    legacy_case = task["legacy_case"]
+    provenance = task["provenance"]
+    pin = provenance["prompt_source"]
     rollout = _find_rollout(
         sessions_root,
-        SESSION_IDS[case],
-        pinned_label=case,
+        provenance["session_id"],
+        pinned_label=legacy_case,
     )
     if verify_source:
-        _verify_rollout_sha(rollout, case)
+        _verify_rollout_sha(rollout, legacy_case)
     message = extract_user_message(rollout)
     source = message.encode("utf-8")
-    pin = PROMPT_SOURCE[case]
     reasons: list[str] = []
     if verify_source:
         if _sha256(source) != pin["sha256"]:
@@ -2399,7 +2927,8 @@ def render_prompt(
         if os.path.relpath(path, new).startswith(ARTIFACT_DIR + os.sep)
     }
     expected_untracked = {
-        f"{ARTIFACT_DIR}/{name}" for name in CASE_ARTIFACTS[case]
+        f"{ARTIFACT_DIR}/{name}"
+        for name in task["snapshot"]["artifact_names"]
     }
     if requested_untracked != expected_untracked:
         reasons.append(
@@ -2411,8 +2940,8 @@ def render_prompt(
     data = rendered.encode("utf-8")
     receipt = {
         "schema_version": SCHEMA_VERSION,
-        "case": case,
-        "source_session_id": SESSION_IDS[case],
+        "case": legacy_case,
+        "source_session_id": provenance["session_id"],
         "source_rollout_sha256": _sha256(rollout.read_bytes()),
         "source_prompt_sha256": _sha256(source),
         "rendered_prompt_sha256": _sha256(data),
