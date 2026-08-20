@@ -1489,12 +1489,22 @@ emit({
     },
 })
 
-if mode in ("retry_reject",):
+if mode == "non_utf8":
+    output.write_bytes(b"\xff" + (b"x" * 600))
+elif mode == "oversized":
+    output.write_bytes(b"x" * (10 * 1024 * 1024 + 1))
+elif mode == "heading_missing":
+    output.write_text(("十分な検査本文です。" * 80) + "\n", encoding="utf-8")
+elif mode in ("empty_output",):
+    output.write_bytes(b"")
+elif mode in ("missing_output",):
+    pass
+elif mode in ("retry_reject",):
     output.write_text("短い失敗", encoding="utf-8")
 else:
     output.write_text(valid_output, encoding="utf-8")
 
-if mode == "child_error":
+if mode in ("child_error", "empty_output", "missing_output"):
     raise SystemExit(7)
 
 if mode == "cli_exact":
@@ -1656,11 +1666,14 @@ def _run_case(
     mode: str,
     *,
     expected_returncode: int,
+    fake_sequence: str | None = None,
     **kwargs: Any,
 ) -> tuple[subprocess.CompletedProcess[str], dict[str, Any] | None, dict[str, Path]]:
     fake = _write_fake_codex(tmp_path / "fake-codex")
     command, env, paths = _base_command(tmp_path, fake=fake, **kwargs)
     env["FAKE_MODE"] = mode
+    if fake_sequence is not None:
+        env["FAKE_SEQUENCE"] = fake_sequence
     completed = _run_launcher_subprocess(
         command,
         env=env,
@@ -2570,6 +2583,7 @@ def _write_valid_diagnostic_receipt(
         attempt = {
             "attempt_index": index,
             "accepted": False,
+            "failure_class": "other",
             "evidence_status": "complete",
             "metering_status": "complete",
             "limit_trigger": None,
@@ -3113,6 +3127,7 @@ def test_positive_p1_normal_job_is_accepted(tmp_path: Path) -> None:
     assert receipt["retry_classification"] == "none"
     assert receipt["escaped_process_containment"] == "not_attempted"
     assert receipt["attempts"][0]["accepted"] is True
+    assert receipt["attempts"][0]["failure_class"] is None
     assert receipt["attempts"][0]["metering_status"] == "complete"
     assert receipt["attempts"][0]["process_group_residual"] == 0
     assert receipt["attempts"][0]["termination_verified"] is True
@@ -3130,6 +3145,224 @@ def test_positive_p1_normal_job_is_accepted(tmp_path: Path) -> None:
     assert len(manifest["sessions"]) == 1
     for pid in _leader_pids(paths):
         _assert_pid_gone(pid)
+
+
+def test_f43_fragment_is_classified_and_retried(tmp_path: Path) -> None:
+    completed, receipt, paths = _run_case(
+        tmp_path,
+        "retry_reject",
+        expected_returncode=0,
+        fake_sequence="retry_reject,normal",
+        max_attempts=2,
+        max_wall="10",
+        evidence_grace="3",
+        sandbox="read-only",
+    )
+    assert receipt is not None
+    assert completed.returncode == 0
+    assert [item["failure_class"] for item in receipt["attempts"]] == [
+        "f43_fragment",
+        None,
+    ]
+    assert paths["counter"].read_text(encoding="ascii") == "2"
+    assert receipt["outcome"] == "accepted"
+
+
+def test_f43_heading_missing_is_classified(tmp_path: Path) -> None:
+    _completed, receipt, _paths = _run_case(
+        tmp_path,
+        "heading_missing",
+        expected_returncode=1,
+        max_wall="10",
+        evidence_grace="3",
+    )
+    assert receipt is not None
+    attempt = receipt["attempts"][0]
+    assert attempt["codex_exit_code"] == 0
+    assert attempt["validator_rc"] == 1
+    assert attempt["failure_class"] == "f43_fragment"
+
+
+@pytest.mark.parametrize("mode", ["non_utf8", "oversized"])
+def test_f43_fragment_excludes_non_utf8_and_oversized_output(
+    tmp_path: Path, mode: str
+) -> None:
+    _completed, receipt, _paths = _run_case(
+        tmp_path,
+        mode,
+        expected_returncode=1,
+        max_wall="10",
+        evidence_grace="3",
+    )
+    assert receipt is not None
+    attempt = receipt["attempts"][0]
+    assert attempt["codex_exit_code"] == 0
+    assert attempt["validator_rc"] == 1
+    assert attempt["failure_class"] == "other"
+
+
+@pytest.mark.parametrize("mode", ["missing_output", "empty_output"])
+def test_f45_zero_or_missing_output_fails_closed_without_retry(
+    tmp_path: Path, mode: str
+) -> None:
+    completed, receipt, paths = _run_case(
+        tmp_path,
+        mode,
+        expected_returncode=2,
+        max_attempts=3,
+        max_wall="10",
+        evidence_grace="3",
+        sandbox="read-only",
+    )
+    assert receipt is not None
+    assert completed.returncode == 2
+    assert receipt["outcome"] == "launcher_error"
+    assert receipt["attempts"][0]["failure_class"] == "f45_missing_output"
+    assert len(receipt["attempts"]) == 1
+    assert paths["counter"].read_text(encoding="ascii") == "1"
+    assert not paths["output"].exists()
+
+
+def test_positive_accepted_attempt_has_no_failure_class_and_no_retry(
+    tmp_path: Path,
+) -> None:
+    _completed, receipt, paths = _run_case(
+        tmp_path,
+        "normal",
+        expected_returncode=0,
+        max_attempts=2,
+        max_wall="10",
+        evidence_grace="3",
+        sandbox="read-only",
+    )
+    assert receipt is not None
+    assert receipt["attempts"][-1]["accepted"] is True
+    assert receipt["attempts"][-1]["failure_class"] is None
+    assert len(receipt["attempts"]) == 1
+    assert paths["counter"].read_text(encoding="ascii") == "1"
+
+
+@pytest.mark.parametrize("mode", ["normal", "retry_reject", "child_error"])
+def test_workspace_write_failure_classification_is_sandbox_independent(
+    tmp_path: Path, mode: str
+) -> None:
+    expected = {
+        "normal": (0, None),
+        "retry_reject": (1, "f43_fragment"),
+        "child_error": (1, "other"),
+    }
+    expected_returncode, failure_class = expected[mode]
+    _completed, receipt, _paths = _run_case(
+        tmp_path,
+        mode,
+        expected_returncode=expected_returncode,
+        max_wall="10",
+        evidence_grace="3",
+        sandbox="workspace-write",
+    )
+    assert receipt is not None
+    attempt = receipt["attempts"][0]
+    assert attempt["failure_class"] == failure_class
+    if mode == "normal":
+        assert attempt["accepted"] is True
+
+
+@pytest.mark.parametrize("mode", ["missing_output", "empty_output"])
+def test_workspace_write_f45_missing_output_is_fail_closed(
+    tmp_path: Path, mode: str
+) -> None:
+    _completed, receipt, paths = _run_case(
+        tmp_path,
+        mode,
+        expected_returncode=2,
+        max_wall="10",
+        evidence_grace="3",
+        sandbox="workspace-write",
+    )
+    assert receipt is not None
+    assert receipt["attempts"][0]["failure_class"] == "f45_missing_output"
+    assert len(receipt["attempts"]) == 1
+    assert paths["counter"].read_text(encoding="ascii") == "1"
+
+
+def test_default_max_attempts_observes_failure_class_and_fail_closed(
+    tmp_path: Path,
+) -> None:
+    fake = _write_fake_codex(tmp_path / "fake-codex")
+    command, env, paths = _base_command(
+        tmp_path,
+        fake=fake,
+        sandbox="read-only",
+        max_wall="10",
+        evidence_grace="3",
+    )
+    _remove_option(command, "--max-attempts")
+    env["FAKE_MODE"] = "missing_output"
+    _run_launcher_subprocess(
+        command, env=env, paths=paths, expected_returncode=2
+    )
+    receipt = json.loads(paths["receipt"].read_text(encoding="utf-8"))
+    assert receipt["limits"]["max_attempts"] == 1
+    assert receipt["attempts"][0]["failure_class"] == "f45_missing_output"
+    assert paths["counter"].read_text(encoding="ascii") == "1"
+
+
+def test_failure_class_enum_and_receipt_recomputation_are_closed(
+    tmp_path: Path,
+) -> None:
+    _completed, receipt, paths = _run_case(
+        tmp_path,
+        "retry_reject",
+        expected_returncode=1,
+        max_wall="10",
+        evidence_grace="3",
+    )
+    assert receipt is not None
+    attempt = receipt["attempts"][0]
+
+    attempt["failure_class"] = "forged-class"
+    paths["receipt"].write_text(
+        json.dumps(receipt, separators=(",", ":")) + "\n", encoding="utf-8"
+    )
+    invalid = subprocess.run(
+        _check_command(paths), text=True, capture_output=True, timeout=10
+    )
+    assert invalid.returncode == 2
+
+    attempt["failure_class"] = None
+    paths["receipt"].write_text(
+        json.dumps(receipt, separators=(",", ":")) + "\n", encoding="utf-8"
+    )
+    forged = subprocess.run(
+        _check_command(paths), text=True, capture_output=True, timeout=10
+    )
+    assert forged.returncode == 2
+    assert "failure_class" in forged.stderr
+
+    accepted_root = tmp_path / "accepted"
+    accepted_root.mkdir()
+    _completed, _accepted_receipt, accepted_paths = _run_case(
+        accepted_root,
+        "normal",
+        expected_returncode=0,
+        max_wall="10",
+        evidence_grace="3",
+    )
+    assert _accepted_receipt is not None
+    validated_accepted = LAUNCHER._validate_receipt(
+        LAUNCHER._load_json(accepted_paths["receipt"], label="test receipt")
+    )
+    accepted_attempt = dict(validated_accepted["attempts"][0])
+    invalid_output = tmp_path / "accepted-invalid-output.md"
+    invalid_output.write_text(
+        ("十分な検査本文です。" * 80) + "\n", encoding="utf-8"
+    )
+    accepted_attempt["output_path"] = str(invalid_output)
+    accepted_attempt["failure_class"] = "f43_fragment"
+    with pytest.raises(
+        LAUNCHER.LaunchError, match="accepted attempt.failure_class"
+    ):
+        LAUNCHER._validate_attempt(accepted_attempt, index=0)
 
 
 def _consume_real_stdout_fixture(
@@ -5045,6 +5278,7 @@ def test_receipt_staging_wall_overrun_flips_to_not_accepted_and_removes_output(
     assert receipt["stop_reason"] == "wall_clock_admission_bound_s"
     assert receipt["launcher_rc"] == 1
     assert receipt["attempts"][-1]["accepted"] is False
+    assert receipt["attempts"][-1]["failure_class"] is None
     assert receipt["attempts"][-1]["limit_trigger"] == "wall_clock_admission_bound_s"
     assert not paths["output"].exists()
     assert list(tmp_path.glob(".receipt.json.tmp.*")) == []
@@ -5086,6 +5320,7 @@ def test_receipt_audit_wall_overrun_flips_to_not_accepted(
     assert receipt["stop_reason"] == "wall_clock_admission_bound_s"
     assert receipt["launcher_rc"] == 1
     assert receipt["attempts"][-1]["accepted"] is False
+    assert receipt["attempts"][-1]["failure_class"] is None
     assert receipt["attempts"][-1]["limit_trigger"] == "wall_clock_admission_bound_s"
     assert not paths["output"].exists()
     snapshots = _diagnostic_snapshots(paths, "post_receipt_staging")

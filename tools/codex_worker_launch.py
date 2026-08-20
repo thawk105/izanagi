@@ -85,6 +85,13 @@ _STOP_REASONS = _LIMIT_REASONS + (
     "max_attempts",
     "launcher_error",
 )
+_FAILURE_CLASSES = (None, "f43_fragment", "f45_missing_output", "other")
+_F43_VALIDATOR_FAILURE_PREFIXES = (
+    "raw byte 数が不足",
+    "fenced code block 外に必須見出しが無い",
+)
+# qualification/attempt_ledger.py の同名 failure_class は別moduleの判定であり、
+# この attempt receipt field とは無関係である。
 _USAGE_FIELDS = (
     "input_tokens",
     "cached_input_tokens",
@@ -95,6 +102,7 @@ _ATTEMPT_FIELDS = frozenset(
     {
         "attempt_index",
         "accepted",
+        "failure_class",
         "evidence_status",
         "metering_status",
         "limit_trigger",
@@ -1550,13 +1558,62 @@ def _normal_reap(
     return residual, residual == 0
 
 
-def _validator_rc(path: Path) -> int:
-    failures = _validator.check_file(
+def _validator_failures(path: Path) -> list[str]:
+    return _validator.check_file(
         path,
         min_bytes=_validator._DEFAULT_MIN_BYTES,
         heading=re.compile(_validator._DEFAULT_HEADING, re.MULTILINE),
     )
-    return 0 if not failures else 1
+
+
+def _validator_rc(path: Path) -> int:
+    return 0 if not _validator_failures(path) else 1
+
+
+def _classify_failure(
+    codex_exit_code: Any,
+    output_bytes: Any,
+    validator_failures: Sequence[str] | None,
+) -> str | None:
+    """Seal 時点の不変な観測値だけから異常終了型を分類する。
+
+    ``f43_fragment`` は docs/failures.md の F43、``f45_missing_output`` は
+    F45 の構造的特徴に対応する。accepted や limit_trigger のような後置で
+    反転しうる field は意図的に参照しない。
+    """
+    valid_exit_code = isinstance(codex_exit_code, int) and not isinstance(
+        codex_exit_code, bool
+    )
+    valid_output_bytes = isinstance(output_bytes, int) and not isinstance(
+        output_bytes, bool
+    )
+    if (
+        valid_exit_code
+        and codex_exit_code != 0
+        and valid_output_bytes
+        and output_bytes == 0
+    ):
+        return "f45_missing_output"
+    if valid_exit_code and codex_exit_code == 0:
+        if validator_failures is None:
+            # exit 0 でも output file 自体が無い場合は断片とは呼ばない。
+            return "other"
+        if not isinstance(validator_failures, Sequence) or isinstance(
+            validator_failures, (str, bytes, bytearray)
+        ):
+            return "other"
+        if not validator_failures:
+            return None
+        if all(
+            isinstance(failure, str)
+            and any(
+                failure.startswith(prefix)
+                for prefix in _F43_VALIDATOR_FAILURE_PREFIXES
+            )
+            for failure in validator_failures
+        ):
+            return "f43_fragment"
+    return "other"
 
 
 def _seal_attempt(
@@ -1576,9 +1633,15 @@ def _seal_attempt(
     stderr_sha, stderr_bytes = _hash_file(state.stderr_path)
     if state.output_path.exists():
         output_sha, output_bytes = _hash_file(state.output_path)
-        validator_rc = _validator_rc(state.output_path)
+        validator_failures = _validator_failures(state.output_path)
+        validator_rc = 0 if not validator_failures else 1
     else:
-        output_sha, output_bytes, validator_rc = None, 0, None
+        output_sha, output_bytes, validator_failures, validator_rc = (
+            None,
+            0,
+            None,
+            None,
+        )
     actuals = _rollout_actuals(state)
     evidence_status = _evidence_status(state)
     metering_status = _metering_status(state)
@@ -1631,6 +1694,9 @@ def _seal_attempt(
     return {
         "attempt_index": state.attempt_index,
         "accepted": accepted,
+        "failure_class": _classify_failure(
+            process.returncode, output_bytes, validator_failures
+        ),
         "evidence_status": evidence_status,
         "metering_status": metering_status,
         "limit_trigger": state.limit_trigger,
@@ -2548,6 +2614,11 @@ def _run_supervised(
                 )
             return 2
         attempts.append(attempt)
+        if attempt["failure_class"] == "f45_missing_output":
+            raise AttemptLoopError(
+                "Codex が非ゼロ終了し、attempt output が無いので retry を停止",
+                attempt,
+            )
         prior["model_calls"] += attempt["model_calls"]
         prior["cli_reported"] += attempt["cli_reported"]
         if attempt["accepted"] or attempt["limit_trigger"] is not None:
@@ -3009,6 +3080,19 @@ def _validate_attempt(value: Any, *, index: int) -> dict[str, Any]:
             raise LaunchError(f"attempt.{field_name} が不正")
     if not isinstance(attempt["termination_verified"], bool):
         raise LaunchError("attempt.termination_verified が bool ではない")
+    failure_class = attempt["failure_class"]
+    if failure_class not in _FAILURE_CLASSES:
+        raise LaunchError("attempt.failure_class が不正")
+    validator_failures = _validator_failures(Path(attempt["output_path"]))
+    expected_failure_class = _classify_failure(
+        attempt["codex_exit_code"],
+        attempt["output_bytes"],
+        validator_failures,
+    )
+    if failure_class != expected_failure_class:
+        raise LaunchError("attempt.failure_class 再計算が不一致")
+    if attempt["accepted"] and failure_class is not None:
+        raise LaunchError("accepted attempt.failure_class が不正")
     if attempt["accepted"]:
         if not (
             attempt["limit_trigger"] is None
