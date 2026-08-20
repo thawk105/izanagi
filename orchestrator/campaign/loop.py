@@ -188,6 +188,7 @@ def run_campaign(cfg: CampaignConfig, genomes: Sequence[Genome],
                  do_bench: bool = True, output_root: str = "",
                  log=print, ccbench_dir: str = "", cache_root: str = "",
                  env_contract=None, dependency_prefix: str = "", *,
+                 expected_toolchain_manifest=None,
                  authorization_contract: AuthorizedContract,
                  build_context: BuildRunContext,
                  capability_resolver: Optional[AdmissionCapabilityResolver] = None,
@@ -200,8 +201,9 @@ def run_campaign(cfg: CampaignConfig, genomes: Sequence[Genome],
     引数の素通し。`declared_use_class` は official / exploration の閉じた
     path selector で、campaign-id には含めない。
     `env_contract` と `dependency_prefix` は非既定時だけ素通しして既定 caller の
-    evaluate 呼出し形を保つ。`build_context` の安定 policy を campaign identity へ束縛し、
-    source ごとの capability resolver は evidence 解決後の pipeline へ渡す。"""
+    evaluate 呼出し形を保つ。`expected_toolchain_manifest` は campaign 開始時に観測した
+    v2 toolchain を source identity/build へ渡す。`build_context` の安定 policy を campaign
+    identity へ束縛し、source ごとの capability resolver は evidence 解決後の pipeline へ渡す。"""
     if declared_use_class == "official":
         layout_constructor = campaign_layout
     elif declared_use_class == "exploration":
@@ -217,6 +219,15 @@ def run_campaign(cfg: CampaignConfig, genomes: Sequence[Genome],
         )
     if type(build_context) is not BuildRunContext:
         raise TypeError("build_context は build_run_context() 由来の exact value が必要")
+    if expected_toolchain_manifest is not None and env_contract is None:
+        raise ValueError(
+            "expected_toolchain_manifest は env_contract 付き v2 campaign に限る"
+        )
+    expected_compilers = None
+    if expected_toolchain_manifest is not None:
+        expected_compilers = buildcache.toolchain_compilers_from_manifest(
+            expected_toolchain_manifest,
+        )
     marker_present = "trigger_gate_binding_schema" in cfg.search_config
     marker = cfg.search_config.get("trigger_gate_binding_schema")
     if not marker_present:
@@ -304,7 +315,10 @@ def run_campaign(cfg: CampaignConfig, genomes: Sequence[Genome],
         # (source_digest.resolve) を使い、確定済み src_token を渡して id 確定点を単一化する。
         # 確定不能は stock id で fails-closed abort (best-effort skip を持ち込まない, 規律2)。
         try:
-            _, resolved_cxx = _compilers_for_current_site()
+            if expected_compilers is None:
+                _, resolved_cxx = _compilers_for_current_site()
+            else:
+                _, resolved_cxx = expected_compilers
             evidence_cxx = _DEFAULT_CXX if resolved_cxx == _DEFAULT_CXX else resolved_cxx
             source_evidence = source_digest.resolve_evidence(
                 g, cfg.ccbench_commit, ccbench_dir=ccbench_dir, cxx=evidence_cxx,
@@ -355,6 +369,11 @@ def run_campaign(cfg: CampaignConfig, genomes: Sequence[Genome],
             evaluate_options = {}
             if env_contract is not None:
                 evaluate_options["env_contract"] = env_contract
+                evaluate_options["declared_use_class"] = declared_use_class
+                if expected_toolchain_manifest is not None:
+                    evaluate_options["expected_toolchain_manifest"] = (
+                        expected_toolchain_manifest
+                    )
             if dependency_prefix:
                 evaluate_options["dependency_prefix"] = dependency_prefix
             if trigger_gate_binding is not None:

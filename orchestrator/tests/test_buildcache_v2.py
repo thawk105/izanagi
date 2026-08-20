@@ -246,7 +246,7 @@ def _build(tmp_path: Path, contract: ExecutionEnvironmentContract, *, trace: boo
            ccbench_dir: str = "", timeout_s: int | None = None,
            dependency_prefix: str = "", site: str | None = None,
            expected_toolchain_manifest=None, fetchcontent_base_dir: str = "",
-           fetchcontent_dependency_receipt=None):
+           fetchcontent_dependency_receipt=None, declared_use_class=None):
     genome = Genome("silo", {"BACK_OFF": 1})
     source_root = ccbench_dir or str(tmp_path / "ccbench")
     context, evidence, admission = _admission_bundle(
@@ -272,6 +272,8 @@ def _build(tmp_path: Path, contract: ExecutionEnvironmentContract, *, trace: boo
         kwargs["site"] = site
     if expected_toolchain_manifest is not None:
         kwargs["expected_toolchain_manifest"] = expected_toolchain_manifest
+    if declared_use_class is not None:
+        kwargs["declared_use_class"] = declared_use_class
     if fetchcontent_base_dir:
         kwargs["fetchcontent_base_dir"] = fetchcontent_base_dir
     if fetchcontent_dependency_receipt is not None:
@@ -773,11 +775,25 @@ def test_v2_expected_toolchain_manifest_exact_match_is_accepted(
         tmp_path, monkeypatch):
     bindir = _install_toolchain(tmp_path, monkeypatch)
     _fake_build_environment(monkeypatch, tmp_path)
+    expected = _expected_toolchain_manifest(bindir)
     result = _build(
         tmp_path, _contract(1),
-        expected_toolchain_manifest=_expected_toolchain_manifest(bindir),
+        expected_toolchain_manifest=expected,
     )
     assert not result.cached
+    assert result.toolchain_manifest == expected
+    assert result.toolchain_manifest_sha256 == hashlib.sha256(
+        json.dumps(expected, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    ).hexdigest()
+
+
+def test_v2_official_requires_expected_toolchain_manifest_before_cache_claim(
+        tmp_path, monkeypatch):
+    _install_toolchain(tmp_path, monkeypatch)
+    _fake_build_environment(monkeypatch, tmp_path)
+    with pytest.raises(buildcache.BuildCacheError, match="expected_toolchain_manifest"):
+        _build(tmp_path, _contract(1), declared_use_class="official")
+    assert not (tmp_path / "cache").exists()
 
 
 def test_v2_expected_toolchain_manifest_mismatch_refuses_before_cache_claim(
@@ -786,6 +802,20 @@ def test_v2_expected_toolchain_manifest_mismatch_refuses_before_cache_claim(
     _fake_build_environment(monkeypatch, tmp_path)
     expected = _expected_toolchain_manifest(bindir)
     expected["cc"] = dict(expected["cc"], version_first_line="cc version stale")
+    with pytest.raises(buildcache.BuildCacheError, match="caller の事前観測"):
+        _build(
+            tmp_path, _contract(1),
+            expected_toolchain_manifest=expected,
+        )
+    assert not (tmp_path / "cache").exists()
+
+
+def test_v2_expected_toolchain_realpath_mismatch_refuses_before_cache_claim(
+        tmp_path, monkeypatch):
+    bindir = _install_toolchain(tmp_path, monkeypatch)
+    _fake_build_environment(monkeypatch, tmp_path)
+    expected = _expected_toolchain_manifest(bindir)
+    expected["cc"] = dict(expected["cc"], realpath=str(tmp_path / "other-cc"))
     with pytest.raises(buildcache.BuildCacheError, match="caller の事前観測"):
         _build(
             tmp_path, _contract(1),
