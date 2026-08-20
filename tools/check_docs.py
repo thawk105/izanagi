@@ -41,6 +41,82 @@ DECISION_HEADING_CANDIDATE_RE = re.compile(
     re.MULTILINE,
 )
 
+R33_DECISION_SLUG = "t1142-n-pilot-r33-admission-authority"
+
+R33_EXPECTED = {
+    "role": "n_pilot_r33",
+    "generation": "n-pilot-r33",
+    "pilot_rounds": 33,
+    "allocation_count": 3,
+    "cell_count": 12,
+    "schedule_row_count": 396,
+    "decision_pin": R33_DECISION_SLUG,
+}
+
+R33_ROLE_RE = re.compile(
+    r'(?m)^[ \t]*OBSERVATION_ROLE_N_PILOT_R33[ \t]*=[ \t]*'
+    r'["\'](?P<role>[^"\']+)["\'][ \t]*$'
+)
+
+R33_SOURCE_ENTRY_RE = re.compile(
+    r'(?ms)^[ \t]*["\']n_pilot_r33["\'][ \t]*:[ \t]*\{'
+    r'(?P<body>.*?)'
+    r'^[ \t]*\}[ \t]*,?[ \t]*$'
+)
+
+R33_SOURCE_FIELD_RE = {
+    "generation": re.compile(
+        r'(?m)^[ \t]*["\']generation_id["\'][ \t]*:[ \t]*'
+        r'["\'](?P<value>[^"\']+)["\'][ \t]*,?[ \t]*$'
+    ),
+    "pilot_rounds": re.compile(
+        r'(?m)^[ \t]*["\']pilot_rounds["\'][ \t]*:[ \t]*'
+        r'(?P<value>[0-9]+)[ \t]*,?[ \t]*$'
+    ),
+    "allocation_count": re.compile(
+        r'(?m)^[ \t]*["\']allocation_count["\'][ \t]*:[ \t]*'
+        r'(?P<value>[0-9]+)[ \t]*,?[ \t]*$'
+    ),
+    "cell_count": re.compile(
+        r'(?m)^[ \t]*["\']cell_count["\'][ \t]*:[ \t]*'
+        r'(?P<value>[0-9]+)[ \t]*,?[ \t]*$'
+    ),
+    "schedule_row_count": re.compile(
+        r'(?m)^[ \t]*["\']schedule_row_count["\'][ \t]*:[ \t]*'
+        r'(?P<value>[0-9]+)[ \t]*,?[ \t]*$'
+    ),
+    "decision_pin": re.compile(
+        r'(?m)^[ \t]*["\']decision_pin["\'][ \t]*:[ \t]*'
+        r'["\'](?P<value>[a-z][a-z0-9]*(?:-[a-z0-9]+)*)["\']'
+        r'[ \t]*,?[ \t]*$'
+    ),
+}
+
+# _h2_section_slices() が返す heading は `## ` を除いた title。canonical
+# decision は period の後にタイトルが続くため、period の直後で終端を要求しない。
+R33_DECISION_HEADING_RE = re.compile(
+    r"^D[1-9][0-9]*\.(?:\s|$)"
+)
+
+R33_PENDING_HEADING_RE = re.compile(
+    r"^\{\{D:" + re.escape(R33_DECISION_SLUG) + r"\}\}\."
+)
+
+R33_DECISION_SLUG_RE = re.compile(
+    r"(?m)^[ \t]*- authority slug:[ \t]*"
+    r"`(?P<slug>t1142-n-pilot-r33-admission-authority)`[ \t]*$"
+)
+
+R33_DECISION_CONTRACT_RE = re.compile(
+    r"(?m)^[ \t]*- R33 admission contract:[ \t]*"
+    r"role=`(?P<role>[^`]+)`;[ \t]*"
+    r"generation=`(?P<generation>[^`]+)`;[ \t]*"
+    r"pilot_rounds=(?P<pilot_rounds>[0-9]+);[ \t]*"
+    r"allocation_count=(?P<allocation_count>[0-9]+);[ \t]*"
+    r"cell_count=(?P<cell_count>[0-9]+);[ \t]*"
+    r"schedule_row_count=(?P<schedule_row_count>[0-9]+)\.[ \t]*$"
+)
+
 # living docs = 現在の状態・設計を主張する文書。ここに可変状態の再掲と行番号参照を禁止する。
 # 対象外 = 追記型の日誌・記録 (書いた時点で凍結): worklog / decisions / insights / paper-story /
 # docs/archive/ 配下 (監査台帳・worklog アーカイブ等の凍結族。規約は同 README — ファイル名不変で移動)、
@@ -1368,6 +1444,191 @@ def _visible_h2_section_slices(text: str) -> tuple[list[str], dict[str, list[str
     """dispatch 可視化後の H2 順序と節全体 slice を返す。"""
 
     return _h2_section_slices(_visible_dispatch_inventory_text(text))
+
+
+def _r33_source_contract(
+    source: str,
+    findings: list[str],
+) -> dict[str, object] | None:
+    role_matches = list(R33_ROLE_RE.finditer(source))
+    entries = list(R33_SOURCE_ENTRY_RE.finditer(source))
+
+    if len(role_matches) != 1:
+        findings.append(
+            "R33 role literal は OBSERVATION_ROLE_N_PILOT_R33 "
+            "の exact 1 件が必要"
+        )
+        return None
+
+    if len(entries) != 1:
+        findings.append(
+            "R33 role contract entry は exact 1 件が必要"
+        )
+        return None
+
+    values: dict[str, object] = {
+        "role": role_matches[0].group("role"),
+    }
+    body = entries[0].group("body")
+
+    for name, pattern in R33_SOURCE_FIELD_RE.items():
+        matches = list(pattern.finditer(body))
+        if len(matches) != 1:
+            findings.append(
+                f"R33 role contract field {name!r} は exact 1 件が必要"
+            )
+            return None
+        value = matches[0].group("value")
+        values[name] = (
+            int(value)
+            if name in {
+                "pilot_rounds",
+                "allocation_count",
+                "cell_count",
+                "schedule_row_count",
+            }
+            else value
+        )
+
+    return values
+
+
+def _r33_decision_contract_in_text(
+    text: str,
+    findings: list[str],
+    *,
+    pending: bool,
+) -> bool:
+    _, raw_sections = _h2_section_slices(text)
+    _, visible_sections = _visible_h2_section_slices(text)
+
+    heading_re = (
+        R33_PENDING_HEADING_RE
+        if pending
+        else R33_DECISION_HEADING_RE
+    )
+
+    for heading, sections in visible_sections.items():
+        if heading_re.match(heading) is None:
+            continue
+
+        raw_candidates = raw_sections.get(heading, [])
+        for index, section in enumerate(sections):
+            slug_match = R33_DECISION_SLUG_RE.search(section)
+            contract_match = R33_DECISION_CONTRACT_RE.search(section)
+            if slug_match is None or contract_match is None:
+                continue
+
+            if (
+                index >= len(raw_candidates)
+                or raw_candidates[index] != section
+            ):
+                findings.append(
+                    "R33 decision section の raw/visible slice が不一致"
+                )
+                continue
+
+            decision = contract_match.groupdict()
+            observed = {
+                "role": decision["role"],
+                "generation": decision["generation"],
+                "pilot_rounds": int(decision["pilot_rounds"]),
+                "allocation_count": int(decision["allocation_count"]),
+                "cell_count": int(decision["cell_count"]),
+                "schedule_row_count": int(decision["schedule_row_count"]),
+            }
+            if (
+                slug_match.group("slug") == R33_DECISION_SLUG
+                and observed == {
+                    key: R33_EXPECTED[key]
+                    for key in (
+                        "role",
+                        "generation",
+                        "pilot_rounds",
+                        "allocation_count",
+                        "cell_count",
+                        "schedule_row_count",
+                    )
+                }
+            ):
+                return True
+
+    return False
+
+
+def _pending_r33_decision_fragments(
+    findings: list[str],
+) -> list[str]:
+    directory = REPO / "docs" / "spool" / "decisions"
+    if not directory.exists() or directory.is_symlink() or not directory.is_dir():
+        return []
+
+    texts: list[str] = []
+    for path in sorted(directory.glob("*.md")):
+        if path.name == "README.md":
+            continue
+        text = _safe_read_text(
+            path,
+            findings,
+            f"{path.relative_to(REPO)}: R33 decision fragment の読取失敗",
+            newline="",
+        )
+        if (
+            text is not None
+            and f"{{{{D:{R33_DECISION_SLUG}}}}}" in text
+        ):
+            texts.append(text)
+    return texts
+
+
+def _check_n_pilot_role_decision_pin(
+    findings: list[str],
+    *,
+    decisions_text: str | None,
+) -> None:
+    source = _safe_read_text(
+        REPO / "orchestrator" / "campaign" / "s8b_holdout_admission.py",
+        findings,
+        "R33 role authority source の読取失敗",
+    )
+    if source is None or decisions_text is None:
+        findings.append(
+            "R33 role authority は source/decision の読取失敗で検査不能"
+        )
+        return
+
+    source_values = _r33_source_contract(source, findings)
+    if source_values is None:
+        return
+
+    if source_values != R33_EXPECTED:
+        findings.append(
+            "R33 role contract の role/generation/round/allocation/pin が "
+            f"expected と不一致 — observed={source_values!r}"
+        )
+        return
+
+    if _r33_decision_contract_in_text(
+        decisions_text,
+        findings,
+        pending=False,
+    ):
+        return
+
+    # wave tree では canonical decision はまだ fold 前である。
+    # 同じ wave の exact fragment がある場合だけ pre-fold lint を通す。
+    for fragment in _pending_r33_decision_fragments(findings):
+        if _r33_decision_contract_in_text(
+            fragment,
+            findings,
+            pending=True,
+        ):
+            return
+
+    findings.append(
+        "R33 role contract に対応する decision section がない — "
+        "canonical docs/decisions.md または exact pending fragment が必要"
+    )
 
 
 def _check_exact_visible_h2_section(
@@ -5656,6 +5917,10 @@ def _main(argv: Sequence[str] | None = None) -> int:
     for n in sorted(dups, key=int):
         findings.append(f"docs/decisions.md: D{n} の見出しが重複 — grep index が壊れる")
     known_d = {int(n) for n in d_heads} if decisions_text is not None else None
+    _check_n_pilot_role_decision_pin(
+        findings,
+        decisions_text=decisions_text,
+    )
 
     phase3_text: str | None | object = _UNREAD
     for doc in LIVING_DOCS:

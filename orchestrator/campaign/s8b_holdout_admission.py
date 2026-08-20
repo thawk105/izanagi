@@ -48,6 +48,7 @@ __all__ = (
     "OracleCellHoldoutAdmission",
     "OBSERVATION_ROLE_FLOOR_CAMPAIGN",
     "OBSERVATION_ROLE_N_PILOT",
+    "OBSERVATION_ROLE_N_PILOT_R33",
     "OBSERVATION_ROLE_ORACLE_DRIVER",
     "assert_cell_holdout_admission",
     "consume_attempt_ticket",
@@ -79,12 +80,21 @@ _MAX_LEDGER_BYTES = 16 * 1024 * 1024
 _HEX64 = frozenset("0123456789abcdef")
 OBSERVATION_ROLE_FLOOR_CAMPAIGN = "floor_campaign"
 OBSERVATION_ROLE_N_PILOT = "n_pilot"
+OBSERVATION_ROLE_N_PILOT_R33 = "n_pilot_r33"
 OBSERVATION_ROLE_ORACLE_DRIVER = "oracle_driver"
-_OBSERVATION_ROLES = frozenset({
-    OBSERVATION_ROLE_FLOOR_CAMPAIGN,
-    OBSERVATION_ROLE_N_PILOT,
-    OBSERVATION_ROLE_ORACLE_DRIVER,
-})
+_OBSERVATION_ROLES = {
+    OBSERVATION_ROLE_FLOOR_CAMPAIGN: {},
+    OBSERVATION_ROLE_N_PILOT: {},
+    OBSERVATION_ROLE_ORACLE_DRIVER: {},
+    "n_pilot_r33": {
+        "generation_id": "n-pilot-r33",
+        "pilot_rounds": 33,
+        "allocation_count": 3,
+        "cell_count": 12,
+        "schedule_row_count": 396,
+        "decision_pin": "t1142-n-pilot-r33-admission-authority",
+    },
+}
 
 
 class HoldoutAdmissionError(RuntimeError):

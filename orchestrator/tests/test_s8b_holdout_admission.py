@@ -295,17 +295,33 @@ def test_observation_role_is_closed_and_separates_two_authorized_producers():
         **common,
         observation_role=admission.OBSERVATION_ROLE_N_PILOT,
     )
-    assert admission._OBSERVATION_ROLES == frozenset({  # noqa: SLF001
+    n_pilot_r33 = admission._key_fields(  # noqa: SLF001 - closed-key boundary
+        **common,
+        observation_role=admission.OBSERVATION_ROLE_N_PILOT_R33,
+    )
+    assert set(admission._OBSERVATION_ROLES) == {  # noqa: SLF001
         admission.OBSERVATION_ROLE_FLOOR_CAMPAIGN,
         admission.OBSERVATION_ROLE_N_PILOT,
         admission.OBSERVATION_ROLE_ORACLE_DRIVER,
-    })
+        admission.OBSERVATION_ROLE_N_PILOT_R33,
+    }
+    assert admission._OBSERVATION_ROLES[  # noqa: SLF001
+        admission.OBSERVATION_ROLE_N_PILOT_R33
+    ] == {
+        "generation_id": "n-pilot-r33",
+        "pilot_rounds": 33,
+        "allocation_count": 3,
+        "cell_count": 12,
+        "schedule_row_count": 396,
+        "decision_pin": "t1142-n-pilot-r33-admission-authority",
+    }
     assert admission._claim_digest(floor) != admission._claim_digest(oracle)  # noqa: SLF001
     assert len({  # noqa: SLF001 - every producer owns a distinct effect key
         admission._claim_digest(floor),
         admission._claim_digest(oracle),
         admission._claim_digest(n_pilot),
-    }) == 3
+        admission._claim_digest(n_pilot_r33),
+    }) == 4
     with pytest.raises(admission.HoldoutAdmissionError, match="not recognized"):
         admission._key_fields(  # noqa: SLF001 - unknown role must fail closed
             **common, observation_role="caller_selected_role",
