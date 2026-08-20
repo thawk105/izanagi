@@ -117,6 +117,40 @@ class PilotInputs:
 
 
 @dataclass(frozen=True)
+class GlobalPilotSchedule:
+    """The one canonical R33 schedule and its three local projections.
+
+    ``rows`` is the schedule projection used by the R33 admission layer.  It
+    therefore keeps global coordinates and has one row for every one of the
+    396 attempts.  ``allocation_slices`` are execution projections: ``seq``
+    and ``pilot_round`` are local to the allocation while the two global
+    coordinates remain bound to the canonical schedule.
+    """
+
+    rows: tuple[dict[str, object], ...]
+    allocation_slices: tuple[tuple[dict[str, object], ...], ...]
+    schedule_sha256: str
+
+    @property
+    def global_rows(self) -> tuple[dict[str, object], ...]:
+        return self.rows
+
+    def allocation_slice(self, allocation_index: int) -> tuple[dict[str, object], ...]:
+        return slice_global_pilot_schedule(self, allocation_index)
+
+    # Keep the object usable by the pre-R33 sequence-oriented callers while
+    # exposing the structured global schedule to new callers.
+    def __iter__(self):
+        return iter(self.rows)
+
+    def __len__(self) -> int:
+        return len(self.rows)
+
+    def __getitem__(self, index):
+        return self.rows[index]
+
+
+@dataclass(frozen=True)
 class PerfMode:
     use_perf: bool
     receipt: Mapping[str, object]
@@ -179,9 +213,11 @@ class SessionObservation:
     binary_sha256_at_measure: str
     cache_hit: bool
     materialize_elapsed_s: float
+    global_schedule_index: int | None = None
+    global_pilot_round: int | None = None
 
     def as_record(self) -> dict[str, object]:
-        return {
+        record = {
             "seq": self.seq,
             "pilot_round": self.pilot_round,
             "position": self.position,
@@ -201,6 +237,16 @@ class SessionObservation:
             "cache_state": "hit" if self.cache_hit else "miss",
             "materialize_elapsed_s": self.materialize_elapsed_s,
         }
+        if self.global_schedule_index is not None or self.global_pilot_round is not None:
+            record["global_schedule_index"] = (
+                self.seq if self.global_schedule_index is None
+                else self.global_schedule_index
+            )
+            record["global_pilot_round"] = (
+                self.pilot_round if self.global_pilot_round is None
+                else self.global_pilot_round
+            )
+        return record
 
 
 def _is_hex(value: object, length: int) -> bool:
@@ -663,6 +709,17 @@ def _assert_directory_identity(
         raise PilotError(f"{label} identity が使用中に変化した")
 
 
+def _assert_empty_directory(path: Path, label: str) -> None:
+    try:
+        entries = tuple(path.iterdir())
+    except OSError as exc:
+        raise PilotError(f"{label} の空 directory 状態を検査できない: {exc}") from exc
+    if entries:
+        raise PilotError(
+            f"{label} は build 呼出し前に空 directory (empty) でなければならない"
+        )
+
+
 def _observe_toolchain(cc: str, cxx: str) -> dict[str, dict[str, str]]:
     result: dict[str, dict[str, str]] = {}
     for role, requested in (("cc", cc), ("cxx", cxx), ("cmake", "cmake")):
@@ -726,6 +783,7 @@ def build_binaries(
     build_fn: Callable[..., object] = buildcache.build_v2,
     repo_root: Path = ROOT,
     worktree_roots: Sequence[Path] | None = None,
+    allocation_mode: bool | None = None,
     monotonic_fn: Callable[[], float] = time.monotonic,
     toolchain_fn: Callable[[str, str], Mapping[str, object]] = _observe_toolchain,
     compiler_fn: Callable[[], tuple[str, str]] = buildcache.compilers_for_current_site,
@@ -737,10 +795,16 @@ def build_binaries(
     context_fn: Callable[..., object] = build_run_context,
 ) -> dict[str, PilotBinary]:
     """Build all 12 trace-disabled binaries after a side-effect-free containment gate."""
+    if allocation_mode is None:
+        allocation_mode = _is_r33_inputs(inputs)
+    if type(allocation_mode) is not bool:
+        raise PilotError("allocation_mode は exact bool でなければならない")
     canonical_cache = assert_external_cache_root(
         cache_root, repo_root=repo_root, worktree_roots=worktree_roots,
     )
     cache_identity = _directory_identity(canonical_cache, "cache_root")
+    if allocation_mode:
+        _assert_empty_directory(canonical_cache, "allocation cache_root")
     try:
         cc, cxx = compiler_fn()
         toolchain_manifest = toolchain_fn(cc, cxx)
@@ -838,6 +902,11 @@ def build_binaries(
                 _assert_directory_identity(canonical_cache, cache_identity, "cache_root")
             if getattr(built, "trace", None) is not False:
                 raise PilotError(f"trace-disabled build receipt でない: {cell_id}")
+            cached = getattr(built, "cached", None)
+            if allocation_mode and cached is not False:
+                raise PilotError(
+                    f"allocation build は cached=True/cache hit を許容しない: {cell_id}"
+                )
             if getattr(built, "contract_sha256", None) != getattr(
                 inputs.contract, "contract_sha256", None
             ):
@@ -854,7 +923,7 @@ def build_binaries(
                 binding_sha256=str(identity["binding_sha256"]),
                 binary_sha256=str(binary_sha),
                 binary_path=binary_path,
-                cache_hit=bool(getattr(built, "cached", False)),
+                cache_hit=(False if allocation_mode else bool(cached)),
                 materialize_elapsed_s=elapsed,
                 worktree_identity_sha256=hashlib.sha256(worktree.encode("utf-8")).hexdigest(),
                 isolated_worktree=True,
@@ -864,34 +933,235 @@ def build_binaries(
             )
     if set(results) != {str(cell["cell_id"]) for cell in inputs.cells}:
         raise PilotError("全 cell の build receipt が揃わない")
+    _assert_directory_identity(canonical_cache, cache_identity, "cache_root")
     return results
 
 
-def build_pilot_schedule(
+def _is_r33_protocol(protocol: PilotProtocol | Mapping[str, object]) -> bool:
+    if isinstance(protocol, PilotProtocol):
+        document: Mapping[str, object] = protocol.document
+        pilot_rounds = protocol.pilot_rounds
+        allocation_count = protocol.allocation_count
+        allocation_role = protocol.allocation_role
+    else:
+        document = protocol
+        design = document.get("design")
+        if not isinstance(design, Mapping):
+            return document.get("observation_role") == (
+                s8b_holdout_admission.OBSERVATION_ROLE_N_PILOT_R33
+            )
+        pilot_rounds = design.get("pilot_rounds")
+        allocation_count = design.get("allocation_count")
+        allocation_role = design.get("allocation_role")
+    return (
+        pilot_rounds == 33
+        and allocation_count == 3
+        and allocation_role == "primary-segment"
+    )
+
+
+def _is_r33_inputs(inputs: PilotInputs) -> bool:
+    return _is_r33_protocol(inputs.protocol)
+
+
+def _schedule_projection_sha256(rows: Sequence[Mapping[str, object]]) -> str:
+    try:
+        payload = json.dumps(
+            [dict(row) for row in rows], ensure_ascii=False, sort_keys=True,
+            separators=(",", ":"), allow_nan=False,
+        ).encode("utf-8")
+    except (TypeError, ValueError) as exc:
+        raise PilotError(f"schedule を canonical JSON にできない: {exc}") from exc
+    return hashlib.sha256(payload).hexdigest()
+
+
+def build_global_pilot_schedule(
+    inputs: PilotInputs,
+    *,
+    master_seed: str | None = None,
+) -> GlobalPilotSchedule:
+    """Build the canonical 33-round schedule exactly once.
+
+    The manifest generator's replicate index is globally domain-separated;
+    constructing three 11-round schedules would therefore be a different
+    experiment.  All R33 callers use this single 396-row projection.
+    """
+    effective_seed = inputs.protocol.master_seed if master_seed is None else master_seed
+    holdout_ids = sorted({str(cell["holdout_id"]) for cell in inputs.cells})
+    configuration_ids = sorted({str(cell["configuration_id"]) for cell in inputs.cells})
+    manifest = s8b_oracle_manifest.build_schedule(
+        n=33,
+        master_seed=effective_seed,
+        block_sizes={"pilot": 33},
+        holdout_ids=holdout_ids,
+        configuration_ids=configuration_ids,
+    )
+    raw_rows = manifest.get("rows") if isinstance(manifest, Mapping) else None
+    if not isinstance(raw_rows, list) or len(raw_rows) != 396:
+        raise PilotError("global R33 schedule は exact 396 行でなければならない")
+    expected_cells = {
+        f"{holdout_id}::{configuration_id}"
+        for holdout_id in holdout_ids for configuration_id in configuration_ids
+    }
+    rows: list[dict[str, object]] = []
+    for expected_index, row in enumerate(raw_rows):
+        if not isinstance(row, Mapping):
+            raise PilotError("global schedule row が mapping でない")
+        if row.get("schedule_index") != expected_index:
+            raise PilotError("global schedule index が連続していない")
+        pilot_round = row.get("replicate_index")
+        holdout_id = row.get("holdout_id")
+        configuration_id = row.get("configuration_id")
+        if (
+            type(pilot_round) is not int or not 0 <= pilot_round < 33
+            or type(holdout_id) is not str or type(configuration_id) is not str
+        ):
+            raise PilotError("global schedule row の座標が不正")
+        cell_id = f"{holdout_id}::{configuration_id}"
+        if cell_id not in expected_cells:
+            raise PilotError("global schedule row が未知 cell を参照している")
+        global_round = pilot_round + 1
+        rows.append({
+            "seq": expected_index,
+            "pilot_round": global_round,
+            "global_schedule_index": expected_index,
+            "global_pilot_round": global_round,
+            "cell_id": cell_id,
+        })
+    if len({row["cell_id"] for row in rows}) != len(expected_cells):
+        raise PilotError("global schedule の cell coverage が不正")
+    cells_by_round: dict[int, set[str]] = {}
+    for row in rows:
+        cells_by_round.setdefault(int(row["global_pilot_round"]), set()).add(
+            str(row["cell_id"])
+        )
+    if (
+        sorted(cells_by_round) != list(range(1, 34))
+        or any(cell_set != expected_cells for cell_set in cells_by_round.values())
+    ):
+        raise PilotError("global schedule が 33 complete block でない")
+    global_rows = tuple(rows)
+    slices = tuple(
+        slice_global_pilot_schedule(global_rows, allocation_index)
+        for allocation_index in range(3)
+    )
+    return GlobalPilotSchedule(
+        rows=global_rows,
+        allocation_slices=slices,
+        schedule_sha256=_schedule_projection_sha256(global_rows),
+    )
+
+
+def slice_global_pilot_schedule(
+    schedule: GlobalPilotSchedule | Sequence[Mapping[str, object]],
+    allocation_index: int,
+) -> tuple[dict[str, object], ...]:
+    """Return one 132-row local projection of the canonical global schedule."""
+    if type(allocation_index) is not int or allocation_index not in {0, 1, 2}:
+        raise PilotError("allocation_index は 0, 1, 2 のいずれかでなければならない")
+    rows = schedule.rows if isinstance(schedule, GlobalPilotSchedule) else schedule
+    if len(rows) != 396:
+        raise PilotError("allocation slice の source schedule は exact 396 行が必要")
+    start = allocation_index * 132
+    result: list[dict[str, object]] = []
+    for local_seq, source in enumerate(rows[start:start + 132]):
+        row = dict(source)
+        global_index = row.get("global_schedule_index")
+        global_round = row.get("global_pilot_round")
+        if (
+            type(global_index) is not int or global_index != start + local_seq
+            or type(global_round) is not int
+            or global_round != allocation_index * 11 + (local_seq // 12) + 1
+        ):
+            raise PilotError("allocation slice の global coordinate が不正")
+        row["seq"] = local_seq
+        row["pilot_round"] = (local_seq // 12) + 1
+        result.append(row)
+    if len(result) != 132:
+        raise PilotError("allocation slice は exact 132 行でなければならない")
+    return tuple(result)
+
+
+def _legacy_schedule_projection(
+    global_schedule: GlobalPilotSchedule,
+    *,
+    rounds: int,
+    allocation_index: int = 0,
+) -> tuple[dict[str, object], ...]:
+    if rounds > 11:
+        raise PilotError("legacy schedule rounds は 11 以下でなければならない")
+    selected = slice_global_pilot_schedule(global_schedule, allocation_index)
+    width = 12
+    return tuple(
+        {
+            "seq": local_seq,
+            "pilot_round": (local_seq // width) + 1,
+            "cell_id": row["cell_id"],
+        }
+        for local_seq, row in enumerate(selected[:rounds * width])
+    )
+
+
+def _build_legacy_pilot_schedule(
     inputs: PilotInputs,
     *,
     master_seed: str,
     rounds: int,
 ) -> tuple[dict[str, object], ...]:
-    """Use the oracle manifest complete-block scheduler, never the floor scheduler."""
+    """Retain the already-issued legacy n-pilot scheduler byte-for-byte."""
     rounds = _positive_int(rounds, "rounds")
     holdout_ids = sorted({str(cell["holdout_id"]) for cell in inputs.cells})
     configuration_ids = sorted({str(cell["configuration_id"]) for cell in inputs.cells})
-    schedule = s8b_oracle_manifest.build_schedule(
+    manifest = s8b_oracle_manifest.build_schedule(
         n=rounds,
         master_seed=master_seed,
         block_sizes={"pilot": rounds},
         holdout_ids=holdout_ids,
         configuration_ids=configuration_ids,
     )
-    rows = []
-    for row in schedule["rows"]:
-        rows.append({
+    return tuple(
+        {
             "seq": int(row["schedule_index"]),
             "pilot_round": int(row["replicate_index"]) + 1,
             "cell_id": f"{row['holdout_id']}::{row['configuration_id']}",
-        })
-    return tuple(rows)
+        }
+        for row in manifest["rows"]
+    )
+
+
+def build_pilot_schedule(
+    inputs: PilotInputs,
+    *,
+    master_seed: str | None = None,
+    rounds: int | None = None,
+    allocation_index: int | None = None,
+) -> GlobalPilotSchedule | tuple[dict[str, object], ...]:
+    """Build the global R33 schedule, with a legacy local projection escape hatch.
+
+    ``rounds=None`` or ``rounds=33`` returns the structured global schedule.
+    For the R33 fixture, the shorter ``rounds`` form is only a local projection
+    used by statistical helpers and still derives its rows from one global
+    ``n=33`` manifest.  A non-R33 protocol uses the original legacy generator.
+    """
+    if not _is_r33_inputs(inputs):
+        if rounds is None:
+            raise PilotError("legacy schedule には rounds が必要")
+        return _build_legacy_pilot_schedule(
+            inputs,
+            master_seed=(inputs.protocol.master_seed if master_seed is None else master_seed),
+            rounds=rounds,
+        )
+    global_schedule = build_global_pilot_schedule(inputs, master_seed=master_seed)
+    if rounds is None or rounds == 33:
+        if allocation_index is None:
+            return global_schedule
+        return global_schedule.allocation_slice(allocation_index)
+    rounds = _positive_int(rounds, "rounds")
+    if allocation_index is None:
+        allocation_index = 0
+    return _legacy_schedule_projection(
+        global_schedule, rounds=rounds, allocation_index=allocation_index,
+    )
 
 
 def _load1() -> float:
@@ -922,6 +1192,8 @@ def run_sessions(
     repo_root: Path = ROOT,
     irreversible_pilot_holdout_approved: bool = False,
     n_pilot_admissions: Mapping[int, object] | None = None,
+    reservation_receipt: Mapping[str, object] | None = None,
+    schedule_sha256: str | None = None,
     consume_n_pilot_attempt_ticket_fn: Callable[..., object] = (
         s8b_holdout_admission.consume_n_pilot_attempt_ticket
     ),
@@ -931,7 +1203,18 @@ def run_sessions(
         raise PilotError(
             "holdout observation requires --confirm-irreversible-pilot-holdout"
         )
-    if n_pilot_admissions is None or set(n_pilot_admissions) != set(range(len(schedule))):
+    receipt_mode = reservation_receipt is not None
+    if receipt_mode:
+        if n_pilot_admissions is not None:
+            raise PilotError("R33 receipt run cannot receive legacy n_pilot_admissions")
+        if not isinstance(reservation_receipt, Mapping):
+            raise PilotError("R33 reservation receipt が mapping でない")
+        receipt_schedule_sha256 = reservation_receipt.get("schedule_sha256")
+        if schedule_sha256 is None and _is_hex(receipt_schedule_sha256, 64):
+            schedule_sha256 = str(receipt_schedule_sha256)
+        if not _is_hex(schedule_sha256, 64):
+            raise PilotError("R33 run の schedule_sha256 が不正")
+    elif n_pilot_admissions is None or set(n_pilot_admissions) != set(range(len(schedule))):
         raise PilotError("n pilot holdout admission coverage is incomplete")
     perf_mode = resolve_perf_mode(
         repo_root=repo_root,
@@ -944,9 +1227,32 @@ def run_sessions(
     single_tenant_fn()
     observations = []
     width = len(cells)
+    seen_global_indexes: set[int] = set()
     for expected_seq, row in enumerate(schedule):
-        if set(row) != {"seq", "pilot_round", "cell_id"} or row["seq"] != expected_seq:
-            raise PilotError("schedule row schema/seq が不正")
+        if receipt_mode:
+            required = {
+                "seq", "pilot_round", "global_schedule_index",
+                "global_pilot_round", "cell_id",
+            }
+            if set(row) != required or row["seq"] != expected_seq:
+                raise PilotError("R33 schedule row schema/seq が不正")
+            global_schedule_index = row["global_schedule_index"]
+            global_pilot_round = row["global_pilot_round"]
+            if (
+                type(global_schedule_index) is not int
+                or not 0 <= global_schedule_index < 396
+                or global_schedule_index in seen_global_indexes
+                or type(global_pilot_round) is not int
+                or not 1 <= global_pilot_round <= 33
+                or global_pilot_round != global_schedule_index // width + 1
+            ):
+                raise PilotError("R33 schedule global coordinate が不正")
+            seen_global_indexes.add(global_schedule_index)
+        else:
+            if set(row) != {"seq", "pilot_round", "cell_id"} or row["seq"] != expected_seq:
+                raise PilotError("schedule row schema/seq が不正")
+            global_schedule_index = expected_seq
+            global_pilot_round = int(row["pilot_round"])
         cell_id = str(row["cell_id"])
         if cell_id not in cells:
             raise PilotError(f"schedule に未知 cell がある: {cell_id}")
@@ -962,9 +1268,21 @@ def run_sessions(
         point = None
         measure_error: BaseException | None = None
         try:
-            observation_admission = consume_n_pilot_attempt_ticket_fn(
-                n_pilot_admissions[expected_seq], schedule_index=expected_seq,
-            )
+            if receipt_mode:
+                observation_admission = consume_n_pilot_attempt_ticket_fn(
+                    reservation_receipt,
+                    repo_root=Path(repo_root),
+                    protocol=inputs.protocol.document,
+                    verified_freeze_document=inputs.freeze,
+                    freeze_sha256=inputs.freeze_sha256,
+                    schedule_sha256=schedule_sha256,
+                    global_schedule_index=global_schedule_index,
+                    expected_cell_id=cell_id,
+                )
+            else:
+                observation_admission = consume_n_pilot_attempt_ticket_fn(
+                    n_pilot_admissions[expected_seq], schedule_index=expected_seq,
+                )
         except s8b_holdout_admission.HoldoutAdmissionError as exc:
             raise PilotError(f"n pilot attempt admission failed: {exc}") from exc
         try:
@@ -1022,7 +1340,11 @@ def run_sessions(
             binary_sha256_at_measure=measured_sha,
             cache_hit=binary.cache_hit,
             materialize_elapsed_s=binary.materialize_elapsed_s,
+            global_schedule_index=(global_schedule_index if receipt_mode else None),
+            global_pilot_round=(global_pilot_round if receipt_mode else None),
         ))
+    if receipt_mode and len(seen_global_indexes) != len(schedule):
+        raise PilotError("R33 schedule global coordinate coverage is incomplete")
     return tuple(observations), perf_mode
 
 
@@ -1594,13 +1916,26 @@ def _record_float(value: object, label: str, *, positive: bool = False) -> float
 
 
 def _observation_from_record(record: object, label: str) -> SessionObservation:
-    checked = _exact_mapping(record, {
+    base_keys = {
         "seq", "pilot_round", "position", "cell_id", "monotonic_start_s",
         "monotonic_end_s", "duration_s", "load1_before", "load1_after",
         "throughputs", "throughput_binary64_hex", "outer_median", "abort_rate",
         "returncodes", "binary_sha256_at_measure", "cache_hit", "cache_state",
         "materialize_elapsed_s",
-    }, label)
+    }
+    global_keys = base_keys | {"global_schedule_index", "global_pilot_round"}
+    if isinstance(record, Mapping) and set(record) == base_keys:
+        checked = _exact_mapping(record, base_keys, label)
+        global_schedule_index = checked["seq"]
+        global_pilot_round = checked["pilot_round"]
+    elif isinstance(record, Mapping) and set(record) == global_keys:
+        checked = _exact_mapping(record, global_keys, label)
+        global_schedule_index = checked["global_schedule_index"]
+        global_pilot_round = checked["global_pilot_round"]
+    else:
+        checked = _exact_mapping(record, base_keys, label)
+        global_schedule_index = checked["seq"]
+        global_pilot_round = checked["pilot_round"]
     throughputs_raw = checked["throughputs"]
     hex_raw = checked["throughput_binary64_hex"]
     returncodes_raw = checked["returncodes"]
@@ -1648,6 +1983,13 @@ def _observation_from_record(record: object, label: str) -> SessionObservation:
         raise PilotError(f"{label}.cache_hit が bool でない")
     if checked["cache_state"] != ("hit" if checked["cache_hit"] else "miss"):
         raise PilotError(f"{label}.cache_state が cache_hit と不一致")
+    if (
+        type(global_schedule_index) is not int or global_schedule_index < 0
+        or global_schedule_index >= 396
+        or type(global_pilot_round) is not int or global_pilot_round <= 0
+        or global_pilot_round > 33
+    ):
+        raise PilotError(f"{label} の global schedule coordinate が不正")
     return SessionObservation(
         seq=checked["seq"],
         pilot_round=pilot_round,
@@ -1668,6 +2010,8 @@ def _observation_from_record(record: object, label: str) -> SessionObservation:
         materialize_elapsed_s=_record_float(
             checked["materialize_elapsed_s"], f"{label}.materialize_elapsed_s"
         ),
+        global_schedule_index=global_schedule_index,
+        global_pilot_round=global_pilot_round,
     )
 
 
@@ -2202,7 +2546,11 @@ def main(argv: Sequence[str] | None = None) -> int:
                 "--confirm-irreversible-pilot-holdout"
             )
         inputs = load_inputs(protocol, observed_repo_head=args.observed_repo_head)
-        binaries = build_binaries(inputs, cache_root=args.cache_root)
+        binaries = build_binaries(
+            inputs,
+            cache_root=args.cache_root,
+            allocation_mode=(_is_r33_inputs(inputs) and not args.build_only),
+        )
         schedule: tuple[Mapping[str, object], ...] = ()
         observations: tuple[SessionObservation, ...] = ()
         statistics_document = None
@@ -2211,28 +2559,44 @@ def main(argv: Sequence[str] | None = None) -> int:
         run_wall_time = None
         perf_mode = None
         n_pilot_admissions = None
+        reservation_receipt = None
+        global_schedule_sha256 = None
         holdout_admission_identifier = None
         if not args.build_only:
             assert rounds is not None
-            schedule = build_pilot_schedule(
-                inputs, master_seed=protocol.master_seed, rounds=rounds,
-            )
-            try:
-                n_pilot_admissions = (
-                    s8b_holdout_admission.reserve_n_pilot_holdout_observations(
-                        repo_root=ROOT,
-                        protocol=protocol.document,
-                        protocol_sha256=protocol.protocol_sha256,
-                        verified_freeze_document=inputs.freeze,
-                        freeze_sha256=inputs.freeze_sha256,
-                        cells=inputs.cells,
-                        schedule=schedule,
-                        campaign_run_id=args.attempt_id,
-                        irreversible_pilot_approved=(
-                            args.confirm_irreversible_pilot_holdout
-                        ),
-                    )
+            r33_mode = _is_r33_inputs(inputs)
+            if r33_mode:
+                global_schedule = build_pilot_schedule(
+                    inputs, master_seed=protocol.master_seed, rounds=33,
                 )
+                if not isinstance(global_schedule, GlobalPilotSchedule):
+                    raise PilotError("R33 build_pilot_schedule が global shape でない")
+                global_schedule_sha256 = global_schedule.schedule_sha256
+                full_schedule = global_schedule.rows
+                schedule = global_schedule.allocation_slice(0)[:rounds * len(inputs.cells)]
+            else:
+                full_schedule = None
+                schedule = build_pilot_schedule(
+                    inputs, master_seed=protocol.master_seed, rounds=rounds,
+                )
+            try:
+                admission = s8b_holdout_admission.reserve_n_pilot_holdout_observations(
+                    repo_root=ROOT,
+                    protocol=protocol.document,
+                    protocol_sha256=protocol.protocol_sha256,
+                    verified_freeze_document=inputs.freeze,
+                    freeze_sha256=inputs.freeze_sha256,
+                    cells=inputs.cells,
+                    schedule=(full_schedule if r33_mode else schedule),
+                    campaign_run_id=args.attempt_id,
+                    irreversible_pilot_approved=(
+                        args.confirm_irreversible_pilot_holdout
+                    ),
+                )
+                if r33_mode:
+                    reservation_receipt = admission
+                else:
+                    n_pilot_admissions = admission
             except s8b_holdout_admission.HoldoutAdmissionError as exc:
                 raise PilotError(f"n pilot holdout reservation failed: {exc}") from exc
             holdout_admission_identifier = {
@@ -2248,6 +2612,8 @@ def main(argv: Sequence[str] | None = None) -> int:
                     args.confirm_irreversible_pilot_holdout
                 ),
                 n_pilot_admissions=n_pilot_admissions,
+                reservation_receipt=reservation_receipt,
+                schedule_sha256=global_schedule_sha256,
             )
             run_wall_time = time.monotonic() - run_start
             statistics_document = summarize_sessions(inputs, observations)

@@ -354,6 +354,8 @@ def _build_with_fakes(
     inputs=None,
     oracle_fetchcontent_base_fn=None,
     oracle_dependency_fn=None,
+    cached: bool = False,
+    allocation_mode: bool | None = None,
 ):
     inputs = inputs or _inputs()
     prepare_calls = []
@@ -396,7 +398,7 @@ def _build_with_fakes(
             contract_sha256=inputs.contract.contract_sha256,
             binary=str(binary.resolve()),
             bin_sha256=hashlib.sha256(binary.read_bytes()).hexdigest(),
-            cached=index % 2 == 0,
+            cached=cached,
         )
 
     evidence = SimpleNamespace(src_token="stock", tracked_clean=True, tracked_paths=())
@@ -418,6 +420,7 @@ def _build_with_fakes(
         build_fn=build_fn,
         repo_root=ROOT,
         worktree_roots=(ROOT,),
+        allocation_mode=allocation_mode,
         monotonic_fn=lambda: next(counter),
         toolchain_fn=lambda _cc, _cxx: {
             "cxx": {"realpath": str((tmp_path / "cxx-sentinel").resolve())},
@@ -565,7 +568,35 @@ def test_m4_build_is_trace_disabled_and_uses_exact_external_cache(tmp_path):
     assert all("admission" in call and "source_evidence" in call for call in build_calls)
     assert len({call["ccbench_dir"] for call in build_calls}) == 12
     assert len({item.worktree_identity_sha256 for item in result.values()}) == 12
-    assert {item.cache_hit for item in result.values()} == {True, False}
+    assert {item.cache_hit for item in result.values()} == {False}
+
+
+def test_allocation_cache_requires_an_empty_directory_before_build(tmp_path):
+    cache_root = tmp_path / "allocation-cache"
+    cache_root.mkdir()
+    (cache_root / "stale-entry").write_text("stale", encoding="utf-8")
+    with pytest.raises(M.PilotError, match="空 directory"):
+        M.build_binaries(
+            _inputs(),
+            cache_root=cache_root,
+            repo_root=ROOT,
+            worktree_roots=(ROOT,),
+            compiler_fn=lambda: pytest.fail("compiler preflight must not run"),
+        )
+
+
+def test_allocation_cache_hit_is_rejected_but_legacy_cache_hit_is_retained(tmp_path):
+    with pytest.raises(M.PilotError, match="cache hit"):
+        _build_with_fakes(tmp_path, cached=True)
+
+    legacy_protocol = replace(_protocol(), pilot_rounds=11)
+    legacy_inputs = replace(_inputs(), protocol=legacy_protocol)
+    legacy_root = tmp_path / "legacy"
+    legacy_root.mkdir()
+    _inputs_value, _cache, _prepare, _build, result = _build_with_fakes(
+        legacy_root, inputs=legacy_inputs, cached=True,
+    )
+    assert {item.cache_hit for item in result.values()} == {True}
 
 
 def _run_one_round(
@@ -797,6 +828,88 @@ def test_m11_oracle_schedule_is_deterministic_seeded_complete_blocks():
     expected = {cell["cell_id"] for cell in inputs.cells}
     for round_no in (1, 2):
         assert {row["cell_id"] for row in first if row["pilot_round"] == round_no} == expected
+
+
+def test_global_schedule_is_built_once_and_sliced_into_three_local_allocations(
+    monkeypatch,
+):
+    inputs = _inputs()
+    original = M.s8b_oracle_manifest.build_schedule
+    calls = []
+
+    def recording_build_schedule(**kwargs):
+        calls.append(dict(kwargs))
+        return original(**kwargs)
+
+    monkeypatch.setattr(M.s8b_oracle_manifest, "build_schedule", recording_build_schedule)
+    schedule = M.build_pilot_schedule(
+        inputs, master_seed=inputs.protocol.master_seed, rounds=33,
+    )
+    assert isinstance(schedule, M.GlobalPilotSchedule)
+    assert len(calls) == 1
+    assert calls[0]["n"] == 33
+    assert calls[0]["block_sizes"] == {"pilot": 33}
+    assert len(schedule.rows) == 396
+    assert [row["global_schedule_index"] for row in schedule.rows] == list(range(396))
+    for allocation_index, allocation in enumerate(schedule.allocation_slices):
+        assert len(allocation) == 132
+        assert [row["seq"] for row in allocation] == list(range(132))
+        assert [row["global_schedule_index"] for row in allocation] == list(
+            range(allocation_index * 132, allocation_index * 132 + 132)
+        )
+        assert {row["pilot_round"] for row in allocation} == set(range(1, 12))
+        assert {row["global_pilot_round"] for row in allocation} == set(
+            range(allocation_index * 11 + 1, allocation_index * 11 + 12)
+        )
+
+
+def test_r33_run_sessions_consumes_receipt_with_global_coordinates(tmp_path):
+    inputs = _inputs()
+    binaries = _binary_receipts(tmp_path, inputs)
+    global_schedule = M.build_global_pilot_schedule(
+        inputs, master_seed=inputs.protocol.master_seed,
+    )
+    schedule = global_schedule.allocation_slice(1)[:12]
+    consume_calls = []
+    ticks = iter(float(index) for index in range(100))
+
+    def consume(receipt, **kwargs):
+        consume_calls.append((receipt, kwargs))
+        return object()
+
+    def measure_fn(_binary, records, threads, clocks_per_us, **kwargs):
+        kwargs["rep_returncodes"].extend([0] * M.APPROVED_REPS)
+        return ScalePoint(
+            records=records, threads=threads,
+            throughputs=[1.0, 2.0, 3.0, 4.0, 5.0],
+            abort_rate=0.0, run_cmd="discarded",
+        )
+
+    receipt = {"schedule_sha256": global_schedule.schedule_sha256}
+    observations, _perf = M.run_sessions(
+        inputs,
+        binaries,
+        schedule,
+        measure_fn=measure_fn,
+        single_tenant_fn=lambda: None,
+        monotonic_fn=lambda: next(ticks),
+        load1_fn=lambda: 0.0,
+        perf_preflight_fn=lambda **_kwargs: _perf_receipt(),
+        perf_candidates_fn=lambda _root: (),
+        repo_root=tmp_path,
+        irreversible_pilot_holdout_approved=True,
+        reservation_receipt=receipt,
+        consume_n_pilot_attempt_ticket_fn=consume,
+    )
+    assert len(observations) == 12
+    assert [item.global_schedule_index for item in observations] == list(range(132, 144))
+    assert [item.global_pilot_round for item in observations] == [12] * 12
+    assert len(consume_calls) == 12
+    assert all(call[0] is receipt for call in consume_calls)
+    assert [call[1]["global_schedule_index"] for call in consume_calls] == list(
+        range(132, 144)
+    )
+    assert all(call[1]["schedule_sha256"] == global_schedule.schedule_sha256 for call in consume_calls)
 
 
 def test_schedule_generator_is_the_oracle_manifest_gateway_not_floor_contract():
