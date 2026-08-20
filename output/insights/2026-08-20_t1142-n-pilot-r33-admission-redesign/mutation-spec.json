@@ -1,0 +1,143 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 900,
+  "timeout_seconds": 3600,
+  "hang_timeout_seconds": 3600,
+  "mutations": [
+    {
+      "id": "M1",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_oracle_n_pilot.py",
+          "old": "    if \"authoritative_receipt_sha256\" in document:\n",
+          "new": "    if False and \"authoritative_receipt_sha256\" in document:\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_oracle_n_pilot.py::test_manifest_hashes_prefer_authoritative_public_manifest_receipt_digest",
+        "orchestrator/tests/test_s8b_oracle_n_pilot.py::test_aggregate_rejects_protocol_or_schedule_seed_mismatch",
+        "orchestrator/tests/test_s8b_oracle_n_pilot.py::test_aggregate_rejects_unknown_binary_schema_field",
+        "orchestrator/tests/test_s8b_oracle_n_pilot.py::test_aggregate_rejects_incomplete_binary_cell_coverage",
+        "orchestrator/tests/test_s8b_oracle_n_pilot.py::test_aggregate_writes_guarded_output_and_drift_failure_leaves_n_null",
+        "orchestrator/tests/test_s8b_oracle_n_pilot.py::test_three_allocation_aggregate_derives_n_once_and_reports_shift",
+        "orchestrator/tests/test_s8b_oracle_n_pilot.py::test_aggregate_treats_repo_heads_as_observations_not_identity_pins",
+        "orchestrator/tests/test_s8b_oracle_n_pilot.py::test_aggregate_accepts_minimal_binary_identity_records"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M2",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_holdout_admission.py",
+          "old": "        return _r33_manifest_from_receipt(self, self._receipt_sha256)\n",
+          "new": "        return dict(self)\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_r33_reserve_returns_authoritative_receipt_and_opaque_manifest"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M3",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_holdout_admission.py",
+          "old": "        if digest in current_by_digest:\n            if current_by_digest[digest] != row:\n                raise HoldoutAdmissionError(\"R33 ledger identity has conflicting rows\")\n            raise HoldoutAdmissionError(\"R33 ledger identity is duplicated\")\n",
+          "new": "        if digest in current_by_digest and current_by_digest[digest] != row:\n            raise HoldoutAdmissionError(\"R33 ledger identity has conflicting rows\")\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_r33_commit_recovery_rejects_exact_duplicate_ledger_identity"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M4",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/check_docs.py",
+          "old": "        if (\n            name_start >= 0\n            and code[name_start:name_start + len(role_name)] == role_name\n        ):\n            role_matches.append(match)\n",
+          "new": "        if name_start >= 0:\n            role_matches.append(match)\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_check_docs.py::test_r33_source_contract_ignores_role_literal_in_docstring"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M5",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/check_docs.py",
+          "old": "    if len(candidates) > 1:\n        findings.append(\n            \"R33 decision section が曖昧 — 条件に合致する section は \"\n            f\"exact 1 件が必要 (observed={len(candidates)})\"\n        )\n        return False\n    if not candidates:\n        return False\n",
+          "new": "    if not candidates:\n        return False\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_check_docs.py::test_r33_decision_contract_rejects_ambiguous_r33_sections"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M6",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_oracle_n_pilot.py",
+          "old": "    keys = set(binary)\n    if not _BINARY_REQUIRED_KEYS.issubset(keys) or not keys.issubset(\n        _BINARY_ALLOWED_KEYS\n    ):\n        raise PilotError(f\"{label} binary schema が不正\")\n",
+          "new": "    keys = set(binary)\n    if not _BINARY_REQUIRED_KEYS.issubset(keys):\n        raise PilotError(f\"{label} binary schema が不正\")\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_oracle_n_pilot.py::test_aggregate_rejects_unknown_binary_schema_field"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M7",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_oracle_n_pilot.py",
+          "old": "        if (\n            len(binary_identity) != 12\n            or len(observed_cells) != 12\n            or len(schedule_cells) != 12\n            or set(binary_identity) != observed_cells\n            or set(binary_identity) != schedule_cells\n        ):\n            raise PilotError(\n                \"aggregate result binary が schedule/sessions の 12-cell coverage と不一致\"\n            )\n",
+          "new": "        if False:\n            raise PilotError(\n                \"aggregate result binary が schedule/sessions の 12-cell coverage と不一致\"\n            )\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_oracle_n_pilot.py::test_aggregate_rejects_incomplete_binary_cell_coverage"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M8",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/check_docs.py",
+          "old": "        if (\n            opening_offset >= 0\n            and roles_span[0] <= match.start()\n            and match.end() <= roles_span[1]\n            and code[match.start() + opening_offset] == \"{\"\n        ):\n            entries.append(match)\n",
+          "new": "        if (\n            opening_offset >= 0\n            and roles_span[0] <= match.start()\n            and match.end() <= roles_span[1]\n        ):\n            entries.append(match)\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_check_docs.py::test_r33_source_contract_ignores_entry_in_docstring_within_observation_roles"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}

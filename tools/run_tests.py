@@ -35,6 +35,7 @@ import sys
 import hashlib
 import importlib
 import json
+import math
 import re
 import secrets
 import shlex
@@ -69,6 +70,8 @@ _TASK_RUN_AUTO_RECORD_ENV = "IZANAGI_TASK_RUN_AUTO_RECORD"
 _TEST_TRIGGER_ENV = "IZANAGI_TEST_TRIGGER"
 _RUN_GROWTH_HELD_TESTS_ENV = "IZANAGI_RUN_GROWTH_HELD_TESTS"
 _DISPATCH_WALLTIME_OVERRIDE_ENV = "IZANAGI_DISPATCH_WALLTIME_OVERRIDE"
+_DISPATCH_QUEUE_WAIT_TIMEOUT_OVERRIDE_ENV = "IZANAGI_DISPATCH_QUEUE_WAIT_TIMEOUT_OVERRIDE"
+_DISPATCH_OVERALL_GRACE_OVERRIDE_ENV = "IZANAGI_DISPATCH_OVERALL_GRACE_OVERRIDE"
 _RUN_GROWTH_HELD_TESTS_TOKEN = "explicit-user-command"
 _TRIGGERS = frozenset({
     "baseline", "after-change", "after-failure", "final", "review-fix",
@@ -1150,6 +1153,32 @@ def _default_dispatch(
     walltime = environ.get(_DISPATCH_WALLTIME_OVERRIDE_ENV)
     if walltime:
         dispatch_kwargs["walltime"] = walltime
+    queue_wait_timeout = environ.get(_DISPATCH_QUEUE_WAIT_TIMEOUT_OVERRIDE_ENV)
+    if queue_wait_timeout:
+        queue_wait_timeout_s = float(queue_wait_timeout)
+        if (
+            not math.isfinite(queue_wait_timeout_s)
+            or queue_wait_timeout_s < 0
+            or math.copysign(1.0, queue_wait_timeout_s) < 0
+        ):
+            raise ValueError(
+                f"{_DISPATCH_QUEUE_WAIT_TIMEOUT_OVERRIDE_ENV} は"
+                "有限な非負数でなければなりません"
+            )
+        dispatch_kwargs["queue_wait_timeout_s"] = queue_wait_timeout_s
+    overall_grace = environ.get(_DISPATCH_OVERALL_GRACE_OVERRIDE_ENV)
+    if overall_grace:
+        overall_grace_s = float(overall_grace)
+        if (
+            not math.isfinite(overall_grace_s)
+            or overall_grace_s < 0
+            or math.copysign(1.0, overall_grace_s) < 0
+        ):
+            raise ValueError(
+                f"{_DISPATCH_OVERALL_GRACE_OVERRIDE_ENV} は"
+                "有限な非負数でなければなりません"
+            )
+        dispatch_kwargs["overall_grace_s"] = overall_grace_s
     result = dispatch_compute.dispatch(args, **dispatch_kwargs)
     return result
 

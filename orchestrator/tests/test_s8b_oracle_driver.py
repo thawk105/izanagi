@@ -3539,6 +3539,55 @@ def test_tampered_freeze_fails_source_verification(tmp_path):
     assert decision.t080_freeze_migration_observation is None
 
 
+def test_perf_for_holdout_accepts_authoritative_freeze_entry():
+    authority = s8b_holdout_freeze.HOLDOUTS["rr80"]
+    freeze_entry = copy.deepcopy(authority)
+    freeze_entry.update({
+        "unknownness_check": {
+            "expressions": ["fixture"], "confirmed_by": "test",
+        },
+        "variant_binding": {"variant_id": "fixture"},
+    })
+
+    perf = driver._perf_for_holdout(
+        {"holdouts": {"rr80": freeze_entry}}, "rr80",
+        {"extime": 30.0, "reps": 2},
+    )
+
+    assert perf.records == authority["records"]
+    assert perf.threads == authority["threads"]
+    assert perf.workload == dict(authority["ycsb"])
+    assert perf.extime == 30.0
+    assert perf.reps == 2
+
+
+def test_perf_for_holdout_rejects_authority_value_tampering():
+    freeze_entry = copy.deepcopy(s8b_holdout_freeze.HOLDOUTS["rr80"])
+    freeze_entry.update({
+        "unknownness_check": {
+            "expressions": ["fixture"], "confirmed_by": "test",
+        },
+        "variant_binding": {"variant_id": "fixture"},
+    })
+    freeze_entry["records"] += 1
+
+    with pytest.raises(driver.OracleDriverError,
+                       match="holdout perf binding が不正"):
+        driver._perf_for_holdout(
+            {"holdouts": {"rr80": freeze_entry}}, "rr80",
+            {"extime": 30.0, "reps": 2},
+        )
+
+
+def test_perf_for_holdout_rejects_unknown_holdout_id():
+    with pytest.raises(driver.OracleDriverError,
+                       match="holdout perf binding が不正"):
+        driver._perf_for_holdout(
+            {"holdouts": {}}, "unknown-holdout",
+            {"extime": 30.0, "reps": 2},
+        )
+
+
 def test_never_issued_legacy_generator_tamper_has_exact_single_refusal_b7(tmp_path):
     root = tmp_path / "legacy-generator"
     generator = root / driver.s8b_holdout_freeze.SCRIPT_REL
