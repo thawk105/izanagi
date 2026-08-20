@@ -62,3 +62,28 @@ def bench_lock(path: Optional[str] = None, blocking: bool = True) -> Iterator[No
             fcntl.flock(fd, fcntl.LOCK_UN)
         finally:
             os.close(fd)
+
+
+class CampaignBusy(Exception):
+    """非ブロッキング取得で同一 campaign の実行中だった。"""
+
+
+@contextmanager
+def campaign_lock(path: str, blocking: bool = False) -> Iterator[None]:
+    """1 campaign の実行所有権を advisory flock で取得する。"""
+    flags = fcntl.LOCK_EX | (0 if blocking else fcntl.LOCK_NB)
+    open_flags = os.O_WRONLY | os.O_CREAT | getattr(os, "O_NOFOLLOW", 0)
+    fd = os.open(path, open_flags, 0o644)
+    try:
+        try:
+            fcntl.flock(fd, flags)
+        except OSError as exc:
+            if not blocking and exc.errno in (errno.EAGAIN, errno.EACCES):
+                raise CampaignBusy(f"campaign lock が使用中: {path}")
+            raise
+        yield
+    finally:
+        try:
+            fcntl.flock(fd, fcntl.LOCK_UN)
+        finally:
+            os.close(fd)
