@@ -1634,6 +1634,7 @@ def _evaluate_c03(probe: _ConditionProbe) -> core.PredicateResult:
         "reserve_attempt_slot",
         "create_attempt_registry_genesis",
         "classify_attempt",
+        "begin_attempt_observation",
         "record_attempt_terminal",
     }
     acceptance = _acceptance_function(functions)
@@ -1731,6 +1732,7 @@ def _evaluate_c03(probe: _ConditionProbe) -> core.PredicateResult:
     required_producer_targets = {
         "reserve_attempt_slot",
         "classify_attempt",
+        "begin_attempt_observation",
         "record_attempt_terminal",
     }
     if not all(
