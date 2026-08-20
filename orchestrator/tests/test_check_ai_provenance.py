@@ -1795,6 +1795,25 @@ def test_known_violation_ledger_matches_literal_entries():
         "`role=author` が commit `c0936079` / `2d111bfc` / `d59f53d4` で書き、main 側は各 wave "
         "の land 時に監査済み。親作成 merge のため Codex 著者とは記さない。"
     )
+    t567_merge_ruling = (
+        "2026-08-21 dev-wave-t567-attempt-binding land 前裁定 "
+        "(ユーザー選択: known-violation 登録)"
+    )
+    t567_merge_note = (
+        "受入投入前に親が作成した local main `8ea6e9daff52f3795b4b9864860065267369fc81` を"
+        "wave 側 parent `40aded545ab835f755dc67c2a72ef9e57ad93a90` へ取り込んだ merge "
+        "`c44b981c4a765b8f189d30ca69ba7b461b71efd1`。実装面で両側が触ったのは"
+        "`orchestrator/tests/test_campaign.py` の 1 file で、`git diff-tree --cc "
+        "c44b981c4a765b8f189d30ca69ba7b461b71efd1 -- orchestrator/tests/test_campaign.py` は"
+        "commit ヘッダ (SHA) 行のみで実質空、3-way 結合は両側の変更の和集合で競合解決による"
+        "新規著作なし。merge 後は wave 側の attempt binding 関連 3 test と main 側 (T-1437) の"
+        "`EVOLVE_BLOCK_SOURCE_PROTOCOLS` / `PROVEN_REPO_ABSENT_MACROS` 関連の変更が両方残る。"
+        "wave 側の実装面は Codex `role=author` が commit "
+        "`6130a1b9886536b8b09d2583f07ea70f96cbc749` / "
+        "`40aded545ab835f755dc67c2a72ef9e57ad93a90` で書き、main 側は commit "
+        "`2a34b7b0473db3d7be3b16ea0e230fdf00b6f493` として各 wave の land 時に監査済み。"
+        "親作成 merge のため Codex 著者とは記さない。"
+    )
     observed = tuple(
         (
             spec.commit,
@@ -1883,6 +1902,7 @@ def test_known_violation_ledger_matches_literal_entries():
             "ため Codex 著者とは記さない。",
             "",
         ),
+        ("c44b981c4a765b8f189d30ca69ba7b461b71efd1", "missing-codex-author", t567_merge_ruling, t567_merge_note, ""),
     )
     assert len(provenance.KNOWN_PROVENANCE_VIOLATIONS) == len(expected)
     assert observed == expected
