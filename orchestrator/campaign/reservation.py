@@ -64,7 +64,7 @@ class ReservationCheck:
     """
 
     binding: ReservationBinding
-    required_s: int
+    required_s: int | float
     safety_margin_s: int
     checked_realtime: float
     checked_monotonic: float
@@ -74,7 +74,7 @@ class ReservationCheck:
     def recheck(
         self,
         *,
-        required_s: int | None = None,
+        required_s: int | float | None = None,
         safety_margin_s: int | None = None,
         monotonic_now_fn: Callable[[], float] = time.monotonic,
     ) -> "ReservationCheck":
@@ -105,7 +105,7 @@ class ReservationCheck:
     def ensure_remaining(
         self,
         *,
-        required_s: int,
+        required_s: int | float,
         safety_margin_s: int,
         monotonic_now_fn: Callable[[], float] = time.monotonic,
     ) -> "ReservationCheck":
@@ -199,15 +199,20 @@ def _call_clock(fn: Callable[[], float], name: str) -> float:
     return float(value)
 
 
-def _validate_duration(value: object, name: str, *, allow_zero: bool) -> int:
+def _validate_duration(value: object, name: str, *, allow_zero: bool) -> int | float:
     lower = 0 if allow_zero else 1
-    if type(value) is not int or value < lower:
-        condition = "非負整数" if allow_zero else "正整数"
+    if (
+        type(value) not in (int, float)
+        or (type(value) is float and not math.isfinite(value))
+        or value < lower
+    ):
+        condition = "非負数" if allow_zero else "正数"
         raise ReservationError(f"{name} は {condition} でなければならない")
     return value
 
 
-def _require_capacity(required_s: int, safety_margin_s: int, remaining_s: float) -> None:
+def _require_capacity(
+        required_s: int | float, safety_margin_s: int, remaining_s: float) -> None:
     if required_s + safety_margin_s > remaining_s:
         raise ReservationError(
             "reservation の残時間が不足: "
@@ -218,7 +223,7 @@ def _require_capacity(required_s: int, safety_margin_s: int, remaining_s: float)
 def check_reservation(
     binding: ReservationBinding,
     *,
-    required_s: int,
+    required_s: int | float,
     safety_margin_s: int,
     environ: Mapping,
     realtime_now_fn: Callable[[], float] = time.time,

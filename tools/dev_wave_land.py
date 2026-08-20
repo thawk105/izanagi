@@ -3593,6 +3593,28 @@ def main(argv: Sequence[str] | None = None) -> int:
     except _Reject:
         authority_digest = None
 
+    lease_dir = os.environ.get("IZANAGI_WAVE_LEASE_DIR")
+    if not lease_dir:
+        renew_state = "unavailable"
+        renew_reason = "lease-dir-required"
+    else:
+        try:
+            renewed = _wave_land_window.renew(
+                Path(lease_dir),
+                request.acceptance_wave,
+            )
+            renew_state = str(renewed.get("state", "unavailable"))
+            source = renewed.get("source")
+            source_reason = (
+                source.get("reason") if isinstance(source, dict) else None
+            )
+            renew_reason = (
+                str(source_reason) if source_reason is not None else "none"
+            )
+        except (Exception, KeyboardInterrupt):
+            renew_state = "unavailable"
+            renew_reason = "renew-internal-error"
+
     result = land(request)
     print(
         json.dumps(
@@ -3655,6 +3677,11 @@ def main(argv: Sequence[str] | None = None) -> int:
                     except (Exception, KeyboardInterrupt):
                         release_state = "unavailable"
                         release_reason = "release-internal-error"
+    print(
+        f"lease_renew state={renew_state} reason={renew_reason}",
+        file=sys.stderr,
+        flush=True,
+    )
     print(
         f"lease_release state={release_state} reason={release_reason}",
         file=sys.stderr,

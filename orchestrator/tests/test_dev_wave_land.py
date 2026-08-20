@@ -467,6 +467,16 @@ def _patched_window_release(value):
         LAND._wave_land_window.release = previous
 
 
+@contextlib.contextmanager
+def _patched_window_renew(value):
+    previous = LAND._wave_land_window.renew
+    LAND._wave_land_window.renew = value
+    try:
+        yield
+    finally:
+        LAND._wave_land_window.renew = previous
+
+
 class _FlushBuffer(io.StringIO):
     def __init__(self) -> None:
         super().__init__()
@@ -6778,7 +6788,10 @@ def test_main_releases_owned_lease_after_success_and_preserves_core_result() -> 
         assert payload["retryable_same_request"] is False
         assert "lease_release" not in payload
         assert raw.endswith("\n")
-        assert errors == "lease_release state=released reason=none\n"
+        assert errors == (
+            "lease_renew state=held-self reason=none\n"
+            "lease_release state=released reason=none\n"
+        )
         assert not lease_path.exists()
         assert _git(repo.main, "rev-parse", "HEAD") == tip
 
@@ -6814,6 +6827,7 @@ def test_main_requires_release_safe_and_not_retryable_same_request() -> None:
         assert payload["release_safe"] is True
         assert payload["retryable_same_request"] is True
         assert errors == (
+            "lease_renew state=free reason=none\n"
             "lease_release state=retained reason=land-result-not-release-safe\n"
         )
 
@@ -6829,6 +6843,7 @@ def test_main_unexpected_exception_or_interrupt_never_releases() -> None:
             output = io.StringIO()
             errors = io.StringIO()
             calls: list[object] = []
+            renew_calls: list[object] = []
 
             def fail_land(_request, failure=failure):
                 raise failure
@@ -6837,10 +6852,18 @@ def test_main_unexpected_exception_or_interrupt_never_releases() -> None:
                 calls.append((args, kwargs))
                 raise AssertionError("unexpected failures must not release")
 
+            def observed_renew(lease_path, wave):
+                renew_calls.append((lease_path, wave))
+                return {
+                    "state": "free",
+                    "source": {"status": "ok", "reason": None},
+                }
+
             try:
                 with (
                     _patched_land_attr("land", fail_land),
                     _patched_window_release(forbidden_release),
+                    _patched_window_renew(observed_renew),
                     _cwd(request.wave_worktree),
                     _lease_dir_environment(lease_dir),
                     contextlib.redirect_stdout(output),
@@ -6851,6 +6874,7 @@ def test_main_unexpected_exception_or_interrupt_never_releases() -> None:
             except BaseException as exc:
                 assert exc is failure
             assert calls == []
+            assert renew_calls == [(lease_dir, request.acceptance_wave)]
             assert output.getvalue() == ""
             assert errors.getvalue() == ""
 
@@ -6874,7 +6898,10 @@ def test_provenance_checker_violation_rc_is_release_safe_and_releases() -> None:
         assert payload["status"] == "rejected"
         assert payload["release_safe"] is True
         assert payload["retryable_same_request"] is False
-        assert errors == "lease_release state=released reason=none\n"
+        assert errors == (
+            "lease_renew state=held-self reason=none\n"
+            "lease_release state=released reason=none\n"
+        )
         assert not lease_path.exists()
         assert _git(repo.main, "rev-parse", "HEAD") == repo.base
 
@@ -6899,6 +6926,7 @@ def _assert_non_authoritative_provenance_rc_retains(returncode: int) -> None:
         assert payload["retryable_same_request"] is True
         assert "did not complete authoritatively" in payload["reason"]
         assert errors == (
+            "lease_renew state=held-self reason=none\n"
             "lease_release state=retained reason=land-result-not-release-safe\n"
         )
         assert lease_path.read_bytes() == before
@@ -6939,6 +6967,7 @@ def test_provenance_checker_timeout_is_retryable_and_retains() -> None:
         assert payload["release_safe"] is False
         assert payload["retryable_same_request"] is True
         assert errors == (
+            "lease_renew state=held-self reason=none\n"
             "lease_release state=retained reason=land-result-not-release-safe\n"
         )
         assert lease_path.read_bytes() == before
@@ -6972,6 +7001,7 @@ def test_internal_fold_planning_interrupt_is_never_release_safe() -> None:
         assert payload["retryable_same_request"] is True
         assert "KeyboardInterrupt" in payload["reason"]
         assert errors == (
+            "lease_renew state=held-self reason=none\n"
             "lease_release state=retained reason=land-result-not-release-safe\n"
         )
         assert lease_path.read_bytes() == before
@@ -7068,6 +7098,7 @@ def test_receipt_read_io_failure_is_retryable_and_retains() -> None:
         assert payload["release_safe"] is False
         assert payload["retryable_same_request"] is True
         assert errors == (
+            "lease_renew state=held-self reason=none\n"
             "lease_release state=retained reason=land-result-not-release-safe\n"
         )
         assert lease_path.read_bytes() == before
@@ -7099,6 +7130,7 @@ def test_locked_status_git_io_failure_is_retryable_and_retains() -> None:
         assert payload["release_safe"] is True
         assert payload["retryable_same_request"] is True
         assert errors == (
+            "lease_renew state=held-self reason=none\n"
             "lease_release state=retained reason=land-result-not-release-safe\n"
         )
         assert lease_path.read_bytes() == before
@@ -7152,7 +7184,89 @@ def test_main_binds_release_to_wave_main_and_flushed_core_json() -> None:
         assert rc == LAND.RC_OK
         assert payload["release_safe"] is True
         assert payload["retryable_same_request"] is False
-        assert errors == "lease_release state=released reason=none\n"
+        assert errors == (
+            "lease_renew state=free reason=none\n"
+            "lease_release state=released reason=none\n"
+        )
+
+
+def test_main_empty_lease_dir_reports_required_for_renew_and_release() -> None:
+    with _repo() as repo:
+        request = repo.request(repo.waves["one"])
+        result = LAND.LandResult(
+            LAND.RC_OK,
+            "already-landed",
+            "synthetic empty lease directory result",
+            release_safe=True,
+        )
+        output = _FlushBuffer()
+        errors = io.StringIO()
+        renew_calls: list[object] = []
+
+        def forbidden_renew(*args, **kwargs):
+            renew_calls.append((args, kwargs))
+            raise AssertionError("empty lease directory must not call renew")
+
+        previous = os.environ.get("IZANAGI_WAVE_LEASE_DIR")
+        os.environ["IZANAGI_WAVE_LEASE_DIR"] = ""
+        try:
+            with (
+                _patched_land_attr("land", lambda _request: result),
+                _patched_window_renew(forbidden_renew),
+                _cwd(request.wave_worktree),
+                contextlib.redirect_stdout(output),
+                contextlib.redirect_stderr(errors),
+            ):
+                rc = LAND.main(_land_cli_argv(request)[2:])
+        finally:
+            if previous is None:
+                os.environ.pop("IZANAGI_WAVE_LEASE_DIR", None)
+            else:
+                os.environ["IZANAGI_WAVE_LEASE_DIR"] = previous
+
+        assert rc == LAND.RC_OK
+        assert json.loads(output.getvalue()) == result.as_json()
+        assert renew_calls == []
+        assert errors.getvalue().splitlines() == [
+            "lease_renew state=unavailable reason=lease-dir-required",
+            "lease_release state=unavailable reason=lease-dir-required",
+        ]
+
+
+def test_main_renew_exception_does_not_change_land_result() -> None:
+    with _repo() as repo:
+        request = repo.request(repo.waves["one"])
+        lease_dir = repo.root / "lease"
+        lease_dir.mkdir()
+        result = LAND.LandResult(
+            LAND.RC_LOCK_BUSY,
+            "synthetic",
+            "renew failure must not alter land result",
+            release_safe=False,
+            retryable_same_request=True,
+        )
+        land_calls: list[object] = []
+
+        def observed_land(land_request):
+            land_calls.append(land_request)
+            return result
+
+        def failed_renew(*_args, **_kwargs):
+            raise RuntimeError("synthetic renew failure")
+
+        with (
+            _patched_land_attr("land", observed_land),
+            _patched_window_renew(failed_renew),
+        ):
+            rc, payload, _raw, errors = _invoke_land_main(request, lease_dir)
+
+        assert rc == LAND.RC_LOCK_BUSY
+        assert payload == result.as_json()
+        assert land_calls == [request]
+        assert errors.splitlines() == [
+            "lease_renew state=unavailable reason=renew-internal-error",
+            "lease_release state=retained reason=land-result-not-release-safe",
+        ]
 
 
 def test_main_receipt_digest_change_blocks_release() -> None:
@@ -7189,6 +7303,7 @@ def test_main_receipt_digest_change_blocks_release() -> None:
         assert payload["release_safe"] is True
         assert calls == []
         assert errors == (
+            "lease_renew state=held-self reason=none\n"
             "lease_release state=unavailable reason=receipt-digest-changed\n"
         )
         assert lease_path.read_bytes() == before
@@ -7227,6 +7342,7 @@ def test_main_verified_receipt_digest_mismatch_blocks_release() -> None:
         assert payload["release_safe"] is True
         assert calls == []
         assert errors == (
+            "lease_renew state=held-self reason=none\n"
             "lease_release state=unavailable reason=receipt-digest-mismatch\n"
         )
         assert lease_path.read_bytes() == before
@@ -7333,6 +7449,7 @@ def test_release_failure_never_overwrites_land_result() -> None:
         assert payload["status"] == "stale-main"
         assert payload["release_safe"] is True
         assert errors == (
+            "lease_renew state=free reason=none\n"
             "lease_release state=unavailable reason=release-internal-error\n"
         )
 

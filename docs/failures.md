@@ -1442,6 +1442,13 @@
   書かれており親が fallback で読んで採った。2026-07-28/2026-08-18裁定 (`DW-O01` への
   prose 追記は見送り、恒久対応はテスト・機械検査優先) を踏襲し、今回も reference
   編集はしない。
+
+- **再発: 2026-08-20** — [T-540] 段6 fix (NaN/Inf 回帰テスト追加、3回目の fix 試行) の
+  出力が 492 bytes で 500 bytes 下限に届かず `codex_worker_launch.py` に不受理にされた
+  (`accepted=false`, `validator_rc=1`, `codex_exit_code=0`)。sandbox=workspace-write での
+  実ファイル書き込み自体は正しい内容 (NaN/Inf 拒否テスト2件) で完了していたが、正式な採用
+  記録がないため、4回目の fix へ「現状確認し、既にあれば重複させない」指示で再投入し
+  accepted 記録を得た。同日中に既出の2件 (2026-08-18 型の3回目相当) と同型。
 ### F44. pipefail 下の `producer | grep -q` が SIGPIPE で計測ジョブを偽赤停止させた [手順漏れ]
 - 事象: [T-140] set-size 実測ジョブ 1 回目 (872881.nqsv、2026-07-28) が、trace シンボル存在検査
   `nm -C bin | grep -qi izanagi_trace` で「シンボル無し」と誤判定し 43 秒で停止した。実際は
@@ -7505,6 +7512,15 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   **hit が 2 件以上なら全件を開いて選択肢集合を突き合わせる**。突き合わせずに最新 1 件だけを
   根拠にしてはならない。機械化候補は [T-508] の機械化移管枠へ回付する。
 
+
+- **再発: 2026-08-20** — 未採番のrulings-inbox候補 (DW-S07段記録容量問題、一次資料
+  `2026-08-19-t828-dw-s07-acceptance-ordering-note.md`) が同日朝の別 `/rulings` セッションで
+  既に裁定・採番済み (T-1430) だったにもかかわらずinbox未削除で残存し、後発の収集が同一内容を
+  未解決として再提示しかけた。既存の恒久対応 (`ruling-status-follow-to-latest-entry`) は既存
+  T-IDの照合を想定するが、本件は対象が**裁定後に初めて採番される**未採番候補であり、
+  T-ID化前のinboxファイルには機械的な事前照合手段が無かった。worklog全体を一次資料ファイル名で
+  全文検索し archive 側の「2026-08-20裁定」マーカー付き実体を発見して手動で回避した
+  (未機械化のまま)。
 ### F273. `test_codex_worker_launch.py` が並行 codex launcher の負荷で受入全走のときだけ 9〜10 件級で落ちる [テスト代表性] [計測汚染]
 
 - 事象: 受入全走を 2 回投入し、いずれも同ファイルが大量に赤になった。
@@ -10520,6 +10536,16 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   運用に留める (機械的な事前検知は恒久対応と併せて設計する)。
 - **supersede: 2026-08-19** — 恒久対応は完了に訂正する。commit `4cc60864` (D551、`fix(s8c): 凍結世代の検証から履歴長比例のコストを取り除く`) が `_batch_oids` の走査対象を凍結 namespace を触った commit + 直接親 + 境界へ絞り、判定4種を維持したまま履歴比例 cost を解消した (50,105要求→385要求)。現行 main (`bf9f6713`) で対象2テストを含む `test_s8c_preregistration_invariant.py` + `_core.py` 計408件を Pegasus dispatch 実走し全件合格を確認した (request 924423.nqsv、57.34s)。同根本原因は F418 としても独立発見されている。worklog [T-1408] は完了として carry から落とした。
 
+
+- **再発: 2026-08-20** — 2026-08-19 の supersede (「恒久対応は完了に訂正する」、D551経由) の
+  1日後、[T-1362] のwaveが同一の `MAX_BATCH_REQUESTS` 超過に再び当たった (実測50072、main比
+  commit 7件追加のみ)。D551本文の実測 (適用直後の local main で余裕は残り16件) を読み直すと、
+  supersede 時点で既に再超過は時間の問題だったと判明する。D551が narrow したのは
+  `validate_condition_freeze_at` 1経路のcostだけで、`_batch_oids` を通る他経路 (F418が指す
+  candidate commit祖先集合 × generation-freeze追跡ファイル) は履歴比例のまま残っている疑いが
+  強い。ユーザー裁定 (2026-08-20、詳細は本fragmentの worklog 側) により、上限引き上げは
+  再度不採用のまま維持し、D551と同じ原則を `_batch_oids` の残る全呼び出し経路へ適用する恒久
+  対応を worklog 新規項目として起票した。
 ### F418. 8c preregistration の batch 上限をリポジトリ成長がわずかに超え、main への merge を伴う受入が構造的に赤くなる [恒真ゲート] [検査の非対称]
 
 - 事象: [T-699] の受入全走で `git merge --no-ff --no-commit main` 後、
