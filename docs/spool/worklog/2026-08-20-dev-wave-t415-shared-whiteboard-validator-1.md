@@ -56,10 +56,16 @@ title: layer3_report/state_from_dictの共有whiteboard値域validatorを新設�
   `python3 tools/run_tests.py orchestrator/tests/test_p3_s4_loop.py
   orchestrator/tests/test_layer3_report.py -q` = 210 passed、consumer test 13ファイル一括
   (AST ベースで import 参照を洗い出し) = 1248 passed, 10 skipped, 0 failed を実測して確認した。
-  受入全走 = verdict=child-green、red_nodeids=[]、flake_nodeids=[]、tested_main=`39ce12df`、
-  tested_tip=`82306806` (`dev_wave_wait.py acceptance` が claim 時点でさらに進んだ local main を
-  自動的に merge commit `82306806` へ追加取り込みした結果。先行する親の手動 merge
-  `6270e0f7` は main `66e5be00` を取り込んだもので、自分の対象3ファイルとは非重複)。
+  受入全走 attempt 1 (段6完了時点、tip `82306806`) は verdict=child-green で通ったが、その後
+  段7の記録 commit (`b9ef8b4f`) で tip が進んだため DW-S07 の「再走値は amend する」に従い
+  attempt 2 を再投入し、この段落を最終値へ訂正した。**最終**受入全走 = verdict=child-green、
+  red_nodeids=[]、flake_nodeids=[]、tested_main=`39ce12df`、tested_tip=`b9ef8b4f` (段7 記録
+  commit と一致)。pre/post fingerprint 完全一致 (diff_bytes=0) につき attempt 2 では
+  local main の追加取り込みは発生しなかった。先行する親の手動 merge `6270e0f7` は main
+  `66e5be00` を取り込んだもので、対象3ファイルとは非重複 (attempt 1 時点で
+  `dev_wave_wait.py acceptance` 自身が local main のさらなる進行を merge commit `82306806`
+  として追加取り込みしていた形跡があったが、attempt 2 では main が動いていなかったため
+  素通りしている)。
 
 ## 次の一手差分
 
