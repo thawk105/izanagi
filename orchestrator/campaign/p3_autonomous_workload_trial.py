@@ -1445,6 +1445,36 @@ def _launch_admission_record(
     )
 
 
+def _pre_observation_classification_inputs(
+    *,
+    admission: trial_registry.TrialLaunchAdmission,
+    origin_capability: reflux_origin_binding.OriginBindingCapability | None,
+    do_build: bool,
+    preflight_site: str,
+    max_wall_s: int,
+) -> tuple[str | None, str]:
+    """Derive classification inputs without consulting run output.
+
+    The slot is classified from the launch admission and reservation preflight
+    only.  A currently admitted attempt has no pre-observation failure, so the
+    reason is ``None``; the digest still binds the external launch evidence
+    that was available at this boundary.
+    """
+    evidence = {
+        "launch_admission": _launch_admission_record(
+            admission, origin_capability
+        ),
+        "preflight": {
+            "do_build": do_build,
+            "max_wall_s": max_wall_s,
+            "site": str(preflight_site),
+        },
+    }
+    return None, hashlib.sha256(
+        _canonical_json_bytes(evidence)
+    ).hexdigest()
+
+
 def _complete_origin_runtime(runtime: OriginTrialRuntime) -> None:
     """Evaluate and commit the sole abort-only formal terminal result."""
 
@@ -3833,24 +3863,9 @@ def _record_attempt_terminal_for_run(
         if primary_value is None:
             primary_value = 0.0
 
-    evidence = {
-        "cause": None if cause is None else type(cause).__name__,
-        "report_sha256": report_sha256,
-        "status": terminal_status,
-    }
-    evidence_sha256 = hashlib.sha256(
-        _canonical_json_bytes(evidence)
-    ).hexdigest()
-    trial_registry.classify_attempt(
-        capability,
-        failure_reason=failure_reason,
-        authority_id="p3-autonomous-workload-trial",
-        authority_policy_sha256=hashlib.sha256(
-            b"izanagi-p3-attempt-classification/v1"
-        ).hexdigest(),
-        external_evidence_sha256=evidence_sha256,
-        classified_at=_now_iso(),
-    )
+    # Classification is appended immediately after reservation, before this
+    # terminal projection reads report/journal output.  Keep this function
+    # limited to the terminal reason and performance artifacts.
     trial_registry.record_attempt_terminal(
         capability,
         terminal_status=terminal_status,
@@ -4181,13 +4196,41 @@ def run_trial(
             started_at=attempt_started_at,
         )
     lifecycle_token: trial_registry.TrialLifecycleToken | None = None
+    attempt_classified = False
     attempt_terminalized = False
     attempt_terminalization_started = False
     report: dict[str, Any] | None = None
     try:
+        if attempt_slot is not None:
+            pre_observation_failure_reason, external_evidence_sha256 = (
+                _pre_observation_classification_inputs(
+                    admission=trial_admission,
+                    origin_capability=(
+                        None
+                        if origin_runtime is None
+                        else origin_runtime.capability
+                    ),
+                    do_build=do_build,
+                    preflight_site=preflight_site,
+                    max_wall_s=max_wall_s,
+                )
+            )
+            trial_registry.classify_attempt(
+                attempt_slot,
+                pre_observation_failure_reason=pre_observation_failure_reason,
+                authority_id="p3-autonomous-workload-trial",
+                authority_policy_sha256=hashlib.sha256(
+                    b"izanagi-p3-attempt-classification/v1"
+                ).hexdigest(),
+                external_evidence_sha256=external_evidence_sha256,
+                classified_at=_now_iso(),
+            )
+            attempt_classified = True
         if origin_runtime is not None:
             # The first performance observation is after the freeze-wide
             # reservation.  The CLI environment probe is outside this bound.
+            if attempt_slot is not None:
+                trial_registry.begin_attempt_observation(attempt_slot)
             origin_runtime.initial_snapshot = origin_runtime.client.read_origin(
                 origin_runtime.capability
             )
@@ -4208,7 +4251,7 @@ def run_trial(
                 **lifecycle_arguments
             )
     except BaseException as exc:
-        if attempt_slot is not None:
+        if attempt_slot is not None and attempt_classified:
             attempt_terminalization_started = True
             _record_attempt_terminal_for_run(
                 attempt_slot, report=report, cause=exc,
@@ -4345,6 +4388,7 @@ def run_trial(
     except BaseException as exc:
         if (
             attempt_slot is not None
+            and attempt_classified
             and not attempt_terminalized
             and not attempt_terminalization_started
         ):
@@ -4447,6 +4491,8 @@ def run_trial(
                 finish_arguments["attempt_slot"] = attempt_slot
             if origin_runtime is not None:
                 finish_arguments["origin_runtime"] = origin_runtime
+            if attempt_slot is not None and origin_runtime is None:
+                trial_registry.begin_attempt_observation(attempt_slot)
             report = _finish_trial(**finish_arguments)
             if attempt_slot is not None:
                 attempt_terminalization_started = True

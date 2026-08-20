@@ -918,6 +918,24 @@ def test_collect_receipt_fixture_to_final_json(tmp_path):
     assert any(item["path"] == "stage.log" for item in doc["staging_manifest"])
 
 
+def test_collect_receipt_preserves_job_script_sha256(tmp_path):
+    module = _load("collector_entry_job_script_sha", TOOL_DIR / "collect_receipt.py")
+    attempt, staging, stdout, stderr = _collector_fixture(tmp_path)
+    expected = "c" * 64
+    (staging / "job-result.json").write_text(json.dumps({
+        "pbs_jobid": "12345.scheduler",
+        "calibrate_rc": 0,
+        "job_script_sha256": expected,
+    }), encoding="utf-8")
+
+    target = module.collect(
+        attempt_dir=attempt, job_staging=staging,
+        stdout_path=stdout, stderr_path=stderr,
+    )
+    doc = json.loads(target.read_text(encoding="utf-8"))
+    assert doc["job_result"]["job_script_sha256"] == expected
+
+
 def test_collect_receipt_accepts_raw_zero_subrequest_prefix(tmp_path):
     module = _load("collector_entry_zero_prefix", TOOL_DIR / "collect_receipt.py")
     attempt, staging, stdout, stderr = _collector_fixture(
@@ -1119,6 +1137,7 @@ REPO_ROOT={json.dumps(str(tmp_path))}
 TOOLS={json.dumps(str(TOOL_DIR))}
 BINARY=/unused/binary
 BINARY_SHA={'a' * 64}
+CURRENT_SCRIPT_SHA={'b' * 64}
 CALIBRATE_PATH=/fixture/perf/bin:/usr/bin
 """
     result = subprocess.run(
@@ -1128,6 +1147,7 @@ CALIBRATE_PATH=/fixture/perf/bin:/usr/bin
     assert result.returncode == 7, result.stderr
     assert json.loads((attempt / "failure.json").read_text())["stage"] == "calibrate"
     assert json.loads((attempt / "job-result.json").read_text())["calibrate_rc"] == 7
+    assert json.loads((attempt / "job-result.json").read_text())["job_script_sha256"] == "b" * 64
     argv = json.loads((attempt / "calibrate-argv.json").read_text())
     assert argv[:3] == ["env", "PATH=/fixture/perf/bin:/usr/bin", "python3"]
     assert argv[3] == str(tmp_path / "orchestrator" / "calibrate.py")
