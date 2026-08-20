@@ -5392,6 +5392,16 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: probe 直後の `git diff --stat` が probe の 1 行だけであること、および
   復元後に `git log --oneline -1` が期待する統合 commit を指すこと。
 
+
+- **再発: 2026-08-20** — [T-1381] wave の段6 post-change 変異再検証で、実装子 (Codex
+  role=author) の未 commit docstring 変更が乗った tree に対し `git status --porcelain`
+  の非空確認を怠って `git checkout -- <file>` で復元し、実装子の成果も巻き戻った。
+  直後の `git diff --stat` で対象 file が消えていることを検知し、直前に取得済みの
+  `git diff` 全文から docstring 2 箇所を Edit で verbatim 再現して完全復元した
+  (復元後 diff が元の diff と byte 一致、test 再走で確認)。実害なし。F174 の恒久対応
+  (「親が実編集 probe を行う前に `git status --porcelain` が空であることを確認する」
+  「dev-wave 入口の `DW-O19` 条件へ『親の probe でも成立する』ことを明記する」) が
+  未だ `DW-O19` 本文へ反映されていないことが 2 回目の再発で裏付けられた。
 ### F175. フレークの計装が、そのフレークの発火条件で `DID NOT RAISE` になった [テストフレーク] [恒真ゲート]
 
 - 事象: F57 の launcher フレークを観測するために新設した wiring meta-test が、
@@ -11045,3 +11055,33 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   (`worktree-<random>`形式なら`<random>`部分) を渡す。`git symbolic-ref --short HEAD`で
   実branch名を確認してから決める。
 - 再発検知: 未整備 (`tools/check_wave_startup.py`等の既存gateはこの不一致を検出しない)。
+
+### F438. rulings 収集補助スクリプトが陳腐化 worktree path で沈黙破損していた [ドリフト] [手順漏れ]
+
+- 事象: `/rulings all` 実行中、機械 sweep 補助 `/work/1/SFC/tanab/dev-wave-jobs/rulings-tools/
+  sweep_pending.py` / `show_resolved.py` が `REPO = .../.claude/worktrees/rulings-20260806-a`
+  という固定 worktree を参照していたが、当該 worktree は 2026-08-06 の wave 終了で既に清掃済みで
+  存在せず、起動すると `FileNotFoundError` で即死していた。エラーは stderr に出るが、
+  呼び手が結果を無視すれば「0 件」と誤読しうる沈黙破損に近い形だった。
+  同時に、PENDING 判定の正規表現 (`裁定要|裁定待ち|未裁定|再裁定待ち|裁定を求める`) が
+  「裁定パッケージ」という頻出する見出し変種を収載しておらず、この語だけで書かれた
+  [T-1216] を構造的に検出できなかった。
+- 根本原因: (1) 一時 worktree への絶対 path 依存が、worktree の生存期間を超えて残った
+  (worktree はセッション終了で消える運用が前提のため、恒久ツールが依存してはいけない対象)。
+  (2) PENDING 正規表現が特定セッションの語彙観測から作られ、見出し変種の継続的な追記が
+  仕組み化されていなかった (`rulings-collection-scope` memory が指摘する「見出し定型句は
+  変種を落とす」原則が、機械化した script 側には未反映だった)。
+- 実測された影響: 2026-08-20 (750) の `/rulings all` セッションが [T-338] (entry 741 起票)・
+  [T-1436] (entry 742 起票、旧 T-1218) を索引に出せなかった。両者とも 750 より前から
+  裁定待ちだったにもかかわらず、750 の提示 14 件には含まれていない。本 wave (rulings-tools を
+  修正後) の再走で初めて両者を検出した。時系列上、この script 破損が唯一の原因と断定はできないが
+  (750 が script を使わず手作業で行った可能性も残る)、[T-1216] の regex 漏れは本 wave が
+  script 修正の前後で再現条件付きで実測しており、こちらは機構的原因を確認済み。
+- 恒久対応: `REPO` を常時生存する main checkout (`/work/1/SFC/tanab/izanagi`) へ差し替え、
+  PENDING 正規表現へ「裁定パッケージ」を追加した (`/work/1/SFC/tanab/dev-wave-jobs/rulings-tools/
+  sweep_pending.py` / `show_resolved.py`、2026-08-20 修正・re-run 確認済み)。この2ファイルは
+  repo 外の scratch ツールのため commit 対象外 — 恒久対応の実体はファイル自体の修正であり、
+  この F エントリと memory `rulings-collection-scope` (更新済み) がポインタを保持する。
+- 再発検知: `/rulings` 実行の冒頭で `python3 rulings-tools/sweep_pending.py` の先頭数行を一瞥し、
+  `REPO` が worktree パスに戻っていないか確認する。新しい見出し変種で漏れを見つけたら
+  同 script の正規表現へ追記する (このエントリの型を再発として顕在化させる)。

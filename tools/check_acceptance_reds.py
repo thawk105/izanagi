@@ -22,6 +22,8 @@ from typing import Any, Callable, Mapping, NamedTuple, Sequence
 _SCHEMA_VERSION = "izanagi-acceptance-red-check/v1"
 _MAX_LOG_BYTES = 64 * 1024 * 1024
 _MAX_DISPATCH_RECEIPT_BYTES = 8 * 1024 * 1024
+_MAX_PROBE_DIAGNOSTIC_ENTRIES = 64
+_MAX_PROBE_DIAGNOSTIC_BYTES = 8192
 # dispatch_compute may spend 900s queued, then reset its deadline to
 # 3600s RUN time + 300s grace, followed by 60s of accounting.  Keep this
 # outer timeout above that 4860s authority so dispatch reports its own timeout.
@@ -797,7 +799,7 @@ def _assert_wave_identity(
 
 def _probe_fingerprint(
     worktree: Path, *, command_runner: CommandRunner,
-) -> str:
+) -> tuple[str, str]:
     result = _git(
         worktree,
         [
@@ -811,7 +813,42 @@ def _probe_fingerprint(
     )
     if result.returncode != 0:
         raise InvalidInput("cannot fingerprint probe worktree")
-    return hashlib.sha256(result.stdout.encode("utf-8")).hexdigest()
+    return hashlib.sha256(result.stdout.encode("utf-8")).hexdigest(), result.stdout
+
+
+def _probe_dirty_diagnostic(porcelain_text: str) -> str:
+    records = porcelain_text.split("\n")
+    while records and records[-1] == "":
+        records.pop()
+    total = len(records)
+    shown: list[str] = []
+    shown_bytes = 0
+    for record in records:
+        if len(shown) >= _MAX_PROBE_DIAGNOSTIC_ENTRIES:
+            break
+        record_bytes = len(record.encode("utf-8")) + 1
+        if shown_bytes + record_bytes > _MAX_PROBE_DIAGNOSTIC_BYTES:
+            break
+        shown.append(record)
+        shown_bytes += record_bytes
+
+    truncated = len(shown) < total
+    if shown:
+        detail = "\n".join(shown)
+    else:
+        detail = "(no complete status records fit within the diagnostic limit)"
+    if truncated:
+        summary = f"showing {len(shown)} of {total} entries, truncated"
+    else:
+        summary = f"showing {len(shown)} of {total} entries"
+    return (
+        "probe worktree is not clean, including ignored files; "
+        "porcelain status entries:\n"
+        f"{detail}\n"
+        f"{summary}\n"
+        "(submodule entries show only the parent-repo summary line, not files "
+        "inside the submodule)"
+    )
 
 
 def _assert_probe_identity(
@@ -824,9 +861,11 @@ def _assert_probe_identity(
     head = _git(worktree, ["rev-parse", "HEAD"], command_runner=command_runner)
     if head.returncode != 0 or head.stdout.strip() != expected_tip:
         raise InvalidInput(f"probe worktree HEAD does not equal {tip_label}")
-    fingerprint = _probe_fingerprint(worktree, command_runner=command_runner)
+    fingerprint, porcelain_text = _probe_fingerprint(
+        worktree, command_runner=command_runner
+    )
     if fingerprint != hashlib.sha256(b"").hexdigest():
-        raise InvalidInput("probe worktree is not clean, including ignored files")
+        raise InvalidInput(_probe_dirty_diagnostic(porcelain_text))
 
 
 def _registered_worktrees(
@@ -1258,7 +1297,7 @@ def _probe_node(
             tip_label=tip_label,
             command_runner=command_runner,
         )
-        before_fingerprint = _probe_fingerprint(
+        before_fingerprint, _ = _probe_fingerprint(
             worktree, command_runner=command_runner
         )
         rerun_rc = node_runner(worktree, selector)
@@ -1273,7 +1312,7 @@ def _probe_node(
             tip_label=tip_label,
             command_runner=command_runner,
         )
-        after_fingerprint = _probe_fingerprint(
+        after_fingerprint, _ = _probe_fingerprint(
             worktree, command_runner=command_runner
         )
         if before_fingerprint != after_fingerprint:

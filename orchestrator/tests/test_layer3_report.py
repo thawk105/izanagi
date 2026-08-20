@@ -27,6 +27,7 @@ from orchestrator.campaign import (  # noqa: E402
     layer3_report,
     model,
     p3_autonomous_workload_trial,
+    p3_s4_loop,
     s8c_acceptance_receipt,
     trigger_gate_binding,
     wal,
@@ -1751,10 +1752,115 @@ def test_duplicate_wal_and_whiteboard_fail_closed(tmp_path):
     campaign, output_root = _campaign(tmp_path, [duplicate, duplicate])
     with pytest.raises(layer3_report.Layer3ReportError, match="完全重複"):
         layer3_report.build_report(campaign, generated_from_head="fixed", output_root=output_root)
-    whiteboard = {"iteration": 1, "direction": "up", "magnitude": "small", "result": "ok", "delta_pct": None}
+    whiteboard = {
+        "iteration": 1,
+        "direction": "increase",
+        "magnitude": "small",
+        "result": "success",
+        "delta_pct": None,
+    }
     campaign, output_root = _campaign(tmp_path / "whiteboard", [_record("build_start", genome="g", src_token="s")], [whiteboard, whiteboard])
     with pytest.raises(layer3_report.Layer3ReportError, match="完全重複"):
         layer3_report.build_report(campaign, generated_from_head="fixed", output_root=output_root)
+
+
+def test_layer3_report_rejects_out_of_domain_whiteboard_value(tmp_path):
+    whiteboard = {
+        "iteration": 1,
+        "direction": "up",
+        "magnitude": "small",
+        "result": "success",
+        "delta_pct": None,
+    }
+    campaign, output_root = _campaign(
+        tmp_path,
+        [_record("build_start", genome="g", src_token="s")],
+        [whiteboard],
+    )
+
+    with pytest.raises(
+        layer3_report.Layer3ReportError,
+        match=r"whiteboard entry\[0\]\.direction",
+    ):
+        layer3_report.build_report(
+            campaign,
+            generated_from_head="fixed",
+            output_root=output_root,
+        )
+
+
+def test_layer3_report_uses_shared_whiteboard_value_domain_validator(
+        tmp_path, monkeypatch):
+    assert (
+        layer3_report.p3_s4_loop.assert_whiteboard_value_domains
+        is p3_s4_loop.assert_whiteboard_value_domains
+    )
+    whiteboard = {
+        "iteration": 1,
+        "direction": "increase",
+        "magnitude": "small",
+        "result": "success",
+        "delta_pct": None,
+    }
+    whiteboard_second = {
+        "iteration": 2,
+        "direction": "decrease",
+        "magnitude": "small",
+        "result": "success",
+        "delta_pct": None,
+    }
+    campaign, output_root = _campaign(
+        tmp_path,
+        [_record("build_start", genome="g", src_token="s")],
+        [whiteboard, whiteboard_second],
+    )
+    calls = []
+    real_validator = p3_s4_loop.assert_whiteboard_value_domains
+
+    def spy(entry, index):
+        calls.append((entry, index))
+        return real_validator(entry, index)
+
+    monkeypatch.setattr(
+        p3_s4_loop, "assert_whiteboard_value_domains", spy,
+    )
+    layer3_report.build_report(
+        campaign,
+        generated_from_head="fixed",
+        output_root=output_root,
+    )
+    assert len(calls) == 2
+    assert calls[0][0] == whiteboard
+    assert calls[0][1] == 0
+    assert calls[1][0] == whiteboard_second
+    assert calls[1][1] == 1
+    assert calls == [(whiteboard, 0), (whiteboard_second, 1)]
+
+
+def test_layer3_report_wraps_missing_whiteboard_value_with_keyerror_cause(
+        tmp_path):
+    whiteboard = {
+        "iteration": 1,
+        "magnitude": "small",
+        "result": "success",
+        "delta_pct": None,
+    }
+    campaign, output_root = _campaign(
+        tmp_path,
+        [_record("build_start", genome="g", src_token="s")],
+        [whiteboard],
+    )
+
+    with pytest.raises(
+        layer3_report.Layer3ReportError,
+        match=r"whiteboard entry\[0\] の値域検査に失敗",
+    ) as caught:
+        layer3_report.build_report(
+            campaign,
+            generated_from_head="fixed",
+            output_root=output_root,
+        )
+    assert isinstance(caught.value.__cause__, KeyError)
 
 
 def test_floor_kinds_match_independently_and_classification_records_skips(tmp_path):
