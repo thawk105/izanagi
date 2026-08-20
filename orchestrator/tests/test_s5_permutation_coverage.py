@@ -2,6 +2,8 @@
 """s5 permutation coverage の独立 oracle 突合せテスト。"""
 from __future__ import annotations
 
+import pytest
+
 from orchestrator.campaign import s5_permutation_coverage as coverage
 
 
@@ -73,3 +75,7 @@ def test_oracle_cross_check_rejects_negative_non_int_and_bool_values():
 
         bad_p_reasons = {"size-changed": invalid}
         assert not coverage._oracle_cross_check(bad_p_reasons, valid_details)
+
+
+if __name__ == "__main__":
+    raise SystemExit(pytest.main([__file__]))
