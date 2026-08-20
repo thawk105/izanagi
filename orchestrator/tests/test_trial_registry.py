@@ -2955,6 +2955,208 @@ def test_admit_registered_launch_requires_manifest_commit_capability(
         )
 
 
+def test_admit_registered_formal_noncertifying_requires_explicit_opt_in(
+    tmp_path: Path,
+) -> None:
+    repo, manifest_path, registry, manifest = _registered_repo(tmp_path)
+    trial = manifest.trials[0]
+    with pytest.raises(
+        R.TrialRegistryError,
+        match=r"\[formal-noncertifying-opt-in\] ",
+    ):
+        R.admit_registered_formal_noncertifying(
+            allow_formal_noncertifying=False,
+            manifest_path=manifest_path,
+            trial_id=trial.trial_id,
+            workloads=[R.HOLDOUT_BINDINGS[trial.holdout]["workload"]],
+            repository_root=repo,
+            registry_path=registry,
+        )
+
+
+def test_admit_registered_formal_noncertifying_validates_freeze_and_returns_binding(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo, manifest_path, registry, manifest = _registered_repo(tmp_path)
+    trial = manifest.trials[0]
+    freeze_calls: list[tuple[Path, str]] = []
+
+    def observe_freeze(repo_root, commit="HEAD"):
+        freeze_calls.append((Path(repo_root), commit))
+        return object()
+
+    monkeypatch.setattr(
+        R.s8c_preregistration,
+        "validate_condition_freeze_at",
+        observe_freeze,
+    )
+    monkeypatch.setattr(
+        R.s8c_preregistration,
+        "effective_at",
+        lambda *_args, **_kwargs: pytest.fail(
+            "formal non-certifying admission must not compute effective_at"
+        ),
+    )
+    admission = R.admit_registered_formal_noncertifying(
+        allow_formal_noncertifying=True,
+        manifest_path=manifest_path,
+        trial_id=trial.trial_id,
+        workloads=[R.HOLDOUT_BINDINGS[trial.holdout]["workload"]],
+        repository_root=repo,
+        registry_path=registry,
+    )
+    assert freeze_calls == [(repo.resolve(), manifest.prereg_commit)]
+    assert admission.mode == "registered-formal-non-certifying"
+    assert admission.certifying is False
+    assert admission.reason_code == "registered-formal-non-certifying"
+    assert admission.binding is not None
+    assert admission.activation_report_digest_sha256 is None
+    R.assert_issued_trial_launch_admission(admission)
+
+    with pytest.raises(R.TrialRegistryError, match=r"activation digest"):
+        R.assert_issued_trial_launch_admission(
+            dataclasses.replace(admission, activation_report_digest_sha256="a" * 64)
+        )
+
+
+def test_admit_registered_formal_noncertifying_rejects_condition_freeze_failure(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo, manifest_path, registry, manifest = _registered_repo(tmp_path)
+    trial = manifest.trials[0]
+
+    def reject_freeze(*_args, **_kwargs):
+        raise R.s8c_preregistration.PreregistrationError(
+            "fixture-freeze", "condition freeze is invalid"
+        )
+
+    monkeypatch.setattr(
+        R.s8c_preregistration,
+        "validate_condition_freeze_at",
+        reject_freeze,
+    )
+    with pytest.raises(
+        R.TrialRegistryError,
+        match=r"\[formal-noncertifying-condition-freeze\] fixture-freeze",
+    ):
+        R.admit_registered_formal_noncertifying(
+            allow_formal_noncertifying=True,
+            manifest_path=manifest_path,
+            trial_id=trial.trial_id,
+            workloads=[R.HOLDOUT_BINDINGS[trial.holdout]["workload"]],
+            repository_root=repo,
+            registry_path=registry,
+        )
+
+
+def test_rederived_launch_admission_accepts_formal_noncertifying_mode(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo, manifest_path, registry, manifest = _registered_repo(tmp_path)
+    trial = manifest.trials[0]
+    monkeypatch.setattr(
+        R.s8c_preregistration,
+        "validate_condition_freeze_at",
+        lambda *_args, **_kwargs: object(),
+    )
+    admission = R.admit_registered_formal_noncertifying(
+        allow_formal_noncertifying=True,
+        manifest_path=manifest_path,
+        trial_id=trial.trial_id,
+        workloads=[R.HOLDOUT_BINDINGS[trial.holdout]["workload"]],
+        repository_root=repo,
+        registry_path=registry,
+    )
+    monkeypatch.setattr(
+        R,
+        "admit_registered_launch",
+        lambda **_kwargs: pytest.fail(
+            "formal non-certifying rederivation used the effective admission"
+        ),
+    )
+    R.assert_rederived_launch_admission(
+        admission,
+        effective_preregistration=None,
+        manifest_path=manifest_path,
+        trial_id=trial.trial_id,
+        workloads=[R.HOLDOUT_BINDINGS[trial.holdout]["workload"]],
+        allow_unregistered_exploratory=False,
+        allow_formal_noncertifying=True,
+        repository_root=repo,
+        registry_path=registry,
+    )
+
+
+def test_rederived_registered_effective_still_requires_effective_capability(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo, manifest_path, registry, manifest = _registered_repo(tmp_path)
+    trial = manifest.trials[0]
+    admission = _registered_admission(
+        repo, manifest_path, registry, manifest, monkeypatch,
+    )
+    with pytest.raises(
+        R.TrialRegistryError,
+        match=r"\[effective-preregistration\] ",
+    ):
+        R.assert_rederived_launch_admission(
+            admission,
+            effective_preregistration=None,
+            manifest_path=manifest_path,
+            trial_id=trial.trial_id,
+            workloads=[R.HOLDOUT_BINDINGS[trial.holdout]["workload"]],
+            allow_unregistered_exploratory=False,
+            repository_root=repo,
+            registry_path=registry,
+        )
+
+
+def test_formal_noncertifying_lifecycle_start_consumes_reserved_attempt_slot(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo, manifest_path, registry, manifest = _registered_repo(tmp_path)
+    trial = manifest.trials[0]
+    monkeypatch.setattr(
+        R.s8c_preregistration,
+        "validate_condition_freeze_at",
+        lambda *_args, **_kwargs: object(),
+    )
+    admission = R.admit_registered_formal_noncertifying(
+        allow_formal_noncertifying=True,
+        manifest_path=manifest_path,
+        trial_id=trial.trial_id,
+        workloads=[R.HOLDOUT_BINDINGS[trial.holdout]["workload"]],
+        repository_root=repo,
+        registry_path=registry,
+    )
+    attempt_slot = _lifecycle_attempt_slot(repo, manifest, admission)
+    lifecycle = repo / R.DEFAULT_LIFECYCLE_PATH
+    token = R.record_trial_start_once(
+        admission=admission,
+        effective_preregistration=None,
+        manifest_path=manifest_path,
+        run_root=repo / "formal-noncertifying-run",
+        repository_root=repo,
+        registry_path=registry,
+        lifecycle_path=lifecycle,
+        attempt_slot=attempt_slot,
+    )
+    assert token.slot_id == attempt_slot.slot_id
+    row = json.loads(lifecycle.read_text(encoding="utf-8").splitlines()[0])
+    assert row["mode"] == "registered-formal-non-certifying"
+    assert row["activation_report_digest_sha256"] is None
+    assert R._load_lifecycle_rows(lifecycle.read_bytes())[0] == row
+    assert sum(
+        item.get("event") == "start" and item.get("slot_id") == attempt_slot.slot_id
+        for item in R.load_attempt_registry(repo)
+    ) == 1
+
+
 def test_m07_outer_manifest_capability_commit_check_is_unmasked(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

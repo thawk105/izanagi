@@ -1054,9 +1054,9 @@ def _validate_compile_legs(
     compile_commands = _mapping(compile_record.get("compile_commands"), f"{label}.compile_commands")
     command_vectors = _load_compile_commands(repository_root, compile_commands)
     for index, argv in enumerate(command_vectors):
-        if _macro_value(argv, "CCBENCH_TRACE", label=f"{label}.compile_commands[{index}]") != expected_trace:
+        if _macro_value(argv, "TRACE", label=f"{label}.compile_commands[{index}]") != expected_trace:
             _semantic("compile", f"{label}.compile_commands trace macro differs")
-        if _macro_value(argv, "CCBENCH_ADD_ANALYSIS", label=f"{label}.compile_commands[{index}") != expected_analysis:
+        if _macro_value(argv, "ADD_ANALYSIS", label=f"{label}.compile_commands[{index}") != expected_analysis:
             _semantic("compile", f"{label}.compile_commands analysis macro differs")
 
     cache_path = compile_record.get("cmake_cache_path")

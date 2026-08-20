@@ -124,8 +124,9 @@ main を取り込んだ木で既存走行へ相乗りさせ、受入の後へ足
 ## DW-O19 — tracked file の一時変異
 
 復元は `git diff` と `git checkout --` を正本とし、外部 backup を使わない。
-本走は統合 commit 後に限る。変異前を clean 確認し、変異後の `git diff --stat` が対象 file の
-意図した単一変異だけ (単一 entry が複数行ならその範囲) であることを確認して復元する。
+本走は統合 commit 後に限る。変異前は `--porcelain` 空確認 (F174)。
+変異後の `git diff --stat` が対象 file の意図した単一変異だけ (単一 entry が複数行ならその
+範囲) であることを確認して復元する。
 復元 bytes は commit と照合する。phase 完了は実装と同じ anchor commit へ含め、本走後の raw 台帳は
 後続の記録 commit へ置く。anchor を amend して自己 hash 循環を作らない。
 主 tree を変異させない経路として `tools/mutation_worktree.py --commit <commit>` が固定 commit の

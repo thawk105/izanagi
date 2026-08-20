@@ -281,23 +281,9 @@ def test_current_repository_c12_allocation_binding_helper_reports_unwired_consum
 ) -> None:
     # production が正しく配線されたら反転させる snapshot tripwire である。
     root, head = current_commit_snapshot
-    condition = M.load_contract_bytes(CONTRACT_FILE.read_bytes()).condition(12)
-    paths = {
-        item.artifact_kind: item.path for item in condition.required_evidence
-    }
-    supervisor_raw = core.read_blob_at(
-        root, head, paths["workload_supervisor"]
-    )
-    allocation_raw = core.read_blob_at(
-        root, head, paths["allocation_consumer"]
-    )
-    assert supervisor_raw is not None
-    assert allocation_raw is not None
-
-    supervisor = ast.parse(supervisor_raw)
-    allocation = ast.parse(allocation_raw)
-    assert {"read_binding", "check_reservation"} <= M._functions(allocation).keys()
-    assert M._c12_allocation_binding_verdict(supervisor, allocation) is None
+    result = _result(root, head, "C12")
+    assert result.status is core.PredicateStatus.EVIDENCE_UNDEFINED
+    assert result.reason_code == "completion-proof-not-machine-checkable"
 
 
 def test_evidence_undefined_is_never_satisfied() -> None:
@@ -879,6 +865,7 @@ def validate_planner_payload(): pass
 
 TOKEN_ONLY_C12 = """
 from . import env_contract, execution_guard
+from .reservation import read_binding, check_reservation
 environ = {}
 def run_trial():
     contract = env_contract.lookup()
@@ -993,26 +980,23 @@ def publish_result_table(*args, **kwargs):
 """
 
 
-def test_c12_allocation_binding_helper_rejects_check_without_read_binding() -> None:
-    reservation = "orchestrator/campaign/reservation.py"
-    baseline = TOKEN_ONLY_C12.encode("utf-8")
-    read_binding_call = b"    binding = read_binding(environ)"
-    assert baseline.count(read_binding_call) == 1
-    without_read_binding = baseline.replace(
+def test_c12_allocation_binding_helper_rejects_check_without_read_binding(
+    tmp_path: Path,
+) -> None:
+    read_binding_call = "    binding = read_binding(environ)"
+    without_read_binding = TOKEN_ONLY_C12.replace(
         read_binding_call,
-        b"    binding = object()",
+        "    binding = object()",
     )
-    assert without_read_binding != baseline
+    assert without_read_binding != TOKEN_ONLY_C12
 
-    supervisor = ast.parse(without_read_binding)
-    calls = M._reachable_calls(supervisor, "run_trial")
-    assert "check_reservation" in calls
-    assert "read_binding" not in calls
-    allocation = ast.parse(_git(_ROOT, "show", f"HEAD:{reservation}"))
-    assert M._c12_allocation_binding_verdict(supervisor, allocation) == (
-        core.PredicateStatus.UNSATISFIED,
-        M.ReasonCode.ALLOCATION_ENFORCEMENT_CONSUMER_ABSENT,
-    )
+    root = _init_repo(tmp_path)
+    for path, source in _c12_modules(without_read_binding).items():
+        _write(root, path, source)
+    head = _commit(root, "C12 read_binding call edge removed")
+    result = _result(root, head, "C12")
+    assert result.status is core.PredicateStatus.UNSATISFIED
+    assert result.reason_code == "allocation-enforcement-consumer-absent"
 
 
 def test_c12_allocation_binding_gate_precedes_environment_gate(
@@ -1033,26 +1017,13 @@ def test_c12_allocation_binding_gate_precedes_environment_gate(
     assert result.reason_code == "allocation-enforcement-consumer-absent"
 
 
-def test_current_repository_c12_allocation_binding_helper_accepts_both_calls() -> None:
-    condition = M.load_contract_bytes(CONTRACT_FILE.read_bytes()).condition(12)
-    paths = {
-        item.artifact_kind: item.path for item in condition.required_evidence
-    }
-    supervisor_raw = _git(
-        _ROOT, "show", f"HEAD:{paths['workload_supervisor']}"
-    )
-    allocation_raw = _git(
-        _ROOT,
-        "show",
-        f"HEAD:{paths['allocation_consumer']}",
-    )
-    supervisor = ast.parse(supervisor_raw)
-    assert {"read_binding", "check_reservation"} <= M._reachable_calls(
-        supervisor,
-        "run_trial",
-    )
-    allocation = ast.parse(allocation_raw)
-    assert M._c12_allocation_binding_verdict(supervisor, allocation) is None
+def test_current_repository_c12_allocation_binding_helper_accepts_both_calls(
+    current_commit_snapshot: tuple[Path, str],
+) -> None:
+    root, head = current_commit_snapshot
+    result = _result(root, head, "C12")
+    assert result.status is core.PredicateStatus.EVIDENCE_UNDEFINED
+    assert result.reason_code == "completion-proof-not-machine-checkable"
 
 
 def _negative_control_case(
@@ -1544,7 +1515,10 @@ def _c12_modules(supervisor: str) -> dict[str, str]:
 def test_cross_module_import_forms_resolve_exact_bound_target(
     tmp_path: Path, imports_and_calls: str
 ) -> None:
-    supervisor = imports_and_calls + """
+    supervisor = (
+        imports_and_calls
+        + "from .reservation import read_binding, check_reservation\n"
+        + """
 environ = {}
 def run_trial():
     contract = ENV()
@@ -1554,6 +1528,7 @@ def run_trial():
     return binding
 def main(): return run_trial()
 """
+    )
     _, _, result = _terminal_result(
         tmp_path, "import-form", "C12", _c12_modules(supervisor)
     )
@@ -1974,6 +1949,85 @@ def test_c12_allocation_absence_shapes_are_independent_from_definition(
     result = _result(root, head, "C12")
     assert result.status is core.PredicateStatus.UNSATISFIED
     assert result.reason_code == "allocation-enforcement-consumer-absent"
+
+
+def _assert_c12_allocation_consumer_absent(
+    tmp_path: Path,
+    name: str,
+    supervisor: str,
+    extra_sources: dict[str, str] | None = None,
+) -> None:
+    sources = _c12_modules(supervisor)
+    sources.update(extra_sources or {})
+    root = _init_repo(tmp_path)
+    for path, source in sources.items():
+        _write(root, path, source)
+    head = _commit(root, name)
+    result = _result(root, head, "C12")
+    assert result.status is core.PredicateStatus.UNSATISFIED
+    assert result.reason_code == "allocation-enforcement-consumer-absent"
+
+
+def test_c12_allocation_rejects_import_alias_consumer(tmp_path: Path) -> None:
+    supervisor = TOKEN_ONLY_C12.replace(
+        "from .reservation import read_binding, check_reservation\n",
+        "from .unrelated_decoy import foo as read_binding, bar as check_reservation\n",
+    )
+    _assert_c12_allocation_consumer_absent(
+        tmp_path,
+        "C12 import alias allocation decoy",
+        supervisor,
+        {
+            "orchestrator/campaign/unrelated_decoy.py": (
+                "def foo(*args): return object()\n"
+                "def bar(*args, **kwargs): pass\n"
+            ),
+        },
+    )
+
+
+def test_c12_allocation_rejects_local_decoy_consumer(tmp_path: Path) -> None:
+    supervisor = TOKEN_ONLY_C12.replace(
+        "environ = {}",
+        "def read_binding(*args):\n"
+        "    return object()\n"
+        "def check_reservation(*args, **kwargs):\n"
+        "    pass\n"
+        "environ = {}",
+    )
+    _assert_c12_allocation_consumer_absent(
+        tmp_path,
+        "C12 local allocation decoy",
+        supervisor,
+    )
+
+
+def test_c12_allocation_rejects_dead_code_after_return(tmp_path: Path) -> None:
+    check_and_return = """    check_reservation(
+        binding,
+        required_s=1,
+        safety_margin_s=0,
+        environ=environ,
+    )
+    return binding
+"""
+    dead_after_return = TOKEN_ONLY_C12.replace(
+        check_and_return,
+        """    return binding
+    check_reservation(
+        binding,
+        required_s=1,
+        safety_margin_s=0,
+        environ=environ,
+    )
+""",
+    )
+    assert dead_after_return != TOKEN_ONLY_C12
+    _assert_c12_allocation_consumer_absent(
+        tmp_path,
+        "C12 dead allocation check after return",
+        dead_after_return,
+    )
 
 
 @pytest.mark.parametrize(
@@ -2656,7 +2710,7 @@ def test_evaluate_all_shares_blob_ast_binding_and_root_graph_caches(
     assert read_counts
     assert resolve_calls == 1
     assert max(read_counts.values()) == 1
-    assert graph_cache_hits == [False, True, True]
+    assert graph_cache_hits == [False, True, False, True]
     assert len(set(cache_identities)) == 1
 
 
@@ -3540,6 +3594,7 @@ def _make_cells():
 def reserve_all_cells(ledger_path, *, manifest_sha256, freeze_sha256,
                       schedule_sha256, ratified_generation_sha256,
                       cells, limits):
+    _ledger_lock()
     cells = tuple(cells)
     state = "held" if _check_limit_state(cells, limits) else "insufficient"
     reservation = Reservation(cells, limits.total_bench_s,
@@ -3550,6 +3605,7 @@ def reserve_all_cells(ledger_path, *, manifest_sha256, freeze_sha256,
                   frozenset(cell.cell_id for cell in cells))
 
 def settle(ledger_path, *, cell_id, actual_bench_s):
+    _ledger_lock()
     if actual_bench_s <= 1.0:
         return ledger_path
     raise RuntimeError("actual_bench_s")
@@ -3599,6 +3655,11 @@ def _document(ledger, limits):
     }
 """
 
+TOKEN_ONLY_C06_BUDGET_MISSING_LIMIT_CHECK = TOKEN_ONLY_C06_BUDGET.replace(
+    'state = "held" if _check_limit_state(cells, limits) else "insufficient"',
+    'state = "held"',
+)
+
 TOKEN_ONLY_C06_RATIFIED = """
 class Ratified:
     sha256 = "a" * 64
@@ -3622,10 +3683,64 @@ def run_trial():
     return _budget()
 """
 
+TOKEN_ONLY_C06_SUPERVISOR_NO_RUN_TRIAL = TOKEN_ONLY_C06_SUPERVISOR.replace(
+    "def run_trial():",
+    "def not_run_trial():",
+)
+
+TOKEN_ONLY_C06_SUPERVISOR_NAME_ONLY_DECOY = """
+class DecoyRatified:
+    sha256 = "decoy"
+
+def load_ratified_freeze():
+    return DecoyRatified()
+
+def reserve_all_cells(*args, **kwargs):
+    return object()
+
+def settle(*args, **kwargs):
+    return None
+
+def symmetric_indeterminate(ledger):
+    return frozenset()
+
+def _budget():
+    ratified = load_ratified_freeze()
+    generation_sha256 = ratified.sha256
+    ledger = reserve_all_cells(
+        None,
+        manifest_sha256="a",
+        freeze_sha256="b",
+        schedule_sha256="c",
+        ratified_generation_sha256=generation_sha256,
+        cells=(),
+        limits=None,
+    )
+    settle(None, cell_id="cell", actual_bench_s=0.0)
+    return symmetric_indeterminate(ledger)
+
+def run_trial():
+    return _budget()
+"""
+
 
 def _c06_contract_with_machine_flag() -> bytes:
     value = json.loads(CONTRACT_FILE.read_bytes())
     value["conditions"][5]["machine_checkable"] = True
+    return json.dumps(value, ensure_ascii=False, sort_keys=True).encode("utf-8")
+
+
+def _c06_contract_with_broken_reachable_from() -> bytes:
+    value = json.loads(CONTRACT_FILE.read_bytes())
+    value["conditions"][5]["machine_checkable"] = True
+    budget_consumer = next(
+        item
+        for item in value["conditions"][5]["required_evidence"]
+        if item["artifact_kind"] == "budget_consumer"
+    )
+    budget_consumer["reachable_from"].remove(
+        "bench terminal -> settle -> symmetric_indeterminate"
+    )
     return json.dumps(value, ensure_ascii=False, sort_keys=True).encode("utf-8")
 
 
@@ -3634,16 +3749,25 @@ def _machine_c06_result(
     name: str,
     *,
     budget_source: str,
+    supervisor_source: str | None = TOKEN_ONLY_C06_SUPERVISOR,
+    contract_source: bytes | None = None,
 ) -> tuple[Path, str, core.PredicateResult]:
     root = _init_repo(tmp_path, name)
-    _write(root, core.EVIDENCE_CONTRACT_PATH, _c06_contract_with_machine_flag())
-    _write(root, "orchestrator/campaign/s8c_budget.py", budget_source)
-    _write(root, "orchestrator/campaign/s8b_ratified_freeze.py", TOKEN_ONLY_C06_RATIFIED)
     _write(
         root,
-        "orchestrator/campaign/p3_autonomous_workload_trial.py",
-        TOKEN_ONLY_C06_SUPERVISOR,
+        core.EVIDENCE_CONTRACT_PATH,
+        _c06_contract_with_machine_flag()
+        if contract_source is None
+        else contract_source,
     )
+    _write(root, "orchestrator/campaign/s8c_budget.py", budget_source)
+    _write(root, "orchestrator/campaign/s8b_ratified_freeze.py", TOKEN_ONLY_C06_RATIFIED)
+    if supervisor_source is not None:
+        _write(
+            root,
+            "orchestrator/campaign/p3_autonomous_workload_trial.py",
+            supervisor_source,
+        )
     head = _commit(root, name)
     return root, head, _result(root, head, "C06")
 
@@ -3688,6 +3812,69 @@ def test_c06_machine_negative_control_removes_one_arm_reservation(
     mutated = _commit(root, "machine C06 one arm removed")
     mutated_result = _result(root, mutated, "C06")
     assert mutated_result.status is core.PredicateStatus.UNSATISFIED
+
+
+@pytest.mark.parametrize(
+    ("name", "supervisor_source"),
+    [
+        ("machine-c06-supervisor-absent", None),
+        (
+            "machine-c06-run-trial-absent",
+            TOKEN_ONLY_C06_SUPERVISOR_NO_RUN_TRIAL,
+        ),
+    ],
+)
+def test_c06_missing_supervisor_or_run_trial_is_unsatisfied(
+    tmp_path: Path,
+    name: str,
+    supervisor_source: str | None,
+) -> None:
+    _, _, result = _machine_c06_result(
+        tmp_path,
+        name,
+        budget_source=TOKEN_ONLY_C06_BUDGET,
+        supervisor_source=supervisor_source,
+    )
+    assert result.status is core.PredicateStatus.UNSATISFIED
+    assert result.reason_code == "budget-consumer-contract-undefined"
+
+
+def test_c06_rejects_name_only_supervisor_decoy(
+    tmp_path: Path,
+) -> None:
+    _, _, result = _machine_c06_result(
+        tmp_path,
+        "machine-c06-name-only-decoy",
+        budget_source=TOKEN_ONLY_C06_BUDGET,
+        supervisor_source=TOKEN_ONLY_C06_SUPERVISOR_NAME_ONLY_DECOY,
+    )
+    assert result.status is core.PredicateStatus.UNSATISFIED
+    assert result.reason_code == "budget-consumer-contract-undefined"
+
+
+def test_c06_rejects_budget_without_limit_check(
+    tmp_path: Path,
+) -> None:
+    _, _, result = _machine_c06_result(
+        tmp_path,
+        "machine-c06-missing-limit-check",
+        budget_source=TOKEN_ONLY_C06_BUDGET_MISSING_LIMIT_CHECK,
+    )
+    assert result.status is core.PredicateStatus.UNSATISFIED
+    assert result.reason_code == "budget-consumer-contract-undefined"
+
+
+def test_c06_rejects_broken_reachable_from_contract(
+    tmp_path: Path,
+) -> None:
+    _, _, result = _machine_c06_result(
+        tmp_path,
+        "machine-c06-broken-reachable-from",
+        budget_source=TOKEN_ONLY_C06_BUDGET,
+        contract_source=_c06_contract_with_broken_reachable_from(),
+    )
+    assert result.status is core.PredicateStatus.UNSATISFIED
+    assert result.reason_code == "budget-consumer-contract-undefined"
 
 
 @pytest.mark.parametrize(

@@ -2310,6 +2310,8 @@ def _evaluate_c11(probe: _ConditionProbe) -> core.PredicateResult:
 
 
 def _c12_allocation_binding_verdict(
+    probe: _ConditionProbe,
+    workload_path: str,
     workload_supervisor: ast.Module,
     allocation_consumer: ast.Module | None,
 ) -> tuple[core.PredicateStatus, ReasonCode] | None:
@@ -2317,8 +2319,18 @@ def _c12_allocation_binding_verdict(
     if (
         allocation_consumer is None
         or not required_functions <= _functions(allocation_consumer).keys()
-        or not required_functions
-        <= _reachable_calls(workload_supervisor, "run_trial")
+        or "run_trial" not in _functions(workload_supervisor)
+    ):
+        return (
+            core.PredicateStatus.UNSATISFIED,
+            ReasonCode.ALLOCATION_ENFORCEMENT_CONSUMER_ABSENT,
+        )
+
+    graph = _ReachabilityExplorer(probe).walk((workload_path, "run_trial"))
+    allocation_path = probe.requirement("allocation_consumer").path
+    if not all(
+        _declared_call(probe, graph, (allocation_path, name))
+        for name in required_functions
     ):
         return (
             core.PredicateStatus.UNSATISFIED,
@@ -2331,12 +2343,17 @@ def _evaluate_c12(probe: _ConditionProbe) -> core.PredicateResult:
     tree = probe.python_kind("workload_supervisor")
     if tree is None:
         return _result(probe, core.PredicateStatus.EVIDENCE_UNDEFINED, ReasonCode.WORKLOAD_SUPERVISOR_ABSENT)
+    workload_path = probe.requirement("workload_supervisor").path
     allocation = probe.python_kind("allocation_consumer")
-    allocation_verdict = _c12_allocation_binding_verdict(tree, allocation)
+    allocation_verdict = _c12_allocation_binding_verdict(
+        probe,
+        workload_path,
+        tree,
+        allocation,
+    )
     if allocation_verdict is not None:
         status, reason = allocation_verdict
         return _result(probe, status, reason)
-    workload_path = probe.requirement("workload_supervisor").path
     functions = _functions(tree)
     if functions.get("run_trial") is None or functions.get("main") is None:
         return _result(probe, core.PredicateStatus.UNSATISFIED, ReasonCode.ENVIRONMENT_CONTRACT_CONSUMER_ABSENT)
@@ -3243,6 +3260,29 @@ _C06_EXPECTED_CELL_ROWS = frozenset(
         ("H2", "swapped"),
     }
 )
+_C06_EXPECTED_REACHABLE_FROM = (
+    (
+        "budget_consumer",
+        "run_trial -> reserve_all_cells -> bench launch",
+    ),
+    (
+        "budget_consumer",
+        "bench terminal -> settle -> symmetric_indeterminate",
+    ),
+    (
+        "ratified_generation_reference",
+        "run_trial -> load_ratified_freeze -> reserve_all_cells",
+    ),
+)
+
+
+def _c06_reachable_from_verdict(probe: _ConditionProbe) -> bool:
+    # 契約記述と evaluator 期待値の整合 (drift) だけを確認し、
+    # 実コード上の呼び出し順序やデータフローは検証しない。
+    return all(
+        chain in probe.requirement(kind).reachable_from
+        for kind, chain in _C06_EXPECTED_REACHABLE_FROM
+    )
 
 
 def _c06_annotation_names(node: ast.AST) -> frozenset[str]:
@@ -3473,6 +3513,8 @@ def _evaluate_c06(probe: _ConditionProbe) -> core.PredicateResult:
     requirement = probe.requirement("budget_consumer")
     if frozenset(requirement.field_paths) != _C06_EXPECTED_FIELD_PATHS:
         return _c06_unsatisfied(probe)
+    if not _c06_reachable_from_verdict(probe):
+        return _c06_unsatisfied(probe)
     if not _c06_field_path_verdict(budget):
         return _c06_unsatisfied(probe)
     functions = _functions(budget)
@@ -3487,6 +3529,19 @@ def _evaluate_c06(probe: _ConditionProbe) -> core.PredicateResult:
         "_check_limit_state",
     } <= functions.keys():
         return _c06_unsatisfied(probe)
+    required_calls = {
+        "reserve_all_cells": {
+            "_ledger_lock",
+            "_check_limit_state",
+        },
+        "settle": {"_ledger_lock"},
+    }
+    for name, expected in required_calls.items():
+        if not expected <= _live_called_names(functions[name]):
+            return _c06_unsatisfied(probe)
+    reference_requirement = probe.requirement(
+        "ratified_generation_reference"
+    )
     reference = probe.python_kind("ratified_generation_reference")
     if (
         reference is None
@@ -3496,23 +3551,28 @@ def _evaluate_c06(probe: _ConditionProbe) -> core.PredicateResult:
         return _c06_unsatisfied(probe)
     supervisor_path = "orchestrator/campaign/p3_autonomous_workload_trial.py"
     supervisor = probe.python_path(supervisor_path)
-    if supervisor is not None:
-        reachable = _reachable_functions(supervisor, "run_trial")
-        reachable_calls = _reachable_calls(supervisor, "run_trial")
-        if "run_trial" not in _functions(supervisor) or not {
-            "load_ratified_freeze",
-            "reserve_all_cells",
-            "settle",
-            "symmetric_indeterminate",
-        } <= reachable_calls:
-            return _c06_unsatisfied(probe)
-        if not reachable or len(reachable) > _MAX_REACHABILITY_STATES:
-            return _c06_unsatisfied(probe)
-        if not any(
-            isinstance(current, ast.Attribute) and current.attr == "sha256"
-            for current in ast.walk(supervisor)
-        ):
-            return _c06_unsatisfied(probe)
+    if supervisor is None or "run_trial" not in _functions(supervisor):
+        return _c06_unsatisfied(probe)
+
+    graph = _ReachabilityExplorer(probe).walk(
+        (supervisor_path, "run_trial")
+    )
+    required_targets = {
+        (reference_requirement.path, "load_ratified_freeze"),
+        (requirement.path, "reserve_all_cells"),
+        (requirement.path, "settle"),
+        (requirement.path, "symmetric_indeterminate"),
+    }
+    if not all(
+        _declared_call(probe, graph, target)
+        for target in required_targets
+    ):
+        return _c06_unsatisfied(probe)
+    if not any(
+        isinstance(current, ast.Attribute) and current.attr == "sha256"
+        for current in ast.walk(supervisor)
+    ):
+        return _c06_unsatisfied(probe)
     # static_only_note の通り、実時間の値は readiness の充足条件にしない。
     return _result(
         probe,
