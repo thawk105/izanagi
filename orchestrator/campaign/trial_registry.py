@@ -57,7 +57,12 @@ DEFAULT_EFFECTIVE_BINDING_PATH = Path(
 DEFAULT_ATTEMPT_REGISTRY_PATH = Path(
     "output/s8c-preregistration/attempt-registry.jsonl"
 )
-ATTEMPT_REGISTRY_SCHEMA_VERSION = "p3-8c-attempt-registry/v1"
+_ATTEMPT_REGISTRY_SCHEMA_VERSION_V1 = "p3-8c-attempt-registry/v1"
+ATTEMPT_REGISTRY_SCHEMA_VERSION = "p3-8c-attempt-registry/v2"
+_ATTEMPT_REGISTRY_SCHEMA_VERSIONS = frozenset({
+    _ATTEMPT_REGISTRY_SCHEMA_VERSION_V1,
+    ATTEMPT_REGISTRY_SCHEMA_VERSION,
+})
 EFFECTIVE_BINDING_SCHEMA_VERSION = "p3-8c-prereg-effective-binding/v1"
 DEFAULT_LIFECYCLE_PATH = Path("output/s8c-trial-registry/lifecycle.jsonl")
 LIFECYCLE_SCHEMA_VERSION = "p3-8c-trial-lifecycle/v2"
@@ -99,7 +104,7 @@ ATTEMPT_STATUSES = (
 ATTEMPT_RETRYABLE_FAILURE_REASONS = frozenset({
     "preempted", "wall-timeout", "node-failure", "launcher-failure",
 })
-_ATTEMPT_GENESIS_KEYS = frozenset({
+_ATTEMPT_V1_GENESIS_KEYS = frozenset({
     "schema_version", "event", "freeze_id", "manifest_path",
     "manifest_sha256", "root_path", "retryable_failure_reasons", "slots",
 })
@@ -107,26 +112,56 @@ _ATTEMPT_SLOT_KEYS = frozenset({
     "slot_id", "trial_id", "arm", "holdout", "campaign_id",
     "replicate_index", "attempt_index", "schedule_row_sha256",
 })
-_ATTEMPT_START_KEYS = frozenset({
+_ATTEMPT_CHAIN_KEYS = frozenset({
+    "event_index", "previous_event_sha256", "event_sha256",
+})
+_ATTEMPT_V1_START_KEYS = frozenset({
     "schema_version", "event", "freeze_id", "slot_id",
     "prereg_content_commit", "prereg_effective_commit",
     "run_start_receipt_sha256", "process_identity", "schedule_row_sha256",
     "started_at",
 })
-_ATTEMPT_CLASSIFICATION_KEYS = frozenset({
+_ATTEMPT_V1_CLASSIFICATION_KEYS = frozenset({
     "schema_version", "event", "freeze_id", "slot_id",
     "prereg_content_commit", "prereg_effective_commit",
     "classification_receipt_sha256", "capability_digest_sha256",
     "authority_id", "authority_policy_sha256", "external_evidence_sha256",
     "classified_at", "failure_reason", "performance_output_read",
 })
-_ATTEMPT_TERMINAL_KEYS = frozenset({
+_ATTEMPT_V1_TERMINAL_KEYS = frozenset({
     "schema_version", "event", "freeze_id", "slot_id",
     "prereg_content_commit", "prereg_effective_commit",
     "classification_receipt_sha256", "terminal_status", "raw_output_sha256",
     "report_sha256", "observation_sha256", "primary_value", "failure_reason",
     "finished_at", "schedule_row_sha256", "process_identity",
 })
+_ATTEMPT_GENESIS_KEYS = _ATTEMPT_V1_GENESIS_KEYS | _ATTEMPT_CHAIN_KEYS
+_ATTEMPT_START_KEYS = _ATTEMPT_V1_START_KEYS | _ATTEMPT_CHAIN_KEYS
+_ATTEMPT_PRE_OBSERVATION_SEAL_KEYS = frozenset({
+    "schema_version", "event", "freeze_id", "slot_id",
+    "start_event_sha256", "run_start_receipt_sha256", "process_identity",
+    "schedule_row_sha256",
+}) | _ATTEMPT_CHAIN_KEYS
+_ATTEMPT_CLASSIFICATION_KEYS = frozenset({
+    "schema_version", "event", "freeze_id", "slot_id",
+    "prereg_content_commit", "prereg_effective_commit",
+    "classification_receipt_sha256", "capability_digest_sha256",
+    "authority_id", "authority_policy_sha256", "external_evidence_sha256",
+    "classified_at", "pre_observation_failure_reason",
+    "pre_observation_seal_sha256",
+}) | _ATTEMPT_CHAIN_KEYS
+_ATTEMPT_OBSERVATION_START_KEYS = frozenset({
+    "schema_version", "event", "freeze_id", "slot_id",
+    "classification_event_sha256",
+}) | _ATTEMPT_CHAIN_KEYS
+_ATTEMPT_TERMINAL_KEYS = frozenset({
+    "schema_version", "event", "freeze_id", "slot_id",
+    "prereg_content_commit", "prereg_effective_commit",
+    "classification_receipt_sha256", "terminal_status", "raw_output_sha256",
+    "report_sha256", "observation_sha256", "primary_value", "failure_reason",
+    "pre_observation_failure_reason_echo", "observation_start_event_sha256",
+    "finished_at", "schedule_row_sha256", "process_identity",
+}) | _ATTEMPT_CHAIN_KEYS
 _PROCESS_IDENTITY_KEYS = frozenset({
     "pid", "starttime", "execution_uuid",
 })
@@ -337,9 +372,9 @@ class AttemptSlotCapability:
 
     The capability binds the slot and all immutable schedule identity to P/C.
     The API that classifies a failure intentionally has no performance-output
-    parameter.  This wave therefore proves capability and receipt binding, not
-    the real-time fact that a trusted launcher classified before reading
-    performance output; that timing proof remains outside this guarantee.
+    parameter.  The v2 chain proves internal consistency of registered events,
+    including tampering and reordering detection, not the OS-level fact that a
+    trusted launcher acted before reading independent performance output.
     """
 
     repository_root: Path = dataclasses.field(repr=False, compare=False)
@@ -356,6 +391,7 @@ class AttemptSlotCapability:
     prereg_commit: str
     prereg_content_commit: str
     prereg_effective_commit: str
+    pre_observation_seal_sha256: str
     capability_digest_sha256: str
     _seal: object = dataclasses.field(repr=False, compare=False)
 
@@ -427,6 +463,65 @@ def _canonical_json_bytes(value: Any) -> bytes:
         ).encode("utf-8")
     except (TypeError, ValueError) as exc:
         raise TrialRegistryError(f"[json] value is not canonical JSON: {exc}") from exc
+
+
+_ATTEMPT_ZERO_SHA256 = "0" * 64
+
+
+def _attempt_event_sha256(row: Mapping[str, Any]) -> str:
+    """Hash one attempt event using this module's canonical JSON contract."""
+    payload = dict(row)
+    payload.pop("event_sha256", None)
+    return hashlib.sha256(_canonical_json_bytes(payload)).hexdigest()
+
+
+def _attempt_v2_event_row(
+    row: Mapping[str, Any],
+    *,
+    event_index: int,
+    previous_event_sha256: str,
+) -> dict[str, Any]:
+    """Attach and calculate the v2 chain fields for one event row."""
+    if type(event_index) is not int or event_index < 0:
+        _fail("attempt-event-chain", "event_index is invalid")
+    _attempt_digest(previous_event_sha256, label="previous_event_sha256")
+    result = dict(row)
+    result["event_index"] = event_index
+    result["previous_event_sha256"] = previous_event_sha256
+    result["event_sha256"] = _attempt_event_sha256(result)
+    return result
+
+
+def _attempt_v2_previous_hash(rows: Sequence[Mapping[str, Any]]) -> str:
+    """Return the current v2 chain tip, or a fresh tip after legacy rows."""
+    for row in reversed(rows):
+        if row.get("schema_version") == ATTEMPT_REGISTRY_SCHEMA_VERSION:
+            return row["event_sha256"]
+    return _ATTEMPT_ZERO_SHA256
+
+
+def _attempt_pre_observation_seal_payload(
+    start: Mapping[str, Any],
+    *,
+    freeze_id: str,
+    slot_id: str,
+) -> dict[str, Any]:
+    """Build the seal from verified start evidence, not caller-supplied state.
+
+    The resulting row participates in internal consistency checks for
+    tampering and reordering.  It does not prove at the OS level that a
+    trusted launcher acted before reading an independent external fact.
+    """
+    return {
+        "schema_version": ATTEMPT_REGISTRY_SCHEMA_VERSION,
+        "event": "pre-observation-seal",
+        "freeze_id": freeze_id,
+        "slot_id": slot_id,
+        "start_event_sha256": start["event_sha256"],
+        "run_start_receipt_sha256": start["run_start_receipt_sha256"],
+        "process_identity": dict(start["process_identity"]),
+        "schedule_row_sha256": start["schedule_row_sha256"],
+    }
 
 
 def _reject_constant(value: str) -> None:
@@ -1822,14 +1917,63 @@ def _assert_attempt_slot_layout(slots: Sequence[Mapping[str, Any]]) -> None:
             )
 
 
+def _attempt_schema_version(value: Mapping[str, Any], *, label: str) -> str:
+    schema_version = value.get("schema_version")
+    if schema_version not in _ATTEMPT_REGISTRY_SCHEMA_VERSIONS:
+        _fail("attempt-registry-schema", f"{label}.schema_version is unsupported")
+    return schema_version
+
+
+def _assert_attempt_v2_chain(
+    value: Mapping[str, Any],
+    *,
+    label: str,
+    expected_event_index: int | None = None,
+    expected_previous_event_sha256: str | None = None,
+) -> None:
+    event_index = value.get("event_index")
+    if type(event_index) is not int or event_index < 0:
+        _fail("attempt-event-chain", f"{label}.event_index is invalid")
+    if expected_event_index is not None and event_index != expected_event_index:
+        _fail("attempt-event-chain", f"{label}.event_index is not monotonic")
+    previous = _attempt_digest(
+        value.get("previous_event_sha256"),
+        label=f"{label}.previous_event_sha256",
+    )
+    if (
+        expected_previous_event_sha256 is not None
+        and previous != expected_previous_event_sha256
+    ):
+        _fail(
+            "attempt-event-chain",
+            f"{label}.previous_event_sha256 differs from the preceding event",
+        )
+    event_sha256 = _attempt_digest(
+        value.get("event_sha256"), label=f"{label}.event_sha256",
+    )
+    if event_sha256 != _attempt_event_sha256(value):
+        _fail("attempt-event-chain", f"{label}.event_sha256 differs from its payload")
+
+
 def _parse_attempt_genesis(value: object, *, label: str) -> dict[str, Any]:
     if not isinstance(value, Mapping):
         _fail("attempt-registry-schema", f"{label} is not an object")
-    _exact_keys(value, _ATTEMPT_GENESIS_KEYS, label=label)
-    if value.get("schema_version") != ATTEMPT_REGISTRY_SCHEMA_VERSION:
-        _fail("attempt-registry-schema", f"{label}.schema_version is unsupported")
+    schema_version = _attempt_schema_version(value, label=label)
+    _exact_keys(
+        value,
+        _ATTEMPT_GENESIS_KEYS if schema_version == ATTEMPT_REGISTRY_SCHEMA_VERSION
+        else _ATTEMPT_V1_GENESIS_KEYS,
+        label=label,
+    )
     if value.get("event") != "freeze":
         _fail("attempt-registry-genesis", f"{label}.event is not freeze")
+    if schema_version == ATTEMPT_REGISTRY_SCHEMA_VERSION:
+        _assert_attempt_v2_chain(
+            value,
+            label=label,
+            expected_event_index=0,
+            expected_previous_event_sha256=_ATTEMPT_ZERO_SHA256,
+        )
     freeze_id = _attempt_text(value.get("freeze_id"), label=f"{label}.freeze_id")
     manifest_path = _validate_binding_relative_path(
         value.get("manifest_path"), label=f"{label}.manifest_path",
@@ -1859,8 +2003,8 @@ def _parse_attempt_genesis(value: object, *, label: str) -> dict[str, Any]:
         for index, slot in enumerate(raw_slots)
     )
     _assert_attempt_slot_layout(slots)
-    return {
-        "schema_version": ATTEMPT_REGISTRY_SCHEMA_VERSION,
+    result = {
+        "schema_version": schema_version,
         "event": "freeze",
         "freeze_id": freeze_id,
         "manifest_path": manifest_path,
@@ -1869,6 +2013,13 @@ def _parse_attempt_genesis(value: object, *, label: str) -> dict[str, Any]:
         "retryable_failure_reasons": list(reasons),
         "slots": [dict(slot) for slot in slots],
     }
+    if schema_version == ATTEMPT_REGISTRY_SCHEMA_VERSION:
+        result.update({
+            "event_index": value["event_index"],
+            "previous_event_sha256": value["previous_event_sha256"],
+            "event_sha256": value["event_sha256"],
+        })
+    return result
 
 
 def _attempt_capability_payload(
@@ -1921,19 +2072,50 @@ def _parse_attempt_row(
 ) -> dict[str, Any]:
     if not isinstance(value, Mapping):
         _fail("attempt-registry-schema", f"{label} is not an object")
+    schema_version = _attempt_schema_version(value, label=label)
     event = value.get("event")
-    expected = {
-        "start": _ATTEMPT_START_KEYS,
-        "classification": _ATTEMPT_CLASSIFICATION_KEYS,
-        "terminal": _ATTEMPT_TERMINAL_KEYS,
-    }.get(event)
+    if schema_version == ATTEMPT_REGISTRY_SCHEMA_VERSION:
+        expected = {
+            "start": _ATTEMPT_START_KEYS,
+            "pre-observation-seal": _ATTEMPT_PRE_OBSERVATION_SEAL_KEYS,
+            "classification": _ATTEMPT_CLASSIFICATION_KEYS,
+            "observation-start": _ATTEMPT_OBSERVATION_START_KEYS,
+            "terminal": _ATTEMPT_TERMINAL_KEYS,
+        }.get(event)
+    else:
+        expected = {
+            "start": _ATTEMPT_V1_START_KEYS,
+            "classification": _ATTEMPT_V1_CLASSIFICATION_KEYS,
+            "terminal": _ATTEMPT_V1_TERMINAL_KEYS,
+        }.get(event)
     if expected is None:
         _fail("attempt-registry-schema", f"{label}.event is unknown")
     _exact_keys(value, expected, label=label)
-    if value.get("schema_version") != ATTEMPT_REGISTRY_SCHEMA_VERSION:
-        _fail("attempt-registry-schema", f"{label}.schema_version is unsupported")
+    if schema_version == ATTEMPT_REGISTRY_SCHEMA_VERSION:
+        _assert_attempt_v2_chain(value, label=label)
     if value.get("freeze_id") != freeze_id:
         _fail("attempt-registry-binding", f"{label}.freeze_id differs from genesis")
+    if event == "pre-observation-seal":
+        _attempt_text(value.get("slot_id"), label=f"{label}.slot_id")
+        _attempt_digest(value.get("start_event_sha256"), label=f"{label}.start_event_sha256")
+        _attempt_digest(
+            value.get("run_start_receipt_sha256"),
+            label=f"{label}.run_start_receipt_sha256",
+        )
+        _attempt_process_identity(
+            value.get("process_identity"), label=f"{label}.process_identity",
+        )
+        _attempt_digest(
+            value.get("schedule_row_sha256"), label=f"{label}.schedule_row_sha256",
+        )
+        return dict(value)
+    if event == "observation-start":
+        _attempt_text(value.get("slot_id"), label=f"{label}.slot_id")
+        _attempt_digest(
+            value.get("classification_event_sha256"),
+            label=f"{label}.classification_event_sha256",
+        )
+        return dict(value)
     slot_id = _attempt_text(value.get("slot_id"), label=f"{label}.slot_id")
     for field in ("prereg_content_commit", "prereg_effective_commit"):
         _assert_full_commit_id(value.get(field), label=f"{label}.{field}")
@@ -1957,6 +2139,19 @@ def _parse_attempt_row(
             "schedule_row_sha256": schedule_row_sha256,
             "started_at": started_at,
         }
+    if event == "classification" and schema_version == ATTEMPT_REGISTRY_SCHEMA_VERSION:
+        for field in (
+            "classification_receipt_sha256", "capability_digest_sha256",
+            "authority_policy_sha256", "external_evidence_sha256",
+            "pre_observation_seal_sha256",
+        ):
+            _attempt_digest(value.get(field), label=f"{label}.{field}")
+        _attempt_text(value.get("authority_id"), label=f"{label}.authority_id")
+        _attempt_text(value.get("classified_at"), label=f"{label}.classified_at")
+        reason = value.get("pre_observation_failure_reason")
+        if reason is not None:
+            _attempt_text(reason, label=f"{label}.pre_observation_failure_reason")
+        return dict(value)
     if event == "classification":
         for field in (
             "classification_receipt_sha256", "capability_digest_sha256",
@@ -1979,6 +2174,18 @@ def _parse_attempt_row(
         "report_sha256", "observation_sha256",
     ):
         _attempt_digest(value.get(field), label=f"{label}.{field}", nullable=True)
+    if schema_version == ATTEMPT_REGISTRY_SCHEMA_VERSION:
+        _attempt_digest(
+            value.get("observation_start_event_sha256"),
+            label=f"{label}.observation_start_event_sha256",
+            nullable=True,
+        )
+        echo = value.get("pre_observation_failure_reason_echo")
+        if echo is not None:
+            _attempt_text(
+                echo,
+                label=f"{label}.pre_observation_failure_reason_echo",
+            )
     status = value.get("terminal_status")
     if status not in ATTEMPT_STATUSES:
         _fail("attempt-null-matrix", f"{label}.terminal_status is outside the closed set")
@@ -2067,37 +2274,64 @@ def _assert_attempt_registry_rows(
 ) -> tuple[dict[str, Any], ...]:
     """Accept one ordered genesis/lifecycle state machine with immutable slots.
 
-    A start followed by one capability-bound classification and one matching
-    terminal row is accepted; duplicate starts, skipped retries, altered
-    artifacts, second roots, and unbound rows are rejected.
+    Legacy v1 rows retain their old exact-key and lifecycle checks.  v2 rows
+    additionally form a replayed hash chain and the explicit
+    start/seal/classification/observation/terminal phase machine.  This
+    per-row schema dispatch is required when an old committed freeze is
+    extended by a v2 writer.
     """
     if not rows or rows[0].get("event") != "freeze":
         _fail("attempt-registry-genesis", "attempt registry must begin with one freeze row")
     genesis = _parse_attempt_genesis(rows[0], label="attempt registry genesis")
+    genesis_schema = genesis["schema_version"]
+    if genesis_schema == ATTEMPT_REGISTRY_SCHEMA_VERSION:
+        last_v2_event_sha256: str | None = genesis["event_sha256"]
+    else:
+        last_v2_event_sha256 = None
     slots = {slot["slot_id"]: slot for slot in genesis["slots"]}
     starts: dict[str, Mapping[str, Any]] = {}
+    seals: dict[str, Mapping[str, Any]] = {}
     classifications: dict[str, Mapping[str, Any]] = {}
+    observations: dict[str, Mapping[str, Any]] = {}
     terminals: dict[str, Mapping[str, Any]] = {}
     binding: tuple[str, str] | None = None
-    for index, raw in enumerate(rows[1:], 2):
+    for row_index, raw in enumerate(rows[1:], 1):
+        line_number = row_index + 1
         row = _parse_attempt_row(
             raw,
-            label=f"attempt registry line {index}",
+            label=f"attempt registry line {line_number}",
             freeze_id=genesis["freeze_id"],
         )
+        row_schema = row["schema_version"]
+        if row_schema == ATTEMPT_REGISTRY_SCHEMA_VERSION:
+            expected_previous = last_v2_event_sha256 or _ATTEMPT_ZERO_SHA256
+            _assert_attempt_v2_chain(
+                row,
+                label=f"attempt registry line {line_number}",
+                expected_event_index=row_index,
+                expected_previous_event_sha256=expected_previous,
+            )
+            last_v2_event_sha256 = row["event_sha256"]
         slot_id = row["slot_id"]
         slot = slots.get(slot_id)
         if slot is None:
             _fail("attempt-slot", f"attempt registry references an undeclared slot: {slot_id}")
-        pair = (row["prereg_content_commit"], row["prereg_effective_commit"])
-        if binding is None:
-            binding = pair
-        elif pair != binding:
-            _fail("attempt-binding", "attempt rows do not share one P/C pair")
-        if expected_prereg_content_commit is not None and pair[0] != expected_prereg_content_commit:
-            _fail("attempt-binding", "attempt row content commit differs from expected P")
-        if expected_prereg_effective_commit is not None and pair[1] != expected_prereg_effective_commit:
-            _fail("attempt-binding", "attempt row effective commit differs from expected C")
+        if "prereg_content_commit" in row:
+            pair = (row["prereg_content_commit"], row["prereg_effective_commit"])
+            if binding is None:
+                binding = pair
+            elif pair != binding:
+                _fail("attempt-binding", "attempt rows do not share one P/C pair")
+            if (
+                expected_prereg_content_commit is not None
+                and pair[0] != expected_prereg_content_commit
+            ):
+                _fail("attempt-binding", "attempt row content commit differs from expected P")
+            if (
+                expected_prereg_effective_commit is not None
+                and pair[1] != expected_prereg_effective_commit
+            ):
+                _fail("attempt-binding", "attempt row effective commit differs from expected C")
         if row["event"] == "start":
             if slot_id in starts or slot_id in terminals:
                 _fail("attempt-slot", "slot was reserved more than once")
@@ -2120,10 +2354,42 @@ def _assert_attempt_registry_rows(
                         "attempt-slot-order",
                         "a slot after a non-retryable outcome cannot be consumed",
                     )
+                if terminals[previous[0]["slot_id"]].get(
+                    "observation_start_event_sha256"
+                ) is not None:
+                    _fail(
+                        "attempt-slot-order",
+                        "a retryable failure after observation cannot authorize a retry",
+                    )
             starts[slot_id] = row
+        elif row["event"] == "pre-observation-seal":
+            if row_schema != ATTEMPT_REGISTRY_SCHEMA_VERSION:
+                _fail("attempt-registry-schema", "v1 cannot contain a pre-observation seal")
+            if slot_id not in starts or slot_id in seals:
+                _fail("attempt-phase-order", "pre-observation seal does not follow exactly one start")
+            if slot_id in classifications or slot_id in terminals:
+                _fail("attempt-phase-order", "pre-observation seal is out of phase")
+            start = starts[slot_id]
+            if start.get("schema_version") != ATTEMPT_REGISTRY_SCHEMA_VERSION:
+                _fail("attempt-phase-order", "v2 seal cannot bind a v1 start")
+            if row["start_event_sha256"] != start["event_sha256"]:
+                _fail("attempt-slot", "pre-observation seal start binding differs")
+            if row["run_start_receipt_sha256"] != start["run_start_receipt_sha256"]:
+                _fail("attempt-slot", "pre-observation seal receipt binding differs")
+            if row["schedule_row_sha256"] != start["schedule_row_sha256"]:
+                _fail("attempt-slot", "pre-observation seal schedule binding differs")
+            if _canonical_json_bytes(row["process_identity"]) != _canonical_json_bytes(
+                start["process_identity"]
+            ):
+                _fail("attempt-slot", "pre-observation seal process binding differs")
+            seals[slot_id] = row
         elif row["event"] == "classification":
             if slot_id not in starts or slot_id in classifications:
-                _fail("attempt-classification", "classification does not follow exactly one start")
+                _fail("attempt-phase-order", "classification does not follow exactly one start")
+            if slot_id in terminals or (
+                row_schema == ATTEMPT_REGISTRY_SCHEMA_VERSION and slot_id in observations
+            ):
+                _fail("attempt-phase-order", "classification is out of phase")
             expected_digest = _attempt_capability_digest(
                 freeze_id=genesis["freeze_id"],
                 slot=slot,
@@ -2132,14 +2398,48 @@ def _assert_attempt_registry_rows(
             )
             if row["capability_digest_sha256"] != expected_digest:
                 _fail("attempt-classification", "classification capability digest differs")
-            if row["failure_reason"] is not None and not isinstance(
+            if row_schema == ATTEMPT_REGISTRY_SCHEMA_VERSION:
+                if slot_id not in seals:
+                    _fail(
+                        "attempt-phase-order",
+                        "classification requires a preceding pre-observation seal",
+                    )
+                if row["pre_observation_seal_sha256"] != seals[slot_id]["event_sha256"]:
+                    _fail(
+                        "attempt-slot",
+                        "classification pre-observation seal binding differs",
+                    )
+                if row["pre_observation_failure_reason"] is not None and not isinstance(
+                    row["pre_observation_failure_reason"], str
+                ):
+                    _fail(
+                        "attempt-classification",
+                        "classification pre_observation_failure_reason is invalid",
+                    )
+            elif row["failure_reason"] is not None and not isinstance(
                 row["failure_reason"], str
             ):
                 _fail("attempt-classification", "classification failure_reason is invalid")
             classifications[slot_id] = row
+        elif row["event"] == "observation-start":
+            if row_schema != ATTEMPT_REGISTRY_SCHEMA_VERSION:
+                _fail("attempt-registry-schema", "v1 cannot contain observation-start")
+            if slot_id not in classifications or slot_id in observations:
+                _fail(
+                    "attempt-phase-order",
+                    "observation-start does not follow exactly one classification",
+                )
+            if slot_id in terminals:
+                _fail("attempt-phase-order", "observation-start follows terminal")
+            classification = classifications[slot_id]
+            if classification.get("schema_version") != ATTEMPT_REGISTRY_SCHEMA_VERSION:
+                _fail("attempt-phase-order", "v2 observation-start cannot bind a v1 classification")
+            if row["classification_event_sha256"] != classification["event_sha256"]:
+                _fail("attempt-slot", "observation-start classification binding differs")
+            observations[slot_id] = row
         else:
             if slot_id not in starts or slot_id not in classifications:
-                _fail("attempt-terminal", "terminal does not follow start and classification")
+                _fail("attempt-phase-order", "terminal does not follow start and classification")
             if slot_id in terminals:
                 _fail("attempt-terminal", "slot has more than one terminal row")
             start = starts[slot_id]
@@ -2154,12 +2454,36 @@ def _assert_attempt_registry_rows(
                 start["process_identity"]
             ):
                 _fail("attempt-slot", "terminal process identity was replaced")
-            if row["failure_reason"] != classification["failure_reason"]:
+            if row_schema == ATTEMPT_REGISTRY_SCHEMA_VERSION:
+                if classification.get("schema_version") != ATTEMPT_REGISTRY_SCHEMA_VERSION:
+                    _fail("attempt-phase-order", "v2 terminal cannot bind a v1 classification")
+                expected_observation = (
+                    observations[slot_id]["event_sha256"]
+                    if slot_id in observations else None
+                )
+                if row["observation_start_event_sha256"] != expected_observation:
+                    _fail(
+                        "attempt-slot",
+                        "terminal observation-start binding differs",
+                    )
+                if row["terminal_status"] == "observed" and expected_observation is None:
+                    _fail(
+                        "attempt-phase-order",
+                        "observed terminal requires observation-start",
+                    )
+                if row["pre_observation_failure_reason_echo"] != classification[
+                    "pre_observation_failure_reason"
+                ]:
+                    _fail(
+                        "attempt-classification",
+                        "terminal pre-observation failure echo differs from classification",
+                    )
+            elif row["failure_reason"] != classification["failure_reason"]:
                 _fail("attempt-classification", "terminal failure reason differs from receipt")
             _assert_attempt_null_matrix(
                 row,
                 retryable_reasons=frozenset(genesis["retryable_failure_reasons"]),
-                label=f"attempt registry line {index}",
+                label=f"attempt registry line {line_number}",
             )
             terminals[slot_id] = row
     if repository_root is not None:
@@ -2185,19 +2509,28 @@ def _assert_attempt_registry_rows(
             receipt_value = _decode_json(
                 receipt[:-1], label="classification receipt",
             )
-            expected_receipt_keys = frozenset({
-                "schema_version", "event", "freeze_id", "slot_id",
-                "capability_digest_sha256", "authority_id",
-                "authority_policy_sha256", "external_evidence_sha256",
-                "classified_at", "failure_reason", "performance_output_read",
-            })
+            if classification["schema_version"] == ATTEMPT_REGISTRY_SCHEMA_VERSION:
+                expected_receipt_keys = frozenset({
+                    "schema_version", "event", "freeze_id", "slot_id",
+                    "capability_digest_sha256", "authority_id",
+                    "authority_policy_sha256", "external_evidence_sha256",
+                    "classified_at", "pre_observation_failure_reason",
+                    "pre_observation_seal_sha256",
+                })
+            else:
+                expected_receipt_keys = frozenset({
+                    "schema_version", "event", "freeze_id", "slot_id",
+                    "capability_digest_sha256", "authority_id",
+                    "authority_policy_sha256", "external_evidence_sha256",
+                    "classified_at", "failure_reason", "performance_output_read",
+                })
             if not isinstance(receipt_value, Mapping):
                 _fail("attempt-classification", "classification receipt is not an object")
             if _canonical_json_bytes(receipt_value) + b"\n" != receipt:
                 _fail("attempt-classification", "classification receipt is not canonical JSON")
             _exact_keys(receipt_value, expected_receipt_keys, label="classification receipt")
             if (
-                receipt_value.get("schema_version") != ATTEMPT_REGISTRY_SCHEMA_VERSION
+                receipt_value.get("schema_version") != classification["schema_version"]
                 or receipt_value.get("event") != "classification-receipt"
                 or receipt_value.get("freeze_id") != classification["freeze_id"]
                 or receipt_value.get("slot_id") != classification["slot_id"]
@@ -2211,7 +2544,21 @@ def _assert_attempt_registry_rows(
                 != classification["external_evidence_sha256"]
                 or receipt_value.get("classified_at")
                 != classification["classified_at"]
-                or receipt_value.get("failure_reason") != classification["failure_reason"]
+            ):
+                _fail("attempt-classification", "classification receipt is not capability-bound")
+            if classification["schema_version"] == ATTEMPT_REGISTRY_SCHEMA_VERSION:
+                if (
+                    receipt_value.get("pre_observation_failure_reason")
+                    != classification["pre_observation_failure_reason"]
+                    or receipt_value.get("pre_observation_seal_sha256")
+                    != classification["pre_observation_seal_sha256"]
+                ):
+                    _fail(
+                        "attempt-classification",
+                        "classification receipt is not seal-bound",
+                    )
+            elif (
+                receipt_value.get("failure_reason") != classification["failure_reason"]
                 or receipt_value.get("performance_output_read") is not False
             ):
                 _fail("attempt-classification", "classification receipt is not capability-bound")
@@ -2331,6 +2678,11 @@ def create_attempt_registry_genesis(
         "retryable_failure_reasons": sorted(reasons),
         "slots": [dict(slot) for slot in slots],
     }
+    value = _attempt_v2_event_row(
+        value,
+        event_index=0,
+        previous_event_sha256=_ATTEMPT_ZERO_SHA256,
+    )
     parsed = _parse_attempt_genesis(value, label="attempt registry genesis")
     payload = _canonical_json_bytes(parsed) + b"\n"
     _candidate, relative_path, _relative = _attempt_registry_target(
@@ -2377,7 +2729,10 @@ def _looks_like_attempt_genesis(data: bytes) -> bool:
     if not data:
         return False
     first_line = data.splitlines()[0]
-    if ATTEMPT_REGISTRY_SCHEMA_VERSION.encode("ascii") not in first_line:
+    if not any(
+        schema.encode("ascii") in first_line
+        for schema in _ATTEMPT_REGISTRY_SCHEMA_VERSIONS
+    ):
         return False
     try:
         value = _decode_json(first_line, label="attempt history root")
@@ -2385,7 +2740,7 @@ def _looks_like_attempt_genesis(data: bytes) -> bool:
         return False
     return (
         isinstance(value, Mapping)
-        and value.get("schema_version") == ATTEMPT_REGISTRY_SCHEMA_VERSION
+        and value.get("schema_version") in _ATTEMPT_REGISTRY_SCHEMA_VERSIONS
         and value.get("event") == "freeze"
     )
 
@@ -2569,6 +2924,10 @@ def _assert_attempt_capability(capability: AttemptSlotCapability) -> None:
     _assert_full_commit_id(capability.prereg_content_commit, label="prereg_content_commit")
     _assert_full_commit_id(capability.prereg_effective_commit, label="prereg_effective_commit")
     _assert_full_commit_id(capability.prereg_commit, label="prereg_commit")
+    _attempt_digest(
+        capability.pre_observation_seal_sha256,
+        label="pre_observation_seal_sha256",
+    )
     if capability.prereg_commit != capability.prereg_content_commit:
         _fail("attempt-capability", "slot capability prereg_commit differs from P")
     slot = {
@@ -2636,7 +2995,7 @@ def reserve_attempt_slot(
         for row in rows[1:]:
             if row.get("event") == "start" and row.get("slot_id") == slot_id:
                 _fail("attempt-slot", "slot was already reserved")
-        start = {
+        start_payload = {
             "schema_version": ATTEMPT_REGISTRY_SCHEMA_VERSION,
             "event": "start",
             "freeze_id": freeze_id,
@@ -2648,7 +3007,21 @@ def reserve_attempt_slot(
             "schedule_row_sha256": slot["schedule_row_sha256"],
             "started_at": started_at,
         }
-        candidate = tuple(rows) + (start,)
+        start = _attempt_v2_event_row(
+            start_payload,
+            event_index=len(rows),
+            previous_event_sha256=_attempt_v2_previous_hash(rows),
+        )
+        seal = _attempt_v2_event_row(
+            _attempt_pre_observation_seal_payload(
+                start,
+                freeze_id=freeze_id,
+                slot_id=slot_id,
+            ),
+            event_index=len(rows) + 1,
+            previous_event_sha256=start["event_sha256"],
+        )
+        candidate = tuple(rows) + (start, seal)
         _assert_attempt_registry_rows(
             candidate,
             expected_prereg_content_commit=prereg_content_commit,
@@ -2675,10 +3048,21 @@ def reserve_attempt_slot(
             prereg_commit=prereg_content_commit,
             prereg_content_commit=prereg_content_commit,
             prereg_effective_commit=prereg_effective_commit,
+            pre_observation_seal_sha256=seal["event_sha256"],
             capability_digest_sha256=digest,
             _seal=_ATTEMPT_SLOT_CAPABILITY_SEAL,
         )
-        return _canonical_json_bytes(start) + b"\n", result_holder["capability"]
+        # A crash can leave the non-atomic start+seal append with a start row
+        # but no seal; later classification/observation is rejected by the
+        # existing checks, so the slot is safely orphaned (unreusable waste,
+        # never an invalidly accepted attempt).
+        return (
+            _canonical_json_bytes(start)
+            + b"\n"
+            + _canonical_json_bytes(seal)
+            + b"\n",
+            result_holder["capability"],
+        )
 
     _locked_attempt_registry_update(
         repository_root=root,
@@ -2694,7 +3078,7 @@ record_attempt_start = reserve_attempt_slot
 def _attempt_receipt_payload(
     *,
     capability: AttemptSlotCapability,
-    failure_reason: str | None,
+    pre_observation_failure_reason: str | None,
     authority_id: str,
     authority_policy_sha256: str,
     external_evidence_sha256: str,
@@ -2710,15 +3094,15 @@ def _attempt_receipt_payload(
         "authority_policy_sha256": authority_policy_sha256,
         "external_evidence_sha256": external_evidence_sha256,
         "classified_at": classified_at,
-        "failure_reason": failure_reason,
-        "performance_output_read": False,
+        "pre_observation_failure_reason": pre_observation_failure_reason,
+        "pre_observation_seal_sha256": capability.pre_observation_seal_sha256,
     }
 
 
 def classify_attempt(
     capability: AttemptSlotCapability,
     *,
-    failure_reason: str | None,
+    pre_observation_failure_reason: str | None,
     authority_id: str,
     authority_policy_sha256: str,
     external_evidence_sha256: str,
@@ -2726,21 +3110,26 @@ def classify_attempt(
 ) -> dict[str, Any]:
     """Create one capability-bound classification receipt and append its row.
 
-    This signature deliberately accepts no performance output.  It binds the
-    classification to the reservation capability and an O_EXCL receipt, but
-    this wave does not prove that a trusted caller classified before reading
-    performance output; that timing fact is outside the guarantee boundary.
+    This signature deliberately accepts no performance output.  The registry
+    chain and seal prove the internal consistency of registered events
+    (including tampering and reordering detection); they do not prove at the
+    OS level that a trusted launcher actually acted before reading an
+    independent external performance fact.  That real-time fact remains
+    outside this guarantee boundary.
     """
     _assert_attempt_capability(capability)
-    if failure_reason is not None:
-        _attempt_text(failure_reason, label="failure_reason")
+    if pre_observation_failure_reason is not None:
+        _attempt_text(
+            pre_observation_failure_reason,
+            label="pre_observation_failure_reason",
+        )
     authority_id = _attempt_text(authority_id, label="authority_id")
     _attempt_digest(authority_policy_sha256, label="authority_policy_sha256")
     _attempt_digest(external_evidence_sha256, label="external_evidence_sha256")
     classified_at = _attempt_text(classified_at, label="classified_at")
     receipt = _attempt_receipt_payload(
         capability=capability,
-        failure_reason=failure_reason,
+        pre_observation_failure_reason=pre_observation_failure_reason,
         authority_id=authority_id,
         authority_policy_sha256=authority_policy_sha256,
         external_evidence_sha256=external_evidence_sha256,
@@ -2758,7 +3147,7 @@ def classify_attempt(
         payload=receipt_bytes,
         gate="attempt-classification-receipt",
     )
-    row = {
+    row_payload = {
         "schema_version": ATTEMPT_REGISTRY_SCHEMA_VERSION,
         "event": "classification",
         "freeze_id": capability.freeze_id,
@@ -2771,8 +3160,8 @@ def classify_attempt(
         "authority_policy_sha256": authority_policy_sha256,
         "external_evidence_sha256": external_evidence_sha256,
         "classified_at": classified_at,
-        "failure_reason": failure_reason,
-        "performance_output_read": False,
+        "pre_observation_failure_reason": pre_observation_failure_reason,
+        "pre_observation_seal_sha256": capability.pre_observation_seal_sha256,
     }
 
     def append_classification(rows):
@@ -2782,6 +3171,23 @@ def classify_attempt(
             for item in rows
         ):
             _fail("attempt-classification", "slot already has a classification receipt")
+        slot_seals = [
+            item for item in rows
+            if item.get("event") == "pre-observation-seal"
+            and item.get("slot_id") == capability.slot_id
+        ]
+        if len(slot_seals) != 1:
+            _fail(
+                "attempt-phase-order",
+                "classification requires exactly one pre-observation seal",
+            )
+        if slot_seals[0]["event_sha256"] != capability.pre_observation_seal_sha256:
+            _fail("attempt-slot", "capability pre-observation seal differs from registry")
+        row = _attempt_v2_event_row(
+            row_payload,
+            event_index=len(rows),
+            previous_event_sha256=_attempt_v2_previous_hash(rows),
+        )
         _assert_attempt_registry_rows(
             tuple(rows) + (row,),
             expected_prereg_content_commit=capability.prereg_content_commit,
@@ -2802,6 +3208,73 @@ def classify_attempt(
 classify_attempt_failure = classify_attempt
 
 
+def begin_attempt_observation(capability: AttemptSlotCapability) -> dict[str, Any]:
+    """Append the registry-issued boundary immediately before observation.
+
+    The event proves internal consistency of the registered event sequence,
+    including tampering and reordering detection.  It does not prove at the
+    OS level that a trusted launcher independently refrained from reading
+    performance output before recording this event.
+    """
+    _assert_attempt_capability(capability)
+
+    def append_observation_start(rows):
+        classifications = [
+            row for row in rows
+            if row.get("event") == "classification"
+            and row.get("slot_id") == capability.slot_id
+        ]
+        observations = [
+            row for row in rows
+            if row.get("event") == "observation-start"
+            and row.get("slot_id") == capability.slot_id
+        ]
+        terminals = [
+            row for row in rows
+            if row.get("event") == "terminal"
+            and row.get("slot_id") == capability.slot_id
+        ]
+        if len(classifications) != 1:
+            _fail(
+                "attempt-phase-order",
+                "observation-start requires exactly one classification",
+            )
+        if observations:
+            _fail("attempt-phase-order", "slot already has observation-start")
+        if terminals:
+            _fail("attempt-phase-order", "observation-start follows terminal")
+        classification = classifications[0]
+        if classification.get("schema_version") != ATTEMPT_REGISTRY_SCHEMA_VERSION:
+            _fail("attempt-phase-order", "observation-start cannot bind a v1 classification")
+        if classification["pre_observation_seal_sha256"] != (
+            capability.pre_observation_seal_sha256
+        ):
+            _fail("attempt-slot", "capability pre-observation seal differs from classification")
+        row = _attempt_v2_event_row(
+            {
+                "schema_version": ATTEMPT_REGISTRY_SCHEMA_VERSION,
+                "event": "observation-start",
+                "freeze_id": capability.freeze_id,
+                "slot_id": capability.slot_id,
+                "classification_event_sha256": classification["event_sha256"],
+            },
+            event_index=len(rows),
+            previous_event_sha256=_attempt_v2_previous_hash(rows),
+        )
+        _assert_attempt_registry_rows(
+            tuple(rows) + (row,),
+            expected_prereg_content_commit=capability.prereg_content_commit,
+            expected_prereg_effective_commit=capability.prereg_effective_commit,
+        )
+        return _canonical_json_bytes(row) + b"\n", dict(row)
+
+    return _locked_attempt_registry_update(
+        repository_root=capability.repository_root,
+        registry_path=capability.registry_path,
+        update=append_observation_start,
+    )
+
+
 def record_attempt_terminal(
     capability: AttemptSlotCapability,
     *,
@@ -2813,7 +3286,14 @@ def record_attempt_terminal(
     finished_at: str,
     failure_reason: str | None = None,
 ) -> None:
-    """Append one immutable terminal row after the capability classification."""
+    """Append one immutable terminal row after the capability classification.
+
+    The registry references the observation-start event when one exists and
+    echoes the pre-observation classification reason.  These references prove
+    internal consistency (tampering and reordering detection), not an OS-level
+    fact that a trusted launcher truly avoided an independent performance read
+    before recording its events.
+    """
     _assert_attempt_capability(capability)
     if terminal_status not in ATTEMPT_STATUSES:
         _fail("attempt-terminal", "terminal_status is outside the closed set")
@@ -2837,13 +3317,28 @@ def record_attempt_terminal(
         if len(starts) != 1 or len(classifications) != 1:
             _fail("attempt-terminal", "terminal requires one start and one classification")
         classification = classifications[0]
+        if classification.get("schema_version") != ATTEMPT_REGISTRY_SCHEMA_VERSION:
+            _fail("attempt-phase-order", "v2 terminal cannot bind a v1 classification")
+        if classification["pre_observation_seal_sha256"] != (
+            capability.pre_observation_seal_sha256
+        ):
+            _fail("attempt-slot", "capability pre-observation seal differs from classification")
+        starts_row = starts[0]
+        observations = [
+            row for row in rows
+            if row.get("event") == "observation-start"
+            and row.get("slot_id") == capability.slot_id
+        ]
+        observation_start_event_sha256 = (
+            observations[0]["event_sha256"] if len(observations) == 1 else None
+        )
+        if len(observations) > 1:
+            _fail("attempt-phase-order", "slot has more than one observation-start")
         if failure_reason is None:
-            reason = classification["failure_reason"]
+            reason = classification["pre_observation_failure_reason"]
         else:
             reason = failure_reason
-        if reason != classification["failure_reason"]:
-            _fail("attempt-classification", "terminal failure reason differs from receipt")
-        terminal = {
+        terminal_payload = {
             "schema_version": ATTEMPT_REGISTRY_SCHEMA_VERSION,
             "event": "terminal",
             "freeze_id": capability.freeze_id,
@@ -2860,9 +3355,18 @@ def record_attempt_terminal(
             "primary_value": primary_value,
             "failure_reason": reason,
             "finished_at": finished_at,
-            "schedule_row_sha256": starts[0]["schedule_row_sha256"],
-            "process_identity": dict(starts[0]["process_identity"]),
+            "pre_observation_failure_reason_echo": classification[
+                "pre_observation_failure_reason"
+            ],
+            "observation_start_event_sha256": observation_start_event_sha256,
+            "schedule_row_sha256": starts_row["schedule_row_sha256"],
+            "process_identity": dict(starts_row["process_identity"]),
         }
+        terminal = _attempt_v2_event_row(
+            terminal_payload,
+            event_index=len(rows),
+            previous_event_sha256=_attempt_v2_previous_hash(rows),
+        )
         _assert_attempt_registry_rows(
             tuple(rows) + (terminal,),
             expected_prereg_content_commit=capability.prereg_content_commit,

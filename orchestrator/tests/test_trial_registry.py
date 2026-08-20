@@ -2466,12 +2466,14 @@ def _ensure_fixture_attempt_rows(
         failure_reason = None if observed else "provider-failure"
         R.classify_attempt(
             capability,
-            failure_reason=failure_reason,
+            pre_observation_failure_reason=failure_reason,
             authority_id="fixture-authority",
             authority_policy_sha256="a" * 64,
             external_evidence_sha256="b" * 64,
             classified_at="2026-08-18T00:00:01+00:00",
         )
+        if observed:
+            R.begin_attempt_observation(capability)
         R.record_attempt_terminal(
             capability,
             terminal_status="observed" if observed else "terminal-failure",
@@ -4799,6 +4801,7 @@ def _attempt_fixture(
     *,
     repeats_for_first: int = 1,
     extra_replicate: bool = False,
+    legacy_genesis: bool = False,
 ) -> tuple[Path, Path, R.TrialManifest, Path, str, str, str, list[dict]]:
     repo, seed = _init_repo(tmp_path)
     manifest_path = repo / "manifest.json"
@@ -4830,6 +4833,13 @@ def _attempt_fixture(
         freeze_id="freeze-attempt-fixture",
         slots=slots,
     )
+    if legacy_genesis:
+        legacy_rows = [json.loads(line) for line in registry.read_text().splitlines()]
+        legacy_genesis_row = legacy_rows[0]
+        legacy_genesis_row["schema_version"] = "p3-8c-attempt-registry/v1"
+        for field in ("event_index", "previous_event_sha256", "event_sha256"):
+            legacy_genesis_row.pop(field, None)
+        registry.write_bytes(_canonical(legacy_genesis_row) + b"\n")
     content_commit = _commit(repo, "attempt genesis", registry)
     genesis_bytes = registry.read_bytes()
     genesis = json.loads(genesis_bytes.splitlines()[0])
@@ -4898,15 +4908,18 @@ def _classify_and_terminal(
     terminal_status: str,
     report_sha256: str | None = None,
     raw_output_sha256: str | None = None,
+    begin_observation: bool = False,
 ) -> None:
     R.classify_attempt(
         capability,
-        failure_reason=failure_reason,
+        pre_observation_failure_reason=failure_reason,
         authority_id="fixture-authority",
         authority_policy_sha256="a" * 64,
         external_evidence_sha256="b" * 64,
         classified_at="2026-08-18T00:00:01+00:00",
     )
+    if begin_observation or terminal_status == "observed":
+        R.begin_attempt_observation(capability)
     R.record_attempt_terminal(
         capability,
         terminal_status=terminal_status,
@@ -4927,6 +4940,30 @@ def _classify_and_terminal(
         primary_value=1.0 if terminal_status == "observed" else None,
         finished_at="2026-08-18T00:00:02+00:00",
     )
+
+
+def _rechain_attempt_rows(rows: list[dict]) -> list[dict]:
+    """Recompute only v2 chain fields after an intentional semantic mutation."""
+    previous = "0" * 64
+    for index, row in enumerate(rows):
+        if row.get("schema_version") != R.ATTEMPT_REGISTRY_SCHEMA_VERSION:
+            if index == 0:
+                previous = "0" * 64
+            continue
+        rebuilt = R._attempt_v2_event_row(
+            row,
+            event_index=index,
+            previous_event_sha256=previous,
+        )
+        row.clear()
+        row.update(rebuilt)
+        previous = row["event_sha256"]
+    return rows
+
+
+def _rewrite_attempt_rows(registry: Path, rows: list[dict]) -> None:
+    _rechain_attempt_rows(rows)
+    registry.write_bytes(b"".join(_canonical(row) + b"\n" for row in rows))
 
 
 def test_manifest_has_no_commit_self_reference(tmp_path: Path) -> None:
@@ -5277,6 +5314,7 @@ def test_attempt_registry_genesis_is_closed_before_first_performance_observation
         )
     rows = [json.loads(line) for line in registry.read_text().splitlines()]
     rows[0]["slots"].append(dict(rows[0]["slots"][0], slot_id="late-slot"))
+    _rechain_attempt_rows(rows)
     with pytest.raises(R.TrialRegistryError, match=r"trial registry|slot"):
         R._load_attempt_registry_bytes(
             b"".join(_canonical(row) + b"\n" for row in rows)
@@ -5332,7 +5370,7 @@ def test_attempt_registry_requires_exact_external_failure_reason(tmp_path: Path)
     cap = _reserve_attempt(repo, registry, p, c, freeze, slots[0])
     R.classify_attempt(
         cap,
-        failure_reason="correctness-failure",
+        pre_observation_failure_reason="correctness-failure",
         authority_id="fixture-authority",
         authority_policy_sha256="a" * 64,
         external_evidence_sha256="b" * 64,
@@ -5354,7 +5392,7 @@ def test_attempt_registry_classification_receipt_is_create_only(tmp_path: Path) 
     repo, _manifest, _m, registry, p, c, freeze, slots = _attempt_fixture(tmp_path)
     cap = _reserve_attempt(repo, registry, p, c, freeze, slots[0])
     kwargs = {
-        "failure_reason": "wall-timeout",
+        "pre_observation_failure_reason": "wall-timeout",
         "authority_id": "fixture-authority",
         "authority_policy_sha256": "a" * 64,
         "external_evidence_sha256": "b" * 64,
@@ -5372,7 +5410,7 @@ def test_attempt_registry_classification_row_must_match_receipt(tmp_path: Path) 
     rows = [json.loads(line) for line in registry.read_text().splitlines()]
     classification = next(row for row in rows if row.get("event") == "classification")
     classification["authority_id"] = "tampered-authority"
-    registry.write_bytes(b"".join(_canonical(row) + b"\n" for row in rows))
+    _rewrite_attempt_rows(registry, rows)
     with pytest.raises(
         R.TrialRegistryError,
         match=r"classification receipt is not capability-bound",
@@ -5387,7 +5425,7 @@ def test_attempt_registry_rejects_capability_digest_replacement(tmp_path: Path) 
     rows = [json.loads(line) for line in registry.read_text().splitlines()]
     classification = next(row for row in rows if row.get("event") == "classification")
     classification["capability_digest_sha256"] = "f" * 64
-    registry.write_bytes(b"".join(_canonical(row) + b"\n" for row in rows))
+    _rewrite_attempt_rows(registry, rows)
     with pytest.raises(
         R.TrialRegistryError,
         match=r"classification capability digest differs",
@@ -5402,7 +5440,7 @@ def test_attempt_registry_rejects_observed_primary_value_null(tmp_path: Path) ->
     rows = [json.loads(line) for line in registry.read_text().splitlines()]
     terminal = next(row for row in rows if row.get("event") == "terminal")
     terminal["primary_value"] = None
-    registry.write_bytes(b"".join(_canonical(row) + b"\n" for row in rows))
+    _rewrite_attempt_rows(registry, rows)
     with pytest.raises(R.TrialRegistryError, match=r"observed null matrix"):
         R.load_attempt_registry(repo)
 
@@ -5425,6 +5463,183 @@ def test_attempt_registry_rejects_second_root_in_full_history(tmp_path: Path) ->
     assert _run(repo, "checkout", "-q", "-").returncode == 0
     with pytest.raises(R.TrialRegistryError, match=r"alternate attempt registry genesis"):
         R.load_attempt_registry(repo)
+
+
+def test_attempt_registry_replays_v1_prefix_when_v2_events_are_appended(
+    tmp_path: Path,
+) -> None:
+    repo, _manifest_path, _manifest, registry, p, c, freeze, slots = _attempt_fixture(
+        tmp_path,
+        legacy_genesis=True,
+    )
+    cap = _reserve_attempt(repo, registry, p, c, freeze, slots[0])
+    _classify_and_terminal(cap, failure_reason=None, terminal_status="observed")
+    rows = R.load_attempt_registry(repo)
+    assert rows[0]["schema_version"] == "p3-8c-attempt-registry/v1"
+    assert [row["event"] for row in rows] == [
+        "freeze", "start", "pre-observation-seal", "classification",
+        "observation-start", "terminal",
+    ]
+    assert all(
+        row["schema_version"] == R.ATTEMPT_REGISTRY_SCHEMA_VERSION
+        for row in rows[1:]
+    )
+
+
+def test_attempt_registry_rejects_v1_second_root_in_full_history(
+    tmp_path: Path,
+) -> None:
+    repo, manifest_path, manifest, _registry, _p, _c, _freeze, _slots = _attempt_fixture(
+        tmp_path,
+    )
+    branch = _run(repo, "branch", "alternate-v1-root")
+    assert branch.returncode == 0, branch.stderr
+    assert _run(repo, "checkout", "-q", "alternate-v1-root").returncode == 0
+    alternate = repo / "alternate-v1.jsonl"
+    alternate_rows = [
+        json.loads(line)
+        for line in (repo / R.DEFAULT_ATTEMPT_REGISTRY_PATH).read_text().splitlines()
+    ]
+    alternate_genesis = alternate_rows[0]
+    alternate_genesis["schema_version"] = "p3-8c-attempt-registry/v1"
+    for field in ("event_index", "previous_event_sha256", "event_sha256"):
+        alternate_genesis.pop(field, None)
+    alternate.write_bytes(_canonical(alternate_genesis) + b"\n")
+    _commit(repo, "alternate v1 attempt root", alternate)
+    assert _run(repo, "checkout", "-q", "-").returncode == 0
+    with pytest.raises(R.TrialRegistryError, match=r"alternate attempt registry genesis"):
+        R.load_attempt_registry(repo)
+
+
+def test_attempt_registry_rejects_retry_after_observation_start(
+    tmp_path: Path,
+) -> None:
+    repo, _manifest, _m, registry, p, c, freeze, slots = _attempt_fixture(
+        tmp_path,
+        repeats_for_first=2,
+    )
+    first, second = slots[:2]
+    cap = _reserve_attempt(repo, registry, p, c, freeze, first)
+    _classify_and_terminal(
+        cap,
+        failure_reason="wall-timeout",
+        terminal_status="retryable-failure",
+        begin_observation=True,
+    )
+    with pytest.raises(R.TrialRegistryError, match=r"after observation|retry"):
+        _reserve_attempt(repo, registry, p, c, freeze, second)
+
+
+def test_attempt_registry_rejects_terminal_echo_mutation_after_rehash(
+    tmp_path: Path,
+) -> None:
+    repo, _manifest, _m, registry, p, c, freeze, slots = _attempt_fixture(tmp_path)
+    cap = _reserve_attempt(repo, registry, p, c, freeze, slots[0])
+    _classify_and_terminal(
+        cap,
+        failure_reason="wall-timeout",
+        terminal_status="retryable-failure",
+    )
+    rows = [json.loads(line) for line in registry.read_text().splitlines()]
+    terminal = next(row for row in rows if row.get("event") == "terminal")
+    terminal["pre_observation_failure_reason_echo"] = "tampered-echo"
+    _rewrite_attempt_rows(registry, rows)
+    with pytest.raises(R.TrialRegistryError, match=r"echo differs|pre-observation"):
+        R.load_attempt_registry(repo)
+
+
+def test_attempt_registry_rejects_reordered_observation_start_after_rehash(
+    tmp_path: Path,
+) -> None:
+    repo, _manifest, _m, registry, p, c, freeze, slots = _attempt_fixture(tmp_path)
+    cap = _reserve_attempt(repo, registry, p, c, freeze, slots[0])
+    _classify_and_terminal(cap, failure_reason=None, terminal_status="observed")
+    rows = [json.loads(line) for line in registry.read_text().splitlines()]
+    classification_index = next(
+        index for index, row in enumerate(rows) if row.get("event") == "classification"
+    )
+    observation_index = next(
+        index for index, row in enumerate(rows) if row.get("event") == "observation-start"
+    )
+    rows[classification_index], rows[observation_index] = (
+        rows[observation_index], rows[classification_index],
+    )
+    _rewrite_attempt_rows(registry, rows)
+    with pytest.raises(R.TrialRegistryError, match=r"phase-order"):
+        R.load_attempt_registry(repo)
+
+
+def test_attempt_registry_rejects_classification_seal_from_other_slot(
+    tmp_path: Path,
+) -> None:
+    repo, _manifest, _m, registry, p, c, freeze, slots = _attempt_fixture(
+        tmp_path,
+        extra_replicate=True,
+    )
+    first, other = slots[0], slots[-1]
+    first_cap = _reserve_attempt(repo, registry, p, c, freeze, first)
+    _reserve_attempt(repo, registry, p, c, freeze, other)
+    R.classify_attempt(
+        first_cap,
+        pre_observation_failure_reason="wall-timeout",
+        authority_id="fixture-authority",
+        authority_policy_sha256="a" * 64,
+        external_evidence_sha256="b" * 64,
+        classified_at="2026-08-18T00:00:01+00:00",
+    )
+    rows = [json.loads(line) for line in registry.read_text().splitlines()]
+    seals = {
+        row["slot_id"]: row["event_sha256"]
+        for row in rows
+        if row.get("event") == "pre-observation-seal"
+    }
+    classification = next(row for row in rows if row.get("event") == "classification")
+    classification["pre_observation_seal_sha256"] = seals[other["slot_id"]]
+    _rewrite_attempt_rows(registry, rows)
+    with pytest.raises(R.TrialRegistryError, match=r"seal binding"):
+        R.load_attempt_registry(repo)
+
+
+def test_attempt_registry_rejects_legacy_performance_output_field_in_v2(
+    tmp_path: Path,
+) -> None:
+    repo, _manifest, _m, registry, p, c, freeze, slots = _attempt_fixture(tmp_path)
+    cap = _reserve_attempt(repo, registry, p, c, freeze, slots[0])
+    R.classify_attempt(
+        cap,
+        pre_observation_failure_reason=None,
+        authority_id="fixture-authority",
+        authority_policy_sha256="a" * 64,
+        external_evidence_sha256="b" * 64,
+        classified_at="2026-08-18T00:00:01+00:00",
+    )
+    rows = [json.loads(line) for line in registry.read_text().splitlines()]
+    classification = next(row for row in rows if row.get("event") == "classification")
+    classification["performance_output_read"] = False
+    registry.write_bytes(b"".join(_canonical(row) + b"\n" for row in rows))
+    with pytest.raises(R.TrialRegistryError, match=r"key set differs"):
+        R._load_attempt_registry_bytes(registry.read_bytes())
+
+
+def test_attempt_registry_records_seal_observation_and_monotonic_event_index(
+    tmp_path: Path,
+) -> None:
+    repo, _manifest, _m, registry, p, c, freeze, slots = _attempt_fixture(tmp_path)
+    cap = _reserve_attempt(repo, registry, p, c, freeze, slots[0])
+    _classify_and_terminal(cap, failure_reason=None, terminal_status="observed")
+    rows = R.load_attempt_registry(repo)
+    assert [row["event"] for row in rows] == [
+        "freeze", "start", "pre-observation-seal", "classification",
+        "observation-start", "terminal",
+    ]
+    assert [row["event_index"] for row in rows] == list(range(len(rows)))
+    seal = next(row for row in rows if row["event"] == "pre-observation-seal")
+    classification = next(row for row in rows if row["event"] == "classification")
+    observation = next(row for row in rows if row["event"] == "observation-start")
+    terminal = next(row for row in rows if row["event"] == "terminal")
+    assert classification["pre_observation_seal_sha256"] == seal["event_sha256"]
+    assert observation["classification_event_sha256"] == classification["event_sha256"]
+    assert terminal["observation_start_event_sha256"] == observation["event_sha256"]
 
 
 def _attempt_report_for_acceptance(
@@ -5597,7 +5812,7 @@ def test_attempt_registry_rejects_schedule_row_hash_replacement(tmp_path: Path) 
     _classify_and_terminal(cap, failure_reason=None, terminal_status="observed")
     rows = [json.loads(line) for line in registry.read_text().splitlines()]
     rows[-1]["schedule_row_sha256"] = "f" * 64
-    registry.write_bytes(b"".join(_canonical(row) + b"\n" for row in rows))
+    _rewrite_attempt_rows(registry, rows)
     with pytest.raises(R.TrialRegistryError, match=r"schedule row hash"):
         R.load_attempt_registry(repo)
 
@@ -5608,7 +5823,7 @@ def test_attempt_registry_rejects_process_identity_replacement(tmp_path: Path) -
     _classify_and_terminal(cap, failure_reason=None, terminal_status="observed")
     rows = [json.loads(line) for line in registry.read_text().splitlines()]
     rows[-1]["process_identity"]["pid"] = 202
-    registry.write_bytes(b"".join(_canonical(row) + b"\n" for row in rows))
+    _rewrite_attempt_rows(registry, rows)
     with pytest.raises(R.TrialRegistryError, match=r"process identity"):
         R.load_attempt_registry(repo)
 
@@ -5630,7 +5845,7 @@ def test_attempt_registry_rejects_raw_output_hash_replacement(tmp_path: Path) ->
     )
     rows = [json.loads(line) for line in registry.read_text().splitlines()]
     rows[-1]["raw_output_sha256"] = "f" * 64
-    registry.write_bytes(b"".join(_canonical(row) + b"\n" for row in rows))
+    _rewrite_attempt_rows(registry, rows)
     with pytest.raises(R.TrialRegistryError, match=r"raw output hash"):
         R.assert_attempt_registry_acceptance(
             repository_root=repo,
@@ -5659,7 +5874,7 @@ def test_attempt_registry_rejects_terminal_report_hash_replacement(tmp_path: Pat
     )
     rows = [json.loads(line) for line in registry.read_text().splitlines()]
     rows[-1]["report_sha256"] = "f" * 64
-    registry.write_bytes(b"".join(_canonical(row) + b"\n" for row in rows))
+    _rewrite_attempt_rows(registry, rows)
     with pytest.raises(R.TrialRegistryError, match=r"terminal report hash"):
         R.assert_attempt_registry_acceptance(
             repository_root=repo,

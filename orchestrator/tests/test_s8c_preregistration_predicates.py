@@ -633,6 +633,8 @@ def reserve_attempt_slot(*args, **kwargs):
     pass
 def classify_attempt(*args, **kwargs):
     pass
+def begin_attempt_observation(*args, **kwargs):
+    pass
 def record_attempt_terminal(*args, **kwargs):
     pass
 """
@@ -643,6 +645,7 @@ def _reserve_registered_attempt_slot():
     return trial_registry.reserve_attempt_slot()
 def _record_attempt_terminal_for_run():
     trial_registry.classify_attempt()
+    trial_registry.begin_attempt_observation()
     trial_registry.record_attempt_terminal()
 def read_observation():
     return "observation"
@@ -2909,6 +2912,7 @@ def test_c03_producer_reachability_requires_classification_and_terminal(
     )
     anchor = """def _record_attempt_terminal_for_run():
     trial_registry.classify_attempt()
+    trial_registry.begin_attempt_observation()
     trial_registry.record_attempt_terminal()
 """
     replacement = """def _record_attempt_terminal_for_run():
@@ -3024,6 +3028,7 @@ def test_c03_noop_helpers_do_not_prove_manifest_registry(tmp_path: Path) -> None
         "load_attempt_registry",
         "reserve_attempt_slot",
         "assert_trial_registry_acceptance",
+        "begin_attempt_observation",
     )
     noop = "\n".join(
         f"def {name}(*args, **kwargs): pass" for name in names
