@@ -281,6 +281,7 @@ if "--version" in sys.argv:
     raise SystemExit(0)
 args = sys.argv[1:]
 output = pathlib.Path(args[args.index("-o") + 1])
+model = args[args.index("-m") + 1]
 effort = next(value.split("=", 1)[1] for value in args if value.startswith("model_reasoning_effort="))
 prompt = sys.stdin.read()
 thread = str(uuid.uuid4())
@@ -298,7 +299,7 @@ rows = [
   "cli_version": "0.146.0", "git": {"commit_hash": "8c8dc5e0a337677e213b4ebabbeff5ea188111ae"}}},
  {"timestamp": now(), "type": "event_msg", "payload": {"type": "task_started", "turn_id": turn}},
  {"timestamp": now(), "type": "turn_context", "payload": {
-  "turn_id": turn, "cwd": os.getcwd(), "model": "gpt-5.6-sol", "effort": effort}},
+  "turn_id": turn, "cwd": os.getcwd(), "model": model, "effort": effort}},
  {"timestamp": now(), "type": "event_msg", "payload": {"type": "user_message", "message": prompt}},
  {"timestamp": now(), "type": "event_msg", "payload": {"type": "token_count", "info": {
   "total_token_usage": usage, "last_token_usage": usage}}},
@@ -449,6 +450,8 @@ def _manual_run(
     argv = [
         str(cli),
         "exec",
+        "-m",
+        TOOL.MODEL,
         "-c",
         "model_reasoning_effort=max",
         "-o",
@@ -473,6 +476,7 @@ def _manual_run(
         "attempt": 1,
         "parent_run_id": None,
         "case": "POS",
+        "requested_model": TOOL.MODEL,
         "arm": "max",
         "created_at": started.isoformat().replace("+00:00", "Z"),
         "process_start_monotonic_ns": start_ns,
@@ -494,13 +498,17 @@ def _manual_run(
         "cli_binary_sha256": TOOL._sha256(cli.read_bytes()),
         "cli_version": "codex 0.146.0",
         "argv": argv,
-        "normalized_argv": TOOL._normalized_exec_argv(argv, "max"),
+        "normalized_argv": TOOL._normalized_exec_argv(
+            argv, TOOL.MODEL, "max"
+        ),
         "bwrap_binary": str(bwrap.resolve()),
         "bwrap_binary_sha256": TOOL._sha256(bwrap.read_bytes()),
         "bwrap_version": "bwrap 0.6.1",
         "bwrap_argv": bwrap_argv,
         "actual_process_argv": argv,
-        "actual_process_argv_normalized": TOOL._normalized_exec_argv(argv, "max"),
+        "actual_process_argv_normalized": TOOL._normalized_exec_argv(
+            argv, TOOL.MODEL, "max"
+        ),
         "environment": environment,
         "sandbox": {
             "snapshot_mount": "read-only",
@@ -661,6 +669,159 @@ def _supervisor_pair(
         dry_run=True,
     )
     return result, schedule_path, slots
+
+
+def _identity_receipt_for_model(model: str) -> dict[str, Any]:
+    base = "/fixture"
+    run_dir = f"{base}/run"
+    workspace = f"{base}/workspace"
+    output = f"{workspace}/answer.md"
+    stderr = f"{workspace}/stderr.log"
+    codex_home = f"{workspace}/codex-home"
+    events = f"{workspace}/events.jsonl"
+    done = f"{run_dir}/.done"
+    prompt = f"{base}/prompt.txt"
+    oracle = f"{run_dir}/snapshot-before.json"
+    normalized_argv = [
+        "/usr/local/bin/codex",
+        "exec",
+        "-m",
+        model,
+        "-c",
+        'model_reasoning_effort="<EFFORT>"',
+        "-s",
+        "read-only",
+        "-C",
+        f"{base}/snapshot",
+        "--json",
+        "-o",
+        "<OUTPUT>",
+        "-",
+    ]
+    return {
+        "case": "POS",
+        "requested_model": model,
+        "arm": "max",
+        "events": {"path": events},
+        "done": {"path": done},
+        "prompt": {"path": prompt, "sha256": "1" * 64},
+        "snapshot_oracle": {"path": oracle, "sha256": "2" * 64},
+        "run_dir": run_dir,
+        "agent_workspace": workspace,
+        "output_path": output,
+        "stderr_path": stderr,
+        "codex_home": codex_home,
+        "codex_config_sha256": "3" * 64,
+        "codex_auth_sha256": "4" * 64,
+        "cli_binary": "/usr/local/bin/codex",
+        "cli_binary_sha256": "5" * 64,
+        "cli_version": "codex-cli 0.146.0",
+        "argv": [
+            "/usr/local/bin/codex",
+            "exec",
+            "-m",
+            model,
+            "-c",
+            "model_reasoning_effort=max",
+            "-s",
+            "read-only",
+            "-C",
+            f"{base}/snapshot",
+            "--json",
+            "-o",
+            output,
+            "-",
+        ],
+        "normalized_argv": normalized_argv,
+        "bwrap_binary_sha256": "6" * 64,
+        "bwrap_version": "bwrap 0.6.1",
+        "bwrap_argv": [
+            "/usr/bin/bwrap",
+            "--ro-bind",
+            f"{base}/snapshot",
+            f"{base}/snapshot",
+            "--",
+            *normalized_argv,
+        ],
+        "actual_process_argv_normalized": normalized_argv,
+        "environment": {
+            "CODEX_HOME": codex_home,
+            "HOME": "/tmp/t181-home",
+            "LANG": "C.UTF-8",
+        },
+        "sandbox": {
+            "snapshot_mount": "read-only",
+            "home_masked": True,
+            "tmp_masked": True,
+        },
+        "world_state": {
+            "snapshot_verified_before": True,
+            "git_environment_cleared": True,
+        },
+        "schedule_sha256": "7" * 64,
+        "dry_run": True,
+    }
+
+
+def test_model_argv_is_explicit_and_identity_is_model_bound() -> None:
+    snapshot = Path("/fixture/snapshot")
+    output = Path("/fixture/output.md")
+    sol = "gpt-5.6-sol"
+    luna = "gpt-5.6-luna"
+    sol_argv = TOOL._codex_exec_argv(
+        Path("/usr/local/bin/codex"), sol, "max", snapshot, output
+    )
+    luna_argv = TOOL._codex_exec_argv(
+        Path("/usr/local/bin/codex"), luna, "max", snapshot, output
+    )
+    assert sol_argv[sol_argv.index("-m") + 1] == sol
+    assert luna_argv[luna_argv.index("-m") + 1] == luna
+    normalized_sol = TOOL._normalized_exec_argv(sol_argv, sol, "max")
+    normalized_luna = TOOL._normalized_exec_argv(luna_argv, luna, "max")
+    assert normalized_sol[sol_argv.index("-m") + 1] == sol
+    assert normalized_luna[luna_argv.index("-m") + 1] == luna
+    assert 'model_reasoning_effort="<EFFORT>"' in normalized_sol
+    assert "model_reasoning_effort=max" not in normalized_sol
+
+    missing_model = [value for value in sol_argv if value not in {"-m", sol}]
+    with pytest.raises(TOOL.ValidationError, match="one -m model option"):
+        TOOL._normalized_exec_argv(missing_model, sol, "max")
+    duplicate_model = [*sol_argv, "-m", luna]
+    with pytest.raises(TOOL.ValidationError, match="one -m model option"):
+        TOOL._normalized_exec_argv(duplicate_model, sol, "max")
+    unknown_model = list(sol_argv)
+    unknown_model[unknown_model.index("-m") + 1] = "gpt-5.6-unknown"
+    with pytest.raises(TOOL.ValidationError, match="model is not allowed"):
+        TOOL._normalized_exec_argv(unknown_model, sol, "max")
+    with pytest.raises(TOOL.ValidationError, match="does not match"):
+        TOOL._normalized_exec_argv(sol_argv, luna, "max")
+
+    sol_hash = TOOL._launch_identity_value(_identity_receipt_for_model(sol))
+    luna_hash = TOOL._launch_identity_value(_identity_receipt_for_model(luna))
+    assert sol_hash == (
+        "d711b0e4cea31dfeff04273e768a3e3d3ba7f07c7478df00ec592ac4d34c4157"
+    )
+    assert luna_hash == (
+        "687b58a3c7362fbc3c8e852be7376560e151240572960dc75a47af397b3d256c"
+    )
+    assert sol_hash != luna_hash
+
+
+def test_completed_ledger_row_records_launch_requested_model(tmp_path: Path) -> None:
+    launch_path = tmp_path / "launch.json"
+    launch_path.write_bytes(
+        TOOL._canonical_bytes({"requested_model": "gpt-5.6-luna"})
+    )
+    ledger_path = tmp_path / "attempt-ledger.jsonl"
+    row = {
+        "phase": "completed",
+        "launch_receipt": str(launch_path),
+    }
+    TOOL._append_jsonl(ledger_path, row)
+    assert row["requested_model"] == "gpt-5.6-luna"
+    assert json.loads(ledger_path.read_text(encoding="utf-8"))["requested_model"] == (
+        "gpt-5.6-luna"
+    )
 
 
 def _full_manifest(
@@ -857,6 +1018,198 @@ def test_corrected_case_allowlists_are_literal() -> None:
         "focus1.md",
         "fix2.md",
     )
+
+
+def test_task_manifest_binds_frozen_provenance_to_literal_values() -> None:
+    pos = TOOL.TASK_MANIFEST["tasks"]["POS"]
+    assert TOOL.TASK_MANIFEST["schema_version"] == 3
+    assert pos["benchmark_task_id"] == "POS"
+    assert pos["legacy_case"] == "POS"
+    assert pos["provenance"]["session_id"] == (
+        "019faca2-6e1f-7601-bfc7-be27edcfb4ba"
+    )
+    assert pos["provenance"]["rollout_sha256"] == (
+        "9b90d51079e6a2be4603b366d77283950fff79535f59dbb8b4f4eecb1374032b"
+    )
+    assert pos["provenance"]["prompt_source"]["sha256"] == (
+        "511941738fd39a20ac9fb41ce2f4c3ed0039c35fca637ded0fa2fb6679667829"
+    )
+    assert pos["snapshot"]["numstat"] == [
+        [3, 3, "docs/ai-provenance.md"],
+        [45, 0, "docs/decisions.md"],
+        [693, 0, "orchestrator/tests/test_check_ai_provenance.py"],
+        [37, 0, "orchestrator/tests/test_check_docs.py"],
+        [123, 10, "tools/check_ai_provenance.py"],
+        [9, 1, "tools/check_docs.py"],
+    ]
+    assert TOOL.TASK_MANIFEST["shared_provenance"]["auxiliary_sessions"]["fix1"] == {
+        "session_id": "019fac91-8cde-7f73-bce1-77a9d63b4269",
+        "rollout_sha256": "f210f2e135f6cfdb2e6c2a40e81b784a2a8f4ac51135c353cf859365e17fb475",
+    }
+
+
+def test_v2_schedule_normalizer_is_explicit_and_non_mutating() -> None:
+    legacy = {
+        "schema_version": 2,
+        "slots": [
+            {"slot_id": "s01", "case": "POS", "arm": "max"},
+            {"slot_id": "s02", "case": "NEG", "arm": "high"},
+        ],
+    }
+    original = copy.deepcopy(legacy)
+    normalized = TOOL.normalize_legacy_schedule(legacy)
+
+    assert legacy == original
+    assert normalized["schema_version"] == 3
+    assert normalized["manifest_kind"] == "t181-task-manifest"
+    assert normalized["slots"][0]["benchmark_task_id"] == "POS"
+    assert normalized["slots"][0]["legacy_case"] == "POS"
+    assert normalized["slots"][0]["cache_condition"] is None
+    assert normalized["slots"][0]["price_version"] is None
+    assert TOOL.expected_schedule_from_manifest(TOOL.TASK_MANIFEST, legacy) == {
+        ("POS", "max"): 3,
+        ("POS", "high"): 3,
+        ("NEG", "max"): 2,
+        ("NEG", "high"): 2,
+    }
+
+
+def test_expected_schedule_rejects_non_null_v2_cache_condition() -> None:
+    legacy = {
+        "schema_version": 2,
+        "slots": [
+            {
+                "slot_id": "s01",
+                "case": "POS",
+                "arm": "max",
+                "cache_condition": "cold",
+                "price_version": None,
+            }
+        ],
+    }
+    with pytest.raises(TOOL.ValidationError, match="non-null values are not supported"):
+        TOOL.expected_schedule_from_manifest(TOOL.TASK_MANIFEST, legacy)
+
+
+def test_v3_nullable_dimensions_distinguish_missing_from_null() -> None:
+    row = {
+        "benchmark_task_id": "POS",
+        "case": "POS",
+        "cache_condition": None,
+        "price_version": None,
+    }
+    assert TOOL.validate_nullable_dimensions(row) == row
+    for field in ("cache_condition", "price_version"):
+        missing = dict(row)
+        del missing[field]
+        with pytest.raises(TOOL.ValidationError, match=f"missing required field: {field}"):
+            TOOL.normalize_schedule({"schema_version": 3, "slots": [missing]})
+
+
+@pytest.mark.parametrize("field", ("cache_condition", "price_version"))
+def test_non_null_nullable_dimension_is_fail_closed(field: str) -> None:
+    row = {
+        "benchmark_task_id": "POS",
+        "case": "POS",
+        "cache_condition": None,
+        "price_version": None,
+    }
+    row[field] = "opaque-version-token"
+    with pytest.raises(TOOL.ValidationError, match="non-null values are not supported"):
+        TOOL.normalize_schedule({"schema_version": 3, "slots": [row]})
+
+
+def test_benchmark_task_id_and_case_alias_conflict_is_rejected() -> None:
+    with pytest.raises(TOOL.ValidationError, match="aliases conflict"):
+        TOOL.normalize_schedule(
+            {
+                "schema_version": 3,
+                "slots": [
+                    {
+                        "benchmark_task_id": "POS",
+                        "case": "NEG",
+                        "cache_condition": None,
+                        "price_version": None,
+                    }
+                ],
+            }
+        )
+
+
+def test_manifest_schedule_and_findings_are_dynamic() -> None:
+    manifest = copy.deepcopy(TOOL.TASK_MANIFEST)
+    manifest["tasks"] = {}
+    for task_id, legacy_case, finding_id, source_case in (
+        ("alpha", "legacy-alpha", "A-1", "POS"),
+        ("beta", "legacy-beta", "B-9", "NEG"),
+    ):
+        task = copy.deepcopy(TOOL.TASK_MANIFEST["tasks"][source_case])
+        task.update(
+            {
+                "benchmark_task_id": task_id,
+                "legacy_case": legacy_case,
+                "known_finding_ids": [finding_id],
+            }
+        )
+        manifest["tasks"][task_id] = task
+    schedule = {
+        "schema_version": 3,
+        "slots": [
+            {
+                "slot_id": "x01",
+                "benchmark_task_id": "alpha",
+                "legacy_case": "legacy-alpha",
+                "arm": "low",
+                "cache_condition": None,
+                "price_version": None,
+            },
+            {
+                "slot_id": "x02",
+                "benchmark_task_id": "alpha",
+                "case": "legacy-alpha",
+                "arm": "low",
+                "cache_condition": None,
+                "price_version": None,
+            },
+            {
+                "slot_id": "x03",
+                "benchmark_task_id": "beta",
+                "legacy_case": "legacy-beta",
+                "arm": "high",
+                "cache_condition": None,
+                "price_version": None,
+            },
+        ],
+    }
+    assert TOOL.expected_schedule_from_manifest(manifest, schedule) == {
+        ("alpha", "low"): 2,
+        ("beta", "high"): 1,
+    }
+    assert TOOL.known_finding_ids_for_manifest(manifest) == {"A-1", "B-9"}
+
+
+@pytest.mark.parametrize("normalizer, schema_version", [
+    (TOOL.normalize_schedule, 3),
+    (TOOL.normalize_legacy_schedule, 2),
+])
+@pytest.mark.parametrize("bad_manifest", ["empty_tasks", "invalid_finding_id"])
+def test_schedule_normalizers_reject_malformed_manifest(
+    normalizer: Callable[..., dict[str, Any]],
+    schema_version: int,
+    bad_manifest: str,
+) -> None:
+    manifest = copy.deepcopy(TOOL.TASK_MANIFEST)
+    if bad_manifest == "empty_tasks":
+        manifest["tasks"] = {}
+    else:
+        task = copy.deepcopy(manifest["tasks"]["POS"])
+        task["known_finding_ids"] = [1]
+        manifest["tasks"] = {"POS": task}
+    with pytest.raises(TOOL.ValidationError):
+        normalizer(
+            {"schema_version": schema_version, "slots": []},
+            manifest=manifest,
+        )
 
 
 def test_parent_numstat_controls_remain_pinned(
@@ -5302,6 +5655,71 @@ def test_supervisor_cli_removed_caller_attestation_command() -> None:
     assert "create-launch" not in help_text
     assert "argv-json" not in help_text
     assert "environment-json" not in help_text
+
+
+def test_cli_benchmark_task_id_is_parsed_and_resolved(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    parsed = TOOL._parser().parse_args(
+        [
+            "build-snapshot",
+            "--snapshot",
+            os.fspath(tmp_path / "snapshot"),
+            "--benchmark-task-id",
+            "POS",
+        ]
+    )
+    assert parsed.benchmark_task_id == "POS"
+    assert parsed.case is None
+
+    observed: dict[str, Any] = {}
+
+    def fake_resolve(
+        benchmark_task_id: str | None = None,
+        *,
+        case: str | None = None,
+        legacy_case: str | None = None,
+        manifest: Any = TOOL.TASK_MANIFEST,
+    ) -> str:
+        observed.update(
+            {
+                "benchmark_task_id": benchmark_task_id,
+                "case": case,
+            }
+        )
+        return "POS"
+
+    monkeypatch.setattr(TOOL, "resolve_benchmark_task_id", fake_resolve)
+    monkeypatch.setattr(TOOL, "build_snapshot", lambda *args: {"ok": True})
+    rc = TOOL.main(
+        [
+            "build-snapshot",
+            "--snapshot",
+            os.fspath(tmp_path / "snapshot"),
+            "--benchmark-task-id",
+            "POS",
+        ]
+    )
+    assert rc == 0
+    assert observed == {"benchmark_task_id": "POS", "case": None}
+
+
+def test_cli_case_and_benchmark_task_id_conflict_is_fail_closed(
+    tmp_path: Path,
+) -> None:
+    rc = TOOL.main(
+        [
+            "build-snapshot",
+            "--snapshot",
+            os.fspath(tmp_path / "snapshot"),
+            "--case",
+            "POS",
+            "--benchmark-task-id",
+            "NEG",
+        ]
+    )
+    assert rc == TOOL.RC_ROUTING
 
 
 def _timing_rows() -> tuple[list[dict[str, Any]], list[dict[str, Any]], list[dict[str, Any]]]:

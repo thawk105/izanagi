@@ -9,7 +9,7 @@ import glob
 import json
 import os
 from dataclasses import dataclass, replace
-from typing import Callable, Dict, Optional, Sequence
+from typing import Callable, Dict, Mapping, Optional, Sequence
 
 from ..calibrator import perf_preflight as _perf_preflight
 from . import buildcache, execution_guard, ident, source_digest, wal
@@ -149,29 +149,49 @@ def evaluate_candidate(
         build_context: BuildRunContext,
         screening: Optional[ScreeningConfig],
         capability_resolver: Optional[AdmissionCapabilityResolver] = None,
+        env_contract=None,
+        expected_toolchain_manifest: Optional[Mapping[str, object]] = None,
+        declared_use_class: Optional[str] = None,
         numactl: Optional[Sequence[str]] = None, src_token: Optional[str] = None,
         do_settle: bool = False, force: bool = False, log=print,
         ccbench_dir: str = "", cache_root: str = "") -> Optional[EvalResult]:
     """sweep候補を1点評価する。forceはbaseline再アンカー専用。"""
     if type(build_context) is not BuildRunContext:
         raise TypeError("build_context は build_run_context() 由来の exact value が必要")
+    if expected_toolchain_manifest is not None and env_contract is None:
+        raise ValueError(
+            "expected_toolchain_manifest は env_contract 付き v2 screening に限る"
+        )
+    authorization_kwargs = {
+        "env_tag": env_tag,
+        "clocks_per_us": clocks_per_us,
+        "numactl": numactl,
+    }
+    if env_contract is not None:
+        authorization_kwargs["env_contract"] = env_contract
     authorized_contract = execution_guard.require_certified_writer_authorization(
-        authorization_contract,
-        env_tag=env_tag,
-        clocks_per_us=clocks_per_us,
-        numactl=numactl,
+        authorization_contract, **authorization_kwargs,
     )
     cfg = ident.bind_admission_policy(cfg, build_context.policy)
     cfg = ident.bind_environment_contract(cfg, authorized_contract)
     _surface_repair(ident.ensure_resumable_wal(
         cfg, layout, admission_policy=build_context.policy,
     ), log)
-    _, resolved_cxx = buildcache.compilers_for_current_site()
+    if expected_toolchain_manifest is None:
+        _, resolved_cxx = buildcache.compilers_for_current_site()
+    else:
+        _, resolved_cxx = buildcache.toolchain_compilers_from_manifest(
+            expected_toolchain_manifest,
+        )
+    evidence_cxx = (
+        buildcache.DEFAULT_CXX
+        if resolved_cxx == buildcache.DEFAULT_CXX else resolved_cxx
+    )
     evidence = source_digest.resolve_evidence(
         genome,
         cfg.ccbench_commit,
         ccbench_dir=ccbench_dir,
-        cxx=resolved_cxx,
+        cxx=evidence_cxx,
     )
     if src_token is not None and src_token != evidence.src_token:
         raise ValueError("src_token が current SourceEvidence と不一致")
@@ -195,16 +215,30 @@ def evaluate_candidate(
     if cfg.search_config.get(SEARCH_CONFIG_VERIFY_KEY) == VERIFY_LEGACY_PLUS_S2:
         extra_correctness = [(S2_TAG, s2_correctness_workload())]
     try:
+        evaluate_kwargs = {
+            "numactl": numactl,
+            "do_settle": do_settle,
+            "src_token": src_tok,
+            "extra_correctness": extra_correctness,
+            "screening": screening,
+            "log": log,
+            "ccbench_dir": ccbench_dir,
+            "cache_root": cache_root,
+            "build_context": build_context,
+            "capability_resolver": capability_resolver,
+            "source_evidence": evidence,
+        }
+        if env_contract is not None:
+            evaluate_kwargs["env_contract"] = authorized_contract
+            evaluate_kwargs["declared_use_class"] = declared_use_class
+            if expected_toolchain_manifest is not None:
+                evaluate_kwargs["expected_toolchain_manifest"] = (
+                    expected_toolchain_manifest
+                )
         return evaluate(
             genome, layout, env_tag, cfg.ccbench_commit, perf, clocks_per_us,
-            numactl=numactl, do_settle=do_settle, src_token=src_tok,
-            extra_correctness=extra_correctness, screening=screening, log=log,
-            ccbench_dir=ccbench_dir, cache_root=cache_root,
             authorization_contract=authorization_contract,
-            build_context=build_context,
-            capability_resolver=capability_resolver,
-            source_evidence=evidence,
-            **perf_evaluate_kwargs)
+            **evaluate_kwargs, **perf_evaluate_kwargs)
     except (KeyboardInterrupt, SystemExit):
         raise
     except Exception as exc:  # candidate固有失敗をWALへ隔離。loop.pyと同じ境界。

@@ -344,6 +344,59 @@ def test_evaluate_candidate_repairs_tail_before_replay_and_evaluate(
     assert "perf_preflight_receipt" not in calls[0][2]
 
 
+def test_evaluate_candidate_forwards_v2_contract_and_toolchain_binding(
+        tmp_path, monkeypatch, _certified_writer_authority):
+    authorization, contract = _certified_writer_authority
+    cfg = _cfg()
+    layout = campaign_layout(str(ident.campaign_id(cfg)), str(tmp_path / "out")).ensure()
+    wal.write_lock(layout, build_v2_lock(ident.canonical_preimage(cfg)))
+    genome = Genome("silo", {"BACK_OFF": 1})
+    expected = {
+        role: {
+            "requested": f"test-{role}",
+            "realpath": f"/fixture/test-{role}",
+            "version_first_line": f"{role} version A",
+            "version": f"{role} version A",
+        }
+        for role in ("cc", "cxx", "cmake")
+    }
+    seen_source = []
+
+    def evaluate(candidate, candidate_layout, *args, **kwargs):
+        assert candidate_layout is layout
+        seen_source.append(kwargs)
+        return EvalResult(
+            genome=candidate, variant="candidate", certified=True, aborted=False,
+        )
+
+    monkeypatch.setattr(screening_driver, "evaluate", evaluate)
+    monkeypatch.setattr(
+        screening_driver.source_digest, "resolve_evidence",
+        lambda *args, **kwargs: (
+            seen_source.append({"source_cxx": kwargs["cxx"]})
+            or _source_evidence(genome)
+        ),
+    )
+
+    result = screening_driver.evaluate_candidate(
+        cfg, layout, genome, PerfConfig(records=1, threads=1),
+        contract.env_tag, contract.clocks_per_us,
+        numactl=contract.numactl,
+        authorization_contract=authorization,
+        build_context=_BUILD_CONTEXT,
+        screening=None, env_contract=contract,
+        expected_toolchain_manifest=expected,
+        declared_use_class="official", src_token="stock", log=lambda message: None,
+    )
+
+    assert result is not None and result.certified
+    evaluate_kwargs = seen_source[-1]
+    assert evaluate_kwargs["env_contract"] is contract
+    assert evaluate_kwargs["expected_toolchain_manifest"] == expected
+    assert evaluate_kwargs["declared_use_class"] == "official"
+    assert seen_source[0]["source_cxx"] == "test-cxx"
+
+
 @pytest.mark.usefixtures("ratified_enforcement_source")
 def test_evaluate_candidate_unavailable_perf_passes_degraded_kwargs_once(
         tmp_path, monkeypatch, _certified_writer_authority):

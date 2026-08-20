@@ -24120,3 +24120,167 @@ registry 登録のみを行う**。
   定義する昇格操作 (4点の不可分な変更) の scope を超える。
 - 昇格自体を保留する (段6 レビューの一方の推奨) — 少数意見であり、上記の防御的再チェックにより
   実害がないため、11/12 条件が既に機械検査可能な中で C06 だけを人為的に留める理由がない。
+
+## D600. real-repo group 受入 wall 帰属調査を打ち切る (2026-08-20)
+
+**決定:** worker_id/nodeid/start/finish の一時診断は実装・敵対レビュー・変異matrix
+(4/4 KILLED) まで完走させ技術的健全性を確認した上で revert し、real-repo group の
+受入 wall への帰属をこれ以上定量化する投資は行わない。D258・D358 の「排他機構の
+変更では受入は速くならない」という結論を維持する。
+
+**理由:**
+- 診断を実際に全テストスイートへ適用しようとしたところ、`tools/pegasus/dispatch_compute.py`
+  の `"tests"` task 用 `env_allowlist` が閉じた集合 (D103 決定5「任意 command 化は
+  しない」に基づく意図的設計) であり、新規診断用 env var が計算ノードへ dispatch
+  される qsub job の環境に伝播しないと判明した。この allowlist は 20 以上の並行
+  稼働セッションが共有する dispatch のセキュリティ境界であり、一時診断のためだけに
+  拡張するのは対象の重さと不釣り合いである。
+- 診断が測定する worker span (occupied interval の union) は、対象を除外した場合の
+  wall 短縮量を意味する**因果的指標ではない**。real-repo group が wall の大半を
+  占有していても、他 worker の作業が同じ時間を埋めていれば除外効果はゼロになり
+  得る。測定に成功していたとしても、この指標だけからは D358 を覆す根拠を得られない。
+- D258 (2026-08-10)・D358 (2026-08-13)・2026-08-19 wave (n=1 測定の統計的限界)・
+  本 wave (測定基盤の壁と worker span の非因果性) の4波にわたる独立した調査が、
+  いずれも同じ結論へ収束した。
+
+**再訪条件 (両方成立して初めて着手を検討する):**
+- `tools/pegasus/dispatch_compute.py` の env allowlist 拡張が、本件と独立の別用途
+  によって既に正当化されていること。
+- worker span 相当の観測から因果的な wall 短縮効果を推定する方法論 (実際に対象を
+  除外した A/B 比較、複数 run のペア比較等) が用意されていること。単発の occupied
+  span 観測では原理的に不十分。
+
+**却下した選択肢:**
+- `tools/pegasus/dispatch_compute.py` の env allowlist へ診断用 env var を追加して
+  measurement を強行する — 共有セキュリティ境界の拡張が一時診断単独の価値に対して
+  不釣り合いに重い。
+- 診断コードをそのまま残し「いつか測定する」余地を保つ — 規律5 (段階導入・盛らない)
+  に反し、使われない可能性が高いコードを test infra に恒久化することになる。
+
+## D601. backoff_sweep.py/p2_2.py へ D293 同型の site 依存 compiler 解決 + toolchain 束縛検査を実装し、ENV_TAG/Pegasus 公式実行有効化は次wave scope とする (2026-08-20)
+
+**決定:** D293 (`docs/decisions.md` の床値 campaign 決定) と同型の「site 依存 compiler
+解決 + toolchain 束縛検査を同じ変更単位で入れる」原則を、`backoff_sweep.py`/`p2_2.py`
+(D58 bench-first screening v2 の初回 ablation 対象) へ適用する。今回実装したのは
+次の4点である。
+
+1. `backoff_sweep.py`/`p2_2.py`: campaign 開始時に一度だけ site compiler の完全
+   manifest を観測し (`buildcache.observed_toolchain_manifest`)、通常経路・screening
+   経路の両方 (baseline・各 candidate) へ一貫して伝播する。
+2. `screening_driver.py`: `evaluate_candidate` から `pipeline.evaluate()` への
+   `env_contract`/`expected_toolchain_manifest`/`declared_use_class` 伝播の欠落を
+   修正した。
+3. `buildcache.py`: `declared_use_class == "official"` の v2 build では
+   `expected_toolchain_manifest` を必須化し、欠落時は build 前に fail-closed で停止
+   する。
+4. `pipeline.py`: trace/perf 両 build の toolchain 一致を検査し (不一致は
+   `STAGE_BUILD_DONE` 記録前に abort)、成功時は実 toolchain と
+   `toolchain_record_sha256` (v2 identity hash とは別キー) を `STAGE_BUILD_DONE` へ
+   記録する。
+
+**scope 境界 (今回は実装しない、次wave へ明示的に送る):** `ENV_TAG` を Pegasus
+runtime tag へ切り替え、Pegasus 公式実行そのものを可能にすること。理由は次のとおり
+実測で確認した。
+
+- `execution_guard.py` が build 前の認可検査で、`ENV_TAG="linux-baremetal"` のままの
+  Pegasus official run を構造的に拒否する。折衷案「compiler だけ site 依存化し
+  ENV_TAG は Linux のまま」も、authorization contract の不一致で別の検査に落ちる —
+  段3 敵対相談の実コード裏取りで、現行認可構造ではこの折衷は通らないと確認済み。
+- `ENV_TAG` は `p2_2.py` の共有定数であり、`s8b_floor_campaign.py`/
+  `s8b_oracle_driver.py` 等の machine pin・calibration・floor 出力・noise floor の
+  複数箇所から共有 import されている (段3 レンズB が独自 grep で段2プランの想定より
+  広い波及範囲を実測)。単純な値変更は S8b 側へ波及する。
+- Pegasus 用 calibration は `p2_2.py` が要求する固定ファイル名では存在せず
+  (registered 形式のみ)、追加の実測が要る。本wave は「実装のみ、Pegasus 実機再実行は
+  scope外」の前提のため、この実測はここでは行わない。
+
+**却下した選択肢:**
+
+- **今回のwave で ENV_TAG 対応まで含めてフルスコープ実装する** — 規律5 (段階導入・
+  盛らない) に反し、S8b machine pin への波及を伴う変更を1waveに詰め込むリスクが
+  高いため見送った。段3 レンズBも縮小スコープを明示的に推奨した。
+- **cache 機構自体 (buildcache.py の completion.json) を拡張して cache hit 時の
+  toolchain 束縛も同時に完全化する** — D602 で
+  別途扱う。
+
+## D602. v2 build の cache hit 時 toolchain 束縛欠落を明示的な scope waiver として記録する (2026-08-20)
+
+**決定:** D601 で実装した toolchain 束縛検査
+(`buildcache.py` の `expected_toolchain_manifest` 完全一致検査、`pipeline.py` の
+`STAGE_BUILD_DONE` への `toolchain_record_sha256` 記録) は、**新規 build 時にのみ
+完全に機能する**。cache hit 時の限界を、段6 焦点再レビューの要求
+(「明示的な次wave waiver なしに完全受入として land すべきでない」) に従いここへ
+記録する。
+
+**限界の内容:** `buildcache.py` の v2 build cache identity (`_v2_identity` の
+pre-image) は `version_first_line` までの短い toolchain manifest しか含まない。
+completion.json への保存も同様に短い。したがって、compiler の先頭行 (`version_first_line`)
+が同じで完全 version だけが異なる旧 cache entry を hit した場合、`STAGE_BUILD_DONE`
+へ記録される `toolchain_record_sha256` は「今回の build 呼び出し時点で観測した
+toolchain」の値であり、「そのcache entry (binary) を実際に生成した toolchain」の
+証跡ではない。新規 build 時は expected との完全一致検査 (完全 version 込み) が
+機能するため、この限界は cache hit 時に限られる (F436)。
+
+**緩和と運用注記:** `STAGE_BUILD_DONE` には既存の `trace_cached`/`perf_cached`
+フィールドが記録されている。consumer は `toolchain_record_sha256` を、
+`trace_cached`/`perf_cached` が両方 False (= 新規 build) の場合にのみ「その build を
+実際に生成した toolchain の証跡」として信頼してよい。cached=True の記録は
+「build 呼び出し時点の観測値」として扱う。
+
+**次の一手:** 完全な解決 (cache entry 自体に完全 version 込み manifest を保存し、
+hit 時に expected と照合する) は `buildcache.py` の cache 機構自体の拡張を要し、
+scope外の既存 campaign 全体 (S 系検証・S8b floor 等) に影響しうる規模のため、
+別 wave の scope とする ([T-1445])。
+
+**却下した選択肢:**
+
+- **今回の wave で cache 機構を拡張する** — 規律5、影響範囲の広さにより見送った。
+- **cache hit を無効化し常に新規 build する** — 既存の buildcache 全体の設計方針
+  (cache-first) を局所的に覆すことになり、他の caller への影響が読めないため見送った。
+
+## D603. T-1434(4) codex_reasoning_ab.py model軸refactorはWave A+Bへ narrow し、Wave C/Dは後続waveへ送る (2026-08-20)
+
+**決定:** `tools/codex_reasoning_ab.py`をmodel軸拡張向けに横断的refactorする段5実装scopeを、
+段2プランが提案したWave A (manifest/schema/provenance層) → B (argv/launch/identity層) →
+C (supervise_pair/collect_run) → D (schedule validation/adjudication/aggregate/replay/output)
+の4分割のうち、A+Bだけに narrow する。C/Dは実装しない。
+
+**理由:**
+- 段3敵対相談レンズB (scope境界) が独立に「17領域・13000行超は1waveに大きすぎる、Wave A+Bへ絞れ」
+  と提案した (規律5 段階導入/盛らない)。
+- 段3敵対相談レンズA (正しさ境界) が独立に「Wave Cの`supervise_pair`はWave D所有の
+  `_validate_schedule`に直接依存し、A→B→C→Dの逐次順ではCの実装・テストが成立しない」という
+  構造的な依存誤りを発見した。C/Dを本waveから外すことでこの依存問題自体が解消する。
+- レンズAのblocker所見のうち2件 (model-axis aggregate/decision schema未定義、reveal後
+  private binding比較先が不在) はWave D領域固有であり、Wave D自体を先送りすれば
+  「次wave着手時に設計する」という形で未閉包のまま残さずに済む。
+- Wave A+Bだけでも、`requested_model`をroutingauthorityとしてargv・identity・receiptへ通す
+  配線と、task_idキー方式のmanifestへの一般化は完成し、既存POS/NEG凍結benchmarkの動作を
+  壊さない独立した増分になる (段6敵対レビューで292 passed・0 failed・変異9/9 KILLEDを実測)。
+
+**却下した選択肢:**
+- Wave A→B→C→Dを1waveで一括実装する — レンズBの規模超過懸念とレンズAの依存関係の誤りが
+  未解決のまま残り、規律5に抵触する。
+- Wave Aだけに留める (Bも先送り) — argv/launch/identityのmodel対応はAの`TASK_MANIFEST`と
+  疎結合であり、Bまでは1waveで完結可能と段4裁定時点で判断した (実際に段6で292 passed・
+  変異9/9 KILLEDを実測し裏付けられた)。
+- Wave Dの`_validate_schedule`本体だけを先に配線する — 配線には Wave C の pair 検証拡張
+  (stage/task_type/oracle_kind/oracle_sha256/price_snapshot_sha256) が前提になり、
+  Cを飛ばしてDだけを触ると新たな未閉包を生む。
+
+## D604. `codex_reasoning_ab.py`のtask一般化フィールド名は`task_id`でなく`benchmark_task_id`にする (2026-08-20)
+
+**決定:** T-181/T-189のtask manifest一般化で新設するフィールド名を、既存の
+`orchestrator/dev_waves/checker.py`・`orchestrator/tests/test_spool_fold.py`等が使う
+「dev-wave task-run追跡ID」という別概念の`task_id`と区別するため、`benchmark_task_id`にする。
+
+**理由:**
+- D75 (decisions.md:3007) の恒久教訓「設計docのgate記述はその入力が成果物のどのfieldに
+  実在するかを書く前に実物で確認する」に従い実測したところ、`grep -rn "\btask_id\b"
+  orchestrator/ tools/`で既存の別概念衝突が実在すると判明した。
+- 両者は別ファイル・別schemaで実行時の混線は無いが、同じdev-wave生態系内で同名の別概念が
+  併存すると可読性上の曖昧さが生じる。
+
+**却下した選択肢:**
+- `task_id`のまま実装する — D75の教訓に反する。将来この2概念が同じ文書・ログに並んだときの
+  混同リスクを残す。
