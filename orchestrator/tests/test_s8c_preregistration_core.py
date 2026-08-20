@@ -3293,7 +3293,14 @@ def test_batch_request_count_ignores_no_touch_history_length(
     original = M._batch_oids
     for name, no_touch_count in (("short", 5), ("long", 200)):
         root = _init_repo(tmp_path / name)
-        _install_g1(root)
+        _, g1_raw = _install_g1(root)
+        _install_revision(
+            root,
+            g1_raw,
+            word=f"history-length-{name}",
+            ruling="D404",
+            put_ruling_in_ledger=True,
+        )
         _add_no_touch_commits(root, no_touch_count, prefix=name)
         calls: list[tuple[int, int]] = []
 
@@ -3303,6 +3310,8 @@ def test_batch_request_count_ignores_no_touch_history_length(
 
         monkeypatch.setattr(M, "_batch_oids", counted_batch_oids)
         M.validate_condition_freeze_at(root, "HEAD")
+        ruling_only = [call for call in calls if call[1] == 1]
+        assert ruling_only == [(1, 1)]
         all_commit_count = int(_git(root, "rev-list", "--count", "HEAD"))
         request_totals.append(
             sum(commit_count * path_count for commit_count, path_count in calls)
