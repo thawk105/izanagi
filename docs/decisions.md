@@ -24823,3 +24823,80 @@ pre-observation classification・lifecycle) を **既存の `registered-effectiv
 段4 裁定パッケージ・両レンズ所見の詳細は job dir
 `/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t1310-formal-noncertifying-admission/` の
 `stage3-lensA-output.md` / `stage3-lensB-output.md` に保全済み。
+
+## D619. 受入lease claim〜land/releaseの実時間を実測し、既定値は変更せず opt-in override 使用時のTTL超過リスクを記録に留める (2026-08-21)
+
+**決定:** `output/insights/2026-08-20_t870-acceptance-lease-timing/README.md` へ、
+lease claim〜dispatch submit〜queue-wait〜run〜land完了の実時間を landed 済み3 wave の
+成果物 (`acceptance-run.{pid,done}`・`land.{pid,done}`・PBS qstat summary block の絶対時刻) から
+実測して記録した。既定値 (queue_wait=900秒/overall_grace=300秒/walltime=3600秒/lease
+TTL=2400秒) はいずれも変更しない。次の対応は**行わない**。
+
+1. lease TTL・既定walltime・queue-wait/overall-graceの既定値変更。
+2. D299 が裁定パッケージへ送付済みの invocation 識別・fencing 機構の新設。
+3. `tools/dev_wave_land.py --lease-dir` を land 呼出しへ配線する変更 (renew/release
+   自動化の可能性を発見したが、fencing gap と交差しうるため未調査のまま見送る)。
+
+**理由:**
+
+- 実測3サンプル (claim取得〜land完了、算出は submit〜done を近似に使用) は 326〜1103 秒
+  ([[D612]] の段2見積り「Q+G<=770〜1070秒」と整合)、TTL 2400秒に対し十分な余裕がある。
+  既定値下では latent gap は顕在化しないと確認した。
+- 一方、[[D612]] が新設した opt-in override (`IZANAGI_DISPATCH_QUEUE_WAIT_TIMEOUT_OVERRIDE`/
+  `IZANAGI_DISPATCH_OVERALL_GRACE_OVERRIDE`) を、その override が想定する実congestion規模
+  (`docs/archive/worklog-phase3-0816-566-567.md` の83分・`docs/archive/worklog-phase3-0804-187.md`
+  の6時間) に当てはめると、lease保持想定はTTLの2.2〜9.2倍に達する。override はdispatch自体を
+  queue-wait-timeout/overall-timeoutで死なせないことだけを保証し、lease TTL内に収まることは
+  何も保証しない — override の存在とTTLの存在が未接続のまま残っている。
+- この未接続を閉じる設計 (fencing token、`--lease-dir`配線によるrenew自動化など) は、
+  D299 がすでに「invocationを識別しない」ことを既知の限界として明記し、機構案を裁定パッケージへ
+  送付済みの領域と重なる。[[D612]] が「識別・fencing機構はT-870固有の課題ではなく
+  プロジェクトレベルで別途解決すべき前提条件として扱い、T-870側で先回りして解こうとしない」と
+  裁定した理由をそのまま継承する。
+- `_LauncherSession.wait()` (`tools/dev_wave_wait.py:550`) の timeout=None (起動済み launcher を
+  `--max-wait-seconds` で中断できない) は、実運用ログ自身が
+  `"acceptance-command timeout=none (long-running acceptance is intentional)"` と記録しており、
+  意図された設計と確認した。改修対象ではなく、制約として記録するに留める。
+
+**却下した選択肢:**
+- 新規の受入lease投入による合成計測 — 実測時点で13並行peer sessionが稼働しており、
+  測定専用の投入は他waveのland窓口を奪う。landed済みwaveの実artifact事後解析で代替した。
+- `--lease-dir`配線の実装まで踏み込む — 効果 (renew/release自動化) を確認できたが、
+  安全性 (TTL失効後の別waveによる再claimとの相互作用) の検証には D299 の裁定領域の再調査が
+  要る。本waveのscope (既定値を変更しない実測) を超えるため見送った。
+
+## D620. 受入全走への並列度低減 (T-870 item (e)) は現 evidence では実装しない (2026-08-21)
+
+**決定:** T-870 系列の未着手項目 (e) 「queue 混雑時は待つのでなく並列度を下げる」
+(`IZANAGI_TEST_NPROC`) を、受入全走 (`orchestrator/tests` フルスイート、`python3
+tools/run_tests.py` 受入形 bare 呼出し) へ適用することは、現時点の evidence では実装しない。
+`tools/run_tests.py` の local/dispatch 判定 (`orchestrator/campaign/login_headroom.py` の
+`grant_budget`) は `IZANAGI_TEST_NPROC` を直接の入力として使わず、`recall_peak("tests-full")` に
+基づく過去 peak の 1.25 倍見積りだけで判定する。現行 peak 記録 (4 GiB 上限相当) がある限り、
+既定の呼出し経路では nproc の値や現在の空き容量に関わらず DISPATCH 判定が続く。この経路には
+staleness/expiry/decay による自然回復が無い。
+
+改善候補として、operator が明示的に一回限り peak 履歴を無視して local admission を再試行できる
+opt-in 機構が段3 敵対相談2レンズから独立に提案されたが、`login_headroom.py` の並行アクセス・
+ロック契約に触れる新規設計であり、本 wave の brief・段2・段3 が検証した対象 (nproc の直接効果) とは
+別の設計対象である。専用の brief → plan → consult を経ていないため、本 wave では実装しない。
+
+**理由:**
+- nproc=4 での受入全走フルスイートの実 peak が 4 GiB 以内に収まり CAP_OOM を避けられるという
+  直接証拠が無い (段2 codex プラン、段3 レンズ両方が確認)。
+- `grant_budget()` の見積り計算 (peak×1.25 対 既定上限4GiB) は、現行 peak 記録がある限り nproc に
+  関わらず恒常的に DISPATCH を選ぶ。これは段3 レンズ sol が file:line で確認したコードの恒常挙動で
+  あり、nproc を下げるだけでは admission 判定に到達すらしない。
+- D612 (`docs/decisions.md:24540`) が既に、既定 timeout 値の自動引き上げと `_is_acceptance_run`
+  ベースの自動分岐を却下している。本決定はこの射程を再訪しない — 却下対象は timeout 値と受入形
+  分岐であり、peak 履歴無視の明示 opt-in はいずれにも該当しないため、将来実装する場合も自動選択・
+  `is_acceptance` 分岐を追加してはならない。
+- 規律5 (段階導入・盛らない) に従い、当初の brief が対象としなかった新しい設計対象
+  (safety-critical な並行アクセス ledger への機構追加) を同一 wave で実装へ進めない。
+
+**却下した選択肢:**
+- 現行 peak 記録・見積り計算式そのものを変更する (peak の重みを下げる、上限を上げる等) —
+  当初 brief の対象 (nproc の直接効果) から逸脱し、`login_headroom.py` の既存 safety 契約への
+  影響範囲が本 wave の段2/段3 では検証されていない。
+- 「一定確率で local を再試行する」ような自動的な回復機構 — 明示 opt-in ではなく、D612 が拒否した
+  自動選択と同種の設計になるため、次 wave でも採用しない前提とする。
