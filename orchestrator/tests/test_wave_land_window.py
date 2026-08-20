@@ -91,6 +91,10 @@ def _claim(
     return result
 
 
+def _renew(lease_dir: Path, wave: str) -> dict[str, object]:
+    return WLW.renew(lease_dir, wave)
+
+
 def _release(
     lease_dir: Path,
     wave: str,
@@ -236,6 +240,250 @@ def test_foreign_held_claim_does_not_renew_lease(
     assert held["state"] == "held"
     assert held["holder_self"] is False
     assert (lease.stat().st_mtime_ns, lease.read_bytes()) == before
+
+
+def test_renew_held_self_updates_only_mtime(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(WLW.time, "time", lambda: float(_NOW))
+    monkeypatch.setattr(WLW.time, "time_ns", lambda: _NOW_NS)
+    first = _claim(tmp_path, _WAVE_A, capsys)
+    lease = tmp_path / "acceptance.lease"
+    os.utime(lease, ns=((_NOW_NS - 10_000_000_000),) * 2)
+    before = (lease.stat().st_ino, lease.read_bytes())
+
+    renewed = _renew(tmp_path, _WAVE_A)
+
+    assert renewed["state"] == "held-self"
+    assert renewed["holder_self"] is True
+    assert renewed["holder"] == first["holder"]
+    assert renewed["main_sha"] == _SHA_A
+    assert renewed["age_seconds"] == 0
+    assert renewed["source"] == {"status": "ok", "reason": None}
+    assert lease.stat().st_mtime_ns == _NOW_NS
+    assert (lease.stat().st_ino, lease.read_bytes()) == before
+
+
+def test_renew_foreign_holder_is_noop(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(WLW.time, "time", lambda: float(_NOW))
+    _claim(tmp_path, _WAVE_A, capsys)
+    lease = tmp_path / "acceptance.lease"
+    os.utime(lease, ns=((_NOW_NS - 10_000_000_000),) * 2)
+    before = (lease.stat().st_ino, lease.stat().st_mtime_ns, lease.read_bytes())
+
+    renewed = _renew(tmp_path, _WAVE_B)
+
+    assert renewed["state"] == "not-owner"
+    assert renewed["holder_self"] is False
+    assert renewed["source"] == {"status": "ok", "reason": None}
+    assert (
+        lease.stat().st_ino,
+        lease.stat().st_mtime_ns,
+        lease.read_bytes(),
+    ) == before
+
+
+def test_renew_missing_lease_is_free(tmp_path: Path) -> None:
+    renewed = _renew(tmp_path, _WAVE_A)
+
+    assert renewed == {
+        "state": "free",
+        "holder": None,
+        "holder_self": False,
+        "main_sha": None,
+        "age_seconds": 0,
+        "source": {"status": "ok", "reason": None},
+    }
+    assert not (tmp_path / "acceptance.lease").exists()
+    assert not list(tmp_path.glob("ticket.*"))
+
+
+def test_renew_directory_unavailable(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def unavailable_directory(*_args, **_kwargs):
+        raise OSError("directory unavailable")
+
+    monkeypatch.setattr(WLW, "_open_directory", unavailable_directory)
+
+    renewed = _renew(tmp_path, _WAVE_A)
+
+    assert renewed["state"] == "unavailable"
+    assert renewed["source"] == {
+        "status": "unavailable",
+        "reason": "directory-unavailable",
+    }
+
+
+def test_renew_invalid_fresh_lease_is_unavailable(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(WLW.time, "time", lambda: float(_NOW))
+    lease = tmp_path / "acceptance.lease"
+    lease.write_bytes(b"not-json")
+    os.utime(lease, ns=((_NOW_NS - 10_000_000_000),) * 2)
+    before = (lease.stat().st_mtime_ns, lease.read_bytes())
+
+    renewed = _renew(tmp_path, _WAVE_A)
+
+    assert renewed["state"] == "unavailable"
+    assert renewed["source"] == {
+        "status": "unavailable",
+        "reason": "lease-unavailable",
+    }
+    assert (lease.stat().st_mtime_ns, lease.read_bytes()) == before
+
+
+def test_renew_lease_race_after_bounded_retries(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    lease = tmp_path / "acceptance.lease"
+    lease.write_bytes(b"present")
+    open_calls = 0
+
+    def missing_lease(*_args, **_kwargs):
+        nonlocal open_calls
+        open_calls += 1
+        raise FileNotFoundError("lease raced away")
+
+    monkeypatch.setattr(WLW, "_open_lease", missing_lease)
+
+    renewed = _renew(tmp_path, _WAVE_A)
+
+    assert open_calls == WLW._MAX_RACE_RETRIES
+    assert renewed["state"] == "unavailable"
+    assert renewed["source"] == {
+        "status": "unavailable",
+        "reason": "lease-race",
+    }
+
+
+def test_renew_stale_self_is_noop_without_reacquire(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(WLW.time, "time", lambda: float(_NOW))
+    _claim(tmp_path, _WAVE_A, capsys)
+    lease = tmp_path / "acceptance.lease"
+    os.utime(lease, (_NOW - 2401,) * 2)
+    before = (lease.stat().st_ino, lease.stat().st_mtime_ns, lease.read_bytes())
+
+    def forbidden_create(*_args, **_kwargs):
+        raise AssertionError("renew must not recreate a stale lease")
+
+    monkeypatch.setattr(WLW, "_create_lease", forbidden_create)
+    renewed = _renew(tmp_path, _WAVE_A)
+
+    assert renewed["state"] == "stale"
+    assert renewed["holder_self"] is True
+    assert renewed["source"] == {"status": "ok", "reason": None}
+    assert (
+        lease.stat().st_ino,
+        lease.stat().st_mtime_ns,
+        lease.read_bytes(),
+    ) == before
+
+
+def test_renew_never_creates_or_drops_ticket(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _claim(tmp_path, _WAVE_A, capsys)
+    ticket = _write_ticket(
+        tmp_path,
+        _WAVE_B,
+        queued_at_ns=_NOW_NS,
+        mtime_ns=_NOW_NS,
+    )
+    before = {
+        path.name: (path.stat().st_mtime_ns, path.read_bytes())
+        for path in tmp_path.glob("ticket.*")
+    }
+
+    def forbidden_queue_operation(*_args, **_kwargs):
+        raise AssertionError("renew must not touch the queue")
+
+    for name in (
+        "_create_lease",
+        "_ensure_ticket",
+        "_queue_head",
+        "_drop_ticket_best_effort",
+    ):
+        monkeypatch.setattr(WLW, name, forbidden_queue_operation)
+
+    renewed = _renew(tmp_path, _WAVE_A)
+
+    assert renewed["state"] == "held-self"
+    assert ticket.is_file()
+    after = {
+        path.name: (path.stat().st_mtime_ns, path.read_bytes())
+        for path in tmp_path.glob("ticket.*")
+    }
+    assert after == before
+
+
+def test_renew_detects_path_replacement_after_utime(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _claim(tmp_path, _WAVE_A, capsys)
+    lease = tmp_path / "acceptance.lease"
+    original_inode = lease.stat().st_ino
+    replacement = b"replacement lease bytes"
+    real_fstat = WLW.os.fstat
+    real_same_entry = WLW._same_entry
+    real_utime = WLW.os.utime
+    operations: list[str] = []
+    replaced = False
+
+    def replace_during_utime(fd: int, *, ns: tuple[int, int]) -> None:
+        nonlocal replaced
+        operations.append("utime")
+        real_utime(fd, ns=ns)
+        lease.unlink()
+        lease.write_bytes(replacement)
+        replaced = True
+
+    def record_post_renew_fstat(fd: int) -> os.stat_result:
+        metadata = real_fstat(fd)
+        if replaced and metadata.st_ino == original_inode:
+            operations.append("post-fstat")
+        return metadata
+
+    def record_post_renew_same_entry(
+        directory_fd: int, name: str, metadata: os.stat_result
+    ) -> bool:
+        if replaced and name == "acceptance.lease":
+            operations.append("same-entry")
+        return real_same_entry(directory_fd, name, metadata)
+
+    monkeypatch.setattr(WLW.os, "utime", replace_during_utime)
+    monkeypatch.setattr(WLW.os, "fstat", record_post_renew_fstat)
+    monkeypatch.setattr(WLW, "_same_entry", record_post_renew_same_entry)
+
+    renewed = _renew(tmp_path, _WAVE_A)
+
+    assert renewed["state"] == "unavailable"
+    assert renewed["holder_self"] is True
+    assert renewed["source"] == {
+        "status": "unavailable",
+        "reason": "self-renew-failed",
+    }
+    assert operations == ["utime", "post-fstat", "same-entry"]
+    assert lease.stat().st_ino != original_inode
+    assert lease.read_bytes() == replacement
 
 
 @pytest.mark.parametrize(
