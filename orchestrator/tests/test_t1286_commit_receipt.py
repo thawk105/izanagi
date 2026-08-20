@@ -70,7 +70,9 @@ from orchestrator.verifier import (  # noqa: E402
     validate_live_receipt,
     verify_trace_dir_with_capability,
 )
-from orchestrator.verifier.model import VerifyResult  # noqa: E402
+from orchestrator.verifier import core as verifier_core  # noqa: E402
+from orchestrator.verifier.model import Integrity, VerifyResult  # noqa: E402
+from orchestrator.verifier.parse import TxnFramingViolation  # noqa: E402
 
 
 _CANON = "silo|BACK_OFF=0,NO_WAIT_LOCKING_IN_VALIDATION=1,NO_WAIT_OF_TICTOC=0,WAL=0"
@@ -231,6 +233,52 @@ def test_uncertified_verifier_capability_cannot_issue_receipt(
             variant="v", operation_identity="op",
             terminal_payload={"fitness_tps": 1.0},
         )
+
+
+def test_verification_capability_hash_ignores_framing_violation_details(
+        monkeypatch,
+):
+    def _result(detail: TxnFramingViolation) -> VerifyResult:
+        return VerifyResult(
+            trace_dir="/fixture/stable-trace",
+            serializable=True,
+            n_txns=1,
+            integrity=Integrity(
+                framing_violations=1,
+                framing_violation_details=[detail],
+                notes=["stable note"],
+            ),
+        )
+
+    results = iter((
+        _result(TxnFramingViolation(
+            kind="count-mismatch", txid=0,
+            expected_reads=1, observed_reads=0,
+            expected_writes=0, observed_writes=0,
+        )),
+        _result(TxnFramingViolation(kind="missing-end", txid=0)),
+    ))
+    monkeypatch.setattr(
+        verifier_core,
+        "verify_trace_dir",
+        lambda *args, **kwargs: next(results),
+    )
+    binding = {
+        "receipt_sink_kind": CAMPAIGN_WAL_SINK,
+        "receipt_lock_identity_sha256": "a" * 64,
+        "receipt_variant": "v",
+        "receipt_operation_identity": "op",
+        "receipt_workload_tag": "legacy",
+    }
+
+    _first_result, first = verify_trace_dir_with_capability(
+        "ignored", **binding,
+    )
+    _second_result, second = verify_trace_dir_with_capability(
+        "ignored", **binding,
+    )
+
+    assert first._result_sha256 == second._result_sha256
 
 
 def test_caller_built_verify_result_has_no_receipt_issuer() -> None:
