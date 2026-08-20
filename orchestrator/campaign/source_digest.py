@@ -80,6 +80,14 @@ OPTIONS_CMAKE = "cmake/Options.cmake"
 # ここでの追加は identity/allowlist 層の地ならしで、実マーケット化 (template patch) は別タスク。
 EVOLVE_BLOCK_SOURCES = (
     "include/backoff.hh", "cc/silo/transaction.cc", "cc/mocc/transaction.cc")
+# Defines are source-owned when the identity pre-image spans multiple protocols.
+# ``None`` means the genome protocol (the universal backoff header), while an
+# explicit value selects the CMakeLists belonging to that source's protocol.
+EVOLVE_BLOCK_SOURCE_PROTOCOLS = {
+    "include/backoff.hh": None,
+    "cc/silo/transaction.cc": "silo",
+    "cc/mocc/transaction.cc": "mocc",
+}
 # template patch (silo-backoff-fixed.patch) が touch するファイル。working-tree の
 # tracked 改変がこれを超えたら coder の編集面が EVOLVE-BLOCK を逸脱した印 → 停止。
 ALLOWLIST = frozenset({
@@ -196,6 +204,12 @@ class SourceEvidence:
 # の被覆に組合せ文脈が要るか再設計する (現状は単一マクロずつの文脈で十分)。
 CONTEXT_MACROS = ("GLOBAL_VALUE_DEFINE",)
 
+# These macros are not supplied by the current repository at all.  Unlike
+# CONTEXT_MACROS, this is not a TU-injected context: every use remains in the
+# false branch, and the registry is revalidated against the checkout before it
+# is added to the conditional-coverage known set.
+PROVEN_REPO_ABSENT_MACROS = frozenset({"MQLOCK"})
+
 # 実 TU に無条件で入るがマクロ供給表に現れないもの (ProtocolHelpers.cmake が
 # `CMAKE_SYSTEM_NAME STREQUAL "Linux"` で `target_compile_definitions(... Linux)` する)。
 # 計測層は Linux 専有 (D13/環境契約) なので digest 側も定義済みで揃える。値なしの純 definedness。
@@ -236,7 +250,10 @@ _HAS_OP_CALL_RE = re.compile(r"\b__has_\w+\s*\([^()]*\)")
 # ccbench_universal_definitions()、protocol 固有は cc/<protocol>/CMakeLists.txt の OPTIONS。
 _UNIVERSAL_FN_RE = re.compile(
     r"function\(\s*ccbench_universal_definitions.*?endfunction\(\)", re.DOTALL)
-_SUPPLY_RE = re.compile(r"(\w+)=\$\{CCBENCH_(\w+)\}")
+_SUPPLY_RE = re.compile(
+    r"([A-Za-z_]\w*)\s*=\s*\$\{CCBENCH_([A-Za-z_]\w*)\}\Z")
+_OPTION_IDENT_RE = re.compile(r"[A-Za-z_]\w*\Z")
+_CMAKE_SECTION_NAMES = frozenset({"SOURCES", "WORKLOADS", "OPTIONS"})
 _PROTOCOL_CMAKE = "cc/{protocol}/CMakeLists.txt"
 _BUILTIN_MACRO_CACHE: Dict[tuple, frozenset] = {}
 
@@ -245,6 +262,376 @@ def _ccbench_dir() -> str:
     here = os.path.dirname(os.path.abspath(__file__))     # <repo>/orchestrator/campaign
     repo = os.path.dirname(os.path.dirname(here))         # <repo>
     return os.path.join(repo, "external", "ccbench")
+
+
+def _strip_cmake_comments(text: str) -> str:
+    """CMake のコメントを空白化し、文字列と改行を保持する。"""
+    out: List[str] = []
+    i = 0
+    quoted = False
+    escaped = False
+    comment = False
+    while i < len(text):
+        c = text[i]
+        if comment:
+            if c == "\n":
+                out.append(c)
+                comment = False
+            else:
+                out.append(" ")
+            i += 1
+            continue
+        if quoted:
+            out.append(c)
+            if escaped:
+                escaped = False
+            elif c == "\\":
+                escaped = True
+            elif c == '"':
+                quoted = False
+            i += 1
+            continue
+        if c == '"':
+            quoted = True
+            out.append(c)
+        elif c == "#":
+            comment = True
+            out.append(" ")
+        else:
+            out.append(c)
+        i += 1
+    if quoted:
+        raise RuntimeError(
+            "source_digest: CMake 文字列が未終端 — マクロ供給表を確定できないため "
+            "fails-closed (T-148)"
+        )
+    return "".join(out)
+
+
+def _scan_cmake_parentheses(text: str, open_pos: int, label: str) -> tuple[str, int]:
+    """``open_pos`` の括弧を balanced scan し、内側と閉じ括弧直後を返す。"""
+    if open_pos >= len(text) or text[open_pos] != "(":
+        raise RuntimeError(f"source_digest: {label} の括弧開始位置が不正 → fails-closed")
+    depth = 1
+    quoted = False
+    escaped = False
+    i = open_pos + 1
+    while i < len(text):
+        c = text[i]
+        if quoted:
+            if escaped:
+                escaped = False
+            elif c == "\\":
+                escaped = True
+            elif c == '"':
+                quoted = False
+        elif c == '"':
+            quoted = True
+        elif c == "(":
+            depth += 1
+        elif c == ")":
+            depth -= 1
+            if depth == 0:
+                return text[open_pos + 1:i], i + 1
+        i += 1
+    raise RuntimeError(
+        f"source_digest: {label} の括弧が不整合 (閉じ括弧なし) — "
+        "マクロ供給表を確定できないため fails-closed (T-148)"
+    )
+
+
+def _cmake_calls(text: str, name: str) -> List[str]:
+    """コメントを除いた CMake text から ``name(...)`` の引数を抽出する。"""
+    clean = _strip_cmake_comments(text)
+    # quoted message()/string() payload に含まれる ``name(...)`` は CMake
+    # command ではない。検索面だけ文字列中身を空白化し、body の実文字列は
+    # tokenizer 用に clean 側から取り出す。
+    scan = list(clean)
+    quoted = False
+    escaped = False
+    for index, char in enumerate(clean):
+        if quoted:
+            if char == "\n":
+                quoted = False
+            elif escaped:
+                scan[index] = " "
+                escaped = False
+            elif char == "\\":
+                scan[index] = " "
+                escaped = True
+            elif char == '"':
+                quoted = False
+            else:
+                scan[index] = " "
+        elif char == '"':
+            quoted = True
+        elif char == "#":
+            # Comments were already blanked, but retain this guard for direct
+            # callers that pass a partially normalized snippet.
+            scan[index] = " "
+    call_re = re.compile(rf"\b{re.escape(name)}\s*\(", re.IGNORECASE)
+    scan_text = "".join(scan)
+    calls: List[str] = []
+    for match in call_re.finditer(scan_text):
+        open_pos = clean.find("(", match.start(), match.end())
+        body, _ = _scan_cmake_parentheses(clean, open_pos, name)
+        calls.append(body)
+    return calls
+
+
+def _cmake_tokens(text: str) -> List[str]:
+    """CMake の簡易 argument tokenizer。コメント・引用符不整合は停止する。"""
+    tokens: List[str] = []
+    i = 0
+    n = len(text)
+    while i < n:
+        while i < n and text[i].isspace():
+            i += 1
+        if i >= n:
+            break
+        if text[i] == "#":
+            while i < n and text[i] != "\n":
+                i += 1
+            continue
+        token: List[str] = []
+        while i < n and not text[i].isspace():
+            c = text[i]
+            if c == '"':
+                i += 1
+                escaped = False
+                while i < n:
+                    c = text[i]
+                    if escaped:
+                        token.append(c)
+                        escaped = False
+                    elif c == "\\":
+                        escaped = True
+                    elif c == '"':
+                        i += 1
+                        break
+                    else:
+                        token.append(c)
+                    i += 1
+                else:
+                    raise RuntimeError(
+                        "source_digest: CMake argument の引用符が未終端 — "
+                        "供給表を確定できないため fails-closed (T-148)"
+                    )
+                continue
+            token.append(c)
+            i += 1
+        if token:
+            tokens.append("".join(token))
+    return tokens
+
+
+def _add_supply_detail(
+        names: set[str], bare_names: set[str], cache_names: Dict[str, str],
+        left: str, right: str | None, label: str,
+) -> None:
+    """供給名の重複・裸/KV 衝突を fails-closed で検査して登録する。"""
+    if right is None:
+        if left in cache_names:
+            raise RuntimeError(
+                f"source_digest: {label} で供給 macro {left!r} が裸/KV 混在 — "
+                "供給値を一意に確定できないため fails-closed (T-148)"
+            )
+        bare_names.add(left)
+    else:
+        if left in bare_names:
+            raise RuntimeError(
+                f"source_digest: {label} で供給 macro {left!r} が裸/KV 混在 — "
+                "供給値を一意に確定できないため fails-closed (T-148)"
+            )
+        previous = cache_names.get(left)
+        if previous is not None and previous != right:
+            raise RuntimeError(
+                f"source_digest: {label} で供給 macro {left!r} の cache 名が衝突 "
+                f"({previous!r} / {right!r}) → fails-closed (T-148)"
+            )
+        cache_names[left] = right
+    names.add(left)
+
+
+def _parse_supply_tokens(
+        tokens: List[str], label: str,
+) -> tuple[set[str], set[str], Dict[str, str]]:
+    """供給 token 列から (全名, 裸名, 左辺→cache 名) を作る。"""
+    names: set[str] = set()
+    bare_names: set[str] = set()
+    cache_names: Dict[str, str] = {}
+    i = 0
+    while i < len(tokens):
+        token = tokens[i]
+        match = _SUPPLY_RE.fullmatch(token)
+        if match:
+            _add_supply_detail(
+                names, bare_names, cache_names, match.group(1), match.group(2), label,
+            )
+            i += 1
+            continue
+        if _OPTION_IDENT_RE.fullmatch(token):
+            if i + 2 < len(tokens) and tokens[i + 1] == "=":
+                rhs = tokens[i + 2]
+                rhs_match = re.fullmatch(r"\$\{CCBENCH_([A-Za-z_]\w*)\}", rhs)
+                if rhs_match:
+                    _add_supply_detail(
+                        names, bare_names, cache_names, token, rhs_match.group(1), label,
+                    )
+                    i += 3
+                    continue
+                raise RuntimeError(
+                    f"source_digest: {label} の option {token!r} に CCBENCH cache 右辺がない "
+                    "→ fails-closed (T-148)"
+                )
+            if i + 1 < len(tokens) and tokens[i + 1].startswith("="):
+                rhs = tokens[i + 1][1:]
+                rhs_match = re.fullmatch(r"\$\{CCBENCH_([A-Za-z_]\w*)\}", rhs)
+                if rhs_match:
+                    _add_supply_detail(
+                        names, bare_names, cache_names, token, rhs_match.group(1), label,
+                    )
+                    i += 2
+                    continue
+                raise RuntimeError(
+                    f"source_digest: {label} の option {token!r} に CCBENCH cache 右辺がない "
+                    "→ fails-closed (T-148)"
+                )
+            _add_supply_detail(names, bare_names, cache_names, token, None, label)
+            i += 1
+            continue
+        raise RuntimeError(
+            f"source_digest: {label} の option token {token!r} が未対応 — "
+            "実 TU のマクロ供給を確定できないため fails-closed (T-148)"
+        )
+    return names, bare_names, cache_names
+
+
+def _parse_universal_macro_details(
+        options_text: str,
+) -> tuple[set[str], set[str], Dict[str, str]]:
+    """universal definitions function の set(...) だけから供給詳細を取る。"""
+    clean = _strip_cmake_comments(options_text)
+    match = re.search(
+        r"\bfunction\s*\(\s*ccbench_universal_definitions\b",
+        clean, re.IGNORECASE,
+    )
+    if not match:
+        raise RuntimeError(
+            "source_digest: Options.cmake に ccbench_universal_definitions() が見つからない — "
+            "実 TU のマクロ供給集合を確定できないため fails-closed (T-148)"
+        )
+    open_pos = clean.find("(", match.start(), match.end())
+    _, body_end = _scan_cmake_parentheses(
+        clean, open_pos, "ccbench_universal_definitions function",
+    )
+    end_match = re.search(r"\bendfunction\s*\(", clean[body_end:], re.IGNORECASE)
+    if not end_match:
+        raise RuntimeError(
+            "source_digest: ccbench_universal_definitions() の endfunction() がない — "
+            "供給表を確定できないため fails-closed (T-148)"
+        )
+    body = clean[body_end:body_end + end_match.start()]
+    names: set[str] = set()
+    bare_names: set[str] = set()
+    cache_names: Dict[str, str] = {}
+    for set_body in _cmake_calls(body, "set"):
+        tokens = _cmake_tokens(set_body)
+        if not tokens:
+            continue
+        try:
+            end = tokens.index("PARENT_SCOPE")
+        except ValueError:
+            continue
+        payload = [token for token in tokens[1:end] if not token.startswith("${")]
+        parsed = _parse_supply_tokens(payload, "ccbench_universal_definitions()")
+        for left in parsed[0]:
+            _add_supply_detail(
+                names, bare_names, cache_names, left, parsed[2].get(left),
+                "ccbench_universal_definitions()",
+            )
+    return names, bare_names, cache_names
+
+
+def _parse_protocol_macro_details(
+        protocol_cmake_text: str,
+) -> tuple[set[str], set[str], Dict[str, str]]:
+    """protocol CMake の OPTIONS 範囲だけから供給詳細を取る。"""
+    clean = _strip_cmake_comments(protocol_cmake_text)
+    names: set[str] = set()
+    bare_names: set[str] = set()
+    cache_names: Dict[str, str] = {}
+    for body in _cmake_calls(clean, "ccbench_add_protocol"):
+        tokens = _cmake_tokens(body)
+        if not tokens or not _OPTION_IDENT_RE.fullmatch(tokens[0]):
+            raise RuntimeError(
+                "source_digest: ccbench_add_protocol() の protocol 名が不正 — "
+                "供給表を確定できないため fails-closed (T-148)"
+            )
+        option_positions = [
+            index for index, token in enumerate(tokens)
+            if token.upper() == "OPTIONS"
+        ]
+        if len(option_positions) > 1:
+            raise RuntimeError(
+                "source_digest: ccbench_add_protocol() に OPTIONS が複数ある — "
+                "範囲を一意に確定できないため fails-closed (T-148)"
+            )
+        option_start = option_positions[0] if option_positions else None
+        outside = tokens if option_start is None else tokens[:option_start]
+        if option_start is not None:
+            next_sections = [
+                index for index in range(option_start + 1, len(tokens))
+                if tokens[index].upper() in _CMAKE_SECTION_NAMES
+            ]
+            option_end = min(next_sections) if next_sections else len(tokens)
+            outside = tokens[:option_start] + tokens[option_end:]
+            option_tokens = tokens[option_start + 1:option_end]
+            parsed = _parse_supply_tokens(option_tokens, "ccbench_add_protocol OPTIONS")
+            for left in parsed[0]:
+                _add_supply_detail(
+                    names, bare_names, cache_names, left, parsed[2].get(left),
+                    "ccbench_add_protocol OPTIONS",
+                )
+        for index, token in enumerate(outside):
+            if _SUPPLY_RE.fullmatch(token):
+                raise RuntimeError(
+                    f"source_digest: ccbench_add_protocol() の OPTIONS 外に供給形 token "
+                    f"{token!r} — fails-closed (T-148)"
+                )
+            if (_OPTION_IDENT_RE.fullmatch(token) and index + 2 < len(outside)
+                    and outside[index + 1] == "="
+                    and re.fullmatch(r"\$\{CCBENCH_[A-Za-z_]\w*\}", outside[index + 2])):
+                raise RuntimeError(
+                    "source_digest: ccbench_add_protocol() の OPTIONS 外に CCBENCH "
+                    "供給形 token — fails-closed (T-148)"
+                )
+    return names, bare_names, cache_names
+
+
+def _parse_supplied_macro_details(
+        options_text: str, protocol_cmake_text: str,
+) -> tuple[frozenset[str], frozenset[str], Dict[str, str]]:
+    """universal/protocol の供給名、裸名、左辺→cache 名を返す。"""
+    universal = _parse_universal_macro_details(options_text)
+    protocol = _parse_protocol_macro_details(protocol_cmake_text)
+    names = universal[0] | protocol[0]
+    bare_names = universal[1] | protocol[1]
+    cache_names = dict(universal[2])
+    for left, right in protocol[2].items():
+        previous = cache_names.get(left)
+        if previous is not None and previous != right:
+            raise RuntimeError(
+                f"source_digest: macro {left!r} の universal/protocol cache 名が衝突 "
+                f"({previous!r} / {right!r}) → fails-closed (T-148)"
+            )
+        cache_names[left] = right
+    if not names:
+        raise RuntimeError(
+            "source_digest: マクロ供給表が空 — CMake 構造が変わった疑い → "
+            "fails-closed (T-148)"
+        )
+    return frozenset(names), frozenset(bare_names), cache_names
 
 
 def parse_options_defaults(options_text: str) -> Dict[str, str]:
@@ -278,21 +665,15 @@ def parse_supplied_macros(options_text: str, protocol_cmake_text: str) -> frozen
     規約 (silo-backoff-fixed.patch / silo-sort-variant.patch) なので、patch 適用後もここが追随する。
     configure 出力 (compile_commands.json) でなく CMake ソースを読むため D23 の鶏卵は起きない。
     パース結果が空なら CMake 構造の変化とみなし停止する (恒真化防止)。"""
-    fn = _UNIVERSAL_FN_RE.search(options_text)
-    if not fn:
-        raise RuntimeError(
-            "source_digest: Options.cmake に ccbench_universal_definitions() が見つからない — "
-            "実 TU のマクロ供給集合を確定できないため fails-closed (T-148)")
-    names = {m.group(1) for m in _SUPPLY_RE.finditer(fn.group(0))}
-    names |= {m.group(1) for m in _SUPPLY_RE.finditer(protocol_cmake_text)}
-    if not names:
-        raise RuntimeError(
-            "source_digest: マクロ供給表が空 — CMake 構造が変わった疑い → fails-closed (T-148)")
-    return frozenset(names)
+    names, _bare_names, _cache_names = _parse_supplied_macro_details(
+        options_text, protocol_cmake_text,
+    )
+    return names
 
 
 def _merge_defines(defaults: Dict[str, str], flags: Dict[str, int],
-                   supplied: Iterable[str] = ()) -> Dict[str, str]:
+                   supplied: Iterable[str] = (), *, bare_names: Iterable[str] = (),
+                   cache_names: Mapping[str, str] | None = None) -> Dict[str, str]:
     """Options 既定を base に genome.flags で上書き (未定義マクロ 0 扱い穴を base で塞ぐ)。
 
     T-148 fix round: `supplied` (実 TU へ届くマクロ名集合、parse_supplied_macros) を渡すと、
@@ -308,8 +689,20 @@ def _merge_defines(defaults: Dict[str, str], flags: Dict[str, int],
         raise RuntimeError(
             "source_digest: CONTEXT_MACROS が 2 個以上 — 単発文脈列では結合枝を覆えないため停止 "
             "(組合せ文脈への再設計が要る、T-148)")
+    bare = set(bare_names)
+    mapping = dict(cache_names or {})
+    if (bare or mapping) and not supplied:
+        raise RuntimeError(
+            "source_digest: 裸/cache mapping があるのに supplied 集合が空 — "
+            "実 TU の供給範囲を確定できないため fails-closed (T-148)"
+        )
     if supplied:
         keep = set(supplied)
+        if not bare <= keep:
+            raise RuntimeError(
+                f"source_digest: bare_names が supplied の部分集合でない: "
+                f"bare={sorted(bare)} supplied={sorted(keep)} → fails-closed (T-148)"
+            )
         clash = keep & set(CONTEXT_MACROS)
         if clash:
             # 文脈マクロが実 TU 供給集合にも居ると素文脈が define 文脈へ縮退し、
@@ -318,9 +711,206 @@ def _merge_defines(defaults: Dict[str, str], flags: Dict[str, int],
                 f"source_digest: CONTEXT_MACROS {sorted(clash)} が実 TU 供給集合にも存在 — "
                 "素文脈が縮退して反対枝が digest から落ちるため停止 (T-148)。供給されるように"
                 "なったマクロは CONTEXT_MACROS から外し、両枝の被覆方法を再設計する。")
+        # flags の上書きは先に済ませる。cache 名の値は filter 前の merged から
+        # 取り、左辺へ転送してから不要な右辺 key を落とす。
+        pre_filter = dict(merged)
         merged = {k: v for k, v in merged.items() if k in keep}
+        for left, right in mapping.items():
+            if left in flags:
+                # genome.flags の左辺指定を最優先し、後続の bare assignment
+                # だけが無条件裸 option を実 TU と同じ 1 に固定する。
+                continue
+            if right in pre_filter:
+                merged[left] = pre_filter[right]
         merged.update(PLATFORM_MACROS)
+        # 裸 option は CMake の target_compile_definitions で -DNAME になる。
+        # genome.flags/filter の後、filter の外側で明示値を置く (D93/T-1437)。
+        for name in bare:
+            merged[name] = "1"
     return merged
+
+
+_REPO_CMAKE_NAMES = frozenset({"CMakeLists.txt"})
+_REPO_CMAKE_SUFFIXES = frozenset({".cmake"})
+_REPO_CXX_SUFFIXES = frozenset({
+    ".c", ".cc", ".cpp", ".cxx", ".h", ".hh", ".hpp", ".hxx", ".inl", ".ipp", ".tcc",
+})
+_CMAKE_SUPPLY_CALL_NAMES = (
+    "target_compile_definitions", "add_definitions", "add_compile_definitions",
+    "add_compile_options", "target_compile_options", "set_target_properties",
+)
+
+
+def _strip_c_comments_for_supply(text: str) -> str:
+    """C/C++ のコメントを空白化して ``#define`` 供給構文だけを残す。"""
+    out: List[str] = []
+    i = 0
+    n = len(text)
+    quote: str | None = None
+    escaped = False
+    block = False
+    line = False
+    while i < n:
+        c = text[i]
+        nxt = text[i + 1] if i + 1 < n else ""
+        if line:
+            if c == "\n":
+                out.append(c)
+                line = False
+            else:
+                out.append(" ")
+            i += 1
+            continue
+        if block:
+            if c == "*" and nxt == "/":
+                out.extend((" ", " "))
+                i += 2
+                block = False
+            else:
+                out.append("\n" if c == "\n" else " ")
+                i += 1
+            continue
+        if quote is not None:
+            out.append(c)
+            if escaped:
+                escaped = False
+            elif c == "\\":
+                escaped = True
+            elif c == quote:
+                quote = None
+            i += 1
+            continue
+        if c == "/" and nxt == "*":
+            out.extend((" ", " "))
+            i += 2
+            block = True
+        elif c == "/" and nxt == "/":
+            out.extend((" ", " "))
+            i += 2
+            line = True
+        elif c == "'" and _is_digit_separator(text, i):
+            # C++ digit separator (1'000) is not a character literal opener.
+            out.append(c)
+            i += 1
+        elif c in {'"', "'"}:
+            quote = c
+            out.append(c)
+            i += 1
+        else:
+            out.append(c)
+            i += 1
+    if block or quote is not None:
+        raise RuntimeError(
+            "source_digest: C/C++ 供給源のコメント/文字列が未終端 — "
+            "repo-wide macro registry を確定できないため fails-closed (T-1437)"
+        )
+    return "".join(out)
+
+
+def _repo_macro_token_matches(token: str, macro: str) -> bool:
+    """CMake の literal compile-definition token が macro を供給するか。"""
+    if "$<" in token and macro in token:
+        raise RuntimeError(
+            "source_digest: CMake supply token に generator expression がある — "
+            "macro の静的な供給元を確定できないため fails-closed (T-1437)"
+        )
+    escaped = re.escape(macro)
+    for element in token.split(";"):
+        if not element:
+            continue
+        if (
+            re.fullmatch(rf"-D{escaped}(?:=.*)?", element)
+            or re.fullmatch(rf"{escaped}(?:=.*)?", element)
+            or re.search(rf"(?<![A-Za-z0-9_])-D{escaped}(?:=|\b)", element)
+        ):
+            return True
+    return False
+
+
+def _repo_cmake_supplies_macro(text: str, macro: str) -> bool:
+    """CMake の literal 供給 call と CMAKE_CXX_FLAGS を検査する。"""
+    clean = _strip_cmake_comments(text)
+    for call_name in _CMAKE_SUPPLY_CALL_NAMES:
+        for body in _cmake_calls(clean, call_name):
+            tokens = _cmake_tokens(body)
+            if any(_repo_macro_token_matches(token, macro) for token in tokens):
+                return True
+    # set(CMAKE_CXX_FLAGS... "... -DMQLOCK ...") のような directory-wide
+    # flag 注入も閉包に含める。変数展開だけの token は literal 供給ではなく、
+    # 上記の universal/protocol parser が展開元を検査する。
+    for set_body in _cmake_calls(clean, "set"):
+        tokens = _cmake_tokens(set_body)
+        if tokens and re.fullmatch(r"CMAKE_CXX_FLAGS(?:_[A-Za-z0-9_]+)?", tokens[0], re.IGNORECASE):
+            if any(_repo_macro_token_matches(token, macro) for token in tokens[1:]):
+                return True
+    return False
+
+
+def _repo_supply_files(root: str) -> Iterable[tuple[str, str]]:
+    """repo-wide macro supply audit の対象 C/C++/CMake text を列挙する。"""
+    if not os.path.isdir(root):
+        raise RuntimeError(
+            f"source_digest: ccbench repo が directory でない: {root!r} → "
+            "repo-wide macro registry を確定できないため fails-closed"
+        )
+    for directory, dirs, files in os.walk(root):
+        dirs[:] = [name for name in dirs if name != ".git"]
+        for filename in files:
+            suffix = os.path.splitext(filename)[1].lower()
+            if filename not in _REPO_CMAKE_NAMES and suffix not in (
+                    _REPO_CMAKE_SUFFIXES | _REPO_CXX_SUFFIXES):
+                continue
+            path = os.path.join(directory, filename)
+            yield path, _read(path)
+
+
+def _assert_proven_repo_absent_macros(ccbench_dir: str = "") -> frozenset[str]:
+    """registry macro が repo のどの供給構文にも現れないことを毎回検証する。"""
+    overlap = set(PROVEN_REPO_ABSENT_MACROS) & set(CONTEXT_MACROS)
+    if overlap:
+        raise RuntimeError(
+            f"source_digest: PROVEN_REPO_ABSENT_MACROS と CONTEXT_MACROS が衝突 "
+            f"({sorted(overlap)}) → registry の意味が曖昧なため fails-closed"
+        )
+    for macro in PROVEN_REPO_ABSENT_MACROS:
+        if not _OPTION_IDENT_RE.fullmatch(macro):
+            raise RuntimeError(
+                f"source_digest: absent registry の macro 名が不正: {macro!r} → "
+                "fails-closed"
+            )
+    sub = ccbench_dir or _ccbench_dir()
+    hits: List[str] = []
+    for path, text in _repo_supply_files(sub):
+        basename = os.path.basename(path)
+        suffix = os.path.splitext(basename)[1].lower()
+        if basename in _REPO_CMAKE_NAMES or suffix in _REPO_CMAKE_SUFFIXES:
+            # Parsing all protocol/universal supply tables also makes malformed
+            # CMake visible even when the malformed token is unrelated to the
+            # current registry macro.
+            clean_cmake = _strip_cmake_comments(text)
+            protocol_details = _parse_protocol_macro_details(clean_cmake)
+            universal_details = (set(), set(), {})
+            if re.search(r"\bfunction\s*\(\s*ccbench_universal_definitions\b", clean_cmake,
+                         re.IGNORECASE):
+                universal_details = _parse_universal_macro_details(clean_cmake)
+            for macro in PROVEN_REPO_ABSENT_MACROS:
+                if (macro in protocol_details[0]
+                        or macro in universal_details[0]
+                        or _repo_cmake_supplies_macro(text, macro)):
+                    hits.append(f"{path}: CMake supply")
+        elif suffix in _REPO_CXX_SUFFIXES:
+            clean = _strip_c_comments_for_supply(text)
+            for macro in PROVEN_REPO_ABSENT_MACROS:
+                if re.search(
+                        rf"(?m)^[ \t]*#[ \t]*define[ \t]+{re.escape(macro)}(?:[ \t(]|$)",
+                        clean):
+                    hits.append(f"{path}: #define {macro}")
+    if hits:
+        raise RuntimeError(
+            "source_digest: PROVEN_REPO_ABSENT_MACROS が stale — repo に供給源が出現: "
+            f"{hits[:12]!r} → fails-closed (T-1437)"
+        )
+    return PROVEN_REPO_ABSENT_MACROS
 
 
 def _cpp_normalize(source_text: str, defines: Dict[str, str], cxx: str) -> str:
@@ -491,7 +1081,8 @@ def _lex_normalize(source_text: str, rel: str = "") -> str:
 
 
 def _assert_conditional_macros_covered(source_text: str, defines: Dict[str, str],
-                                       cxx: str, rel: str) -> None:
+                                       cxx: str, rel: str,
+                                       known_absent: Iterable[str] = ()) -> None:
     """条件指令が参照するマクロが既知集合に閉じるか検査する (fails-closed、T-148 ガード)。
 
     -Werror=undef は `#if MACRO` の未定義参照しか捕えず、`#ifdef`/`#ifndef`/`defined()` は
@@ -535,7 +1126,10 @@ def _assert_conditional_macros_covered(source_text: str, defines: Dict[str, str]
                     f"(T-148)。\n  定義: {body.strip()!r}")
     defs_at: List[tuple] = [(m.start(), m.group(1)) for m in _DEFINE_RE.finditer(scan)]
     live = _dump_macros(source_text, defines, cxx) if defs_at else frozenset()
-    base_known = set(defines) | set(CONTEXT_MACROS) | _environment_macros(defines, cxx)
+    base_known = (
+        set(defines) | set(CONTEXT_MACROS) | set(known_absent)
+        | _environment_macros(defines, cxx)
+    )
     unknown = set()
     for m in _COND_DIRECTIVE_RE.finditer(scan):
         expr = m.group(1)
@@ -567,9 +1161,12 @@ def assert_conditional_macros_covered(genome: Genome, ccbench_dir: str = "",
                                       cxx: str = "g++-13") -> None:
     """working-tree の EVOLVE_BLOCK_SOURCES 全体に文脈ガードを適用する (resolve が駆動)。"""
     sub = ccbench_dir or _ccbench_dir()
-    defines = _worktree_defines(sub, genome)
+    known_absent = _assert_proven_repo_absent_macros(sub)
     for rel in EVOLVE_BLOCK_SOURCES:
-        _assert_conditional_macros_covered(_read(os.path.join(sub, rel)), defines, cxx, rel)
+        defines = _worktree_defines(sub, genome, rel)
+        _assert_conditional_macros_covered(
+            _read(os.path.join(sub, rel)), defines, cxx, rel, known_absent,
+        )
 
 
 def _include_lines(source_text: str) -> str:
@@ -638,24 +1235,74 @@ def _digest(parts: Iterable[str]) -> str:
     return h.hexdigest()
 
 
-def _protocol_cmake_rel(genome: Genome) -> str:
-    return _PROTOCOL_CMAKE.format(protocol=genome.protocol)
+def _assert_source_protocols_exact() -> None:
+    """EVOLVE_BLOCK_SOURCES と source-owner registry の drift を停止する。"""
+    if tuple(EVOLVE_BLOCK_SOURCE_PROTOCOLS) != EVOLVE_BLOCK_SOURCES:
+        raise RuntimeError(
+            "source_digest: EVOLVE_BLOCK_SOURCE_PROTOCOLS の key 集合/順序が "
+            "EVOLVE_BLOCK_SOURCES と不一致 — source owner を一意に確定できないため "
+            "fails-closed (T-1437)"
+        )
 
 
-def _worktree_defines(sub: str, genome: Genome) -> Dict[str, str]:
+_assert_source_protocols_exact()
+
+
+def _source_protocol(rel: str, genome: Genome) -> str:
+    """EVOLVE-BLOCK source の owner protocol を返す。未知 source は RuntimeError。"""
+    _assert_source_protocols_exact()
+    try:
+        owner = EVOLVE_BLOCK_SOURCE_PROTOCOLS[rel]
+    except KeyError as exc:
+        raise RuntimeError(
+            f"source_digest: EVOLVE-BLOCK の未知 source {rel!r} — "
+            "protocol owner を確定できないため fails-closed (T-1437)"
+        ) from exc
+    if owner is None:
+        return genome.protocol
+    if type(owner) is not str or not owner:
+        raise RuntimeError(
+            f"source_digest: source {rel!r} の owner protocol が不正: {owner!r} → "
+            "fails-closed (T-1437)"
+        )
+    return owner
+
+
+def _protocol_cmake_rel(protocol: str) -> str:
+    if type(protocol) is not str or not protocol:
+        raise RuntimeError(
+            f"source_digest: protocol が不正: {protocol!r} → fails-closed (T-1437)"
+        )
+    return _PROTOCOL_CMAKE.format(protocol=protocol)
+
+
+def _worktree_defines(sub: str, genome: Genome, source_rel: str | None = None) -> Dict[str, str]:
     """working-tree 版の実効 defines (実 TU 供給集合に揃えたもの、T-148 fix round)。"""
     options_text = _read(os.path.join(sub, OPTIONS_CMAKE))
-    proto_text = _read(os.path.join(sub, _protocol_cmake_rel(genome)))
-    supplied = parse_supplied_macros(options_text, proto_text)
-    return _merge_defines(parse_options_defaults(options_text), genome.flags, supplied)
+    protocol = genome.protocol if source_rel is None else _source_protocol(source_rel, genome)
+    proto_text = _read(os.path.join(sub, _protocol_cmake_rel(protocol)))
+    supplied, bare_names, cache_names = _parse_supplied_macro_details(
+        options_text, proto_text,
+    )
+    return _merge_defines(
+        parse_options_defaults(options_text), genome.flags, supplied,
+        bare_names=bare_names, cache_names=cache_names,
+    )
 
 
-def _head_defines(sub: str, genome: Genome, ccbench_commit: str) -> Dict[str, str]:
+def _head_defines(sub: str, genome: Genome, ccbench_commit: str,
+                  source_rel: str | None = None) -> Dict[str, str]:
     """HEAD (pin) 版の実効 defines。baseline と working-tree で同じ絞り方を使う。"""
     options_text = _git_show(sub, ccbench_commit, OPTIONS_CMAKE)
-    proto_text = _git_show(sub, ccbench_commit, _protocol_cmake_rel(genome))
-    supplied = parse_supplied_macros(options_text, proto_text)
-    return _merge_defines(parse_options_defaults(options_text), genome.flags, supplied)
+    protocol = genome.protocol if source_rel is None else _source_protocol(source_rel, genome)
+    proto_text = _git_show(sub, ccbench_commit, _protocol_cmake_rel(protocol))
+    supplied, bare_names, cache_names = _parse_supplied_macro_details(
+        options_text, proto_text,
+    )
+    return _merge_defines(
+        parse_options_defaults(options_text), genome.flags, supplied,
+        bare_names=bare_names, cache_names=cache_names,
+    )
 
 
 def compute(genome: Genome, ccbench_dir: str = "", cxx: str = "g++-13") -> str:
@@ -666,9 +1313,10 @@ def compute(genome: Genome, ccbench_dir: str = "", cxx: str = "g++-13") -> str:
     同一の文脈列・同一の絞り方を使うため stock (working-tree==HEAD) の src_token 正規化 =
     silo 8 golden id は不変。"""
     sub = ccbench_dir or _ccbench_dir()
-    defines = _worktree_defines(sub, genome)
-    parts = [_normalize_contexts(_read(os.path.join(sub, rel)), defines, cxx)
-             for rel in EVOLVE_BLOCK_SOURCES]
+    parts = []
+    for rel in EVOLVE_BLOCK_SOURCES:
+        defines = _worktree_defines(sub, genome, rel)
+        parts.append(_normalize_contexts(_read(os.path.join(sub, rel)), defines, cxx))
     return _digest(parts)
 
 
@@ -735,9 +1383,13 @@ def assert_trace_diff_matches_head(genome: Genome, ccbench_commit: str,
     ビルドにも乗り fitness が自己ペナルティを受けるため false-green にはならず、意味判定は
     auditor / 人間レビュー領域 (phase3.md タスク定義)。"""
     sub = ccbench_dir or _ccbench_dir()
-    cur_defines = _worktree_defines(sub, genome)
-    head_defines = _head_defines(sub, genome, ccbench_commit)
+    # buildcache._assert_trace_diff invokes this gate after its preceding
+    # _recheck_source_evidence/resolve_evidence call.  The latter validates the
+    # repo-absent registry; this function keeps the per-source owner split here
+    # and does not reintroduce one shared genome-level define set.
     for rel in EVOLVE_BLOCK_SOURCES:
+        cur_defines = _worktree_defines(sub, genome, rel)
+        head_defines = _head_defines(sub, genome, ccbench_commit, rel)
         d_var = _trace_pair_diff(_read(os.path.join(sub, rel)), cur_defines, cxx)
         d_stock = _trace_pair_diff(_git_show(sub, ccbench_commit, rel), head_defines, cxx)
         if d_var != d_stock:
@@ -761,9 +1413,12 @@ def baseline(genome: Genome, ccbench_commit: str, ccbench_dir: str = "",
     同じ規則で行う。
     """
     sub = ccbench_dir or _ccbench_dir()
-    defines = _head_defines(sub, genome, ccbench_commit)
-    parts = [_normalize_contexts(_git_show(sub, ccbench_commit, rel), defines, cxx)
-             for rel in EVOLVE_BLOCK_SOURCES]
+    parts = []
+    for rel in EVOLVE_BLOCK_SOURCES:
+        defines = _head_defines(sub, genome, ccbench_commit, rel)
+        parts.append(_normalize_contexts(
+            _git_show(sub, ccbench_commit, rel), defines, cxx,
+        ))
     return _digest(parts)
 
 
