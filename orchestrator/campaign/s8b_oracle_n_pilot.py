@@ -70,6 +70,15 @@ R33_RESULT_ROLE = "n_pilot_r33"
 _HEX40 = frozenset("0123456789abcdef")
 _HEX64 = _HEX40
 _SAFE_IDENTIFIER = re.compile(r"[A-Za-z0-9._-]+\Z")
+_BINARY_REQUIRED_KEYS = frozenset({
+    "cell_id", "cache_hit", "entry_sha256", "binding_sha256", "binary_sha256",
+})
+_BINARY_ALLOWED_KEYS = frozenset({
+    "cell_id", "cache_hit", "cache_state", "entry_sha256", "binding_sha256",
+    "binary_sha256", "materialize_elapsed_s", "worktree_identity_sha256",
+    "isolated_worktree", "pre_materialization_clean_assertion",
+    "source_clean_assertion",
+})
 
 
 class PilotError(RuntimeError):
@@ -2151,18 +2160,92 @@ def _manifest_hashes(
 ) -> tuple[str, str]:
     """Return the manifest file digest and its receipt digest.
 
-    Unit 2 receipts may expose their durable receipt digest directly.  Test
-    and diagnostic receipts that do not expose it are still bound to their
-    exact canonical file bytes, which is the only safe fallback.
+    R33 public manifests expose the durable receipt digest as
+    ``authoritative_receipt_sha256``.  Older receipt-shaped inputs may expose
+    ``receipt_sha256`` directly (or under ``receipt``); inputs without either
+    field remain bound to their exact canonical file bytes.
     """
     manifest_sha256 = hashlib.sha256(raw).hexdigest()
-    declared = document.get("receipt_sha256")
+    if "authoritative_receipt_sha256" in document:
+        declared = document["authoritative_receipt_sha256"]
+        declared_field = "authoritative_receipt_sha256"
+        declared_present = True
+    elif "receipt_sha256" in document:
+        declared = document["receipt_sha256"]
+        declared_field = "receipt_sha256"
+        declared_present = True
+    else:
+        declared = None
+        declared_field = "receipt_sha256"
+        declared_present = False
     nested = document.get("receipt")
-    if declared is None and isinstance(nested, Mapping):
+    if not declared_present and isinstance(nested, Mapping):
         declared = nested.get("receipt_sha256")
-    if declared is not None and not _is_hex(declared, 64):
-        raise PilotError(f"{label}.receipt_sha256 が不正")
-    return manifest_sha256, (manifest_sha256 if declared is None else str(declared))
+        declared_field = "receipt.receipt_sha256"
+        declared_present = True
+    if declared_present and not _is_hex(declared, 64):
+        raise PilotError(f"{label}.{declared_field} が不正")
+    return manifest_sha256, (manifest_sha256 if not declared_present else str(declared))
+
+
+def _aggregate_binary_identity(
+    binary: object, *, label: str,
+) -> tuple[str, tuple[str, str, str]]:
+    if not isinstance(binary, Mapping):
+        raise PilotError(f"{label} binary schema が不正")
+    keys = set(binary)
+    if not _BINARY_REQUIRED_KEYS.issubset(keys) or not keys.issubset(
+        _BINARY_ALLOWED_KEYS
+    ):
+        raise PilotError(f"{label} binary schema が不正")
+    cell_id = binary.get("cell_id")
+    if type(cell_id) is not str or not cell_id:
+        raise PilotError(f"{label}.cell_id が不正")
+    if binary.get("cache_hit") is not False:
+        raise PilotError("aggregate result binary に cache hit がある")
+    for field in ("entry_sha256", "binding_sha256", "binary_sha256"):
+        if not _is_hex(binary.get(field), 64):
+            raise PilotError(f"{label}.{field} が不正")
+
+    if "cache_state" in binary and binary["cache_state"] != "miss":
+        raise PilotError(f"{label}.cache_state が cache_hit と不一致")
+    if "materialize_elapsed_s" in binary:
+        _record_float(binary["materialize_elapsed_s"], f"{label}.materialize_elapsed_s")
+    if "worktree_identity_sha256" in binary and not _is_hex(
+        binary["worktree_identity_sha256"], 64
+    ):
+        raise PilotError(f"{label}.worktree_identity_sha256 が不正")
+    if "isolated_worktree" in binary and type(binary["isolated_worktree"]) is not bool:
+        raise PilotError(f"{label}.isolated_worktree が不正")
+
+    if "pre_materialization_clean_assertion" in binary:
+        pre_materialization = binary["pre_materialization_clean_assertion"]
+        if (
+            not isinstance(pre_materialization, Mapping)
+            or set(pre_materialization) != {"passed", "gateway"}
+            or type(pre_materialization["passed"]) is not bool
+            or type(pre_materialization["gateway"]) is not str
+            or not pre_materialization["gateway"]
+        ):
+            raise PilotError(f"{label}.pre_materialization_clean_assertion が不正")
+
+    if "source_clean_assertion" in binary:
+        source_clean = binary["source_clean_assertion"]
+        if (
+            not isinstance(source_clean, Mapping)
+            or set(source_clean) != {"tracked_clean", "tracked_paths", "allowlist_checked"}
+            or type(source_clean["tracked_clean"]) is not bool
+            or type(source_clean["allowlist_checked"]) is not bool
+            or not isinstance(source_clean["tracked_paths"], list)
+            or any(type(path) is not str for path in source_clean["tracked_paths"])
+        ):
+            raise PilotError(f"{label}.source_clean_assertion が不正")
+
+    return cell_id, (
+        str(binary["entry_sha256"]),
+        str(binary["binding_sha256"]),
+        str(binary["binary_sha256"]),
+    )
 
 
 def aggregate_results(
@@ -2186,8 +2269,6 @@ def aggregate_results(
         manifest_sha256, receipt_sha256 = _manifest_hashes(
             document, raw, f"aggregate admission manifest[{index}]"
         )
-        if manifest_sha256 in manifest_by_sha:
-            raise PilotError("aggregate admission manifest hash が重複")
         manifest_by_sha[manifest_sha256] = (
             document, manifest_sha256, receipt_sha256
         )
@@ -2204,7 +2285,6 @@ def aggregate_results(
     observed_repo_heads: set[str] = set()
     global_indexes: set[int] = set()
     manifest_hashes_by_index: dict[int, str] = {}
-    used_manifest_hashes: set[str] = set()
     expected_global_schedule: GlobalPilotSchedule | None = None
     for index, path in enumerate(result_paths):
         document, raw = _load_strict_json_mapping(
@@ -2319,9 +2399,6 @@ def aggregate_results(
             raise PilotError("aggregate result admission manifest hash が不一致")
         if allocation["receipt_sha256"] != manifest_receipt_sha256:
             raise PilotError("aggregate result receipt hash が不一致")
-        if manifest_sha256 in used_manifest_hashes:
-            raise PilotError("aggregate result が同一 admission manifest を再利用している")
-        used_manifest_hashes.add(manifest_sha256)
         manifest_hashes_by_index[allocation_index] = manifest_sha256
         if canonical_schedule_sha256 is None:
             canonical_schedule_sha256 = allocation["schedule_sha256"]
@@ -2331,20 +2408,14 @@ def aggregate_results(
         binaries = document["binaries"]
         if not isinstance(binaries, list) or not binaries:
             raise PilotError("aggregate result binaries が空でない list でない")
-        binary_identity = {}
-        for binary in binaries:
-            if not isinstance(binary, Mapping) or type(binary.get("cell_id")) is not str:
-                raise PilotError("aggregate result binary identity が不正")
-            if binary.get("cache_hit") is not False:
-                raise PilotError("aggregate result binary に cache hit がある")
-            cell_id = str(binary["cell_id"])
+        binary_identity: dict[str, tuple[str, str, str]] = {}
+        for binary_index, binary in enumerate(binaries):
+            cell_id, identity = _aggregate_binary_identity(
+                binary, label=f"aggregate result[{index}].binaries[{binary_index}]",
+            )
             if cell_id in binary_identity:
                 raise PilotError("aggregate result binary identity が不正または重複")
-            binary_identity[cell_id] = (
-                binary.get("entry_sha256"),
-                binary.get("binding_sha256"),
-                binary.get("binary_sha256"),
-            )
+            binary_identity[cell_id] = identity
         if canonical_binary_identity is None:
             canonical_binary_identity = binary_identity
         elif binary_identity != canonical_binary_identity:
@@ -2361,6 +2432,21 @@ def aggregate_results(
             for record_index, record in enumerate(sessions_raw)
         )
         observed_cells = {observation.cell_id for observation in observations}
+        schedule_cells = {
+            row.get("cell_id")
+            for row in schedule
+            if isinstance(row, Mapping) and type(row.get("cell_id")) is str
+        }
+        if (
+            len(binary_identity) != 12
+            or len(observed_cells) != 12
+            or len(schedule_cells) != 12
+            or set(binary_identity) != observed_cells
+            or set(binary_identity) != schedule_cells
+        ):
+            raise PilotError(
+                "aggregate result binary が schedule/sessions の 12-cell coverage と不一致"
+            )
         if cell_ids is None:
             cell_ids = observed_cells
             aggregate_inputs = _aggregation_inputs(protocol, cell_ids)
@@ -2869,7 +2955,10 @@ def _reserve_only(args: argparse.Namespace, protocol: PilotProtocol) -> None:
         raise PilotError(f"n pilot holdout reservation failed: {exc}") from exc
     if not isinstance(receipt, Mapping):
         raise PilotError("reserve が receipt mapping を返さない")
-    write_guarded_result(_flatten_paths(args.admission_manifest)[0], receipt)
+    manifest = getattr(receipt, "manifest", None)
+    if not isinstance(manifest, Mapping):
+        raise PilotError("reserve が public admission manifest を返さない")
+    write_guarded_result(_flatten_paths(args.admission_manifest)[0], manifest)
 
 
 def _consume_only(args: argparse.Namespace, protocol: PilotProtocol) -> None:

@@ -255,6 +255,10 @@ class NPilotReservationReceipt(dict[str, object]):
     def external_manifest_path(self) -> Path:
         return self.manifest_path
 
+    @property
+    def manifest(self) -> Mapping[str, object]:
+        return _r33_manifest_from_receipt(self, self._receipt_sha256)
+
 
 class TransactionInspection(dict[str, object]):
     """Read-only transaction inspection result used by recovery and tooling."""
@@ -1880,7 +1884,7 @@ def _is_r33_reservation_request(
 
 
 def _canonical_value_sha256(value: object) -> str:
-    return hashlib.sha256(_canonical_bytes(value)).hexdigest()
+    return hashlib.sha256(_canonical_line(value)).hexdigest()
 
 
 def _r33_protocol_and_freeze(
@@ -1901,10 +1905,6 @@ def _r33_protocol_and_freeze(
         raise HoldoutAdmissionError("n pilot R33 verified freeze document is invalid")
     freeze_sha256 = _require_sha256(freeze_sha256, "freeze_sha256")
     freeze_canonical_sha256 = _canonical_value_sha256(freeze_document)
-    if freeze_canonical_sha256 != freeze_sha256:
-        raise HoldoutAdmissionError(
-            "n pilot R33 freeze digest does not match canonical JSON bytes"
-        )
     freeze_ref = protocol_document.get("freeze")
     if (
         not isinstance(freeze_ref, Mapping)
@@ -2022,7 +2022,9 @@ def _r33_cells_and_schedule(
         or any(cell_set != set(cells_by_id) for cell_set in cells_by_round.values())
     ):
         raise HoldoutAdmissionError("n pilot R33 schedule is not 33 complete blocks")
-    schedule_sha256 = _canonical_value_sha256(normalized_schedule)
+    # The driver schedule projection has its own canonical-byte contract,
+    # which intentionally has no trailing line terminator.
+    schedule_sha256 = hashlib.sha256(_canonical_bytes(normalized_schedule)).hexdigest()
     for cell_id, normalized in cells_by_id.items():
         normalized["schedule_indexes"] = schedule_indexes_by_cell[cell_id]
     return cells_by_id, normalized_schedule, schedule_sha256
@@ -2679,8 +2681,10 @@ def _r33_apply_committed_transaction_locked(root: Path, transaction_id: str) -> 
         if row.get("observation_role") != OBSERVATION_ROLE_N_PILOT_R33:
             continue
         digest = _r33_ledger_key_digest(row)
-        if digest in current_by_digest and current_by_digest[digest] != row:
-            raise HoldoutAdmissionError("R33 ledger identity has conflicting rows")
+        if digest in current_by_digest:
+            if current_by_digest[digest] != row:
+                raise HoldoutAdmissionError("R33 ledger identity has conflicting rows")
+            raise HoldoutAdmissionError("R33 ledger identity is duplicated")
         current_by_digest[digest] = row
     base_rows = _r33_line_rows(base_raw, "staged base ledger")
     base_r33_digests = {
@@ -3435,6 +3439,30 @@ def _r33_receipt_from_input(
         raise HoldoutAdmissionError("R33 consume requires a reservation receipt")
     supplied = dict(_mutable_json_tree(receipt))
     supplied_raw = _canonical_bytes(supplied)
+
+    if "authoritative_receipt_sha256" in supplied:
+        authoritative_receipt_sha256 = supplied["authoritative_receipt_sha256"]
+        receipt_sha256 = _require_sha256(
+            authoritative_receipt_sha256, "manifest.authoritative_receipt_sha256"
+        )
+        manifest_path = root / _R33_MANIFEST_DIR / f"{receipt_sha256}.json"
+        stored_manifest_raw = _r33_raw(manifest_path)
+        if stored_manifest_raw != supplied_raw:
+            raise HoldoutAdmissionError(
+                "R33 supplied manifest does not match authoritative bytes"
+            )
+        manifest = _read_canonical_json_bytes(manifest_path)
+        receipt_path = root / _R33_RECEIPT_DIR / f"{receipt_sha256}.json"
+        receipt_raw = _r33_raw(receipt_path)
+        if hashlib.sha256(receipt_raw).hexdigest() != receipt_sha256:
+            raise HoldoutAdmissionError("R33 authoritative receipt filename is invalid")
+        stored_receipt = _read_canonical_json_bytes(receipt_path)
+        _r33_validate_receipt(stored_receipt)
+        _r33_validate_manifest(
+            manifest, receipt=stored_receipt, receipt_sha256=receipt_sha256,
+        )
+        return stored_receipt, receipt_sha256
+
     receipt_sha256 = hashlib.sha256(supplied_raw).hexdigest()
     path = root / _R33_RECEIPT_DIR / f"{receipt_sha256}.json"
     stored_raw = _r33_raw(path)

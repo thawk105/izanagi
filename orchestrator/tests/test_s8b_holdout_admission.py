@@ -430,7 +430,9 @@ def _r33_fixture(protocol: dict, freeze: dict):
             "reps": protocol["reps"],
         },
     }
-    protocol_sha256 = hashlib.sha256(_canonical(pilot_protocol)).hexdigest()
+    protocol_sha256 = hashlib.sha256(
+        _canonical(pilot_protocol) + b"\n"
+    ).hexdigest()
     return pilot_protocol, protocol_sha256, cells, schedule
 
 
@@ -584,6 +586,8 @@ def test_r33_reserve_returns_authoritative_receipt_and_opaque_manifest(tmp_path)
     assert hashlib.sha256(receipt_raw).hexdigest() == receipt.receipt_sha256
 
     manifest = json.loads(receipt.manifest_path.read_bytes())
+    assert receipt.manifest == manifest
+    assert set(receipt.manifest) == admission._R33_MANIFEST_KEYS  # noqa: SLF001
     assert manifest["schema_version"] == "s8b-n-pilot-admission-manifest/v1"
     assert manifest["observation_role"] == admission.OBSERVATION_ROLE_N_PILOT_R33
     forbidden = {
@@ -594,6 +598,37 @@ def test_r33_reserve_returns_authoritative_receipt_and_opaque_manifest(tmp_path)
     assert not forbidden.intersection(json.dumps(manifest))
     assert all(set(cell) == {"cell_ref", "global_schedule_indexes"}
                for cell in manifest["cells"])
+
+
+def test_r33_reserve_separates_raw_freeze_digest_from_canonical_freeze_digest(tmp_path):
+    root, protocol, freeze = _init_repo(tmp_path)
+    r33_protocol, _protocol_sha256, cells, schedule = _r33_fixture(protocol, freeze)
+    raw_freeze = json.dumps(freeze, ensure_ascii=False, indent=2).encode("utf-8") + b"\n"
+    raw_freeze_sha256 = hashlib.sha256(raw_freeze).hexdigest()
+    r33_protocol = json.loads(json.dumps(r33_protocol))
+    r33_protocol["freeze"]["sha256"] = raw_freeze_sha256
+    protocol_sha256 = hashlib.sha256(
+        _canonical(r33_protocol) + b"\n"
+    ).hexdigest()
+
+    receipt = admission.reserve_n_pilot_holdout_observations(
+        repo_root=root,
+        protocol=r33_protocol,
+        protocol_sha256=protocol_sha256,
+        verified_freeze_document=freeze,
+        freeze_sha256=raw_freeze_sha256,
+        cells=cells,
+        schedule=schedule,
+        campaign_run_id="r33-freeze-raw",
+        irreversible_pilot_approved=True,
+    )
+
+    canonical_freeze_sha256 = hashlib.sha256(
+        _canonical(freeze) + b"\n"
+    ).hexdigest()
+    assert receipt["freeze_sha256"] == raw_freeze_sha256
+    assert receipt["freeze_canonical_sha256"] == canonical_freeze_sha256
+    assert canonical_freeze_sha256 != raw_freeze_sha256
 
 
 def test_r33_consume_reloads_receipt_without_process_local_state(tmp_path, monkeypatch):
@@ -634,6 +669,30 @@ def test_r33_consume_reloads_receipt_without_process_local_state(tmp_path, monke
     assert first.attempt_id != second_token.attempt_id
     assert first.permitted_run_once_calls == second_token.permitted_run_once_calls == 5
     assert len(admission._n_pilot_cell_states) == before  # noqa: SLF001
+
+
+def test_r33_consume_resolves_public_manifest_to_authoritative_receipt(tmp_path):
+    root, protocol, freeze = _init_repo(tmp_path)
+    r33_protocol, _protocol_sha256, _cells, _schedule, receipt = _reserve_r33(
+        root, protocol, freeze, run_id="r33-public-manifest-consume",
+    )
+    cell = next(
+        item for item in receipt["cells"]
+        if 0 in item["global_schedule_indexes"]
+    )
+
+    observation = admission.consume_n_pilot_attempt_ticket(
+        receipt.manifest,
+        repo_root=root,
+        protocol=r33_protocol,
+        verified_freeze_document=freeze,
+        freeze_sha256=protocol["freeze"]["sha256"],
+        schedule_sha256=receipt["schedule_sha256"],
+        global_schedule_index=0,
+        expected_cell_id=cell["cell_id"],
+    )
+
+    assert observation.attempt_id
 
 
 def test_r33_precommit_failure_has_no_visible_claim_and_can_be_aborted(tmp_path, monkeypatch):
@@ -701,6 +760,19 @@ def test_r33_commit_recovery_allows_foreign_append_and_is_idempotent(tmp_path, m
     assert len(list((shared / "claims").iterdir())) == 12
     assert len(list((shared / "receipts").iterdir())) == 1
     assert transaction.is_dir()
+
+
+def test_r33_commit_recovery_rejects_exact_duplicate_ledger_identity(tmp_path):
+    root, protocol, freeze = _init_repo(tmp_path)
+    _reserve_r33(root, protocol, freeze, run_id="r33-duplicate-ledger")
+    shared = admission.shared_admission_root(root)
+    ledger_path = shared / "ledger.jsonl"
+    rows = admission._read_ledger(ledger_path)  # noqa: SLF001
+    ledger_path.write_bytes(ledger_path.read_bytes() + admission._canonical_line(rows[0]))
+
+    with admission._locked(shared):
+        with pytest.raises(admission.HoldoutAdmissionError, match="identity is duplicated"):
+            admission._recover_n_pilot_transactions_locked(shared)  # noqa: SLF001
 
 
 def test_r33_consume_marker_recovery_rebuilds_missing_attempt_row(tmp_path, monkeypatch):

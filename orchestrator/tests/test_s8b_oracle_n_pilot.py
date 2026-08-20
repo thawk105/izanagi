@@ -473,12 +473,33 @@ def test_cli_rejects_attempt_id_and_other_forbidden_fields_in_aggregate(tmp_path
 
 def test_reserve_only_does_not_build_or_measure(tmp_path, monkeypatch):
     calls = []
+    public_manifest = {
+        "schema_version": "s8b-n-pilot-admission-manifest/v1",
+        "observation_role": "n_pilot_r33",
+        "campaign_run_id": "campaign",
+        "authoritative_receipt_sha256": "a" * 64,
+        "receipt_ref": "b" * 64,
+        "protocol_sha256": "c" * 64,
+        "freeze_sha256": "d" * 64,
+        "schedule_sha256": "e" * 64,
+        "pilot_rounds": 33,
+        "allocation_count": 3,
+        "cells": [],
+        "allocation_slices": [],
+    }
+
+    class _FakeReceipt(dict):
+        @property
+        def manifest(self):
+            return public_manifest
+
+    receipt = _FakeReceipt({"private": "receipt"})
     monkeypatch.setattr(M, "load_protocol", lambda _path: _protocol())
     monkeypatch.setattr(M, "load_inputs", lambda *_args, **_kwargs: _inputs())
     monkeypatch.setattr(
         M.s8b_holdout_admission,
         "reserve_n_pilot_holdout_observations",
-        lambda **kwargs: calls.append(("reserve", kwargs)) or {"receipt": "ok"},
+        lambda **kwargs: calls.append(("reserve", kwargs)) or receipt,
     )
     monkeypatch.setattr(M, "build_binaries", lambda *_args, **_kwargs: calls.append("build"))
     monkeypatch.setattr(M, "run_sessions", lambda *_args, **_kwargs: calls.append("measure"))
@@ -496,7 +517,8 @@ def test_reserve_only_does_not_build_or_measure(tmp_path, monkeypatch):
     ]) == 0
     assert calls and calls[0][0] == "reserve"
     assert "build" not in calls and "measure" not in calls
-    assert written == [(manifest, {"receipt": "ok"})]
+    assert set(public_manifest) == M.s8b_holdout_admission._R33_MANIFEST_KEYS  # noqa: SLF001
+    assert written == [(manifest, public_manifest)]
 
 
 @pytest.mark.parametrize("bad_option", [
@@ -1627,6 +1649,42 @@ def _allocation_result_files(tmp_path: Path):
     paths = []
     manifests = []
     campaign = "campaign"
+    receipt_sha256 = "1" * 64
+    manifest = {
+        "schema_version": "s8b-n-pilot-admission-manifest/v1",
+        "observation_role": "n_pilot_r33",
+        "campaign_run_id": campaign,
+        "authoritative_receipt_sha256": receipt_sha256,
+        "receipt_ref": "2" * 64,
+        "protocol_sha256": inputs.protocol.protocol_sha256,
+        "freeze_sha256": inputs.protocol.freeze_sha256,
+        "schedule_sha256": global_schedule.schedule_sha256,
+        "pilot_rounds": 33,
+        "allocation_count": 3,
+        "cells": [
+            {
+                "cell_ref": f"{index + 1:064x}",
+                "global_schedule_indexes": [
+                    row["global_schedule_index"]
+                    for row in global_schedule.rows
+                    if row["cell_id"] == cell_id
+                ],
+            }
+            for index, cell_id in enumerate(sorted(str(cell["cell_id"]) for cell in inputs.cells))
+        ],
+        "allocation_slices": [
+            {
+                "allocation_index": allocation_index,
+                "global_schedule_start": allocation_index * 132,
+                "global_schedule_end": allocation_index * 132 + 131,
+            }
+            for allocation_index in range(3)
+        ],
+    }
+    manifest_path = tmp_path / "shared-manifest.json"
+    manifest_bytes = M.canonical_result_bytes(manifest)
+    manifest_path.write_bytes(manifest_bytes)
+    manifest_sha256 = hashlib.sha256(manifest_bytes).hexdigest()
     for allocation_index in range(3):
         schedule = global_schedule.allocation_slice(allocation_index)
         base = _counterbalanced_observations(inputs, schedule)
@@ -1645,8 +1703,8 @@ def _allocation_result_files(tmp_path: Path):
             binaries,
             campaign_run_id=campaign,
             allocation_index=allocation_index,
-            receipt_sha256=f"{allocation_index + 1}" * 64,
-            admission_manifest_sha256="0" * 64,
+            receipt_sha256=receipt_sha256,
+            admission_manifest_sha256=manifest_sha256,
             schedule_sha256=global_schedule.schedule_sha256,
             global_schedule_start=allocation_index * 132,
             global_schedule_end=allocation_index * 132 + 131,
@@ -1664,17 +1722,58 @@ def _allocation_result_files(tmp_path: Path):
                 campaign, allocation_index,
             ),
         )
-        manifest = {"receipt_sha256": f"{allocation_index + 1}" * 64}
-        manifest_path = tmp_path / f"manifest-{allocation_index}.json"
-        manifest_bytes = M.canonical_result_bytes(manifest)
-        manifest_path.write_bytes(manifest_bytes)
-        manifest_sha256 = hashlib.sha256(manifest_bytes).hexdigest()
         result["allocation"]["admission_manifest_sha256"] = manifest_sha256
         path = tmp_path / f"allocation-{allocation_index + 1}.json"
         path.write_bytes(M.canonical_result_bytes(result))
         paths.append(path)
         manifests.append(manifest_path)
     return inputs.protocol, paths, manifests
+
+
+def test_manifest_hashes_prefer_authoritative_public_manifest_receipt_digest():
+    document = {
+        "authoritative_receipt_sha256": "a" * 64,
+        "receipt_sha256": "b" * 64,
+    }
+    raw = M.canonical_result_bytes(document)
+    assert M._manifest_hashes(document, raw, "manifest") == (
+        hashlib.sha256(raw).hexdigest(), "a" * 64,
+    )
+
+
+def test_aggregate_rejects_incomplete_binary_cell_coverage(tmp_path):
+    _protocol, paths, manifests = _allocation_result_files(tmp_path)
+    document = json.loads(paths[0].read_text(encoding="utf-8"))
+    document["binaries"] = document["binaries"][:-1]
+    paths[0].write_bytes(M.canonical_result_bytes(document))
+
+    with pytest.raises(M.PilotError, match="12-cell coverage"):
+        M.aggregate_results(_protocol, paths, manifests)
+
+
+def test_aggregate_rejects_unknown_binary_schema_field(tmp_path):
+    protocol, paths, manifests = _allocation_result_files(tmp_path)
+    document = json.loads(paths[0].read_text(encoding="utf-8"))
+    document["binaries"][0]["unexpected"] = True
+    paths[0].write_bytes(M.canonical_result_bytes(document))
+
+    with pytest.raises(M.PilotError, match="binary schema"):
+        M.aggregate_results(protocol, paths, manifests)
+
+
+def test_aggregate_accepts_minimal_binary_identity_records(tmp_path):
+    protocol, paths, manifests = _allocation_result_files(tmp_path)
+    required = M._BINARY_REQUIRED_KEYS  # noqa: SLF001
+    for path in paths:
+        document = json.loads(path.read_text(encoding="utf-8"))
+        document["binaries"] = [
+            {key: binary[key] for key in required}
+            for binary in document["binaries"]
+        ]
+        path.write_bytes(M.canonical_result_bytes(document))
+
+    aggregate = M.aggregate_results(protocol, paths, manifests)
+    assert aggregate["n_analysis"] is not None
 
 
 def test_three_allocation_aggregate_derives_n_once_and_reports_shift(tmp_path):

@@ -64,6 +64,10 @@ R33_SOURCE_ENTRY_RE = re.compile(
     r'^[ \t]*\}[ \t]*,?[ \t]*$'
 )
 
+R33_OBSERVATION_ROLES_DECL_RE = re.compile(
+    r"(?m)^[ \t]*_OBSERVATION_ROLES[ \t]*=[ \t]*\{"
+)
+
 R33_SOURCE_FIELD_RE = {
     "generation": re.compile(
         r'(?m)^[ \t]*["\']generation_id["\'][ \t]*:[ \t]*'
@@ -1446,12 +1450,130 @@ def _visible_h2_section_slices(text: str) -> tuple[list[str], dict[str, list[str
     return _h2_section_slices(_visible_dispatch_inventory_text(text))
 
 
+def _r33_python_code_mask(source: str) -> str:
+    """Python の文字列と comment を空白化し、改行と code を残す。"""
+
+    chars = list(source)
+    quote: str | None = None
+    triple = False
+    escaped = False
+    comment = False
+    index = 0
+    while index < len(source):
+        char = source[index]
+        if comment:
+            if char in "\r\n":
+                comment = False
+            else:
+                chars[index] = " "
+            index += 1
+            continue
+
+        if quote is not None:
+            if escaped:
+                if char not in "\r\n":
+                    chars[index] = " "
+                escaped = False
+                index += 1
+                continue
+            if char == "\\":
+                chars[index] = " "
+                escaped = True
+                index += 1
+                continue
+            if triple and source.startswith(quote * 3, index):
+                chars[index:index + 3] = [" "] * 3
+                quote = None
+                triple = False
+                index += 3
+                continue
+            if not triple and char == quote:
+                chars[index] = " "
+                quote = None
+                index += 1
+                continue
+            if char not in "\r\n":
+                chars[index] = " "
+            index += 1
+            continue
+
+        if char == "#":
+            chars[index] = " "
+            comment = True
+        elif char in {"'", '"'}:
+            if source.startswith(char * 3, index):
+                chars[index:index + 3] = [" "] * 3
+                quote = char
+                triple = True
+                index += 3
+                continue
+            chars[index] = " "
+            quote = char
+            triple = False
+        index += 1
+
+    return "".join(chars)
+
+
+def _r33_observation_roles_span(
+    source: str,
+    findings: list[str],
+) -> tuple[int, int] | None:
+    """`_OBSERVATION_ROLES` の実体辞書リテラルの source span を返す。"""
+
+    code = _r33_python_code_mask(source)
+    declarations = list(R33_OBSERVATION_ROLES_DECL_RE.finditer(code))
+    if len(declarations) != 1:
+        findings.append(
+            "R33 _OBSERVATION_ROLES 宣言は exact 1 件が必要"
+        )
+        return None
+
+    opening = declarations[0].end() - 1
+    depth = 0
+    for index in range(opening, len(code)):
+        char = code[index]
+        if char == "{":
+            depth += 1
+        elif char == "}":
+            depth -= 1
+            if depth == 0:
+                return opening, index + 1
+            if depth < 0:
+                break
+
+    findings.append(
+        "R33 _OBSERVATION_ROLES の対応する閉じ括弧を特定できない"
+    )
+    return None
+
+
 def _r33_source_contract(
     source: str,
     findings: list[str],
 ) -> dict[str, object] | None:
-    role_matches = list(R33_ROLE_RE.finditer(source))
-    entries = list(R33_SOURCE_ENTRY_RE.finditer(source))
+    roles_span = _r33_observation_roles_span(source, findings)
+    if roles_span is None:
+        return None
+
+    code = _r33_python_code_mask(source)
+    role_name = "OBSERVATION_ROLE_N_PILOT_R33"
+    role_matches = []
+    for match in R33_ROLE_RE.finditer(source):
+        name_start = source.find(role_name, match.start(), match.end())
+        if (
+            name_start >= 0
+            and code[name_start:name_start + len(role_name)] == role_name
+        ):
+            role_matches.append(match)
+    entries = [
+        match
+        for match in R33_SOURCE_ENTRY_RE.finditer(source)
+        if (
+            roles_span[0] <= match.start()
+            and match.end() <= roles_span[1]
+        )
+    ]
 
     if len(role_matches) != 1:
         findings.append(
@@ -1508,50 +1630,75 @@ def _r33_decision_contract_in_text(
         else R33_DECISION_HEADING_RE
     )
 
+    candidates: list[tuple[str, int, str, list[str]]] = []
     for heading, sections in visible_sections.items():
         if heading_re.match(heading) is None:
             continue
 
+        # `R33_DECISION_HEADING_RE` は canonical D 節全体に一致するため、
+        # R33 固有の marker を持つ heading group だけを候補として数える。
+        # その group の全 section を残すことで、同じ heading の valid/invalid
+        # 重複を先頭の成功だけで通さない。
+        if not any(
+            R33_DECISION_SLUG_RE.search(section) is not None
+            or R33_DECISION_CONTRACT_RE.search(section) is not None
+            for section in sections
+        ):
+            continue
         raw_candidates = raw_sections.get(heading, [])
-        for index, section in enumerate(sections):
-            slug_match = R33_DECISION_SLUG_RE.search(section)
-            contract_match = R33_DECISION_CONTRACT_RE.search(section)
-            if slug_match is None or contract_match is None:
-                continue
+        candidates.extend(
+            (heading, index, section, raw_candidates)
+            for index, section in enumerate(sections)
+        )
 
-            if (
-                index >= len(raw_candidates)
-                or raw_candidates[index] != section
-            ):
-                findings.append(
-                    "R33 decision section の raw/visible slice が不一致"
-                )
-                continue
+    if len(candidates) > 1:
+        findings.append(
+            "R33 decision section が曖昧 — 条件に合致する section は "
+            f"exact 1 件が必要 (observed={len(candidates)})"
+        )
+        return False
+    if not candidates:
+        return False
 
-            decision = contract_match.groupdict()
-            observed = {
-                "role": decision["role"],
-                "generation": decision["generation"],
-                "pilot_rounds": int(decision["pilot_rounds"]),
-                "allocation_count": int(decision["allocation_count"]),
-                "cell_count": int(decision["cell_count"]),
-                "schedule_row_count": int(decision["schedule_row_count"]),
-            }
-            if (
-                slug_match.group("slug") == R33_DECISION_SLUG
-                and observed == {
-                    key: R33_EXPECTED[key]
-                    for key in (
-                        "role",
-                        "generation",
-                        "pilot_rounds",
-                        "allocation_count",
-                        "cell_count",
-                        "schedule_row_count",
-                    )
-                }
-            ):
-                return True
+    _, index, section, raw_candidates = candidates[0]
+    slug_match = R33_DECISION_SLUG_RE.search(section)
+    contract_match = R33_DECISION_CONTRACT_RE.search(section)
+    if slug_match is None or contract_match is None:
+        return False
+
+    if (
+        index >= len(raw_candidates)
+        or raw_candidates[index] != section
+    ):
+        findings.append(
+            "R33 decision section の raw/visible slice が不一致"
+        )
+        return False
+
+    decision = contract_match.groupdict()
+    observed = {
+        "role": decision["role"],
+        "generation": decision["generation"],
+        "pilot_rounds": int(decision["pilot_rounds"]),
+        "allocation_count": int(decision["allocation_count"]),
+        "cell_count": int(decision["cell_count"]),
+        "schedule_row_count": int(decision["schedule_row_count"]),
+    }
+    if (
+        slug_match.group("slug") == R33_DECISION_SLUG
+        and observed == {
+            key: R33_EXPECTED[key]
+            for key in (
+                "role",
+                "generation",
+                "pilot_rounds",
+                "allocation_count",
+                "cell_count",
+                "schedule_row_count",
+            )
+        }
+    ):
+        return True
 
     return False
 

@@ -9,7 +9,7 @@
   "source": {
     "commit": "73517bc0901ab2e61d11d4593f46151ddbf90526",
     "driver_path": "orchestrator/campaign/s8b_oracle_n_pilot.py",
-    "driver_sha256": "295b80b7ae18013ffd26f86183ef12abe08dbcd65114d07fa9d1c97ce6d61044",
+    "driver_sha256": "d447688a39734a292cf5710dbd4656320c45be846b13a995278e083b403a4ab1",
     "job_script_path": "tools/pegasus/oracle_n_pilot.sh",
     "job_script_sha256": "566698b3a833224488dd4d0c3be0515dd812b75003f3f08f947e37aebfc50ad9"
   },

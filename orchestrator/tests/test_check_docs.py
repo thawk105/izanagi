@@ -5528,6 +5528,66 @@ def test_r33_role_decision_pin_accepts_exact_pending_fragment():
         shutil.rmtree(root, ignore_errors=True)
 
 
+def test_r33_source_contract_binds_entry_to_observation_roles_dictionary():
+    root = _build_min_repo()
+    try:
+        rel = "orchestrator/campaign/s8b_holdout_admission.py"
+        source = _read(root, rel)
+        entry = (
+            '    "n_pilot_r33": {\n'
+            '        "generation_id": "n-pilot-r33",\n'
+            '        "pilot_rounds": 33,\n'
+            '        "allocation_count": 3,\n'
+            '        "cell_count": 12,\n'
+            '        "schedule_row_count": 396,\n'
+            '        "decision_pin": "t1142-n-pilot-r33-admission-authority",\n'
+            "    },\n"
+        )
+        assert source.count(entry) == 1
+        source = source.replace(entry, "", 1)
+        source += "\n_DEAD_R33_ROLE_CONTRACT = {\n" + entry + "}\n"
+        _write(root, rel, source)
+        _assert_violation(root, "R33 role contract entry は exact 1 件が必要")
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_r33_source_contract_ignores_role_literal_in_docstring():
+    root = _build_min_repo()
+    try:
+        rel = "orchestrator/campaign/s8b_holdout_admission.py"
+        source = _read(root, rel)
+        role_line = 'OBSERVATION_ROLE_N_PILOT_R33 = "n_pilot_r33"\n'
+        assert source.count(role_line) == 1
+        source = source.replace(role_line, "", 1)
+        docstring = 'ROLE_DOC = """\n' + role_line + '"""\n'
+        source = source.replace(
+            "from __future__ import annotations\n",
+            "from __future__ import annotations\n" + docstring,
+            1,
+        )
+        _write(root, rel, source)
+        _assert_violation(
+            root,
+            "R33 role literal は OBSERVATION_ROLE_N_PILOT_R33 の exact 1 件が必要",
+        )
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_r33_decision_contract_rejects_ambiguous_r33_sections():
+    root = _build_min_repo()
+    try:
+        decisions = _read(root, "docs/decisions.md")
+        later_invalid = _SYNTHETIC_R33_DECISION_SECTION.replace(
+            "## D570.", "## D571.", 1,
+        ).replace("pilot_rounds=33", "pilot_rounds=32", 1)
+        _write(root, "docs/decisions.md", decisions + "\n" + later_invalid)
+        _assert_violation(root, "R33 decision section が曖昧")
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
 @pytest.mark.parametrize(
     ("source_literal", "replacement"),
     [
