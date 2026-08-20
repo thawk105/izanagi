@@ -1883,6 +1883,23 @@ def test_known_violation_ledger_matches_literal_entries():
             "ため Codex 著者とは記さない。",
             "",
         ),
+        (
+            "92974909fb38ceb14045c2190cf781bdf354a071",
+            "missing-codex-author",
+            "2026-08-20 dev-wave-t1371-official-run-root 受入前裁定 "
+            "(ユーザー選択: known-violation 登録)",
+            "受入投入前に親が作成した local main 取り込み merge。実装面で両側が触ったのは "
+            "`orchestrator/campaign/s8b_oracle_driver.py` / "
+            "`orchestrator/tests/test_s8b_oracle_driver.py` の 2 file で、3 方向結合の結果が"
+            "両親のどちらとも異なるため checker が実装面著作と判定；`git diff-tree --cc "
+            "92974909fb38ceb14045c2190cf781bdf354a071 -- "
+            "orchestrator/campaign/s8b_oracle_driver.py "
+            "orchestrator/tests/test_s8b_oracle_driver.py` は commit SHA 行だけで実質空 = "
+            "競合解決による新規著作なし、結果は両側の変更の和集合。wave 側のこの 2 file への"
+            "実装面変更は Codex `role=author` が commit `756228db` で書き、main 側は各 wave の"
+            "land 時に監査済み。親作成 merge のため Codex 著者とは記さない。",
+            "",
+        ),
     )
     assert len(provenance.KNOWN_PROVENANCE_VIOLATIONS) == len(expected)
     assert observed == expected
