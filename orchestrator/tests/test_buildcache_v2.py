@@ -850,6 +850,93 @@ def test_v2_expected_toolchain_version_lower_line_drift_refuses_before_cache_cla
     assert not (tmp_path / "cache").exists()
 
 
+def test_v2_cache_hit_rejects_complete_toolchain_version_drift(
+        tmp_path, monkeypatch):
+    bindir = _install_toolchain(tmp_path, monkeypatch)
+    _fake_build_environment(monkeypatch, tmp_path)
+    _write_multiline_tool(
+        bindir / "test-cxx", ("cxx version A", "Copyright stable"),
+    )
+    expected_a = _expected_toolchain_manifest(bindir)
+    expected_a["cxx"] = dict(
+        expected_a["cxx"], version="cxx version A\nCopyright stable",
+    )
+    first = _build(
+        tmp_path, _contract(1), expected_toolchain_manifest=expected_a,
+        declared_use_class="official",
+    )
+    manifest = json.loads(
+        (Path(first.build_dir) / "completion.json").read_text(encoding="utf-8")
+    )
+    assert manifest["complete_toolchain_manifest"] == expected_a
+    assert manifest["complete_toolchain_manifest_sha256"] == hashlib.sha256(
+        json.dumps(expected_a, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    ).hexdigest()
+
+    _write_multiline_tool(
+        bindir / "test-cxx", ("cxx version A", "Copyright changed"),
+    )
+    expected_b = dict(
+        expected_a,
+        cxx=dict(expected_a["cxx"], version="cxx version A\nCopyright changed"),
+    )
+    build_calls = []
+    monkeypatch.setattr(
+        buildcache, "_run", lambda *args, **kwargs: build_calls.append((args, kwargs)),
+    )
+    with pytest.raises(buildcache.BuildCacheError, match="complete toolchain manifest"):
+        _build(
+            tmp_path, _contract(1), expected_toolchain_manifest=expected_b,
+            declared_use_class="official",
+        )
+    assert build_calls == []
+
+
+def test_v2_official_hit_rejects_legacy_entry_without_complete_manifest(
+        tmp_path, monkeypatch):
+    bindir = _install_toolchain(tmp_path, monkeypatch)
+    _fake_build_environment(monkeypatch, tmp_path)
+    first = _build(tmp_path, _contract(1))
+    manifest_path = Path(first.build_dir) / "completion.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    assert "complete_toolchain_manifest" not in manifest
+    assert "complete_toolchain_manifest_sha256" not in manifest
+
+    build_calls = []
+    monkeypatch.setattr(
+        buildcache, "_run", lambda *args, **kwargs: build_calls.append((args, kwargs)),
+    )
+    with pytest.raises(buildcache.BuildCacheError, match="complete toolchain manifest"):
+        _build(
+            tmp_path, _contract(1),
+            expected_toolchain_manifest=_expected_toolchain_manifest(bindir),
+            declared_use_class="official",
+        )
+    assert build_calls == []
+
+
+def test_v2_nonofficial_hit_accepts_entry_with_complete_manifest(
+        tmp_path, monkeypatch):
+    bindir = _install_toolchain(tmp_path, monkeypatch)
+    _fake_build_environment(monkeypatch, tmp_path)
+    first = _build(
+        tmp_path, _contract(1),
+        expected_toolchain_manifest=_expected_toolchain_manifest(bindir),
+        declared_use_class="official",
+    )
+    build_calls = []
+    monkeypatch.setattr(
+        buildcache, "_run", lambda *args, **kwargs: build_calls.append((args, kwargs)),
+    )
+    hit = _build(tmp_path, _contract(1))
+    assert not first.cached
+    assert hit.cached
+    assert hit.build_dir == first.build_dir
+    assert hit.toolchain_manifest is None
+    assert hit.toolchain_manifest_sha256 is None
+    assert build_calls == []
+
+
 def test_m7_v2_actual_site_change_is_cache_miss(tmp_path, monkeypatch):
     _install_toolchain(tmp_path, monkeypatch)
     _fake_build_environment(monkeypatch, tmp_path)

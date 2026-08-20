@@ -1117,6 +1117,8 @@ def _validate_v2_entry(
         toolchain: Dict[str, Dict[str, str]], binary_relpath: str,
         contract_sha256: str, admission: Dict[str, Any],
         build_context: BuildRunContext, source_evidence: SourceEvidence,
+        complete_toolchain_manifest: Optional[Dict[str, Dict[str, str]]] = None,
+        complete_toolchain_manifest_sha256: Optional[str] = None,
         parent_fd: Optional[int] = None, bdir_name: Optional[str] = None,
 ) -> tuple[str, str, int, str]:
     """完成 entry の host metadata と binary を held fd beneath-only で検証する。
@@ -1141,10 +1143,18 @@ def _validate_v2_entry(
         dependency_receipt = preimage.get("fetchcontent_dependency_receipt")
         if dependency_receipt is not None:
             expected_keys.add("fetchcontent_dependency")
-        if set(manifest) != expected_keys:
+        optional_pair = {
+            "complete_toolchain_manifest",
+            "complete_toolchain_manifest_sha256",
+        }
+        actual_keys = set(manifest)
+        if (
+            actual_keys != expected_keys
+            and actual_keys != (expected_keys | optional_pair)
+        ):
             raise BuildCacheError(
                 f"v2 completion manifest field 集合が不一致: {manifest_path}: "
-                f"actual={sorted(manifest)}"
+                f"actual={sorted(actual_keys)}"
             )
         if manifest["schema_version"] != _V2_SCHEMA:
             raise BuildCacheError(f"v2 completion manifest schema 不一致: {manifest_path}")
@@ -1183,6 +1193,16 @@ def _validate_v2_entry(
         if hashlib.sha256(_canonical_json_bytes(toolchain)).hexdigest() != \
                 preimage["toolchain_manifest_sha256"]:
             raise BuildCacheError(f"v2 toolchain manifest sha256 不一致: {manifest_path}")
+        if complete_toolchain_manifest is not None:
+            if manifest.get("complete_toolchain_manifest") != complete_toolchain_manifest:
+                raise BuildCacheError(
+                    f"v2 complete toolchain manifest 完全一致検査に失敗: {manifest_path}"
+                )
+            if (manifest.get("complete_toolchain_manifest_sha256")
+                    != complete_toolchain_manifest_sha256):
+                raise BuildCacheError(
+                    f"v2 complete toolchain manifest sha256 不一致: {manifest_path}"
+                )
         source_root_sha256 = ""
         if dependency_receipt is not None:
             dependency = manifest["fetchcontent_dependency"]
@@ -1700,6 +1720,8 @@ def build_v2(
                 binary_relpath=binary_relpath, contract_sha256=contract_sha256,
                 admission=admission_identity,
                 build_context=build_context, source_evidence=source_evidence,
+                complete_toolchain_manifest=complete_toolchain_manifest,
+                complete_toolchain_manifest_sha256=complete_toolchain_manifest_sha256,
                 parent_fd=parent_fd, bdir_name=bdir_name,
             )
             try:
@@ -1825,6 +1847,11 @@ def build_v2(
                 "toolchain": toolchain,
                 "binary": {"relative_path": binary_relpath, "sha256": bin_sha256},
             }
+            if complete_toolchain_manifest is not None:
+                completion["complete_toolchain_manifest"] = complete_toolchain_manifest
+                completion["complete_toolchain_manifest_sha256"] = (
+                    complete_toolchain_manifest_sha256
+                )
             if dependency_receipt is not None:
                 completion["fetchcontent_dependency"] = {
                     "source_root_sha256": masstree_source_root_sha256,
