@@ -1,0 +1,110 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 1800,
+  "timeout_seconds": 10800,
+  "hang_timeout_seconds": 1800,
+  "mutations": [
+    {
+      "id": "t1437.m01-source-protocol-always-genome",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_campaign.py::test_source_digest_guard_accepts_builtin_local_and_supplied_macros",
+        "orchestrator/tests/test_campaign.py::test_source_digest_guard_lexes_like_the_preprocessor",
+        "orchestrator/tests/test_campaign.py::test_source_digest_guard_lexes_multiline_and_malformed",
+        "orchestrator/tests/test_campaign.py::test_source_digest_parse_bare_asymmetric_options_and_malformed_scope",
+        "orchestrator/tests/test_campaign.py::test_source_digest_real_mocc_resolve_succeeds_with_source_owned_defines",
+        "orchestrator/tests/test_campaign.py::test_source_digest_real_silo_resolve_succeeds_after_source_protocol_split",
+        "orchestrator/tests/test_campaign.py::test_source_digest_source_protocol_registry_is_exact_and_unknown_is_runtime_error",
+        "orchestrator/tests/test_campaign.py::test_source_digest_token_paste_bypass_rejected",
+        "orchestrator/tests/test_campaign.py::test_source_digest_trace_hidden_in_context_macro_branch_caught",
+        "orchestrator/tests/test_campaign.py::test_source_digest_tu_context_macro_edit_not_aliased_to_stock"
+      ],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/source_digest.py",
+          "old": "    _assert_source_protocols_exact()\n    try:\n        owner = EVOLVE_BLOCK_SOURCE_PROTOCOLS[rel]\n",
+          "new": "    return genome.protocol\n    _assert_source_protocols_exact()\n    try:\n        owner = EVOLVE_BLOCK_SOURCE_PROTOCOLS[rel]\n"
+        }
+      ]
+    },
+    {
+      "id": "t1437.m02-source-protocol-registry-exactmatch-disabled",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_campaign.py::test_source_digest_source_protocol_registry_is_exact_and_unknown_is_runtime_error"
+      ],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/source_digest.py",
+          "old": "    if tuple(EVOLVE_BLOCK_SOURCE_PROTOCOLS) != EVOLVE_BLOCK_SOURCES:\n",
+          "new": "    if False and tuple(EVOLVE_BLOCK_SOURCE_PROTOCOLS) != EVOLVE_BLOCK_SOURCES:\n"
+        }
+      ]
+    },
+    {
+      "id": "t1437.m03-mqlock-cmake-selfcheck-disabled",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_campaign.py::test_source_digest_proven_absent_macro_registry_self_checks_supply_sources"
+      ],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/source_digest.py",
+          "old": "            for macro in PROVEN_REPO_ABSENT_MACROS:\n                if (macro in protocol_details[0]\n                        or macro in universal_details[0]\n                        or _repo_cmake_supplies_macro(text, macro)):\n                    hits.append(f\"{path}: CMake supply\")\n",
+          "new": "            for macro in PROVEN_REPO_ABSENT_MACROS:\n                if False and (macro in protocol_details[0]\n                        or macro in universal_details[0]\n                        or _repo_cmake_supplies_macro(text, macro)):\n                    hits.append(f\"{path}: CMake supply\")\n"
+        }
+      ]
+    },
+    {
+      "id": "t1437.m04-bare-option-assignment-removed",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_campaign.py::test_source_digest_guard_accepts_builtin_local_and_supplied_macros",
+        "orchestrator/tests/test_campaign.py::test_source_digest_guard_lexes_like_the_preprocessor",
+        "orchestrator/tests/test_campaign.py::test_source_digest_guard_lexes_multiline_and_malformed",
+        "orchestrator/tests/test_campaign.py::test_source_digest_parse_bare_asymmetric_options_and_malformed_scope",
+        "orchestrator/tests/test_campaign.py::test_source_digest_real_mocc_resolve_succeeds_with_source_owned_defines",
+        "orchestrator/tests/test_campaign.py::test_source_digest_real_silo_resolve_succeeds_after_source_protocol_split",
+        "orchestrator/tests/test_campaign.py::test_source_digest_token_paste_bypass_rejected",
+        "orchestrator/tests/test_campaign.py::test_source_digest_tu_context_macro_edit_not_aliased_to_stock"
+      ],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/source_digest.py",
+          "old": "        # 裸 option は CMake の target_compile_definitions で -DNAME になる。\n        # genome.flags/filter の後、filter の外側で明示値を置く (D93/T-1437)。\n        for name in bare:\n            merged[name] = \"1\"\n",
+          "new": "        # 裸 option は CMake の target_compile_definitions で -DNAME になる。\n        # genome.flags/filter の後、filter の外側で明示値を置く (D93/T-1437)。\n        for name in bare:\n            pass\n"
+        }
+      ]
+    },
+    {
+      "id": "t1437.m05-asymmetric-cache-mapping-removed",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_campaign.py::test_source_digest_guard_accepts_builtin_local_and_supplied_macros",
+        "orchestrator/tests/test_campaign.py::test_source_digest_guard_lexes_like_the_preprocessor",
+        "orchestrator/tests/test_campaign.py::test_source_digest_guard_lexes_multiline_and_malformed",
+        "orchestrator/tests/test_campaign.py::test_source_digest_parse_bare_asymmetric_options_and_malformed_scope",
+        "orchestrator/tests/test_campaign.py::test_source_digest_token_paste_bypass_rejected",
+        "orchestrator/tests/test_campaign.py::test_source_digest_trace_hidden_in_context_macro_branch_caught",
+        "orchestrator/tests/test_campaign.py::test_source_digest_tu_context_macro_edit_not_aliased_to_stock"
+      ],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/source_digest.py",
+          "old": "            if right in pre_filter:\n                merged[left] = pre_filter[right]\n",
+          "new": "            if False and right in pre_filter:\n                merged[left] = pre_filter[right]\n"
+        }
+      ]
+    }
+  ]
+}
