@@ -239,3 +239,6 @@ def test_run_campaign_forwards_expected_toolchain_to_evaluate_for_each_genome(
     assert [kwargs["cxx"] for _, kwargs in source_calls] == [
         "expected-cxx", "expected-cxx",
     ]
+
+if __name__ == "__main__":
+    sys.exit(pytest.main([__file__]))
