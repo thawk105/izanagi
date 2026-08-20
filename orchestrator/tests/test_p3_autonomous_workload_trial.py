@@ -6315,6 +6315,140 @@ def test_formal_registered_launch_requires_explicit_test_injection(
     assert not run_root.exists()
 
 
+def test_formal_noncertifying_launch_requires_manifest_and_excludes_exploratory(
+) -> None:
+    common = {
+        "trial_id": "formal-opt-in-boundary",
+        "workloads": ["ycsb-a"],
+        "generations": 1,
+        "allow_unregistered_exploratory": False,
+        "effective_preregistration": None,
+    }
+    with pytest.raises(
+        A.trial_registry.TrialRegistryError,
+        match=r"\[launch-admission\] formal non-certifying launch requires a registered manifest",
+    ):
+        A._trial_launch_admission(
+            trial_manifest=None,
+            allow_formal_noncertifying=True,
+            **common,
+        )
+
+    with pytest.raises(
+        A.trial_registry.TrialRegistryError,
+        match=r"\[launch-admission\].*mutually exclusive",
+    ):
+        A._trial_launch_admission(
+            trial_manifest=None,
+            allow_unregistered_exploratory=True,
+            allow_formal_noncertifying=True,
+            **{
+                key: value
+                for key, value in common.items()
+                if key != "allow_unregistered_exploratory"
+            },
+        )
+
+
+def test_formal_noncertifying_registered_workload_consumes_shared_slot(
+    tmp_path, monkeypatch, t325_registered_trial,
+) -> None:
+    monkeypatch.delitem(A.WORKLOADS, "rr80")
+    monkeypatch.setattr(
+        A.s8c_preregistration,
+        "validate_condition_freeze_at",
+        lambda *_args: None,
+    )
+    monkeypatch.setattr(
+        A,
+        "assert_autonomous_trial_completeness",
+        lambda **_kwargs: None,
+    )
+    monkeypatch.setattr(
+        A,
+        "assert_autonomous_trial_execution_digest_chain",
+        lambda **_kwargs: None,
+    )
+
+    run_root = tmp_path / "formal-noncertifying-run"
+    report = _t325_run(
+        t325_registered_trial,
+        run_root,
+        effective_preregistration=None,
+        allow_formal_noncertifying=True,
+    )
+
+    assert report["status"] == "complete"
+    assert report["launch_admission"]["mode"] == (
+        "registered-formal-non-certifying"
+    )
+    assert report["launch_admission"]["certifying"] is False
+    assert report["slot_id"] == _t325_run_start(run_root)["slot_id"]
+    lifecycle_rows = [
+        json.loads(line)
+        for line in (
+            t325_registered_trial.repo
+            / A.trial_registry.DEFAULT_LIFECYCLE_PATH
+        ).read_text(encoding="utf-8").splitlines()
+    ]
+    assert lifecycle_rows[0]["mode"] == "registered-formal-non-certifying"
+    assert lifecycle_rows[0]["activation_report_digest_sha256"] is None
+    attempt_rows = [
+        json.loads(line)
+        for line in (
+            t325_registered_trial.repo
+            / A.trial_registry.DEFAULT_ATTEMPT_REGISTRY_PATH
+        ).read_text(encoding="utf-8").splitlines()
+    ]
+    assert [
+        row["slot_id"]
+        for row in attempt_rows
+        if row.get("event") == "start"
+    ] == [report["slot_id"]]
+
+
+def test_formal_noncertifying_cli_skips_effective_derivation_and_forwards_opt_in(
+    tmp_path, monkeypatch, t325_registered_trial,
+) -> None:
+    captured: dict[str, dict[str, Any]] = {}
+    monkeypatch.setattr(A, "assert_pinned_clean", lambda *_args, **_kwargs: None)
+
+    def capture_admission(**kwargs):
+        captured["admission"] = kwargs
+        return t325_registered_trial.admission
+
+    def capture_run_trial(**kwargs):
+        captured["run_trial"] = kwargs
+        return {"status": "complete", "cells": []}
+
+    def forbidden_effective_at(*_args, **_kwargs):
+        pytest.fail("formal non-certifying CLI derived effective preregistration")
+
+    monkeypatch.setattr(A, "_trial_launch_admission", capture_admission)
+    monkeypatch.setattr(A, "run_trial", capture_run_trial)
+    monkeypatch.setattr(
+        A.s8c_preregistration,
+        "effective_at",
+        forbidden_effective_at,
+    )
+
+    assert A.main([
+        "--trial-id", t325_registered_trial.trial_id,
+        "--trial-manifest", str(t325_registered_trial.manifest_path),
+        "--provider", "fixture",
+        "--workloads", "rr80",
+        "--max-generations", "2",
+        "--no-build",
+        "--allow-formal-noncertifying",
+        "--ccbench-dir", str(tmp_path / "ccbench"),
+        "--run-root", str(tmp_path / "run"),
+    ]) == 0
+    assert captured["admission"]["allow_formal_noncertifying"] is True
+    assert captured["admission"]["effective_preregistration"] is None
+    assert captured["run_trial"]["allow_formal_noncertifying"] is True
+    assert captured["run_trial"]["effective_preregistration"] is None
+
+
 def test_p8_m25_manifest_run_burns_exact_binding_without_arm_fields(
     tmp_path, t325_registered_trial,
 ) -> None:
@@ -7033,6 +7167,27 @@ def test_p10_cli_manifest_gate_precedes_build_preparation_and_forwards_manifest(
     assert captured["trial_manifest"] == t325_registered_trial.manifest_path
     assert captured["trial_admission"].binding == t325_registered_trial.binding
     assert captured["effective_preregistration"] is t325_registered_trial.capability
+
+
+def test_cli_rejects_simultaneous_exploratory_and_formal_noncertifying_opt_ins(
+    tmp_path, t325_registered_trial,
+) -> None:
+    with pytest.raises(
+        A.trial_registry.TrialRegistryError,
+        match=r"\[launch-admission\].*mutually exclusive",
+    ):
+        A.main([
+            "--trial-id", t325_registered_trial.trial_id,
+            "--trial-manifest", str(t325_registered_trial.manifest_path),
+            "--provider", "fixture",
+            "--workloads", "rr80",
+            "--max-generations", "2",
+            "--no-build",
+            "--allow-unregistered-exploratory",
+            "--allow-formal-noncertifying",
+            "--ccbench-dir", str(tmp_path / "ccbench"),
+            "--run-root", str(tmp_path / "run"),
+        ])
 
 
 def test_t1185_m5_cli_default_generation_is_rejected_before_identity_or_run_root(

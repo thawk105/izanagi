@@ -128,6 +128,7 @@ def validate_reviewed_spec(document: Mapping, *, root=ROOT) -> tuple[dict, dict]
             holdout_ids=parameters.get("holdout_ids"),
             configuration_ids=parameters.get("configuration_ids"),
         )
+        _manifest.validate_schedule(schedule)
         recorded_schedule_sha = _lower_sha256(
             document.get("schedule_sha256"), field="schedule_sha256",
         )

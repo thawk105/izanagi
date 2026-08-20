@@ -1000,7 +1000,10 @@ def _active_arm_execution(
             "[run-scope] arm execution requires the sealed run scope"
         )
     arm_execution = scope.arm_execution
-    if scope.admission.mode == "registered-effective":
+    if scope.admission.mode in (
+        "registered-effective",
+        "registered-formal-non-certifying",
+    ):
         if arm_execution is None:
             raise trial_registry.TrialRegistryError(
                 "[arm-input-resolution] registered run has no arm execution"
@@ -1127,10 +1130,21 @@ def _trial_launch_admission(
     effective_preregistration: (
         s8c_preregistration.EffectivePreregistration | None
     ),
+    allow_formal_noncertifying: bool = False,
 ) -> trial_registry.TrialLaunchAdmission:
     """Run the artifact-free launcher gate at either public boundary."""
     registry_path = ROOT / trial_registry.DEFAULT_REGISTRY_PATH
+    if allow_unregistered_exploratory and allow_formal_noncertifying:
+        raise trial_registry.TrialRegistryError(
+            "[launch-admission] exploratory and formal non-certifying opt-ins "
+            "are mutually exclusive"
+        )
     if trial_manifest is None:
+        if allow_formal_noncertifying:
+            raise trial_registry.TrialRegistryError(
+                "[launch-admission] formal non-certifying launch requires a "
+                "registered manifest"
+            )
         return trial_registry.admit_unregistered_exploratory(
             trial_id=trial_id,
             workloads=workloads,
@@ -1138,14 +1152,24 @@ def _trial_launch_admission(
             repository_root=ROOT,
             registry_path=registry_path,
         )
-    admission = trial_registry.admit_registered_launch(
-        effective_preregistration=effective_preregistration,
-        manifest_path=Path(trial_manifest),
-        trial_id=trial_id,
-        workloads=workloads,
-        repository_root=ROOT,
-        registry_path=registry_path,
-    )
+    if allow_formal_noncertifying:
+        admission = trial_registry.admit_registered_formal_noncertifying(
+            allow_formal_noncertifying=allow_formal_noncertifying,
+            manifest_path=Path(trial_manifest),
+            trial_id=trial_id,
+            workloads=workloads,
+            repository_root=ROOT,
+            registry_path=registry_path,
+        )
+    else:
+        admission = trial_registry.admit_registered_launch(
+            effective_preregistration=effective_preregistration,
+            manifest_path=Path(trial_manifest),
+            trial_id=trial_id,
+            workloads=workloads,
+            repository_root=ROOT,
+            registry_path=registry_path,
+        )
     binding = admission.binding
     if binding is None:  # pragma: no cover - sealed registry postcondition
         raise trial_registry.TrialRegistryError(
@@ -1217,9 +1241,15 @@ def _reserve_registered_attempt_slot(
     entering ``run_trial``; that probe is outside this reservation guarantee.
     """
     trial_registry.assert_issued_trial_launch_admission(admission)
-    if admission.mode != "registered-effective" or admission.binding is None:
+    if (
+        admission.mode not in (
+            "registered-effective",
+            "registered-formal-non-certifying",
+        )
+        or admission.binding is None
+    ):
         raise trial_registry.TrialRegistryError(
-            "[attempt-slot] only registered-effective launches consume slots"
+            "[attempt-slot] only registered launches consume slots"
         )
     binding = admission.binding
     registry_path = ROOT / trial_registry.DEFAULT_ATTEMPT_REGISTRY_PATH
@@ -2902,6 +2932,7 @@ def _finish_trial(
     ) = None,
     trial_manifest: Path | None = None,
     allow_unregistered_exploratory: bool = True,
+    allow_formal_noncertifying: bool = False,
     attempt_slot: trial_registry.AttemptSlotCapability | None = None,
     origin_runtime: OriginTrialRuntime | None = None,
 ) -> dict[str, Any]:
@@ -2922,6 +2953,7 @@ def _finish_trial(
         trial_id=trial_id,
         workloads=selected,
         allow_unregistered_exploratory=allow_unregistered_exploratory,
+        allow_formal_noncertifying=allow_formal_noncertifying,
         repository_root=ROOT,
         registry_path=ROOT / trial_registry.DEFAULT_REGISTRY_PATH,
     )
@@ -2941,7 +2973,10 @@ def _finish_trial(
             "[run-scope] finish requires the exact sealed run_trial admission"
         )
     arm_execution = active_scope.arm_execution
-    if launch_admission.mode == "registered-effective":
+    if launch_admission.mode in (
+        "registered-effective",
+        "registered-formal-non-certifying",
+    ):
         if (
             arm_execution is None
             or launch_admission.binding is None
@@ -4005,6 +4040,7 @@ def run_trial(
     effective_preregistration: (
         s8c_preregistration.EffectivePreregistration | None
     ) = None,
+    allow_formal_noncertifying: bool = False,
     trial_admission: trial_registry.TrialLaunchAdmission | None = None,
     origin_binding_request: OriginBindingRequest | None = None,
     origin_producer_inputs: OriginProducerInputs | None = None,
@@ -4056,6 +4092,10 @@ def run_trial(
         raise AutonomousTrialError(
             "allow_unregistered_exploratory は bool 必須"
         )
+    if type(allow_formal_noncertifying) is not bool:
+        raise AutonomousTrialError(
+            "allow_formal_noncertifying は bool 必須"
+        )
     if (origin_binding_request is None) != (origin_producer_inputs is None):
         raise AutonomousTrialError(
             "origin_binding_request and origin_producer_inputs must be supplied together"
@@ -4086,6 +4126,7 @@ def run_trial(
             generations=generations,
             allow_unregistered_exploratory=allow_unregistered_exploratory,
             effective_preregistration=effective_preregistration,
+            allow_formal_noncertifying=allow_formal_noncertifying,
         )
     else:
         trial_registry.assert_issued_trial_launch_admission(trial_admission)
@@ -4115,6 +4156,7 @@ def run_trial(
             generations=generations,
             allow_unregistered_exploratory=allow_unregistered_exploratory,
             effective_preregistration=effective_preregistration,
+            allow_formal_noncertifying=allow_formal_noncertifying,
         )
         if (
             trial_registry.launch_admission_record(trial_admission)
@@ -4129,7 +4171,10 @@ def run_trial(
             trial_admission.binding,
             repository_root=ROOT,
         )
-    unknown = sorted(set(selected) - set(WORKLOADS))
+    admitted_workloads = set(WORKLOADS)
+    if trial_admission.mode == "registered-formal-non-certifying":
+        admitted_workloads |= set(FORMAL_WORKLOADS)
+    unknown = sorted(set(selected) - admitted_workloads)
     if unknown:
         raise AutonomousTrialError(f"unknown workloads: {unknown}")
     # Capture once per run, before any workload or artifact-producing role work.
@@ -4159,7 +4204,10 @@ def run_trial(
         raise AutonomousTrialError(
             f"run_root は新規 directory 必須 (resume は MVP 範囲外): {run_root}"
         )
-    if trial_admission.mode == "registered-effective":
+    if trial_admission.mode in (
+        "registered-effective",
+        "registered-formal-non-certifying",
+    ):
         _reject_registered_lifecycle_duplicate(trial_id=trial_id)
     origin_runtime: OriginTrialRuntime | None = None
     preflight_build_context: BuildRunContext | None = None
@@ -4187,7 +4235,10 @@ def run_trial(
         max_wall_s=max_wall_s,
     )
     attempt_slot: trial_registry.AttemptSlotCapability | None = None
-    if trial_admission.mode == "registered-effective":
+    if trial_admission.mode in (
+        "registered-effective",
+        "registered-formal-non-certifying",
+    ):
         attempt_slot = _reserve_registered_attempt_slot(
             admission=trial_admission,
             origin_binding=(
@@ -4234,7 +4285,10 @@ def run_trial(
             origin_runtime.initial_snapshot = origin_runtime.client.read_origin(
                 origin_runtime.capability
             )
-        if trial_admission.mode == "registered-effective":
+        if trial_admission.mode in (
+            "registered-effective",
+            "registered-formal-non-certifying",
+        ):
             lifecycle_arguments = dict(
                 admission=trial_admission,
                 effective_preregistration=effective_preregistration,
@@ -4486,6 +4540,7 @@ def run_trial(
                 allow_unregistered_exploratory=(
                     allow_unregistered_exploratory
                 ),
+                allow_formal_noncertifying=allow_formal_noncertifying,
             )
             if attempt_slot is not None:
                 finish_arguments["attempt_slot"] = attempt_slot
@@ -4657,6 +4712,11 @@ def main(argv: Sequence[str] | None = None) -> int:
         action="store_true",
         default=False,
     )
+    parser.add_argument(
+        "--allow-formal-noncertifying",
+        action="store_true",
+        default=False,
+    )
     add_registered_coder_build_authority_argument(
         parser,
         coder_entrypoint_site=(
@@ -4704,7 +4764,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         )
     fixed_sub = str(Path(args.ccbench_dir).resolve())
     effective_preregistration = None
-    if args.trial_manifest is not None:
+    if args.trial_manifest is not None and not args.allow_formal_noncertifying:
         manifest = trial_registry.load_trial_manifest(args.trial_manifest)
         effective_preregistration = s8c_preregistration.effective_at(
             ROOT,
@@ -4717,6 +4777,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         generations=args.max_generations,
         allow_unregistered_exploratory=args.allow_unregistered_exploratory,
         effective_preregistration=effective_preregistration,
+        allow_formal_noncertifying=args.allow_formal_noncertifying,
     )
     if args.no_build:
         assert_pinned_clean(fixed_sub, trigger.PIN)
@@ -4755,6 +4816,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 args.allow_unregistered_exploratory
             ),
             effective_preregistration=effective_preregistration,
+            allow_formal_noncertifying=args.allow_formal_noncertifying,
             trial_admission=launch_admission,
             workload_profile=args.workload_profile,
         )

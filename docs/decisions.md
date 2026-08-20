@@ -24624,3 +24624,279 @@ limit 超過検出に委ね削除する。
 **scope外:** 同じファイル内の `_evaluate_c12` が使う helper も C06 改修前と同じ
 `_reachable_calls` 名前一致弱点を持つが、本決定は `_evaluate_c06` だけを対象とする
 (次 task 候補として worklog に記録)。
+
+## D614. T-1434(4) Wave C は `collect_run` の既定値廃止 + `_replay_manifest` 1行だけを Wave D 境界の許可された越境とする (2026-08-21)
+
+**決定:** `tools/codex_reasoning_ab.py` の model 軸拡張 Wave C (`supervise_pair`/`collect_run` 層) を、
+D603 が定めた「Wave D 所有関数 (`_validate_schedule`/`_load_adjudication`/`_aggregate_verified`/
+`_validate_supervisor_ledger`/`make_packets`) の本体は変更しない」制約の下で実装した。
+唯一の例外として、`collect_run` の `expected_model: str = MODEL` という暗黙既定値を廃止し
+`expected_requested_model: str` を必須化したことに追従する形で、`_replay_manifest` (Wave D 所有) 内の
+唯一の呼出し箇所へ `expected_requested_model=slot.get("requested_model", MODEL)` という 1 行の
+機械的な呼出し規約更新だけを許可した。adjudication・aggregate・replay の判定ロジック自体は
+無改修である。
+
+**理由:**
+- 段2 codex plan・段3 敵対相談 2 レンズ・段6 敵対レビュー 2 レンズが、計 4 回独立に
+  `supervise_pair`→`_validate_schedule` という既存の C→D 呼出し自体が実在することを確認したが、
+  `_validate_schedule` が受理した schedule slot の行 dict を pass-through する既存特性
+  (未知 field を削らない) により、Wave C の `requested_model` 配線がこの経路を無改修で安全に
+  通過することも同じく複数回確認した。D 本体の書き換えは不要という結論が独立検証で揺らがなかった。
+- `collect_run` の既定値を残したまま (`expected_model: str = MODEL` を維持したまま) 実装する案も
+  検討したが、これは前 wave の段6 敵対レビューが `normalize_schedule` 系について指摘した
+  「fail-closed gate が実効しない」と同型の欠陥 (model 不一致が既定値で静かに見逃される) を
+  再導入する。`DW-C01`「呼出し規約を変える取込は全呼出しを数える」の範囲内として、
+  唯一の call site (`_replay_manifest`) への 1 行更新を許可する方が安全側だと判断した。
+- 段6 レビュー中の親自身の変異事前登録の準備で、`_verify_launch_receipt` の明示
+  `requested_model` 引数が「turn_context は一致・argv だけ不一致」という組合せで単独検査されて
+  いない被覆漏れを発見した。実在する到達可能経路 (`_replay_manifest` が将来 model-axis schedule で
+  luna を渡す、CLI `--expected-model` は任意文字列を受理する) であるため、1 テストを追加して
+  塞いだ (production 側は無改修)。
+
+**却下した選択肢:**
+- Wave A→B→C→D を本 wave でまとめて実装する — D603 の narrow 判断を覆す新事実は本 wave で
+  一切出なかった。
+- `_validate_schedule`/`normalize_schedule` 系を Wave C で配線する — D 所有関数の書き換えを伴い
+  D603 の境界を破る。Wave A が残した "Wave C/D must wire" という docstring は、配線の必要性を
+  示すが所有の移管は意味しないと解釈した。
+- `collect_run` の `expected_model` 既定値を維持する — 上記理由のとおり静かな見逃しを再導入する。
+
+変異事前登録 8 件、baseline 300 passed・20 skipped、8/8 KILLED・SURVIVED 0・MISMATCH 0。
+
+## D615. source_digest の macro 供給表解析を source 単位・CMake 慣習非依存へ精密化する (D93 を緩めない) (2026-08-21)
+
+**決定:** `orchestrator/campaign/source_digest.py` の実 TU 供給集合解析を3点精密化する。
+いずれも D93 の fails-closed 閾値 (未知 macro は停止する) を変えず、検査が見る対象
+(defines/供給集合) の精度だけを上げる。
+
+1. **source 単位の protocol 分離。** `EVOLVE_BLOCK_SOURCES` は複数 protocol の source
+   (`cc/silo/transaction.cc`、`cc/mocc/transaction.cc`) を一つの tuple に混在させるが、
+   従来の defines 計算は genome 1 つが持つ protocol からしか作られておらず、tuple 内の
+   他 protocol の source を検査する際に無関係な protocol の defines を誤って適用していた。
+   `EVOLVE_BLOCK_SOURCE_PROTOCOLS` (各 source の owner protocol、`None` は genome 由来を意味する)
+   を新設し、`_worktree_defines`/`_head_defines` に `source_rel` 引数を追加して file 単位で
+   defines を作るよう変更した。registry と `EVOLVE_BLOCK_SOURCES` の exact-match は
+   モジュール読み込み時と呼び出しごとの双方で自己検査し、drift や未知 source は `RuntimeError`
+   にする (生の `KeyError` を伝播させない — 呼び手が `except RuntimeError` で variant 単位の
+   abort に隔離する既存契約に合わせるため)。
+2. **CMake `OPTIONS` の裸オプション・非対称 cache 名への対応。** 実 TU 供給表解析
+   (`_SUPPLY_RE`) は `NAME=${CCBENCH_NAME}` 形しか認識せず、`=` を伴わない裸オプション
+   (`ccbench_add_protocol` の `OPTIONS` に列挙される、CMake の `target_compile_definitions` で
+   常時 `-DNAME` になる形) と、左辺 (TU macro 名) と右辺 cache 変数名が異なる非対称命名の
+   両方を見落としていた。`ccbench_add_protocol(...)` を balanced paren scan で抽出し、
+   `OPTIONS` から次の section keyword までの範囲だけを token 化して解析するよう拡張し、
+   裸 token は `merged[name] = "1"` (CMake の `-DNAME` 相当) を明示反映、非対称命名は
+   左辺→右辺 cache 名の対応を保持して転送する。
+3. **universal definitions 関数本体の CMake 呼び出し形非依存化。** `ccbench_universal_definitions()`
+   の中身から供給 token を抽出する処理が、当初 `set(${out_var} ... PARENT_SCOPE)` 形の
+   呼び出ししか認識しなかった。`target_compile_definitions(${target} PRIVATE ...)` で同じ
+   universal 供給を書くのも同等に正当な CMake の書き方であり、これを使う既存テスト
+  (実装済み・別ツールの fixture) が新規に fails-closed してしまった。両方の呼び出し形から
+   供給 token を抽出できるよう拡張した。
+
+**理由:**
+- fails-closed の閾値自体 (未知 macro を受理しない) は一切変更していない。変更したのは
+  「どの macro が実 TU 供給集合に属するか」の判定精度であり、既存の正しい拒否は維持したまま
+  誤った拒否 (実際には供給されている macro を未知と誤認する) を減らす。
+- MQLOCK は repo 全体 (全 protocol の CMakeLists.txt・universal 定義・`#define`・
+  `target_compile_definitions`/`add_definitions`/`add_compile_definitions`/
+  `add_compile_options`/`target_compile_options`/`set_target_properties`・
+  `CMAKE_CXX_FLAGS` 経由の `-D` 注入) を実走査して供給源ゼロと確認した上で、専用 registry
+  (`PROVEN_REPO_ABSENT_MACROS`) に登録した。`CONTEXT_MACROS` (TU 注入で「時々供給されうる」
+  macro を両文脈 digest 化する機構) とは意味が異なるため流用しなかった — MQLOCK は
+  「一度も供給されない」ことが主張であり、両文脈を覆う必要がない。registry は毎回
+  repo を再走査して自己検証し、供給源が出現すれば stale として fails-closed する
+  (静的な信頼ではなく実行時の裏取りを維持する)。
+
+**却下した選択肢:**
+- 裸オプション・非対称命名を無視し mocc protocol だけ個別に許容する — 同型の裸オプションは
+  ss2pl (`DLR1`) にも実在し、mocc 固有の特殊扱いにすると次に同じ壁に当たる protocol を
+  未然に防げない。
+- MQLOCK を `CONTEXT_MACROS` に追加する — 「TU から不可視に供給されうる」という
+  `CONTEXT_MACROS` の意味と、「一度も供給されない」という MQLOCK の実態が食い違い、
+  存在しない `MQLOCK=1` 枝を digest に取り込んで誤分類する。
+
+**検証:** 変異事前登録5点 (source 単位 protocol 固定化・registry exact-match 無効化・
+MQLOCK self-check 無効化・裸 option 代入削除・非対称 mapping 削除) を実測ベースの
+expected_nodes で本登録し、baseline PASSED・5/5 KILLED・SURVIVED 0・MISMATCH 0 を確認した。
+受入全走は `verdict=child-green` (red_nodeids/flake_nodeids とも空)。
+
+## D616. C12 の allocation binding 判定を C05/C06 と同型の idiom へ揃える (2026-08-21)
+
+**決定:** `_c12_allocation_binding_verdict` の supervisor 側 reachability 検査を、ad hoc な
+`_reachable_calls` (呼び出し名の文字列一致のみ、import 束縛を検証しない) から
+`_ReachabilityExplorer`+`_declared_call` (import 束縛を実解決したうえでの cross-module
+reachability 検査、`_evaluate_c05`・`_evaluate_c06` と同型、`_evaluate_c12` 自身の
+environment_contract/execution_guard 副検査とも同型) へ置換する。判定対象は
+`read_binding`/`check_reservation` の到達判定のみとし、reason code は既存の
+`ALLOCATION_ENFORCEMENT_CONSUMER_ABSENT` を維持する。`field_paths`/`reachable_from` の
+文字列契約検査、`_reachable_calls` 本体の変更・撤去は本 wave の scope に含めない。
+
+**理由:**
+- D599 (2026-08-20) が C06 について指摘した「呼び出し名の文字列一致だけで import 束縛を
+  検証しない」弱点は、同ファイル内の C12 helper にも同型で存在すると、C06 強化 wave の段3
+  敵対相談が独立に発見していた。同ファイル内の姉妹検査がすでに個別に持つ idiom をそのまま
+  転用でき、新規機構の発明を要しなかった (規律5「盛らない」、既存 idiom の再利用)。
+- 旧実装は decoy 関数・import alias・return 後の dead code の3経路すべてで fail-open することを
+  実測で確認した (親の一時編集による直接実行、独立レンズによる追試の両方で再現)。
+- 実装後の変異 matrix 本走で、この強化が契約の `negative_control_id`
+  (`nc_c12_reservation_check_bypassed`) 専用テストが検出する範囲と直接重なることを実測で
+  確認した — allocation binding の弱点は「reservation check bypass」という契約が名指しする
+  攻撃面そのものであり、本強化はその検出力を機械的に裏付ける。
+- 実 repo 現行状態への判定結果は変更しない (`EVIDENCE_UNDEFINED`/
+  `completion-proof-not-machine-checkable` のまま)。C12 の `machine_checkable=true` 契約・
+  `static_only_note` が明記する may-reach 検査の限界 (data-flow・支配関係・例外伝播・process
+  exclusivity を証明しない) も変更しない。
+
+**却下した選択肢:**
+- `_reachable_calls`・`_ReachabilityExplorer`・`_declared_call` の本体を変更する、または
+  C06/C05 など他条件の evaluator へ波及させる — 対象は C12 の allocation binding 判定
+  1箇所のみで足り、規律5 に反する。
+- `field_paths`/`reachable_from` の文字列契約検査を C12 へ新設する — C06 (D613) が持つ
+  P1.4 相当の拡張だが、command が要求する scope を超え、C12 は現状どちらも未使用のため
+  narrow scope を優先した。
+- 変異事前登録の expected node を段4時点の推測のまま確定扱いにする — 実装後の正式
+  `tools/mutation_harness.py` 本走で当初見落としていた追加 kill (cache-hit テスト、契約の
+  `negative_control_id` 専用テスト) が2回判明したため、実測確定するまで「候補」として扱った。
+
+## D617. D499 決定(2) の item2 (test_dev_waves_integration.py の self-import launcher) 修正保留を解除し実装する (2026-08-21)
+
+**決定:** D499 決定(2) が「テスト側の比例欠陥は恒久保留とする。削除も修正もしない。解除はユーザーの
+明示命令に限る」と定めた item2 (test_dev_waves_integration.py の self-import launcher、
+`_run_contained_serve_child()` が fresh subprocess から自ファイル全体を毎回 re-import する
+D463(b) 型欠陥) について、修正保留を解除し実装した。
+
+**理由:**
+- 本 wave を起票した command 引数が、item4 (test_check_ai_provenance.py) だけを「accepted
+  full-history scan の範囲を保ったまま」と明記して保護し、item2 は同様の保護を与えなかった。
+  既知の欠落候補として test_dev_waves_integration.py を名指しし「欠陥が test 側か target 側かを
+  分類し、必要な修正…を行う」「欠陥を恒久保留へ登録しない」と明記しており、起票者は D499 の内容
+  (item2/item4 双方の disposition) を認識した上で (item2/item4 双方の裁定原文を含む archive 2 本を
+  両方とも正本として明示的に引用) item2 を修正対象に含めたと判断した。
+- D499 決定(2) の理由は「テスト側は比例部分が 0.214 秒、入力は 14 日間不変で、変異による検証が
+  構造的に不能」だった (既存の唯一の実行時 node が `xdist_group` 所属で D452 の mutation 対象条件
+  (c) を満たせない)。本 wave は、実際の subprocess launcher が参照する module 名を検査する
+  D452 適合の新設 static assertion (`xdist_group` 非所属) を考案し、この技術的制約を解消した。
+
+**却下した選択肢:**
+- 解釈を保留しユーザーへ再度諮る — command 原文が対象 file を名指しし恒久保留を明示的に禁じており、
+  既に実質的な指示と判断した。誤りであれば本 decision とその根拠から訂正できる。
+
+**参考:** 実装は subprocess launcher を新設 `orchestrator/tests/_dev_waves_serve_child.py` helper
+module へ切り出す形。既存 socket roundtrip test の marker・本体・受理集合は不変。変異事前登録は
+D452 適合の新設 node 1 件のみ (KILLED、期待どおり単一 node)。launcher 定数を直接書き換える変異は
+静的 assertion と実 subprocess 起動の両方に波及し `xdist_group` node を巻き込むため、D452 の
+代替条項 (親の直接実測) で裏取りした。
+
+## D618. 正式 non-certifying launch admission mode は D510 の attempt registry へ完全統合する (2026-08-21)
+
+**決定:** `trial_registry.py` に新設した `registered-formal-non-certifying` launch admission mode
+(12 predicate 全部 SATISFIED の `EffectivePreregistration` を要求せず、`validate_condition_freeze_at()`
+だけで凍結文書の生存を確認する) は、D510 の事前割当 attempt registry (genesis slot・
+pre-observation classification・lifecycle) を **既存の `registered-effective` と共有する形で
+完全に消費する。** certifying 用・non-certifying 用でslot poolを分離する設計は採らない —
+`create_attempt_registry_genesis()` は manifest 単位で1回だけ生成され admission mode とは
+独立した層にあるため、分離は構造的に不要である。
+
+**理由:**
+- 段3 敵対相談2レンズが、当初の親 provisional 裁定 (P1: 新モードは D510 の attempt registry を
+  消費しない) を独立に refuted と判定した。D510 決定4は `certifying` フラグを適用条件にしておらず、
+  `certifying=False` というラベルだけで事前割当・時点証明・pre-observation classification を
+  回避する設計は、ラベルで正しさゲートを迂回する reward hacking 形であり CLAUDE.md 規律2 に
+  抵触する (レンズA)。
+- 同じ設計は技術的にも成立しない。「binding は持つが attempt slot は消費しない」状態は、
+  run-start 生成・`_finish_trial()` が無条件に `attempt_slot.slot_id` を参照する既存前提と
+  衝突し、admission 後の実行が構造的にクラッシュする (レンズB)。
+- genesis の生成単位 (manifest 単位・1回限り) を実測した結果、certifying/non-certifying 間で
+  slot pool を分離する新設計は不要と判明した。non-certifying 測定も観測である以上、その構成の
+  slot を消費する — これは D510 の「観測済み値の差し替えを拒否する」規律と整合する
+  (non-certifying で先に測った構成を、後で certifying として再測定することはできない)。
+
+**却下した選択肢:**
+- (P1) D510 の attempt registry を消費しない設計のまま実装する — 段3 2レンズが独立に
+  reward hacking 懸念と実行時クラッシュの両方を指摘し refuted。
+- certifying 用・non-certifying 用に別の attempt registry (別 freeze_id・別 genesis) を新設する —
+  genesis が manifest 単位・admission mode 非依存の層にあることが判明し、分離の必要性が
+  技術的根拠を失った。
+
+正本 = `output/insights/2026-08-18_t1333-t1310-workload-profile/README.md` の R-01。
+段4 裁定パッケージ・両レンズ所見の詳細は job dir
+`/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t1310-formal-noncertifying-admission/` の
+`stage3-lensA-output.md` / `stage3-lensB-output.md` に保全済み。
+
+## D619. 受入lease claim〜land/releaseの実時間を実測し、既定値は変更せず opt-in override 使用時のTTL超過リスクを記録に留める (2026-08-21)
+
+**決定:** `output/insights/2026-08-20_t870-acceptance-lease-timing/README.md` へ、
+lease claim〜dispatch submit〜queue-wait〜run〜land完了の実時間を landed 済み3 wave の
+成果物 (`acceptance-run.{pid,done}`・`land.{pid,done}`・PBS qstat summary block の絶対時刻) から
+実測して記録した。既定値 (queue_wait=900秒/overall_grace=300秒/walltime=3600秒/lease
+TTL=2400秒) はいずれも変更しない。次の対応は**行わない**。
+
+1. lease TTL・既定walltime・queue-wait/overall-graceの既定値変更。
+2. D299 が裁定パッケージへ送付済みの invocation 識別・fencing 機構の新設。
+3. `tools/dev_wave_land.py --lease-dir` を land 呼出しへ配線する変更 (renew/release
+   自動化の可能性を発見したが、fencing gap と交差しうるため未調査のまま見送る)。
+
+**理由:**
+
+- 実測3サンプル (claim取得〜land完了、算出は submit〜done を近似に使用) は 326〜1103 秒
+  ([[D612]] の段2見積り「Q+G<=770〜1070秒」と整合)、TTL 2400秒に対し十分な余裕がある。
+  既定値下では latent gap は顕在化しないと確認した。
+- 一方、[[D612]] が新設した opt-in override (`IZANAGI_DISPATCH_QUEUE_WAIT_TIMEOUT_OVERRIDE`/
+  `IZANAGI_DISPATCH_OVERALL_GRACE_OVERRIDE`) を、その override が想定する実congestion規模
+  (`docs/archive/worklog-phase3-0816-566-567.md` の83分・`docs/archive/worklog-phase3-0804-187.md`
+  の6時間) に当てはめると、lease保持想定はTTLの2.2〜9.2倍に達する。override はdispatch自体を
+  queue-wait-timeout/overall-timeoutで死なせないことだけを保証し、lease TTL内に収まることは
+  何も保証しない — override の存在とTTLの存在が未接続のまま残っている。
+- この未接続を閉じる設計 (fencing token、`--lease-dir`配線によるrenew自動化など) は、
+  D299 がすでに「invocationを識別しない」ことを既知の限界として明記し、機構案を裁定パッケージへ
+  送付済みの領域と重なる。[[D612]] が「識別・fencing機構はT-870固有の課題ではなく
+  プロジェクトレベルで別途解決すべき前提条件として扱い、T-870側で先回りして解こうとしない」と
+  裁定した理由をそのまま継承する。
+- `_LauncherSession.wait()` (`tools/dev_wave_wait.py:550`) の timeout=None (起動済み launcher を
+  `--max-wait-seconds` で中断できない) は、実運用ログ自身が
+  `"acceptance-command timeout=none (long-running acceptance is intentional)"` と記録しており、
+  意図された設計と確認した。改修対象ではなく、制約として記録するに留める。
+
+**却下した選択肢:**
+- 新規の受入lease投入による合成計測 — 実測時点で13並行peer sessionが稼働しており、
+  測定専用の投入は他waveのland窓口を奪う。landed済みwaveの実artifact事後解析で代替した。
+- `--lease-dir`配線の実装まで踏み込む — 効果 (renew/release自動化) を確認できたが、
+  安全性 (TTL失効後の別waveによる再claimとの相互作用) の検証には D299 の裁定領域の再調査が
+  要る。本waveのscope (既定値を変更しない実測) を超えるため見送った。
+
+## D620. 受入全走への並列度低減 (T-870 item (e)) は現 evidence では実装しない (2026-08-21)
+
+**決定:** T-870 系列の未着手項目 (e) 「queue 混雑時は待つのでなく並列度を下げる」
+(`IZANAGI_TEST_NPROC`) を、受入全走 (`orchestrator/tests` フルスイート、`python3
+tools/run_tests.py` 受入形 bare 呼出し) へ適用することは、現時点の evidence では実装しない。
+`tools/run_tests.py` の local/dispatch 判定 (`orchestrator/campaign/login_headroom.py` の
+`grant_budget`) は `IZANAGI_TEST_NPROC` を直接の入力として使わず、`recall_peak("tests-full")` に
+基づく過去 peak の 1.25 倍見積りだけで判定する。現行 peak 記録 (4 GiB 上限相当) がある限り、
+既定の呼出し経路では nproc の値や現在の空き容量に関わらず DISPATCH 判定が続く。この経路には
+staleness/expiry/decay による自然回復が無い。
+
+改善候補として、operator が明示的に一回限り peak 履歴を無視して local admission を再試行できる
+opt-in 機構が段3 敵対相談2レンズから独立に提案されたが、`login_headroom.py` の並行アクセス・
+ロック契約に触れる新規設計であり、本 wave の brief・段2・段3 が検証した対象 (nproc の直接効果) とは
+別の設計対象である。専用の brief → plan → consult を経ていないため、本 wave では実装しない。
+
+**理由:**
+- nproc=4 での受入全走フルスイートの実 peak が 4 GiB 以内に収まり CAP_OOM を避けられるという
+  直接証拠が無い (段2 codex プラン、段3 レンズ両方が確認)。
+- `grant_budget()` の見積り計算 (peak×1.25 対 既定上限4GiB) は、現行 peak 記録がある限り nproc に
+  関わらず恒常的に DISPATCH を選ぶ。これは段3 レンズ sol が file:line で確認したコードの恒常挙動で
+  あり、nproc を下げるだけでは admission 判定に到達すらしない。
+- D612 (`docs/decisions.md:24540`) が既に、既定 timeout 値の自動引き上げと `_is_acceptance_run`
+  ベースの自動分岐を却下している。本決定はこの射程を再訪しない — 却下対象は timeout 値と受入形
+  分岐であり、peak 履歴無視の明示 opt-in はいずれにも該当しないため、将来実装する場合も自動選択・
+  `is_acceptance` 分岐を追加してはならない。
+- 規律5 (段階導入・盛らない) に従い、当初の brief が対象としなかった新しい設計対象
+  (safety-critical な並行アクセス ledger への機構追加) を同一 wave で実装へ進めない。
+
+**却下した選択肢:**
+- 現行 peak 記録・見積り計算式そのものを変更する (peak の重みを下げる、上限を上げる等) —
+  当初 brief の対象 (nproc の直接効果) から逸脱し、`login_headroom.py` の既存 safety 契約への
+  影響範囲が本 wave の段2/段3 では検証されていない。
+- 「一定確率で local を再試行する」ような自動的な回復機構 — 明示 opt-in ではなく、D612 が拒否した
+  自動選択と同種の設計になるため、次 wave でも採用しない前提とする。
