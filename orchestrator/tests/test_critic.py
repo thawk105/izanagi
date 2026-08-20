@@ -984,6 +984,7 @@ def test_render_rejections_carries_no_perf_tokens():
                              extra={"timeout_s": 120.0}, variant="v1")]
     stock = _G.format(b=0, l=1, t=0, w=0)
     stock_attempt = _start_attempt(lay, stock)
+    _attempt_event(lay, stock_attempt, STAGE_BUILD_DONE, {})
     _attempt_event(lay, stock_attempt, STAGE_VERIFY_DONE, {
         "verdict": "serializable", "commits": 900, "aborts": 100,
     })
@@ -1080,11 +1081,13 @@ def test_verify_abort_signal_stock_contrast():
     lay = _tmp_layout()
     stock = _G.format(b=0, l=1, t=0, w=0)
     stock_attempt = _start_attempt(lay, stock)
+    _attempt_event(lay, stock_attempt, STAGE_BUILD_DONE, {})
     _attempt_event(lay, stock_attempt, STAGE_VERIFY_DONE, {
         "verdict": "serializable", "commits": 900, "aborts": 100,
     })
     var = _G.format(b=1, l=1, t=0, w=0)
     var_attempt = _start_attempt(lay, var, src_token="cd2")
+    _attempt_event(lay, var_attempt, STAGE_BUILD_DONE, {})
     _attempt_event(lay, var_attempt, STAGE_VERIFY_DONE, {
         "verdict": "serializable", "commits": 600, "aborts": 400,
     })
@@ -1099,6 +1102,7 @@ def test_verify_abort_signal_no_stock_and_legacy_are_explicit():
     lay = _tmp_layout()
     var = _G.format(b=1, l=1, t=0, w=0)
     attempt = _start_attempt(lay, var, src_token="cd3")
+    _attempt_event(lay, attempt, STAGE_BUILD_DONE, {})
     _attempt_event(lay, attempt, STAGE_VERIFY_DONE, {
         "verdict": "serializable", "commits": 500,
     })                                                     # aborts 無し = 旧形式
@@ -1118,6 +1122,7 @@ def test_verify_abort_signal_prefers_first_pass_when_s2_writes_second_record():
     lay = _tmp_layout()
     stock = _G.format(b=0, l=1, t=0, w=0)
     attempt = _start_attempt(lay, stock)
+    _attempt_event(lay, attempt, STAGE_BUILD_DONE, {})
     _attempt_event(lay, attempt, STAGE_VERIFY_DONE, {
         "verdict": "serializable", "commits": 900, "aborts": 100,
         "workload": {"tag": "legacy"},
