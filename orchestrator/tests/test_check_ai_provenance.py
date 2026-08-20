@@ -1869,6 +1869,20 @@ def test_known_violation_ledger_matches_literal_entries():
             "",
             "",
         ),
+        (
+            "1d268405f1769fed86565d548fd061b894095a2c",
+            "missing-codex-author",
+            "2026-08-20 dev-wave-t1337-launcher-timing-proof 受入前裁定 "
+            "(ユーザー選択: known-violation 登録)",
+            "受入前に親が作成した local main 取り込み merge。実装面で両側が触ったのは "
+            "`orchestrator/tests/test_trial_registry.py` と "
+            "`orchestrator/tests/test_s8c_preregistration_predicates.py` の 2 file で、"
+            "`git diff-tree --cc` は commit 行のみで実質空だったことを確認済み。競合解決による"
+            "新規著作はなく、結果は両側の変更の和集合。wave 側の実装面はこの wave 内の fix commit 等で"
+            "Codex `role=author` が既に書いており、main 側は各 wave land 時に監査済み。親作成 merge の"
+            "ため Codex 著者とは記さない。",
+            "",
+        ),
     )
     assert len(provenance.KNOWN_PROVENANCE_VIOLATIONS) == len(expected)
     assert observed == expected
