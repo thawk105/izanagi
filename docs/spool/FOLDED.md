@@ -1846,3 +1846,5 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 - {"allocations":{"F:real-corpus-active-task-fixture-drift":"F434"},"authored":"2026-08-20","base":"1bfaa6f7da67e90b67dab22e198c8c74defb344c","content_sha256":"cf702858ec93605963f1ff0ed45ff567113142d66c43afc8bdee51786557a8b6","seq":1,"tested_tip":"a28aa89195ea5269a5ba2ac3e0bdd3e7f07aafdd","wave":"worktree-quizzical-discovering-quasar","wave_ref":"refs/heads/worktree-quizzical-discovering-quasar"}
 
 - {"allocations":{},"authored":"2026-08-20","base":"1d7f9f0db90d11afc99b5ae979c2405fd7a41a5b","content_sha256":"2dda4b32d1f3ff4334afe2bc332202129fbd0bd17ed80598cb895ce87930b4ec","seq":1,"tested_tip":"a85dca36c660866868e43fd0479bcd1af0d62c27","wave":"dev-wave-t1334-explore-scale-pin","wave_ref":"refs/heads/worktree-dev-wave-t1334-explore-scale-pin"}
+
+- {"allocations":{},"authored":"2026-08-20","base":"81b1aea20bdec74aeafacfc8cba23c55b7bb8ffe","content_sha256":"f9b805be690b42bc35eca7e3aa80ca47ec91464a96ff6afb6f774113e7f1b4ad","seq":1,"tested_tip":"89fb6b06e1900eb0375a9f445340bcfaeedd97fc","wave":"dev-wave-t338-unit5","wave_ref":"refs/heads/worktree-dev-wave-t338-unit5"}
