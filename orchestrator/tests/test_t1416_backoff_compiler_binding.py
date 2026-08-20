@@ -94,6 +94,7 @@ def test_screened_workload_forwards_expected_toolchain_to_baseline_and_candidate
     manifest = _manifest()
     observed = []
     calls = []
+    source_calls = []
 
     monkeypatch.setattr(backoff_sweep, "_assert_single_tenant", lambda: None)
     monkeypatch.setattr(
@@ -103,6 +104,14 @@ def test_screened_workload_forwards_expected_toolchain_to_baseline_and_candidate
     monkeypatch.setattr(
         backoff_sweep.buildcache, "observed_toolchain_manifest",
         lambda cc, cxx: observed.append((cc, cxx)) or manifest,
+    )
+
+    def fake_source_resolve(_genome, _commit, *, cxx):
+        source_calls.append(cxx)
+        return SimpleNamespace(src_token="fixture-source")
+
+    monkeypatch.setattr(
+        backoff_sweep.source_digest, "resolve", fake_source_resolve,
     )
 
     def fake_evaluate_candidate(*args, **kwargs):
@@ -142,6 +151,7 @@ def test_screened_workload_forwards_expected_toolchain_to_baseline_and_candidate
     )
 
     assert observed == [("site-cc", "site-cxx")]
+    assert source_calls == ["test-cxx"]
     assert len(calls) == 2
     assert [call[1]["expected_toolchain_manifest"] for call in calls] == [
         manifest, manifest,
