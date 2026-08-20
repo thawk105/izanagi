@@ -1730,6 +1730,16 @@ def _prepare_s8c_budget_inputs(
     limits = schedule["limits"]
     if type(limits) is not BudgetLimits:
         raise AutonomousTrialError("8c schedule limits are not BudgetLimits")
+    # C05 schedule authority is currently unavailable; validate this required
+    # activation-time invariant before the authority becomes executable.
+    freeze_holdout_ids = frozenset(
+        entry["candidate_id"] for entry in ratified_freeze.holdouts.values()
+    )
+    schedule_holdout_ids = frozenset(cell.holdout for cell in cells)
+    if freeze_holdout_ids != schedule_holdout_ids:
+        raise AutonomousTrialError(
+            "8c schedule holdout set does not match the ratified freeze holdout set"
+        )
     return _S8CBudgetInputs(
         ledger_path=ledger_path,
         manifest_sha256=manifest.sha256,

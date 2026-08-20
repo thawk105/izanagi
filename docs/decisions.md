@@ -23420,3 +23420,286 @@ TPC-C/BOMB workload での E行-counter一致 (D295 が YCSB のみ allowlist �
 実証は、いずれも本決定では閉じない。**将来 `cc/mocc/transaction.cc` を Phase 3 の
 変異探索対象 (EVOLVE_BLOCK hole) にする wave は、今回の trace-hook 許可を
 safety net とみなさず、独立の auditor-live 相当の機械実証を別途用意すること。**
+
+## D580. certified consumer「実結線」要求は、production caller が無い file scope では writer API 追加に限定する (2026-08-20)
+
+**決定:** `layer3_report.build_accepted_report()` (520b76cc、"fail-closed future entrypoint")
+を実際に呼び出す consumer を求められたが、対象 file scope が `layer3_report.py` とその
+テストに限定されている場合、`render()` と対称な `render_accepted()` writer API の追加までを
+scope とし、production caller (呼び手) の配線は行わない。これを「production consumer 実結線が
+完了した」とは主張せず、production caller 配線・canonical 出力 path・completeness 対応は
+別タスクへ明示的に分離する。
+
+**理由:**
+- 520b76cc wave の段4裁定 (`output/insights/2026-08-05_t470-t327-wiring/s4-ruling.md` §3) が
+  同じ理由 (C02 arm injective binding・T-468 approval authority 未解決、DW-G04 の発火条件を
+  書けない) で「certified selector の実結線」を後続タスクへ送っており、この前提は本 wave
+  時点でも変わっていない (受入 receipt の `certifying` は構造的に false 固定のまま)。
+- 段3・段6 の独立レビュー (計3レンズ) が同じ核心所見に収束した: production caller が
+  repo 内にゼロのまま writer API だけを追加しても、「consumer が存在しない」問題を
+  API 呼び出しの一段手前へ移すだけである。この事実を隠さず記録する方が、
+  「実結線完了」という過大主張より安全である。
+- production caller の配線には、caller の呼出し位置・canonical 出力 path・所有権・
+  `autonomous_trial_completeness.py` の certified variant 対応という、対象 file の外側の
+  設計判断が伴う。これは command 引数のスコープ (対象 2 file) を逸脱する。
+
+**却下した選択肢:**
+- production caller まで本 wave で配線する — 所有ファイル外の変更を要し scope 逸脱。
+  加えて C02/T-468 未解決のため、配線しても実 E2E 正例は作れない (B-13 裁定と同型)。
+- certified/non-certified 出力を分離する canonical path 規約を本 wave で新設する
+  (段6レンズA所見1) — 実 caller が無い状態での規約制定は空虚な doc-only 制約になる
+  (規律5「盛らない」)。docstring 契約 + race テストの軽量対応に留める。
+
+## D581. 床値 (floor value) 測定は事前登録なしの粗い provenance で十分とする (2026-08-20)
+
+**決定:** 床値 (floor value) の実測を、`s8b_floor_campaign.py` の `official` mode 相当の
+事前登録・凍結儀式 (durable admission 台帳・pre-commitment・launch certificate) を経ずに、
+実行環境・ビルドコマンド・プロトコル・最適化・ワークロードのパラメータを記録するだけで
+成立させてよい標準へ変える。この標準は D488 (2026-08-17) が定めた `official`/`pilot` の機構自体を
+撤去するものではなく、**その機構を経なくても得られた測定を使ってよい**、という利用側の基準を
+追加するものである。
+
+**理由:**
+
+- D488 (2026-08-17) は自ら、この機構が「AI の虚偽を機械的に見抜く」ことを保証しないと明記している。
+  台帳へ書く値を算出するのは producer 自身であり、その分類器が誤れば台帳も一緒に誤る。機構が実際に
+  買っているのは (i) 測定前の create-only 事前 commitment (後出し選別の防止)、(ii) resume/fresh の
+  取り違え検出、(iii) 台帳と artifact の不一致検出、の3つだけである。
+- 床値測定は複数試行から良い結果を選ぶ性質の作業ではなく、基本1回測って使う。後出し選別を防ぐための
+  事前宣言の必要性が薄い。
+- ユーザー方針 (2026-08-17裁定「粗い provenance で足りる」、2026-08-12裁定「防御的堅牢化は既定で
+  見送り」) と整合する。D488 自身が「clean process 実行 + code identity 封印」を退けた理由
+  (「同一利用者が自分を欺くのを防ぐ形であり、粗い provenance で足りる既定方針から最も遠い」) と
+  同じ論理を、事前登録儀式そのものにも適用する。
+
+**却下した選択肢:**
+
+- 現状維持 (official/pilot の区別と事前登録儀式を測定利用の前提とし続ける) — 買っている保護
+  (後出し選別の防止) の価値に対してコストが不釣り合いで、[T-419] の生成移行 chain という無関係な
+  前提条件へ床値測定を従属させ続ける結果になっていた。
+- 事前登録儀式自体を機構ごと削除する — D488 が既に狭く定義した3つの保護 (事前 commitment・
+  取り違え検出・不一致検出) は、将来この機構を再利用する場面のために残す。今回変えるのは
+  利用側の基準だけである。
+
+## D582. codex 子の即死は自動待機・自動再試行でなく即時検知・即時エスカレーションで扱う (2026-08-20)
+
+**決定:** dev-wave launcher が codex 子の即死 (usage limit / 401 等) を検知したとき、「少し時間を
+置いて自動で1回だけ再試行する」という transient 前提の自動リカバリは実装しない。代わりに、症状
+(exit code・events 末尾の message 本文) を即座に判別し、ユーザーへ通知する形を実装する。再試行を
+行うかどうか (特にアカウント切り替えを伴う場合) はユーザーの判断に委ねる。
+
+**理由:**
+
+- F411 は「usage limit 表示から8分後に自然回復した」ことを恒久対応 (待って1回再試行) の根拠と
+  したが、2026-08-20 にユーザーから「レートリミット到達時は自分で判断してアカウント切り替えを
+  行っていた」との開示があり、見かけ上の自然回復はこの介入による可能性が高いと判明した (F411
+  supersede 追記で訂正済み)。
+- 自動待機・自動再試行は、介入 (アカウント切り替え) なしに本当に transient なケースにしか効かない。
+  それが本物の transient かどうかを機構側は区別できないため、待機自体に価値がない可能性がある。
+  一方、症状を即座に伝えれば、ユーザーは介入の要否を自分で判断できる。
+- account 切り替えのような credential 操作は、鉄則 (従量経路への侵入回避) と同種の理由で AI が
+  自律的に行うべきでない。ユーザーの手番に留める。
+
+**却下した選択肢:**
+
+- F411 の恒久対応をそのまま維持する (待って1回再試行) — 根拠が崩れているため、次回同型の即死が
+  起きたときに無意味な待機で時間を失う。
+- 即死を恒久的な枯渇と即断して wave を畳む (旧 F411 が指摘した誤り) — 一過性の可能性を排除
+  できない点は変わらないため、これも採らない。
+
+## D583. launcher 起動 authority を main 起点 gate へ分離する設計を、将来 (a) 再訪時のために記録する (2026-08-20)
+
+**決定:** D569 の (c)「現状維持・新規実装なし」は変更しない。T-1283 が指す残余 (i) (改変された
+tip 側待ち手が `tools/acceptance_launcher.py` を経由せず受領証を自作できる) を将来
+(a) (待ち手にも bootstrap 層を新設) として再訪する際の具体設計を、次の内容で**記録するに
+留める。実装は承認しない。**
+
+1. **確認した事実。** 現行 `tools/dev_wave_land.py` の独立検証 (`_verify_acceptance_receipt`
+   / `_valid_fingerprint`) は、launcher/waiter/runner の blob 内容 SHA-256・
+   tested_main/tip 等値・fingerprint の形式・verdict 別の構造的自己無矛盾のみを検査し、
+   **「launcher が実際に起動されたこと」を独立に証言する field を持たない**。加えて
+   `tools/acceptance_launcher.py` 自身の receipt 生成は、`pre_fingerprint`
+   (`_Config` の CLI 引数、`acceptance_launcher.py:85`)・`post_fingerprint`・
+   `effective_scheduler`・checker 系 field・`red_nodeids`/`flake_nodeids`
+   (いずれも `completion_reader()` 経由で待ち手から供給、`acceptance_launcher.py:461-463`) を
+   **待ち手からの自己申告のまま**採用する。launcher 自身が独立に検証・再計算するのは
+   `child_rc`・`log_sha256`・`runner_executed_sha256` の3値だけである
+   (`acceptance_launcher.py:436-450`)。
+2. **設計方向 (将来候補、未実装)。** 「launcher 呼び出しの実行権限」だけを待ち手から抽出し、
+   常に `tested_main` から起動される最小 gate に閉じ込める案は、T-1373 当初案が
+   D403 と衝突した理由 (待ち手全体を main から起動し、tip 編集を反映しなくなる) を
+   回避できる可能性がある — waiter・runner 自体は tip 実行のまま残せるため。
+3. **この設計候補が閉じる範囲 (仮に将来実装した場合)。** 親が常に main 起点 gate を起動し、
+   gate が launcher の process 起動と receipt publish を独占し、land が gate の
+   execution record と receipt の結合を要求する、という3条件が揃えば、tip 側待ち手が
+   launcher を一度も呼ばずに `child_rc`/`log_sha256`/`runner_executed_sha256` を
+   偽装する経路は閉じる。
+4. **この設計候補が閉じない範囲 (未解決のまま記録する)。**
+   - gate の launch 対象である**親の起動点自体**が、wave 相対 path で待ち手を直接起動する
+     現行 runbook 記法 (`docs/pegasus-runbook.md` §7.3) のままなら、待ち手が gate 呼出しを
+     省略する経路は残る。gate 側の設計だけでは閉じない。
+   - gate 自身が `tested_main` から不変 bytes として起動される保証は、PATH・symlink・
+     `python3`/`git` の名前解決・cwd を通じた差し替えを排除する trust root を別途設計
+     しない限り成立しない。改変された gate が自身の `gate_source_revision`/
+     `gate_blob_sha`/`gate_executed_sha256` を自己申告できるなら、F385 と同型の
+     自己証明が gate の層で再発する。
+   - gate 自体を導入・改訂する wave に許す `tested-tip-bootstrap` 相当の例外は、
+     導入期間中の起動 authority を一時的に wave tip へ戻す。「常に main 起点」は
+     定常運用限定の主張であり、無条件の保証ではない。
+   - `completion protocol` (launcher が待ち手から受け取る `post_fingerprint`/
+     `effective_scheduler`/checker 系 field) の exact field 集合検査
+     (`acceptance_launcher.py:272-301`) は構造的整形式性だけを検査し、内容の真正性・
+     供給元の実行実在を証言しない。launcher 起動権を gate へ移すだけでは、この経路の
+     自己申告面 (fingerprint・checker path) は閉じない。閉じるには、checker 起動と
+     fingerprint 計算にも同型の gate 分離を再帰的に適用する必要があるが、その具体設計は
+     本記録の範囲外とする。
+   - (ii) bounded/dispatch 内側の pathname 実行、(iii) land verifier 自身の候補コード性は
+     引き続き T-696 の協調境界に残す (対象外)。
+5. **検証方法 (設計のみ、テストコードは書かない)。**
+   - **negative control**: `tested_main` に regular launcher blob、`tested_tip` に
+     regular waiter/runner blob がある fixture で、launcher/waiter/runner を一切実行せず
+     v5 receipt を静的に組み立て、`_verify_acceptance_receipt` を直接呼ぶ。全 27 field
+     (`acceptance_launcher.py:365-397`) を仕様どおり埋めれば (hash は小文字 64 桁 hex、
+     JSON は `acceptance_launcher.py:89-101` の canonical 形式) 現行実装は
+     `_acceptance_rejected` を発火せず受理する。これは D524 の独立検証が
+     「著者の同一性」(公開 Git 内容の知識) しか証明しないことの直接証拠になる。
+   - **positive control (将来 gate 実装後)**: 同じ偽 receipt を、(a) 新 schema
+     (v5 fallback なし) が拒否するか、(b) gate の execution record が結合されていない
+     receipt を land が gate record 欠落として拒否するか、の2段で検査する設計とする。
+     ただし「完成度の高い偽 completion protocol は launcher の exact field 検査を
+     すり抜けうる」(整形式性は実行実在の証明にならない) ことを検証方法自体にも明記し、
+     この経路を執行実在の証明として過大評価しない。
+
+**この決定が保証する範囲:** D569 は変更しない。実装着手は承認しない。将来 (a) を
+外部露出運用への移行時に再訪する際、上記4節の未解決点を先に設計しない限り、
+「起動権を wave tip の外へ出す」という目的は部分的にしか達成されない、という
+評価水準を残すことが本記録の目的である。
+
+**理由:**
+- D569 (2026-08-20) は (c) 現状維持を採用しつつ「(a) の将来的な価値を否定しない」と
+  明記した。本記録はその将来再訪のための具体設計を、実装せずに残す。
+- T-1283 の元裁定 (rulings 第7回) と D524 は残余 (i) を明示的に未閉鎖のまま記録しており、
+  「閉じた」と誤って記録しないことが F385 の記録条件でもある。
+- 段3 の敵対相談2レンズが、素朴な gate 案の楽観的な想定 (bootstrap 例外の安全性、
+  completion protocol の positive control としての妥当性) に real な欠陥を発見した。
+  これを反映せず「gate 案は残余を閉じる」と記録すると、次にこの記録を読む wave が
+  過大な保証を前提に実装へ進みかねない。
+
+**却下した選択肢:**
+- D569 に反して直ちに実装する — 現在は内部研究用途で悪用動機を持つ主体が実在せず、
+  規律5 (段階導入・盛らない) に照らし時期尚早。
+- gate 案を「残余 (i) を閉じる設計」として無条件に記録する — 段3 の敵対相談が
+  bootstrap 例外・completion protocol 経路に real な未解決点を発見しており、
+  無条件の記録は次に読む wave を誤導する。
+- 記録自体を見送る — D569 が明記した「将来的な価値」を再導出コストなしに再訪できなくする。
+
+## D584. 8b oracle n-pilot の R=33 拡張実測は admission 機構の再設計が要り、当 wave では実装を見送り統合設計をinsightへ記録する (2026-08-20)
+
+**決定:** indifference-zone 選択のサンプルサイズ較正 n-pilot を事前登録済み目標 R>=32
+(コード上の制約により実質 33) まで拡張実測するための投入物を準備しようとしたが、
+admission 機構自体の非自明な再設計が要ることが判明したため、当 wave では実装せず、
+段2 codex plan と段3 敵対相談 2 レンズ (正しさ境界・整合実効性、計15件の real 所見) を
+統合した改訂アーキテクチャ設計を
+`output/insights/2026-08-20_t1142-n-pilot-r33-admission-redesign/README.md` へ記録する
+に留める。実装は次の独立 wave へ送る。既存 R=11 実測 (`measured_distributions.md`) は
+「予備的下限」として削除・改変せず保存し続ける。
+
+**理由:**
+
+- pegasus02 実機の admission ledger を直接確認したところ、n-pilot の観測許可
+  (`reserve_n_pilot_holdout_observations()`) は cell を
+  `(freeze_sha256, freeze_holdout_key, configuration_id, ccbench_pin, env_tag,
+  observation_role)` の6項目 (campaign_run_id を含まない) で排他的に claim する
+  一発勝負ロックであり、既存の R=11 実測がこのロックを既に消費済みだった。同一条件での
+  「追加」は admission 機構の設計上、構造的に不可能である。
+- この壁を解く方向性 (observation_role に新世代を追加し reserve/consume を分離する) は
+  段2 codex plan が示したが、正しい実装には以下がすべて必要と段3 敵対相談 (2 レンズ、
+  計15件の real 所見) で判明した: 世代の一回限り性を role allowlist だけに頼らない機構
+  (role 追加自体を機械的に一回限りへ縛る仕組み)、consume-only job 間の build cache
+  独立性の保証、`build_schedule(n=33)` を一括生成してから 132-row ずつ 3 allocation へ
+  slice する canonical schedule 生成方式 (3 個の 11-round schedule を連結する方式は
+  `complete-block-v1` の deterministic 生成と一致しない)、claim 発行の all-or-nothing
+  transaction化、`consume_n_pilot_attempt_ticket()` の関数契約変更、
+  `aggregate_results()`/`_result_document()` の同時書き換え、CLI の相互排他バリデーション、
+  job script に加え submission wrapper の変更。これは「投入スクリプトの準備」という
+  当初 scope を大きく超える規模である。
+- 変更対象 (admission の排他 claim) は、事前登録が「不可逆・一度きり」と明記した観測承認
+  を機械的に強制する安全装置であり、正しさゲートに準じる慎重さを要する。1 回の軽量 wave
+  で拙速に実装するのは、必要なコンポーネントだけを段階的に足す方針と衝突する。
+- 既存 R=11 実測は「対象条件の between-run 実測が0件だった状態を初めて埋めた予備的下限」
+  として既に使用可能な形で保存済みであり、R=33 への精緻化は緊急ではない。
+
+**却下した選択肢:**
+
+- **そのまま段5実装へ進める** — admission 機構という正しさゲート隣接領域の再設計を、
+  実装単位分割・敵対レビュー2本・変異matrix・受入まで含めて1軽量waveで安全にやりきる
+  にはリスクが高すぎる。
+- **scope を絞った部分実装** — durable receipt 無しでは CLI/job script だけを先に作っても
+  「動く投入物」にならず、当初の目的 (投入スクリプトの準備) を達成しない。
+- **新しい git clone で admission root を分離し既存 key を再 claim する** — 段2 codex
+  plan が「一度きりの安全装置を回避する」として明示的に却下済み。本決定もこの回避策を
+  前提にしない。
+
+## D585. 受入 real-repo 鎖の per-test snapshot コピーの hardlink 化は効果が無いと実測した (2026-08-20)
+
+**決定:** `orchestrator/tests/test_codex_reasoning_ab.py` の `benchmark_snapshots` 由来 snapshot
+を各テストが `shutil.copytree(..., copy_function=shutil.copy2)` で複製している 8 箇所について、
+`.git` (root・submodule marker とも) および既知の書込み対象 path 以外を hardlink 化する案を
+実測し、**採用しない。** D531/D532 が正本とする「real-repo 鎖の短縮」(D532 (a)) の具体案として
+このコピー手段を選ばない。
+
+**理由:**
+- 対象 snapshot 1 個 (POS、82.67MB、4726 file) を実際に構築し (`test_snapshot_submodule_object_store_is_recursive`
+  を単独実走、bounded local、24.89 秒)、pytest の basetemp と同じ filesystem (`/`、XFS、`/dev/md0`)
+  上で `cp -a` (copy2 相当) と `cp -al` (hardlink 相当) を実測した。**`cp -a` = 0.158 秒、
+  `cp -al` = 0.043 秒。差はわずか 0.115 秒であり、対象 8 箇所すべてに適用しても短縮は
+  高々 1 秒程度**で、鎖長 77.5〜94.9 秒 (D531) や当該テスト個々の所要 (19〜22 秒) に対し
+  無視できる。pytest の一時領域が高速なローカル disk 上にあるため、コピーの raw I/O は
+  そもそも支配的ではない。
+- 段2 codex プランと段3 敵対相談 2 レンズが、対象 8 箇所の in-place 書込み・submodule `.git`
+  marker (ディレクトリでなく `gitdir: ...` を書いた通常ファイル)・symlinks 引数の意味論の
+  差異など、実装すれば必ず踏む欠陥を独立に複数検出した (段6 相当の敵対レビューを待たず、
+  実測ゲートの時点で採否が決着した)。
+- D315 (docs/decisions.md:14373) が守る clone/seal コア (`--no-hardlinks`、
+  `_seal_git_object_closure` 系) には触れていない。今回不採用と決めたのは、
+  D315 の範囲外である per-test copytree の方であり、D315 の適用範囲を変えるものではない。
+
+**却下した選択肢:**
+- 8 箇所専用の copier を実装する — 実測で得られる短縮 (高々 1 秒) が、8 箇所の in-place 書込み
+  監査・submodule marker 対応・symlinks 意味論保持という実装・監査コストに見合わない。
+- 効果測定なしに実装へ進む — 段3 レンズB (整合性・実効性) が BLOCKER として指摘し、
+  段5 実装子 (workspace-write) 自身に測定させる設計にしたが、Codex 子は sandbox が
+  scheduler (`qstat`) 呼出しを拒むため測定不能だった (`ESYSCAL`/`EACCTAUTH: Unknown user-id`)。
+  親が代わりに `tools/run_tests.py` 経由の bounded local 実行で測定し直した。
+
+## D586. C06 holdout集合cross-checkは現状非実行到達のまま先行実装する (2026-08-20)
+
+**決定:** `p3_autonomous_workload_trial.py`の`_prepare_s8c_budget_inputs`に追加した
+ratified freezeとC05 scheduleのholdout ID集合cross-check (`ratified_freeze.holdouts`の
+genuine dot-attribute消費) は、`_load_s8c_schedule_authority`(C05、未実装のため常時raise)
+より後段にあり現行実行では到達しない。この非到達性を解消する再配置・C05実装の前倒しは
+行わず、静的到達性のみを要求するC01契約 (`static_only_note`: "no run output is required")
+を満たす先行実装として受け入れる。
+
+**理由:**
+- 同じ関数内で既に確立している`.sha256`消費 (`manifest.sha256`等) も、同じ
+  `load_ratified_freeze()`呼び出し (repo全体でv2世代が未活性のため常に
+  `RatifiedFreezeError("no-active", ...)`で失敗する) より後段にあり、同じ意味で
+  現状非実行到達である。新設コードだけを特別扱いして再配置する理由がない。
+- `_load_s8c_schedule_authority`のdocstring「C05の schedule 正本を要求する。未実装の
+  hashは推測しない。」が示すとおり、C06予算経路全体が意図的な staged scaffolding であり、
+  この一部分だけを実行到達させるための変更はC05側の別waveの scope。
+- cross-check自体はdecorativeではない — 到達すれば`AutonomousTrialError`を実際に送出し
+  `reserve_all_cells`への到達を止める。`candidate_id`をexact一致で検証する
+  `.holdouts`propertyと組み合わせることで、`{H1,H2}`集合比較が恒真にならない
+  (段6敵対レビュー2レンズが独立に指摘、fixで解消)。
+
+**却下した選択肢:**
+- schedule検証の前に配置する — `load_ratified_freeze()`自体が repo 全体で現状必ず
+  失敗するため、位置を変えても「現状非到達」は解消しない。
+- `_load_s8c_schedule_authority`を本waveで実装する — C05は別条件・別waveの scope
+  (command引数が明示的に除外)。
+- cross-checkの追加自体を見送る — 契約JSON
+  (`s8c_preregistration_evidence_contract.v1.json`condition_number=1)の
+  `required_evidence[1].field_paths`が`load_ratified_freeze().holdouts`を明記しており、
+  genuine attributeとして露出・消費しないとC01のgapが閉じない。

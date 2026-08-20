@@ -755,6 +755,36 @@ class RatifiedFreeze:
     activation_head: str
     generation_commit: str
 
+    @property
+    def holdouts(self) -> Mapping[str, Mapping[str, object]]:
+        """Return the ratified holdout entries as an immutable projection.
+
+        ``_verify_snapshot_layer1`` already validates the generation document's
+        snapshot fields.  This projection additionally binds each entry's
+        candidate identity to the static holdout authority before exposing it
+        to consumers, so a candidate swap cannot pass as a set-only match.
+        """
+        document = self.document
+        holdouts = document.get("holdouts")
+        if not isinstance(holdouts, Mapping) or set(holdouts) != set(_hf.HOLDOUTS):
+            raise RatifiedFreezeError(
+                "holdouts-schema", "holdouts の集合が静的な holdout authority と不一致"
+            )
+        for name, frozen in _hf.HOLDOUTS.items():
+            entry = holdouts.get(name)
+            if not isinstance(entry, Mapping):
+                raise RatifiedFreezeError(
+                    "holdout-entry", f"holdouts.{name} が object でない"
+                )
+            if entry.get("candidate_id") != frozen["candidate_id"]:
+                raise RatifiedFreezeError(
+                    "holdout-entry",
+                    f"holdouts.{name}.candidate_id が静的な candidate_id と不一致",
+                )
+        return _deep_freeze(
+            {name: dict(entry) for name, entry in holdouts.items()}
+        )
+
 
 @dataclass(frozen=True)
 class LegacyFreeze:

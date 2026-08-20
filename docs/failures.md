@@ -9472,6 +9472,18 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   受入経路そのものへ関門を入れた。**rc だけでなく理由本文を呼び手へ返す**のも同じ理由で、
   rc だけ返すと次の呼び手が同じ「rc を自前分類する」ループを書く。
 
+
+- **再発: 2026-08-20** — `dev-wave-t470-accepted-consumer` wave で、main 取り込み merge
+  (`0e07ad03`) が main 側 (workload-policy-hint-impl wave) と本 wave の両方が
+  `orchestrator/campaign/layer3_report.py`/`orchestrator/tests/test_layer3_report.py` を
+  実装面として変更していたことにより (競合なしの自動 merge、`git merge` は
+  "Automatic merge went well")、`tools/check_ai_provenance.py` の combined-path 判定
+  (両親からの積集合が非空) で新規違反として検出された。F365 の恒久対応
+  (`preclaim-history-provenance`: claim 前に無条件で全史監査) が意図どおり機能し、
+  lease を一切消費せず (`claimed_main: null`) `tools/dev_wave_wait.py acceptance` が
+  rc=70・25秒で早期に land 不能を検出した (queue 待ち行列への影響ゼロ)。
+  checker ソース中の「(ユーザー選択: known-violation 登録)」の指示どおり、
+  この新規違反の台帳登録可否は AI 単独で判断せずユーザーへ返した。
 ### F366. 呼び手を確認したと書きながら入れ子の exact 検査を見落とし、修正が end-to-end で 1 度も発効しなかった [恒真ゲート] [手順漏れ]
 
 - 事象: 2026-08-16 の commit `8a2b735b` が受入赤の分類へ第 3 分類 `flake` を足した。
@@ -10381,6 +10393,7 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   再投入は prompt bytes を変える必要がある (job-id が prompt hash から決まるため)。
   この手順の dev-wave 入口への明文化は [T-1404] で裁定する。
 - 再発検知: 現時点では機械検査が無い。手順の明文化と併せて裁定へ返す。
+- **supersede: 2026-08-20** — 恒久対応「停止を断定する前に…数分あけて1度だけ再投入する」の前提が崩れていたと判明した。ユーザーの開示により、レートリミット到達時にユーザー自身が手動でアカウント切り替えを行っていたケースがあり、見かけ上の「数分で自然回復した」はそれによる可能性が高い。恒久対応はD582 (症状の即時検知とユーザーへの即時エスカレーション、自動再試行はしない) へ差し替える。
 
 ### F412. 親が成立不能な束縛を裁定し、実装子の停止報告で初めて露見した [恒真ゲート] [手順漏れ]
 
@@ -10729,3 +10742,66 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   ユーザー裁定へ送る。
 - 再発検知: 次に submodule (`external/ccbench`) 内で AI が commit を試みる wave で
   同じ `fatal: unable to auto-detect email address` が出れば再発。
+
+### F428. worklog carry stub は、実装・解決が別ID/別waveのprovenanceでlandした後も自動更新されない [ドリフト] [手順漏れ]
+
+- 事象: 2026-08-20の棚卸しで、carry上「新規」「未実装」「未land」と表示されていた
+  [T-1419]/[T-1183]/[T-949] の3件が、実際にはすべて既にmainへland済みだったと判明した。
+  [T-1183] は origin (entry578) とは別ID ([T-1140]/[T-330]、commit `6eb77ef9`) の実装で
+  満たされ、[T-949] は origin (entry510) の裁定 (cherry-pick -x) とは異なる、より後発の
+  直接ユーザー指示による branch 破棄+選択的資産保全 (commit `505accdb`) で解決していた。
+  いずれの closing commit も、閉じたはずの carry ID 自体を引用・更新しなかった。
+- 根本原因: `docs/spool/README.md` の fold 機構は「触れなかった active な T は自動的に carry
+  する」設計であり (D70 保存則)、これは脱落を防ぐには効くが、**当該IDへ言及しないまま
+  別ID・別waveの成果がその実体を満たしてしまうケースを検出しない**。carry stub の文言は
+  「最後にそのIDへ言及したentryの文言」を機械的に運ぶだけで、指す作業が実際に未完了かは
+  検証しない。
+- 恒久対応: memory `carry-stub-can-outlive-landed-implementation` — 次タスク選定・裁定復唱で
+  P1候補を最終候補に選ぶ前に、(a) 対象fileへの直接grep、(b) `git log --all
+  --grep='[T-ID]'`、(c) 対象branch名が non-merged 一覧に見えるか、のいずれかで実体確認する。
+  機械lintは未実装。
+- 再発検知: 現状は目視 (実体確認の手順) のみ。ID単位で closing commit との対応を機械検査する
+  lint は無く、次に同型が見つかった場合の再発記録がその lint 化の着手判断材料になる。
+
+### F429. 大量失敗を伴う変異走行で pytest-xdist の集約・終了処理が host 混雑下で無応答になる [infra不調] [測定汚染]
+
+- 事象: `tools/pegasus/dispatch_compute.py` の `_accounting_present` へ「常に False を返す」
+  「比較演算子を反転する」型の変異を適用し、`orchestrator/tests/test_pegasus_dispatch_compute.py`
+  全体 (188 test, `pytest -n 32 --dist loadgroup`) を `tools/run_tests.py` で実走したところ、
+  4回中4回、90〜300秒 CPU時間ほぼ0のまま無応答になった (`-n 4` へ削減しても再現)。
+  host load average 5〜10 (18ユーザー、多数の並行 dev-wave wave が同時に main へ land していた)、
+  `free -h` は 199GiB available で単純なメモリ枯渇ではなかった。SIGTERM で終了させると
+  `pytest_sessionfinish` の hookwrapper teardown で `OSError: cannot send (already closed?)`
+  (`PluggyTeardownRaisedWarning`) が発生し、それまでの進捗 (76%超) がまとめて flush された。
+- 根本原因: 未特定。大量の同時失敗 (~50件超) を32 worker から集約する際の pytest-xdist の
+  worker 終了ハンドシェイクが、host 混雑下でのプロセススケジューリング遅延と組み合わさって
+  極端に遅延する、または稀に完全に停止する事象と推定される。変異が生む失敗の性質
+  (`_accounting_present` に依存する無関係な多数の integration test を波及的に失敗させる) が
+  トリガーになっている可能性が高いが、pytest-xdist / execnet 側の再現条件までは切り分けていない。
+- 恒久対応: 未実装。回避策のみ確立 — 変異の検証に本当に必要な test 関数だけへ pytest node
+  選択 (`file.py::test_name` の裸列挙、`-k` ではなく明示 nodeid) で絞り込むと、同じ変異でも
+  2秒未満で完走し再発しなかった。変異事前登録の時点で「この変異は無関係な多数のテストへ
+  波及するか」を検討し、波及する変異は最初から絞り込んだ node 集合で登録するとよい。
+- 再発検知: 同種の「ほぼ全ての呼び出しで False/True を返す」型の変異を伴う手動変異検証で、
+  full-file 実走が baseline (数秒〜十数秒) の5倍以上を要して停止していなければ、この節を疑う。
+
+### F430. 段5 実装子 (workspace-write) に計算ノード dispatch を要する実測をさせ、権限不足で 530 秒・32 model call を空費した [手順漏れ] [コンテキスト浪費]
+
+- 事象: 段4 裁定で「実装前に snapshot の bytes 内訳・copy wall time を実測するゲートを通す」ことを
+  段5 実装子 (`--stage author`、`sandbox=workspace-write`) の prompt へ書いた。子は測定を試みたが
+  `qstat -Q` が `ESYSCAL`/`EACCTAUTH: Unknown user-id` で rc=1 となり、計算ノード dispatch も
+  bounded local 実行の preflight も完了しなかった。子は実装へ進まず作業ツリーを clean に保って
+  正直に報告したが、`wall_clock_s=530.3`、`model_calls=32`、`cached_input_tokens=2,535,424` を
+  費やした後だった。
+- 根本原因: Codex 子の sandbox は socket 経由の scheduler 通信を構造的に拒む
+  (既存 memory `codex-child-cannot-dispatch-or-write-outside`、`run-tests-bounded-local-bypasses-dispatch-latch`
+  が同型の制約を既に記録していたが、本 wave の段5 prompt 設計時にこれを prompt へ反映しなかった)。
+  `tools/run_tests.py` 経由のテスト実走・実測は親が行うものであり、実装子に委ねてよい作業ではない。
+- 恒久対応: 既存 memory (`run-tests-bounded-local-bypasses-dispatch-latch`,
+  `codex-child-cannot-dispatch-or-write-outside`) を、本 wave のように「実装子に測定ゲートを
+  持たせる」設計をする際に必ず参照する。`docs/dev-wave/workers.md` の `DW-S05-C` へ
+  「実装子に計算ノード dispatch や `tools/run_tests.py` 実走を要する事前測定をさせない、
+  親が測定した数値を prompt へ渡す」旨を追加する候補を段8 へ送る (docs 予算が満杯のため
+  即時反映はしない可能性が高いが、候補として記録する)。
+- 再発検知: 実装子 prompt に「dispatch」「qstat」「tools/run_tests.py の実走」を要求する文言が
+  無いかを、段5 prompt 作成直後に目視で確認する (機械検査は未整備)。

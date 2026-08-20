@@ -1,0 +1,85 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 15,
+  "timeout_seconds": 120,
+  "hang_timeout_seconds": 120,
+  "verification_method": "manual (DW-O19: Edit -> tools/run_tests.py -> git checkout -- to restore). tools/mutation_harness.py --runner-mode dispatch was not used; tools/pegasus/dispatch_compute.py is not in campaign_lock.CONTRACT_LOADER_RELATIVE_PATHS so the harness would likely have worked, but the same-day T-1303 wave precedent (direct tools/run_tests.py invocation is fast and reliable for a single small file) was followed instead. M1/M2 were run against the full test file (orchestrator/tests/test_pegasus_dispatch_compute.py, 188 tests, ~13s). M3/M4 make _accounting_present return False (M3) or invert its sense (M4) for almost every input, which cascades into dozens of unrelated collateral failures across every test that depends on _Scheduler(accounting=True) reaching acceptance; running the full 188-test file under M3/M4 reliably stalled for 90-300s (near-zero CPU across the whole pytest-xdist process tree, consistent signature across 4 attempts including one with -n 4) before an OSError during pytest_sessionfinish teardown surfaced once SIGTERM was sent -- most likely pytest-xdist worker-teardown fragility under heavy host contention (host load average 5-10, 18 users, many concurrent peer dev-wave sessions landing to main during the same window) when a large number of workers report failures simultaneously; root cause not fully isolated. Narrowing the pytest node selection to just the two directly relevant test functions (test_accounting_requires_matching_request_id_and_all_nqsv_fields, test_accounting_accepts_measured_nqsv_shape_only_when_id_matches) avoided the stall entirely and completed in under 2s for both M3 and M4. expected_nodes below for M3/M4 are the empirically observed complete failing sets from the narrowed run, not hand-derived predictions -- the parent's original hand-derived guess for M3 undercounted (predicted only the positive-path test; all 7 negative parametrize cases in fact still pass under M3 since they all expect False and M3 makes the function return False for almost everything, so they are not independently killed by M3), an F323-type risk consistent with the T-1411 precedent, corrected here by running before finalizing the ledger.",
+  "mutations": [
+    {
+      "id": "M1",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/dispatch_compute.py",
+          "old": "    if len(request_ids) != 1:\n        return False\n    if _NQSV_GROUP_NAME_RE.findall(tail) != [DEFAULT_PROJECT]:\n        return False\n    try:",
+          "new": "    if len(request_ids) != 1:\n        return False\n    try:"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_accounting_requires_matching_request_id_and_all_nqsv_fields[Request ID: 424242.nqsv\\nGroup Name: SFC\\nGroup Name: OTHER\\nStarted Request Time: now\\nEnded Request Time: later\\nElapse: 1S\\n]",
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_accounting_requires_matching_request_id_and_all_nqsv_fields[Request ID: 424242.nqsv\\nGroup Name: SFC\\nGroup Name: SFC\\nStarted Request Time: now\\nEnded Request Time: later\\nElapse: 1S\\n]",
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_accounting_requires_matching_request_id_and_all_nqsv_fields[Request ID: 424242.nqsv\\nGroup Name: OTHER\\nStarted Request Time: now\\nEnded Request Time: later\\nElapse: 1S\\n]",
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_accounting_requires_matching_request_id_and_all_nqsv_fields[Request ID: 424242.nqsv\\nStarted Request Time: now\\nEnded Request Time: later\\nElapse: 1S\\n]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "observed_run": "manual, repo_head f67245cf2fe2e425e8fa935a190885e981c04004, full file, 4 failed / 184 passed in ~13s, rc=1"
+    },
+    {
+      "id": "M2",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/dispatch_compute.py",
+          "old": "    if _NQSV_GROUP_NAME_RE.findall(tail) != [DEFAULT_PROJECT]:\n        return False",
+          "new": "    if DEFAULT_PROJECT not in _NQSV_GROUP_NAME_RE.findall(tail):\n        return False"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_accounting_requires_matching_request_id_and_all_nqsv_fields[Request ID: 424242.nqsv\\nGroup Name: SFC\\nGroup Name: OTHER\\nStarted Request Time: now\\nEnded Request Time: later\\nElapse: 1S\\n]",
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_accounting_requires_matching_request_id_and_all_nqsv_fields[Request ID: 424242.nqsv\\nGroup Name: SFC\\nGroup Name: SFC\\nStarted Request Time: now\\nEnded Request Time: later\\nElapse: 1S\\n]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "observed_run": "manual, repo_head f67245cf2fe2e425e8fa935a190885e981c04004, full file, 2 failed / 186 passed in ~14.5s, rc=1"
+    },
+    {
+      "id": "M3",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/dispatch_compute.py",
+          "old": "    if _NQSV_GROUP_NAME_RE.findall(tail) != [DEFAULT_PROJECT]:\n        return False",
+          "new": "    if _NQSV_GROUP_NAME_RE.findall(tail) != [\"WRONG\"]:\n        return False"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_accounting_accepts_measured_nqsv_shape_only_when_id_matches"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": true,
+      "observed_run": "manual, repo_head f67245cf2fe2e425e8fa935a190885e981c04004, node-selection narrowed to the 2 accounting-contract test functions (full-file run hangs, see verification_method), 1 failed / 7 passed in 2.29s, rc=1"
+    },
+    {
+      "id": "M4",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/dispatch_compute.py",
+          "old": "    if _NQSV_GROUP_NAME_RE.findall(tail) != [DEFAULT_PROJECT]:\n        return False",
+          "new": "    if _NQSV_GROUP_NAME_RE.findall(tail) == [DEFAULT_PROJECT]:\n        return False"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_accounting_requires_matching_request_id_and_all_nqsv_fields[Request ID: 424242.nqsv\\nGroup Name: SFC\\nGroup Name: OTHER\\nStarted Request Time: now\\nEnded Request Time: later\\nElapse: 1S\\n]",
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_accounting_requires_matching_request_id_and_all_nqsv_fields[Request ID: 424242.nqsv\\nGroup Name: SFC\\nGroup Name: SFC\\nStarted Request Time: now\\nEnded Request Time: later\\nElapse: 1S\\n]",
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_accounting_requires_matching_request_id_and_all_nqsv_fields[Request ID: 424242.nqsv\\nGroup Name: OTHER\\nStarted Request Time: now\\nEnded Request Time: later\\nElapse: 1S\\n]",
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_accounting_requires_matching_request_id_and_all_nqsv_fields[Request ID: 424242.nqsv\\nStarted Request Time: now\\nEnded Request Time: later\\nElapse: 1S\\n]",
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_accounting_accepts_measured_nqsv_shape_only_when_id_matches"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": true,
+      "observed_run": "manual, repo_head f67245cf2fe2e425e8fa935a190885e981c04004, node-selection narrowed to the 2 accounting-contract test functions (full-file run not attempted given M3 precedent), 5 failed / 3 passed in 1.94s, rc=1"
+    }
+  ]
+}
