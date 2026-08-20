@@ -103,9 +103,12 @@ output/
     insights/                campaign 固有の insight / whiteboard
   insights/                 ← CCBench 還元レポート等のグローバル知見 (D6)
   whiteboard/               ← campaign 横断で転用可能な教訓 (任意。SkillOpt の転用性)
+  campaign-locks/           ← campaign 実行所有権の advisory flock ([T-565], 下記)
 ```
 
 ドキュメント中で `output/runs/` `output/insights/` と書いてある箇所は、特記なき限りそれぞれ `output/campaigns/<id>/runs/` の campaign スコープ、ルート直下 `output/insights/` のグローバルスコープを指す短縮表記とする。calibration/noise floor/profile の書き込み先は `output/env/<env-tag>/`。
+
+`campaign.lock` (同一性を決める正準 config) とは別に、`output/campaign-locks/<sha256(realpath(layout.root))[:20]>.flock` が run 全体の実行所有権を advisory flock (`LOCK_EX|LOCK_NB`) で保持する。campaign root 外に置くのは、campaign root 配下を exact-set 比較する `layer3_report.py`/`autonomous_trial_completeness.py` の completeness 判定を摂動させないため。保護対象は `run_campaign()` 呼び出しに限り、`run_campaign()` を経由しない producer は対象外 (D528 決定 9 と同型の境界)。設計判断の詳細は `docs/decisions.md` の [T-565] 実装 wave の決定を参照。
 
 campaign スコープの実際の root は namespace で 2 つある (D65/D123)。official は `output/campaigns/<id>/`、s4 driver 族 (`p3_s4_loop` / `_sort` / `_trigger_gating` / `p3_s4_red` / `p3_kickoff` / 8c build) の**新規** campaign は `output/exploration/campaigns/<id>/` である。**構造・WAL・lock は同一**で、違うのは official consumer が marker で後者を拒否する点だけである。歴史成果物は移していないので、既存の `output/campaigns/` 参照は過去の所在としてそのまま正しい。
 
