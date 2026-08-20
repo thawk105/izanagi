@@ -3037,7 +3037,62 @@ def _regular_file_state(path: Path, label: str) -> dict[str, Any]:
     }
 
 
-def _normalized_exec_argv(argv: Sequence[str], effort: str) -> list[str]:
+MODEL_ALLOWLIST = frozenset((MODEL, "gpt-5.6-luna"))
+
+
+def _exec_argv_model(argv: Sequence[str]) -> str:
+    if isinstance(argv, (str, bytes)):
+        raise ValidationError("actual argv must be an array", RC_ROUTING)
+    try:
+        values = list(argv)
+    except TypeError as exc:
+        raise ValidationError("actual argv must be an array", RC_ROUTING) from exc
+    if not all(isinstance(value, str) for value in values):
+        raise ValidationError("actual argv contains a non-string value", RC_ROUTING)
+    positions = [index for index, value in enumerate(values) if value == "-m"]
+    if len(positions) != 1:
+        raise ValidationError(
+            "actual argv must contain one -m model option", RC_ROUTING
+        )
+    position = positions[0]
+    if position + 1 >= len(values):
+        raise ValidationError("actual argv -m model value is missing", RC_ROUTING)
+    model = values[position + 1]
+    if model not in MODEL_ALLOWLIST:
+        raise ValidationError(
+            f"actual argv model is not allowed: {model}", RC_ROUTING
+        )
+    model_positions = [
+        index for index, value in enumerate(values) if value in MODEL_ALLOWLIST
+    ]
+    if model_positions != [position + 1]:
+        raise ValidationError(
+            "actual argv contains duplicate or misplaced model values", RC_ROUTING
+        )
+    return model
+
+
+def _normalized_exec_argv(
+    argv: Sequence[str],
+    requested_model: str | None,
+    effort: str | None = None,
+) -> list[str]:
+    # Keep the two-argument form as a read-only compatibility shim for the
+    # legacy receipt validator.  New callers must provide the model explicitly.
+    if effort is None:
+        effort = requested_model
+        requested_model = None
+    actual_model = _exec_argv_model(argv)
+    if requested_model is None:
+        requested_model = actual_model
+    if not isinstance(requested_model, str) or requested_model not in MODEL_ALLOWLIST:
+        raise ValidationError(
+            f"requested model is not allowed: {requested_model}", RC_ROUTING
+        )
+    if requested_model != actual_model:
+        raise ValidationError(
+            "requested model does not match the -m argv value", RC_ROUTING
+        )
     expected = f'model_reasoning_effort="{effort}"'
     alternatives = {expected, f"model_reasoning_effort={effort}"}
     positions = [index for index, value in enumerate(argv) if value in alternatives]
@@ -3077,6 +3132,24 @@ def _launch_identity_value(receipt: Mapping[str, Any]) -> str:
     oracle = receipt.get("snapshot_oracle")
     if not all(isinstance(value, dict) for value in (events, done, prompt, oracle)):
         raise ValidationError("launch identity path state missing", RC_RECEIPT)
+    requested_model = receipt.get("requested_model")
+    actual_model = _exec_argv_model(receipt.get("argv", []))
+    if requested_model is None:
+        requested_model = actual_model
+        # _supervise_one writes the launch receipt immediately after computing
+        # this identity.  Populate the schema field before that frozen write;
+        # loaded legacy receipts remain readable through the derived value.
+        if isinstance(receipt, dict):
+            receipt["requested_model"] = requested_model
+    elif requested_model != actual_model:
+        raise ValidationError(
+            "launch receipt requested model does not match argv", RC_ROUTING
+        )
+    if not isinstance(requested_model, str) or requested_model not in MODEL_ALLOWLIST:
+        raise ValidationError(
+            f"launch receipt requested model is not allowed: {requested_model}",
+            RC_ROUTING,
+        )
     replacements = {
         str(receipt.get("run_dir")): "<RUN_DIR>",
         str(receipt.get("agent_workspace")): "<AGENT_WORKSPACE>",
@@ -3094,6 +3167,7 @@ def _launch_identity_value(receipt: Mapping[str, Any]) -> str:
     }
     identity = {
         "case": receipt.get("case"),
+        "requested_model": requested_model,
         "prompt_sha256": prompt.get("sha256"),
         "snapshot_oracle_sha256": oracle.get("sha256"),
         "codex_config_sha256": receipt.get("codex_config_sha256"),
@@ -3120,10 +3194,21 @@ def _launch_identity_value(receipt: Mapping[str, Any]) -> str:
 
 
 def _append_jsonl(path: Path, value: Mapping[str, Any]) -> None:
+    row = value if isinstance(value, dict) else dict(value)
+    launch_receipt = row.get("launch_receipt")
+    if row.get("phase") == "completed" and isinstance(launch_receipt, str):
+        try:
+            launch = _read_json_value(Path(launch_receipt))
+        except ValidationError:
+            launch = None
+        if isinstance(launch, dict) and isinstance(
+            launch.get("requested_model"), str
+        ):
+            row["requested_model"] = launch["requested_model"]
     path.parent.mkdir(parents=True, exist_ok=True)
     descriptor = os.open(path, os.O_APPEND | os.O_CREAT | os.O_WRONLY, 0o600)
     try:
-        os.write(descriptor, _canonical_bytes(dict(value)))
+        os.write(descriptor, _canonical_bytes(dict(row)))
         os.fsync(descriptor)
     finally:
         os.close(descriptor)
@@ -3153,15 +3238,37 @@ def _copy_identity_file(source: Path, target: Path, label: str) -> str:
 
 def _codex_exec_argv(
     codex_binary: Path,
-    arm: str,
-    snapshot: Path,
-    output: Path,
+    requested_model: str,
+    arm: str | Path,
+    snapshot: Path | None = None,
+    output: Path | None = None,
 ) -> list[str]:
+    # Accept the old four-positional-argument form until the supervisor wave
+    # passes slot.requested_model directly.  The generated argv is model-aware
+    # in both forms, while new callers are explicit about the treatment model.
+    if output is None:
+        legacy_arm = requested_model
+        legacy_snapshot = arm
+        legacy_output = snapshot
+        requested_model = MODEL
+        arm = legacy_arm
+        snapshot = legacy_snapshot  # type: ignore[assignment]
+        output = legacy_output
+    if not isinstance(requested_model, str) or requested_model not in MODEL_ALLOWLIST:
+        raise ValidationError(
+            f"requested model is not allowed: {requested_model}", RC_ROUTING
+        )
+    if not isinstance(arm, str) or not isinstance(snapshot, Path) or not isinstance(
+        output, Path
+    ):
+        raise ValidationError(
+            "codex argv construction arguments are malformed", RC_ROUTING
+        )
     return [
         os.fspath(codex_binary),
         "exec",
         "-m",
-        MODEL,
+        requested_model,
         "-c",
         f"model_reasoning_effort={arm}",
         "-s",

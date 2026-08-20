@@ -281,6 +281,7 @@ if "--version" in sys.argv:
     raise SystemExit(0)
 args = sys.argv[1:]
 output = pathlib.Path(args[args.index("-o") + 1])
+model = args[args.index("-m") + 1]
 effort = next(value.split("=", 1)[1] for value in args if value.startswith("model_reasoning_effort="))
 prompt = sys.stdin.read()
 thread = str(uuid.uuid4())
@@ -298,7 +299,7 @@ rows = [
   "cli_version": "0.146.0", "git": {"commit_hash": "8c8dc5e0a337677e213b4ebabbeff5ea188111ae"}}},
  {"timestamp": now(), "type": "event_msg", "payload": {"type": "task_started", "turn_id": turn}},
  {"timestamp": now(), "type": "turn_context", "payload": {
-  "turn_id": turn, "cwd": os.getcwd(), "model": "gpt-5.6-sol", "effort": effort}},
+  "turn_id": turn, "cwd": os.getcwd(), "model": model, "effort": effort}},
  {"timestamp": now(), "type": "event_msg", "payload": {"type": "user_message", "message": prompt}},
  {"timestamp": now(), "type": "event_msg", "payload": {"type": "token_count", "info": {
   "total_token_usage": usage, "last_token_usage": usage}}},
@@ -449,6 +450,8 @@ def _manual_run(
     argv = [
         str(cli),
         "exec",
+        "-m",
+        TOOL.MODEL,
         "-c",
         "model_reasoning_effort=max",
         "-o",
@@ -473,6 +476,7 @@ def _manual_run(
         "attempt": 1,
         "parent_run_id": None,
         "case": "POS",
+        "requested_model": TOOL.MODEL,
         "arm": "max",
         "created_at": started.isoformat().replace("+00:00", "Z"),
         "process_start_monotonic_ns": start_ns,
@@ -494,13 +498,17 @@ def _manual_run(
         "cli_binary_sha256": TOOL._sha256(cli.read_bytes()),
         "cli_version": "codex 0.146.0",
         "argv": argv,
-        "normalized_argv": TOOL._normalized_exec_argv(argv, "max"),
+        "normalized_argv": TOOL._normalized_exec_argv(
+            argv, TOOL.MODEL, "max"
+        ),
         "bwrap_binary": str(bwrap.resolve()),
         "bwrap_binary_sha256": TOOL._sha256(bwrap.read_bytes()),
         "bwrap_version": "bwrap 0.6.1",
         "bwrap_argv": bwrap_argv,
         "actual_process_argv": argv,
-        "actual_process_argv_normalized": TOOL._normalized_exec_argv(argv, "max"),
+        "actual_process_argv_normalized": TOOL._normalized_exec_argv(
+            argv, TOOL.MODEL, "max"
+        ),
         "environment": environment,
         "sandbox": {
             "snapshot_mount": "read-only",
@@ -661,6 +669,159 @@ def _supervisor_pair(
         dry_run=True,
     )
     return result, schedule_path, slots
+
+
+def _identity_receipt_for_model(model: str) -> dict[str, Any]:
+    base = "/fixture"
+    run_dir = f"{base}/run"
+    workspace = f"{base}/workspace"
+    output = f"{workspace}/answer.md"
+    stderr = f"{workspace}/stderr.log"
+    codex_home = f"{workspace}/codex-home"
+    events = f"{workspace}/events.jsonl"
+    done = f"{run_dir}/.done"
+    prompt = f"{base}/prompt.txt"
+    oracle = f"{run_dir}/snapshot-before.json"
+    normalized_argv = [
+        "/usr/local/bin/codex",
+        "exec",
+        "-m",
+        model,
+        "-c",
+        'model_reasoning_effort="<EFFORT>"',
+        "-s",
+        "read-only",
+        "-C",
+        f"{base}/snapshot",
+        "--json",
+        "-o",
+        "<OUTPUT>",
+        "-",
+    ]
+    return {
+        "case": "POS",
+        "requested_model": model,
+        "arm": "max",
+        "events": {"path": events},
+        "done": {"path": done},
+        "prompt": {"path": prompt, "sha256": "1" * 64},
+        "snapshot_oracle": {"path": oracle, "sha256": "2" * 64},
+        "run_dir": run_dir,
+        "agent_workspace": workspace,
+        "output_path": output,
+        "stderr_path": stderr,
+        "codex_home": codex_home,
+        "codex_config_sha256": "3" * 64,
+        "codex_auth_sha256": "4" * 64,
+        "cli_binary": "/usr/local/bin/codex",
+        "cli_binary_sha256": "5" * 64,
+        "cli_version": "codex-cli 0.146.0",
+        "argv": [
+            "/usr/local/bin/codex",
+            "exec",
+            "-m",
+            model,
+            "-c",
+            "model_reasoning_effort=max",
+            "-s",
+            "read-only",
+            "-C",
+            f"{base}/snapshot",
+            "--json",
+            "-o",
+            output,
+            "-",
+        ],
+        "normalized_argv": normalized_argv,
+        "bwrap_binary_sha256": "6" * 64,
+        "bwrap_version": "bwrap 0.6.1",
+        "bwrap_argv": [
+            "/usr/bin/bwrap",
+            "--ro-bind",
+            f"{base}/snapshot",
+            f"{base}/snapshot",
+            "--",
+            *normalized_argv,
+        ],
+        "actual_process_argv_normalized": normalized_argv,
+        "environment": {
+            "CODEX_HOME": codex_home,
+            "HOME": "/tmp/t181-home",
+            "LANG": "C.UTF-8",
+        },
+        "sandbox": {
+            "snapshot_mount": "read-only",
+            "home_masked": True,
+            "tmp_masked": True,
+        },
+        "world_state": {
+            "snapshot_verified_before": True,
+            "git_environment_cleared": True,
+        },
+        "schedule_sha256": "7" * 64,
+        "dry_run": True,
+    }
+
+
+def test_model_argv_is_explicit_and_identity_is_model_bound() -> None:
+    snapshot = Path("/fixture/snapshot")
+    output = Path("/fixture/output.md")
+    sol = "gpt-5.6-sol"
+    luna = "gpt-5.6-luna"
+    sol_argv = TOOL._codex_exec_argv(
+        Path("/usr/local/bin/codex"), sol, "max", snapshot, output
+    )
+    luna_argv = TOOL._codex_exec_argv(
+        Path("/usr/local/bin/codex"), luna, "max", snapshot, output
+    )
+    assert sol_argv[sol_argv.index("-m") + 1] == sol
+    assert luna_argv[luna_argv.index("-m") + 1] == luna
+    normalized_sol = TOOL._normalized_exec_argv(sol_argv, sol, "max")
+    normalized_luna = TOOL._normalized_exec_argv(luna_argv, luna, "max")
+    assert normalized_sol[sol_argv.index("-m") + 1] == sol
+    assert normalized_luna[luna_argv.index("-m") + 1] == luna
+    assert 'model_reasoning_effort="<EFFORT>"' in normalized_sol
+    assert "model_reasoning_effort=max" not in normalized_sol
+
+    missing_model = [value for value in sol_argv if value not in {"-m", sol}]
+    with pytest.raises(TOOL.ValidationError, match="one -m model option"):
+        TOOL._normalized_exec_argv(missing_model, sol, "max")
+    duplicate_model = [*sol_argv, "-m", luna]
+    with pytest.raises(TOOL.ValidationError, match="one -m model option"):
+        TOOL._normalized_exec_argv(duplicate_model, sol, "max")
+    unknown_model = list(sol_argv)
+    unknown_model[unknown_model.index("-m") + 1] = "gpt-5.6-unknown"
+    with pytest.raises(TOOL.ValidationError, match="model is not allowed"):
+        TOOL._normalized_exec_argv(unknown_model, sol, "max")
+    with pytest.raises(TOOL.ValidationError, match="does not match"):
+        TOOL._normalized_exec_argv(sol_argv, luna, "max")
+
+    sol_hash = TOOL._launch_identity_value(_identity_receipt_for_model(sol))
+    luna_hash = TOOL._launch_identity_value(_identity_receipt_for_model(luna))
+    assert sol_hash == (
+        "d711b0e4cea31dfeff04273e768a3e3d3ba7f07c7478df00ec592ac4d34c4157"
+    )
+    assert luna_hash == (
+        "687b58a3c7362fbc3c8e852be7376560e151240572960dc75a47af397b3d256c"
+    )
+    assert sol_hash != luna_hash
+
+
+def test_completed_ledger_row_records_launch_requested_model(tmp_path: Path) -> None:
+    launch_path = tmp_path / "launch.json"
+    launch_path.write_bytes(
+        TOOL._canonical_bytes({"requested_model": "gpt-5.6-luna"})
+    )
+    ledger_path = tmp_path / "attempt-ledger.jsonl"
+    row = {
+        "phase": "completed",
+        "launch_receipt": str(launch_path),
+    }
+    TOOL._append_jsonl(ledger_path, row)
+    assert row["requested_model"] == "gpt-5.6-luna"
+    assert json.loads(ledger_path.read_text(encoding="utf-8"))["requested_model"] == (
+        "gpt-5.6-luna"
+    )
 
 
 def _full_manifest(
