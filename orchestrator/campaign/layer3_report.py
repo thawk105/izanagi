@@ -660,17 +660,9 @@ def build_accepted_report(
     return report
 
 
-def render(campaign_dir: Path, out_json: Path, generated_from_head: Optional[str] = None, *,
-           output_root: Optional[Path] = None) -> Dict[str, Any]:
-    """完全検査済み report を新規ファイルとして書く。既存出力は上書きしない。"""
+def _write_report_atomic(out_json: Path, report: Dict[str, Any]) -> None:
+    """report を既存出力を上書きせず atomic に新規作成する。"""
     out_json = Path(out_json)
-    if out_json.exists():
-        raise Layer3ReportError("出力先が既に存在する: %s" % out_json)
-    report = build_report(
-        campaign_dir,
-        generated_from_head=generated_from_head,
-        output_root=output_root,
-    )
     encoded = _canonical_bytes(report) + b"\n"
     if not out_json.parent.is_dir():
         raise Layer3ReportError("出力先 parent directory が存在しない: %s" % out_json.parent)
@@ -689,6 +681,46 @@ def render(campaign_dir: Path, out_json: Path, generated_from_head: Optional[str
             os.unlink(temporary)
         except FileNotFoundError:
             pass
+
+
+def render(campaign_dir: Path, out_json: Path, generated_from_head: Optional[str] = None, *,
+           output_root: Optional[Path] = None) -> Dict[str, Any]:
+    """完全検査済み report を新規ファイルとして書く。既存出力は上書きしない。"""
+    out_json = Path(out_json)
+    if out_json.exists():
+        raise Layer3ReportError("出力先が既に存在する: %s" % out_json)
+    report = build_report(
+        campaign_dir,
+        generated_from_head=generated_from_head,
+        output_root=output_root,
+    )
+    _write_report_atomic(out_json, report)
+    return report
+
+
+def render_accepted(
+    campaign_dir: Path,
+    out_json: Path,
+    *,
+    acceptance_receipt: s8c_acceptance_receipt.VerifiedAcceptanceReceipt,
+    generated_from_head: Optional[str] = None,
+    output_root: Optional[Path] = None,
+) -> Dict[str, Any]:
+    """検証済み receipt-bound report を新規ファイルとして書く。
+
+    caller は non-certifying 出力と異なる path を渡すこと。本関数は path の意味を検証しない。
+    既存出力は上書きしない。
+    """
+    out_json = Path(out_json)
+    if out_json.exists():
+        raise Layer3ReportError("出力先が既に存在する: %s" % out_json)
+    report = build_accepted_report(
+        campaign_dir,
+        acceptance_receipt=acceptance_receipt,
+        generated_from_head=generated_from_head,
+        output_root=output_root,
+    )
+    _write_report_atomic(out_json, report)
     return report
 
 

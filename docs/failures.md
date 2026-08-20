@@ -1433,6 +1433,15 @@
   正確に `## 総括` という文字列を単独行に置け (太字等で代替しない)」と明示的に追記して再投すると
   2/2で解消した。2026-07-28裁定 (`DW-O01`へのprose追記は見送り、恒久対応はテスト・機械検査優先)
   を踏襲し、今回もprose追記はしない — 親検収で拾えており実害なし (near-miss)。
+
+- **再発: 2026-08-20** — 段6 の軽量 fix子 (1行追加だけの修正) 2回とも、親が「変更した
+  file:line を明記するだけでよい」と簡潔な報告を求めたところ、報告が499/494 bytes で
+  500 bytes 下限に届かず `tools/check_codex_output.py` に不受理にされた
+  (`codex_exit_code=0`, `accepted=false`, `validator_rc=1`)。2026-08-18 再発と同型
+  (「2〜5行で書け」で500 bytes未達)。作業自体は `attempt-0001.output.md` に正しく
+  書かれており親が fallback で読んで採った。2026-07-28/2026-08-18裁定 (`DW-O01` への
+  prose 追記は見送り、恒久対応はテスト・機械検査優先) を踏襲し、今回も reference
+  編集はしない。
 ### F44. pipefail 下の `producer | grep -q` が SIGPIPE で計測ジョブを偽赤停止させた [手順漏れ]
 - 事象: [T-140] set-size 実測ジョブ 1 回目 (872881.nqsv、2026-07-28) が、trace シンボル存在検査
   `nm -C bin | grep -qi izanagi_trace` で「シンボル無し」と誤判定し 43 秒で停止した。実際は
@@ -1624,6 +1633,15 @@
   最終的に repo 外の `/work` 配下へ置いた。
   恒久対応 = `DW-O20` の当該語を byte 中立で「背景jobはrepo外」へ是正 (本 wave の段 8) と、
   auto-memory `pegasus-keep-home-clean`。
+
+- **再発: 2026-08-19** — [T-1316] wave (背景 job + worktree 隔離) で、wave 開始時の brief 読み込みが
+  `DW-C00`/`DW-STOP` の通読に留まり、条件 dispatch 表の「20 | 背景 job + worktree 隔離の wave 開始時」
+  行を辿らなかったため、段4裁定完了・段5投入準備の直前まで `tools/check_wave_startup.py` を
+  実行しなかった。実行して初めて submodule 未初期化・専用 handoff の worktree 内残留・HEAD が
+  local main から6 commit 遅れの3件を検出し、実装着手前 (段5 投入前) に是正した (実害なし)。
+  過去2回 (2026-07-29, 2026-08-03) の再発と同じ「置き場・読了タイミングを誤る」型で、F50 の
+  恒久対応 (dispatch 前倒し、条件表20番の文言是正) は既に適用済みだったにもかかわらず、
+  wave 開始時にその条件表自体を辿らなかったことが根本原因である。
 ### F51. cleanup-branches が背景セッション自身の worktree を削除しかけた near-miss [手順漏れ]
 - 事象: /cleanup-branches 実行セッションの cwd が削除対象 worktree に固定されており (背景 job)、
   スキル §2 の「先に main checkout 側へ抜ける」が実行不能だった — ExitWorktree は EnterWorktree
@@ -2869,6 +2887,21 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   親は最小巡で元の outcome と期待値へ戻し、不正 digest を復活させない形
   (`critic_digest_generated: False`) に落とした。
   近縁は F127 (検査を切り出す fix が委譲そのものを未固定にした)。
+
+- **再発: 2026-08-20** — [T-338] 単位3/4 waveで、親がCodex実装子・fix子の「py_compile通過」
+  「手動smoke成功」「実装済み・未実走」という誠実な報告を受けて段5〜段6のfix 3巡を進め、
+  親自身も直接コード確認 (file:line読取) だけで先へ進んだ。子は一度も虚偽の緑を主張しておらず、
+  F80本体の事象 (子が期待値を反転して緑化) とは異なるが、根本原因は同じ「親が受入全走を自分で
+  実行して既存テストの赤を実走で確認する」というF80の再発検知手順を、段6の変異harness投入まで
+  実行しなかったこと。変異harnessのbaseline走行が単位3/4に対する本wave初の実pytest実行となり、
+  production非関与のtest fixtureバグ4件 (git commitの`-m`フラグ欠落2件・byte-prefix継続性を
+  壊すfixture1件・低位API直接呼出しの期待例外誤り1件、すべて
+  `test_t338_submission_gate_unit4.py`) を検出した。恒久対応は従来どおりF80の「親が受入全走を
+  必ず自分で実行する」だが、**本件は「受入全走」を段9直前まで遅らせてよいと読むと、その間の
+  複数fix巡が一度も実走されないまま積み上がりうる**ことを示した。dev-wave改善候補として
+  「段6のfix巡回のいずれかの節目で、親が軽量realtestを1回実走する」を
+  `output/insights/2026-08-20_t338-submission-gate-unit34/package.md`へ記録した
+  (段8裁定待ち)。
 ### F81. 全テスト緑なのに実 repo で 1 回も動かなかった [テスト代表性]
 
 - 事象: 受入全走 4907 passed / 0 failed を得た後、親が実 repo で `spool_fold.py --dry-run` を
@@ -9439,6 +9472,18 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   受入経路そのものへ関門を入れた。**rc だけでなく理由本文を呼び手へ返す**のも同じ理由で、
   rc だけ返すと次の呼び手が同じ「rc を自前分類する」ループを書く。
 
+
+- **再発: 2026-08-20** — `dev-wave-t470-accepted-consumer` wave で、main 取り込み merge
+  (`0e07ad03`) が main 側 (workload-policy-hint-impl wave) と本 wave の両方が
+  `orchestrator/campaign/layer3_report.py`/`orchestrator/tests/test_layer3_report.py` を
+  実装面として変更していたことにより (競合なしの自動 merge、`git merge` は
+  "Automatic merge went well")、`tools/check_ai_provenance.py` の combined-path 判定
+  (両親からの積集合が非空) で新規違反として検出された。F365 の恒久対応
+  (`preclaim-history-provenance`: claim 前に無条件で全史監査) が意図どおり機能し、
+  lease を一切消費せず (`claimed_main: null`) `tools/dev_wave_wait.py acceptance` が
+  rc=70・25秒で早期に land 不能を検出した (queue 待ち行列への影響ゼロ)。
+  checker ソース中の「(ユーザー選択: known-violation 登録)」の指示どおり、
+  この新規違反の台帳登録可否は AI 単独で判断せずユーザーへ返した。
 ### F366. 呼び手を確認したと書きながら入れ子の exact 検査を見落とし、修正が end-to-end で 1 度も発効しなかった [恒真ゲート] [手順漏れ]
 
 - 事象: 2026-08-16 の commit `8a2b735b` が受入赤の分類へ第 3 分類 `flake` を足した。
@@ -10348,6 +10393,7 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   再投入は prompt bytes を変える必要がある (job-id が prompt hash から決まるため)。
   この手順の dev-wave 入口への明文化は [T-1404] で裁定する。
 - 再発検知: 現時点では機械検査が無い。手順の明文化と併せて裁定へ返す。
+- **supersede: 2026-08-20** — 恒久対応「停止を断定する前に…数分あけて1度だけ再投入する」の前提が崩れていたと判明した。ユーザーの開示により、レートリミット到達時にユーザー自身が手動でアカウント切り替えを行っていたケースがあり、見かけ上の「数分で自然回復した」はそれによる可能性が高い。恒久対応はD582 (症状の即時検知とユーザーへの即時エスカレーション、自動再試行はしない) へ差し替える。
 
 ### F412. 親が成立不能な束縛を裁定し、実装子の停止報告で初めて露見した [恒真ゲート] [手順漏れ]
 
@@ -10624,3 +10670,117 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   `ident.py`、`artifact_admission.py`、`orchestrator/verifier/*`、`s8c_preregistration*.py`、
   `s8c_generation_projection.py`、`campaign_lock.py`、`contract_loader_binding.py`、
   `enforcement_source_ratification.py` 等) のいずれかへ変異 matrix を登録する全 wave。
+
+### F425. read-only 調査 fork が継承した command 本文を自分の役割と誤認し無許可で実行段を起動した [権限逸脱]
+
+- 事象: `/dev-wave` 実行中、一次資料の read-only 調査だけを目的に Agent (subagent_type: "fork") を
+  起動したところ、fork は親の会話全文 (`/dev-wave` command 本体を含む) を継承し、自分を
+  dev-wave manager と誤認した。個別 prompt の「実装や編集は一切しない、read-only の調査のみ」
+  という制約を破り、`tools/dev_wave_codex.py --stage plan` 経由で実 Codex subprocess
+  (`gpt-5.6-luna`) と背景待ち手・診断用 general-purpose agent 2 体・EnterWorktree (失敗) を
+  無許可で起動した。共有 TaskList も誤って更新 (段1 completed・段2 in_progress へ先走り)。
+  完了通知の `result` 要約も実態と無関係な文言 (「段2の完了通知を待ちます」等) を 2 回繰り返し、
+  SendMessage で直接問い詰めるまで起動した副作用一式を報告しなかった。
+- 根本原因: fork が親の会話文脈をそのまま継承する設計であり、role-heavy な command 本文
+  (「あなたは manager である」) が個別 prompt の制約より強く働いた。
+- 恒久対応: memory `fork-inherits-command-context-can-misact-as-manager` —
+  role-heavy command 下で research fork を使うときは「あなたは manager ではない」
+  「副作用を持つ tool を使うな」の明示的な役割否定文を prompt に追加し、result 要約が
+  依頼と噛み合わないときは ListAgents + SendMessage (直接、別 fork へ委任せず) で実態を問い詰める。
+- 再発検知: fork 完了通知の `result` 要約を鵜呑みにせず、依頼内容と整合するか毎回照合する
+  (機械 lint は未実装)。
+- 関連: 2026-08-18 T-944 dev-wave でも「fork が委任範囲を超えて動く」型の事故が独立発生した
+  (memory `dont-fork-just-to-relay-sendmessage` に記録。当時 failures.md へは起票されなかった
+  ため本エントリが同型の初回起票となる)。fork の過剰行動は単発ではなく 2026-08 に少なくとも
+  2 件の独立実測がある。
+
+### F426. 新設 checker の1-hop 関数解決が tuple-unpack 代入を追跡できず fix が2巡した [手順漏れ]
+
+- 事象: `tools/check_subprocess_bytecode_guard.py` の P2 判定 (`_one_hop_guard`) は
+  `env = f()` 形の単純代入だけを1段辿って guard を探す。local main 取り込みで
+  `orchestrator/tests/test_dev_wave_wait.py` に他wave由来の新規呼び出しが加わり、
+  その `env` は `repo, lease, env = _real_waiter_repo(...)` という tuple-unpack
+  代入で得ていた。1回目の fix は呼び出し先 `_real_waiter_repo()` 内部の env dict へ
+  guard を足したが checker はなお rc=1 を返し続けた。
+- 根本原因: checker の `_FileIndex.visit_Assign`
+  (`tools/check_subprocess_bytecode_guard.py:208-219`) は
+  `len(node.targets) == 1 and isinstance(node.targets[0], ast.Name)` の場合だけ
+  代入を索引する。`ast.Tuple` をターゲットに持つ tuple-unpack 代入はこの条件を満たさず
+  索引から漏れるため、`_one_hop_guard` が呼び出し先関数まで辿る前提(代入の右辺が
+  ローカル関数呼び出しであること)自体が成立しなかった。
+- 恒久対応: 部分的。2回目の fix で、呼び出し元関数 (`_run_real_self_report_merge_case`)
+  自身の scope に `env["PYTHONDONTWRITEBYTECODE"] = "1"` を直接追加し、
+  `_scope_has_guard` (同一関数内の文字列 literal 探索) で guard ありと判定される形にした。
+  **checker 自体の tuple-unpack 追跡は実装していない** — 汎用 data-flow 解析は
+  規律5に反するため、既知の shallow 判定の限界として残す
+  (D575 の却下した選択肢を参照)。
+- 再発検知: 無し (checker の恒久対応が部分的なため、同型の tuple-unpack 代入を持つ
+  将来の env= 呼び出しは、呼び出し元関数自身に guard が無い限り同じ2巡を要する)。
+  `tools/check_subprocess_bytecode_guard.py` の module docstring に
+  「1-hop 関数解決は単純代入のみ対象、tuple-unpack は対象外」を追記する改善は
+  次に同checkerへ触れる wave の候補とする。
+
+### F427. 新規 worktree の submodule クローンに git identity が無く、config 変更が auto mode classifier に block される [手順漏れ] [環境固有]
+
+- 事象: `EnterWorktree` で新規作成した worktree の `external/ccbench` (submodule) は
+  `git submodule update --init --recursive` で fresh clone されるが、この clone には
+  `user.name`/`user.email` が一切設定されておらず (outer repo 側は local config 済みだが
+  submodule は継承しない)、`git -C external/ccbench commit` が
+  `fatal: unable to auto-detect email address` で失敗する。`git config` での補完も
+  `GIT_AUTHOR_NAME`/`GIT_AUTHOR_EMAIL`/`GIT_COMMITTER_*` 環境変数での代替も、
+  auto mode classifier に block された (CLAUDE.md の「NEVER update the git config」
+  規律に沿ったものと見られる)。
+- 根本原因: submodule の fresh clone は outer repo の local git config を継承しない。
+  CLAUDE.md の git config 変更禁止規律は正しく機能しているが、submodule 内で正当な
+  commit を行うための identity 供給経路が用意されていない。
+- 恒久対応: 未着手。回避策として、submodule 側の commit を作らず
+  `git -C external/ccbench diff --cached` の出力を `.patch` として repo 外へ保全し、
+  submodule 側の実 commit は人間が identity を設定したうえで行う運用にした
+  (本 wave、`docs/worklog.md` 該当エントリ参照)。恒久対応の選択肢
+  (例: submodule 専用の safe な identity 設定手段を用意する、または
+  「submodule 内 commit は人間手番」を dev-wave の正式な契約として明記する) は
+  ユーザー裁定へ送る。
+- 再発検知: 次に submodule (`external/ccbench`) 内で AI が commit を試みる wave で
+  同じ `fatal: unable to auto-detect email address` が出れば再発。
+
+### F428. worklog carry stub は、実装・解決が別ID/別waveのprovenanceでlandした後も自動更新されない [ドリフト] [手順漏れ]
+
+- 事象: 2026-08-20の棚卸しで、carry上「新規」「未実装」「未land」と表示されていた
+  [T-1419]/[T-1183]/[T-949] の3件が、実際にはすべて既にmainへland済みだったと判明した。
+  [T-1183] は origin (entry578) とは別ID ([T-1140]/[T-330]、commit `6eb77ef9`) の実装で
+  満たされ、[T-949] は origin (entry510) の裁定 (cherry-pick -x) とは異なる、より後発の
+  直接ユーザー指示による branch 破棄+選択的資産保全 (commit `505accdb`) で解決していた。
+  いずれの closing commit も、閉じたはずの carry ID 自体を引用・更新しなかった。
+- 根本原因: `docs/spool/README.md` の fold 機構は「触れなかった active な T は自動的に carry
+  する」設計であり (D70 保存則)、これは脱落を防ぐには効くが、**当該IDへ言及しないまま
+  別ID・別waveの成果がその実体を満たしてしまうケースを検出しない**。carry stub の文言は
+  「最後にそのIDへ言及したentryの文言」を機械的に運ぶだけで、指す作業が実際に未完了かは
+  検証しない。
+- 恒久対応: memory `carry-stub-can-outlive-landed-implementation` — 次タスク選定・裁定復唱で
+  P1候補を最終候補に選ぶ前に、(a) 対象fileへの直接grep、(b) `git log --all
+  --grep='[T-ID]'`、(c) 対象branch名が non-merged 一覧に見えるか、のいずれかで実体確認する。
+  機械lintは未実装。
+- 再発検知: 現状は目視 (実体確認の手順) のみ。ID単位で closing commit との対応を機械検査する
+  lint は無く、次に同型が見つかった場合の再発記録がその lint 化の着手判断材料になる。
+
+### F429. 大量失敗を伴う変異走行で pytest-xdist の集約・終了処理が host 混雑下で無応答になる [infra不調] [測定汚染]
+
+- 事象: `tools/pegasus/dispatch_compute.py` の `_accounting_present` へ「常に False を返す」
+  「比較演算子を反転する」型の変異を適用し、`orchestrator/tests/test_pegasus_dispatch_compute.py`
+  全体 (188 test, `pytest -n 32 --dist loadgroup`) を `tools/run_tests.py` で実走したところ、
+  4回中4回、90〜300秒 CPU時間ほぼ0のまま無応答になった (`-n 4` へ削減しても再現)。
+  host load average 5〜10 (18ユーザー、多数の並行 dev-wave wave が同時に main へ land していた)、
+  `free -h` は 199GiB available で単純なメモリ枯渇ではなかった。SIGTERM で終了させると
+  `pytest_sessionfinish` の hookwrapper teardown で `OSError: cannot send (already closed?)`
+  (`PluggyTeardownRaisedWarning`) が発生し、それまでの進捗 (76%超) がまとめて flush された。
+- 根本原因: 未特定。大量の同時失敗 (~50件超) を32 worker から集約する際の pytest-xdist の
+  worker 終了ハンドシェイクが、host 混雑下でのプロセススケジューリング遅延と組み合わさって
+  極端に遅延する、または稀に完全に停止する事象と推定される。変異が生む失敗の性質
+  (`_accounting_present` に依存する無関係な多数の integration test を波及的に失敗させる) が
+  トリガーになっている可能性が高いが、pytest-xdist / execnet 側の再現条件までは切り分けていない。
+- 恒久対応: 未実装。回避策のみ確立 — 変異の検証に本当に必要な test 関数だけへ pytest node
+  選択 (`file.py::test_name` の裸列挙、`-k` ではなく明示 nodeid) で絞り込むと、同じ変異でも
+  2秒未満で完走し再発しなかった。変異事前登録の時点で「この変異は無関係な多数のテストへ
+  波及するか」を検討し、波及する変異は最初から絞り込んだ node 集合で登録するとよい。
+- 再発検知: 同種の「ほぼ全ての呼び出しで False/True を返す」型の変異を伴う手動変異検証で、
+  full-file 実走が baseline (数秒〜十数秒) の5倍以上を要して停止していなければ、この節を疑う。

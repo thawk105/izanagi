@@ -3,8 +3,7 @@
 ## 目的
 
 product・model・reasoning の選択とタスク種別・レビュー結果・手戻りの対応を監査する。
-正本は Git commit message とし worklog へ二重記録しない。本規約は導入 commit 自身と以後の commit に
-適用し、既存履歴を書き換えない。
+正本は Git commit message とし worklog へ二重記録しない。既定監査は各規則の内容検出 commit 自身と、その祖先でない HEAD 到達 commit に適用する。導入祖先は legacy とし、履歴を書き換えない。
 
 ## 必須形式
 
@@ -14,7 +13,7 @@ product・model・reasoning の選択とタスク種別・レビュー結果・�
 
 `Co-Authored-By` を併用する場合は空行を挟まず連続させる。
 Co-Authored-By 候補行はすべて最終 trailer block に置く。
-checker は raw 候補行数と隔離 Git parser の認識数を照合し、一致しなければ拒否する。この規則は内容検出した導入 commit 以後へ適用する (F25)。
+checker は raw 候補行数と隔離 Git parser の認識数を照合し、一致しなければ拒否する。
 
 ```text
 AI-Agent: product=<product>; model=<model>; reasoning=<reasoning>; role=<role>[; scope=<scope>]
@@ -27,8 +26,7 @@ AI-Agent: product=<product>; model=<model>; reasoning=<reasoning>; role=<role>[;
   (セッション途中の `/model` 切替後を含む) は `unknown` とし、世代や内部モデルを推測しない。
 - `role`: 実質的な寄与を `author`, `reviewer`, `researcher`, `manager`, `integrator` から選び、複数役割は行を分ける。
 - `scope` (任意、2026-07-17 導入): その構成が担った作業範囲の短い識別子。**同じ role が複数行に
-  わたる commit では全行に必須**、単独行は省略可。導入 commit 以降にのみ適用して遡及せず、
-  checker も内容検出した導入 commit 以後だけ検査する。
+  わたる commit では全行に必須**、単独行は省略可。
 
 `product`, `model`, `reasoning`, `scope` と waiver の `reason` は `[a-z0-9][a-z0-9._-]*` に収める。
 外れる表示値は小文字化し、非適合文字を `-` へ替えて連続と前後を畳む
@@ -45,7 +43,7 @@ AI-Agent: none
 
 ## 実装面の Codex author 契約
 
-本節を導入する commit 以後、実装面を変更する AI 関与 commit は Codex author を必須とする。
+実装面を変更する AI 関与 commit は Codex author を必須とする。
 実装面は `orchestrator/`、`tools/`、`hooks/`、`.github/`、`.codex/`、`external/` 配下の `.md` / `.rst`
 以外、`patches/` の patch/diff、所在不問の Python・Shell・C/C++・CMake 等の実行可能資材。テスト・
 checker・hook・probe・harness・生成器・機械設定も production 挙動によらず含む。

@@ -27,6 +27,7 @@ from orchestrator.campaign.source_digest import (  # noqa: E402
     _git_show,
     _head_defines,
     _include_lines,
+    _lex_normalize,
 )
 
 
@@ -41,6 +42,12 @@ _HEADER_SUFFIXES = frozenset({
     ".h", ".h++", ".hh", ".hp", ".hpp", ".hxx", ".inl", ".ipp", ".tcc",
 })
 _MARKER_PREFIX = "IZANAGI_TRACE0_INCLUDE_MARKER_"
+_MOCC_TRANSACTION_PATH = "cc/mocc/transaction.cc"
+_MOCC_TRACE_INCLUDE_LINE = '#include "../../include/trace.hh"'
+_CONDITIONAL_DIRECTIVE_RE = re.compile(
+    r"^[ \t]*#[ \t]*(if|ifdef|ifndef|elif|elifdef|elifndef|else|endif)\b(.*)$"
+)
+_TRACE_IF_EXPRESSION_RE = re.compile(r"^[ \t]*TRACE[ \t]*$")
 
 
 class CheckError(RuntimeError):
@@ -253,6 +260,108 @@ def _active_markers(normalized: str, markers: list[str]) -> list[str]:
     return [match.group(1) for match in pattern.finditer(normalized)]
 
 
+def _trace_guard_is_inactive_at_zero(source_text: str, include_start: int) -> bool:
+    """追加 include が単純な ``#if TRACE`` の真枝内にあるかを保守的に確認する。"""
+    # The parser intentionally recognizes only the unambiguous ``#if TRACE`` form.
+    # The shared lexical pass removes comments/literals first; an unparseable
+    # prefix, compound expression, #elif, or #else is not enough evidence for
+    # this exception and therefore remains fail-closed.
+    try:
+        prefix = _lex_normalize(source_text[:include_start], _MOCC_TRANSACTION_PATH)
+    except RuntimeError:
+        return False
+    stack: list[tuple[bool, bool]] = []
+    for line in prefix.splitlines():
+        match = _CONDITIONAL_DIRECTIVE_RE.match(line)
+        if match is None:
+            continue
+        directive, expression = match.groups()
+        if directive == "if":
+            stack.append((bool(_TRACE_IF_EXPRESSION_RE.fullmatch(expression)), True))
+        elif directive in {"ifdef", "ifndef"}:
+            stack.append((False, True))
+        elif directive in {"elif", "elifdef", "elifndef", "else"}:
+            if not stack:
+                return False
+            is_trace_if, is_initial_branch = stack[-1]
+            stack[-1] = (is_trace_if, False)
+        elif directive == "endif":
+            if not stack:
+                return False
+            stack.pop()
+    return any(is_trace_if and is_initial_branch for is_trace_if, is_initial_branch in stack)
+
+
+def _mocc_trace_include_addition_index(
+    path: str, old_source: str, new_source: str
+) -> int | None:
+    """Return the sole permitted mocc trace include insertion index, if any.
+
+    D297 still requires the normalized TRACE=0 preprocess output to match below,
+    and this exception preserves exact matching for every other include and marker.
+    It permits one mechanically verifiable addition only: the exact trace.hh line
+    in ``cc/mocc/transaction.cc`` inside the initial branch of ``#if TRACE``.
+    Arbitrary include additions are never accepted by this helper.
+    """
+    if path != _MOCC_TRANSACTION_PATH:
+        return None
+
+    old_matches = list(_INCLUDE_RE.finditer(old_source))
+    new_matches = list(_INCLUDE_RE.finditer(new_source))
+    old_lines = [match.group(0) for match in old_matches]
+    new_lines = [match.group(0) for match in new_matches]
+    if len(new_lines) != len(old_lines) + 1:
+        return None
+
+    candidates = [
+        index
+        for index, line in enumerate(new_lines)
+        if line.strip() == _MOCC_TRACE_INCLUDE_LINE
+        and new_lines[:index] == old_lines[:index]
+        and new_lines[index + 1:] == old_lines[index:]
+    ]
+    if len(candidates) != 1:
+        return None
+
+    index = candidates[0]
+    if not _trace_guard_is_inactive_at_zero(new_source, new_matches[index].start()):
+        return None
+    return index
+
+
+def _compare_include_activity(
+    path: str,
+    old_active: list[str],
+    new_active: list[str],
+    old_markers: list[str],
+    new_markers: list[str],
+    added_index: int | None,
+) -> None:
+    if added_index is None:
+        if old_active != new_active:
+            raise CheckError(f"include 活性（順序込み）が不一致: path={path!r}")
+        return
+
+    if len(new_markers) != len(old_markers) + 1:
+        raise CheckError(f"include marker 列を構成できない未対応形: {path}")
+    added_marker = new_markers[added_index]
+    if added_marker in new_active:
+        raise CheckError(
+            "許可した mocc の trace.hh include が TRACE=0 で活性化したため拒否: "
+            f"path={path!r}"
+        )
+
+    # Remove only the permitted marker and map the remaining new marker positions
+    # back to the old sequence. Any other activity or ordering drift remains fatal.
+    mapped_new_active = [
+        old_markers[index if index < added_index else index - 1]
+        for index, marker in enumerate(new_markers)
+        if index != added_index and marker in new_active
+    ]
+    if old_active != mapped_new_active:
+        raise CheckError(f"include 活性（順序込み）が不一致: path={path!r}")
+
+
 def _compare_file(
     repo: Path,
     old_oid: str,
@@ -267,13 +376,20 @@ def _compare_file(
     new_source = _git_show(os.fspath(repo), new_oid, path)
     old_includes = _include_lines(old_source)
     new_includes = _include_lines(new_source)
+    added_include_index: int | None = None
+    # D297 の保証（選定 macro context の TRACE=0 正規化 preprocess 出力と include 活性の同一性）は
+    # 以下で従来どおり比較する。特別扱いは mocc の trace.hh 1 行だけを機械的に検証可能な形で
+    # 許すものであり、任意の include 追加を許すものではない。
     if old_includes != new_includes:
-        raise CheckError(f"include 行文字列（順序込み）が不一致: {path}")
+        added_include_index = _mocc_trace_include_addition_index(path, old_source, new_source)
+        if added_include_index is None:
+            raise CheckError(f"include 行文字列（順序込み）が不一致: {path}")
 
     marked_old, old_markers = _mark_includes(old_source)
     marked_new, new_markers = _mark_includes(new_source)
     if old_markers != new_markers:
-        raise CheckError(f"include marker 列を構成できない未対応形: {path}")
+        if added_include_index is None or len(new_markers) != len(old_markers) + 1:
+            raise CheckError(f"include marker 列を構成できない未対応形: {path}")
 
     contexts: list[dict[str, object]] = []
     for genome in genomes:
@@ -307,11 +423,19 @@ def _compare_file(
             )
             old_active = _active_markers(old_marked_output, old_markers)
             new_active = _active_markers(new_marked_output, new_markers)
-            if old_active != new_active:
-                raise CheckError(
-                    f"include 活性（順序込み）が不一致: path={path!r} "
-                    f"genome={genome.canonical()!r} context={tag!r}"
+            try:
+                _compare_include_activity(
+                    path,
+                    old_active,
+                    new_active,
+                    old_markers,
+                    new_markers,
+                    added_include_index,
                 )
+            except CheckError as exc:
+                raise CheckError(
+                    f"{exc} genome={genome.canonical()!r} context={tag!r}"
+                ) from exc
 
             old_normalized_digest, new_normalized_digest = _independent_sha256_pair(
                 old_normalized, new_normalized

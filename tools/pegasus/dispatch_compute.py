@@ -141,6 +141,9 @@ _QSTAT_ERROR_MARKERS = {
 _NQSV_REQUEST_ID_RE = re.compile(
     r"(?m)^[ \t]*Request ID:[ \t]*(\S+)[ \t]*$"
 )
+_NQSV_GROUP_NAME_RE = re.compile(
+    r"(?m)^[ \t]*Group Name:[ \t]*(\S+)[ \t]*$"
+)
 _NQSV_STARTED_RE = re.compile(
     r"(?m)^[ \t]*Started Request Time:[ \t]*\S.*$"
 )
@@ -683,6 +686,7 @@ def _job_run(request_path: Path) -> int:
                 child_env.pop(name, None)
         executable_dir = str(Path(sys.executable).resolve().parent)
         child_env["PATH"] = executable_dir + os.pathsep + child_env.get("PATH", "")
+        child_env.setdefault("PYTHONDONTWRITEBYTECODE", "1")
         stage = "child"
         child_rc = subprocess.call(
             [sys.executable, str(repo_root.joinpath(*spec.child_script)), *argv],
@@ -925,13 +929,15 @@ def _accounting_present(
     stderr_record: Mapping[str, Any],
     request_id: str,
 ) -> bool:
-    """NQSV 会計サマリを submit ID と必須 field の連言で束縛する。"""
+    """NQSV 会計サマリを submit ID・policy account・必須 field の連言で束縛する。"""
 
     tail = stderr_record.get("tail")
     if type(tail) is not str:
         return False
     request_ids = _NQSV_REQUEST_ID_RE.findall(tail)
     if len(request_ids) != 1:
+        return False
+    if _NQSV_GROUP_NAME_RE.findall(tail) != [DEFAULT_PROJECT]:
         return False
     try:
         observed = _normalize_request_id(request_ids[0])

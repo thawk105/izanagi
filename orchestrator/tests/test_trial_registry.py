@@ -3669,6 +3669,7 @@ def test_p12_accept_cli_runs_from_clean_pythonpath(tmp_path: Path) -> None:
     for key in ("PYTHONPATH", "PYTHONHOME", "PYTHONSTARTUP"):
         env.pop(key, None)
     env["PYTHONPATH"] = str(_SOURCE_REPO)
+    env["PYTHONDONTWRITEBYTECODE"] = "1"
     result = subprocess.run(
         [
             sys.executable,
