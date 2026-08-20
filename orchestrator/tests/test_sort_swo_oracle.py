@@ -17,7 +17,13 @@ from orchestrator.campaign import sort_swo_oracle as O
 
 _ROOT = Path(__file__).resolve().parents[2]
 _CCBENCH = _ROOT / "external" / "ccbench"
-_ENVIRONMENT = O.resolve_oracle_environment(_CCBENCH)
+
+
+@pytest.fixture(scope="module")
+def oracle_environment():
+    return O.resolve_oracle_environment(_CCBENCH)
+
+
 _CLEAN_IMPL = (
     "    sort(write_set_.begin(), write_set_.end(),\n"
     "         [](const auto& a, const auto& b) { return a.key_ < b.key_; });"
@@ -84,9 +90,9 @@ def _receipt(materialized_hash: str = "1" * 64,
 
 
 @pytest.fixture(scope="module")
-def compiled_oracle_artifacts(tmp_path_factory):
+def compiled_oracle_artifacts(tmp_path_factory, oracle_environment):
     """Exactly two real compiles: one positive TU and one multiplexed negative TU."""
-    assert type(_ENVIRONMENT) is O.OracleEnvironment, (
+    assert type(oracle_environment) is O.OracleEnvironment, (
         "real oracle E2E requires an injected oracle environment"
     )
     scratch = tmp_path_factory.mktemp("sort-swo-real")
@@ -99,8 +105,8 @@ def compiled_oracle_artifacts(tmp_path_factory):
         executable = scratch / name
         finding, unavailable = O._compile(
             O._translation_unit(statement), scratch / f"{name}.cpp", executable,
-            compiler=str(_ENVIRONMENT.compiler), ccbench_dir=_ENVIRONMENT.ccbench_dir,
-            masstree_dir=_ENVIRONMENT.dependency_root,
+            compiler=str(oracle_environment.compiler), ccbench_dir=oracle_environment.ccbench_dir,
+            masstree_dir=oracle_environment.dependency_root,
         )
         compile_count += 1
         assert unavailable is False
@@ -266,7 +272,8 @@ def test_real_patchharness_checkout_and_resolver_use_explicit_binding(tmp_path):
         assert resolution.dependency_root == dependency.resolve()
 
 
-def test_materialized_marker_bytes_are_exact_and_proposal_hash_is_distinct(monkeypatch):
+def test_materialized_marker_bytes_are_exact_and_proposal_hash_is_distinct(
+        monkeypatch, oracle_environment):
     statement = "  " + _CLEAN_IMPL + "\n"
     source = _materialized(statement)
     observed = O.extract_materialized_hole(source, "silo-writeset-sort")
@@ -277,7 +284,7 @@ def test_materialized_marker_bytes_are_exact_and_proposal_hash_is_distinct(monke
         source,
         marker_id="silo-writeset-sort",
         proposal_source=_CLEAN_IMPL,
-        environment=_ENVIRONMENT,
+        environment=oracle_environment,
     )
     assert result.status is O.OracleStatus.PASS
     assert result.materialized_hole_sha256 == O._sha256(observed)
@@ -323,8 +330,9 @@ def test_unresolved_environment_is_unavailable_not_candidate_reject():
     assert result.infrastructure.reason_code == O.INFRASTRUCTURE_REASON_CODE
 
 
-def test_phase_marker_runs_immediately_before_first_oracle_subprocess(monkeypatch):
-    assert type(_ENVIRONMENT) is O.OracleEnvironment
+def test_phase_marker_runs_immediately_before_first_oracle_subprocess(
+        monkeypatch, oracle_environment):
+    assert type(oracle_environment) is O.OracleEnvironment
     order = []
 
     def compiler_version(_compiler):
@@ -338,7 +346,7 @@ def test_phase_marker_runs_immediately_before_first_oracle_subprocess(monkeypatc
         _materialized(_CLEAN_IMPL),
         marker_id="silo-writeset-sort",
         proposal_source=_CLEAN_IMPL,
-        environment=_ENVIRONMENT,
+        environment=oracle_environment,
         phase_marker=lambda: order.append("phase-marker"),
     )
     assert result.status is O.OracleStatus.PASS
@@ -454,7 +462,8 @@ def test_explicit_compiler_binding_never_falls_back_to_ambient(
     assert all(item.outcome != "selected" for item in resolution.compiler_candidates)
 
 
-def test_scratch_failure_is_unavailable_not_candidate_reject(monkeypatch):
+def test_scratch_failure_is_unavailable_not_candidate_reject(
+        monkeypatch, oracle_environment):
     class BrokenScratch:
         def __init__(self, *args, **kwargs):
             raise OSError("scratch unavailable")
@@ -462,13 +471,14 @@ def test_scratch_failure_is_unavailable_not_candidate_reject(monkeypatch):
     monkeypatch.setattr(O.tempfile, "TemporaryDirectory", BrokenScratch)
     result = O.check_materialized_sort_swo(
         _materialized(_CLEAN_IMPL), marker_id="silo-writeset-sort",
-        proposal_source=_CLEAN_IMPL, environment=_ENVIRONMENT,
+        proposal_source=_CLEAN_IMPL, environment=oracle_environment,
     )
     assert result.status is O.OracleStatus.UNAVAILABLE
     assert result.finding is None
 
 
-def test_candidate_compile_failure_is_reject_not_unavailable(monkeypatch):
+def test_candidate_compile_failure_is_reject_not_unavailable(
+        monkeypatch, oracle_environment):
     compile_finding = O.SortSwoFinding(
         O.OracleRejectKind.COMPILE, "candidate-compile-failed",
     )
@@ -487,7 +497,7 @@ def test_candidate_compile_failure_is_reject_not_unavailable(monkeypatch):
     monkeypatch.setattr(O, "_compiler_version", lambda compiler: "fixture-cxx 1")
     result = O.check_materialized_sort_swo(
         _materialized(_CLEAN_IMPL), marker_id="silo-writeset-sort",
-        proposal_source=_CLEAN_IMPL, environment=_ENVIRONMENT,
+        proposal_source=_CLEAN_IMPL, environment=oracle_environment,
     )
     assert result.status is O.OracleStatus.REJECT
     assert result.finding is compile_finding
@@ -495,7 +505,7 @@ def test_candidate_compile_failure_is_reject_not_unavailable(monkeypatch):
 
 
 def test_candidate_compile_failure_with_failing_postflight_is_unavailable(
-        monkeypatch):
+        monkeypatch, oracle_environment):
     candidate_finding = O.SortSwoFinding(
         O.OracleRejectKind.COMPILE, "candidate-compile-failed",
     )
@@ -513,7 +523,7 @@ def test_candidate_compile_failure_with_failing_postflight_is_unavailable(
 
     result = O.check_materialized_sort_swo(
         _materialized(_CLEAN_IMPL), marker_id="silo-writeset-sort",
-        proposal_source=_CLEAN_IMPL, environment=_ENVIRONMENT,
+        proposal_source=_CLEAN_IMPL, environment=oracle_environment,
     )
 
     assert result.status is O.OracleStatus.UNAVAILABLE
@@ -526,7 +536,8 @@ def test_candidate_compile_failure_with_failing_postflight_is_unavailable(
     )
 
 
-def test_postflight_unavailable_retains_candidate_finding(monkeypatch):
+def test_postflight_unavailable_retains_candidate_finding(
+        monkeypatch, oracle_environment):
     candidate_diagnostic = O.CompilerDiagnostic(
         "candidate source must stay private", 34, 34, "5" * 64, False,
     )
@@ -548,7 +559,7 @@ def test_postflight_unavailable_retains_candidate_finding(monkeypatch):
 
     result = O.check_materialized_sort_swo(
         _materialized(_CLEAN_IMPL), marker_id="silo-writeset-sort",
-        proposal_source=_CLEAN_IMPL, environment=_ENVIRONMENT,
+        proposal_source=_CLEAN_IMPL, environment=oracle_environment,
     )
     attempt = O.attempt_record(result)
 
@@ -570,7 +581,7 @@ def test_postflight_unavailable_retains_candidate_finding(monkeypatch):
 
 
 def test_candidate_compile_reject_postflight_control_success_stays_reject(
-        monkeypatch):
+        monkeypatch, oracle_environment):
     candidate_finding = O.SortSwoFinding(
         O.OracleRejectKind.COMPILE, "candidate-compile-failed",
     )
@@ -600,7 +611,7 @@ def test_candidate_compile_reject_postflight_control_success_stays_reject(
 
     result = O.check_materialized_sort_swo(
         _materialized(_CLEAN_IMPL), marker_id="silo-writeset-sort",
-        proposal_source=_CLEAN_IMPL, environment=_ENVIRONMENT,
+        proposal_source=_CLEAN_IMPL, environment=oracle_environment,
     )
 
     assert result.status is O.OracleStatus.REJECT
@@ -620,7 +631,8 @@ def test_candidate_compile_reject_postflight_control_success_stays_reject(
     )
 
 
-def test_candidate_artifact_cleanup_failure_preserves_receipt(monkeypatch):
+def test_candidate_artifact_cleanup_failure_preserves_receipt(
+        monkeypatch, oracle_environment):
     candidate_finding = O.SortSwoFinding(
         O.OracleRejectKind.COMPILE, "candidate-compile-failed",
     )
@@ -649,7 +661,7 @@ def test_candidate_artifact_cleanup_failure_preserves_receipt(monkeypatch):
 
     result = O.check_materialized_sort_swo(
         _materialized(_CLEAN_IMPL), marker_id="silo-writeset-sort",
-        proposal_source=_CLEAN_IMPL, environment=_ENVIRONMENT,
+        proposal_source=_CLEAN_IMPL, environment=oracle_environment,
     )
 
     assert result.status is O.OracleStatus.REJECT
@@ -660,7 +672,7 @@ def test_candidate_artifact_cleanup_failure_preserves_receipt(monkeypatch):
 
 
 def test_candidate_artifact_cleanup_and_postflight_failure_preserve_evidence(
-        monkeypatch):
+        monkeypatch, oracle_environment):
     candidate_finding = O.SortSwoFinding(
         O.OracleRejectKind.COMPILE, "candidate-compile-failed",
     )
@@ -686,7 +698,7 @@ def test_candidate_artifact_cleanup_and_postflight_failure_preserve_evidence(
 
     result = O.check_materialized_sort_swo(
         _materialized(_CLEAN_IMPL), marker_id="silo-writeset-sort",
-        proposal_source=_CLEAN_IMPL, environment=_ENVIRONMENT,
+        proposal_source=_CLEAN_IMPL, environment=oracle_environment,
     )
     attempt = O.attempt_record(result)
 
@@ -706,7 +718,7 @@ def test_candidate_artifact_cleanup_and_postflight_failure_preserve_evidence(
 
 
 def test_candidate_compile_infrastructure_failure_with_successful_postflight_stays_unavailable(
-        monkeypatch):
+        monkeypatch, oracle_environment):
     candidate_finding = O.SortSwoFinding(
         O.OracleRejectKind.COMPILE, "compiler-launch-unavailable",
     )
@@ -721,7 +733,7 @@ def test_candidate_compile_infrastructure_failure_with_successful_postflight_sta
 
     result = O.check_materialized_sort_swo(
         _materialized(_CLEAN_IMPL), marker_id="silo-writeset-sort",
-        proposal_source=_CLEAN_IMPL, environment=_ENVIRONMENT,
+        proposal_source=_CLEAN_IMPL, environment=oracle_environment,
     )
 
     assert result.status is O.OracleStatus.UNAVAILABLE
@@ -732,7 +744,7 @@ def test_candidate_compile_infrastructure_failure_with_successful_postflight_sta
 
 
 def test_candidate_compile_infrastructure_and_postflight_failure_uses_postflight_detail(
-        monkeypatch):
+        monkeypatch, oracle_environment):
     candidate_finding = O.SortSwoFinding(
         O.OracleRejectKind.COMPILE, "compiler-launch-unavailable",
     )
@@ -750,7 +762,7 @@ def test_candidate_compile_infrastructure_and_postflight_failure_uses_postflight
 
     result = O.check_materialized_sort_swo(
         _materialized(_CLEAN_IMPL), marker_id="silo-writeset-sort",
-        proposal_source=_CLEAN_IMPL, environment=_ENVIRONMENT,
+        proposal_source=_CLEAN_IMPL, environment=oracle_environment,
     )
 
     assert result.status is O.OracleStatus.UNAVAILABLE
@@ -762,7 +774,8 @@ def test_candidate_compile_infrastructure_and_postflight_failure_uses_postflight
     assert result.candidate_compile_finding is candidate_finding
 
 
-def test_postflight_source_write_oserror_preserves_receipt(monkeypatch):
+def test_postflight_source_write_oserror_preserves_receipt(
+        monkeypatch, oracle_environment):
     candidate_finding = O.SortSwoFinding(
         O.OracleRejectKind.COMPILE, "candidate-compile-failed",
     )
@@ -791,7 +804,7 @@ def test_postflight_source_write_oserror_preserves_receipt(monkeypatch):
 
     result = O.check_materialized_sort_swo(
         _materialized(_CLEAN_IMPL), marker_id="silo-writeset-sort",
-        proposal_source=_CLEAN_IMPL, environment=_ENVIRONMENT,
+        proposal_source=_CLEAN_IMPL, environment=oracle_environment,
     )
 
     assert result.status is O.OracleStatus.UNAVAILABLE
@@ -801,7 +814,8 @@ def test_postflight_source_write_oserror_preserves_receipt(monkeypatch):
     assert result.candidate_compile_finding is candidate_finding
 
 
-def test_postflight_cleanup_oserror_preserves_receipt(monkeypatch):
+def test_postflight_cleanup_oserror_preserves_receipt(
+        monkeypatch, oracle_environment):
     candidate_finding = O.SortSwoFinding(
         O.OracleRejectKind.COMPILE, "candidate-compile-failed",
     )
@@ -827,7 +841,7 @@ def test_postflight_cleanup_oserror_preserves_receipt(monkeypatch):
 
     result = O.check_materialized_sort_swo(
         _materialized(_CLEAN_IMPL), marker_id="silo-writeset-sort",
-        proposal_source=_CLEAN_IMPL, environment=_ENVIRONMENT,
+        proposal_source=_CLEAN_IMPL, environment=oracle_environment,
     )
 
     assert result.status is O.OracleStatus.UNAVAILABLE
@@ -837,7 +851,8 @@ def test_postflight_cleanup_oserror_preserves_receipt(monkeypatch):
     assert result.candidate_compile_finding is candidate_finding
 
 
-def test_postflight_programmer_error_is_not_infrastructure(monkeypatch):
+def test_postflight_programmer_error_is_not_infrastructure(
+        monkeypatch, oracle_environment):
     candidate_finding = O.SortSwoFinding(
         O.OracleRejectKind.COMPILE, "candidate-compile-failed",
     )
@@ -859,11 +874,12 @@ def test_postflight_programmer_error_is_not_infrastructure(monkeypatch):
     with pytest.raises(AssertionError, match="programmer error"):
         O.check_materialized_sort_swo(
             _materialized(_CLEAN_IMPL), marker_id="silo-writeset-sort",
-            proposal_source=_CLEAN_IMPL, environment=_ENVIRONMENT,
+            proposal_source=_CLEAN_IMPL, environment=oracle_environment,
         )
 
 
-def test_trusted_positive_preflight_compile_failure_is_unavailable(monkeypatch):
+def test_trusted_positive_preflight_compile_failure_is_unavailable(
+        monkeypatch, oracle_environment):
     diagnostic = O.CompilerDiagnostic(
         "trusted diagnostic", 18, 18, O._sha256("trusted diagnostic"), False,
     )
@@ -877,7 +893,7 @@ def test_trusted_positive_preflight_compile_failure_is_unavailable(monkeypatch):
     monkeypatch.setattr(O, "_compiler_version", lambda compiler: "fixture-cxx 1")
     result = O.check_materialized_sort_swo(
         _materialized(_CLEAN_IMPL), marker_id="silo-writeset-sort",
-        proposal_source=_CLEAN_IMPL, environment=_ENVIRONMENT,
+        proposal_source=_CLEAN_IMPL, environment=oracle_environment,
     )
     assert result.status is O.OracleStatus.UNAVAILABLE
     assert result.finding is None
@@ -887,7 +903,8 @@ def test_trusted_positive_preflight_compile_failure_is_unavailable(monkeypatch):
     assert result.infrastructure.compiler_diagnostic is diagnostic
 
 
-def test_public_api_propagates_exact_evaluator_axiom_finding(monkeypatch):
+def test_public_api_propagates_exact_evaluator_axiom_finding(
+        monkeypatch, oracle_environment):
     expected = O.SortSwoFinding(
         O.OracleRejectKind.AXIOM,
         "swo-asymmetric",
@@ -906,7 +923,7 @@ def test_public_api_propagates_exact_evaluator_axiom_finding(monkeypatch):
     monkeypatch.setattr(O, "_compiler_version", lambda compiler: "fixture-cxx 1")
     result = O.check_materialized_sort_swo(
         _materialized(_CLEAN_IMPL), marker_id="silo-writeset-sort",
-        proposal_source=_CLEAN_IMPL, environment=_ENVIRONMENT,
+        proposal_source=_CLEAN_IMPL, environment=oracle_environment,
     )
     assert result.status is O.OracleStatus.REJECT
     assert result.finding is expected
