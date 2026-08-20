@@ -1490,14 +1490,18 @@ def test_self_load_detection_handles_real_nested_consumers():
             "import subprocess\n"
             "import sys\n"
             "script = (\n"
-            "    'from orchestrator.tests import test_dev_waves_integration as target;'\n"
+            "    'from orchestrator.tests import _dev_waves_serve_child as target;'\n"
             "    'raise SystemExit(target._serve_child_main())'\n"
             ")\n"
             "subprocess.Popen([sys.executable, '-c', script])\n"
         ),
     }
+    expected = {
+        "test_s8b_floor_campaign.py": (True, ()),
+        "test_dev_waves_integration.py": (False, ()),
+    }
     for filename, source in consumers.items():
-        assert _self_load_analysis(ast.parse(source), filename) == (True, ())
+        assert _self_load_analysis(ast.parse(source), filename) == expected[filename]
 
 
 @pytest.mark.parametrize(

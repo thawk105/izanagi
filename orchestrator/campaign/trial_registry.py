@@ -310,7 +310,9 @@ class TrialArmExecutionBinding:
 @dataclasses.dataclass(frozen=True, slots=True)
 class TrialLaunchAdmission:
     mode: Literal[
-        "registered-effective", "explicit-unregistered-exploratory"
+        "registered-effective",
+        "registered-formal-non-certifying",
+        "explicit-unregistered-exploratory",
     ]
     certifying: bool
     reason_code: str
@@ -3921,6 +3923,55 @@ def admit_registered_launch(
     )
 
 
+def admit_registered_formal_noncertifying(
+    *,
+    allow_formal_noncertifying: bool,
+    manifest_path: Path,
+    trial_id: str,
+    workloads: Sequence[str],
+    repository_root: Path,
+    registry_path: Path,
+) -> TrialLaunchAdmission:
+    """Admit an explicitly opted-in registered formal non-certifying launch."""
+    selected = _validate_launch_inputs(trial_id=trial_id, workloads=workloads)
+    root = _repository_root(repository_root)
+    if allow_formal_noncertifying is not True:
+        _fail(
+            "formal-noncertifying-opt-in",
+            "formal non-certifying launch requires explicit opt-in",
+        )
+
+    manifest = load_trial_manifest(Path(manifest_path))
+    try:
+        s8c_preregistration.validate_condition_freeze_at(
+            root,
+            manifest.prereg_commit,
+        )
+    except s8c_preregistration.PreregistrationError as exc:
+        _fail(
+            "formal-noncertifying-condition-freeze",
+            f"{exc.reason}: {exc}",
+        )
+
+    binding = load_launch_binding(
+        manifest_path=Path(manifest_path),
+        trial_id=trial_id,
+        workloads=selected,
+        repository_root=root,
+        registry_path=Path(registry_path),
+    )
+    return TrialLaunchAdmission(
+        mode="registered-formal-non-certifying",
+        certifying=False,
+        reason_code="registered-formal-non-certifying",
+        trial_id=trial_id,
+        workloads=selected,
+        binding=binding,
+        activation_report_digest_sha256=None,
+        _seal=_TRIAL_LAUNCH_ADMISSION_SEAL,
+    )
+
+
 def assert_issued_trial_launch_admission(
     admission: TrialLaunchAdmission,
 ) -> None:
@@ -3931,7 +3982,9 @@ def assert_issued_trial_launch_admission(
     ):
         _fail("launch-admission", "admission was not issued by the registry gate")
     if admission.mode not in {
-        "registered-effective", "explicit-unregistered-exploratory",
+        "registered-effective",
+        "registered-formal-non-certifying",
+        "explicit-unregistered-exploratory",
     }:
         _fail("launch-admission", "admission mode is outside the closed set")
     if admission.certifying is not False:
@@ -3960,6 +4013,41 @@ def assert_issued_trial_launch_admission(
             or _SHA256_RE.fullmatch(admission.activation_report_digest_sha256) is None
         ):
             _fail("launch-admission", "registered admission has no activation digest")
+    elif admission.mode == "registered-formal-non-certifying":
+        if admission.binding is None:
+            _fail(
+                "launch-admission",
+                "formal non-certifying admission is missing its binding",
+            )
+        assert_issued_trial_binding(admission.binding)
+        if (
+            _COMMIT_RE.fullmatch(admission.binding.prereg_content_commit) is None
+            or _COMMIT_RE.fullmatch(admission.binding.prereg_effective_commit) is None
+        ):
+            _fail(
+                "launch-admission",
+                "formal non-certifying admission has invalid P/C binding",
+            )
+        if admission.reason_code != "registered-formal-non-certifying":
+            _fail(
+                "launch-admission",
+                "formal non-certifying admission reason_code is inconsistent",
+            )
+        if admission.binding.trial_id != admission.trial_id:
+            _fail(
+                "launch-admission",
+                "formal non-certifying admission trial_id is inconsistent",
+            )
+        if admission.workloads != (admission.binding.workload,):
+            _fail(
+                "launch-admission",
+                "formal non-certifying admission workload is inconsistent",
+            )
+        if admission.activation_report_digest_sha256 is not None:
+            _fail(
+                "launch-admission",
+                "formal non-certifying admission has an activation digest",
+            )
     else:
         if (
             admission.reason_code != "explicit-unregistered-exploratory"
@@ -4011,7 +4099,10 @@ def launch_admission_record(
         )
         if (
             binding is None
-            or admission.mode != "registered-effective"
+            or admission.mode not in {
+                "registered-effective",
+                "registered-formal-non-certifying",
+            }
             or origin_record["campaign_id"] != binding.campaign_id
             or origin_record["trial_workload"] != binding.workload
             or origin_record["measurement_head"] != binding.measurement_head
@@ -4032,6 +4123,7 @@ def assert_rederived_launch_admission(
     trial_id: str,
     workloads: Sequence[str],
     allow_unregistered_exploratory: bool,
+    allow_formal_noncertifying: bool = False,
     repository_root: Path,
     registry_path: Path,
     origin_binding: OriginBindingCapability | None = None,
@@ -4045,6 +4137,15 @@ def assert_rederived_launch_admission(
             trial_id=trial_id,
             workloads=workloads,
             allow_unregistered_exploratory=allow_unregistered_exploratory,
+            repository_root=repository_root,
+            registry_path=registry_path,
+        )
+    elif allow_formal_noncertifying:
+        derived = admit_registered_formal_noncertifying(
+            allow_formal_noncertifying=allow_formal_noncertifying,
+            manifest_path=manifest_path,
+            trial_id=trial_id,
+            workloads=workloads,
             repository_root=repository_root,
             registry_path=registry_path,
         )
@@ -4100,23 +4201,44 @@ def _load_lifecycle_rows(data: bytes) -> tuple[dict[str, Any], ...]:
             if trial_id in starts:
                 _fail("lifecycle-duplicate-start", f"trial_id already started: {trial_id}")
             starts.add(trial_id)
-            if value["mode"] != "registered-effective":
-                _fail("lifecycle-schema", "only registered-effective starts are recorded")
+            if value["mode"] not in {
+                "registered-effective",
+                "registered-formal-non-certifying",
+            }:
+                _fail(
+                    "lifecycle-schema",
+                    "only registered launches (registered-effective or "
+                    "registered-formal-non-certifying) are recorded",
+                )
             if not isinstance(value["run_root"], str) or not value["run_root"]:
                 _fail("lifecycle-schema", "start run_root must be a non-empty string")
-            for field, pattern in (
+            fields = (
                 ("manifest_sha256", _SHA256_RE),
                 ("prereg_commit", _COMMIT_RE),
                 ("prereg_content_commit", _COMMIT_RE),
                 ("prereg_effective_commit", _COMMIT_RE),
                 ("measurement_head", _COMMIT_RE),
-                ("activation_report_digest_sha256", _SHA256_RE),
+            )
+            if value["mode"] == "registered-effective":
+                fields += (
+                    ("activation_report_digest_sha256", _SHA256_RE),
+                )
+            fields += (
                 ("launch_admission_sha256", _SHA256_RE),
                 ("schedule_row_sha256", _SHA256_RE),
-            ):
+            )
+            for field, pattern in fields:
                 raw = value[field]
                 if not isinstance(raw, str) or pattern.fullmatch(raw) is None:
                     _fail("lifecycle-schema", f"start {field} is invalid")
+            if (
+                value["mode"] == "registered-formal-non-certifying"
+                and value["activation_report_digest_sha256"] is not None
+            ):
+                _fail(
+                    "lifecycle-schema",
+                    "formal non-certifying start has an activation digest",
+                )
             _attempt_process_identity(
                 value["process_identity"], label=f"lifecycle line {lineno}.process_identity",
             )
@@ -4279,7 +4401,7 @@ def _locked_lifecycle_update(
 def record_trial_start_once(
     *,
     admission: TrialLaunchAdmission,
-    effective_preregistration: s8c_preregistration.EffectivePreregistration,
+    effective_preregistration: s8c_preregistration.EffectivePreregistration | None,
     manifest_path: Path,
     run_root: Path,
     repository_root: Path,
@@ -4301,12 +4423,25 @@ def record_trial_start_once(
         trial_id=admission.trial_id,
         workloads=admission.workloads,
         allow_unregistered_exploratory=False,
+        allow_formal_noncertifying=(
+            admission.mode == "registered-formal-non-certifying"
+        ),
         repository_root=repository_root,
         registry_path=registry_path,
         origin_binding=origin_binding,
     )
-    if admission.mode != "registered-effective" or admission.binding is None:
-        _fail("lifecycle-start", "only registered-effective admission may start")
+    if (
+        admission.mode not in (
+            "registered-effective",
+            "registered-formal-non-certifying",
+        )
+        or admission.binding is None
+    ):
+        _fail(
+            "lifecycle-start",
+            "only registered launches (registered-effective or "
+            "registered-formal-non-certifying) may start",
+        )
     binding = admission.binding
     _assert_attempt_capability(attempt_slot)
     if (
