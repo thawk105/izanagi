@@ -343,6 +343,33 @@ def test_each_replicate_is_complete_product_and_each_cell_occurs_n_times():
     assert sum(block["size"] for block in schedule["blocks"]) == n
 
 
+def test_build_schedule_uses_replicate_major_cell_ordinals():
+    n = 3
+    holdout_ids = _holdout_ids()
+    configuration_ids = CONFIGURATION_IDS
+    schedule = manifest.build_schedule(
+        n=n,
+        master_seed="schedule-index-seed",
+        block_sizes={"b0": n},
+        holdout_ids=holdout_ids,
+        configuration_ids=configuration_ids,
+    )
+    cell_count = len(holdout_ids) * len(configuration_ids)
+    positions_by_replicate = defaultdict(list)
+    for row in schedule["rows"]:
+        assert row["schedule_index"] // cell_count == row["replicate_index"]
+        positions_by_replicate[row["replicate_index"]].append(
+            row["schedule_index"] % cell_count
+        )
+
+    expected_positions = set(range(cell_count))
+    assert set(positions_by_replicate) == set(range(n))
+    for positions in positions_by_replicate.values():
+        assert len(positions) == cell_count
+        assert len(set(positions)) == cell_count
+        assert set(positions) == expected_positions
+
+
 def test_same_seed_is_byte_identical_and_different_seed_changes_hash():
     first = _schedule(seed="stable")
     second = _schedule(seed="stable")
@@ -815,9 +842,27 @@ def test_v1_two_block_manifest_is_rejected_at_build_and_verify(tmp_path):
         n=3, master_seed="seed-a", block_sizes={"early": 1, "late": 2},
         holdout_ids=_holdout_ids(), configuration_ids=CONFIGURATION_IDS,
     )
+    bindings = [
+        _binding(holdout_id, configuration_id)
+        for holdout_id in _holdout_ids()
+        for configuration_id in CONFIGURATION_IDS
+    ]
+    campaign_ids = {
+        "early": "campaign-early",
+        "late": "campaign-late",
+    }
     # build 側: 2 block schedule から manifest を組もうとすると拒否される。
     with pytest.raises(manifest.ManifestError, match="正確に 1 件でない"):
-        _build_manifest(freeze_path, schedule=two_block_schedule)
+        manifest.build_manifest(
+            freeze_path=freeze_path,
+            spec_sha256="0" * 64,
+            schedule=two_block_schedule,
+            run_contract=_run_contract(),
+            binding_identity=bindings,
+            campaign_ids=campaign_ids,
+            allowed_excluded_reasons=["machine-failure"],
+            generator_versions=_generator_versions(),
+        )
 
     # verify 側: 正当な単一 block manifest の schedule.blocks を 2 件へ改竄しても拒否される。
     document = _build_manifest(freeze_path)
@@ -829,6 +874,40 @@ def test_v1_two_block_manifest_is_rejected_at_build_and_verify(tmp_path):
     path.write_text(json.dumps(document), encoding="utf-8")
     with pytest.raises(manifest.ManifestError, match="正確に 1 件でない"):
         _verify(path, freeze_path)
+
+
+def test_reviewed_spec_rejects_two_blocks_before_approval(tmp_path):
+    root = tmp_path / "repo"
+    root.mkdir()
+    _install_reviewed_spec_sources(root)
+
+    holdout_ids = _holdout_ids()
+    with pytest.raises(
+            oracle_spec.ReviewedSpecError,
+            match=r"正確に 1 件でない",
+    ) as captured:
+        spec_fixture.make_reviewed_spec(
+            root=root,
+            n=3,
+            master_seed="seed-a",
+            block_sizes={"early": 1, "late": 2},
+            holdout_ids=holdout_ids,
+            configuration_ids=CONFIGURATION_IDS,
+            run_contract=_run_contract(),
+            campaign_ids={
+                "early": "campaign-early",
+                "late": "campaign-late",
+            },
+            binding_identity=[
+                _binding(holdout_id, configuration_id)
+                for holdout_id in holdout_ids
+                for configuration_id in CONFIGURATION_IDS
+            ],
+            allowed_excluded_reasons=["machine-failure"],
+            generator_versions=_generator_versions(root=root),
+        )
+
+    assert captured.value.reason == "invalid-reviewed-spec"
 
 
 # ---------------------------------------------------------------------------

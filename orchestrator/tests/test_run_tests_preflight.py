@@ -53,6 +53,8 @@ def _clean_runner_env(monkeypatch):
         "IZANAGI_TEST_ALLOW_UNSTAGED_DELETIONS", "IZANAGI_TEST_TRIGGER",
         "IZANAGI_TASK_RUN_ID", "PYTEST_ADDOPTS",
         "IZANAGI_RUN_TESTS_SCOPE_UNIT", "IZANAGI_RUN_TESTS_SCOPE_CAP",
+        RT._DISPATCH_QUEUE_WAIT_TIMEOUT_OVERRIDE_ENV,
+        RT._DISPATCH_OVERALL_GRACE_OVERRIDE_ENV,
     ):
         monkeypatch.delenv(name, raising=False)
 
@@ -109,6 +111,140 @@ def _create_modules_cache(common_dir: Path) -> Path:
     cache = common_dir / "modules" / "external" / "ccbench"
     cache.mkdir(parents=True)
     return cache
+
+
+def test_default_dispatch_leaves_timeout_kwargs_unset_without_overrides(monkeypatch):
+    dispatch = mock.Mock(return_value=0)
+    monkeypatch.setattr(DC, "dispatch", dispatch)
+
+    assert RT._default_dispatch(["-q"], environ={}) == 0
+
+    kwargs = dispatch.call_args.kwargs
+    assert "queue_wait_timeout_s" not in kwargs
+    assert "overall_grace_s" not in kwargs
+
+
+def test_default_dispatch_applies_queue_wait_timeout_override_independently(
+    monkeypatch,
+):
+    dispatch = mock.Mock(return_value=0)
+    monkeypatch.setattr(DC, "dispatch", dispatch)
+    environ = {
+        RT._DISPATCH_QUEUE_WAIT_TIMEOUT_OVERRIDE_ENV: "1234.5",
+    }
+
+    assert RT._default_dispatch(["-q"], environ=environ) == 0
+
+    kwargs = dispatch.call_args.kwargs
+    assert kwargs["queue_wait_timeout_s"] == 1234.5
+    assert "overall_grace_s" not in kwargs
+
+
+def test_default_dispatch_applies_overall_grace_override_independently(
+    monkeypatch,
+):
+    dispatch = mock.Mock(return_value=0)
+    monkeypatch.setattr(DC, "dispatch", dispatch)
+    environ = {
+        RT._DISPATCH_OVERALL_GRACE_OVERRIDE_ENV: "2345.5",
+    }
+
+    assert RT._default_dispatch(["-q"], environ=environ) == 0
+
+    kwargs = dispatch.call_args.kwargs
+    assert kwargs["overall_grace_s"] == 2345.5
+    assert "queue_wait_timeout_s" not in kwargs
+
+
+def test_default_dispatch_passes_distinct_timeout_overrides_independently(
+    monkeypatch,
+):
+    dispatch = mock.Mock(return_value=0)
+    monkeypatch.setattr(DC, "dispatch", dispatch)
+    environ = {
+        RT._DISPATCH_QUEUE_WAIT_TIMEOUT_OVERRIDE_ENV: "111",
+        RT._DISPATCH_OVERALL_GRACE_OVERRIDE_ENV: "222",
+    }
+
+    assert RT._default_dispatch(["-q"], environ=environ) == 0
+
+    kwargs = dispatch.call_args.kwargs
+    assert kwargs["queue_wait_timeout_s"] == 111.0
+    assert kwargs["overall_grace_s"] == 222.0
+
+
+def test_default_dispatch_allows_zero_timeout_overrides(monkeypatch):
+    dispatch = mock.Mock(return_value=0)
+    monkeypatch.setattr(DC, "dispatch", dispatch)
+    environ = {
+        RT._DISPATCH_QUEUE_WAIT_TIMEOUT_OVERRIDE_ENV: "0",
+        RT._DISPATCH_OVERALL_GRACE_OVERRIDE_ENV: "0",
+    }
+
+    assert RT._default_dispatch(["-q"], environ=environ) == 0
+
+    kwargs = dispatch.call_args.kwargs
+    assert kwargs["queue_wait_timeout_s"] == 0.0
+    assert kwargs["overall_grace_s"] == 0.0
+
+
+@pytest.mark.parametrize(
+    "invalid_value", ["-1", "-1e-324", "nan", "inf", "not-a-number"],
+)
+def test_default_dispatch_rejects_invalid_queue_wait_timeout_override(
+    monkeypatch, invalid_value,
+):
+    dispatch = mock.Mock(return_value=0)
+    monkeypatch.setattr(DC, "dispatch", dispatch)
+    environ = {
+        RT._DISPATCH_QUEUE_WAIT_TIMEOUT_OVERRIDE_ENV: invalid_value,
+    }
+
+    result = RT._invoke_dispatch(
+        RT._default_dispatch, ["-q"], environ=environ,
+    )
+
+    assert result.rc == RT._PEGASUS_DISPATCH_RC
+    dispatch.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    "invalid_value", ["-1", "-1e-324", "nan", "inf", "not-a-number"],
+)
+def test_default_dispatch_rejects_invalid_overall_grace_override(
+    monkeypatch, invalid_value,
+):
+    dispatch = mock.Mock(return_value=0)
+    monkeypatch.setattr(DC, "dispatch", dispatch)
+    environ = {
+        RT._DISPATCH_OVERALL_GRACE_OVERRIDE_ENV: invalid_value,
+    }
+
+    result = RT._invoke_dispatch(
+        RT._default_dispatch, ["-q"], environ=environ,
+    )
+
+    assert result.rc == RT._PEGASUS_DISPATCH_RC
+    dispatch.assert_not_called()
+
+
+def test_default_dispatch_applies_walltime_and_timeout_overrides_independently(
+    monkeypatch,
+):
+    dispatch = mock.Mock(return_value=0)
+    monkeypatch.setattr(DC, "dispatch", dispatch)
+    environ = {
+        RT._DISPATCH_WALLTIME_OVERRIDE_ENV: "00:10:00",
+        RT._DISPATCH_QUEUE_WAIT_TIMEOUT_OVERRIDE_ENV: "111",
+        RT._DISPATCH_OVERALL_GRACE_OVERRIDE_ENV: "222",
+    }
+
+    assert RT._default_dispatch(["-q"], environ=environ) == 0
+
+    kwargs = dispatch.call_args.kwargs
+    assert kwargs["walltime"] == "00:10:00"
+    assert kwargs["queue_wait_timeout_s"] == 111.0
+    assert kwargs["overall_grace_s"] == 222.0
 
 
 def test_normalize_position_and_path_options_once_from_caller_cwd(tmp_path):

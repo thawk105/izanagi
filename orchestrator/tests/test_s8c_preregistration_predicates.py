@@ -3540,6 +3540,7 @@ def _make_cells():
 def reserve_all_cells(ledger_path, *, manifest_sha256, freeze_sha256,
                       schedule_sha256, ratified_generation_sha256,
                       cells, limits):
+    _ledger_lock()
     cells = tuple(cells)
     state = "held" if _check_limit_state(cells, limits) else "insufficient"
     reservation = Reservation(cells, limits.total_bench_s,
@@ -3550,6 +3551,7 @@ def reserve_all_cells(ledger_path, *, manifest_sha256, freeze_sha256,
                   frozenset(cell.cell_id for cell in cells))
 
 def settle(ledger_path, *, cell_id, actual_bench_s):
+    _ledger_lock()
     if actual_bench_s <= 1.0:
         return ledger_path
     raise RuntimeError("actual_bench_s")
@@ -3599,6 +3601,11 @@ def _document(ledger, limits):
     }
 """
 
+TOKEN_ONLY_C06_BUDGET_MISSING_LIMIT_CHECK = TOKEN_ONLY_C06_BUDGET.replace(
+    'state = "held" if _check_limit_state(cells, limits) else "insufficient"',
+    'state = "held"',
+)
+
 TOKEN_ONLY_C06_RATIFIED = """
 class Ratified:
     sha256 = "a" * 64
@@ -3622,10 +3629,64 @@ def run_trial():
     return _budget()
 """
 
+TOKEN_ONLY_C06_SUPERVISOR_NO_RUN_TRIAL = TOKEN_ONLY_C06_SUPERVISOR.replace(
+    "def run_trial():",
+    "def not_run_trial():",
+)
+
+TOKEN_ONLY_C06_SUPERVISOR_NAME_ONLY_DECOY = """
+class DecoyRatified:
+    sha256 = "decoy"
+
+def load_ratified_freeze():
+    return DecoyRatified()
+
+def reserve_all_cells(*args, **kwargs):
+    return object()
+
+def settle(*args, **kwargs):
+    return None
+
+def symmetric_indeterminate(ledger):
+    return frozenset()
+
+def _budget():
+    ratified = load_ratified_freeze()
+    generation_sha256 = ratified.sha256
+    ledger = reserve_all_cells(
+        None,
+        manifest_sha256="a",
+        freeze_sha256="b",
+        schedule_sha256="c",
+        ratified_generation_sha256=generation_sha256,
+        cells=(),
+        limits=None,
+    )
+    settle(None, cell_id="cell", actual_bench_s=0.0)
+    return symmetric_indeterminate(ledger)
+
+def run_trial():
+    return _budget()
+"""
+
 
 def _c06_contract_with_machine_flag() -> bytes:
     value = json.loads(CONTRACT_FILE.read_bytes())
     value["conditions"][5]["machine_checkable"] = True
+    return json.dumps(value, ensure_ascii=False, sort_keys=True).encode("utf-8")
+
+
+def _c06_contract_with_broken_reachable_from() -> bytes:
+    value = json.loads(CONTRACT_FILE.read_bytes())
+    value["conditions"][5]["machine_checkable"] = True
+    budget_consumer = next(
+        item
+        for item in value["conditions"][5]["required_evidence"]
+        if item["artifact_kind"] == "budget_consumer"
+    )
+    budget_consumer["reachable_from"].remove(
+        "bench terminal -> settle -> symmetric_indeterminate"
+    )
     return json.dumps(value, ensure_ascii=False, sort_keys=True).encode("utf-8")
 
 
@@ -3634,16 +3695,25 @@ def _machine_c06_result(
     name: str,
     *,
     budget_source: str,
+    supervisor_source: str | None = TOKEN_ONLY_C06_SUPERVISOR,
+    contract_source: bytes | None = None,
 ) -> tuple[Path, str, core.PredicateResult]:
     root = _init_repo(tmp_path, name)
-    _write(root, core.EVIDENCE_CONTRACT_PATH, _c06_contract_with_machine_flag())
-    _write(root, "orchestrator/campaign/s8c_budget.py", budget_source)
-    _write(root, "orchestrator/campaign/s8b_ratified_freeze.py", TOKEN_ONLY_C06_RATIFIED)
     _write(
         root,
-        "orchestrator/campaign/p3_autonomous_workload_trial.py",
-        TOKEN_ONLY_C06_SUPERVISOR,
+        core.EVIDENCE_CONTRACT_PATH,
+        _c06_contract_with_machine_flag()
+        if contract_source is None
+        else contract_source,
     )
+    _write(root, "orchestrator/campaign/s8c_budget.py", budget_source)
+    _write(root, "orchestrator/campaign/s8b_ratified_freeze.py", TOKEN_ONLY_C06_RATIFIED)
+    if supervisor_source is not None:
+        _write(
+            root,
+            "orchestrator/campaign/p3_autonomous_workload_trial.py",
+            supervisor_source,
+        )
     head = _commit(root, name)
     return root, head, _result(root, head, "C06")
 
@@ -3688,6 +3758,69 @@ def test_c06_machine_negative_control_removes_one_arm_reservation(
     mutated = _commit(root, "machine C06 one arm removed")
     mutated_result = _result(root, mutated, "C06")
     assert mutated_result.status is core.PredicateStatus.UNSATISFIED
+
+
+@pytest.mark.parametrize(
+    ("name", "supervisor_source"),
+    [
+        ("machine-c06-supervisor-absent", None),
+        (
+            "machine-c06-run-trial-absent",
+            TOKEN_ONLY_C06_SUPERVISOR_NO_RUN_TRIAL,
+        ),
+    ],
+)
+def test_c06_missing_supervisor_or_run_trial_is_unsatisfied(
+    tmp_path: Path,
+    name: str,
+    supervisor_source: str | None,
+) -> None:
+    _, _, result = _machine_c06_result(
+        tmp_path,
+        name,
+        budget_source=TOKEN_ONLY_C06_BUDGET,
+        supervisor_source=supervisor_source,
+    )
+    assert result.status is core.PredicateStatus.UNSATISFIED
+    assert result.reason_code == "budget-consumer-contract-undefined"
+
+
+def test_c06_rejects_name_only_supervisor_decoy(
+    tmp_path: Path,
+) -> None:
+    _, _, result = _machine_c06_result(
+        tmp_path,
+        "machine-c06-name-only-decoy",
+        budget_source=TOKEN_ONLY_C06_BUDGET,
+        supervisor_source=TOKEN_ONLY_C06_SUPERVISOR_NAME_ONLY_DECOY,
+    )
+    assert result.status is core.PredicateStatus.UNSATISFIED
+    assert result.reason_code == "budget-consumer-contract-undefined"
+
+
+def test_c06_rejects_budget_without_limit_check(
+    tmp_path: Path,
+) -> None:
+    _, _, result = _machine_c06_result(
+        tmp_path,
+        "machine-c06-missing-limit-check",
+        budget_source=TOKEN_ONLY_C06_BUDGET_MISSING_LIMIT_CHECK,
+    )
+    assert result.status is core.PredicateStatus.UNSATISFIED
+    assert result.reason_code == "budget-consumer-contract-undefined"
+
+
+def test_c06_rejects_broken_reachable_from_contract(
+    tmp_path: Path,
+) -> None:
+    _, _, result = _machine_c06_result(
+        tmp_path,
+        "machine-c06-broken-reachable-from",
+        budget_source=TOKEN_ONLY_C06_BUDGET,
+        contract_source=_c06_contract_with_broken_reachable_from(),
+    )
+    assert result.status is core.PredicateStatus.UNSATISFIED
+    assert result.reason_code == "budget-consumer-contract-undefined"
 
 
 @pytest.mark.parametrize(
