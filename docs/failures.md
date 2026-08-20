@@ -5392,6 +5392,16 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: probe 直後の `git diff --stat` が probe の 1 行だけであること、および
   復元後に `git log --oneline -1` が期待する統合 commit を指すこと。
 
+
+- **再発: 2026-08-20** — [T-1381] wave の段6 post-change 変異再検証で、実装子 (Codex
+  role=author) の未 commit docstring 変更が乗った tree に対し `git status --porcelain`
+  の非空確認を怠って `git checkout -- <file>` で復元し、実装子の成果も巻き戻った。
+  直後の `git diff --stat` で対象 file が消えていることを検知し、直前に取得済みの
+  `git diff` 全文から docstring 2 箇所を Edit で verbatim 再現して完全復元した
+  (復元後 diff が元の diff と byte 一致、test 再走で確認)。実害なし。F174 の恒久対応
+  (「親が実編集 probe を行う前に `git status --porcelain` が空であることを確認する」
+  「dev-wave 入口の `DW-O19` 条件へ『親の probe でも成立する』ことを明記する」) が
+  未だ `DW-O19` 本文へ反映されていないことが 2 回目の再発で裏付けられた。
 ### F175. フレークの計装が、そのフレークの発火条件で `DID NOT RAISE` になった [テストフレーク] [恒真ゲート]
 
 - 事象: F57 の launcher フレークを観測するために新設した wiring meta-test が、
