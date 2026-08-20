@@ -1442,6 +1442,13 @@
   書かれており親が fallback で読んで採った。2026-07-28/2026-08-18裁定 (`DW-O01` への
   prose 追記は見送り、恒久対応はテスト・機械検査優先) を踏襲し、今回も reference
   編集はしない。
+
+- **再発: 2026-08-20** — [T-540] 段6 fix (NaN/Inf 回帰テスト追加、3回目の fix 試行) の
+  出力が 492 bytes で 500 bytes 下限に届かず `codex_worker_launch.py` に不受理にされた
+  (`accepted=false`, `validator_rc=1`, `codex_exit_code=0`)。sandbox=workspace-write での
+  実ファイル書き込み自体は正しい内容 (NaN/Inf 拒否テスト2件) で完了していたが、正式な採用
+  記録がないため、4回目の fix へ「現状確認し、既にあれば重複させない」指示で再投入し
+  accepted 記録を得た。同日中に既出の2件 (2026-08-18 型の3回目相当) と同型。
 ### F44. pipefail 下の `producer | grep -q` が SIGPIPE で計測ジョブを偽赤停止させた [手順漏れ]
 - 事象: [T-140] set-size 実測ジョブ 1 回目 (872881.nqsv、2026-07-28) が、trace シンボル存在検査
   `nm -C bin | grep -qi izanagi_trace` で「シンボル無し」と誤判定し 43 秒で停止した。実際は

@@ -2803,6 +2803,104 @@ def test_oracle_claim_schema_uses_identity_preimage_as_protocol_digest(tmp_path)
     assert payload["protocol_digest"] == expected
 
 
+def test_required_initial_reservation_includes_schedule_attestation_probes(
+        tmp_path, _activate_synthetic_env_authority):
+    probe_calls = []
+    original_issuer = execution_guard.attest_and_build_receipt
+
+    def issuer(contract, verified):
+        def probe():
+            probe_calls.append(verified.attestation_profile)
+            return _observed(verified.attestation_profile)
+
+        return original_issuer(contract, verified, probe_fn=probe)
+
+    with mock.patch.object(
+            driver._reservation, "check_reservation",
+            wraps=driver._reservation.check_reservation) as check_call:
+        result, _out, _budget, _markers, _contract, _verified = _run_required_preflight(
+            tmp_path,
+            activate_authority=_activate_synthetic_env_authority,
+            receipt_issuer=issuer,
+        )
+
+    assert result["status"] == "refused", result
+    _assert_exact_refusals(result["refusals"], {
+        "v2-execution: floor artifact に schedule cell の binary receipt が無い: "
+        "('rr80', 'system_gate')",
+    })
+    assert check_call.call_count == 1
+    assert check_call.call_args.kwargs["required_s"] == pytest.approx(43802.4)
+    assert len(probe_calls) == 1
+
+
+def test_required_recheck_includes_remaining_attestation_probe(
+        tmp_path, _activate_synthetic_env_authority):
+    fixture = _required_run_fixture(tmp_path, _activate_synthetic_env_authority)
+    original_check = fixture["plan"].reservation_check
+    probe_calls = []
+    original_issuer = execution_guard.attest_and_build_receipt
+
+    def issuer(contract, verified):
+        def probe():
+            probe_calls.append(verified.attestation_profile)
+            return _observed(verified.attestation_profile)
+
+        return original_issuer(contract, verified, probe_fn=probe)
+
+    with mock.patch.object(
+            driver.execution_guard, "attest_and_build_receipt",
+            side_effect=issuer):
+        driver._recheck_required_execution(fixture["plan"], remaining_rows=1)
+
+    assert fixture["plan"].reservation_check is not original_check
+    assert fixture["plan"].reservation_check.required_s == pytest.approx(4200.2)
+    assert len(probe_calls) == 1
+
+
+def test_required_recheck_reservation_shortfall_skips_attestation(
+        tmp_path, _activate_synthetic_env_authority):
+    fixture = _required_run_fixture(tmp_path, _activate_synthetic_env_authority)
+    fixture["plan"].reservation_check = dataclasses.replace(
+        fixture["plan"].reservation_check,
+        monotonic_deadline=time.monotonic() + 1.0,
+    )
+    attest_calls = []
+
+    def issuer(*_args, **_kwargs):
+        attest_calls.append(True)
+        raise AssertionError("reservation 不足時に attestation を呼んだ")
+
+    with mock.patch.object(
+            driver.execution_guard, "attest_and_build_receipt",
+            side_effect=issuer), pytest.raises(
+                driver.OracleDriverError, match="reservation"):
+        driver._recheck_required_execution(fixture["plan"], remaining_rows=1)
+
+    assert attest_calls == []
+
+
+def test_required_recheck_attestation_failure_follows_reservation_check(
+        tmp_path, _activate_synthetic_env_authority):
+    fixture = _required_run_fixture(tmp_path, _activate_synthetic_env_authority)
+    original_check = fixture["plan"].reservation_check
+    attest_calls = []
+
+    def issuer(*_args, **_kwargs):
+        attest_calls.append(True)
+        raise execution_guard.ExecutionGuardError("fixture attestation failure")
+
+    with mock.patch.object(
+            driver.execution_guard, "attest_and_build_receipt",
+            side_effect=issuer), pytest.raises(
+                driver.OracleDriverError, match="fixture attestation failure"):
+        driver._recheck_required_execution(fixture["plan"], remaining_rows=1)
+
+    assert len(attest_calls) == 1
+    assert fixture["plan"].reservation_check is not original_check
+    assert fixture["plan"].reservation_check.required_s == pytest.approx(4200.2)
+
+
 def test_required_recheck_real_reservation_shortfall_writes_aborted_terminal(
         tmp_path, _activate_synthetic_env_authority):
     fixture = _required_run_fixture(tmp_path, _activate_synthetic_env_authority)
