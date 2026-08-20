@@ -509,7 +509,7 @@ DEV_WAVE_DW_O26_SECTION_LITERAL = """## DW-O26 — 焦点走の consumer test �
 DEV_WAVE_DW_C01_SECTION_LITERAL = """## DW-C01 — 実測で是正した作法
 
 `DW-O01`/`DW-O08`/`DW-O17`/`DW-O20` に優先する。
-- `--lane`は`--stage consult`専用。他段はrc=2で落ちる。
+- `--lane`は`--stage consult`だけ必須、無指定/他段rc=2。
 - 待ち手はpid file実在後に張る。先行は子の生存中でも即戻る。
 - 隔離worktreeのdetachはrunnerとlauncherの`.sh`へ外出しする。定型はguardが拒む。
 - 複数起点の判別は全隣接区間へ異なる正値を入れる。

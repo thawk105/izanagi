@@ -96,6 +96,7 @@ class _Scheduler:
         accounting = (
             b"\n".join((
                 b"Request ID:             424242.nqsv",
+                b"Group Name:             SFC",
                 b"Started Request Time:   Thu Jul 30 10:03:23 2026",
                 b"Ended Request Time:     Thu Jul 30 10:10:20 2026",
                 b"  Elapse:               421S",
@@ -2224,6 +2225,20 @@ def test_accounting_grace_failure_is_invocation_only_and_does_not_latch(
         "worker recovered from MemoryError\n",
         (
             "Request ID: 999999.nqsv\n"
+            "Group Name: SFC\n"
+            "Started Request Time: now\n"
+            "Ended Request Time: later\n"
+            "Elapse: 1S\n"
+        ),
+        (
+            "Request ID: 424242.nqsv\n"
+            "Group Name: SFC\n"
+            "Started Request Time: now\n"
+            "Elapse: 1S\n"
+        ),
+        (
+            "Request ID: 424242.nqsv\n"
+            "Group Name: OTHER\n"
             "Started Request Time: now\n"
             "Ended Request Time: later\n"
             "Elapse: 1S\n"
@@ -2231,6 +2246,23 @@ def test_accounting_grace_failure_is_invocation_only_and_does_not_latch(
         (
             "Request ID: 424242.nqsv\n"
             "Started Request Time: now\n"
+            "Ended Request Time: later\n"
+            "Elapse: 1S\n"
+        ),
+        (
+            "Request ID: 424242.nqsv\n"
+            "Group Name: SFC\n"
+            "Group Name: SFC\n"
+            "Started Request Time: now\n"
+            "Ended Request Time: later\n"
+            "Elapse: 1S\n"
+        ),
+        (
+            "Request ID: 424242.nqsv\n"
+            "Group Name: SFC\n"
+            "Group Name: OTHER\n"
+            "Started Request Time: now\n"
+            "Ended Request Time: later\n"
             "Elapse: 1S\n"
         ),
     ],
@@ -2242,6 +2274,7 @@ def test_accounting_requires_matching_request_id_and_all_nqsv_fields(tail):
 def test_accounting_accepts_measured_nqsv_shape_only_when_id_matches():
     tail = (
         "Request ID:             424242.nqsv\n"
+        "Group Name:             SFC\n"
         "Started Request Time:   Thu Jul 30 10:03:23 2026\n"
         "Ended Request Time:     Thu Jul 30 10:10:20 2026\n"
         "  Elapse:               421S\n"
@@ -2281,6 +2314,7 @@ def test_scheduler_logs_are_tail_bounded_with_explicit_omission(tmp_path):
     assert "先頭 488 bytes を省略" in stdout["tail"]
     assert stderr["omitted_bytes"] > 0
     assert "Request ID:" in stderr["tail"]
+    assert "Group Name:" in stderr["tail"]
 
 
 def test_hld_queue_timeout_qdels_and_receipts(tmp_path, capsys):
