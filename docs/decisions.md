@@ -24489,3 +24489,138 @@ commit に揃える濫用や、完全な時系列を強制するものではな�
   修正する — いずれもD574決定(3)自体が要求する三者比較の欠陥ではなく、別契約 (§7.1(1)の
   correctness_evidence必須件数、schema loaderの構築経路) に属する。scope creepを避け、
   次のtaskへ切り出して記録するに留めた (worklog fragment参照)。
+
+## D611. v2 build cache hit 時にも expected_toolchain_manifest との完全一致を照合する (D602 の恒久対応) (2026-08-20)
+
+**決定:** `buildcache.py` の v2 build cache completion.json へ、`expected_toolchain_manifest`
+付き caller (`complete_toolchain_manifest is not None`) のときだけ full-version toolchain
+manifest とその sha256 を条件付きフィールド (`complete_toolchain_manifest`/
+`complete_toolchain_manifest_sha256`) として保存し、`_validate_v2_entry` の hit 経路でも
+同じ値との完全一致・sha256 一致を要求する。D602 が「次wave scope」として明示的に切り出した
+既知の限界 (cache hit 時に toolchain 束縛を検査しない) の恒久対応であり、D602 自体は編集せず
+本 D が同 waiver をこの範囲 (expected 付き v2 hit) に限って supersede する。
+
+**設計の核心 (cross-lane 衝突の回避):** 新2 field は `_validate_v2_entry` の既存 `expected_keys`
+完全一致集合に**含めない**。`expected_toolchain_manifest`/`declared_use_class` は
+`_v2_identity` の preimage に一切含まれず cache digest に無関係なため、同一 digest を
+official/非 official caller が両方 hit しうる (段2 codex プラン・段3 敵対相談で実コード
+grep により確認済み — pipeline.py の cache_root は既定で共有固定パス、screening_driver.py
+は同一 admission のまま expected の有無を切り替え可能)。新2 field は「今回の caller が
+要求する場合だけ存在確認+完全一致を要求し、要求しなければ存在有無を問わない」独立 gate
+にした。これにより `expected_toolchain_manifest=None` の既存呼び出し (大多数の Phase 3
+探索 build) の挙動・completion.json 形状は不変。
+
+**運用影響の訂正:** 段1 brief 時点では「hit 不一致時に campaign 全体が fatal stop する」と
+懸念したが、段3 敵対相談レンズBが実コードで反証した。`BuildCacheError` は `RuntimeError`
+を継承し `pipeline.py` の `except (RuntimeError, subprocess.SubprocessError)` が捕捉して
+`_abort("build-error", ...)` に変換するため、影響は該当 variant 1 件の `build-error` abort
+(non-retryable terminal) に留まり、campaign プロセス自体は継続する。ただし同一 campaign
+内での自動再評価は無く、cache entry 削除だけでは変異が復旧しない (WAL 側の再評価手段が
+別途必要)。この復旧手順の要否は本 D の scope 外とし、裁定パッケージ候補として worklog へ
+記録する。
+
+**根拠:**
+- D602 (`docs/decisions.md`) が明示的に次wave へ送った「完全な解決」の実装である。
+- 段3 敵対相談2レンズが独立に P1-1 (digest 非依存)・P1-3 (cross-lane 衝突の実在性) を実コードで
+  確認し、段2 codex プランの結論を追認した。
+- 段6 敵対レビュー2本 + fix + 焦点再レビューで real 所見4件 (DW-M01単一理由性の担保・
+  expected付き非official経路の網羅・completion assertion・docstring精度) をすべて closed に
+  した。変異matrix (2変異事前登録、DW-M01) は 2/2 KILLED・MISMATCH 0・SURVIVED 0。
+
+**却下した選択肢:**
+- **新2 field を既存 `expected_keys` へ常時混入する (widen the exact-match set
+  unconditionally)** — official が書いた entry を非 official caller が読めなくなる
+  (逆方向も同様)、cross-lane 衝突を悪化させるため見送った。
+- **cache hit を無効化し常に新規 build する** — D602 が既に却下した選択肢と同じ理由
+  (buildcache 全体の cache-first 設計方針を局所的に覆す) で見送った。
+- **既存 v2 cache entry を本 wave で一括無効化・再構築する** — 規律5 (段階導入・盛らない)、
+  影響範囲の広さ (既存 official 系 campaign 全体) により見送った。fail-closed な hit 時検査を
+  追加すれば、旧 entry を実際に hit した時点で個別に検出される。
+
+## D612. dispatch の queue-wait/overall-grace は opt-in 上書きだけに留め、自動選択も is_acceptance ベース分岐も採用しない (2026-08-20)
+
+**決定:** `tools/run_tests.py` の `_default_dispatch` へ、`IZANAGI_DISPATCH_QUEUE_WAIT_TIMEOUT_OVERRIDE`/
+`IZANAGI_DISPATCH_OVERALL_GRACE_OVERRIDE` という2つの opt-in 環境変数上書きを追加する
+(`_DISPATCH_WALLTIME_OVERRIDE_ENV` と同型)。未設定時は現行既定 (900秒/300秒) を完全に維持する。
+次の2つの設計は**採用しない**。
+
+1. lease TTL (2400秒) 内に収まる新しい既定値へ引き上げる。
+2. `_is_acceptance_run(args)` (受入形の closed shape 判定) を使い、受入形かどうかで既定値を
+   自動的に切り替える。
+
+**理由:**
+
+- (1) は算術的に成立しない。TTL 2400秒から D239 の通常走行実測 (1055〜1338秒、記録により幅がある)・
+  `accounting_grace_s` (60秒)・claim/land 保守予算 (未測定) を差し引くと、`queue_wait_timeout_s +
+  overall_grace_s` の残り予算は現行900秒とほぼ同等かそれ以下になる。加えて既定 walltime (3600秒)
+  自体が既に TTL (2400秒) を超えており、Q/G の調整だけでは「構造的に TTL を超えない」という
+  保証を字義通りには満たせない。
+- (2) は `_is_acceptance_run` が「受入argv pinと同じ closed shape」を判定するだけで、lease の
+  所有・残余 TTL を判定しないため成立しない。具体的な反例: 受入 lease 保持中 (land/release 前)
+  に同一 operator が targeted な `python3 tools/run_tests.py --force-dispatch <target>` を実行
+  すると `is_acceptance=False` になり、lease 保持下で大きい timeout を選べてしまう。D299
+  (13848行目) が「lease 自己保持は wave slug digest だけで invocation を識別しない」ことを
+  既に文書化し、fencing 機構を裁定パッケージへ送る対象と明記している — この分岐は D299 が
+  既に認めている限界を、T-870 固有の判断で無断に広げることになる。
+- mutation harness の個別 runner timeout (900〜5400秒、spec ごとに異なる) と衝突しない
+  「制約なしに大きい」既定値は存在しない。collection は `_default_dispatch` を経由せず
+  `dispatch_compute.py` を直接呼ぶため、いずれにせよ対象外である。
+- 実際の queue congestion は数十分〜時間オーダーで発生する (`docs/archive/worklog-phase3-0816-566-567.md`
+  の83分間・`docs/archive/worklog-phase3-0804-187.md` の6時間grace実例)。TTL(2400秒)に
+  収まる値では、この規模の congestion を解消できない。
+
+**却下した選択肢:**
+- 前 wave 由来の「55分/2.5時間に耐える値」への引き上げ — 出典不明の数字を根拠にしていた
+  (再確認済み、本 repo に一次資料なし)。
+- opt-in 機構自体を作らず現状維持のまま次回へ送る — 既存の `IZANAGI_DISPATCH_WALLTIME_OVERRIDE`
+  と同型の低リスクな拡張であり、operator が自身の文脈を把握した上で明示的に上書きできる価値は
+  既定値変更なしでも成立するため、実装した。
+
+## D613. C06 evaluator の reachability 検査を C03/C05/C07 と同型の idiom へ揃える (2026-08-20)
+
+**決定:** `_evaluate_c06` の supervisor 側 reachability 検査を、ad hoc な
+`_reachable_functions`/`_reachable_calls` (呼び出し名の文字列一致のみ、import 束縛を検証しない)
+から `_ReachabilityExplorer`+`_declared_call` (import 束縛を実解決したうえでの cross-module
+reachability 検査、`_evaluate_c05` と同型) へ置換する。supervisor/`run_trial` 不在時は無条件
+skip をやめ明示的に `_c06_unsatisfied` を返す (`_evaluate_c03`/`_evaluate_c05` と同型)。
+`_ledger_lock`/`_check_limit_state` の呼び出しを per-function `required_calls` dict +
+`_live_called_names` で検査する (`_evaluate_c05` と同型)。契約 JSON の `reachable_from` 3文字列と
+evaluator 側期待値の整合を確認する `_c06_reachable_from_verdict` を追加する (`_evaluate_c07`
+の契約整合検査と同型)。手動の `_MAX_REACHABILITY_STATES` 検査は `_ReachabilityExplorer` 自身の
+limit 超過検出に委ね削除する。
+
+**理由:**
+- D599 (2026-08-20) が挙げた C06 reachability 検査の3弱点 ((a) supervisor 不在時の無条件 skip、
+  (b) 呼び出し名の文字列一致だけで import 束縛を検証しない、(c) `_ledger_lock`/
+  `_check_limit_state` の存在のみ検査) は、同ファイル内の姉妹評価器がすでに個別に持つ idiom を
+  そのまま転用でき、新規機構の発明を要しなかった (規律5「盛らない」、既存 idiom の再利用)。
+- 弱点(b)は、supervisor 内に同名ローカル decoy 関数 (budget_consumer からの import ではない)
+  があっても旧コードが名前集合の一致だけで通過させる実害を、旧コードに対する A/B 実測
+  (decoy fixture、`test_c06_rejects_name_only_supervisor_decoy`) で確認した。
+- 実 repo 現行状態への判定結果は変更しない (`EVIDENCE_UNDEFINED`/
+  `completion-proof-not-machine-checkable` のまま。D599 が前提とする「C06 は SATISFIED を
+  一切返さない」設計もそのまま)。`_check_limit_state`/`_ledger_lock` の呼び出し実在は
+  `s8c_budget.py` の実コード (`:474,556,572,604`) で事前確認済み。
+
+**却下した選択肢:**
+- `_c06_reachable_from_verdict` を実コード上の呼び出し順序まで歩いて検証する設計へ拡張する —
+  段3 敵対相談2レンズ (sol/luna) が独立に、`_evaluate_c07` の同型 idiom 自体も実は契約記述
+  同士の membership 整合確認に留まり実コード順序は見ないことを指摘した。実コード順序の検証には
+  `_evaluate_c07` の局所 dataflow 機構 (`_c07_expression_reaches_check` 系) の汎化か
+  cross-call 引数追跡の新設を要し、規律5 に照らし見送った。実装した
+  `_c06_reachable_from_verdict` はこの限定をコードのコメントに明記する。
+- `_ledger_lock`/`_check_limit_state` 検査を `_ReachabilityExplorer` ベースへ引き上げる —
+  両関数は `reserve_all_cells`/`settle` と同一 module 内で定義されており、現行コードは
+  cross-module import の曖昧性を持たない。per-function dict 方式で現状十分と判断した。
+
+**残る限界:** per-function `required_calls` dict 方式 (`_live_called_names`) は末尾識別子名だけを
+比較するため、同一 module 内の同名ローカル decoy 関数 (例: `reserve_all_cells` 内にネストした
+`_ledger_lock` という名の関数) や属性経由の呼び出し (`other._ledger_lock()`) を区別できない。
+段3 (sol/luna)・段6 (reviewA/reviewB) の計4レンズが独立にこの限界を指摘したが、現行
+`s8c_budget.py` は同一 module 内の bare-name 呼び出しのみで安全であり実害は無い。再訪条件は
+「`s8c_budget.py` が `_ledger_lock`/`_check_limit_state` と同名の別 object を import または
+局所定義する変更を受けたとき」とする。
+
+**scope外:** 同じファイル内の `_evaluate_c12` が使う helper も C06 改修前と同じ
+`_reachable_calls` 名前一致弱点を持つが、本決定は `_evaluate_c06` だけを対象とする
+(次 task 候補として worklog に記録)。
