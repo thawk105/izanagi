@@ -224,7 +224,6 @@ def evaluate_candidate(
             "log": log,
             "ccbench_dir": ccbench_dir,
             "cache_root": cache_root,
-            "authorization_contract": authorization_contract,
             "build_context": build_context,
             "capability_resolver": capability_resolver,
             "source_evidence": evidence,
@@ -238,6 +237,7 @@ def evaluate_candidate(
                 )
         return evaluate(
             genome, layout, env_tag, cfg.ccbench_commit, perf, clocks_per_us,
+            authorization_contract=authorization_contract,
             **evaluate_kwargs, **perf_evaluate_kwargs)
     except (KeyboardInterrupt, SystemExit):
         raise
