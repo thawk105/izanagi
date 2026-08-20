@@ -5279,7 +5279,8 @@ def _mock_pipeline(certified=True, median=12345.0, cv=0.01, rc=0, ncommit=100,
     def fake_build_v2(genome, *, admission, build_context, source_evidence,
                       contract, ccbench_commit, trace, src_token,
                       cc, cxx, cache_root, ccbench_dir="", timeout_s=None,
-                      dependency_prefix=""):
+                      dependency_prefix="", expected_toolchain_manifest=None,
+                      declared_use_class=None):
         assert build_context is _BUILD_CONTEXT
         assert admission.as_wal_receipt()["source"] == source_evidence.as_receipt()
         bench_calls.builds.append(("v2", trace, contract.contract_sha256))
@@ -5291,11 +5292,29 @@ def _mock_pipeline(certified=True, median=12345.0, cv=0.01, rc=0, ncommit=100,
         if build_raises:
             raise RuntimeError("build boom")
         bin_sha256 = ("da" if trace else "db") * 32
+        toolchain = {
+            "cc": {"requested": cc, "realpath": f"/fixture/{cc}",
+                   "version_first_line": "cc fixture"},
+            "cxx": {"requested": cxx, "realpath": f"/fixture/{cxx}",
+                    "version_first_line": "cxx fixture"},
+            "cmake": {"requested": "cmake", "realpath": "/fixture/cmake",
+                      "version_first_line": "cmake fixture"},
+        }
+        manifest_sha256 = None
+        if expected_toolchain_manifest is not None:
+            manifest_sha256 = hashlib.sha256(
+                json.dumps(
+                    expected_toolchain_manifest, sort_keys=True,
+                    separators=(",", ":"),
+                ).encode("utf-8")
+            ).hexdigest()
         return types.SimpleNamespace(
             bin_hash=bin_sha256[:16], bin_sha256=bin_sha256,
             binary="/nonexistent/ycsb.exe", cached=build_cached,
             configure_cmd="<cfg-v2>", build_cmd="<build-v2>",
             contract_sha256=contract.contract_sha256,
+            toolchain=toolchain,
+            toolchain_manifest_sha256=manifest_sha256,
         )
 
     patch("buildcache", types.SimpleNamespace(
@@ -5303,6 +5322,7 @@ def _mock_pipeline(certified=True, median=12345.0, cv=0.01, rc=0, ncommit=100,
         is_full_sha256=buildcache.is_full_sha256,
         _ccbench_dir=buildcache._ccbench_dir,
         DEFAULT_CC=buildcache.DEFAULT_CC, DEFAULT_CXX=buildcache.DEFAULT_CXX,
+        toolchain_compilers_from_manifest=buildcache.toolchain_compilers_from_manifest,
         compilers_for_current_site=lambda: (
             site_compilers
             or (buildcache.DEFAULT_CC, buildcache.DEFAULT_CXX)
@@ -6187,6 +6207,89 @@ def test_pipeline_build_done_carries_full_and_prefix_bin_keys():
     # 16 字系列は 64 字系列の exact 接頭辞 (sha256-prefix-16 契約)。
     assert p["trace_bin"] == p["trace_bin_sha256"][:16]
     assert p["perf_bin"] == p["perf_bin_sha256"][:16]
+
+
+def test_pipeline_v2_build_done_records_bound_toolchain_once_for_trace_and_perf():
+    expected = {
+        role: {
+            "requested": f"test-{role}",
+            "realpath": f"/fixture/test-{role}",
+            "version_first_line": f"{role} version A",
+            "version": f"{role} version A",
+        }
+        for role in ("cc", "cxx", "cmake")
+    }
+    lay = _tmp_layout()
+    with _mock_pipeline(site_compilers=("test-cc", "test-cxx")):
+        result = pipeline.evaluate(
+            Genome("silo", {"BACK_OFF": 1}), lay,
+            _AUTH_CONTRACT.env_tag, "deadbeef",
+            PerfConfig(records=1000, threads=2), clocks_per_us=1800,
+            numactl=_AUTH_CONTRACT.numactl,
+            authorization_contract=_AUTHORIZATION,
+            build_context=_BUILD_CONTEXT, do_bench=False,
+            env_contract=_AUTH_CONTRACT,
+            expected_toolchain_manifest=expected,
+            declared_use_class="official", log=lambda *_args: None,
+        )
+    assert result.certified and not result.aborted
+    done = [rec for rec in wal.read_records(lay) if rec.stage == STAGE_BUILD_DONE]
+    assert len(done) == 1
+    payload = done[0].payload
+    assert payload["toolchain"]["cc"] == {
+        "requested": "test-cc", "realpath": "/fixture/test-cc",
+        "version_first_line": "cc fixture",
+    }
+    assert payload["toolchain"]["cxx"] == {
+        "requested": "test-cxx", "realpath": "/fixture/test-cxx",
+        "version_first_line": "cxx fixture",
+    }
+    assert payload["toolchain_record_sha256"] == hashlib.sha256(
+        json.dumps(expected, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    ).hexdigest()
+    assert "toolchain_manifest_sha256" not in payload
+
+
+def test_pipeline_v2_toolchain_mismatch_aborts_before_build_done():
+    expected = {
+        role: {
+            "requested": f"test-{role}",
+            "realpath": f"/fixture/test-{role}",
+            "version_first_line": f"{role} version A",
+            "version": f"{role} version A",
+        }
+        for role in ("cc", "cxx", "cmake")
+    }
+    lay = _tmp_layout()
+    with _mock_pipeline(site_compilers=("test-cc", "test-cxx")):
+        real_build_v2 = pipeline.buildcache.build_v2
+
+        def mismatching_build_v2(genome, *, trace, **kwargs):
+            result = real_build_v2(genome, trace=trace, **kwargs)
+            if trace:
+                result.toolchain = dict(result.toolchain)
+                result.toolchain["cxx"] = dict(result.toolchain["cxx"])
+                result.toolchain["cxx"]["realpath"] = "/fixture/other-cxx"
+            return result
+
+        pipeline.buildcache.build_v2 = mismatching_build_v2
+        result = pipeline.evaluate(
+            Genome("silo", {"BACK_OFF": 1}), lay,
+            _AUTH_CONTRACT.env_tag, "deadbeef",
+            PerfConfig(records=1000, threads=2), clocks_per_us=1800,
+            numactl=_AUTH_CONTRACT.numactl,
+            authorization_contract=_AUTHORIZATION,
+            build_context=_BUILD_CONTEXT, do_bench=False,
+            env_contract=_AUTH_CONTRACT,
+            expected_toolchain_manifest=expected,
+            declared_use_class="official", log=lambda *_args: None,
+        )
+    assert result.aborted and not result.certified
+    records = wal.read_records(lay)
+    assert not any(rec.stage == STAGE_BUILD_DONE for rec in records)
+    abort = [rec for rec in records if rec.stage == STAGE_ABORT]
+    assert len(abort) == 1
+    assert abort[0].payload["error"] == "trace/perf toolchain binding mismatch"
 
 
 def test_pipeline_perf_sha_gate_mismatch_aborts_before_trace_and_bench():

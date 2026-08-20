@@ -648,6 +648,11 @@ class BuildResult:
     ccbench_root: str = ""
     # v2 build namespace の provenance。legacy build() は additive default None を保つ。
     contract_sha256: Optional[str] = None
+    # v2 の実効 toolchain。identity 用の短い manifest と、caller binding 用の
+    # version 全文 manifest/hash は別系列として保持する。legacy build() は None。
+    toolchain: Optional[Dict[str, Dict[str, str]]] = None
+    toolchain_manifest: Optional[Dict[str, Dict[str, str]]] = None
+    toolchain_manifest_sha256: Optional[str] = None
     # floor sort_best 専用の runtime 診断。空の既定 caller は従来どおり。
     fetchcontent_base_dir: str = ""
     masstree_source_root_sha256: str = ""
@@ -906,6 +911,31 @@ def _split_expected_toolchain_manifest(
         identity[role] = {key: values[key] for key in identity_keys}
         versions[role] = values["version"]
     return identity, versions
+
+
+def observed_toolchain_manifest(cc: str, cxx: str) -> Dict[str, Dict[str, str]]:
+    """現在の compiler/cmake を full version 付き manifest として一度観測する。
+
+    campaign caller が開始時に得た値を各 variant へ配るための窓口であり、site ごとの
+    compiler名をここで決めない。requested path の解決と version 全文の取得は既存の
+    fails-closed helper に委譲する。
+    """
+    identity = _toolchain_manifest(cc, cxx)
+    return {
+        role: {
+            **entry,
+            "version": _tool_version_full(entry["realpath"], role),
+        }
+        for role, entry in identity.items()
+    }
+
+
+def toolchain_compilers_from_manifest(
+        expected: Mapping[str, object],
+) -> tuple[str, str]:
+    """validated expected manifest から requested cc/cxx を取り出す。"""
+    identity, _versions = _split_expected_toolchain_manifest(expected)
+    return identity["cc"]["requested"], identity["cxx"]["requested"]
 
 
 def _v2_identity(
@@ -1366,6 +1396,8 @@ def _v2_result(
         toolchain: Dict[str, Dict[str, str]], contract_sha256: str, site: str,
         dependency_prefix: str, fetchcontent_base_dir: str = "",
         masstree_source_root_sha256: str = "",
+        toolchain_manifest: Optional[Dict[str, Dict[str, str]]] = None,
+        toolchain_manifest_sha256: Optional[str] = None,
 ) -> BuildResult:
     configure, build_cmd = _v2_commands(
         genome, trace, sub, bdir, toolchain, site=site,
@@ -1379,6 +1411,9 @@ def _v2_result(
         configure_argv=tuple(configure), build_argv=tuple(build_cmd),
         cache_root=os.path.abspath(root), ccbench_root=os.path.abspath(sub),
         contract_sha256=contract_sha256,
+        toolchain=toolchain,
+        toolchain_manifest=toolchain_manifest,
+        toolchain_manifest_sha256=toolchain_manifest_sha256,
         fetchcontent_base_dir=fetchcontent_base_dir,
         masstree_source_root_sha256=masstree_source_root_sha256,
     )
@@ -1503,6 +1538,7 @@ def build_v2(
         timeout_s: Optional[int] = None, site: Optional[str] = None,
         dependency_prefix: str = "",
         expected_toolchain_manifest: Optional[Mapping[str, object]] = None,
+        declared_use_class: Optional[str] = None,
         fetchcontent_base_dir: str = "",
         fetchcontent_dependency_receipt: Optional[Mapping[str, object]] = None,
 ) -> BuildResult:
@@ -1526,8 +1562,9 @@ def build_v2(
     ``dependency_prefix`` は configure argv へ明示し、subprocess 環境の同名変数を除く。
     空なら argv と環境継承を変えず、ambient 値の正準形だけを identity に束縛する。
     ``expected_toolchain_manifest`` が指定された場合だけ、identity 用 manifest に加えて
-    ``version`` 全文を別に再観測し、双方の完全一致を要求する。既定 ``None`` は従来の
-    受理集合と実行順を変えない。
+    ``version`` 全文を別に再観測し、双方の完全一致を要求する。``declared_use_class`` が
+    ``official`` のときは expected の省略を build 前に拒否する。その他の caller では
+    既定 ``None`` の受理集合と実行順を変えない。
 
     fresh publish は untrusted staging から binary だけを clean candidate へ copy し、
     host-generated ``completion.json`` とともに完成名へ rename する。Python 3.10 stdlib
@@ -1552,6 +1589,10 @@ def build_v2(
         raise TypeError("contract は ExecutionEnvironmentContract の必須引数 (None/fallback 不可)")
     if type(trace) is not bool:
         raise TypeError(f"trace は bool でなければならない: {trace!r}")
+    if declared_use_class == "official" and expected_toolchain_manifest is None:
+        raise BuildCacheError(
+            "official v2 build には expected_toolchain_manifest が必須"
+        )
     if timeout_s is not None and (type(timeout_s) is not int or timeout_s <= 0):
         raise TypeError(f"timeout_s は None または正整数でなければならない: {timeout_s!r}")
     for name, value in (
@@ -1604,6 +1645,8 @@ def build_v2(
     _verify_ccbench_commit(sub, ccbench_commit)
     source_digest.assert_worktree_within_allowlist(sub)
     toolchain = _toolchain_manifest(cc, cxx)
+    complete_toolchain_manifest = None
+    complete_toolchain_manifest_sha256 = None
     if expected_toolchain_manifest is not None:
         expected_identity, expected_versions = _split_expected_toolchain_manifest(
             expected_toolchain_manifest
@@ -1620,6 +1663,16 @@ def build_v2(
             raise BuildCacheError(
                 "v2 toolchain version 全文が caller の事前観測と不一致"
             )
+        complete_toolchain_manifest = {
+            role: {
+                **toolchain[role],
+                "version": observed_versions[role],
+            }
+            for role in toolchain
+        }
+        complete_toolchain_manifest_sha256 = hashlib.sha256(
+            _canonical_json_bytes(complete_toolchain_manifest)
+        ).hexdigest()
     preimage, digest = _v2_identity(
         genome, ccbench_commit, trace, src_token, cc, cxx, toolchain,
         site=actual_site, dependency_prefix=effective_dependency_prefix,
@@ -1665,6 +1718,7 @@ def build_v2(
                 genome, trace, binary, bin_sha256, bdir, True, sub, root, toolchain,
                 contract_sha256, resolved_site, configure_dependency_prefix,
                 canonical_fetchcontent_base, masstree_source_root_sha256,
+                complete_toolchain_manifest, complete_toolchain_manifest_sha256,
             )
 
         nonce = secrets.token_hex(16)
@@ -1818,6 +1872,7 @@ def build_v2(
             genome, trace, binary, bin_sha256, bdir, False, sub, root, toolchain,
             contract_sha256, resolved_site, configure_dependency_prefix,
             canonical_fetchcontent_base, masstree_source_root_sha256,
+            complete_toolchain_manifest, complete_toolchain_manifest_sha256,
         )
     finally:
         os.close(parent_fd)
