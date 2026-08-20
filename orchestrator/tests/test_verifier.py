@@ -927,6 +927,12 @@ def test_permutation_violation_details_follow_parse_verify_report_path():
         }
         assert "raw_reason" not in details["sample"][0]
         assert "raw_reason_escaped" not in details["sample"][0]
+        assert details["sample"][2]["observation"] == {
+            "kind": "rcdptr-set-changed",
+            "size_preserved": True,
+            "rcdptr_multiset_preserved": False,
+            "recognized": True,
+        }
         assert details["sample"][2]["source_thread_hint"] is None
         assert details["sample"][2]["source_thread_hint_basis"] is None
     finally:
