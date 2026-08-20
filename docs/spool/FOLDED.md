@@ -1948,3 +1948,5 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 
 - {"allocations":{},"authored":"2026-08-21","base":"fb2b1c2cc5d7c872c116139d68bda6f3ec193966","content_sha256":"abb99b10774c02bf5b6a55bfab22961d0009cb51b1873cf4a40e1d191b9640fd","seq":1,"tested_tip":"392a22071da86adac1d0fea0a3eba735ae0c2019","wave":"dev-wave-t1437-mocc-macro-protocol","wave_ref":"refs/heads/worktree-dev-wave-t1437-mocc-macro-protocol"}
 - {"allocations":{"D:source-digest-supply-precision":"D615"},"authored":"2026-08-21","base":"fb2b1c2cc5d7c872c116139d68bda6f3ec193966","content_sha256":"1694a53dc92262aec7401c03050f9727a266332f6a66b88066c6b2bf1e09e069","seq":2,"tested_tip":"392a22071da86adac1d0fea0a3eba735ae0c2019","wave":"dev-wave-t1437-mocc-macro-protocol","wave_ref":"refs/heads/worktree-dev-wave-t1437-mocc-macro-protocol"}
+
+- {"allocations":{},"authored":"2026-08-20","base":"1a43d34d37b0b52259b2b73edcc97b3006fedeba","content_sha256":"4540adc08e019e62596bffa935b72a1d1223ca7d12b5e7afd5df5732791485f5","seq":1,"tested_tip":"c56c8e419292b4556d4f989b9c81dace49585c62","wave":"cleanup-agent-ab4539","wave_ref":"refs/heads/worktree-CLEANUP-agent-ab4539"}
