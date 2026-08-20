@@ -22,6 +22,7 @@ from types import SimpleNamespace
 
 import pytest
 
+from orchestrator.submission_gate import _git
 from orchestrator.submission_gate import _semantic_validator as semantic
 from orchestrator.submission_gate import _writer as writer
 from orchestrator.submission_gate._receipt_io import (
@@ -372,6 +373,42 @@ def test_publish_rejected_missing_authority_after_semantic_gate(tmp_path: Path) 
 
     assert caught.value.reason_code == "vector_authority_unavailable"
     assert not any(destination_parent.iterdir())
+
+
+def test_publish_rejects_stale_binding_before_schema_load(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    fixture = _UNIT3._make_git_fixture(tmp_path)
+    value, _ = _UNIT3._full_receipt(fixture)
+    document = _UNIT3._receipt_document(value)
+    stale_binding = _UNIT3._binding._PreregBinding._issue(
+        record=fixture.record,
+        measurement_head=fixture.effective_commit,
+        prereg_commit=fixture.root_commit,
+        prereg_content_commit=fixture.content_commit,
+        prereg_effective_commit=fixture.effective_commit,
+        root_identity=(fixture.root.stat().st_dev, fixture.root.stat().st_ino),
+        token=_UNIT3._binding._CAPABILITY_TOKEN,
+    )
+    schema_loads = 0
+    original_load_schema = writer._load_schema_from_ref
+
+    def record_schema_load(*args: object, **kwargs: object) -> object:
+        nonlocal schema_loads
+        schema_loads += 1
+        return original_load_schema(*args, **kwargs)
+
+    monkeypatch.setattr(writer, "_assert_vector_authority", lambda: None)
+    monkeypatch.setattr(writer, "_load_schema_from_ref", record_schema_load)
+
+    with pytest.raises(_git.GitSupportError):
+        writer._publish_receipt(
+            repository_root=fixture.root,
+            raw_bytes=document.raw_bytes,
+            binding=stale_binding,
+        )
+
+    assert schema_loads == 0
 
 
 def test_destination_is_derived_from_shape_checked_receipt() -> None:
