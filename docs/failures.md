@@ -7874,6 +7874,16 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: 台帳・定数表を触る commit の前に、その定数名で repo 全体を grep し、
   test 側に literal の写しがないかを確認する。
 
+
+- **再発: 2026-08-20** — `tools/check_ai_provenance.py` の `KNOWN_PROVENANCE_VIOLATIONS`
+  registry へ known-violation エントリを1件追加する fix 指示に、検査コマンドとして
+  監査ツール本体の実行だけを書き、対になる meta-test file
+  (`orchestrator/tests/test_check_ai_provenance.py`) を名指ししなかった。子はツール本体の
+  rc=0 を確認して完了報告したが、受入全走 (attempt 1) で
+  `test_known_violation_ledger_matches_literal_entries` が赤になり、受入を1回余分に消費した
+  (attempt 2 で解消、`verdict=non-attributable-only` で受入成立)。恒久対応・再発検知は
+  既載のとおり (台帳・定数表を編集させる指示には対になる meta-test file を必ず名指しする) で、
+  今回は指示作成時にこの既知パターンを見落とした。
 ### F291. 正例 control の期待 node を過少申告して 1 巡目が MISMATCH になった [手順漏れ]
 
 - 事象: 変異 1 巡目は 9/10 KILLED・SURVIVED 0 だったが、正例 control (pristine block の受理経路を
@@ -9287,6 +9297,13 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   統合 commit 後の再走で切り分ける。
 - **supersede: 2026-08-17** — enforcement source closure は D473 で exact 14 path になった。「12 path」は「14 path」と読み替える。加えて本 wave の実測で偽赤の範囲が確定した — 閉包 member を編集した状態でも、`_REPO_ROOT` を一時 repo へ差し替える node (T671 / artifact admission の E1 / S6 / S8a) は偽赤にならず、統合 commit 前に赤くなったのは実 checkout の live closure を capture する `orchestrator/tests/test_layer3_report.py::test_accepted_report_requires_e1_and_records_epoch` の 1 件だけだった (commit 後の同範囲再走は 465 passed / 0 failed)。偽赤候補を「閉包 member を触る wave の広い consumer 群」と見積もるのは過大で、判定手順は既載どおり赤の理由行に `contract-loader-drift` があるかで行う。
 
+
+- **再発: 2026-08-20** — `trial_registry.py` / `p3_autonomous_workload_trial.py` /
+  `s8c_preregistration_evidence.py` を編集した状態で13ファイル consumer test 一括走を投入し、
+  19 failed + 34 errors を観測した。理由行はほぼ全て `contract-loader-drift` だった。
+  統合 commit 後に同じ範囲を再走したところ 1531 passed / 0 failed へ解消し、実装差分由来の
+  赤は0件だった。判定手順 (赤の理由行に `contract-loader-drift` があれば commit してから
+  再走する) は既載のとおりで機能した。
 ### F358. byte 束縛されたソースへの変異は、意味に無関係な共通核で全変異が KILLED に見える [テスト代表性]
 
 - 事象: `pipeline.py` を対象にした変異 13 件が全て KILLED になったが、内訳を見ると
@@ -10869,3 +10886,26 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   実装しない (規律5、scope外)。
 - 再発検知: 次に role file (`.claude/agents/*.md`) を変更する wave が受入全走で
   `test_reflux_originless_compatibility.py` の赤を踏んだ時点で顕在化する (lint 化は未実装)。
+
+### F434. real-corpus テストがアクティブな task_id を fixture anchor にすると、その task の実体更新で追随なしに陳腐化する [ドリフト] [手順漏れ]
+
+- 事象: `orchestrator/tests/test_spool_fold.py::test_cli_base_digest_real_corpus_resolves_active_and_rejects_completed`
+  が全体走で赤化した (13769 passed, 96 skipped 中でこの1件だけ FAILED)。テストは実 repo コーパスから
+  直接 raw bytes を読んで `[T-139]` の実質的な (carry を遡った) 根 entry を独立に特定し、
+  そのハッシュを期待値としていたが、テスト作成時点 (2026-08-13頃) 以降に `[T-139]` が実体更新され
+  (2026-08-20、ordinal 720、D574 land)、根 entry が `docs/archive/worklog-phase3-0813-537.md` から
+  `docs/archive/worklog-phase3-0820-720-721.md` へ移動したため、テストの固定ポインタ (ファイル名・
+  開始マーカー文字列) が追随なしで陳腐化した。
+- 根本原因: real-corpus テストが「まだ完了していない (`### 次の一手` で carry され続けている)」
+  task_id を fixture anchor に選ぶと、そのアンカーは定義上いつ実体更新 (単純 carry でなく新しい
+  実質的な書き直し) を受けてもおかしくない。実装 (`_extract_latest_active`/`substantive_digest`
+  の carry chain 解決) は無変更で正しく動作しており、バグはテスト側の fixture ポインタにあった。
+- 恒久対応: なし (機械検査は未整備。規律5 に基づき今回は追加機構を作らず、修正
+  (commit `2b56f5ae`) は独立 raw byte 再計算による fixture ポインタの追随に留めた — 独立オラクル
+  設計 (テストのロジックを再利用しない直接 byte 比較) は維持し、比較ロジック自体は変更していない)。
+  当面は同種の real-corpus テストが赤化した際、まず「実装のバグ」でなく「fixture ポインタの陳腐化」
+  を疑い、対象 archive ファイル内の該当 entry を独立 raw byte 計算で確認してから追随修正する。
+  恒久対応の候補 (今回は実装しない、DW-G03 の独立2例未充足): fixture anchor に、既に完了して
+  archive され二度と実体更新されない task_id を選ぶ設計へ変更する。
+- 再発検知: 同型は、real-corpus テストがまだアクティブな task_id を fixture anchor に使っている
+  場合に、その task_id が実体更新されるたびに顕在化しうる (lint 化は未整備、目視)。
