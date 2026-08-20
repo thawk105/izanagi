@@ -85,6 +85,15 @@ def _integrity() -> dict:
         "lock_coverage_violations": 0,
         "write_intent_violations": 0,
         "permutation_violations": 0,
+        "permutation_violation_details": {
+            "counts": {
+                "size-changed": 0,
+                "rcdptr-set-changed": 0,
+                "unknown": 0,
+            },
+            "sample": [],
+            "unknown_reason_sample": [],
+        },
         "notes": [],
     }
 
