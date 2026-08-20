@@ -200,3 +200,7 @@ def test_help_exits_successfully() -> None:
     )
     assert result.returncode == 0
     assert "--worktree ABSOLUTE_WORKTREE" in result.stdout
+
+
+if __name__ == "__main__":
+    sys.exit(pytest.main([__file__]))
