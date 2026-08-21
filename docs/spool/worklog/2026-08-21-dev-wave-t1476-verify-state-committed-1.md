@@ -43,6 +43,12 @@ title: '[T-1476] verify_done の committed attempt 束縛を追加し、非commi
 - 親が実走: `test_s8b_oracle_report.py` 237 passed (新設回帰テスト含む)、
   consumer 9ファイル (fix前 2 failed/412 passed/19 skipped、fix後 651 passed/19 skipped)、
   `test_check_ai_provenance.py` 317 passed。いずれも `tools/run_tests.py` 経由。
+- 受入全走3回目 (attempt=3) が `test_s8b_approved.py` の pytest collect-only rc=2 で
+  `acceptance-red-check` 終端した。peer (t1458-side-ccbench-provenance-fix) からの通知で、
+  同じ commit `09ce607b` の gitlink 前進により `s8b_approved.py::CCBENCH_FULL_SHA` が
+  旧pinのまま不一致 (D16 既知の代償) と判明、本 wave の欠陥ではない。ユーザー裁定済みで
+  t1458 が新pin再承認を実装中のため自分では対応せず、着地を待って main を再取り込みし
+  受入を再投入する。
 
 ## 次の一手差分
 
