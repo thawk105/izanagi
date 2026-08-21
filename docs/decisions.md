@@ -24900,3 +24900,141 @@ opt-in 機構が段3 敵対相談2レンズから独立に提案されたが、`
   影響範囲が本 wave の段2/段3 では検証されていない。
 - 「一定確率で local を再試行する」ような自動的な回復機構 — 明示 opt-in ではなく、D612 が拒否した
   自動選択と同種の設計になるため、次 wave でも採用しない前提とする。
+
+## D621. campaign単位advisory flockの配置・scope境界・既知の限界 (2026-08-21)
+
+**決定 (1): `campaign.flock` (実行時advisory flock) は campaign root の外、新設する兄弟ディレクトリ
+`output/campaign-locks/` へ置く。** ファイル名は `layout.root` の絶対path正規化
+(`os.path.realpath`) をSHA-256し先頭20 hex文字を使う。`campaign.lock` (identity v1/v2 envelope、
+`orchestrator/campaign/campaign_lock.py`のcodec対象) とは責務・置き場所とも完全に分離する。
+
+**決定 (2): 保護対象は `run_campaign()` の呼び出しに限定する。** direct-evaluate producer
+(`screening_driver.py`, `guided.py`の`cmd_start`/`cmd_evaluate`, `s1_direct_comparison.py`,
+`s8b_oracle_driver.py`) と、s4/8c driver自身がcampaign-wide副作用 (WAL recovery・provenance
+header・loop_state書き込み) を個々の`run_campaign()`呼び出しの外で行う経路は対象外とする。
+
+**決定 (3): `campaign_claim.py`のclaimがCampaignBusy後にorphanする経路へ、release/cleanup機構を
+追加しない。** 既存の手動回収運用モデルに従う。
+
+**決定 (4): cross-node flock保証済みの範囲、cfg_hash衝突・非正規化output_rootの限界を明記する。**
+これらはcampaign identity方式・campaign_claim.py既存docstringが既に認めている既存の限界であり、
+本waveが新規に導入する劣化ではない。
+
+**理由:**
+- `orchestrator/campaign/layer3_report.py:193-198 _artifact_refs()` と
+  `orchestrator/campaign/autonomous_trial_completeness.py:2924-2943,2986-2992`
+  (`_cross_binding_campaign_files`/`_cross_binding_artifact_refs`) は、campaign root配下の
+  全regular fileを`rglob`し、後者は永続化済み`artifact_refs`との完全一致を要求する
+  (`declared_paths != current_files`で拒否)。段3敵対相談2レンズが独立に発見: `campaign.flock`を
+  campaign root内に置くと、本機能デプロイ前に一度でもcompleteness checkを通過した既存campaignを
+  resumeした際、新規作成される`campaign.flock`が旧reportの`artifact_refs`に無く、正しい
+  campaignがfail-closeで誤って拒否される。root外に置けば両関数の`rglob`対象に構造的に入らず、
+  この回帰が原理的に起きない。
+- `orchestrator/tests/test_campaign.py:4770-4792`のAST inventoryが、`run_campaign()`を通らない
+  direct sinkが複数実在することを裏付ける。`docs/decisions.md` D528決定(9) (2026-08-18) が
+  同型の境界 (「`run_campaign`を通らないproducerのruntime gateは本Dで作らない」) を既に確定して
+  おり、本waveも同じ構造の境界に整合させた。scopeを拡張すると変更面が
+  (direct-evaluate sink 4系統 + driver family全体) に大きく広がり規律5に反する。
+- `orchestrator/campaign/campaign_claim.py:383 acquire_claim()`のdocstringが「claimはcrash後も
+  残す。stale判定、自動削除、releaseは意図的に存在しない」と明記している。`loop.py`側で
+  best-effort unlink等のcleanupを足すことは、この既存契約を側面から回避する行為であり、
+  2026-08-18 rulingsのユーザー原則 (「条件を迂回する機構を作らない」) に反する。`CampaignBusy`は
+  claim取得後に起こりうる**既存の**post-claim failure集合 (build失敗・WAL破損等) に1つ加わる
+  だけであり、質的に新しい危険を導入しない。
+- cross-node flockの実測根拠はT-361 (worklog 149) とT-402 (worklog 571、
+  `output/insights/2026-08-16_t402-flock-execution-host/RESULT.md`) の2 host pair
+  (bnode001/bnode005、bnode003/bnode004)・`/work`・`/home`に限られ、同RESULT.md §5が
+  「1 host pairの1回の観測は十分条件ではない」と明記している。sanctioned probe driverの
+  投入枠 (`FLOCK_LEG_ONLY_SUBMISSION_LIMIT=1`) はT-402で消費済みのため、本waveでの
+  新規cross-node実測はしない。cfg_hashは32-bit prefix (SHA-256先頭8 hex) のみで、
+  衝突時は`IdentityMismatch`がflock取得後に初めて検出される既存の限界であり、
+  `campaign_claim.py`自身のdocstringも「clone毎に別out_rootを与えた実行同士はこのleafでは
+  排他できない」と同種の限界を認めている。
+
+**却下した選択肢:**
+- `campaign.flock`をcampaign root内 (`CampaignLayout.flock_file` property) に置く — 段2 codex
+  planの当初案。上記のとおりcompleteness check回帰を招くため不採用。
+- `layer3_report.py`/`autonomous_trial_completeness.py`へ`campaign.flock`のbasename除外ロジックを
+  追加する — 証拠chain・completeness判定という規律2隣接領域への変更面拡大が大きく、
+  `campaign.lock`/`wal.jsonl`は現状無除外でも実害が無いため一貫性の悪い変更になる。root外配置
+  なら変更不要。
+- scopeを拡張しdirect-evaluate producer・driver familyもcampaign_lockで保護する — D528決定(9)の
+  先例に反し、変更面が大きく規律5 (段階導入・盛らない) に反する。scope拡張を望む場合は別taskで
+  起票できる。
+- `campaign_lock()`実装を`bench_lock()`と共通化する — `bench_lock`の既存blocking/default/error
+  契約まで変更するため、小さい独立実装を追加する方を選んだ。
+
+## D622. worktree submodule 初期化を専用スクリプトへ集約する (2026-08-21)
+
+**決定:** worktree 再作成時に `git submodule update --init` が file transport 既定禁止で
+必ず失敗する問題を、手順書 (`docs/dev-wave/operations.md` の DW-O08/DW-O20) の文言修正では
+なく、`tools/dev_wave_submodule_init.py` という専用スクリプトの新設で解消する。既存の
+`tools/dev_waves/git_state.py::update_submodules_no_fetch()` (daemon.py が既に本番運用) を
+再利用し、正しい flag (`-c protocol.file.allow=always ... --init --recursive`) を複製しない。
+`docs/dev-wave/core.md` の DW-C01 (DW-O08/DW-O20 に優先する権威節) の submodule bullet を、
+このスクリプト呼び出しへの短い pointer へ置換する。
+
+**理由:**
+- 手作業の git コマンド構築 (flag の失念・誤記) が F320 の実際の失敗経路であり、1コマンドの
+  固定スクリプトへ置き換えることでこの失敗モードを構造的に無くせる。
+- `docs/dev-wave/operations.md` 側は過去の同種修正試行が byte 予算 (1000 bytes/節) の壁で
+  頓挫していた (F443 参照)。docs 文言修正を主たる
+  解決手段にしないことで、この壁を回避する。
+- EnterWorktree (Claude Code harness 組み込み) 自体は本 repo の改変対象外であり、
+  「手作業の完全な自動排除」ではなく「手作業の失敗モードの排除」がこの wave の現実的な scope
+  であると裁定した。
+
+**却下した選択肢:**
+- `docs/dev-wave/operations.md` (DW-O08/DW-O20) の文言だけを是正する — byte 予算の壁で過去に
+  頓挫済みであり、かつ手作業自体は残る。
+- `tools/check_wave_startup.py` (観測専用の既存 checker) 自体に修復ロジックを混ぜる —
+  同 checker 自身の docstring が「修復操作は行わない」と明記しており、checker/mutator の
+  分離という既存設計を壊す。
+
+## D623. submodule ローカル判定は宣言と解決済み URL の両方を見る (2026-08-21)
+
+**決定:** `update_submodules_no_fetch()` の pre-flight local 判定を、`.gitmodules` の宣言 URL
+だけでなく、`git config --get submodule.<name>.url` で得られる解決済み URL (override 込み) も
+考慮する対称判定へ拡張する。解決済み URL が取得できればそれを正本とし、取得できなければ
+(override 無し) 宣言 URL にフォールバックする。
+
+**理由:**
+- 本 repo の実際の submodule 構成 (`external/ccbench` は `.gitmodules` 宣言が remote だが
+  実行環境の `.git/config` で local override 済み) で、宣言だけを見る従来の判定は
+  git が実際に使う URL と乖離しており、正当な local 操作を誤って拒否していた
+  (F443 参照)。
+- 解決済み URL は git 自身が submodule 操作で実際に使う値であり、これを判定基準に含めることは
+  「意味論的に正しい」方向の修正である (単なる緩和ではない)。
+- 悪用には対象 repo の `.git/config` への書込み権限が要り、これは `-c
+  protocol.file.allow=always` を手動で付けて実行できる権限と同水準であるためユーザーが
+  許容範囲と裁定した。
+
+**却下した選択肢:**
+- `tools/dev_wave_submodule_init.py` 側だけで pre-flight を薄く迂回する — `update_submodules_no_fetch`
+  を daemon.py 等と共有する以上、同じ環境不整合が他 consumer にも将来再発しうるため、
+  共有関数側の修正を優先した。
+- pre-flight 検査自体を削除する — `.gitmodules` の宣言と乖離した任意の remote URL を無検査で
+  通すことになり、既存の防御水準を後退させる。
+
+## D624. worktree 身元検証は common_dir/worktrees/ chroot までとする (2026-08-21)
+
+**決定:** 新設した `resolve_registered_worktree()` の worktree 身元検証は、candidate の
+実際の gitdir が `<common_dir>/worktrees/` 配下に実在することまでを保証する
+(段6 敵対レビュー2本が独立発見した stale registry 偽装への対応、
+F444 参照)。**完全な TOCTOU 耐性、および
+「別の実在・登録済み worktree の gitdir を指す偽装」への対策は、この wave では意図的に
+実施しない。**
+
+**理由:**
+- 検証後から実行までの間に候補ディレクトリが差し替えられる TOCTOU は、本 repo の姉妹関数
+  (`create_exact_worktree` 等) も同種の防御を持たず、AI が単発で操作するローカル CLI という
+  脅威モデルでは過剰投資と判断した。
+- 「別の実在 worktree への偽装」は、悪用に対象 path への書込み権限が要り、結果も repo 内の
+  正当な worktree への誤操作に留まる。fix 3巡上限 (DW-O16) に達したため、本 wave では
+  対応しないと裁定した。
+- 本 wave 以前は worktree 身元検証が皆無だった (どんな path でも無条件に操作されていた) ため、
+  上記の残存ギャップを含めても厳密な改善である。
+
+**却下した選択肢:**
+- 残存ギャップまで塞ぐ4巡目の fix — DW-O16 の3巡上限を超え、収穫逓減 (段6で新しい懸念が
+  出るたびに fix を重ねる) に陥るリスクがあった。
