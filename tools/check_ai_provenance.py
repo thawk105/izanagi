@@ -849,6 +849,18 @@ KNOWN_PROVENANCE_VIOLATIONS = (
         _T567_MERGE5_RULING,
         note=_T567_MERGE5_NOTE,
     ),
+    KnownViolationSpec(
+        "09ce607b779272fda5629a350676471a16bea9bb",
+        MISSING_AI_AGENT,
+        "2026-08-21 Claude セッション内でのユーザー直接commit (ユーザー承認: known-violation 登録の続行)",
+        note=(
+            "ユーザーが直接作成した superproject commit による `external/ccbench` の gitlink "
+            "（submodule ポインタ）前進；変更は 511c9538 → ef9328a3 の線形1コミット分の"
+            "ポインタ更新のみ（分岐・衝突なし）で、ef9328a3 はリポジトリ owner 本人が 100% "
+            "書いた C++ の MOCC correctness trace v2 hook（`#if TRACE ... #endif` で完全に囲まれ"
+            "既定 inert）；AI関与なしのため `missing-ai-agent` は正当な既知違反"
+        ),
+    ),
 )
 
 
