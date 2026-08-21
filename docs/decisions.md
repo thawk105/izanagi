@@ -25459,3 +25459,143 @@ raise AutonomousTrialError(...)` (2箇所、無改修) とは別に、`report["l
   `_check_arm_digest_chain` が `registered-formal-non-certifying` モードを認識しない既存の別問題
   (T-1310 commit c1295565 が既に scope外・既知事項として記録済み) は、本決定の production 差分と
   無関係のため対応しない。新設テストは既存の同モードテストと同じ monkeypatch でこれを回避した。
+
+## D636. sort SWO oracle の real-repo 直列鎖からの分離を controller-only prewarm barrier + 独立完全性検査で実装する (2026-08-21)
+
+**決定:** T-1012 (D591) が `REAL_REPO_SERIAL_NODES` へ追加した 24 node (sort SWO oracle
+fixture 消費者) を、`real_repo_receipt_memo.py` 型の controller-only prewarm barrier へ
+置き換えて分離した。新設 sibling module (`sort_swo_oracle_receipt_memo.py`) が pytest
+collection-finish 時に一度だけ `resolve_oracle_environment` を解決し、24 関数は fixture
+受け取りから読み取り専用 getter 呼び出しへ移行した。fixture のままでは自動的に得られていた
+機械的完全性検査 (closure gate、fixture の scope/baseid で機械判定) を失わないよう、同型の
+独立 golden (`ORACLE_ENVIRONMENT_CONSUMERS_GOLDEN`) + AST inventory + exact-match 検査 +
+negative control を新設した。
+
+**理由:**
+- D591 が候補 C を見送った理由 (「controller の資源解決が worker 実行開始より必ず先行する」
+  という hook 順序前提を file:line 粒度で実証できなかった) を、本 wave で pytest-xdist 3.8.0
+  の実ソース (`dsession.py`/`remote.py`/`workermanage.py`/`scheduler/load.py`/
+  `scheduler/loadgroup.py`) を読み証明した。controller 側の
+  `pytest_xdist_node_collection_finished` (prewarm 発火点) の完了は、scheduler が
+  `runtests` を送る前に必ず先行する。worker 再起動時の stale collection entry という
+  段2 plan の副次説明の穴を段3 レンズA が指摘したが、schedule 対象の collection entry は
+  必ず prewarm 発火点の後に登録されるため核心命題は破れない。
+- fixture のまま prewarm 化しても既存 closure gate
+  (`test_real_repo_serialization.py` の `_assert_fixture_closure_complete`、fixture の
+  scope/baseid だけで機械判定) からは逃れられないため、fixture 解除への書き換えは必須である。
+  一方、それだけでは機械的完全性検査を失い規律2 に抵触する。`RECEIPT_MEMO_CONSUMER_NODES`
+  には実は AST inventory による同型の完全性検査が既にあった
+  (F451 参照) ことを先例に、oracle 側にも
+  同型の独立検査を新設した。
+- `resolve_oracle_environment` は読み取り専用 (write/subprocess 皆無) であり、現行
+  `REAL_REPO_SERIAL_NODES` の writer 群 (test_hooks.py、test_s8b_floor_campaign.py 等) は
+  候補 path (`IZANAGI_SORT_SWO_CXX`/`CXX`/`g++` 解決先、`IZANAGI_SORT_SWO_MASSTREE_ROOT`、
+  `ccbench/build/_deps/masstree-src`、ancestor-cache) を作らないことを、writer 実装を
+  実際に実行して検証する回帰テストで担保した。
+
+**却下した選択肢:**
+- 24 node の fixture 解除 + prewarm 配線だけ (段2 plan の当初案) — closure gate の機械的
+  完全性検査を失うため規律2 に抵触し不採用。独立完全性検査の新設を必須要件とした
+  (段4 裁定、scope 拡大)。
+- D591 の 66/90 件という過去実測値 (79.02s/119.34s) をそのまま新旧比較の基準に使う —
+  本 wave では計算ノードで現行 66-node 鎖を再測定し (76.46 秒、D591 の 66-node 基準値と
+  3% 以内で一致)、過去値は文脈情報としてのみ扱った。90-node 状態の同日再測定は
+  `IZANAGI_RUN_GROWTH_HELD_TESTS` (2026-08-12 裁定で `explicit-user-command-only` 指定)
+  を要する既定 skip 57 件を含むため、本 wave では実行せず、公式性能主張はユーザー明示時に
+  別途行う。
+
+## D637. verify_done/bench_done を実行 attempt ID に束縛し、consumer は committed attempt record だけを投影する (2026-08-21)
+
+**決定:**
+
+1. `verify_done` / `bench_done` の WAL record は、その record を生んだ実行 attempt の ID
+   (`build_attempt_id`) を payload に持つ。`pipeline.py` の `_run_bench()` は
+   `build_attempt_id` を keyword-only 必須引数として要求し、`verify_payload` /
+   `bench_payload` へ伝播する。
+2. `wal.py` の `_validate_attempt_topology()` は、`verify_done` / `bench_done` を active
+   attempt との一致で検証する。variant 単位ではなく attempt 単位で判定し、対象 variant の
+   record が active attempt に属さない場合 (別 attempt、build_done より前、finished 済み
+   同一 variant の別 attempt 等) は `AttemptTopologyError` で拒否する。
+3. `wal.py` に `replay_admitted_records()` を新設し、committed (受理済み) attempt の record
+   だけから `EvalState` (`committed_attempt_id` / `committed_build_start` /
+   `committed_verify` / `committed_bench`) を構成する純粋関数として提供する。`replay()` は
+   これを呼ぶ形に整理する。
+4. consumer (`digest.py` の `load_workload()` / `load_verify_abort_signals()`) は committed
+   projection だけを見て評価対象を決める。`build_attempt_id` を持たない legacy WAL は、
+   既存の variant 単位ロジックへフォールバックする。
+5. D193 の recovery-abort・noncertifying semantics 自体は変更しない。
+
+**理由:**
+
+- crash→retry や遅延 receipt (別 attempt の verify_done/bench_done が後から届く) が起きると、
+  古い attempt の成功 record が新しい attempt の評価に混入しうる。これは certified 選択・
+  proof chain 付き material report が誤った証拠に基づく事態であり、規律2 (正しさゲートを
+  緩める変異を許さない) に対する静かな穴になる。
+- D193 は attempt の終端化 (recovery-abort) だけを定め、生き残った attempt の評価をどの
+  record から構成するかは規定していなかった。本決定はその隙間を、record 生成側
+  (pipeline.py)・検証側 (wal.py)・消費側 (digest.py) の3層で塞ぐ。
+- consumer 側の post-hoc フィルタでなく WAL replay 層で committed projection を作る設計に
+  したのは、consumer が増えるたびに同じ attempt 束縛ロジックを再実装させないため。
+
+**却下した選択肢:**
+
+- variant 単位のまま最新の verify_done/bench_done を常に採用する — crash→retry で古い
+  attempt の成功が新しい attempt の評価に混入する (本 wave の negative fixtures が再現する
+  脆弱性そのものであり、規律2 を緩める)。
+- consumer 側 (digest.py) だけで attempt_id をフィルタし、WAL replay 層は素通しのままに
+  する — consumer が増えるたびに同じフィルタを重複実装することになり、1箇所の実装漏れが
+  cross-attempt splice を静かに通す。
+- 古い attempt の record を WAL から物理的に削除・書き換える — WAL の append-only 性
+  (正しさ検証の再現可能性) を壊す。
+
+## D638. perf preflight 診断イベントは journal 再利用 + allowlist 方式で resume classifier へ安全統合する (2026-08-21)
+
+**決定:** build_cells 前の perf availability preflight receipt は、専用ファイルを新設せず既存の
+journal.jsonl (`_journal_append`、append+fsync 済み) へ `perf-preflight` イベントとして追記する。
+resume classifier (`classify_journal_resume_state`) の L/M-prestart 判定は、この診断イベントだけを
+明示的に許可する allowlist 方式で拡張し、以下を必ず満たす検証を通す。
+(1) outer key を exact 検証し inner receipt を `validate_perf_preflight_receipt()` で再検証する、
+(2) event の重複・pre-measure 以外の位置・terminal/session 後の出現を拒否する、
+(3) L/M-prestart/M-running を含む全 resume state で同じ検証を通す、
+(4) sealed manifest がある状態では manifest 内 receipt との一致を確認する、
+(5) pilot の pre-manifest L は現行どおり拒否を維持する (新規許可対象にしない)。
+
+**理由:**
+- journal.jsonl は既に L 状態の resume verifier が許可する run_dir 内ファイルであり
+  (`_verify_resume_journal` の file 集合検査)、専用ファイル新設よりも安全側である。
+- 単純な classifier 緩和 (event を無条件で許容範囲外にする) は、正しさ検証ロジックを弱め
+  偽装 event の混入を見逃す。allowlist + 厳密検証の組合せで正しさ防壁 (規律2/3) を保つ。
+- reservation-preflight などの将来の同種診断 event を追加しやすい形 (allowlist 方式) にしたが、
+  今回は perf-preflight だけを許可対象とする (盛らない、規律5)。
+
+**却下した選択肢:**
+- 専用の create-only ファイルへ永続化する — resume の L verifier は run_dir 内の許可 file 集合を
+  厳密に固定しており (`names != {"launch_certificate.json", "journal.jsonl"}`)、新ファイルの追加は
+  この検査に抵触し L resume を壊す。journal 再利用より不利。
+- classify_journal_resume_state の L/M-prestart 判定から診断イベントを単純に除外 (無視) する —
+  診断イベントの exact schema・重複・位置を検証しないまま通すと、偽装 event が classifier を
+  すり抜ける経路を残す。厳密な検証を伴う allowlist のほうが安全側。
+
+## D639. trace-enabled 経路との比較テストは要求しない (2026-08-21)
+
+**決定:** perf preflight journal record が trace 処理と混同されていないことの検証を、
+production の trace=False 固定を spy で実測確認するテスト (`build_cells` への実際の `trace`
+kwarg をキャプチャする) と、journal record に `trace`/`use_perf`/`claim_scope` キーが混入しない
+ことを成功時・build 失敗時それぞれで確認するテストの組合せに限定する。「trace-enabled 経路との
+比較」は実装しない。
+
+**理由:**
+- floor campaign の production 経路には `trace=True` を渡す手段が存在しない
+  (`build_cells` のシグネチャに `trace` 引数はなく、呼び出し側 2 箇所が `trace=False` を
+  ハードコードしている)。これは規律1 (性能計測用ビルドから trace 処理をコンパイル時に完全除去)
+  の設計そのものである。
+- 存在しない経路を模す sentinel/monkeypatch でテストを書くと、実際の trace 経路の非混同を
+  検証したことにならない (敵対レビューが独立に指摘した懸念と同型)。
+- 上記 2 テストの組合せで、規律1 が要求する分離 (trace-disabled build のみを使う・journal record
+  に trace 情報が漏れない) は実質的に検証できている。
+
+**却下した選択肢:**
+- `trace=True` を模した build_cells の sentinel 差し替えで journal record を比較する —
+  実在しない経路の試験になり、規律1 の遵守を証明する根拠として無効。
+- floor campaign に `trace` 切り替えパラメータを新設してテスト可能にする — production コードに
+  不要な trace 分岐を持ち込むことになり、規律1 (ランタイム分岐にしない) に抵触しうる。scope 外。
