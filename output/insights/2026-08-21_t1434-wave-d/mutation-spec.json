@@ -1,0 +1,88 @@
+{
+  "estimated_run_seconds": 1200,
+  "hang_timeout_seconds": 1800,
+  "mutations": [
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_codex_reasoning_ab.py::test_validate_schedule_accepts_same_arm_different_requested_model_pair",
+        "orchestrator/tests/test_codex_reasoning_ab.py::test_validate_schedule_legacy_different_arm_same_model_pair_remains_valid"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "t1434d.m01",
+      "replacements": [
+        {
+          "file": "tools/codex_reasoning_ab.py",
+          "old": "            or len(arm_model_pairs) != 2",
+          "new": "            or len(arm_model_pairs) == 2"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_codex_reasoning_ab.py::test_validate_schedule_rejects_live_non_null_cache_or_price[cache_condition]",
+        "orchestrator/tests/test_codex_reasoning_ab.py::test_validate_schedule_rejects_live_non_null_cache_or_price[price_version]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "t1434d.m02",
+      "replacements": [
+        {
+          "file": "tools/codex_reasoning_ab.py",
+          "old": "        value = slot.get(field)\n        if value is not None:\n            raise ValidationError(\n                f\"schedule slot {field} non-null values are not supported without attestation\",\n                RC_ROUTING,\n            )",
+          "new": "        value = slot.get(field)\n        if False:\n            raise ValidationError(\n                f\"schedule slot {field} non-null values are not supported without attestation\",\n                RC_ROUTING,\n            )"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_codex_reasoning_ab.py::test_validate_verdict_accepts_manifest_finding_union_while_blind_and_rejects_unknown"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "t1434d.m03",
+      "replacements": [
+        {
+          "file": "tools/codex_reasoning_ab.py",
+          "old": "    known_finding_ids = known_finding_ids_for_manifest(task_manifest)",
+          "new": "    known_finding_ids = KNOWN_FINDINGS"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_codex_reasoning_ab.py::test_make_packets_rejects_empty_packet_only_manifest"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "t1434d.m04",
+      "replacements": [
+        {
+          "file": "tools/codex_reasoning_ab.py",
+          "old": "    if schedule_descriptor is None and not grouped:",
+          "new": "    if False:"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_codex_reasoning_ab.py::test_make_packets_accepts_legacy_schedule_descriptor_without_schema_version"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "t1434d.m05",
+      "replacements": [
+        {
+          "file": "tools/codex_reasoning_ab.py",
+          "old": "        schedule = _legacy_schedule_view(schedule)",
+          "new": "        schedule = dict(schedule)"
+        }
+      ]
+    }
+  ]
+}
