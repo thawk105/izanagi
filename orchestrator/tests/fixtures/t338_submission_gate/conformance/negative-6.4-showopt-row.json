@@ -1,0 +1,1 @@
+{"schema_version":"t338-conformance-vector/v2","id":"negative-6.4-showopt-row","kind":"negative","classification":"relabel","covers":["6.4","7.1(13)"],"unit3_reference":"test_argv_raw_and_run_log_are_exact","entrypoint":"receipt","mutation":{"op":"replace_file","path":"build/run-w1.log","old":": WAL 0","new":": WAL 1"},"expected_reason":"run_log"}

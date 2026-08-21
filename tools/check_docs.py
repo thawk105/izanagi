@@ -594,7 +594,7 @@ DEV_WAVE_DW_C01_SECTION_LITERAL = """## DW-C01 — 実測で是正した作法
 - 隔離worktreeのdetachはrunnerとlauncherの`.sh`へ外出しする。定型はguardが拒む。
 - 複数起点の判別は全隣接区間へ異なる正値を入れる。
 - 変異harnessはbaseline緑必須。既存赤は`--deselect`で外し根拠を台帳へ書く。
-- submoduleは`git -c protocol.file.allow=always submodule update --init --recursive`。素は拒否、再帰なしはpreflight rc=2。
+- submoduleは`python3 tools/dev_wave_submodule_init.py --worktree <ABSOLUTE_WORKTREE>`で再帰初期化する。
 - 呼出し規約を変える取込は、両親の変更行が非競合でも全呼出しを数える。
 - 段6のfixも受理・拒否の含意の向きを2文へ分け、通る正例を添える。
 - mergeは親。子は競合解決だけ、`add`とcommitも親。

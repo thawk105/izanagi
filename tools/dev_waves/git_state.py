@@ -77,6 +77,7 @@ GIT_COMMANDS: Mapping[str, tuple[str, ...]] = {
     "status": ("status", "--porcelain=v2", "-z", "--untracked-files=all", "--ignore-submodules=none"),
     "worktree-list": ("worktree", "list", "--porcelain"),
     "submodule-config": ("config", "--file", ".gitmodules", "--null", "--get-regexp", r"^submodule\..*\.url$"),
+    "submodule-resolved-url": ("config", "--get"),
     "submodule-status": ("submodule", "status", "--recursive"),
     "ls-trust-root": ("ls-tree", "-r", "-z"),
     "worktree-add": ("worktree", "add", "--no-checkout", "-b"),
@@ -270,6 +271,73 @@ def resolve_main_worktree(
             "label": "main-worktree", "kind": "not-unique",
         })
     return matches[0]
+
+
+def resolve_registered_worktree(
+    repo_root: os.PathLike[str] | str,
+    candidate: os.PathLike[str] | str,
+) -> WorktreeRecord:
+    """Resolve an exact, live worktree registration belonging to repo_root."""
+    candidate_path = os.fspath(candidate)
+    if not isinstance(candidate_path, str) or not os.path.isabs(candidate_path):
+        raise ValueError("candidate worktree must be an absolute path")
+    candidate_realpath = os.path.realpath(candidate_path)
+    matches = [
+        record for record in _worktrees(repo_root)
+        if os.path.realpath(record.path) == candidate_realpath
+    ]
+    if len(matches) != 1:
+        raise ValueError("candidate worktree is not registered")
+    record = matches[0]
+
+    try:
+        git_entry = os.path.join(candidate_realpath, ".git")
+        if os.path.isdir(git_entry):
+            git_dir = os.path.realpath(git_entry)
+        elif os.path.isfile(git_entry):
+            with open(git_entry, "r", encoding="utf-8") as handle:
+                gitdir_line = handle.readline().strip()
+            if not gitdir_line.startswith("gitdir:"):
+                raise ValueError("invalid worktree gitdir entry")
+            gitdir_value = gitdir_line[len("gitdir:"):].strip()
+            if not gitdir_value:
+                raise ValueError("invalid worktree gitdir entry")
+            if not os.path.isabs(gitdir_value):
+                gitdir_value = os.path.join(candidate_realpath, gitdir_value)
+            git_dir = os.path.realpath(gitdir_value)
+        else:
+            raise ValueError("candidate worktree has no .git entry")
+
+        commondir_path = os.path.join(git_dir, "commondir")
+        if os.path.isfile(commondir_path):
+            with open(commondir_path, "r", encoding="utf-8") as handle:
+                commondir_value = handle.read().strip()
+            if not commondir_value:
+                raise ValueError("invalid worktree commondir entry")
+            if not os.path.isabs(commondir_value):
+                commondir_value = os.path.join(git_dir, commondir_value)
+            candidate_common_dir = os.path.realpath(commondir_value)
+        else:
+            candidate_common_dir = git_dir
+    except (OSError, UnicodeError, ValueError) as exc:
+        raise ValueError("candidate worktree has unusable Git metadata") from exc
+
+    repo_common_dir = resolve_repo_identity(repo_root).common_dir
+    if candidate_common_dir != repo_common_dir:
+        raise ValueError("registered worktree does not belong to this repository")
+    worktrees_dir = os.path.realpath(os.path.join(candidate_common_dir, "worktrees"))
+    git_dir_realpath = os.path.realpath(git_dir)
+    try:
+        git_dir_commonpath = os.path.commonpath((worktrees_dir, git_dir_realpath))
+    except ValueError:
+        git_dir_commonpath = None
+    if (
+        not os.path.isdir(git_dir_realpath)
+        or git_dir_realpath == worktrees_dir
+        or git_dir_commonpath != worktrees_dir
+    ):
+        raise ValueError("registered worktree does not belong to this repository")
+    return record
 
 
 def _parse_status(raw: bytes) -> tuple[bool, bool, tuple[str, ...], tuple[str, ...]]:
@@ -485,16 +553,45 @@ def update_submodules_no_fetch(
     ).stdout
     records = [field for field in config.split(b"\0") if field]
     for record in records:
-        _key, separator, url_raw = record.partition(b"\n")
+        key_raw, separator, url_raw = record.partition(b"\n")
         if not separator:
             raise DevWavesError(ReasonCode.RUNTIME_IO_FAILURE, {
                 "label": "submodule", "kind": "config-record",
             })
         url = url_raw.decode("utf-8", errors="strict")
-        if not (os.path.isabs(url) or url.startswith("file://")):
+        try:
+            key = key_raw.decode("utf-8", errors="strict")
+        except UnicodeDecodeError:
             raise DevWavesError(ReasonCode.RUNTIME_IO_FAILURE, {
-                "label": "submodule", "kind": "nonlocal-url",
+                "label": "submodule", "kind": "config-record",
+            }) from None
+        prefix = "submodule."
+        suffix = ".url"
+        if not key.startswith(prefix) or not key.endswith(suffix):
+            raise DevWavesError(ReasonCode.RUNTIME_IO_FAILURE, {
+                "label": "submodule", "kind": "config-record",
             })
+        name = key[len(prefix):-len(suffix)]
+        if not name:
+            raise DevWavesError(ReasonCode.RUNTIME_IO_FAILURE, {
+                "label": "submodule", "kind": "config-record",
+            })
+        resolved = _run(
+            root,
+            "submodule-resolved-url",
+            extra=(f"submodule.{name}.url",),
+            timeout_s=_left(deadline_ns),
+            allowed_returncodes=(0, 1),
+        )
+        if resolved.returncode == 0:
+            effective_url = _text(resolved).strip()
+        else:
+            effective_url = url
+        if os.path.isabs(effective_url) or effective_url.startswith("file://"):
+            continue
+        raise DevWavesError(ReasonCode.RUNTIME_IO_FAILURE, {
+            "label": "submodule", "kind": "nonlocal-url",
+        })
     try:
         _run(root, "submodule-update", timeout_s=_left(deadline_ns))
     except DevWavesError:
@@ -1054,7 +1151,7 @@ __all__ = [
     "FOLD_COMMIT_MESSAGE", "GIT_COMMANDS", "GIT_HARDENING_CONFIG", "GitTraceReport", "RepoIdentity",
     "RepoSnapshot", "TrustRoot", "WaveWorktree", "WorktreeRecord", "branch_tip",
     "create_exact_worktree", "create_isolated_checkout", "read_child_git_trace",
-    "resolve_main_worktree", "resolve_repo_identity", "snapshot_repo",
+    "resolve_main_worktree", "resolve_registered_worktree", "resolve_repo_identity", "snapshot_repo",
     "supervised_spool_wave_identity", "supervised_spool_wave_slug", "trust_root",
     "update_submodules_no_fetch", "verify_declared_fold_commit", "verify_ff_chain",
 ]
