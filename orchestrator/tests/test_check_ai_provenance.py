@@ -2009,6 +2009,19 @@ def test_known_violation_ledger_matches_literal_entries():
         ("1782d2bc4c7775869b0e6c4b40d08d78b6cbca64", "missing-codex-author", t567_merge3_ruling, t567_merge3_note, ""),
         ("4d7e169bddb3ecc068ed85b51dd0b2c47b4d6900", "missing-codex-author", t567_merge4_ruling, t567_merge4_note, ""),
         ("a8be40180ee7e33dbfab8eeb1a865ed72392e895", "missing-codex-author", t567_merge5_ruling, t567_merge5_note, ""),
+        (
+            "09ce607b779272fda5629a350676471a16bea9bb",
+            "missing-ai-agent",
+            "2026-08-21 dev-wave-t1476-verify-state-committed 受入前裁定 "
+            "(ユーザー選択: known-violation 登録)",
+            "ユーザー (thawk105) が canonical main worktree で external/ccbench の"
+            "MOCC correctness trace v2 hook 追加作業を行い、submodule pin"
+            "（511c9538→ef9328a3）を dev-wave プロセス外で直接進めた human-only commit。"
+            "AI 関与は無く `AI-Agent: none` trailer が付いていない。T-1476 wave の受入投入時に"
+            "preclaim provenance 監査が新規違反として検出し、親セッションがユーザーへ説明し"
+            "known-violation 登録の承認を得た。",
+            "",
+        ),
     )
     assert len(provenance.KNOWN_PROVENANCE_VIOLATIONS) == len(expected)
     assert observed == expected
