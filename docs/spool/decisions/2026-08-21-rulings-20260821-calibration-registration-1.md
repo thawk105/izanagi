@@ -6,12 +6,13 @@ wave: rulings-20260821-calibration-registration
 seq: 1
 ---
 
-## {{D:ai-calibration-registration}}. rr80/rr20 calibration の取得・検証・登録は AI/ツールが実行できる
+## {{D:ai-calibration-registration}}. rr80/rr20 calibration は dev-wave 経由で AI/ツールが取得・検証・登録できる
 
-**決定:** rr80/rr20 calibration の登録主体を人間に限定しない。AI/ツールは、計算ノードでの
-certification job の投入、計測、acquisition receipt の生成、schema・自己比較・品質判定・hash binding
-の確認、および合格時の create-only publish を実行してよい。人間が calibration JSON を編集したり、
-登録コマンドを手作業で打ったりすることは登録の必須条件にしない。
+**決定:** rr80/rr20 calibration の登録主体を人間に限定しない。AI/ツールは、dev-wave の責務として
+計算ノードでの certification job の投入、計測、acquisition receipt の生成、schema・自己比較・品質判定・
+hash binding の確認、および合格時の create-only publish を実行してよい。rulings wave は裁定と tooling の
+準備・main land だけを担い、rr80/rr20 の実測、collector、登録 job を直接 qsub しない。人間が calibration
+JSON を編集したり、登録コマンドを手作業で打ったりすることは登録の必須条件にしない。
 
 **理由:**
 - 現行の calibrator は、失敗時に publish せず、合格時だけ登録 artifact を作る fail-closed の機械経路を
@@ -24,6 +25,8 @@ certification job の投入、計測、acquisition receipt の生成、schema・
 - binary hash、acquisition receipt、schema、動的 attestation、自己比較、品質判定、publish後の再読、
   create-only semantics は既存のまま維持する。
 - この決定は正式 H1/H2 launch、g1→g2 activation、D145 decision 5 の再訪、その他の実験承認を含まない。
+- この決定は rulings session による実測の直接起動を許可しない。実測・collector・登録の実行主体は
+  dev-wave の job/受入経路に束縛する。
 
 **却下した選択肢:**
 - AI が JSON を直接作成・編集して登録する方式 — 実測・自己比較・acquisition receipt の証拠を迂回するため不採用。
@@ -56,4 +59,3 @@ hash、CMake 前の pin 検査、compute-node offline の no-refetch/build 検�
 
 **理由:** calibration artifact の生成と、正式実験を許可する authority / activation は別の decision surface
 である。前者を AI が実行できるようにしても、後者の未充足条件を自動解除することにはならない。
-

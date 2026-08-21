@@ -14,6 +14,9 @@
    — **この 3 段目は現在 blocked かつ未実証である。** collector を login で直接実行する従来手順は
    §0 の admission により拒否され、計算ノードで実行する経路の実 artifact はまだ無い (§3)。
 
+rr80/rr20 の certification・計測・collector・登録は、**dev-wave が所有する実行**である。
+`rulings` は裁定と tooling の準備・main land を担うだけで、この手順を直接 qsub しない。
+
 ## 0. 実行体と admission (機械検査対象)
 
 本 README が言及する `tools/pegasus/` の実行体と、その**手順上の実行 site**、および
@@ -113,6 +116,8 @@ smoke 実測では gcc/cmake module は存在しないため、certification は
 (smoke 時の既定は `intelpython/2022.3.1`) を provenance として receipt に保存する。
 
 投入前に superproject が clean であり、W3 を含む commit が HEAD になっている必要がある。
+
+この login-side submitter は dev-wave の実行段から呼び出す。rulings session の手動実行を意味しない。
 
 ```bash
 # admission-site: login-direct

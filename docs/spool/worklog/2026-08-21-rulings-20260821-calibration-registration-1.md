@@ -4,7 +4,7 @@ ledger: worklog
 authored: 2026-08-21
 wave: rulings-20260821-calibration-registration
 seq: 1
-title: ユーザー裁定を反映し、rr80/rr20 calibration を AI/ツール側で登録できる経路を実装する
+title: ユーザー裁定を記録し、rr80/rr20 calibration の dev-wave 実行経路を準備する
 ---
 
 ## 本文
@@ -12,11 +12,14 @@ title: ユーザー裁定を反映し、rr80/rr20 calibration を AI/ツール�
 - `/rulings all` に対するユーザー裁定を反映した。推奨方針は受け入れるが、rr80/rr20 calibration の
   取得・検証・登録を人間の手作業に残すことは受け入れない。AI/ツールが計算ノードで実測し、既存の
   schema、acquisition receipt、自己比較、hash binding、create-only publish を通過した場合に登録する
-  経路を正規化する。
+  dev-wave 経路を正規化する。rulings session 自身は実測を起動しない。
 - 現在の `output/env/pegasus/calibration/registered/` には rr50 の2件だけがあり、rr80/rr20 は未登録。
   `submit_certify.sh` と `certify_calibration.sh` が workload を rr50 に固定していたため、投入時の
   rr80/rr20 選択を20/50/80の whitelist として実装し、submission receipt・compute job の再照合・
-  job-result へ同じ workload を束縛する変更を行った。
+  job-result へ同じ workload を束縛する tooling の変更を行った。実際の起票・実測・登録は別 dev-wave
+  で行う。
+- この session が誤って直接投入した rr80=`930578.nqsv` / rr20=`930579.nqsv` は、実行前の Queued
+  状態でキャンセルした。これは calibration の成果・受入証跡ではなく、将来の dev-wave で再利用しない。
 - この経路の追加は、正式 H1/H2 launch、g1→g2 activation、D145 の再訪、T-424/T-272 の要求閉包を
   代行しない。較正登録が成立しても、それらの別 gate が未成立なら正式実験は起票しない。
 - T-1461 の当初の二ファイル限定案は dead wiring だったため、実効的な依存解決・hash・build前 gate
@@ -46,10 +49,9 @@ title: ユーザー裁定を反映し、rr80/rr20 calibration を AI/ツール�
 
 ### 新規
 
-- {{T:ai-calibration-registration}} **P1・進行中**: rr80/rr20 の計算ノード certification を投入し、
-  成功 attempt の final receipt と registered artifact を確認する。rejected attempt は修正再利用せず、
-  新しい allocation として扱う。
+- {{T:ai-calibration-registration}} **P1・dev-wave 起票待ち**: rr80/rr20 の計算ノード certification、
+  collector、成功 attempt の final receipt と registered artifact の確認を別 dev-wave で行う。rejected
+  attempt は修正再利用せず、新しい allocation として扱う。rulings session から直接投入しない。
 - {{T:rulings-improvement-candidates}} **P2・候補採用**: reasoning-pin の authority/admission 分割、
   detached mutation の実 detach、mutation cascade probe、Wave C 総括位置、clean-tree gate 順序、
   ListAgents 補助証拠の6候補を次の self-improvement wave で評価する。
-
