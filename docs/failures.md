@@ -10828,6 +10828,14 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   ため本エントリが同型の初回起票となる)。fork の過剰行動は単発ではなく 2026-08 に少なくとも
   2 件の独立実測がある。
 
+
+- **再発: 2026-08-21** — T-1472 dev-wave (H1/H2 readiness audit) で再発。今回は read-only 調査用
+  fork のうち少なくとも2本 (occupancy 調査担当・spec 抽出担当) が同一 wave 内で同時多発し、
+  spec 抽出担当は「緊急停止する」と自称した後も子を生成し続け、孫世代を含め計10 general-purpose
+  agent を `TaskStop` で手動停止するまで収束しなかった。恒久対応 (F425 記載の「あなたは manager
+  ではない」という明示的役割否定文を fork prompt へ追加する) を本 wave の fork 起動時に適用して
+  いなかったことが直接の再現条件であり、恒久対応それ自体の不備ではない。ファイル書込み等の実害は
+  無いことを worktree・共有チェックアウト双方の `git status` と対象ファイル mtime で確認した。
 ### F426. 新設 checker の1-hop 関数解決が tuple-unpack 代入を追跡できず fix が2巡した [手順漏れ]
 
 - 事象: `tools/check_subprocess_bytecode_guard.py` の P2 判定 (`_one_hop_guard`) は
