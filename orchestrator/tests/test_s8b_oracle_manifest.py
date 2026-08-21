@@ -59,7 +59,7 @@ PIN_GATE_SCHEDULE_SHA256 = (
     "105bf4cb713f309fec174035814b7ab70ac892a70a51d62f028c31f6310c68d2"
 )
 PIN_GATE_SPEC_SHA256 = (
-    "05adc052288f64bb67da3295591212c3aea8e56dc3bca68c04802da68e9b1989"
+    "f2948bff8508fa13e716558f0da5f4050b502127565c7b3ba7ac32c249ec1da2"
 )
 # production serializer から独立した reviewed-spec golden。UTF-8 非 ASCII、
 # sort 済み key 順、compact separator、末尾 LF 無しを raw bytes として固定する。
@@ -88,7 +88,7 @@ PIN_GATE_SPEC_RAW = (
     b'"outcome_stage_contract":{"path":"orchestrator/campaign/s8b_outcome_stage_contract.py",'
     b'"sha256":"f8a0bb2237dcaf3c643a78c04ca6b8cea2a8f83e3d306d85c781716b165c73af"},'
     b'"report":{"path":"orchestrator/campaign/s8b_oracle_report.py",'
-    b'"sha256":"cd599cc7ac7f518bb64585127588e716311727c6e1063e7aac1d51c4373a39bd"}},'
+    b'"sha256":"e2a096f206d074c98b17a18c712a68c32e9e545780731a5bf9cd432ff1e218d4"}},'
     b'"run_contract":{"bench_max_rounds":1,"ccbench_pin":"pin","clocks":1800,'
     b'"contract_sha256":"0000000000000000000000000000000000000000000000000000000000000000",'
     b'"env_tag":"test-env","extime":5,"reps":5,"screening":"off","verify":"legacy+s2"},'
