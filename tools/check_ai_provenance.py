@@ -412,6 +412,21 @@ _T139_MALFORMED_VALUE = (
     "product=claude; model=claude-opus-5[1m]; reasoning=high; "
     "role=orchestrator"
 )
+_T1458_PRE_ACCEPTANCE_MERGE_RULING = (
+    "本セッション内でユーザーへ状況を説明し known-violation 登録の続行を承認された (2026-08-21)"
+)
+_T1458_PRE_ACCEPTANCE_MERGE_NOTE = (
+    "受入投入前に local main (155 commit) を取り込んだ merge "
+    "`664dfc620a8dff78b1f6dc9c846683cf2d069337`。この merge は競合なく "
+    "（Automatic merge went well）、`git diff-tree --cc 664dfc620a8dff78b1f6dc9c846683cf2d069337` "
+    "はコミットヘッダ行のみで完全に空（新規著作なし）だったことを確認済み。実装面で両側が触ったのは "
+    "`orchestrator/tests/test_p3_autonomous_workload_trial.py` の1 fileのみで、wave 側は "
+    "6362-6371行目の monkeypatch 2行削除を Codex `role=author` が commit "
+    "`6081aa9414a26c26fea924e03d68c8fa7f291476` で既に書き、main 側は T-1393 の `_finish_trial()` "
+    "変更で編集箇所は非重複だった。merge commit は `AI-Agent: product=claude; model=claude-sonnet-5; "
+    "reasoning=not-exposed; role=integrator` のみで Codex `role=author` 行がないため、checker が "
+    "missing-codex-author を検出した。親作成 merge のため Codex 著者とは記さない。"
+)
 KNOWN_PROVENANCE_VIOLATIONS = (
     KnownViolationSpec(
         "88f0f9f081f7c76c8ab5fc4a94e2640f70af129b",
@@ -848,6 +863,12 @@ KNOWN_PROVENANCE_VIOLATIONS = (
         MISSING_CODEX_AUTHOR,
         _T567_MERGE5_RULING,
         note=_T567_MERGE5_NOTE,
+    ),
+    KnownViolationSpec(
+        "664dfc620a8dff78b1f6dc9c846683cf2d069337",
+        MISSING_CODEX_AUTHOR,
+        _T1458_PRE_ACCEPTANCE_MERGE_RULING,
+        note=_T1458_PRE_ACCEPTANCE_MERGE_NOTE,
     ),
 )
 
