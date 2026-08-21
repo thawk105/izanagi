@@ -44,8 +44,8 @@ from orchestrator.campaign.coder_effect_gate import (              # noqa: E402
 )
 from orchestrator.campaign.layout import CampaignLayout            # noqa: E402
 from orchestrator.campaign.model import (                          # noqa: E402
-    STAGE_ABORT, STAGE_BENCH_DONE, STAGE_BUILD_START, STAGE_COMMIT,
-    STAGE_VERIFY_DONE)
+    EvalState, STAGE_ABORT, STAGE_BENCH_DONE, STAGE_BUILD_START,
+    STAGE_COMMIT, STAGE_VERIFY_DONE)
 from orchestrator.campaign.sort_swo_oracle import (                # noqa: E402
     CORPORA as ORACLE_CORPORA,
     CORPUS_ID,
@@ -560,29 +560,53 @@ def _validated_records(view: CampaignView):
     return view.records
 
 
+def _committed_projection(view: CampaignView) -> Dict[str, EvalState]:
+    """Project the admitted record snapshot without reading or mutating its WAL."""
+    return wal.replay_admitted_records(_validated_records(view))
+
+
 def load_workload(view: CampaignView) -> List[GenomeLI]:
     """campaign WAL から **committed** genome の leading indicators を読む。
 
     bench_done だけで拾うと、bench は走ったが COMMIT 前にクラッシュした half-evaluated
     な点 (A: atomicity の漏れ窓) を採用しうる。STAGE_COMMIT がある variant だけに絞る
     (採用済み = 全段通過した genome のみを critic に渡す)。"""
-    genome_of: Dict[str, str] = {}
-    li_of: Dict[str, Dict] = {}
-    committed: set = set()
-    # [T-082] prefix 容認 (crash tail は黙って捨てる) — 公式判定に使わない。
-    for r in _validated_records(view):
-        if r.stage == STAGE_BUILD_START:
-            genome_of[r.variant] = r.payload.get("genome", genome_of.get(r.variant, ""))
-        elif r.stage == STAGE_BENCH_DONE:
-            li = r.payload.get("leading_indicators")
+    records = _validated_records(view)
+    committed_projection = _committed_projection(view)
+    # Pre-attempt-binding WALs have no committed attempt ID.  Keep the former
+    # variant-wide scan available for those historical records only; current
+    # schema records must remain entirely on the committed-attempt projection.
+    legacy_genome_of: Dict[str, str] = {}
+    legacy_li_of: Dict[str, Dict] = {}
+    legacy_committed = set()
+    for record in records:
+        if record.stage == STAGE_BUILD_START:
+            legacy_genome_of[record.variant] = record.payload.get(
+                "genome", legacy_genome_of.get(record.variant, "")
+            )
+        elif record.stage == STAGE_BENCH_DONE:
+            li = record.payload.get("leading_indicators")
             if li is not None:
-                li_of[r.variant] = li
-        elif r.stage == STAGE_COMMIT:
-            committed.add(r.variant)
+                legacy_li_of[record.variant] = li
+        elif record.stage == STAGE_COMMIT:
+            legacy_committed.add(record.variant)
+
     out = []
-    for v, li in li_of.items():
-        g = genome_of.get(v, "")
-        if not g or v not in committed:      # 採用済み (commit あり) のみ
+    for state in committed_projection.values():
+        if state.committed_attempt_id is not None:
+            if (state.committed_build_start is None
+                    or state.committed_bench is None):
+                continue
+            g = state.committed_build_start.payload.get("genome", "")
+            li = state.committed_bench.payload.get("leading_indicators")
+        elif state.committed and state.variant in legacy_committed:
+            # Legacy commit records are not attempt-bound.  Reproduce the
+            # pre-Unit1 projection for this committed variant only.
+            g = legacy_genome_of.get(state.variant, "")
+            li = legacy_li_of.get(state.variant)
+        else:
+            continue
+        if not g or li is None:              # 採用済み (commit あり) のみ
             continue
         out.append(GenomeLI(genome=g, flags=_parse_flags(g),
                             li={k: li.get(k) for k in INDICATORS}))
@@ -843,22 +867,45 @@ def load_verify_abort_signals(view: CampaignView) -> List[VerifyAbortSignal]:
     passes 順序で評価されるため legacy は常に最初に書かれ、variant と stock の両方が
     同一スケールの数値になる。S2 パスの commits/aborts はここでは読まない (S2 の
     reject は load_rejections/load_liveness_rejections が workload タグ付きで拾う)。"""
+    records = _validated_records(view)
+    committed_projection = _committed_projection(view)
     genome_of: Dict[str, str] = {}
     srctok_of: Dict[str, str] = {}
     seen: Dict[str, Dict] = {}
     # [T-082] prefix 容認 (crash tail は黙って捨てる) — 公式判定に使わない。
-    for r in _validated_records(view):
+    for r in records:
         if r.stage == STAGE_BUILD_START:
             genome_of[r.variant] = r.payload.get("genome", genome_of.get(r.variant, ""))
             srctok_of[r.variant] = r.payload.get("src_token", srctok_of.get(r.variant, ""))
         elif r.stage == STAGE_VERIFY_DONE:
             if r.variant not in seen:      # 先勝ち: legacy パスは常に最初 (上記 docstring)
                 seen[r.variant] = r.payload
-    return [VerifyAbortSignal(
-                variant=v, genome=genome_of.get(v, ""),
-                commits=p.get("commits"), aborts=p.get("aborts"),
-                is_stock=(srctok_of.get(v, "") == STOCK_SRC_TOKEN))
-            for v, p in seen.items()]
+    out = []
+    for v, legacy_payload in seen.items():
+        state = committed_projection.get(v)
+        if state is not None and state.committed_attempt_id is not None:
+            if not state.committed_verify:
+                # A commit is valid without verify_done at the WAL topology
+                # layer.  Do not fall back to an older attempt's signal.
+                continue
+            payload = state.committed_verify[0].payload
+            build_start = state.committed_build_start
+            genome = (build_start.payload.get("genome", "")
+                      if build_start is not None else genome_of.get(v, ""))
+            srctok = (build_start.payload.get("src_token", "")
+                      if build_start is not None else srctok_of.get(v, ""))
+        else:
+            # RED/non-committed variants retain the historical variant-wide
+            # first-verify projection used by Phase 3 analysis.
+            payload = legacy_payload
+            genome = genome_of.get(v, "")
+            srctok = srctok_of.get(v, "")
+        out.append(VerifyAbortSignal(
+            variant=v, genome=genome,
+            commits=payload.get("commits"), aborts=payload.get("aborts"),
+            is_stock=(srctok == STOCK_SRC_TOKEN),
+        ))
+    return out
 
 
 def _mean(xs: List[float]) -> Optional[float]:

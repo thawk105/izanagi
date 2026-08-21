@@ -104,6 +104,18 @@
   誤りではなかったが、具体的な数値の出典は未確認のまま記録した。実害は段4裁定で
   「実装しない」に転じたため無し。恒久対応は memory から変更なし — 依頼文自身が引用する数値も、
   他の docs 引用と同様に一次資料の文字列と照合してから根拠にする。
+
+- **再発: 2026-08-21** — [T-1461] の command 起票文が、D399/[T-1431] insight が指した
+  意図された consumer (`sort_swo_oracle.resolve_oracle_environment()`、
+  `IZANAGI_SORT_SWO_MASSTREE_ROOT` を読む関数) を、floor campaign の実際の実行経路が
+  消費する機構だと転写した。現物確認 (file:line) では、floor 実行
+  (`orchestrator/campaign/s8b_floor_campaign.py`) はこの関数を import も呼出しもせず、
+  別の独立した masstree 依存解決経路 (`build_cells()` の `fetchcontent_base_dir`) を
+  通っていた。関数自体の実在確認だけでは不十分で、意図した呼出し元から対象関数への
+  実際の到達性 (呼出しグラフ) まで確認する必要があるという、F1 既存記述の適用範囲が
+  さらに広がったことを示す。段1 brief 時点で検出し実装前に是正 (実害なし)。段2 codex
+  読取専用プラン起草・段3 敵対相談 3 レンズが独立に追認した。詳細は
+  `output/insights/2026-08-21_t1461-masstree-staging-scope-finding/README.md` 参照。
 ### F2. C1 drift — campaign ディレクトリ発見ロジックの分裂 [ドリフト]
 - 事象: report/critic 3 本が campaign ディレクトリの発見方法を各自実装し、歴史的ディレクトリ
   構成の変化で挙動が割れた (worklog Phase 2、修理 065593a)。同時期に repro_command の
@@ -11333,3 +11345,68 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   結果的に速い。
 - 再発検知: `tools/mutation_worktree.py`のhelp/docstringに、この3点 (依存引数・resume file
   要求・rm -rf非対応) を追記することを段8自己改善候補として検討する (現時点では追記せず候補記録のみ)。
+
+### F449. codexが挙げるfile:line引用が実データ行でなく見出し/表ヘッダ行を指すことがある [手順漏れ]
+
+- 事象: [T-1471] layer3 paper evidence dossier wave の段2 (codex plan, reasoning=max,
+  read-only) が起草した file:line 索引について、段3 敵対相談レンズBが最低12件を無作為抽出して
+  実ファイルと突合したところ、半数以上が「引用行は節見出しや表ヘッダであり、実際の数値・判定は
+  数行〜十数行下にある」というズレだった (例: `s_prime_final_report.md:18` は Holm表の見出しで
+  実際の値は20-23行、`p2-2-summary.md:7` は表ヘッダでread-heavyの値は9行)。段3レンズAも独立に
+  同型の指摘 (`s_prime_final_report.md:66` が確定手続きの見出しでS' verdict本体は57-62行) を
+  行った。親が全件を一次資料で裏取りし、正しい行番号に差し替えて report へ反映した。
+- 根本原因: codex は「この情報はこの節にある」という意味で最も近い見出し行を機械的に指す傾向が
+  あり、プロンプトが「file:line 粒度」を要求しても、見出し行と内容行の区別を明示しなければ
+  自然にヘッダ行へ寄る。
+- 恒久対応: 段3 敵対相談 (または最終的に親) が、codex の file:line 索引から無作為抽出した
+  サンプルを実際に開いて突合する検査を必須の chunk とする。本 wave では段3レンズBのプロンプトへ
+  「最低12件の抜取り検査」を明示的に指示し、これによって発見した。今後の codex plan/consult
+  プロンプトに「見出し行でなくデータそのものの行を指せ」を明示追加する候補を段8へ送る
+  (dev-wave docs 予算逼迫のため本 wave では追記せず候補記録のみ)。
+- 再発検知: codex plan/consult 出力の file:line 索引のうち無作為抽出した N 件 (目安 12件以上)
+  を実ファイルと突合し、不一致が1件でもあれば索引全体を無条件には信頼せず、最終成果物へ転記する
+  前に該当箇所を親が個別に裏取りする。
+
+### F450. spool_fold.py --dry-runが表示する予測T/D番号を、別の依頼が「既存の予約ID」と誤読した
+
+- 事象: 「[T-1471]」という識別子を伴う作業依頼が来たが、`docs/worklog.md`・`docs/decisions.md`・
+  `docs/handoff/` のいずれにも landed な予約 ID としては存在しなかった (grep 0件)。実際には、
+  並行稼働中の別 wave (`dev-wave-t1473-d58-ablation-preflight`) の worklog spool fragment
+  placeholder に対して当時実行された `spool_fold.py --dry-run` が、その時点の状態で
+  「実採番は `[T-1471]`」と予測表示していただけであり、当該 wave 自身の handoff が
+  「並行 land でずれうるため確定値として扱わない」と明記する非確定値だった。依頼文はこの
+  dry-run 予測値を、まるで既存の予約済み ID であるかのように扱っていた。
+- 根本原因: `spool_fold.py --dry-run` は具体的な番号 (`[T-1471]` 等) を画面に表示するため、
+  それを見た人間や別セッションが「この番号は既にこの項目に確定的に割り当てられた」と誤読しやすい。
+  実際には T/D/F の実採番は land 時の fold が lock 内で行うまで確定しない
+  ([[fold-allocation-numbers-are-provisional]])。
+- 恒久対応: dry-run が表示する予測番号を、以降の依頼文・branch名・識別子として引用する前に、
+  当該番号が対象 wave 自身の handoff/worklog で「未確定」と明記された dry-run 由来のものでないかを
+  確認する。`docs/spool/worklog/README.md` の bracket ID 規則 (既存 active item のときだけ
+  角括弧 ID を書ける) に従えば、この種の誤認は「角括弧なしで記録する」ことで自然に回避できる
+  (本 wave で採用した対応)。
+- 再発検知: 依頼文や branch 名に現れる `T-NNNN`/`D-NNNN` が `docs/worklog.md` の次の一手・carry
+  または `docs/decisions.md` に実在する landed ID か、それとも別 wave の dry-run 予測値かを、
+  着手前に `grep -rn "T-NNNN" docs/worklog.md docs/decisions.md docs/handoff/` と対象候補 wave の
+  handoff 本文の両方で確認する。
+
+### F451. 既存機構に完全性検査が無いという未確認の前提を brief/plan に書きかけた [手順漏れ]
+
+- 事象: T-1438 の段1 brief・段2 plan は、`RECEIPT_MEMO_CONSUMER_NODES`
+  (T-080 receipt 消費者 registry) が `REAL_REPO_SERIAL_NODES` 非加入で同種保護を達成する
+  「既存稼働実績」とだけ書き、その完全性 (登録漏れの機械検出) を保証する検査が存在するかを
+  未確認のまま設計を進めかけた。この前提のまま oracle 側の設計 (段2 plan 当初案) を確定すると、
+  fixture 解除によって機械的完全性検査を失う欠陥を持ったまま実装が進みかねなかった。
+- 根本原因: `test_real_repo_serialization.py` の `_assert_fixture_closure_complete`
+  (fixture の scope/baseid で機械判定する closure gate) だけを探索し、
+  `RECEIPT_MEMO_CONSUMER_NODES` 専用の AST inventory 検査 (同ファイル 1254-1340 行付近、
+  fixture 経由ではなく関数呼び出し経由consumerの登録漏れを別の仕組みで検出する) を見落とした。
+  fixture 経由の保護機構だけを探し、非 fixture 経由 (直接関数呼び出し) の保護機構の有無を
+  別途確認しなかった。
+- 恒久対応: `docs/dev-wave/workers.md` の `DW-S03` (段3 敵対相談は無条件・親 brief 自身の
+  実測値と一般化を攻撃対象に含める) が構造的な fails-closed 検査として機能し、段3 敵対相談
+  レンズC (規律2 適合レンズ) がこの前提を独立に検証して発見した。具体的な是正は
+  D636 — oracle 側にも同型の独立完全性検査を新設し、
+  規律2 抵触を回避した。
+- 再発検知: 「既存機構に安全網が無い」と前提して設計を進める前に、その機構の完全性検査の
+  有無を実コードで確認する。fixture 経由と非 fixture 経由の両方の保護経路を個別に検索する。
