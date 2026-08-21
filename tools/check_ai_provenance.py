@@ -408,6 +408,18 @@ _T972_MERGE_NOTE = (
     "親作成 merge のため Codex 著者とは記さない。"
 )
 _T565_MERGE_RULING = "D554 (2026-08-19)"
+_T1476_CCBENCH_TRAILER_RULING = (
+    "2026-08-21 dev-wave-t1476-verify-state-committed 受入前裁定 "
+    "(ユーザー選択: known-violation 登録)"
+)
+_T1476_CCBENCH_TRAILER_NOTE = (
+    "ユーザー (thawk105) が canonical main worktree で external/ccbench の"
+    "MOCC correctness trace v2 hook 追加作業を行い、submodule pin"
+    "（511c9538→ef9328a3）を dev-wave プロセス外で直接進めた human-only commit。"
+    "AI 関与は無く `AI-Agent: none` trailer が付いていない。T-1476 wave の受入投入時に"
+    "preclaim provenance 監査が新規違反として検出し、親セッションがユーザーへ説明し"
+    "known-violation 登録の承認を得た。"
+)
 _T139_MALFORMED_VALUE = (
     "product=claude; model=claude-opus-5[1m]; reasoning=high; "
     "role=orchestrator"
@@ -848,6 +860,12 @@ KNOWN_PROVENANCE_VIOLATIONS = (
         MISSING_CODEX_AUTHOR,
         _T567_MERGE5_RULING,
         note=_T567_MERGE5_NOTE,
+    ),
+    KnownViolationSpec(
+        "09ce607b779272fda5629a350676471a16bea9bb",
+        MISSING_AI_AGENT,
+        _T1476_CCBENCH_TRAILER_RULING,
+        note=_T1476_CCBENCH_TRAILER_NOTE,
     ),
 )
 
