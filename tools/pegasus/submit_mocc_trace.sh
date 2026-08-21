@@ -63,7 +63,8 @@ with open(path, encoding="utf-8") as handle:
 trace = policy["mocc_trace"]
 workload = trace["workload"]
 required_workload = {
-    "records", "threads", "zipf_skew", "ycsb_rratio", "ycsb_rmw", "extime_s"
+    "records", "threads", "zipf_skew", "ycsb_rratio", "ycsb_rmw",
+    "ycsb_max_ope", "extime_s"
 }
 if set(workload) != required_workload:
     raise SystemExit("mocc_trace.workload keys differ")
@@ -175,7 +176,7 @@ if [[ "$DRY_RUN" -eq 1 ]]; then
   done
 else
   capture_required qstat_Q qstat -Q || preflight_rc=1
-  capture_required pegasusinfo pegasinfo || preflight_rc=1
+  capture_required pegasusinfo pegasusinfo || preflight_rc=1
   capture_required rbudgetcheck rbudgetcheck || preflight_rc=1
   capture_required check_quota check_quota || preflight_rc=1
 fi
@@ -185,6 +186,12 @@ if [[ "$DRY_RUN" -eq 0 && -z "$THIRD_PARTY_CACHE_VALUE" ]]; then
   echo "$THIRD_PARTY_CACHE_ENV is required for compute-side third-party hydrate" >&2
   exit 2
 fi
+case "$THIRD_PARTY_CACHE_VALUE" in
+  *,*)
+    echo "$THIRD_PARTY_CACHE_ENV must not contain a comma for PBS -v export" >&2
+    exit 2
+    ;;
+esac
 EXPORT_SPEC="IZANAGI_SUBMISSION_NONCE=$NONCE,IZANAGI_MOCC_TRACE_MODE=$TRACE_MODE"
 if [[ -n "$THIRD_PARTY_CACHE_VALUE" ]]; then
   EXPORT_SPEC+=",$THIRD_PARTY_CACHE_ENV=$THIRD_PARTY_CACHE_VALUE"

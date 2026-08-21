@@ -1,9 +1,13 @@
 #!/bin/bash
 #PBS -A SFC
 #PBS -q gen_S
-#PBS -l elapstim_req=00:30:00
+#PBS -l elapstim_req=01:00:00
 #PBS -b 1
 #
+# Bounded execution reservation (seconds): gflags (60*3=180) + glog
+# (120*3=360) + third-party hydrate (timeout 20) + CMake configure/build
+# (180+600=780) + workload (120+kill-after 30=150) + finalize reserve (300)
+# = 1790, leaving 1810 seconds of margin within the 3600-second PBS request.
 # Compute-side Mocc trace pilot.  The workload tuple is parent-selected pilot
 # data and is not a reproduction of historical T-816 measurements.
 set -Eeuo pipefail
@@ -18,7 +22,7 @@ if [[ ! "$PBS_JOBID" =~ ^([0-9]+:)?[A-Za-z0-9._-]+$ ]]; then
   exit 2
 fi
 if [[ -z "${IZANAGI_SUBMISSION_NONCE:-}" ||
-      ! "$IZANAGI_SUBMISSION_NONCE" =~ ^[A-Za-z0-9._-]+$ ]]; then
+      ! "$IZANAGI_SUBMISSION_NONCE" =~ ^[A-Za-z0-9_-]+([.][A-Za-z0-9_-]+)*$ ]]; then
   echo "IZANAGI_SUBMISSION_NONCE is missing or unsafe" >&2
   exit 2
 fi
@@ -106,7 +110,7 @@ trap on_err ERR
 
 on_signal() {
   local signal=$1
-  trap - EXIT ERR INT TERM HUP
+  trap - ERR INT TERM HUP
   write_failure 128 "signal" "received $signal"
   exit 128
 }
@@ -140,7 +144,8 @@ with open(sys.argv[1], encoding="utf-8") as handle:
 trace = policy["mocc_trace"]
 workload = trace["workload"]
 if set(workload) != {
-    "records", "threads", "zipf_skew", "ycsb_rratio", "ycsb_rmw", "extime_s"
+    "records", "threads", "zipf_skew", "ycsb_rratio", "ycsb_rmw",
+    "ycsb_max_ope", "extime_s"
 }:
     raise SystemExit("mocc_trace.workload keys differ")
 if trace["cmake_target"] != "ycsb_mocc.exe":
@@ -545,7 +550,7 @@ if [[ -z "$CACHE_ROOT" ]]; then
   write_failure 2 third_party "$THIRD_PARTY_CACHE_ENV is missing"
   exit 2
 fi
-python3 "$TOOLS/fetch_third_party.py" hydrate --repo-root "$REPO_ROOT" \
+timeout 20 python3 "$TOOLS/fetch_third_party.py" hydrate --repo-root "$REPO_ROOT" \
   --cache-root "$CACHE_ROOT" >"$ATTEMPT_DIR/third-party-hydrate.json" \
   2>"$ATTEMPT_DIR/third-party-hydrate.stderr"
 THIRD_PARTY_SOURCE_ROOT=$(python3 - "$ATTEMPT_DIR/third-party-hydrate.json" <<'PY'
@@ -740,6 +745,13 @@ workload = json.loads(sys.argv[1])
 print(workload["extime_s"])
 PY
 )
+MAX_OPE=$(python3 - "$WORKLOAD_JSON" <<'PY'
+import json
+import sys
+workload = json.loads(sys.argv[1])
+print(workload["ycsb_max_ope"])
+PY
+)
 if [[ "$RMW" == 0 ]]; then
   RMW_FLAG=0
 elif [[ "$RMW" == 1 ]]; then
@@ -753,7 +765,7 @@ WORKLOAD_ARGV=(
   "-ycsb_zipf_skew=$ZIPF_SKEW"
   "-ycsb_rratio=$RRATIO"
   "-ycsb_rmw=$RMW_FLAG"
-  "-ycsb_max_ope=10"
+  "-ycsb_max_ope=$MAX_OPE"
   "-extime=$EXTIME"
 )
 python3 - "$RUN_ARGV_JSON" "$TRACE_MODE" "$WORKLOAD_JSON" "${WORKLOAD_ARGV[@]}" <<'PY'
@@ -886,7 +898,7 @@ with open(sys.argv[2], "x", encoding="utf-8") as handle:
     handle.write("\n")
 PY
   verifier_rc=0
-  python3 -m orchestrator.verifier verify "$TRACE_DIR" --json \
+  python3 -m orchestrator.verifier "$TRACE_DIR" --json \
     --expected-commits "$COMMIT_COUNT" \
     >"$ATTEMPT_DIR/verifier.json" 2>"$ATTEMPT_DIR/verifier.stderr" || verifier_rc=$?
   VERIFIER_RC=$verifier_rc

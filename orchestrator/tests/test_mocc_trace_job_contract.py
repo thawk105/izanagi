@@ -128,13 +128,87 @@ def test_mocc_trace_submit_dry_run_contract(tmp_path: Path) -> None:
     assert pre_submit["request"]["project"] == "SFC"
     assert pre_submit["request"]["queue"] == "gen_S"
     assert pre_submit["request"]["nodes"] == 1
-    assert pre_submit["request"]["elapstim_req_s"] == 1800
+    assert pre_submit["request"]["elapstim_req_s"] == 3600
     assert any(
         "IZANAGI_MOCC_TRACE_MODE=0" in argument
         for argument in pre_submit["request"]["qsub_argv"]
     )
     assert any(
         "IZANAGI_SUBMISSION_NONCE=" in argument
+        for argument in pre_submit["request"]["qsub_argv"]
+    )
+    assert receipt["qsub"]["request_id"].startswith("dry-run-")
+    assert receipt["qsub"]["argv"] == pre_submit["request"]["qsub_argv"]
+    assert (submission / "qsub.rc").read_text(encoding="utf-8").strip() == "0"
+
+
+def test_mocc_trace_submit_trace_mode_one_dry_run_contract(tmp_path: Path) -> None:
+    """Trace-mode=1 dry-run carries the mode and policy workload without qsub."""
+
+    repo_root = tmp_path / "repo"
+    (repo_root / "tools/pegasus").mkdir(parents=True)
+    (repo_root / "external/ccbench").mkdir(parents=True)
+    (repo_root / "tools/pegasus/mocc_trace_v1_policy.json").write_bytes(
+        POLICY.read_bytes()
+    )
+    attempts_root = tmp_path / "attempts"
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    source_commit = "fedcba9876543210fedcba9876543210fedcba98"
+    _fake_git(bin_dir, source_commit)
+    qsub_marker = tmp_path / "qsub-called"
+    _make_executable(
+        bin_dir / "qsub",
+        f"""
+        touch '{qsub_marker}'
+        exit 99
+        """,
+    )
+
+    environment = os.environ.copy()
+    environment["PATH"] = os.pathsep.join((str(bin_dir), environment["PATH"]))
+    environment["IZANAGI_PEGASUS_THIRDPARTY_CACHE"] = str(
+        tmp_path / "third-party-cache"
+    )
+    result = subprocess.run(
+        [
+            "bash",
+            str(SUBMITTER),
+            "--dry-run",
+            "--repo-root",
+            str(repo_root),
+            "--attempts-root",
+            str(attempts_root),
+            "--job-script",
+            str(REPO_ROOT / "tools/pegasus/mocc_trace_pilot.sh"),
+            "--trace-mode",
+            "1",
+        ],
+        cwd=REPO_ROOT,
+        env=environment,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 0, result.stderr
+    assert not qsub_marker.exists(), result.stdout
+
+    submissions = sorted((attempts_root / "submissions").iterdir())
+    assert len(submissions) == 1
+    submission = submissions[0]
+    pre_submit = json.loads((submission / "pre-submit.json").read_text(encoding="utf-8"))
+    receipt = json.loads((submission / "submit-receipt.json").read_text(encoding="utf-8"))
+    policy = json.loads(POLICY.read_text(encoding="utf-8"))
+
+    for document in (pre_submit, receipt):
+        assert document["dry_run"] is True
+        assert document["mocc_trace"]["trace_mode"] == 1
+        assert document["mocc_trace"]["workload"] == policy["mocc_trace"]["workload"]
+        assert document["mocc_trace"]["workload"]["ycsb_max_ope"] == 10
+
+    assert pre_submit["source_commit"] == source_commit
+    assert any(
+        "IZANAGI_MOCC_TRACE_MODE=1" in argument
         for argument in pre_submit["request"]["qsub_argv"]
     )
     assert receipt["qsub"]["request_id"].startswith("dry-run-")

@@ -2,8 +2,8 @@
   "project": "SFC",
   "queue": "gen_S",
   "nodes": 1,
-  "pilot_walltime": "00:30:00",
-  "pilot_walltime_s": 1800,
+  "pilot_walltime": "01:00:00",
+  "pilot_walltime_s": 3600,
   "finalize_reserve_s": 300,
   "expected_cpu_model": "Intel Xeon Platinum 8468",
   "expected_physical_cores": 48,
@@ -28,6 +28,7 @@
       "zipf_skew": 0.9,
       "ycsb_rratio": 50,
       "ycsb_rmw": 0,
+      "ycsb_max_ope": 10,
       "extime_s": 3
     }
   }
