@@ -427,6 +427,15 @@ _T1458_PRE_ACCEPTANCE_MERGE_NOTE = (
     "reasoning=not-exposed; role=integrator` のみで Codex `role=author` 行がないため、checker が "
     "missing-codex-author を検出した。親作成 merge のため Codex 著者とは記さない。"
 )
+_T1458_CCBENCH_PIN_MISSING_TRAILER_RULING = (
+    "本セッション内でユーザーへ状況を説明し known-violation 登録の続行を承認された (2026-08-21)"
+)
+_T1458_CCBENCH_PIN_MISSING_TRAILER_NOTE = (
+    "git show で確認したところ、commit `09ce607b779272fda5629a350676471a16bea9bb` は "
+    "ユーザー本人 (thawk105) が直接作成した `external/ccbench` submodule pin 更新 "
+    "(511c9538→ef9328a3) commitで、AI-Agent trailerを完全に欠く。T-1458 waveの作業とは無関係で、"
+    "本 wave はこのcommitを書き換えない。"
+)
 KNOWN_PROVENANCE_VIOLATIONS = (
     KnownViolationSpec(
         "88f0f9f081f7c76c8ab5fc4a94e2640f70af129b",
@@ -869,6 +878,12 @@ KNOWN_PROVENANCE_VIOLATIONS = (
         MISSING_CODEX_AUTHOR,
         _T1458_PRE_ACCEPTANCE_MERGE_RULING,
         note=_T1458_PRE_ACCEPTANCE_MERGE_NOTE,
+    ),
+    KnownViolationSpec(
+        "09ce607b779272fda5629a350676471a16bea9bb",
+        MISSING_AI_AGENT,
+        _T1458_CCBENCH_PIN_MISSING_TRAILER_RULING,
+        note=_T1458_CCBENCH_PIN_MISSING_TRAILER_NOTE,
     ),
 )
 
