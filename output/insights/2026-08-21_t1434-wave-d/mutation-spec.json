@@ -8,7 +8,10 @@
       "category": "negative",
       "expected_nodes": [
         "orchestrator/tests/test_codex_reasoning_ab.py::test_validate_schedule_accepts_same_arm_different_requested_model_pair",
-        "orchestrator/tests/test_codex_reasoning_ab.py::test_validate_schedule_legacy_different_arm_same_model_pair_remains_valid"
+        "orchestrator/tests/test_codex_reasoning_ab.py::test_validate_schedule_legacy_different_arm_same_model_pair_remains_valid",
+        "orchestrator/tests/test_codex_reasoning_ab.py::test_make_packets_uses_dynamic_schedule_count_and_keeps_public_state_blind",
+        "orchestrator/tests/test_codex_reasoning_ab.py::test_make_packets_accepts_legacy_schedule_descriptor_without_schema_version",
+        "orchestrator/tests/test_codex_reasoning_ab.py::test_supervisor_launches_pair_and_scrubs_git_environment@real-repo"
       ],
       "expected_status": "KILLED",
       "hang_risk": false,
@@ -33,8 +36,8 @@
       "replacements": [
         {
           "file": "tools/codex_reasoning_ab.py",
-          "old": "        value = slot.get(field)\n        if value is not None:\n            raise ValidationError(\n                f\"schedule slot {field} non-null values are not supported without attestation\",\n                RC_ROUTING,\n            )",
-          "new": "        value = slot.get(field)\n        if False:\n            raise ValidationError(\n                f\"schedule slot {field} non-null values are not supported without attestation\",\n                RC_ROUTING,\n            )"
+          "old": "        if value == \"\":\n            raise ValidationError(\n                f\"schedule slot {field} must be non-empty when present\", RC_ROUTING\n            )\n        if value is not None:",
+          "new": "        if value == \"\":\n            raise ValidationError(\n                f\"schedule slot {field} must be non-empty when present\", RC_ROUTING\n            )\n        if False:"
         }
       ]
     },
