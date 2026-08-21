@@ -1833,6 +1833,24 @@ def test_known_violation_ledger_matches_literal_entries():
         "結果は両側の known-violation エントリを並べただけの union で、競合解決による新規著作なし。"
         "親作成 merge のため Codex 著者とは記さない。"
     )
+    t567_merge3_ruling = (
+        "2026-08-21 dev-wave-t567-attempt-binding land 前裁定 "
+        "(3回目、ユーザー選択: known-violation 登録)"
+    )
+    t567_merge3_note = (
+        "3回目の受入投入前 local main 取り込み merge "
+        "`1782d2bc4c7775869b0e6c4b40d08d78b6cbca64`。"
+        "`orchestrator/critic/digest.py` / `orchestrator/tests/test_critic.py` で、本 wave が追加した "
+        "T-567 の attempt binding 関連 (`load_workload()` / `load_verify_abort_signals()` / "
+        "`_committed_projection()`) と main 側の別 wave (T-397/T-410、commit `3c993259`) の "
+        "permutation witness 関連 (`render_rejections()`) は別関数で、3-way 結合は両側の変更の和集合だった。"
+        "`git diff-tree --cc 1782d2bc4c7775869b0e6c4b40d08d78b6cbca64 -- "
+        "orchestrator/critic/digest.py orchestrator/tests/test_critic.py` は commit ヘッダ (SHA) 行のみで"
+        "実質空（Automatic merge went well、競合なし）、競合解決による新規著作なし。wave 側の実装面は "
+        "Codex `role=author` が commit `6130a1b9886536b8b09d2583f07ea70f96cbc749` / "
+        "`40aded545ab835f755dc67c2a72ef9e57ad93a90` で書き、main 側は commit `3c993259` として各 wave の "
+        "land 時に監査済み。親作成 merge のため Codex 著者とは記さない。"
+    )
     observed = tuple(
         (
             spec.commit,
@@ -1937,6 +1955,7 @@ def test_known_violation_ledger_matches_literal_entries():
         ),
         ("c44b981c4a765b8f189d30ca69ba7b461b71efd1", "missing-codex-author", t567_merge_ruling, t567_merge_note, ""),
         ("5823caf328a5985476cd2f6f7aa0d13daa5b08f6", "missing-codex-author", t567_merge2_ruling, t567_merge2_note, ""),
+        ("1782d2bc4c7775869b0e6c4b40d08d78b6cbca64", "missing-codex-author", t567_merge3_ruling, t567_merge3_note, ""),
     )
     assert len(provenance.KNOWN_PROVENANCE_VIOLATIONS) == len(expected)
     assert observed == expected
