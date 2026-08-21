@@ -25081,3 +25081,173 @@ F444 参照)。**完全な TOCTOU 耐性、および
 - `validate_current_bindings`/`validate_raw_bundle` の `==` 要求も本 wave で解消する —
   実 job 経路の再設計 (rung-1 campaign 再走または binding scope の D96 級再裁定) が要り、
   sort 軸の witness 追加という本 wave の scope を大きく超える。
+
+## D626. 投入gate単位5のvector trust edgeは汎用resolverを実装せず構造的fail-closedで満たす (2026-08-21)
+
+**決定:** record-items-v2.md §7の「conformance vector indexのdigestをapproval manifestがpin
+する」という記述は、D574決定(4) (D597によりD509系列より優先する権威と確定済み) によって
+supersedeされている。単位5は、D574決定(4)が要求する「vector index三つ組をmanifest自身でなく
+有効なapproval payloadに置く」を、次の最小実装で満たす。
+
+- 現行`ApprovedManifest` (D282由来、`approved_blobs`はexact 6 role固定) にはvector index field
+  が構造的に存在しない。`_writer.py`の`_assert_vector_authority()`は、この事実を根拠に常に
+  `VectorAuthorityUnavailableError`を送出する。新しい型・resolver・chain-walk機構は実装しない。
+- `approval_payload.py`・`_manifest.py`は無改修とする。manifest側にvector宣言fieldを新設しない
+  (照合先の権威が無いまま宣言fieldだけ先に足すと、将来「宣言があるから受理してよい」と誤読
+  される事故の芽になる)。
+- この設計は「manifest単独の自己pinは受理の根拠にしない」というD574決定4の要求を、照合ロジック
+  を書かず構造的に (manifestに宣言field自体が無いことで) 満たす。
+
+**理由:**
+- 段2 codex plan (read-only) が提案した汎用supersession chain resolver (`forward_supersedes`
+  の構造化参照、cycle検出、複数candidate拒否を含む) は、実在するvector-bearing supersession
+  payloadが今日のrepoに1件も無いため、DW-G04 (発火条件を満たす既存artifact pathが無い条件付き
+  機能は設計メモに留める) に照らし時期尚早と判定した。
+- 段3敵対相談2レンズが独立に、この汎用resolverの型設計にD563のtoken sealing規約が欠落し
+  (単純public dataclass)、writer入口signatureに解決に必要な入力経路が実は繋がっておらず、
+  既存`load_approval_payload()`呼び出しとの二重loaderにもなりうる、という3件の実装欠陥を
+  発見した。発火artifactが無いまま作ると規律5「盛らない」に反する実装欠陥を生みやすいという
+  判断で、今回は実装しない。
+- 将来、T-139 K2/K3 (実際のvector-bearing supersession payloadを発行するwave) がこの機構を
+  実装する際は、`base_approval_fold_commit`/`approval_fold_commit`の二段構成 (D574決定5)、
+  `forward_supersedes`の構造化、cycle/複数candidate拒否を入力要件とする (詳細は
+  `output/insights/2026-08-21_t338-unit5-vector-authority-design/package.md`を参照)。
+
+**却下した選択肢:**
+- s1-classification (2026-08-18) 準拠のmanifest自己pin — D574決定4が名指しで却下済み。
+- 段2 codex planが提案した汎用supersession chain resolverの即時実装 — 発火artifactが無く
+  規律5に反する実装欠陥 (D563 token sealing欠落・二重loader) を段3が独立に発見した。
+
+## D627. mitigation leg 構成で NQSV が walltime 打ち切り時に SIGTERM を配送することを実測で確認した (2026-08-21)
+
+**決定 (1): `elapstim_req="max,warn"` (warn < max) + `--warning-signal=elapstim:SIGTERM` +
+`--accept-sigterm=yes` の "mitigation leg" (D139 決定4 が存在を未実測としていた構成) は、実際に
+計算ノードで捕捉可能な SIGTERM を配送する。** Pegasus `gen_S`、request `927684.nqsv` (max=180s,
+warn=120s) で実測した。根拠はスケジューラ自身の出力である。
+
+```text
+%NQSV(INFO): Batch job received signal SIGTERM. (Exceeded per-req elapse time limit)
+```
+
+probe (`tools/pegasus/probes/t1403_walltime_sigterm_probe.py` の `run_workload`) 自身の signal
+handler が実際に SIGTERM を catch し、受信から約 1.6 ミリ秒後に正常終了した
+(`SIGTERM_CAUGHT_CLEAN_EXIT`)。D139 決定1 が実測した既定構成 (`--accept-sigterm` 省略・警告値省略)
+での SIGKILL 直送・grace 皆無とは異なる挙動である。
+
+**決定 (2): scheduler 会計ベースの grace は 9.97 秒だった。** NQSV 会計の `Elapse` (129S、job 開始から
+job 完全終了まで) と、probe checkpoint の `sigterm_received_at` (119.03 秒) の差である。probe 自身の
+自己申告 grace (約 1.6ms) より大きいのは、NQSV 側の job 終端検出・会計確定オーバーヘッドを含むためで、
+どちらも `output/insights/2026-08-20_t1403-walltime-sigterm-mitigation-leg.md` に両方残す。
+
+**決定 (3): この結果は現行 `floor_campaign.sh` の構成には適用されない。** 現行 `floor_campaign.sh`
+(`--accept-sigterm=yes` のみ、`elapstim_req` は単一値) は本決定の測定対象と異なる構成であり、
+D546 決定2 の「実測するまで結論しない」は現行構成についてはなお成立する。`floor_campaign.sh` /
+`dispatch_compute.py` の production 設定は本 wave で変更していない。mitigation leg を production
+へ適用するかは別途裁定する。
+
+**理由:**
+- D139 決定4 が「捕捉可能な構成の有無は未解決である」「実測するまで結論しない」と明記しており、
+  本 wave はその実測を担った。
+- 判定語彙は実測前に固定した (`SIGTERM_CAUGHT_CLEAN_EXIT` / `SIGTERM_CAUGHT_THEN_KILLED` /
+  `NO_SIGNAL_OBSERVED_SIGKILLED` / `UNKNOWN`) — D139 の「観測されなかった signal は推定しない」規律を
+  継承する。verdict は checkpoint (probe 自己申告) と NQSV 会計 (scheduler 側) の両方が揃って
+  初めて `SIGTERM_CAUGHT_CLEAN_EXIT` と判定される。
+
+**却下した選択肢:**
+- **`floor_campaign.sh` 自体に mitigation leg を追加してから実測する。** 却下。観測目的の変更を
+  production 設定へ先に反映すると、実測前に結論を先取りすることになる (D546 決定2 が戒める形)。
+  独立 probe で先に実測し、production 適用は結果を見てから別途裁定する。
+- **`dispatch_compute.py` の汎用 dispatch 経路を使う。** 却下。同ツールは pytest/provenance の
+  dev harness 専用 (`TASKS` が2種類のみ) であり、mitigation leg の PBS directive を持たない。
+  D139 自身も「実harnessを使い捨てcheckout上でwalltime killする」を却下し probe 側で測る方針を
+  採っており、同じ判断を踏襲した。
+
+## D628. S8b machine-pinはsite_policy.current_site()起点で解決し、contract引数からは解決しない (2026-08-21)
+
+**決定:** `s8b_floor_campaign.py`/`s8b_oracle_driver.py`の`assert_machine_pin`呼び出しにおける
+`machine_env_tag`の解決を、`p2_2.ENV_TAG`直接importから、両driver共通の
+`_machine_env_tag_for_site(site)`ヘルパーへ分離する。入力は`site_policy.current_site()`
+(実機観測) であり、`contract` (これから使おうとしている契約) からは解決しない。
+`site==PEGASUS_COMPUTE`は`env_contract.lookup_required_attestation_contract().env_tag`、
+`site==OTHER`は`env_contract.REGISTRY`から`attestation_mode=="none"`のcontractを一意検索、
+それ以外の site は fail-closed で拒否する。
+
+**理由:**
+- machine-pin は本来「実際にこのプロセスがどの機で動いているか」という物理環境の独立検査で
+  あるべきである。入力 `contract` (これから使おうとしている契約) だけから機体タグを導出すると、
+  同じ registry から両辺を作る自己検証になり恒真になりうる。
+- `env_contract.lookup_required_attestation_contract()`は既に`execution_guard.py`の
+  Pegasus compute 認可構造 (`require_certified_writer_authorization`) が使う確立された
+  registry-derived パターンであり、docstring も「env literal を重複させず registry property
+  を使う」設計と明記している。同じパターンを machine-pin 側にも適用した。
+- `s8b_floor_campaign.py`/`s8b_oracle_driver.py`は env 固有 literal を持たない env-neutral
+  module (γ-16 の AST 検査対象) であり、site 起点の解決はこの契約と両立する。
+
+**却下した選択肢:**
+- ローカル定数 `_LEGACY_MACHINE_ENV_TAG="linux-baremetal"` を S8b 側に新設する案。
+  `s8b_oracle_driver.py`は attestation_mode 判定前に無条件で machine-pin を呼ぶ構造
+  (`s8b_floor_campaign.py`の mode=none 分岐限定とは異なる) のため、Linux literal 固定だと
+  Pegasus required 実行が拒否される。また env-neutral module の AST 検査 (env literal 禁止)
+  に抵触する設計だった。
+- 入力 `contract` から `env_contract.REGISTRY`/`GENERATIONS` を再検索するだけの設計
+  (`_machine_env_tag_for_contract(contract)`) — 実行機の独立検査にならず恒真になりうる。
+
+## D629. Pegasus screening 経路に通常経路と同じ強度の attestation を課す (2026-08-21)
+
+**決定:** `screening_driver.py`に`_attest_required_contract()`/`attest_runtime_contract()`を
+新設し、`prepare_screening_campaign()`が required contract (attestation_mode=="required") の
+場合、build/評価より前に hash-bound verification と strict attestation
+(`execution_guard.attest_and_build_receipt`) を完了させる。floor calibration の既定
+directory 解決も、固定 Linux path から resolved contract の env_tag 経由
+(`env_scope_dir(contract.env_tag)`) へ変更する。
+
+**理由:**
+- 通常経路 (`loop.run_campaign`) は required calibration のロードと attestation receipt
+  作成を実行するが、screening 経路は `require_certified_writer_authorization()` のみで
+  attestation を経由しなかった。Pegasus (required) contract を screening に通せるようにした
+  ことで、通常経路と screening 経路の admission 強度が非対称になっていた。
+- screening の floor calibration が常に Linux 固定 directory を読んでいたため、Pegasus
+  screening が誤った (Linux の) between-run noise floor と比較していた。
+
+**却下した選択肢:**
+- screening を Pegasus 対応 scope から外し、通常経路だけを site-aware 化する — D58 ablation
+  (bench-first screening v2 の初回適用対象がまさに screening 経路) を Pegasus で動かすという
+  本 wave の目的に反する。
+
+## D630. campaign advisory flock は exploration リダイレクトへ既存 resolver 経由で追従させる (target-side 修正) (2026-08-21)
+
+**決定:** `orchestrator/campaign/layout.py` の `campaign_lock_dir()`/`campaign_lock_path()`
+(campaign 単位 advisory flock、D621 が新設) へ `declared_use_class`/`output_root` を追加し、
+`repo_output_root()` の直接呼び出しをやめて、official/exploration の分岐に既に使われている
+既存の `resolve_campaign_output_root(declared_use_class, output_root)` を経由させる。
+`orchestrator/campaign/loop.py` の `run_campaign()` から既存のローカル変数をそのまま渡す。
+`declared_use_class` に既定値は付けない (呼び出し忘れを fail-fast にする)。
+
+**理由:**
+- `IZANAGI_EXPLORATION_OUTPUT_ROOT` (`_resolve_exploration_output_root()`) は resolved base が
+  **repository 外でなければならない**ことを `_has_git_ancestor()` で明示的に検査・拒否する。
+  exploration 経路のあらゆる出力を「どの git repo にも属さない」ものにする設計契約であり、
+  D621 導入の advisory flock だけがこの契約から漏れていた。
+- `orchestrator/tests/test_dev_wave_land.py::test_exploration_external_root_keeps_wave_clean`
+  (既存の positive control) が、この漏れにより exploration 実行後に wave の tracked tree へ
+  flock ファイルが untracked のまま残ることを検出し、決定的に FAILED していた
+  (隔離 worktree で再現確認、shared checkout での並行 land 由来の near-miss ではない)。
+- `campaign_layout()`/`exploration_campaign_layout()` は既に `resolve_campaign_output_root()` を
+  official/exploration で正しく分岐させて使っており、`campaign_lock_dir`/`campaign_lock_path` だけが
+  この既存パターンに乗っていなかった。新しい抽象を作らず既存関数を再利用するだけで閉じる。
+
+**却下した選択肢:**
+- test-side 修正 (`test_exploration_external_root_keeps_wave_clean` を、flock ファイルの存在を
+  許容するよう緩める) — 上記のとおり exploration リダイレクト自身の設計契約 (repository 外必須)
+  と正面から矛盾する側であり、検査を消して緑を買う形に近い。段3 敵対相談2レンズ (sol/luna)
+  がいずれも target-side を支持し blocker/major の反対はなかった。
+- 明示 `output_root` を渡す official campaign でも flock 配置を変えない (旧 `repo_output_root()`
+  直呼びの一部だけ残す) — 明示 root の official は layout 自体が既に明示 root を使っており、
+  flock だけ実 repo 側に残すと同じ campaign 内で参照 root が割れる。既定 (`output_root=""`) の
+  official 挙動のみ不変とし、明示 root のケースは意図して統一する。
+
+一次資料: command 引数「known violation があれば直す」(一次裁定は 2026-08-17 `/rulings 全件
+第4回`、`docs/archive/worklog-phase3-0817-611.md`)。段2 codex plan・段3 敵対相談2レンズ
+(blocker/major なし)・段6 敵対レビュー2本 (blocker/major なし) を経て実装。変異事前登録3件
+(resolver 呼び出しの revert・`declared_use_class` 固定・`output_root` 握り潰し) は
+baseline PASSED・3/3 KILLED・SURVIVED 0・MISMATCH 0。

@@ -1,0 +1,1 @@
+{"schema_version":"t338-conformance-vector/v2","id":"negative-6.10-create-only-existing","kind":"negative","classification":"new","covers":["6.10","7.1(16)"],"unit3_reference":"対応なし・unit5独自","entrypoint":"safe_io","mutation":{"op":"none"},"expected_reason":null,"expected_exception":"SafeIOError","expected_errno":"EEXIST"}
