@@ -4776,8 +4776,173 @@ def test_run_campaign_rejects_unknown_env_tag(tmp_path):
                       probe_fn=lambda: (1, "", ""))
 
 
+def test_machine_env_tag_for_site_uses_required_registry_contract(monkeypatch):
+    expected_tags = {
+        contract.env_tag
+        for contract in ec.REGISTRY.values()
+        if contract.attestation_mode == "required"
+    }
+    assert len(expected_tags) == 1
+    monkeypatch.setattr(
+        s8b_floor_campaign.site_policy,
+        "current_site",
+        lambda: s8b_floor_campaign.site_policy.PEGASUS_COMPUTE,
+    )
+    observed_site = s8b_floor_campaign.site_policy.current_site()
+    assert observed_site == s8b_floor_campaign.site_policy.PEGASUS_COMPUTE
+    assert s8b_floor_campaign._machine_env_tag_for_site(observed_site) == (
+        next(iter(expected_tags))
+    )
+
+
+def test_machine_env_tag_for_site_rejects_zero_required_contracts(monkeypatch):
+    monkeypatch.setattr(
+        s8b_floor_campaign.site_policy,
+        "current_site",
+        lambda: s8b_floor_campaign.site_policy.PEGASUS_COMPUTE,
+    )
+    monkeypatch.setattr(s8b_floor_campaign._env_contract, "REGISTRY", {})
+    with pytest.raises(s8b_floor_campaign.FloorCampaignError, match="required attestation"):
+        s8b_floor_campaign._machine_env_tag_for_site(
+            s8b_floor_campaign.site_policy.current_site()
+        )
+
+
+def test_machine_env_tag_for_site_rejects_multiple_required_contracts(monkeypatch):
+    monkeypatch.setattr(
+        s8b_floor_campaign.site_policy,
+        "current_site",
+        lambda: s8b_floor_campaign.site_policy.PEGASUS_COMPUTE,
+    )
+    monkeypatch.setattr(
+        s8b_floor_campaign._env_contract,
+        "REGISTRY",
+        {
+            "required-first": SimpleNamespace(
+                env_tag="fixture-required-first", attestation_mode="required",
+            ),
+            "required-second": SimpleNamespace(
+                env_tag="fixture-required-second", attestation_mode="required",
+            ),
+        },
+    )
+    with pytest.raises(s8b_floor_campaign.FloorCampaignError, match="required attestation"):
+        s8b_floor_campaign._machine_env_tag_for_site(
+            s8b_floor_campaign.site_policy.current_site()
+        )
+
+
+def test_machine_env_tag_for_site_rejects_required_lookup_exception(monkeypatch):
+    monkeypatch.setattr(
+        s8b_floor_campaign.site_policy,
+        "current_site",
+        lambda: s8b_floor_campaign.site_policy.PEGASUS_COMPUTE,
+    )
+
+    def fail_required_lookup():
+        raise ec.EnvContractError("fixture required lookup failure")
+
+    monkeypatch.setattr(
+        s8b_floor_campaign._env_contract,
+        "lookup_required_attestation_contract",
+        fail_required_lookup,
+    )
+    with pytest.raises(s8b_floor_campaign.FloorCampaignError, match="required attestation"):
+        s8b_floor_campaign._machine_env_tag_for_site(
+            s8b_floor_campaign.site_policy.current_site()
+        )
+
+
+def test_machine_env_tag_for_site_uses_unique_none_registry_contract(monkeypatch):
+    expected_tags = {
+        contract.env_tag
+        for contract in ec.REGISTRY.values()
+        if contract.attestation_mode == "none"
+    }
+    assert len(expected_tags) == 1
+    monkeypatch.setattr(
+        s8b_floor_campaign.site_policy,
+        "current_site",
+        lambda: s8b_floor_campaign.site_policy.OTHER,
+    )
+    observed_site = s8b_floor_campaign.site_policy.current_site()
+    assert observed_site == s8b_floor_campaign.site_policy.OTHER
+    assert s8b_floor_campaign._machine_env_tag_for_site(observed_site) == (
+        next(iter(expected_tags))
+    )
+
+
+def test_machine_env_tag_for_site_rejects_zero_none_contracts(monkeypatch):
+    monkeypatch.setattr(
+        s8b_floor_campaign.site_policy,
+        "current_site",
+        lambda: s8b_floor_campaign.site_policy.OTHER,
+    )
+    monkeypatch.setattr(s8b_floor_campaign._env_contract, "REGISTRY", {})
+    with pytest.raises(s8b_floor_campaign.FloorCampaignError, match="none attestation"):
+        s8b_floor_campaign._machine_env_tag_for_site(
+            s8b_floor_campaign.site_policy.current_site()
+        )
+
+
+def test_machine_env_tag_for_site_rejects_multiple_none_contracts(monkeypatch):
+    monkeypatch.setattr(
+        s8b_floor_campaign.site_policy,
+        "current_site",
+        lambda: s8b_floor_campaign.site_policy.OTHER,
+    )
+    monkeypatch.setattr(
+        s8b_floor_campaign._env_contract,
+        "REGISTRY",
+        {
+            "first": SimpleNamespace(env_tag="fixture-none-first", attestation_mode="none"),
+            "second": SimpleNamespace(env_tag="fixture-none-second", attestation_mode="none"),
+        },
+    )
+    with pytest.raises(s8b_floor_campaign.FloorCampaignError, match="none attestation"):
+        s8b_floor_campaign._machine_env_tag_for_site(
+            s8b_floor_campaign.site_policy.current_site()
+        )
+
+
+def test_machine_env_tag_for_site_rejects_duplicate_registry_env_tag(monkeypatch):
+    monkeypatch.setattr(
+        s8b_floor_campaign.site_policy,
+        "current_site",
+        lambda: s8b_floor_campaign.site_policy.OTHER,
+    )
+    monkeypatch.setattr(
+        s8b_floor_campaign._env_contract,
+        "REGISTRY",
+        {
+            "none": SimpleNamespace(
+                env_tag="fixture-duplicate", attestation_mode="none",
+            ),
+            "required": SimpleNamespace(
+                env_tag="fixture-duplicate", attestation_mode="required",
+            ),
+        },
+    )
+    with pytest.raises(s8b_floor_campaign.FloorCampaignError, match="none attestation"):
+        s8b_floor_campaign._machine_env_tag_for_site(
+            s8b_floor_campaign.site_policy.current_site()
+        )
+
+
+def test_machine_env_tag_for_site_rejects_unhandled_site(monkeypatch):
+    monkeypatch.setattr(
+        s8b_floor_campaign.site_policy,
+        "current_site",
+        lambda: s8b_floor_campaign.site_policy.PEGASUS_LOGIN,
+    )
+    with pytest.raises(s8b_floor_campaign.FloorCampaignError, match="未対応 site"):
+        s8b_floor_campaign._machine_env_tag_for_site(
+            s8b_floor_campaign.site_policy.current_site()
+        )
+
+
 def test_run_campaign_machine_pin_rejects_contract_tag_mismatch(tmp_path):
-    """契約の env_tag が実行機の p2_2.ENV_TAG と一致しなければ拒否する (暫定 machine-pin)。"""
+    """契約の env_tag が registry-derived machine tag と一致しなければ拒否する。"""
     freeze = _freeze_document()
     fake_contract = ec.ExecutionEnvironmentContract(
         env_tag="foreign-env", clocks_per_us=2100, numactl=(),
@@ -7895,9 +8060,14 @@ def test_deterministic_artifacts_across_roots_and_subprocess_environments(tmp_pa
     ]
     script = textwrap.dedent(f"""
         import importlib.util, json, pathlib, sys
+        from types import SimpleNamespace
         spec = importlib.util.spec_from_file_location("floor_test_helper", {str(Path(__file__))!r})
         module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(module)
+        module.s8b_floor_campaign.site_policy.socket = SimpleNamespace(
+            gethostname=lambda: "test-host"
+        )
+        module.s8b_floor_campaign.site_policy._has_nqsv = lambda: False
         print(json.dumps(module._deterministic_official_artifacts(pathlib.Path(sys.argv[1])), sort_keys=True))
     """)
     observations = []
@@ -7958,11 +8128,17 @@ def test_each_determinism_seam_reaches_its_expected_json_pointer(tmp_path):
 def test_new_seam_defaults_delegate_to_production_functions(tmp_path, monkeypatch):
     freeze = _freeze_document()
     protocol = _protocol(freeze_sha=_freeze_sha(freeze))
+    monkeypatch.setattr(
+        s8b_floor_campaign.site_policy,
+        "current_site",
+        lambda: s8b_floor_campaign.site_policy.OTHER,
+    )
     repo_root = tmp_path / "default-root"
     _init_real_clean_repo(repo_root, freeze, protocol)
     calls = {name: 0 for name in (
         "calibration", "machine_pin", "host", "process", "receipt", "build", "after",
     )}
+    expected_machine_env_tag = "linux-baremetal"
     fake_build = _make_fake_build(tmp_path / "ignored")
     real_load = s8b_floor_campaign.env_attestation.load_verified_calibration
     real_pin = s8b_floor_campaign.execution_guard.assert_machine_pin
@@ -7974,6 +8150,7 @@ def test_new_seam_defaults_delegate_to_production_functions(tmp_path, monkeypatc
 
     def machine_pin_spy(contract, *, machine_env_tag):
         calls["machine_pin"] += 1
+        assert machine_env_tag == expected_machine_env_tag
         return real_pin(contract, machine_env_tag=machine_env_tag)
 
     def host_spy(*, now_fn):

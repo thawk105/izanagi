@@ -61,9 +61,15 @@ from orchestrator.campaign.build_admission import (  # noqa: E402
 from orchestrator.campaign import layout as layout_module                    # noqa: E402
 from orchestrator.campaign.layout import (CampaignLayout,                     # noqa: E402
                              ExplorationCampaignLayout,
+                             campaign_lock_path,
                              campaign_layout, ensure_exploration_namespace,
                              exploration_campaign_layout)
-from orchestrator.campaign.lock import BenchBusy, bench_lock                  # noqa: E402
+from orchestrator.campaign.lock import (                                       # noqa: E402
+    BenchBusy,
+    CampaignBusy,
+    bench_lock,
+    campaign_lock as campaign_flock,
+)
 from orchestrator.campaign.model import (CampaignConfig, Genome,              # noqa: E402
                             COMMIT_CONTRACT_SHA256_KEY,
                             STAGE_BENCH_DONE, STAGE_BUILD_DONE, STAGE_BUILD_START,
@@ -2603,6 +2609,153 @@ def test_bench_lock_exclusive():
     # 解放後は取れる
     with bench_lock(fd_path, blocking=False):
         pass
+
+
+_CAMPAIGN_LOCK_HOLDER = r'''
+import sys
+import time
+from pathlib import Path
+from orchestrator.campaign.lock import campaign_lock
+
+lock_path, ready_path, release_path = sys.argv[1:4]
+with campaign_lock(lock_path):
+    Path(ready_path).touch()
+    while not Path(release_path).exists():
+        time.sleep(0.01)
+'''
+
+
+def _start_campaign_lock_holder(
+        lock_path: str, ready_path: Path, release_path: Path,
+) -> subprocess.Popen:
+    env = dict(os.environ)
+    env["PYTHONPATH"] = str(_REPOSITORY)
+    env["PYTHONDONTWRITEBYTECODE"] = "1"
+    return subprocess.Popen(
+        [sys.executable, "-c", _CAMPAIGN_LOCK_HOLDER,
+         lock_path, str(ready_path), str(release_path)],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        env=env,
+    )
+
+
+def _wait_for_campaign_lock_holder(child: subprocess.Popen, ready_path: Path) -> None:
+    deadline = time.monotonic() + 10.0
+    while not ready_path.exists():
+        returncode = child.poll()
+        if returncode is not None:
+            stdout, stderr = child.communicate()
+            raise AssertionError(
+                "campaign lock holder が ready 前に終了した: "
+                f"returncode={returncode}, stdout={stdout!r}, stderr={stderr!r}"
+            )
+        if time.monotonic() >= deadline:
+            raise AssertionError("campaign lock holder の ready 待ちが timeout した")
+        time.sleep(0.01)
+
+
+def _finish_campaign_lock_holder(
+        child: subprocess.Popen, release_path: Path,
+) -> None:
+    release_path.touch()
+    try:
+        stdout, stderr = child.communicate(timeout=10)
+    except subprocess.TimeoutExpired as exc:
+        child.kill()
+        child.communicate(timeout=10)
+        raise AssertionError("campaign lock holder が release 後も終了しない") from exc
+    assert child.returncode == 0, (
+        f"campaign lock holder failed: returncode={child.returncode}, "
+        f"stdout={stdout!r}, stderr={stderr!r}"
+    )
+
+
+def test_campaign_lock_reentry_rejected_in_same_process():
+    layout = _layout().ensure()
+    lock_path = campaign_lock_path(layout)
+    with campaign_flock(lock_path):
+        try:
+            with campaign_flock(lock_path, blocking=False):
+                raise AssertionError("同一 process の campaign lock 再入を拒否すべき")
+        except CampaignBusy:
+            pass
+
+
+def test_campaign_lock_same_campaign_rejects_competing_process():
+    layout = _layout().ensure()
+    lock_path = campaign_lock_path(layout)
+    control_root = Path(_tmpdir("izanagi_campaign_lock_process_"))
+    ready_path = control_root / "ready"
+    release_path = control_root / "release"
+    child = _start_campaign_lock_holder(lock_path, ready_path, release_path)
+    try:
+        _wait_for_campaign_lock_holder(child, ready_path)
+        try:
+            with campaign_flock(lock_path, blocking=False):
+                raise AssertionError("競合 process が保持中の campaign lock を取得すべきでない")
+        except CampaignBusy:
+            pass
+    finally:
+        _finish_campaign_lock_holder(child, release_path)
+
+
+def test_campaign_lock_different_campaigns_can_run_in_parallel():
+    layouts = [_layout().ensure(), _layout().ensure()]
+    lock_paths = [campaign_lock_path(layout) for layout in layouts]
+    control_root = Path(_tmpdir("izanagi_campaign_lock_parallel_"))
+    controls = [
+        (control_root / f"ready-{index}", control_root / f"release-{index}")
+        for index in range(len(lock_paths))
+    ]
+    children = [
+        _start_campaign_lock_holder(lock_path, ready_path, release_path)
+        for lock_path, (ready_path, release_path) in zip(lock_paths, controls)
+    ]
+    try:
+        for child, (ready_path, _release_path) in zip(children, controls):
+            _wait_for_campaign_lock_holder(child, ready_path)
+        assert all(child.poll() is None for child in children)
+    finally:
+        for _ready_path, release_path in controls:
+            release_path.touch()
+        for child, (_ready_path, release_path) in zip(children, controls):
+            _finish_campaign_lock_holder(child, release_path)
+
+
+def test_campaign_lock_released_can_be_reacquired():
+    layout = _layout().ensure()
+    lock_path = campaign_lock_path(layout)
+    with campaign_flock(lock_path):
+        pass
+    with campaign_flock(lock_path, blocking=False):
+        pass
+
+
+def test_campaign_lock_path_is_outside_campaign_root():
+    layout = _layout()
+    lock_path = Path(campaign_lock_path(layout)).resolve()
+    campaign_root = Path(layout.root).resolve()
+    assert not lock_path.is_relative_to(campaign_root)
+
+
+def test_campaign_lock_path_normalizes_symlink_realpath():
+    real_root = _tmpdir("izanagi_campaign_lock_real_")
+    link_parent = _tmpdir("izanagi_campaign_lock_link_")
+    link_root = os.path.join(link_parent, "campaign")
+    os.symlink(real_root, link_root)
+
+    real_layout = CampaignLayout(root=real_root)
+    symlink_layout = CampaignLayout(root=link_root)
+    assert campaign_lock_path(real_layout) == campaign_lock_path(symlink_layout)
+
+
+def test_campaign_lock_path_hash_key_is_twenty_hex_chars():
+    lock_name = os.path.basename(campaign_lock_path(_layout()))
+    assert lock_name.endswith(".flock")
+    key = lock_name[:-len(".flock")]
+    assert re.fullmatch(r"^[0-9a-f]{20}$", key)
 
 
 # ===== STAGE2: ビルドキャッシュキー (規律1: trace/perf 別ビルド) =====
@@ -10591,8 +10744,18 @@ _FAKE_TRANSACTION_CC = (
     "  void writePhase() {}\n"
     "};\n")
 
-# T-755 の trace-hook 専用 mocc 編集面。実ソースの条件マクロに依存しない最小 TU。
-_FAKE_MOCC_TRANSACTION_CC = "int mocc_transaction_fixture = 0;\n"
+# T-755 の trace-hook 専用 mocc 編集面。source owner 分離・裸 option・非対称
+# cache 名を同時に通す最小 TU。
+_FAKE_MOCC_TRANSACTION_CC = (
+    "#ifdef RWLOCK\n"
+    "int mocc_rwlock_fixture = 1;\n"
+    "#endif\n"
+    "#ifdef DLR1\n"
+    "int mocc_dlr1_fixture = 1;\n"
+    "#endif\n"
+    "#if INLINE_VERSION_OPT == 17\n"
+    "int mocc_inline_fixture = 17;\n"
+    "#endif\n")
 
 
 # 実 CMake の構造 (cmake/Options.cmake の供給表 + cc/<protocol>/CMakeLists.txt の OPTIONS) を
@@ -10602,7 +10765,9 @@ _FAKE_MOCC_TRANSACTION_CC = "int mocc_transaction_fixture = 0;\n"
 # と同じ役回りで、乖離マクロの回帰検査に使う。
 _FAKE_OPTIONS_CMAKE = (
     'set(CCBENCH_BACK_OFF 1 CACHE STRING "exponential backoff")\n'
+    'set(CCBENCH_WAL 0 CACHE STRING "silo fixture")\n'
     'set(CCBENCH_DEBUG_MSG 0 CACHE STRING "oze only — not supplied to silo TUs")\n'
+    'set(CCBENCH_INLINE_VERSION_OPT_X 17 CACHE STRING "asymmetric fixture")\n'
     "function(ccbench_universal_definitions out_var)\n"
     "  set(${out_var}\n"
     "    BACK_OFF=${CCBENCH_BACK_OFF}\n"
@@ -10614,6 +10779,15 @@ _FAKE_SILO_CMAKE = (
     "  WORKLOADS ycsb\n"
     "  OPTIONS\n"
     "    WAL=${CCBENCH_WAL}\n"
+    ")\n")
+_FAKE_MOCC_CMAKE = (
+    "ccbench_add_protocol(mocc\n"
+    "  SOURCES transaction.cc util.cc lock.cc\n"
+    "  WORKLOADS ycsb tpcc bomb sbomb\n"
+    "  OPTIONS\n"
+    "    RWLOCK\n"
+    "    DLR1\n"
+    "    INLINE_VERSION_OPT=${CCBENCH_INLINE_VERSION_OPT_X}\n"
     ")\n")
 
 
@@ -10628,6 +10802,8 @@ def _fake_ccbench_repo():
         f.write(_FAKE_OPTIONS_CMAKE)
     with open(os.path.join(sub, "cc", "silo", "CMakeLists.txt"), "w", encoding="utf-8") as f:
         f.write(_FAKE_SILO_CMAKE)
+    with open(os.path.join(sub, "cc", "mocc", "CMakeLists.txt"), "w", encoding="utf-8") as f:
+        f.write(_FAKE_MOCC_CMAKE)
     with open(os.path.join(sub, "include", "backoff.hh"), "w", encoding="utf-8") as f:
         f.write(_FAKE_BACKOFF_HH)
     with open(os.path.join(sub, "cc", "silo", "transaction.cc"), "w", encoding="utf-8") as f:
@@ -10647,6 +10823,185 @@ def _fake_ccbench_repo():
     git("commit", "-q", "-m", "stock")
     head = git("rev-parse", "HEAD").strip()
     return sub, head, git
+
+
+def test_source_digest_source_protocol_registry_is_exact_and_unknown_is_runtime_error():
+    """source owner の drift と未知 path は KeyError にせず variant 単位で停止する。"""
+    assert tuple(source_digest.EVOLVE_BLOCK_SOURCE_PROTOCOLS) == source_digest.EVOLVE_BLOCK_SOURCES
+    g = Genome("silo", {})
+    try:
+        source_digest._source_protocol("cc/unknown/transaction.cc", g)
+        assert False, "未知 source は RuntimeError で停止すべき"
+    except RuntimeError as exc:
+        assert "未知 source" in str(exc)
+    with unittest_mock.patch.dict(
+            source_digest.EVOLVE_BLOCK_SOURCE_PROTOCOLS,
+            {"cc/extra/transaction.cc": "extra"}, clear=False):
+        try:
+            source_digest._source_protocol("include/backoff.hh", g)
+            assert False, "source owner registry の余分な key は exact-match で停止すべき"
+        except RuntimeError as exc:
+            assert "不一致" in str(exc)
+
+
+def test_source_digest_real_mocc_resolve_succeeds_with_source_owned_defines():
+    """実 mocc positive control:裸 RWLOCK と MQLOCK absent registry を実 source で通す。"""
+    cxx = _any_cxx()
+    _require_ccbench_file("cmake/Options.cmake")
+    _require_ccbench_file("include/backoff.hh")
+    _require_ccbench_file("cc/silo/transaction.cc")
+    _require_ccbench_file("cc/mocc/CMakeLists.txt")
+    _require_ccbench_file("cc/mocc/transaction.cc")
+    sub = buildcache._ccbench_dir()
+    head = _ccbench_head_or_skip()
+    assert head is not None, "init 済み ccbench の HEAD を解決できない (skip に化けてはいけない)"
+    g = Genome("mocc", {})
+    defines = source_digest._worktree_defines(sub, g, "cc/mocc/transaction.cc")
+    assert defines.get("RWLOCK") == "1", "mocc の裸 OPTIONS RWLOCK が -DRWLOCK=1 に反映されていない"
+    source_digest.assert_conditional_macros_covered(g, sub, cxx)
+    token = source_digest.resolve(g, head, sub, cxx)
+    # clean stock checkout では HEAD roundtrip も同時に固定する。template patch
+    # 適用中の共有 checkout では、resolve 成功と供給表検査だけを受け入れる。
+    if "EVOLVE-BLOCK-BEGIN" not in source_digest._read(
+            os.path.join(sub, "include", "backoff.hh")):
+        assert token == source_digest.STOCK
+        assert source_digest.compute(g, sub, cxx) == source_digest.baseline(g, head, sub, cxx)
+
+
+def test_source_digest_real_silo_resolve_succeeds_after_source_protocol_split():
+    """実 silo 回帰: silo source と mocc source に各 owner の供給表を適用する。"""
+    cxx = _any_cxx()
+    for rel in (
+            "cmake/Options.cmake", "include/backoff.hh", "cc/silo/CMakeLists.txt",
+            "cc/silo/transaction.cc", "cc/mocc/CMakeLists.txt", "cc/mocc/transaction.cc"):
+        _require_ccbench_file(rel)
+    sub = buildcache._ccbench_dir()
+    head = _ccbench_head_or_skip()
+    assert head is not None, "init 済み ccbench の HEAD を解決できない (skip に化けてはいけない)"
+    g = Genome("silo", {
+        "BACK_OFF": 1,
+        "NO_WAIT_LOCKING_IN_VALIDATION": 1,
+        "NO_WAIT_OF_TICTOC": 0,
+        "WAL": 0,
+    })
+    source_digest.assert_conditional_macros_covered(g, sub, cxx)
+    token = source_digest.resolve(g, head, sub, cxx)
+    if "EVOLVE-BLOCK-BEGIN" not in source_digest._read(
+            os.path.join(sub, "include", "backoff.hh")):
+        assert token == source_digest.STOCK
+        assert source_digest.compute(g, sub, cxx) == source_digest.baseline(g, head, sub, cxx)
+
+
+def test_source_digest_parse_bare_asymmetric_options_and_malformed_scope():
+    """裸/KV option の positive と OPTIONS 範囲外・括弧不整合の fails-closed。"""
+    cxx = _any_cxx()
+    sub, head, _git = _fake_ccbench_repo()
+    supplied = source_digest.parse_supplied_macros(_FAKE_OPTIONS_CMAKE, _FAKE_MOCC_CMAKE)
+    assert {"BACK_OFF", "RWLOCK", "DLR1", "INLINE_VERSION_OPT"} <= supplied
+    for name in ("SOURCES", "WORKLOADS", "mocc", "transaction", "ycsb", "INLINE_VERSION_OPT_X"):
+        assert name not in supplied, name
+    g = Genome("mocc", {})
+    mocc_defines = source_digest._worktree_defines(sub, g, "cc/mocc/transaction.cc")
+    silo_defines = source_digest._worktree_defines(sub, g, "cc/silo/transaction.cc")
+    assert mocc_defines["RWLOCK"] == "1" and mocc_defines["DLR1"] == "1"
+    assert mocc_defines["INLINE_VERSION_OPT"] == "17"
+    assert "INLINE_VERSION_OPT_X" not in mocc_defines
+    assert "RWLOCK" not in silo_defines and silo_defines["WAL"] == "0"
+    assert source_digest.resolve(g, head, sub, cxx) == source_digest.STOCK
+    source_digest.assert_trace_diff_matches_head(g, head, sub, cxx)
+
+    unbalanced = _FAKE_MOCC_CMAKE.rstrip().rstrip(")") + "\n"
+    try:
+        source_digest.parse_supplied_macros(_FAKE_OPTIONS_CMAKE, unbalanced)
+        assert False, "OPTIONS 呼び出しの閉じ括弧欠落は停止すべき"
+    except RuntimeError as exc:
+        assert "括弧" in str(exc)
+
+    # A source/workload token with an option-like name remains outside the
+    # OPTIONS range and is not a supplied macro.  An assignment-shaped token
+    # outside that range is structurally ambiguous and must stop.
+    scoped = (
+        "ccbench_add_protocol(mocc SOURCES INLINE_VERSION_OPT WORKLOADS ycsb "
+        "OPTIONS RWLOCK)\n")
+    scoped_names = source_digest.parse_supplied_macros(_FAKE_OPTIONS_CMAKE, scoped)
+    assert "INLINE_VERSION_OPT" not in scoped_names
+    malformed_scope = (
+        "ccbench_add_protocol(mocc SOURCES transaction.cc "
+        "INLINE_VERSION_OPT=${CCBENCH_INLINE_VERSION_OPT_X} "
+        "WORKLOADS ycsb OPTIONS RWLOCK)\n")
+    try:
+        source_digest.parse_supplied_macros(_FAKE_OPTIONS_CMAKE, malformed_scope)
+        assert False, "OPTIONS 範囲外の供給形 token は停止すべき"
+    except RuntimeError as exc:
+        assert "OPTIONS 外" in str(exc)
+
+
+def test_source_digest_proven_absent_macro_registry_self_checks_supply_sources():
+    """MQLOCK は参照だけなら通るが、bare OPTIONS/#define 出現で registry stale を検知する。"""
+    real_sub = buildcache._ccbench_dir()
+    _require_ccbench_file("cc/mocc/transaction.cc")
+    assert source_digest._assert_proven_repo_absent_macros(real_sub) == (
+        source_digest.PROVEN_REPO_ABSENT_MACROS)
+
+    sub, _head, _git = _fake_ccbench_repo()
+    mocc_src = os.path.join(sub, "cc", "mocc", "transaction.cc")
+    with open(mocc_src, "a", encoding="utf-8") as f:
+        f.write("#ifdef MQLOCK\nint mqlock_reference_only;\n#endif\n")
+    assert source_digest._assert_proven_repo_absent_macros(sub) == (
+        source_digest.PROVEN_REPO_ABSENT_MACROS)
+
+    sub, _head, _git = _fake_ccbench_repo()
+    with open(os.path.join(sub, "cc", "mocc", "CMakeLists.txt"), "a", encoding="utf-8") as f:
+        f.write(
+            '\ntarget_compile_definitions(mocc_extra PRIVATE '
+            '"$<INSTALL_INTERFACE:UNRELATED_FLAG=1>")\n'
+        )
+    assert source_digest._assert_proven_repo_absent_macros(sub) == (
+        source_digest.PROVEN_REPO_ABSENT_MACROS)
+
+    sub, _head, _git = _fake_ccbench_repo()
+    with open(os.path.join(sub, "cc", "mocc", "CMakeLists.txt"), "a", encoding="utf-8") as f:
+        f.write(
+            '\ntarget_compile_definitions(mocc_extra PRIVATE '
+            '"$<$<CONFIG:Debug>:MQLOCK>")\n'
+        )
+    try:
+        source_digest._assert_proven_repo_absent_macros(sub)
+        assert False, "MQLOCK を含む generator expression で停止すべき"
+    except RuntimeError as exc:
+        assert "CMake supply" in str(exc)
+        assert "stale" in str(exc) or "静的な供給元を確定できない" in str(exc)
+
+    sub, _head, _git = _fake_ccbench_repo()
+    with open(os.path.join(sub, "cc", "mocc", "CMakeLists.txt"), "a", encoding="utf-8") as f:
+        f.write("\n# stale supply case is intentionally live\n")
+        f.write("ccbench_add_protocol(mocc_extra SOURCES x.cc WORKLOADS ycsb OPTIONS MQLOCK)\n")
+    try:
+        source_digest._assert_proven_repo_absent_macros(sub)
+        assert False, "bare OPTIONS MQLOCK で registry stale を検知すべき"
+    except RuntimeError as exc:
+        assert "stale" in str(exc) and "CMake supply" in str(exc)
+
+    sub, _head, _git = _fake_ccbench_repo()
+    with open(os.path.join(sub, "cc", "mocc", "transaction.cc"), "a", encoding="utf-8") as f:
+        f.write("#define MQLOCK 1\n")
+    try:
+        source_digest._assert_proven_repo_absent_macros(sub)
+        assert False, "#define MQLOCK で registry stale を検知すべき"
+    except RuntimeError as exc:
+        assert "stale" in str(exc) and "#define MQLOCK" in str(exc)
+
+    sub, _head, _git = _fake_ccbench_repo()
+    with open(os.path.join(sub, "cc", "mocc", "CMakeLists.txt"), "a", encoding="utf-8") as f:
+        f.write(
+            '\nset_target_properties(mocc_extra PROPERTIES '
+            'COMPILE_DEFINITIONS "FOO;MQLOCK")\n'
+        )
+    try:
+        source_digest._assert_proven_repo_absent_macros(sub)
+        assert False, "semicolon-list COMPILE_DEFINITIONS MQLOCK で registry stale を検知すべき"
+    except RuntimeError as exc:
+        assert "stale" in str(exc) and "CMake supply" in str(exc)
 
 
 def test_source_digest_builtin_ifdef_not_aliased_to_stock():
@@ -11015,7 +11370,7 @@ def test_source_digest_read_failure_is_runtime_error():
     sub, _head, _git = _fake_ccbench_repo()
     os.remove(os.path.join(sub, "cc", "silo", "CMakeLists.txt"))
     try:
-        source_digest._worktree_defines(sub, g)
+        source_digest._worktree_defines(sub, g, "cc/silo/transaction.cc")
         assert False, "protocol CMakeLists 不在で停止すべき"
     except RuntimeError as e:
         assert "CMakeLists.txt" in str(e)
@@ -11035,7 +11390,7 @@ def test_source_digest_defines_match_real_tu_supply():
     supplied = source_digest.parse_supplied_macros(_FAKE_OPTIONS_CMAKE, _FAKE_SILO_CMAKE)
     assert "BACK_OFF" in supplied and "WAL" in supplied     # universal + protocol OPTIONS
     assert "DEBUG_MSG" not in supplied                       # CACHE には居るが TU 非供給
-    defines = source_digest._worktree_defines(sub, g)
+    defines = source_digest._worktree_defines(sub, g, "cc/silo/transaction.cc")
     assert "DEBUG_MSG" not in defines, "TU 非供給マクロが digest の -D に残っている"
     assert defines.get("Linux") == "1", "実 TU の -DLinux が digest に無い"
     # 非供給マクロの definedness テストは未知マクロとして停止する (両環境の枝逆転を沈黙させない)

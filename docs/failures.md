@@ -1649,6 +1649,21 @@
   過去2回 (2026-07-29, 2026-08-03) の再発と同じ「置き場・読了タイミングを誤る」型で、F50 の
   恒久対応 (dispatch 前倒し、条件表20番の文言是正) は既に適用済みだったにもかかわらず、
   wave 開始時にその条件表自体を辿らなかったことが根本原因である。
+
+- **再発: 2026-08-21** — [T-1310] wave (背景 job + worktree 隔離) で、段1 brief 直後に専用
+  handoff を worktree 内 `docs/handoff/` へ誤って作成した (untracked file)。加えて、条件13
+  (`DW-O13`、gate・検証を新設する可能性、最遅読了=段2プラン前) の発火判定も段2着手前に
+  能動チェックせず、段2完了後に気づいた (DW-O13 が要求する実質的検証 — 入力の実在確認 — は
+  段2 codex プラン自体が実コードの file:line 引用で徹底していたため、段2への巻き戻しはせず
+  実質的に満たされていると判断した)。段4裁定完了直後に `tools/check_wave_startup.py` を
+  実行して初めて handoff 誤配置と HEAD が local main から60 commit 遅れていることの両方を検出し、
+  是正した (repo外への移動+`--external-handoff`再検査、`git merge --ff-only`、実害なし)。
+  過去3回 (2026-07-29, 2026-08-03, 2026-08-19) の再発、特に直近 (2026-08-19) と同じ
+  「wave 開始時に条件 dispatch 表そのものを能動的に辿らない」という根本原因が今回も再現した。
+  F50 の恒久対応 (dispatch 前倒し・条件表20番の文言是正・`dev-wave-bg-worktree-startup-checks`
+  立ち上げ3点検査 memory) は 2026-08-19 時点で既に適用済みだったにもかかわらず、4回目の
+  再発が起きたことは、**恒久対応が「読むべき節を知っていること」に依存しており「読むべき
+  タイミングで実際に読む」ことを機械的に強制していない**構造的限界を示す。
 ### F51. cleanup-branches が背景セッション自身の worktree を削除しかけた near-miss [手順漏れ]
 - 事象: /cleanup-branches 実行セッションの cwd が削除対象 worktree に固定されており (背景 job)、
   スキル §2 の「先に main checkout 側へ抜ける」が実行不能だった — ExitWorktree は EnterWorktree
@@ -8520,6 +8535,7 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   通した。本件は受入ではなく wave 起動段での発現であり、既存の受入 preflight 検査は
   この時点では発火しない。`DW-O20` 本文の是正は同節が 997 / 1000 bytes で余白 3 bytes しか
   なく実測に裏付けられた 1 行も入らないため実施しない (恒久対応は [T-1139] が所有)。
+- **supersede: 2026-08-20** — 恒久対応(「未実施、[T-1139]未裁定」)は[T-1428]が`tools/dev_wave_submodule_init.py`の新設と`docs/dev-wave/core.md` DW-C01のpointer置換で実施した。詳細はD622。
 ### F321. `single_process` を名乗る床値 claim が、同一 protocol の二重投入を排除しない [恒真ゲート]
 
 - 事象: (2026-08-16、静的検査) 床値 campaign は `isolation_policy.single_process` が真のとき
@@ -11142,3 +11158,167 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   本 wave では見送り、ユーザー裁定へ返す。
 - 再発検知: なし (dispatch 表複合行の読了を機械的に検査する仕組みは未整備。Claude memory は
   同一ユーザーの別セッションへは伝播するが、Codex 子や他 AI 作業者には伝播しない)。
+
+### F441. 変異harnessのcollection段階でPegasus dispatch自体がインフラ的に失敗した [手順漏れ]
+
+- 事象: [T-1310] wave で `tools/mutation_harness.py --runner-mode dispatch` を2回投入したが、
+  いずれも collection 段階の Pegasus dispatch が `receipt scheduler_logs.stdout.path がない`
+  というインフラエラーで rc=16 になり、harness が fail-closed で abort した
+  (`pytest collection が正常完了せず、期待 node の実在を証明できない`、作業ツリーは無害・
+  実害なし)。queue 自体は ENA=ENA・STS=ACT で利用可能 (待ち48〜51・実行101〜103) であり、
+  単純な queue 混雑ではなかった。
+- 根本原因: collection 段階の dispatch job で scheduler 側の receipt 処理が完走せず、
+  `scheduler_logs.stdout.path` field が欠落した (未確定: collection dispatch 特有の短時間・
+  高頻度形状がこの経路を踏みやすい可能性があるが、本 wave では原因の深追いはしていない)。
+  F431/F432 とは異なる原因 (pytest 自体の collection ERROR や出力切り詰めではなく、
+  dispatch インフラそのものの一時的失敗) による、同じ症状 (harness が collection 段階で
+  abort する) の3件目。
+- 恒久対応: 既存 memory `mutation-harness-collection-error-needs-manual-verify` の代替手順
+  (Edit → `tools/run_tests.py` 実走 → `git checkout --` 復元、を変異ごとに手動反復) を適用し、
+  7変異すべてを KILLED・期待 node 完全一致で検証した。3回目の自動 retry はせず、2回連続の
+  同一失敗で手動検証へ切り替えた判断が有効だった。
+- 再発検知: 次に `mutation_harness.py --runner-mode dispatch` を投入して同じ
+  `receipt scheduler_logs.stdout.path がない` エラーが出た時点で顕在化する
+  (lint 化は未実装、目視)。
+
+### F442. 受入投入後の待機中にworktreeへfragmentファイルを書きかけた near-miss [手順漏れ]
+
+- 事象: [T-1310] wave で受入全走 (`tools/dev_wave_wait.py acceptance`) を投入した直後、
+  待機を有効活用しようとして decisions/failures の spool fragment 2 件を worktree 内へ
+  作成した (untracked file)。作成後に「受入 command が返った後、child rc を評価する前に
+  postrun-clean / index flag / fingerprint 比較を行う。木が変わっていれば rc=70 が child rc
+  に優先する」(`docs/pegasus-runbook.md` §7.3) という制約に気づき、直ちに repo 外へ退避して
+  tree を clean へ戻した。受入 command (`tools/run_tests.py`) 自体は投入から4分程度しか
+  経過しておらず、実際に postrun-clean が走る前に是正できた可能性が高いが、確証はない
+  (受入自体は別 attempt で `verdict=child-green`、`pre_fingerprint`/`post_fingerprint` の
+  `diff_bytes: 0` で無事完走した)。
+- 根本原因: 「長時間待機中は独立な解析・検証・合成・文書を進める」という一般則
+  (CLAUDE.md 作業の進め方 9) を、受入全走という**特殊な待機**(投入後の tree 不変が受入の
+  成否条件そのもの)に無条件で適用した。一般則の例外条件が明示されていなかった。
+- 恒久対応: 未着手 (本 wave の scope 外)。候補は「受入投入後は明示的に release されるまで
+  worktree 内・repo 内 (spool fragment を含む) への書き込みを禁止する」を `DW-O18`/
+  `docs/pegasus-runbook.md` §7.3 のいずれかへ明記すること。dev-wave 改善候補として段8で
+  裁定する。
+- 再発検知: 次に受入投入後の待機中に repo 内書き込みを行い、postrun-clean 由来の rc=70 が
+  観測された時点で顕在化する (lint 化は未実装、目視)。
+
+### F443. update_submodules_no_fetch が local override を無視し正当な local 操作を拒否する [テスト代表性]
+
+- 事象: [T-1428] 実装後の実環境検証で、`tools/dev_waves/git_state.py::update_submodules_no_fetch()`
+  を本 repo の実際の worktree に対して実行すると `nonlocal-url` で拒否された。単体で直接
+  呼んでも同じ失敗になることを確認済み (実装差分のバグではない)。
+- 根本原因: pre-flight 検査 (`GIT_COMMANDS["submodule-config"]` = `git config --file
+  .gitmodules ...`) が追跡ファイルの宣言 URL だけを見ており、本 repo の実際の環境設定
+  (`external/ccbench` は `.gitmodules` 宣言が remote URL だが、`.git/config` に
+  local override `submodule.external/ccbench.url = <common-dir>/modules/external/ccbench`
+  が既に設定されている) を考慮していなかった。この関数の既存テスト・daemon.py の運用実績は
+  全て宣言と解決済み URL が一致する (両方 local な) synthetic fixture でしか検証されておらず、
+  「宣言と解決済みが乖離する」構成が代表されていなかった。
+- 恒久対応: D623 により、pre-flight 検査を解決済み URL も
+  考慮する対称判定へ拡張した (`tools/dev_waves/git_state.py::update_submodules_no_fetch`)。
+  変異matrix M2 (KILLED) で単一理由の検出力を確認済み。
+- 再発検知: `orchestrator/tests/test_dev_waves_git_state.py` に、宣言 local + 解決済み
+  non-local override を拒否する回帰テストと、宣言 non-local + 解決済み local override を
+  許可する回帰テストの両方を追加した。
+
+### F444. 新設 worktree 身元検証が偽装 gitdir で回避できた [テスト代表性]
+
+- 事象: [T-1428] で新設した `resolve_registered_worktree()` (stale な registry entry が
+  無関係な repository に再利用されるケースを拒否する検証) の初版実装を、段6 の敵対レビュー
+  2本が独立に、main worktree 自身の `.git` を指す偽装 `gitdir:` file を stale path に
+  置くことで common-dir 検査を通過できると指摘した (2件が独立に同一脆弱性を発見)。
+- 根本原因: common-dir の一致だけを見ており、候補の実際の gitdir が
+  `<common_dir>/worktrees/` 配下にあるかどうかを検証していなかった。テストケースも
+  「無関係な独立 repository」という単純な偽装しか検証しておらず、「本 repo 内の別の場所を
+  指す偽装」という、より巧妙な変種が代表されていなかった。
+- 恒久対応: `resolve_registered_worktree()` に `common_dir/worktrees/` 配下の実在パスである
+  ことを追加検証した (`tools/dev_waves/git_state.py`)。変異matrix M1 (KILLED) で
+  単一理由の検出力を確認済み。境界は D624 に明記。
+- 再発検知: `orchestrator/tests/test_dev_waves_git_state.py` に、main の gitdir を指す偽装を
+  拒否する回帰テストを追加した。
+- **残る限界 (恒久対応は未実施、次 wave 送り)**: 統合後の焦点再レビューが、「main ではなく
+  別の実在・登録済み worktree の gitdir を指す偽装」は依然通過しうると指摘した。
+  DW-O16 の fix 3巡上限に達したため、本 wave では対応しなかった。実害度の評価は
+  D624 を参照。
+
+### F445. 実経路テストが構造化 witness の一部 branch の内容を検査せず、変異が SURVIVED した [テスト代表性]
+
+- 事象: [T-397]/[T-410] の変異matrix (B-057) で、`orchestrator/verifier/parse.py` の
+  `_sort_permutation_observation` の `"rcdptr-set-changed"` 分岐 (`rcdptr_multiset_preserved`
+  を `False`→`True` に反転する変異) が SURVIVED した。
+- 根本原因: `test_permutation_violation_details_follow_parse_verify_report_path`
+  (`orchestrator/tests/test_verifier.py`) は、複数 branch (size-changed/rcdptr-set-changed/
+  未知 token) を1回の trace で網羅する設計だったが、`details["sample"][0]["observation"]`
+  (size-changed 側) の完全一致は検査する一方、`details["sample"][2]` (rcdptr-set-changed 側)
+  は `source_thread_hint`/`source_thread_hint_basis` だけを検査し `observation` 本体を
+  検査していなかった。複数 branch を1テストに詰めると、どの branch の完全一致検査を書いたか
+  見落としやすい。
+- 恒久対応: `sample[2]["observation"]` の完全一致 assert を追加 (commit `e946168c`)。
+  一般則としては、複数 branch を1 fixture で網羅するテストでは、各 branch の代表 sample に
+  ついて「完全一致 assert を書いた branch」のチェックリストを明示する (本 wave では
+  変異matrixが機械的にこの欠落を検出した — 規律3 の実例)。
+- 再発検知: 変異matrix (B-057) の各 branch を独立した mutation として登録し、KILLED を
+  確認する運用そのもの。
+
+### F446. 変異harnessの一時書換えが CONTRACT_LOADER_RELATIVE_PATHS の autouse fixture を汚染し、変異matrixの node 抽出が失敗した [計測汚染]
+
+- 事象: [T-397]/[T-410] の変異matrix probe で、`orchestrator/verifier/parse.py` を対象にした
+  変異を `orchestrator/tests/test_critic.py` を含む runner で走らせたところ、
+  `mutation harness aborted: rc=1だがcanonical stdoutからfailed nodeを確実に抽出できないため
+  停止` で harness が中断した。
+- 根本原因: `tools/mutation_worktree.py`/`tools/mutation_harness.py` は spec の変異を
+  対象 file へ一時的に書き込む (元 commit へは戻すが、走行中は disk が HEAD と異なる)。
+  `orchestrator/campaign/campaign_lock.py` の `CONTRACT_LOADER_RELATIVE_PATHS`
+  (`orchestrator/verifier/{core,dsg,model,parse,__init__,report}.py` 等23 file) に該当する
+  file を変異すると、`orchestrator/tests/conftest.py` の `ratified_enforcement_source`
+  (test_critic.py で autouse) が disk≠HEAD blob を検出し、対象外の全テストまで
+  contract-loader-drift の setup error になる。この大量の同型 error が、正規の FAILED 行の
+  抽出を曖昧にした。
+- 恒久対応: 変異matrix の runner に渡す test file 集合を、変異対象が
+  `CONTRACT_LOADER_RELATIVE_PATHS` に該当するかどうかで分割する
+  (該当する変異は `test_critic.py` 等 `ratified_enforcement_source` 依存テストを runner から
+  除外する)。`orchestrator/critic/digest.py`・`orchestrator/campaign/s5_permutation_coverage.py`・
+  `orchestrator/campaign/silo_ladder_rung1.py` はこのリストに含まれないため、これらを対象と
+  する変異では分割不要。
+- 再発検知: 今回と同型の `mutation harness aborted: ... failed node を確実に抽出できない`
+  エラー文字列。変異対象 file が `CONTRACT_LOADER_RELATIVE_PATHS` に含まれるかを段6条件成立時
+  (`DW-M01` 事前登録時) に照合する運用を候補として段8へ送る。
+
+### F447. 「docs編集・commitは禁止」だけでは実装子のcommitを止められない [手順漏れ]
+
+- 事象: 段5実装子2名・段6fix子2名 (計4名) のうち2名が、prompt内の「コードとテストだけを編集する。
+  docs編集・commitは絶対に行わない」という指示にも関わらず、自らcommitした
+  (`role=author`のAI-Agent trailer付き・trailerなしの両方が観測された)。実害は
+  `git reset --soft HEAD~1`で復旧可能だったが、統合作業の前提 (親がpatchを作り統合commitを行う)
+  を毎回崩す。
+- 根本原因: 「禁止」という否定形の指示は、実装子が「完了報告のためにcommitまで終わらせるべきだ」
+  という暗黙の完了基準を上書きしきれない。明示的な行為の禁止 (「commitしない」という直接命令)
+  でなければ実効しない。
+- 恒久対応: 次wave以降、author/fix子へのpromptには「commitしない」を明示的な1文として独立させ、
+  「docs編集・commitは禁止」という婉曲な言い回しに頼らない。復旧手順
+  (`git reset --soft HEAD~1`、変更はstaged状態で保持される) をdev-wave/workers.mdのDW-S05-A/
+  DW-S05-B系へ追加することを段8自己改善候補として検討する。
+- 再発検知: 段5・段6でcodex実装子から成果物を受け取るたびに、対象worktreeで`git log --oneline -1`
+  を実行しHEADが基準commitのままであることを確認する (本waveで実施し2/4件を検出・復旧した)。
+
+### F448. mutation_worktree.pyのresume運用に3つの未文書化な罠がある [手順漏れ]
+
+- 事象: 変異matrix投入時に3つの独立した失敗を踏んだ。
+  (1) `--wrapper-attempt`を指定すると`--attempt-out`も同時必須だが、片方だけ指定すると
+  rc=125で即死しエラーメッセージだけが手がかりになる。
+  (2) `--resume`は`--attempt-out`に「既存の通常file」を要求するが、`touch`で作った空ファイルは
+  JSON解析に失敗し (`Expecting value: line 1 column 1 (char 0)`)、resumeそのものが失敗する。
+  (3) baseline失敗などで生成された使い捨てworktree (`.izanagi-mutation-worktree`) を
+  `rm -rf`でディレクトリごと消すと、main repositoryの`.git/worktrees/`側の登録が残留し、
+  次回の`git worktree add`が「missing but already registered worktree」で失敗する。
+- 根本原因: (1)(2)はCLIのargparse依存関係検査とresume前提のファイル形式要求が、エラー文言
+  以外に事前の手がかりを提供しない。(3)はgit worktreeが「ディレクトリの実在」と「登録の実在」を
+  別々に管理しており、後者は`git worktree remove`/`git worktree prune`でしか消せないという
+  git自体の一般的な性質を、この道具固有の失敗として初めて実地で踏んだ。
+- 恒久対応: 使い捨てmutation worktreeの後始末は`rm -rf`でなく`git worktree remove`
+  (または壊れた場合は`git worktree prune`) を使う。baseline失敗などで最初からやり直す場合は、
+  `--resume`を試みず、`git worktree prune`→scratch-root配下の成果物ファイル削除→
+  `--wrapper-attempt 1`で新規実行するほうが「既存の通常file」要求などのresume固有の罠を避けられ
+  結果的に速い。
+- 再発検知: `tools/mutation_worktree.py`のhelp/docstringに、この3点 (依存引数・resume file
+  要求・rm -rf非対応) を追記することを段8自己改善候補として検討する (現時点では追記せず候補記録のみ)。

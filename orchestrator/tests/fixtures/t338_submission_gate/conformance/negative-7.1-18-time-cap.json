@@ -1,0 +1,1 @@
+{"schema_version":"t338-conformance-vector/v2","id":"negative-7.1-18-time-cap","kind":"negative","classification":"relabel","covers":["7.1(18)"],"unit3_reference":"test_phase_caps_and_monotonic_order_are_recomputed","entrypoint":"receipt","mutation":{"op":"set","path":["allocations",0,"internal_deadline_s"],"value":1},"expected_reason":"phase"}
