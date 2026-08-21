@@ -2025,6 +2025,16 @@ def test_known_violation_ledger_matches_literal_entries():
             "missing-codex-author を検出した。親作成 merge のため Codex 著者とは記さない。",
             "",
         ),
+        (
+            "09ce607b779272fda5629a350676471a16bea9bb",
+            "missing-ai-agent",
+            "本セッション内でユーザーへ状況を説明し known-violation 登録の続行を承認された (2026-08-21)",
+            "git show で確認したところ、commit `09ce607b779272fda5629a350676471a16bea9bb` は "
+            "ユーザー本人 (thawk105) が直接作成した `external/ccbench` submodule pin 更新 "
+            "(511c9538→ef9328a3) commitで、AI-Agent trailerを完全に欠く。T-1458 waveの作業とは無関係で、"
+            "本 wave はこのcommitを書き換えない。",
+            "",
+        ),
     )
     assert len(provenance.KNOWN_PROVENANCE_VIOLATIONS) == len(expected)
     assert observed == expected
