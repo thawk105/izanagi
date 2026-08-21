@@ -2,6 +2,8 @@
 """T-1416 の campaign-level toolchain binding 配線を固定する。"""
 from __future__ import annotations
 
+import hashlib
+import json
 import os
 import sys
 from types import SimpleNamespace
@@ -12,13 +14,19 @@ _HERE = os.path.dirname(os.path.abspath(__file__))
 _ORCH = os.path.dirname(_HERE)
 sys.path.insert(0, os.path.dirname(_ORCH))
 
-from orchestrator.campaign import backoff_sweep, env_contract, loop, p2_2  # noqa: E402
+from orchestrator.campaign import (  # noqa: E402
+    backoff_sweep, buildcache, env_contract, ident, loop, p2_2, pipeline,
+    site_policy,
+)
 from orchestrator.campaign.build_admission import (  # noqa: E402
     GeneratorId,
     build_run_context,
 )
+from orchestrator.campaign.layout import campaign_layout  # noqa: E402
 from orchestrator.campaign.model import Genome  # noqa: E402
 from orchestrator.campaign.pipeline import PerfConfig  # noqa: E402
+from orchestrator.campaign.source_digest import SourceEvidence  # noqa: E402
+from orchestrator.verifier.model import VerifyResult  # noqa: E402
 
 
 def _manifest() -> dict[str, dict[str, str]]:
@@ -33,19 +41,49 @@ def _manifest() -> dict[str, dict[str, str]]:
     }
 
 
+def _expected_contract(site: str):
+    """site fixture から独立に組み立てる reviewed runtime contract。"""
+    if site == site_policy.OTHER:
+        return env_contract.ExecutionEnvironmentContract(
+            env_tag="linux-baremetal",
+            clocks_per_us=1800,
+            numactl=("numactl", "--interleave=all"),
+            attestation_mode="none",
+            isolation_policy=env_contract.IsolationPolicy(
+                single_process=False, allow_resume=True,
+            ),
+            calibration_ref=env_contract.CalibrationRef(
+                path=(
+                    "output/env/linux-baremetal/calibration/"
+                    "calibration_t48_skew0p9_rr50_rmw0.json"
+                ),
+                sha256=(
+                    "751304772367418806eb6e63c9715cd430315066420e9e3e4c91bf356195eef5"
+                ),
+            ),
+        )
+    if site == site_policy.PEGASUS_COMPUTE:
+        return env_contract.lookup("pegasus")
+    raise AssertionError(site)
+
+
 @pytest.mark.parametrize(
     ("module", "runner"),
     [(backoff_sweep, "backoff"), (p2_2, "p2")],
 )
 def test_campaign_resolves_once_and_forwards_expected_toolchain(
         module, runner, monkeypatch):
+    site = site_policy.OTHER
+    expected_contract = _expected_contract(site)
     manifest = _manifest()
     observed = []
     captured = []
 
     monkeypatch.setattr(module, "_assert_single_tenant", lambda: None)
-    if runner == "p2":
-        monkeypatch.setattr(module, "_assert_matches_calibration", lambda: None)
+    monkeypatch.setattr(p2_2.site_policy, "current_site", lambda: site)
+    monkeypatch.setattr(
+        p2_2, "_assert_matches_calibration", lambda *_args, **_kwargs: None,
+    )
     monkeypatch.setattr(
         module.buildcache, "compilers_for_current_site",
         lambda: ("site-cc", "site-cxx"),
@@ -84,19 +122,32 @@ def test_campaign_resolves_once_and_forwards_expected_toolchain(
     assert observed == [("site-cc", "site-cxx")]
     assert len(captured) == 1
     kwargs = captured[0][1]
-    assert kwargs["env_contract"] == module.env_contract.lookup(module.ENV_TAG)
+    assert captured[0][0][3] == expected_contract.env_tag
+    assert captured[0][0][4] == expected_contract.clocks_per_us
+    assert kwargs["numactl"] == list(expected_contract.numactl)
+    assert kwargs["authorization_contract"].contract == expected_contract
+    assert kwargs["env_contract"] == expected_contract
     assert kwargs["expected_toolchain_manifest"] is manifest
     assert kwargs["declared_use_class"] == "official"
 
 
 def test_screened_workload_forwards_expected_toolchain_to_baseline_and_candidate(
         monkeypatch):
+    site = site_policy.OTHER
+    expected_contract = _expected_contract(site)
     manifest = _manifest()
     observed = []
     calls = []
     source_calls = []
+    prepare_calls = []
 
     monkeypatch.setattr(backoff_sweep, "_assert_single_tenant", lambda: None)
+    monkeypatch.setattr(p2_2.site_policy, "current_site", lambda: site)
+    captured_calibrations = []
+    monkeypatch.setattr(
+        p2_2, "_assert_matches_calibration",
+        lambda contract: captured_calibrations.append(contract),
+    )
     monkeypatch.setattr(
         backoff_sweep, "_compilers_for_current_site",
         lambda: ("site-cc", "site-cxx"),
@@ -130,6 +181,7 @@ def test_screened_workload_forwards_expected_toolchain_to_baseline_and_candidate
 
     def fake_prepare_screening_campaign(
             cfg, _workload, _baseline_ref, measure_baseline, **_kwargs):
+        prepare_calls.append(_kwargs)
         layout = SimpleNamespace(root="/fixture/screening-layout")
         measure_baseline(cfg, layout)
         return SimpleNamespace(
@@ -151,8 +203,32 @@ def test_screened_workload_forwards_expected_toolchain_to_baseline_and_candidate
     )
 
     assert observed == [("site-cc", "site-cxx")]
+    assert captured_calibrations == [expected_contract]
+    assert len(prepare_calls) == 1
+    assert prepare_calls[0]["env_tag"] == expected_contract.env_tag
+    assert prepare_calls[0]["clocks_per_us"] == expected_contract.clocks_per_us
+    assert prepare_calls[0]["numactl"] == list(expected_contract.numactl)
+    assert prepare_calls[0]["authorization_contract"].contract == expected_contract
     assert source_calls == ["test-cxx"]
     assert len(calls) == 2
+    assert [call[0][4] for call in calls] == [
+        expected_contract.env_tag, expected_contract.env_tag,
+    ]
+    assert [call[0][5] for call in calls] == [
+        expected_contract.clocks_per_us, expected_contract.clocks_per_us,
+    ]
+    assert [call[1]["numactl"] for call in calls] == [
+        list(expected_contract.numactl), list(expected_contract.numactl),
+    ]
+    assert [call[1]["authorization_contract"].contract for call in calls] == [
+        expected_contract, expected_contract,
+    ]
+    assert [call[1]["env_contract"] for call in calls] == [
+        expected_contract, expected_contract,
+    ]
+    assert [call[1]["declared_use_class"] for call in calls] == [
+        "official", "official",
+    ]
     assert [call[1]["expected_toolchain_manifest"] for call in calls] == [
         manifest, manifest,
     ]
@@ -170,8 +246,8 @@ def test_run_campaign_forwards_expected_toolchain_to_evaluate_for_each_genome(
     }
     cfg = backoff_sweep.config_for("balanced", workload)
     build_context = build_run_context(generator_id=GeneratorId.BACKOFF_SWEEP)
-    contract = env_contract.lookup(backoff_sweep.ENV_TAG)
-    authorization = env_contract.authorize(backoff_sweep.ENV_TAG)
+    contract = _expected_contract(site_policy.OTHER)
+    authorization = env_contract.authorize(contract.env_tag)
     genomes = [
         Genome("silo", {"BACK_OFF": 0}),
         Genome("silo", {"BACK_OFF": 1}),
@@ -239,6 +315,122 @@ def test_run_campaign_forwards_expected_toolchain_to_evaluate_for_each_genome(
     assert [kwargs["cxx"] for _, kwargs in source_calls] == [
         "expected-cxx", "expected-cxx",
     ]
+
+
+def test_pegasus_v2_evaluate_binds_contract_and_toolchain_provenance(
+        tmp_path, monkeypatch):
+    """実 pipeline.evaluate の v2 build 境界で Pegasus contract を検査する。"""
+    site = site_policy.PEGASUS_COMPUTE
+    contract = _expected_contract(site)
+    authorization = env_contract.authorize(contract.env_tag)
+    manifest = _manifest()
+    manifest_sha256 = hashlib.sha256(
+        json.dumps(manifest, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    ).hexdigest()
+    genome = Genome("silo", {"BACK_OFF": 1})
+    context = build_run_context(generator_id=GeneratorId.BACKOFF_SWEEP)
+    commit = backoff_sweep.CCBENCH_COMMIT
+    source = SourceEvidence(
+        schema_version="source-evidence/v1",
+        source_root=os.path.realpath(str(tmp_path / "ccbench")),
+        ccbench_commit=commit,
+        genome_sha256=hashlib.sha256(
+            genome.canonical().encode("utf-8")
+        ).hexdigest(),
+        src_token="stock",
+        source_bytes_sha256=hashlib.sha256(b"stock").hexdigest(),
+        tracked_clean=True,
+        tracked_diff_sha256=hashlib.sha256(b"").hexdigest(),
+        tracked_paths=(),
+    )
+    cfg = p2_2._campaign_cfg_for_site(
+        backoff_sweep.config_for(
+            "balanced", {"ycsb_zipf_skew": "0.9", "ycsb_rratio": "50"},
+            contract=contract,
+        ),
+        site,
+        contract,
+    )
+    cfg = ident.bind_admission_policy(cfg, context.policy)
+    layout = campaign_layout(
+        str(ident.campaign_id(cfg)), str(tmp_path / "output"),
+    ).ensure()
+    build_calls = []
+    build_results = []
+
+    def fake_build_v2(genome_value, **kwargs):
+        build_calls.append((genome_value, kwargs))
+        assert kwargs["contract"] is contract
+        assert kwargs["expected_toolchain_manifest"] is manifest
+        assert kwargs["declared_use_class"] == "official"
+        assert kwargs["cc"] == "test-cc"
+        assert kwargs["cxx"] == "test-cxx"
+        build_result = buildcache.BuildResult(
+            genome=genome_value,
+            trace=kwargs["trace"],
+            binary="/fixture/ycsb_silo.exe",
+            bin_sha256=("a" if kwargs["trace"] else "b") * 64,
+            build_dir=str(tmp_path / "build"),
+            cached=True,
+            contract_sha256=contract.contract_sha256,
+            toolchain=manifest,
+            toolchain_manifest=manifest,
+            toolchain_manifest_sha256=manifest_sha256,
+        )
+        build_results.append(build_result)
+        return build_result
+
+    monkeypatch.setattr(site_policy, "current_site", lambda: site)
+    monkeypatch.setattr(pipeline, "_resolve_site", lambda _site: site)
+    monkeypatch.setattr(pipeline.buildcache, "_ccbench_dir", lambda: str(tmp_path))
+    monkeypatch.setattr(pipeline.source_digest, "resolve_evidence", lambda *args, **kwargs: source)
+    monkeypatch.setattr(pipeline.buildcache, "build_v2", fake_build_v2)
+    monkeypatch.setattr(
+        pipeline,
+        "_run_trace",
+        lambda *_args, **_kwargs: pipeline._TraceRunResult(1, 0, 0, 1, 0),
+    )
+    monkeypatch.setattr(
+        pipeline,
+        "verify_trace_dir_with_capability",
+        lambda *_args, **_kwargs: (
+            VerifyResult(trace_dir="/fixture/trace", serializable=False, n_txns=1),
+            None,
+        ),
+    )
+
+    result = pipeline.evaluate(
+        genome,
+        layout,
+        contract.env_tag,
+        commit,
+        PerfConfig(records=1, threads=1),
+        contract.clocks_per_us,
+        numactl=contract.numactl,
+        do_bench=False,
+        do_settle=False,
+        src_token=source.src_token,
+        env_contract=contract,
+        expected_toolchain_manifest=manifest,
+        declared_use_class="official",
+        authorization_contract=authorization,
+        build_context=context,
+        log=lambda *_args: None,
+    )
+
+    assert result.aborted is True
+    assert result.certified is False
+    assert [kwargs["trace"] for _, kwargs in build_calls] == [True, False]
+    assert all(kwargs["contract"] is contract for _, kwargs in build_calls)
+    assert all(
+        kwargs["expected_toolchain_manifest"] is manifest
+        for _, kwargs in build_calls
+    )
+    assert all(kwargs["declared_use_class"] == "official" for _, kwargs in build_calls)
+    assert [built.trace for built in build_results] == [True, False]
+    assert all(built.contract_sha256 == contract.contract_sha256 for built in build_results)
+    assert all(built.toolchain is manifest for built in build_results)
+    assert all(built.toolchain_manifest_sha256 == manifest_sha256 for built in build_results)
 
 if __name__ == "__main__":
     sys.exit(pytest.main([__file__]))
