@@ -2586,6 +2586,8 @@ _PEGASUS_EXPECTED_CLASSES = {
     "tools/pegasus/probes/t139_r4_env_probe.pbs": "dispatch-required",
     "tools/pegasus/probes/t139_r4_env_probe.py": "dispatch-required",
     "tools/pegasus/probes/t139_r4_env_probe.sh": "dispatch-required",
+    "tools/pegasus/probes/t1403_walltime_sigterm_probe.pbs": "unknown",
+    "tools/pegasus/probes/t1403_walltime_sigterm_probe.py": "unknown",
     "tools/pegasus/probes/t293_perf_site_probe.pbs": "unknown",
     "tools/pegasus/probes/t293_perf_site_probe.py": "unknown",
     "tools/pegasus/probes/t316_sandbox_backend_probe.pbs": "dispatch-required",
@@ -2712,6 +2714,18 @@ _PEGASUS_EXPECTED_ENTRIES = {
         "reason": "compute-side CCBench build and measurement driver",
         "primary_gate": "compute allocation owned by t139_r4_env_probe.pbs",
         "evidence": "static compute-side call-site classification"
+    },
+    "tools/pegasus/probes/t1403_walltime_sigterm_probe.pbs": {
+        "class": "unknown",
+        "reason": "probe artifact has no login admission ruling",
+        "primary_gate": "hook deny pending admission evidence",
+        "evidence": "unmeasured probe artifact"
+    },
+    "tools/pegasus/probes/t1403_walltime_sigterm_probe.py": {
+        "class": "unknown",
+        "reason": "probe artifact has no login admission ruling",
+        "primary_gate": "hook deny pending admission evidence",
+        "evidence": "unmeasured probe artifact"
     },
     "tools/pegasus/probes/t293_perf_site_probe.pbs": {
         "class": "unknown",

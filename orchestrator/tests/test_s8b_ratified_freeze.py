@@ -1455,6 +1455,45 @@ def test_degraded_launch_threads_expected_use_perf_to_every_consumer(tmp_path):
         assert tokens[len(contract.numactl)] != "perf"
 
 
+@pytest.mark.parametrize(
+    ("mutation", "expected_cause"),
+    (
+        ("missing-receipt-field", "perf-preflight-receipt"),
+        ("extra-event-key", "schema-keys"),
+    ),
+)
+def test_ratified_journal_rejects_invalid_perf_preflight_event(
+        tmp_path, mutation, expected_cause,
+):
+    """perf-preflight の外側・内側 schema を ratified journal でも閉じる。"""
+    root, _freeze, topology = load_emitter_g1(tmp_path, perf_available=False)
+    records = [dict(record) for record in topology["journal"]]
+    event_index = next(
+        index for index, record in enumerate(records)
+        if record.get("event") == "perf-preflight"
+    )
+    event = records[event_index]
+    if mutation == "missing-receipt-field":
+        receipt = dict(event["perf_preflight_receipt"])
+        receipt.pop("status")
+        event["perf_preflight_receipt"] = receipt
+    else:
+        event["unexpected"] = True
+
+    manifest = topology["manifest"]
+    with pytest.raises(M.RatifiedFreezeError) as error:
+        M._validate_journal(
+            tuple(records), protocol=topology["protocol"],
+            schedule=manifest["schedule"], cells=manifest["cells"],
+            binaries=manifest["binaries"],
+            cert_sha256=_sha((root / topology["paths"]["cert"]).read_bytes()),
+            manifest_sha256=_sha((root / topology["paths"]["manifest"]).read_bytes()),
+            root=root, contract=EC.lookup("linux-baremetal"), expected_use_perf=False,
+        )
+    assert error.value.reason == "journal-state-invalid"
+    assert error.value.cause == expected_cause
+
+
 def _degraded_portable_record():
     contract = EC.lookup("linux-baremetal")
     holdout = HF.HOLDOUTS["rr80"]

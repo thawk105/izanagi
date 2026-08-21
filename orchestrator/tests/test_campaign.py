@@ -61,9 +61,15 @@ from orchestrator.campaign.build_admission import (  # noqa: E402
 from orchestrator.campaign import layout as layout_module                    # noqa: E402
 from orchestrator.campaign.layout import (CampaignLayout,                     # noqa: E402
                              ExplorationCampaignLayout,
+                             campaign_lock_dir, campaign_lock_path,
                              campaign_layout, ensure_exploration_namespace,
                              exploration_campaign_layout)
-from orchestrator.campaign.lock import BenchBusy, bench_lock                  # noqa: E402
+from orchestrator.campaign.lock import (                                       # noqa: E402
+    BenchBusy,
+    CampaignBusy,
+    bench_lock,
+    campaign_lock as campaign_flock,
+)
 from orchestrator.campaign.model import (CampaignConfig, Genome,              # noqa: E402
                             COMMIT_CONTRACT_SHA256_KEY,
                             STAGE_BENCH_DONE, STAGE_BUILD_DONE, STAGE_BUILD_START,
@@ -1361,6 +1367,215 @@ def test_attempt_topology_accepts_abort_then_retry():
     assert state.attempts["attempt-b"].committed
 
 
+def test_attempt_topology_rejects_delayed_verify_signal_after_retry():
+    lay = _admission_aware_layout("attempt_delayed_verify_signal_")
+    receipt_a, sha_a = _wal_admission_receipt("a")
+    receipt_b, sha_b = _wal_admission_receipt("bb")
+    _attempt_start(lay, "v", "attempt-a", receipt_a, sha_a)
+    _attempt_stage(lay, "v", STAGE_BUILD_DONE, "attempt-a", sha_a)
+    _attempt_stage(lay, "v", STAGE_ABORT, "attempt-a", sha_a, reason="build-error")
+    _attempt_start(lay, "v", "attempt-b", receipt_b, sha_b)
+    _attempt_stage(lay, "v", STAGE_BUILD_DONE, "attempt-b", sha_b)
+    _attempt_stage(lay, "v", STAGE_COMMIT, "attempt-b", sha_b)
+
+    # The old attempt's correctness signal arrives after the retry committed.
+    _attempt_stage(
+        lay, "v", STAGE_VERIFY_DONE, "attempt-a", sha_a,
+        verdict="serializable", certified=True, workload={"tag": "legacy"},
+    )
+    with pytest.raises(wal.AttemptTopologyError, match="active attempt"):
+        wal.replay(lay, admission_policy=_BUILD_CONTEXT.policy)
+
+
+def test_attempt_topology_rejects_delayed_bench_signal_after_retry():
+    lay = _admission_aware_layout("attempt_delayed_bench_signal_")
+    receipt_a, sha_a = _wal_admission_receipt("a")
+    receipt_b, sha_b = _wal_admission_receipt("bb")
+    _attempt_start(lay, "v", "attempt-a", receipt_a, sha_a)
+    _attempt_stage(lay, "v", STAGE_BUILD_DONE, "attempt-a", sha_a)
+    _attempt_stage(lay, "v", STAGE_ABORT, "attempt-a", sha_a, reason="build-error")
+    _attempt_start(lay, "v", "attempt-b", receipt_b, sha_b)
+    _attempt_stage(lay, "v", STAGE_BUILD_DONE, "attempt-b", sha_b)
+    _attempt_stage(lay, "v", STAGE_COMMIT, "attempt-b", sha_b)
+
+    # Keep this fixture bench-only so the bench topology branch is exercised.
+    _attempt_stage(
+        lay, "v", STAGE_BENCH_DONE, "attempt-a", sha_a,
+        median_tps=1.0, cv=0.1, tps=[1.0],
+    )
+    with pytest.raises(wal.AttemptTopologyError, match="active attempt"):
+        wal.replay(lay, admission_policy=_BUILD_CONTEXT.policy)
+
+
+def test_attempt_topology_rejects_verify_before_build_done():
+    """M-B: verify_done は同一 active attempt の build_done 後に限る。"""
+    lay = _admission_aware_layout("attempt_verify_before_build_done_")
+    receipt, receipt_sha = _wal_admission_receipt("a")
+    attempt_id = "attempt-a"
+    _attempt_start(lay, "v", attempt_id, receipt, receipt_sha)
+    _attempt_stage(
+        lay, "v", STAGE_VERIFY_DONE, attempt_id, receipt_sha,
+        verdict="serializable", certified=True, workload={"tag": "legacy"},
+    )
+
+    with pytest.raises(
+            wal.AttemptTopologyError,
+            match="build_done より前の attempt に属する",
+    ):
+        wal.replay(lay, admission_policy=_BUILD_CONTEXT.policy)
+
+
+def test_attempt_topology_rejects_duplicate_bench_within_attempt():
+    """M-C: 同一 active attempt の bench_done は一度だけ受理する。"""
+    lay = _admission_aware_layout("attempt_duplicate_bench_")
+    receipt, receipt_sha = _wal_admission_receipt("a")
+    attempt_id = "attempt-a"
+    _attempt_start(lay, "v", attempt_id, receipt, receipt_sha)
+    _attempt_stage(lay, "v", STAGE_BUILD_DONE, attempt_id, receipt_sha)
+    for median_tps in (1.0, 2.0):
+        _attempt_stage(
+            lay, "v", STAGE_BENCH_DONE, attempt_id, receipt_sha,
+            median_tps=median_tps, cv=0.1, tps=[median_tps],
+        )
+
+    with pytest.raises(
+            wal.AttemptTopologyError,
+            match="bench_done: 同一 attempt で重複",
+    ):
+        wal.replay(lay, admission_policy=_BUILD_CONTEXT.policy)
+
+
+def test_attempt_topology_rejects_receipt_sha_reuse_on_active_signal():
+    for signal_stage in (STAGE_VERIFY_DONE, STAGE_BENCH_DONE):
+        lay = _admission_aware_layout(
+            f"attempt_receipt_reuse_signal_{signal_stage}_"
+        )
+        receipt_a, sha_a = _wal_admission_receipt("a")
+        receipt_b, sha_b = _wal_admission_receipt("bb")
+        assert sha_a != sha_b
+        _attempt_start(lay, "v", "attempt-a", receipt_a, sha_a)
+        _attempt_stage(lay, "v", STAGE_BUILD_DONE, "attempt-a", sha_a)
+        _attempt_stage(lay, "v", STAGE_ABORT, "attempt-a", sha_a, reason="build-error")
+        _attempt_start(lay, "v", "attempt-b", receipt_b, sha_b)
+        _attempt_stage(lay, "v", STAGE_BUILD_DONE, "attempt-b", sha_b)
+
+        # The attempt ID is current; only the receipt SHA is stale.
+        payload = {
+            "build_attempt_id": "attempt-b",
+            "build_admission_receipt_sha256": sha_a,
+        }
+        if signal_stage == STAGE_VERIFY_DONE:
+            payload.update({
+                "verdict": "serializable", "certified": True,
+                "workload": {"tag": "legacy"},
+            })
+        else:
+            payload.update({"median_tps": 1.0, "cv": 0.1, "tps": [1.0]})
+        wal.log(lay, "v", signal_stage, _T530_CONTRACT.env_tag, payload)
+
+        with pytest.raises(wal.AttemptTopologyError, match="receipt SHA"):
+            wal.replay(lay, admission_policy=_BUILD_CONTEXT.policy)
+
+
+def test_attempt_topology_rejects_delayed_signal_from_finished_same_variant_attempt():
+    """これは終了済み attempt の遅延 signal の実証であり、真の並行 peer の実証ではない。"""
+    lay = _admission_aware_layout("attempt_finished_peer_signal_")
+    receipt_a, sha_a = _wal_admission_receipt("a")
+    receipt_b, sha_b = _wal_admission_receipt("bb")
+    _attempt_start(lay, "v", "attempt-a", receipt_a, sha_a)
+    _attempt_stage(lay, "v", STAGE_BUILD_DONE, "attempt-a", sha_a)
+    _attempt_stage(lay, "v", STAGE_ABORT, "attempt-a", sha_a, reason="build-error")
+    _attempt_start(lay, "v", "attempt-b", receipt_b, sha_b)
+    _attempt_stage(lay, "v", STAGE_BUILD_DONE, "attempt-b", sha_b)
+
+    _attempt_stage(
+        lay, "v", STAGE_VERIFY_DONE, "attempt-a", sha_a,
+        verdict="serializable", certified=True, workload={"tag": "legacy"},
+    )
+    _attempt_stage(
+        lay, "v", STAGE_BENCH_DONE, "attempt-a", sha_a,
+        median_tps=1.0, cv=0.1, tps=[1.0],
+    )
+    with pytest.raises(wal.AttemptTopologyError, match="active attempt"):
+        wal.replay(lay, admission_policy=_BUILD_CONTEXT.policy)
+
+
+def test_attempt_topology_accepts_pipeline_signal_shape_without_receipt_sha():
+    lay = _admission_aware_layout("attempt_pipeline_signal_shape_")
+    receipt, receipt_sha = _wal_admission_receipt("a")
+    attempt_id = "attempt-pipeline-shape"
+    _attempt_start(lay, "v", attempt_id, receipt, receipt_sha)
+    _attempt_stage(lay, "v", STAGE_BUILD_DONE, attempt_id, receipt_sha)
+
+    # These are the production verify/bench key shapes: attempt-bound, with
+    # no build_admission_receipt_sha256 on either signal.
+    wal.log(lay, "v", STAGE_VERIFY_DONE, _T530_CONTRACT.env_tag, {
+        "build_attempt_id": attempt_id,
+        "verdict": "serializable", "certified": True,
+        "commits": 1, "aborts": 0,
+        "commit_witness": {"commit_counts": 1, "batch_commit_counts": 0},
+        "anomalies": 0, "workload": {"tag": "legacy"},
+    })
+    wal.log(lay, "v", STAGE_BENCH_DONE, _T530_CONTRACT.env_tag, {
+        "build_attempt_id": attempt_id,
+        "median_tps": 100.0, "cv": 0.1, "bench_wall_s": 0.1,
+        "high_variance": False, "unstable": False, "rounds": 1,
+        "cv_history": [0.1], "tps": [100.0], "settled": True,
+        "leading_indicators": {}, "rep_notes": [], "run_cmd": ["fake"],
+    })
+
+    state = wal.replay(lay, admission_policy=_BUILD_CONTEXT.policy)["v"]
+    assert state.attempts[attempt_id].stages_seen == [
+        STAGE_BUILD_START, STAGE_BUILD_DONE,
+        STAGE_VERIFY_DONE, STAGE_BENCH_DONE,
+    ]
+
+
+def test_replay_committed_projection_excludes_prior_aborted_attempt_signals():
+    lay = _admission_aware_layout("attempt_committed_projection_retry_")
+    receipt_a, sha_a = _wal_admission_receipt("a")
+    receipt_b, sha_b = _wal_admission_receipt("bb")
+    _attempt_start(lay, "v", "attempt-a", receipt_a, sha_a)
+    _attempt_stage(lay, "v", STAGE_BUILD_DONE, "attempt-a", sha_a)
+    _attempt_stage(
+        lay, "v", STAGE_VERIFY_DONE, "attempt-a", sha_a,
+        verdict="serializable", certified=True, workload={"tag": "legacy"},
+    )
+    _attempt_stage(
+        lay, "v", STAGE_BENCH_DONE, "attempt-a", sha_a,
+        median_tps=1.0, cv=0.1, tps=[1.0],
+    )
+    _attempt_stage(lay, "v", STAGE_ABORT, "attempt-a", sha_a, reason="build-error")
+
+    _attempt_start(lay, "v", "attempt-b", receipt_b, sha_b)
+    _attempt_stage(lay, "v", STAGE_BUILD_DONE, "attempt-b", sha_b)
+    _attempt_stage(
+        lay, "v", STAGE_VERIFY_DONE, "attempt-b", sha_b,
+        verdict="serializable", certified=True, workload={"tag": "legacy"},
+    )
+    _attempt_stage(
+        lay, "v", STAGE_BENCH_DONE, "attempt-b", sha_b,
+        median_tps=2.0, cv=0.1, tps=[2.0],
+    )
+    _attempt_stage(lay, "v", STAGE_COMMIT, "attempt-b", sha_b)
+
+    state = wal.replay(lay, admission_policy=_BUILD_CONTEXT.policy)["v"]
+    assert state.committed_attempt_id == "attempt-b"
+    assert state.committed_build_start is not None
+    assert state.committed_build_start.payload["build_attempt_id"] == "attempt-b"
+    assert [
+        record.payload["build_attempt_id"]
+        for record in state.committed_verify
+    ] == ["attempt-b"]
+    assert state.committed_bench is not None
+    assert state.committed_bench.payload["build_attempt_id"] == "attempt-b"
+    assert all(
+        record.payload["build_attempt_id"] != "attempt-a"
+        for record in state.committed_verify
+    )
+    assert state.committed_bench.payload["median_tps"] == 2.0
+
+
 def _active_receiptful_attempt(lay, variant: str, attempt_id: str):
     receipt, receipt_sha = _wal_admission_receipt(attempt_id)
     _attempt_start(lay, variant, attempt_id, receipt, receipt_sha)
@@ -2603,6 +2818,199 @@ def test_bench_lock_exclusive():
     # 解放後は取れる
     with bench_lock(fd_path, blocking=False):
         pass
+
+
+_CAMPAIGN_LOCK_HOLDER = r'''
+import sys
+import time
+from pathlib import Path
+from orchestrator.campaign.lock import campaign_lock
+
+lock_path, ready_path, release_path = sys.argv[1:4]
+with campaign_lock(lock_path):
+    Path(ready_path).touch()
+    while not Path(release_path).exists():
+        time.sleep(0.01)
+'''
+
+
+def _start_campaign_lock_holder(
+        lock_path: str, ready_path: Path, release_path: Path,
+) -> subprocess.Popen:
+    env = dict(os.environ)
+    env["PYTHONPATH"] = str(_REPOSITORY)
+    env["PYTHONDONTWRITEBYTECODE"] = "1"
+    return subprocess.Popen(
+        [sys.executable, "-c", _CAMPAIGN_LOCK_HOLDER,
+         lock_path, str(ready_path), str(release_path)],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        env=env,
+    )
+
+
+def _wait_for_campaign_lock_holder(child: subprocess.Popen, ready_path: Path) -> None:
+    deadline = time.monotonic() + 10.0
+    while not ready_path.exists():
+        returncode = child.poll()
+        if returncode is not None:
+            stdout, stderr = child.communicate()
+            raise AssertionError(
+                "campaign lock holder が ready 前に終了した: "
+                f"returncode={returncode}, stdout={stdout!r}, stderr={stderr!r}"
+            )
+        if time.monotonic() >= deadline:
+            raise AssertionError("campaign lock holder の ready 待ちが timeout した")
+        time.sleep(0.01)
+
+
+def _finish_campaign_lock_holder(
+        child: subprocess.Popen, release_path: Path,
+) -> None:
+    release_path.touch()
+    try:
+        stdout, stderr = child.communicate(timeout=10)
+    except subprocess.TimeoutExpired as exc:
+        child.kill()
+        child.communicate(timeout=10)
+        raise AssertionError("campaign lock holder が release 後も終了しない") from exc
+    assert child.returncode == 0, (
+        f"campaign lock holder failed: returncode={child.returncode}, "
+        f"stdout={stdout!r}, stderr={stderr!r}"
+    )
+
+
+def test_campaign_lock_reentry_rejected_in_same_process():
+    layout = _layout().ensure()
+    output_root = _tmpdir("izanagi_campaign_lock_reentry_output_")
+    lock_path = campaign_lock_path(
+        layout, declared_use_class="official", output_root=output_root,
+    )
+    with campaign_flock(lock_path):
+        try:
+            with campaign_flock(lock_path, blocking=False):
+                raise AssertionError("同一 process の campaign lock 再入を拒否すべき")
+        except CampaignBusy:
+            pass
+
+
+def test_campaign_lock_same_campaign_rejects_competing_process():
+    layout = _layout().ensure()
+    output_root = _tmpdir("izanagi_campaign_lock_competing_output_")
+    lock_path = campaign_lock_path(
+        layout, declared_use_class="official", output_root=output_root,
+    )
+    control_root = Path(_tmpdir("izanagi_campaign_lock_process_"))
+    ready_path = control_root / "ready"
+    release_path = control_root / "release"
+    child = _start_campaign_lock_holder(lock_path, ready_path, release_path)
+    try:
+        _wait_for_campaign_lock_holder(child, ready_path)
+        try:
+            with campaign_flock(lock_path, blocking=False):
+                raise AssertionError("競合 process が保持中の campaign lock を取得すべきでない")
+        except CampaignBusy:
+            pass
+    finally:
+        _finish_campaign_lock_holder(child, release_path)
+
+
+def test_campaign_lock_different_campaigns_can_run_in_parallel():
+    layouts = [_layout().ensure(), _layout().ensure()]
+    output_root = _tmpdir("izanagi_campaign_lock_parallel_output_")
+    lock_paths = [
+        campaign_lock_path(
+            layout, declared_use_class="official", output_root=output_root,
+        )
+        for layout in layouts
+    ]
+    control_root = Path(_tmpdir("izanagi_campaign_lock_parallel_"))
+    controls = [
+        (control_root / f"ready-{index}", control_root / f"release-{index}")
+        for index in range(len(lock_paths))
+    ]
+    children = [
+        _start_campaign_lock_holder(lock_path, ready_path, release_path)
+        for lock_path, (ready_path, release_path) in zip(lock_paths, controls)
+    ]
+    try:
+        for child, (ready_path, _release_path) in zip(children, controls):
+            _wait_for_campaign_lock_holder(child, ready_path)
+        assert all(child.poll() is None for child in children)
+    finally:
+        for _ready_path, release_path in controls:
+            release_path.touch()
+        for child, (_ready_path, release_path) in zip(children, controls):
+            _finish_campaign_lock_holder(child, release_path)
+
+
+def test_campaign_lock_released_can_be_reacquired():
+    layout = _layout().ensure()
+    output_root = _tmpdir("izanagi_campaign_lock_reacquire_output_")
+    lock_path = campaign_lock_path(
+        layout, declared_use_class="official", output_root=output_root,
+    )
+    with campaign_flock(lock_path):
+        pass
+    with campaign_flock(lock_path, blocking=False):
+        pass
+
+
+def test_campaign_lock_path_is_outside_campaign_root():
+    layout = _layout()
+    output_root = _tmpdir("izanagi_campaign_lock_outside_output_")
+    lock_path = Path(
+        campaign_lock_path(
+            layout, declared_use_class="official", output_root=output_root,
+        )
+    ).resolve()
+    campaign_root = Path(layout.root).resolve()
+    assert not lock_path.is_relative_to(campaign_root)
+
+
+def test_campaign_lock_path_normalizes_symlink_realpath():
+    real_root = _tmpdir("izanagi_campaign_lock_real_")
+    link_parent = _tmpdir("izanagi_campaign_lock_link_")
+    link_root = os.path.join(link_parent, "campaign")
+    os.symlink(real_root, link_root)
+
+    real_layout = CampaignLayout(root=real_root)
+    symlink_layout = CampaignLayout(root=link_root)
+    output_root = _tmpdir("izanagi_campaign_lock_symlink_output_")
+    assert campaign_lock_path(
+        real_layout, declared_use_class="official", output_root=output_root,
+    ) == campaign_lock_path(
+        symlink_layout, declared_use_class="official", output_root=output_root,
+    )
+
+
+def test_campaign_lock_helpers_use_explicit_output_root_for_each_use_class():
+    output_root = Path(_tmpdir("izanagi_campaign_lock_explicit_root_"))
+    layout = CampaignLayout(root=str(output_root / "campaigns" / "campaign"))
+    expected_lock_dir = output_root / "campaign-locks"
+
+    for declared_use_class in ("official", "exploration"):
+        lock_dir = Path(campaign_lock_dir(
+            declared_use_class, str(output_root),
+        ))
+        lock_path = Path(campaign_lock_path(
+            layout, declared_use_class, str(output_root),
+        ))
+        assert lock_dir == expected_lock_dir
+        assert lock_path.parent == expected_lock_dir
+
+
+def test_campaign_lock_path_hash_key_is_twenty_hex_chars():
+    output_root = _tmpdir("izanagi_campaign_lock_hash_output_")
+    lock_name = os.path.basename(
+        campaign_lock_path(
+            _layout(), declared_use_class="official", output_root=output_root,
+        )
+    )
+    assert lock_name.endswith(".flock")
+    key = lock_name[:-len(".flock")]
+    assert re.fullmatch(r"^[0-9a-f]{20}$", key)
 
 
 # ===== STAGE2: ビルドキャッシュキー (規律1: trace/perf 別ビルド) =====
@@ -6466,6 +6874,7 @@ def test_m18_throughput_producer_refuses_before_measure_point():
                 PerfConfig(records=1000, threads=2),
                 1800, None, False, lay, "variant", "test-env",
                 lambda *args, **kwargs: None,
+                build_attempt_id="test-attempt",
             )
         except buildcache.BuildError:
             pass
@@ -9696,10 +10105,8 @@ def test_exploration_output_root_env_precedence_and_official_isolation():
         assert os.path.dirname(os.path.dirname(second.root)) == os.path.join(
             external, "exploration",
         )
-        official = campaign_layout("official-isolated")
-        assert official.root == os.path.join(
-            saved_repo_output_root(), "campaigns", "official-isolated",
-        )
+        with pytest.raises(ValueError, match="official output_root"):
+            campaign_layout("official-isolated")
 
         os.environ[layout_module._EXPLORATION_OUTPUT_ROOT_ENV] = ""
         explicit = "legacy-relative-explicit-root"
@@ -9716,6 +10123,118 @@ def test_exploration_output_root_env_precedence_and_official_isolation():
             os.environ.pop(layout_module._EXPLORATION_OUTPUT_ROOT_ENV, None)
         else:
             os.environ[layout_module._EXPLORATION_OUTPUT_ROOT_ENV] = saved_env
+
+
+def test_official_output_root_requires_external_root_and_supports_env(tmp_path):
+    """Official roots fail closed when unset and resolve only a validated env root."""
+    env_name = layout_module._OFFICIAL_OUTPUT_ROOT_ENV
+    layout_module._reset_official_output_root_pin_for_tests()
+    try:
+        os.environ.pop(env_name, None)
+        with pytest.raises(ValueError, match="official output_root"):
+            campaign_layout("official-missing-root")
+
+        external = tmp_path / "official-output"
+        os.environ[env_name] = str(external)
+        first = campaign_layout("official-env-root")
+        assert first.root == str(external / "campaigns" / "official-env-root")
+        assert Path(first.root).parent.parent == external.resolve()
+    finally:
+        layout_module._reset_official_output_root_pin_for_tests()
+
+
+def test_official_output_root_explicit_value_is_validated_and_suffixes_are_not_exempt(
+        tmp_path,
+):
+    """Explicit roots and campaigns/env suffixes go through the same external gate."""
+    repository = Path(layout_module.repo_output_root())
+    with pytest.raises(ValueError, match="official output_root"):
+        campaign_layout("official-repo-explicit", output_root=str(repository))
+    with pytest.raises(ValueError, match="official output_root"):
+        campaign_layout(
+            "official-repo-campaigns", output_root=str(repository / "campaigns"),
+        )
+    with pytest.raises(ValueError, match="official output_root"):
+        campaign_layout(
+            "official-repo-env", output_root=str(repository / "env"),
+        )
+
+    suffix_root = tmp_path / "suffix-target"
+    suffix_root.mkdir()
+    (suffix_root / "campaigns").symlink_to(tmp_path, target_is_directory=True)
+    with pytest.raises(ValueError, match="symlink component"):
+        campaign_layout("official-suffix-symlink", output_root=str(suffix_root))
+
+
+def test_official_output_root_rejects_unsafe_values(tmp_path):
+    """Official resolver mirrors the exploration symlink, dotdot, git, uid, and worktree gates."""
+    env_name = layout_module._OFFICIAL_OUTPUT_ROOT_ENV
+    layout_module._reset_official_output_root_pin_for_tests()
+
+    def rejected(value, *, match="official output_root"):
+        os.environ[env_name] = os.fspath(value)
+        with pytest.raises(ValueError, match=match):
+            campaign_layout("official-unsafe")
+
+    try:
+        rejected("")
+        rejected("relative/output")
+        rejected(tmp_path / "missing" / ".." / "resolved")
+
+        repository = Path(layout_module.repo_output_root()).parent
+        rejected(repository / "output")
+
+        foreign_repo = tmp_path / "foreign-repo"
+        (foreign_repo / ".git").mkdir(parents=True)
+        rejected(foreign_repo / "output")
+
+        symlink_target = tmp_path / "symlink-target"
+        symlink_parent = tmp_path / "symlink-parent"
+        symlink_parent.mkdir()
+        (symlink_parent / "base-link").symlink_to(
+            symlink_target, target_is_directory=True,
+        )
+        rejected(symlink_parent / "base-link")
+
+        non_directory = tmp_path / "not-a-directory"
+        non_directory.write_text("fixture\n", encoding="utf-8")
+        rejected(non_directory)
+
+        foreign_owner = tmp_path / "foreign-owner"
+        foreign_owner.mkdir()
+        saved_effective_uid = layout_module._effective_uid
+        layout_module._effective_uid = lambda: foreign_owner.stat().st_uid + 1
+        try:
+            rejected(foreign_owner)
+        finally:
+            layout_module._effective_uid = saved_effective_uid
+
+        container = tmp_path / ".codex" / "worktrees" / "wave" / "official"
+        rejected(container, match="worktree container")
+    finally:
+        layout_module._reset_official_output_root_pin_for_tests()
+
+
+def test_official_output_root_process_pin_rejects_drift(tmp_path):
+    """Env-derived official roots are pinned for the process lifetime."""
+    env_name = layout_module._OFFICIAL_OUTPUT_ROOT_ENV
+    first = tmp_path / "official-pin-first"
+    second = tmp_path / "official-pin-second"
+    layout_module._reset_official_output_root_pin_for_tests()
+    try:
+        os.environ[env_name] = str(first)
+        assert layout_module._resolve_official_output_root() == str(first.resolve())
+        os.environ[env_name] = str(second)
+        with pytest.raises(ValueError, match="process 内で変更"):
+            layout_module._resolve_official_output_root()
+
+        layout_module._reset_official_output_root_pin_for_tests()
+        assert layout_module._resolve_official_output_root() == str(second.resolve())
+        os.environ.pop(env_name)
+        with pytest.raises(ValueError, match="process 内で変更"):
+            layout_module._resolve_official_output_root()
+    finally:
+        layout_module._reset_official_output_root_pin_for_tests()
 
 
 def test_exploration_output_root_env_rejects_unsafe_values():
@@ -9792,6 +10311,24 @@ def test_exploration_output_root_env_rejects_unsafe_values():
             os.environ.pop(env_name, None)
         else:
             os.environ[env_name] = saved_env
+
+
+def test_exploration_output_root_env_resolves_worktree_container_before_ensure(
+        tmp_path, monkeypatch,
+):
+    """D158: exploration は resolve 時でなく ensure 時に worktree を拒否する。"""
+    worktree_container = tmp_path / ".codex" / "worktrees" / "wave"
+    monkeypatch.setenv(
+        layout_module._EXPLORATION_OUTPUT_ROOT_ENV,
+        os.fspath(worktree_container),
+    )
+    layout_module._reset_exploration_output_root_pin_for_tests()
+    try:
+        assert layout_module._resolve_exploration_output_root() == str(
+            worktree_container.resolve()
+        )
+    finally:
+        layout_module._reset_exploration_output_root_pin_for_tests()
 
 
 def test_exploration_output_root_env_process_pin_rejects_drift():

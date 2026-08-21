@@ -1,0 +1,90 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 600,
+  "timeout_seconds": 3600,
+  "hang_timeout_seconds": 1800,
+  "mutations": [
+    {
+      "id": "M1",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p2_2.py",
+          "old": "    raise RuntimeError(\n        \"実測 admission を拒否します: \"\n        f\"site={site!r} は PEGASUS_COMPUTE/OTHER の許可集合にない\"\n    )\n",
+          "new": "    return env_contract.lookup(ENV_TAG)\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_p2_2_site_aware.py::test_p2_2_login_suspect_and_unknown_sites_are_rejected[PEGASUS_LOGIN]",
+        "orchestrator/tests/test_p2_2_site_aware.py::test_p2_2_login_suspect_and_unknown_sites_are_rejected[PEGASUS_SUSPECT]",
+        "orchestrator/tests/test_p2_2_site_aware.py::test_p2_2_login_suspect_and_unknown_sites_are_rejected[UNKNOWN_SITE]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M2",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p2_2.py",
+          "old": "    observed_sha256 = hashlib.sha256(raw).hexdigest()\n    if observed_sha256 != contract.calibration_ref.sha256:\n        raise RuntimeError(\n            \"calibration sha256 不一致: \"\n            f\"expected={contract.calibration_ref.sha256} observed={observed_sha256}\"\n        )\n",
+          "new": "    observed_sha256 = hashlib.sha256(raw).hexdigest()\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_p2_2_site_aware.py::test_p2_2_missing_or_wrong_hash_calibration_fails_closed"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M3",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_floor_campaign.py",
+          "old": "    raise FloorCampaignError(f\"machine-pin: 未対応 site {site!r}\")\n",
+          "new": "    return \"\"\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_machine_env_tag_for_site_rejects_unhandled_site"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M4",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_oracle_driver.py",
+          "old": "    raise OracleDriverError(f\"machine-pin: 未対応 site {site!r}\")\n",
+          "new": "    return \"\"\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_machine_env_tag_for_site_rejects_unhandled_site"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M5",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/screening_driver.py",
+          "old": "    if contract.attestation_mode == \"none\":\n        if execution_receipt is not None or verified_calibration is not None:\n            raise execution_guard.ExecutionGuardError(\n                \"mode=none screening に required attestation state が渡された\"\n            )\n        return None, None\n",
+          "new": "    if True:\n        if execution_receipt is not None or verified_calibration is not None:\n            raise execution_guard.ExecutionGuardError(\n                \"mode=none screening に required attestation state が渡された\"\n            )\n        return None, None\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_p2_2_site_aware.py::test_screening_required_attestation_is_issued_and_revalidated"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}

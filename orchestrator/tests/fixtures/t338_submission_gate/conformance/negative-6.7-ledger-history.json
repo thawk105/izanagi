@@ -1,0 +1,1 @@
+{"schema_version":"t338-conformance-vector/v2","id":"negative-6.7-ledger-history","kind":"negative","classification":"relabel","covers":["6.7"],"unit3_reference":"test_forged_binding_like_object_is_rejected","entrypoint":"preregistration","mutation":{"op":"forged_binding","record":"fixture.record","prereg_commit":"fixture.binding.prereg_commit"},"expected_reason":"authority"}
