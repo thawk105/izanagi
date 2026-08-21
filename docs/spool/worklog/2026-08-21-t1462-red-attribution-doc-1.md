@@ -4,7 +4,7 @@ ledger: worklog
 authored: 2026-08-21
 wave: t1462-red-attribution-doc
 seq: 1
-title: [T-1462] 自分の変更に起因しないテスト失敗でwaveが失敗扱いになる件を調査した (docsのみ、branch worktree-t1462-red-attribution-doc)
+title: [T-1468] 自分の変更に起因しないテスト失敗でwaveが失敗扱いになる件を調査した (docsのみ、branch worktree-t1462-red-attribution-doc)
 ---
 
 ## 本文
@@ -12,11 +12,17 @@ title: [T-1462] 自分の変更に起因しないテスト失敗でwaveが失敗
 - ユーザーが別セッション (`dev-wave-t1461-lease-window` の handoff 内) へ直接伝えた依頼:
   「自分のwaveで起こしたわけではないテスト失敗でウェーブ失敗するの許さない。これ何度も
   言ってるけど起きてる。どうにかしてくれ。自分が起こしたわけではないテスト失敗は既知の赤
-  として登録し、裁定や新しいdev-waveで解決していく」。当該セッションは本件を仮
-  「T-1462」としてscope外のまま自 wave (T-1461) を継続し、`/rulings` がこの handoff を
-  発見して索引化、ユーザーが「(a) 手順書明記(②)を先に、実測(①)を後に」という rulings 自身の
-  推奨を裁定した (2026-08-21)。
-- **①非帰属checkerの信頼性を実測 (今回の新規知見)**: 現行コードを file:line で確認した。
+  として登録し、裁定や新しいdev-waveで解決していく」。`/rulings` がこの handoff を発見して
+  索引化し、ユーザーが「(a) 手順書明記(②)を先に、実測(①)を後に」という rulings 自身の推奨を
+  裁定した (2026-08-21「1推奨通り」)。
+- **着手時点で本 wave (`t1462-red-attribution-doc`) は独立に本件の investigation を開始した
+  ([T-1461] のhandoffが仮称していた「T-1462」を wave 名の由来としたが、正式採番ではない)。
+  受入投入後に local main を取り込んだところ、[T-1461] wave 自身の段7記録 (entry 793) が
+  同一依頼を独自に `[T-1468]` として次の一手へ登録済みだったと判明した。二重登録
+  (memory `double-registered-ids-cannot-be-withdrawn`) を避けるため、本 fragment は新規 T
+  番号を起こさず [T-1468] の**更新**として結果を記録する。**したがって本 wave 名・title の
+  「T-1462」は投機的な作業名であり、正式な管理番号は [T-1468] である。**
+- **①非帰属checkerの信頼性を実測 (本waveの新規知見)**: 現行コードを file:line で確認した。
   `tools/dev_wave_wait.py:3733-3735` (`_verify_red_check_receipt` 内) は
   `tools/check_acceptance_reds.py` の rc が非 0 なら理由を問わず (帰属あり rc=1、判定不能
   rc=2、Pegasus dispatch 自体の infra 失敗のいずれでも) 同じ `_StageFailure("acceptance-red-check", ...)`
@@ -41,9 +47,11 @@ title: [T-1462] 自分の変更に起因しないテスト失敗でwaveが失敗
   早合点しない」旨を追記しようとしたが、`tools/check_docs.py` の L2 単節予算 (1000 bytes) に
   対し同節は追記前で既に 995 bytes、追記後 1148 bytes で 148 bytes 超過した。既存文の圧縮
   (rc=1/rc=2 の2文を1文へ統合しても新規节 133 bytes、57 bytes 超過) でも収まらず、実装せず
-  撤回した。**同節は既に [T-1451] (本 fragment 未合流当時の T-1446 束ね参照) も候補地として
-  挙げている** — DW-O18 は既に複数の未着地追記候補が集中している hotspot であり、次にこの
-  節を触る wave は両方をまとめて設計し直す (圧縮 + 統合追記) 価値が高い。
+  撤回した。**同節は既に [T-1451] も候補地として挙げ、local main 取り込み後に判明した
+  entry 792 (段8自己改善候補、`dev-wave-known-violation-audit` wave) も同節へ「探索目的の
+  全走も隔離worktreeで行う」旨の追記候補を挙げている。** DW-O18 は複数の未着地追記候補が
+  集中している hotspot であり、次にこの節を触る wave は全候補をまとめて設計し直す
+  (圧縮 + 統合追記) 価値が高い。
 
 ## 次の一手差分
 
@@ -68,32 +76,31 @@ title: [T-1462] 自分の変更に起因しないテスト失敗でwaveが失敗
   2026-08-21 rulings発見で合流)・[T-287]裁定パッケージ§5 (`DW-G05`に「その変更が実際に影響を
   止める経路に限る」旨の確認義務を足す候補、274 bytes、一次資料=
   `output/insights/2026-08-04_t287-checkpoint-values/adjudication-package.md`§5、
-  2026-08-04起票、2026-08-21 rulings発見で合流)・[T-1462]由来 (DW-O18へ「rc=0かつ
+  2026-08-04起票、2026-08-21 rulings発見で合流)・[T-1468]由来 (DW-O18へ「rc=0かつ
   `status=non-attributable-only`は受理成功、赤の存在だけでwave失敗と早合点しない」旨を追記する
-  候補、148 bytes不足、[T-1451]と編集面が重複するため次に触るwaveは両方を1回で設計し直すのが
-  望ましい、一次資料=本worklog entry、2026-08-21起票)。他の docs 予算超過候補 ([T-1430] 等) と
-  同じ「独立審査へ回す」枠へ合流させ、次に手が空いた小 wave でまとめて処理する
-  (2026-08-21 ユーザーがこの対応方針を「推奨通りで」と明示的に確認した)。一次資料 =
-  rulings-inbox `2026-08-11-t657-stage0-followups.md` §2・
+  候補、148 bytes不足、[T-1451]・entry792 (段8自己改善候補) と編集面が重複するため次に触る
+  waveは全候補を1回で設計し直すのが望ましい、一次資料=本worklog entry、2026-08-21起票)。他の
+  docs 予算超過候補 ([T-1430] 等) と同じ「独立審査へ回す」枠へ合流させ、次に手が空いた小 wave
+  でまとめて処理する (2026-08-21 ユーザーがこの対応方針を「推奨通りで」と明示的に確認した)。
+  一次資料 = rulings-inbox `2026-08-11-t657-stage0-followups.md` §2・
   `2026-08-11-t665-waiter-self-match-second-instance.md`・worktree
   `dev-wave-t989-realrepo-worker-diag` の
   `docs/spool/worklog/2026-08-20-dev-wave-t989-realrepo-worker-diag-3.md`・worklog entry
   767/768/772 (2026-08-20/08-20/08-20)。
   base: 2f7e6880f04a3da4972d234f970a9d19b6a5de7cb0c9b6100dada702d4a55425
-
-### 新規
-
-- {{T:t1462-acceptance-red-attribution-investigation}} **P3・裁定済み・調査完了 (2026-08-21
-  ユーザー裁定「1推奨通り」)**: 「自分のwaveで起こしていないテスト失敗でwave失敗扱いに
-  なる」というユーザーの繰り返しの指摘 (原文は本文参照) を調査した。**結論 = checker 自身
-  ([T-1027]/[T-1087] が2026-08-13/15に既に硬化済み) への追加実装は不要、残るギャップは
-  「acceptance-red-check段のinfra失敗はno-verdict retryの対象外」という制御フロー事実の
-  手順書への明記だけであり、それは [T-1446] の docs 予算超過枠へ合流させた** (本項目自体は
-  これで終端、追加のユーザー手番なし)。「既知の赤の永続台帳」(ユーザー原文が触れた案) は
-  [T-1116] (2026-08-17終端、`docs/archive/worklog-phase3-0817-622.md`) が同種の仕組みを
-  検討し「防ぎたかった問題自体が発生しない」と実測で確認済みのため、今回は新設を推奨しなかった
-  (ユーザーはこの推奨を含め「1推奨通り」で裁定済み)。一次資料は本 worklog entry、
-  `tools/dev_wave_wait.py:1192-1205,3733-3735`、
-  `output/insights/2026-08-13_t1027-acceptance-reds-checker/README.md`、
-  `output/insights/2026-08-15_t1087-acceptance-red-check/README.md`、
-  `docs/archive/worklog-phase3-0817-622.md` ([T-1116])。
+- [T-1468] **P3・調査完了・裁定済み (2026-08-21 ユーザー裁定「1推奨通り」)**: 自waveが原因で
+  ないテスト失敗でwaveを失敗させない件。file:line 調査の結論 = 非帰属赤分類ロジック自体
+  ([T-1027]/[T-1087] が2026-08-13/15に既に硬化済み) への追加実装は不要。残る唯一のギャップは
+  制御フロー上の事実 (`tools/dev_wave_wait.py:1192-1205,3733-3735`: acceptance-red-check段の
+  infra失敗はno-verdict retryの対象外) が手順書に未記載な点であり、`docs/dev-wave/operations.md`
+  DW-O18への追記を試みたが同節のL2単節予算 (1000 bytes、追記前995 bytes) を148 bytes超過し
+  着地できなかったため [T-1446] のdocs予算超過枠へ合流させた (上記参照)。「既知の赤の永続台帳」
+  新設は [T-1116] の既存却下 (2026-08-17終端、同種の仕組みが検討され「防ぎたかった問題自体が
+  発生しない」と実測確認済み) と整合させ推奨しなかった。ユーザーはこの一連の結論を含め
+  「1推奨通り」で裁定した。追加のユーザー手番なし、実装 (DW-O18追記) は [T-1446] 側の
+  独立審査枠で次の一手として持ち越す。一次資料 =
+  `output/insights/2026-08-13_t1027-acceptance-reds-checker/README.md`・
+  `output/insights/2026-08-15_t1087-acceptance-red-check/README.md`・
+  `docs/archive/worklog-phase3-0817-622.md` ([T-1116])・
+  `output/insights/2026-08-21_t1461-lease-window-design/README.md` (依頼の一次記録元)。
+  base: 06d7f609846ac979f276a1ddd24762d6b59fae0b032a3d8e39c338532a3be13d
