@@ -1311,11 +1311,16 @@ def _fresh_qstat_gated_qdel(
             cleanup_elapsed_exception = f"{type(exc).__name__}: {exc}"
             gate["reason"] = "gate-exception"
             gate["exception"] = cleanup_elapsed_exception
+        job_may_remain = not (
+            reason == "request-absent"
+            and terminal_history_end is True
+            and cleanup_elapsed_exception is None
+        )
         qdel.update({
             "attempted": False,
             "cleanup_policy": _QDEL_CLEANUP_POLICY,
             "cleanup_elapsed_s": cleanup_elapsed,
-            "job_may_remain": True,
+            "job_may_remain": job_may_remain,
             "reason": (
                 "qsub accepted but request ID discovery failed"
                 if reason == "request-id-unavailable"
@@ -1839,7 +1844,15 @@ def _dispatch_impl(
                 and current.returncode == 0
                 and not _qstat_mentions_request(current.stdout or "", normalized_id)
             )
-            state = "END" if request_absent else _scheduler_state(current.stdout or "")
+            if request_absent:
+                state = "END"
+            else:
+                computed_state = _scheduler_state(current.stdout or "")
+                state = (
+                    None
+                    if computed_state == "END" and current.returncode != 0
+                    else computed_state
+                )
             shown_state = (
                 "QSTAT_ERROR" if current.returncode != 0 else state or "UNKNOWN"
             )
