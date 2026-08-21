@@ -2019,6 +2019,24 @@ def test_known_violation_ledger_matches_literal_entries():
             "",
         ),
         (
+            "91a6ba1dc293ff7d8e997cf4a33b7a7c1454b094",
+            "missing-codex-author",
+            "2026-08-22 dev-wave-t1371-official-run-root "
+            "ccbench provenance修正着地に伴う3回目のlocal main取り込み裁定 "
+            "(ユーザー選択: known-violation 登録)",
+            "受入投入前に親が作成した local main 取り込み merge "
+            "`91a6ba1dc293ff7d8e997cf4a33b7a7c1454b094`。実装面で両側が触ったのは "
+            "`orchestrator/tests/test_check_ai_provenance.py` / "
+            "`tools/check_ai_provenance.py` の 2 file で、`git diff-tree --cc "
+            "91a6ba1dc293ff7d8e997cf4a33b7a7c1454b094 -- "
+            "orchestrator/tests/test_check_ai_provenance.py tools/check_ai_provenance.py` は "
+            "commit SHA 行だけで実質空 = 競合解決による新規著作なし、結果は両側の変更の単純な和集合。"
+            "main 側の known-violation 登録等は各 wave の land 時に監査済みで、本 wave 側の "
+            "`_T1371_MERGE2_RULING` / `_T1371_MERGE2_NOTE` 追加も既に書かれている。"
+            "親作成 merge のため Codex 著者とは記さない。",
+            "",
+        ),
+        (
             "76248294bf40eb7fa0d806ce4df5010d685036de",
             "missing-codex-author",
             "D554 (2026-08-19)",
