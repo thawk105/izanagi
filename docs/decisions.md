@@ -25213,3 +25213,76 @@ directory 解決も、固定 Linux path から resolved contract の env_tag 経
 - screening を Pegasus 対応 scope から外し、通常経路だけを site-aware 化する — D58 ablation
   (bench-first screening v2 の初回適用対象がまさに screening 経路) を Pegasus で動かすという
   本 wave の目的に反する。
+
+## D630. campaign advisory flock は exploration リダイレクトへ既存 resolver 経由で追従させる (target-side 修正) (2026-08-21)
+
+**決定:** `orchestrator/campaign/layout.py` の `campaign_lock_dir()`/`campaign_lock_path()`
+(campaign 単位 advisory flock、D621 が新設) へ `declared_use_class`/`output_root` を追加し、
+`repo_output_root()` の直接呼び出しをやめて、official/exploration の分岐に既に使われている
+既存の `resolve_campaign_output_root(declared_use_class, output_root)` を経由させる。
+`orchestrator/campaign/loop.py` の `run_campaign()` から既存のローカル変数をそのまま渡す。
+`declared_use_class` に既定値は付けない (呼び出し忘れを fail-fast にする)。
+
+**理由:**
+- `IZANAGI_EXPLORATION_OUTPUT_ROOT` (`_resolve_exploration_output_root()`) は resolved base が
+  **repository 外でなければならない**ことを `_has_git_ancestor()` で明示的に検査・拒否する。
+  exploration 経路のあらゆる出力を「どの git repo にも属さない」ものにする設計契約であり、
+  D621 導入の advisory flock だけがこの契約から漏れていた。
+- `orchestrator/tests/test_dev_wave_land.py::test_exploration_external_root_keeps_wave_clean`
+  (既存の positive control) が、この漏れにより exploration 実行後に wave の tracked tree へ
+  flock ファイルが untracked のまま残ることを検出し、決定的に FAILED していた
+  (隔離 worktree で再現確認、shared checkout での並行 land 由来の near-miss ではない)。
+- `campaign_layout()`/`exploration_campaign_layout()` は既に `resolve_campaign_output_root()` を
+  official/exploration で正しく分岐させて使っており、`campaign_lock_dir`/`campaign_lock_path` だけが
+  この既存パターンに乗っていなかった。新しい抽象を作らず既存関数を再利用するだけで閉じる。
+
+**却下した選択肢:**
+- test-side 修正 (`test_exploration_external_root_keeps_wave_clean` を、flock ファイルの存在を
+  許容するよう緩める) — 上記のとおり exploration リダイレクト自身の設計契約 (repository 外必須)
+  と正面から矛盾する側であり、検査を消して緑を買う形に近い。段3 敵対相談2レンズ (sol/luna)
+  がいずれも target-side を支持し blocker/major の反対はなかった。
+- 明示 `output_root` を渡す official campaign でも flock 配置を変えない (旧 `repo_output_root()`
+  直呼びの一部だけ残す) — 明示 root の official は layout 自体が既に明示 root を使っており、
+  flock だけ実 repo 側に残すと同じ campaign 内で参照 root が割れる。既定 (`output_root=""`) の
+  official 挙動のみ不変とし、明示 root のケースは意図して統一する。
+
+一次資料: command 引数「known violation があれば直す」(一次裁定は 2026-08-17 `/rulings 全件
+第4回`、`docs/archive/worklog-phase3-0817-611.md`)。段2 codex plan・段3 敵対相談2レンズ
+(blocker/major なし)・段6 敵対レビュー2本 (blocker/major なし) を経て実装。変異事前登録3件
+(resolver 呼び出しの revert・`declared_use_class` 固定・`output_root` 握り潰し) は
+baseline PASSED・3/3 KILLED・SURVIVED 0・MISMATCH 0。
+
+## D631. 受入lease(D239)排他区間の事前作業化は当面実装しない — D270の却下済み設計と同型 (2026-08-21)
+
+**決定:** D239 受入 lease の排他区間 (claim〜land) を縮める目的で「merge・受入テストを claim
+取得前に済ませ、claim 後は前提再確認 + fast-forward + fold だけにする」設計を検討したが、
+現時点では実装しない。D239 の排他性 (並行 land の直列化) はそのまま維持する。
+
+**理由:**
+- D270 (2026-08-10) が「main 取り込みを待ち手の事前作業にする」設計を既に検討し、飽和下での
+  恒常的な陳腐化 (24 分待って 15 commit 遅れ、4 回空振りの実例) を理由に却下している。本検討の
+  提案は D270 が却下した設計の直接の一般化であり、D270 却下時から状況が変わった (陳腐化率が
+  下がった) ことを示す新しい実測が無い。
+- D432 (2026-08-16) が「land 内部 lock の監査待機化は provenance 監査の同時流入を増幅しうる」
+  という残余リスクを未解決のままユーザー裁定へ送っている。本提案はこの残余リスクの対象を
+  480 秒の監査から merge + 受入テスト全体 (実測 200 秒台の pytest 本体、queue 待ち最大 806 秒)
+  へ拡大するため、既知の未解決リスクを縮小でなく拡大する可能性が高い。
+- 段 2 codex plan (read-only) と段 3 敵対相談 2 レンズ (正しさ境界 / 整合性・実効性・scope) が
+  独立に計 15 件の real 所見を検出した。うち TOCTOU 窓・held-self 識別不能・`MERGE_HEAD`
+  cleanup の lease ownership 結合・`lock-busy` 時の lease 残留、の 4 件は規律 2 (正しさゲートを
+  緩めない) に照らし「実装前に解消必須」の欠陥である。
+- 依頼が引用した動機付けの数値 (受入投入〜land 完了 7 時間中、実テスト 8 分 44 秒・残り 98%超)
+  は引用元として示された一次資料に見つからなかった。問題自体 (lease の順番待ちが実テスト時間を
+  大きく上回る) は複数の独立実測が支持するが、規模の再測定が要る。
+
+**却下した選択肢:**
+- **即時実装 (提案どおり)** — 上記の理由により正しさ・実効性とも未証明。
+- **lease 機構を撤去し D128 flock 単体に一本化する案** — D432 が D128 flock は公平性
+  (FIFO) を保証しないと明記しており、D239/D270 が意図した「無駄な受入投資の防止」という
+  目的を再導入なしに失う。
+- **decision を残さず記録のみに留める** — D270 と同型の設計が将来再訪されたとき、同じ調査を
+  繰り返さないよう却下理由を正本へ残す方が安価である (D270 自身がこの先例)。
+
+**閉じない残余 (別 scope):** 「claim 前に事前作業を済ませていたら実際にどれくらいの頻度で無駄に
+なっていたか」の定量実測が無い。この実測が「陳腐化率は十分低い」と示せば、本決定は新しい証拠で
+再訪しうる。実測方法の具体案は worklog 側の次の一手を参照。
