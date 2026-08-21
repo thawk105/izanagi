@@ -6978,6 +6978,20 @@ def test_zero_component_total_only_aggregate_counts_by_arm_and_case(
     ]
 
 
+def test_zero_component_total_only_mixed_models_omit_legacy_projection() -> None:
+    slots, attempts, _ = _aggregate_rows()
+    slots[0]["requested_model"] = "gpt-5.6-luna"
+    attempts[0]["requested_model"] = "gpt-5.6-luna"
+    reasons: list[str] = []
+    result = TOOL._aggregate_token_usage_observations(
+        attempts,
+        reasons,
+        slots=slots,
+    )
+    assert reasons == []
+    assert "by_arm_case" not in result[TOOL.ZERO_COMPONENT_TOTAL_ONLY]
+
+
 def test_zero_component_total_only_count_is_required_for_aggregate(
     tmp_path: Path,
 ) -> None:
@@ -7748,6 +7762,75 @@ def test_make_packets_uses_dynamic_schedule_count_and_keeps_public_state_blind(
         "price_version",
     ):
         assert forbidden not in public_state
+
+
+def test_make_packets_rejects_empty_packet_only_manifest(tmp_path: Path) -> None:
+    manifest_path = _canonical(
+        tmp_path / "manifest.json",
+        {"attempts": []},
+    )
+    with pytest.raises(
+        TOOL.ValidationError,
+        match="packets require at least one logical slot",
+    ):
+        TOOL.make_packets(
+            manifest_path,
+            tmp_path / "packets",
+            tmp_path / "custodian",
+        )
+
+
+def test_make_packets_accepts_legacy_schedule_descriptor_without_schema_version(
+    tmp_path: Path,
+) -> None:
+    schedule_rows: list[dict[str, Any]] = []
+    attempts: list[dict[str, Any]] = []
+    slot_number = 0
+    for case, block_count in (("POS", 3), ("NEG", 2)):
+        for _ in range(1, block_count + 1):
+            block_id = f"b{len(schedule_rows) // 2 + 1:02d}"
+            for block_order, arm in enumerate(("max", "high"), 1):
+                slot_number += 1
+                slot_id = f"s{slot_number:02d}"
+                schedule_rows.append(
+                    {
+                        "slot_id": slot_id,
+                        "case": case,
+                        "arm": arm,
+                        "block_id": block_id,
+                        "block_order": block_order,
+                        "prompt_sha256": "a" * 64,
+                        "snapshot_manifest_sha256": "b" * 64,
+                        "submodule_manifest_sha256": "c" * 64,
+                    }
+                )
+                output = tmp_path / f"output-{slot_id}.md"
+                output.write_text(_long_output(), encoding="utf-8")
+                attempts.append(
+                    {
+                        "slot_id": slot_id,
+                        "attempt": 1,
+                        "run_id": f"r{slot_number:02d}",
+                        "output": _descriptor(output, tmp_path),
+                    }
+                )
+    schedule_path = _canonical(
+        tmp_path / "legacy-schedule.json",
+        {"slots": schedule_rows},
+    )
+    manifest_path = _canonical(
+        tmp_path / "manifest.json",
+        {
+            "schedule": _descriptor(schedule_path, tmp_path),
+            "attempts": attempts,
+        },
+    )
+    result = TOOL.make_packets(
+        manifest_path,
+        tmp_path / "packets",
+        tmp_path / "custodian",
+    )
+    assert result["packet_count"] == 10
 
 
 def test_f3_1_packet_swap_restore_is_rejected(tmp_path: Path) -> None:

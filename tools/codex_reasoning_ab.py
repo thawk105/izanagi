@@ -5143,6 +5143,13 @@ def _slot_dimensions(
     }
 
 
+def _legacy_schedule_view(schedule: Mapping[str, Any]) -> dict[str, Any]:
+    """Return a non-mutating v2-compatible view of a legacy schedule."""
+    source_schedule = dict(schedule)
+    source_schedule.setdefault("schema_version", LEGACY_SCHEMA_VERSION)
+    return source_schedule
+
+
 def _validate_schedule(
     schedule: Mapping[str, Any],
     *,
@@ -5154,8 +5161,7 @@ def _validate_schedule(
 
     # Existing schedule.json files omit schema_version.  Treat that omission as
     # a v2 compatibility view without changing the caller's source mapping.
-    source_schedule = dict(schedule)
-    source_schedule.setdefault("schema_version", LEGACY_SCHEMA_VERSION)
+    source_schedule = _legacy_schedule_view(schedule)
     try:
         normalized_schedule = normalize_schedule(
             source_schedule, manifest=task_manifest
@@ -5627,6 +5633,23 @@ def _axis_row(
     return row
 
 
+def _is_legacy_projection(
+    slot_dimensions: Mapping[str, Mapping[str, Any]],
+) -> bool:
+    task_ids = {row.get("benchmark_task_id") for row in slot_dimensions.values()}
+    shared_dimensions = {
+        tuple(row.get(field) for field in _AXIS_FIELDS[1:])
+        for row in slot_dimensions.values()
+    }
+    scheduled_arms = {row.get("arm") for row in slot_dimensions.values()}
+    return (
+        bool(task_ids)
+        and task_ids <= {"POS", "NEG"}
+        and len(shared_dimensions) == 1
+        and scheduled_arms <= {"max", "high"}
+    )
+
+
 def _aggregate_token_usage_observations(
     attempts: Sequence[Mapping[str, Any]],
     reasons: list[str],
@@ -5643,11 +5666,9 @@ def _aggregate_token_usage_observations(
             )
     by_arm_case: dict[str, dict[str, int]] = {}
     by_axis: dict[tuple[Any, ...], int] = {}
-    task_ids: set[str] = set()
     for dimensions in slot_dimensions.values():
         arm = str(dimensions["arm"])
         case = str(dimensions["case"])
-        task_ids.add(str(dimensions["benchmark_task_id"]))
         by_arm_case.setdefault(arm, {}).setdefault(case, 0)
     total_count = 0
     for attempt in attempts:
@@ -5712,7 +5733,6 @@ def _aggregate_token_usage_observations(
             continue
         arm = str(dimensions["arm"])
         case = str(dimensions["case"])
-        task_ids.add(str(dimensions["benchmark_task_id"]))
         by_arm_case.setdefault(arm, {}).setdefault(case, 0)
         by_arm_case[arm][case] += count
         axis_key = tuple(dimensions.get(field) for field in _AXIS_FIELDS) + (
@@ -5734,7 +5754,7 @@ def _aggregate_token_usage_observations(
         "total_count": total_count,
         "by_axis": axis_rows,
     }
-    if task_ids and task_ids <= {"POS", "NEG"}:
+    if _is_legacy_projection(slot_dimensions):
         observation["by_arm_case"] = by_arm_case
     return {ZERO_COMPONENT_TOTAL_ONLY: observation}
 
@@ -5902,20 +5922,7 @@ def _aggregate_verified(
         }
         for key, count in reliability_axes.items()
     ]
-    task_ids = {row.get("benchmark_task_id") for row in slot_dimensions.values()}
-    shared_dimensions = {
-        tuple(row.get(field) for field in _AXIS_FIELDS[1:])
-        for row in slot_dimensions.values()
-    }
-    scheduled_arms = {
-        row.get("arm") for row in slot_dimensions.values()
-    }
-    legacy_projection = (
-        bool(task_ids)
-        and task_ids <= {"POS", "NEG"}
-        and len(shared_dimensions) == 1
-        and scheduled_arms <= {"max", "high"}
-    )
+    legacy_projection = _is_legacy_projection(slot_dimensions)
     positive_primary = {
         row["arm"]: {"k": row["k"], "n": row["n"]}
         for row in axis_primary_rows
@@ -6846,6 +6853,10 @@ def make_packets(
         if isinstance(row, dict) and isinstance(row.get("slot_id"), str):
             grouped.setdefault(row["slot_id"], []).append(row)
     schedule_descriptor = manifest.get("schedule")
+    if schedule_descriptor is None and not grouped:
+        raise ValidationError(
+            "packets require at least one logical slot", RC_AGGREGATE
+        )
     if schedule_descriptor is not None:
         if isinstance(schedule_descriptor, Mapping) and "slots" in schedule_descriptor:
             schedule = dict(schedule_descriptor)
@@ -6854,6 +6865,7 @@ def make_packets(
                 manifest_path.resolve(), schedule_descriptor, "schedule"
             )
             schedule = _load_json_object(schedule_path)
+        schedule = _legacy_schedule_view(schedule)
         schedule_slots, schedule_reasons = _validate_schedule(
             schedule, task_manifest=task_manifest
         )
