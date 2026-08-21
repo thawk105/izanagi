@@ -1913,6 +1913,21 @@ def test_known_violation_ledger_matches_literal_entries():
         "結果は両側の known-violation エントリを並べただけの union で、競合解決による新規著作なし。"
         "親作成 merge のため Codex 著者とは記さない。"
     )
+    t1479_merge_ruling = (
+        "2026-08-22 dev-wave-t1479-known-violation-merge-authorship "
+        "受入前裁定 (ユーザー選択: known-violation 登録)"
+    )
+    t1479_merge_note = (
+        "受入投入前に親が作成した local main `a714e8e0` 取り込み merge。wave 側が削除済みと検証した "
+        "19 SHA は main 側に残っていても削除し、main 側が独立追加した新規5エントリ "
+        "(T-1371 の3 merge、`09ce607b`、`13101ab3`) は保持する基準で解決した。"
+        "この基準は新規著作ではなく既存 entry の取捨選択である。`git diff-tree --cc "
+        "8440a14850718e63d73dfc510aa66b853a526424 -- tools/check_ai_provenance.py "
+        "orchestrator/tests/test_check_ai_provenance.py` が非自明になるのは、削除された行と保持された行が"
+        "混在するためである。`dev_wave_codex.py` の authority-snapshot 検査が mid-merge・conflict マーカーありの "
+        "working tree を拒否したため Codex に委任できず、親が直接解決した（job-id `t1479-merge-resolve1`、rc=2）。"
+        "親作成 merge のため Codex 著者とは記さない。"
+    )
     observed = tuple(
         (
             spec.commit,
@@ -1976,23 +1991,6 @@ def test_known_violation_ledger_matches_literal_entries():
             "",
         ),
         (
-            "92974909fb38ceb14045c2190cf781bdf354a071",
-            "missing-codex-author",
-            "2026-08-20 dev-wave-t1371-official-run-root 受入前裁定 "
-            "(ユーザー選択: known-violation 登録)",
-            "受入投入前に親が作成した local main 取り込み merge。実装面で両側が触ったのは "
-            "`orchestrator/campaign/s8b_oracle_driver.py` / "
-            "`orchestrator/tests/test_s8b_oracle_driver.py` の 2 file で、3 方向結合の結果が"
-            "両親のどちらとも異なるため checker が実装面著作と判定；`git diff-tree --cc "
-            "92974909fb38ceb14045c2190cf781bdf354a071 -- "
-            "orchestrator/campaign/s8b_oracle_driver.py "
-            "orchestrator/tests/test_s8b_oracle_driver.py` は commit SHA 行だけで実質空 = "
-            "競合解決による新規著作なし、結果は両側の変更の和集合。wave 側のこの 2 file への"
-            "実装面変更は Codex `role=author` が commit `756228db` で書き、main 側は各 wave の"
-            "land 時に監査済み。親作成 merge のため Codex 著者とは記さない。",
-            "",
-        ),
-        (
             "311d463f89d1d1708a309b86d5bf63f5b034f89d",
             "missing-codex-author",
             "2026-08-21 dev-wave-t1371-official-run-root "
@@ -2019,24 +2017,6 @@ def test_known_violation_ledger_matches_literal_entries():
             "各 wave の land 時に監査済み。親作成 merge のため Codex 著者とは記さない。",
             "",
         ),
-        (
-            "91a6ba1dc293ff7d8e997cf4a33b7a7c1454b094",
-            "missing-codex-author",
-            "2026-08-22 dev-wave-t1371-official-run-root "
-            "ccbench provenance修正着地に伴う3回目のlocal main取り込み裁定 "
-            "(ユーザー選択: known-violation 登録)",
-            "受入投入前に親が作成した local main 取り込み merge "
-            "`91a6ba1dc293ff7d8e997cf4a33b7a7c1454b094`。実装面で両側が触ったのは "
-            "`orchestrator/tests/test_check_ai_provenance.py` / "
-            "`tools/check_ai_provenance.py` の 2 file で、`git diff-tree --cc "
-            "91a6ba1dc293ff7d8e997cf4a33b7a7c1454b094 -- "
-            "orchestrator/tests/test_check_ai_provenance.py tools/check_ai_provenance.py` は "
-            "commit SHA 行だけで実質空 = 競合解決による新規著作なし、結果は両側の変更の単純な和集合。"
-            "main 側の known-violation 登録等は各 wave の land 時に監査済みで、本 wave 側の "
-            "`_T1371_MERGE2_RULING` / `_T1371_MERGE2_NOTE` 追加も既に書かれている。"
-            "親作成 merge のため Codex 著者とは記さない。",
-            "",
-        ),
         ("5823caf328a5985476cd2f6f7aa0d13daa5b08f6", "missing-codex-author", t567_merge2_ruling, t567_merge2_note, ""),
         (
             "09ce607b779272fda5629a350676471a16bea9bb",
@@ -2059,6 +2039,13 @@ def test_known_violation_ledger_matches_literal_entries():
             "逆操作のみのため独自のソース著作なし；`--no-edit` により trailer は一切付与されず"
             "AI-Agent trailer が存在しないため `missing-ai-agent` として登録；T-755 の wave は"
             "outer gitlink を参照しないため影響なし",
+            "",
+        ),
+        (
+            "8440a14850718e63d73dfc510aa66b853a526424",
+            "missing-codex-author",
+            t1479_merge_ruling,
+            t1479_merge_note,
             "",
         ),
     )
