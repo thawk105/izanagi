@@ -2477,6 +2477,129 @@ def _run_required_fixture(fixture, *, receipt_side_effect=None, durable_policy=N
         )
 
 
+def test_cli_output_root_default_is_none_and_run_block_refuses_without_root(tmp_path):
+    """CLI omission is fail-closed and is transported as a classified refusal."""
+    parsed = driver._parser().parse_args([
+        "run-block", "--manifest", str(tmp_path / "manifest.json"),
+        "--block-id", "b0",
+    ])
+    assert parsed.output_root is None
+
+    freeze_path = _synthetic_freeze(tmp_path)
+    prepare_fn = _prepare_factory()
+    manifest_path, _ = _write_manifest(tmp_path, freeze_path, prepare_fn)
+    validated = _fake_launch_validated(freeze_path)
+    verified_manifest = _verify_manifest(
+        manifest_path, root=ROOT, freeze_document=validated.ratified.document,
+        freeze_sha256=validated.ratified.sha256,
+    )
+    budget_path = tmp_path / "missing-output-budget.json"
+    marker_root = tmp_path / "missing-output-markers"
+    with receipt_memo.patch_driver_resolver(), \
+            mock.patch.object(
+                driver, "_gate_check_validated",
+                return_value=driver.GateDecision(True, [], None)), \
+            mock.patch.object(
+                driver.s8b_ratified_freeze, "load_ratified_freeze",
+                return_value=validated.ratified), \
+            mock.patch.object(
+                driver.s8b_ratified_freeze, "launch_validate",
+                return_value=validated), \
+            mock.patch.object(
+                driver, "verify_manifest", return_value=verified_manifest), \
+            _isolated_oracle_admission_root(tmp_path):
+        result = driver.run_block(
+            manifest_path=manifest_path, block_id="b0", freeze_path=freeze_path,
+            root=ROOT, output_root=None, budget_path=budget_path,
+            marker_root=marker_root, prepare_fn=prepare_fn,
+            evaluate_fn=_fake_evaluate_factory(),
+        )
+
+    assert result["status"] == "refused"
+    assert result["allowed"] is False
+    assert len(result["refusals"]) == 1
+    assert result["refusals"][0].startswith("official-output-root: official output_root")
+    assert not budget_path.exists()
+    assert not marker_root.exists()
+
+
+def test_main_injects_external_policy_and_required_run_writes_claim_wal_and_lock(
+        tmp_path, _activate_synthetic_env_authority,
+):
+    """CLI policy wiring permits the already-admitted external required root."""
+    fixture = _required_run_fixture(tmp_path, _activate_synthetic_env_authority)
+    original_budget_path = driver.DEFAULT_BUDGET_PATH
+    original_issuer = execution_guard.attest_and_build_receipt
+    original_run_block = driver.run_block
+    captured_result = {}
+    evaluate_fn = _fake_evaluate_factory()
+
+    def issuer(contract, verified):
+        return original_issuer(
+            contract, verified,
+            probe_fn=lambda: _observed(verified.attestation_profile),
+        )
+
+    def run_block_wrapper(*args, **kwargs):
+        result = original_run_block(*args, **kwargs)
+        captured_result["value"] = result
+        return result
+
+    try:
+        driver.DEFAULT_BUDGET_PATH = fixture["budget_path"]
+        with mock.patch.object(driver, "_gate_check_validated",
+                               return_value=driver.GateDecision(True, [], None)), \
+                mock.patch.object(driver, "_resolve_t080_receipt",
+                                  return_value=_never_issued_resolution()), \
+                mock.patch.object(
+                    driver.s8b_ratified_freeze, "load_ratified_freeze",
+                    return_value=fixture["validated"].ratified), \
+                mock.patch.object(
+                    driver.s8b_ratified_freeze, "launch_validate",
+                    return_value=fixture["validated"]), \
+                mock.patch.object(
+                    driver, "verify_manifest",
+                    return_value=fixture["verified_manifest"]), \
+                mock.patch.object(
+                    driver, "_prepare_v2_execution",
+                    return_value=fixture["plan"]), \
+                mock.patch.object(
+                    driver, "prepare_cell", fixture["prepare_fn"]), \
+                mock.patch.object(
+                    driver.pipeline, "evaluate", evaluate_fn), \
+                mock.patch.object(
+                    driver.execution_guard, "attest_and_build_receipt",
+                    side_effect=issuer), \
+                mock.patch.dict(os.environ, fixture["environ"], clear=True), \
+                _isolated_oracle_admission_root(fixture["root"]), \
+                mock.patch.object(
+                    driver, "run_block", side_effect=run_block_wrapper,
+                ) as call:
+            rc = driver.main([
+                "run-block", "--manifest", str(fixture["manifest_path"]),
+                "--block-id", "b0", "--freeze", str(fixture["freeze_path"]),
+                "--root", str(fixture["root"]),
+                "--output-root", str(fixture["output_root"]),
+            ])
+            result = captured_result["value"]
+            policy = call.call_args.kwargs["durable_root_policy"]
+    finally:
+        driver.DEFAULT_BUDGET_PATH = original_budget_path
+
+    assert rc == 0, result
+    assert result["status"] == "completed", result
+    assert policy == driver.DurableRootPolicy(
+        approved_roots=(fixture["output_root"].resolve(),), forbidden_roots=(),
+    )
+    claim_files = list((fixture["output_root"] / "claims").glob("*.claim"))
+    assert len(claim_files) == 1
+    campaign_root = (
+        fixture["output_root"] / "campaigns" / result["campaign_id"]
+    )
+    assert (campaign_root / "campaign.lock").is_file()
+    assert (campaign_root / "runs" / "wal.jsonl").is_file()
+
+
 def test_real_freeze_gate_lists_floor_and_budget_null():
     independent = _independent_t080_receipt_blob(ROOT)
     assert independent is not None, (
@@ -2656,7 +2779,7 @@ def test_gate_decision_is_built_only_by_factory_and_all_run_returns_propagate():
         assert isinstance(t080_value, ast.Name) and t080_value.id == "t080_campaign_value"
         categories.append(status or "terminal-status-variable")
     assert categories == [
-        *("refused-via-gate-decision" for _ in range(14)),
+        *("refused-via-gate-decision" for _ in range(15)),
         "budget_exhausted_before_attempt",
         "terminal-status-variable",
     ]
@@ -3622,7 +3745,7 @@ def test_transient_prepare_failure_retries_once(tmp_path):
     retrying_prepare = _prepare_factory(fail_first=True)
     evaluate_fn = _fake_evaluate_factory()
 
-    output_root = root / "output"
+    output_root = root.parent / "output"
     result = _run_v2(
         root, freeze_path, manifest_path, retrying_prepare, evaluate_fn,
         out_root=output_root, tmp_path=tmp_path,
@@ -4670,6 +4793,9 @@ def _build_v2_repo(tmp_path: Path, *, floor_extime_s: int = 5):
     root, ratified, topology = ratified_fixture.load_emitter_g1(
         tmp_path, mutate=mutate, mutate_g1=fill_execution_snapshot,
     )
+    # Keep the emitter artifacts in the git-backed repo, but run the official
+    # campaign against its uninitialized sibling root.
+    shutil.copytree(root / "output", tmp_path / "output")
     return (
         root, root / topology["generation_path"], ratified.sha256,
         topology["result"]["binaries"], topology,
@@ -4835,7 +4961,7 @@ def test_v2_gate_happy_path_completes_and_binds_env_store_receipt(tmp_path):
     evaluate に伝搬し、clocks/numactl は env 契約由来 (NUMACTL ハードコード撤去)、
     campaign-start に execution receipt が記録される。"""
     root, freeze_path, _gen_sha, binaries, _topology = _build_v2_repo(tmp_path)
-    out_root = root / "output"
+    out_root = root.parent / "output"
     manifest_path, document = _emitter_manifest(tmp_path, root, freeze_path)
     evaluate_fn = _fake_evaluate_factory()
 
@@ -4864,7 +4990,7 @@ def test_v2_gate_happy_path_completes_and_binds_env_store_receipt(tmp_path):
 
 def test_v2_foreign_cell_admission_receipt_is_refused_before_store_read(tmp_path):
     root, freeze_path, _gen_sha, _binaries, _topology = _build_v2_repo(tmp_path)
-    out_root = root / "output"
+    out_root = root.parent / "output"
     _manifest_path, document = _emitter_manifest(tmp_path, root, freeze_path)
     validated = s8b_ratified_freeze.launch_validate(
         s8b_ratified_freeze.load_ratified_freeze(root), root,
@@ -4902,7 +5028,7 @@ def test_v2_foreign_cell_admission_receipt_is_refused_before_store_read(tmp_path
 def test_oracle_driver_accepts_conditional_sort_receipt_and_rejects_its_absence(
         tmp_path):
     root, freeze_path, _gen_sha, _binaries, _topology = _build_v2_repo(tmp_path)
-    out_root = root / "output"
+    out_root = root.parent / "output"
     _manifest_path, document = _emitter_manifest(tmp_path, root, freeze_path)
     validated = s8b_ratified_freeze.launch_validate(
         s8b_ratified_freeze.load_ratified_freeze(root), root,
@@ -4932,7 +5058,7 @@ def test_oracle_driver_accepts_conditional_sort_receipt_and_rejects_its_absence(
 def test_v2_store_bytes_are_checked_against_admission_subject_independently(tmp_path):
     """M5 の独立性は主張せず、実 store 改変が既存 record SHA gate で拒否される。"""
     root, freeze_path, _gen_sha, binaries, _topology = _build_v2_repo(tmp_path)
-    out_root = root / "output"
+    out_root = root.parent / "output"
     _manifest_path, document = _emitter_manifest(tmp_path, root, freeze_path)
     validated = s8b_ratified_freeze.launch_validate(
         s8b_ratified_freeze.load_ratified_freeze(root), root,
@@ -4950,7 +5076,7 @@ def test_v2_store_bytes_are_checked_against_admission_subject_independently(tmp_
 def test_v2_completed_driver_adapter_campaign_is_accepted_by_report(tmp_path):
     """driver adapter の completed WAL は report で 5 個の bench 証拠として読める。"""
     root, freeze_path, _gen_sha, _binaries, _topology = _build_v2_repo(tmp_path)
-    out_root = root / "output"
+    out_root = root.parent / "output"
     manifest_path, document = _emitter_manifest(tmp_path, root, freeze_path)
     result = _run_v2(
         root, freeze_path, manifest_path, _prepare_factory(),
@@ -5013,7 +5139,7 @@ def test_v2_completed_driver_adapter_campaign_is_accepted_by_report(tmp_path):
 @pytest.mark.parametrize("change", ["replaced", "removed"])
 def test_v2_post_run_store_change_is_reported_and_refused(tmp_path, change):
     root, freeze_path, _gen_sha, binaries, _topology = _build_v2_repo(tmp_path)
-    out_root = root / "output"
+    out_root = root.parent / "output"
     manifest_path, _document = _emitter_manifest(tmp_path, root, freeze_path)
     result = _run_v2(
         root, freeze_path, manifest_path, _prepare_factory(),
@@ -5313,7 +5439,7 @@ def test_slow_oracle_prepared_cell_pipeline_uses_real_build_v2(tmp_path):
 def test_v2_floor_disk_swap_after_launch_uses_same_validated_object(tmp_path):
     """launch 後の floor disk 差替えを無視し、旧 blob reader も呼ばない。"""
     root, freeze_path, _gen_sha, _binaries, topology = _build_v2_repo(tmp_path)
-    out_root = root / "output"
+    out_root = root.parent / "output"
     manifest_path, _ = _emitter_manifest(tmp_path, root, freeze_path)
     result_path = root / topology["paths"]["result"]
     original_raw = result_path.read_bytes()
@@ -5352,7 +5478,7 @@ def test_v2_freeze_bytes_not_active_generation_is_refused(tmp_path):
     """与えられた freeze bytes が active 世代と 1 byte でも違えば
     freeze-not-active-generation で拒否 (何も書かない)。"""
     root, freeze_path, _gen_sha, _bin, _topology = _build_v2_repo(tmp_path)
-    out_root = root / "output"
+    out_root = root.parent / "output"
     manifest_path, _ = _emitter_manifest(tmp_path, root, freeze_path)
     # active 世代とは別 bytes の freeze を渡す (floor/budget は充填済み = v2 経路)。
     tampered = tmp_path / "tampered_freeze.json"
@@ -5376,7 +5502,7 @@ def test_v2_freeze_bytes_not_active_generation_is_refused(tmp_path):
 def test_v2_launch_validate_failure_is_refused(tmp_path):
     """launch_validate 失敗 (closure 外の未申告 hit) は v2-execution refusal に翻訳。"""
     root, freeze_path, _gen_sha, _bin, _topology = _build_v2_repo(tmp_path)
-    out_root = root / "output"
+    out_root = root.parent / "output"
     manifest_path, _ = _emitter_manifest(tmp_path, root, freeze_path)
     # closure 外の untracked ファイルに rr80 params を仕込む → 未申告 hit で launch_validate 落ち。
     (root / "sneaky.txt").write_bytes(ratified_fixture._RR80_PARAMS)
@@ -5398,7 +5524,7 @@ def test_v2_launch_validate_non_ratified_error_is_refused(tmp_path):
     from orchestrator.campaign import s8b_holdout_freeze  # noqa: PLC0415
 
     root, freeze_path, _gen_sha, _bin, _topology = _build_v2_repo(tmp_path)
-    out_root = root / "output"
+    out_root = root.parent / "output"
     manifest_path, _ = _emitter_manifest(tmp_path, root, freeze_path)
 
     def _boom(*_a, **_k):
@@ -5428,7 +5554,7 @@ def test_v2_launch_validate_non_ratified_error_is_refused(tmp_path):
 def test_v2_store_missing_is_refused(tmp_path):
     """store 実体が欠落していれば refusal (再ビルド fallback は書かない)。"""
     root, freeze_path, _gen_sha, binaries, _topology = _build_v2_repo(tmp_path)
-    out_root = root / "output"
+    out_root = root.parent / "output"
     manifest_path, _ = _emitter_manifest(tmp_path, root, freeze_path)
     baseline = s8b_ratified_freeze.launch_validate(
         s8b_ratified_freeze.load_ratified_freeze(root), root,
@@ -5458,7 +5584,7 @@ def test_v2_store_missing_is_refused(tmp_path):
 def test_v2_store_hash_mismatch_is_refused(tmp_path):
     """store 実体の bytes が floor receipt の binary_sha256 と不一致なら refusal。"""
     root, freeze_path, _gen_sha, binaries, _topology = _build_v2_repo(tmp_path)
-    out_root = root / "output"
+    out_root = root.parent / "output"
     manifest_path, _ = _emitter_manifest(tmp_path, root, freeze_path)
     baseline = s8b_ratified_freeze.launch_validate(
         s8b_ratified_freeze.load_ratified_freeze(root), root,
@@ -5488,7 +5614,7 @@ def test_v2_contract_sha256_mismatch_is_refused(tmp_path):
     """run_contract.contract_sha256 が env 契約 lookup 結果と不一致なら refusal。"""
     global _ACTIVE_APPROVED
     root, freeze_path, _gen_sha, _bin, _topology = _build_v2_repo(tmp_path)
-    out_root = root / "output"
+    out_root = root.parent / "output"
     manifest_path, document = _emitter_manifest(tmp_path, root, freeze_path)
     original_approved = _APPROVED_BY_PATH[manifest_path.resolve()]
     # env_tag は維持し、manifest 内部だけ整合する別 contract_sha256 へ再封する。
@@ -5541,7 +5667,7 @@ def test_v2_binary_mismatch_abort_maps_to_binary_mismatch_outcome(tmp_path):
     """pipeline の bench-binary-mismatch abort (TOCTOU 第二防壁) が driver の
     binary-mismatch terminal outcome に射影される。"""
     root, freeze_path, _gen_sha, _bin, _topology = _build_v2_repo(tmp_path)
-    out_root = root / "output"
+    out_root = root.parent / "output"
     manifest_path, _ = _emitter_manifest(tmp_path, root, freeze_path)
     evaluate_fn = _fake_abort_evaluate_factory("bench-binary-mismatch")
 
