@@ -4,7 +4,7 @@ ledger: worklog
 authored: 2026-08-21
 wave: dev-wave-t972-perf-preflight-receipt
 seq: 1
-title: '[T-972] build_cells前にperf preflight receiptをjournalへcreate-only永続化し、resume classifierを安全拡張した (コード+テスト、branch worktree-dev-wave-t972-perf-preflight-receipt、変異matrix = baseline PASSED・3/3 KILLED・SURVIVED 0・MISMATCH 0)'
+title: '[T-972] build_cells前にperf preflight receiptをjournalへcreate-only永続化し、resume classifierとs8b_ratified_freezeのjournal検証を安全拡張した (コード+テスト、branch worktree-dev-wave-t972-perf-preflight-receipt、変異matrix = baseline PASSED・M01-M04 4/4 KILLED・SURVIVED 0・MISMATCH 0)'
 ---
 
 ## 本文
@@ -24,9 +24,28 @@ title: '[T-972] build_cells前にperf preflight receiptをjournalへcreate-only�
 - DW-O26 の焦点走で `test_official_perf_closure.py` (呼び出しグラフの exhaustive inventory
   test) が新規呼び出し関係の未登録により赤になり、追加 fix (1エントリ追加) で解消した。
   trace-enabled 経路との比較は技術的に不可能と判断し実装しなかった: {{D:t972-trace-lane-closure-unrealizable}}。
-- セッション運用の異常 3 件を {{F:dev-wave-author-prompt-missing-total-heading}}、
-  {{F:mutation-harness-orphan-hold-dual-sidecar}}、{{F:focused-run-concurrent-dispatch-false-red}}
-  に記録した。
+- 受入全走2回目で、resume classifier (`s8b_floor_contract.py`) とは完全に独立した
+  もう1つの journal 検証機構 (`s8b_ratified_freeze.py._JOURNAL_KEYS` の event 種別ごと
+  exact key allowlist) が perf-preflight event を未知として拒否する regression を発見し
+  fix3 で解消した (allowlist へエントリ追加 + inner receipt 再検証)。DW-O26 の consumer
+  探索では grep でヒットしていたが具体的識別子での絞り込みで誤って除外していた:
+  {{F:t972-independent-journal-validator-missed-by-consumer-search}}。
+- fix3 の新設呼び出し (`_validate_journal`→`validate_perf_preflight_receipt`) が
+  closure inventory drift を再発させ (fix2 で解消したのとは別の未登録呼び出し)、
+  fix4 (1エントリ追加) で解消した。同じ closure drift が同一 wave 内で2回発生した:
+  {{F:t972-closure-drift-recurred-twice-same-wave}}。
+- 変異事前登録に M04 (`s8b_ratified_freeze.py` の `if key == "perf-preflight":` 無効化) を
+  fix3 後に追加。M01-M04 全4件 + baseline を実測し、baseline PASSED・4/4 KILLED・
+  matches_expectation=true を確認した。
+- 受入全走3回目 (attempt=3) が `owned-path-overlap` (T-1444 が `s8b_floor_campaign.py` を
+  含む3 commit を先に main へ land 済み) で終端した。`git merge-tree` で機械的 conflict が
+  0件であることを確認した上で main を取り込み (DW-O18 の「並行 wave が自分の編集 file を
+  所有するなら main を取り込んだ木で既存走行へ相乗りさせる」に従う)、影響ファイルの
+  焦点走 493 passed, 2 skipped を確認して受入全走4回目 (attempt=4) を投入した。
+- セッション運用の異常を {{F:dev-wave-author-prompt-missing-total-heading}}、
+  {{F:mutation-harness-orphan-hold-dual-sidecar}}、{{F:focused-run-concurrent-dispatch-false-red}}、
+  {{F:t972-independent-journal-validator-missed-by-consumer-search}}、
+  {{F:t972-closure-drift-recurred-twice-same-wave}} に記録した。
 - 一次資料: `/work/SFC/tanab/dev-wave-jobs/dev-wave-t972-perf-preflight-receipt/handoff.md`
   (段1〜6 の裁定経緯全文)、同ディレクトリの `mutation-spec.json`/`mutation-out.json`
   (変異事前登録と結果)。
