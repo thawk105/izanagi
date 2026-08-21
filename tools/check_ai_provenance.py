@@ -727,7 +727,7 @@ KNOWN_PROVENANCE_VIOLATIONS = (
             "親作成mergeのためCodex著者とは記さない。"
         ),
     ),
-    KnownViolationSpec("8482c047b659ea26cb0687fe259fe8eab171d8b2", MISSING_AI_AGENT, _T972_MERGE_RULING, _T972_MERGE_NOTE),
+    KnownViolationSpec("8482c047b659ea26cb0687fe259fe8eab171d8b2", MISSING_CODEX_AUTHOR, _T972_MERGE_RULING, _T972_MERGE_NOTE),
 )
 
 
