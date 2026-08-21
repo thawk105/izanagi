@@ -8060,9 +8060,14 @@ def test_deterministic_artifacts_across_roots_and_subprocess_environments(tmp_pa
     ]
     script = textwrap.dedent(f"""
         import importlib.util, json, pathlib, sys
+        from types import SimpleNamespace
         spec = importlib.util.spec_from_file_location("floor_test_helper", {str(Path(__file__))!r})
         module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(module)
+        module.s8b_floor_campaign.site_policy.socket = SimpleNamespace(
+            gethostname=lambda: "test-host"
+        )
+        module.s8b_floor_campaign.site_policy._has_nqsv = lambda: False
         print(json.dumps(module._deterministic_official_artifacts(pathlib.Path(sys.argv[1])), sort_keys=True))
     """)
     observations = []
