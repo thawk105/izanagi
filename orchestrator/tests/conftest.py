@@ -383,6 +383,7 @@ REAL_REPO_SERIAL_NODES = frozenset({
     "test_codex_reasoning_ab.py::test_verify_replays_complete_fake_codex_experiment",
     "test_codex_reasoning_ab.py::test_attempt_four_is_rejected_before_launch",
     "test_codex_reasoning_ab.py::test_f3_4_prelaunch_exception_completes_pair_and_allows_next_generation",
+    "test_codex_reasoning_ab.py::test_validate_schedule_legacy_different_arm_same_model_pair_remains_valid",
 
     # helper が実親 repo と実共有 submodule を clone source として直接読む reader。
     "test_s8b_floor_campaign.py::test_real_seal_protocol_to_floor_official_core_e2e",
