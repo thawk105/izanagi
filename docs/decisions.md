@@ -25325,3 +25325,181 @@ fault-tolerance) を維持する。`_orphan_hold_required`/`_latch_orphan_hold`/
   除外するようさらに厳密化する — 段3 レンズA が理論的な残余懸念として指摘したが、
   `terminal_history_end` との組み合わせで十分保守的と判断し、対象追加によるスコープ
   拡大 (規律5) を避けた。
+
+## D633. between_run_floor.py の receipt schema は D581 の理由文を類推適用して軽量に保つ、D145決定5・公式H1/H2 registration の先取りではない (2026-08-21)
+
+**決定:** `orchestrator/campaign/between_run_floor.py` の出力 JSON へ `schema_version`
+(`"between-run-noise-floor/v1"`) を追加するにあたり、次の3点を確定する。
+
+1. D581 (床値measurementの official mode 相当の事前登録儀式撤廃) は、between_run_floor.py が
+   そもそも `official`/`pilot` 儀式を経ない設計であるため、この driver の手続きを直接は変更しない。
+   D581の直接の適用対象は `s8b_floor_campaign.py` の official mode である。D581の理由文
+   (「粗い provenance で足りる」既定方針) は、今回追加する receipt schema を D488型の重い
+   事前登録・凍結儀式に寄せない上限根拠として類推使用するに留める。
+2. schema_version は screening_driver.py 側との互換性契約 (欠落は legacy として許容、存在時のみ
+   完全一致を要求) であり、将来の公式 H1/H2 registration receipt の契約を先取り・予約するもの
+   ではない。
+3. schema付与および screening 側の型/バージョン検証硬化は、D145決定5 が制限する「真正floor専用
+   infra の新設」「floor値の正式floor昇格」のいずれにも当たらない。測定経路・compare閾値・
+   admission ledger・公式artifactへの変更を一切含まないためである。D145決定5 自体はこの判断で
+   再訪しない。
+
+**理由:**
+- 2026-08-20 の between-run floor 実験路依存鎖再監査 (`output/insights/2026-08-20_
+  t425-dependency-reaudit/README.md`) が、この3点の確認を続 wave の段1 brief の最優先事項として
+  指定していた。段2 codex plan と段3 敵対レンズ2本 (正確性・設計論) が実装前にこの3点を独立に
+  検証し、段4 で親が裁定として確定した。
+- 「D581 が本 schema 設計を承認した」と読める記録を残すと、将来この schema を公式 registration
+  receipt へ格上げする際の判断を誤誘導する。D581 は間接的な類推根拠であり、直接の適用対象では
+  ないことを明記する必要がある。
+
+**却下した選択肢:**
+- schema_version 欠落時も拒否する厳格版 — 公式儀式を経ていない既存 calibration JSON を全て
+  無効化することになり、D581 の「粗い provenance で足りる」既定方針と逆行するため見送った。
+- D488型の重い事前登録・凍結儀式 (durable admission 台帳・pre-commitment・launch certificate)
+  をこの schema に持ち込む — 同上、対象が screening 用の軽量メタデータ検証にすぎない規模へは
+  不釣り合いである。
+
+## D634. xdist collection 固定費への controller-only / manifest 共有はいずれも低リスク案なしと結論する (2026-08-21)
+
+**決定:** 受入全走の xdist collection 固定費 (D532 (c)、48 worker が各自全テストを collection
+する費用) を、worker 数変更以外の技法 (controller-only collection、collection manifest 共有)
+で削減する案を、xdist 3.8.0 の実ソースで検証し、**いずれも採用しない (実装しない)。**
+worker 数変更・`IZANAGI_TEST_NPROC` 変更・D585 (per-test snapshot copytree の hardlink化) は
+再提案しない。
+
+**理由:**
+- controller 側の `pytest_collection` hook は `# prohibit collection of test items in
+  controller process` と明記して controller 自身の collection を構造的に禁止しており
+  (`xdist/dsession.py:103-105`)、controller-only collection の実現にはこの guard を外すこと
+  に加え、controller から worker へ**実行可能な worker-local Item 相当の object** を渡す
+  新しい IPC 経路が要る。現行 wire protocol (`xdist/remote.py:257-261`) は nodeid 文字列しか
+  運ばない。
+- worker の実行は `self.session.items[index]` を直接参照して `pytest_runtest_protocol` へ渡す
+  (`xdist/remote.py:211-227`)。scheduler が保持・比較するのは nodeid 文字列一覧であり
+  (`xdist/scheduler/load.py:62-65`, `xdist/scheduler/loadscope.py:93-99`)、id 一覧が一致しても
+  worker 側の実行用 Item construction を代替しない。したがって「manifest (id 一覧) を 1 回だけ
+  計算して worker 間で共有し、各 worker の再 collection を省く」案も、worker 側の Item
+  construction を省けない点で controller-only と同じ壁に当たる。
+- `--dist loadgroup` (本 repo の既定、`tools/run_tests.py:406-410`) が使う
+  `LoadGroupScheduling` は `LoadScopeScheduling` を継承し (`xdist/scheduler/loadgroup.py:10`)、
+  初回 collection 完了時に全 worker の collected id 一覧が完全一致することを要求する
+  (`xdist/scheduler/load.py:257-264,309-335`、`xdist/scheduler/loadscope.py:357-382,409-438`。
+  後発 worker の再照合は `load.py:127-145`、`loadscope.py:207-231`)。不一致は
+  `report_collection_diff` で abort する。id 一覧の配布だけでは、各 worker が独立に本物の
+  Item を構築して報告するという不変条件を満たせない。
+- `--dist` の既存値 (`each`/`load`/`loadscope`/`loadfile`/`loadgroup`/`worksteal`,
+  `xdist/dsession.py:108-126`)、`pytest_xdist_node_collection_finished` (collection 完了後の
+  通知 hook、代替入口ではない、`dsession.py:274-306`)、gateway 起動方式 (`popen` / 非 `popen`
+  いずれも `remote_exec` で worker-local pytest session を起動する、
+  `xdist/workermanage.py:325-349`) のいずれにも、worker 側の Item construction を省く既存の
+  抜け道は無い。
+- 段2 codex plan (read-only) と段3 敵対相談 2 レンズ (正しさ境界、整合性・実効性・scope) が
+  独立に上記を検証し、BLOCKER 0 で結論を支持した。
+
+**却下した選択肢:**
+- controller-only collection (controller が collection を担い、結果を worker へ配布する) —
+  `dsession.py:103-105` の既存 guard と正面から矛盾し、worker-local Item を渡す新しい IPC を
+  要求する。xdist protocol の変更に当たり低リスクではない。
+- collection manifest 共有 (collected node id 一覧を 1 回だけ計算し worker 間で共有する) —
+  id 一覧は scheduler の必要条件に過ぎず、worker 側の実行用 Item construction を代替できない。
+  結局 worker bootstrap 契約の変更を要し、controller-only と同じ理由で低リスクではない。
+- worker 数変更・`IZANAGI_TEST_NPROC` の調整 — D532 が既に却下済み (worker 数増は gen_S の
+  per-job CPU 上限 48 で頭打ち、減は模型で悪化)。本決定の scope 外。
+- D585 型の per-test hardlink 化の再提案 — D585 は別トピック (real-repo 鎖の per-test snapshot
+  copytree) であり、実測で効果が高々 1 秒と確認済み。本件 (xdist collection) には適用対象がなく
+  再提案しない。
+
+固定費削減 (D532 (c)) の他の実現手段は本決定の対象外とし、閉じない。P2 (現在の collection
+コスト実態の再測定要否) は本決定と独立の backlog として worklog へ別記する。
+
+## D635. registered trial の crash は raise ではなく report フィールドで indeterminate を表現する (2026-08-21)
+
+**決定:** `_finish_trial` の workload/critic exception 経路 (`orchestrator/campaign/
+p3_autonomous_workload_trial.py`) で、registered trial (`launch_admission.binding is not
+None`) が budget-tracked flow 外で crash した場合、既存の `budget_ledger_path is not None:
+raise AutonomousTrialError(...)` (2箇所、無改修) とは別に、`report["lifecycle_terminal_status"]
+= "indeterminate"` を条件付きで追加する非 raise 方式を採用する。`report["status"]` は
+"partial" のまま変更しない。`trial_registry.forbid_trial_restart` はこの新分岐から呼ばない。
+
+**理由:**
+- `run_origin_trial` は「never raises failures」契約で `run_trial` の例外を捕捉し、
+  `run_root/"report.json"` を disk から読んで `OriginPartialTrialReport` を返す。`_finish_trial`
+  が raise で早期離脱すると report.json 書込み (`_write_json_atomic`) 前に離脱してしまい、
+  `outcome.report is not None` という既存契約 (`test_origin_public_result_distinguishes_partial_
+  from_completed`) を壊す。registered trial は origin 経路と共存しうるため、既存の
+  budget-tracked crash の raise パターンをそのまま複製できない。
+- `report["status"]` を "partial" のまま保つのは、既存の `_budget_indeterminate_report`
+  (budget-insufficient 早期return、`status="partial"` + `lifecycle_terminal_status=
+  "indeterminate"` の組) と同じ二層フィールド規約に倣うためであり、新しい status 語彙を
+  増やさない。
+- `forbid_trial_restart` を呼ばない判断は、`trial_registry.record_trial_start_once` の
+  start-once 検査 (`append_start`) が trial_id 単位の再 start を既に無条件拒否すること、
+  および `forbid_trial_restart` 自身の docstring が「durable な start/indeterminate terminal
+  row が cross-process の再走拒否証拠であり、この関数は in-process capability flag に過ぎない」
+  と明記していることに基づく。
+- C04 (`docs/phase3-8c-preregistration.md` §6条件4、凍結 §1-4/6/7 は無変更) の機械評価器
+  `_evaluate_c04` は `mark_experiment_indeterminate`/`forbid_trial_restart` の declared-call
+  reachability だけを見る静的検査であり、既存の budget-tracked crash 経路で既に到達可能なため
+  本決定による verdict の変化はない。本決定の価値は評価器の verdict を動かすことではなく、
+  実際の runtime 挙動を C04 の prose 要求 (crash → 実験全体 indeterminate・再走差別化) に
+  合わせることにある。
+
+**却下した選択肢:**
+- 既存の budget-tracked crash と同じ raise + `mark_experiment_indeterminate` 方式を registered
+  trial 全体へ拡張する — origin 境界の report.json 依存契約を壊すため不採用。
+- `report["status"]` 自体を "indeterminate" に変更する — 既存の二層フィールド規約 (status は
+  producer/public 境界の表現、lifecycle_terminal_status は運用終端) から外れ、"partial" を
+  期待する既存 assertion 群を反転させる必要が生じるため不採用。
+
+**scope 境界 (裁定待ち・裁定不要それぞれ):**
+- provider-init 失敗 (`run_trial` 自身の except が `_finish_trial` 呼出し前に `fatal_error` を
+  事前セットする経路) は本決定の対象外とした。ユーザー裁定待ち。
+- `autonomous_trial_completeness.py` の `_check_launch_admission_projection`/
+  `_check_arm_digest_chain` が `registered-formal-non-certifying` モードを認識しない既存の別問題
+  (T-1310 commit c1295565 が既に scope外・既知事項として記録済み) は、本決定の production 差分と
+  無関係のため対応しない。新設テストは既存の同モードテストと同じ monkeypatch でこれを回避した。
+
+## D636. sort SWO oracle の real-repo 直列鎖からの分離を controller-only prewarm barrier + 独立完全性検査で実装する (2026-08-21)
+
+**決定:** T-1012 (D591) が `REAL_REPO_SERIAL_NODES` へ追加した 24 node (sort SWO oracle
+fixture 消費者) を、`real_repo_receipt_memo.py` 型の controller-only prewarm barrier へ
+置き換えて分離した。新設 sibling module (`sort_swo_oracle_receipt_memo.py`) が pytest
+collection-finish 時に一度だけ `resolve_oracle_environment` を解決し、24 関数は fixture
+受け取りから読み取り専用 getter 呼び出しへ移行した。fixture のままでは自動的に得られていた
+機械的完全性検査 (closure gate、fixture の scope/baseid で機械判定) を失わないよう、同型の
+独立 golden (`ORACLE_ENVIRONMENT_CONSUMERS_GOLDEN`) + AST inventory + exact-match 検査 +
+negative control を新設した。
+
+**理由:**
+- D591 が候補 C を見送った理由 (「controller の資源解決が worker 実行開始より必ず先行する」
+  という hook 順序前提を file:line 粒度で実証できなかった) を、本 wave で pytest-xdist 3.8.0
+  の実ソース (`dsession.py`/`remote.py`/`workermanage.py`/`scheduler/load.py`/
+  `scheduler/loadgroup.py`) を読み証明した。controller 側の
+  `pytest_xdist_node_collection_finished` (prewarm 発火点) の完了は、scheduler が
+  `runtests` を送る前に必ず先行する。worker 再起動時の stale collection entry という
+  段2 plan の副次説明の穴を段3 レンズA が指摘したが、schedule 対象の collection entry は
+  必ず prewarm 発火点の後に登録されるため核心命題は破れない。
+- fixture のまま prewarm 化しても既存 closure gate
+  (`test_real_repo_serialization.py` の `_assert_fixture_closure_complete`、fixture の
+  scope/baseid だけで機械判定) からは逃れられないため、fixture 解除への書き換えは必須である。
+  一方、それだけでは機械的完全性検査を失い規律2 に抵触する。`RECEIPT_MEMO_CONSUMER_NODES`
+  には実は AST inventory による同型の完全性検査が既にあった
+  (F451 参照) ことを先例に、oracle 側にも
+  同型の独立検査を新設した。
+- `resolve_oracle_environment` は読み取り専用 (write/subprocess 皆無) であり、現行
+  `REAL_REPO_SERIAL_NODES` の writer 群 (test_hooks.py、test_s8b_floor_campaign.py 等) は
+  候補 path (`IZANAGI_SORT_SWO_CXX`/`CXX`/`g++` 解決先、`IZANAGI_SORT_SWO_MASSTREE_ROOT`、
+  `ccbench/build/_deps/masstree-src`、ancestor-cache) を作らないことを、writer 実装を
+  実際に実行して検証する回帰テストで担保した。
+
+**却下した選択肢:**
+- 24 node の fixture 解除 + prewarm 配線だけ (段2 plan の当初案) — closure gate の機械的
+  完全性検査を失うため規律2 に抵触し不採用。独立完全性検査の新設を必須要件とした
+  (段4 裁定、scope 拡大)。
+- D591 の 66/90 件という過去実測値 (79.02s/119.34s) をそのまま新旧比較の基準に使う —
+  本 wave では計算ノードで現行 66-node 鎖を再測定し (76.46 秒、D591 の 66-node 基準値と
+  3% 以内で一致)、過去値は文脈情報としてのみ扱った。90-node 状態の同日再測定は
+  `IZANAGI_RUN_GROWTH_HELD_TESTS` (2026-08-12 裁定で `explicit-user-command-only` 指定)
+  を要する既定 skip 57 件を含むため、本 wave では実行せず、公式性能主張はユーザー明示時に
+  別途行う。
