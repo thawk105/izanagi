@@ -1,0 +1,1 @@
+{"schema_version":"t338-conformance-vector/v2","id":"negative-6.2-binding-snapshot","kind":"negative","classification":"relabel","covers":["6.2"],"unit3_reference":"test_completed_performance_requires_full_bijection","entrypoint":"receipt","mutation":{"op":"set","path":["actual_runs",0,"position"],"value":2},"expected_reason":"planned_actual"}
