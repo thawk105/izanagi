@@ -903,6 +903,31 @@ KNOWN_PROVENANCE_VIOLATIONS = (
         _T567_MERGE5_RULING,
         note=_T567_MERGE5_NOTE,
     ),
+    KnownViolationSpec(
+        "09ce607b779272fda5629a350676471a16bea9bb",
+        MISSING_AI_AGENT,
+        "2026-08-21 Claude セッション内でのユーザー直接commit (ユーザー承認: known-violation 登録の続行)",
+        note=(
+            "ユーザーが直接作成した superproject commit による `external/ccbench` の gitlink "
+            "（submodule ポインタ）前進；変更は 511c9538 → ef9328a3 の線形1コミット分の"
+            "ポインタ更新のみ（分岐・衝突なし）で、ef9328a3 はリポジトリ owner 本人が 100% "
+            "書いた C++ の MOCC correctness trace v2 hook（`#if TRACE ... #endif` で完全に囲まれ"
+            "既定 inert）；AI関与なしのため `missing-ai-agent` は正当な既知違反"
+        ),
+    ),
+    KnownViolationSpec(
+        "13101ab3ec09a54e1f30462d1c2b4621b121ba65",
+        MISSING_AI_AGENT,
+        "2026-08-21 Claude セッション内でのユーザー裁定 (T-755への影響確認済み、09ce607bのrevert)",
+        note=(
+            "この revert commit 自体は親の Claude セッションが `git revert --no-edit` を直接実行して機械的に生成したもの；"
+            "`external/ccbench` の gitlink（submodule ポインタ）を `ef9328a3` → `511c9538` に"
+            "戻した1行差分のみで、S8b floor campaign の SHA 不一致を是正し、git revert は既存 commit の"
+            "逆操作のみのため独自のソース著作なし；`--no-edit` により trailer は一切付与されず"
+            "AI-Agent trailer が存在しないため `missing-ai-agent` として登録；T-755 の wave は"
+            "outer gitlink を参照しないため影響なし"
+        ),
+    ),
 )
 
 
