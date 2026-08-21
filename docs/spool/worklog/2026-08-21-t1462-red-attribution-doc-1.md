@@ -78,8 +78,13 @@ title: [T-1468] 自分の変更に起因しないテスト失敗でwaveが失敗
   `output/insights/2026-08-04_t287-checkpoint-values/adjudication-package.md`§5、
   2026-08-04起票、2026-08-21 rulings発見で合流)・[T-1468]由来 (DW-O18へ「rc=0かつ
   `status=non-attributable-only`は受理成功、赤の存在だけでwave失敗と早合点しない」旨を追記する
-  候補、148 bytes不足、[T-1451]・entry792 (段8自己改善候補) と編集面が重複するため次に触る
-  waveは全候補を1回で設計し直すのが望ましい、一次資料=本worklog entry、2026-08-21起票)。他の
+  候補、148 bytes不足、[T-1451]・entry792と編集面が重複するため次に触るwaveは全候補を1回で
+  設計し直すのが望ましい、一次資料=本worklog entry、2026-08-21起票)・entry792由来2件
+  (`dev-wave-known-violation-audit` waveの段8自己改善候補: (1) `DW-S01`へ「汎用command引数
+  では一次資料特定に逐語検索を先に行う」旨を追加する候補、(2) `DW-O18`または`DW-C00`へ
+  「探索目的の全走も隔離worktreeで行う (shared main checkoutでの探索走は並行wave land活動と
+  衝突しnear-miss赤を生む、本waveで12 failed+3 errorのうち11+3件を実測)」旨を追加する候補、
+  いずれもbytes超過量未実測・2026-08-21起票)。他の
   docs 予算超過候補 ([T-1430] 等) と同じ「独立審査へ回す」枠へ合流させ、次に手が空いた小 wave
   でまとめて処理する (2026-08-21 ユーザーがこの対応方針を「推奨通りで」と明示的に確認した)。
   一次資料 = rulings-inbox `2026-08-11-t657-stage0-followups.md` §2・
