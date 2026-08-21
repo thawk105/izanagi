@@ -1,0 +1,1 @@
+{"schema_version":"t338-conformance-vector/v2","id":"semantic_positive","kind":"positive","classification":"relabel","covers":["semantic_positive"],"unit3_reference":"test_semantic_validator_accepts_complete_performance_receipt","entrypoint":"receipt","mutation":{"op":"none"},"expected_reason":null,"expected":"semantic_validator_accepts"}

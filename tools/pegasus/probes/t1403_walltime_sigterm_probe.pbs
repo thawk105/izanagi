@@ -1,0 +1,48 @@
+#!/bin/bash
+#PBS -A SFC
+#PBS -q gen_S
+#PBS -b 1
+#PBS -l elapstim_req="00:03:00,00:02:00"
+#PBS --warning-signal=elapstim:SIGTERM
+#PBS --accept-sigterm=yes
+
+set -Eeuo pipefail
+umask 077
+
+# Keep the same early PBS identity checks as floor_campaign.sh.  The Python
+# driver is exec'ed so the signal handler belongs to the job process itself.
+if [[ -z "${PBS_JOBID:-}" || -z "${PBS_O_WORKDIR:-}" ]]; then
+  echo "PBS_JOBID/PBS_O_WORKDIR is required" >&2
+  exit 2
+fi
+if [[ ! "$PBS_JOBID" =~ ^([0-9]+:)?[A-Za-z0-9._-]+$ ]]; then
+  echo "unsafe PBS_JOBID" >&2
+  exit 2
+fi
+if [[ "$PBS_O_WORKDIR" != /* || ! -d "$PBS_O_WORKDIR" ]]; then
+  echo "PBS_O_WORKDIR must be an existing absolute directory" >&2
+  exit 2
+fi
+
+REPO_ROOT=$(cd -- "$PBS_O_WORKDIR" && pwd -P) || exit 2
+PROBE="$REPO_ROOT/tools/pegasus/probes/t1403_walltime_sigterm_probe.py"
+[[ -f "$PROBE" && ! -L "$PROBE" ]] || {
+  echo "T-1403 probe source is missing or symlinked" >&2
+  exit 2
+}
+
+GIT_COMMON_DIR=$(git -C "$REPO_ROOT" rev-parse --path-format=absolute --git-common-dir) || {
+  echo "cannot derive Git common directory for shared evidence" >&2
+  exit 2
+}
+if [[ "$GIT_COMMON_DIR" != /* ]]; then
+  echo "Git common directory is not absolute" >&2
+  exit 2
+fi
+DEFAULT_EVIDENCE_ROOT="$(dirname "$(dirname "$GIT_COMMON_DIR")")/izanagi-job-evidence"
+EVIDENCE_ROOT=${T1403_EVIDENCE_ROOT:-$DEFAULT_EVIDENCE_ROOT}
+exec python3.10 -I -B "$PROBE" \
+  --repo-root "$REPO_ROOT" \
+  --evidence-root "$EVIDENCE_ROOT" \
+  --warn-seconds 120 \
+  --max-seconds 180

@@ -1,0 +1,1 @@
+{"schema_version":"t338-conformance-vector/v2","id":"negative-6.4-flags-row","kind":"negative","classification":"relabel","covers":["6.4","7.1(13)"],"unit3_reference":"test_argv_raw_and_run_log_are_exact","entrypoint":"receipt","mutation":{"op":"replace_file","path":"build/run-w1.log","old":"#FLAGS_thread_num:\t48","new":"#FLAGS_thread_num 48"},"expected_reason":"run_log"}

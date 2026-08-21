@@ -1,0 +1,1 @@
+{"schema_version":"t338-conformance-vector/v2","id":"negative-7.1-05-planned-count","kind":"negative","classification":"relabel","covers":["7.1(5)"],"unit3_reference":"test_completed_performance_requires_full_bijection","entrypoint":"receipt","mutation":{"op":"pop","path":["planned_execution","runs"],"index":-1},"expected_reason":"planned_actual"}
