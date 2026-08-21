@@ -361,6 +361,24 @@ _T567_MERGE4_NOTE = (
     "Codex `role=author` が commit `6130a1b9886536b8b09d2583f07ea70f96cbc749` で初回統合時に"
     "既に書き、main 側は各 wave の land 時に監査済み。親作成 merge のため Codex 著者とは記さない。"
 )
+_T567_MERGE5_RULING = (
+    "2026-08-21 dev-wave-t567-attempt-binding land 前裁定 "
+    "(5回目、ユーザー選択: known-violation 登録)"
+)
+_T567_MERGE5_NOTE = (
+    "5回目の known-violation 対象となる受入投入前 local main 取り込み merge "
+    "`a8be40180ee7e33dbfab8eeb1a865ed72392e895`。"
+    "`orchestrator/tests/test_campaign.py` で、main 側の別 wave (commit `cb7a0107`、"
+    "「advisory flock を exploration リダイレクトへ追従させる」) が加えた 43 行との "
+    "3-way 結合の結果を checker が実装面著作と誤判定；`git diff-tree --cc "
+    "a8be40180ee7e33dbfab8eeb1a865ed72392e895 -- orchestrator/tests/test_campaign.py` は "
+    "commit ヘッダ (SHA) 行のみで実質空（Automatic merge went well、競合なし）、競合解決による "
+    "新規著作なし。wave 側の実装面は Codex `role=author` が commit "
+    "`6130a1b9886536b8b09d2583f07ea70f96cbc749` / "
+    "`40aded545ab835f755dc67c2a72ef9e57ad93a90` で既に書き、main 側は commit `cb7a0107` "
+    "(AI-Agent: product=codex; role=author) として各 wave の land 時に監査済み。"
+    "親作成 merge のため Codex 著者とは記さない。"
+)
 _T1337_PRE_ACCEPTANCE_MERGE_RULING = (
     "2026-08-20 dev-wave-t1337-launcher-timing-proof 受入前裁定 "
     "(ユーザー選択: known-violation 登録)"
@@ -808,6 +826,12 @@ KNOWN_PROVENANCE_VIOLATIONS = (
         MISSING_CODEX_AUTHOR,
         _T567_MERGE4_RULING,
         note=_T567_MERGE4_NOTE,
+    ),
+    KnownViolationSpec(
+        "a8be40180ee7e33dbfab8eeb1a865ed72392e895",
+        MISSING_CODEX_AUTHOR,
+        _T567_MERGE5_RULING,
+        note=_T567_MERGE5_NOTE,
     ),
 )
 
