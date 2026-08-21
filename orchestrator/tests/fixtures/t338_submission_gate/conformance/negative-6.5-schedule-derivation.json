@@ -1,0 +1,1 @@
+{"schema_version":"t338-conformance-vector/v2","id":"negative-6.5-schedule-derivation","kind":"negative","classification":"relabel","covers":["6.5"],"unit3_reference":"test_observation_window_cardinality_and_cpu_formula","entrypoint":"receipt","mutation":{"op":"set","path":["attempts",0,"environment_observations",0,"stat_after"],"value":[0,0,0,0,0,0,0,0]},"expected_reason":"a03"}

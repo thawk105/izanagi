@@ -9,13 +9,17 @@ import glob
 import json
 import os
 from dataclasses import dataclass, replace
+from pathlib import Path
 from typing import Callable, Dict, Mapping, Optional, Sequence
 
 from ..calibrator import perf_preflight as _perf_preflight
-from . import buildcache, execution_guard, ident, source_digest, wal
+from . import (
+    buildcache, env_attestation, env_contract as _env_contract,
+    execution_guard, ident, source_digest, wal,
+)
 from .build_admission import BuildRunContext
-from .env_contract import AuthorizedContract
-from .layout import CampaignLayout, campaign_layout, repo_output_root
+from .env_contract import AuthorizedContract, ExecutionEnvironmentContract
+from .layout import CampaignLayout, campaign_layout, env_scope_dir
 from .model import (STAGE_ABORT, STAGE_BENCH_DONE, STAGE_COMMIT,
                     CampaignConfig, Genome)
 from .pipeline import (AdmissionCapabilityResolver, EvalResult, PerfConfig, S2_TAG,
@@ -29,10 +33,90 @@ class PreparedScreening:
     cfg: CampaignConfig
     layout: CampaignLayout
     screening: ScreeningConfig
+    execution_receipt: Optional[dict] = None
+    verified_calibration: Optional[env_attestation.VerifiedCalibration] = None
 
 
-def _default_calibration_dir() -> str:
-    return os.path.join(repo_output_root(), "env", "linux-baremetal", "calibration")
+def _default_calibration_dir(env_tag: Optional[str] = None) -> str:
+    if env_tag is None:
+        legacy_tags = tuple(
+            contract.env_tag
+            for contract in _env_contract.REGISTRY.values()
+            if contract.attestation_mode == "none"
+        )
+        if len(legacy_tags) != 1:
+            raise ValueError(
+                "legacy screening calibration env_tag を一意に解決できない: "
+                f"candidates={len(legacy_tags)}"
+            )
+        env_tag = legacy_tags[0]
+    return os.path.join(env_scope_dir(env_tag), "calibration")
+
+
+def _repo_root() -> Path:
+    return Path(__file__).resolve().parents[2]
+
+
+def _attest_required_contract(
+        contract: ExecutionEnvironmentContract, *,
+        execution_receipt: Optional[dict] = None,
+        verified_calibration: Optional[env_attestation.VerifiedCalibration] = None,
+) -> tuple[
+        Optional[dict], Optional[env_attestation.VerifiedCalibration],
+]:
+    """required contract の v2 receipt を発行または再検証する。
+
+    screening は ``loop.run_campaign`` の認可入口を通らないため、この driver 自身が
+    required calibration の hash-bound verification と strict attestation を build/eval
+    より前に完了させる。既に同一 campaign で発行した値を渡された場合も、consumer 側の
+    ``receipt_matches_contract`` で再検証してから返す。
+    """
+    if type(contract) is not ExecutionEnvironmentContract:
+        raise TypeError("screening runtime contract は exact value が必要")
+    if contract.attestation_mode == "none":
+        if execution_receipt is not None or verified_calibration is not None:
+            raise execution_guard.ExecutionGuardError(
+                "mode=none screening に required attestation state が渡された"
+            )
+        return None, None
+    if contract.attestation_mode != "required":
+        raise execution_guard.ExecutionGuardError(
+            f"未対応 attestation_mode: {contract.attestation_mode!r}"
+        )
+    if verified_calibration is None:
+        verified_calibration = env_attestation.load_verified_calibration(
+            contract, _repo_root(),
+        )
+    if execution_receipt is None:
+        execution_receipt = execution_guard.attest_and_build_receipt(
+            contract, verified_calibration,
+        )
+    if not execution_guard.receipt_matches_contract(
+            execution_receipt,
+            env_tag=contract.env_tag,
+            contract_sha256=contract.contract_sha256,
+            attestation_mode=contract.attestation_mode,
+            verified_calibration=verified_calibration,
+    ):
+        raise execution_guard.ExecutionGuardError(
+            "screening execution receipt の契約再検算に失敗"
+        )
+    return execution_receipt, verified_calibration
+
+
+def attest_runtime_contract(
+        contract: ExecutionEnvironmentContract, *,
+        execution_receipt: Optional[dict] = None,
+        verified_calibration: Optional[env_attestation.VerifiedCalibration] = None,
+) -> tuple[
+        Optional[dict], Optional[env_attestation.VerifiedCalibration],
+]:
+    """screening の build/eval 前に runtime attestation を確定する公開 seam。"""
+    return _attest_required_contract(
+        contract,
+        execution_receipt=execution_receipt,
+        verified_calibration=verified_calibration,
+    )
 
 
 # Mirrors orchestrator/campaign/between_run_floor.py; importing it adds a heavy dependency chain.
@@ -96,7 +180,11 @@ def prepare_screening_campaign(
         calibration_dir: str = "", output_root: str = "", k: float = 1.5,
         high_abort_factor: float = 2.0,
         reanchor_threshold_s: float = 1800.0, log=print,
-        build_context: BuildRunContext) -> PreparedScreening:
+        build_context: BuildRunContext,
+        env_contract: Optional[ExecutionEnvironmentContract] = None,
+        execution_receipt: Optional[dict] = None,
+        verified_calibration: Optional[env_attestation.VerifiedCalibration] = None,
+        ) -> PreparedScreening:
     """identity焼き込み→同一campaign baseline実測→runtime config生成を一括実行する。"""
     if type(build_context) is not BuildRunContext:
         raise TypeError("build_context は build_run_context() 由来の exact value が必要")
@@ -110,17 +198,29 @@ def prepare_screening_campaign(
         raise ValueError("high_abort_factor は 1.0 以上でなければならない")
     if reanchor_threshold_s <= 0:
         raise ValueError("reanchor_threshold_s は正でなければならない")
-    floor = load_between_run_floor(workload, calibration_dir)
+    authorization_kwargs = {
+        "env_tag": env_tag,
+        "clocks_per_us": clocks_per_us,
+        "numactl": numactl,
+    }
+    if env_contract is not None:
+        authorization_kwargs["env_contract"] = env_contract
+    authorized_contract = execution_guard.require_certified_writer_authorization(
+        authorization_contract, **authorization_kwargs,
+    )
+    execution_receipt, verified_calibration = _attest_required_contract(
+        authorized_contract,
+        execution_receipt=execution_receipt,
+        verified_calibration=verified_calibration,
+    )
+    floor_root = calibration_dir or _default_calibration_dir(
+        authorized_contract.env_tag,
+    )
+    floor = load_between_run_floor(workload, floor_root)
     policy = ident.screening_policy_search_config(
         baseline_ref, floor, k, high_abort_factor)
     cfg = replace(base_cfg, search_config={**base_cfg.search_config, **policy})
     cfg = ident.bind_admission_policy(cfg, build_context.policy)
-    authorized_contract = execution_guard.require_certified_writer_authorization(
-        authorization_contract,
-        env_tag=env_tag,
-        clocks_per_us=clocks_per_us,
-        numactl=numactl,
-    )
     cfg = ident.bind_environment_contract(cfg, authorized_contract)
     layout = campaign_layout(str(ident.campaign_id(cfg)), output_root).ensure()
     _surface_repair(ident.ensure_resumable_wal(
@@ -153,7 +253,13 @@ def prepare_screening_campaign(
         baseline_abort_rate=float(abort_rate), high_abort_factor=high_abort_factor,
         reanchor_threshold_s=reanchor_threshold_s)
     ident.verify_screening_preimage(screening, wal.read_lock(layout))
-    return PreparedScreening(cfg=cfg, layout=layout, screening=screening)
+    return PreparedScreening(
+        cfg=cfg,
+        layout=layout,
+        screening=screening,
+        execution_receipt=execution_receipt,
+        verified_calibration=verified_calibration,
+    )
 
 
 def evaluate_candidate(
@@ -168,7 +274,10 @@ def evaluate_candidate(
         declared_use_class: Optional[str] = None,
         numactl: Optional[Sequence[str]] = None, src_token: Optional[str] = None,
         do_settle: bool = False, force: bool = False, log=print,
-        ccbench_dir: str = "", cache_root: str = "") -> Optional[EvalResult]:
+        ccbench_dir: str = "", cache_root: str = "",
+        execution_receipt: Optional[dict] = None,
+        verified_calibration: Optional[env_attestation.VerifiedCalibration] = None,
+        ) -> Optional[EvalResult]:
     """sweep候補を1点評価する。forceはbaseline再アンカー専用。"""
     if type(build_context) is not BuildRunContext:
         raise TypeError("build_context は build_run_context() 由来の exact value が必要")
@@ -185,6 +294,11 @@ def evaluate_candidate(
         authorization_kwargs["env_contract"] = env_contract
     authorized_contract = execution_guard.require_certified_writer_authorization(
         authorization_contract, **authorization_kwargs,
+    )
+    _attest_required_contract(
+        authorized_contract,
+        execution_receipt=execution_receipt,
+        verified_calibration=verified_calibration,
     )
     cfg = ident.bind_admission_policy(cfg, build_context.policy)
     cfg = ident.bind_environment_contract(cfg, authorized_contract)
