@@ -427,8 +427,12 @@ def _run_bench(perf_binary: str, perf: PerfConfig, clocks_per_us: int,
                ] = None,
                use_perf: bool = True,
                perf_preflight_receipt: Optional[dict] = None,
+               *,
+               build_attempt_id: str,
                ) -> Tuple[Optional[EvalResult], Optional[_BenchResult]]:
     """現行の full bench を実行し、成功時は WAL に既測値を残す。"""
+    if type(build_attempt_id) is not str or not build_attempt_id:
+        raise TypeError("build_attempt_id は non-empty str が必要")
     _require_measurement_site("campaign throughput 測定")
     # records は measure_point が -ycsb_tuple_num として渡す → workload に入れない
     # (入れると gflags last-wins で calibration の records を無言上書きする)。
@@ -557,6 +561,7 @@ def _run_bench(perf_binary: str, perf: PerfConfig, clocks_per_us: int,
                       "bench_wall_s": bench_wall_s}), None
     leading_indicators = pt.leading_indicators()
     bench_payload = {
+        "build_attempt_id": build_attempt_id,
         "median_tps": nf.median, "cv": nf.cv,
         "bench_wall_s": bench_wall_s,
         "high_variance": nf.high_variance, "unstable": rem.unstable,
@@ -587,6 +592,9 @@ def _run_bench(perf_binary: str, perf: PerfConfig, clocks_per_us: int,
         bench_payload["rep_returncodes"] = selected_returncodes
     if bench_payload_extra:
         bench_payload.update(bench_payload_extra)
+    # Extra diagnostic fields are caller-controlled, but attempt ownership is
+    # part of the producer contract and must not be overridden.
+    bench_payload["build_attempt_id"] = build_attempt_id
     (emit or wal.log)(layout, variant, STAGE_BENCH_DONE, env_tag, bench_payload)
     log(f"  [eval {variant}] bench: median {nf.median:,.0f} tps (CV {nf.cv*100:.2f}%"
         f"{f', {rem.rounds}rounds' if rem.rounds > 1 else ''}"
@@ -1194,6 +1202,7 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
                               {"error": _exc_summary(e)}, workload_tag=tag)
             res.verdict = vr.verdict
             verify_payload = {
+                "build_attempt_id": build_attempt_id,
                 "verdict": vr.verdict, "certified": vr.certified,
                 "commits": ncommit, "aborts": aborts,
                 "commit_witness": commit_witness,
@@ -1256,6 +1265,7 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
         aborted_result, bench = _run_bench(
             pf.binary, perf, clocks_per_us, numactl, do_settle,
             layout, v, env_tag, _abort, log, screening=True,
+            build_attempt_id=build_attempt_id,
             bench_max_rounds=bench_max_rounds,
             record_rep_returncodes=record_rep_returncodes,
             holdout_observation_admission=holdout_observation_admission,
@@ -1383,6 +1393,7 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
             aborted_result, bench = _run_bench(
                 pf.binary, perf, clocks_per_us, numactl, do_settle,
                 layout, v, env_tag, _abort, log,
+                build_attempt_id=build_attempt_id,
                 bench_payload_extra=screening_disabled_payload,
                 bench_max_rounds=bench_max_rounds,
                 record_rep_returncodes=record_rep_returncodes,

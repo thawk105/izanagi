@@ -119,6 +119,10 @@ def attest_runtime_contract(
     )
 
 
+# Mirrors orchestrator/campaign/between_run_floor.py; importing it adds a heavy dependency chain.
+BETWEEN_RUN_FLOOR_SCHEMA_VERSION = "between-run-noise-floor/v1"
+
+
 def load_between_run_floor(workload: Dict[str, str], calibration_dir: str = "") -> float:
     """workload が完全一致する between-run JSON を一意に選び、CVをfloorとして返す。"""
     root = calibration_dir or _default_calibration_dir()
@@ -129,6 +133,13 @@ def load_between_run_floor(workload: Dict[str, str], calibration_dir: str = "") 
                 doc = json.load(f)
         except (OSError, json.JSONDecodeError) as exc:
             raise ValueError(f"floor JSONを読めない: {path}: {exc}") from exc
+        if not isinstance(doc, dict):
+            raise ValueError(f"floor JSONのrootがobjectでない: {path}: {doc!r}")
+        if ("schema_version" in doc
+                and doc["schema_version"] != BETWEEN_RUN_FLOOR_SCHEMA_VERSION):
+            raise ValueError(
+                f"floor JSONのschema_versionが不一致: {path}: "
+                f"{doc['schema_version']!r}")
         stored_workload = doc.get("workload")
         if isinstance(stored_workload, dict) and {
                 str(k): str(v) for k, v in stored_workload.items()} == {
@@ -139,7 +150,10 @@ def load_between_run_floor(workload: Dict[str, str], calibration_dir: str = "") 
             "workload対応のbetween-run floor JSONは一意に必要: "
             f"workload={workload!r}, matches={[p for p, _ in matches]!r}")
     path, doc = matches[0]
-    floor = (doc.get("between_run") or {}).get("cv")
+    between_run = doc.get("between_run")
+    if not isinstance(between_run, dict):
+        raise ValueError(f"between_run がobjectでない: {path}: {between_run!r}")
+    floor = between_run.get("cv")
     if not isinstance(floor, (int, float)) or not 0 < floor < 1:
         raise ValueError(f"between_run.cv が欠落または範囲外: {path}: {floor!r}")
     return float(floor)

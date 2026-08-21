@@ -1367,6 +1367,215 @@ def test_attempt_topology_accepts_abort_then_retry():
     assert state.attempts["attempt-b"].committed
 
 
+def test_attempt_topology_rejects_delayed_verify_signal_after_retry():
+    lay = _admission_aware_layout("attempt_delayed_verify_signal_")
+    receipt_a, sha_a = _wal_admission_receipt("a")
+    receipt_b, sha_b = _wal_admission_receipt("bb")
+    _attempt_start(lay, "v", "attempt-a", receipt_a, sha_a)
+    _attempt_stage(lay, "v", STAGE_BUILD_DONE, "attempt-a", sha_a)
+    _attempt_stage(lay, "v", STAGE_ABORT, "attempt-a", sha_a, reason="build-error")
+    _attempt_start(lay, "v", "attempt-b", receipt_b, sha_b)
+    _attempt_stage(lay, "v", STAGE_BUILD_DONE, "attempt-b", sha_b)
+    _attempt_stage(lay, "v", STAGE_COMMIT, "attempt-b", sha_b)
+
+    # The old attempt's correctness signal arrives after the retry committed.
+    _attempt_stage(
+        lay, "v", STAGE_VERIFY_DONE, "attempt-a", sha_a,
+        verdict="serializable", certified=True, workload={"tag": "legacy"},
+    )
+    with pytest.raises(wal.AttemptTopologyError, match="active attempt"):
+        wal.replay(lay, admission_policy=_BUILD_CONTEXT.policy)
+
+
+def test_attempt_topology_rejects_delayed_bench_signal_after_retry():
+    lay = _admission_aware_layout("attempt_delayed_bench_signal_")
+    receipt_a, sha_a = _wal_admission_receipt("a")
+    receipt_b, sha_b = _wal_admission_receipt("bb")
+    _attempt_start(lay, "v", "attempt-a", receipt_a, sha_a)
+    _attempt_stage(lay, "v", STAGE_BUILD_DONE, "attempt-a", sha_a)
+    _attempt_stage(lay, "v", STAGE_ABORT, "attempt-a", sha_a, reason="build-error")
+    _attempt_start(lay, "v", "attempt-b", receipt_b, sha_b)
+    _attempt_stage(lay, "v", STAGE_BUILD_DONE, "attempt-b", sha_b)
+    _attempt_stage(lay, "v", STAGE_COMMIT, "attempt-b", sha_b)
+
+    # Keep this fixture bench-only so the bench topology branch is exercised.
+    _attempt_stage(
+        lay, "v", STAGE_BENCH_DONE, "attempt-a", sha_a,
+        median_tps=1.0, cv=0.1, tps=[1.0],
+    )
+    with pytest.raises(wal.AttemptTopologyError, match="active attempt"):
+        wal.replay(lay, admission_policy=_BUILD_CONTEXT.policy)
+
+
+def test_attempt_topology_rejects_verify_before_build_done():
+    """M-B: verify_done は同一 active attempt の build_done 後に限る。"""
+    lay = _admission_aware_layout("attempt_verify_before_build_done_")
+    receipt, receipt_sha = _wal_admission_receipt("a")
+    attempt_id = "attempt-a"
+    _attempt_start(lay, "v", attempt_id, receipt, receipt_sha)
+    _attempt_stage(
+        lay, "v", STAGE_VERIFY_DONE, attempt_id, receipt_sha,
+        verdict="serializable", certified=True, workload={"tag": "legacy"},
+    )
+
+    with pytest.raises(
+            wal.AttemptTopologyError,
+            match="build_done より前の attempt に属する",
+    ):
+        wal.replay(lay, admission_policy=_BUILD_CONTEXT.policy)
+
+
+def test_attempt_topology_rejects_duplicate_bench_within_attempt():
+    """M-C: 同一 active attempt の bench_done は一度だけ受理する。"""
+    lay = _admission_aware_layout("attempt_duplicate_bench_")
+    receipt, receipt_sha = _wal_admission_receipt("a")
+    attempt_id = "attempt-a"
+    _attempt_start(lay, "v", attempt_id, receipt, receipt_sha)
+    _attempt_stage(lay, "v", STAGE_BUILD_DONE, attempt_id, receipt_sha)
+    for median_tps in (1.0, 2.0):
+        _attempt_stage(
+            lay, "v", STAGE_BENCH_DONE, attempt_id, receipt_sha,
+            median_tps=median_tps, cv=0.1, tps=[median_tps],
+        )
+
+    with pytest.raises(
+            wal.AttemptTopologyError,
+            match="bench_done: 同一 attempt で重複",
+    ):
+        wal.replay(lay, admission_policy=_BUILD_CONTEXT.policy)
+
+
+def test_attempt_topology_rejects_receipt_sha_reuse_on_active_signal():
+    for signal_stage in (STAGE_VERIFY_DONE, STAGE_BENCH_DONE):
+        lay = _admission_aware_layout(
+            f"attempt_receipt_reuse_signal_{signal_stage}_"
+        )
+        receipt_a, sha_a = _wal_admission_receipt("a")
+        receipt_b, sha_b = _wal_admission_receipt("bb")
+        assert sha_a != sha_b
+        _attempt_start(lay, "v", "attempt-a", receipt_a, sha_a)
+        _attempt_stage(lay, "v", STAGE_BUILD_DONE, "attempt-a", sha_a)
+        _attempt_stage(lay, "v", STAGE_ABORT, "attempt-a", sha_a, reason="build-error")
+        _attempt_start(lay, "v", "attempt-b", receipt_b, sha_b)
+        _attempt_stage(lay, "v", STAGE_BUILD_DONE, "attempt-b", sha_b)
+
+        # The attempt ID is current; only the receipt SHA is stale.
+        payload = {
+            "build_attempt_id": "attempt-b",
+            "build_admission_receipt_sha256": sha_a,
+        }
+        if signal_stage == STAGE_VERIFY_DONE:
+            payload.update({
+                "verdict": "serializable", "certified": True,
+                "workload": {"tag": "legacy"},
+            })
+        else:
+            payload.update({"median_tps": 1.0, "cv": 0.1, "tps": [1.0]})
+        wal.log(lay, "v", signal_stage, _T530_CONTRACT.env_tag, payload)
+
+        with pytest.raises(wal.AttemptTopologyError, match="receipt SHA"):
+            wal.replay(lay, admission_policy=_BUILD_CONTEXT.policy)
+
+
+def test_attempt_topology_rejects_delayed_signal_from_finished_same_variant_attempt():
+    """これは終了済み attempt の遅延 signal の実証であり、真の並行 peer の実証ではない。"""
+    lay = _admission_aware_layout("attempt_finished_peer_signal_")
+    receipt_a, sha_a = _wal_admission_receipt("a")
+    receipt_b, sha_b = _wal_admission_receipt("bb")
+    _attempt_start(lay, "v", "attempt-a", receipt_a, sha_a)
+    _attempt_stage(lay, "v", STAGE_BUILD_DONE, "attempt-a", sha_a)
+    _attempt_stage(lay, "v", STAGE_ABORT, "attempt-a", sha_a, reason="build-error")
+    _attempt_start(lay, "v", "attempt-b", receipt_b, sha_b)
+    _attempt_stage(lay, "v", STAGE_BUILD_DONE, "attempt-b", sha_b)
+
+    _attempt_stage(
+        lay, "v", STAGE_VERIFY_DONE, "attempt-a", sha_a,
+        verdict="serializable", certified=True, workload={"tag": "legacy"},
+    )
+    _attempt_stage(
+        lay, "v", STAGE_BENCH_DONE, "attempt-a", sha_a,
+        median_tps=1.0, cv=0.1, tps=[1.0],
+    )
+    with pytest.raises(wal.AttemptTopologyError, match="active attempt"):
+        wal.replay(lay, admission_policy=_BUILD_CONTEXT.policy)
+
+
+def test_attempt_topology_accepts_pipeline_signal_shape_without_receipt_sha():
+    lay = _admission_aware_layout("attempt_pipeline_signal_shape_")
+    receipt, receipt_sha = _wal_admission_receipt("a")
+    attempt_id = "attempt-pipeline-shape"
+    _attempt_start(lay, "v", attempt_id, receipt, receipt_sha)
+    _attempt_stage(lay, "v", STAGE_BUILD_DONE, attempt_id, receipt_sha)
+
+    # These are the production verify/bench key shapes: attempt-bound, with
+    # no build_admission_receipt_sha256 on either signal.
+    wal.log(lay, "v", STAGE_VERIFY_DONE, _T530_CONTRACT.env_tag, {
+        "build_attempt_id": attempt_id,
+        "verdict": "serializable", "certified": True,
+        "commits": 1, "aborts": 0,
+        "commit_witness": {"commit_counts": 1, "batch_commit_counts": 0},
+        "anomalies": 0, "workload": {"tag": "legacy"},
+    })
+    wal.log(lay, "v", STAGE_BENCH_DONE, _T530_CONTRACT.env_tag, {
+        "build_attempt_id": attempt_id,
+        "median_tps": 100.0, "cv": 0.1, "bench_wall_s": 0.1,
+        "high_variance": False, "unstable": False, "rounds": 1,
+        "cv_history": [0.1], "tps": [100.0], "settled": True,
+        "leading_indicators": {}, "rep_notes": [], "run_cmd": ["fake"],
+    })
+
+    state = wal.replay(lay, admission_policy=_BUILD_CONTEXT.policy)["v"]
+    assert state.attempts[attempt_id].stages_seen == [
+        STAGE_BUILD_START, STAGE_BUILD_DONE,
+        STAGE_VERIFY_DONE, STAGE_BENCH_DONE,
+    ]
+
+
+def test_replay_committed_projection_excludes_prior_aborted_attempt_signals():
+    lay = _admission_aware_layout("attempt_committed_projection_retry_")
+    receipt_a, sha_a = _wal_admission_receipt("a")
+    receipt_b, sha_b = _wal_admission_receipt("bb")
+    _attempt_start(lay, "v", "attempt-a", receipt_a, sha_a)
+    _attempt_stage(lay, "v", STAGE_BUILD_DONE, "attempt-a", sha_a)
+    _attempt_stage(
+        lay, "v", STAGE_VERIFY_DONE, "attempt-a", sha_a,
+        verdict="serializable", certified=True, workload={"tag": "legacy"},
+    )
+    _attempt_stage(
+        lay, "v", STAGE_BENCH_DONE, "attempt-a", sha_a,
+        median_tps=1.0, cv=0.1, tps=[1.0],
+    )
+    _attempt_stage(lay, "v", STAGE_ABORT, "attempt-a", sha_a, reason="build-error")
+
+    _attempt_start(lay, "v", "attempt-b", receipt_b, sha_b)
+    _attempt_stage(lay, "v", STAGE_BUILD_DONE, "attempt-b", sha_b)
+    _attempt_stage(
+        lay, "v", STAGE_VERIFY_DONE, "attempt-b", sha_b,
+        verdict="serializable", certified=True, workload={"tag": "legacy"},
+    )
+    _attempt_stage(
+        lay, "v", STAGE_BENCH_DONE, "attempt-b", sha_b,
+        median_tps=2.0, cv=0.1, tps=[2.0],
+    )
+    _attempt_stage(lay, "v", STAGE_COMMIT, "attempt-b", sha_b)
+
+    state = wal.replay(lay, admission_policy=_BUILD_CONTEXT.policy)["v"]
+    assert state.committed_attempt_id == "attempt-b"
+    assert state.committed_build_start is not None
+    assert state.committed_build_start.payload["build_attempt_id"] == "attempt-b"
+    assert [
+        record.payload["build_attempt_id"]
+        for record in state.committed_verify
+    ] == ["attempt-b"]
+    assert state.committed_bench is not None
+    assert state.committed_bench.payload["build_attempt_id"] == "attempt-b"
+    assert all(
+        record.payload["build_attempt_id"] != "attempt-a"
+        for record in state.committed_verify
+    )
+    assert state.committed_bench.payload["median_tps"] == 2.0
+
+
 def _active_receiptful_attempt(lay, variant: str, attempt_id: str):
     receipt, receipt_sha = _wal_admission_receipt(attempt_id)
     _attempt_start(lay, variant, attempt_id, receipt, receipt_sha)
@@ -6646,6 +6855,7 @@ def test_m18_throughput_producer_refuses_before_measure_point():
                 PerfConfig(records=1000, threads=2),
                 1800, None, False, lay, "variant", "test-env",
                 lambda *args, **kwargs: None,
+                build_attempt_id="test-attempt",
             )
         except buildcache.BuildError:
             pass
