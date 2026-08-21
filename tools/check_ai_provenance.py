@@ -471,6 +471,19 @@ _T139_MALFORMED_VALUE = (
     "product=claude; model=claude-opus-5[1m]; reasoning=high; "
     "role=orchestrator"
 )
+_T1476_MERGE2_RULING = (
+    "2026-08-21 dev-wave-t1476-verify-state-committed 受入前裁定 "
+    "(ユーザー選択: known-violation 登録)"
+)
+_T1476_MERGE2_NOTE = (
+    "受入投入前に親が作成した2回目の local main 取り込み merge。実装面で両側が"
+    "触ったのは orchestrator/tests/test_s8b_oracle_report.py の1 fileのみで、"
+    "git diff-tree --cc 6f2d97c8 は commit ヘッダ (SHA) 行のみで実質空 = 競合解決による"
+    "新規著作なしと確認済み。wave側は新設回帰テストを追加 (Codex role=authorが"
+    "commit 67d7a7faで既に記述)、main側は別wave (T-1371) が同ファイルの別テスト関数群の"
+    "output-root path分離を変更 (行範囲は非重複)。結果は両側の変更の単純な和集合。"
+    "親作成mergeのためCodex著者とは記さない。"
+)
 KNOWN_PROVENANCE_VIOLATIONS = (
     KnownViolationSpec(
         "88f0f9f081f7c76c8ab5fc4a94e2640f70af129b",
@@ -950,6 +963,12 @@ KNOWN_PROVENANCE_VIOLATIONS = (
             "AI-Agent trailer が存在しないため `missing-ai-agent` として登録；T-755 の wave は"
             "outer gitlink を参照しないため影響なし"
         ),
+    ),
+    KnownViolationSpec(
+        "6f2d97c88aa66e571771d5b83992fcfd6d2aefaa",
+        MISSING_CODEX_AUTHOR,
+        _T1476_MERGE2_RULING,
+        note=_T1476_MERGE2_NOTE,
     ),
 )
 

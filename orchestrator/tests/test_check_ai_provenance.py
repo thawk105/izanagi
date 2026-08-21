@@ -2094,6 +2094,20 @@ def test_known_violation_ledger_matches_literal_entries():
             "outer gitlink を参照しないため影響なし",
             "",
         ),
+        (
+            "6f2d97c88aa66e571771d5b83992fcfd6d2aefaa",
+            "missing-codex-author",
+            "2026-08-21 dev-wave-t1476-verify-state-committed 受入前裁定 "
+            "(ユーザー選択: known-violation 登録)",
+            "受入投入前に親が作成した2回目の local main 取り込み merge。実装面で両側が"
+            "触ったのは orchestrator/tests/test_s8b_oracle_report.py の1 fileのみで、"
+            "git diff-tree --cc 6f2d97c8 は commit ヘッダ (SHA) 行のみで実質空 = 競合解決による"
+            "新規著作なしと確認済み。wave側は新設回帰テストを追加 (Codex role=authorが"
+            "commit 67d7a7faで既に記述)、main側は別wave (T-1371) が同ファイルの別テスト関数群の"
+            "output-root path分離を変更 (行範囲は非重複)。結果は両側の変更の単純な和集合。"
+            "親作成mergeのためCodex著者とは記さない。",
+            "",
+        ),
     )
     assert len(provenance.KNOWN_PROVENANCE_VIOLATIONS) == len(expected)
     assert observed == expected
