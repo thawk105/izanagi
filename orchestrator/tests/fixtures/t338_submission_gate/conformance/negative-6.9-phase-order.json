@@ -1,0 +1,1 @@
+{"schema_version":"t338-conformance-vector/v2","id":"negative-6.9-phase-order","kind":"negative","classification":"relabel","covers":["6.9","7.1(15)"],"unit3_reference":"test_phase_caps_and_monotonic_order_are_recomputed","entrypoint":"receipt","mutation":{"op":"reverse","path":["allocations",0,"phase_events"]},"expected_reason":"phase"}

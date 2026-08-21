@@ -89,7 +89,7 @@ def _run_trace(binary: str, flags: dict) -> str:
 
 
 def _count_p_reasons(trace_dir: str) -> dict:
-    """trace の P 行を reason 別に数える (verifier は総数のみ返すため driver 側で)。"""
+    """trace の P 行を reason 別に数える独立 oracle。"""
     reasons: dict = {}
     for f in os.listdir(trace_dir):
         if not (f.startswith("trace_") and f.endswith(".log")):
@@ -101,6 +101,39 @@ def _count_p_reasons(trace_dir: str) -> dict:
                     if len(parts) >= 2:
                         reasons[parts[1]] = reasons.get(parts[1], 0) + 1
     return reasons
+
+
+def _oracle_cross_check(p_reasons: dict, details: dict) -> bool:
+    """独立 raw oracle と verifier の構造化 counts を fail-closed で突き合わせる。"""
+    try:
+        if not isinstance(p_reasons, dict) or not isinstance(details, dict):
+            return False
+        counts = details["counts"]
+        if not isinstance(counts, dict):
+            return False
+        if set(counts) != {"size-changed", "rcdptr-set-changed", "unknown"}:
+            return False
+        if any(
+                not isinstance(value, int) or isinstance(value, bool) or value < 0
+                for value in counts.values()
+        ):
+            return False
+        if any(
+                not isinstance(value, int) or isinstance(value, bool) or value < 0
+                for value in p_reasons.values()
+        ):
+            return False
+        return (
+            p_reasons.get("size-changed", 0) == counts["size-changed"]
+            and p_reasons.get("rcdptr-set-changed", 0)
+            == counts["rcdptr-set-changed"]
+            and sum(
+                value for key, value in p_reasons.items()
+                if key not in ("size-changed", "rcdptr-set-changed")
+            ) == counts["unknown"]
+        )
+    except (KeyError, TypeError, ValueError):
+        return False
 
 
 def _verify(trace_dir: str) -> dict:
@@ -119,6 +152,9 @@ def _verify(trace_dir: str) -> dict:
         "verdict": r["verdict"], "certified": r["certified"],
         "total_cycles": r["total_cycles"],
         "permutation_violations": r["integrity"]["permutation_violations"],
+        "permutation_violation_details": (
+            r["integrity"]["permutation_violation_details"]
+        ),
         "txns": r["stats"]["txns"],
     }
 
@@ -169,6 +205,8 @@ def _variant_run(binary: str, flags: dict, label: str) -> dict:
     try:
         v = _verify(tdir)
         v["p_reasons"] = _count_p_reasons(tdir)
+        v["oracle_cross_check_matches"] = _oracle_cross_check(
+            v["p_reasons"], v["permutation_violation_details"])
     finally:
         shutil.rmtree(tdir, ignore_errors=True)
     print(f"  [{label}] verdict={v['verdict']} cycles={v['total_cycles']} "
@@ -234,13 +272,25 @@ def main() -> int:
                                    and er["permutation_violations"] > 0
                                    and er["verdict"] == "indeterminate"),
         # 点: erase は size-changed のみ発火 (要素数が実際に変わった)
-        "erase_size_changed_only": list(er["p_reasons"].keys()) == ["size-changed"],
+        "erase_size_changed_only": (
+            er["permutation_violation_details"]["counts"]["size-changed"] > 0
+            and er["permutation_violation_details"]["counts"][
+                "rcdptr-set-changed"] == 0
+            and er["permutation_violation_details"]["counts"]["unknown"] == 0
+        ),
         # 点: swap は要素数不変で cycles==0 かつ P>=1 (rcdptr multiset 検査が単独で歯を持つ)
         "swap_characterization": (sw["total_cycles"] == 0
                                   and sw["permutation_violations"] > 0
                                   and sw["verdict"] == "indeterminate"),
         # 点: swap は rcdptr-set-changed のみ発火 (size 検査は通る = 2 検査点が別々に歯を持つ)
-        "swap_rcdptr_changed_only": list(sw["p_reasons"].keys()) == ["rcdptr-set-changed"],
+        "swap_rcdptr_changed_only": (
+            sw["permutation_violation_details"]["counts"]["rcdptr-set-changed"] > 0
+            and sw["permutation_violation_details"]["counts"]["size-changed"] == 0
+            and sw["permutation_violation_details"]["counts"]["unknown"] == 0
+        ),
+        "oracle_cross_check_stock": st["oracle_cross_check_matches"],
+        "oracle_cross_check_erase": er["oracle_cross_check_matches"],
+        "oracle_cross_check_swap": sw["oracle_cross_check_matches"],
     }
     result["checks"] = checks
     all_pass = all(checks.values())
