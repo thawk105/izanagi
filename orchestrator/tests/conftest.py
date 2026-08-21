@@ -340,31 +340,6 @@ REAL_REPO_SERIAL_NODES = frozenset({
     "test_s8b_floor_campaign.py::test_slow_real_prepare_cell_to_buildcache_v2_canary_one_configuration",
     "test_s8b_oracle_driver.py::test_slow_oracle_prepared_cell_pipeline_uses_real_build_v2",
     "test_sort_swo_oracle.py::test_real_patchharness_checkout_and_resolver_use_explicit_binding",
-    "test_sort_swo_oracle.py::test_cpp_e2e_clean_generic_lambda_positive",
-    "test_sort_swo_oracle.py::test_cpp_e2e_stable_cross_allocation_pointer_positive",
-    "test_sort_swo_oracle.py::test_real_ctor_pointer_topology_and_triplicate_have_expected_matrix_meaning",
-    "test_sort_swo_oracle.py::test_cpp_e2e_reports_each_axiom_and_exact_indices",
-    "test_sort_swo_oracle.py::test_cpp_e2e_high_storage_only_negative_kills_corpus_narrowing",
-    "test_sort_swo_oracle.py::test_cpp_e2e_rejects_corpus_mutation_with_dedicated_reason",
-    "test_sort_swo_oracle.py::test_cpp_e2e_rejects_same_process_call_count_dependence_with_witness",
-    "test_sort_swo_oracle.py::test_real_compile_budget_is_fixed_positive_and_negative_only",
-    "test_sort_swo_oracle.py::test_materialized_marker_bytes_are_exact_and_proposal_hash_is_distinct",
-    "test_sort_swo_oracle.py::test_phase_marker_runs_immediately_before_first_oracle_subprocess",
-    "test_sort_swo_oracle.py::test_scratch_failure_is_unavailable_not_candidate_reject",
-    "test_sort_swo_oracle.py::test_candidate_compile_failure_is_reject_not_unavailable",
-    "test_sort_swo_oracle.py::test_candidate_compile_failure_with_failing_postflight_is_unavailable",
-    "test_sort_swo_oracle.py::test_postflight_unavailable_retains_candidate_finding",
-    "test_sort_swo_oracle.py::test_candidate_compile_reject_postflight_control_success_stays_reject",
-    "test_sort_swo_oracle.py::test_candidate_artifact_cleanup_failure_preserves_receipt",
-    "test_sort_swo_oracle.py::test_candidate_artifact_cleanup_and_postflight_failure_preserve_evidence",
-    "test_sort_swo_oracle.py::test_candidate_compile_infrastructure_failure_with_successful_postflight_stays_unavailable",
-    "test_sort_swo_oracle.py::test_candidate_compile_infrastructure_and_postflight_failure_uses_postflight_detail",
-    "test_sort_swo_oracle.py::test_postflight_source_write_oserror_preserves_receipt",
-    "test_sort_swo_oracle.py::test_postflight_cleanup_oserror_preserves_receipt",
-    "test_sort_swo_oracle.py::test_postflight_programmer_error_is_not_infrastructure",
-    "test_sort_swo_oracle.py::test_trusted_positive_preflight_compile_failure_is_unavailable",
-    "test_sort_swo_oracle.py::test_public_api_propagates_exact_evaluator_axiom_finding",
-
     # module fixture が実 repo を clone し、実 submodule を local source として読む reader。
     "test_codex_reasoning_ab.py::test_parent_numstat_controls_remain_pinned",
     "test_codex_reasoning_ab.py::test_forbidden_commits_are_unreachable_in_both_cases",
@@ -399,6 +374,37 @@ REAL_REPO_SERIAL_NODES = frozenset({
     "test_s8b_binding_driftguards.py::test_gate_check_broken_binding_manifest_stacks_manifest_verify_refusal",
     # RuleOps inventory が親 working tree と実履歴を読む reader ([T-438])。
     "test_ruleops.py::test_real_checkout_independent_maximum_package_and_runner_preflight",
+})
+
+# The sort-SWO environment is resolved once at collection time and consumed by
+# these nodes through sort_swo_oracle_receipt_memo.  This registry deliberately
+# does not carry the real-repo marker: its lifecycle is a separate correctness
+# barrier from the shared-worktree serial group above.
+ORACLE_ENVIRONMENT_CONSUMER_NODES = frozenset({
+    "test_sort_swo_oracle.py::test_cpp_e2e_clean_generic_lambda_positive",
+    "test_sort_swo_oracle.py::test_cpp_e2e_stable_cross_allocation_pointer_positive",
+    "test_sort_swo_oracle.py::test_real_ctor_pointer_topology_and_triplicate_have_expected_matrix_meaning",
+    "test_sort_swo_oracle.py::test_cpp_e2e_reports_each_axiom_and_exact_indices",
+    "test_sort_swo_oracle.py::test_cpp_e2e_high_storage_only_negative_kills_corpus_narrowing",
+    "test_sort_swo_oracle.py::test_cpp_e2e_rejects_corpus_mutation_with_dedicated_reason",
+    "test_sort_swo_oracle.py::test_cpp_e2e_rejects_same_process_call_count_dependence_with_witness",
+    "test_sort_swo_oracle.py::test_real_compile_budget_is_fixed_positive_and_negative_only",
+    "test_sort_swo_oracle.py::test_materialized_marker_bytes_are_exact_and_proposal_hash_is_distinct",
+    "test_sort_swo_oracle.py::test_phase_marker_runs_immediately_before_first_oracle_subprocess",
+    "test_sort_swo_oracle.py::test_scratch_failure_is_unavailable_not_candidate_reject",
+    "test_sort_swo_oracle.py::test_candidate_compile_failure_is_reject_not_unavailable",
+    "test_sort_swo_oracle.py::test_candidate_compile_failure_with_failing_postflight_is_unavailable",
+    "test_sort_swo_oracle.py::test_postflight_unavailable_retains_candidate_finding",
+    "test_sort_swo_oracle.py::test_candidate_compile_reject_postflight_control_success_stays_reject",
+    "test_sort_swo_oracle.py::test_candidate_artifact_cleanup_failure_preserves_receipt",
+    "test_sort_swo_oracle.py::test_candidate_artifact_cleanup_and_postflight_failure_preserve_evidence",
+    "test_sort_swo_oracle.py::test_candidate_compile_infrastructure_failure_with_successful_postflight_stays_unavailable",
+    "test_sort_swo_oracle.py::test_candidate_compile_infrastructure_and_postflight_failure_uses_postflight_detail",
+    "test_sort_swo_oracle.py::test_postflight_source_write_oserror_preserves_receipt",
+    "test_sort_swo_oracle.py::test_postflight_cleanup_oserror_preserves_receipt",
+    "test_sort_swo_oracle.py::test_postflight_programmer_error_is_not_infrastructure",
+    "test_sort_swo_oracle.py::test_trusted_positive_preflight_compile_failure_is_unavailable",
+    "test_sort_swo_oracle.py::test_public_api_propagates_exact_evaluator_axiom_finding",
 })
 
 # real-repo worker の先頭で独立 CLI 解決を開始し、旧 lazy payer node の優先順を保つ。
@@ -505,6 +511,22 @@ def _receipt_memo_module():
     return real_repo_receipt_memo
 
 
+def _oracle_environment_memo_node_id_from_nodeid(nodeid: str) -> str | None:
+    """Normalize an xdist collection id for the oracle consumer registry."""
+    parts = nodeid.split("::")
+    if len(parts) < 2:
+        return None
+    function = parts[1].split("[", 1)[0].split("@", 1)[0]
+    return f"{os.path.basename(parts[0])}::{function}"
+
+
+def _oracle_environment_memo_module():
+    """Import the oracle memo only after a registered consumer is collected."""
+    from orchestrator.tests import sort_swo_oracle_receipt_memo
+
+    return sort_swo_oracle_receipt_memo
+
+
 _RECEIPT_MEMO_PREWARMED_ATTR = "_izanagi_receipt_memo_prewarmed"
 _RECEIPT_MEMO_RUN_ID_ATTR = "_izanagi_receipt_memo_run_id"
 _RECEIPT_MEMO_SESSION_ID_ATTR = "_izanagi_receipt_memo_session_id"
@@ -513,6 +535,25 @@ _RECEIPT_MEMO_NONCE_ENV = "IZANAGI_RECEIPT_MEMO_NONCE"
 _RECEIPT_MEMO_NONCE_PREVIOUS_ATTR = "_izanagi_receipt_memo_nonce_previous"
 _RECEIPT_MEMO_NONCE_ACTIVE_ATTR = "_izanagi_receipt_memo_nonce_active"
 _RECEIPT_MEMO_ENV_UNSET = object()
+
+_ORACLE_ENVIRONMENT_MEMO_PREWARMED_ATTR = (
+    "_izanagi_oracle_environment_memo_prewarmed"
+)
+_ORACLE_ENVIRONMENT_MEMO_RUN_ID_ATTR = "_izanagi_oracle_environment_memo_run_id"
+_ORACLE_ENVIRONMENT_MEMO_SESSION_ID_ATTR = (
+    "_izanagi_oracle_environment_memo_session_id"
+)
+_ORACLE_ENVIRONMENT_MEMO_SESSION_ACTIVE_ATTR = (
+    "_izanagi_oracle_environment_memo_session_active"
+)
+_ORACLE_ENVIRONMENT_MEMO_NONCE_ENV = "IZANAGI_ORACLE_ENVIRONMENT_MEMO_NONCE"
+_ORACLE_ENVIRONMENT_MEMO_NONCE_PREVIOUS_ATTR = (
+    "_izanagi_oracle_environment_memo_nonce_previous"
+)
+_ORACLE_ENVIRONMENT_MEMO_NONCE_ACTIVE_ATTR = (
+    "_izanagi_oracle_environment_memo_nonce_active"
+)
+_ORACLE_ENVIRONMENT_MEMO_ENV_UNSET = object()
 
 
 def _prewarm_receipt_memo(config, nodeids, *, run_id: str | None) -> None:
@@ -566,6 +607,63 @@ def _receipt_memo_prewarm_prerequisites(config, nodeids) -> bool:
 def _receipt_memo_consumer_selected(nodeids) -> bool:
     return any(
         _receipt_memo_node_id_from_nodeid(nodeid) in RECEIPT_MEMO_CONSUMER_NODES
+        for nodeid in nodeids
+    )
+
+
+def _prewarm_oracle_environment_memo(config, nodeids, *, run_id: str | None) -> None:
+    """Prewarm the oracle environment once before any consumer is scheduled."""
+    # Keep the guard inside the helper as well as at each hook call site.  A
+    # worker must never become a resolver payer through a hook refactor.
+    if hasattr(config, "workerinput"):
+        return
+    nodeids = tuple(nodeids)
+    if not _oracle_environment_memo_prewarm_prerequisites(config, nodeids):
+        return
+    if getattr(config, _ORACLE_ENVIRONMENT_MEMO_PREWARMED_ATTR, False):
+        previous = getattr(config, _ORACLE_ENVIRONMENT_MEMO_RUN_ID_ATTR, None)
+        if previous != run_id:
+            raise pytest.UsageError(
+                "oracle environment memo prewarm の xdist run ID が worker 間で不一致: "
+                f"first={previous!r} current={run_id!r}"
+            )
+        return
+    session_id = getattr(config, _ORACLE_ENVIRONMENT_MEMO_SESSION_ID_ATTR, None)
+    if session_id is None:
+        raise pytest.UsageError(
+            "oracle environment memo prewarm に pytest session ID が無い"
+        )
+    memo_module = _oracle_environment_memo_module()
+    try:
+        memo_module.prewarm_oracle_environment(
+            run_id=run_id,
+            session_id=session_id,
+        )
+    except BaseException:
+        memo_module.finish_oracle_environment_session(session_id=session_id)
+        raise
+    setattr(config, _ORACLE_ENVIRONMENT_MEMO_SESSION_ACTIVE_ATTR, True)
+    setattr(config, _ORACLE_ENVIRONMENT_MEMO_RUN_ID_ATTR, run_id)
+    setattr(config, _ORACLE_ENVIRONMENT_MEMO_PREWARMED_ATTR, True)
+
+
+def _oracle_environment_memo_prewarm_prerequisites(config, nodeids) -> bool:
+    """Ignore unreadable/non-pytest hook options safely, but never guess a payer."""
+    try:
+        getoption = getattr(config, "getoption", None)
+        if not callable(getoption):
+            return False
+        if getoption("collectonly", False):
+            return False
+        return _oracle_environment_memo_consumer_selected(nodeids)
+    except Exception:
+        return False
+
+
+def _oracle_environment_memo_consumer_selected(nodeids) -> bool:
+    return any(
+        _oracle_environment_memo_node_id_from_nodeid(nodeid)
+        in ORACLE_ENVIRONMENT_CONSUMER_NODES
         for nodeid in nodeids
     )
 
@@ -737,6 +835,12 @@ def pytest_collection_finish(session) -> None:
             (_real_repo_node_id(item) for item in session.items),
             run_id=None,
         )
+    if not hasattr(session.config, "workerinput"):
+        _prewarm_oracle_environment_memo(
+            session.config,
+            (_real_repo_node_id(item) for item in session.items),
+            run_id=None,
+        )
     if not os.environ.get("IZANAGI_TASK_RUN_SIDECAR"):
         return
     try:
@@ -759,6 +863,15 @@ def pytest_configure_node(node) -> None:
     if not isinstance(workerinput, dict):
         raise pytest.UsageError("xdist workerinput が receipt memo nonce を受け取れない")
     workerinput[_RECEIPT_MEMO_SESSION_ID_ATTR] = session_id
+    if hasattr(node.config, _ORACLE_ENVIRONMENT_MEMO_SESSION_ID_ATTR):
+        oracle_session_id = getattr(
+            node.config, _ORACLE_ENVIRONMENT_MEMO_SESSION_ID_ATTR, None,
+        )
+        if not isinstance(oracle_session_id, str) or not oracle_session_id:
+            raise pytest.UsageError(
+                "oracle environment memo controller session nonce が無い"
+            )
+        workerinput[_ORACLE_ENVIRONMENT_MEMO_SESSION_ID_ATTR] = oracle_session_id
 
 
 @pytest.hookimpl(optionalhook=True)
@@ -785,6 +898,24 @@ def pytest_xdist_node_collection_finished(node, ids) -> None:
             raise pytest.UsageError("xdist receipt memo consumer に testrunuid が無い")
         if run_id_available:
             _prewarm_receipt_memo(node.config, ids, run_id=run_id)
+    if (
+        not hasattr(node.config, "workerinput")
+        and _oracle_environment_memo_prewarm_prerequisites(node.config, ids)
+    ):
+        run_id_available = True
+        try:
+            run_id = getattr(node, "workerinput", {}).get("testrunuid")
+            if run_id is None:
+                run_id = node.config.getoption("testrunuid", None)
+        except Exception:
+            run_id = None
+            run_id_available = False
+        if run_id_available and run_id is None:
+            raise pytest.UsageError(
+                "xdist oracle environment memo consumer に testrunuid が無い"
+            )
+        if run_id_available:
+            _prewarm_oracle_environment_memo(node.config, ids, run_id=run_id)
     if not os.environ.get("IZANAGI_TASK_RUN_SIDECAR"):
         return
     try:
@@ -979,9 +1110,83 @@ def _finish_receipt_memo_session(config) -> None:
     setattr(config, _RECEIPT_MEMO_SESSION_ACTIVE_ATTR, False)
 
 
+def _configure_oracle_environment_memo_session(config) -> None:
+    """Create a per-Config nonce and propagate it to xdist workers."""
+    previous = os.environ.get(
+        _ORACLE_ENVIRONMENT_MEMO_NONCE_ENV,
+        _ORACLE_ENVIRONMENT_MEMO_ENV_UNSET,
+    )
+    setattr(config, _ORACLE_ENVIRONMENT_MEMO_NONCE_PREVIOUS_ATTR, previous)
+    setattr(config, _ORACLE_ENVIRONMENT_MEMO_NONCE_ACTIVE_ATTR, True)
+    try:
+        if hasattr(config, "workerinput"):
+            session_id = getattr(config, "workerinput", {}).get(
+                _ORACLE_ENVIRONMENT_MEMO_SESSION_ID_ATTR,
+            )
+            if not isinstance(session_id, str) or not session_id:
+                raise pytest.UsageError(
+                    "oracle environment memo worker に controller session nonce が無い"
+                )
+        else:
+            session_id = uuid.uuid4().hex
+        setattr(config, _ORACLE_ENVIRONMENT_MEMO_SESSION_ID_ATTR, session_id)
+        os.environ[_ORACLE_ENVIRONMENT_MEMO_NONCE_ENV] = session_id
+    except BaseException:
+        try:
+            _restore_oracle_environment_memo_nonce(config)
+        except BaseException:
+            pass
+        raise
+
+
+def _restore_oracle_environment_memo_nonce(config) -> None:
+    """Restore the outer oracle memo nonce exactly once."""
+    if not getattr(config, _ORACLE_ENVIRONMENT_MEMO_NONCE_ACTIVE_ATTR, False):
+        return
+    previous = getattr(
+        config,
+        _ORACLE_ENVIRONMENT_MEMO_NONCE_PREVIOUS_ATTR,
+        _ORACLE_ENVIRONMENT_MEMO_ENV_UNSET,
+    )
+    try:
+        if previous is _ORACLE_ENVIRONMENT_MEMO_ENV_UNSET:
+            os.environ.pop(_ORACLE_ENVIRONMENT_MEMO_NONCE_ENV, None)
+        else:
+            os.environ[_ORACLE_ENVIRONMENT_MEMO_NONCE_ENV] = previous
+    finally:
+        setattr(config, _ORACLE_ENVIRONMENT_MEMO_NONCE_ACTIVE_ATTR, False)
+
+
+def _finish_oracle_environment_memo_session(config) -> None:
+    """Discard a successful oracle memo session, preserving nested sessions."""
+    if not getattr(config, _ORACLE_ENVIRONMENT_MEMO_SESSION_ACTIVE_ATTR, False):
+        return
+    session_id = getattr(config, _ORACLE_ENVIRONMENT_MEMO_SESSION_ID_ATTR, None)
+    _oracle_environment_memo_module().finish_oracle_environment_session(
+        session_id=session_id,
+    )
+    setattr(config, _ORACLE_ENVIRONMENT_MEMO_SESSION_ACTIVE_ATTR, False)
+
+
+def _finish_memo_sessions(config, *, suppress_errors: bool) -> None:
+    """Finish receipt and oracle sessions independently, preserving first error."""
+    first_error: BaseException | None = None
+    first_traceback = None
+    for finish in (_finish_receipt_memo_session, _finish_oracle_environment_memo_session):
+        try:
+            finish(config)
+        except BaseException as exc:
+            if first_error is None:
+                first_error = exc
+                first_traceback = exc.__traceback__
+    if first_error is not None and not suppress_errors:
+        raise first_error.with_traceback(first_traceback)
+
+
 def pytest_configure(config) -> None:
     try:
         _configure_receipt_memo_session(config)
+        _configure_oracle_environment_memo_session(config)
         _configure_receipt_memo_run_id(config)
         _growth_holds_opted_in()
         if mark_pytest_session_enforcing is not None:
@@ -992,6 +1197,10 @@ def pytest_configure(config) -> None:
             _restore_receipt_memo_nonce(config)
         except BaseException:
             # Preserve the configure failure instead of replacing it with cleanup.
+            pass
+        try:
+            _restore_oracle_environment_memo_nonce(config)
+        except BaseException:
             pass
         raise
 
@@ -1386,13 +1595,9 @@ def pytest_unconfigure(config):
         try:
             if unmark_pytest_session_enforcing is not None:
                 unmark_pytest_session_enforcing(config)
-            if inner_exception is None:
-                _finish_receipt_memo_session(config)
-            else:
-                try:
-                    _finish_receipt_memo_session(config)
-                except BaseException:
-                    pass
+            _finish_memo_sessions(
+                config, suppress_errors=inner_exception is not None,
+            )
             stashed = tuple(_FAILURE_REPORTS)
             _FAILURE_REPORTS.clear()
             # finally 内で return すると inner hook の例外を StopIteration で消すため、
@@ -1423,6 +1628,13 @@ def pytest_unconfigure(config):
                 _restore_receipt_memo_nonce(config)
             except BaseException:
                 # yield または cleanup の元例外を env cleanup で隠さない。
+                if inner_exception is not None or cleanup_exception is not None:
+                    pass
+                else:
+                    raise
+            try:
+                _restore_oracle_environment_memo_nonce(config)
+            except BaseException:
                 if inner_exception is not None or cleanup_exception is not None:
                     pass
                 else:

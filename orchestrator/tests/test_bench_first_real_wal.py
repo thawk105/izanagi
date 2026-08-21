@@ -114,7 +114,9 @@ def _write_admitted_real_fixture(root: Path) -> CampaignLayout:
         })
 
     for record in records:
-        if record["stage"] not in {"build_done", "commit", "abort"}:
+        if record["stage"] not in {
+            "build_done", "verify_done", "bench_done", "commit", "abort",
+        }:
             continue
         attempt_id, receipt = attempts[record["variant"]]
         record["payload"].update({

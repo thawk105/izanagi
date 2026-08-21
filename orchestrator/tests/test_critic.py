@@ -28,9 +28,11 @@ sys.path.insert(0, os.path.dirname(_ORCH))
 
 from orchestrator.campaign import (env_contract, ident, pipeline,             # noqa: E402
                                    sort_swo_oracle, wal)
-from orchestrator.campaign.artifact_admission import (CampaignNotAdmitted,     # noqa: E402
-                                         CampaignReadPurpose,
-                                         require_admitted_campaign)
+from orchestrator.campaign.artifact_admission import (                    # noqa: E402
+    CampaignAdmissionDecision, CampaignNotAdmitted, CampaignReadPurpose,
+    CampaignVerifierEpoch, HistoricalCampaignView, ImmutableWalRecord,
+    require_admitted_campaign,
+)
 from orchestrator.campaign.auditor_gate import (                              # noqa: E402
     AuditorVerdict,
     apply_mandatory_deny_only_veto,
@@ -252,6 +254,42 @@ def _view(layout):
     )
 
 
+def _legacy_view(records):
+    """Build an E0 historical view from pre-attempt-binding WAL records."""
+    return HistoricalCampaignView(
+        layout=CampaignLayout(root="critic-legacy-fixture"),
+        records=tuple(
+            ImmutableWalRecord(
+                variant=record.variant,
+                stage=record.stage,
+                env_tag=record.env_tag,
+                ts=record.ts,
+                payload=MappingProxyType(dict(record.payload)),
+            )
+            for record in records
+        ),
+        decision=CampaignAdmissionDecision(
+            classification="historical-pre-admission-schema",
+            admission_status="historical-not-reclassified",
+            verification_status="not-evaluated-by-overlay",
+            campaign_id="critic-legacy-fixture",
+            campaign_path="critic-legacy-fixture",
+            campaign_lock_sha256="",
+            wal_sha256="",
+            policy_sha256=None,
+            attempt_receipt_sha256s=(),
+            overlay_ledger_sha256="",
+            overlay_record_key=None,
+            validator_sha256="",
+        ),
+        campaign_verifier_epoch=CampaignVerifierEpoch(
+            campaign_verifier_epoch="E0",
+            state="E0",
+            reason_code="v1-authority-absent",
+        ),
+    )
+
+
 _QUARANTINE_HEAD = "\n".join((
     "int outside = 0;",
     "// EVOLVE-BLOCK-BEGIN fixture",
@@ -463,6 +501,37 @@ def _write(lay, genome, committed=True, **li):
         )
 
 
+def _write_retry_projection_fixture(lay, genome):
+    """Write stale signals before a retry whose later attempt is committed."""
+    old_attempt = _start_attempt(lay, genome)
+    _attempt_event(lay, old_attempt, STAGE_BUILD_DONE, {})
+    _attempt_event(lay, old_attempt, STAGE_VERIFY_DONE, {
+        "verdict": "serializable", "commits": 10, "aborts": 90,
+        "workload": {"tag": "legacy"},
+    })
+    _attempt_event(lay, old_attempt, STAGE_BENCH_DONE, {
+        "leading_indicators": {
+            "throughput_tps": 1.0, "abort_rate": 0.91,
+            "latency_ns": 101.0, "llc_miss_rate": 0.11, "ipc": 0.11,
+        },
+    })
+    _attempt_event(lay, old_attempt, STAGE_ABORT, {"reason": "build-error"})
+
+    new_attempt = _start_attempt(lay, genome)
+    _attempt_event(lay, new_attempt, STAGE_BUILD_DONE, {})
+    _attempt_event(lay, new_attempt, STAGE_VERIFY_DONE, {
+        "verdict": "serializable", "commits": 20, "aborts": 80,
+        "workload": {"tag": "legacy"},
+    })
+    _attempt_event(lay, new_attempt, STAGE_BENCH_DONE, {
+        "leading_indicators": {
+            "throughput_tps": 2.0, "abort_rate": 0.81,
+            "latency_ns": 202.0, "llc_miss_rate": 0.22, "ipc": 0.22,
+        },
+    })
+    _attempt_event(lay, new_attempt, STAGE_COMMIT, {"fitness_tps": 2.0})
+
+
 _G = "silo|BACK_OFF={b},NO_WAIT_LOCKING_IN_VALIDATION={l},NO_WAIT_OF_TICTOC={t},WAL={w}"
 
 
@@ -533,6 +602,90 @@ def test_uncommitted_genome_excluded():
     d = build_digest("x", {}, _view(lay))
     assert len(d.genomes) == 1                   # 非 committed は不採用
     assert d.genomes[0].flags["BACK_OFF"] == 0
+
+
+def test_load_workload_uses_committed_retry_attempt_only():
+    lay = _tmp_layout()
+    genome = _G.format(b=0, l=1, t=0, w=0)
+    _write_retry_projection_fixture(lay, genome)
+
+    workload = load_workload(_view(lay))
+
+    assert len(workload) == 1
+    assert workload[0].genome == genome
+    assert workload[0].li == {
+        "throughput_tps": 2.0, "abort_rate": 0.81,
+        "latency_ns": 202.0, "llc_miss_rate": 0.22, "ipc": 0.22,
+    }
+
+
+def test_load_verify_abort_signals_uses_committed_retry_attempt_only():
+    lay = _tmp_layout()
+    genome = _G.format(b=0, l=1, t=0, w=0)
+    _write_retry_projection_fixture(lay, genome)
+
+    signals = load_verify_abort_signals(_view(lay))
+
+    assert len(signals) == 1
+    assert signals[0].genome == genome
+    assert signals[0].commits == 20
+    assert signals[0].aborts == 80
+
+
+def test_load_verify_abort_signals_drops_prior_signal_when_commit_has_no_verify():
+    lay = _tmp_layout()
+    genome = _G.format(b=0, l=1, t=0, w=0)
+
+    old_attempt = _start_attempt(lay, genome)
+    _attempt_event(lay, old_attempt, STAGE_BUILD_DONE, {})
+    _attempt_event(lay, old_attempt, STAGE_VERIFY_DONE, {
+        "verdict": "serializable", "commits": 10, "aborts": 90,
+        "workload": {"tag": "legacy"},
+    })
+    _attempt_event(lay, old_attempt, STAGE_ABORT, {"reason": "build-error"})
+
+    new_attempt = _start_attempt(lay, genome)
+    _attempt_event(lay, new_attempt, STAGE_BUILD_DONE, {})
+    _attempt_event(lay, new_attempt, STAGE_COMMIT, {"fitness_tps": 2.0})
+
+    # The old attempt's verify_done is intentionally present, while the
+    # committed retry has the valid build_done -> commit shape and no verify.
+    assert load_verify_abort_signals(_view(lay)) == []
+
+
+def test_load_workload_preserves_legacy_commit_without_build_attempt_id():
+    lay = _tmp_layout()
+    genome = _G.format(b=0, l=1, t=0, w=0)
+    variant = "legacy-critic-variant"
+    leading_indicators = {
+        "throughput_tps": 123.0,
+        "abort_rate": 0.2,
+        "latency_ns": 456.0,
+        "llc_miss_rate": 0.3,
+        "ipc": 1.2,
+    }
+    wal.log(lay, variant, STAGE_BUILD_START, _ENV_CONTRACT.env_tag, {
+        "genome": genome,
+    })
+    wal.log(lay, variant, STAGE_BUILD_DONE, _ENV_CONTRACT.env_tag)
+    wal.log(lay, variant, STAGE_BENCH_DONE, _ENV_CONTRACT.env_tag, {
+        "leading_indicators": leading_indicators,
+    })
+    receipt_support.append_legacy_raw_commit(
+        lay, variant, _ENV_CONTRACT.env_tag, {"fitness_tps": 123.0},
+    )
+    view = _legacy_view(wal.read_records(lay))
+
+    commit = view.records[-1]
+    assert "build_attempt_id" not in commit.payload
+    state = wal.replay_admitted_records(list(view.records))[variant]
+    assert state.committed and state.committed_attempt_id is None
+
+    workload = load_workload(view)
+
+    assert len(workload) == 1
+    assert workload[0].genome == genome
+    assert workload[0].li == leading_indicators
 
 
 def test_render_text_has_axes_and_indicators():
@@ -833,6 +986,7 @@ def test_render_rejections_carries_no_perf_tokens():
                              extra={"timeout_s": 120.0}, variant="v1")]
     stock = _G.format(b=0, l=1, t=0, w=0)
     stock_attempt = _start_attempt(lay, stock)
+    _attempt_event(lay, stock_attempt, STAGE_BUILD_DONE, {})
     _attempt_event(lay, stock_attempt, STAGE_VERIFY_DONE, {
         "verdict": "serializable", "commits": 900, "aborts": 100,
     })
@@ -1022,11 +1176,13 @@ def test_verify_abort_signal_stock_contrast():
     lay = _tmp_layout()
     stock = _G.format(b=0, l=1, t=0, w=0)
     stock_attempt = _start_attempt(lay, stock)
+    _attempt_event(lay, stock_attempt, STAGE_BUILD_DONE, {})
     _attempt_event(lay, stock_attempt, STAGE_VERIFY_DONE, {
         "verdict": "serializable", "commits": 900, "aborts": 100,
     })
     var = _G.format(b=1, l=1, t=0, w=0)
     var_attempt = _start_attempt(lay, var, src_token="cd2")
+    _attempt_event(lay, var_attempt, STAGE_BUILD_DONE, {})
     _attempt_event(lay, var_attempt, STAGE_VERIFY_DONE, {
         "verdict": "serializable", "commits": 600, "aborts": 400,
     })
@@ -1041,6 +1197,7 @@ def test_verify_abort_signal_no_stock_and_legacy_are_explicit():
     lay = _tmp_layout()
     var = _G.format(b=1, l=1, t=0, w=0)
     attempt = _start_attempt(lay, var, src_token="cd3")
+    _attempt_event(lay, attempt, STAGE_BUILD_DONE, {})
     _attempt_event(lay, attempt, STAGE_VERIFY_DONE, {
         "verdict": "serializable", "commits": 500,
     })                                                     # aborts 無し = 旧形式
@@ -1060,6 +1217,7 @@ def test_verify_abort_signal_prefers_first_pass_when_s2_writes_second_record():
     lay = _tmp_layout()
     stock = _G.format(b=0, l=1, t=0, w=0)
     attempt = _start_attempt(lay, stock)
+    _attempt_event(lay, attempt, STAGE_BUILD_DONE, {})
     _attempt_event(lay, attempt, STAGE_VERIFY_DONE, {
         "verdict": "serializable", "commits": 900, "aborts": 100,
         "workload": {"tag": "legacy"},
