@@ -107,7 +107,7 @@ landに対応する (`commit: Fold landed documentation fragments`が直後に�
 - 唯一 stale でなかった t1372 は Δt_wait が2番目に短いt1461 (1449s) の1/12強しかなく、
   「待ち時間が短いほどstaleしない」という直感と整合する (n=7では回帰分析はしない)。
 
-## 4. claim-before-mergeとacceptanceの関係
+## 4. claim-before-mergeとacceptanceの関係 (file:line、2026-08-21時点)
 
 現行実装は claim → main_sha 固定 → test という順序を厳格に保持しており、
 **claimに成功したwave自身が stale なmainでテストされることは構造的に無い**。
@@ -207,11 +207,16 @@ landに対応する (`commit: Fold landed documentation fragments`が直後に�
   t1461区間 = `3e15be0b`,`5165c957`;
   t870-lease-timing区間 = `4dfbed5c`。
 - canonical worklog: `docs/worklog.md:3989` ([T-1469]が(805)から変更なしで持ち越されている
-  最新の確認点、2026-08-21時点)
+  最新の確認点、**本wave着手時点 (2026-08-21、base main `46fbce3d`) のスナップショット**。
+  worklogはfoldで随時追記されるため、後続waveのland後は行番号がずれている可能性が高い —
+  内容照合は行番号でなく `grep -n "\[T-1469\]" docs/worklog.md` で行うこと)
 
 ## 関連
 
 - [[D631]] (実測gapを要求した決定)
 - [[D270]] (却下された「claim前merge」設計の対照)
 - [[T-870insight]] (同一手法の先例、別の指標=lease TTLとの余裕)
-- memory候補: `acceptance-lease-contract.md`への追記候補 (§8自己改善、後述)
+- 手元memoryを2件更新済み (dev-wave docs本文でなくAI個人のmemory system、段8のdev-wave
+  改善候補とは別枠): `git-log-committer-date-not-land-time.md` (新規、§2の手法訂正の経緯)、
+  `dev-wave-bg-worktree-startup-checks.md` (追記、本wave自身がDW-O20の読み落としを
+  段9直前に自己発見・是正した実例)
