@@ -417,7 +417,7 @@ REAL_REPO_EXECUTION_PRIORITY = (
 )
 
 # production receipt memo を test body 内で読む関数の完全 inventory。parametrize suffix と
-# loadgroup suffix は除いた ``file::function`` 形で固定する。32 関数 / 35 node。
+# loadgroup suffix は除いた ``file::function`` 形で固定する。33 関数 / 36 node。
 RECEIPT_MEMO_CONSUMER_NODES = frozenset({
     "test_s8b_oracle_driver.py::test_success_wal_order_budget_and_evaluate_contract",
     "test_s8b_oracle_driver.py::test_oracle_pipeline_contract_keyword_is_mandatory_positive_control",
@@ -443,6 +443,7 @@ RECEIPT_MEMO_CONSUMER_NODES = frozenset({
     "test_s8b_oracle_driver.py::test_probe_error_precedes_claim_marker_wal_and_budget",
     "test_s8b_oracle_driver.py::test_real_freeze_gate_lists_floor_and_budget_null",
     "test_s8b_oracle_driver.py::test_run_block_refusal_writes_no_campaign_or_budget_and_calls_nothing",
+    "test_s8b_oracle_driver.py::test_cli_output_root_default_is_none_and_run_block_refuses_without_root",
     "test_s8b_oracle_driver.py::test_nonnull_floor_without_active_generation_is_refused",
     "test_s8b_oracle_driver.py::test_active_resolution_and_manifest_structure_refusals_are_aggregated",
     "test_s8b_oracle_driver.py::test_run_block_reuses_launch_validated_and_legacy_loader_is_dead",
