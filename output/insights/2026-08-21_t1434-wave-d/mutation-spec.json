@@ -10,8 +10,7 @@
         "orchestrator/tests/test_codex_reasoning_ab.py::test_validate_schedule_accepts_same_arm_different_requested_model_pair",
         "orchestrator/tests/test_codex_reasoning_ab.py::test_validate_schedule_legacy_different_arm_same_model_pair_remains_valid",
         "orchestrator/tests/test_codex_reasoning_ab.py::test_make_packets_uses_dynamic_schedule_count_and_keeps_public_state_blind",
-        "orchestrator/tests/test_codex_reasoning_ab.py::test_make_packets_accepts_legacy_schedule_descriptor_without_schema_version",
-        "orchestrator/tests/test_codex_reasoning_ab.py::test_supervisor_launches_pair_and_scrubs_git_environment"
+        "orchestrator/tests/test_codex_reasoning_ab.py::test_make_packets_accepts_legacy_schedule_descriptor_without_schema_version"
       ],
       "expected_status": "KILLED",
       "hang_risk": false,
@@ -27,8 +26,9 @@
     {
       "category": "negative",
       "expected_nodes": [
-        "orchestrator/tests/test_codex_reasoning_ab.py::test_validate_schedule_rejects_live_non_null_cache_or_price[cache_condition]",
-        "orchestrator/tests/test_codex_reasoning_ab.py::test_validate_schedule_rejects_live_non_null_cache_or_price[price_version]"
+        "orchestrator/tests/test_codex_reasoning_ab.py::test_expected_schedule_rejects_non_null_v2_cache_condition",
+        "orchestrator/tests/test_codex_reasoning_ab.py::test_non_null_nullable_dimension_is_fail_closed[cache_condition]",
+        "orchestrator/tests/test_codex_reasoning_ab.py::test_non_null_nullable_dimension_is_fail_closed[price_version]"
       ],
       "expected_status": "KILLED",
       "hang_risk": false,
@@ -86,6 +86,28 @@
           "file": "tools/codex_reasoning_ab.py",
           "old": "        schedule = _legacy_schedule_view(schedule)",
           "new": "        schedule = dict(schedule)"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_codex_reasoning_ab.py::test_validate_schedule_rejects_live_non_null_cache_or_price[cache_condition]",
+        "orchestrator/tests/test_codex_reasoning_ab.py::test_validate_schedule_rejects_live_non_null_cache_or_price[price_version]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "t1434d.m06",
+      "replacements": [
+        {
+          "file": "tools/codex_reasoning_ab.py",
+          "old": "        if value == \"\":\n            raise ValidationError(\n                f\"schedule slot {field} must be non-empty when present\", RC_ROUTING\n            )\n        if value is not None:",
+          "new": "        if value == \"\":\n            raise ValidationError(\n                f\"schedule slot {field} must be non-empty when present\", RC_ROUTING\n            )\n        if False:"
+        },
+        {
+          "file": "tools/codex_reasoning_ab.py",
+          "old": "        value = slot.get(field)\n        if value is not None:\n            raise ValidationError(\n                f\"schedule slot {field} non-null values are not supported without attestation\",\n                RC_ROUTING,\n            )",
+          "new": "        value = slot.get(field)\n        if False:\n            raise ValidationError(\n                f\"schedule slot {field} non-null values are not supported without attestation\",\n                RC_ROUTING,\n            )"
         }
       ]
     }
