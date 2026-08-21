@@ -61,9 +61,15 @@ from orchestrator.campaign.build_admission import (  # noqa: E402
 from orchestrator.campaign import layout as layout_module                    # noqa: E402
 from orchestrator.campaign.layout import (CampaignLayout,                     # noqa: E402
                              ExplorationCampaignLayout,
+                             campaign_lock_dir, campaign_lock_path,
                              campaign_layout, ensure_exploration_namespace,
                              exploration_campaign_layout)
-from orchestrator.campaign.lock import BenchBusy, bench_lock                  # noqa: E402
+from orchestrator.campaign.lock import (                                       # noqa: E402
+    BenchBusy,
+    CampaignBusy,
+    bench_lock,
+    campaign_lock as campaign_flock,
+)
 from orchestrator.campaign.model import (CampaignConfig, Genome,              # noqa: E402
                             COMMIT_CONTRACT_SHA256_KEY,
                             STAGE_BENCH_DONE, STAGE_BUILD_DONE, STAGE_BUILD_START,
@@ -1361,6 +1367,215 @@ def test_attempt_topology_accepts_abort_then_retry():
     assert state.attempts["attempt-b"].committed
 
 
+def test_attempt_topology_rejects_delayed_verify_signal_after_retry():
+    lay = _admission_aware_layout("attempt_delayed_verify_signal_")
+    receipt_a, sha_a = _wal_admission_receipt("a")
+    receipt_b, sha_b = _wal_admission_receipt("bb")
+    _attempt_start(lay, "v", "attempt-a", receipt_a, sha_a)
+    _attempt_stage(lay, "v", STAGE_BUILD_DONE, "attempt-a", sha_a)
+    _attempt_stage(lay, "v", STAGE_ABORT, "attempt-a", sha_a, reason="build-error")
+    _attempt_start(lay, "v", "attempt-b", receipt_b, sha_b)
+    _attempt_stage(lay, "v", STAGE_BUILD_DONE, "attempt-b", sha_b)
+    _attempt_stage(lay, "v", STAGE_COMMIT, "attempt-b", sha_b)
+
+    # The old attempt's correctness signal arrives after the retry committed.
+    _attempt_stage(
+        lay, "v", STAGE_VERIFY_DONE, "attempt-a", sha_a,
+        verdict="serializable", certified=True, workload={"tag": "legacy"},
+    )
+    with pytest.raises(wal.AttemptTopologyError, match="active attempt"):
+        wal.replay(lay, admission_policy=_BUILD_CONTEXT.policy)
+
+
+def test_attempt_topology_rejects_delayed_bench_signal_after_retry():
+    lay = _admission_aware_layout("attempt_delayed_bench_signal_")
+    receipt_a, sha_a = _wal_admission_receipt("a")
+    receipt_b, sha_b = _wal_admission_receipt("bb")
+    _attempt_start(lay, "v", "attempt-a", receipt_a, sha_a)
+    _attempt_stage(lay, "v", STAGE_BUILD_DONE, "attempt-a", sha_a)
+    _attempt_stage(lay, "v", STAGE_ABORT, "attempt-a", sha_a, reason="build-error")
+    _attempt_start(lay, "v", "attempt-b", receipt_b, sha_b)
+    _attempt_stage(lay, "v", STAGE_BUILD_DONE, "attempt-b", sha_b)
+    _attempt_stage(lay, "v", STAGE_COMMIT, "attempt-b", sha_b)
+
+    # Keep this fixture bench-only so the bench topology branch is exercised.
+    _attempt_stage(
+        lay, "v", STAGE_BENCH_DONE, "attempt-a", sha_a,
+        median_tps=1.0, cv=0.1, tps=[1.0],
+    )
+    with pytest.raises(wal.AttemptTopologyError, match="active attempt"):
+        wal.replay(lay, admission_policy=_BUILD_CONTEXT.policy)
+
+
+def test_attempt_topology_rejects_verify_before_build_done():
+    """M-B: verify_done は同一 active attempt の build_done 後に限る。"""
+    lay = _admission_aware_layout("attempt_verify_before_build_done_")
+    receipt, receipt_sha = _wal_admission_receipt("a")
+    attempt_id = "attempt-a"
+    _attempt_start(lay, "v", attempt_id, receipt, receipt_sha)
+    _attempt_stage(
+        lay, "v", STAGE_VERIFY_DONE, attempt_id, receipt_sha,
+        verdict="serializable", certified=True, workload={"tag": "legacy"},
+    )
+
+    with pytest.raises(
+            wal.AttemptTopologyError,
+            match="build_done より前の attempt に属する",
+    ):
+        wal.replay(lay, admission_policy=_BUILD_CONTEXT.policy)
+
+
+def test_attempt_topology_rejects_duplicate_bench_within_attempt():
+    """M-C: 同一 active attempt の bench_done は一度だけ受理する。"""
+    lay = _admission_aware_layout("attempt_duplicate_bench_")
+    receipt, receipt_sha = _wal_admission_receipt("a")
+    attempt_id = "attempt-a"
+    _attempt_start(lay, "v", attempt_id, receipt, receipt_sha)
+    _attempt_stage(lay, "v", STAGE_BUILD_DONE, attempt_id, receipt_sha)
+    for median_tps in (1.0, 2.0):
+        _attempt_stage(
+            lay, "v", STAGE_BENCH_DONE, attempt_id, receipt_sha,
+            median_tps=median_tps, cv=0.1, tps=[median_tps],
+        )
+
+    with pytest.raises(
+            wal.AttemptTopologyError,
+            match="bench_done: 同一 attempt で重複",
+    ):
+        wal.replay(lay, admission_policy=_BUILD_CONTEXT.policy)
+
+
+def test_attempt_topology_rejects_receipt_sha_reuse_on_active_signal():
+    for signal_stage in (STAGE_VERIFY_DONE, STAGE_BENCH_DONE):
+        lay = _admission_aware_layout(
+            f"attempt_receipt_reuse_signal_{signal_stage}_"
+        )
+        receipt_a, sha_a = _wal_admission_receipt("a")
+        receipt_b, sha_b = _wal_admission_receipt("bb")
+        assert sha_a != sha_b
+        _attempt_start(lay, "v", "attempt-a", receipt_a, sha_a)
+        _attempt_stage(lay, "v", STAGE_BUILD_DONE, "attempt-a", sha_a)
+        _attempt_stage(lay, "v", STAGE_ABORT, "attempt-a", sha_a, reason="build-error")
+        _attempt_start(lay, "v", "attempt-b", receipt_b, sha_b)
+        _attempt_stage(lay, "v", STAGE_BUILD_DONE, "attempt-b", sha_b)
+
+        # The attempt ID is current; only the receipt SHA is stale.
+        payload = {
+            "build_attempt_id": "attempt-b",
+            "build_admission_receipt_sha256": sha_a,
+        }
+        if signal_stage == STAGE_VERIFY_DONE:
+            payload.update({
+                "verdict": "serializable", "certified": True,
+                "workload": {"tag": "legacy"},
+            })
+        else:
+            payload.update({"median_tps": 1.0, "cv": 0.1, "tps": [1.0]})
+        wal.log(lay, "v", signal_stage, _T530_CONTRACT.env_tag, payload)
+
+        with pytest.raises(wal.AttemptTopologyError, match="receipt SHA"):
+            wal.replay(lay, admission_policy=_BUILD_CONTEXT.policy)
+
+
+def test_attempt_topology_rejects_delayed_signal_from_finished_same_variant_attempt():
+    """これは終了済み attempt の遅延 signal の実証であり、真の並行 peer の実証ではない。"""
+    lay = _admission_aware_layout("attempt_finished_peer_signal_")
+    receipt_a, sha_a = _wal_admission_receipt("a")
+    receipt_b, sha_b = _wal_admission_receipt("bb")
+    _attempt_start(lay, "v", "attempt-a", receipt_a, sha_a)
+    _attempt_stage(lay, "v", STAGE_BUILD_DONE, "attempt-a", sha_a)
+    _attempt_stage(lay, "v", STAGE_ABORT, "attempt-a", sha_a, reason="build-error")
+    _attempt_start(lay, "v", "attempt-b", receipt_b, sha_b)
+    _attempt_stage(lay, "v", STAGE_BUILD_DONE, "attempt-b", sha_b)
+
+    _attempt_stage(
+        lay, "v", STAGE_VERIFY_DONE, "attempt-a", sha_a,
+        verdict="serializable", certified=True, workload={"tag": "legacy"},
+    )
+    _attempt_stage(
+        lay, "v", STAGE_BENCH_DONE, "attempt-a", sha_a,
+        median_tps=1.0, cv=0.1, tps=[1.0],
+    )
+    with pytest.raises(wal.AttemptTopologyError, match="active attempt"):
+        wal.replay(lay, admission_policy=_BUILD_CONTEXT.policy)
+
+
+def test_attempt_topology_accepts_pipeline_signal_shape_without_receipt_sha():
+    lay = _admission_aware_layout("attempt_pipeline_signal_shape_")
+    receipt, receipt_sha = _wal_admission_receipt("a")
+    attempt_id = "attempt-pipeline-shape"
+    _attempt_start(lay, "v", attempt_id, receipt, receipt_sha)
+    _attempt_stage(lay, "v", STAGE_BUILD_DONE, attempt_id, receipt_sha)
+
+    # These are the production verify/bench key shapes: attempt-bound, with
+    # no build_admission_receipt_sha256 on either signal.
+    wal.log(lay, "v", STAGE_VERIFY_DONE, _T530_CONTRACT.env_tag, {
+        "build_attempt_id": attempt_id,
+        "verdict": "serializable", "certified": True,
+        "commits": 1, "aborts": 0,
+        "commit_witness": {"commit_counts": 1, "batch_commit_counts": 0},
+        "anomalies": 0, "workload": {"tag": "legacy"},
+    })
+    wal.log(lay, "v", STAGE_BENCH_DONE, _T530_CONTRACT.env_tag, {
+        "build_attempt_id": attempt_id,
+        "median_tps": 100.0, "cv": 0.1, "bench_wall_s": 0.1,
+        "high_variance": False, "unstable": False, "rounds": 1,
+        "cv_history": [0.1], "tps": [100.0], "settled": True,
+        "leading_indicators": {}, "rep_notes": [], "run_cmd": ["fake"],
+    })
+
+    state = wal.replay(lay, admission_policy=_BUILD_CONTEXT.policy)["v"]
+    assert state.attempts[attempt_id].stages_seen == [
+        STAGE_BUILD_START, STAGE_BUILD_DONE,
+        STAGE_VERIFY_DONE, STAGE_BENCH_DONE,
+    ]
+
+
+def test_replay_committed_projection_excludes_prior_aborted_attempt_signals():
+    lay = _admission_aware_layout("attempt_committed_projection_retry_")
+    receipt_a, sha_a = _wal_admission_receipt("a")
+    receipt_b, sha_b = _wal_admission_receipt("bb")
+    _attempt_start(lay, "v", "attempt-a", receipt_a, sha_a)
+    _attempt_stage(lay, "v", STAGE_BUILD_DONE, "attempt-a", sha_a)
+    _attempt_stage(
+        lay, "v", STAGE_VERIFY_DONE, "attempt-a", sha_a,
+        verdict="serializable", certified=True, workload={"tag": "legacy"},
+    )
+    _attempt_stage(
+        lay, "v", STAGE_BENCH_DONE, "attempt-a", sha_a,
+        median_tps=1.0, cv=0.1, tps=[1.0],
+    )
+    _attempt_stage(lay, "v", STAGE_ABORT, "attempt-a", sha_a, reason="build-error")
+
+    _attempt_start(lay, "v", "attempt-b", receipt_b, sha_b)
+    _attempt_stage(lay, "v", STAGE_BUILD_DONE, "attempt-b", sha_b)
+    _attempt_stage(
+        lay, "v", STAGE_VERIFY_DONE, "attempt-b", sha_b,
+        verdict="serializable", certified=True, workload={"tag": "legacy"},
+    )
+    _attempt_stage(
+        lay, "v", STAGE_BENCH_DONE, "attempt-b", sha_b,
+        median_tps=2.0, cv=0.1, tps=[2.0],
+    )
+    _attempt_stage(lay, "v", STAGE_COMMIT, "attempt-b", sha_b)
+
+    state = wal.replay(lay, admission_policy=_BUILD_CONTEXT.policy)["v"]
+    assert state.committed_attempt_id == "attempt-b"
+    assert state.committed_build_start is not None
+    assert state.committed_build_start.payload["build_attempt_id"] == "attempt-b"
+    assert [
+        record.payload["build_attempt_id"]
+        for record in state.committed_verify
+    ] == ["attempt-b"]
+    assert state.committed_bench is not None
+    assert state.committed_bench.payload["build_attempt_id"] == "attempt-b"
+    assert all(
+        record.payload["build_attempt_id"] != "attempt-a"
+        for record in state.committed_verify
+    )
+    assert state.committed_bench.payload["median_tps"] == 2.0
+
+
 def _active_receiptful_attempt(lay, variant: str, attempt_id: str):
     receipt, receipt_sha = _wal_admission_receipt(attempt_id)
     _attempt_start(lay, variant, attempt_id, receipt, receipt_sha)
@@ -2603,6 +2818,199 @@ def test_bench_lock_exclusive():
     # 解放後は取れる
     with bench_lock(fd_path, blocking=False):
         pass
+
+
+_CAMPAIGN_LOCK_HOLDER = r'''
+import sys
+import time
+from pathlib import Path
+from orchestrator.campaign.lock import campaign_lock
+
+lock_path, ready_path, release_path = sys.argv[1:4]
+with campaign_lock(lock_path):
+    Path(ready_path).touch()
+    while not Path(release_path).exists():
+        time.sleep(0.01)
+'''
+
+
+def _start_campaign_lock_holder(
+        lock_path: str, ready_path: Path, release_path: Path,
+) -> subprocess.Popen:
+    env = dict(os.environ)
+    env["PYTHONPATH"] = str(_REPOSITORY)
+    env["PYTHONDONTWRITEBYTECODE"] = "1"
+    return subprocess.Popen(
+        [sys.executable, "-c", _CAMPAIGN_LOCK_HOLDER,
+         lock_path, str(ready_path), str(release_path)],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        env=env,
+    )
+
+
+def _wait_for_campaign_lock_holder(child: subprocess.Popen, ready_path: Path) -> None:
+    deadline = time.monotonic() + 10.0
+    while not ready_path.exists():
+        returncode = child.poll()
+        if returncode is not None:
+            stdout, stderr = child.communicate()
+            raise AssertionError(
+                "campaign lock holder が ready 前に終了した: "
+                f"returncode={returncode}, stdout={stdout!r}, stderr={stderr!r}"
+            )
+        if time.monotonic() >= deadline:
+            raise AssertionError("campaign lock holder の ready 待ちが timeout した")
+        time.sleep(0.01)
+
+
+def _finish_campaign_lock_holder(
+        child: subprocess.Popen, release_path: Path,
+) -> None:
+    release_path.touch()
+    try:
+        stdout, stderr = child.communicate(timeout=10)
+    except subprocess.TimeoutExpired as exc:
+        child.kill()
+        child.communicate(timeout=10)
+        raise AssertionError("campaign lock holder が release 後も終了しない") from exc
+    assert child.returncode == 0, (
+        f"campaign lock holder failed: returncode={child.returncode}, "
+        f"stdout={stdout!r}, stderr={stderr!r}"
+    )
+
+
+def test_campaign_lock_reentry_rejected_in_same_process():
+    layout = _layout().ensure()
+    output_root = _tmpdir("izanagi_campaign_lock_reentry_output_")
+    lock_path = campaign_lock_path(
+        layout, declared_use_class="official", output_root=output_root,
+    )
+    with campaign_flock(lock_path):
+        try:
+            with campaign_flock(lock_path, blocking=False):
+                raise AssertionError("同一 process の campaign lock 再入を拒否すべき")
+        except CampaignBusy:
+            pass
+
+
+def test_campaign_lock_same_campaign_rejects_competing_process():
+    layout = _layout().ensure()
+    output_root = _tmpdir("izanagi_campaign_lock_competing_output_")
+    lock_path = campaign_lock_path(
+        layout, declared_use_class="official", output_root=output_root,
+    )
+    control_root = Path(_tmpdir("izanagi_campaign_lock_process_"))
+    ready_path = control_root / "ready"
+    release_path = control_root / "release"
+    child = _start_campaign_lock_holder(lock_path, ready_path, release_path)
+    try:
+        _wait_for_campaign_lock_holder(child, ready_path)
+        try:
+            with campaign_flock(lock_path, blocking=False):
+                raise AssertionError("競合 process が保持中の campaign lock を取得すべきでない")
+        except CampaignBusy:
+            pass
+    finally:
+        _finish_campaign_lock_holder(child, release_path)
+
+
+def test_campaign_lock_different_campaigns_can_run_in_parallel():
+    layouts = [_layout().ensure(), _layout().ensure()]
+    output_root = _tmpdir("izanagi_campaign_lock_parallel_output_")
+    lock_paths = [
+        campaign_lock_path(
+            layout, declared_use_class="official", output_root=output_root,
+        )
+        for layout in layouts
+    ]
+    control_root = Path(_tmpdir("izanagi_campaign_lock_parallel_"))
+    controls = [
+        (control_root / f"ready-{index}", control_root / f"release-{index}")
+        for index in range(len(lock_paths))
+    ]
+    children = [
+        _start_campaign_lock_holder(lock_path, ready_path, release_path)
+        for lock_path, (ready_path, release_path) in zip(lock_paths, controls)
+    ]
+    try:
+        for child, (ready_path, _release_path) in zip(children, controls):
+            _wait_for_campaign_lock_holder(child, ready_path)
+        assert all(child.poll() is None for child in children)
+    finally:
+        for _ready_path, release_path in controls:
+            release_path.touch()
+        for child, (_ready_path, release_path) in zip(children, controls):
+            _finish_campaign_lock_holder(child, release_path)
+
+
+def test_campaign_lock_released_can_be_reacquired():
+    layout = _layout().ensure()
+    output_root = _tmpdir("izanagi_campaign_lock_reacquire_output_")
+    lock_path = campaign_lock_path(
+        layout, declared_use_class="official", output_root=output_root,
+    )
+    with campaign_flock(lock_path):
+        pass
+    with campaign_flock(lock_path, blocking=False):
+        pass
+
+
+def test_campaign_lock_path_is_outside_campaign_root():
+    layout = _layout()
+    output_root = _tmpdir("izanagi_campaign_lock_outside_output_")
+    lock_path = Path(
+        campaign_lock_path(
+            layout, declared_use_class="official", output_root=output_root,
+        )
+    ).resolve()
+    campaign_root = Path(layout.root).resolve()
+    assert not lock_path.is_relative_to(campaign_root)
+
+
+def test_campaign_lock_path_normalizes_symlink_realpath():
+    real_root = _tmpdir("izanagi_campaign_lock_real_")
+    link_parent = _tmpdir("izanagi_campaign_lock_link_")
+    link_root = os.path.join(link_parent, "campaign")
+    os.symlink(real_root, link_root)
+
+    real_layout = CampaignLayout(root=real_root)
+    symlink_layout = CampaignLayout(root=link_root)
+    output_root = _tmpdir("izanagi_campaign_lock_symlink_output_")
+    assert campaign_lock_path(
+        real_layout, declared_use_class="official", output_root=output_root,
+    ) == campaign_lock_path(
+        symlink_layout, declared_use_class="official", output_root=output_root,
+    )
+
+
+def test_campaign_lock_helpers_use_explicit_output_root_for_each_use_class():
+    output_root = Path(_tmpdir("izanagi_campaign_lock_explicit_root_"))
+    layout = CampaignLayout(root=str(output_root / "campaigns" / "campaign"))
+    expected_lock_dir = output_root / "campaign-locks"
+
+    for declared_use_class in ("official", "exploration"):
+        lock_dir = Path(campaign_lock_dir(
+            declared_use_class, str(output_root),
+        ))
+        lock_path = Path(campaign_lock_path(
+            layout, declared_use_class, str(output_root),
+        ))
+        assert lock_dir == expected_lock_dir
+        assert lock_path.parent == expected_lock_dir
+
+
+def test_campaign_lock_path_hash_key_is_twenty_hex_chars():
+    output_root = _tmpdir("izanagi_campaign_lock_hash_output_")
+    lock_name = os.path.basename(
+        campaign_lock_path(
+            _layout(), declared_use_class="official", output_root=output_root,
+        )
+    )
+    assert lock_name.endswith(".flock")
+    key = lock_name[:-len(".flock")]
+    assert re.fullmatch(r"^[0-9a-f]{20}$", key)
 
 
 # ===== STAGE2: ビルドキャッシュキー (規律1: trace/perf 別ビルド) =====
@@ -5279,7 +5687,8 @@ def _mock_pipeline(certified=True, median=12345.0, cv=0.01, rc=0, ncommit=100,
     def fake_build_v2(genome, *, admission, build_context, source_evidence,
                       contract, ccbench_commit, trace, src_token,
                       cc, cxx, cache_root, ccbench_dir="", timeout_s=None,
-                      dependency_prefix=""):
+                      dependency_prefix="", expected_toolchain_manifest=None,
+                      declared_use_class=None):
         assert build_context is _BUILD_CONTEXT
         assert admission.as_wal_receipt()["source"] == source_evidence.as_receipt()
         bench_calls.builds.append(("v2", trace, contract.contract_sha256))
@@ -5291,11 +5700,29 @@ def _mock_pipeline(certified=True, median=12345.0, cv=0.01, rc=0, ncommit=100,
         if build_raises:
             raise RuntimeError("build boom")
         bin_sha256 = ("da" if trace else "db") * 32
+        toolchain = {
+            "cc": {"requested": cc, "realpath": f"/fixture/{cc}",
+                   "version_first_line": "cc fixture"},
+            "cxx": {"requested": cxx, "realpath": f"/fixture/{cxx}",
+                    "version_first_line": "cxx fixture"},
+            "cmake": {"requested": "cmake", "realpath": "/fixture/cmake",
+                      "version_first_line": "cmake fixture"},
+        }
+        manifest_sha256 = None
+        if expected_toolchain_manifest is not None:
+            manifest_sha256 = hashlib.sha256(
+                json.dumps(
+                    expected_toolchain_manifest, sort_keys=True,
+                    separators=(",", ":"),
+                ).encode("utf-8")
+            ).hexdigest()
         return types.SimpleNamespace(
             bin_hash=bin_sha256[:16], bin_sha256=bin_sha256,
             binary="/nonexistent/ycsb.exe", cached=build_cached,
             configure_cmd="<cfg-v2>", build_cmd="<build-v2>",
             contract_sha256=contract.contract_sha256,
+            toolchain=toolchain,
+            toolchain_manifest_sha256=manifest_sha256,
         )
 
     patch("buildcache", types.SimpleNamespace(
@@ -5303,6 +5730,7 @@ def _mock_pipeline(certified=True, median=12345.0, cv=0.01, rc=0, ncommit=100,
         is_full_sha256=buildcache.is_full_sha256,
         _ccbench_dir=buildcache._ccbench_dir,
         DEFAULT_CC=buildcache.DEFAULT_CC, DEFAULT_CXX=buildcache.DEFAULT_CXX,
+        toolchain_compilers_from_manifest=buildcache.toolchain_compilers_from_manifest,
         compilers_for_current_site=lambda: (
             site_compilers
             or (buildcache.DEFAULT_CC, buildcache.DEFAULT_CXX)
@@ -6189,6 +6617,89 @@ def test_pipeline_build_done_carries_full_and_prefix_bin_keys():
     assert p["perf_bin"] == p["perf_bin_sha256"][:16]
 
 
+def test_pipeline_v2_build_done_records_bound_toolchain_once_for_trace_and_perf():
+    expected = {
+        role: {
+            "requested": f"test-{role}",
+            "realpath": f"/fixture/test-{role}",
+            "version_first_line": f"{role} version A",
+            "version": f"{role} version A",
+        }
+        for role in ("cc", "cxx", "cmake")
+    }
+    lay = _tmp_layout()
+    with _mock_pipeline(site_compilers=("test-cc", "test-cxx")):
+        result = pipeline.evaluate(
+            Genome("silo", {"BACK_OFF": 1}), lay,
+            _AUTH_CONTRACT.env_tag, "deadbeef",
+            PerfConfig(records=1000, threads=2), clocks_per_us=1800,
+            numactl=_AUTH_CONTRACT.numactl,
+            authorization_contract=_AUTHORIZATION,
+            build_context=_BUILD_CONTEXT, do_bench=False,
+            env_contract=_AUTH_CONTRACT,
+            expected_toolchain_manifest=expected,
+            declared_use_class="official", log=lambda *_args: None,
+        )
+    assert result.certified and not result.aborted
+    done = [rec for rec in wal.read_records(lay) if rec.stage == STAGE_BUILD_DONE]
+    assert len(done) == 1
+    payload = done[0].payload
+    assert payload["toolchain"]["cc"] == {
+        "requested": "test-cc", "realpath": "/fixture/test-cc",
+        "version_first_line": "cc fixture",
+    }
+    assert payload["toolchain"]["cxx"] == {
+        "requested": "test-cxx", "realpath": "/fixture/test-cxx",
+        "version_first_line": "cxx fixture",
+    }
+    assert payload["toolchain_record_sha256"] == hashlib.sha256(
+        json.dumps(expected, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    ).hexdigest()
+    assert "toolchain_manifest_sha256" not in payload
+
+
+def test_pipeline_v2_toolchain_mismatch_aborts_before_build_done():
+    expected = {
+        role: {
+            "requested": f"test-{role}",
+            "realpath": f"/fixture/test-{role}",
+            "version_first_line": f"{role} version A",
+            "version": f"{role} version A",
+        }
+        for role in ("cc", "cxx", "cmake")
+    }
+    lay = _tmp_layout()
+    with _mock_pipeline(site_compilers=("test-cc", "test-cxx")):
+        real_build_v2 = pipeline.buildcache.build_v2
+
+        def mismatching_build_v2(genome, *, trace, **kwargs):
+            result = real_build_v2(genome, trace=trace, **kwargs)
+            if trace:
+                result.toolchain = dict(result.toolchain)
+                result.toolchain["cxx"] = dict(result.toolchain["cxx"])
+                result.toolchain["cxx"]["realpath"] = "/fixture/other-cxx"
+            return result
+
+        pipeline.buildcache.build_v2 = mismatching_build_v2
+        result = pipeline.evaluate(
+            Genome("silo", {"BACK_OFF": 1}), lay,
+            _AUTH_CONTRACT.env_tag, "deadbeef",
+            PerfConfig(records=1000, threads=2), clocks_per_us=1800,
+            numactl=_AUTH_CONTRACT.numactl,
+            authorization_contract=_AUTHORIZATION,
+            build_context=_BUILD_CONTEXT, do_bench=False,
+            env_contract=_AUTH_CONTRACT,
+            expected_toolchain_manifest=expected,
+            declared_use_class="official", log=lambda *_args: None,
+        )
+    assert result.aborted and not result.certified
+    records = wal.read_records(lay)
+    assert not any(rec.stage == STAGE_BUILD_DONE for rec in records)
+    abort = [rec for rec in records if rec.stage == STAGE_ABORT]
+    assert len(abort) == 1
+    assert abort[0].payload["error"] == "trace/perf toolchain binding mismatch"
+
+
 def test_pipeline_perf_sha_gate_mismatch_aborts_before_trace_and_bench():
     """A-1 positive control: expected_perf_sha256 が perf バイナリと不一致なら、trace/bench を
     一度も起動せず bench-binary-mismatch で abort。payload に expected/actual/path が載る。"""
@@ -6363,6 +6874,7 @@ def test_m18_throughput_producer_refuses_before_measure_point():
                 PerfConfig(records=1000, threads=2),
                 1800, None, False, lay, "variant", "test-env",
                 lambda *args, **kwargs: None,
+                build_attempt_id="test-attempt",
             )
         except buildcache.BuildError:
             pass
@@ -9593,10 +10105,8 @@ def test_exploration_output_root_env_precedence_and_official_isolation():
         assert os.path.dirname(os.path.dirname(second.root)) == os.path.join(
             external, "exploration",
         )
-        official = campaign_layout("official-isolated")
-        assert official.root == os.path.join(
-            saved_repo_output_root(), "campaigns", "official-isolated",
-        )
+        with pytest.raises(ValueError, match="official output_root"):
+            campaign_layout("official-isolated")
 
         os.environ[layout_module._EXPLORATION_OUTPUT_ROOT_ENV] = ""
         explicit = "legacy-relative-explicit-root"
@@ -9613,6 +10123,118 @@ def test_exploration_output_root_env_precedence_and_official_isolation():
             os.environ.pop(layout_module._EXPLORATION_OUTPUT_ROOT_ENV, None)
         else:
             os.environ[layout_module._EXPLORATION_OUTPUT_ROOT_ENV] = saved_env
+
+
+def test_official_output_root_requires_external_root_and_supports_env(tmp_path):
+    """Official roots fail closed when unset and resolve only a validated env root."""
+    env_name = layout_module._OFFICIAL_OUTPUT_ROOT_ENV
+    layout_module._reset_official_output_root_pin_for_tests()
+    try:
+        os.environ.pop(env_name, None)
+        with pytest.raises(ValueError, match="official output_root"):
+            campaign_layout("official-missing-root")
+
+        external = tmp_path / "official-output"
+        os.environ[env_name] = str(external)
+        first = campaign_layout("official-env-root")
+        assert first.root == str(external / "campaigns" / "official-env-root")
+        assert Path(first.root).parent.parent == external.resolve()
+    finally:
+        layout_module._reset_official_output_root_pin_for_tests()
+
+
+def test_official_output_root_explicit_value_is_validated_and_suffixes_are_not_exempt(
+        tmp_path,
+):
+    """Explicit roots and campaigns/env suffixes go through the same external gate."""
+    repository = Path(layout_module.repo_output_root())
+    with pytest.raises(ValueError, match="official output_root"):
+        campaign_layout("official-repo-explicit", output_root=str(repository))
+    with pytest.raises(ValueError, match="official output_root"):
+        campaign_layout(
+            "official-repo-campaigns", output_root=str(repository / "campaigns"),
+        )
+    with pytest.raises(ValueError, match="official output_root"):
+        campaign_layout(
+            "official-repo-env", output_root=str(repository / "env"),
+        )
+
+    suffix_root = tmp_path / "suffix-target"
+    suffix_root.mkdir()
+    (suffix_root / "campaigns").symlink_to(tmp_path, target_is_directory=True)
+    with pytest.raises(ValueError, match="symlink component"):
+        campaign_layout("official-suffix-symlink", output_root=str(suffix_root))
+
+
+def test_official_output_root_rejects_unsafe_values(tmp_path):
+    """Official resolver mirrors the exploration symlink, dotdot, git, uid, and worktree gates."""
+    env_name = layout_module._OFFICIAL_OUTPUT_ROOT_ENV
+    layout_module._reset_official_output_root_pin_for_tests()
+
+    def rejected(value, *, match="official output_root"):
+        os.environ[env_name] = os.fspath(value)
+        with pytest.raises(ValueError, match=match):
+            campaign_layout("official-unsafe")
+
+    try:
+        rejected("")
+        rejected("relative/output")
+        rejected(tmp_path / "missing" / ".." / "resolved")
+
+        repository = Path(layout_module.repo_output_root()).parent
+        rejected(repository / "output")
+
+        foreign_repo = tmp_path / "foreign-repo"
+        (foreign_repo / ".git").mkdir(parents=True)
+        rejected(foreign_repo / "output")
+
+        symlink_target = tmp_path / "symlink-target"
+        symlink_parent = tmp_path / "symlink-parent"
+        symlink_parent.mkdir()
+        (symlink_parent / "base-link").symlink_to(
+            symlink_target, target_is_directory=True,
+        )
+        rejected(symlink_parent / "base-link")
+
+        non_directory = tmp_path / "not-a-directory"
+        non_directory.write_text("fixture\n", encoding="utf-8")
+        rejected(non_directory)
+
+        foreign_owner = tmp_path / "foreign-owner"
+        foreign_owner.mkdir()
+        saved_effective_uid = layout_module._effective_uid
+        layout_module._effective_uid = lambda: foreign_owner.stat().st_uid + 1
+        try:
+            rejected(foreign_owner)
+        finally:
+            layout_module._effective_uid = saved_effective_uid
+
+        container = tmp_path / ".codex" / "worktrees" / "wave" / "official"
+        rejected(container, match="worktree container")
+    finally:
+        layout_module._reset_official_output_root_pin_for_tests()
+
+
+def test_official_output_root_process_pin_rejects_drift(tmp_path):
+    """Env-derived official roots are pinned for the process lifetime."""
+    env_name = layout_module._OFFICIAL_OUTPUT_ROOT_ENV
+    first = tmp_path / "official-pin-first"
+    second = tmp_path / "official-pin-second"
+    layout_module._reset_official_output_root_pin_for_tests()
+    try:
+        os.environ[env_name] = str(first)
+        assert layout_module._resolve_official_output_root() == str(first.resolve())
+        os.environ[env_name] = str(second)
+        with pytest.raises(ValueError, match="process 内で変更"):
+            layout_module._resolve_official_output_root()
+
+        layout_module._reset_official_output_root_pin_for_tests()
+        assert layout_module._resolve_official_output_root() == str(second.resolve())
+        os.environ.pop(env_name)
+        with pytest.raises(ValueError, match="process 内で変更"):
+            layout_module._resolve_official_output_root()
+    finally:
+        layout_module._reset_official_output_root_pin_for_tests()
 
 
 def test_exploration_output_root_env_rejects_unsafe_values():
@@ -9689,6 +10311,24 @@ def test_exploration_output_root_env_rejects_unsafe_values():
             os.environ.pop(env_name, None)
         else:
             os.environ[env_name] = saved_env
+
+
+def test_exploration_output_root_env_resolves_worktree_container_before_ensure(
+        tmp_path, monkeypatch,
+):
+    """D158: exploration は resolve 時でなく ensure 時に worktree を拒否する。"""
+    worktree_container = tmp_path / ".codex" / "worktrees" / "wave"
+    monkeypatch.setenv(
+        layout_module._EXPLORATION_OUTPUT_ROOT_ENV,
+        os.fspath(worktree_container),
+    )
+    layout_module._reset_exploration_output_root_pin_for_tests()
+    try:
+        assert layout_module._resolve_exploration_output_root() == str(
+            worktree_container.resolve()
+        )
+    finally:
+        layout_module._reset_exploration_output_root_pin_for_tests()
 
 
 def test_exploration_output_root_env_process_pin_rejects_drift():
@@ -10488,8 +11128,18 @@ _FAKE_TRANSACTION_CC = (
     "  void writePhase() {}\n"
     "};\n")
 
-# T-755 の trace-hook 専用 mocc 編集面。実ソースの条件マクロに依存しない最小 TU。
-_FAKE_MOCC_TRANSACTION_CC = "int mocc_transaction_fixture = 0;\n"
+# T-755 の trace-hook 専用 mocc 編集面。source owner 分離・裸 option・非対称
+# cache 名を同時に通す最小 TU。
+_FAKE_MOCC_TRANSACTION_CC = (
+    "#ifdef RWLOCK\n"
+    "int mocc_rwlock_fixture = 1;\n"
+    "#endif\n"
+    "#ifdef DLR1\n"
+    "int mocc_dlr1_fixture = 1;\n"
+    "#endif\n"
+    "#if INLINE_VERSION_OPT == 17\n"
+    "int mocc_inline_fixture = 17;\n"
+    "#endif\n")
 
 
 # 実 CMake の構造 (cmake/Options.cmake の供給表 + cc/<protocol>/CMakeLists.txt の OPTIONS) を
@@ -10499,7 +11149,9 @@ _FAKE_MOCC_TRANSACTION_CC = "int mocc_transaction_fixture = 0;\n"
 # と同じ役回りで、乖離マクロの回帰検査に使う。
 _FAKE_OPTIONS_CMAKE = (
     'set(CCBENCH_BACK_OFF 1 CACHE STRING "exponential backoff")\n'
+    'set(CCBENCH_WAL 0 CACHE STRING "silo fixture")\n'
     'set(CCBENCH_DEBUG_MSG 0 CACHE STRING "oze only — not supplied to silo TUs")\n'
+    'set(CCBENCH_INLINE_VERSION_OPT_X 17 CACHE STRING "asymmetric fixture")\n'
     "function(ccbench_universal_definitions out_var)\n"
     "  set(${out_var}\n"
     "    BACK_OFF=${CCBENCH_BACK_OFF}\n"
@@ -10511,6 +11163,15 @@ _FAKE_SILO_CMAKE = (
     "  WORKLOADS ycsb\n"
     "  OPTIONS\n"
     "    WAL=${CCBENCH_WAL}\n"
+    ")\n")
+_FAKE_MOCC_CMAKE = (
+    "ccbench_add_protocol(mocc\n"
+    "  SOURCES transaction.cc util.cc lock.cc\n"
+    "  WORKLOADS ycsb tpcc bomb sbomb\n"
+    "  OPTIONS\n"
+    "    RWLOCK\n"
+    "    DLR1\n"
+    "    INLINE_VERSION_OPT=${CCBENCH_INLINE_VERSION_OPT_X}\n"
     ")\n")
 
 
@@ -10525,6 +11186,8 @@ def _fake_ccbench_repo():
         f.write(_FAKE_OPTIONS_CMAKE)
     with open(os.path.join(sub, "cc", "silo", "CMakeLists.txt"), "w", encoding="utf-8") as f:
         f.write(_FAKE_SILO_CMAKE)
+    with open(os.path.join(sub, "cc", "mocc", "CMakeLists.txt"), "w", encoding="utf-8") as f:
+        f.write(_FAKE_MOCC_CMAKE)
     with open(os.path.join(sub, "include", "backoff.hh"), "w", encoding="utf-8") as f:
         f.write(_FAKE_BACKOFF_HH)
     with open(os.path.join(sub, "cc", "silo", "transaction.cc"), "w", encoding="utf-8") as f:
@@ -10544,6 +11207,185 @@ def _fake_ccbench_repo():
     git("commit", "-q", "-m", "stock")
     head = git("rev-parse", "HEAD").strip()
     return sub, head, git
+
+
+def test_source_digest_source_protocol_registry_is_exact_and_unknown_is_runtime_error():
+    """source owner の drift と未知 path は KeyError にせず variant 単位で停止する。"""
+    assert tuple(source_digest.EVOLVE_BLOCK_SOURCE_PROTOCOLS) == source_digest.EVOLVE_BLOCK_SOURCES
+    g = Genome("silo", {})
+    try:
+        source_digest._source_protocol("cc/unknown/transaction.cc", g)
+        assert False, "未知 source は RuntimeError で停止すべき"
+    except RuntimeError as exc:
+        assert "未知 source" in str(exc)
+    with unittest_mock.patch.dict(
+            source_digest.EVOLVE_BLOCK_SOURCE_PROTOCOLS,
+            {"cc/extra/transaction.cc": "extra"}, clear=False):
+        try:
+            source_digest._source_protocol("include/backoff.hh", g)
+            assert False, "source owner registry の余分な key は exact-match で停止すべき"
+        except RuntimeError as exc:
+            assert "不一致" in str(exc)
+
+
+def test_source_digest_real_mocc_resolve_succeeds_with_source_owned_defines():
+    """実 mocc positive control:裸 RWLOCK と MQLOCK absent registry を実 source で通す。"""
+    cxx = _any_cxx()
+    _require_ccbench_file("cmake/Options.cmake")
+    _require_ccbench_file("include/backoff.hh")
+    _require_ccbench_file("cc/silo/transaction.cc")
+    _require_ccbench_file("cc/mocc/CMakeLists.txt")
+    _require_ccbench_file("cc/mocc/transaction.cc")
+    sub = buildcache._ccbench_dir()
+    head = _ccbench_head_or_skip()
+    assert head is not None, "init 済み ccbench の HEAD を解決できない (skip に化けてはいけない)"
+    g = Genome("mocc", {})
+    defines = source_digest._worktree_defines(sub, g, "cc/mocc/transaction.cc")
+    assert defines.get("RWLOCK") == "1", "mocc の裸 OPTIONS RWLOCK が -DRWLOCK=1 に反映されていない"
+    source_digest.assert_conditional_macros_covered(g, sub, cxx)
+    token = source_digest.resolve(g, head, sub, cxx)
+    # clean stock checkout では HEAD roundtrip も同時に固定する。template patch
+    # 適用中の共有 checkout では、resolve 成功と供給表検査だけを受け入れる。
+    if "EVOLVE-BLOCK-BEGIN" not in source_digest._read(
+            os.path.join(sub, "include", "backoff.hh")):
+        assert token == source_digest.STOCK
+        assert source_digest.compute(g, sub, cxx) == source_digest.baseline(g, head, sub, cxx)
+
+
+def test_source_digest_real_silo_resolve_succeeds_after_source_protocol_split():
+    """実 silo 回帰: silo source と mocc source に各 owner の供給表を適用する。"""
+    cxx = _any_cxx()
+    for rel in (
+            "cmake/Options.cmake", "include/backoff.hh", "cc/silo/CMakeLists.txt",
+            "cc/silo/transaction.cc", "cc/mocc/CMakeLists.txt", "cc/mocc/transaction.cc"):
+        _require_ccbench_file(rel)
+    sub = buildcache._ccbench_dir()
+    head = _ccbench_head_or_skip()
+    assert head is not None, "init 済み ccbench の HEAD を解決できない (skip に化けてはいけない)"
+    g = Genome("silo", {
+        "BACK_OFF": 1,
+        "NO_WAIT_LOCKING_IN_VALIDATION": 1,
+        "NO_WAIT_OF_TICTOC": 0,
+        "WAL": 0,
+    })
+    source_digest.assert_conditional_macros_covered(g, sub, cxx)
+    token = source_digest.resolve(g, head, sub, cxx)
+    if "EVOLVE-BLOCK-BEGIN" not in source_digest._read(
+            os.path.join(sub, "include", "backoff.hh")):
+        assert token == source_digest.STOCK
+        assert source_digest.compute(g, sub, cxx) == source_digest.baseline(g, head, sub, cxx)
+
+
+def test_source_digest_parse_bare_asymmetric_options_and_malformed_scope():
+    """裸/KV option の positive と OPTIONS 範囲外・括弧不整合の fails-closed。"""
+    cxx = _any_cxx()
+    sub, head, _git = _fake_ccbench_repo()
+    supplied = source_digest.parse_supplied_macros(_FAKE_OPTIONS_CMAKE, _FAKE_MOCC_CMAKE)
+    assert {"BACK_OFF", "RWLOCK", "DLR1", "INLINE_VERSION_OPT"} <= supplied
+    for name in ("SOURCES", "WORKLOADS", "mocc", "transaction", "ycsb", "INLINE_VERSION_OPT_X"):
+        assert name not in supplied, name
+    g = Genome("mocc", {})
+    mocc_defines = source_digest._worktree_defines(sub, g, "cc/mocc/transaction.cc")
+    silo_defines = source_digest._worktree_defines(sub, g, "cc/silo/transaction.cc")
+    assert mocc_defines["RWLOCK"] == "1" and mocc_defines["DLR1"] == "1"
+    assert mocc_defines["INLINE_VERSION_OPT"] == "17"
+    assert "INLINE_VERSION_OPT_X" not in mocc_defines
+    assert "RWLOCK" not in silo_defines and silo_defines["WAL"] == "0"
+    assert source_digest.resolve(g, head, sub, cxx) == source_digest.STOCK
+    source_digest.assert_trace_diff_matches_head(g, head, sub, cxx)
+
+    unbalanced = _FAKE_MOCC_CMAKE.rstrip().rstrip(")") + "\n"
+    try:
+        source_digest.parse_supplied_macros(_FAKE_OPTIONS_CMAKE, unbalanced)
+        assert False, "OPTIONS 呼び出しの閉じ括弧欠落は停止すべき"
+    except RuntimeError as exc:
+        assert "括弧" in str(exc)
+
+    # A source/workload token with an option-like name remains outside the
+    # OPTIONS range and is not a supplied macro.  An assignment-shaped token
+    # outside that range is structurally ambiguous and must stop.
+    scoped = (
+        "ccbench_add_protocol(mocc SOURCES INLINE_VERSION_OPT WORKLOADS ycsb "
+        "OPTIONS RWLOCK)\n")
+    scoped_names = source_digest.parse_supplied_macros(_FAKE_OPTIONS_CMAKE, scoped)
+    assert "INLINE_VERSION_OPT" not in scoped_names
+    malformed_scope = (
+        "ccbench_add_protocol(mocc SOURCES transaction.cc "
+        "INLINE_VERSION_OPT=${CCBENCH_INLINE_VERSION_OPT_X} "
+        "WORKLOADS ycsb OPTIONS RWLOCK)\n")
+    try:
+        source_digest.parse_supplied_macros(_FAKE_OPTIONS_CMAKE, malformed_scope)
+        assert False, "OPTIONS 範囲外の供給形 token は停止すべき"
+    except RuntimeError as exc:
+        assert "OPTIONS 外" in str(exc)
+
+
+def test_source_digest_proven_absent_macro_registry_self_checks_supply_sources():
+    """MQLOCK は参照だけなら通るが、bare OPTIONS/#define 出現で registry stale を検知する。"""
+    real_sub = buildcache._ccbench_dir()
+    _require_ccbench_file("cc/mocc/transaction.cc")
+    assert source_digest._assert_proven_repo_absent_macros(real_sub) == (
+        source_digest.PROVEN_REPO_ABSENT_MACROS)
+
+    sub, _head, _git = _fake_ccbench_repo()
+    mocc_src = os.path.join(sub, "cc", "mocc", "transaction.cc")
+    with open(mocc_src, "a", encoding="utf-8") as f:
+        f.write("#ifdef MQLOCK\nint mqlock_reference_only;\n#endif\n")
+    assert source_digest._assert_proven_repo_absent_macros(sub) == (
+        source_digest.PROVEN_REPO_ABSENT_MACROS)
+
+    sub, _head, _git = _fake_ccbench_repo()
+    with open(os.path.join(sub, "cc", "mocc", "CMakeLists.txt"), "a", encoding="utf-8") as f:
+        f.write(
+            '\ntarget_compile_definitions(mocc_extra PRIVATE '
+            '"$<INSTALL_INTERFACE:UNRELATED_FLAG=1>")\n'
+        )
+    assert source_digest._assert_proven_repo_absent_macros(sub) == (
+        source_digest.PROVEN_REPO_ABSENT_MACROS)
+
+    sub, _head, _git = _fake_ccbench_repo()
+    with open(os.path.join(sub, "cc", "mocc", "CMakeLists.txt"), "a", encoding="utf-8") as f:
+        f.write(
+            '\ntarget_compile_definitions(mocc_extra PRIVATE '
+            '"$<$<CONFIG:Debug>:MQLOCK>")\n'
+        )
+    try:
+        source_digest._assert_proven_repo_absent_macros(sub)
+        assert False, "MQLOCK を含む generator expression で停止すべき"
+    except RuntimeError as exc:
+        assert "CMake supply" in str(exc)
+        assert "stale" in str(exc) or "静的な供給元を確定できない" in str(exc)
+
+    sub, _head, _git = _fake_ccbench_repo()
+    with open(os.path.join(sub, "cc", "mocc", "CMakeLists.txt"), "a", encoding="utf-8") as f:
+        f.write("\n# stale supply case is intentionally live\n")
+        f.write("ccbench_add_protocol(mocc_extra SOURCES x.cc WORKLOADS ycsb OPTIONS MQLOCK)\n")
+    try:
+        source_digest._assert_proven_repo_absent_macros(sub)
+        assert False, "bare OPTIONS MQLOCK で registry stale を検知すべき"
+    except RuntimeError as exc:
+        assert "stale" in str(exc) and "CMake supply" in str(exc)
+
+    sub, _head, _git = _fake_ccbench_repo()
+    with open(os.path.join(sub, "cc", "mocc", "transaction.cc"), "a", encoding="utf-8") as f:
+        f.write("#define MQLOCK 1\n")
+    try:
+        source_digest._assert_proven_repo_absent_macros(sub)
+        assert False, "#define MQLOCK で registry stale を検知すべき"
+    except RuntimeError as exc:
+        assert "stale" in str(exc) and "#define MQLOCK" in str(exc)
+
+    sub, _head, _git = _fake_ccbench_repo()
+    with open(os.path.join(sub, "cc", "mocc", "CMakeLists.txt"), "a", encoding="utf-8") as f:
+        f.write(
+            '\nset_target_properties(mocc_extra PROPERTIES '
+            'COMPILE_DEFINITIONS "FOO;MQLOCK")\n'
+        )
+    try:
+        source_digest._assert_proven_repo_absent_macros(sub)
+        assert False, "semicolon-list COMPILE_DEFINITIONS MQLOCK で registry stale を検知すべき"
+    except RuntimeError as exc:
+        assert "stale" in str(exc) and "CMake supply" in str(exc)
 
 
 def test_source_digest_builtin_ifdef_not_aliased_to_stock():
@@ -10912,7 +11754,7 @@ def test_source_digest_read_failure_is_runtime_error():
     sub, _head, _git = _fake_ccbench_repo()
     os.remove(os.path.join(sub, "cc", "silo", "CMakeLists.txt"))
     try:
-        source_digest._worktree_defines(sub, g)
+        source_digest._worktree_defines(sub, g, "cc/silo/transaction.cc")
         assert False, "protocol CMakeLists 不在で停止すべき"
     except RuntimeError as e:
         assert "CMakeLists.txt" in str(e)
@@ -10932,7 +11774,7 @@ def test_source_digest_defines_match_real_tu_supply():
     supplied = source_digest.parse_supplied_macros(_FAKE_OPTIONS_CMAKE, _FAKE_SILO_CMAKE)
     assert "BACK_OFF" in supplied and "WAL" in supplied     # universal + protocol OPTIONS
     assert "DEBUG_MSG" not in supplied                       # CACHE には居るが TU 非供給
-    defines = source_digest._worktree_defines(sub, g)
+    defines = source_digest._worktree_defines(sub, g, "cc/silo/transaction.cc")
     assert "DEBUG_MSG" not in defines, "TU 非供給マクロが digest の -D に残っている"
     assert defines.get("Linux") == "1", "実 TU の -DLinux が digest に無い"
     # 非供給マクロの definedness テストは未知マクロとして停止する (両環境の枝逆転を沈黙させない)

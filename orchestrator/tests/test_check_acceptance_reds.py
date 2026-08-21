@@ -1092,6 +1092,133 @@ def test_ignored_artifact_from_node_fails_closed(
     assert list(probe_root.iterdir()) == []
 
 
+def test_ignored_artifact_diagnostic_includes_path(
+    tmp_path: Path,
+    committed_repo: tuple[Path, str, Path],
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    repo, tested_main, probe_root = committed_repo
+    log = _write_log(
+        tmp_path, _summary_log((("FAILED", _NON_ATTRIBUTABLE),))
+    )
+
+    def contaminate(worktree: Path, _nodeid: str) -> int:
+        cache = worktree / "__pycache__"
+        cache.mkdir()
+        (cache / "marker.pyc").write_bytes(b"pollution")
+        return 1
+
+    assert CAR.main(
+        _arguments(log, tested_main, tmp_path / "receipt.json", probe_root),
+        repo_root=repo,
+        node_runner=contaminate,
+    ) == 2
+    captured = capsys.readouterr()
+    assert "probe worktree is not clean, including ignored files" in captured.err
+    assert "__pycache__" in captured.err
+    assert list(probe_root.iterdir()) == []
+
+
+def test_ignored_artifact_diagnostic_includes_multiple_paths(
+    tmp_path: Path,
+    committed_repo: tuple[Path, str, Path],
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    repo, tested_main, probe_root = committed_repo
+    log = _write_log(
+        tmp_path, _summary_log((("FAILED", _NON_ATTRIBUTABLE),))
+    )
+
+    def contaminate(worktree: Path, _nodeid: str) -> int:
+        first_cache = worktree / "__pycache__"
+        first_cache.mkdir()
+        (first_cache / "marker.pyc").write_bytes(b"pollution")
+        second_cache = worktree / "orchestrator" / "campaign" / "__pycache__"
+        second_cache.mkdir(parents=True)
+        (second_cache / "marker.pyc").write_bytes(b"pollution")
+        return 1
+
+    assert CAR.main(
+        _arguments(log, tested_main, tmp_path / "receipt.json", probe_root),
+        repo_root=repo,
+        node_runner=contaminate,
+    ) == 2
+    captured = capsys.readouterr()
+    assert "!! __pycache__/" in captured.err
+    assert "!! orchestrator/campaign/__pycache__/" in captured.err
+    assert list(probe_root.iterdir()) == []
+
+
+@pytest.mark.parametrize("entry_count", [64, 65])
+def test_ignored_artifact_diagnostic_record_limit(
+    tmp_path: Path,
+    committed_repo: tuple[Path, str, Path],
+    capsys: pytest.CaptureFixture[str],
+    entry_count: int,
+) -> None:
+    repo, tested_main, probe_root = committed_repo
+    log = _write_log(
+        tmp_path, _summary_log((("FAILED", _NON_ATTRIBUTABLE),))
+    )
+
+    def contaminate(worktree: Path, _nodeid: str) -> int:
+        for index in range(entry_count):
+            cache = worktree / f"dirty-{index:03d}" / "__pycache__"
+            cache.mkdir(parents=True)
+            (cache / "marker.pyc").write_bytes(b"pollution")
+        return 1
+
+    assert CAR.main(
+        _arguments(log, tested_main, tmp_path / "receipt.json", probe_root),
+        repo_root=repo,
+        node_runner=contaminate,
+    ) == 2
+    captured = capsys.readouterr()
+    if entry_count == 64:
+        assert "truncated" not in captured.err
+    else:
+        assert "showing 64 of 65 entries, truncated" in captured.err
+    assert list(probe_root.iterdir()) == []
+
+
+def test_ignored_artifact_diagnostic_byte_limit(
+    tmp_path: Path,
+    committed_repo: tuple[Path, str, Path],
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    repo, tested_main, probe_root = committed_repo
+    log = _write_log(
+        tmp_path, _summary_log((("FAILED", _NON_ATTRIBUTABLE),))
+    )
+    entry_count = 40
+    assert entry_count < 64
+
+    def contaminate(worktree: Path, _nodeid: str) -> int:
+        for index in range(entry_count):
+            directory = f"dirty-{index:02d}-" + ("x" * 190)
+            cache = worktree / directory / "__pycache__"
+            cache.mkdir(parents=True)
+            (cache / "marker.pyc").write_bytes(b"pollution")
+        return 1
+
+    assert CAR.main(
+        _arguments(log, tested_main, tmp_path / "receipt.json", probe_root),
+        repo_root=repo,
+        node_runner=contaminate,
+    ) == 2
+    captured = capsys.readouterr()
+    summary = next(
+        line for line in captured.err.splitlines() if line.startswith("showing ")
+    )
+    fields = summary.split()
+    shown = int(fields[1])
+    assert fields == [
+        "showing", str(shown), "of", str(entry_count), "entries,", "truncated"
+    ]
+    assert 0 < shown < 64
+    assert list(probe_root.iterdir()) == []
+
+
 @pytest.mark.skipif(not hasattr(signal, "SIGTERM"), reason="SIGTERM unavailable")
 def test_sigterm_cleans_active_probe_before_nonzero_exit(
     tmp_path: Path, committed_repo: tuple[Path, str, Path]

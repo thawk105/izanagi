@@ -7,9 +7,11 @@
 """
 from __future__ import annotations
 
+import json
 from typing import Any, Dict, List
 
 from .model import Anomaly, CycleEdge, EdgeReason, VerifyResult
+from .parse import SortPermutationViolation, TxnFramingViolation
 
 
 def _reason_to_dict(r: EdgeReason) -> Dict[str, Any]:
@@ -39,6 +41,58 @@ def _anomaly_to_dict(a: Anomaly) -> Dict[str, Any]:
     }
 
 
+def _framing_violation_to_dict(v: TxnFramingViolation) -> Dict[str, Any]:
+    return {
+        "kind": v.kind,
+        "txid": v.txid,
+        "expected_reads": v.expected_reads,
+        "observed_reads": v.observed_reads,
+        "expected_writes": v.expected_writes,
+        "observed_writes": v.observed_writes,
+    }
+
+
+def _permutation_violation_to_dict(
+        v: SortPermutationViolation,
+) -> Dict[str, Any]:
+    """Return only typed observation data and the non-authoritative thread hint."""
+    observation = v.observation
+    return {
+        "observation": {
+            "kind": observation.kind,
+            "size_preserved": observation.size_preserved,
+            "rcdptr_multiset_preserved": observation.rcdptr_multiset_preserved,
+            "recognized": observation.recognized,
+        },
+        "source_thread_hint": v.source_thread_hint,
+        "source_thread_hint_basis": v.source_thread_hint_basis,
+    }
+
+
+def _permutation_violation_details_to_dict(
+        violations: List[SortPermutationViolation],
+) -> Dict[str, Any]:
+    kinds = ("size-changed", "rcdptr-set-changed", "unknown")
+    counts = {kind: 0 for kind in kinds}
+    sample: List[Dict[str, Any]] = []
+    unknown_reason_sample: List[str] = []
+    for violation in violations:
+        kind = violation.observation.kind
+        if kind not in counts:
+            kind = "unknown"
+        counts[kind] += 1
+        if len(sample) < 5:
+            sample.append(_permutation_violation_to_dict(violation))
+        if kind == "unknown" and len(unknown_reason_sample) < 5:
+            unknown_reason_sample.append(
+                json.dumps(violation.raw_reason, ensure_ascii=True))
+    return {
+        "counts": counts,
+        "sample": sample,
+        "unknown_reason_sample": unknown_reason_sample,
+    }
+
+
 def result_to_dict(res: VerifyResult) -> Dict[str, Any]:
     return {
         "trace_dir": res.trace_dir,
@@ -65,9 +119,16 @@ def result_to_dict(res: VerifyResult) -> Dict[str, Any]:
             "write_version_mismatch": res.integrity.write_version_mismatch,
             "malformed_keys": res.integrity.malformed_keys,
             "framing_violations": res.integrity.framing_violations,
+            "framing_violation_details": [
+                _framing_violation_to_dict(v)
+                for v in res.integrity.framing_violation_details
+            ],
             "lock_coverage_violations": res.integrity.lock_coverage_violations,
             "write_intent_violations": res.integrity.write_intent_violations,
             "permutation_violations": res.integrity.permutation_violations,
+            "permutation_violation_details": _permutation_violation_details_to_dict(
+                res.integrity.permutation_violation_details,
+            ),
             "notes": res.integrity.notes,
         },
         "anomaly_count": len(res.anomalies),

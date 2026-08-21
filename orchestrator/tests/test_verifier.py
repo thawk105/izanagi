@@ -6,6 +6,7 @@ pytest でも、素の `python orchestrator/tests/test_verifier.py` でも走る
 """
 from __future__ import annotations
 
+from collections import Counter
 import json
 import os
 import sys
@@ -206,6 +207,16 @@ def _tmp_trace(*files: str) -> str:
     return d
 
 
+def _tmp_trace_files(files: dict[str, str]) -> str:
+    """一時 trace dir を作る。filename は canonical/non-canonical を保持する。"""
+    import tempfile
+    d = tempfile.mkdtemp(prefix="izanagi_trace_")
+    for filename, content in files.items():
+        with open(os.path.join(d, filename), "w") as f:
+            f.write(content)
+    return d
+
+
 _V2_FIXTURE_FILES = (
     "g1_serial/trace_0.log",
     "g2_rmw_chain/trace_0.log",
@@ -317,6 +328,24 @@ def test_declared_read_and_write_counts_must_match():
         assert res.verdict == "indeterminate"
         assert res.certified is False
         assert result_to_dict(res)["integrity"]["framing_violations"] == 2
+        assert result_to_dict(res)["integrity"]["framing_violation_details"] == [
+            {
+                "kind": "count-mismatch",
+                "txid": 0,
+                "expected_reads": 1,
+                "observed_reads": 0,
+                "expected_writes": 0,
+                "observed_writes": 0,
+            },
+            {
+                "kind": "count-mismatch",
+                "txid": 1,
+                "expected_reads": 0,
+                "observed_reads": 0,
+                "expected_writes": 1,
+                "observed_writes": 0,
+            },
+        ]
         assert "framing_violations=2" in render_text(res)
     finally:
         shutil.rmtree(d, ignore_errors=True)
@@ -333,6 +362,16 @@ def test_missing_end_is_indeterminate():
         assert res.serializable is True
         assert res.verdict == "indeterminate"
         assert res.certified is False
+        assert result_to_dict(res)["integrity"]["framing_violation_details"] == [
+            {
+                "kind": "missing-end",
+                "txid": 0,
+                "expected_reads": 0,
+                "observed_reads": 0,
+                "expected_writes": 0,
+                "observed_writes": 0,
+            },
+        ]
     finally:
         shutil.rmtree(d, ignore_errors=True)
 
@@ -348,6 +387,16 @@ def test_duplicate_end_is_indeterminate():
         assert res.integrity.framing_violations == 1
         assert res.verdict == "indeterminate"
         assert res.certified is False
+        assert result_to_dict(res)["integrity"]["framing_violation_details"] == [
+            {
+                "kind": "duplicate-end",
+                "txid": 0,
+                "expected_reads": None,
+                "observed_reads": None,
+                "expected_writes": None,
+                "observed_writes": None,
+            },
+        ]
     finally:
         shutil.rmtree(d, ignore_errors=True)
 
@@ -820,6 +869,107 @@ def test_permutation_violation_between_txn_blocks():
         shutil.rmtree(d, ignore_errors=True)
 
 
+def test_permutation_violation_details_follow_parse_verify_report_path():
+    """P-only の複数 trace file、重複 reason、未知 token、非 canonical 名を
+    parse -> verify -> result_to_dict の実経路で突き合わせる。"""
+    import shutil
+    d = _tmp_trace_files({
+        "trace_0.log": "P size-changed\nP size-changed\n",
+        "trace_worker.log": "P rcdptr-set-changed\nP not-a-known-code\n",
+    })
+    try:
+        raw_tokens = [
+            "size-changed", "size-changed",
+            "rcdptr-set-changed", "not-a-known-code",
+        ]
+        _txns, issues = parse_trace_dir(d)
+        assert _txns == []
+        assert [v.raw_reason for v in issues.permutation_violation_details] == raw_tokens
+        assert [
+            (v.source_thread_hint, v.source_thread_hint_basis)
+            for v in issues.permutation_violation_details
+        ] == [
+            (0, "canonical-filename"),
+            (0, "canonical-filename"),
+            (None, None),
+            (None, None),
+        ]
+
+        res = verify_trace_dir(d)
+        payload = result_to_dict(res)
+        details = payload["integrity"]["permutation_violation_details"]
+        expected_counts = Counter(
+            token if token in {"size-changed", "rcdptr-set-changed"}
+            else "unknown"
+            for token in raw_tokens
+        )
+        assert details["counts"] == {
+            "size-changed": expected_counts["size-changed"],
+            "rcdptr-set-changed": expected_counts["rcdptr-set-changed"],
+            "unknown": expected_counts["unknown"],
+        }
+        assert sum(details["counts"].values()) == res.integrity.permutation_violations
+        assert details["unknown_reason_sample"] == [
+            json.dumps("not-a-known-code", ensure_ascii=True),
+        ]
+        assert len(details["sample"]) <= 5
+        assert all(
+            set(item) == {
+                "observation", "source_thread_hint", "source_thread_hint_basis",
+            }
+            for item in details["sample"]
+        )
+        assert details["sample"][0]["observation"] == {
+            "kind": "size-changed",
+            "size_preserved": False,
+            "rcdptr_multiset_preserved": "NOT_EVALUATED",
+            "recognized": True,
+        }
+        assert "raw_reason" not in details["sample"][0]
+        assert "raw_reason_escaped" not in details["sample"][0]
+        assert details["sample"][2]["observation"] == {
+            "kind": "rcdptr-set-changed",
+            "size_preserved": True,
+            "rcdptr_multiset_preserved": False,
+            "recognized": True,
+        }
+        assert details["sample"][2]["source_thread_hint"] is None
+        assert details["sample"][2]["source_thread_hint_basis"] is None
+    finally:
+        shutil.rmtree(d, ignore_errors=True)
+
+
+def test_permutation_violation_details_bound_large_known_sample():
+    """既知 reason の大量 P 行は件数を保ち、外部 sample だけを bounded にする。"""
+    import shutil
+    count = 32
+    d = _tmp_trace_files({
+        "trace_7.log": "\n".join(["P size-changed"] * count) + "\n",
+    })
+    try:
+        _txns, issues = parse_trace_dir(d)
+        assert len(issues.permutation_violations) == count
+        assert len(issues.permutation_violation_details) == count
+        res = verify_trace_dir(d)
+        payload = result_to_dict(res)
+        details = payload["integrity"]["permutation_violation_details"]
+        assert details["counts"] == {
+            "size-changed": count,
+            "rcdptr-set-changed": 0,
+            "unknown": 0,
+        }
+        assert sum(details["counts"].values()) == res.integrity.permutation_violations
+        assert len(details["sample"]) <= 5
+        assert details["unknown_reason_sample"] == []
+        assert all(
+            item["source_thread_hint"] == 7
+            and item["source_thread_hint_basis"] == "canonical-filename"
+            for item in details["sample"]
+        )
+    finally:
+        shutil.rmtree(d, ignore_errors=True)
+
+
 # ---- A 行 (abort 要因の記録、段 8a/D48 positive control 計装) ----
 
 def test_abort_reason_tally_parsed_not_verdict():
@@ -1077,9 +1227,19 @@ def test_result_to_dict_without_commit_witness_matches_frozen_json_bytes():
     "write_version_mismatch": 0,
     "malformed_keys": 0,
     "framing_violations": 0,
+    "framing_violation_details": [],
     "lock_coverage_violations": 0,
     "write_intent_violations": 0,
     "permutation_violations": 0,
+    "permutation_violation_details": {
+      "counts": {
+        "size-changed": 0,
+        "rcdptr-set-changed": 0,
+        "unknown": 0
+      },
+      "sample": [],
+      "unknown_reason_sample": []
+    },
     "notes": []
   },
   "anomaly_count": 0,

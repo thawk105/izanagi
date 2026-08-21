@@ -127,12 +127,85 @@ def _cfg():
     return ident.bind_environment_contract(cfg, _CONTRACT)
 
 
-def _write_floor(root, *, floor=0.03, workload=WORKLOAD):
+def _write_floor(root, *, floor=0.03, workload=WORKLOAD,
+                 schema_version="between-run-noise-floor/v1"):
+    """Write the versioned fixture by default; pass None for a legacy JSON."""
     os.makedirs(root, exist_ok=True)
     path = os.path.join(root, "between_run_noise_fixture.json")
+    document = {"workload": workload, "between_run": {"cv": floor}}
+    if schema_version is not None:
+        document["schema_version"] = schema_version
     with open(path, "w", encoding="utf-8") as f:
-        json.dump({"workload": workload, "between_run": {"cv": floor}}, f)
+        json.dump(document, f)
     return path
+
+
+def test_load_between_run_floor_accepts_legacy_schema_without_version(tmp_path):
+    calibration = str(tmp_path / "calibration")
+    _write_floor(calibration, floor=0.03, schema_version=None)
+    assert screening_driver.load_between_run_floor(WORKLOAD, calibration) == 0.03
+
+
+def test_load_between_run_floor_accepts_current_schema_version(tmp_path):
+    calibration = str(tmp_path / "calibration")
+    _write_floor(calibration, floor=0.04)
+    assert screening_driver.load_between_run_floor(WORKLOAD, calibration) == 0.04
+
+
+def test_load_between_run_floor_rejects_mismatched_schema_version(tmp_path):
+    calibration = str(tmp_path / "calibration")
+    _write_floor(calibration, schema_version="between-run-noise-floor/v0")
+    with pytest.raises(ValueError, match="schema_version"):
+        screening_driver.load_between_run_floor(WORKLOAD, calibration)
+
+
+def test_load_between_run_floor_rejects_explicit_null_schema_version(tmp_path):
+    calibration = tmp_path / "calibration"
+    calibration.mkdir()
+    (calibration / "between_run_noise_null_schema.json").write_text(
+        json.dumps({
+            "schema_version": None,
+            "workload": WORKLOAD,
+            "between_run": {"cv": 0.03},
+        }), encoding="utf-8")
+    with pytest.raises(ValueError, match="schema_version"):
+        screening_driver.load_between_run_floor(WORKLOAD, str(calibration))
+
+
+def test_load_between_run_floor_rejects_explicit_empty_schema_version(tmp_path):
+    calibration = tmp_path / "calibration"
+    calibration.mkdir()
+    (calibration / "between_run_noise_empty_schema.json").write_text(
+        json.dumps({
+            "schema_version": "",
+            "workload": WORKLOAD,
+            "between_run": {"cv": 0.03},
+        }), encoding="utf-8")
+    with pytest.raises(ValueError, match="schema_version"):
+        screening_driver.load_between_run_floor(WORKLOAD, str(calibration))
+
+
+def test_load_between_run_floor_rejects_non_dict_json_root(tmp_path):
+    calibration = tmp_path / "calibration"
+    calibration.mkdir()
+    (calibration / "between_run_noise_root.json").write_text(
+        json.dumps([{"workload": WORKLOAD}]), encoding="utf-8")
+    with pytest.raises(ValueError, match="root"):
+        screening_driver.load_between_run_floor(WORKLOAD, str(calibration))
+
+
+def test_load_between_run_floor_rejects_non_dict_between_run(tmp_path):
+    calibration = str(tmp_path / "calibration")
+    _write_floor(calibration)
+    path = os.path.join(calibration, "between_run_noise_fixture.json")
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump({
+            "schema_version": "between-run-noise-floor/v1",
+            "workload": WORKLOAD,
+            "between_run": "not-an-object",
+        }, f)
+    with pytest.raises(ValueError, match="between_run"):
+        screening_driver.load_between_run_floor(WORKLOAD, calibration)
 
 
 @pytest.mark.usefixtures("ratified_enforcement_source")
@@ -342,6 +415,59 @@ def test_evaluate_candidate_repairs_tail_before_replay_and_evaluate(
     }
     assert "use_perf" not in calls[0][2]
     assert "perf_preflight_receipt" not in calls[0][2]
+
+
+def test_evaluate_candidate_forwards_v2_contract_and_toolchain_binding(
+        tmp_path, monkeypatch, _certified_writer_authority):
+    authorization, contract = _certified_writer_authority
+    cfg = _cfg()
+    layout = campaign_layout(str(ident.campaign_id(cfg)), str(tmp_path / "out")).ensure()
+    wal.write_lock(layout, build_v2_lock(ident.canonical_preimage(cfg)))
+    genome = Genome("silo", {"BACK_OFF": 1})
+    expected = {
+        role: {
+            "requested": f"test-{role}",
+            "realpath": f"/fixture/test-{role}",
+            "version_first_line": f"{role} version A",
+            "version": f"{role} version A",
+        }
+        for role in ("cc", "cxx", "cmake")
+    }
+    seen_source = []
+
+    def evaluate(candidate, candidate_layout, *args, **kwargs):
+        assert candidate_layout is layout
+        seen_source.append(kwargs)
+        return EvalResult(
+            genome=candidate, variant="candidate", certified=True, aborted=False,
+        )
+
+    monkeypatch.setattr(screening_driver, "evaluate", evaluate)
+    monkeypatch.setattr(
+        screening_driver.source_digest, "resolve_evidence",
+        lambda *args, **kwargs: (
+            seen_source.append({"source_cxx": kwargs["cxx"]})
+            or _source_evidence(genome)
+        ),
+    )
+
+    result = screening_driver.evaluate_candidate(
+        cfg, layout, genome, PerfConfig(records=1, threads=1),
+        contract.env_tag, contract.clocks_per_us,
+        numactl=contract.numactl,
+        authorization_contract=authorization,
+        build_context=_BUILD_CONTEXT,
+        screening=None, env_contract=contract,
+        expected_toolchain_manifest=expected,
+        declared_use_class="official", src_token="stock", log=lambda message: None,
+    )
+
+    assert result is not None and result.certified
+    evaluate_kwargs = seen_source[-1]
+    assert evaluate_kwargs["env_contract"] is contract
+    assert evaluate_kwargs["expected_toolchain_manifest"] == expected
+    assert evaluate_kwargs["declared_use_class"] == "official"
+    assert seen_source[0]["source_cxx"] == "test-cxx"
 
 
 @pytest.mark.usefixtures("ratified_enforcement_source")

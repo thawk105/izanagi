@@ -184,7 +184,7 @@ _SYNTHETIC_DW_C01_SECTION = """## DW-C01 — 実測で是正した作法
 - 隔離worktreeのdetachはrunnerとlauncherの`.sh`へ外出しする。定型はguardが拒む。
 - 複数起点の判別は全隣接区間へ異なる正値を入れる。
 - 変異harnessはbaseline緑必須。既存赤は`--deselect`で外し根拠を台帳へ書く。
-- submoduleは`git -c protocol.file.allow=always submodule update --init --recursive`。素は拒否、再帰なしはpreflight rc=2。
+- submoduleは`python3 tools/dev_wave_submodule_init.py --worktree <ABSOLUTE_WORKTREE>`で再帰初期化する。
 - 呼出し規約を変える取込は、両親の変更行が非競合でも全呼出しを数える。
 - 段6のfixも受理・拒否の含意の向きを2文へ分け、通る正例を添える。
 - mergeは親。子は競合解決だけ、`add`とcommitも親。
@@ -448,6 +448,30 @@ _CLEAN_PHASE3 = """# synthetic phase
 ## 残存リスク
 
 - risk
+"""
+
+_SYNTHETIC_R33_DECISION_SECTION = """## D570. dev-wave n-pilot R33 admission authority
+
+**機械 pin:**
+
+- authority slug: `t1142-n-pilot-r33-admission-authority`
+- R33 admission contract: role=`n_pilot_r33`; generation=`n-pilot-r33`; pilot_rounds=33; allocation_count=3; cell_count=12; schedule_row_count=396.
+"""
+
+_SYNTHETIC_R33_PENDING_FRAGMENT = """---
+schema: izanagi-spool-v1
+ledger: decisions
+authored: 2026-08-20
+wave: dev-wave-t1142-n-pilot-admission-redesign
+seq: 1
+---
+
+## {{D:t1142-n-pilot-r33-admission-authority}}. n-pilot R33 admission authority
+
+**機械 pin:**
+
+- authority slug: `t1142-n-pilot-r33-admission-authority`
+- R33 admission contract: role=`n_pilot_r33`; generation=`n-pilot-r33`; pilot_rounds=33; allocation_count=3; cell_count=12; schedule_row_count=396.
 """
 
 _SYNTHETIC_CLEANUP_DESCRIPTION = (
@@ -778,6 +802,7 @@ docs/skill-self-improvement.md
         _SYNTHETIC_SINGLE_DISPATCH_LAUNCHER_STAGES,
     )
     _write(root, "tools/dev_wave_wait.py", "# synthetic canonical waiter\n")
+    _write(root, "tools/dev_wave_submodule_init.py", "# synthetic submodule initializer\n")
     _write(root, ".claude/commands/cleanup-branches.md", cleanup)
     _write(root, ".claude/commands/rulings.md", rulings)
     codex_skill = """---
@@ -1028,10 +1053,20 @@ def _build_min_repo() -> str:
     # check_docs が main() 内で無条件に read するファイル群。
     _write(root, os.path.join("orchestrator", "campaign", "pin.py"),
            'CURRENT_PIN = "abc1234def5678"\n')
+    admission_dst = os.path.join(
+        root, "orchestrator", "campaign", "s8b_holdout_admission.py",
+    )
+    os.makedirs(os.path.dirname(admission_dst), exist_ok=True)
+    shutil.copy(
+        check_docs.REPO / "orchestrator" / "campaign" /
+        "s8b_holdout_admission.py",
+        admission_dst,
+    )
     _write(root, os.path.join("docs", "decisions.md"),
            "## D1. placeholder decision\n\n本文。\n\n"
            "## D254. placeholder decision\n\n本文。\n\n"
-           "## D271. placeholder decision\n\n本文。\n")
+           "## D271. placeholder decision\n\n本文。\n\n"
+           + _SYNTHETIC_R33_DECISION_SECTION)
     _write(root, os.path.join("docs", "failures.md"),
            "# placeholder failures\n")
     _write(root, os.path.join("docs", "archive", "README.md"),
@@ -5464,6 +5499,173 @@ def test_decision_heading_requires_allocator_canonical_dot():
         shutil.rmtree(root, ignore_errors=True)
 
 
+def test_r33_decision_heading_accepts_title_after_canonical_period():
+    """R33 の section scan は実際の `D570. title` 見出しを受理する。"""
+
+    assert check_docs.R33_DECISION_HEADING_RE.match(
+        "D570. dev-wave docs 予算満杯時の運用"
+    ) is not None
+
+
+def test_r33_role_decision_pin_accepts_exact_pending_fragment():
+    root = _build_min_repo()
+    try:
+        decisions = _read(root, "docs/decisions.md")
+        _write(
+            root,
+            "docs/decisions.md",
+            decisions.replace(_SYNTHETIC_R33_DECISION_SECTION, "", 1),
+        )
+        _write(
+            root,
+            "docs/spool/decisions/"
+            "2026-08-20-dev-wave-t1142-n-pilot-admission-redesign-1.md",
+            _SYNTHETIC_R33_PENDING_FRAGMENT,
+        )
+        res = _run_check(root)
+        assert res.returncode == 0, res.stdout + res.stderr
+        assert "違反なし" in res.stdout
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_r33_source_contract_binds_entry_to_observation_roles_dictionary():
+    root = _build_min_repo()
+    try:
+        rel = "orchestrator/campaign/s8b_holdout_admission.py"
+        source = _read(root, rel)
+        entry = (
+            '    "n_pilot_r33": {\n'
+            '        "generation_id": "n-pilot-r33",\n'
+            '        "pilot_rounds": 33,\n'
+            '        "allocation_count": 3,\n'
+            '        "cell_count": 12,\n'
+            '        "schedule_row_count": 396,\n'
+            '        "decision_pin": "t1142-n-pilot-r33-admission-authority",\n'
+            "    },\n"
+        )
+        assert source.count(entry) == 1
+        source = source.replace(entry, "", 1)
+        source += "\n_DEAD_R33_ROLE_CONTRACT = {\n" + entry + "}\n"
+        _write(root, rel, source)
+        _assert_violation(root, "R33 role contract entry は exact 1 件が必要")
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_r33_source_contract_ignores_entry_in_docstring_within_observation_roles():
+    root = _build_min_repo()
+    try:
+        rel = "orchestrator/campaign/s8b_holdout_admission.py"
+        source = _read(root, rel)
+        entry = (
+            '    "n_pilot_r33": {\n'
+            '        "generation_id": "n-pilot-r33",\n'
+            '        "pilot_rounds": 33,\n'
+            '        "allocation_count": 3,\n'
+            '        "cell_count": 12,\n'
+            '        "schedule_row_count": 396,\n'
+            '        "decision_pin": "t1142-n-pilot-r33-admission-authority",\n'
+            "    },\n"
+        )
+        assert source.count(entry) == 1
+        decoy = '    "R33_decoy": """\n' + entry + '    """,\n'
+        source = source.replace(entry, decoy, 1)
+        _write(root, rel, source)
+        _assert_violation(root, "R33 role contract entry は exact 1 件が必要")
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_r33_source_contract_ignores_role_literal_in_docstring():
+    root = _build_min_repo()
+    try:
+        rel = "orchestrator/campaign/s8b_holdout_admission.py"
+        source = _read(root, rel)
+        role_line = 'OBSERVATION_ROLE_N_PILOT_R33 = "n_pilot_r33"\n'
+        assert source.count(role_line) == 1
+        source = source.replace(role_line, "", 1)
+        docstring = 'ROLE_DOC = """\n' + role_line + '"""\n'
+        source = source.replace(
+            "from __future__ import annotations\n",
+            "from __future__ import annotations\n" + docstring,
+            1,
+        )
+        _write(root, rel, source)
+        _assert_violation(
+            root,
+            "R33 role literal は OBSERVATION_ROLE_N_PILOT_R33 の exact 1 件が必要",
+        )
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_r33_decision_contract_rejects_ambiguous_r33_sections():
+    root = _build_min_repo()
+    try:
+        decisions = _read(root, "docs/decisions.md")
+        later_invalid = _SYNTHETIC_R33_DECISION_SECTION.replace(
+            "## D570.", "## D571.", 1,
+        ).replace("pilot_rounds=33", "pilot_rounds=32", 1)
+        _write(root, "docs/decisions.md", decisions + "\n" + later_invalid)
+        _assert_violation(root, "R33 decision section が曖昧")
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+@pytest.mark.parametrize(
+    ("source_literal", "replacement"),
+    [
+        ('"generation_id": "n-pilot-r33"',
+         '"generation_id": "n-pilot-r32"'),
+        ('"generation_id": "n-pilot-r33",\n        "pilot_rounds": 33,',
+         '"generation_id": "n-pilot-r33",\n        "pilot_rounds": 32,'),
+        ('"allocation_count": 3,\n        "cell_count": 12,',
+         '"allocation_count": 2,\n        "cell_count": 12,'),
+    ],
+    ids=["generation", "round", "allocation"],
+)
+def test_r33_role_contract_generation_round_allocation_mismatch_fails(
+    source_literal: str,
+    replacement: str,
+):
+    root = _build_min_repo()
+    try:
+        rel = "orchestrator/campaign/s8b_holdout_admission.py"
+        source = _read(root, rel)
+        assert source.count(source_literal) == 1
+        _write(root, rel, source.replace(source_literal, replacement, 1))
+        _assert_violation(root, "R33 role contract の role/generation/round/allocation/pin")
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_r33_decision_contract_mismatch_fails():
+    root = _build_min_repo()
+    try:
+        rel = "docs/decisions.md"
+        decisions = _read(root, rel)
+        _write(root, rel, decisions.replace("pilot_rounds=33", "pilot_rounds=32", 1))
+        _assert_violation(root, "R33 role contract に対応する decision section がない")
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_r33_role_decision_pin_requires_canonical_or_pending_contract():
+    root = _build_min_repo()
+    try:
+        rel = "docs/decisions.md"
+        decisions = _read(root, rel)
+        _write(
+            root,
+            rel,
+            decisions.replace(_SYNTHETIC_R33_DECISION_SECTION, "", 1),
+        )
+        _assert_violation(root, "R33 role contract に対応する decision section がない")
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
 def test_safe_reader_rejects_worklog_symlink_and_fifo_without_hang():
     root = _build_min_repo()
     external = tempfile.mkdtemp(prefix="izanagi_checkdocs_external_")
@@ -8370,7 +8572,7 @@ def test_normative_exact_section_contract_is_handwritten_and_complete():
         _SYNTHETIC_DW_C01_SECTION
     )
     assert len(_SYNTHETIC_DW_O26_SECTION.encode("utf-8")) == 470
-    assert len(_SYNTHETIC_DW_C01_SECTION.encode("utf-8")) == 991
+    assert len(_SYNTHETIC_DW_C01_SECTION.encode("utf-8")) == 970
     assert check_docs.DEV_WAVE_EXACT_VISIBLE_SECTIONS == {
         (".claude/commands/dev-wave.md", "入力と開始"):
             _SYNTHETIC_DEV_WAVE_COMMAND_START_SECTION,
@@ -8391,7 +8593,7 @@ def test_normative_exact_section_contract_is_handwritten_and_complete():
     }
     assert len(check_docs.DEV_WAVE_EXACT_VISIBLE_SECTIONS[
         ("docs/dev-wave/core.md", "DW-C01 — 実測で是正した作法")
-    ].encode("utf-8")) == 992
+    ].encode("utf-8")) == 971
 
 
 def test_dw_o26_exact_section_pin_accepts_synthetic_fixture():

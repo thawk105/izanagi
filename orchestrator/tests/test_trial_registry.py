@@ -2322,6 +2322,33 @@ def test_p6_one_cell_partial_terminal_outcome_passes_acceptance(tmp_path: Path) 
     assert parsed.schema_version == R.s8c_acceptance_receipt.SCHEMA_VERSION
 
 
+def test_p6_indeterminate_not_consumed_partial_fails_formal_acceptance(
+    tmp_path: Path,
+) -> None:
+    repo, manifest_path, registry, manifest = _registered_repo(tmp_path)
+    measurement = _head(repo)
+    reports = [
+        _partial_report(repo / "reports", trial, manifest, measurement)
+        for trial in manifest.trials
+    ]
+
+    target_path = reports[0]
+    events, report = _load_report_bundle(target_path)
+    report["lifecycle_terminal_status"] = "indeterminate"
+    assert report["status"] == "partial"
+    assert report["lifecycle_terminal_status"] == "indeterminate"
+    _persist(target_path.parent, events, report)
+    _ensure_fixture_attempt_rows(repo, manifest, reports)
+
+    with pytest.raises(R.TrialRegistryError, match=r"\[attempt-terminal\] "):
+        _accept(
+            manifest_path=manifest_path,
+            report_paths=reports,
+            repository_root=repo,
+            registry_path=registry,
+        )
+
+
 def test_t1185_pb_partial_one_generation_with_budget_two_passes_acceptance(
     tmp_path: Path,
 ) -> None:
@@ -2462,8 +2489,13 @@ def _ensure_fixture_attempt_rows(
                 _canonical(report["launch_admission"])
             ).hexdigest(),
         )
+        indeterminate = (
+            report.get("lifecycle_terminal_status") == "indeterminate"
+        )
         observed = report["status"] == "complete"
-        failure_reason = None if observed else "provider-failure"
+        failure_reason = (
+            None if observed or indeterminate else "provider-failure"
+        )
         R.classify_attempt(
             capability,
             pre_observation_failure_reason=failure_reason,
@@ -2476,13 +2508,27 @@ def _ensure_fixture_attempt_rows(
             R.begin_attempt_observation(capability)
         R.record_attempt_terminal(
             capability,
-            terminal_status="observed" if observed else "terminal-failure",
-            raw_output_sha256=report["raw_output_sha256"],
-            report_sha256=hashlib.sha256(report_path.read_bytes()).hexdigest(),
-            observation_sha256=(
-                report["observation_sha256"] if observed else None
+            terminal_status=(
+                "not-consumed"
+                if indeterminate
+                else "observed" if observed else "terminal-failure"
             ),
-            primary_value=report["primary_value"] if observed else None,
+            raw_output_sha256=report["raw_output_sha256"],
+            report_sha256=(
+                None
+                if indeterminate
+                else hashlib.sha256(report_path.read_bytes()).hexdigest()
+            ),
+            observation_sha256=(
+                None
+                if indeterminate
+                else report["observation_sha256"] if observed else None
+            ),
+            primary_value=(
+                None
+                if indeterminate
+                else report["primary_value"] if observed else None
+            ),
             finished_at="2026-08-18T00:00:02+00:00",
         )
         terminal_by_slot[slot["slot_id"]] = {"slot_id": slot["slot_id"]}
@@ -2953,6 +2999,208 @@ def test_admit_registered_launch_requires_manifest_commit_capability(
             repository_root=repo,
             registry_path=registry,
         )
+
+
+def test_admit_registered_formal_noncertifying_requires_explicit_opt_in(
+    tmp_path: Path,
+) -> None:
+    repo, manifest_path, registry, manifest = _registered_repo(tmp_path)
+    trial = manifest.trials[0]
+    with pytest.raises(
+        R.TrialRegistryError,
+        match=r"\[formal-noncertifying-opt-in\] ",
+    ):
+        R.admit_registered_formal_noncertifying(
+            allow_formal_noncertifying=False,
+            manifest_path=manifest_path,
+            trial_id=trial.trial_id,
+            workloads=[R.HOLDOUT_BINDINGS[trial.holdout]["workload"]],
+            repository_root=repo,
+            registry_path=registry,
+        )
+
+
+def test_admit_registered_formal_noncertifying_validates_freeze_and_returns_binding(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo, manifest_path, registry, manifest = _registered_repo(tmp_path)
+    trial = manifest.trials[0]
+    freeze_calls: list[tuple[Path, str]] = []
+
+    def observe_freeze(repo_root, commit="HEAD"):
+        freeze_calls.append((Path(repo_root), commit))
+        return object()
+
+    monkeypatch.setattr(
+        R.s8c_preregistration,
+        "validate_condition_freeze_at",
+        observe_freeze,
+    )
+    monkeypatch.setattr(
+        R.s8c_preregistration,
+        "effective_at",
+        lambda *_args, **_kwargs: pytest.fail(
+            "formal non-certifying admission must not compute effective_at"
+        ),
+    )
+    admission = R.admit_registered_formal_noncertifying(
+        allow_formal_noncertifying=True,
+        manifest_path=manifest_path,
+        trial_id=trial.trial_id,
+        workloads=[R.HOLDOUT_BINDINGS[trial.holdout]["workload"]],
+        repository_root=repo,
+        registry_path=registry,
+    )
+    assert freeze_calls == [(repo.resolve(), manifest.prereg_commit)]
+    assert admission.mode == "registered-formal-non-certifying"
+    assert admission.certifying is False
+    assert admission.reason_code == "registered-formal-non-certifying"
+    assert admission.binding is not None
+    assert admission.activation_report_digest_sha256 is None
+    R.assert_issued_trial_launch_admission(admission)
+
+    with pytest.raises(R.TrialRegistryError, match=r"activation digest"):
+        R.assert_issued_trial_launch_admission(
+            dataclasses.replace(admission, activation_report_digest_sha256="a" * 64)
+        )
+
+
+def test_admit_registered_formal_noncertifying_rejects_condition_freeze_failure(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo, manifest_path, registry, manifest = _registered_repo(tmp_path)
+    trial = manifest.trials[0]
+
+    def reject_freeze(*_args, **_kwargs):
+        raise R.s8c_preregistration.PreregistrationError(
+            "fixture-freeze", "condition freeze is invalid"
+        )
+
+    monkeypatch.setattr(
+        R.s8c_preregistration,
+        "validate_condition_freeze_at",
+        reject_freeze,
+    )
+    with pytest.raises(
+        R.TrialRegistryError,
+        match=r"\[formal-noncertifying-condition-freeze\] fixture-freeze",
+    ):
+        R.admit_registered_formal_noncertifying(
+            allow_formal_noncertifying=True,
+            manifest_path=manifest_path,
+            trial_id=trial.trial_id,
+            workloads=[R.HOLDOUT_BINDINGS[trial.holdout]["workload"]],
+            repository_root=repo,
+            registry_path=registry,
+        )
+
+
+def test_rederived_launch_admission_accepts_formal_noncertifying_mode(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo, manifest_path, registry, manifest = _registered_repo(tmp_path)
+    trial = manifest.trials[0]
+    monkeypatch.setattr(
+        R.s8c_preregistration,
+        "validate_condition_freeze_at",
+        lambda *_args, **_kwargs: object(),
+    )
+    admission = R.admit_registered_formal_noncertifying(
+        allow_formal_noncertifying=True,
+        manifest_path=manifest_path,
+        trial_id=trial.trial_id,
+        workloads=[R.HOLDOUT_BINDINGS[trial.holdout]["workload"]],
+        repository_root=repo,
+        registry_path=registry,
+    )
+    monkeypatch.setattr(
+        R,
+        "admit_registered_launch",
+        lambda **_kwargs: pytest.fail(
+            "formal non-certifying rederivation used the effective admission"
+        ),
+    )
+    R.assert_rederived_launch_admission(
+        admission,
+        effective_preregistration=None,
+        manifest_path=manifest_path,
+        trial_id=trial.trial_id,
+        workloads=[R.HOLDOUT_BINDINGS[trial.holdout]["workload"]],
+        allow_unregistered_exploratory=False,
+        allow_formal_noncertifying=True,
+        repository_root=repo,
+        registry_path=registry,
+    )
+
+
+def test_rederived_registered_effective_still_requires_effective_capability(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo, manifest_path, registry, manifest = _registered_repo(tmp_path)
+    trial = manifest.trials[0]
+    admission = _registered_admission(
+        repo, manifest_path, registry, manifest, monkeypatch,
+    )
+    with pytest.raises(
+        R.TrialRegistryError,
+        match=r"\[effective-preregistration\] ",
+    ):
+        R.assert_rederived_launch_admission(
+            admission,
+            effective_preregistration=None,
+            manifest_path=manifest_path,
+            trial_id=trial.trial_id,
+            workloads=[R.HOLDOUT_BINDINGS[trial.holdout]["workload"]],
+            allow_unregistered_exploratory=False,
+            repository_root=repo,
+            registry_path=registry,
+        )
+
+
+def test_formal_noncertifying_lifecycle_start_consumes_reserved_attempt_slot(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo, manifest_path, registry, manifest = _registered_repo(tmp_path)
+    trial = manifest.trials[0]
+    monkeypatch.setattr(
+        R.s8c_preregistration,
+        "validate_condition_freeze_at",
+        lambda *_args, **_kwargs: object(),
+    )
+    admission = R.admit_registered_formal_noncertifying(
+        allow_formal_noncertifying=True,
+        manifest_path=manifest_path,
+        trial_id=trial.trial_id,
+        workloads=[R.HOLDOUT_BINDINGS[trial.holdout]["workload"]],
+        repository_root=repo,
+        registry_path=registry,
+    )
+    attempt_slot = _lifecycle_attempt_slot(repo, manifest, admission)
+    lifecycle = repo / R.DEFAULT_LIFECYCLE_PATH
+    token = R.record_trial_start_once(
+        admission=admission,
+        effective_preregistration=None,
+        manifest_path=manifest_path,
+        run_root=repo / "formal-noncertifying-run",
+        repository_root=repo,
+        registry_path=registry,
+        lifecycle_path=lifecycle,
+        attempt_slot=attempt_slot,
+    )
+    assert token.slot_id == attempt_slot.slot_id
+    row = json.loads(lifecycle.read_text(encoding="utf-8").splitlines()[0])
+    assert row["mode"] == "registered-formal-non-certifying"
+    assert row["activation_report_digest_sha256"] is None
+    assert R._load_lifecycle_rows(lifecycle.read_bytes())[0] == row
+    assert sum(
+        item.get("event") == "start" and item.get("slot_id") == attempt_slot.slot_id
+        for item in R.load_attempt_registry(repo)
+    ) == 1
 
 
 def test_m07_outer_manifest_capability_commit_check_is_unmasked(

@@ -7,12 +7,15 @@
 from __future__ import annotations
 
 import ast
+import contextlib
+import hashlib
 import importlib.util
 import inspect
 import json
 import os
 import pickle
 import shutil
+import stat
 import subprocess
 import sys
 import tempfile
@@ -99,6 +102,7 @@ _REAL_REPO_SERIAL_NODES_GOLDEN = frozenset({
     "test_codex_reasoning_ab.py::test_verify_replays_complete_fake_codex_experiment",
     "test_codex_reasoning_ab.py::test_attempt_four_is_rejected_before_launch",
     "test_codex_reasoning_ab.py::test_f3_4_prelaunch_exception_completes_pair_and_allows_next_generation",
+    "test_codex_reasoning_ab.py::test_validate_schedule_legacy_different_arm_same_model_pair_remains_valid",
     # helper が実親 repo と実共有 submodule を clone source として直接読む reader。
     "test_s8b_floor_campaign.py::test_real_seal_protocol_to_floor_official_core_e2e",
     "test_s8b_oracle_driver.py::test_real_freeze_gate_lists_floor_and_budget_null",
@@ -118,6 +122,36 @@ _XDIST_GROUP_NAMES_GOLDEN = frozenset({
     "dev-waves-runtime",
     "real-repo",
     "s8c-preregistration-candidate",
+})
+
+# Independent oracle for the sort-SWO environment consumer registry.  This is
+# intentionally a second literal rather than an import/derivation from
+# conftest.py, so a registry edit cannot update its expected set in lockstep.
+ORACLE_ENVIRONMENT_CONSUMERS_GOLDEN = frozenset({
+    "test_sort_swo_oracle.py::test_cpp_e2e_clean_generic_lambda_positive",
+    "test_sort_swo_oracle.py::test_cpp_e2e_stable_cross_allocation_pointer_positive",
+    "test_sort_swo_oracle.py::test_real_ctor_pointer_topology_and_triplicate_have_expected_matrix_meaning",
+    "test_sort_swo_oracle.py::test_cpp_e2e_reports_each_axiom_and_exact_indices",
+    "test_sort_swo_oracle.py::test_cpp_e2e_high_storage_only_negative_kills_corpus_narrowing",
+    "test_sort_swo_oracle.py::test_cpp_e2e_rejects_corpus_mutation_with_dedicated_reason",
+    "test_sort_swo_oracle.py::test_cpp_e2e_rejects_same_process_call_count_dependence_with_witness",
+    "test_sort_swo_oracle.py::test_real_compile_budget_is_fixed_positive_and_negative_only",
+    "test_sort_swo_oracle.py::test_materialized_marker_bytes_are_exact_and_proposal_hash_is_distinct",
+    "test_sort_swo_oracle.py::test_phase_marker_runs_immediately_before_first_oracle_subprocess",
+    "test_sort_swo_oracle.py::test_scratch_failure_is_unavailable_not_candidate_reject",
+    "test_sort_swo_oracle.py::test_candidate_compile_failure_is_reject_not_unavailable",
+    "test_sort_swo_oracle.py::test_candidate_compile_failure_with_failing_postflight_is_unavailable",
+    "test_sort_swo_oracle.py::test_postflight_unavailable_retains_candidate_finding",
+    "test_sort_swo_oracle.py::test_candidate_compile_reject_postflight_control_success_stays_reject",
+    "test_sort_swo_oracle.py::test_candidate_artifact_cleanup_failure_preserves_receipt",
+    "test_sort_swo_oracle.py::test_candidate_artifact_cleanup_and_postflight_failure_preserve_evidence",
+    "test_sort_swo_oracle.py::test_candidate_compile_infrastructure_failure_with_successful_postflight_stays_unavailable",
+    "test_sort_swo_oracle.py::test_candidate_compile_infrastructure_and_postflight_failure_uses_postflight_detail",
+    "test_sort_swo_oracle.py::test_postflight_source_write_oserror_preserves_receipt",
+    "test_sort_swo_oracle.py::test_postflight_cleanup_oserror_preserves_receipt",
+    "test_sort_swo_oracle.py::test_postflight_programmer_error_is_not_infrastructure",
+    "test_sort_swo_oracle.py::test_trusted_positive_preflight_compile_failure_is_unavailable",
+    "test_sort_swo_oracle.py::test_public_api_propagates_exact_evaluator_axiom_finding",
 })
 
 # conftest の receipt consumer 正本から導出しない独立 oracle。
@@ -146,6 +180,7 @@ _RECEIPT_MEMO_CONSUMERS_GOLDEN = frozenset({
     "test_s8b_oracle_driver.py::test_probe_error_precedes_claim_marker_wal_and_budget",
     "test_s8b_oracle_driver.py::test_real_freeze_gate_lists_floor_and_budget_null",
     "test_s8b_oracle_driver.py::test_run_block_refusal_writes_no_campaign_or_budget_and_calls_nothing",
+    "test_s8b_oracle_driver.py::test_cli_output_root_default_is_none_and_run_block_refuses_without_root",
     "test_s8b_oracle_driver.py::test_nonnull_floor_without_active_generation_is_refused",
     "test_s8b_oracle_driver.py::test_active_resolution_and_manifest_structure_refusals_are_aggregated",
     "test_s8b_oracle_driver.py::test_run_block_reuses_launch_validated_and_legacy_loader_is_dead",
@@ -1281,8 +1316,8 @@ def _assert_receipt_inventory(configured, consumers, optouts, node_count) -> Non
     assert set(configured) == set(_RECEIPT_MEMO_CONSUMERS_GOLDEN)
     assert set(consumers) == set(_RECEIPT_MEMO_CONSUMERS_GOLDEN)
     assert set(optouts) == set(_RECEIPT_MEMO_OPTOUT_GOLDEN)
-    assert len(consumers) == 32
-    assert node_count == 35
+    assert len(consumers) == 33
+    assert node_count == 36
     assert not set(consumers) & set(optouts)
 
 
@@ -1314,6 +1349,810 @@ def test_receipt_memo_consumer_inventory_and_optouts_are_complete():
         pass
     else:
         raise AssertionError("receipt consumer inventory の合成負例が通過した")
+
+
+_ORACLE_ENVIRONMENT_EXPLICIT_BINDING_NODE = (
+    "test_sort_swo_oracle.py::"
+    "test_real_patchharness_checkout_and_resolver_use_explicit_binding"
+)
+
+
+def _oracle_environment_consumers_from_source(path: Path):
+    """Derive direct/compiled oracle consumers from the source AST."""
+    tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+    direct: set[str] = set()
+    indirect: set[str] = set()
+    node_counts: dict[str, int] = {}
+    helper_getter_calls = 0
+    for function in tree.body:
+        if not isinstance(function, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            continue
+        if function.name == "_get_compiled_oracle_artifacts":
+            helper_getter_calls = sum(
+                1
+                for call in ast.walk(function)
+                if isinstance(call, ast.Call)
+                and _qualified_call_name(call) == "_get_oracle_environment"
+            )
+            continue
+        if not function.name.startswith("test_"):
+            continue
+        calls = [node for node in ast.walk(function) if isinstance(node, ast.Call)]
+        called_names = {
+            _qualified_call_name(call)
+            for call in calls
+            if _qualified_call_name(call) is not None
+        }
+        canonical = f"{path.name}::{function.name}"
+        if "_get_oracle_environment" in called_names:
+            direct.add(canonical)
+        if "_get_compiled_oracle_artifacts" in called_names:
+            indirect.add(canonical)
+
+        count = 1
+        for decorator in function.decorator_list:
+            if not (
+                isinstance(decorator, ast.Call)
+                and isinstance(decorator.func, ast.Attribute)
+                and decorator.func.attr == "parametrize"
+                and len(decorator.args) >= 2
+                and isinstance(decorator.args[1], (ast.List, ast.Tuple))
+            ):
+                continue
+            count *= len(decorator.args[1].elts)
+        node_counts[canonical] = count
+    consumers = direct | indirect
+    return (
+        direct,
+        indirect,
+        consumers,
+        sum(node_counts[node] for node in consumers),
+        helper_getter_calls,
+    )
+
+
+def _assert_oracle_environment_inventory(
+    configured, direct, indirect, consumers, node_count, helper_getter_calls,
+    *, golden=ORACLE_ENVIRONMENT_CONSUMERS_GOLDEN,
+) -> None:
+    configured_for_exact = set(configured) - {
+        _ORACLE_ENVIRONMENT_EXPLICIT_BINDING_NODE,
+    }
+    assert configured_for_exact == set(golden), (
+        "oracle consumer registry (ORACLE_ENVIRONMENT_CONSUMER_NODES) と独立 golden が不一致: "
+        f"missing={sorted(set(golden) - configured_for_exact)} "
+        f"extra={sorted(configured_for_exact - set(golden))}"
+    )
+    assert set(consumers) == set(golden), (
+        "sort_swo_oracle.py AST inventory と独立 golden が不一致: "
+        f"missing={sorted(set(golden) - set(consumers))} "
+        f"extra={sorted(set(consumers) - set(golden))}"
+    )
+    assert configured_for_exact == set(consumers), (
+        "ORACLE_ENVIRONMENT_CONSUMER_NODES と source-derived AST inventory が不一致: "
+        f"missing={sorted(set(consumers) - configured_for_exact)} "
+        f"extra={sorted(configured_for_exact - set(consumers))}"
+    )
+    assert len(direct) == 16
+    assert len(indirect) == 8
+    assert len(consumers) == 24
+    assert node_count == 27
+    assert not set(direct) & set(indirect)
+    assert helper_getter_calls == 1, (
+        "compiled oracle helper が memo getter を厳密に 1 回呼ばない: "
+        f"calls={helper_getter_calls}"
+    )
+
+
+def _assert_oracle_fixture_bindings_removed(path: Path, consumers) -> None:
+    """The moved consumers must not retain either removed fixture contract."""
+    tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+    definitions = {
+        node.name
+        for node in tree.body
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+        and node.name in {"oracle_environment", "compiled_oracle_artifacts"}
+    }
+    assert not definitions, f"legacy oracle fixture definition remains: {sorted(definitions)}"
+    for function in tree.body:
+        if not isinstance(function, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            continue
+        canonical = f"{path.name}::{function.name}"
+        if canonical not in consumers:
+            continue
+        arguments = {
+            argument.arg
+            for argument in (*function.args.posonlyargs, *function.args.args,
+                             *function.args.kwonlyargs)
+        }
+        assert not arguments & {"oracle_environment", "compiled_oracle_artifacts"}, (
+            f"{canonical}: legacy oracle fixture binding remains: "
+            f"{sorted(arguments & {'oracle_environment', 'compiled_oracle_artifacts'})}"
+        )
+
+
+def test_oracle_environment_consumer_inventory_and_registry_are_complete():
+    """The moved registry is independently exact and source-derived."""
+    suite_conftest = _load_suite_conftest()
+    direct, indirect, consumers, node_count, helper_getter_calls = _oracle_environment_consumers_from_source(
+        HERE / "test_sort_swo_oracle.py"
+    )
+    _assert_oracle_environment_inventory(
+        suite_conftest.ORACLE_ENVIRONMENT_CONSUMER_NODES,
+        direct,
+        indirect,
+        consumers,
+        node_count,
+        helper_getter_calls,
+    )
+    _assert_oracle_fixture_bindings_removed(
+        HERE / "test_sort_swo_oracle.py", consumers,
+    )
+
+    # Mutation-1 control: removing one registry entry is rejected by this
+    # completeness contract, while the source inventory and golden remain intact.
+    representative = next(iter(sorted(ORACLE_ENVIRONMENT_CONSUMERS_GOLDEN)))
+    try:
+        _assert_oracle_environment_inventory(
+            set(suite_conftest.ORACLE_ENVIRONMENT_CONSUMER_NODES) - {representative},
+            direct,
+            indirect,
+            consumers,
+            node_count,
+            helper_getter_calls,
+        )
+    except AssertionError as exc:
+        assert "registry" in str(exc), exc
+    else:
+        raise AssertionError("oracle consumer registry の欠落 control が通過した")
+
+    # Mutation-2 control: a one-node registry/golden offset is rejected by
+    # the exact-match assertion before the source-derived checks run.
+    shifted = (set(ORACLE_ENVIRONMENT_CONSUMERS_GOLDEN) - {representative}) | {
+        "test_sort_swo_oracle.py::__synthetic_registry_shift__",
+    }
+    try:
+        _assert_oracle_environment_inventory(
+            shifted,
+            direct,
+            indirect,
+            consumers,
+            node_count,
+            helper_getter_calls,
+            golden=ORACLE_ENVIRONMENT_CONSUMERS_GOLDEN,
+        )
+    except AssertionError as exc:
+        assert "registry" in str(exc), exc
+    else:
+        raise AssertionError("oracle consumer registry/golden のずれ control が通過した")
+
+
+def test_oracle_environment_explicit_binding_node_is_not_a_consumer():
+    """The explicit checkout/resolver binding is a deliberate boundary node."""
+    suite_conftest = _load_suite_conftest()
+    direct, indirect, consumers, _node_count, _helper_getter_calls = _oracle_environment_consumers_from_source(
+        HERE / "test_sort_swo_oracle.py"
+    )
+    configured = set(suite_conftest.ORACLE_ENVIRONMENT_CONSUMER_NODES)
+    assert _ORACLE_ENVIRONMENT_EXPLICIT_BINDING_NODE not in configured, (
+        "明示 binding node を oracle environment consumer registry に混入させている"
+    )
+    assert _ORACLE_ENVIRONMENT_EXPLICIT_BINDING_NODE not in consumers
+    assert _ORACLE_ENVIRONMENT_EXPLICIT_BINDING_NODE not in direct
+    assert _ORACLE_ENVIRONMENT_EXPLICIT_BINDING_NODE not in indirect
+
+
+def test_real_repo_writers_do_not_materialize_oracle_environment_candidates(
+        tmp_path, monkeypatch, ratified_enforcement_source,
+):
+    """Current real-repo writers stay away from every resolver candidate path.
+
+    The slow floor canaries remain the authoritative compute-node execution of the
+    complete build, but this audit also runs the production writer seams that can
+    be exercised in a disposable checkout.  In particular, the FetchContent
+    preparation path is run with a real subprocess (a tiny fixture cmake) rather
+    than inferred only from test-source spelling.
+    """
+    suite_conftest = _load_suite_conftest()
+    writer_nodes = {
+        "test_s8b_protocol_builder.py::test_build_and_write_leave_repo_tree_unchanged",
+        "test_p3_s4_loop.py::test_drive_iteration_checkpoint_survives_across_calls",
+        "test_p3_s4_loop_sort.py::test_drive_iteration_checkpoint_survives_across_calls",
+        "test_p3_s4_loop_trigger_gating.py::test_drive_iteration_writes_entry_and_checkpoint",
+        "test_p3_s4_loop_trigger_gating.py::test_drive_iteration_entry_failure_blocks_checkpoint",
+        "test_hooks.py::test_real_submodule_payload_edit",
+        "test_s8b_floor_campaign.py::test_slow_real_prepare_cell_to_buildcache_canary_one_configuration",
+        "test_s8b_floor_campaign.py::test_slow_real_prepare_cell_to_buildcache_v2_canary_one_configuration",
+        "test_s8b_oracle_driver.py::test_slow_oracle_prepared_cell_pipeline_uses_real_build_v2",
+        _ORACLE_ENVIRONMENT_EXPLICIT_BINDING_NODE,
+    }
+    assert writer_nodes <= set(suite_conftest.REAL_REPO_SERIAL_NODES), (
+        "候補 path writer の serial registry からの脱落: "
+        f"missing={sorted(writer_nodes - set(suite_conftest.REAL_REPO_SERIAL_NODES))}"
+    )
+
+    # Source-level guard: retain a cheap tripwire for new writer spellings, but
+    # compare evaluated string constants.  Comparing ast.unparse() output is
+    # brittle because its quote style is not part of the AST contract.
+    writer_files = {
+        node.split("::", 1)[0]
+        for node in writer_nodes
+    }
+    write_methods = {
+        "mkdir", "mkdirs", "touch", "write_text", "write_bytes", "open",
+        "replace", "rename", "copy", "copy2", "copytree", "move",
+    }
+    forbidden_environment_values = frozenset({
+        "IZANAGI_SORT_SWO_CXX", "IZANAGI_SORT_SWO_MASSTREE_ROOT", "CXX", "g++",
+    })
+    for filename in sorted(writer_files):
+        tree = ast.parse(
+            (HERE / filename).read_text(encoding="utf-8"),
+            filename=filename,
+        )
+        constants = _string_constants(tree)
+        for call in (node for node in ast.walk(tree) if isinstance(node, ast.Call)):
+            target = call.func
+            method = target.attr if isinstance(target, ast.Attribute) else None
+            if method not in write_methods:
+                continue
+            values = {
+                node.value
+                for node in ast.walk(call)
+                if isinstance(node, ast.Constant) and type(node.value) is str
+            }
+            values.update(
+                constants[node.id]
+                for node in ast.walk(call)
+                if isinstance(node, ast.Name) and node.id in constants
+            )
+            direct_build_dependency = {"build", "_deps", "masstree-src"} <= values
+            direct_ancestor_cache = {"-thirdparty-cache", "masstree"} <= values
+            environment_binding = bool(values & forbidden_environment_values)
+            assert not (
+                direct_build_dependency or direct_ancestor_cache or environment_binding
+            ), (
+                f"{filename}: writer が resolver candidate を直接 materialize している: "
+                f"constants={sorted(values & (forbidden_environment_values | {'build', '_deps', 'masstree-src', '-thirdparty-cache', 'masstree'}))}"
+            )
+
+    # Use a disposable checkout-shaped tree for every executable probe.  The
+    # candidate set includes the exact values inspected by the production
+    # resolver, including the bounded ancestor fallback.
+    from orchestrator.campaign import sort_swo_oracle as oracle
+    from orchestrator.campaign import site_policy
+
+    probe_root = tmp_path / "writer-probe"
+    ccbench = probe_root / "external" / "ccbench"
+    ccbench.mkdir(parents=True)
+    compiler = probe_root / "compiler-candidate"
+    cxx = probe_root / "cxx-candidate"
+    gxx = probe_root / "g++-candidate"
+    dependency = probe_root / "environment-masstree"
+    monkeypatch.setenv("IZANAGI_SORT_SWO_CXX", str(compiler))
+    monkeypatch.setenv("CXX", str(cxx))
+    monkeypatch.setenv("IZANAGI_SORT_SWO_MASSTREE_ROOT", str(dependency))
+    real_which = shutil.which
+    monkeypatch.setattr(
+        oracle.shutil, "which",
+        lambda name: str(gxx) if name == "g++" else real_which(name),
+    )
+
+    candidate_paths = [
+        compiler,
+        cxx,
+        gxx,
+        dependency,
+        ccbench / "build" / "_deps" / "masstree-src",
+    ]
+    ancestor_candidates = [
+        ancestor.parent / f"{ancestor.name}-thirdparty-cache" / "masstree"
+        for ancestor in tuple(ccbench.parents)[:8]
+    ]
+    candidate_paths.extend(ancestor_candidates)
+    candidate_paths = list(dict.fromkeys(candidate_paths))
+
+    def candidate_state(path: Path):
+        """Return a bounded, non-content-leaking identity of a candidate path."""
+        try:
+            info = path.lstat()
+        except FileNotFoundError:
+            return ("absent",)
+        except OSError as exc:
+            return ("unreadable", type(exc).__name__, getattr(exc, "errno", None))
+        if stat.S_ISLNK(info.st_mode):
+            try:
+                target = os.readlink(path)
+            except OSError as exc:
+                return ("symlink-unreadable", type(exc).__name__, getattr(exc, "errno", None))
+            return ("symlink", target, info.st_mtime_ns)
+        if stat.S_ISDIR(info.st_mode):
+            children = []
+            try:
+                with os.scandir(path) as entries:
+                    for entry in entries:
+                        child = entry.stat(follow_symlinks=False)
+                        children.append((
+                            entry.name, child.st_mode, child.st_size,
+                            child.st_mtime_ns, child.st_ctime_ns,
+                        ))
+                        if len(children) > 512:
+                            children = [("<over-512>",)]
+                            break
+            except OSError as exc:
+                return ("directory-unreadable", type(exc).__name__, getattr(exc, "errno", None))
+            return (
+                "directory", info.st_mode, info.st_mtime_ns, info.st_ctime_ns,
+                tuple(sorted(children)),
+            )
+        return (
+            "file", info.st_mode, info.st_size, info.st_mtime_ns,
+            info.st_ctime_ns,
+        )
+
+    before = {path: candidate_state(path) for path in candidate_paths}
+
+    # Execute the production writer seams behind the canonical real-repo nodes.
+    # These calls deliberately write only under tmp_path; the slow compute-node
+    # canaries are represented by the same buildcache FetchContent seam below.
+    probed_nodes = set()
+
+    from orchestrator.campaign import s8b_floor_campaign as floor_campaign
+    raw_protocol = b"{}"
+    built_protocol = floor_campaign.BuiltProtocol(
+        {}, raw_protocol, hashlib.sha256(raw_protocol).hexdigest(),
+    )
+    floor_campaign.write_protocol_document(
+        probe_root / "protocol-output" / "protocol.json",
+        built_protocol, root=probe_root,
+    )
+    probed_nodes.add(
+        "test_s8b_protocol_builder.py::test_build_and_write_leave_repo_tree_unchanged"
+    )
+
+    # The three loop nodes exercise their real drive/checkpoint/WAL writers;
+    # their fixture proposals reject before any build or oracle subprocess.
+    from orchestrator.tests import test_p3_s4_loop as backoff_loop_tests
+    from orchestrator.tests import test_p3_s4_loop_sort as sort_loop_tests
+    from orchestrator.tests import test_p3_s4_loop_trigger_gating as trigger_loop_tests
+    backoff_loop_tests.test_drive_iteration_checkpoint_survives_across_calls(
+        ratified_enforcement_source,
+    )
+    sort_loop_tests.test_drive_iteration_checkpoint_survives_across_calls()
+    trigger_loop_tests.test_drive_iteration_writes_entry_and_checkpoint(monkeypatch)
+    trigger_loop_tests.test_drive_iteration_entry_failure_blocks_checkpoint(monkeypatch)
+    probed_nodes.update({
+        "test_p3_s4_loop.py::test_drive_iteration_checkpoint_survives_across_calls",
+        "test_p3_s4_loop_sort.py::test_drive_iteration_checkpoint_survives_across_calls",
+        "test_p3_s4_loop_trigger_gating.py::test_drive_iteration_writes_entry_and_checkpoint",
+        "test_p3_s4_loop_trigger_gating.py::test_drive_iteration_entry_failure_blocks_checkpoint",
+    })
+
+    # The hook node is a real guard decision against a disposable path.  It is
+    # intentionally not mistaken for a production file writer.
+    from orchestrator.tests import test_hooks as hook_tests
+    hook_target = probe_root / "hook-probe" / "backoff.hh"
+    hook_target.parent.mkdir(parents=True)
+    hook_target.write_text("old\n", encoding="utf-8")
+    allowed, _reason = hook_tests.GW.decide(
+        "Edit",
+        {
+            "file_path": str(hook_target),
+            "old_string": "old",
+            "new_string": "new",
+        },
+        repo_root=str(probe_root),
+    )
+    assert isinstance(allowed, bool)
+    probed_nodes.add("test_hooks.py::test_real_submodule_payload_edit")
+
+    # Run the actual buildcache FetchContent writer with a subprocess fixture.
+    # It creates the job-local base/masstree-src tree, which is distinct from
+    # every resolver candidate and therefore catches accidental default-path use.
+    from orchestrator.campaign import buildcache
+    fake_cmake = probe_root / "fake-cmake"
+    fake_cmake.write_text(
+        "#!/usr/bin/env python3\n"
+        "from pathlib import Path\n"
+        "import sys\n"
+        "args = sys.argv[1:]\n"
+        "if '-B' in args:\n"
+        "    build = Path(args[args.index('-B') + 1])\n"
+        "    build.mkdir(parents=True, exist_ok=True)\n"
+        "for arg in args:\n"
+        "    if arg.startswith('-DFETCHCONTENT_BASE_DIR='):\n"
+        "        base = Path(arg.split('=', 1)[1])\n"
+        "        (base / 'masstree-src').mkdir(parents=True, exist_ok=True)\n"
+        "        break\n"
+        "if '--build' in args:\n"
+        "    build = Path(args[args.index('--build') + 1])\n"
+        "    build.mkdir(parents=True, exist_ok=True)\n"
+        "    (build / 'fake-target-built').write_text('ok\\n', encoding='utf-8')\n",
+        encoding="utf-8",
+    )
+    fake_cmake.chmod(0o755)
+    tool_manifest = {
+        role: {
+            "requested": role,
+            "realpath": str(fake_cmake),
+            "version_first_line": f"fixture-{role}",
+            "version": f"fixture-{role}",
+        }
+        for role in ("cc", "cxx", "cmake")
+    }
+    fetch_base = probe_root / "job-local-fetchcontent"
+    fetch_base.mkdir()
+    preparation = buildcache.prepare_masstree_fetchcontent(
+        ccbench_dir=str(ccbench),
+        fetchcontent_base_dir=str(fetch_base),
+        expected_toolchain_manifest=tool_manifest,
+        configure_timeout_s=30,
+        target_timeout_s=30,
+        site=site_policy.OTHER,
+    )
+    assert Path(preparation.fetchcontent_base_dir) == fetch_base.resolve()
+    assert (fetch_base / "masstree-src").is_dir()
+
+    # Exercise both production build-cache writers with their normal admission
+    # and manifest machinery.  Only the external compiler/CMake process is a
+    # fixture; buildcache itself performs the real cache-directory writes.
+    from orchestrator.tests import test_buildcache_v2 as buildcache_tests
+    buildcache_tests._install_toolchain(probe_root, monkeypatch)
+    buildcache_tests._fake_build_environment(
+        monkeypatch, probe_root, payload=b"writer-build",
+    )
+    genome = buildcache_tests.Genome("silo", {"BACK_OFF": 1})
+    context, evidence, admission = buildcache_tests._admission_bundle(
+        genome, "a" * 40, str(ccbench),
+    )
+    legacy = buildcache.build(
+        genome, "a" * 40, False,
+        cache_root=str(probe_root / "legacy-cache"),
+        ccbench_dir=str(ccbench), cc="test-cc", cxx="test-cxx", jobs=1,
+        admission=admission, build_context=context, source_evidence=evidence,
+    )
+    assert Path(legacy.binary).is_file()
+    v2 = buildcache_tests._build(
+        probe_root, buildcache_tests._contract(1), trace=False,
+        ccbench_dir=str(ccbench),
+    )
+    assert Path(v2.binary).is_file()
+    v2_fetch_base = probe_root / "v2-fetchcontent"
+    v2_fetch_base.mkdir()
+    v2_receipt = buildcache_tests._write_fetchcontent_dependency(v2_fetch_base)
+    v2_fetch = buildcache_tests._build(
+        probe_root, buildcache_tests._contract(1), trace=True,
+        ccbench_dir=str(ccbench), fetchcontent_base_dir=str(v2_fetch_base),
+        fetchcontent_dependency_receipt=v2_receipt,
+    )
+    assert Path(v2_fetch.binary).is_file()
+    probed_nodes.update({
+        "test_s8b_floor_campaign.py::test_slow_real_prepare_cell_to_buildcache_canary_one_configuration",
+        "test_s8b_floor_campaign.py::test_slow_real_prepare_cell_to_buildcache_v2_canary_one_configuration",
+        "test_s8b_oracle_driver.py::test_slow_oracle_prepared_cell_pipeline_uses_real_build_v2",
+    })
+
+    # Exercise the production worktree writer on a synthetic git repository;
+    # no real shared submodule is touched by this probe.
+    from orchestrator.campaign import patchharness
+    checkout_base = probe_root / "checkout-base"
+    checkout_base.mkdir()
+    subprocess.run(
+        ["git", "init", "-q"], cwd=str(checkout_base), check=True,
+        stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+    )
+    (checkout_base / "tracked.txt").write_text("fixture\n", encoding="utf-8")
+    subprocess.run(
+        ["git", "add", "tracked.txt"], cwd=str(checkout_base), check=True,
+        stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+    )
+    subprocess.run(
+        [
+            "git", "-c", "user.name=Izanagi fixture",
+            "-c", "user.email=izanagi-fixture@example.invalid",
+            "commit", "-qm", "fixture",
+        ], cwd=str(checkout_base), check=True,
+        stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+    )
+    head = subprocess.run(
+        ["git", "rev-parse", "HEAD"], cwd=str(checkout_base), check=True,
+        stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
+    ).stdout.strip()
+    with patchharness.checkout(head, base_dir=str(checkout_base)) as checked:
+        assert Path(checked).is_dir()
+    probed_nodes.add(
+        "test_sort_swo_oracle.py::test_real_patchharness_checkout_and_resolver_use_explicit_binding"
+    )
+
+    assert probed_nodes == writer_nodes, (
+        "現行 REAL_REPO_SERIAL_NODES の writer probe が不足: "
+        f"missing={sorted(writer_nodes - probed_nodes)} "
+        f"extra={sorted(probed_nodes - writer_nodes)}"
+    )
+
+    after_writers = {path: candidate_state(path) for path in candidate_paths}
+    assert before == after_writers, (
+        "production writer 実行後に resolver candidate path が変化した: "
+        f"changed={sorted(str(path) for path in candidate_paths if before[path] != after_writers[path])}"
+    )
+
+    # Resolve only after all writer probes.  The resolver itself must also stay
+    # read-only, so take a second post-resolution snapshot.
+    resolution = oracle.resolve_oracle_environment(ccbench)
+    assert type(resolution) is oracle.OracleEnvironmentResolutionFailure
+    assert [item.origin for item in resolution.compiler_candidates] == [
+        "environment:IZANAGI_SORT_SWO_CXX",
+        "environment:CXX",
+        "path:g++",
+    ]
+    assert [item.path for item in resolution.compiler_candidates] == [
+        compiler, cxx, gxx,
+    ]
+    assert [item.origin for item in resolution.dependency_candidates][:2] == [
+        "environment:IZANAGI_SORT_SWO_MASSTREE_ROOT",
+        "ccbench-build-dependency",
+    ]
+    assert [item.path for item in resolution.dependency_candidates] == [
+        dependency,
+        ccbench / "build" / "_deps" / "masstree-src",
+        *ancestor_candidates,
+    ]
+    after_resolution = {path: candidate_state(path) for path in candidate_paths}
+    assert after_writers == after_resolution, (
+        "resolver が candidate path を materialize した: "
+        f"changed={sorted(str(path) for path in candidate_paths if after_writers[path] != after_resolution[path])}"
+    )
+    assert before[compiler] == ("absent",)
+    assert before[cxx] == ("absent",)
+    assert before[gxx] == ("absent",)
+    assert before[dependency] == ("absent",)
+    assert before[ccbench / "build" / "_deps" / "masstree-src"] == ("absent",)
+
+
+def test_oracle_environment_memo_roundtrip_and_getter_are_fail_closed(tmp_path):
+    """The union wire schema is lossless and a getter miss never resolves."""
+    from orchestrator.campaign import sort_swo_oracle as oracle
+    from orchestrator.tests import sort_swo_oracle_receipt_memo as memo
+
+    candidate = oracle.OracleEnvironmentCandidate(
+        "environment:IZANAGI_SORT_SWO_CXX", Path(tmp_path / "cxx"), "missing",
+    )
+    failure = oracle.OracleEnvironmentResolutionFailure(
+        "oracle-environment-compiler-unresolved",
+        (candidate,),
+        (oracle.OracleEnvironmentCandidate(
+            "ccbench-build-dependency", None, "config-h-missing",
+        ),),
+    )
+    success = oracle.OracleEnvironment(
+        Path(tmp_path / "cxx"), Path(tmp_path / "ccbench"),
+        Path(tmp_path / "masstree"),
+    )
+    for index, resolution in enumerate((success, failure)):
+        assert memo._cache_resolution(memo._cache_document(resolution)) == resolution
+        cache_path = tmp_path / f"oracle-resolution-{index}.json"
+        memo._cache_store(cache_path, resolution)
+        assert memo._cache_load(
+            cache_path,
+            run_id=f"roundtrip-{index}",
+            head="b" * 40,
+            prewarm=False,
+            process_prewarmed=False,
+        ) == resolution
+
+    calls = []
+
+    def forbidden_resolve():
+        calls.append("resolver")
+        raise AssertionError("consumer getter invoked the production resolver")
+
+    with mock.patch.object(memo, "_repo_head", return_value="c" * 40), \
+            mock.patch.object(memo.tempfile, "gettempdir", return_value=str(tmp_path)), \
+            mock.patch.dict(
+                os.environ,
+                {
+                    memo._RUN_ID_ENV: "oracle-roundtrip-run",
+                    memo._SESSION_NONCE_ENV: "oracle-roundtrip-session",
+                },
+                clear=False,
+            ):
+        writer = memo._make_oracle_environment_memo(resolve=lambda: success)
+        assert writer.prewarm(
+            run_id="oracle-roundtrip-run",
+            session_id="oracle-roundtrip-session",
+        ) == success
+        cache_reader = memo._make_oracle_environment_memo(
+            resolve=forbidden_resolve,
+        )
+        assert cache_reader.get() == success
+        assert cache_reader.process_prewarmed is False
+
+    reader = memo._make_oracle_environment_memo(resolve=forbidden_resolve)
+    with mock.patch.object(memo, "_repo_head", return_value="b" * 40), \
+            mock.patch.object(memo.tempfile, "gettempdir", return_value=str(tmp_path)), \
+            mock.patch.dict(
+                os.environ,
+                {
+                    memo._RUN_ID_ENV: "oracle-fail-closed-run",
+                    memo._SESSION_NONCE_ENV: "oracle-fail-closed-session",
+                },
+                clear=False,
+            ):
+        try:
+            reader.get()
+        except memo.OracleEnvironmentMemoError as exc:
+            assert exc.payload["reason"] == "cache-missing"
+        else:
+            raise AssertionError("oracle getter miss was not fail-closed")
+    assert calls == []
+
+
+def test_oracle_environment_prewarm_hook_exception_is_not_fail_open():
+    """A controller prewarm error remains visible and cleans memo state."""
+    suite_conftest = _load_suite_conftest()
+    consumer = next(iter(sorted(ORACLE_ENVIRONMENT_CONSUMERS_GOLDEN)))
+    config = _ReceiptHookConfig({"collectonly": False})
+    setattr(
+        config,
+        suite_conftest._ORACLE_ENVIRONMENT_MEMO_SESSION_ID_ATTR,
+        "oracle-session-test",
+    )
+    prewarm_error = RuntimeError("oracle prewarm failed")
+    fake_module = SimpleNamespace(
+        prewarm_oracle_environment=mock.Mock(side_effect=prewarm_error),
+        finish_oracle_environment_session=mock.Mock(),
+    )
+    try:
+        with mock.patch.object(
+            suite_conftest,
+            "_oracle_environment_memo_module",
+            return_value=fake_module,
+        ):
+            suite_conftest.pytest_collection_finish(SimpleNamespace(
+                config=config, items=[_receipt_hook_item(consumer)],
+            ))
+    except RuntimeError as exc:
+        assert exc is prewarm_error
+    else:
+        raise AssertionError("oracle prewarm exception was swallowed")
+    assert not getattr(
+        config, suite_conftest._ORACLE_ENVIRONMENT_MEMO_PREWARMED_ATTR, False,
+    )
+    fake_module.finish_oracle_environment_session.assert_called_once_with(
+        session_id="oracle-session-test",
+    )
+
+
+def test_oracle_environment_memo_prewarm_wiring_is_controller_only_and_lazy():
+    """Both collection barriers pay once, while workers and unrelated nodes do not."""
+    suite_conftest = _load_suite_conftest()
+    consumer = next(iter(sorted(ORACLE_ENVIRONMENT_CONSUMERS_GOLDEN)))
+    calls = []
+    fake_module = SimpleNamespace(
+        prewarm_oracle_environment=lambda **kwargs: calls.append(kwargs),
+        finish_oracle_environment_session=mock.Mock(),
+    )
+
+    worker_config = _ReceiptHookConfig(
+        {"collectonly": False, "testrunuid": "ci-job-42"}, worker=True,
+    )
+    setattr(
+        worker_config,
+        suite_conftest._ORACLE_ENVIRONMENT_MEMO_SESSION_ID_ATTR,
+        "oracle-session-test",
+    )
+    worker_config.workerinput[
+        suite_conftest._ORACLE_ENVIRONMENT_MEMO_SESSION_ID_ATTR
+    ] = "oracle-session-test"
+    worker_session = SimpleNamespace(
+        config=worker_config, items=[_receipt_hook_item(consumer)],
+    )
+    controller_config = _ReceiptHookConfig(
+        {"collectonly": False, "testrunuid": "ci-job-42"},
+    )
+    setattr(
+        controller_config,
+        suite_conftest._ORACLE_ENVIRONMENT_MEMO_SESSION_ID_ATTR,
+        "oracle-session-test",
+    )
+    controller_node = SimpleNamespace(
+        config=controller_config,
+        workerinput={"testrunuid": "ci-job-42"},
+    )
+    with mock.patch.object(
+        suite_conftest, "_oracle_environment_memo_module", return_value=fake_module,
+    ):
+        suite_conftest.pytest_collection_finish(worker_session)
+        assert calls == []
+        suite_conftest.pytest_xdist_node_collection_finished(
+            controller_node, [consumer + "@oracle-environment"],
+        )
+        suite_conftest.pytest_xdist_node_collection_finished(
+            controller_node, [consumer + "@oracle-environment"],
+        )
+        suite_conftest._finish_oracle_environment_memo_session(controller_config)
+    assert calls == [{
+        "run_id": "ci-job-42", "session_id": "oracle-session-test",
+    }]
+    fake_module.finish_oracle_environment_session.assert_called_once_with(
+        session_id="oracle-session-test",
+    )
+    assert not getattr(
+        controller_config,
+        suite_conftest._ORACLE_ENVIRONMENT_MEMO_SESSION_ACTIVE_ATTR,
+        False,
+    )
+
+    serial_calls = []
+    serial_module = SimpleNamespace(
+        prewarm_oracle_environment=lambda **kwargs: serial_calls.append(kwargs),
+    )
+    serial_config = _ReceiptHookConfig({"collectonly": False})
+    setattr(
+        serial_config,
+        suite_conftest._ORACLE_ENVIRONMENT_MEMO_SESSION_ID_ATTR,
+        "oracle-session-serial",
+    )
+    with mock.patch.object(
+        suite_conftest, "_oracle_environment_memo_module", return_value=serial_module,
+    ):
+        suite_conftest.pytest_collection_finish(SimpleNamespace(
+            config=serial_config, items=[_receipt_hook_item(consumer)],
+        ))
+    assert serial_calls == [{
+        "run_id": None, "session_id": "oracle-session-serial",
+    }]
+
+    unrelated_config = _ReceiptHookConfig({"collectonly": False})
+    with mock.patch.object(
+        suite_conftest,
+        "_oracle_environment_memo_module",
+        side_effect=AssertionError("unrelated selection imported oracle memo"),
+    ) as lazy_import:
+        suite_conftest.pytest_collection_finish(SimpleNamespace(
+            config=unrelated_config,
+            items=[_receipt_hook_item("test_example.py::test_unrelated")],
+        ))
+    assert lazy_import.call_count == 0
+
+
+def test_oracle_environment_memo_nonce_is_propagated_to_workers_and_restored():
+    """Controller and worker use one oracle session nonce without env leakage."""
+    suite_conftest = _load_suite_conftest()
+    with mock.patch.dict(
+        os.environ,
+        {suite_conftest._ORACLE_ENVIRONMENT_MEMO_NONCE_ENV: "outer-oracle-nonce"},
+        clear=False,
+    ):
+        controller = _ReceiptHookConfig()
+        worker = None
+        suite_conftest._configure_oracle_environment_memo_session(controller)
+        controller_nonce = getattr(
+            controller, suite_conftest._ORACLE_ENVIRONMENT_MEMO_SESSION_ID_ATTR,
+        )
+        assert isinstance(controller_nonce, str) and controller_nonce
+        assert os.environ[suite_conftest._ORACLE_ENVIRONMENT_MEMO_NONCE_ENV] == controller_nonce
+        try:
+            node = SimpleNamespace(
+                config=controller, workerinput={"testrunuid": "ci-job-42"},
+            )
+            suite_conftest.pytest_configure_node(node)
+            assert node.workerinput[
+                suite_conftest._ORACLE_ENVIRONMENT_MEMO_SESSION_ID_ATTR
+            ] == controller_nonce
+
+            worker = SimpleNamespace(workerinput=dict(node.workerinput))
+            suite_conftest._configure_oracle_environment_memo_session(worker)
+            assert getattr(
+                worker, suite_conftest._ORACLE_ENVIRONMENT_MEMO_SESSION_ID_ATTR,
+            ) == controller_nonce
+            suite_conftest._restore_oracle_environment_memo_nonce(worker)
+            assert os.environ[suite_conftest._ORACLE_ENVIRONMENT_MEMO_NONCE_ENV] == controller_nonce
+        finally:
+            if worker is not None:
+                suite_conftest._restore_oracle_environment_memo_nonce(worker)
+            suite_conftest._restore_oracle_environment_memo_nonce(controller)
+        assert os.environ[suite_conftest._ORACLE_ENVIRONMENT_MEMO_NONCE_ENV] == "outer-oracle-nonce"
 
 
 def _receipt_error(call, memo_module, expected_reason):
@@ -1920,6 +2759,40 @@ def test_receipt_memo_nonce_cleanup_preserves_unconfigure_exception():
             else:
                 raise AssertionError("pytest_unconfigure が元例外を握り潰した")
         assert os.environ[suite_conftest._RECEIPT_MEMO_NONCE_ENV] == "outer-nonce"
+
+
+def test_memo_cleanup_runs_oracle_after_receipt_cleanup_error():
+    """A receipt cleanup failure must not skip the independent oracle cleanup."""
+    suite_conftest = _load_suite_conftest()
+    config = SimpleNamespace()
+    calls = []
+    receipt_error = RuntimeError("receipt cleanup failed")
+
+    def finish_receipt(_config):
+        calls.append("receipt")
+        raise receipt_error
+
+    def finish_oracle(_config):
+        calls.append("oracle")
+
+    wrapper = suite_conftest.pytest_unconfigure(config)
+    next(wrapper)
+    with mock.patch.object(suite_conftest, "unmark_pytest_session_enforcing", None), \
+            mock.patch.object(
+                suite_conftest, "_emit_effective_scheduler_marker", return_value=None,
+            ), mock.patch.object(
+                suite_conftest, "_finish_receipt_memo_session", side_effect=finish_receipt,
+            ), mock.patch.object(
+                suite_conftest, "_finish_oracle_environment_memo_session",
+                side_effect=finish_oracle,
+            ):
+        try:
+            next(wrapper)
+        except RuntimeError as exc:
+            assert exc is receipt_error
+        else:
+            raise AssertionError("receipt cleanup failure was swallowed")
+    assert calls == ["receipt", "oracle"]
 
 
 def test_receipt_memo_prewarm_wiring_is_controller_only_and_lazy():
@@ -2538,6 +3411,41 @@ def test_receipt_memo_consumers_do_not_resolve_during_collection():
         f"consumer collection probe failed:\nstdout={result.stdout}\nstderr={result.stderr}"
     )
     assert "RECEIPT_COLLECTION_CALLS=0 CONTROL=1" in result.stdout, result.stdout
+
+
+def test_sort_swo_oracle_does_not_resolve_during_collection():
+    """sort SWO oracle の collect-only 中は production resolver を呼ばない。"""
+    _require_pytest()
+    script = textwrap.dedent(
+        f"""
+        import pytest
+        from orchestrator.campaign import sort_swo_oracle as oracle
+
+        calls = []
+        def fake_resolver(*args, **kwargs):
+            calls.append((args, kwargs))
+            return object()
+        oracle.resolve_oracle_environment = fake_resolver
+        rc = pytest.main([
+            "--collect-only", "-q",
+            {str(HERE / "test_sort_swo_oracle.py")!r},
+        ])
+        collected_calls = len(calls)
+        oracle.resolve_oracle_environment("positive-control")
+        print(
+            f"SORT_SWO_COLLECTION_CALLS={{collected_calls}} "
+            f"CONTROL={{len(calls) - collected_calls}}"
+        )
+        raise SystemExit(rc)
+        """
+    )
+    result = _run_subprocess(
+        [sys.executable, "-c", script], cwd=ROOT, env=os.environ.copy(),
+    )
+    assert result.returncode == 0, (
+        f"sort SWO collection probe failed:\nstdout={result.stdout}\nstderr={result.stderr}"
+    )
+    assert "SORT_SWO_COLLECTION_CALLS=0 CONTROL=1" in result.stdout, result.stdout
 
 
 def _require_loadgroup_capability() -> None:

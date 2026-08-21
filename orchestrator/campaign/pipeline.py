@@ -21,7 +21,7 @@ import subprocess
 import tempfile
 import time
 from dataclasses import dataclass, field
-from typing import Callable, Dict, List, NamedTuple, Optional, Sequence, Tuple
+from typing import Callable, Dict, List, Mapping, NamedTuple, Optional, Sequence, Tuple
 
 from ..calibrator import perf_preflight as _perf_preflight                # noqa: E402
 from ..calibrator.runner import (CompetingBenchProbeError,        # noqa: E402
@@ -427,8 +427,12 @@ def _run_bench(perf_binary: str, perf: PerfConfig, clocks_per_us: int,
                ] = None,
                use_perf: bool = True,
                perf_preflight_receipt: Optional[dict] = None,
+               *,
+               build_attempt_id: str,
                ) -> Tuple[Optional[EvalResult], Optional[_BenchResult]]:
     """現行の full bench を実行し、成功時は WAL に既測値を残す。"""
+    if type(build_attempt_id) is not str or not build_attempt_id:
+        raise TypeError("build_attempt_id は non-empty str が必要")
     _require_measurement_site("campaign throughput 測定")
     # records は measure_point が -ycsb_tuple_num として渡す → workload に入れない
     # (入れると gflags last-wins で calibration の records を無言上書きする)。
@@ -557,6 +561,7 @@ def _run_bench(perf_binary: str, perf: PerfConfig, clocks_per_us: int,
                       "bench_wall_s": bench_wall_s}), None
     leading_indicators = pt.leading_indicators()
     bench_payload = {
+        "build_attempt_id": build_attempt_id,
         "median_tps": nf.median, "cv": nf.cv,
         "bench_wall_s": bench_wall_s,
         "high_variance": nf.high_variance, "unstable": rem.unstable,
@@ -587,6 +592,9 @@ def _run_bench(perf_binary: str, perf: PerfConfig, clocks_per_us: int,
         bench_payload["rep_returncodes"] = selected_returncodes
     if bench_payload_extra:
         bench_payload.update(bench_payload_extra)
+    # Extra diagnostic fields are caller-controlled, but attempt ownership is
+    # part of the producer contract and must not be overridden.
+    bench_payload["build_attempt_id"] = build_attempt_id
     (emit or wal.log)(layout, variant, STAGE_BENCH_DONE, env_tag, bench_payload)
     log(f"  [eval {variant}] bench: median {nf.median:,.0f} tps (CV {nf.cv*100:.2f}%"
         f"{f', {rem.rounds}rounds' if rem.rounds > 1 else ''}"
@@ -615,6 +623,8 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
              build_context: BuildRunContext,
              capability_resolver: Optional[AdmissionCapabilityResolver] = None,
              source_evidence: Optional[SourceEvidence] = None,
+             expected_toolchain_manifest: Optional[Mapping[str, object]] = None,
+             declared_use_class: Optional[str] = None,
              trigger_gate_binding=None,
              holdout_observation_admission: Optional[
                  HoldoutObservationAdmission
@@ -647,6 +657,11 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
     namespace も不変に保つ。`dependency_prefix` は非空時だけ v2 build へ素通しし、
     空の既存 caller では build_v2 の呼出し形を変えない。
 
+    `expected_toolchain_manifest` は campaign 開始時に観測した v2 toolchain の束縛値で、
+    指定時は source evidence と trace/perf の両 build へ同じ値を渡す。`declared_use_class`
+    は v2 materializer へ渡す runtime class であり、未指定 caller の legacy 経路には
+    伝播しない。
+
     `record_rep_returncodes` も既定 False の opt-in。True の official oracle 経路だけ、
     採用した再測定 round と identity で一意に対応する rep rc を bench_done に残す。
 
@@ -670,6 +685,10 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
     軽量ゆえ従来どおり並列可 (lock.py の設計方針)。"""
     if type(build_context) is not BuildRunContext:
         raise TypeError("build_context は build_run_context() 由来の exact value が必要")
+    if expected_toolchain_manifest is not None and env_contract is None:
+        raise ValueError(
+            "expected_toolchain_manifest は env_contract 付き v2 build に限る"
+        )
     if trigger_gate_binding is not None and type(trigger_gate_binding) is not TriggerGateBinding:
         raise TypeError("trigger_gate_binding は exact TriggerGateBinding または None が必要")
     if capability_resolver is not None and not callable(capability_resolver):
@@ -794,7 +813,12 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
         return result
 
     try:
-        _, resolved_cxx = _compilers_for_current_site()
+        if expected_toolchain_manifest is None:
+            _, resolved_cxx = _compilers_for_current_site()
+        else:
+            _, resolved_cxx = buildcache.toolchain_compilers_from_manifest(
+                expected_toolchain_manifest,
+            )
         evidence_cxx = _DEFAULT_CXX if resolved_cxx == _DEFAULT_CXX else resolved_cxx
         current_evidence = source_digest.resolve_evidence(
             genome,
@@ -920,9 +944,14 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
             if not isinstance(env_contract, ExecutionEnvironmentContract):
                 raise TypeError(
                     "env_contract は ExecutionEnvironmentContract でなければならない"
-                )
+            )
             default_ccbench = buildcache._ccbench_dir()
-            resolved_cc, resolved_cxx = _compilers_for_current_site()
+            if expected_toolchain_manifest is None:
+                resolved_cc, resolved_cxx = _compilers_for_current_site()
+            else:
+                resolved_cc, resolved_cxx = buildcache.toolchain_compilers_from_manifest(
+                    expected_toolchain_manifest,
+                )
             common = {
                 "contract": env_contract,
                 "ccbench_commit": ccbench_commit,
@@ -939,6 +968,10 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
             }
             if dependency_prefix:
                 common["dependency_prefix"] = dependency_prefix
+            if expected_toolchain_manifest is not None:
+                common["expected_toolchain_manifest"] = expected_toolchain_manifest
+            if declared_use_class is not None:
+                common["declared_use_class"] = declared_use_class
             if qualification_policy is None:
                 tr = buildcache.build_v2(genome, trace=True, **common)
                 pf = buildcache.build_v2(genome, trace=False, **common)
@@ -957,16 +990,58 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
         # 実地検分から始まる。identity-error の "error" キーと同じ語彙。
         return _abort("build-error", f"ビルド失敗 → reject ({e})",
                       {"error": _exc_summary(e)})
+    toolchain_payload = {}
+    if env_contract is not None:
+        trace_toolchain = getattr(tr, "toolchain", None)
+        perf_toolchain = getattr(pf, "toolchain", None)
+        trace_manifest_sha256 = getattr(tr, "toolchain_manifest_sha256", None)
+        perf_manifest_sha256 = getattr(pf, "toolchain_manifest_sha256", None)
+        binding_required = (
+            expected_toolchain_manifest is not None
+            or declared_use_class == "official"
+        )
+        if trace_toolchain is not None or perf_toolchain is not None or binding_required:
+            if trace_toolchain != perf_toolchain:
+                return _abort(
+                    "build-error",
+                    "trace/perf build の toolchain が一致しない → reject",
+                    {"error": "trace/perf toolchain binding mismatch"},
+                )
+            if (trace_manifest_sha256 != perf_manifest_sha256
+                    and (trace_manifest_sha256 is not None
+                         or perf_manifest_sha256 is not None)):
+                return _abort(
+                    "build-error",
+                    "trace/perf build の toolchain manifest hash が一致しない → reject",
+                    {"error": "trace/perf toolchain manifest hash mismatch"},
+                )
+            if binding_required and (
+                    trace_toolchain is None or trace_manifest_sha256 is None):
+                return _abort(
+                    "build-error",
+                    "v2 build の toolchain 観測値が欠落 → reject",
+                    {"error": "toolchain observation missing"},
+                )
+            if trace_toolchain is not None and trace_manifest_sha256 is not None:
+                toolchain_payload = {
+                    "toolchain": trace_toolchain,
+                    # buildcache._v2_identity の pre-image hash とは異なる、full
+                    # version を含む campaign 実行証跡用 hash。
+                    "toolchain_record_sha256": trace_manifest_sha256,
+                }
     # trace_bin/perf_bin (16 文字) は sha256-prefix-16 / legacy-display-only (過去 WAL との
     # 対称性維持で不変)。trace_bin_sha256/perf_bin_sha256 (exact 64 lowercase hex) が照合系列。
-    emit(layout, v, STAGE_BUILD_DONE, env_tag,
-         {"trace_bin": tr.bin_hash, "perf_bin": pf.bin_hash,
-          "build_attempt_id": build_attempt_id,
-          "build_admission_receipt_sha256": admission.receipt_sha256,
-          "trace_bin_sha256": tr.bin_sha256, "perf_bin_sha256": pf.bin_sha256,
-          "trace_cached": tr.cached, "perf_cached": pf.cached,
-          # fitness 計測に使う perf (trace-disabled) build の再現コマンド (規律1)。
-          "perf_configure_cmd": pf.configure_cmd, "perf_build_cmd": pf.build_cmd})
+    build_done_payload = {
+        "trace_bin": tr.bin_hash, "perf_bin": pf.bin_hash,
+        "build_attempt_id": build_attempt_id,
+        "build_admission_receipt_sha256": admission.receipt_sha256,
+        "trace_bin_sha256": tr.bin_sha256, "perf_bin_sha256": pf.bin_sha256,
+        "trace_cached": tr.cached, "perf_cached": pf.cached,
+        # fitness 計測に使う perf (trace-disabled) build の再現コマンド (規律1)。
+        "perf_configure_cmd": pf.configure_cmd, "perf_build_cmd": pf.build_cmd,
+    }
+    build_done_payload.update(toolchain_payload)
+    emit(layout, v, STAGE_BUILD_DONE, env_tag, build_done_payload)
     log(f"  [eval {v}] built trace={tr.bin_hash}{'(cache)' if tr.cached else ''} "
         f"perf={pf.bin_hash}{'(cache)' if pf.cached else ''}")
 
@@ -1127,6 +1202,7 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
                               {"error": _exc_summary(e)}, workload_tag=tag)
             res.verdict = vr.verdict
             verify_payload = {
+                "build_attempt_id": build_attempt_id,
                 "verdict": vr.verdict, "certified": vr.certified,
                 "commits": ncommit, "aborts": aborts,
                 "commit_witness": commit_witness,
@@ -1189,6 +1265,7 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
         aborted_result, bench = _run_bench(
             pf.binary, perf, clocks_per_us, numactl, do_settle,
             layout, v, env_tag, _abort, log, screening=True,
+            build_attempt_id=build_attempt_id,
             bench_max_rounds=bench_max_rounds,
             record_rep_returncodes=record_rep_returncodes,
             holdout_observation_admission=holdout_observation_admission,
@@ -1316,6 +1393,7 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
             aborted_result, bench = _run_bench(
                 pf.binary, perf, clocks_per_us, numactl, do_settle,
                 layout, v, env_tag, _abort, log,
+                build_attempt_id=build_attempt_id,
                 bench_payload_extra=screening_disabled_payload,
                 bench_max_rounds=bench_max_rounds,
                 record_rep_returncodes=record_rep_returncodes,

@@ -2310,6 +2310,8 @@ def _evaluate_c11(probe: _ConditionProbe) -> core.PredicateResult:
 
 
 def _c12_allocation_binding_verdict(
+    probe: _ConditionProbe,
+    workload_path: str,
     workload_supervisor: ast.Module,
     allocation_consumer: ast.Module | None,
 ) -> tuple[core.PredicateStatus, ReasonCode] | None:
@@ -2317,8 +2319,18 @@ def _c12_allocation_binding_verdict(
     if (
         allocation_consumer is None
         or not required_functions <= _functions(allocation_consumer).keys()
-        or not required_functions
-        <= _reachable_calls(workload_supervisor, "run_trial")
+        or "run_trial" not in _functions(workload_supervisor)
+    ):
+        return (
+            core.PredicateStatus.UNSATISFIED,
+            ReasonCode.ALLOCATION_ENFORCEMENT_CONSUMER_ABSENT,
+        )
+
+    graph = _ReachabilityExplorer(probe).walk((workload_path, "run_trial"))
+    allocation_path = probe.requirement("allocation_consumer").path
+    if not all(
+        _declared_call(probe, graph, (allocation_path, name))
+        for name in required_functions
     ):
         return (
             core.PredicateStatus.UNSATISFIED,
@@ -2331,12 +2343,17 @@ def _evaluate_c12(probe: _ConditionProbe) -> core.PredicateResult:
     tree = probe.python_kind("workload_supervisor")
     if tree is None:
         return _result(probe, core.PredicateStatus.EVIDENCE_UNDEFINED, ReasonCode.WORKLOAD_SUPERVISOR_ABSENT)
+    workload_path = probe.requirement("workload_supervisor").path
     allocation = probe.python_kind("allocation_consumer")
-    allocation_verdict = _c12_allocation_binding_verdict(tree, allocation)
+    allocation_verdict = _c12_allocation_binding_verdict(
+        probe,
+        workload_path,
+        tree,
+        allocation,
+    )
     if allocation_verdict is not None:
         status, reason = allocation_verdict
         return _result(probe, status, reason)
-    workload_path = probe.requirement("workload_supervisor").path
     functions = _functions(tree)
     if functions.get("run_trial") is None or functions.get("main") is None:
         return _result(probe, core.PredicateStatus.UNSATISFIED, ReasonCode.ENVIRONMENT_CONTRACT_CONSUMER_ABSENT)
@@ -3055,20 +3072,6 @@ def _evaluate_c07(probe: _ConditionProbe) -> core.PredicateResult:
     )
 
 
-_MACHINE_EVALUATORS = {
-    1: _evaluate_c01,
-    2: _evaluate_c02,
-    4: _evaluate_c04,
-    5: _evaluate_c05,
-    7: _evaluate_c07,
-    9: _evaluate_c09,
-    10: _evaluate_c10,
-    11: _evaluate_c11,
-    12: _evaluate_c12,
-}
-MACHINE_CHECKABLE_CONDITION_IDS: frozenset[str] = frozenset(
-    f"C{number:02d}" for number in _MACHINE_EVALUATORS
-)
 SATISFIABLE_CONDITION_IDS: frozenset[str] = frozenset()
 
 
@@ -3234,8 +3237,7 @@ def evaluate_all(
     return _REGISTRY.evaluate_all(commit, repo_root=repo_root)
 
 
-# C06 は契約が false の間は production dispatch に登録しない。ここに置く
-# staged registry は、将来の契約反転を検査する test 専用の待機場所である。
+# C06 の静的 evaluator は、契約の machine_checkable 宣言に対応して production registry へ登録する。
 from types import MappingProxyType as _MappingProxyType  # noqa: E402
 
 _C06_EXPECTED_FIELD_PATHS = frozenset(
@@ -3258,6 +3260,29 @@ _C06_EXPECTED_CELL_ROWS = frozenset(
         ("H2", "swapped"),
     }
 )
+_C06_EXPECTED_REACHABLE_FROM = (
+    (
+        "budget_consumer",
+        "run_trial -> reserve_all_cells -> bench launch",
+    ),
+    (
+        "budget_consumer",
+        "bench terminal -> settle -> symmetric_indeterminate",
+    ),
+    (
+        "ratified_generation_reference",
+        "run_trial -> load_ratified_freeze -> reserve_all_cells",
+    ),
+)
+
+
+def _c06_reachable_from_verdict(probe: _ConditionProbe) -> bool:
+    # 契約記述と evaluator 期待値の整合 (drift) だけを確認し、
+    # 実コード上の呼び出し順序やデータフローは検証しない。
+    return all(
+        chain in probe.requirement(kind).reachable_from
+        for kind, chain in _C06_EXPECTED_REACHABLE_FROM
+    )
 
 
 def _c06_annotation_names(node: ast.AST) -> frozenset[str]:
@@ -3477,7 +3502,7 @@ def _c06_unsatisfied(probe: _ConditionProbe) -> core.PredicateResult:
 
 
 def _evaluate_c06(probe: _ConditionProbe) -> core.PredicateResult:
-    """C06 の staged evaluator。充足を返さず、完了証明は常に未定義にする。"""
+    """C06 の machine evaluator。充足を返さず、完了証明は常に未定義にする。"""
     budget = probe.python_kind("budget_consumer")
     if budget is None:
         return _result(
@@ -3487,6 +3512,8 @@ def _evaluate_c06(probe: _ConditionProbe) -> core.PredicateResult:
         )
     requirement = probe.requirement("budget_consumer")
     if frozenset(requirement.field_paths) != _C06_EXPECTED_FIELD_PATHS:
+        return _c06_unsatisfied(probe)
+    if not _c06_reachable_from_verdict(probe):
         return _c06_unsatisfied(probe)
     if not _c06_field_path_verdict(budget):
         return _c06_unsatisfied(probe)
@@ -3502,6 +3529,19 @@ def _evaluate_c06(probe: _ConditionProbe) -> core.PredicateResult:
         "_check_limit_state",
     } <= functions.keys():
         return _c06_unsatisfied(probe)
+    required_calls = {
+        "reserve_all_cells": {
+            "_ledger_lock",
+            "_check_limit_state",
+        },
+        "settle": {"_ledger_lock"},
+    }
+    for name, expected in required_calls.items():
+        if not expected <= _live_called_names(functions[name]):
+            return _c06_unsatisfied(probe)
+    reference_requirement = probe.requirement(
+        "ratified_generation_reference"
+    )
     reference = probe.python_kind("ratified_generation_reference")
     if (
         reference is None
@@ -3511,23 +3551,28 @@ def _evaluate_c06(probe: _ConditionProbe) -> core.PredicateResult:
         return _c06_unsatisfied(probe)
     supervisor_path = "orchestrator/campaign/p3_autonomous_workload_trial.py"
     supervisor = probe.python_path(supervisor_path)
-    if supervisor is not None:
-        reachable = _reachable_functions(supervisor, "run_trial")
-        reachable_calls = _reachable_calls(supervisor, "run_trial")
-        if "run_trial" not in _functions(supervisor) or not {
-            "load_ratified_freeze",
-            "reserve_all_cells",
-            "settle",
-            "symmetric_indeterminate",
-        } <= reachable_calls:
-            return _c06_unsatisfied(probe)
-        if not reachable or len(reachable) > _MAX_REACHABILITY_STATES:
-            return _c06_unsatisfied(probe)
-        if not any(
-            isinstance(current, ast.Attribute) and current.attr == "sha256"
-            for current in ast.walk(supervisor)
-        ):
-            return _c06_unsatisfied(probe)
+    if supervisor is None or "run_trial" not in _functions(supervisor):
+        return _c06_unsatisfied(probe)
+
+    graph = _ReachabilityExplorer(probe).walk(
+        (supervisor_path, "run_trial")
+    )
+    required_targets = {
+        (reference_requirement.path, "load_ratified_freeze"),
+        (requirement.path, "reserve_all_cells"),
+        (requirement.path, "settle"),
+        (requirement.path, "symmetric_indeterminate"),
+    }
+    if not all(
+        _declared_call(probe, graph, target)
+        for target in required_targets
+    ):
+        return _c06_unsatisfied(probe)
+    if not any(
+        isinstance(current, ast.Attribute) and current.attr == "sha256"
+        for current in ast.walk(supervisor)
+    ):
+        return _c06_unsatisfied(probe)
     # static_only_note の通り、実時間の値は readiness の充足条件にしない。
     return _result(
         probe,
@@ -3536,4 +3581,19 @@ def _evaluate_c06(probe: _ConditionProbe) -> core.PredicateResult:
     )
 
 
-_STAGED_EVALUATORS = _MappingProxyType({6: _evaluate_c06})
+_MACHINE_EVALUATORS = {
+    1: _evaluate_c01,
+    2: _evaluate_c02,
+    4: _evaluate_c04,
+    5: _evaluate_c05,
+    6: _evaluate_c06,
+    7: _evaluate_c07,
+    9: _evaluate_c09,
+    10: _evaluate_c10,
+    11: _evaluate_c11,
+    12: _evaluate_c12,
+}
+MACHINE_CHECKABLE_CONDITION_IDS: frozenset[str] = frozenset(
+    f"C{number:02d}" for number in _MACHINE_EVALUATORS
+)
+_STAGED_EVALUATORS = _MappingProxyType({})

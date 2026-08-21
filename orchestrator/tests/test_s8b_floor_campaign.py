@@ -73,6 +73,7 @@ from orchestrator.campaign.p2_2 import ENV_TAG  # noqa: E402
 from orchestrator.campaign.s1_direct_comparison import PreparedCell  # noqa: E402
 from orchestrator.campaign.source_digest import SourceEvidence  # noqa: E402
 from orchestrator.campaign.s8b_freeze_io import VerifiedFreeze  # noqa: E402
+from orchestrator.calibrator import perf_preflight as calibrator_perf_preflight  # noqa: E402
 from orchestrator.calibrator import runner as calibrator_runner  # noqa: E402
 
 buildcache = s8b_floor_campaign.buildcache
@@ -417,6 +418,14 @@ def _perf_receipt(*, available=True):
         "reason": "available" if available else "nonzero-rc",
         "stderr_sha256": hashlib.sha256(b"").hexdigest(),
         "candidates": [],
+    }
+
+
+def _perf_preflight_journal_record(*, available=True):
+    return {
+        "event": "perf-preflight",
+        "schema": s8b_floor_campaign.JOURNAL_SCHEMA,
+        "perf_preflight_receipt": _perf_receipt(available=available),
     }
 
 
@@ -877,6 +886,237 @@ def test_perf_unavailable_continues_and_records_one_run_receipt(tmp_path):
         f"- perf: mode=disabled, reason=nonzero-rc, "
         f"receipt_sha256=`{receipt_digest}`"
     ]
+
+
+def test_fresh_build_failure_persists_perf_preflight_journal_receipt(
+        tmp_path, monkeypatch):
+    freeze = _freeze_document()
+    verified = _verified_freeze(freeze)
+    protocol = _protocol(freeze_sha=_freeze_sha(freeze))
+    out_root = tmp_path / "out"
+
+    def raising_build(*_args, **_kwargs):
+        raise RuntimeError("fixture build crash")
+
+    monkeypatch.setattr(s8b_floor_campaign, "build_cells", raising_build)
+    with pytest.raises(RuntimeError, match="build crash"):
+        _run_campaign(
+            protocol, verified, out_root=out_root, build_root=tmp_path / "bin",
+            measure_fn=_forbid_measure, probe_fn=lambda: (1, "", ""),
+            perf_preflight_fn=lambda **_kwargs: _perf_receipt(available=False),
+        )
+
+    journals = list(out_root.rglob("journal.jsonl"))
+    assert len(journals) == 1
+    records = _read_journal_lines(journals[0])
+    assert records == [_perf_preflight_journal_record(available=False)]
+    assert not (journals[0].parent / "manifest.json").exists()
+    assert not (journals[0].parent / "result.json").exists()
+
+
+def test_pilot_available_build_failure_persists_perf_preflight_journal_receipt(
+        tmp_path, monkeypatch):
+    freeze = _freeze_document()
+    verified = _verified_freeze(freeze)
+    protocol = _protocol(freeze_sha=_freeze_sha(freeze))
+    out_root = tmp_path / "out"
+
+    def raising_build(*_args, **_kwargs):
+        raise RuntimeError("fixture available build crash")
+
+    monkeypatch.setattr(s8b_floor_campaign, "build_cells", raising_build)
+    with pytest.raises(RuntimeError, match="available build crash"):
+        _run_campaign(
+            protocol, verified, out_root=out_root, build_root=tmp_path / "bin",
+            measure_fn=_forbid_measure, probe_fn=lambda: (1, "", ""),
+            perf_preflight_fn=lambda **_kwargs: _perf_receipt(available=True),
+        )
+
+    journal_path = next(out_root.rglob("journal.jsonl"))
+    assert _read_journal_lines(journal_path) == [
+        _perf_preflight_journal_record(available=True)
+    ]
+
+
+def test_fresh_build_failure_persists_perf_preflight_with_external_checkpoint_binding(
+        tmp_path, monkeypatch):
+    freeze = _freeze_document()
+    verified = _verified_freeze(freeze)
+    protocol = _protocol(freeze_sha=_freeze_sha(freeze))
+    out_root = tmp_path / "out"
+    binding = {
+        "path": str(tmp_path / "checkpoint.jsonl"),
+        "job_id": "fixture-job",
+        "nonce": "fixture-nonce",
+    }
+    checkpoint_calls = []
+
+    monkeypatch.setattr(
+        s8b_floor_campaign.floor_job_checkpoint,
+        "take_checkpoint_environment",
+        lambda _environ: dict(binding),
+    )
+    monkeypatch.setattr(
+        s8b_floor_campaign.floor_job_checkpoint,
+        "try_append_checkpoint_bounded",
+        lambda **kwargs: checkpoint_calls.append(kwargs),
+    )
+    monkeypatch.setattr(
+        s8b_floor_campaign,
+        "build_cells",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            RuntimeError("fixture checkpoint build crash")
+        ),
+    )
+    with pytest.raises(RuntimeError, match="checkpoint build crash"):
+        _run_campaign(
+            protocol, verified, out_root=out_root, build_root=tmp_path / "bin",
+            measure_fn=_forbid_measure, probe_fn=lambda: (1, "", ""),
+            perf_preflight_fn=lambda **_kwargs: _perf_receipt(available=False),
+        )
+
+    assert len(checkpoint_calls) == 1
+    assert checkpoint_calls[0]["path"] == binding["path"]
+    assert checkpoint_calls[0]["job_id"] == binding["job_id"]
+    assert checkpoint_calls[0]["nonce"] == binding["nonce"]
+    journal_path = next(out_root.rglob("journal.jsonl"))
+    assert _read_journal_lines(journal_path) == [
+        _perf_preflight_journal_record(available=False)
+    ]
+
+
+def test_perf_preflight_journal_record_is_outside_certified_artifacts(tmp_path):
+    freeze = _freeze_document()
+    verified = _verified_freeze(freeze)
+    protocol = _protocol(freeze_sha=_freeze_sha(freeze))
+    outcome = _run_campaign(
+        protocol, verified, out_root=tmp_path / "out", build_root=tmp_path / "bin",
+        measure_fn=_make_measure_fn(
+            reps=5, value_fn=lambda cid: _BASE_TPS[cid], use_perf=False,
+        ),
+        probe_fn=lambda: (1, "", ""),
+        perf_preflight_fn=lambda **_kwargs: _perf_receipt(available=False),
+    )
+    run_dir = Path(outcome["run_dir"])
+    journal_record = next(
+        record for record in _read_journal_lines(run_dir / "journal.jsonl")
+        if record.get("event") == "perf-preflight"
+    )
+    manifest = json.loads((run_dir / "manifest.json").read_text(encoding="utf-8"))
+    result = outcome["result"]
+    assert set(manifest) == set(s8b_floor_contract.manifest_keys_for_mode(
+        "pilot", perf_preflight=manifest.get("perf_preflight"),
+    ))
+    assert set(result) == set(s8b_floor_contract.result_keys_for_mode(
+        "pilot", perf_preflight=result.get("perf_preflight"),
+    ))
+    assert set(journal_record) != set(manifest)
+    assert set(journal_record) != set(result)
+    assert "perf_preflight_receipt" not in manifest
+    assert "perf_preflight_receipt" not in result
+    assert all(
+        record.get("event") != "perf-preflight"
+        for record in result["wall_ledger"]
+    )
+
+    unavailable_observation = calibrator_perf_preflight.build_perf_observation(
+        _perf_receipt(available=False), run_cmd=("bench",),
+        leading_indicators={"ipc": None, "llc_miss_rate": None},
+    )
+    assert calibrator_perf_preflight.perf_claim_allowed(
+        unavailable_observation, "perf_required", run_cmd=("bench",),
+        leading_indicators={"ipc": None, "llc_miss_rate": None},
+    ) is False
+    available_observation = calibrator_perf_preflight.build_perf_observation(
+        _perf_receipt(available=True), run_cmd=("bench",),
+        leading_indicators={"ipc": 1.0, "llc_miss_rate": 0.1},
+    )
+    assert calibrator_perf_preflight.perf_claim_allowed(
+        available_observation, "perf_required", run_cmd=("bench",),
+        leading_indicators={"ipc": 1.0, "llc_miss_rate": 0.1},
+    ) is True
+    with pytest.raises(calibrator_perf_preflight.PerfPreflightError):
+        calibrator_perf_preflight.perf_claim_allowed(
+            journal_record, "perf_required", run_cmd=("bench",),
+            leading_indicators={"ipc": None, "llc_miss_rate": None},
+        )
+
+
+def test_perf_preflight_journal_record_is_trace_lane_agnostic(tmp_path):
+    freeze = _freeze_document()
+    verified = _verified_freeze(freeze)
+    protocol = _protocol(freeze_sha=_freeze_sha(freeze))
+    build_trace_values = []
+    fake_build = _make_fake_build(tmp_path / "bin")
+
+    def build_spy(*args, **kwargs):
+        build_trace_values.append(kwargs["trace"])
+        return fake_build(*args, **kwargs)
+
+    outcome = _private_run_campaign(
+        protocol, verified, out_root=tmp_path / "out", mode="pilot",
+        measure_fn=_make_measure_fn(reps=5, value_fn=lambda cid: _BASE_TPS[cid]),
+        probe_fn=lambda: (1, "", ""), sleep_fn=lambda _seconds: None,
+        monotonic_fn=lambda: 0.0, prepare_fn=_fake_prepare, now_fn=lambda: _FIXED_NOW,
+        host_provenance_fn=_fixed_host, process_identity_fn=_fixed_process,
+        execution_receipt_fn=_fixed_receipt, build_fn=build_spy,
+        durable_root_policy=_durable_policy(tmp_path / "out"),
+        perf_preflight_fn=lambda **_kwargs: _perf_receipt(available=True),
+    )
+    assert build_trace_values and set(build_trace_values) == {False}
+    journal_record = next(
+        record for record in _read_journal_lines(Path(outcome["run_dir"]) / "journal.jsonl")
+        if record.get("event") == "perf-preflight"
+    )
+    assert not {"trace", "use_perf", "claim_scope"} & set(journal_record)
+
+
+def test_perf_preflight_journal_record_has_no_lane_fields_after_success(tmp_path):
+    freeze = _freeze_document()
+    verified = _verified_freeze(freeze)
+    protocol = _protocol(freeze_sha=_freeze_sha(freeze))
+    out_root = tmp_path / "out"
+    outcome = _private_run_campaign(
+        protocol, verified, out_root=out_root, mode="pilot",
+        measure_fn=_make_measure_fn(reps=5, value_fn=lambda cid: _BASE_TPS[cid]),
+        probe_fn=lambda: (1, "", ""), sleep_fn=lambda _seconds: None,
+        monotonic_fn=lambda: 0.0, prepare_fn=_fake_prepare, now_fn=lambda: _FIXED_NOW,
+        host_provenance_fn=_fixed_host, process_identity_fn=_fixed_process,
+        execution_receipt_fn=_fixed_receipt,
+        build_fn=_make_fake_build(tmp_path / "bin"),
+        durable_root_policy=_durable_policy(out_root),
+        perf_preflight_fn=lambda **_kwargs: _perf_receipt(available=True),
+    )
+    journal_record = next(
+        record for record in _read_journal_lines(Path(outcome["run_dir"]) / "journal.jsonl")
+        if record.get("event") == "perf-preflight"
+    )
+    assert not {"trace", "use_perf", "claim_scope"} & set(journal_record)
+
+
+def test_perf_preflight_journal_record_has_no_lane_fields_after_build_failure(
+        tmp_path, monkeypatch):
+    freeze = _freeze_document()
+    verified = _verified_freeze(freeze)
+    protocol = _protocol(freeze_sha=_freeze_sha(freeze))
+    out_root = tmp_path / "out"
+
+    def raising_build(*_args, **_kwargs):
+        raise RuntimeError("fixture trace-lane build crash")
+
+    monkeypatch.setattr(s8b_floor_campaign, "build_cells", raising_build)
+    with pytest.raises(RuntimeError, match="trace-lane build crash"):
+        _run_campaign(
+            protocol, verified, out_root=out_root, build_root=tmp_path / "bin",
+            measure_fn=_forbid_measure, probe_fn=lambda: (1, "", ""),
+            perf_preflight_fn=lambda **_kwargs: _perf_receipt(available=False),
+        )
+    journal_path = next(out_root.rglob("journal.jsonl"))
+    journal_record = next(
+        record for record in _read_journal_lines(journal_path)
+        if record.get("event") == "perf-preflight"
+    )
+    assert not {"trace", "use_perf", "claim_scope"} & set(journal_record)
 
 
 def test_official_unavailable_preflight_reaches_measurement_once(tmp_path, monkeypatch):
@@ -3759,6 +3999,48 @@ def test_legacy_resume_manifest_without_perf_preflight_is_not_backfilled(tmp_pat
     assert path.read_bytes() == raw
 
 
+def test_legacy_resume_manifest_with_perf_preflight_event_is_rejected(
+        tmp_path, monkeypatch):
+    freeze = _freeze_document()
+    protocol = _protocol(freeze_sha=_freeze_sha(freeze))
+    out_root = tmp_path / "out"
+    with monkeypatch.context() as scoped:
+        scoped.setattr(
+            s8b_floor_campaign._Runner, "run",
+            lambda self: (_ for _ in ()).throw(_SimulatedCrash("legacy manifest")),
+        )
+        with pytest.raises(_SimulatedCrash, match="legacy manifest"):
+            _run_campaign(
+                protocol, _verified_freeze(freeze), out_root=out_root,
+                build_root=tmp_path / "bin",
+                measure_fn=_make_measure_fn(
+                    reps=5, value_fn=lambda cid: _BASE_TPS[cid],
+                ),
+                probe_fn=lambda: (1, "", ""),
+                perf_preflight_fn=lambda **_kwargs: _perf_receipt(available=True),
+            )
+
+    run_dir = _only_run_dir(out_root)
+    manifest_path = run_dir / "manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    del manifest["perf_preflight"]
+    manifest_path.write_text(
+        json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8",
+    )
+    with pytest.raises(
+            s8b_floor_campaign.FloorCampaignError,
+            match="perf-preflight receipt が manifest と不一致",
+    ):
+        _run_campaign(
+            protocol, _verified_freeze(freeze), out_root=out_root,
+            build_root=tmp_path / "bin",
+            measure_fn=_make_measure_fn(
+                reps=5, value_fn=lambda cid: _BASE_TPS[cid],
+            ),
+            probe_fn=lambda: (1, "", ""), resume_dir=run_dir,
+        )
+
+
 def test_assemble_manifest_records_official_degraded_observation(tmp_path):
     protocol_sha = "p" * 64
     freeze_sha = "f" * 64
@@ -4776,8 +5058,173 @@ def test_run_campaign_rejects_unknown_env_tag(tmp_path):
                       probe_fn=lambda: (1, "", ""))
 
 
+def test_machine_env_tag_for_site_uses_required_registry_contract(monkeypatch):
+    expected_tags = {
+        contract.env_tag
+        for contract in ec.REGISTRY.values()
+        if contract.attestation_mode == "required"
+    }
+    assert len(expected_tags) == 1
+    monkeypatch.setattr(
+        s8b_floor_campaign.site_policy,
+        "current_site",
+        lambda: s8b_floor_campaign.site_policy.PEGASUS_COMPUTE,
+    )
+    observed_site = s8b_floor_campaign.site_policy.current_site()
+    assert observed_site == s8b_floor_campaign.site_policy.PEGASUS_COMPUTE
+    assert s8b_floor_campaign._machine_env_tag_for_site(observed_site) == (
+        next(iter(expected_tags))
+    )
+
+
+def test_machine_env_tag_for_site_rejects_zero_required_contracts(monkeypatch):
+    monkeypatch.setattr(
+        s8b_floor_campaign.site_policy,
+        "current_site",
+        lambda: s8b_floor_campaign.site_policy.PEGASUS_COMPUTE,
+    )
+    monkeypatch.setattr(s8b_floor_campaign._env_contract, "REGISTRY", {})
+    with pytest.raises(s8b_floor_campaign.FloorCampaignError, match="required attestation"):
+        s8b_floor_campaign._machine_env_tag_for_site(
+            s8b_floor_campaign.site_policy.current_site()
+        )
+
+
+def test_machine_env_tag_for_site_rejects_multiple_required_contracts(monkeypatch):
+    monkeypatch.setattr(
+        s8b_floor_campaign.site_policy,
+        "current_site",
+        lambda: s8b_floor_campaign.site_policy.PEGASUS_COMPUTE,
+    )
+    monkeypatch.setattr(
+        s8b_floor_campaign._env_contract,
+        "REGISTRY",
+        {
+            "required-first": SimpleNamespace(
+                env_tag="fixture-required-first", attestation_mode="required",
+            ),
+            "required-second": SimpleNamespace(
+                env_tag="fixture-required-second", attestation_mode="required",
+            ),
+        },
+    )
+    with pytest.raises(s8b_floor_campaign.FloorCampaignError, match="required attestation"):
+        s8b_floor_campaign._machine_env_tag_for_site(
+            s8b_floor_campaign.site_policy.current_site()
+        )
+
+
+def test_machine_env_tag_for_site_rejects_required_lookup_exception(monkeypatch):
+    monkeypatch.setattr(
+        s8b_floor_campaign.site_policy,
+        "current_site",
+        lambda: s8b_floor_campaign.site_policy.PEGASUS_COMPUTE,
+    )
+
+    def fail_required_lookup():
+        raise ec.EnvContractError("fixture required lookup failure")
+
+    monkeypatch.setattr(
+        s8b_floor_campaign._env_contract,
+        "lookup_required_attestation_contract",
+        fail_required_lookup,
+    )
+    with pytest.raises(s8b_floor_campaign.FloorCampaignError, match="required attestation"):
+        s8b_floor_campaign._machine_env_tag_for_site(
+            s8b_floor_campaign.site_policy.current_site()
+        )
+
+
+def test_machine_env_tag_for_site_uses_unique_none_registry_contract(monkeypatch):
+    expected_tags = {
+        contract.env_tag
+        for contract in ec.REGISTRY.values()
+        if contract.attestation_mode == "none"
+    }
+    assert len(expected_tags) == 1
+    monkeypatch.setattr(
+        s8b_floor_campaign.site_policy,
+        "current_site",
+        lambda: s8b_floor_campaign.site_policy.OTHER,
+    )
+    observed_site = s8b_floor_campaign.site_policy.current_site()
+    assert observed_site == s8b_floor_campaign.site_policy.OTHER
+    assert s8b_floor_campaign._machine_env_tag_for_site(observed_site) == (
+        next(iter(expected_tags))
+    )
+
+
+def test_machine_env_tag_for_site_rejects_zero_none_contracts(monkeypatch):
+    monkeypatch.setattr(
+        s8b_floor_campaign.site_policy,
+        "current_site",
+        lambda: s8b_floor_campaign.site_policy.OTHER,
+    )
+    monkeypatch.setattr(s8b_floor_campaign._env_contract, "REGISTRY", {})
+    with pytest.raises(s8b_floor_campaign.FloorCampaignError, match="none attestation"):
+        s8b_floor_campaign._machine_env_tag_for_site(
+            s8b_floor_campaign.site_policy.current_site()
+        )
+
+
+def test_machine_env_tag_for_site_rejects_multiple_none_contracts(monkeypatch):
+    monkeypatch.setattr(
+        s8b_floor_campaign.site_policy,
+        "current_site",
+        lambda: s8b_floor_campaign.site_policy.OTHER,
+    )
+    monkeypatch.setattr(
+        s8b_floor_campaign._env_contract,
+        "REGISTRY",
+        {
+            "first": SimpleNamespace(env_tag="fixture-none-first", attestation_mode="none"),
+            "second": SimpleNamespace(env_tag="fixture-none-second", attestation_mode="none"),
+        },
+    )
+    with pytest.raises(s8b_floor_campaign.FloorCampaignError, match="none attestation"):
+        s8b_floor_campaign._machine_env_tag_for_site(
+            s8b_floor_campaign.site_policy.current_site()
+        )
+
+
+def test_machine_env_tag_for_site_rejects_duplicate_registry_env_tag(monkeypatch):
+    monkeypatch.setattr(
+        s8b_floor_campaign.site_policy,
+        "current_site",
+        lambda: s8b_floor_campaign.site_policy.OTHER,
+    )
+    monkeypatch.setattr(
+        s8b_floor_campaign._env_contract,
+        "REGISTRY",
+        {
+            "none": SimpleNamespace(
+                env_tag="fixture-duplicate", attestation_mode="none",
+            ),
+            "required": SimpleNamespace(
+                env_tag="fixture-duplicate", attestation_mode="required",
+            ),
+        },
+    )
+    with pytest.raises(s8b_floor_campaign.FloorCampaignError, match="none attestation"):
+        s8b_floor_campaign._machine_env_tag_for_site(
+            s8b_floor_campaign.site_policy.current_site()
+        )
+
+
+def test_machine_env_tag_for_site_rejects_unhandled_site(monkeypatch):
+    monkeypatch.setattr(
+        s8b_floor_campaign.site_policy,
+        "current_site",
+        lambda: s8b_floor_campaign.site_policy.PEGASUS_LOGIN,
+    )
+    with pytest.raises(s8b_floor_campaign.FloorCampaignError, match="未対応 site"):
+        s8b_floor_campaign._machine_env_tag_for_site(
+            s8b_floor_campaign.site_policy.current_site()
+        )
+
+
 def test_run_campaign_machine_pin_rejects_contract_tag_mismatch(tmp_path):
-    """契約の env_tag が実行機の p2_2.ENV_TAG と一致しなければ拒否する (暫定 machine-pin)。"""
+    """契約の env_tag が registry-derived machine tag と一致しなければ拒否する。"""
     freeze = _freeze_document()
     fake_contract = ec.ExecutionEnvironmentContract(
         env_tag="foreign-env", clocks_per_us=2100, numactl=(),
@@ -6268,6 +6715,49 @@ class _SimulatedCrash(Exception):
     """resume テスト専用: 実クラッシュ (measure_fn を包む except に捕まらない例外) を模す。"""
 
 
+@pytest.mark.parametrize(
+    ("records", "manifest_exists", "expected"),
+    [
+        pytest.param(
+            [
+                {"event": "launch-start"},
+                _perf_preflight_journal_record(available=False),
+            ],
+            False, "L", id="official-degraded-L",
+        ),
+        pytest.param(
+            [_perf_preflight_journal_record(available=True)],
+            True, "M-prestart", id="pilot-M-prestart",
+        ),
+        pytest.param(
+            [
+                {"event": "launch-start"},
+                _perf_preflight_journal_record(available=False),
+            ],
+            True, "M-prestart", id="official-M-prestart",
+        ),
+    ],
+)
+def test_classify_journal_resume_state_accepts_valid_perf_preflight_prefix(
+        records, manifest_exists, expected):
+    assert s8b_floor_campaign._floor_contract.classify_journal_resume_state(
+        records, manifest_exists=manifest_exists,
+        result_published=False, markdown_published=False,
+    ) == expected
+
+
+@pytest.mark.parametrize("event", [[], {}, 7], ids=["list", "dict", "integer"])
+def test_classify_journal_resume_state_rejects_non_string_event(event):
+    with pytest.raises(
+            s8b_floor_campaign._floor_contract.FloorContractError,
+            match="event が文字列でない",
+    ):
+        s8b_floor_campaign._floor_contract.classify_journal_resume_state(
+            [{"event": event}], manifest_exists=True,
+            result_published=False, markdown_published=False,
+        )
+
+
 @pytest.mark.parametrize(("records", "result_published", "markdown_published", "reason"), [
     ([{"event": "terminal", "status": "aborted"}], False, False,
      "aborted/artifact-invalid terminal は再開できない"),
@@ -6289,6 +6779,115 @@ def test_journal_resume_state_rejects_nonresumable_terminals(
             records, manifest_exists=True,
             result_published=result_published,
             markdown_published=markdown_published,
+        )
+
+
+def test_pilot_pre_manifest_perf_preflight_resume_remains_l_rejected(
+        tmp_path, monkeypatch):
+    freeze = _freeze_document()
+    protocol = _protocol(freeze_sha=_freeze_sha(freeze))
+    out_root = tmp_path / "out"
+    monkeypatch.setattr(
+        s8b_floor_campaign,
+        "build_cells",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            RuntimeError("fixture pilot pre-manifest build crash")
+        ),
+    )
+    with pytest.raises(RuntimeError, match="pre-manifest build crash"):
+        _run_campaign(
+            protocol, _verified_freeze(freeze), out_root=out_root,
+            build_root=tmp_path / "bin", measure_fn=_forbid_measure,
+            probe_fn=lambda: (1, "", ""),
+            perf_preflight_fn=lambda **_kwargs: _perf_receipt(available=True),
+        )
+    run_dir = next(path.parent for path in out_root.rglob("journal.jsonl"))
+    assert _read_journal_lines(run_dir / "journal.jsonl") == [
+        _perf_preflight_journal_record(available=True)
+    ]
+    with pytest.raises(
+            s8b_floor_campaign.FloorCampaignError,
+            match="manifest 無し journal",
+    ):
+        _run_campaign(
+            protocol, _verified_freeze(freeze), out_root=out_root,
+            build_root=tmp_path / "bin", measure_fn=_forbid_measure,
+            probe_fn=lambda: (1, "", ""), resume_dir=run_dir,
+        )
+
+
+def test_pilot_m_prestart_perf_preflight_resume_rebuilds_and_runs(
+        tmp_path, monkeypatch):
+    freeze = _freeze_document()
+    protocol = _protocol(freeze_sha=_freeze_sha(freeze))
+    out_root = tmp_path / "out"
+    with monkeypatch.context() as scoped:
+        scoped.setattr(
+            s8b_floor_campaign._Runner, "run",
+            lambda self: (_ for _ in ()).throw(_SimulatedCrash("pilot prestart")),
+        )
+        with pytest.raises(_SimulatedCrash, match="pilot prestart"):
+            _run_campaign(
+                protocol, _verified_freeze(freeze), out_root=out_root,
+                build_root=tmp_path / "bin",
+                measure_fn=_make_measure_fn(
+                    reps=5, value_fn=lambda cid: _BASE_TPS[cid],
+                ),
+                probe_fn=lambda: (1, "", ""),
+                perf_preflight_fn=lambda **_kwargs: _perf_receipt(available=True),
+            )
+    run_dir = _only_run_dir(out_root)
+    assert [record["event"] for record in _read_journal_lines(
+        run_dir / "journal.jsonl"
+    )] == ["perf-preflight"]
+    outcome = _run_campaign(
+        protocol, _verified_freeze(freeze), out_root=out_root,
+        build_root=tmp_path / "bin",
+        measure_fn=_make_measure_fn(reps=5, value_fn=lambda cid: _BASE_TPS[cid]),
+        probe_fn=lambda: (1, "", ""), resume_dir=run_dir,
+    )
+    journal = _read_journal_lines(run_dir / "journal.jsonl")
+    assert outcome["status"] == "completed"
+    assert sum(record.get("event") == "campaign-start" for record in journal) == 1
+    assert not any(record.get("event") == "resume-start" for record in journal)
+
+
+@pytest.mark.parametrize("mutation", ["malformed", "duplicate", "manifest-mismatch"])
+def test_m_running_rejects_invalid_perf_preflight_event(
+        tmp_path, mutation):
+    freeze = _freeze_document()
+    protocol = _protocol(freeze_sha=_freeze_sha(freeze))
+    out_root = tmp_path / "out"
+    crashing_measure, _ = _crash_at(2)
+    with pytest.raises(_SimulatedCrash):
+        _run_campaign(
+            protocol, _verified_freeze(freeze), out_root=out_root,
+            build_root=tmp_path / "bin", measure_fn=crashing_measure,
+            probe_fn=lambda: (1, "", ""),
+            perf_preflight_fn=lambda **_kwargs: _perf_receipt(available=True),
+        )
+    run_dir = _only_run_dir(out_root)
+    journal_path = run_dir / "journal.jsonl"
+    records = _read_journal_lines(journal_path)
+    event = next(record for record in records if record.get("event") == "perf-preflight")
+    if mutation == "malformed":
+        event["perf_preflight_receipt"].pop("available")
+        expected_error = "receipt が不正"
+    elif mutation == "duplicate":
+        records.append(copy.deepcopy(event))
+        expected_error = "重複"
+    else:
+        event["perf_preflight_receipt"] = _perf_receipt(available=False)
+        expected_error = "manifest と不一致"
+    journal_path.write_text(
+        "".join(json.dumps(record, sort_keys=True) + "\n" for record in records),
+        encoding="utf-8",
+    )
+    with pytest.raises(s8b_floor_campaign.FloorCampaignError, match=expected_error):
+        _run_campaign(
+            protocol, _verified_freeze(freeze), out_root=out_root,
+            build_root=tmp_path / "bin", measure_fn=_forbid_measure,
+            probe_fn=lambda: (1, "", ""), resume_dir=run_dir,
         )
 
 
@@ -7895,9 +8494,14 @@ def test_deterministic_artifacts_across_roots_and_subprocess_environments(tmp_pa
     ]
     script = textwrap.dedent(f"""
         import importlib.util, json, pathlib, sys
+        from types import SimpleNamespace
         spec = importlib.util.spec_from_file_location("floor_test_helper", {str(Path(__file__))!r})
         module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(module)
+        module.s8b_floor_campaign.site_policy.socket = SimpleNamespace(
+            gethostname=lambda: "test-host"
+        )
+        module.s8b_floor_campaign.site_policy._has_nqsv = lambda: False
         print(json.dumps(module._deterministic_official_artifacts(pathlib.Path(sys.argv[1])), sort_keys=True))
     """)
     observations = []
@@ -7958,11 +8562,17 @@ def test_each_determinism_seam_reaches_its_expected_json_pointer(tmp_path):
 def test_new_seam_defaults_delegate_to_production_functions(tmp_path, monkeypatch):
     freeze = _freeze_document()
     protocol = _protocol(freeze_sha=_freeze_sha(freeze))
+    monkeypatch.setattr(
+        s8b_floor_campaign.site_policy,
+        "current_site",
+        lambda: s8b_floor_campaign.site_policy.OTHER,
+    )
     repo_root = tmp_path / "default-root"
     _init_real_clean_repo(repo_root, freeze, protocol)
     calls = {name: 0 for name in (
         "calibration", "machine_pin", "host", "process", "receipt", "build", "after",
     )}
+    expected_machine_env_tag = "linux-baremetal"
     fake_build = _make_fake_build(tmp_path / "ignored")
     real_load = s8b_floor_campaign.env_attestation.load_verified_calibration
     real_pin = s8b_floor_campaign.execution_guard.assert_machine_pin
@@ -7974,6 +8584,7 @@ def test_new_seam_defaults_delegate_to_production_functions(tmp_path, monkeypatc
 
     def machine_pin_spy(contract, *, machine_env_tag):
         calls["machine_pin"] += 1
+        assert machine_env_tag == expected_machine_env_tag
         return real_pin(contract, machine_env_tag=machine_env_tag)
 
     def host_spy(*, now_fn):
@@ -8713,20 +9324,27 @@ def test_official_build_failure_leaves_durable_launch_start(tmp_path, monkeypatc
                 _protocol(freeze_sha=_freeze_sha(freeze)), _verified_freeze(freeze),
                 out_root=out_root, build_root=tmp_path / "bin",
                 measure_fn=_forbid_measure, probe_fn=lambda: (1, "", ""), mode="official",
+                perf_preflight_fn=lambda **_kwargs: _perf_receipt(available=False),
             )
     journals = list(out_root.rglob("journal.jsonl"))
     assert len(journals) == 1
     journal = _read_journal_lines(journals[0])
-    assert [record["event"] for record in journal] == ["launch-start"]
+    assert [record["event"] for record in journal] == [
+        "launch-start", "perf-preflight",
+    ]
     assert (journals[0].parent / "launch_certificate.json").is_file()
     assert not (journals[0].parent / "manifest.json").exists()
     # 厳密 L を同じ cert/run の下で build から再構築する。
-    resume_measure = _make_measure_fn(reps=5, value_fn=lambda cid: _BASE_TPS[cid])
+    resume_measure = _make_measure_fn(
+        reps=5, value_fn=lambda cid: _BASE_TPS[cid], use_perf=False,
+    )
     outcome = _run_campaign(
         _protocol(freeze_sha=_freeze_sha(freeze)), _verified_freeze(freeze),
         out_root=out_root, build_root=tmp_path / "bin",
-        measure_fn=resume_measure, probe_fn=lambda: (1, "", ""), mode="official",
+        measure_fn=resume_measure,
+        probe_fn=lambda: (1, "", ""), mode="official",
         resume_dir=journals[0].parent,
+        perf_preflight_fn=lambda **_kwargs: _perf_receipt(available=False),
     )
     assert outcome["status"] == "completed"
     assert not any(r.get("event") == "resume-start"
@@ -8806,14 +9424,18 @@ def test_m_prestart_resume_starts_runner_fresh_without_resume_start(tmp_path, mo
                 build_root=tmp_path / "bin",
                 measure_fn=_make_measure_fn(reps=5, value_fn=lambda cid: _BASE_TPS[cid]),
                 probe_fn=lambda: (1, "", ""), mode="official",
+                perf_preflight_fn=lambda **_kwargs: _perf_receipt(available=False),
             )
     run_dir = _only_run_dir(out_root)
     assert [r["event"] for r in _read_journal_lines(run_dir / "journal.jsonl")] == [
-        "launch-start"]
+        "launch-start", "perf-preflight",
+    ]
     outcome = _run_campaign(
         protocol, _verified_freeze(freeze), out_root=out_root,
         build_root=tmp_path / "bin",
-        measure_fn=_make_measure_fn(reps=5, value_fn=lambda cid: _BASE_TPS[cid]),
+        measure_fn=_make_measure_fn(
+            reps=5, value_fn=lambda cid: _BASE_TPS[cid], use_perf=False,
+        ),
         probe_fn=lambda: (1, "", ""), mode="official", resume_dir=run_dir,
     )
     journal = _read_journal_lines(run_dir / "journal.jsonl")
@@ -9430,8 +10052,10 @@ def test_pilot_path_has_no_launch_certificate_changes(tmp_path):
     run_dir = Path(outcome["run_dir"])
     assert not (run_dir / "launch_certificate.json").exists()
     journal = _read_journal_lines(run_dir / "journal.jsonl")
-    assert journal[0]["event"] == "campaign-start"
-    assert "launch_certificate_sha256" not in journal[0]
+    campaign_start = next(
+        record for record in journal if record.get("event") == "campaign-start"
+    )
+    assert "launch_certificate_sha256" not in campaign_start
     assert all("launch_certificate_sha256" not in record
                for record in outcome["result"]["wall_ledger"])
     assert outcome["result"]["eligible_for_refreeze"] is False

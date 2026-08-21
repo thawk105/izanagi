@@ -44,15 +44,18 @@ from . import s8b_oracle_spec  # noqa: E402
 from . import env_contract as _env_contract  # noqa: E402
 from . import env_attestation as _env_attestation  # noqa: E402
 from . import execution_guard  # noqa: E402
+from . import site_policy  # noqa: E402  (実機 site 観測)
 from . import reservation as _reservation  # noqa: E402
 from . import s8b_ratified_freeze  # noqa: E402
 from . import s8b_oracle_artifacts as _oracle_artifacts  # noqa: E402
 from . import t080_freeze_migration as _t080_migration  # noqa: E402
 from . import freeze_verification_hold as _freeze_hold  # noqa: E402
-from .layout import campaign_layout, repo_output_root  # noqa: E402
+from .layout import (  # noqa: E402
+    _OFFICIAL_OUTPUT_ROOT_ENV,
+    campaign_layout,
+)
 from .layout import write_capability_for_directory  # noqa: E402
 from .durable_root import DurableRootError, DurableRootPolicy  # noqa: E402
-from .p2_2 import ENV_TAG as MACHINE_ENV_TAG  # noqa: E402  (machine-pin 名のみ)
 from .s1_direct_comparison import PreparedCell, prepare_cell  # noqa: E402
 from .s8b_materialization import (  # noqa: E402
     MaterializationError,
@@ -81,12 +84,48 @@ _BINDING_KEYS = {
 # end-to-end 上限。最大 1 retry と terminal/fsync 用 reserve を別項で数える。
 ORACLE_MAX_ATTEMPTS = 2
 ORACLE_PER_ATTEMPT_CAP_S = 30 * 60
+# attestation probe 1 回あたりの所要時間を別項で数える。
+ORACLE_ATTESTATION_PROBE_S = 0.2
 ORACLE_FINALIZE_RESERVE_S = 600
 ORACLE_RESERVATION_SAFETY_MARGIN_S = 0
 
 
 class OracleDriverError(RuntimeError):
     """8b oracle の入力・identity・実行契約を検証できない場合の拒否。"""
+
+
+def _machine_env_tag_for_site(site: str) -> str:
+    """実機 site 観測から machine-pin の registry-derived tag を解決する。"""
+    if site == site_policy.PEGASUS_COMPUTE:
+        try:
+            return _env_contract.lookup_required_attestation_contract().env_tag
+        except _env_contract.EnvContractError as exc:
+            raise OracleDriverError(
+                "machine-pin: required attestation contract を一意に解決できない"
+            ) from exc
+    if site == site_policy.OTHER:
+        try:
+            contracts = tuple(_env_contract.REGISTRY.values())
+            candidate_contracts = tuple(
+                contract
+                for contract in contracts
+                if contract.attestation_mode == "none"
+            )
+            candidate_tags = {contract.env_tag for contract in candidate_contracts}
+            registry_tags = tuple(contract.env_tag for contract in contracts)
+            registry_tag_set = set(registry_tags)
+        except (_env_contract.EnvContractError, AttributeError, TypeError) as exc:
+            raise OracleDriverError(
+                "machine-pin: none attestation contract を一意に解決できない"
+            ) from exc
+        if (len(candidate_contracts) != 1
+                or len(candidate_tags) != 1
+                or len(registry_tags) != len(registry_tag_set)):
+            raise OracleDriverError(
+                "machine-pin: none attestation contract を一意に解決できない"
+            )
+        return candidate_contracts[0].env_tag
+    raise OracleDriverError(f"machine-pin: 未対応 site {site!r}")
 
 
 class _UnknownAbortReason(OracleDriverError):
@@ -335,7 +374,7 @@ def _manifest_structural_refusal(path: Path) -> Optional[str]:
             raise _oracle_manifest.ManifestError("manifest top-level schema が不一致")
         if document.get("schema_version") != _oracle_manifest.SCHEMA_VERSION:
             raise _oracle_manifest.ManifestError("manifest schema_version が不一致")
-        _oracle_manifest._validate_schedule(document.get("schedule"))
+        _oracle_manifest.validate_schedule(document.get("schedule"))
         _oracle_manifest._validate_binding_identity(
             document.get("binding_identity"), schedule=document["schedule"],
         )
@@ -747,6 +786,19 @@ def _is_transient_prepare_failure(exc: BaseException) -> bool:
 def _perf_for_holdout(freeze: Mapping, holdout_id: str,
                       run_contract: Mapping) -> pipeline.PerfConfig:
     try:
+        authority = s8b_holdout_freeze.HOLDOUTS[holdout_id]
+        expected_projection = {
+            "candidate_id": authority["candidate_id"],
+            "records": authority["records"],
+            "threads": authority["threads"],
+            "ycsb": dict(authority["ycsb"]),
+        }
+    except (KeyError, TypeError, ValueError) as exc:
+        raise OracleDriverError(
+            f"holdout perf binding が不正: {holdout_id}"
+        ) from exc
+
+    try:
         holdout = freeze["holdouts"][holdout_id]
         records = holdout["records"]
         threads = holdout["threads"]
@@ -759,6 +811,17 @@ def _perf_for_holdout(freeze: Mapping, holdout_id: str,
             or isinstance(threads, bool) or not isinstance(threads, int) or threads <= 0
             or not isinstance(workload, Mapping)):
         raise OracleDriverError(f"holdout perf schema が不正: {holdout_id}")
+    actual_projection = {
+        "candidate_id": holdout.get("candidate_id"),
+        "records": records,
+        "threads": threads,
+        "ycsb": dict(workload),
+    }
+    if _canonical_bytes(actual_projection) != _canonical_bytes(
+            expected_projection):
+        raise OracleDriverError(
+            f"holdout perf binding が不正: {holdout_id}"
+        )
     return pipeline.PerfConfig(
         records=records, threads=threads, workload=dict(workload),
         extime=extime, reps=reps,
@@ -823,7 +886,7 @@ class _V2Plan:
     reservation_check: Optional["_reservation.ReservationCheck"] = None
 
 
-def _reservation_required_s(schedule: Sequence[Mapping]) -> int:
+def _reservation_required_s(schedule: Sequence[Mapping]) -> float:
     """validated schedule の行数だけから worst-case 秒数を導出する。"""
     if (not isinstance(schedule, Sequence)
             or isinstance(schedule, (str, bytes, bytearray)) or not schedule):
@@ -831,6 +894,7 @@ def _reservation_required_s(schedule: Sequence[Mapping]) -> int:
     return (
         len(schedule) * ORACLE_MAX_ATTEMPTS * ORACLE_PER_ATTEMPT_CAP_S
         + ORACLE_FINALIZE_RESERVE_S
+        + len(schedule) * ORACLE_ATTESTATION_PROBE_S
     )
 
 
@@ -878,7 +942,8 @@ def _prepare_v2_execution(*, validated, run_contract, schedule,
     # (3) machine-pin + contract_sha256/clocks 完全一致 (共有 guard 経由)。
     try:
         execution_guard.assert_machine_pin(
-            contract, machine_env_tag=MACHINE_ENV_TAG,
+            contract,
+            machine_env_tag=_machine_env_tag_for_site(site_policy.current_site()),
         )
     except execution_guard.ExecutionGuardError as exc:
         raise OracleDriverError(str(exc)) from exc
@@ -1074,6 +1139,7 @@ def _recheck_required_execution(plan: _V2Plan, *, remaining_rows: int) -> None:
     required_s = (
         remaining_rows * ORACLE_MAX_ATTEMPTS * ORACLE_PER_ATTEMPT_CAP_S
         + ORACLE_FINALIZE_RESERVE_S
+        + remaining_rows * ORACLE_ATTESTATION_PROBE_S
     )
     try:
         plan.reservation_check = plan.reservation_check.ensure_remaining(
@@ -1292,7 +1358,6 @@ def run_block(
         )
         return {"status": "refused", **asdict(decision)}
 
-    output_root = Path(output_root)
     budget_path = Path(budget_path)
     # マーカーは --output-root 非依存 (freeze 正本側)。既定は freeze ファイルと同じ
     # ディレクトリ = production では output/s8b-freeze/ 配下。
@@ -1313,7 +1378,17 @@ def run_block(
     # Human-reviewed admission の persistent receipt に generator id は入らない。run context
     # の閉じた registry member には S8b の直前 producer である S8a を用いる。
     build_context = build_run_context(generator_id=GeneratorId.S8A_TRIGGER_SWEEP)
-    layout = campaign_layout(campaign_id, output_root=str(output_root))
+    raw_output_root = "" if output_root is None else os.fspath(output_root)
+    try:
+        layout = campaign_layout(campaign_id, output_root=raw_output_root)
+    except ValueError as exc:
+        decision = _make_gate_decision(
+            t080_resolution, refusals=[f"official-output-root: {exc}"],
+        )
+        return {"status": "refused", **asdict(decision)}
+    # campaign_layout has already applied the central resolver.  Reuse that
+    # canonical base for every later cache and durable-root consumer.
+    output_root = Path(layout.root).parent.parent
 
     # v2 実走前の一括検査 (run marker 作成前・第一防壁): launch_validate +
     # env 契約導出 + 共有 execution guard/receipt + binary store 消費。いずれの
@@ -1776,7 +1851,7 @@ def _parser() -> argparse.ArgumentParser:
     run.add_argument("--block-id", required=True)
     run.add_argument("--freeze", type=Path, default=DEFAULT_FREEZE_PATH)
     run.add_argument("--root", type=Path, default=ROOT)
-    run.add_argument("--output-root", type=Path, default=Path(repo_output_root()))
+    run.add_argument("--output-root", type=Path, default=None)
     # 実走済みマーカーの置き場は CLI から上書きできない (freeze ファイルと同じ
     # ディレクトリ = production では output/s8b-freeze/ 配下に固定)。R6: --output-root を
     # 変えても同じ場所を指すため resume 拒否を出力先付け替えで迂回できない。--budget と
@@ -1808,6 +1883,33 @@ def _exit_code(status: object) -> int:
     return _EXIT_CODE_BY_STATUS.get(status, 1)
 
 
+def _cli_durable_root_policy(
+        output_root: Optional[Path],
+) -> Optional[DurableRootPolicy]:
+    """Build the narrow official policy without performing the root gate early.
+
+    The central resolver remains the source of truth for admission and refusal
+    ordering.  This helper only canonicalizes the candidate so the CLI can
+    inject a policy into ``run_block``; invalid candidates are still rejected
+    at the existing campaign-layout choke point.
+    """
+    raw = (
+        os.fspath(output_root)
+        if output_root is not None
+        else os.environ.get(_OFFICIAL_OUTPUT_ROOT_ENV)
+    )
+    if not raw:
+        return None
+    candidate = Path(raw)
+    if not candidate.is_absolute():
+        candidate = candidate.absolute()
+    try:
+        resolved = candidate.resolve(strict=False)
+    except OSError:
+        return None
+    return DurableRootPolicy(approved_roots=(resolved,), forbidden_roots=())
+
+
 def main(argv: Optional[Sequence[str]] = None) -> int:
     args = _parser().parse_args(argv)
     try:
@@ -1821,6 +1923,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             manifest_path=args.manifest, block_id=args.block_id,
             freeze_path=args.freeze, root=args.root,
             output_root=args.output_root, budget_path=DEFAULT_BUDGET_PATH,
+            durable_root_policy=_cli_durable_root_policy(args.output_root),
         )
         print(json.dumps(result, ensure_ascii=False, sort_keys=True))
         return _exit_code(result.get("status"))

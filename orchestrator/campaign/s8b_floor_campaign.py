@@ -22,7 +22,8 @@ floor を測るバイナリと oracle 本走のバイナリが同一 identity �
 
 env 契約 (F4): 計測環境の固有値 (clocks_per_us / numactl) は ``env_contract.lookup(env_tag)`` から
 取る。driver は env 固有 literal を持たない (γ-16 の AST 検査が機械固定)。attestation が入る登録段
-までの暫定 machine-pin として、契約の env_tag が実行機の ``p2_2.ENV_TAG`` と一致することを要求する。
+までの暫定 machine-pin として、契約の env_tag が実機観測から registry-derived に解決した machine
+tag と一致することを要求する。
 
 絶対規律の適用:
 - 規律1 (観測者効果): 計測は trace-disabled build (``trace=False``)。
@@ -108,6 +109,7 @@ from . import s8b_approved  # noqa: E402  (承認定数の単一源 C4-3/C4-4)
 from . import env_contract as _env_contract  # noqa: E402
 from . import env_attestation  # noqa: E402
 from . import execution_guard  # noqa: E402  (共有 machine-pin + receipt)
+from . import site_policy  # noqa: E402  (実機 site 観測)
 from . import campaign_claim, floor_job_checkpoint, floor_submit_receipt, reservation  # noqa: E402
 from .durable_root import DurableRootError, DurableRootPolicy, WriteCapability  # noqa: E402
 from . import s8b_holdout_freeze as _holdout_freeze  # noqa: E402  (launch certificate の clean scan)
@@ -123,7 +125,6 @@ from .layout import (  # noqa: E402
     repo_output_root,
     write_capability_for_directory,
 )
-from .p2_2 import ENV_TAG  # noqa: E402  (machine-pin 用のみ。CLK/NUMA は contract 経由)
 from .s1_direct_comparison import prepare_cell  # noqa: E402
 from .sort_swo_oracle import (  # noqa: E402
     INFRASTRUCTURE_REASON_CODE,
@@ -318,6 +319,40 @@ class FloorCampaignError(RuntimeError):
         super().__init__(message)
         self.claim_error = claim_error
         self.claim_conflict = claim_error.conflict if claim_error is not None else None
+
+
+def _machine_env_tag_for_site(site: str) -> str:
+    """実機 site 観測から machine-pin の registry-derived tag を解決する。"""
+    if site == site_policy.PEGASUS_COMPUTE:
+        try:
+            return _env_contract.lookup_required_attestation_contract().env_tag
+        except _env_contract.EnvContractError as exc:
+            raise FloorCampaignError(
+                "machine-pin: required attestation contract を一意に解決できない"
+            ) from exc
+    if site == site_policy.OTHER:
+        try:
+            contracts = tuple(_env_contract.REGISTRY.values())
+            candidate_contracts = tuple(
+                contract
+                for contract in contracts
+                if contract.attestation_mode == "none"
+            )
+            candidate_tags = {contract.env_tag for contract in candidate_contracts}
+            registry_tags = tuple(contract.env_tag for contract in contracts)
+            registry_tag_set = set(registry_tags)
+        except (_env_contract.EnvContractError, AttributeError, TypeError) as exc:
+            raise FloorCampaignError(
+                "machine-pin: none attestation contract を一意に解決できない"
+            ) from exc
+        if (len(candidate_contracts) != 1
+                or len(candidate_tags) != 1
+                or len(registry_tags) != len(registry_tag_set)):
+            raise FloorCampaignError(
+                "machine-pin: none attestation contract を一意に解決できない"
+            )
+        return candidate_contracts[0].env_tag
+    raise FloorCampaignError(f"machine-pin: 未対応 site {site!r}")
 
 
 class CampaignAbort(FloorCampaignError):
@@ -5781,7 +5816,10 @@ def _run_campaign_core(protocol, freeze_doc, *, out_root, mode, resume_dir=None,
                     contract, verified_calibration, now_fn=now_fn,
                 )
         else:
-            execution_guard.assert_machine_pin(contract, machine_env_tag=ENV_TAG)
+            execution_guard.assert_machine_pin(
+                contract,
+                machine_env_tag=_machine_env_tag_for_site(site_policy.current_site()),
+            )
             issuer = execution_receipt_fn or execution_guard.build_receipt
             raw_execution_receipt = issuer(contract, now_fn=now_fn)
         execution_receipt = _validate_execution_receipt(
@@ -6044,6 +6082,18 @@ def _run_campaign_core(protocol, freeze_doc, *, out_root, mode, resume_dir=None,
                 run_dir=str(run_dir),
                 journal_path=str(journal_path),
             )
+        if perf_preflight_receipt is not None:
+            _journal_append(
+                journal_path,
+                {
+                    "event": "perf-preflight",
+                    "schema": JOURNAL_SCHEMA,
+                    "perf_preflight_receipt": _normalize_perf_preflight(
+                        perf_preflight_receipt
+                    ),
+                },
+                write_capability=run_write_capability,
+            )
         runtime_built = build_cells(
             freeze, cells, ccbench_pin=protocol["ccbench_pin"],
             out_root=out_root, prepare_fn=prepare_fn, contract=contract,
@@ -6178,6 +6228,11 @@ def _run_campaign_core(protocol, freeze_doc, *, out_root, mode, resume_dir=None,
             protocol_sha256=protocol_sha256, freeze_sha256=freeze_sha256,
             manifest_sha256=manifest_sha256, resume_state=resume_state,
             expected_use_perf=_assert_perf_mode(mode, perf_preflight_receipt),
+            expected_perf_preflight=(
+                manifest.get("perf_preflight")
+                if "perf_preflight" in manifest
+                else None
+            ),
             retry_slots_per_cell=protocol["retry_slots_per_cell"],
         )
         _transition_pre_measure_journal_to_v3(
@@ -6551,6 +6606,9 @@ def _verify_resume_journal(records: list[dict], *, run_dir: Path, mode: str,
                            freeze_sha256: str, manifest_sha256: Optional[str],
                            resume_state: str = "M-running",
                            expected_use_perf: Optional[bool] = None,
+                           expected_perf_preflight=(
+                               _floor_contract._RESUME_DIAGNOSTIC_EXPECTED_UNSET
+                           ),
                            retry_slots_per_cell: int) -> Optional[str]:
     """resume: journal を状態機械で全件検証する (β-6)。
 
@@ -6561,6 +6619,12 @@ def _verify_resume_journal(records: list[dict], *, run_dir: Path, mode: str,
     cell/round 一致 + retry (cell_id, retry_ordinal) 一意、session 完了→start 対応を検査する。
     """
     _validate_mode(mode)
+    try:
+        _floor_contract._validate_resume_diagnostic_events(
+            records, expected_perf_preflight=expected_perf_preflight,
+        )
+    except _floor_contract.FloorContractError as exc:
+        raise FloorCampaignError(f"resume: {exc}") from exc
     if resume_state not in _floor_contract._RESUME_STATES:
         raise FloorCampaignError(f"resume state が未知: {resume_state!r}")
     run_dir = Path(run_dir)

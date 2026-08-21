@@ -281,6 +281,7 @@ if "--version" in sys.argv:
     raise SystemExit(0)
 args = sys.argv[1:]
 output = pathlib.Path(args[args.index("-o") + 1])
+model = args[args.index("-m") + 1]
 effort = next(value.split("=", 1)[1] for value in args if value.startswith("model_reasoning_effort="))
 prompt = sys.stdin.read()
 thread = str(uuid.uuid4())
@@ -298,7 +299,7 @@ rows = [
   "cli_version": "0.146.0", "git": {"commit_hash": "8c8dc5e0a337677e213b4ebabbeff5ea188111ae"}}},
  {"timestamp": now(), "type": "event_msg", "payload": {"type": "task_started", "turn_id": turn}},
  {"timestamp": now(), "type": "turn_context", "payload": {
-  "turn_id": turn, "cwd": os.getcwd(), "model": "gpt-5.6-sol", "effort": effort}},
+  "turn_id": turn, "cwd": os.getcwd(), "model": model, "effort": effort}},
  {"timestamp": now(), "type": "event_msg", "payload": {"type": "user_message", "message": prompt}},
  {"timestamp": now(), "type": "event_msg", "payload": {"type": "token_count", "info": {
   "total_token_usage": usage, "last_token_usage": usage}}},
@@ -409,6 +410,8 @@ def _manual_run(
     partial_output: bool = False,
     empty_turn: bool = False,
     token_infos: list[Any] | None = None,
+    mutate_launch: Callable[[dict[str, Any]], None] | None = None,
+    mutate_launch_after_identity: Callable[[dict[str, Any]], None] | None = None,
 ) -> dict[str, Any]:
     root.mkdir(parents=True, exist_ok=True)
     run_dir = root / "r01"
@@ -449,6 +452,8 @@ def _manual_run(
     argv = [
         str(cli),
         "exec",
+        "-m",
+        TOOL.MODEL,
         "-c",
         "model_reasoning_effort=max",
         "-o",
@@ -473,6 +478,7 @@ def _manual_run(
         "attempt": 1,
         "parent_run_id": None,
         "case": "POS",
+        "requested_model": TOOL.MODEL,
         "arm": "max",
         "created_at": started.isoformat().replace("+00:00", "Z"),
         "process_start_monotonic_ns": start_ns,
@@ -494,13 +500,17 @@ def _manual_run(
         "cli_binary_sha256": TOOL._sha256(cli.read_bytes()),
         "cli_version": "codex 0.146.0",
         "argv": argv,
-        "normalized_argv": TOOL._normalized_exec_argv(argv, "max"),
+        "normalized_argv": TOOL._normalized_exec_argv(
+            argv, TOOL.MODEL, "max"
+        ),
         "bwrap_binary": str(bwrap.resolve()),
         "bwrap_binary_sha256": TOOL._sha256(bwrap.read_bytes()),
         "bwrap_version": "bwrap 0.6.1",
         "bwrap_argv": bwrap_argv,
         "actual_process_argv": argv,
-        "actual_process_argv_normalized": TOOL._normalized_exec_argv(argv, "max"),
+        "actual_process_argv_normalized": TOOL._normalized_exec_argv(
+            argv, TOOL.MODEL, "max"
+        ),
         "environment": environment,
         "sandbox": {
             "snapshot_mount": "read-only",
@@ -518,7 +528,11 @@ def _manual_run(
         "schedule_sha256": "a" * 64,
         "dry_run": True,
     }
+    if mutate_launch is not None:
+        mutate_launch(launch)
     launch["treatment_identity_sha256"] = TOOL._launch_identity_value(launch)
+    if mutate_launch_after_identity is not None:
+        mutate_launch_after_identity(launch)
     launch_path = _canonical(run_dir / "launch.json", launch)
     thread = "019fac00-0000-7000-8000-000000000001"
     session_id = "different" if id_mismatch else thread
@@ -629,8 +643,33 @@ def _manual_run(
         sessions_root=sessions,
         snapshot=snapshot,
         launch_receipt=launch_path,
+        expected_requested_model=TOOL.MODEL,
     )
     return {"receipt": receipt, "rc": rc, "rollout": rollout}
+
+
+def _collect_manual_run(
+    root: Path,
+    expected_requested_model: str,
+) -> tuple[dict[str, Any], int]:
+    launch_path = next(root.rglob("launch.json"))
+    launch = json.loads(launch_path.read_text(encoding="utf-8"))
+    oracle = json.loads(
+        Path(launch["snapshot_oracle"]["path"]).read_text(encoding="utf-8")
+    )
+    return TOOL.collect_run(
+        run_id="r01",
+        case="POS",
+        requested_effort="max",
+        events=Path(launch["events"]["path"]),
+        done=Path(launch["done"]["path"]),
+        output=Path(launch["output_path"]),
+        prompt=Path(launch["prompt"]["path"]),
+        sessions_root=root / "sessions",
+        snapshot=Path(oracle["snapshot"]),
+        launch_receipt=launch_path,
+        expected_requested_model=expected_requested_model,
+    )
 
 
 def _supervisor_pair(
@@ -661,6 +700,361 @@ def _supervisor_pair(
         dry_run=True,
     )
     return result, schedule_path, slots
+
+
+def _direct_supervisor_launch(
+    root: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    requested_model: str | None = None,
+) -> dict[str, Any]:
+    snapshot = root / "snapshot"
+    snapshot.mkdir(parents=True)
+    prompt = root / "prompt.txt"
+    prompt.write_text("prompt", encoding="utf-8")
+    config = root / "config-source.toml"
+    config.write_text("model='gpt-5.6-sol'\n", encoding="utf-8")
+    auth = root / "auth-source.json"
+    auth.write_text('{"token":"synthetic"}\n', encoding="utf-8")
+    codex = _make_fake_codex(root / "fake-codex")
+    bwrap = _make_executable(
+        root / "fake-bwrap",
+        "#!/bin/sh\n[ \"$1\" = \"--version\" ] && printf 'bwrap 0.6.1\\n'\n",
+    )
+    monkeypatch.setattr(
+        TOOL,
+        "verify_snapshot",
+        lambda actual_snapshot, case: {
+            "schema_version": TOOL.SCHEMA_VERSION,
+            "case": case,
+            "snapshot": os.fspath(Path(actual_snapshot).resolve()),
+            "valid": True,
+        },
+    )
+    slot: dict[str, Any] = {
+        "slot_id": "s01",
+        "case": "POS",
+        "arm": "max",
+        "block_id": "b01",
+        "block_order": 1,
+    }
+    if requested_model is not None:
+        slot["requested_model"] = requested_model
+    completion = TOOL._supervise_one(
+        run_id="r01",
+        slot=slot,
+        attempt=1,
+        parent_run_id=None,
+        schedule_sha256="a" * 64,
+        run_root=root / "run-root",
+        snapshot=snapshot,
+        prompt=prompt,
+        config_source=config,
+        auth_source=auth,
+        codex_binary=codex,
+        bwrap_binary=bwrap,
+        dry_run=True,
+    )
+    return json.loads(
+        Path(completion["launch_receipt"]).read_text(encoding="utf-8")
+    )
+
+
+def _identity_receipt_for_model(model: str) -> dict[str, Any]:
+    base = "/fixture"
+    run_dir = f"{base}/run"
+    workspace = f"{base}/workspace"
+    output = f"{workspace}/answer.md"
+    stderr = f"{workspace}/stderr.log"
+    codex_home = f"{workspace}/codex-home"
+    events = f"{workspace}/events.jsonl"
+    done = f"{run_dir}/.done"
+    prompt = f"{base}/prompt.txt"
+    oracle = f"{run_dir}/snapshot-before.json"
+    normalized_argv = [
+        "/usr/local/bin/codex",
+        "exec",
+        "-m",
+        model,
+        "-c",
+        'model_reasoning_effort="<EFFORT>"',
+        "-s",
+        "read-only",
+        "-C",
+        f"{base}/snapshot",
+        "--json",
+        "-o",
+        "<OUTPUT>",
+        "-",
+    ]
+    return {
+        "case": "POS",
+        "requested_model": model,
+        "arm": "max",
+        "events": {"path": events},
+        "done": {"path": done},
+        "prompt": {"path": prompt, "sha256": "1" * 64},
+        "snapshot_oracle": {"path": oracle, "sha256": "2" * 64},
+        "run_dir": run_dir,
+        "agent_workspace": workspace,
+        "output_path": output,
+        "stderr_path": stderr,
+        "codex_home": codex_home,
+        "codex_config_sha256": "3" * 64,
+        "codex_auth_sha256": "4" * 64,
+        "cli_binary": "/usr/local/bin/codex",
+        "cli_binary_sha256": "5" * 64,
+        "cli_version": "codex-cli 0.146.0",
+        "argv": [
+            "/usr/local/bin/codex",
+            "exec",
+            "-m",
+            model,
+            "-c",
+            "model_reasoning_effort=max",
+            "-s",
+            "read-only",
+            "-C",
+            f"{base}/snapshot",
+            "--json",
+            "-o",
+            output,
+            "-",
+        ],
+        "normalized_argv": normalized_argv,
+        "bwrap_binary_sha256": "6" * 64,
+        "bwrap_version": "bwrap 0.6.1",
+        "bwrap_argv": [
+            "/usr/bin/bwrap",
+            "--ro-bind",
+            f"{base}/snapshot",
+            f"{base}/snapshot",
+            "--",
+            *normalized_argv,
+        ],
+        "actual_process_argv_normalized": normalized_argv,
+        "environment": {
+            "CODEX_HOME": codex_home,
+            "HOME": "/tmp/t181-home",
+            "LANG": "C.UTF-8",
+        },
+        "sandbox": {
+            "snapshot_mount": "read-only",
+            "home_masked": True,
+            "tmp_masked": True,
+        },
+        "world_state": {
+            "snapshot_verified_before": True,
+            "git_environment_cleared": True,
+        },
+        "schedule_sha256": "7" * 64,
+        "dry_run": True,
+    }
+
+
+def test_model_argv_is_explicit_and_identity_is_model_bound() -> None:
+    snapshot = Path("/fixture/snapshot")
+    output = Path("/fixture/output.md")
+    sol = "gpt-5.6-sol"
+    luna = "gpt-5.6-luna"
+    sol_argv = TOOL._codex_exec_argv(
+        Path("/usr/local/bin/codex"), sol, "max", snapshot, output
+    )
+    luna_argv = TOOL._codex_exec_argv(
+        Path("/usr/local/bin/codex"), luna, "max", snapshot, output
+    )
+    assert sol_argv[sol_argv.index("-m") + 1] == sol
+    assert luna_argv[luna_argv.index("-m") + 1] == luna
+    normalized_sol = TOOL._normalized_exec_argv(sol_argv, sol, "max")
+    normalized_luna = TOOL._normalized_exec_argv(luna_argv, luna, "max")
+    assert normalized_sol[sol_argv.index("-m") + 1] == sol
+    assert normalized_luna[luna_argv.index("-m") + 1] == luna
+    assert 'model_reasoning_effort="<EFFORT>"' in normalized_sol
+    assert "model_reasoning_effort=max" not in normalized_sol
+
+    missing_model = [value for value in sol_argv if value not in {"-m", sol}]
+    with pytest.raises(TOOL.ValidationError, match="one -m model option"):
+        TOOL._normalized_exec_argv(missing_model, sol, "max")
+    duplicate_model = [*sol_argv, "-m", luna]
+    with pytest.raises(TOOL.ValidationError, match="one -m model option"):
+        TOOL._normalized_exec_argv(duplicate_model, sol, "max")
+    unknown_model = list(sol_argv)
+    unknown_model[unknown_model.index("-m") + 1] = "gpt-5.6-unknown"
+    with pytest.raises(TOOL.ValidationError, match="model is not allowed"):
+        TOOL._normalized_exec_argv(unknown_model, sol, "max")
+    with pytest.raises(TOOL.ValidationError, match="does not match"):
+        TOOL._normalized_exec_argv(sol_argv, luna, "max")
+
+    sol_hash = TOOL._launch_identity_value(_identity_receipt_for_model(sol))
+    luna_hash = TOOL._launch_identity_value(_identity_receipt_for_model(luna))
+    assert sol_hash == (
+        "d711b0e4cea31dfeff04273e768a3e3d3ba7f07c7478df00ec592ac4d34c4157"
+    )
+    assert luna_hash == (
+        "687b58a3c7362fbc3c8e852be7376560e151240572960dc75a47af397b3d256c"
+    )
+    assert sol_hash != luna_hash
+
+
+def test_supervisor_falls_back_to_default_model_without_requested_model(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    launch = _direct_supervisor_launch(tmp_path, monkeypatch)
+    assert launch["requested_model"] == TOOL.MODEL
+    assert launch["argv"][launch["argv"].index("-m") + 1] == TOOL.MODEL
+    assert launch["normalized_argv"] == TOOL._normalized_exec_argv(
+        launch["argv"], TOOL.MODEL, "max"
+    )
+    assert launch["treatment_identity_sha256"] == TOOL._launch_identity_value(
+        launch
+    )
+
+
+def test_supervisor_binds_requested_model_to_argv_receipt_and_identity(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    luna = "gpt-5.6-luna"
+    launch = _direct_supervisor_launch(tmp_path, monkeypatch, luna)
+    assert launch["requested_model"] == luna
+    assert launch["argv"][launch["argv"].index("-m") + 1] == luna
+    assert launch["normalized_argv"] == TOOL._normalized_exec_argv(
+        launch["argv"], luna, "max"
+    )
+    assert launch["actual_process_argv"] == launch["argv"]
+    assert launch["actual_process_argv_normalized"] == launch["normalized_argv"]
+    assert launch["treatment_identity_sha256"] == TOOL._launch_identity_value(
+        launch
+    )
+
+    sol_receipt = copy.deepcopy(launch)
+    for field in (
+        "argv",
+        "normalized_argv",
+        "bwrap_argv",
+        "actual_process_argv",
+        "actual_process_argv_normalized",
+    ):
+        sol_receipt[field] = [
+            TOOL.MODEL if value == luna else value for value in sol_receipt[field]
+        ]
+    sol_receipt["requested_model"] = TOOL.MODEL
+    assert TOOL._launch_identity_value(sol_receipt) != launch[
+        "treatment_identity_sha256"
+    ]
+
+
+def test_collect_run_expected_requested_model_context_mismatch_is_routing(
+    tmp_path: Path,
+) -> None:
+    run = _manual_run(tmp_path)
+    rollout = run["rollout"]
+    rows = [
+        json.loads(line)
+        for line in rollout.read_text(encoding="utf-8").splitlines()
+    ]
+    for row in rows:
+        if row.get("type") == "turn_context":
+            row["payload"]["model"] = "gpt-5.6-luna"
+    rollout.write_text(
+        "".join(json.dumps(row, ensure_ascii=False) + "\n" for row in rows),
+        encoding="utf-8",
+    )
+    receipt, rc = _collect_manual_run(tmp_path, TOOL.MODEL)
+    assert rc == TOOL.RC_ROUTING
+    assert receipt["failure_reasons"] == ["model mismatch"]
+
+
+def test_collect_run_expected_requested_model_argv_mismatch_is_receipt_rc(
+    tmp_path: Path,
+) -> None:
+    run = _manual_run(tmp_path)
+    rollout = run["rollout"]
+    rows = [
+        json.loads(line)
+        for line in rollout.read_text(encoding="utf-8").splitlines()
+    ]
+    for row in rows:
+        if row.get("type") == "turn_context":
+            row["payload"]["model"] = "gpt-5.6-luna"
+    rollout.write_text(
+        "".join(json.dumps(row, ensure_ascii=False) + "\n" for row in rows),
+        encoding="utf-8",
+    )
+    receipt, rc = _collect_manual_run(tmp_path, "gpt-5.6-luna")
+    assert rc == TOOL.RC_RECEIPT
+    assert receipt["failure_reasons"] == [
+        "requested model does not match the -m argv value"
+    ]
+
+
+def test_collect_run_argv_model_mismatch_is_receipt_rc(
+    tmp_path: Path,
+) -> None:
+    luna = "gpt-5.6-luna"
+
+    def mutate_launch(launch: dict[str, Any]) -> None:
+        launch["requested_model"] = luna
+        model_position = launch["argv"].index("-m") + 1
+        launch["argv"][model_position] = luna
+        launch["normalized_argv"] = TOOL._normalized_exec_argv(
+            launch["argv"], luna, "max"
+        )
+        launch["actual_process_argv"] = list(launch["argv"])
+        launch["actual_process_argv_normalized"] = list(launch["normalized_argv"])
+        launch["bwrap_argv"] = TOOL._bwrap_exec_argv(
+            Path(launch["bwrap_binary"]),
+            launch["argv"],
+            Path(
+                json.loads(
+                    Path(launch["snapshot_oracle"]["path"]).read_text(
+                        encoding="utf-8"
+                    )
+                )["snapshot"]
+            ),
+            Path(launch["codex_home"]),
+            Path(launch["output_path"]),
+            Path(launch["events"]["path"]),
+            Path(launch["stderr_path"]),
+            launch["environment"],
+        )
+        launch["treatment_identity_sha256"] = TOOL._launch_identity_value(launch)
+
+    _manual_run(tmp_path, mutate_launch=mutate_launch)
+    receipt, rc = _collect_manual_run(tmp_path, TOOL.MODEL)
+    assert rc == TOOL.RC_RECEIPT
+    assert receipt["failure_reasons"] == [
+        "requested model does not match the -m argv value"
+    ]
+
+
+def test_collect_run_receipt_model_field_mismatch_is_receipt_rc(
+    tmp_path: Path,
+) -> None:
+    def mutate_launch(launch: dict[str, Any]) -> None:
+        launch["requested_model"] = "gpt-5.6-luna"
+
+    _manual_run(tmp_path, mutate_launch_after_identity=mutate_launch)
+    receipt, rc = _collect_manual_run(tmp_path, TOOL.MODEL)
+    assert rc == TOOL.RC_RECEIPT
+    assert receipt["failure_reasons"] == [
+        "launch receipt requested model does not match argv"
+    ]
+
+
+def test_completed_ledger_row_records_launch_requested_model(tmp_path: Path) -> None:
+    launch_path = tmp_path / "launch.json"
+    launch_path.write_bytes(
+        TOOL._canonical_bytes({"requested_model": "gpt-5.6-luna"})
+    )
+    ledger_path = tmp_path / "attempt-ledger.jsonl"
+    row = {
+        "phase": "completed",
+        "launch_receipt": str(launch_path),
+    }
+    TOOL._append_jsonl(ledger_path, row)
+    assert row["requested_model"] == "gpt-5.6-luna"
+    assert json.loads(ledger_path.read_text(encoding="utf-8"))["requested_model"] == (
+        "gpt-5.6-luna"
+    )
 
 
 def _full_manifest(
@@ -721,6 +1115,7 @@ def _full_manifest(
             sessions_root=run_root,
             snapshot=Path(oracle_value["snapshot"]),
             launch_receipt=launch_path,
+            expected_requested_model=TOOL.MODEL,
         )
         assert receipt_rc == 0
         score, score_rc = TOOL.score_run(output, completion["run_id"])
@@ -857,6 +1252,198 @@ def test_corrected_case_allowlists_are_literal() -> None:
         "focus1.md",
         "fix2.md",
     )
+
+
+def test_task_manifest_binds_frozen_provenance_to_literal_values() -> None:
+    pos = TOOL.TASK_MANIFEST["tasks"]["POS"]
+    assert TOOL.TASK_MANIFEST["schema_version"] == 3
+    assert pos["benchmark_task_id"] == "POS"
+    assert pos["legacy_case"] == "POS"
+    assert pos["provenance"]["session_id"] == (
+        "019faca2-6e1f-7601-bfc7-be27edcfb4ba"
+    )
+    assert pos["provenance"]["rollout_sha256"] == (
+        "9b90d51079e6a2be4603b366d77283950fff79535f59dbb8b4f4eecb1374032b"
+    )
+    assert pos["provenance"]["prompt_source"]["sha256"] == (
+        "511941738fd39a20ac9fb41ce2f4c3ed0039c35fca637ded0fa2fb6679667829"
+    )
+    assert pos["snapshot"]["numstat"] == [
+        [3, 3, "docs/ai-provenance.md"],
+        [45, 0, "docs/decisions.md"],
+        [693, 0, "orchestrator/tests/test_check_ai_provenance.py"],
+        [37, 0, "orchestrator/tests/test_check_docs.py"],
+        [123, 10, "tools/check_ai_provenance.py"],
+        [9, 1, "tools/check_docs.py"],
+    ]
+    assert TOOL.TASK_MANIFEST["shared_provenance"]["auxiliary_sessions"]["fix1"] == {
+        "session_id": "019fac91-8cde-7f73-bce1-77a9d63b4269",
+        "rollout_sha256": "f210f2e135f6cfdb2e6c2a40e81b784a2a8f4ac51135c353cf859365e17fb475",
+    }
+
+
+def test_v2_schedule_normalizer_is_explicit_and_non_mutating() -> None:
+    legacy = {
+        "schema_version": 2,
+        "slots": [
+            {"slot_id": "s01", "case": "POS", "arm": "max"},
+            {"slot_id": "s02", "case": "NEG", "arm": "high"},
+        ],
+    }
+    original = copy.deepcopy(legacy)
+    normalized = TOOL.normalize_legacy_schedule(legacy)
+
+    assert legacy == original
+    assert normalized["schema_version"] == 3
+    assert normalized["manifest_kind"] == "t181-task-manifest"
+    assert normalized["slots"][0]["benchmark_task_id"] == "POS"
+    assert normalized["slots"][0]["legacy_case"] == "POS"
+    assert normalized["slots"][0]["cache_condition"] is None
+    assert normalized["slots"][0]["price_version"] is None
+    assert TOOL.expected_schedule_from_manifest(TOOL.TASK_MANIFEST, legacy) == {
+        ("POS", "max"): 3,
+        ("POS", "high"): 3,
+        ("NEG", "max"): 2,
+        ("NEG", "high"): 2,
+    }
+
+
+def test_expected_schedule_rejects_non_null_v2_cache_condition() -> None:
+    legacy = {
+        "schema_version": 2,
+        "slots": [
+            {
+                "slot_id": "s01",
+                "case": "POS",
+                "arm": "max",
+                "cache_condition": "cold",
+                "price_version": None,
+            }
+        ],
+    }
+    with pytest.raises(TOOL.ValidationError, match="non-null values are not supported"):
+        TOOL.expected_schedule_from_manifest(TOOL.TASK_MANIFEST, legacy)
+
+
+def test_v3_nullable_dimensions_distinguish_missing_from_null() -> None:
+    row = {
+        "benchmark_task_id": "POS",
+        "case": "POS",
+        "cache_condition": None,
+        "price_version": None,
+    }
+    assert TOOL.validate_nullable_dimensions(row) == row
+    for field in ("cache_condition", "price_version"):
+        missing = dict(row)
+        del missing[field]
+        with pytest.raises(TOOL.ValidationError, match=f"missing required field: {field}"):
+            TOOL.normalize_schedule({"schema_version": 3, "slots": [missing]})
+
+
+@pytest.mark.parametrize("field", ("cache_condition", "price_version"))
+def test_non_null_nullable_dimension_is_fail_closed(field: str) -> None:
+    row = {
+        "benchmark_task_id": "POS",
+        "case": "POS",
+        "cache_condition": None,
+        "price_version": None,
+    }
+    row[field] = "opaque-version-token"
+    with pytest.raises(TOOL.ValidationError, match="non-null values are not supported"):
+        TOOL.normalize_schedule({"schema_version": 3, "slots": [row]})
+
+
+def test_benchmark_task_id_and_case_alias_conflict_is_rejected() -> None:
+    with pytest.raises(TOOL.ValidationError, match="aliases conflict"):
+        TOOL.normalize_schedule(
+            {
+                "schema_version": 3,
+                "slots": [
+                    {
+                        "benchmark_task_id": "POS",
+                        "case": "NEG",
+                        "cache_condition": None,
+                        "price_version": None,
+                    }
+                ],
+            }
+        )
+
+
+def test_manifest_schedule_and_findings_are_dynamic() -> None:
+    manifest = copy.deepcopy(TOOL.TASK_MANIFEST)
+    manifest["tasks"] = {}
+    for task_id, legacy_case, finding_id, source_case in (
+        ("alpha", "legacy-alpha", "A-1", "POS"),
+        ("beta", "legacy-beta", "B-9", "NEG"),
+    ):
+        task = copy.deepcopy(TOOL.TASK_MANIFEST["tasks"][source_case])
+        task.update(
+            {
+                "benchmark_task_id": task_id,
+                "legacy_case": legacy_case,
+                "known_finding_ids": [finding_id],
+            }
+        )
+        manifest["tasks"][task_id] = task
+    schedule = {
+        "schema_version": 3,
+        "slots": [
+            {
+                "slot_id": "x01",
+                "benchmark_task_id": "alpha",
+                "legacy_case": "legacy-alpha",
+                "arm": "low",
+                "cache_condition": None,
+                "price_version": None,
+            },
+            {
+                "slot_id": "x02",
+                "benchmark_task_id": "alpha",
+                "case": "legacy-alpha",
+                "arm": "low",
+                "cache_condition": None,
+                "price_version": None,
+            },
+            {
+                "slot_id": "x03",
+                "benchmark_task_id": "beta",
+                "legacy_case": "legacy-beta",
+                "arm": "high",
+                "cache_condition": None,
+                "price_version": None,
+            },
+        ],
+    }
+    assert TOOL.expected_schedule_from_manifest(manifest, schedule) == {
+        ("alpha", "low"): 2,
+        ("beta", "high"): 1,
+    }
+    assert TOOL.known_finding_ids_for_manifest(manifest) == {"A-1", "B-9"}
+
+
+@pytest.mark.parametrize("normalizer, schema_version", [
+    (TOOL.normalize_schedule, 3),
+    (TOOL.normalize_legacy_schedule, 2),
+])
+@pytest.mark.parametrize("bad_manifest", ["empty_tasks", "invalid_finding_id"])
+def test_schedule_normalizers_reject_malformed_manifest(
+    normalizer: Callable[..., dict[str, Any]],
+    schema_version: int,
+    bad_manifest: str,
+) -> None:
+    manifest = copy.deepcopy(TOOL.TASK_MANIFEST)
+    if bad_manifest == "empty_tasks":
+        manifest["tasks"] = {}
+    else:
+        task = copy.deepcopy(manifest["tasks"]["POS"])
+        task["known_finding_ids"] = [1]
+        manifest["tasks"] = {"POS": task}
+    with pytest.raises(TOOL.ValidationError):
+        normalizer(
+            {"schema_version": schema_version, "slots": []},
+            manifest=manifest,
+        )
 
 
 def test_parent_numstat_controls_remain_pinned(
@@ -3914,6 +4501,206 @@ def test_pos_neg_submodule_initialization_state_mismatch_is_rejected(
     )
 
 
+def _synthetic_task_manifest(
+    task_specs: tuple[tuple[str, str, str, str], ...] = (
+        ("alpha", "POS", "positive", "alpha-finding"),
+        ("beta", "NEG", "negative", "beta-finding"),
+        ("gamma", "POS", "positive", "gamma-finding"),
+    ),
+) -> dict[str, Any]:
+    manifest = copy.deepcopy(TOOL.TASK_MANIFEST)
+    tasks: dict[str, Any] = {}
+    for task_id, source_case, oracle_kind, finding_id in task_specs:
+        task = copy.deepcopy(TOOL.TASK_MANIFEST["tasks"][source_case])
+        task["benchmark_task_id"] = task_id
+        task["legacy_case"] = f"legacy-{task_id}"
+        task["stage"] = "stage-1"
+        task["oracle_kind"] = oracle_kind
+        task["known_finding_ids"] = [finding_id]
+        tasks[task_id] = task
+    manifest["tasks"] = tasks
+    return manifest
+
+
+def _v3_slot(
+    *,
+    slot_id: str,
+    task_id: str,
+    block_id: str,
+    block_order: int,
+    arm: str,
+    requested_model: str,
+    stage: str = "stage-1",
+) -> dict[str, Any]:
+    return {
+        "slot_id": slot_id,
+        "benchmark_task_id": task_id,
+        "legacy_case": f"legacy-{task_id}",
+        "stage": stage,
+        "requested_model": requested_model,
+        "cache_condition": None,
+        "price_version": None,
+        "arm": arm,
+        "block_id": block_id,
+        "block_order": block_order,
+        "prompt_sha256": "a" * 64,
+        "snapshot_manifest_sha256": "b" * 64,
+        "submodule_manifest_sha256": "c" * 64,
+    }
+
+
+def test_validate_schedule_accepts_same_arm_different_requested_model_pair() -> None:
+    schedule = {
+        "schema_version": TOOL.TASK_MANIFEST_SCHEMA_VERSION,
+        "slots": [
+            _v3_slot(
+                slot_id="s01",
+                task_id="alpha",
+                block_id="b01",
+                block_order=1,
+                arm="max",
+                requested_model=TOOL.MODEL,
+            ),
+            _v3_slot(
+                slot_id="s02",
+                task_id="alpha",
+                block_id="b01",
+                block_order=2,
+                arm="max",
+                requested_model="gpt-5.6-luna",
+            ),
+        ],
+    }
+    slots, reasons = TOOL._validate_schedule(
+        schedule,
+        task_manifest=_synthetic_task_manifest(
+            (("alpha", "POS", "positive", "alpha-finding"),)
+        ),
+    )
+    assert reasons == []
+    assert {row["requested_model"] for row in slots} == {
+        TOOL.MODEL,
+        "gpt-5.6-luna",
+    }
+    assert all(row["benchmark_task_id"] == "alpha" for row in slots)
+
+
+@pytest.mark.parametrize("field", ("cache_condition", "price_version"))
+def test_validate_schedule_rejects_live_non_null_cache_or_price(
+    field: str,
+) -> None:
+    schedule = {
+        "schema_version": TOOL.TASK_MANIFEST_SCHEMA_VERSION,
+        "slots": [
+            _v3_slot(
+                slot_id="s01",
+                task_id="alpha",
+                block_id="b01",
+                block_order=1,
+                arm="max",
+                requested_model=TOOL.MODEL,
+            ),
+            _v3_slot(
+                slot_id="s02",
+                task_id="alpha",
+                block_id="b01",
+                block_order=2,
+                arm="max",
+                requested_model="gpt-5.6-luna",
+            ),
+        ],
+    }
+    schedule["slots"][0][field] = "unattested"
+    _, reasons = TOOL._validate_schedule(
+        schedule,
+        task_manifest=_synthetic_task_manifest(
+            (("alpha", "POS", "positive", "alpha-finding"),)
+        ),
+    )
+    assert any("non-null values are not supported" in reason for reason in reasons)
+
+
+def test_validate_schedule_legacy_different_arm_same_model_pair_remains_valid(
+    benchmark_snapshots: dict[str, Any], tmp_path: Path
+) -> None:
+    _, source_slots = _schedule(tmp_path / "legacy-schedule.json", benchmark_snapshots)
+    source = {"slots": copy.deepcopy(source_slots)}
+    slots, reasons = TOOL._validate_schedule(source)
+    assert "schema_version" not in source
+    assert reasons == []
+    assert slots[0]["requested_model"] == TOOL.MODEL
+    assert slots[0]["arm"] != slots[1]["arm"]
+
+
+def test_validate_verdict_accepts_manifest_finding_union_while_blind_and_rejects_unknown(
+    tmp_path: Path,
+) -> None:
+    manifest = _synthetic_task_manifest(
+        (
+            ("alpha", "POS", "positive", "alpha-finding"),
+            ("beta", "NEG", "negative", "beta-finding"),
+        )
+    )
+    state, parent, _ = _packet_fixture(tmp_path)
+    parent_value = json.loads(parent.read_text(encoding="utf-8"))
+    parent_value["verdicts"][0]["findings"] = [
+        {
+            "real": True,
+            "equivalent_to": "alpha-finding",
+            "root_cause": None,
+            "severity": "HIGH",
+            "must_fix": True,
+        }
+    ]
+    parent.write_bytes(TOOL._canonical_bytes(parent_value))
+    log = tmp_path / "blind-verdicts.jsonl"
+    result = TOOL.append_verdicts(
+        state,
+        log,
+        "parent",
+        parent,
+        task_manifest=manifest,
+    )
+    assert result["appended"] == 1
+    packet_id = json.loads(state.read_text(encoding="utf-8"))["packets"][0][
+        "packet_id"
+    ]
+    row = json.loads(log.read_text(encoding="utf-8").splitlines()[0])
+    TOOL._validate_verdict_row(
+        row,
+        {packet_id},
+        task_manifest=manifest,
+    )
+    bad = _canonical(
+        tmp_path / "bad.json",
+        {
+            "verdicts": [
+                {
+                    "packet_id": packet_id,
+                    "r1_detected": False,
+                    "findings": [
+                        {
+                            "real": True,
+                            "equivalent_to": "not-in-manifest",
+                            "root_cause": None,
+                            "severity": "HIGH",
+                            "must_fix": True,
+                        }
+                    ],
+                }
+            ]
+        },
+    )
+    with pytest.raises(TOOL.ValidationError, match="unknown"):
+        TOOL.append_verdicts(
+            state,
+            tmp_path / "bad-verdicts.jsonl",
+            "second-reader",
+            bad,
+            task_manifest=manifest,
+        )
+
+
 def test_git_answer_object_reinjection_is_rejected(
     tmp_path: Path, benchmark_snapshots: dict[str, Any]
 ) -> None:
@@ -5304,6 +6091,243 @@ def test_supervisor_cli_removed_caller_attestation_command() -> None:
     assert "environment-json" not in help_text
 
 
+def test_collect_run_cli_binds_expected_model_to_requested_dest(
+    tmp_path: Path,
+) -> None:
+    parsed = TOOL._parser().parse_args(
+        [
+            "collect-run",
+            "--run-id",
+            "r01",
+            "--case",
+            "POS",
+            "--requested-effort",
+            "max",
+            "--events",
+            os.fspath(tmp_path / "events.jsonl"),
+            "--done",
+            os.fspath(tmp_path / "done.json"),
+            "--output",
+            os.fspath(tmp_path / "answer.md"),
+            "--prompt",
+            os.fspath(tmp_path / "prompt.txt"),
+            "--sessions-root",
+            os.fspath(tmp_path / "sessions"),
+            "--snapshot",
+            os.fspath(tmp_path / "snapshot"),
+            "--launch-receipt",
+            os.fspath(tmp_path / "launch.json"),
+            "--expected-model",
+            "gpt-5.6-luna",
+        ]
+    )
+    assert parsed.expected_requested_model == "gpt-5.6-luna"
+    assert not hasattr(parsed, "expected_model")
+
+
+def test_replay_passes_schedule_requested_model_to_collect_run(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    luna = "gpt-5.6-luna"
+    root = tmp_path
+    run_root = root / "run-root"
+    attempts_root = run_root / "attempts"
+    sessions_root = root / "sessions"
+    snapshot = root / "snapshot"
+    attempts_root.mkdir(parents=True)
+    sessions_root.mkdir()
+    snapshot.mkdir()
+    slot = {
+        "slot_id": "s01",
+        "case": "POS",
+        "arm": "max",
+        "requested_model": luna,
+        "block_id": "b01",
+        "block_order": 1,
+        "prompt_sha256": "1" * 64,
+        "snapshot_manifest_sha256": "2" * 64,
+        "submodule_manifest_sha256": "3" * 64,
+    }
+    schedule_path = _canonical(run_root / "schedule.json", {"slots": [slot]})
+    schedule_sha = TOOL._sha256(schedule_path.read_bytes())
+    prompt = _canonical(root / "prompt.txt", {"prompt": True})
+    output = _canonical(root / "output.md", {"output": True})
+    events = _canonical(root / "events.jsonl", {"events": True})
+    done = _canonical(root / "done.json", {"done": True})
+    oracle_value = {
+        "snapshot": os.fspath(snapshot.resolve()),
+        "submodule_manifest_sha256": slot["submodule_manifest_sha256"],
+    }
+    oracle = _canonical(root / "oracle.json", oracle_value)
+    oracle_after = _canonical(root / "oracle-after.json", oracle_value)
+    rollout = _canonical(sessions_root / "rollout-r01.jsonl", {"rollout": True})
+    launch = _canonical(
+        attempts_root / "launch.json",
+        {
+            "run_id": "r01",
+            "slot_id": "s01",
+            "attempt": 1,
+            "parent_run_id": None,
+            "case": "POS",
+            "arm": "max",
+            "requested_model": luna,
+            "schedule_sha256": schedule_sha,
+            "prompt": {"sha256": slot["prompt_sha256"]},
+            "snapshot_oracle": {
+                "sha256": slot["snapshot_manifest_sha256"]
+            },
+        },
+    )
+    receipt = _canonical(
+        root / "receipt.json",
+        {"rollout_path": os.fspath(rollout.resolve()), "wall_clock_ms": 0},
+    )
+    score = _canonical(root / "score.json", {})
+    ledger = _canonical(run_root / "attempt-ledger.jsonl", {})
+    attempts = [
+        {
+            "run_id": "r01",
+            "slot_id": "s01",
+            "attempt": 1,
+            "parent_run_id": None,
+            "launch_receipt": _descriptor(launch, root),
+            "events": _descriptor(events, root),
+            "done": _descriptor(done, root),
+            "prompt": _descriptor(prompt, root),
+            "output": _descriptor(output, root),
+            "snapshot_oracle": _descriptor(oracle, root),
+            "snapshot_after": _descriptor(oracle_after, root),
+            "rollout": _descriptor(rollout, root),
+            "receipt": _descriptor(receipt, root),
+            "score": _descriptor(score, root),
+        }
+    ]
+    manifest = {
+        "schedule": _descriptor(schedule_path, root),
+        "schedule_sha256": schedule_sha,
+        "run_root": "run-root",
+        "attempts_root": "run-root/attempts",
+        "attempt_ledger": _descriptor(ledger, root),
+        "max_schedule_gap_ms": TOOL.MAX_SCHEDULE_GAP_MS,
+        "max_inter_block_gap_ms": TOOL.MAX_INTER_BLOCK_GAP_MS,
+        "attempts": attempts,
+    }
+    manifest_path = _canonical(root / "manifest.json", manifest)
+    captured: list[str] = []
+
+    def fake_validate_schedule(
+        schedule: dict[str, Any],
+        *,
+        task_manifest: Any = TOOL.TASK_MANIFEST,
+    ) -> tuple[list[dict[str, Any]], list[str]]:
+        assert schedule["slots"][0]["requested_model"] == luna
+        return schedule["slots"], []
+
+    def fake_collect_run(**kwargs: Any) -> tuple[dict[str, Any], int]:
+        captured.append(kwargs["expected_requested_model"])
+        return (
+            {
+                "rollout_path": os.fspath(rollout.resolve()),
+                "wall_clock_ms": 0,
+            },
+            0,
+        )
+
+    monkeypatch.setattr(TOOL, "_validate_schedule", fake_validate_schedule)
+    monkeypatch.setattr(
+        TOOL,
+        "_validate_supervisor_ledger",
+        lambda *args, **kwargs: (
+            [
+                {
+                    "run_id": "r01",
+                    "process_started": True,
+                    "process_wall_ms": 0,
+                }
+            ],
+            [],
+        ),
+    )
+    monkeypatch.setattr(
+        TOOL,
+        "_load_adjudication",
+        lambda *args, **kwargs: ({}, []),
+    )
+    monkeypatch.setattr(TOOL, "_apply_pair_invalidations", lambda attempts: None)
+    monkeypatch.setattr(TOOL, "_retry_lineage_reasons", lambda grouped: [])
+    monkeypatch.setattr(TOOL, "verify_snapshot", lambda actual, case: oracle_value)
+    monkeypatch.setattr(TOOL, "collect_run", fake_collect_run)
+    monkeypatch.setattr(TOOL, "score_run", lambda *args: ({}, 0))
+
+    TOOL._replay_manifest(manifest_path, sessions_root)
+    assert captured == [luna]
+
+
+def test_cli_benchmark_task_id_is_parsed_and_resolved(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    parsed = TOOL._parser().parse_args(
+        [
+            "build-snapshot",
+            "--snapshot",
+            os.fspath(tmp_path / "snapshot"),
+            "--benchmark-task-id",
+            "POS",
+        ]
+    )
+    assert parsed.benchmark_task_id == "POS"
+    assert parsed.case is None
+
+    observed: dict[str, Any] = {}
+
+    def fake_resolve(
+        benchmark_task_id: str | None = None,
+        *,
+        case: str | None = None,
+        legacy_case: str | None = None,
+        manifest: Any = TOOL.TASK_MANIFEST,
+    ) -> str:
+        observed.update(
+            {
+                "benchmark_task_id": benchmark_task_id,
+                "case": case,
+            }
+        )
+        return "POS"
+
+    monkeypatch.setattr(TOOL, "resolve_benchmark_task_id", fake_resolve)
+    monkeypatch.setattr(TOOL, "build_snapshot", lambda *args: {"ok": True})
+    rc = TOOL.main(
+        [
+            "build-snapshot",
+            "--snapshot",
+            os.fspath(tmp_path / "snapshot"),
+            "--benchmark-task-id",
+            "POS",
+        ]
+    )
+    assert rc == 0
+    assert observed == {"benchmark_task_id": "POS", "case": None}
+
+
+def test_cli_case_and_benchmark_task_id_conflict_is_fail_closed(
+    tmp_path: Path,
+) -> None:
+    rc = TOOL.main(
+        [
+            "build-snapshot",
+            "--snapshot",
+            os.fspath(tmp_path / "snapshot"),
+            "--case",
+            "POS",
+            "--benchmark-task-id",
+            "NEG",
+        ]
+    )
+    assert rc == TOOL.RC_ROUTING
+
+
 def _timing_rows() -> tuple[list[dict[str, Any]], list[dict[str, Any]], list[dict[str, Any]]]:
     slots = [
         {"slot_id": "s01", "case": "POS", "arm": "max", "block_id": "b01", "block_order": 1},
@@ -5855,6 +6879,71 @@ def _aggregate_rows() -> tuple[list[dict[str, Any]], list[dict[str, Any]], dict[
     return slots, attempts, verdicts
 
 
+def test_aggregate_verified_uses_oracle_kind_and_keeps_task_model_axes_separate(
+    tmp_path: Path,
+) -> None:
+    task_manifest = _synthetic_task_manifest(
+        (
+            ("alpha", "POS", "positive", "alpha-finding"),
+            ("beta", "NEG", "negative", "beta-finding"),
+        )
+    )
+    slots, attempts, verdicts = _aggregate_rows()
+    for slot, attempt in zip(slots, attempts):
+        task_id = "alpha" if slot["case"] == "POS" else "beta"
+        legacy_case = f"legacy-{task_id}"
+        for row in (slot, attempt):
+            row.update(
+                {
+                    "benchmark_task_id": task_id,
+                    "legacy_case": legacy_case,
+                    "case": legacy_case,
+                    "stage": "stage-1",
+                    "requested_model": TOOL.MODEL,
+                    "cache_condition": None,
+                    "price_version": None,
+                }
+            )
+    beta_slot = next(row for row in slots if row["benchmark_task_id"] == "beta")
+    verdicts[beta_slot["slot_id"]]["findings"] = [
+        {
+            "real": True,
+            "equivalent_to": "beta-finding",
+            "root_cause": None,
+            "severity": "HIGH",
+            "must_fix": True,
+        }
+    ]
+    result = TOOL._aggregate_verified(
+        _canonical(tmp_path / "dynamic-manifest.json", {}),
+        slots,
+        attempts,
+        verdicts,
+        [],
+        task_manifest=task_manifest,
+    )
+    assert result["valid"] is True
+    assert result["experiment_complete"] is True
+    assert isinstance(result["primary_judgment_ledger"], list)
+    assert {
+        row["benchmark_task_id"] for row in result["primary_judgment_axis_ledger"]
+    } == {"alpha"}
+    assert {
+        row["benchmark_task_id"] for row in result["resource_ledger"]
+    } == {"alpha", "beta"}
+    assert all(
+        row["requested_model"] == TOOL.MODEL
+        and row["stage"] == "stage-1"
+        and row["cache_condition"] is None
+        and row["price_version"] is None
+        for row in result["resource_ledger"]
+    )
+    assert "by_arm_case" not in result["token_usage_observations"][
+        TOOL.ZERO_COMPONENT_TOTAL_ONLY
+    ]
+    assert result["decision"]["by_axis"]
+
+
 def test_zero_component_total_only_aggregate_counts_by_arm_and_case(
     tmp_path: Path,
 ) -> None:
@@ -5868,15 +6957,39 @@ def test_zero_component_total_only_aggregate_counts_by_arm_and_case(
         [],
     )
     assert result["valid"] is True
-    assert result["token_usage_observations"] == {
-        TOOL.ZERO_COMPONENT_TOTAL_ONLY: {
-            "total_count": 1,
-            "by_arm_case": {
-                "max": {"POS": 0, "NEG": 1},
-                "high": {"POS": 0, "NEG": 0},
-            },
-        }
+    observation = result["token_usage_observations"][
+        TOOL.ZERO_COMPONENT_TOTAL_ONLY
+    ]
+    assert observation["total_count"] == 1
+    assert observation["by_arm_case"] == {
+        "max": {"POS": 0, "NEG": 1},
+        "high": {"POS": 0, "NEG": 0},
     }
+    assert [row for row in observation["by_axis"] if row["count"]] == [
+        {
+            "benchmark_task_id": "NEG",
+            "stage": None,
+            "requested_model": TOOL.MODEL,
+            "cache_condition": None,
+            "price_version": None,
+            "arm": "max",
+            "count": 1,
+        }
+    ]
+
+
+def test_zero_component_total_only_mixed_models_omit_legacy_projection() -> None:
+    slots, attempts, _ = _aggregate_rows()
+    slots[0]["requested_model"] = "gpt-5.6-luna"
+    attempts[0]["requested_model"] = "gpt-5.6-luna"
+    reasons: list[str] = []
+    result = TOOL._aggregate_token_usage_observations(
+        attempts,
+        reasons,
+        slots=slots,
+    )
+    assert reasons == []
+    assert "by_arm_case" not in result[TOOL.ZERO_COMPONENT_TOTAL_ONLY]
 
 
 def test_zero_component_total_only_count_is_required_for_aggregate(
@@ -6586,6 +7699,138 @@ def test_mapping_custodian_blocks_pre_freeze_reveal_and_packet_sha_join(
         }
         for row in mapping
     )
+
+
+def test_make_packets_uses_dynamic_schedule_count_and_keeps_public_state_blind(
+    tmp_path: Path,
+) -> None:
+    task_manifest = _synthetic_task_manifest()
+    schedule_rows: list[dict[str, Any]] = []
+    attempts: list[dict[str, Any]] = []
+    for index, task_id in enumerate(("alpha", "beta", "gamma"), 1):
+        block_id = f"b{index:02d}"
+        for order, model in enumerate((TOOL.MODEL, "gpt-5.6-luna"), 1):
+            slot_id = f"s{(index - 1) * 2 + order:02d}"
+            schedule_rows.append(
+                _v3_slot(
+                    slot_id=slot_id,
+                    task_id=task_id,
+                    block_id=block_id,
+                    block_order=order,
+                    arm="max",
+                    requested_model=model,
+                )
+            )
+            output = tmp_path / f"output-{slot_id}.md"
+            output.write_text(_long_output(), encoding="utf-8")
+            attempts.append(
+                {
+                    "slot_id": slot_id,
+                    "attempt": 1,
+                    "run_id": f"r{(index - 1) * 2 + order:02d}",
+                    "output": _descriptor(output, tmp_path),
+                }
+            )
+    schedule_path = _canonical(
+        tmp_path / "schedule.json",
+        {"schema_version": TOOL.TASK_MANIFEST_SCHEMA_VERSION, "slots": schedule_rows},
+    )
+    manifest_path = _canonical(
+        tmp_path / "manifest.json",
+        {
+            "schedule": _descriptor(schedule_path, tmp_path),
+            "attempts": attempts,
+        },
+    )
+    result = TOOL.make_packets(
+        manifest_path,
+        tmp_path / "packets",
+        tmp_path / "custodian",
+        task_manifest=task_manifest,
+    )
+    assert result["packet_count"] == 6
+    state_path = Path(result["packet_state"])
+    state = json.loads(state_path.read_text(encoding="utf-8"))
+    assert state["mask_strength"] == "same-owner-advisory"
+    assert all(set(row) == {"packet_id", "filename"} for row in state["packets"])
+    public_state = state_path.read_text(encoding="utf-8")
+    for forbidden in (
+        "benchmark_task_id",
+        "requested_model",
+        "stage",
+        "cache_condition",
+        "price_version",
+    ):
+        assert forbidden not in public_state
+
+
+def test_make_packets_rejects_empty_packet_only_manifest(tmp_path: Path) -> None:
+    manifest_path = _canonical(
+        tmp_path / "manifest.json",
+        {"attempts": []},
+    )
+    with pytest.raises(
+        TOOL.ValidationError,
+        match="packets require at least one logical slot",
+    ):
+        TOOL.make_packets(
+            manifest_path,
+            tmp_path / "packets",
+            tmp_path / "custodian",
+        )
+
+
+def test_make_packets_accepts_legacy_schedule_descriptor_without_schema_version(
+    tmp_path: Path,
+) -> None:
+    schedule_rows: list[dict[str, Any]] = []
+    attempts: list[dict[str, Any]] = []
+    slot_number = 0
+    for case, block_count in (("POS", 3), ("NEG", 2)):
+        for _ in range(1, block_count + 1):
+            block_id = f"b{len(schedule_rows) // 2 + 1:02d}"
+            for block_order, arm in enumerate(("max", "high"), 1):
+                slot_number += 1
+                slot_id = f"s{slot_number:02d}"
+                schedule_rows.append(
+                    {
+                        "slot_id": slot_id,
+                        "case": case,
+                        "arm": arm,
+                        "block_id": block_id,
+                        "block_order": block_order,
+                        "prompt_sha256": "a" * 64,
+                        "snapshot_manifest_sha256": "b" * 64,
+                        "submodule_manifest_sha256": "c" * 64,
+                    }
+                )
+                output = tmp_path / f"output-{slot_id}.md"
+                output.write_text(_long_output(), encoding="utf-8")
+                attempts.append(
+                    {
+                        "slot_id": slot_id,
+                        "attempt": 1,
+                        "run_id": f"r{slot_number:02d}",
+                        "output": _descriptor(output, tmp_path),
+                    }
+                )
+    schedule_path = _canonical(
+        tmp_path / "legacy-schedule.json",
+        {"slots": schedule_rows},
+    )
+    manifest_path = _canonical(
+        tmp_path / "manifest.json",
+        {
+            "schedule": _descriptor(schedule_path, tmp_path),
+            "attempts": attempts,
+        },
+    )
+    result = TOOL.make_packets(
+        manifest_path,
+        tmp_path / "packets",
+        tmp_path / "custodian",
+    )
+    assert result["packet_count"] == 10
 
 
 def test_f3_1_packet_swap_restore_is_rejected(tmp_path: Path) -> None:

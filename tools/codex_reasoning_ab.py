@@ -41,7 +41,13 @@ finally:
     sys.dont_write_bytecode = _ORIGINAL_DONT_WRITE_BYTECODE
 
 
-SCHEMA_VERSION = 2
+LEGACY_SCHEMA_VERSION = 2
+TASK_MANIFEST_SCHEMA_VERSION = 3
+SCHEDULE_SCHEMA_VERSION = 3
+# Existing snapshot/receipt serializers remain v2 until their owning waves add
+# an explicit v3 serializer.  The manifest and normalized schedule have their
+# own version so that a v2 artifact is never compared as a v3 artifact.
+SCHEMA_VERSION = LEGACY_SCHEMA_VERSION
 BASE_COMMIT = "8c8dc5e0a337677e213b4ebabbeff5ea188111ae"
 INTEGRATED_COMMIT = "9b26b3bd3acc10df95ef6ef6684a91d2ff3fa2ec"
 ARTIFACT_COMMIT = "08a7e5f2fc08d57309a86ef70d00e9b050ebec9c"
@@ -53,21 +59,21 @@ OLD_ROOT = (
 )
 ARTIFACT_DIR = "output/insights/2026-07-29_t153e-t15423-review-verbatim"
 
-SESSION_IDS = {
+_LEGACY_SESSION_IDS = {
     "POS": "019faca2-6e1f-7601-bfc7-be27edcfb4ba",
     "NEG": "019facbe-9584-7642-aa30-37f1c77e6c5f",
     "fix2": "019facb2-7ddb-7102-814d-eeddcb1102ed",
     "author": "019fac6b-4f74-7a03-aa4d-8a9de22b352c",
     "fix1": "019fac91-8cde-7f73-bce1-77a9d63b4269",
 }
-ROLLOUT_SHA256 = {
+_LEGACY_ROLLOUT_SHA256 = {
     "POS": "9b90d51079e6a2be4603b366d77283950fff79535f59dbb8b4f4eecb1374032b",
     "NEG": "40a14e9089c2a9931b661023d104dcde2d965452e7c5ce3c630dbd2662ff4012",
     "fix2": "b07581b4f0e6ef9935549e9b9783a8ebb6877d87a10265ac7916a7d4a89c880a",
     "author": "e1ffc1e5b5e6d354701798d41a97a5e6da622423214531f356db3f1bb3ce6cbe",
     "fix1": "f210f2e135f6cfdb2e6c2a40e81b784a2a8f4ac51135c353cf859365e17fb475",
 }
-PROMPT_SOURCE = {
+_LEGACY_PROMPT_SOURCE = {
     "POS": {
         "sha256": "511941738fd39a20ac9fb41ce2f4c3ed0039c35fca637ded0fa2fb6679667829",
         "chars": 2000,
@@ -109,7 +115,7 @@ ARTIFACT_HASHES = {
     "fix2.md": "ffdff13cbe4d98aa56fe4502be63beb0a5acfb36c35a818b76462bb6f6d847cd",
     "focus1.md": "901ad02256524bac35c56ae4e3a2b7c5fbc01a618670182885040c6912b82771",
 }
-CASE_ARTIFACTS = {
+_LEGACY_CASE_ARTIFACTS = {
     "POS": ("review-a.md", "review-b.md", "fix1.md"),
     "NEG": (
         "brief.md",
@@ -120,14 +126,14 @@ CASE_ARTIFACTS = {
         "fix2.md",
     ),
 }
-CASE_HASHES = {
+_LEGACY_CASE_HASHES = {
     "POS": {
         **TRACKED_HASHES,
         "tools/check_ai_provenance.py": "bc3f5f95f5c9c3f44955bbd1b2e3affbbafb6e62fda8e836173e1b9d5998c3af",
         "orchestrator/tests/test_check_ai_provenance.py": "ed3f93d196e7c43c8ba61c83f91f065d3fc829f0d12bdc4d9ead31b2ec3d57ed",
         **{
             f"{ARTIFACT_DIR}/{name}": ARTIFACT_HASHES[name]
-            for name in CASE_ARTIFACTS["POS"]
+            for name in _LEGACY_CASE_ARTIFACTS["POS"]
         },
     },
     "NEG": {
@@ -136,11 +142,11 @@ CASE_HASHES = {
         "orchestrator/tests/test_check_ai_provenance.py": "c4f5f04b8a06c03f4c7e85900e54a2c34a9ea65873e37a340f81b926df098e74",
         **{
             f"{ARTIFACT_DIR}/{name}": ARTIFACT_HASHES[name]
-            for name in CASE_ARTIFACTS["NEG"]
+            for name in _LEGACY_CASE_ARTIFACTS["NEG"]
         },
     },
 }
-CASE_NUMSTAT = {
+_LEGACY_CASE_NUMSTAT = {
     "POS": (
         (3, 3, "docs/ai-provenance.md"),
         (45, 0, "docs/decisions.md"),
@@ -158,15 +164,124 @@ CASE_NUMSTAT = {
         (9, 1, "tools/check_docs.py"),
     ),
 }
-EXPECTED_SCHEDULE = {
+LEGACY_EXPECTED_SCHEDULE = {
     ("POS", "max"): 3,
     ("POS", "high"): 3,
     ("NEG", "max"): 2,
     ("NEG", "high"): 2,
 }
-KNOWN_FINDINGS = {
+_LEGACY_KNOWN_FINDINGS = {
     "A-1", "A-2", "A-3", "A-4",
     "B-1", "B-2", "B-3", "B-4", "B-5", "B-6", "R-1",
+}
+
+
+def _manifest_task_entry(
+    benchmark_task_id: str, *, oracle_kind: str
+) -> dict[str, Any]:
+    """Build one manifest entry from the frozen v2 provenance values.
+
+    The old constants are kept in private staging names only while this
+    literal manifest is assembled.  Public legacy aliases below are derived
+    from the manifest, so callers cannot accidentally acquire a second source
+    of truth for POS/NEG provenance.
+    """
+    return {
+        "benchmark_task_id": benchmark_task_id,
+        "legacy_case": benchmark_task_id,
+        "task_type": "t181-frozen",
+        "stage": None,
+        "oracle_kind": oracle_kind,
+        "provenance": {
+            "session_id": _LEGACY_SESSION_IDS[benchmark_task_id],
+            "rollout_sha256": _LEGACY_ROLLOUT_SHA256[benchmark_task_id],
+            "prompt_source": dict(_LEGACY_PROMPT_SOURCE[benchmark_task_id]),
+        },
+        "snapshot": {
+            "artifact_names": list(_LEGACY_CASE_ARTIFACTS[benchmark_task_id]),
+            "hashes": dict(_LEGACY_CASE_HASHES[benchmark_task_id]),
+            "numstat": [list(row) for row in _LEGACY_CASE_NUMSTAT[benchmark_task_id]],
+        },
+        "known_finding_ids": sorted(_LEGACY_KNOWN_FINDINGS),
+    }
+
+
+TASK_MANIFEST: dict[str, Any] = {
+    "schema_version": TASK_MANIFEST_SCHEMA_VERSION,
+    "manifest_kind": "t181-task-manifest",
+    "tasks": {
+        "POS": _manifest_task_entry("POS", oracle_kind="positive"),
+        "NEG": _manifest_task_entry("NEG", oracle_kind="negative"),
+    },
+    "shared_provenance": {
+        "auxiliary_sessions": {
+            role: {
+                "session_id": _LEGACY_SESSION_IDS[role],
+                "rollout_sha256": _LEGACY_ROLLOUT_SHA256[role],
+            }
+            for role in ("fix1", "fix2", "author")
+        },
+        "tracked_hashes": dict(TRACKED_HASHES),
+        "artifact_hashes": dict(ARTIFACT_HASHES),
+    },
+}
+
+# These aliases are deliberately derived from TASK_MANIFEST.  They preserve
+# the v2 API and byte-level values while making the manifest the only POS/NEG
+# provenance definition.
+SESSION_IDS = {
+    **{
+        task["legacy_case"]: task["provenance"]["session_id"]
+        for task in TASK_MANIFEST["tasks"].values()
+    },
+    **{
+        role: row["session_id"]
+        for role, row in TASK_MANIFEST["shared_provenance"][
+            "auxiliary_sessions"
+        ].items()
+    },
+}
+ROLLOUT_SHA256 = {
+    **{
+        task["legacy_case"]: task["provenance"]["rollout_sha256"]
+        for task in TASK_MANIFEST["tasks"].values()
+    },
+    **{
+        role: row["rollout_sha256"]
+        for role, row in TASK_MANIFEST["shared_provenance"][
+            "auxiliary_sessions"
+        ].items()
+    },
+}
+PROMPT_SOURCE = {
+    task["legacy_case"]: dict(task["provenance"]["prompt_source"])
+    for task in TASK_MANIFEST["tasks"].values()
+}
+CASE_ARTIFACTS = {
+    task["legacy_case"]: tuple(task["snapshot"]["artifact_names"])
+    for task in TASK_MANIFEST["tasks"].values()
+}
+CASE_HASHES = {
+    task["legacy_case"]: dict(task["snapshot"]["hashes"])
+    for task in TASK_MANIFEST["tasks"].values()
+}
+CASE_NUMSTAT = {
+    task["legacy_case"]: tuple(tuple(row) for row in task["snapshot"]["numstat"])
+    for task in TASK_MANIFEST["tasks"].values()
+}
+# The public name remains a v2 compatibility alias for the downstream legacy
+# validator.  New schedule consumers must call expected_schedule_from_manifest
+# so their expected set comes from the manifest/schedule rows.
+EXPECTED_SCHEDULE = dict(
+    {
+        (task_id, arm): count
+        for (task_id, arm), count in LEGACY_EXPECTED_SCHEDULE.items()
+    }
+)
+KNOWN_FINDINGS = {
+    finding_id
+    for task in TASK_MANIFEST["tasks"].values()
+    for finding_id in task["known_finding_ids"]
 }
 ZERO_COMPONENT_TOTAL_ONLY = "zero_component_total_only"
 _ZERO_COMPONENT_FIELDS = (
@@ -693,20 +808,29 @@ def derive_independent_golden(
 
 
 def _snapshot_spec(case: str) -> dict[str, Any]:
+    try:
+        task = _manifest_task(case=case)
+    except ValidationError as exc:
+        raise ValidationError(exc.reasons, RC_SNAPSHOT) from exc
+    legacy_case = task["legacy_case"]
+    snapshot = task["snapshot"]
+    hashes = dict(snapshot["hashes"])
     return {
-        "case": case,
+        "case": legacy_case,
+        "benchmark_task_id": task["benchmark_task_id"],
+        "legacy_case": legacy_case,
         "head": BASE_COMMIT,
         "branch": BRANCH,
         "tracked_paths": list(TRACKED_PATHS),
-        "hashes": CASE_HASHES[case],
-        "numstat": [list(row) for row in CASE_NUMSTAT[case]],
+        "hashes": hashes,
+        "numstat": [list(row) for row in snapshot["numstat"]],
         "untracked": [
-            f"{ARTIFACT_DIR}/{name}" for name in CASE_ARTIFACTS[case]
+            f"{ARTIFACT_DIR}/{name}" for name in snapshot["artifact_names"]
         ],
-        "modes": {path: stat.S_IFREG | 0o644 for path in CASE_HASHES[case]},
+        "modes": {path: stat.S_IFREG | 0o644 for path in hashes},
         "forbidden": (
             [f"{ARTIFACT_DIR}/focus1.md", f"{ARTIFACT_DIR}/focus2.md"]
-            if case == "POS"
+            if legacy_case == "POS"
             else [f"{ARTIFACT_DIR}/focus2.md"]
         ),
     }
@@ -1996,14 +2120,421 @@ def _resolve_snapshot_destination(repo: Path, snapshot: Path) -> tuple[Path, Pat
     return repo, snapshot
 
 
+def _manifest_tasks(manifest: Mapping[str, Any]) -> Mapping[str, Any]:
+    if not isinstance(manifest, Mapping):
+        raise ValidationError("task manifest is not an object", RC_ROUTING)
+    tasks = manifest.get("tasks")
+    if not isinstance(tasks, Mapping) or not tasks:
+        raise ValidationError("task manifest.tasks is required", RC_ROUTING)
+    return tasks
+
+
+def _task_ids_for_alias(
+    alias: str, manifest: Mapping[str, Any]
+) -> set[str]:
+    matches: set[str] = set()
+    for key, raw_task in _manifest_tasks(manifest).items():
+        if not isinstance(key, str) or not isinstance(raw_task, Mapping):
+            continue
+        aliases = (
+            key,
+            raw_task.get("benchmark_task_id"),
+            raw_task.get("legacy_case"),
+        )
+        if any(isinstance(candidate, str) and candidate == alias for candidate in aliases):
+            matches.add(key)
+    return matches
+
+
+def resolve_benchmark_task_id(
+    benchmark_task_id: str | None = None,
+    *,
+    case: str | None = None,
+    legacy_case: str | None = None,
+    manifest: Mapping[str, Any] = TASK_MANIFEST,
+) -> str:
+    """Resolve the canonical benchmark identifier and reject alias conflicts."""
+    supplied = (
+        ("benchmark_task_id", benchmark_task_id),
+        ("case", case),
+        ("legacy_case", legacy_case),
+    )
+    candidates: set[str] | None = None
+    supplied_names: list[str] = []
+    for name, value in supplied:
+        if value is None:
+            continue
+        supplied_names.append(name)
+        if not isinstance(value, str) or not value:
+            raise ValidationError(f"{name} must be a non-empty string", RC_ROUTING)
+        matches = _task_ids_for_alias(value, manifest)
+        if not matches:
+            raise ValidationError(f"unknown benchmark task alias: {value}", RC_ROUTING)
+        candidates = matches if candidates is None else candidates & matches
+    if not supplied_names:
+        raise ValidationError(
+            "benchmark_task_id or legacy case alias is required", RC_ROUTING
+        )
+    if not candidates:
+        raise ValidationError(
+            "benchmark_task_id and legacy case aliases conflict", RC_ROUTING
+        )
+    if len(candidates) != 1:
+        raise ValidationError(
+            "benchmark task alias is ambiguous", RC_ROUTING
+        )
+    task_id = next(iter(candidates))
+    task = _manifest_tasks(manifest)[task_id]
+    if not isinstance(task, Mapping):
+        raise ValidationError(f"manifest task is not an object: {task_id}", RC_ROUTING)
+    if task.get("benchmark_task_id") != task_id:
+        raise ValidationError(
+            f"manifest task key does not match benchmark_task_id: {task_id}",
+            RC_ROUTING,
+        )
+    return task_id
+
+
+def _manifest_task(
+    benchmark_task_id: str | None = None,
+    *,
+    case: str | None = None,
+    legacy_case: str | None = None,
+    manifest: Mapping[str, Any] = TASK_MANIFEST,
+) -> Mapping[str, Any]:
+    task_id = resolve_benchmark_task_id(
+        benchmark_task_id,
+        case=case,
+        legacy_case=legacy_case,
+        manifest=manifest,
+    )
+    task = _manifest_tasks(manifest)[task_id]
+    if not isinstance(task, Mapping):
+        raise ValidationError(f"manifest task is not an object: {task_id}", RC_ROUTING)
+    if not isinstance(task.get("legacy_case"), str) or not task["legacy_case"]:
+        raise ValidationError(
+            f"manifest task legacy_case is invalid: {task_id}", RC_ROUTING
+        )
+    return task
+
+
+_resolve_benchmark_task_id = resolve_benchmark_task_id
+
+
+def _validate_task_manifest(
+    manifest: Mapping[str, Any] = TASK_MANIFEST,
+) -> None:
+    """Validate the v3 manifest envelope without validating live artifacts."""
+    if not isinstance(manifest, Mapping):
+        raise ValidationError("task manifest is not an object", RC_ROUTING)
+    if manifest.get("schema_version") != TASK_MANIFEST_SCHEMA_VERSION:
+        raise ValidationError("task manifest schema_version must be 3", RC_ROUTING)
+    if manifest.get("manifest_kind") != "t181-task-manifest":
+        raise ValidationError("task manifest kind mismatch", RC_ROUTING)
+    tasks = _manifest_tasks(manifest)
+    for key, task in tasks.items():
+        if not isinstance(key, str) or not isinstance(task, Mapping):
+            raise ValidationError("task manifest task row is malformed", RC_ROUTING)
+        required = (
+            "benchmark_task_id",
+            "legacy_case",
+            "task_type",
+            "stage",
+            "oracle_kind",
+            "provenance",
+            "snapshot",
+            "known_finding_ids",
+        )
+        missing = [field for field in required if field not in task]
+        if missing:
+            raise ValidationError(
+                f"task manifest task {key} missing fields: {missing}", RC_ROUTING
+            )
+        if task["benchmark_task_id"] != key:
+            raise ValidationError(
+                f"task manifest task key mismatch: {key}", RC_ROUTING
+            )
+        if not isinstance(task["legacy_case"], str) or not task["legacy_case"]:
+            raise ValidationError(
+                f"task manifest legacy_case is invalid: {key}", RC_ROUTING
+            )
+        if key in {"POS", "NEG"} and task["legacy_case"] != key:
+            raise ValidationError(
+                f"frozen task legacy_case mismatch: {key}", RC_ROUTING
+            )
+        if not isinstance(task["provenance"], Mapping):
+            raise ValidationError(
+                f"task manifest provenance is invalid: {key}", RC_ROUTING
+            )
+        if not isinstance(task["snapshot"], Mapping):
+            raise ValidationError(
+                f"task manifest snapshot is invalid: {key}", RC_ROUTING
+            )
+        finding_ids = task["known_finding_ids"]
+        if not isinstance(finding_ids, (list, tuple, set, frozenset)) or not all(
+            isinstance(value, str) and value for value in finding_ids
+        ):
+            raise ValidationError(
+                f"task manifest known_finding_ids is invalid: {key}", RC_ROUTING
+            )
+    shared = manifest.get("shared_provenance")
+    if not isinstance(shared, Mapping):
+        raise ValidationError(
+            "task manifest shared_provenance is required", RC_ROUTING
+        )
+    auxiliary = shared.get("auxiliary_sessions")
+    if not isinstance(auxiliary, Mapping):
+        raise ValidationError(
+            "task manifest auxiliary_sessions is required", RC_ROUTING
+        )
+    for role in ("fix1", "fix2", "author"):
+        row = auxiliary.get(role)
+        if (
+            not isinstance(row, Mapping)
+            or "session_id" not in row
+            or "rollout_sha256" not in row
+        ):
+            raise ValidationError(
+                f"auxiliary session provenance is incomplete: {role}", RC_ROUTING
+            )
+
+
+validate_task_manifest = _validate_task_manifest
+
+
+def validate_nullable_dimensions(
+    slot: Mapping[str, Any],
+    *,
+    schema_version: int = TASK_MANIFEST_SCHEMA_VERSION,
+) -> dict[str, Any]:
+    """Validate nullable dimensions and return a non-mutating normalized row.
+
+    v3 requires both keys to be present.  A v2 row may omit them and receives
+    explicit nulls only in the normalized copy.  Non-null values are rejected
+    deliberately: no provider attestation exists in this wave.
+
+    The live _validate_schedule path uses this helper through the schedule
+    normalizer before supervisor or replay consumers receive a slot.
+    """
+    if not isinstance(slot, Mapping):
+        raise ValidationError("schedule slot is not an object", RC_ROUTING)
+    if schema_version not in (LEGACY_SCHEMA_VERSION, TASK_MANIFEST_SCHEMA_VERSION):
+        raise ValidationError(
+            f"unsupported schedule schema_version: {schema_version}", RC_ROUTING
+        )
+    normalized = dict(slot)
+    for field in ("cache_condition", "price_version"):
+        if field not in normalized:
+            if schema_version == LEGACY_SCHEMA_VERSION:
+                normalized[field] = None
+            else:
+                raise ValidationError(
+                    f"schedule slot missing required field: {field}", RC_ROUTING
+                )
+        value = normalized[field]
+        if value is not None and not isinstance(value, str):
+            raise ValidationError(
+                f"schedule slot {field} must be a string or null", RC_ROUTING
+            )
+        if value == "":
+            raise ValidationError(
+                f"schedule slot {field} must be non-empty when present", RC_ROUTING
+            )
+        if value is not None:
+            raise ValidationError(
+                f"schedule slot {field} non-null values are not supported without attestation",
+                RC_ROUTING,
+            )
+    return normalized
+
+
+_validate_nullable_dimensions = validate_nullable_dimensions
+
+
+def _normalize_schedule_slot(
+    slot: Mapping[str, Any],
+    *,
+    schema_version: int,
+    manifest: Mapping[str, Any],
+) -> dict[str, Any]:
+    if not isinstance(slot, Mapping):
+        raise ValidationError("schedule slot is not an object", RC_ROUTING)
+    normalized = dict(slot)
+    task_id = resolve_benchmark_task_id(
+        normalized.get("benchmark_task_id"),
+        case=normalized.get("case"),
+        legacy_case=normalized.get("legacy_case"),
+        manifest=manifest,
+    )
+    task = _manifest_task(task_id, manifest=manifest)
+    normalized["benchmark_task_id"] = task_id
+    normalized.setdefault("legacy_case", task["legacy_case"])
+    if normalized.get("legacy_case") != task["legacy_case"]:
+        raise ValidationError(
+            "schedule legacy_case does not match benchmark task", RC_ROUTING
+        )
+    normalized.setdefault("case", task["legacy_case"])
+    return validate_nullable_dimensions(normalized, schema_version=schema_version)
+
+
+def normalize_legacy_schedule(
+    schedule: Mapping[str, Any],
+    *,
+    manifest: Mapping[str, Any] = TASK_MANIFEST,
+) -> dict[str, Any]:
+    """Convert a v2 schedule to a v3 view without changing its source bytes.
+
+    The live _validate_schedule path calls this compatibility normalizer before
+    supervisor or replay consumers receive a slot.
+    """
+    _validate_task_manifest(manifest)
+    if (
+        not isinstance(schedule, Mapping)
+        or schedule.get("schema_version") != LEGACY_SCHEMA_VERSION
+    ):
+        raise ValidationError("legacy schedule schema_version must be 2", RC_ROUTING)
+    slots = schedule.get("slots")
+    if not isinstance(slots, list):
+        raise ValidationError("legacy schedule.slots is not an array", RC_ROUTING)
+    normalized = dict(schedule)
+    normalized["schema_version"] = TASK_MANIFEST_SCHEMA_VERSION
+    normalized["manifest_kind"] = "t181-task-manifest"
+    normalized["slots"] = [
+        _normalize_schedule_slot(
+            row, schema_version=LEGACY_SCHEMA_VERSION, manifest=manifest
+        )
+        for row in slots
+    ]
+    return normalized
+
+
+def normalize_schedule(
+    schedule: Mapping[str, Any],
+    *,
+    manifest: Mapping[str, Any] = TASK_MANIFEST,
+) -> dict[str, Any]:
+    """Return the canonical v3 schedule view, dispatching v2 explicitly.
+
+    The live _validate_schedule path calls this normalizer before supervisor or
+    replay consumers receive a slot.
+    """
+    _validate_task_manifest(manifest)
+    if not isinstance(schedule, Mapping):
+        raise ValidationError("schedule is not an object", RC_ROUTING)
+    version = schedule.get("schema_version")
+    if version == LEGACY_SCHEMA_VERSION:
+        return normalize_legacy_schedule(schedule, manifest=manifest)
+    if version != TASK_MANIFEST_SCHEMA_VERSION:
+        raise ValidationError(
+            f"unsupported schedule schema_version: {version}", RC_ROUTING
+        )
+    slots = schedule.get("slots")
+    if not isinstance(slots, list):
+        raise ValidationError("schedule.slots is not an array", RC_ROUTING)
+    normalized = dict(schedule)
+    normalized["slots"] = [
+        _normalize_schedule_slot(
+            row, schema_version=TASK_MANIFEST_SCHEMA_VERSION, manifest=manifest
+        )
+        for row in slots
+    ]
+    return normalized
+
+
+_normalize_legacy_schedule = normalize_legacy_schedule
+_normalize_schedule = normalize_schedule
+
+
+def expected_schedule_from_manifest(
+    manifest: Mapping[str, Any] = TASK_MANIFEST,
+    schedule: Mapping[str, Any] | Sequence[Mapping[str, Any]] | None = None,
+) -> dict[tuple[str, str], int]:
+    """Derive task/arm counts from a schedule, retaining v2 counts as a gate."""
+    source: Mapping[str, Any]
+    if schedule is None:
+        candidate = manifest.get("schedule")
+        if isinstance(candidate, Mapping):
+            source = candidate
+        else:
+            candidate = manifest.get("slots")
+            if isinstance(candidate, list):
+                source = {
+                    "schema_version": TASK_MANIFEST_SCHEMA_VERSION,
+                    "slots": candidate,
+                }
+            else:
+                return {}
+    elif isinstance(schedule, Mapping):
+        source = schedule
+    else:
+        source = {
+            "schema_version": TASK_MANIFEST_SCHEMA_VERSION,
+            "slots": list(schedule),
+        }
+    if source.get("schema_version") == LEGACY_SCHEMA_VERSION:
+        normalize_legacy_schedule(source, manifest=manifest)
+        return dict(LEGACY_EXPECTED_SCHEDULE)
+    normalized = normalize_schedule(source, manifest=manifest)
+    counts: dict[tuple[str, str], int] = {}
+    for row in normalized["slots"]:
+        arm = row.get("arm")
+        if not isinstance(arm, str) or not arm:
+            raise ValidationError(
+                "schedule slot arm must be a non-empty string", RC_ROUTING
+            )
+        key = (row["benchmark_task_id"], arm)
+        counts[key] = counts.get(key, 0) + 1
+    return counts
+
+
+_expected_schedule_from_manifest = expected_schedule_from_manifest
+
+
+def known_finding_ids_for_manifest(
+    manifest: Mapping[str, Any] = TASK_MANIFEST,
+    *,
+    benchmark_task_id: str | None = None,
+    case: str | None = None,
+) -> set[str]:
+    tasks = _manifest_tasks(manifest)
+    if benchmark_task_id is None and case is None:
+        selected = tasks.values()
+    else:
+        selected = (
+            _manifest_task(
+                benchmark_task_id,
+                case=case,
+                manifest=manifest,
+            ),
+        )
+    finding_ids: set[str] = set()
+    for task in selected:
+        if not isinstance(task, Mapping):
+            raise ValidationError("task manifest task row is malformed", RC_ROUTING)
+        values = task.get("known_finding_ids")
+        if not isinstance(values, (list, tuple, set, frozenset)):
+            raise ValidationError("known_finding_ids must be an array", RC_ROUTING)
+        finding_ids.update(values)
+    return finding_ids
+
+
+_known_finding_ids_for_manifest = known_finding_ids_for_manifest
+
+
 def _prepare_snapshot_case(
     repo: Path, sessions_root: Path, case: str
 ) -> dict[str, bytes]:
-    if case not in CASE_HASHES:
+    try:
+        task = _manifest_task(case=case)
+    except ValidationError as exc:
+        raise ValidationError(exc.reasons, RC_SNAPSHOT) from exc
+    if not isinstance(task.get("snapshot"), Mapping) or not isinstance(
+        task["snapshot"].get("hashes"), Mapping
+    ):
         raise ValidationError(f"unknown case: {case}", RC_SNAPSHOT)
     return (
         derive_independent_golden(repo, sessions_root)
-        if case == "POS"
+        if task["oracle_kind"] == "positive"
         else {}
     )
 
@@ -2043,18 +2574,23 @@ def _finish_snapshot_case(
     case: str,
     golden: Mapping[str, bytes],
 ) -> dict[str, Any]:
-    if case == "POS":
+    try:
+        task = _manifest_task(case=case)
+    except ValidationError as exc:
+        raise ValidationError(exc.reasons, RC_SNAPSHOT) from exc
+    legacy_case = task["legacy_case"]
+    if task["oracle_kind"] == "positive":
         for path, data in golden.items():
             target = snapshot / path
             target.write_bytes(data)
             target.chmod(0o644)
-    for name in CASE_ARTIFACTS[case]:
+    for name in task["snapshot"]["artifact_names"]:
         relative = f"{ARTIFACT_DIR}/{name}"
         target = snapshot / relative
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_bytes(_git(repo, "show", f"{ARTIFACT_COMMIT}:{relative}"))
         target.chmod(0o644)
-    return verify_snapshot(snapshot, case)
+    return verify_snapshot(snapshot, legacy_case)
 
 
 def _derive_snapshot_from_base(
@@ -2077,8 +2613,10 @@ def _derive_snapshot_from_base(
                 RC_SNAPSHOT,
             )
         repo, snapshot = prepared_repo, prepared_snapshot
-    if case not in CASE_HASHES:
-        raise ValidationError(f"unknown case: {case}", RC_SNAPSHOT)
+    try:
+        _manifest_task(case=case)
+    except ValidationError as exc:
+        raise ValidationError(exc.reasons, RC_SNAPSHOT) from exc
     golden = (
         _prepare_snapshot_case(repo, sessions_root, case)
         if prepared_golden is None
@@ -2358,18 +2896,22 @@ def render_prompt(
     *,
     verify_source: bool = True,
 ) -> tuple[bytes, dict[str, Any]]:
-    if case not in ("POS", "NEG"):
-        raise ValidationError(f"unknown case: {case}", RC_SNAPSHOT)
+    try:
+        task = _manifest_task(case=case)
+    except ValidationError as exc:
+        raise ValidationError(exc.reasons, RC_SNAPSHOT) from exc
+    legacy_case = task["legacy_case"]
+    provenance = task["provenance"]
+    pin = provenance["prompt_source"]
     rollout = _find_rollout(
         sessions_root,
-        SESSION_IDS[case],
-        pinned_label=case,
+        provenance["session_id"],
+        pinned_label=legacy_case,
     )
     if verify_source:
-        _verify_rollout_sha(rollout, case)
+        _verify_rollout_sha(rollout, legacy_case)
     message = extract_user_message(rollout)
     source = message.encode("utf-8")
-    pin = PROMPT_SOURCE[case]
     reasons: list[str] = []
     if verify_source:
         if _sha256(source) != pin["sha256"]:
@@ -2399,7 +2941,8 @@ def render_prompt(
         if os.path.relpath(path, new).startswith(ARTIFACT_DIR + os.sep)
     }
     expected_untracked = {
-        f"{ARTIFACT_DIR}/{name}" for name in CASE_ARTIFACTS[case]
+        f"{ARTIFACT_DIR}/{name}"
+        for name in task["snapshot"]["artifact_names"]
     }
     if requested_untracked != expected_untracked:
         reasons.append(
@@ -2411,8 +2954,8 @@ def render_prompt(
     data = rendered.encode("utf-8")
     receipt = {
         "schema_version": SCHEMA_VERSION,
-        "case": case,
-        "source_session_id": SESSION_IDS[case],
+        "case": legacy_case,
+        "source_session_id": provenance["session_id"],
         "source_rollout_sha256": _sha256(rollout.read_bytes()),
         "source_prompt_sha256": _sha256(source),
         "rendered_prompt_sha256": _sha256(data),
@@ -2508,7 +3051,62 @@ def _regular_file_state(path: Path, label: str) -> dict[str, Any]:
     }
 
 
-def _normalized_exec_argv(argv: Sequence[str], effort: str) -> list[str]:
+MODEL_ALLOWLIST = frozenset((MODEL, "gpt-5.6-luna"))
+
+
+def _exec_argv_model(argv: Sequence[str]) -> str:
+    if isinstance(argv, (str, bytes)):
+        raise ValidationError("actual argv must be an array", RC_ROUTING)
+    try:
+        values = list(argv)
+    except TypeError as exc:
+        raise ValidationError("actual argv must be an array", RC_ROUTING) from exc
+    if not all(isinstance(value, str) for value in values):
+        raise ValidationError("actual argv contains a non-string value", RC_ROUTING)
+    positions = [index for index, value in enumerate(values) if value == "-m"]
+    if len(positions) != 1:
+        raise ValidationError(
+            "actual argv must contain one -m model option", RC_ROUTING
+        )
+    position = positions[0]
+    if position + 1 >= len(values):
+        raise ValidationError("actual argv -m model value is missing", RC_ROUTING)
+    model = values[position + 1]
+    if model not in MODEL_ALLOWLIST:
+        raise ValidationError(
+            f"actual argv model is not allowed: {model}", RC_ROUTING
+        )
+    model_positions = [
+        index for index, value in enumerate(values) if value in MODEL_ALLOWLIST
+    ]
+    if model_positions != [position + 1]:
+        raise ValidationError(
+            "actual argv contains duplicate or misplaced model values", RC_ROUTING
+        )
+    return model
+
+
+def _normalized_exec_argv(
+    argv: Sequence[str],
+    requested_model: str | None,
+    effort: str | None = None,
+) -> list[str]:
+    # Keep the two-argument form as a read-only compatibility shim for the
+    # legacy receipt validator.  New callers must provide the model explicitly.
+    if effort is None:
+        effort = requested_model
+        requested_model = None
+    actual_model = _exec_argv_model(argv)
+    if requested_model is None:
+        requested_model = actual_model
+    if not isinstance(requested_model, str) or requested_model not in MODEL_ALLOWLIST:
+        raise ValidationError(
+            f"requested model is not allowed: {requested_model}", RC_ROUTING
+        )
+    if requested_model != actual_model:
+        raise ValidationError(
+            "requested model does not match the -m argv value", RC_ROUTING
+        )
     expected = f'model_reasoning_effort="{effort}"'
     alternatives = {expected, f"model_reasoning_effort={effort}"}
     positions = [index for index, value in enumerate(argv) if value in alternatives]
@@ -2548,6 +3146,24 @@ def _launch_identity_value(receipt: Mapping[str, Any]) -> str:
     oracle = receipt.get("snapshot_oracle")
     if not all(isinstance(value, dict) for value in (events, done, prompt, oracle)):
         raise ValidationError("launch identity path state missing", RC_RECEIPT)
+    requested_model = receipt.get("requested_model")
+    actual_model = _exec_argv_model(receipt.get("argv", []))
+    if requested_model is None:
+        requested_model = actual_model
+        # _supervise_one writes the launch receipt immediately after computing
+        # this identity.  Populate the schema field before that frozen write;
+        # loaded legacy receipts remain readable through the derived value.
+        if isinstance(receipt, dict):
+            receipt["requested_model"] = requested_model
+    elif requested_model != actual_model:
+        raise ValidationError(
+            "launch receipt requested model does not match argv", RC_ROUTING
+        )
+    if not isinstance(requested_model, str) or requested_model not in MODEL_ALLOWLIST:
+        raise ValidationError(
+            f"launch receipt requested model is not allowed: {requested_model}",
+            RC_ROUTING,
+        )
     replacements = {
         str(receipt.get("run_dir")): "<RUN_DIR>",
         str(receipt.get("agent_workspace")): "<AGENT_WORKSPACE>",
@@ -2565,6 +3181,7 @@ def _launch_identity_value(receipt: Mapping[str, Any]) -> str:
     }
     identity = {
         "case": receipt.get("case"),
+        "requested_model": requested_model,
         "prompt_sha256": prompt.get("sha256"),
         "snapshot_oracle_sha256": oracle.get("sha256"),
         "codex_config_sha256": receipt.get("codex_config_sha256"),
@@ -2591,10 +3208,21 @@ def _launch_identity_value(receipt: Mapping[str, Any]) -> str:
 
 
 def _append_jsonl(path: Path, value: Mapping[str, Any]) -> None:
+    row = value if isinstance(value, dict) else dict(value)
+    launch_receipt = row.get("launch_receipt")
+    if row.get("phase") == "completed" and isinstance(launch_receipt, str):
+        try:
+            launch = _read_json_value(Path(launch_receipt))
+        except ValidationError:
+            launch = None
+        if isinstance(launch, dict) and isinstance(
+            launch.get("requested_model"), str
+        ):
+            row["requested_model"] = launch["requested_model"]
     path.parent.mkdir(parents=True, exist_ok=True)
     descriptor = os.open(path, os.O_APPEND | os.O_CREAT | os.O_WRONLY, 0o600)
     try:
-        os.write(descriptor, _canonical_bytes(dict(value)))
+        os.write(descriptor, _canonical_bytes(dict(row)))
         os.fsync(descriptor)
     finally:
         os.close(descriptor)
@@ -2624,15 +3252,37 @@ def _copy_identity_file(source: Path, target: Path, label: str) -> str:
 
 def _codex_exec_argv(
     codex_binary: Path,
-    arm: str,
-    snapshot: Path,
-    output: Path,
+    requested_model: str,
+    arm: str | Path,
+    snapshot: Path | None = None,
+    output: Path | None = None,
 ) -> list[str]:
+    # Accept the old four-positional-argument form until the supervisor wave
+    # passes slot.requested_model directly.  The generated argv is model-aware
+    # in both forms, while new callers are explicit about the treatment model.
+    if output is None:
+        legacy_arm = requested_model
+        legacy_snapshot = arm
+        legacy_output = snapshot
+        requested_model = MODEL
+        arm = legacy_arm
+        snapshot = legacy_snapshot  # type: ignore[assignment]
+        output = legacy_output
+    if not isinstance(requested_model, str) or requested_model not in MODEL_ALLOWLIST:
+        raise ValidationError(
+            f"requested model is not allowed: {requested_model}", RC_ROUTING
+        )
+    if not isinstance(arm, str) or not isinstance(snapshot, Path) or not isinstance(
+        output, Path
+    ):
+        raise ValidationError(
+            "codex argv construction arguments are malformed", RC_ROUTING
+        )
     return [
         os.fspath(codex_binary),
         "exec",
         "-m",
-        MODEL,
+        requested_model,
         "-c",
         f"model_reasoning_effort={arm}",
         "-s",
@@ -2758,6 +3408,7 @@ def _supervise_one(
     slot_id = str(slot["slot_id"])
     case = str(slot["case"])
     arm = str(slot["arm"])
+    requested_model = str(slot.get("requested_model", MODEL))
     attempt_dir = run_root / "attempts" / f"run-{run_id}"
     _assert_arm_neutral_paths((run_root, attempt_dir, snapshot, prompt))
     attempt_dir.mkdir(parents=True, exist_ok=False)
@@ -2813,8 +3464,12 @@ def _supervise_one(
     )
     if any(key.startswith("GIT_") for key in environment):
         raise ValidationError("GIT_* survived supervisor environment scrub", RC_ROUTING)
-    codex_argv = _codex_exec_argv(actual_cli, arm, snapshot, output)
-    normalized_argv = _normalized_exec_argv(codex_argv, arm)
+    codex_argv = _codex_exec_argv(
+        actual_cli, requested_model, arm, snapshot, output
+    )
+    normalized_argv = _normalized_exec_argv(
+        codex_argv, requested_model, arm
+    )
     bwrap_argv = _bwrap_exec_argv(
         actual_bwrap,
         codex_argv,
@@ -2869,6 +3524,7 @@ def _supervise_one(
             "parent_run_id": parent_run_id,
             "case": case,
             "arm": arm,
+            "requested_model": requested_model,
             "created_at": started_at,
             "process_start_monotonic_ns": start_monotonic_ns,
             "process_pid": process.pid,
@@ -3299,7 +3955,10 @@ def _thread_id_from_events(path: Path) -> str:
 
 
 def _verify_launch_receipt(
-    launch_path: Path, launch: Mapping[str, Any], arm: str
+    launch_path: Path,
+    launch: Mapping[str, Any],
+    arm: str,
+    requested_model: str,
 ) -> list[str]:
     reasons: list[str] = []
     if (
@@ -3325,7 +3984,7 @@ def _verify_launch_receipt(
         reasons.append("launch receipt attestation schema mismatch")
     try:
         if launch.get("normalized_argv") != _normalized_exec_argv(
-            launch.get("argv", []), arm
+            launch.get("argv", []), requested_model, arm
         ):
             reasons.append("launch normalized argv mismatch")
     except ValidationError as exc:
@@ -3615,7 +4274,7 @@ def collect_run(
     sessions_root: Path,
     snapshot: Path,
     launch_receipt: Path,
-    expected_model: str = MODEL,
+    expected_requested_model: str,
 ) -> tuple[dict[str, Any], int]:
     reasons: list[str] = []
     launch = _load_json_object(launch_receipt)
@@ -3626,7 +4285,14 @@ def collect_run(
     ):
         if launch.get(field) != expected_value:
             reasons.append(f"launch receipt {field} mismatch")
-    reasons.extend(_verify_launch_receipt(launch_receipt, launch, requested_effort))
+    reasons.extend(
+        _verify_launch_receipt(
+            launch_receipt,
+            launch,
+            requested_effort,
+            expected_requested_model,
+        )
+    )
     before = _parse_timestamp(launch.get("created_at"))
     start_monotonic_ns = launch.get("process_start_monotonic_ns")
     if (
@@ -3757,7 +4423,7 @@ def collect_run(
         turn_id = contexts[0].get("turn_id") if contexts else None
         if contexts and effective_effort != requested_effort:
             reasons.append("requested/effective effort mismatch")
-        if contexts and contexts[0].get("model") != expected_model:
+        if contexts and contexts[0].get("model") != expected_requested_model:
             reasons.append("model mismatch")
         if contexts and contexts[0].get("cwd") != os.fspath(snapshot.resolve()):
             reasons.append("turn_context cwd mismatch")
@@ -4416,30 +5082,128 @@ def _scan_session_rows(
     return found
 
 
-def _validate_schedule(schedule: Mapping[str, Any]) -> tuple[list[dict[str, Any]], list[str]]:
+def _slot_dimensions(
+    slot: Mapping[str, Any],
+    *,
+    task_manifest: Mapping[str, Any] = TASK_MANIFEST,
+) -> dict[str, Any]:
+    """Return the canonical task/stage/model/cache dimensions for one slot."""
+    if not isinstance(slot, Mapping):
+        raise ValidationError("schedule slot is not an object", RC_ROUTING)
+    task_id = resolve_benchmark_task_id(
+        slot.get("benchmark_task_id"),
+        case=slot.get("case"),
+        legacy_case=slot.get("legacy_case"),
+        manifest=task_manifest,
+    )
+    task = _manifest_task(task_id, manifest=task_manifest)
+    legacy_case = slot.get("legacy_case", task["legacy_case"])
+    case = slot.get("case", task["legacy_case"])
+    if legacy_case != task["legacy_case"]:
+        raise ValidationError(
+            "schedule legacy_case does not match benchmark task", RC_ROUTING
+        )
+    if slot.get("stage", task.get("stage")) != task.get("stage"):
+        raise ValidationError(
+            "schedule stage does not match benchmark task manifest", RC_ROUTING
+        )
+    requested_model = slot.get("requested_model", MODEL)
+    if requested_model is None:
+        raise ValidationError("schedule requested_model must not be null", RC_ROUTING)
+    if not isinstance(requested_model, str) or requested_model not in MODEL_ALLOWLIST:
+        raise ValidationError(
+            f"schedule requested_model is not allowed: {requested_model}",
+            RC_ROUTING,
+        )
+    for field in ("cache_condition", "price_version"):
+        value = slot.get(field)
+        if value is not None:
+            raise ValidationError(
+                f"schedule slot {field} non-null values are not supported without attestation",
+                RC_ROUTING,
+            )
+    oracle_kind = task.get("oracle_kind")
+    if oracle_kind not in {"positive", "negative"}:
+        raise ValidationError(
+            f"task manifest oracle_kind is invalid: {task_id}", RC_ROUTING
+        )
+    arm = slot.get("arm")
+    if not isinstance(arm, str) or not arm:
+        raise ValidationError("schedule slot arm must be a non-empty string", RC_ROUTING)
+    return {
+        "benchmark_task_id": task_id,
+        "stage": task.get("stage"),
+        "requested_model": requested_model,
+        "cache_condition": slot.get("cache_condition"),
+        "price_version": slot.get("price_version"),
+        "oracle_kind": oracle_kind,
+        "legacy_case": legacy_case,
+        "case": case,
+        "arm": arm,
+    }
+
+
+def _legacy_schedule_view(schedule: Mapping[str, Any]) -> dict[str, Any]:
+    """Return a non-mutating v2-compatible view of a legacy schedule."""
+    source_schedule = dict(schedule)
+    source_schedule.setdefault("schema_version", LEGACY_SCHEMA_VERSION)
+    return source_schedule
+
+
+def _validate_schedule(
+    schedule: Mapping[str, Any],
+    *,
+    task_manifest: Mapping[str, Any] = TASK_MANIFEST,
+) -> tuple[list[dict[str, Any]], list[str]]:
     reasons: list[str] = []
-    slots = schedule.get("slots")
-    if not isinstance(slots, list):
+    if not isinstance(schedule, Mapping):
+        return [], ["schedule is not an object"]
+
+    # Existing schedule.json files omit schema_version.  Treat that omission as
+    # a v2 compatibility view without changing the caller's source mapping.
+    source_schedule = _legacy_schedule_view(schedule)
+    try:
+        normalized_schedule = normalize_schedule(
+            source_schedule, manifest=task_manifest
+        )
+    except ValidationError as exc:
+        return [], list(exc.reasons)
+    slots_value = normalized_schedule.get("slots")
+    if not isinstance(slots_value, list):
         return [], ["schedule.slots is not an array"]
+
+    slots: list[dict[str, Any]] = []
     counts: dict[tuple[str, str], int] = {}
     seen: set[str] = set()
     blocks: dict[str, list[dict[str, Any]]] = {}
-    for index, row in enumerate(slots):
-        if not isinstance(row, dict) or not isinstance(row.get("slot_id"), str):
+    for index, raw_row in enumerate(slots_value):
+        if not isinstance(raw_row, dict) or not isinstance(
+            raw_row.get("slot_id"), str
+        ):
             reasons.append("schedule slot row malformed")
             continue
+        row = dict(raw_row)
         slot_id = row["slot_id"]
         try:
-            _assert_arm_neutral_paths(
-                [slot_id, str(row.get("block_id", ""))]
+            dimensions = _slot_dimensions(row, task_manifest=task_manifest)
+        except ValidationError as exc:
+            reasons.extend(f"{slot_id}: {reason}" for reason in exc.reasons)
+            dimensions = {}
+        else:
+            row.update(dimensions)
+            counts[(dimensions["benchmark_task_id"], dimensions["arm"])] = (
+                counts.get(
+                    (dimensions["benchmark_task_id"], dimensions["arm"]), 0
+                )
+                + 1
             )
+        try:
+            _assert_arm_neutral_paths([slot_id, str(row.get("block_id", ""))])
         except ValidationError as exc:
             reasons.extend(exc.reasons)
         if slot_id in seen:
             reasons.append(f"duplicate slot_id: {slot_id}")
         seen.add(slot_id)
-        key = (row.get("case"), row.get("arm"))
-        counts[key] = counts.get(key, 0) + 1
         for field in (
             "prompt_sha256",
             "snapshot_manifest_sha256",
@@ -4454,40 +5218,60 @@ def _validate_schedule(schedule: Mapping[str, Any]) -> tuple[list[dict[str, Any]
             blocks.setdefault(block_id, []).append({**row, "_index": index})
         if row.get("block_order") not in {1, 2}:
             reasons.append(f"{slot_id}: block_order must be 1 or 2")
-    if len(slots) != 10 or counts != EXPECTED_SCHEDULE:
+        slots.append(row)
+
+    try:
+        expected_counts = expected_schedule_from_manifest(
+            task_manifest, source_schedule
+        )
+    except ValidationError as exc:
+        reasons.extend(exc.reasons)
+        expected_counts = {}
+    if counts != expected_counts:
         reasons.append(f"logical slot cardinality mismatch: {counts}")
+
     for block_id, rows in blocks.items():
+        dimension_pairs = {
+            (
+                row.get("benchmark_task_id"),
+                row.get("stage"),
+                row.get("cache_condition"),
+                row.get("price_version"),
+            )
+            for row in rows
+        }
+        arm_model_pairs = {
+            (row.get("arm"), row.get("requested_model")) for row in rows
+        }
         if (
             len(rows) != 2
-            or {row.get("arm") for row in rows} != {"max", "high"}
-            or len({row.get("case") for row in rows}) != 1
+            or len(dimension_pairs) != 1
+            or len(arm_model_pairs) != 2
             or [row.get("block_order") for row in rows] != [1, 2]
             or rows[1]["_index"] != rows[0]["_index"] + 1
         ):
             reasons.append(f"sequential crossover block mismatch: {block_id}")
-    scheduled_cases = {
-        row.get("case") for row in slots if isinstance(row, dict)
+
+    task_ids = {
+        row.get("benchmark_task_id")
+        for row in slots
+        if isinstance(row.get("benchmark_task_id"), str)
     }
-    if scheduled_cases <= {"POS", "NEG"}:
-        for case in ("POS", "NEG"):
-            case_rows = [
-                row
-                for row in slots
-                if isinstance(row, dict) and row.get("case") == case
-            ]
-            for field in ("prompt_sha256", "snapshot_manifest_sha256"):
-                if len({row.get(field) for row in case_rows}) != 1:
-                    reasons.append(f"{case}: {field} concentration is not 1")
-        submodule_states = {
-            row.get("submodule_manifest_sha256")
-            for row in slots
-            if isinstance(row, dict)
-        }
-        if len(submodule_states) != 1:
-            reasons.append(
-                "POS/NEG submodule initialization and gitlink state mismatch"
-            )
-    return [row for row in slots if isinstance(row, dict)], reasons
+    for task_id in sorted(task_ids):
+        task_rows = [
+            row for row in slots if row.get("benchmark_task_id") == task_id
+        ]
+        for field in ("prompt_sha256", "snapshot_manifest_sha256"):
+            if len({row.get(field) for row in task_rows}) != 1:
+                reasons.append(f"{task_id}: {field} concentration is not 1")
+    submodule_states = {
+        row.get("submodule_manifest_sha256") for row in slots
+    }
+    if len(submodule_states) != 1:
+        reasons.append(
+            "POS/NEG submodule initialization and gitlink state mismatch"
+        )
+    return slots, reasons
 
 
 def _load_adjudication(
@@ -4495,6 +5279,8 @@ def _load_adjudication(
     manifest: Mapping[str, Any],
     slots: Sequence[Mapping[str, Any]],
     final_attempts: Mapping[str, Mapping[str, Any]],
+    *,
+    task_manifest: Mapping[str, Any] = TASK_MANIFEST,
 ) -> tuple[dict[str, dict[str, Any]], list[str]]:
     reasons: list[str] = []
     try:
@@ -4568,7 +5354,9 @@ def _load_adjudication(
             reasons.append("verdict log row malformed")
             continue
         try:
-            _validate_verdict_row(row, set(packets))
+            _validate_verdict_row(
+                row, set(packets), task_manifest=task_manifest
+            )
         except ValidationError as exc:
             reasons.extend(exc.reasons)
         reader = row.get("reader")
@@ -4772,13 +5560,116 @@ def _retry_lineage_reasons(
     return reasons
 
 
-def _aggregate_token_usage_observations(
-    attempts: Sequence[Mapping[str, Any]], reasons: list[str]
+_AXIS_FIELDS = (
+    "benchmark_task_id",
+    "stage",
+    "requested_model",
+    "cache_condition",
+    "price_version",
+)
+
+
+def _slot_dimension_map(
+    slots: Sequence[Mapping[str, Any]],
+    reasons: list[str],
+    *,
+    task_manifest: Mapping[str, Any],
+) -> dict[str, dict[str, Any]]:
+    dimensions: dict[str, dict[str, Any]] = {}
+    for slot in slots:
+        slot_id = str(slot.get("slot_id"))
+        try:
+            dimensions[slot_id] = _slot_dimensions(
+                slot, task_manifest=task_manifest
+            )
+        except ValidationError as exc:
+            reasons.extend(f"{slot_id}: {reason}" for reason in exc.reasons)
+    return dimensions
+
+
+def _attempt_slot_dimensions(
+    attempt: Mapping[str, Any],
+    slot_dimensions: Mapping[str, Mapping[str, Any]],
+    reasons: list[str],
+    *,
+    task_manifest: Mapping[str, Any],
+) -> Mapping[str, Any] | None:
+    run_id = str(attempt.get("run_id"))
+    slot_id = str(attempt.get("slot_id"))
+    dimensions = slot_dimensions.get(slot_id)
+    if dimensions is None:
+        try:
+            dimensions = _slot_dimensions(
+                attempt, task_manifest=task_manifest
+            )
+        except ValidationError as exc:
+            reasons.extend(f"{run_id}: {reason}" for reason in exc.reasons)
+            return None
+    for field in (
+        *_AXIS_FIELDS,
+        "oracle_kind",
+        "legacy_case",
+        "case",
+        "arm",
+    ):
+        if field in attempt and attempt.get(field) != dimensions.get(field):
+            reasons.append(
+                f"{run_id}: attempt {field} does not match scheduled slot"
+            )
+    return dimensions
+
+
+def _axis_row(
+    dimensions: Mapping[str, Any],
+    *,
+    arm: str | None = None,
+    **values: Any,
 ) -> dict[str, Any]:
-    by_arm_case = {
-        arm: {case: 0 for case in ("POS", "NEG")}
-        for arm in ("max", "high")
+    row = {field: dimensions.get(field) for field in _AXIS_FIELDS}
+    row["oracle_kind"] = dimensions.get("oracle_kind")
+    if arm is not None:
+        row["arm"] = arm
+    row.update(values)
+    return row
+
+
+def _is_legacy_projection(
+    slot_dimensions: Mapping[str, Mapping[str, Any]],
+) -> bool:
+    task_ids = {row.get("benchmark_task_id") for row in slot_dimensions.values()}
+    shared_dimensions = {
+        tuple(row.get(field) for field in _AXIS_FIELDS[1:])
+        for row in slot_dimensions.values()
     }
+    scheduled_arms = {row.get("arm") for row in slot_dimensions.values()}
+    return (
+        bool(task_ids)
+        and task_ids <= {"POS", "NEG"}
+        and len(shared_dimensions) == 1
+        and scheduled_arms <= {"max", "high"}
+    )
+
+
+def _aggregate_token_usage_observations(
+    attempts: Sequence[Mapping[str, Any]],
+    reasons: list[str],
+    *,
+    slots: Sequence[Mapping[str, Any]] | None = None,
+    task_manifest: Mapping[str, Any] = TASK_MANIFEST,
+    slot_dimensions: Mapping[str, Mapping[str, Any]] | None = None,
+) -> dict[str, Any]:
+    if slot_dimensions is None:
+        slot_dimensions = {}
+        if slots is not None:
+            slot_dimensions = _slot_dimension_map(
+                slots, reasons, task_manifest=task_manifest
+            )
+    by_arm_case: dict[str, dict[str, int]] = {}
+    by_axis: dict[tuple[Any, ...], int] = {}
+    for dimensions in slot_dimensions.values():
+        arm = str(dimensions["arm"])
+        case = str(dimensions["case"])
+        by_arm_case.setdefault(arm, {}).setdefault(case, 0)
     total_count = 0
     for attempt in attempts:
         if attempt.get("prelaunch_failure") is not None:
@@ -4829,21 +5720,43 @@ def _aggregate_token_usage_observations(
                 f"{run_id}: {ZERO_COMPONENT_TOTAL_ONLY} count/index mismatch"
             )
             continue
-        arm = attempt.get("arm")
-        case = attempt.get("case")
-        if arm not in by_arm_case or case not in by_arm_case[str(arm)]:
+        dimensions = _attempt_slot_dimensions(
+            attempt,
+            slot_dimensions,
+            reasons,
+            task_manifest=task_manifest,
+        )
+        if dimensions is None:
             reasons.append(
                 f"{run_id}: {ZERO_COMPONENT_TOTAL_ONLY} arm/case missing"
             )
             continue
-        by_arm_case[str(arm)][str(case)] += count
+        arm = str(dimensions["arm"])
+        case = str(dimensions["case"])
+        by_arm_case.setdefault(arm, {}).setdefault(case, 0)
+        by_arm_case[arm][case] += count
+        axis_key = tuple(dimensions.get(field) for field in _AXIS_FIELDS) + (
+            arm,
+        )
+        by_axis[axis_key] = by_axis.get(axis_key, 0) + count
         total_count += count
-    return {
-        ZERO_COMPONENT_TOTAL_ONLY: {
-            "total_count": total_count,
-            "by_arm_case": by_arm_case,
+    axis_rows = [
+        {
+            **{
+                field: key[index] for index, field in enumerate(_AXIS_FIELDS)
+            },
+            "arm": key[-1],
+            "count": count,
         }
+        for key, count in by_axis.items()
+    ]
+    observation = {
+        "total_count": total_count,
+        "by_axis": axis_rows,
     }
+    if _is_legacy_projection(slot_dimensions):
+        observation["by_arm_case"] = by_arm_case
+    return {ZERO_COMPONENT_TOTAL_ONLY: observation}
 
 
 def _aggregate_verified(
@@ -4852,59 +5765,82 @@ def _aggregate_verified(
     attempts: Sequence[Mapping[str, Any]],
     verdicts: Mapping[str, Mapping[str, Any]],
     reasons: list[str],
+    *,
+    task_manifest: Mapping[str, Any] = TASK_MANIFEST,
 ) -> dict[str, Any]:
     grouped: dict[str, list[Mapping[str, Any]]] = {
         str(slot["slot_id"]): [] for slot in slots
     }
     for attempt in attempts:
         grouped.setdefault(str(attempt.get("slot_id")), []).append(attempt)
+    slot_dimensions = _slot_dimension_map(
+        slots, reasons, task_manifest=task_manifest
+    )
+    for attempt in attempts:
+        _attempt_slot_dimensions(
+            attempt,
+            slot_dimensions,
+            reasons,
+            task_manifest=task_manifest,
+        )
     token_usage_observations = _aggregate_token_usage_observations(
-        attempts, reasons
+        attempts,
+        reasons,
+        slots=slots,
+        task_manifest=task_manifest,
+        slot_dimensions=slot_dimensions,
     )
     final_attempts = {
         slot_id: sorted(rows, key=lambda row: int(row["attempt"]))[-1]
         for slot_id, rows in grouped.items()
         if rows
     }
-    experiment_complete = (
-        not reasons
-        and len(final_attempts) == 10
-        and all(
-            row.get("failure_class")
-            not in {"technical-invalid", "pair-invalidated"}
-            for row in final_attempts.values()
-        )
-    )
-    primary: dict[str, dict[str, int]] = {}
-    for arm in ("max", "high"):
-        arm_slots = [
-            slot for slot in slots if slot.get("case") == "POS" and slot.get("arm") == arm
-        ]
-        primary[arm] = {
-            "k": sum(
-                bool(verdicts.get(str(slot["slot_id"]), {}).get("r1_detected"))
-                and final_attempts.get(str(slot["slot_id"]), {}).get("failure_class") is None
-                for slot in arm_slots
-            ),
-            "n": len(arm_slots),
-        }
-    false_findings: dict[str, int] = {"max": 0, "high": 0}
+    primary_axes: dict[tuple[Any, ...], dict[str, Any]] = {}
+    false_finding_axes: dict[tuple[Any, ...], int] = {}
+    axis_oracle_kinds: dict[tuple[Any, ...], str] = {}
     novel_by_root: dict[str, dict[str, Any]] = {}
+    novel_by_axis: dict[tuple[Any, ...], dict[str, Any]] = {}
     for slot in slots:
         slot_id = str(slot["slot_id"])
+        dimensions = slot_dimensions.get(slot_id)
+        if dimensions is None:
+            continue
         verdict = verdicts.get(slot_id, {})
+        axis_key = tuple(dimensions.get(field) for field in _AXIS_FIELDS) + (
+            dimensions["arm"],
+        )
+        axis_oracle_kinds[axis_key] = str(dimensions["oracle_kind"])
+        if dimensions["oracle_kind"] == "positive":
+            primary_row = primary_axes.setdefault(
+                axis_key,
+                _axis_row(dimensions, arm=dimensions["arm"], k=0, n=0),
+            )
+            primary_row["n"] += 1
+            if (
+                bool(verdict.get("r1_detected"))
+                and final_attempts.get(slot_id, {}).get("failure_class") is None
+            ):
+                primary_row["k"] += 1
         for finding in verdict.get("findings", []) if isinstance(verdict.get("findings"), list) else []:
-            if not isinstance(finding, dict) or finding.get("real") is not True:
+            if not isinstance(finding, dict):
                 continue
             equivalent = finding.get("equivalent_to")
-            if equivalent is not None and equivalent not in KNOWN_FINDINGS:
+            known_finding_ids = known_finding_ids_for_manifest(
+                task_manifest,
+                benchmark_task_id=dimensions["benchmark_task_id"],
+            )
+            if equivalent is not None and equivalent not in known_finding_ids:
                 reasons.append(f"{slot_id}: unknown equivalent finding id")
+            if finding.get("real") is not True:
+                continue
             if (
-                slot.get("case") == "NEG"
+                dimensions["oracle_kind"] == "negative"
                 and finding.get("severity") in {"CRITICAL", "HIGH"}
                 and finding.get("must_fix") is True
             ):
-                false_findings[str(slot.get("arm"))] += 1
+                false_finding_axes[axis_key] = (
+                    false_finding_axes.get(axis_key, 0) + 1
+                )
             root_cause = finding.get("root_cause")
             if equivalent is None and isinstance(root_cause, str) and root_cause:
                 novel_by_root.setdefault(
@@ -4915,54 +5851,193 @@ def _aggregate_verified(
                         "real_source": "label-masked verdict",
                     },
                 )["occurrences"].append(slot_id)
-    if reasons:
-        experiment_complete = False
-    if experiment_complete:
-        max_k, high_k = primary["max"]["k"], primary["high"]["k"]
-        if max_k == high_k == 3:
+                novel_key = (root_cause, axis_key)
+                novel_by_axis.setdefault(
+                    novel_key,
+                    {
+                        **_axis_row(dimensions, arm=dimensions["arm"]),
+                        "root_cause": root_cause,
+                        "occurrences": [],
+                        "real_source": "label-masked verdict",
+                    },
+                )["occurrences"].append(slot_id)
+
+    for axis_key, oracle_kind in axis_oracle_kinds.items():
+        if oracle_kind == "negative":
+            false_finding_axes.setdefault(axis_key, 0)
+    reliability_axes: dict[tuple[Any, ...], int] = {}
+    for dimensions in slot_dimensions.values():
+        axis_key = tuple(dimensions.get(field) for field in _AXIS_FIELDS) + (
+            dimensions["arm"],
+        )
+        reliability_axes.setdefault(axis_key, 0)
+    for attempt in attempts:
+        dimensions = _attempt_slot_dimensions(
+            attempt,
+            slot_dimensions,
+            reasons,
+            task_manifest=task_manifest,
+        )
+        if dimensions is None:
+            continue
+        if (
+            attempt.get("failure_class") == "post-treatment"
+            or attempt.get("individual_failure_class") == "post-treatment"
+        ):
+            axis_key = tuple(dimensions.get(field) for field in _AXIS_FIELDS) + (
+                dimensions["arm"],
+            )
+            reliability_axes[axis_key] = reliability_axes.get(axis_key, 0) + 1
+
+    expected_slot_ids = {str(slot["slot_id"]) for slot in slots}
+    experiment_complete = (
+        not reasons
+        and set(final_attempts) == expected_slot_ids
+        and all(
+            row.get("failure_class")
+            not in {"technical-invalid", "pair-invalidated"}
+            for row in final_attempts.values()
+        )
+    )
+    axis_primary_rows = list(primary_axes.values())
+    axis_false_finding_rows = [
+        {
+            **{
+                field: key[index] for index, field in enumerate(_AXIS_FIELDS)
+            },
+            "arm": key[-1],
+            "oracle_kind": axis_oracle_kinds.get(key),
+            "count": count,
+        }
+        for key, count in false_finding_axes.items()
+    ]
+    axis_reliability_rows = [
+        {
+            **{
+                field: key[index] for index, field in enumerate(_AXIS_FIELDS)
+            },
+            "arm": key[-1],
+            "oracle_kind": axis_oracle_kinds.get(key),
+            "post_treatment": count,
+        }
+        for key, count in reliability_axes.items()
+    ]
+    legacy_projection = _is_legacy_projection(slot_dimensions)
+    positive_primary = {
+        row["arm"]: {"k": row["k"], "n": row["n"]}
+        for row in axis_primary_rows
+        if row.get("oracle_kind") == "positive"
+    }
+    negative_false_findings: dict[str, int] = {}
+    for row in axis_false_finding_rows:
+        if row.get("oracle_kind") != "negative":
+            continue
+        arm = str(row["arm"])
+        negative_false_findings[arm] = (
+            negative_false_findings.get(arm, 0) + int(row["count"])
+        )
+    positive_arms = list(positive_primary)
+    reference_arm = positive_arms[0] if positive_arms else None
+    reference_passes = (
+        reference_arm is not None
+        and positive_primary[reference_arm]["k"]
+        == positive_primary[reference_arm]["n"]
+    )
+    pos_eligibility = {
+        arm: reference_passes
+        and values["k"] == values["n"]
+        for arm, values in positive_primary.items()
+    }
+    excluded_arms = sorted(
+        arm for arm, count in negative_false_findings.items() if count > 0
+    )
+    reliability: dict[str, int] = {
+        str(row["arm"]): 0
+        for row in axis_primary_rows
+        if row.get("oracle_kind") == "positive"
+    }
+    for row in axis_reliability_rows:
+        reliability[str(row["arm"])] = reliability.get(str(row["arm"]), 0) + int(
+            row["post_treatment"]
+        )
+    decision: dict[str, Any] = {"by_axis": []}
+    if legacy_projection and positive_primary:
+        if all(values["k"] == values["n"] for values in positive_primary.values()):
             quality = "この6 runでは劣化を観測しなかった"
-            pos_eligibility = {"max": True, "high": True}
-        elif max_k == 3 and high_k <= 2:
+        elif reference_passes and reference_arm == "max":
             quality = "highはzero-miss安全条件を満たさない"
-            pos_eligibility = {"max": True, "high": False}
-        elif max_k <= 2 and high_k == 3:
+        elif not reference_passes and any(
+            values["k"] == values["n"] for values in positive_primary.values()
+        ):
             quality = "benchmarkまたはmax基準が不安定"
-            pos_eligibility = {"max": False, "high": False}
         else:
             quality = "品質判断不能"
-            pos_eligibility = {"max": False, "high": False}
-        excluded_arms = sorted(
-            arm for arm, count in false_findings.items() if count > 0
-        )
-        decision = {
+        decision: dict[str, Any] = {
             "row": (
                 "NEG_ADJUDICATED_FALSE_FINDING"
                 if excluded_arms
                 else "POS_PRIMARY"
             ),
             "reason": (
-                f"label-masked R-1 judgment max={max_k}/3 high={high_k}/3; "
-                f"NEG real false finding occurrence={false_findings}"
+                f"label-masked R-1 judgment max={positive_primary.get('max', {'k': 0})['k']}/"
+                f"{positive_primary.get('max', {'n': 0})['n']} high="
+                f"{positive_primary.get('high', {'k': 0})['k']}/"
+                f"{positive_primary.get('high', {'n': 0})['n']}; "
+                f"NEG real false finding occurrence={negative_false_findings}"
             ),
             "quality_decision": quality,
             "pos_adoption_eligibility": pos_eligibility,
             "neg_excluded_arms": excluded_arms,
             "adoption_eligibility": {
-                arm: pos_eligibility[arm] and arm not in excluded_arms
-                for arm in ("max", "high")
+                arm: pos_eligibility.get(arm, False)
+                and arm not in excluded_arms
+                for arm in positive_arms
             },
         }
-    reliability = {
-        arm: sum(
-            attempt.get("failure_class") == "post-treatment"
-            or attempt.get("individual_failure_class") == "post-treatment"
-            for attempt in attempts
-            if attempt.get("arm") == arm
+    else:
+        conditions: dict[tuple[Any, ...], dict[str, Any]] = {}
+        for row in axis_primary_rows:
+            condition_key = tuple(row.get(field) for field in _AXIS_FIELDS)
+            condition = conditions.setdefault(
+                condition_key,
+                {
+                    **{
+                        field: row.get(field) for field in _AXIS_FIELDS
+                    },
+                    "oracle_kind": row.get("oracle_kind"),
+                    "arms": {},
+                },
+            )
+            condition["arms"][row["arm"]] = {
+                "k": row["k"],
+                "n": row["n"],
+            }
+        for row in axis_false_finding_rows:
+            condition_key = tuple(row.get(field) for field in _AXIS_FIELDS)
+            condition = conditions.setdefault(
+                condition_key,
+                {
+                    **{
+                        field: row.get(field) for field in _AXIS_FIELDS
+                    },
+                    "oracle_kind": "negative",
+                    "arms": {},
+                },
+            )
+            condition.setdefault("false_findings", {})[row["arm"]] = row[
+                "count"
+            ]
+        decision = {"by_axis": list(conditions.values())}
+
+    resources = []
+    for attempt in attempts:
+        dimensions = _attempt_slot_dimensions(
+            attempt,
+            slot_dimensions,
+            reasons,
+            task_manifest=task_manifest,
         )
-        for arm in ("max", "high")
-    }
-    resources = [
-        {
+        resource = {
             key: attempt.get(key)
             for key in (
                 "run_id", "slot_id", "attempt", "case", "arm",
@@ -4975,8 +6050,55 @@ def _aggregate_verified(
                 "individual_failure_class", "pair_invalidation",
             )
         }
-        for attempt in attempts
-    ]
+        if dimensions is not None:
+            resource.update(
+                {
+                    field: dimensions.get(field)
+                    for field in (
+                        "benchmark_task_id",
+                        "stage",
+                        "requested_model",
+                        "cache_condition",
+                        "price_version",
+                        "oracle_kind",
+                        "legacy_case",
+                    )
+                }
+            )
+            resource["case"] = dimensions["case"]
+            resource["arm"] = dimensions["arm"]
+        resources.append(resource)
+
+    agreement_by_axis: list[dict[str, Any]] = []
+    agreement_groups: dict[tuple[Any, ...], list[bool]] = {}
+    for slot_id, verdict in verdicts.items():
+        dimensions = slot_dimensions.get(str(slot_id))
+        if dimensions is None:
+            continue
+        key = tuple(dimensions.get(field) for field in _AXIS_FIELDS) + (
+            dimensions["arm"],
+        )
+        agreement_groups.setdefault(key, []).append(
+            verdict.get("reader_agreement") is True
+        )
+    for key, values in agreement_groups.items():
+        agreement_by_axis.append(
+            {
+                **{
+                    field: key[index] for index, field in enumerate(_AXIS_FIELDS)
+                },
+                "arm": key[-1],
+                "agreed": sum(values),
+                "total": len(values),
+                "rate": sum(values) / len(values) if values else None,
+            }
+        )
+
+    if reasons:
+        experiment_complete = False
+    if experiment_complete:
+        if not legacy_projection:
+            decision = {"by_axis": list(decision.get("by_axis", []))}
     if not experiment_complete:
         primary_output = None
         findings_output = None
@@ -4985,12 +6107,25 @@ def _aggregate_verified(
         decision_output = None
         agreement_output = None
     else:
-        primary_output = primary
+        primary_output = (
+            {
+                str(arm): {"k": row["k"], "n": row["n"]}
+                for arm, row in positive_primary.items()
+            }
+            if legacy_projection
+            else axis_primary_rows
+        )
         findings_output = sorted(
             novel_by_root.values(), key=lambda row: row["root_cause"]
         )
-        reliability_output = reliability
-        escalation_output = reliability["high"] > 0
+        reliability_output = (
+            reliability if legacy_projection else axis_reliability_rows
+        )
+        escalation_output = (
+            reliability.get("high", 0) > 0
+            if legacy_projection
+            else any(row["post_treatment"] > 0 for row in axis_reliability_rows)
+        )
         decision_output = decision
         agreement_output = {
             "agreed": sum(
@@ -5016,7 +6151,9 @@ def _aggregate_verified(
         "failure_reasons": sorted(set(reasons)),
         "experiment_complete": experiment_complete,
         "primary_judgment_ledger": primary_output,
+        "primary_judgment_axis_ledger": axis_primary_rows,
         "new_finding_ledger": findings_output,
+        "new_finding_axis_ledger": list(novel_by_axis.values()),
         "resource_ledger": resources,
         "token_usage_observations": token_usage_observations,
         "turn_accounting": {
@@ -5025,8 +6162,10 @@ def _aggregate_verified(
             "logical_turns_reported": False,
         },
         "post_treatment_reliability": reliability_output,
+        "post_treatment_reliability_axis_ledger": axis_reliability_rows,
         "online_max_escalation_candidate": escalation_output,
         "reader_agreement": agreement_output,
+        "reader_agreement_axis_ledger": agreement_by_axis,
         "decision": decision_output,
     }
 
@@ -5230,14 +6369,19 @@ def _validate_supervisor_ledger(
 
 
 def _replay_manifest(
-    manifest_path: Path, sessions_root: Path
+    manifest_path: Path,
+    sessions_root: Path,
+    *,
+    task_manifest: Mapping[str, Any] = TASK_MANIFEST,
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]], dict[str, dict[str, Any]], list[str]]:
     manifest_path = manifest_path.resolve()
     manifest = _load_json_object(manifest_path)
     reasons: list[str] = []
     schedule_path = _artifact_path(manifest_path, manifest.get("schedule"), "schedule")
     schedule = _load_json_object(schedule_path)
-    slots, schedule_reasons = _validate_schedule(schedule)
+    slots, schedule_reasons = _validate_schedule(
+        schedule, task_manifest=task_manifest
+    )
     reasons.extend(schedule_reasons)
     schedule_sha = _sha256(schedule_path.read_bytes())
     if manifest.get("schedule_sha256") != schedule_sha:
@@ -5364,6 +6508,13 @@ def _replay_manifest(
                 "run_id": run_id,
                 "slot_id": slot_id,
                 "attempt": attempt_number,
+                "benchmark_task_id": slot.get("benchmark_task_id"),
+                "stage": slot.get("stage"),
+                "requested_model": slot.get("requested_model", MODEL),
+                "cache_condition": slot.get("cache_condition"),
+                "price_version": slot.get("price_version"),
+                "oracle_kind": slot.get("oracle_kind"),
+                "legacy_case": slot.get("legacy_case"),
                 "case": slot.get("case"),
                 "arm": slot.get("arm"),
                 "block_id": slot.get("block_id"),
@@ -5432,6 +6583,7 @@ def _replay_manifest(
                 ("parent_run_id", row.get("parent_run_id")),
                 ("case", slot.get("case")),
                 ("arm", slot.get("arm")),
+                ("requested_model", slot.get("requested_model", MODEL)),
             ):
                 if launch.get(field) != expected_value:
                     reasons.append(f"{run_id}: launch/manifest {field} mismatch")
@@ -5476,6 +6628,7 @@ def _replay_manifest(
                 sessions_root=sessions_root,
                 snapshot=Path(oracle["snapshot"]),
                 launch_receipt=launch_path,
+                expected_requested_model=slot.get("requested_model", MODEL),
             )
             if _canonical_bytes(replay_receipt) != receipt_path.read_bytes():
                 reasons.append(f"{run_id}: receipt canonical replay mismatch")
@@ -5498,6 +6651,25 @@ def _replay_manifest(
                 },
                 replay_score,
             )
+            for field in (
+                "benchmark_task_id",
+                "stage",
+                "requested_model",
+                "cache_condition",
+                "price_version",
+                "oracle_kind",
+                "legacy_case",
+            ):
+                scheduled_value = slot.get(
+                    field, MODEL if field == "requested_model" else None
+                )
+                if field in joined and joined.get(field) != scheduled_value:
+                    reasons.append(
+                        f"{run_id}: attempt {field} does not match scheduled slot"
+                    )
+                joined[field] = scheduled_value
+            joined["case"] = slot.get("case")
+            joined["arm"] = slot.get("arm")
             if supervisor_row is None:
                 reasons.append(f"{run_id}: supervisor completion row missing")
             else:
@@ -5533,6 +6705,13 @@ def _replay_manifest(
                 "run_id": run_id,
                 "slot_id": slot_id,
                 "attempt": attempt_number,
+                "benchmark_task_id": slot.get("benchmark_task_id"),
+                "stage": slot.get("stage"),
+                "requested_model": slot.get("requested_model", MODEL),
+                "cache_condition": slot.get("cache_condition"),
+                "price_version": slot.get("price_version"),
+                "oracle_kind": slot.get("oracle_kind"),
+                "legacy_case": slot.get("legacy_case"),
                 "case": slot.get("case"),
                 "arm": slot.get("arm"),
                 "block_id": slot.get("block_id"),
@@ -5570,10 +6749,14 @@ def _replay_manifest(
         if rows
     }
     verdicts, adjudication_reasons = _load_adjudication(
-        manifest_path, manifest, slots, final_attempts
+        manifest_path,
+        manifest,
+        slots,
+        final_attempts,
+        task_manifest=task_manifest,
     )
     reasons.extend(adjudication_reasons)
-    identities: dict[str, set[str]] = {"POS": set(), "NEG": set()}
+    identities: dict[tuple[Any, ...], set[str]] = {}
     for row in attempts:
         launch_descriptor = next(
             (
@@ -5590,15 +6773,27 @@ def _replay_manifest(
             manifest_path, launch_descriptor, f"{row['run_id']}:launch_identity"
         )
         launch = _load_json_object(launch_path)
-        identities[str(row["case"])].add(str(launch.get("treatment_identity_sha256")))
-    for case, values in identities.items():
+        slot = slot_index.get(str(row.get("slot_id")))
+        if slot is None:
+            continue
+        identity_key = tuple(slot.get(field) for field in _AXIS_FIELDS)
+        identities.setdefault(identity_key, set()).add(
+            str(launch.get("treatment_identity_sha256"))
+        )
+    for identity_key, values in identities.items():
         if values and len(values) != 1:
-            reasons.append(f"{case}: treatment identity concentration is not 1")
+            reasons.append(
+                "treatment identity concentration is not 1: "
+                f"{identity_key}"
+            )
     return slots, attempts, verdicts, reasons
 
 
 def verify_manifest(
-    manifest_path: Path, sessions_root: Path | None = None
+    manifest_path: Path,
+    sessions_root: Path | None = None,
+    *,
+    task_manifest: Mapping[str, Any] = TASK_MANIFEST,
 ) -> tuple[dict[str, Any], int]:
     if sessions_root is None:
         return {
@@ -5608,10 +6803,17 @@ def verify_manifest(
         }, RC_AGGREGATE
     try:
         slots, attempts, verdicts, reasons = _replay_manifest(
-            manifest_path, sessions_root.resolve()
+            manifest_path,
+            sessions_root.resolve(),
+            task_manifest=task_manifest,
         )
         output = _aggregate_verified(
-            manifest_path.resolve(), slots, attempts, verdicts, reasons
+            manifest_path.resolve(),
+            slots,
+            attempts,
+            verdicts,
+            reasons,
+            task_manifest=task_manifest,
         )
     except ValidationError as exc:
         output = {
@@ -5623,13 +6825,24 @@ def verify_manifest(
 
 
 def aggregate_manifest(
-    manifest_path: Path, *, sessions_root: Path | None = None
+    manifest_path: Path,
+    *,
+    sessions_root: Path | None = None,
+    task_manifest: Mapping[str, Any] = TASK_MANIFEST,
 ) -> tuple[dict[str, Any], int]:
-    return verify_manifest(manifest_path, sessions_root=sessions_root)
+    return verify_manifest(
+        manifest_path,
+        sessions_root=sessions_root,
+        task_manifest=task_manifest,
+    )
 
 
 def make_packets(
-    manifest_path: Path, packet_dir: Path, custodian_root: Path
+    manifest_path: Path,
+    packet_dir: Path,
+    custodian_root: Path,
+    *,
+    task_manifest: Mapping[str, Any] = TASK_MANIFEST,
 ) -> dict[str, Any]:
     manifest = _load_json_object(manifest_path)
     attempts = manifest.get("attempts")
@@ -5639,8 +6852,46 @@ def make_packets(
     for row in attempts:
         if isinstance(row, dict) and isinstance(row.get("slot_id"), str):
             grouped.setdefault(row["slot_id"], []).append(row)
-    if len(grouped) != 10:
-        raise ValidationError("packets require exactly 10 logical slots", RC_AGGREGATE)
+    schedule_descriptor = manifest.get("schedule")
+    if schedule_descriptor is None and not grouped:
+        raise ValidationError(
+            "packets require at least one logical slot", RC_AGGREGATE
+        )
+    if schedule_descriptor is not None:
+        if isinstance(schedule_descriptor, Mapping) and "slots" in schedule_descriptor:
+            schedule = dict(schedule_descriptor)
+        else:
+            schedule_path = _artifact_path(
+                manifest_path.resolve(), schedule_descriptor, "schedule"
+            )
+            schedule = _load_json_object(schedule_path)
+        schedule = _legacy_schedule_view(schedule)
+        schedule_slots, schedule_reasons = _validate_schedule(
+            schedule, task_manifest=task_manifest
+        )
+        if schedule_reasons:
+            raise ValidationError(schedule_reasons, RC_AGGREGATE)
+        expected_counts = expected_schedule_from_manifest(
+            task_manifest, schedule
+        )
+        observed_counts: dict[tuple[str, str], int] = {}
+        for row in schedule_slots:
+            key = (str(row["benchmark_task_id"]), str(row["arm"]))
+            observed_counts[key] = observed_counts.get(key, 0) + 1
+        if observed_counts != expected_counts:
+            raise ValidationError(
+                f"packet schedule cardinality mismatch: {observed_counts}",
+                RC_AGGREGATE,
+            )
+        expected_slot_ids = {str(row["slot_id"]) for row in schedule_slots}
+        if set(grouped) != expected_slot_ids:
+            raise ValidationError(
+                "packet/manifest slot set mismatch: "
+                f"expected={sorted(expected_slot_ids)} observed={sorted(grouped)}",
+                RC_AGGREGATE,
+            )
+    # Old packet-only fixtures have no schedule descriptor.  Their distinct
+    # attempt slot IDs are the only available cardinality authority.
     if packet_dir.exists():
         raise ValidationError(f"packet directory already exists: {packet_dir}", RC_AGGREGATE)
     packet_dir = packet_dir.resolve()
@@ -5755,6 +7006,7 @@ def _validate_verdict_row(
     packet_ids: set[str],
     *,
     require_packet_digest: bool = True,
+    task_manifest: Mapping[str, Any] = TASK_MANIFEST,
 ) -> None:
     if row.get("packet_id") not in packet_ids:
         raise ValidationError("verdict packet_id is unknown", RC_AGGREGATE)
@@ -5769,6 +7021,7 @@ def _validate_verdict_row(
         raise ValidationError("verdict r1_detected must be boolean", RC_AGGREGATE)
     if not isinstance(row.get("findings", []), list):
         raise ValidationError("verdict findings must be an array", RC_AGGREGATE)
+    known_finding_ids = known_finding_ids_for_manifest(task_manifest)
     for finding in row.get("findings", []):
         if not isinstance(finding, dict) or not isinstance(finding.get("real"), bool):
             raise ValidationError("finding verdict schema mismatch", RC_AGGREGATE)
@@ -5777,7 +7030,7 @@ def _validate_verdict_row(
         if not isinstance(finding.get("must_fix"), bool):
             raise ValidationError("finding must_fix must be boolean", RC_AGGREGATE)
         equivalent = finding.get("equivalent_to")
-        if equivalent is not None and equivalent not in KNOWN_FINDINGS:
+        if equivalent is not None and equivalent not in known_finding_ids:
             raise ValidationError("finding equivalent_to is unknown", RC_AGGREGATE)
         if (
             finding["real"]
@@ -5795,7 +7048,13 @@ def append_verdicts(
     verdict_log_path: Path,
     reader: str,
     verdict_input_path: Path,
+    *,
+    task_manifest: Mapping[str, Any] = TASK_MANIFEST,
 ) -> dict[str, Any]:
+    """Append blind reader verdicts using the manifest-wide finding union.
+
+    The task is intentionally unknown at append time, before mapping reveal.
+    """
     state = _load_json_object(packet_state_path)
     verdicts = _load_json_object(verdict_input_path)
     packet_rows = state.get("packets")
@@ -5827,6 +7086,7 @@ def append_verdicts(
                 "packet_sha256_at_read": packet_digests[packet_id],
             },
             packet_ids,
+            task_manifest=task_manifest,
         )
     if seen != packet_ids:
         raise ValidationError("verdict/packet id set mismatch", RC_AGGREGATE)
@@ -5849,7 +7109,11 @@ def append_verdicts(
 
 
 def freeze_verdicts(
-    packet_state_path: Path, verdict_log_path: Path, output: Path
+    packet_state_path: Path,
+    verdict_log_path: Path,
+    output: Path,
+    *,
+    task_manifest: Mapping[str, Any] = TASK_MANIFEST,
 ) -> dict[str, Any]:
     state = _load_json_object(packet_state_path)
     packet_rows = state.get("packets")
@@ -5865,7 +7129,9 @@ def freeze_verdicts(
         reader = row.get("reader")
         if reader not in {"parent", "second-reader"}:
             raise ValidationError("verdict reader is invalid", RC_AGGREGATE)
-        _validate_verdict_row(row, packet_ids)
+        _validate_verdict_row(
+            row, packet_ids, task_manifest=task_manifest
+        )
         if row.get("packet_sha256_at_read") != packet_digests.get(
             str(row.get("packet_id"))
         ):
@@ -5930,6 +7196,8 @@ def reveal_mapping(
     verdict_log_path: Path,
     verdict_freeze_path: Path,
     output: Path,
+    *,
+    task_manifest: Mapping[str, Any] = TASK_MANIFEST,
 ) -> dict[str, Any]:
     state = _load_json_object(packet_state_path)
     freeze = _load_json_object(verdict_freeze_path)
@@ -5955,7 +7223,9 @@ def reveal_mapping(
         raise ValidationError(verdict_issues, RC_AGGREGATE)
     frozen_pairs: set[tuple[str, str]] = set()
     for row in verdict_rows:
-        _validate_verdict_row(row, packet_ids)
+        _validate_verdict_row(
+            row, packet_ids, task_manifest=task_manifest
+        )
         reader = row.get("reader")
         if reader not in {"parent", "second-reader"}:
             raise ValidationError("verdict reader is invalid", RC_AGGREGATE)
@@ -6041,6 +7311,11 @@ def _sessions_default() -> Path:
     )
 
 
+def _add_benchmark_task_selector(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument("--case", choices=("POS", "NEG"))
+    parser.add_argument("--benchmark-task-id")
+
+
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     sub = parser.add_subparsers(dest="command", required=True)
@@ -6049,21 +7324,21 @@ def _parser() -> argparse.ArgumentParser:
     build.add_argument("--repo", type=Path, default=_ROOT)
     build.add_argument("--snapshot", type=Path, required=True)
     build.add_argument("--sessions-root", type=Path, default=_sessions_default())
-    build.add_argument("--case", choices=("POS", "NEG"), required=True)
+    _add_benchmark_task_selector(build)
 
     snapshot = sub.add_parser("verify-snapshot")
     snapshot.add_argument("--snapshot", type=Path, required=True)
-    snapshot.add_argument("--case", choices=("POS", "NEG"), required=True)
+    _add_benchmark_task_selector(snapshot)
 
     prompt = sub.add_parser("render-prompt")
     prompt.add_argument("--sessions-root", type=Path, default=_sessions_default())
-    prompt.add_argument("--case", choices=("POS", "NEG"), required=True)
+    _add_benchmark_task_selector(prompt)
     prompt.add_argument("--new-root", type=Path, required=True)
     prompt.add_argument("--output", type=Path)
 
     collect = sub.add_parser("collect-run")
     collect.add_argument("--run-id", required=True)
-    collect.add_argument("--case", choices=("POS", "NEG"), required=True)
+    _add_benchmark_task_selector(collect)
     collect.add_argument("--requested-effort", choices=("max", "high"), required=True)
     collect.add_argument("--events", type=Path, required=True)
     collect.add_argument("--done", type=Path, required=True)
@@ -6072,7 +7347,9 @@ def _parser() -> argparse.ArgumentParser:
     collect.add_argument("--sessions-root", type=Path, default=_sessions_default())
     collect.add_argument("--snapshot", type=Path, required=True)
     collect.add_argument("--launch-receipt", type=Path, required=True)
-    collect.add_argument("--expected-model", default=MODEL)
+    collect.add_argument(
+        "--expected-model", dest="expected_requested_model", default=MODEL
+    )
 
     supervisor = sub.add_parser("supervise-pair")
     supervisor.add_argument("--schedule", type=Path, required=True)
@@ -6129,17 +7406,28 @@ def _parser() -> argparse.ArgumentParser:
 def main(argv: Sequence[str] | None = None) -> int:
     args = _parser().parse_args(argv)
     try:
+        benchmark_task_id: str | None = None
+        if args.command in {
+            "build-snapshot",
+            "verify-snapshot",
+            "render-prompt",
+            "collect-run",
+        }:
+            benchmark_task_id = resolve_benchmark_task_id(
+                args.benchmark_task_id,
+                case=args.case,
+            )
         if args.command == "build-snapshot":
             result = build_snapshot(
-                args.repo, args.snapshot, args.sessions_root, args.case
+                args.repo, args.snapshot, args.sessions_root, benchmark_task_id
             )
             rc = 0
         elif args.command == "verify-snapshot":
-            result = verify_snapshot(args.snapshot, args.case)
+            result = verify_snapshot(args.snapshot, benchmark_task_id)
             rc = 0
         elif args.command == "render-prompt":
             data, result = render_prompt(
-                args.sessions_root, args.case, args.new_root
+                args.sessions_root, benchmark_task_id, args.new_root
             )
             if args.output:
                 if args.output.exists():
@@ -6154,7 +7442,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         elif args.command == "collect-run":
             result, rc = collect_run(
                 run_id=args.run_id,
-                case=args.case,
+                case=benchmark_task_id,
                 requested_effort=args.requested_effort,
                 events=args.events,
                 done=args.done,
@@ -6163,7 +7451,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 sessions_root=args.sessions_root,
                 snapshot=args.snapshot,
                 launch_receipt=args.launch_receipt,
-                expected_model=args.expected_model,
+                expected_requested_model=args.expected_requested_model,
             )
         elif args.command == "supervise-pair":
             result = supervise_pair(
