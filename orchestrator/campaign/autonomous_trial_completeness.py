@@ -99,6 +99,13 @@ _LAUNCH_ADMISSION_REGISTERED_KEYS = frozenset({
     _LAUNCH_ADMISSION_BASE_KEYS,
     _LAUNCH_ADMISSION_BASE_KEYS | {"origin_binding"},
 })
+_REGISTERED_LAUNCH_MODES = frozenset({
+    "registered-effective",
+    "registered-formal-non-certifying",
+})
+_LAUNCH_ADMISSION_MODES = _REGISTERED_LAUNCH_MODES | {
+    "explicit-unregistered-exploratory",
+}
 _LAUNCH_BINDING_KEYS = frozenset({
     "manifest_sha256", "prereg_commit", "prereg_content_commit",
     "prereg_effective_commit", "measurement_head", "trial_id", "arm",
@@ -870,8 +877,10 @@ def _check_arm_digest_chain(
         if isinstance(launch_binding, Mapping)
         else None
     )
-    registered = (
-        launch.get("mode") == "registered-effective"
+    launch_mode = launch.get("mode")
+    requires_arm_digest_chain = (
+        type(launch_mode) is str
+        and launch_mode in _REGISTERED_LAUNCH_MODES
         and type(launch_workload) is str
         and launch_workload in HOLDOUT_WORKLOADS
     )
@@ -879,7 +888,7 @@ def _check_arm_digest_chain(
     if len(starts) != 1:
         _fail("arm-digest-chain", "run-start is not unique")
     start = starts[0]
-    if not registered:
+    if not requires_arm_digest_chain:
         if "arm_execution" in report or "arm_execution" in start:
             _fail("arm-digest-chain", "exploratory run carries arm_execution")
         return
@@ -1711,18 +1720,19 @@ def _check_launch_admission_projection(
         label="run-start.launch_admission",
     )
     mode = report_admission.get("mode")
+    uses_registered_admission_key_shape = (
+        type(mode) is str and mode in _REGISTERED_LAUNCH_MODES
+    )
     admission_key_sets = (
         _LAUNCH_ADMISSION_REGISTERED_KEYS
-        if mode == "registered-effective"
+        if uses_registered_admission_key_shape
         else _LAUNCH_ADMISSION_KEYS
     )
     if frozenset(report_admission) not in admission_key_sets:
         _fail("launch-admission", "report launch_admission exact keys differ")
     if dict(start_admission) != dict(report_admission):
         _fail("launch-admission", "run-start/report launch_admission differs")
-    if mode not in {
-        "registered-effective", "explicit-unregistered-exploratory",
-    }:
+    if type(mode) is not str or mode not in _LAUNCH_ADMISSION_MODES:
         _fail("launch-admission", "launch mode is outside the closed set")
     if report_admission.get("certifying") is not False:
         _fail("launch-admission", "this producer cannot emit certifying input")
@@ -1808,6 +1818,31 @@ def _check_launch_admission_projection(
             != binding.get("measurement_head")
         ):
             _fail("launch-admission", "origin binding differs from launch binding")
+    elif mode == "registered-formal-non-certifying":
+        if origin_binding is not None:
+            _fail(
+                "launch-admission",
+                "formal non-certifying launch cannot carry an origin binding",
+            )
+        binding = _mapping(
+            binding, gate="launch-admission", label="launch_admission.binding",
+        )
+        if set(binding) != _LAUNCH_BINDING_KEYS:
+            _fail(
+                "launch-admission",
+                "formal non-certifying launch binding exact keys differ",
+            )
+        if (
+            report_admission.get("reason_code")
+            != "registered-formal-non-certifying"
+            or binding.get("trial_id") != report.get("trial_id")
+            or [binding.get("workload")] != report.get("workloads_requested")
+            or activation_digest is not None
+        ):
+            _fail(
+                "launch-admission",
+                "formal non-certifying launch projection is inconsistent",
+            )
     elif (
         report_admission.get("reason_code")
         != "explicit-unregistered-exploratory"
@@ -2737,11 +2772,14 @@ def assert_autonomous_trial_completeness(
     )
     _check_origin_terminal_projection(report)
     launch = report.get("launch_admission")
-    registered = (
-        isinstance(launch, Mapping)
-        and launch.get("mode") == "registered-effective"
+    launch_mode = (
+        launch.get("mode") if isinstance(launch, Mapping) else None
     )
-    if not registered and (
+    arm_execution_permitted = (
+        type(launch_mode) is str
+        and launch_mode in _REGISTERED_LAUNCH_MODES
+    )
+    if not arm_execution_permitted and (
         "arm_execution" in report
         or any(
             event.get("event") == "run-start" and "arm_execution" in event

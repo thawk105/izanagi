@@ -6359,16 +6359,6 @@ def test_formal_noncertifying_registered_workload_consumes_shared_slot(
         "validate_condition_freeze_at",
         lambda *_args: None,
     )
-    monkeypatch.setattr(
-        A,
-        "assert_autonomous_trial_completeness",
-        lambda **_kwargs: None,
-    )
-    monkeypatch.setattr(
-        A,
-        "assert_autonomous_trial_execution_digest_chain",
-        lambda **_kwargs: None,
-    )
 
     run_root = tmp_path / "formal-noncertifying-run"
     report = _t325_run(
