@@ -344,6 +344,23 @@ _T567_MERGE_NOTE = (
     "`2a34b7b0473db3d7be3b16ea0e230fdf00b6f493` として各 wave の land 時に監査済み。"
     "親作成 merge のため Codex 著者とは記さない。"
 )
+_T567_MERGE4_RULING = (
+    "2026-08-21 dev-wave-t567-attempt-binding land 前裁定 "
+    "(4回目、ユーザー選択: known-violation 登録)"
+)
+_T567_MERGE4_NOTE = (
+    "4回目の受入投入前 local main 取り込み merge "
+    "`4d7e169bddb3ecc068ed85b51dd0b2c47b4d6900`。"
+    "`orchestrator/tests/test_s8b_oracle_driver.py` で、main 側の別 wave "
+    "(T-1444、commit `840fb6da` 以降) が加えた ENV_TAG の Pegasus site-aware 化との "
+    "3-way 結合の結果が両親のどちらとも異なるため checker が実装面著作と誤判定；"
+    "`git diff-tree --cc 4d7e169bddb3ecc068ed85b51dd0b2c47b4d6900 -- "
+    "orchestrator/tests/test_s8b_oracle_driver.py` は commit ヘッダ (SHA) 行のみで実質空 "
+    "（Automatic merge went well、競合なし）、競合解決による新規著作なし。wave 側の実装面 "
+    "(`test_s8b_oracle_driver.py` の `_run_bench` 呼び出しへの `build_attempt_id=` 引数追加) は "
+    "Codex `role=author` が commit `6130a1b9886536b8b09d2583f07ea70f96cbc749` で初回統合時に"
+    "既に書き、main 側は各 wave の land 時に監査済み。親作成 merge のため Codex 著者とは記さない。"
+)
 _T1337_PRE_ACCEPTANCE_MERGE_RULING = (
     "2026-08-20 dev-wave-t1337-launcher-timing-proof 受入前裁定 "
     "(ユーザー選択: known-violation 登録)"
@@ -785,6 +802,12 @@ KNOWN_PROVENANCE_VIOLATIONS = (
         MISSING_CODEX_AUTHOR,
         _T567_MERGE3_RULING,
         note=_T567_MERGE3_NOTE,
+    ),
+    KnownViolationSpec(
+        "4d7e169bddb3ecc068ed85b51dd0b2c47b4d6900",
+        MISSING_CODEX_AUTHOR,
+        _T567_MERGE4_RULING,
+        note=_T567_MERGE4_NOTE,
     ),
 )
 

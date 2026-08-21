@@ -1851,6 +1851,23 @@ def test_known_violation_ledger_matches_literal_entries():
         "`40aded545ab835f755dc67c2a72ef9e57ad93a90` で書き、main 側は commit `3c993259` として各 wave の "
         "land 時に監査済み。親作成 merge のため Codex 著者とは記さない。"
     )
+    t567_merge4_ruling = (
+        "2026-08-21 dev-wave-t567-attempt-binding land 前裁定 "
+        "(4回目、ユーザー選択: known-violation 登録)"
+    )
+    t567_merge4_note = (
+        "4回目の受入投入前 local main 取り込み merge "
+        "`4d7e169bddb3ecc068ed85b51dd0b2c47b4d6900`。"
+        "`orchestrator/tests/test_s8b_oracle_driver.py` で、main 側の別 wave "
+        "(T-1444、commit `840fb6da` 以降) が加えた ENV_TAG の Pegasus site-aware 化との "
+        "3-way 結合の結果が両親のどちらとも異なるため checker が実装面著作と誤判定；"
+        "`git diff-tree --cc 4d7e169bddb3ecc068ed85b51dd0b2c47b4d6900 -- "
+        "orchestrator/tests/test_s8b_oracle_driver.py` は commit ヘッダ (SHA) 行のみで実質空 "
+        "（Automatic merge went well、競合なし）、競合解決による新規著作なし。wave 側の実装面 "
+        "(`test_s8b_oracle_driver.py` の `_run_bench` 呼び出しへの `build_attempt_id=` 引数追加) は "
+        "Codex `role=author` が commit `6130a1b9886536b8b09d2583f07ea70f96cbc749` で初回統合時に"
+        "既に書き、main 側は各 wave の land 時に監査済み。親作成 merge のため Codex 著者とは記さない。"
+    )
     observed = tuple(
         (
             spec.commit,
@@ -1956,6 +1973,7 @@ def test_known_violation_ledger_matches_literal_entries():
         ("c44b981c4a765b8f189d30ca69ba7b461b71efd1", "missing-codex-author", t567_merge_ruling, t567_merge_note, ""),
         ("5823caf328a5985476cd2f6f7aa0d13daa5b08f6", "missing-codex-author", t567_merge2_ruling, t567_merge2_note, ""),
         ("1782d2bc4c7775869b0e6c4b40d08d78b6cbca64", "missing-codex-author", t567_merge3_ruling, t567_merge3_note, ""),
+        ("4d7e169bddb3ecc068ed85b51dd0b2c47b4d6900", "missing-codex-author", t567_merge4_ruling, t567_merge4_note, ""),
     )
     assert len(provenance.KNOWN_PROVENANCE_VIOLATIONS) == len(expected)
     assert observed == expected
