@@ -1,9 +1,10 @@
 # [T-1473] D58 bench-first screening v2 初回ablationのPegasus本走 preflight
 - 目的: D58 (bench-first screening v2) の初回 ablation (insight §5-7 の4基準) を Pegasus 計算ノードで
   実施する。開始直後に screening/floor/calibration 編集面の並行占有を確認し、本走の可否を判定する。
-- 状態: 作業中
-- 最終更新: 2026-08-21
-- 基準コミット: b1c54220 (worktree: dev-wave-t1473-d58-ablation-preflight, 作業ツリー clean)
+- 状態: 中断
+- 最終更新: 2026-08-21 (受入 lease 他 holder 保持中のため段9 land 未実行で中断)
+- 基準コミット: 5db135b0621b31aeeb94c66fbeb97fc05bf754d8 (worktree: dev-wave-t1473-d58-ablation-preflight,
+  作業ツリー clean、tested main = b1c54220)
 
 ## 完了した中間成果 (ファイルパス・コミットハッシュつき)
 - g++-13 blocker (旧試行 `docs/archive/worklog-phase3-0819-701.md` entry701) が
@@ -20,15 +21,24 @@
   経路なし) が解消されていないと確認した。
 
 ## 未完の作業と次の一手 (具体的に)
-1. worklog spool fragment を書き `python3 tools/check_docs.py` / `python3 tools/spool_fold.py
-   --dry-run` で検査する。
-2. commit (docs-only、AI-Agent trailer 付き: `role=author; scope=docs`)。
-3. 段8: 本節を適用済み (下記候補を記録、実装はしない)。
-4. 段9: 受入全走が必須 (zero-diff wave でも免除されない)。受入 lease は wave 開始時点で
-   他 holder 保持中 (`holder=3bf5d510308c`) だった。lease 状態を再確認し、空いていれば
-   `tools/dev_wave_wait.py acceptance` で claim → 受入投入 → `tools/dev_wave_land.py` で
-   local main へ land。空いたままなら次の一手として記録し、fresh context に引き継いで終了する
-   (強行・待機の長時間ブロックはしない)。
+1. **完了**: worklog spool fragment + handoff を commit 済み (`5db135b0`)。
+   `check_docs.py` = 違反なし。`spool_fold.py --dry-run` = 成功 (新規項目は
+   `{{T:d58-ablation-pegasus-preflight}}`、fold 時点の実採番は dry-run 表示 `[T-1471]` だが
+   並行 land でずれうるため確定値として扱わない)。`check_ai_provenance.py` = 違反なし (exit 0)。
+2. **段8**: 適用済み (改善候補1件を本ファイル末尾に記録、dev-wave docs 予算満杯のため実装せず)。
+3. **段9 (未完・ここで中断)**: 受入 lease を2回確認したが、いずれも他 holder
+   (`holder=3bf5d510308c`) が保持中 (`state=held`、2回目 age=1585秒≈26分)。
+   `python3 tools/wave_land_window.py claim --lease-dir /work/1/SFC/tanab/dev-wave-jobs/land-lease
+   --wave dev-wave-t1473-d58-ablation-preflight --main-sha b1c54220...` は `state=held` のまま
+   拒否された (`acquired`/`held-self` に到達せず)。**fresh context が行う再開手順**:
+   (a) `python3 tools/wave_land_window.py status --json --lease-dir
+   /work/1/SFC/tanab/dev-wave-jobs/land-lease` で lease が空いたか確認、
+   (b) 空いていれば `claim` → `python3 tools/run_tests.py` を背景実行し受入 receipt 取得 →
+   `tools/dev_wave_land.py` で tested_main=b1c54220.., tested_tip=5db135b0.. を local main へ
+   ff-only land (docs-only、変異 matrix・実装は無し)、
+   (c) land 成功後に lease を release、`tools/collect_wave_usage.py` を実行 (login で必ず
+   block される既知事象、実施記録のみ残す)。
+   本 wave 自体の再調査・再投票は不要 — 受入投入だけで完結する。
 
 ## 落とし穴・気づき
 - ListAgents のピアセッション一覧が、worktree の cmdline 走査・lock file 確認より速く
