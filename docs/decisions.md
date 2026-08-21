@@ -25642,3 +25642,116 @@ resource `not-applicable` 抑止ロジックは、gate 評価器自体 (§12 全
 閉じない blocker を独立に発見し、段4裁定で是正した。変異事前登録6件、baseline PASSED、
 5/6 KILLED (1件は既知の node ID 登録制約で MISMATCH 確定、erratum は worklog 参照)。
 受入 verdict=child-green。
+
+## D641. official campaign の出力 root を repo 外へ強制し、D158 の「official は env を参照しない」記述の該当部分を supersede する (2026-08-22)
+
+**決定:** `declared_use_class="official"` の campaign 出力 root 解決
+(`resolve_campaign_output_root`) を fail-closed 化する。新設 env `IZANAGI_OFFICIAL_OUTPUT_ROOT`
+または呼び手の明示 `output_root` のいずれかを要求し、いずれも未指定なら repo 内へ暗黙に
+倒れず例外を送出する。explicit 引数も含め毎回、exploration と同水準の外部性検証
+(絶対 path 必須・`..` 拒否・symlink 拒否・git 祖先拒否・uid 所有・worktree container 拒否) を
+通す。`s8b_oracle_driver.py` の holdout 実走 CLI (`run-block`) は `--output-root` 既定値を
+repo 内 fallback から `None` へ変更し、central resolver の拒否を `status="refused"` gate
+decision へ変換する。解決済み root 専用の `DurableRootPolicy` を `run_block()` へ注入し、
+`default_durable_root_policy()` (repo `output/` のみ approved) 自体は変更しない。
+exploration 分岐の既存挙動 (env 未設定時は repo 内 legacy fallback を維持、worktree
+container 拒否は resolve 時でなく `.ensure()` 時) は byte-compatible に温存する。
+
+**理由:**
+- 正式 holdout run が書く `campaign.lock` は `ycsb_rratio`/`ycsb_zipf_skew`/`ycsb_rmw` を
+  同一ファイルに並べる compact canonical JSON であり、`output/campaigns/`・
+  `output/exploration/` いずれも `.gitignore` 対象外のため、repo scan の untracked
+  非 ignore file 列挙に conjunction hit として拾われる。RatifiedFreeze v2 発効後の
+  全 repo scan (`launch_validate`) 契約と自己矛盾する。
+- ユーザー裁定 (2026-08-20): 択(a) 正式 run の run root/campaign root を repo 外へ強制する
+  採用。一次資料は `docs/archive/worklog-phase3-0818-658.md:618-631` (entry 658)。
+
+**却下した選択肢:**
+- (b) 凍結の unknownness 主張を「凍結時点の歴史的記録」と明示し事後 scan を要求しない —
+  検出側の緩和であり、生成側の根本原因を放置する。ユーザー裁定で不採用。
+- (c) 明示的な exempt path を裁定する — 択一裁定で明示的に不採用。将来の同型 producer が
+  無防備なまま残る。
+- `default_durable_root_policy()` を env 連動にして任意の外部 path を自動承認する変更 —
+  既存 policy を弱め、exploration や他の durable writer へ波及する。
+
+**D158 との関係:** D158 は「official `CampaignLayout` と `output/env/` は env を参照しない」と
+記す。本 D はこのうち **official `CampaignLayout` に関する部分だけ** を supersede する —
+official は `IZANAGI_OFFICIAL_OUTPUT_ROOT` を参照するようになった。`output/env/`
+(`env_scope_dir()`) 自体は本 wave で変更しておらず、D158 のこの部分および
+materialization admission (`_admit_materialization`、official=no-op・exploration=worktree
+container 拒否) に関する記述は従来どおり有効である。
+
+## D642. 承認pin (CCBENCH_FULL_SHA) が実gitlinkから漂流したら、能動gateの有無を確認してから revert を canary hold / cascade より優先する (2026-08-22)
+
+**決定:** `orchestrator/campaign/s8b_approved.CCBENCH_FULL_SHA` のような「承認済みpin定数」が
+実 gitlink と食い違ったとき、対応方針を選ぶ前に **その pin を検査している全経路を、受動的
+canary (test suite 内の複製 assert) と能動的 gate (実際に凍結発行等を行う本番関数内の
+fail-closed 検査) に分類する**。能動的 gate が1つでも存在し、かつ今すぐその機能 (今回は
+S8b floor campaign の新規凍結発行) を使う具体的な予定が無いなら、canary の hold や
+campaign-id golden の連鎖修正より、**pin 前進そのものを revert する方を優先する**。
+revert が下流 wave (今回は T-755, MOCC trace hook) に影響しないかを、そのユーザー裁定前に
+本人へ確認する。
+
+**理由:**
+- 受動的 canary (`test_ccbench_full_sha_matches_real_gitlink`) は既存の
+  `freeze_verification_hold.py` パターンで安全に hold できる — 対応する能動 gate
+  (`s8b_floor_campaign._assert_sealed_protocol_ccbench_pin`) が既に同じ hold
+  (2026-08-12 裁定) の対象であり、hold してもfail-closed側の実防御は変わらないため。
+- しかし `build_protocol_document()` の C4-4 検査は **hold機構を経由しない別の能動 gate**
+  であり、これは「今すぐ新しい承認済み protocol を、承認されていない ccbench で焼ける」
+  状態を防ぐ本物の防御であるため、hold すべきではない。この gate は pin 不一致時に
+  無関係な10件のテスト (env_tag 未登録の拒否テスト等) まで巣専える副作用があり、
+  「canary だけ hold すれば十分」という早計な判断を誤らせる。
+- 一方 CCBENCH_FULL_SHA を pin に合わせて再承認すると、campaign-id が
+  `ident.canonical_preimage` の pre-image に pin を含む設計 (`orchestrator/campaign/pin.py`
+  の docstring が明記する「正直な content-addressed 挙動」) のため、無関係な
+  campaign-id golden 値 (`_CURRENT_POLICY_BOUND_CAMPAIGN_IDS` 等) が50件超連鎖的に
+  ズレる。これは正しく計算し直せば解消するが、pin 前進自体が今すぐ必要でないなら
+  過剰な作業になる。
+- revert は「実際に certified な結果を偽って主張した事象」がまだ発生していない
+  (hook は `#if TRACE` で inert、誰も新pinで実測を回していない) 時点でのみ安全に
+  選べる。発生後は revert では収拾がつかず (a) の再承認 cascade を選ぶしかない。
+
+**却下した選択肢:**
+- **canary hold のみで済ませる**: `build_protocol_document()` の能動 gate を見落とし、
+  fleet を完全には解放できない (実測: 10テストが残留)。
+- **CCBENCH_FULL_SHA 再承認 + 60件超の golden 連鎖修正を今すぐ仕上げる**:
+  当該 pin (MOCC trace hook) を今すぐ使う予定の T-755 自身が「outer gitlink を
+  参照しない設計なので revert で無影響」と回答し、緊急性が無いと判明したため、
+  fleet 解放を優先し revert を選んだ。将来 T-755 が正式に統合する際は D16 の
+  `izanagi-trace` ブランチ経由の正規プロセスで pin 前進をやり直す。
+
+## D643. 受入投入と記録commitの順序注記はDW-S07/DW-C00でなくDW-O12へ置く (2026-08-22)
+
+**決定:** T-1451 (「land対象tipへの最終受入投入は段7記録commit完了後に行う」旨の注記) を、
+提案元が候補地として挙げていた `docs/dev-wave/core.md` の `DW-S07`/`DW-C00` (いずれもL1、
+wave開始時・段7で無条件に読む) ではなく、`docs/dev-wave/operations.md` の `DW-O12`
+(「裁定手順と実行手順の差」、L2、段4裁定手順と実行手順が食い違った時点にだけ読む) へ置く。
+同時に着地させた T-1468 (checker自身のPegasus infra失敗の扱い) は提案どおり `DW-O18`
+(L2) へ置く。
+
+**理由:**
+- `docs/dev-wave/**` のL1 unique footprint予算は10,625 bytesで固定 (`tools/check_docs.py`
+  の `DEV_WAVE_L1_BYTES_MAX`)。本wave着手時点で実測すると、T-1451 の注記文を `DW-S07`
+  または `DW-C00` (いずれもL1) へ追記しただけで合計11,038 bytesとなり budget を413 bytes
+  超過した。既存L1文の圧縮だけでこの幅を埋めるのは、複数節にまたがる大規模な書き直しを
+  要し規律5 (段階導入・盛らない) に反するため見送った。
+- `DW-O12` は「裁定手順(想定)と実行手順(実際)が食い違った時点」という発火条件そのものが
+  T-1451 の症状 (`DW-S06-C` の文面が段6内の受入投入を示唆する一方、実際land対象となる
+  受入は段7の記録commit後でなければならない、という想定と実際の食い違い) と一致する。
+  追記前実測611 bytes空きがあり、圧縮なしで収まった (追記後 `python3 tools/check_docs.py`
+  が違反なしを返した)。
+- `DW-O18` (「親のテストcwd」、L2、追記前995/1000 bytes) は T-1468 の症状 (checker自身の
+  rc非0の扱い) と直接同じ話題領域であり、提案どおりの設置が最も自然だった。既存文を圧縮
+  (F41 引用文を `DW-S07` 案から `DW-O12` 側へ retarget、細部の言い回し圧縮) して
+  997/1000 bytesに収めた。
+
+**却下した選択肢:**
+- `DW-S07`/`DW-C00` への直接追記 (提案時の候補地のまま) — L1総予算超過で `check_docs.py`
+  が違反を返す。既存L1文の広範な圧縮とセットでなければ成立せず、本wave (対象2件の着地) の
+  scopeを超える。
+- `DEV_WAVE_L1_BYTES_MAX`/`DEV_WAVE_L2_SECTION_BYTES_MAX` 等の予算定数自体を引き上げる —
+  D271近辺で予算の運用契約 (L2節の新設・削除は裁定を要する) が既に定められており、定数の
+  見直しはそれ自体が独立の設計判断でありユーザー裁定を要する。本waveのscope外として着手
+  しなかった。3層とも逼迫している実態はworklog fragment (exploratory-run-worktree-isolation
+  候補が未着地のまま残る記録) に残し、次に予算へ触れるwaveへ引き継ぐ。
