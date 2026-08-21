@@ -11525,3 +11525,49 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 恒久対応: 実装なし (運用規律として、受入全走に限らず焦点走全般を並行 dispatch させない
   ことを次タスク候補にする)。
 - 再発検知: 複数の焦点走を投入する際は、並行させず 1 本ずつ完了を待ってから次を投げる。
+
+### F457. 共有ログインノードの `/tmp` 直下に他プロセスが一時的に `.git` を作り、repo 外検証を無差別に誤検出させる [計測汚染]
+
+- 事象: `tools/mutation_harness.py --runner-mode local` で本 wave の official/exploration
+  repo 外強制ロジック (`_has_git_ancestor`) を検査したところ、`/tmp` 配下の無関係な多数の
+  test が「official output_root は repository 外でなければならない」で一括 red 化した
+  (最大92件)。直接確認すると `/tmp/.git` という空ディレクトリ (所有者 tanab、本 wave とは
+  無関係) が存在し、`_has_git_ancestor()` が `/tmp` 配下の**あらゆる** path を repo 内と
+  誤判定していた。`rmdir` で除去すると一時的に解消するが、その後の別走行で再度出現・消失した
+  (別プロセスが短時間だけ `/tmp/.git` を作る何らかの操作を行っていると推定、`ps -u` で
+  同一アカウントの複数 dev-wave セッションが並行稼働していることを確認済み)。
+- 根本原因: `_has_git_ancestor()` (exploration 由来、本 wave 以前から存在) は path 祖先の
+  どこかに `.git` という名前の**エントリが存在するだけ**で repo 内と判定し、それが実際に
+  機能する git repository か (HEAD・objects・refs を持つか) を検証しない。共有ログインノード
+  の `/tmp` は同一アカウントの複数セッション・他ツールが読み書きする共有空間であり、
+  この構造検査の弱さが `/tmp` 全体を巻き込む。
+- 恒久対応: 未実施 (本 wave の scope 外、規律5に照らし対応せず記録のみ)。将来 `_has_git_ancestor`
+  を強化する場合は「実在する完全な git repository か」まで検証する案を検討候補として残す。
+- 再発検知: ログインノードでの local test 実行が説明のつかない大量 red (特に「repository 外
+  でなければならない」という文言を含む) を出したら、`ls -la /tmp/.git` 等で `/tmp` 直下の
+  迷子 `.git` 混入をまず疑う。
+
+### F458. T-181/T-1434の既存test群がreal codex execの実ネットワーク経路を一度も検証していなかった [テスト代表性]
+
+- 事象: T-189 stage2-plan-replayer実装のsmoke gate (DW-G01) で、`tools/codex_reasoning_ab.py`
+  既存の`_bwrap_exec_argv`経由でreal codex execを試みたところ、実ネットワーク到達不可
+  (120秒timeout・exit -15・output 0 bytes、stderr: code-mode host未配置)で失敗した。
+- 根本原因: `_supervise_one`が使う`environment`辞書 (`_clean_environment`の
+  `ENV_ALLOWLIST = {CODEX_HOME, HOME, LANG, LC_ALL, PATH, TERM, TZ}`のみ) は、
+  `dry_run=True`(直接Popen、bwrap非経由)でも`dry_run=False`(bwrap経由)でも同じ縮小dictを
+  使う。T-1434の既存test (292+ passed) はdry_run=Trueかつfake codex binaryのみを使っており、
+  「real codex binaryを実ネットワーク接続込みで、この縮小環境の下で起動する」という
+  production相当の経路を一度も実測していなかった。292+ passedという緑の実績は、
+  bwrap/env-strip層の実ネットワーク到達性については無関係 (代表性を持たない)。
+- 恒久対応: 本waveの新規機構 (stage2-plan-replayer) は同じ罠を踏まず、ambient env継承+HOME
+  上書き+auth/configコピーという実証済みrecipeを使う (D644)。
+  この選択の理由と根本原因は`tools/codex_reasoning_ab.py`のdownstream起動コード付近の
+  docstring/コメントに残した。既存の`_bwrap_exec_argv`自体・T-181由来の既存test群の
+  代表性ギャップは本waveでは修正していない (規律5、apparatus全体に及ぶ横断的変更のため
+  scope外、[T-1480]以降の実験実施waveが引き継ぐべき前提条件として
+  D644に明記)。
+- 再発検知: 新規サブプロセス起動機構をこのapparatus上に構築するwaveは、DW-G01の生死確認を
+  `dry_run=True`やfake binaryだけで済ませず、実binary・実認証・実ネットワークでの
+  smoke testを要求する (段4裁定のF8/F13相当の扱いを一般化)。機械lint化は未実装 — 次に
+  同型の罠を踏んだ wave が出たら、DW-G01の記述へ「fake/dry_run実績だけでは生死確認済みと
+  扱わない」旨を明文化する候補とする。
