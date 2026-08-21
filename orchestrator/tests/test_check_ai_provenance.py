@@ -2009,6 +2009,22 @@ def test_known_violation_ledger_matches_literal_entries():
         ("1782d2bc4c7775869b0e6c4b40d08d78b6cbca64", "missing-codex-author", t567_merge3_ruling, t567_merge3_note, ""),
         ("4d7e169bddb3ecc068ed85b51dd0b2c47b4d6900", "missing-codex-author", t567_merge4_ruling, t567_merge4_note, ""),
         ("a8be40180ee7e33dbfab8eeb1a865ed72392e895", "missing-codex-author", t567_merge5_ruling, t567_merge5_note, ""),
+        (
+            "664dfc620a8dff78b1f6dc9c846683cf2d069337",
+            "missing-codex-author",
+            "本セッション内でユーザーへ状況を説明し known-violation 登録の続行を承認された (2026-08-21)",
+            "受入投入前に local main (155 commit) を取り込んだ merge "
+            "`664dfc620a8dff78b1f6dc9c846683cf2d069337`。この merge は競合なく "
+            "（Automatic merge went well）、`git diff-tree --cc 664dfc620a8dff78b1f6dc9c846683cf2d069337` "
+            "はコミットヘッダ行のみで完全に空（新規著作なし）だったことを確認済み。実装面で両側が触ったのは "
+            "`orchestrator/tests/test_p3_autonomous_workload_trial.py` の1 fileのみで、wave 側は "
+            "6362-6371行目の monkeypatch 2行削除を Codex `role=author` が commit "
+            "`6081aa9414a26c26fea924e03d68c8fa7f291476` で既に書き、main 側は T-1393 の `_finish_trial()` "
+            "変更で編集箇所は非重複だった。merge commit は `AI-Agent: product=claude; model=claude-sonnet-5; "
+            "reasoning=not-exposed; role=integrator` のみで Codex `role=author` 行がないため、checker が "
+            "missing-codex-author を検出した。親作成 merge のため Codex 著者とは記さない。",
+            "",
+        ),
     )
     assert len(provenance.KNOWN_PROVENANCE_VIOLATIONS) == len(expected)
     assert observed == expected
