@@ -81,6 +81,9 @@ worklog には裁定予定を写さず、実際に実行した手順を書く。
 一次資料と逆の工程記録を残してはならない。
 受理集合を変える指示を子へ出す直前に、この wave で凍結済みの事前登録・判定式を再読する。
 凍結は自分が直前に書いたものでも拘束する。
+DW-S06-C の受入投入記述は段6内の中間走行 (変異検証目的) を指す。land 対象 tip への最終受入投入は
+DW-S07 の記録 commit 完了後に行う——取り違えると記録 commit が tested tip から漏れ land が rc=23
+になる。測定値は測った checkout を併記する（F41）。
 
 ## DW-O13 — gate 入力の実在
 
@@ -112,14 +115,15 @@ Codex著者行を要求されlandが止まる。
 
 ## DW-O18 — 親のテスト cwd
 
-cwd を必ず repo root にする。nested subprocess の import path による偽赤を差分の回帰として扱わない。
-file 選択走は `from tests import` の import path を確立してから走らせる (未確立の赤は偽赤)。
-差分が到達しえない赤は単独再走で実測し、再現しなければ帰属せずフレーク起票する。
-`tools/check_acceptance_reds.py` はこの機械化で rc=1 なら停止。rc=2 は判定不能で非帰属の根拠にしない。
-測定値は測った checkout を併記する（F41）。変更した test file は受入全走の前に別 process の
-単独走で 1 度確認する。全走の緑は file 単独の緑を含意しない。新規 test file を足す走は
-file 集合を列挙するメタテストも焦点走に含める。並行 wave が自分の編集 file を所有するなら
-main を取り込んだ木で既存走行へ相乗りさせ、受入の後へ足さない。
+cwd は必ず repo root。nested subprocess の import path 偽赤は差分の回帰として扱わない。
+file 選択走は `from tests import` の import path 確立後に走らせる (未確立の赤は偽赤)。
+差分到達しえない赤は単独再走で実測し、再現しなければ非帰属フレーク起票。
+`tools/check_acceptance_reds.py` は rc=1 停止・rc=2 判定不能で非帰属根拠なし・checker infra
+失敗 (no-verdict retry 対象外、新規 attempt 再投入) の3種を区別。rc=0+
+non-attributable-only は受理成功、赤だけで失敗と早合点しない。変更した test file は受入全走前に単独走で確認する
+(全走緑は file 単独緑を含意しない)。新規 test file を足す走は file 集合列挙の
+メタテストも焦点走に含める。並行 wave が自分の編集 file を所有するなら main 取込み済みの
+木で既存走行に相乗りし受入後に足さない。
 
 ## DW-O19 — tracked file の一時変異
 
