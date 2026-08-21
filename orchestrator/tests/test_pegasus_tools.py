@@ -1133,6 +1133,7 @@ def test_calibrate_failure_survives_err_trap_and_writes_job_result(tmp_path):
     prefix = f"""ATTEMPT_DIR={json.dumps(str(attempt))}
 PBS_JOBID=123.server
 remaining=30
+CALIBRATION_RRATIO=50
 REPO_ROOT={json.dumps(str(tmp_path))}
 TOOLS={json.dumps(str(TOOL_DIR))}
 BINARY=/unused/binary
@@ -1224,6 +1225,7 @@ def test_certify_submit_binding_uses_narrow_request_id_normalization(
         "dry_run": False,
         "source_commit": commit,
         "job_script_sha256": script_sha,
+        "calibration": {"workload": {"ycsb_rratio": "50"}},
         "qsub": {
             "request_id": qsub_id, "project": "SFC", "queue": "gen_S",
             "nodes": 1, "elapstim_req_s": 7200,
@@ -1235,6 +1237,7 @@ def test_certify_submit_binding_uses_narrow_request_id_normalization(
 CURRENT_COMMIT={commit}
 CURRENT_SCRIPT_SHA={script_sha}
 PBS_JOBID={pbs_jobid}
+CALIBRATION_RRATIO=50
 PROJECT=SFC
 QUEUE=gen_S
 NODES=1
