@@ -301,6 +301,21 @@ _T1337_PRE_ACCEPTANCE_MERGE_NOTE = (
     "Codex `role=author` が既に書いており、main 側は各 wave land 時に監査済み。親作成 merge の"
     "ため Codex 著者とは記さない。"
 )
+_T972_MERGE_RULING = (
+    "dev-wave-t972-perf-preflight-receipt 受入前 main 取り込み。Codex role=author 合成監査で"
+    "変更不要と判定、親セッションがユーザーへ状況を説明し known-violation 登録の続行を"
+    "承認された (2026-08-21)"
+)
+_T972_MERGE_NOTE = (
+    "受入3回目が owned-path-overlap で終端し親が main を取り込んだ merge。実装面で両側が触ったのは"
+    "`orchestrator/campaign/s8b_floor_campaign.py` / "
+    "`orchestrator/tests/test_s8b_floor_campaign.py` の2 file で、"
+    "`git diff-tree --cc 8482c047` は SHA 行のみの完全な空 = 競合解決による新規著作なしと確認済み。"
+    "Codex `role=author` の合成監査子が両 wave の機能（T-1444 の site-aware machine-pin 解決、"
+    "T-972 の perf-preflight journal 永続化）の意味的整合を file:line 単位で確認し「変更不要」と判定した。"
+    "wave 側の実装面は Codex `role=author` が既存 commit（段5 実装子、fix1-4）で書いている。"
+    "親作成 merge のため Codex 著者とは記さない。"
+)
 _T565_MERGE_RULING = "D554 (2026-08-19)"
 _T139_MALFORMED_VALUE = (
     "product=claude; model=claude-opus-5[1m]; reasoning=high; "
@@ -712,6 +727,7 @@ KNOWN_PROVENANCE_VIOLATIONS = (
             "親作成mergeのためCodex著者とは記さない。"
         ),
     ),
+    KnownViolationSpec("8482c047b659ea26cb0687fe259fe8eab171d8b2", MISSING_AI_AGENT, _T972_MERGE_RULING, _T972_MERGE_NOTE),
 )
 
 
