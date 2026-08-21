@@ -1238,6 +1238,44 @@ def _validate_attempt_topology(
             attempt.stages_seen.append(record.stage)
             continue
 
+        if record.stage in {STAGE_VERIFY_DONE, STAGE_BENCH_DONE}:
+            attempt_id = payload.get("build_attempt_id")
+            if attempt_id is None:
+                continue
+            if type(attempt_id) is not str or not attempt_id:
+                raise AttemptTopologyError(
+                    f"{record.stage}: build_attempt_id が欠落または不正"
+                )
+            attempt = global_attempts.get(attempt_id)
+            if attempt is None or attempt.variant != record.variant:
+                raise AttemptTopologyError(
+                    f"{record.stage}: active attempt に対応する build_start がない"
+                )
+            current = active.get(record.variant)
+            if current is not attempt:
+                current_id = current.attempt_id if current is not None else None
+                raise AttemptTopologyError(
+                    f"{record.stage}: active attempt={current_id} と "
+                    f"build_attempt_id={attempt_id} が不一致"
+                )
+            if not attempt.build_done:
+                raise AttemptTopologyError(
+                    f"{record.stage}: build_done より前の attempt に属する"
+                )
+            if "build_admission_receipt_sha256" in payload:
+                receipt_sha = _receipt_sha(payload, stage=record.stage)
+                if (attempt.receipt_sha256 is None
+                        or receipt_sha != attempt.receipt_sha256):
+                    raise AttemptTopologyError(
+                        f"{record.stage}: 別 attempt の receipt SHA が流用された"
+                    )
+            if (record.stage == STAGE_BENCH_DONE
+                    and STAGE_BENCH_DONE in attempt.stages_seen):
+                raise AttemptTopologyError("bench_done: 同一 attempt で重複")
+            # S2 may emit multiple verify passes; bench remains single-pass.
+            attempt.stages_seen.append(record.stage)
+            continue
+
         if record.stage == STAGE_ABORT:
             attempt_id = payload.get("build_attempt_id")
             if attempt_id is None:
@@ -1506,12 +1544,14 @@ def recover_interrupted_attempts(
                     detail="one variant has multiple EOF-active attempts",
                 )
 
+        active_attempts = _project_active_attempts(active_candidates)
+
+        # D193's recovery gate is deliberately independent from the strict
+        # attempt topology validator below.  In particular, legacy signal
+        # records may have no build_attempt_id at all.  Preserve the first
+        # post-start stage diagnosis using stage kind only.
         try:
             validate_trigger_bindings(records, campaign_lock=campaign_lock)
-            _validate_attempt_topology(
-                records, admission_policy=admission_policy,
-                campaign_lock=campaign_lock,
-            )
         except AttemptTopologyError as exc:
             variant, attempt_ids = _recovery_context(records)
             raise InterruptedAttemptRecoveryError(
@@ -1520,11 +1560,7 @@ def recover_interrupted_attempts(
                 attempt_ids=attempt_ids,
                 detail=str(exc),
             ) from exc
-
-        active_attempts = _project_active_attempts(active_candidates)
-        recoveries: List[WalRecord] = []
-        trigger_machine = is_trigger_machine_campaign_lock(campaign_lock)
-        for variant, (start_index, start, attempt) in active_attempts.items():
+        for variant, (start_index, _start, attempt) in active_attempts.items():
             later_attempt_record = next((
                 later for later in records[start_index + 1:]
                 if (later.variant == variant
@@ -1544,6 +1580,24 @@ def recover_interrupted_attempts(
                     detail=("build_done, verify_done, or bench_done follows "
                             "build_start"),
                 )
+
+        try:
+            _validate_attempt_topology(
+                records, admission_policy=admission_policy,
+                campaign_lock=campaign_lock,
+            )
+        except AttemptTopologyError as exc:
+            variant, attempt_ids = _recovery_context(records)
+            raise InterruptedAttemptRecoveryError(
+                condition="existing-topology-violation",
+                variant=variant,
+                attempt_ids=attempt_ids,
+                detail=str(exc),
+            ) from exc
+
+        recoveries: List[WalRecord] = []
+        trigger_machine = is_trigger_machine_campaign_lock(campaign_lock)
+        for variant, (_start_index, start, attempt) in active_attempts.items():
             if (trigger_machine
                     or TRIGGER_BINDING_COMMITMENT_KEY in start.payload):
                 raise InterruptedAttemptRecoveryError(
@@ -1587,6 +1641,66 @@ def recover_interrupted_attempts(
         return recoveries
     finally:
         os.close(fd)
+
+
+def replay_admitted_records(records: List[WalRecord]) -> Dict[str, EvalState]:
+    """Project an already-read WAL snapshot without touching the live layout.
+
+    The legacy variant-wide fields intentionally retain replay's historical
+    last-record behavior.  The committed fields are populated only from the
+    final commit's attempt ID and records preceding that commit, so an older
+    attempt cannot enter the committed projection merely by appearing later
+    in a variant's WAL history.
+    """
+    states: Dict[str, EvalState] = {}
+    for index, r in enumerate(records):
+        if _is_trigger_orphan_tombstone_at(records, index):
+            continue
+        st = states.get(r.variant)
+        if st is None:
+            st = EvalState(variant=r.variant)
+            states[r.variant] = st
+        st.stages_seen.append(r.stage)
+        st.env_tag = r.env_tag
+        st.last = r
+        if r.stage == STAGE_COMMIT:
+            st.committed = True
+            st.last_terminal = r
+        elif r.stage == STAGE_ABORT:
+            st.aborted = True
+            st.last_terminal = r
+
+    for variant, state in states.items():
+        commit_index: Optional[int] = None
+        committed_attempt_id: Optional[str] = None
+        for index in range(len(records) - 1, -1, -1):
+            record = records[index]
+            if (_is_trigger_orphan_tombstone_at(records, index)
+                    or record.variant != variant
+                    or record.stage != STAGE_COMMIT):
+                continue
+            candidate = record.payload.get("build_attempt_id")
+            if type(candidate) is str and candidate:
+                commit_index = index
+                committed_attempt_id = candidate
+            break
+        if commit_index is None or committed_attempt_id is None:
+            continue
+
+        state.committed_attempt_id = committed_attempt_id
+        for index, record in enumerate(records[:commit_index + 1]):
+            if (_is_trigger_orphan_tombstone_at(records, index)
+                    or record.variant != variant
+                    or record.payload.get("build_attempt_id")
+                    != committed_attempt_id):
+                continue
+            if record.stage == STAGE_BUILD_START:
+                state.committed_build_start = record
+            elif record.stage == STAGE_VERIFY_DONE:
+                state.committed_verify.append(record)
+            elif record.stage == STAGE_BENCH_DONE:
+                state.committed_bench = record
+    return states
 
 
 def replay(
@@ -1633,23 +1747,7 @@ def replay(
             )
             if admission_policy is not None else {}
         )
-    states: Dict[str, EvalState] = {}
-    for index, r in enumerate(records):
-        if _is_trigger_orphan_tombstone_at(records, index):
-            continue
-        st = states.get(r.variant)
-        if st is None:
-            st = EvalState(variant=r.variant)
-            states[r.variant] = st
-        st.stages_seen.append(r.stage)
-        st.env_tag = r.env_tag
-        st.last = r
-        if r.stage == STAGE_COMMIT:
-            st.committed = True
-            st.last_terminal = r
-        elif r.stage == STAGE_ABORT:
-            st.aborted = True
-            st.last_terminal = r
+    states = replay_admitted_records(records)
     for variant, variant_attempts in attempts.items():
         states.setdefault(variant, EvalState(variant=variant)).attempts = variant_attempts
     return states

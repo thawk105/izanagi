@@ -288,6 +288,97 @@ _T470_MERGE2_NOTE = (
     "`role=author` が commit `c0936079` / `2d111bfc` / `d59f53d4` で書き、main 側は各 wave "
     "の land 時に監査済み。親作成 merge のため Codex 著者とは記さない。"
 )
+_T567_MERGE2_RULING = (
+    "2026-08-21 dev-wave-t567-attempt-binding land 前裁定 "
+    "(2回目、ユーザー選択: known-violation 登録)"
+)
+_T567_MERGE2_NOTE = (
+    "2回目の受入投入前 local main 取り込み merge "
+    "`5823caf328a5985476cd2f6f7aa0d13daa5b08f6`。`tools/check_ai_provenance.py` / "
+    "`orchestrator/tests/test_check_ai_provenance.py` で、本 wave が追加した T-567 の "
+    "known-violation エントリと main 側の別 wave (T-565、merge "
+    "`76248294bf40eb7fa0d806ce4df5010d685036de`) のエントリが同じ末尾へ競合し、"
+    "両方を残すだけの union で解決した。`orchestrator/tests/test_campaign.py` は "
+    "main 側の新規変更と衝突しなかった。`git diff-tree --cc "
+    "5823caf328a5985476cd2f6f7aa0d13daa5b08f6 -- "
+    "orchestrator/tests/test_campaign.py orchestrator/tests/test_check_ai_provenance.py "
+    "tools/check_ai_provenance.py` では `test_campaign.py` が combined diff に現れず、"
+    "2 checker file の追加行もいずれかの親に既存で、両親のどちらにも無い新規行はない。"
+    "結果は両側の known-violation エントリを並べただけの union で、競合解決による新規著作なし。"
+    "親作成 merge のため Codex 著者とは記さない。"
+)
+_T567_MERGE3_RULING = (
+    "2026-08-21 dev-wave-t567-attempt-binding land 前裁定 "
+    "(3回目、ユーザー選択: known-violation 登録)"
+)
+_T567_MERGE3_NOTE = (
+    "3回目の受入投入前 local main 取り込み merge "
+    "`1782d2bc4c7775869b0e6c4b40d08d78b6cbca64`。"
+    "`orchestrator/critic/digest.py` / `orchestrator/tests/test_critic.py` で、本 wave が追加した "
+    "T-567 の attempt binding 関連 (`load_workload()` / `load_verify_abort_signals()` / "
+    "`_committed_projection()`) と main 側の別 wave (T-397/T-410、commit `3c993259`) の "
+    "permutation witness 関連 (`render_rejections()`) は別関数で、3-way 結合は両側の変更の和集合だった。"
+    "`git diff-tree --cc 1782d2bc4c7775869b0e6c4b40d08d78b6cbca64 -- "
+    "orchestrator/critic/digest.py orchestrator/tests/test_critic.py` は commit ヘッダ (SHA) 行のみで"
+    "実質空（Automatic merge went well、競合なし）、競合解決による新規著作なし。wave 側の実装面は "
+    "Codex `role=author` が commit `6130a1b9886536b8b09d2583f07ea70f96cbc749` / "
+    "`40aded545ab835f755dc67c2a72ef9e57ad93a90` で書き、main 側は commit `3c993259` として各 wave の "
+    "land 時に監査済み。親作成 merge のため Codex 著者とは記さない。"
+)
+_T567_MERGE_RULING = (
+    "2026-08-21 dev-wave-t567-attempt-binding land 前裁定 "
+    "(ユーザー選択: known-violation 登録)"
+)
+_T567_MERGE_NOTE = (
+    "受入投入前に親が作成した local main `8ea6e9daff52f3795b4b9864860065267369fc81` を"
+    "wave 側 parent `40aded545ab835f755dc67c2a72ef9e57ad93a90` へ取り込んだ merge "
+    "`c44b981c4a765b8f189d30ca69ba7b461b71efd1`。実装面で両側が触ったのは"
+    "`orchestrator/tests/test_campaign.py` の 1 file で、`git diff-tree --cc "
+    "c44b981c4a765b8f189d30ca69ba7b461b71efd1 -- orchestrator/tests/test_campaign.py` は"
+    "commit ヘッダ (SHA) 行のみで実質空、3-way 結合は両側の変更の和集合で競合解決による"
+    "新規著作なし。merge 後は wave 側の attempt binding 関連 3 test と main 側 (T-1437) の"
+    "`EVOLVE_BLOCK_SOURCE_PROTOCOLS` / `PROVEN_REPO_ABSENT_MACROS` 関連の変更が両方残る。"
+    "wave 側の実装面は Codex `role=author` が commit "
+    "`6130a1b9886536b8b09d2583f07ea70f96cbc749` / "
+    "`40aded545ab835f755dc67c2a72ef9e57ad93a90` で書き、main 側は commit "
+    "`2a34b7b0473db3d7be3b16ea0e230fdf00b6f493` として各 wave の land 時に監査済み。"
+    "親作成 merge のため Codex 著者とは記さない。"
+)
+_T567_MERGE4_RULING = (
+    "2026-08-21 dev-wave-t567-attempt-binding land 前裁定 "
+    "(4回目、ユーザー選択: known-violation 登録)"
+)
+_T567_MERGE4_NOTE = (
+    "4回目の受入投入前 local main 取り込み merge "
+    "`4d7e169bddb3ecc068ed85b51dd0b2c47b4d6900`。"
+    "`orchestrator/tests/test_s8b_oracle_driver.py` で、main 側の別 wave "
+    "(T-1444、commit `840fb6da` 以降) が加えた ENV_TAG の Pegasus site-aware 化との "
+    "3-way 結合の結果が両親のどちらとも異なるため checker が実装面著作と誤判定；"
+    "`git diff-tree --cc 4d7e169bddb3ecc068ed85b51dd0b2c47b4d6900 -- "
+    "orchestrator/tests/test_s8b_oracle_driver.py` は commit ヘッダ (SHA) 行のみで実質空 "
+    "（Automatic merge went well、競合なし）、競合解決による新規著作なし。wave 側の実装面 "
+    "(`test_s8b_oracle_driver.py` の `_run_bench` 呼び出しへの `build_attempt_id=` 引数追加) は "
+    "Codex `role=author` が commit `6130a1b9886536b8b09d2583f07ea70f96cbc749` で初回統合時に"
+    "既に書き、main 側は各 wave の land 時に監査済み。親作成 merge のため Codex 著者とは記さない。"
+)
+_T567_MERGE5_RULING = (
+    "2026-08-21 dev-wave-t567-attempt-binding land 前裁定 "
+    "(5回目、ユーザー選択: known-violation 登録)"
+)
+_T567_MERGE5_NOTE = (
+    "5回目の known-violation 対象となる受入投入前 local main 取り込み merge "
+    "`a8be40180ee7e33dbfab8eeb1a865ed72392e895`。"
+    "`orchestrator/tests/test_campaign.py` で、main 側の別 wave (commit `cb7a0107`、"
+    "「advisory flock を exploration リダイレクトへ追従させる」) が加えた 43 行との "
+    "3-way 結合の結果を checker が実装面著作と誤判定；`git diff-tree --cc "
+    "a8be40180ee7e33dbfab8eeb1a865ed72392e895 -- orchestrator/tests/test_campaign.py` は "
+    "commit ヘッダ (SHA) 行のみで実質空（Automatic merge went well、競合なし）、競合解決による "
+    "新規著作なし。wave 側の実装面は Codex `role=author` が commit "
+    "`6130a1b9886536b8b09d2583f07ea70f96cbc749` / "
+    "`40aded545ab835f755dc67c2a72ef9e57ad93a90` で既に書き、main 側は commit `cb7a0107` "
+    "(AI-Agent: product=codex; role=author) として各 wave の land 時に監査済み。"
+    "親作成 merge のため Codex 著者とは記さない。"
+)
 _T1337_PRE_ACCEPTANCE_MERGE_RULING = (
     "2026-08-20 dev-wave-t1337-launcher-timing-proof 受入前裁定 "
     "(ユーザー選択: known-violation 登録)"
@@ -317,6 +408,22 @@ _T1371_MERGE_NOTE = (
     "実装面変更は Codex `role=author` が commit `756228db` で書き、main 側は各 wave の"
     "land 時に監査済み。親作成 merge のため Codex 著者とは記さない。"
 )
+_T972_MERGE_RULING = (
+    "dev-wave-t972-perf-preflight-receipt 受入前 main 取り込み。Codex role=author 合成監査で"
+    "変更不要と判定、親セッションがユーザーへ状況を説明し known-violation 登録の続行を"
+    "承認された (2026-08-21)"
+)
+_T972_MERGE_NOTE = (
+    "受入3回目が owned-path-overlap で終端し親が main を取り込んだ merge。実装面で両側が触ったのは"
+    "`orchestrator/campaign/s8b_floor_campaign.py` / "
+    "`orchestrator/tests/test_s8b_floor_campaign.py` の2 file で、"
+    "`git diff-tree --cc 8482c047` は SHA 行のみの完全な空 = 競合解決による新規著作なしと確認済み。"
+    "Codex `role=author` の合成監査子が両 wave の機能（T-1444 の site-aware machine-pin 解決、"
+    "T-972 の perf-preflight journal 永続化）の意味的整合を file:line 単位で確認し「変更不要」と判定した。"
+    "wave 側の実装面は Codex `role=author` が既存 commit（段5 実装子、fix1-4）で書いている。"
+    "親作成 merge のため Codex 著者とは記さない。"
+)
+_T565_MERGE_RULING = "D554 (2026-08-19)"
 _T139_MALFORMED_VALUE = (
     "product=claude; model=claude-opus-5[1m]; reasoning=high; "
     "role=orchestrator"
@@ -717,6 +824,52 @@ KNOWN_PROVENANCE_VIOLATIONS = (
         MISSING_CODEX_AUTHOR,
         _T1371_MERGE_RULING,
         note=_T1371_MERGE_NOTE,
+    ),
+    KnownViolationSpec(
+        "76248294bf40eb7fa0d806ce4df5010d685036de",
+        MISSING_CODEX_AUTHOR,
+        _T565_MERGE_RULING,
+        note=(
+            "受入前の local main 取り込みmerge (2回目)。実装面で両側が触ったのは"
+            "orchestrator/tests/test_campaign.py の1 fileのみで、"
+            "git diff-tree --cc 76248294 はSHA行のみの完全な空 = 競合解決による新規著作なし。"
+            "wave側の追加7テストはCodex role=authorが commit 06acc7fd で既に書いており、"
+            "main側 (T-1437) は main land時に監査済み。D554の「実装面で本当に衝突したときだけ"
+            "Codexを要求する」条件付き昇格に該当するが、本merge自体はdev_wave_wait.pyの"
+            "postclaim mergeではなく手動mergeのため事前検証済みファイルを持たなかった。"
+            "親作成mergeのためCodex著者とは記さない。"
+        ),
+    ),
+    KnownViolationSpec("8482c047b659ea26cb0687fe259fe8eab171d8b2", MISSING_CODEX_AUTHOR, _T972_MERGE_RULING, _T972_MERGE_NOTE),
+    KnownViolationSpec(
+        "c44b981c4a765b8f189d30ca69ba7b461b71efd1",
+        MISSING_CODEX_AUTHOR,
+        _T567_MERGE_RULING,
+        note=_T567_MERGE_NOTE,
+    ),
+    KnownViolationSpec(
+        "5823caf328a5985476cd2f6f7aa0d13daa5b08f6",
+        MISSING_CODEX_AUTHOR,
+        _T567_MERGE2_RULING,
+        note=_T567_MERGE2_NOTE,
+    ),
+    KnownViolationSpec(
+        "1782d2bc4c7775869b0e6c4b40d08d78b6cbca64",
+        MISSING_CODEX_AUTHOR,
+        _T567_MERGE3_RULING,
+        note=_T567_MERGE3_NOTE,
+    ),
+    KnownViolationSpec(
+        "4d7e169bddb3ecc068ed85b51dd0b2c47b4d6900",
+        MISSING_CODEX_AUTHOR,
+        _T567_MERGE4_RULING,
+        note=_T567_MERGE4_NOTE,
+    ),
+    KnownViolationSpec(
+        "a8be40180ee7e33dbfab8eeb1a865ed72392e895",
+        MISSING_CODEX_AUTHOR,
+        _T567_MERGE5_RULING,
+        note=_T567_MERGE5_NOTE,
     ),
 )
 

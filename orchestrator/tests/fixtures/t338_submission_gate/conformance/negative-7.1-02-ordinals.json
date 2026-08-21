@@ -1,0 +1,1 @@
+{"schema_version":"t338-conformance-vector/v2","id":"negative-7.1-02-ordinals","kind":"negative","classification":"relabel","covers":["7.1(2)"],"unit3_reference":"対応なし・unit5独自","entrypoint":"receipt","mutation":{"op":"set","path":["environment","attestations",1,"ordinal"],"value":3},"expected_reason":"cardinality"}

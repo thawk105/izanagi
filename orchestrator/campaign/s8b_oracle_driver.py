@@ -44,6 +44,7 @@ from . import s8b_oracle_spec  # noqa: E402
 from . import env_contract as _env_contract  # noqa: E402
 from . import env_attestation as _env_attestation  # noqa: E402
 from . import execution_guard  # noqa: E402
+from . import site_policy  # noqa: E402  (実機 site 観測)
 from . import reservation as _reservation  # noqa: E402
 from . import s8b_ratified_freeze  # noqa: E402
 from . import s8b_oracle_artifacts as _oracle_artifacts  # noqa: E402
@@ -55,7 +56,6 @@ from .layout import (  # noqa: E402
 )
 from .layout import write_capability_for_directory  # noqa: E402
 from .durable_root import DurableRootError, DurableRootPolicy  # noqa: E402
-from .p2_2 import ENV_TAG as MACHINE_ENV_TAG  # noqa: E402  (machine-pin 名のみ)
 from .s1_direct_comparison import PreparedCell, prepare_cell  # noqa: E402
 from .s8b_materialization import (  # noqa: E402
     MaterializationError,
@@ -92,6 +92,40 @@ ORACLE_RESERVATION_SAFETY_MARGIN_S = 0
 
 class OracleDriverError(RuntimeError):
     """8b oracle の入力・identity・実行契約を検証できない場合の拒否。"""
+
+
+def _machine_env_tag_for_site(site: str) -> str:
+    """実機 site 観測から machine-pin の registry-derived tag を解決する。"""
+    if site == site_policy.PEGASUS_COMPUTE:
+        try:
+            return _env_contract.lookup_required_attestation_contract().env_tag
+        except _env_contract.EnvContractError as exc:
+            raise OracleDriverError(
+                "machine-pin: required attestation contract を一意に解決できない"
+            ) from exc
+    if site == site_policy.OTHER:
+        try:
+            contracts = tuple(_env_contract.REGISTRY.values())
+            candidate_contracts = tuple(
+                contract
+                for contract in contracts
+                if contract.attestation_mode == "none"
+            )
+            candidate_tags = {contract.env_tag for contract in candidate_contracts}
+            registry_tags = tuple(contract.env_tag for contract in contracts)
+            registry_tag_set = set(registry_tags)
+        except (_env_contract.EnvContractError, AttributeError, TypeError) as exc:
+            raise OracleDriverError(
+                "machine-pin: none attestation contract を一意に解決できない"
+            ) from exc
+        if (len(candidate_contracts) != 1
+                or len(candidate_tags) != 1
+                or len(registry_tags) != len(registry_tag_set)):
+            raise OracleDriverError(
+                "machine-pin: none attestation contract を一意に解決できない"
+            )
+        return candidate_contracts[0].env_tag
+    raise OracleDriverError(f"machine-pin: 未対応 site {site!r}")
 
 
 class _UnknownAbortReason(OracleDriverError):
@@ -908,7 +942,8 @@ def _prepare_v2_execution(*, validated, run_contract, schedule,
     # (3) machine-pin + contract_sha256/clocks 完全一致 (共有 guard 経由)。
     try:
         execution_guard.assert_machine_pin(
-            contract, machine_env_tag=MACHINE_ENV_TAG,
+            contract,
+            machine_env_tag=_machine_env_tag_for_site(site_policy.current_site()),
         )
     except execution_guard.ExecutionGuardError as exc:
         raise OracleDriverError(str(exc)) from exc

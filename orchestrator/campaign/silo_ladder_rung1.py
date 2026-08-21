@@ -1459,7 +1459,8 @@ def _validate_schema(document: Any) -> EvidenceFailure | None:
         "genesis_commits", "missing_txids", "write_version_mismatch",
         "malformed_keys", "framing_violations", "framing_violation_details",
         "lock_coverage_violations",
-        "write_intent_violations", "permutation_violations", "notes",
+        "write_intent_violations", "permutation_violations",
+        "permutation_violation_details", "notes",
     }):
         return EvidenceFailure("schema", "verifier integrity schema mismatch")
     gap = document["gap_leg"]

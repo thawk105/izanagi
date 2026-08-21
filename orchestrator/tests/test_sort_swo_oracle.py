@@ -13,15 +13,16 @@ import sys
 import pytest
 
 from orchestrator.campaign import sort_swo_oracle as O
+from orchestrator.tests import sort_swo_oracle_receipt_memo as oracle_environment_memo
 
 
 _ROOT = Path(__file__).resolve().parents[2]
 _CCBENCH = _ROOT / "external" / "ccbench"
 
 
-@pytest.fixture(scope="module")
-def oracle_environment():
-    return O.resolve_oracle_environment(_CCBENCH)
+def _get_oracle_environment():
+    """Read the controller-prewarmed environment snapshot, fail-closed."""
+    return oracle_environment_memo.get_oracle_environment()
 
 
 _CLEAN_IMPL = (
@@ -89,9 +90,19 @@ def _receipt(materialized_hash: str = "1" * 64,
     )
 
 
-@pytest.fixture(scope="module")
-def compiled_oracle_artifacts(tmp_path_factory, oracle_environment):
+_COMPILED_ORACLE_ARTIFACTS = None
+_COMPILED_ORACLE_ARTIFACTS_FACTORY = None
+
+
+def _get_compiled_oracle_artifacts(tmp_path_factory):
     """Exactly two real compiles: one positive TU and one multiplexed negative TU."""
+    global _COMPILED_ORACLE_ARTIFACTS, _COMPILED_ORACLE_ARTIFACTS_FACTORY
+    if (
+        _COMPILED_ORACLE_ARTIFACTS is not None
+        and _COMPILED_ORACLE_ARTIFACTS_FACTORY is tmp_path_factory
+    ):
+        return _COMPILED_ORACLE_ARTIFACTS
+    oracle_environment = _get_oracle_environment()
     assert type(oracle_environment) is O.OracleEnvironment, (
         "real oracle E2E requires an injected oracle environment"
     )
@@ -113,6 +124,8 @@ def compiled_oracle_artifacts(tmp_path_factory, oracle_environment):
         assert finding is None
         artifacts[name] = executable
     artifacts["compile_count"] = compile_count
+    _COMPILED_ORACLE_ARTIFACTS_FACTORY = tmp_path_factory
+    _COMPILED_ORACLE_ARTIFACTS = artifacts
     return artifacts
 
 
@@ -144,20 +157,23 @@ def test_matrix_checker_accepts_strict_weak_order():
     assert O.check_relation_matrix(_matrix(4, relation), 4) is None
 
 
-def test_cpp_e2e_clean_generic_lambda_positive(compiled_oracle_artifacts):
+def test_cpp_e2e_clean_generic_lambda_positive(tmp_path_factory):
     """P1: the existing const-auto-ref, omitted-return-type fixture passes."""
+    compiled_oracle_artifacts = _get_compiled_oracle_artifacts(tmp_path_factory)
     assert O._evaluate_executable(compiled_oracle_artifacts["positive"]) is None
 
 
-def test_cpp_e2e_stable_cross_allocation_pointer_positive(compiled_oracle_artifacts):
+def test_cpp_e2e_stable_cross_allocation_pointer_positive(tmp_path_factory):
     """P2: std::less compares pointers from separate allocations stably and passes."""
+    compiled_oracle_artifacts = _get_compiled_oracle_artifacts(tmp_path_factory)
     assert O._evaluate_executable(
         compiled_oracle_artifacts["negative"], test_mode=0,
     ) is None
 
 
 def test_real_ctor_pointer_topology_and_triplicate_have_expected_matrix_meaning(
-        compiled_oracle_artifacts):
+        tmp_path_factory):
+    compiled_oracle_artifacts = _get_compiled_oracle_artifacts(tmp_path_factory)
     pointer_matrix, pointer_finding = O._run_matrix(
         compiled_oracle_artifacts["negative"], 0, 0, test_mode=0,
     )
@@ -193,7 +209,8 @@ def test_real_ctor_pointer_topology_and_triplicate_have_expected_matrix_meaning(
     ids=["irreflexive", "asymmetric", "transitive", "equivalence-transitive"],
 )
 def test_cpp_e2e_reports_each_axiom_and_exact_indices(
-        compiled_oracle_artifacts, mode, axiom, pairs):
+        tmp_path_factory, mode, axiom, pairs):
+    compiled_oracle_artifacts = _get_compiled_oracle_artifacts(tmp_path_factory)
     finding = O._evaluate_executable(
         compiled_oracle_artifacts["negative"], test_mode=mode,
     )
@@ -205,7 +222,8 @@ def test_cpp_e2e_reports_each_axiom_and_exact_indices(
 
 
 def test_cpp_e2e_high_storage_only_negative_kills_corpus_narrowing(
-        compiled_oracle_artifacts):
+        tmp_path_factory):
+    compiled_oracle_artifacts = _get_compiled_oracle_artifacts(tmp_path_factory)
     finding = O._evaluate_executable(
         compiled_oracle_artifacts["negative"], test_mode=5,
     )
@@ -217,7 +235,8 @@ def test_cpp_e2e_high_storage_only_negative_kills_corpus_narrowing(
 
 
 def test_cpp_e2e_rejects_corpus_mutation_with_dedicated_reason(
-        compiled_oracle_artifacts):
+        tmp_path_factory):
+    compiled_oracle_artifacts = _get_compiled_oracle_artifacts(tmp_path_factory)
     finding = O._evaluate_executable(
         compiled_oracle_artifacts["negative"], test_mode=6,
     )
@@ -228,7 +247,8 @@ def test_cpp_e2e_rejects_corpus_mutation_with_dedicated_reason(
 
 
 def test_cpp_e2e_rejects_same_process_call_count_dependence_with_witness(
-        compiled_oracle_artifacts):
+        tmp_path_factory):
+    compiled_oracle_artifacts = _get_compiled_oracle_artifacts(tmp_path_factory)
     finding = O._evaluate_executable(
         compiled_oracle_artifacts["negative"], test_mode=7,
     )
@@ -241,7 +261,8 @@ def test_cpp_e2e_rejects_same_process_call_count_dependence_with_witness(
     ]
 
 
-def test_real_compile_budget_is_fixed_positive_and_negative_only(compiled_oracle_artifacts):
+def test_real_compile_budget_is_fixed_positive_and_negative_only(tmp_path_factory):
+    compiled_oracle_artifacts = _get_compiled_oracle_artifacts(tmp_path_factory)
     assert compiled_oracle_artifacts["compile_count"] == 2
 
 
@@ -273,7 +294,8 @@ def test_real_patchharness_checkout_and_resolver_use_explicit_binding(tmp_path):
 
 
 def test_materialized_marker_bytes_are_exact_and_proposal_hash_is_distinct(
-        monkeypatch, oracle_environment):
+        monkeypatch):
+    oracle_environment = _get_oracle_environment()
     statement = "  " + _CLEAN_IMPL + "\n"
     source = _materialized(statement)
     observed = O.extract_materialized_hole(source, "silo-writeset-sort")
@@ -331,7 +353,8 @@ def test_unresolved_environment_is_unavailable_not_candidate_reject():
 
 
 def test_phase_marker_runs_immediately_before_first_oracle_subprocess(
-        monkeypatch, oracle_environment):
+        monkeypatch):
+    oracle_environment = _get_oracle_environment()
     assert type(oracle_environment) is O.OracleEnvironment
     order = []
 
@@ -463,7 +486,8 @@ def test_explicit_compiler_binding_never_falls_back_to_ambient(
 
 
 def test_scratch_failure_is_unavailable_not_candidate_reject(
-        monkeypatch, oracle_environment):
+        monkeypatch):
+    oracle_environment = _get_oracle_environment()
     class BrokenScratch:
         def __init__(self, *args, **kwargs):
             raise OSError("scratch unavailable")
@@ -478,7 +502,8 @@ def test_scratch_failure_is_unavailable_not_candidate_reject(
 
 
 def test_candidate_compile_failure_is_reject_not_unavailable(
-        monkeypatch, oracle_environment):
+        monkeypatch):
+    oracle_environment = _get_oracle_environment()
     compile_finding = O.SortSwoFinding(
         O.OracleRejectKind.COMPILE, "candidate-compile-failed",
     )
@@ -505,7 +530,8 @@ def test_candidate_compile_failure_is_reject_not_unavailable(
 
 
 def test_candidate_compile_failure_with_failing_postflight_is_unavailable(
-        monkeypatch, oracle_environment):
+        monkeypatch):
+    oracle_environment = _get_oracle_environment()
     candidate_finding = O.SortSwoFinding(
         O.OracleRejectKind.COMPILE, "candidate-compile-failed",
     )
@@ -537,7 +563,8 @@ def test_candidate_compile_failure_with_failing_postflight_is_unavailable(
 
 
 def test_postflight_unavailable_retains_candidate_finding(
-        monkeypatch, oracle_environment):
+        monkeypatch):
+    oracle_environment = _get_oracle_environment()
     candidate_diagnostic = O.CompilerDiagnostic(
         "candidate source must stay private", 34, 34, "5" * 64, False,
     )
@@ -581,7 +608,8 @@ def test_postflight_unavailable_retains_candidate_finding(
 
 
 def test_candidate_compile_reject_postflight_control_success_stays_reject(
-        monkeypatch, oracle_environment):
+        monkeypatch):
+    oracle_environment = _get_oracle_environment()
     candidate_finding = O.SortSwoFinding(
         O.OracleRejectKind.COMPILE, "candidate-compile-failed",
     )
@@ -632,7 +660,8 @@ def test_candidate_compile_reject_postflight_control_success_stays_reject(
 
 
 def test_candidate_artifact_cleanup_failure_preserves_receipt(
-        monkeypatch, oracle_environment):
+        monkeypatch):
+    oracle_environment = _get_oracle_environment()
     candidate_finding = O.SortSwoFinding(
         O.OracleRejectKind.COMPILE, "candidate-compile-failed",
     )
@@ -672,7 +701,8 @@ def test_candidate_artifact_cleanup_failure_preserves_receipt(
 
 
 def test_candidate_artifact_cleanup_and_postflight_failure_preserve_evidence(
-        monkeypatch, oracle_environment):
+        monkeypatch):
+    oracle_environment = _get_oracle_environment()
     candidate_finding = O.SortSwoFinding(
         O.OracleRejectKind.COMPILE, "candidate-compile-failed",
     )
@@ -718,7 +748,8 @@ def test_candidate_artifact_cleanup_and_postflight_failure_preserve_evidence(
 
 
 def test_candidate_compile_infrastructure_failure_with_successful_postflight_stays_unavailable(
-        monkeypatch, oracle_environment):
+        monkeypatch):
+    oracle_environment = _get_oracle_environment()
     candidate_finding = O.SortSwoFinding(
         O.OracleRejectKind.COMPILE, "compiler-launch-unavailable",
     )
@@ -744,7 +775,8 @@ def test_candidate_compile_infrastructure_failure_with_successful_postflight_sta
 
 
 def test_candidate_compile_infrastructure_and_postflight_failure_uses_postflight_detail(
-        monkeypatch, oracle_environment):
+        monkeypatch):
+    oracle_environment = _get_oracle_environment()
     candidate_finding = O.SortSwoFinding(
         O.OracleRejectKind.COMPILE, "compiler-launch-unavailable",
     )
@@ -775,7 +807,8 @@ def test_candidate_compile_infrastructure_and_postflight_failure_uses_postflight
 
 
 def test_postflight_source_write_oserror_preserves_receipt(
-        monkeypatch, oracle_environment):
+        monkeypatch):
+    oracle_environment = _get_oracle_environment()
     candidate_finding = O.SortSwoFinding(
         O.OracleRejectKind.COMPILE, "candidate-compile-failed",
     )
@@ -815,7 +848,8 @@ def test_postflight_source_write_oserror_preserves_receipt(
 
 
 def test_postflight_cleanup_oserror_preserves_receipt(
-        monkeypatch, oracle_environment):
+        monkeypatch):
+    oracle_environment = _get_oracle_environment()
     candidate_finding = O.SortSwoFinding(
         O.OracleRejectKind.COMPILE, "candidate-compile-failed",
     )
@@ -852,7 +886,8 @@ def test_postflight_cleanup_oserror_preserves_receipt(
 
 
 def test_postflight_programmer_error_is_not_infrastructure(
-        monkeypatch, oracle_environment):
+        monkeypatch):
+    oracle_environment = _get_oracle_environment()
     candidate_finding = O.SortSwoFinding(
         O.OracleRejectKind.COMPILE, "candidate-compile-failed",
     )
@@ -879,7 +914,8 @@ def test_postflight_programmer_error_is_not_infrastructure(
 
 
 def test_trusted_positive_preflight_compile_failure_is_unavailable(
-        monkeypatch, oracle_environment):
+        monkeypatch):
+    oracle_environment = _get_oracle_environment()
     diagnostic = O.CompilerDiagnostic(
         "trusted diagnostic", 18, 18, O._sha256("trusted diagnostic"), False,
     )
@@ -904,7 +940,8 @@ def test_trusted_positive_preflight_compile_failure_is_unavailable(
 
 
 def test_public_api_propagates_exact_evaluator_axiom_finding(
-        monkeypatch, oracle_environment):
+        monkeypatch):
+    oracle_environment = _get_oracle_environment()
     expected = O.SortSwoFinding(
         O.OracleRejectKind.AXIOM,
         "swo-asymmetric",

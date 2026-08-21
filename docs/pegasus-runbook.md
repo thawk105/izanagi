@@ -479,6 +479,8 @@ checker 自身が計算ノードへ自動 dispatch する (D105)。
 | `tools/pegasus/probes/t139_r4_env_probe.pbs` | `dispatch-required` | `static job-body classification` |
 | `tools/pegasus/probes/t139_r4_env_probe.py` | `dispatch-required` | `static compute-side call-site classification` |
 | `tools/pegasus/probes/t139_r4_env_probe.sh` | `dispatch-required` | `static compute-side call-site classification` |
+| `tools/pegasus/probes/t1403_walltime_sigterm_probe.pbs` | `unknown` | `unmeasured probe artifact` |
+| `tools/pegasus/probes/t1403_walltime_sigterm_probe.py` | `unknown` | `unmeasured probe artifact` |
 | `tools/pegasus/probes/t293_perf_site_probe.pbs` | `unknown` | `unmeasured probe artifact` |
 | `tools/pegasus/probes/t293_perf_site_probe.py` | `unknown` | `unmeasured probe artifact` |
 | `tools/pegasus/probes/t316_sandbox_backend_probe.pbs` | `dispatch-required` | `static job-body classification` |
@@ -1427,6 +1429,9 @@ probe worktree / dispatch 成果物の掃除は別物である — lease が解�
 - `python3 tools/check_ai_provenance.py` をログインノードで打つと自動 dispatch され、
   receipt が `output/pegasus-dispatch/<nonce>/` に残る。**`rc=16` は dispatch の infra 失敗であって
   監査結果ではない** (違反件数は rc=1 で返る)
+- `tools/mutation_harness.py` の pytest collection/実行 dispatch が queue 混雑で `rc=16`
+  になった場合も同様に infra 失敗であって変異判定の結果ではない。spec の `timeout_seconds` と
+  `IZANAGI_DISPATCH_QUEUE_WAIT_TIMEOUT_OVERRIDE` (既定 900s) を広げた上で再試行する
 - 計算ノードでは**テストの既定並列度が affinity 全数**になっている (明示 `-n` /
   `IZANAGI_TEST_NPROC` / `jobs=1` は従来どおり後勝ち = 「既定が最大」であって「全実行が最大」ではない)
 - ビルドは**規範として計算ノードで行い、`-j` 既定も site 由来**にする。**「強制」は全 build に

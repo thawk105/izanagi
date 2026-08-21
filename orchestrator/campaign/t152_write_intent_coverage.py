@@ -532,7 +532,10 @@ def _integrity_counters_zero(
     """Require every current/future integer integrity counter to be zero."""
     counters = {
         name: value for name, value in integrity.items()
-        if name not in {"clean", "notes", "framing_violation_details"}
+        if name not in {
+            "clean", "notes", "framing_violation_details",
+            "permutation_violation_details",
+        }
         and not (except_write_intent and name == "write_intent_violations")
     }
     return (

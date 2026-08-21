@@ -1,0 +1,1 @@
+{"schema_version":"t338-conformance-vector/v2","id":"negative-7.1-15-monotonic-order","kind":"negative","classification":"relabel","covers":["7.1(15)"],"unit3_reference":"test_phase_caps_and_monotonic_order_are_recomputed","entrypoint":"receipt","mutation":{"op":"set","path":["allocations",0,"phase_events",0,"monotonic_ns"],"value":999},"expected_reason":"phase"}

@@ -241,6 +241,9 @@ _JOURNAL_KEYS = {
     "launch-start": frozenset({
         "event", "schema", "launch_certificate_sha256", "utc",
     }),
+    "perf-preflight": frozenset({
+        "event", "schema", "perf_preflight_receipt",
+    }),
     "campaign-start": frozenset({
         "event", "schema", "protocol_sha256", "freeze_sha256", "manifest_sha256",
         "launch_certificate_sha256", "hostname", "boot_id", "job_id", "cpuset", "utc",
@@ -1955,6 +1958,17 @@ def _validate_journal(
         _exact_keys(
             record, expected, reason="journal-state-invalid", label=f"journal[{index}]/{key}",
         )
+        if key == "perf-preflight":
+            try:
+                _perf_preflight.validate_perf_preflight_receipt(
+                    record["perf_preflight_receipt"]
+                )
+            except _perf_preflight.PerfPreflightError as exc:
+                raise RatifiedFreezeError(
+                    "journal-state-invalid",
+                    f"journal[{index}] perf-preflight receipt が不正: {exc}",
+                    cause="perf-preflight-receipt",
+                ) from exc
         if key == "launch-start":
             _require_utc(
                 record["utc"], reason="journal-state-invalid", label="launch-start.utc",

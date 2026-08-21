@@ -1503,6 +1503,45 @@ def test_fresh_qstat_gate_clock_failure_before_qdel_is_gate_exception(tmp_path):
     assert qdel["gate"]["reason"] == "gate-exception"
 
 
+def test_fresh_qstat_gate_request_absent_clock_failure_remains_fail_closed(
+    tmp_path,
+):
+    clock_calls = 0
+    commands = []
+
+    def clock():
+        nonlocal clock_calls
+        clock_calls += 1
+        if clock_calls > 3:
+            raise OSError("injected request-absent cleanup clock failure")
+        return 0.0
+
+    def runner(command, **_kwargs):
+        commands.append(list(command))
+        return _gate_qstat_result(stdout="")
+
+    qdel = DC._fresh_qstat_gated_qdel(
+        runner,
+        request_id=_JOB_ID,
+        cwd=tmp_path,
+        environ={},
+        terminal_history_end=True,
+        clock=clock,
+    )
+
+    assert commands == [["qstat", "-f", "424242.nqsv"]]
+    assert qdel["gate"]["qstat"]["classification"] == (
+        "success-request-absent"
+    )
+    assert qdel["gate"]["reason"] == "gate-exception"
+    assert qdel["attempted"] is False
+    assert qdel["job_may_remain"] is True
+    assert qdel["cleanup_elapsed_s"] is None
+    assert "injected request-absent cleanup clock failure" in (
+        qdel["cleanup_elapsed_exception"]
+    )
+
+
 def test_fresh_qstat_gate_clips_transient_sleep_to_remaining_budget(tmp_path):
     clock = _Clock()
     sleeps = []
@@ -1896,6 +1935,23 @@ def test_qstat_error_during_poll_does_not_end_or_latch_job(tmp_path):
     ]
 
 
+def test_qstat_error_stdout_state_text_does_not_end_poll(tmp_path):
+    scheduler = _Scheduler(
+        states=("QUE", "RUN", "ERROR", "DONE"),
+        qstat_error_stdout="Request State = EXT\n",
+    )
+    rc, submission = _dispatch(tmp_path, scheduler)
+    assert rc == 0
+    receipt = json.loads((submission / "receipt.json").read_text(encoding="utf-8"))
+    assert [item["state"] for item in receipt["state_history"]] == [
+        "QUE", "RUN", "QSTAT_ERROR", "END",
+    ]
+    assert receipt["state_history"][2]["qstat_rc"] != 0
+    assert receipt["terminal_reason"] == "request-disappeared-after-visibility"
+    assert receipt["outcome"]["kind"] == "child"
+    assert scheduler.qstat_calls == 4
+
+
 def test_job_script_binds_interpreter_path_repo_and_no_network_bootstrap(tmp_path):
     source = DC._interpreter_probe_source()
     assert "import pytest" in source
@@ -2184,6 +2240,8 @@ def test_missing_compute_marker_latches_only_after_visible_job_terminates(tmp_pa
     assert scheduler.qstat_calls == 4
     assert not any(command[0] == "qdel" for command, _ in scheduler.commands)
     assert receipt["qdel"]["gate"]["reason"] == "terminal-history-conflict"
+    assert receipt["qdel"]["job_may_remain"] is True
+    assert (tmp_path / "dispatch" / DC._ORPHAN_HOLD_NAME).is_file()
 
 
 def test_create_only_nonce_collision_is_setup_infra_rc_with_receipt(tmp_path):
@@ -2217,6 +2275,50 @@ def test_accounting_grace_failure_is_invocation_only_and_does_not_latch(
     assert not any(command[0] == "qdel" for command, _ in scheduler.commands)
     assert scheduler.qstat_calls == 4
     assert receipt["qdel"]["gate"]["scheduler_state"] == "END"
+    assert receipt["qdel"]["gate"]["reason"] == "state-not-cancellable"
+    assert receipt["qdel"]["job_may_remain"] is True
+    assert (tmp_path / "dispatch" / DC._ORPHAN_HOLD_NAME).is_file()
+
+
+def test_accounting_grace_failure_after_visible_request_absence_does_not_latch(
+    tmp_path,
+):
+    scheduler = _Scheduler(
+        states=("QUE", "RUN", "DONE", "DONE"),
+        accounting=False,
+    )
+    rc, submission = _dispatch(tmp_path, scheduler)
+    assert rc == DC.INFRA_RC
+    receipt = json.loads((submission / "receipt.json").read_text(encoding="utf-8"))
+    assert receipt["terminal_reason"] == "request-disappeared-after-visibility"
+    assert receipt["qdel"]["gate"]["qstat"]["classification"] == (
+        "success-request-absent"
+    )
+    assert receipt["qdel"]["gate"]["reason"] == "request-absent"
+    assert receipt["qdel"]["job_may_remain"] is False
+    assert not any(command[0] == "qdel" for command, _ in scheduler.commands)
+    assert not (tmp_path / "dispatch" / DC._ORPHAN_HOLD_NAME).exists()
+    assert "accounting-grace-expired" in receipt["outcome"]["reason"]
+    assert receipt["outcome"]["rc"] == DC.INFRA_RC
+    assert scheduler.qstat_calls == 4
+
+
+def test_scheduler_end_state_without_request_absence_does_not_latch(
+    tmp_path,
+):
+    scheduler = _Scheduler(states=("QUE", "RUN", "EXT"))
+    rc, submission = _dispatch(
+        tmp_path,
+        scheduler,
+        accounting_grace_s=0,
+    )
+    assert rc == DC.INFRA_RC
+    receipt = json.loads((submission / "receipt.json").read_text(encoding="utf-8"))
+    assert receipt["terminal_reason"] == "scheduler-end-state"
+    assert receipt["state_history"][2]["state"] == "END"
+    assert receipt["qdel"]["gate"]["reason"] == "request-absent"
+    assert receipt["qdel"]["job_may_remain"] is False
+    assert scheduler.qstat_calls == 4
 
 
 @pytest.mark.parametrize(

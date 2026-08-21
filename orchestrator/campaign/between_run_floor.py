@@ -51,6 +51,8 @@ from .p2_2 import (CLK, ENV_TAG, EXTIME,                 # noqa: E402
 
 
 CCBENCH_COMMIT = pin.CURRENT_PIN   # docstring「pin の注記」参照 (2026-07-11)
+# Mirrored by orchestrator/campaign/screening_driver.py to avoid its heavy import chain.
+BETWEEN_RUN_FLOOR_SCHEMA_VERSION = "between-run-noise-floor/v1"
 
 # p2_2 が比較に使う stock 構成 = baseline。BACK_OFF=0 なので write-heavy では high-abort。
 BASELINE = Genome("silo", {"BACK_OFF": 0, "NO_WAIT_LOCKING_IN_VALIDATION": 1,
@@ -99,6 +101,7 @@ def measure_point_floor(binary: str, workload: dict, log=print) -> dict:
         f"(sessions={between.sessions}, median "
         f"{'n/a' if between.median is None else f'{between.median:,.0f}'})")
     return {
+        "schema_version": BETWEEN_RUN_FLOOR_SCHEMA_VERSION,
         "workload": workload, "genome": BASELINE.canonical(),
         "records": RECORDS, "threads": THREADS, "clocks_per_us": CLK,
         "abort_rate": w_pt.abort_rate, "run_cmd": w_pt.run_cmd,
@@ -158,6 +161,9 @@ def main(argv) -> int:
     pts = [p for p in POINTS if sel is None or p[0] == sel]
     if not pts:
         print(f"unknown point: {sel} (選択肢: {[p[0] for p in POINTS]})")
+        return 2
+    if argv[2:]:
+        print(f"usage: {argv[0]} [point]", file=sys.stderr)
         return 2
 
     _assert_single_tenant()             # campaign 冒頭の単一テナント確認 (規律4)

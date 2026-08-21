@@ -71,8 +71,7 @@ CONFIGURATIONS = (
     "p2_2_flag_opt", "backoff_fixed_best", "sort_best",
     "system_gate", "ident_all", "stock_common",
 )
-# driver v2 実走 fixture の env (env_contract registry の唯一の登録 env かつ
-# p2_2.ENV_TAG と一致する = machine-pin を満たす)。
+# driver v2 実走 fixture の none-attestation env (env_contract registry の登録値)。
 V2_ENV_TAG = "linux-baremetal"
 GENERATOR_SOURCES = {
     "materializer": "orchestrator/campaign/s1_direct_comparison.py",
@@ -1599,6 +1598,153 @@ def _contract_sha256() -> str:
     return ec.lookup(V2_ENV_TAG).contract_sha256
 
 
+def test_machine_env_tag_for_site_uses_required_registry_contract(monkeypatch):
+    expected_tags = {
+        contract.env_tag
+        for contract in ec.REGISTRY.values()
+        if contract.attestation_mode == "required"
+    }
+    assert len(expected_tags) == 1
+    monkeypatch.setattr(
+        driver.site_policy,
+        "current_site",
+        lambda: driver.site_policy.PEGASUS_COMPUTE,
+    )
+    observed_site = driver.site_policy.current_site()
+    assert observed_site == driver.site_policy.PEGASUS_COMPUTE
+    assert driver._machine_env_tag_for_site(observed_site) == next(iter(expected_tags))
+
+
+def test_machine_env_tag_for_site_rejects_zero_required_contracts(monkeypatch):
+    monkeypatch.setattr(
+        driver.site_policy,
+        "current_site",
+        lambda: driver.site_policy.PEGASUS_COMPUTE,
+    )
+    monkeypatch.setattr(driver._env_contract, "REGISTRY", {})
+    with pytest.raises(driver.OracleDriverError, match="required attestation"):
+        driver._machine_env_tag_for_site(driver.site_policy.current_site())
+
+
+def test_machine_env_tag_for_site_rejects_multiple_required_contracts(monkeypatch):
+    monkeypatch.setattr(
+        driver.site_policy,
+        "current_site",
+        lambda: driver.site_policy.PEGASUS_COMPUTE,
+    )
+    monkeypatch.setattr(
+        driver._env_contract,
+        "REGISTRY",
+        {
+            "required-first": SimpleNamespace(
+                env_tag="fixture-required-first", attestation_mode="required",
+            ),
+            "required-second": SimpleNamespace(
+                env_tag="fixture-required-second", attestation_mode="required",
+            ),
+        },
+    )
+    with pytest.raises(driver.OracleDriverError, match="required attestation"):
+        driver._machine_env_tag_for_site(driver.site_policy.current_site())
+
+
+def test_machine_env_tag_for_site_rejects_required_lookup_exception(monkeypatch):
+    monkeypatch.setattr(
+        driver.site_policy,
+        "current_site",
+        lambda: driver.site_policy.PEGASUS_COMPUTE,
+    )
+
+    def fail_required_lookup():
+        raise ec.EnvContractError("fixture required lookup failure")
+
+    monkeypatch.setattr(
+        driver._env_contract,
+        "lookup_required_attestation_contract",
+        fail_required_lookup,
+    )
+    with pytest.raises(driver.OracleDriverError, match="required attestation"):
+        driver._machine_env_tag_for_site(driver.site_policy.current_site())
+
+
+def test_machine_env_tag_for_site_uses_unique_none_registry_contract(monkeypatch):
+    expected_tags = {
+        contract.env_tag
+        for contract in ec.REGISTRY.values()
+        if contract.attestation_mode == "none"
+    }
+    assert len(expected_tags) == 1
+    monkeypatch.setattr(
+        driver.site_policy,
+        "current_site",
+        lambda: driver.site_policy.OTHER,
+    )
+    observed_site = driver.site_policy.current_site()
+    assert observed_site == driver.site_policy.OTHER
+    assert driver._machine_env_tag_for_site(observed_site) == next(iter(expected_tags))
+
+
+def test_machine_env_tag_for_site_rejects_zero_none_contracts(monkeypatch):
+    monkeypatch.setattr(
+        driver.site_policy,
+        "current_site",
+        lambda: driver.site_policy.OTHER,
+    )
+    monkeypatch.setattr(driver._env_contract, "REGISTRY", {})
+    with pytest.raises(driver.OracleDriverError, match="none attestation"):
+        driver._machine_env_tag_for_site(driver.site_policy.current_site())
+
+
+def test_machine_env_tag_for_site_rejects_multiple_none_contracts(monkeypatch):
+    monkeypatch.setattr(
+        driver.site_policy,
+        "current_site",
+        lambda: driver.site_policy.OTHER,
+    )
+    monkeypatch.setattr(
+        driver._env_contract,
+        "REGISTRY",
+        {
+            "first": SimpleNamespace(env_tag="fixture-none-first", attestation_mode="none"),
+            "second": SimpleNamespace(env_tag="fixture-none-second", attestation_mode="none"),
+        },
+    )
+    with pytest.raises(driver.OracleDriverError, match="none attestation"):
+        driver._machine_env_tag_for_site(driver.site_policy.current_site())
+
+
+def test_machine_env_tag_for_site_rejects_duplicate_registry_env_tag(monkeypatch):
+    monkeypatch.setattr(
+        driver.site_policy,
+        "current_site",
+        lambda: driver.site_policy.OTHER,
+    )
+    monkeypatch.setattr(
+        driver._env_contract,
+        "REGISTRY",
+        {
+            "none": SimpleNamespace(
+                env_tag="fixture-duplicate", attestation_mode="none",
+            ),
+            "required": SimpleNamespace(
+                env_tag="fixture-duplicate", attestation_mode="required",
+            ),
+        },
+    )
+    with pytest.raises(driver.OracleDriverError, match="none attestation"):
+        driver._machine_env_tag_for_site(driver.site_policy.current_site())
+
+
+def test_machine_env_tag_for_site_rejects_unhandled_site(monkeypatch):
+    monkeypatch.setattr(
+        driver.site_policy,
+        "current_site",
+        lambda: driver.site_policy.PEGASUS_LOGIN,
+    )
+    with pytest.raises(driver.OracleDriverError, match="未対応 site"):
+        driver._machine_env_tag_for_site(driver.site_policy.current_site())
+
+
 def _sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
@@ -2215,7 +2361,10 @@ def _run_required_preflight(
                 driver._env_contract, "authorize",
                 return_value=authorization,
             ), \
-            mock.patch.object(driver, "MACHINE_ENV_TAG", contract.env_tag), \
+            mock.patch.object(
+                driver.site_policy, "current_site",
+                return_value=driver.site_policy.PEGASUS_COMPUTE,
+            ), \
             mock.patch.object(driver._env_attestation, "load_verified_calibration",
                               return_value=(verified_override or verified)), \
             mock.patch.object(driver.execution_guard, "attest_and_build_receipt",
@@ -5167,6 +5316,7 @@ def test_official_driver_records_returncodes_through_real_producer_flow(tmp_path
             aborted, bench = pipeline._run_bench(
                 "/fake/ycsb.exe", perf, clocks_per_us, kwargs["numactl"], False,
                 layout, variant, env_tag, abort, log=lambda _message: None,
+                build_attempt_id=f"oracle-test-{variant}",
                 bench_max_rounds=kwargs["bench_max_rounds"],
                 record_rep_returncodes=opted_in,
                 holdout_observation_admission=(

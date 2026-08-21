@@ -205,8 +205,8 @@ def test_resume_rejects_invalid_submodule_marker(
     )
     assert "external/ccbench/.git must exist without being a symlink" in diagnostic
     assert (
-        "検査対象の worktree root で git -c protocol.file.allow=always "
-        "submodule update --init を実行し再検査する"
+        "検査対象の worktree root で python3 tools/dev_wave_submodule_init.py "
+        "--worktree <path> を実行し再検査する"
         in diagnostic
     )
 
@@ -232,8 +232,8 @@ def test_resume_requires_non_symlink_submodule_git_entry(
     )
     assert "external/ccbench/.git must exist without being a symlink" in diagnostic
     assert (
-        "検査対象の worktree root で git -c protocol.file.allow=always "
-        "submodule update --init を実行し再検査する"
+        "検査対象の worktree root で python3 tools/dev_wave_submodule_init.py "
+        "--worktree <path> を実行し再検査する"
         in diagnostic
     )
 
