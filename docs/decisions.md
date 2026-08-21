@@ -25081,3 +25081,39 @@ F444 参照)。**完全な TOCTOU 耐性、および
 - `validate_current_bindings`/`validate_raw_bundle` の `==` 要求も本 wave で解消する —
   実 job 経路の再設計 (rung-1 campaign 再走または binding scope の D96 級再裁定) が要り、
   sort 軸の witness 追加という本 wave の scope を大きく超える。
+
+## D626. 投入gate単位5のvector trust edgeは汎用resolverを実装せず構造的fail-closedで満たす (2026-08-21)
+
+**決定:** record-items-v2.md §7の「conformance vector indexのdigestをapproval manifestがpin
+する」という記述は、D574決定(4) (D597によりD509系列より優先する権威と確定済み) によって
+supersedeされている。単位5は、D574決定(4)が要求する「vector index三つ組をmanifest自身でなく
+有効なapproval payloadに置く」を、次の最小実装で満たす。
+
+- 現行`ApprovedManifest` (D282由来、`approved_blobs`はexact 6 role固定) にはvector index field
+  が構造的に存在しない。`_writer.py`の`_assert_vector_authority()`は、この事実を根拠に常に
+  `VectorAuthorityUnavailableError`を送出する。新しい型・resolver・chain-walk機構は実装しない。
+- `approval_payload.py`・`_manifest.py`は無改修とする。manifest側にvector宣言fieldを新設しない
+  (照合先の権威が無いまま宣言fieldだけ先に足すと、将来「宣言があるから受理してよい」と誤読
+  される事故の芽になる)。
+- この設計は「manifest単独の自己pinは受理の根拠にしない」というD574決定4の要求を、照合ロジック
+  を書かず構造的に (manifestに宣言field自体が無いことで) 満たす。
+
+**理由:**
+- 段2 codex plan (read-only) が提案した汎用supersession chain resolver (`forward_supersedes`
+  の構造化参照、cycle検出、複数candidate拒否を含む) は、実在するvector-bearing supersession
+  payloadが今日のrepoに1件も無いため、DW-G04 (発火条件を満たす既存artifact pathが無い条件付き
+  機能は設計メモに留める) に照らし時期尚早と判定した。
+- 段3敵対相談2レンズが独立に、この汎用resolverの型設計にD563のtoken sealing規約が欠落し
+  (単純public dataclass)、writer入口signatureに解決に必要な入力経路が実は繋がっておらず、
+  既存`load_approval_payload()`呼び出しとの二重loaderにもなりうる、という3件の実装欠陥を
+  発見した。発火artifactが無いまま作ると規律5「盛らない」に反する実装欠陥を生みやすいという
+  判断で、今回は実装しない。
+- 将来、T-139 K2/K3 (実際のvector-bearing supersession payloadを発行するwave) がこの機構を
+  実装する際は、`base_approval_fold_commit`/`approval_fold_commit`の二段構成 (D574決定5)、
+  `forward_supersedes`の構造化、cycle/複数candidate拒否を入力要件とする (詳細は
+  `output/insights/2026-08-21_t338-unit5-vector-authority-design/package.md`を参照)。
+
+**却下した選択肢:**
+- s1-classification (2026-08-18) 準拠のmanifest自己pin — D574決定4が名指しで却下済み。
+- 段2 codex planが提案した汎用supersession chain resolverの即時実装 — 発火artifactが無く
+  規律5に反する実装欠陥 (D563 token sealing欠落・二重loader) を段3が独立に発見した。
