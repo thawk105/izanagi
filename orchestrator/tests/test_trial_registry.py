@@ -2322,6 +2322,33 @@ def test_p6_one_cell_partial_terminal_outcome_passes_acceptance(tmp_path: Path) 
     assert parsed.schema_version == R.s8c_acceptance_receipt.SCHEMA_VERSION
 
 
+def test_p6_indeterminate_not_consumed_partial_fails_formal_acceptance(
+    tmp_path: Path,
+) -> None:
+    repo, manifest_path, registry, manifest = _registered_repo(tmp_path)
+    measurement = _head(repo)
+    reports = [
+        _partial_report(repo / "reports", trial, manifest, measurement)
+        for trial in manifest.trials
+    ]
+
+    target_path = reports[0]
+    events, report = _load_report_bundle(target_path)
+    report["lifecycle_terminal_status"] = "indeterminate"
+    assert report["status"] == "partial"
+    assert report["lifecycle_terminal_status"] == "indeterminate"
+    _persist(target_path.parent, events, report)
+    _ensure_fixture_attempt_rows(repo, manifest, reports)
+
+    with pytest.raises(R.TrialRegistryError, match=r"\[attempt-terminal\] "):
+        _accept(
+            manifest_path=manifest_path,
+            report_paths=reports,
+            repository_root=repo,
+            registry_path=registry,
+        )
+
+
 def test_t1185_pb_partial_one_generation_with_budget_two_passes_acceptance(
     tmp_path: Path,
 ) -> None:
@@ -2462,8 +2489,13 @@ def _ensure_fixture_attempt_rows(
                 _canonical(report["launch_admission"])
             ).hexdigest(),
         )
+        indeterminate = (
+            report.get("lifecycle_terminal_status") == "indeterminate"
+        )
         observed = report["status"] == "complete"
-        failure_reason = None if observed else "provider-failure"
+        failure_reason = (
+            None if observed or indeterminate else "provider-failure"
+        )
         R.classify_attempt(
             capability,
             pre_observation_failure_reason=failure_reason,
@@ -2476,13 +2508,27 @@ def _ensure_fixture_attempt_rows(
             R.begin_attempt_observation(capability)
         R.record_attempt_terminal(
             capability,
-            terminal_status="observed" if observed else "terminal-failure",
-            raw_output_sha256=report["raw_output_sha256"],
-            report_sha256=hashlib.sha256(report_path.read_bytes()).hexdigest(),
-            observation_sha256=(
-                report["observation_sha256"] if observed else None
+            terminal_status=(
+                "not-consumed"
+                if indeterminate
+                else "observed" if observed else "terminal-failure"
             ),
-            primary_value=report["primary_value"] if observed else None,
+            raw_output_sha256=report["raw_output_sha256"],
+            report_sha256=(
+                None
+                if indeterminate
+                else hashlib.sha256(report_path.read_bytes()).hexdigest()
+            ),
+            observation_sha256=(
+                None
+                if indeterminate
+                else report["observation_sha256"] if observed else None
+            ),
+            primary_value=(
+                None
+                if indeterminate
+                else report["primary_value"] if observed else None
+            ),
             finished_at="2026-08-18T00:00:02+00:00",
         )
         terminal_by_slot[slot["slot_id"]] = {"slot_id": slot["slot_id"]}
