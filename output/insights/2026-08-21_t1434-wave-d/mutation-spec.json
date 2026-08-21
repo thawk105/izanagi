@@ -11,7 +11,7 @@
         "orchestrator/tests/test_codex_reasoning_ab.py::test_validate_schedule_legacy_different_arm_same_model_pair_remains_valid",
         "orchestrator/tests/test_codex_reasoning_ab.py::test_make_packets_uses_dynamic_schedule_count_and_keeps_public_state_blind",
         "orchestrator/tests/test_codex_reasoning_ab.py::test_make_packets_accepts_legacy_schedule_descriptor_without_schema_version",
-        "orchestrator/tests/test_codex_reasoning_ab.py::test_supervisor_launches_pair_and_scrubs_git_environment@real-repo"
+        "orchestrator/tests/test_codex_reasoning_ab.py::test_supervisor_launches_pair_and_scrubs_git_environment"
       ],
       "expected_status": "KILLED",
       "hang_risk": false,
