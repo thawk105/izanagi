@@ -4501,6 +4501,206 @@ def test_pos_neg_submodule_initialization_state_mismatch_is_rejected(
     )
 
 
+def _synthetic_task_manifest(
+    task_specs: tuple[tuple[str, str, str, str], ...] = (
+        ("alpha", "POS", "positive", "alpha-finding"),
+        ("beta", "NEG", "negative", "beta-finding"),
+        ("gamma", "POS", "positive", "gamma-finding"),
+    ),
+) -> dict[str, Any]:
+    manifest = copy.deepcopy(TOOL.TASK_MANIFEST)
+    tasks: dict[str, Any] = {}
+    for task_id, source_case, oracle_kind, finding_id in task_specs:
+        task = copy.deepcopy(TOOL.TASK_MANIFEST["tasks"][source_case])
+        task["benchmark_task_id"] = task_id
+        task["legacy_case"] = f"legacy-{task_id}"
+        task["stage"] = "stage-1"
+        task["oracle_kind"] = oracle_kind
+        task["known_finding_ids"] = [finding_id]
+        tasks[task_id] = task
+    manifest["tasks"] = tasks
+    return manifest
+
+
+def _v3_slot(
+    *,
+    slot_id: str,
+    task_id: str,
+    block_id: str,
+    block_order: int,
+    arm: str,
+    requested_model: str,
+    stage: str = "stage-1",
+) -> dict[str, Any]:
+    return {
+        "slot_id": slot_id,
+        "benchmark_task_id": task_id,
+        "legacy_case": f"legacy-{task_id}",
+        "stage": stage,
+        "requested_model": requested_model,
+        "cache_condition": None,
+        "price_version": None,
+        "arm": arm,
+        "block_id": block_id,
+        "block_order": block_order,
+        "prompt_sha256": "a" * 64,
+        "snapshot_manifest_sha256": "b" * 64,
+        "submodule_manifest_sha256": "c" * 64,
+    }
+
+
+def test_validate_schedule_accepts_same_arm_different_requested_model_pair() -> None:
+    schedule = {
+        "schema_version": TOOL.TASK_MANIFEST_SCHEMA_VERSION,
+        "slots": [
+            _v3_slot(
+                slot_id="s01",
+                task_id="alpha",
+                block_id="b01",
+                block_order=1,
+                arm="max",
+                requested_model=TOOL.MODEL,
+            ),
+            _v3_slot(
+                slot_id="s02",
+                task_id="alpha",
+                block_id="b01",
+                block_order=2,
+                arm="max",
+                requested_model="gpt-5.6-luna",
+            ),
+        ],
+    }
+    slots, reasons = TOOL._validate_schedule(
+        schedule,
+        task_manifest=_synthetic_task_manifest(
+            (("alpha", "POS", "positive", "alpha-finding"),)
+        ),
+    )
+    assert reasons == []
+    assert {row["requested_model"] for row in slots} == {
+        TOOL.MODEL,
+        "gpt-5.6-luna",
+    }
+    assert all(row["benchmark_task_id"] == "alpha" for row in slots)
+
+
+@pytest.mark.parametrize("field", ("cache_condition", "price_version"))
+def test_validate_schedule_rejects_live_non_null_cache_or_price(
+    field: str,
+) -> None:
+    schedule = {
+        "schema_version": TOOL.TASK_MANIFEST_SCHEMA_VERSION,
+        "slots": [
+            _v3_slot(
+                slot_id="s01",
+                task_id="alpha",
+                block_id="b01",
+                block_order=1,
+                arm="max",
+                requested_model=TOOL.MODEL,
+            ),
+            _v3_slot(
+                slot_id="s02",
+                task_id="alpha",
+                block_id="b01",
+                block_order=2,
+                arm="max",
+                requested_model="gpt-5.6-luna",
+            ),
+        ],
+    }
+    schedule["slots"][0][field] = "unattested"
+    _, reasons = TOOL._validate_schedule(
+        schedule,
+        task_manifest=_synthetic_task_manifest(
+            (("alpha", "POS", "positive", "alpha-finding"),)
+        ),
+    )
+    assert any("non-null values are not supported" in reason for reason in reasons)
+
+
+def test_validate_schedule_legacy_different_arm_same_model_pair_remains_valid(
+    benchmark_snapshots: dict[str, Any], tmp_path: Path
+) -> None:
+    _, source_slots = _schedule(tmp_path / "legacy-schedule.json", benchmark_snapshots)
+    source = {"slots": copy.deepcopy(source_slots)}
+    slots, reasons = TOOL._validate_schedule(source)
+    assert "schema_version" not in source
+    assert reasons == []
+    assert slots[0]["requested_model"] == TOOL.MODEL
+    assert slots[0]["arm"] != slots[1]["arm"]
+
+
+def test_validate_verdict_accepts_manifest_finding_union_while_blind_and_rejects_unknown(
+    tmp_path: Path,
+) -> None:
+    manifest = _synthetic_task_manifest(
+        (
+            ("alpha", "POS", "positive", "alpha-finding"),
+            ("beta", "NEG", "negative", "beta-finding"),
+        )
+    )
+    state, parent, _ = _packet_fixture(tmp_path)
+    parent_value = json.loads(parent.read_text(encoding="utf-8"))
+    parent_value["verdicts"][0]["findings"] = [
+        {
+            "real": True,
+            "equivalent_to": "alpha-finding",
+            "root_cause": None,
+            "severity": "HIGH",
+            "must_fix": True,
+        }
+    ]
+    parent.write_bytes(TOOL._canonical_bytes(parent_value))
+    log = tmp_path / "blind-verdicts.jsonl"
+    result = TOOL.append_verdicts(
+        state,
+        log,
+        "parent",
+        parent,
+        task_manifest=manifest,
+    )
+    assert result["appended"] == 1
+    packet_id = json.loads(state.read_text(encoding="utf-8"))["packets"][0][
+        "packet_id"
+    ]
+    row = json.loads(log.read_text(encoding="utf-8").splitlines()[0])
+    TOOL._validate_verdict_row(
+        row,
+        {packet_id},
+        task_manifest=manifest,
+    )
+    bad = _canonical(
+        tmp_path / "bad.json",
+        {
+            "verdicts": [
+                {
+                    "packet_id": packet_id,
+                    "r1_detected": False,
+                    "findings": [
+                        {
+                            "real": True,
+                            "equivalent_to": "not-in-manifest",
+                            "root_cause": None,
+                            "severity": "HIGH",
+                            "must_fix": True,
+                        }
+                    ],
+                }
+            ]
+        },
+    )
+    with pytest.raises(TOOL.ValidationError, match="unknown"):
+        TOOL.append_verdicts(
+            state,
+            tmp_path / "bad-verdicts.jsonl",
+            "second-reader",
+            bad,
+            task_manifest=manifest,
+        )
+
+
 def test_git_answer_object_reinjection_is_rejected(
     tmp_path: Path, benchmark_snapshots: dict[str, Any]
 ) -> None:
@@ -6015,7 +6215,11 @@ def test_replay_passes_schedule_requested_model_to_collect_run(
     manifest_path = _canonical(root / "manifest.json", manifest)
     captured: list[str] = []
 
-    def fake_validate_schedule(schedule: dict[str, Any]) -> tuple[list[dict[str, Any]], list[str]]:
+    def fake_validate_schedule(
+        schedule: dict[str, Any],
+        *,
+        task_manifest: Any = TOOL.TASK_MANIFEST,
+    ) -> tuple[list[dict[str, Any]], list[str]]:
         assert schedule["slots"][0]["requested_model"] == luna
         return schedule["slots"], []
 
@@ -6044,7 +6248,11 @@ def test_replay_passes_schedule_requested_model_to_collect_run(
             [],
         ),
     )
-    monkeypatch.setattr(TOOL, "_load_adjudication", lambda *args: ({}, []))
+    monkeypatch.setattr(
+        TOOL,
+        "_load_adjudication",
+        lambda *args, **kwargs: ({}, []),
+    )
     monkeypatch.setattr(TOOL, "_apply_pair_invalidations", lambda attempts: None)
     monkeypatch.setattr(TOOL, "_retry_lineage_reasons", lambda grouped: [])
     monkeypatch.setattr(TOOL, "verify_snapshot", lambda actual, case: oracle_value)
@@ -6671,6 +6879,71 @@ def _aggregate_rows() -> tuple[list[dict[str, Any]], list[dict[str, Any]], dict[
     return slots, attempts, verdicts
 
 
+def test_aggregate_verified_uses_oracle_kind_and_keeps_task_model_axes_separate(
+    tmp_path: Path,
+) -> None:
+    task_manifest = _synthetic_task_manifest(
+        (
+            ("alpha", "POS", "positive", "alpha-finding"),
+            ("beta", "NEG", "negative", "beta-finding"),
+        )
+    )
+    slots, attempts, verdicts = _aggregate_rows()
+    for slot, attempt in zip(slots, attempts):
+        task_id = "alpha" if slot["case"] == "POS" else "beta"
+        legacy_case = f"legacy-{task_id}"
+        for row in (slot, attempt):
+            row.update(
+                {
+                    "benchmark_task_id": task_id,
+                    "legacy_case": legacy_case,
+                    "case": legacy_case,
+                    "stage": "stage-1",
+                    "requested_model": TOOL.MODEL,
+                    "cache_condition": None,
+                    "price_version": None,
+                }
+            )
+    beta_slot = next(row for row in slots if row["benchmark_task_id"] == "beta")
+    verdicts[beta_slot["slot_id"]]["findings"] = [
+        {
+            "real": True,
+            "equivalent_to": "beta-finding",
+            "root_cause": None,
+            "severity": "HIGH",
+            "must_fix": True,
+        }
+    ]
+    result = TOOL._aggregate_verified(
+        _canonical(tmp_path / "dynamic-manifest.json", {}),
+        slots,
+        attempts,
+        verdicts,
+        [],
+        task_manifest=task_manifest,
+    )
+    assert result["valid"] is True
+    assert result["experiment_complete"] is True
+    assert isinstance(result["primary_judgment_ledger"], list)
+    assert {
+        row["benchmark_task_id"] for row in result["primary_judgment_axis_ledger"]
+    } == {"alpha"}
+    assert {
+        row["benchmark_task_id"] for row in result["resource_ledger"]
+    } == {"alpha", "beta"}
+    assert all(
+        row["requested_model"] == TOOL.MODEL
+        and row["stage"] == "stage-1"
+        and row["cache_condition"] is None
+        and row["price_version"] is None
+        for row in result["resource_ledger"]
+    )
+    assert "by_arm_case" not in result["token_usage_observations"][
+        TOOL.ZERO_COMPONENT_TOTAL_ONLY
+    ]
+    assert result["decision"]["by_axis"]
+
+
 def test_zero_component_total_only_aggregate_counts_by_arm_and_case(
     tmp_path: Path,
 ) -> None:
@@ -6684,15 +6957,25 @@ def test_zero_component_total_only_aggregate_counts_by_arm_and_case(
         [],
     )
     assert result["valid"] is True
-    assert result["token_usage_observations"] == {
-        TOOL.ZERO_COMPONENT_TOTAL_ONLY: {
-            "total_count": 1,
-            "by_arm_case": {
-                "max": {"POS": 0, "NEG": 1},
-                "high": {"POS": 0, "NEG": 0},
-            },
-        }
+    observation = result["token_usage_observations"][
+        TOOL.ZERO_COMPONENT_TOTAL_ONLY
+    ]
+    assert observation["total_count"] == 1
+    assert observation["by_arm_case"] == {
+        "max": {"POS": 0, "NEG": 1},
+        "high": {"POS": 0, "NEG": 0},
     }
+    assert [row for row in observation["by_axis"] if row["count"]] == [
+        {
+            "benchmark_task_id": "NEG",
+            "stage": None,
+            "requested_model": TOOL.MODEL,
+            "cache_condition": None,
+            "price_version": None,
+            "arm": "max",
+            "count": 1,
+        }
+    ]
 
 
 def test_zero_component_total_only_count_is_required_for_aggregate(
@@ -7402,6 +7685,69 @@ def test_mapping_custodian_blocks_pre_freeze_reveal_and_packet_sha_join(
         }
         for row in mapping
     )
+
+
+def test_make_packets_uses_dynamic_schedule_count_and_keeps_public_state_blind(
+    tmp_path: Path,
+) -> None:
+    task_manifest = _synthetic_task_manifest()
+    schedule_rows: list[dict[str, Any]] = []
+    attempts: list[dict[str, Any]] = []
+    for index, task_id in enumerate(("alpha", "beta", "gamma"), 1):
+        block_id = f"b{index:02d}"
+        for order, model in enumerate((TOOL.MODEL, "gpt-5.6-luna"), 1):
+            slot_id = f"s{(index - 1) * 2 + order:02d}"
+            schedule_rows.append(
+                _v3_slot(
+                    slot_id=slot_id,
+                    task_id=task_id,
+                    block_id=block_id,
+                    block_order=order,
+                    arm="max",
+                    requested_model=model,
+                )
+            )
+            output = tmp_path / f"output-{slot_id}.md"
+            output.write_text(_long_output(), encoding="utf-8")
+            attempts.append(
+                {
+                    "slot_id": slot_id,
+                    "attempt": 1,
+                    "run_id": f"r{(index - 1) * 2 + order:02d}",
+                    "output": _descriptor(output, tmp_path),
+                }
+            )
+    schedule_path = _canonical(
+        tmp_path / "schedule.json",
+        {"schema_version": TOOL.TASK_MANIFEST_SCHEMA_VERSION, "slots": schedule_rows},
+    )
+    manifest_path = _canonical(
+        tmp_path / "manifest.json",
+        {
+            "schedule": _descriptor(schedule_path, tmp_path),
+            "attempts": attempts,
+        },
+    )
+    result = TOOL.make_packets(
+        manifest_path,
+        tmp_path / "packets",
+        tmp_path / "custodian",
+        task_manifest=task_manifest,
+    )
+    assert result["packet_count"] == 6
+    state_path = Path(result["packet_state"])
+    state = json.loads(state_path.read_text(encoding="utf-8"))
+    assert state["mask_strength"] == "same-owner-advisory"
+    assert all(set(row) == {"packet_id", "filename"} for row in state["packets"])
+    public_state = state_path.read_text(encoding="utf-8")
+    for forbidden in (
+        "benchmark_task_id",
+        "requested_model",
+        "stage",
+        "cache_condition",
+        "price_version",
+    ):
+        assert forbidden not in public_state
 
 
 def test_f3_1_packet_swap_restore_is_rejected(tmp_path: Path) -> None:
