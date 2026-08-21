@@ -260,7 +260,11 @@ def run_campaign(cfg: CampaignConfig, genomes: Sequence[Genome],
             perf_preflight_fn or _perf_preflight.probe_perf_availability,
         )
     layout = layout_constructor(cid, output_root).ensure()
-    with campaign_lock(campaign_lock_path(layout)):
+    with campaign_lock(campaign_lock_path(
+        layout,
+        declared_use_class=declared_use_class,
+        output_root=output_root,
+    )):
 
         # D36 決定4-1: search_config[SEARCH_CONFIG_VERIFY_KEY]=="legacy+s2" で S2 構成
         # (t48 フルロード規模、データパス被覆担当) を legacy (検出力担当) に追加する。
