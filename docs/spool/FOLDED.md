@@ -1984,3 +1984,5 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 
 - {"allocations":{},"authored":"2026-08-20","base":"1b2236f8ef190e4ae3bd1010ae54ba76d90bc61f","content_sha256":"e0b108e375beda2efe9c92bdd1cd2daed9c246bfb137d9e3f248986f1c8d1c0f","seq":1,"tested_tip":"cb06bd400eb243a8744884f9e230ab302461a47e","wave":"glittery-wobbling-rainbow","wave_ref":"refs/heads/worktree-glittery-wobbling-rainbow"}
 - {"allocations":{"D:t1403-mitigation-leg-sigterm-confirmed":"D627"},"authored":"2026-08-20","base":"1b2236f8ef190e4ae3bd1010ae54ba76d90bc61f","content_sha256":"afbdf2a5ce58c4c160c020a06fd3b353090a6e20d876a4024f60dd30124b76de","seq":2,"tested_tip":"cb06bd400eb243a8744884f9e230ab302461a47e","wave":"glittery-wobbling-rainbow","wave_ref":"refs/heads/worktree-glittery-wobbling-rainbow"}
+
+- {"allocations":{"T:floor-masstree-staging":"[T-1461]"},"authored":"2026-08-21","base":"5c5b7eac83a1e5f678a04be14dd80ce29e483d8f","content_sha256":"7114007a4388d0dcb9b98547898b25a63954a3bb14d554cd76382a9c39de2372","seq":1,"tested_tip":"74a64df9639f97c967eb99015a6401d1e0af75a7","wave":"dev-wave-t1431-floor-resubmit","wave_ref":"refs/heads/worktree-dev-wave-t1431-floor-resubmit"}
