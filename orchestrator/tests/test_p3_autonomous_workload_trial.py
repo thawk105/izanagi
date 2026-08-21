@@ -3866,6 +3866,56 @@ def test_pending_critic_failure_is_converted_to_supervisor_error(
     ]
 
 
+def test_registered_pending_critic_failure_is_indeterminate(
+    tmp_path, t325_registered_trial,
+) -> None:
+    providers = {
+        role: _RecordingFixture(role)
+        for role in ("planner", "coder", "auditor")
+    }
+
+    # Stop after generation one so the missing critic is reached by the
+    # _finish_trial pending-critic drain (the second exception branch).
+    def stop_after_first_generation(*args, **kwargs):
+        outcome = _fake_drive(*args, **kwargs)
+        outcome["stop_reason"] = "converged"
+        return outcome
+
+    run_root = tmp_path / "registered-critic-failure"
+    report = _t325_run(
+        t325_registered_trial,
+        run_root,
+        providers=providers,
+        drive=stop_after_first_generation,
+    )
+
+    assert report["status"] == "partial"
+    assert report["cells"][0]["stop_reason"] == "supervisor-error"
+    assert report["lifecycle_terminal_status"] == "indeterminate"
+    attempt_rows = [
+        json.loads(line)
+        for line in (
+            t325_registered_trial.repo
+            / A.trial_registry.DEFAULT_ATTEMPT_REGISTRY_PATH
+        ).read_text(encoding="utf-8").splitlines()
+    ]
+    attempt_terminal = next(
+        row for row in attempt_rows if row.get("event") == "terminal"
+    )
+    assert attempt_terminal["terminal_status"] == "not-consumed"
+    assert attempt_terminal["report_sha256"] is None
+    assert attempt_terminal["observation_sha256"] is None
+    assert attempt_terminal["primary_value"] is None
+    lifecycle_rows = [
+        json.loads(line)
+        for line in (
+            t325_registered_trial.repo
+            / A.trial_registry.DEFAULT_LIFECYCLE_PATH
+        ).read_text(encoding="utf-8").splitlines()
+    ]
+    assert lifecycle_rows[-1]["terminal_status"] == "indeterminate"
+
+
 def test_residual_pending_critics_block_report_publish(
     tmp_path, monkeypatch,
 ) -> None:
@@ -5081,6 +5131,7 @@ def test_supervisor_error_still_writes_partial_terminal_report(tmp_path) -> None
         "message": "preview fixture failure",
     }
     assert report["cells"][0]["stop_reason"] == "supervisor-error"
+    assert "lifecycle_terminal_status" not in report
     assert (run_root / "report.json").is_file()
     events = [
         json.loads(line)
@@ -6407,6 +6458,108 @@ def test_formal_noncertifying_registered_workload_consumes_shared_slot(
     ] == [report["slot_id"]]
 
 
+def test_registered_formal_noncertifying_build_crash_is_indeterminate(
+    tmp_path, monkeypatch, t325_registered_trial,
+) -> None:
+    monkeypatch.setattr(
+        A.s8c_preregistration,
+        "validate_condition_freeze_at",
+        lambda *_args: None,
+    )
+    monkeypatch.setattr(
+        A,
+        "assert_autonomous_trial_completeness",
+        lambda **_kwargs: None,
+    )
+    monkeypatch.setattr(
+        A,
+        "assert_autonomous_trial_execution_digest_chain",
+        lambda **_kwargs: None,
+    )
+    factory = A.exploration_campaign_layout
+    monkeypatch.setattr(
+        A,
+        "exploration_campaign_layout",
+        lambda campaign_id: factory(campaign_id, str(tmp_path)),
+    )
+
+    def fake_render(campaign_root, persisted, *, output_root):
+        assert persisted == campaign_root / "reports" / "layer3_report.json"
+        assert output_root == campaign_root.parent.parent
+        return {
+            "admission_decision": {
+                "schema_version": "campaign-artifact-admission-decision/v1",
+                "admission_status": "admitted",
+                "classification": "admitted-new-schema",
+            },
+        }
+
+    monkeypatch.setattr(A.layer3_report, "render", fake_render)
+    monkeypatch.setattr(A, "assert_campaign_layer3_chain", lambda **_kwargs: None)
+
+    def drive_build(
+        cfg, perf, planner, coder, auditor, prior, sub, do_build, *, layout,
+        **_kwargs,
+    ):
+        assert do_build is True
+        (Path(layout.root) / "reports").mkdir(parents=True, exist_ok=True)
+        return {
+            "outcome": "dry-pass",
+            "variant": None,
+            "stop_reason": "converged",
+            "iteration": 1,
+            "ran": True,
+            "critic_digest_generated": False,
+            "trigger_gate_binding_commitment": "b" * 64,
+        }
+
+    providers = {
+        role: _RecordingFixture(role)
+        for role in ("planner", "coder", "auditor")
+    }
+    run_root = tmp_path / "formal-noncertifying-build-crash"
+    report = _t325_run(
+        t325_registered_trial,
+        run_root,
+        effective_preregistration=None,
+        allow_formal_noncertifying=True,
+        do_build=True,
+        coder_authority=_coder_authority(),
+        providers=providers,
+        drive=drive_build,
+    )
+
+    assert report["status"] == "partial"
+    assert report["do_build"] is True
+    assert report["launch_admission"]["mode"] == (
+        "registered-formal-non-certifying"
+    )
+    assert report["cells"][0]["stop_reason"] == "supervisor-error"
+    assert report["lifecycle_terminal_status"] == "indeterminate"
+    attempt_rows = [
+        json.loads(line)
+        for line in (
+            t325_registered_trial.repo
+            / A.trial_registry.DEFAULT_ATTEMPT_REGISTRY_PATH
+        ).read_text(encoding="utf-8").splitlines()
+    ]
+    attempt_terminal = next(
+        row for row in attempt_rows if row.get("event") == "terminal"
+    )
+    assert attempt_terminal["terminal_status"] == "not-consumed"
+    assert attempt_terminal["report_sha256"] is None
+    assert attempt_terminal["observation_sha256"] is None
+    assert attempt_terminal["primary_value"] is None
+    lifecycle_rows = [
+        json.loads(line)
+        for line in (
+            t325_registered_trial.repo
+            / A.trial_registry.DEFAULT_LIFECYCLE_PATH
+        ).read_text(encoding="utf-8").splitlines()
+    ]
+    assert lifecycle_rows[-1]["terminal_status"] == "indeterminate"
+
+
 def test_formal_noncertifying_cli_skips_effective_derivation_and_forwards_opt_in(
     tmp_path, monkeypatch, t325_registered_trial,
 ) -> None:
@@ -7354,6 +7507,43 @@ def test_m26_manifest_binding_survives_provider_init_and_supervisor_failures(
     assert {
         field: _t325_run_start(supervisor_root)[field] for field in second_expected
     } == second_expected
+    assert supervisor_report["lifecycle_terminal_status"] == "indeterminate"
+
+    attempt_rows = [
+        json.loads(line)
+        for line in (
+            t325_registered_trial.repo
+            / A.trial_registry.DEFAULT_ATTEMPT_REGISTRY_PATH
+        ).read_text(encoding="utf-8").splitlines()
+    ]
+    supervisor_slot_id = _t325_run_start(supervisor_root)["slot_id"]
+    attempt_terminal = next(
+        row
+        for row in attempt_rows
+        if row.get("event") == "terminal"
+        and row.get("slot_id") == supervisor_slot_id
+    )
+    assert attempt_terminal["terminal_status"] == "not-consumed"
+    assert attempt_terminal["report_sha256"] is None
+    assert attempt_terminal["observation_sha256"] is None
+    assert attempt_terminal["primary_value"] is None
+
+    lifecycle = (
+        t325_registered_trial.repo
+        / A.trial_registry.DEFAULT_LIFECYCLE_PATH
+    )
+    lifecycle_rows = [
+        json.loads(line)
+        for line in lifecycle.read_text(encoding="utf-8").splitlines()
+    ]
+    supervisor_lifecycle_rows = [
+        row for row in lifecycle_rows
+        if row.get("trial_id") == second_trial_id
+    ]
+    assert [row["event"] for row in supervisor_lifecycle_rows] == [
+        "start", "terminal",
+    ]
+    assert supervisor_lifecycle_rows[-1]["terminal_status"] == "indeterminate"
 
 
 def test_m30_registered_trial_id_without_manifest_is_rejected(

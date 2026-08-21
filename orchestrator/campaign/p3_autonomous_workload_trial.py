@@ -3000,6 +3000,7 @@ def _finish_trial(
             transport_receipt=transport_receipt,
         )
     cells: list[dict[str, Any]] = []
+    experiment_indeterminate = False
     if fatal_error is None:
         for workload in selected:
             if time.monotonic() - started_monotonic >= max_wall_s:
@@ -3075,6 +3076,8 @@ def _finish_trial(
                     raise AutonomousTrialError(
                         "budget cell terminal is indeterminate after supervisor error"
                     )
+                elif launch_admission.binding is not None:
+                    experiment_indeterminate = True
                 admission_succeeded = _finalize_cell_admission(
                     cell,
                     do_build=do_build,
@@ -3146,6 +3149,8 @@ def _finish_trial(
                         raise AutonomousTrialError(
                             "budget cell terminal is indeterminate after critic error"
                         )
+                    elif launch_admission.binding is not None:
+                        experiment_indeterminate = True
                     break
             deferred_wall_generation = cell.pop(
                 "_deferred_wall_generation", None
@@ -3256,6 +3261,8 @@ def _finish_trial(
     }
     if fatal_error is not None:
         report["fatal_error"] = fatal_error
+    if experiment_indeterminate:
+        report["lifecycle_terminal_status"] = "indeterminate"
     if origin_runtime is not None:
         projection = origin_runtime.terminal_projection
         if projection is None:  # pragma: no cover - formal adapter postcondition
