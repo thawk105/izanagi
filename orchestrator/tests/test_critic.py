@@ -8,6 +8,7 @@ from __future__ import annotations
 import atexit
 import copy
 import hashlib
+import json
 import os
 import shutil
 import subprocess
@@ -73,6 +74,7 @@ from orchestrator.critic.digest import (STOCK_SRC_TOKEN, DiffQuarantineRejection
                            render_text)
 from campaign_lock_test_support import build_v2_lock              # noqa: E402
 from orchestrator.tests import commit_receipt_support as receipt_support  # noqa: E402
+from orchestrator.verifier.parse import TxnFramingViolation  # noqa: E402
 
 
 _ADMISSION_CONTEXT = build_run_context(generator_id=GeneratorId.BACKOFF_SWEEP)
@@ -1029,6 +1031,99 @@ def test_integrity_class_rejection_closes_loop():
     assert "missing_txids" in out                    # どのカウンタが非ゼロか
     assert "missing txids sample" in out             # notes (欠番の見本) が届く
     assert "cycle 全数" not in out                   # cycle 型の描画をしない (区別)
+
+
+def test_permutation_integrity_render_uses_bounded_closed_counts():
+    old_permutation_note = (
+        "2 permutation-preservation violation(s) [size-changed×2] — "
+        "validationPhase's write_set_ sort dropped or duplicated an element "
+        "(non-strict-weak-order comparator UB, not a trace-hook fault)"
+    )
+    lock_note = (
+        "1 lock-coverage violation(s) [missing-lock×1] — writePhase wrote a tuple "
+        "without holding its lock (torn-read window; variant broke lock coverage, "
+        "not a trace-hook fault): sample"
+    )
+    unknown_sample = json.dumps('opaque "reason"')
+    rejection = Rejection(
+        genome=_G.format(b=1, l=1, t=0, w=0),
+        flags={},
+        verdict="indeterminate",
+        stats={"txns": 1},
+        integrity={
+            "clean": False,
+            "permutation_violations": 2,
+            "permutation_violation_details": {
+                "counts": {
+                    "size-changed": 1,
+                    "rcdptr-set-changed": 0,
+                    "unknown": 1,
+                },
+                "sample": [{"observation": {"kind": "unknown"}}],
+                "unknown_reason_sample": [unknown_sample],
+            },
+            "notes": [old_permutation_note, lock_note],
+        },
+    )
+
+    out = render_rejections([rejection], [], {}, None)
+
+    assert "{'counts':" not in out
+    assert "permutation_violation_details" not in out
+    assert "permutation counts: size-changed=1 rcdptr-set-changed=0 unknown=1" in out
+    assert f"permutation unknown samples: {unknown_sample}" in out
+    assert old_permutation_note not in out
+    assert lock_note in out
+
+    zero_rejection = copy.deepcopy(rejection)
+    zero_rejection.integrity["permutation_violations"] = 0
+    zero_rejection.integrity["permutation_violation_details"] = {
+        "counts": {
+            "size-changed": 0,
+            "rcdptr-set-changed": 0,
+            "unknown": 0,
+        },
+        "sample": [],
+        "unknown_reason_sample": [],
+    }
+    zero_rejection.integrity["notes"] = [
+        "0 permutation-preservation violation(s) [none] — retained note",
+        lock_note,
+    ]
+
+    zero_out = render_rejections([zero_rejection], [], {}, None)
+
+    assert "permutation counts:" not in zero_out
+    assert "permutation unknown samples:" not in zero_out
+    assert zero_rejection.integrity["notes"][0] in zero_out
+    assert lock_note in zero_out
+
+
+def test_framing_integrity_render_excludes_structured_details_from_counters():
+    framing_detail = TxnFramingViolation(
+        kind="count-mismatch",
+        txid=7,
+        expected_reads=1,
+        observed_reads=0,
+    )
+    rejection = Rejection(
+        genome=_G.format(b=1, l=1, t=0, w=0),
+        flags={},
+        verdict="indeterminate",
+        stats={"txns": 1},
+        integrity={
+            "clean": False,
+            "framing_violations": 1,
+            "framing_violation_details": [framing_detail],
+            "notes": [],
+        },
+    )
+
+    out = render_rejections([rejection], [], {}, None)
+
+    assert "framing_violations" in out
+    assert repr(framing_detail) not in out
+    assert "framing_violation_details" not in out
 
 
 def test_write_intent_rejection_is_mechanism_gap_not_cycle():

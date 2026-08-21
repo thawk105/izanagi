@@ -16,6 +16,7 @@ critic は「生のカウンタでなく組み合わせて読み、特定の設�
 """
 from __future__ import annotations
 
+import re
 import sys
 import types
 import unicodedata
@@ -1122,7 +1123,10 @@ def render_rejections(rejections: List[Rejection],
                          "(integrity カウンタが全て 0 でも緑ではない)")
             ig = rj.integrity or {}
             counters = {k: v for k, v in ig.items()
-                        if k not in ("clean", "notes") and v}
+                        if k not in (
+                            "clean", "notes", "permutation_violation_details",
+                            "framing_violation_details",
+                        ) and v}
             L.append(f"  integrity: {counters if counters else '(非ゼロカウンタなし)'}")
             if ig.get("lock_coverage_violations"):
                 L.append(
@@ -1132,7 +1136,28 @@ def render_rejections(rejections: List[Rejection],
                 L.append(
                     "  分類: 機構欠落型 (write intent coverage) — 次手は write-set "
                     "membership / API 意図の復元 (cycle 帰属を捏造しない)")
+            pv_details = ig.get("permutation_violation_details") or {}
+            pv_counts = pv_details.get("counts") or {}
+            pv_total = sum(pv_counts.values())
+            if pv_total > 0:
+                L.append(
+                    "  分類: 機構欠落型 (sort permutation) — 次手は comparator の "
+                    "strict-weak-order 復元 (cycle 帰属を捏造しない)")
+                L.append(
+                    "  permutation counts: "
+                    f"size-changed={pv_counts.get('size-changed', 0)} "
+                    f"rcdptr-set-changed={pv_counts.get('rcdptr-set-changed', 0)} "
+                    f"unknown={pv_counts.get('unknown', 0)}")
+                if pv_counts.get("unknown", 0) > 0:
+                    L.append(
+                        "  permutation unknown samples: "
+                        + ", ".join(pv_details.get("unknown_reason_sample") or [])
+                    )
             for note in ig.get("notes", []):
+                if (pv_total > 0
+                        and re.match(r"^\d+ permutation-preservation violation\(s\) ",
+                                     note)):
+                    continue
                 L.append(f"  · {note}")
         L.append("")
     for lv in liveness:

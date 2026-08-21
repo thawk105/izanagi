@@ -47,6 +47,15 @@ def _integrity(intent_total: int) -> dict:
         "clean": intent_total == 0,
         **counters,
         "framing_violation_details": [],
+        "permutation_violation_details": {
+            "counts": {
+                "size-changed": 0,
+                "rcdptr-set-changed": 0,
+                "unknown": 0,
+            },
+            "sample": [],
+            "unknown_reason_sample": [],
+        },
         "notes": [],
     }
 
@@ -372,6 +381,15 @@ def test_integrity_helper_ignores_framing_violation_details():
         "expected_writes": 0,
         "observed_writes": 0,
     }]
+    integrity["permutation_violation_details"] = {
+        "counts": {
+            "size-changed": 1,
+            "rcdptr-set-changed": 2,
+            "unknown": 3,
+        },
+        "sample": [{"observation": {"kind": "unknown"}}],
+        "unknown_reason_sample": ["\"opaque\""],
+    }
     assert driver._integrity_counters_zero(integrity)
 
 
@@ -787,6 +805,15 @@ def test_verify_preserves_complete_integrity_dict(monkeypatch, tmp_path):
         "lock_coverage_violations": 9,
         "write_intent_violations": 10,
         "permutation_violations": 11,
+        "permutation_violation_details": {
+            "counts": {
+                "size-changed": 0,
+                "rcdptr-set-changed": 0,
+                "unknown": 0,
+            },
+            "sample": [],
+            "unknown_reason_sample": [],
+        },
         "notes": ["independent-note"],
     }
     verifier_payload = {

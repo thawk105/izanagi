@@ -1,0 +1,1 @@
+{"schema_version":"t338-conformance-vector/v2","id":"negative-7.1-01-liveness-pairs","kind":"negative","classification":"relabel","covers":["7.1(1)"],"unit3_reference":"対応なし・unit5独自","entrypoint":"reason_branches","mutation":{"op":"scenario","name":"duplicate_verification_pair"},"expected_reason":"cardinality"}
