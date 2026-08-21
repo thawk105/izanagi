@@ -1240,6 +1240,8 @@ def _validate_attempt_topology(
 
         if record.stage in {STAGE_VERIFY_DONE, STAGE_BENCH_DONE}:
             attempt_id = payload.get("build_attempt_id")
+            if attempt_id is None:
+                continue
             if type(attempt_id) is not str or not attempt_id:
                 raise AttemptTopologyError(
                     f"{record.stage}: build_attempt_id が欠落または不正"
