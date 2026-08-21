@@ -64,6 +64,80 @@ class TxnFramingViolation:
     observed_writes: int | None = None
 
 
+SortPermutationKind = Literal[
+    "size-changed", "rcdptr-set-changed", "unknown",
+]
+SortPermutationMultisetState = bool | Literal["NOT_EVALUATED"] | None
+
+
+@dataclass(frozen=True)
+class SortPermutationClass:
+    """固定 origin 内での sort 軸の観測クラス。
+
+    複数 VerifyResult/campaign run を横断する dedup・比較キーとして使ってはならない
+    (D146 決定3)。意味を持つのは固定 origin 内だけである。
+    """
+
+    kind: SortPermutationKind
+    size_preserved: bool | None
+    rcdptr_multiset_preserved: SortPermutationMultisetState
+    recognized: bool
+
+
+@dataclass(frozen=True)
+class SortPermutationViolation:
+    """P 行 1 件の raw token と観測クラスを分離した event witness。"""
+
+    observation: SortPermutationClass
+    raw_reason: str
+    source_thread_hint: int | None = None
+    source_thread_hint_basis: Literal["canonical-filename"] | None = None
+
+
+_CANONICAL_TRACE_NAME_RE = re.compile(r"^trace_([0-9]+)\.log$")
+
+
+def _sort_permutation_observation(reason: str) -> SortPermutationClass:
+    if reason == "size-changed":
+        return SortPermutationClass(
+            kind="size-changed",
+            size_preserved=False,
+            rcdptr_multiset_preserved="NOT_EVALUATED",
+            recognized=True,
+        )
+    if reason == "rcdptr-set-changed":
+        return SortPermutationClass(
+            kind="rcdptr-set-changed",
+            size_preserved=True,
+            rcdptr_multiset_preserved=False,
+            recognized=True,
+        )
+    return SortPermutationClass(
+        kind="unknown",
+        size_preserved=None,
+        rcdptr_multiset_preserved=None,
+        recognized=False,
+    )
+
+
+def _make_sort_permutation_violation(
+        reason: str, path: str,
+) -> SortPermutationViolation:
+    match = _CANONICAL_TRACE_NAME_RE.fullmatch(os.path.basename(path))
+    if match is None:
+        source_thread_hint = None
+        source_thread_hint_basis = None
+    else:
+        source_thread_hint = int(match.group(1))
+        source_thread_hint_basis = "canonical-filename"
+    return SortPermutationViolation(
+        observation=_sort_permutation_observation(reason),
+        raw_reason=reason,
+        source_thread_hint=source_thread_hint,
+        source_thread_hint_basis=source_thread_hint_basis,
+    )
+
+
 @dataclass
 class ParseIssues:
     """パース段で見つけた trace 健全性の問題 (core が integrity へ配線する)。
@@ -93,6 +167,8 @@ class ParseIssues:
     # UB で write_set_ の要素が失われた/複製された可能性を示す。
     # integrity.permutation_violations に配線され verdict を indeterminate に倒す。
     permutation_violations: List[str] = field(default_factory=list)
+    permutation_violation_details: List[SortPermutationViolation] = field(
+        default_factory=list)
     # A 行 = abort 要因の記録 (段 8a trigger-gating 軸の検証計装、D48 positive
     # control)。**違反ではなく集計データ** — integrity/verdict には一切関与しない
     # (docstring の「非ゼロなら認証しない」はこのフィールドには適用されない)。
@@ -277,6 +353,8 @@ def _parse_file(path: str, txns: Dict[int, Txn], issues: ParseIssues) -> None:
                         # ない、current が None でも受理する)。
                         _, reason = f
                         issues.permutation_violations.append(reason)
+                        issues.permutation_violation_details.append(
+                            _make_sort_permutation_violation(reason, path))
                         if current is None:
                             last_closed_txid = None
                     elif tag == "A":

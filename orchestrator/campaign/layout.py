@@ -20,6 +20,7 @@ paths を一箇所に集約し、WAL/ビルドキャッシュ/lock がここだ�
 """
 from __future__ import annotations
 
+import hashlib
 import os
 import stat
 import sys
@@ -44,6 +45,17 @@ def repo_output_root() -> str:
     here = os.path.dirname(os.path.abspath(__file__))     # <repo>/orchestrator/campaign
     repo = os.path.dirname(os.path.dirname(here))         # <repo>
     return os.path.join(repo, "output")
+
+
+def campaign_lock_dir() -> str:
+    d = os.path.join(repo_output_root(), "campaign-locks")
+    os.makedirs(d, exist_ok=True)
+    return d
+
+
+def campaign_lock_path(layout) -> str:
+    key = hashlib.sha256(os.path.realpath(layout.root).encode("utf-8")).hexdigest()[:20]
+    return os.path.join(campaign_lock_dir(), f"{key}.flock")
 
 
 def default_durable_root_policy() -> DurableRootPolicy:

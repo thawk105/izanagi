@@ -233,8 +233,8 @@ def _check_submodule_marker(repo: Path) -> list[str]:
         "submodule is not initialized "
         f"({_SUBMODULE_MARKER} must be a non-symlink regular file and "
         f"{_SUBMODULE_GIT} must exist without being a symlink): "
-        "検査対象の worktree root で git -c protocol.file.allow=always "
-        "submodule update --init を実行し再検査する"
+        "検査対象の worktree root で python3 tools/dev_wave_submodule_init.py "
+        "--worktree <path> を実行し再検査する"
     ]
 
 

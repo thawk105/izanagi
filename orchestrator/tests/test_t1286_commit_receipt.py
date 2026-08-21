@@ -72,7 +72,11 @@ from orchestrator.verifier import (  # noqa: E402
 )
 from orchestrator.verifier import core as verifier_core  # noqa: E402
 from orchestrator.verifier.model import Integrity, VerifyResult  # noqa: E402
-from orchestrator.verifier.parse import TxnFramingViolation  # noqa: E402
+from orchestrator.verifier.parse import (  # noqa: E402
+    SortPermutationClass,
+    SortPermutationViolation,
+    TxnFramingViolation,
+)
 
 
 _CANON = "silo|BACK_OFF=0,NO_WAIT_LOCKING_IN_VALIDATION=1,NO_WAIT_OF_TICTOC=0,WAL=0"
@@ -238,25 +242,53 @@ def test_uncertified_verifier_capability_cannot_issue_receipt(
 def test_verification_capability_hash_ignores_framing_violation_details(
         monkeypatch,
 ):
-    def _result(detail: TxnFramingViolation) -> VerifyResult:
+    def _result(
+            framing_detail: TxnFramingViolation,
+            permutation_detail: SortPermutationViolation,
+    ) -> VerifyResult:
         return VerifyResult(
             trace_dir="/fixture/stable-trace",
             serializable=True,
             n_txns=1,
             integrity=Integrity(
                 framing_violations=1,
-                framing_violation_details=[detail],
+                framing_violation_details=[framing_detail],
+                permutation_violations=1,
+                permutation_violation_details=[permutation_detail],
                 notes=["stable note"],
             ),
         )
 
+    def _permutation_detail(
+            kind: str, raw_reason: str, source_thread_hint: int,
+    ) -> SortPermutationViolation:
+        return SortPermutationViolation(
+            observation=SortPermutationClass(
+                kind=kind,
+                size_preserved=(kind != "size-changed"),
+                rcdptr_multiset_preserved=(
+                    "NOT_EVALUATED" if kind == "size-changed" else False
+                ),
+                recognized=True,
+            ),
+            raw_reason=raw_reason,
+            source_thread_hint=source_thread_hint,
+            source_thread_hint_basis="canonical-filename",
+        )
+
     results = iter((
-        _result(TxnFramingViolation(
-            kind="count-mismatch", txid=0,
-            expected_reads=1, observed_reads=0,
-            expected_writes=0, observed_writes=0,
-        )),
-        _result(TxnFramingViolation(kind="missing-end", txid=0)),
+        _result(
+            TxnFramingViolation(
+                kind="count-mismatch", txid=0,
+                expected_reads=1, observed_reads=0,
+                expected_writes=0, observed_writes=0,
+            ),
+            _permutation_detail("size-changed", "size-changed", 0),
+        ),
+        _result(
+            TxnFramingViolation(kind="missing-end", txid=0),
+            _permutation_detail("rcdptr-set-changed", "rcdptr-set-changed", 1),
+        ),
     ))
     monkeypatch.setattr(
         verifier_core,
