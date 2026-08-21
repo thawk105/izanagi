@@ -195,6 +195,8 @@ _REVIEWED_PREDICATES = (
                "_validate_manifest", "validate_manifest_v3"),
     _Predicate("E", "orchestrator/campaign/s8b_ratified_freeze.py",
                "_validate_result_top_level_keys", "use_perf_from_receipt"),
+    _Predicate("E", "orchestrator/campaign/s8b_ratified_freeze.py",
+               "_validate_journal", "validate_perf_preflight_receipt"),
     _Predicate("L", "orchestrator/campaign/s8b_ratified_freeze.py",
                "_validate_result_top_level_keys", "result_keys_for_mode"),
     _Predicate("L", "orchestrator/campaign/s8b_ratified_freeze.py",
