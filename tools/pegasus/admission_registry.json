@@ -187,6 +187,12 @@
       "primary_gate": "PBS allocation and job-body site preflight",
       "evidence": "static job-body classification"
     },
+    "tools/pegasus/mocc_trace_pilot.sh": {
+      "class": "dispatch-required",
+      "reason": "PBS Mocc trace pilot job body",
+      "primary_gate": "PBS allocation and job-body site preflight",
+      "evidence": "static job-body classification"
+    },
     "tools/pegasus/smoke_probe.sh": {
       "class": "dispatch-required",
       "reason": "PBS smoke probe job body",
@@ -198,6 +204,12 @@
       "reason": "login-side PBS certification submitter",
       "primary_gate": "qsub submission; compute work stays in job body",
       "evidence": "legacy-admitted (未実測)"
+    },
+    "tools/pegasus/submit_mocc_trace.sh": {
+      "class": "local-ok",
+      "reason": "login-side PBS Mocc trace pilot submitter",
+      "primary_gate": "qsub submission; compute work stays in job body",
+      "evidence": "static login-side submitter classification"
     },
     "tools/pegasus/submit_floor.sh": {
       "class": "local-ok",

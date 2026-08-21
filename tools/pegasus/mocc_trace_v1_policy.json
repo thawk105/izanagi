@@ -1,0 +1,34 @@
+{
+  "project": "SFC",
+  "queue": "gen_S",
+  "nodes": 1,
+  "pilot_walltime": "00:30:00",
+  "pilot_walltime_s": 1800,
+  "finalize_reserve_s": 300,
+  "expected_cpu_model": "Intel Xeon Platinum 8468",
+  "expected_physical_cores": 48,
+  "gflags_source_path": "/work/SFC/tanab/github/gflags",
+  "gflags_expected_head": "e171aa2d15ed9eb17054558e0b3a6a413bb01067",
+  "glog_source_path": "/work/SFC/tanab/github/glog",
+  "glog_expected_head": "8f9ccfe770add9e4c64e9b25c102658e3c763b73",
+  "third_party_cache_env": "IZANAGI_PEGASUS_THIRDPARTY_CACHE",
+  "mocc_trace": {
+    "base_oid": "511c9538e4e8efa54b45cda62e72389ed3b706ec",
+    "new_oid": "ef9328a35d49b1b9b610f244bee22ad7f10b8b66",
+    "cmake_target": "ycsb_mocc.exe",
+    "trace1_defines": {
+      "CCBENCH_TRACE": "1"
+    },
+    "trace0_defines": {
+      "CCBENCH_TRACE": "0"
+    },
+    "workload": {
+      "records": 10000,
+      "threads": 48,
+      "zipf_skew": 0.9,
+      "ycsb_rratio": 50,
+      "ycsb_rmw": 0,
+      "extime_s": 3
+    }
+  }
+}
