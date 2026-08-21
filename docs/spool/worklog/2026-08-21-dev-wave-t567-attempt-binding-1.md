@@ -23,6 +23,17 @@ title: '[T-567] verify_done/bench_done を実行 attempt ID に束縛し、consu
 - 設計判断は {{D:attempt-bound-verify-bench-signals}} (D193 の実質補完、recovery-abort/
   noncertifying semantics 自体は不変)。元起票 [T-459] 段6 レビュー
   (一次資料: docs/archive/worklog-phase3-0806-254.md:1-46, 390-393)。
+- 受入全走 (attempt N=6) で 63 件のテスト失敗を検出。段6レビュー・変異matrixでは
+  見逃されていた real 所見: `_validate_attempt_topology()` の STAGE_VERIFY_DONE/
+  STAGE_BENCH_DONE 分岐が `build_attempt_id` 欠落を無条件拒否しており、attempt束縛
+  導入前 (legacy) の verify_done/bench_done を意図的に使う他 wave の既存テスト資産
+  (test_artifact_admission.py 等6ファイル) を壊していた。`build_attempt_id is None`
+  の場合は新規検証を skip する2行 fix (`55d6c019`) で解消、影響6ファイル674 passed・
+  T-567核心920 passed・変異matrix再走行 (baseline PASSED・5/5 KILLED・MISMATCH 0、
+  DW-M07 に従い `--runner-mode dispatch` で再確定) の全てで無回帰を確認した。
+  段6の変異事前登録・敵対レビューが legacy WAL との相互作用を検出できなかった点は
+  次wave以降への教訓 (レビュー観点に「新設検証が既存の広範なテスト資産と相互作用しないか」
+  を明示的に含めるべきだった)。
 
 ## 次の一手差分
 
