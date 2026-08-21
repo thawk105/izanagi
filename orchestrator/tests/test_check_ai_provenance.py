@@ -1897,6 +1897,22 @@ def test_known_violation_ledger_matches_literal_entries():
             "親作成mergeのためCodex著者とは記さない。",
             "",
         ),
+        (
+            "8482c047b659ea26cb0687fe259fe8eab171d8b2",
+            "missing-codex-author",
+            "dev-wave-t972-perf-preflight-receipt 受入前 main 取り込み。Codex role=author 合成監査で"
+            "変更不要と判定、親セッションがユーザーへ状況を説明し known-violation 登録の続行を"
+            "承認された (2026-08-21)",
+            "受入3回目が owned-path-overlap で終端し親が main を取り込んだ merge。実装面で両側が触ったのは"
+            "`orchestrator/campaign/s8b_floor_campaign.py` / "
+            "`orchestrator/tests/test_s8b_floor_campaign.py` の2 file で、"
+            "`git diff-tree --cc 8482c047` は SHA 行のみの完全な空 = 競合解決による新規著作なしと確認済み。"
+            "Codex `role=author` の合成監査子が両 wave の機能（T-1444 の site-aware machine-pin 解決、"
+            "T-972 の perf-preflight journal 永続化）の意味的整合を file:line 単位で確認し「変更不要」と判定した。"
+            "wave 側の実装面は Codex `role=author` が既存 commit（段5 実装子、fix1-4）で書いている。"
+            "親作成 merge のため Codex 著者とは記さない。",
+            "",
+        ),
     )
     assert len(provenance.KNOWN_PROVENANCE_VIOLATIONS) == len(expected)
     assert observed == expected
