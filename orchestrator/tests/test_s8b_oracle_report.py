@@ -313,6 +313,9 @@ def _ratified_cli_manifest(
     root, ratified, topology = ratified_fixture.load_emitter_g1(
         tmp_path, mutate_g1=fill_execution_snapshot,
     )
+    # Preserve the emitter's git-backed artifacts and expose an external
+    # sibling as the official report output root.
+    shutil.copytree(root / "output", root.parent / "output")
     freeze_path = root / topology["generation_path"]
     for role, relative_path in GENERATOR_SOURCES.items():
         source = root / relative_path
@@ -1565,7 +1568,7 @@ def test_cli_official_resolves_ratified_freeze_and_verifies(tmp_path):
             rc = report.main([
                 "report",
                 "--manifest", str(manifest_path),
-                "--output-root", str(root / "output"),
+                "--output-root", str(root.parent / "output"),
                 "--out", str(output),
                 "--repo-root", str(root),
             ])
@@ -1603,7 +1606,7 @@ def test_report_rejects_unverifiable_floor_admission_without_output(tmp_path):
             oracle_spec, "APPROVED_SPEC_SHA256", approved.sha256):
         rc = report.main([
             "report", "--manifest", str(manifest_path),
-            "--output-root", str(root / "report-output"),
+            "--output-root", str(root.parent / "report-output"),
             "--out", str(output), "--repo-root", str(root),
         ])
 
@@ -1626,7 +1629,7 @@ def test_cli_verify_failure_returns_two_without_output(tmp_path):
         rc = report.main([
             "report",
             "--manifest", str(manifest_path),
-            "--output-root", str(root / "report-output"),
+            "--output-root", str(root.parent / "report-output"),
             "--out", str(output),
             "--repo-root", str(root),
         ])
@@ -1643,7 +1646,7 @@ def test_report_cli_accepts_matching_spec_then_rejects_one_other_spec_without_ou
             oracle_spec, "APPROVED_SPEC_SHA256", approved_a.sha256):
         positive_rc = report.main([
             "report", "--manifest", str(manifest_path),
-            "--output-root", str(root / "report-output"),
+            "--output-root", str(root.parent / "report-output"),
             "--out", str(positive_output), "--repo-root", str(root),
         ])
     assert positive_rc == 0
@@ -1670,7 +1673,7 @@ def test_report_cli_accepts_matching_spec_then_rejects_one_other_spec_without_ou
             oracle_spec, "APPROVED_SPEC_SHA256", approved_b.sha256):
         negative_rc = report.main([
             "report", "--manifest", str(manifest_path),
-            "--output-root", str(root / "report-output"),
+            "--output-root", str(root.parent / "report-output"),
             "--out", str(negative_output), "--repo-root", str(root),
         ])
     assert negative_rc == 2
@@ -1680,7 +1683,7 @@ def test_report_cli_accepts_matching_spec_then_rejects_one_other_spec_without_ou
 def test_official_missing_output_root_reports_missing_and_judges_indeterminate(
         tmp_path):
     root, manifest_path, _document, approved = _ratified_cli_manifest(tmp_path)
-    output_root = root / "missing-report-output"
+    output_root = root.parent / "missing-report-output"
     observations_path = tmp_path / "missing-store-observations.json"
     assert not output_root.exists()
 
@@ -1713,7 +1716,7 @@ def test_judge_cli_reverifies_official_manifest_and_legacy_cannot_reach_verdict(
             oracle_spec, "APPROVED_SPEC_SHA256", approved.sha256):
         assert report.main([
             "report", "--manifest", str(manifest_path),
-            "--output-root", str(root / "report-output"),
+            "--output-root", str(root.parent / "report-output"),
             "--out", str(observations_path), "--repo-root", str(root),
         ]) == 0
         verdict_path = tmp_path / "official-verdict.json"
