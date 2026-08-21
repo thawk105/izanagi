@@ -1902,6 +1902,29 @@ def test_floor_kinds_match_independently_and_classification_records_skips(tmp_pa
         assert search_details[kind]["skipped_no_floor_block"] == ["frequency.json"]
 
 
+def test_between_run_schema_version_does_not_change_floor_classification(tmp_path):
+    campaign, output_root = _campaign(
+        tmp_path, [_record("build_start", genome="g", src_token="s")], ycsb=YCSB)
+    calibration = output_root / "env/test-env/calibration"
+    calibration.mkdir(parents=True)
+    between = {"max_delta_pct": 2.0}
+    (calibration / "between.json").write_text(json.dumps({
+        "schema_version": "between-run-noise-floor/v1",
+        "records": 100000, "threads": 4, "workload": YCSB,
+        "between_run": between,
+    }), encoding="utf-8")
+
+    floors, details = layer3_report._calibration_floors(
+        calibration, 100000, 4, YCSB)
+    assert details["between_run"]["candidate_files"] == ["between.json"]
+    assert floors["between_run"]["provenance"] == "env-record"
+    assert floors["between_run"]["value"] == between
+
+    report = layer3_report.build_report(
+        campaign, generated_from_head="fixed", output_root=output_root)
+    assert report["noise_floor"]["between_run"]["value"] == between
+
+
 def test_duplicate_matching_floor_of_same_kind_fails_closed(tmp_path):
     campaign, output_root = _campaign(
         tmp_path, [_record("build_start", genome="g", src_token="s")], ycsb=YCSB)
