@@ -1,0 +1,1 @@
+{"schema_version":"t338-conformance-vector/v2","id":"negative-7.1-19-schema-pin","kind":"negative","classification":"relabel","covers":["7.1(19)"],"unit3_reference":"対応なし・unit5独自","entrypoint":"schema_pin","mutation":{"op":"schema_pin","sha256":"0000000000000000000000000000000000000000000000000000000000000000"},"expected_reason":"schema_pin"}
