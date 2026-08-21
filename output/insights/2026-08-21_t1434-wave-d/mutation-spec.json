@@ -92,6 +92,9 @@
     {
       "category": "negative",
       "expected_nodes": [
+        "orchestrator/tests/test_codex_reasoning_ab.py::test_expected_schedule_rejects_non_null_v2_cache_condition",
+        "orchestrator/tests/test_codex_reasoning_ab.py::test_non_null_nullable_dimension_is_fail_closed[cache_condition]",
+        "orchestrator/tests/test_codex_reasoning_ab.py::test_non_null_nullable_dimension_is_fail_closed[price_version]",
         "orchestrator/tests/test_codex_reasoning_ab.py::test_validate_schedule_rejects_live_non_null_cache_or_price[cache_condition]",
         "orchestrator/tests/test_codex_reasoning_ab.py::test_validate_schedule_rejects_live_non_null_cache_or_price[price_version]"
       ],
