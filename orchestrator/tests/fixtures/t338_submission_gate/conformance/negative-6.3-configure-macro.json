@@ -1,0 +1,1 @@
+{"schema_version":"t338-conformance-vector/v2","id":"negative-6.3-configure-macro","kind":"negative","classification":"relabel","covers":["6.3","7.1(12)"],"unit3_reference":"test_compile_flags_require_three_legs","entrypoint":"receipt","mutation":{"op":"set","path":["arms","stock","compile","configure_argv",0],"value":"-DCCBENCH_TRACE=1"},"expected_reason":"compile"}

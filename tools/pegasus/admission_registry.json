@@ -97,6 +97,18 @@
       "primary_gate": "compute allocation owned by t139_r4_env_probe.pbs",
       "evidence": "static compute-side call-site classification"
     },
+    "tools/pegasus/probes/t1403_walltime_sigterm_probe.pbs": {
+      "class": "unknown",
+      "reason": "probe artifact has no login admission ruling",
+      "primary_gate": "hook deny pending admission evidence",
+      "evidence": "unmeasured probe artifact"
+    },
+    "tools/pegasus/probes/t1403_walltime_sigterm_probe.py": {
+      "class": "unknown",
+      "reason": "probe artifact has no login admission ruling",
+      "primary_gate": "hook deny pending admission evidence",
+      "evidence": "unmeasured probe artifact"
+    },
     "tools/pegasus/probes/t293_perf_site_probe.pbs": {
       "class": "unknown",
       "reason": "probe artifact has no login admission ruling",

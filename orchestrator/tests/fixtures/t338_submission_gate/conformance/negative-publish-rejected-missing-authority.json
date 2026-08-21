@@ -1,0 +1,1 @@
+{"schema_version":"t338-conformance-vector/v2","id":"publish_rejected_missing_authority","kind":"negative","classification":"new","covers":["6.10","writer_authority"],"unit3_reference":"対応なし・unit5独自","entrypoint":"writer_authority","mutation":{"op":"none"},"expected_reason":null,"expected_exception":"VectorAuthorityUnavailableError","expected_code":"vector_authority_unavailable"}

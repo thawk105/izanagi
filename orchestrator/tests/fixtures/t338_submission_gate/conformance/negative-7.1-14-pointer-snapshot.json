@@ -1,0 +1,1 @@
+{"schema_version":"t338-conformance-vector/v2","id":"negative-7.1-14-pointer-snapshot","kind":"negative","classification":"relabel","covers":["7.1(14)"],"unit3_reference":"test_pointer_reader_checks_size_digest_and_symlink","entrypoint":"receipt","mutation":{"op":"set","path":["arms","stock","binary","size"],"value":0},"expected_reason":"pointer"}
