@@ -61,7 +61,7 @@ from orchestrator.campaign.build_admission import (  # noqa: E402
 from orchestrator.campaign import layout as layout_module                    # noqa: E402
 from orchestrator.campaign.layout import (CampaignLayout,                     # noqa: E402
                              ExplorationCampaignLayout,
-                             campaign_lock_path,
+                             campaign_lock_dir, campaign_lock_path,
                              campaign_layout, ensure_exploration_namespace,
                              exploration_campaign_layout)
 from orchestrator.campaign.lock import (                                       # noqa: E402
@@ -2674,7 +2674,7 @@ def _finish_campaign_lock_holder(
 
 def test_campaign_lock_reentry_rejected_in_same_process():
     layout = _layout().ensure()
-    lock_path = campaign_lock_path(layout)
+    lock_path = campaign_lock_path(layout, declared_use_class="official")
     with campaign_flock(lock_path):
         try:
             with campaign_flock(lock_path, blocking=False):
@@ -2685,7 +2685,7 @@ def test_campaign_lock_reentry_rejected_in_same_process():
 
 def test_campaign_lock_same_campaign_rejects_competing_process():
     layout = _layout().ensure()
-    lock_path = campaign_lock_path(layout)
+    lock_path = campaign_lock_path(layout, declared_use_class="official")
     control_root = Path(_tmpdir("izanagi_campaign_lock_process_"))
     ready_path = control_root / "ready"
     release_path = control_root / "release"
@@ -2703,7 +2703,10 @@ def test_campaign_lock_same_campaign_rejects_competing_process():
 
 def test_campaign_lock_different_campaigns_can_run_in_parallel():
     layouts = [_layout().ensure(), _layout().ensure()]
-    lock_paths = [campaign_lock_path(layout) for layout in layouts]
+    lock_paths = [
+        campaign_lock_path(layout, declared_use_class="official")
+        for layout in layouts
+    ]
     control_root = Path(_tmpdir("izanagi_campaign_lock_parallel_"))
     controls = [
         (control_root / f"ready-{index}", control_root / f"release-{index}")
@@ -2726,7 +2729,7 @@ def test_campaign_lock_different_campaigns_can_run_in_parallel():
 
 def test_campaign_lock_released_can_be_reacquired():
     layout = _layout().ensure()
-    lock_path = campaign_lock_path(layout)
+    lock_path = campaign_lock_path(layout, declared_use_class="official")
     with campaign_flock(lock_path):
         pass
     with campaign_flock(lock_path, blocking=False):
@@ -2735,7 +2738,9 @@ def test_campaign_lock_released_can_be_reacquired():
 
 def test_campaign_lock_path_is_outside_campaign_root():
     layout = _layout()
-    lock_path = Path(campaign_lock_path(layout)).resolve()
+    lock_path = Path(
+        campaign_lock_path(layout, declared_use_class="official")
+    ).resolve()
     campaign_root = Path(layout.root).resolve()
     assert not lock_path.is_relative_to(campaign_root)
 
@@ -2748,11 +2753,33 @@ def test_campaign_lock_path_normalizes_symlink_realpath():
 
     real_layout = CampaignLayout(root=real_root)
     symlink_layout = CampaignLayout(root=link_root)
-    assert campaign_lock_path(real_layout) == campaign_lock_path(symlink_layout)
+    assert campaign_lock_path(
+        real_layout, declared_use_class="official",
+    ) == campaign_lock_path(
+        symlink_layout, declared_use_class="official",
+    )
+
+
+def test_campaign_lock_helpers_use_explicit_output_root_for_each_use_class():
+    output_root = Path(_tmpdir("izanagi_campaign_lock_explicit_root_"))
+    layout = CampaignLayout(root=str(output_root / "campaigns" / "campaign"))
+    expected_lock_dir = output_root / "campaign-locks"
+
+    for declared_use_class in ("official", "exploration"):
+        lock_dir = Path(campaign_lock_dir(
+            declared_use_class, str(output_root),
+        ))
+        lock_path = Path(campaign_lock_path(
+            layout, declared_use_class, str(output_root),
+        ))
+        assert lock_dir == expected_lock_dir
+        assert lock_path.parent == expected_lock_dir
 
 
 def test_campaign_lock_path_hash_key_is_twenty_hex_chars():
-    lock_name = os.path.basename(campaign_lock_path(_layout()))
+    lock_name = os.path.basename(
+        campaign_lock_path(_layout(), declared_use_class="official")
+    )
     assert lock_name.endswith(".flock")
     key = lock_name[:-len(".flock")]
     assert re.fullmatch(r"^[0-9a-f]{20}$", key)
