@@ -54,5 +54,11 @@ title: layer3 paper evidence dossier を作成した (docsのみ、branch worktr
   複数 campaign 横断の paper synthesis を生成する契約がないと段2プラン・レンズBの両方が
   renderer の実装 (`build_report` シグネチャ) を読んで確認したため)。新規測定・production code・
   correctness gate 変更・S/S' 再主張は行っていない。
+- 段8自己改善候補1件を発見したが、dev-wave docs (core/operations/workers/mutation.md) の
+  3層予算は既知で満杯のため実装せず記録に留めた: `docs/dev-wave/workers.md` の DW-S03
+  (段3敵対相談) へ、codex が挙げる file:line 索引から無作為抽出したサンプルを実際に開いて
+  突合する検査を明示的に必須化する候補。本 wave では段3レンズBのプロンプトへ個別に
+  「最低12件の抜取り検査」を指示したことで F449 (citation が見出し/表ヘッダ行を指す系統的ズレ)
+  を発見できたが、これは本 wave 固有の追加指示であり DW-S03 本文には未反映。
 
 ## 次の一手差分
