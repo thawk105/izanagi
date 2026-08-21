@@ -1992,6 +1992,33 @@ def test_known_violation_ledger_matches_literal_entries():
             "",
         ),
         (
+            "311d463f89d1d1708a309b86d5bf63f5b034f89d",
+            "missing-codex-author",
+            "2026-08-21 dev-wave-t1371-official-run-root "
+            "受入lease待機長期化に伴う2回目のlocal main取り込み裁定 "
+            "(ユーザー選択: known-violation 登録)",
+            "受入投入前に親が作成した local main 取り込み merge "
+            "`311d463f89d1d1708a309b86d5bf63f5b034f89d`。実装面で両側が触ったのは "
+            "`orchestrator/campaign/layout.py` / "
+            "`orchestrator/campaign/s8b_oracle_driver.py` / "
+            "`orchestrator/tests/conftest.py` / "
+            "`orchestrator/tests/test_campaign.py` / "
+            "`orchestrator/tests/test_check_ai_provenance.py` / "
+            "`orchestrator/tests/test_s8b_oracle_driver.py` / "
+            "`tools/check_ai_provenance.py` の 7 file で、7 path を個別に `git diff-tree --cc "
+            "311d463f89d1d1708a309b86d5bf63f5b034f89d -- <path>` で確認した。"
+            "`layout.py` / `conftest.py` / `test_campaign.py` / `test_s8b_oracle_driver.py` は commit SHA 行のみで"
+            "実質空、`s8b_oracle_driver.py` は wave 側が Codex `role=author` の commit `756228db` で既に書いた "
+            "`_OFFICIAL_OUTPUT_ROOT_ENV` import と main 側が独立追加した `site_policy` / `MACHINE_ENV_TAG` "
+            "import の除去の和集合で、`MACHINE_ENV_TAG` の孤立参照もない。2 checker file は本 wave の "
+            "`_T1371_MERGE_RULING` / `_T1371_MERGE_NOTE` と main 側の複数 wave "
+            "(`_T565_MERGE_RULING` / `_T972_MERGE_RULING` / `_T567_MERGE*_RULING` 等) の "
+            "known-violation エントリを両方残す union で解決した。競合解決による新規著作はなく、結果は両側の"
+            "変更の単純な和集合。main 側の T-1444 site-aware 化は別 wave が Codex `role=author` で書き、"
+            "各 wave の land 時に監査済み。親作成 merge のため Codex 著者とは記さない。",
+            "",
+        ),
+        (
             "76248294bf40eb7fa0d806ce4df5010d685036de",
             "missing-codex-author",
             "D554 (2026-08-19)",
