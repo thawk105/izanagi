@@ -1,0 +1,1 @@
+{"schema_version":"t338-conformance-vector/v2","id":"negative-writer-relative-path-api","kind":"api","classification":"architecture","covers":["6.10","writer_api"],"unit3_reference":"対応なし・unit5独自","entrypoint":"api","mutation":null,"expected_reason":null,"expected_api":"no_caller_selected_destination"}

@@ -12,7 +12,7 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Dict, List, Optional, Tuple
 
 if TYPE_CHECKING:
-    from .parse import TxnFramingViolation
+    from .parse import SortPermutationViolation, TxnFramingViolation
 
 # 版ID = (epoch, tid)。同一キー上ではこの組が producer trx を一意に決める
 # (ww 競合で tid が単調増加するため。trace-hook の実測で版重複 0 を確認済み)。
@@ -149,6 +149,8 @@ class Integrity:
     lock_coverage_violations: int = 0  # X 行の件数 (writePhase で lock 被覆が破れた write。D38)
     write_intent_violations: int = 0  # I 行の件数 (write_set_ と API write intent の被覆破れ。T-152)
     permutation_violations: int = 0  # P 行の件数 (validationPhase の sort が要素を欠落/複製。D41)
+    permutation_violation_details: List["SortPermutationViolation"] = field(
+        default_factory=list)
     expected_commits: Optional[int] = None  # trace 外 counter の期待 commit 数
     observed_commits: Optional[int] = None  # dedup 後の trace committed txn 数
     notes: List[str] = field(default_factory=list)

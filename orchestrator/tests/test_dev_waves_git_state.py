@@ -3,11 +3,15 @@ from __future__ import annotations
 
 import json
 import os
+import shutil
 import subprocess
 import sys
 import tempfile
 import traceback
+from contextlib import redirect_stderr
+from io import StringIO
 from pathlib import Path
+from unittest.mock import patch
 
 _ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(_ROOT))
@@ -25,6 +29,7 @@ from tools.dev_waves.git_state import (
     create_isolated_checkout,
     read_child_git_trace,
     resolve_main_worktree,
+    resolve_registered_worktree,
     resolve_repo_identity,
     snapshot_repo,
     supervised_spool_wave_identity,
@@ -142,6 +147,41 @@ def test_exact_base_worktree_uses_runtime_namespace_and_requested_branch():
         assert not (repo / ".claude/worktrees").exists()
 
 
+def test_registered_worktree_rejects_stale_entry_pointing_to_main_gitdir_without_update():
+    with _fresh() as tmp:
+        root = Path(tmp)
+        repo = _repo(root)
+        base = _git(repo, "rev-parse", "HEAD")
+        wave = create_exact_worktree(repo, "stale-main-gitdir", 1, base)
+        stale_path = Path(wave.path)
+        shutil.rmtree(stale_path)
+        stale_path.mkdir(parents=True)
+        (stale_path / ".git").write_text(
+            f"gitdir: {repo.resolve() / '.git'}\n", encoding="utf-8",
+        )
+
+        try:
+            resolve_registered_worktree(repo, stale_path)
+        except ValueError as exc:
+            assert str(exc) == "registered worktree does not belong to this repository"
+        else:
+            raise AssertionError("main repository gitdir was accepted as a worktree")
+
+        import tools.dev_wave_submodule_init as initializer
+
+        stderr = StringIO()
+        with (
+            patch.object(initializer, "_REPO_ROOT", repo),
+            patch.object(initializer, "update_submodules_no_fetch") as update,
+            redirect_stderr(stderr),
+        ):
+            result = initializer.main(["--worktree", str(stale_path)])
+
+        assert result == 2
+        assert "does not belong to this repository" in stderr.getvalue()
+        update.assert_not_called()
+
+
 def test_main_dirty_and_submodule_dirty_are_separate_facts_and_no_fetch_update_works():
     with _fresh() as tmp:
         root = Path(tmp)
@@ -165,6 +205,87 @@ def test_main_dirty_and_submodule_dirty_are_separate_facts_and_no_fetch_update_w
         (Path(wave.path) / "ordinary.txt").write_text("untracked\n")
         observed = snapshot_repo(wave.path)
         assert observed.main_dirty is True and observed.submodule_dirty is True
+
+
+def _repo_with_submodule_urls(
+    root: Path, *, declared_url: str, resolved_url: str,
+) -> tuple[Path, Path]:
+    sub = root / "sub"
+    _git(root, "init", "-b", "main", str(sub))
+    _git(sub, "config", "user.name", "Test")
+    _git(sub, "config", "user.email", "test@example.invalid")
+    (sub / "value.txt").write_text("one\n", encoding="utf-8")
+    _git(sub, "add", ".")
+    _git(sub, "commit", "-m", "sub-base")
+
+    repo = _repo(root)
+    _git(repo, "-c", "protocol.file.allow=always", "submodule", "add", str(sub), "vendor/sub")
+    (repo / ".gitmodules").write_text(
+        '[submodule "vendor/sub"]\n'
+        "\tpath = vendor/sub\n"
+        f"\turl = {declared_url}\n",
+        encoding="utf-8",
+    )
+    _git(repo, "add", ".gitmodules")
+    _git(repo, "commit", "-m", "add submodule")
+    _git(repo, "config", "submodule.vendor/sub.url", resolved_url)
+    return repo, sub
+
+
+def test_no_fetch_update_accepts_local_resolved_override_for_nonlocal_declaration():
+    with _fresh() as tmp:
+        root = Path(tmp)
+        repo, _sub = _repo_with_submodule_urls(
+            root,
+            declared_url="https://example.invalid/x.git",
+            resolved_url=str(root / "sub"),
+        )
+        base = _git(repo, "rev-parse", "HEAD")
+        wave = create_exact_worktree(repo, "run-sub-override", 1, base)
+
+        update_submodules_no_fetch(wave.path)
+
+        assert (Path(wave.path) / "vendor/sub/value.txt").read_text(encoding="utf-8") == "one\n"
+
+
+def test_no_fetch_update_rejects_nonlocal_declaration_and_resolved_override():
+    with _fresh() as tmp:
+        root = Path(tmp)
+        repo, _sub = _repo_with_submodule_urls(
+            root,
+            declared_url="https://example.invalid/x.git",
+            resolved_url="https://example.invalid/override.git",
+        )
+        base = _git(repo, "rev-parse", "HEAD")
+        wave = create_exact_worktree(repo, "run-sub-remote", 1, base)
+
+        try:
+            update_submodules_no_fetch(wave.path)
+        except DevWavesError as exc:
+            assert exc.code is ReasonCode.RUNTIME_IO_FAILURE
+            assert exc.detail == {"label": "submodule", "kind": "nonlocal-url"}
+        else:
+            raise AssertionError("nonlocal resolved submodule URL was accepted")
+
+
+def test_no_fetch_update_rejects_local_declaration_with_nonlocal_resolved_override():
+    with _fresh() as tmp:
+        root = Path(tmp)
+        repo, _sub = _repo_with_submodule_urls(
+            root,
+            declared_url=str(root / "sub"),
+            resolved_url="https://example.invalid/override.git",
+        )
+        base = _git(repo, "rev-parse", "HEAD")
+        wave = create_exact_worktree(repo, "run-local-remote-override", 1, base)
+
+        try:
+            update_submodules_no_fetch(wave.path)
+        except DevWavesError as exc:
+            assert exc.code is ReasonCode.RUNTIME_IO_FAILURE
+            assert exc.detail == {"label": "submodule", "kind": "nonlocal-url"}
+        else:
+            raise AssertionError("nonlocal resolved override for local declaration was accepted")
 
 
 def test_shallow_and_replace_refs_are_rejected():

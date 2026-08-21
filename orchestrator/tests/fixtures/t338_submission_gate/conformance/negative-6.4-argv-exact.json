@@ -1,0 +1,1 @@
+{"schema_version":"t338-conformance-vector/v2","id":"negative-6.4-argv-exact","kind":"negative","classification":"relabel","covers":["6.4"],"unit3_reference":"test_argv_raw_and_run_log_are_exact","entrypoint":"receipt","mutation":{"op":"set","path":["actual_runs",0,"argv_sha256"],"value":"0000000000000000000000000000000000000000000000000000000000000000"},"expected_reason":"argv"}
