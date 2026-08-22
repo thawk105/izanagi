@@ -11679,3 +11679,52 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   registryファイルを機械的に列挙し、DW-O09監査の出力へ「この pathはmutation anchor
   registryである可能性がある」という注記を自動で付ける仕組みが候補になりうるが、
   本waveのscope外。
+
+### F463. merge競合解消の例外を次のcommitへ繰り越し、親(Claude)が実装面を直接編集した [権限逸脱]
+
+- 事象: 段6で受入前local main取り込み中に発生したmerge競合 (`8440a148`) は、Codexが
+  mid-merge (conflict marker残存) の作業木へdispatchできないため親が直接解消した
+  (正当な例外)。ところが続く登録commit (`fdd2a427`: `8440a148`の登録+stale化した
+  既存2件の削除) でも、親が同じ流れで`KNOWN_PROVENANCE_VIOLATIONS`を直接編集して
+  commitしてしまった。この時点でtreeは既にclean (non-mid-merge) でCodexへ通常
+  dispatch可能だったため、2件目には正当な理由が無かった。
+- 根本原因: merge競合解消の例外を「直前の自分の行動 (直接編集した)」にひもづけて
+  継続適用してしまい、例外の本来の適用条件 (tree状態がmid-mergeかどうか) を
+  次のcommitの前に再確認しなかった。
+- 検知経緯: 受入acceptance (4回目試行) が`fdd2a427`自体を`MISSING_CODEX_AUTHOR`
+  として検出し発覚した。`git reset --soft HEAD~1` (差分は保持、参照patchも別途保存)
+  で取り消し、Codex `--stage author`へ正しく再委任して同一内容であることを確認した
+  上でcommitし直した (fix2)。
+- 恒久対応: [[dev-wave-merge-exception-does-not-carry-forward]] (persistent memory) —
+  段6でmerge競合を親が直接解消したら例外はその1 commitで終わる、次に実装面へ触る
+  commitを作る前に必ず`git status`でclean/non-mid-mergeを確認しCodexへ戻す、という
+  手順を今後のdev-wave manager実行時に読み込む形で記録した。
+- 再発検知: 次にdev-wave 段6でmerge競合の親直接解消が発生した場合、その直後の
+  commitのAI-Agent trailerに`role=author`(codex)が無ければ、受入acceptanceの
+  provenance checkerが同じ`MISSING_CODEX_AUTHOR`型で機械的に検出する
+  (fail-closed、本waveの根本修正後も直接編集そのものは検出対象のまま)。
+
+### F464. 段5/6実装子(Codex)がdocs/handoff配下へファイルを作成した [権限逸脱]
+
+- 事象: 段6 fix4 (Codex `role=author`) が、割り当てられたcode/test編集に加えて
+  `docs/handoff/2026-08-22-t1479-known-violation-merge-authorship.md` を repo内に
+  作成した。内容自体は無害な状況メモ (一般 dev-wave の handoff 慣行を模倣したと
+  みられる) だったが、`docs/dev-wave/workers.md` DW-S05-B の「実装子はコードと
+  テストだけを編集しdocs編集とcommitをしない」に反する。親がcommit前のdiff監査
+  (`git status`/`git diff --stat`) で発見し、commitに含める前に削除した。実害
+  (commit・land) には至っていない。
+- 根本原因: fix4のprompt本文 (`/work/1/SFC/tanab/dev-wave-jobs/t1479-known-violation-merge-authorship-job/stage6-fix4/prompt.md`)
+  は「`git commit` を一度も実行しないこと」は明記していたが、「docs編集をしない」
+  は明記していなかった。DW-S05-Bに一般則として既に書かれていることを理由に、
+  個別promptへの具体的な明記を省略した。
+- 恒久対応: [[dev-wave-implementer-prompt-must-list-each-forbidden-edit]] (persistent
+  memory) — 今後のauthor/fix子promptへ「docs編集もしない (docs/handoffを含む)」を
+  commit禁止と並記する運用を記録した。`docs/dev-wave/workers.md` DW-S05-Cへの正式
+  統合はdev-wave doc族のL1.5 byte予算 (9566 bytes) が既に満杯のため本waveでは
+  見送り、独立審査対象として繰り越した (D661 と同様、本wave
+  scope外の繰り越し)。
+- 再発検知: 実装子が作成した成果物をcommitに含める前に、親が`git status`で
+  所有パス外のファイル (特にdocs/配下) が無いか毎回確認する運用が既存の
+  段6手順に含まれている (`DW-S05-A`の所有パス限定patch生成)。この検知手順自体は
+  機械強制ではなく親の目視確認に依存するため、DW-S05-Cへの正式統合が完了する
+  までは同型の再発があり得る。
