@@ -8722,8 +8722,8 @@ def test_default_run_sanitizes_git_and_bounds_only_stages(
     assert "start_new_session" not in run_calls[0][1]
     assert all(key not in run_calls[0][1]["env"] for key in DW._GIT_ENV_KEYS)
     assert len(popen_calls) == 3
-    assert processes[2].communicate_calls == [300, 5]
-    assert group_kills == [(4321, signal.SIGKILL)]
+    assert processes[2].communicate_calls == [300, 100]
+    assert group_kills == [(4321, signal.SIGTERM)]
 
 
 def test_provenance_checker_is_sanitized_bounded_stage(
@@ -8782,8 +8782,8 @@ def test_provenance_checker_is_sanitized_bounded_stage(
     assert checker_argv == list(_provenance_argv())
     assert checker_kwargs["start_new_session"] is True
     assert all(key not in checker_kwargs["env"] for key in DW._GIT_ENV_KEYS)
-    assert process.communicate_calls == [300, 5]
-    assert group_kills == [(5432, signal.SIGKILL)]
+    assert process.communicate_calls == [300, 100]
+    assert group_kills == [(5432, signal.SIGTERM)]
 
 
 @pytest.mark.parametrize(
