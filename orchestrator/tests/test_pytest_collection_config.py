@@ -366,18 +366,18 @@ def test_selection_contract_normalizes_and_serializes_all_metadata(tmp_path: Pat
 
 
 @pytest.mark.parametrize(
-    ("args", "acceptance_shape"),
+    ("args", "explicit_sanctioned_target"),
     [
-        ([], True),
-        (["-q"], True),
-        ([RT._DEFAULT_TARGET], True),
+        ([], False),
+        (["-q"], False),
+        ([RT._DEFAULT_TARGET], False),
         (["-k", "test_sort_swo_oracle"], False),
         (["--collect-only"], False),
         (["--deselect=ignored.py::test_node"], False),
-        ([str(_SORT_SWO_TEST)], False),
+        ([str(_SORT_SWO_TEST)], True),
     ],
     ids=(
-        "bare-acceptance", "quiet-acceptance", "explicit-default-target",
+        "bare-suite", "quiet-suite", "explicit-default-target",
         "selector", "collect-only", "deselect", "explicit-file-target",
     ),
 )
@@ -386,8 +386,8 @@ def test_selection_contract_normalizes_and_serializes_all_metadata(tmp_path: Pat
     [True, False],
     ids=("active-table", "empty-table"),
 )
-def test_main_only_injects_exclusion_for_acceptance_shapes(
-    monkeypatch: pytest.MonkeyPatch, args, acceptance_shape, table_active,
+def test_main_injects_exclusion_unless_explicit_target_is_the_sanctioned_file(
+    monkeypatch: pytest.MonkeyPatch, args, explicit_sanctioned_target, table_active,
 ):
     monkeypatch.setattr(
         RT,
@@ -397,13 +397,16 @@ def test_main_only_injects_exclusion_for_acceptance_shapes(
     captured = _patch_main_command_capture(monkeypatch)
     assert RT.main(args, site=RT.site_policy.OTHER) == 0
     command = captured["command"]
-    excluded = acceptance_shape and table_active
+    excluded = table_active and not explicit_sanctioned_target
     assert (_SORT_SWO_IGNORE in command) is excluded
     if excluded:
         assert command.index(_SORT_SWO_IGNORE) < command.index(RT._DEFAULT_TARGET)
         assert command.count(RT._DEFAULT_TARGET) == 1
     else:
         assert _SORT_SWO_IGNORE not in command
+        if explicit_sanctioned_target:
+            assert str(_SORT_SWO_TEST) in command
+            assert RT._DEFAULT_TARGET not in command
 
 
 @pytest.mark.parametrize("field", [

@@ -2611,7 +2611,7 @@ def test_main_absolutizes_plain_relative_target_from_other_cwd(
         (
             ["--deselect=ignored.py::test_node"],
             ["--deselect=ignored.py::test_node"],
-            False,
+            True,
         ),
     ],
 )
