@@ -359,6 +359,7 @@ result を出す前に死んだ campaign の復帰には使えない。
 | R-2 (verify CLI の罠) | **決着 = (a)。** [T-749] として実装済み (worklog 402) |
 | R-3 (W-3 + W-4 の分割) | **未裁定。** [T-750] として再裁定待ち。統合 wave の段 3 が producer identity と budget authority の 2 点を新たに出した |
 | R-4 (toolchain 前提) | **決着 = (B) ([T-747])、実装済み (2026-08-11、[T-783])。** 束縛検査は pilot / official を問わず build 前に発火する。残る穴は下記「束縛していない量」 |
+| R-5 (crash 復帰の再生成) | **優先順位は決着 (D510 決定4、2026-08-18)、実装形状は未裁定 ([T-1484] 2026-08-22 技術確認)。** 詳細は下記「R-5 の技術確認」 |
 
 以下は検分 wave 時点の記述である。本 wave は本番コードを編集していない。
 修理・設計択一は実装せず、次を裁定へ返す。
@@ -379,6 +380,7 @@ result を出す前に死んだ campaign の復帰には使えない。
   固定 v1 pin から trust root を外す必要がある。
   (c) 現状維持。crash した official campaign はその protocol / env で terminal と扱う。
   裁定 (2) の「再生成を必須」は満たせないので、裁定 (2) 自体の再裁定になる
+  **(2026-08-18/2026-08-22 更新: 上記3択の優先順位争いは決着した。下記「R-5 の技術確認」を正とする。)**
 - **R-4 (toolchain 前提、§1.2):** Pegasus に `g++-13` が無く床値 driver は固定要求する。
   (a) env contract へ toolchain を束縛する field を足し、Pegasus 世代は system compiler を
   実体・版数つきで焼き込む / (b) Pegasus に `gcc-13`/`g++-13` を用意できるか先に調べる /
@@ -419,23 +421,57 @@ linux-baremetal を指す凍結 protocol は存在しないので production 影
 - 実行ファイルの bytes hash — receipt に存在しない。同一 path・同一 version 表示で
   実体が差し替わった場合は検出できない
 
-### R-5 の状態 (2026-08-17 更新。決着していない)
+### R-5 の技術確認 (2026-08-22 更新。優先順位は決着、実装形状は未裁定、[T-1484])
 
-D496 決定 3 が「比べる構成ごと測り直す」「特定の環境・手順で二度と測定できなくなる設計上の
-終端は認めない」と定めた。しかし **測り直しそのものが機構に塞がれていることが実測で判明した。**
+**優先順位の決着。** D496 決定 3 (「比べる構成ごと測り直す」「設計上の終端は認めない」) と
+§9 項 8 (択 (a)、実走後の途中再開は拒否) のどちらが優先するかは、D510 決定4
+(2026-08-18、`docs/decisions.md`) が「8b §9項8 の再走全拒否より D496 決定 3 を優先する」と
+名指しで既に決着させている。同日付の `docs/phase3-8b-descriptor-design.md` §10.5
+(「実走後の途中再開 (§9項8を上書きする)」) が、対応する設計 (freeze-wide の事前割当
+attempt registry、消費範囲は落ちた構成の同じ反復に限定) を既に持つ。**§10.5 を本節の
+設計正本とする。** 実走マーカー (freeze byte sha256 の排他作成) と novelty search
+(`s8b_holdout_freeze.py` の repository 既知性検査) はどちらも維持したまま、その手前に
+事前割当 registry 経由の限定的な再走許可を挟む設計であり、両機構を緩めない。
 
-- 実走マーカーは freeze の byte sha256 を identity として `--output-root` 非依存の場所へ
-  排他作成され、存在すれば当該 freeze の再走を**全拒否**する。この resume 拒否は
-  §9 項 8 の択 (a) が凍結した挙動である。
-- v1 freeze の verify は毎回 repository novelty search の pass を要求する。
-  初回観測後の再走と両立しない。
+**旧 3 択の扱い。** (a) (復帰用 generation で admission key を salt) は §10.5 とは別設計
+(観測ゼロ限定の identity workaround) であり、§10.5 の狭い先行版として履歴に残すが現行
+推奨には含めない。(b) (未知 holdout freeze の引き直し) は固定 v1 pin の trust root を
+外す、射程のより広い別設計であり、不採用ではないが本節の推奨には含めない。(c) (terminal
+と扱う、現行の実装挙動) は D496 決定 3・D510 決定4 が明示的に否定した形であり不採用。
 
-したがって R-5 の 3 択は削除しない。**D496 決定 3 と §9 項 8 のどちらが優先するかが
-新たな裁定事項である。** 択 (a) (復帰用 generation で admission key を salt) と
-択 (b) (未知 holdout freeze の引き直し) は、まさにこの閂を外すための案であり、
-D496 決定 3 を実装可能にする経路として再評価の対象に戻る。当時の裁定 2 が併記していた
-「freeze-wide の事前割当 attempt registry」への改訂再凍結も同じ枠に入る。
-択 (c) (terminal と扱う) は現に実装されている挙動であり、D496 決定 3 が否定した形である。
+**実装許可と正式測定不許可を分ける。** §10.5 の実装 (8b 側の attempt registry 構築)
+自体は §10.6 (epoch 境界) に妨げられない。しかし正式測定の認可は、8c 側の判定器・証拠
+契約・attempt registry・結果 judge が発効するまで閉じたままである
+(`docs/decisions.md` D649: `s8c_result_judge.judge()` に production caller が存在しない
+ため、この gate は当面閉じたまま)。**8b 側の実装が完了しても、この gate が開くまで正式
+測定は認可しない。** gate 発効前の run は legacy・exploratory として扱い、後から formal
+へ昇格・再解釈しない。
+
+**実装着手前に閉じるべき4点 ([T-1484] 段2/段3 で新たに確認、未解決)。**
+
+1. **reuse 形状。** `orchestrator/campaign/trial_registry.py` の公開契約 (schema
+   version・path・`ARMS`/`HOLDOUTS`・`TrialManifest`) は 8c ドメインへ固定されており、
+   非互換な変更での 8b 転用はしない。ただし attempt 状態機械の本体
+   (`:1818-3555`、genesis/reserve/classify/observe/terminal/accept) の大半はドメイン
+   非依存で、8c 固有部分は acceptance (`:3432-3555`) に集中する。8b 専用の新規複製と、
+   共通 core 抽出 + 8c 互換 facade + 8b adapter のどちらを採るかは、実際の抽出コスト
+   (8c consumer への影響範囲) を測っていないため未裁定。**次のユーザー裁定へ返す。**
+2. **既存 admission 機構との束縛。** 8b は既に `s8b_holdout_admission.py` の共有
+   root・claim・ledger・consume-ticket 機構を持つ。新設 registry がこれと束縛されない
+   第二の「master」になると、それ自体が新しい正しさの穴になる。どちらを master とし、
+   どう同一 lock/transaction で束縛するかを実装 wave の段1 brief で明記すること。
+3. **失敗分類を出力の前に確定させる設計。** 現行 8b (`s8b_floor_campaign.py`) は理由の
+   多くを `measure_fn` 実行後に決定しており、D510 決定4 の「出力を読む前に分類」要件を
+   満たさない。`trial_registry.py` 自身も OS レベルの read-first を証明しないと
+   docstring で明記しており (8c 側も未解決のまま)、trusted launcher の設計と外部証拠
+   由来の閉じた失敗理由集合を別途用意する必要がある。
+4. **crash 点4 (観測開始後) の再抽選バイアス。** §10.5 は「落ちた構成の同じ反復の次slot
+   だけ消費」と定めるが、観測開始後に crash した場合にどの attempt を主値とするか、
+   部分的に露出した WAL をどう扱うか、§10.4 の測定近接性ラベルとどう連動させるかは
+   未規定。novelty search (repo 既知性) とは別の、統計的独立性の論点である。
+
+一次資料・段2 plan・段3 敵対2レンズの逐語・段4 裁定は
+`output/insights/2026-08-22_t1484-floor-restart-registry/README.md` を参照。
 
 ### R-4 の束縛していない量について
 
