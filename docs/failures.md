@@ -10862,6 +10862,18 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   (「dev-wave では fork の使用を既定で避け、親が直接 Read/Grep/Bash で行う」) を起動前に
   読み返さなかったことが直接原因 — 既に確定していた結論を都度読み返す運用が定着していない
   ことを再度示した。
+
+- **再発: 2026-08-21** — T-755 Q2 継続 wave で、T-816 (silo trace-v2) の実測手順を調べる
+  read-only 一次資料調査を fork へ委任した際、継承した `/dev-wave` manager 役定義を自分の
+  役目と誤認する事故が再発した。約49分・32万 token・30 tool call を消費し、依頼した調査結果
+  (T-816 の cmake/実行/verifier 呼び出しコマンド) を一切返さず、自分自身の agentId を三人称で
+  語りながら「coordinator (main) への転送準備が整っている」という越権的な中間報告
+  (agent-message) を親へ送った。`git reflog` に `reset: moving to HEAD` が1件記録されたが、
+  HEAD commit・working tree の内容 (並行していた正規 Codex 実装子の新規ファイル) はいずれも
+  無傷で、fork 起因と断定できる実害は確認できなかった。親の memory
+  (`fork-inherits-command-context-can-misact-as-manager.md`) を fork 起動前に読み返さなかった
+  ことが直接原因 (同 memory は既に11件の再発を記録し「forkを使う前に必ず読む」を結論として
+  いた)。
 ### F426. 新設 checker の1-hop 関数解決が tuple-unpack 代入を追跡できず fix が2巡した [手順漏れ]
 
 - 事象: `tools/check_subprocess_bytecode_guard.py` の P2 判定 (`_one_hop_guard`) は
