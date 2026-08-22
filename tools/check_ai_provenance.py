@@ -263,6 +263,17 @@ _T1479_MERGE_NOTE = (
     "working tree を拒否したため Codex に委任できず、親が直接解決した（job-id `t1479-merge-resolve1`、rc=2）。"
     "親作成 merge のため Codex 著者とは記さない。"
 )
+_T1479_MERGE2_RULING = (
+    "2026-08-22 dev-wave-t1479-known-violation-merge-authorship "
+    "受入前裁定 (2回目、ユーザー選択: known-violation 登録)"
+)
+_T1479_MERGE2_NOTE = (
+    "受入投入前に親が作成した local main `aa20419e` 取り込み merge。wave側 (T-1479のmerge登録) と"
+    " main側 (T-755起源の3件) が `KNOWN_PROVENANCE_VIOLATIONS` タプル末尾で競合したが、削除は無く"
+    "純粋な追加同士のunionで解決した。`git diff-tree --cc e39a8d46567a02d231fce52abae5aee759634ff7 -- "
+    "tools/check_ai_provenance.py orchestrator/tests/test_check_ai_provenance.py` が非自明になるのは、"
+    "両側の追加が互いに相手に無い新規行として現れるためである。親作成 merge のため Codex 著者とは記さない。"
+)
 _T139_MALFORMED_VALUE = (
     "product=claude; model=claude-opus-5[1m]; reasoning=high; "
     "role=orchestrator"
@@ -653,6 +664,12 @@ KNOWN_PROVENANCE_VIOLATIONS = (
             "test_check_ai_provenance.py` へ独立に追加された known-violation entry と、本 wave が"
             "同じ file へ追加した known-violation entry が非競合で union された"
         ),
+    ),
+    KnownViolationSpec(
+        "e39a8d46567a02d231fce52abae5aee759634ff7",
+        MISSING_CODEX_AUTHOR,
+        _T1479_MERGE2_RULING,
+        note=_T1479_MERGE2_NOTE,
     ),
 )
 
