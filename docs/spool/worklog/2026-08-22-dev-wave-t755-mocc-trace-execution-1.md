@@ -68,6 +68,18 @@ title: [T-755] mocc trace v2のTRACE=1正しさ検証パイロットを実機実
   L1.5予算を9692 bytes > 9566 bytesで超え、`DW-C01` は節全体が `tools/check_docs.py` の
   exact literalでpinされていて実装面の変更なしには触れない。自己改善契約の「予算に収まらず
   意味等価にもできなければ変更を止めてユーザー裁定へ返す」に従い未実施とした。
+- 受入全走 attempt 1 (tested-main 83baeefa / tested-tip 01c7d2fa) は
+  26 failed / 14259 passed / 96 skipped で rc=1 で戻った。赤は全件
+  `orchestrator/tests/test_sort_swo_oracle.py` で、oracle が third-party cache の masstree に
+  `config.h` を見つけられず `outcome='config-h-missing'` で UNAVAILABLE を返すことによる。
+  本waveの差分 (mocc trace pilot script とその契約テスト) からは到達しえない面である。
+  `DW-O18` に従い tested-main 83baeefa 単独の detached worktree で当該 file だけを再走し、
+  **同じ 26 failed が再現**することを親が実測した (フレークではなく決定的な非帰属赤)。
+  main の worklog は同じ 26 件を「担当外」として既に記録している。
+- attempt 1 の非帰属判定は `check_acceptance_reds.py` の `git worktree add` が rc=128 で
+  失敗し `status=invalid-input` で判定不能に終わった。同じ `git worktree add` を手で再現すると
+  rc=0 で成功する。投入時点で他に 3 本の受入全走が同じ repo に対して走っており、共有 `.git` への
+  ロック競合による一過性失敗と判断した (main の worklog に同型の先例あり)。attempt 2 を投入する。
 
 ## 次の一手差分
 
