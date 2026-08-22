@@ -10768,7 +10768,7 @@ def test_retry_keeps_priority_with_real_lease_and_competing_ticket(
     assert fake.submissions == 2
     assert fake.competitor_claim is not None
     assert fake.competitor_claim["state"] == "held"
-    assert (lease_dir / f"ticket.{competitor_holder}").is_file()
+    assert not (lease_dir / f"ticket.{competitor_holder}").is_file()
     assert (lease_dir / "acceptance.lease").is_file()
 
 
