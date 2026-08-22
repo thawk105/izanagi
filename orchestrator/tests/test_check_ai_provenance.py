@@ -2171,6 +2171,26 @@ def test_known_violation_ledger_matches_literal_entries():
             "1行修正し焦点走1378 passedを確認した。",
             "",
         ),
+        (
+            "dd58c9caf2555dc1dddab30cf4ec1e3388b3aa1c",
+            "missing-codex-author",
+            "本セッション内でユーザーへ状況を説明し known-violation 登録の続行を承認された (2026-08-22、5回目)",
+            "受入投入前に local main 側22コミット（T-1474のcampaign-loop `_resolve_duplicate()` stale verdict修正、"
+            "T-1280のauditor役output契約非適合回帰テスト、docs系spool/fold多数）を取り込んだ merge "
+            "`dd58c9caf2555dc1dddab30cf4ec1e3388b3aa1c`。競合はなく（Automatic merge went well）、"
+            "`git diff-tree --cc dd58c9caf2555dc1dddab30cf4ec1e3388b3aa1c` はコミットヘッダ行のみで完全に空 "
+            "（新規著作なし）だった。実装面で checker が著作と判定したのは "
+            "`orchestrator/tests/test_p3_autonomous_workload_trial.py` の1 fileのみで、main側のT-1280の新規3 test "
+            "（2045行目付近）とwave側が段5で変更した別関数（6362-6371行目付近）は非重複だった。merge後もwave側が"
+            "削除した `test_formal_noncertifying_registered_workload_consumes_shared_slot` の monkeypatch 2行は削除された"
+            "ままで、別関数 `test_registered_formal_noncertifying_build_crash_is_indeterminate` の同名 monkeypatch 2行 "
+            "（本waveの変更対象外）は変更されていないことを直接確認済み。"
+            "`orchestrator/campaign/autonomous_trial_completeness.py` 他4 file は main側が本wave担当範囲を変更せず、"
+            "HEAD..main 差分も本waveの未収載変更のみだったため checker は著作と判定しなかった。merge commit は "
+            "`AI-Agent: product=claude; model=claude-sonnet-5; reasoning=not-exposed; role=integrator` だけで Codex "
+            "`role=author` 行がないため checker が missing-codex-author を検出した。親作成 merge のため Codex 著者とは記さない。",
+            "",
+        ),
     )
     assert len(provenance.KNOWN_PROVENANCE_VIOLATIONS) == len(expected)
     assert observed == expected
