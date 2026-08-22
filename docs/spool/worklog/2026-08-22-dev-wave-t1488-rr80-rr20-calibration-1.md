@@ -1,0 +1,52 @@
+---
+schema: izanagi-spool-v1
+ledger: worklog
+authored: 2026-08-22
+wave: dev-wave-t1488-rr80-rr20-calibration
+seq: 1
+title: '[T-1488] rr80/rr20 calibrationの計算ノードcertification取得・実測・登録を完了した (コード+テスト、branch worktree-dev-wave-t1488-rr80-rr20-calibration)'
+---
+
+## 本文
+
+- D655/D658裁定 (rr80/rr20 calibrationの取得・検証・登録をAI/ツール経路で許可) に基づき着手した。
+- rr80の計算ノード実投入で、`orchestrator/holdout_observation.py` (T-523, commit `ebca2947`)
+  が課すholdout保護 (rr80/rr20でのccbench実行を正式なholdout admissionなしに一律拒否する設計)
+  と、D655/D658裁定が直接衝突する重大な対立を発見した。ユーザーに状況を提示し確認したところ、
+  「calibration取得はholdout保護の対象外とする設計変更」を承認された。決定は
+  {{D:calibration-holdout-bypass}} を参照。
+- 正しさ防壁 (holdout保護) に触れる変更のため、DW-C00の軽量版判断を終了し、2回の敵対相談
+  (計4レンズ) で設計を固めた。1回目の敵対相談で9件のreal所見が出たため、親が確定方針を
+  示して改訂させ、2回目の敵対相談で実質1件 (両レンズ一致) に収束させた上で実装した。
+- 実装後の敵対レビュー2本 (段6) で、さらに2件のreal所見 (numactl/extra_envの検証後再利用
+  bypass、未消費sweepを残したままnoise phaseへ遷移できる不具合) を発見し、fixで解消した。
+- 実機投入 (rr80) で3件の実装バグを追加発見・修正した (詳細は{{F:certify-python-interpreter-unpinned}}、
+  {{F:certify-interpreter-fix-breaks-perf-path}}、{{F:holdout-capability-early-stop-overreject}}
+  参照)。3件目 (sweep early-stop誤検出) は2回目のreal所見 (未消費sweep拒否) への修正自体が
+  実機の正当な動作を壊す回帰を生んだもので、最終的に「records系列の完全消費、またはearly-stopが
+  正当に発動しうる最小観測数 (3点) に達していること」のいずれかを許可する条件に落ち着いた。
+- 全修正後、rr80 (request 936025.nqsv) とrr20 (request 936044.nqsv) を計算ノードで実行し、
+  両方とも `calibrate_rc=0`・`quality.status=accepted` で `registered/` へcreate-only publish
+  された (`calibration-6cfeb65b12970eb6.json`=rr80、`calibration-7e2be8adff051662.json`=rr20)。
+  過去の誤投入 (rr80=930578.nqsv、rr20=930579.nqsv) とは無関係の新規allocationであり、
+  それらを成果・受入証跡として一切参照・再利用していない。
+- **本waveはD655/D658の不変条件どおり、正式H1/H2 launch・g1→g2 activation・D145 decision 5
+  再訪・T-424/T-272要求閉包を一切代行しない。** `env_contract.py`のcalibration_ref (g1/g2、
+  rr50) はこのwaveでは切り替えていない (2026-08-06のcommit `7e9d4364`と同じ先例)。
+- 段2b/2c・段3・段3b・段6の詳細プラン・敵対所見・裁定経緯は
+  `/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t1488-rr80-rr20-calibration/stage*.md`
+  (repo外job dir) に保全されている。
+- 作業中、`git stash push` によりrepo管理下の別waveのファイル (submissions配下204件) を
+  誤って一時退避してしまい、直後に `git stash apply` + `drop` で復元した。実害なし。
+  その後 `rm -rf` で同じディレクトリを削除した際、上記の復元済みファイルを再度誤って削除して
+  しまい、`git checkout --` で再復元した。自分が作成した6件のlogin側submission証跡
+  (job-staging側に複製が残るpreflightログの重複コピー) は失われたが、実質的な成果物
+  (calibration結果本体) には影響していない。
+
+## 次の一手差分
+
+### 完了
+
+- [T-1488] rr80/rr20 calibrationの計算ノードcertification取得・実測・登録を完了した。
+  remaining: none
+  base: c5e67e1e8a5f284fc96a13ea53b1da442c2ae12170f7501efec92a3427d572f3
