@@ -60,6 +60,14 @@ title: [T-755] mocc trace v2のTRACE=1正しさ検証パイロットを実機実
   + consumer の `test_hooks.py` + `test_check_trace0_preprocess_identity.py`) 497 passed /
   1 skipped。受入全走は本fragmentを含む最終tipに対して投入するため、その結果は本entryに
   含まれない (landの受領証が一次資料)。
+- 段8の自己改善は候補2件。(i) title引用符の漏出は `docs/spool/README.md` の共通frontmatter節へ
+  明文化し、{{F:spool-title-quote-leak}} を起票した。機械検査 (spool frontmatter lint) は
+  gate新設のため未実施で裁定待ち。(ii) `dev_wave_codex.py` の `--reasoning` が段5/6以外で
+  必須である旨をdocsから読み取れず、本waveで実際にrc=2の即死を踏んだ。統合先の候補2箇所
+  (`DW-O01` と `DW-C01`) はどちらも先へ進めなかった — `DW-O01` へ1行足すとdev-wave docsの
+  L1.5予算を9692 bytes > 9566 bytesで超え、`DW-C01` は節全体が `tools/check_docs.py` の
+  exact literalでpinされていて実装面の変更なしには触れない。自己改善契約の「予算に収まらず
+  意味等価にもできなければ変更を止めてユーザー裁定へ返す」に従い未実施とした。
 
 ## 次の一手差分
 
