@@ -49,10 +49,24 @@ title: '[T-1472] 取り残し wave を別 context が引き継ぎ、local main �
   実測した制約自体が失われるわけではない。
 - **段 8 裁定 2 件目 (採用):** 上記の preflight 非対称は failures 台帳へ新規起票し、
   F120 へ supersede 追記を行う。checker 自体の是正は実装面のため本 wave では行わない。
-- 受入全走は段 8 まで終えた最終 tip に対して 1 回だけ投入した
-  (`tools/dev_wave_wait.py acceptance --lease-optional`)。本 entry が台帳へ描画されている
-  ということは、その受入が緑で返り `tools/dev_wave_land.py` の ff-only land が成功したことを
-  意味する — land は緑の受入 receipt を要求するため、赤ならこの fragment は fold されない。
+- 受入全走は段 8 まで終えた最終 tip に対して投入した
+  (`tools/dev_wave_wait.py acceptance --lease-optional`)。走行に至るまでに infra 由来の
+  失敗を 2 種踏んでおり、いずれも本 wave の変更とは無関係である。
+  1. 親が自分で立てた orphan hold による全 dispatch 停止
+     ({{F:acceptance-red-check-shares-common-git-config-across-probe-worktrees}} と同じ
+     fragment の F333 再発項)。
+  2. 赤帰属判定の共有 `.git/config` ロック競合
+     ({{F:acceptance-red-check-shares-common-git-config-across-probe-worktrees}})。
+- **受入本体の実測は `26 failed, 14259 passed, 96 skipped in 224.03s`。落ちた 26 件は
+  すべて `orchestrator/tests/test_sort_swo_oracle.py` の oracle コンパイル環境依存**
+  (`OracleEnvironmentResolutionFailure(detail_code='oracle-environment-dependency-unresolved')`、
+  masstree の `config.h` 不在) で、本 wave の編集面と接点がない。T-1458 が同じ 26 件を
+  known-violation として登録済みであり、並行 wave がユーザー裁定に基づき同 file の
+  受入からの恒久除外を実装中である。**現時点の受入 1 回の律速はテスト本体 (3 分 44 秒) ではなく、
+  この 26 件の非帰属判定 (26 × 約 90 秒) である。**
+- 本 entry が台帳へ描画されているということは、受入が緑 (非帰属のみ) で返り
+  `tools/dev_wave_land.py` の ff-only land が成功したことを意味する — land は緑の受入
+  receipt を要求するため、赤ならこの fragment は fold されない。
 
 ## 次の一手差分
 
