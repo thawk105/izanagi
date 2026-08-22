@@ -69,7 +69,7 @@ import sys
 import tempfile
 import time
 import uuid
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass, field, replace
 from typing import Callable, Mapping, Optional, Sequence
 from pathlib import Path
 
@@ -179,6 +179,7 @@ _PRIVATE_DIAGNOSTIC_MAX_BYTES = 128 * 1024
 _FLOOR_PREFLIGHT_FAILURE_FILENAME = "sort-swo-oracle-preflight-failure.json"
 _FLOOR_POSTFLIGHT_FAILURE_FILENAME = "sort-swo-oracle-postflight-failure.json"
 _PRIVATE_SORT_SWO_EVIDENCE_SCHEMA = "s8b-sort-swo-private-evidence/v1"
+_FLOOR_THIRD_PARTY_SOURCE_NAMES = ("masstree", "mimalloc", "googletest")
 _FLOOR_PREFLIGHT_MATERIALIZED_SHA256 = hashlib.sha256(
     b"floor-sort-swo-preflight:materialized-unavailable"
 ).hexdigest()
@@ -228,6 +229,20 @@ _FLOOR_DEPENDENCY_PREFLIGHT_DETAIL_CODES = frozenset({
     "floor-dependency-archive-missing",
     "floor-dependency-archive-not-regular",
     "floor-dependency-archive-hash-unavailable",
+    "floor-dependency-staged-source-path-invalid",
+    "floor-dependency-staged-source-not-directory",
+    "floor-dependency-staged-source-inside-repository",
+    "floor-dependency-staged-git-root-unavailable",
+    "floor-dependency-staged-git-root-mismatch",
+    "floor-dependency-staged-head-probe-unavailable",
+    "floor-dependency-staged-head-nonunique",
+    "floor-dependency-staged-head-mismatch",
+    "floor-dependency-staged-source-status-unavailable",
+    "floor-dependency-staged-source-dirty",
+    "floor-dependency-payload-policy-unavailable",
+    "floor-dependency-payload-policy-schema-invalid",
+    "floor-dependency-payload-policy-pin-mismatch",
+    "floor-dependency-payload-policy-hash-invalid",
 })
 _FLOOR_DEPENDENCY_POSTFLIGHT_DETAIL_CODES = frozenset({
     "floor-dependency-postflight-build-failed",
@@ -240,6 +255,10 @@ _FLOOR_DEPENDENCY_POSTFLIGHT_DETAIL_CODES = frozenset({
     "floor-dependency-postflight-head-drift",
     "floor-dependency-postflight-config-drift",
     "floor-dependency-postflight-archive-drift",
+    "floor-dependency-postflight-source-set",
+    "floor-dependency-postflight-config-expected-mismatch",
+    "floor-dependency-postflight-archive-expected-mismatch",
+    "floor-dependency-postflight-payload-policy-mismatch",
 })
 _FLOOR_PREFLIGHT_CANDIDATE_OUTCOMES = frozenset({
     "not-configured",
@@ -2004,6 +2023,10 @@ class _FloorOracleDependencyBinding:
     archive_sha256: str
     source_st_dev: int
     source_st_ino: int
+    transport_mode: str = "base-only"
+    expected_config_sha256: Optional[str] = None
+    expected_archive_sha256: Optional[str] = None
+    payload_policy_sha256: Optional[str] = None
 
     def cache_receipt(self) -> dict[str, str]:
         return {
@@ -2013,7 +2036,7 @@ class _FloorOracleDependencyBinding:
         }
 
     def private_dict(self) -> dict[str, object]:
-        return {
+        result = {
             "dependency_root": str(self.source_root),
             "dependency_expected_head": self.expected_head,
             "dependency_head": self.observed_head,
@@ -2022,6 +2045,15 @@ class _FloorOracleDependencyBinding:
             "dependency_source_st_dev": self.source_st_dev,
             "dependency_source_st_ino": self.source_st_ino,
         }
+        if self.transport_mode != "base-only":
+            result["dependency_transport_mode"] = self.transport_mode
+        if self.expected_config_sha256 is not None:
+            result["dependency_expected_config_sha256"] = self.expected_config_sha256
+        if self.expected_archive_sha256 is not None:
+            result["dependency_expected_archive_sha256"] = self.expected_archive_sha256
+        if self.payload_policy_sha256 is not None:
+            result["dependency_payload_policy_sha256"] = self.payload_policy_sha256
+        return result
 
 
 def _masstree_policy_pin(repo_root: Path) -> str:
@@ -2055,6 +2087,126 @@ def _masstree_policy_pin(repo_root: Path) -> str:
             path=policy_path,
         )
     return pin
+
+
+def _floor_third_party_policy_pins(repo_root: Path) -> dict[str, str]:
+    """共有 policy から staged 3依存の pin を一度に取得する。"""
+    policy_path = _silo_ladder.third_party_policy_path(Path(repo_root))
+    try:
+        sources = _silo_ladder.third_party_policy(Path(repo_root))
+    except Exception as exc:
+        raise _FloorOraclePreflightError(
+            "共有 third-party policy の検証に失敗",
+            detail_code="floor-dependency-policy-unavailable",
+            origin="shared-policy:third-party",
+            outcome="invalid-path",
+            path=policy_path,
+        ) from exc
+    pins: dict[str, str] = {}
+    for name in _FLOOR_THIRD_PARTY_SOURCE_NAMES:
+        matches = [item for item in sources if item.get("name") == name]
+        if len(matches) != 1:
+            raise _FloorOraclePreflightError(
+                f"共有 policy の {name} pin が一意でない",
+                detail_code="floor-dependency-policy-pin-nonunique",
+                origin=f"shared-policy:{name}",
+                outcome="invalid-path",
+                path=policy_path,
+            )
+        pin = matches[0].get("pin")
+        if type(pin) is not str or re.fullmatch(r"[0-9a-f]{40}", pin) is None:
+            raise _FloorOraclePreflightError(
+                f"共有 policy の {name} pin が不正",
+                detail_code="floor-dependency-policy-pin-invalid",
+                origin=f"shared-policy:{name}",
+                outcome="invalid-path",
+                path=policy_path,
+            )
+        pins[name] = pin
+    return pins
+
+
+def _floor_masstree_payload_policy_path(repo_root: Path) -> Path:
+    return Path(repo_root) / "tools/pegasus/policies/floor_masstree_payload_v1.json"
+
+
+def _load_floor_masstree_payload_policy(
+        repo_root: Path = ROOT,
+) -> dict[str, str]:
+    """独立 floor payload policy を strict schema で読む (hash は計算しない)。"""
+    path = _floor_masstree_payload_policy_path(Path(repo_root))
+    try:
+        raw = path.read_text(encoding="utf-8")
+        document = json.loads(
+            raw,
+            object_pairs_hook=_no_duplicate_pairs,
+            parse_constant=_reject_json_constant,
+        )
+    except (OSError, UnicodeError, json.JSONDecodeError, FloorCampaignError) as exc:
+        raise _FloorOraclePreflightError(
+            f"floor masstree payload policy を読めない: {path}",
+            detail_code="floor-dependency-payload-policy-unavailable",
+            origin="floor-payload-policy:masstree",
+            outcome="invalid-path",
+            path=path,
+        ) from exc
+    expected_keys = {
+        "schema_version", "name", "pin", "config_sha256", "archive_sha256",
+    }
+    if type(document) is not dict:
+        raise _FloorOraclePreflightError(
+            "floor masstree payload policy の top-level が object でない",
+            detail_code="floor-dependency-payload-policy-schema-invalid",
+            origin="floor-payload-policy:masstree",
+            outcome="invalid-path",
+            path=path,
+        )
+    if set(document) != expected_keys:
+        raise _FloorOraclePreflightError(
+            "floor masstree payload policy の exact key 集合が不正",
+            detail_code="floor-dependency-payload-policy-schema-invalid",
+            origin="floor-payload-policy:masstree",
+            outcome="invalid-path",
+            path=path,
+        )
+    if (document["schema_version"] != "s8b-floor-masstree-payload/v1"
+            or document["name"] != "masstree"):
+        raise _FloorOraclePreflightError(
+            "floor masstree payload policy の schema/name が不正",
+            detail_code="floor-dependency-payload-policy-schema-invalid",
+            origin="floor-payload-policy:masstree",
+            outcome="invalid-path",
+            path=path,
+        )
+    if (type(document["pin"]) is not str
+            or re.fullmatch(r"[0-9a-f]{40}", document["pin"]) is None):
+        raise _FloorOraclePreflightError(
+            "floor masstree payload policy の pin が不正",
+            detail_code="floor-dependency-payload-policy-schema-invalid",
+            origin="floor-payload-policy:masstree",
+            outcome="invalid-path",
+            path=path,
+        )
+    for key in ("config_sha256", "archive_sha256"):
+        if (type(document[key]) is not str
+                or re.fullmatch(r"[0-9a-f]{64}", document[key]) is None):
+            raise _FloorOraclePreflightError(
+                f"floor masstree payload policy の {key} が不正",
+                detail_code="floor-dependency-payload-policy-hash-invalid",
+                origin="floor-payload-policy:masstree",
+                outcome="invalid-path",
+                path=path,
+            )
+    shared_pin = _masstree_policy_pin(Path(repo_root))
+    if document["pin"] != shared_pin:
+        raise _FloorOraclePreflightError(
+            "floor masstree payload policy の pin が共有 policy と不一致",
+            detail_code="floor-dependency-payload-policy-pin-mismatch",
+            origin="floor-payload-policy:masstree",
+            outcome="identity-mismatch",
+            path=path,
+        )
+    return dict(document)
 
 
 def _floor_git_environment() -> dict[str, str]:
@@ -2125,6 +2277,199 @@ def _sha256_regular_file(path: Path, *, artifact: str = "config") -> str:
 def _stat_floor_dependency_root(path: Path) -> os.stat_result:
     """依存 root の identity probe を単一の注入 site に束縛する。"""
     return path.stat()
+
+
+def _verify_pristine_floor_dependency_sources(
+        fetchcontent_base_dir: Path, *, repo_root: Path,
+) -> dict[str, Path]:
+    """CMake 前に staged 3依存の path・pin・clean 状態を検証する。"""
+    try:
+        raw_base = Path(fetchcontent_base_dir)
+        resolved_repo = Path(repo_root).resolve(strict=True)
+        resolved_base = raw_base.resolve(strict=True)
+    except (TypeError, ValueError, OSError, RuntimeError) as exc:
+        raise _FloorOraclePreflightError(
+            "staged FetchContent base を解決できない",
+            detail_code="floor-dependency-staged-source-path-invalid",
+            origin="floor-fetchcontent-staged-base",
+            outcome="invalid-path",
+            path=_preflight_candidate_path(fetchcontent_base_dir),
+        ) from exc
+    if (not raw_base.is_absolute() or raw_base.is_symlink()
+            or not resolved_base.is_dir() or raw_base.absolute() != resolved_base):
+        raise _FloorOraclePreflightError(
+            "staged FetchContent base が canonical absolute directory でない",
+            detail_code="floor-dependency-staged-source-not-directory",
+            origin="floor-fetchcontent-staged-base",
+            outcome="not-regular-file",
+            path=raw_base,
+        )
+    try:
+        if os.path.commonpath((str(resolved_base), str(resolved_repo))) == str(resolved_repo):
+            raise _FloorOraclePreflightError(
+                "staged FetchContent base は repo 外でなければならない",
+                detail_code="floor-dependency-staged-source-inside-repository",
+                origin="floor-fetchcontent-staged-base",
+                outcome="invalid-path",
+                path=resolved_base,
+            )
+    except ValueError as exc:
+        raise _FloorOraclePreflightError(
+            "staged FetchContent base の repo 境界を比較できない",
+            detail_code="floor-dependency-staged-source-path-invalid",
+            origin="floor-fetchcontent-staged-base",
+            outcome="invalid-path",
+            path=resolved_base,
+        ) from exc
+
+    pins = _floor_third_party_policy_pins(Path(repo_root))
+    verified: dict[str, Path] = {}
+    for name in _FLOOR_THIRD_PARTY_SOURCE_NAMES:
+        unresolved_source = resolved_base / f"{name}-src"
+        try:
+            source_root = unresolved_source.resolve(strict=True)
+        except (OSError, RuntimeError) as exc:
+            raise _FloorOraclePreflightError(
+                f"staged {name} source root が存在しない",
+                detail_code="floor-dependency-staged-source-not-directory",
+                origin=f"floor-dependency:{name}",
+                outcome="missing",
+                path=unresolved_source,
+            ) from exc
+        if (not unresolved_source.is_absolute()
+                or unresolved_source.is_symlink()
+                or not source_root.is_dir()
+                or unresolved_source.absolute() != source_root):
+            raise _FloorOraclePreflightError(
+                f"staged {name} source root が実 non-symlink directory でない",
+                detail_code="floor-dependency-staged-source-not-directory",
+                origin=f"floor-dependency:{name}",
+                outcome="not-regular-file",
+                path=unresolved_source,
+            )
+        try:
+            if os.path.commonpath((str(source_root), str(resolved_repo))) == str(resolved_repo):
+                raise _FloorOraclePreflightError(
+                    f"staged {name} source root は repo 外でなければならない",
+                    detail_code="floor-dependency-staged-source-inside-repository",
+                    origin=f"floor-dependency:{name}",
+                    outcome="invalid-path",
+                    path=source_root,
+                )
+        except ValueError as exc:
+            raise _FloorOraclePreflightError(
+                f"staged {name} source root の repo 境界を比較できない",
+                detail_code="floor-dependency-staged-source-path-invalid",
+                origin=f"floor-dependency:{name}",
+                outcome="invalid-path",
+                path=source_root,
+            ) from exc
+
+        try:
+            head_probe = subprocess.run(
+                [
+                    "git", "-C", str(source_root), "rev-parse",
+                    "--show-toplevel", "--verify", "HEAD",
+                ],
+                env=_floor_git_environment(),
+                text=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                timeout=30,
+                check=False,
+            )
+        except (OSError, subprocess.SubprocessError) as exc:
+            raise _FloorOraclePreflightError(
+                f"staged {name} source HEAD を検査できない",
+                detail_code="floor-dependency-staged-head-probe-unavailable",
+                origin=f"floor-dependency:{name}",
+                outcome="invalid-path",
+                path=source_root,
+            ) from exc
+        if type(head_probe.stdout) is not str:
+            raise _FloorOraclePreflightError(
+                f"staged {name} source HEAD の出力が不正",
+                detail_code="floor-dependency-staged-head-probe-unavailable",
+                origin=f"floor-dependency:{name}",
+                outcome="invalid-path",
+                path=source_root,
+            )
+        lines = head_probe.stdout.splitlines()
+        if head_probe.returncode != 0 or len(lines) != 2:
+            raise _FloorOraclePreflightError(
+                f"staged {name} source HEAD を一意に解決できない",
+                detail_code="floor-dependency-staged-head-nonunique",
+                origin=f"floor-dependency:{name}",
+                outcome="invalid-path",
+                path=source_root,
+            )
+        try:
+            top_level = Path(lines[0]).resolve(strict=True)
+        except (OSError, RuntimeError) as exc:
+            raise _FloorOraclePreflightError(
+                f"staged {name} Git top-level を解決できない",
+                detail_code="floor-dependency-staged-git-root-unavailable",
+                origin=f"floor-dependency:{name}",
+                outcome="invalid-path",
+                path=source_root,
+            ) from exc
+        observed_head = lines[1]
+        if top_level != source_root:
+            raise _FloorOraclePreflightError(
+                f"staged {name} source root が Git top-level でない",
+                detail_code="floor-dependency-staged-git-root-mismatch",
+                origin=f"floor-dependency:{name}",
+                outcome="invalid-path",
+                path=source_root,
+            )
+        if observed_head != pins[name]:
+            raise _FloorOraclePreflightError(
+                f"staged {name} source HEAD が共有 policy pin と不一致",
+                detail_code="floor-dependency-staged-head-mismatch",
+                origin=f"floor-dependency:{name}",
+                outcome="identity-mismatch",
+                path=source_root,
+            )
+
+        try:
+            status = subprocess.run(
+                [
+                    "git", "-C", str(source_root), "status", "--porcelain",
+                    "--untracked-files=all",
+                ],
+                env=_floor_git_environment(),
+                text=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                timeout=30,
+                check=False,
+            )
+        except (OSError, subprocess.SubprocessError) as exc:
+            raise _FloorOraclePreflightError(
+                f"staged {name} source status を検査できない",
+                detail_code="floor-dependency-staged-source-status-unavailable",
+                origin=f"floor-dependency:{name}",
+                outcome="invalid-path",
+                path=source_root,
+            ) from exc
+        if status.returncode != 0 or type(status.stdout) is not str:
+            raise _FloorOraclePreflightError(
+                f"staged {name} source status を検査できない",
+                detail_code="floor-dependency-staged-source-status-unavailable",
+                origin=f"floor-dependency:{name}",
+                outcome="invalid-path",
+                path=source_root,
+            )
+        if status.stdout:
+            raise _FloorOraclePreflightError(
+                f"staged {name} source が clean でない",
+                detail_code="floor-dependency-staged-source-dirty",
+                origin=f"floor-dependency:{name}",
+                outcome="identity-mismatch",
+                path=source_root,
+            )
+        verified[name] = source_root
+    return verified
 
 
 def _verify_floor_oracle_dependency_source(
@@ -2412,10 +2757,40 @@ def _canonical_floor_fetchcontent_base(
 
 
 def _prepare_floor_oracle_dependency(
-        fetchcontent_base: Path, *, ccbench_pin: str,
+        fetchcontent_base: Optional[Path], *, ccbench_pin: str,
         expected_toolchain_manifest: Mapping[str, object], repo_root: Path = ROOT,
 ) -> _FloorOracleDependencyBinding:
-    """pin 済み CCBench checkout で prebuild し、oracle identity を取得する。"""
+    """staged/legacy の transport を固定して prebuild し、oracle identity を取得する。"""
+    staged_sources: dict[str, Path] = {}
+    expected_payload: Optional[dict[str, str]] = None
+    payload_policy_sha256: Optional[str] = None
+    if fetchcontent_base is None:
+        # legacy は従来どおり job-local base を作成してから無条件 prebuild する。
+        effective_base = _canonical_floor_fetchcontent_base(
+            None, repo_root=Path(repo_root),
+        )
+    else:
+        # 明示 base は staged mode。検査失敗を legacy/network 経路へ変換しない。
+        effective_base = Path(fetchcontent_base)
+        staged_sources = _verify_pristine_floor_dependency_sources(
+            effective_base, repo_root=Path(repo_root),
+        )
+        expected_payload = _load_floor_masstree_payload_policy(
+            Path(repo_root),
+        )
+        policy_path = _floor_masstree_payload_policy_path(Path(repo_root))
+        try:
+            payload_policy_sha256 = hashlib.sha256(
+                policy_path.read_bytes()
+            ).hexdigest()
+        except OSError as exc:
+            raise _FloorOraclePreflightError(
+                "floor masstree payload policy の raw bytes を読めない",
+                detail_code="floor-dependency-payload-policy-unavailable",
+                origin="floor-payload-policy:masstree-bytes",
+                outcome="invalid-path",
+                path=policy_path,
+            ) from exc
     fixed_sub = Path(repo_root) / "external" / "ccbench"
     try:
         checkout = patchharness.checkout(ccbench_pin, base_dir=str(fixed_sub))
@@ -2430,13 +2805,20 @@ def _prepare_floor_oracle_dependency(
     try:
         with checkout as prebuild_source:
             try:
-                buildcache.prepare_masstree_fetchcontent(
-                    ccbench_dir=str(Path(prebuild_source).resolve()),
-                    fetchcontent_base_dir=str(fetchcontent_base),
-                    expected_toolchain_manifest=expected_toolchain_manifest,
-                    configure_timeout_s=_FLOOR_DEPENDENCY_CONFIGURE_CAP_S,
-                    target_timeout_s=_FLOOR_DEPENDENCY_TARGET_CAP_S,
-                )
+                prepare_kwargs = {
+                    "ccbench_dir": str(Path(prebuild_source).resolve()),
+                    "fetchcontent_base_dir": str(effective_base),
+                    "expected_toolchain_manifest": expected_toolchain_manifest,
+                    "configure_timeout_s": _FLOOR_DEPENDENCY_CONFIGURE_CAP_S,
+                    "target_timeout_s": _FLOOR_DEPENDENCY_TARGET_CAP_S,
+                }
+                if fetchcontent_base is not None:
+                    prepare_kwargs.update({
+                        "masstree_source_dir": str(staged_sources["masstree"]),
+                        "mimalloc_source_dir": str(staged_sources["mimalloc"]),
+                        "googletest_source_dir": str(staged_sources["googletest"]),
+                    })
+                buildcache.prepare_masstree_fetchcontent(**prepare_kwargs)
             except buildcache.MasstreeFetchContentError as exc:
                 code = (
                     "floor-dependency-fetchcontent-configure-failed"
@@ -2446,7 +2828,7 @@ def _prepare_floor_oracle_dependency(
                 raise _FloorOraclePreflightError(
                     str(exc), detail_code=code,
                     origin=f"floor-fetchcontent-prebuild:{exc.stage}",
-                    outcome="execution-failed", path=fetchcontent_base,
+                    outcome="execution-failed", path=effective_base,
                 ) from exc
             except Exception as exc:
                 raise _FloorOraclePreflightError(
@@ -2454,7 +2836,7 @@ def _prepare_floor_oracle_dependency(
                     detail_code="floor-dependency-fetchcontent-base-failed",
                     origin="floor-fetchcontent-prebuild:base",
                     outcome="execution-failed",
-                    path=fetchcontent_base,
+                    path=effective_base,
                 ) from exc
     except _FloorOraclePreflightError:
         raise
@@ -2466,9 +2848,19 @@ def _prepare_floor_oracle_dependency(
             outcome="execution-failed",
             path=fixed_sub,
         ) from exc
-    return _verify_floor_oracle_dependency_source(
-        fetchcontent_base, repo_root=Path(repo_root),
+    binding = _verify_floor_oracle_dependency_source(
+        effective_base, repo_root=Path(repo_root),
         expected_head=_masstree_policy_pin(Path(repo_root)),
+    )
+    if fetchcontent_base is None:
+        return binding
+    assert expected_payload is not None
+    return replace(
+        binding,
+        transport_mode="source-dir",
+        expected_config_sha256=expected_payload["config_sha256"],
+        expected_archive_sha256=expected_payload["archive_sha256"],
+        payload_policy_sha256=payload_policy_sha256,
     )
 
 
@@ -2694,9 +3086,23 @@ def _verify_floor_build_dependency(
             detail_code="floor-dependency-postflight-configure-argv-invalid",
             outcome="identity-mismatch", path=fetchcontent_base,
         )
-    if any(
-            token.startswith("-DFETCHCONTENT_SOURCE_DIR_")
-            for token in configure_argv):
+    source_defines = [
+        token for token in configure_argv
+        if token.startswith("-DFETCHCONTENT_SOURCE_DIR_")
+    ]
+    if before.transport_mode == "source-dir":
+        expected_source_defines = [
+            f"-DFETCHCONTENT_SOURCE_DIR_{name.upper()}="
+            f"{fetchcontent_base / f'{name}-src'}"
+            for name in _FLOOR_THIRD_PARTY_SOURCE_NAMES
+        ]
+        if source_defines != expected_source_defines:
+            raise _floor_postflight_error(
+                "build configure argv の staged SOURCE_DIR 集合が不一致",
+                detail_code="floor-dependency-postflight-source-set",
+                outcome="identity-mismatch", path=fetchcontent_base,
+            )
+    elif source_defines:
         raise _floor_postflight_error(
             "build configure argv に禁止された FetchContent SOURCE_DIR override がある",
             detail_code="floor-dependency-postflight-source-override",
@@ -2725,6 +3131,25 @@ def _verify_floor_build_dependency(
             detail_code="floor-dependency-postflight-effective-root-mismatch",
             outcome="identity-mismatch", path=expected_source,
         )
+    if before.transport_mode == "source-dir":
+        policy_path = _floor_masstree_payload_policy_path(Path(repo_root))
+        try:
+            current_payload_policy_sha256 = hashlib.sha256(
+                policy_path.read_bytes()
+            ).hexdigest()
+        except OSError as exc:
+            raise _floor_postflight_error(
+                "独立 floor masstree payload policy の raw bytes を再読できない",
+                detail_code="floor-dependency-postflight-source-unavailable",
+                outcome="identity-mismatch", path=policy_path,
+            ) from exc
+        if (before.payload_policy_sha256 is None
+                or current_payload_policy_sha256 != before.payload_policy_sha256):
+            raise _floor_postflight_error(
+                "build 後の floor masstree payload policy bytes が binding と不一致",
+                detail_code="floor-dependency-postflight-payload-policy-mismatch",
+                outcome="identity-mismatch", path=policy_path,
+            )
     try:
         after = _verify_floor_oracle_dependency_source(
             fetchcontent_base, repo_root=repo_root,
@@ -2759,7 +3184,43 @@ def _verify_floor_build_dependency(
             detail_code="floor-dependency-postflight-archive-drift",
             outcome="identity-mismatch", path=expected_source,
         )
-    return after
+    expected_config_sha256 = before.expected_config_sha256
+    expected_archive_sha256 = before.expected_archive_sha256
+    if before.transport_mode == "source-dir":
+        if expected_config_sha256 is None or expected_archive_sha256 is None:
+            try:
+                expected_payload = _load_floor_masstree_payload_policy(
+                    Path(repo_root),
+                )
+            except _FloorOraclePreflightError as exc:
+                raise _floor_postflight_error(
+                    "独立 floor masstree payload policy を再検証できない",
+                    detail_code="floor-dependency-postflight-source-unavailable",
+                    outcome="identity-mismatch", path=expected_source,
+                ) from exc
+            expected_config_sha256 = expected_payload["config_sha256"]
+            expected_archive_sha256 = expected_payload["archive_sha256"]
+        if after.config_sha256 != expected_config_sha256:
+            raise _floor_postflight_error(
+                "build 後の masstree config.h が独立 expected hash と不一致",
+                detail_code="floor-dependency-postflight-config-expected-mismatch",
+                outcome="identity-mismatch", path=expected_source / "config.h",
+            )
+        if after.archive_sha256 != expected_archive_sha256:
+            raise _floor_postflight_error(
+                "build 後の masstree archive が独立 expected hash と不一致",
+                detail_code="floor-dependency-postflight-archive-expected-mismatch",
+                outcome="identity-mismatch", path=expected_source,
+            )
+    if before.transport_mode == "base-only":
+        return after
+    return replace(
+        after,
+        transport_mode=before.transport_mode,
+        expected_config_sha256=expected_config_sha256,
+        expected_archive_sha256=expected_archive_sha256,
+        payload_policy_sha256=before.payload_policy_sha256,
+    )
 
 
 @contextlib.contextmanager
@@ -3009,14 +3470,22 @@ def build_cells(
                     outcome="invalid-path",
                     path=_preflight_candidate_path(verified_oracle_compiler),
                 )
-            fetchcontent_base = _canonical_floor_fetchcontent_base(
-                fetchcontent_base_dir,
-            )
-            dependency_binding = _prepare_floor_oracle_dependency(
-                fetchcontent_base,
-                ccbench_pin=ccbench_pin,
-                expected_toolchain_manifest=expected_toolchain_manifest,
-            )
+            if fetchcontent_base_dir is None:
+                dependency_binding = _prepare_floor_oracle_dependency(
+                    None,
+                    ccbench_pin=ccbench_pin,
+                    expected_toolchain_manifest=expected_toolchain_manifest,
+                )
+                fetchcontent_base = dependency_binding.source_root.parent
+            else:
+                fetchcontent_base = _canonical_floor_fetchcontent_base(
+                    fetchcontent_base_dir,
+                )
+                dependency_binding = _prepare_floor_oracle_dependency(
+                    fetchcontent_base,
+                    ccbench_pin=ccbench_pin,
+                    expected_toolchain_manifest=expected_toolchain_manifest,
+                )
             _create_private_json(
                 marker_root / "sort-swo-oracle-dependency.json",
                 {
@@ -3132,6 +3601,18 @@ def build_cells(
                         dependency_binding.cache_receipt()
                     ),
                 }
+                if dependency_binding.transport_mode == "source-dir":
+                    build_kwargs.update({
+                        "masstree_source_dir": str(
+                            fetchcontent_base / "masstree-src"
+                        ),
+                        "mimalloc_source_dir": str(
+                            fetchcontent_base / "mimalloc-src"
+                        ),
+                        "googletest_source_dir": str(
+                            fetchcontent_base / "googletest-src"
+                        ),
+                    })
             try:
                 result = build_fn(
                     prepared.genome,
@@ -5540,6 +6021,7 @@ def _nondefault_campaign_seams(
         monotonic_fn=_DEFAULT_MONOTONIC_FN, prepare_fn=None, now_fn=None,
         host_provenance_fn=None, process_identity_fn=None,
         execution_receipt_fn=None, build_fn=None, repo_root=None,
+        fetchcontent_base_dir=None,
         after_certificate_issued_fn=None, durable_root_policy=None,
         _floor_preflight_fn=None, perf_preflight_fn=None,
         _holdout_repo_root=None, _holdout_signature_source=None,
@@ -5557,6 +6039,7 @@ def _nondefault_campaign_seams(
         "execution_receipt_fn": execution_receipt_fn is not None,
         "build_fn": build_fn is not None,
         "repo_root": repo_root is not None,
+        "fetchcontent_base_dir": fetchcontent_base_dir is not None,
         "after_certificate_issued_fn": after_certificate_issued_fn is not None,
         "durable_root_policy": durable_root_policy is not None,
         "_floor_preflight_fn": _floor_preflight_fn is not None,
@@ -5630,6 +6113,7 @@ def run_campaign(protocol, freeze_doc, *, out_root, mode, resume_dir=None,
                  monotonic_fn=_DEFAULT_MONOTONIC_FN, prepare_fn=None, now_fn=None,
                  host_provenance_fn=None, process_identity_fn=None,
                  execution_receipt_fn=None, build_fn=None, repo_root=None,
+                 fetchcontent_base_dir=None,
                  after_certificate_issued_fn=None,
                  durable_root_policy=None, perf_preflight_fn=None,
                  protocol_path: Path | str | None = None,
@@ -5643,6 +6127,7 @@ def run_campaign(protocol, freeze_doc, *, out_root, mode, resume_dir=None,
         process_identity_fn=process_identity_fn,
         execution_receipt_fn=execution_receipt_fn, build_fn=build_fn,
         repo_root=repo_root,
+        fetchcontent_base_dir=fetchcontent_base_dir,
         after_certificate_issued_fn=after_certificate_issued_fn,
         durable_root_policy=durable_root_policy,
         perf_preflight_fn=perf_preflight_fn,
@@ -5681,6 +6166,7 @@ def run_campaign(protocol, freeze_doc, *, out_root, mode, resume_dir=None,
         process_identity_fn=process_identity_fn,
         execution_receipt_fn=execution_receipt_fn, build_fn=build_fn,
         repo_root=repo_root,
+        fetchcontent_base_dir=fetchcontent_base_dir,
         after_certificate_issued_fn=after_certificate_issued_fn,
         durable_root_policy=durable_root_policy,
         perf_preflight_fn=perf_preflight_fn,
@@ -5693,6 +6179,7 @@ def _run_campaign_core(protocol, freeze_doc, *, out_root, mode, resume_dir=None,
                        monotonic_fn=_DEFAULT_MONOTONIC_FN, prepare_fn=None, now_fn=None,
                        host_provenance_fn=None, process_identity_fn=None,
                        execution_receipt_fn=None, build_fn=None, repo_root=None,
+                       fetchcontent_base_dir=None,
                        after_certificate_issued_fn=None,
                        durable_root_policy=None, _floor_preflight_fn=None,
                        perf_preflight_fn=None, _holdout_repo_root=None,
@@ -5728,6 +6215,7 @@ def _run_campaign_core(protocol, freeze_doc, *, out_root, mode, resume_dir=None,
         process_identity_fn=process_identity_fn,
         execution_receipt_fn=execution_receipt_fn, build_fn=build_fn,
         repo_root=repo_root,
+        fetchcontent_base_dir=fetchcontent_base_dir,
         after_certificate_issued_fn=after_certificate_issued_fn,
         durable_root_policy=durable_root_policy,
         _floor_preflight_fn=_floor_preflight_fn,
@@ -6099,6 +6587,7 @@ def _run_campaign_core(protocol, freeze_doc, *, out_root, mode, resume_dir=None,
             out_root=out_root, prepare_fn=prepare_fn, contract=contract,
             verified_calibration=verified_calibration,
             build_fn=build_fn,
+            fetchcontent_base_dir=fetchcontent_base_dir,
         )
         # content-addressed store (C3-7): 計測 bytes を env scope 永続領域へ複製し store_path を記録。
         store_root = Path(env_scope_dir(protocol["env_tag"], output_root=str(out_root))) / "binaries"
@@ -6164,6 +6653,7 @@ def _run_campaign_core(protocol, freeze_doc, *, out_root, mode, resume_dir=None,
                 out_root=out_root, prepare_fn=prepare_fn, contract=contract,
                 verified_calibration=verified_calibration,
                 build_fn=build_fn,
+                fetchcontent_base_dir=fetchcontent_base_dir,
             )
             store_root = Path(env_scope_dir(
                 protocol["env_tag"], output_root=str(out_root))) / "binaries"
@@ -6865,6 +7355,10 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--resume", type=Path, default=None,
                         help="既存 run_dir を forward-only で続行する")
     parser.add_argument(
+        "--fetchcontent-base-dir", type=Path, default=None,
+        help="staged FetchContent payload の base directory (pilot専用の非default seam)",
+    )
+    parser.add_argument(
         "--confirm-irreversible-pilot-holdout", action="store_true",
         help="pilot が将来の official と共有する一回性 key を不可逆消費することを承認する",
     )
@@ -7090,6 +7584,7 @@ def main(argv=None) -> int:
         outcome = run_campaign(
             protocol, verified, out_root=out_root, mode=args.mode,
             resume_dir=args.resume,
+            fetchcontent_base_dir=args.fetchcontent_base_dir,
             protocol_path=supplied_protocol_path,
             confirm_irreversible_pilot_holdout=(
                 args.confirm_irreversible_pilot_holdout

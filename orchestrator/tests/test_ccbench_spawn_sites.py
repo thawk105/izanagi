@@ -121,6 +121,9 @@ _EXPLICIT_NON_CCBENCH_PROCESS_SITES = Counter({
     ("campaign/s8b_floor_campaign.py", "<module>._observe_floor_tool"): 1,
     ("campaign/s8b_floor_campaign.py", "<module>._pre_oracle_blob"): 2,
     ("campaign/s8b_floor_campaign.py", "<module>._verify_floor_oracle_dependency_source"): 1,
+    # Sanitized read-only Git identity/status probes for staged dependencies;
+    # neither command names nor executes CCBench.
+    ("campaign/s8b_floor_campaign.py", "<module>._verify_pristine_floor_dependency_sources"): 2,
     ("campaign/s8b_holdout_admission.py", "<module>._run_git"): 1,
     ("campaign/s8b_holdout_freeze.py", "<module>._run_git"): 1,
     ("campaign/s8b_holdout_freeze.py", "<module>._run_git_bytes"): 1,
