@@ -430,10 +430,16 @@ with open(path, "x", encoding="utf-8") as handle:
     handle.write("\n")
 PY
 
-CPU_MODEL=$(awk -F: '/^model name[[:space:]]*:/ {gsub(/^[[:space:]]+/, "", $2); print $2; exit}' /proc/cpuinfo)
+CPU_MODEL=$(awk -F: '/^[[:space:]]*model name[[:space:]]*:/ {
+  sub(/^[[:space:]]+/, "", $2); print $2; exit
+}' /proc/cpuinfo)
 printf '%s\n' "$CPU_MODEL" >"$ATTEMPT_DIR/cpu-model.stdout"
-if [[ "$CPU_MODEL" != "$EXPECTED_CPU" ]]; then
-  write_failure 2 environment "CPU model differs from policy"
+CPU_MODEL_NORMALIZED=$(sed -E \
+  's/\((R|TM)\)//g; s/[[:space:]]+/ /g; s/^[[:space:]]+//; s/[[:space:]]+$//' \
+  <<<"$CPU_MODEL")
+if [[ "$CPU_MODEL_NORMALIZED" != "$EXPECTED_CPU" ]]; then
+  write_failure 2 environment \
+    "CPU model mismatch: expected=$EXPECTED_CPU observed_normalized=$CPU_MODEL_NORMALIZED"
   exit 2
 fi
 

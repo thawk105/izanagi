@@ -214,3 +214,97 @@ def test_mocc_trace_submit_trace_mode_one_dry_run_contract(tmp_path: Path) -> No
     assert receipt["qsub"]["request_id"].startswith("dry-run-")
     assert receipt["qsub"]["argv"] == pre_submit["request"]["qsub_argv"]
     assert (submission / "qsub.rc").read_text(encoding="utf-8").strip() == "0"
+
+
+def test_mocc_trace_cpu_model_gate_normalizes_and_rejects_true_mismatch(
+    tmp_path: Path,
+) -> None:
+    """The job-side CPU gate absorbs notation drift but remains fail-closed."""
+
+    pilot = REPO_ROOT / "tools/pegasus/mocc_trace_pilot.sh"
+    source = pilot.read_text(encoding="utf-8")
+    start_marker = "CPU_MODEL=$(awk"
+    end_marker = "\nmodule_rc=0"
+    assert source.count(start_marker) == 1
+    assert source.count(end_marker) == 1
+    start = source.index(start_marker)
+    end = source.index(end_marker)
+    assert start < end
+    cpu_gate = source[start:end]
+
+    cpuinfo_marker = "/proc/cpuinfo"
+    assert cpu_gate.count(cpuinfo_marker) == 1
+    cpu_gate = cpu_gate.replace(cpuinfo_marker, '"$CPUINFO_PATH"', 1)
+    assert cpu_gate.count(cpuinfo_marker) == 0
+    assert cpu_gate.count('"$CPUINFO_PATH"') == 1
+
+    assert r"s/\((R|TM)\)//g" in cpu_gate
+    assert "observed_normalized=" in cpu_gate
+    assert '"cpu_model": cpu_model' in source
+    assert (
+        '"expected_cpu_model": submit_receipt["policy"]["expected_cpu_model"]'
+        in source
+    )
+    assert '"cpu_model_normalized"' not in source
+
+    cpuinfo_path = tmp_path / "cpuinfo"
+    raw_model = "Intel(R) Xeon(R)   Platinum(TM)\t8468"
+    cpuinfo_path.write_text(
+        f"  model name : {raw_model}\n",
+        encoding="utf-8",
+    )
+
+    def run_gate(
+        expected: str, attempt_dir: Path, failure_path: Path
+    ) -> subprocess.CompletedProcess[str]:
+        attempt_dir.mkdir()
+        environment = os.environ.copy()
+        environment.update(
+            {
+                "ATTEMPT_DIR": str(attempt_dir),
+                "CPUINFO_PATH": str(cpuinfo_path),
+                "EXPECTED_CPU": expected,
+                "FAILURE_PATH": str(failure_path),
+            }
+        )
+        return subprocess.run(
+            [
+                "bash",
+                "-c",
+                "write_failure() {\n"
+                '  printf \'%s\\n\' "$3" >"$FAILURE_PATH"\n'
+                "}\n"
+                f"{cpu_gate}\n",
+            ],
+            cwd=REPO_ROOT,
+            env=environment,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+
+    success_failure = tmp_path / "success-failure"
+    success_attempt = tmp_path / "success-attempt"
+    success = run_gate(
+        "Intel Xeon Platinum 8468",
+        success_attempt,
+        success_failure,
+    )
+    assert success.returncode == 0, success.stderr
+    assert not success_failure.exists()
+    assert (success_attempt / "cpu-model.stdout").read_text(
+        encoding="utf-8"
+    ) == f"{raw_model}\n"
+
+    mismatch_failure = tmp_path / "mismatch-failure"
+    mismatch_attempt = tmp_path / "mismatch-attempt"
+    mismatch = run_gate(
+        "Intel Xeon Platinum 8488",
+        mismatch_attempt,
+        mismatch_failure,
+    )
+    assert mismatch.returncode == 2, mismatch.stderr
+    assert mismatch_failure.read_text(encoding="utf-8") == (
+        "CPU model mismatch: expected=Intel Xeon Platinum 8488 "
+        "observed_normalized=Intel Xeon Platinum 8468\n"
+    )
