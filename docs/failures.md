@@ -404,6 +404,12 @@
 - 現行実体: `docs/dev-wave/operations.md` の `DW-O01`。
 - 再発検知: ログ末尾の「Reading additional input from stdin」を停止指標として grep する。
 
+
+- **再発: 2026-08-22** — `docs/dev-wave/operations.md` DW-O01 の起動定型
+  (`nohup setsid bash -c '<cmd>; echo $? > <log>.done'`) が F23 の恒久対応
+  (`< /dev/null` を明示) を反映しないまま残っており、codex consult 子が
+  「Reading additional input from stdin...」で無言停止 (.done 未生成) する事故を実測した。
+  DW-O01 の定型へ `< /dev/null` を明記して閉じる。
 ### F24. サブプロセス完了検知をログ本文 grep に頼り誤検知 — 偽完了 2 回 + 空振りタイムアウト 2 回 [手順漏れ]
 - 事象: codex exec のバッチ監視で「tokens used」等の完了マーカーをログ全文 (のち末尾 2KB) から
   grep したところ、子が読んだファイル内容 (過去ログの逐語凍結、さらに**この落とし穴を記した handoff
@@ -11583,3 +11589,22 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   smoke testを要求する (段4裁定のF8/F13相当の扱いを一般化)。機械lint化は未実装 — 次に
   同型の罠を踏んだ wave が出たら、DW-G01の記述へ「fake/dry_run実績だけでは生死確認済みと
   扱わない」旨を明文化する候補とする。
+
+### F459. autonomous_trial_completeness.py変更時にp3_autonomous_workload_trialのimporterだけをconsumer test拡張対象にし本体のimporterを見落とした [手順漏れ] [テスト代表性]
+
+- 事象: `autonomous_trial_completeness.py`と`p3_autonomous_workload_trial.py`の両方を
+  変更するwaveで、DW-O26のconsumer test拡張を行う際に
+  `grep -rln "p3_autonomous_workload_trial\." orchestrator/tests/`だけを実行し、
+  `autonomous_trial_completeness`自体をimportする8ファイル (test_trial_registry.py含む)
+  を見落とした。段5実装・段6敵対レビュー2本・親の直接テスト実走のいずれもこの穴を
+  検出できず、受入全走で初めてtest_trial_registry.pyの13件が
+  `[payload-validation-receipt] safe identity differs`で赤化した。
+- 根本原因: 変更した2ファイルのうち1ファイル (`p3_autonomous_workload_trial.py`) の
+  importerだけをgrepし、もう1ファイル (`autonomous_trial_completeness.py`) の
+  importerを別途grepしなかった。複数productionファイルを同時に変更するwaveでは、
+  consumer test拡張は変更した**ファイルごと**に独立してimporterを洗い出す必要がある。
+- 恒久対応: `docs/dev-wave/operations.md`のDW-O26に「変更したproduction fileが複数ある
+  場合は各ファイルごとにimporterをgrepする」という明示を追加する改訂候補を段8の
+  dev-wave改善候補へ送る (未確定、記録のみ)。
+- 再発検知: 複数productionファイル変更waveで、DW-O26のconsumer test拡張grepコマンドが
+  変更ファイル数と1対1で存在するか段6レビューで確認する。
