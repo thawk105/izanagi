@@ -343,7 +343,7 @@ CODEX_DEV_WAVE_STAGE9_LAND_LITERAL = (
     "Codex 固有の取り込み手順を重ねない。"
 )
 DEV_WAVE_DW_O01_MODEL_AUTHORITY_LITERAL = (
-    "`<model>`: 全段 `gpt-5.6-luna` (段 3 の 2 本も同じ)。"
+    "`<model>`: 全段 `gpt-5.6-sol` (段 3 の 2 本も同じ)。"
 )
 DEV_WAVE_DW_O01_MODEL_AUTHORITY_FINDING = (
     "docs/dev-wave/operations.md: DW-O01 の可視本文に model 権威行が "
@@ -477,39 +477,39 @@ DEV_WAVE_MODEL_SLUG_RE = re.compile(
     r"(?<![A-Za-z0-9._-])gpt-[0-9](?:[A-Za-z0-9._-]*[A-Za-z0-9])?"
     r"(?![A-Za-z0-9._-])"
 )
-DEV_WAVE_DW_S02_REASONING_MAX_LITERAL = "`reasoning=max`"
-DEV_WAVE_DW_S03_REASONING_MAX_LITERAL = "`reasoning=max`"
-DEV_WAVE_DW_S06_A_REASONING_MAX_LITERAL = "`reasoning=max`"
-DEV_WAVE_DW_S06_C_REASONING_MAX_LITERAL = "`reasoning=max`"
-DEV_WAVE_DW_S06_A_REASONING_MAX_SENTENCE = (
-    "実装 wave は異なるレンズの敵対レビューを `reasoning=max` で必ず 2 本並列で行う。"
+DEV_WAVE_DW_S02_REASONING_XHIGH_LITERAL = "`reasoning=xhigh`"
+DEV_WAVE_DW_S03_REASONING_XHIGH_LITERAL = "`reasoning=xhigh`"
+DEV_WAVE_DW_S06_A_REASONING_XHIGH_LITERAL = "`reasoning=xhigh`"
+DEV_WAVE_DW_S06_C_REASONING_XHIGH_LITERAL = "`reasoning=xhigh`"
+DEV_WAVE_DW_S06_A_REASONING_XHIGH_SENTENCE = (
+    "実装 wave は異なるレンズの敵対レビューを `reasoning=xhigh` で必ず 2 本並列で行う。"
 )
-DEV_WAVE_DW_S06_C_REASONING_MAX_SENTENCE = (
-    "並列 fix の統合後、焦点再レビューは全体へ `reasoning=max` で 1 本でよい。"
+DEV_WAVE_DW_S06_C_REASONING_XHIGH_SENTENCE = (
+    "並列 fix の統合後、焦点再レビューは全体へ `reasoning=xhigh` で 1 本でよい。"
 )
-DEV_WAVE_DW_S05_A_REASONING_MAX_SENTENCE = (
-    "codex は `reasoning=max`、`sandbox=workspace-write` とする。"
+DEV_WAVE_DW_S05_A_REASONING_XHIGH_SENTENCE = (
+    "codex は `reasoning=xhigh`、`sandbox=workspace-write` とする。"
 )
-DEV_WAVE_DW_S02_REASONING_MAX_FINDING = (
-    "docs/dev-wave/workers.md: DW-S02 の `reasoning=max` は D207 に基づく"
+DEV_WAVE_DW_S02_REASONING_XHIGH_FINDING = (
+    "docs/dev-wave/workers.md: DW-S02 の `reasoning=xhigh` は D207 に基づく"
     "現行 adoption pin と不一致 — "
     "変更には paired・blind・非劣性 A/B に基づく採用裁定と pin の同時更新が必要"
 )
-DEV_WAVE_DW_S03_REASONING_MAX_FINDING = (
-    "docs/dev-wave/workers.md: DW-S03 の `reasoning=max` は D207 に基づく"
+DEV_WAVE_DW_S03_REASONING_XHIGH_FINDING = (
+    "docs/dev-wave/workers.md: DW-S03 の `reasoning=xhigh` は D207 に基づく"
     "現行 adoption pin と不一致 — "
     "変更には paired・blind・非劣性 A/B に基づく採用裁定と pin の同時更新が必要"
 )
-DEV_WAVE_DW_S06_A_REASONING_MAX_FINDING = (
-    "docs/dev-wave/workers.md: DW-S06-A の `reasoning=max` は段 6 敵対レビューの"
+DEV_WAVE_DW_S06_A_REASONING_XHIGH_FINDING = (
+    "docs/dev-wave/workers.md: DW-S06-A の `reasoning=xhigh` は段 6 敵対レビューの"
     "現行 adoption pin と不一致 — 変更には採用裁定と pin の同時更新が必要"
 )
-DEV_WAVE_DW_S06_C_REASONING_MAX_FINDING = (
-    "docs/dev-wave/workers.md: DW-S06-C の `reasoning=max` は段 6 焦点再レビューの"
+DEV_WAVE_DW_S06_C_REASONING_XHIGH_FINDING = (
+    "docs/dev-wave/workers.md: DW-S06-C の `reasoning=xhigh` は段 6 焦点再レビューの"
     "現行 adoption pin と不一致 — 変更には採用裁定と pin の同時更新が必要"
 )
-DEV_WAVE_DW_S05_A_REASONING_MAX_FINDING = (
-    "docs/dev-wave/workers.md: DW-S05-A の `reasoning=max` は段 5 実装子の"
+DEV_WAVE_DW_S05_A_REASONING_XHIGH_FINDING = (
+    "docs/dev-wave/workers.md: DW-S05-A の `reasoning=xhigh` は段 5 実装子の"
     "現行 adoption pin と不一致 — 変更には採用裁定と pin の同時更新が必要"
 )
 DEV_WAVE_DW_O16_REASONING_EFFORT_FINDING = (
@@ -5186,33 +5186,33 @@ def _check_dev_wave_reasoning_effort_pins(
     for section_id, expected, required_text, finding in (
         (
             "DW-S02",
-            "max",
-            DEV_WAVE_DW_S02_REASONING_MAX_LITERAL,
-            DEV_WAVE_DW_S02_REASONING_MAX_FINDING,
+            "xhigh",
+            DEV_WAVE_DW_S02_REASONING_XHIGH_LITERAL,
+            DEV_WAVE_DW_S02_REASONING_XHIGH_FINDING,
         ),
         (
             "DW-S03",
-            "max",
-            DEV_WAVE_DW_S03_REASONING_MAX_LITERAL,
-            DEV_WAVE_DW_S03_REASONING_MAX_FINDING,
+            "xhigh",
+            DEV_WAVE_DW_S03_REASONING_XHIGH_LITERAL,
+            DEV_WAVE_DW_S03_REASONING_XHIGH_FINDING,
         ),
         (
             "DW-S06-A",
-            "max",
-            DEV_WAVE_DW_S06_A_REASONING_MAX_SENTENCE,
-            DEV_WAVE_DW_S06_A_REASONING_MAX_FINDING,
+            "xhigh",
+            DEV_WAVE_DW_S06_A_REASONING_XHIGH_SENTENCE,
+            DEV_WAVE_DW_S06_A_REASONING_XHIGH_FINDING,
         ),
         (
             "DW-S06-C",
-            "max",
-            DEV_WAVE_DW_S06_C_REASONING_MAX_SENTENCE,
-            DEV_WAVE_DW_S06_C_REASONING_MAX_FINDING,
+            "xhigh",
+            DEV_WAVE_DW_S06_C_REASONING_XHIGH_SENTENCE,
+            DEV_WAVE_DW_S06_C_REASONING_XHIGH_FINDING,
         ),
         (
             "DW-S05-A",
-            "max",
-            DEV_WAVE_DW_S05_A_REASONING_MAX_SENTENCE,
-            DEV_WAVE_DW_S05_A_REASONING_MAX_FINDING,
+            "xhigh",
+            DEV_WAVE_DW_S05_A_REASONING_XHIGH_SENTENCE,
+            DEV_WAVE_DW_S05_A_REASONING_XHIGH_FINDING,
         ),
     ):
         sections = _reference_id_sections(visible_workers_text, section_id)
