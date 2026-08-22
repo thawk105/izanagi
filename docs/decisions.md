@@ -25958,3 +25958,65 @@ docstringは「非干渉性が完全に成立した」と書かず、この限�
 - 項目6を最小実装 (`_ObservationProvenance` 追加のみ) してこの wave で着地させる —
   発火条件を満たす既存 artifact path が無く、producer なしでは実運用で到達しない
   コードになるため却下した。
+
+## D650. AI セッションによる性能実測を許可する (2026-08-22)
+
+**決定:** このプロジェクトでは、ユーザーが明示的に依頼した場合、AI セッションが性能実測の投入・回収・解析を行ってよい。実測は sanctioned な controller / dispatch 経路を通し、計算ノード上で行う。計算ノード専用、投入前 preflight、job/source/receipt の束縛、キュー状態確認、CCBench の TRACE=0 分離、verifier と正しさゲートは維持する。ログインノードでのベンチ直接実行、controller を迂回した未記録の raw 実測、qsub receipt や結果の捏造は許可しない。D86/D87 に残る「AI は qsub しない」という旧来の制約は、ユーザーの今回の明示指示によりこの性能実測スコープでは supersede する。
+
+**理由:** ユーザーは 2026-08-21 に「このプロジェクトは AI が性能実測する」と明示した。AI による CC の自動合成・進化探索が目的であり、性能実測を常に人間の手番へ戻すと主経路を停止させる。必要なのは実行主体の人間性ではなく、sanctioned 経路・計算ノード・receipt・正しさ証拠の完全性である。
+
+**却下した選択肢:**
+
+- 全性能実測を人間の明示 qsub に限定する — AI 自動合成の実験ループを不必要に停止させるため採らない。
+- qsub を直接打つだけで preflight・receipt・source pin・verifier を省略する — 性能値の権威性と再現性を失うため採らない。
+
+## D651. role 出力契約 fixture 回帰テストは raw 形状の直接検証を必須とする (2026-08-22)
+
+**決定:** parser の fail-closed 動作を fixture で個別に固定する回帰テストは、共通の `status`/`error_type`/`stop_reason` assertion だけでなく、malformed provider が実際に返した raw response 文字列の形状 (prefix/suffix・特定部分文字列の有無・キー集合など) を直接検証する assertion を必須で含める。
+
+**理由:**
+- S8C live pilot (worklog entry 612) で観測された role 出力契約非適合3パターン (auditor が入力の `descriptor_binding` を出力へ複製し top-level 7 キー化・JSON を fence 包み・JSON 区切り文字欠落) を fixture 回帰テストとして新設する dev-wave で、段3 敵対相談の独立2レンズ (sol・luna) が、fence ケースと区切り文字欠落ケースは同じ parser 経路 (`JSONDecodeError` → `PredictionRunnerError` → `AutonomousTrialError`) を通り同じ `status`/`error_type`/`stop_reason` に収束するため、raw 形状を検証しない限り mutation testing で互いを区別できない冗長 gate になる、と**独立に同一の結論**を報告した。
+- 段4 裁定でこの指摘を採用し、各テストへ raw 形状の直接検証 (7 キー: `descriptor_binding` の複製確認、fence: prefix/suffix 確認、区切り文字欠落: 特定部分文字列の有無確認) を実装要件に追加した。
+- 変異 matrix (7キー緩和・fence 除去追加・delimiter 緩和、それぞれ auditor 経路限定の一時変異) を実測した結果、3 変異とも対応する 1 テストだけが KILLED (matches_expectation=true) となり、raw 形状 assertion の追加が実際に単一理由性を担保することを確認した。raw 形状を検証しない設計 (共通 assertion のみ) では、この単一理由性が保証されない。
+
+**却下した選択肢:**
+- 共通 assertion (`status`/`error_type`/`stop_reason` 等) だけで3ケースを新設する — 段3 2レンズが独立に指摘したとおり、fence と区切り文字欠落が同じ例外経路に収束するため、mutation testing で区別できない冗長 gate になり実効性を欠く。
+
+## D652. official report の verify_done 読み取りに committed attempt 束縛を追加し、scope は verify のみに限定する (2026-08-22)
+
+**決定:** `orchestrator/campaign/s8b_oracle_report.py` の `_verify_state` に
+`expected_attempt_id` (既定 `None`) を追加し、呼び出し元 `_assess_window` が window の
+唯一の `build_start` から `build_attempt_id` を読んで渡す。候補の verify_done record が
+一意でも `build_attempt_id` が `expected_attempt_id` と不一致なら certified 判定前に
+`missing` + issue とする。`expected_attempt_id is None` (build_start に ID 欠落、または
+`build_start` が0件/複数件の異常 window) では新検査を完全に skip し、legacy WAL の
+既存挙動を変えない。`build_done`/`bench_done`/`abort`/`commit` payload の同型の
+attempt_id 不問は本 wave では手当てせず、次task候補として残す。
+
+**理由:**
+- 段2 codex plan (reasoning=max) が具体的な反例 (stale attempt の legacy verify_done が
+  committed attempt の s2 verify_done と共存し、report が stale 側を採用してしまう) を
+  構成し、段3 敵対相談2レンズ (sol=正しさ境界, luna=整合・実効性・scope) が独立に成立を
+  確認した。
+- 起票文 (本 wave の originating command 引数) が `_verify_state` 周辺への scope 限定と、
+  digest.py 等の別 consumer へ scope を広げないことを明示していた。
+- sol が `build_done`/`bench_done`/`abort`/`commit` にも同型の脆弱性があると追加指摘したが、
+  luna も含め「production diff は verify-only で段階導入として妥当、広い保証を掲げるなら
+  scope 拡大が要る」という一致した判断だった。CLAUDE.md 規律5 (段階導入・盛らない) に従い、
+  最小 diff を選んだ。
+- legacy 互換: T-567 (`6130a1b9`) の follow-up fix (`55d6c019`) が
+  「`build_attempt_id is None` の場合は新規厳格検証を skip して continue する」という
+  後方互換パターンを既に確立していた。本決定はこの前例を踏襲する。ID を先に filter して
+  候補を減らす実装は、診断シグナルを失い「正しい1件だけが残った」ように見えてしまうため
+  採用しなかった (段2 plan・段3 sol が指摘)。
+
+**却下した選択肢:**
+- `digest.py` の `EvalState.committed_verify`/`wal.replay_admitted_records()` へ移行する案
+  — s8b は `_trial_windows()` による schedule-level window 走査で `wal.replay()`/`EvalState`
+  を経由しない独立実装であり、`digest.load_verify_abort_signals()` も admitted
+  `CampaignView` 前提で raw window API と形状が異なる。non-committed outcome
+  (correctness-red 等) の証拠を単純に committed projection へ落とすと失われるため、
+  局所 anchor 方式 (window の `build_start` から `expected_attempt_id` を導出) を採用した。
+- ID 不一致の候補を certified 判定前に filter で除外する実装 — 一意性検査の母数を
+  減らしてから判定すると、除外された事実が issue に残らず診断力を失う。count-first
+  (既存の `len(matches)!=1`) → ID 一致検査 (一意な候補が1件のときだけ) の順を維持した。
