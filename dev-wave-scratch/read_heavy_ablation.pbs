@@ -1,0 +1,1301 @@
+#!/usr/bin/env bash
+#PBS -A SFC
+#PBS -q gen_S
+#PBS -l elapstim_req=07:00:00
+#PBS -b 1
+#
+# The submitter supplies -l elapstim_req=HH:MM:SS when an override is needed.
+# This body deliberately does not use set -e: every measured step captures rc
+# explicitly and fail_step prevents any later measurement from starting.
+set -u -o pipefail
+umask 077
+
+PBS_ID="${PBS_JOBID:-}"
+PBS_WORKDIR="${PBS_O_WORKDIR:-}"
+REPO_ROOT="${IZANAGI_REPO_ROOT:-${REPO_ROOT:-}}"
+OUT_ROOT="${IZANAGI_OUT_ROOT:-${OUT_ROOT:-}}"
+NONCE="${IZANAGI_NONCE:-${NONCE:-}}"
+WALLTIME="${IZANAGI_WALLTIME:-${WALLTIME:-07:00:00}}"
+EXPECTED_SOURCE_COMMIT="${IZANAGI_SOURCE_COMMIT:-}"
+EXPECTED_JOB_SCRIPT_SHA256="${IZANAGI_JOB_SCRIPT_SHA256:-}"
+JOB_SCRIPT_PATH="${IZANAGI_JOB_SCRIPT:-${REPO_ROOT:-}/dev-wave-scratch/read_heavy_ablation.pbs}"
+PYTHON_BIN="${PYTHON_BIN:-python3}"
+
+STATUS="running"
+FAIL_STAGE=""
+FAIL_RC=""
+FAIL_MESSAGE=""
+SOURCE_COMMIT=""
+SOURCE_WORKTREE_CLEAN="false"
+SCRIPT_SHA256=""
+HOST=""
+HOST_FQDN=""
+BOOT_ID=""
+SCHEDULER_STARTED_EPOCH=""
+DEADLINE_EPOCH=""
+REQUESTED_S=""
+CLAIMS_ROOT=""
+RESERVATION_JSON=""
+CC_RESOLVED=""
+CXX_RESOLVED=""
+CC_PATH=""
+CXX_PATH=""
+FLOOR_JSON=""
+FLOOR_SHA256=""
+CALIBRATION_BINARY_PATH=""
+CALIBRATION_BINARY_SHA256=""
+CALIBRATION_BINARY_RECORD_PATH=""
+OFF_BINARY_PATH=""
+OFF_BINARY_SHA256=""
+OFF_BINARY_RECORD_PATH=""
+OFF_BINARY_PROVENANCE_STATUS="unavailable"
+OFF_BINARY_PROVENANCE_SOURCE="wal"
+OFF_CALIBRATION_BINARY_CONFIRMED="false"
+ON_BINARY_PATH=""
+ON_BINARY_SHA256=""
+ON_BINARY_RECORD_PATH=""
+ON_BINARY_PROVENANCE_STATUS="unavailable"
+ON_BINARY_PROVENANCE_SOURCE="wal"
+ON_CALIBRATION_BINARY_CONFIRMED="false"
+BINARY_SHA256_CONSISTENT="false"
+OFF_CAMPAIGN_ID=""
+OFF_WAL_PATH=""
+OFF_WAL_SHA256=""
+ON_CAMPAIGN_ID=""
+ON_WAL_PATH=""
+ON_WAL_SHA256=""
+CACHE_DEFAULT_ROOT=""
+CACHE_OVERRIDE_REACHABLE="false"
+CACHE_SWITCH_METHOD="not_attempted"
+CACHE_PREEXISTING_BACKUP=""
+CACHE_OFF_BACKUP=""
+JOB_ARTIFACT_ROOT=""
+MANIFEST_PATH=""
+SOURCE_STATUS_PATH=""
+
+export STATUS FAIL_STAGE FAIL_RC FAIL_MESSAGE SOURCE_COMMIT SOURCE_WORKTREE_CLEAN
+export SCRIPT_SHA256 HOST HOST_FQDN BOOT_ID SCHEDULER_STARTED_EPOCH DEADLINE_EPOCH
+export REQUESTED_S CLAIMS_ROOT RESERVATION_JSON CC_RESOLVED CXX_RESOLVED CC_PATH CXX_PATH
+export FLOOR_JSON FLOOR_SHA256 OFF_CAMPAIGN_ID OFF_WAL_PATH OFF_WAL_SHA256
+export ON_CAMPAIGN_ID ON_WAL_PATH ON_WAL_SHA256 CACHE_DEFAULT_ROOT
+export CALIBRATION_BINARY_PATH CALIBRATION_BINARY_SHA256 CALIBRATION_BINARY_RECORD_PATH
+export OFF_BINARY_PATH OFF_BINARY_SHA256 OFF_BINARY_RECORD_PATH
+export OFF_BINARY_PROVENANCE_STATUS OFF_BINARY_PROVENANCE_SOURCE
+export OFF_CALIBRATION_BINARY_CONFIRMED
+export ON_BINARY_PATH ON_BINARY_SHA256 ON_BINARY_RECORD_PATH
+export ON_BINARY_PROVENANCE_STATUS ON_BINARY_PROVENANCE_SOURCE
+export ON_CALIBRATION_BINARY_CONFIRMED
+export BINARY_SHA256_CONSISTENT
+export CACHE_OVERRIDE_REACHABLE CACHE_SWITCH_METHOD CACHE_PREEXISTING_BACKUP CACHE_OFF_BACKUP
+export JOB_ARTIFACT_ROOT MANIFEST_PATH SOURCE_STATUS_PATH JOB_SCRIPT_PATH
+export PBS_ID PBS_WORKDIR REPO_ROOT OUT_ROOT NONCE WALLTIME EXPECTED_SOURCE_COMMIT
+export EXPECTED_JOB_SCRIPT_SHA256
+
+write_manifest() {
+  if [[ -z "$MANIFEST_PATH" || -z "$JOB_ARTIFACT_ROOT" ]]; then
+    return 0
+  fi
+  "$PYTHON_BIN" - "$MANIFEST_PATH" <<'PY'
+import json
+import os
+import pathlib
+
+path = pathlib.Path(os.environ["MANIFEST_PATH"])
+
+def text(name):
+    return os.environ.get(name, "")
+
+def int_or_none(value):
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
+
+def float_or_none(value):
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+def step(label):
+    root = pathlib.Path(text("JOB_ARTIFACT_ROOT"))
+    rc_path = root / f"{label}.rc"
+    elapsed_path = root / f"{label}.elapsed_s"
+    rc = None
+    elapsed = None
+    if rc_path.exists():
+        rc = int_or_none(rc_path.read_text(encoding="utf-8").strip())
+    if elapsed_path.exists():
+        elapsed = float_or_none(elapsed_path.read_text(encoding="utf-8").strip())
+    return {
+        "rc": rc,
+        "elapsed_s": elapsed,
+        "stdout": str(root / f"{label}.stdout"),
+        "stderr": str(root / f"{label}.stderr"),
+        "rc_path": str(rc_path),
+    }
+
+def optional_file(path):
+    return path if path else None
+
+def binary_record(name):
+    record_path = text(name + "_BINARY_RECORD_PATH")
+    arm = name.lower()
+    result = {
+        "path": text(name + "_BINARY_PATH") or None,
+        "sha256": text(name + "_BINARY_SHA256") or None,
+        "record_path": record_path or None,
+        "binary_provenance_status": (
+            text(name + "_BINARY_PROVENANCE_STATUS") or None
+        ),
+        "source": text(name + "_BINARY_PROVENANCE_SOURCE") or None,
+        "binaries": [],
+    }
+    if arm in {"off", "on"}:
+        result[f"calibration_binary_confirmed_in_{arm}"] = (
+            text(name + "_CALIBRATION_BINARY_CONFIRMED") == "true"
+        )
+    if record_path:
+        try:
+            with open(record_path, encoding="utf-8") as handle:
+                stored = json.load(handle)
+        except (OSError, json.JSONDecodeError):
+            stored = None
+        if isinstance(stored, dict):
+            result.update(stored)
+            result["record_path"] = record_path
+    return result
+
+calibration_binary = binary_record("CALIBRATION")
+off_binary = binary_record("OFF")
+on_binary = binary_record("ON")
+
+def evidence_sha256_consistent(record, reference):
+    entries = record.get("binaries")
+    if (record.get("binary_provenance_status") != "available"
+            or not isinstance(reference, str)
+            or not isinstance(entries, list) or not entries):
+        return False
+    return all(
+        isinstance(item, dict) and item.get("sha256") == reference
+        for item in entries
+    )
+
+calibration_sha256 = calibration_binary.get("sha256")
+sha256_consistent = (
+    evidence_sha256_consistent(off_binary, calibration_sha256)
+    and evidence_sha256_consistent(on_binary, calibration_sha256)
+)
+
+payload = {
+    "schema_version": "read-heavy-ablation/v1",
+    "status": text("STATUS"),
+    "failure": {
+        "stage": text("FAIL_STAGE") or None,
+        "rc": int_or_none(text("FAIL_RC")),
+        "message": text("FAIL_MESSAGE") or None,
+    },
+    "pbs": {
+        "jobid": text("PBS_ID"),
+        "o_workdir": text("PBS_WORKDIR"),
+        "requested_walltime": text("WALLTIME"),
+        "requested_s": int_or_none(text("REQUESTED_S")),
+        "scheduler_started_epoch": int_or_none(text("SCHEDULER_STARTED_EPOCH")),
+        "deadline_epoch": int_or_none(text("DEADLINE_EPOCH")),
+    },
+    "scheduler_output": {
+        "stdout": str(pathlib.Path(text("OUT_ROOT")) / ("scheduler-" + text("NONCE") + ".stdout")),
+        "stderr": str(pathlib.Path(text("OUT_ROOT")) / ("scheduler-" + text("NONCE") + ".stderr")),
+    },
+    "source": {
+        "repo_root": text("REPO_ROOT"),
+        "commit": text("SOURCE_COMMIT"),
+        "submitter_commit": text("EXPECTED_SOURCE_COMMIT") or None,
+        "job_script": text("JOB_SCRIPT_PATH"),
+        "job_script_sha256": text("SCRIPT_SHA256"),
+        "submitter_job_script_sha256": text("EXPECTED_JOB_SCRIPT_SHA256") or None,
+        "source_worktree_clean_excluding_dev_wave_scratch": (
+            text("SOURCE_WORKTREE_CLEAN") == "true"
+        ),
+        "status_path": text("SOURCE_STATUS_PATH"),
+    },
+    "node": {
+        "hostname": text("HOST"),
+        "hostname_f": text("HOST_FQDN"),
+        "boot_id": text("BOOT_ID"),
+        "qstat_f_stdout": str(pathlib.Path(text("JOB_ARTIFACT_ROOT")) / "node-qstat-f.stdout"),
+        "affinity_stdout": str(pathlib.Path(text("JOB_ARTIFACT_ROOT")) / "node-affinity.stdout"),
+        "topology_stdout": str(pathlib.Path(text("JOB_ARTIFACT_ROOT")) / "node-topology.stdout"),
+        "nproc_stdout": str(pathlib.Path(text("JOB_ARTIFACT_ROOT")) / "node-nproc.stdout"),
+        "python_version_stdout": str(pathlib.Path(text("JOB_ARTIFACT_ROOT")) / "node-python.stdout"),
+    },
+    "reservation": {
+        "claims_root": text("CLAIMS_ROOT"),
+        "reservation_json": text("RESERVATION_JSON"),
+        "environment": {
+            "JOB_ID": text("PBS_ID"),
+            "REQUESTED_S": int_or_none(text("REQUESTED_S")),
+            "SCHEDULER_STARTED_EPOCH": int_or_none(text("SCHEDULER_STARTED_EPOCH")),
+            "DEADLINE_EPOCH": int_or_none(text("DEADLINE_EPOCH")),
+            "HOST": text("HOST"),
+            "BOOT_ID": text("BOOT_ID"),
+            "SCRIPT_SHA256": text("SCRIPT_SHA256"),
+            "NONCE": text("NONCE"),
+        },
+    },
+    "compiler": {
+        "cc": text("CC_RESOLVED"),
+        "cxx": text("CXX_RESOLVED"),
+        "resolved_cc": text("CC_RESOLVED"),
+        "resolved_cxx": text("CXX_RESOLVED"),
+        "cc_path": text("CC_PATH"),
+        "cxx_path": text("CXX_PATH"),
+        "cc_version": str(pathlib.Path(text("JOB_ARTIFACT_ROOT")) / "compiler-cc-version.stdout"),
+        "cxx_version": str(pathlib.Path(text("JOB_ARTIFACT_ROOT")) / "compiler-cxx-version.stdout"),
+    },
+    "binaries": {
+        "calibration": calibration_binary,
+        "off": off_binary,
+        "on": on_binary,
+        "sha256_consistent": sha256_consistent,
+        "calibration_binary_confirmed_in_off": (
+            off_binary.get("calibration_binary_confirmed_in_off", False)
+        ),
+        "calibration_binary_confirmed_in_on": (
+            on_binary.get("calibration_binary_confirmed_in_on", False)
+        ),
+    },
+    "floor": {
+        "path": text("FLOOR_JSON"),
+        "sha256": text("FLOOR_SHA256"),
+    },
+    "campaigns": {
+        "off": {
+            "campaign_id": text("OFF_CAMPAIGN_ID"),
+            "wal_path": text("OFF_WAL_PATH"),
+            "wal_sha256": text("OFF_WAL_SHA256"),
+            **step("off"),
+        },
+        "on": {
+            "campaign_id": text("ON_CAMPAIGN_ID"),
+            "wal_path": text("ON_WAL_PATH"),
+            "wal_sha256": text("ON_WAL_SHA256"),
+            **step("on"),
+        },
+        "calibration": step("calibration"),
+    },
+    "cache_switch": {
+        "override_reachable_from_backoff_cli": text("CACHE_OVERRIDE_REACHABLE") == "true",
+        "default_cache_root": text("CACHE_DEFAULT_ROOT"),
+        "method": text("CACHE_SWITCH_METHOD"),
+        "preexisting_backup": optional_file(text("CACHE_PREEXISTING_BACKUP")),
+        "off_backup": optional_file(text("CACHE_OFF_BACKUP")),
+    },
+    "artifacts": {
+        "job_root": text("JOB_ARTIFACT_ROOT"),
+        "manifest": text("MANIFEST_PATH"),
+        "official_output_root": text("OUT_ROOT"),
+    },
+}
+
+path.parent.mkdir(parents=True, exist_ok=True)
+temporary = path.with_name(path.name + ".tmp")
+with temporary.open("w", encoding="utf-8") as handle:
+    json.dump(payload, handle, ensure_ascii=False, sort_keys=True, indent=2)
+    handle.write("\n")
+os.replace(temporary, path)
+PY
+  return $?
+}
+
+fail_step() {
+  local step_rc=$1
+  local stage=$2
+  local message=$3
+  [[ "$step_rc" -eq 0 ]] && step_rc=1
+  STATUS="failed"
+  FAIL_STAGE="$stage"
+  FAIL_RC="$step_rc"
+  FAIL_MESSAGE="$message"
+  export STATUS FAIL_STAGE FAIL_RC FAIL_MESSAGE
+  local manifest_rc=0
+  write_manifest || manifest_rc=$?
+  if [[ "$manifest_rc" -ne 0 ]]; then
+    echo "manifest write failed after $stage (original rc=$step_rc, manifest rc=$manifest_rc)" >&2
+  fi
+  echo "read-heavy ablation failed at $stage (rc=$step_rc): $message" >&2
+  exit "$step_rc"
+}
+
+walltime_seconds() {
+  local value=$1
+  if [[ ! "$value" =~ ^([0-9]+):([0-5][0-9]):([0-5][0-9])$ ]]; then
+    return 2
+  fi
+  local hours=${BASH_REMATCH[1]}
+  local minutes=${BASH_REMATCH[2]}
+  local seconds=${BASH_REMATCH[3]}
+  printf '%d\n' "$((10#$hours * 3600 + 10#$minutes * 60 + 10#$seconds))"
+}
+
+sha256_file() {
+  sha256sum "$1" | awk '{print $1}'
+}
+
+extract_binary_paths() {
+  "$PYTHON_BIN" - "$@" <<'PY'
+import json
+import os
+import re
+import sys
+from pathlib import Path
+
+binary_keys = {
+    "binary", "binary_path", "binary_file", "binary_artifact",
+    "executable", "executable_path",
+}
+paths = set()
+
+def add(value):
+    if not isinstance(value, str):
+        return
+    value = value.strip().strip("\\\"'`")
+    value = value.rstrip(".,;:)]}>'\\\"")
+    if not value.startswith("/"):
+        return
+    path = Path(value)
+    if path.is_file() and os.access(path, os.X_OK):
+        paths.add(str(path))
+
+def scan_json(value, binary_context=False):
+    if isinstance(value, dict):
+        for key, item in value.items():
+            context = binary_context or str(key).lower() in binary_keys
+            if isinstance(item, str):
+                if context:
+                    add(item)
+            else:
+                scan_json(item, context)
+    elif isinstance(value, list):
+        for item in value:
+            scan_json(item, binary_context)
+
+line_path_re = re.compile(
+    r"(?<![A-Za-z0-9_.-])/[^\s,;)}>'\"]+"
+)
+for source in sys.argv[1:]:
+    try:
+        text = Path(source).read_text(encoding="utf-8", errors="replace")
+    except OSError as exc:
+        raise SystemExit(f"cannot read binary evidence {source}: {exc}") from exc
+    for line in text.splitlines():
+        if re.search(r"\[build\]|\bbinary(?:[_ -]path)?\b|\bexecutable(?:[_ -]path)?\b",
+                     line, flags=re.IGNORECASE):
+            for match in line_path_re.finditer(line):
+                add(match.group(0))
+        try:
+            scan_json(json.loads(line))
+        except json.JSONDecodeError:
+            pass
+
+if not paths:
+    raise SystemExit("no executable binary path found in stage output/WAL")
+for path in sorted(paths):
+    print(path)
+PY
+}
+
+record_stage_binaries() {
+  local label=$1
+  local stdout_path=$2
+  local reference_sha=${3:-}
+  if [[ $# -ge 3 ]]; then
+    shift 3
+  else
+    shift 2
+  fi
+  local listing
+  listing=$(extract_binary_paths "$stdout_path" "$@") || return 2
+  local binary_paths=()
+  while IFS= read -r binary_path; do
+    [[ -n "$binary_path" ]] && binary_paths+=("$binary_path")
+  done <<<"$listing"
+  [[ "${#binary_paths[@]}" -gt 0 ]] || return 2
+
+  local binary_args=()
+  local primary_path=""
+  local primary_sha=""
+  local binary_sha
+  for binary_path in "${binary_paths[@]}"; do
+    [[ -f "$binary_path" ]] || return 2
+    binary_sha=$(sha256_file "$binary_path") || return 2
+    [[ "$binary_sha" =~ ^[0-9a-f]{64}$ ]] || return 2
+    binary_args+=("$binary_path" "$binary_sha")
+    if [[ "$label" == calibration ]]; then
+      if [[ -n "$primary_path" ]]; then
+        return 2
+      fi
+      primary_path="$binary_path"
+      primary_sha="$binary_sha"
+    elif [[ -n "$reference_sha" && "$binary_sha" == "$reference_sha" &&
+            -z "$primary_path" ]]; then
+      primary_path="$binary_path"
+      primary_sha="$binary_sha"
+    fi
+  done
+  [[ -n "$primary_path" && -n "$primary_sha" ]] || return 2
+
+  local record_path="$JOB_ARTIFACT_ROOT/${label}-binaries.json"
+  "$PYTHON_BIN" - "$record_path" "$label" "$primary_path" "$primary_sha" \
+    "${binary_args[@]}" <<'PY'
+import json
+import sys
+
+target, stage, primary_path, primary_sha, *pairs = sys.argv[1:]
+if len(pairs) % 2:
+    raise SystemExit("binary provenance arguments are not path/hash pairs")
+payload = {
+    "stage": stage,
+    "source": "stdout",
+    "binary_provenance_status": "available",
+    "path": primary_path,
+    "sha256": primary_sha,
+    "binaries": [
+        {"path": pairs[index], "sha256": pairs[index + 1]}
+        for index in range(0, len(pairs), 2)
+    ],
+}
+with open(target, "x", encoding="utf-8") as handle:
+    json.dump(payload, handle, ensure_ascii=False, sort_keys=True, indent=2)
+    handle.write("\n")
+PY
+  local record_rc=$?
+  [[ "$record_rc" -eq 0 ]] || return "$record_rc"
+
+  case "$label" in
+    calibration)
+      CALIBRATION_BINARY_PATH="$primary_path"
+      CALIBRATION_BINARY_SHA256="$primary_sha"
+      CALIBRATION_BINARY_RECORD_PATH="$record_path"
+      export CALIBRATION_BINARY_PATH CALIBRATION_BINARY_SHA256 CALIBRATION_BINARY_RECORD_PATH
+      ;;
+    off)
+      OFF_BINARY_PATH="$primary_path"
+      OFF_BINARY_SHA256="$primary_sha"
+      OFF_BINARY_RECORD_PATH="$record_path"
+      export OFF_BINARY_PATH OFF_BINARY_SHA256 OFF_BINARY_RECORD_PATH
+      ;;
+    on)
+      ON_BINARY_PATH="$primary_path"
+      ON_BINARY_SHA256="$primary_sha"
+      ON_BINARY_RECORD_PATH="$record_path"
+      export ON_BINARY_PATH ON_BINARY_SHA256 ON_BINARY_RECORD_PATH
+      ;;
+    *)
+      return 2
+      ;;
+  esac
+}
+
+record_stage_binaries_from_wal() {
+  local label=${1:-}
+  local wal_path=${2:-}
+  local reference_sha=${3:-}
+  local record_path="$JOB_ARTIFACT_ROOT/${label}-binaries.json"
+
+  case "$label" in
+    off)
+      OFF_BINARY_PATH=""
+      OFF_BINARY_SHA256=""
+      OFF_BINARY_RECORD_PATH="$record_path"
+      OFF_BINARY_PROVENANCE_STATUS="unavailable"
+      OFF_BINARY_PROVENANCE_SOURCE="wal"
+      OFF_CALIBRATION_BINARY_CONFIRMED="false"
+      export OFF_BINARY_PATH OFF_BINARY_SHA256 OFF_BINARY_RECORD_PATH
+      export OFF_BINARY_PROVENANCE_STATUS OFF_BINARY_PROVENANCE_SOURCE
+      export OFF_CALIBRATION_BINARY_CONFIRMED
+      ;;
+    on)
+      ON_BINARY_PATH=""
+      ON_BINARY_SHA256=""
+      ON_BINARY_RECORD_PATH="$record_path"
+      ON_BINARY_PROVENANCE_STATUS="unavailable"
+      ON_BINARY_PROVENANCE_SOURCE="wal"
+      ON_CALIBRATION_BINARY_CONFIRMED="false"
+      export ON_BINARY_PATH ON_BINARY_SHA256 ON_BINARY_RECORD_PATH
+      export ON_BINARY_PROVENANCE_STATUS ON_BINARY_PROVENANCE_SOURCE
+      export ON_CALIBRATION_BINARY_CONFIRMED
+      ;;
+    *)
+      return 0
+      ;;
+  esac
+
+  # This is deliberately best-effort.  The WAL is already evidence attached
+  # to a completed campaign; inability to summarize it must not invalidate the
+  # seven-hour measurement job.
+  "$PYTHON_BIN" - "$record_path" "$label" "$wal_path" "$reference_sha" 2>"$JOB_ARTIFACT_ROOT/${label}-binary-provenance.stderr" <<'PY' || true
+import json
+import os
+import re
+import sys
+from pathlib import Path
+
+record_path = Path(sys.argv[1])
+label = sys.argv[2]
+wal_path = sys.argv[3]
+reference_sha = sys.argv[4] or None
+valid_sha = re.compile(r"^[0-9a-f]{64}$")
+issues = []
+evidence = []
+stage_build_done_count = 0
+valid_count = 0
+invalid_count = 0
+confirmed = False
+failure = None
+
+def note(message):
+    if len(issues) < 20:
+        issues.append(message)
+
+if not wal_path:
+    failure = "WAL path is empty"
+else:
+    path = Path(wal_path)
+    try:
+        with path.open(encoding="utf-8", errors="replace") as handle:
+            for line_number, line in enumerate(handle, 1):
+                if not line.strip():
+                    note(f"line {line_number}: empty line")
+                    continue
+                try:
+                    record = json.loads(line)
+                except json.JSONDecodeError as exc:
+                    note(f"line {line_number}: invalid JSON: {exc}")
+                    continue
+                if not isinstance(record, dict):
+                    note(f"line {line_number}: record is not an object")
+                    continue
+                if record.get("stage") != "STAGE_BUILD_DONE":
+                    continue
+
+                stage_build_done_count += 1
+                payload = record.get("payload")
+                raw_sha = (
+                    payload.get("perf_bin_sha256")
+                    if isinstance(payload, dict) else None
+                )
+                is_valid = (
+                    isinstance(raw_sha, str)
+                    and valid_sha.fullmatch(raw_sha) is not None
+                )
+                entry = {
+                    "stage": "STAGE_BUILD_DONE",
+                    "wal_line": line_number,
+                    "variant": (
+                        record.get("variant")
+                        if isinstance(record.get("variant"), str) else None
+                    ),
+                    "env_tag": (
+                        record.get("env_tag")
+                        if isinstance(record.get("env_tag"), str) else None
+                    ),
+                    "path": None,
+                    "perf_bin_sha256": raw_sha if is_valid else None,
+                    "sha256": raw_sha if is_valid else None,
+                    "status": "available" if is_valid else "invalid",
+                }
+                evidence.append(entry)
+                if is_valid:
+                    valid_count += 1
+                    if reference_sha and raw_sha == reference_sha:
+                        confirmed = True
+                else:
+                    invalid_count += 1
+                    note(
+                        f"line {line_number}: STAGE_BUILD_DONE has no valid "
+                        "payload.perf_bin_sha256"
+                    )
+    except OSError as exc:
+        failure = f"cannot read WAL: {type(exc).__name__}: {exc}"
+
+if stage_build_done_count == 0 and failure is None:
+    failure = "no STAGE_BUILD_DONE records"
+elif valid_count == 0 and failure is None:
+    failure = "no valid payload.perf_bin_sha256 values"
+
+result = {
+    "stage": label,
+    "source": "wal",
+    "wal_path": wal_path or None,
+    "binary_provenance_status": (
+        "available" if valid_count and failure is None else "unavailable"
+    ),
+    "calibration_binary_sha256": reference_sha,
+    f"calibration_binary_confirmed_in_{label}": confirmed,
+    "calibration_binary_confirmed": confirmed,
+    "stage_build_done_count": stage_build_done_count,
+    "valid_perf_bin_sha256_count": valid_count,
+    "invalid_perf_bin_sha256_count": invalid_count,
+    "wal_parse_issues": issues,
+    "error": failure,
+    # Keep every STAGE_BUILD_DONE row as evidence; do not reduce this to one
+    # primary binary or filter to the calibration hash.
+    "path": None,
+    "sha256": None,
+    "binaries": evidence,
+}
+
+record_path.parent.mkdir(parents=True, exist_ok=True)
+temporary = record_path.with_name(record_path.name + ".tmp")
+with temporary.open("w", encoding="utf-8") as handle:
+    json.dump(result, handle, ensure_ascii=True, sort_keys=True, indent=2)
+    handle.write("\n")
+os.replace(temporary, record_path)
+PY
+  return 0
+}
+
+run_capture() {
+  local label=$1
+  shift
+  "$@" >"$JOB_ARTIFACT_ROOT/${label}.stdout" 2>"$JOB_ARTIFACT_ROOT/${label}.stderr"
+  local command_rc=$?
+  printf '%s\n' "$command_rc" >"$JOB_ARTIFACT_ROOT/${label}.rc"
+  return "$command_rc"
+}
+
+run_timed() {
+  local label=$1
+  shift
+  local started=0
+  local ended=0
+  local command_rc=0
+  started=$(date +%s)
+  local date_rc=$?
+  if [[ "$date_rc" -ne 0 ]]; then
+    printf '2\n' >"$JOB_ARTIFACT_ROOT/${label}.rc"
+    printf '0\n' >"$JOB_ARTIFACT_ROOT/${label}.elapsed_s"
+    return 2
+  fi
+  "$@" >"$JOB_ARTIFACT_ROOT/${label}.stdout" 2>"$JOB_ARTIFACT_ROOT/${label}.stderr"
+  command_rc=$?
+  ended=$(date +%s)
+  date_rc=$?
+  if [[ "$date_rc" -ne 0 ]]; then
+    printf '%s\n' "$command_rc" >"$JOB_ARTIFACT_ROOT/${label}.rc"
+    printf '0\n' >"$JOB_ARTIFACT_ROOT/${label}.elapsed_s"
+    return 2
+  fi
+  printf '%s\n' "$command_rc" >"$JOB_ARTIFACT_ROOT/${label}.rc"
+  printf '%s\n' "$((ended - started))" >"$JOB_ARTIFACT_ROOT/${label}.elapsed_s"
+  return "$command_rc"
+}
+
+parse_campaign_id() {
+  local stdout_path=$1
+  "$PYTHON_BIN" - "$stdout_path" <<'PY'
+import re
+import sys
+
+text = open(sys.argv[1], encoding="utf-8", errors="replace").read()
+matches = re.findall(r"(?m)^[ \t]+read-heavy:[ \t]+([^ \t\r\n]+)", text)
+if len(matches) != 1:
+    raise SystemExit(f"expected one read-heavy campaign summary, found {len(matches)}")
+campaign_id = matches[0]
+if (not campaign_id or campaign_id in {".", ".."} or campaign_id.startswith(".")
+        or "/" in campaign_id or "\\" in campaign_id):
+    raise SystemExit(f"unsafe campaign id: {campaign_id!r}")
+print(campaign_id)
+PY
+}
+
+record_wal() {
+  local arm=$1
+  local campaign_id=$2
+  local wal_path="$OUT_ROOT/campaigns/$campaign_id/runs/wal.jsonl"
+  if [[ -L "$wal_path" || ! -f "$wal_path" ]]; then
+    return 2
+  fi
+  local wal_sha
+  wal_sha=$(sha256_file "$wal_path")
+  local sha_rc=$?
+  if [[ "$sha_rc" -ne 0 || ! "$wal_sha" =~ ^[0-9a-f]{64}$ ]]; then
+    return 2
+  fi
+  if [[ "$arm" == off ]]; then
+    OFF_WAL_PATH="$wal_path"
+    OFF_WAL_SHA256="$wal_sha"
+    export OFF_WAL_PATH OFF_WAL_SHA256
+  else
+    ON_WAL_PATH="$wal_path"
+    ON_WAL_SHA256="$wal_sha"
+    export ON_WAL_PATH ON_WAL_SHA256
+  fi
+  return 0
+}
+
+# Step 1: scheduler binding and the /scr build area.
+if [[ -z "$PBS_ID" || -z "$PBS_WORKDIR" ]]; then
+  echo "PBS_JOBID/PBS_O_WORKDIR is required" >&2
+  exit 2
+fi
+if [[ ! "$PBS_ID" =~ ^([0-9]+:)?[A-Za-z0-9._-]+$ ]]; then
+  echo "unsafe PBS_JOBID: $PBS_ID" >&2
+  exit 2
+fi
+if [[ -z "$REPO_ROOT" || "$REPO_ROOT" != /* || ! -d "$REPO_ROOT" ]]; then
+  echo "REPO_ROOT must be an existing absolute directory" >&2
+  exit 2
+fi
+if [[ -z "$OUT_ROOT" || "$OUT_ROOT" != /* || "$OUT_ROOT" == *$'\n'* ]]; then
+  echo "OUT_ROOT must be an absolute path without newline" >&2
+  exit 2
+fi
+if [[ -z "$NONCE" || ! "$NONCE" =~ ^[A-Za-z0-9._-]+$ ]]; then
+  echo "NONCE is missing or unsafe" >&2
+  exit 2
+fi
+if [[ ! -d "$PBS_WORKDIR" ]]; then
+  echo "PBS_O_WORKDIR is not a directory: $PBS_WORKDIR" >&2
+  exit 2
+fi
+REPO_ROOT=$(cd "$REPO_ROOT" && pwd -P) || exit 2
+OUT_ROOT=$(mkdir -p "$OUT_ROOT" && cd "$OUT_ROOT" && pwd -P)
+rc=$?
+if [[ "$rc" -ne 0 ]]; then
+  exit 2
+fi
+if ! cd "$REPO_ROOT"; then
+  exit 2
+fi
+JOB_ARTIFACT_ROOT="$OUT_ROOT/job-$NONCE"
+if ! mkdir "$JOB_ARTIFACT_ROOT"; then
+  echo "job artifact directory already exists or cannot be created: $JOB_ARTIFACT_ROOT" >&2
+  exit 2
+fi
+MANIFEST_PATH="$OUT_ROOT/manifest.json"
+SOURCE_STATUS_PATH="$JOB_ARTIFACT_ROOT/source-status-excluding-scratch.txt"
+export JOB_ARTIFACT_ROOT MANIFEST_PATH SOURCE_STATUS_PATH
+
+TMP_BUILD="/scr/${PBS_ID//:/_}"
+if [[ -e "$TMP_BUILD" || -L "$TMP_BUILD" ]]; then
+  fail_step 2 tmpdir "temporary build directory already exists: $TMP_BUILD"
+fi
+if ! mkdir "$TMP_BUILD"; then
+  fail_step 2 tmpdir "cannot create temporary build directory: $TMP_BUILD"
+fi
+if ! chmod 700 "$TMP_BUILD"; then
+  fail_step 2 tmpdir "cannot set temporary build directory mode"
+fi
+export TMPDIR="$TMP_BUILD"
+
+# Step 2: node identity, qstat allocation evidence, and affinity/topology.
+run_capture node-hostname hostname
+rc=$?
+[[ "$rc" -eq 0 ]] || fail_step "$rc" node_identity "hostname failed"
+run_capture node-hostname-f hostname -f
+rc=$?
+[[ "$rc" -eq 0 ]] || fail_step "$rc" node_identity "hostname -f failed"
+QSTAT_JOBID="${PBS_ID#0:}"
+run_capture node-qstat-f qstat -f "$QSTAT_JOBID"
+rc=$?
+[[ "$rc" -eq 0 ]] || fail_step "$rc" node_identity "qstat -f failed"
+run_capture node-affinity taskset -pc "$$"
+rc=$?
+[[ "$rc" -eq 0 ]] || fail_step "$rc" node_identity "taskset affinity inspection failed"
+run_capture node-topology lscpu
+rc=$?
+[[ "$rc" -eq 0 ]] || fail_step "$rc" node_identity "lscpu topology inspection failed"
+run_capture node-nproc nproc
+rc=$?
+[[ "$rc" -eq 0 ]] || fail_step "$rc" node_identity "nproc failed"
+
+HOST=$(cat "$JOB_ARTIFACT_ROOT/node-hostname.stdout")
+rc=$?
+[[ "$rc" -eq 0 && -n "$HOST" ]] || fail_step 2 node_identity "hostname output is empty"
+HOST_FQDN=$(cat "$JOB_ARTIFACT_ROOT/node-hostname-f.stdout")
+rc=$?
+[[ "$rc" -eq 0 && -n "$HOST_FQDN" ]] || fail_step 2 node_identity "hostname -f output is empty"
+export HOST HOST_FQDN
+
+SCHEDULER_STARTED_RAW=$(awk '/Started Request Time/ {sub(/^[^=]*=[ \t]*/, ""); print; exit}' \
+  "$JOB_ARTIFACT_ROOT/node-qstat-f.stdout")
+rc=$?
+if [[ "$rc" -ne 0 || -z "$SCHEDULER_STARTED_RAW" ]]; then
+  fail_step 2 node_identity "qstat -f has no Started Request Time"
+fi
+printf '%s\n' "$SCHEDULER_STARTED_RAW" >"$JOB_ARTIFACT_ROOT/scheduler-started-raw.txt"
+rc=$?
+[[ "$rc" -eq 0 ]] || fail_step "$rc" node_identity "cannot record scheduler start time"
+if [[ "$SCHEDULER_STARTED_RAW" =~ ^[0-9]{10,}$ ]]; then
+  SCHEDULER_STARTED_EPOCH="$SCHEDULER_STARTED_RAW"
+else
+  SCHEDULER_STARTED_EPOCH=$(date -d "$SCHEDULER_STARTED_RAW" +%s)
+  rc=$?
+  [[ "$rc" -eq 0 ]] || fail_step "$rc" node_identity "cannot parse scheduler start time"
+fi
+if [[ ! "$SCHEDULER_STARTED_EPOCH" =~ ^[0-9]+$ || "$SCHEDULER_STARTED_EPOCH" -le 0 ]]; then
+  fail_step 2 node_identity "scheduler start epoch is invalid"
+fi
+export SCHEDULER_STARTED_EPOCH
+
+if command -v python3.10 >/dev/null 2>&1; then
+  PYTHON_BIN=$(command -v python3.10)
+else
+  PYTHON_BIN="/usr/bin/python3.10"
+  if [[ ! -x "$PYTHON_BIN" ]]; then
+    PYTHON_BIN=$(command -v python3 2>/dev/null || true)
+  fi
+fi
+if [[ -z "$PYTHON_BIN" || ! -x "$PYTHON_BIN" ]]; then
+  fail_step 2 interpreter "python3.10/python3 is unavailable"
+fi
+"$PYTHON_BIN" -c 'import sys; raise SystemExit(0 if sys.version_info >= (3, 10) else 1)'
+rc=$?
+[[ "$rc" -eq 0 ]] || fail_step "$rc" interpreter "Python 3.10 or newer is required"
+if ! mkdir "$TMP_BUILD/python-bin"; then
+  fail_step 2 interpreter "cannot create python shim directory"
+fi
+if ! ln -s "$PYTHON_BIN" "$TMP_BUILD/python-bin/python3"; then
+  fail_step 2 interpreter "cannot create python3 shim"
+fi
+PATH="$TMP_BUILD/python-bin:$PATH"
+export PATH
+run_capture node-python python3 --version
+rc=$?
+[[ "$rc" -eq 0 ]] || fail_step "$rc" interpreter "python3 shim failed"
+
+SOURCE_COMMIT=$(git -C "$REPO_ROOT" rev-parse HEAD)
+rc=$?
+[[ "$rc" -eq 0 ]] || fail_step "$rc" source_identity "cannot resolve source commit"
+if [[ -n "$EXPECTED_SOURCE_COMMIT" && "$SOURCE_COMMIT" != "$EXPECTED_SOURCE_COMMIT" ]]; then
+  fail_step 2 source_identity "compute-side source commit differs from submitter"
+fi
+git -C "$REPO_ROOT" status --porcelain --untracked-files=all -- \
+  . ':(exclude)dev-wave-scratch' >"$SOURCE_STATUS_PATH" 2>"$JOB_ARTIFACT_ROOT/source-status.stderr"
+rc=$?
+[[ "$rc" -eq 0 ]] || fail_step "$rc" source_identity "cannot inspect source worktree status"
+if [[ ! -s "$SOURCE_STATUS_PATH" ]]; then
+  SOURCE_WORKTREE_CLEAN=true
+else
+  SOURCE_WORKTREE_CLEAN=false
+fi
+export SOURCE_COMMIT SOURCE_WORKTREE_CLEAN
+
+# Step 3: reservation/claims binding.  The field mapping mirrors
+# tools/pegasus/certify_calibration.sh:331-352 and reservation.py:120-175.
+CLAIMS_ROOT="$OUT_ROOT/env/pegasus/claims"
+if ! mkdir -p "$CLAIMS_ROOT"; then
+  fail_step 2 reservation "cannot create claims root"
+fi
+if [[ -L "$CLAIMS_ROOT" || ! -d "$CLAIMS_ROOT" ]]; then
+  fail_step 2 reservation "claims root is not a real directory"
+fi
+if ! chmod 700 "$CLAIMS_ROOT"; then
+  fail_step 2 reservation "cannot chmod claims root"
+fi
+CLAIMS_MODE=$(stat -c '%a' "$CLAIMS_ROOT")
+rc=$?
+[[ "$rc" -eq 0 ]] || fail_step "$rc" reservation "cannot inspect claims root mode"
+[[ "$CLAIMS_MODE" == 700 || "$CLAIMS_MODE" == 0700 ]] || \
+  fail_step 2 reservation "claims root is not mode 0700"
+export CLAIMS_ROOT
+
+REQUESTED_S=$(walltime_seconds "$WALLTIME")
+rc=$?
+[[ "$rc" -eq 0 && "$REQUESTED_S" -gt 0 ]] || fail_step 2 reservation "invalid requested walltime"
+DEADLINE_EPOCH=$((SCHEDULER_STARTED_EPOCH + REQUESTED_S))
+BOOT_ID=$(cat /proc/sys/kernel/random/boot_id)
+rc=$?
+[[ "$rc" -eq 0 && -n "$BOOT_ID" ]] || fail_step 2 reservation "cannot read boot_id"
+if [[ ! -f "$JOB_SCRIPT_PATH" || -L "$JOB_SCRIPT_PATH" ]]; then
+  fail_step 2 reservation "PBS script path is missing or symlinked"
+fi
+SCRIPT_SHA256=$(sha256_file "$JOB_SCRIPT_PATH")
+rc=$?
+[[ "$rc" -eq 0 && "$SCRIPT_SHA256" =~ ^[0-9a-f]{64}$ ]] || \
+  fail_step 2 reservation "cannot hash PBS script"
+if [[ -n "$EXPECTED_JOB_SCRIPT_SHA256" && "$SCRIPT_SHA256" != "$EXPECTED_JOB_SCRIPT_SHA256" ]]; then
+  fail_step 2 reservation "PBS script hash differs from submitter"
+fi
+export REQUESTED_S DEADLINE_EPOCH BOOT_ID SCRIPT_SHA256
+
+export IZANAGI_RESERVATION_JOB_ID="$PBS_ID"
+export IZANAGI_RESERVATION_REQUESTED_S="$REQUESTED_S"
+export IZANAGI_RESERVATION_SCHEDULER_STARTED_EPOCH="$SCHEDULER_STARTED_EPOCH"
+export IZANAGI_RESERVATION_DEADLINE_EPOCH="$DEADLINE_EPOCH"
+export IZANAGI_RESERVATION_HOST="$HOST"
+export IZANAGI_RESERVATION_BOOT_ID="$BOOT_ID"
+export IZANAGI_RESERVATION_SCRIPT_SHA256="$SCRIPT_SHA256"
+export IZANAGI_RESERVATION_NONCE="$NONCE"
+RESERVATION_JSON="$JOB_ARTIFACT_ROOT/reservation.json"
+"$PYTHON_BIN" - "$RESERVATION_JSON" <<'PY'
+import json
+import os
+import sys
+import time
+
+keys = (
+    "JOB_ID", "REQUESTED_S", "SCHEDULER_STARTED_EPOCH", "DEADLINE_EPOCH",
+    "HOST", "BOOT_ID", "SCRIPT_SHA256", "NONCE",
+)
+payload = {key.lower(): os.environ["IZANAGI_RESERVATION_" + key] for key in keys}
+for key in ("requested_s", "scheduler_started_epoch", "deadline_epoch"):
+    payload[key] = int(payload[key])
+payload["recorded_epoch"] = int(time.time())
+with open(sys.argv[1], "x", encoding="utf-8") as handle:
+    json.dump(payload, handle, ensure_ascii=False, sort_keys=True, indent=2)
+    handle.write("\n")
+PY
+rc=$?
+[[ "$rc" -eq 0 ]] || fail_step "$rc" reservation "cannot write reservation.json"
+env | grep '^IZANAGI_RESERVATION_' | sort >"$JOB_ARTIFACT_ROOT/reservation-env.stdout"
+rc=$?
+[[ "$rc" -eq 0 ]] || fail_step "$rc" reservation "cannot record reservation environment"
+export RESERVATION_JSON
+
+# Step 4: official campaign output is external and durable.  The floor driver
+# intentionally keeps its calibration under REPO_ROOT/output/env/pegasus.
+export IZANAGI_OFFICIAL_OUTPUT_ROOT="$OUT_ROOT"
+export IZANAGI_BETWEEN_RUN_ENV_TAG="pegasus"
+
+# Resolve the same site-aware compiler names used by between_run_floor.py and
+# backoff_sweep.py, then retain their executable paths/version evidence.
+run_capture compiler-resolution python3 -c \
+  'from orchestrator.campaign import buildcache; cc, cxx = buildcache.compilers_for_current_site(); print(cc); print(cxx)'
+rc=$?
+[[ "$rc" -eq 0 ]] || fail_step "$rc" compiler "cannot resolve site compiler names"
+COMPILER_VALUES=()
+while IFS= read -r compiler_value; do
+  COMPILER_VALUES+=("$compiler_value")
+done <"$JOB_ARTIFACT_ROOT/compiler-resolution.stdout"
+if [[ "${#COMPILER_VALUES[@]}" -ne 2 ]]; then
+  fail_step 2 compiler "site compiler resolver did not return cc/cxx"
+fi
+CC_RESOLVED=${COMPILER_VALUES[0]}
+CXX_RESOLVED=${COMPILER_VALUES[1]}
+CC_PATH=$(command -v "$CC_RESOLVED" 2>/dev/null || true)
+CXX_PATH=$(command -v "$CXX_RESOLVED" 2>/dev/null || true)
+if [[ -z "$CC_PATH" || -z "$CXX_PATH" ]]; then
+  fail_step 2 compiler "resolved compiler is not executable on PATH"
+fi
+run_capture compiler-cc-version "$CC_PATH" --version
+rc=$?
+[[ "$rc" -eq 0 ]] || fail_step "$rc" compiler "cc --version failed"
+run_capture compiler-cxx-version "$CXX_PATH" --version
+rc=$?
+[[ "$rc" -eq 0 ]] || fail_step "$rc" compiler "cxx --version failed"
+export CC_RESOLVED CXX_RESOLVED CC_PATH CXX_PATH
+
+# Step 5: bootstrap the pinned static gflags/glog dependencies used by CCBench.
+# The compute nodes do not provide these libraries, and legacy buildcache.build()
+# resolves them through the inherited CMAKE_PREFIX_PATH.
+POLICY_PATH="$REPO_ROOT/tools/pegasus/policy.json"
+if [[ ! -f "$POLICY_PATH" || -L "$POLICY_PATH" ]]; then
+  fail_step 2 dependency_policy "policy file missing or symlinked: $POLICY_PATH"
+fi
+run_capture dependency-policy "$PYTHON_BIN" - "$POLICY_PATH" <<'PY'
+import json
+import sys
+
+with open(sys.argv[1], encoding="utf-8") as handle:
+    policy = json.load(handle)
+for key in (
+    "gflags_source_path", "gflags_expected_head",
+    "glog_source_path", "glog_expected_head",
+):
+    print(policy[key])
+PY
+rc=$?
+[[ "$rc" -eq 0 ]] || fail_step "$rc" dependency_policy "cannot read dependency pins from policy"
+DEPENDENCY_POLICY_VALUES=()
+mapfile -t DEPENDENCY_POLICY_VALUES <"$JOB_ARTIFACT_ROOT/dependency-policy.stdout"
+rc=$?
+[[ "$rc" -eq 0 ]] || fail_step "$rc" dependency_policy "cannot parse dependency pins from policy output"
+if [[ "${#DEPENDENCY_POLICY_VALUES[@]}" -ne 4 ]]; then
+  fail_step 2 dependency_policy "policy did not return all gflags/glog pins"
+fi
+GFLAGS_SOURCE_PATH=${DEPENDENCY_POLICY_VALUES[0]}
+GFLAGS_EXPECTED_HEAD=${DEPENDENCY_POLICY_VALUES[1]}
+GLOG_SOURCE_PATH=${DEPENDENCY_POLICY_VALUES[2]}
+GLOG_EXPECTED_HEAD=${DEPENDENCY_POLICY_VALUES[3]}
+
+if [[ ! -d "$GFLAGS_SOURCE_PATH" ]]; then
+  fail_step 2 gflags_bootstrap "gflags source path missing: $GFLAGS_SOURCE_PATH"
+fi
+GFLAGS_SOURCE_HEAD=$(git -C "$GFLAGS_SOURCE_PATH" rev-parse HEAD \
+  2>"$JOB_ARTIFACT_ROOT/gflags-source-head.stderr")
+rc=$?
+[[ "$rc" -eq 0 ]] || fail_step "$rc" gflags_bootstrap "cannot resolve gflags source HEAD"
+printf '%s\n' "$GFLAGS_SOURCE_HEAD" >"$JOB_ARTIFACT_ROOT/gflags-source-head.stdout"
+rc=$?
+[[ "$rc" -eq 0 ]] || fail_step "$rc" gflags_bootstrap "cannot record gflags source HEAD"
+if [[ "$GFLAGS_SOURCE_HEAD" != "$GFLAGS_EXPECTED_HEAD" ]]; then
+  fail_step 2 gflags_bootstrap "gflags source HEAD mismatch"
+fi
+GFLAGS_STATUS=$(git -C "$GFLAGS_SOURCE_PATH" status --porcelain --untracked-files=all \
+  2>"$JOB_ARTIFACT_ROOT/gflags-source-status.stderr")
+rc=$?
+[[ "$rc" -eq 0 ]] || fail_step "$rc" gflags_bootstrap "cannot inspect gflags working tree"
+printf '%s' "$GFLAGS_STATUS" >"$JOB_ARTIFACT_ROOT/gflags-source-status.stdout"
+rc=$?
+[[ "$rc" -eq 0 ]] || fail_step "$rc" gflags_bootstrap "cannot record gflags working tree status"
+if [[ -n "$GFLAGS_STATUS" ]]; then
+  fail_step 2 gflags_bootstrap "gflags working tree is dirty"
+fi
+
+GFLAGS_BUILD_DIR="$TMP_BUILD/gflags-build"
+GFLAGS_INSTALL_DIR="$TMP_BUILD/gflags-install"
+run_capture gflags-build-dir mkdir "$GFLAGS_BUILD_DIR"
+rc=$?
+[[ "$rc" -eq 0 ]] || fail_step "$rc" gflags_bootstrap "cannot create gflags build directory"
+GFLAGS_CMAKE_C_COMPILER=$(realpath "$CC_PATH")
+rc=$?
+[[ "$rc" -eq 0 ]] || fail_step "$rc" gflags_bootstrap "cannot resolve gflags C compiler path"
+GFLAGS_CMAKE_CXX_COMPILER=$(realpath "$CXX_PATH")
+rc=$?
+[[ "$rc" -eq 0 ]] || fail_step "$rc" gflags_bootstrap "cannot resolve gflags CXX compiler path"
+run_capture gflags-configure timeout 60 cmake -S "$GFLAGS_SOURCE_PATH" -B "$GFLAGS_BUILD_DIR" \
+  -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF \
+  -DCMAKE_POSITION_INDEPENDENT_CODE=ON -DREGISTER_INSTALL_PREFIX=OFF \
+  "-DCMAKE_INSTALL_PREFIX=$GFLAGS_INSTALL_DIR" \
+  "-DCMAKE_C_COMPILER=$GFLAGS_CMAKE_C_COMPILER" \
+  "-DCMAKE_CXX_COMPILER=$GFLAGS_CMAKE_CXX_COMPILER"
+rc=$?
+[[ "$rc" -eq 0 ]] || fail_step "$rc" gflags_bootstrap "gflags configure failed"
+run_capture gflags-build timeout 60 cmake --build "$GFLAGS_BUILD_DIR" -j 48
+rc=$?
+[[ "$rc" -eq 0 ]] || fail_step "$rc" gflags_bootstrap "gflags build failed"
+run_capture gflags-install timeout 60 cmake --install "$GFLAGS_BUILD_DIR"
+rc=$?
+[[ "$rc" -eq 0 ]] || fail_step "$rc" gflags_bootstrap "gflags install failed"
+
+if [[ ! -d "$GLOG_SOURCE_PATH" ]]; then
+  fail_step 2 glog_bootstrap "glog source path missing: $GLOG_SOURCE_PATH"
+fi
+GLOG_SOURCE_HEAD=$(git -C "$GLOG_SOURCE_PATH" rev-parse HEAD \
+  2>"$JOB_ARTIFACT_ROOT/glog-source-head.stderr")
+rc=$?
+[[ "$rc" -eq 0 ]] || fail_step "$rc" glog_bootstrap "cannot resolve glog source HEAD"
+printf '%s\n' "$GLOG_SOURCE_HEAD" >"$JOB_ARTIFACT_ROOT/glog-source-head.stdout"
+rc=$?
+[[ "$rc" -eq 0 ]] || fail_step "$rc" glog_bootstrap "cannot record glog source HEAD"
+if [[ "$GLOG_SOURCE_HEAD" != "$GLOG_EXPECTED_HEAD" ]]; then
+  fail_step 2 glog_bootstrap "glog source HEAD mismatch"
+fi
+GLOG_STATUS=$(git -C "$GLOG_SOURCE_PATH" status --porcelain --untracked-files=all \
+  2>"$JOB_ARTIFACT_ROOT/glog-source-status.stderr")
+rc=$?
+[[ "$rc" -eq 0 ]] || fail_step "$rc" glog_bootstrap "cannot inspect glog working tree"
+printf '%s' "$GLOG_STATUS" >"$JOB_ARTIFACT_ROOT/glog-source-status.stdout"
+rc=$?
+[[ "$rc" -eq 0 ]] || fail_step "$rc" glog_bootstrap "cannot record glog working tree status"
+if [[ -n "$GLOG_STATUS" ]]; then
+  fail_step 2 glog_bootstrap "glog working tree is dirty"
+fi
+
+GLOG_BUILD_DIR="$TMP_BUILD/glog-build"
+GLOG_INSTALL_DIR="$TMP_BUILD/glog-install"
+run_capture glog-build-dir mkdir "$GLOG_BUILD_DIR"
+rc=$?
+[[ "$rc" -eq 0 ]] || fail_step "$rc" glog_bootstrap "cannot create glog build directory"
+GLOG_CMAKE_C_COMPILER=$(realpath "$CC_PATH")
+rc=$?
+[[ "$rc" -eq 0 ]] || fail_step "$rc" glog_bootstrap "cannot resolve glog C compiler path"
+GLOG_CMAKE_CXX_COMPILER=$(realpath "$CXX_PATH")
+rc=$?
+[[ "$rc" -eq 0 ]] || fail_step "$rc" glog_bootstrap "cannot resolve glog CXX compiler path"
+run_capture glog-configure timeout 120 cmake -S "$GLOG_SOURCE_PATH" -B "$GLOG_BUILD_DIR" \
+  -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF \
+  -DCMAKE_POSITION_INDEPENDENT_CODE=ON -DWITH_GTEST=OFF -DBUILD_TESTING=OFF \
+  -DWITH_UNWIND=OFF "-DCMAKE_PREFIX_PATH=$GFLAGS_INSTALL_DIR" \
+  "-DCMAKE_INSTALL_PREFIX=$GLOG_INSTALL_DIR" \
+  "-DCMAKE_C_COMPILER=$GLOG_CMAKE_C_COMPILER" \
+  "-DCMAKE_CXX_COMPILER=$GLOG_CMAKE_CXX_COMPILER"
+rc=$?
+[[ "$rc" -eq 0 ]] || fail_step "$rc" glog_bootstrap "glog configure failed"
+run_capture glog-build timeout 120 cmake --build "$GLOG_BUILD_DIR" -j 48
+rc=$?
+[[ "$rc" -eq 0 ]] || fail_step "$rc" glog_bootstrap "glog build failed"
+run_capture glog-install timeout 120 cmake --install "$GLOG_BUILD_DIR"
+rc=$?
+[[ "$rc" -eq 0 ]] || fail_step "$rc" glog_bootstrap "glog install failed"
+
+CMAKE_PREFIX_PATH="$TMP_BUILD/gflags-install:$TMP_BUILD/glog-install"
+export CMAKE_PREFIX_PATH
+
+# Step 6: Pegasus read-heavy between-run floor.  With the export above this is
+# the requested command: IZANAGI_BETWEEN_RUN_ENV_TAG=pegasus python3 ...
+CALIBRATION_DIR="$REPO_ROOT/output/env/pegasus/calibration"
+FLOOR_JSON="$CALIBRATION_DIR/between_run_noise_t48_skew0p9_rr95_rmw0.json"
+FLOOR_MD="$CALIBRATION_DIR/between_run_noise_t48_skew0p9_rr95_rmw0.md"
+for floor_output in "$FLOOR_JSON" "$FLOOR_MD"; do
+  if [[ -e "$floor_output" || -L "$floor_output" ]]; then
+    fail_step 2 calibration_preflight \
+      "calibration output already exists: $floor_output"
+  fi
+done
+run_timed calibration env IZANAGI_BETWEEN_RUN_ENV_TAG=pegasus \
+  python3 orchestrator/campaign/between_run_floor.py read-heavy
+rc=$?
+[[ "$rc" -eq 0 ]] || fail_step "$rc" calibration "between_run_floor.py failed"
+record_stage_binaries calibration "$JOB_ARTIFACT_ROOT/calibration.stdout"
+rc=$?
+[[ "$rc" -eq 0 ]] || fail_step 2 calibration "cannot record calibration binary provenance"
+if [[ "$FLOOR_JSON" == */registered/* || -L "$FLOOR_JSON" || ! -f "$FLOOR_JSON" ]]; then
+  fail_step 2 calibration "floor JSON is missing or under registered/"
+fi
+python3 - "$FLOOR_JSON" <<'PY'
+import json
+import pathlib
+import sys
+
+path = pathlib.Path(sys.argv[1])
+if "registered" in path.parts:
+    raise SystemExit("floor JSON must not be under registered/")
+with path.open(encoding="utf-8") as handle:
+    doc = json.load(handle)
+expected_workload = {
+    "ycsb_zipf_skew": "0.9",
+    "ycsb_rratio": "95",
+    "ycsb_rmw": "0",
+}
+between_run = doc.get("between_run")
+cv = between_run.get("cv") if isinstance(between_run, dict) else None
+checks = {
+    "schema_version": doc.get("schema_version") == "between-run-noise-floor/v1",
+    "workload": doc.get("workload") == expected_workload,
+    "between_run.cv": isinstance(cv, (int, float)) and 0 < cv < 1,
+    "records": doc.get("records") == 1_000_000,
+    "threads": doc.get("threads") == 48,
+    "clocks_per_us": doc.get("clocks_per_us") == 2100,
+}
+if not all(checks.values()):
+    raise SystemExit("floor JSON contract failed: " + repr(checks))
+PY
+rc=$?
+[[ "$rc" -eq 0 ]] || fail_step "$rc" calibration "floor JSON contract failed"
+FLOOR_SHA256=$(sha256_file "$FLOOR_JSON")
+rc=$?
+[[ "$rc" -eq 0 && "$FLOOR_SHA256" =~ ^[0-9a-f]{64}$ ]] || \
+  fail_step 2 calibration "cannot hash floor JSON"
+export FLOOR_JSON FLOOR_SHA256
+
+# cache_root is not reachable through backoff_sweep.py's CLI or its environment
+# contract: run_workload() does not pass cache_root, while buildcache.build/v2
+# default to <repo>/external/ccbench/build-variants.  Isolate off before it,
+# then repeat the mv after off so on starts from a different empty directory.
+CACHE_DEFAULT_ROOT="$REPO_ROOT/external/ccbench/build-variants"
+CACHE_ARCHIVE_ROOT="$OUT_ROOT/cache-archives"
+CACHE_OVERRIDE_REACHABLE="false"
+if ! mkdir -p "$CACHE_ARCHIVE_ROOT"; then
+  fail_step 2 cache_cold_off "cannot create cache archive root"
+fi
+if [[ -L "$CACHE_DEFAULT_ROOT" || ( -e "$CACHE_DEFAULT_ROOT" && ! -d "$CACHE_DEFAULT_ROOT" ) ]]; then
+  fail_step 2 cache_cold_off "default build cache is not a real directory"
+fi
+CACHE_PREEXISTING_BACKUP="$CACHE_ARCHIVE_ROOT/pre-existing-$NONCE"
+if [[ -e "$CACHE_DEFAULT_ROOT" ]]; then
+  if [[ -e "$CACHE_PREEXISTING_BACKUP" ]]; then
+    fail_step 2 cache_cold_off "pre-existing cache backup already exists"
+  fi
+  mv -- "$CACHE_DEFAULT_ROOT" "$CACHE_PREEXISTING_BACKUP"
+  rc=$?
+  [[ "$rc" -eq 0 ]] || fail_step "$rc" cache_cold_off "cannot move pre-existing build cache"
+else
+  CACHE_PREEXISTING_BACKUP=""
+fi
+if ! mkdir -p "$CACHE_DEFAULT_ROOT"; then
+  fail_step 2 cache_cold_off "cannot create empty off build cache"
+fi
+CACHE_SWITCH_METHOD="fallback-mv: no cache_root override in backoff_sweep CLI/env; pre-off cache moved and a new default directory created; compiler-level caches are not isolated"
+export CACHE_DEFAULT_ROOT CACHE_OVERRIDE_REACHABLE CACHE_PREEXISTING_BACKUP CACHE_SWITCH_METHOD
+
+# Step 7: screening-off campaign.
+run_timed off python3 orchestrator/campaign/backoff_sweep.py read-heavy
+rc=$?
+[[ "$rc" -eq 0 ]] || fail_step "$rc" off "screening-off backoff sweep failed"
+OFF_CAMPAIGN_ID=$(parse_campaign_id "$JOB_ARTIFACT_ROOT/off.stdout")
+rc=$?
+[[ "$rc" -eq 0 && -n "$OFF_CAMPAIGN_ID" ]] || fail_step 2 off "cannot extract off campaign-id"
+printf '%s\n' "$OFF_CAMPAIGN_ID" >"$JOB_ARTIFACT_ROOT/off-campaign-id.txt"
+rc=$?
+[[ "$rc" -eq 0 ]] || fail_step "$rc" off "cannot save off campaign-id"
+# WAL binary provenance is best-effort as well: keep the campaign result alive
+# when the WAL path/hash cannot be read, and let the manifest say unavailable.
+if ! record_wal off "$OFF_CAMPAIGN_ID"; then
+  OFF_WAL_PATH=""
+  OFF_WAL_SHA256=""
+  export OFF_WAL_PATH OFF_WAL_SHA256
+fi
+# off/on WAL provenance is informational and best-effort.  In particular, do
+# not fall back to stdout scraping: backoff_sweep.py does not print binary
+# paths, while STAGE_BUILD_DONE carries the authoritative perf SHA256.
+record_stage_binaries_from_wal off "$OFF_WAL_PATH" "$CALIBRATION_BINARY_SHA256"
+export OFF_CAMPAIGN_ID
+
+# Step 8: off is complete; move its cache into the persistent job evidence and
+# make a fresh default root.  This is the required off->on cache-warm barrier.
+CACHE_OFF_BACKUP="$CACHE_ARCHIVE_ROOT/off-$NONCE"
+if [[ -L "$CACHE_DEFAULT_ROOT" || ! -d "$CACHE_DEFAULT_ROOT" ]]; then
+  fail_step 2 cache_switch "off build cache is not a real directory"
+fi
+if [[ -e "$CACHE_OFF_BACKUP" ]]; then
+  fail_step 2 cache_switch "off cache backup already exists"
+fi
+mv -- "$CACHE_DEFAULT_ROOT" "$CACHE_OFF_BACKUP"
+rc=$?
+[[ "$rc" -eq 0 ]] || fail_step "$rc" cache_switch "cannot move off build cache"
+if ! mkdir -p "$CACHE_DEFAULT_ROOT"; then
+  fail_step 2 cache_switch "cannot create fresh on build cache"
+fi
+CACHE_SWITCH_METHOD="fallback-mv: cache_root override unreachable; pre-off cache and completed-off cache both archived, on receives a fresh default root; compiler-level caches are not isolated"
+export CACHE_OFF_BACKUP CACHE_SWITCH_METHOD
+
+# Step 9: screening-on campaign using the floor generated in step 6.
+run_timed on python3 orchestrator/campaign/backoff_sweep.py read-heavy \
+  --screening --calibration-dir "$CALIBRATION_DIR"
+rc=$?
+[[ "$rc" -eq 0 ]] || fail_step "$rc" on "screening-on backoff sweep failed"
+ON_CAMPAIGN_ID=$(parse_campaign_id "$JOB_ARTIFACT_ROOT/on.stdout")
+rc=$?
+[[ "$rc" -eq 0 && -n "$ON_CAMPAIGN_ID" ]] || fail_step 2 on "cannot extract on campaign-id"
+printf '%s\n' "$ON_CAMPAIGN_ID" >"$JOB_ARTIFACT_ROOT/on-campaign-id.txt"
+rc=$?
+[[ "$rc" -eq 0 ]] || fail_step "$rc" on "cannot save on campaign-id"
+if ! record_wal on "$ON_CAMPAIGN_ID"; then
+  ON_WAL_PATH=""
+  ON_WAL_SHA256=""
+  export ON_WAL_PATH ON_WAL_SHA256
+fi
+record_stage_binaries_from_wal on "$ON_WAL_PATH" "$CALIBRATION_BINARY_SHA256"
+export ON_CAMPAIGN_ID
+
+# The manifest computes consistency from every WAL evidence row.  A missing
+# or mismatching row is recorded as informational evidence and never aborts the
+# completed off/on campaigns.
+
+# Step 10/11: all required evidence is now bound to the external manifest.
+STATUS="success"
+FAIL_STAGE=""
+FAIL_RC=""
+FAIL_MESSAGE=""
+export STATUS FAIL_STAGE FAIL_RC FAIL_MESSAGE
+write_manifest
+rc=$?
+if [[ "$rc" -ne 0 ]]; then
+  STATUS="failed"
+  FAIL_STAGE="manifest"
+  FAIL_RC="$rc"
+  FAIL_MESSAGE="cannot write final manifest"
+  export STATUS FAIL_STAGE FAIL_RC FAIL_MESSAGE
+  write_manifest >/dev/null 2>&1 || true
+  exit "$rc"
+fi
+
+echo "read-heavy ablation complete"
+echo "manifest: $MANIFEST_PATH"
+echo "off campaign: $OFF_CAMPAIGN_ID"
+echo "on campaign: $ON_CAMPAIGN_ID"
+exit 0
