@@ -360,6 +360,24 @@ _T1458_MERGE5_NOTE = (
     "(2026-08-22、T-1479のロジック改修後に親が再検証) でも両fileのpatch本体が非空であることを確認しており、"
     "新ロジックの下でも引き続き実装面著作として検出される。"
 )
+_T1458_MERGE6_RULING = (
+    "本セッション内でユーザーへ状況を説明し known-violation 登録の続行を承認された (2026-08-22、7回目)"
+)
+_T1458_MERGE6_NOTE = (
+    "受入投入前に local main 側11コミット（T-1479による `KNOWN_PROVENANCE_VIOLATIONS` 判定ロジック改修）を"
+    "取り込んだ7回目の merge commit `b9c07cc22d483a9103dac208a83446872161ffad`。T-1479は `_commit_paths()` の"
+    "merge分岐を pairwise diff の積集合のみで判定する方式から、`git diff-tree --cc` のcombined diff patch本体が"
+    "空かどうかを `_combined_diff_paths()` で判定する方式へ置き換え、実装面 finding が消えると確認できた19件を"
+    "台帳から削除した。これに伴い本 wave の5エントリ (664dfc62 / e86d363a / 0c0f3e71 / dd58c9ca / bf92f327) を"
+    "新ロジックで個別に再検証し、`git diff-tree --cc <sha> -- <path>` の対象pathへのpatch本体が実質空 (bytes=0)"
+    "だった `664dfc62` / `dd58c9ca` は削除し、`e86d363a` / `0c0f3e71` / `bf92f327` はそれぞれ4515 bytes、"
+    "2906+4030 bytes、9196+7766 bytesでpatch本体が非空だったため保持した。"
+    "`tools/check_ai_provenance.py` / `orchestrator/tests/test_check_ai_provenance.py` の競合解決は親の Claude セッションが"
+    "main側 (T-1479整理後) の内容を丸ごとベースに採用し、自waveのエントリを個別に再配置した。merge commit は "
+    "`AI-Agent: product=claude; model=claude-sonnet-5; reasoning=not-exposed; role=integrator` だけで Codex "
+    "`role=author` 行がないため checker が `missing-codex-author` (paths=orchestrator/tests/test_check_ai_provenance.py, "
+    "tools/check_ai_provenance.py) を検出した。親作成 merge のため Codex 著者とは記さない。"
+)
 KNOWN_PROVENANCE_VIOLATIONS = (
     KnownViolationSpec(
         "88f0f9f081f7c76c8ab5fc4a94e2640f70af129b",
@@ -782,6 +800,12 @@ KNOWN_PROVENANCE_VIOLATIONS = (
         MISSING_CODEX_AUTHOR,
         _T1458_MERGE5_RULING,
         note=_T1458_MERGE5_NOTE,
+    ),
+    KnownViolationSpec(
+        "b9c07cc22d483a9103dac208a83446872161ffad",
+        MISSING_CODEX_AUTHOR,
+        _T1458_MERGE6_RULING,
+        note=_T1458_MERGE6_NOTE,
     ),
 )
 
