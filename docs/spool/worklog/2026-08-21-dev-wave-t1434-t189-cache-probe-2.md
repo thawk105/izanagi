@@ -46,8 +46,9 @@ title: '[T-1434] T-189 provider cache 制御可能性を実測し、制御不可
 
 - [T-1434] **P1・ユーザー裁定待ち (継続)**: 未解決点(3) provider cache 制御可能性の実測が完了し
   制御不可能と確定した ({{D:t189-cache-control-measured-infeasible}}、詳細は
-  `output/insights/2026-08-21_t1434-t189-cache-control-probe/`)。残る5論点 (power simulation・
-  独立 custodian・stage2/5 downstream replayer・task catalog+独立分類者確保・price snapshot) は
-  引き続き未着手であり、着手要否・優先度・担当 wave はユーザー裁定を要する。
+  `output/insights/2026-08-21_t1434-t189-cache-control-probe/`)。並行 wave が (5) のうち stage2 側を
+  完了し stage5 側は [T-1480] へ分離済み。残るのは (1) power simulation・(2) 独立 custodian 実現方式・
+  (6) task catalog 実データ+独立分類者確保・(7) price snapshot 実データ取得の4論点であり、
+  引き続き未着手のまま着手要否・優先度・担当 wave はユーザー裁定を要する。
   `routing_evidence_status` は `inconclusive` のまま。
-  base: 03ecf05a476c7101c19522226cf1771d84ab0b066757ecc5e95bd266ac5a4300
+  base: 09695ff1458d9b47a581b66065372d3a364899ed1a55266f3c490ec85d2c17d2
