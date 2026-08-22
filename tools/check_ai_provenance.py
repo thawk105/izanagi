@@ -531,6 +531,34 @@ _T1458_MERGE4_NOTE = (
     "`AI-Agent: product=claude; model=claude-sonnet-5; reasoning=not-exposed; role=integrator` だけで Codex "
     "`role=author` 行がないため checker が missing-codex-author を検出した。親作成 merge のため Codex 著者とは記さない。"
 )
+_T1476_MERGE2_RULING = (
+    "2026-08-21 dev-wave-t1476-verify-state-committed 受入前裁定 "
+    "(ユーザー選択: known-violation 登録)"
+)
+_T1476_MERGE2_NOTE = (
+    "受入投入前に親が作成した2回目の local main 取り込み merge。実装面で両側が"
+    "触ったのは orchestrator/tests/test_s8b_oracle_report.py の1 fileのみで、"
+    "git diff-tree --cc 6f2d97c8 は commit ヘッダ (SHA) 行のみで実質空 = 競合解決による"
+    "新規著作なしと確認済み。wave側は新設回帰テストを追加 (Codex role=authorが"
+    "commit 67d7a7faで既に記述)、main側は別wave (T-1371) が同ファイルの別テスト関数群の"
+    "output-root path分離を変更 (行範囲は非重複)。結果は両側の変更の単純な和集合。"
+    "親作成mergeのためCodex著者とは記さない。"
+)
+_T1476_MERGE3_RULING = (
+    "2026-08-21 dev-wave-t1476-verify-state-committed 受入前裁定 "
+    "(ユーザー選択: known-violation 登録)"
+)
+_T1476_MERGE3_NOTE = (
+    "受入全走4回目が owned-path-overlap で終端し親が作成した3回目の local main 取り込み"
+    "merge。tools/check_ai_provenance.py と orchestrator/tests/test_check_ai_provenance.py の"
+    "KNOWN_PROVENANCE_VIOLATIONS/expected tuple 末尾に、本wave (6f2d97c8の1エントリ) とmain側"
+    "(T-755、d87fd42c/75d57796/216493593の3エントリ) がそれぞれ独立に別内容のエントリを追加した"
+    "union型の競合。git diff-tree --cc 3eaf2038は両側の追加分がそれぞれ現れる単純なunionで、"
+    "既存2ブロックの連結のみ (一字一句の変更・削除なし)、新規著作なし。authority docs"
+    "(docs/dev-wave/{core,operations}.md) とtools/pegasus/admission_registry.jsonがmerge中で"
+    "working tree driftしCodex dispatchが構造的に使えなかったため親が直接union解消した。"
+    "親作成mergeのためCodex著者とは記さない。"
+)
 KNOWN_PROVENANCE_VIOLATIONS = (
     KnownViolationSpec(
         "88f0f9f081f7c76c8ab5fc4a94e2640f70af129b",
@@ -1024,6 +1052,12 @@ KNOWN_PROVENANCE_VIOLATIONS = (
         note=_T1458_MERGE2_NOTE,
     ),
     KnownViolationSpec(
+        "6f2d97c88aa66e571771d5b83992fcfd6d2aefaa",
+        MISSING_CODEX_AUTHOR,
+        _T1476_MERGE2_RULING,
+        note=_T1476_MERGE2_NOTE,
+    ),
+    KnownViolationSpec(
         "d87fd42c0335c1396c1f79557e45357e9bfc163f",
         MISSING_AI_AGENT,
         "2026-08-21 [T-755] wave内でのlocal main取り込みmerge (ユーザー承認: known-violation登録の続行)",
@@ -1070,6 +1104,12 @@ KNOWN_PROVENANCE_VIOLATIONS = (
         MISSING_CODEX_AUTHOR,
         _T1458_MERGE4_RULING,
         note=_T1458_MERGE4_NOTE,
+    ),
+    KnownViolationSpec(
+        "3eaf2038ec2ac3e7965c2a1eedcadb1ed1266626",
+        MISSING_CODEX_AUTHOR,
+        _T1476_MERGE3_RULING,
+        note=_T1476_MERGE3_NOTE,
     ),
 )
 

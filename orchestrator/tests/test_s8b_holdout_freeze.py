@@ -1670,6 +1670,123 @@ assert blocked.isdisjoint(sys.modules)
     assert completed.returncode == 0, completed.stderr
 
 
+def _rewrite_floor_artifacts_for_uncommitted_protocol_seed(fixture: dict) -> str:
+    """作業ツリーだけの protocol seed 変更に従う未 commit artifact を作る。"""
+    from orchestrator.campaign import env_contract
+    from orchestrator.campaign import s8b_floor_contract as contract
+    from orchestrator.tests.s8b_floor_evidence_fixture import (
+        build_floor_admission_evidence,
+    )
+
+    root = fixture["root"]
+    v1 = json.loads((root / M.FREEZE_REL).read_bytes())
+    protocol_path = root / M.FLOOR_PROTOCOL_REL
+    protocol_document = json.loads(protocol_path.read_bytes())
+    protocol_document["master_seed"] += "-worktree-only"
+    protocol_path.write_bytes(V2FIX.canonical_bytes(protocol_document))
+    protocol = contract.validate_protocol(
+        protocol_document,
+        contract_sha256_lookup=lambda env_tag: env_contract.lookup(
+            env_tag,
+        ).contract_sha256,
+    )
+    protocol_sha256 = contract.canonical_protocol_sha256(protocol)
+    cells = contract.enumerate_cells(
+        v1, stock_configuration=protocol["stock_configuration"],
+    )
+    schedule = contract.build_schedule(
+        cells=cells, master_seed=protocol["master_seed"],
+        n_sessions=protocol["n_sessions"],
+    )
+    result = V2FIX._synthetic_floor_result(v1, protocol, root=root)
+    run_dir = (
+        f"output/env/{protocol['env_tag']}/calibration/s8b-floor-official/"
+        f"20260811T000000Z-{protocol_sha256[:8]}"
+    )
+    result_rel = f"{run_dir}/result.json"
+    manifest = {
+        "schema_version": contract.MANIFEST_SCHEMA,
+        "protocol_sha256": protocol_sha256,
+        "freeze": dict(protocol["freeze"]),
+        "freeze_sha256": protocol["freeze"]["sha256"],
+        "env_tag": protocol["env_tag"],
+        "ccbench_pin": protocol["ccbench_pin"],
+        "stock_configuration": protocol["stock_configuration"],
+        "schedule_algorithm": protocol["schedule_algorithm"],
+        "master_seed": protocol["master_seed"],
+        "n_sessions": protocol["n_sessions"],
+        "reps": protocol["reps"],
+        "extime_s": protocol["extime_s"],
+        "session_cv_max": protocol["session_cv_max"],
+        "cell_cv_max": protocol["cell_cv_max"],
+        "cells": cells,
+        "binaries": result["binaries"],
+        "schedule": schedule,
+    }
+    manifest_raw = V2FIX.canonical_bytes(manifest)
+    result["manifest_sha256"] = hashlib.sha256(manifest_raw).hexdigest()
+
+    admission_root = root / ".git/izanagi/s8b-holdout-admission-v1"
+    shutil.rmtree(admission_root)
+    evidence = build_floor_admission_evidence(
+        admission_root,
+        protocol=protocol, freeze=v1,
+        freeze_sha256=protocol["freeze"]["sha256"],
+        manifest_sha256=result["manifest_sha256"],
+        campaign_run_id=f"20260811T000000Z-{protocol_sha256[:8]}",
+        run_relpath=run_dir.removeprefix("output/"), mode="official",
+        cells=cells, schedule=schedule, sessions=result["sessions"],
+    )
+    result["holdout_admission"] = evidence.expected_receipt
+
+    schedule_by_seq = {row["seq"]: row for row in schedule}
+    journal_records = []
+    for session in result["sessions"]:
+        scheduled = schedule_by_seq[session["seq"]]
+        journal_records.append({
+            "event": "session-start", "seq": session["seq"],
+            "kind": "planned", "cell_id": session["cell_id"],
+            "round": scheduled["round"], "retry_ordinal": None,
+            "attempt_id": session["attempt_id"], "trigger": None,
+        })
+        journal_records.append(session)
+    V2FIX._write(root, result_rel, V2FIX.canonical_bytes(result))
+    V2FIX._write(root, f"{run_dir}/manifest.json", manifest_raw)
+    V2FIX._write(root, f"{run_dir}/journal.jsonl", b"".join(
+        V2FIX.canonical_bytes(record) + b"\n" for record in journal_records
+    ))
+    V2FIX._write(root, f"{run_dir}/launch_certificate.json", b"{}")
+    return result_rel
+
+
+def test_v2_candidate_rejects_worktree_only_floor_protocol_master_seed_mutation(
+        tmp_path, monkeypatch):
+    fixture = V2FIX.candidate_repository(tmp_path, M)
+    root = fixture["root"]
+    monkeypatch.setattr(
+        M, "BUDGET_APPROVAL_SHA256", fixture["approval_sha256"],
+    )
+    result_rel = _rewrite_floor_artifacts_for_uncommitted_protocol_seed(fixture)
+    protocol = json.loads((root / M.FLOOR_PROTOCOL_REL).read_bytes())
+    committed_protocol = json.loads(
+        _git(root, "show", f"{fixture['head']}:{M.FLOOR_PROTOCOL_REL}")
+    )
+    assert protocol["master_seed"] != committed_protocol["master_seed"]
+
+    output = root / M.V2_CANDIDATE_REL
+    assert not output.exists()
+    assert not output.parent.exists()
+    with pytest.raises(
+            M.FreezeError, match="floor protocol が captured HEAD と worktree で不一致"):
+        M.generate_v2_g1_candidate(
+            floor_result_path=result_rel,
+            budget_path=fixture["budget_rel"],
+            root=root,
+        )
+    assert not output.exists()
+    assert not output.parent.exists()
+
+
 def test_v2_candidate_build_and_generate_synthetic_g1(tmp_path, monkeypatch):
     fixture = V2FIX.candidate_repository(tmp_path, M)
     root = fixture["root"]

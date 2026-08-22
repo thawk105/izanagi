@@ -136,6 +136,7 @@ pytest 専用テストで、`python3 file.py` 直接実行は no-op (偽緑で�
 - test_env_contract.py
 - test_layer3_report.py
 - test_mocc_trace_job_contract.py
+- test_pegasus_calibration_workload.py
 - test_profiler_directive.py
 - test_reflux_formal_consumer.py
 - test_reflux_origin_artifacts.py
