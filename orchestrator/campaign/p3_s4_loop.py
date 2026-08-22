@@ -7,9 +7,10 @@ reward hacking 圧力が最も高い。iteration フロー (design v1 §4 の 1 
     1. planner (LLM):  current_perf (絶対 throughput を含む) + leading-indicators +
        whiteboard + optional policy_hint (このharnessが emit) → 方向提案 (proposal スキーマは具体値 field を持たない)
        checkpoint 復元時は whiteboard の delta_pct と direction / magnitude / result の
-       型・値域を fail-closed に検査する。layer3_report の独立 reader も direction /
-       magnitude / result の値域検査を共有するが、in-memory 射影経路、iteration 整合・
-       entry 件数・origin 束縛は引き続き対象外である ([T-287] の残余)
+       型・値域を fail-closed に検査する。project_whiteboard() も append 前に同じ
+       direction / magnitude / result の値域検査を通過させる。layer3_report の独立 reader
+       も同じ値域検査を共有するが、iteration 整合・entry 件数・origin 束縛は引き続き
+       対象外である ([T-287] の残余)
        justification / uncertainty の自由文は journal / report に残る
     2. coder   (LLM):  方向 + baseline (絶対 throughput 等の現行指標) → 具体 backoff 値 +
        hole コード (過去候補の勝ち筋値・critic の機序帰属の専用 field は持たない)
@@ -19,7 +20,7 @@ reward hacking 圧力が最も高い。iteration フロー (design v1 §4 の 1 
     4. harness (本Py): 緑 (LI) + 赤 (rejection/liveness/diff-quarantine) digest を組む
     5. critic  (LLM):  帰属 + 次方向
     6. harness (本Py): whiteboard 射影 + 停止判定 (critic attribution 専用 field は
-       ないが、generic field の値は検証しない)
+       ないが、generic field の値域は既存validatorで検証する)
 
 **ループ主導権はメインセッション** (design v1 §4)。本モジュールは LLM を spawn しない —
 planner/coder/critic の構造化出力を **引数として受け取り** 機械部分だけを回す
@@ -137,9 +138,9 @@ class WhiteboardEntry:
     """proposal と harness result を保持する whiteboard の 1 行。
 
     passive dataclass のため値域は自身では検査しない。checkpoint 復元値は state_from_dict が
-    direction / magnitude / result の型・値域を検査するが、in-memory 射影経路はその境界を
-    通らない。layer3_report の独立 reader は同じ値域検査を共有する ([T-287] の残余)。delta_pct field は
-    planner 射影時にも None を fail-closed 強制する。"""
+    direction / magnitude / result の型・値域を検査し、project_whiteboard() も構築・append 前に
+    同じ値域検査を通過させる。layer3_report の独立 reader は同じ値域検査を共有する
+    ([T-287] の残余)。delta_pct field は planner 射影時にも None を fail-closed 強制する。"""
     iteration: int
     direction: str
     magnitude: str
@@ -518,13 +519,20 @@ def project_whiteboard(state: LoopState, planner: PlannerProposal,
                        result: str, delta_pct: Optional[float] = None) -> WhiteboardEntry:
     """proposal と harness result を whiteboard の 5 field へ射影する (design v1 §4)。
 
-    この in-memory 射影経路は direction / magnitude / result の型・値域を検査しない。
-    checkpoint 復元値は state_from_dict が検査するが、layer3_report の独立 reader は同じ値域検査を
-    共有する ([T-287] の残余)。delta_pct field は planner 射影時に None を fail-closed 強制する。
-    result の想定値は success (certified 緑) | fail (verify/liveness 赤) |
+    in-memory 射影では WhiteboardEntry の構築・append 前に direction / magnitude / result の
+    型・値域検査を通過させる。checkpoint 復元値は state_from_dict が検査し、layer3_report の
+    独立 reader も同じ値域検査を共有する ([T-287] の残余)。delta_pct field は planner 射影時に
+    None を fail-closed 強制する。result の想定値は success (certified 緑) | fail (verify/liveness 赤) |
     rejected (diff 検疫 reject)。"""
-    e = WhiteboardEntry(iteration=state.iteration, direction=planner.direction,
-                        magnitude=planner.magnitude, result=result, delta_pct=delta_pct)
+    candidate = {
+        "direction": planner.direction,
+        "magnitude": planner.magnitude,
+        "result": result,
+    }
+    checked = assert_whiteboard_value_domains(candidate, index=len(state.whiteboard))
+    e = WhiteboardEntry(iteration=state.iteration, direction=checked["direction"],
+                        magnitude=checked["magnitude"], result=checked["result"],
+                        delta_pct=delta_pct)
     state.whiteboard.append(e)
     return e
 
@@ -534,8 +542,9 @@ def whiteboard_for_planner(state: LoopState) -> List[Dict]:
 
     段 4 はこの whiteboard 射影経路の delta_pct field に限って None を fail-closed
     強制する (規律2/6)。checkpoint 復元時の direction / magnitude / result は
-    state_from_dict が型・値域を検査するが、project_whiteboard からの in-memory 値は無検査で、
-    layer3_report の独立 reader は同じ値域検査を共有する ([T-287] の残余)。これは planner 入力全体の
+    state_from_dict が型・値域を検査し、project_whiteboard からの in-memory 値も append 前に
+    同じ値域検査を通過する。layer3_report の独立 reader も同じ値域検査を共有する
+    ([T-287] の残余)。これは planner 入力全体の
     性能値遮断ではない。絶対
     throughput は別 field の current_perf で planner へ、baseline で coder へ渡り、
     planner には leading_indicators も渡る。delta_pct field は load 側 state_from_dict
@@ -685,8 +694,9 @@ def state_from_dict(d: Dict) -> LoopState:
         **delta_pct≡None を値契約として強制**する (型で名前を whitelist するだけでは勝ち筋チャネル
         の混入を防げない、規律2/6)。
     (3) checkpoint 復元時の direction / magnitude / result は exact str と閉じた値域を要求する。
-        layer3_report の独立 reader も同じ共有検査を呼ぶが、in-memory 射影経路は引き続き
-        検査せず、iteration 整合・entry 件数・campaign/run origin も本関数では検査しない。"""
+        layer3_report の独立 reader も同じ共有検査を呼び、project_whiteboard() も append 前に
+        同じ検査を通過させる。iteration 整合・entry 件数・campaign/run origin は本関数では
+        検査しない。"""
     unknown = set(d) - _TOP_FIELDS
     if unknown:
         raise ValueError(f"checkpoint top-level に未知フィールド {unknown} — schema drift/改竄の疑い (規律6)")
