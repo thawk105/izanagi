@@ -5,8 +5,10 @@ from __future__ import annotations
 import json
 import os
 from pathlib import Path
+import shlex
 import stat
 import subprocess
+import shutil
 import textwrap
 
 
@@ -308,3 +310,178 @@ def test_mocc_trace_cpu_model_gate_normalizes_and_rejects_true_mismatch(
         "CPU model mismatch: expected=Intel Xeon Platinum 8488 "
         "observed_normalized=Intel Xeon Platinum 8468\n"
     )
+
+
+def test_mocc_trace_verifier_interpreter_gate_selects_first_importable_candidate(
+    tmp_path: Path,
+) -> None:
+    pilot = REPO_ROOT / "tools/pegasus/mocc_trace_pilot.sh"
+    source = pilot.read_text(encoding="utf-8")
+    start_marker = '  VERIFIER_PY=""'
+    end_marker = "\n  verifier_rc=0"
+    assert source.count(start_marker) == 1
+    assert source.count(end_marker) == 1
+    start = source.index(start_marker)
+    end = source.index(end_marker)
+    assert start < end
+    verifier_gate = source[start:end]
+
+    assert "python3 python3.10 python3.11 python3.12" in verifier_gate
+    assert "-I" not in verifier_gate
+    assert "import orchestrator.verifier" in verifier_gate
+    assert "sys.version_info >= (3, 10)" in verifier_gate
+
+    repo_root = tmp_path / "repo"
+    repo_root.mkdir()
+    attempt_dir = tmp_path / "attempt"
+    attempt_dir.mkdir()
+    failure_path = tmp_path / "failure"
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    real_realpath = shutil.which("realpath")
+    assert real_realpath is not None
+    (bin_dir / "realpath").symlink_to(real_realpath)
+
+    paths: dict[str, Path] = {}
+    argv_paths: dict[str, Path] = {}
+    for name, gate_rc in {
+        "python3": 1,
+        "python3.10": 0,
+        "python3.11": 0,
+        "python3.12": 0,
+    }.items():
+        stub = bin_dir / name
+        argv_path = tmp_path / f"{name}.argv"
+        cwd_path = tmp_path / f"{name}.cwd"
+        _make_executable(
+            stub,
+            f"""
+            #!/bin/sh
+            printf '%s\\n' "$@" >{shlex.quote(str(argv_path))}
+            printf '%s\\n' "$PWD" >{shlex.quote(str(cwd_path))}
+            exit {gate_rc}
+            """,
+        )
+        paths[name] = stub
+        argv_paths[name] = argv_path
+
+    prefix = "\n".join(
+        [
+            "set -Eeuo pipefail",
+            f"REPO_ROOT={shlex.quote(str(repo_root))}",
+            f"ATTEMPT_DIR={shlex.quote(str(attempt_dir))}",
+            f"FAILURE_PATH={shlex.quote(str(failure_path))}",
+            "write_failure() {",
+            '  printf \'rc=%s\\nstage=%s\\nmessage=%s\\n\' "$1" "$2" "$3" >"$FAILURE_PATH"',
+            "}",
+            "",
+        ]
+    )
+    suffix = '\nprintf \'%s\\n\' "$VERIFIER_PY"\n'
+    result = subprocess.run(
+        ["/bin/bash", "-c", prefix + verifier_gate + suffix],
+        cwd=REPO_ROOT,
+        env={"PATH": str(bin_dir)},
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert result.returncode == 0, result.stderr
+    selected = os.path.realpath(paths["python3.10"])
+    assert result.stdout.strip() == selected
+    assert argv_paths["python3"].exists()
+    assert argv_paths["python3.10"].exists()
+    assert not argv_paths["python3.11"].exists()
+    assert not argv_paths["python3.12"].exists()
+    selected_argv = argv_paths["python3.10"].read_text(encoding="utf-8").splitlines()
+    assert selected_argv[0] == "-c"
+    assert "import orchestrator.verifier" in selected_argv[1]
+    assert selected_argv[-1] == str(repo_root)
+    assert (tmp_path / "python3.10.cwd").read_text(encoding="utf-8").strip() == str(
+        repo_root
+    )
+    assert not failure_path.exists()
+    assert not (attempt_dir / "verifier.rc").exists()
+
+
+def test_mocc_trace_verifier_interpreter_gate_fails_closed_and_records_rejections(
+    tmp_path: Path,
+) -> None:
+    pilot = REPO_ROOT / "tools/pegasus/mocc_trace_pilot.sh"
+    source = pilot.read_text(encoding="utf-8")
+    start_marker = '  VERIFIER_PY=""'
+    end_marker = "\n  verifier_rc=0"
+    assert source.count(start_marker) == 1
+    assert source.count(end_marker) == 1
+    start = source.index(start_marker)
+    end = source.index(end_marker)
+    assert start < end
+    verifier_gate = source[start:end]
+
+    repo_root = tmp_path / "repo"
+    repo_root.mkdir()
+    attempt_dir = tmp_path / "attempt"
+    attempt_dir.mkdir()
+    failure_path = tmp_path / "failure"
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    real_realpath = shutil.which("realpath")
+    assert real_realpath is not None
+    (bin_dir / "realpath").symlink_to(real_realpath)
+
+    paths: dict[str, Path] = {}
+    argv_paths: dict[str, Path] = {}
+    candidate_names = ("python3", "python3.10", "python3.11", "python3.12")
+    for name in candidate_names:
+        stub = bin_dir / name
+        argv_path = tmp_path / f"{name}.argv"
+        cwd_path = tmp_path / f"{name}.cwd"
+        _make_executable(
+            stub,
+            f"""
+            #!/bin/sh
+            printf '%s\\n' "$@" >{shlex.quote(str(argv_path))}
+            printf '%s\\n' "$PWD" >{shlex.quote(str(cwd_path))}
+            exit 1
+            """,
+        )
+        paths[name] = stub
+        argv_paths[name] = argv_path
+
+    prefix = "\n".join(
+        [
+            "set -Eeuo pipefail",
+            f"REPO_ROOT={shlex.quote(str(repo_root))}",
+            f"ATTEMPT_DIR={shlex.quote(str(attempt_dir))}",
+            f"FAILURE_PATH={shlex.quote(str(failure_path))}",
+            "write_failure() {",
+            '  printf \'rc=%s\\nstage=%s\\nmessage=%s\\n\' "$1" "$2" "$3" >"$FAILURE_PATH"',
+            "}",
+            "",
+        ]
+    )
+    result = subprocess.run(
+        ["/bin/bash", "-c", prefix + verifier_gate],
+        cwd=REPO_ROOT,
+        env={"PATH": str(bin_dir)},
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert result.returncode == 2, result.stderr
+    failure = failure_path.read_text(encoding="utf-8")
+    assert "stage=verifier\n" in failure
+    assert "rc=2\n" in failure
+    assert "no python3 >= 3.10 candidate can import orchestrator.verifier" in failure
+    for name in candidate_names:
+        resolved = os.path.realpath(paths[name])
+        assert f"{name}={resolved}" in failure
+        argv = argv_paths[name].read_text(encoding="utf-8").splitlines()
+        assert argv[0] == "-c"
+        assert argv[-1] == str(repo_root)
+        assert (tmp_path / f"{name}.cwd").read_text(
+            encoding="utf-8"
+        ).strip() == str(repo_root)
+    assert (attempt_dir / "verifier.rc").read_text(encoding="utf-8") == "2\n"

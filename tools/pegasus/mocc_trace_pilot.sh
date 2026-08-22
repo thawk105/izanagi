@@ -903,10 +903,37 @@ with open(sys.argv[2], "x", encoding="utf-8") as handle:
     )
     handle.write("\n")
 PY
+  VERIFIER_PY=""
+  verifier_py_rejected=""
+  for py_name in python3 python3.10 python3.11 python3.12; do
+    py_cmd=$(command -v -- "$py_name") || continue
+    py_resolved=$(realpath -e -- "$py_cmd") || continue
+    [[ -x "$py_resolved" ]] || continue
+    if (
+      cd "$REPO_ROOT" &&
+      "$py_resolved" -c \
+        'import sys; import orchestrator.verifier; raise SystemExit(0 if sys.version_info >= (3, 10) else 1)' \
+        "$REPO_ROOT"
+    ) >/dev/null 2>&1; then
+      VERIFIER_PY="$py_resolved"
+      break
+    fi
+    verifier_py_rejected+="${verifier_py_rejected:+ }$py_name=$py_resolved"
+  done
+  if [[ -z "$VERIFIER_PY" ]]; then
+    verifier_gate_message="no python3 >= 3.10 candidate can import orchestrator.verifier (rejected: ${verifier_py_rejected:-none})"
+    write_failure 2 verifier "$verifier_gate_message"
+    printf '%s\n' 2 >"$ATTEMPT_DIR/verifier.rc"
+    echo "$verifier_gate_message" >&2
+    exit 2
+  fi
+
   verifier_rc=0
-  python3 -m orchestrator.verifier "$TRACE_DIR" --json \
-    --expected-commits "$COMMIT_COUNT" \
-    >"$ATTEMPT_DIR/verifier.json" 2>"$ATTEMPT_DIR/verifier.stderr" || verifier_rc=$?
+  (
+    cd "$REPO_ROOT" &&
+    "$VERIFIER_PY" -m orchestrator.verifier "$TRACE_DIR" --json \
+      --expected-commits "$COMMIT_COUNT"
+  ) >"$ATTEMPT_DIR/verifier.json" 2>"$ATTEMPT_DIR/verifier.stderr" || verifier_rc=$?
   VERIFIER_RC=$verifier_rc
   printf '%s\n' "$VERIFIER_RC" >"$ATTEMPT_DIR/verifier.rc"
   if [[ "$VERIFIER_RC" -ne 0 ]]; then
