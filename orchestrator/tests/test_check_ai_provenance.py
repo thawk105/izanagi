@@ -2221,6 +2221,31 @@ def test_known_violation_ledger_matches_literal_entries():
             "親作成mergeのためCodex著者とは記さない。",
             "",
         ),
+        (
+            "bf92f327cadfbe626e37cab73d55abe80d3994dd",
+            "missing-codex-author",
+            "本セッション内でユーザーへ状況を説明し known-violation 登録の続行を承認された (2026-08-22、6回目)",
+            "受入投入前に local main 側36コミット（dev-wave-t1476-verify-state-committed の s8b oracle "
+            "report/holdout freeze 関連実装、T-1434 の cache probe insight、T-646 の master seed toctou 修正、"
+            "docs系spool/fold多数）を取り込んだ6回目の merge "
+            "`bf92f327cadfbe626e37cab73d55abe80d3994dd`。"
+            "`tools/check_ai_provenance.py` / `orchestrator/tests/test_check_ai_provenance.py` の "
+            "KNOWN_PROVENANCE_VIOLATIONS / expected tuple 末尾への、本 wave の4エントリ "
+            "(664dfc62 / e86d363a / 0c0f3e71 / dd58c9ca) と main 側の別 wave "
+            "(dev-wave-t1476-verify-state-committed、6f2d97c8 / 3eaf2038) の独立追加が3箇所で競合し、"
+            "親の Claude セッションが直接両側の既存エントリを残す union で解決した。"
+            "`git diff-tree --cc bf92f327cadfbe626e37cab73d55abe80d3994dd` 相当の確認では、"
+            "3箇所の結合結果は両親に既存する known-violation エントリの単純な unionであり、"
+            "競合解決による新規著作なしと確認済み。"
+            "本 wave 担当5 file（`orchestrator/campaign/autonomous_trial_completeness.py` 等）は main 側が変更せず、"
+            "`git status` にも現れなかった。main 側由来で自動マージされた "
+            "`orchestrator/campaign/s8b_holdout_freeze.py` / `orchestrator/campaign/s8b_oracle_report.py` 他も"
+            "構文確認済みで、焦点走は対象3 fileで762 passed、s8b/pegasus関連5 fileで527 passed・2 skippedを確認した。"
+            "merge commit は `AI-Agent: product=claude; model=claude-sonnet-5; reasoning=not-exposed; role=integrator` "
+            "だけで Codex `role=author` 行がないため checker が missing-codex-author を検出した。"
+            "親作成 merge のため Codex 著者とは記さない。",
+            "",
+        ),
     )
     assert len(provenance.KNOWN_PROVENANCE_VIOLATIONS) == len(expected)
     assert observed == expected
