@@ -1111,7 +1111,10 @@ def _binding_schema_issues(entry: object, *, holdout: str,
     return issues
 
 
-def _verify_state(records: Sequence[object], tag: str) -> tuple[str, list[str]]:
+def _verify_state(
+        records: Sequence[object], tag: str,
+        expected_attempt_id: str | None = None,
+) -> tuple[str, list[str]]:
     matches = []
     for record in records:
         if (getattr(record, "stage", None) != "verify_done"
@@ -1124,7 +1127,13 @@ def _verify_state(records: Sequence[object], tag: str) -> tuple[str, list[str]]:
         return "missing", []
     if len(matches) != 1:
         return "missing", [f"verify_done[{tag}] が一意でない: {len(matches)}"]
-    certified = matches[0].payload.get("certified")
+    candidate = matches[0]
+    if (expected_attempt_id is not None
+            and candidate.payload.get("build_attempt_id") != expected_attempt_id):
+        return "missing", [
+            f"verify_done[{tag}].build_attempt_id が committed attempt と不一致"
+        ]
+    certified = candidate.payload.get("certified")
     if certified is True:
         return "pass", []
     if certified is False:
@@ -1244,8 +1253,17 @@ def _assess_window(item: Mapping, window: Sequence[object], manifest: Mapping,
             binding_ok = False
     issues.extend(binding_reasons)
 
-    legacy, legacy_issues = _verify_state(pipeline_records, "legacy")
-    s2, s2_issues = _verify_state(pipeline_records, "s2")
+    expected_attempt_id = None
+    if len(builds) == 1:
+        build_attempt_id = _safe_payload(builds[0]).get("build_attempt_id")
+        if isinstance(build_attempt_id, str) and build_attempt_id:
+            expected_attempt_id = build_attempt_id
+    legacy, legacy_issues = _verify_state(
+        pipeline_records, "legacy", expected_attempt_id,
+    )
+    s2, s2_issues = _verify_state(
+        pipeline_records, "s2", expected_attempt_id,
+    )
     issues.extend(legacy_issues)
     issues.extend(s2_issues)
     for record in pipeline_records:

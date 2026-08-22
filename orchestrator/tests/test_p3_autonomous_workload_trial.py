@@ -2045,6 +2045,186 @@ def test_invalid_role_is_single_attempt_and_stops_cell(tmp_path, monkeypatch) ->
     assert planner.calls == 1
 
 
+class _MalformedAuditorBase(A.FixtureRoleProvider):
+    def __init__(self) -> None:
+        super().__init__("auditor")
+        self.calls = 0
+        self.last_payload: dict[str, Any] = {}
+        self.last_raw_response = ""
+
+    def invoke(self, *, invocation_id, payload):
+        self.calls += 1
+        self.last_payload = dict(payload)
+        response = super().invoke(
+            invocation_id=invocation_id,
+            payload=payload,
+        )
+        raw_response = self.malformed_raw(
+            response.raw_response,
+            payload,
+        )
+        self.last_raw_response = raw_response
+        return dataclasses.replace(
+            response,
+            raw_response=raw_response,
+        )
+
+
+class _AuditorDescriptorBindingExtraKey(_MalformedAuditorBase):
+    def malformed_raw(self, raw_response, payload):
+        value = json.loads(raw_response)
+        value["descriptor_binding"] = payload["descriptor_binding"]
+        return A._canonical_json_bytes(value).decode("utf-8")
+
+
+class _AuditorJsonFence(_MalformedAuditorBase):
+    def malformed_raw(self, raw_response, payload):
+        return f"```json\n{raw_response}\n```"
+
+
+class _AuditorMissingDelimiter(_MalformedAuditorBase):
+    def malformed_raw(self, raw_response, payload):
+        malformed = raw_response.replace(
+            ',"nits":',
+            '"nits":',
+            1,
+        )
+        assert malformed != raw_response
+        return malformed
+
+
+def _assert_malformed_auditor_common(report, run_root, provider):
+    assert report["status"] == "partial"
+    cell = report["cells"][0]
+    assert cell["stop_reason"] == "role-invalid"
+    assert len(cell["generations"]) == 1
+    generation = cell["generations"][0]
+    assert generation["outcome"] == "auditor-invalid"
+    event = generation["roles"]["auditor"]
+    assert event["status"] == "invalid"
+    assert event["error_type"] == "AutonomousTrialError"
+    assert event["attempt"] == 1
+    assert event["retry"] is False
+    assert event["role_query_ordinal"] == 3
+    assert report["honest_accounting"] == {
+        "role_query_count": 3,
+        "bench_wall_seconds": 0.0,
+    }
+    assert provider.calls == 1
+    journal_text = (run_root / "attempts.jsonl").read_text(encoding="utf-8")
+    report_text = (run_root / "report.json").read_text(encoding="utf-8")
+    assert provider.last_raw_response not in journal_text
+    assert provider.last_raw_response not in report_text
+    assert provider.last_raw_response not in json.dumps(
+        report,
+        ensure_ascii=False,
+        sort_keys=True,
+    )
+    return event
+
+
+def test_auditor_descriptor_binding_extra_key_is_single_attempt_and_stops_cell(
+    tmp_path,
+    monkeypatch,
+) -> None:
+    monkeypatch.setattr(A, "MAX_APPROVED_GENERATIONS", 3)
+    auditor = _AuditorDescriptorBindingExtraKey()
+    providers = {
+        role: A.FixtureRoleProvider(role)
+        for role in ("planner", "coder", "auditor", "critic")
+    }
+    providers["auditor"] = auditor
+    run_root = tmp_path / "run"
+    report = A.run_trial(
+        trial_id="auditor-extra-descriptor-binding",
+        workloads=["ycsb-a"],
+        generations=3,
+        provider_kind="fixture",
+        run_root=run_root,
+        sub="/unused",
+        do_build=False,
+        providers=providers,
+        drive=_fake_drive,
+        preview=_fake_preview,
+        allow_unregistered_exploratory=True,
+    )
+
+    event = _assert_malformed_auditor_common(report, run_root, auditor)
+    malformed = json.loads(auditor.last_raw_response)
+    assert len(malformed) == 7
+    assert "descriptor_binding" in malformed
+    assert malformed["descriptor_binding"] == auditor.last_payload[
+        "descriptor_binding"
+    ]
+    assert "response object keys 不一致" in event["error"]
+
+
+def test_auditor_json_fence_is_single_attempt_and_stops_cell(
+    tmp_path,
+    monkeypatch,
+) -> None:
+    monkeypatch.setattr(A, "MAX_APPROVED_GENERATIONS", 3)
+    auditor = _AuditorJsonFence()
+    providers = {
+        role: A.FixtureRoleProvider(role)
+        for role in ("planner", "coder", "auditor", "critic")
+    }
+    providers["auditor"] = auditor
+    run_root = tmp_path / "run"
+    report = A.run_trial(
+        trial_id="auditor-json-fence",
+        workloads=["ycsb-a"],
+        generations=3,
+        provider_kind="fixture",
+        run_root=run_root,
+        sub="/unused",
+        do_build=False,
+        providers=providers,
+        drive=_fake_drive,
+        preview=_fake_preview,
+        allow_unregistered_exploratory=True,
+    )
+
+    event = _assert_malformed_auditor_common(report, run_root, auditor)
+    assert auditor.last_raw_response.startswith("```json\n")
+    assert auditor.last_raw_response.endswith("\n```")
+    assert "JSON object を読めない" in event["error"]
+    assert event["error_type"] == "AutonomousTrialError"
+
+
+def test_auditor_missing_json_delimiter_is_single_attempt_and_stops_cell(
+    tmp_path,
+    monkeypatch,
+) -> None:
+    monkeypatch.setattr(A, "MAX_APPROVED_GENERATIONS", 3)
+    auditor = _AuditorMissingDelimiter()
+    providers = {
+        role: A.FixtureRoleProvider(role)
+        for role in ("planner", "coder", "auditor", "critic")
+    }
+    providers["auditor"] = auditor
+    run_root = tmp_path / "run"
+    report = A.run_trial(
+        trial_id="auditor-missing-delimiter",
+        workloads=["ycsb-a"],
+        generations=3,
+        provider_kind="fixture",
+        run_root=run_root,
+        sub="/unused",
+        do_build=False,
+        providers=providers,
+        drive=_fake_drive,
+        preview=_fake_preview,
+        allow_unregistered_exploratory=True,
+    )
+
+    event = _assert_malformed_auditor_common(report, run_root, auditor)
+    assert ',"nits":' not in auditor.last_raw_response
+    assert '"nits":' in auditor.last_raw_response
+    assert "JSON object を読めない" in event["error"]
+    assert event["error_type"] == "AutonomousTrialError"
+
+
 def test_run_trial_rejects_unapproved_budget_before_artifact_creation(tmp_path) -> None:
     run_root = tmp_path / "run"
     with pytest.raises(A.AutonomousTrialError, match="承認済み上限"):
