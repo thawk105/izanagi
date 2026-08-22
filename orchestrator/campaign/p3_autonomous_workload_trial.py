@@ -203,6 +203,7 @@ AUDITOR_DIFF_DECLASSIFICATION_POLICY_SHA256 = _sha256(
 
 EXPLORATORY_WORKLOAD_PROFILE = "exploratory-ycsb-abc"
 FORMAL_LEGACY_WORKLOAD_PROFILE = "formal-holdout-legacy-v1"
+OFF_NEUTRAL_PAYLOAD_WORKLOAD = "off-neutral"
 WORKLOAD_PROFILES = frozenset({
     EXPLORATORY_WORKLOAD_PROFILE,
     FORMAL_LEGACY_WORKLOAD_PROFILE,
@@ -984,6 +985,34 @@ def _invocation_id(
             f"invocation_id が provider 制約外: {candidate!r}"
         )
     return candidate
+
+
+def _provider_and_audit_invocation_ids(
+    *, arm: str | None, arm_binding_digest: str | None,
+    content_digest: str | None, workload: str, generation: int, role: str,
+) -> tuple[str, str]:
+    """Return the provider ID and the audit-only ID for one role attempt."""
+    audit_id = _invocation_id(
+        arm=arm,
+        digest=arm_binding_digest,
+        workload=workload,
+        generation=generation,
+        role=role,
+    )
+    if arm != "off":
+        return audit_id, audit_id
+    if type(content_digest) is not str:
+        raise AutonomousTrialError(
+            "off provider invocation は content digest を必要とする"
+        )
+    provider_id = _invocation_id(
+        arm=arm,
+        digest=content_digest,
+        workload=OFF_NEUTRAL_PAYLOAD_WORKLOAD,
+        generation=generation,
+        role=role,
+    )
+    return provider_id, audit_id
 
 
 def _active_arm_execution(
@@ -2221,28 +2250,73 @@ def _invoke(
     raw_root: Path, journal: AttemptJournal, workload: str, generation: int,
     transport_receipt: Mapping[str, Any] | None = None,
     validation_receipt: PayloadValidationReceipt | None = None,
+    audit_invocation_id: str | None = None,
+    audit_arm_binding_digest_sha256: str | None = None,
 ) -> tuple[Any | None, dict[str, Any]]:
     payload_bytes = _canonical_json_bytes(payload)
     input_sha256 = _sha256(payload_bytes)
     descriptor_binding = payload.get("descriptor_binding")
-    arm_binding_digest = (
+    payload_arm_binding_digest = (
         descriptor_binding.get("arm_binding_digest_sha256")
         if isinstance(descriptor_binding, Mapping)
         else None
+    )
+    audit_id = invocation_id if audit_invocation_id is None else audit_invocation_id
+    arm_binding_digest = (
+        payload_arm_binding_digest
+        if audit_arm_binding_digest_sha256 is None
+        else audit_arm_binding_digest_sha256
     )
     if invocation_id.startswith("arm-") and arm_binding_digest is None:
         raise AutonomousTrialError(
             "formal provider payload に arm binding digest がない"
         )
+    if audit_id.startswith("arm-") and arm_binding_digest is None:
+        raise AutonomousTrialError(
+            "formal audit invocation に arm binding digest がない"
+        )
     if arm_binding_digest is not None:
         if (
             type(arm_binding_digest) is not str
             or _LOWER_HEX_RE.fullmatch(arm_binding_digest) is None
-            or f".exec-{arm_binding_digest}." not in invocation_id
+            or f".exec-{arm_binding_digest}." not in audit_id
         ):
             raise AutonomousTrialError(
-                "provider invocation が arm binding digest に束縛されていない"
+                "audit invocation が arm binding digest に束縛されていない"
             )
+    if payload_arm_binding_digest is not None and (
+        type(payload_arm_binding_digest) is not str
+        or _LOWER_HEX_RE.fullmatch(payload_arm_binding_digest) is None
+        or payload_arm_binding_digest != arm_binding_digest
+        or f".exec-{payload_arm_binding_digest}." not in invocation_id
+    ):
+        raise AutonomousTrialError(
+            "provider payload が provider invocation の arm binding digest と不一致"
+        )
+    if payload_arm_binding_digest is None and invocation_id.startswith("arm-"):
+        payload_content_digest = (
+            descriptor_binding.get("content_digest_sha256")
+            if isinstance(descriptor_binding, Mapping)
+            else None
+        )
+        if (
+            type(payload_content_digest) is not str
+            or _LOWER_HEX_RE.fullmatch(payload_content_digest) is None
+            or f".exec-{payload_content_digest}." not in invocation_id
+            or payload.get("workload") != OFF_NEUTRAL_PAYLOAD_WORKLOAD
+            or not invocation_id.endswith(
+                f".{OFF_NEUTRAL_PAYLOAD_WORKLOAD}.g{generation}.{role}"
+            )
+        ):
+            raise AutonomousTrialError(
+                "off provider invocation が中立 payload に束縛されていない"
+            )
+    if audit_id != invocation_id and not audit_id.endswith(
+        f".{workload}.g{generation}.{role}"
+    ):
+        raise AutonomousTrialError(
+            "audit invocation が実 workload と role に束縛されていない"
+        )
     if validation_receipt is not None:
         if role not in {"planner", "coder"}:
             raise AutonomousTrialError(
@@ -2284,7 +2358,7 @@ def _invoke(
         "workload": workload,
         "generation": generation,
         "role": role,
-        "invocation_id": invocation_id,
+        "invocation_id": audit_id,
         "input_payload_sha256": input_sha256,
         "descriptor_sha256": payload["descriptor_binding"]["output_sha256"],
         "attempt": 1,
@@ -2355,7 +2429,7 @@ def _invoke(
                 provenance.get("transport_receipt"), expected=transport_receipt
             )
         raw_bytes = response.raw_response.encode("utf-8")
-        raw_path = raw_root / f"raw_{invocation_id}.txt"
+        raw_path = raw_root / f"raw_{audit_id}.txt"
         raw_sha256 = _write_bytes_bound(raw_path, raw_bytes)
         parsed = PARSERS[role](response.raw_response)
     except Exception as exc:
@@ -2401,6 +2475,8 @@ def _journal_auditor_skip(
     *, invocation_id: str, common: Mapping[str, Any],
     preview_result: Mapping[str, Any], journal: AttemptJournal,
     workload: str, generation: int,
+    audit_invocation_id: str | None = None,
+    audit_arm_binding_digest_sha256: str | None = None,
 ) -> dict[str, Any]:
     evidence = {
         key: value for key, value in preview_result.items()
@@ -2412,7 +2488,10 @@ def _journal_auditor_skip(
         "workload": workload,
         "generation": generation,
         "role": "auditor",
-        "invocation_id": invocation_id,
+        "invocation_id": (
+            invocation_id
+            if audit_invocation_id is None else audit_invocation_id
+        ),
         "input_payload_sha256": _sha256(_canonical_json_bytes(skip_payload)),
         "descriptor_sha256": common["descriptor_binding"]["output_sha256"],
         "attempt": 1,
@@ -2426,9 +2505,11 @@ def _journal_auditor_skip(
         "skip_reason": "machine-pre-audit-rejection",
         "pre_audit": evidence,
     }
-    arm_binding_digest = common["descriptor_binding"].get(
-        "arm_binding_digest_sha256"
-    )
+    arm_binding_digest = audit_arm_binding_digest_sha256
+    if arm_binding_digest is None:
+        arm_binding_digest = common["descriptor_binding"].get(
+            "arm_binding_digest_sha256"
+        )
     if arm_binding_digest is not None:
         event["arm_binding_digest_sha256"] = arm_binding_digest
     return journal.append(event)
@@ -2436,16 +2517,21 @@ def _journal_auditor_skip(
 
 def _common_payload(
     *, workload: str, generation: int, descriptor: Mapping[str, Any],
-    descriptor_record: Mapping[str, Any],
+    descriptor_record: Mapping[str, Any], arm: str | None = None,
 ) -> dict[str, Any]:
+    payload_workload = workload
+    payload_descriptor_binding = dict(descriptor_record)
+    if arm == "off":
+        payload_workload = OFF_NEUTRAL_PAYLOAD_WORKLOAD
+        payload_descriptor_binding.pop("arm_binding_digest_sha256", None)
     return {
         "schema_version": SCHEMA_VERSION,
         "pilot_scope": "exploratory-ycsb-abc",
         "scientific_claim": False,
-        "workload": workload,
+        "workload": payload_workload,
         "generation": generation,
         "workload_descriptor": dict(descriptor),
-        "descriptor_binding": dict(descriptor_record),
+        "descriptor_binding": payload_descriptor_binding,
         "attempt_policy": {"attempts_per_role_generation": 1, "retry": False},
         "stop_policy": {
             "performance_early_stop": False,
@@ -2778,6 +2864,30 @@ def _run_one_pending_critic(
         outcome = pending["outcome"]
         current_metrics = pending["metrics"]
         raw_variant = pending["raw_variant"]
+        arm_execution = _active_arm_execution(workload=cell["workload"])
+        invocation_arm = (
+            None if arm_execution is None
+            else arm_execution.resolved_input.arm
+        )
+        invocation_digest = (
+            None if arm_execution is None
+            else arm_execution.arm_binding_digest_sha256
+        )
+        content_digest = None
+        if arm_execution is not None:
+            content_digest = pending["common"]["descriptor_binding"][
+                "content_digest_sha256"
+            ]
+        provider_invocation_id, audit_invocation_id = (
+            _provider_and_audit_invocation_ids(
+                arm=invocation_arm,
+                arm_binding_digest=invocation_digest,
+                content_digest=content_digest,
+                workload=cell["workload"],
+                generation=pending["generation"],
+                role="critic",
+            )
+        )
         digest_path = Path(cell["campaign_root"]) / trigger.DIGEST_BASENAME
         digest = None
         candidate_label = raw_variant
@@ -2821,34 +2931,27 @@ def _run_one_pending_critic(
         elif raw_variant:
             # A stale same-named file is intentionally not read on this branch.
             candidate_label = loop_core.UNREGISTERED_CANDIDATE_LABEL
+        role_candidate_label = (
+            None if invocation_arm == "off" else candidate_label
+        )
+        role_critic_digest = None if invocation_arm == "off" else digest
         critic_payload = {
             **pending["common"],
             "harness_result": {
                 "outcome": outcome.get("outcome"),
-                "candidate_label": candidate_label,
+                "candidate_label": role_candidate_label,
                 "verdict": outcome.get("verdict"),
                 "metrics": dict(current_metrics),
                 "stop_reason": outcome.get("stop_reason"),
             },
-            "critic_digest": digest,
+            "critic_digest": role_critic_digest,
         }
-        arm_execution = _active_arm_execution(workload=cell["workload"])
         critic, event = _invoke(
             role="critic",
             provider=providers["critic"],
-            invocation_id=_invocation_id(
-                arm=(
-                    None if arm_execution is None
-                    else arm_execution.resolved_input.arm
-                ),
-                digest=(
-                    None if arm_execution is None
-                    else arm_execution.arm_binding_digest_sha256
-                ),
-                workload=cell["workload"],
-                generation=generation,
-                role="critic",
-            ),
+            invocation_id=provider_invocation_id,
+            audit_invocation_id=audit_invocation_id,
+            audit_arm_binding_digest_sha256=invocation_digest,
             payload=critic_payload,
             raw_root=run_root / "raw",
             journal=journal,
@@ -3551,12 +3654,6 @@ def _run_workload(
             active_generation_record = generation_record
             if _partial is not None:
                 _partial["generation"] = generation_record
-            common = _common_payload(
-                workload=workload,
-                generation=generation,
-                descriptor=descriptor,
-                descriptor_record=descriptor_record,
-            )
             invocation_arm = (
                 None if arm_execution is None
                 else arm_execution.resolved_input.arm
@@ -3565,7 +3662,28 @@ def _run_workload(
                 None if arm_execution is None
                 else arm_execution.arm_binding_digest_sha256
             )
+            content_digest = (
+                None if arm_execution is None
+                else descriptor_record["content_digest_sha256"]
+            )
+            common = _common_payload(
+                workload=workload,
+                generation=generation,
+                descriptor=descriptor,
+                descriptor_record=descriptor_record,
+                arm=invocation_arm,
+            )
             whiteboard = _whiteboard(layout)
+            planner_invocation_id, planner_audit_invocation_id = (
+                _provider_and_audit_invocation_ids(
+                    arm=invocation_arm,
+                    arm_binding_digest=invocation_digest,
+                    content_digest=content_digest,
+                    workload=workload,
+                    generation=generation,
+                    role="planner",
+                )
+            )
             planner_payload = {
                 **common,
                 "current_perf": _planner_current_perf_payload(
@@ -3584,10 +3702,10 @@ def _run_workload(
                 planner_payload["critic_feedback"] = dict(critic_feedback or {})
             planner_validation_receipt = validate_planner_payload(
                 planner_payload,
-                expected_workload=workload,
+                expected_workload=common["workload"],
                 expected_generation=generation,
-                expected_workload_descriptor=descriptor,
-                expected_descriptor_binding=descriptor_record,
+                expected_workload_descriptor=common["workload_descriptor"],
+                expected_descriptor_binding=common["descriptor_binding"],
                 expected_whiteboard_origin=_whiteboard(layout),
                 expected_current_perf=copy.deepcopy(frozen_perf),
                 expected_leading_indicators=copy.deepcopy(frozen_leading),
@@ -3597,13 +3715,9 @@ def _run_workload(
             planner, event = _invoke(
                 role="planner",
                 provider=providers["planner"],
-                invocation_id=_invocation_id(
-                    arm=invocation_arm,
-                    digest=invocation_digest,
-                    workload=workload,
-                    generation=generation,
-                    role="planner",
-                ),
+                invocation_id=planner_invocation_id,
+                audit_invocation_id=planner_audit_invocation_id,
+                audit_arm_binding_digest_sha256=invocation_digest,
                 payload=planner_payload,
                 raw_root=run_root / "raw",
                 journal=journal,
@@ -3640,12 +3754,22 @@ def _run_workload(
                 ),
                 "whiteboard": whiteboard,
             }
+            coder_invocation_id, coder_audit_invocation_id = (
+                _provider_and_audit_invocation_ids(
+                    arm=invocation_arm,
+                    arm_binding_digest=invocation_digest,
+                    content_digest=content_digest,
+                    workload=workload,
+                    generation=generation,
+                    role="coder",
+                )
+            )
             coder_validation_receipt = validate_coder_payload(
                 coder_payload,
-                expected_workload=workload,
+                expected_workload=common["workload"],
                 expected_generation=generation,
-                expected_workload_descriptor=descriptor,
-                expected_descriptor_binding=descriptor_record,
+                expected_workload_descriptor=common["workload_descriptor"],
+                expected_descriptor_binding=common["descriptor_binding"],
                 expected_whiteboard_origin=_whiteboard(layout),
                 expected_baseline=copy.deepcopy(frozen_perf),
                 gating_spec_snapshot=gating_spec_snapshot,
@@ -3654,13 +3778,9 @@ def _run_workload(
             coder, event = _invoke(
                 role="coder",
                 provider=providers["coder"],
-                invocation_id=_invocation_id(
-                    arm=invocation_arm,
-                    digest=invocation_digest,
-                    workload=workload,
-                    generation=generation,
-                    role="coder",
-                ),
+                invocation_id=coder_invocation_id,
+                audit_invocation_id=coder_audit_invocation_id,
+                audit_arm_binding_digest_sha256=invocation_digest,
                 payload=coder_payload,
                 raw_root=run_root / "raw",
                 journal=journal,
@@ -3688,6 +3808,16 @@ def _run_workload(
                 not preview_result["passed"]
                 or bool(preview_result["forbidden_identifiers"])
             )
+            auditor_invocation_id, auditor_audit_invocation_id = (
+                _provider_and_audit_invocation_ids(
+                    arm=invocation_arm,
+                    arm_binding_digest=invocation_digest,
+                    content_digest=content_digest,
+                    workload=workload,
+                    generation=generation,
+                    role="auditor",
+                )
+            )
             if pre_audit_reject:
                 active_accounting["auditor_pre_audit_skipped"] = True
                 auditor = AuditorVerdict(
@@ -3696,13 +3826,9 @@ def _run_workload(
                     uncertainty="not invoked: machine pre-audit rejection",
                 )
                 event = _journal_auditor_skip(
-                    invocation_id=_invocation_id(
-                        arm=invocation_arm,
-                        digest=invocation_digest,
-                        workload=workload,
-                        generation=generation,
-                        role="auditor",
-                    ),
+                    invocation_id=auditor_invocation_id,
+                    audit_invocation_id=auditor_audit_invocation_id,
+                    audit_arm_binding_digest_sha256=invocation_digest,
                     common=common,
                     preview_result=preview_result,
                     journal=journal,
@@ -3723,13 +3849,9 @@ def _run_workload(
                 auditor, event = _invoke(
                     role="auditor",
                     provider=providers["auditor"],
-                    invocation_id=_invocation_id(
-                        arm=invocation_arm,
-                        digest=invocation_digest,
-                        workload=workload,
-                        generation=generation,
-                        role="auditor",
-                    ),
+                    invocation_id=auditor_invocation_id,
+                    audit_invocation_id=auditor_audit_invocation_id,
+                    audit_arm_binding_digest_sha256=invocation_digest,
                     payload=auditor_payload,
                     raw_root=run_root / "raw",
                     journal=journal,
