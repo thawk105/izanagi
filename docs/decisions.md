@@ -25969,3 +25969,110 @@ docstringは「非干渉性が完全に成立した」と書かず、この限�
 
 - 全性能実測を人間の明示 qsub に限定する — AI 自動合成の実験ループを不必要に停止させるため採らない。
 - qsub を直接打つだけで preflight・receipt・source pin・verifier を省略する — 性能値の権威性と再現性を失うため採らない。
+
+## D651. role 出力契約 fixture 回帰テストは raw 形状の直接検証を必須とする (2026-08-22)
+
+**決定:** parser の fail-closed 動作を fixture で個別に固定する回帰テストは、共通の `status`/`error_type`/`stop_reason` assertion だけでなく、malformed provider が実際に返した raw response 文字列の形状 (prefix/suffix・特定部分文字列の有無・キー集合など) を直接検証する assertion を必須で含める。
+
+**理由:**
+- S8C live pilot (worklog entry 612) で観測された role 出力契約非適合3パターン (auditor が入力の `descriptor_binding` を出力へ複製し top-level 7 キー化・JSON を fence 包み・JSON 区切り文字欠落) を fixture 回帰テストとして新設する dev-wave で、段3 敵対相談の独立2レンズ (sol・luna) が、fence ケースと区切り文字欠落ケースは同じ parser 経路 (`JSONDecodeError` → `PredictionRunnerError` → `AutonomousTrialError`) を通り同じ `status`/`error_type`/`stop_reason` に収束するため、raw 形状を検証しない限り mutation testing で互いを区別できない冗長 gate になる、と**独立に同一の結論**を報告した。
+- 段4 裁定でこの指摘を採用し、各テストへ raw 形状の直接検証 (7 キー: `descriptor_binding` の複製確認、fence: prefix/suffix 確認、区切り文字欠落: 特定部分文字列の有無確認) を実装要件に追加した。
+- 変異 matrix (7キー緩和・fence 除去追加・delimiter 緩和、それぞれ auditor 経路限定の一時変異) を実測した結果、3 変異とも対応する 1 テストだけが KILLED (matches_expectation=true) となり、raw 形状 assertion の追加が実際に単一理由性を担保することを確認した。raw 形状を検証しない設計 (共通 assertion のみ) では、この単一理由性が保証されない。
+
+**却下した選択肢:**
+- 共通 assertion (`status`/`error_type`/`stop_reason` 等) だけで3ケースを新設する — 段3 2レンズが独立に指摘したとおり、fence と区切り文字欠落が同じ例外経路に収束するため、mutation testing で区別できない冗長 gate になり実効性を欠く。
+
+## D652. official report の verify_done 読み取りに committed attempt 束縛を追加し、scope は verify のみに限定する (2026-08-22)
+
+**決定:** `orchestrator/campaign/s8b_oracle_report.py` の `_verify_state` に
+`expected_attempt_id` (既定 `None`) を追加し、呼び出し元 `_assess_window` が window の
+唯一の `build_start` から `build_attempt_id` を読んで渡す。候補の verify_done record が
+一意でも `build_attempt_id` が `expected_attempt_id` と不一致なら certified 判定前に
+`missing` + issue とする。`expected_attempt_id is None` (build_start に ID 欠落、または
+`build_start` が0件/複数件の異常 window) では新検査を完全に skip し、legacy WAL の
+既存挙動を変えない。`build_done`/`bench_done`/`abort`/`commit` payload の同型の
+attempt_id 不問は本 wave では手当てせず、次task候補として残す。
+
+**理由:**
+- 段2 codex plan (reasoning=max) が具体的な反例 (stale attempt の legacy verify_done が
+  committed attempt の s2 verify_done と共存し、report が stale 側を採用してしまう) を
+  構成し、段3 敵対相談2レンズ (sol=正しさ境界, luna=整合・実効性・scope) が独立に成立を
+  確認した。
+- 起票文 (本 wave の originating command 引数) が `_verify_state` 周辺への scope 限定と、
+  digest.py 等の別 consumer へ scope を広げないことを明示していた。
+- sol が `build_done`/`bench_done`/`abort`/`commit` にも同型の脆弱性があると追加指摘したが、
+  luna も含め「production diff は verify-only で段階導入として妥当、広い保証を掲げるなら
+  scope 拡大が要る」という一致した判断だった。CLAUDE.md 規律5 (段階導入・盛らない) に従い、
+  最小 diff を選んだ。
+- legacy 互換: T-567 (`6130a1b9`) の follow-up fix (`55d6c019`) が
+  「`build_attempt_id is None` の場合は新規厳格検証を skip して continue する」という
+  後方互換パターンを既に確立していた。本決定はこの前例を踏襲する。ID を先に filter して
+  候補を減らす実装は、診断シグナルを失い「正しい1件だけが残った」ように見えてしまうため
+  採用しなかった (段2 plan・段3 sol が指摘)。
+
+**却下した選択肢:**
+- `digest.py` の `EvalState.committed_verify`/`wal.replay_admitted_records()` へ移行する案
+  — s8b は `_trial_windows()` による schedule-level window 走査で `wal.replay()`/`EvalState`
+  を経由しない独立実装であり、`digest.load_verify_abort_signals()` も admitted
+  `CampaignView` 前提で raw window API と形状が異なる。non-committed outcome
+  (correctness-red 等) の証拠を単純に committed projection へ落とすと失われるため、
+  局所 anchor 方式 (window の `build_start` から `expected_attempt_id` を導出) を採用した。
+- ID 不一致の候補を certified 判定前に filter で除外する実装 — 一意性検査の母数を
+  減らしてから判定すると、除外された事実が issue に残らず診断力を失う。count-first
+  (既存の `len(matches)!=1`) → ID 一致検査 (一意な候補が1件のときだけ) の順を維持した。
+
+## D653. T-189 provider cache 制御可能性を実測し、制御不可能と確定した (2026-08-22)
+
+**決定:** Codex CLI (`codex exec`)・Claude CLI (`claude -p`) のいずれも、provider 側 prompt
+cache の reset・namespace・cold/warm 明示制御を行う CLI 引数・環境変数を持たないと実測で確定した。
+ローカルな isolation (`CODEX_HOME` の新規作成、`--no-session-persistence`) は provider 側 cache に
+一切影響しない。Codex は「同一 thread を `resume` で継続するか否か」だけが cache の温度を左右し、
+task 固有内容は独立呼出し (新規 thread) をまたいでは cache されない。Claude は逆に、一度送信した
+内容はプロセス・session の独立性に関わらず TTL 内 (既定 `ephemeral_1h`) で確実に cache から読まれる。
+T-189 §9 (段6所見 B5) が定める「制御できない場合 resource 指標を `not-applicable` とする」既定を
+維持・確定する。`routing_evidence_status` (D640) は本決定だけでは変わらず `inconclusive` のまま。
+
+**理由:**
+- `codex exec --help`/`codex exec resume --help`/`codex exec fork --help`/`claude --help` の
+  全オプションを走査し、cache 制御に該当する CLI フラグが存在しないことを確認した
+  (Claude の `--exclude-dynamic-system-prompt-sections` は cross-user cache 再利用が目的で
+  cold/warm 制御ではない)。
+- Codex 8 回・Claude 3 回の実 CLI 呼出しによる直接測定が、新規 `CODEX_HOME`・新規 session・
+  新規プロセスのいずれも provider 側 cache を reset しないことを一貫して示した (生ログ・詳細は
+  `output/insights/2026-08-21_t1434-t189-cache-control-probe/`)。
+
+**却下した選択肢:**
+- `CODEX_HOME`/session ID の独立性を cache 分離の代替根拠として採用する — 実測で provider 側
+  cache に一切影響しないと判明したため、これを cold 条件の根拠にはできない。
+- 本 wave で resource `not-applicable` 抑止ロジック自体 (§12 判定表の評価器) を実装する — 判定器
+  本体が未実装のまま抑止だけを作ると D640 がすでに却下した「未使用の飾り」を再発するため、
+  本 wave でも見送る。
+
+## D654. holdout freeze producer の HEAD blob 束縛は最小差分に留め、共有 helper の硬化は見送る (2026-08-22)
+
+**決定:** 床値 protocol master_seed TOCTOU carry の fix は `s8b_holdout_freeze.py` の
+`_validate_floor_inputs` へ、同ファイル内で既に使われている `_blob_at_head`
+(`measurement_closure` 等) と同型の captured HEAD blob 対 working tree bytes の byte-exact
+比較を追加するに留める。`s8b_floor_campaign.py` が備える HEAD commit 検証
+(`git rev-parse --verify HEAD^{commit}`)・exact `100644` mode 検査 (`git ls-tree`)・git
+replace object 衛生化 (`--no-replace-objects`) は、本 wave では `_blob_at_head`/`head` 捕捉
+ヘルパーへ移植しない。
+
+**理由:**
+- 段3 敵対相談レンズが指摘した3点 (HEAD が commit である保証がない・HEAD tree entry の exact
+  mode 未検査・git replace object 未衛生化) は、`_blob_at_head` を共有する既存4箇所
+  (`measurement_closure`・`known_axes_freeze`・`generator`・`design_source`) すべてに及ぶ
+  既存の弱点であり、本 wave が新たに導入するものではない。
+- 攻撃には repo への特権的 git 操作 (replace object 設定・HEAD 参照の非 commit 化) が要り、
+  本 carry が想定する脅威モデル (qsub 投入後の working-tree だけの誤編集・事故) より強い前提を
+  要求する。
+- `DW-G02` (初回 cycle 前の hardening は correctness 判定を実際に変える欠陥だけ blocker) および
+  `DW-G03` (族一般化には独立2例) に従い、同一ファイル内の再発ではあるが独立した別 producer での
+  再現ではないため一般化の閾値に届かない。
+- 2026-08-12 ユーザー方針 (研究最優先・プロトタイプ基準、防御的堅牢化は既定で見送り) とも整合する。
+
+**却下した選択肢:**
+- `s8b_floor_campaign.py` の `_head_commit_oid`/`_head_blob_100644`/`_sanitized_floor_git_env`
+  相当を `s8b_holdout_freeze.py` へ移植し、既存4箇所すべてを同時に硬化する — scope が本 carry の
+  主張から大きく逸脱し、段階導入規律に反する。carry `[T-1487]`
+  へ送った。

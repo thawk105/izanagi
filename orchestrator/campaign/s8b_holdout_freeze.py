@@ -1346,7 +1346,7 @@ def _load_repo_object(root: Path, raw_path, *, label: str) -> Tuple[str, bytes, 
 
 
 def _validate_floor_inputs(
-    *, root: Path, floor_result_path, v1: Mapping,
+    *, root: Path, head: str, floor_result_path, v1: Mapping,
 ) -> Tuple[str, bytes, Dict, bytes, Dict, Dict]:
     # v1 API の import・実行境界を v2 専用依存の import-time validation や
     # process-wide callback 登録から分離する。
@@ -1362,6 +1362,13 @@ def _validate_floor_inputs(
     protocol_raw = _capture_regular_nofollow(
         root / FLOOR_PROTOCOL_REL, label="floor protocol",
     )
+    head_protocol_raw = _blob_at_head(
+        head, FLOOR_PROTOCOL_REL, root, label="floor protocol",
+    )
+    if protocol_raw != head_protocol_raw:
+        raise FreezeError(
+            "floor protocol が captured HEAD と worktree で不一致"
+        )
     protocol_document = _strict_load_object_bytes(protocol_raw, "floor protocol")
     try:
         protocol = s8b_floor_contract.validate_protocol(
@@ -1714,7 +1721,7 @@ def build_v2_g1_candidate(
     (
         result_rel, result_raw, _result, protocol_raw, protocol, floor,
     ) = _validate_floor_inputs(
-        root=root, floor_result_path=floor_result_path, v1=v1,
+        root=root, head=head, floor_result_path=floor_result_path, v1=v1,
     )
     known_axes = _v1_source_record_at_head(
         v1, "known_axes_freeze", head=head, root=root,
