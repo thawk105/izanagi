@@ -25,6 +25,35 @@ seq: 2
   が段ごとに相異なる値 (S05-A=medium / S06-A=high / S06-C=low) を要求し、いずれも live 値
   `xhigh` と異なるため、同型の no-op が再び起きれば assertion が落ちる。
 
+### {{F:external-dependency-red-mistaken-for-broken-test}}. 外部依存の準備待ちで落ちた正しさゲートを「壊れた既知赤」と誤認し、除去の一歩手前まで行った [誤前提]
+
+- 事象: 受入全走で `orchestrator/tests/test_sort_swo_oracle.py` が **26 件赤**になり、4 回の
+  受入で件数も内訳も完全一致した。複数セッションがこれを「main 登録済みの決定的な既知赤」と扱い、
+  **file ごと受入から永久除外する**方針が動き、ユーザーからも除去の許可が出た。実際にはテストは
+  健全で、外部依存 (masstree) の構築が終わっていないだけだった。
+- 根本原因: 赤の**理由**を読まず、件数の再現性だけで「決定的 = テスト側の問題」と推論した。
+  `/tmp` の oracle memo キャッシュには `detail_code: oracle-environment-dependency-unresolved`、
+  依存候補 10 件すべてが `config-h-missing` と記録されていた。コンパイラは `path:g++` で
+  `selected` になっており、**落ちていたのは依存側だけ**だった。
+  この経路は「cache miss and corruption never invoke the resolver」という fail-closed 設計のため、
+  依存が後から揃っても既存キャッシュの失敗を読み続ける。件数の再現性は
+  「テストが決定的に壊れている」ではなく「キャッシュされた失敗を読み続けている」の帰結である。
+- **依存が揃うにつれ赤が減ることを実測した**: `config.h` 不在時 26 件 → `config.h` 生成後 10 件。
+  残り 10 件の理由も `oracle-environment-dependency-unresolved` から
+  `_EvaluationUnavailable: candidate-run-signal-6` (コンパイルは通りバイナリが SIGABRT) へ変わり、
+  `libjson.a` と `.o` が未生成であることを確認した。
+- 除去していた場合の損失: この file は strict weak ordering の公理違反を**実コンパイル・実行**で
+  検出する正しさゲートである (`test_cpp_e2e_reports_each_axiom_and_exact_indices` の
+  irreflexive / asymmetric / transitive / equivalence-transitive)。除去は sort comparator の
+  変異が公理を破っても検出できない状態を作り、絶対規律 2 に正面から抵触した。
+- 恒久対応: 受入の赤を「非帰属」「既知」と分類する前に、**赤の理由文字列を必ず読む**。
+  `_EvaluationUnavailable` / `*-unresolved` / `*-missing` の形は環境の準備不足を示し、
+  テスト側の欠陥ではない。memo キャッシュを持つ経路では、キャッシュが失敗を保持している間は
+  件数が固定されるため、**再現性を決定性の証拠に使ってはならない**。
+- 再発検知: `python3 tools/run_tests.py orchestrator/tests/test_sort_swo_oracle.py -q` を
+  依存構築の前後で走らせると件数が変わる。`/tmp/izanagi-sort-swo-oracle-*.json` の
+  `failure.detail_code` と `dependency_candidates[].outcome` が一次資料である。
+
 ## 再発
 
 ### F24
