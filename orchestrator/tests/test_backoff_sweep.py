@@ -1,4 +1,11 @@
+import os
+import sys
+
 from types import SimpleNamespace
+
+_HERE = os.path.dirname(os.path.abspath(__file__))
+_ORCH = os.path.dirname(_HERE)
+sys.path.insert(0, os.path.dirname(_ORCH))
 
 from orchestrator.campaign import backoff_sweep
 from orchestrator.campaign.durable_root import DurableRootPolicy
@@ -84,3 +91,14 @@ def test_without_official_output_root_policy_is_omitted(monkeypatch):
     )
 
     assert captured["durable_root_policy"] is None
+
+
+# ---- 素の runner (直接起動でも pytest を実行) ----
+
+def _run():
+    import pytest
+    return pytest.main([__file__, "-q"])
+
+
+if __name__ == "__main__":
+    sys.exit(_run())
