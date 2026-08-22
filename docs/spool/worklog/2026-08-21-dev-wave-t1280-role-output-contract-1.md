@@ -13,7 +13,7 @@ title: '[T-1280] S8C role output契約非適合3パターンをauditor fixture�
   [T-1280] 起票文) と `docs/phase3-s8c-autonomous-trial-runbook.md`。8c live pilot 実機9走中
   5走 (auditor2/coder2/planner1) が role 出力契約非適合で1世代を失った事象のうち、本 wave は
   auditor 役の3 failure mode (入力 `descriptor_binding` 複製による top-level 7キー化・JSON を
-  ```json フェンスで包む・JSON 区切り文字欠落) を fixture 回帰テストで個別に再現・分類した。
+  コードフェンスで包む・JSON 区切り文字欠落) を fixture 回帰テストで個別に再現・分類した。
 - 段3 敵対相談2レンズ (sol=正しさ境界、luna=整合・実効性・scope) が**独立に同一の結論**を
   報告した: fence ケースと区切り文字欠落ケースは同じ parser 例外経路
   (`JSONDecodeError`→`PredictionRunnerError`→`AutonomousTrialError`) を通り同じ
