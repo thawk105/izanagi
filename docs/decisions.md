@@ -25642,3 +25642,269 @@ resource `not-applicable` 抑止ロジックは、gate 評価器自体 (§12 全
 閉じない blocker を独立に発見し、段4裁定で是正した。変異事前登録6件、baseline PASSED、
 5/6 KILLED (1件は既知の node ID 登録制約で MISMATCH 確定、erratum は worklog 参照)。
 受入 verdict=child-green。
+
+## D641. official campaign の出力 root を repo 外へ強制し、D158 の「official は env を参照しない」記述の該当部分を supersede する (2026-08-22)
+
+**決定:** `declared_use_class="official"` の campaign 出力 root 解決
+(`resolve_campaign_output_root`) を fail-closed 化する。新設 env `IZANAGI_OFFICIAL_OUTPUT_ROOT`
+または呼び手の明示 `output_root` のいずれかを要求し、いずれも未指定なら repo 内へ暗黙に
+倒れず例外を送出する。explicit 引数も含め毎回、exploration と同水準の外部性検証
+(絶対 path 必須・`..` 拒否・symlink 拒否・git 祖先拒否・uid 所有・worktree container 拒否) を
+通す。`s8b_oracle_driver.py` の holdout 実走 CLI (`run-block`) は `--output-root` 既定値を
+repo 内 fallback から `None` へ変更し、central resolver の拒否を `status="refused"` gate
+decision へ変換する。解決済み root 専用の `DurableRootPolicy` を `run_block()` へ注入し、
+`default_durable_root_policy()` (repo `output/` のみ approved) 自体は変更しない。
+exploration 分岐の既存挙動 (env 未設定時は repo 内 legacy fallback を維持、worktree
+container 拒否は resolve 時でなく `.ensure()` 時) は byte-compatible に温存する。
+
+**理由:**
+- 正式 holdout run が書く `campaign.lock` は `ycsb_rratio`/`ycsb_zipf_skew`/`ycsb_rmw` を
+  同一ファイルに並べる compact canonical JSON であり、`output/campaigns/`・
+  `output/exploration/` いずれも `.gitignore` 対象外のため、repo scan の untracked
+  非 ignore file 列挙に conjunction hit として拾われる。RatifiedFreeze v2 発効後の
+  全 repo scan (`launch_validate`) 契約と自己矛盾する。
+- ユーザー裁定 (2026-08-20): 択(a) 正式 run の run root/campaign root を repo 外へ強制する
+  採用。一次資料は `docs/archive/worklog-phase3-0818-658.md:618-631` (entry 658)。
+
+**却下した選択肢:**
+- (b) 凍結の unknownness 主張を「凍結時点の歴史的記録」と明示し事後 scan を要求しない —
+  検出側の緩和であり、生成側の根本原因を放置する。ユーザー裁定で不採用。
+- (c) 明示的な exempt path を裁定する — 択一裁定で明示的に不採用。将来の同型 producer が
+  無防備なまま残る。
+- `default_durable_root_policy()` を env 連動にして任意の外部 path を自動承認する変更 —
+  既存 policy を弱め、exploration や他の durable writer へ波及する。
+
+**D158 との関係:** D158 は「official `CampaignLayout` と `output/env/` は env を参照しない」と
+記す。本 D はこのうち **official `CampaignLayout` に関する部分だけ** を supersede する —
+official は `IZANAGI_OFFICIAL_OUTPUT_ROOT` を参照するようになった。`output/env/`
+(`env_scope_dir()`) 自体は本 wave で変更しておらず、D158 のこの部分および
+materialization admission (`_admit_materialization`、official=no-op・exploration=worktree
+container 拒否) に関する記述は従来どおり有効である。
+
+## D642. 承認pin (CCBENCH_FULL_SHA) が実gitlinkから漂流したら、能動gateの有無を確認してから revert を canary hold / cascade より優先する (2026-08-22)
+
+**決定:** `orchestrator/campaign/s8b_approved.CCBENCH_FULL_SHA` のような「承認済みpin定数」が
+実 gitlink と食い違ったとき、対応方針を選ぶ前に **その pin を検査している全経路を、受動的
+canary (test suite 内の複製 assert) と能動的 gate (実際に凍結発行等を行う本番関数内の
+fail-closed 検査) に分類する**。能動的 gate が1つでも存在し、かつ今すぐその機能 (今回は
+S8b floor campaign の新規凍結発行) を使う具体的な予定が無いなら、canary の hold や
+campaign-id golden の連鎖修正より、**pin 前進そのものを revert する方を優先する**。
+revert が下流 wave (今回は T-755, MOCC trace hook) に影響しないかを、そのユーザー裁定前に
+本人へ確認する。
+
+**理由:**
+- 受動的 canary (`test_ccbench_full_sha_matches_real_gitlink`) は既存の
+  `freeze_verification_hold.py` パターンで安全に hold できる — 対応する能動 gate
+  (`s8b_floor_campaign._assert_sealed_protocol_ccbench_pin`) が既に同じ hold
+  (2026-08-12 裁定) の対象であり、hold してもfail-closed側の実防御は変わらないため。
+- しかし `build_protocol_document()` の C4-4 検査は **hold機構を経由しない別の能動 gate**
+  であり、これは「今すぐ新しい承認済み protocol を、承認されていない ccbench で焼ける」
+  状態を防ぐ本物の防御であるため、hold すべきではない。この gate は pin 不一致時に
+  無関係な10件のテスト (env_tag 未登録の拒否テスト等) まで巣専える副作用があり、
+  「canary だけ hold すれば十分」という早計な判断を誤らせる。
+- 一方 CCBENCH_FULL_SHA を pin に合わせて再承認すると、campaign-id が
+  `ident.canonical_preimage` の pre-image に pin を含む設計 (`orchestrator/campaign/pin.py`
+  の docstring が明記する「正直な content-addressed 挙動」) のため、無関係な
+  campaign-id golden 値 (`_CURRENT_POLICY_BOUND_CAMPAIGN_IDS` 等) が50件超連鎖的に
+  ズレる。これは正しく計算し直せば解消するが、pin 前進自体が今すぐ必要でないなら
+  過剰な作業になる。
+- revert は「実際に certified な結果を偽って主張した事象」がまだ発生していない
+  (hook は `#if TRACE` で inert、誰も新pinで実測を回していない) 時点でのみ安全に
+  選べる。発生後は revert では収拾がつかず (a) の再承認 cascade を選ぶしかない。
+
+**却下した選択肢:**
+- **canary hold のみで済ませる**: `build_protocol_document()` の能動 gate を見落とし、
+  fleet を完全には解放できない (実測: 10テストが残留)。
+- **CCBENCH_FULL_SHA 再承認 + 60件超の golden 連鎖修正を今すぐ仕上げる**:
+  当該 pin (MOCC trace hook) を今すぐ使う予定の T-755 自身が「outer gitlink を
+  参照しない設計なので revert で無影響」と回答し、緊急性が無いと判明したため、
+  fleet 解放を優先し revert を選んだ。将来 T-755 が正式に統合する際は D16 の
+  `izanagi-trace` ブランチ経由の正規プロセスで pin 前進をやり直す。
+
+## D643. 受入投入と記録commitの順序注記はDW-S07/DW-C00でなくDW-O12へ置く (2026-08-22)
+
+**決定:** T-1451 (「land対象tipへの最終受入投入は段7記録commit完了後に行う」旨の注記) を、
+提案元が候補地として挙げていた `docs/dev-wave/core.md` の `DW-S07`/`DW-C00` (いずれもL1、
+wave開始時・段7で無条件に読む) ではなく、`docs/dev-wave/operations.md` の `DW-O12`
+(「裁定手順と実行手順の差」、L2、段4裁定手順と実行手順が食い違った時点にだけ読む) へ置く。
+同時に着地させた T-1468 (checker自身のPegasus infra失敗の扱い) は提案どおり `DW-O18`
+(L2) へ置く。
+
+**理由:**
+- `docs/dev-wave/**` のL1 unique footprint予算は10,625 bytesで固定 (`tools/check_docs.py`
+  の `DEV_WAVE_L1_BYTES_MAX`)。本wave着手時点で実測すると、T-1451 の注記文を `DW-S07`
+  または `DW-C00` (いずれもL1) へ追記しただけで合計11,038 bytesとなり budget を413 bytes
+  超過した。既存L1文の圧縮だけでこの幅を埋めるのは、複数節にまたがる大規模な書き直しを
+  要し規律5 (段階導入・盛らない) に反するため見送った。
+- `DW-O12` は「裁定手順(想定)と実行手順(実際)が食い違った時点」という発火条件そのものが
+  T-1451 の症状 (`DW-S06-C` の文面が段6内の受入投入を示唆する一方、実際land対象となる
+  受入は段7の記録commit後でなければならない、という想定と実際の食い違い) と一致する。
+  追記前実測611 bytes空きがあり、圧縮なしで収まった (追記後 `python3 tools/check_docs.py`
+  が違反なしを返した)。
+- `DW-O18` (「親のテストcwd」、L2、追記前995/1000 bytes) は T-1468 の症状 (checker自身の
+  rc非0の扱い) と直接同じ話題領域であり、提案どおりの設置が最も自然だった。既存文を圧縮
+  (F41 引用文を `DW-S07` 案から `DW-O12` 側へ retarget、細部の言い回し圧縮) して
+  997/1000 bytesに収めた。
+
+**却下した選択肢:**
+- `DW-S07`/`DW-C00` への直接追記 (提案時の候補地のまま) — L1総予算超過で `check_docs.py`
+  が違反を返す。既存L1文の広範な圧縮とセットでなければ成立せず、本wave (対象2件の着地) の
+  scopeを超える。
+- `DEV_WAVE_L1_BYTES_MAX`/`DEV_WAVE_L2_SECTION_BYTES_MAX` 等の予算定数自体を引き上げる —
+  D271近辺で予算の運用契約 (L2節の新設・削除は裁定を要する) が既に定められており、定数の
+  見直しはそれ自体が独立の設計判断でありユーザー裁定を要する。本waveのscope外として着手
+  しなかった。3層とも逼迫している実態はworklog fragment (exploratory-run-worktree-isolation
+  候補が未着地のまま残る記録) に残し、次に予算へ触れるwaveへ引き継ぐ。
+
+## D644. stage2-plan-replayerのdownstream起動は`_bwrap_exec_argv`を使わず直接Popenする (2026-08-22)
+
+**決定:** stage2-plan-replayerのdownstream (固定model/effortのauthor相当codex呼出し) 起動には
+`tools/codex_reasoning_ab.py`既存の`_bwrap_exec_argv` (T-181由来のhermetic bwrap sandbox) を
+使わず、`_codex_exec_argv`が構築するargvを直接`subprocess.Popen`する。ambient環境
+(`os.environ`) を継承し、`HOME`だけを書込み可能な専用ディレクトリへ明示的に上書きし、
+実`~/.codex/auth.json`/`config.toml`をそこへ`0600`でコピーする。T-181のhermetic
+sandboxing (env clear・bwrap分離) は本機構には適用しない。
+
+**理由:**
+- 段5実装子が`_bwrap_exec_argv`経由でreal codex execを試み、実測で120秒timeout・exit -15・
+  output 0 bytesを確認した (stderr: code-mode host未配置、WebSocket/HTTPS
+  `Operation not permitted`)。親が`codex_worker_launch.py` (本wave内で段2/3/5と複数回
+  動作実績あり) と比較し根本原因を特定: `_supervise_one`が使う`environment`辞書
+  (`CODEX_HOME`/`HOME=/tmp/t181-home`/`LANG`/`PATH`/`TZ`等に限定) は、dry_run=True
+  (直接Popen) でもbwrap経由でも同じ縮小dictを使う。T-1434の既存test (dry_run=True、
+  292+ passed) はfake codex binaryを使っており、実codexの実ネットワーク呼出しをこの
+  縮小環境で試したことは一度も無かった (実測で新規に判明した既存apparatus全体の
+  未検証gap、F458参照)。
+- 親が自分のBashから直接smoke testを行い、ambient env全体を継承し`HOME`だけ上書きし
+  実auth/configをコピーする手順で`returncode=0`・実モデルの応答("ack") を得て実証した。
+- `_bwrap_exec_argv`自体の修正 (ambient環境縮小のまま実ネットワーク到達性を確保する
+  仕組みの追加) はapparatus全体に及ぶ横断的変更になり、規律5 (段階導入/盛らない) に
+  反するためこのwaveでは修正しない。
+
+**却下した選択肢:**
+- `_bwrap_exec_argv`をそのまま使う — 実測でこの環境下では実ネットワーク到達不可と判明。
+- `_bwrap_exec_argv`の`environment`辞書を拡張してambient変数を通す — 何のambient変数
+  (env var / socket path) が必要かをこの環境で確実に特定できておらず、bwrapの
+  `--clearenv`+bind-mount設計全体 (T-181のhermeticity前提) への波及も未検証。
+  proven-workingな`codex_worker_launch.py`と同型の直接起動へ倒す方が安全側の最小変更。
+- `tools/dev_wave_codex.py --stage author`を再利用する — modelが呼び出し側から指定不可・
+  常時`gpt-5.6-luna`固定 (help実測済み) のため、model軸を実験armとして選ぶ必要がある
+  stage2-plan-replayerの要件を満たさない。
+
+**残存リスク (受容・追加修正しない):** hash検証後〜Popen前の同一UID raceは、FD経由exec等の
+踏み込んだ再設計なしには理論上完全には閉じられない。本機構はローカル単一operator制御の
+研究toolingであり、共有multi-tenant環境の敵対的攻撃者を脅威モデルに含まないため、次善の
+staging権限強化 (0700) に留め、コード中へ残存リスクとしてコメントで明記した
+(`tools/codex_reasoning_ab.py`のapparatus検証コード付近)。
+
+## D645. stage2-plan-replayerはtask_acceptance_statusを常にunboundとしacceptedフィールドを出さない (2026-08-22)
+
+**決定:** stage2-plan-replayerのcontract/receipt/CLI出力schemaは、機械的事実
+(exit code・実argv・contract hash・plan hash・output byte state由来) を表す
+`receipt_status: valid|invalid`と、task correctness評価を表す`task_acceptance_status`
+(本waveでは常に`"unbound"`) を分離する。汎用`accepted`という名前のboolフィールドは
+一切出さない。`fix_gate_eligible: false`、`routing_evidence_eligible: false`を明示
+フィールドとして持たせる。
+
+**理由:**
+- 段3敵対相談の正しさレンズ・段6敵対レビューの両方が独立に「`execution-receipt`/`accepted`
+  という命名は将来task correctnessの証拠と誤読される」と指摘した (段3所見、段6所見の両方が
+  独立到達、根拠が強い)。具体的誤用シナリオ: exit 0かつ無関係な非空出力でも`accepted:true`
+  になれば、将来のdecisions記録者やT-189 §12評価器実装者がこれをfix gateの品質証拠として
+  誤用しうる。
+- CLAUDE.md規律2 (正しさゲートを緩める変異を許さない) ・規律3 (正しさシグナルを
+  後付けにしない) の精神に反する — genericな`accepted`を出すことは、task-specific
+  oracle manifest (scope外) が実装されるまで「常に空虚な証拠」を生成し続けることになる。
+
+**却下した選択肢:**
+- `execution-receipt`/`unbound`の二択のまま`accepted`という別名で公開する — 命名だけの
+  問題ではなく、フィールドの存在自体が「登録すれば証拠になる」という誤解を招く
+  (段6所見: 「unbound契約の存在だけを§12 evaluatorが登録済みと数えるloophole」)。
+  フィールド自体を無くし`routing_evidence_eligible: false`を明示する方が誤用耐性が高い。
+
+## D646. Pegasus admission registry は main 固定であり、新設 login-side 実行体は自 wave の land 完了まで実機投入できない (2026-08-22)
+
+**決定:** 新規 Pegasus login-side 実行体 (submitter 等) を `tools/pegasus/admission_registry.json`
+へ登録する wave は、同じ wave 内でその実行体を実際にログインノードから起動して実機検証すること
+はできないと前提して計画する。実機検証は registry の変更が main へ land した**後**、別 wave
+(または同一 wave の land 後の続き) で行う。
+
+**理由:**
+- `hooks/guard_bash.py` は `_repo_root()` で自身の `__file__` (`os.path.abspath(__file__)` の
+  2階層上) から repo root を解決する。この経路は Bash tool 呼び出し側の cwd や worktree に
+  依存しない。
+- `tools/pegasus_admission_registry.py` の `load_admission_registry(repo_root)` は
+  `<repo_root>/tools/pegasus/admission_registry.json` を読む。`guard_bash.py` の実体パスが
+  `$CLAUDE_PROJECT_DIR` (primary checkout) に固定されているため、この repo_root は常に main の
+  checkout を指し、dev-wave worktree 側の未 land な追加 entry を反映しない。
+- 2026-08-21、T-755 Q2 継続 wave で実測: `tools/pegasus/admission_registry.json` へ
+  `submit_mocc_trace.sh` (`local-ok`) / `mocc_trace_pilot.sh` (`dispatch-required`) を正しく
+  追加・commit 済みの状態で `bash tools/pegasus/submit_mocc_trace.sh` を実行したが、
+  「未登録 Pegasus 実行体」として guard に拒否された。
+
+**却下した選択肢:**
+- `$CLAUDE_PROJECT_DIR` や hook の repo root 解決を worktree 追従させる — hook 自体の改変は
+  本 wave の scope 外であり、かつ「worktree 側で自己申告した registry をそのまま信用する」設計は
+  wave が自分自身に実行権限を付与できてしまう安全性の後退になるため、そもそも採るべきでない。
+- 手で `qsub` して registry gate を回避する — D141 が禁じる。
+
+**位置づけ:** 実測に基づく運用制約の記録 (roadmap 改訂セレモニー対象外)。新規 Pegasus
+login-side 実行体を扱う今後の wave は、brief 段階で「実装+land」と「実機初回検証」を
+最初から2 wave (または1 waveの land前後) に分けて計画する。
+
+## D647. off arm の invocation ID を provider-facing と audit-only へ分離する (2026-08-22)
+
+**決定:** off arm の trial 実行で、provider (LLM role) へ実際に渡す invocation ID
+(`_invoke()` の `invocation_id` 引数) と、journal event・run-start・terminal report・
+provider artifact metadata が記録する audit 用 invocation ID を別々に構成する。
+provider-facing ID は holdout に依存しない `content_digest_sha256` と中立workload定数
+`OFF_NEUTRAL_PAYLOAD_WORKLOAD` から作り、audit-only ID は従来どおり実 holdout 由来の
+`arm_binding_digest_sha256` と実workloadを保持する。on/swapped arm は変更しない。
+
+**理由:**
+- 8c事前登録 §4 の非干渉性は「role へ渡す payload」と「provider へ実際に送る bytes」の
+  両方が真の holdout を跨いで byte 同一であることを要求する。2026-08-18の単位A/B (arm
+  execution digestの導入wave) が導入した invocation ID 形式
+  (`arm-{arm}.exec-{arm_binding_digest}.{workload}.g{n}.{role}`)
+  はholdoutを直接埋め込んでおり、これがそのままprovider呼び出しへ渡ると、payload本体を
+  中立化しても非干渉性が成立しない。段3敵対相談2レンズが独立にこの漏洩を指摘した。
+- digest/workloadを単純に空文字へ置換する案は、既存の「provider payloadがinvocationの
+  digestに束縛されている」という anti-tamper 検査 (単位A/Bが実装) を弱める。
+  audit-only IDへ実digest/実workloadを退避し、journal/report/provider artifact metadata
+  側でこれを検証し続けることで、非干渉性とanti-tamperの両方を維持する。
+- off armのcontent_digest_sha256は既にholdout不変であることが実測済み (s8c_arm_inputs.py
+  の凍結neutral artifactに由来) であり、provider-facing IDの構成要素として再利用でき、
+  新しい概念を持ち込まずに済む。
+
+**却下した選択肢:**
+- invocation ID を「監査専用」と扱いprovider呼び出しには渡さない前提で無視する
+  (段2 plan の当初案) — 実際には`_invoke()`がinvocation_idをそのままproviderへ渡しており、
+  未検証の前提のまま非干渉性を主張することになる。段3敵対レンズが指摘し段4で修正した。
+- provider-facing IDを完全な固定文字列にする — content_digest由来の情報を落とすと、
+  off descriptorの改竄検知 (anti-tamper) が弱まる。
+
+## D648. C02非干渉性の主張をgeneration 1相当の共通payload構成に限定する (2026-08-22)
+
+**決定:** 本waveのoff arm非干渉性実装は、`_common_payload()`が構成するworkload・
+descriptor_binding・provider-facing invocation IDのholdout非依存性だけを対象とし、
+generation≥2でrole payloadへ混入する実測結果依存の値 (`harness_result`のmetrics/outcome/
+stop_reason、`critic_feedback`) は中立化しない。worklog・decisions・新規テストの
+docstringは「非干渉性が完全に成立した」と書かず、この限定を明記する。
+
+**理由:**
+- これらの値は真のH1(rr80)/H2(rr20)ワークロードに対する実測ベンチ結果そのものであり、
+  値が異なること自体は正当な現象であって実装バグではない。中立化するには適応的合成の
+  機能そのものを止めるか、値を加工する必要があり、これはC02のpayload配線バグ修正の
+  scopeを超える実験設計判断である。段3敵対相談 (Lens A所見1、Lens B所見3) が独立に
+  この残存チャネルを指摘した。
+- 8c事前登録 §4の「世代間で運んでよいものの閉じた集合」節は、この種の結果依存チャネルが
+  存在すること自体は認めており (「還流を遮断したとは主張しない」)、非干渉性節とは
+  別の独立した規範として扱われている。両者を混同して「非干渉性が全世代で完全に成立する」
+  と主張することは、規律2/3 (正しさシグナルの誠実な報告) に抵触するリスクがある。
+
+**却下した選択肢:**
+- generation≥2の結果チャネルも本waveで中立化する — 適応的合成の機能を損なう可能性があり、
+  かつT-1434の前例 (17領域を1waveに詰め込み段3で規模超過指摘、Wave A+Bへnarrow) と同型の
+  scope拡大になる。ユーザー裁定を経ずに実験設計を変更しない。
+- 残存チャネルの存在に触れず「非干渉性達成」とだけ記録する — 過大な主張であり、
+  後続waveが誤って本系列を起動する根拠に使うリスクがある。

@@ -471,6 +471,7 @@ checker 自身が計算ノードへ自動 dispatch する (D105)。
 | `tools/pegasus/floor_campaign.sh` | `dispatch-required` | `static job-body classification` |
 | `tools/pegasus/floor_scoping.sh` | `dispatch-required` | `static job-body classification` |
 | `tools/pegasus/make_acquisition_receipt.py` | `dispatch-required` | `static compute-side call-site classification` |
+| `tools/pegasus/mocc_trace_pilot.sh` | `dispatch-required` | `static job-body classification` |
 | `tools/pegasus/oracle_n_pilot.sh` | `dispatch-required` | `static job-body classification` |
 | `tools/pegasus/run_t139_a12_stress_check.py` | `dispatch-required` | `compute-node full run: 48 workers / 5.32 seconds; tens of MB per worker` |
 | `tools/pegasus/t139_a12_stress_check.pbs` | `dispatch-required` | `static job-body classification` |
@@ -496,6 +497,7 @@ checker 自身が計算ノードへ自動 dispatch する (D105)。
 | `tools/pegasus/smoke_probe.sh` | `dispatch-required` | `static job-body classification` |
 | `tools/pegasus/submit_certify.sh` | `local-ok` | `legacy-admitted (未実測)` |
 | `tools/pegasus/submit_floor.sh` | `local-ok` | `legacy-admitted (未実測)` |
+| `tools/pegasus/submit_mocc_trace.sh` | `local-ok` | `static login-side submitter classification` |
 | `tools/pegasus/submit_oracle_n_pilot.sh` | `local-ok` | `login-side submitter; compute work stays in job body (未実測)` |
 | `tools/pegasus/submit_silo_ladder_rung1.sh` | `local-ok` | `legacy-admitted (未実測)` |
 | `tools/pegasus/submit_t126_qualification.sh` | `unknown` | `unmeasured; preflight input surfaces remain` |
