@@ -4,7 +4,7 @@ ledger: worklog
 authored: 2026-08-22
 wave: dev-wave-t755-mocc-trace-execution
 seq: 1
-title: '[T-755] mocc trace v2のTRACE=1正しさ検証パイロットを実機実行しserializable・anomaly 0を得た (コード+テスト、branch worktree-dev-wave-t755-mocc-trace-execution、変異matrix = 手動kill-check2件ともKILLED)'
+title: [T-755] mocc trace v2のTRACE=1正しさ検証パイロットを実機実行しserializable・anomaly 0を得た (コード+テスト、branch worktree-dev-wave-t755-mocc-trace-execution、変異matrix = 手動kill-check2件ともKILLED)
 ---
 
 ## 本文
