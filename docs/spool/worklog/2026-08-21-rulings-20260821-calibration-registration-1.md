@@ -35,13 +35,6 @@ title: ユーザー裁定を記録し、rr80/rr20 calibration の dev-wave 実�
 
 ### 更新
 
-- [T-1461] **P1・ユーザー裁定反映**: floor driver が実際に読む `_prepare_floor_oracle_dependency()`/
-  buildcache 経路、preverified payload、独立 expected hash、CMake前 pin 検査、compute-node offline
-  transport→no-refetch→build test まで含めて実効 scope を実装する。
-  base: bf97bb36202b75093dd8979c544ce66a63b67012ad9aa3eff1c668015402ee1f
-- [T-1472] **P1・ユーザー裁定反映**: provider-init failure を C04 の indeterminate/crash 処理へ
-  含める実装 wave を起票する。既存 `_finish_trial` の実装だけで完了とは扱わない。
-  base: 35f7c080a8a08fa552888dd39954b01508fdbcfcb56d6a28937498bd6662893f
 - [T-425] **P1・条件更新**: 正式 H1/H2 launch は T-424/T-272 の要求閉包または D145 decision 5 の
   明示的再訪と、必要な別 gate が揃うまで閉じる。ただし rr80/rr20 calibration の取得・検証・登録は
   人間 lockstep を要求せず、今回の AI/ツール経路を使えるものとする。
