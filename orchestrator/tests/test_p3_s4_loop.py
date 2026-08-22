@@ -64,7 +64,7 @@ from orchestrator.campaign.projection_guard import (                            
 from orchestrator.campaign.diff_quarantine import DiffRejectSubtype            # noqa: E402
 from orchestrator.campaign.layout import CampaignLayout                        # noqa: E402
 from orchestrator.campaign.model import (Genome, STAGE_ABORT,                  # noqa: E402
-                            STAGE_BUILD_START)
+                            STAGE_BUILD_DONE, STAGE_BUILD_START)
 from orchestrator.critic.digest import (DIFF_QUARANTINE_REASON,                 # noqa: E402
                            IdentityProjection,
                            load_diff_rejections,
@@ -2468,6 +2468,106 @@ def test_resolve_duplicate_single_implementation_across_axes():
     旧 sort/trigger 版は revert 後 re-resolve の同型欠陥を独立に抱えていた — 再分岐を塞ぐ)。"""
     assert SORT_LOOP._resolve_duplicate is L._resolve_duplicate
     assert TRIGGER_LOOP._resolve_duplicate is L._resolve_duplicate
+
+
+def test_resolve_duplicate_drops_verdict_when_commit_attempt_mismatches_verify():
+    """commit と verify の attempt が異なると、後発した旧 verify の verdict を返さない。"""
+    lay = _tmp_layout("dupcrosscommit")
+    genome = L.Genome("silo", {**L._BASE, "BACK_OFF": 1, "BACKOFF_FIXED": 42})
+    fake_src_tok = "commit-attempt-src"
+    v = variant_id(genome, fake_src_tok)
+    old = "old"
+    new = "new"
+    L.wal.log(lay, v, L.STAGE_BUILD_START, L.ENV_TAG,
+              {"genome": genome.canonical(), "src_token": fake_src_tok,
+               "build_attempt_id": old})
+    L.wal.log(lay, v, STAGE_BUILD_DONE, L.ENV_TAG,
+              {"build_attempt_id": old})
+    L.wal.log(lay, v, L.STAGE_VERIFY_DONE, L.ENV_TAG,
+              {"build_attempt_id": old, "verdict": "stale-verdict",
+               "certified": False})
+    L.wal.log(lay, v, L.STAGE_ABORT, L.ENV_TAG,
+              {"build_attempt_id": old, "reason": "verify-red"})
+    L.wal.log(lay, v, L.STAGE_BUILD_START, L.ENV_TAG,
+              {"genome": genome.canonical(), "src_token": fake_src_tok,
+               "build_attempt_id": new})
+    L.wal.log(lay, v, STAGE_BUILD_DONE, L.ENV_TAG,
+              {"build_attempt_id": new})
+    L.wal.log(lay, v, L.STAGE_VERIFY_DONE, L.ENV_TAG,
+              {"build_attempt_id": new, "verdict": "new-verdict",
+               "certified": True})
+    commit_receipt_support.append_legacy_raw_commit(
+        lay, v, L.ENV_TAG, {"build_attempt_id": new, "fitness_tps": 2.0},
+    )
+    L.wal.log(lay, v, L.STAGE_VERIFY_DONE, L.ENV_TAG,
+              {"build_attempt_id": old, "verdict": "stale-verdict",
+               "certified": False})
+    pl = L.PlannerProposal(axis=L.MARKER_ID, direction="increase", magnitude="small")
+    state = L.LoopState(iteration=2, start_wall=time.time())
+    out = L._resolve_duplicate(lay, pl, state, _dup_summary(v))
+    assert out["outcome"] == "duplicate"
+    assert out["fitness_tps"] == 2.0
+    assert out["verdict"] == ""
+
+
+def test_resolve_duplicate_drops_verdict_when_abort_attempt_mismatches_verify():
+    """abort と verify の attempt が異なると、後発した旧 verify の verdict を返さない。"""
+    lay = _tmp_layout("dupcrossabort")
+    genome = L.Genome("silo", {**L._BASE, "BACK_OFF": 1, "BACKOFF_FIXED": 43})
+    fake_src_tok = "abort-attempt-src"
+    v = variant_id(genome, fake_src_tok)
+    old = "old"
+    new = "new"
+    L.wal.log(lay, v, L.STAGE_BUILD_START, L.ENV_TAG,
+              {"genome": genome.canonical(), "src_token": fake_src_tok,
+               "build_attempt_id": old})
+    L.wal.log(lay, v, STAGE_BUILD_DONE, L.ENV_TAG,
+              {"build_attempt_id": old})
+    L.wal.log(lay, v, L.STAGE_VERIFY_DONE, L.ENV_TAG,
+              {"build_attempt_id": old, "verdict": "stale-verdict",
+               "certified": False})
+    L.wal.log(lay, v, L.STAGE_ABORT, L.ENV_TAG,
+              {"build_attempt_id": old, "reason": "verify-red"})
+    L.wal.log(lay, v, L.STAGE_BUILD_START, L.ENV_TAG,
+              {"genome": genome.canonical(), "src_token": fake_src_tok,
+               "build_attempt_id": new})
+    L.wal.log(lay, v, STAGE_BUILD_DONE, L.ENV_TAG,
+              {"build_attempt_id": new})
+    L.wal.log(lay, v, L.STAGE_ABORT, L.ENV_TAG,
+              {"build_attempt_id": new, "reason": "verify-red"})
+    L.wal.log(lay, v, L.STAGE_VERIFY_DONE, L.ENV_TAG,
+              {"build_attempt_id": old, "verdict": "stale-verdict",
+               "certified": False})
+    pl = L.PlannerProposal(axis=L.MARKER_ID, direction="decrease", magnitude="medium")
+    state = L.LoopState(iteration=2, start_wall=time.time())
+    out = L._resolve_duplicate(lay, pl, state, _dup_summary(v))
+    assert out["outcome"] == "aborted"
+    assert out["verdict"] == ""
+
+
+def test_resolve_duplicate_keeps_verdict_when_attempt_ids_match():
+    """同じ attempt の commit/verify なら verdict を保持する。"""
+    lay = _tmp_layout("dupmatch")
+    genome = L.Genome("silo", {**L._BASE, "BACK_OFF": 1, "BACKOFF_FIXED": 44})
+    fake_src_tok = "matching-attempt-src"
+    v = variant_id(genome, fake_src_tok)
+    attempt = "matching"
+    L.wal.log(lay, v, L.STAGE_BUILD_START, L.ENV_TAG,
+              {"genome": genome.canonical(), "src_token": fake_src_tok,
+               "build_attempt_id": attempt})
+    L.wal.log(lay, v, STAGE_BUILD_DONE, L.ENV_TAG,
+              {"build_attempt_id": attempt})
+    L.wal.log(lay, v, L.STAGE_VERIFY_DONE, L.ENV_TAG,
+              {"build_attempt_id": attempt, "verdict": "matching-verdict",
+               "certified": True})
+    commit_receipt_support.append_legacy_raw_commit(
+        lay, v, L.ENV_TAG, {"build_attempt_id": attempt, "fitness_tps": 3.0},
+    )
+    pl = L.PlannerProposal(axis=L.MARKER_ID, direction="increase", magnitude="large")
+    state = L.LoopState(iteration=2, start_wall=time.time())
+    out = L._resolve_duplicate(lay, pl, state, _dup_summary(v))
+    assert out["outcome"] == "duplicate"
+    assert out["verdict"] == "matching-verdict"
 
 
 if __name__ == "__main__":
