@@ -2211,6 +2211,20 @@ def test_known_violation_ledger_matches_literal_entries():
             "tools/check_ai_provenance.py) を検出した。親作成 merge のため Codex 著者とは記さない。",
             "",
         ),
+        (
+            "25614f868c1a1b562a68072233fdf55b0be93cd1",
+            "missing-codex-author",
+            "本セッション内でユーザーへ状況を説明し known-violation 登録の承認を得た (2026-08-23)",
+            "D662 (受入 lease claim 待ちの廃止) 対応で `tools/dev_wave_wait.py` へ実装した "
+            "`--lease-optional` (commit 0c89ec77、Codex role=author) を今後の全 wave が自動的に"
+            "使うよう、`docs/dev-wave/operations.md` の DW-O27 追加・`.claude/commands/dev-wave.md` "
+            "条件18への追記・`tools/check_docs.py` の dispatch 契約 (REQUIRED_REFERENCE_SECTIONS / "
+            "CONDITION_DISPATCH_CONTRACT[\"18\"]) 登録を commit 25614f86 で行った。3箇所とも既存の"
+            "文字列集合へのリテラル追加のみでロジック変更はないが、manager (claude) が直接 commit した"
+            "ため `tools/check_docs.py` への変更に Codex `role=author` trailer がなく、checker が "
+            "`missing-codex-author` (paths=tools/check_docs.py) を検出した。",
+            "",
+        ),
     )
     assert len(provenance.KNOWN_PROVENANCE_VIOLATIONS) == len(expected)
     assert observed == expected
