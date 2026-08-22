@@ -1,0 +1,242 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": "/home/SFC/tanab/.claude/jobs/81b7b7c8/tmp/dev-wave-t1456/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/e4efb6fb643766db38ecb59b45a6e09b/izdw-e4efb6fb64.o933824",
+      "receipt_path": "/home/SFC/tanab/.claude/jobs/81b7b7c8/tmp/dev-wave-t1456/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/e4efb6fb643766db38ecb59b45a6e09b/receipt.json",
+      "runner_mode": "dispatch",
+      "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /home/SFC/tanab/.claude/jobs/81b7b7c8/tmp/dev-wave-t1456/mutation-scratch/.izanagi-mutation-worktree/repo\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [6 items]\n\n......                                                                   [100%]\n============================== 6 passed in 2.53s ===============================\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+      "stdout_sha256": "72c7d33fcd9679ec5c8a95ff7365a780912471ef623e389adc481a4b89d4bca0"
+    },
+    "artifact_error": null,
+    "collection_sha256": "b36fbd57a3c74fb5193dbc92d166e31ef6368ff89888923706527984c3ce69eb",
+    "duration_s": 93.663,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "0b7b785ae208011033fef081d4f7db6edec593bcd7d4ca441b9dc74ab5acf39c",
+    "repo_head": "d8e3d012461c9f5dd1b0a13c76ba5e406ce92da9",
+    "runner_sha256": "3fc8ac45dbcfc88746c36f5f7412e471b1111d6e1f56a28e7ab71f4914e71e9f",
+    "spec_sha256": "c9f691b407bdcdf42a51f7c6fd5380fe78ee2fedb128f354f1e15f69ccccab2e",
+    "status": "PASSED",
+    "test_output_sha256": "72c7d33fcd9679ec5c8a95ff7365a780912471ef623e389adc481a4b89d4bca0",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "dd6ff7a6a8dc7f7ebf330545efe593f8217c9dd27799fec836b74c1912b5341b"
+  },
+  "date": "2026-08-22T09:38:32.748137+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/home/SFC/tanab/.claude/jobs/81b7b7c8/tmp/dev-wave-t1456/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/709f3db2dfa017ec6c80d96553d3ae8c/izdw-709f3db2df.o933825",
+        "receipt_path": "/home/SFC/tanab/.claude/jobs/81b7b7c8/tmp/dev-wave-t1456/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/709f3db2dfa017ec6c80d96553d3ae8c/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /home/SFC/tanab/.claude/jobs/81b7b7c8/tmp/dev-wave-t1456/mutation-scratch/.izanagi-mutation-worktree/repo\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [6 items]\n\n....F.                                                                   [100%]\n=================================== FAILURES ===================================\n_____________ test_inventory_projects_exact_registered_source_sets _____________\n[gw0] linux -- Python 3.10.12 /bin/python3.10\n\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14f44c509810>\n\n    def test_inventory_projects_exact_registered_source_sets(monkeypatch):\n        monkeypatch.delenv(\"IZANAGI_RUN_GROWTH_HELD_TESTS\", raising=False)\n        inventory = hold_inventory()\n>       assert inventory == _expected_inventory()\nE       AssertionError: assert {'schema': 'i...ling.', ...}]} == {'schema': 'i...ling.', ...}]}\nE         \nE         Omitting 2 identical items, use -vv to show\nE         Differing items:\nE         {'layers': [{'id': 'production', 'what': {'kind': 'check-id-set', 'check_ids': ['frozen-artifacts.manifest-bytes', 's1.....}, 'ruling': '2026-08-12 rulings 第 3 束', 'reason': 'Repository-growth-proportional tests are held by ruling.', ...}]} != {'layers': [{'id': 'production', 'what': {'kind': 'check-id-set', 'check_ids': ['frozen-artifacts.manifest-bytes', 's1.....}, 'ruling': '2026-08-12 rulings 第 3 束', 'reason': 'Repository-growth-proportional tests are held by ruling.', ...}]}\nE         Use -v to get more diff\n\norchestrator/tests/test_hold_inventory.py:537: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_hold_inventory.py::test_inventory_projects_exact_registered_source_sets\n========================= 1 failed, 5 passed in 2.49s ==========================\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_hold_inventory.py::test_inventory_projects_exact_registered_source_sets\" nodeid_bytes=95 nodeid_omitted_bytes=0 source_bytes=1145 retained_bytes=1145 omitted_bytes=0 rendered_excerpt_bytes=1190 sha256=392a38945cd43c0ac5f008bbc8aafeb0714534f48c559244ff8130a0505dd98b\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw0] linux -- Python 3.10.12 /bin/python3.10\n> \n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14f44c509810>\n> \n>     def test_inventory_projects_exact_registered_source_sets(monkeypatch):\n>         monkeypatch.delenv(\"IZANAGI_RUN_GROWTH_HELD_TESTS\", raising=False)\n>         inventory = hold_inventory()\n> >       assert inventory == _expected_inventory()\n> E       AssertionError: assert {'schema': 'i...ling.', ...}]} == {'schema': 'i...ling.', ...}]}\n> E         \n> E         Omitting 2 identical items, use -vv to show\n> E         Differing items:\n> E         {'layers': [{'id': 'production', 'what': {'kind': 'check-id-set', 'check_ids': ['frozen-artifacts.manifest-bytes', 's1.....}, 'ruling': '2026-08-12 rulings \\u7b2c 3 \\u675f', 'reason': 'Repository-growth-proportional tests are held by ruling.', ...}]} != {'layers': [{'id': 'production', 'what': {'kind': 'check-id-set', 'check_ids': ['frozen-artifacts.manifest-bytes', 's1.....}, 'ruling': '2026-08-12 rulings \\u7b2c 3 \\u675f', 'reason': 'Repository-growth-proportional tests are held by ruling.', ...}]}\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_hold_inventory.py:537: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1145 retained_bytes=1145 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1912 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "a4db034526d78e18e9e5646f6b723841acd3eb66dd348b4561830a2b5b9b0b1b"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "b36fbd57a3c74fb5193dbc92d166e31ef6368ff89888923706527984c3ce69eb",
+      "duration_s": 26.907,
+      "expected_nodes": [
+        "orchestrator/tests/test_hold_inventory.py::test_inventory_projects_exact_registered_source_sets"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_hold_inventory.py::test_inventory_projects_exact_registered_source_sets"
+      ],
+      "hang_risk": false,
+      "id": "MUT-1-revert-classification",
+      "injection_diff_sha256": "52bd50ff8514af6eb4e9bba83a2a99a39050972f0d85941a1b6e1918f6189dbc",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "87ce93ba819f0e59089fbaa57f989210e12546867e6a3c3fea128ac48fe5579c",
+      "replacements": [
+        {
+          "file": "tools/hold_inventory.py",
+          "new": "                \"id\": \"plain-python-runner\",\n                \"classification\": \"known-unresolved-bypass\",",
+          "old": "                \"id\": \"plain-python-runner\",\n                \"classification\": \"known-guarded-bypass\","
+        }
+      ],
+      "repo_head": "d8e3d012461c9f5dd1b0a13c76ba5e406ce92da9",
+      "runner_sha256": "3fc8ac45dbcfc88746c36f5f7412e471b1111d6e1f56a28e7ab71f4914e71e9f",
+      "spec_sha256": "c9f691b407bdcdf42a51f7c6fd5380fe78ee2fedb128f354f1e15f69ccccab2e",
+      "status": "KILLED",
+      "test_output_sha256": "a4db034526d78e18e9e5646f6b723841acd3eb66dd348b4561830a2b5b9b0b1b",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "dd6ff7a6a8dc7f7ebf330545efe593f8217c9dd27799fec836b74c1912b5341b"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/home/SFC/tanab/.claude/jobs/81b7b7c8/tmp/dev-wave-t1456/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/f8a5e9d712dbb87b1568e0a2fd0c56fe/izdw-f8a5e9d712.o933827",
+        "receipt_path": "/home/SFC/tanab/.claude/jobs/81b7b7c8/tmp/dev-wave-t1456/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/f8a5e9d712dbb87b1568e0a2fd0c56fe/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /home/SFC/tanab/.claude/jobs/81b7b7c8/tmp/dev-wave-t1456/mutation-scratch/.izanagi-mutation-worktree/repo\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [6 items]\n\n....F.                                                                   [100%]\n=================================== FAILURES ===================================\n_____________ test_inventory_projects_exact_registered_source_sets _____________\n[gw0] linux -- Python 3.10.12 /bin/python3.10\n\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14ee16807550>\n\n    def test_inventory_projects_exact_registered_source_sets(monkeypatch):\n        monkeypatch.delenv(\"IZANAGI_RUN_GROWTH_HELD_TESTS\", raising=False)\n        inventory = hold_inventory()\n>       assert inventory == _expected_inventory()\nE       AssertionError: assert {'schema': 'i...ling.', ...}]} == {'schema': 'i...ling.', ...}]}\nE         \nE         Omitting 2 identical items, use -vv to show\nE         Differing items:\nE         {'layers': [{'id': 'production', 'what': {'kind': 'check-id-set', 'check_ids': ['frozen-artifacts.manifest-bytes', 's1.....}, 'ruling': '2026-08-12 rulings 第 3 束', 'reason': 'Repository-growth-proportional tests are held by ruling.', ...}]} != {'layers': [{'id': 'production', 'what': {'kind': 'check-id-set', 'check_ids': ['frozen-artifacts.manifest-bytes', 's1.....}, 'ruling': '2026-08-12 rulings 第 3 束', 'reason': 'Repository-growth-proportional tests are held by ruling.', ...}]}\nE         Use -v to get more diff\n\norchestrator/tests/test_hold_inventory.py:537: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_hold_inventory.py::test_inventory_projects_exact_registered_source_sets\n========================= 1 failed, 5 passed in 2.53s ==========================\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_hold_inventory.py::test_inventory_projects_exact_registered_source_sets\" nodeid_bytes=95 nodeid_omitted_bytes=0 source_bytes=1145 retained_bytes=1145 omitted_bytes=0 rendered_excerpt_bytes=1190 sha256=34ee4f2d8370f10664616b5ac1f41d2e85204e390d6ff5d0dbd2e466b425f16b\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw0] linux -- Python 3.10.12 /bin/python3.10\n> \n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14ee16807550>\n> \n>     def test_inventory_projects_exact_registered_source_sets(monkeypatch):\n>         monkeypatch.delenv(\"IZANAGI_RUN_GROWTH_HELD_TESTS\", raising=False)\n>         inventory = hold_inventory()\n> >       assert inventory == _expected_inventory()\n> E       AssertionError: assert {'schema': 'i...ling.', ...}]} == {'schema': 'i...ling.', ...}]}\n> E         \n> E         Omitting 2 identical items, use -vv to show\n> E         Differing items:\n> E         {'layers': [{'id': 'production', 'what': {'kind': 'check-id-set', 'check_ids': ['frozen-artifacts.manifest-bytes', 's1.....}, 'ruling': '2026-08-12 rulings \\u7b2c 3 \\u675f', 'reason': 'Repository-growth-proportional tests are held by ruling.', ...}]} != {'layers': [{'id': 'production', 'what': {'kind': 'check-id-set', 'check_ids': ['frozen-artifacts.manifest-bytes', 's1.....}, 'ruling': '2026-08-12 rulings \\u7b2c 3 \\u675f', 'reason': 'Repository-growth-proportional tests are held by ruling.', ...}]}\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_hold_inventory.py:537: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1145 retained_bytes=1145 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1912 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "521a13007d298c8b846a2b88003351d2ddb8509dd2a976974abd78196017eeb8"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "b36fbd57a3c74fb5193dbc92d166e31ef6368ff89888923706527984c3ce69eb",
+      "duration_s": 37.196,
+      "expected_nodes": [
+        "orchestrator/tests/test_hold_inventory.py::test_inventory_projects_exact_registered_source_sets"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_hold_inventory.py::test_inventory_projects_exact_registered_source_sets"
+      ],
+      "hang_risk": false,
+      "id": "MUT-2-revert-reason-text",
+      "injection_diff_sha256": "b66baa5c2fe0c2b3314bd0a5092695320c6c6164b134301b86945b9274de5156",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "65ac0dedbc4175c97a1e9db69edbe2670c4160cb66069995af1a73cf4f3583c8",
+      "replacements": [
+        {
+          "file": "tools/hold_inventory.py",
+          "new": "                \"reason\": (\n                    \"T-930 closed this bypass: calling a test function directly \"\n                    \"is blocked.\"\n                ),\n                \"tracking\": \"T-930\",\n            },\n            {\n                \"id\": \"pegasus-dispatch-env-allowlist\",",
+          "old": "                \"reason\": (\n                    \"T-930 closed this bypass: calling a test function directly \"\n                    \"is blocked unless the exact release token is present.\"\n                ),\n                \"tracking\": \"T-930\",\n            },\n            {\n                \"id\": \"pegasus-dispatch-env-allowlist\","
+        }
+      ],
+      "repo_head": "d8e3d012461c9f5dd1b0a13c76ba5e406ce92da9",
+      "runner_sha256": "3fc8ac45dbcfc88746c36f5f7412e471b1111d6e1f56a28e7ab71f4914e71e9f",
+      "spec_sha256": "c9f691b407bdcdf42a51f7c6fd5380fe78ee2fedb128f354f1e15f69ccccab2e",
+      "status": "KILLED",
+      "test_output_sha256": "521a13007d298c8b846a2b88003351d2ddb8509dd2a976974abd78196017eeb8",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "dd6ff7a6a8dc7f7ebf330545efe593f8217c9dd27799fec836b74c1912b5341b"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": "/home/SFC/tanab/.claude/jobs/81b7b7c8/tmp/dev-wave-t1456/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/44158451a932e85bdc05d4b06f15e3f8/izdw-44158451a9.o933820",
+        "receipt_path": "/home/SFC/tanab/.claude/jobs/81b7b7c8/tmp/dev-wave-t1456/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/44158451a932e85bdc05d4b06f15e3f8/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "orchestrator/tests/test_hold_inventory.py::test_inventory_projects_exact_registered_source_sets\norchestrator/tests/test_hold_inventory.py::test_main_dispatches_human_and_json\norchestrator/tests/test_hold_inventory.py::test_effective_status_tracks_exact_test_opt_in\norchestrator/tests/test_hold_inventory.py::test_effective_status_matches_suite_conftest_decision\norchestrator/tests/test_hold_inventory.py::test_script_and_module_entrypoints_match_without_pythonpath\norchestrator/tests/test_hold_inventory.py::test_output_does_not_claim_unknown_layer_completeness\n\n6 tests collected in 0.38s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"serial\"}\n",
+        "stdout_sha256": "ac780799f5eddcbb79ea91c5890521f1d3d2252844f0dbfd65c978f90666eff6"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_hold_inventory.py::test_inventory_projects_exact_registered_source_sets",
+        "orchestrator/tests/test_hold_inventory.py::test_main_dispatches_human_and_json",
+        "orchestrator/tests/test_hold_inventory.py::test_effective_status_tracks_exact_test_opt_in",
+        "orchestrator/tests/test_hold_inventory.py::test_effective_status_matches_suite_conftest_decision",
+        "orchestrator/tests/test_hold_inventory.py::test_script_and_module_entrypoints_match_without_pythonpath",
+        "orchestrator/tests/test_hold_inventory.py::test_output_does_not_claim_unknown_layer_completeness"
+      ],
+      "duration_s": 47.299,
+      "rc": 0,
+      "repo_head": "d8e3d012461c9f5dd1b0a13c76ba5e406ce92da9",
+      "runner_sha256": "3fc8ac45dbcfc88746c36f5f7412e471b1111d6e1f56a28e7ab71f4914e71e9f",
+      "spec_sha256": "c9f691b407bdcdf42a51f7c6fd5380fe78ee2fedb128f354f1e15f69ccccab2e",
+      "status": "PASSED",
+      "tool_sha256": "dd6ff7a6a8dc7f7ebf330545efe593f8217c9dd27799fec836b74c1912b5341b"
+    },
+    "hang_timeout_seconds": 2400.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "MUT-1-revert-classification": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_hold_inventory.py::test_inventory_projects_exact_registered_source_sets"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "52bd50ff8514af6eb4e9bba83a2a99a39050972f0d85941a1b6e1918f6189dbc",
+        "replacements": [
+          {
+            "file": "tools/hold_inventory.py",
+            "new": "                \"id\": \"plain-python-runner\",\n                \"classification\": \"known-unresolved-bypass\",",
+            "old": "                \"id\": \"plain-python-runner\",\n                \"classification\": \"known-guarded-bypass\","
+          }
+        ]
+      },
+      "MUT-2-revert-reason-text": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_hold_inventory.py::test_inventory_projects_exact_registered_source_sets"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "b66baa5c2fe0c2b3314bd0a5092695320c6c6164b134301b86945b9274de5156",
+        "replacements": [
+          {
+            "file": "tools/hold_inventory.py",
+            "new": "                \"reason\": (\n                    \"T-930 closed this bypass: calling a test function directly \"\n                    \"is blocked.\"\n                ),\n                \"tracking\": \"T-930\",\n            },\n            {\n                \"id\": \"pegasus-dispatch-env-allowlist\",",
+            "old": "                \"reason\": (\n                    \"T-930 closed this bypass: calling a test function directly \"\n                    \"is blocked unless the exact release token is present.\"\n                ),\n                \"tracking\": \"T-930\",\n            },\n            {\n                \"id\": \"pegasus-dispatch-env-allowlist\","
+          }
+        ]
+      }
+    },
+    "registration_sha256": "0b7b785ae208011033fef081d4f7db6edec593bcd7d4ca441b9dc74ab5acf39c",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "dispatch",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "/usr/bin/python3",
+      "tools/run_tests.py",
+      "orchestrator/tests/test_hold_inventory.py",
+      "-rf",
+      "--force-dispatch",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 1800.0
+  },
+  "repo_head": "d8e3d012461c9f5dd1b0a13c76ba5e406ce92da9",
+  "runner_identity": {
+    "command": [
+      "/usr/bin/python3",
+      "tools/run_tests.py",
+      "orchestrator/tests/test_hold_inventory.py",
+      "-rf",
+      "--force-dispatch",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": "/home/SFC/tanab/.claude/jobs/81b7b7c8/tmp/dev-wave-t1456/mutation-scratch/.izanagi-mutation-worktree/repo/tools/pegasus/dispatch_compute.py",
+    "dispatch_entrypoint_sha256": "cc3bd4134fa5dffeab4bcb32e1b16e1a49ebf4b79c869f38ac9f2d24caa49615",
+    "dispatch_head_blob_sha256": "cc3bd4134fa5dffeab4bcb32e1b16e1a49ebf4b79c869f38ac9f2d24caa49615",
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/home/SFC/tanab/.claude/jobs/81b7b7c8/tmp/dev-wave-t1456/mutation-scratch/.izanagi-mutation-worktree/repo/tools/run_tests.py",
+    "entrypoint_sha256": "b4ac7959b4921cf13940d33ef4262368df949011d599437d43eec9c9f87c0e2e",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+    "head_blob_sha256": "b4ac7959b4921cf13940d33ef4262368df949011d599437d43eec9c9f87c0e2e",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "081512f7888d5d7f6be7797832abfdec8234ddb5",
+    "runner_mode": "dispatch"
+  },
+  "runner_sha256": "3fc8ac45dbcfc88746c36f5f7412e471b1111d6e1f56a28e7ab71f4914e71e9f",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "c9f691b407bdcdf42a51f7c6fd5380fe78ee2fedb128f354f1e15f69ccccab2e",
+  "summary": {
+    "KILLED": 2,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 0,
+    "TIMEOUT": 0,
+    "completed": 2,
+    "matching": 2,
+    "recorded": 2,
+    "registered": 2
+  },
+  "tool_identity": {
+    "head_blob_sha256": "766f168f1da5b8b67c49374a2ad24928526b3658863d2a3291cfdc8ff5d705ac",
+    "path": "/home/SFC/tanab/.claude/jobs/81b7b7c8/tmp/dev-wave-t1456/mutation-scratch/.izanagi-mutation-worktree/repo/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "766f168f1da5b8b67c49374a2ad24928526b3658863d2a3291cfdc8ff5d705ac"
+  },
+  "tool_sha256": "dd6ff7a6a8dc7f7ebf330545efe593f8217c9dd27799fec836b74c1912b5341b",
+  "updated_at": "2026-08-22T09:41:15.361503+00:00"
+}

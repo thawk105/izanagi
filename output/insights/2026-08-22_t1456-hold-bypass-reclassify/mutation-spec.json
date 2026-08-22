@@ -1,0 +1,40 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 30,
+  "timeout_seconds": 1800,
+  "hang_timeout_seconds": 2400,
+  "mutations": [
+    {
+      "id": "MUT-1-revert-classification",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/hold_inventory.py",
+          "old": "                \"id\": \"plain-python-runner\",\n                \"classification\": \"known-guarded-bypass\",",
+          "new": "                \"id\": \"plain-python-runner\",\n                \"classification\": \"known-unresolved-bypass\","
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_hold_inventory.py::test_inventory_projects_exact_registered_source_sets"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "MUT-2-revert-reason-text",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/hold_inventory.py",
+          "old": "                \"reason\": (\n                    \"T-930 closed this bypass: calling a test function directly \"\n                    \"is blocked unless the exact release token is present.\"\n                ),\n                \"tracking\": \"T-930\",\n            },\n            {\n                \"id\": \"pegasus-dispatch-env-allowlist\",",
+          "new": "                \"reason\": (\n                    \"T-930 closed this bypass: calling a test function directly \"\n                    \"is blocked.\"\n                ),\n                \"tracking\": \"T-930\",\n            },\n            {\n                \"id\": \"pegasus-dispatch-env-allowlist\","
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_hold_inventory.py::test_inventory_projects_exact_registered_source_sets"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}
