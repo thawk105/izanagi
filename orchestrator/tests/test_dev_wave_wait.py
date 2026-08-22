@@ -6674,6 +6674,8 @@ def test_acceptance_claim_is_single_nonblocking(
     state: str,
     lease_optional: bool,
 ) -> None:
+    """Pin A: 未取得経路では、投入前の claim を一度だけ試みる。"""
+
     def run_once(flag: bool) -> tuple[object, ...]:
         fake = _RoutingAcceptanceEffects(
             behind=[0, 0],
@@ -6925,12 +6927,20 @@ def test_acceptance_unclaimed_path_skips_wait_reclaim_and_release(
 
 
 @pytest.mark.parametrize(
-    "lease_optional", [False, True], ids=("default", "legacy-flag")
+    ("state", "lease_optional"),
+    [
+        pytest.param("held", False, id="held-default"),
+        pytest.param("held", True, id="held-legacy-flag"),
+        pytest.param("queued", False, id="queued-default"),
+        pytest.param("queued", True, id="queued-legacy-flag"),
+    ],
 )
-def test_pin_c_unclaimed_keeps_main_drift_check(lease_optional: bool) -> None:
+def test_pin_c_unclaimed_keeps_main_drift_check(
+    state: str, lease_optional: bool
+) -> None:
     fake = _RoutingAcceptanceEffects(
         behind=[0, 0],
-        claim_payload=json.dumps({"state": "held"}),
+        claim_payload=json.dumps({"state": state}),
         final_main_sha=_SHA_B,
     )
     lifecycle = DW._AcceptanceLifecycle()
@@ -6960,11 +6970,22 @@ def test_pin_c_unclaimed_keeps_main_drift_check(lease_optional: bool) -> None:
     fake.assert_drained()
 
 
-def test_pin_c_unclaimed_postrun_dirty_blocks_without_receipt() -> None:
+@pytest.mark.parametrize(
+    ("state", "lease_optional"),
+    [
+        pytest.param("held", False, id="held-default"),
+        pytest.param("held", True, id="held-legacy-flag"),
+        pytest.param("queued", False, id="queued-default"),
+        pytest.param("queued", True, id="queued-legacy-flag"),
+    ],
+)
+def test_pin_c_unclaimed_postrun_dirty_blocks_without_receipt(
+    state: str, lease_optional: bool
+) -> None:
     fake = _FakeEffects()
     _queue_clean_acceptance_prefix(
         fake,
-        claim_payload=json.dumps({"state": "held"}),
+        claim_payload=json.dumps({"state": state}),
     )
     fake.expect_run(
         _COMMAND,
@@ -6974,7 +6995,7 @@ def test_pin_c_unclaimed_postrun_dirty_blocks_without_receipt() -> None:
     )
     fake.expect_run(_STATUS_ARGV, DW._CommandResult(0, " M changed.py\n"))
 
-    outcome = _run_acceptance(fake)
+    outcome = _run_acceptance(fake, lease_optional=lease_optional)
 
     assert outcome == DW._Outcome(70, "postrun-clean")
     assert fake.receipt_content is None
@@ -6986,11 +7007,22 @@ def test_pin_c_unclaimed_postrun_dirty_blocks_without_receipt() -> None:
     fake.assert_drained()
 
 
-def test_pin_c_unclaimed_postrun_index_flags_block_without_receipt() -> None:
+@pytest.mark.parametrize(
+    ("state", "lease_optional"),
+    [
+        pytest.param("held", False, id="held-default"),
+        pytest.param("held", True, id="held-legacy-flag"),
+        pytest.param("queued", False, id="queued-default"),
+        pytest.param("queued", True, id="queued-legacy-flag"),
+    ],
+)
+def test_pin_c_unclaimed_postrun_index_flags_block_without_receipt(
+    state: str, lease_optional: bool
+) -> None:
     fake = _FakeEffects()
     _queue_clean_acceptance_prefix(
         fake,
-        claim_payload=json.dumps({"state": "held"}),
+        claim_payload=json.dumps({"state": state}),
     )
     fake.expect_run(
         _COMMAND,
@@ -7001,7 +7033,7 @@ def test_pin_c_unclaimed_postrun_index_flags_block_without_receipt() -> None:
     fake.expect_run(_STATUS_ARGV, DW._CommandResult(0, ""))
     fake.expect_run(_INDEX_FLAGS_ARGV, DW._CommandResult(0, "S hidden.py\0"))
 
-    outcome = _run_acceptance(fake)
+    outcome = _run_acceptance(fake, lease_optional=lease_optional)
 
     assert outcome == DW._Outcome(70, "postrun-index-flags")
     assert fake.receipt_content is None
@@ -7013,11 +7045,22 @@ def test_pin_c_unclaimed_postrun_index_flags_block_without_receipt() -> None:
     fake.assert_drained()
 
 
-def test_pin_c_unclaimed_postrun_fingerprint_blocks_without_receipt() -> None:
+@pytest.mark.parametrize(
+    ("state", "lease_optional"),
+    [
+        pytest.param("held", False, id="held-default"),
+        pytest.param("held", True, id="held-legacy-flag"),
+        pytest.param("queued", False, id="queued-default"),
+        pytest.param("queued", True, id="queued-legacy-flag"),
+    ],
+)
+def test_pin_c_unclaimed_postrun_fingerprint_blocks_without_receipt(
+    state: str, lease_optional: bool
+) -> None:
     fake = _FakeEffects()
     _queue_clean_acceptance_prefix(
         fake,
-        claim_payload=json.dumps({"state": "held"}),
+        claim_payload=json.dumps({"state": state}),
     )
     fake.expect_run(
         _COMMAND,
@@ -7027,7 +7070,7 @@ def test_pin_c_unclaimed_postrun_fingerprint_blocks_without_receipt() -> None:
     )
     _postrun_integrity(fake, head=_SHA_B)
 
-    outcome = _run_acceptance(fake)
+    outcome = _run_acceptance(fake, lease_optional=lease_optional)
 
     assert outcome == DW._Outcome(70, "postrun-fingerprint")
     assert fake.receipt_content is None

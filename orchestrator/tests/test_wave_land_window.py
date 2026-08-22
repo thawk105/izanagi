@@ -870,6 +870,41 @@ def test_claim_create_failure_is_bounded_and_fail_closed(
     assert not list(tmp_path.glob("ticket.*"))
 
 
+def test_claim_retries_actual_file_exists_from_create_lease(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    create_calls = 0
+    real_open = WLW.os.open
+
+    def create_race(
+        path: object,
+        flags: int,
+        mode: int = 0o777,
+        *,
+        dir_fd: int | None = None,
+    ) -> int:
+        nonlocal create_calls
+        if path == WLW._LEASE_NAME and flags & os.O_EXCL:
+            create_calls += 1
+            raise FileExistsError(errno.EEXIST, "simulated create race")
+        return real_open(path, flags, mode, dir_fd=dir_fd)
+
+    monkeypatch.setattr(WLW.os, "open", create_race)
+
+    result = _claim(tmp_path, _WAVE_A, capsys)
+
+    assert result["state"] == "unavailable"
+    assert result["source"] == {
+        "status": "unavailable",
+        "reason": "lease-race",
+    }
+    assert create_calls == WLW._MAX_RACE_RETRIES
+    assert not (tmp_path / "acceptance.lease").exists()
+    assert not list(tmp_path.glob("ticket.*"))
+
+
 def test_release_without_lease_drops_own_ticket(
     tmp_path: Path,
     capsys: pytest.CaptureFixture[str],
@@ -886,6 +921,37 @@ def test_release_without_lease_drops_own_ticket(
 
     assert result["state"] == "free"
     assert not ticket.exists()
+
+
+def test_release_does_not_remove_foreign_legacy_ticket(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """R2: release は所有外の旧 ticket を cleanup しない。"""
+    ticket = _write_ticket(
+        tmp_path,
+        _WAVE_B,
+        queued_at_ns=100,
+        mtime_ns=_NOW_NS,
+    )
+    before = ticket.read_bytes()
+    real_fstat = WLW.os.fstat
+    ticket_fd = os.open(ticket, os.O_RDONLY)
+    try:
+        metadata = real_fstat(ticket_fd)
+    finally:
+        os.close(ticket_fd)
+    foreign_values = list(metadata)
+    foreign_values[4] = metadata.st_uid + 1
+    foreign_metadata = os.stat_result(foreign_values)
+    monkeypatch.setattr(WLW.os, "fstat", lambda _fd: foreign_metadata)
+
+    result = _release(tmp_path, _WAVE_B, capsys)
+
+    assert result["state"] == "free"
+    assert ticket.exists()
+    assert ticket.read_bytes() == before
 
 
 def test_status_distinguishes_free_and_held(
@@ -1084,6 +1150,48 @@ def test_stale_invalid_lease_is_reclaimed_by_mtime(
     assert result["state"] == "acquired"
     assert result["holder_self"] is True
     assert json.loads(lease.read_text(encoding="ascii"))["ttl"] == 2400
+
+
+def test_claim_retries_after_stale_lease_disappears_during_unlink(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(WLW.time, "time", lambda: float(_NOW))
+    _claim(tmp_path, _WAVE_A, capsys)
+    os.utime(tmp_path / "acceptance.lease", (_NOW - 2401,) * 2)
+    real_unlink = WLW.os.unlink
+    unlink_calls = 0
+
+    def disappear_after_unlink(
+        path: object, *, dir_fd: int | None = None
+    ) -> None:
+        nonlocal unlink_calls
+        if (
+            path == WLW._LEASE_NAME
+            and dir_fd is not None
+            and unlink_calls == 0
+        ):
+            unlink_calls += 1
+            real_unlink(path, dir_fd=dir_fd)
+            raise FileNotFoundError(errno.ENOENT, "stale lease disappeared")
+        real_unlink(path, dir_fd=dir_fd)
+
+    monkeypatch.setattr(WLW.os, "unlink", disappear_after_unlink)
+
+    result = _claim(tmp_path, _WAVE_B, capsys, main_sha=_SHA_B)
+
+    assert result["state"] == "acquired"
+    assert result["holder"] == WLW._holder_for(_WAVE_B)
+    assert result["main_sha"] == _SHA_B
+    assert unlink_calls == 1
+    assert json.loads(
+        (tmp_path / "acceptance.lease").read_text(encoding="ascii")
+    ) == {
+        "holder": WLW._holder_for(_WAVE_B),
+        "main_sha": _SHA_B,
+        "ttl": 2400,
+    }
 
 
 def test_fresh_invalid_lease_remains_fail_closed(
