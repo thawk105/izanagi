@@ -134,6 +134,13 @@
   外乱を避け、外乱を検知したら測り直す — が引き続き第一線であり、捨てない
 - 再発検知: 計測系 runbook の事前チェック手順
 
+
+- **再発: 2026-08-23** — 単独性を確認しないまま混雑下で取った per-test duration
+  (`test_real_repo_priority_order_is_literal_and_writers_follow_barrier` = 87.46 秒) が、
+  機構の構造的費用として扱われ、テストを既定 skip にする裁定の根拠になった。翌日に
+  専有に近い計算ノードで測り直すと 27.65 秒で、除外の効果は均等配分モデルでも wall 0.576 秒
+  しかなかった。外乱で膨らんだ 1 走の値は、測り直すまで設計の前提にしない。
+  正本 = D667。
 ### F4. 監査セッション突然死と文書一貫性の腐敗 [セッション死・救出] [ドリフト]
 - 事象: 2026-07-04 夜の監査セッションが報告済み状態で突然死。加えて docs 横断監査で
   real 39 件 — 可変状態 (完了状況・現在地) の複数文書への再掲が相互に腐っていた
@@ -3419,6 +3426,15 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   除く再導出で、baseline PASSED・11/11 KILLED・MISMATCH 0 で一度で通った。
   [T-417] の恒久対応 (harness 側で loadgroup 接尾辞を機械的に扱う) は依然未実施であり、
   **散文の再発記録をこれ以上重ねても検知にならない**ことが 3 例で示された。
+
+- **再発: 2026-08-22** — floor masstree staging 実効化 wave の変異本走で 4 回目の再発
+  (初出 2026-08-04、再発 08-16/08-17/08-18 に続く)。今回は台帳を検索する前に
+  「素の node id を expected_nodes から除外するが runner argv には `--deselect` を
+  足さない」という不完全な回避を最初に試したため、除外してもテストは実行され続け
+  failed_nodes に残り、MISMATCH (expected 側に無い extra 1 件) を再現した。台帳を検索して
+  正しい回避策 (`--deselect=<素の node id>` を runner argv へ追加) を発見し、
+  baseline PASSED・161/161 KILLED で収束した。[T-417] の恒久対応は依然未実施であり、
+  4 回目の再発によって「散文の再発記録だけでは検知にならない」ことが追加で示された。
 ### F96. 非 UTF-8 の証跡 blob が land され local main の受入全走が赤のままになった [手順漏れ]
 
 - 事象: [T-287] wave が段 9 直前の受入全走で 1 件の赤を観測した
@@ -7815,6 +7831,23 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   (iii) 1 度目の失敗が完全な receipt を残すため、**同じ prompt での再投入は
   `NG: 既存の完全な receipt は上書きできない` で止まる**。`--artifact-root` を分ける必要がある。
 - 実害: 子の起動失敗 2 回と、回避手順の設計で約 4 分。誤った land には至っていない。
+
+- **再発: 2026-08-23** — 同じ gate (`tools/pegasus/admission_registry.json:
+  working bytes が HEAD blob から drift`) を、**codex 子の起動ではなく親の焦点走で**踏んだ。
+  **引き金も現れ方も既載 2 件と異なる。** 段 6 の追加 fix で Codex `role=author` が
+  同ファイルへ entry を 1 件足した直後、親が commit する前に焦点走を投入したところ、
+  `orchestrator/tests/test_codex_worker_launch.py` が **70 件赤**になった。
+  launcher を subprocess として起動するテスト族が、起動前検査で一律 `launcher_rc=2`
+  (`outcome='launcher_error'`) を返すためである。commit 後の再走は 1646 passed / 0 failed。
+- 新しい情報は 2 点。(i) **この gate は「子を起動できない」形だけでなく「テストが大量に赤くなる」
+  形でも現れる。** 後者は赤の件数が多く失敗メッセージも実装差分と無関係なため、
+  自分の実装差分の回帰と誤帰属しやすい。実際の判別点は launcher.stderr 先頭行 1 行だけである。
+  (ii) 既載の恒久対応 (段 6 のレビュー子を投げる前に統合 commit を作る) は
+  **レビュー子の投入だけを守っており、fix 後の親の焦点走を守っていない。**
+  fix が hook 正本ファイルを触った場合は、焦点走の前にも統合 commit が要る。
+- 再発検知: launcher 族が理由不明に大量赤になったら、まず
+  `git status --porcelain` に `hooks/**` / `tools/pegasus_admission_registry.py` /
+  `tools/pegasus/admission_registry.json` の未 commit 差分が無いかを見る。
 ### F284. 変異 spec の期待 node に parametrize 済みテストの素の名前を書いて起動前に止まった [手順漏れ]
 
 - 事象: 変異 harness が
