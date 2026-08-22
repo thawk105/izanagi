@@ -1,0 +1,7 @@
+{
+  "schema_version": "s8b-floor-masstree-payload/v1",
+  "name": "masstree",
+  "pin": "b3c5d054b66b08374d7a6ff5a0faeaf28b041a38",
+  "config_sha256": "e9a4ecd3dfb9aef9c159e99cb2b7000651a2036ec909095f750b2c891404694a",
+  "archive_sha256": "9c1034fac8f6ac5b96d6521de9c2b42513560b41e6ec7c22d9150e33e45c30ea"
+}
