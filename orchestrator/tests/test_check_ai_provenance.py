@@ -2141,6 +2141,22 @@ def test_known_violation_ledger_matches_literal_entries():
             "同じ file へ追加した known-violation entry が非競合で union された",
             "",
         ),
+        (
+            "3eaf2038ec2ac3e7965c2a1eedcadb1ed1266626",
+            "missing-codex-author",
+            "2026-08-21 dev-wave-t1476-verify-state-committed 受入前裁定 "
+            "(ユーザー選択: known-violation 登録)",
+            "受入全走4回目が owned-path-overlap で終端し親が作成した3回目の local main 取り込み"
+            "merge。tools/check_ai_provenance.py と orchestrator/tests/test_check_ai_provenance.py の"
+            "KNOWN_PROVENANCE_VIOLATIONS/expected tuple 末尾に、本wave (6f2d97c8の1エントリ) とmain側"
+            "(T-755、d87fd42c/75d57796/216493593の3エントリ) がそれぞれ独立に別内容のエントリを追加した"
+            "union型の競合。git diff-tree --cc 3eaf2038は両側の追加分がそれぞれ現れる単純なunionで、"
+            "既存2ブロックの連結のみ (一字一句の変更・削除なし)、新規著作なし。authority docs"
+            "(docs/dev-wave/{core,operations}.md) とtools/pegasus/admission_registry.jsonがmerge中で"
+            "working tree driftしCodex dispatchが構造的に使えなかったため親が直接union解消した。"
+            "親作成mergeのためCodex著者とは記さない。",
+            "",
+        ),
     )
     assert len(provenance.KNOWN_PROVENANCE_VIOLATIONS) == len(expected)
     assert observed == expected
