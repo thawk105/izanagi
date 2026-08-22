@@ -67,6 +67,7 @@ _PYTEST_SELECTION_ENV = frozenset({
 CommandRunner = Callable[..., subprocess.CompletedProcess[str]]
 NodeRunner = Callable[[Path, str], int]
 SubmoduleReceipt = tuple[Mapping[str, str], ...]
+Sleeper = Callable[[float], None]
 
 
 class _CollectionEvidence(NamedTuple):
@@ -889,6 +890,7 @@ def _worktree_add(
     tip: str,
     *,
     command_runner: CommandRunner,
+    sleeper: Sleeper = time.sleep,
 ) -> subprocess.CompletedProcess[str]:
     """一過性の worktree add rc=128 だけを一度再試行する。"""
 
@@ -906,7 +908,7 @@ def _worktree_add(
         raise InvalidInput(
             "git worktree add rc=128 left a registered worktree residue; refusing retry"
         )
-    time.sleep(_WORKTREE_RETRY_DELAY_SECONDS)
+    sleeper(_WORKTREE_RETRY_DELAY_SECONDS)
     return _git(repo, command, command_runner=command_runner)
 
 
@@ -915,6 +917,7 @@ def _worktree_remove(
     worktree: Path,
     *,
     command_runner: CommandRunner,
+    sleeper: Sleeper = time.sleep,
     deferred_signals: list[int] | None = None,
 ) -> subprocess.CompletedProcess[str]:
     """一過性の worktree remove rc=128 だけを一度再試行する。"""
@@ -936,7 +939,7 @@ def _worktree_remove(
             "git worktree remove rc=128 left no removable worktree residue"
         )
     try:
-        time.sleep(_WORKTREE_RETRY_DELAY_SECONDS)
+        sleeper(_WORKTREE_RETRY_DELAY_SECONDS)
     except _TerminationSignal as exc:
         if deferred_signals is None:
             raise
@@ -957,6 +960,7 @@ def _cleanup_probe(
     *,
     added: bool,
     command_runner: CommandRunner,
+    sleeper: Sleeper = time.sleep,
     deferred_signals: list[int] | None = None,
 ) -> None:
     dispatch_root = worktree / "output" / "pegasus-dispatch"
@@ -972,6 +976,7 @@ def _cleanup_probe(
                 repo,
                 worktree,
                 command_runner=command_runner,
+                sleeper=sleeper,
                 deferred_signals=deferred_signals,
             )
         except InvalidInput as exc:
@@ -1359,6 +1364,7 @@ def _probe_node(
     selector: str | None = None,
     logged_nodeid: str | None = None,
     command_runner: CommandRunner,
+    sleeper: Sleeper = time.sleep,
 ) -> _NodeProbeResult:
     if (selector is None) != (logged_nodeid is None):
         raise InvalidInput("probe selector and logged nodeid must be provided together")
@@ -1371,7 +1377,11 @@ def _probe_node(
     result: _NodeProbeResult | None = None
     try:
         add = _worktree_add(
-            repo, worktree, tip, command_runner=command_runner
+            repo,
+            worktree,
+            tip,
+            command_runner=command_runner,
+            sleeper=sleeper,
         )
         if add.returncode != 0:
             raise InvalidInput(f"git worktree add failed with rc={add.returncode}")
@@ -1440,6 +1450,7 @@ def _probe_node(
                 worktree,
                 added=added,
                 command_runner=command_runner,
+                sleeper=sleeper,
                 deferred_signals=deferred_signals,
             )
     except _TerminationSignal:
@@ -1472,6 +1483,7 @@ def _probe_nodes(
     node_runner: NodeRunner | None,
     collection_runner: CollectionRunner | None,
     command_runner: CommandRunner,
+    sleeper: Sleeper = time.sleep,
 ) -> tuple[
     dict[str, int],
     dict[str, int],
@@ -1530,6 +1542,7 @@ def _probe_nodes(
             node_runner=selected_runner,
             collection_runner=main_collection_runner,
             command_runner=command_runner,
+            sleeper=sleeper,
         )
         logged_nodeid = main_probe.logged_nodeid
         if logged_nodeid in main_rerun_rcs:
@@ -1560,6 +1573,7 @@ def _probe_nodes(
                 selector=main_probe.selector,
                 logged_nodeid=logged_nodeid,
                 command_runner=command_runner,
+                sleeper=sleeper,
             )
             wave_rerun_rcs[logged_nodeid] = wave_probe.rerun_rc
             if wave_probe.rerun_rc == 1:
@@ -1682,6 +1696,7 @@ def check_acceptance_reds(
     node_runner: NodeRunner | None = None,
     collection_runner: CollectionRunner | None = None,
     command_runner: CommandRunner = subprocess.run,
+    sleeper: Sleeper = time.sleep,
 ) -> tuple[int, str, tuple[str, ...]]:
     log_path, receipt_path, probe, repo = _validate_paths(
         log, receipt, probe_root, repo_root
@@ -1721,6 +1736,7 @@ def check_acceptance_reds(
             node_runner=node_runner,
             collection_runner=collection_runner,
             command_runner=command_runner,
+            sleeper=sleeper,
         )
     _resolve_tested_main(repo, tested_main, command_runner=command_runner)
     _assert_wave_identity(repo, wave_tip, command_runner=command_runner)
@@ -1824,6 +1840,7 @@ def main(
     node_runner: NodeRunner | None = None,
     collection_runner: CollectionRunner | None = None,
     command_runner: CommandRunner = subprocess.run,
+    sleeper: Sleeper = time.sleep,
 ) -> int:
     try:
         args = _parser().parse_args(argv)
@@ -1842,6 +1859,7 @@ def main(
                 node_runner=node_runner,
                 collection_runner=collection_runner,
                 command_runner=command_runner,
+                sleeper=sleeper,
             )
     except _TerminationSignal as exc:
         print("status=invalid-input", file=sys.stderr)

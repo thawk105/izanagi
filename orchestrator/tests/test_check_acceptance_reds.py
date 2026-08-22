@@ -909,7 +909,6 @@ def test_wave_probe_fingerprint_change_after_node_fails_closed(
 def test_worktree_add_rc128_retries_once_and_succeeds(
     tmp_path: Path,
     committed_repo: tuple[Path, str, Path],
-    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     repo, tested_main, probe_root = committed_repo
     log = _write_log(tmp_path, _summary_log((("FAILED", _NON_ATTRIBUTABLE),)))
@@ -925,13 +924,13 @@ def test_worktree_add_rc128_retries_once_and_succeeds(
                 return subprocess.CompletedProcess(values, 128, "", "busy")
         return subprocess.run(values, **kwargs)
 
-    monkeypatch.setattr(CAR.time, "sleep", sleeps.append)
     assert CAR.main(
         _arguments(log, tested_main, tmp_path / "receipt.json", probe_root),
         repo_root=repo,
         node_runner=lambda _worktree, _nodeid: 1,
         collection_runner=lambda _worktree, _path: (_NON_ATTRIBUTABLE,),
         command_runner=command_runner,
+        sleeper=sleeps.append,
     ) == 0
     assert add_attempts == 2
     assert sleeps == [1.0]
@@ -941,7 +940,6 @@ def test_worktree_add_rc128_retries_once_and_succeeds(
 def test_worktree_add_rc128_twice_fails_after_one_retry(
     tmp_path: Path,
     committed_repo: tuple[Path, str, Path],
-    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     repo, tested_main, probe_root = committed_repo
     log = _write_log(tmp_path, _summary_log((("FAILED", _NON_ATTRIBUTABLE),)))
@@ -958,13 +956,13 @@ def test_worktree_add_rc128_twice_fails_after_one_retry(
             return subprocess.CompletedProcess(values, 128, "", "busy")
         return subprocess.run(values, **kwargs)
 
-    monkeypatch.setattr(CAR.time, "sleep", sleeps.append)
     assert CAR.main(
         _arguments(log, tested_main, tmp_path / "receipt.json", probe_root),
         repo_root=repo,
         node_runner=lambda _worktree, _nodeid: 1,
         collection_runner=lambda _worktree, _path: (_NON_ATTRIBUTABLE,),
         command_runner=command_runner,
+        sleeper=sleeps.append,
     ) == 2
     assert add_attempts == 2
     assert sleeps == [1.0]
@@ -974,7 +972,6 @@ def test_worktree_add_rc128_twice_fails_after_one_retry(
 def test_worktree_add_non128_failure_is_not_retried(
     tmp_path: Path,
     committed_repo: tuple[Path, str, Path],
-    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     repo, tested_main, probe_root = committed_repo
     log = _write_log(tmp_path, _summary_log((("FAILED", _NON_ATTRIBUTABLE),)))
@@ -989,13 +986,13 @@ def test_worktree_add_non128_failure_is_not_retried(
             return subprocess.CompletedProcess(values, 1, "", "fatal")
         return subprocess.run(values, **kwargs)
 
-    monkeypatch.setattr(CAR.time, "sleep", sleeps.append)
     assert CAR.main(
         _arguments(log, tested_main, tmp_path / "receipt.json", probe_root),
         repo_root=repo,
         node_runner=lambda _worktree, _nodeid: 1,
         collection_runner=lambda _worktree, _path: (_NON_ATTRIBUTABLE,),
         command_runner=command_runner,
+        sleeper=sleeps.append,
     ) == 2
     assert add_attempts == 1
     assert sleeps == []
@@ -1005,7 +1002,6 @@ def test_worktree_add_non128_failure_is_not_retried(
 def test_worktree_remove_rc128_retries_once_and_succeeds(
     tmp_path: Path,
     committed_repo: tuple[Path, str, Path],
-    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     repo, tested_main, _probe_root = committed_repo
     parent = tmp_path / "probe-parent"
@@ -1024,13 +1020,13 @@ def test_worktree_remove_rc128_retries_once_and_succeeds(
                 return subprocess.CompletedProcess(values, 128, "", "busy")
         return subprocess.run(values, **kwargs)
 
-    monkeypatch.setattr(CAR.time, "sleep", sleeps.append)
     CAR._cleanup_probe(
         repo,
         parent,
         worktree,
         added=True,
         command_runner=command_runner,
+        sleeper=sleeps.append,
     )
     assert remove_attempts == 2
     assert sleeps == [1.0]
@@ -1040,7 +1036,6 @@ def test_worktree_remove_rc128_retries_once_and_succeeds(
 def test_worktree_remove_rc128_twice_fails_after_one_retry(
     tmp_path: Path,
     committed_repo: tuple[Path, str, Path],
-    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     repo, tested_main, _probe_root = committed_repo
     parent = tmp_path / "probe-parent"
@@ -1060,7 +1055,6 @@ def test_worktree_remove_rc128_twice_fails_after_one_retry(
             return subprocess.CompletedProcess(values, 128, "", "busy")
         return subprocess.run(values, **kwargs)
 
-    monkeypatch.setattr(CAR.time, "sleep", sleeps.append)
     with pytest.raises(CAR.InvalidInput, match="probe cleanup failed"):
         CAR._cleanup_probe(
             repo,
@@ -1068,6 +1062,7 @@ def test_worktree_remove_rc128_twice_fails_after_one_retry(
             worktree,
             added=True,
             command_runner=command_runner,
+            sleeper=sleeps.append,
         )
     assert remove_attempts == 2
     assert sleeps == [1.0]
@@ -1077,7 +1072,6 @@ def test_worktree_remove_rc128_twice_fails_after_one_retry(
 def test_worktree_remove_non128_failure_is_not_retried(
     tmp_path: Path,
     committed_repo: tuple[Path, str, Path],
-    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     repo, tested_main, _probe_root = committed_repo
     parent = tmp_path / "probe-parent"
@@ -1095,7 +1089,6 @@ def test_worktree_remove_non128_failure_is_not_retried(
             return subprocess.CompletedProcess(values, 1, "", "fatal")
         return subprocess.run(values, **kwargs)
 
-    monkeypatch.setattr(CAR.time, "sleep", sleeps.append)
     with pytest.raises(CAR.InvalidInput, match="probe cleanup failed"):
         CAR._cleanup_probe(
             repo,
@@ -1103,6 +1096,7 @@ def test_worktree_remove_non128_failure_is_not_retried(
             worktree,
             added=True,
             command_runner=command_runner,
+            sleeper=sleeps.append,
         )
     assert remove_attempts == 1
     assert sleeps == []
@@ -1112,7 +1106,6 @@ def test_worktree_remove_non128_failure_is_not_retried(
 def test_worktree_remove_retry_rechecks_orphan_hold_after_sleep(
     tmp_path: Path,
     committed_repo: tuple[Path, str, Path],
-    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     repo, tested_main, _probe_root = committed_repo
     parent = tmp_path / "probe-parent"
@@ -1138,7 +1131,6 @@ def test_worktree_remove_retry_rechecks_orphan_hold_after_sleep(
         hold.parent.mkdir(parents=True)
         hold.write_text("preserve evidence\n", encoding="utf-8")
 
-    monkeypatch.setattr(CAR.time, "sleep", create_hold)
     with pytest.raises(CAR.InvalidInput, match="orphan-hold"):
         CAR._cleanup_probe(
             repo,
@@ -1146,6 +1138,7 @@ def test_worktree_remove_retry_rechecks_orphan_hold_after_sleep(
             worktree,
             added=True,
             command_runner=command_runner,
+            sleeper=create_hold,
         )
     assert remove_attempts == 1
     assert sleeps == [1.0]
@@ -1158,7 +1151,6 @@ def test_worktree_remove_retry_rechecks_orphan_hold_after_sleep(
 def test_worktree_remove_retry_signal_is_deferred_until_cleanup(
     tmp_path: Path,
     committed_repo: tuple[Path, str, Path],
-    monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     repo, tested_main, probe_root = committed_repo
@@ -1179,13 +1171,13 @@ def test_worktree_remove_retry_signal_is_deferred_until_cleanup(
         sleeps.append(delay)
         os.kill(os.getpid(), signal.SIGTERM)
 
-    monkeypatch.setattr(CAR.time, "sleep", signal_during_sleep)
     assert CAR.main(
         _arguments(log, tested_main, tmp_path / "receipt.json", probe_root),
         repo_root=repo,
         node_runner=lambda _worktree, _nodeid: 1,
         collection_runner=lambda _worktree, _path: (_NON_ATTRIBUTABLE,),
         command_runner=command_runner,
+        sleeper=signal_during_sleep,
     ) == 2
     captured = capsys.readouterr()
     assert "terminated by signal" in captured.err
