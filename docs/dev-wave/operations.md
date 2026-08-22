@@ -174,11 +174,14 @@ lock 再取得後に全検査をやり直し、`tip_sha` / `checker_blob_sha` / 
 初回実測でも取り逃す（F242）。
 ## DW-O27 — acceptance 投入は `--lease-optional` を既定で使う
 
-D662 (2026-08-22) により受入 lease (`tools/wave_land_window.py` 経由の
-`acceptance.lease`) の待ち行列は廃止された。`tools/dev_wave_wait.py acceptance`
-呼び出しには常に `--lease-optional` を付けて投入する（T-1458 実装、2026-08-23
-着地）。claim が held/queued でも待たずに wave 名の SHA-256 先頭 12 桁を
-疑似 holder として受入を継続し、receipt の `lease_holder` は
-`dev_wave_land.py` の検証式と一致するため land 側の受理に影響しない。
-`--lease-dir` 自体は省略しない（既存の claim 試行・main SHA 取得ロジックが
-使うため）。フラグを付けない場合は旧来通りの blocking 待機に戻る（後方互換）。
+D662 (2026-08-22) により受入 lease の待ち行列は廃止された。
+`tools/dev_wave_wait.py acceptance` には常に `--lease-optional` を付けて
+投入する（T-1458 実装、2026-08-23 着地）。claim が held/queued でも待たずに
+wave 名ベースの疑似 holder で受入を継続する。`--lease-dir` 自体は省略しない。
+フラグ省略時は旧来の blocking 待機（後方互換）。専用 lease-dir 等の検証迂回は
+正規経路でない — 本節のフラグだけを使う。
+
+`tools/check_docs.py` の dispatch 契約へ新節を登録する際は、
+`orchestrator/tests/test_check_docs.py` の合成 fixture との整合性を同じ
+commit で確認する（`DW-O26` の精神を checker 変更にも適用。怠ると多数の
+テストが連鎖的に失敗する — T-1458 実測、320 件）。
