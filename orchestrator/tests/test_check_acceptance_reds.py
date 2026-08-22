@@ -906,6 +906,295 @@ def test_wave_probe_fingerprint_change_after_node_fails_closed(
     assert list(probe_root.iterdir()) == []
 
 
+def test_worktree_add_rc128_retries_once_and_succeeds(
+    tmp_path: Path,
+    committed_repo: tuple[Path, str, Path],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo, tested_main, probe_root = committed_repo
+    log = _write_log(tmp_path, _summary_log((("FAILED", _NON_ATTRIBUTABLE),)))
+    add_attempts = 0
+    sleeps: list[float] = []
+
+    def command_runner(command: Sequence[str], **kwargs):
+        nonlocal add_attempts
+        values = list(command)
+        if len(values) >= 5 and values[3:5] == ["worktree", "add"]:
+            add_attempts += 1
+            if add_attempts == 1:
+                return subprocess.CompletedProcess(values, 128, "", "busy")
+        return subprocess.run(values, **kwargs)
+
+    monkeypatch.setattr(CAR.time, "sleep", sleeps.append)
+    assert CAR.main(
+        _arguments(log, tested_main, tmp_path / "receipt.json", probe_root),
+        repo_root=repo,
+        node_runner=lambda _worktree, _nodeid: 1,
+        collection_runner=lambda _worktree, _path: (_NON_ATTRIBUTABLE,),
+        command_runner=command_runner,
+    ) == 0
+    assert add_attempts == 2
+    assert sleeps == [1.0]
+    assert list(probe_root.iterdir()) == []
+
+
+def test_worktree_add_rc128_twice_fails_after_one_retry(
+    tmp_path: Path,
+    committed_repo: tuple[Path, str, Path],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo, tested_main, probe_root = committed_repo
+    log = _write_log(tmp_path, _summary_log((("FAILED", _NON_ATTRIBUTABLE),)))
+    add_attempts = 0
+    sleeps: list[float] = []
+
+    def command_runner(command: Sequence[str], **kwargs):
+        nonlocal add_attempts
+        values = list(command)
+        if len(values) >= 5 and values[3:5] == ["worktree", "add"]:
+            add_attempts += 1
+            if add_attempts > 2:
+                raise AssertionError("worktree add retry exceeded one retry")
+            return subprocess.CompletedProcess(values, 128, "", "busy")
+        return subprocess.run(values, **kwargs)
+
+    monkeypatch.setattr(CAR.time, "sleep", sleeps.append)
+    assert CAR.main(
+        _arguments(log, tested_main, tmp_path / "receipt.json", probe_root),
+        repo_root=repo,
+        node_runner=lambda _worktree, _nodeid: 1,
+        collection_runner=lambda _worktree, _path: (_NON_ATTRIBUTABLE,),
+        command_runner=command_runner,
+    ) == 2
+    assert add_attempts == 2
+    assert sleeps == [1.0]
+    assert list(probe_root.iterdir()) == []
+
+
+def test_worktree_add_non128_failure_is_not_retried(
+    tmp_path: Path,
+    committed_repo: tuple[Path, str, Path],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo, tested_main, probe_root = committed_repo
+    log = _write_log(tmp_path, _summary_log((("FAILED", _NON_ATTRIBUTABLE),)))
+    add_attempts = 0
+    sleeps: list[float] = []
+
+    def command_runner(command: Sequence[str], **kwargs):
+        nonlocal add_attempts
+        values = list(command)
+        if len(values) >= 5 and values[3:5] == ["worktree", "add"]:
+            add_attempts += 1
+            return subprocess.CompletedProcess(values, 1, "", "fatal")
+        return subprocess.run(values, **kwargs)
+
+    monkeypatch.setattr(CAR.time, "sleep", sleeps.append)
+    assert CAR.main(
+        _arguments(log, tested_main, tmp_path / "receipt.json", probe_root),
+        repo_root=repo,
+        node_runner=lambda _worktree, _nodeid: 1,
+        collection_runner=lambda _worktree, _path: (_NON_ATTRIBUTABLE,),
+        command_runner=command_runner,
+    ) == 2
+    assert add_attempts == 1
+    assert sleeps == []
+    assert list(probe_root.iterdir()) == []
+
+
+def test_worktree_remove_rc128_retries_once_and_succeeds(
+    tmp_path: Path,
+    committed_repo: tuple[Path, str, Path],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo, tested_main, _probe_root = committed_repo
+    parent = tmp_path / "probe-parent"
+    parent.mkdir()
+    worktree = parent / "worktree"
+    _git(repo, "worktree", "add", "--detach", str(worktree), tested_main)
+    remove_attempts = 0
+    sleeps: list[float] = []
+
+    def command_runner(command: Sequence[str], **kwargs):
+        nonlocal remove_attempts
+        values = list(command)
+        if len(values) >= 5 and values[3:5] == ["worktree", "remove"]:
+            remove_attempts += 1
+            if remove_attempts == 1:
+                return subprocess.CompletedProcess(values, 128, "", "busy")
+        return subprocess.run(values, **kwargs)
+
+    monkeypatch.setattr(CAR.time, "sleep", sleeps.append)
+    CAR._cleanup_probe(
+        repo,
+        parent,
+        worktree,
+        added=True,
+        command_runner=command_runner,
+    )
+    assert remove_attempts == 2
+    assert sleeps == [1.0]
+    assert not parent.exists()
+
+
+def test_worktree_remove_rc128_twice_fails_after_one_retry(
+    tmp_path: Path,
+    committed_repo: tuple[Path, str, Path],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo, tested_main, _probe_root = committed_repo
+    parent = tmp_path / "probe-parent"
+    parent.mkdir()
+    worktree = parent / "worktree"
+    _git(repo, "worktree", "add", "--detach", str(worktree), tested_main)
+    remove_attempts = 0
+    sleeps: list[float] = []
+
+    def command_runner(command: Sequence[str], **kwargs):
+        nonlocal remove_attempts
+        values = list(command)
+        if len(values) >= 5 and values[3:5] == ["worktree", "remove"]:
+            remove_attempts += 1
+            if remove_attempts > 2:
+                raise AssertionError("worktree remove retry exceeded one retry")
+            return subprocess.CompletedProcess(values, 128, "", "busy")
+        return subprocess.run(values, **kwargs)
+
+    monkeypatch.setattr(CAR.time, "sleep", sleeps.append)
+    with pytest.raises(CAR.InvalidInput, match="probe cleanup failed"):
+        CAR._cleanup_probe(
+            repo,
+            parent,
+            worktree,
+            added=True,
+            command_runner=command_runner,
+        )
+    assert remove_attempts == 2
+    assert sleeps == [1.0]
+    assert worktree.exists()
+
+
+def test_worktree_remove_non128_failure_is_not_retried(
+    tmp_path: Path,
+    committed_repo: tuple[Path, str, Path],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo, tested_main, _probe_root = committed_repo
+    parent = tmp_path / "probe-parent"
+    parent.mkdir()
+    worktree = parent / "worktree"
+    _git(repo, "worktree", "add", "--detach", str(worktree), tested_main)
+    remove_attempts = 0
+    sleeps: list[float] = []
+
+    def command_runner(command: Sequence[str], **kwargs):
+        nonlocal remove_attempts
+        values = list(command)
+        if len(values) >= 5 and values[3:5] == ["worktree", "remove"]:
+            remove_attempts += 1
+            return subprocess.CompletedProcess(values, 1, "", "fatal")
+        return subprocess.run(values, **kwargs)
+
+    monkeypatch.setattr(CAR.time, "sleep", sleeps.append)
+    with pytest.raises(CAR.InvalidInput, match="probe cleanup failed"):
+        CAR._cleanup_probe(
+            repo,
+            parent,
+            worktree,
+            added=True,
+            command_runner=command_runner,
+        )
+    assert remove_attempts == 1
+    assert sleeps == []
+    assert worktree.exists()
+
+
+def test_worktree_remove_retry_rechecks_orphan_hold_after_sleep(
+    tmp_path: Path,
+    committed_repo: tuple[Path, str, Path],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo, tested_main, _probe_root = committed_repo
+    parent = tmp_path / "probe-parent"
+    parent.mkdir()
+    worktree = parent / "worktree"
+    _git(repo, "worktree", "add", "--detach", str(worktree), tested_main)
+    remove_attempts = 0
+    sleeps: list[float] = []
+    hold = worktree / "output" / "pegasus-dispatch" / "orphan-hold.json"
+
+    def command_runner(command: Sequence[str], **kwargs):
+        nonlocal remove_attempts
+        values = list(command)
+        if len(values) >= 5 and values[3:5] == ["worktree", "remove"]:
+            remove_attempts += 1
+            if remove_attempts > 1:
+                raise AssertionError("worktree remove retried after orphan hold")
+            return subprocess.CompletedProcess(values, 128, "", "busy")
+        return subprocess.run(values, **kwargs)
+
+    def create_hold(delay: float) -> None:
+        sleeps.append(delay)
+        hold.parent.mkdir(parents=True)
+        hold.write_text("preserve evidence\n", encoding="utf-8")
+
+    monkeypatch.setattr(CAR.time, "sleep", create_hold)
+    with pytest.raises(CAR.InvalidInput, match="orphan-hold"):
+        CAR._cleanup_probe(
+            repo,
+            parent,
+            worktree,
+            added=True,
+            command_runner=command_runner,
+        )
+    assert remove_attempts == 1
+    assert sleeps == [1.0]
+    assert hold.is_file()
+    assert worktree.exists()
+    assert parent.exists()
+
+
+@pytest.mark.skipif(not hasattr(signal, "SIGTERM"), reason="SIGTERM unavailable")
+def test_worktree_remove_retry_signal_is_deferred_until_cleanup(
+    tmp_path: Path,
+    committed_repo: tuple[Path, str, Path],
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    repo, tested_main, probe_root = committed_repo
+    log = _write_log(tmp_path, _summary_log((("FAILED", _NON_ATTRIBUTABLE),)))
+    remove_attempts = 0
+    sleeps: list[float] = []
+
+    def command_runner(command: Sequence[str], **kwargs):
+        nonlocal remove_attempts
+        values = list(command)
+        if len(values) >= 5 and values[3:5] == ["worktree", "remove"]:
+            remove_attempts += 1
+            if remove_attempts == 1:
+                return subprocess.CompletedProcess(values, 128, "", "busy")
+        return subprocess.run(values, **kwargs)
+
+    def signal_during_sleep(delay: float) -> None:
+        sleeps.append(delay)
+        os.kill(os.getpid(), signal.SIGTERM)
+
+    monkeypatch.setattr(CAR.time, "sleep", signal_during_sleep)
+    assert CAR.main(
+        _arguments(log, tested_main, tmp_path / "receipt.json", probe_root),
+        repo_root=repo,
+        node_runner=lambda _worktree, _nodeid: 1,
+        collection_runner=lambda _worktree, _path: (_NON_ATTRIBUTABLE,),
+        command_runner=command_runner,
+    ) == 2
+    captured = capsys.readouterr()
+    assert "terminated by signal" in captured.err
+    assert "probe worktree cleanup did not complete" not in captured.err
+    assert remove_attempts == 2
+    assert sleeps == [1.0]
+    assert list(probe_root.iterdir()) == []
+
+
 def test_each_node_uses_a_fresh_probe_worktree(
     tmp_path: Path, committed_repo: tuple[Path, str, Path]
 ) -> None:
@@ -2387,6 +2676,215 @@ def test_each_logged_path_has_an_independent_complete_collection_gate(
         "orchestrator/tests/test_example.py",
         "orchestrator/tests/test_second.py",
     ]
+
+
+def test_collection_cache_same_tip_and_path_runs_once_but_reruns_each_node(
+    tmp_path: Path,
+    committed_repo: tuple[Path, str, Path],
+) -> None:
+    repo, tested_main, probe_root = committed_repo
+    second = "orchestrator/tests/test_example.py::test_non_attributable_two"
+    log = _write_log(
+        tmp_path,
+        _summary_log((
+            ("FAILED", _NON_ATTRIBUTABLE),
+            ("ERROR", second),
+        )),
+    )
+    collection_calls: list[tuple[str, str]] = []
+    node_calls: list[str] = []
+
+    def collection_runner(worktree: Path, path_text: str) -> tuple[str, ...]:
+        collection_calls.append((_git(worktree, "rev-parse", "HEAD").stdout.strip(), path_text))
+        return (_NON_ATTRIBUTABLE, second)
+
+    def node_runner(_worktree: Path, nodeid: str) -> int:
+        node_calls.append(nodeid)
+        return 1
+
+    receipt = tmp_path / "receipt.json"
+    assert CAR.main(
+        _arguments(log, tested_main, receipt, probe_root),
+        repo_root=repo,
+        node_runner=node_runner,
+        collection_runner=collection_runner,
+    ) == 0
+    assert collection_calls == [(tested_main, "orchestrator/tests/test_example.py")]
+    assert node_calls == [_NON_ATTRIBUTABLE, second]
+    document = json.loads(receipt.read_text(encoding="utf-8"))
+    assert len(document["collections"]) == 1
+    assert len(document["nodes"]) == 2
+
+
+def test_collection_cache_missing_nodeid_fails_closed_without_nonattributable_receipt(
+    tmp_path: Path,
+    committed_repo: tuple[Path, str, Path],
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    repo, tested_main, probe_root = committed_repo
+    second = "orchestrator/tests/test_example.py::test_non_attributable_two"
+    log = _write_log(
+        tmp_path,
+        _summary_log((
+            ("FAILED", _NON_ATTRIBUTABLE),
+            ("ERROR", second),
+        )),
+    )
+    node_calls: list[str] = []
+
+    def node_runner(_worktree: Path, nodeid: str) -> int:
+        node_calls.append(nodeid)
+        return 1
+
+    receipt = tmp_path / "receipt.json"
+    assert CAR.main(
+        _arguments(log, tested_main, receipt, probe_root),
+        repo_root=repo,
+        node_runner=node_runner,
+        collection_runner=lambda _worktree, _path: (_NON_ATTRIBUTABLE,),
+    ) == 2
+    assert node_calls == [_NON_ATTRIBUTABLE]
+    assert not receipt.exists()
+    assert "no exact collected selector" in capsys.readouterr().err
+
+
+def test_collection_suffix_param_is_rejected_fail_closed(
+    tmp_path: Path,
+    committed_repo: tuple[Path, str, Path],
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    repo, tested_main, probe_root = committed_repo
+    reference = "orchestrator/tests/test_example.py::test_target[param]"
+    log = _write_log(tmp_path, _summary_log((("FAILED", reference),)))
+    node_calls: list[str] = []
+
+    def node_runner(_worktree: Path, nodeid: str) -> int:
+        node_calls.append(nodeid)
+        return 1
+
+    receipt = tmp_path / "receipt.json"
+    assert CAR.main(
+        _arguments(log, tested_main, receipt, probe_root),
+        repo_root=repo,
+        node_runner=node_runner,
+        collection_runner=lambda _worktree, _path: (
+            "orchestrator/tests/test_example.py::test_target",
+        ),
+    ) == 2
+    assert node_calls == []
+    assert not receipt.exists()
+    assert "no exact collected selector" in capsys.readouterr().err
+
+
+def test_same_tip_and_path_two_nodes_are_normally_nonattributable(
+    tmp_path: Path,
+    committed_repo: tuple[Path, str, Path],
+) -> None:
+    repo, tested_main, probe_root = committed_repo
+    second = "orchestrator/tests/test_example.py::test_non_attributable_two"
+    log = _write_log(
+        tmp_path,
+        _summary_log((
+            ("FAILED", _NON_ATTRIBUTABLE),
+            ("ERROR", second),
+        )),
+    )
+    receipt = tmp_path / "receipt.json"
+    assert CAR.main(
+        _arguments(log, tested_main, receipt, probe_root),
+        repo_root=repo,
+        node_runner=lambda _worktree, _nodeid: 1,
+        collection_runner=lambda _worktree, _path: (_NON_ATTRIBUTABLE, second),
+    ) == 0
+    document = json.loads(receipt.read_text(encoding="utf-8"))
+    assert document["status"] == "non-attributable-only"
+    assert document["nodes"]
+    assert len(document["collections"]) < len(document["nodes"])
+
+
+def test_folded_collection_receipt_is_accepted_by_waiter_consumer(
+    tmp_path: Path,
+    committed_repo: tuple[Path, str, Path],
+) -> None:
+    repo, tested_main, probe_root = committed_repo
+    second = "orchestrator/tests/test_example.py::test_non_attributable_two"
+    log = _write_log(
+        tmp_path,
+        _summary_log((
+            ("FAILED", _NON_ATTRIBUTABLE),
+            ("ERROR", second),
+        )),
+    )
+    receipt = tmp_path / "receipt.json"
+    assert CAR.main(
+        _arguments(log, tested_main, receipt, probe_root),
+        repo_root=repo,
+        node_runner=lambda _worktree, _nodeid: 1,
+        collection_runner=lambda _worktree, _path: (_NON_ATTRIBUTABLE, second),
+    ) == 0
+    document = json.loads(receipt.read_text(encoding="utf-8"))
+    assert document["status"] == "non-attributable-only"
+    assert document["nodes"]
+    assert set(document) == {
+        "collections", "log_path", "log_sha256", "nodes", "schema_version",
+        "status", "submodules", "tested_main", "wave_tip",
+    }
+    assert document["collections"]
+    assert all(
+        set(collection) == {
+            "deleted_receipt_path", "path", "request_id", "source",
+            "stdout_sha256", "submission_nonce",
+        }
+        for collection in document["collections"]
+    )
+    assert len(document["collections"]) < len(document["nodes"])
+    assert DW._red_check_payload_nodeids(
+        document,
+        tested_main=tested_main,
+        tested_tip=tested_main,
+        log_sha256=hashlib.sha256(log.read_bytes()).hexdigest(),
+    ) == ((_NON_ATTRIBUTABLE, second), ())
+
+
+def test_collection_receipt_covers_two_paths_with_complete_entries(
+    tmp_path: Path,
+    committed_repo: tuple[Path, str, Path],
+) -> None:
+    repo, tested_main, probe_root = committed_repo
+    second_path = "orchestrator/tests/test_second.py"
+    second = f"{second_path}::test_red"
+    log = _write_log(
+        tmp_path,
+        _summary_log((
+            ("FAILED", _NON_ATTRIBUTABLE),
+            ("ERROR", second),
+        )),
+    )
+    collection_by_path = {
+        "orchestrator/tests/test_example.py": (_NON_ATTRIBUTABLE,),
+        second_path: (second,),
+    }
+
+    receipt = tmp_path / "receipt.json"
+    assert CAR.main(
+        _arguments(log, tested_main, receipt, probe_root),
+        repo_root=repo,
+        node_runner=lambda _worktree, _nodeid: 1,
+        collection_runner=lambda _worktree, path_text: collection_by_path[path_text],
+    ) == 0
+
+    document = json.loads(receipt.read_text(encoding="utf-8"))
+    assert {item["path"] for item in document["collections"]} == set(
+        collection_by_path
+    )
+    assert len(document["collections"]) == 2
+    assert all(
+        set(item) == {
+            "deleted_receipt_path", "path", "request_id", "source",
+            "stdout_sha256", "submission_nonce",
+        }
+        for item in document["collections"]
+    )
 
 
 def test_injected_collection_failure_cannot_reach_rerun_or_status(

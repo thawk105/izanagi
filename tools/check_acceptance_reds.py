@@ -14,6 +14,7 @@ import stat
 import subprocess
 import sys
 import tempfile
+import time
 import unicodedata
 from pathlib import Path, PurePosixPath
 from typing import Any, Callable, Mapping, NamedTuple, Sequence
@@ -28,6 +29,7 @@ _MAX_PROBE_DIAGNOSTIC_BYTES = 8192
 # 3600s RUN time + 300s grace, followed by 60s of accounting.  Keep this
 # outer timeout above that 4860s authority so dispatch reports its own timeout.
 _DISPATCH_TIMEOUT_SECONDS = 5100.0
+_WORKTREE_RETRY_DELAY_SECONDS = 1.0
 _SUMMARY_HEADER = re.compile(r"^={3,} short test summary info ={3,}$")
 _SUMMARY_LINE = re.compile(r"^={3,} (?P<body>.+) ={3,}$")
 _OUTCOME_LINE = re.compile(
@@ -881,6 +883,73 @@ def _registered_worktrees(
     }
 
 
+def _worktree_add(
+    repo: Path,
+    worktree: Path,
+    tip: str,
+    *,
+    command_runner: CommandRunner,
+) -> subprocess.CompletedProcess[str]:
+    """一過性の worktree add rc=128 だけを一度再試行する。"""
+
+    command = ["worktree", "add", "--detach", str(worktree), tip]
+    added = _git(repo, command, command_runner=command_runner)
+    if added.returncode != 128:
+        return added
+    if worktree.exists() or worktree.is_symlink():
+        raise InvalidInput(
+            "git worktree add rc=128 left a worktree path residue; refusing retry"
+        )
+    if os.path.realpath(worktree) in _registered_worktrees(
+        repo, command_runner=command_runner
+    ):
+        raise InvalidInput(
+            "git worktree add rc=128 left a registered worktree residue; refusing retry"
+        )
+    time.sleep(_WORKTREE_RETRY_DELAY_SECONDS)
+    return _git(repo, command, command_runner=command_runner)
+
+
+def _worktree_remove(
+    repo: Path,
+    worktree: Path,
+    *,
+    command_runner: CommandRunner,
+    deferred_signals: list[int] | None = None,
+) -> subprocess.CompletedProcess[str]:
+    """一過性の worktree remove rc=128 だけを一度再試行する。"""
+
+    command = ["worktree", "remove", "--force", str(worktree)]
+    removed = _git(repo, command, command_runner=command_runner)
+    if removed.returncode != 128:
+        return removed
+    dispatch_root = worktree / "output" / "pegasus-dispatch"
+    if _orphan_hold_present(dispatch_root):
+        raise InvalidInput(
+            "orphan-hold: refusing worktree remove retry; "
+            f"hold={dispatch_root / 'orphan-hold.json'}"
+        )
+    path_present = worktree.exists() or worktree.is_symlink()
+    registered = _registered_worktrees(repo, command_runner=command_runner)
+    if not path_present and os.path.realpath(worktree) not in registered:
+        raise InvalidInput(
+            "git worktree remove rc=128 left no removable worktree residue"
+        )
+    try:
+        time.sleep(_WORKTREE_RETRY_DELAY_SECONDS)
+    except _TerminationSignal as exc:
+        if deferred_signals is None:
+            raise
+        if not deferred_signals:
+            deferred_signals.append(exc.signum)
+    if _orphan_hold_present(dispatch_root):
+        raise InvalidInput(
+            "orphan-hold: refusing worktree remove retry; "
+            f"hold={dispatch_root / 'orphan-hold.json'}"
+        )
+    return _git(repo, command, command_runner=command_runner)
+
+
 def _cleanup_probe(
     repo: Path,
     parent: Path,
@@ -888,6 +957,7 @@ def _cleanup_probe(
     *,
     added: bool,
     command_runner: CommandRunner,
+    deferred_signals: list[int] | None = None,
 ) -> None:
     dispatch_root = worktree / "output" / "pegasus-dispatch"
     if _orphan_hold_present(dispatch_root):
@@ -898,10 +968,11 @@ def _cleanup_probe(
     failures: list[str] = []
     if added or worktree.exists():
         try:
-            removed = _git(
+            removed = _worktree_remove(
                 repo,
-                ["worktree", "remove", "--force", str(worktree)],
+                worktree,
                 command_runner=command_runner,
+                deferred_signals=deferred_signals,
             )
         except InvalidInput as exc:
             failures.append(f"worktree remove failed: {exc}")
@@ -1084,6 +1155,50 @@ def _default_collection_runner(
     )
 
 
+def _collection_result_from_output(
+    collection_output: Sequence[str] | _CollectionResult,
+    path_text: str,
+) -> _CollectionResult:
+    if isinstance(collection_output, _CollectionResult):
+        return collection_output
+    return _CollectionResult(
+        nodeids=tuple(collection_output),
+        evidence=_CollectionEvidence(
+            path=path_text,
+            source="injected-runner",
+            deleted_receipt_path=None,
+            submission_nonce=None,
+            request_id=None,
+            stdout_sha256=None,
+        ),
+    )
+
+
+@contextlib.contextmanager
+def _defer_cleanup_signals(deferred: list[int]) -> Any:
+    """cleanup 中の signal を記録し、破壊的操作の途中では再送しない。"""
+
+    signals = tuple(
+        candidate
+        for candidate in (signal.SIGTERM, signal.SIGHUP, signal.SIGINT)
+        if candidate is not None
+    )
+    previous: dict[signal.Signals, Any] = {}
+
+    def defer(signum: int, _frame: Any) -> None:
+        if not deferred:
+            deferred.append(signum)
+
+    try:
+        for candidate in signals:
+            previous[candidate] = signal.getsignal(candidate)
+            signal.signal(candidate, defer)
+        yield
+    finally:
+        for candidate, handler in previous.items():
+            signal.signal(candidate, handler)
+
+
 def _initialize_submodules_cache_only(
     worktree: Path, *, command_runner: CommandRunner,
 ) -> SubmoduleReceipt:
@@ -1255,10 +1370,8 @@ def _probe_node(
     pending: BaseException | None = None
     result: _NodeProbeResult | None = None
     try:
-        add = _git(
-            repo,
-            ["worktree", "add", "--detach", str(worktree), tip],
-            command_runner=command_runner,
+        add = _worktree_add(
+            repo, worktree, tip, command_runner=command_runner
         )
         if add.returncode != 0:
             raise InvalidInput(f"git worktree add failed with rc={add.returncode}")
@@ -1276,19 +1389,11 @@ def _probe_node(
         if collection_runner is not None:
             path_text = reference.split("::", 1)[0]
             collection_output = collection_runner(worktree, path_text)
-            if isinstance(collection_output, _CollectionResult):
-                collected = collection_output.nodeids
-                collection_evidence = collection_output.evidence
-            else:
-                collected = tuple(collection_output)
-                collection_evidence = _CollectionEvidence(
-                    path=path_text,
-                    source="injected-runner",
-                    deleted_receipt_path=None,
-                    submission_nonce=None,
-                    request_id=None,
-                    stdout_sha256=None,
-                )
+            collection_result = _collection_result_from_output(
+                collection_output, path_text
+            )
+            collected = collection_result.nodeids
+            collection_evidence = collection_result.evidence
             selector, logged_nodeid = _selector_from_collection(reference, collected)
         assert selector is not None and logged_nodeid is not None
         _assert_probe_identity(
@@ -1326,18 +1431,25 @@ def _probe_node(
         )
     except BaseException as exc:
         pending = exc
+    deferred_signals: list[int] = []
     try:
-        _cleanup_probe(
-            repo,
-            parent,
-            worktree,
-            added=added,
-            command_runner=command_runner,
-        )
+        with _defer_cleanup_signals(deferred_signals):
+            _cleanup_probe(
+                repo,
+                parent,
+                worktree,
+                added=added,
+                command_runner=command_runner,
+                deferred_signals=deferred_signals,
+            )
+    except _TerminationSignal:
+        raise
     except BaseException as exc:
         raise InvalidInput(
             f"probe worktree cleanup did not complete: {exc}"
         ) from pending
+    if deferred_signals and pending is None:
+        pending = _TerminationSignal(deferred_signals[0])
     if pending is not None:
         if isinstance(pending, (KeyboardInterrupt, SystemExit, _TerminationSignal)):
             raise pending
@@ -1383,6 +1495,24 @@ def _probe_nodes(
         if collection_runner is None
         else collection_runner
     )
+    collection_cache: dict[tuple[str, str], _CollectionResult] = {}
+    collection_keys_in_receipt: set[tuple[str, str]] = set()
+
+    def cached_collection_runner(tip: str) -> CollectionRunner:
+        def collect(worktree: Path, path_text: str) -> _CollectionResult:
+            key = (tip, path_text)
+            cached = collection_cache.get(key)
+            if cached is None:
+                cached = _collection_result_from_output(
+                    selected_collection_runner(worktree, path_text),
+                    path_text,
+                )
+                collection_cache[key] = cached
+            return cached
+
+        return collect
+
+    main_collection_runner = cached_collection_runner(tested_main)
     main_rerun_rcs: dict[str, int] = {}
     wave_rerun_rcs: dict[str, int] = {}
     attributable: list[str] = []
@@ -1398,7 +1528,7 @@ def _probe_nodes(
             reference,
             tip_label="--tested-main",
             node_runner=selected_runner,
-            collection_runner=selected_collection_runner,
+            collection_runner=main_collection_runner,
             command_runner=command_runner,
         )
         logged_nodeid = main_probe.logged_nodeid
@@ -1414,7 +1544,10 @@ def _probe_nodes(
                 "reference submodule initialization state changed between probes"
             )
         assert main_probe.collection is not None
-        collection_evidence.append(main_probe.collection)
+        main_collection_key = (tested_main, reference.split("::", 1)[0])
+        if main_collection_key not in collection_keys_in_receipt:
+            collection_evidence.append(main_probe.collection)
+            collection_keys_in_receipt.add(main_collection_key)
         if main_probe.rerun_rc == 0:
             wave_probe = _probe_node(
                 repo,
