@@ -87,6 +87,26 @@ title: [T-755] mocc trace v2のTRACE=1正しさ検証パイロットを実機実
   並行度に連動する。いずれも本 wave の差分の面ではない。以降は既知の一過性失敗
   (`invalid-input` / `no-verdict-infra` / `claim-timeout`) だけを再試行し、
   `status=attributable-red` が出たら即停止する自動ループへ移した。
+- **ユーザー裁定 (2026-08-23): 非帰属判定器 `tools/check_acceptance_reds.py` を使わない。**
+  「40 分も main land を長引かせるものは使い物にならない。これは進化探索を回す
+  リポジトリでもある」。同じ裁定が並行セッション 2 本からも通達され、三重に裏が取れた。
+  親は再試行ループと走行中の受入を停止し、判定器の probe 残骸 worktree も撤去した。
+  実測した所要は attempt 1 が pytest 222.10s の後に判定器 42 分、attempt 2 が判定器 7 分、
+  attempt 3 は 2 時間 12 分走行しても未終了。律速は赤 1 件ごとに使い捨て worktree を
+  作って直列再走する構造で、13900 file・lustre 上では赤 36 件で 40 分を超える。
+- **この裁定の帰結として本 wave の land は保留する。** 受入受領証は (i) 全緑か
+  (ii) 赤が全て非帰属と判定された、のいずれかでしか出ない。判定器を使わないと (ii) が
+  閉じるため、`test_sort_swo_oracle.py` の 26 件が残る限り受入は緑にならない。
+  **赤を親の自己判断で担当外と認定して land することはしない** (絶対規律 2)。
+  26 件の除去は別セッション `remove sort-swo-oracle test` が担当しており、着地後に
+  受入 1 回 (約 4 分) と land を行えばよい。段 1〜8 と規律 6 の取り込み監査は完了済みで、
+  branch worktree-dev-wave-t755-mocc-trace-execution を残す。
+- 26 件の根本原因を特定し 4 セッションへ共有した。`sort_swo_oracle` の oracle environment
+  解決が masstree の `config.h` を持つ dependency root を要求するが、この機体では候補
+  3 経路とも解決しない。共有 cache は `config.h` も `configure` も持たない素の clone で
+  (`tools/pegasus/README.md` §6 の設計どおり)、どの worktree も ccbench を build して
+  いないため build tree 側の候補も存在しない。**このテスト群は別 wave のビルド副産物の
+  残存に暗黙依存している。** 共有 cache へ `config.h` を置くのは設計に反するため行わない。
 
 ## 次の一手差分
 
