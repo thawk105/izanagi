@@ -1250,6 +1250,58 @@ REPO_ROOT={json.dumps(str(REPO))}
     assert (result.returncode == 0) is accepted, result.stderr
 
 
+def test_certify_submit_binding_requires_matching_calibration_rratio(tmp_path):
+    source = (TOOL_DIR / "certify_calibration.sh").read_text(encoding="utf-8")
+    start = source.index('python3 - "$ATTEMPT_DIR/submit-receipt.json"')
+    end = source.index("\n\n# (ii) allocation receipt", start)
+    fragment = source[start:end]
+    attempt = tmp_path / "attempt"
+    attempt.mkdir()
+    commit = "a" * 40
+    script_sha = "b" * 64
+    receipt = {
+        "dry_run": False,
+        "source_commit": commit,
+        "job_script_sha256": script_sha,
+        "calibration": {"workload": {"ycsb_rratio": "50"}},
+        "qsub": {
+            "request_id": "123.server", "project": "SFC", "queue": "gen_S",
+            "nodes": 1, "elapstim_req_s": 7200,
+        },
+    }
+    receipt_path = attempt / "submit-receipt.json"
+    receipt_path.write_text(json.dumps(receipt), encoding="utf-8")
+    prefix = f"""ATTEMPT_DIR={json.dumps(str(attempt))}
+CURRENT_COMMIT={commit}
+CURRENT_SCRIPT_SHA={script_sha}
+PBS_JOBID=0:123.server
+PROJECT=SFC
+QUEUE=gen_S
+NODES=1
+REQUESTED_S=7200
+REPO_ROOT={json.dumps(str(REPO))}
+"""
+    mismatch = subprocess.run(
+        ["bash", "-c", prefix + "CALIBRATION_RRATIO=80\n" + fragment],
+        capture_output=True, text=True,
+    )
+    assert mismatch.returncode == 1
+    assert mismatch.stderr == (
+        "submit binding mismatch: {'dry_run': True, 'source_commit': True, "
+        "'job_script_sha256': True, 'request_id': True, 'project': True, "
+        "'queue': True, 'nodes': True, 'walltime': True, "
+        "'calibration_rratio': False}\n"
+    )
+
+    receipt["calibration"]["workload"]["ycsb_rratio"] = "80"
+    receipt_path.write_text(json.dumps(receipt), encoding="utf-8")
+    match = subprocess.run(
+        ["bash", "-c", prefix + "CALIBRATION_RRATIO=80\n" + fragment],
+        capture_output=True, text=True,
+    )
+    assert match.returncode == 0, match.stderr
+
+
 def test_submit_dry_run_does_not_resolve_cluster_commands(tmp_path):
     # clean temporary git fixture を使い、実 repository/output と scheduler に触れない。
     fixture_repo = tmp_path / "repo"
