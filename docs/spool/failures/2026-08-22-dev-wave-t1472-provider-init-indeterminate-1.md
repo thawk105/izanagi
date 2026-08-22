@@ -43,8 +43,13 @@ seq: 1
 - 根本原因: `docs/dev-wave/mutation.md`のDW-M07は「dispatch既定・local自壊」までは
   明記しているが、上記1〜7の個別の未文書事項までは書いていない。加えて本wave自身が
   DW-M07を読む契機 (条件dispatch15) を見落とした (F461の再発、上記参照)。
-- 恒久対応: `docs/dev-wave/mutation.md`のDW-M07へ、上記1〜7を追記する
-  (段8自己改善routingで本wave同時commitとして提案、採否は段8裁定)。
+- 恒久対応: `docs/dev-wave/mutation.md`のDW-M07へ上記1〜7を追記する案は**段8裁定で不採用**。
+  DW-M07は978 bytesで`tools/check_docs.py`のL2単節予算1000 bytesに対し空きが22 bytesしかなく、
+  7項目は意味を保ったまま入らない。`docs/skill-self-improvement.md`の
+  「予算に収まらなければreferenceへ統合し、それでも意味等価にできなければ変更を止めて
+  ユーザー裁定へ返す」「予算値を上げる変更は通常の自己改善に含めず、理由付きの独立審査対象に
+  する」に従い、裁定パッケージとしてユーザーへ返す。当面の実体は本エントリ本文の1〜7と
+  `--plan-only`による事前確認運用である。
 - 再発検知: 変異matrix投入前に`--plan-only`で事前確認する運用と、DW-M07を段6条件15の
   発火時に必ず再読する規律 (本fragment自身がその実例)。
 
