@@ -2883,7 +2883,10 @@ def _finish_campaign_lock_holder(
 
 def test_campaign_lock_reentry_rejected_in_same_process():
     layout = _layout().ensure()
-    lock_path = campaign_lock_path(layout, declared_use_class="official")
+    output_root = _tmpdir("izanagi_campaign_lock_reentry_output_")
+    lock_path = campaign_lock_path(
+        layout, declared_use_class="official", output_root=output_root,
+    )
     with campaign_flock(lock_path):
         try:
             with campaign_flock(lock_path, blocking=False):
@@ -2894,7 +2897,10 @@ def test_campaign_lock_reentry_rejected_in_same_process():
 
 def test_campaign_lock_same_campaign_rejects_competing_process():
     layout = _layout().ensure()
-    lock_path = campaign_lock_path(layout, declared_use_class="official")
+    output_root = _tmpdir("izanagi_campaign_lock_competing_output_")
+    lock_path = campaign_lock_path(
+        layout, declared_use_class="official", output_root=output_root,
+    )
     control_root = Path(_tmpdir("izanagi_campaign_lock_process_"))
     ready_path = control_root / "ready"
     release_path = control_root / "release"
@@ -2912,8 +2918,11 @@ def test_campaign_lock_same_campaign_rejects_competing_process():
 
 def test_campaign_lock_different_campaigns_can_run_in_parallel():
     layouts = [_layout().ensure(), _layout().ensure()]
+    output_root = _tmpdir("izanagi_campaign_lock_parallel_output_")
     lock_paths = [
-        campaign_lock_path(layout, declared_use_class="official")
+        campaign_lock_path(
+            layout, declared_use_class="official", output_root=output_root,
+        )
         for layout in layouts
     ]
     control_root = Path(_tmpdir("izanagi_campaign_lock_parallel_"))
@@ -2938,7 +2947,10 @@ def test_campaign_lock_different_campaigns_can_run_in_parallel():
 
 def test_campaign_lock_released_can_be_reacquired():
     layout = _layout().ensure()
-    lock_path = campaign_lock_path(layout, declared_use_class="official")
+    output_root = _tmpdir("izanagi_campaign_lock_reacquire_output_")
+    lock_path = campaign_lock_path(
+        layout, declared_use_class="official", output_root=output_root,
+    )
     with campaign_flock(lock_path):
         pass
     with campaign_flock(lock_path, blocking=False):
@@ -2947,8 +2959,11 @@ def test_campaign_lock_released_can_be_reacquired():
 
 def test_campaign_lock_path_is_outside_campaign_root():
     layout = _layout()
+    output_root = _tmpdir("izanagi_campaign_lock_outside_output_")
     lock_path = Path(
-        campaign_lock_path(layout, declared_use_class="official")
+        campaign_lock_path(
+            layout, declared_use_class="official", output_root=output_root,
+        )
     ).resolve()
     campaign_root = Path(layout.root).resolve()
     assert not lock_path.is_relative_to(campaign_root)
@@ -2962,10 +2977,11 @@ def test_campaign_lock_path_normalizes_symlink_realpath():
 
     real_layout = CampaignLayout(root=real_root)
     symlink_layout = CampaignLayout(root=link_root)
+    output_root = _tmpdir("izanagi_campaign_lock_symlink_output_")
     assert campaign_lock_path(
-        real_layout, declared_use_class="official",
+        real_layout, declared_use_class="official", output_root=output_root,
     ) == campaign_lock_path(
-        symlink_layout, declared_use_class="official",
+        symlink_layout, declared_use_class="official", output_root=output_root,
     )
 
 
@@ -2986,8 +3002,11 @@ def test_campaign_lock_helpers_use_explicit_output_root_for_each_use_class():
 
 
 def test_campaign_lock_path_hash_key_is_twenty_hex_chars():
+    output_root = _tmpdir("izanagi_campaign_lock_hash_output_")
     lock_name = os.path.basename(
-        campaign_lock_path(_layout(), declared_use_class="official")
+        campaign_lock_path(
+            _layout(), declared_use_class="official", output_root=output_root,
+        )
     )
     assert lock_name.endswith(".flock")
     key = lock_name[:-len(".flock")]
@@ -10086,10 +10105,8 @@ def test_exploration_output_root_env_precedence_and_official_isolation():
         assert os.path.dirname(os.path.dirname(second.root)) == os.path.join(
             external, "exploration",
         )
-        official = campaign_layout("official-isolated")
-        assert official.root == os.path.join(
-            saved_repo_output_root(), "campaigns", "official-isolated",
-        )
+        with pytest.raises(ValueError, match="official output_root"):
+            campaign_layout("official-isolated")
 
         os.environ[layout_module._EXPLORATION_OUTPUT_ROOT_ENV] = ""
         explicit = "legacy-relative-explicit-root"
@@ -10106,6 +10123,118 @@ def test_exploration_output_root_env_precedence_and_official_isolation():
             os.environ.pop(layout_module._EXPLORATION_OUTPUT_ROOT_ENV, None)
         else:
             os.environ[layout_module._EXPLORATION_OUTPUT_ROOT_ENV] = saved_env
+
+
+def test_official_output_root_requires_external_root_and_supports_env(tmp_path):
+    """Official roots fail closed when unset and resolve only a validated env root."""
+    env_name = layout_module._OFFICIAL_OUTPUT_ROOT_ENV
+    layout_module._reset_official_output_root_pin_for_tests()
+    try:
+        os.environ.pop(env_name, None)
+        with pytest.raises(ValueError, match="official output_root"):
+            campaign_layout("official-missing-root")
+
+        external = tmp_path / "official-output"
+        os.environ[env_name] = str(external)
+        first = campaign_layout("official-env-root")
+        assert first.root == str(external / "campaigns" / "official-env-root")
+        assert Path(first.root).parent.parent == external.resolve()
+    finally:
+        layout_module._reset_official_output_root_pin_for_tests()
+
+
+def test_official_output_root_explicit_value_is_validated_and_suffixes_are_not_exempt(
+        tmp_path,
+):
+    """Explicit roots and campaigns/env suffixes go through the same external gate."""
+    repository = Path(layout_module.repo_output_root())
+    with pytest.raises(ValueError, match="official output_root"):
+        campaign_layout("official-repo-explicit", output_root=str(repository))
+    with pytest.raises(ValueError, match="official output_root"):
+        campaign_layout(
+            "official-repo-campaigns", output_root=str(repository / "campaigns"),
+        )
+    with pytest.raises(ValueError, match="official output_root"):
+        campaign_layout(
+            "official-repo-env", output_root=str(repository / "env"),
+        )
+
+    suffix_root = tmp_path / "suffix-target"
+    suffix_root.mkdir()
+    (suffix_root / "campaigns").symlink_to(tmp_path, target_is_directory=True)
+    with pytest.raises(ValueError, match="symlink component"):
+        campaign_layout("official-suffix-symlink", output_root=str(suffix_root))
+
+
+def test_official_output_root_rejects_unsafe_values(tmp_path):
+    """Official resolver mirrors the exploration symlink, dotdot, git, uid, and worktree gates."""
+    env_name = layout_module._OFFICIAL_OUTPUT_ROOT_ENV
+    layout_module._reset_official_output_root_pin_for_tests()
+
+    def rejected(value, *, match="official output_root"):
+        os.environ[env_name] = os.fspath(value)
+        with pytest.raises(ValueError, match=match):
+            campaign_layout("official-unsafe")
+
+    try:
+        rejected("")
+        rejected("relative/output")
+        rejected(tmp_path / "missing" / ".." / "resolved")
+
+        repository = Path(layout_module.repo_output_root()).parent
+        rejected(repository / "output")
+
+        foreign_repo = tmp_path / "foreign-repo"
+        (foreign_repo / ".git").mkdir(parents=True)
+        rejected(foreign_repo / "output")
+
+        symlink_target = tmp_path / "symlink-target"
+        symlink_parent = tmp_path / "symlink-parent"
+        symlink_parent.mkdir()
+        (symlink_parent / "base-link").symlink_to(
+            symlink_target, target_is_directory=True,
+        )
+        rejected(symlink_parent / "base-link")
+
+        non_directory = tmp_path / "not-a-directory"
+        non_directory.write_text("fixture\n", encoding="utf-8")
+        rejected(non_directory)
+
+        foreign_owner = tmp_path / "foreign-owner"
+        foreign_owner.mkdir()
+        saved_effective_uid = layout_module._effective_uid
+        layout_module._effective_uid = lambda: foreign_owner.stat().st_uid + 1
+        try:
+            rejected(foreign_owner)
+        finally:
+            layout_module._effective_uid = saved_effective_uid
+
+        container = tmp_path / ".codex" / "worktrees" / "wave" / "official"
+        rejected(container, match="worktree container")
+    finally:
+        layout_module._reset_official_output_root_pin_for_tests()
+
+
+def test_official_output_root_process_pin_rejects_drift(tmp_path):
+    """Env-derived official roots are pinned for the process lifetime."""
+    env_name = layout_module._OFFICIAL_OUTPUT_ROOT_ENV
+    first = tmp_path / "official-pin-first"
+    second = tmp_path / "official-pin-second"
+    layout_module._reset_official_output_root_pin_for_tests()
+    try:
+        os.environ[env_name] = str(first)
+        assert layout_module._resolve_official_output_root() == str(first.resolve())
+        os.environ[env_name] = str(second)
+        with pytest.raises(ValueError, match="process 内で変更"):
+            layout_module._resolve_official_output_root()
+
+        layout_module._reset_official_output_root_pin_for_tests()
+        assert layout_module._resolve_official_output_root() == str(second.resolve())
+        os.environ.pop(env_name)
+        with pytest.raises(ValueError, match="process 内で変更"):
+            layout_module._resolve_official_output_root()
+    finally:
+        layout_module._reset_official_output_root_pin_for_tests()
 
 
 def test_exploration_output_root_env_rejects_unsafe_values():
@@ -10182,6 +10311,24 @@ def test_exploration_output_root_env_rejects_unsafe_values():
             os.environ.pop(env_name, None)
         else:
             os.environ[env_name] = saved_env
+
+
+def test_exploration_output_root_env_resolves_worktree_container_before_ensure(
+        tmp_path, monkeypatch,
+):
+    """D158: exploration は resolve 時でなく ensure 時に worktree を拒否する。"""
+    worktree_container = tmp_path / ".codex" / "worktrees" / "wave"
+    monkeypatch.setenv(
+        layout_module._EXPLORATION_OUTPUT_ROOT_ENV,
+        os.fspath(worktree_container),
+    )
+    layout_module._reset_exploration_output_root_pin_for_tests()
+    try:
+        assert layout_module._resolve_exploration_output_root() == str(
+            worktree_container.resolve()
+        )
+    finally:
+        layout_module._reset_exploration_output_root_pin_for_tests()
 
 
 def test_exploration_output_root_env_process_pin_rejects_drift():
