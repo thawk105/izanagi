@@ -1,0 +1,13 @@
+{
+  "rc1": 0,
+  "thread_id": "01a0244e-caf0-7d02-8b8b-8b6c4a8785fb",
+  "usage1": {
+    "input_tokens": 26018,
+    "cached_input_tokens": 9984,
+    "cache_write_input_tokens": 0,
+    "output_tokens": 31,
+    "reasoning_output_tokens": 22
+  },
+  "rc2": 2,
+  "usage2": null
+}

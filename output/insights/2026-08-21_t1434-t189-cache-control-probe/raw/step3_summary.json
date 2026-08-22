@@ -1,0 +1,26 @@
+[
+  {
+    "label": "call5_home_d_fresh_large_unique_first_send",
+    "codex_home": "/home/SFC/tanab/.claude/jobs/17ce291e/tmp/cache_probe/codex_home_d",
+    "returncode": 0,
+    "usage": {
+      "input_tokens": 26018,
+      "cached_input_tokens": 9984,
+      "cache_write_input_tokens": 0,
+      "output_tokens": 30,
+      "reasoning_output_tokens": 21
+    }
+  },
+  {
+    "label": "call6_home_e_fresh_large_unique_second_send",
+    "codex_home": "/home/SFC/tanab/.claude/jobs/17ce291e/tmp/cache_probe/codex_home_e",
+    "returncode": 0,
+    "usage": {
+      "input_tokens": 26018,
+      "cached_input_tokens": 9984,
+      "cache_write_input_tokens": 0,
+      "output_tokens": 36,
+      "reasoning_output_tokens": 27
+    }
+  }
+]

@@ -1,0 +1,56 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 120,
+  "timeout_seconds": 1200,
+  "hang_timeout_seconds": 1200,
+  "mutations": [
+    {
+      "id": "t646.m1-disable-head-binding-check",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_holdout_freeze.py",
+          "old": "    if protocol_raw != head_protocol_raw:",
+          "new": "    if False and protocol_raw != head_protocol_raw:"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_holdout_freeze.py::test_v2_candidate_rejects_worktree_only_floor_protocol_master_seed_mutation"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "t646.m2-always-reject-positive-control",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_holdout_freeze.py",
+          "old": "    if protocol_raw != head_protocol_raw:",
+          "new": "    if True or protocol_raw != head_protocol_raw:"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_holdout_freeze.py::test_v2_candidate_build_and_generate_synthetic_g1",
+        "orchestrator/tests/test_s8b_holdout_freeze.py::test_v2_candidate_rejects_closure_hit_absent_from_captured_head",
+        "orchestrator/tests/test_s8b_holdout_freeze.py::test_v2_candidate_rejects_completed_sessions_without_session_starts",
+        "orchestrator/tests/test_s8b_holdout_freeze.py::test_v2_candidate_rejects_dirty_closure_without_pinned_diagnostic",
+        "orchestrator/tests/test_s8b_holdout_freeze.py::test_v2_candidate_rejects_floor_admission_claim_mismatch",
+        "orchestrator/tests/test_s8b_holdout_freeze.py::test_v2_candidate_rejects_floor_not_eligible_for_refreeze",
+        "orchestrator/tests/test_s8b_holdout_freeze.py::test_v2_candidate_rejects_reported_false_when_live_basis_is_eligible",
+        "orchestrator/tests/test_s8b_holdout_freeze.py::test_v2_candidate_rejects_reported_true_when_live_basis_is_disqualified",
+        "orchestrator/tests/test_s8b_holdout_freeze.py::test_v2_candidate_rejects_result_manifest_degraded_evidence_mismatch",
+        "orchestrator/tests/test_s8b_holdout_freeze.py::test_v2_candidate_rejects_result_only_binary_and_swo_identity_tamper",
+        "orchestrator/tests/test_s8b_holdout_freeze.py::test_v2_candidate_rejects_result_only_session_throughput_tamper",
+        "orchestrator/tests/test_s8b_holdout_freeze.py::test_v2_candidate_rejects_semantically_invalid_manifest_with_consistent_evidence[empty]",
+        "orchestrator/tests/test_s8b_holdout_freeze.py::test_v2_candidate_rejects_semantically_invalid_manifest_with_consistent_evidence[v2]",
+        "orchestrator/tests/test_s8b_holdout_freeze.py::test_v2_candidate_rejects_sibling_manifest_bytes_mismatch",
+        "orchestrator/tests/test_s8b_holdout_freeze.py::test_v2_candidate_rejects_unreachable_floor_admission_root",
+        "orchestrator/tests/test_s8b_holdout_freeze.py::test_v2_candidate_rejects_unreachable_sibling_manifest",
+        "orchestrator/tests/test_s8b_holdout_freeze.py::test_v2_candidate_threads_receipt_derived_degraded_mode_to_floor_stats"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}

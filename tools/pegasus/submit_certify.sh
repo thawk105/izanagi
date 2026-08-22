@@ -5,7 +5,7 @@ set -Eeuo pipefail
 usage() {
   cat <<'EOF'
 usage: submit_certify.sh [--dry-run] [--repo-root PATH] [--attempts-root PATH]
-                         [--job-script PATH]
+                         [--job-script PATH] [--rratio 20|50|80]
 EOF
 }
 
@@ -14,6 +14,7 @@ REPO_ROOT=$(cd "$SCRIPT_DIR/../.." && pwd -P)
 JOB_SCRIPT="$SCRIPT_DIR/certify_calibration.sh"
 ATTEMPTS_ROOT=""
 DRY_RUN=0
+RRATIO=50
 
 if [[ -n "${PEGASUS_EFFECTIVE_CLOCK_TOLERANCE_PCT+x}" ]]; then
   echo "legacy PEGASUS_EFFECTIVE_CLOCK_TOLERANCE_PCT is forbidden" >&2
@@ -26,10 +27,16 @@ while [[ $# -gt 0 ]]; do
     --repo-root) REPO_ROOT=$(cd "${2:?}" && pwd -P); shift 2 ;;
     --attempts-root) ATTEMPTS_ROOT=${2:?}; shift 2 ;;
     --job-script) JOB_SCRIPT=${2:?}; shift 2 ;;
+    --rratio) RRATIO=${2:?}; shift 2 ;;
     -h|--help) usage; exit 0 ;;
     *) echo "unknown argument: $1" >&2; usage >&2; exit 2 ;;
   esac
 done
+
+if [[ "$RRATIO" != "20" && "$RRATIO" != "50" && "$RRATIO" != "80" ]]; then
+  echo "--rratio must be exactly 20, 50, or 80" >&2
+  exit 2
+fi
 
 if [[ ! -f "$JOB_SCRIPT" ]]; then
   echo "job script not found: $JOB_SCRIPT" >&2
@@ -74,7 +81,7 @@ if [[ ! "$SOURCE_COMMIT" =~ ^[0-9a-f]{40}$ ]]; then
   echo "cannot resolve a full source commit" >&2
   exit 2
 fi
-if [[ -n "$(git -C "$REPO_ROOT" status --porcelain --untracked-files=all)" ]]; then
+if [[ -n "$(git -C "$REPO_ROOT" status --porcelain --untracked-files=all -- . ':(exclude)output')" ]]; then
   echo "working tree is dirty; certification submission aborted" >&2
   exit 2
 fi
@@ -121,14 +128,15 @@ else
 fi
 
 python3 - "$SUBMISSION_DIR" "$SOURCE_COMMIT" "$JOB_SCRIPT" "$JOB_SCRIPT_SHA256" \
-  "$SUBMIT_EPOCH" "$NONCE" "$PROJECT" "$QUEUE" "$NODES" "$WALLTIME_S" "$DRY_RUN" <<'PY'
+  "$SUBMIT_EPOCH" "$NONCE" "$PROJECT" "$QUEUE" "$NODES" "$WALLTIME_S" \
+  "$RRATIO" "$DRY_RUN" <<'PY'
 import hashlib
 import json
 import os
 import sys
 
 (root, source_commit, script, script_sha, submit_epoch, nonce, project, queue,
- nodes, walltime_s, dry_run) = sys.argv[1:]
+ nodes, walltime_s, rratio, dry_run) = sys.argv[1:]
 captures = {}
 for name in ("qstat_Q", "pegasusinfo", "rbudgetcheck", "check_quota"):
     def read(suffix):
@@ -149,6 +157,7 @@ payload = {
     "request": {
         "project": project, "queue": queue, "nodes": int(nodes),
         "elapstim_req_s": int(walltime_s),
+        "calibration_rratio": int(rratio),
     },
     "preflight": captures,
     "dry_run": bool(int(dry_run)),
@@ -163,7 +172,7 @@ if [[ "$preflight_rc" -ne 0 ]]; then
   exit 3
 fi
 
-export_spec="IZANAGI_SUBMISSION_NONCE=$NONCE"
+export_spec="IZANAGI_SUBMISSION_NONCE=$NONCE,IZANAGI_CALIBRATION_RRATIO=$RRATIO"
 qsub_cmd=(qsub -v "$export_spec" "$JOB_SCRIPT")
 printf 'qsub command:'
 printf ' %q' "${qsub_cmd[@]}"
@@ -220,6 +229,9 @@ payload = {
         "project": request["project"],
         "nodes": request["nodes"],
         "elapstim_req_s": request["elapstim_req_s"],
+    },
+    "calibration": {
+        "workload": {"ycsb_rratio": str(request["calibration_rratio"])},
     },
     "preflight": pre["preflight"],
     "dry_run": pre["dry_run"],
