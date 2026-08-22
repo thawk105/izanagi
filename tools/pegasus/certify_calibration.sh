@@ -151,6 +151,14 @@ if [[ -z "${IZANAGI_SUBMISSION_NONCE:-}" || ! "$IZANAGI_SUBMISSION_NONCE" =~ ^[A
   write_failure 2 submit_binding "IZANAGI_SUBMISSION_NONCE is missing or unsafe"
   exit 2
 fi
+if [[ -z "${IZANAGI_CALIBRATION_RRATIO:-}" \
+      || "$IZANAGI_CALIBRATION_RRATIO" != "20" \
+      && "$IZANAGI_CALIBRATION_RRATIO" != "50" \
+      && "$IZANAGI_CALIBRATION_RRATIO" != "80" ]]; then
+  write_failure 2 submit_binding "IZANAGI_CALIBRATION_RRATIO must be exactly 20, 50, or 80"
+  exit 2
+fi
+CALIBRATION_RRATIO="$IZANAGI_CALIBRATION_RRATIO"
 if [[ -n "${PEGASUS_EFFECTIVE_CLOCK_TOLERANCE_PCT+x}" ]]; then
   write_failure 2 submit_binding "legacy effective clock tolerance input is forbidden"
   exit 2
@@ -178,11 +186,12 @@ if [[ -n "$(git -C "$REPO_ROOT" status --porcelain --untracked-files=all -- . ':
 fi
 CURRENT_SCRIPT_SHA=$(sha256sum "$TOOLS/certify_calibration.sh" | awk '{print $1}')
 python3 - "$ATTEMPT_DIR/submit-receipt.json" "$CURRENT_COMMIT" "$CURRENT_SCRIPT_SHA" \
-  "$PBS_JOBID" "$PROJECT" "$QUEUE" "$NODES" "$REQUESTED_S" "$REPO_ROOT" <<'PY'
+  "$PBS_JOBID" "$PROJECT" "$QUEUE" "$NODES" "$REQUESTED_S" \
+  "$CALIBRATION_RRATIO" "$REPO_ROOT" <<'PY'
 import json
 import sys
 (path, commit, script_sha, job_id, project, queue, nodes, requested_s,
- repo_root) = sys.argv[1:]
+ rratio, repo_root) = sys.argv[1:]
 sys.path.insert(0, repo_root)
 from orchestrator.calibrator.schema_v2 import normalize_request_id
 with open(path, encoding="utf-8") as handle:
@@ -200,6 +209,10 @@ checks = {
     "queue": qsub.get("queue") == queue,
     "nodes": qsub.get("nodes") == int(nodes),
     "walltime": qsub.get("elapstim_req_s") == int(requested_s),
+    "calibration_rratio": (
+        doc.get("calibration", {}).get("workload", {}).get("ycsb_rratio")
+        == str(rratio)
+    ),
 }
 if not all(checks.values()):
     raise SystemExit("submit binding mismatch: " + repr(checks))
@@ -725,7 +738,7 @@ calibrate_argv=(
   --certify
   --env-tag pegasus
   --threads 48
-  --workload ycsb_zipf_skew=0.9,ycsb_rratio=50,ycsb_rmw=0
+  --workload "ycsb_zipf_skew=0.9,ycsb_rratio=$CALIBRATION_RRATIO,ycsb_rmw=0"
   --binary "$BINARY"
   --binary-sha256 "$BINARY_SHA"
   --receipt-json "$ATTEMPT_DIR/acquisition-receipt.json"
@@ -749,15 +762,17 @@ if [[ "$calibrate_rc" -eq 0 ]]; then
     >"$ATTEMPT_DIR/attestation-post.stdout" 2>"$ATTEMPT_DIR/attestation-post.stderr"
 fi
 
-python3 - "$ATTEMPT_DIR/job-result.json" "$PBS_JOBID" "$calibrate_rc" "$BINARY_SHA" "$CURRENT_SCRIPT_SHA" <<'PY'
+python3 - "$ATTEMPT_DIR/job-result.json" "$PBS_JOBID" "$calibrate_rc" "$BINARY_SHA" \
+  "$CURRENT_SCRIPT_SHA" "$CALIBRATION_RRATIO" <<'PY'
 import json, sys, time
-path, job_id, rc, binary_sha, job_script_sha = sys.argv[1:]
+path, job_id, rc, binary_sha, job_script_sha, rratio = sys.argv[1:]
 payload = {
     "schema_version": "pegasus-job-result/v1",
     "pbs_jobid": job_id,
     "calibrate_rc": int(rc),
     "binary_sha256": binary_sha,
     "job_script_sha256": job_script_sha,
+    "calibration": {"workload": {"ycsb_rratio": rratio}},
     "completed_epoch": int(time.time()),
 }
 with open(path, "x", encoding="utf-8") as handle:

@@ -449,7 +449,9 @@ _T126_MUTATION_TRANSFORMS = {
     ),
     "M2a": (
         "orchestrator/campaign/layer3_report.py",
-        "    _reject_qualification_ancestry(campaign_dir, output_root.resolve().parent)\n",
+        "    _reject_qualification_ancestry(\n"
+        "        campaign_dir, _qualification_ancestry_bound(campaign_dir, output_root),\n"
+        "    )\n",
         "    # mutant: ancestor qualification marker ignored\n",
     ),
     "M2b": (

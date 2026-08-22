@@ -1,0 +1,81 @@
+{
+  "codex_cli_version": "codex-cli 0.148.0",
+  "claude_cli_version": "2.1.238 (Claude Code)",
+  "measured_at": "2026-08-21 (JST, wave dev-wave-t1434-t189-cache-probe)",
+  "codex_calls": [
+    {
+      "label": "call1 (step1)",
+      "file": "step1_stdout.jsonl",
+      "codex_home": "fresh A (never used)",
+      "prompt": "short fixed",
+      "note": "first-ever call this probe"
+    },
+    {
+      "label": "call2",
+      "file": "call2_home_a_reuse_same_prompt_stdout.jsonl",
+      "codex_home": "A (reused)",
+      "prompt": "same short fixed"
+    },
+    {
+      "label": "call3",
+      "file": "call3_home_b_fresh_same_prompt_stdout.jsonl",
+      "codex_home": "fresh B (never used)",
+      "prompt": "same short fixed as call1/2"
+    },
+    {
+      "label": "call4",
+      "file": "call4_home_c_fresh_unique_prompt_stdout.jsonl",
+      "codex_home": "fresh C (never used)",
+      "prompt": "unique (uuid nonce)"
+    },
+    {
+      "label": "call5",
+      "file": "call5_home_d_fresh_large_unique_first_send_stdout.jsonl",
+      "codex_home": "fresh D (never used)",
+      "prompt": "large unique block (~500 lines) first send"
+    },
+    {
+      "label": "call6",
+      "file": "call6_home_e_fresh_large_unique_second_send_stdout.jsonl",
+      "codex_home": "fresh E (never used)",
+      "prompt": "SAME large unique block as call5, from different home"
+    },
+    {
+      "label": "call7 (turn1)",
+      "file": "call7_turn1_fresh_thread_stdout.jsonl",
+      "codex_home": "fresh F (never used)",
+      "prompt": "another large unique block, turn 1 of new thread"
+    },
+    {
+      "label": "call8 (turn2, resume)",
+      "file": "call8_turn2_resume_v2_stdout.jsonl",
+      "codex_home": "F (same, resumed same thread_id)",
+      "prompt": "follow-up turn in SAME thread as call7"
+    },
+    {
+      "label": "call8 first attempt (argv error, kept as evidence)",
+      "file": "call8_turn2_resume_same_thread_stderr.log",
+      "note": "codex exec resume does not accept -s/-C (argv contract differs from `codex exec`)"
+    }
+  ],
+  "claude_calls": [
+    {
+      "label": "call9 (step5)",
+      "file": "step5_stdout.json",
+      "content_marker": "fixed-A",
+      "note": "first-ever send of this filler content"
+    },
+    {
+      "label": "call10",
+      "file": "call2_claude_same_filler_fresh_process_stdout.json",
+      "content_marker": "fixed-A (identical bytes to call9)",
+      "note": "independent fresh process, --no-session-persistence, new session_id"
+    },
+    {
+      "label": "call11",
+      "file": "call3_claude_diff_filler_fresh_process_stdout.json",
+      "content_marker": "fixed-B-different",
+      "note": "independent fresh process, different content"
+    }
+  ]
+}

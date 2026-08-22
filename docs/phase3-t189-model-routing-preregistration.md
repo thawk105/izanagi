@@ -436,6 +436,14 @@ input_tokens - cached_input_tokens + output_tokens
 で計算する。cache condition を無視した pooled resource 指標は主判定に使わず、cold/warm 別に
 報告する (cache 制御が実現できた場合に限る)。
 
+**2026-08-21 実測 (T-1434 総括 未解決点(3))**: `codex exec`/`claude -p` の CLI 引数全走査と
+8+3 回の実呼出しにより、上記 blocker は**不成立側で確定**した。ローカル `CODEX_HOME`/session の
+新規性は provider 側 cache に一切影響せず、Codex は同一 thread の `resume` 継続だけが、Claude は
+一度でも送信済みの内容であることだけが cache 温度を決める — いずれも実験者が明示的に選べる
+制御点ではない。したがって cache-stratified な resource 報告は作らず、resource 指標は
+`not-applicable` のまま確定する (quality 系列は従来どおり継続可)。詳細・生ログは
+`output/insights/2026-08-21_t1434-t189-cache-control-probe/README.md` を参照。
+
 ## 10. 価格 version (段4裁定 B6 反映)
 
 D514 は、2026-07-30 時点の例として sol を入力 `$5` / 出力 `$30` per M、luna を入力 `$0.20` /
@@ -721,7 +729,7 @@ run 開始後は、oracle、margin、task 除外規則、判定表を変更し�
 | held-out 複数 task | §6 | 設計は満たすが、現実規模は目標 (24×2) より小さい (pilot 世代 8〜10 task-stage、§6.1 の表) |
 | 独立 oracle | §8 | 設計は満たす |
 | block randomization | §6.3 | 設計は満たす |
-| cache 条件の分離 | §9、§12.2 | 設計は満たすが、現行装置は制御手段を持たない場合 resource 指標を `not-applicable` とする (blocker) |
+| cache 条件の分離 | §9、§12.2 | 設計は満たすが、現行装置は制御手段を持たない場合 resource 指標を `not-applicable` とする (blocker)。**2026-08-21 実測で制御不能と確定**、resource は `not-applicable` のまま (§9 追記) |
 | 価格 version | §10 | 設計は満たす。**取得手順・原表・SKU を実走開始前の準備段階で凍結する契約を本文書で明記するが、実データそのものは本 wave では取得しない** (実データ取得は将来の実装・実走 wave が行う) |
 | 事前登録済み非劣性 margin | §11、判定表 §12 | 候補値と lock 手続き (`N_positive_min`/`N_negative_min`/`power_threshold=0.80`) を明記。現実的標本数では confirmatory な検出力が不足する可能性が高く、その場合は `inconclusive` に確定的に固定する |
 
@@ -733,7 +741,8 @@ token・wall-clock 比、fix 巡回数、task-binary な false finding rate で�
 
 **未解決点(実装・実走 wave が引き継ぐべき前提条件)**: (1) power simulation の実施と
 `N_positive_min`/`N_negative_min`/margin の最終 lock (§11.4)、(2) 独立 custodian の実現方式
-確定、(3) provider cache 制御可能性の実測、(4) T-181 装置の横断的 refactor (§5.2)、
+確定、(3) provider cache 制御可能性の実測 (**2026-08-21 実測済み・不成立で確定、§9 参照**)、
+(4) T-181 装置の横断的 refactor (§5.2)、
 (5) stage2/stage5 downstream replayer の実装 (§5.3、両 stage とも downstream model/effort
 pin を含む)、(6) task catalog の実データ作成と独立分類者2名の確保 (§6.1/§6.2)、(7) price
 snapshot の実データ取得 (§10)。いずれも本 wave の scope 外 (D87) であり、本文書はこれらの

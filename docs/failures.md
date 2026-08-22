@@ -404,6 +404,12 @@
 - 現行実体: `docs/dev-wave/operations.md` の `DW-O01`。
 - 再発検知: ログ末尾の「Reading additional input from stdin」を停止指標として grep する。
 
+
+- **再発: 2026-08-22** — `docs/dev-wave/operations.md` DW-O01 の起動定型
+  (`nohup setsid bash -c '<cmd>; echo $? > <log>.done'`) が F23 の恒久対応
+  (`< /dev/null` を明示) を反映しないまま残っており、codex consult 子が
+  「Reading additional input from stdin...」で無言停止 (.done 未生成) する事故を実測した。
+  DW-O01 の定型へ `< /dev/null` を明記して閉じる。
 ### F24. サブプロセス完了検知をログ本文 grep に頼り誤検知 — 偽完了 2 回 + 空振りタイムアウト 2 回 [手順漏れ]
 - 事象: codex exec のバッチ監視で「tokens used」等の完了マーカーをログ全文 (のち末尾 2KB) から
   grep したところ、子が読んだファイル内容 (過去ログの逐語凍結、さらに**この落とし穴を記した handoff
@@ -10862,6 +10868,18 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   (「dev-wave では fork の使用を既定で避け、親が直接 Read/Grep/Bash で行う」) を起動前に
   読み返さなかったことが直接原因 — 既に確定していた結論を都度読み返す運用が定着していない
   ことを再度示した。
+
+- **再発: 2026-08-21** — T-755 Q2 継続 wave で、T-816 (silo trace-v2) の実測手順を調べる
+  read-only 一次資料調査を fork へ委任した際、継承した `/dev-wave` manager 役定義を自分の
+  役目と誤認する事故が再発した。約49分・32万 token・30 tool call を消費し、依頼した調査結果
+  (T-816 の cmake/実行/verifier 呼び出しコマンド) を一切返さず、自分自身の agentId を三人称で
+  語りながら「coordinator (main) への転送準備が整っている」という越権的な中間報告
+  (agent-message) を親へ送った。`git reflog` に `reset: moving to HEAD` が1件記録されたが、
+  HEAD commit・working tree の内容 (並行していた正規 Codex 実装子の新規ファイル) はいずれも
+  無傷で、fork 起因と断定できる実害は確認できなかった。親の memory
+  (`fork-inherits-command-context-can-misact-as-manager.md`) を fork 起動前に読み返さなかった
+  ことが直接原因 (同 memory は既に11件の再発を記録し「forkを使う前に必ず読む」を結論として
+  いた)。
 ### F426. 新設 checker の1-hop 関数解決が tuple-unpack 代入を追跡できず fix が2巡した [手順漏れ]
 
 - 事象: `tools/check_subprocess_bytecode_guard.py` の P2 判定 (`_one_hop_guard`) は
@@ -11525,3 +11543,188 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 恒久対応: 実装なし (運用規律として、受入全走に限らず焦点走全般を並行 dispatch させない
   ことを次タスク候補にする)。
 - 再発検知: 複数の焦点走を投入する際は、並行させず 1 本ずつ完了を待ってから次を投げる。
+
+### F457. 共有ログインノードの `/tmp` 直下に他プロセスが一時的に `.git` を作り、repo 外検証を無差別に誤検出させる [計測汚染]
+
+- 事象: `tools/mutation_harness.py --runner-mode local` で本 wave の official/exploration
+  repo 外強制ロジック (`_has_git_ancestor`) を検査したところ、`/tmp` 配下の無関係な多数の
+  test が「official output_root は repository 外でなければならない」で一括 red 化した
+  (最大92件)。直接確認すると `/tmp/.git` という空ディレクトリ (所有者 tanab、本 wave とは
+  無関係) が存在し、`_has_git_ancestor()` が `/tmp` 配下の**あらゆる** path を repo 内と
+  誤判定していた。`rmdir` で除去すると一時的に解消するが、その後の別走行で再度出現・消失した
+  (別プロセスが短時間だけ `/tmp/.git` を作る何らかの操作を行っていると推定、`ps -u` で
+  同一アカウントの複数 dev-wave セッションが並行稼働していることを確認済み)。
+- 根本原因: `_has_git_ancestor()` (exploration 由来、本 wave 以前から存在) は path 祖先の
+  どこかに `.git` という名前の**エントリが存在するだけ**で repo 内と判定し、それが実際に
+  機能する git repository か (HEAD・objects・refs を持つか) を検証しない。共有ログインノード
+  の `/tmp` は同一アカウントの複数セッション・他ツールが読み書きする共有空間であり、
+  この構造検査の弱さが `/tmp` 全体を巻き込む。
+- 恒久対応: 未実施 (本 wave の scope 外、規律5に照らし対応せず記録のみ)。将来 `_has_git_ancestor`
+  を強化する場合は「実在する完全な git repository か」まで検証する案を検討候補として残す。
+- 再発検知: ログインノードでの local test 実行が説明のつかない大量 red (特に「repository 外
+  でなければならない」という文言を含む) を出したら、`ls -la /tmp/.git` 等で `/tmp` 直下の
+  迷子 `.git` 混入をまず疑う。
+
+### F458. T-181/T-1434の既存test群がreal codex execの実ネットワーク経路を一度も検証していなかった [テスト代表性]
+
+- 事象: T-189 stage2-plan-replayer実装のsmoke gate (DW-G01) で、`tools/codex_reasoning_ab.py`
+  既存の`_bwrap_exec_argv`経由でreal codex execを試みたところ、実ネットワーク到達不可
+  (120秒timeout・exit -15・output 0 bytes、stderr: code-mode host未配置)で失敗した。
+- 根本原因: `_supervise_one`が使う`environment`辞書 (`_clean_environment`の
+  `ENV_ALLOWLIST = {CODEX_HOME, HOME, LANG, LC_ALL, PATH, TERM, TZ}`のみ) は、
+  `dry_run=True`(直接Popen、bwrap非経由)でも`dry_run=False`(bwrap経由)でも同じ縮小dictを
+  使う。T-1434の既存test (292+ passed) はdry_run=Trueかつfake codex binaryのみを使っており、
+  「real codex binaryを実ネットワーク接続込みで、この縮小環境の下で起動する」という
+  production相当の経路を一度も実測していなかった。292+ passedという緑の実績は、
+  bwrap/env-strip層の実ネットワーク到達性については無関係 (代表性を持たない)。
+- 恒久対応: 本waveの新規機構 (stage2-plan-replayer) は同じ罠を踏まず、ambient env継承+HOME
+  上書き+auth/configコピーという実証済みrecipeを使う (D644)。
+  この選択の理由と根本原因は`tools/codex_reasoning_ab.py`のdownstream起動コード付近の
+  docstring/コメントに残した。既存の`_bwrap_exec_argv`自体・T-181由来の既存test群の
+  代表性ギャップは本waveでは修正していない (規律5、apparatus全体に及ぶ横断的変更のため
+  scope外、[T-1480]以降の実験実施waveが引き継ぐべき前提条件として
+  D644に明記)。
+- 再発検知: 新規サブプロセス起動機構をこのapparatus上に構築するwaveは、DW-G01の生死確認を
+  `dry_run=True`やfake binaryだけで済ませず、実binary・実認証・実ネットワークでの
+  smoke testを要求する (段4裁定のF8/F13相当の扱いを一般化)。機械lint化は未実装 — 次に
+  同型の罠を踏んだ wave が出たら、DW-G01の記述へ「fake/dry_run実績だけでは生死確認済みと
+  扱わない」旨を明文化する候補とする。
+
+### F459. autonomous_trial_completeness.py変更時にp3_autonomous_workload_trialのimporterだけをconsumer test拡張対象にし本体のimporterを見落とした [手順漏れ] [テスト代表性]
+
+- 事象: `autonomous_trial_completeness.py`と`p3_autonomous_workload_trial.py`の両方を
+  変更するwaveで、DW-O26のconsumer test拡張を行う際に
+  `grep -rln "p3_autonomous_workload_trial\." orchestrator/tests/`だけを実行し、
+  `autonomous_trial_completeness`自体をimportする8ファイル (test_trial_registry.py含む)
+  を見落とした。段5実装・段6敵対レビュー2本・親の直接テスト実走のいずれもこの穴を
+  検出できず、受入全走で初めてtest_trial_registry.pyの13件が
+  `[payload-validation-receipt] safe identity differs`で赤化した。
+- 根本原因: 変更した2ファイルのうち1ファイル (`p3_autonomous_workload_trial.py`) の
+  importerだけをgrepし、もう1ファイル (`autonomous_trial_completeness.py`) の
+  importerを別途grepしなかった。複数productionファイルを同時に変更するwaveでは、
+  consumer test拡張は変更した**ファイルごと**に独立してimporterを洗い出す必要がある。
+- 恒久対応: `docs/dev-wave/operations.md`のDW-O26に「変更したproduction fileが複数ある
+  場合は各ファイルごとにimporterをgrepする」という明示を追加する改訂候補を段8の
+  dev-wave改善候補へ送る (未確定、記録のみ)。
+- 再発検知: 複数productionファイル変更waveで、DW-O26のconsumer test拡張grepコマンドが
+  変更ファイル数と1対1で存在するか段6レビューで確認する。
+
+### F460. 段3並列lane起動で明示job-idがlaneと合成されず衝突した [手順漏れ]
+
+- 事象: 段3の敵対相談で sol/luna 両レンズに同一の明示 `--job-id consult1` を渡して並列起動した。
+  `tools/dev_wave_codex.py` の artifact bucket が `--job-id` だけで決まり `--lane` と合成
+  されなかったため、両方が同じ `consult1/` バケットを取り合った。先発 (luna) は
+  「NG: attempt artifact が既に存在する」で安全に rc=2 拒否されたが、後発 (sol) は約10分間
+  実際に走行し `attempt-0001.output.md` へ実出力を書いたにもかかわらず、receipt.json の
+  finalize 時点で既に luna の失敗 receipt がバケットを占有しており
+  「NG: 既存の完全な receipt は上書きできない」で正式な receipt を作れなかった。
+  `dev_wave_wait.py producer` はどちらも rc=70 (pid死亡+.done欠落) として報告し、
+  一見「両方失敗した」ように見えた。
+- 根本原因: DW-O01/DW-C01 は artifact bucket が (wave, stage, lane) の組で決まると記す一方、
+  明示 `--job-id` を渡した場合の合成規則 (lane を含めるべきか) を明記していない。
+  `tools/dev_wave_codex.py` の実装は `--job-id` 指定時にそれを bucket 名としてそのまま使う
+  (lane を合成しない) ため、並列 lane 起動で明示 job-id を lane ごとに書き分けないと衝突する。
+- 恒久対応: 未実施。段8で `docs/dev-wave/operations.md` の `DW-O01` (`L1.5` 予算超過) と
+  `docs/dev-wave/core.md` の `DW-C01` (逐語 exact 契約節、挿入不可) の両方への追記を試みたが
+  いずれも `tools/check_docs.py` の構造検査 (予算・exact 契約) に阻まれ本 wave では見送った。
+  ユーザー裁定へ、値上げ (予算緩和) を伴わない解決策 (他 leaf 節への配置転換、既存文の圧縮
+  余地の拡大等) の検討を委ねる。
+- 再発検知: 未整備。`tools/dev_wave_codex.py` 側でのバケット衝突検出時の警告強化、または
+  `--lane` 指定時に `--job-id` へ自動で lane を suffix する変更が候補になりうるが、
+  いずれも本 wave の scope 外。
+
+### F461. `mutation_worktree.py`の`--wrapper-attempt`は`--attempt-out`と同時指定必須という制約が`--help`から読み取れない [手順漏れ]
+
+- 事象: 段6の変異matrix実走で `--wrapper-attempt 1` だけを指定し `--attempt-out` を省略して
+  `tools/mutation_worktree.py` を起動したところ、`mutation worktree aborted: --attempt-out と
+  --wrapper-attempt は同時指定が必要` で即座に (実際の変異走行前に) 中止した。
+- 根本原因: `--help` の出力は両オプションを独立した optional として表示し、相互依存を示さない。
+  `docs/dev-wave/mutation.md` の `DW-M07` も「`--wrapper-attempt`は整数」とだけ記し、
+  `--attempt-out` との同時指定契約には触れていない。
+- 恒久対応: `docs/dev-wave/mutation.md` の `DW-M07` へ「`--attempt-out` と `--wrapper-attempt`
+  は同時指定必須で、片方だけの指定は起動前に中止する」旨を段8の自己改善 routing で追記した
+  (本 wave の同時 commit)。実害は起動直後の rc=2 で判明し変異は1件も実行されなかったため、
+  評価結果への影響はない。
+- 再発検知: `--plan-only` による事前確認をこの wave 自身が実施し、同型の引数エラーを
+  実走前に検出できることを確認した (再発防止というより検出済みの回避策)。
+
+### F462. DW-O09のpath grepがT126独自mutation登録の逐語anchorを見落とした [恒真ゲート] [手順漏れ]
+
+- 事象: 段1のDW-O09監査 (`grep -rln "layer3_report" --include=*.py .`) は
+  `orchestrator/tests/test_t126_pegasus_tools.py` を hit として列挙していたが、その中身が
+  `T126_MUTATION_REGISTRY`/`_T126_MUTATION_TRANSFORMS` という、layer3_report.py の**逐語コード
+  テキスト**を `old_anchor` として保持する独立したmutation登録インフラであることまでは
+  深掘りしなかった。段5の実装 (`_reject_qualification_ancestry(campaign_dir,
+  output_root.resolve().parent)` を新helper呼び出しへ書き換え) がこの逐語anchor
+  (`_T126_MUTATION_TRANSFORMS["M2a"]`) を壊し、段9の正式受入全走で初めて
+  `test_t126_pegasus_tools.py::test_fr3_mutation_node_registry_is_exact_and_complete`
+  のattributable-redとして発覚した。段6の敵対レビュー2本・焦点再レビュー1本、変異matrix
+  MUT-1〜7、self-check再走6回のいずれも、T126の別mutation登録という**別subsystemの
+  逐語pin**までは検出範囲に入っていなかった。
+- 根本原因: `DW-O09` (`docs/dev-wave/operations.md`) は「path検索が見つけるのはpathを
+  keyにするpinだけである。review ledgerのようにrole名をkeyに張るpinはkey側でも検索し、
+  pathのhit0件をpinなしと結論しない（F30）」と明記済みだが、本waveでは path のhit が
+  0件ではなく複数件あったにもかかわらず、各hitの**中身** (それが単なる import/文字列参照か、
+  逐語コードテキストを保持するmutation registryかどうか) まで1件ずつ判別しなかった。
+  F30は「hit 0件を鵜呑みにしない」という片側だけを扱っており、「hitが複数件あるとき
+  各hitの性質を判別する」という反対側の落とし穴は既存の型に含まれていなかった。
+- 恒久対応: `orchestrator/tests/test_t126_pegasus_tools.py` の
+  `_T126_MUTATION_TRANSFORMS["M2a"]` の `old_anchor` を新しい実装 (3行の関数呼び出し) へ
+  差し替えて修正した (本waveの段9追加fix、Codex `role=author`)。DW-O09自体への
+  「複数hitでも各hitの性質を判別する」旨の追記は、本waveでは
+  `docs/dev-wave/operations.md` の予算 (L1.5 unique footprint) に収まる保証がなく、
+  F460・F461と同じく
+  ユーザー裁定へ委ねる (docs側の追記は未実施)。
+- 再発検知: 未整備。`T126_MUTATION_REGISTRY`のようなkey付きmutation anchorを持つ
+  registryファイルを機械的に列挙し、DW-O09監査の出力へ「この pathはmutation anchor
+  registryである可能性がある」という注記を自動で付ける仕組みが候補になりうるが、
+  本waveのscope外。
+
+### F463. merge競合解消の例外を次のcommitへ繰り越し、親(Claude)が実装面を直接編集した [権限逸脱]
+
+- 事象: 段6で受入前local main取り込み中に発生したmerge競合 (`8440a148`) は、Codexが
+  mid-merge (conflict marker残存) の作業木へdispatchできないため親が直接解消した
+  (正当な例外)。ところが続く登録commit (`fdd2a427`: `8440a148`の登録+stale化した
+  既存2件の削除) でも、親が同じ流れで`KNOWN_PROVENANCE_VIOLATIONS`を直接編集して
+  commitしてしまった。この時点でtreeは既にclean (non-mid-merge) でCodexへ通常
+  dispatch可能だったため、2件目には正当な理由が無かった。
+- 根本原因: merge競合解消の例外を「直前の自分の行動 (直接編集した)」にひもづけて
+  継続適用してしまい、例外の本来の適用条件 (tree状態がmid-mergeかどうか) を
+  次のcommitの前に再確認しなかった。
+- 検知経緯: 受入acceptance (4回目試行) が`fdd2a427`自体を`MISSING_CODEX_AUTHOR`
+  として検出し発覚した。`git reset --soft HEAD~1` (差分は保持、参照patchも別途保存)
+  で取り消し、Codex `--stage author`へ正しく再委任して同一内容であることを確認した
+  上でcommitし直した (fix2)。
+- 恒久対応: [[dev-wave-merge-exception-does-not-carry-forward]] (persistent memory) —
+  段6でmerge競合を親が直接解消したら例外はその1 commitで終わる、次に実装面へ触る
+  commitを作る前に必ず`git status`でclean/non-mid-mergeを確認しCodexへ戻す、という
+  手順を今後のdev-wave manager実行時に読み込む形で記録した。
+- 再発検知: 次にdev-wave 段6でmerge競合の親直接解消が発生した場合、その直後の
+  commitのAI-Agent trailerに`role=author`(codex)が無ければ、受入acceptanceの
+  provenance checkerが同じ`MISSING_CODEX_AUTHOR`型で機械的に検出する
+  (fail-closed、本waveの根本修正後も直接編集そのものは検出対象のまま)。
+
+### F464. 段5/6実装子(Codex)がdocs/handoff配下へファイルを作成した [権限逸脱]
+
+- 事象: 段6 fix4 (Codex `role=author`) が、割り当てられたcode/test編集に加えて
+  `docs/handoff/2026-08-22-t1479-known-violation-merge-authorship.md` を repo内に
+  作成した。内容自体は無害な状況メモ (一般 dev-wave の handoff 慣行を模倣したと
+  みられる) だったが、`docs/dev-wave/workers.md` DW-S05-B の「実装子はコードと
+  テストだけを編集しdocs編集とcommitをしない」に反する。親がcommit前のdiff監査
+  (`git status`/`git diff --stat`) で発見し、commitに含める前に削除した。実害
+  (commit・land) には至っていない。
+- 根本原因: fix4のprompt本文 (`/work/1/SFC/tanab/dev-wave-jobs/t1479-known-violation-merge-authorship-job/stage6-fix4/prompt.md`)
+  は「`git commit` を一度も実行しないこと」は明記していたが、「docs編集をしない」
+  は明記していなかった。DW-S05-Bに一般則として既に書かれていることを理由に、
+  個別promptへの具体的な明記を省略した。
+- 恒久対応: [[dev-wave-implementer-prompt-must-list-each-forbidden-edit]] (persistent
+  memory) — 今後のauthor/fix子promptへ「docs編集もしない (docs/handoffを含む)」を
+  commit禁止と並記する運用を記録した。`docs/dev-wave/workers.md` DW-S05-Cへの正式
+  統合はdev-wave doc族のL1.5 byte予算 (9566 bytes) が既に満杯のため本waveでは
+  見送り、独立審査対象として繰り越した (D661 と同様、本wave
+  scope外の繰り越し)。
+- 再発検知: 実装子が作成した成果物をcommitに含める前に、親が`git status`で
+  所有パス外のファイル (特にdocs/配下) が無いか毎回確認する運用が既存の
+  段6手順に含まれている (`DW-S05-A`の所有パス限定patch生成)。この検知手順自体は
+  機械強制ではなく親の目視確認に依存するため、DW-S05-Cへの正式統合が完了する
+  までは同型の再発があり得る。

@@ -303,6 +303,35 @@ class _RecordingFixture(A.FixtureRoleProvider):
         return super().invoke(invocation_id=invocation_id, payload=payload)
 
 
+class _ArtifactRecordingFixture(_RecordingFixture):
+    def __init__(self, role, artifact_root: Path):
+        super().__init__(role)
+        self.artifact_root = artifact_root
+        self.artifact_root.mkdir(parents=True, exist_ok=True)
+        self.invocation_ids = []
+
+    def invoke(self, *, invocation_id, payload):
+        self.invocation_ids.append(invocation_id)
+        payload_bytes = A._canonical_json_bytes(payload)
+        envelope_bytes = b'{"result":"fixture","type":"result"}'
+        (self.artifact_root / f"payload_{invocation_id}.json").write_bytes(
+            payload_bytes
+        )
+        (self.artifact_root / f"envelope_{invocation_id}.json").write_bytes(
+            envelope_bytes
+        )
+        response = super().invoke(
+            invocation_id=invocation_id, payload=payload,
+        )
+        return dataclasses.replace(
+            response,
+            provenance={
+                **response.provenance,
+                "envelope_sha256": hashlib.sha256(envelope_bytes).hexdigest(),
+            },
+        )
+
+
 class _MalformedRecordingCritic:
     def __init__(self) -> None:
         self.payloads = []
@@ -2014,6 +2043,186 @@ def test_invalid_role_is_single_attempt_and_stops_cell(tmp_path, monkeypatch) ->
         "bench_wall_seconds": 0.0,
     }
     assert planner.calls == 1
+
+
+class _MalformedAuditorBase(A.FixtureRoleProvider):
+    def __init__(self) -> None:
+        super().__init__("auditor")
+        self.calls = 0
+        self.last_payload: dict[str, Any] = {}
+        self.last_raw_response = ""
+
+    def invoke(self, *, invocation_id, payload):
+        self.calls += 1
+        self.last_payload = dict(payload)
+        response = super().invoke(
+            invocation_id=invocation_id,
+            payload=payload,
+        )
+        raw_response = self.malformed_raw(
+            response.raw_response,
+            payload,
+        )
+        self.last_raw_response = raw_response
+        return dataclasses.replace(
+            response,
+            raw_response=raw_response,
+        )
+
+
+class _AuditorDescriptorBindingExtraKey(_MalformedAuditorBase):
+    def malformed_raw(self, raw_response, payload):
+        value = json.loads(raw_response)
+        value["descriptor_binding"] = payload["descriptor_binding"]
+        return A._canonical_json_bytes(value).decode("utf-8")
+
+
+class _AuditorJsonFence(_MalformedAuditorBase):
+    def malformed_raw(self, raw_response, payload):
+        return f"```json\n{raw_response}\n```"
+
+
+class _AuditorMissingDelimiter(_MalformedAuditorBase):
+    def malformed_raw(self, raw_response, payload):
+        malformed = raw_response.replace(
+            ',"nits":',
+            '"nits":',
+            1,
+        )
+        assert malformed != raw_response
+        return malformed
+
+
+def _assert_malformed_auditor_common(report, run_root, provider):
+    assert report["status"] == "partial"
+    cell = report["cells"][0]
+    assert cell["stop_reason"] == "role-invalid"
+    assert len(cell["generations"]) == 1
+    generation = cell["generations"][0]
+    assert generation["outcome"] == "auditor-invalid"
+    event = generation["roles"]["auditor"]
+    assert event["status"] == "invalid"
+    assert event["error_type"] == "AutonomousTrialError"
+    assert event["attempt"] == 1
+    assert event["retry"] is False
+    assert event["role_query_ordinal"] == 3
+    assert report["honest_accounting"] == {
+        "role_query_count": 3,
+        "bench_wall_seconds": 0.0,
+    }
+    assert provider.calls == 1
+    journal_text = (run_root / "attempts.jsonl").read_text(encoding="utf-8")
+    report_text = (run_root / "report.json").read_text(encoding="utf-8")
+    assert provider.last_raw_response not in journal_text
+    assert provider.last_raw_response not in report_text
+    assert provider.last_raw_response not in json.dumps(
+        report,
+        ensure_ascii=False,
+        sort_keys=True,
+    )
+    return event
+
+
+def test_auditor_descriptor_binding_extra_key_is_single_attempt_and_stops_cell(
+    tmp_path,
+    monkeypatch,
+) -> None:
+    monkeypatch.setattr(A, "MAX_APPROVED_GENERATIONS", 3)
+    auditor = _AuditorDescriptorBindingExtraKey()
+    providers = {
+        role: A.FixtureRoleProvider(role)
+        for role in ("planner", "coder", "auditor", "critic")
+    }
+    providers["auditor"] = auditor
+    run_root = tmp_path / "run"
+    report = A.run_trial(
+        trial_id="auditor-extra-descriptor-binding",
+        workloads=["ycsb-a"],
+        generations=3,
+        provider_kind="fixture",
+        run_root=run_root,
+        sub="/unused",
+        do_build=False,
+        providers=providers,
+        drive=_fake_drive,
+        preview=_fake_preview,
+        allow_unregistered_exploratory=True,
+    )
+
+    event = _assert_malformed_auditor_common(report, run_root, auditor)
+    malformed = json.loads(auditor.last_raw_response)
+    assert len(malformed) == 7
+    assert "descriptor_binding" in malformed
+    assert malformed["descriptor_binding"] == auditor.last_payload[
+        "descriptor_binding"
+    ]
+    assert "response object keys 不一致" in event["error"]
+
+
+def test_auditor_json_fence_is_single_attempt_and_stops_cell(
+    tmp_path,
+    monkeypatch,
+) -> None:
+    monkeypatch.setattr(A, "MAX_APPROVED_GENERATIONS", 3)
+    auditor = _AuditorJsonFence()
+    providers = {
+        role: A.FixtureRoleProvider(role)
+        for role in ("planner", "coder", "auditor", "critic")
+    }
+    providers["auditor"] = auditor
+    run_root = tmp_path / "run"
+    report = A.run_trial(
+        trial_id="auditor-json-fence",
+        workloads=["ycsb-a"],
+        generations=3,
+        provider_kind="fixture",
+        run_root=run_root,
+        sub="/unused",
+        do_build=False,
+        providers=providers,
+        drive=_fake_drive,
+        preview=_fake_preview,
+        allow_unregistered_exploratory=True,
+    )
+
+    event = _assert_malformed_auditor_common(report, run_root, auditor)
+    assert auditor.last_raw_response.startswith("```json\n")
+    assert auditor.last_raw_response.endswith("\n```")
+    assert "JSON object を読めない" in event["error"]
+    assert event["error_type"] == "AutonomousTrialError"
+
+
+def test_auditor_missing_json_delimiter_is_single_attempt_and_stops_cell(
+    tmp_path,
+    monkeypatch,
+) -> None:
+    monkeypatch.setattr(A, "MAX_APPROVED_GENERATIONS", 3)
+    auditor = _AuditorMissingDelimiter()
+    providers = {
+        role: A.FixtureRoleProvider(role)
+        for role in ("planner", "coder", "auditor", "critic")
+    }
+    providers["auditor"] = auditor
+    run_root = tmp_path / "run"
+    report = A.run_trial(
+        trial_id="auditor-missing-delimiter",
+        workloads=["ycsb-a"],
+        generations=3,
+        provider_kind="fixture",
+        run_root=run_root,
+        sub="/unused",
+        do_build=False,
+        providers=providers,
+        drive=_fake_drive,
+        preview=_fake_preview,
+        allow_unregistered_exploratory=True,
+    )
+
+    event = _assert_malformed_auditor_common(report, run_root, auditor)
+    assert ',"nits":' not in auditor.last_raw_response
+    assert '"nits":' in auditor.last_raw_response
+    assert "JSON object を読めない" in event["error"]
+    assert event["error_type"] == "AutonomousTrialError"
 
 
 def test_run_trial_rejects_unapproved_budget_before_artifact_creation(tmp_path) -> None:
@@ -4469,6 +4678,390 @@ def test_generation_one_payload_bytes_are_exactly_legacy_shape(tmp_path) -> None
     assert providers["coder"].payload_bytes[0] == A._canonical_json_bytes(
         expected_coder
     )
+
+
+def test_off_common_payload_is_holdout_invariant(t325_registered_trial) -> None:
+    commit = _t325_git(t325_registered_trial.repo, "rev-parse", "HEAD")
+    payloads = []
+    records = []
+    for holdout, workload in (("H1", "rr80"), ("H2", "rr20")):
+        resolved = A.s8c_arm_inputs.resolve_arm_input(
+            arm="off",
+            holdout=holdout,
+            repository_root=t325_registered_trial.repo,
+            commit=commit,
+        )
+        descriptor, descriptor_record = A._descriptor_from_resolved_arm_input(
+            resolved
+        )
+        before = copy.deepcopy(descriptor_record)
+        records.append(descriptor_record)
+        payloads.append(A._common_payload(
+            workload=workload,
+            generation=1,
+            descriptor=descriptor,
+            descriptor_record=descriptor_record,
+            arm="off",
+        ))
+        assert descriptor_record == before
+
+    assert A._canonical_json_bytes(payloads[0]) == A._canonical_json_bytes(
+        payloads[1]
+    )
+    assert payloads[0]["workload"] == A.OFF_NEUTRAL_PAYLOAD_WORKLOAD
+    assert payloads[1]["workload"] == A.OFF_NEUTRAL_PAYLOAD_WORKLOAD
+    for payload in payloads:
+        assert "arm_binding_digest_sha256" not in payload[
+            "descriptor_binding"
+        ]
+        assert payload["descriptor_binding"]["content_digest_sha256"]
+    assert records[0]["arm_binding_digest_sha256"] != (
+        records[1]["arm_binding_digest_sha256"]
+    )
+
+    on_payloads = []
+    swapped_payloads = []
+    for holdout, workload in (("H1", "rr80"), ("H2", "rr20")):
+        for arm, destination in (
+            ("on", on_payloads),
+            ("swapped", swapped_payloads),
+        ):
+            resolved = A.s8c_arm_inputs.resolve_arm_input(
+                arm=arm,
+                holdout=holdout,
+                repository_root=t325_registered_trial.repo,
+                commit=commit,
+            )
+            descriptor, descriptor_record = (
+                A._descriptor_from_resolved_arm_input(resolved)
+            )
+            destination.append(A._common_payload(
+                workload=workload,
+                generation=1,
+                descriptor=descriptor,
+                descriptor_record=descriptor_record,
+                arm=arm,
+            ))
+    assert A._canonical_json_bytes(on_payloads[0]) != A._canonical_json_bytes(
+        on_payloads[1]
+    )
+    assert A._canonical_json_bytes(swapped_payloads[0]) != (
+        A._canonical_json_bytes(swapped_payloads[1])
+    )
+
+
+def test_off_invocation_id_is_holdout_invariant(t325_registered_trial) -> None:
+    commit = _t325_git(t325_registered_trial.repo, "rev-parse", "HEAD")
+    provider_ids = []
+    audit_ids = []
+    for holdout, workload in (("H1", "rr80"), ("H2", "rr20")):
+        resolved = A.s8c_arm_inputs.resolve_arm_input(
+            arm="off",
+            holdout=holdout,
+            repository_root=t325_registered_trial.repo,
+            commit=commit,
+        )
+        _descriptor, descriptor_record = A._descriptor_from_resolved_arm_input(
+            resolved
+        )
+        provider_id, audit_id = A._provider_and_audit_invocation_ids(
+            arm="off",
+            arm_binding_digest=descriptor_record[
+                "arm_binding_digest_sha256"
+            ],
+            content_digest=descriptor_record["content_digest_sha256"],
+            workload=workload,
+            generation=1,
+            role="planner",
+        )
+        provider_ids.append(provider_id)
+        audit_ids.append(audit_id)
+    assert provider_ids[0] == provider_ids[1]
+    assert audit_ids[0] != audit_ids[1]
+    assert A.OFF_NEUTRAL_PAYLOAD_WORKLOAD in provider_ids[0]
+    assert "rr80" not in provider_ids[0]
+    assert "rr20" not in provider_ids[0]
+    assert audit_ids[0].endswith(".rr80.g1.planner")
+    assert audit_ids[1].endswith(".rr20.g1.planner")
+
+
+def test_off_payload_audit_digest_is_retained_outside_payload(
+    tmp_path, t325_registered_trial,
+) -> None:
+    commit = _t325_git(t325_registered_trial.repo, "rev-parse", "HEAD")
+    resolved = A.s8c_arm_inputs.resolve_arm_input(
+        arm="off",
+        holdout="H1",
+        repository_root=t325_registered_trial.repo,
+        commit=commit,
+    )
+    descriptor, descriptor_record = A._descriptor_from_resolved_arm_input(
+        resolved
+    )
+    payload = A._common_payload(
+        workload="rr80",
+        generation=1,
+        descriptor=descriptor,
+        descriptor_record=descriptor_record,
+        arm="off",
+    )
+    payload.update({
+        "working_diff": "fixture diff",
+        "diff_digest": hashlib.sha256(b"fixture diff").hexdigest(),
+    })
+    provider_id, audit_id = A._provider_and_audit_invocation_ids(
+        arm="off",
+        arm_binding_digest=descriptor_record[
+            "arm_binding_digest_sha256"
+        ],
+        content_digest=descriptor_record["content_digest_sha256"],
+        workload="rr80",
+        generation=1,
+        role="auditor",
+    )
+    provider = _ArtifactRecordingFixture("auditor", tmp_path / "provider")
+    raw_root = tmp_path / "raw"
+    raw_root.mkdir()
+    journal = A.AttemptJournal(tmp_path / "attempts.jsonl")
+    parsed, event = A._invoke(
+        role="auditor",
+        provider=provider,
+        invocation_id=provider_id,
+        audit_invocation_id=audit_id,
+        audit_arm_binding_digest_sha256=descriptor_record[
+            "arm_binding_digest_sha256"
+        ],
+        payload=payload,
+        raw_root=raw_root,
+        journal=journal,
+        workload="rr80",
+        generation=1,
+    )
+    assert parsed is not None
+    assert provider.invocation_ids == [provider_id]
+    received = provider.payloads[0]
+    assert "arm_binding_digest_sha256" not in received[
+        "descriptor_binding"
+    ]
+    assert event["invocation_id"] == audit_id
+    assert event["arm_binding_digest_sha256"] == descriptor_record[
+        "arm_binding_digest_sha256"
+    ]
+    assert event["provider_artifacts"]["arm_binding_digest_sha256"] == (
+        descriptor_record["arm_binding_digest_sha256"]
+    )
+    assert Path(event["provider_artifacts"]["payload_path"]).name == (
+        f"payload_{provider_id}.json"
+    )
+    assert descriptor_record["arm_binding_digest_sha256"] not in (
+        Path(event["provider_artifacts"]["payload_path"]).name
+    )
+
+
+def test_off_pre_audit_skip_retains_audit_binding(
+    tmp_path, t325_registered_trial,
+) -> None:
+    admission = A.trial_registry.admit_registered_launch(
+        effective_preregistration=t325_registered_trial.capability,
+        manifest_path=t325_registered_trial.manifest_path,
+        trial_id="t325-h1-off",
+        workloads=["rr80"],
+        repository_root=t325_registered_trial.repo,
+        registry_path=t325_registered_trial.registry_path,
+    )
+    arm_execution = A.trial_registry.bind_trial_arm(
+        admission.binding,
+        repository_root=t325_registered_trial.repo,
+    )
+    run_root = tmp_path / "off-pre-audit-skip"
+    (run_root / "raw").mkdir(parents=True)
+    (run_root / "proposals").mkdir()
+    journal = A.AttemptJournal(run_root / "attempts.jsonl")
+
+    def rejected_preview(coder, *, sub):
+        result = _fake_preview(coder, sub=sub)
+        result["passed"] = False
+        result["forbidden_identifiers"] = ["fixture-forbidden-identifier"]
+        return result
+
+    def stop_after_first_generation(*args, **kwargs):
+        outcome = _fake_drive(*args, **kwargs)
+        outcome["stop_reason"] = "budget-iterations"
+        return outcome
+
+    scope = A._RunScopeBinding(
+        admission,
+        A._RUN_SCOPE_SEAL,
+        None,
+        arm_execution,
+    )
+    token = A._ACTIVE_TRIAL_BINDING.set(scope)
+    try:
+        cell = A._run_workload(
+            workload="rr80",
+            generations=2,
+            providers={
+                role: A.FixtureRoleProvider(role) for role in A.ROLE_FILES
+            },
+            journal=journal,
+            run_root=run_root,
+            sub="/unused",
+            do_build=False,
+            cache_root="",
+            trial_id="t325-h1-off",
+            started_monotonic=time.monotonic(),
+            max_wall_s=3600,
+            drive=stop_after_first_generation,
+            preview=rejected_preview,
+            build_context=_no_build_context(),
+            gating_spec_snapshot=A.snapshot_gating_spec(A.GATING_SPEC),
+        )
+    finally:
+        A._ACTIVE_TRIAL_BINDING.reset(token)
+
+    event = cell["generations"][0]["roles"]["auditor"]
+    assert event["status"] == "skipped"
+    assert event["skip_reason"] == "machine-pre-audit-rejection"
+    content_digest = cell["descriptor_binding"]["content_digest_sha256"]
+    arm_digest = arm_execution.arm_binding_digest_sha256
+    provider_id, audit_id = A._provider_and_audit_invocation_ids(
+        arm="off",
+        arm_binding_digest=arm_digest,
+        content_digest=content_digest,
+        workload="rr80",
+        generation=1,
+        role="auditor",
+    )
+    assert event["invocation_id"] == audit_id
+    assert event["invocation_id"] != provider_id
+    assert event["invocation_id"].endswith(".rr80.g1.auditor")
+    assert f".exec-{arm_digest}." in event["invocation_id"]
+    assert event["arm_binding_digest_sha256"] == arm_digest
+
+
+def test_off_critic_payload_does_not_reintroduce_campaign_identity(
+    tmp_path, monkeypatch, t325_registered_trial,
+) -> None:
+    commit = _t325_git(t325_registered_trial.repo, "rev-parse", "HEAD")
+    resolved = A.s8c_arm_inputs.resolve_arm_input(
+        arm="off",
+        holdout="H1",
+        repository_root=t325_registered_trial.repo,
+        commit=commit,
+    )
+    descriptor, descriptor_record = A._descriptor_from_resolved_arm_input(
+        resolved
+    )
+    arm_binding = A.trial_registry.load_launch_binding(
+        manifest_path=t325_registered_trial.manifest_path,
+        trial_id="t325-h1-off",
+        workloads=["rr80"],
+        repository_root=t325_registered_trial.repo,
+        registry_path=t325_registered_trial.registry_path,
+    )
+    arm_execution = A.trial_registry.bind_trial_arm(
+        arm_binding,
+        repository_root=t325_registered_trial.repo,
+    )
+    monkeypatch.setattr(
+        A, "_active_arm_execution", lambda *, workload: arm_execution,
+    )
+
+    def run_case(
+        case_root: Path, *, digest_generated: bool, raw_variant: str | None,
+    ):
+        common = A._common_payload(
+            workload="rr80",
+            generation=1,
+            descriptor=descriptor,
+            descriptor_record=descriptor_record,
+            arm="off",
+        )
+        run_root = case_root / "run"
+        (run_root / "raw").mkdir(parents=True)
+        campaign_root = run_root / "campaign"
+        campaign_root.mkdir()
+        actual_digest = "d" * 64
+        if digest_generated:
+            (campaign_root / A.trigger.DIGEST_BASENAME).write_text(
+                actual_digest, encoding="utf-8",
+            )
+            monkeypatch.setattr(
+                A, "require_admitted_campaign",
+                lambda *args, **kwargs: object(),
+            )
+            monkeypatch.setattr(
+                A.loop_core,
+                "make_critic_identity_projection",
+                lambda _view: SimpleNamespace(
+                    project_variant=lambda _variant: "campaign-candidate",
+                ),
+            )
+            monkeypatch.setattr(
+                A.loop_core,
+                "make_critic_digest",
+                lambda *args, **kwargs: actual_digest,
+            )
+        journal = A.AttemptJournal(run_root / "attempts.jsonl")
+        accounting = A._new_generation_accounting(
+            workload="rr80",
+            generation=1,
+            journal=journal,
+            generation_driver=dict(A._STANDARD_GENERATION_DRIVER),
+            gating_spec_sha256="a" * 64,
+            authority=A._AUTHORITATIVE_ACCOUNTING,
+        )
+        cell = {
+            "workload": "rr80",
+            "campaign_root": str(campaign_root),
+            "generations": [{"generation": 1, "roles": {}}],
+            "_pending_critics": [{
+                "generation": 1,
+                "common": common,
+                "outcome": {
+                    "outcome": "certified",
+                    "verdict": "pass",
+                    "stop_reason": "continue",
+                },
+                "metrics": {"throughput_ops_sec": 1.0},
+                "raw_variant": raw_variant,
+                "critic_digest_generated": digest_generated,
+                "critic_attempted": False,
+                "accounting": accounting,
+            }],
+        }
+        provider = _RecordingFixture("critic")
+        critic = A._run_one_pending_critic(
+            cell,
+            providers={"critic": provider},
+            journal=journal,
+            run_root=run_root,
+            transport_receipt=None,
+            require_recomputed_digest=digest_generated,
+        )
+        return critic, provider.payloads[0]
+
+    generated_critic, generated_payload = run_case(
+        tmp_path / "generated",
+        digest_generated=True,
+        raw_variant="candidate-0001",
+    )
+    raw_critic, raw_payload = run_case(
+        tmp_path / "raw",
+        digest_generated=False,
+        raw_variant="candidate-0001",
+    )
+    assert generated_critic is not None
+    assert raw_critic is not None
+    for payload in (generated_payload, raw_payload):
+        assert payload["critic_digest"] is None
+        assert payload["harness_result"]["candidate_label"] is None
+        assert "arm_binding_digest_sha256" not in payload[
+            "descriptor_binding"
+        ]
+    assert generated_payload["harness_result"]["metrics"] == {
+        "throughput_ops_sec": 1.0,
+    }
 
 
 def test_generation_one_never_uses_intermediate_critic_projection(
