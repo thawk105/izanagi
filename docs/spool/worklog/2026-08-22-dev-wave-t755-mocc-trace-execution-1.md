@@ -123,6 +123,33 @@ title: [T-755] mocc trace v2のTRACE=1正しさ検証パイロットを実機実
   出るため非帰属と判定され、26 件の除去を待たずに受領証が出る。したがって本 wave の
   再開条件は「`remove sort-swo-oracle test` の着地」または「判定器再設計の着地」の
   **いずれか早い方**である。
+- **ユーザー許可を得て赤の原因側を直した。** 共有 third-party cache の masstree で
+  `autoreconf -i` と `./configure` を実行し `config.h` を生成した (どちらも rc=0)。生成物
+  (`config.h` / `config.h.in` / `configure` / `config.log` / `config.status` /
+  `autom4te.cache` / `stamp-h`) は**すべて masstree 自身の `.gitignore` に入っており**、
+  生成後も `git status --porcelain` は空のままである。`tools/pegasus/README.md` §6 が
+  cache について「`git status` に出ない ignored なビルド生成物を含みうる」と書いている
+  状態そのもので設計に反しない。**本 wave が当初「設計に反する」と判断したのは誤りで、
+  masstree の `.gitignore` を読んで訂正した。**
+- 効果を実測した。`test_sort_swo_oracle.py` の赤は **26 件から 10 件へ減った**。解消した
+  16 件は oracle environment が解決するようになり、実際に C++ を compile する経路へ
+  進んだものである。この修正は共有 cache なので**この機体の全 wave に効く**。
+- 残る 10 件の原因を切り分けた。compile は通り、失敗は実行段で起きる。内訳は
+  `_EvaluationUnavailable("run-launch", "loader-or-launch-failed")` と
+  `candidate-run-signal-6` (SIGABRT) である。
+  - `/tmp` がノードローカルで login node と計算ノードで食い違う説を実測で棄却した。
+    `/tmp` は実行可能 (noexec ではない) であり、`--basetemp` で lustre 共有の `/work` 側へ
+    振り替えて再走しても **10 件のまま**だった (振替が効いたことは失敗本文の executable path が
+    `/work/1/SFC/tanab/tmp/izanagi-bt/...` に変わったことで確認済み)。なお `TMPDIR` は
+    runner に吸収されて効かない。振替には `--basetemp` を使う必要がある。
+  - 有力な残り仮説は `_run_matrix` の `preexec_fn=_limit_run` が課す rlimit、特に
+    `RLIMIT_AS=512MiB` と masstree のメモリ挙動の噛み合わせである。configure は
+    `MADV_HUGEPAGE` と `MAP_HUGETLB` を両方 yes と検出しており、この機体では hugepage 経路が
+    有効になる。**本 wave の差分の面ではないため、ここで切り上げて担当セッションへ渡した。**
+- なお `external/ccbench/build/_deps/masstree-src` 側へ置く案は採れない。ccbench
+  submodule で `build` が ignore されておらず、submodule dirt で land が拒否される
+  (`DW-O23`)。受入 lease を on にして排他を得る案も、他 wave が `--lease-optional` で
+  走っている以上こちらが待つだけで排他にならない。
 
 ## 次の一手差分
 
