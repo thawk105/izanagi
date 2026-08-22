@@ -408,6 +408,13 @@ guided.py の replay-fake certified 経路は live variant に絶対再利用し
      (g) → 分岐[Cicada 着手 or 見送り]。理由 = TicToc は既存 (mocc/silo) playbook に近く低リスク、
      Cicada は playbook 非依存の新規調査が要るため `DW-G03` (族一般化には独立 2 例) の精神で
      2 例目に位置づける。(d) は一方向消費のため着手時に改めて裁定を仰ぐ。
+
+   **(2026-08-21 Group D (i) 試作完了、No-Go)** カタログカード試作 1 枚を実行した。技法 = Cicada の
+   commit-streak gated selective precheck (`precheckInValidation()`)。判定 = 現行 Silo の
+   EVOLVE-BLOCK 実編集面 (write_set_ ロック順序 comparator + `backoff.hh`) に前提 (per-tuple
+   counter・MVCC version chain) が乗らず No-Go (1 事例、全称化しない)。段7 全体の発火条件
+   (8b+層3後) はこの結果と無関係に未成立のまま。詳細・見送った候補・今後の芽は
+   `output/insights/2026-08-21_cicada-selective-precheck-catalog-card.md`。
 8. **探索側を防壁の水準へ引き上げる 3 機構 (8a 完了、8b 進行中、8c は bounded MVP 済み・正式実験と resume は未完)** — 外部評価
    (worklog 2026-07-10 (3)) が特定した「CC 自動合成の主張と機構のギャップ」への対策。各々着手時に
    リスクに応じてレビューする。新しい統計主張・不可逆な決定は D41 相当の 3 レンズ、可逆な schema/文言は
