@@ -87,6 +87,18 @@ title: 受入 lease の待ちループと待ち行列を機構ごと除去した
 
 ### 新規
 
+- {{T:sort-swo-oracle-repair-and-reenable}} **P1・新規**: `orchestrator/tests/test_sort_swo_oracle.py`
+  を修理して再有効化する。本 wave で**ファイルごと無条件に skip した**
+  (ユーザー裁定 2026-08-23:「ゴミテストはオフにする。壊れたテストは直してから使うものだ。
+  修理が小さそうなら自分でやれ。そうじゃないなら別タスクで後でケア」)。
+  53 テスト関数のうち 26 件が恒常的に赤で、原因は
+  `orchestrator/campaign/sort_swo_oracle.py` の oracle environment 解決が masstree の
+  `config.h` を要求するのに、共有 cache は素の clone で `config.h` も `configure` も持たず、
+  どの worktree も ccbench を build していないため `<ccbench>/build/_deps/masstree-src` も
+  無いこと。**別 wave のビルド副産物の残存に暗黙依存したテスト群**である。
+  修理は「テストを甘くする」のではなく、依存の解決経路を明示的に用意する方向で行う。
+  再有効化は修理が済んでから。main commit `98badc9b` で known-violation 登録済み。
+
 - {{T:lease-noverdict-retry-unclaimed}} **P2・ユーザー裁定待ち**: 未取得 (`held`) 経路でも
   no-verdict retry を許すか。現行は lease 所有を要求するが、この条件は待ち行列時代の前提に由来する。
   受理集合の変更なので本 wave では実装しなかった。
