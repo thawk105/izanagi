@@ -107,36 +107,52 @@ def _test_layer() -> dict[str, object]:
         "bypass_surface": [
             {
                 "id": "plain-python-runner",
-                "classification": "known-unresolved-bypass",
+                "classification": "known-guarded-bypass",
                 "command_pattern": "python3 test_*.py",
-                "effect": "bypasses-test-hold",
-                "reason": "pytest conftest collection hook is not invoked",
+                "effect": "blocked-by-hold-guard",
+                "reason": (
+                    "T-930 closed this bypass: held test execution is blocked "
+                    "unless the exact release token is present; D360 "
+                    "(growth_test_holds.py) covers registered runner paths, "
+                    "while in-process __wrapped__ direct calls and guard "
+                    "rebinding are out of scope."
+                ),
                 "tracking": "T-930",
             },
             {
                 "id": "pytest-noconftest",
-                "classification": "known-unresolved-bypass",
+                "classification": "known-guarded-bypass",
                 "option": "--noconftest",
-                "effect": "bypasses-test-hold",
-                "reason": "pytest suite conftest is not loaded",
+                "effect": "blocked-by-hold-guard",
+                "reason": (
+                    "T-930 closed this bypass: using pytest --noconftest is "
+                    "blocked unless the exact release token is present."
+                ),
                 "tracking": "T-930",
             },
             {
                 "id": "pytest-confcutdir-below-suite",
-                "classification": "known-unresolved-bypass",
+                "classification": "known-guarded-bypass",
                 "option_pattern": (
                     "--confcutdir=<path-below-orchestrator/tests>"
                 ),
-                "effect": "bypasses-test-hold",
-                "reason": "pytest stops conftest discovery below suite root",
+                "effect": "blocked-by-hold-guard",
+                "reason": (
+                    "T-930 closed this bypass: using pytest --confcutdir below "
+                    "the suite is blocked unless the exact release token is "
+                    "present."
+                ),
                 "tracking": "T-930",
             },
             {
                 "id": "direct-test-function-call",
-                "classification": "known-unresolved-bypass",
+                "classification": "known-guarded-bypass",
                 "invocation": "import-test-module-and-call-function",
-                "effect": "bypasses-test-hold",
-                "reason": "pytest collection hook is not invoked",
+                "effect": "blocked-by-hold-guard",
+                "reason": (
+                    "T-930 closed this bypass: calling a test function directly "
+                    "is blocked unless the exact release token is present."
+                ),
                 "tracking": "T-930",
             },
             {
