@@ -167,6 +167,25 @@ title: [T-755] mocc trace v2のTRACE=1正しさ検証パイロットを実機実
   10 件は他セッション所有の `test_sort_swo_oracle.py` と ccbench 側にあり、本 wave が
   node ID を止めると同じ file を編集中の担当セッションと衝突する。したがって本 wave では
   止めず、`remove sort-swo-oracle test` の着地を待って受入 1 回と land を行う。
+- 待機中にユーザーから「数分で解決しないならお前も試みろ」と指示があり、10 件の**原因箇所を
+  file:行まで特定し、修正案を実測で検証**した (担当セッションへ着手を通告済み)。
+  `orchestrator/campaign/sort_swo_oracle.py` の `_TU_PREFIX` にある `snapshot_corpus()` が
+  corpus の全 element に対し無条件で `element.body_.get_val()` を呼ぶ。これは
+  `external/ccbench/include/tuple_body.hh` の `get_val()` → `val_.view()` を経由し、
+  `heap_object.hh` の `assert(data_ != nullptr)` に当たる。**`val_` 未確保の element が
+  1 つでもあれば SIGABRT する。** `get_key()` は `key_` を返すので安全で、落ちるのは
+  `get_val()` 側だけである。
+- 修正案を一時編集 (即時復元) で実測した。`get_val()` の 2 行を null 安全な
+  `get_val_size()` と `get_value().data()` へ置き換えると、**10 failed が 1 failed へ減り
+  61 passed になった。** 残る 1 件は `test_contract_manifest_hashes_and_literal_are_exact_snapshot`
+  で、`_TU_PREFIX` を変えたことによる `TU_TEMPLATE_SHA256` の exact pin 不一致である
+  (意図どおりの凍結ガードであり、本修正を採用するなら pin も同じ commit で更新する)。
+  **assert を弱める変更ではなく、確保済み element の snapshot bytes は不変である**
+  (絶対規律 2 に抵触しない)。一時編集は測定後に即時復元し、tree は clean に戻した。
+- **本 wave では実装しない。** 測定中に `remove sort-swo-oracle test` が当該テストを
+  除外して main が完全緑になり (裁定 D679 により粒度は file 単位でよいと確定)、本 wave の
+  land 経路が開いた。原因と検証済みの修正案は担当セッションへ渡し、除外の解除は
+  そちらの後続タスクとする。
 
 ## 次の一手差分
 
