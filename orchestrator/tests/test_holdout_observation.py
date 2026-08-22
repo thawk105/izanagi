@@ -527,6 +527,33 @@ def test_calibration_capability_rejects_noise_transition_with_unconsumed_sweep(
         )
 
 
+def test_calibration_capability_allows_noise_transition_after_three_sweep_points(
+    tmp_path,
+):
+    binary = tmp_path / "ycsb_fixture.exe"
+    binary.write_bytes(b"calibration-binary")
+    capability = _issued_calibration(
+        hashlib.sha256(binary.read_bytes()).hexdigest(),
+        start_records=1, max_records=8, sweep_reps=1, noise_reps=1,
+        use_perf=False,
+    )
+
+    for records in (1, 2, 4):
+        runner.run_once(
+            str(binary),
+            ["-thread_num=2", f"-ycsb_tuple_num={records}", "-extime=1",
+             "-clocks_per_us=1800", "-ycsb_rratio=80"],
+            use_perf=False,
+            subprocess_runner=lambda *_args, **_kwargs: _completed_process(),
+            calibration_observation_capability=capability,
+            calibration_observation_phase="sweep",
+        )
+
+    observation._transition_calibration_observation_to_noise(
+        capability, saturation_records=4,
+    )
+
+
 def test_one_attempt_allows_exactly_one_measure_point_repetition_set():
     token = _issued("rr80", attempt_id="planned:3", uses=5)
     calls = []

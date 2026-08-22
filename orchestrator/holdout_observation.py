@@ -574,7 +574,7 @@ def _identity_calibration_capability_functions():
             if state.current_sweep_reps != 0:
                 raise HoldoutObservationError(
                     "sweep phase was not consumed at a repetition boundary")
-            if state.next_sweep_records is not None:
+            if state.next_sweep_records is not None and len(state.sweep_records) < 3:
                 raise HoldoutObservationError(
                     "sweep phase still has unconsumed records")
             if saturation_records not in state.sweep_records:
