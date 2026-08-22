@@ -900,15 +900,28 @@ def _resolve_duplicate(layout: CampaignLayout, planner: PlannerProposal,
     commit_payload = recs.get(STAGE_COMMIT)
     verify_payload = recs.get(STAGE_VERIFY_DONE, {})
     if commit_payload is not None:
+        commit_attempt_id = commit_payload.get("build_attempt_id")
+        verify_attempt_id = verify_payload.get("build_attempt_id")
+        verdict = verify_payload.get("verdict", "")
+        if ((commit_attempt_id is not None or verify_attempt_id is not None)
+                and commit_attempt_id != verify_attempt_id):
+            verdict = ""
         project_whiteboard(state, planner, "success", delta_pct=None)
         log(f"  重複提案 (既存 certified variant {dup_v} と同一 genome、新規評価はスキップ)")
         return {"outcome": "duplicate", "variant": dup_v,
                 "fitness_tps": commit_payload.get("fitness_tps"),
-                "verdict": verify_payload.get("verdict", ""), "records": recs}
+                "verdict": verdict, "records": recs}
+    abort_payload = recs.get(STAGE_ABORT, {})
+    abort_attempt_id = abort_payload.get("build_attempt_id")
+    verify_attempt_id = verify_payload.get("build_attempt_id")
+    verdict = verify_payload.get("verdict", "")
+    if ((abort_attempt_id is not None or verify_attempt_id is not None)
+            and abort_attempt_id != verify_attempt_id):
+        verdict = ""
     project_whiteboard(state, planner, "fail")
     log(f"  重複提案 (既存 aborted variant {dup_v} と同一 genome)")
     return {"outcome": "aborted", "variant": dup_v,
-            "verdict": verify_payload.get("verdict", ""), "records": recs}
+            "verdict": verdict, "records": recs}
 
 
 def run_one_iteration(cfg: CampaignConfig, perf: PerfConfig,
