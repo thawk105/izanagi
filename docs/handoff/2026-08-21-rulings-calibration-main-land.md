@@ -1,8 +1,35 @@
 # 2026-08-21 rulings / rr80-rr20 calibration dev-wave / main land handoff
 - 目的: rr80/rr20 calibration を AI/ツール側で安全に登録できる dev-wave 経路を裁定・準備し、裁定と tooling を local main へ land する。rulings session から実測を直接起動しない
 - 状態: 作業中
-- 最終更新: 2026-08-21
-- 基準コミット: 46fbce3d7151044c9450bdf3f422ea839e7fcc0f (worktree: worktree-rulings-20260821-calibration-registration)
+- 最終更新: 2026-08-22
+- 基準コミット: a0937f4e0fd8b8e71f1902f41a5cd2c9d3e82dfa (worktree: worktree-rulings-20260821-calibration-registration、branch tip)
+
+## 2026-08-22 追記 (別セッションによる受入・land 引き継ぎ)
+
+- 引き継ぎ時、job dir に残っていた直近受入全走 (attempt 1, wave_tip=42343ef0) が
+  `attributable-red` (3 ノード) だったことを一次資料から発見。後続 fixture fix (f8d32b0e) で
+  解消済みと個別実走で確認したが、修正後の受入全走は未再走だった。
+- 段6敵対レビュー2本 (Codex) + 親の手動変異検査により、`calibration_rratio` binding 一致検査に
+  不一致拒否を確認するテストが皆無 (SURVIVED) と判明。Codex fix 子がテストを追加 (commit
+  a0937f4e)、同じ変異で KILLED を確認した。
+- レンズA 指摘の `--job-script` override 経由 ratio 詐称は既存 [T-424] の scope として scope 外。
+- 本 wave と無関係に `check_ai_provenance.py` の全史監査で commit `09ce607b`
+  (ccbench pin bump、AI-Agent trailer 皆無) を発見。ユーザー判断待ちとして
+  `{{T:legacy-ccbench-pin-bump-missing-provenance}}` を worklog fragment (seq2) へ記録した。
+- 詳細は `docs/spool/worklog/2026-08-22-rulings-20260821-calibration-registration-2.md`。
+
+## dev-wave 改善候補 (段8 用)
+
+1. handoff の「検証済み」記述は、直前の受入全走 receipt/red-check の有無と status を明示
+   参照すべき。今回、handoff 本文には targeted test の pass しか書かれておらず、job dir に
+   残っていた attributable-red な受入全走の存在が本文からは分からなかった (F1 の型に近い、
+   一次資料未照合のまま docs を根拠にした事例)。段7 記録時、直前受入全走の
+   receipt/red-check ファイルパスと status を handoff へ 1 行明記する運用を検討する。
+2. 段6 read-only codex レビューが稼働中に、親が同じ tracked file へ一時変異 (mutation testing)
+   を加えると、レビュー対象がレビュー中に dirty tree へ変わりうる。今回はレビュー側が
+   committed HEAD 基準で判定して事なきを得たが、これは保証された挙動ではない。親の
+   tracked file 一時変異検査は、同じファイルを読む read-only レビューの完了後か、
+   明確に別タイミングで行う運用を検討する。
 
 ## 完了した中間成果   (ファイルパス・コミットハッシュつき)
 
