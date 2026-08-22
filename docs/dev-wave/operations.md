@@ -172,3 +172,13 @@ lock 再取得後に全検査をやり直し、`tip_sha` / `checker_blob_sha` / 
 参照する consumer test も含める。名前の推測でなく参照関係で引く（例: 変更した production module 名で
 `orchestrator/tests/` を grep する）。この拡張を欠く焦点走は、静的レビューが見落とした破れを
 初回実測でも取り逃す（F242）。
+## DW-O27 — acceptance 投入は `--lease-optional` を既定で使う
+
+D662 (2026-08-22) により受入 lease (`tools/wave_land_window.py` 経由の
+`acceptance.lease`) の待ち行列は廃止された。`tools/dev_wave_wait.py acceptance`
+呼び出しには常に `--lease-optional` を付けて投入する（T-1458 実装、2026-08-23
+着地）。claim が held/queued でも待たずに wave 名の SHA-256 先頭 12 桁を
+疑似 holder として受入を継続し、receipt の `lease_holder` は
+`dev_wave_land.py` の検証式と一致するため land 側の受理に影響しない。
+`--lease-dir` 自体は省略しない（既存の claim 試行・main SHA 取得ロジックが
+使うため）。フラグを付けない場合は旧来通りの blocking 待機に戻る（後方互換）。
