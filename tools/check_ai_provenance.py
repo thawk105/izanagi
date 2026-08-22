@@ -391,6 +391,22 @@ _T1458_DOCS_REGISTRY_NOTE = (
     "ため `tools/check_docs.py` への変更に Codex `role=author` trailer がなく、checker が "
     "`missing-codex-author` (paths=tools/check_docs.py) を検出した。"
 )
+_T1458_DOCS_REGISTRY_LEDGER_NOTE = (
+    "commit `94815c57976806da56a3f067ade91c0041b2e2d1` は `tools/check_ai_provenance.py` へ "
+    "`_T1458_DOCS_REGISTRY_RULING`/`_T1458_DOCS_REGISTRY_NOTE` 定数と、commit "
+    "`25614f868c1a1b562a68072233fdf55b0be93cd1` に対応する `KnownViolationSpec` エントリ1件を追加した。"
+    "manager (claude) が直接 commit したため Codex `role=author` trailer がなく、"
+    "`missing-codex-author` として検出された。"
+)
+_T1458_DOCS_REGISTRY_MIRROR_NOTE = (
+    "commit `3a5e5feb5f5c65e5e91752f847c623ce37e9b14d` は "
+    "`orchestrator/tests/test_check_ai_provenance.py` の "
+    "`test_known_violation_ledger_matches_literal_entries` の `expected` タプルへ、commit "
+    "`94815c57976806da56a3f067ade91c0041b2e2d1` の known-violation エントリ（commit SHA、"
+    "`missing-codex-author`、ruling、note、空文字列）の逐語ミラーを追加した。"
+    "manager (claude) が直接 commit したため Codex `role=author` trailer がなく、"
+    "`missing-codex-author` として検出された。"
+)
 KNOWN_PROVENANCE_VIOLATIONS = (
     KnownViolationSpec(
         "88f0f9f081f7c76c8ab5fc4a94e2640f70af129b",
@@ -825,6 +841,18 @@ KNOWN_PROVENANCE_VIOLATIONS = (
         MISSING_CODEX_AUTHOR,
         _T1458_DOCS_REGISTRY_RULING,
         note=_T1458_DOCS_REGISTRY_NOTE,
+    ),
+    KnownViolationSpec(
+        "94815c57976806da56a3f067ade91c0041b2e2d1",
+        MISSING_CODEX_AUTHOR,
+        _T1458_DOCS_REGISTRY_RULING,
+        note=_T1458_DOCS_REGISTRY_LEDGER_NOTE,
+    ),
+    KnownViolationSpec(
+        "3a5e5feb5f5c65e5e91752f847c623ce37e9b14d",
+        MISSING_CODEX_AUTHOR,
+        _T1458_DOCS_REGISTRY_RULING,
+        note=_T1458_DOCS_REGISTRY_MIRROR_NOTE,
     ),
 )
 
