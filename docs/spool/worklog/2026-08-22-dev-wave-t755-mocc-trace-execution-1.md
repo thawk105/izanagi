@@ -145,11 +145,28 @@ title: [T-755] mocc trace v2のTRACE=1正しさ検証パイロットを実機実
   - 有力な残り仮説は `_run_matrix` の `preexec_fn=_limit_run` が課す rlimit、特に
     `RLIMIT_AS=512MiB` と masstree のメモリ挙動の噛み合わせである。configure は
     `MADV_HUGEPAGE` と `MAP_HUGETLB` を両方 yes と検出しており、この機体では hugepage 経路が
-    有効になる。**本 wave の差分の面ではないため、ここで切り上げて担当セッションへ渡した。**
+    有効になる。
+  - **その rlimit 仮説も実測で棄却した。** oracle が合成した実バイナリを直接起動すると、
+    制限なしでも `ulimit -v 524288` (RLIMIT_AS 512MiB 相当) でも**同一の abort** になる
+    (どちらも rc=134)。abort の実体は
+    `external/ccbench/include/heap_object.hh:87: std::string_view HeapObject::view() const:
+    Assertion 'data_ != nullptr' failed.` である。つまり環境要因ではなく、**oracle が
+    合成したプログラムが ccbench の `HeapObject::view()` の事前条件を決定的に破っている**。
+    `config.h` 供給でこの実行経路へ初めて到達できるようになったため、`config-h-missing` の
+    UNAVAILABLE に隠れていた不整合が表に出た形である。**本 wave の差分の面ではないため
+    ここで切り上げ、原因・実測・棄却した仮説を担当セッションへ渡した。**
 - なお `external/ccbench/build/_deps/masstree-src` 側へ置く案は採れない。ccbench
   submodule で `build` が ignore されておらず、submodule dirt で land が拒否される
   (`DW-O23`)。受入 lease を on にして排他を得る案も、他 wave が `--lease-optional` で
   走っている以上こちらが待つだけで排他にならない。
+- 判定器を使わない受入全走を実測した (tested-main d1722822 / tested-tip 0495cdd7)。
+  **10 failed / 14296 passed / 96 skipped、209.36 秒 (3 分 29 秒)。** `config.h` 供給前の
+  26 failed / 14259 passed と比べ passed が 37 増えている。**全走そのものは受入・テストの
+  5 分制約を満たしている。** 受領証が出ないのは残り 10 件の既知赤があるためだけである。
+- **ユーザー裁定 (2026-08-23): すぐに直せないなら後続の専門タスク wave に任せる。**
+  10 件は他セッション所有の `test_sort_swo_oracle.py` と ccbench 側にあり、本 wave が
+  node ID を止めると同じ file を編集中の担当セッションと衝突する。したがって本 wave では
+  止めず、`remove sort-swo-oracle test` の着地を待って受入 1 回と land を行う。
 
 ## 次の一手差分
 
