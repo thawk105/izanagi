@@ -2156,6 +2156,21 @@ def test_known_violation_ledger_matches_literal_entries():
             "同じ file へ追加した known-violation entry が非競合で union された",
             "",
         ),
+        (
+            "0c0f3e71b3208370be8d4e7e20a84a2152afe4b2",
+            "missing-codex-author",
+            "本セッション内でユーザーへ状況を説明し known-violation 登録の続行を承認された (2026-08-21、4回目)",
+            "merge commit `0c0f3e71b3208370be8d4e7e20a84a2152afe4b2` は、main側off-arm neutralization (C02) 対応と"
+            "複数waveのccbench provenance known-violation登録を取り込んだもの。"
+            "`tools/check_ai_provenance.py`/`orchestrator/tests/test_check_ai_provenance.py`の競合は親が両親のいずれかに"
+            "既存するテキストの選択・配置のみで解決 (新規著作なし)。"
+            "`orchestrator/campaign/autonomous_trial_completeness.py`他4fileは競合マーカーなしで自動マージされ、"
+            "結合結果の全行がどちらかの親に存在することを機械比較で確認済み (新規著作0行)。"
+            "ただし自動マージの結果、`registered`→`arm_execution_permitted`改名箇所とmain側off-arm処理が追加した"
+            "同名の古い変数参照が意味的に衝突しNameErrorになったため、直後のcommit `b7c9c5af` (Codex role=author) で"
+            "1行修正し焦点走1378 passedを確認した。",
+            "",
+        ),
     )
     assert len(provenance.KNOWN_PROVENANCE_VIOLATIONS) == len(expected)
     assert observed == expected
