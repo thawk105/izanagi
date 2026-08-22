@@ -1950,6 +1950,18 @@ def test_known_violation_ledger_matches_literal_entries():
         "`3eaf2038ec2ac3e7965c2a1eedcadb1ed1266626`) が `KNOWN_PROVENANCE_VIOLATIONS` タプル末尾で競合し、"
         "削除なしの純粋なunionで解決した。親作成mergeのためCodex著者とは記さない。"
     )
+    t1477_ruling = (
+        "2026-08-22 [T-1477] provenance known-violation登録 "
+        "(ユーザー選択: known-violation 登録)"
+    )
+    t1477_note = (
+        "`role=fix` は許可値でなく `author` の誤記。実装は Codex `role=author` が書き親が統合したもので、"
+        "内容は正確で綴りだけの誤り"
+    )
+    t1477_malformed_value = (
+        "product=codex; model=gpt-5.6-luna; reasoning=unknown; "
+        "role=fix"
+    )
     observed = tuple(
         (
             spec.commit,
@@ -2133,10 +2145,24 @@ def test_known_violation_ledger_matches_literal_entries():
             t1479_merge3_note,
             "",
         ),
+        (
+            "649fe5a060a39de295f90d2002e8f97082729ea6",
+            "malformed-ai-agent",
+            t1477_ruling,
+            t1477_note,
+            t1477_malformed_value,
+        ),
+        (
+            "649fe5a060a39de295f90d2002e8f97082729ea6",
+            "missing-codex-author",
+            t1477_ruling,
+            t1477_note,
+            "",
+        ),
     )
     assert len(provenance.KNOWN_PROVENANCE_VIOLATIONS) == len(expected)
     assert observed == expected
-    assert len({row[0] for row in expected}) == len(expected)
+    assert len({(row[0], row[1]) for row in expected}) == len(expected)
     assert provenance._LEDGER_FINDING_KINDS == frozenset({
         "missing-ai-agent", "missing-codex-author", "malformed-ai-agent",
     })
@@ -2638,9 +2664,14 @@ def test_registry_rejects_non_descriptive_required_note_rc2(
 
 def test_production_registry_notes_satisfy_descriptive_contract():
     registry = provenance._known_violation_registry()
+    flattened = tuple(
+        spec
+        for specs in registry.values()
+        for spec in specs
+    )
 
-    assert len(registry) == len(provenance.KNOWN_PROVENANCE_VIOLATIONS)
-    assert tuple(registry.values()) == provenance.KNOWN_PROVENANCE_VIOLATIONS
+    assert len(flattened) == len(provenance.KNOWN_PROVENANCE_VIOLATIONS)
+    assert flattened == provenance.KNOWN_PROVENANCE_VIOLATIONS
 
 
 def test_registry_accepts_visible_character_mixed_with_non_descriptive_characters(

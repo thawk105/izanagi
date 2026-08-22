@@ -304,6 +304,18 @@ _T1476_MERGE3_NOTE = (
     "working tree driftしCodex dispatchが構造的に使えなかったため親が直接union解消した。"
     "親作成mergeのためCodex著者とは記さない。"
 )
+_T1477_RULING = (
+    "2026-08-22 [T-1477] provenance known-violation登録 "
+    "(ユーザー選択: known-violation 登録)"
+)
+_T1477_NOTE = (
+    "`role=fix` は許可値でなく `author` の誤記。実装は Codex `role=author` が書き親が統合したもので、"
+    "内容は正確で綴りだけの誤り"
+)
+_T1477_MALFORMED_VALUE = (
+    "product=codex; model=gpt-5.6-luna; reasoning=unknown; "
+    "role=fix"
+)
 KNOWN_PROVENANCE_VIOLATIONS = (
     KnownViolationSpec(
         "88f0f9f081f7c76c8ab5fc4a94e2640f70af129b",
@@ -709,6 +721,19 @@ KNOWN_PROVENANCE_VIOLATIONS = (
         _T1479_MERGE3_RULING,
         note=_T1479_MERGE3_NOTE,
     ),
+    KnownViolationSpec(
+        "649fe5a060a39de295f90d2002e8f97082729ea6",
+        MALFORMED_AI_AGENT,
+        _T1477_RULING,
+        note=_T1477_NOTE,
+        expected_finding_value=_T1477_MALFORMED_VALUE,
+    ),
+    KnownViolationSpec(
+        "649fe5a060a39de295f90d2002e8f97082729ea6",
+        MISSING_CODEX_AUTHOR,
+        _T1477_RULING,
+        note=_T1477_NOTE,
+    ),
 )
 
 
@@ -728,7 +753,7 @@ def _contains_descriptive_note_character(value: str) -> bool:
     )
 
 
-def _known_violation_registry() -> dict[str, KnownViolationSpec]:
+def _known_violation_registry() -> dict[str, tuple[KnownViolationSpec, ...]]:
     """固定台帳を history 監査時にだけ検証して full SHA map にする。"""
 
     if not isinstance(KNOWN_PROVENANCE_VIOLATIONS, tuple):
@@ -736,7 +761,7 @@ def _known_violation_registry() -> dict[str, KnownViolationSpec]:
             "known provenance violation registry has invalid container: "
             f"{type(KNOWN_PROVENANCE_VIOLATIONS).__name__}"
         )
-    registry: dict[str, KnownViolationSpec] = {}
+    registry: dict[str, list[KnownViolationSpec]] = {}
     for spec in KNOWN_PROVENANCE_VIOLATIONS:
         if not isinstance(spec, KnownViolationSpec):
             raise RuntimeError(
@@ -752,11 +777,6 @@ def _known_violation_registry() -> dict[str, KnownViolationSpec]:
             raise RuntimeError(
                 "known provenance violation registry has invalid full SHA: "
                 f"{spec.commit!r}"
-            )
-        if spec.commit in registry:
-            raise RuntimeError(
-                "known provenance violation registry has duplicate SHA: "
-                f"{spec.commit}"
             )
         if not isinstance(spec.expected_finding_kind, str):
             raise RuntimeError(
@@ -833,8 +853,21 @@ def _known_violation_registry() -> dict[str, KnownViolationSpec]:
                 "known provenance violation registry has prohibited character in "
                 f"finding value: {spec.commit}"
             )
-        registry[spec.commit] = spec
-    return registry
+        prior_specs = registry.setdefault(spec.commit, [])
+        if any(
+            prior.expected_finding_kind == spec.expected_finding_kind
+            and prior.expected_finding_value == spec.expected_finding_value
+            for prior in prior_specs
+        ):
+            raise RuntimeError(
+                "known provenance violation registry has duplicate SHA/finding: "
+                f"{spec.commit} {spec.expected_finding_kind}"
+            )
+        prior_specs.append(spec)
+    return {
+        commit: tuple(specs)
+        for commit, specs in registry.items()
+    }
 
 
 def _known_violation_line(spec: KnownViolationSpec) -> str:
@@ -1736,7 +1769,9 @@ def _normal_commit_audit(
 def _known_violation_audit(
     audits: list[CommitAudit],
     *,
-    registry: dict[str, KnownViolationSpec],
+    registry: dict[
+        str, KnownViolationSpec | tuple[KnownViolationSpec, ...]
+    ],
     suppressed_missing: tuple[str, str] | None,
     stale_eligible_commits: set[str],
     authoritative: bool = False,
@@ -1745,39 +1780,51 @@ def _known_violation_audit(
 
     findings: list[str] = []
     known_violations: list[KnownViolationSpec] = []
-    expected_kind_counts = {
-        commit: 0
-        for commit in registry
-        if commit in stale_eligible_commits
+    specs_by_commit = {
+        commit: (
+            (value,)
+            if isinstance(value, KnownViolationSpec)
+            else value
+        )
+        for commit, value in registry.items()
     }
-    consumed_registry_entries: set[str] = set()
+    expected_kind_counts = {
+        spec: 0
+        for commit, specs in specs_by_commit.items()
+        if commit in stale_eligible_commits
+        for spec in specs
+    }
+    consumed_registry_entries: set[KnownViolationSpec] = set()
     for audit in audits:
         for finding in audit.normal_findings:
             if suppressed_missing == (audit.commit, finding.text):
                 continue
-            spec_for_commit = registry.get(audit.commit)
-            if (
-                spec_for_commit is not None
-                and finding.ledger_kind == spec_for_commit.expected_finding_kind
-                and (
-                    not spec_for_commit.expected_finding_value
-                    or finding.text.startswith(
-                        f"{audit.label}: AI-Agent の形式違反: "
-                        f"{spec_for_commit.expected_finding_value!r} — "
-                    )
-                )
-            ):
-                if audit.commit in expected_kind_counts:
-                    expected_kind_counts[audit.commit] += 1
-                if audit.commit not in consumed_registry_entries:
-                    known_violations.append(spec_for_commit)
-                    consumed_registry_entries.add(audit.commit)
+            for spec_for_commit in specs_by_commit.get(audit.commit, ()):
+                if spec_for_commit in consumed_registry_entries:
                     continue
-            findings.append(finding.text)
+                if (
+                    finding.ledger_kind == spec_for_commit.expected_finding_kind
+                    and (
+                        not spec_for_commit.expected_finding_value
+                        or finding.text.startswith(
+                            f"{audit.label}: AI-Agent の形式違反: "
+                            f"{spec_for_commit.expected_finding_value!r} — "
+                        )
+                    )
+                ):
+                    if spec_for_commit in expected_kind_counts:
+                        expected_kind_counts[spec_for_commit] += 1
+                    known_violations.append(spec_for_commit)
+                    consumed_registry_entries.add(spec_for_commit)
+                    break
+            else:
+                findings.append(finding.text)
     stale = tuple(
-        registry[commit]
-        for commit, count in expected_kind_counts.items()
-        if count == 0
+        spec
+        for commit in specs_by_commit
+        for spec in specs_by_commit[commit]
+        if spec in expected_kind_counts
+        and expected_kind_counts[spec] == 0
     )
     return KnownViolationAudit(
         tuple(findings), tuple(known_violations), stale,
