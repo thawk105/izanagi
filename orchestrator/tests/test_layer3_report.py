@@ -2302,3 +2302,193 @@ def test_campaign_outside_repo_fails_closed(tmp_path):
     outside.mkdir()
     with pytest.raises(layer3_report.Layer3ReportError, match="repo 外"):
         layer3_report.build_report(outside, generated_from_head="fixed")
+
+
+def test_main_accepts_external_campaign_with_output_root(tmp_path):
+    campaign, output_root = _campaign(
+        tmp_path, [_record("build_start", genome="g", src_token="s")],
+    )
+    out_cli = tmp_path / "cli-report.json"
+    out_api = tmp_path / "api-report.json"
+    generated_from_head = "f" * 40
+
+    result = layer3_report.main([
+        str(campaign),
+        str(out_cli),
+        "--generated-from-head",
+        generated_from_head,
+        "--output-root",
+        str(output_root),
+    ])
+
+    assert result == 0
+    assert out_cli.is_file()
+    cli_report = json.loads(out_cli.read_text(encoding="utf-8"))
+    assert cli_report["meta"]["campaign_path"] == (
+        campaign.relative_to(output_root.parent).as_posix()
+    )
+
+    layer3_report.render(
+        campaign,
+        out_api,
+        generated_from_head=generated_from_head,
+        output_root=output_root,
+    )
+    assert out_cli.read_bytes() == out_api.read_bytes()
+
+
+def test_main_without_output_root_preserves_external_campaign_rejection(
+    tmp_path, capsys,
+):
+    campaign, _output_root = _campaign(
+        tmp_path, [_record("build_start", genome="g", src_token="s")],
+    )
+    out = tmp_path / "rejected-report.json"
+
+    with pytest.raises(SystemExit) as exc_info:
+        layer3_report.main([
+            str(campaign),
+            str(out),
+            "--generated-from-head",
+            "f" * 40,
+        ])
+
+    assert exc_info.value.code == 2
+    assert "repo 外" in capsys.readouterr().err
+    assert not out.exists()
+
+
+def test_main_forwards_output_root_and_keeps_none_default(monkeypatch):
+    calls = []
+
+    def fake_render(
+        campaign_dir, out_json, generated_from_head=None, *, output_root=None,
+    ):
+        calls.append((campaign_dir, out_json, generated_from_head, output_root))
+        return {}
+
+    monkeypatch.setattr(layer3_report, "render", fake_render)
+
+    assert layer3_report.main([
+        "campaign",
+        "report.json",
+        "--generated-from-head",
+        "head",
+    ]) == 0
+    assert layer3_report.main([
+        "campaign-2",
+        "report-2.json",
+        "--generated-from-head",
+        "head-2",
+        "--output-root",
+        "relative-root",
+    ]) == 0
+
+    assert calls == [
+        (Path("campaign"), Path("report.json"), "head", None),
+        (Path("campaign-2"), Path("report-2.json"), "head-2", Path("relative-root")),
+    ]
+
+
+def test_main_rejects_external_campaign_with_nonmatching_output_root(
+    tmp_path, capsys,
+):
+    campaign, _output_root = _campaign(
+        tmp_path / "source",
+        [_record("build_start", genome="g", src_token="s")],
+    )
+    output_root = tmp_path / "different" / "output"
+    out = tmp_path / "nonmatching-report.json"
+
+    with pytest.raises(SystemExit) as exc_info:
+        layer3_report.main([
+            str(campaign),
+            str(out),
+            "--generated-from-head",
+            "f" * 40,
+            "--output-root",
+            str(output_root),
+        ])
+
+    assert exc_info.value.code == 2
+    assert "repo 外" in capsys.readouterr().err
+    assert not out.exists()
+
+
+def test_output_root_relative_path_is_cwd_dependent(tmp_path, monkeypatch):
+    calls = []
+
+    def fake_render(
+        campaign_dir, out_json, generated_from_head=None, *, output_root=None,
+    ):
+        calls.append((Path.cwd(), campaign_dir, out_json, output_root))
+        return {}
+
+    monkeypatch.setattr(layer3_report, "render", fake_render)
+    first_cwd = tmp_path / "first-cwd"
+    second_cwd = tmp_path / "second-cwd"
+    first_cwd.mkdir()
+    second_cwd.mkdir()
+
+    for cwd in (first_cwd, second_cwd):
+        monkeypatch.chdir(cwd)
+        assert layer3_report.main([
+            "campaign",
+            "report.json",
+            "--generated-from-head",
+            "f" * 40,
+            "--output-root",
+            "output",
+        ]) == 0
+
+    assert [call[0] for call in calls] == [first_cwd, second_cwd]
+    assert [call[3] for call in calls] == [Path("output"), Path("output")]
+    assert [call[0] / call[3] for call in calls] == [
+        first_cwd / "output",
+        second_cwd / "output",
+    ]
+
+
+def test_output_root_does_not_shrink_qualification_ancestry_walk(
+    tmp_path, monkeypatch,
+):
+    campaign, output_root = _campaign(
+        tmp_path, [_record("build_start", genome="g", src_token="s")],
+    )
+    fake_repo_root = output_root.parent
+    monkeypatch.setattr(
+        layer3_report, "_DEFAULT_OUTPUT_ROOT", output_root,
+    )
+    (fake_repo_root / "qualification-marker.json").write_text(
+        json.dumps({
+            "schema_version": "t126-qualification-marker/v1",
+            "qualification_lineage": "t126-only",
+        }),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(layer3_report.Layer3ReportError, match="qualification"):
+        layer3_report.build_report(
+            campaign,
+            generated_from_head="fixed",
+            output_root=output_root / "campaigns",
+        )
+
+
+def test_external_campaign_qualification_ancestry_still_checked(tmp_path):
+    campaign, output_root = _campaign(
+        tmp_path, [_record("build_start", genome="g", src_token="s")],
+    )
+    _assert_external_campaign_without_git_head(campaign)
+    (output_root.parent / "qualification-marker.json").write_text(
+        json.dumps({
+            "schema_version": "t126-qualification-marker/v1",
+            "qualification_lineage": "t126-only",
+        }),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(layer3_report.Layer3ReportError, match="qualification"):
+        layer3_report.build_report(
+            campaign, generated_from_head="fixed", output_root=output_root,
+        )
