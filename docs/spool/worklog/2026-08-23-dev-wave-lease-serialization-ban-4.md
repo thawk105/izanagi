@@ -75,3 +75,9 @@ title: 受入 lease の待ちループと待ち行列を機構ごと除去した
 - {{T:lease-holder-self-inconsistency}} **P3・新規**: `claim` が `holder` に自己 digest を返しつつ
   `holder_self:false` を返した場合、受入は未取得として進み lease を取り逃す。
   待ち行列廃止後は誰も止めないため実害は lease 残留 (TTL 2400 秒) だけだが、記録として起票する。
+- {{T:dev-wave-docs-budget-saturated}} **P2・ユーザー裁定待ち**: dev-wave docs の予算が満杯で、
+  実測した作法を 1 行も追記できない。段 8 で「変異走行中に tree へ書かない」(本 wave 実測、
+  untracked 1 件で rc=2 中止) を DW-M05 へ足そうとして L1.5 が 9566/9566 bytes と判明し、
+  140 bytes の追記で超過した。L2 側も DW-O19 が 998/1000、DW-M07 が 978/1000 で頭が無い。
+  自己改善契約は「予算に収まらなければ止めてユーザー裁定へ返す」「予算値を上げる変更は
+  独立審査対象」と定めるため実装せず起票する。予算引き上げか L1.5 の縮約審査が要る。
