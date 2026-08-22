@@ -25908,3 +25908,76 @@ docstringは「非干渉性が完全に成立した」と書かず、この限�
   scope拡大になる。ユーザー裁定を経ずに実験設計を変更しない。
 - 残存チャネルの存在に触れず「非干渉性達成」とだけ記録する — 過大な主張であり、
   後続waveが誤って本系列を起動する根拠に使うリスクがある。
+
+## D649. D510 追随実装の所在監査と項目6 (測定近接性ラベル) の実装見送り (2026-08-22)
+
+**決定:**
+
+1. D510 (D510) が要求する判定器・3表・事前割当 attempt registry は、
+   `orchestrator/campaign/between_run_floor.py` (A2 between-run noise floor calibration
+   driver、D510 とは無関係) ではなく、`orchestrator/campaign/s8c_result_judge.py`
+   (paired diff 判定・3表、T-1352 由来) と `orchestrator/campaign/trial_registry.py`
+   (事前割当 attempt registry、T-325 由来・T-1310 が D510 attempt registry へ統合) に
+   既に実装済みであると確定する。role payload 非干渉性の二層 digest も T-1311 で
+   実装済みだが、`docs/phase3-8c-preregistration.md` §4/§6 が明記する通り評価器は
+   非充足を返し続ける (機械検査対象ではあるが充足経路0、意図的な fail-closed 設計であり
+   欠陥ではない)。
+2. D510 項目6 (測定の近接性と主張の強さ、`docs/phase3-8b-descriptor-design.md` §10.4) は
+   `s8c_result_judge.py` の `_ObservationContext`/`_build_observation_context` に実装の
+   痕跡がなく、唯一の未実装項目と確定する。ただし本改訂では実装しない。
+
+**理由:**
+
+- command 引数が土台に指定した `between_run_floor.py` への言及は、T-425 commit
+  `3ef63484` が「between_run_floor.py がそもそも official/pilot 儀式を経ない設計である
+  ため、この driver の手続きを直接は変更しない」と明記する軽微な schema_version 追加
+  (3 hunks) にすぎず、D510 が要求する「同一 campaign 内 paired 差分統計」の判定器そのもの
+  とは無関係だったと、段3 敵対2レンズが独立に確認した。
+- 項目6の最小実装案は、`judge()` の入力契約を無条件で厳格化すると既存の (旧形式の)
+  有効入力の受理結果を変えてしまい、「既存受理集合を変更しない」という不変条件と衝突する。
+  また `relation_kind` (継続測定/復旧後測定/意図的過去比較の3区分) が既存の raw-value
+  attestation (SHA・issuer) と独立な自己申告フィールドのままだと、観測の実性質を偽って
+  より強い主張ラベル (継続測定) を詐称できる — 規律2 (正しさゲートを緩める変異を許さない)
+  の精神に照らし、対策なしに実装するのは危険と2レンズが独立に指摘した。
+- `s8c_result_judge.judge()` には現時点で production caller が存在せず、参照はテストと
+  静的 AST evaluator (`s8c_preregistration_evidence.py` の C07 検査) に限られる。
+  発火条件を満たす既存 artifact path が無い状態での実装は、実運用では到達しない
+  コードを作ることになる。
+- D510 項目7 (仕様のみ発効、測定を認可しない) は `s8c_preregistration_evidence.py` の
+  `SATISFIABLE_CONDITION_IDS` 空集合により既に構造的に fail-closed であり、項目6を
+  今追加しても実害防止効果がない。将来 producer (provenance を生成し `judge()` へ渡す
+  経路) と、role payload 非干渉性 (D510項目5) の producer 統合方針が確定してから
+  着手する方が、private schema の手戻りを避けられる。
+
+**却下した選択肢:**
+
+- `between_run_floor.py`/`s8b_floor_campaign.py`/`s8b_oracle_driver.py` を土台に
+  judge・3表・validator を新規実装する (当初 command 引数の指示) — 実測の結果これらは
+  既に別実装 (`s8c_result_judge.py` 等) が存在する D510 の対象ではなく、二重実装に
+  なるため却下した。
+- 項目6を最小実装 (`_ObservationProvenance` 追加のみ) してこの wave で着地させる —
+  発火条件を満たす既存 artifact path が無く、producer なしでは実運用で到達しない
+  コードになるため却下した。
+
+## D650. AI セッションによる性能実測を許可する (2026-08-22)
+
+**決定:** このプロジェクトでは、ユーザーが明示的に依頼した場合、AI セッションが性能実測の投入・回収・解析を行ってよい。実測は sanctioned な controller / dispatch 経路を通し、計算ノード上で行う。計算ノード専用、投入前 preflight、job/source/receipt の束縛、キュー状態確認、CCBench の TRACE=0 分離、verifier と正しさゲートは維持する。ログインノードでのベンチ直接実行、controller を迂回した未記録の raw 実測、qsub receipt や結果の捏造は許可しない。D86/D87 に残る「AI は qsub しない」という旧来の制約は、ユーザーの今回の明示指示によりこの性能実測スコープでは supersede する。
+
+**理由:** ユーザーは 2026-08-21 に「このプロジェクトは AI が性能実測する」と明示した。AI による CC の自動合成・進化探索が目的であり、性能実測を常に人間の手番へ戻すと主経路を停止させる。必要なのは実行主体の人間性ではなく、sanctioned 経路・計算ノード・receipt・正しさ証拠の完全性である。
+
+**却下した選択肢:**
+
+- 全性能実測を人間の明示 qsub に限定する — AI 自動合成の実験ループを不必要に停止させるため採らない。
+- qsub を直接打つだけで preflight・receipt・source pin・verifier を省略する — 性能値の権威性と再現性を失うため採らない。
+
+## D651. role 出力契約 fixture 回帰テストは raw 形状の直接検証を必須とする (2026-08-22)
+
+**決定:** parser の fail-closed 動作を fixture で個別に固定する回帰テストは、共通の `status`/`error_type`/`stop_reason` assertion だけでなく、malformed provider が実際に返した raw response 文字列の形状 (prefix/suffix・特定部分文字列の有無・キー集合など) を直接検証する assertion を必須で含める。
+
+**理由:**
+- S8C live pilot (worklog entry 612) で観測された role 出力契約非適合3パターン (auditor が入力の `descriptor_binding` を出力へ複製し top-level 7 キー化・JSON を fence 包み・JSON 区切り文字欠落) を fixture 回帰テストとして新設する dev-wave で、段3 敵対相談の独立2レンズ (sol・luna) が、fence ケースと区切り文字欠落ケースは同じ parser 経路 (`JSONDecodeError` → `PredictionRunnerError` → `AutonomousTrialError`) を通り同じ `status`/`error_type`/`stop_reason` に収束するため、raw 形状を検証しない限り mutation testing で互いを区別できない冗長 gate になる、と**独立に同一の結論**を報告した。
+- 段4 裁定でこの指摘を採用し、各テストへ raw 形状の直接検証 (7 キー: `descriptor_binding` の複製確認、fence: prefix/suffix 確認、区切り文字欠落: 特定部分文字列の有無確認) を実装要件に追加した。
+- 変異 matrix (7キー緩和・fence 除去追加・delimiter 緩和、それぞれ auditor 経路限定の一時変異) を実測した結果、3 変異とも対応する 1 テストだけが KILLED (matches_expectation=true) となり、raw 形状 assertion の追加が実際に単一理由性を担保することを確認した。raw 形状を検証しない設計 (共通 assertion のみ) では、この単一理由性が保証されない。
+
+**却下した選択肢:**
+- 共通 assertion (`status`/`error_type`/`stop_reason` 等) だけで3ケースを新設する — 段3 2レンズが独立に指摘したとおり、fence と区切り文字欠落が同じ例外経路に収束するため、mutation testing で区別できない冗長 gate になり実効性を欠く。
