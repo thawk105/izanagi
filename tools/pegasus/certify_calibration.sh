@@ -751,7 +751,7 @@ if [[ -z "$CALIBRATE_PYTHON" ]]; then
     "no python3.10 interpreter passed smoke check (rejected: ${calibrate_python_rejected:-none})"
   exit 2
 fi
-CALIBRATE_PATH="$(dirname "$CALIBRATE_PYTHON"):$CALIBRATE_PATH"
+CALIBRATE_PATH="$TMPDIR/bin:$(dirname "$CALIBRATE_PYTHON"):$PATH"
 
 # CLI 名は L4 と凍結共有。override/fallback 用 --clocks-per-us は渡さない。
 CALIBRATE_ARGV_JSON="$ATTEMPT_DIR/calibrate-argv.json"

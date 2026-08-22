@@ -263,7 +263,7 @@ def test_certify_calibrator_resolves_and_shims_versioned_interpreter(tmp_path):
     source = (TOOL_DIR / "certify_calibration.sh").read_text(encoding="utf-8")
     fragment = _calibrate_interpreter_fragment()
     assert source.index("python3.10 /usr/bin/python3.10 /bin/python3.10") < source.index(
-        'CALIBRATE_PATH="$(dirname "$CALIBRATE_PYTHON"):$CALIBRATE_PATH"'
+        'CALIBRATE_PATH="$TMPDIR/bin:$(dirname "$CALIBRATE_PYTHON"):$PATH"'
     )
     assert (
         'if "$resolved" -I -B -c \\\n'
@@ -295,7 +295,7 @@ CALIBRATE_PATH="$TMPDIR/bin:$PATH"
     assert result.returncode == 0, result.stderr
     selected, path = result.stdout.splitlines()
     assert selected == str(fake_python)
-    assert path.split(os.pathsep)[:2] == [str(fake_bin), str(scratch / "bin")]
+    assert path.split(os.pathsep)[:2] == [str(scratch / "bin"), str(fake_bin)]
 
 
 def test_certify_calibrator_interpreter_resolution_fails_closed(tmp_path):
