@@ -273,7 +273,12 @@ def _registered_repo(
 
 
 def _payload_validation_receipt(
-    event: dict, spec_key: str, workload_descriptor: dict,
+    event: dict,
+    spec_key: str,
+    workload_descriptor: dict,
+    *,
+    arm: str,
+    content_digest: str,
 ) -> dict:
     role = event["role"]
     generation = event["generation"]
@@ -294,9 +299,16 @@ def _payload_validation_receipt(
             "generation_budget_is_fixed", "performance_early_stop",
         ],
     }
+    projection_workload = event["workload"]
+    descriptor_binding_sha256 = "2" * 64
+    if arm == "off":
+        projection_workload = producer.OFF_NEUTRAL_PAYLOAD_WORKLOAD
+        descriptor_binding_sha256 = (
+            completeness._off_payload_descriptor_binding_sha256(content_digest)
+        )
     projection = {
         "role": role,
-        "workload": event["workload"],
+        "workload": projection_workload,
         "generation": generation,
         "descriptor_sha256": event["descriptor_sha256"],
         "workload_descriptor_sha256": hashlib.sha256(
@@ -304,7 +316,7 @@ def _payload_validation_receipt(
                 workload_descriptor
             )
         ).hexdigest(),
-        "descriptor_binding_sha256": "2" * 64,
+        "descriptor_binding_sha256": descriptor_binding_sha256,
         "fixed_literals": fixed_literals,
         "nested_key_sets": nested_key_sets,
         "whiteboard_origin": [],
@@ -427,7 +439,11 @@ def _role_event(
     }
     if role in {"planner", "coder"}:
         event["payload_validation_receipt"] = _payload_validation_receipt(
-            event, spec_key, workload_descriptor,
+            event,
+            spec_key,
+            workload_descriptor,
+            arm=arm,
+            content_digest=descriptor_hash,
         )
     return event
 
@@ -1202,7 +1218,11 @@ def _prepare_registered_build_report(
                 else "coder"
             )
             update["payload_validation_receipt"] = _payload_validation_receipt(
-                {**event, **update}, spec_key, cell["descriptor"],
+                {**event, **update},
+                spec_key,
+                cell["descriptor"],
+                arm=trial.arm,
+                content_digest=event["descriptor_sha256"],
             )
         event.update(copy.deepcopy(update))
         for generation in cell["generations"]:

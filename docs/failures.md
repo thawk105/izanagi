@@ -10862,6 +10862,18 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   (「dev-wave では fork の使用を既定で避け、親が直接 Read/Grep/Bash で行う」) を起動前に
   読み返さなかったことが直接原因 — 既に確定していた結論を都度読み返す運用が定着していない
   ことを再度示した。
+
+- **再発: 2026-08-21** — T-755 Q2 継続 wave で、T-816 (silo trace-v2) の実測手順を調べる
+  read-only 一次資料調査を fork へ委任した際、継承した `/dev-wave` manager 役定義を自分の
+  役目と誤認する事故が再発した。約49分・32万 token・30 tool call を消費し、依頼した調査結果
+  (T-816 の cmake/実行/verifier 呼び出しコマンド) を一切返さず、自分自身の agentId を三人称で
+  語りながら「coordinator (main) への転送準備が整っている」という越権的な中間報告
+  (agent-message) を親へ送った。`git reflog` に `reset: moving to HEAD` が1件記録されたが、
+  HEAD commit・working tree の内容 (並行していた正規 Codex 実装子の新規ファイル) はいずれも
+  無傷で、fork 起因と断定できる実害は確認できなかった。親の memory
+  (`fork-inherits-command-context-can-misact-as-manager.md`) を fork 起動前に読み返さなかった
+  ことが直接原因 (同 memory は既に11件の再発を記録し「forkを使う前に必ず読む」を結論として
+  いた)。
 ### F426. 新設 checker の1-hop 関数解決が tuple-unpack 代入を追跡できず fix が2巡した [手順漏れ]
 
 - 事象: `tools/check_subprocess_bytecode_guard.py` の P2 判定 (`_one_hop_guard`) は
@@ -11546,3 +11558,47 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: ログインノードでの local test 実行が説明のつかない大量 red (特に「repository 外
   でなければならない」という文言を含む) を出したら、`ls -la /tmp/.git` 等で `/tmp` 直下の
   迷子 `.git` 混入をまず疑う。
+
+### F458. T-181/T-1434の既存test群がreal codex execの実ネットワーク経路を一度も検証していなかった [テスト代表性]
+
+- 事象: T-189 stage2-plan-replayer実装のsmoke gate (DW-G01) で、`tools/codex_reasoning_ab.py`
+  既存の`_bwrap_exec_argv`経由でreal codex execを試みたところ、実ネットワーク到達不可
+  (120秒timeout・exit -15・output 0 bytes、stderr: code-mode host未配置)で失敗した。
+- 根本原因: `_supervise_one`が使う`environment`辞書 (`_clean_environment`の
+  `ENV_ALLOWLIST = {CODEX_HOME, HOME, LANG, LC_ALL, PATH, TERM, TZ}`のみ) は、
+  `dry_run=True`(直接Popen、bwrap非経由)でも`dry_run=False`(bwrap経由)でも同じ縮小dictを
+  使う。T-1434の既存test (292+ passed) はdry_run=Trueかつfake codex binaryのみを使っており、
+  「real codex binaryを実ネットワーク接続込みで、この縮小環境の下で起動する」という
+  production相当の経路を一度も実測していなかった。292+ passedという緑の実績は、
+  bwrap/env-strip層の実ネットワーク到達性については無関係 (代表性を持たない)。
+- 恒久対応: 本waveの新規機構 (stage2-plan-replayer) は同じ罠を踏まず、ambient env継承+HOME
+  上書き+auth/configコピーという実証済みrecipeを使う (D644)。
+  この選択の理由と根本原因は`tools/codex_reasoning_ab.py`のdownstream起動コード付近の
+  docstring/コメントに残した。既存の`_bwrap_exec_argv`自体・T-181由来の既存test群の
+  代表性ギャップは本waveでは修正していない (規律5、apparatus全体に及ぶ横断的変更のため
+  scope外、[T-1480]以降の実験実施waveが引き継ぐべき前提条件として
+  D644に明記)。
+- 再発検知: 新規サブプロセス起動機構をこのapparatus上に構築するwaveは、DW-G01の生死確認を
+  `dry_run=True`やfake binaryだけで済ませず、実binary・実認証・実ネットワークでの
+  smoke testを要求する (段4裁定のF8/F13相当の扱いを一般化)。機械lint化は未実装 — 次に
+  同型の罠を踏んだ wave が出たら、DW-G01の記述へ「fake/dry_run実績だけでは生死確認済みと
+  扱わない」旨を明文化する候補とする。
+
+### F459. autonomous_trial_completeness.py変更時にp3_autonomous_workload_trialのimporterだけをconsumer test拡張対象にし本体のimporterを見落とした [手順漏れ] [テスト代表性]
+
+- 事象: `autonomous_trial_completeness.py`と`p3_autonomous_workload_trial.py`の両方を
+  変更するwaveで、DW-O26のconsumer test拡張を行う際に
+  `grep -rln "p3_autonomous_workload_trial\." orchestrator/tests/`だけを実行し、
+  `autonomous_trial_completeness`自体をimportする8ファイル (test_trial_registry.py含む)
+  を見落とした。段5実装・段6敵対レビュー2本・親の直接テスト実走のいずれもこの穴を
+  検出できず、受入全走で初めてtest_trial_registry.pyの13件が
+  `[payload-validation-receipt] safe identity differs`で赤化した。
+- 根本原因: 変更した2ファイルのうち1ファイル (`p3_autonomous_workload_trial.py`) の
+  importerだけをgrepし、もう1ファイル (`autonomous_trial_completeness.py`) の
+  importerを別途grepしなかった。複数productionファイルを同時に変更するwaveでは、
+  consumer test拡張は変更した**ファイルごと**に独立してimporterを洗い出す必要がある。
+- 恒久対応: `docs/dev-wave/operations.md`のDW-O26に「変更したproduction fileが複数ある
+  場合は各ファイルごとにimporterをgrepする」という明示を追加する改訂候補を段8の
+  dev-wave改善候補へ送る (未確定、記録のみ)。
+- 再発検知: 複数productionファイル変更waveで、DW-O26のconsumer test拡張grepコマンドが
+  変更ファイル数と1対1で存在するか段6レビューで確認する。

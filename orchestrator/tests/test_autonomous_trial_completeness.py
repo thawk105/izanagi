@@ -1183,6 +1183,7 @@ def test_t1311_provider_payload_and_envelope_are_independently_reread(
         C._check_registered_provider_artifacts(
             event=event, run_root=run,
             content_digest=content_digest, arm_binding_digest=arm_digest,
+            arm="on",
         )
     else:
         with pytest.raises(
@@ -1192,7 +1193,177 @@ def test_t1311_provider_payload_and_envelope_are_independently_reread(
             C._check_registered_provider_artifacts(
                 event=event, run_root=run,
                 content_digest=content_digest, arm_binding_digest=arm_digest,
+                arm="on",
             )
+
+
+def _off_provider_projection_fixture(tmp_path: Path, mutation: str | None):
+    run = tmp_path / "off-provider-run"
+    artifact_root = run / "provider" / "planner"
+    artifact_root.mkdir(parents=True)
+    descriptor = s8c_arm_inputs.derive_off_neutral_descriptor()
+    content_digest = hashlib.sha256(
+        s8c_arm_inputs.canonical_execution_input_bytes(descriptor)
+    ).hexdigest()
+    arm_digest = C._arm_binding_digest(
+        holdout="H1", arm="off", content_digest=content_digest,
+    )
+    wrong_digest = "0" * 64
+    if wrong_digest == content_digest:
+        wrong_digest = "1" * 64
+    audit_id = f"arm-off.exec-{arm_digest}.rr80.g1.planner"
+    provider_id = (
+        f"arm-off.exec-{content_digest}."
+        f"{A.OFF_NEUTRAL_PAYLOAD_WORKLOAD}.g1.planner"
+    )
+    payload = {
+        "workload": A.OFF_NEUTRAL_PAYLOAD_WORKLOAD,
+        "workload_descriptor": descriptor,
+        "descriptor_binding": {
+            "input_sha256": content_digest,
+            "output_sha256": content_digest,
+            "projection_version": "8b-descriptor-projection/v1",
+            "schema_sha256": C._DESCRIPTOR_SCHEMA_SHA256,
+            "content_digest_sha256": content_digest,
+        },
+    }
+    if mutation == "arm":
+        payload["descriptor_binding"]["arm_binding_digest_sha256"] = arm_digest
+    elif mutation == "workload":
+        payload["workload"] = "rr80"
+    elif mutation == "null-arm":
+        payload["descriptor_binding"]["arm_binding_digest_sha256"] = None
+    elif mutation == "input-digest":
+        payload["descriptor_binding"]["input_sha256"] = wrong_digest
+    elif mutation == "output-digest":
+        payload["descriptor_binding"]["output_sha256"] = wrong_digest
+    elif mutation == "content-digest":
+        payload["descriptor_binding"]["content_digest_sha256"] = wrong_digest
+    payload_raw = C._canonical_bytes(payload)
+    envelope_raw = b'{"result":"fixture","type":"result"}'
+    payload_path = artifact_root / f"payload_{provider_id}.json"
+    envelope_path = artifact_root / f"envelope_{provider_id}.json"
+    payload_path.write_bytes(payload_raw)
+    envelope_path.write_bytes(envelope_raw)
+    payload_sha256 = hashlib.sha256(payload_raw).hexdigest()
+    envelope_sha256 = hashlib.sha256(envelope_raw).hexdigest()
+    event = {
+        "invocation_id": audit_id,
+        "generation": 1,
+        "role": "planner",
+        "input_payload_sha256": payload_sha256,
+        "provider_payload_sha256": payload_sha256,
+        "provider_envelope_sha256": envelope_sha256,
+        "provider_artifacts": {
+            "payload_path": str(payload_path),
+            "envelope_path": str(envelope_path),
+            "arm_binding_digest_sha256": arm_digest,
+        },
+        "provenance": {
+            "payload_sha256": payload_sha256,
+            "envelope_sha256": envelope_sha256,
+        },
+    }
+    return run, event, content_digest, arm_digest
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    [
+        None, "arm", "workload", "null-arm", "input-digest", "output-digest",
+        "content-digest",
+    ],
+    ids=[
+        "positive", "arm-key", "holdout-workload", "null-arm-key",
+        "input-digest", "output-digest", "content-digest",
+    ],
+)
+def test_off_provider_payload_projection_has_exact_predicates(
+    tmp_path: Path, mutation: str | None,
+) -> None:
+    run, event, content_digest, arm_digest = _off_provider_projection_fixture(
+        tmp_path, mutation,
+    )
+    if mutation is None:
+        C._check_registered_provider_artifacts(
+            event=event,
+            run_root=run,
+            content_digest=content_digest,
+            arm_binding_digest=arm_digest,
+            arm="off",
+        )
+    else:
+        with pytest.raises(
+            C.AutonomousTrialCompletenessError,
+            match=r"\[arm-digest-chain\] ",
+        ):
+            C._check_registered_provider_artifacts(
+                event=event,
+                run_root=run,
+                content_digest=content_digest,
+                arm_binding_digest=arm_digest,
+                arm="off",
+            )
+
+
+def test_off_validation_receipt_safe_projection_is_exact(
+    tmp_path: Path,
+) -> None:
+    run, _events, report, arm_execution = _registered_digest_chain_trial(
+        tmp_path,
+    )
+    record = report["cells"][0]["generations"][0]["roles"]["planner"]
+    content_digest = arm_execution["content_digest_sha256"]
+    receipt = copy.deepcopy(record["payload_validation_receipt"])
+    receipt["safe_projection"]["workload"] = A.OFF_NEUTRAL_PAYLOAD_WORKLOAD
+    receipt["safe_projection"]["descriptor_binding_sha256"] = (
+        C._off_payload_descriptor_binding_sha256(content_digest)
+    )
+    receipt["safe_projection_sha256"] = C._receipt_sha256(
+        receipt["safe_projection"]
+    )
+    seal_preimage = {
+        key: receipt[key]
+        for key in (
+            "schema_version", "role", "payload_sha256",
+            "payload_allowlist_sha256", "safe_projection_sha256",
+        )
+    }
+    receipt["seal_sha256"] = C._receipt_sha256(seal_preimage)
+    record["payload_validation_receipt"] = receipt
+    C._check_payload_validation_receipt(
+        record,
+        label="rr80.g1.planner",
+        arm="off",
+        content_digest=content_digest,
+    )
+
+    mutated = copy.deepcopy(record)
+    mutated["payload_validation_receipt"]["safe_projection"]["workload"] = "rr80"
+    projection = mutated["payload_validation_receipt"]["safe_projection"]
+    mutated["payload_validation_receipt"]["safe_projection_sha256"] = (
+        C._receipt_sha256(projection)
+    )
+    seal_preimage = {
+        key: mutated["payload_validation_receipt"][key]
+        for key in (
+            "schema_version", "role", "payload_sha256",
+            "payload_allowlist_sha256", "safe_projection_sha256",
+        )
+    }
+    mutated["payload_validation_receipt"]["seal_sha256"] = C._receipt_sha256(
+        seal_preimage
+    )
+    with pytest.raises(
+        C.AutonomousTrialCompletenessError,
+        match=r"\[payload-validation-receipt\] .*safe identity differs$",
+    ):
+        C._check_payload_validation_receipt(
+            mutated,
+            label="rr80.g1.planner",
+            arm="off",
+            content_digest=content_digest,
+        )
 
 
 def test_t1311_authoritative_run_root_rejects_coordinated_tree_rebinding(

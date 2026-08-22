@@ -7,13 +7,16 @@ primary endpoint は arm 情報を隠した親の意味裁定である。
 from __future__ import annotations
 
 import argparse
+from dataclasses import dataclass
 import glob
 import hashlib
 import importlib.util
 import json
+import math
 import os
 import re
 import secrets
+import signal
 import shutil
 import stat
 import subprocess
@@ -48,6 +51,11 @@ SCHEDULE_SCHEMA_VERSION = 3
 # an explicit v3 serializer.  The manifest and normalized schedule have their
 # own version so that a v2 artifact is never compared as a v3 artifact.
 SCHEMA_VERSION = LEGACY_SCHEMA_VERSION
+STAGE2_REPLAYER_SCHEMA_VERSION = 1
+STAGE2_REPLAYER_MAX_MODEL_CALLS = 250
+STAGE2_REPLAYER_DEFAULT_WALL_CLOCK_TIMEOUT_S = 300.0
+STAGE2_REPLAYER_MAX_WALL_CLOCK_TIMEOUT_S = 3_600.0
+STAGE2_REPLAYER_VERSION_PROBE_TIMEOUT_S = 10.0
 BASE_COMMIT = "8c8dc5e0a337677e213b4ebabbeff5ea188111ae"
 INTEGRATED_COMMIT = "9b26b3bd3acc10df95ef6ef6684a91d2ff3fa2ec"
 ARTIFACT_COMMIT = "08a7e5f2fc08d57309a86ef70d00e9b050ebec9c"
@@ -3237,15 +3245,59 @@ def _attempt_ledger_rows(path: Path) -> list[dict[str, Any]]:
     return rows
 
 
-def _copy_identity_file(source: Path, target: Path, label: str) -> str:
+def _copy_identity_file(
+    source: Path,
+    target: Path,
+    label: str,
+    *,
+    mode: int = 0o600,
+) -> str:
+    """Copy an identity file with create-only, restrictive file creation.
+
+    The source is read once between two lstat checks and the destination is
+    created with ``O_EXCL``.  In particular, auth/config files are born as
+    ``0600``; they are never briefly exposed through a permissive copy mode.
+    """
     source = source.resolve(strict=True)
-    metadata = source.lstat()
-    if stat.S_ISLNK(metadata.st_mode) or not stat.S_ISREG(metadata.st_mode):
+    try:
+        before = source.lstat()
+    except OSError as exc:
+        raise ValidationError(f"{label} source is missing: {exc}", RC_RECEIPT) from exc
+    if stat.S_ISLNK(before.st_mode) or not stat.S_ISREG(before.st_mode):
         raise ValidationError(f"{label} source is not a regular file", RC_RECEIPT)
-    shutil.copyfile(source, target)
-    target.chmod(0o600)
-    source_sha = _sha256(source.read_bytes())
-    if _sha256(target.read_bytes()) != source_sha:
+    try:
+        data = source.read_bytes()
+        after = source.lstat()
+    except OSError as exc:
+        raise ValidationError(f"{label} source cannot be read: {exc}", RC_RECEIPT) from exc
+    if (
+        before.st_dev != after.st_dev
+        or before.st_ino != after.st_ino
+        or before.st_size != after.st_size
+    ):
+        raise ValidationError(f"{label} source changed while it was read", RC_RECEIPT)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL
+    if hasattr(os, "O_NOFOLLOW"):
+        flags |= os.O_NOFOLLOW
+    try:
+        descriptor = os.open(target, flags, mode)
+    except FileExistsError as exc:
+        raise ValidationError(f"{label} target already exists", RC_RECEIPT) from exc
+    try:
+        with os.fdopen(descriptor, "wb") as stream:
+            stream.write(data)
+            stream.flush()
+            os.fsync(stream.fileno())
+    except BaseException:
+        try:
+            target.unlink()
+        except OSError:
+            pass
+        raise
+    target_data = target.read_bytes()
+    source_sha = _sha256(data)
+    if _sha256(target_data) != source_sha:
         raise ValidationError(f"{label} copy sha mismatch", RC_RECEIPT)
     return source_sha
 
@@ -3389,6 +3441,1461 @@ def _bwrap_exec_argv(
     return argv
 
 
+@dataclass(frozen=True)
+class Stage2PlanReplayerContract:
+    """The immutable registration consumed by the stage2 replay driver."""
+
+    schema_version: int
+    contract_kind: str
+    stage: str
+    downstream_role: str
+    source_plan_path: str
+    plan_input: dict[str, Any]
+    plan_input_hash: str
+    requested_model: str
+    requested_effort: str
+    fix_pass_limit: int
+    acceptance_condition: dict[str, Any]
+    apparatus_pin: dict[str, Any]
+    task_acceptance_status: str = "unbound"
+    fix_gate_eligible: bool = False
+    routing_evidence_eligible: bool = False
+
+    def as_dict(self) -> dict[str, Any]:
+        return {
+            "schema_version": self.schema_version,
+            "contract_kind": self.contract_kind,
+            "stage": self.stage,
+            "downstream_role": self.downstream_role,
+            "source_plan_path": self.source_plan_path,
+            "plan_input": dict(self.plan_input),
+            "plan_input_hash": self.plan_input_hash,
+            "requested_model": self.requested_model,
+            "requested_effort": self.requested_effort,
+            "fix_pass_limit": self.fix_pass_limit,
+            "acceptance_condition": dict(self.acceptance_condition),
+            "apparatus_pin": dict(self.apparatus_pin),
+            "task_acceptance_status": self.task_acceptance_status,
+            "fix_gate_eligible": self.fix_gate_eligible,
+            "routing_evidence_eligible": self.routing_evidence_eligible,
+        }
+
+
+class _Stage2ReplayResult(dict[str, Any]):
+    """Stage2 result schema with an in-memory legacy-read compatibility alias.
+
+    ``cap_exhausted`` is the serialized field.  The old ``cap_exceeded`` read
+    is supplied only through ``__missing__`` for callers that still index the
+    Python return value; it is not a result/schema field and must not be read
+    as evidence that an extra model call occurred.
+    """
+
+    def __missing__(self, key: str) -> Any:
+        if key == "cap_exceeded":
+            return self["cap_exhausted"]
+        raise KeyError(key)
+
+
+_STAGE2_CONTRACT_KIND = "stage2-plan-replayer"
+_STAGE2_INTEGRITY_KIND = "stage2-plan-replayer-integrity"
+_STAGE2_RESULT_KIND = "stage2-plan-replayer-result"
+_STAGE2_RECEIPT_KIND = "stage2-execution-receipt"
+_STAGE2_ACCEPTANCE_KINDS = frozenset({"execution-receipt", "unbound"})
+_STAGE2_EFFORTS = frozenset({"max", "high"})
+_STAGE2_DESCRIPTOR_KEYS = frozenset(
+    {"path", "sha256", "bytes", "device", "inode"}
+)
+_STAGE2_APPARATUS_KEYS = frozenset(
+    {
+        "snapshot",
+        "config",
+        "auth",
+        "binary",
+        "snapshot_sha256",
+        "config_sha256",
+        "auth_sha256",
+        "binary_sha256",
+        "binary_version",
+    }
+)
+_STAGE2_CONTRACT_KEYS = frozenset(
+    {
+        "schema_version",
+        "contract_kind",
+        "stage",
+        "downstream_role",
+        "source_plan_path",
+        "plan_input",
+        "plan_input_hash",
+        "requested_model",
+        "requested_effort",
+        "fix_pass_limit",
+        "acceptance_condition",
+        "apparatus_pin",
+        "task_acceptance_status",
+        "fix_gate_eligible",
+        "routing_evidence_eligible",
+    }
+)
+_STAGE2_INTEGRITY_KEYS = frozenset(
+    {
+        "schema_version",
+        "integrity_kind",
+        "contract_path",
+        "contract_sha256",
+        "plan_input",
+        "plan_input_hash",
+        "apparatus_pin",
+    }
+)
+_STAGE2_FIX_HEADER = b"STAGE2_REPLAYER_FIX_INPUT_V1\n"
+
+
+def _stage2_path_below(path: Path, root: Path, label: str) -> Path:
+    resolved_path = path.resolve()
+    resolved_root = root.resolve()
+    try:
+        resolved_path.relative_to(resolved_root)
+    except ValueError as exc:
+        raise ValidationError(
+            f"{label} is outside the stage2 run root", RC_RECEIPT
+        ) from exc
+    return resolved_path
+
+
+def _stage2_absolute_path(path: Path) -> Path:
+    """Make an absolute path without following its final symlink."""
+    return Path(os.path.abspath(os.fspath(path)))
+
+
+def _stage2_file_descriptor(path: Path, label: str) -> dict[str, Any]:
+    candidate = Path(path)
+    try:
+        before = candidate.lstat()
+    except OSError as exc:
+        raise ValidationError(f"{label} is missing: {exc}", RC_RECEIPT) from exc
+    if stat.S_ISLNK(before.st_mode) or not stat.S_ISREG(before.st_mode):
+        raise ValidationError(f"{label} is not a regular file", RC_RECEIPT)
+    try:
+        data = candidate.read_bytes()
+        after = candidate.lstat()
+    except OSError as exc:
+        raise ValidationError(f"{label} cannot be read: {exc}", RC_RECEIPT) from exc
+    if (
+        before.st_dev != after.st_dev
+        or before.st_ino != after.st_ino
+        or before.st_size != after.st_size
+    ):
+        raise ValidationError(f"{label} changed while it was read", RC_RECEIPT)
+    return {
+        "path": os.fspath(candidate.resolve()),
+        "sha256": _sha256(data),
+        "bytes": len(data),
+        "device": before.st_dev,
+        "inode": before.st_ino,
+    }
+
+
+def _stage2_read_regular_bytes(path: Path, label: str) -> tuple[os.stat_result, bytes]:
+    candidate = Path(path)
+    try:
+        before = candidate.lstat()
+    except OSError as exc:
+        raise ValidationError(f"{label} is missing: {exc}", RC_RECEIPT) from exc
+    if stat.S_ISLNK(before.st_mode) or not stat.S_ISREG(before.st_mode):
+        raise ValidationError(f"{label} is not a regular file", RC_RECEIPT)
+    try:
+        data = candidate.read_bytes()
+        after = candidate.lstat()
+    except OSError as exc:
+        raise ValidationError(f"{label} cannot be read: {exc}", RC_RECEIPT) from exc
+    if (
+        before.st_dev != after.st_dev
+        or before.st_ino != after.st_ino
+        or before.st_size != after.st_size
+        or before.st_mtime_ns != after.st_mtime_ns
+    ):
+        raise ValidationError(f"{label} changed while it was read", RC_RECEIPT)
+    return before, data
+
+
+def _stage2_snapshot_entries(
+    root: Path, label: str
+) -> tuple[list[dict[str, Any]], int]:
+    root = Path(root)
+    try:
+        root_metadata = root.lstat()
+    except OSError as exc:
+        raise ValidationError(f"{label} is missing: {exc}", RC_RECEIPT) from exc
+    if stat.S_ISLNK(root_metadata.st_mode) or not stat.S_ISDIR(root_metadata.st_mode):
+        raise ValidationError(f"{label} is not a directory", RC_RECEIPT)
+    entries: list[dict[str, Any]] = []
+    total_bytes = 0
+
+    def visit(directory: Path, relative_directory: Path) -> None:
+        nonlocal total_bytes
+        try:
+            with os.scandir(directory) as entries_stream:
+                children = sorted(entries_stream, key=lambda entry: entry.name)
+        except OSError as exc:
+            raise ValidationError(
+                f"{label} cannot be inspected: {exc}", RC_RECEIPT
+            ) from exc
+        for child in children:
+            child_path = Path(child.path)
+            relative = (relative_directory / child.name).as_posix()
+            try:
+                metadata = child_path.lstat()
+            except OSError as exc:
+                raise ValidationError(
+                    f"{label} entry cannot be inspected: {relative}: {exc}",
+                    RC_RECEIPT,
+                ) from exc
+            if stat.S_ISLNK(metadata.st_mode):
+                raise ValidationError(
+                    f"{label} contains a symlink: {relative}", RC_RECEIPT
+                )
+            mode = stat.S_IMODE(metadata.st_mode)
+            if stat.S_ISDIR(metadata.st_mode):
+                entries.append(
+                    {"path": relative, "kind": "directory", "mode": mode}
+                )
+                visit(child_path, relative_directory / child.name)
+                continue
+            if not stat.S_ISREG(metadata.st_mode):
+                raise ValidationError(
+                    f"{label} contains a non-regular entry: {relative}",
+                    RC_RECEIPT,
+                )
+            _, data = _stage2_read_regular_bytes(child_path, f"{label} entry {relative}")
+            total_bytes += len(data)
+            entries.append(
+                {
+                    "path": relative,
+                    "kind": "file",
+                    "mode": mode,
+                    "bytes": len(data),
+                    "sha256": _sha256(data),
+                }
+            )
+
+    visit(root, Path())
+    try:
+        final_root_metadata = root.lstat()
+    except OSError as exc:
+        raise ValidationError(f"{label} changed while it was read: {exc}", RC_RECEIPT) from exc
+    if (
+        root_metadata.st_dev != final_root_metadata.st_dev
+        or root_metadata.st_ino != final_root_metadata.st_ino
+        or root_metadata.st_mtime_ns != final_root_metadata.st_mtime_ns
+    ):
+        raise ValidationError(f"{label} changed while it was read", RC_RECEIPT)
+    return entries, total_bytes
+
+
+def _stage2_snapshot_descriptor(path: Path, label: str) -> dict[str, Any]:
+    candidate = Path(path)
+    try:
+        metadata = candidate.lstat()
+    except OSError as exc:
+        raise ValidationError(f"{label} is missing: {exc}", RC_RECEIPT) from exc
+    if stat.S_ISLNK(metadata.st_mode) or not stat.S_ISDIR(metadata.st_mode):
+        raise ValidationError(f"{label} is not a directory", RC_RECEIPT)
+    entries, total_bytes = _stage2_snapshot_entries(candidate, label)
+    return {
+        "path": os.fspath(candidate.resolve()),
+        "sha256": _sha256(_canonical_bytes({"entries": entries})),
+        "bytes": total_bytes,
+        "device": metadata.st_dev,
+        "inode": metadata.st_ino,
+    }
+
+
+def _stage2_copy_frozen_file(
+    source: Path,
+    target: Path,
+    label: str,
+    *,
+    mode: int,
+    expected_source_descriptor: Mapping[str, Any] | None = None,
+) -> dict[str, Any]:
+    source_descriptor = _stage2_file_descriptor(source, label)
+    if (
+        expected_source_descriptor is not None
+        and source_descriptor != expected_source_descriptor
+    ):
+        raise ValidationError(f"{label} changed before it was frozen", RC_RECEIPT)
+    _, data = _stage2_read_regular_bytes(Path(source_descriptor["path"]), label)
+    if _sha256(data) != source_descriptor["sha256"]:
+        raise ValidationError(f"{label} changed while it was read", RC_RECEIPT)
+    _stage2_create_only_bytes(target, data, mode=mode)
+    target_descriptor = _stage2_file_descriptor(target, f"frozen {label}")
+    if (
+        target_descriptor["sha256"] != source_descriptor["sha256"]
+        or target_descriptor["bytes"] != source_descriptor["bytes"]
+    ):
+        raise ValidationError(f"frozen {label} copy sha mismatch", RC_RECEIPT)
+    return target_descriptor
+
+
+def _stage2_copy_frozen_snapshot(
+    source: Path,
+    target: Path,
+    label: str,
+    *,
+    expected_source_descriptor: Mapping[str, Any] | None = None,
+) -> dict[str, Any]:
+    source = _stage2_absolute_path(Path(source))
+    source_descriptor = _stage2_snapshot_descriptor(source, label)
+    if (
+        expected_source_descriptor is not None
+        and source_descriptor != expected_source_descriptor
+    ):
+        raise ValidationError(f"{label} changed before it was frozen", RC_RECEIPT)
+    if target.exists() or target.is_symlink():
+        raise ValidationError(f"frozen {label} already exists: {target}", RC_RECEIPT)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.mkdir(mode=stat.S_IMODE(source.stat().st_mode), exist_ok=False)
+    target.chmod(stat.S_IMODE(source.stat().st_mode))
+
+    def copy_directory(source_directory: Path, target_directory: Path) -> None:
+        try:
+            with os.scandir(source_directory) as entries_stream:
+                children = sorted(entries_stream, key=lambda entry: entry.name)
+        except OSError as exc:
+            raise ValidationError(
+                f"{label} cannot be copied: {exc}", RC_RECEIPT
+            ) from exc
+        for child in children:
+            source_path = Path(child.path)
+            target_path = target_directory / child.name
+            metadata = source_path.lstat()
+            if stat.S_ISLNK(metadata.st_mode):
+                raise ValidationError(
+                    f"{label} contains a symlink: {source_path}", RC_RECEIPT
+                )
+            if stat.S_ISDIR(metadata.st_mode):
+                target_path.mkdir(mode=stat.S_IMODE(metadata.st_mode), exist_ok=False)
+                target_path.chmod(stat.S_IMODE(metadata.st_mode))
+                copy_directory(source_path, target_path)
+            elif stat.S_ISREG(metadata.st_mode):
+                _, data = _stage2_read_regular_bytes(source_path, f"{label} entry")
+                _stage2_create_only_bytes(
+                    target_path, data, mode=stat.S_IMODE(metadata.st_mode)
+                )
+            else:
+                raise ValidationError(
+                    f"{label} contains a non-regular entry: {source_path}",
+                    RC_RECEIPT,
+                )
+
+    copy_directory(source, target)
+    if _stage2_snapshot_descriptor(source, label)["sha256"] != source_descriptor["sha256"]:
+        raise ValidationError(f"{label} changed while it was copied", RC_RECEIPT)
+    target_descriptor = _stage2_snapshot_descriptor(target, f"frozen {label}")
+    if (
+        target_descriptor["sha256"] != source_descriptor["sha256"]
+        or target_descriptor["bytes"] != source_descriptor["bytes"]
+    ):
+        raise ValidationError(f"frozen {label} copy sha mismatch", RC_RECEIPT)
+    return target_descriptor
+
+
+def _stage2_check_snapshot_descriptor(
+    descriptor: Mapping[str, Any], root: Path, label: str
+) -> None:
+    if set(descriptor) != _STAGE2_DESCRIPTOR_KEYS:
+        raise ValidationError(f"{label} descriptor keys are invalid", RC_RECEIPT)
+    path_value = descriptor.get("path")
+    if not isinstance(path_value, str) or not Path(path_value).is_absolute():
+        raise ValidationError(f"{label} path is not absolute", RC_RECEIPT)
+    candidate = Path(path_value)
+    _stage2_path_below(candidate, root, label)
+    current = _stage2_snapshot_descriptor(candidate, label)
+    for field in ("path", "sha256", "bytes", "device", "inode"):
+        if current.get(field) != descriptor.get(field):
+            raise ValidationError(f"{label} {field} changed", RC_RECEIPT)
+
+
+def _stage2_create_only_bytes(path: Path, data: bytes, *, mode: int = 0o600) -> None:
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL
+    if hasattr(os, "O_NOFOLLOW"):
+        flags |= os.O_NOFOLLOW
+    try:
+        descriptor = os.open(path, flags, mode)
+    except FileExistsError as exc:
+        raise ValidationError(
+            f"stage2 frozen artifact already exists: {path}", RC_RECEIPT
+        ) from exc
+    try:
+        with os.fdopen(descriptor, "wb") as stream:
+            os.fchmod(stream.fileno(), mode)
+            stream.write(data)
+            stream.flush()
+            os.fsync(stream.fileno())
+    except BaseException:
+        try:
+            path.unlink()
+        except OSError:
+            pass
+        raise
+
+
+def _stage2_version_probe(binary: Path, *, cwd: Path, label: str) -> str:
+    """Probe a frozen executable with a finite timeout and fail closed."""
+    process: subprocess.Popen[bytes] | None = None
+    try:
+        process = subprocess.Popen(
+            [os.fspath(binary), "--version"],
+            cwd=cwd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            env=_clean_environment({"HOME": "/nonexistent"}),
+            start_new_session=True,
+        )
+        try:
+            stdout, stderr = process.communicate(
+                timeout=STAGE2_REPLAYER_VERSION_PROBE_TIMEOUT_S
+            )
+        except subprocess.TimeoutExpired as exc:
+            _stage2_stop_process_tree(process)
+            raise ValidationError(
+                f"{label} version probe timed out", RC_ROUTING
+            ) from exc
+        if process.returncode != 0:
+            detail = stderr.decode("utf-8", "replace").strip()
+            raise ValidationError(
+                f"{label} version probe failed"
+                + (f": {detail}" if detail else ""),
+                RC_ROUTING,
+            )
+        version = stdout.decode("utf-8", "replace").strip()
+        if not version:
+            raise ValidationError(f"{label} version output is empty", RC_ROUTING)
+        return version
+    finally:
+        if process is not None and process.poll() is None:
+            _stage2_stop_process_tree(process)
+
+
+def _stage2_create_only_json(path: Path, value: Mapping[str, Any]) -> None:
+    _stage2_create_only_bytes(path, _canonical_bytes(dict(value)))
+
+
+def _stage2_digest(value: Any, label: str) -> str:
+    if not isinstance(value, str) or re.fullmatch(r"[0-9a-f]{64}", value) is None:
+        raise ValidationError(f"{label} is not a sha256", RC_RECEIPT)
+    return value
+
+
+def _stage2_check_descriptor(
+    descriptor: Mapping[str, Any],
+    root: Path,
+    label: str,
+) -> bytes:
+    if set(descriptor) != _STAGE2_DESCRIPTOR_KEYS:
+        raise ValidationError(f"{label} descriptor keys are invalid", RC_RECEIPT)
+    path_value = descriptor.get("path")
+    if not isinstance(path_value, str) or not Path(path_value).is_absolute():
+        raise ValidationError(f"{label} path is not absolute", RC_RECEIPT)
+    candidate = Path(path_value)
+    _stage2_path_below(candidate, root, label)
+    try:
+        before = candidate.lstat()
+    except OSError as exc:
+        raise ValidationError(f"{label} is missing: {exc}", RC_RECEIPT) from exc
+    if stat.S_ISLNK(before.st_mode) or not stat.S_ISREG(before.st_mode):
+        raise ValidationError(f"{label} is not a regular file", RC_RECEIPT)
+    if candidate.resolve() != Path(path_value):
+        raise ValidationError(f"{label} path was replaced", RC_RECEIPT)
+    try:
+        data = candidate.read_bytes()
+        after = candidate.lstat()
+    except OSError as exc:
+        raise ValidationError(f"{label} cannot be read: {exc}", RC_RECEIPT) from exc
+    if (
+        before.st_dev != after.st_dev
+        or before.st_ino != after.st_ino
+        or before.st_size != after.st_size
+    ):
+        raise ValidationError(f"{label} changed while it was read", RC_RECEIPT)
+    if before.st_dev != descriptor.get("device"):
+        raise ValidationError(f"{label} device changed", RC_RECEIPT)
+    if before.st_ino != descriptor.get("inode"):
+        raise ValidationError(f"{label} inode changed", RC_RECEIPT)
+    if before.st_size != descriptor.get("bytes"):
+        raise ValidationError(f"{label} byte count changed", RC_RECEIPT)
+    if _sha256(data) != descriptor.get("sha256"):
+        raise ValidationError(f"{label} hash mismatch", RC_RECEIPT)
+    _stage2_digest(descriptor.get("sha256"), f"{label} hash")
+    return data
+
+
+def _stage2_contract_bytes(contract: Mapping[str, Any]) -> bytes:
+    """Serialize only the stage2 contract namespace, never the legacy schema."""
+    return _canonical_bytes(dict(contract))
+
+
+def _stage2_result_bytes(result: Mapping[str, Any]) -> bytes:
+    """Serialize only stage2 replay results under the dedicated schema."""
+    if result.get("schema_version") != STAGE2_REPLAYER_SCHEMA_VERSION:
+        raise ValidationError("stage2 result schema version mismatch", RC_RECEIPT)
+    return _canonical_bytes(dict(result))
+
+
+def _stage2_integrity_path(contract_path: Path) -> Path:
+    return contract_path.with_name(contract_path.name + ".integrity.json")
+
+
+def _stage2_apparatus_pin(
+    snapshot: Path,
+    config: Path,
+    auth: Path,
+    codex_binary: Path,
+) -> dict[str, Any]:
+    snapshot_descriptor = _stage2_snapshot_descriptor(snapshot, "frozen snapshot")
+    config_descriptor = _stage2_file_descriptor(config, "Codex config")
+    auth_descriptor = _stage2_file_descriptor(auth, "Codex auth")
+    binary_descriptor = _stage2_file_descriptor(codex_binary, "Codex binary")
+    binary_version = _stage2_version_probe(
+        codex_binary.resolve(),
+        cwd=codex_binary.resolve().parent,
+        label="Codex binary",
+    )
+    return {
+        "snapshot": snapshot_descriptor,
+        "config": config_descriptor,
+        "auth": auth_descriptor,
+        "binary": binary_descriptor,
+        "snapshot_sha256": snapshot_descriptor["sha256"],
+        "config_sha256": config_descriptor["sha256"],
+        "auth_sha256": auth_descriptor["sha256"],
+        "binary_sha256": binary_descriptor["sha256"],
+        "binary_version": binary_version,
+    }
+
+
+def _stage2_validate_apparatus_pin(value: Any) -> dict[str, Any]:
+    if not isinstance(value, dict) or set(value) != _STAGE2_APPARATUS_KEYS:
+        raise ValidationError("stage2 apparatus pin keys are invalid", RC_ROUTING)
+    normalized = dict(value)
+    snapshot = normalized["snapshot"]
+    if not isinstance(snapshot, dict) or set(snapshot) != _STAGE2_DESCRIPTOR_KEYS:
+        raise ValidationError("snapshot pin is malformed", RC_ROUTING)
+    _stage2_digest(snapshot.get("sha256"), "snapshot pin hash")
+    for field, label in (
+        ("config", "Codex config"),
+        ("auth", "Codex auth"),
+        ("binary", "Codex binary"),
+    ):
+        descriptor = normalized[field]
+        if not isinstance(descriptor, dict):
+            raise ValidationError(f"{label} pin is malformed", RC_ROUTING)
+        descriptor_keys = _STAGE2_DESCRIPTOR_KEYS
+        if set(descriptor) != descriptor_keys:
+            raise ValidationError(f"{label} pin keys are invalid", RC_ROUTING)
+        _stage2_digest(descriptor.get("sha256"), f"{label} pin hash")
+    for field, descriptor_field in (
+        ("snapshot_sha256", "snapshot"),
+        ("config_sha256", "config"),
+        ("auth_sha256", "auth"),
+        ("binary_sha256", "binary"),
+    ):
+        expected = normalized[field]
+        descriptor = normalized[descriptor_field]
+        _stage2_digest(expected, f"apparatus {field}")
+        if expected != descriptor.get("sha256"):
+            raise ValidationError(f"apparatus {field} does not match pin", RC_ROUTING)
+    version = normalized["binary_version"]
+    if not isinstance(version, str) or not version.strip():
+        raise ValidationError("Codex binary version pin is malformed", RC_ROUTING)
+    return normalized
+
+
+def _stage2_validate_acceptance_condition(value: Any) -> dict[str, Any]:
+    if not isinstance(value, dict) or set(value) != {"kind", "reason"}:
+        raise ValidationError("stage2 acceptance condition keys are invalid", RC_ROUTING)
+    kind = value.get("kind")
+    reason = value.get("reason")
+    if kind not in _STAGE2_ACCEPTANCE_KINDS:
+        raise ValidationError("stage2 acceptance kind is not allowed", RC_ROUTING)
+    if not isinstance(reason, str) or not reason.strip():
+        raise ValidationError("stage2 acceptance reason is required", RC_ROUTING)
+    return {"kind": kind, "reason": reason}
+
+
+def _stage2_validate_contract(
+    value: Any,
+    *,
+    run_root: Path,
+) -> dict[str, Any]:
+    if not isinstance(value, dict) or set(value) != _STAGE2_CONTRACT_KEYS:
+        raise ValidationError("stage2 contract keys are invalid", RC_ROUTING)
+    if value.get("schema_version") != STAGE2_REPLAYER_SCHEMA_VERSION:
+        raise ValidationError("stage2 contract schema version mismatch", RC_ROUTING)
+    if value.get("contract_kind") != _STAGE2_CONTRACT_KIND:
+        raise ValidationError("stage2 contract kind mismatch", RC_ROUTING)
+    if value.get("stage") != "stage2":
+        raise ValidationError("stage2 contract stage mismatch", RC_ROUTING)
+    if value.get("downstream_role") != "author":
+        raise ValidationError("stage2 downstream role mismatch", RC_ROUTING)
+    source_plan_path = value.get("source_plan_path")
+    if not isinstance(source_plan_path, str) or not source_plan_path:
+        raise ValidationError("stage2 source plan path is missing", RC_ROUTING)
+    plan_input = value.get("plan_input")
+    if not isinstance(plan_input, dict):
+        raise ValidationError("stage2 plan descriptor is malformed", RC_ROUTING)
+    _stage2_check_descriptor(plan_input, run_root, "frozen stage2 plan")
+    _stage2_digest(value.get("plan_input_hash"), "stage2 plan input hash")
+    if value["plan_input_hash"] != plan_input["sha256"]:
+        raise ValidationError("stage2 plan input hash does not match descriptor", RC_ROUTING)
+    requested_model = value.get("requested_model")
+    if requested_model not in MODEL_ALLOWLIST:
+        raise ValidationError("stage2 requested model is not allowed", RC_ROUTING)
+    if value.get("requested_effort") not in _STAGE2_EFFORTS:
+        raise ValidationError("stage2 requested effort is not allowed", RC_ROUTING)
+    fix_pass_limit = value.get("fix_pass_limit")
+    if (
+        isinstance(fix_pass_limit, bool)
+        or not isinstance(fix_pass_limit, int)
+        or not 0 <= fix_pass_limit <= STAGE2_REPLAYER_MAX_MODEL_CALLS - 1
+    ):
+        raise ValidationError("stage2 fix pass limit is outside the cap", RC_ROUTING)
+    acceptance = _stage2_validate_acceptance_condition(
+        value.get("acceptance_condition")
+    )
+    apparatus = _stage2_validate_apparatus_pin(value.get("apparatus_pin"))
+    if value.get("task_acceptance_status") != "unbound":
+        raise ValidationError("stage2 task acceptance must remain unbound", RC_ROUTING)
+    if value.get("fix_gate_eligible") is not False:
+        raise ValidationError("stage2 fix gate eligibility must remain false", RC_ROUTING)
+    if value.get("routing_evidence_eligible") is not False:
+        raise ValidationError(
+            "stage2 routing evidence eligibility must remain false", RC_ROUTING
+        )
+    contract = dict(value)
+    contract["plan_input"] = dict(plan_input)
+    contract["acceptance_condition"] = acceptance
+    contract["apparatus_pin"] = apparatus
+    return contract
+
+
+def freeze_stage2_plan_replayer(
+    plan_input: Path,
+    output: Path,
+    requested_model: str,
+    requested_effort: str,
+    fix_pass_limit: int,
+    *,
+    snapshot: Path,
+    acceptance_kind: str = "unbound",
+    acceptance_reason: str | None = None,
+    config_source: Path,
+    auth_source: Path,
+    codex_binary: Path,
+) -> dict[str, Any]:
+    """Freeze raw plan bytes and every replay apparatus before launch.
+
+    The downstream ``author`` label is a prompt role only; it does not request
+    workspace-write access.  Its output is supervisor-observed stdout text.
+    Snapshot, config, auth, and binary are all copied below ``run_root`` with
+    create-only semantics.  Replay never falls back to a live or ambient path.
+    """
+    if any(
+        value is None
+        for value in (snapshot, config_source, auth_source, codex_binary)
+    ):
+        raise ValidationError(
+            "stage2 snapshot, config, auth, and binary are required", RC_ROUTING
+        )
+    requested_contract_path = _stage2_absolute_path(Path(output))
+    if requested_contract_path.exists() or requested_contract_path.is_symlink():
+        raise ValidationError(
+            f"stage2 frozen artifact already exists: {requested_contract_path}",
+            RC_ROUTING,
+        )
+    run_root = requested_contract_path.parent.resolve()
+    contract_path = run_root / requested_contract_path.name
+    integrity_path = _stage2_integrity_path(contract_path)
+    frozen_plan_path = run_root / "stage2-plan-input"
+    frozen_snapshot_path = run_root / "stage2-snapshot"
+    apparatus_root = run_root / "stage2-apparatus"
+    frozen_config_path = apparatus_root / "config.toml"
+    frozen_auth_path = apparatus_root / "auth.json"
+    frozen_binary_path = apparatus_root / "codex"
+    for candidate in (
+        contract_path,
+        integrity_path,
+        frozen_plan_path,
+        frozen_snapshot_path,
+        apparatus_root,
+    ):
+        if candidate.exists() or candidate.is_symlink():
+            raise ValidationError(
+                f"stage2 frozen artifact already exists: {candidate}", RC_ROUTING
+            )
+    source_descriptor = _stage2_file_descriptor(Path(plan_input), "plan input")
+    _, source_bytes = _stage2_read_regular_bytes(
+        Path(source_descriptor["path"]), "plan input"
+    )
+    if _stage2_file_descriptor(Path(plan_input), "plan input") != source_descriptor:
+        raise ValidationError("plan input changed before it was frozen", RC_RECEIPT)
+    source_snapshot = _stage2_absolute_path(Path(snapshot))
+    if (
+        source_snapshot == run_root
+        or run_root in source_snapshot.parents
+        or source_snapshot == requested_contract_path
+    ):
+        raise ValidationError("stage2 snapshot must be outside the run root", RC_ROUTING)
+    source_snapshot_descriptor = _stage2_snapshot_descriptor(source_snapshot, "snapshot")
+    config_source_descriptor = _stage2_file_descriptor(config_source, "Codex config")
+    auth_source_descriptor = _stage2_file_descriptor(auth_source, "Codex auth")
+    binary_source_descriptor = _stage2_file_descriptor(codex_binary, "Codex binary")
+    staged_paths: list[Path] = []
+    try:
+        _stage2_path_below(frozen_plan_path, run_root, "frozen stage2 plan")
+        staged_paths.append(frozen_plan_path)
+        _stage2_create_only_bytes(frozen_plan_path, source_bytes)
+        frozen_descriptor = _stage2_file_descriptor(
+            frozen_plan_path, "frozen stage2 plan"
+        )
+        if frozen_descriptor["sha256"] != source_descriptor["sha256"]:
+            raise ValidationError("frozen stage2 plan hash mismatch", RC_RECEIPT)
+        staged_paths.append(frozen_snapshot_path)
+        _stage2_copy_frozen_snapshot(
+            source_snapshot,
+            frozen_snapshot_path,
+            "snapshot",
+            expected_source_descriptor=source_snapshot_descriptor,
+        )
+        apparatus_root.mkdir(mode=0o700, exist_ok=False)
+        staged_paths.append(apparatus_root)
+        _stage2_copy_frozen_file(
+            config_source,
+            frozen_config_path,
+            "Codex config",
+            mode=0o600,
+            expected_source_descriptor=config_source_descriptor,
+        )
+        _stage2_copy_frozen_file(
+            auth_source,
+            frozen_auth_path,
+            "Codex auth",
+            mode=0o600,
+            expected_source_descriptor=auth_source_descriptor,
+        )
+        frozen_binary_descriptor = _stage2_copy_frozen_file(
+            codex_binary,
+            frozen_binary_path,
+            "Codex binary",
+            mode=0o700,
+            expected_source_descriptor=binary_source_descriptor,
+        )
+        if frozen_binary_descriptor["sha256"] != binary_source_descriptor["sha256"]:
+            raise ValidationError("frozen Codex binary hash mismatch", RC_RECEIPT)
+        reason = acceptance_reason
+        if reason is None:
+            reason = (
+                "task-specific oracle is not bound; only supervisor execution facts "
+                "are recorded"
+            )
+        contract = Stage2PlanReplayerContract(
+            schema_version=STAGE2_REPLAYER_SCHEMA_VERSION,
+            contract_kind=_STAGE2_CONTRACT_KIND,
+            stage="stage2",
+            downstream_role="author",
+            source_plan_path=source_descriptor["path"],
+            plan_input=frozen_descriptor,
+            plan_input_hash=frozen_descriptor["sha256"],
+            requested_model=requested_model,
+            requested_effort=requested_effort,
+            fix_pass_limit=fix_pass_limit,
+            acceptance_condition={"kind": acceptance_kind, "reason": reason},
+            apparatus_pin=_stage2_apparatus_pin(
+                frozen_snapshot_path,
+                frozen_config_path,
+                frozen_auth_path,
+                frozen_binary_path,
+            ),
+        ).as_dict()
+        contract = _stage2_validate_contract(contract, run_root=run_root)
+        contract_bytes = _stage2_contract_bytes(contract)
+        integrity = {
+            "schema_version": STAGE2_REPLAYER_SCHEMA_VERSION,
+            "integrity_kind": _STAGE2_INTEGRITY_KIND,
+            "contract_path": os.fspath(contract_path),
+            "contract_sha256": _sha256(contract_bytes),
+            "plan_input": dict(contract["plan_input"]),
+            "plan_input_hash": contract["plan_input_hash"],
+            "apparatus_pin": dict(contract["apparatus_pin"]),
+        }
+        staged_paths.append(contract_path)
+        _stage2_create_only_bytes(contract_path, contract_bytes)
+        staged_paths.append(integrity_path)
+        _stage2_create_only_json(integrity_path, integrity)
+        return contract
+    except BaseException:
+        for path in reversed(staged_paths):
+            try:
+                metadata = path.lstat()
+                if stat.S_ISDIR(metadata.st_mode) and not stat.S_ISLNK(metadata.st_mode):
+                    shutil.rmtree(path)
+                else:
+                    path.unlink()
+            except FileNotFoundError:
+                pass
+            except OSError:
+                pass
+        raise
+
+
+def _stage2_read_json_file(path: Path, label: str) -> tuple[dict[str, Any], bytes]:
+    descriptor = _stage2_file_descriptor(path, label)
+    try:
+        raw = path.read_bytes()
+        value = json.loads(raw)
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise ValidationError(f"{label} is not valid JSON: {exc}", RC_RECEIPT) from exc
+    if not isinstance(value, dict):
+        raise ValidationError(f"{label} is not a JSON object", RC_RECEIPT)
+    if descriptor["sha256"] != _sha256(raw):
+        raise ValidationError(f"{label} hash changed while reading", RC_RECEIPT)
+    if _stage2_file_descriptor(path, label) != descriptor:
+        raise ValidationError(f"{label} changed while reading", RC_RECEIPT)
+    return value, raw
+
+
+def _stage2_load_integrity(
+    contract_path: Path,
+    contract: Mapping[str, Any],
+    contract_raw: bytes,
+    run_root: Path,
+) -> dict[str, Any]:
+    integrity_path = _stage2_integrity_path(contract_path)
+    integrity, _ = _stage2_read_json_file(integrity_path, "stage2 integrity record")
+    if set(integrity) != _STAGE2_INTEGRITY_KEYS:
+        raise ValidationError("stage2 integrity record keys are invalid", RC_RECEIPT)
+    if integrity.get("schema_version") != STAGE2_REPLAYER_SCHEMA_VERSION:
+        raise ValidationError("stage2 integrity schema version mismatch", RC_RECEIPT)
+    if integrity.get("integrity_kind") != _STAGE2_INTEGRITY_KIND:
+        raise ValidationError("stage2 integrity kind mismatch", RC_RECEIPT)
+    if integrity.get("contract_path") != os.fspath(contract_path):
+        raise ValidationError("stage2 contract path integrity mismatch", RC_RECEIPT)
+    _stage2_digest(integrity.get("contract_sha256"), "stage2 contract hash")
+    if integrity["contract_sha256"] != _sha256(contract_raw):
+        raise ValidationError("stage2 contract hash mismatch", RC_RECEIPT)
+    if integrity.get("plan_input") != contract.get("plan_input"):
+        raise ValidationError("stage2 plan integrity descriptor mismatch", RC_RECEIPT)
+    if integrity.get("plan_input_hash") != contract.get("plan_input_hash"):
+        raise ValidationError("stage2 plan input hash integrity mismatch", RC_RECEIPT)
+    if integrity.get("apparatus_pin") != contract.get("apparatus_pin"):
+        raise ValidationError("stage2 apparatus integrity mismatch", RC_RECEIPT)
+    _stage2_check_descriptor(
+        integrity["plan_input"], run_root, "frozen stage2 plan"
+    )
+    _stage2_validate_apparatus_pin(integrity["apparatus_pin"])
+    return integrity
+
+
+def _load_stage2_plan_replayer_contract(
+    contract_path: Path,
+    *,
+    run_root: Path | None = None,
+) -> dict[str, Any]:
+    """Load a create-only contract and its independent integrity record."""
+    requested_contract_path = _stage2_absolute_path(Path(contract_path))
+    contract_descriptor = _stage2_file_descriptor(
+        requested_contract_path, "stage2 contract"
+    )
+    contract_path = Path(contract_descriptor["path"])
+    root = Path(run_root).resolve() if run_root is not None else contract_path.parent
+    _stage2_path_below(contract_path, root, "stage2 contract")
+    contract, raw = _stage2_read_json_file(contract_path, "stage2 contract")
+    contract = _stage2_validate_contract(contract, run_root=root)
+    _stage2_load_integrity(contract_path, contract, raw, root)
+    return contract
+
+
+def _stage2_guard(
+    contract_path: Path,
+    run_root: Path,
+) -> tuple[dict[str, Any], str, bytes]:
+    requested_contract_path = _stage2_absolute_path(Path(contract_path))
+    contract_descriptor = _stage2_file_descriptor(
+        requested_contract_path, "stage2 contract"
+    )
+    contract_path = Path(contract_descriptor["path"])
+    _stage2_path_below(contract_path, run_root, "stage2 contract")
+    contract, raw = _stage2_read_json_file(contract_path, "stage2 contract")
+    contract = _stage2_validate_contract(contract, run_root=run_root)
+    _stage2_load_integrity(contract_path, contract, raw, run_root)
+    plan_bytes = _stage2_check_descriptor(
+        contract["plan_input"], run_root, "frozen stage2 plan"
+    )
+    return contract, _sha256(raw), plan_bytes
+
+
+def _stage2_resolve_apparatus(
+    contract: Mapping[str, Any],
+    config_source: Path | None,
+    auth_source: Path | None,
+    codex_binary: Path | None,
+    *,
+    run_root: Path,
+) -> tuple[Path, Path, Path, Path]:
+    """Resolve only the create-only apparatus registered in the contract.
+
+    The source arguments remain as a compatibility-shaped API surface, but
+    are intentionally ignored.  Ambient defaults and live caller paths are
+    never allowed to become replay inputs.
+    """
+    del config_source, auth_source, codex_binary
+    pin = _stage2_validate_apparatus_pin(contract["apparatus_pin"])
+    resolved: dict[str, Path] = {}
+    for field in ("config", "auth", "binary"):
+        descriptor = pin[field]
+        _stage2_check_descriptor(descriptor, run_root, f"stage2 frozen {field}")
+        candidate = Path(descriptor["path"])
+        if field == "binary" and not (candidate.stat().st_mode & stat.S_IXUSR):
+            raise ValidationError("stage2 frozen binary is not executable", RC_ROUTING)
+        resolved[field] = candidate
+    snapshot_descriptor = pin["snapshot"]
+    _stage2_check_snapshot_descriptor(
+        snapshot_descriptor, run_root, "stage2 frozen snapshot"
+    )
+    frozen_snapshot = Path(snapshot_descriptor["path"])
+    binary_version = _stage2_version_probe(
+        resolved["binary"],
+        cwd=resolved["binary"].parent,
+        label="stage2 Codex binary",
+    )
+    if binary_version != pin["binary_version"]:
+        raise ValidationError("stage2 Codex binary version pin mismatch", RC_ROUTING)
+    return resolved["config"], resolved["auth"], resolved["binary"], frozen_snapshot
+
+
+def _stage2_exec_argv(
+    codex_binary: Path,
+    requested_model: str,
+    requested_effort: str,
+    snapshot: Path,
+    output: Path,
+) -> list[str]:
+    argv = _codex_exec_argv(
+        codex_binary, requested_model, requested_effort, snapshot, output
+    )
+    try:
+        exec_position = argv.index("exec")
+    except ValueError as exc:
+        raise ValidationError("stage2 Codex argv has no exec command", RC_ROUTING) from exc
+    argv[exec_position + 1 : exec_position + 1] = ["--skip-git-repo-check"]
+    return argv
+
+
+def _stage2_fix_input(plan_bytes: bytes, previous_output: bytes, pass_index: int) -> bytes:
+    if pass_index == 0:
+        return plan_bytes
+    return (
+        _STAGE2_FIX_HEADER
+        + str(len(plan_bytes)).encode("ascii")
+        + b"\n"
+        + plan_bytes
+        + b"\n"
+        + str(len(previous_output)).encode("ascii")
+        + b"\n"
+        + previous_output
+    )
+
+
+def _stage2_stop_process_tree(
+    process: subprocess.Popen[bytes],
+) -> tuple[bytes, bytes]:
+    def signal_group(number: int) -> None:
+        try:
+            os.killpg(process.pid, number)
+        except (ProcessLookupError, PermissionError):
+            try:
+                if number == signal.SIGTERM:
+                    process.terminate()
+                else:
+                    process.kill()
+            except ProcessLookupError:
+                pass
+
+    signal_group(signal.SIGTERM)
+    try:
+        stdout, stderr = process.communicate(timeout=1.0)
+        return stdout or b"", stderr or b""
+    except subprocess.TimeoutExpired:
+        signal_group(signal.SIGKILL)
+    try:
+        stdout, stderr = process.communicate(timeout=2.0)
+        return stdout or b"", stderr or b""
+    except subprocess.TimeoutExpired:
+        try:
+            process.kill()
+        except ProcessLookupError:
+            pass
+        try:
+            stdout, stderr = process.communicate(timeout=2.0)
+            return stdout or b"", stderr or b""
+        except subprocess.TimeoutExpired:
+            return b"", b"stage2 process termination timed out"
+
+
+def _stage2_output_state(path: Path) -> dict[str, Any]:
+    try:
+        metadata = path.lstat()
+    except OSError:
+        return {"path": os.fspath(path.resolve()), "regular": False, "bytes": 0}
+    if stat.S_ISLNK(metadata.st_mode) or not stat.S_ISREG(metadata.st_mode):
+        return {
+            "path": os.fspath(path.resolve()),
+            "regular": False,
+            "bytes": metadata.st_size,
+        }
+    try:
+        data = path.read_bytes()
+        after = path.lstat()
+    except OSError:
+        return {"path": os.fspath(path.resolve()), "regular": False, "bytes": 0}
+    if metadata.st_ino != after.st_ino or metadata.st_size != after.st_size:
+        return {"path": os.fspath(path.resolve()), "regular": False, "bytes": 0}
+    return {
+        "path": os.fspath(path.resolve()),
+        "regular": True,
+        "bytes": len(data),
+        "sha256": _sha256(data),
+    }
+
+
+def _stage2_receipt_status(
+    receipt: Mapping[str, Any],
+    *,
+    contract_sha256: str,
+    plan_sha256: str,
+    expected_model: str | None = None,
+    expected_effort: str | None = None,
+) -> tuple[str, list[str]]:
+    reasons: list[str] = []
+    if receipt.get("contract_sha256") != contract_sha256:
+        reasons.append("execution receipt contract hash mismatch")
+    if receipt.get("plan_sha256") != plan_sha256:
+        reasons.append("execution receipt plan hash mismatch")
+    if receipt.get("timed_out"):
+        reasons.append("execution receipt timed out")
+    if receipt.get("exit_code") != 0:
+        reasons.append("execution receipt exit code is non-zero")
+    if expected_model is not None or expected_effort is not None:
+        actual_argv = receipt.get("argv")
+        try:
+            if not isinstance(actual_argv, list):
+                raise ValidationError("execution receipt argv is not an array", RC_RECEIPT)
+            if expected_model is None or expected_effort is None:
+                raise ValidationError("execution receipt argv expectations are incomplete", RC_RECEIPT)
+            _normalized_exec_argv(actual_argv, expected_model, expected_effort)
+            exec_position = actual_argv.index("exec")
+            if actual_argv[exec_position + 1] != "--skip-git-repo-check":
+                raise ValidationError("stage2 argv skip flag is misplaced", RC_ROUTING)
+        except (ValidationError, ValueError) as exc:
+            reasons.extend(exc.reasons if isinstance(exc, ValidationError) else [str(exc)])
+    output = receipt.get("output")
+    if not isinstance(output, Mapping) or output.get("regular") is not True:
+        reasons.append("execution receipt output is not a regular file")
+    else:
+        output_bytes = output.get("bytes")
+        output_hash = output.get("sha256")
+        if not isinstance(output_bytes, int) or output_bytes <= 0:
+            reasons.append("execution receipt output is empty")
+        if not isinstance(output_hash, str):
+            reasons.append("execution receipt output hash is missing")
+        elif receipt.get("output_sha256") != output_hash:
+            reasons.append("execution receipt output hash mismatch")
+    return ("valid" if not reasons else "invalid"), reasons
+
+
+def _stage2_acceptance(
+    receipt: Mapping[str, Any],
+    acceptance_condition: Mapping[str, Any] | None = None,
+    *,
+    expected_contract_sha256: str | None = None,
+    expected_plan_sha256: str | None = None,
+    expected_model: str | None = None,
+    expected_effort: str | None = None,
+) -> dict[str, Any]:
+    """Separate mechanical receipt facts from the permanently unbound task state."""
+    condition = _stage2_validate_acceptance_condition(
+        dict(
+            acceptance_condition
+            or {
+                "kind": "execution-receipt",
+                "reason": "supervisor execution facts only",
+            }
+        )
+    )
+    receipt_status, reasons = _stage2_receipt_status(
+        receipt,
+        contract_sha256=(
+            expected_contract_sha256
+            if expected_contract_sha256 is not None
+            else str(receipt.get("contract_sha256", ""))
+        ),
+        plan_sha256=(
+            expected_plan_sha256
+            if expected_plan_sha256 is not None
+            else str(receipt.get("plan_sha256", ""))
+        ),
+        expected_model=expected_model,
+        expected_effort=expected_effort,
+    )
+    return {
+        "receipt_status": receipt_status,
+        "task_acceptance_status": "unbound",
+        "fix_gate_eligible": False,
+        "routing_evidence_eligible": False,
+        "acceptance_condition_kind": condition["kind"],
+        "failure_reasons": reasons,
+    }
+
+
+def _stage2_replay_one(
+    *,
+    contract: Mapping[str, Any],
+    contract_sha256: str,
+    plan_bytes: bytes,
+    plan_sha256: str,
+    pass_index: int,
+    previous_output: bytes,
+    run_root: Path,
+    snapshot: Path,
+    config_source: Path,
+    auth_source: Path,
+    codex_binary: Path,
+    wall_clock_timeout_s: float,
+) -> dict[str, Any]:
+    pass_label = f"pass-{pass_index + 1:03d}"
+    pass_root = run_root / "stage2-passes" / pass_label
+    pass_root.mkdir(parents=True, exist_ok=False)
+    output = pass_root / "output.txt"
+    stdout_path = pass_root / "stdout.txt"
+    stderr_path = pass_root / "stderr.txt"
+    home = pass_root / "home"
+    home.mkdir(mode=0o700, exist_ok=False)
+    (home / ".codex").mkdir(mode=0o700, exist_ok=False)
+    process: subprocess.Popen[bytes] | None = None
+    try:
+        pin = _stage2_validate_apparatus_pin(contract["apparatus_pin"])
+        _stage2_check_snapshot_descriptor(
+            pin["snapshot"], run_root, "stage2 frozen snapshot"
+        )
+        pass_snapshot = pass_root / "snapshot"
+        pass_snapshot_descriptor = _stage2_copy_frozen_snapshot(
+            snapshot, pass_snapshot, "stage2 pass snapshot"
+        )
+        if pass_snapshot_descriptor["sha256"] != pin["snapshot_sha256"]:
+            raise ValidationError("stage2 snapshot pin mismatch before launch", RC_RECEIPT)
+        config_target = home / ".codex" / "config.toml"
+        auth_target = home / ".codex" / "auth.json"
+        pass_binary = pass_root / "codex"
+        config_sha256 = _copy_identity_file(
+            config_source, config_target, "stage2 Codex config", mode=0o600
+        )
+        auth_sha256 = _copy_identity_file(
+            auth_source, auth_target, "stage2 Codex auth", mode=0o600
+        )
+        binary_sha256 = _copy_identity_file(
+            codex_binary, pass_binary, "stage2 Codex binary", mode=0o700
+        )
+        if config_sha256 != pin["config_sha256"]:
+            raise ValidationError("stage2 config apparatus pin mismatch before launch", RC_RECEIPT)
+        if auth_sha256 != pin["auth_sha256"]:
+            raise ValidationError("stage2 auth apparatus pin mismatch before launch", RC_RECEIPT)
+        if binary_sha256 != pin["binary_sha256"]:
+            raise ValidationError("stage2 binary apparatus pin mismatch before launch", RC_RECEIPT)
+        # Known residual risk: a same-UID replacement can still occur between
+        # hash validation and Popen; FD-based exec would be needed to close it.
+        # This is local single-operator research tooling, not a hostile multi-tenant target.
+        stdin_bytes = _stage2_fix_input(plan_bytes, previous_output, pass_index)
+        argv = _stage2_exec_argv(
+            pass_binary,
+            str(contract["requested_model"]),
+            str(contract["requested_effort"]),
+            pass_snapshot,
+            output,
+        )
+        environment = dict(os.environ)
+        environment["HOME"] = os.fspath(home)
+        environment["CODEX_HOME"] = os.fspath(home / ".codex")
+        started_at = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+        start_ns = time.monotonic_ns()
+        stdout_bytes = b""
+        stderr_bytes = b""
+        exit_code: int | None = None
+        timed_out = False
+        process_started = False
+        process_error: str | None = None
+        try:
+            process = subprocess.Popen(
+                argv,
+                cwd=pass_snapshot,
+                stdin=subprocess.PIPE,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                env=environment,
+                start_new_session=True,
+            )
+            process_started = True
+            try:
+                stdout_bytes, stderr_bytes = process.communicate(
+                    input=stdin_bytes,
+                    timeout=wall_clock_timeout_s,
+                )
+            except subprocess.TimeoutExpired:
+                timed_out = True
+                stdout_bytes, stderr_bytes = _stage2_stop_process_tree(process)
+            exit_code = process.returncode
+        except OSError as exc:
+            process_error = str(exc)
+        exit_ns = time.monotonic_ns()
+        _stage2_create_only_bytes(stdout_path, stdout_bytes or b"")
+        _stage2_create_only_bytes(stderr_path, stderr_bytes or b"")
+        output_state = _stage2_output_state(output)
+        receipt: dict[str, Any] = {
+            "schema_version": STAGE2_REPLAYER_SCHEMA_VERSION,
+            "receipt_kind": _STAGE2_RECEIPT_KIND,
+            "pass_index": pass_index,
+            "started_at": started_at,
+            "process_started": process_started,
+            "process_start_monotonic_ns": start_ns,
+            "process_exit_monotonic_ns": exit_ns,
+            "process_wall_ms": round((exit_ns - start_ns) / 1_000_000),
+            "exit_code": exit_code,
+            "timed_out": timed_out,
+            "wall_clock_timeout_s": wall_clock_timeout_s,
+            "contract_sha256": contract_sha256,
+            "plan_sha256": plan_sha256,
+            "stdin_sha256": _sha256(stdin_bytes),
+            "stdin_bytes": len(stdin_bytes),
+            "stdin_is_raw_plan": pass_index == 0,
+            "requested_model": contract["requested_model"],
+            "requested_effort": contract["requested_effort"],
+            "apparatus_pin": dict(contract["apparatus_pin"]),
+            "downstream_role": "author",
+            "argv": argv,
+            "snapshot_sha256": pin["snapshot_sha256"],
+            "binary_sha256": binary_sha256,
+            "output": output_state,
+            "output_sha256": output_state.get("sha256"),
+            "stdout_path": os.fspath(stdout_path.resolve()),
+            "stderr_path": os.fspath(stderr_path.resolve()),
+            "home": os.fspath(home.resolve()),
+            "config_sha256": config_sha256,
+            "auth_sha256": auth_sha256,
+        }
+        if process_error is not None:
+            receipt["failure_reasons"] = [f"downstream launch failed: {process_error}"]
+        if timed_out:
+            receipt["failure_reasons"] = ["downstream wall timeout consumed this pass"]
+        receipt.update(
+            _stage2_acceptance(
+                receipt,
+                contract["acceptance_condition"],
+                expected_contract_sha256=contract_sha256,
+                expected_plan_sha256=plan_sha256,
+                expected_model=str(contract["requested_model"]),
+                expected_effort=str(contract["requested_effort"]),
+            )
+        )
+        return receipt
+    finally:
+        termination_error: BaseException | None = None
+        try:
+            if process is not None and process.poll() is None:
+                _stage2_stop_process_tree(process)
+            if process is not None and process.poll() is None:
+                process.wait(timeout=2.0)
+        except BaseException as exc:
+            termination_error = exc
+        try:
+            shutil.rmtree(home)
+        except OSError as exc:
+            termination_error = termination_error or exc
+        if home.exists() or home.is_symlink():
+            termination_error = termination_error or RuntimeError(
+                "stage2 dedicated HOME remained after cleanup"
+            )
+        if termination_error is not None:
+            raise ValidationError(
+                f"stage2 process/HOME cleanup failed: {termination_error}", RC_RECEIPT
+            ) from termination_error
+
+
+def replay_stage2_plan(
+    contract_path: Path,
+    run_root: Path,
+    result_path: Path,
+    snapshot: Path,
+    config_source: Path | None = None,
+    auth_source: Path | None = None,
+    codex_binary: Path | None = None,
+    *,
+    bwrap_binary: Path | None = None,
+    dry_run: bool = False,
+    wall_clock_timeout_s: float = STAGE2_REPLAYER_DEFAULT_WALL_CLOCK_TIMEOUT_S,
+) -> tuple[dict[str, Any], int]:
+    """Replay frozen plan bytes with a bounded direct Codex process.
+
+    ``downstream_role="author"`` is only a prompt role label and does not ask
+    for workspace-write.  The output is supervisor-observed stdout text.  This
+    deliberately inherits the ambient environment with a dedicated HOME and
+    copies auth/config there; T-181's hermetic bwrap apparatus is not used
+    because F13 established that this mechanism needs the live ambient network.
+    The compatibility-shaped ``snapshot`` and apparatus arguments are ignored:
+    the contract's run-root copies are the only replay inputs.  The optional
+    ``bwrap_binary`` argument is likewise retained only for old Python callers;
+    this direct stage2 verb has no bwrap dispatch.  ``dry_run`` is recorded as
+    metadata and does not suppress the bounded downstream launch.
+    """
+    del bwrap_binary
+    del snapshot
+    run_root = Path(run_root).resolve()
+    requested_contract_path = _stage2_absolute_path(Path(contract_path))
+    contract_descriptor = _stage2_file_descriptor(
+        requested_contract_path, "stage2 contract"
+    )
+    contract_path = Path(contract_descriptor["path"])
+    _stage2_path_below(contract_path, run_root, "stage2 contract")
+    requested_result_path = _stage2_absolute_path(Path(result_path))
+    if requested_result_path.exists() or requested_result_path.is_symlink():
+        raise ValidationError("stage2 result already exists", RC_RECEIPT)
+    result_path = requested_result_path.parent.resolve() / requested_result_path.name
+    if isinstance(wall_clock_timeout_s, bool) or not isinstance(
+        wall_clock_timeout_s, (int, float)
+    ) or not math.isfinite(float(wall_clock_timeout_s)) or not (
+        0 < float(wall_clock_timeout_s) <= STAGE2_REPLAYER_MAX_WALL_CLOCK_TIMEOUT_S
+    ):
+        raise ValidationError(
+            "stage2 wall timeout must be finite, positive, and within the bound",
+            RC_ROUTING,
+        )
+    _stage2_path_below(result_path, run_root, "stage2 result")
+    contract, contract_raw = _stage2_read_json_file(
+        contract_path, "stage2 contract"
+    )
+    contract = _stage2_validate_contract(contract, run_root=run_root)
+    _stage2_load_integrity(contract_path, contract, contract_raw, run_root)
+    initial_contract_sha256 = _sha256(contract_raw)
+    config, auth, binary, frozen_snapshot = _stage2_resolve_apparatus(
+        contract,
+        config_source,
+        auth_source,
+        codex_binary,
+        run_root=run_root,
+    )
+    ledger_path = run_root / "stage2-attempt-ledger.jsonl"
+    if ledger_path.exists() or ledger_path.is_symlink():
+        raise ValidationError("stage2 attempt ledger already exists", RC_RECEIPT)
+    attempts: list[dict[str, Any]] = []
+    previous_output = b""
+    final_receipt: dict[str, Any] | None = None
+    cap = int(contract["fix_pass_limit"]) + 1
+    for pass_index in range(cap):
+        current_contract, current_sha256, plan_bytes = _stage2_guard(
+            contract_path, run_root
+        )
+        if current_sha256 != initial_contract_sha256 or current_contract != contract:
+            raise ValidationError("stage2 contract changed during replay", RC_RECEIPT)
+        config, auth, binary, frozen_snapshot = _stage2_resolve_apparatus(
+            contract,
+            config,
+            auth,
+            binary,
+            run_root=run_root,
+        )
+        receipt = _stage2_replay_one(
+            contract=contract,
+            contract_sha256=current_sha256,
+            plan_bytes=plan_bytes,
+            plan_sha256=contract["plan_input"]["sha256"],
+            pass_index=pass_index,
+            previous_output=previous_output,
+            run_root=run_root,
+            snapshot=frozen_snapshot,
+            config_source=config,
+            auth_source=auth,
+            codex_binary=binary,
+            wall_clock_timeout_s=float(wall_clock_timeout_s),
+        )
+        try:
+            post_contract, post_sha256, post_plan_bytes = _stage2_guard(
+                contract_path, run_root
+            )
+            if (
+                post_sha256 != current_sha256
+                or post_contract != contract
+                or post_plan_bytes != plan_bytes
+            ):
+                raise ValidationError("stage2 input changed after downstream", RC_RECEIPT)
+        except ValidationError as exc:
+            receipt["receipt_status"] = "invalid"
+            receipt["task_acceptance_status"] = "unbound"
+            receipt["fix_gate_eligible"] = False
+            receipt["routing_evidence_eligible"] = False
+            receipt["failure_reasons"] = sorted(
+                set(receipt.get("failure_reasons", [])) | set(exc.reasons)
+            )
+            _append_jsonl(ledger_path, receipt)
+            attempts.append(receipt)
+            raise
+        _append_jsonl(ledger_path, receipt)
+        attempts.append(receipt)
+        final_receipt = receipt
+        if receipt["receipt_status"] == "valid":
+            break
+        output_path = Path(receipt["output"]["path"])
+        try:
+            if output_path.is_file() and not output_path.is_symlink():
+                previous_output = output_path.read_bytes()
+        except OSError:
+            previous_output = b""
+    if final_receipt is None:
+        raise ValidationError("stage2 replay did not produce a receipt", RC_RECEIPT)
+    success = final_receipt["receipt_status"] == "valid"
+    failure_reasons = list(final_receipt.get("failure_reasons", []))
+    if not success:
+        failure_reasons.append("stage2 fix pass cap exhausted")
+    result: dict[str, Any] = _Stage2ReplayResult({
+        "schema_version": STAGE2_REPLAYER_SCHEMA_VERSION,
+        "result_kind": _STAGE2_RESULT_KIND,
+        "contract_sha256": initial_contract_sha256,
+        "contract_path": os.fspath(contract_path),
+        "plan_input": dict(contract["plan_input"]),
+        "plan_input_hash": contract["plan_input_hash"],
+        "requested_model": contract["requested_model"],
+        "requested_effort": contract["requested_effort"],
+        "apparatus_pin": dict(contract["apparatus_pin"]),
+        "downstream_role": "author",
+        "fix_pass_limit": contract["fix_pass_limit"],
+        "model_calls": len(attempts),
+        # The canonical fact is exhaustion: the bounded loop stopped after
+        # exactly 1 + fix_pass_limit calls.
+        "cap_exhausted": not success,
+        "receipt_status": final_receipt["receipt_status"],
+        "task_acceptance_status": "unbound",
+        "fix_gate_eligible": False,
+        "routing_evidence_eligible": False,
+        "output_sha256": final_receipt.get("output_sha256"),
+        "output": final_receipt.get("output"),
+        "attempts": attempts,
+        "failure_reasons": sorted(set(failure_reasons)),
+        "dry_run": dry_run,
+    })
+    _stage2_create_only_bytes(result_path, _stage2_result_bytes(result))
+    return result, 0 if success else RC_RECEIPT
+
+
 def _supervise_one(
     *,
     run_id: str,
@@ -3441,18 +4948,12 @@ def _supervise_one(
 
     actual_cli = codex_binary.resolve(strict=True)
     actual_bwrap = bwrap_binary.resolve(strict=True)
-    version_probe = _run((os.fspath(actual_cli), "--version"), cwd=attempt_dir)
-    cli_version = version_probe.stdout.decode("utf-8", "replace").strip()
-    if not cli_version:
-        raise ValidationError("CLI version output is empty", RC_ROUTING)
-    bwrap_version_probe = _run(
-        (os.fspath(actual_bwrap), "--version"), cwd=attempt_dir
+    cli_version = _stage2_version_probe(
+        actual_cli, cwd=attempt_dir, label="CLI"
     )
-    bwrap_version = bwrap_version_probe.stdout.decode(
-        "utf-8", "replace"
-    ).strip()
-    if not bwrap_version:
-        raise ValidationError("bwrap version output is empty", RC_ROUTING)
+    bwrap_version = _stage2_version_probe(
+        actual_bwrap, cwd=attempt_dir, label="bwrap"
+    )
     environment = _clean_environment(
         {
             "CODEX_HOME": os.fspath(codex_home),
@@ -7336,6 +8837,25 @@ def _parser() -> argparse.ArgumentParser:
     prompt.add_argument("--new-root", type=Path, required=True)
     prompt.add_argument("--output", type=Path)
 
+    stage2_freeze = sub.add_parser("freeze-stage2-plan-replayer")
+    stage2_freeze.add_argument("--plan-input", type=Path, required=True)
+    stage2_freeze.add_argument(
+        "--requested-model", choices=sorted(MODEL_ALLOWLIST), required=True
+    )
+    stage2_freeze.add_argument(
+        "--requested-effort", choices=sorted(_STAGE2_EFFORTS), required=True
+    )
+    stage2_freeze.add_argument("--fix-pass-limit", type=int, required=True)
+    stage2_freeze.add_argument(
+        "--acceptance-kind", choices=sorted(_STAGE2_ACCEPTANCE_KINDS), default="unbound"
+    )
+    stage2_freeze.add_argument("--acceptance-reason")
+    stage2_freeze.add_argument("--output", type=Path, required=True)
+    stage2_freeze.add_argument("--snapshot", type=Path, required=True)
+    stage2_freeze.add_argument("--config-source", type=Path, required=True)
+    stage2_freeze.add_argument("--auth-source", type=Path, required=True)
+    stage2_freeze.add_argument("--codex-bin", type=Path, required=True)
+
     collect = sub.add_parser("collect-run")
     collect.add_argument("--run-id", required=True)
     _add_benchmark_task_selector(collect)
@@ -7363,6 +8883,21 @@ def _parser() -> argparse.ArgumentParser:
     supervisor.add_argument("--codex-bin", type=Path, required=True)
     supervisor.add_argument("--bwrap-bin", type=Path, default=Path("/usr/bin/bwrap"))
     supervisor.add_argument("--dry-run", action="store_true")
+
+    stage2_replay = sub.add_parser("replay-stage2-plan")
+    stage2_replay.add_argument("--contract", type=Path, required=True)
+    stage2_replay.add_argument("--run-root", type=Path, required=True)
+    stage2_replay.add_argument("--result", type=Path, required=True)
+    stage2_replay.add_argument("--snapshot", type=Path, required=True)
+    stage2_replay.add_argument("--config-source", type=Path)
+    stage2_replay.add_argument("--auth-source", type=Path)
+    stage2_replay.add_argument("--codex-bin", type=Path)
+    stage2_replay.add_argument("--dry-run", action="store_true")
+    stage2_replay.add_argument(
+        "--wall-clock-timeout-s",
+        type=float,
+        default=STAGE2_REPLAYER_DEFAULT_WALL_CLOCK_TIMEOUT_S,
+    )
 
     score = sub.add_parser("score-run")
     score.add_argument("--output", type=Path, required=True)
@@ -7439,6 +8974,21 @@ def main(argv: Sequence[str] | None = None) -> int:
             else:
                 result["prompt"] = data.decode("utf-8")
             rc = 0
+        elif args.command == "freeze-stage2-plan-replayer":
+            result = freeze_stage2_plan_replayer(
+                args.plan_input,
+                args.output,
+                args.requested_model,
+                args.requested_effort,
+                args.fix_pass_limit,
+                snapshot=args.snapshot,
+                acceptance_kind=args.acceptance_kind,
+                acceptance_reason=args.acceptance_reason,
+                config_source=args.config_source,
+                auth_source=args.auth_source,
+                codex_binary=args.codex_bin,
+            )
+            rc = 0
         elif args.command == "collect-run":
             result, rc = collect_run(
                 run_id=args.run_id,
@@ -7468,6 +9018,18 @@ def main(argv: Sequence[str] | None = None) -> int:
                 dry_run=args.dry_run,
             )
             rc = 0
+        elif args.command == "replay-stage2-plan":
+            result, rc = replay_stage2_plan(
+                contract_path=args.contract,
+                run_root=args.run_root,
+                result_path=args.result,
+                snapshot=args.snapshot,
+                config_source=args.config_source,
+                auth_source=args.auth_source,
+                codex_binary=args.codex_bin,
+                dry_run=args.dry_run,
+                wall_clock_timeout_s=args.wall_clock_timeout_s,
+            )
         elif args.command == "score-run":
             result, rc = score_run(args.output, args.run_id)
         elif args.command == "aggregate":
@@ -7509,7 +9071,12 @@ def main(argv: Sequence[str] | None = None) -> int:
             raise AssertionError(args.command)
     except ValidationError as exc:
         result = {
-            "schema_version": SCHEMA_VERSION,
+            "schema_version": (
+                STAGE2_REPLAYER_SCHEMA_VERSION
+                if args.command
+                in {"freeze-stage2-plan-replayer", "replay-stage2-plan"}
+                else SCHEMA_VERSION
+            ),
             "valid": False,
             "failure_reasons": list(exc.reasons),
         }

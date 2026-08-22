@@ -38,6 +38,7 @@ M12 -> <none: 500-byte exact boundary node was lost>
 from __future__ import annotations
 
 import ast
+import base64
 import copy
 import hashlib
 import importlib.util
@@ -314,6 +315,160 @@ session_root.mkdir(parents=True)
  encoding="utf-8")
 print(json.dumps({"type": "thread.started", "thread_id": thread}, separators=(",", ":")))
 """,
+    )
+
+
+_STAGE2_HISTORICAL_PLAN_SOURCE = (
+    "/work/1/SFC/tanab/dev-wave-jobs/"
+    "dev-wave-t682-provenance-known-violations/s2-plan.md"
+)
+# Exact bytes copied from the real, non-T-181/T-182/T-189 artifact above.
+_STAGE2_HISTORICAL_PLAN = (
+    "必読ファイルを読めなかったため、指示どおり dev-wave 段 2 を即時停止しました。\n"
+    "\n"
+    "読めなかった path:\n"
+    "\n"
+    "`/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t682-provenance-known-violations/output/insights/2026-08-09_t659-activation-deploy-window/verbatim/README.md`\n"
+    "\n"
+    "ファイル更新・pytest 実行・プラン起草はいずれも行っていません。"
+)
+
+
+def _make_fake_stage2_downstream(path: Path) -> Path:
+    return _make_executable(
+        path,
+        r'''#!/usr/bin/env python3
+import base64
+import os
+from pathlib import Path
+import sys
+import time
+
+if "--version" in sys.argv:
+    print("stage2-fake-codex 1.0")
+    raise SystemExit(0)
+
+args = sys.argv[1:]
+output = Path(args[args.index("-o") + 1])
+payload = sys.stdin.buffer.read()
+codex_home = Path(os.environ["CODEX_HOME"])
+Path(os.environ["STAGE2_CODEX_HOME_RECORD"]).write_text(
+    os.fspath(codex_home) + "\n" + (codex_home / "config.toml").read_text(),
+    encoding="utf-8",
+)
+capture = Path(os.environ["STAGE2_CAPTURE"])
+capture.parent.mkdir(parents=True, exist_ok=True)
+with capture.open("ab") as stream:
+    stream.write(base64.b64encode(payload) + b"\n")
+counter = Path(os.environ["STAGE2_COUNTER"])
+count = int(counter.read_text()) if counter.exists() else 0
+count += 1
+counter.write_text(str(count))
+pid_file = Path(os.environ["STAGE2_PID"])
+pid_file.write_text(f"{os.getpid()} {os.getpgrp()}\n")
+mode = os.environ.get("STAGE2_MODE", "success")
+if mode == "hang":
+    time.sleep(30)
+if mode in {"tamper-plan", "tamper-plan-fail"}:
+    plan = Path(os.environ["STAGE2_PLAN_PATH"])
+    moved = plan.with_name(plan.name + ".moved")
+    if plan.exists() and not plan.is_symlink():
+        plan.rename(moved)
+        plan.write_bytes(b"replacement plan")
+if mode == "tamper-contract":
+    Path(os.environ["STAGE2_CONTRACT_PATH"]).write_bytes(b"tampered")
+if mode in {"always-fail", "fail-once", "tamper-plan-fail"} and (
+    mode == "always-fail" or count == 1
+):
+    raise SystemExit(7)
+output.write_bytes(b"ack")
+''',
+    )
+
+
+def _stage2_fixture(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    *,
+    mode: str = "success",
+    fix_pass_limit: int = 0,
+    plan_bytes: bytes | None = None,
+) -> dict[str, Any]:
+    run_root = tmp_path / "stage2-run-root"
+    run_root.mkdir(parents=True)
+    plan = tmp_path / "historical-plan.md"
+    plan.write_bytes(
+        _STAGE2_HISTORICAL_PLAN.encode("utf-8")
+        if plan_bytes is None
+        else plan_bytes
+    )
+    snapshot = tmp_path / "snapshot"
+    snapshot.mkdir()
+    config = tmp_path / "config.toml"
+    auth = tmp_path / "auth.json"
+    config.write_text("model = 'gpt-5.6-sol'\n", encoding="utf-8")
+    auth.write_text('{"token":"fixture"}\n', encoding="utf-8")
+    codex = _make_fake_stage2_downstream(tmp_path / "fake-stage2-codex")
+    capture = tmp_path / "stdin.b64"
+    counter = tmp_path / "calls.txt"
+    pid_file = tmp_path / "downstream.pid"
+    codex_home_record = tmp_path / "codex-home.txt"
+    monkeypatch.setenv("STAGE2_MODE", mode)
+    monkeypatch.setenv("STAGE2_CAPTURE", os.fspath(capture))
+    monkeypatch.setenv("STAGE2_COUNTER", os.fspath(counter))
+    monkeypatch.setenv("STAGE2_PID", os.fspath(pid_file))
+    monkeypatch.setenv(
+        "STAGE2_CODEX_HOME_RECORD", os.fspath(codex_home_record)
+    )
+    contract_path = run_root / "stage2-contract.json"
+    monkeypatch.setenv(
+        "STAGE2_PLAN_PATH", os.fspath(run_root / "stage2-plan-input")
+    )
+    monkeypatch.setenv("STAGE2_CONTRACT_PATH", os.fspath(contract_path))
+    contract = TOOL.freeze_stage2_plan_replayer(
+        plan,
+        contract_path,
+        TOOL.MODEL,
+        "max",
+        fix_pass_limit,
+        snapshot=snapshot,
+        acceptance_kind="execution-receipt",
+        acceptance_reason="fixture observes execution only",
+        config_source=config,
+        auth_source=auth,
+        codex_binary=codex,
+    )
+    return {
+        "run_root": run_root,
+        "plan": plan,
+        "snapshot": snapshot,
+        "config": config,
+        "auth": auth,
+        "codex": codex,
+        "capture": capture,
+        "counter": counter,
+        "pid_file": pid_file,
+        "codex_home_record": codex_home_record,
+        "contract_path": contract_path,
+        "contract": contract,
+        "result_path": run_root / "result.json",
+    }
+
+
+def _run_stage2_fixture(
+    fixture: dict[str, Any],
+    *,
+    timeout_s: float = 1.0,
+) -> tuple[dict[str, Any], int]:
+    return TOOL.replay_stage2_plan(
+        fixture["contract_path"],
+        fixture["run_root"],
+        fixture["result_path"],
+        fixture["snapshot"],
+        fixture["config"],
+        fixture["auth"],
+        fixture["codex"],
+        wall_clock_timeout_s=timeout_s,
     )
 
 
@@ -6326,6 +6481,682 @@ def test_cli_case_and_benchmark_task_id_conflict_is_fail_closed(
         ]
     )
     assert rc == TOOL.RC_ROUTING
+
+
+def test_stage2_historical_fixture_is_copied_from_real_artifact() -> None:
+    # Independent: F29 real-artifact provenance for the replay fixture.
+    assert Path(_STAGE2_HISTORICAL_PLAN_SOURCE).read_bytes() == (
+        _STAGE2_HISTORICAL_PLAN.encode("utf-8")
+    )
+
+
+def test_stage2_freeze_is_create_only_and_pins_raw_plan_and_apparatus(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # M1: create-only freeze must reject a second registration at the same path.
+    fixture = _stage2_fixture(tmp_path, monkeypatch)
+    contract = fixture["contract"]
+    plan_descriptor = contract["plan_input"]
+    assert Path(plan_descriptor["path"]).is_relative_to(fixture["run_root"])
+    assert plan_descriptor["sha256"] == TOOL._sha256(
+        fixture["plan"].read_bytes()
+    )
+    assert plan_descriptor["bytes"] == fixture["plan"].stat().st_size
+    apparatus = contract["apparatus_pin"]
+    assert Path(apparatus["snapshot"]["path"]).is_relative_to(
+        fixture["run_root"]
+    )
+    assert apparatus["snapshot_sha256"] == apparatus["snapshot"]["sha256"]
+    assert Path(apparatus["config"]["path"]).is_relative_to(fixture["run_root"])
+    assert Path(apparatus["auth"]["path"]).is_relative_to(fixture["run_root"])
+    assert Path(apparatus["binary"]["path"]).is_relative_to(fixture["run_root"])
+    assert stat.S_IMODE(Path(apparatus["config"]["path"]).stat().st_mode) == 0o600
+    assert stat.S_IMODE(Path(apparatus["auth"]["path"]).stat().st_mode) == 0o600
+    assert Path(apparatus["binary"]["path"]).stat().st_mode & stat.S_IXUSR
+    assert apparatus["config_sha256"] == TOOL._sha256(
+        fixture["config"].read_bytes()
+    )
+    assert apparatus["auth_sha256"] == TOOL._sha256(fixture["auth"].read_bytes())
+    assert apparatus["binary_sha256"] == TOOL._sha256(
+        fixture["codex"].read_bytes()
+    )
+    assert apparatus["binary_version"] == "stage2-fake-codex 1.0"
+    assert contract["task_acceptance_status"] == "unbound"
+    assert contract["fix_gate_eligible"] is False
+    assert contract["routing_evidence_eligible"] is False
+    with pytest.raises(TOOL.ValidationError, match="already exists"):
+        TOOL.freeze_stage2_plan_replayer(
+            fixture["plan"],
+            fixture["contract_path"],
+            TOOL.MODEL,
+            "max",
+            0,
+            snapshot=fixture["snapshot"],
+            acceptance_kind="execution-receipt",
+            acceptance_reason="second freeze",
+            config_source=fixture["config"],
+            auth_source=fixture["auth"],
+            codex_binary=fixture["codex"],
+        )
+
+
+def test_stage2_freeze_rolls_back_staging_after_binary_probe_failure(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # fix2b: a failed freeze must not leave replay apparatus or partial staging behind.
+    run_root = tmp_path / "stage2-run-root"
+    run_root.mkdir()
+    plan = tmp_path / "historical-plan.md"
+    plan.write_bytes(_STAGE2_HISTORICAL_PLAN.encode("utf-8"))
+    snapshot = tmp_path / "snapshot"
+    snapshot.mkdir()
+    config = tmp_path / "config.toml"
+    auth = tmp_path / "auth.json"
+    config.write_text("model = 'gpt-5.6-sol'\n", encoding="utf-8")
+    auth.write_text('{"token":"fixture"}\n', encoding="utf-8")
+    codex = _make_fake_stage2_downstream(tmp_path / "fake-stage2-codex")
+
+    def fail_probe(*args: Any, **kwargs: Any) -> str:
+        raise TOOL.ValidationError("injected version probe failure", TOOL.RC_ROUTING)
+
+    monkeypatch.setattr(TOOL, "_stage2_version_probe", fail_probe)
+    contract_path = run_root / "stage2-contract.json"
+    with pytest.raises(TOOL.ValidationError, match="injected version probe failure"):
+        TOOL.freeze_stage2_plan_replayer(
+            plan,
+            contract_path,
+            TOOL.MODEL,
+            "max",
+            0,
+            snapshot=snapshot,
+            config_source=config,
+            auth_source=auth,
+            codex_binary=codex,
+        )
+
+    assert list(run_root.iterdir()) == []
+    assert not (run_root / "stage2-apparatus" / "config.toml").exists()
+    assert not (run_root / "stage2-apparatus" / "auth.json").exists()
+    assert not (run_root / "stage2-apparatus" / "codex").exists()
+
+
+@pytest.mark.parametrize("missing", ("snapshot", "config_source", "auth_source", "codex_binary"))
+def test_stage2_freeze_requires_every_apparatus_pin(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    missing: str,
+) -> None:
+    fixture = _stage2_fixture(tmp_path, monkeypatch)
+    kwargs: dict[str, Any] = {
+        "snapshot": fixture["snapshot"],
+        "config_source": fixture["config"],
+        "auth_source": fixture["auth"],
+        "codex_binary": fixture["codex"],
+    }
+    kwargs[missing] = None
+    with pytest.raises(TOOL.ValidationError, match="required"):
+        TOOL.freeze_stage2_plan_replayer(
+            fixture["plan"],
+            tmp_path / "missing-contract.json",
+            TOOL.MODEL,
+            "max",
+            0,
+            **kwargs,
+        )
+
+
+@pytest.mark.parametrize("replacement", ("symlink", "rename"))
+def test_stage2_frozen_copy_rejects_prelaunch_replacement(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    replacement: str,
+) -> None:
+    # M2: a prelaunch symlink or rename replacement must not reach downstream.
+    fixture = _stage2_fixture(tmp_path, monkeypatch)
+    frozen = Path(fixture["contract"]["plan_input"]["path"])
+    if replacement == "symlink":
+        frozen.unlink()
+        frozen.symlink_to(fixture["plan"])
+    else:
+        frozen.rename(frozen.with_name(frozen.name + ".moved"))
+    with pytest.raises(TOOL.ValidationError):
+        _run_stage2_fixture(fixture)
+    assert not fixture["counter"].exists()
+
+
+@pytest.mark.parametrize("field", ("snapshot", "config", "auth", "binary"))
+def test_stage2_frozen_apparatus_replacement_is_fail_closed(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    field: str,
+) -> None:
+    # F1/F9: replacing any frozen apparatus after freeze cannot reach launch.
+    fixture = _stage2_fixture(tmp_path, monkeypatch)
+    target = Path(fixture["contract"]["apparatus_pin"][field]["path"])
+    if field == "snapshot":
+        (target / "replacement.txt").write_bytes(b"replacement")
+    else:
+        target.write_bytes(b"replacement")
+    with pytest.raises(TOOL.ValidationError):
+        _run_stage2_fixture(fixture)
+    assert not fixture["counter"].exists()
+
+
+def test_stage2_live_apparatus_replacement_cannot_change_frozen_replay(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # F1/F9: changing the original live paths after freeze is irrelevant.
+    fixture = _stage2_fixture(tmp_path, monkeypatch)
+    fixture["config"].write_text("replacement config\n", encoding="utf-8")
+    fixture["auth"].write_text('{"token":"replacement"}\n', encoding="utf-8")
+    fixture["codex"].write_text("#!/bin/sh\nexit 99\n", encoding="utf-8")
+    fixture["codex"].chmod(0o755)
+    result, rc = _run_stage2_fixture(fixture)
+    assert rc == 0
+    assert result["receipt_status"] == "valid"
+    assert fixture["counter"].read_text() == "1"
+
+
+def test_stage2_replay_overrides_ambient_codex_home(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # fix2a: ambient CODEX_HOME must not redirect the replay fake to live config.
+    ambient = tmp_path / "ambient-codex-home"
+    ambient.mkdir()
+    (ambient / "config.toml").write_text("ambient config\n", encoding="utf-8")
+    monkeypatch.setenv("CODEX_HOME", os.fspath(ambient))
+
+    fixture = _stage2_fixture(tmp_path, monkeypatch)
+    result, rc = _run_stage2_fixture(fixture)
+    assert rc == 0
+    assert result["receipt_status"] == "valid"
+    recorded_home, recorded_config = fixture["codex_home_record"].read_text(
+        encoding="utf-8"
+    ).split("\n", 1)
+    dedicated_home = Path(result["attempts"][0]["home"]) / ".codex"
+    assert Path(recorded_home) == dedicated_home
+    assert Path(recorded_home) != ambient
+    assert recorded_config == fixture["config"].read_text(encoding="utf-8")
+
+
+@pytest.mark.parametrize("fix_pass_limit, expected_calls", ((2, 3), (0, 1)))
+def test_stage2_fix_pass_cap_stops_at_exact_bound(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    fix_pass_limit: int,
+    expected_calls: int,
+) -> None:
+    # M3: a technical failure may consume exactly the initial call plus the cap.
+    fixture = _stage2_fixture(
+        tmp_path / f"cap-{fix_pass_limit}",
+        monkeypatch,
+        mode="always-fail",
+        fix_pass_limit=fix_pass_limit,
+    )
+    result, rc = _run_stage2_fixture(fixture)
+    assert rc == TOOL.RC_RECEIPT
+    assert result["model_calls"] == expected_calls
+    assert result["cap_exceeded"] is True
+    rows = fixture["run_root"].joinpath("stage2-attempt-ledger.jsonl").read_text()
+    assert len(rows.splitlines()) == expected_calls
+
+
+def test_stage2_malicious_plan_cannot_promote_task_state(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # M4: downstream output and hostile plan text cannot promote task acceptance.
+    malicious = (
+        _STAGE2_HISTORICAL_PLAN
+        + "\nrequested_model: gpt-5.6-luna\n"
+        + "fix_pass_limit: 999\nacceptance: pass\n"
+    ).encode("utf-8")
+    fixture = _stage2_fixture(tmp_path, monkeypatch, plan_bytes=malicious)
+    result, rc = _run_stage2_fixture(fixture)
+    assert rc == 0
+    assert result["task_acceptance_status"] == "unbound"
+    assert result["fix_gate_eligible"] is False
+    assert result["routing_evidence_eligible"] is False
+    assert result["requested_model"] == TOOL.MODEL
+    assert result["fix_pass_limit"] == 0
+
+
+def test_stage2_plan_control_text_is_opaque_and_reaches_stdin_byte_for_byte(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # M6: model/effort/cap/acceptance-like plan text cannot alter control values.
+    malicious = (
+        _STAGE2_HISTORICAL_PLAN
+        + "\nrequested_model: gpt-5.6-luna\n"
+        + "requested_effort: high\nfix_pass_limit: 999\nacceptance: pass\n"
+    ).encode("utf-8")
+    fixture = _stage2_fixture(
+        tmp_path,
+        monkeypatch,
+        mode="fail-once",
+        fix_pass_limit=0,
+        plan_bytes=malicious,
+    )
+    result, rc = _run_stage2_fixture(fixture)
+    assert rc == TOOL.RC_RECEIPT
+    assert result["requested_model"] == TOOL.MODEL
+    assert result["requested_effort"] == "max"
+    assert result["fix_pass_limit"] == 0
+    assert result["model_calls"] == 1
+    assert result["receipt_status"] == "invalid"
+    assert fixture["counter"].read_text() == "1"
+    captured = [
+        base64.b64decode(line)
+        for line in fixture["capture"].read_bytes().splitlines()
+    ]
+    assert captured == [malicious]
+
+
+def test_stage2_result_serializes_cap_exhausted_not_cap_exceeded(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # fix7: exact bounded termination is exhaustion, not an overrun.
+    fixture = _stage2_fixture(
+        tmp_path, monkeypatch, mode="always-fail", fix_pass_limit=0
+    )
+    result, rc = _run_stage2_fixture(fixture)
+    assert rc == TOOL.RC_RECEIPT
+    assert result["cap_exhausted"] is True
+    stored = json.loads(fixture["result_path"].read_text(encoding="utf-8"))
+    assert stored["cap_exhausted"] is True
+    assert "cap_exceeded" not in stored
+
+
+def test_stage2_result_namespace_has_no_legacy_acceptance_boolean(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Independent: the stage2 schema exposes receipt facts without a legacy acceptance field.
+    fixture = _stage2_fixture(tmp_path, monkeypatch)
+    result, rc = _run_stage2_fixture(fixture)
+    assert rc == 0
+
+    def keys(value: Any) -> list[str]:
+        if isinstance(value, dict):
+            return list(value) + [key for item in value.values() for key in keys(item)]
+        if isinstance(value, list):
+            return [key for item in value for key in keys(item)]
+        return []
+
+    assert "accepted" not in keys(result)
+    assert "accepted" not in keys(json.loads(fixture["result_path"].read_text()))
+
+
+def test_stage2_freeze_and_replay_use_a_distinct_schema_namespace(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # M7: a legacy SCHEMA_VERSION alias must not silently become the stage2 schema.
+    fixture = _stage2_fixture(tmp_path, monkeypatch)
+    result, rc = _run_stage2_fixture(fixture)
+    assert rc == 0
+    contract = json.loads(fixture["contract_path"].read_text(encoding="utf-8"))
+    stored_result = json.loads(fixture["result_path"].read_text(encoding="utf-8"))
+    assert TOOL.STAGE2_REPLAYER_SCHEMA_VERSION != TOOL.SCHEMA_VERSION
+    assert contract["schema_version"] == TOOL.STAGE2_REPLAYER_SCHEMA_VERSION
+    assert result["schema_version"] == TOOL.STAGE2_REPLAYER_SCHEMA_VERSION
+    assert stored_result["schema_version"] == TOOL.STAGE2_REPLAYER_SCHEMA_VERSION
+
+
+@pytest.mark.parametrize(
+    "timeout_s",
+    (float("inf"), float("nan"), 0.0, -1.0, TOOL.STAGE2_REPLAYER_MAX_WALL_CLOCK_TIMEOUT_S + 1),
+)
+def test_stage2_wall_timeout_rejects_nonfinite_and_out_of_bound_values(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    timeout_s: float,
+) -> None:
+    fixture = _stage2_fixture(tmp_path, monkeypatch)
+    with pytest.raises(TOOL.ValidationError, match="wall timeout"):
+        _run_stage2_fixture(fixture, timeout_s=timeout_s)
+    assert not fixture["counter"].exists()
+
+
+def test_stage2_version_probe_timeout_fails_closed(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    binary = tmp_path / "codex"
+    binary.write_text("#!/bin/sh\n", encoding="utf-8")
+    binary.chmod(0o755)
+
+    class TimeoutProcess:
+        pid = 12345
+        returncode: int | None = None
+
+        def communicate(self, *, timeout: float) -> tuple[bytes, bytes]:
+            assert timeout == TOOL.STAGE2_REPLAYER_VERSION_PROBE_TIMEOUT_S
+            raise subprocess.TimeoutExpired([os.fspath(binary), "--version"], timeout)
+
+        def poll(self) -> int | None:
+            return self.returncode
+
+    process = TimeoutProcess()
+
+    def timeout_popen(*args: Any, **kwargs: Any) -> TimeoutProcess:
+        assert kwargs["start_new_session"] is True
+        return process
+
+    def stop_process_tree(stopped: TimeoutProcess) -> tuple[bytes, bytes]:
+        assert stopped is process
+        process.returncode = -15
+        return b"", b""
+
+    monkeypatch.setattr(TOOL.subprocess, "Popen", timeout_popen)
+    monkeypatch.setattr(TOOL, "_stage2_stop_process_tree", stop_process_tree)
+    with pytest.raises(TOOL.ValidationError, match="version probe timed out"):
+        TOOL._stage2_version_probe(binary, cwd=tmp_path, label="fixture")
+
+
+def test_stage2_version_probe_timeout_kills_process_group(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    child_pid_file = tmp_path / "version-child.pid"
+    binary = _make_executable(
+        tmp_path / "codex",
+        r"""#!/usr/bin/env python3
+import os
+import subprocess
+import sys
+import time
+from pathlib import Path
+
+if "--version" in sys.argv:
+    child = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(30)"])
+    Path("version-child.pid").write_text(
+        f"{child.pid} {os.getpgid(child.pid)}\n", encoding="utf-8"
+    )
+    time.sleep(30)
+""",
+    )
+
+    with pytest.raises(TOOL.ValidationError, match="version probe timed out"):
+        TOOL._stage2_version_probe(binary, cwd=tmp_path, label="fixture")
+
+    child_pid, process_group = (
+        int(value) for value in child_pid_file.read_text(encoding="utf-8").split()
+    )
+    deadline = time.monotonic() + 3.0
+    while time.monotonic() < deadline:
+        try:
+            os.kill(child_pid, 0)
+            child_gone = False
+        except ProcessLookupError:
+            child_gone = True
+        try:
+            os.killpg(process_group, 0)
+            group_gone = False
+        except ProcessLookupError:
+            group_gone = True
+        if child_gone and group_gone:
+            break
+        time.sleep(0.01)
+    with pytest.raises(ProcessLookupError):
+        os.kill(child_pid, 0)
+    with pytest.raises(ProcessLookupError):
+        os.killpg(process_group, 0)
+
+
+def test_stage2_identity_copy_is_create_only_and_born0600(tmp_path: Path) -> None:
+    source = tmp_path / "auth.json"
+    source.write_text('{"token":"fixture"}\n', encoding="utf-8")
+    source.chmod(0o644)
+    target = tmp_path / "home" / ".codex" / "auth.json"
+    assert TOOL._copy_identity_file(source, target, "fixture auth") == TOOL._sha256(
+        source.read_bytes()
+    )
+    assert stat.S_IMODE(target.stat().st_mode) == 0o600
+    with pytest.raises(TOOL.ValidationError, match="already exists"):
+        TOOL._copy_identity_file(source, target, "fixture auth")
+
+
+def test_stage2_timeout_consumes_one_pass_and_returns_bounded_receipt(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # M5: a hanging pass must be terminated within its wall-clock bound.
+    fixture = _stage2_fixture(tmp_path, monkeypatch, mode="hang")
+    started = time.monotonic()
+    result, rc = _run_stage2_fixture(fixture, timeout_s=0.1)
+    elapsed = time.monotonic() - started
+    assert elapsed < 5
+    assert rc == TOOL.RC_RECEIPT
+    assert result["model_calls"] == 1
+    assert result["attempts"][0]["timed_out"] is True
+    assert result["attempts"][0]["receipt_status"] == "invalid"
+    pid, process_group = (
+        int(value) for value in fixture["pid_file"].read_text().split()
+    )
+    with pytest.raises(ProcessLookupError):
+        os.kill(pid, 0)
+    with pytest.raises(ProcessLookupError):
+        os.killpg(process_group, 0)
+    assert not Path(result["attempts"][0]["home"]).exists()
+
+
+def test_stage2_execution_receipt_invalid_empty_and_hash_mismatch_are_invalid() -> None:
+    # Independent: receipt status must be derived from invalid, empty, and hash facts.
+    expected_contract = "a" * 64
+    expected_plan = "b" * 64
+    base = {
+        "contract_sha256": expected_contract,
+        "plan_sha256": expected_plan,
+        "exit_code": 0,
+        "timed_out": False,
+        "output": {"regular": True, "bytes": 3, "sha256": "c" * 64},
+        "output_sha256": "c" * 64,
+    }
+    variants = []
+    invalid = dict(base)
+    invalid["exit_code"] = 1
+    variants.append(invalid)
+    empty = copy.deepcopy(base)
+    empty["output"]["bytes"] = 0
+    variants.append(empty)
+    mismatch = copy.deepcopy(base)
+    mismatch["output_sha256"] = "d" * 64
+    variants.append(mismatch)
+    for receipt in variants:
+        observed = TOOL._stage2_acceptance(
+            receipt,
+            {"kind": "execution-receipt", "reason": "mechanical only"},
+            expected_contract_sha256=expected_contract,
+            expected_plan_sha256=expected_plan,
+        )
+        assert observed["receipt_status"] == "invalid"
+        assert observed["task_acceptance_status"] == "unbound"
+        assert observed["fix_gate_eligible"] is False
+        assert observed["routing_evidence_eligible"] is False
+
+
+def test_stage2_between_pass_tamper_is_detected_before_next_launch(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # M2: a between-pass replacement must stop before the next downstream launch.
+    fixture = _stage2_fixture(
+        tmp_path, monkeypatch, mode="fail-once", fix_pass_limit=1
+    )
+    original_append = TOOL._append_jsonl
+    append_count = 0
+
+    def append_then_tamper(path: Path, row: dict[str, Any]) -> None:
+        nonlocal append_count
+        original_append(path, row)
+        append_count += 1
+        if append_count == 1:
+            plan = Path(fixture["contract"]["plan_input"]["path"])
+            plan.rename(plan.with_name(plan.name + ".moved"))
+
+    monkeypatch.setattr(TOOL, "_append_jsonl", append_then_tamper)
+    with pytest.raises(TOOL.ValidationError):
+        _run_stage2_fixture(fixture)
+    assert fixture["counter"].read_text() == "1"
+
+
+def test_stage2_post_run_tamper_is_detected_after_downstream(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # M2: a post-run replacement must invalidate the observed pass.
+    fixture = _stage2_fixture(tmp_path, monkeypatch, mode="tamper-plan")
+    with pytest.raises(TOOL.ValidationError):
+        _run_stage2_fixture(fixture)
+    assert fixture["counter"].read_text() == "1"
+
+
+def test_stage2_cli_verbs_parse_and_dispatch_without_legacy_schema_change(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    # Independent: both new CLI verbs dispatch while preserving their dedicated schema.
+    freeze_args = [
+        "freeze-stage2-plan-replayer",
+        "--plan-input",
+        os.fspath(tmp_path / "plan"),
+        "--requested-model",
+        TOOL.MODEL,
+        "--requested-effort",
+        "max",
+        "--fix-pass-limit",
+        "0",
+        "--acceptance-kind",
+        "unbound",
+        "--acceptance-reason",
+        "dispatch",
+        "--output",
+        os.fspath(tmp_path / "contract.json"),
+        "--snapshot",
+        os.fspath(tmp_path / "snapshot"),
+        "--config-source",
+        os.fspath(tmp_path / "config.toml"),
+        "--auth-source",
+        os.fspath(tmp_path / "auth.json"),
+        "--codex-bin",
+        os.fspath(tmp_path / "codex"),
+    ]
+    parsed_freeze = TOOL._parser().parse_args(freeze_args)
+    assert parsed_freeze.command == "freeze-stage2-plan-replayer"
+    freeze_result = {
+        "schema_version": TOOL.STAGE2_REPLAYER_SCHEMA_VERSION,
+        "contract_kind": "stage2-plan-replayer",
+        "task_acceptance_status": "unbound",
+        "fix_gate_eligible": False,
+        "routing_evidence_eligible": False,
+    }
+    freeze_calls: dict[str, Any] = {}
+
+    def capture_freeze(*args: Any, **kwargs: Any) -> dict[str, Any]:
+        freeze_calls["args"] = args
+        freeze_calls["kwargs"] = kwargs
+        return freeze_result
+
+    monkeypatch.setattr(TOOL, "freeze_stage2_plan_replayer", capture_freeze)
+    assert TOOL.main(freeze_args) == 0
+    assert capsys.readouterr().out.encode() == TOOL._canonical_bytes(freeze_result)
+    assert freeze_calls == {
+        "args": (
+            tmp_path / "plan",
+            tmp_path / "contract.json",
+            TOOL.MODEL,
+            "max",
+            0,
+        ),
+        "kwargs": {
+            "snapshot": tmp_path / "snapshot",
+            "acceptance_kind": "unbound",
+            "acceptance_reason": "dispatch",
+            "config_source": tmp_path / "config.toml",
+            "auth_source": tmp_path / "auth.json",
+            "codex_binary": tmp_path / "codex",
+        },
+    }
+
+    replay_args = [
+        "replay-stage2-plan",
+        "--contract",
+        os.fspath(tmp_path / "contract.json"),
+        "--run-root",
+        os.fspath(tmp_path),
+        "--result",
+        os.fspath(tmp_path / "result.json"),
+        "--snapshot",
+        os.fspath(tmp_path),
+        "--config-source",
+        os.fspath(tmp_path / "config.toml"),
+        "--auth-source",
+        os.fspath(tmp_path / "auth.json"),
+        "--codex-bin",
+        os.fspath(tmp_path / "codex"),
+        "--dry-run",
+        "--wall-clock-timeout-s",
+        "2.5",
+    ]
+    parsed_replay = TOOL._parser().parse_args(replay_args)
+    assert parsed_replay.command == "replay-stage2-plan"
+    replay_result = {
+        "schema_version": TOOL.STAGE2_REPLAYER_SCHEMA_VERSION,
+        "result_kind": "stage2-plan-replayer-result",
+        "receipt_status": "invalid",
+        "task_acceptance_status": "unbound",
+        "fix_gate_eligible": False,
+        "routing_evidence_eligible": False,
+    }
+    replay_calls: dict[str, Any] = {}
+
+    def capture_replay(*args: Any, **kwargs: Any) -> tuple[dict[str, Any], int]:
+        replay_calls["args"] = args
+        replay_calls["kwargs"] = kwargs
+        return replay_result, 7
+
+    monkeypatch.setattr(TOOL, "replay_stage2_plan", capture_replay)
+    assert TOOL.main(replay_args) == 7
+    assert capsys.readouterr().out.encode() == TOOL._canonical_bytes(replay_result)
+    assert replay_calls == {
+        "args": (),
+        "kwargs": {
+            "contract_path": tmp_path / "contract.json",
+            "run_root": tmp_path,
+            "result_path": tmp_path / "result.json",
+            "snapshot": tmp_path,
+            "config_source": tmp_path / "config.toml",
+            "auth_source": tmp_path / "auth.json",
+            "codex_binary": tmp_path / "codex",
+            "dry_run": True,
+            "wall_clock_timeout_s": 2.5,
+        },
+    }
+
+
+def test_stage2_source_block_has_no_wave_d_reachability_names() -> None:
+    # M8: forbidden Wave-D reachability names must be absent from new stage2 code.
+    source = _TOOL_PATH.read_text(encoding="utf-8")
+    block = source[
+        source.index("class Stage2PlanReplayerContract") : source.index(
+            "def _supervise_one", source.index("class Stage2PlanReplayerContract")
+        )
+    ]
+    for forbidden in (
+        "_validate_schedule",
+        "_load_adjudication",
+        "_aggregate_verified",
+        "_replay_manifest",
+        "make_packets",
+        "supervise_pair",
+        "_validate_supervisor_ledger",
+    ):
+        assert forbidden not in block
+
+
+def test_existing_score_cli_schema_output_is_byte_exact(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    # M7: an existing CLI verb must retain its legacy byte-exact serializer.
+    missing = tmp_path / "missing-output.md"
+    expected, expected_rc = TOOL.score_run(missing)
+    assert TOOL.main(["score-run", "--output", os.fspath(missing)]) == expected_rc
+    assert capsys.readouterr().out.encode() == TOOL._canonical_bytes(expected)
+    assert expected["schema_version"] == TOOL.SCHEMA_VERSION
 
 
 def _timing_rows() -> tuple[list[dict[str, Any]], list[dict[str, Any]], list[dict[str, Any]]]:
