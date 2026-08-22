@@ -1307,16 +1307,19 @@ with calls.open("a", encoding="utf-8") as stream:
     stream.flush()
     os.fsync(stream.fileno())
 
-real_write = DC._write_json_x
+real_write = DC._write_json_atomic_replace
 
 
 def fail_hold(path, payload, **kwargs):
-    if Path(path).name == DC._ORPHAN_HOLD_NAME:
+    if (
+        Path(path).name == DC._ORPHAN_HOLD_NAME
+        and not kwargs.get("create_only", False)
+    ):
         raise OSError("injected dispatcher hold write failure")
     return real_write(path, payload, **kwargs)
 
 
-DC._write_json_x = fail_hold
+DC._write_json_atomic_replace = fail_hold
 clock = Clock()
 raise SystemExit(
     DC.dispatch(
