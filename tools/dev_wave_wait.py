@@ -225,10 +225,11 @@ _MIN_ACCEPTANCE_POLL_SECONDS = 30
 _MAX_ACCEPTANCE_POLL_SECONDS = 120
 _DEFAULT_ACCEPTANCE_MAX_WAIT_SECONDS = 7200
 _MAX_ACCEPTANCE_ATTEMPTS = 2
-_STAGE_TIMEOUT_SECONDS = 300
+_STAGE_TIMEOUT_SECONDS = 1200
 _STAGE_TERMINATION_SECONDS = 5
+_STAGE_GRACEFUL_TERMINATION_SECONDS = 100
 _LEASE_TTL_SECONDS = 2400
-_RECEIPT_PUBLISH_MIN_TTL_SECONDS = _STAGE_TIMEOUT_SECONDS
+_RECEIPT_PUBLISH_MIN_TTL_SECONDS = 300
 _RECEIPT_SCHEMA_VERSION = "dev-wave-acceptance-receipt/v5"
 _PRODUCER_RECEIPT_SCHEMA_VERSION = "dev-wave-producer-receipt/v1"
 _RECEIPT_AUTHORITY_KIND = "dev-wave-acceptance-launcher"
@@ -722,18 +723,31 @@ def _run_subprocess(
     try:
         stdout, stderr = process.communicate(timeout=_STAGE_TIMEOUT_SECONDS)
     except BaseException:
+        # SIGKILL を即座に送ると、この stage が計算ノードへ dispatch した子
+        # (例: check_ai_provenance.py 経由の dispatch_compute.py) の
+        # SIGTERM ハンドラ (qdel を含む cleanup) が発火する機会を失い、
+        # PBS job が孤児化する。まず SIGTERM で正規の cleanup 経路に委ね、
+        # dispatch_compute.py の cleanup budget (最大 90 秒目安) に余裕を
+        # 持たせた猶予の後だけ SIGKILL へ倒す。
         try:
-            os.killpg(process.pid, signal.SIGKILL)
+            os.killpg(process.pid, signal.SIGTERM)
         except ProcessLookupError:
             pass
         try:
-            process.communicate(timeout=_STAGE_TERMINATION_SECONDS)
+            process.communicate(timeout=_STAGE_GRACEFUL_TERMINATION_SECONDS)
         except subprocess.TimeoutExpired:
-            process.kill()
             try:
-                process.wait(timeout=_STAGE_TERMINATION_SECONDS)
-            except subprocess.TimeoutExpired:
+                os.killpg(process.pid, signal.SIGKILL)
+            except ProcessLookupError:
                 pass
+            try:
+                process.communicate(timeout=_STAGE_TERMINATION_SECONDS)
+            except subprocess.TimeoutExpired:
+                process.kill()
+                try:
+                    process.wait(timeout=_STAGE_TERMINATION_SECONDS)
+                except subprocess.TimeoutExpired:
+                    pass
         raise
     return _CommandResult(
         process.returncode,
@@ -788,17 +802,24 @@ def _run_subprocess_with_input(
         )
     except BaseException:
         try:
-            os.killpg(process.pid, signal.SIGKILL)
+            os.killpg(process.pid, signal.SIGTERM)
         except ProcessLookupError:
             pass
         try:
-            process.communicate(timeout=_STAGE_TERMINATION_SECONDS)
+            process.communicate(timeout=_STAGE_GRACEFUL_TERMINATION_SECONDS)
         except subprocess.TimeoutExpired:
-            process.kill()
             try:
-                process.wait(timeout=_STAGE_TERMINATION_SECONDS)
-            except subprocess.TimeoutExpired:
+                os.killpg(process.pid, signal.SIGKILL)
+            except ProcessLookupError:
                 pass
+            try:
+                process.communicate(timeout=_STAGE_TERMINATION_SECONDS)
+            except subprocess.TimeoutExpired:
+                process.kill()
+                try:
+                    process.wait(timeout=_STAGE_TERMINATION_SECONDS)
+                except subprocess.TimeoutExpired:
+                    pass
         raise
     return _BinaryCommandResult(
         process.returncode,
@@ -956,17 +977,24 @@ def _default_tip_waiter_bytes_sha256(repo: Path, tip_sha: str) -> object:
         stdout, _stderr = process.communicate(timeout=_STAGE_TIMEOUT_SECONDS)
     except BaseException:
         try:
-            os.killpg(process.pid, signal.SIGKILL)
+            os.killpg(process.pid, signal.SIGTERM)
         except ProcessLookupError:
             pass
         try:
-            process.communicate(timeout=_STAGE_TERMINATION_SECONDS)
+            process.communicate(timeout=_STAGE_GRACEFUL_TERMINATION_SECONDS)
         except subprocess.TimeoutExpired:
-            process.kill()
             try:
-                process.wait(timeout=_STAGE_TERMINATION_SECONDS)
-            except subprocess.TimeoutExpired:
+                os.killpg(process.pid, signal.SIGKILL)
+            except ProcessLookupError:
                 pass
+            try:
+                process.communicate(timeout=_STAGE_TERMINATION_SECONDS)
+            except subprocess.TimeoutExpired:
+                process.kill()
+                try:
+                    process.wait(timeout=_STAGE_TERMINATION_SECONDS)
+                except subprocess.TimeoutExpired:
+                    pass
         raise
     if process.returncode != 0:
         raise _TipWaiterBlobError("git-cat-file", process.returncode)
