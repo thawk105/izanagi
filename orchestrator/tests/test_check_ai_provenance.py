@@ -2110,6 +2110,19 @@ def test_known_violation_ledger_matches_literal_entries():
             "outer gitlink を参照しないため影響なし",
             "",
         ),
+        (
+            "e86d363a876ab00e7e6b37dfdd94385e5ab03816",
+            "missing-codex-author",
+            "本セッション内でユーザーへ状況を説明し known-violation 登録の続行を承認された (2026-08-21、3回目)",
+            "merge commit `e86d363a876ab00e7e6b37dfdd94385e5ab03816` は、本waveとmain側の別waveが独立にcommit "
+            "`09ce607b779272fda5629a350676471a16bea9bb` (ユーザーのccbench pin更新commit) を "
+            "known-violation登録したことによる重複エントリの競合を、親のClaudeセッションが直接解決したものである。"
+            "実装面で競合したのは `tools/check_ai_provenance.py` と "
+            "`orchestrator/tests/test_check_ai_provenance.py` の2 fileで、解決は両親のいずれかに既存するテキストの"
+            "選択・配置のみ (新規著作なし) であることを、親セッションが両親の内容と結合結果を行単位で"
+            "機械比較して確認済み (結合結果の全行がどちらかの親に存在)。",
+            "",
+        ),
     )
     assert len(provenance.KNOWN_PROVENANCE_VIOLATIONS) == len(expected)
     assert observed == expected

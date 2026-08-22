@@ -486,6 +486,18 @@ _T1458_PRE_ACCEPTANCE_MERGE_NOTE = (
     "reasoning=not-exposed; role=integrator` のみで Codex `role=author` 行がないため、checker が "
     "missing-codex-author を検出した。親作成 merge のため Codex 著者とは記さない。"
 )
+_T1458_MERGE2_RULING = (
+    "本セッション内でユーザーへ状況を説明し known-violation 登録の続行を承認された (2026-08-21、3回目)"
+)
+_T1458_MERGE2_NOTE = (
+    "merge commit `e86d363a876ab00e7e6b37dfdd94385e5ab03816` は、本waveとmain側の別waveが独立にcommit "
+    "`09ce607b779272fda5629a350676471a16bea9bb` (ユーザーのccbench pin更新commit) を "
+    "known-violation登録したことによる重複エントリの競合を、親のClaudeセッションが直接解決したものである。"
+    "実装面で競合したのは `tools/check_ai_provenance.py` と "
+    "`orchestrator/tests/test_check_ai_provenance.py` の2 fileで、解決は両親のいずれかに既存するテキストの"
+    "選択・配置のみ (新規著作なし) であることを、親セッションが両親の内容と結合結果を行単位で"
+    "機械比較して確認済み (結合結果の全行がどちらかの親に存在)。"
+)
 KNOWN_PROVENANCE_VIOLATIONS = (
     KnownViolationSpec(
         "88f0f9f081f7c76c8ab5fc4a94e2640f70af129b",
@@ -971,6 +983,12 @@ KNOWN_PROVENANCE_VIOLATIONS = (
             "AI-Agent trailer が存在しないため `missing-ai-agent` として登録；T-755 の wave は"
             "outer gitlink を参照しないため影響なし"
         ),
+    ),
+    KnownViolationSpec(
+        "e86d363a876ab00e7e6b37dfdd94385e5ab03816",
+        MISSING_CODEX_AUTHOR,
+        _T1458_MERGE2_RULING,
+        note=_T1458_MERGE2_NOTE,
     ),
 )
 
