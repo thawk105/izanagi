@@ -175,11 +175,11 @@ lock 再取得後に全検査をやり直し、`tip_sha` / `checker_blob_sha` / 
 ## DW-O27 — acceptance は lease を待たない
 
 D662 により受入 lease の待ち行列は廃止し、待ち機構を実装から除去した。
-`tools/dev_wave_wait.py acceptance` は claim を 1 回だけ試み、`held` でも待たず
-疑似 holder (`sha256(wave)[:12]`) で投入する。待つ経路は無く flag でも戻せない。
+`tools/dev_wave_wait.py acceptance` は投入前 claim を 1 回だけ行い、`held` でも待たず
+wave digest の疑似 holder で投入する。待つ経路は無く flag でも戻せない。
 `--lease-optional` と `--poll-seconds` は後方互換の no-op。`stale-held`・`unavailable`
 は従来どおり fail-closed。integrity 検査と receipt の全 field は未取得でも不変。
-`--lease-dir` は省略せず専用 dir で迂回しない。取得できた走行だけが `release` する。
+`--lease-dir` は省略せず専用 dir で迂回しない。未取得が確定した走行は `release` しない。
 
 `tools/check_docs.py` の dispatch 契約へ新節を登録する際は、
 `orchestrator/tests/test_check_docs.py` の合成 fixture との整合性を同じ
