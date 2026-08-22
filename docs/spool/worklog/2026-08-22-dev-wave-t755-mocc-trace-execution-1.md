@@ -80,6 +80,13 @@ title: [T-755] mocc trace v2のTRACE=1正しさ検証パイロットを実機実
   失敗し `status=invalid-input` で判定不能に終わった。同じ `git worktree add` を手で再現すると
   rc=0 で成功する。投入時点で他に 3 本の受入全走が同じ repo に対して走っており、共有 `.git` への
   ロック競合による一過性失敗と判断した (main の worklog に同型の先例あり)。attempt 2 を投入する。
+- attempt 2 も判定器が別型の一過性失敗で終わった (submodule の cache-only URL rewrite が
+  rc=255、共有 `.git/config` へのロック競合)。全走自体は 36 failed / 14249 passed で、
+  attempt 1 の 26 件に `orchestrator/tests/test_t810_coordinator.py` 系が加わっている。
+  投入時点で他 wave の受入全走が 4 本同時に走っており、赤の件数も判定器の失敗も
+  並行度に連動する。いずれも本 wave の差分の面ではない。以降は既知の一過性失敗
+  (`invalid-input` / `no-verdict-infra` / `claim-timeout`) だけを再試行し、
+  `status=attributable-red` が出たら即停止する自動ループへ移した。
 
 ## 次の一手差分
 
