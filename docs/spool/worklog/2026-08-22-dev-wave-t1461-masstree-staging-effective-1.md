@@ -66,6 +66,30 @@ title: '[T-1461] floor campaignのmasstree/mimalloc/googletest依存解決をsta
   `e13047b9` から byte 不変であることを実測したためである。追加 fix の編集面
   (admission registry・test_hooks・runbook) は変異面と素集合で、test nodeid も増減しない。
 
+- 受入全走 1 回目 (2026-08-23、Pegasus 計算ノード request 937278.nqsv、走行 225 秒) は
+  `status=attributable-red` で、**帰属する赤は 1 件だけ**だった —
+  `test_pegasus_policy_registry.py::test_pegasus_policy_registry_is_complete_and_tracked`。
+  本 wave が新設した `tools/pegasus/policies/floor_masstree_payload_v1.json` が Pegasus
+  **policy** registry (`tools/pegasus/policies/registry_v1.json`) へ未登録だった。
+  先に閉じた admission registry とは別の registry である (前者は実行体の login admission、
+  後者は予約設定 file の所在 inventory)。fix commit `771e040b`。
+  同期閉包で重要なのは `orchestrator/tests/test_claude_transport.py` の
+  **registry dict 全体の exact 等値 pin** で、registry を直した瞬間に赤化する側である
+  (直す前は緑なので、受入の赤を見てからでは気づけない)。
+- **同じ受入で観測した `test_sort_swo_oracle.py` の 26 件は非帰属と判定された。**
+  `check_acceptance_reds.py` が tested_main (`83baeefa`) 側で再走して再現を確認しており、
+  本 wave の差分に到達しえない。根因は repo 外の第三者キャッシュ
+  `/work/1-thirdparty-cache/masstree` に `config.h` が無いことで、
+  `OracleEnvironmentResolutionFailure(detail_code='oracle-environment-dependency-unresolved',
+  outcome='config-h-missing')` として現れる。**local main が既にこの 26 件で赤い。**
+  本 wave の scope 外なので直していない。
+- 新規 file を governed directory へ足す wave の教訓: 消費側は module 名を参照するテストでは
+  なく **directory を走査する meta-test** であり、module 名 grep では見つからない。
+  本 wave では admission registry (`tools/pegasus/` 走査) と policy registry
+  (`tools/pegasus/policies/` 走査) の 2 つを、それぞれ焦点走と受入全走で 1 つずつ踏んだ。
+  機械的な引き方は `grep -rl "tools/pegasus" orchestrator/tests/` のように
+  **directory path 文字列**でテストを引くことである。
+
 
 ## 次の一手差分
 
