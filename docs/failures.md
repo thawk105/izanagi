@@ -11608,3 +11608,74 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   dev-wave改善候補へ送る (未確定、記録のみ)。
 - 再発検知: 複数productionファイル変更waveで、DW-O26のconsumer test拡張grepコマンドが
   変更ファイル数と1対1で存在するか段6レビューで確認する。
+
+### F460. 段3並列lane起動で明示job-idがlaneと合成されず衝突した [手順漏れ]
+
+- 事象: 段3の敵対相談で sol/luna 両レンズに同一の明示 `--job-id consult1` を渡して並列起動した。
+  `tools/dev_wave_codex.py` の artifact bucket が `--job-id` だけで決まり `--lane` と合成
+  されなかったため、両方が同じ `consult1/` バケットを取り合った。先発 (luna) は
+  「NG: attempt artifact が既に存在する」で安全に rc=2 拒否されたが、後発 (sol) は約10分間
+  実際に走行し `attempt-0001.output.md` へ実出力を書いたにもかかわらず、receipt.json の
+  finalize 時点で既に luna の失敗 receipt がバケットを占有しており
+  「NG: 既存の完全な receipt は上書きできない」で正式な receipt を作れなかった。
+  `dev_wave_wait.py producer` はどちらも rc=70 (pid死亡+.done欠落) として報告し、
+  一見「両方失敗した」ように見えた。
+- 根本原因: DW-O01/DW-C01 は artifact bucket が (wave, stage, lane) の組で決まると記す一方、
+  明示 `--job-id` を渡した場合の合成規則 (lane を含めるべきか) を明記していない。
+  `tools/dev_wave_codex.py` の実装は `--job-id` 指定時にそれを bucket 名としてそのまま使う
+  (lane を合成しない) ため、並列 lane 起動で明示 job-id を lane ごとに書き分けないと衝突する。
+- 恒久対応: 未実施。段8で `docs/dev-wave/operations.md` の `DW-O01` (`L1.5` 予算超過) と
+  `docs/dev-wave/core.md` の `DW-C01` (逐語 exact 契約節、挿入不可) の両方への追記を試みたが
+  いずれも `tools/check_docs.py` の構造検査 (予算・exact 契約) に阻まれ本 wave では見送った。
+  ユーザー裁定へ、値上げ (予算緩和) を伴わない解決策 (他 leaf 節への配置転換、既存文の圧縮
+  余地の拡大等) の検討を委ねる。
+- 再発検知: 未整備。`tools/dev_wave_codex.py` 側でのバケット衝突検出時の警告強化、または
+  `--lane` 指定時に `--job-id` へ自動で lane を suffix する変更が候補になりうるが、
+  いずれも本 wave の scope 外。
+
+### F461. `mutation_worktree.py`の`--wrapper-attempt`は`--attempt-out`と同時指定必須という制約が`--help`から読み取れない [手順漏れ]
+
+- 事象: 段6の変異matrix実走で `--wrapper-attempt 1` だけを指定し `--attempt-out` を省略して
+  `tools/mutation_worktree.py` を起動したところ、`mutation worktree aborted: --attempt-out と
+  --wrapper-attempt は同時指定が必要` で即座に (実際の変異走行前に) 中止した。
+- 根本原因: `--help` の出力は両オプションを独立した optional として表示し、相互依存を示さない。
+  `docs/dev-wave/mutation.md` の `DW-M07` も「`--wrapper-attempt`は整数」とだけ記し、
+  `--attempt-out` との同時指定契約には触れていない。
+- 恒久対応: `docs/dev-wave/mutation.md` の `DW-M07` へ「`--attempt-out` と `--wrapper-attempt`
+  は同時指定必須で、片方だけの指定は起動前に中止する」旨を段8の自己改善 routing で追記した
+  (本 wave の同時 commit)。実害は起動直後の rc=2 で判明し変異は1件も実行されなかったため、
+  評価結果への影響はない。
+- 再発検知: `--plan-only` による事前確認をこの wave 自身が実施し、同型の引数エラーを
+  実走前に検出できることを確認した (再発防止というより検出済みの回避策)。
+
+### F462. DW-O09のpath grepがT126独自mutation登録の逐語anchorを見落とした [恒真ゲート] [手順漏れ]
+
+- 事象: 段1のDW-O09監査 (`grep -rln "layer3_report" --include=*.py .`) は
+  `orchestrator/tests/test_t126_pegasus_tools.py` を hit として列挙していたが、その中身が
+  `T126_MUTATION_REGISTRY`/`_T126_MUTATION_TRANSFORMS` という、layer3_report.py の**逐語コード
+  テキスト**を `old_anchor` として保持する独立したmutation登録インフラであることまでは
+  深掘りしなかった。段5の実装 (`_reject_qualification_ancestry(campaign_dir,
+  output_root.resolve().parent)` を新helper呼び出しへ書き換え) がこの逐語anchor
+  (`_T126_MUTATION_TRANSFORMS["M2a"]`) を壊し、段9の正式受入全走で初めて
+  `test_t126_pegasus_tools.py::test_fr3_mutation_node_registry_is_exact_and_complete`
+  のattributable-redとして発覚した。段6の敵対レビュー2本・焦点再レビュー1本、変異matrix
+  MUT-1〜7、self-check再走6回のいずれも、T126の別mutation登録という**別subsystemの
+  逐語pin**までは検出範囲に入っていなかった。
+- 根本原因: `DW-O09` (`docs/dev-wave/operations.md`) は「path検索が見つけるのはpathを
+  keyにするpinだけである。review ledgerのようにrole名をkeyに張るpinはkey側でも検索し、
+  pathのhit0件をpinなしと結論しない（F30）」と明記済みだが、本waveでは path のhit が
+  0件ではなく複数件あったにもかかわらず、各hitの**中身** (それが単なる import/文字列参照か、
+  逐語コードテキストを保持するmutation registryかどうか) まで1件ずつ判別しなかった。
+  F30は「hit 0件を鵜呑みにしない」という片側だけを扱っており、「hitが複数件あるとき
+  各hitの性質を判別する」という反対側の落とし穴は既存の型に含まれていなかった。
+- 恒久対応: `orchestrator/tests/test_t126_pegasus_tools.py` の
+  `_T126_MUTATION_TRANSFORMS["M2a"]` の `old_anchor` を新しい実装 (3行の関数呼び出し) へ
+  差し替えて修正した (本waveの段9追加fix、Codex `role=author`)。DW-O09自体への
+  「複数hitでも各hitの性質を判別する」旨の追記は、本waveでは
+  `docs/dev-wave/operations.md` の予算 (L1.5 unique footprint) に収まる保証がなく、
+  F460・F461と同じく
+  ユーザー裁定へ委ねる (docs側の追記は未実施)。
+- 再発検知: 未整備。`T126_MUTATION_REGISTRY`のようなkey付きmutation anchorを持つ
+  registryファイルを機械的に列挙し、DW-O09監査の出力へ「この pathはmutation anchor
+  registryである可能性がある」という注記を自動で付ける仕組みが候補になりうるが、
+  本waveのscope外。
