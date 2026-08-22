@@ -2492,3 +2492,40 @@ def test_external_campaign_qualification_ancestry_still_checked(tmp_path):
         layer3_report.build_report(
             campaign, generated_from_head="fixed", output_root=output_root,
         )
+
+
+def test_output_root_inside_campaign_is_rejected(tmp_path):
+    campaign, _output_root = _campaign(
+        tmp_path, [_record("build_start", genome="g", src_token="s")],
+    )
+    _assert_external_campaign_without_git_head(campaign)
+
+    with pytest.raises(
+        layer3_report.Layer3ReportError, match="qualification-ancestry",
+    ):
+        layer3_report.build_report(
+            campaign,
+            generated_from_head="fixed",
+            output_root=campaign / "runs",
+        )
+
+
+def test_main_rejects_empty_output_root(tmp_path, monkeypatch):
+    campaign, _output_root = _campaign(
+        tmp_path, [_record("build_start", genome="g", src_token="s")],
+    )
+    out = tmp_path / "empty-root-report.json"
+    monkeypatch.chdir(tmp_path)
+
+    with pytest.raises(SystemExit) as exc_info:
+        layer3_report.main([
+            str(campaign),
+            str(out),
+            "--generated-from-head",
+            "f" * 40,
+            "--output-root",
+            "",
+        ])
+
+    assert exc_info.value.code == 2
+    assert not out.exists()

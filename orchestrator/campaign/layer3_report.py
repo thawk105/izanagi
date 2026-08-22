@@ -457,7 +457,15 @@ def _qualification_ancestry_bound(campaign_dir: Path, output_root: Path) -> Path
     try:
         campaign_dir.relative_to(real_repo_root)
     except ValueError:
-        return output_root.resolve().parent
+        resolved_output_root = output_root.resolve()
+        if (
+            resolved_output_root == campaign_dir
+            or campaign_dir in resolved_output_root.parents
+        ):
+            raise Layer3ReportError(
+                "output_root が campaign 配下にあり qualification-ancestry の境界として使えない"
+            )
+        return resolved_output_root.parent
     return real_repo_root
 
 
@@ -749,12 +757,20 @@ def render_accepted(
     return report
 
 
+def _non_empty_path(value: str) -> Path:
+    if not value:
+        raise argparse.ArgumentTypeError("--output-root を空文字列にはできない")
+    return Path(value)
+
+
 def main(argv: Optional[Sequence[str]] = None) -> int:
     parser = argparse.ArgumentParser(description="D12 層3材料レポート renderer")
     parser.add_argument("campaign_dir")
     parser.add_argument("out_json")
     parser.add_argument("--generated-from-head", metavar="HEX")
-    parser.add_argument("--output-root", type=Path, default=None, metavar="PATH")
+    parser.add_argument(
+        "--output-root", type=_non_empty_path, default=None, metavar="PATH",
+    )
     args = parser.parse_args(argv)
     try:
         render(
