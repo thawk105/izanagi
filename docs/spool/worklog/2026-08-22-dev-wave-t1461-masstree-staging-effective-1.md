@@ -44,6 +44,28 @@ title: '[T-1461] floor campaignのmasstree/mimalloc/googletest依存解決をsta
   前者は各 submission が nonce 別 directory のため実質無害、後者は if 分岐が単純で
   mutation matrix (MUT-8 KILLED) が正方向を検証済みのため機能的リスク低いと判断し、
   いずれも fix 不要で受容した。
+- 受入直前の焦点走 (2026-08-23、別セッションが引き継いだ) で、本 wave が新設した
+  `tools/pegasus/generate_floor_masstree_payload_policy.py` が Pegasus login admission
+  registry へ未登録である赤を実測した (`test_hooks.py::
+  test_bash_pegasus_execution_inventory_is_synchronized`)。DW-O26 の「変更した production
+  file を参照関係で引いた consumer test も焦点走に含める」を適用していなければ、
+  受入全走まで見つからなかった型である。admission class は `unknown` (fail-closed) と裁定した
+  — この生成器は third_party source を clone して hash を取る administrative producer で
+  入力量に上限がなく、isolated-scope の実測がない以上 `local-ok` は実測証拠なしの gate 緩和に
+  あたる。4 field は既存 `tools/pegasus/collect_receipt.py` entry と同一文字列を再利用し、
+  受理集合は緩和されない (`_SANCTIONED_PATHS` へ入らず login/suspect では従来どおり拒否)。
+  同期閉包は registry JSON・`_PEGASUS_EXPECTED_CLASSES`・`_PEGASUS_EXPECTED_ENTRIES` (実装面)
+  と `docs/pegasus-runbook.md` §7.0 投影表 (docs) の 4 箇所で、`tools/check_docs.py` と
+  `orchestrator/tests/test_hooks.py` の実コードを読んで確定した。fix commit `452d4ed3`。
+- その fix の直後に F283 を新しい形で踏んだ (再発記録済み)。`admission_registry.json` は
+  Codex hook 配線の pinned guard path であり、未 commit のままだと
+  `test_codex_worker_launch.py` が起動前検査で一律 `launcher_rc=2` になり 70 件赤になる。
+  実装差分の回帰ではない。commit 後の再走は 1646 passed / 4 skipped / 0 failed。
+- 変異 matrix は再走していない。全 spec の replacement 14 件 (MUT-1〜MUT-8) の anchor が
+  最終 tip でも一意一致し、変異対象 3 file と wave の test file 8 件が変異本走時の
+  `e13047b9` から byte 不変であることを実測したためである。追加 fix の編集面
+  (admission registry・test_hooks・runbook) は変異面と素集合で、test nodeid も増減しない。
+
 
 ## 次の一手差分
 
