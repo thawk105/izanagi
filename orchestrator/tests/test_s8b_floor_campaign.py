@@ -330,7 +330,9 @@ def _make_fake_build(build_root: Path, *, cached: bool = False):
                    jobs=16, ccbench_dir="", src_token=None, contract=None,
                    timeout_s=None, admission=None, build_context=None,
                    source_evidence=None, expected_toolchain_manifest=None,
-                   fetchcontent_base_dir="", fetchcontent_dependency_receipt=None):
+                   fetchcontent_base_dir="", fetchcontent_dependency_receipt=None,
+                   masstree_source_dir=None, mimalloc_source_dir=None,
+                   googletest_source_dir=None):
         del jobs
         assert admission is not None
         assert admission.provenance_class is BuildProvenance.HUMAN_REVIEWED
@@ -2402,7 +2404,10 @@ def test_production_floor_prebuilds_one_shared_dependency_and_injects_only_sort(
     marker_root.mkdir()
     base = tmp_path / "fetchcontent"
     base.mkdir()
-    dependency = _fixture_dependency_binding(base)
+    dependency = dataclasses.replace(
+        _fixture_dependency_binding(base),
+        transport_mode="source-dir",
+    )
     events = []
     build_kwargs = {}
 
@@ -2452,6 +2457,15 @@ def test_production_floor_prebuilds_one_shared_dependency_and_injects_only_sort(
     assert build_kwargs[sort_id]["fetchcontent_dependency_receipt"] == (
         _FIXTURE_DEPENDENCY_RECEIPT
     )
+    assert build_kwargs[sort_id]["masstree_source_dir"] == str(
+        base.resolve() / "masstree-src"
+    )
+    assert build_kwargs[sort_id]["mimalloc_source_dir"] == str(
+        base.resolve() / "mimalloc-src"
+    )
+    assert build_kwargs[sort_id]["googletest_source_dir"] == str(
+        base.resolve() / "googletest-src"
+    )
     assert "fetchcontent_base_dir" not in build_kwargs[stock_id]
     assert "fetchcontent_dependency_receipt" not in build_kwargs[stock_id]
     assert "_fetchcontent_base_dir" in built[sort_id]
@@ -2482,6 +2496,10 @@ def test_floor_dependency_prebuild_uses_pinned_checkout_and_exact_helper_once(
     source.mkdir()
     binding = _fixture_dependency_binding(base)
     events = []
+    staged_sources = {
+        name: base / f"{name}-src"
+        for name in ("masstree", "mimalloc", "googletest")
+    }
     manifest = _fixture_toolchain_binding(
         env_attestation.load_verified_calibration(ec.lookup(ENV_TAG), ROOT),
         cc="site-cc", cxx="site-cxx",
@@ -2505,6 +2523,20 @@ def test_floor_dependency_prebuild_uses_pinned_checkout_and_exact_helper_once(
         s8b_floor_campaign.buildcache, "prepare_masstree_fetchcontent", prebuild,
     )
     monkeypatch.setattr(
+        s8b_floor_campaign, "_verify_pristine_floor_dependency_sources",
+        lambda observed_base, **_kwargs: (
+            events.append(("pristine", observed_base)) or staged_sources
+        ),
+    )
+    monkeypatch.setattr(
+        s8b_floor_campaign, "_load_floor_masstree_payload_policy",
+        lambda *_args, **_kwargs: {
+            "pin": "a" * 40,
+            "config_sha256": "d" * 64,
+            "archive_sha256": "e" * 64,
+        },
+    )
+    monkeypatch.setattr(
         s8b_floor_campaign, "_verify_floor_oracle_dependency_source", verify,
     )
     monkeypatch.setattr(
@@ -2514,12 +2546,23 @@ def test_floor_dependency_prebuild_uses_pinned_checkout_and_exact_helper_once(
         base.resolve(), ccbench_pin="0" * 40,
         expected_toolchain_manifest=manifest,
     )
-    assert observed is binding
-    assert [event[0] for event in events] == ["checkout", "prebuild", "verify"]
-    assert events[1][1]["fetchcontent_base_dir"] == str(base.resolve())
-    assert events[1][1]["ccbench_dir"] == str(source.resolve())
-    assert events[1][1]["configure_timeout_s"] == 900
-    assert events[1][1]["target_timeout_s"] == 900
+    assert observed.source_root == binding.source_root
+    assert observed.transport_mode == "source-dir"
+    assert observed.expected_config_sha256 == "d" * 64
+    assert observed.expected_archive_sha256 == "e" * 64
+    assert observed.payload_policy_sha256 == hashlib.sha256(
+        (ROOT / "tools/pegasus/policies/floor_masstree_payload_v1.json").read_bytes()
+    ).hexdigest()
+    assert [event[0] for event in events] == [
+        "pristine", "checkout", "prebuild", "verify",
+    ]
+    assert events[2][1]["fetchcontent_base_dir"] == str(base.resolve())
+    assert events[2][1]["ccbench_dir"] == str(source.resolve())
+    assert events[2][1]["configure_timeout_s"] == 900
+    assert events[2][1]["target_timeout_s"] == 900
+    assert events[2][1]["masstree_source_dir"] == str(staged_sources["masstree"])
+    assert events[2][1]["mimalloc_source_dir"] == str(staged_sources["mimalloc"])
+    assert events[2][1]["googletest_source_dir"] == str(staged_sources["googletest"])
 
 
 def test_floor_postflight_gate_rejects_source_override_and_accepts_base_only(
@@ -2554,6 +2597,95 @@ def test_floor_postflight_gate_rejects_source_override_and_accepts_base_only(
             base_only + [f"-DFETCHCONTENT_SOURCE_DIR_MASSTREE={tmp_path / 'other'}"],
             fetchcontent_base=base.resolve(), before=before, repo_root=tmp_path,
         )
+
+
+def test_floor_postflight_staged_source_set_and_expected_hash_are_enforced(
+        tmp_path, monkeypatch):
+    base = tmp_path / "fetchcontent"
+    base.mkdir()
+    policy_path = tmp_path / "tools/pegasus/policies/floor_masstree_payload_v1.json"
+    policy_path.parent.mkdir(parents=True)
+    policy_path.write_bytes(b"fixture payload policy v1\n")
+    before = dataclasses.replace(
+        _fixture_dependency_binding(base),
+        transport_mode="source-dir",
+        expected_config_sha256="b" * 64,
+        expected_archive_sha256="c" * 64,
+        payload_policy_sha256=hashlib.sha256(policy_path.read_bytes()).hexdigest(),
+    )
+    result = SimpleNamespace(
+        fetchcontent_base_dir=str(base.resolve()),
+        cached=False,
+        masstree_source_root_sha256=hashlib.sha256(
+            str(base.resolve() / "masstree-src").encode("utf-8")
+        ).hexdigest(),
+    )
+    argv = [
+        "cmake", f"-DFETCHCONTENT_BASE_DIR={base.resolve()}",
+        f"-DFETCHCONTENT_SOURCE_DIR_MASSTREE={base.resolve() / 'masstree-src'}",
+        f"-DFETCHCONTENT_SOURCE_DIR_MIMALLOC={base.resolve() / 'mimalloc-src'}",
+        f"-DFETCHCONTENT_SOURCE_DIR_GOOGLETEST={base.resolve() / 'googletest-src'}",
+    ]
+    monkeypatch.setattr(
+        s8b_floor_campaign, "_verify_floor_oracle_dependency_source",
+        lambda *_args, **_kwargs: before,
+    )
+    assert s8b_floor_campaign._verify_floor_build_dependency(
+        result, argv, fetchcontent_base=base.resolve(), before=before,
+        repo_root=tmp_path,
+    ).transport_mode == "source-dir"
+
+    bad_expected = dataclasses.replace(
+        before, expected_config_sha256="d" * 64,
+    )
+    monkeypatch.setattr(
+        s8b_floor_campaign, "_verify_floor_oracle_dependency_source",
+        lambda *_args, **_kwargs: bad_expected,
+    )
+    with pytest.raises(
+            s8b_floor_campaign._FloorOraclePreflightError,
+            match="独立 expected hash") as caught:
+        s8b_floor_campaign._verify_floor_build_dependency(
+            result, argv, fetchcontent_base=base.resolve(), before=bad_expected,
+            repo_root=tmp_path,
+        )
+    assert caught.value.diagnostic.detail_code == (
+        "floor-dependency-postflight-config-expected-mismatch"
+    )
+
+    bad_expected_archive = dataclasses.replace(
+        before, expected_archive_sha256="d" * 64,
+    )
+    monkeypatch.setattr(
+        s8b_floor_campaign, "_verify_floor_oracle_dependency_source",
+        lambda *_args, **_kwargs: bad_expected_archive,
+    )
+    with pytest.raises(
+            s8b_floor_campaign._FloorOraclePreflightError,
+            match="独立 expected hash") as caught:
+        s8b_floor_campaign._verify_floor_build_dependency(
+            result, argv, fetchcontent_base=base.resolve(), before=bad_expected_archive,
+            repo_root=tmp_path,
+        )
+    assert caught.value.diagnostic.detail_code == (
+        "floor-dependency-postflight-archive-expected-mismatch"
+    )
+
+    policy_path.write_bytes(b"fixture payload policy v2\n")
+    monkeypatch.setattr(
+        s8b_floor_campaign, "_verify_floor_oracle_dependency_source",
+        lambda *_args, **_kwargs: before,
+    )
+    with pytest.raises(
+            s8b_floor_campaign._FloorOraclePreflightError,
+            match="payload policy bytes") as caught:
+        s8b_floor_campaign._verify_floor_build_dependency(
+            result, argv, fetchcontent_base=base.resolve(), before=before,
+            repo_root=tmp_path,
+        )
+    assert caught.value.diagnostic.detail_code == (
+        "floor-dependency-postflight-payload-policy-mismatch"
+    )
 
 
 def test_floor_postflight_cache_hit_uses_content_receipt_not_prior_absolute_root(
@@ -2771,6 +2903,39 @@ def test_floor_oracle_dependency_rejects_missing_archive_before_oracle(tmp_path)
         )
 
 
+def test_floor_pristine_staged_preflight_verifies_three_pins_and_clean_status(
+        tmp_path, monkeypatch):
+    repo_root = tmp_path / "repo"
+    repo_root.mkdir()
+    cache_root = tmp_path / "cache"
+    cache_root.mkdir()
+    heads = {}
+    for name in ("masstree", "mimalloc", "googletest"):
+        heads[name] = _git_fixture_source(cache_root / f"{name}-src")
+    monkeypatch.setattr(
+        s8b_floor_campaign, "_floor_third_party_policy_pins",
+        lambda _root: heads,
+    )
+    verified = s8b_floor_campaign._verify_pristine_floor_dependency_sources(
+        cache_root, repo_root=repo_root,
+    )
+    assert set(verified) == {"masstree", "mimalloc", "googletest"}
+    assert all(path == cache_root / f"{name}-src" for name, path in verified.items())
+
+    (cache_root / "mimalloc-src" / "dirty.txt").write_text(
+        "dirty\n", encoding="utf-8",
+    )
+    with pytest.raises(
+            s8b_floor_campaign._FloorOraclePreflightError,
+            match="clean でない") as caught:
+        s8b_floor_campaign._verify_pristine_floor_dependency_sources(
+            cache_root, repo_root=repo_root,
+        )
+    assert caught.value.diagnostic.detail_code == (
+        "floor-dependency-staged-source-dirty"
+    )
+
+
 @pytest.mark.parametrize(
     ("failure_kind", "detail_code", "origin", "outcome"),
     [
@@ -2820,6 +2985,9 @@ def test_production_floor_dependency_preflight_failure_persists_private_attempt(
     verified = env_attestation.load_verified_calibration(contract, ROOT)
     marker_root = tmp_path / "job-staging"
     marker_root.mkdir()
+    legacy_tmpdir = tmp_path / "legacy-tmp"
+    legacy_tmpdir.mkdir()
+    monkeypatch.setenv("TMPDIR", str(legacy_tmpdir.resolve()))
     fetchcontent_base = tmp_path / "fetchcontent"
     fetchcontent_base.mkdir()
     prebuild_source = tmp_path / "prebuild-ccbench"
@@ -2873,6 +3041,11 @@ def test_production_floor_dependency_preflight_failure_persists_private_attempt(
         raise RuntimeError("fixture checkout failure")
 
     def prebuild(**_kwargs):
+        nonlocal expected_private_path
+        if failure_kind != "checkout":
+            expected_private_path = Path(_kwargs["fetchcontent_base_dir"])
+            if failure_kind == "source-missing":
+                expected_private_path /= "masstree-src"
         gate_events.append(("prebuild", failure_kind))
         if failure_kind in {"configure", "target"}:
             failure = buildcache.MasstreeFetchContentError(
@@ -2905,7 +3078,7 @@ def test_production_floor_dependency_preflight_failure_persists_private_attempt(
             contract=contract,
             verified_calibration=verified,
             build_fn=build,
-            fetchcontent_base_dir=fetchcontent_base,
+            fetchcontent_base_dir=None,
             phase_marker_root=marker_root,
         )
 
@@ -2982,6 +3155,14 @@ def test_floor_dependency_disappearance_race_persists_closed_detail_before_oracl
     marker_root.mkdir()
     base = tmp_path / "fetchcontent"
     base.mkdir()
+    legacy_tmpdir = tmp_path / "legacy-tmp"
+    legacy_tmpdir.mkdir()
+    monkeypatch.setenv("TMPDIR", str(legacy_tmpdir.resolve()))
+    monkeypatch.setattr(
+        s8b_floor_campaign.tempfile,
+        "mkdtemp",
+        lambda **_kwargs: str(base.resolve()),
+    )
     target = base.resolve()
     head = "a" * 40
 
@@ -3038,7 +3219,7 @@ def test_floor_dependency_disappearance_race_persists_closed_detail_before_oracl
             out_root=tmp_path / "out", prepare_fn=production_prepare,
             contract=contract, verified_calibration=verified,
             build_fn=lambda *_args, **_kwargs: downstream_calls.append("build"),
-            fetchcontent_base_dir=base, phase_marker_root=marker_root,
+            fetchcontent_base_dir=None, phase_marker_root=marker_root,
         )
     assert caught.value.result.infrastructure.detail_code == detail_code
     artifact_path = (
@@ -3337,6 +3518,40 @@ def test_floor_oracle_uses_existing_shared_pin_without_floor_policy_copy():
         (ROOT / "tools/pegasus/policies/floor_v1.json").read_text(encoding="utf-8")
     )
     assert not any("masstree" in key for key in floor_policy)
+
+
+def test_floor_masstree_payload_policy_loader_is_exact_and_shared_pin_bound():
+    policy = s8b_floor_campaign._load_floor_masstree_payload_policy(ROOT)
+    assert set(policy) == {
+        "schema_version", "name", "pin", "config_sha256", "archive_sha256",
+    }
+    assert policy["pin"] == s8b_floor_campaign._masstree_policy_pin(ROOT)
+    assert len(policy["config_sha256"]) == 64
+    assert len(policy["archive_sha256"]) == 64
+
+
+def test_floor_masstree_payload_policy_loader_rejects_unknown_key(
+        tmp_path, monkeypatch):
+    policy_path = tmp_path / "tools/pegasus/policies"
+    policy_path.mkdir(parents=True)
+    document = {
+        "schema_version": "s8b-floor-masstree-payload/v1",
+        "name": "masstree",
+        "pin": "a" * 40,
+        "config_sha256": "b" * 64,
+        "archive_sha256": "c" * 64,
+        "unexpected": True,
+    }
+    (policy_path / "floor_masstree_payload_v1.json").write_text(
+        json.dumps(document), encoding="utf-8",
+    )
+    monkeypatch.setattr(
+        s8b_floor_campaign, "_masstree_policy_pin", lambda _root: "a" * 40,
+    )
+    with pytest.raises(
+            s8b_floor_campaign._FloorOraclePreflightError,
+            match="exact key"):
+        s8b_floor_campaign._load_floor_masstree_payload_policy(tmp_path)
 
 
 def test_phase_marker_is_create_only_fsynced_private_and_carries_dependency_hash(
@@ -4526,6 +4741,7 @@ def test_materializer_registry_covers_all_python_build_launches():
     ("execution_receipt_fn", _fixed_receipt),
     ("build_fn", lambda *_args, **_kwargs: None),
     ("repo_root", Path("sentinel-repo-root")),
+    ("fetchcontent_base_dir", Path("sentinel-fetchcontent-base")),
     ("after_certificate_issued_fn", lambda _path: None),
     ("durable_root_policy", s8b_floor_campaign.DurableRootPolicy(
         approved_roots=(ROOT.resolve(),), forbidden_roots=())),
@@ -4598,6 +4814,102 @@ def test_refreeze_seam_classifier_covers_and_classifies_every_core_seam():
         assert s8b_floor_campaign._nondefault_campaign_seams(
             **{seam_name: sentinel},
         ) == frozenset({seam_name})
+
+
+def test_fetchcontent_seam_disqualifies_refreeze_eligibility():
+    staged = Path("/tmp/izanagi-floor-fetchcontent")
+    seams = s8b_floor_campaign._nondefault_campaign_seams(
+        fetchcontent_base_dir=staged,
+    )
+    assert seams == frozenset({"fetchcontent_base_dir"})
+    assert s8b_floor_campaign._derive_refreeze_eligibility(
+        mode="official", resume_dir=None, nondefault_seams=seams,
+    ) is False
+    assert s8b_floor_campaign._derive_refreeze_eligibility(
+        mode="official", resume_dir=None, nondefault_seams=frozenset(),
+    ) is True
+
+
+def test_run_campaign_forwards_fetchcontent_base_dir_to_core(tmp_path, monkeypatch):
+    core = mock.Mock(return_value={"status": "completed"})
+    monkeypatch.setattr(s8b_floor_campaign, "_run_campaign_core", core)
+    monkeypatch.setattr(
+        s8b_floor_campaign, "_require_supplied_protocol_authority",
+        lambda *args, **kwargs: None,
+    )
+    fetchcontent_base_dir = tmp_path / "fetchcontent"
+    outcome = s8b_floor_campaign.run_campaign(
+        {}, {}, out_root=tmp_path / "out", mode="pilot",
+        fetchcontent_base_dir=fetchcontent_base_dir,
+        confirm_irreversible_pilot_holdout=True,
+    )
+    assert outcome == {"status": "completed"}
+    assert core.call_args.kwargs["fetchcontent_base_dir"] == fetchcontent_base_dir
+
+
+def test_run_campaign_parser_accepts_fetchcontent_base_dir(tmp_path):
+    fetchcontent_base_dir = tmp_path / "fetchcontent"
+    args = s8b_floor_campaign._parser().parse_args([
+        "--mode", "pilot", "--protocol", "protocol.json",
+        "--fetchcontent-base-dir", str(fetchcontent_base_dir),
+    ])
+    assert args.fetchcontent_base_dir == fetchcontent_base_dir
+
+
+def test_main_forwards_fetchcontent_base_dir_to_run_campaign(tmp_path, monkeypatch):
+    protocol = _valid_protocol_dict()
+    verified = object()
+    run_campaign = mock.Mock(return_value={
+        "status": "completed", "run_dir": str(tmp_path / "run"),
+    })
+    protocol_path = tmp_path / s8b_floor_campaign._FLOOR_PROTOCOL_REL
+    fetchcontent_base_dir = tmp_path / "fetchcontent"
+    monkeypatch.setattr(s8b_floor_campaign, "load_protocol", mock.Mock(return_value=protocol))
+    monkeypatch.setattr(s8b_floor_campaign, "_load_verified_freeze", mock.Mock(return_value=verified))
+    monkeypatch.setattr(s8b_floor_campaign, "repo_output_root", lambda: str(tmp_path))
+    monkeypatch.setattr(s8b_floor_campaign, "run_campaign", run_campaign)
+    monkeypatch.setattr(s8b_floor_campaign, "ROOT", tmp_path)
+
+    assert s8b_floor_campaign.main([
+        "--mode", "pilot", "--protocol", str(protocol_path),
+        "--fetchcontent-base-dir", str(fetchcontent_base_dir),
+    ]) == 0
+    assert run_campaign.call_args.kwargs[
+        "fetchcontent_base_dir"
+    ] == fetchcontent_base_dir
+
+
+def test_public_official_rejects_fetchcontent_base_dir_before_side_effects(tmp_path):
+    with pytest.raises(
+            s8b_floor_campaign.FloorCampaignError,
+            match="fetchcontent_base_dir",
+    ):
+        s8b_floor_campaign.run_campaign(
+            {}, {}, out_root=tmp_path / "out", mode="official",
+            fetchcontent_base_dir=tmp_path / "fetchcontent",
+        )
+    assert not (tmp_path / "out").exists()
+
+
+def test_core_passes_fetchcontent_base_dir_to_fresh_and_resume_build_cells():
+    source = textwrap.dedent(inspect.getsource(
+        s8b_floor_campaign._run_campaign_core,
+    ))
+    tree = ast.parse(source)
+    calls = [
+        node for node in ast.walk(tree)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Name)
+        and node.func.id == "build_cells"
+    ]
+    assert len(calls) == 2
+    for call in calls:
+        keyword = next(
+            item for item in call.keywords
+            if item.arg == "fetchcontent_base_dir"
+        )
+        assert isinstance(keyword.value, ast.Name)
+        assert keyword.value.id == "fetchcontent_base_dir"
 
 
 def test_captured_refreeze_seams_are_forwarded_to_claim_reservation_canonically():

@@ -43,6 +43,7 @@ REFREEZE_DISQUALIFYING_SEAM_NAMES = frozenset({
     "measure_fn", "probe_fn", "sleep_fn", "monotonic_fn", "prepare_fn",
     "now_fn", "host_provenance_fn", "process_identity_fn",
     "execution_receipt_fn", "build_fn", "repo_root",
+    "fetchcontent_base_dir",
     "after_certificate_issued_fn", "durable_root_policy",
     "_floor_preflight_fn", "perf_preflight_fn", "_holdout_repo_root",
     "_holdout_signature_source",

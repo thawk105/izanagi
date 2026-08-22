@@ -470,6 +470,7 @@ checker 自身が計算ノードへ自動 dispatch する (D105)。
 | `tools/pegasus/fetch_third_party.py` | `local-ok` | `runbook §7.0 実測` |
 | `tools/pegasus/floor_campaign.sh` | `dispatch-required` | `static job-body classification` |
 | `tools/pegasus/floor_scoping.sh` | `dispatch-required` | `static job-body classification` |
+| `tools/pegasus/generate_floor_masstree_payload_policy.py` | `unknown` | `unmeasured; unbounded input surfaces remain` |
 | `tools/pegasus/make_acquisition_receipt.py` | `dispatch-required` | `static compute-side call-site classification` |
 | `tools/pegasus/mocc_trace_pilot.sh` | `dispatch-required` | `static job-body classification` |
 | `tools/pegasus/oracle_n_pilot.sh` | `dispatch-required` | `static job-body classification` |
