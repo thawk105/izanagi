@@ -404,6 +404,12 @@
 - 現行実体: `docs/dev-wave/operations.md` の `DW-O01`。
 - 再発検知: ログ末尾の「Reading additional input from stdin」を停止指標として grep する。
 
+
+- **再発: 2026-08-22** — `docs/dev-wave/operations.md` DW-O01 の起動定型
+  (`nohup setsid bash -c '<cmd>; echo $? > <log>.done'`) が F23 の恒久対応
+  (`< /dev/null` を明示) を反映しないまま残っており、codex consult 子が
+  「Reading additional input from stdin...」で無言停止 (.done 未生成) する事故を実測した。
+  DW-O01 の定型へ `< /dev/null` を明記して閉じる。
 ### F24. サブプロセス完了検知をログ本文 grep に頼り誤検知 — 偽完了 2 回 + 空振りタイムアウト 2 回 [手順漏れ]
 - 事象: codex exec のバッチ監視で「tokens used」等の完了マーカーをログ全文 (のち末尾 2KB) から
   grep したところ、子が読んだファイル内容 (過去ログの逐語凍結、さらに**この落とし穴を記した handoff
