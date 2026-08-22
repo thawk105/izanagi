@@ -66,7 +66,9 @@ def test_explicit_auto_off_preserves_exact_command_and_call_shape(monkeypatch):
 
     assert RT.main(["-q"], site=RT.site_policy.OTHER) == 7
     assert called == [(([
-        sys.executable, "-m", "pytest", str(_REPO / "orchestrator" / "tests"),
+        sys.executable, "-m", "pytest",
+        f"--ignore={_REPO / 'orchestrator' / 'tests' / 'test_sort_swo_oracle.py'}",
+        str(_REPO / "orchestrator" / "tests"),
         "-n", "4", "--dist", "loadgroup", "-q",
     ],), {"cwd": str(_REPO)})]
 

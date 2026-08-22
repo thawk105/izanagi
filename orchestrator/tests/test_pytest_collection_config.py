@@ -18,13 +18,19 @@ from __future__ import annotations
 
 import configparser
 import importlib.util
+import json
 import os
 import shutil
 import subprocess
 import sys
+from dataclasses import replace
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
+
+from orchestrator import test_selection_contract as CONTRACT
+from orchestrator.tests import conftest as CONF
 
 _HERE = Path(__file__).resolve().parent
 _REPO = _HERE.parents[1]
@@ -41,6 +47,33 @@ _SPEC.loader.exec_module(RT)
 _EXPECTED_INI_OPTIONS = {"testpaths", "norecursedirs"}
 _POISON = "raise RuntimeError('poison module was collected')\n"
 _GOOD_TEST = "def test_ok():\n    assert True\n"
+_SORT_SWO_TEST = _REPO / "orchestrator" / "tests" / "test_sort_swo_oracle.py"
+_SORT_SWO_IGNORE = f"--ignore={_SORT_SWO_TEST}"
+
+
+def _patch_main_command_capture(monkeypatch):
+    captured = {}
+    monkeypatch.setenv("IZANAGI_TASK_RUN_AUTO_RECORD", "0")
+    monkeypatch.setattr(RT, "_preflight_unstaged_deletions", lambda args, repo: 0)
+    monkeypatch.setattr(RT, "_preflight_ruleops", lambda args, repo: 0)
+    monkeypatch.setattr(RT, "_preflight_submodule", lambda args, repo: 0)
+    monkeypatch.setattr(RT, "_ensure_xdist", lambda: False)
+    monkeypatch.setattr(
+        RT.subprocess,
+        "call",
+        lambda command, **kwargs: captured.update(
+            command=command, kwargs=kwargs,
+        ) or 0,
+    )
+    return captured
+
+
+def _growth_hold_config(*argv: str):
+    return SimpleNamespace(
+        option=SimpleNamespace(numprocesses=None),
+        args=(str(Path(CONF.__file__).resolve().parent),),
+        invocation_params=SimpleNamespace(args=argv),
+    )
 
 
 def _read_ini(path: Path) -> configparser.ConfigParser:
@@ -262,6 +295,312 @@ def test_runner_default_target_survives_ini(monkeypatch: pytest.MonkeyPatch):
     assert RT._has_no_execution_flag([]) is False
     assert RT._has_dispatch_exempt_flag([]) is False
     assert RT._has_bounded_scope_exempt_flag([]) is False
+
+
+def test_permanent_exclusion_table_is_exact_and_target_remains_a_file():
+    entries = RT._PERMANENT_FULL_SUITE_EXCLUSIONS
+    assert len(entries) in (0, 1)
+    assert all(
+        str(CONTRACT.normalize_path(entry.path))
+        == str(RT._SANCTIONED_SORT_SWO_ORACLE_PATH)
+        for entry in entries
+    )
+    if entries:
+        assert {str(CONTRACT.normalize_path(entry.path)) for entry in entries} == {
+            str(RT._SANCTIONED_SORT_SWO_ORACLE_PATH),
+        }
+    assert _SORT_SWO_TEST.is_file()
+    assert not _SORT_SWO_TEST.is_symlink()
+
+
+def test_permanent_exclusion_table_has_no_other_verifier_or_oracle_tests():
+    entries = RT._PERMANENT_FULL_SUITE_EXCLUSIONS
+    test_paths = {CONTRACT.normalize_path(entry.path) for entry in entries}
+    forbidden_siblings = {
+        path
+        for path in (_REPO / "orchestrator" / "tests").glob("test_*.py")
+        if CONTRACT.normalize_path(path) != CONTRACT.normalize_path(_SORT_SWO_TEST)
+        and any(word in path.stem.lower() for word in ("verifier", "oracle"))
+    }
+    assert test_paths.isdisjoint(forbidden_siblings)
+    assert test_paths <= {CONTRACT.normalize_path(_SORT_SWO_TEST)}
+    if entries:
+        assert test_paths == {CONTRACT.normalize_path(_SORT_SWO_TEST)}
+
+
+def test_permanent_exclusion_metadata_and_version_are_nonempty():
+    assert RT._PERMANENT_EXCLUSION_SET_VERSION.strip()
+    for entry in RT._PERMANENT_FULL_SUITE_EXCLUSIONS:
+        assert entry.ruling.strip()
+        assert entry.reason.strip()
+        assert entry.release_condition.strip()
+
+
+def test_selection_contract_normalizes_and_serializes_all_metadata(tmp_path: Path):
+    target = tmp_path / "selected.py"
+    target.write_text("# target\n", encoding="utf-8")
+    entry = CONTRACT.Exclusion(
+        path=target,
+        reason="reason",
+        release_condition="release",
+        ruling="ruling",
+        set_version=CONTRACT.EXCLUSION_SET_VERSION,
+    )
+
+    serialized = CONTRACT.serialize_payload((entry,))
+    payload = json.loads(serialized)
+    assert payload == [{
+        "path": str(CONTRACT.normalize_path(target)),
+        "reason": entry.reason,
+        "release_condition": entry.release_condition,
+        "ruling": entry.ruling,
+        "set_version": entry.set_version,
+    }]
+    assert CONTRACT.exclusion_tokens((entry,)) == (
+        f"--ignore={CONTRACT.normalize_path(target)}",
+    )
+    assert CONTRACT.selection_receipt_line((entry,)) == (
+        CONTRACT.SELECTION_RECEIPT_PREFIX
+        + json.dumps(payload[0], ensure_ascii=False, separators=(",", ":"), sort_keys=True)
+    )
+
+
+@pytest.mark.parametrize(
+    ("args", "acceptance_shape"),
+    [
+        ([], True),
+        (["-q"], True),
+        ([RT._DEFAULT_TARGET], True),
+        (["-k", "test_sort_swo_oracle"], False),
+        (["--collect-only"], False),
+        (["--deselect=ignored.py::test_node"], False),
+        ([str(_SORT_SWO_TEST)], False),
+    ],
+    ids=(
+        "bare-acceptance", "quiet-acceptance", "explicit-default-target",
+        "selector", "collect-only", "deselect", "explicit-file-target",
+    ),
+)
+@pytest.mark.parametrize(
+    "table_active",
+    [True, False],
+    ids=("active-table", "empty-table"),
+)
+def test_main_only_injects_exclusion_for_acceptance_shapes(
+    monkeypatch: pytest.MonkeyPatch, args, acceptance_shape, table_active,
+):
+    monkeypatch.setattr(
+        RT,
+        "_PERMANENT_FULL_SUITE_EXCLUSIONS",
+        CONTRACT.SANCTIONED_EXCLUSIONS if table_active else (),
+    )
+    captured = _patch_main_command_capture(monkeypatch)
+    assert RT.main(args, site=RT.site_policy.OTHER) == 0
+    command = captured["command"]
+    excluded = acceptance_shape and table_active
+    assert (_SORT_SWO_IGNORE in command) is excluded
+    if excluded:
+        assert command.index(_SORT_SWO_IGNORE) < command.index(RT._DEFAULT_TARGET)
+        assert command.count(RT._DEFAULT_TARGET) == 1
+    else:
+        assert _SORT_SWO_IGNORE not in command
+
+
+@pytest.mark.parametrize("field", [
+    "reason", "release_condition", "ruling", "set_version",
+])
+def test_runner_rejects_contract_metadata_drift(
+    monkeypatch: pytest.MonkeyPatch, field: str,
+):
+    base = CONTRACT.SANCTIONED_EXCLUSIONS[0]
+    drifted = replace(base, **{field: getattr(base, field) + " drift"})
+    monkeypatch.setattr(RT, "_PERMANENT_FULL_SUITE_EXCLUSIONS", (drifted,))
+    assert RT.main(["-q"], site=RT.site_policy.OTHER) == (
+        RT._PERMANENT_EXCLUSION_GATE_RC
+    )
+
+
+def test_empty_exclusion_table_restores_the_prechange_default_command(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    captured = _patch_main_command_capture(monkeypatch)
+    monkeypatch.setattr(RT, "_PERMANENT_FULL_SUITE_EXCLUSIONS", ())
+    assert RT.main(["-q"], site=RT.site_policy.OTHER) == 0
+    assert captured["command"] == [
+        sys.executable, "-m", "pytest", RT._DEFAULT_TARGET, "-q",
+    ]
+    assert _SORT_SWO_IGNORE not in captured["command"]
+
+
+def test_runtime_rejects_foreign_path_and_accepts_sanctioned_positive(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str],
+):
+    captured = _patch_main_command_capture(monkeypatch)
+    build_calls = []
+    real_build = RT._build_pytest_command
+    monkeypatch.setattr(
+        RT,
+        "_build_pytest_command",
+        lambda *args, **kwargs: build_calls.append((args, kwargs))
+        or real_build(*args, **kwargs),
+    )
+    foreign = RT._PermanentExclusion(
+        path=_REPO / "orchestrator" / "tests" / "test_pytest_collection_config.py",
+        ruling="{{D:foreign}}",
+        reason="foreign",
+        release_condition="foreign release",
+    )
+    original = RT._PERMANENT_FULL_SUITE_EXCLUSIONS
+    monkeypatch.setattr(RT, "_PERMANENT_FULL_SUITE_EXCLUSIONS", (foreign,))
+    assert RT.main(["-q"], site=RT.site_policy.OTHER) == (
+        RT._PERMANENT_EXCLUSION_GATE_RC
+    )
+    assert "command を作らず停止" in capsys.readouterr().err
+    assert "command" not in captured
+    assert build_calls == []
+
+    monkeypatch.setattr(RT, "_PERMANENT_FULL_SUITE_EXCLUSIONS", original)
+    assert RT.main(["-q"], site=RT.site_policy.OTHER) == 0
+    assert (_SORT_SWO_IGNORE in captured["command"]) is bool(original)
+    assert len(build_calls) == 1
+
+
+@pytest.mark.parametrize(
+    "table_active",
+    [True, False],
+    ids=("active-table", "empty-table"),
+)
+def test_runner_owned_exclusion_is_non_silent(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    table_active,
+):
+    monkeypatch.setattr(
+        RT,
+        "_PERMANENT_FULL_SUITE_EXCLUSIONS",
+        CONTRACT.SANCTIONED_EXCLUSIONS if table_active else (),
+    )
+    config = _growth_hold_config(_SORT_SWO_IGNORE if table_active else "")
+    if not table_active:
+        config.invocation_params.args = ()
+    monkeypatch.setattr(CONF, "_configure_receipt_memo_session", lambda _: None)
+    monkeypatch.setattr(CONF, "_configure_oracle_environment_memo_session", lambda _: None)
+    monkeypatch.setattr(CONF, "_configure_receipt_memo_run_id", lambda _: None)
+    monkeypatch.setattr(CONF, "_growth_holds_opted_in", lambda: False)
+    monkeypatch.setattr(CONF, "mark_pytest_session_enforcing", None)
+    with RT._runner_exclusion_environment(RT._PERMANENT_FULL_SUITE_EXCLUSIONS):
+        CONF.pytest_configure(config)
+    lines = capsys.readouterr().err.splitlines()
+    assert len(lines) == int(table_active)
+    if table_active:
+        assert lines[0].startswith(CONF._SELECTION_RECEIPT_PREFIX)
+        payload = json.loads(lines[0][len(CONF._SELECTION_RECEIPT_PREFIX):])
+        assert payload == CONF._SANCTIONED_EXCLUSION_PAYLOAD
+
+
+@pytest.mark.parametrize("mismatch", ["payload", "token"])
+def test_conftest_rejects_present_runner_env_drift(
+    monkeypatch: pytest.MonkeyPatch, mismatch: str,
+):
+    config = _growth_hold_config(_SORT_SWO_IGNORE)
+    with RT._runner_exclusion_environment(CONTRACT.SANCTIONED_EXCLUSIONS):
+        if mismatch == "payload":
+            payload = CONTRACT.payload_entries(CONTRACT.SANCTIONED_EXCLUSIONS)
+            payload[0]["reason"] += " drift"
+            monkeypatch.setenv(CONF._RUNNER_EXCLUSION_ENV, json.dumps(payload))
+        else:
+            config.invocation_params.args = ("--ignore=/not-sanctioned.py",)
+        with pytest.raises(pytest.UsageError, match="runner exclusion"):
+            CONF.pytest_configure(config)
+
+
+def test_inherited_runner_env_without_narrowing_token_is_not_runner_owned(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str],
+):
+    config = _growth_hold_config()
+    monkeypatch.setattr(CONF, "_configure_receipt_memo_session", lambda _: None)
+    monkeypatch.setattr(CONF, "_configure_oracle_environment_memo_session", lambda _: None)
+    monkeypatch.setattr(CONF, "_configure_receipt_memo_run_id", lambda _: None)
+    monkeypatch.setattr(CONF, "_growth_holds_opted_in", lambda: False)
+    monkeypatch.setattr(CONF, "mark_pytest_session_enforcing", None)
+    with RT._runner_exclusion_environment(CONTRACT.SANCTIONED_EXCLUSIONS):
+        CONF.pytest_configure(config)
+        assert CONF._runner_owned_exclusion_payload(config) is None
+        assert CONF._is_complete_growth_hold_collection(config) is True
+    assert capsys.readouterr().err == ""
+
+
+@pytest.mark.parametrize(
+    "table_active",
+    [True, False],
+    ids=("active-table", "empty-table"),
+)
+def test_sanctioned_runner_ignore_keeps_growth_hold_completeness_guard(
+    monkeypatch: pytest.MonkeyPatch,
+    table_active,
+):
+    monkeypatch.setattr(
+        RT,
+        "_PERMANENT_FULL_SUITE_EXCLUSIONS",
+        CONTRACT.SANCTIONED_EXCLUSIONS if table_active else (),
+    )
+    monkeypatch.delenv(CONF.RUN_GROWTH_HELD_TESTS_ENV, raising=False)
+    monkeypatch.setattr(
+        CONF, "GROWTH_TEST_HOLDS", {"missing.py::test_missing": object()},
+    )
+    config = _growth_hold_config(_SORT_SWO_IGNORE if table_active else "")
+    if not table_active:
+        config.invocation_params.args = ()
+    with RT._runner_exclusion_environment(RT._PERMANENT_FULL_SUITE_EXCLUSIONS):
+        assert CONF._is_complete_growth_hold_collection(config) is True
+        with pytest.raises(pytest.UsageError, match="growth-test hold keys missing"):
+            list(CONF.pytest_collection_modifyitems(config, []))
+
+
+@pytest.mark.parametrize(
+    "token",
+    ["--ignore=/user/selected.py", "--ignore-glob=*_generated.py", "--pyargs"],
+)
+def test_user_collection_narrowing_still_disables_growth_hold_completeness_guard(
+    monkeypatch: pytest.MonkeyPatch, token,
+):
+    monkeypatch.delenv(CONF._RUNNER_EXCLUSION_ENV, raising=False)
+    config = _growth_hold_config(token)
+    assert CONF._is_complete_growth_hold_collection(config) is False
+
+
+@pytest.mark.parametrize(
+    "args",
+    [
+        ["--deselect=ignored.py::test_node"],
+        ["--ignore=/user/selected.py"],
+        ["--ignore-glob=*_generated.py"],
+        ["--pyargs"],
+    ],
+)
+def test_user_selection_options_remain_nonacceptance(args):
+    assert RT._is_full_suite(args) is False
+    assert RT._is_acceptance_run(args) is False
+
+
+def test_explicit_sort_swo_target_still_collects_without_runner_ignore():
+    result = _collect(_REPO, str(_SORT_SWO_TEST))
+    combined = result.stdout + result.stderr
+    assert result.returncode == 0, combined
+    assert "test_cpp_e2e_clean_generic_lambda_positive" in result.stdout
+
+
+@pytest.mark.parametrize(
+    "relative",
+    [
+        "orchestrator/campaign/s1_direct_comparison.py",
+        "orchestrator/campaign/p3_s4_loop_sort.py",
+    ],
+)
+def test_s1_and_p3_s4_callers_still_reference_sort_swo_checker(relative):
+    source = (_REPO / relative).read_text(encoding="utf-8")
+    assert "from .sort_swo_oracle import" in source
+    assert source.count("check_materialized_sort_swo") >= 2
 
 
 def test_ini_testpaths_and_runner_default_target_point_at_the_same_tree():
