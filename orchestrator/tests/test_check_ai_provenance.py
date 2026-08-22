@@ -1939,6 +1939,17 @@ def test_known_violation_ledger_matches_literal_entries():
         "tools/check_ai_provenance.py orchestrator/tests/test_check_ai_provenance.py` が非自明になるのは、"
         "両側の追加が互いに相手に無い新規行として現れるためである。親作成 merge のため Codex 著者とは記さない。"
     )
+    t1479_merge3_ruling = (
+        "2026-08-22 dev-wave-t1479-known-violation-merge-authorship "
+        "受入前裁定 (3回目、ユーザー選択: known-violation 登録)"
+    )
+    t1479_merge3_note = (
+        "受入投入前に親が作成した local main `93a274a2` 取り込み merge。wave側の既存2件 "
+        "(`8440a14850718e63d73dfc510aa66b853a526424`、`e39a8d46567a02d231fce52abae5aee759634ff7`) と "
+        "main側 (T-1476) の既存2件 (`6f2d97c88aa66e571771d5b83992fcfd6d2aefaa`、"
+        "`3eaf2038ec2ac3e7965c2a1eedcadb1ed1266626`) が `KNOWN_PROVENANCE_VIOLATIONS` タプル末尾で競合し、"
+        "削除なしの純粋なunionで解決した。親作成mergeのためCodex著者とは記さない。"
+    )
     observed = tuple(
         (
             spec.commit,
@@ -2060,20 +2071,6 @@ def test_known_violation_ledger_matches_literal_entries():
             "",
         ),
         (
-            "6f2d97c88aa66e571771d5b83992fcfd6d2aefaa",
-            "missing-codex-author",
-            "2026-08-21 dev-wave-t1476-verify-state-committed 受入前裁定 "
-            "(ユーザー選択: known-violation 登録)",
-            "受入投入前に親が作成した2回目の local main 取り込み merge。実装面で両側が"
-            "触ったのは orchestrator/tests/test_s8b_oracle_report.py の1 fileのみで、"
-            "git diff-tree --cc 6f2d97c8 は commit ヘッダ (SHA) 行のみで実質空 = 競合解決による"
-            "新規著作なしと確認済み。wave側は新設回帰テストを追加 (Codex role=authorが"
-            "commit 67d7a7faで既に記述)、main側は別wave (T-1371) が同ファイルの別テスト関数群の"
-            "output-root path分離を変更 (行範囲は非重複)。結果は両側の変更の単純な和集合。"
-            "親作成mergeのためCodex著者とは記さない。",
-            "",
-        ),
-        (
             "d87fd42c0335c1396c1f79557e45357e9bfc163f",
             "missing-ai-agent",
             "2026-08-21 [T-755] wave内でのlocal main取り込みmerge (ユーザー承認: known-violation登録の続行)",
@@ -2127,6 +2124,13 @@ def test_known_violation_ledger_matches_literal_entries():
             "(docs/dev-wave/{core,operations}.md) とtools/pegasus/admission_registry.jsonがmerge中で"
             "working tree driftしCodex dispatchが構造的に使えなかったため親が直接union解消した。"
             "親作成mergeのためCodex著者とは記さない。",
+            "",
+        ),
+        (
+            "387a1daab0d713cf86f19449e88559686f1eb575",
+            "missing-codex-author",
+            t1479_merge3_ruling,
+            t1479_merge3_note,
             "",
         ),
     )
