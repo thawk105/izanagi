@@ -3426,6 +3426,15 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   除く再導出で、baseline PASSED・11/11 KILLED・MISMATCH 0 で一度で通った。
   [T-417] の恒久対応 (harness 側で loadgroup 接尾辞を機械的に扱う) は依然未実施であり、
   **散文の再発記録をこれ以上重ねても検知にならない**ことが 3 例で示された。
+
+- **再発: 2026-08-22** — floor masstree staging 実効化 wave の変異本走で 4 回目の再発
+  (初出 2026-08-04、再発 08-16/08-17/08-18 に続く)。今回は台帳を検索する前に
+  「素の node id を expected_nodes から除外するが runner argv には `--deselect` を
+  足さない」という不完全な回避を最初に試したため、除外してもテストは実行され続け
+  failed_nodes に残り、MISMATCH (expected 側に無い extra 1 件) を再現した。台帳を検索して
+  正しい回避策 (`--deselect=<素の node id>` を runner argv へ追加) を発見し、
+  baseline PASSED・161/161 KILLED で収束した。[T-417] の恒久対応は依然未実施であり、
+  4 回目の再発によって「散文の再発記録だけでは検知にならない」ことが追加で示された。
 ### F96. 非 UTF-8 の証跡 blob が land され local main の受入全走が赤のままになった [手順漏れ]
 
 - 事象: [T-287] wave が段 9 直前の受入全走で 1 件の赤を観測した
@@ -3854,6 +3863,28 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   全 4 run を消費してから中止されるため損失が最大になる点が新しい情報である。詳細は
   F300。恒久対応は F106 のままで、
   待ち時間には repo 外の job directory だけを触る。
+
+- **再発: 2026-08-23** — dev-wave-sort-swo-oracle-exclusion。段 6 の fix 子
+  (Codex `role=fix`、`sandbox=workspace-write`) の**走行中に**、親が待ち時間を使って
+  段 7 の spool fragment (`docs/spool/failures/...`) を worktree へ書いた。
+  根本原因は F106 と同一 (長い走行を待ち時間とみなし、その間に別の段の作業を worktree 内で進めた)。
+  **新しいのは結果である。** これまでの再発では harness の preflight が `rc=2` で
+  fail-closed に止まるか、親が自分で撤去して実害ゼロだった。今回は
+  **workspace-write の子が、走行中に現れた未追跡ファイルを「dispatch 失敗が自動生成した
+  許可外の成果物」と誤認し、開始時の状態へ戻すために削除した。**
+  子の transcript に「開始時には無かった自動生成物で、今回の編集対象外なので……
+  この failure fragment だけを元に戻します」という判断がそのまま残っている。
+  子の開始前から存在した `docs/spool/decisions/...` は保持されていた
+  — 判定基準が「走行中に現れたか」だったことがここから分かる。
+  さらに**子は完了報告にこの削除を書かなかった**。報告には「`docs/` の既存 decision fragment も
+  保持しています」とあるだけで、削除した failure fragment には触れていない。
+  親が `git status` の未追跡一覧を fix 前後で突き合わせて気付いた。
+- 顕在化した読み方: **workspace-write の子が走っている間、親は worktree 内へ新規ファイルを作らない。**
+  子は「自分の走行中に現れたもの」を自分の残骸と見なして掃除しうる。
+  待ち時間の作業は repo 外の job directory に置き、子の終了後に worktree へ移す。
+- 併せて顕在化: **子の完了報告は削除を網羅しない。** 子の前後で
+  `git status --porcelain --untracked-files=all` を突き合わせるのが唯一の確実な検出手段である。
+- 恒久対応は F106 のまま (`DW-O19` の走行中不可触規律と harness preflight)。
 ### F107. 内側検証の変異を外側の一括再検証が mask した [恒真ゲート]
 
 - 事象: 事前登録した変異 M15 (publish 直後の再検証と rollback を落とす) が本走で **SURVIVED**
@@ -7822,6 +7853,23 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   (iii) 1 度目の失敗が完全な receipt を残すため、**同じ prompt での再投入は
   `NG: 既存の完全な receipt は上書きできない` で止まる**。`--artifact-root` を分ける必要がある。
 - 実害: 子の起動失敗 2 回と、回避手順の設計で約 4 分。誤った land には至っていない。
+
+- **再発: 2026-08-23** — 同じ gate (`tools/pegasus/admission_registry.json:
+  working bytes が HEAD blob から drift`) を、**codex 子の起動ではなく親の焦点走で**踏んだ。
+  **引き金も現れ方も既載 2 件と異なる。** 段 6 の追加 fix で Codex `role=author` が
+  同ファイルへ entry を 1 件足した直後、親が commit する前に焦点走を投入したところ、
+  `orchestrator/tests/test_codex_worker_launch.py` が **70 件赤**になった。
+  launcher を subprocess として起動するテスト族が、起動前検査で一律 `launcher_rc=2`
+  (`outcome='launcher_error'`) を返すためである。commit 後の再走は 1646 passed / 0 failed。
+- 新しい情報は 2 点。(i) **この gate は「子を起動できない」形だけでなく「テストが大量に赤くなる」
+  形でも現れる。** 後者は赤の件数が多く失敗メッセージも実装差分と無関係なため、
+  自分の実装差分の回帰と誤帰属しやすい。実際の判別点は launcher.stderr 先頭行 1 行だけである。
+  (ii) 既載の恒久対応 (段 6 のレビュー子を投げる前に統合 commit を作る) は
+  **レビュー子の投入だけを守っており、fix 後の親の焦点走を守っていない。**
+  fix が hook 正本ファイルを触った場合は、焦点走の前にも統合 commit が要る。
+- 再発検知: launcher 族が理由不明に大量赤になったら、まず
+  `git status --porcelain` に `hooks/**` / `tools/pegasus_admission_registry.py` /
+  `tools/pegasus/admission_registry.json` の未 commit 差分が無いかを見る。
 ### F284. 変異 spec の期待 node に parametrize 済みテストの素の名前を書いて起動前に止まった [手順漏れ]
 
 - 事象: 変異 harness が
@@ -9797,6 +9845,12 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: `env -u FORCE_COLOR` を外した走行で当該 node が落ちることを実測で確認済み
   (同一 checkout・同一 commit で色あり/色なしを 1 回ずつ実行し、前者だけが落ちる)。
 
+
+- **再発: 2026-08-23** — 段 5 実装後の焦点走で同じ node が落ちた。恒久対応 (`env -u FORCE_COLOR
+  -u COLORTERM` の前置) は台帳にあるが機械強制が無く、親が焦点走を素の環境で起動して踏んだ。
+  切り分けは同一 checkout・同一 commit で色なし再走を 1 回行い緑を確認する方法で足りた。
+  **受入全走を素の環境で投入していれば同じ理由で赤になっていた**ため、投入前に気付けたのは
+  焦点走を先に回したからである。
 ### F374. 封緘前の repository へ封緘後用の判定を当てて 66 node を落とした [順序誤り] [信頼境界の取り違え]
 
 - 事象: 段 6 の fix 1 巡目で local config の allowlist 検査を repository 列挙処理へ移した結果、
@@ -11572,6 +11626,22 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   でなければならない」という文言を含む) を出したら、`ls -la /tmp/.git` 等で `/tmp` 直下の
   迷子 `.git` 混入をまず疑う。
 
+
+- **再発: 2026-08-23** — dev-wave-sort-swo-oracle-exclusion の consumer 焦点走で
+  `test_dev_wave_land.py::test_exploration_external_root_keeps_wave_clean` が
+  `IZANAGI_EXPLORATION_OUTPUT_ROOT は repository 外でなければならない` で落ちた。
+  **F457 が「一時的」と推定していた点が今回の実測で覆る。** `/tmp/.git` は
+  **2026-08-22 15:47 作成の空 directory (所有者 tanab)** として約 14.5 時間存在し続けており、
+  短命ではなかった。有効な git repository ですらない
+  (`git --git-dir=/tmp/.git rev-parse` は `not a git repository` を返す) が、
+  `_has_git_ancestor()` は `.git` の存在だけを見るため、`/tmp` 配下の**あらゆる** path が
+  repo 内と判定される。
+- 影響範囲: この機体で走る**全 wave**の受入・焦点走。本 wave の変更とは無関係。
+- 本 wave の対処: `rmdir /tmp/.git` で除去した (空でなければ失敗する操作を選び、
+  データを壊さないことを構造的に保証した)。除去後に同 node は緑になった。
+- 顕在化した読み方: `/tmp/.git` を「他プロセスが短時間だけ作る」ものと仮定して待つのは誤りである。
+  **落ちた時点で実在を確認し、空 directory なら `rmdir` で除去してよい。**
+  `rm -rf` は使わない (実データを持つ repo だった場合に破壊するため)。
 ### F458. T-181/T-1434の既存test群がreal codex execの実ネットワーク経路を一度も検証していなかった [テスト代表性]
 
 - 事象: T-189 stage2-plan-replayer実装のsmoke gate (DW-G01) で、`tools/codex_reasoning_ab.py`
