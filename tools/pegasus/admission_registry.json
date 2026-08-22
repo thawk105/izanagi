@@ -61,6 +61,12 @@
       "primary_gate": "compute allocation owned by certify_calibration.sh",
       "evidence": "static compute-side call-site classification"
     },
+    "tools/pegasus/mocc_trace_pilot.sh": {
+      "class": "dispatch-required",
+      "reason": "PBS Mocc trace pilot job body",
+      "primary_gate": "PBS allocation and job-body site preflight",
+      "evidence": "static job-body classification"
+    },
     "tools/pegasus/oracle_n_pilot.sh": {
       "class": "dispatch-required",
       "reason": "PBS oracle n pilot job body",
@@ -204,6 +210,12 @@
       "reason": "login-side PBS floor submitter",
       "primary_gate": "qsub submission; compute work stays in job body",
       "evidence": "legacy-admitted (未実測)"
+    },
+    "tools/pegasus/submit_mocc_trace.sh": {
+      "class": "local-ok",
+      "reason": "login-side PBS Mocc trace pilot submitter",
+      "primary_gate": "qsub submission; compute work stays in job body",
+      "evidence": "static login-side submitter classification"
     },
     "tools/pegasus/submit_oracle_n_pilot.sh": {
       "class": "local-ok",
