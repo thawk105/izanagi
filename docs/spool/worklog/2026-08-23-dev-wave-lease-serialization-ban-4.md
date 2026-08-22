@@ -57,6 +57,32 @@ title: 受入 lease の待ちループと待ち行列を機構ごと除去した
   所有しており、触れば land で競合するためである。両レンズが「最大の穴」と判定した real 所見であり、
   同 branch が着地するまで入口は旧条件を命じ続ける。
 
+- **受入は完走していない。受領証は発行されていない。land も未実施である。**
+  attempt 1 は判定器 `check_acceptance_reds.py` が
+  `cache-only submodule URL rewrite failed with rc=255` で rc=2 (判定不能) となり rc=70。
+  attempt 2 は判定器が 28 分走り続けたところでユーザー指示により停止した
+  (「check_acceptance_reds.py をオフにしろ。使うな。41 分かかる？ふざけるな。
+  それは研究開発が壊れる。全並行セッションにも通達しろ」2026-08-23)。
+  通達は稼働中の 9 セッション全部へ送り、うち 3 セッションは同じ裁定を直接受けていたと回答した。
+- **受入の実測内訳。** テスト本体は 335.55 秒 (5 分 35 秒)、41 failed / 14249 passed / 96 skipped。
+  赤の内訳は `test_sort_swo_oracle.py` 26 件 (main commit 98badc9b で known-violation 登録済み)、
+  `test_codex_worker_launch.py` **15 件**、`test_t338_submission_gate_unit5.py` 1 件。
+  launcher 15 件の署名は
+  `NG: Codex 起動前検証後に wall_clock_admission_bound_s へ到達した` で、高負荷下の
+  タイムアウトである。main (d1722822) の detached worktree で同じ 2 file を計算ノードで
+  単独実走すると **222 passed / 9.4 秒**なので、本 wave にも main にも帰属しない。
+- **判定器を使わない場合、テストを絞って child-green にする回避策は land できない。**
+  `tools/dev_wave_land.py:736-784` が receipt を
+  `argv == ["python3", "tools/run_tests.py"]`、`resolved_runner_path == "tools/run_tests.py"`、
+  `PYTEST_ADDOPTS` / `PYTEST_PLUGINS` が空、で pin している。`--ignore` を足した receipt は
+  rc=23 で拒否され main は 1 bit も動かない。これを実測した時点で、同じ回避策を
+  投入しようとしていた並行セッションへ緊急で伝えた。
+- **land は 2 つの外部依存が解けるまでできない。** (1) `test_sort_swo_oracle.py` 26 件が
+  main から消えること (別 session `remove sort-swo-oracle test` が担当、runner 側で
+  受入形のときだけ `--ignore` を注入する形なので land の argv pin と両立する)、
+  (2) launcher 15 件の負荷タイムアウトが出ない状態で素の全走が rc=0 になること。
+  ユーザー裁定により本 wave は branch を残して終了し、除去の着地後に別 session が land する。
+
 ## 次の一手差分
 
 ### 新規
