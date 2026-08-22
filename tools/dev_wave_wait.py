@@ -400,7 +400,7 @@ _CLAIM_STATES = frozenset(
     {"acquired", "held-self", "held", "queued", "stale-held", "unavailable"}
 )
 _ACCEPTED_CLAIM_STATES = frozenset({"acquired", "held-self"})
-_POLLING_CLAIM_STATES = frozenset({"held", "queued"})
+_NONBLOCKING_CLAIM_STATES = frozenset({"held", "queued"})
 _RELEASED_STATES = frozenset({"released", "free", "not-owner"})
 
 
@@ -1673,7 +1673,15 @@ def _acceptance_parser() -> argparse.ArgumentParser:
     parser = _ArgumentParser(prog=f"{_PROGRAM} acceptance", add_help=True)
     parser.add_argument("--wave", required=True)
     parser.add_argument("--lease-dir", type=Path)
-    parser.add_argument("--lease-optional", action="store_true", default=False)
+    parser.add_argument(
+        "--lease-optional",
+        action="store_true",
+        default=False,
+        help=(
+            "後方互換のため受理する no-op。"
+            "挙動を選択する flag ではない"
+        ),
+    )
     parser.add_argument("--receipt-file", type=Path, required=True)
     parser.add_argument("--log-file", type=Path, required=True)
     parser.add_argument(
@@ -1689,6 +1697,7 @@ def _acceptance_parser() -> argparse.ArgumentParser:
         "--poll-seconds",
         type=_poll_seconds,
         default=_DEFAULT_ACCEPTANCE_POLL_SECONDS,
+        help="後方互換のため受理する no-op。acceptance は claim 後に sleep しない",
     )
     parser.add_argument(
         "--max-wait-seconds",
@@ -3007,7 +3016,7 @@ def _claim_once(
             lifecycle.ownership = _LeaseOwnership.HELD_SELF
         else:
             lifecycle.ownership = _LeaseOwnership.NONE
-            # held/queued の待ち札は 300 秒で失効するため、他 holder を release しない。
+            # 未所有 claim は他 wave の lease を release する権限を持たない。
     if self_renew_failed:
         raise _StageFailure(
             "claim-self-renew-failed",
@@ -3091,31 +3100,6 @@ def _claim_once(
     )
 
 
-def _wait_until_acquired(
-    effects: _Effects,
-    repo: Path,
-    lease_dir: Path,
-    wave: str,
-    poll_seconds: int,
-    deadline: float,
-    lifecycle: _AcceptanceLifecycle,
-) -> tuple[float, _ClaimContext]:
-    while True:
-        sha = _main_sha(effects, repo, "preclaim-rev-parse")
-        claim_started_at = effects.monotonic()
-        if claim_started_at >= deadline:
-            raise _StageFailure("claim-timeout")
-        claim = _claim_once(effects, repo, lease_dir, wave, sha, lifecycle)
-        if claim.state in _ACCEPTED_CLAIM_STATES:
-            lifecycle.acquired_at = claim_started_at
-            return claim_started_at, claim
-        if claim.state not in _POLLING_CLAIM_STATES:
-            raise _StageFailure("claim-state")
-        if effects.monotonic() + poll_seconds > deadline:
-            raise _StageFailure("claim-timeout")
-        effects.sleep(poll_seconds)
-
-
 def _try_claim_once_without_wait(
     effects: _Effects,
     repo: Path,
@@ -3132,7 +3116,7 @@ def _try_claim_once_without_wait(
     if claim.state in _ACCEPTED_CLAIM_STATES:
         lifecycle.acquired_at = claim_started_at
         return claim_started_at, claim
-    if claim.state not in _POLLING_CLAIM_STATES:
+    if claim.state not in _NONBLOCKING_CLAIM_STATES:
         raise _StageFailure("claim-state")
     try:
         expected_holder = hashlib.sha256(wave.encode("utf-8")).hexdigest()[:12]
@@ -4087,25 +4071,17 @@ def _run_acceptance_attempt(
             if preserving_owned_lease
             else active_lifecycle
         )
-        if lease_optional:
-            claim_started_at, claim_context = _try_claim_once_without_wait(
-                effects,
-                repo,
-                lease_dir,
-                wave,
-                absolute_deadline,
-                claim_lifecycle,
-            )
-        else:
-            claim_started_at, claim_context = _wait_until_acquired(
-                effects,
-                repo,
-                lease_dir,
-                wave,
-                poll_seconds,
-                absolute_deadline,
-                claim_lifecycle,
-            )
+        # --lease-optional と --poll-seconds は CLI 互換のためだけに受理する。
+        # acceptance の claim は常に単発・非ブロッキングであり、値は挙動を選ばない。
+        del lease_optional, poll_seconds
+        claim_started_at, claim_context = _try_claim_once_without_wait(
+            effects,
+            repo,
+            lease_dir,
+            wave,
+            absolute_deadline,
+            claim_lifecycle,
+        )
         if preserving_owned_lease:
             if claim_lifecycle.ownership is _LeaseOwnership.ACQUIRED:
                 active_lifecycle.ownership = _LeaseOwnership.ACQUIRED

@@ -6662,28 +6662,68 @@ def test_producer_file_visibility_grace_is_bounded() -> None:
 
 
 @pytest.mark.parametrize(
-    "state", ["held", "queued", "stale-held", "unavailable"],
-    ids=("held", "queued", "stale-held", "unavailable"),
+    ("state", "lease_optional"),
+    [
+        pytest.param("held", False, id="held-default"),
+        pytest.param("held", True, id="held-legacy-flag"),
+        pytest.param("queued", False, id="queued-default"),
+        pytest.param("queued", True, id="queued-legacy-flag"),
+    ],
 )
-def test_acceptance_non_accepted_state_never_runs_command(state: str) -> None:
+def test_acceptance_claim_is_single_nonblocking(
+    state: str,
+    lease_optional: bool,
+) -> None:
+    def run_once(flag: bool) -> tuple[object, ...]:
+        fake = _RoutingAcceptanceEffects(
+            behind=[0, 0],
+            claim_payload=json.dumps({"state": state}),
+        )
+        outcome = _run_acceptance(fake, lease_optional=flag)
+
+        assert outcome.rc == 0
+        assert (fake.claims, fake.submissions, fake.releases) == (1, 1, 0)
+        assert not any(event[0] == "sleep" for event in fake.events)
+        assert fake.receipt_published is True
+        assert fake.receipt_content is not None
+        receipt = json.loads(fake.receipt_content)
+        assert receipt["lease_holder"] == _HOLDER
+        assert not any(
+            event[0] == "run" and event[1] == _helper("release")
+            for event in fake.events
+        )
+        fake.assert_drained()
+        return (
+            outcome.rc,
+            fake.claims,
+            fake.submissions,
+            fake.releases,
+            receipt["lease_holder"],
+        )
+
+    observed = run_once(lease_optional)
+    other_flag = run_once(not lease_optional)
+    assert observed == other_flag == (0, 1, 1, 0, _HOLDER)
+
+
+@pytest.mark.parametrize(
+    "state", ["stale-held", "unavailable"],
+    ids=("stale-held", "unavailable"),
+)
+def test_acceptance_rejects_non_nonblocking_claim_state(state: str) -> None:
     fake = _FakeEffects()
     _preflight(fake)
     _claim(fake, _SHA_A, json.dumps({"state": state}))
-    if state in {"held", "queued"}:
-        fake.monotonic_queue[:] = [0.0, 0.0]
     outcome = _run_acceptance(fake, max_wait=1)
 
     assert outcome.rc == 70
-    expected = [
+    assert fake.events == [
         *_PREFLIGHT_EVENTS,
         ("monotonic",),
         ("run", ("git", "rev-parse", "main"), _REPO, True),
         ("monotonic",),
         ("run", _helper("claim", _SHA_A), _REPO, True),
     ]
-    if state in {"held", "queued"}:
-        expected.append(("monotonic",))
-    assert fake.events == expected
     fake.assert_drained()
 
 
@@ -6805,31 +6845,49 @@ def test_try_claim_once_without_wait_builds_unclaimed_context(
     fake.assert_drained()
 
 
-def test_acceptance_lease_optional_acquired_matches_normal_path() -> None:
-    fake = _RoutingAcceptanceEffects(
-        behind=[0, 0],
-        claim_payload=_acquired_payload(),
-    )
-    lifecycle = DW._AcceptanceLifecycle()
+def test_acceptance_lease_optional_is_noop_for_acquired_path() -> None:
+    def run_once(flag: bool) -> tuple[object, ...]:
+        fake = _RoutingAcceptanceEffects(
+            behind=[0, 0],
+            claim_payload=_acquired_payload(),
+        )
+        lifecycle = DW._AcceptanceLifecycle()
+        outcome = _run_acceptance(
+            fake,
+            lifecycle=lifecycle,
+            lease_optional=flag,
+        )
 
-    outcome = _run_acceptance(
-        fake,
-        lifecycle=lifecycle,
-        lease_optional=True,
-    )
+        assert outcome.rc == 0
+        assert lifecycle.ownership is DW._LeaseOwnership.RETAINED
+        assert (fake.claims, fake.submissions, fake.releases) == (2, 1, 0)
+        assert fake.receipt_published is True
+        assert json.loads(fake.receipt_content)["lease_holder"] == _HOLDER
+        assert not any(event[0] == "sleep" for event in fake.events)
+        fake.assert_drained()
+        return (
+            outcome.rc,
+            lifecycle.ownership,
+            fake.claims,
+            fake.submissions,
+            fake.releases,
+            json.loads(fake.receipt_content)["lease_holder"],
+        )
 
-    assert outcome.rc == 0
-    assert lifecycle.ownership is DW._LeaseOwnership.RETAINED
-    assert (fake.claims, fake.submissions, fake.releases) == (2, 1, 0)
-    assert fake.receipt_published is True
-    assert json.loads(fake.receipt_content)["lease_holder"] == _HOLDER
-    assert fake.events.count(("sleep", 30)) == 0
-    fake.assert_drained()
+    assert run_once(False) == run_once(True)
 
 
-@pytest.mark.parametrize("state", ["held", "queued"])
-def test_acceptance_lease_optional_skips_wait_reclaim_and_release(
-    state: str, tmp_path: Path,
+@pytest.mark.parametrize(
+    ("state", "lease_optional"),
+    [
+        pytest.param("held", False, id="held-default"),
+        pytest.param("held", True, id="held-legacy-flag"),
+        pytest.param("queued", False, id="queued-default"),
+        pytest.param("queued", True, id="queued-legacy-flag"),
+    ],
+)
+def test_acceptance_unclaimed_path_skips_wait_reclaim_and_release(
+    state: str, lease_optional: bool, tmp_path: Path,
 ) -> None:
     fake = _RoutingAcceptanceEffects(
         behind=[0, 0],
@@ -6840,7 +6898,7 @@ def test_acceptance_lease_optional_skips_wait_reclaim_and_release(
     outcome = _run_acceptance(
         fake,
         lifecycle=lifecycle,
-        lease_optional=True,
+        lease_optional=lease_optional,
     )
 
     assert outcome.rc == 0
@@ -6866,7 +6924,10 @@ def test_acceptance_lease_optional_skips_wait_reclaim_and_release(
     fake.assert_drained()
 
 
-def test_acceptance_lease_optional_keeps_main_drift_check() -> None:
+@pytest.mark.parametrize(
+    "lease_optional", [False, True], ids=("default", "legacy-flag")
+)
+def test_pin_c_unclaimed_keeps_main_drift_check(lease_optional: bool) -> None:
     fake = _RoutingAcceptanceEffects(
         behind=[0, 0],
         claim_payload=json.dumps({"state": "held"}),
@@ -6877,7 +6938,7 @@ def test_acceptance_lease_optional_keeps_main_drift_check() -> None:
     outcome = _run_acceptance(
         fake,
         lifecycle=lifecycle,
-        lease_optional=True,
+        lease_optional=lease_optional,
     )
 
     assert outcome.rc == 70
@@ -6892,6 +6953,107 @@ def test_acceptance_lease_optional_keeps_main_drift_check() -> None:
     assert lifecycle.ownership is DW._LeaseOwnership.NONE
     assert (fake.claims, fake.submissions, fake.releases) == (1, 1, 0)
     assert fake.receipt_published is False
+    assert not any(
+        event[0] == "run" and event[1] == _helper("release")
+        for event in fake.events
+    )
+    fake.assert_drained()
+
+
+def test_pin_c_unclaimed_postrun_dirty_blocks_without_receipt() -> None:
+    fake = _FakeEffects()
+    _queue_clean_acceptance_prefix(
+        fake,
+        claim_payload=json.dumps({"state": "held"}),
+    )
+    fake.expect_run(
+        _COMMAND,
+        DW._CommandResult(0),
+        capture=False,
+        unchanged_postrun=False,
+    )
+    fake.expect_run(_STATUS_ARGV, DW._CommandResult(0, " M changed.py\n"))
+
+    outcome = _run_acceptance(fake)
+
+    assert outcome == DW._Outcome(70, "postrun-clean")
+    assert fake.receipt_content is None
+    assert fake.receipt_published is False
+    assert not any(
+        event[0] == "run" and event[1] == _helper("release")
+        for event in fake.events
+    )
+    fake.assert_drained()
+
+
+def test_pin_c_unclaimed_postrun_index_flags_block_without_receipt() -> None:
+    fake = _FakeEffects()
+    _queue_clean_acceptance_prefix(
+        fake,
+        claim_payload=json.dumps({"state": "held"}),
+    )
+    fake.expect_run(
+        _COMMAND,
+        DW._CommandResult(0),
+        capture=False,
+        unchanged_postrun=False,
+    )
+    fake.expect_run(_STATUS_ARGV, DW._CommandResult(0, ""))
+    fake.expect_run(_INDEX_FLAGS_ARGV, DW._CommandResult(0, "S hidden.py\0"))
+
+    outcome = _run_acceptance(fake)
+
+    assert outcome == DW._Outcome(70, "postrun-index-flags")
+    assert fake.receipt_content is None
+    assert fake.receipt_published is False
+    assert not any(
+        event[0] == "run" and event[1] == _helper("release")
+        for event in fake.events
+    )
+    fake.assert_drained()
+
+
+def test_pin_c_unclaimed_postrun_fingerprint_blocks_without_receipt() -> None:
+    fake = _FakeEffects()
+    _queue_clean_acceptance_prefix(
+        fake,
+        claim_payload=json.dumps({"state": "held"}),
+    )
+    fake.expect_run(
+        _COMMAND,
+        DW._CommandResult(0),
+        capture=False,
+        unchanged_postrun=False,
+    )
+    _postrun_integrity(fake, head=_SHA_B)
+
+    outcome = _run_acceptance(fake)
+
+    assert outcome == DW._Outcome(70, "postrun-fingerprint")
+    assert fake.receipt_content is None
+    assert fake.receipt_published is False
+    assert not any(
+        event[0] == "run" and event[1] == _helper("release")
+        for event in fake.events
+    )
+    fake.assert_drained()
+
+
+def test_pin_d_unclaimed_failure_does_not_release_foreign_lease() -> None:
+    fake = _RoutingAcceptanceEffects(
+        behind=[0, 0],
+        claim_payload=json.dumps({"state": "held"}),
+        command_result=DW._CommandResult(23),
+    )
+
+    outcome = _run_acceptance(fake)
+
+    assert outcome.rc == 70
+    assert outcome.stage == "acceptance-command"
+    assert outcome.source_rc == 23
+    assert fake.receipt_content is None
+    assert fake.receipt_published is False
+    assert fake.releases == 0
     assert not any(
         event[0] == "run" and event[1] == _helper("release")
         for event in fake.events
@@ -7122,29 +7284,22 @@ def test_acceptance_rejects_claim_json(case: str, payload: str) -> None:
     fake.assert_drained()
 
 
-def test_held_and_queued_refresh_main_before_every_claim() -> None:
-    fake = _FakeEffects()
-    _preflight(fake)
-    fake.monotonic_queue[:] = [0.0, 0.0, 30.0]
-    _claim(fake, _SHA_A, '{"state":"held"}')
-    _claim(fake, _SHA_B, '{"state":"queued"}')
-    _claim(fake, _SHA_C, _acquired_payload(main_sha=_SHA_C))
-    fake.expect_run(("git", "rev-parse", "main"), DW._CommandResult(0, _SHA_C + "\n"))
-    fake.expect_run(("git", "rev-list", "--count", "HEAD..main"), DW._CommandResult(0, "0\n"))
-    fake.expect_run(("git", "rev-list", "--count", "HEAD..main"), DW._CommandResult(0, "0\n"))
-    _prerun_status(fake)
-    fake.expect_run(_COMMAND, DW._CommandResult(0), capture=False)
+@pytest.mark.parametrize("state", ["held", "queued"])
+def test_unclaimed_acceptance_claim_does_not_refresh_or_retry(state: str) -> None:
+    fake = _RoutingAcceptanceEffects(
+        behind=[0, 0],
+        claim_payload=json.dumps({"state": state}),
+    )
+
     outcome = _run_acceptance(fake)
+
     assert outcome.rc == 0
-    claim_shas = [
-        event[1][-1]
+    assert fake.claims == 1
+    assert fake.events.count(("sleep", 30)) == 0
+    assert not any(
+        event[0] == "run" and event[1] == _helper("release")
         for event in fake.events
-        if event[0] == "run" and len(event[1]) > 2 and event[1][2] == "claim"
-    ]
-    assert claim_shas == [_SHA_A, _SHA_B, _SHA_C, _SHA_C]
-    assert fake.events.count(("sleep", 30)) == 2
-    assert not any(event[0] == "run" and event[1] == _helper("release") for event in fake.events)
-    fake.assert_drained()
+    )
 
 
 def test_acquired_reloads_main_before_behind_check() -> None:
@@ -8563,41 +8718,12 @@ def test_abnormal_path_without_ownership_does_not_release(kind: str) -> None:
     if kind == "subprocess-error":
         fake.expect_run(("git", "rev-parse", "main"), OSError("boom"))
     else:
-        fake.monotonic_queue[:] = [0.0, 0.0]
         _claim(fake, _SHA_A, '{"state":"held"}')
-        original_sleep = fake.sleep
-
-        def interrupting_sleep(seconds: float) -> None:
-            original_sleep(seconds)
-            raise KeyboardInterrupt
-
-        effects = fake.effects
-        effects = DW._Effects(
-            run=effects.run, run_unbounded=effects.run_unbounded,
-            sleep=interrupting_sleep, kill=effects.kill,
-            is_file=effects.is_file, read_text=effects.read_text,
-            getenv=effects.getenv, monotonic=effects.monotonic,
-            write_temp=effects.write_temp, unlink=effects.unlink,
-            path_exists=effects.path_exists, is_dir=effects.is_dir,
-            resolve_path=effects.resolve_path,
-            write_receipt_temp=effects.write_receipt_temp,
-            rename=effects.rename,
-            run_logged=effects.run_logged,
-            read_bytes=effects.read_bytes,
-            is_symlink=effects.is_symlink,
-            inspect_acceptance_log=effects.inspect_acceptance_log,
-            run_with_input=effects.run_with_input,
-            acceptance_monotonic=effects.acceptance_monotonic,
-        )
+        fake.expect_run(("git", "rev-parse", "main"), KeyboardInterrupt())
     if kind == "subprocess-error":
         outcome = _run_acceptance(fake)
     else:
-        outcome = DW.run_acceptance(
-            wave=_WAVE, lease_dir=_LEASE, merge_message_file=None,
-            poll_seconds=30, max_wait_seconds=7200, command=_COMMAND,
-            repo=_REPO, effects=effects, receipt_file=_RECEIPT,
-            log_file=_LOG,
-        )
+        outcome = _run_acceptance(fake)
     assert outcome.rc == (130 if kind == "keyboard-interrupt" else 70)
     expected = [
         *_PREFLIGHT_EVENTS,
@@ -8609,8 +8735,7 @@ def test_abnormal_path_without_ownership_does_not_release(kind: str) -> None:
             [
                 ("monotonic",),
                 ("run", _helper("claim", _SHA_A), _REPO, True),
-                ("monotonic",),
-                ("sleep", 30),
+                ("run", ("git", "rev-parse", "main"), _REPO, True),
             ]
         )
     assert fake.events == expected
@@ -8949,6 +9074,16 @@ def test_acceptance_cli_contract(case: str) -> None:
         assert args.owned_path == []
         assert args.lease_optional is False
         assert child == ["harmless"]
+        lease_optional_action = next(
+            action
+            for action in DW._acceptance_parser()._actions
+            if "--lease-optional" in action.option_strings
+        )
+        assert (
+            "後方互換のため受理する no-op。"
+            "挙動を選択する flag ではない"
+            in lease_optional_action.help
+        )
         merge_message_action = next(
             action
             for action in DW._acceptance_parser()._actions
@@ -8962,7 +9097,7 @@ def test_acceptance_cli_contract(case: str) -> None:
     assert raised.value.outcome.rc == 2
 
 
-def test_acceptance_cli_lease_optional_is_opt_in() -> None:
+def test_acceptance_cli_lease_optional_is_legacy_noop() -> None:
     command, args, child = DW._parse_cli(
         [
             "acceptance",
