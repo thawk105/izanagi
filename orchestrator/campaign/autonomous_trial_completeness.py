@@ -2929,7 +2929,7 @@ def assert_autonomous_trial_completeness(
     _check_status_projection(report, cells)
     receipt_arm = None
     receipt_content_digest = None
-    if registered:
+    if arm_execution_permitted:
         launch_binding = report.get("launch_admission", {}).get("binding")
         if isinstance(launch_binding, Mapping):
             receipt_arm = launch_binding.get("arm")
