@@ -32,6 +32,16 @@ TRACE=0 の性能計測とは別 build・別 run。本 insight の数値 (transa
 (a) compute-node上のjob本体、(b) login nodeからの独立再実行、の2回実行し**byte-for-byte
 一致**を確認した。
 
+**追記 (2026-08-23、land 引き継ぎ wave の敵対監査による補正)。** 上の `python3` は表記の略で
+ある。(a) の job 本体は `python3` を直接呼ばず、環境 gate が `python3 python3.10 python3.11
+python3.12` の順に「`orchestrator.verifier` を import でき、かつ `sys.version_info >= (3, 10)`」
+を満たす最初の候補を解決し、その絶対 path (`VERIFIER_PY`) で起動する
+(`tools/pegasus/mocc_trace_pilot.sh` の verifier 起動 block)。**この run で実際に選ばれた
+interpreter の実体 path は記録されていない** — script は `VERIFIER_PY` を receipt にも log にも
+書かない。判定値 (`verdict` / `anomaly_count` / `integrity`) はこの差の影響を受けないが、
+版数 gate を通過した interpreter の実行証跡は台帳から辿れない。記録を足す改修は実装面のため
+引き継ぎ wave の scope 外とし、次の一手の候補として worklog へ残した。
+
 ```json
 {
   "runs": 1,
