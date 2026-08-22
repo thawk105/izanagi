@@ -2653,6 +2653,24 @@ def test_floor_postflight_staged_source_set_and_expected_hash_are_enforced(
         "floor-dependency-postflight-config-expected-mismatch"
     )
 
+    bad_expected_archive = dataclasses.replace(
+        before, expected_archive_sha256="d" * 64,
+    )
+    monkeypatch.setattr(
+        s8b_floor_campaign, "_verify_floor_oracle_dependency_source",
+        lambda *_args, **_kwargs: bad_expected_archive,
+    )
+    with pytest.raises(
+            s8b_floor_campaign._FloorOraclePreflightError,
+            match="独立 expected hash") as caught:
+        s8b_floor_campaign._verify_floor_build_dependency(
+            result, argv, fetchcontent_base=base.resolve(), before=bad_expected_archive,
+            repo_root=tmp_path,
+        )
+    assert caught.value.diagnostic.detail_code == (
+        "floor-dependency-postflight-archive-expected-mismatch"
+    )
+
     policy_path.write_bytes(b"fixture payload policy v2\n")
     monkeypatch.setattr(
         s8b_floor_campaign, "_verify_floor_oracle_dependency_source",
