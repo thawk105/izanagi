@@ -2,9 +2,10 @@
 from __future__ import annotations
 
 import ast
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 import copy
 import dataclasses
+import hashlib
 import json
 import pickle
 from pathlib import Path
@@ -58,6 +59,37 @@ def _issued(
     )
 
 
+def _issued_calibration(
+    binary_sha256: str, *, start_records: int = 100,
+    max_records: int = 200, sweep_reps: int = 2, noise_reps: int = 2,
+    use_perf: bool = False, numactl=(), extra_env=None,
+) -> observation.CalibrationObservationCapability:
+    sweep_points = 0
+    records = start_records
+    while records <= max_records:
+        sweep_points += 1
+        records *= 2
+    receipt = observation._new_calibration_observation_receipt(
+        attempt_id="calibration:0", env_tag="test-env",
+        receipt_sha256="a" * 64, binary_sha256=binary_sha256,
+        ycsb_rratio="80",
+        permitted_run_once_calls=(
+            sweep_points * sweep_reps + noise_reps
+        ),
+        sweep_gflags=(
+            "-thread_num=2", "-extime=1", "-clocks_per_us=1800",
+            "-ycsb_rratio=80",
+        ),
+        sweep_reps=sweep_reps, noise_reps=noise_reps,
+        start_records=start_records, max_records=max_records,
+        numactl=numactl, timeout_s=120.0, use_perf=use_perf,
+        extra_env=extra_env,
+    )
+    return observation._issue_calibration_observation_capability_from_receipt(
+        receipt=receipt,
+    )
+
+
 def test_holdout_observation_module_is_a_stdlib_only_leaf():
     source = (_ROOT / "orchestrator" / "holdout_observation.py").read_text(
         encoding="utf-8"
@@ -87,6 +119,7 @@ def test_protected_signatures_are_derived_from_freeze_and_match_exactly():
 
 def test_no_supported_public_api_can_issue_an_observation_token():
     assert "issue_holdout_observation_admission" not in observation.__all__
+    assert "_issue_calibration_observation_capability_from_receipt" not in observation.__all__
     assert not hasattr(observation, "issue_holdout_observation_admission")
 
 
@@ -337,6 +370,163 @@ def test_attempt_admission_rejects_run_once_beyond_permitted_count():
     assert calls == ["spawn", "spawn"]
 
 
+def test_calibration_capability_tracks_sweep_then_noise_and_binds_binary(
+    tmp_path,
+):
+    binary = tmp_path / "ycsb_fixture.exe"
+    binary.write_bytes(b"calibration-binary")
+    digest = hashlib.sha256(binary.read_bytes()).hexdigest()
+    capability = _issued_calibration(digest)
+    static = [
+        "-thread_num=2", "-extime=1", "-clocks_per_us=1800",
+        "-ycsb_rratio=80",
+    ]
+
+    def run(records, phase):
+        return runner.run_once(
+            str(binary),
+            [static[0], f"-ycsb_tuple_num={records}", *static[1:]],
+            use_perf=False, subprocess_runner=lambda *_args, **_kwargs: (
+                _completed_process()
+            ),
+            calibration_observation_capability=capability,
+            calibration_observation_phase=phase,
+        )
+
+    run(100, "sweep")
+    with pytest.raises(observation.HoldoutObservationError, match="doubling"):
+        run(200, "sweep")
+    run(100, "sweep")
+    run(200, "sweep")
+    run(200, "sweep")
+    with pytest.raises(observation.HoldoutObservationError, match="completed sweep"):
+        run(100, "noise")
+
+    observation._transition_calibration_observation_to_noise(
+        capability, saturation_records=100,
+    )
+    with pytest.raises(observation.HoldoutObservationError, match="noise records"):
+        run(200, "noise")
+    run(100, "noise")
+    run(100, "noise")
+
+
+def test_calibration_capability_recomputes_binary_hash_before_spawn(tmp_path):
+    binary = tmp_path / "ycsb_fixture.exe"
+    binary.write_bytes(b"actual-binary")
+    capability = _issued_calibration(hashlib.sha256(b"different").hexdigest())
+    calls = []
+    with pytest.raises(observation.HoldoutObservationError, match="binary hash"):
+        runner.run_once(
+            str(binary),
+            ["-thread_num=2", "-ycsb_tuple_num=100", "-extime=1",
+             "-clocks_per_us=1800", "-ycsb_rratio=80"],
+            use_perf=False,
+            subprocess_runner=lambda *_args, **_kwargs: calls.append("spawn"),
+            calibration_observation_capability=capability,
+            calibration_observation_phase="sweep",
+        )
+    assert calls == []
+
+
+def test_calibration_gateway_reuses_normalized_runtime_values_for_spawn(
+    monkeypatch, tmp_path,
+):
+    binary = tmp_path / "ycsb_fixture.exe"
+    binary.write_bytes(b"calibration-binary")
+    digest = hashlib.sha256(binary.read_bytes()).hexdigest()
+
+    class StatefulNumactl:
+        def __init__(self):
+            self.iterations = 0
+
+        def __iter__(self):
+            self.iterations += 1
+            if self.iterations == 1:
+                return iter(("numactl", "--physcpubind=0"))
+            return iter(("numactl", "--physcpubind=0", "/attacker-wrapper"))
+
+    class InjectingEnvironment(Mapping[str, str]):
+        def __init__(self):
+            self.items_calls = 0
+            self.iterations = 0
+
+        def items(self):
+            self.items_calls += 1
+            return ()
+
+        def __iter__(self):
+            self.iterations += 1
+            return iter(("LD_PRELOAD",))
+
+        def __len__(self):
+            return 1
+
+        def __getitem__(self, key):
+            if key == "LD_PRELOAD":
+                return "/attacker/preload.so"
+            raise KeyError(key)
+
+    numactl = StatefulNumactl()
+    extra_env = InjectingEnvironment()
+    capability = _issued_calibration(
+        digest, use_perf=False,
+        numactl=("numactl", "--physcpubind=0"),
+    )
+    seen = []
+    monkeypatch.delenv("LD_PRELOAD", raising=False)
+
+    runner.run_once(
+        str(binary),
+        ["-thread_num=2", "-ycsb_tuple_num=100", "-extime=1",
+         "-clocks_per_us=1800", "-ycsb_rratio=80"],
+        numactl=numactl,
+        extra_env=extra_env,
+        use_perf=False,
+        subprocess_runner=lambda cmd, **kwargs: (
+            seen.append((cmd, kwargs["env"])) or _completed_process()
+        ),
+        calibration_observation_capability=capability,
+        calibration_observation_phase="sweep",
+    )
+
+    assert numactl.iterations == 1
+    assert extra_env.items_calls == 1
+    assert extra_env.iterations == 0
+    assert seen[0][0][:2] == ["numactl", "--physcpubind=0"]
+    assert "/attacker-wrapper" not in seen[0][0]
+    assert "LD_PRELOAD" not in seen[0][1]
+
+
+def test_calibration_capability_rejects_noise_transition_with_unconsumed_sweep(
+    tmp_path,
+):
+    binary = tmp_path / "ycsb_fixture.exe"
+    binary.write_bytes(b"calibration-binary")
+    capability = _issued_calibration(
+        hashlib.sha256(binary.read_bytes()).hexdigest(),
+        start_records=1, max_records=4, sweep_reps=1, noise_reps=1,
+        use_perf=False,
+    )
+    runner.run_once(
+        str(binary),
+        ["-thread_num=2", "-ycsb_tuple_num=1", "-extime=1",
+         "-clocks_per_us=1800", "-ycsb_rratio=80"],
+        use_perf=False,
+        subprocess_runner=lambda *_args, **_kwargs: _completed_process(),
+        calibration_observation_capability=capability,
+        calibration_observation_phase="sweep",
+    )
+
+    with pytest.raises(
+        observation.HoldoutObservationError,
+        match="unconsumed records",
+    ):
+        observation._transition_calibration_observation_to_noise(
+            capability, saturation_records=1,
+        )
+
+
 def test_one_attempt_allows_exactly_one_measure_point_repetition_set():
     token = _issued("rr80", attempt_id="planned:3", uses=5)
     calls = []
@@ -519,6 +709,17 @@ def test_measure_point_forwards_admission_only_when_non_none(monkeypatch):
         holdout_observation_admission=token,
     )
     assert calls[-1][2]["holdout_observation_admission"] is token
+
+    capability = _issued_calibration("0" * 64)
+    runner.measure_point(
+        "/bench", records=100, threads=2, clocks_per_us=1800,
+        workload={"ycsb_rratio": "80"}, reps=1,
+        holdout_observation_admission=None,
+        calibration_observation_capability=capability,
+        calibration_observation_phase="sweep",
+    )
+    assert calls[-1][2]["calibration_observation_capability"] is capability
+    assert calls[-1][2]["calibration_observation_phase"] == "sweep"
 
 
 def _run() -> int:
