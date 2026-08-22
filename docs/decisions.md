@@ -26174,3 +26174,91 @@ campaign が実 repo (`_DEFAULT_OUTPUT_ROOT.parent`) 配下にあるときは、
 - qualification-ancestry walk を repo_root の制約なく filesystem root まで無条件に歩く —
   共有ファイルシステム (Pegasus) の祖先ディレクトリに無関係な `qualification-marker.json` が
   存在した場合、既定 (`output_root` 省略) の経路まで巻き込んで誤検出する退行リスクがある。
+
+## D660. merge commitの実装面著作判定は`--exit-code`でなくcombined diffの本文空判定で行う (2026-08-22)
+
+**決定:** `_commit_paths()`のmerge分岐で、各parentとの非空diff交差 (候補path集合) が
+実際に実装面著作かを判定する最終ステップは、`git diff-tree --cc --no-renames
+--no-commit-id -p <commit> -- <path>` の出力 (raw bytes) が空かどうかで行う。
+`git diff-tree --cc --exit-code` のrc値は使わない。
+
+**理由:**
+- 段2プランは`--exit-code`案だったが、段3敵対レンズが「`--exit-code`は自明性を反映しない」
+  と指摘し、親が使い捨てrepoで実測したところ、**真に衝突を解消した (両parentと異なる内容の)
+  mergeでも`--exit-code`は常にrc=0を返す**という欠陥を確認した。この案のまま実装していたら
+  merge著作検出そのものが機能しなくなっていた。
+- combined diffのcompaction (`--cc`) は「少なくとも1つのparentと一致するhunk」を省略する。
+  したがって出力本文 (`-p`) が空 = 全hunkが省略された = どのparentとも異なる内容が無い、
+  という関係は成り立つが、`--exit-code`はこの本文の有無と別のrc規約を持つため代用できない。
+- raw bytesのまま比較しUTF-8 decodeしない設計にしたのは、実プロジェクト全履歴(1295 merge中
+  241候補)で46件が`text=True`のUTF-8 strict decodeでUnicodeDecodeErrorになる別の実装バグを
+  段6レビューで発見したため。日本語を含むcombined diffのレンダラがmulti-byte文字境界で
+  出力を打ち切ることがある。
+
+**却下した選択肢:**
+- `git diff-tree --cc --exit-code` のrc判定 — 上記の通り常にrc=0を返すため不採用。
+- combined diff出力を`text=True`でdecodeして比較 — 実データでUnicodeDecodeErrorが発生するため不採用。
+
+## D661. `_message_file_paths()` (commit前preflight) の同型修正は本waveの scope 外とする (2026-08-22)
+
+**決定:** commit前の`--message-file`検査が使う`_message_file_paths()`は、`_commit_paths()`
+と同じpairwise-intersection構造を持ち理論上同型の偽陽性を起こしうるが、本waveでは修正しない。
+
+**理由:**
+- `_message_file_paths()`はまだ存在しないcommitを対象にするため、判定には使い捨てcommit
+  object (またはそれに類する一時構築物) の生成が要る。段6の敵対レビュー2本が独立に
+  「`tools/audit_dangling_commits.py`の到達可能性監査へ副作用しうる」と指摘し、親が
+  実装を読んで安全な隔離 (専用object store等) が未設計であることを確認した。
+- 一方で、land/記録のrc判定に使われるのは`_commit_paths()` (post-hoc、commit確定後の
+  監査) であり、本wave の修正だけで「known-violation台帳が新規に反復増加する」という
+  ユーザー依頼の根本原因には対処できている。preflightの残存は「commit前の意図しない
+  警告」に留まり、fail-closedな誤検出ではあるがland可否には影響しない。
+
+**却下した選択肢:**
+- 同一waveで両方修正する — 使い捨てcommit objectの安全な隔離設計は追加のplan/review
+  サイクルを要し、規律5 (段階導入・盛らない) に反する。
+- `_message_file_paths()`を`_commit_paths()`と同じロジックへ単純委譲する — 対象commitが
+  未確定のためAPI形状が異なり、単純委譲では成立しない。
+
+## D662. 計算ノード混雑の恒常化を踏まえ、受入・land運用を簡素化する (2026-08-22)
+
+**決定 (ユーザー裁定):**
+1. 受入lease (`tools/wave_land_window.py`) の待ち行列は廃止する。各waveは lease claim を待たずに受入・landへ進んでよい。
+2. 受入全走は、mainへ取り込む前の自分のブランチに対して実行する。全テストがパスしたら、mainへの取り込み (land) を行う。
+3. mainを自分のブランチへ取り込んだ (merge) 後、再度受入全走を実行する必要はない。merge自体 (behind解消) は必要だが、merge後の再テストは省略してよい。
+4. 受入で落ちたテストが自分の編集に起因しないと判断できる場合、known-violation として登録し、それを解決するようユーザー裁定へ送る。
+5. 自分のタスクスコープ外の修繕・開発がテストのパスに必要な場合も、同様に known-violation 登録 + 裁定でタスクを送る。known-violation の登録数が増えること自体は問題としない。低優先度の残置ではなく高優先度タスクとして、随時 (defer 可、lazy でよい) 解決する。
+6. 計算ノードが混雑しているという理由で、研究開発全体を止めない。
+
+**理由:**
+- 計算ノードの混雑がスパコン全体の恒常的な状態になった (ユーザー判断、2026-08-22)。既存の受入運用
+  (lease による land 直列化、merge 後の全テスト再実行) は「受入 1 回・queue 待ちが短時間で済む」
+  という前提の上に設計されており、混雑が恒常化した現在ではこの前提が成り立たず、受入待ちだけで
+  main land が数時間単位で停止する事態が実際に発生した (2026-08-22、複数waveの受入が
+  `preclaim-history-provenance` timeout や queue-wait-timeout を繰り返し、main が2時間以上進まなかった)。
+  短時間でジョブが流せる前提を落とし、運用をこの新しい前提に合わせて簡素化する。
+- 核心の設計原則 (ユーザー明言): **並行・分散開発では、一つの wave の失敗・競合・既知の不具合が
+  全体を止めてはならない。** 「何か一つミスがあれば全員止まる」設計は並行・分散開発そのものを
+  殺す。lease による直列化と merge 後の全再テストは、この意味で「一つの wave の受入待ちが
+  全体の land を止める」「一つの merge の不確実性が受入全体をやり直させる」という、まさに
+  今回否定した設計だった。
+- mainへの取り込み競合 (lease 廃止により複数 wave が同時に land を試みた場合の取り込み競合) は、
+  特別な直列化機構ではなく、通常の git 競合解消 (fetch → 再 merge → 必要なら AI が衝突を解消) で
+  対応する。これは push 前後の通常の並行開発ワークフローであり、専用の待ち行列を要しない。
+- 「merge 後の再テスト省略」(項目3) について、複数の独立した wave (lease coordinator、
+  next-tasks、mocc trace pilot、orphan-hold race conditions、masstree staging floor campaign 等)
+  から、過去の実インシデント記録 (`clean-automerge-can-still-break-tests-semantically`:
+  textual 衝突ゼロの clean merge でも意味的に破損した事例) と、T-1458 wave が本人裁定と同じ日に
+  実測した具体例 (`registered` → `arm_execution_permitted` 改名箇所と main 側 off-arm 処理が
+  追加した同名の古い変数参照が意味的に衝突して `NameError`、焦点走で127件赤) が根拠として
+  示された。ユーザーはこれらのリスクを認識した上で、「検出されずに紛れ込んだ意味的破損は
+  known-violation として見つかった時点で個別に対処すればよく、全 wave の受入のたびに毎回
+  全再テストを課す代償の方が大きい」という判断で本決定を維持した。
+- 本決定は憲法にあたる絶対規律そのものの改訂ではなく、CC variant の正しさ検証 (規律2/3) とは
+  別層の、dev-wave 開発プロセス自体の運用手順 (戦術層) の変更である。
+
+**却下した選択肢:**
+- 現行の lease 直列化 + merge 後全テスト実走を維持する — 計算ノード混雑下では受入 1 回の
+  待ちが数時間に及び、研究開発全体が事実上停止する状態が続くため、本裁定により不採用とする。
+- known-violation の新規登録に上限や事前承認を課す — 「増えること自体は問題としない、高優先度
+  タスクとして随時解決する」というユーザー方針と矛盾するため不採用とする。
