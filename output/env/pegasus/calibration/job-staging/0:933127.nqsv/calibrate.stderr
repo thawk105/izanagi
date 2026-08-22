@@ -1,0 +1,10 @@
+Traceback (most recent call last):
+  File "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1488-rr80-rr20-calibration/orchestrator/calibrate.py", line 12, in <module>
+    from orchestrator.calibrator.cli import main  # noqa: E402
+  File "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1488-rr80-rr20-calibration/orchestrator/calibrator/cli.py", line 36, in <module>
+    from .runner import (CompositeProbeViolation, composite_competing_probe)
+  File "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1488-rr80-rr20-calibration/orchestrator/calibrator/runner.py", line 26, in <module>
+    from orchestrator.holdout_observation import (
+  File "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1488-rr80-rr20-calibration/orchestrator/holdout_observation.py", line 36, in <module>
+    @dataclass(frozen=True, slots=True)
+TypeError: dataclass() got an unexpected keyword argument 'slots'
