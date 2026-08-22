@@ -491,14 +491,14 @@ DEV_WAVE_DW_S05_A_REASONING_XHIGH_SENTENCE = (
     "codex は `reasoning=xhigh`、`sandbox=workspace-write` とする。"
 )
 DEV_WAVE_DW_S02_REASONING_XHIGH_FINDING = (
-    "docs/dev-wave/workers.md: DW-S02 の `reasoning=xhigh` は D207 に基づく"
+    "docs/dev-wave/workers.md: DW-S02 の `reasoning=xhigh` は"
     "現行 adoption pin と不一致 — "
-    "変更には paired・blind・非劣性 A/B に基づく採用裁定と pin の同時更新が必要"
+    "変更には採用裁定 (A/B 証拠またはユーザー裁定) と pin の同時更新が必要"
 )
 DEV_WAVE_DW_S03_REASONING_XHIGH_FINDING = (
-    "docs/dev-wave/workers.md: DW-S03 の `reasoning=xhigh` は D207 に基づく"
+    "docs/dev-wave/workers.md: DW-S03 の `reasoning=xhigh` は"
     "現行 adoption pin と不一致 — "
-    "変更には paired・blind・非劣性 A/B に基づく採用裁定と pin の同時更新が必要"
+    "変更には採用裁定 (A/B 証拠またはユーザー裁定) と pin の同時更新が必要"
 )
 DEV_WAVE_DW_S06_A_REASONING_XHIGH_FINDING = (
     "docs/dev-wave/workers.md: DW-S06-A の `reasoning=xhigh` は段 6 敵対レビューの"

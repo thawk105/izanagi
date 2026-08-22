@@ -67,11 +67,15 @@ def _workers_with_stage_reasoning() -> str:
     replacements = (
         (
             "codex は `reasoning=xhigh`、`sandbox=workspace-write` とする。",
-            "codex は `reasoning=xhigh`、`sandbox=workspace-write` とする。",
+            "codex は `reasoning=medium`、`sandbox=workspace-write` とする。",
         ),
         (
             "実装 wave は異なるレンズの敵対レビューを `reasoning=xhigh` で必ず 2 本並列で行う。",
             "実装 wave は異なるレンズの敵対レビューを `reasoning=high` で必ず 2 本並列で行う。",
+        ),
+        (
+            "並列 fix の統合後、焦点再レビューは全体へ `reasoning=xhigh` で 1 本でよい。",
+            "並列 fix の統合後、焦点再レビューは全体へ `reasoning=low` で 1 本でよい。",
         ),
     )
     for old, new in replacements:
@@ -191,9 +195,10 @@ def test_v2_snapshot_mapping_inconsistency_fails_closed(tmp_path: Path) -> None:
         tmp_path, operations=_operations_with_authority_line(_V2_MODEL_LINE)
     )
     snapshot = snapshot_authority(root)
+    inconsistent_model = f"{snapshot.consult_models[0]}-inconsistent-fixture"
     inconsistent = replace(
         snapshot,
-        consult_models=("gpt-5.6-sol", snapshot.consult_models[1]),
+        consult_models=(inconsistent_model, snapshot.consult_models[1]),
     )
     with pytest.raises(AuthorityError, match="v2 の全段 model が一致しない"):
         derive_launch(inconsistent, stage="consult", lane="sol")
@@ -243,10 +248,10 @@ def test_derive_launch_uses_stage_specific_effort_sections(tmp_path: Path) -> No
     root = _prepare_repo(tmp_path, workers=_workers_with_stage_reasoning())
     snapshot = snapshot_authority(root)
 
-    assert derive_launch(snapshot, stage="author", lane=None).effort == "xhigh"
-    assert derive_launch(snapshot, stage="fix", lane=None).effort == "xhigh"
+    assert derive_launch(snapshot, stage="author", lane=None).effort == "medium"
+    assert derive_launch(snapshot, stage="fix", lane=None).effort == "medium"
     assert derive_launch(snapshot, stage="review", lane=None).effort == "high"
-    assert derive_launch(snapshot, stage="focus", lane=None).effort == "xhigh"
+    assert derive_launch(snapshot, stage="focus", lane=None).effort == "low"
 
 
 def test_all_stage_models_match_independent_docs_cross_check() -> None:

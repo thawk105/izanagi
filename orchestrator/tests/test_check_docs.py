@@ -8105,17 +8105,15 @@ def test_dev_wave_reasoning_effort_pin_production_path_rejects_dw_s03_real_key()
 
 
 def test_dev_wave_reasoning_effort_pin_findings_are_time_invariant():
-    expected_suffix = (
-        "現行 adoption pin と不一致 — 変更には paired・blind・非劣性 A/B に基づく"
-        "採用裁定と pin の同時更新が必要"
-    )
     assert check_docs.DEV_WAVE_DW_S02_REASONING_XHIGH_FINDING == (
-        "docs/dev-wave/workers.md: DW-S02 の `reasoning=xhigh` は D207 に基づく"
-        + expected_suffix
+        "docs/dev-wave/workers.md: DW-S02 の `reasoning=xhigh` は"
+        "現行 adoption pin と不一致 — "
+        "変更には採用裁定 (A/B 証拠またはユーザー裁定) と pin の同時更新が必要"
     )
     assert check_docs.DEV_WAVE_DW_S03_REASONING_XHIGH_FINDING == (
-        "docs/dev-wave/workers.md: DW-S03 の `reasoning=xhigh` は D207 に基づく"
-        + expected_suffix
+        "docs/dev-wave/workers.md: DW-S03 の `reasoning=xhigh` は"
+        "現行 adoption pin と不一致 — "
+        "変更には採用裁定 (A/B 証拠またはユーザー裁定) と pin の同時更新が必要"
     )
     assert check_docs.DEV_WAVE_DW_S06_A_REASONING_XHIGH_FINDING == (
         "docs/dev-wave/workers.md: DW-S06-A の `reasoning=xhigh` は段 6 敵対レビューの"
