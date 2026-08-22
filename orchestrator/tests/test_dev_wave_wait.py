@@ -29,6 +29,7 @@ _TOOL = _ROOT / "tools" / "dev_wave_wait.py"
 _LAUNCHER = _ROOT / "tools" / "acceptance_launcher.py"
 _RED_CHECKER = _ROOT / "tools" / "check_acceptance_reds.py"
 _LEASE_HELPER = _ROOT / "tools" / "wave_land_window.py"
+_LANDER = _ROOT / "tools" / "dev_wave_land.py"
 _DISPATCHER = _ROOT / "tools" / "pegasus" / "dispatch_compute.py"
 _SPEC = importlib.util.spec_from_file_location("dev_wave_wait_under_test", _TOOL)
 assert _SPEC and _SPEC.loader
@@ -49,6 +50,13 @@ assert _LEASE_SPEC and _LEASE_SPEC.loader
 WL = importlib.util.module_from_spec(_LEASE_SPEC)
 sys.modules[_LEASE_SPEC.name] = WL
 _LEASE_SPEC.loader.exec_module(WL)
+_LAND_SPEC = importlib.util.spec_from_file_location(
+    "dev_wave_land_under_test_for_waiter", _LANDER,
+)
+assert _LAND_SPEC and _LAND_SPEC.loader
+LAND = importlib.util.module_from_spec(_LAND_SPEC)
+sys.modules[_LAND_SPEC.name] = LAND
+_LAND_SPEC.loader.exec_module(LAND)
 _DISPATCH_SPEC = importlib.util.spec_from_file_location(
     "pegasus_dispatch_compute_under_test", _DISPATCHER,
 )
@@ -1433,6 +1441,7 @@ def _run_acceptance(
     lifecycle: object = None,
     receipt_file: Path = _RECEIPT,
     log_file: Path = _LOG,
+    lease_optional: bool = False,
 ) -> object:
     return DW.run_acceptance(
         wave=_WAVE,
@@ -1447,6 +1456,7 @@ def _run_acceptance(
         log_file=log_file,
         owned_paths=owned_paths,
         lifecycle=lifecycle,
+        lease_optional=lease_optional,
     )
 
 
@@ -1489,6 +1499,7 @@ class _RoutingAcceptanceEffects(_FakeEffects):
         claim_payload: str | None = None,
         command_result: object = None,
         postclaim_rc: int = 0,
+        final_main_sha: str | None = None,
         merge_result: object = None,
         preclaim_history_provenance_result: object = None,
         history_provenance_result: object = None,
@@ -1511,6 +1522,7 @@ class _RoutingAcceptanceEffects(_FakeEffects):
             DW._CommandResult(0) if command_result is None else command_result
         )
         self.postclaim_rc = postclaim_rc
+        self.final_main_sha = final_main_sha
         self.merge_result = (
             DW._CommandResult(0) if merge_result is None else merge_result
         )
@@ -1556,6 +1568,8 @@ class _RoutingAcceptanceEffects(_FakeEffects):
             self.main_reads += 1
             if self.main_reads == 2 and self.postclaim_rc != 0:
                 return DW._CommandResult(self.postclaim_rc)
+            if self.main_reads >= 3 and self.final_main_sha is not None:
+                return DW._CommandResult(0, self.final_main_sha + "\n")
             return DW._CommandResult(0, _SHA_A + "\n")
         if actual == _helper("claim", _SHA_A, lease_dir=self.lease_dir):
             self.claims += 1
@@ -6761,6 +6775,130 @@ def test_claim_once_real_acquired_payload_grants_acquired_ownership() -> None:
     fake.assert_drained()
 
 
+@pytest.mark.parametrize("state", ["held", "queued"])
+def test_try_claim_once_without_wait_builds_unclaimed_context(
+    state: str,
+) -> None:
+    fake = _FakeEffects()
+    _claim(fake, _SHA_A, json.dumps({"state": state}))
+    lifecycle = DW._AcceptanceLifecycle()
+
+    started_at, claim = DW._try_claim_once_without_wait(
+        fake.effects,
+        _REPO,
+        _LEASE,
+        _WAVE,
+        7200.0,
+        lifecycle,
+    )
+
+    assert started_at == 0.0
+    assert claim == DW._ClaimContext(
+        state,
+        _HOLDER,
+        _SHA_A,
+        None,
+        True,
+    )
+    assert lifecycle.ownership is DW._LeaseOwnership.NONE
+    assert not any(event[0] == "sleep" for event in fake.events)
+    fake.assert_drained()
+
+
+def test_acceptance_lease_optional_acquired_matches_normal_path() -> None:
+    fake = _RoutingAcceptanceEffects(
+        behind=[0, 0],
+        claim_payload=_acquired_payload(),
+    )
+    lifecycle = DW._AcceptanceLifecycle()
+
+    outcome = _run_acceptance(
+        fake,
+        lifecycle=lifecycle,
+        lease_optional=True,
+    )
+
+    assert outcome.rc == 0
+    assert lifecycle.ownership is DW._LeaseOwnership.RETAINED
+    assert (fake.claims, fake.submissions, fake.releases) == (2, 1, 0)
+    assert fake.receipt_published is True
+    assert json.loads(fake.receipt_content)["lease_holder"] == _HOLDER
+    assert fake.events.count(("sleep", 30)) == 0
+    fake.assert_drained()
+
+
+@pytest.mark.parametrize("state", ["held", "queued"])
+def test_acceptance_lease_optional_skips_wait_reclaim_and_release(
+    state: str, tmp_path: Path,
+) -> None:
+    fake = _RoutingAcceptanceEffects(
+        behind=[0, 0],
+        claim_payload=json.dumps({"state": state}),
+    )
+    lifecycle = DW._AcceptanceLifecycle()
+
+    outcome = _run_acceptance(
+        fake,
+        lifecycle=lifecycle,
+        lease_optional=True,
+    )
+
+    assert outcome.rc == 0
+    assert lifecycle.ownership is DW._LeaseOwnership.NONE
+    assert (fake.claims, fake.submissions, fake.releases) == (1, 1, 0)
+    assert fake.receipt_published is True
+    receipt = json.loads(fake.receipt_content)
+    assert receipt["lease_holder"] == hashlib.sha256(
+        _WAVE.encode("utf-8")
+    ).hexdigest()[:12]
+    receipt_path = tmp_path / "acceptance.json"
+    receipt_path.write_bytes(fake.receipt_content)
+    raw_receipt = receipt_path.read_bytes()
+    assert LAND._release_authority_digest(
+        receipt_path,
+        _WAVE,
+    ) == hashlib.sha256(raw_receipt).hexdigest()
+    assert fake.events.count(("sleep", 30)) == 0
+    assert not any(
+        event[0] == "run" and event[1] == _helper("release")
+        for event in fake.events
+    )
+    fake.assert_drained()
+
+
+def test_acceptance_lease_optional_keeps_main_drift_check() -> None:
+    fake = _RoutingAcceptanceEffects(
+        behind=[0, 0],
+        claim_payload=json.dumps({"state": "held"}),
+        final_main_sha=_SHA_B,
+    )
+    lifecycle = DW._AcceptanceLifecycle()
+
+    outcome = _run_acceptance(
+        fake,
+        lifecycle=lifecycle,
+        lease_optional=True,
+    )
+
+    assert outcome.rc == 70
+    assert outcome.stage == "acceptance-receipt"
+    assert json.loads(outcome.detail) == {
+        "reason": "receipt-main-moved",
+        "observed": {
+            "claimed_main_sha": _SHA_A,
+            "final_main_sha": _SHA_B,
+        },
+    }
+    assert lifecycle.ownership is DW._LeaseOwnership.NONE
+    assert (fake.claims, fake.submissions, fake.releases) == (1, 1, 0)
+    assert fake.receipt_published is False
+    assert not any(
+        event[0] == "run" and event[1] == _helper("release")
+        for event in fake.events
+    )
+    fake.assert_drained()
+
+
 def test_acceptance_legacy_self_held_fails_closed_without_polling() -> None:
     fake = _FakeEffects()
     _preflight(fake)
@@ -8809,6 +8947,7 @@ def test_acceptance_cli_contract(case: str) -> None:
         assert args.poll_seconds == 30
         assert args.max_wait_seconds == 7200
         assert args.owned_path == []
+        assert args.lease_optional is False
         assert child == ["harmless"]
         merge_message_action = next(
             action
@@ -8821,6 +8960,29 @@ def test_acceptance_cli_contract(case: str) -> None:
     with pytest.raises(DW._StageFailure) as raised:
         DW._parse_cli(argv)
     assert raised.value.outcome.rc == 2
+
+
+def test_acceptance_cli_lease_optional_is_opt_in() -> None:
+    command, args, child = DW._parse_cli(
+        [
+            "acceptance",
+            "--wave",
+            _WAVE,
+            "--lease-dir",
+            str(_LEASE),
+            "--lease-optional",
+            "--receipt-file",
+            str(_RECEIPT),
+            "--log-file",
+            str(_LOG),
+            "--",
+            "harmless",
+        ]
+    )
+
+    assert command == "acceptance"
+    assert args.lease_optional is True
+    assert child == ["harmless"]
 
 
 def test_acceptance_owned_path_is_repeatable() -> None:

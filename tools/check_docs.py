@@ -748,8 +748,8 @@ REQUIRED_REFERENCE_SECTIONS = {
         "DW-M05", "DW-M06", "DW-M07", "DW-M08",
     },
     "docs/dev-wave/operations.md": (
-        # O26 は既存の削除済み ID を含む番号列から独立した新規節。
-        {f"DW-O{i:02d}" for i in _OPERATION_NUMBERS} | {"DW-O26"}
+        # O26/O27 は既存の削除済み ID を含む番号列から独立した新規節。
+        {f"DW-O{i:02d}" for i in _OPERATION_NUMBERS} | {"DW-O26", "DW-O27"}
     ),
 }
 DEV_WAVE_REFERENCE_FILES = frozenset(REQUIRED_REFERENCE_SECTIONS)
@@ -860,7 +860,7 @@ CONDITION_DISPATCH_CONTRACT = {
 }
 CONDITION_DISPATCH_CONTRACT["15"] = _pairs(_MUTATION, "DW-M07")
 CONDITION_DISPATCH_CONTRACT["18"] = _pairs(
-    _OPERATIONS, "DW-O18", "DW-O26"
+    _OPERATIONS, "DW-O18", "DW-O26", "DW-O27"
 )
 CONDITION_DISPATCH_CONTRACT.update({
     "21": _pairs(_CORE, "DW-CTX"),

@@ -198,7 +198,7 @@ _SYNTHETIC_OPERATION_SECTION_IDS = (
     "DW-O23", "DW-O25",
 )
 _SYNTHETIC_REGISTERED_OPERATION_SECTION_IDS = (
-    *_SYNTHETIC_OPERATION_SECTION_IDS, "DW-O26",
+    *_SYNTHETIC_OPERATION_SECTION_IDS, "DW-O26", "DW-O27",
 )
 _SYNTHETIC_ALL_OPERATIONS_REF = (
     "`docs/dev-wave/operations.md`: `DW-O01`〜`DW-O06`, `DW-O08`〜`DW-O14`, "
@@ -912,6 +912,13 @@ description: synthetic Codex rulings skill
                 + "\n\n## DW-O26",
                 _SYNTHETIC_DW_O25_SECTION.rstrip("\n")
                 + "\n## DW-O26",
+                1,
+            )
+            text = text.replace(
+                _SYNTHETIC_DW_O26_SECTION.rstrip("\n")
+                + "\n\n## DW-O27",
+                _SYNTHETIC_DW_O26_SECTION.rstrip("\n")
+                + "\n## DW-O27",
                 1,
             )
         literals = check_docs.CODEX_FIRST_REFERENCE_LITERALS.get(rel, ())
@@ -2354,7 +2361,7 @@ def test_dev_wave_layer_budget_contract_is_literal():
         *(('docs/dev-wave/operations.md', section) for section in (
             'DW-O03', 'DW-O04', 'DW-O06', 'DW-O08', 'DW-O09', 'DW-O10',
             'DW-O11', 'DW-O12', 'DW-O13', 'DW-O14', 'DW-O16', 'DW-O17',
-            'DW-O18', 'DW-O19', 'DW-O20', 'DW-O25', 'DW-O26',
+            'DW-O18', 'DW-O19', 'DW-O20', 'DW-O25', 'DW-O26', 'DW-O27',
         )),
     }
 
@@ -2792,7 +2799,7 @@ _TEST_DEV_WAVE_LAYERS = {
         *(('docs/dev-wave/operations.md', section) for section in (
             'DW-O03', 'DW-O04', 'DW-O06', 'DW-O08', 'DW-O09', 'DW-O10',
             'DW-O11', 'DW-O12', 'DW-O13', 'DW-O14', 'DW-O16', 'DW-O17',
-            'DW-O18', 'DW-O19', 'DW-O20', 'DW-O25', 'DW-O26',
+            'DW-O18', 'DW-O19', 'DW-O20', 'DW-O25', 'DW-O26', 'DW-O27',
         )),
     },
 }
@@ -3307,7 +3314,7 @@ def test_dev_wave_dispatch_accepts_comma_delimited_section_references():
     """同一 path の `, ` 区切り複数節が typed edge へ展開される。"""
 
     cell = (
-        "`docs/dev-wave/operations.md`: `DW-O18`, `DW-O26`"
+        "`docs/dev-wave/operations.md`: `DW-O18`, `DW-O26`, `DW-O27`"
     )
     assert check_docs._dispatch_reference_cell_errors(cell) == ()
     pairs, paths = check_docs._dispatch_pairs_from_line(cell)
@@ -3315,6 +3322,7 @@ def test_dev_wave_dispatch_accepts_comma_delimited_section_references():
     assert pairs == {
         ("docs/dev-wave/operations.md", "DW-O18"),
         ("docs/dev-wave/operations.md", "DW-O26"),
+        ("docs/dev-wave/operations.md", "DW-O27"),
     }
 
     root = _build_min_repo()
@@ -7194,7 +7202,7 @@ def test_command_guard_case_registration_is_complete():
 
 
 def test_operation_contract_pins_exact_section_set():
-    """operations 契約の外延と配線を literal で固定する (O15 削除後の 20 節 + O26)。
+    """operations 契約の外延と配線を literal で固定する (O15 削除後の 20 節 + O26/O27)。
 
     checker とテスト fixture は同じ `_OPERATION_NUMBERS` から導出される (F9 型の
     自己整合面)。fixture の literal range 表記が単純な縮小・拡大を先に赤くし、
@@ -7210,10 +7218,10 @@ def test_operation_contract_pins_exact_section_set():
     }
     assert set(_SYNTHETIC_OPERATION_SECTION_IDS) == expected
     assert set(_SYNTHETIC_REGISTERED_OPERATION_SECTION_IDS) == (
-        expected | {"DW-O26"}
+        expected | {"DW-O26", "DW-O27"}
     )
     assert check_docs.REQUIRED_REFERENCE_SECTIONS[operations] == (
-        expected | {"DW-O26"}
+        expected | {"DW-O26", "DW-O27"}
     )
     assert check_docs._ALL_OPERATIONS == frozenset(
         (operations, section) for section in expected
@@ -7228,14 +7236,16 @@ def test_operation_contract_pins_exact_section_set():
         expected_pairs = {(operations, section)}
         if section == "DW-O18":
             expected_pairs.add((operations, "DW-O26"))
+            expected_pairs.add((operations, "DW-O27"))
         assert operations_pairs == expected_pairs, (
             f"条件 {key} の operations 配線が {section} 単独でない"
         )
     assert check_docs.CONDITION_DISPATCH_CONTRACT["18"] == {
         (operations, "DW-O18"),
         (operations, "DW-O26"),
+        (operations, "DW-O27"),
     }
-    assert "26" not in _OPERATION_CONDITION_KEYS
+    assert not {"26", "27"} & set(_OPERATION_CONDITION_KEYS)
     assert check_docs.CONDITION_DISPATCH_CONTRACT["15"] == {
         ("docs/dev-wave/mutation.md", "DW-M07")
     }

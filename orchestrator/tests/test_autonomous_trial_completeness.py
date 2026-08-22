@@ -888,6 +888,18 @@ def _registered_digest_chain_trial(tmp_path: Path):
     return run, events, report, arm_execution
 
 
+def _formal_noncertifying_digest_chain_trial(tmp_path: Path):
+    run, events, report, arm_execution = _registered_digest_chain_trial(tmp_path)
+    for admission in (
+        report["launch_admission"], events[0]["launch_admission"],
+    ):
+        admission["mode"] = "registered-formal-non-certifying"
+        admission["reason_code"] = "registered-formal-non-certifying"
+        admission["activation_report_digest_sha256"] = None
+    _persist(run, events, report)
+    return run, events, report, arm_execution
+
+
 def _verify_digest_chain(run: Path, _events: list[dict], report: dict) -> None:
     C.assert_autonomous_trial_execution_digest_chain(
         report=report, attempt_journal=run / "attempts.jsonl",
@@ -953,6 +965,158 @@ def test_t1311_exploratory_shape_rejects_arm_execution(tmp_path: Path) -> None:
     with pytest.raises(
         C.AutonomousTrialCompletenessError,
         match=r"\[arm-digest-chain\] exploratory run carries arm_execution$",
+    ):
+        _verify(run, report)
+
+
+def test_t1458_formal_noncertifying_report_passes_completeness_and_digest_chain(
+    tmp_path: Path,
+) -> None:
+    run, _events, report, _arm_execution = (
+        _formal_noncertifying_digest_chain_trial(tmp_path)
+    )
+    C.assert_autonomous_trial_completeness(
+        report=report, attempt_journal=run / "attempts.jsonl",
+    )
+    C.assert_autonomous_trial_execution_digest_chain(
+        report=report, attempt_journal=run / "attempts.jsonl",
+    )
+
+
+def test_t1458_formal_noncertifying_reason_code_is_required(
+    tmp_path: Path,
+) -> None:
+    run, events, report, _arm_execution = (
+        _formal_noncertifying_digest_chain_trial(tmp_path)
+    )
+    for admission in (
+        report["launch_admission"], events[0]["launch_admission"],
+    ):
+        admission["reason_code"] = "registered-effective-non-certifying"
+    _persist(run, events, report)
+    with pytest.raises(
+        C.AutonomousTrialCompletenessError,
+        match=(
+            r"\[launch-admission\] "
+            r"formal non-certifying launch projection is inconsistent$"
+        ),
+    ):
+        _verify(run, report)
+
+
+def test_t1458_formal_noncertifying_activation_digest_must_be_none(
+    tmp_path: Path,
+) -> None:
+    run, events, report, _arm_execution = (
+        _formal_noncertifying_digest_chain_trial(tmp_path)
+    )
+    for admission in (
+        report["launch_admission"], events[0]["launch_admission"],
+    ):
+        admission["activation_report_digest_sha256"] = "d" * 64
+    _persist(run, events, report)
+    with pytest.raises(
+        C.AutonomousTrialCompletenessError,
+        match=(
+            r"\[launch-admission\] "
+            r"formal non-certifying launch projection is inconsistent$"
+        ),
+    ):
+        _verify(run, report)
+
+
+def test_t1458_formal_noncertifying_binding_is_required(
+    tmp_path: Path,
+) -> None:
+    run, events, report, _arm_execution = (
+        _formal_noncertifying_digest_chain_trial(tmp_path)
+    )
+    for admission in (
+        report["launch_admission"], events[0]["launch_admission"],
+    ):
+        admission["binding"] = None
+    _persist(run, events, report)
+    with pytest.raises(
+        C.AutonomousTrialCompletenessError,
+        match=r"\[launch-admission\] launch_admission\.binding is not an object$",
+    ):
+        _verify(run, report)
+
+
+def test_t1458_formal_noncertifying_registered_key_shape_is_required(
+    tmp_path: Path,
+) -> None:
+    run, events, report, _arm_execution = (
+        _formal_noncertifying_digest_chain_trial(tmp_path)
+    )
+    for admission in (
+        report["launch_admission"], events[0]["launch_admission"],
+    ):
+        admission.pop("prereg_content_commit")
+        admission.pop("prereg_effective_commit")
+    _persist(run, events, report)
+    with pytest.raises(
+        C.AutonomousTrialCompletenessError,
+        match=r"\[launch-admission\] report launch_admission exact keys differ$",
+    ):
+        _verify(run, report)
+
+
+def test_t1458_formal_noncertifying_arm_execution_is_required(
+    tmp_path: Path,
+) -> None:
+    run, events, report, _arm_execution = (
+        _formal_noncertifying_digest_chain_trial(tmp_path)
+    )
+    report.pop("arm_execution")
+    events[0].pop("arm_execution")
+    _persist(run, events, report)
+    with pytest.raises(
+        C.AutonomousTrialCompletenessError,
+        match=r"\[arm-digest-chain\] report\.arm_execution is not an object$",
+    ):
+        C.assert_autonomous_trial_execution_digest_chain(
+            report=report, attempt_journal=run / "attempts.jsonl",
+        )
+
+
+def test_t1458_formal_noncertifying_rejects_origin_binding(
+    tmp_path: Path,
+) -> None:
+    run, events, report, _arm_execution = (
+        _formal_noncertifying_digest_chain_trial(tmp_path)
+    )
+    binding = report["launch_admission"]["binding"]
+    origin_binding = {
+        "authority_blob_sha256": "1" * 64,
+        "source_closure_sha256": "2" * 64,
+        "origin_id": "origin-fixture",
+        "cell_key": "cell-fixture",
+        "authority_workload": {
+            "descriptor_sha256": "3" * 64,
+            "records": 1,
+            "threads": 1,
+        },
+        "axis_semantics_sha256": "4" * 64,
+        "verifier_policy_sha256": "5" * 64,
+        "environment_contract_sha256": "6" * 64,
+        "campaign_id": binding["campaign_id"],
+        "trial_workload": binding["workload"],
+        "measurement_head": binding["measurement_head"],
+        "store_scope": "fixture",
+        "issuer_seal": "launch-admission-gate/v1",
+    }
+    for admission in (
+        report["launch_admission"], events[0]["launch_admission"],
+    ):
+        admission["origin_binding"] = copy.deepcopy(origin_binding)
+    _persist(run, events, report)
+    with pytest.raises(
+        C.AutonomousTrialCompletenessError,
+        match=(
+            r"\[launch-admission\] "
+            r"formal non-certifying launch cannot carry an origin binding$"
+        ),
     ):
         _verify(run, report)
 
