@@ -480,6 +480,7 @@ class _ClaimContext:
     holder: str | None
     main_sha: str | None
     age_seconds: int | None
+    unclaimed: bool = False
 
 
 @dataclass(frozen=True)
@@ -1672,6 +1673,7 @@ def _acceptance_parser() -> argparse.ArgumentParser:
     parser = _ArgumentParser(prog=f"{_PROGRAM} acceptance", add_help=True)
     parser.add_argument("--wave", required=True)
     parser.add_argument("--lease-dir", type=Path)
+    parser.add_argument("--lease-optional", action="store_true", default=False)
     parser.add_argument("--receipt-file", type=Path, required=True)
     parser.add_argument("--log-file", type=Path, required=True)
     parser.add_argument(
@@ -3114,6 +3116,37 @@ def _wait_until_acquired(
         effects.sleep(poll_seconds)
 
 
+def _try_claim_once_without_wait(
+    effects: _Effects,
+    repo: Path,
+    lease_dir: Path,
+    wave: str,
+    deadline: float,
+    lifecycle: _AcceptanceLifecycle,
+) -> tuple[float, _ClaimContext]:
+    sha = _main_sha(effects, repo, "preclaim-rev-parse")
+    claim_started_at = effects.monotonic()
+    if claim_started_at >= deadline:
+        raise _StageFailure("claim-timeout")
+    claim = _claim_once(effects, repo, lease_dir, wave, sha, lifecycle)
+    if claim.state in _ACCEPTED_CLAIM_STATES:
+        lifecycle.acquired_at = claim_started_at
+        return claim_started_at, claim
+    if claim.state not in _POLLING_CLAIM_STATES:
+        raise _StageFailure("claim-state")
+    try:
+        expected_holder = hashlib.sha256(wave.encode("utf-8")).hexdigest()[:12]
+    except UnicodeError:
+        raise _StageFailure("claim-self-unverified") from None
+    return claim_started_at, _ClaimContext(
+        state=claim.state,
+        holder=expected_holder,
+        main_sha=sha,
+        age_seconds=None,
+        unclaimed=True,
+    )
+
+
 def _message_has_ai_agent(content: str) -> bool:
     return bool(content.strip()) and any(
         line.startswith("AI-Agent:") for line in content.splitlines()
@@ -3401,7 +3434,10 @@ def _cleanup_lifecycle(
     lease_dir: Path,
     wave: str,
 ) -> _Outcome | None:
+    if lifecycle.ownership is _LeaseOwnership.NONE and not lifecycle.merge_pending:
+        return lifecycle.cleanup_failure
     if lifecycle.ownership not in {
+        _LeaseOwnership.NONE,
         _LeaseOwnership.UNKNOWN,
         _LeaseOwnership.ACQUIRED,
         _LeaseOwnership.HELD_SELF,
@@ -3889,6 +3925,7 @@ def _publish_acceptance_receipt(
     lifecycle: _AcceptanceLifecycle,
     receipt_file: Path,
     temp_path: Path,
+    retain_ownership: bool = True,
 ) -> None:
     prior_ownership = lifecycle.ownership
     previous_mask: set[signal.Signals] | None = None
@@ -3906,7 +3943,8 @@ def _publish_acceptance_receipt(
                 ),
             )
         previous_mask = pthread_sigmask(signal.SIG_BLOCK, ())
-        lifecycle.ownership = _LeaseOwnership.RETAINED
+        if retain_ownership:
+            lifecycle.ownership = _LeaseOwnership.RETAINED
         pthread_sigmask(signal.SIG_BLOCK, _HANDLED_SIGNALS)
         failure_reason = "receipt-publish-rename"
         try:
@@ -3982,6 +4020,7 @@ def _run_acceptance_attempt(
     log_file: Path,
     lifecycle: _AcceptanceLifecycle,
     owned_paths: Sequence[Path] = (),
+    lease_optional: bool = False,
 ) -> _AcceptanceAttemptResult:
     active_lifecycle = lifecycle
     primary = _Outcome(RC_FAIL_CLOSED, "internal")
@@ -4048,15 +4087,25 @@ def _run_acceptance_attempt(
             if preserving_owned_lease
             else active_lifecycle
         )
-        claim_started_at, claim_context = _wait_until_acquired(
-            effects,
-            repo,
-            lease_dir,
-            wave,
-            poll_seconds,
-            absolute_deadline,
-            claim_lifecycle,
-        )
+        if lease_optional:
+            claim_started_at, claim_context = _try_claim_once_without_wait(
+                effects,
+                repo,
+                lease_dir,
+                wave,
+                absolute_deadline,
+                claim_lifecycle,
+            )
+        else:
+            claim_started_at, claim_context = _wait_until_acquired(
+                effects,
+                repo,
+                lease_dir,
+                wave,
+                poll_seconds,
+                absolute_deadline,
+                claim_lifecycle,
+            )
         if preserving_owned_lease:
             if claim_lifecycle.ownership is _LeaseOwnership.ACQUIRED:
                 active_lifecycle.ownership = _LeaseOwnership.ACQUIRED
@@ -4322,105 +4371,112 @@ def _run_acceptance_attempt(
                     },
                 ),
             )
-        confirmation_lifecycle = _AcceptanceLifecycle()
-        try:
-            confirmed = _claim_once(
-                effects,
-                repo,
-                lease_dir,
-                wave,
-                final_main_sha,
-                confirmation_lifecycle,
-                diagnostic_reason="receipt-reclaim",
-            )
-        except _StageFailure as exc:
-            if confirmation_lifecycle.ownership is _LeaseOwnership.ACQUIRED:
+        confirmed_remaining: int | None = None
+        if not claim_context.unclaimed:
+            confirmation_lifecycle = _AcceptanceLifecycle()
+            try:
+                confirmed = _claim_once(
+                    effects,
+                    repo,
+                    lease_dir,
+                    wave,
+                    final_main_sha,
+                    confirmation_lifecycle,
+                    diagnostic_reason="receipt-reclaim",
+                )
+            except _StageFailure as exc:
+                if confirmation_lifecycle.ownership is _LeaseOwnership.ACQUIRED:
+                    active_lifecycle.ownership = _LeaseOwnership.ACQUIRED
+                raise _StageFailure(
+                    "acceptance-receipt",
+                    source_rc=exc.outcome.source_rc,
+                    detail=_attestation_detail(
+                        "receipt-reclaim",
+                        {
+                            "failure_kind": _detail_failure_kind(
+                                exc.outcome.detail
+                            ),
+                            "exception_type": _detail_observed(
+                                exc.outcome.detail
+                            ).get("exception_type"),
+                            "source_stage": exc.outcome.stage,
+                            "source_rc": exc.outcome.source_rc,
+                            "confirmation_ownership": (
+                                confirmation_lifecycle.ownership.value
+                            ),
+                        },
+                    ),
+                ) from None
+            if confirmed.state == "acquired":
                 active_lifecycle.ownership = _LeaseOwnership.ACQUIRED
-            raise _StageFailure(
-                "acceptance-receipt",
-                source_rc=exc.outcome.source_rc,
-                detail=_attestation_detail(
-                    "receipt-reclaim",
-                    {
-                        "failure_kind": _detail_failure_kind(
-                            exc.outcome.detail
-                        ),
-                        "exception_type": _detail_observed(
-                            exc.outcome.detail
-                        ).get("exception_type"),
-                        "source_stage": exc.outcome.stage,
-                        "source_rc": exc.outcome.source_rc,
-                        "confirmation_ownership": (
-                            confirmation_lifecycle.ownership.value
-                        ),
-                    },
-                ),
-            ) from None
-        if confirmed.state == "acquired":
-            active_lifecycle.ownership = _LeaseOwnership.ACQUIRED
-        confirmed_remaining = (
-            _LEASE_TTL_SECONDS - confirmed.age_seconds
-            if confirmed.age_seconds is not None
-            else -1
-        )
-        if not (
-            confirmed.state == "held-self"
-            and confirmed.holder == claim_context.holder
-            and confirmed.main_sha == claim_context.main_sha
-            and confirmed_remaining >= _RECEIPT_PUBLISH_MIN_TTL_SECONDS
-        ):
-            state_is_held_self = confirmed.state == "held-self"
-            holder_matches = (
-                confirmed.holder == claim_context.holder
-                if state_is_held_self
-                else None
+            confirmed_remaining = (
+                _LEASE_TTL_SECONDS - confirmed.age_seconds
+                if confirmed.age_seconds is not None
+                else -1
             )
-            main_sha_matches = (
-                confirmed.main_sha == claim_context.main_sha
-                if holder_matches is True
-                else None
-            )
-            ttl_sufficient = (
-                confirmed_remaining >= _RECEIPT_PUBLISH_MIN_TTL_SECONDS
-                if main_sha_matches is True
-                else None
-            )
-            raise _StageFailure(
-                "acceptance-receipt",
-                detail=_attestation_detail(
-                    "receipt-lease-check",
-                    {
-                        "state": confirmed.state,
-                        "holder_matches": holder_matches,
-                        "main_sha_matches": main_sha_matches,
-                        "claimed_main_sha": confirmed.main_sha,
-                        "final_main_sha": final_main_sha,
-                        "remaining_seconds": (
-                            confirmed_remaining
-                            if ttl_sufficient is not None
-                            else None
-                        ),
-                        "required_seconds": (
-                            _RECEIPT_PUBLISH_MIN_TTL_SECONDS
-                            if ttl_sufficient is not None
-                            else None
-                        ),
-                        "ttl_sufficient": ttl_sufficient,
-                    },
-                ),
-            )
+            if not (
+                confirmed.state == "held-self"
+                and confirmed.holder == claim_context.holder
+                and confirmed.main_sha == claim_context.main_sha
+                and confirmed_remaining >= _RECEIPT_PUBLISH_MIN_TTL_SECONDS
+            ):
+                state_is_held_self = confirmed.state == "held-self"
+                holder_matches = (
+                    confirmed.holder == claim_context.holder
+                    if state_is_held_self
+                    else None
+                )
+                main_sha_matches = (
+                    confirmed.main_sha == claim_context.main_sha
+                    if holder_matches is True
+                    else None
+                )
+                ttl_sufficient = (
+                    confirmed_remaining >= _RECEIPT_PUBLISH_MIN_TTL_SECONDS
+                    if main_sha_matches is True
+                    else None
+                )
+                raise _StageFailure(
+                    "acceptance-receipt",
+                    detail=_attestation_detail(
+                        "receipt-lease-check",
+                        {
+                            "state": confirmed.state,
+                            "holder_matches": holder_matches,
+                            "main_sha_matches": main_sha_matches,
+                            "claimed_main_sha": confirmed.main_sha,
+                            "final_main_sha": final_main_sha,
+                            "remaining_seconds": (
+                                confirmed_remaining
+                                if ttl_sufficient is not None
+                                else None
+                            ),
+                            "required_seconds": (
+                                _RECEIPT_PUBLISH_MIN_TTL_SECONDS
+                                if ttl_sufficient is not None
+                                else None
+                            ),
+                            "ttl_sufficient": ttl_sufficient,
+                        },
+                    ),
+                )
         _publish_acceptance_receipt(
             effects=effects,
             lifecycle=active_lifecycle,
             receipt_file=receipt_file,
             temp_path=receipt_temp,
+            retain_ownership=not claim_context.unclaimed,
         )
         receipt_temp = None
-        print(
-            "acceptance succeeded; lease is held; "
-            f"TTL remaining at most {confirmed_remaining} seconds; "
-            "exclusivity is lost after expiry"
-        )
+        if claim_context.unclaimed:
+            print("acceptance succeeded; lease was not acquired")
+        else:
+            assert confirmed_remaining is not None
+            print(
+                "acceptance succeeded; lease is held; "
+                f"TTL remaining at most {confirmed_remaining} seconds; "
+                "exclusivity is lost after expiry"
+            )
         print("known limitation: no fencing token is provided")
         primary = _Outcome(RC_OK)
         classification = verdict
@@ -4590,6 +4646,7 @@ def run_acceptance(
     log_file: Path,
     lifecycle: _AcceptanceLifecycle | None = None,
     owned_paths: Sequence[Path] = (),
+    lease_optional: bool = False,
 ) -> _Outcome:
     active_lifecycle = lifecycle or _AcceptanceLifecycle()
     deadline = _AcceptanceDeadline(max_wait_seconds)
@@ -4617,6 +4674,7 @@ def run_acceptance(
             log_file=log_file,
             lifecycle=active_lifecycle,
             owned_paths=owned_paths,
+            lease_optional=lease_optional,
         )
         last = attempt.outcome
         if not attempt.retry:
@@ -4763,6 +4821,7 @@ def main(
                     log_file=args.log_file,
                     lifecycle=lifecycle,
                     owned_paths=args.owned_path,
+                    lease_optional=args.lease_optional,
                 )
             except BaseException as exc:
                 if lifecycle.receipt_published:
