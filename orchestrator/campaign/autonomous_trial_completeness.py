@@ -787,7 +787,7 @@ def _check_registered_proposal(
 
 def _check_registered_provider_artifacts(
     *, event: Mapping[str, Any], run_root: Path, content_digest: str,
-    arm_binding_digest: str,
+    arm_binding_digest: str, arm: str,
 ) -> None:
     artifacts = _mapping(
         event.get("provider_artifacts"), gate="arm-digest-chain",
@@ -806,9 +806,17 @@ def _check_registered_provider_artifacts(
         gate="arm-digest-chain", label="provider envelope path",
     )
     invocation_id = event.get("invocation_id")
+    provider_invocation_id = invocation_id
+    if arm == "off":
+        provider = _producer_module()
+        provider_invocation_id = (
+            f"arm-off.exec-{content_digest}."
+            f"{provider.OFF_NEUTRAL_PAYLOAD_WORKLOAD}.g"
+            f"{event.get('generation')}.{event.get('role')}"
+        )
     if (
-        payload_path.name != f"payload_{invocation_id}.json"
-        or envelope_path.name != f"envelope_{invocation_id}.json"
+        payload_path.name != f"payload_{provider_invocation_id}.json"
+        or envelope_path.name != f"envelope_{provider_invocation_id}.json"
         or payload_path.parent != envelope_path.parent
     ):
         _fail("arm-digest-chain", "provider artifact path differs from invocation")
@@ -838,7 +846,22 @@ def _check_registered_provider_artifacts(
         payload.get("descriptor_binding"), gate="arm-digest-chain",
         label="provider payload descriptor_binding",
     )
-    if (
+    if arm == "off":
+        expected_binding_keys = _REGISTERED_DESCRIPTOR_BINDING_KEYS - {
+            "arm_binding_digest_sha256",
+        }
+        if frozenset(payload_binding) != expected_binding_keys:
+            _fail("arm-digest-chain", "off provider payload descriptor binding keys differ")
+        if (
+            "arm_binding_digest_sha256" in payload_binding
+            or payload_binding["input_sha256"] != content_digest
+            or payload_binding["output_sha256"] != content_digest
+            or payload_binding["content_digest_sha256"] != content_digest
+            or payload.get("workload")
+            != _producer_module().OFF_NEUTRAL_PAYLOAD_WORKLOAD
+        ):
+            _fail("arm-digest-chain", "off provider payload projection differs")
+    elif (
         payload_binding.get("output_sha256") != content_digest
         or payload_binding.get("content_digest_sha256") != content_digest
         or payload_binding.get("arm_binding_digest_sha256")
@@ -1082,6 +1105,7 @@ def _check_arm_digest_chain(
                     event=event, run_root=artifact_run_root,
                     content_digest=content_digest,
                     arm_binding_digest=arm_binding_digest,
+                    arm=arm,
                 )
         auditor = roles.get("auditor")
         proposal_reached = isinstance(auditor, Mapping) and (
@@ -1169,6 +1193,16 @@ def _receipt_sha256(value: Any) -> str:
     return hashlib.sha256(encoded).hexdigest()
 
 
+def _off_payload_descriptor_binding_sha256(content_digest: str) -> str:
+    return _receipt_sha256({
+        "input_sha256": content_digest,
+        "output_sha256": content_digest,
+        "projection_version": "8b-descriptor-projection/v1",
+        "schema_sha256": _DESCRIPTOR_SCHEMA_SHA256,
+        "content_digest_sha256": content_digest,
+    })
+
+
 def _receipt_sha256_field(value: Any, *, label: str) -> str:
     if type(value) is not str or _SHA256_RE.fullmatch(value) is None:
         _fail("payload-validation-receipt", f"{label} is not a lowercase SHA-256")
@@ -1211,7 +1245,8 @@ def _check_whiteboard_receipt(
 
 
 def _check_payload_validation_receipt(
-    record: Mapping[str, Any], *, label: str,
+    record: Mapping[str, Any], *, label: str, arm: str | None = None,
+    content_digest: str | None = None,
 ) -> None:
     role = record.get("role")
     raw_receipt = record.get("payload_validation_receipt")
@@ -1267,9 +1302,12 @@ def _check_payload_validation_receipt(
     generation = record.get("generation")
     if type(generation) is not int or generation < 1:
         _fail("payload-validation-receipt", f"{label} generation is invalid")
+    expected_projection_workload = record.get("workload")
+    if arm == "off":
+        expected_projection_workload = _producer_module().OFF_NEUTRAL_PAYLOAD_WORKLOAD
     if (
         projection.get("role") != role
-        or projection.get("workload") != record.get("workload")
+        or projection.get("workload") != expected_projection_workload
         or projection.get("generation") != generation
         or projection.get("descriptor_sha256") != record.get("descriptor_sha256")
     ):
@@ -1287,6 +1325,18 @@ def _check_payload_validation_receipt(
             "payload-validation-receipt",
             f"{label} workload descriptor digest differs",
         )
+    if arm == "off":
+        if (
+            type(content_digest) is not str
+            or _SHA256_RE.fullmatch(content_digest) is None
+            or record.get("descriptor_sha256") != content_digest
+            or projection.get("descriptor_binding_sha256")
+            != _off_payload_descriptor_binding_sha256(content_digest)
+        ):
+            _fail(
+                "payload-validation-receipt",
+                f"{label} off descriptor binding projection differs",
+            )
 
     fixed = _mapping(
         projection.get("fixed_literals"),
@@ -1427,7 +1477,8 @@ def _check_payload_validation_receipt(
 
 
 def _check_payload_validation_receipts(
-    records: Sequence[Mapping[str, Any]],
+    records: Sequence[Mapping[str, Any]], *, arm: str | None = None,
+    content_digest: str | None = None,
 ) -> None:
     for record in records:
         label = (
@@ -1435,7 +1486,12 @@ def _check_payload_validation_receipts(
             f"{record.get('role')}"
         )
         if record.get("role") in {"planner", "coder"}:
-            _check_payload_validation_receipt(record, label=label)
+            _check_payload_validation_receipt(
+                record,
+                label=label,
+                arm=arm,
+                content_digest=content_digest,
+            )
         elif "payload_validation_receipt" in record:
             _fail(
                 "payload-validation-receipt",
@@ -2871,7 +2927,20 @@ def assert_autonomous_trial_completeness(
         report=report, events=events, cells=cells, terminal=terminal,
     )
     _check_status_projection(report, cells)
-    _check_payload_validation_receipts(report_attempts)
+    receipt_arm = None
+    receipt_content_digest = None
+    if registered:
+        launch_binding = report.get("launch_admission", {}).get("binding")
+        if isinstance(launch_binding, Mapping):
+            receipt_arm = launch_binding.get("arm")
+        report_arm = report.get("arm_execution")
+        if isinstance(report_arm, Mapping):
+            receipt_content_digest = report_arm.get("content_digest_sha256")
+    _check_payload_validation_receipts(
+        report_attempts,
+        arm=receipt_arm,
+        content_digest=receipt_content_digest,
+    )
 
 
 def _canonical_bytes(value: Any) -> bytes:

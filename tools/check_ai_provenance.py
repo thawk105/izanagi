@@ -990,6 +990,42 @@ KNOWN_PROVENANCE_VIOLATIONS = (
         _T1458_MERGE2_RULING,
         note=_T1458_MERGE2_NOTE,
     ),
+    KnownViolationSpec(
+        "d87fd42c0335c1396c1f79557e45357e9bfc163f",
+        MISSING_AI_AGENT,
+        "2026-08-21 [T-755] wave内でのlocal main取り込みmerge (ユーザー承認: known-violation登録の続行)",
+        note=(
+            "親 (Claude session) が `git merge --no-edit main` で作成した local main 取り込み。"
+            "`git diff-tree --cc d87fd42c` は commit header のみで実質空 = 競合解決による新規著作なし。"
+            "取り込んだのは external/ccbench の gitlink pointer 変更 (511c9538→ef9328a3、"
+            "ユーザー直接commit 09ce607b) 1 file のみ。--no-edit の自動生成 message には trailer が"
+            "付与されない"
+        ),
+    ),
+    KnownViolationSpec(
+        "75d57796ea8c6af4f80f32031afc952cfef2903a",
+        MISSING_AI_AGENT,
+        "2026-08-21 [T-755] wave内でのlocal main取り込みmerge (ユーザー承認: known-violation登録の続行)",
+        note=(
+            "親 (Claude session) が `git merge --no-edit main` で作成した local main 取り込み。"
+            "`git diff-tree --cc 75d57796` は commit header のみで実質空 = 競合解決による新規著作なし。"
+            "取り込んだのは external/ccbench の gitlink revert (13101ab3) と、別セッション"
+            "(t-1458) が既に Codex role=author で書き main land 時に監査済みの provenance"
+            "registry 追加 (89ab8093, fdbb549b) + docs/spool 記録 fragment"
+        ),
+    ),
+    KnownViolationSpec(
+        "216493593dbee40fbdac65207ca328bae5bc9f52",
+        MISSING_AI_AGENT,
+        "2026-08-21 [T-755] wave内でのlocal main取り込みmerge (ユーザー承認: known-violation登録の続行)",
+        note=(
+            "親 (Claude session) が `git merge --no-edit main` で作成した local main 取り込み。"
+            "`git diff-tree --cc 21649359` は commit header のみで実質空 = 競合解決による新規著作なし。"
+            "main 側 (t-1458 の land 由来) で `tools/check_ai_provenance.py`/`orchestrator/tests/"
+            "test_check_ai_provenance.py` へ独立に追加された known-violation entry と、本 wave が"
+            "同じ file へ追加した known-violation entry が非競合で union された"
+        ),
+    ),
 )
 
 
