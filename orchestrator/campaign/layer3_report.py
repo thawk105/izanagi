@@ -446,6 +446,29 @@ def _reject_qualification_ancestry(campaign_dir: Path, repo_root: Path) -> None:
         current = current.parent
 
 
+def _qualification_ancestry_bound(campaign_dir: Path, output_root: Path) -> Path:
+    """Return the boundary used when walking for qualification provenance.
+
+    A campaign inside the real repository must be checked all the way to the
+    repository root, even when a narrower output root was supplied.  Truly
+    external campaigns retain the existing output-root-derived boundary.
+    """
+    real_repo_root = _DEFAULT_OUTPUT_ROOT.parent
+    try:
+        campaign_dir.relative_to(real_repo_root)
+    except ValueError:
+        resolved_output_root = output_root.resolve()
+        if (
+            resolved_output_root == campaign_dir
+            or campaign_dir in resolved_output_root.parents
+        ):
+            raise Layer3ReportError(
+                "output_root が campaign 配下にあり qualification-ancestry の境界として使えない"
+            )
+        return resolved_output_root.parent
+    return real_repo_root
+
+
 def build_report(campaign_dir: Path, generated_from_head: Optional[str] = None, *,
                  output_root: Optional[Path] = None) -> Dict[str, Any]:
     """campaign を読み取り専用で完全射影し、出力前の report object を返す。"""
@@ -473,7 +496,9 @@ def build_report(campaign_dir: Path, generated_from_head: Optional[str] = None, 
         raise Layer3ReportError(
             "WAL record が不正: %s: %s" % (type(exc).__name__, exc)
         ) from exc
-    _reject_qualification_ancestry(campaign_dir, output_root.resolve().parent)
+    _reject_qualification_ancestry(
+        campaign_dir, _qualification_ancestry_bound(campaign_dir, output_root),
+    )
     decoded_lock = _read_campaign_lock(campaign_dir / "campaign.lock")
     lock = decoded_lock.identity
     state_path = campaign_dir / "loop_state.json"
@@ -732,14 +757,28 @@ def render_accepted(
     return report
 
 
+def _non_empty_path(value: str) -> Path:
+    if not value:
+        raise argparse.ArgumentTypeError("--output-root を空文字列にはできない")
+    return Path(value)
+
+
 def main(argv: Optional[Sequence[str]] = None) -> int:
     parser = argparse.ArgumentParser(description="D12 層3材料レポート renderer")
     parser.add_argument("campaign_dir")
     parser.add_argument("out_json")
     parser.add_argument("--generated-from-head", metavar="HEX")
+    parser.add_argument(
+        "--output-root", type=_non_empty_path, default=None, metavar="PATH",
+    )
     args = parser.parse_args(argv)
     try:
-        render(Path(args.campaign_dir), Path(args.out_json), args.generated_from_head)
+        render(
+            Path(args.campaign_dir),
+            Path(args.out_json),
+            args.generated_from_head,
+            output_root=args.output_root,
+        )
     except Layer3ReportError as exc:
         parser.error(str(exc))
     return 0
