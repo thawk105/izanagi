@@ -805,8 +805,9 @@ def _is_complete_growth_hold_collection(config) -> bool:
 def _runner_owned_exclusion_payload(config) -> dict[str, str] | None:
     """認証済み runner payload だけを collection 防壁から除く。
 
-    env が存在する場合は、payload と narrowing token のどちらか一方でも
-    契約からずれた時点で UsageError にする。
+    env を継承した入れ子 pytest は runner の narrowing token を持たないため、
+    runner 所有の除外なしとして扱う。narrowing token が存在する場合だけ、
+    payload と token の契約 drift を UsageError にする。
     """
 
     raw = (
@@ -814,6 +815,18 @@ def _runner_owned_exclusion_payload(config) -> dict[str, str] | None:
         else os.environ.get(_RUNNER_EXCLUSION_ENV)
     )
     if raw is None:
+        return None
+    try:
+        argv = tuple(getattr(config.invocation_params, "args", ()))
+    except AttributeError as exc:
+        raise pytest.UsageError(
+            "runner exclusion token を検査できる pytest invocation がありません"
+        ) from exc
+    observed_tokens = tuple(
+        token for token in argv
+        if token.split("=", 1)[0] in _COLLECTION_NARROWING_OPTIONS
+    )
+    if not observed_tokens:
         return None
     if _SELECTION_CONTRACT is None:
         raise pytest.UsageError(
@@ -826,18 +839,8 @@ def _runner_owned_exclusion_payload(config) -> dict[str, str] | None:
         raise pytest.UsageError(
             "runner exclusion payload が共有 selection contract と一致しません"
         )
-    try:
-        argv = tuple(getattr(config.invocation_params, "args", ()))
-    except AttributeError as exc:
-        raise pytest.UsageError(
-            "runner exclusion token を検査できる pytest invocation がありません"
-        ) from exc
     expected_tokens = _SELECTION_CONTRACT.exclusion_tokens(
         _SELECTION_CONTRACT.SANCTIONED_EXCLUSIONS
-    )
-    observed_tokens = tuple(
-        token for token in argv
-        if token.split("=", 1)[0] in _COLLECTION_NARROWING_OPTIONS
     )
     if observed_tokens != expected_tokens:
         raise pytest.UsageError(

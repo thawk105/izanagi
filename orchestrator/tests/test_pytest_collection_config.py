@@ -514,6 +514,22 @@ def test_conftest_rejects_present_runner_env_drift(
             CONF.pytest_configure(config)
 
 
+def test_inherited_runner_env_without_narrowing_token_is_not_runner_owned(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str],
+):
+    config = _growth_hold_config()
+    monkeypatch.setattr(CONF, "_configure_receipt_memo_session", lambda _: None)
+    monkeypatch.setattr(CONF, "_configure_oracle_environment_memo_session", lambda _: None)
+    monkeypatch.setattr(CONF, "_configure_receipt_memo_run_id", lambda _: None)
+    monkeypatch.setattr(CONF, "_growth_holds_opted_in", lambda: False)
+    monkeypatch.setattr(CONF, "mark_pytest_session_enforcing", None)
+    with RT._runner_exclusion_environment(CONTRACT.SANCTIONED_EXCLUSIONS):
+        CONF.pytest_configure(config)
+        assert CONF._runner_owned_exclusion_payload(config) is None
+        assert CONF._is_complete_growth_hold_collection(config) is True
+    assert capsys.readouterr().err == ""
+
+
 @pytest.mark.parametrize(
     "table_active",
     [True, False],
