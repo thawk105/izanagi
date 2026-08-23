@@ -22,6 +22,10 @@ title: [T-1376] COMMIT receipt の一回限り保証を ledger 単位へ限定�
 - 段2 plan は land 済み D729 の重複起票を提案したため採用せず、段3の2レンズで差し戻した。
   段6レビュー2本は訂正文を受理し、実測の全束縛同一性、repo 全体検索、T-1520 非重複の証跡を
   handoff へ補った。焦点再レビューは全所見 `closed`、`partial` / `regressed` 0、blocker なし。
+- canonical acceptance は T-1520 取り込み後の tip `bb357ad1` で `child-green`、red/flake 0。
+  初回 waiter は source mismatch を検出して test 投入前に `restart-required` となり、新 tip から
+  起動し直した2回目で成功した。段9 land は lock 内で main が `26c8979f` へ進んだため
+  `stale-main` で停止し、main は変更していない。fresh context で再受入・land する。
 
 ## 次の一手差分
 

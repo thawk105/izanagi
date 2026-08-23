@@ -1,8 +1,8 @@
 # [T-1376] COMMIT receipt の一回限り保証を ledger 単位へ限定
 - 目的: D729 を適用し、COMMIT receipt の保証記述を現行実装どおり ledger 内 exactly-once に限定する
-- 状態: 作業中
-- 最終更新: 2026-08-24 段1 brief
-- 基準コミット: 768e9fe62e6fecd50280bd95771159947e08c4d8 (worktree: dev-wave-t1376-receipt-ledger-scope)
+- 状態: 中断
+- 最終更新: 2026-08-24 段9 stale-main 停止
+- 基準コミット: bb357ad14420b3c5e4afb2f0c3f1be377f4a3b6f (受入済み tip、worktree: dev-wave-t1376-receipt-ledger-scope)
 
 ## 完了した中間成果   (ファイルパス・コミットハッシュつき)
 
@@ -28,6 +28,13 @@
   18 passed。受入全走とは扱わない。
 - 段6焦点再レビューは A1-A6/B1-B6 の全所見が `closed`、`partial` / `regressed` は0。
   blocker なしと判定した。
+- canonical acceptance は receipt
+  `/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t1376-receipt-ledger-scope/acceptance-receipt-2.json`、
+  `tested_main=402a5752`、`tested_tip=bb357ad1`、`verdict=child-green`、red/flake 0 で成功した。
+  1回目は T-1520 の waiter bytes 変更を検出して test 投入前に `restart-required`、新 tip から
+  起動し直した2回目が成功。lease は未取得なので release していない。
+- land は協調 lock 内で main が `26c8979f` へ進んだことを検出し、`status=stale-main`、
+  `main_before=main_after=26c8979f`、`retryable_same_request=false` で main を変更せず停止した。
 
 ## 段1 brief
 
@@ -45,7 +52,9 @@
 
 ## 未完の作業と次の一手 (具体的に)
 
-1. 段7記録後検査、段8、段9を閉じる。
+1. fresh context で branch/worktree を再利用し、main `26c8979f` 以後を監査して固定 merge する。
+2. 全条件を再評価し、canonical acceptance を新 tip で再取得して段9 land を再試行する。
+3. 再開コマンド: `$dev-wave [T-1376] COMMIT receipt の ledger 単位訂正を stale-main から再開`。
 
 ## 落とし穴・気づき    (次のセッションが踏みそうなもの)
 
