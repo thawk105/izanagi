@@ -1,6 +1,6 @@
 ---
 name: cleanup-branches
-description: Safely inventory and clean up merged local Izanagi branches and worktrees through the shared dispatcher. Use only for an explicit $cleanup-branches invocation; implicit invocation is disabled.
+description: Safely inventory and clean up merged local Izanagi branches and worktrees through the shared dispatcher. Use for merged-branch or worktree cleanup; deletion needs explicit $cleanup-branches.
 ---
 
 # Cleanup Branches
@@ -35,7 +35,7 @@ description: Safely inventory and clean up merged local Izanagi branches and wor
 
 ## 境界を守る
 
-Codex には `hooks/README.md` の PreToolUse hook が未配線であるため、hook が発火したと主張せず、
+hook の配線と限界は `hooks/README.md` が正本である。設定の存在を防護の証拠に数えず、
 同文書の保護境界を手動で守る。push と remote branch 操作は人間に残す。
 
 今回の実行で記載と実挙動の食い違い、新しい罠、手順不足を実測した場合だけ
