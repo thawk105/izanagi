@@ -6,6 +6,7 @@ import ast
 import os
 import re
 import sys
+import types
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
@@ -32,6 +33,51 @@ _CONDITIONAL_PREPROCESS_NODES = {
         "test_source_digest_fixed_variant_distinct",
         "test_source_digest_failsclosed_on_missing_define",
     ),
+}
+_SELECTED_CXX_CONSUMERS = {
+    ("test_campaign.py", "test_source_digest_stock_roundtrip"): {
+        "src_token": 1,
+    },
+    ("test_campaign.py", "test_source_digest_fixed_variant_distinct"): {
+        "src_token": 1,
+        "cache_key": 2,
+    },
+    ("test_campaign.py", "test_source_digest_failsclosed_on_missing_define"): {
+        "_cpp_normalize": 2,
+    },
+    ("test_campaign.py", "test_source_digest_semantic_comment_vs_behavior"): {
+        "_cpp_normalize": 3,
+    },
+    ("test_campaign.py", "test_source_digest_builtin_ifdef_not_aliased_to_stock"): {
+        "resolve": 2,
+        "compute": 1,
+        "baseline": 1,
+        "cache_key": 2,
+    },
+    ("test_campaign.py", "test_source_digest_include_change_rejected_by_resolve"): {
+        "resolve": 4,
+        "assert_includes_match_head": 1,
+    },
+    ("test_campaign.py", "test_trace_diff_of_diffs_predicate"): {
+        "assert_trace_diff_matches_head": 3,
+    },
+    ("test_campaign.py", "test_trace_diff_of_diffs_allows_stock_hook_catches_inner_edit"): {
+        "assert_trace_diff_matches_head": 3,
+    },
+    ("test_s1_direct_comparison.py",
+     "test_real_source_digest_unifies_all_outer_whitespace_tokens"): {
+        "resolve": 2,
+    },
+}
+_CONSUMER_CXX_POSITION = {
+    "src_token": 3,
+    "_cpp_normalize": 2,
+    "resolve": 3,
+    "compute": 2,
+    "baseline": 3,
+    "assert_includes_match_head": 3,
+    "assert_trace_diff_matches_head": 3,
+    "cache_key": None,
 }
 
 
@@ -62,26 +108,147 @@ def _call_leaf_names_for_real_silo_meta(function: ast.AST) -> set[str]:
     }
 
 
-def test_conditional_unrun_nodes_use_classified_helper():
+def _call_leaf_name(call: ast.Call) -> str | None:
+    if isinstance(call.func, ast.Name):
+        return call.func.id
+    if isinstance(call.func, ast.Attribute):
+        return call.func.attr
+    return None
+
+
+def _calls_named(function: ast.AST, names: set[str]) -> list[ast.Call]:
+    return [
+        node for node in ast.walk(function)
+        if isinstance(node, ast.Call) and _call_leaf_name(node) in names
+    ]
+
+
+def _selected_cxx_assignment(function: ast.AST) -> tuple[str, ast.Call]:
+    matches = []
+    for node in ast.walk(function):
+        if not isinstance(node, ast.Assign) or len(node.targets) != 1:
+            continue
+        target = node.targets[0]
+        if not isinstance(target, ast.Name) or not isinstance(node.value, ast.Call):
+            continue
+        if _call_leaf_name(node.value) == "_any_cxx":
+            matches.append((target.id, node.value))
+    assert len(matches) == 1, "対象 node は _any_cxx() の選択値を一度だけ束縛すべき"
+    return matches[0]
+
+
+def _cxx_argument(call: ast.Call, positional_index: int | None) -> ast.AST | None:
+    keywords = [keyword.value for keyword in call.keywords if keyword.arg == "cxx"]
+    assert len(keywords) <= 1, "cxx keyword が重複している"
+    if keywords:
+        return keywords[0]
+    if positional_index is not None and len(call.args) > positional_index:
+        return call.args[positional_index]
+    return None
+
+
+class _HelperSkip(Exception):
+    pass
+
+
+def _compiled_any_cxx(filename: str, which):
+    function = _function_node(filename, "_any_cxx")
+
+    def raise_skip(reason):
+        raise _HelperSkip(reason)
+
+    namespace = {
+        "shutil": types.SimpleNamespace(which=which),
+        "skip": raise_skip,
+        "pytest": types.SimpleNamespace(skip=raise_skip),
+    }
+    module = ast.Module(body=[function], type_ignores=[])
+    exec(compile(ast.fix_missing_locations(module), filename, "exec"), namespace)
+    return namespace["_any_cxx"], function
+
+
+def test_conditional_preprocess_nodes_classify_before_compiler_selection():
     for filename, functions in _CONDITIONAL_NODES.items():
         for function_name in functions:
             calls = _calls_in_function(filename, function_name)
             assert "skip_conditional_unrun" in calls, (
                 f"条件付き未実走 helper の結線が無い: {filename}::{function_name}"
             )
-
-
-def test_conditional_preprocess_nodes_require_g13():
     for filename, functions in _CONDITIONAL_PREPROCESS_NODES.items():
         for function_name in functions:
-            calls = _calls_in_function(filename, function_name)
-            assert "_require_g13" in calls, (
-                "条件付き未実走の窓が開いた瞬間に compiler 不在が skip ではなく"
-                f"未捕捉 RuntimeError の赤になる: {filename}::{function_name}"
+            function = _function_node(filename, function_name)
+            selected_name, selection = _selected_cxx_assignment(function)
+            assert selected_name == "cxx"
+            conditional_calls = _calls_named(function, {"skip_conditional_unrun"})
+            assert len(conditional_calls) == 1
+            consumer_names = set(
+                _SELECTED_CXX_CONSUMERS[(filename, function_name)]
+            )
+            consumers = _calls_named(function, consumer_names)
+            assert consumers
+            assert conditional_calls[0].lineno < selection.lineno, (
+                "conditional skip より先に compiler を選んでいる: "
+                f"{filename}::{function_name}"
+            )
+            assert selection.lineno < min(call.lineno for call in consumers), (
+                "compiler 選択より先に preprocess consumer が走りうる: "
+                f"{filename}::{function_name}"
             )
 
 
-def test_dependency_absence_skip_stays_unclassified():
+def test_site_compiler_helpers_choose_first_available_and_skip_only_when_empty():
+    filenames = ("test_campaign.py", "test_s1_direct_comparison.py")
+    for filename in filenames:
+        calls = []
+
+        def g12_only(candidate):
+            calls.append(candidate)
+            return "/fixture/g++-12" if candidate == "g++-12" else None
+
+        helper, function = _compiled_any_cxx(filename, g12_only)
+        assert helper() == "g++-12", filename
+        assert calls == ["g++-13", "g++-12"], filename
+        docstring = ast.get_docstring(function) or ""
+        assert "compiler 版をまたぐ関係は保証しない" in docstring, filename
+
+        calls = []
+
+        def none_available(candidate):
+            calls.append(candidate)
+            return None
+
+        helper, _ = _compiled_any_cxx(filename, none_available)
+        try:
+            helper()
+            assert False, f"全候補不在なら skip すべき: {filename}"
+        except _HelperSkip as exc:
+            assert "全滅" in str(exc), filename
+        assert calls == ["g++-13", "g++-12", "g++"], filename
+
+
+def test_selected_cxx_is_bound_to_every_target_consumer():
+    assert len(_SELECTED_CXX_CONSUMERS) == 9
+    for (filename, function_name), expected_counts in _SELECTED_CXX_CONSUMERS.items():
+        function = _function_node(filename, function_name)
+        selected_name, selection = _selected_cxx_assignment(function)
+        consumer_names = set(expected_counts)
+        consumers = _calls_named(function, consumer_names)
+        actual_counts = {
+            name: sum(_call_leaf_name(call) == name for call in consumers)
+            for name in consumer_names
+        }
+        assert actual_counts == expected_counts, (
+            f"compiler consumer census が変わった: {filename}::{function_name}: "
+            f"{actual_counts!r} != {expected_counts!r}"
+        )
+        assert selection.lineno < min(call.lineno for call in consumers)
+        for call in consumers:
+            leaf = _call_leaf_name(call)
+            bound = _cxx_argument(call, _CONSUMER_CXX_POSITION[leaf])
+            assert isinstance(bound, ast.Name) and bound.id == selected_name, (
+                "選択 compiler が consumer の cxx 引数へ届いていない: "
+                f"{filename}::{function_name}:{call.lineno} {leaf}"
+            )
     calls = _calls_in_function("test_campaign.py", "test_source_digest_stock_roundtrip")
     assert "skip" in calls, "依存物不在の正例が素の skip を呼んでいない"
     assert "skip_conditional_unrun" not in calls, (
