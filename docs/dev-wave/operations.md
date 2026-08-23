@@ -188,9 +188,8 @@ commit で確認する（`DW-O26` の精神を checker 変更にも適用。怠�
 
 ## DW-O28 — land 後の自己撤去
 
-親は `landed` / `already-landed` を確認した後、同じ段 9 で対象 worktree の外へ先に出て、
-投入した計算ノード job の終端後に `python3 tools/dev_wave_cleanup.py` で同一 wave の
-worktree と branch を撤去する。次 wave・ユーザー・`/cleanup-branches` へ引き渡さない。
-tool は占有・dirt・ancestry・fold state・primary・cwd のいずれかを確認できなければ
-fail-closed で停止する。F26 に従い `git worktree remove` と `git submodule deinit` は使わない。
-branch は `git branch -d` だけで消し `-D` を使わない。撤去できない理由は worklog へ書く。
+親は `landed` / `already-landed` を確認後、同じ段 9 で先に対象 worktree 外の main worktree へ移り、投入した計算ノード job の終端後に次を実行する（`<MAIN>` / `<WAVE>` は絶対 path）。
+`python3 tools/dev_wave_cleanup.py --main-worktree <MAIN> --wave-worktree <WAVE> --wave-branch <BRANCH> --tested-wave-tip-sha <TIP>`
+tool は unoccupied、clean、tested tip が `refs/heads/main` の祖先、fold state 不在、wave が非 primary、cwd が対象外を全て要求し、どれかが不成立または判定不能なら fail-closed で停止する。
+同一 wave の worktree と branch を撤去し、次 wave・ユーザー・`/cleanup-branches` へ引き渡さない。
+F26 に従い `git worktree remove` と `git submodule deinit` は使わない。branch は `git branch -d` だけで消し `-D` を使わない。撤去できない理由は報告し、次 wave の worklog へ記録する。

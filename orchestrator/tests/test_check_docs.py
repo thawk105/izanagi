@@ -178,12 +178,11 @@ _SYNTHETIC_DW_O26_SECTION = """## DW-O26 — 焦点走の consumer test 拡張
 """
 _SYNTHETIC_DW_O28_SECTION = """## DW-O28 — land 後の自己撤去
 
-親は `landed` / `already-landed` を確認した後、同じ段 9 で対象 worktree の外へ先に出て、
-投入した計算ノード job の終端後に `python3 tools/dev_wave_cleanup.py` で同一 wave の
-worktree と branch を撤去する。次 wave・ユーザー・`/cleanup-branches` へ引き渡さない。
-tool は占有・dirt・ancestry・fold state・primary・cwd のいずれかを確認できなければ
-fail-closed で停止する。F26 に従い `git worktree remove` と `git submodule deinit` は使わない。
-branch は `git branch -d` だけで消し `-D` を使わない。撤去できない理由は worklog へ書く。
+親は `landed` / `already-landed` を確認後、同じ段 9 で先に対象 worktree 外の main worktree へ移り、投入した計算ノード job の終端後に次を実行する（`<MAIN>` / `<WAVE>` は絶対 path）。
+`python3 tools/dev_wave_cleanup.py --main-worktree <MAIN> --wave-worktree <WAVE> --wave-branch <BRANCH> --tested-wave-tip-sha <TIP>`
+tool は unoccupied、clean、tested tip が `refs/heads/main` の祖先、fold state 不在、wave が非 primary、cwd が対象外を全て要求し、どれかが不成立または判定不能なら fail-closed で停止する。
+同一 wave の worktree と branch を撤去し、次 wave・ユーザー・`/cleanup-branches` へ引き渡さない。
+F26 に従い `git worktree remove` と `git submodule deinit` は使わない。branch は `git branch -d` だけで消し `-D` を使わない。撤去できない理由は報告し、次 wave の worklog へ記録する。
 """
 _SYNTHETIC_DW_C01_SECTION = """## DW-C01 — 実測で是正した作法
 
@@ -2132,6 +2131,23 @@ def test_raised_rulings_budget_still_rejects_new_limit():
     try:
         _pad_to_bytes(root, ".claude/commands/rulings.md", 5_001)
         _assert_violation(root, ".claude/commands/rulings.md", "予算 5000 bytes")
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_dev_wave_command_budget_literal_is_exact():
+    """入口上限・現物・plus-one 拒否を独立 literal で固定する。"""
+
+    rel = ".claude/commands/dev-wave.md"
+    assert check_docs.COMMAND_LIMITS[rel] == check_docs.TextLimit(9_584, 140)
+    assert len(_read(_REPO, rel).encode("utf-8")) == 9_584
+
+    root = _build_min_repo()
+    try:
+        _pad_to_bytes(root, rel, 9_585)
+        result = _run_check(root)
+        assert result.returncode == 1, result.stdout
+        assert f"{rel}: 9585 bytes > 予算 9584 bytes" in result.stdout
     finally:
         shutil.rmtree(root, ignore_errors=True)
 
@@ -8682,7 +8698,7 @@ def test_normative_exact_section_contract_is_handwritten_and_complete():
         _SYNTHETIC_DW_C01_SECTION
     )
     assert len(_SYNTHETIC_DW_O26_SECTION.encode("utf-8")) == 470
-    assert len(_SYNTHETIC_DW_O28_SECTION.encode("utf-8")) == 695
+    assert len(_SYNTHETIC_DW_O28_SECTION.encode("utf-8")) == 983
     assert len(_SYNTHETIC_DW_C01_SECTION.encode("utf-8")) == 970
     assert check_docs.DEV_WAVE_EXACT_VISIBLE_SECTIONS == {
         (".claude/commands/dev-wave.md", "入力と開始"):
@@ -8732,7 +8748,7 @@ def test_dw_o28_exact_section_pin_accepts_synthetic_fixture():
     try:
         operations = _read(root, "docs/dev-wave/operations.md")
         assert operations.count(_SYNTHETIC_DW_O28_SECTION) == 1
-        assert len(_SYNTHETIC_DW_O28_SECTION.encode("utf-8")) == 695
+        assert len(_SYNTHETIC_DW_O28_SECTION.encode("utf-8")) == 983
         result = _run_check(root)
         assert result.returncode == 0, result.stdout + result.stderr
         assert "違反なし" in result.stdout
