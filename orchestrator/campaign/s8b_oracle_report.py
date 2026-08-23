@@ -15,6 +15,10 @@ receipt expectation 層では、``run_contract`` を Mapping として宣言す�
 authority は P-A1(a)/[T-002] の責務である。WAL 各行の duplicate key と record の基本形も
 検査し、campaign-terminal が物理的な最終 record であることを要求する。hash chain や外部
 anchor はなく、任意改変に対する真正性の保証ではない。
+
+namespace と campaign の pathname 検査は stable filesystem を前提とする。
+namespace component、campaign path、WAL、store には同一 UID の競合者による
+交換と復元の ABA race が残るため、この module はそれらを完全に閉鎖しない。
 """
 from __future__ import annotations
 
@@ -344,7 +348,7 @@ class _NamespaceLeafIdentity:
 
 @dataclasses.dataclass(frozen=True)
 class _ResolvedOfficialOutputRoot:
-    """Validated read capability for one exact output-root path."""
+    """Stable-filesystem snapshot for one admitted output-root path."""
 
     path: Path
     root_identity: tuple[int, int]
@@ -469,14 +473,28 @@ def _scan_official_namespace(resolved: Path) -> _ResolvedOfficialOutputRoot:
 
 
 def _resolve_official_output_root(output_root: Path) -> _ResolvedOfficialOutputRoot:
-    """Admit one official read root and snapshot its namespace boundary."""
-    candidate = Path(output_root)
+    """Admit one official read root and snapshot its stable namespace boundary."""
+    raw_candidate = Path(output_root)
+    if ".." in raw_candidate.parts:
+        raise ReportError("official output_root に .. component を指定できない")
+    try:
+        candidate = (
+            raw_candidate
+            if raw_candidate.is_absolute()
+            else Path.cwd() / raw_candidate
+        )
+    except OSError as exc:
+        raise ReportError("relative output_root の cwd を取得できない") from exc
     _reject_output_root_symlink_components(candidate)
     try:
         resolved = candidate.resolve(strict=False)
         canonical_repo_output = Path(repo_output_root()).resolve(strict=True)
     except OSError as exc:
         raise ReportError("output_root を解決できない") from exc
+    if not raw_candidate.is_absolute() and resolved != canonical_repo_output:
+        raise ReportError(
+            "relative official output_root は canonical repository output exact のみ受理する"
+        )
     if resolved != canonical_repo_output:
         try:
             admitted = Path(resolve_campaign_output_root(
@@ -492,7 +510,7 @@ def _resolve_official_output_root(output_root: Path) -> _ResolvedOfficialOutputR
 def _revalidate_official_output_root(
         admitted: _ResolvedOfficialOutputRoot,
 ) -> None:
-    """Fail closed if the root or any namespace leaf changed during reads."""
+    """Detect persistent root/marker changes; same-UID ABA remains out of scope."""
     observed = _scan_official_namespace(admitted.path)
     if (observed.root_identity != admitted.root_identity
             or observed.namespace_identities != admitted.namespace_identities):
@@ -502,7 +520,7 @@ def _revalidate_official_output_root(
 def _resolved_campaign_layout(
     campaign_id: str, resolved_output_root: Path,
 ) -> CampaignLayout:
-    """official root 配下の symlink-free campaign を resolved path へ固定する。"""
+    """stable tree で symlink-free campaign の resolved path carrier を作る。"""
     try:
         cid = validate_campaign_id(campaign_id)
     except ValueError as exc:
@@ -2224,7 +2242,11 @@ def build_observations(
     repo_root: Path = ROOT,
     reverified_freeze: s8b_ratified_freeze.ReverifiedFreeze | None = None,
 ) -> _artifacts.OfficialObservations:
-    """manifest 所有 campaign だけから JSON-safe な全件 observations を作る。"""
+    """manifest 所有 campaign だけから JSON-safe な全件 observations を作る。
+
+    pathname の検査と再検査は stable filesystem 上の永続交換を検出する境界である。
+    namespace component、campaign path、WAL、store の同一 UID ABA race まで閉じない。
+    """
     if type(manifest) not in {
             s8b_oracle_manifest.VerifiedManifest, _artifacts.LegacyManifest}:
         raise _artifacts.OracleArtifactTypeError(

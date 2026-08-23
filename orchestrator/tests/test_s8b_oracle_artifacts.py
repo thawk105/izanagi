@@ -5,6 +5,7 @@ from __future__ import annotations
 import ast
 import hashlib
 import json
+import stat
 import subprocess
 import sys
 from pathlib import Path
@@ -290,24 +291,50 @@ def test_output_namespace_marker_authorities_are_exact_runtime_roles():
     }
 
 
-def test_historical_official_candidates_share_exact_migration_root_marker():
+def test_historical_official_reports_share_tracked_exact_migration_root_marker():
     completed = subprocess.run(
         ["git", "ls-files", "output/campaigns"],
         cwd=ROOT, text=True, capture_output=True, check=True,
     )
+    tracked_paths = tuple(
+        Path(line) for line in completed.stdout.splitlines() if line
+    )
     candidate_ids = {
-        parts[2]
-        for line in completed.stdout.splitlines()
-        if len(parts := Path(line).parts) >= 4
+        path.parts[2]
+        for path in tracked_paths
+        if len(path.parts) >= 4
+        and path.parts[:2] == ("output", "campaigns")
     }
+    report_paths = tuple(
+        path for path in tracked_paths
+        if len(path.parts) >= 5 and path.parts[3] == "reports"
+    )
+    report_candidate_ids = {path.parts[2] for path in report_paths}
     marker = ROOT / "output/namespace.json"
+    marker_stage = subprocess.run(
+        ["git", "ls-files", "--stage", "--", "output/namespace.json"],
+        cwd=ROOT, text=True, capture_output=True, check=True,
+    ).stdout.splitlines()
 
-    assert len(candidate_ids) == 30
-    assert marker.is_file() and not marker.is_symlink()
+    assert report_paths
+    assert candidate_ids
+    assert all(
+        path.parts[:2] == ("output", "campaigns")
+        and path.parts[2] in candidate_ids
+        and path.parts[3] == "reports"
+        for path in report_paths
+    )
+    assert report_candidate_ids <= candidate_ids
+    assert len(marker_stage) == 1
+    mode, _object_id, stage, tracked_marker = marker_stage[0].split(None, 3)
+    assert (mode, stage, tracked_marker) == (
+        "100644", "0", "output/namespace.json",
+    )
+    assert stat.S_ISREG(marker.lstat().st_mode) and not marker.is_symlink()
     assert marker.read_bytes() == artifacts.OFFICIAL_NAMESPACE_BYTES
     assert {
-        (ROOT / "output/campaigns" / candidate_id).parents[1] / "namespace.json"
-        for candidate_id in candidate_ids
+        ROOT / path.parts[0] / "namespace.json"
+        for path in report_paths
     } == {marker}
 
 
