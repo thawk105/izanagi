@@ -3984,6 +3984,133 @@ def test_acceptance_receipt_main_resolve_detail(
 
 def test_acceptance_receipt_main_moved_detail() -> None:
     fake = _FakeEffects()
+    lifecycle = DW._AcceptanceLifecycle()
+    _queue_clean_acceptance_prefix(fake)
+    fake.expect_run(
+        _COMMAND,
+        DW._CommandResult(0),
+        capture=False,
+        unchanged_postrun=False,
+    )
+    _postrun_integrity(fake)
+    fake.expect_run(
+        ("git", "rev-parse", f"{_SHA_A}:tools/dev_wave_wait.py"),
+        DW._CommandResult(0, _WAITER_BLOB + "\n"),
+    )
+    fake.expect_run(
+        ("git", "rev-parse", "main"),
+        DW._CommandResult(0, _SHA_B + "\n"),
+    )
+    fake.expect_run(
+        _helper("claim", _SHA_A),
+        DW._CommandResult(0, _held_self_payload()),
+    )
+
+    outcome = _run_acceptance(fake, lifecycle=lifecycle)
+
+    assert outcome == DW._Outcome(0)
+    assert lifecycle.ownership is DW._LeaseOwnership.RETAINED
+    assert lifecycle.receipt_published is True
+    assert fake.receipt_published is True
+    assert fake.receipt_content is not None
+    receipt = json.loads(fake.receipt_content)
+    assert receipt["schema_version"] == "dev-wave-acceptance-receipt/v5"
+    assert receipt["tested_main"] == _SHA_A
+    assert receipt["tested_tip"] == _SHA_A
+    assert set(receipt) == {
+        "schema_version", "authority_kind", "acceptance_wave", "lease_holder",
+        "tested_main", "tested_tip", "argv", "resolved_runner_path", "child_rc",
+        "pre_fingerprint", "post_fingerprint", "waiter_blob_sha",
+        "env_projection", "verdict", "log_sha256", "checker_rc",
+        "checker_status", "checker_blob_sha", "checker_receipt_sha256",
+        "red_nodeids", "flake_nodeids", "effective_scheduler",
+        "launcher_source_revision", "launcher_blob_sha",
+        "launcher_executed_sha256", "waiter_executed_sha256",
+        "runner_executed_sha256",
+    }
+    assert (
+        "run", _helper("claim", _SHA_A), _REPO, True
+    ) in fake.events
+    assert (
+        "run", _helper("claim", _SHA_B), _REPO, True
+    ) not in fake.events
+    assert not any(
+        event[0] == "run" and event[1] == _helper("release")
+        for event in fake.events
+    )
+    fake.assert_drained()
+
+
+@pytest.mark.parametrize(
+    ("confirmed", "expected_gate"),
+    (
+        pytest.param(
+            DW._ClaimContext("held", _HOLDER, _SHA_A, 0),
+            {
+                "state": "held",
+                "holder_matches": None,
+                "main_sha_matches": None,
+                "ttl_sufficient": None,
+            },
+            id="not-held-self",
+        ),
+        pytest.param(
+            DW._ClaimContext("held-self", "f" * 12, _SHA_A, 0),
+            {
+                "state": "held-self",
+                "holder_matches": False,
+                "main_sha_matches": None,
+                "ttl_sufficient": None,
+            },
+            id="holder-mismatch",
+        ),
+        pytest.param(
+            DW._ClaimContext("held-self", _HOLDER, _SHA_A, 2101),
+            {
+                "state": "held-self",
+                "holder_matches": True,
+                "main_sha_matches": True,
+                "remaining_seconds": 299,
+                "required_seconds": 300,
+                "ttl_sufficient": False,
+            },
+            id="insufficient-ttl",
+        ),
+    ),
+)
+def test_acceptance_main_moved_keeps_lease_publish_gates(
+    confirmed: object,
+    expected_gate: dict[str, object],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    fake = _FakeEffects()
+    original_claim_once = DW._claim_once
+    reclaimed_main_shas: list[str] = []
+
+    def final_confirmation(
+        effects: object,
+        repo: Path,
+        lease_dir: Path,
+        wave: str,
+        main_sha: str,
+        lifecycle: object = None,
+        *,
+        diagnostic_reason: str | None = None,
+    ) -> object:
+        if diagnostic_reason == "receipt-reclaim":
+            reclaimed_main_shas.append(main_sha)
+            return confirmed
+        return original_claim_once(
+            effects,
+            repo,
+            lease_dir,
+            wave,
+            main_sha,
+            lifecycle,
+            diagnostic_reason=diagnostic_reason,
+        )
+
+    monkeypatch.setattr(DW, "_claim_once", final_confirmation)
     _queue_clean_acceptance_prefix(fake)
     fake.expect_run(
         _COMMAND,
@@ -4004,21 +4131,14 @@ def test_acceptance_receipt_main_moved_detail() -> None:
 
     outcome = _run_acceptance(fake)
 
-    expected = {
-        "reason": "receipt-main-moved",
-        "observed": {
-            "claimed_main_sha": _SHA_A,
-            "final_main_sha": _SHA_B,
-        },
-    }
-    assert outcome == DW._Outcome(
-        70,
-        "acceptance-receipt",
-        detail=json.dumps(expected, separators=(",", ":"), sort_keys=True),
-    )
-    assert json.loads(outcome.detail) == expected
+    assert outcome.rc == 70
+    assert outcome.stage == "acceptance-receipt"
+    detail = json.loads(outcome.detail)
+    assert detail["reason"] == "receipt-lease-check"
+    for key, value in expected_gate.items():
+        assert detail["observed"][key] == value
     assert fake.receipt_published is False
-    assert ("unlink", _RECEIPT_TEMP) in fake.events
+    assert reclaimed_main_shas == [_SHA_A]
     fake.assert_drained()
 
 
@@ -5276,18 +5396,15 @@ def test_pin_c_unclaimed_keeps_main_drift_check(
         lease_optional=lease_optional,
     )
 
-    assert outcome.rc == 70
-    assert outcome.stage == "acceptance-receipt"
-    assert json.loads(outcome.detail) == {
-        "reason": "receipt-main-moved",
-        "observed": {
-            "claimed_main_sha": _SHA_A,
-            "final_main_sha": _SHA_B,
-        },
-    }
+    assert outcome == DW._Outcome(0)
     assert lifecycle.ownership is DW._LeaseOwnership.NONE
     assert (fake.claims, fake.submissions, fake.releases) == (1, 1, 0)
-    assert fake.receipt_published is False
+    assert fake.receipt_published is True
+    assert fake.receipt_content is not None
+    receipt = json.loads(fake.receipt_content)
+    assert receipt["schema_version"] == "dev-wave-acceptance-receipt/v5"
+    assert receipt["tested_main"] == _SHA_A
+    assert receipt["tested_tip"] == _SHA_A
     assert not any(
         event[0] == "run" and event[1] == _helper("release")
         for event in fake.events
