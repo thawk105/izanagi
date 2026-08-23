@@ -10913,6 +10913,8 @@ def test_source_digest_fixed_variant_distinct():
         # 受入 suite は共有 submodule に template patch の窓を開けないため、
         # BACKOFF_FIXED が参照されない stock checkout では digest 分離を実走しない。
         skip_conditional_unrun("template patch 未適用: backoff.hh に #if BACKOFF_FIXED 無し")
+    # 条件付き未実走を先に分類し、窓が開いた後だけ compiler 不在を依存物 skip にする。
+    _require_g13()
     base = {"BACK_OFF": 1, "NO_WAIT_LOCKING_IN_VALIDATION": 1,
             "NO_WAIT_OF_TICTOC": 0, "WAL": 0}
     g50 = Genome("silo", {**base, "BACKOFF_FIXED": 50})
