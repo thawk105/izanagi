@@ -153,6 +153,7 @@ def _rc(expected, argv, results, *, config_valid=True):
 
 
 def test_complete_live_evidence_is_the_only_positive_control():
+    """protected event 不在かつ expected stderr 存在で rc=0 になることを含む。"""
     expected, argv, results = _bundle()
     assert _rc(expected, argv, results) == 0
 
@@ -213,11 +214,6 @@ def test_protected_event_absent_expected_stderr_absent_is_nonzero():
         tool: result._replace(stderr="") for tool, result in results.items()
     }
     assert _rc(expected, argv, results) != 0
-
-
-def test_protected_event_absent_expected_stderr_present_is_zero():
-    expected, argv, results = _bundle()
-    assert _rc(expected, argv, results) == 0
 
 
 def test_pre_turn_trust_warning_items_do_not_count_as_started_tools():
