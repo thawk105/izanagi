@@ -64,6 +64,15 @@ title: [T-1506] mocc の TRACE=0 前処理同一性検査を通し、計測を�
   `#define` も CMake 供給も無く、初期化済み `third_party/shirakami` にも該当 file は 0 件と実測した。
 - 本 wave は commit tree 走査を足したため checker 1 回あたり `git show` の起動が 488 回増える
   (tree あたり 244 supply file x 2 commit)。genome ループの外なので文脈数には比例しない。
+- 受入 1 回目で自分の回帰が 2 件出た (14725 passed / 2 failed)。
+  `orchestrator/tests/test_ccbench_spawn_sites.py` は repo 内のプロセス起動箇所の全数を
+  exact に固定するメタテストで、`source_digest.py` へ足した git 呼び出し 3 箇所
+  (`_checkout_gitlink_oid` に 2、`_git_tree_entries` に 1) が未登録だった。
+  固定 argv・消毒済み環境・読み取り専用の Git 問い合わせであり CCBench の計測 binary を
+  起動しないため、同 file の既存 `source_digest.py` 5 箇所と同じ
+  `_EXPLICIT_NON_CCBENCH_PROCESS_SITES` へ登録した。テストの述語と構造は変えていない。
+  **この赤は焦点走では出ない** — 変更した production file の検査側に repo 全体を走査する
+  メタテストがあり、受入全走でしか発火しない。
 
 ## 次の一手差分
 
