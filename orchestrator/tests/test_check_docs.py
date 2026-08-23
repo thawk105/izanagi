@@ -485,20 +485,43 @@ seq: 1
 - R33 admission contract: role=`n_pilot_r33`; generation=`n-pilot-r33`; pilot_rounds=33; allocation_count=3; cell_count=12; schedule_row_count=396.
 """
 
+_SYNTHETIC_DEV_WAVE_DESCRIPTION = (
+    "Run one Izanagi development wave through its brief, Codex planning and "
+    "adversarial review, implementation, mutation and acceptance checks, "
+    "recording, and bounded termination workflow. Use only for an explicit "
+    "$dev-wave invocation; implicit invocation is disabled. Do not use it for "
+    "a CC synthesis campaign."
+)
+_PRE_WAVE_CODEX_DEV_WAVE_DESCRIPTION = (
+    "Run one Izanagi development wave through its brief, Codex planning and "
+    "adversarial review, implementation, mutation and acceptance checks, "
+    "recording, and bounded termination workflow. Use when the user asks to "
+    "run, continue, or perform a dev-wave, or requests the repository's "
+    "standard nine-stage development loop; do not use it for a CC synthesis "
+    "campaign."
+)
+_SYNTHETIC_DEV_WAVE_OPENAI_YAML = """interface:
+  display_name: "Dev Wave"
+  short_description: "Izanagi の開発 wave を共通契約に従って実行"
+  default_prompt: "Use $dev-wave to run one Izanagi development wave for the specified task."
+
+policy:
+  allow_implicit_invocation: false
+"""
 _SYNTHETIC_CLEANUP_DESCRIPTION = (
     "Safely inventory and clean up merged local Izanagi branches and worktrees "
-    "through the shared dispatcher. Use only for an explicit $cleanup-branches "
-    "invocation; implicit invocation is disabled."
+    "through the shared dispatcher. Use for merged-branch or worktree cleanup; "
+    "deletion needs explicit $cleanup-branches."
 )
 _EXPECTED_CLEANUP_SKILL_SHA256 = (
-    "cc3eff8cc6ebebe07b5014c79b2a24aee4a67ab4a55f391e38a9ac82d68ed116"
+    "72af2a3311dcd5daa0bb81a40dc4831b885d7015b7f88332907d29c20dbaf0e0"
 )
 _EXPECTED_CLEANUP_COMMAND_SHA256 = (
     "5602424621a29a76488691b3cd6a883dfbaa4a63326aab9682c89ae2754c6e4b"
 )
 _SYNTHETIC_CLEANUP_SKILL = """---
 name: cleanup-branches
-description: Safely inventory and clean up merged local Izanagi branches and worktrees through the shared dispatcher. Use only for an explicit $cleanup-branches invocation; implicit invocation is disabled.
+description: Safely inventory and clean up merged local Izanagi branches and worktrees through the shared dispatcher. Use for merged-branch or worktree cleanup; deletion needs explicit $cleanup-branches.
 ---
 
 # Cleanup Branches
@@ -533,7 +556,7 @@ description: Safely inventory and clean up merged local Izanagi branches and wor
 
 ## 境界を守る
 
-Codex には `hooks/README.md` の PreToolUse hook が未配線であるため、hook が発火したと主張せず、
+hook の配線と限界は `hooks/README.md` が正本である。設定の存在を防護の証拠に数えず、
 同文書の保護境界を手動で守る。push と remote branch 操作は人間に残す。
 
 今回の実行で記載と実挙動の食い違い、新しい罠、手順不足を実測した場合だけ
@@ -543,9 +566,6 @@ _SYNTHETIC_CLEANUP_OPENAI_YAML = """interface:
   display_name: "Cleanup Branches"
   short_description: "Izanagi のマージ済み branch と worktree を安全に整理"
   default_prompt: "Use $cleanup-branches to safely clean up merged local branches and worktrees."
-
-policy:
-  allow_implicit_invocation: false
 """
 _SYNTHETIC_CLEANUP_COMMAND = """---
 description: マージ済みブランチと worktree を安全手順で掃除する (submodule 罠対応、push 系はユーザー引き渡し)
@@ -818,9 +838,9 @@ docs/skill-self-improvement.md
     _write(root, "tools/dev_wave_submodule_init.py", "# synthetic submodule initializer\n")
     _write(root, ".claude/commands/cleanup-branches.md", cleanup)
     _write(root, ".claude/commands/rulings.md", rulings)
-    codex_skill = """---
+    codex_skill = f"""---
 name: dev-wave
-description: synthetic Codex dev-wave skill
+description: {_SYNTHETIC_DEV_WAVE_DESCRIPTION}
 ---
 
 # Dev Wave
@@ -841,7 +861,7 @@ supervised manifest は実行せず、段 1〜9 と local main の契約に従�
     _write(
         root,
         ".agents/skills/dev-wave/agents/openai.yaml",
-        check_docs.CODEX_DEV_WAVE_OPENAI_YAML,
+        _SYNTHETIC_DEV_WAVE_OPENAI_YAML,
     )
     codex_rulings_skill = """---
 name: rulings
@@ -8694,12 +8714,11 @@ def test_codex_dev_wave_skill_contract_pins_exact_surface():
         "段 1〜9",
         "local main",
     )
+    assert check_docs.CODEX_DEV_WAVE_DESCRIPTION == (
+        _SYNTHETIC_DEV_WAVE_DESCRIPTION
+    )
     assert check_docs.CODEX_DEV_WAVE_OPENAI_YAML == (
-        'interface:\n'
-        '  display_name: "Dev Wave"\n'
-        '  short_description: "Izanagi の開発 wave を共通契約に従って実行"\n'
-        '  default_prompt: "Use $dev-wave to run one Izanagi development wave '
-        'for the specified task."\n'
+        _SYNTHETIC_DEV_WAVE_OPENAI_YAML
     )
 
 
@@ -9131,15 +9150,75 @@ def test_cleanup_command_invalid_backtick_info_is_rejected():
         shutil.rmtree(root, ignore_errors=True)
 
 
-def test_cleanup_metadata_policy_change_is_rejected():
+def test_dev_wave_metadata_policy_block_is_required():
+    root = _build_min_repo()
+    try:
+        rel = ".agents/skills/dev-wave/agents/openai.yaml"
+        policy = "\npolicy:\n  allow_implicit_invocation: false\n"
+        original = _read(root, rel)
+        assert original.count(policy) == 1
+        _write(root, rel, original.replace(policy, "", 1))
+        res = _run_check(root)
+        assert res.returncode == 1, res.stdout
+        assert _violation_count(res) == 1, res.stdout
+        assert "生成済み Skill interface 契約と不一致" in res.stdout
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_dev_wave_explicit_trigger_description_is_required():
+    root = _build_min_repo()
+    try:
+        rel = ".agents/skills/dev-wave/SKILL.md"
+        current = f"description: {_SYNTHETIC_DEV_WAVE_DESCRIPTION}"
+        old = f"description: {_PRE_WAVE_CODEX_DEV_WAVE_DESCRIPTION}"
+        original = _read(root, rel)
+        assert original.count(current) == 1
+        _write(root, rel, original.replace(current, old, 1))
+        res = _run_check(root)
+        assert res.returncode == 1, res.stdout
+        assert _violation_count(res) == 1, res.stdout
+        assert "description が explicit trigger 契約と不一致" in res.stdout
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_dev_wave_description_guard_wiring_cannot_evaporate():
+    root = _build_min_repo()
+    try:
+        skill_rel = ".agents/skills/dev-wave/SKILL.md"
+        current = f"description: {_SYNTHETIC_DEV_WAVE_DESCRIPTION}"
+        old = f"description: {_PRE_WAVE_CODEX_DEV_WAVE_DESCRIPTION}"
+        skill = _read(root, skill_rel)
+        assert skill.count(current) == 1
+        _write(root, skill_rel, skill.replace(current, old, 1))
+
+        checker_rel = "tools/check_docs.py"
+        checker = _read(root, checker_rel)
+        wiring = (
+            "        expected_description=CODEX_DEV_WAVE_DESCRIPTION,\n"
+        )
+        assert checker.count(wiring) == 1
+        _write(root, checker_rel, checker.replace(wiring, "", 1))
+
+        res = _run_check(root)
+        assert res.returncode == 0, res.stdout
+        assert "description が explicit trigger 契約と不一致" not in res.stdout
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_cleanup_metadata_policy_block_is_rejected():
     root = _build_min_repo()
     try:
         rel = ".agents/skills/cleanup-branches/agents/openai.yaml"
-        _write(root, rel, _read(root, rel).replace(
-            "allow_implicit_invocation: false",
-            "allow_implicit_invocation: true",
-            1,
-        ))
+        original = _read(root, rel)
+        assert "\npolicy:\n" not in original
+        _write(
+            root,
+            rel,
+            original + "\npolicy:\n  allow_implicit_invocation: false\n",
+        )
         res = _run_check(root)
         assert res.returncode == 1, res.stdout
         assert _violation_count(res) == 1, res.stdout

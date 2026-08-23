@@ -1,6 +1,6 @@
 ---
 name: dev-wave
-description: Run one Izanagi development wave through its brief, Codex planning and adversarial review, implementation, mutation and acceptance checks, recording, and bounded termination workflow. Use when the user asks to run, continue, or perform a dev-wave, or requests the repository's standard nine-stage development loop; do not use it for a CC synthesis campaign.
+description: Run one Izanagi development wave through its brief, Codex planning and adversarial review, implementation, mutation and acceptance checks, recording, and bounded termination workflow. Use only for an explicit $dev-wave invocation; implicit invocation is disabled. Do not use it for a CC synthesis campaign.
 ---
 
 # Dev Wave
@@ -28,7 +28,12 @@ fail-closed に停止または巻き戻す。
 ## Codex 向けに適合する
 
 - `.claude/commands/dev-wave.md` の `$ARGUMENTS` はユーザーが本 Skill に渡した対象と読み替える。
-  `/dev-wave` の次回起動案内は `$dev-wave` の新しい Codex turn と読み替える。
+  dispatcher が参照する closure 内の Claude 固有語も読み替える — `/dev-wave` は `$dev-wave` の
+  新しい Codex turn、`/clear` は fresh な Codex context、`claude -p` supervisor と `/loop` は
+  Codex では使わず停止する。本 Skill は明示起動専用であり、自然文の依頼を一般タスクとして
+  処理せず、`$dev-wave <対象>` の明示起動を案内して止まる。
+- 防護パス文字列を含む prompt・commit message は、Bash heredoc や不透明な command substitution で
+  作らない。Codex では `apply_patch` で作る (Claude の Write ツールに相当する sanctioned な経路)。
 - 「親」は現在の Codex manager とする。ただし実装面では manager 自身を D95 の author 子に数えない。
   軽量版でも `docs/dev-wave/workers.md` と `docs/dev-wave/operations.md` に従う別の Codex 実装 worker に
   コードとテストを書かせ、manager は実装面を直接編集しない。

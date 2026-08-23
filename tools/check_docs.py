@@ -636,10 +636,20 @@ CODEX_DEV_WAVE_SKILL_LITERALS = (
     "段 1〜9",
     "local main",
 )
+CODEX_DEV_WAVE_DESCRIPTION = (
+    "Run one Izanagi development wave through its brief, Codex planning and "
+    "adversarial review, implementation, mutation and acceptance checks, "
+    "recording, and bounded termination workflow. Use only for an explicit "
+    "$dev-wave invocation; implicit invocation is disabled. Do not use it for "
+    "a CC synthesis campaign."
+)
 CODEX_DEV_WAVE_OPENAI_YAML = """interface:
   display_name: "Dev Wave"
   short_description: "Izanagi の開発 wave を共通契約に従って実行"
   default_prompt: "Use $dev-wave to run one Izanagi development wave for the specified task."
+
+policy:
+  allow_implicit_invocation: false
 """
 CODEX_RULINGS_SKILL_LIMITS = {
     ".agents/skills/rulings/SKILL.md": TextLimit(3_000, 400),
@@ -674,19 +684,16 @@ CODEX_CLEANUP_BRANCHES_SKILL_FILES = frozenset(
 )
 CODEX_CLEANUP_BRANCHES_DESCRIPTION = (
     "Safely inventory and clean up merged local Izanagi branches and worktrees "
-    "through the shared dispatcher. Use only for an explicit $cleanup-branches "
-    "invocation; implicit invocation is disabled."
+    "through the shared dispatcher. Use for merged-branch or worktree cleanup; "
+    "deletion needs explicit $cleanup-branches."
 )
 CODEX_CLEANUP_BRANCHES_SKILL_SHA256 = (
-    "cc3eff8cc6ebebe07b5014c79b2a24aee4a67ab4a55f391e38a9ac82d68ed116"
+    "72af2a3311dcd5daa0bb81a40dc4831b885d7015b7f88332907d29c20dbaf0e0"
 )
 CODEX_CLEANUP_BRANCHES_OPENAI_YAML = """interface:
   display_name: "Cleanup Branches"
   short_description: "Izanagi のマージ済み branch と worktree を安全に整理"
   default_prompt: "Use $cleanup-branches to safely clean up merged local branches and worktrees."
-
-policy:
-  allow_implicit_invocation: false
 """
 CLEANUP_COMMAND_SHA256 = (
     "5602424621a29a76488691b3cd6a883dfbaa4a63326aab9682c89ae2754c6e4b"
@@ -5931,6 +5938,7 @@ def _check_command_docs_guard(findings: list[str]) -> set[Path]:
         expected_files=CODEX_DEV_WAVE_SKILL_FILES,
         literals=CODEX_DEV_WAVE_SKILL_LITERALS,
         openai_yaml=CODEX_DEV_WAVE_OPENAI_YAML,
+        expected_description=CODEX_DEV_WAVE_DESCRIPTION,
         forbidden_literals=(DEV_WAVE_LAND_HELPER,),
         exact_literals=(CODEX_DEV_WAVE_STAGE9_LAND_LITERAL,),
         exact_visible_sections={
