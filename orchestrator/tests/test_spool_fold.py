@@ -3409,16 +3409,135 @@ def test_cli_base_digest_real_corpus_resolves_active_and_rejects_completed(
 ) -> None:
     repo = _copy_real_canonical_family(tmp_path)
     _install_cli(repo)
-    source = repo / "docs/archive/worklog-phase3-0820-720-721.md"
-    source_bytes = source.read_bytes()
-    start = source_bytes.index(b"- [T-139] **D574")
-    end = source_bytes.index(b"- [T-337]", start)
-    substantive = source_bytes[start:end]
+    entry_re = re.compile(
+        rb"^## [0-9]{4}-[0-9]{2}-[0-9]{2} "
+        rb"\((?P<ordinal>[1-9][0-9]*)\) .+$",
+        re.MULTILINE,
+    )
+    next_action_re = re.compile(
+        r"^### 次の一手(?:[^\n]*)$".encode("utf-8"),
+        re.MULTILINE,
+    )
+    item_re = re.compile(
+        rb"^- (?P<id>\[T-[0-9]+\])[^\n]*(?:\n|$)",
+        re.MULTILINE,
+    )
+    compact_carry_re = re.compile(
+        rb"^- (?P<id>\[T-[0-9]+\]) "
+        rb"\((?P<ordinal>[1-9][0-9]*)\)\n$"
+    )
+    legacy_carry_re = re.compile(
+        r"^- (?P<id>\[T-[0-9]+\]) 変わらず "
+        r"\(\((?P<ordinal>[1-9][0-9]*)\) 参照\)\n$".encode("utf-8")
+    )
+
+    current = repo / "docs/worklog.md"
+    archive_dir = repo / "docs/archive"
+    corpus_paths = [current, *sorted(archive_dir.glob("worklog-*.md"))]
+    entries_by_ordinal: dict[int, list[tuple[Path, bytes]]] = {}
+    current_ordinals: list[int] = []
+    for path in corpus_paths:
+        data = path.read_bytes()
+        headings = list(entry_re.finditer(data))
+        for index, heading in enumerate(headings):
+            ordinal = int(heading.group("ordinal"))
+            end = headings[index + 1].start() if index + 1 < len(headings) else len(data)
+            entries_by_ordinal.setdefault(ordinal, []).append(
+                (path, data[heading.start():end])
+            )
+            if path == current:
+                current_ordinals.append(ordinal)
+    assert current_ordinals
+    latest_ordinal = current_ordinals[-1]
+    assert len(entries_by_ordinal[latest_ordinal]) == 1
+
+    item_cache: dict[int, dict[bytes, tuple[bytes, bool]]] = {}
+
+    def items_for(ordinal: int) -> dict[bytes, tuple[bytes, bool]]:
+        if ordinal not in item_cache:
+            records = entries_by_ordinal.get(ordinal, [])
+            if len(records) != 1:
+                raise KeyError(ordinal)
+            entry = records[0][1]
+            headings = list(next_action_re.finditer(entry))
+            assert len(headings) == 1
+            section = entry[headings[0].end():]
+            following_heading = re.search(rb"^#{2,3} ", section, re.MULTILINE)
+            if following_heading is not None:
+                section = section[:following_heading.start()]
+            starts = list(item_re.finditer(section))
+            items: dict[bytes, tuple[bytes, bool]] = {}
+            for index, start in enumerate(starts):
+                end = starts[index + 1].start() if index + 1 < len(starts) else len(section)
+                task_id = start.group("id")
+                assert task_id not in items
+                items[task_id] = (section[start.start():end], index + 1 < len(starts))
+            item_cache[ordinal] = items
+        return item_cache[ordinal]
+
+    active_items = items_for(latest_ordinal)
+
+    def resolve_from_corpus(
+        task_id: bytes,
+    ) -> tuple[bytes, Path, bool, bool] | None:
+        ordinal = latest_ordinal
+        seen: set[int] = set()
+        saw_legacy_carry = False
+        while ordinal not in seen:
+            seen.add(ordinal)
+            try:
+                block, has_following_item = items_for(ordinal)[task_id]
+            except KeyError:
+                return None
+            if block != block.rstrip(b"\n") + b"\n":
+                return None
+            legacy = legacy_carry_re.fullmatch(block)
+            compact = compact_carry_re.fullmatch(block)
+            if legacy is None and compact is None:
+                source = entries_by_ordinal[ordinal][0][0]
+                return block, source, saw_legacy_carry, has_following_item
+            carry = legacy if legacy is not None else compact
+            assert carry is not None and carry.group("id") == task_id
+            saw_legacy_carry = saw_legacy_carry or legacy is not None
+            referenced = int(carry.group("ordinal"))
+            assert referenced < ordinal
+            ordinal = referenced
+        raise AssertionError(f"{task_id!r} の carry 参照が循環")
+
+    selected: tuple[bytes, bytes] | None = None
+    for task_id in sorted(active_items, key=lambda value: int(value[3:-1])):
+        resolved = resolve_from_corpus(task_id)
+        if resolved is None:
+            continue
+        substantive, source, saw_legacy_carry, has_following_item = resolved
+        if (
+            source.parent == archive_dir
+            and saw_legacy_carry
+            and has_following_item
+        ):
+            selected = task_id, substantive
+            break
+    assert selected is not None
+    active_id, substantive = selected
+
+    completed_id: bytes | None = None
+    for ordinal in sorted(entries_by_ordinal, reverse=True):
+        if len(entries_by_ordinal[ordinal]) != 1:
+            continue
+        for task_id, (block, _) in sorted(items_for(ordinal).items()):
+            first_line = block.split(b"\n", 1)[0]
+            if task_id not in active_items and "**完了".encode("utf-8") in first_line:
+                completed_id = task_id
+                break
+        if completed_id is not None:
+            break
+    assert completed_id is not None
+
     expected = (hashlib.sha256(substantive).hexdigest() + "\n").encode("ascii")
     before = _cli_snapshot(repo)
 
-    active = _run_cli(repo, "--base-digest", "[T-139]")
-    completed = _run_cli(repo, "--base-digest", "[T-1049]")
+    active = _run_cli(repo, "--base-digest", active_id.decode("ascii"))
+    completed = _run_cli(repo, "--base-digest", completed_id.decode("ascii"))
 
     assert active.returncode == 0
     assert active.stdout == expected
