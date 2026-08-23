@@ -175,8 +175,8 @@ _PermanentExclusion = _SELECTION_CONTRACT.Exclusion
 _PERMANENT_EXCLUSION_SET_VERSION = _SELECTION_CONTRACT.EXCLUSION_SET_VERSION
 _SANCTIONED_SORT_SWO_ORACLE_PATH = _SELECTION_CONTRACT.SANCTIONED_SORT_SWO_ORACLE_PATH
 
-# ここが runtime の active table。復活時はこの entry を削除して空 tuple にする。
-# sanctioned な上限と payload の定義は共有契約 module にだけ存在する。
+# ここが runtime の active table。現在は共有契約の空 tuple を参照する。
+# sanctioned な上限と payload の定義は引き続き共有契約 module にだけ存在する。
 _PERMANENT_FULL_SUITE_EXCLUSIONS = _SELECTION_CONTRACT.SANCTIONED_EXCLUSIONS
 
 

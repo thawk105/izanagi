@@ -35,16 +35,30 @@ _CONDITIONAL_PREPROCESS_NODES = {
 }
 
 
-def _calls_in_function(filename: str, function_name: str) -> set[str]:
+def _function_node(filename: str, function_name: str) -> ast.FunctionDef | ast.AsyncFunctionDef:
     tree = ast.parse((HERE / filename).read_text(encoding="utf-8"), filename=filename)
     matches = [node for node in tree.body
                if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
                and node.name == function_name]
     assert len(matches) == 1, f"対象 node が一意でない: {filename}::{function_name}"
+    return matches[0]
+
+
+def _calls_in_function(filename: str, function_name: str) -> set[str]:
+    function = _function_node(filename, function_name)
     return {
         node.func.id
-        for node in ast.walk(matches[0])
+        for node in ast.walk(function)
         if isinstance(node, ast.Call) and isinstance(node.func, ast.Name)
+    }
+
+
+def _call_leaf_names_for_real_silo_meta(function: ast.AST) -> set[str]:
+    return {
+        node.func.id if isinstance(node.func, ast.Name) else node.func.attr
+        for node in ast.walk(function)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, (ast.Name, ast.Attribute))
     }
 
 
@@ -102,6 +116,38 @@ def test_readme_conditional_unrun_census_names_all_nodes():
     section = following[:next_heading.start()] if next_heading else following
     for nodeid in _CONDITIONAL_NODEIDS:
         assert nodeid in section, f"条件付き未実走の節に nodeid が無い: {nodeid}"
+
+
+def test_real_silo_node_always_verifies_tracked_fixture_without_skip():
+    function = _function_node("test_verifier.py", "test_real_silo_serializable")
+    calls = _call_leaf_names_for_real_silo_meta(function)
+    assert calls.isdisjoint({"skip", "skip_conditional_unrun"}), (
+        "tracked 実 Silo fixture の node が skip helper を呼んでいる"
+    )
+    assert not any(isinstance(node, ast.Return) for node in ast.walk(function)), (
+        "tracked 実 Silo fixture の検査を return で迂回している"
+    )
+
+    mandatory_calls = []
+    for statement in function.body:
+        if not isinstance(statement, ast.Assign) or not isinstance(statement.value, ast.Call):
+            continue
+        call = statement.value
+        if not isinstance(call.func, ast.Name) or call.func.id != "_assert_certified_serializable":
+            continue
+        if call.args and isinstance(call.args[0], ast.Name):
+            mandatory_calls.append(call)
+    assert len(mandatory_calls) == 1, (
+        "tracked fixture の無条件な certified/serializable 検証呼び出しが一意でない"
+    )
+    call = mandatory_calls[0]
+    assert call.args[0].id == "REAL_SILO_FIXTURE"
+    expected_commits = [
+        keyword.value for keyword in call.keywords
+        if keyword.arg == "expected_commits"
+    ]
+    assert len(expected_commits) == 1
+    assert ast.literal_eval(expected_commits[0]) == 1345
 
 
 def _run() -> int:
