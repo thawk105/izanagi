@@ -57,6 +57,15 @@ title: '[T-1488] rr80/rr20 calibrationの計算ノードcertification取得・�
   (gpt-5.6-sol / xhigh) を先に走らせ、判定「安全」・危険ゼロを得てからcommitした。
   親の実測は焦点走で58 passed (union file + holdout) と413 passed / 78.34秒
   (直接consumer 6 file)。全史provenance監査は5240件・新規違反なし。
+- 段8で`docs/dev-wave/operations.md`を編集した直後のconsumer走は96件赤だったが、94件は
+  **docs編集が未commitだったこと自体**が原因である。launcherの`snapshot_authority`は
+  `docs/dev-wave/{operations,workers}.md`のworking tree bytesをHEADのblobと比較するため、
+  未commitの編集があると起動を拒む。commit後の再走は1203 passed / 2 failedになった。
+- 残る2件 (`test_codex_worker_launch.py`の
+  `test_check_receipt_reads_v1_field_sets_with_explicit_skip_diagnostics[True|False]`) は
+  単独再走で2 passed / rc=0。32 worker並列下で`timeout=10`のsubprocessがstdoutを空で返す
+  非帰属フレークであり、本waveの差分 (DW-O11/DW-O16の散文) からは到達しえない。
+  `DW-O18`に従い非帰属として記録する。
 
 ## 次の一手差分
 
