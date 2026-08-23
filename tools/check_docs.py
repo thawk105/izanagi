@@ -622,11 +622,22 @@ DEV_WAVE_EXACT_VISIBLE_SECTIONS = {
         DEV_WAVE_DW_C01_SECTION_LITERAL + "\n",
 }
 
+CODEX_DEV_WAVE_NATURAL_LANGUAGE_STOP_LITERAL = (
+    "本 Skill は明示起動専用であり、自然文の依頼を一般タスクとして\n"
+    "  処理せず、`$dev-wave <対象>` の明示起動を案内して止まる。"
+)
+CODEX_DEV_WAVE_PROTECTED_PATH_AUTHORING_LITERAL = (
+    "防護パス文字列を含む prompt・commit message は、Bash heredoc や不透明な command substitution で\n"
+    "  作らない。Codex では Bash の中からではなく `apply_patch` tool を直接呼び、新規 file は\n"
+    "  `*** Add File:` patch で作る。commit message はその file を `git commit -F <file>` へ渡す。"
+)
 CODEX_DEV_WAVE_SKILL_LITERALS = (
     ".claude/commands/dev-wave.md",
     CODEX_DEV_WAVE_STARTUP_ROUTING_ITEM_LITERAL,
     "docs/dev-wave/workers.md",
     "docs/dev-wave/operations.md",
+    CODEX_DEV_WAVE_NATURAL_LANGUAGE_STOP_LITERAL,
+    CODEX_DEV_WAVE_PROTECTED_PATH_AUTHORING_LITERAL,
     "manager は実装面を直接編集しない",
     "codex exec",
     "collaboration child",

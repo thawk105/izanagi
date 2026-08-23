@@ -27,8 +27,10 @@ worklog 追記・完了検査を省く。クラス 2 / 3 では `CLAUDE.md`「�
 - `CLAUDE.md` の絶対規律、信頼境界、文書運用、計測規律、push は人間が行うという境界をすべて守る。
 - `.claude/settings.json` の PreToolUse hooks は Codex には自動適用されない。Codex 側の配線・射程・
   信頼登録・既知限界の正本は `hooks/README.md` であり、設定の存在を防護の証拠に数えない。
-  発火を実測できない限り、同文書が定める保護対象と編集面を手動でも守る。
-  role adapter の休眠と再開条件は D54〜D56 (hook 配線とは別問題)。
+  live 実測で依存してよいのは、その probe が証明した exact な surface・path・process だけである。
+  同文書が開いたままと記す面 (MCP / apps / plugins / 子の書込み、script 経由・変数展開・
+  persistent shell、`output/s8b-freeze` への Bash 直接書き込み) は、発火実測の有無にかかわらず
+  手動で守る。role adapter の休眠と再開条件は D54〜D56 (hook 配線とは別問題)。
 - Codex role adapter の現行状態と再開条件は `.codex/agents/README.md` と
   `tools/check_codex_agents.py` が正本。両正本が安全な実行面として再分類するまでは native profile として
   起動せず、`task_name` を role 名にした通常の Codex 子も role 隔離の代替にしない。通常の Codex 子は
@@ -46,8 +48,7 @@ worklog 追記・完了検査を省く。クラス 2 / 3 では `CLAUDE.md`「�
   非計測面について supersede。正本は `docs/pegasus-runbook.md` §7)。
   **実行場所の判定は `tools/run_tests.py` / `tools/check_ai_provenance.py` が自分で行う** —
   空きが足りれば上限付き cgroup scope で local 実行し、足りなければ計算ノードへ dispatch する。
-  **Codex でも `.codex/hooks.json` 経由で同じ guard が効くが、信頼登録や起動経路によっては
-  無警告で外れる。機械に頼らず次を規律として守る。**
+  **実効発火は信頼登録と起動経路に依存し、確認できない限り機械に頼れない。次を規律として守る。**
   - **pytest・build を自分で直接起動しない。** 必ず `tools/run_tests.py` を通す
     (単一ファイル・単一 nodeid も同じ)。走らせていないものを緑と報告しない。
   - **判定は場所でなく量で行う。** 同時に生きる全子孫を含む cgroup charged memory が

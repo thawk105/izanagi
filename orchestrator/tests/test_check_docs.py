@@ -847,6 +847,8 @@ description: {_SYNTHETIC_DEV_WAVE_DESCRIPTION}
 
 """ + _SYNTHETIC_CODEX_DEV_WAVE_START_SECTION + """## Codex 向けに適合する
 
+""" + check_docs.CODEX_DEV_WAVE_NATURAL_LANGUAGE_STOP_LITERAL + """
+""" + check_docs.CODEX_DEV_WAVE_PROTECTED_PATH_AUTHORING_LITERAL + """
 manager は実装面を直接編集しない。
 worker は docs/dev-wave/workers.md と docs/dev-wave/operations.md に従い、codex exec で起動して
 collaboration child で代替しない。
@@ -6649,6 +6651,20 @@ def _mutate_command_guard(root: str, case: str) -> None:
         _write(root, rel, _read(root, rel).replace(
             literal, "common dispatcher omitted", 1,
         ))
+    elif case == "codex_skill_natural_language_stop_contract_deleted":
+        rel = ".agents/skills/dev-wave/SKILL.md"
+        literal = check_docs.CODEX_DEV_WAVE_NATURAL_LANGUAGE_STOP_LITERAL
+        assert _read(root, rel).count(literal) == 1
+        _write(root, rel, _read(root, rel).replace(
+            literal, "natural-language stop contract omitted", 1,
+        ))
+    elif case == "codex_skill_protected_path_authoring_contract_deleted":
+        rel = ".agents/skills/dev-wave/SKILL.md"
+        literal = check_docs.CODEX_DEV_WAVE_PROTECTED_PATH_AUTHORING_LITERAL
+        assert _read(root, rel).count(literal) == 1
+        _write(root, rel, _read(root, rel).replace(
+            literal, "protected-path authoring contract omitted", 1,
+        ))
     elif case == "codex_startup_wave_pre_form":
         rel = ".agents/skills/dev-wave/SKILL.md"
         _write(
@@ -6975,6 +6991,8 @@ _COMMAND_GUARD_CASES = [
     "codex_skill_extra_file",
     "codex_skill_name_changed",
     "codex_skill_adapter_deleted",
+    "codex_skill_natural_language_stop_contract_deleted",
+    "codex_skill_protected_path_authoring_contract_deleted",
     "codex_startup_wave_pre_form",
     "codex_startup_routing_moved",
     "codex_skill_stage9_land_literal_deleted",
@@ -7099,6 +7117,12 @@ _COMMAND_GUARD_NEEDLES = {
     "codex_skill_extra_file": "Codex dev-wave Skill の予算未登録実体",
     "codex_skill_name_changed": "name は 'dev-wave' 必須",
     "codex_skill_adapter_deleted": "Codex adapter 契約がない",
+    "codex_skill_natural_language_stop_contract_deleted": (
+        "自然文の依頼を一般タスクとして"
+    ),
+    "codex_skill_protected_path_authoring_contract_deleted": (
+        "`apply_patch` tool を直接呼び"
+    ),
     "codex_startup_wave_pre_form": "可視 H2 節 '開始する' の節全体",
     "codex_startup_routing_moved": "可視 H2 節 '開始する' の節全体",
     "codex_skill_stage9_land_literal_deleted": "exact adapter literal が 0 件",
@@ -8705,6 +8729,11 @@ def test_codex_dev_wave_skill_contract_pins_exact_surface():
         "   `dev-wave 改善候補` 節を作る。",
         "docs/dev-wave/workers.md",
         "docs/dev-wave/operations.md",
+        "本 Skill は明示起動専用であり、自然文の依頼を一般タスクとして\n"
+        "  処理せず、`$dev-wave <対象>` の明示起動を案内して止まる。",
+        "防護パス文字列を含む prompt・commit message は、Bash heredoc や不透明な command substitution で\n"
+        "  作らない。Codex では Bash の中からではなく `apply_patch` tool を直接呼び、新規 file は\n"
+        "  `*** Add File:` patch で作る。commit message はその file を `git commit -F <file>` へ渡す。",
         "manager は実装面を直接編集しない",
         "codex exec",
         "collaboration child",
@@ -9183,7 +9212,12 @@ def test_dev_wave_explicit_trigger_description_is_required():
         shutil.rmtree(root, ignore_errors=True)
 
 
-def test_dev_wave_description_guard_wiring_cannot_evaporate():
+def test_dev_wave_description_guard_wiring_evaporation_characterization():
+    """配線を削ると緑になる現況を characterization する。
+
+    実効的な防壁は `test_dev_wave_explicit_trigger_description_is_required` である。
+    """
+
     root = _build_min_repo()
     try:
         skill_rel = ".agents/skills/dev-wave/SKILL.md"

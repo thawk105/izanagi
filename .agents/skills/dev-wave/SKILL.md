@@ -33,7 +33,8 @@ fail-closed に停止または巻き戻す。
   Codex では使わず停止する。本 Skill は明示起動専用であり、自然文の依頼を一般タスクとして
   処理せず、`$dev-wave <対象>` の明示起動を案内して止まる。
 - 防護パス文字列を含む prompt・commit message は、Bash heredoc や不透明な command substitution で
-  作らない。Codex では `apply_patch` で作る (Claude の Write ツールに相当する sanctioned な経路)。
+  作らない。Codex では Bash の中からではなく `apply_patch` tool を直接呼び、新規 file は
+  `*** Add File:` patch で作る。commit message はその file を `git commit -F <file>` へ渡す。
 - 「親」は現在の Codex manager とする。ただし実装面では manager 自身を D95 の author 子に数えない。
   軽量版でも `docs/dev-wave/workers.md` と `docs/dev-wave/operations.md` に従う別の Codex 実装 worker に
   コードとテストを書かせ、manager は実装面を直接編集しない。
