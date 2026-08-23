@@ -252,6 +252,82 @@ def _calibrate_timeout_command(source: str) -> str:
     return match.group(0)
 
 
+def _calibrate_interpreter_fragment() -> str:
+    source = (TOOL_DIR / "certify_calibration.sh").read_text(encoding="utf-8")
+    start = source.index('CALIBRATE_PYTHON=""')
+    end = source.index("# CLI ", start)
+    return source[start:end]
+
+
+def test_certify_calibrator_resolves_and_shims_versioned_interpreter(tmp_path):
+    source = (TOOL_DIR / "certify_calibration.sh").read_text(encoding="utf-8")
+    fragment = _calibrate_interpreter_fragment()
+    assert source.index("python3.10 /usr/bin/python3.10 /bin/python3.10") < source.index(
+        'CALIBRATE_PATH="$TMPDIR/bin:$(dirname "$CALIBRATE_PYTHON"):$PATH"'
+    )
+    assert (
+        'if "$resolved" -I -B -c \\\n'
+        "      'import sys; raise SystemExit(0 if sys.version_info[:2] >= (3, 10) else 1)'"
+        in fragment
+    )
+    assert 'write_failure 2 interpreter \\\n' in fragment
+    assert 'python3 "$REPO_ROOT/orchestrator/calibrate.py"' not in source
+    assert '"$CALIBRATE_PYTHON" "$REPO_ROOT/orchestrator/calibrate.py"' in source
+
+    fake_bin = tmp_path / "fake-bin"
+    fake_bin.mkdir()
+    fake_python = fake_bin / "python3.10"
+    fake_python.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+    fake_python.chmod(0o755)
+    scratch = tmp_path / "scratch"
+    prefix = f"""ATTEMPT_DIR={shlex.quote(str(tmp_path / 'attempt'))}
+TMPDIR={shlex.quote(str(scratch))}
+PATH={shlex.quote(str(fake_bin) + os.pathsep + '/usr/bin')}
+CALIBRATE_PATH="$TMPDIR/bin:$PATH"
+"""
+    (tmp_path / "attempt").mkdir()
+    suffix = "printf '%s\\n' \"$CALIBRATE_PYTHON\" \"$CALIBRATE_PATH\"\n"
+    result = subprocess.run(
+        ["bash", "-c", _shell_failure_harness(prefix + fragment + suffix)],
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, result.stderr
+    selected, path = result.stdout.splitlines()
+    assert selected == str(fake_python)
+    assert path.split(os.pathsep)[:2] == [str(scratch / "bin"), str(fake_bin)]
+
+
+def test_certify_calibrator_interpreter_resolution_fails_closed(tmp_path):
+    fragment = _calibrate_interpreter_fragment()
+    missing_usr = tmp_path / "missing-usr-python3.10"
+    missing_bin = tmp_path / "missing-bin-python3.10"
+    fragment = fragment.replace("/usr/bin/python3.10", str(missing_usr))
+    fragment = fragment.replace("/bin/python3.10", str(missing_bin))
+
+    writer_bin = tmp_path / "writer-bin"
+    writer_bin.mkdir()
+    writer_python = shutil.which("python3")
+    assert writer_python is not None
+    (writer_bin / "python3").symlink_to(writer_python)
+    attempt = tmp_path / "attempt"
+    attempt.mkdir()
+    prefix = f"""ATTEMPT_DIR={shlex.quote(str(attempt))}
+TMPDIR={shlex.quote(str(tmp_path / 'scratch'))}
+PATH={shlex.quote(str(writer_bin))}
+"""
+    result = subprocess.run(
+        ["bash", "-c", _shell_failure_harness(prefix + fragment)],
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 2, result.stderr
+    assert json.loads((attempt / "failure.json").read_text()) == {
+        "rc": 2,
+        "stage": "interpreter",
+    }
+
+
 def test_certify_calibrate_timeout_argv_cannot_self_match_ycsb_probe():
     source = (TOOL_DIR / "certify_calibration.sh").read_text(encoding="utf-8")
     command = _calibrate_timeout_command(source)
@@ -1140,6 +1216,7 @@ BINARY=/unused/binary
 BINARY_SHA={'a' * 64}
 CURRENT_SCRIPT_SHA={'b' * 64}
 CALIBRATE_PATH=/fixture/perf/bin:/usr/bin
+CALIBRATE_PYTHON=/fixture/python3.10
 """
     result = subprocess.run(
         ["bash", "-c", _shell_failure_harness(prefix + fragment)],
@@ -1150,7 +1227,9 @@ CALIBRATE_PATH=/fixture/perf/bin:/usr/bin
     assert json.loads((attempt / "job-result.json").read_text())["calibrate_rc"] == 7
     assert json.loads((attempt / "job-result.json").read_text())["job_script_sha256"] == "b" * 64
     argv = json.loads((attempt / "calibrate-argv.json").read_text())
-    assert argv[:3] == ["env", "PATH=/fixture/perf/bin:/usr/bin", "python3"]
+    assert argv[:3] == [
+        "env", "PATH=/fixture/perf/bin:/usr/bin", "/fixture/python3.10",
+    ]
     assert argv[3] == str(tmp_path / "orchestrator" / "calibrate.py")
     assert argv[argv.index("--binary") + 1] == "/unused/binary"
 

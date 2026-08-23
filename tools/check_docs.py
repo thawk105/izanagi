@@ -261,7 +261,7 @@ class TextLimit:
 # byte予算のため落としていた。安全義務を削らせる手段目的の逆転を止めるため、ユーザー裁定
 # (2026-08-02) により小幅に引き上げる。
 COMMAND_LIMITS = {
-    ".claude/commands/dev-wave.md": TextLimit(9_584, 140),
+    ".claude/commands/dev-wave.md": TextLimit(9_520, 140),
     ".claude/commands/cleanup-branches.md": TextLimit(4_000, 110),
     ".claude/commands/rulings.md": TextLimit(5_000, 180),
 }
@@ -430,8 +430,7 @@ DEV_WAVE_SINGLE_DISPATCH_OPERATIONS_REFERENCE_FINDING = (
 )
 DEV_WAVE_STAGE6_WAITER_CONSUMER_LINES = (
     "6. **レビュー・fix (codex 並列):** 敵対レビュー 2 本、fix、変異 matrix、受入再走を行う。",
-    "   受入直前に受入 lease を `tools/dev_wave_wait.py acceptance` で `claim` し、",
-    "   `acquired` / `held-self` のときだけ投入する。",
+    "   受入投入は `tools/dev_wave_wait.py acceptance --lease-optional` を使う。",
 )
 DEV_WAVE_STAGE9_WAITER_CONSUMER_LINES = (
     "9. **終端・local main (親):** 共通 land operation で監査済み成果だけを取り込み、結果を確定して終了する。",

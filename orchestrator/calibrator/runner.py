@@ -13,6 +13,7 @@ control, calibrator.md / orchestrator-design.md)。
 """
 from __future__ import annotations
 
+import hashlib
 import os
 import re
 import select
@@ -24,8 +25,11 @@ import time
 from typing import Callable, Dict, List, Optional, Sequence
 
 from orchestrator.holdout_observation import (
+    CalibrationObservationCapability,
     HoldoutObservationAdmission,
+    HoldoutObservationError,
     assert_holdout_observation_admitted,
+    normalized_direct_gflags,
 )
 
 from .benchparse import (_num, abort_rate as parse_abort_rate, latency_ns as
@@ -394,6 +398,19 @@ def repro_command(binary: str, gflags: Sequence[str],
     return " ".join(parts)
 
 
+def _calibration_binary_sha256(binary: str) -> str:
+    """Hash the executable bytes at the spawn boundary, never a caller claim."""
+    digest = hashlib.sha256()
+    try:
+        with open(binary, "rb") as stream:
+            for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+                digest.update(chunk)
+    except OSError as exc:
+        raise HoldoutObservationError(
+            f"calibration binary cannot be hashed: {binary}: {exc}") from exc
+    return digest.hexdigest()
+
+
 def run_once(binary: str, gflags: Sequence[str],
              numactl: Optional[Sequence[str]] = None,
              timeout_s: float = 120.0,
@@ -405,7 +422,11 @@ def run_once(binary: str, gflags: Sequence[str],
              use_perf: bool = True,
              holdout_observation_admission: Optional[
                  HoldoutObservationAdmission
-             ] = None):
+             ] = None,
+             calibration_observation_capability: Optional[
+                 CalibrationObservationCapability
+             ] = None,
+             calibration_observation_phase: Optional[str] = None):
     """ccbench を perf 下で 1 回回し (bench_metrics, perf_counters, walltime) を返す。
 
     extra_env (D36 決定4-5): verify run にのみ設定される環境変数 (IZANAGI_TRACE_DIR
@@ -415,16 +436,39 @@ def run_once(binary: str, gflags: Sequence[str],
     前に return code を追記する。perf_raw_sink は parser の集約値とは独立した 4 event
     の証跡を受け取る。戻り値の 3-tuple は変えない。"""
     gflags_snapshot = tuple(gflags)
-    assert_holdout_observation_admitted(
-        gflags=gflags_snapshot,
-        admission=holdout_observation_admission,
-    )
+    execution_numactl = numactl
+    execution_extra_env = extra_env
+    if calibration_observation_capability is None:
+        assert_holdout_observation_admitted(
+            gflags=gflags_snapshot,
+            admission=holdout_observation_admission,
+        )
+    else:
+        # Preserve the gateway's no-effect ordering for malformed/indirect
+        # flags before opening the executable for its binding hash.
+        normalized_direct_gflags(gflags_snapshot)
+        execution_numactl, execution_extra_env = (
+            assert_holdout_observation_admitted(
+                gflags=gflags_snapshot,
+                admission=holdout_observation_admission,
+                calibration_observation_capability=(
+                    calibration_observation_capability
+                ),
+                calibration_observation_phase=calibration_observation_phase,
+                binary_sha256=_calibration_binary_sha256(binary),
+                numactl=numactl,
+                timeout_s=timeout_s,
+                use_perf=use_perf,
+                extra_env=extra_env,
+            )
+        )
     # TMPDIR 配下 (明示されていなければ環境既定の /tmp)。
     tmp = tempfile.mkdtemp(prefix="izanagi_run_")
     try:
         perf_out = os.path.join(tmp, "perf.csv")
         cmd = _build_cmd(
-            binary, gflags_snapshot, perf_out, numactl, use_perf=use_perf,
+            binary, gflags_snapshot, perf_out, execution_numactl,
+            use_perf=use_perf,
         )
         # WAL=1 の genome は <cwd>/log/log<thid> に log を書く (CCBench fileio.hh
         # genLogFileName)。log/ が無いと open 失敗 → LibcError → SIGABRT で計測不能。
@@ -432,8 +476,8 @@ def run_once(binary: str, gflags: Sequence[str],
         # cwd 変更に非依存、tmp は finally で rmtree → WAL log も一緒に消える)。
         os.makedirs(os.path.join(tmp, "log"), exist_ok=True)
         env = dict(os.environ)
-        if extra_env:
-            env.update(extra_env)
+        if execution_extra_env:
+            env.update(execution_extra_env)
         env = {key: value for key, value in env.items()
                if not key.startswith("FLAGS_")}
         t0 = time.monotonic()
@@ -486,7 +530,11 @@ def measure_point(binary: str, records: int, threads: int,
                   use_perf: bool = True,
                   holdout_observation_admission: Optional[
                       HoldoutObservationAdmission
-                  ] = None) -> ScalePoint:
+                  ] = None,
+                  calibration_observation_capability: Optional[
+                      CalibrationObservationCapability
+                  ] = None,
+                  calibration_observation_phase: Optional[str] = None) -> ScalePoint:
     """1 測定点を reps 回反復して ScalePoint を組む。
 
     throughput は全 rep 分を残す (分布として扱う, roadmap §3.6)。perf counters は
@@ -556,6 +604,13 @@ def measure_point(binary: str, records: int, threads: int,
             if holdout_observation_admission is not None:
                 run_kwargs["holdout_observation_admission"] = (
                     holdout_observation_admission
+                )
+            if calibration_observation_capability is not None:
+                run_kwargs["calibration_observation_capability"] = (
+                    calibration_observation_capability
+                )
+                run_kwargs["calibration_observation_phase"] = (
+                    calibration_observation_phase
                 )
             metrics, counters, wall = run_once(binary, base_flags, **run_kwargs)
         except (RuntimeError, subprocess.TimeoutExpired) as e:
