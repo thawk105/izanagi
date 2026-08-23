@@ -1001,6 +1001,10 @@ def _check_flaky_hold_collection_complete(config, seen_ids) -> None:
 
 def _xdist_flaky_collection_is_complete(config) -> bool:
     """Check whether all xdist workers have reported their collections."""
+    if getattr(config, "_izanagi_acceptance_shard_spec", None) is not None:
+        # Shard workers validate the full collection before the shard plugin
+        # deselects.  Their controller sees only the selected subset.
+        return False
     if not _is_un_narrowed_flaky_hold_collection(config):
         return False
     try:
