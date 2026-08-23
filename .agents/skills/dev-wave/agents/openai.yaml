@@ -2,3 +2,6 @@ interface:
   display_name: "Dev Wave"
   short_description: "Izanagi の開発 wave を共通契約に従って実行"
   default_prompt: "Use $dev-wave to run one Izanagi development wave for the specified task."
+
+policy:
+  allow_implicit_invocation: false

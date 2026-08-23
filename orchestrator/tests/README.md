@@ -184,6 +184,7 @@ pytest 専用テストで、`python3 file.py` 直接実行は no-op (偽緑で�
 <!-- PYTEST_ONLY_ALLOWLIST_END -->
 
 - self-run: `test_s8c_acceptance_receipt_v2.py` — receipt v2 の正例・負の対照
+- self-run: `test_s8c_gate_report.py` — 8c 事前登録関門の状態・根拠を構造化報告
 
 ## 依存物不在時の skip (可視化)
 
