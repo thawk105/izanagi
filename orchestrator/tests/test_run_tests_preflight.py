@@ -2569,7 +2569,9 @@ def test_main_assembles_absolute_relative_target_from_other_cwd(
         ["test_sample.py::test_sample"], site=RT.site_policy.OTHER,
     ) == 0
     assert captured["command"] == [
-        sys.executable, "-m", "pytest", f"{target.resolve()}::test_sample",
+        sys.executable, "-m", "pytest",
+        f"--ignore={RT._SANCTIONED_SORT_SWO_ORACLE_PATH}",
+        f"{target.resolve()}::test_sample",
     ]
     assert captured["kwargs"] == {"cwd": str(_REPO)}
 
@@ -2595,7 +2597,9 @@ def test_main_absolutizes_plain_relative_target_from_other_cwd(
 
     assert RT.main(["test_sample.py"], site=RT.site_policy.OTHER) == 0
     assert captured["command"] == [
-        sys.executable, "-m", "pytest", str(target.resolve()),
+        sys.executable, "-m", "pytest",
+        f"--ignore={RT._SANCTIONED_SORT_SWO_ORACLE_PATH}",
+        str(target.resolve()),
     ]
     assert captured["kwargs"] == {"cwd": str(_REPO)}
 
