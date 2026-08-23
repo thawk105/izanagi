@@ -26870,3 +26870,117 @@ tested main 側で全走を 1 回だけ回して赤集合を取り、wave 側の
   実測でそれが着地の律速になった。
 - 規模によらず必ず修理してから進む — 環境供給のような大きい修理が、無関係な wave の
   着地を人質に取る。
+
+## D682. dev-wave の codex を全段 `gpt-5.6-sol` @ `reasoning=xhigh` にする — D514 の supersede であり、根拠はユーザー裁定であって A/B 証拠ではない (2026-08-23)
+
+**決定:** dev-wave が起動する codex の model を、全段・全 lane 単一の `gpt-5.6-sol` に戻す。
+`reasoning` は段 2 / 段 3 / 段 5 / 段 6 のすべてを `xhigh` に揃える。
+lane 名 `sol` / `luna` はレンズ識別子のまま残し、`--lane` 呼び出しの意味は反転させない。
+D514 (全段 `gpt-5.6-luna` @ `max`) を supersede する。
+
+**この採用の根拠はユーザー裁定であり、品質同等性や非劣性の証拠ではない。**
+ユーザーは「研究が壊れそうなくらい進捗がおかしくなっている」を理由に、
+model と effort の双方を明示指示した。D423 が「supersede はユーザー裁定にだけ属する」と定めた
+権限を、ユーザー自身が行使した経路であり、D514 が通ったのと同じ道である。
+
+**effort の向きを正直に記録する。**
+
+- D514 が `max` を採った理由は「luna は愚かだから luna を使う段はすべて max」という補償だった。
+  sol へ戻す本決定では補償の前提が消える。
+- 一方、`xhigh` は `CODEX_REASONING_EFFORTS` (low < medium < high < xhigh < max) で `max` の 1 段下である。
+  D514 直前の値と比べると全段 1 段下がる。
+- D514 より前の sol 期の値 (段 2 / 3 = `max`、段 5 / 6 = `high`) と比べると、
+  **段 2 / 3 は 1 段下がり、段 5 / 6 は 1 段上がる。**
+- 段 2 / 3 の引き下げは D207 が「引き下げの可否は paired・blind・非劣性 A/B だけが決める」と
+  定めた領域に当たる。本決定はその手続きを経ていない。ユーザー裁定による supersede である。
+- **検出力への正味の影響は測っていない。** model 軸の上げが effort 軸の下げを上回るという
+  期待はあるが、それは仮説であって実測ではない。
+
+**この決定が回復するもの:**
+
+- 段 3 の敵対相談 2 レンズと段 6 の敵対レビュー 2 本が、D241 が「sol にしか出せない所見を落とす」
+  として不採用にした「全 luna」の形から抜ける。
+- 本 wave 自身が実証点になった。sol @ xhigh で走らせた段 6 の 2 レンズと焦点再レビューは、
+  親が独立に見つけた 2 件を再現し、親が見落としていた 1 件 (pin の finding 文が D207 帰属のまま)
+  を追加検出した。
+
+**機械化した内容:**
+
+- model 権威行は `DW-O01` の v2 文法のまま値だけを差し替えた。v1 文法と過去 commit の
+  再構成監査経路、`AuthoritySnapshot` の digest 構造は 1 bit も変えていない。
+- effort pin は削除せず張り替えた。visible literal / sentence 定数、finding 文、
+  `_check_dev_wave_reasoning_effort_pins()` の expected 値という 4 要素を揃えて更新した。
+  1 つでも旧値が残ると pin は常時緑か常時赤へ退化する。
+- 段 2 / 3 の finding 文から「D207 に基づく」という帰属と「paired・blind・非劣性 A/B」という
+  手続き要求を外し、「採用裁定 (A/B 証拠またはユーザー裁定) と pin の同時更新が必要」へ改めた。
+  張り替え後の値の根拠は D207 ではないため、そのままでは checker が将来の正当な更新へ
+  誤った手続きを案内する。
+
+**却下した選択肢:**
+
+- **effort を `max` のまま model だけ sol へ戻す** — ユーザー指示が「全て extra high」であり、
+  effort を明示的に含んでいた。
+- **段 2 / 3 だけ `max` を維持する** — 同じ理由で指示に反する。なお段 2 / 3 の effort は
+  argv へ機械強制されておらず、pin は親向けの契約である ([T-1509])。
+- **権威行の sol / luna 位置を入れ替える flip trick** — D423 / D514 が挙げた
+  `--lane` 呼び出しの意味反転という footgun がそのまま残る。
+- **byte 予算超過を予算引き上げで吸収する** — 予算値の変更は独立審査対象であり通常の
+  自己改善に含めない。同文書が既に使っている綴りへの表記統一 2 箇所 (`プロンプト`→`prompt`、
+  `プラン`→`plan`) で 9 bytes を吸収し、安全義務は 1 つも削っていない。
+
+**rollback:** 権威行 1 行と `workers.md` の 5 語を戻し、`check_docs.py` の pin literal・
+finding 文・expected 値と追随テストを戻せば旧挙動へ戻る。v1 文法は残っているため
+過去 receipt の監査経路は影響を受けない。
+
+## D683. C04 の crash 解釈へ provider-init/transport-admission 失敗を含める実装 (2026-08-23)
+
+**決定:** `orchestrator/campaign/p3_autonomous_workload_trial.py::_finish_trial()`のpre-loop部分
+(`experiment_indeterminate = False`直後、per-workload loop開始前) へ、既存のmid-loop
+supervisor-error分岐と対称な条件分岐を追加する。`_finish_trial()`呼出し前に既に`fatal_error`が
+設定されている場合 (`_provider_set()`のprovider-init失敗、または`admit_claude_transport()`の
+transport-admission失敗のいずれか — 両者は同じ`fatal_error`変数を共有する同一code pathであり
+分離しない) かつregistered trial (`launch_admission.binding is not None`) のとき
+`experiment_indeterminate = True`とし、C06 budget-tracked trial (`budget_ledger_path is not
+None`) のときは同じ文言 (`"budget cell terminal is indeterminate after provider
+initialization or transport admission error"`) で`AutonomousTrialError`をraiseする。
+exploratory (unregistered) trialは現状維持 (indeterminate化しない)。
+
+`_provider_set()`のexcept節・journal event (`_append_provider_init_error`) は変更しない。
+pinned test `test_m26_manifest_binding_survives_provider_init_and_supervisor_failures`の
+scenario1 (provider-init failure) を拡張し、report/attempt-registry/lifecycleの3点セット
+(`lifecycle_terminal_status`, `terminal_status=="not-consumed"`, lifecycle rows
+`["start","terminal"]`で`terminal_status=="indeterminate"`) を検証するようにした。新規test
+3本を追加した: registered trialのtransport-admission failure、C06 budget-tracked trialの
+raise到達と例外後のattempt/lifecycle永続化、exploratory trialではindeterminate化しない
+ことの確認 (この3本目が変異事前登録MUT-1の唯一のkill test)。
+
+**理由:**
+- D657の要求 (実験全体をindeterminateとしてdurableに表現し、再走と成功を混同しない) を
+  満たすには、provider-init/transport-admission失敗もmid-loop supervisor-error crashと
+  同じ仕組みで扱う必要がある。`autonomous_trial_completeness.py`の
+  `_check_terminal_projection`/`_check_workload_coverage`が既に`provider-init-error`/
+  `transport-admission-error`を対称な終端event種別として扱っており (`cells==[]`の
+  zero-cells経路を明示的に許可)、report側の`lifecycle_terminal_status`付与だけが
+  欠けていた。段3敵対相談 (luna所見1) がproduction callerの実在 (CLI → `run_trial()` →
+  `admit_registered_launch()`の経路) を独立に確認し、DW-G04の発火gate要件を満たすと
+  判定した。
+- 段3敵対相談 (sol所見1) は、`terminal_status=="not-consumed"`が`trial_registry.py`の
+  `attempt_index>0`開始条件 (直前slotのterminal_statusが厳密に`retryable-failure`である
+  こと) を満たさないため、provider-init/supervisor-error crash後に同一attempt_index系列で
+  次slotを消費する再走が現状のattempt-registry状態機械では成立しないと指摘した。ただし
+  これは本waveが新たに作る欠陥ではなく、既存のmid-loop supervisor-error crashにも既に
+  存在するpre-existing gapであり、本waveのscope (brief記載の「8c supervisorのstate
+  machine全体整合」除外) の外にある。D657の「再走と成功を混同しない」という要求
+  (indeterminateがcompleteと誤認されない) は満たされるが、attempt-registry上の真の
+  再走可能性は別waveの課題として残る。
+
+**却下した選択肢:**
+- provider-initとtransport-admissionを別々の分岐で扱う — 同一`fatal_error`共有code pathを
+  人為的に分離するだけで実質的な安全性の向上が無く、`_check_terminal_projection`の既存の
+  対称な扱いとも整合しない。
+- `run_trial()`のprovider-init except節で直接lifecycle terminalizeする — `_finish_trial()`が
+  reportを生成した後にattempt/lifecycle terminalizeする既存の一本化された経路と二重記録に
+  なる (段3 luna所見3で確認)。
+- C04が要求する「再走許可」の完全な意味論 (attempt-registry状態機械の再設計) まで本waveで
+  実装する — 8c supervisorのstate machine全体整合という別の大きいgapであり、規律5
+  (段階導入/盛らない) に照らし別waveへ送る。
