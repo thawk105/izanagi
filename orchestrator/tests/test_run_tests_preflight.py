@@ -2305,6 +2305,7 @@ def test_previous_full_cap_estimate_dispatches_without_local_scope(monkeypatch):
     grants = []
     dispatch = mock.Mock(return_value=9)
     scope = mock.Mock(side_effect=AssertionError("estimated full run must dispatch"))
+    monkeypatch.setenv(RT._ACCEPTANCE_SHARDS_ENV, "1")
 
     def grant_budget(**kwargs):
         grants.append(kwargs)
@@ -2324,6 +2325,7 @@ def test_previous_full_cap_estimate_dispatches_without_local_scope(monkeypatch):
 
 def test_previous_full_cap_estimate_dispatches_after_preflights(monkeypatch):
     events = []
+    monkeypatch.setenv(RT._ACCEPTANCE_SHARDS_ENV, "1")
 
     def preflight(name):
         return lambda args, repo: events.append(name) or 0
