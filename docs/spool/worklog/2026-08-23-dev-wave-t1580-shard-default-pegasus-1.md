@@ -35,14 +35,16 @@ title: 受入全走の計算ノード分割を Pegasus 既定へ切り替え、a
   再帰活性化、`--force-dispatch` が admission を迂回する点 (運用者が dispatch を明示的に選んだ形
   なので仕様どおりと裁定)、bounded scope の cgroup attestation が shard 拒否より先に走るように
   なった点 (rc はどちらも 16 で成果物の値・受理集合・参照は不変なので nit)。
-- **変異 matrix は 2 巡走らせた。1 巡目の MISMATCH 1 件は自分の probe の計測汚染だった (erratum)。**
+- **変異 matrix は 3 巡走らせた。1 巡目の MISMATCH 1 件は自分の probe の計測汚染だった (erratum)。**
   期待 node を確定する probe を login のローカル bounded scope 経由で取ったため、テスト process
   自身の `_bounded_scope_membership()` が True になり、M3 (LOGIN 条件の削除) で
   `test_explicit_shards_reject_nonlogin_without_fallback[2]/[3]` が eligible=False のまま
   rc=16 を返して pass していた。計算ノードには bounded scope marker が無いため両 node も赤になる。
   1 巡目 = baseline PASSED・KILLED 8・MISMATCH 1・SURVIVED 0 (12.0 分、spec `c8f893b5`)。
-  期待 node を dispatch 実測へ直した 2 巡目 = **baseline PASSED・9/9 KILLED・SURVIVED 0・
-  MISMATCH 0** (5.2 分、spec `e281623b`、anchor commit `6c7ae156`)。
+  期待 node を dispatch 実測へ直した 2 巡目 = baseline PASSED・9/9 KILLED (5.2 分、
+  spec `e281623b`、anchor `6c7ae156`)。受入の赤を直した後の**本走 (3 巡目) = baseline PASSED・
+  9/9 KILLED・SURVIVED 0・MISMATCH 0** (5.1 分、同 spec、anchor `bd329d80`)。
+  anchor 9 件の一意性は最終 commit で再検証した。
 - **段 8 の自己改善は、実測済みの候補 3 件がすべて docs 予算に阻まれて入庫できなかった。**
   候補は (1) 受入 rc=70 `receipt-main-moved` は main 競走でテストの赤ではない旨の `DW-O27` 統合、
   (2) 受入 preflight が incoming と衝突しない untracked でも止まる旨の `DW-O18` 統合、
@@ -54,12 +56,21 @@ title: 受入全走の計算ノード分割を Pegasus 既定へ切り替え、a
   定めているため、**編集を revert して裁定へ返した** ({{T:devwave-docs-budget-blocked}})。
   (1)(2) の一次控えは `dev-wave-jobs/rulings-inbox/2026-08-23-dev-wave-acceptance-race-and-clean-preflight.md`
   に残したままにしてある (次の担当が引き継げるよう fold しない)。
-- 子の工数: codex 子 8 本 (plan 1・consult 2・author 1・review 2・fix 2) + 焦点再レビュー 1 本、
+- 子の工数: codex 子 10 本 (plan 1・consult 2・author 1・review 2・fix 3・焦点再レビュー 1)、
   いずれも model=gpt-5.6-sol / reasoning=xhigh / outcome=accepted。段 5 実装子は 48 model call、
   wall 1193.8 秒。
-- 親の実測: 焦点走 `orchestrator/tests/test_run_tests_shards.py` = 168 passed / 6.52 秒、
-  consumer 9 file = 1191 passed / 1 skipped / 64.93 秒。受入全走はこの記録 commit を含む tip に
-  対して投入する。
+- **受入全走 1 回目が、静的レビュー 2 本も焦点走 172 node も検出できなかった欠陥を掘り当てた。**
+  既定 K=2 で初めて分割経路を踏んだ瞬間、テストが 1 件も走らずに `ModuleNotFoundError` で落ちた
+  (rc=70、`classification=acceptance-command`、`raw_child_rc=1`)。受入 launcher は runner blob を
+  `python3 -I` (isolated mode) で起動するため user site-packages が無効で、
+  `tools/acceptance_shards.py` の module 冒頭 import が解決できなかった。分割が opt-in の間は
+  この経路が受入 launcher 配下で踏まれず未発火だった。詳細は
+  {{F:acceptance-isolated-import}}。fix 3 巡目で冒頭 import を失敗許容にし、
+  isolated mode の子 process で import して rc=0 を観測する回帰テストを置いた
+  (source 文字列検査ではなく挙動で pin)。**焦点走の緑は受入 launcher 配下の緑を含意しない。**
+- 親の実測: 焦点走 `orchestrator/tests/test_run_tests_shards.py` = 172 passed / 5.45 秒、
+  consumer 9 file = 1191 passed / 1 skipped / 63.40 秒。受入全走はこの記録 commit を含む tip に
+  対して再投入する。
 
 ## 次の一手差分
 
