@@ -36,48 +36,38 @@ _CONDITIONAL_PREPROCESS_NODES = {
 }
 _SELECTED_CXX_CONSUMERS = {
     ("test_campaign.py", "test_source_digest_stock_roundtrip"): {
-        "src_token": 1,
+        "source_digest.src_token": 1,
     },
     ("test_campaign.py", "test_source_digest_fixed_variant_distinct"): {
-        "src_token": 1,
-        "cache_key": 2,
+        "source_digest.src_token": 1,
+        "buildcache.cache_key": 2,
     },
     ("test_campaign.py", "test_source_digest_failsclosed_on_missing_define"): {
-        "_cpp_normalize": 2,
+        "source_digest._cpp_normalize": 2,
     },
     ("test_campaign.py", "test_source_digest_semantic_comment_vs_behavior"): {
-        "_cpp_normalize": 3,
+        "source_digest._cpp_normalize": 3,
     },
     ("test_campaign.py", "test_source_digest_builtin_ifdef_not_aliased_to_stock"): {
-        "resolve": 2,
-        "compute": 1,
-        "baseline": 1,
-        "cache_key": 2,
+        "source_digest.resolve": 2,
+        "source_digest.compute": 1,
+        "source_digest.baseline": 1,
+        "buildcache.cache_key": 2,
     },
     ("test_campaign.py", "test_source_digest_include_change_rejected_by_resolve"): {
-        "resolve": 4,
-        "assert_includes_match_head": 1,
+        "source_digest.resolve": 4,
+        "source_digest.assert_includes_match_head": 1,
     },
     ("test_campaign.py", "test_trace_diff_of_diffs_predicate"): {
-        "assert_trace_diff_matches_head": 3,
+        "source_digest.assert_trace_diff_matches_head": 3,
     },
     ("test_campaign.py", "test_trace_diff_of_diffs_allows_stock_hook_catches_inner_edit"): {
-        "assert_trace_diff_matches_head": 3,
+        "source_digest.assert_trace_diff_matches_head": 3,
     },
     ("test_s1_direct_comparison.py",
      "test_real_source_digest_unifies_all_outer_whitespace_tokens"): {
-        "resolve": 2,
+        "S.source_digest.resolve": 2,
     },
-}
-_CONSUMER_CXX_POSITION = {
-    "src_token": 3,
-    "_cpp_normalize": 2,
-    "resolve": 3,
-    "compute": 2,
-    "baseline": 3,
-    "assert_includes_match_head": 3,
-    "assert_trace_diff_matches_head": 3,
-    "cache_key": None,
 }
 
 
@@ -90,60 +80,91 @@ def _function_node(filename: str, function_name: str) -> ast.FunctionDef | ast.A
     return matches[0]
 
 
+class _ExecutionScopeNodes(ast.NodeVisitor):
+    """Collect nodes executed by the target function without nested scopes."""
+
+    def __init__(self):
+        self.nodes = []
+
+    def generic_visit(self, node):
+        self.nodes.append(node)
+        super().generic_visit(node)
+
+    def visit_FunctionDef(self, node):
+        return None
+
+    visit_AsyncFunctionDef = visit_FunctionDef
+    visit_Lambda = visit_FunctionDef
+    visit_ClassDef = visit_FunctionDef
+
+
+def _nodes_in_execution_scope(function: ast.AST) -> list[ast.AST]:
+    visitor = _ExecutionScopeNodes()
+    for statement in function.body:
+        visitor.visit(statement)
+    return visitor.nodes
+
+
+def _qualified_name(expression: ast.AST) -> str | None:
+    parts = []
+    while isinstance(expression, ast.Attribute):
+        parts.append(expression.attr)
+        expression = expression.value
+    if not isinstance(expression, ast.Name):
+        return None
+    parts.append(expression.id)
+    return ".".join(reversed(parts))
+
+
+def _calls_in_execution_scope(function: ast.AST) -> list[ast.Call]:
+    return [
+        node for node in _nodes_in_execution_scope(function)
+        if isinstance(node, ast.Call)
+    ]
+
+
 def _calls_in_function(filename: str, function_name: str) -> set[str]:
     function = _function_node(filename, function_name)
     return {
-        node.func.id
-        for node in ast.walk(function)
-        if isinstance(node, ast.Call) and isinstance(node.func, ast.Name)
+        name for node in _calls_in_execution_scope(function)
+        if (name := _qualified_name(node.func)) is not None
     }
 
 
 def _call_leaf_names_for_real_silo_meta(function: ast.AST) -> set[str]:
     return {
-        node.func.id if isinstance(node.func, ast.Name) else node.func.attr
-        for node in ast.walk(function)
-        if isinstance(node, ast.Call)
-        and isinstance(node.func, (ast.Name, ast.Attribute))
+        name.rsplit(".", 1)[-1]
+        for node in _calls_in_execution_scope(function)
+        if (name := _qualified_name(node.func)) is not None
     }
-
-
-def _call_leaf_name(call: ast.Call) -> str | None:
-    if isinstance(call.func, ast.Name):
-        return call.func.id
-    if isinstance(call.func, ast.Attribute):
-        return call.func.attr
-    return None
 
 
 def _calls_named(function: ast.AST, names: set[str]) -> list[ast.Call]:
     return [
-        node for node in ast.walk(function)
-        if isinstance(node, ast.Call) and _call_leaf_name(node) in names
+        node for node in _calls_in_execution_scope(function)
+        if _qualified_name(node.func) in names
     ]
 
 
 def _selected_cxx_assignment(function: ast.AST) -> tuple[str, ast.Call]:
     matches = []
-    for node in ast.walk(function):
+    for node in _nodes_in_execution_scope(function):
         if not isinstance(node, ast.Assign) or len(node.targets) != 1:
             continue
         target = node.targets[0]
         if not isinstance(target, ast.Name) or not isinstance(node.value, ast.Call):
             continue
-        if _call_leaf_name(node.value) == "_any_cxx":
+        if _qualified_name(node.value.func) == "_any_cxx":
             matches.append((target.id, node.value))
     assert len(matches) == 1, "対象 node は _any_cxx() の選択値を一度だけ束縛すべき"
     return matches[0]
 
 
-def _cxx_argument(call: ast.Call, positional_index: int | None) -> ast.AST | None:
+def _cxx_argument(call: ast.Call) -> ast.AST | None:
     keywords = [keyword.value for keyword in call.keywords if keyword.arg == "cxx"]
     assert len(keywords) <= 1, "cxx keyword が重複している"
     if keywords:
         return keywords[0]
-    if positional_index is not None and len(call.args) > positional_index:
-        return call.args[positional_index]
     return None
 
 
@@ -198,35 +219,51 @@ def test_conditional_preprocess_nodes_classify_before_compiler_selection():
 
 def test_site_compiler_helpers_choose_first_available_and_skip_only_when_empty():
     filenames = ("test_campaign.py", "test_s1_direct_comparison.py")
+    cases = (
+        ("g++-13", "g++-13", ["g++-13"]),
+        ("g++-12", "g++-12", ["g++-13", "g++-12"]),
+        ("g++", "g++", ["g++-13", "g++-12", "g++"]),
+        (None, None, ["g++-13", "g++-12", "g++"]),
+    )
     for filename in filenames:
-        calls = []
-
-        def g12_only(candidate):
-            calls.append(candidate)
-            return "/fixture/g++-12" if candidate == "g++-12" else None
-
-        helper, function = _compiled_any_cxx(filename, g12_only)
-        assert helper() == "g++-12", filename
-        assert calls == ["g++-13", "g++-12"], filename
+        function = _function_node(filename, "_any_cxx")
         docstring = ast.get_docstring(function) or ""
         assert "compiler 版をまたぐ関係は保証しない" in docstring, filename
+        for available, expected, expected_calls in cases:
+            calls = []
 
-        calls = []
+            def which(candidate):
+                calls.append(candidate)
+                return (
+                    f"/fixture/{candidate}"
+                    if candidate == available else None
+                )
 
-        def none_available(candidate):
-            calls.append(candidate)
-            return None
-
-        helper, _ = _compiled_any_cxx(filename, none_available)
-        try:
-            helper()
-            assert False, f"全候補不在なら skip すべき: {filename}"
-        except _HelperSkip as exc:
-            assert "全滅" in str(exc), filename
-        assert calls == ["g++-13", "g++-12", "g++"], filename
+            helper, _ = _compiled_any_cxx(filename, which)
+            if expected is None:
+                try:
+                    helper()
+                    assert False, f"全候補不在なら skip すべき: {filename}"
+                except _HelperSkip as exc:
+                    assert "全滅" in str(exc), filename
+            else:
+                assert helper() == expected, (filename, available)
+            assert calls == expected_calls, (filename, available)
 
 
 def test_selected_cxx_is_bound_to_every_target_consumer():
+    matcher_fixture = ast.parse(
+        "def target():\n"
+        "    source_digest.resolve(genome, head, cxx=cxx)\n"
+        "    other.resolve(genome, head, cxx=cxx)\n"
+        "    def nested():\n"
+        "        source_digest.resolve(genome, head, cxx=cxx)\n"
+        "    decoy = lambda: source_digest.resolve(genome, head, cxx=cxx)\n"
+    ).body[0]
+    assert len(_calls_named(
+        matcher_fixture, {"source_digest.resolve"},
+    )) == 1
+
     assert len(_SELECTED_CXX_CONSUMERS) == 9
     for (filename, function_name), expected_counts in _SELECTED_CXX_CONSUMERS.items():
         function = _function_node(filename, function_name)
@@ -234,7 +271,9 @@ def test_selected_cxx_is_bound_to_every_target_consumer():
         consumer_names = set(expected_counts)
         consumers = _calls_named(function, consumer_names)
         actual_counts = {
-            name: sum(_call_leaf_name(call) == name for call in consumers)
+            name: sum(
+                _qualified_name(call.func) == name for call in consumers
+            )
             for name in consumer_names
         }
         assert actual_counts == expected_counts, (
@@ -243,11 +282,11 @@ def test_selected_cxx_is_bound_to_every_target_consumer():
         )
         assert selection.lineno < min(call.lineno for call in consumers)
         for call in consumers:
-            leaf = _call_leaf_name(call)
-            bound = _cxx_argument(call, _CONSUMER_CXX_POSITION[leaf])
+            qualified = _qualified_name(call.func)
+            bound = _cxx_argument(call)
             assert isinstance(bound, ast.Name) and bound.id == selected_name, (
                 "選択 compiler が consumer の cxx 引数へ届いていない: "
-                f"{filename}::{function_name}:{call.lineno} {leaf}"
+                f"{filename}::{function_name}:{call.lineno} {qualified}"
             )
     calls = _calls_in_function("test_campaign.py", "test_source_digest_stock_roundtrip")
     assert "skip" in calls, "依存物不在の正例が素の skip を呼んでいない"

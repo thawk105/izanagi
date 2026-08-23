@@ -3033,6 +3033,26 @@ def test_cache_key_separates_trace_genome_and_commit():
     )
 
 
+def test_cache_key_separates_compiler_request_name():
+    genome_value = Genome("silo", {"BACK_OFF": 1})
+    commit = "abc123"
+    src_token = "1" * 64
+    admission = _admission_for(
+        genome_value, commit, src_token=src_token,
+    )
+    common = {
+        "trace": False,
+        "src_token": src_token,
+        "admission": admission,
+    }
+
+    assert buildcache.cache_key(
+        genome_value, commit, cxx="g++-12", **common,
+    ) != buildcache.cache_key(
+        genome_value, commit, cxx="g++-13", **common,
+    )
+
+
 # ===== STAGE2: variant_id (WAL キー) =====
 
 def test_variant_id_deterministic_and_sensitive():
@@ -10954,11 +10974,11 @@ def test_source_digest_failsclosed_on_missing_define():
     with open(opts, encoding="utf-8") as f:
         complete_defines = source_digest._merge_defines(
             source_digest.parse_options_defaults(f.read()), {})
-    source_digest._cpp_normalize(src, complete_defines, cxx)
+    source_digest._cpp_normalize(src, complete_defines, cxx=cxx)
     missing_defines = dict(complete_defines)
     missing_defines.pop("BACKOFF_FIXED")
     try:
-        source_digest._cpp_normalize(src, missing_defines, cxx)
+        source_digest._cpp_normalize(src, missing_defines, cxx=cxx)
         assert False, "供給漏れで停止すべき (#error / -Werror=undef)"
     except RuntimeError as exc:
         diagnostic = str(exc)
@@ -10977,11 +10997,13 @@ def test_source_digest_semantic_comment_vs_behavior():
             source_digest.parse_options_defaults(f.read()), {})
     with open(hh, encoding="utf-8") as f:
         src = f.read()
-    base = source_digest._cpp_normalize(src, defines, cxx)
+    base = source_digest._cpp_normalize(src, defines, cxx=cxx)
     commented = source_digest._cpp_normalize(
-        src + "\n// trailing comment\n", defines, cxx)
+        src + "\n// trailing comment\n", defines, cxx=cxx)
     behaved = source_digest._cpp_normalize(
-        src.replace("memory_order_acquire", "memory_order_relaxed"), defines, cxx)
+        src.replace("memory_order_acquire", "memory_order_relaxed"),
+        defines, cxx=cxx,
+    )
     assert base == commented              # コメント不感 (honest: 挙動不変なら同 id)
     assert base != behaved                # 挙動変更は検出
 
