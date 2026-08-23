@@ -261,7 +261,7 @@ class TextLimit:
 # byte予算のため落としていた。安全義務を削らせる手段目的の逆転を止めるため、ユーザー裁定
 # (2026-08-02) により小幅に引き上げる。
 COMMAND_LIMITS = {
-    ".claude/commands/dev-wave.md": TextLimit(9_500, 140),
+    ".claude/commands/dev-wave.md": TextLimit(9_584, 140),
     ".claude/commands/cleanup-branches.md": TextLimit(4_000, 110),
     ".claude/commands/rulings.md": TextLimit(5_000, 180),
 }
@@ -586,6 +586,14 @@ DEV_WAVE_DW_O26_SECTION_LITERAL = """## DW-O26 — 焦点走の consumer test �
 `orchestrator/tests/` を grep する）。この拡張を欠く焦点走は、静的レビューが見落とした破れを
 初回実測でも取り逃す（F242）。
 """
+DEV_WAVE_DW_O28_SECTION_LITERAL = """## DW-O28 — land 後の自己撤去
+
+親は `landed` / `already-landed` を確認後、同じ段 9 で先に対象 worktree 外の main worktree へ移り、投入した計算ノード job の終端後に次を実行する（`<MAIN>` / `<WAVE>` は絶対 path）。
+`python3 tools/dev_wave_cleanup.py --main-worktree <MAIN> --wave-worktree <WAVE> --wave-branch <BRANCH> --tested-wave-tip-sha <TIP>`
+tool は unoccupied、clean、tested tip が `refs/heads/main` の祖先、fold state 不在、wave が非 primary、cwd が対象外を全て要求し、どれかが不成立または判定不能なら fail-closed で停止する。
+同一 wave の worktree と branch を撤去し、次 wave・ユーザー・`/cleanup-branches` へ引き渡さない。
+F26 に従い `git worktree remove` と `git submodule deinit` は使わない。branch は `git branch -d` だけで消し `-D` を使わない。撤去できない理由は報告し、次 wave の worklog へ記録する。
+"""
 DEV_WAVE_DW_C01_SECTION_LITERAL = """## DW-C01 — 実測で是正した作法
 
 `DW-O01`/`DW-O08`/`DW-O17`/`DW-O20` に優先する。
@@ -609,6 +617,8 @@ DEV_WAVE_EXACT_VISIBLE_SECTIONS = {
         DEV_WAVE_DW_O25_SECTION_LITERAL,
     ("docs/dev-wave/operations.md", "DW-O26 — 焦点走の consumer test 拡張"):
         DEV_WAVE_DW_O26_SECTION_LITERAL,
+    ("docs/dev-wave/operations.md", "DW-O28 — land 後の自己撤去"):
+        DEV_WAVE_DW_O28_SECTION_LITERAL,
     ("docs/dev-wave/core.md", "DW-C01 — 実測で是正した作法"):
         DEV_WAVE_DW_C01_SECTION_LITERAL + "\n",
 }
@@ -748,8 +758,8 @@ REQUIRED_REFERENCE_SECTIONS = {
         "DW-M05", "DW-M06", "DW-M07", "DW-M08",
     },
     "docs/dev-wave/operations.md": (
-        # O26/O27 は既存の削除済み ID を含む番号列から独立した新規節。
-        {f"DW-O{i:02d}" for i in _OPERATION_NUMBERS} | {"DW-O26", "DW-O27"}
+        # O26/O27/O28 は既存の削除済み ID を含む番号列から独立した新規節。
+        {f"DW-O{i:02d}" for i in _OPERATION_NUMBERS} | {"DW-O26", "DW-O27", "DW-O28"}
     ),
 }
 DEV_WAVE_REFERENCE_FILES = frozenset(REQUIRED_REFERENCE_SECTIONS)
@@ -867,6 +877,7 @@ CONDITION_DISPATCH_CONTRACT.update({
     "22": _pairs(_CORE, "DW-CTX"),
     "24": _pairs(_CORE, "DW-C00"),
     "26": _pairs(_CORE, "DW-C01"),
+    "27": _pairs(_OPERATIONS, "DW-O28"),
 })
 CONDITION_TRIGGER_CONTRACT = {
     "01": "codex subprocess を起動する直前",
@@ -894,6 +905,7 @@ CONDITION_TRIGGER_CONTRACT = {
     "24": "背景 producer・待ち手の生成 / 再利用 / 停止、通知処理、待ち条件作成の直前",
     "25": "main を進める land を起動する直前",
     "26": "起動/待機/検査/submodule/取込/fix前",
+    "27": "land 成功後の自己撤去直前",
 }
 
 D2_ROLLBACK_STRUCTURE = re.compile(

@@ -30,12 +30,13 @@ _WRAPPER = _ROOT / "tools" / "dev_wave_codex.py"
 # 親の 1281 件実測 max は準備 3.792 s、最終化 4.940 s。正例は
 # それぞれ 8 s (2.11x) と 10 s (2.02x) を確保する。最終化 10 s は
 # S->R、すなわち seal と receipt staging/atomic publication の双方を含む。
-# 8 + 2 + 10 + 5 (process 終了余裕) = 25 < 外側 watchdog 30 を保つ。
+# 既定は 8 + 2 + 10 + 5 = 25、retry 累積負例は 8 + 16 + 10 + 5
+# = 39 とし、いずれも外側 watchdog 40 未満を検査自身で確かめる。
 _POSITIVE_PREPARATION_S = Decimal("8")
 _POSITIVE_ATTEMPT_S = Decimal("2")
 _POSITIVE_FINALIZATION_S = Decimal("10")
 _SHUTDOWN_MARGIN_S = Decimal("5")
-_OUTER_TIMEOUT_S = Decimal("30")
+_OUTER_TIMEOUT_S = Decimal("40")
 
 _HARNESS_SOURCE = r'''#!/usr/bin/env python3
 import importlib.util
@@ -707,21 +708,43 @@ def test_retry_attempt_clock_is_cumulative_under_logical_time() -> None:
 def test_retry_subprocess_hits_only_cumulative_attempt_bound(
     tmp_path: Path,
 ) -> None:
+    # DW-O13: 母集合は親が集計した実 launcher receipt 1281 件で、観測
+    # regime はこの検査と同じ subprocess launcher の attempt 間処理、かつ
+    # 同じ wall-clock admission 予算の適用対象である。tail は p50 0.678 s
+    # でなく max 3.792 s を採り、不足実測 0.65 s x 裾 5.6 x 正例 2 倍
+    # = 7.28 s を 7.4 s へ切り上げる。通常の「発火してほしい負例」は
+    # 小さい予算で確実に発火させるが、本例は attempt 2 まで通す前段だけを
+    # 正例扱いにする。B=16、d1=8.5、d2=8 なら各単体の余裕は 7.5 s / 8 s、
+    # 遅延和 16.5 s は諸経費なしでも B を超える。
+    attempt_bound_s = Decimal("16")
+    attempt_delays_s = (Decimal("8.5"), Decimal("8"))
+    required_prefix_slack_s = Decimal("7.4")
+    assert all(
+        attempt_bound_s - delay >= required_prefix_slack_s
+        for delay in attempt_delays_s
+    )
+    assert sum(attempt_delays_s) > attempt_bound_s
+
     _completed, receipt, _paths = _run_case(
         tmp_path,
         expected_rc=1,
         preparation="8",
-        attempt="1",
+        attempt=str(attempt_bound_s),
         finalization="10",
         max_attempts=2,
         env_updates={
             "FAKE_SEQUENCE": "retry,normal",
-            "FAKE_ATTEMPT_DELAYS": "0.35,0.8",
+            "FAKE_ATTEMPT_DELAYS": ",".join(
+                str(delay) for delay in attempt_delays_s
+            ),
         },
     )
 
     assert len(receipt["attempts"]) == 2
-    assert all(item["wall_clock_s"] < 1 for item in receipt["attempts"])
+    assert all(
+        Decimal(str(item["wall_clock_s"])) < attempt_bound_s
+        for item in receipt["attempts"]
+    )
     assert receipt["attempts"][0]["limit_trigger"] is None
     assert receipt["attempts"][1]["limit_trigger"] == (
         "wall_clock_admission_bound_s"
