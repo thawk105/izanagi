@@ -3095,7 +3095,7 @@ def test_positive_p1_normal_job_is_accepted(tmp_path: Path) -> None:
     assert receipt["stop_reason"] == "completed"
     assert receipt["launcher_rc"] == 0
     assert receipt["model_calls_semantics"] == "observed_token_count_events"
-    assert receipt["schema_version"] == 3
+    assert receipt["schema_version"] == 4
     assert receipt["limits_assertion"] == "self_asserted"
     assert (
         receipt["wall_clock_scope"]
@@ -3617,6 +3617,7 @@ def test_attempt_preflight_delay_exhausts_wall_clock_before_spawn(
     command, env, paths = _base_command(
         tmp_path, fake=fake, max_wall="3"
     )
+    command.extend(("--preparation-admission-bound-s", "3"))
     clock_ns = time.monotonic_ns()
     offset_ns = 0
 
@@ -3638,10 +3639,16 @@ def test_attempt_preflight_delay_exhausts_wall_clock_before_spawn(
         delayed_validator,
     )
     _run_main_in_process(
-        command, env, monkeypatch, paths=paths, expected_returncode=2
+        command, env, monkeypatch, paths=paths, expected_returncode=1
     )
     receipt = json.loads(paths["receipt"].read_text(encoding="utf-8"))
-    assert receipt["outcome"] == "launcher_error"
+    assert receipt["outcome"] == "not_accepted"
+    assert receipt["stop_reason"] == "preparation_admission_bound_s"
+    assert receipt["launcher_rc"] == 1
+    assert (
+        receipt["actuals"]["preparation_wall_clock_s"]
+        >= receipt["limits"]["preparation_admission_bound_s"]
+    )
     assert receipt["attempts"] == []
     assert not paths["pid_dir"].exists()
 
@@ -5018,6 +5025,7 @@ def test_receipt_staging_wall_overrun_flips_to_not_accepted_and_removes_output(
 ) -> None:
     fake = _write_fake_codex(tmp_path / "fake-codex")
     command, env, paths = _base_command(tmp_path, fake=fake)
+    command.extend(("--finalization-admission-bound-s", "3"))
     env["FAKE_MODE"] = "normal"
     clock_offset_ns = 0
     original_stage = LAUNCHER._stage_receipt_write
@@ -5044,14 +5052,20 @@ def test_receipt_staging_wall_overrun_flips_to_not_accepted_and_removes_output(
 
     assert stage_calls == 2
     assert receipt["outcome"] == "not_accepted"
-    assert receipt["stop_reason"] == "wall_clock_admission_bound_s"
+    assert receipt["stop_reason"] == "finalization_admission_bound_s"
     assert receipt["launcher_rc"] == 1
-    assert receipt["attempts"][-1]["accepted"] is False
-    assert receipt["attempts"][-1]["limit_trigger"] == "wall_clock_admission_bound_s"
+    assert receipt["attempts"][-1]["accepted"] is True
+    assert receipt["attempts"][-1]["limit_trigger"] is None
+    assert (
+        receipt["actuals"]["finalization_wall_clock_s"]
+        >= receipt["limits"]["finalization_admission_bound_s"]
+    )
     assert not paths["output"].exists()
     assert list(tmp_path.glob(".receipt.json.tmp.*")) == []
-    snapshots = _diagnostic_snapshots(paths, "post_receipt_staging")
-    assert snapshots[-1]["conditions_met"] == ["wall_clock_admission_bound_s"]
+    diagnostics = _read_launcher_diagnostics(paths)
+    assert (
+        diagnostics["finalization_publication"]["gate_elapsed_s"] >= 3
+    )
 
 
 def test_receipt_audit_wall_overrun_flips_to_not_accepted(
@@ -5059,6 +5073,7 @@ def test_receipt_audit_wall_overrun_flips_to_not_accepted(
 ) -> None:
     fake = _write_fake_codex(tmp_path / "fake-codex")
     command, env, paths = _base_command(tmp_path, fake=fake)
+    command.extend(("--finalization-admission-bound-s", "3"))
     env["FAKE_MODE"] = "normal"
     clock_offset_ns = 0
     original_audit = LAUNCHER._audit_receipt_value
@@ -5085,13 +5100,19 @@ def test_receipt_audit_wall_overrun_flips_to_not_accepted(
 
     assert published_audits == 1
     assert receipt["outcome"] == "not_accepted"
-    assert receipt["stop_reason"] == "wall_clock_admission_bound_s"
+    assert receipt["stop_reason"] == "finalization_admission_bound_s"
     assert receipt["launcher_rc"] == 1
-    assert receipt["attempts"][-1]["accepted"] is False
-    assert receipt["attempts"][-1]["limit_trigger"] == "wall_clock_admission_bound_s"
+    assert receipt["attempts"][-1]["accepted"] is True
+    assert receipt["attempts"][-1]["limit_trigger"] is None
+    assert (
+        receipt["actuals"]["finalization_wall_clock_s"]
+        >= receipt["limits"]["finalization_admission_bound_s"]
+    )
     assert not paths["output"].exists()
-    snapshots = _diagnostic_snapshots(paths, "post_receipt_staging")
-    assert snapshots[-1]["conditions_met"] == ["wall_clock_admission_bound_s"]
+    diagnostics = _read_launcher_diagnostics(paths)
+    assert (
+        diagnostics["finalization_publication"]["gate_elapsed_s"] >= 3
+    )
 
 
 def test_accepted_publication_reuses_the_staged_receipt_temp(
@@ -5651,7 +5672,9 @@ def test_check_receipt_marks_self_asserted_limits_and_accepts_external_expectati
     summary = json.loads(self_checked.stdout)
     assert self_checked.returncode == 0, self_checked.stderr
     assert summary["limits_self_asserted"] == [
+        "preparation_admission_bound_s",
         "wall_clock_admission_bound_s",
+        "finalization_admission_bound_s",
         "max_model_calls",
         "max_cli_reported_tokens",
         "max_attempts",
@@ -5661,8 +5684,12 @@ def test_check_receipt_marks_self_asserted_limits_and_accepts_external_expectati
         + [
             "--expect-prompt-sha256",
             receipt["prompt_sha256"],
+            "--expect-preparation-admission-bound-s",
+            str(receipt["limits"]["preparation_admission_bound_s"]),
             "--expect-wall-clock-admission-bound-s",
             "3",
+            "--expect-finalization-admission-bound-s",
+            str(receipt["limits"]["finalization_admission_bound_s"]),
             "--expect-max-model-calls",
             "100",
             "--expect-max-cli-reported-tokens",
@@ -5688,6 +5715,10 @@ def test_check_receipt_reads_v1_field_sets_with_explicit_skip_diagnostics(
     )
     assert receipt is not None
     receipt = _write_legacy_v2_evidence(receipt, paths)
+    receipt["limits"].pop("preparation_admission_bound_s")
+    receipt["limits"].pop("finalization_admission_bound_s")
+    receipt["actuals"].pop("preparation_wall_clock_s")
+    receipt["actuals"].pop("finalization_wall_clock_s")
     receipt["schema_version"] = 1
     if legacy_field_set:
         for field_name in (
@@ -5730,6 +5761,10 @@ def test_check_receipt_reads_v2_without_implicit_upgrade(
     )
     assert receipt is not None
     receipt_v2 = _write_legacy_v2_evidence(receipt, paths)
+    receipt_v2["limits"].pop("preparation_admission_bound_s")
+    receipt_v2["limits"].pop("finalization_admission_bound_s")
+    receipt_v2["actuals"].pop("preparation_wall_clock_s")
+    receipt_v2["actuals"].pop("finalization_wall_clock_s")
     paths["receipt"].write_text(
         json.dumps(receipt_v2, separators=(",", ":")) + "\n",
         encoding="utf-8",

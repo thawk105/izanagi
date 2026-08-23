@@ -87,6 +87,9 @@ _STOP_REASONS = _LIMIT_REASONS + (
 )
 _PREPARATION_STOP_REASON = "preparation_admission_bound_s"
 _FINALIZATION_STOP_REASON = "finalization_admission_bound_s"
+_CODEX_VERSION_NOT_RUN_GUARD_REJECTED = (
+    "not-run: launch guard rejected before codex --version"
+)
 _STOP_REASONS_V4 = _STOP_REASONS + (
     _PREPARATION_STOP_REASON,
     _FINALIZATION_STOP_REASON,
@@ -601,6 +604,8 @@ class LauncherDiagnosticsState:
     attempts: list[AttemptDiagnosticsState] = field(default_factory=list)
     job_boundaries_ns: dict[str, int] = field(default_factory=dict)
     receipt_published_by_run: bool = False
+    codex_version_identity_status: str = "not_started"
+    codex_version_identity_unknown_source: str | None = None
     finalization_publication_gate_elapsed_s: Decimal | None = None
     finalization_publication_completed_elapsed_s: Decimal | None = None
     finalization_limit_exceeded_after_publication: bool = False
@@ -2417,9 +2422,11 @@ def _resolve_executable(value: str) -> Path:
     return path
 
 
-def _codex_version(path: Path) -> str:
+def _codex_version(path: Path) -> tuple[str, str, str | None]:
     process: subprocess.Popen[bytes] | None = None
     identity: PidIdentity | None = None
+    identity_status = "verified"
+    identity_unknown_source: str | None = None
     try:
         process = subprocess.Popen(
             [os.fspath(path), "--version"],
@@ -2432,28 +2439,31 @@ def _codex_version(path: Path) -> str:
         )
         try:
             identity = read_pid_identity(process.pid)
-        except (OSError, ValueError) as exc:
-            _terminate(process, None, grace_s=0.1)
-            raise LaunchError(
-                "codex --version process group identity を確定できない"
-            ) from exc
+        except (OSError, ValueError):
+            identity = None
+        if identity is None:
+            # /proc を利用できない環境でも leader の timeout 監督は続ける。
+            # process group residual は検証不能なので sidecar へ明示する。
+            identity_status = "unknown"
+            identity_unknown_source = "pid_identity_unavailable"
         try:
             stdout, stderr = process.communicate(timeout=5)
         except subprocess.TimeoutExpired as exc:
             _terminate(process, identity, grace_s=0.1)
             raise LaunchError("codex --version が timeout した") from exc
-        residual = _wait_for_group_exit(identity, timeout_s=0.5)
-        if residual != 0:
-            final_residual, termination_verified = _terminate(
-                process, identity, grace_s=0.1
-            )
-            if final_residual != 0 or not termination_verified:
-                raise LaunchError(
-                    "codex --version process group の終了を確認できない"
+        if identity is not None:
+            residual = _wait_for_group_exit(identity, timeout_s=0.5)
+            if residual != 0:
+                final_residual, termination_verified = _terminate(
+                    process, identity, grace_s=0.1
                 )
-            raise LaunchError(
-                "codex --version が残留子孫 process を生成した"
-            )
+                if final_residual != 0 or not termination_verified:
+                    raise LaunchError(
+                        "codex --version process group の終了を確認できない"
+                    )
+                raise LaunchError(
+                    "codex --version が残留子孫 process を生成した"
+                )
     except OSError as exc:
         if process is not None:
             try:
@@ -2468,7 +2478,7 @@ def _codex_version(path: Path) -> str:
         raise LaunchError("codex version が UTF-8 ではない") from exc
     if process.returncode != 0 or not value or "\n" in value:
         raise LaunchError("codex version identity が不正")
-    return value
+    return value, identity_status, identity_unknown_source
 
 
 def _git_common_dir(path: Path, *, label: str) -> Path:
@@ -2539,7 +2549,9 @@ def _verify_repo_binding(repo_root: Path, cwd: Path, base_commit: str) -> None:
         raise LaunchError("--repo-root/--cwd の git common-dir が一致しない")
 
 
-def _preflight_run(args: argparse.Namespace) -> tuple[Path, str, str]:
+def _preflight_run(
+    args: argparse.Namespace,
+) -> tuple[Path, str, str, str, str | None, LaunchError | None]:
     if not args.repo_root.is_absolute():
         raise LaunchError("--repo-root は absolute path が必要")
     args.repo_root = args.repo_root.resolve()
@@ -2621,12 +2633,36 @@ def _preflight_run(args: argparse.Namespace) -> tuple[Path, str, str]:
             raise LaunchError("既存の完全な receipt は上書きできない")
     codex_path = _resolve_executable(args.codex_bin)
     codex_sha256, _ = _hash_file(codex_path)
+    try:
+        # caller 指定 codex は --version も被験体である。guard が拒否した
+        # 場合は version process も起動しない。
+        _require_attempt_hook_installation(args.repo_root, args.cwd)
+    except LaunchError as exc:
+        return (
+            codex_path,
+            codex_sha256,
+            _CODEX_VERSION_NOT_RUN_GUARD_REJECTED,
+            "not_started",
+            None,
+            exc,
+        )
     version_started_ns = _monotonic_ns()
-    codex_version = _codex_version(codex_path)
+    (
+        codex_version,
+        version_identity_status,
+        version_identity_unknown_source,
+    ) = _codex_version(codex_path)
     args.codex_version_wall_clock_s = _elapsed_s(
         _monotonic_ns(), version_started_ns
     )
-    return codex_path, codex_sha256, codex_version
+    return (
+        codex_path,
+        codex_sha256,
+        codex_version,
+        version_identity_status,
+        version_identity_unknown_source,
+        None,
+    )
 
 
 def _latch_final_job_limit(
@@ -3221,6 +3257,12 @@ def _launcher_diagnostics_document(
     return {
         "schema": "codex-worker-launch-diagnostics/v1",
         "job_id": diagnostics.job_id,
+        "codex_version_process_group": {
+            "identity_status": diagnostics.codex_version_identity_status,
+            "identity_unknown_source": (
+                diagnostics.codex_version_identity_unknown_source
+            ),
+        },
         "receipt_binding": {
             "path": os.fspath(diagnostics.receipt_path),
             "sha256": receipt_sha256,
@@ -3317,19 +3359,32 @@ def _run(args: argparse.Namespace) -> int:
     args.last_attempt_wall_clock_sampled_ns = None
     args.last_attempt_sealed_ns = None
     args.finalization_started_ns = None
-    codex_path, codex_sha256, codex_version = _preflight_run(args)
+    (
+        codex_path,
+        codex_sha256,
+        codex_version,
+        version_identity_status,
+        version_identity_unknown_source,
+        preflight_launch_error,
+    ) = _preflight_run(args)
     attempts: list[dict[str, Any]] = []
     args.output_published_by_run = False
     diagnostics = LauncherDiagnosticsState(
         job_id=args.job_id,
         job_started_ns=args.launcher_started_ns,
         receipt_path=args.receipt,
+        codex_version_identity_status=version_identity_status,
+        codex_version_identity_unknown_source=(
+            version_identity_unknown_source
+        ),
     )
     diagnostics.note_job_boundary(
         "run_preflight_completed", _monotonic_ns()
     )
     try:
         try:
+            if preflight_launch_error is not None:
+                raise preflight_launch_error
             return _run_supervised(
                 args,
                 codex_path=codex_path,
@@ -3853,7 +3908,11 @@ def _validate_receipt(value: object) -> dict[str, Any]:
             and receipt["launcher_rc"] == 2
             and accepted_count == 0
             and receipt["output_sha256"] is None
-            and (schema_version != 4 or attempt_wall_within_limit)
+            and (
+                schema_version != 4
+                or not attempts
+                or attempt_wall_within_limit
+            )
         )
     if not valid_truth:
         raise LaunchError("receipt truth table が不正")
