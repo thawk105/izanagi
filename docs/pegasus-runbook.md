@@ -928,6 +928,12 @@ python3 tools/dev_wave_wait.py acceptance --wave "$W" \
   受入とは別の走行を立てる。
 - **`--merge-message-file` は待機を始める前に用意しておく。** behind が判明した時点で必須になり、
   無ければ投入せず止まる。message には `DW-O17` に従った `AI-Agent:` trailer を書く。
+  **親が自分で merge commit を作った wave では、待ち手へ渡す message file を親の merge の
+  message file と別にする。** 両親が同じ実装面 path を変えた merge は `DW-O17` により Codex
+  `role=author` を要し、その message file には Codex の著者行が入る。同じ file を待ち手へ渡すと、
+  待ち手が作る別の merge commit まで Codex 著述を名乗ることになる。待ち手用は自己申告の
+  `role=integrator` だけを持つ file にし、実装面 overlap があれば待ち手が fail-closed で止まるのに
+  任せる (2026-08-23 実測、取り残し branch の回収 wave)。
 - **rc=0 は「receipt が発行された」を意味する** (lease を取得した走行は保持したまま返る)。
   受入 command 自身が緑だったとは限らない — 上の受理経路 (ii) では rc=1 で赤があり、
   それが全部非帰属または flake だったという意味になる。**台帳へ「全テスト緑」と書く前に

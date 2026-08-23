@@ -12730,3 +12730,185 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: main 側が `docs/dev-wave/*` を触った期間に main を取り込み、かつ両親が同じ実装面
   file を触る wave が、同じ rc=2 と rc=128 の対で即座に検知する (fail-closed のため実害は
   時間損失だけ)。
+
+### F500. certify_calibration.shが裸のpython3を呼びholdout importの3.10構文で計算ノードのpython3.9下で失敗する [ドリフト]
+
+- 事象: rr80 calibration投入 (933127.nqsv、bnode001) で
+  `TypeError: dataclass() got an unexpected keyword argument 'slots'`。
+  `orchestrator/calibrate.py` → `calibrator/cli.py` → `calibrator/runner.py` →
+  `orchestrator/holdout_observation.py` (T-523) の`@dataclass(frozen=True, slots=True)`
+  (Python 3.10+構文) のimportで発生した。
+- 根本原因: `tools/pegasus/certify_calibration.sh`が計算ノードのpython3バージョンを固定
+  しておらず、`docs/pegasus-runbook.md` §3が警告する既知のノード依存 (intelpythonが
+  PATH前方に来て3.9に解決される) を踏んだ。decisions.mdの[T-272]backlogが指摘していた
+  「certify経路には版数gateが無く、floor_campaign.shだけが持つ非対称が残る」の実例。
+- 恒久対応: `tools/pegasus/dispatch_compute.py`と同型の`_INTERPRETER_CANDIDATES`解決
+  (python3.10 → /usr/bin/python3.10 → /bin/python3.10の順にsmoke checkして採用) と
+  fail-closed拒否を`certify_calibration.sh`に追加した。
+- 再発検知: `orchestrator/tests/test_pegasus_tools.py`の
+  `test_certify_calibrator_resolves_and_shims_versioned_interpreter`、
+  `test_certify_calibrator_interpreter_resolution_fails_closed`。
+
+### F501. python3.10 interpreter修正がperf選定PATHの優先順位を壊す回帰を生んだ [手順漏れ]
+
+- 事象: 上記F500の修正を適用した直後、rr80再投入
+  (935547.nqsv、bnode003) で`ccbench failed. rc=2 stderr=WARNING: perf not found for
+  kernel 5.15.0-173`。
+- 根本原因: interpreter解決で追加した`CALIBRATE_PATH="$(dirname "$CALIBRATE_PYTHON"):
+  $CALIBRATE_PATH"`が、既存のperf選定シンボリックリンク (`$TMPDIR/bin/perf`、
+  `certify_calibration.sh:729-731`) より**前**にpython3.10のdirname (`/bin`) をPATHへ
+  挿入してしまい、Ubuntu標準の`/bin/perf`ラッパー (kernel version不一致を検出して警告
+  終了する) が選定済みperfより優先されるようになっていた。fix作成時に既存のPATH構築との
+  相互作用を検証していなかった。
+- 恒久対応: `CALIBRATE_PATH="$TMPDIR/bin:$(dirname "$CALIBRATE_PYTHON"):$PATH"`に順序を
+  修正し、`$TMPDIR/bin`(perf選定) を最優先に戻した。
+- 再発検知: `orchestrator/tests/test_pegasus_tools.py`のPATH順序期待値検査
+  (`test_certify_calibrator_resolves_and_shims_versioned_interpreter`内)。実機再投入で
+  実証。
+
+### F502. holdout capability機構がsweepの正当なearly-stopを未消費と誤検出した [手順漏れ]
+
+- 事象: 段6敵対レビューが指摘した「未消費sweepでnoise遷移可能」(reviewB所見2) への
+  fixを適用後、rr80再投入 (935759.nqsv、bnode085) で
+  `HoldoutObservationError: sweep phase still has unconsumed records`。stdoutを見ると
+  sweepは1M/2M/4Mの3点を測定した後、`sweep.py`の`run_sweep`が持つ正当な早期終了
+  (絶対規律4に基づき、3点以上測定した時点でL3サイズ下限基準を満たせば`max_records`まで
+  回さず打ち切る設計) で正しく停止していた。
+- 根本原因: fixが要求した「`next_sweep_records is None`(records系列を`max_records`まで
+  完全消費)」という条件が、`run_sweep`のearly-stop経路 (`len(points) >= 3`の時点で
+  `analyze.find_saturation`を呼び、下限基準を満たせば`break`する) を想定しておらず、
+  実機で実際に発火する正当な早期終了を「未消費sweep」と誤検出して拒否した。
+- 恒久対応: `transition_to_noise`のsweep完了判定を「`next_sweep_records is None`
+  (全消費) または `len(state.sweep_records) >= 3` (early-stopが正当に発動しうる最小
+  観測数に達している)」のいずれかに緩和した。段6所見2が実証した1点消費での即noise遷移
+  (`len(sweep_records)==1 < 3`) は引き続き拒否される。
+- 再発検知: `orchestrator/tests/test_holdout_observation.py`に、3点消費後のnoise遷移
+  許可テストと1点消費の拒否テストの両方を追加した。実機のrr80/rr20成功投入で最終実証。
+
+### F503. 段4で事前登録した変異matrixが実施されないままwaveが取り残され、handoffは完了と読めた [手順漏れ]
+
+- 事象: 2026-08-23の再開セッションで、段4裁定が「fix後、変異matrixで所見1・2のkill確認を
+  行い、受入全走へ進む」と事前登録していたにもかかわらず、job dirに変異成果物が1件も
+  存在しないことを発見した。引き継ぎhandoffの「完了した中間成果」節と段6総括は実機成功を
+  強く記述しており、通読すると段6が閉じたように読める。
+- 根本原因: 段6の総括が「敵対レビュー2本の追加再走は実機成功確認で代替する」とだけ書き、
+  同じ段4裁定に併記されていた変異matrixの要否に触れなかった。再開側が段の完了を
+  handoffの散文で判定すると、この欠落は見えない。
+- 恒久対応: 再開セッションで anchor をlocal main取り込み後のtipに取り直して変異matrixを
+  実施した (3/3 KILLED、baseline rc=0)。再開waveは段の完了をhandoffの記述ではなく
+  job dirの成果物実在で照合する。
+- 再発検知: なし (機械検査は未設置)。`DW-S04`の「実装差分ゼロのwaveだけ変異matrixを
+  免除する」を、実装差分の実測 (`git diff main...HEAD --stat`) と突き合わせて判定する。
+
+### F504. 両親が同じ実装面fileを触るmergeで、合成監査を commit 前に挟む経路が塞がっていた [手順漏れ]
+
+- 事象: local main取り込みで両親がともに `orchestrator/tests/test_ccbench_spawn_sites.py`
+  を触り、合成結果が両親どちらとも異なったため、`tools/check_ai_provenance.py` が
+  `実装面に Codex role=author がない` で暫定messageを拒否した (実測 rc=1)。一方 Codex
+  launcher は `snapshot_authority` が `docs/dev-wave/operations.md` と
+  `docs/dev-wave/workers.md` の working tree bytes を HEAD の blob と比較するため、
+  `git merge --no-ff --no-commit` の状態 (両fileが未commitで書き換わっている) では起動できない。
+  先例が採った「暫定commit→監査→amend」は、この preflight を通せないので成立しない。
+- 根本原因: 監査を commit 前に要求する provenance gate と、clean treeを要求する launcher
+  authority が、merge 進行中の木という同じ状態で互いを塞いでいた。
+- 恒久対応: `git write-tree` + `git commit-tree` で合成結果だけを指す使い捨ての snapshot
+  commit を作り、`git worktree add --detach` した木を Codex 子の `--repo-root` に渡して
+  監査した。暫定commitもamendも要らず、監査は commit の前に置ける。監査後に snapshot
+  worktree を畳んで prune し、land を塞ぐ残骸を残さない。
+- 再発検知: なし (機械検査は未設置)。両親の変更path集合の積が実装面を含むかは
+  `git diff --name-only <親> <合成結果>` を両親について取れば commit 前に判定できる。
+
+### F505. dev-wave waiter-consumer pinのdisclaimer検出が英語語彙とH2内重複配置を防げない [恒真ゲート]
+
+- 事象: `tools/check_docs.py`の`_check_dev_wave_waiter_consumer_pins`が持つ
+  `DEV_WAVE_WAITER_DISCLAIMER_RE` (日本語の「参考例・任意・手動投入・してよい・使わない・
+  実行しない・必須でない・省略可」を検出する正規表現) は、英語の同義語 (例:
+  "This command is optional.", "do not use", "manual only") を検出しない。段3敵対相談
+  (レンズA) がこの穴を指摘した。
+- 事象2: `sequence_count()`はH2セクション全体から対象の連続行を数えるだけで、「項6という
+  特定の位置」に紐付いていない。項6自体を破壊しつつ、同じH2内の別の可視箇所に正しい
+  canonical文言を複製して配置すると、`sequence_count()==1`を満たしたままpinを回避できる。
+  段6敵対レビュー (review2) がこれを実際に再現し、`findings=[]`になることを実演した
+  (2026-08-23、dev-wave-lease-cmd-entry-sync wave)。
+- 根本原因: `_check_dev_wave_waiter_consumer_pins`は正規表現による語彙検出と、H2全体を
+  対象とした連続行カウントという2つの構造的に浅い検査で構成されており、「項6という位置に
+  紐付いた、意味を保った本文か」までは検証しない。
+- 恒久対応: 未着手。修正候補は (a) disclaimer正規表現へ英語語彙を追加する、
+  (b) `sequence_count()`を項6見出し直下の連続行だけに限定するよう構造を絞る、の2方向。
+  専用waveで、既存9件のnegative controlを壊さない設計を段2 codex planから起こす必要がある
+  ([T-1580]参照)。
+- 再発検知: 修正後、英語disclaimer語彙のnegative controlと、H2内重複配置のnegative
+  controlを`orchestrator/tests/test_check_docs.py`へ追加する。
+
+### F506. codex launcher の evidence 検査が、同一 prompt で再現的に妥当な成果物を不採用にする [検査の偽陰性]
+
+- 事象: 回収 wave が read-only の監査子を 6 本立てたところ、そのうち 1 本 (`b1`) だけが
+  `outcome=not_accepted` / `stop_reason=max_attempts` で終わり、成果物が publish されなかった。
+  lane を変え prompt の末尾を変えて計 3 回投入したが、3 回とも同じ形で落ちた。
+  同じ launcher で走った他 5 本は 5 本とも `accepted` だった。
+- 落ちた位置: `tools/codex_worker_launch.py` の `_evidence_status()` が
+  `evidence_status="invalid"` を返し、`launcher_rc=1` になる。
+  ただし `validator_rc=0` であり、`tools/check_codex_output.py` の採用条件
+  (`## 総括` を含む形式) は 3 回とも満たしていた。出力は 3,874 / 4,232 / 4,892 bytes の
+  実体を持ち、3 回とも同じ結論と同じ blocker を独立に述べていた。
+- 規模との相関は無い: 不採用 3 本の input token は 728,508 / 1,578,448 / 1,786,564、
+  採用 5 本は 332,362 / 1,268,823 / 1,590,941 / 1,871,059 / 2,067,641 で、
+  最大の走行は採用されている。`recorded_turn_context_count` はいずれも 1。
+- 根本原因: `_evidence_status()` は rollout の妥当性を 6 条件の論理和で `invalid` に畳み、
+  どの条件が成立したかを receipt にも diagnostics にも残さない。判定は launcher の内部状態
+  (`AttemptState.rollouts`) だけに依存し、`validator_rc=0` で採用条件を満たした成果物であっても
+  publish を止める。畳んだ結果しか外へ出ないため、親には再投入以外の手が無い。
+- 影響: 妥当な子の成果物が失われる。契約 (`DW-O01`) は launcher が採用しなかった成果物を
+  「未完了」として扱うことを求めるので、同じ prompt で何度投げても採用が得られない場合、
+  その監査面は独立コンテキストの証拠を持てない。本 wave では判定が `do-not-land`
+  (安全側) だったため、親が決定的な主張 1 件を自分で裏取りして先へ進んだ。
+- 恒久対応: 未着手。`_evidence_status()` が `invalid` を返した理由 (`stdout_invalid` /
+  `stdout_pending` / rollout の `invalid` / `pending` / `session_meta_count != 1` /
+  `context_count < 1` のどれか) を receipt か diagnostics へ出すようにするのが先である。
+  現状はどの条件で落ちたかが成果物から判別できず、再投入以外の手が無い。
+- 再発検知: 不採用時の receipt に、`_evidence_status()` が観測した各条件の値を記録し、
+  同一 prompt の連続不採用を親が判別できるようにする ([T-1581] 参照)。
+
+### F507. 検査を強めた結果、計測 job が使う実 topology を塞いだ [恒真ゲート] [テスト代表性]
+
+- 事象: TRACE=0 前処理同一性検査の不在証明を commit tree へ広げるとき、gitlink の coverage を
+  証明できないなら停止する設計にした。この checker を呼ぶ計測 job
+  (`tools/pegasus/mocc_trace_pilot.sh`) は submodule を初期化せずに
+  `git worktree add --detach` した tree を渡すため、**その topology では checker が必ず
+  rc=1 になり、TRACE=0 の workload が毎回 skip される**状態になっていた。
+  段 6 の敵対レビュー 2 本が独立に指摘し、親が同じ topology を再現して実測で確認した。
+- 根本原因: 2 つある。(a) 未初期化の directory へ `git -C <dir> rev-parse HEAD` を撃つと
+  git は親 repository まで遡って解決するため、submodule の HEAD のつもりで superproject の
+  HEAD を得ていた。(b) 「証明できないなら停止」は従来より強い要求を新たに課すものであり、
+  submodule の中身が元々厳密な保証の対象外だった事実に照らして過剰だった。
+  実装子が書いたテストは初期化済み submodule の topology しか覆っておらず、
+  実 job の topology を代表していなかった。
+- 恒久対応: D723 が (a) を repository 境界の事前確認で塞ぎ、
+  (b) を「確認できたときだけ確認し、できないときは coverage を主張せず進む」へ改める。
+  限界は関数の docstring に明記する。手順面 (gate を強める変更では、その gate を呼ぶ実 script の
+  topology を再現して実走する) は memory
+  `git-c-on-uninitialized-submodule-escapes-to-parent` が正本
+  — `docs/dev-wave/operations.md` の `DW-O13` へ足そうとしたが単節予算を超過して入らなかった。
+- 再発検知: `orchestrator/tests/test_check_trace0_preprocess_identity.py` の
+  `test_uninitialized_gitlink_directory_is_not_asked_to_resolve_parent_head` と
+  `test_commit_tree_with_uninitialized_gitlink_worktree_is_accepted`。
+  変異 M11 (repository 境界判定の除去) がこれを殺すことを実測で確認した
+  (`mutation-ledger-final.json`)。
+
+### F508. 裁定が述べた因果を十分条件と読み、解除後の状態を測らずに着手した [手順漏れ]
+
+- 事象: D673 は「trace ヘッダの include 行に旧版コメントが残る限り TRACE=0 の性能計測は
+  一度も走らない」と述べていた。この主張自体は正しかったが、**その 1 行を直しても
+  計測は走らなかった**。checker は別の gate (未知マクロ) で拒否し続けた。
+  段 1 の brief は「1 行を直せば計測できる」を前提に scope を組んでいた。
+- 根本原因: 裁定文の因果は必要条件を述べたものであって、十分条件の主張ではない。
+  段 1 の前提実測が「その 1 行が拒否の原因である」ことまでしか測っておらず、
+  「直した後に何が起きるか」を測っていなかった。
+- 恒久対応: D722 が実際の解除条件を確定させた。
+  手順面は memory `ruling-premise-is-necessary-not-sufficient` が正本
+  (段 1 の前提実測で解除後の状態まで probe する)。`docs/dev-wave/core.md` の `DW-S01` へ
+  足そうとしたが L1 予算を 257 bytes 超過して入らないため、memory へ routing した
+  ([T-1583] が予算の独立審査を持つ)。
+- 再発検知: 本 wave では job dir の `probe-wiring.py` と `probe-fullchecker.py` が
+  解除後の状態を段 2 直後に実測し、scope の作り直し (brief v3、段 2 からの巻き戻し) を
+  段 4 より前に発火させた。

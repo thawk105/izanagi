@@ -74,6 +74,8 @@ producer が書く全ファイル種を棚卸しして brief に列挙する。�
 
 受入形では未 stage 削除と git 検査不能を `run_tests.py` が止める (bypass 不可)。
 復旧・stage・復元の後に再走し、gate の赤を受入結果にしない。
+`output/` 配下の一括削除は `git status --porcelain -- <path>` で対象が untracked だけと個別確認して
+から行う。「commit されていないはず」の理解だけの `rm -rf` は別 wave の tracked file を消す。
 
 ## DW-O12 — 裁定手順と実行手順の差
 
@@ -105,6 +107,8 @@ monkeypatch は最後の手段とする（D78）。
 ## DW-O16 — fix 後の焦点再レビュー
 
 所見ごとの closed / partial / regressed 対応表を要求し、表なしで root cause が閉じたと判定しない（D78）。
+PATH 構築・interpreter 解決・外部 command 選定など実行環境に依存する実装は、レビュー通過だけで
+closed とせず実機で動かすまで確かめる。
 NO-GO が続く場合は fix を重ねず 3 巡を上限とし、親が変異で裏取りして残る所見を real/refuted に
 裁定して閉じる。根拠は worklog に書く。
 

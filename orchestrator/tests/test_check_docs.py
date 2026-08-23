@@ -47,8 +47,7 @@ _S09_ACCEPTANCE_ORDER_LITERAL = (
 )
 _SYNTHETIC_STAGE6_WAITER_ITEM = (
     "6. **レビュー・fix (codex 並列):** 敵対レビュー 2 本、fix、変異 matrix、受入再走を行う。\n"
-    "   受入直前に受入 lease を `tools/dev_wave_wait.py acceptance` で `claim` し、\n"
-    "   `acquired` / `held-self` のときだけ投入する。\n"
+    "   受入投入は `tools/dev_wave_wait.py acceptance --lease-optional` を使う。\n"
 )
 _SYNTHETIC_STAGE9_WAITER_ITEM = (
     "9. **終端・local main (親):** 共通 land operation で監査済み成果だけを取り込み、結果を確定して終了する。\n"
@@ -2139,15 +2138,15 @@ def test_dev_wave_command_budget_literal_is_exact():
     """入口上限・現物・plus-one 拒否を独立 literal で固定する。"""
 
     rel = ".claude/commands/dev-wave.md"
-    assert check_docs.COMMAND_LIMITS[rel] == check_docs.TextLimit(9_584, 140)
-    assert len(_read(_REPO, rel).encode("utf-8")) == 9_584
+    assert check_docs.COMMAND_LIMITS[rel] == check_docs.TextLimit(9_520, 140)
+    assert len(_read(_REPO, rel).encode("utf-8")) == 9_520
 
     root = _build_min_repo()
     try:
-        _pad_to_bytes(root, rel, 9_585)
+        _pad_to_bytes(root, rel, 9_521)
         result = _run_check(root)
         assert result.returncode == 1, result.stdout
-        assert f"{rel}: 9585 bytes > 予算 9584 bytes" in result.stdout
+        assert f"{rel}: 9521 bytes > 予算 9520 bytes" in result.stdout
     finally:
         shutil.rmtree(root, ignore_errors=True)
 
@@ -6053,7 +6052,6 @@ def _mutate_command_guard(root: str, case: str) -> None:
         stage6_lines = _SYNTHETIC_STAGE6_WAITER_ITEM.splitlines(keepends=True)
         relocated = (
             stage6_lines[1]
-            + stage6_lines[2]
             + stage6_lines[0]
         )
         assert text.count(_SYNTHETIC_STAGE6_WAITER_ITEM) == 1
@@ -6108,13 +6106,39 @@ def _mutate_command_guard(root: str, case: str) -> None:
         text = _read(root, rel)
         negated = (
             "6. **レビュー・fix (codex 並列):** 敵対レビュー 2 本、fix、変異 matrix、受入再走を行う。\n"
-            "   受入直前でも `tools/dev_wave_wait.py acceptance` は使わない。\n"
+            "   受入投入は `tools/dev_wave_wait.py acceptance --lease-optional` を使わない。\n"
         )
         assert text.count(_SYNTHETIC_STAGE6_WAITER_ITEM) == 1
         _write(
             root,
             rel,
             text.replace(_SYNTHETIC_STAGE6_WAITER_ITEM, negated, 1),
+        )
+    elif case == "decoy-lease-optional-omitted":
+        rel = ".claude/commands/dev-wave.md"
+        text = _read(root, rel)
+        omitted = (
+            "6. **レビュー・fix (codex 並列):** 敵対レビュー 2 本、fix、変異 matrix、受入再走を行う。\n"
+            "   受入投入は `tools/dev_wave_wait.py acceptance` を使う。\n"
+        )
+        assert text.count(_SYNTHETIC_STAGE6_WAITER_ITEM) == 1
+        _write(
+            root,
+            rel,
+            text.replace(_SYNTHETIC_STAGE6_WAITER_ITEM, omitted, 1),
+        )
+    elif case == "decoy-lease-optional-typo":
+        rel = ".claude/commands/dev-wave.md"
+        text = _read(root, rel)
+        typo = (
+            "6. **レビュー・fix (codex 並列):** 敵対レビュー 2 本、fix、変異 matrix、受入再走を行う。\n"
+            "   受入投入は `tools/dev_wave_wait.py acceptance --lease-optonal` を使う。\n"
+        )
+        assert text.count(_SYNTHETIC_STAGE6_WAITER_ITEM) == 1
+        _write(
+            root,
+            rel,
+            text.replace(_SYNTHETIC_STAGE6_WAITER_ITEM, typo, 1),
         )
     elif case == "decoy-blockquoted":
         rel = ".claude/commands/dev-wave.md"
@@ -6868,6 +6892,8 @@ _COMMAND_GUARD_CASES = [
     "target-symlinked",
     "decoy-optional",
     "decoy-negated",
+    "decoy-lease-optional-omitted",
+    "decoy-lease-optional-typo",
     "decoy-blockquoted",
     "pre-wave-form",
     "reference_section_deleted",
@@ -6990,6 +7016,8 @@ _COMMAND_GUARD_NEEDLES = {
     "target-symlinked": "canonical target が symlink でない regular file",
     "decoy-optional": "normative line と同じ節に義務を打ち消す語がある",
     "decoy-negated": "9 段状態機械の項 6 に waiter consumer",
+    "decoy-lease-optional-omitted": "9 段状態機械の項 6 に waiter consumer",
+    "decoy-lease-optional-typo": "9 段状態機械の項 6 に waiter consumer",
     "decoy-blockquoted": "9 段状態機械の項 6 に waiter consumer",
     "pre-wave-form": "9 段状態機械の項 6 に waiter consumer",
     "reference_section_deleted": "H2 見出し DW-M05 が 0 件",
@@ -7279,6 +7307,8 @@ def test_command_guard_case_registration_is_complete():
         "target-symlinked",
         "decoy-optional",
         "decoy-negated",
+        "decoy-lease-optional-omitted",
+        "decoy-lease-optional-typo",
         "decoy-blockquoted",
         "pre-wave-form",
     } <= case_keys
