@@ -114,3 +114,16 @@ title: [T-790] 条件付き未実走と g++-13 skip の「開けない前提」�
   `RuntimeError: ... cc/mocc/transaction.cc を読めない` で赤になる。今は g++-13 不在の skip が
   隠している。修理は数行だが、発火するのは {{T:norm-compiler-for-acceptance}} の裁定後なので
   そちらに束ねてよい。
+- {{T:dev-wave-docs-budget-exhausted}} **P2・新規・ユーザー裁定待ち**: dev-wave docs の予算が
+  満杯で、実測した手順の是正が 1 件も入らない。本 wave は変異 harness の
+  `--attempt-out` / `--wrapper-attempt` が `--runner-mode dispatch` 専用である
+  (local へ渡すと rc=2 で即停止する) ことを実測で踏み、`DW-O19` が同名の flag を
+  `tools/mutation_worktree.py` について書いているせいで取り違えが起きると特定した。
+  ところが統合先の 2 節はどちらも満杯で、L1.5 層は追加前 9565 / 9566 bytes (余裕 1 byte)、
+  `DW-O19` は 998 / 1000 bytes (余裕 2 bytes) だった。自己改善契約は
+  「予算のために安全義務を削除・弱化してはならない」「予算値を上げる変更は理由付きの
+  独立審査対象」と定めるため、編集を戻して裁定へ返す。選択肢 = (a) 予算値を上げる /
+  (b) L1.5 の既存節を意味等価に縮約する枠を別 wave で取る / (c) 実測した是正を入れないまま
+  運用を続ける。推奨 = (b) — 予算はレイヤの読み込み量を守る仕掛けなので、上げる前に
+  縮約の余地を測るべきである。なお同型の観測は memory にも既にある
+  (dev-wave docs の 3 層とも予算満杯)。
