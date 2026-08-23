@@ -1263,6 +1263,7 @@ def _clean_subprocess_env(
     env = os.environ.copy()
     env.pop("PYTEST_ADDOPTS", None)
     env.pop("IZANAGI_RUN_GROWTH_HELD_TESTS", None)
+    env["NO_COLOR"] = "1"
     if opt_in:
         env["IZANAGI_RUN_GROWTH_HELD_TESTS"] = "explicit-user-command"
     if repo_on_pythonpath:
@@ -1823,6 +1824,7 @@ def test_opt_in_runs_held_fixture_and_parametrize_shape(tmp_path):
             sys.executable,
             "-m",
             "pytest",
+            "--color=no",
             "--noconftest",
             "-p",
             "no:cacheprovider",
@@ -1919,6 +1921,7 @@ def test_call_only_mode_still_rejects_noconftest_pytest_import(tmp_path):
             sys.executable,
             "-m",
             "pytest",
+            "--color=no",
             "--noconftest",
             "-p",
             "no:cacheprovider",
@@ -1943,6 +1946,7 @@ def test_call_only_mode_still_rejects_confcutdir_pytest_import(tmp_path):
             sys.executable,
             "-m",
             "pytest",
+            "--color=no",
             "--confcutdir",
             str(tmp_path),
             "-p",
@@ -1978,6 +1982,7 @@ def test_noconftest_bypass_is_refused_before_held_body():
         sys.executable,
         "-m",
         "pytest",
+        "--color=no",
         "--noconftest",
         "-p",
         "no:cacheprovider",
@@ -2071,6 +2076,7 @@ def test_regular_pytest_path_keeps_single_hold_skip():
         sys.executable,
         "-m",
         "pytest",
+        "--color=no",
         "-p",
         "no:cacheprovider",
         "-q",

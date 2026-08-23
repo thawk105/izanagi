@@ -2676,7 +2676,7 @@ def test_launcher_failure_diagnostic_reports_failed_predicates(
     tmp_path: Path,
 ) -> None:
     with pytest.raises(LauncherReturncodeMismatch) as caught:
-        _run_case(tmp_path, "no_token", expected_returncode=99, max_wall="3")
+        _run_case(tmp_path, "no_token", expected_returncode=99, max_wall="11")
 
     message = str(caught.value)
     first_line = message.splitlines()[0]
@@ -2699,7 +2699,7 @@ def test_launcher_failure_diagnostic_reports_failed_predicates(
         f"{os.environ.get('PYTEST_XDIST_WORKER', '<unset>')!r}"
     ) in message
     assert f"PBS_JOBID={os.environ.get('PBS_JOBID', '<unset>')!r}" in message
-    assert "launcher_budgets: wall='3' evidence='1.0'" in message
+    assert "launcher_budgets: wall='11' evidence='1.0'" in message
     assert "termination='0.05' poll='0.01'" in message
     assert "receipt_limits={" in message
     assert "'wall_clock_admission_bound_s'" in message
@@ -2733,7 +2733,7 @@ def test_launcher_failure_diagnostic_reports_incomplete_evidence(
     tmp_path: Path,
 ) -> None:
     with pytest.raises(LauncherReturncodeMismatch) as caught:
-        _run_case(tmp_path, "no_rollout", expected_returncode=99, max_wall="3")
+        _run_case(tmp_path, "no_rollout", expected_returncode=99, max_wall="11")
 
     message = str(caught.value)
     assert "evidence_status='missing'" in message
@@ -2859,13 +2859,15 @@ def test_launcher_failure_diagnostic_is_wired_to_the_returncode_assertion(
     subprocess_root.mkdir()
     with pytest.raises(LauncherReturncodeMismatch) as run_case:
         _run_case(
-            subprocess_root, "normal", expected_returncode=99, max_wall="3"
+            subprocess_root, "normal", expected_returncode=99, max_wall="11"
         )
 
     popen_root = tmp_path / "direct-popen"
     popen_root.mkdir()
     fake = _write_fake_codex(popen_root / "fake-codex")
-    command, env, paths = _base_command(popen_root, fake=fake)
+    command, env, paths = _base_command(
+        popen_root, fake=fake, max_wall="11"
+    )
     env["FAKE_MODE"] = "normal"
     process = subprocess.Popen(
         command,
@@ -2887,7 +2889,7 @@ def test_launcher_failure_diagnostic_is_wired_to_the_returncode_assertion(
     in_process_root.mkdir()
     in_process_fake = _write_fake_codex(in_process_root / "fake-codex")
     in_process_command, in_process_env, in_process_paths = _base_command(
-        in_process_root, fake=in_process_fake
+        in_process_root, fake=in_process_fake, max_wall="11"
     )
     in_process_env["FAKE_MODE"] = "normal"
     with pytest.raises(LauncherReturncodeMismatch) as in_process:
@@ -3706,7 +3708,7 @@ def test_evidence_grace_starts_at_spawn_completed(
         tmp_path,
         fake=fake,
         evidence_grace="0.05",
-        max_wall="3",
+        max_wall="11",
     )
     env["FAKE_MODE"] = "no_rollout"
     _install_evidence_origin_logical_clock(monkeypatch)
@@ -3729,7 +3731,7 @@ def test_evidence_grace_starts_at_spawn_completed_on_retry(
         fake=fake,
         evidence_grace="0.05",
         max_attempts=2,
-        max_wall="3",
+        max_wall="11",
     )
     env["FAKE_SEQUENCE"] = "retry_reject,no_rollout"
     _install_evidence_origin_logical_clock(monkeypatch)
@@ -3881,7 +3883,7 @@ def test_limit_stop_is_never_accepted(tmp_path: Path) -> None:
         expected_returncode=1,
         max_calls=1,
         max_tokens=100000,
-        max_wall="3",
+        max_wall="11",
     )
 
     assert receipt is not None
@@ -3903,7 +3905,7 @@ def test_missing_metering_evidence_is_not_accepted(tmp_path: Path) -> None:
         expected_returncode=1,
         max_calls=100,
         max_tokens=100000,
-        max_wall="3",
+        max_wall="11",
     )
 
     assert receipt is not None
@@ -3924,7 +3926,7 @@ def test_token_cap_uses_cli_reported_definition(tmp_path: Path) -> None:
         expected_returncode=0,
         max_calls=100,
         max_tokens=61,
-        max_wall="3",
+        max_wall="11",
     )
 
     assert receipt is not None
@@ -3946,7 +3948,7 @@ def test_cli_reported_token_limit_stops_process(tmp_path: Path) -> None:
         expected_returncode=1,
         max_calls=100,
         max_tokens=50,
-        max_wall="3",
+        max_wall="11",
     )
 
     assert receipt is not None
@@ -3972,7 +3974,7 @@ def test_positive_p3_exact_limit_natural_exit_is_accepted(
         expected_returncode=0,
         max_calls=1,
         max_tokens=60,
-        max_wall="3",
+        max_wall="11",
     )
 
     assert receipt is not None
@@ -4784,7 +4786,7 @@ def test_cumulative_limits_do_not_reset_between_attempts(
         max_attempts=2,
         max_calls=2,
         max_tokens=100000,
-        max_wall="3",
+        max_wall="11",
     )
     env["FAKE_SEQUENCE"] = "retry_reject,retry_wait"
     completed = _run_launcher_subprocess(
@@ -4813,7 +4815,7 @@ def test_retry_admission_exact_model_call_limit_is_not_accepted(
         max_attempts=3,
         max_calls=1,
         max_tokens=100000,
-        max_wall="3",
+        max_wall="11",
     )
     env["FAKE_MODE"] = "retry_reject"
     _run_launcher_subprocess(
@@ -4838,7 +4840,7 @@ def test_max_attempts_never_spawns_extra_attempt(tmp_path: Path) -> None:
         max_attempts=2,
         max_calls=100,
         max_tokens=100000,
-        max_wall="3",
+        max_wall="11",
     )
     env["FAKE_MODE"] = "retry_reject"
     completed = _run_launcher_subprocess(
@@ -5988,7 +5990,7 @@ def test_check_receipt_rechecks_all_manifest_header_fields(
     field: str,
 ) -> None:
     completed, receipt, paths = _run_case(
-        tmp_path, "normal", expected_returncode=0, max_wall="6"
+        tmp_path, "normal", expected_returncode=0, max_wall="11"
     )
     assert receipt is not None
     manifest = json.loads(paths["manifest"].read_text(encoding="utf-8"))
@@ -6082,7 +6084,7 @@ def test_cli_reported_running_max_latches_usage_rollback(
         expected_returncode=1,
         max_calls=100,
         max_tokens=100,
-        max_wall="3",
+        max_wall="11",
     )
 
     assert receipt is not None
@@ -6102,7 +6104,7 @@ def test_usage_rollback_alone_is_rejected_without_peak_or_terminal_mask(
         expected_returncode=1,
         max_calls=100,
         max_tokens=100000,
-        max_wall="3",
+        max_wall="11",
     )
 
     assert receipt is not None
@@ -6123,7 +6125,7 @@ def test_null_token_count_is_observed_and_makes_metering_incomplete(
         expected_returncode=1,
         max_calls=100,
         max_tokens=100000,
-        max_wall="3",
+        max_wall="11",
     )
 
     assert receipt is not None
@@ -6242,7 +6244,7 @@ def test_final_drain_actuals_are_rechecked_before_acceptance(
         expected_returncode=1,
         max_calls=100,
         max_tokens=100,
-        max_wall="3",
+        max_wall="11",
     )
 
     assert receipt is not None
@@ -6280,7 +6282,7 @@ def test_rollout_missing_after_grace_is_stopped_and_not_accepted(
         tmp_path,
         "no_rollout",
         expected_returncode=1,
-        max_wall="3",
+        max_wall="11",
         evidence_grace="0.3",
         max_calls=100,
         max_tokens=100000,
@@ -6307,7 +6309,7 @@ def test_thread_missing_after_grace_kills_process_group(tmp_path: Path) -> None:
         tmp_path,
         "no_thread",
         expected_returncode=1,
-        max_wall="3",
+        max_wall="11",
         evidence_grace="0.3",
         max_calls=100,
         max_tokens=100000,
