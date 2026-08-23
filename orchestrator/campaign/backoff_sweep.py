@@ -33,7 +33,8 @@ from .loop import run_campaign                          # noqa: E402
 from . import buildcache                                 # noqa: E402
 from .build_admission import (BuildRunContext, GeneratorId,  # noqa: E402
                                       attest_generator_output, build_run_context)
-from .layout import CampaignLayout                      # noqa: E402
+from .layout import (CampaignLayout, _OFFICIAL_OUTPUT_ROOT_ENV)  # noqa: E402
+from .durable_root import DurableRootPolicy             # noqa: E402
 from .model import CampaignConfig, Genome               # noqa: E402
 from . import p2_2                                       # noqa: E402
 from .p2_2 import (EXTIME, RECORDS, REPS, THREADS,        # noqa: E402
@@ -64,6 +65,27 @@ WORKLOADS = [
     ("balanced", {"ycsb_zipf_skew": "0.9", "ycsb_rratio": "50", "ycsb_rmw": "0"}),
     ("read-heavy", {"ycsb_zipf_skew": "0.9", "ycsb_rratio": "95", "ycsb_rmw": "0"}),
 ]
+
+
+def _official_durable_root_policy(
+        output_root: Optional[Path] = None,
+) -> Optional[DurableRootPolicy]:
+    """Build the injected durable policy for an official output root."""
+    raw = (
+        os.fspath(output_root)
+        if output_root is not None
+        else os.environ.get(_OFFICIAL_OUTPUT_ROOT_ENV)
+    )
+    if not raw:
+        return None
+    candidate = Path(raw)
+    if not candidate.is_absolute():
+        candidate = candidate.absolute()
+    try:
+        resolved = candidate.resolve(strict=False)
+    except OSError:
+        return None
+    return DurableRootPolicy(approved_roots=(resolved,), forbidden_roots=())
 
 
 def genomes():
@@ -250,7 +272,8 @@ def run_workload(tag: str, workload: dict, log=print, *,
                          expected_toolchain_manifest=expected_toolchain_manifest,
                          build_context=build_context,
                          declared_use_class="official",
-                         capability_resolver=capability_resolver)
+                         capability_resolver=capability_resolver,
+                         durable_root_policy=_official_durable_root_policy())
 
     rows = [(r.fitness_tps, r) for r in s.results if r.fitness_tps is not None]
     rows.sort(key=lambda t: t[0], reverse=True)

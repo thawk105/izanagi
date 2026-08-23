@@ -1359,6 +1359,8 @@ def test_production_use_perf_keyword_call_sites_are_a_closed_set():
     assert sorted(call_sites) == [
         ("orchestrator/calibrator/runner.py", "_build_cmd"),
         ("orchestrator/calibrator/runner.py", "repro_command"),
+        ("orchestrator/campaign/between_run_floor.py", "measure_point"),
+        ("orchestrator/campaign/between_run_floor.py", "measure_point"),
         ("orchestrator/campaign/s8b_floor_campaign.py", "build_portable_run_cmd"),
         ("orchestrator/campaign/s8b_floor_campaign.py", "measure_point"),
         ("orchestrator/campaign/s8b_oracle_n_pilot.py", "measure_fn"),

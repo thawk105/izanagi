@@ -13,6 +13,8 @@ import contextlib
 import io
 import os
 import sys
+import tempfile
+from pathlib import Path
 from types import SimpleNamespace
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
@@ -22,6 +24,33 @@ sys.path.insert(0, os.path.dirname(_ORCH))
 from orchestrator.calibrator import runner                          # noqa: E402
 from orchestrator.campaign import between_run_floor                 # noqa: E402
 from orchestrator.campaign.p2_2 import _assert_single_tenant         # noqa: E402
+
+
+def _floor_result():
+    return {
+        "genome": "silo:BACK_OFF=0",
+        "records": 1_000_000,
+        "threads": 48,
+        "clocks_per_us": 1800,
+        "abort_rate": 0.0,
+        "run_cmd": "/fixture/benchmark",
+        "within_run": {
+            "reps": 10, "cv": 0.01, "median": 100.0, "mean": 100.0,
+        },
+        "between_run": {
+            "sessions": 8, "reps_per_session": 5, "cv": 0.02,
+            "median": 100.0, "mean": 100.0, "stdev": 2.0,
+            "session_throughputs": [100.0] * 8,
+            "high_variance": False, "notes": [],
+        },
+    }
+
+
+def _restore_env(name, previous):
+    if previous is None:
+        os.environ.pop(name, None)
+    else:
+        os.environ[name] = previous
 
 
 def test_between_run_floor_uses_p2_2_assert_single_tenant():
@@ -73,6 +102,173 @@ def test_between_run_floor_admission_passes_when_no_competitor():
         between_run_floor._assert_single_tenant()   # 例外を出さないこと
     finally:
         runner.competing_bench_pids = orig
+
+
+def test_selected_env_tag_rejects_unknown_value():
+    previous = os.environ.get(between_run_floor.ENV_TAG_OVERRIDE)
+    os.environ[between_run_floor.ENV_TAG_OVERRIDE] = "unsupported-site"
+    try:
+        try:
+            between_run_floor._selected_env_tag()
+        except ValueError as caught:
+            assert between_run_floor.ENV_TAG_OVERRIDE in str(caught)
+        else:
+            assert False, "不正な env tag を受理した"
+    finally:
+        _restore_env(between_run_floor.ENV_TAG_OVERRIDE, previous)
+
+
+def test_selected_env_tag_defaults_to_linux_baremetal_profile():
+    previous = os.environ.get(between_run_floor.ENV_TAG_OVERRIDE)
+    os.environ.pop(between_run_floor.ENV_TAG_OVERRIDE, None)
+    try:
+        selected = between_run_floor._selected_env_tag()
+        assert selected == between_run_floor.DEFAULT_ENV_TAG
+        assert selected == "linux-baremetal"
+    finally:
+        _restore_env(between_run_floor.ENV_TAG_OVERRIDE, previous)
+
+
+def test_pegasus_measurement_profile_uses_2100_without_numactl():
+    assert between_run_floor._measurement_profile(
+        between_run_floor.PEGASUS_ENV_TAG,
+    ) == (2100, [])
+
+
+def test_write_out_uses_selected_pegasus_environment_path():
+    result = _floor_result()
+    workload = {
+        "ycsb_zipf_skew": "0.9", "ycsb_rratio": "95", "ycsb_rmw": "0",
+    }
+    with tempfile.TemporaryDirectory() as raw_tmp:
+        tmp_dir = Path(raw_tmp)
+        seen = []
+        original_scope_dir = between_run_floor.env_scope_dir
+        between_run_floor.env_scope_dir = (
+            lambda env_tag: seen.append(env_tag) or str(tmp_dir / env_tag)
+        )
+        try:
+            path = between_run_floor._write_out(
+                "read-heavy", workload, result,
+                env_tag=between_run_floor.PEGASUS_ENV_TAG, log=lambda *_args: None,
+            )
+        finally:
+            between_run_floor.env_scope_dir = original_scope_dir
+
+        output_path = Path(path)
+        assert seen == [between_run_floor.PEGASUS_ENV_TAG]
+        assert output_path.parent == (
+            tmp_dir / between_run_floor.PEGASUS_ENV_TAG / "calibration"
+        )
+        assert "registered" not in output_path.parts
+
+
+def test_pegasus_build_passes_site_aware_compilers():
+    previous = os.environ.get(between_run_floor.ENV_TAG_OVERRIDE)
+    os.environ[between_run_floor.ENV_TAG_OVERRIDE] = between_run_floor.PEGASUS_ENV_TAG
+    calls = {"compiler": 0, "evidence": [], "build": []}
+    originals = {
+        "assert_single_tenant": between_run_floor._assert_single_tenant,
+        "build_run_context": between_run_floor.build_run_context,
+        "resolve_evidence": between_run_floor.source_digest.resolve_evidence,
+        "derive_build_admission": between_run_floor.derive_build_admission,
+        "compilers": between_run_floor.buildcache.compilers_for_current_site,
+        "build": between_run_floor.buildcache.build,
+        "measure": between_run_floor.measure_point_floor,
+        "write": between_run_floor._write_out,
+    }
+
+    def fake_compilers():
+        calls["compiler"] += 1
+        return "pegasus-cc", "pegasus-cxx"
+
+    def fake_evidence(*args, **kwargs):
+        calls["evidence"].append((args, kwargs))
+        return object()
+
+    def fake_build(*args, **kwargs):
+        calls["build"].append((args, kwargs))
+        return SimpleNamespace(cached=True, binary="/fixture/pegasus-binary")
+
+    between_run_floor._assert_single_tenant = lambda: None
+    between_run_floor.build_run_context = lambda **_kwargs: object()
+    between_run_floor.source_digest.resolve_evidence = fake_evidence
+    between_run_floor.derive_build_admission = lambda *_args: object()
+    between_run_floor.buildcache.compilers_for_current_site = fake_compilers
+    between_run_floor.buildcache.build = fake_build
+    between_run_floor.measure_point_floor = (
+        lambda *_args, **_kwargs: _floor_result()
+    )
+    between_run_floor._write_out = lambda *_args, **_kwargs: None
+    try:
+        assert between_run_floor.main(["prog", "read-heavy"]) == 0
+    finally:
+        between_run_floor._assert_single_tenant = originals["assert_single_tenant"]
+        between_run_floor.build_run_context = originals["build_run_context"]
+        between_run_floor.source_digest.resolve_evidence = originals["resolve_evidence"]
+        between_run_floor.derive_build_admission = originals["derive_build_admission"]
+        between_run_floor.buildcache.compilers_for_current_site = originals["compilers"]
+        between_run_floor.buildcache.build = originals["build"]
+        between_run_floor.measure_point_floor = originals["measure"]
+        between_run_floor._write_out = originals["write"]
+        _restore_env(between_run_floor.ENV_TAG_OVERRIDE, previous)
+
+    assert calls["compiler"] == 1
+    assert len(calls["evidence"]) == 1
+    assert calls["evidence"][0][1]["cxx"] == "pegasus-cxx"
+    assert len(calls["build"]) == 1
+    assert calls["build"][0][1]["cc"] == "pegasus-cc"
+    assert calls["build"][0][1]["cxx"] == "pegasus-cxx"
+
+
+def test_pegasus_main_disables_perf_for_floor_measurement():
+    previous = os.environ.get(between_run_floor.ENV_TAG_OVERRIDE)
+    os.environ[between_run_floor.ENV_TAG_OVERRIDE] = between_run_floor.PEGASUS_ENV_TAG
+    calls = {"measure": [], "write": []}
+    originals = {
+        "assert_single_tenant": between_run_floor._assert_single_tenant,
+        "build_run_context": between_run_floor.build_run_context,
+        "resolve_evidence": between_run_floor.source_digest.resolve_evidence,
+        "derive_build_admission": between_run_floor.derive_build_admission,
+        "compilers": between_run_floor.buildcache.compilers_for_current_site,
+        "build": between_run_floor.buildcache.build,
+        "measure": between_run_floor.measure_point_floor,
+        "write": between_run_floor._write_out,
+    }
+
+    def fake_measure(*args, **kwargs):
+        calls["measure"].append((args, kwargs))
+        return _floor_result()
+
+    between_run_floor._assert_single_tenant = lambda: None
+    between_run_floor.build_run_context = lambda **_kwargs: object()
+    between_run_floor.source_digest.resolve_evidence = lambda *_args, **_kwargs: object()
+    between_run_floor.derive_build_admission = lambda *_args: object()
+    between_run_floor.buildcache.compilers_for_current_site = (
+        lambda: ("pegasus-cc", "pegasus-cxx")
+    )
+    between_run_floor.buildcache.build = lambda *_args, **_kwargs: SimpleNamespace(
+        cached=True, binary="/fixture/pegasus-binary"
+    )
+    between_run_floor.measure_point_floor = fake_measure
+    between_run_floor._write_out = lambda *args, **kwargs: calls["write"].append(
+        (args, kwargs)
+    )
+    try:
+        assert between_run_floor.main(["prog", "read-heavy"]) == 0
+    finally:
+        between_run_floor._assert_single_tenant = originals["assert_single_tenant"]
+        between_run_floor.build_run_context = originals["build_run_context"]
+        between_run_floor.source_digest.resolve_evidence = originals["resolve_evidence"]
+        between_run_floor.derive_build_admission = originals["derive_build_admission"]
+        between_run_floor.buildcache.compilers_for_current_site = originals["compilers"]
+        between_run_floor.buildcache.build = originals["build"]
+        between_run_floor.measure_point_floor = originals["measure"]
+        between_run_floor._write_out = originals["write"]
+        _restore_env(between_run_floor.ENV_TAG_OVERRIDE, previous)
+
+    assert len(calls["measure"]) == 1
+    assert calls["measure"][0][1].get("use_perf") is False
 
 
 def test_main_rejects_extra_arguments_before_campaign_work():
