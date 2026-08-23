@@ -27,6 +27,12 @@ _CONDITIONAL_NODEIDS = tuple(
     for filename, functions in _CONDITIONAL_NODES.items()
     for function in functions
 )
+_CONDITIONAL_PREPROCESS_NODES = {
+    "test_campaign.py": (
+        "test_source_digest_fixed_variant_distinct",
+        "test_source_digest_failsclosed_on_missing_define",
+    ),
+}
 
 
 def _function_node(filename: str, function_name: str) -> ast.FunctionDef | ast.AsyncFunctionDef:
@@ -62,6 +68,16 @@ def test_conditional_unrun_nodes_use_classified_helper():
             calls = _calls_in_function(filename, function_name)
             assert "skip_conditional_unrun" in calls, (
                 f"条件付き未実走 helper の結線が無い: {filename}::{function_name}"
+            )
+
+
+def test_conditional_preprocess_nodes_require_g13():
+    for filename, functions in _CONDITIONAL_PREPROCESS_NODES.items():
+        for function_name in functions:
+            calls = _calls_in_function(filename, function_name)
+            assert "_require_g13" in calls, (
+                "条件付き未実走の窓が開いた瞬間に compiler 不在が skip ではなく"
+                f"未捕捉 RuntimeError の赤になる: {filename}::{function_name}"
             )
 
 
