@@ -142,9 +142,12 @@ _EXPLICIT_NON_CCBENCH_PROCESS_SITES = Counter({
     ("campaign/sort_swo_oracle.py", "<module>._compile"): 1,
     ("campaign/sort_swo_oracle.py", "<module>._compiler_version"): 1,
     ("campaign/sort_swo_oracle.py", "<module>._run_matrix"): 1,
+    # Read-only Git metadata queries use fixed argv and a sanitized environment.
+    ("campaign/source_digest.py", "<module>._checkout_gitlink_oid"): 2,
     ("campaign/source_digest.py", "<module>._cpp_normalize"): 1,
     ("campaign/source_digest.py", "<module>._dump_macros"): 1,
     ("campaign/source_digest.py", "<module>._git_show"): 1,
+    ("campaign/source_digest.py", "<module>._git_tree_entries"): 1,
     ("campaign/source_digest.py", "<module>._tracked_diff_sha256"): 1,
     ("campaign/source_digest.py", "<module>._tracked_status_paths"): 1,
     ("campaign/t080_freeze_migration.py", "<module>._git"): 1,
