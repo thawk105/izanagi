@@ -31,6 +31,28 @@ seq: 2
   無条件の ww 停止が手製 fixture 4 node に KILLED、規模条件付きが SURVIVED となり、
   pin の射程が機械で露出した。片方だけを登録すると、この差は見えない。
 
+### {{F:absolute-wallclock-assert-flakes-under-xdist}}. 絶対 wall-clock を assert するテストが受入全走の並列負荷で非再現の赤になる [テスト代表性] [計測汚染]
+
+- 事象: 受入全走 attempt 6 (tested tip 3981ab5a) が
+  `orchestrator/tests/test_dev_waves_protocol.py::test_server_read_deadline_is_absolute_under_slow_byte_drip`
+  1 件だけで赤になった (1 failed / 14,340 passed / 77 skipped / 389.24 秒)。
+  破れたのは `assert time.monotonic() - started < 0.15` で、`deadline_s=0.04` に対する
+  実時間の上界である。**同ファイルの単独走は 14 passed / 2.48 秒 / rc=0 で緑**であり再現しない。
+  本 wave の差分 (verifier の trace fixture とテスト、docs) から当該ファイルへの到達経路は無い。
+- 根本原因: このテストは 1 byte ずつ送る thread と受信側の deadline を実時間で突き合わせる。
+  受入全走は xdist で数十 worker を同時に走らせるため、worker のスケジューリング遅延が
+  0.11 秒の余裕 (0.15 − 0.04) を容易に食い潰す。deadline 実装の正しさではなく、
+  測定環境の負荷が assert を破っている。F273 と同じ「負荷依存の実時間 assert」族だが、
+  F273 は実 launcher の spawn と並行 codex 子が原因であり、こちらは xdist の
+  スケジューリング遅延だけで起きる点が異なる。
+- 恒久対応: 判定は `DW-O18` の既存規律に従う — 差分が到達しえないファイルの赤は
+  単独再走で再現性を実測し、再現しなければ実装差分へ帰属させない。本エントリがその起票実体である。
+  **上界を負荷に依らない形へ変える (相対比較・monotonic な因果の assert へ置き換える) かは
+  当該テストの所有者の設計判断であり、本 wave では変更しない。**
+- 再発検知: 受入が赤で失敗 node が実時間の上界 assert に集中しているときは、
+  同ファイルの単独走 (`python3 tools/run_tests.py <file> --force-dispatch`) が緑かを確かめる。
+  緑なら差分へ帰属させない。
+
 ## 再発
 
 ### F273
