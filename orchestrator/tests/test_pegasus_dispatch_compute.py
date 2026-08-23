@@ -3274,40 +3274,8 @@ def test_tests_task_env_allowlist_is_exact():
         "IZANAGI_TASK_RUN_SIDECAR",
         "IZANAGI_TASK_RUN_AUTO_RECORD",
         "PYTHONDONTWRITEBYTECODE",
-        "IZANAGI_T080_E2E",
         "IZANAGI_RUN_GROWTH_HELD_TESTS",
     })
-
-
-def test_t080_e2e_opt_in_env_is_projected_into_tests_request(tmp_path):
-    scheduler = _Scheduler()
-    clock = _Clock()
-    rc = DC.dispatch(
-        ["orchestrator/tests/test_s8b_oracle_driver.py", "-q"],
-        task="tests",
-        repo_root=_REPO,
-        output_root=tmp_path / "dispatch",
-        environ={
-            "PATH": os.environ.get("PATH", ""),
-            "IZANAGI_T080_E2E": "1",
-            "IZANAGI_UNLISTED": "must-not-propagate",
-        },
-        run_command=scheduler,
-        clock=clock,
-        sleep=clock.sleep,
-        poll_interval_s=5,
-        queue_wait_timeout_s=20,
-        accounting_grace_s=0,
-        nonce="t080-opt-in-nonce",
-    )
-    assert rc == 0
-
-    request = json.loads(
-        (
-            tmp_path / "dispatch" / "t080-opt-in-nonce" / "request.json"
-        ).read_text(encoding="utf-8"),
-    )
-    assert request["environment"] == {"IZANAGI_T080_E2E": "1"}
 
 
 def test_python_dont_write_bytecode_env_is_projected_into_tests_request(

@@ -46,6 +46,10 @@ _REAL_REPO_SERIAL_NODES_GOLDEN = frozenset({
     # snapshot テストの結線監査 meta-テスト (本ファイル)。実 ROOT で builder を実走し
     # repo tree snapshot を取るため writer の patch 窓と同じ競合面 (D63 列挙漏れの補完)。
     "test_real_repo_serialization.py::test_protocol_builder_repo_tree_guard_is_wired_to_real_root",
+    # T-080 の子 collection が実履歴、output、共有 submodule を読む reader。
+    "test_real_repo_serialization.py::test_stub_free_receipt_nodes_are_selected_and_reach_setup_by_default",
+    # foreign module の import-time temp 境界と実 output の不変を検査する reader。
+    "test_real_repo_serialization.py::test_t080_import_temp_environment_fails_closed_for_foreign_module",
     "test_p3_s4_loop.py::test_drive_iteration_checkpoint_survives_across_calls",
     "test_p3_s4_loop_sort.py::test_drive_iteration_checkpoint_survives_across_calls",
     "test_p3_s4_loop_trigger_gating.py::test_drive_iteration_writes_entry_and_checkpoint",
@@ -456,6 +460,22 @@ def _run_subprocess(argv, *, cwd, env=None):
     )
 
 
+def _t080_output_snapshot(root: Path) -> tuple[tuple[object, ...], ...]:
+    """一時 file の作成後削除も directory timestamp で捉える軽量 snapshot。"""
+    entries = [root, *root.rglob("*")]
+    return tuple(
+        (
+            path.relative_to(root).as_posix() if path != root else ".",
+            info.st_mode,
+            info.st_size,
+            info.st_mtime_ns,
+            info.st_ctime_ns,
+        )
+        for path in sorted(entries)
+        for info in (path.lstat(),)
+    )
+
+
 def _require_pytest() -> None:
     try:
         __import__("pytest")
@@ -597,6 +617,219 @@ def _collect_xdist_group_report(
             f"collection subprocess failed:\nstdout={proc.stdout}\nstderr={proc.stderr}"
         )
         return json.loads(report_path.read_text(encoding="utf-8"))
+
+
+def _collect_t080_default_execution_report(
+        target_module: Path, target_nodeids: set[str]) -> dict[str, object]:
+    """全 file collection と対象 node の setup outcome を別走で実測する。"""
+    target_module = target_module.resolve()
+    target_functions = {
+        nodeid.split("::", 1)[1].split("[", 1)[0]
+        for nodeid in target_nodeids
+    }
+    assert all(
+        nodeid.startswith(f"{target_module.name}::")
+        for nodeid in target_nodeids
+    ), target_nodeids
+    probe_temp_root = Path(tempfile.gettempdir()).resolve()
+    real_output = (ROOT / "output").resolve()
+    assert (
+        probe_temp_root != real_output
+        and not probe_temp_root.is_relative_to(real_output)
+    ), (
+        "T-080 E2E temp root は実 repo の output/ 配下に置けない: "
+        f"{probe_temp_root}"
+    )
+    with tempfile.TemporaryDirectory(
+            prefix="izanagi-t080-default-collect-", dir=probe_temp_root,
+            ) as raw_tmp:
+        tmp = Path(raw_tmp)
+        collect_report_path = tmp / "collect-report.json"
+        setup_report_path = tmp / "setup-report.json"
+        plugin_path = tmp / "t080_default_execution_plugin.py"
+        plugin_path.write_text(
+            textwrap.dedent(
+                """
+                import json
+                import os
+                from pathlib import Path
+
+                TARGETS = set(json.loads(os.environ["IZANAGI_T080_TARGETS"]))
+                REPORT = {
+                    "selected": [],
+                    "deselected": [],
+                    "markers": {},
+                    "setup": {},
+                }
+
+                def canonical_nodeid(nodeid):
+                    path, separator, tail = nodeid.partition("::")
+                    if not separator:
+                        return nodeid
+                    return f"{Path(path).name}::{tail}"
+
+                def target_name(nodeid):
+                    canonical = canonical_nodeid(nodeid)
+                    return canonical.split("::")[-1].split("[", 1)[0]
+
+                def pytest_collection_finish(session):
+                    for item in session.items:
+                        name = (getattr(item, "originalname", None)
+                                or item.name.split("[", 1)[0])
+                        if name not in TARGETS:
+                            continue
+                        nodeid = canonical_nodeid(item.nodeid)
+                        REPORT["selected"].append(nodeid)
+                        REPORT["markers"][nodeid] = sorted(
+                            marker.name for marker in item.iter_markers()
+                        )
+
+                def pytest_deselected(items):
+                    for item in items:
+                        if target_name(item.nodeid) in TARGETS:
+                            REPORT["deselected"].append(
+                                canonical_nodeid(item.nodeid)
+                            )
+
+                def pytest_runtest_logreport(report):
+                    if report.when != "setup" or target_name(report.nodeid) not in TARGETS:
+                        return
+                    REPORT["setup"][canonical_nodeid(report.nodeid)] = {
+                        "outcome": report.outcome,
+                        "wasxfail": getattr(report, "wasxfail", None),
+                    }
+
+                def pytest_sessionfinish(session, exitstatus):
+                    Path(os.environ["IZANAGI_T080_REPORT"]).write_text(
+                        json.dumps(REPORT, sort_keys=True), encoding="utf-8",
+                    )
+                """
+            ),
+            encoding="utf-8",
+        )
+        env = os.environ.copy()
+        for name in (
+            "PYTEST_ADDOPTS",
+            "PYTEST_DISABLE_PLUGIN_AUTOLOAD",
+            "PYTEST_PLUGINS",
+            "IZANAGI_RUN_GROWTH_HELD_TESTS",
+            "IZANAGI_T080_E2E",
+        ):
+            env.pop(name, None)
+        env["IZANAGI_T080_TARGETS"] = json.dumps(sorted(target_functions))
+        env["PYTHONPATH"] = os.pathsep.join(
+            part for part in (str(tmp), env.get("PYTHONPATH", "")) if part
+        )
+
+        def run_probe(*args: str, report_path: Path, cache_name: str):
+            probe_env = env.copy()
+            probe_env["PYTHONDONTWRITEBYTECODE"] = "1"
+            probe_env["IZANAGI_T080_REPORT"] = str(report_path)
+            return subprocess.run(
+                [
+                    sys.executable, "-m", "pytest", "-q", "-n0",
+                    "-o", f"cache_dir={tmp / cache_name}",
+                    "-p", "t080_default_execution_plugin", *args,
+                ],
+                cwd=ROOT, env=probe_env, check=False, stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE, text=True,
+            )
+
+        collected = run_probe(
+            "--collect-only", str(target_module),
+            report_path=collect_report_path, cache_name="collect-cache",
+        )
+        assert collect_report_path.is_file(), (
+            "T-080 collect report が生成されなかった: "
+            f"rc={collected.returncode} stderr={collected.stderr}"
+        )
+        report = json.loads(collect_report_path.read_text(encoding="utf-8"))
+
+        absolute_target_nodeids = [
+            str(target_module) + nodeid.removeprefix(target_module.name)
+            for nodeid in sorted(target_nodeids)
+        ]
+        setup = run_probe(
+            "--setup-only", *absolute_target_nodeids,
+            report_path=setup_report_path, cache_name="setup-cache",
+        )
+        assert setup_report_path.is_file(), (
+            "T-080 setup report が生成されなかった: "
+            f"rc={setup.returncode} stderr={setup.stderr}"
+        )
+        setup_report = json.loads(setup_report_path.read_text(encoding="utf-8"))
+        report["setup"] = setup_report["setup"]
+        report["diagnostic"] = (
+            f"collect_rc={collected.returncode} setup_rc={setup.returncode}"
+        )
+        return report
+
+
+def test_stub_free_receipt_nodes_are_selected_and_reach_setup_by_default():
+    """T-080 E2E 11 node の skip / xfail / deselect / setup skip を実測する。"""
+    target_functions = {
+        "test_t080_stub_free_draft_finalize_commit_and_public_gate_e2e_b5",
+        "test_t080_stub_free_e2e_single_defects_have_single_exact_reason_b5",
+        "test_t080_stub_free_e2e_remaining_section_1_4_defects_are_exact_b5",
+        "test_t080_full_valid_history_defects_have_one_baseline_reason_f28",
+        "test_t080_full_valid_post_r_delete_blocks_draft_as_single_precondition_f28",
+        "test_never_issued_generator_tamper_reaches_public_driver_gate_g7",
+    }
+    expected_nodeids = {
+        "test_s8b_oracle_driver.py::test_t080_stub_free_draft_finalize_commit_and_public_gate_e2e_b5",
+        "test_s8b_oracle_driver.py::test_t080_stub_free_e2e_single_defects_have_single_exact_reason_b5[known-artifact-known_axes.artifact_bytes]",
+        "test_s8b_oracle_driver.py::test_t080_stub_free_e2e_single_defects_have_single_exact_reason_b5[holdout-artifact-holdout.artifact_bytes]",
+        "test_s8b_oracle_driver.py::test_t080_stub_free_e2e_single_defects_have_single_exact_reason_b5[ccbench-current-known_axes.ccbench_current]",
+        "test_s8b_oracle_driver.py::test_t080_stub_free_e2e_single_defects_have_single_exact_reason_b5[unknownness-layer2-holdout.unknownness_layer2]",
+        "test_s8b_oracle_driver.py::test_t080_stub_free_e2e_remaining_section_1_4_defects_are_exact_b5",
+        "test_s8b_oracle_driver.py::test_t080_full_valid_history_defects_have_one_baseline_reason_f28[bad-trailer-receipt.user_commit_trailer]",
+        "test_s8b_oracle_driver.py::test_t080_full_valid_history_defects_have_one_baseline_reason_f28[extra-r-path-receipt.introduction_diff]",
+        "test_s8b_oracle_driver.py::test_t080_full_valid_history_defects_have_one_baseline_reason_f28[modify-revert-receipt.history_mutated]",
+        "test_s8b_oracle_driver.py::test_t080_full_valid_post_r_delete_blocks_draft_as_single_precondition_f28",
+        "test_s8b_oracle_driver.py::test_never_issued_generator_tamper_reaches_public_driver_gate_g7",
+    }
+
+    assert target_functions == {
+        nodeid.split("::", 1)[1].split("[", 1)[0]
+        for nodeid in expected_nodeids
+    }
+    report = _collect_t080_default_execution_report(
+        HERE / "test_s8b_oracle_driver.py", expected_nodeids,
+    )
+    assert set(report["selected"]) == expected_nodeids, report
+    assert len(report["selected"]) == len(expected_nodeids), report
+    assert report["deselected"] == [], report
+    forbidden_markers = {"skip", "skipif", "xfail"}
+    assert all(
+        forbidden_markers.isdisjoint(markers)
+        for markers in report["markers"].values()
+    ), report
+    assert report["setup"] == {
+        nodeid: {"outcome": "passed", "wasxfail": None}
+        for nodeid in expected_nodeids
+    }, report
+
+
+def test_t080_import_temp_environment_fails_closed_for_foreign_module():
+    """foreign module の import-time temp 境界が副作用なしで発火する。"""
+    forbidden = ROOT / "output"
+    before = _t080_output_snapshot(forbidden)
+    import_env = os.environ.copy()
+    for name in ("TMPDIR", "TEMP", "TMP"):
+        import_env.pop(name, None)
+    import_env["TMPDIR"] = str(forbidden)
+    import_env["PYTHONDONTWRITEBYTECODE"] = "1"
+    imported = subprocess.run(
+        [
+            sys.executable, "-c",
+            "import orchestrator.tests.test_s8b_oracle_driver",
+        ],
+        cwd=ROOT, env=import_env, check=False, stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE, text=True,
+    )
+    assert imported.returncode != 0
+    assert "T-080 E2E temp root は実 repo の output/ 配下" in imported.stderr
+    assert _t080_output_snapshot(forbidden) == before
 
 
 def _assert_xdist_group_contract(
