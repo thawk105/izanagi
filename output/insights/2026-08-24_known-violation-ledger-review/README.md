@@ -1,7 +1,10 @@
 # known-violation 台帳 53 件の全数監査 (2026-08-24)
 
 wave: `dev-wave-known-violation-review-20260823` / base main `5a4cbfa8`。
-実装差分ゼロ。撤去件数 0。**この wave は「消せない」ことを確定させた監査である。**
+known-violation の scope に対する実装差分はゼロ、撤去件数 0。
+**この wave は「消せない」ことを確定させた監査である。**
+唯一の実装差分は、受入全走が掘り当てた main 側の赤 (F434 再発) の局所修復であり、
+known-violation の是正ではない (D690 決定 1 に従う)。
 
 一次資料は `verbatim/` に凍結した。実測スクリプトは `verbatim/measurement-scripts.md`。
 
@@ -158,6 +161,23 @@ land 根拠としては成立していなかった。
 
 **段 3 の所見 17 件はすべて real、refuted はゼロ。** 親が段 1 で置いた provisional 裁定 3 つは
 全部覆された。棄却できた親の主張が 1 つも無かったのは異例である。
+
+## 変異 matrix (F434 再発の局所修復に対して)
+
+本 wave の実装差分は F434 再発の局所修復 1 件だけである。事前登録した 2 変異はどちらも
+「修復を元に戻すと赤くなるか」を測る。台帳は `mutation-spec.json` と `mutation-result.json`。
+
+- baseline: **PASSED** (rc=0、失敗ノードなし)
+- **M01 KILLED** — 切り出し元と開始マーカーを修復前 (archive 側) へ戻す。
+  失敗ノードは対象テスト 1 件のみ。
+- **M02 KILLED** — 終了マーカーを `- [T-337]` から `- [T-338]` へずらす。
+  失敗ノードは対象テスト 1 件のみ。
+- SURVIVED 0 / MISMATCH 0 / TIMEOUT 0、registered=2・matching=2。
+- 走行は `tools/mutation_worktree.py --commit cb27f437` の使い捨て worktree で行い、
+  主 tree は変異させていない (走行後の `git status --porcelain` は空、HEAD は `cb27f437`)。
+- wrapper の rc=125 は「source/main 共有木の観測 bytes が変化した」という事後検査であり、
+  並行 wave が main を進めたことによる。変異判定そのものには影響しない。
+- 本 wave はテスト強化ではなく fixture ポインタの追随なので、`DW-M08` の新旧両走は登録しない。
 
 ## 一次資料
 

@@ -59,6 +59,10 @@ title: known-violation 台帳 53 件を全数監査し、0 件化は現行契約
   D690 決定 2 (受入の受理は child-green の 1 本だけ) により、Codex `role=author` で
   fixture ポインタを追随させてから受入を再走した。**この修復は本 wave の scope 拡大ではなく、
   main を塞いでいた赤の局所修復である。**
+- 変異 matrix は最終 commit `cb27f437` に対して実走した — baseline PASSED、
+  M01 (切り出し元と開始マーカーを修復前へ戻す) KILLED、M02 (終了マーカーを 1 項目ずらす) KILLED、
+  SURVIVED 0・MISMATCH 0。いずれも失敗ノードは対象テスト 1 件だけで単一理由である。
+  使い捨て worktree で走らせたため主 tree は無変異のまま。
 - 親の実測 script 8 本と子の成果物は
   `/work/1/SFC/tanab/dev-wave-jobs/known-violation-review-20260823/` に置いた。
   全数分類表・再測定結果・段 4 裁定・裁定パッケージ草稿も同所。
