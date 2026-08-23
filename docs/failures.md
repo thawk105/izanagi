@@ -4824,6 +4824,29 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: 変異 M1〜M5 (dedupe を外す / 最初の usage を採る / 入力 3 項をそれぞれ落とす) と
   M12 (母集団を報告から省く) が事前登録済みで、3 走目に 12/12 KILLED を確認した。
 
+
+- **再発: 2026-08-24** — known-violation 台帳の見直し wave で、親が自作した実測 script 4 本の
+  欠陥に気づかないまま結論をユーザーへ 3 度報告した。敵対 2 レンズが実データで否定した。
+  欠陥は 4 種類ある。(1) `_commit_paths()` は変更 path を全部返し、
+  `validate_implementation_author()` が `_is_implementation_path()` で絞った集合だけを
+  finding 対象にするが、script はこの前段 filter を再現せず**gate と違う母集合を測っていた**。
+  (2) `git merge-file` という blob 単位の低水準 3-way merge の結果を「実際の merge で競合し
+  人が手解決した」と一般化して報告した。rename 検出・`.gitattributes` の custom merge driver・
+  当時の strategy を再現しないため、示せるのは「素の 3-way merge では競合した」までである。
+  (3) `bytes.splitlines()` を使って末尾 LF の差を潰し、出現回数の条件も実装しないまま
+  「plan の述語を満たす 4 件」と称した。(4) 生成器分類が canonical trailer を検査せず
+  `'AI-Agent:' in body` だけを見たため、trailer block の配置誤り 1 件 (`3f2c43d758`) を
+  「manager が実装面を直接 commit」へ誤分類した。
+  再測定では (1)(2) の値は偶然変わらなかった (12 件、増加 20 回・減少 2 回) が、
+  land 根拠としては成立していなかった。F144 本体の「計測器そのものに正しさの検査を置かなかった」と
+  同じ根本原因で、今回は**権威実装が既に repo に在るのに、その判定順序を写さず別実装で測った**点が
+  新しい。
+- 追加の恒久対応: memory `parent-measurement-must-mirror-authoritative-filter` —
+  権威ある checker / gate が既に repo にあるとき、親の使い捨て実測 script は
+  その**判定順序と前段 filter を関数ごと再利用する** (import して呼ぶ)。再実装しない。
+  再利用できない場合は、母集合の差を出力へ 1 行で明記してから報告する。
+  低水準 command による再計算 (`git merge-file` 等) は、権威実装が使っていない限り
+  「代理であり本体ではない」と明記する。
 ### F145. 背景 job が子を投入したまま待ちを張らず 6 時間 24 分停止した [手順漏れ]
 
 - 事象: 段 6 の fix 子を投入したあと、完了待ちを張らずにユーザーへ中間報告して turn を終えた。
@@ -11277,6 +11300,27 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: 同型は、real-corpus テストがまだアクティブな task_id を fixture anchor に使っている
   場合に、その task_id が実体更新されるたびに顕在化しうる (lint 化は未整備、目視)。
 
+
+- **再発: 2026-08-24 (2 回目)** — 同じ
+  `orchestrator/tests/test_spool_fold.py::test_cli_base_digest_real_corpus_resolves_active_and_rejects_completed`
+  が受入全走で赤化した (14832 passed / 1 failed / 67 skipped、赤はこの 1 件だけ)。
+  F434 本体が「同型は、real-corpus テストがまだアクティブな task_id を fixture anchor に
+  使っている場合に、その task_id が実体更新されるたびに顕在化しうる」と予告したとおりの再発である。
+  今回の引き金は main の fold `768e9fe6` で、2026-08-24 の `/rulings` 裁定を反映して
+  `docs/worklog.md` へ実体の `[T-139]` 項目が入った。1 つ前の main `d8eaa0a7` の
+  `docs/worklog.md` に実体の `[T-139]` は 0 件だったことを親が blob で確認している。
+  carry 鎖を遡る実装は正しく新しい実体項目へ解決しており
+  (`--base-digest '[T-139]'` は `88d943ab…` を返す)、テスト側の固定ポインタが
+  `docs/archive/worklog-phase3-0820-720-721.md` を指したまま追随していないことが赤の原因である。
+  **1 回目 (2026-08-20 の実体更新) は archive 内の別 file への移動だったが、2 回目の今回は
+  archive から現行 `docs/worklog.md` への移動である。** fixture anchor が archive に留まる保証は
+  無く、追随修正はこの先も繰り返す。
+  本 wave は D690 決定 1 (自分が原因でない赤は一瞬で直せるなら自分で直す) に従い
+  Codex `role=author` で局所修復したが、別セッションが 00:48 JST に同じ赤を main へ
+  先に着地させていた (`3876fbe8`) ため自分の修復は撤回し、main 側の版を採った。
+  **非帰属の赤に対して 2 セッションが独立に修復へ動く重複が実際に起きた。**
+  F434 が記録した恒久対応の候補 (fixture anchor に、既に完了して archive され二度と実体更新
+  されない task_id を選ぶ設計) は、これで**独立 2 例が揃った**。実施は別タスクとする。
 ### F435. source_digest.py が mocc protocol の実供給マクロを認識せず床値実測がbuild段階で全滅した [ドリフト] [テスト代表性]
 
 - 事象: [T-1431] (2026-08-20) の床値pilot実測で、`s8b_floor_campaign.py` driver が
