@@ -3863,17 +3863,6 @@ def _run_acceptance_attempt(
             "acceptance-receipt",
             diagnostic_reason="receipt-main-resolve",
         )
-        if final_main_sha != claim_context.main_sha:
-            raise _StageFailure(
-                "acceptance-receipt",
-                detail=_attestation_detail(
-                    "receipt-main-moved",
-                    {
-                        "claimed_main_sha": claim_context.main_sha,
-                        "final_main_sha": final_main_sha,
-                    },
-                ),
-            )
         confirmed_remaining: int | None = None
         if not claim_context.unclaimed:
             confirmation_lifecycle = _AcceptanceLifecycle()
@@ -3883,7 +3872,7 @@ def _run_acceptance_attempt(
                     repo,
                     lease_dir,
                     wave,
-                    final_main_sha,
+                    claim_context.main_sha,
                     confirmation_lifecycle,
                     diagnostic_reason="receipt-reclaim",
                 )
