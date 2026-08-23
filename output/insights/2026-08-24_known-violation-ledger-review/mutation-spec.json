@@ -1,0 +1,40 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 60,
+  "timeout_seconds": 1800,
+  "hang_timeout_seconds": 1800,
+  "mutations": [
+    {
+      "id": "M01",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_spool_fold.py",
+          "old": "    source = repo / \"docs/worklog.md\"\n    source_bytes = source.read_bytes()\n    start = source_bytes.index(\n        \"- [T-139] **P2・裁定済み (2026-08-24 /rulings 全件、択 (a))**\".encode()\n    )\n",
+          "new": "    source = repo / \"docs/archive/worklog-phase3-0820-720-721.md\"\n    source_bytes = source.read_bytes()\n    start = source_bytes.index(b\"- [T-139] **D574\")\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_spool_fold.py::test_cli_base_digest_real_corpus_resolves_active_and_rejects_completed"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M02",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_spool_fold.py",
+          "old": "    end = source_bytes.index(b\"- [T-337]\", start)\n    substantive = source_bytes[start:end]\n",
+          "new": "    end = source_bytes.index(b\"- [T-338]\", start)\n    substantive = source_bytes[start:end]\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_spool_fold.py::test_cli_base_digest_real_corpus_resolves_active_and_rejects_completed"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}

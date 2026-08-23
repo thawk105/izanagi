@@ -20,6 +20,7 @@ from orchestrator.tests import reflux_origin_fixture_builder as F
 
 
 WAVE_PRODUCTION_FILES = (
+    "attempt_registry_core.py",
     "reflux_origin_artifacts.py",
     "reflux_source_closure.py",
     "reflux_result_evidence.py",
@@ -813,8 +814,9 @@ def test_terminal_projection_is_one_nested_key_with_closed_reason(case: _Case) -
 
 
 def test_consumer_source_has_no_nonaborted_construction_or_success_variant() -> None:
-    assert len(WAVE_PRODUCTION_FILES) == 14
+    assert len(WAVE_PRODUCTION_FILES) == 15
     assert set(WAVE_PRODUCTION_FILES) == {
+        "attempt_registry_core.py",
         "autonomous_trial_completeness.py",
         "p3_autonomous_workload_trial.py",
         "reflux_formal_consumer.py",
