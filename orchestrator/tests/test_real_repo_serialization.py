@@ -46,6 +46,8 @@ _REAL_REPO_SERIAL_NODES_GOLDEN = frozenset({
     # snapshot テストの結線監査 meta-テスト (本ファイル)。実 ROOT で builder を実走し
     # repo tree snapshot を取るため writer の patch 窓と同じ競合面 (D63 列挙漏れの補完)。
     "test_real_repo_serialization.py::test_protocol_builder_repo_tree_guard_is_wired_to_real_root",
+    # T-080 の子 collection が実履歴、output、共有 submodule を読む reader。
+    "test_real_repo_serialization.py::test_stub_free_receipt_nodes_are_selected_and_reach_setup_by_default",
     "test_p3_s4_loop.py::test_drive_iteration_checkpoint_survives_across_calls",
     "test_p3_s4_loop_sort.py::test_drive_iteration_checkpoint_survives_across_calls",
     "test_p3_s4_loop_trigger_gating.py::test_drive_iteration_writes_entry_and_checkpoint",
@@ -597,6 +599,51 @@ def _collect_xdist_group_report(
             f"collection subprocess failed:\nstdout={proc.stdout}\nstderr={proc.stderr}"
         )
         return json.loads(report_path.read_text(encoding="utf-8"))
+
+
+def test_stub_free_receipt_nodes_are_selected_and_reach_setup_by_default():
+    """T-080 E2E 11 node の skip / xfail / deselect / setup skip を実測する。"""
+    from orchestrator.tests import test_s8b_oracle_driver as driver_tests
+
+    target_functions = {
+        "test_t080_stub_free_draft_finalize_commit_and_public_gate_e2e_b5",
+        "test_t080_stub_free_e2e_single_defects_have_single_exact_reason_b5",
+        "test_t080_stub_free_e2e_remaining_section_1_4_defects_are_exact_b5",
+        "test_t080_full_valid_history_defects_have_one_baseline_reason_f28",
+        "test_t080_full_valid_post_r_delete_blocks_draft_as_single_precondition_f28",
+        "test_never_issued_generator_tamper_reaches_public_driver_gate_g7",
+    }
+    expected_nodeids = {
+        "test_s8b_oracle_driver.py::test_t080_stub_free_draft_finalize_commit_and_public_gate_e2e_b5",
+        "test_s8b_oracle_driver.py::test_t080_stub_free_e2e_single_defects_have_single_exact_reason_b5[known-artifact-known_axes.artifact_bytes]",
+        "test_s8b_oracle_driver.py::test_t080_stub_free_e2e_single_defects_have_single_exact_reason_b5[holdout-artifact-holdout.artifact_bytes]",
+        "test_s8b_oracle_driver.py::test_t080_stub_free_e2e_single_defects_have_single_exact_reason_b5[ccbench-current-known_axes.ccbench_current]",
+        "test_s8b_oracle_driver.py::test_t080_stub_free_e2e_single_defects_have_single_exact_reason_b5[unknownness-layer2-holdout.unknownness_layer2]",
+        "test_s8b_oracle_driver.py::test_t080_stub_free_e2e_remaining_section_1_4_defects_are_exact_b5",
+        "test_s8b_oracle_driver.py::test_t080_full_valid_history_defects_have_one_baseline_reason_f28[bad-trailer-receipt.user_commit_trailer]",
+        "test_s8b_oracle_driver.py::test_t080_full_valid_history_defects_have_one_baseline_reason_f28[extra-r-path-receipt.introduction_diff]",
+        "test_s8b_oracle_driver.py::test_t080_full_valid_history_defects_have_one_baseline_reason_f28[modify-revert-receipt.history_mutated]",
+        "test_s8b_oracle_driver.py::test_t080_full_valid_post_r_delete_blocks_draft_as_single_precondition_f28",
+        "test_s8b_oracle_driver.py::test_never_issued_generator_tamper_reaches_public_driver_gate_g7",
+    }
+
+    assert target_functions == {
+        nodeid.split("::", 1)[1].split("[", 1)[0]
+        for nodeid in expected_nodeids
+    }
+    report = driver_tests._collect_t080_default_execution_report(expected_nodeids)
+    assert set(report["selected"]) == expected_nodeids, report
+    assert len(report["selected"]) == len(expected_nodeids), report
+    assert report["deselected"] == [], report
+    forbidden_markers = {"skip", "skipif", "xfail"}
+    assert all(
+        forbidden_markers.isdisjoint(markers)
+        for markers in report["markers"].values()
+    ), report
+    assert report["setup"] == {
+        nodeid: {"outcome": "passed", "wasxfail": None}
+        for nodeid in expected_nodeids
+    }, report
 
 
 def _assert_xdist_group_contract(

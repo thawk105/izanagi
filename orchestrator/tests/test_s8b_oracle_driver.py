@@ -27,6 +27,32 @@ import pytest
 
 ORCHESTRATOR = Path(__file__).resolve().parents[1]
 ROOT = ORCHESTRATOR.parent
+
+
+def _assert_t080_temp_root_outside_real_output(temp_root: Path) -> Path:
+    """T-080 E2E の一時 root が実 repo の output/ を汚さないことを固定する。"""
+    resolved = Path(temp_root).resolve()
+    real_output = (ROOT / "output").resolve()
+    if resolved == real_output or resolved.is_relative_to(real_output):
+        raise AssertionError(
+            "T-080 E2E temp root は実 repo の output/ 配下に置けない: "
+            f"{resolved}"
+        )
+    return resolved
+
+
+def _assert_t080_import_temp_environment() -> Path:
+    """tempfile の書込可否 probe より前に ambient temp path を検査する。"""
+    for name in ("TMPDIR", "TEMP", "TMP"):
+        value = os.environ.get(name)
+        if value:
+            _assert_t080_temp_root_outside_real_output(Path(value))
+    return _assert_t080_temp_root_outside_real_output(Path(tempfile.gettempdir()))
+
+
+# pytest が tmp_path / basetemp を作るより前の module import 境界で拒否する。
+_T080_IMPORT_TEMP_ROOT = _assert_t080_import_temp_environment()
+
 sys.path.insert(0, str(ORCHESTRATOR.parent))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
@@ -225,6 +251,19 @@ _T080_REAL_REPO_METADATA_GOLDEN = (
 _T080_RECEIPT_INTRODUCTION = "8bec195d096f852fd2b47070aa18a3b151613f0a"
 _T080_RECEIPT_RAW_SHA256 = "b84f783218496f0750ed583a317be474a2207b3fe5661a67fab54b2d53723e3c"
 _T080_MIGRATION_BASIS = "f04ae50b3c7be800885447be514b59f2405a4e83"
+_T080_LIVE_HELD_CHECK_IDS = frozenset({
+    "t080.live-known-axes-artifact-bytes",
+    "t080.live-holdout-artifact-bytes",
+    "t080.live-known-axes-ccbench-current-pin",
+})
+_T080_HELD_REASON = {
+    "decision": "freeze-verification-hold",
+    "ruling": "rulings-4th-batch-2026-08-12",
+    "ruled_on": "2026-08-12",
+    "authority": "user",
+    "release": "ユーザーの明示命令のみ",
+    "release_condition": "explicit-user-command-only",
+}
 
 
 def _assert_exact_refusals(actual, expected: set[str]) -> None:
@@ -235,6 +274,54 @@ def _assert_exact_refusals(actual, expected: set[str]) -> None:
     """
     assert len(actual) == len(expected), actual
     assert set(actual) == expected, actual
+
+
+def _assert_exact_t080_live_held_markers(actual) -> None:
+    """live verify の保留 marker を ID と全 field で完全固定する。"""
+    expected = {
+        check_id: {
+            "check_id": check_id,
+            "status": "held",
+            "reason": _T080_HELD_REASON,
+        }
+        for check_id in _T080_LIVE_HELD_CHECK_IDS
+    }
+    assert len(actual) == len(expected), actual
+    assert {marker["check_id"]: marker for marker in actual} == expected
+
+
+def _assert_structural_source_mismatch_refusal(
+        refusal: str, *, document: dict, root: Path, prefix: str) -> None:
+    """source mismatch 診断を実測値の自己期待にせず入力構造へ束縛する。"""
+    expected_prefix = f"{prefix}: FreezeError: source sha256 不一致: "
+    assert refusal.startswith(expected_prefix), refusal
+    payload = refusal.removeprefix(expected_prefix)
+    path, recorded_separator, hashes = payload.partition(" recorded=")
+    recorded, actual_separator, actual = hashes.partition(" actual=")
+    assert recorded_separator == " recorded=" and path, refusal
+    assert actual_separator == " actual=", refusal
+    assert len(recorded) == 64 and all(c in "0123456789abcdef" for c in recorded)
+    assert len(actual) == 64 and all(c in "0123456789abcdef" for c in actual)
+    assert recorded != actual
+
+    records: set[tuple[str, str]] = set()
+
+    def collect(value) -> None:
+        if isinstance(value, dict):
+            path = value.get("path")
+            sha256 = value.get("sha256")
+            if isinstance(path, str) and isinstance(sha256, str):
+                records.add((path, sha256))
+            for child in value.values():
+                collect(child)
+        elif isinstance(value, list):
+            for child in value:
+                collect(child)
+
+    collect(document)
+    assert (path, recorded) in records, (refusal, sorted(records))
+    assert (root / path).is_file(), path
+    assert hashlib.sha256((root / path).read_bytes()).hexdigest() == actual
 
 
 def _assert_refusal_reasons(actual, expected_prefixes: list[str]) -> None:
@@ -461,18 +548,22 @@ def _copy_t080_migration_basis_file(root: Path, relative: str, basis: str) -> No
 
 
 _T080_E2E_BASE_CACHE: dict[tuple, tuple[Path, dict]] = {}
-_T080_E2E_OPT_IN_ENV = "IZANAGI_T080_E2E"
 
 
-def _t080_stub_free_e2e_should_skip() -> bool:
-    """T-080 stub-free E2E は明示 opt-in (`=1`) のときだけ実行する。"""
-    return os.environ.get(_T080_E2E_OPT_IN_ENV) != "1"
-
-
-_T080_STUB_FREE_E2E_OPT_IN = pytest.mark.skipif(
-    _t080_stub_free_e2e_should_skip(),
-    reason="set IZANAGI_T080_E2E=1 to run the T-080 stub-free E2E tests",
-)
+def _t080_output_snapshot(root: Path) -> tuple[tuple[object, ...], ...]:
+    """一時 file の作成後削除も directory timestamp で捉える軽量 snapshot。"""
+    entries = [root, *root.rglob("*")]
+    return tuple(
+        (
+            path.relative_to(root).as_posix() if path != root else ".",
+            info.st_mode,
+            info.st_size,
+            info.st_mtime_ns,
+            info.st_ctime_ns,
+        )
+        for path in sorted(entries)
+        for info in (path.lstat(),)
+    )
 
 
 def _run_git_bytes(root: Path, *args: str) -> bytes:
@@ -592,10 +683,18 @@ def _t080_stub_free_e2e_repo(
     テストは受け取った repo を破壊的に変異させる (ファイル追記・submodule への commit・削除) ため、
     **コピーは共有しない実体**でなければならない。返す document も deepcopy して渡す。
     """
+    tmp_path = _assert_t080_temp_root_outside_real_output(tmp_path)
+    base_temp_root = _assert_t080_temp_root_outside_real_output(
+        Path(tempfile.gettempdir())
+    )
     key = (r_trailer, extra_r_path, issue_receipt, distinct_basis_blob)
     cached = _T080_E2E_BASE_CACHE.get(key)
     if cached is None:
-        base_parent = Path(tempfile.mkdtemp(prefix="izanagi-t080-e2e-base-"))
+        base_parent = _assert_t080_temp_root_outside_real_output(Path(
+            tempfile.mkdtemp(
+                prefix="izanagi-t080-e2e-base-", dir=base_temp_root,
+            )
+        ))
         atexit.register(shutil.rmtree, base_parent, ignore_errors=True)
         base_root, _receipt, document = _build_t080_stub_free_e2e_repo(
             base_parent, r_trailer=r_trailer, extra_r_path=extra_r_path,
@@ -609,29 +708,153 @@ def _t080_stub_free_e2e_repo(
     return root, root / migration.RECEIPT_REL, copy.deepcopy(document)
 
 
-def test_t080_stub_free_e2e_opt_in_gate_b5(monkeypatch):
-    """既定 skip と明示 opt-in の両向きを固定する。"""
-    assert _T080_E2E_OPT_IN_ENV == "IZANAGI_T080_E2E"
-    assert _T080_STUB_FREE_E2E_OPT_IN.mark.args == (
-        os.environ.get("IZANAGI_T080_E2E") != "1",
-    )
-    assert _T080_STUB_FREE_E2E_OPT_IN.mark.kwargs["reason"] == (
-        "set IZANAGI_T080_E2E=1 to run the T-080 stub-free E2E tests"
-    )
-    monkeypatch.delenv("IZANAGI_T080_E2E", raising=False)
-    assert _t080_stub_free_e2e_should_skip() is True
-    monkeypatch.setenv("IZANAGI_T080_E2E", "1")
-    assert _t080_stub_free_e2e_should_skip() is False
-
-
-def test_t080_stub_free_e2e_opt_in_decorator_exact_consumers_and_nodeids_b5():
-    """重い helper の全 consumer だけを opt-in にし、展開後 11 nodeid を固定する。"""
-    tree = ast.parse(Path(__file__).read_text(encoding="utf-8"))
-    functions = {
-        node.name: node
-        for node in tree.body
-        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+def _collect_t080_default_execution_report(
+        target_nodeids: set[str]) -> dict[str, object]:
+    """全 file collection と対象 node の setup outcome を別走で実測する。"""
+    target_functions = {
+        nodeid.split("::", 1)[1].split("[", 1)[0]
+        for nodeid in target_nodeids
     }
+    assert all(
+        nodeid.startswith(f"{Path(__file__).name}::")
+        for nodeid in target_nodeids
+    ), target_nodeids
+    probe_temp_root = _assert_t080_temp_root_outside_real_output(
+        Path(tempfile.gettempdir())
+    )
+    with tempfile.TemporaryDirectory(
+            prefix="izanagi-t080-default-collect-", dir=probe_temp_root,
+            ) as raw_tmp:
+        tmp = Path(raw_tmp)
+        collect_report_path = tmp / "collect-report.json"
+        setup_report_path = tmp / "setup-report.json"
+        plugin_path = tmp / "t080_default_execution_plugin.py"
+        plugin_path.write_text(
+            textwrap.dedent(
+                """
+                import json
+                import os
+                from pathlib import Path
+
+                TARGETS = set(json.loads(os.environ["IZANAGI_T080_TARGETS"]))
+                REPORT = {
+                    "selected": [],
+                    "deselected": [],
+                    "markers": {},
+                    "setup": {},
+                }
+
+                def canonical_nodeid(nodeid):
+                    path, separator, tail = nodeid.partition("::")
+                    if not separator:
+                        return nodeid
+                    return f"{Path(path).name}::{tail}"
+
+                def target_name(nodeid):
+                    canonical = canonical_nodeid(nodeid)
+                    return canonical.split("::")[-1].split("[", 1)[0]
+
+                def pytest_collection_finish(session):
+                    for item in session.items:
+                        name = (getattr(item, "originalname", None)
+                                or item.name.split("[", 1)[0])
+                        if name not in TARGETS:
+                            continue
+                        nodeid = canonical_nodeid(item.nodeid)
+                        REPORT["selected"].append(nodeid)
+                        REPORT["markers"][nodeid] = sorted(
+                            marker.name for marker in item.iter_markers()
+                        )
+
+                def pytest_deselected(items):
+                    for item in items:
+                        if target_name(item.nodeid) in TARGETS:
+                            REPORT["deselected"].append(
+                                canonical_nodeid(item.nodeid)
+                            )
+
+                def pytest_runtest_logreport(report):
+                    if report.when != "setup" or target_name(report.nodeid) not in TARGETS:
+                        return
+                    REPORT["setup"][canonical_nodeid(report.nodeid)] = {
+                        "outcome": report.outcome,
+                        "wasxfail": getattr(report, "wasxfail", None),
+                    }
+
+                def pytest_sessionfinish(session, exitstatus):
+                    Path(os.environ["IZANAGI_T080_REPORT"]).write_text(
+                        json.dumps(REPORT, sort_keys=True), encoding="utf-8",
+                    )
+                """
+            ),
+            encoding="utf-8",
+        )
+        env = os.environ.copy()
+        for name in (
+            "PYTEST_ADDOPTS",
+            "PYTEST_DISABLE_PLUGIN_AUTOLOAD",
+            "PYTEST_PLUGINS",
+            "IZANAGI_RUN_GROWTH_HELD_TESTS",
+            "IZANAGI_T080_E2E",
+        ):
+            env.pop(name, None)
+        env["IZANAGI_T080_TARGETS"] = json.dumps(sorted(target_functions))
+        env["PYTHONPATH"] = os.pathsep.join(
+            part for part in (str(tmp), env.get("PYTHONPATH", "")) if part
+        )
+
+        def run_probe(*args: str, report_path: Path, cache_name: str):
+            probe_env = env.copy()
+            probe_env["IZANAGI_T080_REPORT"] = str(report_path)
+            return subprocess.run(
+                [
+                    sys.executable, "-m", "pytest", "-q", "-n0",
+                    "-o", f"cache_dir={tmp / cache_name}",
+                    "-p", "t080_default_execution_plugin", *args,
+                ],
+                cwd=ROOT, env=probe_env, check=False, stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE, text=True,
+            )
+
+        collected = run_probe(
+            "--collect-only", str(Path(__file__).resolve()),
+            report_path=collect_report_path, cache_name="collect-cache",
+        )
+        assert collect_report_path.is_file(), (
+            "T-080 collect report が生成されなかった: "
+            f"rc={collected.returncode} stderr={collected.stderr}"
+        )
+        report = json.loads(collect_report_path.read_text(encoding="utf-8"))
+
+        absolute_target_nodeids = [
+            str(Path(__file__).resolve())
+            + nodeid.removeprefix(Path(__file__).name)
+            for nodeid in sorted(target_nodeids)
+        ]
+        setup = run_probe(
+            "--setup-only", *absolute_target_nodeids,
+            report_path=setup_report_path, cache_name="setup-cache",
+        )
+        assert setup_report_path.is_file(), (
+            "T-080 setup report が生成されなかった: "
+            f"rc={setup.returncode} stderr={setup.stderr}"
+        )
+        setup_report = json.loads(setup_report_path.read_text(encoding="utf-8"))
+        report["setup"] = setup_report["setup"]
+        report["diagnostic"] = (
+            f"collect_rc={collected.returncode} setup_rc={setup.returncode}"
+        )
+        return report
+
+
+def test_t080_stub_free_e2e_exact_consumers_and_nodeids_b5():
+    """helper の全 direct consumer と対象 6 function / 11 node を固定する。"""
+    tree = ast.parse(Path(__file__).read_text(encoding="utf-8"))
+    functions = [
+        node
+        for node in ast.walk(tree)
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+    ]
     expected_consumers = {
         "test_t080_stub_free_draft_finalize_commit_and_public_gate_e2e_b5": 1,
         "test_t080_stub_free_e2e_single_defects_have_single_exact_reason_b5": 4,
@@ -640,41 +863,64 @@ def test_t080_stub_free_e2e_opt_in_decorator_exact_consumers_and_nodeids_b5():
         "test_t080_full_valid_post_r_delete_blocks_draft_as_single_precondition_f28": 1,
         "test_never_issued_generator_tamper_reaches_public_driver_gate_g7": 1,
     }
-
-    helper_consumers = {
-        name
-        for name, function in functions.items()
+    expected_parametrizations = {
+        "test_t080_stub_free_e2e_single_defects_have_single_exact_reason_b5": (
+            "defect, expected_reason",
+            (
+                ("known-artifact", "known_axes.artifact_bytes"),
+                ("holdout-artifact", "holdout.artifact_bytes"),
+                ("ccbench-current", "known_axes.ccbench_current"),
+                ("unknownness-layer2", "holdout.unknownness_layer2"),
+            ),
+        ),
+        "test_t080_full_valid_history_defects_have_one_baseline_reason_f28": (
+            "defect, expected_reason",
+            (
+                ("bad-trailer", "receipt.user_commit_trailer"),
+                ("extra-r-path", "receipt.introduction_diff"),
+                ("modify-revert", "receipt.history_mutated"),
+            ),
+        ),
+    }
+    helper_consumer_nodes = [
+        function
+        for function in functions
         if any(
             isinstance(node, ast.Call)
             and isinstance(node.func, ast.Name)
             and node.func.id == "_t080_stub_free_e2e_repo"
             for node in ast.walk(function)
         )
-    }
-    decorated = {
-        name
-        for name, function in functions.items()
-        if any(
-            isinstance(decorator, ast.Name)
-            and decorator.id == "_T080_STUB_FREE_E2E_OPT_IN"
-            for decorator in function.decorator_list
-        )
-    }
+    ]
+    helper_consumers = {function.name for function in helper_consumer_nodes}
 
-    assert helper_consumers == set(expected_consumers)
-    assert decorated == set(expected_consumers)
+    assert len(helper_consumer_nodes) == len(helper_consumers)
+    assert helper_consumers == set(expected_consumers) | {
+        "test_t080_stub_free_e2e_temp_roots_fail_closed_at_real_output_boundary",
+    }
 
     expanded_nodeids = {}
-    for name in sorted(helper_consumers):
+    functions_by_name = {
+        function.name: function
+        for function in helper_consumer_nodes
+        if function.name in expected_consumers
+    }
+    for name in sorted(functions_by_name):
         count = 1
-        for decorator in functions[name].decorator_list:
+        observed_parametrizations = []
+        for decorator in functions_by_name[name].decorator_list:
             if (
                 isinstance(decorator, ast.Call)
                 and isinstance(decorator.func, ast.Attribute)
                 and decorator.func.attr == "parametrize"
             ):
-                parameters = ast.literal_eval(decorator.args[1])
+                assert not decorator.keywords, ast.unparse(decorator)
+                parameter_names = ast.literal_eval(decorator.args[0])
+                parameters = tuple(ast.literal_eval(decorator.args[1]))
+                observed_parametrizations.append((parameter_names, parameters))
                 count *= len(parameters)
+        expected = expected_parametrizations.get(name)
+        assert observed_parametrizations == ([] if expected is None else [expected])
         expanded_nodeids[name] = count
     assert expanded_nodeids == expected_consumers
     assert sum(expanded_nodeids.values()) == 11
@@ -686,6 +932,7 @@ def _build_t080_stub_free_e2e_repo(
         distinct_basis_blob: bool = False,
         ) -> tuple[Path, Path, dict]:
     """production builder/verifier/gate を一度も stub しない T-080 発行 repo。"""
+    tmp_path = _assert_t080_temp_root_outside_real_output(tmp_path)
     root = tmp_path / "t080-stub-free-e2e"
     root.mkdir()
     _run_git(root, "init", "-q")
@@ -1023,7 +1270,40 @@ def test_t080_output_copy_visibility_matches_production_enumeration(
         _copy_git_visible_output(root, tmp_path / "missing-tracked-output")
 
 
-@_T080_STUB_FREE_E2E_OPT_IN
+def test_t080_stub_free_e2e_temp_roots_fail_closed_at_real_output_boundary(
+        tmp_path, monkeypatch):
+    forbidden = ROOT / "output"
+    before = _t080_output_snapshot(forbidden)
+    with pytest.raises(
+            AssertionError, match=r"T-080 E2E temp root は実 repo の output/ 配下"):
+        _build_t080_stub_free_e2e_repo(forbidden, issue_receipt=False)
+    with pytest.raises(
+            AssertionError, match=r"T-080 E2E temp root は実 repo の output/ 配下"):
+        _t080_stub_free_e2e_repo(forbidden, issue_receipt=False)
+
+    monkeypatch.setattr(tempfile, "gettempdir", lambda: str(forbidden))
+    with pytest.raises(
+            AssertionError, match=r"T-080 E2E temp root は実 repo の output/ 配下"):
+        _t080_stub_free_e2e_repo(tmp_path, issue_receipt=False)
+
+    import_env = os.environ.copy()
+    for name in ("TMPDIR", "TEMP", "TMP"):
+        import_env.pop(name, None)
+    import_env["TMPDIR"] = str(forbidden)
+    import_env["PYTHONDONTWRITEBYTECODE"] = "1"
+    imported = subprocess.run(
+        [
+            sys.executable, "-c",
+            "import orchestrator.tests.test_s8b_oracle_driver",
+        ],
+        cwd=ROOT, env=import_env, check=False, stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE, text=True,
+    )
+    assert imported.returncode != 0
+    assert "T-080 E2E temp root は実 repo の output/ 配下" in imported.stderr
+    assert _t080_output_snapshot(forbidden) == before
+
+
 def test_t080_stub_free_draft_finalize_commit_and_public_gate_e2e_b5(tmp_path):
     root, _receipt_path, document = _t080_stub_free_e2e_repo(
         tmp_path, distinct_basis_blob=True,
@@ -1036,9 +1316,21 @@ def test_t080_stub_free_draft_finalize_commit_and_public_gate_e2e_b5(tmp_path):
         (item["artifact"], item["json_pointer"], item["recorded_sha256"])
         for item in document["metadata_fields"]
     ) == _T080_METADATA_GOLDEN
+    marker_sentinel = "t080-held-marker-negative-witness"
+    with mock.patch.object(
+            migration._freeze_hold, "held_marker",
+            side_effect=RuntimeError(marker_sentinel),
+            ) as held_marker_witness:
+        marker_failure = migration.verify_receipt(root=root)
+    assert held_marker_witness.call_count > 0
+    assert marker_failure.state == "invalid"
+    assert marker_failure.held_checks == ()
+    assert any(marker_sentinel in refusal for refusal in marker_failure.refusals)
+
     resolution = migration.verify_receipt(root=root)
     assert resolution.state == "active-valid"
     assert resolution.refusals == ()
+    _assert_exact_t080_live_held_markers(resolution.held_checks)
     assert resolution.t080_freeze_migration_observation is not None
     items = resolution.t080_freeze_migration_observation["items"]
     assert len(items) == 17
@@ -1063,6 +1355,12 @@ def test_t080_stub_free_draft_finalize_commit_and_public_gate_e2e_b5(tmp_path):
         (item["artifact"], item["kind"], item["subject"], item["observed"])
         for item in items[:15]
     ) == expected_blob_observations
+
+    with mock.patch.object(migration._freeze_hold, "HELD", False):
+        released = migration.verify_receipt(root=root)
+    assert released.state == "active-valid"
+    assert released.refusals == ()
+    assert released.held_checks == ()
 
     decision = driver.gate_check(
         freeze_path=root / migration.HOLDOUT_REL, root=root,
@@ -1097,7 +1395,6 @@ def test_t080_stub_free_draft_finalize_commit_and_public_gate_e2e_b5(tmp_path):
     )
 
 
-@_T080_STUB_FREE_E2E_OPT_IN
 @pytest.mark.parametrize(
     "defect, expected_reason",
     [
@@ -1117,6 +1414,16 @@ def test_t080_stub_free_e2e_single_defects_have_single_exact_reason_b5(
         path = root / migration.HOLDOUT_REL
         path.write_bytes(path.read_bytes() + b" ")
     elif defect == "ccbench-current":
+        positive_held = migration.verify_receipt(root=root)
+        assert positive_held.state == "active-valid"
+        assert positive_held.refusals == ()
+        _assert_exact_t080_live_held_markers(positive_held.held_checks)
+        with mock.patch.object(migration._freeze_hold, "HELD", False):
+            positive_released = migration.verify_receipt(root=root)
+        assert positive_released.state == "active-valid"
+        assert positive_released.refusals == ()
+        assert positive_released.held_checks == ()
+
         submodule = root / migration.CCBENCH_REL
         tree = _run_git(submodule, "rev-parse", "HEAD^{tree}")
         commit_env = _sanitized_git_env()
@@ -1130,6 +1437,29 @@ def test_t080_stub_free_e2e_single_defects_have_single_exact_reason_b5(
             env=commit_env,
         ).stdout.strip()
         _run_git(submodule, "checkout", "-q", replacement)
+        known = json.loads(
+            (root / migration.KNOWN_AXES_REL).read_text(encoding="utf-8")
+        )
+        assert _run_git(root, "rev-parse", f"HEAD:{migration.CCBENCH_REL}") == (
+            known["ccbench_pin"]
+        )
+        assert _run_git(submodule, "rev-parse", "HEAD") == replacement
+        with mock.patch.object(migration._freeze_hold, "HELD", False):
+            checkout_only = migration.verify_receipt(root=root)
+        assert checkout_only.state == "invalid"
+        assert checkout_only.held_checks == ()
+        assert len(checkout_only.refusals) == 1, checkout_only.refusals
+        assert checkout_only.refusals[0].startswith(
+            f"{migration.KNOWN_PREFIX}: [known_axes.ccbench_current]"
+        )
+
+        _run_git(root, "add", migration.CCBENCH_REL)
+        _run_git(
+            root, "commit", "-q", "-m", "commit mismatched ccbench gitlink",
+            "-m", "AI-Agent: none",
+        )
+        assert _run_git(root, "rev-parse", f"HEAD:{migration.CCBENCH_REL}") == replacement
+        assert _run_git(root, "status", "--porcelain", "--untracked-files=all") == ""
     else:
         (root / "rr80-known.txt").write_text(
             "ycsb_" + "rratio=8" + "0\n"
@@ -1138,21 +1468,15 @@ def test_t080_stub_free_e2e_single_defects_have_single_exact_reason_b5(
             encoding="utf-8",
         )
     result = migration.verify_receipt(root=root)
-    if defect in {"known-artifact", "holdout-artifact"}:
+    if defect in {"known-artifact", "holdout-artifact", "ccbench-current"}:
         assert result.state == "active-valid", result.refusals
         assert result.refusals == ()
-        expected_check_id = (
-            "t080.live-known-axes-artifact-bytes"
-            if defect == "known-artifact"
-            else "t080.live-holdout-artifact-bytes"
-        )
-        assert expected_check_id in {
-            marker["check_id"] for marker in result.held_checks
-        }
+        _assert_exact_t080_live_held_markers(result.held_checks)
         with mock.patch.object(migration._freeze_hold, "HELD", False):
             released = migration.verify_receipt(root=root)
         assert released.state == "invalid"
         assert len(released.refusals) == 1, released.refusals
+        assert released.held_checks == ()
         assert released.refusals[0].startswith(
             (migration.KNOWN_PREFIX if expected_reason.startswith("known_axes.")
              else migration.HOLDOUT_PREFIX)
@@ -1169,7 +1493,6 @@ def test_t080_stub_free_e2e_single_defects_have_single_exact_reason_b5(
     assert result.t080_freeze_migration_observation is None
 
 
-@_T080_STUB_FREE_E2E_OPT_IN
 def test_t080_stub_free_e2e_remaining_section_1_4_defects_are_exact_b5(tmp_path):
     root, _receipt_path, receipt = _t080_stub_free_e2e_repo(tmp_path)
     known = json.loads((root / migration.KNOWN_AXES_REL).read_text(encoding="utf-8"))
@@ -1394,7 +1717,6 @@ def test_oracle_live_known_bytes_hold_and_release_positive_control(tmp_path):
         ]
 
 
-@_T080_STUB_FREE_E2E_OPT_IN
 @pytest.mark.parametrize(
     "defect, expected_reason",
     [
@@ -1429,7 +1751,6 @@ def test_t080_full_valid_history_defects_have_one_baseline_reason_f28(
     assert result.t080_freeze_migration_observation is None
 
 
-@_T080_STUB_FREE_E2E_OPT_IN
 def test_t080_full_valid_post_r_delete_blocks_draft_as_single_precondition_f28(tmp_path):
     root, receipt_path, _document = _t080_stub_free_e2e_repo(tmp_path)
     receipt_path.unlink()
@@ -3884,7 +4205,6 @@ def test_never_issued_legacy_generator_tamper_has_exact_single_refusal_b7(tmp_pa
     )
 
 
-@_T080_STUB_FREE_E2E_OPT_IN
 def test_never_issued_generator_tamper_reaches_public_driver_gate_g7(tmp_path):
     root, _receipt_path, _document = _t080_stub_free_e2e_repo(
         tmp_path, issue_receipt=False,
@@ -3923,10 +4243,34 @@ def test_never_issued_generator_tamper_reaches_public_driver_gate_g7(tmp_path):
         f"actual={hashlib.sha256(generator.read_bytes()).hexdigest()}"
     )
 
-    with mock.patch.object(driver.s1_known_axes_freeze, "ROOT", root):
+    verifier_sentinel = "t080-holdout-verifier-sentinel"
+    with mock.patch.object(
+            driver.s8b_holdout_freeze, "verify",
+            side_effect=driver.s8b_holdout_freeze.FreezeError(verifier_sentinel),
+            ) as sentinel_verify, mock.patch.object(
+            driver.s1_known_axes_freeze, "ROOT", root,
+            ):
+        sentinel_decision = driver.gate_check(
+            freeze_path=root / migration.HOLDOUT_REL, root=root,
+        )
+    assert sentinel_verify.call_args_list == [
+        mock.call(root / migration.HOLDOUT_REL, root=root),
+    ]
+
+    holdout_verify = driver.s8b_holdout_freeze.verify
+    with mock.patch.object(
+            driver.s8b_holdout_freeze, "verify", wraps=holdout_verify,
+            ) as verify_witness, mock.patch.object(
+            driver.s1_known_axes_freeze, "ROOT", root,
+            ):
         decision = driver.gate_check(
             freeze_path=root / migration.HOLDOUT_REL, root=root,
         )
+        with mock.patch.object(
+                driver.s8b_holdout_freeze._freeze_hold, "HELD", False):
+            released = driver.gate_check(
+                freeze_path=root / migration.HOLDOUT_REL, root=root,
+            )
 
     known_prefix = (
         "known-axes-freeze-verify: FreezeError: source sha256 不一致: "
@@ -3936,13 +4280,53 @@ def test_never_issued_generator_tamper_reaches_public_driver_gate_g7(tmp_path):
         if refusal.startswith(known_prefix)
     ]
     assert decision.allowed is False
-    assert len(decision.refusals) == 4, decision.refusals
     assert len(known_matches) == 1, decision.refusals
-    assert set(decision.refusals) - set(known_matches) == {
+    _assert_structural_source_mismatch_refusal(
+        known_matches[0], document=known, root=root,
+        prefix="known-axes-freeze-verify",
+    )
+    _assert_exact_refusals(decision.refusals, {
+        known_matches[0],
+        _FLOOR_REFUSAL,
+        _BUDGET_REFUSAL,
+    })
+
+    released_known_matches = [
+        refusal for refusal in released.refusals
+        if refusal.startswith(known_prefix)
+    ]
+    assert released.allowed is False
+    assert len(released_known_matches) == 1, released.refusals
+    _assert_structural_source_mismatch_refusal(
+        released_known_matches[0], document=known, root=root,
+        prefix="known-axes-freeze-verify",
+    )
+    _assert_exact_refusals(released.refusals, {
+        released_known_matches[0],
         generator_refusal,
         _FLOOR_REFUSAL,
         _BUDGET_REFUSAL,
-    }, decision.refusals
+    })
+    assert verify_witness.call_args_list == [
+        mock.call(root / migration.HOLDOUT_REL, root=root),
+        mock.call(root / migration.HOLDOUT_REL, root=root),
+    ]
+
+    sentinel_known_matches = [
+        refusal for refusal in sentinel_decision.refusals
+        if refusal.startswith(known_prefix)
+    ]
+    assert len(sentinel_known_matches) == 1, sentinel_decision.refusals
+    _assert_structural_source_mismatch_refusal(
+        sentinel_known_matches[0], document=known, root=root,
+        prefix="known-axes-freeze-verify",
+    )
+    _assert_exact_refusals(sentinel_decision.refusals, {
+        sentinel_known_matches[0],
+        "holdout-freeze-verify: FreezeError: " + verifier_sentinel,
+        _FLOOR_REFUSAL,
+        _BUDGET_REFUSAL,
+    })
 
 
 def test_exit_code_priority_table():
