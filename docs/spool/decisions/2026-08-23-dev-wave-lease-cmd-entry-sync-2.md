@@ -6,33 +6,33 @@ wave: dev-wave-lease-cmd-entry-sync
 seq: 2
 ---
 
-## {{D:pegasus-runbook-lease-optional-followup}}. pegasus-runbook.mdの受入lease規範全面改訂はT-1458着地後の別waveへ送る
+## {{D:pegasus-runbook-lease-optional-followup}}. pegasus-runbook.md の受入 lease 規範は main 側で整合済み — follow-up タスクを起票しない
 
-**決定:** `docs/pegasus-runbook.md`の受入lease関連記述 (958-961, 980-988, 1045-1051,
-1087-1104, 1125-1129行目付近) には、D662 (受入lease待ち行列廃止) およびT-1458の
-`--lease-optional`実装と矛盾する「claimが`acquired`/`held-self`の場合だけ投入できる」と
-いう無条件の規範が広範囲に残っている。本waveでは`.claude/commands/dev-wave.md`の項6本文と
-その機械pin (`tools/check_docs.py`) の整合だけを行い、runbookの改訂はT-1458のmain着地後の
-別waveへfollow-upとして送る。
+**決定:** `docs/pegasus-runbook.md` の受入 lease 関連記述を D662 (受入 lease 待ち行列廃止) へ
+全面整合させる作業は、**本 entry の land 時点で main 側に着地済みである**。したがって
+follow-up タスクを新規に起票しない。本 wave の scope は `.claude/commands/dev-wave.md` の
+9 段状態機械 項 6 本文と、その機械 pin (`tools/check_docs.py`) の整合だけとする。
 
 **理由:**
-- 958-961行目だけを直しても980行目・1087-1099行目 (FIFO待機・head-of-line blocking)・
-  1125-1129行目 (lease残留が他waveを止める前提) との不整合が残る (段3敵対相談レンズBが
-  実際に該当箇所を読んで確認した)。全面整合には「optional経路と旧claim経路の分岐を明示する」
-  設計が要り、958-961行目の単独修正では成立しない。
-- 1045-1051行目のheld-self更新自体や1102-1104行目のrelease責務は、旧来の非optional経路
-  ではなお成立し得るため、単純な削除・全面置換も正しくない。
-- 段階導入・盛らない (絶対規律5) の下では、本wave (command entry + checker pinの3ファイル)
-  とrunbook全面改訂 (5箇所+optional/旧経路の分岐設計) を1つのwaveへ詰め込むべきではない。
-  T-1458未着地の現時点では`--lease-optional`の最終仕様 (unclaimed時のTTL・release・receipt
-  扱い) を実装から確認できず、正確な改訂もできない。
-- 一方でrunbookを放置したままcommandだけ直すと、将来のfresh sessionが詳細なrunbookの記述を
-  優先し、flag無しのclaim待ちへ回帰しうる (段3敵対相談レンズBの指摘、real)。D662が解消しようと
-  した9wave以上の同時待機・数時間規模の停止が再発するリスクがあるため、本decisionでfollow-up
-  として明示的に記録し、見送りのまま忘れられないようにする。
+- 本 wave の段 3 敵対相談は、runbook の 958-961 / 980-988 / 1045-1051 / 1087-1104 / 1125-1129 行目
+  付近の 5 箇所に「claim が `acquired` / `held-self` の場合だけ投入できる」という、D662 と矛盾する
+  無条件の規範が残っていると指摘した。当時は T-1458 が未着地で `--lease-optional` の最終仕様を
+  実装から確認できず、正確な改訂ができなかったため、follow-up として別 wave へ送る決定をした。
+- **その後 main 側 commit `c5e81e0c` (`docs(dev-wave): DW-O27 と runbook §7.3 を待ち行列廃止後の
+  現行契約へ揃える`) が同じ整合を完了させた。** 回収 wave (2026-08-23) が現行 main の runbook を
+  読んで確認した — 958 行目付近は `acquired` / `held-self` / `held` (と旧版の `queued`) を投入し
+  `stale-held` / `unavailable` を fail-closed とする現行契約に揃っており、1087 行目付近には
+  「待ち行列 (待ち札) は無い。D662 で廃止し、2026-08-23 に `claim` から機構ごと除去した」が
+  明記されている。
+- 完了済みの作業を「未了」として台帳へ登録すると、pending task 集合が偽に増え、
+  次に何を選ぶかの判断を誤らせる。回収 wave の独立監査がこれを blocker として指摘した。
 
 **却下した選択肢:**
-- 958-961行目だけを本waveで直す — 他4箇所との不整合が残り、部分的な整合はかえって
-  「runbookのどの記述が正しいか」を曖昧にする。
-- runbook全体を本waveで改訂する — T-1458未着地でoptional経路の最終仕様を確認できず、
-  scopeも規律5に反する。
+- **当時の文面のまま follow-up を起票する** — 完了済みの作業へ新しい T 番号が付く。
+- **決定ごと台帳から落とす** — 「なぜ本 wave が runbook を触らなかったか」の理由が失われ、
+  同じ scope 判断が将来また争点になる。決定は残し、結論だけを現況へ改める。
+
+**残る負債:** 本 wave が固定した項 6 の文言は `--lease-optional` という **現在は後方互換の
+no-op である flag** を代理指標として pin している (`DW-O27`)。「lease 取得可否で止めない」という
+意味そのものを pin しているわけではない。意味ベースの pin への置換は
+{{T:waiter-consumer-pin-hardening}} の射程に含める。
