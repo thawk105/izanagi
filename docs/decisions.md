@@ -21715,7 +21715,8 @@ keyword 3) と judge CLI の引数は変更しない。期待 SHA の唯一の�
 **決定:** COMMIT receipt を発行する capability は、実 verifier entrypoint が trace を検証した
 その呼び出しの内側でだけ生成する。呼び手が構築した `VerifyResult` や、呼び手が組み立てた
 serialized dict / hash を authority にしない。capability は operation・variant・workload・sink・
-lock context を焼き込み、receipt 発行時に完全一致と一回消費を要求する。
+lock context を焼き込む。receipt を受理する sink は完全一致と、flock 下で走査する同じ ledger の
+消費済み集合内での一回消費を要求する。別 layout の ledger を横断する一意性は主張しない。
 
 **理由:**
 - 「receipt を要求する検査を足す」ことと「receipt が verifier 由来である」ことは別である。
