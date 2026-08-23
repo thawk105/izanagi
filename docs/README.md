@@ -57,6 +57,7 @@
 - `phase3-s*.md`・`phase3-8b-*.md`・`phase3-8c-*.md` — 現行 phase doc の従属文書 (段の設計書・手順書)。段ごとの内訳は phase3.md から辿る (段番号をここに列挙しない — 段の追加で腐るため)
 - `freeze-permanent-design.md` — freeze 族の恒久設計の正本 ([T-080]、R1..R16 承認済み 2026-07-22)
 - `calibration-freeze-authority-bundle-design.md` — 較正 (環境契約の活性化) と凍結 (ratified freeze の世代) を束ねる**上位層**の恒久設計 ([T-657] R3。段 0 実施中で status は `incomplete`、裁定の状態は同書 §12、正本の precedence 規則は同書 §1)。freeze 族**内部**の設計正本は `freeze-permanent-design.md` と `freeze-permanent-design-s2.md` の 2 件
+- `env-contract-activation-prerequisites.md` — pegasus g1→g2 activation の必要条件・現在値・証拠・未充足理由・owner を引く日付付き readiness index。条件の意味と値の正本は同書が指す code / record / decision / fixture manifest
 - `freeze-permanent-design-s2.md` — 第 2 設計段パッケージ (§13 の exact 化 + 変異事前登録候補。段完了で凍結する design 族。未了事項は同書冒頭の状態行が正本)
 - `mutation-restore-durability-design.md` — 変異復元を grace 予算依存から journal + fsync + 再開時修復へ転換する設計 ([T-487] 起草。第一 slice = 使い捨て専有 worktree (`tools/mutation_worktree.py`) だけ実装済みで §9.1 の充足は 0/6。状態は同書冒頭、裁定軸は §9、着手範囲は §9.3 が正本)
 
