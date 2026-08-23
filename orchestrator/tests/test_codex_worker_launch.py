@@ -3702,7 +3702,10 @@ def _assert_spawn_origin_phase_durations(
     diagnostics: dict[str, Any], *, attempt_index: int
 ) -> None:
     phases = diagnostics["attempts"][attempt_index]["phase_duration_s"]
-    assert Decimal(str(phases["attempt_preflight"])) == Decimal("0.10")
+    expected_preflight = (
+        Decimal("0.01") if attempt_index == 0 else Decimal("0.10")
+    )
+    assert Decimal(str(phases["attempt_preflight"])) == expected_preflight
     assert Decimal(str(phases["spawn"])) == Decimal("0.02")
     assert Decimal(str(phases["supervision_drain"])) == Decimal("0.05")
 
@@ -3725,6 +3728,10 @@ def test_evidence_grace_starts_at_spawn_completed(
     )
 
     diagnostics = _read_launcher_diagnostics(paths)
+    receipt = json.loads(paths["receipt"].read_text(encoding="utf-8"))
+    assert Decimal(
+        str(receipt["actuals"]["preparation_wall_clock_s"])
+    ) >= Decimal("0.10")
     assert diagnostics["attempts"][0]["evidence_forced_stop"] is True
     _assert_spawn_origin_phase_durations(diagnostics, attempt_index=0)
 
