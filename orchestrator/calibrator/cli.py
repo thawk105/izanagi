@@ -43,6 +43,10 @@ from orchestrator.campaign.execution_guard import (
     effective_clock_comparison_diagnostics,
     effective_clock_comparison_passes,
 )
+from orchestrator.holdout_observation import (
+    _issue_calibration_observation_capability_from_receipt,
+    _new_calibration_observation_receipt,
+)
 
 
 # C3-3/C3-7 frozen certification coordinates. Cooldown values come directly from
@@ -301,6 +305,15 @@ def _write_exclusive(path: str, data: bytes) -> None:
         os.close(fd)
 
 
+def _fsync_directory(path: str) -> None:
+    flags = os.O_RDONLY | getattr(os, "O_DIRECTORY", 0)
+    fd = os.open(path, flags)
+    try:
+        os.fsync(fd)
+    finally:
+        os.close(fd)
+
+
 def _renameat2_noreplace(source: str, target: str) -> None:
     """Linux renameat2(RENAME_NOREPLACE) の薄い syscall wrapper。"""
     libc = ctypes.CDLL(None, use_errno=True)
@@ -403,6 +416,56 @@ def _canonical_json_bytes(value: object) -> bytes:
     return json.dumps(
         value, sort_keys=True, separators=(",", ":"), ensure_ascii=True,
     ).encode("utf-8")
+
+
+def _calibration_sweep_point_count(start_records: int, max_records: int) -> int:
+    points = 0
+    records = start_records
+    while records <= max_records:
+        points += 1
+        records *= 2
+    return points
+
+
+def _calibration_observation_marker(
+    *, root: str, job_id: str, plan: dict,
+) -> str:
+    """Reserve one job-keyed calibration capability outside env-scoped staging.
+
+    The path is ``<output-root>/calibration-capability-markers/<safe-job-id>.json``:
+    it intentionally has no env-tag component, so changing ``--env-tag`` cannot
+    create a second reservation for the same PBS job.  The JSON body retains the
+    raw job id and all binding identities for audit and collision diagnosis.
+    """
+    marker_root = os.path.join(root, "calibration-capability-markers")
+    os.makedirs(marker_root, exist_ok=True)
+    safe_job_id = _sanitize_job_id(job_id)
+    marker_path = os.path.join(marker_root, safe_job_id + ".json")
+    plan_sha256 = hashlib.sha256(
+        _canonical_json_bytes(plan)
+    ).hexdigest()
+    marker = {
+        "schema": "izanagi/calibration-observation-reservation/v1",
+        "key": {"job_id": job_id},
+        **copy.deepcopy(plan),
+        "plan_sha256": plan_sha256,
+    }
+    try:
+        _write_exclusive(
+            marker_path,
+            _canonical_json_bytes(marker) + b"\n",
+        )
+        _fsync_directory(marker_root)
+    except FileExistsError as exc:
+        raise CertificationError("attempt-replay", marker_path) from exc
+    except CertificationError:
+        raise
+    except OSError as exc:
+        raise CertificationError(
+            "calibration-marker-write-failed",
+            f"{marker_path}: {type(exc).__name__}: {str(exc)[:300]}",
+        ) from exc
+    return plan_sha256
 
 
 def _effective_clock_self_comparison_passes(profile: object) -> bool:
@@ -746,17 +809,86 @@ def _certify_main(
         window_probe("dynamic-pre")
         memory_policy = "interleave=all"
         numactl = None if len(profile["numa"]) == 1 else ["numactl", "--" + memory_policy]
+        workload = _parse_kv(args.workload)
+        calibration_observation_capability = None
+        ratio = workload.get("ycsb_rratio")
+        if ratio in ("20", "80"):
+            permitted_run_once_calls = (
+                _calibration_sweep_point_count(
+                    args.start_records, args.max_records,
+                ) * args.sweep_reps + args.noise_reps
+            )
+            sweep_gflags = [
+                f"-thread_num={args.threads}",
+                f"-extime={args.extime}",
+                f"-clocks_per_us={measured_tsc.clocks_per_us_int}",
+            ]
+            sweep_gflags.extend(
+                f"-{key}={value}" for key, value in workload.items()
+            )
+            receipt_sha256 = hashlib.sha256(
+                _canonical_json_bytes(receipt)
+            ).hexdigest()
+            plan = {
+                "attempt_id": job_id,
+                "job_id": job_id,
+                "env_tag": args.env_tag,
+                "receipt_sha256": receipt_sha256,
+                "binary_sha256": actual_hash,
+                "ycsb_rratio": ratio,
+                "permitted_run_once_calls": permitted_run_once_calls,
+                "sweep_gflags": list(sweep_gflags),
+                "sweep_reps": args.sweep_reps,
+                "noise_reps": args.noise_reps,
+                "start_records": args.start_records,
+                "max_records": args.max_records,
+                "records_multiplier": 2,
+                "numactl": list(numactl or ()),
+                "timeout_s": BENCH_TIMEOUT_S,
+                "use_perf": True,
+                "extra_env": {},
+            }
+            plan_sha256 = _calibration_observation_marker(
+                root=root, job_id=job_id, plan=plan,
+            )
+            calibration_receipt = _new_calibration_observation_receipt(
+                attempt_id=job_id,
+                env_tag=args.env_tag,
+                receipt_sha256=receipt_sha256,
+                binary_sha256=actual_hash,
+                ycsb_rratio=ratio,
+                permitted_run_once_calls=permitted_run_once_calls,
+                sweep_gflags=tuple(sweep_gflags),
+                sweep_reps=args.sweep_reps,
+                noise_reps=args.noise_reps,
+                start_records=args.start_records,
+                max_records=args.max_records,
+                records_multiplier=2,
+                numactl=tuple(numactl or ()),
+                timeout_s=BENCH_TIMEOUT_S,
+                use_perf=True,
+                extra_env=None,
+                plan_sha256=plan_sha256,
+            )
+            calibration_observation_capability = (
+                _issue_calibration_observation_capability_from_receipt(
+                    receipt=calibration_receipt,
+                )
+            )
 
         # C3-3(iv): every sweep/noise/scale group is bracketed in sweep.calibrate.
         result = calibrate_fn(
             binary=binary, env_tag=args.env_tag, threads=args.threads,
-            workload=_parse_kv(args.workload), start_records=args.start_records,
+            workload=workload, start_records=args.start_records,
             max_records=args.max_records, extime=args.extime,
             sweep_reps=args.sweep_reps, noise_reps=args.noise_reps,
             numactl=numactl, clocks_per_us=measured_tsc.clocks_per_us_int,
             certify=True, skip_settle=True, window_probe=window_probe,
             measurement_sink=measurements, bench_timeout_s=BENCH_TIMEOUT_S,
             subprocess_runner=subprocess_runner,
+            calibration_observation_capability=(
+                calibration_observation_capability
+            ),
         )
 
         # C3-3(v): reacquire static profile, compare, then final isolation probe.

@@ -2145,6 +2145,239 @@ def test_verify_done_attempt_id_mismatch_is_a_protocol_violation(tmp_path):
     assert "build_attempt_id" in row["reason"]
 
 
+def test_build_done_attempt_id_mismatch_is_a_protocol_violation(tmp_path):
+    manifest = _manifest(tmp_path)
+    item = manifest["schedule"]["rows"][0]
+    layout = _layout(tmp_path, manifest)
+    _manual_trial(layout, item, "committed", [
+        ("build_start", {
+            "genome": GENOME,
+            "src_token": SRC_TOKEN,
+            "build_attempt_id": "attempt-committed",
+        }),
+        ("build_done", {
+            "trace_bin": "trace",
+            "perf_bin": "perf",
+            "build_attempt_id": "attempt-stale",
+        }),
+        ("verify_done", {
+            "verdict": "serializable",
+            "certified": True,
+            "workload": {"tag": "legacy"},
+            "build_attempt_id": "attempt-committed",
+        }),
+        ("verify_done", {
+            "verdict": "serializable",
+            "certified": True,
+            "workload": {"tag": "s2"},
+            "build_attempt_id": "attempt-committed",
+        }),
+        ("bench_done", {
+            "tps": [10.0, 11.0, 12.0, 13.0, 14.0],
+            "median_tps": 12.0,
+            "rep_returncodes": [0, 0, 0, 0, 0],
+            "build_attempt_id": "attempt-committed",
+        }),
+        ("commit", {
+            "fitness_tps": 12.0,
+            "verify_configs": ["legacy", "s2"],
+            "build_attempt_id": "attempt-committed",
+        }),
+    ])
+    _finish_campaign(layout, manifest)
+
+    row = report.build_observations(
+        manifest=_verify_for_report(tmp_path, manifest), output_root=tmp_path,
+    )["rows"][0]
+
+    assert row["status"] == "protocol_violation"
+    assert "build_done.build_attempt_id" in row["reason"]
+    assert "; " not in row["reason"]
+
+
+def test_bench_done_attempt_id_mismatch_is_a_protocol_violation(tmp_path):
+    manifest = _manifest(tmp_path)
+    item = manifest["schedule"]["rows"][0]
+    layout = _layout(tmp_path, manifest)
+    _manual_trial(layout, item, "committed", [
+        ("build_start", {
+            "genome": GENOME,
+            "src_token": SRC_TOKEN,
+            "build_attempt_id": "attempt-committed",
+        }),
+        ("build_done", {
+            "trace_bin": "trace",
+            "perf_bin": "perf",
+            "build_attempt_id": "attempt-committed",
+        }),
+        ("verify_done", {
+            "verdict": "serializable",
+            "certified": True,
+            "workload": {"tag": "legacy"},
+            "build_attempt_id": "attempt-committed",
+        }),
+        ("verify_done", {
+            "verdict": "serializable",
+            "certified": True,
+            "workload": {"tag": "s2"},
+            "build_attempt_id": "attempt-committed",
+        }),
+        ("bench_done", {
+            "tps": [10.0, 11.0, 12.0, 13.0, 14.0],
+            "median_tps": 12.0,
+            "rep_returncodes": [0, 0, 0, 0, 0],
+            "build_attempt_id": "attempt-stale",
+        }),
+        ("commit", {
+            "fitness_tps": 12.0,
+            "verify_configs": ["legacy", "s2"],
+            "build_attempt_id": "attempt-committed",
+        }),
+    ])
+    _finish_campaign(layout, manifest)
+
+    row = report.build_observations(
+        manifest=_verify_for_report(tmp_path, manifest), output_root=tmp_path,
+    )["rows"][0]
+
+    assert row["status"] == "protocol_violation"
+    assert "bench_done.build_attempt_id" in row["reason"]
+    assert "; " not in row["reason"]
+
+
+def test_commit_attempt_id_mismatch_is_a_protocol_violation(tmp_path):
+    manifest = _manifest(tmp_path)
+    item = manifest["schedule"]["rows"][0]
+    layout = _layout(tmp_path, manifest)
+    _manual_trial(layout, item, "committed", [
+        ("build_start", {
+            "genome": GENOME,
+            "src_token": SRC_TOKEN,
+            "build_attempt_id": "attempt-committed",
+        }),
+        ("build_done", {
+            "trace_bin": "trace",
+            "perf_bin": "perf",
+            "build_attempt_id": "attempt-committed",
+        }),
+        ("verify_done", {
+            "verdict": "serializable",
+            "certified": True,
+            "workload": {"tag": "legacy"},
+            "build_attempt_id": "attempt-committed",
+        }),
+        ("verify_done", {
+            "verdict": "serializable",
+            "certified": True,
+            "workload": {"tag": "s2"},
+            "build_attempt_id": "attempt-committed",
+        }),
+        ("bench_done", {
+            "tps": [10.0, 11.0, 12.0, 13.0, 14.0],
+            "median_tps": 12.0,
+            "rep_returncodes": [0, 0, 0, 0, 0],
+            "build_attempt_id": "attempt-committed",
+        }),
+        ("commit", {
+            "fitness_tps": 12.0,
+            "verify_configs": ["legacy", "s2"],
+            "build_attempt_id": "attempt-stale",
+        }),
+    ])
+    _finish_campaign(layout, manifest)
+
+    row = report.build_observations(
+        manifest=_verify_for_report(tmp_path, manifest), output_root=tmp_path,
+    )["rows"][0]
+
+    assert row["status"] == "protocol_violation"
+    assert "commit.build_attempt_id" in row["reason"]
+    assert "; " not in row["reason"]
+
+
+def test_abort_attempt_id_mismatch_is_a_protocol_violation(tmp_path):
+    manifest = _manifest(tmp_path)
+    item = manifest["schedule"]["rows"][0]
+    layout = _layout(tmp_path, manifest)
+    _manual_trial(layout, item, "correctness-red", [
+        ("build_start", {
+            "genome": GENOME,
+            "src_token": SRC_TOKEN,
+            "build_attempt_id": "attempt-committed",
+        }),
+        ("build_done", {
+            "trace_bin": "trace",
+            "perf_bin": "perf",
+            "build_attempt_id": "attempt-committed",
+        }),
+        ("verify_done", {
+            "verdict": "cycle",
+            "certified": False,
+            "workload": {"tag": "legacy"},
+            "build_attempt_id": "attempt-committed",
+        }),
+        ("abort", {
+            "reason": "cycle",
+            "workload": {"tag": "legacy"},
+            "build_attempt_id": "attempt-stale",
+        }),
+    ])
+    _finish_campaign(layout, manifest)
+
+    row = report.build_observations(
+        manifest=_verify_for_report(tmp_path, manifest), output_root=tmp_path,
+    )["rows"][0]
+
+    assert row["legacy_verify"] == "red"
+    assert row["outcome"] == "correctness-red"
+    assert row["status"] == "protocol_violation"
+    assert "abort.build_attempt_id" in row["reason"]
+    assert "; " not in row["reason"]
+
+
+def test_stray_attempt_id_without_committed_binding_is_not_flagged(tmp_path):
+    manifest = _manifest(tmp_path)
+    item = manifest["schedule"]["rows"][0]
+    layout = _layout(tmp_path, manifest)
+    _manual_trial(layout, item, "committed", [
+        ("build_start", {
+            "genome": GENOME,
+            "src_token": SRC_TOKEN,
+        }),
+        ("build_done", {
+            "trace_bin": "trace",
+            "perf_bin": "perf",
+        }),
+        ("verify_done", {
+            "verdict": "serializable",
+            "certified": True,
+            "workload": {"tag": "legacy"},
+        }),
+        ("verify_done", {
+            "verdict": "serializable",
+            "certified": True,
+            "workload": {"tag": "s2"},
+        }),
+        ("bench_done", {
+            "tps": [10.0, 11.0, 12.0, 13.0, 14.0],
+            "median_tps": 12.0,
+            "rep_returncodes": [0, 0, 0, 0, 0],
+            "build_attempt_id": "stray-id",
+        }),
+        ("commit", {
+            "fitness_tps": 12.0,
+            "verify_configs": ["legacy", "s2"],
+        }),
+    ])
+    _finish_campaign(layout, manifest)
+
+    row = report.build_observations(
+        manifest=_verify_for_report(tmp_path, manifest), output_root=tmp_path,
+    )["rows"][0]
+
+    assert row["status"] != "protocol_violation"
+
+
 def test_pipeline_physical_order_remains_an_independent_guard(tmp_path):
     manifest = _manifest(tmp_path)
     item = manifest["schedule"]["rows"][0]

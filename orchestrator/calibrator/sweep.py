@@ -23,6 +23,10 @@ from . import analyze
 from .model import (CalibrationResult, CertificationMeasurement, ScalePoint)
 from .runner import measure_point, settle
 from .tsc import measure_clocks_per_us
+from orchestrator.holdout_observation import (
+    CalibrationObservationCapability,
+    _transition_calibration_observation_to_noise,
+)
 
 
 def _host_info() -> Dict[str, str]:
@@ -78,7 +82,10 @@ def run_sweep(binary: str, threads: int, clocks_per_us: int,
               l3_bytes: Optional[int] = None,
               early_stop: bool = True,
               measure_fn: Callable[..., ScalePoint] = measure_point,
-              log=print) -> List[ScalePoint]:
+              log=print,
+              calibration_observation_capability: Optional[
+                  CalibrationObservationCapability
+              ] = None) -> List[ScalePoint]:
     """start→max を倍々で測り ScalePoint のリストを返す。
 
     early_stop=True なら、採用レコード数が確定した時点で打ち切る (絶対規律4
@@ -92,9 +99,18 @@ def run_sweep(binary: str, threads: int, clocks_per_us: int,
     rec = start_records
     while rec <= max_records:
         log(f"  [sweep] records={rec:,} threads={threads} reps={reps} ...")
-        pt = measure_fn(binary, rec, threads, clocks_per_us,
-                        extime=extime, reps=reps, workload=workload,
-                        numactl=numactl)
+        measure_kwargs = {
+            "extime": extime, "reps": reps, "workload": workload,
+            "numactl": numactl,
+        }
+        if calibration_observation_capability is not None:
+            measure_kwargs.update({
+                "calibration_observation_capability": (
+                    calibration_observation_capability
+                ),
+                "calibration_observation_phase": "sweep",
+            })
+        pt = measure_fn(binary, rec, threads, clocks_per_us, **measure_kwargs)
         mr = pt.miss_rate
         tps = pt.throughput
         rss = "" if pt.maxrss_kb is None else f" maxrss={pt.maxrss_kb/1024:.0f}MB"
@@ -147,7 +163,10 @@ def calibrate(binary: str, env_tag: str, threads: int,
               measurement_sink: Optional[List[CertificationMeasurement]] = None,
               bench_timeout_s: float = 120.0,
               subprocess_runner: Callable[..., object] = subprocess.run,
-              log=print) -> CalibrationResult:
+              log=print,
+              calibration_observation_capability: Optional[
+                  CalibrationObservationCapability
+              ] = None) -> CalibrationResult:
     """フル校正を実行して CalibrationResult を返す。
 
     ``certify`` は既存 mode と別の fail-closed 経路である。TSC fallback、partial rep、
@@ -190,25 +209,41 @@ def calibrate(binary: str, env_tag: str, threads: int,
         result.notes.append("L3 総量を sysfs から検出できず (下限基準が使えない)")
 
     def _measure(kind: str, binary_arg: str, records: int, threads_arg: int,
-                 clocks_arg: int, **kwargs) -> ScalePoint:
+                 clocks_arg: int,
+                 calibration_observation_capability: Optional[
+                     CalibrationObservationCapability
+                 ] = None,
+                 calibration_observation_phase: Optional[str] = None,
+                 **kwargs) -> ScalePoint:
         reps = int(kwargs.get("reps", 0))
         if certify and window_probe is None:
             raise RuntimeError("certification window_probe is required")
         if window_probe is not None:
             window_probe(f"{kind}:pre:{records}:{threads_arg}")
         point: Optional[ScalePoint] = None
+        measurement_kwargs = dict(kwargs)
+        if calibration_observation_capability is not None:
+            measurement_kwargs.update({
+                "calibration_observation_capability": (
+                    calibration_observation_capability
+                ),
+                "calibration_observation_phase": (
+                    calibration_observation_phase or kind
+                ),
+            })
         try:
             if certify:
                 point = measure_point(
                     binary_arg, records, threads_arg, clocks_arg,
                     timeout_s=bench_timeout_s, require_all_reps=True,
                     require_complete_metrics=True,
-                    subprocess_runner=subprocess_runner, **kwargs,
+                    subprocess_runner=subprocess_runner, **measurement_kwargs,
                 )
             else:
                 # 既定 mode は既存の call shape と partial-rep semantics を保つ。
                 point = measure_point(
-                    binary_arg, records, threads_arg, clocks_arg, **kwargs)
+                    binary_arg, records, threads_arg, clocks_arg,
+                    **measurement_kwargs)
             return point
         finally:
             if window_probe is not None:
@@ -224,6 +259,9 @@ def calibrate(binary: str, env_tag: str, threads: int,
                       extime, sweep_reps, workload, numactl,
                       l3_bytes=l3_bytes,
                       measure_fn=lambda *a, **kw: _measure("sweep", *a, **kw),
+                      calibration_observation_capability=(
+                          calibration_observation_capability
+                      ),
                       log=log)
     result.sweep = sweep
     result.saturation = analyze.find_saturation(sweep, l3_bytes=l3_bytes)
@@ -232,11 +270,19 @@ def calibrate(binary: str, env_tag: str, threads: int,
         f"{' (下限基準)' if sat.lower_bound_selected else ''} "
         f"→ records={sat.records:,}")
 
+    if calibration_observation_capability is not None:
+        _transition_calibration_observation_to_noise(
+            calibration_observation_capability,
+            saturation_records=sat.records,
+        )
+
     # (4) noise floor: 飽和点で連続 noise_reps 回
     log(f"[calibrate] noise floor: records={sat.records:,} を {noise_reps} 回 ...")
     nf_point = _measure(
         "noise", binary, sat.records, threads, clocks_per_us,
         extime=extime, reps=noise_reps, workload=workload, numactl=numactl,
+        calibration_observation_capability=calibration_observation_capability,
+        calibration_observation_phase="noise",
     )
     result.noise_floor = analyze.noise_floor(nf_point.throughputs)
     nf = result.noise_floor
