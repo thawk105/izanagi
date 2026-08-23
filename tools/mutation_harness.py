@@ -1058,8 +1058,9 @@ def _validate_registrations(
 ) -> dict[str, Any]:
     result: dict[str, Any] = {}
     for mutation in spec.mutations:
-        _mutated, diff, counts = _mutated_sources(mutation, originals)
         normalized_nodes = [_normalize_node(node, repo) for node in mutation.expected_nodes]
+        _reject_flaky_hold_expected_nodes(normalized_nodes, repo)
+        _mutated, diff, counts = _mutated_sources(mutation, originals)
         if len({_match_key(node, repo) for node in normalized_nodes}) != len(normalized_nodes):
             raise HarnessError(f"{mutation.id}: expected_nodes が正規化後に重複")
         result[mutation.id] = {
@@ -1220,6 +1221,50 @@ def _collected_nodes(output: str, repo: Path) -> list[str]:
         if normalized not in found:
             found.append(normalized)
     return found
+
+
+def _flaky_hold_node_ids_for_policy(repo: Path) -> frozenset[str]:
+    """Load the current checkout's exact flaky-node set for the policy guard."""
+    registry_path = repo / "orchestrator" / "tests" / "flaky_test_holds.py"
+    if not registry_path.is_file():
+        # A different checkout may legitimately predate the quarantine
+        # registry.  Its mutations cannot intersect this checkout's holds.
+        return frozenset()
+    module_name = (
+        "_izanagi_flaky_test_holds_"
+        + hashlib.sha256(str(registry_path).encode("utf-8")).hexdigest()[:16]
+    )
+    module = sys.modules.get(module_name)
+    if module is None:
+        spec = importlib.util.spec_from_file_location(module_name, registry_path)
+        if spec is None or spec.loader is None:
+            raise HarnessError("flaky hold registry cannot be loaded")
+        module = importlib.util.module_from_spec(spec)
+        sys.modules[module_name] = module
+        try:
+            spec.loader.exec_module(module)
+        except BaseException:
+            sys.modules.pop(module_name, None)
+            raise
+    node_ids = getattr(module, "FLAKY_TEST_HOLD_NODE_IDS", None)
+    if not isinstance(node_ids, frozenset) or any(
+        not isinstance(node_id, str) for node_id in node_ids
+    ):
+        raise HarnessError("flaky hold registry node set is invalid")
+    return node_ids
+
+
+def _reject_flaky_hold_expected_nodes(
+    expected: Sequence[str],
+    repo: Path,
+) -> None:
+    expected_keys = {_match_key(node, repo) for node in expected}
+    held = expected_keys.intersection(_flaky_hold_node_ids_for_policy(repo))
+    if held:
+        raise HarnessError(
+            "policy mismatch: mutation expected failure node is isolated: "
+            f"{sorted(held)!r}"
+        )
 
 
 def _artifact(result: dict[str, Any], output: str, runner_mode: str) -> dict[str, Any]:

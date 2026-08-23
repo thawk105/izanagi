@@ -107,6 +107,47 @@ def _ensure_growth_test_holds_loaded() -> None:
     unmark_pytest_session_enforcing = unmark_enforcing
 
 
+try:
+    from orchestrator.tests.flaky_test_holds import (
+        FLAKY_TEST_HOLDS,
+        FLAKY_TEST_HOLD_NODE_IDS,
+        FLAKY_TEST_HOLDS_SHA256,
+        flaky_test_hold_registry_sha256,
+    )
+except ModuleNotFoundError as exc:
+    # Keep the plain-import probe below the package root lazy, just like the
+    # existing growth-hold registry.  A normal pytest collection imports the
+    # package and therefore validates the registry before collection starts.
+    if exc.name != "orchestrator":
+        raise
+    FLAKY_TEST_HOLDS = None
+    FLAKY_TEST_HOLD_NODE_IDS = None
+    FLAKY_TEST_HOLDS_SHA256 = None
+    flaky_test_hold_registry_sha256 = None
+
+
+def _ensure_flaky_test_holds_loaded() -> None:
+    """Load and validate the flaky-node registry before a pytest hook uses it."""
+    global FLAKY_TEST_HOLDS
+    global FLAKY_TEST_HOLD_NODE_IDS
+    global FLAKY_TEST_HOLDS_SHA256
+    global flaky_test_hold_registry_sha256
+
+    if FLAKY_TEST_HOLDS is not None:
+        return
+    from orchestrator.tests.flaky_test_holds import (
+        FLAKY_TEST_HOLDS as holds,
+        FLAKY_TEST_HOLD_NODE_IDS as node_ids,
+        FLAKY_TEST_HOLDS_SHA256 as registry_sha256,
+        flaky_test_hold_registry_sha256 as digest,
+    )
+
+    FLAKY_TEST_HOLDS = holds
+    FLAKY_TEST_HOLD_NODE_IDS = node_ids
+    FLAKY_TEST_HOLDS_SHA256 = registry_sha256
+    flaky_test_hold_registry_sha256 = digest
+
+
 @pytest.fixture
 def _detect_site_under_test():
     """Allow site-policy unit tests to exercise the real detector explicitly."""
@@ -692,6 +733,9 @@ def _oracle_environment_memo_consumer_selected(nodeids) -> bool:
 
 
 _GROWTH_HOLD_IDS_ATTR = "_izanagi_collected_growth_hold_ids"
+_FLAKY_HOLD_MATCHED_IDS_ATTR = "_izanagi_collected_flaky_hold_ids"
+_FLAKY_HOLD_SKIPPED_IDS_ATTR = "_izanagi_skipped_flaky_hold_ids"
+_FLAKY_HOLD_COLLECTION_WORKERS_ATTR = "_izanagi_flaky_hold_collection_workers"
 _REAL_REPO_SERIAL_NODE_ATTR = "_izanagi_real_repo_serial_node"
 _COLLECTION_NARROWING_OPTIONS = frozenset({"--ignore", "--ignore-glob", "--pyargs"})
 _RUNNER_EXCLUSION_ENV = (
@@ -712,6 +756,7 @@ _SANCTIONED_SORT_SWO_ORACLE_PATH = (
 )
 _EFFECTIVE_SCHEDULER_PREFIX = "IZANAGI_EFFECTIVE_SCHEDULER_V1 "
 _EFFECTIVE_SCHEDULER_ATTR = "_izanagi_effective_scheduler"
+_FLAKY_HOLD_SUMMARY_PREFIX = "IZANAGI_FLAKY_HOLD_SUMMARY_V1 "
 
 
 def _growth_holds_opted_in() -> bool:
@@ -743,12 +788,40 @@ def _growth_hold_reason(node_id, hold) -> str:
     )
 
 
+def _flaky_hold_reason(node_id, hold) -> str:
+    payload = {
+        "cause": hold.cause,
+        "evidence_id": hold.evidence_id,
+        "failure_signature": hold.failure_signature,
+        "known_failure_node_ids": sorted(hold.known_failure_node_ids),
+        "node_id": node_id,
+        "reintroduction_task_id": hold.reintroduction_task_id,
+    }
+    return "IZANAGI_FLAKY_HOLD_V1 " + json.dumps(
+        payload, ensure_ascii=True, separators=(",", ":"), sort_keys=True,
+    )
+
+
 def _note_growth_hold(config, node_id: str) -> None:
     held = getattr(config, _GROWTH_HOLD_IDS_ATTR, None)
     if held is None:
         held = set()
         setattr(config, _GROWTH_HOLD_IDS_ATTR, held)
     held.add(node_id)
+
+
+def _note_flaky_hold(config, node_id: str, *, skipped: bool) -> None:
+    matched = getattr(config, _FLAKY_HOLD_MATCHED_IDS_ATTR, None)
+    if matched is None:
+        matched = set()
+        setattr(config, _FLAKY_HOLD_MATCHED_IDS_ATTR, matched)
+    matched.add(node_id)
+    if skipped:
+        skipped_ids = getattr(config, _FLAKY_HOLD_SKIPPED_IDS_ATTR, None)
+        if skipped_ids is None:
+            skipped_ids = set()
+            setattr(config, _FLAKY_HOLD_SKIPPED_IDS_ATTR, skipped_ids)
+        skipped_ids.add(node_id)
 
 
 def _growth_hold_id_from_nodeid(nodeid: str) -> str | None:
@@ -759,26 +832,27 @@ def _growth_hold_id_from_nodeid(nodeid: str) -> str | None:
     return f"{os.path.basename(parts[0])}::{function}"
 
 
-def _is_complete_growth_hold_collection(config) -> bool:
-    numprocesses = getattr(getattr(config, "option", None), "numprocesses", None)
-    if (
-        not hasattr(config, "workerinput")
-        and numprocesses not in (None, 0, "0")
-    ):
-        # xdist controller does not own the workers' complete item collection.
+def _flaky_hold_id_from_nodeid(nodeid: str) -> str | None:
+    """Match complete node IDs literally; no basename or family fallback."""
+    _ensure_flaky_test_holds_loaded()
+    assert FLAKY_TEST_HOLDS is not None
+    return nodeid if nodeid in FLAKY_TEST_HOLDS else None
+
+
+def _normalize_collection_path(path) -> Path:
+    """Use one path contract for every complete-collection predicate."""
+    if _SELECTION_CONTRACT is None:
+        return Path(path).resolve(strict=False)
+    return _SELECTION_CONTRACT.normalize_path(path)
+
+
+def _collection_narrowing_is_runner_owned(config) -> bool:
+    """Allow only the authenticated runner exclusion in a complete run."""
+    invocation_params = getattr(config, "invocation_params", None)
+    argv = getattr(invocation_params, "args", None)
+    if argv is None:
         return False
-    if len(config.args) != 1:
-        return False
-    try:
-        if _SELECTION_CONTRACT is None:
-            return False
-        target = _SELECTION_CONTRACT.normalize_path(config.args[0])
-        suite_root = _SELECTION_CONTRACT.normalize_path(__file__).parent
-    except (OSError, TypeError, ValueError):
-        return False
-    if target != suite_root:
-        return False
-    argv = tuple(getattr(config.invocation_params, "args", ()))
+    argv = tuple(argv)
     owned_payload = _runner_owned_exclusion_payload(config)
     owned_tokens = []
     if owned_payload is not None and _SELECTION_CONTRACT is not None:
@@ -794,6 +868,26 @@ def _is_complete_growth_hold_collection(config) -> bool:
         if token.split("=", 1)[0] in _COLLECTION_NARROWING_OPTIONS:
             return False
     return not owned_tokens
+
+
+def _is_complete_growth_hold_collection(config) -> bool:
+    numprocesses = getattr(getattr(config, "option", None), "numprocesses", None)
+    if (
+        not hasattr(config, "workerinput")
+        and numprocesses not in (None, 0, "0")
+    ):
+        # xdist controller does not own the workers' complete item collection.
+        return False
+    if len(config.args) != 1:
+        return False
+    try:
+        target = _normalize_collection_path(config.args[0])
+        suite_root = _normalize_collection_path(__file__).parent
+    except (OSError, TypeError, ValueError):
+        return False
+    if target != suite_root:
+        return False
+    return _collection_narrowing_is_runner_owned(config)
 
 
 def _runner_owned_exclusion_payload(config) -> dict[str, str] | None:
@@ -860,11 +954,74 @@ def _emit_runner_exclusion_receipt(config) -> None:
     )
 
 
+def _is_un_narrowed_flaky_hold_collection(config) -> bool:
+    """Return whether the invocation requests the whole tests suite root."""
+    args = getattr(config, "args", None)
+    invocation_params = getattr(config, "invocation_params", None)
+    if args is None or invocation_params is None:
+        # Some hook contract tests use a deliberately small synthetic config.
+        # Missing invocation metadata must be treated as a narrowed/unknown
+        # collection so stale-registry validation stays on the safe side.
+        return False
+    try:
+        if len(args) != 1:
+            return False
+        target = _normalize_collection_path(args[0])
+        suite_root = _normalize_collection_path(__file__).parent
+    except (OSError, TypeError, ValueError):
+        return False
+    if target != suite_root:
+        return False
+    return _collection_narrowing_is_runner_owned(config)
+
+
+def _is_complete_flaky_hold_collection(config) -> bool:
+    """Return whether this process owns a complete, un-narrowed collection."""
+    numprocesses = getattr(getattr(config, "option", None), "numprocesses", None)
+    if (
+        not hasattr(config, "workerinput")
+        and numprocesses not in (None, 0, "0")
+    ):
+        # The xdist controller receives worker collections through the
+        # xdist-specific hook below, not through its local item list.
+        return False
+    return _is_un_narrowed_flaky_hold_collection(config)
+
+
+def _check_flaky_hold_collection_complete(config, seen_ids) -> None:
+    _ensure_flaky_test_holds_loaded()
+    assert FLAKY_TEST_HOLDS is not None
+    missing = sorted(set(FLAKY_TEST_HOLDS) - set(seen_ids))
+    if missing:
+        raise pytest.UsageError(
+            "flaky-test hold keys missing from complete collection: "
+            f"{missing!r}"
+        )
+
+
+def _xdist_flaky_collection_is_complete(config) -> bool:
+    """Check whether all xdist workers have reported their collections."""
+    if not _is_un_narrowed_flaky_hold_collection(config):
+        return False
+    try:
+        dsession = config.pluginmanager.get_plugin("dsession")
+        scheduler = getattr(dsession, "sched", None)
+        expected = getattr(scheduler, "numnodes", None)
+    except Exception:
+        return False
+    if not isinstance(expected, int) or expected < 1:
+        return False
+    finished = getattr(config, _FLAKY_HOLD_COLLECTION_WORKERS_ATTR, set())
+    return len(finished) >= expected
+
+
 @pytest.hookimpl(wrapper=True, tryfirst=True)
 def pytest_collection_modifyitems(config, items):
     """Attach serial/hold metadata before selection hooks can narrow items."""
+    _ensure_flaky_test_holds_loaded()
     opted_in = _growth_holds_opted_in()
     seen_hold_ids: set[str] = set()
+    seen_flaky_hold_ids: set[str] = set()
     source_paths: dict[str, set[str]] = {}
     for item in items:
         node_id = _real_repo_node_id(item)
@@ -873,6 +1030,25 @@ def pytest_collection_modifyitems(config, items):
             # xdist は複数 group 名を結合するため、二個目は足さない。
             if not list(item.iter_markers(name="xdist_group")):
                 item.add_marker(pytest.mark.xdist_group("real-repo"))
+
+        flaky_node_id = _flaky_hold_id_from_nodeid(
+            str(getattr(item, "nodeid", ""))
+        )
+        if flaky_node_id is not None:
+            flaky_hold = FLAKY_TEST_HOLDS[flaky_node_id]
+            seen_flaky_hold_ids.add(flaky_node_id)
+            _note_flaky_hold(config, flaky_node_id, skipped=True)
+            item.add_marker(
+                pytest.mark.skip(
+                    reason=_flaky_hold_reason(flaky_node_id, flaky_hold)
+                ),
+                append=False,
+            )
+            item.user_properties.extend((
+                ("flaky_hold_node_id", flaky_node_id),
+                ("flaky_hold_evidence_id", flaky_hold.evidence_id),
+                ("flaky_hold_reintroduction_task_id", flaky_hold.reintroduction_task_id),
+            ))
 
         hold = GROWTH_TEST_HOLDS.get(node_id)
         if hold is None:
@@ -905,6 +1081,8 @@ def pytest_collection_modifyitems(config, items):
             raise pytest.UsageError(
                 f"growth-test hold keys missing from complete collection: {missing!r}"
             )
+    if _is_complete_flaky_hold_collection(config):
+        _check_flaky_hold_collection_complete(config, seen_flaky_hold_ids)
     yield
 
 
@@ -993,11 +1171,29 @@ def pytest_configure_node(node) -> None:
 @pytest.hookimpl(optionalhook=True)
 def pytest_xdist_node_collection_finished(node, ids) -> None:
     """Collect controller-visible node IDs without persisting their names."""
+    _ensure_flaky_test_holds_loaded()
     ids = tuple(ids)
     for nodeid in ids:
         hold_id = _growth_hold_id_from_nodeid(nodeid)
         if hold_id in GROWTH_TEST_HOLDS:
             _note_growth_hold(node.config, hold_id)
+        flaky_hold_id = _flaky_hold_id_from_nodeid(nodeid)
+        if flaky_hold_id is not None:
+            _note_flaky_hold(node.config, flaky_hold_id, skipped=True)
+    if not hasattr(node.config, "workerinput"):
+        worker_key = getattr(getattr(node, "gateway", None), "id", None)
+        if worker_key is None:
+            worker_key = id(node)
+        workers = getattr(node.config, _FLAKY_HOLD_COLLECTION_WORKERS_ATTR, None)
+        if workers is None:
+            workers = set()
+            setattr(node.config, _FLAKY_HOLD_COLLECTION_WORKERS_ATTR, workers)
+        workers.add(worker_key)
+        if _xdist_flaky_collection_is_complete(node.config):
+            _check_flaky_hold_collection_complete(
+                node.config,
+                getattr(node.config, _FLAKY_HOLD_MATCHED_IDS_ATTR, ()),
+            )
     if (
         not hasattr(node.config, "workerinput")
         and _receipt_memo_prewarm_prerequisites(node.config, ids)
@@ -1095,6 +1291,7 @@ def _emit_effective_scheduler_marker(config) -> None:
 def pytest_sessionfinish(session, exitstatus) -> None:
     """Create the private aggregate sidecar on the controller only."""
     if not hasattr(session.config, "workerinput"):
+        _ensure_flaky_test_holds_loaded()
         terminal = session.config.pluginmanager.get_plugin("terminalreporter")
         held_ids = sorted(getattr(session.config, _GROWTH_HOLD_IDS_ATTR, ()))
         if terminal is not None and held_ids:
@@ -1108,6 +1305,26 @@ def pytest_sessionfinish(session, exitstatus) -> None:
                 terminal.write_line(_growth_hold_reason(
                     node_id, GROWTH_TEST_HOLDS[node_id],
                 ))
+        if terminal is not None:
+            assert FLAKY_TEST_HOLDS is not None
+            matched_ids = set(getattr(
+                session.config, _FLAKY_HOLD_MATCHED_IDS_ATTR, ()
+            )) & set(FLAKY_TEST_HOLDS)
+        if terminal is not None and matched_ids:
+            skipped_ids = set(getattr(
+                session.config, _FLAKY_HOLD_SKIPPED_IDS_ATTR, ()
+            )) & set(FLAKY_TEST_HOLDS)
+            summary = {
+                "registered_node_count": len(FLAKY_TEST_HOLDS),
+                "matched_node_count": len(matched_ids),
+                "skipped_node_count": len(skipped_ids),
+                "registry_sha256": FLAKY_TEST_HOLDS_SHA256,
+            }
+            terminal.write_line(
+                _FLAKY_HOLD_SUMMARY_PREFIX + json.dumps(
+                    summary, ensure_ascii=True, separators=(",", ":")
+                )
+            )
     if not os.environ.get("IZANAGI_TASK_RUN_SIDECAR"):
         return
     try:
