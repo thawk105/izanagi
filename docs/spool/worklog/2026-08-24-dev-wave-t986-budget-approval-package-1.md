@@ -25,6 +25,9 @@ title: [T-986] freeze v2 budget pin の見積り根拠と Pegasus pilot を pre-
   reservation実装は同 insight と専用 handoff に所見だけ記録した。
 - T-1484/T-1505 は別 worktree で attempt registry の acceptance 中。編集面・性能計測面とも重複せず、
   その所有物へ介入していない。
+- 関連焦点走は最初の2走が既知F457 (`/tmp/.git` と `dev-wave-jobs/.git` の ancestor 誤認) で
+  production predicate 前に拒否された。predicateを変えずGit ancestorの無いbasetempへ分離し、
+  budget/approval/envelope 21 nodeを再走して21 passed (17.12s) と確認した。受入全走ではない。
 
 ## 次の一手差分
 

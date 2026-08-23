@@ -248,7 +248,22 @@ pilot D を consumer X と同一視できず、B-R の余裕が現行 envelope �
 本 wave は所見の記録までで止める。暫定 pin、追加 probe、reservation 修正、official 解禁、正式 launch
 を同 scope に追加しない。
 
-## 12. dev-wave の検証資料
+## 12. 関連検査
+
+焦点走は `tools/run_tests.py` 経由で次の 21 node を実走した。
+
+- `orchestrator/tests/test_s8b_budget.py` 全体
+- budget approval 未批准の先行拒否
+- approval と入力 budget の canonical 数値 bytes 比較
+- `bench_wall_s=26` が名目 reservation を超える fail-closed 経路
+
+最初の 2 走は test logic より前に `official-output-root` で refusal となった。原因は、pytest の
+`/tmp` ancestor に空の `/tmp/.git` があり、job dir ancestor にも `dev-wave-jobs/.git` があるため、
+既知 F457 の `_has_git_ancestor()` が basetemp を repository 内と分類したことだった。どちらも
+production predicate を変更せず、Git ancestor の無い `/work/1/SFC/tanab/` 直下の `mktemp -d` を
+basetemp parent にして再走した。最終結果は **21 passed in 17.12s**。この焦点走は受入全走ではない。
+
+## 13. dev-wave の検証資料
 
 - 段 1 brief: repo 外 job dir `stage1-brief.md`
 - 段 2 plan: 同 `stage2-plan.md`
@@ -256,4 +271,3 @@ pilot D を consumer X と同一視できず、B-R の余裕が現行 envelope �
 - 段 4 adjudication: 同 `stage4-adjudication.md`
 
 これらは開発過程の監査資料であり、budget approval や official proof chain ではない。
-

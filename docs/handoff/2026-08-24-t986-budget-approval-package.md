@@ -1,7 +1,7 @@
 # [T-986] freeze v2 budget pin 承認パッケージ
 - 目的: budget pin の見積り根拠・pilot 実測・不確実性を整備し、数値承認前の承認パッケージを作る
 - 状態: 作業中
-- 最終更新: 2026-08-24 01:55 JST
+- 最終更新: 2026-08-24 02:35 JST
 - 基準コミット: 768e9fe62e6fecd50280bd95771159947e08c4d8 (worktree: worktree-dev-wave-t986-budget-approval-package)
 
 ## 完了した中間成果
@@ -21,12 +21,13 @@
   不採用・receipt 保全し、別 job ID の再投入を採用した。3 成果物はいずれも output validator 緑。
 - 段 4 裁定は operational 数値承認を保留。2592/1296 は conditional planning candidate、
   2400/1200 は現行名目 reservation としてのみ提示する。追加実装・追加計測は scope 外。
+- 関連焦点走は21 passed (17.12s)。先行2走は `/tmp/.git` / `dev-wave-jobs/.git` ancestor による
+  既知F457の前段 refusalで、production predicateを変えずGit ancestorの無いbasetempへ分離して緑を得た。
 
 ## 未完の作業と次の一手
 
-1. insight の pre-approval decision dossier を作る。
-2. 関連検査、worklog fragment、記録 commit を完了する。
-3. 段 8 自己改善裁定と段 9 land を閉じる。
+1. local main 固定SHAを取り込み、記録後検査と受入を完了する。
+2. 段 8 自己改善裁定と段 9 land を閉じる。
 
 ## 落とし穴・気づき
 
