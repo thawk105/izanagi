@@ -522,6 +522,13 @@
   前景実行すると正しく `rc=70 producer-timeout` を返した。偽完了は待ち手の内部ロジックではなく
   背景 job 側の完了通知経路で起きており、2026-08-17 の「待ち手自身が偽 green を返す」とは
   発生層が異なる。判定を `.done` の実体確認へ寄せる対応は層が変わっても有効である。
+
+- **再発: 2026-08-24** — 同一 wave 内で `tools/dev_wave_wait.py producer` の偽完了が **3 回**。
+  段 6 の敵対レビュー A の待ち手、変異 probe の待ち手、変異本走の待ち手のいずれもが
+  rc=0・出力ゼロ・`.done` 不在で戻り、実際には子が生存して走行を続けていた。
+  恒久対応 (`.done` の実在と成果物の実在を併せて確認し、待ち手の rc を信じない) が
+  3 回とも効き、実害はゼロ。追加事実は **偽完了が特定の段に偏らず、
+  read-only の codex 子にも計算ノードへ dispatch する変異 harness にも等しく起きる**点である。
 ### F25. commit trailer block の分断・結合ミス — provenance 監査 3+2 違反、積み直し 2 回 [手順漏れ]
 - 事象: 2026-07-20 の同一セッションで 2 回、`AI-Agent` trailer が git に trailer と認識されない
   message を作成 (1 回目 = trailer 行と `Co-Authored-By` の間に空行 → block 分断で AI-Agent が本文化。
@@ -2422,6 +2429,18 @@
   引き上げを戻す。戻す前に引き上げを消してはならない — 現時点ではこの引き上げだけが
   当該 node の赤を止めている。
 - **supersede: 2026-08-23** — 「pytest tmp は終了時に失われ失敗時 receipt / stop reason を保存していないため 3 秒超過そのものを根本原因と断定しない」という未確定は解消した。上記 2026-08-23 の再発項が receipt 逐語で断定を与えている。
+
+- **再発: 2026-08-24** — 変異 harness の baseline が、親の焦点走では緑だった node で赤になった。
+  焦点走は 10 file (1676 item)、変異 baseline は 2 file (327 item) で、どちらも同じ
+  計算ノードへ dispatch している。落ちたのは
+  `test_exploration_external_root_keeps_wave_clean` で、赤の本文は
+  `orchestrator/campaign/execution_guard.py` の
+  `CertifiedWriterAuthorizationError`「Pegasus compute では receipt state 内で一意な
+  required authorization_contract だけを受理する」。当 wave の差分は campaign 層にも
+  当該テストにも触れていない。`REAL_REPO_SERIAL_NODES` 未登録。
+  追加事実は、**フレークの引き金が worker 数ではなく file 集合 (xdist の同居関係) でも成立する**
+  点である。D690 に従い `--deselect` で外して先へ進めた。
+  **申し送り**: この node の file 集合依存を根治する作業は別 wave が要る。
 ### F58. 並行 wave が land 済みの「次の一手」ID を別内容へ再利用し、裁定待ち 2 件が正本から消えた [手順漏れ] [恒真ゲート]
 
 - **事象 (2026-07-31, `/rulings`):** worklog (72) が land した 2 つの ID を、並行して走っていた
@@ -3960,6 +3979,14 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 併せて顕在化: **子の完了報告は削除を網羅しない。** 子の前後で
   `git status --porcelain --untracked-files=all` を突き合わせるのが唯一の確実な検出手段である。
 - 恒久対応は F106 のまま (`DW-O19` の走行中不可触規律と harness preflight)。
+
+- **再発: 2026-08-24** — 変異 matrix の走行中に、親が段 7 の設計判断 fragment を worktree へ書き、
+  `tools/mutation_harness.py` が runner 実行前の preflight で untracked file を検出して
+  rc=2 で停止した。**親は同じ turn の中で「変異走行中は tree へ書かない」と自ら明示した直後に
+  違反している。** 追加事実は、**規律を言語化することは順序の設計の代わりにならない**点である。
+  恒久対応の向きは「走行中に書かない」ではなく「走行前に、変異結果を待たない記録
+  (設計判断 fragment) を書き終えて commit しておく」という順序の固定にある。
+  実害は 1 往復ぶんの再走。
 ### F107. 内側検証の変異を外側の一括再検証が mask した [恒真ゲート]
 
 - 事象: 事前登録した変異 M15 (publish 直後の再検証と rollback を落とす) が本走で **SURVIVED**
@@ -6677,6 +6704,12 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   pegasus-runbook.md §7.3 の既存記述 (「待ち手では merge せず親へ戻す」) 自体は正確だったが、
   F225 の恒久対応節と読み合わせた際に「Codex 子の先取り統合だけで足りる」と誤読しやすい
   構成だった。
+
+- **再発: 2026-08-24** — 親が `docs/dev-wave/operations.md` を編集した未 commit 状態で
+  段 6 の fix 子を投げ、`NG: docs/dev-wave/operations.md: working tree が authority commit と異なる`
+  で rc=2 拒否された。追加事実は、**merge 由来だけでなく親自身の docs 編集でも同じ拒否が起きる**
+  点である。段 6 は「親が docs を直す」と「子に実装を直させる」が同じ段に同居するため、
+  この順序衝突は構造的に起きる。回避は docs 編集を統合 commit にしてから子を投げること。
 ### F226. source hash を埋め込む golden が同族ファイルの全変異を道連れにする [ドリフト]
 
 - 事象: 変異 11 件のうち 4 件が MISMATCH になった。うち 2 件 (judge / report の変異) は
@@ -12958,3 +12991,92 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: 同テスト。**受入 launcher 配下で初めて踏まれる経路を既定にするときは、
   isolated mode で import graph 全体が解決できるかを先に実測する。**
   焦点走の緑は受入 launcher 配下の緑を含意しない。
+
+### F511. 裁定本文を行範囲で切り出して子へ渡し、実装条件の後半が欠けたまま段 3 を走らせた [手順漏れ]
+
+- 事象: 親が `docs/decisions.md` の裁定を `sed -n '<開始>,<終了>p'` で job dir へ切り出し、
+  段 2・段 3 の子へ「必読事項の射影」として渡した。行範囲の終端を実際の次見出しで
+  確かめていなかったため、**実装条件 4 項のうち後半 2 項が欠けた本文**が子へ渡り、
+  段 3 の 2 レンズはその状態で攻撃を行った。
+- 根本原因: 切り出しの終端を「だいたいこのくらい」で決め、切り出した後に
+  末尾が節の終わりであることを確認しなかった。射影した資料の完全性を検査する経路が無い。
+- 恒久対応: 節単位の切り出しは行範囲でなく次見出しまでを取る
+  (`awk '/^## <見出し>/{f=1} f&&/^## /&&!/^## <見出し>/{exit} f'`)。
+  切り出した直後に末尾を目視し、節の最後の項が含まれることを確かめる。
+  memory `truncated-diagnostics-are-not-a-closure` の適用先を「診断出力」から
+  「子へ射影する一次資料」へ広げる。
+- 再発検知: 敵対レンズが「brief が裁定に帰属させた条件が射影本文に無い」と指摘したことで
+  発覚した。射影資料の完全性は子のレビュー観点に含める。
+- 実害: この回は brief 側に 4 条件とも書いてあったため裁定の実質は失われなかった。
+  ただし brief が正しくなければ、欠けた条件を無視した設計が段 4 まで通っていた。
+
+### F512. 受入は fold 前の tree を検査するため、fold が生む退行が緑の受領証を通り抜けて main を赤にした [テスト代表性] [手順漏れ]
+
+- 事象: `/rulings` の裁定記録が受入全走 14832 passed / 0 failed で緑の受領証を得て land したが、
+  **land 後の main で `test_spool_fold.py::test_cli_base_digest_real_corpus_resolves_active_and_rejects_completed`
+  が赤になった。** 次の wave の受入で初めて表に出た。実コーパスを読むテストなので、
+  **この赤は全 wave の受入を止める**。
+- 根本原因: **fold は `tools/dev_wave_land.py` が ff-only した直後に land の協調 lock の中で走る。**
+  受入はその手前で終わっているので、**fold が canonical へ書いた後の tree は、その land を
+  承認した受入の検査対象に一度も入らない。** 本件では fold が「次の一手」を再生成して
+  `[T-139]` の実体を archive から現行エントリへ移し、当該テストが literal 固定していた
+  期待値と食い違った。受入時点では fragment しか存在せず、canonical は無傷だったため緑だった。
+- 誘発要因: 当該テストは `[T-139]` という**特定の active な ID** と
+  `docs/archive/worklog-phase3-0820-720-721.md` という**特定の archive file** を literal で
+  固定していた。active な項の実体は、その項を更新した wave のエントリへ移る。よってこの
+  固定は「誰かがこの項を更新したら壊れる」時限装置であり、更新は正常な運用である。
+- 恒久対応: `orchestrator/tests/test_spool_fold.py` の
+  `_latest_substantive_task_bytes` (main の `2b56f5ae` / `3876fbe8`、別セッションが実施)。
+  期待値を archive の literal 位置からでなく**実体の現在位置から導出する**形へ変えた。
+  本 wave も並行に Codex `role=author` で同型の修理を書き、焦点走 166 passed で確認したが、
+  **先に着地していた main 側の修理を採り、自分の版は捨てた** — 直後の他セッションの修理へ
+  126 行の書き換えを被せるのは churn であり、緑になっている経路を触り直す利得が無い。
+- 残る限界 (検出力): main 側の形は**対象 ID を `[T-139]` に固定したまま**なので、その項の実体が
+  現行 worklog にある間は「carry 鎖を archive まで辿る」性質を実際には踏まない。
+  本 wave が捨てた版はこの性質を強制していた。**同テストが名乗る保証と実際に踏む経路の差**として
+  残るので、次に同 file を触る wave が閉じること。
+- 残る限界 (未実施・裁定待ち): **fold 後の tree を検査する経路が無いこと自体は塞いでいない。**
+  fold は決定的なので `--dry-run` の出力へ検査を掛ける経路は作れるが、受入の受理条件を
+  変えるため裁定パッケージへ送る。本 F はその未実施を明示するために書いている。
+- 再発検知: 同型は「canonical を書き換える機構の出力が、その機構を承認した検査の後に走る」
+  形で再発する。fold 以外に land 相で canonical を触る機構を足す wave は、この F を読むこと。
+
+### F513. carry 鎖を辿る自作 resolver が凍結エントリ用の第 2 形式を知らず、stub 自身を実体として digest した [誤前提]
+
+- 事象: 上記の恒久対応を書く際、親が test 内へ独立実装した carry 鎖 resolver が
+  `[T-011]` に対し CLI と異なる digest を返した。**親は最初これを「切り出し規則の食い違い」と
+  読み違え、2 つの ID (`[T-337]`・`[T-139]`) で検算して一致したことを根拠に規則は正しいと
+  判断していた。** 実際には検算した 2 件がたまたま第 1 形式しか通らない鎖だった。
+- 根本原因: carry stub には形式が 2 つある — 通常の `- [T-NNN] (N)` と、
+  **凍結済み過去エントリの `- [T-NNN] 変わらず ((N) 参照)`** (`docs/spool/README.md` に明記)。
+  第 2 形式を stub と認識しないと、そこで鎖が止まり stub 行そのものを実体として digest する。
+- 誘発要因: 標本 2 件での検算を「規則が正しい」の根拠にした。**両方とも同じ形式だけを通る鎖で、
+  第 2 形式を 1 度も踏んでいなかった。** 検算の被覆を数えず一致件数だけを見た。
+- 恒久対応: 両形式を認識する。実装は `orchestrator/tests/test_spool_fold.py` の
+  `_carry_resolved_archive_item` (両形式の正規表現を or で並べ、理由をコメントで固定)。
+  再検算は第 2 形式を踏む `[T-011]`・`[T-059]` で行い、CLI と一致することを確認した。
+- 再発検知: carry 鎖を自作で辿るコードを書く wave は、**第 2 形式を踏む ID を検算に必ず含める**。
+  第 1 形式だけの標本は、この欠落に対する検出力を持たない。
+
+### F514. 8c attempt registry は値を見た後の失敗理由の付け替えで再走を得られる [恒真ゲート]
+
+- 事象: `record_attempt_terminal` に渡す明示 `failure_reason` が、事前に封印した分類受領証の
+  `pre_observation_failure_reason` を上書きする。terminal 行は受領証の値を
+  `pre_observation_failure_reason_echo` として持ち、echo が受領証と一致することは検査されるが、
+  **`failure_reason` が echo と一致することは検査されない**。null matrix も
+  `failure_reason` が retryable 集合に属することしか見ない。したがって受領証の理由を
+  `None` で封印し、性能値を読んでから `terminal_status="retryable-failure"` +
+  `failure_reason="preempted"` を付ければ次の slot が受理される。観測開始を記録しなければ
+  「観測後の再走禁止」検査も通る。
+- 根本原因: 出力前に封印する分類と、再走を認可する terminal 理由が**別の field** になっており、
+  両者の一致を要求する検査が無かった。「出力を読む前に分類する」という要件が、
+  受領証の存在だけで満たされたことにされていた (恒真ゲート)。
+- 恒久対応: D735 決定 3 —
+  共通 core の遷移 policy に `require_terminal_reason_equals_classification` を置き、
+  一致検査の有無を profile の項目にした。**8b profile は `True`** で塞いである
+  (`orchestrator/campaign/s8b_attempt_profile.py`)。
+  **8c profile は `False` のままであり、8c 側の穴は開いたままである** —
+  締めると 8c の受理集合が狭まり D672 の実装条件に反するため、締める時期は別途のユーザー裁定に委ねる。
+- 再発検知: `orchestrator/tests/test_attempt_registry_core_s8b_profile.py` の
+  「8b は理由不一致を拒否し、同じ入力を 8c profile は従来どおり受理する」対の検査。
+  段 4 事前登録の変異 M2 (8b profile の policy を `False` へ倒す) が実測で kill されることを確認済み。
