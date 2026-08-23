@@ -128,6 +128,17 @@ title: 構文木が完全一致する冗長テスト 5 件を退役させた。�
   蓄積速度の実測 (11 日で 5 件、うち 1 組は同一 commit で最初から重複して生まれた) が
   必要性の根拠。ユーザー裁定待ち。
 
+- {{T:mutation-doc-budget-blocks-two-measured-fixes}} **P3・新規**: 段 8 で実測した
+  `docs/dev-wave/mutation.md` への追記 2 件が byte 予算に入らないため裁定へ返す。
+  内容は (a) spec の `category` は `negative` / `positive` / `both-layers` の閉集合で
+  機序名を書くと解析で中止する、(b) spec 解析や実行の中止は使い捨て worktree を
+  `git worktree list` へ登録したまま残し、残骸は全 wave の land を止めるので
+  `git worktree remove --force` → `prune` → scratch 削除まで行う。
+  親は追記を試みたが **L1 が予算 10625 に対し 10948、L1.5 が 9566 に対し 9796** で
+  `check_docs` が赤になったため撤回した。既存文の圧縮で捻出するのは
+  「予算のために安全義務を削除・弱化してはならない」に触れうるので行っていない。
+  予算値の引き上げは自己改善の範囲外 (独立審査対象) であり、ユーザー裁定が要る。
+
 - {{T:insights-corpus-retention-inventory}} **P2・新規**: `output/insights/**` の棚卸しを裁定する。
   8928 file / 66.2 MB でテスト資産の 5.4 倍あり、**成長の主質量はテストではなくこちらである**。
   D99 決定 2 は insights も inventory 対象に含めるが、D361 は論文・現状把握に使う証拠を
