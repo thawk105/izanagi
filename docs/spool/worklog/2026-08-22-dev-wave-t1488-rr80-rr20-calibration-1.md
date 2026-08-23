@@ -42,6 +42,21 @@ title: '[T-1488] rr80/rr20 calibrationの計算ノードcertification取得・�
   しまい、`git checkout --` で再復元した。自分が作成した6件のlogin側submission証跡
   (job-staging側に複製が残るpreflightログの重複コピー) は失われたが、実質的な成果物
   (calibration結果本体) には影響していない。
+- **2026-08-23の再開セッションで、段4が事前登録していた変異matrixが未実施のまま残っていたことを
+  発見し、実施した。** 実装差分が1424行で非ゼロのため`DW-S04`の免除 (「実装しない」裁定かつ
+  実装差分ゼロ) に当たらない。anchorは local main取り込み後のtip `4e74a8b5`。
+  M1 (未消費sweep guardの無効化)、M2 (fix3のearly-stop救済を外す過剰拒否の正例)、
+  M3 (gatewayの正規化値の再利用を捨てるbypass) の**3/3 KILLED、MISMATCH 0、SURVIVED 0、
+  baseline rc=0 / 27.097秒**。M1とM2は同じ3行を逆向きに変異させる対で、guardが受理側・
+  拒否側の両方から拘束されていることを示す。逐語は
+  `output/insights/2026-08-23_t1488-rr80-rr20-calibration/`。
+- local main `c301c4fd` の取り込みでは、両親が触った実装面pathが
+  `orchestrator/tests/test_ccbench_spawn_sites.py` の1件だけで合成結果が両親どちらとも
+  異なるため、provenance checkerがCodex `role=author`を要求した。競合ゼロでも合成の正しさは
+  保証されないので、merge結果の使い捨てsnapshot worktreeでread-onlyのCodex合成監査
+  (gpt-5.6-sol / xhigh) を先に走らせ、判定「安全」・危険ゼロを得てからcommitした。
+  親の実測は焦点走で58 passed (union file + holdout) と413 passed / 78.34秒
+  (直接consumer 6 file)。全史provenance監査は5240件・新規違反なし。
 
 ## 次の一手差分
 
