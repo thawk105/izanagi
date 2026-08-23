@@ -726,13 +726,17 @@ static std::vector<unsigned char> snapshot_corpus() {
     append_snapshot_bytes(out, &key_size, sizeof(key_size));
     append_snapshot_bytes(out, element.key_.data(), key_size);
     const auto body_key = element.body_.get_key();
-    const auto body_value = element.body_.get_val();
+    const HeapObject& body_object = element.body_.get_value();
+    const void* body_value_data = body_object.data();
     const std::size_t body_key_size = body_key.size();
-    const std::size_t body_value_size = body_value.size();
+    const std::size_t body_value_size = body_object.size();
+    const unsigned char body_value_present =
+        body_value_data == nullptr ? 0u : 1u;
     append_snapshot_bytes(out, &body_key_size, sizeof(body_key_size));
     append_snapshot_bytes(out, body_key.data(), body_key_size);
+    append_snapshot_bytes(out, &body_value_present, sizeof(body_value_present));
     append_snapshot_bytes(out, &body_value_size, sizeof(body_value_size));
-    append_snapshot_bytes(out, body_value.data(), body_value_size);
+    append_snapshot_bytes(out, body_value_data, body_value_size);
     const std::size_t value_size = element.get_val_length();
     append_snapshot_bytes(out, &value_size, sizeof(value_size));
     append_snapshot_bytes(out, element.get_val_ptr(), value_size);
