@@ -47,6 +47,7 @@ _V2_SCHEMA = "buildcache/v2"
 _V2_COMPLETION_MANIFEST = "completion.json"
 _LEGACY_ADMISSION_SCHEMA = "buildcache-legacy-admission/v1"
 _LEGACY_ADMISSION_SIDECAR = "admission.json"
+_FETCHCONTENT_SOURCE_NAMES = ("masstree", "mimalloc", "googletest")
 _FETCHCONTENT_RECEIPT_KEYS = frozenset({
     "masstree_head", "config_sha256", "archive_sha256",
 })
@@ -712,6 +713,64 @@ def _canonical_fetchcontent_base(value: object) -> str:
     return canonical
 
 
+def _canonical_fetchcontent_source_dir(value: object, *, name: str) -> str:
+    """FetchContent SOURCE_DIR の canonical non-symlink directory を返す。"""
+    try:
+        raw = os.fspath(value)
+    except TypeError as exc:
+        raise BuildCacheError(
+            f"FetchContent {name} SOURCE_DIR が path-like でない"
+        ) from exc
+    if (type(raw) is not str or not raw or "\0" in raw
+            or not os.path.isabs(raw)):
+        raise BuildCacheError(
+            f"FetchContent {name} SOURCE_DIR は NUL なし絶対 path 必須"
+        )
+    if os.path.islink(raw) or not os.path.isdir(raw):
+        raise BuildCacheError(
+            f"FetchContent {name} SOURCE_DIR は non-symlink directory 必須"
+        )
+    canonical = os.path.realpath(raw)
+    if canonical != os.path.abspath(raw):
+        raise BuildCacheError(
+            f"FetchContent {name} SOURCE_DIR は canonical path 必須"
+        )
+    return canonical
+
+
+def _normalize_fetchcontent_source_dirs(
+        *, masstree_source_dir: Optional[object] = None,
+        mimalloc_source_dir: Optional[object] = None,
+        googletest_source_dir: Optional[object] = None,
+) -> Dict[str, str]:
+    """3本の SOURCE_DIR を all-or-nothing で canonicalize する。"""
+    values = {
+        "masstree": masstree_source_dir,
+        "mimalloc": mimalloc_source_dir,
+        "googletest": googletest_source_dir,
+    }
+    supplied = [name for name, value in values.items() if value is not None]
+    if not supplied:
+        return {}
+    if len(supplied) != len(_FETCHCONTENT_SOURCE_NAMES):
+        raise BuildCacheError(
+            "FetchContent SOURCE_DIR は masstree/mimalloc/googletest の3本同時指定必須"
+        )
+    return {
+        name: _canonical_fetchcontent_source_dir(values[name], name=name)
+        for name in _FETCHCONTENT_SOURCE_NAMES
+    }
+
+
+def _fetchcontent_source_defines(source_dirs: Mapping[str, str]) -> List[str]:
+    if not source_dirs:
+        return []
+    return [
+        f"-DFETCHCONTENT_SOURCE_DIR_{name.upper()}={source_dirs[name]}"
+        for name in _FETCHCONTENT_SOURCE_NAMES
+    ]
+
+
 def _fetchcontent_git_environment() -> Dict[str, str]:
     env = {
         key: value for key, value in os.environ.items()
@@ -944,6 +1003,7 @@ def _v2_identity(
         *, site: str, dependency_prefix: List[str],
         admission: Dict[str, Any],
         fetchcontent_dependency_receipt: Optional[Mapping[str, object]] = None,
+        fetchcontent_transport_mode: Optional[str] = None,
 ) -> tuple[Dict[str, Any], str]:
     """完全 pre-image と full build digest (64hex) を返す。"""
     toolchain_sha256 = hashlib.sha256(_canonical_json_bytes(toolchain)).hexdigest()
@@ -964,6 +1024,12 @@ def _v2_identity(
     )
     if receipt is not None:
         preimage["fetchcontent_dependency_receipt"] = receipt
+    if fetchcontent_transport_mode is not None:
+        if fetchcontent_transport_mode not in {"base-only", "source-dir"}:
+            raise BuildCacheError(
+                "FetchContent transport mode は base-only/source-dir のいずれか"
+            )
+        preimage["fetchcontent_transport_mode"] = fetchcontent_transport_mode
     return preimage, hashlib.sha256(_canonical_json_bytes(preimage)).hexdigest()
 
 
@@ -1311,6 +1377,9 @@ def _v2_commands(
         toolchain: Dict[str, Dict[str, str]], jobs: Optional[int] = None,
         *, site: Optional[str] = None, dependency_prefix: str = "",
         fetchcontent_base_dir: str = "",
+        masstree_source_dir: Optional[object] = None,
+        mimalloc_source_dir: Optional[object] = None,
+        googletest_source_dir: Optional[object] = None,
 ) -> tuple[List[str], List[str]]:
     resolved_jobs = _resolve_build_jobs(jobs, site)
     target = f"ycsb_{genome.protocol}.exe"
@@ -1322,24 +1391,43 @@ def _v2_commands(
         [f"-DFETCHCONTENT_BASE_DIR={fetchcontent_base_dir}"]
         if fetchcontent_base_dir else []
     )
+    source_dirs = _normalize_fetchcontent_source_dirs(
+        masstree_source_dir=masstree_source_dir,
+        mimalloc_source_dir=mimalloc_source_dir,
+        googletest_source_dir=googletest_source_dir,
+    )
+    if source_dirs and not fetchcontent_base_dir:
+        raise BuildCacheError(
+            "FetchContent SOURCE_DIR は FETCHCONTENT_BASE_DIR と同時指定必須"
+        )
+    source_defines = _fetchcontent_source_defines(source_dirs)
     configure = [
         toolchain["cmake"]["realpath"], "-S", sub, "-B", bdir,
         "-DCMAKE_BUILD_TYPE=Release", "-DENABLE_SANITIZER=OFF",
         f"-DCMAKE_C_COMPILER={toolchain['cc']['realpath']}",
         f"-DCMAKE_CXX_COMPILER={toolchain['cxx']['realpath']}",
-    ] + prefix_define + fetchcontent_define + defines
-    if fetchcontent_base_dir:
+    ] + prefix_define + fetchcontent_define + source_defines + defines
+    if fetchcontent_base_dir and sum(
+            token.startswith("-DFETCHCONTENT_BASE_DIR=")
+            for token in configure) != 1:
+        raise BuildCacheError(
+            "FetchContent floor configure の BASE_DIR define 数が不正"
+        )
+    if source_dirs:
+        actual_source_defines = [
+            token for token in configure
+            if token.startswith("-DFETCHCONTENT_SOURCE_DIR_")
+        ]
+        if actual_source_defines != source_defines:
+            raise BuildCacheError(
+                "FetchContent configure の SOURCE_DIR define 集合が不正"
+            )
+    elif fetchcontent_base_dir:
         if any(
                 token.startswith("-DFETCHCONTENT_SOURCE_DIR_")
                 for token in configure):
             raise BuildCacheError(
                 "FetchContent floor configure に SOURCE_DIR override がある"
-            )
-        if sum(
-                token.startswith("-DFETCHCONTENT_BASE_DIR=")
-                for token in configure) != 1:
-            raise BuildCacheError(
-                "FetchContent floor configure の BASE_DIR define 数が不正"
             )
     build_cmd = [
         toolchain["cmake"]["realpath"], "--build", bdir,
@@ -1353,6 +1441,9 @@ def prepare_masstree_fetchcontent(
         expected_toolchain_manifest: Mapping[str, object],
         configure_timeout_s: int, target_timeout_s: int,
         site: Optional[str] = None, dependency_prefix: str = "",
+        masstree_source_dir: Optional[object] = None,
+        mimalloc_source_dir: Optional[object] = None,
+        googletest_source_dir: Optional[object] = None,
 ) -> MasstreeFetchContentPreparation:
     """floor oracle 前に共有 base の masstree target だけを一度 build する。"""
     base = _canonical_fetchcontent_base(fetchcontent_base_dir)
@@ -1371,6 +1462,11 @@ def prepare_masstree_fetchcontent(
         _elements, resolved_prefix = _canonical_explicit_dependency_prefix(
             dependency_prefix,
         )
+    source_dirs = _normalize_fetchcontent_source_dirs(
+        masstree_source_dir=masstree_source_dir,
+        mimalloc_source_dir=mimalloc_source_dir,
+        googletest_source_dir=googletest_source_dir,
+    )
     build_dir = os.path.join(base, "izanagi-masstree-prebuild")
     prefix_define = (
         [f"-DCMAKE_PREFIX_PATH={resolved_prefix}"] if resolved_prefix else []
@@ -1382,14 +1478,21 @@ def prepare_masstree_fetchcontent(
         f"-DCMAKE_C_COMPILER={toolchain['cc']['realpath']}",
         f"-DCMAKE_CXX_COMPILER={toolchain['cxx']['realpath']}",
         f"-DFETCHCONTENT_BASE_DIR={base}",
-    ] + prefix_define
+    ] + prefix_define + _fetchcontent_source_defines(source_dirs)
     build_cmd = [
         toolchain["cmake"]["realpath"], "--build", build_dir,
         "--target", "masstree_build", "-j",
         str(_resolve_build_jobs(None, resolved_site)),
     ]
-    if any(token.startswith("-DFETCHCONTENT_SOURCE_DIR_") for token in configure):
-        raise BuildCacheError("masstree prebuild configure に SOURCE_DIR override がある")
+    source_defines = _fetchcontent_source_defines(source_dirs)
+    actual_source_defines = [
+        token for token in configure
+        if token.startswith("-DFETCHCONTENT_SOURCE_DIR_")
+    ]
+    if actual_source_defines != source_defines:
+        raise BuildCacheError(
+            "masstree prebuild configure の SOURCE_DIR define 集合が不正"
+        )
     if sum(token.startswith("-DFETCHCONTENT_BASE_DIR=") for token in configure) != 1:
         raise BuildCacheError("masstree prebuild configure の BASE_DIR define 数が不正")
     try:
@@ -1417,6 +1520,9 @@ def _v2_result(
         cached: bool, sub: str, root: str,
         toolchain: Dict[str, Dict[str, str]], contract_sha256: str, site: str,
         dependency_prefix: str, fetchcontent_base_dir: str = "",
+        masstree_source_dir: Optional[object] = None,
+        mimalloc_source_dir: Optional[object] = None,
+        googletest_source_dir: Optional[object] = None,
         masstree_source_root_sha256: str = "",
         toolchain_manifest: Optional[Dict[str, Dict[str, str]]] = None,
         toolchain_manifest_sha256: Optional[str] = None,
@@ -1425,6 +1531,9 @@ def _v2_result(
         genome, trace, sub, bdir, toolchain, site=site,
         dependency_prefix=dependency_prefix,
         fetchcontent_base_dir=fetchcontent_base_dir,
+        masstree_source_dir=masstree_source_dir,
+        mimalloc_source_dir=mimalloc_source_dir,
+        googletest_source_dir=googletest_source_dir,
     )
     return BuildResult(
         genome=genome, trace=trace, binary=binary, bin_sha256=bin_sha256,
@@ -1562,6 +1671,9 @@ def build_v2(
         expected_toolchain_manifest: Optional[Mapping[str, object]] = None,
         declared_use_class: Optional[str] = None,
         fetchcontent_base_dir: str = "",
+        masstree_source_dir: Optional[object] = None,
+        mimalloc_source_dir: Optional[object] = None,
+        googletest_source_dir: Optional[object] = None,
         fetchcontent_dependency_receipt: Optional[Mapping[str, object]] = None,
 ) -> BuildResult:
     """contract namespace に staging/claim/manifest 付きで build する v2 API。
@@ -1630,6 +1742,15 @@ def build_v2(
     dependency_receipt = _validate_fetchcontent_dependency_receipt(
         fetchcontent_dependency_receipt,
     )
+    source_dirs = _normalize_fetchcontent_source_dirs(
+        masstree_source_dir=masstree_source_dir,
+        mimalloc_source_dir=mimalloc_source_dir,
+        googletest_source_dir=googletest_source_dir,
+    )
+    if source_dirs and not fetchcontent_base_dir:
+        raise BuildCacheError(
+            "FetchContent SOURCE_DIR は FETCHCONTENT_BASE_DIR と同時指定必須"
+        )
     if bool(fetchcontent_base_dir) != (dependency_receipt is not None):
         raise BuildCacheError(
             "FETCHCONTENT_BASE_DIR と dependency receipt は同時指定必須"
@@ -1656,6 +1777,8 @@ def build_v2(
             os.environ.get("CMAKE_PREFIX_PATH")
         )
         configure_dependency_prefix = ""
+
+    fetchcontent_transport_mode = "source-dir" if source_dirs else None
 
     contract_sha256 = contract.contract_sha256
     if not is_full_sha256(contract_sha256):
@@ -1700,6 +1823,7 @@ def build_v2(
         site=actual_site, dependency_prefix=effective_dependency_prefix,
         admission=admission_identity,
         fetchcontent_dependency_receipt=dependency_receipt,
+        fetchcontent_transport_mode=fetchcontent_transport_mode,
     )
     parent = os.path.join(root, "contracts", contract_sha256)
     bdir = os.path.join(parent, digest)
@@ -1741,7 +1865,11 @@ def build_v2(
             return _v2_result(
                 genome, trace, binary, bin_sha256, bdir, True, sub, root, toolchain,
                 contract_sha256, resolved_site, configure_dependency_prefix,
-                canonical_fetchcontent_base, masstree_source_root_sha256,
+                canonical_fetchcontent_base,
+                source_dirs.get("masstree") if source_dirs else None,
+                source_dirs.get("mimalloc") if source_dirs else None,
+                source_dirs.get("googletest") if source_dirs else None,
+                masstree_source_root_sha256,
                 complete_toolchain_manifest, complete_toolchain_manifest_sha256,
             )
 
@@ -1769,6 +1897,15 @@ def build_v2(
                 genome, trace, sub, staging, toolchain, site=resolved_site,
                 dependency_prefix=configure_dependency_prefix,
                 fetchcontent_base_dir=canonical_fetchcontent_base,
+                masstree_source_dir=(
+                    source_dirs.get("masstree") if source_dirs else None
+                ),
+                mimalloc_source_dir=(
+                    source_dirs.get("mimalloc") if source_dirs else None
+                ),
+                googletest_source_dir=(
+                    source_dirs.get("googletest") if source_dirs else None
+                ),
             )
             run_env = {}
             if configure_dependency_prefix:
@@ -1900,7 +2037,11 @@ def build_v2(
         return _v2_result(
             genome, trace, binary, bin_sha256, bdir, False, sub, root, toolchain,
             contract_sha256, resolved_site, configure_dependency_prefix,
-            canonical_fetchcontent_base, masstree_source_root_sha256,
+            canonical_fetchcontent_base,
+            source_dirs.get("masstree") if source_dirs else None,
+            source_dirs.get("mimalloc") if source_dirs else None,
+            source_dirs.get("googletest") if source_dirs else None,
+            masstree_source_root_sha256,
             complete_toolchain_manifest, complete_toolchain_manifest_sha256,
         )
     finally:

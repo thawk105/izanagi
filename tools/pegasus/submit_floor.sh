@@ -130,6 +130,23 @@ assert_safe_output_path() {
       && "$resolved" != "$OUTPUT_ROOT_REAL/campaigns/"* ]]
 }
 
+verify_third_party_pinned_clean() {
+  local source=$1 pin=$2 name=$3
+  [[ -d "$source" && ! -L "$source" ]] || {
+    echo "third-party source is not a real directory: $name" >&2
+    return 1
+  }
+  THIRD_PARTY_VERIFIED_HEAD=$(git -C "$source" rev-parse --verify HEAD) || return
+  THIRD_PARTY_VERIFIED_STATUS=$(
+    git -C "$source" status --porcelain --untracked-files=all
+  ) || return
+  if [[ "$THIRD_PARTY_VERIFIED_HEAD" != "$pin" \
+      || -n "$THIRD_PARTY_VERIFIED_STATUS" ]]; then
+    echo "third-party source is not pinned-clean: $name" >&2
+    return 1
+  fi
+}
+
 # 出典: submit_certify.sh:50-73 @ e9b6f69
 POLICY="$REPO_ROOT/tools/pegasus/policy.json"
 FLOOR_POLICY="$REPO_ROOT/tools/pegasus/policies/floor_v1.json"
@@ -380,6 +397,129 @@ PY
 if [[ "$preflight_rc" -ne 0 ]]; then
   echo "one or more preflight captures failed; qsub not executed" >&2
   exit 3
+fi
+
+stage_floor_third_party_payload() {
+  local policy_rows policy_row third_name third_source_name third_pin
+  local source destination payload_tmp
+  local -a rows
+  payload_tmp="${FLOOR_THIRD_PARTY_PAYLOAD_ROOT}.tmp"
+
+  cleanup_payload_tmp() {
+    if [[ -e "$payload_tmp" || -L "$payload_tmp" ]]; then
+      rm -rf -- "$payload_tmp"
+    fi
+  }
+
+  if ! assert_safe_output_path "$FLOOR_THIRD_PARTY_PERSISTENT_ROOT" \
+      || [[ ! -d "$FLOOR_THIRD_PARTY_PERSISTENT_ROOT" \
+      || -L "$FLOOR_THIRD_PARTY_PERSISTENT_ROOT" ]]; then
+    echo "floor third-party source root is missing or unsafe" >&2
+    return 1
+  fi
+  policy_rows=$(python3 -I -B - "$POLICY" <<'PY'
+import json
+import re
+import sys
+
+with open(sys.argv[1], encoding="utf-8") as handle:
+    policy = json.load(handle)
+try:
+    sources = policy["silo_ladder_rung1"]["third_party_sources"]
+except (KeyError, TypeError):
+    raise SystemExit("silo_ladder_rung1 third_party_sources is unavailable")
+expected = {"masstree", "mimalloc", "googletest"}
+if type(sources) is not list or len(sources) != len(expected):
+    raise SystemExit("floor third-party source list has an invalid length")
+rows = []
+for item in sources:
+    if type(item) is not dict:
+        raise SystemExit("floor third-party source entry is not an object")
+    name = item.get("name")
+    source_name = item.get("source_name")
+    pin = item.get("pin")
+    if (type(name) is not str or type(source_name) is not str
+            or type(pin) is not str or name not in expected
+            or re.fullmatch(r"[a-z][a-z0-9_-]*", source_name) is None
+            or re.fullmatch(r"[0-9a-f]{40}", pin) is None):
+        raise SystemExit("floor third-party source entry is invalid")
+    rows.append((name, source_name, pin))
+if {row[0] for row in rows} != expected or len({row[0] for row in rows}) != len(rows):
+    raise SystemExit("floor third-party source names are not a closed set")
+for row in sorted(rows):
+    print("\t".join(row))
+PY
+  ) || {
+    echo "cannot read floor third-party pins from shared policy" >&2
+    return 1
+  }
+  readarray -t rows <<<"$policy_rows"
+  [[ ${#rows[@]} -eq 3 ]] || {
+    echo "shared policy yielded an unexpected floor third-party row count" >&2
+    return 1
+  }
+
+  if ! assert_safe_output_path "$FLOOR_THIRD_PARTY_PAYLOAD_ROOT"; then
+    echo "unsafe floor third-party payload path" >&2
+    return 1
+  fi
+  if ! assert_safe_output_path "$payload_tmp"; then
+    echo "unsafe temporary floor third-party payload path" >&2
+    return 1
+  fi
+  if [[ -e "$FLOOR_THIRD_PARTY_PAYLOAD_ROOT" \
+      || -L "$FLOOR_THIRD_PARTY_PAYLOAD_ROOT" ]]; then
+    echo "floor third-party payload directory already exists" >&2
+    return 1
+  fi
+  if [[ -e "$payload_tmp" || -L "$payload_tmp" ]]; then
+    echo "temporary floor third-party payload directory already exists" >&2
+    cleanup_payload_tmp
+    return 1
+  fi
+  mkdir "$payload_tmp" || {
+    echo "floor third-party temporary payload directory cannot be created" >&2
+    cleanup_payload_tmp
+    return 1
+  }
+  for policy_row in "${rows[@]}"; do
+    IFS=$'\t' read -r third_name third_source_name third_pin <<<"$policy_row"
+    source="$FLOOR_THIRD_PARTY_PERSISTENT_ROOT/$third_source_name"
+    destination="$payload_tmp/${third_name}-src"
+    if ! verify_third_party_pinned_clean "$source" "$third_pin" "$third_name"; then
+      cleanup_payload_tmp
+      return 1
+    fi
+    if [[ -e "$destination" || -L "$destination" ]]; then
+      echo "floor third-party payload destination already exists: $destination" >&2
+      cleanup_payload_tmp
+      return 1
+    fi
+    if ! cp -a -- "$source" "$destination"; then
+      cleanup_payload_tmp
+      return 1
+    fi
+    if ! verify_third_party_pinned_clean "$destination" "$third_pin" "$third_name"; then
+      cleanup_payload_tmp
+      return 1
+    fi
+  done
+  if ! mv -T -- "$payload_tmp" "$FLOOR_THIRD_PARTY_PAYLOAD_ROOT"; then
+    echo "floor third-party payload publish failed" >&2
+    cleanup_payload_tmp
+    return 1
+  fi
+}
+
+FLOOR_THIRD_PARTY_PERSISTENT_ROOT="$OUTPUT_ROOT/env/pegasus/silo_ladder_rung1/job-staging/thirdparty-src"
+FLOOR_THIRD_PARTY_PAYLOAD_ROOT="$SUBMISSION_DIR/masstree-payload"
+if [[ "$DRY_RUN" -eq 0 \
+    || ( -d "$FLOOR_THIRD_PARTY_PERSISTENT_ROOT" \
+      && ! -L "$FLOOR_THIRD_PARTY_PERSISTENT_ROOT" ) ]]; then
+  stage_floor_third_party_payload || {
+    echo "floor third-party payload staging failed; qsub not executed" >&2
+    exit 2
+  }
 fi
 
 provision_claim_root() {

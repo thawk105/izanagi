@@ -588,7 +588,7 @@ def test_floor_manifest_golden_stable(tmp_path):
         manifest, ensure_ascii=False, indent=2, sort_keys=True) + "\n"
     actual_sha256 = hashlib.sha256(payload.encode("utf-8")).hexdigest()
     assert actual_sha256 == (
-        "868e43d75a6f1f5d7973791fb912f04e17967ecff561e179e4bfa3440712031f"
+        "32f84a16e470047655567947ca902a4e7ab3690aa61e6f903f4e50bb214f1722"
     ), actual_sha256
 
 

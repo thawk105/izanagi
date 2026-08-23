@@ -28,6 +28,8 @@ AUTHORITY_BOUND_STAGES = frozenset({"review", "focus", "author", "fix"})
 
 # These are deliberately operational defaults, not docs authority.
 DEFAULT_WALL_CLOCK_ADMISSION_BOUND_S = 3600
+DEFAULT_PREPARATION_ADMISSION_BOUND_S = 60
+DEFAULT_FINALIZATION_ADMISSION_BOUND_S = 60
 DEFAULT_MAX_MODEL_CALLS = 100
 DEFAULT_MAX_CLI_REPORTED_TOKENS = 1_000_000
 DEFAULT_EVIDENCE_GRACE_S = Decimal("90")
@@ -73,11 +75,35 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--repo-root", type=Path, default=_ROOT)
     parser.add_argument("--job-id")
     parser.add_argument(
+        "--preparation-admission-bound-s",
+        type=_positive_int,
+        default=DEFAULT_PREPARATION_ADMISSION_BOUND_S,
+        help=(
+            "job 起点から初回 Popen 直前までの準備 admission 上限 "
+            "(--version の実測時間は除外)。"
+            f"(既定: {DEFAULT_PREPARATION_ADMISSION_BOUND_S}); "
+            f"{_NON_AUTHORITY_HELP}"
+        ),
+    )
+    parser.add_argument(
         "--wall-clock-admission-bound-s",
         type=_positive_int,
         default=DEFAULT_WALL_CLOCK_ADMISSION_BOUND_S,
         help=(
-            f"wall-clock 上限 (既定: {DEFAULT_WALL_CLOCK_ADMISSION_BOUND_S}); "
+            "--version の実測時間と、初回 Popen 直前から最終 attempt の "
+            "wall-clock 採取完了までの和に対する上限 "
+            f"(既定: {DEFAULT_WALL_CLOCK_ADMISSION_BOUND_S}); "
+            f"{_NON_AUTHORITY_HELP}"
+        ),
+    )
+    parser.add_argument(
+        "--finalization-admission-bound-s",
+        type=_positive_int,
+        default=DEFAULT_FINALIZATION_ADMISSION_BOUND_S,
+        help=(
+            "最終 attempt の wall-clock 採取完了から receipt の atomic 公開 "
+            "完了まで (attempt seal を含む) の最終化 admission 上限 "
+            f"(既定: {DEFAULT_FINALIZATION_ADMISSION_BOUND_S}); "
             f"{_NON_AUTHORITY_HELP}"
         ),
     )
@@ -115,7 +141,9 @@ def _parser() -> argparse.ArgumentParser:
             "暫定運用値であり測定された最小値ではない); "
             f"{_NON_AUTHORITY_HELP}。ただし受理集合に影響するため、"
             "--wall-clock-admission-bound-s が 90 未満ならそれに切り下げる "
-            "(子の起動完了時を起点とする)"
+            "(子の起動完了時を起点とする)。wall deadline は Popen 直前を"
+            "起点とし --version 所要も加算するため、version と spawn の"
+            "所要分だけ evidence grace の終端より早い"
         ),
     )
     parser.add_argument(
@@ -254,8 +282,12 @@ def _launcher_argv(
         argv.extend(("--reasoning", args.reasoning))
     argv.extend(
         (
+            "--preparation-admission-bound-s",
+            str(args.preparation_admission_bound_s),
             "--wall-clock-admission-bound-s",
             str(args.wall_clock_admission_bound_s),
+            "--finalization-admission-bound-s",
+            str(args.finalization_admission_bound_s),
             "--evidence-grace-s",
             canonical_decimal(args.evidence_grace_s),
             "--max-model-calls",
