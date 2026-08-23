@@ -261,9 +261,18 @@ pilot D を consumer X と同一視できず、B-R の余裕が現行 envelope �
 `/tmp` ancestor に空の `/tmp/.git` があり、job dir ancestor にも `dev-wave-jobs/.git` があるため、
 既知 F457 の `_has_git_ancestor()` が basetemp を repository 内と分類したことだった。どちらも
 production predicate を変更せず、Git ancestor の無い `/work/1/SFC/tanab/` 直下の `mktemp -d` を
-basetemp parent にして再走した。最終結果は **21 passed in 17.12s**。この焦点走は受入全走ではない。
+basetemp parent にして再走した。最終結果は **21 passed in 17.12s**。local main `402a5752`
+取込み後の再走も **21 passed in 15.65s**。この焦点走は受入全走ではない。
 
-## 13. dev-wave の検証資料
+## 13. dev-wave 改善候補
+
+段2 plan の初回 dispatch を `--max-model-calls 1` に狭めたところ、1 call 目が射影資料の読取で
+終わり、`f45_missing_output` (output 0 byte) になった。receipt/done を削除せず別 job ID・4 calls で
+再投入して完了した。将来 `DW-O01` に「projection を読む plan/consult は1 callへ狭めず、既定または
+2以上を使う」と明確化する候補を routing する。新しい失敗型や長期設計判断ではないため、新規 F/D は
+作らない。ユーザー指示に従い、本 wave では改善実装を行わない。
+
+## 14. dev-wave の検証資料
 
 - 段 1 brief: repo 外 job dir `stage1-brief.md`
 - 段 2 plan: 同 `stage2-plan.md`

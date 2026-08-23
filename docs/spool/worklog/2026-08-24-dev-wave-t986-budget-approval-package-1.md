@@ -27,7 +27,11 @@ title: [T-986] freeze v2 budget pin の見積り根拠と Pegasus pilot を pre-
   その所有物へ介入していない。
 - 関連焦点走は最初の2走が既知F457 (`/tmp/.git` と `dev-wave-jobs/.git` の ancestor 誤認) で
   production predicate 前に拒否された。predicateを変えずGit ancestorの無いbasetempへ分離し、
-  budget/approval/envelope 21 nodeを再走して21 passed (17.12s) と確認した。受入全走ではない。
+  budget/approval/envelope 21 nodeを再走して21 passed (17.12s)、local main取込み後も21 passed
+  (15.65s) と確認した。受入全走ではない。
+- dev-wave改善候補は1件。projectionを読むplanに`max_model_calls=1`を指定すると読取1 callだけで
+  `f45_missing_output`になった。`DW-O01`への将来の明確化候補として専用handoffへ記録し、本scopeで
+  改善実装は行わなかった。
 
 ## 次の一手差分
 
