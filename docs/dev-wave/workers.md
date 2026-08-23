@@ -4,12 +4,12 @@ codex plan、敵対相談、実装、レビュー・fix worker の正本。入�
 
 ## DW-S02 — 段 2 プラン起草
 
-brief と関連コードの所在を渡し、codex `reasoning=max`、`sandbox=read-only` で
-file:line 粒度のプランを起草させる。
+brief と関連コードの所在を渡し、codex `reasoning=xhigh`、`sandbox=read-only` で
+file:line 粒度の plan を起草させる。
 
 ## DW-S03 — 段 3 敵対相談
 
-codex `reasoning=max`、`sandbox=read-only` で異なるレンズへ並列起動し、プランを守らせず攻撃させる。
+codex `reasoning=xhigh`、`sandbox=read-only` で異なるレンズへ並列起動し、プランを守らせず攻撃させる。
 正しさ境界と整合・実効性を分け、親 brief 自身も攻撃対象だと明記する。brief の file:line、前提、
 所有範囲、変異の帰属不成立、**親自身の実測値とその一般化**を探させる。
 gate・検査を新設する wave では成果物が実際に効く全層が scope に入るかを必ずレンズに入れ、
@@ -20,7 +20,7 @@ scope 外の層を実装したふりにせず裁定パッケージ候補とし�
 実装単位は編集ファイル所有が素集合になるよう分割し worktree を分ける。依存があれば先行単位を
 完了させ、所有パス限定 patch
 （`git add -A` 後 `git diff --cached --output=<f> -- <所有パス>` で作り `git apply`。隔離 session は `git -C` 不可）だけを展開してから並列投入する。
-codex は `reasoning=max`、`sandbox=workspace-write` とする。
+codex は `reasoning=xhigh`、`sandbox=workspace-write` とする。
 
 ## DW-S05-B — 段 5 権限と赤
 
@@ -30,7 +30,7 @@ codex は `reasoning=max`、`sandbox=workspace-write` とする。
 
 ## DW-S05-C — 段 5 実装子の検査・報告
 
-実装子のプロンプトに次をすべて入れる。
+実装子の prompt に次をすべて入れる。
 
 - 緑には実走 nodeid・範囲を併記する。子の実走は親の全走を代替せず、実走できない子は所見や要件を
   `closed` と申告しない (「実装済み・未実走」と書く)。
@@ -44,7 +44,7 @@ codex は `reasoning=max`、`sandbox=workspace-write` とする。
 
 ## DW-S06-A — 段 6 敵対レビュー
 
-実装 wave は異なるレンズの敵対レビューを `reasoning=max` で必ず 2 本並列で行う。
+実装 wave は異なるレンズの敵対レビューを `reasoning=xhigh` で必ず 2 本並列で行う。
 実装面に Codex `role=author` のないハンクがあればレビューで代替せず停止する。
 所見ゼロは変異で裏取りするまで緑と数えない。
 
@@ -62,6 +62,6 @@ fix の prompt には**既存テストの期待値を変更しない**を明記�
 
 ## DW-S06-C — 段 6 統合後の再検証
 
-並列 fix の統合後、焦点再レビューは全体へ `reasoning=max` で 1 本でよい。
+並列 fix の統合後、焦点再レビューは全体へ `reasoning=xhigh` で 1 本でよい。
 親が変異 matrix と受入を再走する。
 成立した条件の operations と `DW-G05` を適用し、成果物影響を書けない所見を must-fix にしない。

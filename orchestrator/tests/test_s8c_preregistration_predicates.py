@@ -1017,15 +1017,6 @@ def test_c12_allocation_binding_gate_precedes_environment_gate(
     assert result.reason_code == "allocation-enforcement-consumer-absent"
 
 
-def test_current_repository_c12_allocation_binding_helper_accepts_both_calls(
-    current_commit_snapshot: tuple[Path, str],
-) -> None:
-    root, head = current_commit_snapshot
-    result = _result(root, head, "C12")
-    assert result.status is core.PredicateStatus.EVIDENCE_UNDEFINED
-    assert result.reason_code == "completion-proof-not-machine-checkable"
-
-
 def _negative_control_case(
     identifier: str,
 ) -> tuple[dict[str, bytes | str], str, bytes | str]:

@@ -48,6 +48,10 @@ title: ...            # worklog のみ必須。他 ledger では禁止
 `ledger` はディレクトリ名と一致し、ファイル名は frontmatter から再構成した文字列と byte 一致
 しなければならない。UTF-8 / LF / 末尾 newline 必須。未知 key・重複 key は拒否。
 
+**値を引用符で囲まない。** fold は frontmatter を行単位で読み値を逐語に取る (YAML として
+解釈しない)。`title: '...'` と書くと引用符ごと canonical の H2 見出しへ残り、canonical は
+fold だけが書けるため着地後は直せない。題が `[` で始まっても `:` を含んでも、無引用で書く。
+
 ## placeholder (遅延採番)
 
 新しい T / D / F 番号は **fragment に書かない**。書くのは名前 (slug) だけで、実番号は fold が付ける。
@@ -84,6 +88,11 @@ git add -- docs/spool
 **wave 側で fold してはならない。** fold は `tools/dev_wave_land.py` が local main へ ff-only した
 直後、同じ協調 lock を保持したまま実行する。これにより採番・追記・ローテーションが直列化され、
 race も再採番も起きない。
+
+**書いた fragment を撤回するときは、file を削除せず内容を書き換える。** fragment の削除と
+`FOLDED.md` の変更は fold の署名であり、land の verifier は wave の commit 区間にこれらが現れると
+`landed-fold-owned-path` で拒否する (`tools/dev_waves/git_state.py`)。撤回したい決定は、決定を残して
+結論を現況へ改める。後から削除し直しても、削除した commit が区間に残る限り拒否は解けない。
 
 fold が行うこと:
 
