@@ -6794,22 +6794,23 @@ def test_locked_forward_main_ff_gate_has_no_competing_rejection_layer() -> None:
         wave = repo.waves["one"]
         request, _, _ = _forward_merge_request(repo, wave, count=1)
         locked_main = repo.commit(repo.main, "main-later.txt", "main moved again\n")
-        repository = LAND._verify_repository(request)
-        try:
-            merges = LAND._forward_main_merge_topology(
-                repository,
-                request.tested_wave_tip_sha,
-                request.landing_wave_tip_sha,
-            )
-            with pytest.raises(LAND._Reject) as raised:
-                LAND._verify_locked_forward_main(
+        with _cwd(wave):
+            repository = LAND._verify_repository(request)
+            try:
+                merges = LAND._forward_main_merge_topology(
                     repository,
-                    locked_main,
+                    request.tested_wave_tip_sha,
                     request.landing_wave_tip_sha,
-                    merges,
                 )
-        finally:
-            repository.close()
+                with pytest.raises(LAND._Reject) as raised:
+                    LAND._verify_locked_forward_main(
+                        repository,
+                        locked_main,
+                        request.landing_wave_tip_sha,
+                        merges,
+                    )
+            finally:
+                repository.close()
         assert raised.value.rc == LAND.RC_STALE_MAIN
         assert raised.value.reason == "landing tip does not contain locked main"
 
@@ -6819,19 +6820,60 @@ def test_forward_permission_requires_verified_nonempty_merge_closure() -> None:
         wave = repo.waves["one"]
         tested_tip = repo.commit(wave, "wave.txt", "accepted\n")
         request = repo.request(wave, tip=tested_tip)
-        repository = LAND._verify_repository(request)
-        try:
-            assert not LAND._main_is_allowed(
-                repository,
-                repo.base,
-                repo.base,
-                tested_tip,
-                request.audited_commits,
-                landing_tip="1" * 40,
-                forward_main_merges=(),
-            )
-        finally:
-            repository.close()
+        with _cwd(wave):
+            repository = LAND._verify_repository(request)
+            try:
+                assert not LAND._main_is_allowed(
+                    repository,
+                    repo.base,
+                    repo.base,
+                    tested_tip,
+                    request.audited_commits,
+                    landing_tip="1" * 40,
+                    forward_main_merges=(),
+                )
+            finally:
+                repository.close()
+
+
+def test_forward_main_merge_chain_above_json_budget_cap_is_rejected() -> None:
+    with _repo() as repo:
+        wave = repo.waves["one"]
+        request, _, _ = _forward_merge_request(
+            repo,
+            wave,
+            count=LAND._MAX_FORWARD_MAIN_MERGES + 1,
+        )
+
+        result = _land(request)
+
+        assert (result.rc, result.status) == (LAND.RC_AUDIT, "rejected")
+        assert result.reason == (
+            "forward main merge chain exceeds the accepted maximum "
+            f"of {LAND._MAX_FORWARD_MAIN_MERGES}"
+        )
+
+
+def test_forward_main_merge_chain_at_json_budget_cap_is_accepted() -> None:
+    with _repo() as repo:
+        wave = repo.waves["one"]
+        request, incorporated, _ = _forward_merge_request(
+            repo,
+            wave,
+            count=LAND._MAX_FORWARD_MAIN_MERGES,
+        )
+        with _cwd(wave):
+            repository = LAND._verify_repository(request)
+            try:
+                merges = LAND._forward_main_merge_topology(
+                    repository,
+                    request.tested_wave_tip_sha,
+                    request.landing_wave_tip_sha,
+                )
+            finally:
+                repository.close()
+
+        assert tuple(merge.incorporated_main_sha for merge in merges) == incorporated
 
 
 def test_omitted_landing_tip_preserves_legacy_tested_tip_target() -> None:
@@ -7851,14 +7893,14 @@ def test_main_verified_receipt_digest_mismatch_blocks_release() -> None:
 
 
 def test_compact_core_json_preserves_legacy_64k_message_boundary() -> None:
-    """flake field 追加で通知 JSON の最大 nodeid が 21 bytes 縮む。"""
+    """flake field で21 bytes、今回の3 field で73 bytes、最大 nodeid が縮む。"""
 
     with _repo() as repo:
         request = repo.request(repo.waves["one"])
         lease_dir = repo.root / "lease"
         lease_dir.mkdir()
-        legacy_nodeid = "x" * 65075
-        boundary_nodeid = "x" * 65054
+        legacy_nodeid = "x" * 65002
+        boundary_nodeid = "x" * 64981
         result = LAND.LandResult(
             LAND.RC_OK,
             "landed",
@@ -7881,8 +7923,23 @@ def test_compact_core_json_preserves_legacy_64k_message_boundary() -> None:
             for key, value in legacy_payload.items()
             if key != "acceptance_flake_nodeids"
         }
+        pre_forward_fields_payload = {
+            key: value
+            for key, value in payload.items()
+            if key not in {
+                "tested_tip_sha",
+                "landing_tip_sha",
+                "incorporated_main_shas",
+            }
+        }
         legacy_without_flake_bytes = json.dumps(
             legacy_without_flake_payload,
+            ensure_ascii=False,
+            separators=(",", ":"),
+            sort_keys=True,
+        ).encode("utf-8")
+        pre_forward_fields_bytes = json.dumps(
+            pre_forward_fields_payload,
             ensure_ascii=False,
             separators=(",", ":"),
             sort_keys=True,
@@ -7904,6 +7961,7 @@ def test_compact_core_json_preserves_legacy_64k_message_boundary() -> None:
         assert len(b',"acceptance_flake_nodeids":[]') == 30
         assert len(legacy_bytes) - len(legacy_without_flake_bytes) == 30
         assert len(legacy_bytes) - len(compact_bytes) == 21
+        assert len(compact_bytes) - len(pre_forward_fields_bytes) == 73
         assert len(legacy_bytes) == 65556
         assert len(compact_bytes) == 65535
         assert len(legacy_bytes) + 1 > LAND._wave_land_window._MAX_LAND_JSON_BYTES
@@ -7922,6 +7980,72 @@ def test_compact_core_json_preserves_legacy_64k_message_boundary() -> None:
             land_json,
         )
         assert message.startswith("[dev-wave] landed main=" + "b" * 40)
+
+
+def test_max_forward_main_merge_chain_fits_receipt_derived_64k_json_budget() -> None:
+    """64 KiB 受領証の最大 nodeid と上限 chain が land JSON に同居できる。"""
+
+    with _repo() as repo:
+        request = repo.request(repo.waves["one"])
+        receipt = json.loads(request.acceptance_receipt.read_text(encoding="ascii"))
+        receipt.update({
+            "child_rc": 1,
+            "verdict": "non-attributable-only",
+            "checker_rc": 0,
+            "checker_status": "non-attributable-only",
+            "checker_blob_sha": "d" * 40,
+            "checker_receipt_sha256": "e" * 64,
+            "red_nodeids": [""],
+        })
+        receipt_bytes = json.dumps(
+            receipt,
+            ensure_ascii=True,
+            separators=(",", ":"),
+            sort_keys=True,
+        ).encode("ascii")
+        max_nodeid_bytes = (
+            LAND._MAX_ACCEPTANCE_RECEIPT_BYTES - len(receipt_bytes) - 1
+        )
+        max_nodeid = "x" * max_nodeid_bytes
+        receipt["red_nodeids"] = [max_nodeid]
+        receipt_bytes = json.dumps(
+            receipt,
+            ensure_ascii=True,
+            separators=(",", ":"),
+            sort_keys=True,
+        ).encode("ascii")
+        assert len(receipt_bytes) + 1 == LAND._MAX_ACCEPTANCE_RECEIPT_BYTES
+
+        sha = "f" * 40
+        result = LAND.LandResult(
+            LAND.RC_OK,
+            "already-landed",
+            "verified active fold commit finalized without reapplying or recommitting",
+            main_before=sha,
+            main_after=sha,
+            wave_tip=sha,
+            fold_commit_sha=sha,
+            acceptance_receipt_sha256="a" * 64,
+            acceptance_verdict="non-attributable-only",
+            acceptance_red_nodeids=(max_nodeid,),
+            acceptance_flake_nodeids=(),
+            tested_tip_sha=sha,
+            landing_tip_sha=sha,
+            incorporated_main_shas=tuple(
+                f"{index:040x}"
+                for index in range(LAND._MAX_FORWARD_MAIN_MERGES)
+            ),
+            release_safe=True,
+        )
+        land_bytes = json.dumps(
+            result.as_json(),
+            ensure_ascii=False,
+            separators=(",", ":"),
+            sort_keys=True,
+        ).encode("utf-8")
+
+        assert len(result.incorporated_main_shas) == LAND._MAX_FORWARD_MAIN_MERGES
+        assert len(land_bytes) + 1 <= LAND._wave_land_window._MAX_LAND_JSON_BYTES
 
 
 def test_release_failure_never_overwrites_land_result() -> None:

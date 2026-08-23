@@ -199,10 +199,16 @@ def test_landed_attached_worktree_is_removed(tmp_path, monkeypatch, capsys, lock
     _assert_removed(repo)
 
 
+@pytest.mark.parametrize(
+    "pass_optional_tip",
+    (False, True),
+    ids=("derived", "asserted"),
+)
 def test_forward_merged_landing_tip_is_used_for_cleanup(
     tmp_path,
     monkeypatch,
     capsys,
+    pass_optional_tip,
 ):
     repo = _make_repo(tmp_path, monkeypatch, landed=False)
     tested_tip = repo.tip
@@ -215,12 +221,22 @@ def test_forward_merged_landing_tip_is_used_for_cleanup(
     assert landing_tip != tested_tip
     _git(repo.main, "merge", "--ff-only", landing_tip)
 
+    overrides = {"landing_tip": landing_tip} if pass_optional_tip else {}
     _assert_success_output(
-        _run(repo, capsys, landing_tip=landing_tip),
+        _run(repo, capsys, **overrides),
         "removed",
         occupancy_phases=("preflight", "recheck"),
     )
     _assert_removed(repo)
+
+
+def test_optional_landing_tip_must_match_derived_wave_head(
+    tmp_path,
+    monkeypatch,
+    capsys,
+):
+    repo = _make_repo(tmp_path, monkeypatch)
+    _assert_rejected_preserving(repo, capsys, landing_tip=repo.base)
 
 
 @pytest.mark.parametrize("state", ("a", "b", "c", "d", "e"))
@@ -619,7 +635,17 @@ def test_rejects_wave_from_different_common_dir(tmp_path, monkeypatch, capsys):
 
 def test_rejects_branch_tip_mismatch_without_mutation(tmp_path, monkeypatch, capsys):
     repo = _make_repo(tmp_path, monkeypatch, locked=True)
-    _assert_rejected_preserving(repo, capsys, tip=repo.base)
+    tree = _sha(repo.main, f"{repo.base}^{{tree}}")
+    unrelated_tested_tip = _git(
+        repo.main,
+        "commit-tree",
+        tree,
+        "-p",
+        repo.base,
+        "-m",
+        "unrelated tested tip",
+    ).stdout.decode().strip()
+    _assert_rejected_preserving(repo, capsys, tip=unrelated_tested_tip)
 
 
 @pytest.mark.parametrize("spelling", ("symlink", "dotdot", "trailing"))
@@ -824,6 +850,7 @@ def test_git_argv_schema_rejects_force_delete_permutations(monkeypatch, argv):
         ("cat-file", "-e", "a" * 40 + "^{commit}"),
         ("check-ref-format", "--branch", "wave"),
         ("merge-base", "--is-ancestor", "a" * 40, "refs/heads/main"),
+        ("merge-base", "--is-ancestor", "a" * 40, "b" * 40),
         ("rev-list", "--walk-reflogs", "refs/heads/wave"),
         ("rev-parse", "--git-common-dir"),
         ("rev-parse", "--git-dir"),

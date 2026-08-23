@@ -63,6 +63,8 @@ _LAND_LOCK_MAX_POLL_SECONDS = 1.0
 _LAND_LOCK_RANDOM = random.SystemRandom()
 _MAX_METADATA_BYTES = 16 * 1024
 _MAX_ACCEPTANCE_RECEIPT_BYTES = 64 * 1024
+# 最大 receipt 由来 nodeid と最長の成功 envelope を 64 KiB 通知へ同居させる。
+_MAX_FORWARD_MAIN_MERGES = 8
 _PROVENANCE_VIOLATION_RC = 1
 _SHA_RE = re.compile(r"(?:[0-9a-f]{40}|[0-9a-f]{64})\Z")
 _SHA1_RE = re.compile(r"[0-9a-f]{40}\Z")
@@ -1862,6 +1864,12 @@ def _forward_main_merge_topology(
         ) from exc
     if not rows:
         raise _Reject(RC_AUDIT, "landing tip has no first-parent path from tested tip")
+    if len(rows) > _MAX_FORWARD_MAIN_MERGES:
+        raise _Reject(
+            RC_AUDIT,
+            "forward main merge chain exceeds the accepted maximum "
+            f"of {_MAX_FORWARD_MAIN_MERGES}",
+        )
 
     expected_parent = tested_tip
     previous_main: str | None = None
