@@ -75,6 +75,17 @@ matrix 走行中に書いたため、harness の起動前 clean-tree 検査が
 
 設計判断は {{D:t189-prescreen-catalog-never-claims-admission}} に記録した。
 
+**受入全走の 1 回目は自分の回帰 1 件で赤だった。**
+`1 failed / 14711 passed / 67 skipped in 275.18s` (tested_main `72dd1450` / tested_tip `fef1b354`)。
+赤は `test_plain_runner_coverage.py::test_every_test_file_is_self_runnable_or_allowlisted` で、
+新設した test file 2 本に自走 harness が無く、素の runner で 0 件実行の偽緑になりうる状態だった。
+allowlist へ逃がさず harness を実装した (既存 idiom に追随)。
+**焦点走の組み方が不足していた** — `DW-O26` は「変更した production file を参照する consumer test」を
+焦点走へ含めよと定めるが、**test file を新設する変更にとっては test file 集合を走査する
+このメタ検査が consumer にあたる**。含めていれば受入全走を 1 本使わずに捕まえられた。
+修正後の焦点走は 77 passed (3.38s)、自走 harness の直接実行も 36 passed (rc=0)。
+変異 matrix は最終 commit で再走し、同じく baseline PASSED・9/9 KILLED。
+
 **段8 (自己改善): 実測した候補 2 件はいずれも予算超過で入らず、ユーザー裁定へ返す。**
 両方とも既存 leaf 節への統合として実際に編集し、`check_docs.py` で測って戻した。
 **予算値を上げる変更は通常の自己改善に含めない** (`docs/skill-self-improvement.md`)。
