@@ -28695,3 +28695,107 @@ lock 内では SHA の同一性と祖先関係だけを再確認する。
 - 何も記録せず次の `/rulings` に任せる — 台帳に偽の前提が残り、再訪条件が成立していることも
   見えない。恒真な保留と同型である。
 - 直ちに完全性証明を実装する — ユーザーが明示的に見送った作業を、親の判断で復活させることになる。
+
+## D734. 床値 (8b v1 freeze) crash 復帰救出経路は D510/§10.5 準拠の事前割当 registry を推奨し、実装形状はユーザー裁定へ返す (2026-08-24)
+
+**決定:**
+
+1. `docs/phase3-8b-restart-runbook.md` の R-5 (crash 復帰の再生成) が未決着としていた
+   「D496 決定3 と旧 §9項8 のどちらが優先するか」は、D510 決定4 (2026-08-18) が
+   「8b §9項8 の再走全拒否より D496 決定3 を優先する」と名指しして既に決着していると
+   確認し、R-5 本文をその旨へ更新する。設計正本は `docs/phase3-8b-descriptor-design.md`
+   §10.5 (同日付の再凍結で仕様化済み、freeze-wide の事前割当 attempt registry、消費範囲は
+   落ちた構成の同じ反復に限定) とする。
+2. `orchestrator/campaign/trial_registry.py` の公開契約 (schema version・path・
+   `ARMS`/`HOLDOUTS`・`TrialManifest`) を非互換に変更して 8b へ転用することはしない。
+3. 8b 側の実装形状 (専用の新規モジュール、または `trial_registry.py` の attempt 状態機械
+   本体を共通 core として抽出し 8c 互換 facade + 8b adapter を作る形) は、本 wave の
+   docs-only な scope では確定しない。共通 core 抽出案を軽い推奨として記録するが、
+   実際の抽出コスト (8c consumer への影響範囲) は測っていないため、次のユーザー裁定へ
+   返す。
+4. 実装許可と正式測定の認可を分離する。8b 側の attempt registry 実装は
+   `docs/phase3-8b-descriptor-design.md` §10.6 (epoch 境界) に妨げられないが、正式測定は
+   8c 側の判定器・証拠契約・attempt registry・結果 judge が発効するまで認可しない
+   (8c 側の `judge()` に production caller が存在しないため、この gate は当面閉じたまま)。
+5. 実装着手前に次の4点を実装 wave の段1 brief で閉じることを要求する。(i) 上記3の
+   reuse 形状の判断、(ii) 既存の `s8b_holdout_admission.py` 共有 root・claim・ledger
+   との束縛 (どちらを master とするか)、(iii) 8b 自身の失敗分類を性能出力を読む前に
+   確定させる trusted launcher 設計 (現行実装は `measure_fn` 実行後に分類しており
+   D510 決定4 の要件を満たさない)、(iv) crash 点4 (観測開始後) の再抽選バイアスの扱い。
+
+**理由:**
+
+- D510 決定4 の文言は「8b §9項8」を明示的に名指ししており、これを別途の新しい裁定として
+  再度ユーザーに諮る必要はない。一方で `trial_registry.py` の literal 流用が 8c ドメイン
+  固定 (ARMS/HOLDOUTS/schema/acceptance) のため不可能なことは段2 codex plan・段3 敵対
+  2レンズが独立に確認しており、8b 側に何らかの対応物は要る。
+- 段3 敵対レンズ (整合性・実効性レンズ) が、attempt 状態機械の本体 (genesis/reserve/
+  classify/observe/terminal/accept) がほぼドメイン非依存で 8c 固有部分より一桁以上
+  大きいことを file:line で示し、「8b 専用に新規複製する」という当初の暫定判断が
+  未検証のまま確定推奨にされかけていたと指摘した。この指摘は段1 brief・段2 plan の
+  どちらも行っておらず、独立コンテキストでの敵対検証がなければ見落とされていた。
+- 8b の失敗分類が性能出力を読んだ後に決まっている実装上の事実は、D510 決定4 (「分類は
+  信頼側の起動器が性能出力を読む前に確定する」) と直接抵触する。これは絶対規律2
+  (正しさゲートを緩める変異を許さない) に関わるため、実装 wave が着手前に必ず解く
+  前提として明記する必要がある。
+
+**却下した選択肢:**
+
+- 旧 R-5 (c) (crash した campaign をその protocol/env で terminal と扱う、現状の実装
+  挙動) — D496 決定3・D510 決定4 が明示的に否定した形であり不採用。
+- `trial_registry.py` をそのまま (非互換な契約変更を伴って) 8b へ流用する — 8c ドメイン
+  固定の schema/path/ARMS/HOLDOUTS/`TrialManifest` を壊し、8c の稼働中 consumer
+  (`p3_autonomous_workload_trial.py` 等) を破壊しうるため不採用。
+- 本 wave 内で実装形状 (専用複製 vs 共通 core 抽出) まで確定する — 実際の抽出コスト
+  (8c consumer への影響範囲・テスト改修範囲) を測っておらず、本 wave は docs-only の
+  技術確認 scope であるため、確定は次のユーザー裁定と実装 wave の段1 brief に委ねる。
+
+## D735. attempt 状態機械の共通 core は遷移 policy を profile 注入とし、8c は今日の挙動を保つ (2026-08-24)
+
+**決定:**
+
+1. D672 の共通 core は `orchestrator/campaign/attempt_registry_core.py` に置き、
+   slot codec・binding codec・schema/event 表・path layout・retryable 理由集合・
+   budget key・遷移 policy を `DomainProfile` で注入する。
+   8c は `orchestrator/campaign/trial_registry.py` の**実 `def` による委譲 facade**、
+   8b は `orchestrator/campaign/s8b_attempt_profile.py` の profile とする。
+2. **facade を再 export で書いてはならない。** `s8c_preregistration_evidence.py` の
+   条件 C03 は `ast.FunctionDef` の実在を要求するため、再 export では拒否理由が変わる。
+   同じ理由で facade 6 関数の top-level 再束縛も禁じる。
+3. **正しさ検査の強弱は profile の項目にする。** 具体的には
+   `require_terminal_reason_equals_classification` を置き、**8c は今日の挙動である `False`、
+   8b は `True`** とする。8c 側を締めると受理集合が狭まり D672 の実装条件に反するためである。
+4. **core は semantic handler を持たない event を fail-closed で拒否する。**
+   profile の event 表に名前があるだけの event に terminal の semantic を与えない。
+5. **8b の再走理由集合は空のままとし、中身は決めない。** 受理集合を変える判断であり、
+   `docs/phase3-8b-descriptor-design.md` §10.5 の「exact な列挙を事前登録の凍結範囲へ書く」
+   要件と、証拠源 (scheduler accounting) の設計が未確定だからである。
+6. **8b の production 配線は行わない。** 本決定の時点では 8b の実行系から新 core を
+   import も call もしない。途中状態を production から到達不能に保つ。
+
+**理由:**
+
+- 8c の受理集合の実体は path pin ではなく `s8c_preregistration_evidence.py` の
+  **AST ベースの述語 probe** である。関数の実在・関数内の呼出し関係・live node の属性名と
+  文字列定数・到達性・top-level 名を要求するため、素直な再 export や本体の移動で拒否理由が動く。
+  この事実は `grep -rn "<成果物パス>"` では見つからない型の pin であり、
+  実装形状を決める前に確かめる必要があった。
+- 8c の attempt registry には、分類受領証を封印した後に値を見て terminal の失敗理由を
+  付け替え、次の slot を取る経路が今日開いている (F514)。
+  8b がこれを継承すると絶対規律 2 に抵触する。一方 8c 側を締めると D672 の
+  「受理集合を変えない」に反する。**両立させる唯一の形が policy の profile 化**である。
+- 段 4 で親は「未知 event は拒否されるので profile の event 表へ足すだけで安全に拡張できる」
+  と論じたが、段 6 の敵対レビュー 2 本が独立に反証した。core の replay が
+  「既知 4 種以外はすべて terminal」という `else` 分岐だったため、表に名前を足すだけで
+  terminal の semantic が付いた。**拡張点を用意すること自体が穴になっていた**ため、
+  fail-closed へ直した。
+
+**却下した選択肢:**
+
+- **8c 側の理由一致検査も締める** — 絶対規律 2 の面では正しいが、8c の受理集合が狭まり
+  D672 の実装条件に反する。締める時期は凍結世代・事前登録との関係を含めて別途裁定する。
+- **facade を再 export にする** — 記述量は減るが C03 の拒否理由が変わる。
+- **recovery (引き取り) event を本 wave で実装する** — 受理集合を変える判断であり、
+  §10.5 にも規定が無い。誰が stale を宣言できるかの fencing 設計も要る。
+- **8b の再走理由集合を実装子判断で決める** — 受理集合を変えるため許されない。
+- **8b を production へ配線してから裁定を待つ** — 途中状態が production から到達可能になる。
