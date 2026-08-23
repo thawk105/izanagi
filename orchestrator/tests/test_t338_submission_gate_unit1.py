@@ -61,6 +61,8 @@ def git_fixture(tmp_path: Path) -> SimpleNamespace:
         [_GIT, "init", "-q"], cwd=root, env=_git_env(), check=True
     )
     branch = _run(root, "branch", "--show-current")
+    (root / "approval.txt").write_bytes(b"approval\n")
+    _run(root, "add", "approval.txt")
     root_commit = _commit(root, "root.txt", "root\n", "root")
     content_bytes = b"approved manifest\n"
     (root / "manifest.txt").write_bytes(content_bytes)
@@ -135,11 +137,41 @@ def _record(fixture: SimpleNamespace) -> _manifest.PreregistrationRecord:
                 approval_fold_commit=root,
             ),
         ),
-        approval_manifest=dummy,
+        approval_manifest=_ref("approval.txt", root, b"approval\n"),
         receipt_schema=dummy,
         composed_core_sha256=hashlib.sha256(b"composed").hexdigest(),
         prereg_commit=root,
     )
+
+
+def _legacy_authority(record: _manifest.PreregistrationRecord) -> _manifest.ApprovedManifest:
+    approved = object.__new__(_manifest.ApprovedManifest)
+    errata = {
+        item.erratum_id: BlobRef(item.path, item.commit, item.sha256)
+        for item in record.errata
+    }
+    approved_blobs = {
+        "addendum_a": record.addendum_a,
+        "derivation_map": record.addendum_a,
+        "erratum_t139_core_s15_exactkey_v1": errata["t139-core-s15-exactkey-v1"],
+        "erratum_t139_core_s7_stresscheck_v1": errata["t139-core-s7-stresscheck-v1"],
+        "record_items": record.addendum_a,
+        "receipt_schema": record.receipt_schema,
+    }
+    if record.addendum_b is not None:
+        approved_blobs["addendum_b"] = record.addendum_b
+    values = {
+        "approval_ref": record.approval_manifest,
+        "target_core": record.core,
+        "approved_blobs": approved_blobs,
+        "erratum_application_order": tuple(item.erratum_id for item in record.errata),
+        "composed_sha256": record.composed_core_sha256,
+        "prereg_commit": record.prereg_commit,
+        "_seal": _manifest._MANIFEST_CAPABILITY_TOKEN,
+    }
+    for name, value in values.items():
+        object.__setattr__(approved, name, value)
+    return approved
 
 
 def _binding_for(
@@ -152,6 +184,8 @@ def _binding_for(
     record = record or _record(fixture)
     return _binding._PreregBinding._issue(
         record=record,
+        approved_manifest=_legacy_authority(record),
+        repository_root=fixture.root,
         measurement_head=measurement_head or fixture.head_commit,
         prereg_commit=record.prereg_commit,
         prereg_content_commit=record.core.commit,
@@ -392,6 +426,12 @@ def test_manifest_views_are_immutable_and_match_approval(
             "t139-core-s7-stresscheck-v1",
         ),
         composed_sha256=hashlib.sha256(b"composed").hexdigest(),
+        manifest_ref=approval_ref,
+        projection_ref=approval_ref,
+        base_approval_fold_commit=anchor,
+        effective_approval_fold_commit=anchor,
+        canonical_authority=approval_ref,
+        vector_index=approval_ref,
         prereg_commit=anchor,
     )
     record = _manifest.PreregistrationRecord(
@@ -445,6 +485,12 @@ def test_manifest_views_are_immutable_and_match_approval(
                 "t139-core-s7-stresscheck-v1",
             ),
             composed_sha256=hashlib.sha256(b"composed").hexdigest(),
+            manifest_ref=approval_ref,
+            projection_ref=approval_ref,
+            base_approval_fold_commit=anchor,
+            effective_approval_fold_commit=anchor,
+            canonical_authority=approval_ref,
+            vector_index=approval_ref,
             prereg_commit=anchor,
         )
 

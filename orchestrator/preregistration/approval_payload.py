@@ -1,10 +1,11 @@
-"""D282 に固定された T-139 preregistration 承認 payload の parser。"""
+"""D282 payload と source-pinned D574 JSON projections の strict parser。"""
 
 from __future__ import annotations
 
 from collections.abc import Mapping
 from dataclasses import dataclass
 from enum import Enum
+import json
 import os
 from pathlib import PurePosixPath
 import re
@@ -18,6 +19,16 @@ D282_DECISIONS_REF = BlobRef(
     path="docs/decisions.md",
     commit="39d760985a5e37d20464c394760bf65596156566",
     sha256="ec588bb6b8149b1d35e62246045771a4b9769a5a2b2de3160575bb1a6cec79cf",
+)
+T139_APPROVAL_MANIFEST_REF = BlobRef(
+    path="orchestrator/preregistration/t139-approval-manifest-v1.json",
+    commit="dcc76fe0bb2a7963610b964fba8eecd7b3d17496",
+    sha256="ceb75fdd5f0716af1aaeb9d71986860dcf0978f5484225d239346fbafa2ce61c",
+)
+T139_VECTOR_APPROVAL_REF = BlobRef(
+    path="orchestrator/preregistration/t139-vector-approval-v1.json",
+    commit="dcc76fe0bb2a7963610b964fba8eecd7b3d17496",
+    sha256="e32acd6b00bfa17b59b48e61ffb362959b6e68da62827501a5bb55955aa60967",
 )
 
 APPROVED_BLOB_ROLES = frozenset(
@@ -117,6 +128,15 @@ class ApprovalPayloadStructureError(ApprovalPayloadError):
     """Markdown または payload の exact grammar が不正である。"""
 
 
+class ApprovalProjectionError(ValueError):
+    """D574 projection JSON の exact grammar が不正である。"""
+
+    def __init__(self, message: str, *, reason_code: str = "invalid_structure") -> None:
+        super().__init__(message)
+        self.reason_code = reason_code
+        self.code = reason_code
+
+
 @dataclass(frozen=True)
 class ExcludedRecordItemsRoot:
     """F_r 以後に record_items role として承認されない旧 root。"""
@@ -155,6 +175,24 @@ class ApprovalPayload:
     alpha_reservation: AlphaReservationDescriptor
 
 
+@dataclass(frozen=True, slots=True)
+class VectorApprovalProjection:
+    predecessor: BlobRef
+    base_approval_fold_commit: str
+    approval_fold_commit: str
+    canonical_authority: BlobRef
+    vector_index: BlobRef
+
+
+@dataclass(frozen=True, slots=True)
+class ApprovalManifestProjection:
+    predecessor: BlobRef
+    base_approval_fold_commit: str
+    approval_fold_commit: str
+    canonical_authority: BlobRef
+    vector_index: BlobRef
+
+
 @dataclass(frozen=True)
 class _OpenFence:
     delimiter_length: int
@@ -169,6 +207,177 @@ def load_approval_payload(
     """固定 F_r の ``docs/decisions.md`` だけから D282 payload を読む。"""
 
     return _parse_approval_payload(read_pinned_blob(repository_root, D282_DECISIONS_REF))
+
+
+def load_effective_approval_projections(
+    repository_root: str | os.PathLike[str],
+) -> tuple[ApprovalManifestProjection, VectorApprovalProjection]:
+    """Source-pinned D574 manifest/payload projection だけを historical blob から読む。"""
+
+    return _load_effective_approval_projections_from_refs(
+        repository_root,
+        manifest_ref=T139_APPROVAL_MANIFEST_REF,
+        projection_ref=T139_VECTOR_APPROVAL_REF,
+    )
+
+
+def _load_effective_approval_projections_from_refs(
+    repository_root: str | os.PathLike[str],
+    *,
+    manifest_ref: BlobRef,
+    projection_ref: BlobRef,
+) -> tuple[ApprovalManifestProjection, VectorApprovalProjection]:
+    """Explicit refs を使う private test seam。production wrapper は固定 refs のみ渡す。"""
+
+    if type(manifest_ref) is not BlobRef or type(projection_ref) is not BlobRef:
+        raise ApprovalProjectionError("projection refs は BlobRef でなければならない")
+    manifest = _parse_approval_manifest_projection(
+        read_pinned_blob(repository_root, manifest_ref)
+    )
+    projection = _parse_vector_approval_projection(
+        read_pinned_blob(repository_root, projection_ref)
+    )
+    return manifest, projection
+
+
+def _strict_json_object(document: bytes, label: str) -> dict[str, object]:
+    if type(document) is not bytes:
+        raise ApprovalProjectionError(f"{label} は bytes でなければならない")
+
+    def pairs(items: list[tuple[str, object]]) -> dict[str, object]:
+        result: dict[str, object] = {}
+        for key, value in items:
+            if key in result:
+                raise ApprovalProjectionError(
+                    f"{label} に重複 key がある: {key}", reason_code="duplicate_key"
+                )
+            result[key] = value
+        return result
+
+    def reject_constant(value: str) -> object:
+        raise ApprovalProjectionError(
+            f"{label} に非有限値がある: {value}", reason_code="non_finite"
+        )
+
+    try:
+        value = json.loads(
+            document.decode("utf-8", errors="strict"),
+            object_pairs_hook=pairs,
+            parse_constant=reject_constant,
+        )
+    except ApprovalProjectionError:
+        raise
+    except (UnicodeDecodeError, json.JSONDecodeError, RecursionError, ValueError) as exc:
+        raise ApprovalProjectionError(f"{label} は strict UTF-8 JSON でない") from exc
+    if type(value) is not dict:
+        raise ApprovalProjectionError(f"{label} root は object でなければならない")
+    return value
+
+
+def _projection_fields(
+    value: object, expected: frozenset[str], label: str
+) -> dict[str, object]:
+    if type(value) is not dict:
+        raise ApprovalProjectionError(f"{label} は object でなければならない")
+    actual = set(value)
+    if actual != expected:
+        raise ApprovalProjectionError(
+            f"{label} key 集合が不一致: missing={sorted(expected - actual)}, "
+            f"unknown={sorted(actual - expected)}",
+            reason_code="exact_keys",
+        )
+    return value
+
+
+def _projection_literal(value: object, expected: str, label: str) -> None:
+    if type(value) is not str or value != expected:
+        raise ApprovalProjectionError(f"{label} が固定値と一致しない")
+
+
+def _projection_blob_ref(value: object, label: str) -> BlobRef:
+    fields = _projection_fields(value, _TRIPLET_KEYS, label)
+    try:
+        return BlobRef(
+            path=fields["path"], commit=fields["commit"], sha256=fields["sha256"]
+        )
+    except (InvalidBlobRefError, TypeError) as exc:
+        raise ApprovalProjectionError(f"{label} の BlobRef が不正である") from exc
+
+
+def _projection_commit(value: object, label: str) -> str:
+    if type(value) is not str or _COMMIT_RE.fullmatch(value) is None:
+        raise ApprovalProjectionError(f"{label} が 40 桁 lowercase hex でない")
+    return value
+
+
+def _parse_vector_approval_projection(document: bytes) -> VectorApprovalProjection:
+    raw = _projection_fields(
+        _strict_json_object(document, "vector approval projection"),
+        frozenset(
+            {
+                "schema_version", "decision_kind", "forward_supersedes",
+                "base_approval_fold_commit", "approval_fold_commit",
+                "canonical_authority", "conformance_vector_index",
+            }
+        ),
+        "vector approval projection",
+    )
+    _projection_literal(raw["schema_version"], "t139-vector-approval/v1", "schema_version")
+    _projection_literal(raw["decision_kind"], "t139-vector-approval/v1", "decision_kind")
+    predecessor = _projection_fields(
+        raw["forward_supersedes"], frozenset({"decision_kind", "approval"}),
+        "forward_supersedes",
+    )
+    _projection_literal(predecessor["decision_kind"], DECISION_KIND, "predecessor kind")
+    vector = _projection_fields(
+        raw["conformance_vector_index"], frozenset({"approval"}),
+        "conformance_vector_index",
+    )
+    return VectorApprovalProjection(
+        predecessor=_projection_blob_ref(predecessor["approval"], "predecessor approval"),
+        base_approval_fold_commit=_projection_commit(
+            raw["base_approval_fold_commit"], "base approval fold"
+        ),
+        approval_fold_commit=_projection_commit(raw["approval_fold_commit"], "approval fold"),
+        canonical_authority=_projection_blob_ref(raw["canonical_authority"], "authority"),
+        vector_index=_projection_blob_ref(vector["approval"], "vector index"),
+    )
+
+
+def _parse_approval_manifest_projection(document: bytes) -> ApprovalManifestProjection:
+    raw = _projection_fields(
+        _strict_json_object(document, "approval manifest projection"),
+        frozenset(
+            {
+                "schema_version", "base_approval_fold_commit", "approval_fold_commit",
+                "canonical_authority", "namespaces",
+            }
+        ),
+        "approval manifest projection",
+    )
+    _projection_literal(raw["schema_version"], "t139-approval-manifest/v1", "schema_version")
+    namespaces = _projection_fields(
+        raw["namespaces"],
+        frozenset({"preregistration_approval", "conformance_vectors"}),
+        "namespaces",
+    )
+    prereg = _projection_fields(
+        namespaces["preregistration_approval"], frozenset({"namespace_projection"}),
+        "preregistration namespace",
+    )
+    vectors = _projection_fields(
+        namespaces["conformance_vectors"], frozenset({"namespace_projection"}),
+        "vector namespace",
+    )
+    return ApprovalManifestProjection(
+        predecessor=_projection_blob_ref(prereg["namespace_projection"], "predecessor approval"),
+        base_approval_fold_commit=_projection_commit(
+            raw["base_approval_fold_commit"], "base approval fold"
+        ),
+        approval_fold_commit=_projection_commit(raw["approval_fold_commit"], "approval fold"),
+        canonical_authority=_projection_blob_ref(raw["canonical_authority"], "authority"),
+        vector_index=_projection_blob_ref(vectors["namespace_projection"], "vector index"),
+    )
 
 
 def _parse_approval_payload(document: bytes) -> ApprovalPayload:

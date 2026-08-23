@@ -1035,10 +1035,10 @@ def _validate_compile_legs(
     expected_analysis: int,
     label: str = "compile",
 ) -> None:
-    """configure argv・compile_commands 実体・CMakeCache の3者を照合する。
+    """configure argv・compile_commands 実体・raw sibling CMakeCache を正の3脚にする。
 
-    ``cmake_cache`` の申告値は三者一致の一員として検査するだけで、そこから
-    trace/analysis の positive verdict を導出しない。
+    ``cmake_cache``・``trace_enabled``・``analysis_enabled`` の申告は不一致を
+    拒否するだけで、一致から positive verdict を導出しない。
     """
 
     if not isinstance(compile_record, Mapping):
