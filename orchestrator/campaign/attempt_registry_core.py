@@ -14,6 +14,7 @@ import re
 from collections.abc import Callable, Hashable, Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import PurePosixPath
+from types import MappingProxyType as _MappingProxyType
 from typing import Any, Generic, Protocol, TypeAlias, TypeVar, runtime_checkable
 
 
@@ -30,6 +31,13 @@ _CHAIN_KEYS = frozenset({
 })
 _DEFAULT_PROCESS_IDENTITY_KEYS = frozenset({
     "pid", "starttime", "execution_uuid",
+})
+_CORE_SEMANTIC_EVENTS = frozenset({
+    "start",
+    "pre-observation-seal",
+    "classification",
+    "observation-start",
+    "terminal",
 })
 
 
@@ -72,6 +80,38 @@ class SchemaProfile:
     genesis_keys: Mapping[str, frozenset[str]]
     event_keys: Mapping[str, Mapping[str, frozenset[str]]]
     receipt_keys: Mapping[str, frozenset[str]] | None = None
+
+    def __post_init__(self) -> None:
+        """Freeze nested schema tables as deeply immutable profile data."""
+        object.__setattr__(self, "readable", frozenset(self.readable))
+        object.__setattr__(
+            self,
+            "genesis_keys",
+            _MappingProxyType({
+                version: frozenset(keys)
+                for version, keys in self.genesis_keys.items()
+            }),
+        )
+        object.__setattr__(
+            self,
+            "event_keys",
+            _MappingProxyType({
+                version: _MappingProxyType({
+                    event: frozenset(keys)
+                    for event, keys in events.items()
+                })
+                for version, events in self.event_keys.items()
+            }),
+        )
+        if self.receipt_keys is not None:
+            object.__setattr__(
+                self,
+                "receipt_keys",
+                _MappingProxyType({
+                    version: frozenset(keys)
+                    for version, keys in self.receipt_keys.items()
+                }),
+            )
 
 
 @dataclass(frozen=True, slots=True)
@@ -529,6 +569,11 @@ def _parse_row(
     expected = event_table.get(event) if isinstance(event, str) else None
     if expected is None:
         _fail("attempt-registry-schema", f"{label}.event is unknown")
+    if event not in _CORE_SEMANTIC_EVENTS:
+        _fail(
+            "attempt-registry-semantic",
+            f"{label}.event has no core semantic handler",
+        )
     _exact_keys(value, expected, label=label)
     if _is_chained_keys(expected):
         _assert_chain(value, label=label)
@@ -917,7 +962,7 @@ def assert_registry_rows(
                     "observation-start classification binding differs",
                 )
             observations[slot_id] = row
-        else:
+        elif event == "terminal":
             if slot_id not in starts or slot_id not in classifications:
                 _fail(
                     "attempt-phase-order",
@@ -988,6 +1033,12 @@ def assert_registry_rows(
                 label=f"attempt registry line {line_number}",
             )
             terminals[slot_id] = row
+        else:
+            _fail(
+                "attempt-registry-semantic",
+                f"attempt registry line {line_number}.event has no core "
+                "semantic handler",
+            )
     return tuple(dict(row) for row in rows)
 
 
@@ -1070,13 +1121,7 @@ def create_attempt_registry_genesis(
     manifest_relative = _safe_relative_path(
         manifest_path.as_posix(), label="manifest_path",
     )
-    normalized = tuple(
-        _normalize_slot(
-            profile, profile.slot_codec.to_json(slot),
-            label=f"attempt registry genesis.slots[{index}]",
-        )
-        for index, slot in enumerate(slots)
-    )
+    serialized_slots = [profile.slot_codec.to_json(slot) for slot in slots]
     reasons = list(
         profile.retryable_reasons
         if retryable_failure_reasons is None else retryable_failure_reasons
@@ -1097,7 +1142,7 @@ def create_attempt_registry_genesis(
         **domain_fields,
         "root_path": _registry_path(profile, domain_fields),
         "retryable_failure_reasons": sorted(reasons),
-        "slots": [profile.slot_codec.to_json(slot) for slot in normalized],
+        "slots": serialized_slots,
     }
     if "max_consumptions_per_budget_key" in keys:
         value["max_consumptions_per_budget_key"] = (
@@ -1110,6 +1155,11 @@ def create_attempt_registry_genesis(
     parsed, _slots, _binding = _parse_genesis(
         value, profile=profile, label="attempt registry genesis",
     )
+    if _genesis_freeze_id(parsed, profile=profile, required=True) != freeze_id:
+        _fail(
+            "attempt-binding",
+            "genesis freeze_id differs from requested freeze_id",
+        )
     return (parsed,)
 
 

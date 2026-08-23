@@ -21,7 +21,7 @@ import sys
 import tempfile
 import threading
 from collections.abc import Mapping, Sequence
-from pathlib import Path, PurePosixPath
+from pathlib import Path, PurePosixPath as _PurePosixPath
 from typing import TYPE_CHECKING, Any, Literal
 
 if __package__ in {None, ""}:  # pragma: no cover - direct CLI execution
@@ -40,7 +40,7 @@ from .autonomous_trial_completeness import (
 from . import s8c_preregistration
 from . import s8c_acceptance_receipt
 from . import s8c_arm_inputs
-from . import attempt_registry_core as attempt_core
+from . import attempt_registry_core as _attempt_core
 
 if TYPE_CHECKING:
     from .reflux_formal_consumer import OriginTerminalProjection
@@ -479,7 +479,7 @@ _ATTEMPT_ZERO_SHA256 = "0" * 64
 
 def _attempt_event_sha256(row: Mapping[str, Any]) -> str:
     """Hash one attempt event using this module's canonical JSON contract."""
-    return _attempt_core_call(attempt_core.event_sha256, row)
+    return _attempt_core_call(_attempt_core.event_sha256, row)
 
 
 def _attempt_v2_event_row(
@@ -490,7 +490,7 @@ def _attempt_v2_event_row(
 ) -> dict[str, Any]:
     """Attach and calculate the v2 chain fields for one event row."""
     return _attempt_core_call(
-        attempt_core.chained_event_row,
+        _attempt_core.chained_event_row,
         row,
         event_index=event_index,
         previous_event_sha256=previous_event_sha256,
@@ -499,7 +499,7 @@ def _attempt_v2_event_row(
 
 def _attempt_v2_previous_hash(rows: Sequence[Mapping[str, Any]]) -> str:
     """Return the current v2 chain tip, or the genesis zero hash."""
-    return attempt_core.previous_event_sha256(rows)
+    return _attempt_core.previous_event_sha256(rows)
 
 
 def _attempt_pre_observation_seal_payload(
@@ -1985,7 +1985,7 @@ _ATTEMPT_RECEIPT_KEYS = frozenset({
 
 
 def _s8c_attempt_genesis_fields(
-    freeze_id: str, manifest_path: PurePosixPath, manifest_sha256: str,
+    freeze_id: str, manifest_path: _PurePosixPath, manifest_sha256: str,
 ) -> dict[str, Any]:
     return {
         "freeze_id": freeze_id,
@@ -2009,8 +2009,8 @@ def _s8c_attempt_binding_mismatch(
     return None
 
 
-_S8C_ATTEMPT_PROFILE = attempt_core.DomainProfile(
-    schema=attempt_core.SchemaProfile(
+_S8C_ATTEMPT_PROFILE = _attempt_core.DomainProfile(
+    schema=_attempt_core.SchemaProfile(
         current=ATTEMPT_REGISTRY_SCHEMA_VERSION,
         readable=_ATTEMPT_REGISTRY_SCHEMA_VERSIONS,
         genesis_keys={
@@ -2036,9 +2036,9 @@ _S8C_ATTEMPT_PROFILE = attempt_core.DomainProfile(
             ATTEMPT_REGISTRY_SCHEMA_VERSION: _ATTEMPT_RECEIPT_KEYS,
         },
     ),
-    layout=attempt_core.RegistryLayout(
-        registry_path=PurePosixPath(DEFAULT_ATTEMPT_REGISTRY_PATH.as_posix()),
-        classification_receipt_dir=PurePosixPath(
+    layout=_attempt_core.RegistryLayout(
+        registry_path=_PurePosixPath(DEFAULT_ATTEMPT_REGISTRY_PATH.as_posix()),
+        classification_receipt_dir=_PurePosixPath(
             "output/s8c-trial-registry/classification-receipts"
         ),
     ),
@@ -2046,7 +2046,7 @@ _S8C_ATTEMPT_PROFILE = attempt_core.DomainProfile(
     retryable_reasons=ATTEMPT_RETRYABLE_FAILURE_REASONS,
     slot_codec=_S8CSlotCodec(),
     binding_codec=_S8CBindingCodec(),
-    transition_policy=attempt_core.TransitionPolicy(
+    transition_policy=_attempt_core.TransitionPolicy(
         require_previous_terminal=True,
         forbid_retry_after_observation=True,
         allow_recovered_abandonment=False,
@@ -2066,7 +2066,7 @@ _S8C_ATTEMPT_PROFILE = attempt_core.DomainProfile(
 def _attempt_core_call(function, /, *args, **kwargs):
     try:
         return function(*args, **kwargs)
-    except attempt_core.AttemptRegistryCoreError as exc:
+    except _attempt_core.AttemptRegistryCoreError as exc:
         raise TrialRegistryError(str(exc)) from exc
 
 
@@ -2103,7 +2103,7 @@ def _attempt_capability_digest(
     schema_version: str = ATTEMPT_REGISTRY_SCHEMA_VERSION,
 ) -> str:
     return _attempt_core_call(
-        attempt_core.capability_digest,
+        _attempt_core.capability_digest,
         profile=_S8C_ATTEMPT_PROFILE,
         schema_version=schema_version,
         freeze_id=freeze_id,
@@ -2132,7 +2132,7 @@ def _assert_attempt_registry_rows(
         )
     )
     checked = _attempt_core_call(
-        attempt_core.assert_registry_rows,
+        _attempt_core.assert_registry_rows,
         rows,
         profile=_S8C_ATTEMPT_PROFILE,
         expected_binding=expected_binding,
@@ -2236,7 +2236,7 @@ def _load_attempt_registry_bytes(
     label: str = "attempt registry",
 ) -> tuple[dict[str, Any], ...]:
     return _attempt_core_call(
-        attempt_core._load_registry_bytes,
+        _attempt_core._load_registry_bytes,
         data,
         profile=_S8C_ATTEMPT_PROFILE,
         label=label,
@@ -2328,10 +2328,10 @@ def create_attempt_registry_genesis(
         Path(manifest_path), root, label="manifest",
     )
     rows = _attempt_core_call(
-        attempt_core.create_attempt_registry_genesis,
+        _attempt_core.create_attempt_registry_genesis,
         profile=_S8C_ATTEMPT_PROFILE,
         freeze_id=freeze_id,
-        manifest_path=PurePosixPath(manifest_relative),
+        manifest_path=_PurePosixPath(manifest_relative),
         manifest_sha256=manifest_sha256,
         slots=slots,
         retryable_failure_reasons=retryable_failure_reasons,
@@ -2629,7 +2629,7 @@ def reserve_attempt_slot(
 
     def append_start(rows):
         candidate = _attempt_core_call(
-            attempt_core.reserve_attempt_slot,
+            _attempt_core.reserve_attempt_slot,
             rows,
             profile=_S8C_ATTEMPT_PROFILE,
             freeze_id=freeze_id,
@@ -2643,7 +2643,7 @@ def reserve_attempt_slot(
             item for item in candidate[0]["slots"] if item["slot_id"] == slot_id
         )
         start, seal = candidate[-2:]
-        digest = attempt_core.capability_digest(
+        digest = _attempt_core.capability_digest(
             profile=_S8C_ATTEMPT_PROFILE,
             schema_version=ATTEMPT_REGISTRY_SCHEMA_VERSION,
             freeze_id=freeze_id,
@@ -2697,7 +2697,7 @@ def _attempt_receipt_payload(
     classified_at: str,
 ) -> dict[str, Any]:
     return _attempt_core_call(
-        attempt_core._receipt_payload,
+        _attempt_core._receipt_payload,
         profile=_S8C_ATTEMPT_PROFILE,
         schema_version=ATTEMPT_REGISTRY_SCHEMA_VERSION,
         freeze_id=capability.freeze_id,
@@ -2759,7 +2759,7 @@ def classify_attempt(
 
     def append_classification(rows):
         candidate, core_receipt = _attempt_core_call(
-            attempt_core.classify_attempt,
+            _attempt_core.classify_attempt,
             rows,
             profile=_S8C_ATTEMPT_PROFILE,
             freeze_id=capability.freeze_id,
@@ -2815,7 +2815,7 @@ def begin_attempt_observation(capability: AttemptSlotCapability) -> dict[str, An
                 "capability pre-observation seal differs from classification",
             )
         candidate = _attempt_core_call(
-            attempt_core.begin_attempt_observation,
+            _attempt_core.begin_attempt_observation,
             rows,
             profile=_S8C_ATTEMPT_PROFILE,
             freeze_id=capability.freeze_id,
@@ -2899,7 +2899,7 @@ def record_attempt_terminal(
                 "terminal append classification receipt differs from capability",
             )
         candidate = _attempt_core_call(
-            attempt_core.record_attempt_terminal,
+            _attempt_core.record_attempt_terminal,
             rows,
             profile=_S8C_ATTEMPT_PROFILE,
             freeze_id=capability.freeze_id,

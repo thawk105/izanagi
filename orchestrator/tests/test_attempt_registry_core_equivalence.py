@@ -3,7 +3,9 @@ from __future__ import annotations
 
 import ast
 import hashlib
+import inspect
 import json
+import re
 import subprocess
 from pathlib import Path
 
@@ -14,6 +16,10 @@ from orchestrator.campaign import trial_registry as R
 
 
 _ZERO = "0" * 64
+_SCHEMA_VERSION = "p3-8c-attempt-registry/v2"
+_RETRYABLE_REASONS = (
+    "launcher-failure", "node-failure", "preempted", "wall-timeout",
+)
 _CONTENT = "1" * 40
 _EFFECTIVE = "2" * 40
 _RUN_START = "3" * 64
@@ -26,6 +32,18 @@ _PROCESS = {
     "starttime": "reference-start",
     "execution_uuid": "reference-execution",
 }
+_SLOT_KEYS = frozenset({
+    "slot_id", "trial_id", "arm", "holdout", "campaign_id",
+    "replicate_index", "attempt_index", "schedule_row_sha256",
+})
+
+
+class _LegacyBuilderError(RuntimeError):
+    """Independent model of the pre-extraction builder rejection surface."""
+
+
+def _legacy_fail(gate: str, message: str) -> None:
+    raise _LegacyBuilderError(f"[{gate}] {message}")
 
 
 def _canonical(value: object) -> bytes:
@@ -38,19 +56,113 @@ def _canonical(value: object) -> bytes:
     ).encode("utf-8")
 
 
+def _legacy_canonical(value: object) -> bytes:
+    try:
+        return _canonical(value)
+    except (TypeError, ValueError) as exc:
+        raise _LegacyBuilderError(
+            f"[json] value is not canonical JSON: {exc}"
+        ) from exc
+
+
 def _legacy_event(
     value: dict[str, object], *, index: int, previous: str,
 ) -> dict[str, object]:
     row = {**value, "event_index": index, "previous_event_sha256": previous}
-    row["event_sha256"] = hashlib.sha256(_canonical(row)).hexdigest()
+    row["event_sha256"] = hashlib.sha256(_legacy_canonical(row)).hexdigest()
     return row
+
+
+def _legacy_text(value: object, *, label: str) -> str:
+    if not isinstance(value, str) or not value or len(value) > 256:
+        _legacy_fail(
+            "attempt-registry-schema",
+            f"{label} is not a bounded non-empty string",
+        )
+    return value
+
+
+def _legacy_digest(value: object, *, label: str) -> str:
+    if (
+        not isinstance(value, str)
+        or len(value) != 64
+        or any(character not in "0123456789abcdef" for character in value)
+    ):
+        _legacy_fail(
+            "attempt-registry-schema", f"{label} is not a SHA-256 digest",
+        )
+    return value
+
+
+def _legacy_parse_slot(value: object, *, label: str) -> dict[str, object]:
+    if not isinstance(value, dict):
+        _legacy_fail("attempt-registry-schema", f"{label} is not an object")
+    actual = frozenset(value)
+    if actual != _SLOT_KEYS:
+        _legacy_fail(
+            "schema",
+            f"{label} key set differs: missing={sorted(_SLOT_KEYS - actual)}, "
+            f"unknown={sorted(actual - _SLOT_KEYS)}",
+        )
+    _legacy_text(value.get("slot_id"), label=f"{label}.slot_id")
+    trial_id = value.get("trial_id")
+    if (
+        not isinstance(trial_id, str)
+        or re.fullmatch(r"[a-z0-9][a-z0-9._-]{0,63}", trial_id) is None
+    ):
+        _legacy_fail(
+            "attempt-registry-schema", f"{label}.trial_id is invalid",
+        )
+    if value.get("arm") not in ("on", "off", "swapped"):
+        _legacy_fail(
+            "attempt-registry-schema", f"{label}.arm is outside the closed set",
+        )
+    if value.get("holdout") not in ("H1", "H2"):
+        _legacy_fail(
+            "attempt-registry-schema", f"{label}.holdout is outside the closed set",
+        )
+    _legacy_text(value.get("campaign_id"), label=f"{label}.campaign_id")
+    for field in ("replicate_index", "attempt_index"):
+        raw = value.get(field)
+        if type(raw) is not int or raw < 0:
+            _legacy_fail(
+                "attempt-registry-schema", f"{label}.{field} is invalid",
+            )
+    _legacy_digest(
+        value.get("schedule_row_sha256"),
+        label=f"{label}.schedule_row_sha256",
+    )
+    return dict(value)
+
+
+def _legacy_build_genesis_for_rejection(
+    slots: list[dict[str, object]],
+) -> tuple[dict[str, object], ...]:
+    """Reimplement 5a4cbfa8:2701-2716 without production helpers."""
+    value = _legacy_event({
+        "schema_version": _SCHEMA_VERSION,
+        "event": "freeze",
+        "freeze_id": "reference-freeze",
+        "manifest_path": "manifest.json",
+        "manifest_sha256": hashlib.sha256(b"{}\n").hexdigest(),
+        "root_path": "output/s8c-preregistration/attempt-registry.jsonl",
+        "retryable_failure_reasons": list(_RETRYABLE_REASONS),
+        "slots": [dict(slot) for slot in slots],
+    }, index=0, previous=_ZERO)
+    parsed_slots = [
+        _legacy_parse_slot(
+            slot, label=f"attempt registry genesis.slots[{index}]",
+        )
+        for index, slot in enumerate(value["slots"])
+    ]
+    return ({**value, "slots": parsed_slots},)
 
 
 def _legacy_capability_digest(
     *, freeze_id: str, slot: dict[str, object], binding: tuple[str, str],
 ) -> str:
     return hashlib.sha256(_canonical({
-        "schema_version": R.ATTEMPT_REGISTRY_SCHEMA_VERSION,
+        "schema_version": _SCHEMA_VERSION,
         "freeze_id": freeze_id,
         "slot_id": slot["slot_id"],
         "trial_id": slot["trial_id"],
@@ -86,17 +198,17 @@ def _legacy_reference(
     slot: dict[str, object], binding: tuple[str, str],
 ) -> tuple[tuple[dict[str, object], ...], dict[str, object]]:
     genesis = _legacy_event({
-        "schema_version": R.ATTEMPT_REGISTRY_SCHEMA_VERSION,
+        "schema_version": _SCHEMA_VERSION,
         "event": "freeze",
         "freeze_id": freeze_id,
         "manifest_path": manifest_path,
         "manifest_sha256": manifest_sha256,
-        "root_path": R.DEFAULT_ATTEMPT_REGISTRY_PATH.as_posix(),
-        "retryable_failure_reasons": sorted(R.ATTEMPT_RETRYABLE_FAILURE_REASONS),
+        "root_path": "output/s8c-preregistration/attempt-registry.jsonl",
+        "retryable_failure_reasons": list(_RETRYABLE_REASONS),
         "slots": [slot],
     }, index=0, previous=_ZERO)
     start = _legacy_event({
-        "schema_version": R.ATTEMPT_REGISTRY_SCHEMA_VERSION,
+        "schema_version": _SCHEMA_VERSION,
         "event": "start",
         "freeze_id": freeze_id,
         "slot_id": slot["slot_id"],
@@ -108,7 +220,7 @@ def _legacy_reference(
         "started_at": "2026-08-23T00:00:00+00:00",
     }, index=1, previous=genesis["event_sha256"])
     seal = _legacy_event({
-        "schema_version": R.ATTEMPT_REGISTRY_SCHEMA_VERSION,
+        "schema_version": _SCHEMA_VERSION,
         "event": "pre-observation-seal",
         "freeze_id": freeze_id,
         "slot_id": slot["slot_id"],
@@ -121,7 +233,7 @@ def _legacy_reference(
         freeze_id=freeze_id, slot=slot, binding=binding,
     )
     receipt = {
-        "schema_version": R.ATTEMPT_REGISTRY_SCHEMA_VERSION,
+        "schema_version": _SCHEMA_VERSION,
         "event": "classification-receipt",
         "freeze_id": freeze_id,
         "slot_id": slot["slot_id"],
@@ -142,7 +254,7 @@ def _legacy_reference(
         "classification_receipt_sha256": receipt_sha256,
     }, index=3, previous=seal["event_sha256"])
     terminal = _legacy_event({
-        "schema_version": R.ATTEMPT_REGISTRY_SCHEMA_VERSION,
+        "schema_version": _SCHEMA_VERSION,
         "event": "terminal",
         "freeze_id": freeze_id,
         "slot_id": slot["slot_id"],
@@ -290,7 +402,7 @@ def _facade_reference(
     )
     receipt_bytes = _canonical(receipt) + b"\n"
     stored_receipt = (
-        repo / R._S8C_ATTEMPT_PROFILE.layout.classification_receipt_dir
+        repo / "output/s8c-trial-registry/classification-receipts"
         / f"{hashlib.sha256(receipt_bytes).hexdigest()}.json"
     ).read_bytes()
     rows = tuple(
@@ -350,7 +462,7 @@ def test_unknown_event_rejection_reason_is_identical() -> None:
         slots=[_slot()],
     )
     unknown = _legacy_event({
-        "schema_version": R.ATTEMPT_REGISTRY_SCHEMA_VERSION,
+        "schema_version": _SCHEMA_VERSION,
         "event": "recovery",
         "freeze_id": "reference-freeze",
         "slot_id": "reference-trial-r0-a0",
@@ -361,6 +473,66 @@ def test_unknown_event_rejection_reason_is_identical() -> None:
         core.load_attempt_registry(payload, profile=R._S8C_ATTEMPT_PROFILE)
     with pytest.raises(R.TrialRegistryError) as facade_error:
         R._load_attempt_registry_bytes(payload)
+    assert str(core_error.value) == expected == str(facade_error.value)
+
+
+@pytest.mark.parametrize(
+    "case",
+    (
+        "non-json-value",
+        "wrong-field-type",
+        "missing-key",
+        "extra-key",
+        "out-of-range-value",
+    ),
+)
+def test_genesis_builder_rejection_matches_pre_extraction_order(
+    tmp_path: Path, case: str,
+) -> None:
+    slot = _slot()
+    if case == "non-json-value":
+        slot["arm"] = object()
+    elif case == "wrong-field-type":
+        slot["replicate_index"] = "zero"
+    elif case == "missing-key":
+        del slot["arm"]
+    elif case == "extra-key":
+        slot["unexpected"] = "field"
+    elif case == "out-of-range-value":
+        slot["arm"] = "forbidden-arm"
+    else:  # pragma: no cover - closed parametrization
+        raise AssertionError(case)
+
+    with pytest.raises(_LegacyBuilderError) as legacy_error:
+        _legacy_build_genesis_for_rejection([slot])
+
+    manifest_sha256 = hashlib.sha256(b"{}\n").hexdigest()
+    with pytest.raises(
+        (core.AttemptRegistryCoreError, R.TrialRegistryError)
+    ) as core_error:
+        core.create_attempt_registry_genesis(
+            profile=R._S8C_ATTEMPT_PROFILE,
+            freeze_id="reference-freeze",
+            manifest_path=Path("manifest.json"),
+            manifest_sha256=manifest_sha256,
+            slots=[slot],
+        )
+
+    repo = tmp_path / "builder-rejection-repo"
+    repo.mkdir()
+    _git(repo, "init", "-q")
+    manifest = repo / "manifest.json"
+    manifest.write_bytes(b"{}\n")
+    with pytest.raises(R.TrialRegistryError) as facade_error:
+        R.create_attempt_registry_genesis(
+            repository_root=repo,
+            manifest_path=manifest,
+            manifest_sha256=manifest_sha256,
+            freeze_id="reference-freeze",
+            slots=[slot],
+        )
+
+    expected = str(legacy_error.value)
     assert str(core_error.value) == expected == str(facade_error.value)
 
 
@@ -423,6 +595,76 @@ def test_skipped_slot_rejection_reason_is_identical(tmp_path: Path) -> None:
             started_at="2026-08-23T00:00:00+00:00",
         )
     assert str(facade_error.value) == expected
+
+
+def test_frozen_paths_and_public_signatures_are_literal_pinned() -> None:
+    assert R.DEFAULT_ATTEMPT_REGISTRY_PATH == Path(
+        "output/s8c-preregistration/attempt-registry.jsonl"
+    )
+    assert (
+        R._S8C_ATTEMPT_PROFILE.layout.classification_receipt_dir.as_posix()
+        == "output/s8c-trial-registry/classification-receipts"
+    )
+    actual = {
+        name: str(inspect.signature(getattr(R, name)))
+        for name in (
+            "create_attempt_registry_genesis",
+            "load_attempt_registry",
+            "reserve_attempt_slot",
+            "classify_attempt",
+            "begin_attempt_observation",
+            "record_attempt_terminal",
+        )
+    }
+    assert actual == {
+        "create_attempt_registry_genesis": (
+            "(*, repository_root: 'Path', manifest_path: 'Path', "
+            "manifest_sha256: 'str', freeze_id: 'str', "
+            "slots: 'Sequence[Mapping[str, Any]]', "
+            "retryable_failure_reasons: 'Sequence[str]' = "
+            "('launcher-failure', 'node-failure', 'preempted', 'wall-timeout'), "
+            "registry_path: 'Path' = "
+            "PosixPath('output/s8c-preregistration/attempt-registry.jsonl')) "
+            "-> 'Path'"
+        ),
+        "load_attempt_registry": (
+            "(repository_root: 'Path', *, registry_path: 'Path' = "
+            "PosixPath('output/s8c-preregistration/attempt-registry.jsonl'), "
+            "prereg_content_commit: 'str | None' = None, "
+            "prereg_effective_commit: 'str | None' = None, "
+            "freeze_id: 'str | None' = None, manifest_path: 'Path | None' = "
+            "None, manifest_sha256: 'str | None' = None) -> "
+            "'tuple[dict[str, Any], ...]'"
+        ),
+        "reserve_attempt_slot": (
+            "(*, repository_root: 'Path', freeze_id: 'str', slot_id: 'str', "
+            "prereg_content_commit: 'str', prereg_effective_commit: 'str', "
+            "run_start_receipt_sha256: 'str', process_identity: "
+            "'Mapping[str, Any]', started_at: 'str', registry_path: 'Path' = "
+            "PosixPath('output/s8c-preregistration/attempt-registry.jsonl')) "
+            "-> 'AttemptSlotCapability'"
+        ),
+        "classify_attempt": (
+            "(capability: 'AttemptSlotCapability', *, "
+            "pre_observation_failure_reason: 'str | None', authority_id: 'str', "
+            "authority_policy_sha256: 'str', external_evidence_sha256: 'str', "
+            "classified_at: 'str') -> 'dict[str, Any]'"
+        ),
+        "begin_attempt_observation": (
+            "(capability: 'AttemptSlotCapability') -> 'dict[str, Any]'"
+        ),
+        "record_attempt_terminal": (
+            "(capability: 'AttemptSlotCapability', *, terminal_status: 'str', "
+            "raw_output_sha256: 'str', report_sha256: 'str | None', "
+            "observation_sha256: 'str | None', primary_value: 'Any', "
+            "finished_at: 'str', failure_reason: 'str | None' = None) -> 'None'"
+        ),
+    }
+
+
+def test_facade_namespace_keeps_core_helpers_private() -> None:
+    assert "PurePosixPath" not in vars(R)
+    assert "attempt_core" not in vars(R)
 
 
 def test_six_facades_are_unrebound_real_functions() -> None:

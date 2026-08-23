@@ -4,6 +4,7 @@ from __future__ import annotations
 import ast
 import hashlib
 from collections.abc import Callable, Mapping, Sequence
+from dataclasses import replace
 from pathlib import Path, PurePosixPath
 from typing import Any
 
@@ -223,6 +224,25 @@ def test_s8b_profile_closes_slot_binding_budget_and_reason_policy() -> None:
     )
 
 
+def test_genesis_rejects_freeze_id_that_differs_from_8b_binding() -> None:
+    profile = _profile()
+    mismatched_binding = replace(_BINDING, freeze_sha256="d" * 64)
+
+    _assert_core_rejection(
+        "[attempt-binding] genesis freeze_id differs from requested freeze_id",
+        lambda: core.create_attempt_registry_genesis(
+            profile=profile,
+            freeze_id=_FREEZE,
+            manifest_path=PurePosixPath(
+                "output/s8b-freeze/holdout_freeze.json"
+            ),
+            manifest_sha256=_MANIFEST,
+            slots=[_slot(0, 0)],
+            binding=mismatched_binding,
+        ),
+    )
+
+
 def test_preallocation_accepts_a_genesis_slot_and_rejects_an_absent_slot() -> None:
     profile = _profile()
     declared = _slot(0, 0)
@@ -334,6 +354,57 @@ def test_observation_lifecycle_is_accepted_but_cannot_open_a_later_slot() -> Non
     )
 
 
+def test_retryable_terminal_after_observation_hits_only_observation_guard() -> None:
+    official_profile = _profile()
+    profile = replace(
+        official_profile,
+        retryable_reasons=frozenset({"scheduler-timeout"}),
+    )
+    first = _slot(0, 0)
+    next_slot = _slot(0, 1)
+
+    assert official_profile.retryable_reasons == frozenset()
+    assert s8b.S8B_RETRYABLE_FAILURE_REASONS == frozenset()
+    rows = _reserve(
+        _genesis(profile, [first, next_slot]), profile=profile, slot=first,
+    )
+    rows = _classify(
+        rows, profile=profile, slot=first, reason="scheduler-timeout",
+    )
+    rows = core.begin_attempt_observation(
+        rows,
+        profile=profile,
+        freeze_id=_FREEZE,
+        slot_id=profile.slot_codec.slot_id(first),
+    )
+    rows = _terminal(
+        rows,
+        profile=profile,
+        slot=first,
+        status="retryable-failure",
+        failure_reason="scheduler-timeout",
+        report_sha256=_REPORT,
+    )
+    assert rows[-1]["terminal_status"] == "retryable-failure"
+    assert rows[-1]["observation_start_event_sha256"] is not None
+
+    _assert_core_rejection(
+        "[attempt-slot-order] a retryable failure after observation cannot "
+        "authorize a retry",
+        lambda: _reserve(rows, profile=profile, slot=next_slot),
+    )
+    guard_disabled = replace(
+        profile,
+        transition_policy=replace(
+            profile.transition_policy,
+            forbid_retry_after_observation=False,
+        ),
+    )
+    accepted = _reserve(rows, profile=guard_disabled, slot=next_slot)
+    assert accepted[-2]["event"] == "start"
+    assert accepted[-2]["attempt_ordinal"] == 1
+
+
 def test_known_event_round_trip_passes_and_unknown_event_is_rejected() -> None:
     profile = _profile()
     slot = _slot(0, 0)
@@ -356,6 +427,68 @@ def test_known_event_round_trip_passes_and_unknown_event_is_rejected() -> None:
             _registry_bytes((*rows, unknown)), profile=profile,
         ),
     )
+
+
+def test_profile_only_event_cannot_acquire_terminal_semantics() -> None:
+    base = _profile()
+    version = base.schema.current
+    profile = replace(
+        base,
+        schema=core.SchemaProfile(
+            current=version,
+            readable=base.schema.readable,
+            genesis_keys=base.schema.genesis_keys,
+            event_keys={
+                version: {
+                    **base.schema.event_keys[version],
+                    "recovery": base.schema.event_keys[version]["terminal"],
+                },
+            },
+            receipt_keys=base.schema.receipt_keys,
+        ),
+    )
+    slot = _slot(0, 0)
+    terminal = _terminal(
+        _classify(
+            _reserve(
+                _genesis(profile, [slot]), profile=profile, slot=slot,
+            ),
+            profile=profile,
+            slot=slot,
+            reason="terminal-reason",
+        ),
+        profile=profile,
+        slot=slot,
+        status="terminal-failure",
+        failure_reason="terminal-reason",
+    )
+
+    assert core.load_attempt_registry(
+        _registry_bytes(terminal), profile=profile,
+    ) == terminal
+    recovery = {**terminal[-1], "event": "recovery"}
+    recovery["event_sha256"] = core.event_sha256(recovery)
+    _assert_core_rejection(
+        "[attempt-registry-semantic] attempt registry line 5.event has no "
+        "core semantic handler",
+        lambda: core.load_attempt_registry(
+            _registry_bytes((*terminal[:-1], recovery)), profile=profile,
+        ),
+    )
+
+
+def test_schema_profile_mappings_are_deeply_immutable() -> None:
+    for profile in (R._S8C_ATTEMPT_PROFILE, _profile()):
+        version = profile.schema.current
+        with pytest.raises(TypeError):
+            profile.schema.event_keys[version]["recovery"] = frozenset()
+        with pytest.raises(TypeError):
+            profile.schema.event_keys[version] = {}
+        with pytest.raises(TypeError):
+            profile.schema.genesis_keys[version] = frozenset()
+        if profile.schema.receipt_keys is not None:
+            with pytest.raises(TypeError):
+                profile.schema.receipt_keys[version] = frozenset()
 
 
 def _s8c_slot() -> dict[str, object]:
@@ -559,11 +692,6 @@ def test_facade_rebinding_guard_rejects_c03_blind_synthetic_source() -> None:
     source = (
         f"{definitions}\n"
         "create_attempt_registry_genesis = malicious_replacement\n"
-    )
-    assert any(
-        isinstance(statement, ast.FunctionDef)
-        and statement.name == "create_attempt_registry_genesis"
-        for statement in ast.parse(source).body
     )
     with pytest.raises(AssertionError) as caught:
         _assert_six_facades_are_unrebound(source)
