@@ -4,7 +4,7 @@ ledger: worklog
 authored: 2026-08-23
 wave: dev-wave-growth-hold-inventory
 seq: 1
-title: 成長比例保留 16 件を棚卸しし 14 件を既定走行へ戻した。判定は秒数でなく承認済み例外の成立で行った (コード+テスト、branch worktree-dev-wave-growth-hold-inventory)
+title: 成長比例保留 16 件を棚卸しし 14 件を既定走行へ戻した。判定は秒数でなく承認済み例外の成立で行った (コード+テスト、branch worktree-dev-wave-growth-hold-inventory、変異matrix = 2件ともKILLED・SURVIVED 0)
 ---
 
 ## 本文
@@ -60,7 +60,29 @@ D463 の非比例へ移った。実測は 3 param 合計 250.68 秒から 2.28 �
 生き残る既定走行の防壁 node・`IZANAGI_HOLD_REEVAL_V1` sentinel を書いた。sentinel の
 `advisory` には評価主体が存在しない事実を明記した ({{D:machine-readable-hold-reeval-is-record-not-gate}})。
 
-エージェント工数は codex 子 7 本 (plan 1 / consult 2 / author 1 / review 2 / fix 1)、
+変異 matrix は 2 件とも期待どおり KILLED で、失敗 node は期待集合と完全一致した。
+baseline は PASSED (365 passed / 2 skipped / 402.76 秒)、SURVIVED と MISMATCH は 0。
+MUT-1 は 2 経路の一致比較を返り値が同一のまま消す変異で、殺したのは
+`test_m2_production_golden_requires_both_routes` 1 本。MUT-2 は期待 session 行の構築を
+actual と一致させる変異で、grep 対象の文字列を変えないため静的 node が mask せず、
+殺したのは `test_verify_replays_complete_fake_codex_experiment` 1 本。
+両 node とも変更前は既定 skip なので、旧側では同じ変異が SURVIVED する。
+
+**本走は `--runner-mode local` で行った。** DW-M07 は dispatch を既定とするが、その理由は
+runner の実行経路を変異させると runner が自壊し収集段が rc=16 になることである。
+本 wave の変異対象は `tools/codex_reasoning_ab.py` で runner の実行経路ではないため
+この失敗モードに当たらず、baseline PASSED と期待 node 完全一致で結果は有効である。
+
+**段 8 の自己改善は候補 5 件すべてを裁定項目へ送った。** 統合を試みた 2 件
+(焦点走の consumer 拡張へ literal 複製 consumer を足す / 変異走行中は repo へ書かない) は、
+節単位では収まった (DW-O26 688 byte、DW-M05 976 byte、いずれも上限 1000 以内) が、
+**L1.5 層の集約が 9,776 / 9,566 byte で 210 byte 超過**した。DW-O26 には exact 契約の pin もあり
+文面変更自体が抵触する。自己改善契約が「予算のために安全義務を削除・弱化してはならない」
+「予算値を上げる変更は理由付きの独立審査対象にする」と定めるため、追加は巻き戻した。
+残る 3 件のうち 2 件は DW-O18 が 1000/1000 byte で余裕ゼロ、1 件は候補と重複があるため見送った。
+事象と根本原因は failures 台帳側に残る。
+
+エージェント工数は codex 子 8 本 (plan 1 / consult 2 / author 1 / review 2 / fix 1 / 段 8 fix 1)、
 いずれも `gpt-5.6-sol` / `xhigh`。author 子は wall 566.5 秒 / model call 27。
 author 子と fix 子はいずれも Pegasus dispatch 障害で pytest を実走できず、
 「実装済み・未実走」「partial」と正しく申告した。実走はすべて親が行った。
@@ -79,3 +101,12 @@ author 子と fix 子はいずれも Pegasus dispatch 障害で pytest を実走
 - {{T:unpinned-rollout-scan-guard}} **P2・新規**: `_find_rollout` の pin 無し全走査に
   上限か警告を設けるか裁定する。production も pin 無しで呼ぶ経路を持ち、corpus が
   伸び続ける以上いずれ production 側でも顕在化する。
+- {{T:dev-wave-l1-5-budget-exhausted}} **P1・ユーザー裁定待ち**: dev-wave reference の
+  L1.5 層が満杯で自己改善が入らない。本 wave は実測に基づく候補 5 件を起こしたが、
+  1 件も統合できなかった。集約は 9,776 / 9,566 byte で 210 byte 超過、
+  DW-O18 は 1000 / 1000 byte で余裕ゼロ、DW-O26 には exact 契約の pin がある。
+  予算値を上げるか、L1.5 の既存節を L2 へ移すか、自己改善の routing 先を変えるかを諮る。
+- {{T:focus-run-env-and-completion-discipline}} **P2・新規**: 予算が空いた時点で、
+  親の焦点走を `FORCE_COLOR` / `COLORTERM` を外して走らせる義務と、親の実走も
+  終端マーカーと終了 rc で判定し背景 job の完了通知を完了判定に使わない義務を
+  DW-O18 へ統合する。実測と根本原因は failures 台帳側に記録済み。

@@ -151,6 +151,48 @@ IZANAGI_HOLD_REEVAL_V1 {"advisory":"...","barrier_nodes":[...],"measured_on":"20
 評価主体の新設は gate 新設にあたり、条件 dispatch の最遅読了段を過ぎていたため
 本 wave では実装せず、裁定パッケージへ送った。
 
+## 変異 matrix — 再導入の検出力を実証した
+
+repo_head `a8d5db97` / spec_sha256 `5f9a2a01…` / baseline PASSED (365 passed / 2 skipped / 402.76 秒)。
+集計は KILLED 2 / SURVIVED 0 / MISMATCH 0 / PARSE_ERROR 0 / TIMEOUT 0。
+
+| 変異 | 内容 | 殺した node |
+|---|---|---|
+| MUT-1 | `derive_independent_golden` の 2 経路一致比較を `return dict(route_a)` へ退化 | `test_m2_production_golden_requires_both_routes` |
+| MUT-2 | 期待 session 行の構築を actual と一致させる (grep 対象文字列は不変) | `test_verify_replays_complete_fake_codex_experiment` |
+
+両方とも失敗 node が期待集合と完全一致し、余計な node は 1 件も落ちていない。
+
+MUT-1 は元関数が一致時に `dict(route_a)` を返すため、**返り値が同一のまま比較だけが消える**。
+fixture を含む他の consumer は誰も気づかず、比較が呼ばれたことを assert する node だけが検出する。
+MUT-2 は grep 対象の 2 文字列を変えないため、静的 node が mask しない設計にした。
+
+両 node とも変更前は既定 skip なので、旧側では同じ変異が SURVIVED する。
+これが `DW-M08` の求める新旧差分である。
+
+本走は `--runner-mode local` で行った。`DW-M07` は dispatch を既定とするが、その理由は
+runner の実行経路を変異させると runner が自壊し収集段が rc=16 になることである。
+本 wave の変異対象は runner の実行経路ではないためこの失敗モードに当たらない。
+
+## 段 8 — 自己改善は 1 件も統合できなかった
+
+本 wave は実測に基づく候補 5 件を起こしたが、**統合は 0 件**である。
+
+| 統合先 | 実測 | 予算 | 判定 |
+|---|---|---|---|
+| L1.5 層 (集約) | 9,776 byte | 9,566 byte | **210 byte 超過** |
+| `DW-O18` (単節) | 1,000 byte | 1,000 byte | 余裕ゼロ |
+| `DW-O26` (単節) | 688 byte (追加後) | 1,000 byte | 単節は収まるが集約で超過、かつ exact 契約 pin に抵触 |
+| `DW-M05` (単節) | 976 byte (追加後) | 1,000 byte | 単節は収まるが集約で超過 |
+
+段 8 の子は超過を自分で検出し、逆パッチで追加のみを除去して clean tree で終えた。
+自己改善契約が「予算のために安全義務を削除・弱化してはならない」「予算値を上げる変更は
+通常の自己改善に含めず、理由付きの独立審査対象にする」と定めるためである。
+
+**実測に基づく候補が 5 件あって 1 件も入らないのは、契約が想定した状態ではない。**
+事象と根本原因は failures 台帳側に残るので失われないが、手順書側の是正が働かない。
+予算そのものを裁定項目として返す。
+
 ## 裁定パッケージ (ユーザーへ返す。本 wave では実装しない)
 
 1. 保留行の再評価 sentinel を評価する既定走行の主体を作るか。
@@ -160,3 +202,6 @@ IZANAGI_HOLD_REEVAL_V1 {"advisory":"...","barrier_nodes":[...],"measured_on":"20
    本 wave では 7 件の矛盾が人手の読みでしか見つからなかった。
 3. `_find_rollout` の pin 無し全走査に上限か警告を設けるか。
    production も pin 無しで呼ぶ経路を持ち、corpus が伸び続ける以上いずれ顕在化する。
+4. dev-wave reference の L1.5 予算をどうするか。実測に基づく自己改善候補 5 件が
+   1 件も入らなかった。予算値を上げるか、L1.5 の既存節を L2 へ移すか、
+   自己改善の routing 先を変えるか。予算値の変更は独立審査対象と契約が定めている。
