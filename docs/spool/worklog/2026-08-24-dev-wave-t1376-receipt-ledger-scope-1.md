@@ -32,6 +32,10 @@ title: [T-1376] COMMIT receipt の一回限り保証を ledger 単位へ限定�
 - canonical acceptance の最初の再投入は、停止用 handoff が着地対象に残ることを投入後に検出して
   receipt 発行前に中断した。受入結果には数えず、本 fragment へ進捗を吸収して handoff を削除した
   clean tip から再投入する。
+- 続く再投入前に main が進んだ際、親は session-start 用 resume gate を acceptance 直前に再実行して
+  停止した。しかし `dev_wave_wait.py acceptance` 自身が post-claim behind を検出し、検査済み message
+  で main を merge してから全走へ進む実装を既に持つ。既存の活性経路を使わず停止した失敗を
+  {{F:preacceptance-resume-gate-livelock}} として記録し、契約同期を後続タスクへ送った。
 
 ## 次の一手差分
 
@@ -41,3 +45,10 @@ title: [T-1376] COMMIT receipt の一回限り保証を ledger 単位へ限定�
   過大主張を除いた。外部状態、実装、gate、受理条件の変更はない。
   remaining: none
   base: 86a4931e2c30d7ff6a563441ac8909c0e8dd9c1ce2194c349ee6befb9d770dec
+
+### 新規
+
+- {{T:preacceptance-resume-gate-liveness}} **P1・新規**: `DW-O20` の session-start resume gate と
+  `dev_wave_wait.py acceptance` の post-claim main merge の境界を正本・checker・subprocess E2E で
+  固定する。resume gate 成功後に main が進む fixture で、fresh context の反復ではなく 1 回の waiter
+  起動が固定 message の merge、clean-tree 再検査、acceptance command 起動まで進むことを検証する。
