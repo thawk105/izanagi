@@ -660,6 +660,7 @@ def test_g5_real_ledger_covers_at_least_90_percent_of_real_collection(
     completed = subprocess.run(
         [
             sys.executable,
+            "-B",
             "-m",
             "pytest",
             "-p",
@@ -1098,7 +1099,7 @@ def test_g9_identity_guard_survives_python_optimized_mode():
         """
     )
     completed = subprocess.run(
-        [sys.executable, "-O", "-c", code],
+        [sys.executable, "-O", "-B", "-c", code],
         cwd=ROOT,
         text=True,
         stdout=subprocess.PIPE,
