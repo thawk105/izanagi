@@ -42,6 +42,14 @@ from typing import Callable, Iterable, Sequence
 
 import pytest
 
+try:
+    from orchestrator import test_selection_contract as _SELECTION_CONTRACT
+except ModuleNotFoundError as exc:
+    # failure-digest の plain-import probe は repo root を sys.path へ足さない。
+    if exc.name not in {"orchestrator", "orchestrator.test_selection_contract"}:
+        raise
+    _SELECTION_CONTRACT = None
+
 
 _RATIFICATION_GIT_ENV_ALLOWLIST = (
     "LANG",
@@ -730,6 +738,28 @@ _FLAKY_HOLD_SKIPPED_IDS_ATTR = "_izanagi_skipped_flaky_hold_ids"
 _FLAKY_HOLD_COLLECTION_WORKERS_ATTR = "_izanagi_flaky_hold_collection_workers"
 _REAL_REPO_SERIAL_NODE_ATTR = "_izanagi_real_repo_serial_node"
 _COLLECTION_NARROWING_OPTIONS = frozenset({"--ignore", "--ignore-glob", "--pyargs"})
+_RUNNER_EXCLUSION_ENV = (
+    None if _SELECTION_CONTRACT is None
+    else _SELECTION_CONTRACT.RUNNER_EXCLUSION_ENV
+)
+_SELECTION_RECEIPT_PREFIX = (
+    None if _SELECTION_CONTRACT is None
+    else _SELECTION_CONTRACT.SELECTION_RECEIPT_PREFIX
+)
+_PERMANENT_EXCLUSION_SET_VERSION = (
+    None if _SELECTION_CONTRACT is None
+    else _SELECTION_CONTRACT.EXCLUSION_SET_VERSION
+)
+_SANCTIONED_SORT_SWO_ORACLE_PATH = (
+    None if _SELECTION_CONTRACT is None
+    else str(_SELECTION_CONTRACT.SANCTIONED_SORT_SWO_ORACLE_PATH)
+)
+_SANCTIONED_EXCLUSION_PAYLOAD = (
+    None if _SELECTION_CONTRACT is None
+    else _SELECTION_CONTRACT.payload_entries(
+        _SELECTION_CONTRACT.SANCTIONED_EXCLUSIONS
+    )[0]
+)
 _EFFECTIVE_SCHEDULER_PREFIX = "IZANAGI_EFFECTIVE_SCHEDULER_V1 "
 _EFFECTIVE_SCHEDULER_ATTR = "_izanagi_effective_scheduler"
 _FLAKY_HOLD_SUMMARY_PREFIX = "IZANAGI_FLAKY_HOLD_SUMMARY_V1 "
@@ -815,6 +845,37 @@ def _flaky_hold_id_from_nodeid(nodeid: str) -> str | None:
     return nodeid if nodeid in FLAKY_TEST_HOLDS else None
 
 
+def _normalize_collection_path(path) -> Path:
+    """Use one path contract for every complete-collection predicate."""
+    if _SELECTION_CONTRACT is None:
+        return Path(path).resolve(strict=False)
+    return _SELECTION_CONTRACT.normalize_path(path)
+
+
+def _collection_narrowing_is_runner_owned(config) -> bool:
+    """Allow only the authenticated runner exclusion in a complete run."""
+    invocation_params = getattr(config, "invocation_params", None)
+    argv = getattr(invocation_params, "args", None)
+    if argv is None:
+        return False
+    argv = tuple(argv)
+    owned_payload = _runner_owned_exclusion_payload(config)
+    owned_tokens = []
+    if owned_payload is not None and _SELECTION_CONTRACT is not None:
+        owned_tokens.extend(
+            _SELECTION_CONTRACT.exclusion_tokens(
+                _SELECTION_CONTRACT.SANCTIONED_EXCLUSIONS
+            )
+        )
+    for token in argv:
+        if token in owned_tokens:
+            owned_tokens.remove(token)
+            continue
+        if token.split("=", 1)[0] in _COLLECTION_NARROWING_OPTIONS:
+            return False
+    return not owned_tokens
+
+
 def _is_complete_growth_hold_collection(config) -> bool:
     numprocesses = getattr(getattr(config, "option", None), "numprocesses", None)
     if (
@@ -826,16 +887,76 @@ def _is_complete_growth_hold_collection(config) -> bool:
     if len(config.args) != 1:
         return False
     try:
-        target = Path(config.args[0]).resolve(strict=False)
-        suite_root = Path(__file__).resolve().parent
+        target = _normalize_collection_path(config.args[0])
+        suite_root = _normalize_collection_path(__file__).parent
     except (OSError, TypeError, ValueError):
         return False
     if target != suite_root:
         return False
-    argv = tuple(getattr(config.invocation_params, "args", ()))
-    return not any(
-        token.split("=", 1)[0] in _COLLECTION_NARROWING_OPTIONS
-        for token in argv
+    return _collection_narrowing_is_runner_owned(config)
+
+
+def _runner_owned_exclusion_payload(config) -> dict[str, str] | None:
+    """認証済み runner payload だけを collection 防壁から除く。
+
+    env を継承した入れ子 pytest は runner の narrowing token を持たないため、
+    runner 所有の除外なしとして扱う。narrowing token が存在する場合だけ、
+    payload と token の契約 drift を UsageError にする。
+    """
+
+    raw = (
+        None if _RUNNER_EXCLUSION_ENV is None
+        else os.environ.get(_RUNNER_EXCLUSION_ENV)
+    )
+    if raw is None:
+        return None
+    try:
+        argv = tuple(getattr(config.invocation_params, "args", ()))
+    except AttributeError as exc:
+        raise pytest.UsageError(
+            "runner exclusion token を検査できる pytest invocation がありません"
+        ) from exc
+    observed_tokens = tuple(
+        token for token in argv
+        if token.split("=", 1)[0] in _COLLECTION_NARROWING_OPTIONS
+    )
+    if not observed_tokens:
+        return None
+    if _SELECTION_CONTRACT is None:
+        raise pytest.UsageError(
+            "runner exclusion env は共有 selection contract を import できないため拒否します"
+        )
+    expected_payload = _SELECTION_CONTRACT.serialize_payload(
+        _SELECTION_CONTRACT.SANCTIONED_EXCLUSIONS
+    )
+    if raw != expected_payload:
+        raise pytest.UsageError(
+            "runner exclusion payload が共有 selection contract と一致しません"
+        )
+    expected_tokens = _SELECTION_CONTRACT.exclusion_tokens(
+        _SELECTION_CONTRACT.SANCTIONED_EXCLUSIONS
+    )
+    if observed_tokens != expected_tokens:
+        raise pytest.UsageError(
+            "runner exclusion token が共有 selection contract と一致しません"
+        )
+    payload = _SELECTION_CONTRACT.payload_entries(
+        _SELECTION_CONTRACT.SANCTIONED_EXCLUSIONS
+    )
+    return payload[0] if len(payload) == 1 else None
+
+
+def _emit_runner_exclusion_receipt(config) -> None:
+    payload = _runner_owned_exclusion_payload(config)
+    if payload is None or hasattr(config, "workerinput"):
+        return
+    assert _SELECTION_CONTRACT is not None
+    print(
+        _SELECTION_CONTRACT.selection_receipt_line(
+            _SELECTION_CONTRACT.SANCTIONED_EXCLUSIONS
+        ),
+        file=sys.stderr,
+        flush=True,
     )
 
 
@@ -851,20 +972,13 @@ def _is_un_narrowed_flaky_hold_collection(config) -> bool:
     try:
         if len(args) != 1:
             return False
-        target = Path(args[0]).resolve(strict=False)
-        suite_root = Path(__file__).resolve().parent
+        target = _normalize_collection_path(args[0])
+        suite_root = _normalize_collection_path(__file__).parent
     except (OSError, TypeError, ValueError):
         return False
     if target != suite_root:
         return False
-    argv = getattr(invocation_params, "args", None)
-    if argv is None:
-        return False
-    argv = tuple(argv)
-    return not any(
-        token.split("=", 1)[0] in _COLLECTION_NARROWING_OPTIONS
-        for token in argv
-    )
+    return _collection_narrowing_is_runner_owned(config)
 
 
 def _is_complete_flaky_hold_collection(config) -> bool:
@@ -1408,6 +1522,7 @@ def _finish_memo_sessions(config, *, suppress_errors: bool) -> None:
 
 
 def pytest_configure(config) -> None:
+    _emit_runner_exclusion_receipt(config)
     try:
         _configure_receipt_memo_session(config)
         _configure_oracle_environment_memo_session(config)

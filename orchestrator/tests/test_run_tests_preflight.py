@@ -2569,7 +2569,9 @@ def test_main_assembles_absolute_relative_target_from_other_cwd(
         ["test_sample.py::test_sample"], site=RT.site_policy.OTHER,
     ) == 0
     assert captured["command"] == [
-        sys.executable, "-m", "pytest", f"{target.resolve()}::test_sample",
+        sys.executable, "-m", "pytest",
+        f"--ignore={RT._SANCTIONED_SORT_SWO_ORACLE_PATH}",
+        f"{target.resolve()}::test_sample",
     ]
     assert captured["kwargs"] == {"cwd": str(_REPO)}
 
@@ -2595,21 +2597,41 @@ def test_main_absolutizes_plain_relative_target_from_other_cwd(
 
     assert RT.main(["test_sample.py"], site=RT.site_policy.OTHER) == 0
     assert captured["command"] == [
-        sys.executable, "-m", "pytest", str(target.resolve()),
+        sys.executable, "-m", "pytest",
+        f"--ignore={RT._SANCTIONED_SORT_SWO_ORACLE_PATH}",
+        str(target.resolve()),
     ]
     assert captured["kwargs"] == {"cwd": str(_REPO)}
 
 
 @pytest.mark.parametrize(
-    ("args", "expected_tail"),
+    ("args", "expected_tail", "expected_exclusion"),
     [
-        (["--rootdir", "."], ["--rootdir", str(_REPO)]),
-        (["--deselect=ignored.py::test_node"], ["--deselect=ignored.py::test_node"]),
+        (
+            ["--rootdir", "."],
+            ["--rootdir", str(_REPO)],
+            True,
+        ),
+        (
+            ["--deselect=ignored.py::test_node"],
+            ["--deselect=ignored.py::test_node"],
+            True,
+        ),
     ],
 )
+@pytest.mark.parametrize(
+    "table_active",
+    [True, False],
+    ids=("active-table", "empty-table"),
+)
 def test_main_option_values_do_not_suppress_default_target(
-    monkeypatch, args, expected_tail,
+    monkeypatch, args, expected_tail, expected_exclusion, table_active,
 ):
+    monkeypatch.setattr(
+        RT,
+        "_PERMANENT_FULL_SUITE_EXCLUSIONS",
+        RT._SELECTION_CONTRACT.SANCTIONED_EXCLUSIONS if table_active else (),
+    )
     captured = {}
     monkeypatch.setattr(RT, "_preflight_unstaged_deletions", lambda values, repo: 0)
     monkeypatch.setattr(RT, "_preflight_ruleops", lambda values, repo: 0)
@@ -2622,10 +2644,15 @@ def test_main_option_values_do_not_suppress_default_target(
     )
 
     assert RT.main(args, site=RT.site_policy.OTHER) == 0
-    assert captured["command"] == [
-        sys.executable, "-m", "pytest", str(_REPO / "orchestrator" / "tests"),
+    expected_exclusion = expected_exclusion and table_active
+    expected_command = [sys.executable, "-m", "pytest"]
+    if expected_exclusion:
+        expected_command.append(f"--ignore={RT._SANCTIONED_SORT_SWO_ORACLE_PATH}")
+    expected_command.extend([
+        str(_REPO / "orchestrator" / "tests"),
         *expected_tail,
-    ]
+    ])
+    assert captured["command"] == expected_command
 
 
 if __name__ == "__main__":
