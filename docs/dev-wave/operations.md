@@ -90,6 +90,8 @@ runner 自身の報告時間を正とし、親側の外側 wall を所要とし�
 
 設計前に入力が実成果物のどの field に存在するか確認し、同名識別子を二義化しない（D75）。
 既存 exact 述語の改訂で受理形を増やす場合も新設に当たる。
+field の実在では足りない。その field が実環境で取りうる値を実測し、要求する値が到達可能か
+確かめてから述語を採用する。到達不能なら採用せず、測った値域を裁定へ書く。
 時間予算を持つ検査を新設するなら、値は実測分布の max に対する倍率で決め、母集合と
 「観測した regime が予算の適用対象と同じか」を併記する。正例は余裕を取り、負例は確実に
 発火する小さい値にする（要求が逆向きで、一律に余裕を取ると負例が恒真になる）。
@@ -190,3 +192,11 @@ wave digest の疑似 holder で投入する。待つ経路は無く flag でも
 `orchestrator/tests/test_check_docs.py` の合成 fixture との整合性を同じ
 commit で確認する（`DW-O26` の精神を checker 変更にも適用。怠ると多数の
 テストが連鎖的に失敗する — T-1458 実測、320 件）。
+
+## DW-O28 — land 後の自己撤去
+
+親は `landed` / `already-landed` を確認後、同じ段 9 で先に対象 worktree 外の main worktree へ移り、投入した計算ノード job の終端後に次を実行する（`<MAIN>` / `<WAVE>` は絶対 path）。
+`python3 tools/dev_wave_cleanup.py --main-worktree <MAIN> --wave-worktree <WAVE> --wave-branch <BRANCH> --tested-wave-tip-sha <TIP>`
+tool は unoccupied、clean、tested tip が `refs/heads/main` の祖先、fold state 不在、wave が非 primary、cwd が対象外を全て要求し、どれかが不成立または判定不能なら fail-closed で停止する。
+同一 wave の worktree と branch を撤去し、次 wave・ユーザー・`/cleanup-branches` へ引き渡さない。
+F26 に従い `git worktree remove` と `git submodule deinit` は使わない。branch は `git branch -d` だけで消し `-D` を使わない。撤去できない理由は報告し、次 wave の worklog へ記録する。
