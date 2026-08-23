@@ -84,7 +84,7 @@ def _record_from_refs(
         addendum_b=addendum_b,
         fold_commit=approved.approval_ref.commit,
         errata=tuple(errata),
-        approval_manifest=approved.approval_ref,
+        approval_manifest=getattr(approved, "manifest_ref", approved.approval_ref),
         receipt_schema=approved.approved_blobs["receipt_schema"],
         composed_core_sha256=approved.composed_sha256,
         prereg_commit=approved.prereg_commit,

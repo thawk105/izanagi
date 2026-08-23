@@ -176,7 +176,7 @@ class ApprovalPayload:
 
 
 @dataclass(frozen=True, slots=True)
-class VectorApprovalProjection:
+class _VectorApprovalProjection:
     predecessor: BlobRef
     base_approval_fold_commit: str
     approval_fold_commit: str
@@ -185,7 +185,7 @@ class VectorApprovalProjection:
 
 
 @dataclass(frozen=True, slots=True)
-class ApprovalManifestProjection:
+class _ApprovalManifestProjection:
     predecessor: BlobRef
     base_approval_fold_commit: str
     approval_fold_commit: str
@@ -211,7 +211,7 @@ def load_approval_payload(
 
 def load_effective_approval_projections(
     repository_root: str | os.PathLike[str],
-) -> tuple[ApprovalManifestProjection, VectorApprovalProjection]:
+) -> tuple[_ApprovalManifestProjection, _VectorApprovalProjection]:
     """Source-pinned D574 manifest/payload projection だけを historical blob から読む。"""
 
     return _load_effective_approval_projections_from_refs(
@@ -226,7 +226,7 @@ def _load_effective_approval_projections_from_refs(
     *,
     manifest_ref: BlobRef,
     projection_ref: BlobRef,
-) -> tuple[ApprovalManifestProjection, VectorApprovalProjection]:
+) -> tuple[_ApprovalManifestProjection, _VectorApprovalProjection]:
     """Explicit refs を使う private test seam。production wrapper は固定 refs のみ渡す。"""
 
     if type(manifest_ref) is not BlobRef or type(projection_ref) is not BlobRef:
@@ -310,7 +310,7 @@ def _projection_commit(value: object, label: str) -> str:
     return value
 
 
-def _parse_vector_approval_projection(document: bytes) -> VectorApprovalProjection:
+def _parse_vector_approval_projection(document: bytes) -> _VectorApprovalProjection:
     raw = _projection_fields(
         _strict_json_object(document, "vector approval projection"),
         frozenset(
@@ -333,7 +333,7 @@ def _parse_vector_approval_projection(document: bytes) -> VectorApprovalProjecti
         raw["conformance_vector_index"], frozenset({"approval"}),
         "conformance_vector_index",
     )
-    return VectorApprovalProjection(
+    return _VectorApprovalProjection(
         predecessor=_projection_blob_ref(predecessor["approval"], "predecessor approval"),
         base_approval_fold_commit=_projection_commit(
             raw["base_approval_fold_commit"], "base approval fold"
@@ -344,7 +344,7 @@ def _parse_vector_approval_projection(document: bytes) -> VectorApprovalProjecti
     )
 
 
-def _parse_approval_manifest_projection(document: bytes) -> ApprovalManifestProjection:
+def _parse_approval_manifest_projection(document: bytes) -> _ApprovalManifestProjection:
     raw = _projection_fields(
         _strict_json_object(document, "approval manifest projection"),
         frozenset(
@@ -369,7 +369,7 @@ def _parse_approval_manifest_projection(document: bytes) -> ApprovalManifestProj
         namespaces["conformance_vectors"], frozenset({"namespace_projection"}),
         "vector namespace",
     )
-    return ApprovalManifestProjection(
+    return _ApprovalManifestProjection(
         predecessor=_projection_blob_ref(prereg["namespace_projection"], "predecessor approval"),
         base_approval_fold_commit=_projection_commit(
             raw["base_approval_fold_commit"], "base approval fold"

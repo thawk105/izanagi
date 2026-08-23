@@ -86,7 +86,11 @@ def _blob_ref(path: str, commit: str, data: bytes) -> BlobRef:
     return BlobRef(path, commit, hashlib.sha256(data).hexdigest())
 
 
-def _legacy_authority(record: _manifest.PreregistrationRecord) -> _manifest.ApprovedManifest:
+def _forge_legacy_d282_authority_for_consumer_compatibility(
+    record: _manifest.PreregistrationRecord,
+) -> _manifest.ApprovedManifest:
+    """Forge only the pre-D574 semantic-consumer fixture; writer rejects it."""
+
     approved = object.__new__(_manifest.ApprovedManifest)
     errata = {item.erratum_id: BlobRef(item.path, item.commit, item.sha256) for item in record.errata}
     values = {
@@ -303,7 +307,7 @@ def _make_git_fixture(tmp_path: Path) -> SimpleNamespace:
     )
     binding = _binding._PreregBinding._issue(
         record=record,
-        approved_manifest=_legacy_authority(record),
+        approved_manifest=_forge_legacy_d282_authority_for_consumer_compatibility(record),
         repository_root=root,
         measurement_head=head_commit,
         prereg_commit=root_commit,
@@ -647,7 +651,7 @@ def _assert_semantic(code: str, callable_object, *args, **kwargs) -> None:
 
 
 def _receipt_document(value: dict[str, Any]) -> ReceiptDocument:
-    raw_bytes = json.dumps(value, separators=(",", ":")).encode()
+    raw_bytes = (json.dumps(value, ensure_ascii=False, indent=2) + "\n").encode()
     return ReceiptDocument(
         raw_bytes=raw_bytes,
         value=value,

@@ -144,7 +144,11 @@ def _record(fixture: SimpleNamespace) -> _manifest.PreregistrationRecord:
     )
 
 
-def _legacy_authority(record: _manifest.PreregistrationRecord) -> _manifest.ApprovedManifest:
+def _forge_legacy_d282_authority_for_consumer_compatibility(
+    record: _manifest.PreregistrationRecord,
+) -> _manifest.ApprovedManifest:
+    """Forge only the pre-D574 consumer fixture; publication must reject it."""
+
     approved = object.__new__(_manifest.ApprovedManifest)
     errata = {
         item.erratum_id: BlobRef(item.path, item.commit, item.sha256)
@@ -184,7 +188,7 @@ def _binding_for(
     record = record or _record(fixture)
     return _binding._PreregBinding._issue(
         record=record,
-        approved_manifest=_legacy_authority(record),
+        approved_manifest=_forge_legacy_d282_authority_for_consumer_compatibility(record),
         repository_root=fixture.root,
         measurement_head=measurement_head or fixture.head_commit,
         prereg_commit=record.prereg_commit,

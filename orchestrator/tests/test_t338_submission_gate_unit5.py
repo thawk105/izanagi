@@ -47,6 +47,11 @@ _V1_INDEX_REF = BlobRef(
     "383bd3f272bac02fcf5b865a69d8652d9668b6d1",
     "c66953bef617ff34e51ed988cf063c8e86e2a42e4132cdbab7f02732f2dc0643",
 )
+_V2_INDEX_REF = BlobRef(
+    "orchestrator/tests/fixtures/t338_submission_gate/conformance/index-v2.json",
+    "6d431a60acc709832513440266c84ad86ea5ebc9",
+    "b4a86912212e9350c37c15c1c4eeabf7f9ce71e4806bec7d2e4cf491b2d39099",
+)
 _SEMANTIC_REASON_CODES = frozenset(
     {
         "a03",
@@ -348,14 +353,21 @@ def test_conformance_index_has_complete_scoped_coverage() -> None:
             assert inspect.isfunction(function), reference
 
 
-def test_v1_projection_is_independently_pinned_and_v2_appends_four() -> None:
-    historical = read_pinned_blob(_ROOT, _V1_INDEX_REF)
-    assert hashlib.sha256(historical).hexdigest() == _V1_INDEX_REF.sha256
-    assert (_CONFORMANCE / "index-v1.json").read_bytes() == historical
-    old_entries = json.loads(historical)["vectors"]
+def test_index_generations_are_independently_pinned_and_v2_appends_four() -> None:
+    historical_v1 = read_pinned_blob(_ROOT, _V1_INDEX_REF)
+    assert hashlib.sha256(historical_v1).hexdigest() == _V1_INDEX_REF.sha256
+    assert (_CONFORMANCE / "index-v1.json").read_bytes() == historical_v1
+    old_entries = json.loads(historical_v1)["vectors"]
     assert len(old_entries) == 42
-    assert _vector_entries()[:42] == old_entries
-    assert [item["id"] for item in _vector_entries()[42:]] == [
+    historical_v2 = read_pinned_blob(_ROOT, _V2_INDEX_REF)
+    assert hashlib.sha256(historical_v2).hexdigest() == _V2_INDEX_REF.sha256
+    assert (_CONFORMANCE / "index-v2.json").read_bytes() == historical_v2
+    manifest, projection = approval.load_effective_approval_projections(_ROOT)
+    assert manifest.vector_index == projection.vector_index == _V2_INDEX_REF
+    new_entries = json.loads(historical_v2)["vectors"]
+    assert len(new_entries) == 46
+    assert new_entries[:42] == old_entries == _vector_entries()[:42]
+    assert [item["id"] for item in new_entries[42:]] == [
         "writer_publish_sealed_authority",
         "manifest_index_ref_mismatch",
         "payload_index_ref_mismatch",
@@ -586,6 +598,9 @@ def test_conformance_vector_is_executed(
             fixture = _PATH._authority_fixture(tmp_path)
             value, _ = _UNIT3._full_receipt(fixture)
             document = _UNIT3._receipt_document(value)
+            compact = json.dumps(value, separators=(",", ":")).encode()
+            assert document.raw_bytes.endswith(b"\n")
+            assert document.raw_bytes != compact
             destination = fixture.root / writer._destination(document)
             destination.parent.mkdir(parents=True)
             writer._publish_receipt(
@@ -627,15 +642,31 @@ def test_conformance_vector_is_executed(
             commit = _UNIT3._commit(root, "replace historical index", approved.vector_index.path)
             (root / approved.vector_index.path).write_bytes(original)
             bad_ref = BlobRef(approved.vector_index.path, commit, approved.vector_index.sha256)
+            manifest_ref = _PATH._mutated_ref(
+                root,
+                manifest_ref,
+                ("namespaces", "conformance_vectors", "namespace_projection", "commit"),
+                bad_ref.commit,
+            )
+            projection_ref = _PATH._mutated_ref(
+                root,
+                projection_ref,
+                ("conformance_vector_index", "approval", "commit"),
+                bad_ref.commit,
+            )
             with pytest.raises(_manifest.VectorAuthorityMismatchError) as caught:
-                _manifest._require_vector_index(os.fspath(root), bad_ref, bad_ref)
+                _manifest._resolve_projection_authority(
+                    os.fspath(root),
+                    manifest_ref=manifest_ref,
+                    projection_ref=projection_ref,
+                )
             assert vector["expected_code"] == caught.value.reason_code
             assert not (root / "output" / "receipts" / "t139").exists()
             return
         else:
             raise AssertionError(item["id"])
         with pytest.raises(_manifest.VectorAuthorityMismatchError) as caught:
-            _manifest._load_approved_manifest_from_refs(
+            _manifest._resolve_projection_authority(
                 os.fspath(root), manifest_ref=manifest_ref, projection_ref=projection_ref
             )
         assert vector["expected_code"] == caught.value.reason_code

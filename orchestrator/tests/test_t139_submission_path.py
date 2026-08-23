@@ -13,12 +13,14 @@ from types import SimpleNamespace
 
 import pytest
 
+import orchestrator.preregistration as preregistration
 from orchestrator.preregistration import approval_payload as approval
 from orchestrator.preregistration.blobref import BlobRef, BlobRefError, read_pinned_blob
 from orchestrator.submission_gate import _binding, _manifest
 
 
 _ROOT = Path(__file__).resolve().parents[2]
+_UNIT1 = importlib.import_module("orchestrator.tests.test_t338_submission_gate_unit1")
 _UNIT3 = importlib.import_module("orchestrator.tests.test_t338_submission_gate_unit3")
 
 
@@ -111,12 +113,13 @@ def test_fixed_real_repository_loader_seals_effective_authority() -> None:
     ("mutation", "reason"),
     [
         (lambda raw: raw.replace(b'{\n  "schema_version":', b'{\n  "schema_version":"t139-vector-approval/v1",\n  "schema_version":', 1), "duplicate_key"),
+        (lambda raw: raw.replace(b'"forward_supersedes": {', b'"forward_supersedes": {"decision_kind":"duplicate",', 1), "duplicate_key"),
         (lambda raw: raw.replace(b'{\n', b'{\n  "unknown":true,\n', 1), "exact_keys"),
         (lambda raw: raw.replace(b'  "decision_kind": "t139-vector-approval/v1",\n', b"", 1), "exact_keys"),
         (lambda raw: raw.replace(b'"base_approval_fold_commit": "39d760985a5e37d20464c394760bf65596156566"', b'"base_approval_fold_commit": 1', 1), "invalid_structure"),
         (lambda raw: raw.replace(b'{\n', b'{\n  "non_finite":NaN,\n', 1), "non_finite"),
     ],
-    ids=["duplicate", "unknown", "missing", "type", "nonfinite"],
+    ids=["root-duplicate", "nested-duplicate", "unknown", "missing", "type", "nonfinite"],
 )
 def test_projection_parser_rejects_nonexact_json(mutation, reason: str) -> None:
     with pytest.raises(approval.ApprovalProjectionError) as caught:
@@ -148,6 +151,28 @@ def test_manifest_parser_rejects_unknown_key_and_invalid_index_path() -> None:
     old = b'"path": "orchestrator/tests/fixtures/t338_submission_gate/conformance/index-v2.json"'
     with pytest.raises(approval.ApprovalProjectionError):
         approval._parse_approval_manifest_projection(raw.replace(old, b'"path": "/index-v2.json"', 1))
+    nested = raw.replace(
+        b'"namespaces": {',
+        b'"namespaces": {"preregistration_approval":null,',
+        1,
+    )
+    with pytest.raises(approval.ApprovalProjectionError) as duplicate:
+        approval._parse_approval_manifest_projection(nested)
+    assert duplicate.value.reason_code == "duplicate_key"
+
+
+def test_projection_dataclasses_have_no_public_names() -> None:
+    for name in ("VectorApprovalProjection", "ApprovalManifestProjection"):
+        assert not hasattr(approval, name)
+        assert not hasattr(preregistration, name)
+
+
+def test_legacy_authority_forge_is_consumer_compatibility_only() -> None:
+    helper_name = "_forge_legacy_d282_authority_for_consumer_compatibility"
+    for module in (_UNIT1, _UNIT3):
+        source = inspect.getsource(module)
+        assert source.count("object.__new__(_manifest.ApprovedManifest)") == 1
+        assert source.count(f"{helper_name}(") == 2
 
 
 def test_projection_values_are_immutable() -> None:
@@ -168,7 +193,7 @@ def test_fixed_projection_blob_hashes_fail_closed(tmp_path: Path, target: str) -
     else:
         projection_ref = wrong
     with pytest.raises(BlobRefError):
-        _manifest._load_approved_manifest_from_refs(
+        _manifest._resolve_projection_authority(
             os.fspath(root),
             manifest_ref=manifest_ref,
             projection_ref=projection_ref,
@@ -189,7 +214,7 @@ def test_predecessor_and_d574_authority_are_exact(
     assert target == "projection"
     projection_ref = _mutated_ref(root, approval.T139_VECTOR_APPROVAL_REF, path, "f" * 64)
     with pytest.raises(_manifest.VectorAuthorityMismatchError) as caught:
-        _manifest._load_approved_manifest_from_refs(
+        _manifest._resolve_projection_authority(
             os.fspath(root),
             manifest_ref=approval.T139_APPROVAL_MANIFEST_REF,
             projection_ref=projection_ref,
@@ -200,19 +225,93 @@ def test_predecessor_and_d574_authority_are_exact(
 def test_head_same_name_replacement_is_not_authority(tmp_path: Path) -> None:
     root = _clone_repository(tmp_path)
     approved = _manifest._load_approved_manifest(os.fspath(root))
+    historical = {
+        ref.path: read_pinned_blob(root, ref)
+        for ref in (approved.manifest_ref, approved.projection_ref, approved.vector_index)
+    }
     for ref in (approved.manifest_ref, approved.projection_ref, approved.vector_index):
         (root / ref.path).write_bytes(b'{"attacker":true}\n')
+    replacement_head = _UNIT3._commit(root, "replace same-name authority files", *historical)
+    assert _UNIT3._run(root, "rev-parse", "HEAD") == replacement_head
     reloaded = _manifest._load_approved_manifest(os.fspath(root))
     assert reloaded.vector_index == approved.vector_index
+    for ref in (reloaded.manifest_ref, reloaded.projection_ref, reloaded.vector_index):
+        assert read_pinned_blob(root, ref) == historical[ref.path]
+        assert (root / ref.path).read_bytes() == b'{"attacker":true}\n'
 
 
 def test_fixed_wrapper_accepts_no_caller_ref_or_digest() -> None:
     assert set(inspect.signature(_manifest._load_approved_manifest).parameters) == {"repository_root"}
-    assert inspect.getsource(_manifest._load_approved_manifest_from_refs).count(
+    assert inspect.getsource(_manifest._load_approved_manifest).count(
         "load_approval_payload(repository_root)"
     ) == 1
+    assert not hasattr(_manifest, "_load_approved_manifest_from_refs")
     with pytest.raises(TypeError):
         _manifest._load_approved_manifest(_ROOT, projection_ref=approval.T139_VECTOR_APPROVAL_REF)
+
+
+def test_explicit_ref_projection_seam_never_mints_authority(tmp_path: Path) -> None:
+    root = _clone_repository(tmp_path)
+    manifest_ref = approval.T139_APPROVAL_MANIFEST_REF
+    projection_ref = approval.T139_VECTOR_APPROVAL_REF
+    replacement = approval.D282_DECISIONS_REF
+    manifest_path = ("namespaces", "conformance_vectors", "namespace_projection")
+    projection_path = ("conformance_vector_index", "approval")
+    for field in ("path", "commit", "sha256"):
+        manifest_ref = _mutated_ref(
+            root, manifest_ref, (*manifest_path, field), getattr(replacement, field)
+        )
+        projection_ref = _mutated_ref(
+            root, projection_ref, (*projection_path, field), getattr(replacement, field)
+        )
+    manifest, projection = _manifest._resolve_projection_authority(
+        os.fspath(root), manifest_ref=manifest_ref, projection_ref=projection_ref
+    )
+    assert manifest.vector_index == projection.vector_index == replacement
+    assert not isinstance(manifest, _manifest.ApprovedManifest)
+    assert not isinstance(projection, _manifest.ApprovedManifest)
+
+
+def test_new_record_and_receipt_restore_fixed_manifest_authority(tmp_path: Path) -> None:
+    fixture = _authority_fixture(tmp_path)
+    assert fixture.record.approval_manifest == approval.T139_APPROVAL_MANIFEST_REF
+    receipt_field = _UNIT3._preregistration_value(fixture.record)["approval_manifest"]
+    assert receipt_field == {
+        "path": approval.T139_APPROVAL_MANIFEST_REF.path,
+        "commit": approval.T139_APPROVAL_MANIFEST_REF.commit,
+        "sha256": approval.T139_APPROVAL_MANIFEST_REF.sha256,
+    }
+    _manifest._require_manifest_matches_approval(
+        fixture.record, fixture.binding.approved_manifest
+    )
+
+
+def test_new_authority_intact_redrives_every_canonical_field() -> None:
+    baseline = _manifest._load_approved_manifest(os.fspath(_ROOT))
+    blobs = dict(baseline.approved_blobs)
+    addendum = blobs["addendum_a"]
+    blobs["addendum_a"] = BlobRef(addendum.path, addendum.commit, "f" * 64)
+    mutations = {
+        "approval_ref": approval.T139_APPROVAL_MANIFEST_REF,
+        "target_core": BlobRef(
+            baseline.target_core.path, baseline.target_core.commit, "f" * 64
+        ),
+        "approved_blobs": blobs,
+        "erratum_application_order": tuple(reversed(baseline.erratum_application_order)),
+        "composed_sha256": "f" * 64,
+        "prereg_commit": "f" * 40,
+        "manifest_ref": approval.T139_VECTOR_APPROVAL_REF,
+        "projection_ref": approval.T139_APPROVAL_MANIFEST_REF,
+        "base_approval_fold_commit": "f" * 40,
+        "effective_approval_fold_commit": approval.D282_DECISIONS_REF.commit,
+        "canonical_authority": approval.D282_DECISIONS_REF,
+        "vector_index": approval.D282_DECISIONS_REF,
+    }
+    for field, value in mutations.items():
+        approved = _manifest._load_approved_manifest(os.fspath(_ROOT))
+        object.__setattr__(approved, field, value)
+        with pytest.raises(_manifest.VectorAuthorityMismatchError, match="sealed approval"):
+            _manifest._assert_approved_manifest_intact(os.fspath(_ROOT), approved)
 
 
 def test_approved_manifest_and_binding_reject_unsealed_authority(tmp_path: Path) -> None:
