@@ -3409,9 +3409,11 @@ def test_cli_base_digest_real_corpus_resolves_active_and_rejects_completed(
 ) -> None:
     repo = _copy_real_canonical_family(tmp_path)
     _install_cli(repo)
-    source = repo / "docs/archive/worklog-phase3-0820-720-721.md"
+    source = repo / "docs/worklog.md"
     source_bytes = source.read_bytes()
-    start = source_bytes.index(b"- [T-139] **D574")
+    start = source_bytes.index(
+        "- [T-139] **P2・裁定済み (2026-08-24 /rulings 全件、択 (a))**".encode()
+    )
     end = source_bytes.index(b"- [T-337]", start)
     substantive = source_bytes[start:end]
     expected = (hashlib.sha256(substantive).hexdigest() + "\n").encode("ascii")

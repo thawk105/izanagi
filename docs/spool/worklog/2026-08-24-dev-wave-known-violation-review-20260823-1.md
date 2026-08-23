@@ -50,6 +50,15 @@ title: known-violation 台帳 53 件を全数監査し、0 件化は現行契約
 - 工数: codex 子 3 本 (段 2 plan 1・段 3 consult 2)、いずれも `check_codex_output.py` rc=0、
   receipt outcome=accepted。段 5・6 は「実装しない」裁定により飛ばした (`4→7→8→9`)。
   実装差分ゼロのため変異 matrix は `DW-S04` により免除、受入全走は免除せず実走した。
+- **受入全走 1 回目が main 側の赤を掘り当てた。** 14832 passed / 1 failed / 67 skipped で、
+  赤は `test_spool_fold.py::test_cli_base_digest_real_corpus_resolves_active_and_rejects_completed`
+  の 1 件だけ。親の commit が触った path はこのテストが複製する固定 path 一覧に 1 つも
+  含まれず、引き金は main の fold `768e9fe6` が `docs/worklog.md` へ実体の `[T-139]` 項目を
+  入れたことだった (1 つ前の main `d8eaa0a7` には実体 0 件、親が blob で確認)。F434 の再発である。
+  D690 決定 1 (自分が原因でない赤は一瞬で直せるなら自分で直す、悩まない) と、
+  D690 決定 2 (受入の受理は child-green の 1 本だけ) により、Codex `role=author` で
+  fixture ポインタを追随させてから受入を再走した。**この修復は本 wave の scope 拡大ではなく、
+  main を塞いでいた赤の局所修復である。**
 - 親の実測 script 8 本と子の成果物は
   `/work/1/SFC/tanab/dev-wave-jobs/known-violation-review-20260823/` に置いた。
   全数分類表・再測定結果・段 4 裁定・裁定パッケージ草稿も同所。
@@ -73,3 +82,6 @@ title: known-violation 台帳 53 件を全数監査し、0 件化は現行契約
 - {{T:insight-script-implementation-surface}} **P3・新規**: `output/insights/**/*.py` が実装面判定に
   当たるため、解析 script を insight へ置いた docs commit が Codex author 契約に触れる。
   運用と契約の関係を整理する。台帳 3 件の生成器。
+- {{T:real-corpus-fixture-anchor-completed-id}} **P2・新規**: real-corpus テストの fixture anchor に、
+  既に完了して archive され二度と実体更新されない task_id を選ぶ設計へ変える。F434 の恒久対応候補で、
+  本 wave の再発により独立 2 例が揃った。

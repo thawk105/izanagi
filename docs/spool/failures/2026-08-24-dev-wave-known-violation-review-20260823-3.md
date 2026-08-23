@@ -32,3 +32,24 @@ seq: 3
   再利用できない場合は、母集合の差を出力へ 1 行で明記してから報告する。
   低水準 command による再計算 (`git merge-file` 等) は、権威実装が使っていない限り
   「代理であり本体ではない」と明記する。
+
+### F434
+
+- **再発: 2026-08-24 (2 回目)** — 同じ
+  `orchestrator/tests/test_spool_fold.py::test_cli_base_digest_real_corpus_resolves_active_and_rejects_completed`
+  が受入全走で赤化した (14832 passed / 1 failed / 67 skipped、赤はこの 1 件だけ)。
+  F434 本体が「同型は、real-corpus テストがまだアクティブな task_id を fixture anchor に
+  使っている場合に、その task_id が実体更新されるたびに顕在化しうる」と予告したとおりの再発である。
+  今回の引き金は main の fold `768e9fe6` で、2026-08-24 の `/rulings` 裁定を反映して
+  `docs/worklog.md` へ実体の `[T-139]` 項目が入った。1 つ前の main `d8eaa0a7` の
+  `docs/worklog.md` に実体の `[T-139]` は 0 件だったことを親が blob で確認している。
+  carry 鎖を遡る実装は正しく新しい実体項目へ解決しており
+  (`--base-digest '[T-139]'` は `88d943ab…` を返す)、テスト側の固定ポインタが
+  `docs/archive/worklog-phase3-0820-720-721.md` を指したまま追随していないことが赤の原因である。
+  **1 回目 (2026-08-20 の実体更新) は archive 内の別 file への移動だったが、2 回目の今回は
+  archive から現行 `docs/worklog.md` への移動である。** fixture anchor が archive に留まる保証は
+  無く、追随修正はこの先も繰り返す。
+  本 wave は D690 決定 1 (自分が原因でない赤は一瞬で直せるなら自分で直す) に従い、
+  Codex `role=author` による fixture ポインタの追随で局所修復した。
+  F434 が記録した恒久対応の候補 (fixture anchor に、既に完了して archive され二度と実体更新
+  されない task_id を選ぶ設計) は、これで**独立 2 例が揃った**。実施は別タスクとする。
