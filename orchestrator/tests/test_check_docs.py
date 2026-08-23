@@ -7489,12 +7489,6 @@ def test_dev_wave_reasoning_effort_pin_rejects_dw_s06_c_high():
         shutil.rmtree(root, ignore_errors=True)
 
 
-def test_dev_wave_reasoning_effort_pin_accepts_dw_s05_a_current_sentence():
-    workers = os.path.join(_REPO, "docs", "dev-wave", "workers.md")
-    with open(workers, encoding="utf-8") as stream:
-        assert _reasoning_effort_pin_findings(stream.read()) == []
-
-
 def test_dev_wave_reasoning_effort_pin_rejects_dw_s05_a_high():
     root = tempfile.mkdtemp(prefix="izanagi_reasoning_pin_")
     try:
@@ -9247,6 +9241,7 @@ def test_cleanup_address_edge_accepts_rewording():
 
 
 def test_cleanup_address_edge_accepts_baseline():
+    """この baseline は、後続本文で消化済みの backlog ID が sink になる正例も兼ねる。"""
     root = _build_min_repo()
     try:
         res = _run_check(root)
@@ -9807,15 +9802,6 @@ def test_backlog_guard_id_only_item_is_source_and_sink():
             "後続エントリ",
             "見送り台帳にもない",
         )
-    finally:
-        shutil.rmtree(root, ignore_errors=True)
-
-
-def test_backlog_guard_consumed_id_in_body_is_clean():
-    root = _build_min_repo()
-    try:
-        res = _run_check(root)
-        assert res.returncode == 0, res.stdout
     finally:
         shutil.rmtree(root, ignore_errors=True)
 

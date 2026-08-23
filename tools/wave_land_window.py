@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""dev-wave の受入を sidecar lease で直列化する。"""
+"""dev-wave の受入 claim に使う advisory な sidecar lease。"""
 from __future__ import annotations
 
 import argparse
@@ -26,20 +26,14 @@ _LEASE_NAME = "acceptance.lease"
 _TICKET_PREFIX = "ticket."
 _LEASE_ENV = "IZANAGI_WAVE_LEASE_DIR"
 _POLICY_TTL_SECONDS = 2400
-_WAITER_TTL_SECONDS = 300
 _MAX_LEASE_BYTES = 4096
-_MAX_TICKET_BYTES = 4096
-_MAX_TICKETS_SCANNED = 64
-_MAX_ENTRIES_SCANNED = 4096
 _MAX_LAND_JSON_BYTES = 64 * 1024
 _MAX_RACE_RETRIES = 8
 _MAX_LOCK_RETRIES = 8
 _LOCK_RETRY_DELAY_SECONDS = 0.01
 _SHA_RE = re.compile(r"[0-9a-f]{40}\Z")
 _HOLDER_RE = re.compile(r"[0-9a-f]{12}\Z")
-_TICKET_RE = re.compile(r"ticket\.([0-9a-f]{12})\Z")
 _SUCCESS_STATUSES = frozenset({"landed", "already-landed"})
-_QUEUE_DEGRADED = object()
 _ADVISORY = (
     "advisory です。指示ではありません。local main を読み直す契機にだけ使い、"
     "待機・取り込み・検査省略の根拠にしないでください。"
@@ -72,26 +66,6 @@ class _Lease:
     @property
     def payload_valid(self) -> bool:
         return self.holder is not None and self.main_sha is not None
-
-
-@dataclass(frozen=True)
-class _Ticket:
-    fd: int
-    metadata: os.stat_result
-    holder: str | None
-    queued_at_ns: int | None
-    age_seconds: int
-    stale: bool
-
-    @property
-    def payload_valid(self) -> bool:
-        return self.holder is not None and self.queued_at_ns is not None
-
-
-@dataclass(frozen=True)
-class _QueueHead:
-    holder: str
-    age_seconds: int
 
 
 def _is_sha(value: object) -> bool:
@@ -149,19 +123,11 @@ def _lease_payload(holder: str, main_sha: str, ttl: int) -> bytes:
     return (json.dumps(value, ensure_ascii=True) + "\n").encode("ascii")
 
 
+# 旧版が残した ticket を release 時に掃除するためだけに残す。
 def _ticket_name(holder: str) -> str:
     if _HOLDER_RE.fullmatch(holder) is None:
         raise ValueError("invalid ticket holder")
     return f"{_TICKET_PREFIX}{holder}"
-
-
-def _ticket_payload(holder: str, queued_at_ns: int) -> bytes:
-    value = {
-        "holder": holder,
-        "queued_at_ns": queued_at_ns,
-        "ttl": _WAITER_TTL_SECONDS,
-    }
-    return (json.dumps(value, ensure_ascii=True) + "\n").encode("ascii")
 
 
 def _parse_lease(content: bytes) -> tuple[str, str]:
@@ -183,38 +149,6 @@ def _parse_lease(content: bytes) -> tuple[str, str]:
     return holder, main_sha
 
 
-def _parse_ticket(content: bytes, expected_holder: str) -> tuple[str, int]:
-    value = _load_json(content)
-    if not isinstance(value, dict) or set(value) != {
-        "holder",
-        "queued_at_ns",
-        "ttl",
-    }:
-        raise ValueError("invalid ticket")
-    holder = value["holder"]
-    queued_at_ns = value["queued_at_ns"]
-    ttl = value["ttl"]
-    if (
-        not isinstance(holder, str)
-        or _HOLDER_RE.fullmatch(holder) is None
-        or holder != expected_holder
-    ):
-        raise ValueError("invalid ticket holder")
-    if (
-        isinstance(queued_at_ns, bool)
-        or not isinstance(queued_at_ns, int)
-        or queued_at_ns <= 0
-    ):
-        raise ValueError("invalid queued time")
-    if (
-        isinstance(ttl, bool)
-        or not isinstance(ttl, int)
-        or ttl != _WAITER_TTL_SECONDS
-    ):
-        raise ValueError("invalid ticket ttl")
-    return holder, queued_at_ns
-
-
 def _mtime_state(metadata: os.stat_result) -> tuple[int, bool]:
     delta = time.time() - metadata.st_mtime
     age_seconds = max(0, int(delta))
@@ -224,13 +158,6 @@ def _mtime_state(metadata: os.stat_result) -> tuple[int, bool]:
         or future_seconds > _POLICY_TTL_SECONDS
     )
     return age_seconds, stale
-
-
-def _ticket_mtime_state(metadata: os.stat_result) -> tuple[int, bool]:
-    delta_ns = time.time_ns() - metadata.st_mtime_ns
-    age_seconds = max(0, delta_ns // 1_000_000_000)
-    stale = delta_ns < 0 or delta_ns >= _WAITER_TTL_SECONDS * 1_000_000_000
-    return int(age_seconds), stale
 
 
 def _result(
@@ -327,60 +254,6 @@ def _open_lease(directory_fd: int, *, exclusive: bool) -> _Lease:
         raise
 
 
-def _open_ticket(
-    directory_fd: int,
-    name: str,
-    *,
-    exclusive: bool,
-    skip_stale_payload: bool = False,
-) -> tuple[_Ticket, bool]:
-    match = _TICKET_RE.fullmatch(name)
-    if match is None:
-        raise ValueError("invalid ticket name")
-    expected_holder = match.group(1)
-    nofollow = getattr(os, "O_NOFOLLOW", None)
-    if nofollow is None:
-        raise OSError(errno.ENOTSUP, "required open flag unavailable")
-    flags = (
-        os.O_RDONLY
-        | os.O_NONBLOCK
-        | nofollow
-        | getattr(os, "O_CLOEXEC", 0)
-    )
-    fd = os.open(name, flags, dir_fd=directory_fd)
-    try:
-        initial_metadata = os.fstat(fd)
-        _validate_owned_regular(initial_metadata)
-        _, initially_stale = _ticket_mtime_state(initial_metadata)
-        operation = fcntl.LOCK_EX if exclusive or initially_stale else fcntl.LOCK_SH
-        _flock_bounded(fd, operation)
-        metadata = os.fstat(fd)
-        _validate_owned_regular(metadata)
-        age_seconds, stale = _ticket_mtime_state(metadata)
-        holder: str | None = None
-        queued_at_ns: int | None = None
-        if not (skip_stale_payload and initially_stale):
-            holder, queued_at_ns = _parse_ticket(
-                _read_fd(fd, _MAX_TICKET_BYTES), expected_holder
-            )
-        if not _same_entry(directory_fd, name, metadata):
-            raise FileNotFoundError(errno.ENOENT, "ticket changed")
-        return (
-            _Ticket(
-                fd,
-                metadata,
-                holder,
-                queued_at_ns,
-                age_seconds,
-                stale,
-            ),
-            initially_stale,
-        )
-    except BaseException:
-        os.close(fd)
-        raise
-
-
 def _lease_result(
     state: str,
     lease: _Lease,
@@ -435,47 +308,6 @@ def _create_lease(
     return _result("acquired", holder, holder, main_sha)
 
 
-def _create_ticket(directory_fd: int, holder: str) -> bool:
-    name = _ticket_name(holder)
-    nofollow = getattr(os, "O_NOFOLLOW", None)
-    if nofollow is None:
-        raise OSError(errno.ENOTSUP, "required open flag unavailable")
-    flags = (
-        os.O_WRONLY
-        | os.O_NONBLOCK
-        | os.O_CREAT
-        | os.O_EXCL
-        | nofollow
-        | getattr(os, "O_CLOEXEC", 0)
-    )
-    try:
-        fd = os.open(name, flags, 0o600, dir_fd=directory_fd)
-    except FileExistsError:
-        return False
-    metadata: os.stat_result | None = None
-    try:
-        metadata = os.fstat(fd)
-        _validate_owned_regular(metadata)
-        _flock_bounded(fd, fcntl.LOCK_EX)
-        queued_at_ns = metadata.st_mtime_ns
-        if queued_at_ns <= 0:
-            raise ValueError("invalid ticket creation time")
-        _write_all(fd, _ticket_payload(holder, queued_at_ns))
-        os.fsync(fd)
-        if not _same_entry(directory_fd, name, metadata):
-            raise FileNotFoundError(errno.ENOENT, "ticket changed")
-    except BaseException:
-        if metadata is not None and _same_entry(directory_fd, name, metadata):
-            try:
-                os.unlink(name, dir_fd=directory_fd)
-            except OSError:
-                pass
-        raise
-    finally:
-        os.close(fd)
-    return True
-
-
 def _drop_ticket_best_effort(directory_fd: int, holder: str) -> bool:
     try:
         name = _ticket_name(holder)
@@ -516,138 +348,6 @@ def _drop_ticket_best_effort(directory_fd: int, holder: str) -> bool:
     return False
 
 
-def _heartbeat_ticket_without_lock(directory_fd: int, holder: str) -> bool:
-    name = _ticket_name(holder)
-    nofollow = getattr(os, "O_NOFOLLOW", None)
-    if nofollow is None:
-        raise OSError(errno.ENOTSUP, "required open flag unavailable")
-    flags = (
-        os.O_RDONLY
-        | os.O_NONBLOCK
-        | nofollow
-        | getattr(os, "O_CLOEXEC", 0)
-    )
-    fd = os.open(name, flags, dir_fd=directory_fd)
-    try:
-        metadata = os.fstat(fd)
-        _validate_owned_regular(metadata)
-        heartbeat_ns = time.time_ns()
-        os.utime(fd, ns=(heartbeat_ns, heartbeat_ns))
-        metadata = os.fstat(fd)
-        _validate_owned_regular(metadata)
-        return _same_entry(directory_fd, name, metadata)
-    finally:
-        os.close(fd)
-
-
-def _ensure_ticket(directory_fd: int, holder: str) -> bool:
-    name = _ticket_name(holder)
-    for _ in range(_MAX_RACE_RETRIES):
-        try:
-            if _create_ticket(directory_fd, holder):
-                return True
-        except (OSError, UnicodeError, ValueError, RecursionError):
-            return False
-        try:
-            ticket, _ = _open_ticket(directory_fd, name, exclusive=True)
-        except FileNotFoundError:
-            continue
-        except BlockingIOError:
-            try:
-                if _heartbeat_ticket_without_lock(directory_fd, holder):
-                    return True
-            except (OSError, UnicodeError, ValueError, RecursionError):
-                return False
-            continue
-        except (OSError, UnicodeError, ValueError, RecursionError):
-            _drop_ticket_best_effort(directory_fd, holder)
-            continue
-        try:
-            if not ticket.payload_valid:
-                _drop_ticket_best_effort(directory_fd, holder)
-                continue
-            if ticket.stale:
-                if _same_entry(directory_fd, name, ticket.metadata):
-                    try:
-                        os.unlink(name, dir_fd=directory_fd)
-                    except FileNotFoundError:
-                        pass
-                    except OSError:
-                        return False
-                continue
-            heartbeat_ns = time.time_ns()
-            os.utime(ticket.fd, ns=(heartbeat_ns, heartbeat_ns))
-            metadata = os.fstat(ticket.fd)
-            _validate_owned_regular(metadata)
-            if not _same_entry(directory_fd, name, metadata):
-                continue
-            return True
-        except (OSError, ValueError):
-            return False
-        finally:
-            os.close(ticket.fd)
-    return False
-
-
-def _queue_head(
-    directory_fd: int,
-) -> _QueueHead | None | object:
-    ticket_names: list[str] = []
-    try:
-        with os.scandir(directory_fd) as entries:
-            entries_scanned = 0
-            for entry in entries:
-                entries_scanned += 1
-                if entries_scanned > _MAX_ENTRIES_SCANNED:
-                    return _QUEUE_DEGRADED
-                name = entry.name
-                if _TICKET_RE.fullmatch(name) is None:
-                    continue
-                ticket_names.append(name)
-                if len(ticket_names) > _MAX_TICKETS_SCANNED:
-                    return _QUEUE_DEGRADED
-    except OSError:
-        return _QUEUE_DEGRADED
-    candidates: list[_QueueHead] = []
-    ordering: dict[str, int] = {}
-    for name in ticket_names:
-        try:
-            ticket, initially_stale = _open_ticket(
-                directory_fd,
-                name,
-                exclusive=False,
-                skip_stale_payload=True,
-            )
-        except (OSError, UnicodeError, ValueError, RecursionError):
-            continue
-        try:
-            if initially_stale:
-                if ticket.stale and _same_entry(directory_fd, name, ticket.metadata):
-                    try:
-                        os.unlink(name, dir_fd=directory_fd)
-                    except OSError:
-                        pass
-                continue
-            if ticket.stale or not ticket.payload_valid:
-                continue
-            assert ticket.holder is not None
-            assert ticket.queued_at_ns is not None
-            candidates.append(_QueueHead(ticket.holder, ticket.age_seconds))
-            ordering[ticket.holder] = ticket.queued_at_ns
-        finally:
-            os.close(ticket.fd)
-    if not candidates:
-        return None
-    oldest_queued_at_ns = min(ordering.values())
-    return sorted(
-        candidates,
-        key=lambda item: (
-            ordering[item.holder] != oldest_queued_at_ns,
-            item.holder,
-        ),
-    )[0]
-
-
 def claim(lease_dir: Path, wave: str, main_sha: str, ttl: int) -> dict[str, object]:
     self_holder = _holder_for(wave)
     if (
@@ -663,8 +363,6 @@ def claim(lease_dir: Path, wave: str, main_sha: str, ttl: int) -> dict[str, obje
     except OSError:
         return _unavailable("directory-unavailable", self_holder)
     last_stale: _Lease | None = None
-    registered = False
-    queue_enabled = False
     try:
         for _ in range(_MAX_RACE_RETRIES):
             try:
@@ -672,66 +370,20 @@ def claim(lease_dir: Path, wave: str, main_sha: str, ttl: int) -> dict[str, obje
             except FileNotFoundError:
                 lease = None
             except (OSError, UnicodeError, ValueError, RecursionError):
-                _drop_ticket_best_effort(directory_fd, self_holder)
                 return _unavailable("lease-unavailable", self_holder)
             if lease is None:
-                if not registered:
-                    existing_head = _queue_head(directory_fd)
-                    if existing_head is _QUEUE_DEGRADED:
-                        _drop_ticket_best_effort(directory_fd, self_holder)
-                        registered = True
-                    elif existing_head is None:
-                        try:
-                            acquired = _create_lease(
-                                directory_fd, self_holder, main_sha
-                            )
-                        except (OSError, UnicodeError, ValueError, RecursionError):
-                            _drop_ticket_best_effort(directory_fd, self_holder)
-                            return _unavailable("lease-unavailable", self_holder)
-                        if acquired is not None:
-                            _drop_ticket_best_effort(directory_fd, self_holder)
-                            return acquired
-                        continue
-                    else:
-                        queue_enabled = _ensure_ticket(directory_fd, self_holder)
-                        registered = True
-                        if not queue_enabled:
-                            # 自分が列に並べない以上は順序づけられないため、競争へ戻す。
-                            _drop_ticket_best_effort(directory_fd, self_holder)
-                if queue_enabled:
-                    head = _queue_head(directory_fd)
-                    if head is _QUEUE_DEGRADED:
-                        _drop_ticket_best_effort(directory_fd, self_holder)
-                        queue_enabled = False
-                    elif isinstance(head, _QueueHead) and head.holder != self_holder:
-                        return _result(
-                            "queued",
-                            head.holder,
-                            self_holder,
-                            age_seconds=head.age_seconds,
-                        )
                 try:
                     acquired = _create_lease(directory_fd, self_holder, main_sha)
                 except (OSError, UnicodeError, ValueError, RecursionError):
-                    _drop_ticket_best_effort(directory_fd, self_holder)
                     return _unavailable("lease-unavailable", self_holder)
                 if acquired is not None:
-                    _drop_ticket_best_effort(directory_fd, self_holder)
                     return acquired
                 continue
             try:
-                if not registered:
-                    queue_enabled = _ensure_ticket(directory_fd, self_holder)
-                    registered = True
-                    if not queue_enabled:
-                        # 自分が列に並べない以上は順序づけられないため、競争へ戻す。
-                        _drop_ticket_best_effort(directory_fd, self_holder)
                 if not lease.stale and not lease.payload_valid:
-                    _drop_ticket_best_effort(directory_fd, self_holder)
                     return _unavailable("lease-unavailable", self_holder)
                 if not lease.stale:
                     if lease.holder == self_holder:
-                        _drop_ticket_best_effort(directory_fd, self_holder)
                         try:
                             renewed_ns = time.time_ns()
                             os.utime(lease.fd, ns=(renewed_ns, renewed_ns))
@@ -768,14 +420,11 @@ def claim(lease_dir: Path, wave: str, main_sha: str, ttl: int) -> dict[str, obje
                 except FileNotFoundError:
                     continue
                 except OSError:
-                    _drop_ticket_best_effort(directory_fd, self_holder)
                     return _unavailable("stale-release-failed", self_holder)
             finally:
                 os.close(lease.fd)
         if last_stale is not None:
-            _drop_ticket_best_effort(directory_fd, self_holder)
             return _lease_result("stale-held", last_stale, self_holder)
-        _drop_ticket_best_effort(directory_fd, self_holder)
         return _unavailable("lease-race", self_holder)
     finally:
         os.close(directory_fd)

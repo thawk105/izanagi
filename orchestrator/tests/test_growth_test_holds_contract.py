@@ -40,9 +40,9 @@ from orchestrator.tests.growth_test_holds import (
 from tools import run_tests as RT
 
 
-_EXPECTED_HOLD_COUNT = 59
-_EXPECTED_KEY_SHA256 = "30e646a80e6dfc7c04ec2e249462789ac7cb10f1afaa6979491a3312d5d6508c"
-_EXPECTED_ROW_CONTRACT_SHA256 = "374d7a990b57e5cd2100be5b74ee31fa285eac2ecb16ed2e11eb25c8bb4bf065"
+_EXPECTED_HOLD_COUNT = 45
+_EXPECTED_KEY_SHA256 = "5a5f7a4f918684cbde6b9267d5535455974d441fa847ab8f070cc8b2e77d3429"
+_EXPECTED_ROW_CONTRACT_SHA256 = "8cf20b5f685a38bd9aee4e306792a509d5ebc0314a436a1e16c0fc129466d945"
 _HELD_SERIAL_NODE = (
     "test_s8b_repo_scan_invariant.py::"
     "test_real_repository_scan_matches_known_hits_and_has_positive_control"
