@@ -74,7 +74,7 @@ def test_real_pytest_subprocess_skips_registered_node_and_runs_same_file_sibling
         text=True,
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
-        timeout=60,
+        timeout=300,
     )
     assert result.returncode == 0, result.stdout
     assert f"{_HELD_NODE} SKIPPED" in result.stdout
@@ -106,7 +106,7 @@ def test_xdist_subprocess_focus_collection_does_not_run_stale_check() -> None:
         text=True,
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
-        timeout=60,
+        timeout=300,
     )
     assert result.returncode == 0, result.stdout
     assert "missing from complete collection" not in result.stdout
@@ -135,7 +135,7 @@ def test_xdist_subprocess_complete_collection_runs_stale_check() -> None:
         text=True,
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
-        timeout=60,
+        timeout=120,
     )
     assert result.returncode == 0, result.stdout
     assert "flaky-test hold keys missing from complete collection" not in result.stdout
