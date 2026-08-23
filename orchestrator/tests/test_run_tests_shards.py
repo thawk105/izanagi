@@ -158,7 +158,10 @@ def test_internal_spec_is_consumed_without_becoming_pytest_target(tmp_path):
     assert spec == SH.InternalSpec(session.resolve(), 3, 1)
 
 
-def test_internal_shard_command_keeps_default_suite_root(monkeypatch, tmp_path):
+@pytest.mark.parametrize("has_exclusions", [False, True])
+def test_internal_shard_command_keeps_default_suite_root(
+    monkeypatch, tmp_path, has_exclusions,
+):
     repo = tmp_path / "repo"
     default_target = repo / "orchestrator" / "tests"
     default_target.mkdir(parents=True)
@@ -178,6 +181,16 @@ def test_internal_shard_command_keeps_default_suite_root(monkeypatch, tmp_path):
     monkeypatch.setattr(RT.subprocess, "call", fake_call)
     monkeypatch.setattr(RT, "_REPO", str(repo))
     monkeypatch.setattr(RT, "_DEFAULT_TARGET", str(default_target))
+    exclusions = ()
+    if has_exclusions:
+        exclusions = (RT._PermanentExclusion(
+            path=default_target / "synthetic_excluded.py",
+            reason="synthetic exclusion mechanism test",
+            release_condition="synthetic release condition",
+            ruling="{{D:synthetic-exclusion}}",
+        ),)
+    monkeypatch.setattr(RT, "_PERMANENT_FULL_SUITE_EXCLUSIONS", exclusions)
+    monkeypatch.setenv(RT._RUNNER_EXCLUSION_ENV, "stale-parent-evidence")
     monkeypatch.setattr(
         SH, "shared_root_for_repo", lambda _repo: session.parent.resolve(),
     )
@@ -194,11 +207,13 @@ def test_internal_shard_command_keeps_default_suite_root(monkeypatch, tmp_path):
         token.endswith("test_a.py") or "test_a.py::" in token for token in command
     )
     assert captured["kwargs"]["cwd"] == str(repo)
-    assert captured["kwargs"]["env"][RT._RUNNER_EXCLUSION_ENV] == (
-        RT._SELECTION_CONTRACT.serialize_payload(
-            RT._PERMANENT_FULL_SUITE_EXCLUSIONS
+    child_env = captured["kwargs"]["env"]
+    if exclusions:
+        assert child_env[RT._RUNNER_EXCLUSION_ENV] == (
+            RT._SELECTION_CONTRACT.serialize_payload(exclusions)
         )
-    )
+    else:
+        assert RT._RUNNER_EXCLUSION_ENV not in child_env
 
 
 def test_explicit_shards_reject_nonlogin_without_fallback(monkeypatch):
