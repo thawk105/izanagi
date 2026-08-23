@@ -1804,33 +1804,15 @@ def test_real_waiter_receipt_is_consumed_by_real_land_end_to_end() -> None:
         assert _git(repo.main, "rev-parse", "HEAD") == tip
 
 
-def test_real_non_attributable_waiter_receipt_passes_real_land_end_to_end() -> None:
+def test_real_child_green_waiter_receipt_passes_real_land_end_to_end() -> None:
+    """Exercise a tested-main runner through the real waiter and real land."""
     with _repo() as repo:
         wave = repo.waves["one"]
-        known_red = "orchestrator/tests/test_known.py::test_known"
         (repo.main / "tools" / "run_tests.py").write_text(
-            "import sys\n"
-            f"node={known_red!r}\n"
             "print('IZANAGI_EFFECTIVE_SCHEDULER_V1 "
             "{\"effective_scheduler\":\"serial\"}')\n"
-            "if '--collect-only' in sys.argv:\n"
-            "    print(node)\n"
-            "    print('1 test collected in 0.01s')\n"
-            "    raise SystemExit(0)\n"
-            "if node in sys.argv:\n"
-            "    print('=== short test summary info ===')\n"
-            "    print('FAILED ' + node + ' - synthetic known red')\n"
-            "    print('=== 1 failed in 0.01s ===')\n"
-            "    raise SystemExit(1)\n"
-            "print('=== short test summary info ===')\n"
-            "print('FAILED ' + node + ' - synthetic known red')\n"
-            "print('=== 1 failed in 0.01s ===')\n"
-            "raise SystemExit(1)\n",
+            "raise SystemExit(0)\n",
             encoding="utf-8",
-        )
-        shutil.copy2(
-            ROOT / "tools" / "check_acceptance_reds.py",
-            repo.main / "tools",
         )
         shutil.copy2(
             ROOT / "tools" / "acceptance_launcher.py",
@@ -1840,10 +1822,9 @@ def test_real_non_attributable_waiter_receipt_passes_real_land_end_to_end() -> N
             repo.main,
             "add",
             "tools/run_tests.py",
-            "tools/check_acceptance_reds.py",
             "tools/acceptance_launcher.py",
         )
-        _git(repo.main, "commit", "-qm", "install synthetic known red checker")
+        _git(repo.main, "commit", "-qm", "install synthetic green runner")
         repo.base = _git(repo.main, "rev-parse", "HEAD")
         _git(wave, "merge", "--ff-only", "main")
         shutil.copy2(ROOT / "tools" / "dev_wave_wait.py", wave / "tools")
@@ -1856,10 +1837,10 @@ def test_real_non_attributable_waiter_receipt_passes_real_land_end_to_end() -> N
         )
         _git(wave, "commit", "-qm", "install real acceptance integrity tools")
         tip = _git(wave, "rev-parse", "HEAD")
-        lease_dir = repo.root / "lease-red"
+        lease_dir = repo.root / "lease-green-inherited"
         lease_dir.mkdir()
-        receipt_path = repo.root / "real-red-receipt.json"
-        log_path = repo.root / "real-red.log"
+        receipt_path = repo.root / "real-green-inherited-receipt.json"
+        log_path = repo.root / "real-green-inherited.log"
         acceptance_wave = "codex-one"
         env = _git_env()
         for name in (
@@ -1899,9 +1880,9 @@ def test_real_non_attributable_waiter_receipt_passes_real_land_end_to_end() -> N
         assert waiter.returncode == 0, waiter.stdout + waiter.stderr
         raw_receipt = receipt_path.read_bytes()
         payload = json.loads(raw_receipt)
-        assert payload["verdict"] == "non-attributable-only"
-        assert payload["child_rc"] == 1
-        assert payload["red_nodeids"] == [known_red]
+        assert payload["verdict"] == "child-green"
+        assert payload["child_rc"] == 0
+        assert payload["red_nodeids"] == []
         assert payload["flake_nodeids"] == []
         request = repo.request(
             wave,
@@ -1917,8 +1898,8 @@ def test_real_non_attributable_waiter_receipt_passes_real_land_end_to_end() -> N
         assert result.acceptance_receipt_sha256 == hashlib.sha256(
             raw_receipt
         ).hexdigest()
-        assert result.acceptance_verdict == "non-attributable-only"
-        assert result.acceptance_red_nodeids == (known_red,)
+        assert result.acceptance_verdict == "child-green"
+        assert result.acceptance_red_nodeids == ()
         assert result.acceptance_flake_nodeids == ()
         assert _git(repo.main, "rev-parse", "HEAD") == tip
 

@@ -180,15 +180,15 @@ _PermanentExclusion = _SELECTION_CONTRACT.Exclusion
 _PERMANENT_EXCLUSION_SET_VERSION = _SELECTION_CONTRACT.EXCLUSION_SET_VERSION
 _SANCTIONED_SORT_SWO_ORACLE_PATH = _SELECTION_CONTRACT.SANCTIONED_SORT_SWO_ORACLE_PATH
 
-# ここが runtime の active table。復活時はこの entry を削除して空 tuple にする。
-# sanctioned な上限と payload の定義は共有契約 module にだけ存在する。
+# ここが runtime の active table。現在は共有契約の空 tuple を参照する。
+# sanctioned な上限と payload の定義は引き続き共有契約 module にだけ存在する。
 _PERMANENT_FULL_SUITE_EXCLUSIONS = _SELECTION_CONTRACT.SANCTIONED_EXCLUSIONS
 
 
 def _permanent_exclusions_are_sanctioned(
     exclusions: Sequence[_PermanentExclusion],
 ) -> bool:
-    """受入全走の除外表を裁定済みの閉じた集合として検証する。"""
+    """runner の恒久除外表を裁定済みの閉じた集合として検証する。"""
 
     try:
         entries = tuple(exclusions)
@@ -526,10 +526,10 @@ def _build_pytest_command(
         exclusions: Sequence[_PermanentExclusion] = ()) -> list[str]:
     """外部状態を読まず pytest argv を組み立てる純関数。
 
-    runner の既定値を先に置き、ユーザー引数は必ず末尾へ保つ。したがって非受入形では
-    pytest の後勝ち規則により明示 ``-n`` / ``--dist`` が従来どおり最優先になる。
+    runner の既定値を先に置き、ユーザー引数は必ず末尾へ保つ。したがって明示
+    ``-n`` / ``--dist`` は pytest の後勝ち規則により最優先になる。
     受入形の非 ``loadgroup`` な ``--dist`` は ``main()`` が構築前に拒否する。
-    ``exclusions`` は ``main()`` が受入形と判定したときだけ渡す。
+    ``exclusions`` は ``main()`` が恒久除外表を適用する走行で渡す。
     """
     user_args = list(args)
     cmd = [python_executable, "-m", "pytest"]
@@ -602,6 +602,20 @@ def _positional_tokens(args: Sequence[str]) -> tuple[str, ...]:
         positional.append(token)
         i += 1
     return tuple(positional)
+
+
+def _explicitly_targets_sanctioned_oracle(args: Sequence[str]) -> bool:
+    """修正対象の oracle file を明示指定した走行か判定する。"""
+
+    sanctioned_target = Path(_SANCTIONED_SORT_SWO_ORACLE_PATH).resolve()
+    for token in _positional_tokens(args):
+        path_part = token.partition("::")[0]
+        try:
+            if Path(path_part).resolve(strict=False) == sanctioned_target:
+                return True
+        except OSError:
+            continue
+    return False
 
 
 def _has_no_execution_flag(args: Sequence[str]) -> bool:
@@ -2375,17 +2389,20 @@ def main(
         return _PEGASUS_DISPATCH_RC
     args = _normalize_args(pytest_args)
     is_acceptance = _is_acceptance_run(args)
-    exclusions = (
-        _PERMANENT_FULL_SUITE_EXCLUSIONS if is_acceptance else ()
-    )
-    if not _permanent_exclusions_are_sanctioned(exclusions):
+    configured_exclusions = _PERMANENT_FULL_SUITE_EXCLUSIONS
+    if not _permanent_exclusions_are_sanctioned(configured_exclusions):
         print(
-            "受入形の恒久除外表が裁定済み literal path と一致しないため、"
+            "恒久除外表が裁定済み literal path と一致しないため、"
             "テスト command を作らず停止します。",
             file=sys.stderr,
             flush=True,
         )
         return _PERMANENT_EXCLUSION_GATE_RC
+    exclusions = (
+        ()
+        if _explicitly_targets_sanctioned_oracle(args)
+        else configured_exclusions
+    )
     if is_acceptance and _has_non_loadgroup_user_dist(args):
         print(
             "受入形では --dist loadgroup 以外の --dist 上書きを拒否します。",
