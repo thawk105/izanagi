@@ -11,6 +11,7 @@ import os
 import signal
 import subprocess
 import sys
+import threading
 import time
 from pathlib import Path
 from unittest import mock
@@ -2819,6 +2820,10 @@ def test_orphan_hold_record_is_create_only(tmp_path):
 
     assert second == hold
     assert hold.read_bytes() == original
+    request_holds = sorted((root / DC._ORPHAN_HOLD_DIR_NAME).glob("*.json"))
+    assert [path.name for path in request_holds] == [
+        "424242.nqsv.json", "999.nqsv.json",
+    ]
 
 
 def test_orphan_hold_write_error_is_recorded_and_not_reported_as_success(
@@ -3696,6 +3701,265 @@ def test_dev_wave_check_maps_dispatch_infra_rc_off_provenance_reason(tmp_path):
     )
     assert violation[0].status == "fail"
     assert violation[0].reason is ReasonCode.PROVENANCE_FAILED
+
+
+def test_split_artifact_root_uses_shared_repo_control_root(tmp_path):
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    artifact = tmp_path / "shared-artifacts"
+    control = repo / "output" / "pegasus-dispatch"
+    scheduler = _Scheduler()
+    clock = _Clock()
+    rc = DC.dispatch(
+        [],
+        repo_root=repo,
+        artifact_root=artifact,
+        control_root=control,
+        run_command=scheduler,
+        clock=clock,
+        sleep=clock.sleep,
+        poll_interval_s=5,
+        queue_wait_timeout_s=20,
+        accounting_grace_s=0,
+        nonce="split-positive",
+    )
+    assert rc == 0
+    assert (artifact / "split-positive" / "receipt.json").is_file()
+    assert control.is_dir()
+    assert not (control / "split-positive").exists()
+
+
+@pytest.mark.parametrize("latch_name", ["submission-disabled.json", "orphan-hold.json"])
+def test_split_artifact_root_never_bypasses_shared_control_latches(tmp_path, latch_name):
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    artifact = tmp_path / "shared-artifacts"
+    control = repo / "output" / "pegasus-dispatch"
+    control.mkdir(parents=True)
+    (control / latch_name).write_text("{}\n", encoding="utf-8")
+    scheduler = _Scheduler()
+    rc = DC.dispatch(
+        [],
+        repo_root=repo,
+        artifact_root=artifact,
+        control_root=control,
+        run_command=scheduler,
+        nonce=f"blocked-{latch_name}",
+    )
+    assert rc == DC.INFRA_RC
+    assert scheduler.commands == []
+    assert artifact.is_dir()
+    assert not (artifact / f"blocked-{latch_name}").exists()
+
+
+def test_split_artifact_root_rejects_noncanonical_control_root_before_qsub(tmp_path):
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    scheduler = _Scheduler()
+    rc = DC.dispatch(
+        [],
+        repo_root=repo,
+        artifact_root=tmp_path / "shared-artifacts",
+        control_root=tmp_path / "wrong-control",
+        run_command=scheduler,
+        nonce="wrong-control",
+    )
+    assert rc == DC.INFRA_RC
+    assert scheduler.commands == []
+
+
+def test_run_tests_split_dispatch_passes_both_roots_and_nonce(monkeypatch, tmp_path):
+    from tools import run_tests
+
+    seen = {}
+
+    def fake_dispatch(args, **kwargs):
+        seen["args"] = list(args)
+        seen["kwargs"] = kwargs
+        return 0
+
+    artifact = tmp_path / "artifacts"
+    control = tmp_path / "repo" / "output" / "pegasus-dispatch"
+    monkeypatch.setattr(DC, "dispatch", fake_dispatch)
+    assert run_tests._default_dispatch(
+        ["--internal"],
+        environ={"PATH": "/usr/bin"},
+        artifact_root=artifact,
+        control_root=control,
+        nonce="shard-2",
+    ) == 0
+    assert seen["args"] == ["--internal"]
+    assert seen["kwargs"]["artifact_root"] == artifact
+    assert seen["kwargs"]["control_root"] == control
+    assert seen["kwargs"]["nonce"] == "shard-2"
+
+
+def test_run_tests_split_dispatch_forwards_complete_intent_registry(
+    monkeypatch, tmp_path,
+):
+    from tools import run_tests
+
+    seen = {}
+
+    def fake_dispatch(args, **kwargs):
+        seen.update(kwargs)
+        return 0
+
+    monkeypatch.setattr(DC, "dispatch", fake_dispatch)
+    assert run_tests._default_dispatch(
+        ["--internal"],
+        environ={"PATH": "/usr/bin"},
+        artifact_root=tmp_path / "session" / "shard-1" / "dispatch",
+        control_root=tmp_path / "repo" / "output" / "pegasus-dispatch",
+        nonce="shard-1",
+        intent_registry_root=tmp_path / "session" / "dispatch-intents",
+        intent_group_id="session",
+        intent_shard_index=1,
+        deadline_at=123.0,
+    ) == 0
+    assert seen["intent_registry_root"] == (
+        tmp_path / "session" / "dispatch-intents"
+    )
+    assert seen["intent_group_id"] == "session"
+    assert seen["intent_shard_index"] == 1
+    assert seen["deadline_at"] == 123.0
+
+
+def test_control_lock_serializes_latch_check_through_immediate_visibility(tmp_path):
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    control = repo / "output" / "pegasus-dispatch"
+    first_scheduler = _Scheduler(
+        initial_qstat_failures=1,
+        initial_qstat_error="Permission denied",
+    )
+    second_scheduler = _Scheduler()
+    qsub_entered = threading.Event()
+    release_qsub = threading.Event()
+    results = {}
+
+    def blocking_first(command, **kwargs):
+        if list(command)[0] == "qsub":
+            qsub_entered.set()
+            assert release_qsub.wait(5)
+        return first_scheduler(command, **kwargs)
+
+    def invoke(label, artifact, runner):
+        results[label] = DC.dispatch(
+            [],
+            repo_root=repo,
+            artifact_root=artifact,
+            control_root=control,
+            run_command=runner,
+            nonce=label,
+        )
+
+    first = threading.Thread(
+        target=invoke, args=("first", tmp_path / "artifact-first", blocking_first),
+    )
+    second = threading.Thread(
+        target=invoke, args=("second", tmp_path / "artifact-second", second_scheduler),
+    )
+    first.start()
+    assert qsub_entered.wait(5)
+    second.start()
+    release_qsub.set()
+    first.join(10)
+    second.join(10)
+
+    assert not first.is_alive() and not second.is_alive()
+    assert results == {"first": DC.INFRA_RC, "second": DC.INFRA_RC}
+    qsubs = [
+        command
+        for scheduler in (first_scheduler, second_scheduler)
+        for command, _kwargs in scheduler.commands
+        if command[0] == "qsub"
+    ]
+    assert len(qsubs) == 1
+    assert (control / "submission-disabled.json").is_file()
+    assert (control / DC._CONTROL_LOCK_NAME).is_file()
+
+
+def test_split_dispatch_registers_intent_before_qsub_and_confirms_after_parse(tmp_path):
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    session = tmp_path / "session-a"
+    artifact = session / "shard-0" / "dispatch"
+    registry = session / "dispatch-intents"
+    control = repo / "output" / "pegasus-dispatch"
+    scheduler = _Scheduler()
+
+    def observing_runner(command, **kwargs):
+        command = list(command)
+        intent = registry / "shard-0.intent.json"
+        confirm = registry / "shard-0.confirm.json"
+        if command[0] == "qsub":
+            assert intent.is_file()
+            assert not confirm.exists()
+        if command[:2] == ["qstat", "-f"] and len(command) == 3:
+            assert confirm.is_file()
+        return scheduler(command, **kwargs)
+
+    assert DC.dispatch(
+        [],
+        repo_root=repo,
+        artifact_root=artifact,
+        control_root=control,
+        intent_registry_root=registry,
+        intent_group_id=session.name,
+        intent_shard_index=0,
+        run_command=observing_runner,
+        nonce="shard-0",
+    ) == 0
+    confirm = json.loads(
+        (registry / "shard-0.confirm.json").read_text(encoding="utf-8")
+    )
+    assert confirm["request_id"] == _JOB_ID
+    assert (registry / "shard-0.handled.json").is_file()
+
+
+@pytest.mark.parametrize("state,expect_qdel,expect_hold", [
+    ("QUE", True, False),
+    ("RUN", False, True),
+])
+def test_parent_recovers_unconfirmed_intent_without_expanding_run_qdel(
+    tmp_path, state, expect_qdel, expect_hold,
+):
+    registry = tmp_path / "session" / "dispatch-intents"
+    registry.mkdir(parents=True)
+    submission = (
+        tmp_path / "session" / "shard-0" / "dispatch" / "fixture-nonce"
+    )
+    submission.mkdir(parents=True)
+    control = tmp_path / "control"
+    control.mkdir()
+    DC._register_dispatch_intent(
+        registry,
+        group_id="session",
+        shard_index=0,
+        job_name="izdw-fixture-no",
+        submission_dir=submission,
+    )
+    scheduler = _Scheduler(states=(state,))
+    clock = _Clock()
+
+    outcomes = DC.recover_dispatch_intents(
+        registry,
+        control,
+        deadline_at=clock() + 60,
+        run_command=scheduler,
+        clock=clock,
+        sleep=clock.sleep,
+    )
+
+    assert len(outcomes) == 1
+    assert outcomes[0]["request_id"] == _JOB_ID
+    assert any(command[:2] == ["qstat", "-f"] for command, _ in scheduler.commands)
+    assert any(command[0] == "qdel" for command, _ in scheduler.commands) is expect_qdel
+    hold_dir = control / DC._ORPHAN_HOLD_DIR_NAME
+    request_hold = hold_dir / f"{DC._normalize_request_id(_JOB_ID)}.json"
+    assert request_hold.exists() is expect_hold
+    assert len(list(hold_dir.glob("*.json"))) == int(expect_hold)
 
 
 def _run():

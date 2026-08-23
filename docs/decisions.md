@@ -27700,3 +27700,315 @@ positive control** で行う。AST による consumer 集合と parametrize 値�
   原理的にできない。保証の範囲は「既定 collection での沈黙の検出」に限る。
 - probe は `--setup-only` なのでテスト本体を実行しない。**本体の骨抜き
   (先頭 `return`、本体内 `pytest.skip()`) は検出できない。** 骨抜きを検出する機構は変異 matrix である。
+
+## D702. dev-wave は land 成功後に自分の worktree と branch を撤去する (2026-08-23)
+
+**決定 (ユーザー裁定):** `tools/dev_wave_land.py` が `landed` / `already-landed` を返した wave は、
+同じ段 9 で自分の worktree と branch を `tools/dev_wave_cleanup.py` で撤去する。義務は
+`docs/dev-wave/operations.md` の新規 L2 節 `DW-O28` に置き、新規の条件 dispatch 27
+「land 成功後の自己撤去直前」から読む。撤去を次 wave・ユーザー・`/cleanup-branches` へ
+引き渡さない。
+
+D271 の 3 条件の充足は次のとおり記録する。
+
+- 条件 1 (発火実績) — F26 の 2026-08-01 と 2026-08-05 の実害。D271 は「実際の wave での失敗または
+  near miss」を要求しており独立 2 例は要求しない。F26 自身が「同一経路」と明記するため
+  **独立 2 例とは書かない**。`DW-G03` は族全体への制度一般化の規範であり、単一発火点への
+  義務追加である本件には適用しない。
+- 条件 2 (機械代替なし) — `tools/check_wave_startup.py` は観測専用、`tools/dev_wave_land.py` は
+  land 後 cleanup を呼ばず、`tools/dev_waves/daemon.py` も持たない。
+- 条件 3 (意味検索で反証なし) — 探索範囲は repo 全体 (`docs/`、`output/insights/**`、
+  `docs/archive/`、`.claude/commands/`)。検索語は「撤去」「掃除」「畳む」「cleanup」
+  「worktree」「branch 削除」。hit は `DW-O20` (wave 開始時)、`DW-O23` / `DW-O25` (land の前)、
+  `/cleanup-branches` §3 (明示 cleanup 実行時)、F26 / F51 (事故の物語)、
+  `output/insights/2026-08-01_t207-adoption-audit/` (タスク候補) である。
+  同一発火点「land 成功後」に義務を課す既存正本は無く、real な反証も見つからなかった。
+
+**理由:**
+- F26 が 2 度「経路が欠けている」と記録したまま、経路は一度も作られていなかった。
+- 撤去されない worktree は積み上がる。`.git` を欠く残骸が 1 本あるだけで land は rc=21 を返し、
+  持ち主に関係なく全 wave の land が止まる。その状態では 3 台帳への追記自体ができなくなる。
+
+**却下した選択肢:**
+- `DW-O25` へ統合する — D432 末尾が「1 byte も触らない」と明記し、D280 が節全文 exact pin の
+  規範節に指定している。
+- 条件 23 へ併載する — 「発火点は land 成功後」と主張しながら land 前の条件で読むのは、
+  入口の読み込み契約 (条件成立操作の直前に再評価して読む) と矛盾する。
+- `tools/dev_wave_land.py` 本体へ組み込む — land は cwd が wave worktree そのものであることを
+  要求するため、自分の cwd を消す立場になり成立しない。
+
+## D703. D204 を狭く部分 supersede し、自 wave の branch だけ自動削除を許す (2026-08-23)
+
+**決定 (ユーザー裁定):** 2026-08-23 の発話「main land まで成功したら自分のワークツリー・
+ブランチを掃除する」は、D204 の通常適用ではなく**次の狭い恒久例外**として D204 を部分
+supersede する。
+
+- 対象は同一 invocation の exact な wave worktree path と wave branch ref だけ。
+- `tested_tip` が `refs/heads/main` の祖先であること。
+- `git branch -d` のみ。`-D`、force、remote、一括は禁止。local のみ。
+- その他の branch には D204 をそのまま維持する。対象を特定したユーザー指示なしに
+  AI が branch を削除してよい範囲は、この例外の外へは広がらない。
+
+**理由:**
+- D204 は「恒久的な自動許可 (permission rule の常設)」を明示的に禁じている。今回の発話を
+  通常適用と読むと、将来ユーザーが削除を指示していない `/dev-wave` 起動でも削除が起きる。
+- 一方でユーザーは対象 (自 wave の worktree と branch) を特定して指示している。
+  範囲を束縛して明文化すれば、規範を空洞化させずに指示を実行できる。
+- ancestry を必須にするため、削除された commit は main から到達可能なまま残る。
+
+**却下した選択肢:**
+- D204 の通常適用として扱う — 対象特定のない将来の起動まで許可が及ぶ。
+- 恒久 permission rule を常設する — D204 が明示的に却下している。
+
+## D704. 入口 byte 予算を 9,584 へ引き上げる (2026-08-23)
+
+**決定:** `tools/check_docs.py` の `COMMAND_LIMITS` のうち `.claude/commands/dev-wave.md` を
+`TextLimit(9_500, 140)` から `TextLimit(9_584, 140)` へ引き上げる。収容するのは条件 dispatch
+27 の 1 行で、実測 87 byte である。引き上げ幅は 84 byte で、行の実 byte と一致する。
+最長行は 66 文字で 140 の上限に影響しない。他の予算値は 1 つも変えない。
+
+**理由:**
+- D671 が「`COMMAND_LIMITS` は必要な分だけ引き上げてよい。幅は最小限とし、何を収容するために
+  何 byte 上げたかを決定記録に残す」と定めている。
+- 引き上げ前の実体は 9,497 / 9,500 byte で残り 3 byte だった。条件 27 を独立行にしないと、
+  「land 成功後」の義務を land 前の条件で読むことになり、入口の読み込み契約と矛盾する。
+
+**却下した選択肢:**
+- 全角括弧 7 対を半角化して 28 byte 捻出する — 意味は不変だが、条件 20 の trigger は全文が
+  `CONDITION_TRIGGER_CONTRACT` に逐語登録されており、圧縮のために pin を触る取引に見合わない。
+  また 28 byte 捻出しても条件 27 の 87 byte には届かず、結局引き上げが要る。
+- 条件 23 へ併載して行を増やさない — 発火点が違う。
+
+## D705. 占有検査は zombie を非占有として数え、消えた pid 由来の indeterminate を有界再試行する (2026-08-23)
+
+**決定:** `tools/check_worktree_occupancy.py` は、`/proc/<pid>/cwd` が `FileNotFoundError` で
+かつ `/proc/<pid>/status` の `State:` が `Z` で始まる process を `issues` へ積まず**非占有として
+数える**。件数は payload の `unreachable.zombie` へ出す。他の `FileNotFoundError` の扱いは
+変えない。
+
+`tools/dev_wave_cleanup.py` は、`status` が `indeterminate` で `occupants` が空で
+`issues` の全要素が「pid が消えた」型のときだけ、占有走査を**最大 3 回まで**やり直す。
+`occupants` が非空なら再試行せず拒否する。消えた pid 以外の issue が 1 件でもあれば
+再試行せず拒否する。最終的な受理条件は変えない
+(`status == "unoccupied"` かつ `occupants == []` かつ `issues == []`)。
+
+**理由:**
+- zombie は cwd も fd もアドレス空間も持たず、何も占有できない。にもかかわらず
+  `/proc/<pid>/` が残るため pid 消滅と判定されず、ホスト上に 1 本あるだけで
+  **どの path を対象にしても恒久的に `indeterminate`** になっていた。
+  `/cleanup-branches` §3 の「rc0 のみ進む」も同じ理由で誰にも満たせなかった。
+- 走査中に消えた pid は並列走行のたびに発生する。1 回の走査結果で拒否すると、
+  負荷時に撤去が間欠的に失敗する。有界再試行は受理集合を広げず、遅延だけを増やす。
+
+**却下した選択肢:**
+- 撤去 tool 側だけで zombie を許容する — 共有 gate が壊れたままになり、
+  `/cleanup-branches` も直らない。
+- 無制限に再試行する — 実際に占有している場合に停止しなくなる。
+
+## D706. gate の述語は到達可能な値域を実測してから採用する (2026-08-23)
+
+**決定:** 新しい fail-closed 述語を採用する前に、その述語が要求する値が**実環境で到達可能か**を
+実測する。field が存在することの確認では足りない。到達不能なら述語を採用せず、
+測った値域を裁定記録に残す。
+
+**理由:**
+- 本 wave で同型を 2 度踏んだ。`unreachable.cwd_permission == 0` はこの共有 login node の
+  実測が 2,020〜2,213 (cwd を読めない他ユーザーの process 数) で恒久的に不成立だった。
+  same-uid 到達不能 process の comm 固定 allowlist は、テストを計算ノードへ dispatch した
+  瞬間にだけ現れる `nqs_shpd` で破れた。
+- 満たせない gate は防壁ではなく停止装置であり、運用者に迂回の動機を与える。
+  実際、占有検査が恒久的に通れなかった結果として worktree 31 本が滞留していた。
+
+**却下した選択肢:**
+- 述語を採用してから実環境で調整する — 本 wave で 2 度とも焦点走の赤として顕在化し、
+  そのたびに fix 子 1 本と裁定の訂正を要した。
+
+## D707. 走査型 gate の列挙失敗は空集合へ潰さず構造化拒否にする (2026-08-23)
+
+**決定:** `tools/codex_reasoning_ab.py` で directory を走査して「見つからなければ通す」構造を持つ
+4 箇所は、`os.scandir` を明示的に使い `OSError` を path 付きの構造化 `ValidationError` へ翻訳する。
+対象は filesystem allowlist の走査、git closure の空判定、pseudo-ref の列挙、metadata manifest の
+収集である。`Path.rglob` / `Path.glob` / `Path.iterdir` の失敗時戻り値を仕様で確認せずに
+走査型 gate へ使わない。**これは受理集合を狭める変更である。**
+読める静止 tree に対する結果は不変で、`filesystem_files` と `manifest_sha256` の bytes は変わらない。
+
+**理由:**
+- F363 が同型を記録し、D464 が恒久対応として `os.scandir` 化と `OSError` の error 翻訳を要求している。
+  本 file の 4 箇所はいずれもその再発である。
+- とくに git closure の空判定は反転が明確で、`.git/logs` を列挙不能にすると
+  「reflog closure is not empty」が出ない。走査型の防壁が黙って通過側へ倒れる。
+- 読めない subtree の未許可 file は `extra` に現れないため、allowlist は片方向にだけ緩む。
+  tracked file が隠れれば `missing` になるが、未許可 extra だけなら検出されない。
+- 同型が 1 file 内で独立に 4 例再現しており、族としての一般化条件を満たす。
+
+**却下した選択肢:**
+- 現行の fail-open を温存する — 既存挙動の保存に見えるが、実体は恒久対応が存在する型を
+  新しく書くコードで意図的に再実装することである。
+- `os.walk` へ機械置換する — 既定で全 `OSError` を握り潰すため、同じ穴をより広く作る。
+- 走査の一部だけを直す — 走査型 gate は 1 箇所でも通過側へ倒れれば閉包が崩れる。
+
+## D708. fsck の待ちは並行化してよいが、結果の消費は入力順に 1 対 1 で行う (2026-08-23)
+
+**決定:** `git fsck --unreachable --no-reflogs` の待ちは repository 単位で並行化してよい。
+条件は次のとおりで、いずれかを満たせないなら並行化しない。
+(a) repository と future を同じ pair object へ束縛し、`as_completed` を使わず入力順に
+ちょうど 1 回ずつ `result()` する。(b) 全結果を回収する前に成功 return しない。
+(c) executor 構築・submit・result のいずれの失敗も空 `reasons` へ degrade させない。
+「並列化できないので skip」する fallback を置かない。(d) worker 例外は repository / label 付きの
+`ValidationError` へ翻訳し、成功分の reason と未 submit state の診断も入力順で保持する。
+**異常時に実際に起動された fsck の件数は保証対象外**とし、そう明記する。
+正しさ境界の判定に `assert` を使わない (最適化フラグで消えるため)。
+
+**理由:**
+- fsck の argv・対象集合・判定式は変えないので、理想条件下では同じ predicate を評価する。
+  検査 predicate を決定的に削る `--connectivity-only` とは同型でない。
+- 「fsck を実行した」と「結果を同じ repository の gate へ消費した」は別物である。
+  `ThreadPoolExecutor` の context manager は worker を待つが `result()` を呼ぶ保証はない。
+  未消費の future があると、非 0 rc・unreachable stdout・worker 例外がすべて黙って捨てられる。
+- 先行起動は避けられないため、異常時の起動件数まで同値を要求すると並行化自体が採れない。
+  一方、正常経路の対象集合・回数・結果消費は完全に保証できる。
+- 1 件だけを reason 化すると、実在した repository failure が構造化 JSON と台帳から欠落する。
+
+**却下した選択肢:**
+- `_one_git_closure_reasons` 全体を並行化する — `_git`・metadata・commit-graph verify・HEAD 読取まで
+  背景へ移り、副作用面と例外面が不必要に広がる。
+- 全 fsck を `subprocess.Popen` で先行起動する — `_run` の環境遮断と `check=False` 契約を複製し、
+  pipe と部分失敗の後始末を新たに所有することになる。1 snapshot あたり 4 process なので利得も小さい。
+- 1 件失敗したら残る future を捨てる — 拒否側には倒れるが、実在した corruption reason が消える。
+
+## D709. 受入の性能比較は node 単位の実測を第一証拠にし、鎖と wall は交絡込みで報告する (2026-08-23)
+
+**決定:** 受入全走の性能改善を主張するときは、変更が届く**個別 node の所要**を第一証拠にする。
+直列鎖の総和と wall も併記するが、**計算ノードの負荷で交絡する**ことを明記し、
+同一走の work 総和を添えて交絡の大きさを読めるようにする。単発の前後比較で採否を決めない。
+
+**理由:**
+- 本 wave の実測で、対象 node は変更前 3 走 170.92〜171.68 秒、変更後 2 走 93.83〜93.87 秒と
+  負荷に依存せず安定した。一方、同じ 2 走の鎖は 197.0 と 266.4 秒、wall は 229.5 と 303.2 秒で、
+  後者の走は work 総和が 7,443.9 から 11,457.6 秒へ膨らんだ混雑ノードだった。
+- 鎖は wall より安定するが (変更前 5 走で 320.9〜329.7 秒、幅 1.9%)、鎖を構成する他 node が
+  負荷で伸びるため、変更の効果と負荷の差を分離できない。
+- D531 は非対の before/after 比較を退けており、node が交絡すると明記している。
+  node 単位の実測はその交絡を受けにくい。
+
+**却下した選択肢:**
+- wall だけで報告する — 変更前 5 走で 345.9〜391.3 秒、幅 12% あり、改善量より分散が大きい。
+- 混雑した走を捨てて良い走だけを載せる — 都合の良い走の選択になる。
+- 2×2 ablation で寄与を分離する — 本 wave の 3 変更は同じ経路に相乗するため、
+  分離には走行数が要る。必要なら別 wave の裁定事項とする。
+
+## D710. 受入全走の shard 分割は runner の内側に置き、既定無効の opt-in にする (2026-08-23)
+
+**決定:** 受入全走を K 個の shard へ分けて計算ノードへ同時投入する経路を
+`tools/run_tests.py` の**内側**へ置く。`IZANAGI_ACCEPTANCE_SHARDS` が `2` または `3` の
+ときだけ有効になり、unset / 空 / `1` は従来どおりの単一走である。**既定は無効のままとする。**
+
+有効化には受入形・`PYTEST_ADDOPTS` と `PYTEST_PLUGINS` が空・site が Pegasus LOGIN・
+positional target が空か `--force-dispatch` だけ・裁定済み恒久除外表が gate を通る、
+の全成立を要求する。条件不一致は K=1 へ黙って丸めず rc=16 で止める。
+
+**理由:**
+- 受入 command は `tools/dev_wave_land.py` が argv 完全一致で pin しており、
+  呼び手側で分割を指示する余地がない。runner の内側が唯一の seam である。
+- 実測で **テスト実行そのものは縮む**。同一 tip・受入形で、単一走の pytest wall
+  157.43〜187.35 秒に対し、K=2 の最遅 shard は 134.13〜138.57 秒だった。
+- しかし **総所要は queue の空き次第で、混雑時は分割が不利**である。実測で
+  外側 wall は K=1 が 218 / 326 秒、K=2 が 476 秒、K=3 が 291 秒だった。
+  毎回どれか 1 本だけが 157〜330 秒の queue 待ちを引き、最遅 shard が全体を決める。
+  K 本ぶんの空きが同時に要ることが新しい費用である。
+- したがって「常に速くなる機構」ではない。**空きがある時間帯に運用者が選ぶ道具**として置く。
+- **K=3 は K=2 より速くならない。** K=3 の最遅 shard は 143.92 秒で K=2 の 138.57 秒を下回らない。
+  排他鎖 103.0 秒 + 固定費 12.86 秒の床に当たっている。K を上げても床は動かない。
+
+**却下した選択肢:**
+- 既定を K=2 にする — 混雑時に不利で、queue 待ちの分布を運用者しか判断できない。
+- 呼び手の argv や環境で分割を指示する — land の受理条件を変えることになる。
+- K の上限を 4 以上へ広げる — 床が動かないのに request 数・queue skew・故障面だけ増える。
+
+## D711. 分割の正しさは「全 shard 同一 collection + 決定的再導出 + 6 段 gate」で守り、manifest と barrier を持たない (2026-08-23)
+
+**決定:** shard は pytest の positional target を常に既定 suite root のままにし、
+**各 shard が同一の全 collection を行ってから担当外を deselect する。**
+割付けは collection 結果から**決定的に再導出**する。共有 manifest file も、
+shard 0 が collection して他が待つ barrier も持たない。
+
+併合は次の 6 段を**その順で**満たしたときだけ rc を確定する。
+
+1. report index が `set(range(K))` と完全一致
+2. 全 shard の `observed_universe` が互いに完全一致 (これを `U` とする)
+3. login 側が独立に走らせた `--collect-only` の集合が `U` と一致
+4. `Σ selected_i == U`、各 count = 1、file と `xdist_group` の閉包が保たれている
+5. 全 shard で `finished_i == selected_i`
+6. 全 shard の effective scheduler が `loadgroup` / `serial` で一致
+
+gate の前に、report の診断 payload (worker 占有・group 割付け・collection digest・
+JUnit path・terminal 件数) を実データから再計算して照合する。
+**gate 通過前に緑 summary・scheduler marker・task-run record を確定せず、
+gate 失敗後に単一走へ fallback しない。**
+
+**理由:**
+- **file を positional target へ渡す形は使えない。** 実測で `sys.path` の確立が
+  `orchestrator/tests` 指定時と変わり、`test_s8b_approved.py` の `from tests.skiputil import` と
+  `test_profiler_directive.py` の `from codex_roles import policy` が
+  `ModuleNotFoundError` になった。単一走では両方緑である。
+- **authoritative な集合を 1 か所の manifest に置くと自己証明になる。** 敵対相談が、
+  collection plugin が singleton file を 1 件落とせば割付け・deselect・併合が
+  すべて同じ縮小集合に同意して緑になる経路を構成した。
+  gate 2 と gate 3 の二重化はこれを断つためである。
+- 固定費が実測 12.86 秒 (48 worker 起動 + 全 collection + 集約、テスト 0 件) しかないので、
+  全 collection を K 回払っても費用はほぼ増えない。barrier を置くほうが臨界路に直列区間を足す。
+- 実測で全 session が `selected == finished`、shard の和が collection 14479 と厳密一致、
+  `14383 passed / 96 skipped`、marker ちょうど 1 本、rc=0 だった。
+- 変異 8 件 (各 gate の恒真化、両層同時、過剰拒否の正例) がすべて KILLED である。
+
+**却下した選択肢:**
+- 共有 manifest + barrier — 自己証明を作り、臨界路に直列区間を足す。
+- 記録された割付けを信用する — 偽の割付けを report へ書けば通る。親が再導出する。
+- 受入 receipt へ shard 情報を足して land で検査する — 3 tool の受理条件を変える
+  変更であり独立の裁定が要る。本 wave では実装しない。**したがって gate は runner の内側にあり、
+  receipt は shard の完全性を証明しない。**
+
+## D712. 成果物の置き場は「別機構が所有を仮定している場所」を fail-closed で避ける (2026-08-23)
+
+**決定:** shard の artifact 置き場は、対象 repo の外であることに加えて
+**`tools/dev_wave_land.py` の `_CONTROL_CONTAINERS` (`.claude/worktrees`、`.codex/worktrees`) の
+直下・配下でないこと**を要求し、違反すれば `ShardError` で停止する。
+guard は land の定数を **import して参照**し、複製しない。
+置き場の導出は `git rev-parse --path-format=absolute --git-common-dir` から
+main repository root を求め、その parent とする。
+
+**理由:**
+- 「repo の外」だけを条件にすると、repo が git worktree のとき `repo.parent` が
+  ちょうど `.claude/worktrees/` になる。land はそこの子を**すべて git worktree と見なして**
+  `.git` の実在を要求するため、`.git` を持たない artifact directory を置くと
+  **同じ checkout の全 wave の land が rc=21 で止まる。** 並行 wave の land が実際に拒否された。
+- 置き場の導出は将来また変わりうるが、
+  **「別機構が所有を仮定している場所へ書かない」という不変条件は変わらない。**
+  だから guard を第一級にして導出をその下に置く。
+- 定数を複製すると、container が 3 つ目に増えた日に片方だけ古くなる。
+  import して参照し、将来値でも guard が発火するテストを置く。
+
+**却下した選択肢:**
+- `_CONTROL_CONTAINERS` を複製する — 同期が切れる。
+- `/tmp` を使う — 計算ノード間で共有される保証がない。
+- 置き場の導出だけ直して guard を足さない — 導出が変わったとき同じ事故が再発する。
+
+## D713. 受入の所要は 4 層に分けて計上し、`直列総和 / (48K)` を下界と呼ばない (2026-08-23)
+
+**決定:** 受入の所要を論じるときは **queue 待ち / job Elapse / pytest wall / 外側 wall** の
+4 層を別々に記録する。`直列総和 / (48 x K)` は下界ではなく
+**「K=1 の duration を固定した仮想 capacity 指標」**と呼ぶ。
+排他鎖の長さと最長単体の値も、将来走の硬い床ではなく当該走の観測値として扱う。
+
+**理由:**
+- junit の duration は共走の競合を含む (D531)。K を変えると duration 自体が変わるので、
+  ある K の観測から別の K の下界を導けない。
+- 3 層を混ぜると誤診する。同一 tip・同一テスト集合でも pytest wall は 157.43〜187.35 秒、
+  外側 wall は 218〜476 秒とばらつき、差の大半は queue 待ちである。
+- **測定のために受入形を外すと、受入形だけに効く gate も同時に外れる。**
+  `--junit-xml` を足すと `_is_acceptance_run` が偽になり恒久除外が適用されず、
+  除外表の破れと誤診しかけた。あわせて 2.3 MB の XML 出力自体が wall を押し上げる
+  (受入形でない測定 229.41 秒 対 受入形 157.43〜187.35 秒)。
+- **単発 probe の値を全走への寄与として読み替えない。** ある関数の cold 実測 329.75 秒が
+  「直列総和の約 6%」と読まれかけたが、全走 junit では当該 module 全 367 件の合計が 74.0 秒、
+  最長単体 22.77 秒であり、330 秒級の単体は 1 件も存在しなかった。

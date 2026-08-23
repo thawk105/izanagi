@@ -553,6 +553,65 @@ def test_scan_cwd_non_permission_os_error_is_indeterminate(
     )
 
 
+def test_main_zombie_missing_cwd_is_counted_without_issue_mut5(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+):
+    target = tmp_path / "worktree"
+    target.mkdir()
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    proc_root = tmp_path / "proc"
+    pid_dir = _make_pid(proc_root, 129, cwd=outside, argv=["zombie-worker"])
+    (pid_dir / "cwd").unlink()
+    process_uid = os.getuid()
+    (pid_dir / "status").write_text(
+        "Name:\tzombie-worker\nState:\tZ (zombie)\n"
+        f"Uid:\t{process_uid}\t{process_uid}\t{process_uid}\t{process_uid}\n",
+        encoding="utf-8",
+    )
+
+    rc = checker.main(
+        [str(target)],
+        proc_root=proc_root,
+        self_pid=-1,
+        parent_pid=-1,
+    )
+
+    payload = json.loads(capsys.readouterr().out)
+    assert rc == 0
+    assert payload["status"] == "unoccupied"
+    assert payload["issues"] == []
+    assert payload["occupants"] == []
+    assert payload["unreachable"] == {"cwd_permission": 0, "zombie": 1}
+
+
+def test_scan_non_zombie_missing_cwd_remains_indeterminate(
+    tmp_path: Path,
+):
+    target = tmp_path / "worktree"
+    target.mkdir()
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    proc_root = tmp_path / "proc"
+    pid_dir = _make_pid(proc_root, 130, cwd=outside, argv=["live-worker"])
+    (pid_dir / "cwd").unlink()
+    process_uid = os.getuid()
+    (pid_dir / "status").write_text(
+        "Name:\tlive-worker\nState:\tS (sleeping)\n"
+        f"Uid:\t{process_uid}\t{process_uid}\t{process_uid}\t{process_uid}\n",
+        encoding="utf-8",
+    )
+
+    report = _scan(target, proc_root)
+
+    assert report.status == "indeterminate"
+    assert report.issues == (
+        checker.ScanIssue(error="missing", pid=130, source="cwd"),
+    )
+    assert report.unreachable.zombie == 0
+
+
 def test_main_occupied_wins_over_unreachable_cwd(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
