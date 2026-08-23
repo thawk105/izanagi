@@ -115,3 +115,24 @@ seq: 3
   **probe と本走は同じ mode でも別の走行形になりうる。**
 - 一般化: 走行形 (local / dispatch) を自動判定する runner を、走行形を要求する harness へ
   渡すと、環境の空き次第で間欠的に落ちる。**判定するのは runner か harness のどちらか一方にする。**
+
+### {{F:acceptance-found-cheap-checker-violation}}. 受入全走を 1 回丸ごと使って、先に回せた checker の違反を見つけた [手順] [関門順]
+
+- 事象: 受入全走 (14996 件) が 1 件だけ赤になった
+  (`test_check_subprocess_bytecode_guard.py::test_real_repo_clean`)。
+  原因は新設 test が Python を明示 `env=` 付きで起動する 2 箇所に
+  bytecode 書き込み guard (`-B` または `PYTHONDONTWRITEBYTECODE`) が無かったこと。
+  **`python3 tools/check_subprocess_bytecode_guard.py --repo <worktree>` を 1 回叩けば
+  数秒で分かる違反**を、受入 1 走 (外側 wall 573 秒 + lease 1 回) を使って見つけた。
+- 根本原因: 受入前の安い関門として `check_docs.py` と `check_ai_provenance.py` は回したが、
+  **repo 全体を走査する他の checker を棚卸ししていなかった。**
+  焦点走は「変更した test file と consumer test」を対象にするので、
+  `test_real_repo_clean` のような**実 repo 全体を検査する test は焦点走の対象に入らない**。
+- 恒久対応: **新しい実行可能資材 (subprocess 起動、hook、生成器) を足す wave は、
+  受入前に `tools/check_*.py` のうち `--repo` を取るものを棚卸しして回す。**
+  焦点走の対象選定 (`DW-O26`) は参照関係で引くが、
+  「repo 全体を走査する checker 系 test」は参照関係では引けない。
+- 再発検知: 受入で checker 系 test だけが赤になったら、この型の再発である。
+- 一般化: **焦点走は「変更 file を参照する test」を集めるが、
+  「repo 全体を見る test」は誰も参照しないので集まらない。**
+  後者は checker を直接叩いて先に潰す。
