@@ -54,7 +54,7 @@ title: [T-1505] attempt 状態機械のドメイン非依存 core を抽出し�
 
 - [T-1505] **P1**: 共通 core の抽出・8c facade 化・8b profile の生死確認まで実装した。
   8b の production 配線は、下記 5 点のユーザー裁定が出るまで着手しない。
-  base: b0f17ec90b3b89820a6cf82f37574ac3eeab209d813f2bf210f1de6b480f1eb8
+  base: 5e59176ec1cab0681ecd7eee3e81e728bf01452315b170e7401893f778b69b89
 
 ### 新規
 
