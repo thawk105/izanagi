@@ -8055,6 +8055,7 @@ def test_m26_manifest_binding_survives_provider_init_and_supervisor_failures(
     assert provider_report["status"] == "partial"
     assert provider_report["cells"] == []
     assert {field: provider_report[field] for field in expected} == expected
+    assert provider_report["lifecycle_terminal_status"] == "indeterminate"
     assert {
         field: _t325_run_start(provider_root)[field] for field in expected
     } == expected
@@ -8099,6 +8100,17 @@ def test_m26_manifest_binding_survives_provider_init_and_supervisor_failures(
             / A.trial_registry.DEFAULT_ATTEMPT_REGISTRY_PATH
         ).read_text(encoding="utf-8").splitlines()
     ]
+    provider_slot_id = _t325_run_start(provider_root)["slot_id"]
+    provider_attempt_terminal = next(
+        row
+        for row in attempt_rows
+        if row.get("event") == "terminal"
+        and row.get("slot_id") == provider_slot_id
+    )
+    assert provider_attempt_terminal["terminal_status"] == "not-consumed"
+    assert provider_attempt_terminal["report_sha256"] is None
+    assert provider_attempt_terminal["observation_sha256"] is None
+    assert provider_attempt_terminal["primary_value"] is None
     supervisor_slot_id = _t325_run_start(supervisor_root)["slot_id"]
     attempt_terminal = next(
         row
@@ -8127,6 +8139,194 @@ def test_m26_manifest_binding_survives_provider_init_and_supervisor_failures(
         "start", "terminal",
     ]
     assert supervisor_lifecycle_rows[-1]["terminal_status"] == "indeterminate"
+    provider_lifecycle_rows = [
+        row for row in lifecycle_rows
+        if row.get("trial_id") == t325_registered_trial.trial_id
+    ]
+    assert [row["event"] for row in provider_lifecycle_rows] == [
+        "start", "terminal",
+    ]
+    assert provider_lifecycle_rows[-1]["terminal_status"] == "indeterminate"
+
+
+def test_registered_transport_admission_failure_is_indeterminate(
+    tmp_path, monkeypatch, t325_registered_trial,
+) -> None:
+    class FixtureTransportAdmissionError(RuntimeError):
+        pass
+
+    admission_calls = []
+
+    def reject_transport_admission(**kwargs):
+        admission_calls.append(kwargs)
+        raise FixtureTransportAdmissionError("fixture transport admission failed")
+
+    monkeypatch.setattr(A, "admit_claude_transport", reject_transport_admission)
+    run_root = tmp_path / "registered-transport-admission-failure"
+    report = A.run_trial(
+        trial_id=t325_registered_trial.trial_id,
+        workloads=["rr80"],
+        generations=2,
+        provider_kind="claude-headless",
+        run_root=run_root,
+        sub="/unused",
+        do_build=False,
+        allow_pegasus_compute_transport=True,
+        trial_manifest=t325_registered_trial.manifest_path,
+        effective_preregistration=t325_registered_trial.capability,
+    )
+
+    assert len(admission_calls) == 1
+    assert report["launch_admission"]["mode"] == "registered-effective"
+    assert report["status"] == "partial"
+    assert report["cells"] == []
+    assert report["lifecycle_terminal_status"] == "indeterminate"
+    attempt_rows = [
+        json.loads(line)
+        for line in (
+            t325_registered_trial.repo
+            / A.trial_registry.DEFAULT_ATTEMPT_REGISTRY_PATH
+        ).read_text(encoding="utf-8").splitlines()
+    ]
+    slot_id = _t325_run_start(run_root)["slot_id"]
+    attempt_terminal = next(
+        row
+        for row in attempt_rows
+        if row.get("event") == "terminal"
+        and row.get("slot_id") == slot_id
+    )
+    assert attempt_terminal["terminal_status"] == "not-consumed"
+    assert attempt_terminal["report_sha256"] is None
+    assert attempt_terminal["observation_sha256"] is None
+    assert attempt_terminal["primary_value"] is None
+    lifecycle_rows = [
+        json.loads(line)
+        for line in (
+            t325_registered_trial.repo
+            / A.trial_registry.DEFAULT_LIFECYCLE_PATH
+        ).read_text(encoding="utf-8").splitlines()
+    ]
+    trial_lifecycle_rows = [
+        row
+        for row in lifecycle_rows
+        if row.get("trial_id") == t325_registered_trial.trial_id
+    ]
+    assert [row["event"] for row in trial_lifecycle_rows] == [
+        "start", "terminal",
+    ]
+    assert trial_lifecycle_rows[-1]["terminal_status"] == "indeterminate"
+
+
+def test_registered_budget_provider_init_failure_raises_indeterminate_terminal(
+    tmp_path, monkeypatch, t325_registered_trial,
+) -> None:
+    ledger = SimpleNamespace(
+        manifest_sha256="a" * 64,
+        freeze_sha256="b" * 64,
+        schedule_sha256="c" * 64,
+        ratified_generation_sha256="d" * 64,
+        reservation=SimpleNamespace(state="held"),
+    )
+    budget_inputs = SimpleNamespace(
+        ledger_path=tmp_path / "budget-ledger.json",
+        manifest_sha256=ledger.manifest_sha256,
+        freeze_sha256=ledger.freeze_sha256,
+        schedule_sha256=ledger.schedule_sha256,
+        ratified_generation_sha256=ledger.ratified_generation_sha256,
+        cells=(),
+        limits=object(),
+    )
+    monkeypatch.setattr(A, "load_ratified_freeze", lambda _root: object())
+    monkeypatch.setattr(
+        A,
+        "_prepare_s8c_budget_inputs",
+        lambda **_kwargs: budget_inputs,
+    )
+    monkeypatch.setattr(A, "reserve_all_cells", lambda *_args, **_kwargs: ledger)
+    provider_calls = []
+
+    def fail_provider_init(**kwargs):
+        provider_calls.append(kwargs)
+        raise RuntimeError("provider init failed")
+
+    monkeypatch.setattr(A, "_provider_set", fail_provider_init)
+    run_root = tmp_path / "registered-budget-provider-init-failure"
+    with pytest.raises(A.AutonomousTrialError) as excinfo:
+        _t325_run(
+            t325_registered_trial,
+            run_root,
+            do_build=True,
+            drive=A.trigger.drive_iteration,
+            coder_authority=_coder_authority(),
+        )
+    assert str(excinfo.value) == (
+        "budget cell terminal is indeterminate after provider "
+        "initialization or transport admission error"
+    )
+    assert len(provider_calls) == 1
+    attempt_rows = [
+        json.loads(line)
+        for line in (
+            t325_registered_trial.repo
+            / A.trial_registry.DEFAULT_ATTEMPT_REGISTRY_PATH
+        ).read_text(encoding="utf-8").splitlines()
+    ]
+    slot_id = _t325_run_start(run_root)["slot_id"]
+    attempt_terminal = next(
+        row
+        for row in attempt_rows
+        if row.get("event") == "terminal"
+        and row.get("slot_id") == slot_id
+    )
+    assert attempt_terminal["terminal_status"] == "not-consumed"
+    assert attempt_terminal["report_sha256"] is None
+    assert attempt_terminal["observation_sha256"] is None
+    assert attempt_terminal["primary_value"] is None
+    lifecycle_rows = [
+        json.loads(line)
+        for line in (
+            t325_registered_trial.repo
+            / A.trial_registry.DEFAULT_LIFECYCLE_PATH
+        ).read_text(encoding="utf-8").splitlines()
+    ]
+    trial_lifecycle_rows = [
+        row
+        for row in lifecycle_rows
+        if row.get("trial_id") == t325_registered_trial.trial_id
+    ]
+    assert [row["event"] for row in trial_lifecycle_rows] == [
+        "start", "terminal",
+    ]
+    assert trial_lifecycle_rows[-1]["terminal_status"] == "indeterminate"
+
+
+def test_exploratory_provider_init_failure_stays_without_lifecycle_status(
+    tmp_path, monkeypatch, t325_registered_trial,
+) -> None:
+    def fail_provider_init(**kwargs):
+        raise RuntimeError("provider init failed")
+
+    monkeypatch.setattr(A, "_provider_set", fail_provider_init)
+    report = A.run_trial(
+        trial_id="exploratory-provider-init-failure",
+        workloads=["ycsb-a"],
+        generations=1,
+        provider_kind="fixture",
+        run_root=tmp_path / "exploratory-provider-init-failure",
+        sub="/unused",
+        do_build=False,
+        drive=_fake_drive,
+        preview=_fake_preview,
+        trial_manifest=None,
+        effective_preregistration=None,
+        allow_unregistered_exploratory=True,
+    )
+
+    assert report["launch_admission"]["mode"] == (
+        "explicit-unregistered-exploratory"
+    )
+    assert report["status"] == "partial"
+    assert "lifecycle_terminal_status" not in report
 
 
 def test_m30_registered_trial_id_without_manifest_is_rejected(
