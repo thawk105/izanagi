@@ -137,8 +137,10 @@ def _legacy_parse_slot(value: object, *, label: str) -> dict[str, object]:
 
 def _legacy_build_genesis_for_rejection(
     slots: list[dict[str, object]],
+    retryable_failure_reasons: object = _RETRYABLE_REASONS,
 ) -> tuple[dict[str, object], ...]:
-    """Reimplement 5a4cbfa8:2701-2716 without production helpers."""
+    """Reimplement 5a4cbfa8:2700-2716 without production helpers."""
+    reasons = list(retryable_failure_reasons)  # type: ignore[arg-type]
     value = _legacy_event({
         "schema_version": _SCHEMA_VERSION,
         "event": "freeze",
@@ -146,9 +148,25 @@ def _legacy_build_genesis_for_rejection(
         "manifest_path": "manifest.json",
         "manifest_sha256": hashlib.sha256(b"{}\n").hexdigest(),
         "root_path": "output/s8c-preregistration/attempt-registry.jsonl",
-        "retryable_failure_reasons": list(_RETRYABLE_REASONS),
+        "retryable_failure_reasons": sorted(reasons),
         "slots": [dict(slot) for slot in slots],
     }, index=0, previous=_ZERO)
+    parsed_reasons = value["retryable_failure_reasons"]
+    if (
+        not isinstance(parsed_reasons, list)
+        or any(
+            type(reason) is not str or not reason
+            for reason in parsed_reasons
+        )
+        or len(parsed_reasons) != len(set(parsed_reasons))
+        or parsed_reasons != sorted(parsed_reasons)
+        or frozenset(parsed_reasons) != frozenset(_RETRYABLE_REASONS)
+    ):
+        _legacy_fail(
+            "attempt-registry-genesis",
+            "attempt registry genesis.retryable_failure_reasons "
+            "is not the exact closed set",
+        )
     parsed_slots = [
         _legacy_parse_slot(
             slot, label=f"attempt registry genesis.slots[{index}]",
@@ -534,6 +552,64 @@ def test_genesis_builder_rejection_matches_pre_extraction_order(
 
     expected = str(legacy_error.value)
     assert str(core_error.value) == expected == str(facade_error.value)
+
+
+@pytest.mark.parametrize(
+    "retryable_failure_reasons",
+    (
+        pytest.param(None, id="none"),
+        pytest.param(
+            (*_RETRYABLE_REASONS, "outside-closed-set"),
+            id="outside-closed-set",
+        ),
+        pytest.param((), id="empty"),
+        pytest.param((1,), id="non-string"),
+    ),
+)
+def test_genesis_builder_retryable_reasons_match_pre_extraction(
+    tmp_path: Path, retryable_failure_reasons: object,
+) -> None:
+    with pytest.raises(Exception) as legacy_error:
+        _legacy_build_genesis_for_rejection(
+            [_slot()],
+            retryable_failure_reasons=retryable_failure_reasons,
+        )
+
+    manifest_sha256 = hashlib.sha256(b"{}\n").hexdigest()
+    repo = tmp_path / "reason-rejection-repo"
+    repo.mkdir()
+    _git(repo, "init", "-q")
+    manifest = repo / "manifest.json"
+    manifest.write_bytes(b"{}\n")
+    with pytest.raises(Exception) as facade_error:
+        R.create_attempt_registry_genesis(
+            repository_root=repo,
+            manifest_path=manifest,
+            manifest_sha256=manifest_sha256,
+            freeze_id="reference-freeze",
+            slots=[_slot()],
+            retryable_failure_reasons=retryable_failure_reasons,
+        )
+
+    expected_type = (
+        R.TrialRegistryError
+        if type(legacy_error.value) is _LegacyBuilderError
+        else type(legacy_error.value)
+    )
+    assert type(facade_error.value) is expected_type
+
+    def contract(error: Exception) -> tuple[str | None, str]:
+        match = re.fullmatch(r"\[([^]]+)] (.*)", str(error), flags=re.DOTALL)
+        return (
+            (match.group(1), match.group(2))
+            if match is not None
+            else (None, str(error))
+        )
+
+    expected_gate, expected_message = contract(legacy_error.value)
+    actual_gate, actual_message = contract(facade_error.value)
+    assert actual_gate == expected_gate
+    assert actual_message == expected_message
 
 
 def test_skipped_slot_rejection_reason_is_identical(tmp_path: Path) -> None:

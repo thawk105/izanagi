@@ -2327,6 +2327,7 @@ def create_attempt_registry_genesis(
     _repo_path, manifest_relative = _repo_relative(
         Path(manifest_path), root, label="manifest",
     )
+    reasons = list(retryable_failure_reasons)
     rows = _attempt_core_call(
         _attempt_core.create_attempt_registry_genesis,
         profile=_S8C_ATTEMPT_PROFILE,
@@ -2334,7 +2335,7 @@ def create_attempt_registry_genesis(
         manifest_path=_PurePosixPath(manifest_relative),
         manifest_sha256=manifest_sha256,
         slots=slots,
-        retryable_failure_reasons=retryable_failure_reasons,
+        retryable_failure_reasons=reasons,
     )
     payload = _canonical_json_bytes(rows[0]) + b"\n"
     _candidate, relative_path, _relative = _attempt_registry_target(
