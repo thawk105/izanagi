@@ -167,7 +167,7 @@ branch・clean tree・main包含を要求。HEAD差は`--ff-only`で揃える（
 docs/handoff直下とGit adminに双方向束縛したClaude/Codex worktreeは書式不問で非接触。
 
 成功は`landed`/`already-landed`だけ。postcondition failureは停止。stale/busyはfresh contextで
-既存branchを再利用し、新main監査、固定SHAのwave-side merge、条件再評価・受入後に再試行する。
+既存branchを再利用し、新main監査、固定SHAのwave-side merge、条件再評価後に再試行する。
 他session所有物、rebase、force、remote、pushで解消しない。
 ## DW-O25 — ff-only land の全史 provenance 関門
 
