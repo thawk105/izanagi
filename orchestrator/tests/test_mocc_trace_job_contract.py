@@ -5,8 +5,10 @@ from __future__ import annotations
 import json
 import os
 from pathlib import Path
+import shlex
 import stat
 import subprocess
+import shutil
 import textwrap
 
 
@@ -214,3 +216,272 @@ def test_mocc_trace_submit_trace_mode_one_dry_run_contract(tmp_path: Path) -> No
     assert receipt["qsub"]["request_id"].startswith("dry-run-")
     assert receipt["qsub"]["argv"] == pre_submit["request"]["qsub_argv"]
     assert (submission / "qsub.rc").read_text(encoding="utf-8").strip() == "0"
+
+
+def test_mocc_trace_cpu_model_gate_normalizes_and_rejects_true_mismatch(
+    tmp_path: Path,
+) -> None:
+    """The job-side CPU gate absorbs notation drift but remains fail-closed."""
+
+    pilot = REPO_ROOT / "tools/pegasus/mocc_trace_pilot.sh"
+    source = pilot.read_text(encoding="utf-8")
+    start_marker = "CPU_MODEL=$(awk"
+    end_marker = "\nmodule_rc=0"
+    assert source.count(start_marker) == 1
+    assert source.count(end_marker) == 1
+    start = source.index(start_marker)
+    end = source.index(end_marker)
+    assert start < end
+    cpu_gate = source[start:end]
+
+    cpuinfo_marker = "/proc/cpuinfo"
+    assert cpu_gate.count(cpuinfo_marker) == 1
+    cpu_gate = cpu_gate.replace(cpuinfo_marker, '"$CPUINFO_PATH"', 1)
+    assert cpu_gate.count(cpuinfo_marker) == 0
+    assert cpu_gate.count('"$CPUINFO_PATH"') == 1
+
+    assert r"s/\((R|TM)\)//g" in cpu_gate
+    assert "observed_normalized=" in cpu_gate
+    assert '"cpu_model": cpu_model' in source
+    assert (
+        '"expected_cpu_model": submit_receipt["policy"]["expected_cpu_model"]'
+        in source
+    )
+    assert '"cpu_model_normalized"' not in source
+
+    cpuinfo_path = tmp_path / "cpuinfo"
+    raw_model = "Intel(R) Xeon(R)   Platinum(TM)\t8468"
+    cpuinfo_path.write_text(
+        f"  model name : {raw_model}\n",
+        encoding="utf-8",
+    )
+
+    def run_gate(
+        expected: str, attempt_dir: Path, failure_path: Path
+    ) -> subprocess.CompletedProcess[str]:
+        attempt_dir.mkdir()
+        environment = os.environ.copy()
+        environment.update(
+            {
+                "ATTEMPT_DIR": str(attempt_dir),
+                "CPUINFO_PATH": str(cpuinfo_path),
+                "EXPECTED_CPU": expected,
+                "FAILURE_PATH": str(failure_path),
+            }
+        )
+        return subprocess.run(
+            [
+                "bash",
+                "-c",
+                "write_failure() {\n"
+                '  printf \'%s\\n\' "$3" >"$FAILURE_PATH"\n'
+                "}\n"
+                f"{cpu_gate}\n",
+            ],
+            cwd=REPO_ROOT,
+            env=environment,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+
+    success_failure = tmp_path / "success-failure"
+    success_attempt = tmp_path / "success-attempt"
+    success = run_gate(
+        "Intel Xeon Platinum 8468",
+        success_attempt,
+        success_failure,
+    )
+    assert success.returncode == 0, success.stderr
+    assert not success_failure.exists()
+    assert (success_attempt / "cpu-model.stdout").read_text(
+        encoding="utf-8"
+    ) == f"{raw_model}\n"
+
+    mismatch_failure = tmp_path / "mismatch-failure"
+    mismatch_attempt = tmp_path / "mismatch-attempt"
+    mismatch = run_gate(
+        "Intel Xeon Platinum 8488",
+        mismatch_attempt,
+        mismatch_failure,
+    )
+    assert mismatch.returncode == 2, mismatch.stderr
+    assert mismatch_failure.read_text(encoding="utf-8") == (
+        "CPU model mismatch: expected=Intel Xeon Platinum 8488 "
+        "observed_normalized=Intel Xeon Platinum 8468\n"
+    )
+
+
+def test_mocc_trace_verifier_interpreter_gate_selects_first_importable_candidate(
+    tmp_path: Path,
+) -> None:
+    pilot = REPO_ROOT / "tools/pegasus/mocc_trace_pilot.sh"
+    source = pilot.read_text(encoding="utf-8")
+    start_marker = '  VERIFIER_PY=""'
+    end_marker = "\n  verifier_rc=0"
+    assert source.count(start_marker) == 1
+    assert source.count(end_marker) == 1
+    start = source.index(start_marker)
+    end = source.index(end_marker)
+    assert start < end
+    verifier_gate = source[start:end]
+
+    assert "python3 python3.10 python3.11 python3.12" in verifier_gate
+    assert "-I" not in verifier_gate
+    assert "import orchestrator.verifier" in verifier_gate
+    assert "sys.version_info >= (3, 10)" in verifier_gate
+
+    repo_root = tmp_path / "repo"
+    repo_root.mkdir()
+    attempt_dir = tmp_path / "attempt"
+    attempt_dir.mkdir()
+    failure_path = tmp_path / "failure"
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    real_realpath = shutil.which("realpath")
+    assert real_realpath is not None
+    (bin_dir / "realpath").symlink_to(real_realpath)
+
+    paths: dict[str, Path] = {}
+    argv_paths: dict[str, Path] = {}
+    for name, gate_rc in {
+        "python3": 1,
+        "python3.10": 0,
+        "python3.11": 0,
+        "python3.12": 0,
+    }.items():
+        stub = bin_dir / name
+        argv_path = tmp_path / f"{name}.argv"
+        cwd_path = tmp_path / f"{name}.cwd"
+        _make_executable(
+            stub,
+            f"""
+            #!/bin/sh
+            printf '%s\\n' "$@" >{shlex.quote(str(argv_path))}
+            printf '%s\\n' "$PWD" >{shlex.quote(str(cwd_path))}
+            exit {gate_rc}
+            """,
+        )
+        paths[name] = stub
+        argv_paths[name] = argv_path
+
+    prefix = "\n".join(
+        [
+            "set -Eeuo pipefail",
+            f"REPO_ROOT={shlex.quote(str(repo_root))}",
+            f"ATTEMPT_DIR={shlex.quote(str(attempt_dir))}",
+            f"FAILURE_PATH={shlex.quote(str(failure_path))}",
+            "write_failure() {",
+            '  printf \'rc=%s\\nstage=%s\\nmessage=%s\\n\' "$1" "$2" "$3" >"$FAILURE_PATH"',
+            "}",
+            "",
+        ]
+    )
+    suffix = '\nprintf \'%s\\n\' "$VERIFIER_PY"\n'
+    result = subprocess.run(
+        ["/bin/bash", "-c", prefix + verifier_gate + suffix],
+        cwd=REPO_ROOT,
+        env={"PATH": str(bin_dir)},
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert result.returncode == 0, result.stderr
+    selected = os.path.realpath(paths["python3.10"])
+    assert result.stdout.strip() == selected
+    assert argv_paths["python3"].exists()
+    assert argv_paths["python3.10"].exists()
+    assert not argv_paths["python3.11"].exists()
+    assert not argv_paths["python3.12"].exists()
+    selected_argv = argv_paths["python3.10"].read_text(encoding="utf-8").splitlines()
+    assert selected_argv[0] == "-c"
+    assert "import orchestrator.verifier" in selected_argv[1]
+    assert selected_argv[-1] == str(repo_root)
+    assert (tmp_path / "python3.10.cwd").read_text(encoding="utf-8").strip() == str(
+        repo_root
+    )
+    assert not failure_path.exists()
+    assert not (attempt_dir / "verifier.rc").exists()
+
+
+def test_mocc_trace_verifier_interpreter_gate_fails_closed_and_records_rejections(
+    tmp_path: Path,
+) -> None:
+    pilot = REPO_ROOT / "tools/pegasus/mocc_trace_pilot.sh"
+    source = pilot.read_text(encoding="utf-8")
+    start_marker = '  VERIFIER_PY=""'
+    end_marker = "\n  verifier_rc=0"
+    assert source.count(start_marker) == 1
+    assert source.count(end_marker) == 1
+    start = source.index(start_marker)
+    end = source.index(end_marker)
+    assert start < end
+    verifier_gate = source[start:end]
+
+    repo_root = tmp_path / "repo"
+    repo_root.mkdir()
+    attempt_dir = tmp_path / "attempt"
+    attempt_dir.mkdir()
+    failure_path = tmp_path / "failure"
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    real_realpath = shutil.which("realpath")
+    assert real_realpath is not None
+    (bin_dir / "realpath").symlink_to(real_realpath)
+
+    paths: dict[str, Path] = {}
+    argv_paths: dict[str, Path] = {}
+    candidate_names = ("python3", "python3.10", "python3.11", "python3.12")
+    for name in candidate_names:
+        stub = bin_dir / name
+        argv_path = tmp_path / f"{name}.argv"
+        cwd_path = tmp_path / f"{name}.cwd"
+        _make_executable(
+            stub,
+            f"""
+            #!/bin/sh
+            printf '%s\\n' "$@" >{shlex.quote(str(argv_path))}
+            printf '%s\\n' "$PWD" >{shlex.quote(str(cwd_path))}
+            exit 1
+            """,
+        )
+        paths[name] = stub
+        argv_paths[name] = argv_path
+
+    prefix = "\n".join(
+        [
+            "set -Eeuo pipefail",
+            f"REPO_ROOT={shlex.quote(str(repo_root))}",
+            f"ATTEMPT_DIR={shlex.quote(str(attempt_dir))}",
+            f"FAILURE_PATH={shlex.quote(str(failure_path))}",
+            "write_failure() {",
+            '  printf \'rc=%s\\nstage=%s\\nmessage=%s\\n\' "$1" "$2" "$3" >"$FAILURE_PATH"',
+            "}",
+            "",
+        ]
+    )
+    result = subprocess.run(
+        ["/bin/bash", "-c", prefix + verifier_gate],
+        cwd=REPO_ROOT,
+        env={"PATH": str(bin_dir)},
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert result.returncode == 2, result.stderr
+    failure = failure_path.read_text(encoding="utf-8")
+    assert "stage=verifier\n" in failure
+    assert "rc=2\n" in failure
+    assert "no python3 >= 3.10 candidate can import orchestrator.verifier" in failure
+    for name in candidate_names:
+        resolved = os.path.realpath(paths[name])
+        assert f"{name}={resolved}" in failure
+        argv = argv_paths[name].read_text(encoding="utf-8").splitlines()
+        assert argv[0] == "-c"
+        assert argv[-1] == str(repo_root)
+        assert (tmp_path / f"{name}.cwd").read_text(
+            encoding="utf-8"
+        ).strip() == str(repo_root)
+    assert (attempt_dir / "verifier.rc").read_text(encoding="utf-8") == "2\n"

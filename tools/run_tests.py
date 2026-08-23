@@ -43,6 +43,7 @@ import shutil
 import tempfile
 import threading
 import time
+from contextlib import contextmanager
 from contextvars import ContextVar
 from enum import Enum
 from importlib import metadata
@@ -57,6 +58,7 @@ if _REPO not in sys.path:
     sys.path.insert(0, _REPO)
 
 from orchestrator.campaign import site_policy  # noqa: E402
+from orchestrator import test_selection_contract as _SELECTION_CONTRACT  # noqa: E402
 
 # 実測の頭打ち + 共有ノードで全コアを掴まない行儀の両方から来る既定上限。
 # 環境変数 IZANAGI_TEST_NPROC=max で外せる。
@@ -67,6 +69,7 @@ _TASK_RUN_ID_ENV = "IZANAGI_TASK_RUN_ID"
 _TASK_RUNS_ROOT_ENV = "IZANAGI_TASK_RUNS_ROOT"
 _TASK_RUN_SIDECAR_ENV = "IZANAGI_TASK_RUN_SIDECAR"
 _TASK_RUN_AUTO_RECORD_ENV = "IZANAGI_TASK_RUN_AUTO_RECORD"
+_RUNNER_EXCLUSION_ENV = _SELECTION_CONTRACT.RUNNER_EXCLUSION_ENV
 _TEST_TRIGGER_ENV = "IZANAGI_TEST_TRIGGER"
 _RUN_GROWTH_HELD_TESTS_ENV = "IZANAGI_RUN_GROWTH_HELD_TESTS"
 _DISPATCH_WALLTIME_OVERRIDE_ENV = "IZANAGI_DISPATCH_WALLTIME_OVERRIDE"
@@ -128,6 +131,7 @@ _SUBMODULE_GATE_RC = 14
 _RULEOPS_GATE_RC = 15
 _PEGASUS_DISPATCH_RC = 16
 _ACCEPTANCE_DIST_OVERRIDE_RC = 17
+_PERMANENT_EXCLUSION_GATE_RC = 18
 _FORCE_DISPATCH_OPTION = "--force-dispatch"
 _PEGASUS_DISPATCH_EXEMPT_FLAGS = frozenset({
     "--collect-only", "--co", "--help", "--version", "--markers", "--fixtures",
@@ -165,6 +169,62 @@ class _DispatchCallResult(NamedTuple):
 
     rc: int
     child_started: bool
+
+
+_PermanentExclusion = _SELECTION_CONTRACT.Exclusion
+_PERMANENT_EXCLUSION_SET_VERSION = _SELECTION_CONTRACT.EXCLUSION_SET_VERSION
+_SANCTIONED_SORT_SWO_ORACLE_PATH = _SELECTION_CONTRACT.SANCTIONED_SORT_SWO_ORACLE_PATH
+
+# ここが runtime の active table。現在は共有契約の空 tuple を参照する。
+# sanctioned な上限と payload の定義は引き続き共有契約 module にだけ存在する。
+_PERMANENT_FULL_SUITE_EXCLUSIONS = _SELECTION_CONTRACT.SANCTIONED_EXCLUSIONS
+
+
+def _permanent_exclusions_are_sanctioned(
+    exclusions: Sequence[_PermanentExclusion],
+) -> bool:
+    """runner の恒久除外表を裁定済みの閉じた集合として検証する。"""
+
+    try:
+        entries = tuple(exclusions)
+    except TypeError:
+        return False
+    return _SELECTION_CONTRACT.is_sanctioned_exclusion_set(entries)
+
+
+def _runner_exclusion_payload(
+    exclusions: Sequence[_PermanentExclusion],
+) -> list[dict[str, str]]:
+    return _SELECTION_CONTRACT.payload_entries(exclusions)
+
+
+@contextmanager
+def _runner_exclusion_environment(
+    exclusions: Sequence[_PermanentExclusion],
+):
+    """実 pytest child に runner 所有の除外証跡だけを一時的に渡す。"""
+
+    previous = os.environ.get(_RUNNER_EXCLUSION_ENV)
+    if exclusions:
+        os.environ[_RUNNER_EXCLUSION_ENV] = _SELECTION_CONTRACT.serialize_payload(
+            exclusions
+        )
+    else:
+        os.environ.pop(_RUNNER_EXCLUSION_ENV, None)
+    try:
+        yield
+    finally:
+        if previous is None:
+            os.environ.pop(_RUNNER_EXCLUSION_ENV, None)
+        else:
+            os.environ[_RUNNER_EXCLUSION_ENV] = previous
+
+
+def _call_with_runner_exclusions(
+    exclusions: Sequence[_PermanentExclusion], function, *args, **kwargs,
+):
+    with _runner_exclusion_environment(exclusions):
+        return function(*args, **kwargs)
 
 
 def _consume_runner_options(args: Sequence[str]) -> tuple[list[str], bool]:
@@ -392,15 +452,18 @@ def _has_non_loadgroup_user_dist(args: Sequence[str]) -> bool:
 def _build_pytest_command(
         args: Sequence[str], *, use_xdist: bool, default_nproc: int,
         has_target: bool, python_executable: str = sys.executable,
-        default_target: str = _DEFAULT_TARGET) -> list[str]:
+        default_target: str = _DEFAULT_TARGET,
+        exclusions: Sequence[_PermanentExclusion] = ()) -> list[str]:
     """外部状態を読まず pytest argv を組み立てる純関数。
 
-    runner の既定値を先に置き、ユーザー引数は必ず末尾へ保つ。したがって非受入形では
-    pytest の後勝ち規則により明示 ``-n`` / ``--dist`` が従来どおり最優先になる。
+    runner の既定値を先に置き、ユーザー引数は必ず末尾へ保つ。したがって明示
+    ``-n`` / ``--dist`` は pytest の後勝ち規則により最優先になる。
     受入形の非 ``loadgroup`` な ``--dist`` は ``main()`` が構築前に拒否する。
+    ``exclusions`` は ``main()`` が恒久除外表を適用する走行で渡す。
     """
     user_args = list(args)
     cmd = [python_executable, "-m", "pytest"]
+    cmd.extend(_SELECTION_CONTRACT.exclusion_tokens(exclusions))
     if not has_target:
         cmd.append(default_target)
     if use_xdist:
@@ -469,6 +532,20 @@ def _positional_tokens(args: Sequence[str]) -> tuple[str, ...]:
         positional.append(token)
         i += 1
     return tuple(positional)
+
+
+def _explicitly_targets_sanctioned_oracle(args: Sequence[str]) -> bool:
+    """修正対象の oracle file を明示指定した走行か判定する。"""
+
+    sanctioned_target = Path(_SANCTIONED_SORT_SWO_ORACLE_PATH).resolve()
+    for token in _positional_tokens(args):
+        path_part = token.partition("::")[0]
+        try:
+            if Path(path_part).resolve(strict=False) == sanctioned_target:
+                return True
+        except OSError:
+            continue
+    return False
 
 
 def _has_no_execution_flag(args: Sequence[str]) -> bool:
@@ -2001,6 +2078,20 @@ def main(
     pytest_args, force_dispatch = _consume_runner_options(raw_args)
     args = _normalize_args(pytest_args)
     is_acceptance = _is_acceptance_run(args)
+    configured_exclusions = _PERMANENT_FULL_SUITE_EXCLUSIONS
+    if not _permanent_exclusions_are_sanctioned(configured_exclusions):
+        print(
+            "恒久除外表が裁定済み literal path と一致しないため、"
+            "テスト command を作らず停止します。",
+            file=sys.stderr,
+            flush=True,
+        )
+        return _PERMANENT_EXCLUSION_GATE_RC
+    exclusions = (
+        ()
+        if _explicitly_targets_sanctioned_oracle(args)
+        else configured_exclusions
+    )
     if is_acceptance and _has_non_loadgroup_user_dist(args):
         print(
             "受入形では --dist loadgroup 以外の --dist 上書きを拒否します。",
@@ -2088,7 +2179,9 @@ def main(
             tree_before = _tree_and_submodules_fingerprint(Path(_REPO))
             recording_session = _RecordingSession()
             try:
-                scope_result = _launch_local_scope(
+                scope_result = _call_with_runner_exclusions(
+                    exclusions,
+                    _launch_local_scope,
                     args,
                     cap,
                     module=module,
@@ -2121,8 +2214,12 @@ def main(
             if queue_unavailable:
                 recording_session.finish("blocked")
                 return _no_execution_capacity(headroom_reason, queue_reason)
-            return _dispatch_result(
-                dispatch_fn, args, recording_session=recording_session,
+            return _call_with_runner_exclusions(
+                exclusions,
+                _dispatch_result,
+                dispatch_fn,
+                args,
+                recording_session=recording_session,
             )
 
     preflight_rc = _preflight_unstaged_deletions(args, Path(_REPO))
@@ -2151,11 +2248,15 @@ def main(
         return _PEGASUS_DISPATCH_RC
     if site_policy.is_pegasus_login(resolved_site):
         if force_dispatch:
-            return _dispatch_result(dispatch_fn, args)
+            return _call_with_runner_exclusions(
+                exclusions, _dispatch_result, dispatch_fn, args,
+            )
         if bounded_membership is True:
             pass
         elif login_admission_dispatch or not dispatch_exempt:
-            return _dispatch_result(dispatch_fn, args)
+            return _call_with_runner_exclusions(
+                exclusions, _dispatch_result, dispatch_fn, args,
+            )
 
     use_xdist = False
     if site_policy.is_pegasus_compute(resolved_site):
@@ -2205,16 +2306,27 @@ def main(
         use_xdist=use_xdist,
         default_nproc=default_nproc,
         has_target=bool(_positional_tokens(args)),
+        exclusions=exclusions,
     )
     task_run_id = os.environ.get(_TASK_RUN_ID_ENV)
     if not task_run_id:
         if os.environ.get(_TASK_RUN_AUTO_RECORD_ENV) == "0":
-            return subprocess.call(cmd, cwd=_REPO)
-        return _call_and_record(
-            cmd, args, recording_session=_RecordingSession(),
+            return _call_with_runner_exclusions(
+                exclusions, subprocess.call, cmd, cwd=_REPO,
+            )
+        return _call_with_runner_exclusions(
+            exclusions,
+            _call_and_record,
+            cmd,
+            args,
+            recording_session=_RecordingSession(),
         )
-    return _call_and_record(
-        cmd, args, task_run_id,
+    return _call_with_runner_exclusions(
+        exclusions,
+        _call_and_record,
+        cmd,
+        args,
+        task_run_id,
         recording_session=_RecordingSession(task_run_id=task_run_id),
     )
 

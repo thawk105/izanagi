@@ -7,7 +7,8 @@ primary endpoint は arm 情報を隠した親の意味裁定である。
 from __future__ import annotations
 
 import argparse
-from dataclasses import dataclass
+from concurrent.futures import Future, ThreadPoolExecutor
+from dataclasses import dataclass, field
 import glob
 import hashlib
 import importlib.util
@@ -305,6 +306,8 @@ RC_ROUTING = 22
 RC_SCORE = 23
 RC_AGGREGATE = 24
 RC_RECEIPT = 25
+
+_GIT_FSCK_MAX_WORKERS = 8
 
 
 class ValidationError(Exception):
@@ -1428,24 +1431,71 @@ def _seal_git_object_closure(snapshot: Path) -> None:
             )
 
 
+def _scandir_entries(directory: Path, *, purpose: str) -> list[os.DirEntry[str]]:
+    """Enumerate one directory without collapsing an operational failure."""
+    try:
+        with os.scandir(directory) as iterator:
+            return list(iterator)
+    except OSError as exc:
+        raise ValidationError(
+            f"{purpose} directory enumeration failed at {directory}: "
+            f"{type(exc).__name__}: {exc}",
+            RC_SNAPSHOT,
+        ) from exc
+
+
+def _metadata_paths(root: Path) -> list[Path]:
+    paths: list[Path] = []
+    pending = [root]
+    while pending:
+        directory = pending.pop()
+        directories: list[Path] = []
+        for entry in _scandir_entries(directory, purpose="metadata"):
+            path = Path(entry.path)
+            paths.append(path)
+            try:
+                is_directory = entry.is_dir(follow_symlinks=False)
+            except OSError as exc:
+                raise ValidationError(
+                    f"metadata entry inspection failed at {path}: "
+                    f"{type(exc).__name__}: {exc}",
+                    RC_SNAPSHOT,
+                ) from exc
+            if is_directory:
+                directories.append(path)
+        pending.extend(reversed(directories))
+    return paths
+
+
 def _metadata_manifest(root: Path) -> list[dict[str, Any]]:
     rows: list[dict[str, Any]] = []
-    for path in sorted(root.rglob("*"), key=lambda item: item.relative_to(root).as_posix()):
+    paths = sorted(
+        _metadata_paths(root),
+        key=lambda item: item.relative_to(root).as_posix(),
+    )
+    for path in paths:
         relative = path.relative_to(root).as_posix()
-        metadata = path.lstat()
-        mode = stat.S_IFMT(metadata.st_mode) | stat.S_IMODE(metadata.st_mode)
-        if stat.S_ISDIR(metadata.st_mode):
-            kind = "directory"
-            digest = None
-        elif stat.S_ISLNK(metadata.st_mode):
-            kind = "symlink"
-            digest = _sha256(os.readlink(path).encode("utf-8"))
-        elif stat.S_ISREG(metadata.st_mode):
-            kind = "file"
-            digest = _sha256(path.read_bytes())
-        else:
-            kind = "other"
-            digest = None
+        try:
+            metadata = path.lstat()
+            mode = stat.S_IFMT(metadata.st_mode) | stat.S_IMODE(metadata.st_mode)
+            if stat.S_ISDIR(metadata.st_mode):
+                kind = "directory"
+                digest = None
+            elif stat.S_ISLNK(metadata.st_mode):
+                kind = "symlink"
+                digest = _sha256(os.readlink(path).encode("utf-8"))
+            elif stat.S_ISREG(metadata.st_mode):
+                kind = "file"
+                digest = _sha256(path.read_bytes())
+            else:
+                kind = "other"
+                digest = None
+        except OSError as exc:
+            raise ValidationError(
+                f"metadata inspection failed at {path}: "
+                f"{type(exc).__name__}: {exc}",
+                RC_SNAPSHOT,
+            ) from exc
         rows.append(
             {
                 "path": relative,
@@ -1460,28 +1510,70 @@ def _metadata_manifest(root: Path) -> list[dict[str, Any]]:
 def _filesystem_file_set(snapshot: Path) -> set[str]:
     """Return non-directory paths observed in a static snapshot tree.
 
-    The walk is not atomic if the filesystem changes while it is in progress,
-    matching the existing ``Path.rglob`` behavior.  Parent resolution remains
-    per path, so its call order and exception surface are unchanged; only the
-    pure root-``.git`` containment decision is memoized for resolved parents.
+    On a readable, static tree this preserves the former ``Path.rglob`` file
+    set.  The walk is not atomic if the tree changes while it is in progress.
+    A real directory named ``.git`` directly below the root is pruned after an
+    ``lstat``; symlink entries are included but their targets are never walked.
+    Directory enumeration and entry ``lstat`` failures are rejected rather
+    than being interpreted as an empty subtree.
     """
     found: set[str] = set()
-    root_git = (snapshot / ".git").resolve()
-    parent_is_root_git: dict[Path, bool] = {}
-    for path in snapshot.rglob("*"):
-        resolved_parent = path.parent.resolve()
-        is_root_git = parent_is_root_git.get(resolved_parent)
-        if is_root_git is None:
-            is_root_git = (
-                resolved_parent == root_git or root_git in resolved_parent.parents
-            )
-            parent_is_root_git[resolved_parent] = is_root_git
-        if is_root_git:
-            continue
-        metadata = path.lstat()
-        if not stat.S_ISDIR(metadata.st_mode):
-            found.add(path.relative_to(snapshot).as_posix())
+    pending = [snapshot]
+    while pending:
+        directory = pending.pop()
+        try:
+            with os.scandir(directory) as iterator:
+                entries = list(iterator)
+        except OSError as exc:
+            raise ValidationError(
+                f"filesystem directory enumeration failed at {directory}: "
+                f"{type(exc).__name__}: {exc}",
+                RC_SNAPSHOT,
+            ) from exc
+
+        directories: list[Path] = []
+        for entry in entries:
+            path = Path(entry.path)
+            try:
+                metadata = path.lstat()
+            except OSError as exc:
+                raise ValidationError(
+                    f"filesystem entry lstat failed at {path}: "
+                    f"{type(exc).__name__}: {exc}",
+                    RC_SNAPSHOT,
+                ) from exc
+            if stat.S_ISDIR(metadata.st_mode):
+                if directory == snapshot and entry.name == ".git":
+                    continue
+                directories.append(path)
+            else:
+                found.add(path.relative_to(snapshot).as_posix())
+
+        pending.extend(reversed(directories))
     return found
+
+
+@dataclass
+class _SnapshotFilesystemFiles:
+    """One lazily evaluated filesystem observation bound to one snapshot."""
+
+    snapshot: Path
+    _files: set[str] | None = field(default=None, init=False, repr=False)
+
+    def __post_init__(self) -> None:
+        self.snapshot = self.snapshot.resolve()
+
+    def read(self, snapshot: Path) -> set[str]:
+        candidate = snapshot.resolve()
+        if candidate != self.snapshot:
+            raise ValidationError(
+                "filesystem observation snapshot mismatch: "
+                f"{candidate} != {self.snapshot}",
+                RC_SNAPSHOT,
+            )
+        if self._files is None:
+            self._files = _filesystem_file_set(self.snapshot)
+        return self._files
 
 
 def _index_stage_entries(repository: Path) -> list[tuple[str, str, str, str]]:
@@ -1985,11 +2077,31 @@ def _commit_graph_manifest(
     }
 
 
-def _one_git_closure_reasons(
+@dataclass
+class _GitClosureState:
+    repository: Path
+    label: str
+    reasons: list[str]
+    refs: list[str]
+    git_dir: Path
+    commit_graph: dict[str, Any]
+    metadata: list[dict[str, Any]]
+
+
+@dataclass
+class _GitFsckPair:
+    order: int
+    state: _GitClosureState
+    future: Future[subprocess.CompletedProcess[bytes]]
+    fsck_reasons: list[str] | None = None
+    failure: Exception | None = None
+
+
+def _prepare_one_git_closure(
     snapshot: Path,
     repository: Path,
     expected_refs: list[str],
-) -> tuple[list[str], dict[str, Any]]:
+) -> _GitClosureState:
     reasons: list[str] = []
     refs = _git(repository, "for-each-ref", "--format=%(refname)").decode().splitlines()
     label = "." if repository == snapshot else repository.relative_to(snapshot).as_posix()
@@ -2012,20 +2124,42 @@ def _one_git_closure_reasons(
         "shallow": git_dir / "shallow",
     }
     for closure_label, path in closure_paths.items():
-        if path.is_dir():
-            if any(path.rglob("*")):
+        try:
+            metadata = path.stat()
+        except FileNotFoundError:
+            continue
+        except OSError as exc:
+            raise ValidationError(
+                f"git closure path inspection failed at {path}: "
+                f"{type(exc).__name__}: {exc}",
+                RC_SNAPSHOT,
+            ) from exc
+        if stat.S_ISDIR(metadata.st_mode):
+            if _scandir_entries(path, purpose="git closure"):
                 reasons.append(f"{label}: {closure_label} closure is not empty")
-        elif path.exists() and path.stat().st_size:
+        elif metadata.st_size:
             reasons.append(f"{label}: {closure_label} closure is not empty")
-    pseudo_refs = sorted(
-        path.name
-        for path in git_dir.iterdir()
-        if path.is_file()
-        and (
-            path.name.endswith("_HEAD")
-            or path.name in {"MERGE_HEAD", "BISECT_HEAD", "REVERT_HEAD", "CHERRY_PICK_HEAD"}
-        )
-    )
+    pseudo_refs: list[str] = []
+    for entry in _scandir_entries(git_dir, purpose="git pseudo-ref"):
+        path = Path(entry.path)
+        try:
+            metadata = entry.stat(follow_symlinks=True)
+        except FileNotFoundError:
+            # Preserve Path.is_file() semantics for broken symlinks.
+            continue
+        except OSError as exc:
+            raise ValidationError(
+                f"git pseudo-ref entry inspection failed at {path}: "
+                f"{type(exc).__name__}: {exc}",
+                RC_SNAPSHOT,
+            ) from exc
+        if stat.S_ISREG(metadata.st_mode) and (
+            entry.name.endswith("_HEAD")
+            or entry.name
+            in {"MERGE_HEAD", "BISECT_HEAD", "REVERT_HEAD", "CHERRY_PICK_HEAD"}
+        ):
+            pseudo_refs.append(entry.name)
+    pseudo_refs.sort()
     if pseudo_refs:
         reasons.append(f"{label}: pseudo refs are present: {pseudo_refs}")
     metadata = _metadata_manifest(git_dir)
@@ -2033,22 +2167,156 @@ def _one_git_closure_reasons(
         repository, label, metadata
     )
     reasons.extend(commit_graph_reasons)
+    return _GitClosureState(
+        repository=repository,
+        label=label,
+        reasons=reasons,
+        refs=refs,
+        git_dir=git_dir,
+        commit_graph=commit_graph,
+        metadata=metadata,
+    )
+
+
+def _finish_one_git_closure(
+    snapshot: Path,
+    state: _GitClosureState,
+    fsck_reasons: Sequence[str],
+) -> tuple[list[str], dict[str, Any]]:
+    reasons = [*state.reasons, *fsck_reasons]
+    return reasons, {
+        "repository": state.label,
+        "git_dir": state.git_dir.relative_to(snapshot).as_posix()
+        if snapshot == state.git_dir or snapshot in state.git_dir.parents
+        else os.fspath(state.git_dir),
+        "head": _git(state.repository, "rev-parse", "HEAD").decode().strip(),
+        "refs": state.refs,
+        "commit_graph": state.commit_graph,
+        "metadata": state.metadata,
+    }
+
+
+def _one_git_closure_reasons(
+    snapshot: Path,
+    repository: Path,
+    expected_refs: list[str],
+) -> tuple[list[str], dict[str, Any]]:
+    """Synchronous compatibility wrapper for one repository closure."""
+    state = _prepare_one_git_closure(snapshot, repository, expected_refs)
     fsck = _run(
         ("git", "fsck", "--unreachable", "--no-reflogs"),
         cwd=repository,
         check=False,
     )
-    reasons.extend(_git_fsck_reasons(label, fsck))
-    return reasons, {
-        "repository": label,
-        "git_dir": git_dir.relative_to(snapshot).as_posix()
-        if snapshot == git_dir or snapshot in git_dir.parents
-        else os.fspath(git_dir),
-        "head": _git(repository, "rev-parse", "HEAD").decode().strip(),
-        "refs": refs,
-        "commit_graph": commit_graph,
-        "metadata": metadata,
-    }
+    return _finish_one_git_closure(
+        snapshot, state, _git_fsck_reasons(state.label, fsck)
+    )
+
+
+def _git_fsck_failure_reason(
+    state: _GitClosureState, exc: Exception, *, phase: str
+) -> str:
+    return (
+        f"{state.label}: git fsck {phase} failed for {state.repository}: "
+        f"{type(exc).__name__}: {exc}"
+    )
+
+
+def _parallel_git_closure_reasons(
+    snapshot: Path,
+    work: Sequence[tuple[Path, list[str]]],
+) -> tuple[list[str], list[dict[str, Any]]]:
+    states = [
+        _prepare_one_git_closure(snapshot, repository, expected_refs)
+        for repository, expected_refs in work
+    ]
+    pairs: list[_GitFsckPair] = []
+    submit_failure: tuple[int, _GitClosureState, Exception] | None = None
+    try:
+        with ThreadPoolExecutor(
+            max_workers=min(_GIT_FSCK_MAX_WORKERS, len(states))
+        ) as executor:
+            for order, state in enumerate(states):
+                try:
+                    future = executor.submit(
+                        _run,
+                        ("git", "fsck", "--unreachable", "--no-reflogs"),
+                        cwd=state.repository,
+                        check=False,
+                    )
+                except Exception as exc:
+                    submit_failure = (order, state, exc)
+                    break
+                pairs.append(_GitFsckPair(order, state, future))
+
+            for pair in pairs:
+                try:
+                    completed = pair.future.result()
+                except Exception as exc:
+                    pair.failure = exc
+                else:
+                    pair.fsck_reasons = _git_fsck_reasons(
+                        pair.state.label, completed
+                    )
+    except Exception as exc:
+        raise ValidationError(
+            f"git fsck executor failed for {snapshot}: "
+            f"{type(exc).__name__}: {exc}",
+            RC_SNAPSHOT,
+        ) from exc
+
+    failures = [
+        (pair.order, pair.state, pair.failure, "worker")
+        for pair in pairs
+        if pair.failure is not None
+    ]
+    if submit_failure is not None:
+        order, state, failure = submit_failure
+        failures.append((order, state, failure, "submit"))
+    if failures:
+        failures.sort(key=lambda row: row[0])
+        diagnostic_reasons: list[str] = []
+        for pair in pairs:
+            diagnostic_reasons.extend(pair.state.reasons)
+            if pair.fsck_reasons is not None:
+                diagnostic_reasons.extend(pair.fsck_reasons)
+        for _, failed_state, failure, phase in failures:
+            if failure is None:
+                raise ValidationError(
+                    f"{failed_state.label}: git fsck {phase} failure is missing "
+                    f"for {failed_state.repository}",
+                    RC_SNAPSHOT,
+                )
+            diagnostic_reasons.append(
+                _git_fsck_failure_reason(failed_state, failure, phase=phase)
+            )
+        diagnostic_reasons.extend(
+            reason
+            for state in states[len(pairs) :]
+            for reason in state.reasons
+        )
+        first_failure = failures[0][2]
+        if first_failure is None:
+            raise ValidationError(diagnostic_reasons, RC_SNAPSHOT)
+        raise ValidationError(
+            diagnostic_reasons, RC_SNAPSHOT
+        ) from first_failure
+
+    reasons: list[str] = []
+    manifests: list[dict[str, Any]] = []
+    for pair in pairs:
+        if pair.fsck_reasons is None:
+            raise ValidationError(
+                f"{pair.state.label}: git fsck result was not collected for "
+                f"{pair.state.repository}",
+                RC_SNAPSHOT,
+            )
+        repository_reasons, manifest = _finish_one_git_closure(
+            snapshot, pair.state, pair.fsck_reasons
+        )
+        reasons.extend(repository_reasons)
+        manifests.append(manifest)
+    return reasons, manifests
 
 
 def _git_closure_reasons(
@@ -2057,23 +2325,24 @@ def _git_closure_reasons(
     *,
     inventory: tuple[list[Path], list[dict[str, str]]] | None = None,
     preflight_cache: dict[Path, tuple[str, ...]] | None = None,
+    filesystem_observation: _SnapshotFilesystemFiles | None = None,
 ) -> tuple[list[str], list[dict[str, Any]], list[dict[str, str]]]:
     if inventory is None:
         initialized, submodules = _submodule_inventory(snapshot)
     else:
         initialized, submodules = inventory
-    reasons, root_manifest = _one_git_closure_reasons(
-        snapshot, snapshot, [f"refs/heads/{BRANCH}"]
-    )
-    manifests = [root_manifest]
+    work = [(snapshot, [f"refs/heads/{BRANCH}"])]
     for repository in initialized:
         if preflight_cache is not None and preflight_cache.get(repository):
             continue
-        nested_reasons, nested_manifest = _one_git_closure_reasons(
-            snapshot, repository, []
+        work.append((repository, []))
+    if len(work) == 1:
+        reasons, root_manifest = _one_git_closure_reasons(
+            snapshot, snapshot, [f"refs/heads/{BRANCH}"]
         )
-        reasons.extend(nested_reasons)
-        manifests.append(nested_manifest)
+        manifests = [root_manifest]
+    else:
+        reasons, manifests = _parallel_git_closure_reasons(snapshot, work)
     reasons.extend(
         _submodule_content_identity_reasons(
             snapshot,
@@ -2103,7 +2372,11 @@ def _git_closure_reasons(
         and any(preflight_cache.get(repository) for repository in initialized)
     )
     if not preflight_failed:
-        actual_files = _filesystem_file_set(snapshot)
+        actual_files = (
+            filesystem_observation.read(snapshot)
+            if filesystem_observation is not None
+            else _filesystem_file_set(snapshot)
+        )
         expected_files = _expected_filesystem_files(
             snapshot, untracked, initialized
         )
@@ -2702,6 +2975,7 @@ def verify_snapshot(
     spec: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     snapshot = snapshot.resolve()
+    filesystem_observation = _SnapshotFilesystemFiles(snapshot)
     expected = dict(spec or _snapshot_spec(case))
     reasons: list[str] = []
     inventory: tuple[list[Path], list[dict[str, str]]] | None = None
@@ -2796,6 +3070,7 @@ def verify_snapshot(
             expected["untracked"],
             inventory=inventory,
             preflight_cache=preflight_cache,
+            filesystem_observation=filesystem_observation,
         )
         reasons.extend(closure_reasons)
     else:
@@ -2841,7 +3116,7 @@ def verify_snapshot(
             "ref": f"refs/heads/{BRANCH}",
             "repositories": git_manifests,
         },
-        "filesystem_files": sorted(_filesystem_file_set(snapshot)),
+        "filesystem_files": sorted(filesystem_observation.read(snapshot)),
     }
     oracle["manifest_sha256"] = _sha256(_canonical_bytes(oracle))
     return oracle

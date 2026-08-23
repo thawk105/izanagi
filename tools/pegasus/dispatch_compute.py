@@ -96,8 +96,6 @@ TASKS = {
             _TASK_RUN_AUTO_RECORD_ENV,
             # 計算ノードに bytecode を書かせない指定を伝える。
             "PYTHONDONTWRITEBYTECODE",
-            # T-080 E2E の opt-in を計算ノードへ伝える。
-            "IZANAGI_T080_E2E",
             # 成長比例テストの明示 opt-in を計算ノードへ伝える。
             "IZANAGI_RUN_GROWTH_HELD_TESTS",
         }),
