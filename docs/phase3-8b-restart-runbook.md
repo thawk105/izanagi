@@ -359,7 +359,7 @@ result を出す前に死んだ campaign の復帰には使えない。
 | R-2 (verify CLI の罠) | **決着 = (a)。** [T-749] として実装済み (worklog 402) |
 | R-3 (W-3 + W-4 の分割) | **未裁定。** [T-750] として再裁定待ち。統合 wave の段 3 が producer identity と budget authority の 2 点を新たに出した |
 | R-4 (toolchain 前提) | **決着 = (B) ([T-747])、実装済み (2026-08-11、[T-783])。** 束縛検査は pilot / official を問わず build 前に発火する。残る穴は下記「束縛していない量」 |
-| R-5 (crash 復帰の再生成) | **優先順位は決着 (D510 決定4、2026-08-18)、実装形状は未裁定 ([T-1484] 2026-08-22 技術確認)。** 詳細は下記「R-5 の技術確認」 |
+| R-5 (crash 復帰の再生成) | **優先順位は決着 (D510 決定4)、reuse 形状も決着 (D672)。共通 core と 8c facade は実装済み ([T-1505] 2026-08-24)。残り 3 点は未裁定。** 詳細は下記「R-5 の技術確認」と「R-5 の実装状況」 |
 
 以下は検分 wave 時点の記述である。本 wave は本番コードを編集していない。
 修理・設計択一は実装せず、次を裁定へ返す。
@@ -472,6 +472,39 @@ attempt registry、消費範囲は落ちた構成の同じ反復に限定) を�
 
 一次資料・段2 plan・段3 敵対2レンズの逐語・段4 裁定は
 `output/insights/2026-08-22_t1484-floor-restart-registry/README.md` を参照。
+
+### R-5 の実装状況 (2026-08-24 更新、[T-1505])
+
+**上記4点のうち 1 (reuse 形状) は D672 で決着し、実装した。残り 3 点は決着していない。**
+
+**実装したもの。** attempt 状態機械のドメイン非依存 core を
+`orchestrator/campaign/attempt_registry_core.py` へ抽出し、`trial_registry.py` を
+実 `def` による 8c 互換 facade にした。8b の domain profile は
+`orchestrator/campaign/s8b_attempt_profile.py` にデータとして置き、core を 8b profile で
+駆動する状態機械テストで生死を確認した。**8b の production からは import も call もしていない。**
+8c の受理集合・拒否理由・凍結成果物の bytes は変えていない (C01–C12 の
+`(id, status, reason_code)` snapshot 同値と canonical bytes の差分テストで機械確認)。
+
+**実装しなかったもの。** 8b の production 配線、trusted launcher による出力前分類、
+crash 点4 の再抽選規則。いずれもユーザー裁定を要することが実装 wave の段2/段3/段6 で確定した。
+返した項目と根拠は
+`output/insights/2026-08-24_t1505-attempt-registry-core/verbatim/ruling-package.md`。
+
+**新たに判明した最重要の事実。** terminal を registry へ書けるのは分類を実行した
+process・thread だけであり、次の slot を開始できるのは前の slot に terminal がある場合だけである。
+したがって **PBS の wall timeout・node 障害・SIGKILL で計測 process ごと死んだ attempt を
+別 process が閉じる経路が原理的に存在しない**。§10.5 にもこの引き取り経路の規定が無い。
+救出経路を成立させるには、外部証拠を根拠に放棄された attempt を terminal 化する
+「引き取り」の設計が要る (上記 4 点の外側にあった穴)。
+
+**併せて判明したこと。** 欠測反復は `s8b_floor_stats.py` の cell 有効性判定
+(`n_valid == n_sessions`) を満たさなくするため、**その cell を丸ごと失格にする**。
+「観測開始後に落ちた反復を判定不能にする」という保守的な扱いは、D496 決定3 の
+「行き止まりを作らない」に正面から抵触する。上記 4 の再抽選バイアスは、
+統計的独立性だけでなく estimand の選択そのものの問題である。
+
+実測値・変異台帳・段3/段6 の逐語は
+`output/insights/2026-08-24_t1505-attempt-registry-core/README.md` を参照。
 
 ### R-4 の束縛していない量について
 

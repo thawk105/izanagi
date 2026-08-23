@@ -1,0 +1,115 @@
+{
+  "estimated_run_seconds": 900,
+  "hang_timeout_seconds": 2700,
+  "mutations": [
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_attempt_registry_core_s8b_profile.py::test_retryable_terminal_after_observation_hits_only_observation_guard",
+        "orchestrator/tests/test_trial_registry.py::test_attempt_registry_rejects_retry_after_observation_start"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "M1",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/attempt_registry_core.py",
+          "new": "                if False:\n                    _fail(\n                        \"attempt-slot-order\",\n                        \"a retryable failure after observation cannot authorize a retry\",\n                    )\n",
+          "old": "                if (\n                    policy.forbid_retry_after_observation\n                    and previous_terminal.get(\"observation_start_event_sha256\") is not None\n                ):\n                    _fail(\n                        \"attempt-slot-order\",\n                        \"a retryable failure after observation cannot authorize a retry\",\n                    )\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_attempt_registry_core_s8b_profile.py::test_s8b_profile_closes_slot_binding_budget_and_reason_policy",
+        "orchestrator/tests/test_attempt_registry_core_s8b_profile.py::test_strict_8b_reason_match_rejects_input_that_8c_still_accepts"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "M2",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_attempt_profile.py",
+          "new": "            require_terminal_reason_equals_classification=False,\n",
+          "old": "            require_terminal_reason_equals_classification=True,\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_attempt_registry_core_equivalence.py::test_six_facades_are_unrebound_real_functions",
+        "orchestrator/tests/test_attempt_registry_core_s8b_profile.py::test_trial_registry_six_facades_have_no_top_level_rebinding"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "M3",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/trial_registry.py",
+          "new": "def _reserve_attempt_slot_facade(\n    *,\n    repository_root: Path,\n    freeze_id: str,\n    slot_id: str,\n",
+          "old": "def reserve_attempt_slot(\n    *,\n    repository_root: Path,\n    freeze_id: str,\n    slot_id: str,\n"
+        },
+        {
+          "file": "orchestrator/campaign/trial_registry.py",
+          "new": "reserve_attempt_slot = _reserve_attempt_slot_facade\nrecord_attempt_start = reserve_attempt_slot\n",
+          "old": "record_attempt_start = reserve_attempt_slot\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_attempt_registry_core_equivalence.py::test_six_facades_are_unrebound_real_functions",
+        "orchestrator/tests/test_attempt_registry_core_s8b_profile.py::test_trial_registry_six_facades_have_no_top_level_rebinding"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "M4",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/trial_registry.py",
+          "new": "        gate=\"attempt-registry-genesis\",\n    )\n\n\ncreate_attempt_registry_genesis = create_attempt_registry_genesis\n\n\ndef _attempt_tree_paths(\n",
+          "old": "        gate=\"attempt-registry-genesis\",\n    )\n\n\ndef _attempt_tree_paths(\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_attempt_registry_core_s8b_profile.py::test_budget_is_cell_wide_and_does_not_reset_for_each_repetition",
+        "orchestrator/tests/test_attempt_registry_core_s8b_profile.py::test_s8b_profile_closes_slot_binding_budget_and_reason_policy"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "M5",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_attempt_profile.py",
+          "new": "    return slot.freeze_holdout_key, slot.configuration_id, slot.repetition\n",
+          "old": "    return slot.freeze_holdout_key, slot.configuration_id\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_attempt_registry_core_equivalence.py::test_unknown_event_rejection_reason_is_identical",
+        "orchestrator/tests/test_attempt_registry_core_s8b_profile.py::test_known_event_round_trip_passes_and_unknown_event_is_rejected"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "M6",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/attempt_registry_core.py",
+          "new": "    if expected is None:\n        expected = frozenset(value)\n",
+          "old": "    if expected is None:\n        _fail(\"attempt-registry-schema\", f\"{label}.event is unknown\")\n"
+        }
+      ]
+    }
+  ],
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "timeout_seconds": 2700
+}
