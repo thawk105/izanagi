@@ -12868,3 +12868,93 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   現状はどの条件で落ちたかが成果物から判別できず、再投入以外の手が無い。
 - 再発検知: 不採用時の receipt に、`_evidence_status()` が観測した各条件の値を記録し、
   同一 prompt の連続不採用を親が判別できるようにする ([T-1581] 参照)。
+
+### F507. 検査を強めた結果、計測 job が使う実 topology を塞いだ [恒真ゲート] [テスト代表性]
+
+- 事象: TRACE=0 前処理同一性検査の不在証明を commit tree へ広げるとき、gitlink の coverage を
+  証明できないなら停止する設計にした。この checker を呼ぶ計測 job
+  (`tools/pegasus/mocc_trace_pilot.sh`) は submodule を初期化せずに
+  `git worktree add --detach` した tree を渡すため、**その topology では checker が必ず
+  rc=1 になり、TRACE=0 の workload が毎回 skip される**状態になっていた。
+  段 6 の敵対レビュー 2 本が独立に指摘し、親が同じ topology を再現して実測で確認した。
+- 根本原因: 2 つある。(a) 未初期化の directory へ `git -C <dir> rev-parse HEAD` を撃つと
+  git は親 repository まで遡って解決するため、submodule の HEAD のつもりで superproject の
+  HEAD を得ていた。(b) 「証明できないなら停止」は従来より強い要求を新たに課すものであり、
+  submodule の中身が元々厳密な保証の対象外だった事実に照らして過剰だった。
+  実装子が書いたテストは初期化済み submodule の topology しか覆っておらず、
+  実 job の topology を代表していなかった。
+- 恒久対応: D723 が (a) を repository 境界の事前確認で塞ぎ、
+  (b) を「確認できたときだけ確認し、できないときは coverage を主張せず進む」へ改める。
+  限界は関数の docstring に明記する。手順面 (gate を強める変更では、その gate を呼ぶ実 script の
+  topology を再現して実走する) は memory
+  `git-c-on-uninitialized-submodule-escapes-to-parent` が正本
+  — `docs/dev-wave/operations.md` の `DW-O13` へ足そうとしたが単節予算を超過して入らなかった。
+- 再発検知: `orchestrator/tests/test_check_trace0_preprocess_identity.py` の
+  `test_uninitialized_gitlink_directory_is_not_asked_to_resolve_parent_head` と
+  `test_commit_tree_with_uninitialized_gitlink_worktree_is_accepted`。
+  変異 M11 (repository 境界判定の除去) がこれを殺すことを実測で確認した
+  (`mutation-ledger-final.json`)。
+
+### F508. 裁定が述べた因果を十分条件と読み、解除後の状態を測らずに着手した [手順漏れ]
+
+- 事象: D673 は「trace ヘッダの include 行に旧版コメントが残る限り TRACE=0 の性能計測は
+  一度も走らない」と述べていた。この主張自体は正しかったが、**その 1 行を直しても
+  計測は走らなかった**。checker は別の gate (未知マクロ) で拒否し続けた。
+  段 1 の brief は「1 行を直せば計測できる」を前提に scope を組んでいた。
+- 根本原因: 裁定文の因果は必要条件を述べたものであって、十分条件の主張ではない。
+  段 1 の前提実測が「その 1 行が拒否の原因である」ことまでしか測っておらず、
+  「直した後に何が起きるか」を測っていなかった。
+- 恒久対応: D722 が実際の解除条件を確定させた。
+  手順面は memory `ruling-premise-is-necessary-not-sufficient` が正本
+  (段 1 の前提実測で解除後の状態まで probe する)。`docs/dev-wave/core.md` の `DW-S01` へ
+  足そうとしたが L1 予算を 257 bytes 超過して入らないため、memory へ routing した
+  ([T-1583] が予算の独立審査を持つ)。
+- 再発検知: 本 wave では job dir の `probe-wiring.py` と `probe-fullchecker.py` が
+  解除後の状態を段 2 直後に実測し、scope の作り直し (brief v3、段 2 からの巻き戻し) を
+  段 4 より前に発火させた。
+
+### F509. 子 process の出力を退避した機構が、別 tool の「外側ログに marker がちょうど 1 本」という再試行契約を静かに壊していた [ドリフト] [テスト代表性]
+
+- 事象: 受入全走の shard 分割 (D710) は、各 shard の dispatcher の stdout / stderr を
+  `shard-N/dispatcher.log` へ退避する。この結果、`tools/pegasus/dispatch_compute.py` が出す
+  `IZANAGI_DISPATCH_OUTCOME_V1` marker が外側の受入ログに 1 本も現れなくなった。
+  消費側の `tools/dev_wave_wait.py` の `_retry_evidence_reason()` は外側ログ中の marker を数え、
+  0 本なら `dispatch-attestation-missing` を返して**再試行しない**。よって分割走では、
+  現行の単一走が持っていた「queue 待ちタイムアウト + pytest child 未起動なら 1 回だけ自動再試行」
+  という回復が失われていた。分割は既定無効の opt-in だったため、この破れは発火しないまま残った。
+- 根本原因: producer 側が自分の出力先を変えたとき、その出力を前提にしている**別 tool の受理条件**を
+  照合しなかった。分割機構のテストは分割の内側 (割付け・併合・6 段 gate) を厚く検査していたが、
+  「外側ログの marker 本数」という機構の外にある契約は検査対象に入っていなかった。
+  D710 自身が「receipt は shard の完全性を証明しない」と限界を書いていたが、
+  待ち手の再試行契約が同時に壊れることは書かれていなかった。
+- 検出: 既定有効化 wave の段 3 敵対相談 (レンズ B) が静的に構成し、親が消費側コードの
+  `_retry_evidence_reason()` と marker producer を一次資料で照合して確認した。
+  本番での発火実績はない (opt-in のまま使われなかったため)。
+- 恒久対応: D725 — 全 shard が「未起動かつ queue-wait-timeout」を
+  証明できるときだけ、外側 stderr へ集約 marker を 1 本出す。親が保持する `child_started == True` が
+  1 件でもあれば出さない。`orchestrator/tests/test_run_tests_shards.py` の
+  `test_aggregate_no_verdict_attestation_*` と `test_parallel_*_attestation*` が、
+  消費側述語 (key 集合・型・`reason` の許容集合・marker 本数・行末形式) を全部照合する。
+- 再発検知: 変異 M7 (起動済み証拠があっても放出する) と M8 (恒常的に不発火にする) が
+  それぞれ 2 node / 7 node を KILL する。**子 process の出力を退避する機構を足すときは、
+  その出力を数えている consumer の受理条件を先に列挙する。**
+
+### F510. 受入 launcher の isolated mode を前提にしない module 冒頭 import が、既定化した瞬間にテスト 0 件で受入を落とした [ドリフト] [テスト代表性]
+
+- 事象: 受入 shard 分割を既定有効にした最初の受入全走が、テストを 1 件も走らせずに
+  `ModuleNotFoundError` で落ちた (rc=70、`classification=acceptance-command`、
+  `raw_child_rc=1`)。落ちたのは `tools/acceptance_shards.py` の module 冒頭 import である。
+- 根本原因: 受入 launcher (`tools/acceptance_launcher.py` の `_run_blob`) は runner blob を
+  **`python3 -I` (isolated mode = `-E` + `-s`)** で起動するため、user site-packages が無効になる。
+  当該 module は「login 側の分割 orchestration」と「計算ノードの test process 内 plugin」の
+  2 役を持ち、前者は user site の依存を要求してはならないのに、module 冒頭で無条件に import して
+  いた。分割が opt-in だった間はこの経路が受入 launcher 配下で踏まれず、欠陥は発火しなかった。
+- 検出: 既定化 wave の受入全走 1 回目。静的レビュー 2 本と焦点走 (172 node) は
+  いずれもこれを検出できていない — 焦点走は isolated mode で走らないためである。
+- 恒久対応: 冒頭 import を失敗許容にし、不在時は hook decorator を等価な no-op へ倒す
+  (D724 の実装)。回帰テストは source 文字列検査ではなく挙動で pin し、
+  isolated mode の子 process で当該 module を import して rc=0 を観測する
+  (`orchestrator/tests/test_run_tests_shards.py`)。
+- 再発検知: 同テスト。**受入 launcher 配下で初めて踏まれる経路を既定にするときは、
+  isolated mode で import graph 全体が解決できるかを先に実測する。**
+  焦点走の緑は受入 launcher 配下の緑を含意しない。
