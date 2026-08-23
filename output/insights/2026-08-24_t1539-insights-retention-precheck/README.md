@@ -138,4 +138,3 @@ git worktree list --porcelain
 - 新checker/script、RuleOpsの受理集合変更、既存insightの一括移行
 
 このprecheckは上記を完了扱いにしない。
-
