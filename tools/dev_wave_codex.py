@@ -126,6 +126,12 @@ def _parser() -> argparse.ArgumentParser:
         ),
     )
     parser.add_argument(
+        "--max-attempts",
+        type=_positive_int,
+        default=None,
+        help="同一 job の最大 attempt 数 (省略時は launcher 既定の 1)",
+    )
+    parser.add_argument(
         "--evidence-grace-s",
         type=positive_safe_nanosecond_decimal,
         default=None,
@@ -210,6 +216,11 @@ def _validate_combinations(
         parser.error(
             "--reasoning は --stage review/focus/author/fix 以外では必須"
         )
+    if args.max_attempts is not None and args.max_attempts > 1:
+        if args.sandbox != "read-only":
+            parser.error(
+                "--max-attempts > 1 は --sandbox read-only のときだけ許可される"
+            )
 
 
 def _launcher_argv(
@@ -283,6 +294,12 @@ def _launcher_argv(
             str(args.max_model_calls),
             "--max-cli-reported-tokens",
             str(args.max_cli_reported_tokens),
+        )
+    )
+    if args.max_attempts is not None:
+        argv.extend(("--max-attempts", str(args.max_attempts)))
+    argv.extend(
+        (
             "--artifact-dir",
             os.fspath(artifact_dir),
             "--output-file",
