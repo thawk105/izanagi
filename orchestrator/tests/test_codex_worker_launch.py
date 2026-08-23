@@ -6141,7 +6141,7 @@ def test_delayed_thread_and_rollout_are_read_from_byte_zero(
     tmp_path: Path,
 ) -> None:
     completed, receipt, paths = _run_case(
-        tmp_path, "delayed_thread", expected_returncode=0
+        tmp_path, "delayed_thread", expected_returncode=0, max_wall="8"
     )
 
     assert receipt is not None
@@ -6154,7 +6154,7 @@ def test_manifest_is_appended_while_correlated_session_is_running(
     tmp_path: Path,
 ) -> None:
     fake = _write_fake_codex(tmp_path / "fake-codex")
-    command, env, paths = _base_command(tmp_path, fake=fake)
+    command, env, paths = _base_command(tmp_path, fake=fake, max_wall="8")
     env["FAKE_MODE"] = "manifest_while_running"
     process = subprocess.Popen(
         command,
@@ -6444,7 +6444,7 @@ def test_check_receipt_detects_executable_identity_change(
     tmp_path: Path,
 ) -> None:
     completed, receipt, paths = _run_case(
-        tmp_path, "normal", expected_returncode=0
+        tmp_path, "normal", expected_returncode=0, max_wall="8"
     )
     assert receipt is not None
     with (tmp_path / "fake-codex").open("a", encoding="utf-8") as stream:
