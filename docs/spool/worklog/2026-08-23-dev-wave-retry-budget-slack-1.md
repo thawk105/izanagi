@@ -37,6 +37,14 @@ title: 直前の wave が着地させた retry 累積負例の前段余裕不足
   branch `worktree-dev-wave-acceptance-shard-dispatch` (tip `2f503be3`) へ commit 済みで
   land だけが残る。ユーザーが再開するときにこの修理が着地していれば受入は緑で通る。
 
+- **受入は 2 回とも land できなかったが、どちらもこの wave の差分に起因しない。**
+  1 回目はテスト自体が緑 (`raw_child_rc=0`) で、走行中に別 wave が main を進めたため
+  受領証が `receipt-main-moved` (rc=70) で拒否された。
+  2 回目は `test_dev_wave_cleanup.py::test_landed_attached_worktree_is_removed[locked]` が
+  1 件だけ赤 (`1 failed / 14514 passed / 67 skipped in 273.34s`)。
+  **本 wave の変更は 4 file で当該 file を含まず、単独走では `85 passed` で再現しない。**
+  非帰属の間欠赤として {{T:cleanup-attached-worktree-intermittent}} を起票する。
+
 ## 次の一手差分
 
 ### 新規
@@ -53,3 +61,13 @@ title: 直前の wave が着地させた retry 累積負例の前段余裕不足
   修理は別セッション (書いた側) の担当だった。**塞がれた側に裁定上の速い逃げ道が無い。**
   実測では 40 分待って job を閉じている。
   裁定を仰ぐ論点は「書いた側が修理中のとき、塞がれた側は何をしてよいか」である。
+- {{T:cleanup-attached-worktree-intermittent}} **P2・新規**:
+  `orchestrator/tests/test_dev_wave_cleanup.py::test_landed_attached_worktree_is_removed[locked]`
+  が受入全走で間欠的に赤くなる。実測 (2026-08-23、tested_main `37153cc8`):
+  受入全走で `1 failed / 14514 passed / 67 skipped in 273.34s`、
+  失敗は `assert (rc, stdout) == (0, 'removed\n')` に対し `(30, '')`。
+  **同じ tip の単独走は `85 passed` で再現しない。**
+  当該 file の直近 commit `118d7ba2` は「消えた pid 由来の間欠拒否を有界再試行で潰し、
+  注入テストを占有走査から独立させる」もので、その修理は tested_main に含まれている。
+  **修理後も残る間欠性がある**ということなので、48 並列の全走でだけ出る条件を特定する。
+  rc=30 が何の拒否かを起点にするとよい。
