@@ -341,6 +341,8 @@ REAL_REPO_SERIAL_NODES = frozenset({
     "test_real_repo_serialization.py::test_protocol_builder_repo_tree_guard_is_wired_to_real_root",
     # T-080 の子 collection が実履歴、output、共有 submodule を読む reader。
     "test_real_repo_serialization.py::test_stub_free_receipt_nodes_are_selected_and_reach_setup_by_default",
+    # foreign module の import-time temp 境界と実 output の不変を検査する reader。
+    "test_real_repo_serialization.py::test_t080_import_temp_environment_fails_closed_for_foreign_module",
 
     # 実資源依存の reader。現行 test は applied() を nullcontext へ差し替えるが、
     # over-approximation として実 repo 直列群に残置する。
