@@ -75,7 +75,9 @@ title: 受入全走を K shard へ分けて計算ノードへ同時投入する�
   (`{}` / `[]`) にしても 6 gate を通り rc=0 になった。空集合に対する `all(...)` が恒真だったためで、
   gate の前に実データから再計算して照合する検査を足した。
 
-- **変異 matrix: 8/8 KILLED、SURVIVED 0、MISMATCH 0、TIMEOUT 0** (repo_head `d78977ff`、baseline rc=0)。
+- **変異 matrix: 8/8 KILLED、SURVIVED 0、MISMATCH 0、TIMEOUT 0。**
+  `d78977ff` で 1 回、main 取り込みと fix 後の最終 tip `d662d028` で再走して 1 回、
+  いずれも baseline rc=0 で 8/8 KILLED である (`DW-M07` の anchor 再検証つき)。
   各 gate の恒真化 6 件、両層同時 1 件、過剰拒否の正例 1 件。
   **M1 単独 1 node / M5 単独 1 node / M1+M5 同時 3 node** と分離しており、
   combined killer が片方だけでは落ちない。段 6 レビューが指摘した過剰決定を修正した結果である。
@@ -113,7 +115,20 @@ title: 受入全走を K shard へ分けて計算ノードへ同時投入する�
   自己改善契約の「予算に収まらなければ止めてユーザー裁定へ返す」に従い、
   reference は変更せず本 entry に残す。**予算値を上げる変更は独立審査対象**なので本 wave では触れない。
 
-- **子の工数 (receipt 実測):** codex 子 10 本。内訳は plan 1 / consult 2 / author 1 / review 2 / fix 4。
+- **main 取り込みの合成監査が本物の欠陥を 1 件見つけた。** 79 commit を競合なしで auto-merge したが、
+  main が `conftest.py` へ足した flaky hold の controller 側完全集合検査が、
+  内部 shard の controller が受け取る**選択後の部分集合**を通常の全走と誤認し
+  `UsageError` にしていた。**競合が無いことは合成が正しいことを意味しない。**
+  さらに焦点走が 1 件見つけた — main の `a9a5c5df` で `SANCTIONED_EXCLUSIONS` が空になり、
+  除外が無いとき env var を落とす正しい挙動に対して、本 wave のテストが存在を無条件に期待していた。
+
+- **自分が停止した測定の取り残し job が orphan-hold を武装させた。** 復旧手順どおり
+  qstat で対象の終端を確認し、source の clean を確認してから hold を手動削除した。
+  **qdel はしていない** (F47 の `submission-disabled.json` を武装させ解除がユーザー手番になるため)。
+  この取り残しは本 wave が入れた per-request hold (`orphan-holds/<request-id>.json`) が
+  正しく記録しており、段 6 レビュー B の指摘した機構が実地で機能した。
+
+- **子の工数 (receipt 実測):** codex 子 12 本。内訳は plan 1 / consult 2 / author 2 / review 2 / fix 5。
   全て `gpt-5.6-sol`、`reasoning=xhigh`、`outcome=accepted`。
 
 ## 次の一手差分
