@@ -85,6 +85,12 @@ _STOP_REASONS = _LIMIT_REASONS + (
     "max_attempts",
     "launcher_error",
 )
+_PREPARATION_STOP_REASON = "preparation_admission_bound_s"
+_FINALIZATION_STOP_REASON = "finalization_admission_bound_s"
+_STOP_REASONS_V4 = _STOP_REASONS + (
+    _PREPARATION_STOP_REASON,
+    _FINALIZATION_STOP_REASON,
+)
 _USAGE_FIELDS = (
     "input_tokens",
     "cached_input_tokens",
@@ -223,12 +229,21 @@ _RECEIPT_FIELDS_V3 = frozenset(
         "attempts",
     }
 )
+# V1-V3 の closed top-level schema は変更しない。V4 は nested field の
+# 世代選択を独立させるため、同じ top-level 名でも別定数として扱う。
+_RECEIPT_FIELDS_V4 = frozenset(_RECEIPT_FIELDS_V3)
 _LIMIT_FIELDS = frozenset(
     {
         "wall_clock_admission_bound_s",
         "max_model_calls",
         "max_cli_reported_tokens",
         "max_attempts",
+    }
+)
+_LIMIT_FIELDS_V4 = _LIMIT_FIELDS | frozenset(
+    {
+        "preparation_admission_bound_s",
+        "finalization_admission_bound_s",
     }
 )
 _ACTUAL_FIELDS = frozenset(
@@ -242,6 +257,12 @@ _ACTUAL_FIELDS = frozenset(
         "reasoning_output_tokens",
         "total_tokens_raw",
         "cli_reported",
+    }
+)
+_ACTUAL_FIELDS_V4 = _ACTUAL_FIELDS | frozenset(
+    {
+        "preparation_wall_clock_s",
+        "finalization_wall_clock_s",
     }
 )
 _MANIFEST_FIELDS_V1 = frozenset(
@@ -272,6 +293,10 @@ _MANIFEST_ENTRY_FIELDS_V2 = frozenset(
 
 class LaunchError(RuntimeError):
     """Launcher integrity error (CLI rc=2)."""
+
+
+class PreparationAdmissionReached(LaunchError):
+    """Identity 確定後、初回 spawn 前の preparation job stop。"""
 
 
 def _require_attempt_hook_installation(repo_root: Path, cwd: Path) -> None:
@@ -357,6 +382,75 @@ class AttemptState:
 
 def _elapsed_s(now_ns: int, started_ns: int) -> Decimal:
     return Decimal(now_ns - started_ns) / Decimal(1_000_000_000)
+
+
+def _preparation_admission_elapsed_s(
+    args: argparse.Namespace, now_ns: int
+) -> Decimal:
+    """Job 起点から version identity の実行時間だけを除いた準備時間。"""
+    elapsed = _elapsed_s(now_ns, args.launcher_started_ns)
+    version_elapsed = getattr(
+        args, "codex_version_wall_clock_s", Decimal(0)
+    )
+    return max(Decimal(0), elapsed - version_elapsed)
+
+
+def _attempt_admission_elapsed_s(
+    args: argparse.Namespace, now_ns: int
+) -> Decimal:
+    """固定した初回 Popen 直前を起点に version identity 費を加える。"""
+    started_ns = getattr(args, "attempt_budget_started_ns", None)
+    if started_ns is None:
+        raise LaunchError("attempt admission clock が開始されていない")
+    completed_ns = getattr(args, "attempt_budget_completed_ns", None)
+    sampled_ns = min(now_ns, completed_ns) if completed_ns is not None else now_ns
+    version_elapsed = getattr(
+        args, "codex_version_wall_clock_s", Decimal(0)
+    )
+    return _elapsed_s(sampled_ns, started_ns) + version_elapsed
+
+
+def _start_attempt_budget_once(
+    args: argparse.Namespace, *, now_ns: int
+) -> None:
+    """初回 Popen 直前だけ attempt 時計を固定し、retry では維持する。"""
+    if getattr(args, "attempt_budget_started_ns", None) is None:
+        args.attempt_budget_started_ns = now_ns
+
+
+def _ensure_attempt_loop_budget_state(
+    args: argparse.Namespace, *, job_started_ns: int
+) -> None:
+    """Parser Namespace の直接 caller にも fail-closed な時計を補う。
+
+    ``_run`` を通らない既存 caller では version の実測値を復元できない。
+    その場合は version 控除を 0 とし、caller の job 起点以後を準備へ全算入
+    するため、初期化漏れによってどの admission gate も緩まない。
+    """
+    defaults: tuple[tuple[str, object], ...] = (
+        ("launcher_started_ns", job_started_ns),
+        ("codex_version_wall_clock_s", Decimal(0)),
+        ("preparation_wall_clock_s", Decimal(0)),
+        ("preparation_completed_ns", None),
+        ("attempt_budget_started_ns", None),
+        ("attempt_budget_completed_ns", None),
+        ("last_attempt_wall_clock_sampled_ns", None),
+        ("last_attempt_sealed_ns", None),
+        ("finalization_started_ns", None),
+    )
+    for name, value in defaults:
+        if not hasattr(args, name):
+            setattr(args, name, value)
+
+
+def _finalization_admission_elapsed_s(
+    args: argparse.Namespace, now_ns: int
+) -> Decimal:
+    """最終 attempt の wall 標本 S から receipt 公開までの最終化時間。"""
+    started_ns = getattr(args, "finalization_started_ns", None)
+    if started_ns is None:
+        return Decimal(0)
+    return _elapsed_s(now_ns, started_ns)
 
 
 @dataclass
@@ -507,6 +601,9 @@ class LauncherDiagnosticsState:
     attempts: list[AttemptDiagnosticsState] = field(default_factory=list)
     job_boundaries_ns: dict[str, int] = field(default_factory=dict)
     receipt_published_by_run: bool = False
+    finalization_publication_gate_elapsed_s: Decimal | None = None
+    finalization_publication_completed_elapsed_s: Decimal | None = None
+    finalization_limit_exceeded_after_publication: bool = False
 
     def note_job_boundary(self, name: str, now_ns: int) -> None:
         self.job_boundaries_ns[name] = now_ns
@@ -560,6 +657,7 @@ def _record_limit_conditions(
     *,
     site: str,
     elapsed: Decimal,
+    job_elapsed: Decimal | None = None,
     model_calls: int,
     cli_reported: int,
     limits: argparse.Namespace,
@@ -583,7 +681,7 @@ def _record_limit_conditions(
         "wall_clock_admission_bound_s": limits.wall_clock_admission_bound_s,
         "max_model_calls": limits.max_model_calls,
         "max_cli_reported_tokens": limits.max_cli_reported_tokens,
-        "job_elapsed_s_at": elapsed,
+        "job_elapsed_s_at": elapsed if job_elapsed is None else job_elapsed,
     }
 
 
@@ -1566,6 +1664,7 @@ def _seal_attempt(
     residual: int | None,
     termination_verified: bool,
     wall_clock_s: Decimal,
+    attempt_admission_wall_clock_s: Decimal,
     job_wall_clock_s: Decimal,
     prior_actuals: Mapping[str, int],
     limits: argparse.Namespace,
@@ -1585,7 +1684,8 @@ def _seal_attempt(
     _record_limit_conditions(
         diagnostics,
         site="attempt_seal",
-        elapsed=job_wall_clock_s,
+        elapsed=attempt_admission_wall_clock_s,
+        job_elapsed=job_wall_clock_s,
         model_calls=prior_actuals["model_calls"] + actuals["model_calls"],
         cli_reported=(
             prior_actuals["cli_reported"] + actuals["cli_reported"]
@@ -1593,7 +1693,7 @@ def _seal_attempt(
         limits=limits,
     )
     if state.limit_trigger is None:
-        if job_wall_clock_s > limits.wall_clock_admission_bound_s:
+        if attempt_admission_wall_clock_s > limits.wall_clock_admission_bound_s:
             state.limit_trigger = "wall_clock_admission_bound_s"
         elif (
             prior_actuals["model_calls"] + actuals["model_calls"]
@@ -1664,6 +1764,7 @@ def _attempt_loop(
     expected_binary_sha256: str,
     diagnostics: LauncherDiagnosticsState | None = None,
 ) -> dict[str, Any]:
+    _ensure_attempt_loop_budget_state(args, job_started_ns=job_started_ns)
     requirement: LaunchRequirement = args.launch_requirement
     if requirement.effort is None:
         raise LaunchError("launch requirement の effort が未束縛")
@@ -1763,11 +1864,28 @@ def _attempt_loop(
         try:
             _require_attempt_hook_installation(args.repo_root, args.cwd)
             preflight_now_ns = _monotonic_ns()
-            if (
-                Decimal(preflight_now_ns - job_started_ns)
-                / Decimal(1_000_000_000)
-                >= args.wall_clock_admission_bound_s
-            ):
+            if getattr(args, "attempt_budget_started_ns", None) is None:
+                preparation_elapsed = _preparation_admission_elapsed_s(
+                    args, preflight_now_ns
+                )
+                args.preparation_wall_clock_s = preparation_elapsed
+                args.preparation_completed_ns = preflight_now_ns
+                if preparation_elapsed >= args.preparation_admission_bound_s:
+                    raise PreparationAdmissionReached(
+                        "Codex 起動前検証後に preparation_admission_bound_s "
+                        "へ到達した"
+                    )
+                # retry で再代入してはならない。version identity の費用はこの
+                # 固定時計へ一度だけ加算する。
+                _start_attempt_budget_once(args, now_ns=preflight_now_ns)
+                if diagnostics is not None:
+                    diagnostics.note_job_boundary(
+                        "preparation_completed", preflight_now_ns
+                    )
+            attempt_elapsed = _attempt_admission_elapsed_s(
+                args, preflight_now_ns
+            )
+            if attempt_elapsed >= args.wall_clock_admission_bound_s:
                 raise LaunchError(
                     "Codex 起動前検証後に wall_clock_admission_bound_s へ到達した"
                 )
@@ -1820,15 +1938,17 @@ def _attempt_loop(
                 elapsed = Decimal(now_ns - job_started_ns) / Decimal(
                     1_000_000_000
                 )
+                attempt_elapsed = _attempt_admission_elapsed_s(args, now_ns)
                 _record_limit_conditions(
                     attempt_diagnostics,
                     site="natural_exit",
-                    elapsed=elapsed,
+                    elapsed=attempt_elapsed,
+                    job_elapsed=elapsed,
                     model_calls=totals["model_calls"],
                     cli_reported=totals["cli_reported"],
                     limits=args,
                 )
-                if elapsed > args.wall_clock_admission_bound_s:
+                if attempt_elapsed > args.wall_clock_admission_bound_s:
                     state.limit_trigger = "wall_clock_admission_bound_s"
                 elif totals["model_calls"] > args.max_model_calls:
                     state.limit_trigger = "max_model_calls"
@@ -1839,11 +1959,15 @@ def _attempt_loop(
                     state.limit_trigger = "max_cli_reported_tokens"
                 break
 
-            elapsed = Decimal(now_ns - job_started_ns) / Decimal(1_000_000_000)
+            job_elapsed = Decimal(now_ns - job_started_ns) / Decimal(
+                1_000_000_000
+            )
+            elapsed = _attempt_admission_elapsed_s(args, now_ns)
             _record_limit_conditions(
                 attempt_diagnostics,
                 site="running_poll",
                 elapsed=elapsed,
+                job_elapsed=job_elapsed,
                 model_calls=(
                     prior_actuals["model_calls"] + current["model_calls"]
                 ),
@@ -2002,6 +2126,7 @@ def _attempt_loop(
         raise caught
     assert process is not None
     attempt_wall_now_ns = _monotonic_ns()
+    args.last_attempt_wall_clock_sampled_ns = attempt_wall_now_ns
     wall_clock_s = Decimal(attempt_wall_now_ns - state.started_ns) / Decimal(
         1_000_000_000
     )
@@ -2016,23 +2141,35 @@ def _attempt_loop(
         attempt_diagnostics.residual_final_count = residual
         if residual is not None:
             attempt_diagnostics.residual_final_unknown_source = None
-    attempt = _seal_attempt(
-        state,
-        process=process,
-        residual=residual,
-        termination_verified=termination_verified,
-        wall_clock_s=wall_clock_s,
-        job_wall_clock_s=job_wall_clock_s,
-        prior_actuals=prior_actuals,
-        limits=args,
-        force_not_accepted=caught is not None,
-        diagnostics=attempt_diagnostics,
-    )
+    try:
+        attempt = _seal_attempt(
+            state,
+            process=process,
+            residual=residual,
+            termination_verified=termination_verified,
+            wall_clock_s=wall_clock_s,
+            attempt_admission_wall_clock_s=_attempt_admission_elapsed_s(
+                args, attempt_wall_now_ns
+            ),
+            job_wall_clock_s=job_wall_clock_s,
+            prior_actuals=prior_actuals,
+            limits=args,
+            force_not_accepted=caught is not None,
+            diagnostics=attempt_diagnostics,
+        )
+    except BaseException:
+        # seal 自体が失敗して attempt dict を返せない場合も、S->error receipt
+        # を finalization に帰属させて無予算区間を作らない。
+        args.attempt_budget_completed_ns = attempt_wall_now_ns
+        args.finalization_started_ns = attempt_wall_now_ns
+        raise
     if attempt_diagnostics is not None:
         attempt_diagnostics.control_limit_trigger = attempt["limit_trigger"]
-        attempt_diagnostics.note_boundary(
-            "attempt_sealed", _monotonic_ns()
-        )
+        attempt_sealed_ns = _monotonic_ns()
+        attempt_diagnostics.note_boundary("attempt_sealed", attempt_sealed_ns)
+    else:
+        attempt_sealed_ns = _monotonic_ns()
+    args.last_attempt_sealed_ns = attempt_sealed_ns
     if caught is not None:
         raise AttemptLoopError(
             f"spawn 後の attempt 処理に失敗: {caught}", attempt
@@ -2160,11 +2297,14 @@ def _receipt(
     codex_sha256: str,
     codex_version: str,
     force_launcher_error: bool = False,
+    job_stop_reason: str | None = None,
 ) -> dict[str, Any]:
     """Receipt object と、その構築時点までの actuals を確定する。
 
     ``actuals.wall_clock_s`` は後段の late admission gate の観測時刻ではない。
     """
+    if force_launcher_error and job_stop_reason is not None:
+        raise LaunchError("launcher_error と job stop reason は併用できない")
     if force_launcher_error:
         if any(item["accepted"] for item in attempts):
             raise LaunchError("launcher_error receipt に accepted attempt がある")
@@ -2173,22 +2313,38 @@ def _receipt(
             "launcher_error",
             2,
         )
+    elif job_stop_reason is not None:
+        if job_stop_reason not in (
+            _PREPARATION_STOP_REASON,
+            _FINALIZATION_STOP_REASON,
+        ):
+            raise LaunchError("job stop reason が不正")
+        outcome, stop_reason, launcher_rc = (
+            "not_accepted",
+            job_stop_reason,
+            1,
+        )
     else:
         outcome, stop_reason, launcher_rc = _writer_truth(
             attempts,
             max_attempts=args.max_attempts,
         )
     actuals = _sum_attempts(attempts)
-    actuals["wall_clock_s"] = Decimal(
-        _monotonic_ns() - job_started_ns
-    ) / Decimal(1_000_000_000)
+    receipt_fields_now_ns = _monotonic_ns()
+    actuals["wall_clock_s"] = _elapsed_s(
+        receipt_fields_now_ns, job_started_ns
+    )
+    actuals["preparation_wall_clock_s"] = args.preparation_wall_clock_s
+    actuals["finalization_wall_clock_s"] = (
+        _finalization_admission_elapsed_s(args, receipt_fields_now_ns)
+    )
     last = attempts[-1] if attempts else None
     recorded_model, recorded_effort, context_count, recorded_cwd = (
         _recorded_summary(attempts)
     )
     requirement: LaunchRequirement = args.launch_requirement
     return {
-        "schema_version": 3,
+        "schema_version": 4,
         "job_id": args.job_id,
         "stage": requirement.stage,
         "lane": requirement.lane,
@@ -2229,7 +2385,13 @@ def _receipt(
         "retry_classification": "none",
         "escaped_process_containment": "not_attempted",
         "limits": {
+            "preparation_admission_bound_s": (
+                args.preparation_admission_bound_s
+            ),
             "wall_clock_admission_bound_s": args.wall_clock_admission_bound_s,
+            "finalization_admission_bound_s": (
+                args.finalization_admission_bound_s
+            ),
             "max_model_calls": args.max_model_calls,
             "max_cli_reported_tokens": args.max_cli_reported_tokens,
             "max_attempts": args.max_attempts,
@@ -2256,23 +2418,55 @@ def _resolve_executable(value: str) -> Path:
 
 
 def _codex_version(path: Path) -> str:
+    process: subprocess.Popen[bytes] | None = None
+    identity: PidIdentity | None = None
     try:
-        completed = subprocess.run(
+        process = subprocess.Popen(
             [os.fspath(path), "--version"],
             stdin=subprocess.DEVNULL,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
-            check=False,
-            timeout=5,
+            shell=False,
+            close_fds=True,
+            start_new_session=True,
         )
-    except (OSError, subprocess.TimeoutExpired) as exc:
+        try:
+            identity = read_pid_identity(process.pid)
+        except (OSError, ValueError) as exc:
+            _terminate(process, None, grace_s=0.1)
+            raise LaunchError(
+                "codex --version process group identity を確定できない"
+            ) from exc
+        try:
+            stdout, stderr = process.communicate(timeout=5)
+        except subprocess.TimeoutExpired as exc:
+            _terminate(process, identity, grace_s=0.1)
+            raise LaunchError("codex --version が timeout した") from exc
+        residual = _wait_for_group_exit(identity, timeout_s=0.5)
+        if residual != 0:
+            final_residual, termination_verified = _terminate(
+                process, identity, grace_s=0.1
+            )
+            if final_residual != 0 or not termination_verified:
+                raise LaunchError(
+                    "codex --version process group の終了を確認できない"
+                )
+            raise LaunchError(
+                "codex --version が残留子孫 process を生成した"
+            )
+    except OSError as exc:
+        if process is not None:
+            try:
+                _terminate(process, identity, grace_s=0.1)
+            except BaseException:
+                pass
         raise LaunchError(f"codex --version に失敗: {exc}") from exc
-    raw = completed.stdout if completed.stdout.strip() else completed.stderr
+    raw = stdout if stdout.strip() else stderr
     try:
         value = raw.decode("utf-8").strip()
     except UnicodeDecodeError as exc:
         raise LaunchError("codex version が UTF-8 ではない") from exc
-    if completed.returncode != 0 or not value or "\n" in value:
+    if process.returncode != 0 or not value or "\n" in value:
         raise LaunchError("codex version identity が不正")
     return value
 
@@ -2427,7 +2621,12 @@ def _preflight_run(args: argparse.Namespace) -> tuple[Path, str, str]:
             raise LaunchError("既存の完全な receipt は上書きできない")
     codex_path = _resolve_executable(args.codex_bin)
     codex_sha256, _ = _hash_file(codex_path)
-    return codex_path, codex_sha256, _codex_version(codex_path)
+    version_started_ns = _monotonic_ns()
+    codex_version = _codex_version(codex_path)
+    args.codex_version_wall_clock_s = _elapsed_s(
+        _monotonic_ns(), version_started_ns
+    )
+    return codex_path, codex_sha256, codex_version
 
 
 def _latch_final_job_limit(
@@ -2442,13 +2641,15 @@ def _latch_final_job_limit(
         return
     actuals = _sum_attempts(attempts)
     now_ns = _monotonic_ns()
-    elapsed = Decimal(now_ns - job_started_ns) / Decimal(1_000_000_000)
+    elapsed = _attempt_admission_elapsed_s(args, now_ns)
+    job_elapsed = _elapsed_s(now_ns, job_started_ns)
     _record_limit_conditions(
         diagnostics.attempts[-1]
         if diagnostics is not None and diagnostics.attempts
         else None,
         site=site,
         elapsed=elapsed,
+        job_elapsed=job_elapsed,
         model_calls=actuals["model_calls"],
         cli_reported=actuals["cli_reported"],
         limits=args,
@@ -2483,6 +2684,131 @@ def _stage_receipt_write(
     return _write_json_temp(path, receipt)
 
 
+def _finalization_limit_reached(args: argparse.Namespace) -> bool:
+    return (
+        getattr(args, "finalization_started_ns", None) is not None
+        and _finalization_admission_elapsed_s(args, _monotonic_ns())
+        >= args.finalization_admission_bound_s
+    )
+
+
+def _start_finalization_once(
+    args: argparse.Namespace, *, started_ns: int
+) -> None:
+    if getattr(args, "finalization_started_ns", None) is None:
+        args.finalization_started_ns = started_ns
+
+
+def _publish_reserved_receipt_with_finalization_budget(
+    args: argparse.Namespace,
+    *,
+    temporary: Path,
+    replace_invalid: bool,
+    allow_limit_reached: bool,
+    diagnostics: LauncherDiagnosticsState | None,
+) -> tuple[bool, bool]:
+    """最終 gate と atomic 公開を同じ連続区間で測る。
+
+    戻り値は ``(published, exceeded_after_publication)``。gate 到達済みで
+    finalization-stop 以外を公開しようとした場合は temp の所有権を取らず、
+    caller に finalization-stop receipt の再構築を要求する。
+    """
+    if getattr(args, "finalization_started_ns", None) is None:
+        raise LaunchError("receipt 公開前に finalization 時計が未開始")
+    gate_now_ns = _monotonic_ns()
+    gate_elapsed = _finalization_admission_elapsed_s(args, gate_now_ns)
+    if diagnostics is not None:
+        diagnostics.finalization_publication_gate_elapsed_s = gate_elapsed
+    if (
+        gate_elapsed >= args.finalization_admission_bound_s
+        and not allow_limit_reached
+    ):
+        return False, False
+    _atomic_create_json_reserved(
+        args.receipt,
+        temporary,
+        replace_invalid=replace_invalid,
+    )
+    published_now_ns = _monotonic_ns()
+    published_elapsed = _finalization_admission_elapsed_s(
+        args, published_now_ns
+    )
+    exceeded = published_elapsed >= args.finalization_admission_bound_s
+    if diagnostics is not None:
+        diagnostics.receipt_published_by_run = True
+        diagnostics.note_job_boundary("receipt_published", published_now_ns)
+        diagnostics.finalization_publication_completed_elapsed_s = (
+            published_elapsed
+        )
+        diagnostics.finalization_limit_exceeded_after_publication = exceeded
+    if exceeded:
+        print(
+            "NG: receipt atomic publication completed after "
+            "finalization_admission_bound_s",
+            file=sys.stderr,
+        )
+    return True, exceeded
+
+
+def _publish_preparation_stop_receipt(
+    args: argparse.Namespace,
+    *,
+    attempts: list[dict[str, Any]],
+    codex_path: Path,
+    codex_sha256: str,
+    codex_version: str,
+    diagnostics: LauncherDiagnosticsState | None,
+) -> int:
+    """準備停止境界から receipt 公開まで最終化時計と gate を通す。"""
+    preparation_completed_ns = getattr(
+        args, "preparation_completed_ns", None
+    )
+    if preparation_completed_ns is None:
+        raise LaunchError("preparation stop 境界が未記録")
+    _start_finalization_once(args, started_ns=preparation_completed_ns)
+    job_stop_reason = _PREPARATION_STOP_REASON
+    with _reserve_receipt_slot(args.receipt) as replace_invalid:
+        staged_receipt: Path | None = None
+        try:
+            while True:
+                receipt = _receipt(
+                    args,
+                    attempts=attempts,
+                    job_started_ns=args.launcher_started_ns,
+                    codex_path=codex_path,
+                    codex_sha256=codex_sha256,
+                    codex_version=codex_version,
+                    job_stop_reason=job_stop_reason,
+                )
+                _validate_receipt(receipt)
+                staged_receipt = _stage_receipt_write(args.receipt, receipt)
+                published, exceeded = (
+                    _publish_reserved_receipt_with_finalization_budget(
+                        args,
+                        temporary=staged_receipt,
+                        replace_invalid=replace_invalid,
+                        allow_limit_reached=(
+                            job_stop_reason == _FINALIZATION_STOP_REASON
+                        ),
+                        diagnostics=diagnostics,
+                    )
+                )
+                if published:
+                    staged_receipt = None
+                    if exceeded and receipt["launcher_rc"] == 0:
+                        return 1
+                    return int(receipt["launcher_rc"])
+                staged_receipt.unlink()
+                staged_receipt = None
+                job_stop_reason = _FINALIZATION_STOP_REASON
+        finally:
+            if staged_receipt is not None:
+                try:
+                    staged_receipt.unlink()
+                except FileNotFoundError:
+                    pass
+
+
 def _run_supervised(
     args: argparse.Namespace,
     *,
@@ -2493,26 +2819,20 @@ def _run_supervised(
     diagnostics: LauncherDiagnosticsState | None = None,
 ) -> int:
     started_ns = args.launcher_started_ns
-    if (
-        Decimal(_monotonic_ns() - started_ns) / Decimal(1_000_000_000)
-        > args.wall_clock_admission_bound_s
-    ):
-        receipt = _receipt(
+    preparation_now_ns = _monotonic_ns()
+    args.preparation_wall_clock_s = _preparation_admission_elapsed_s(
+        args, preparation_now_ns
+    )
+    args.preparation_completed_ns = preparation_now_ns
+    if args.preparation_wall_clock_s >= args.preparation_admission_bound_s:
+        return _publish_preparation_stop_receipt(
             args,
             attempts=attempts,
-            job_started_ns=started_ns,
             codex_path=codex_path,
             codex_sha256=codex_sha256,
             codex_version=codex_version,
-            force_launcher_error=True,
+            diagnostics=diagnostics,
         )
-        _publish_complete_receipt(args.receipt, receipt)
-        if diagnostics is not None:
-            diagnostics.receipt_published_by_run = True
-            diagnostics.note_job_boundary(
-                "receipt_published", _monotonic_ns()
-            )
-        return 2
     prior = {
         "model_calls": 0,
         "cli_reported": 0,
@@ -2528,25 +2848,32 @@ def _run_supervised(
                 expected_binary_sha256=codex_sha256,
                 diagnostics=diagnostics,
             )
-        except AttemptLoopError as exc:
-            attempts.append(exc.attempt)
-            receipt = _receipt(
+        except PreparationAdmissionReached:
+            return _publish_preparation_stop_receipt(
                 args,
                 attempts=attempts,
-                job_started_ns=started_ns,
                 codex_path=codex_path,
                 codex_sha256=codex_sha256,
                 codex_version=codex_version,
-                force_launcher_error=True,
+                diagnostics=diagnostics,
             )
-            _validate_receipt(receipt)
-            _publish_complete_receipt(args.receipt, receipt)
-            if diagnostics is not None:
-                diagnostics.receipt_published_by_run = True
-                diagnostics.note_job_boundary(
-                    "receipt_published", _monotonic_ns()
-                )
-            return 2
+        except AttemptLoopError as exc:
+            attempts.append(exc.attempt)
+            args.attempt_budget_completed_ns = (
+                args.last_attempt_wall_clock_sampled_ns
+            )
+            args.finalization_started_ns = (
+                args.last_attempt_wall_clock_sampled_ns
+            )
+            launcher_rc = _publish_launcher_error_receipt(
+                args,
+                attempts=attempts,
+                codex_path=codex_path,
+                codex_sha256=codex_sha256,
+                codex_version=codex_version,
+                diagnostics=diagnostics,
+            )
+            return launcher_rc
         attempts.append(attempt)
         prior["model_calls"] += attempt["model_calls"]
         prior["cli_reported"] += attempt["cli_reported"]
@@ -2556,23 +2883,20 @@ def _run_supervised(
             continue
         retry_limit: str | None = None
         retry_now_ns = _monotonic_ns()
+        retry_elapsed = _attempt_admission_elapsed_s(args, retry_now_ns)
         if prior["model_calls"] >= args.max_model_calls:
             retry_limit = "max_model_calls"
         elif prior["cli_reported"] >= args.max_cli_reported_tokens:
             retry_limit = "max_cli_reported_tokens"
-        elif (
-            Decimal(retry_now_ns - started_ns)
-            / Decimal(1_000_000_000)
-            >= args.wall_clock_admission_bound_s
-        ):
+        elif retry_elapsed >= args.wall_clock_admission_bound_s:
             retry_limit = "wall_clock_admission_bound_s"
         _record_limit_conditions(
             diagnostics.attempts[-1]
             if diagnostics is not None and diagnostics.attempts
             else None,
             site="retry_admission",
-            elapsed=Decimal(retry_now_ns - started_ns)
-            / Decimal(1_000_000_000),
+            elapsed=retry_elapsed,
+            job_elapsed=_elapsed_s(retry_now_ns, started_ns),
             model_calls=prior["model_calls"],
             cli_reported=prior["cli_reported"],
             limits=args,
@@ -2580,12 +2904,19 @@ def _run_supervised(
         if retry_limit is not None:
             attempt["limit_trigger"] = retry_limit
             break
+    args.attempt_budget_completed_ns = args.last_attempt_wall_clock_sampled_ns
+    args.finalization_started_ns = args.last_attempt_wall_clock_sampled_ns
     _latch_final_job_limit(
         args,
         attempts,
         job_started_ns=started_ns,
         diagnostics=diagnostics,
         site="post_attempt",
+    )
+    job_stop_reason = (
+        _FINALIZATION_STOP_REASON
+        if _finalization_limit_reached(args)
+        else None
     )
     receipt = _receipt(
         args,
@@ -2594,6 +2925,7 @@ def _run_supervised(
         codex_path=codex_path,
         codex_sha256=codex_sha256,
         codex_version=codex_version,
+        job_stop_reason=job_stop_reason,
     )
     # sealed artifact 再計算を含む self-check を公開前に通す。
     _audit_receipt_value(
@@ -2609,6 +2941,8 @@ def _run_supervised(
         diagnostics=diagnostics,
         site="post_first_receipt_audit",
     )
+    if job_stop_reason is None and _finalization_limit_reached(args):
+        job_stop_reason = _FINALIZATION_STOP_REASON
     receipt = _receipt(
         args,
         attempts=attempts,
@@ -2616,6 +2950,7 @@ def _run_supervised(
         codex_path=codex_path,
         codex_sha256=codex_sha256,
         codex_version=codex_version,
+        job_stop_reason=job_stop_reason,
     )
     _audit_receipt_value(
         receipt,
@@ -2654,7 +2989,9 @@ def _run_supervised(
                     diagnostics=diagnostics,
                     site="post_receipt_staging",
                 )
-                if not attempts[-1]["accepted"]:
+                if job_stop_reason is None and _finalization_limit_reached(args):
+                    job_stop_reason = _FINALIZATION_STOP_REASON
+                if not attempts[-1]["accepted"] or job_stop_reason is not None:
                     staged_receipt.unlink()
                     staged_receipt = None
                     args.output_file.unlink()
@@ -2667,6 +3004,7 @@ def _run_supervised(
                         codex_path=codex_path,
                         codex_sha256=codex_sha256,
                         codex_version=codex_version,
+                        job_stop_reason=job_stop_reason,
                     )
                     _audit_receipt_value(
                         receipt,
@@ -2686,20 +3024,72 @@ def _run_supervised(
                 )
                 staged_receipt = _stage_receipt_write(args.receipt, receipt)
 
-            assert staged_receipt is not None
-            publication_temp = staged_receipt
-            staged_receipt = None
-            _atomic_create_json_reserved(
-                args.receipt,
-                publication_temp,
-                replace_invalid=replace_invalid,
-            )
-            if diagnostics is not None:
-                diagnostics.receipt_published_by_run = True
-                diagnostics.note_job_boundary(
-                    "receipt_published", _monotonic_ns()
+            if job_stop_reason is None and _finalization_limit_reached(args):
+                job_stop_reason = _FINALIZATION_STOP_REASON
+                staged_receipt.unlink()
+                staged_receipt = None
+                if getattr(args, "output_published_by_run", False):
+                    args.output_file.unlink()
+                    _fsync_parent(args.output_file)
+                    args.output_published_by_run = False
+                receipt = _receipt(
+                    args,
+                    attempts=attempts,
+                    job_started_ns=started_ns,
+                    codex_path=codex_path,
+                    codex_sha256=codex_sha256,
+                    codex_version=codex_version,
+                    job_stop_reason=job_stop_reason,
                 )
-            return receipt["launcher_rc"]
+                _audit_receipt_value(
+                    receipt,
+                    args.manifest,
+                    expectations={},
+                    check_published_output=False,
+                )
+                staged_receipt = _stage_receipt_write(args.receipt, receipt)
+
+            assert staged_receipt is not None
+            while True:
+                published, exceeded = (
+                    _publish_reserved_receipt_with_finalization_budget(
+                        args,
+                        temporary=staged_receipt,
+                        replace_invalid=replace_invalid,
+                        allow_limit_reached=(
+                            job_stop_reason == _FINALIZATION_STOP_REASON
+                        ),
+                        diagnostics=diagnostics,
+                    )
+                )
+                if published:
+                    staged_receipt = None
+                    if exceeded and receipt["launcher_rc"] == 0:
+                        return 1
+                    return int(receipt["launcher_rc"])
+                staged_receipt.unlink()
+                staged_receipt = None
+                job_stop_reason = _FINALIZATION_STOP_REASON
+                if getattr(args, "output_published_by_run", False):
+                    args.output_file.unlink()
+                    _fsync_parent(args.output_file)
+                    args.output_published_by_run = False
+                receipt = _receipt(
+                    args,
+                    attempts=attempts,
+                    job_started_ns=started_ns,
+                    codex_path=codex_path,
+                    codex_sha256=codex_sha256,
+                    codex_version=codex_version,
+                    job_stop_reason=job_stop_reason,
+                )
+                _audit_receipt_value(
+                    receipt,
+                    args.manifest,
+                    expectations={},
+                    check_published_output=False,
+                )
+                staged_receipt = _stage_receipt_write(args.receipt, receipt)
         finally:
             if staged_receipt is not None:
                 try:
@@ -2715,7 +3105,8 @@ def _publish_launcher_error_receipt(
     codex_path: Path,
     codex_sha256: str,
     codex_version: str,
-) -> None:
+    diagnostics: LauncherDiagnosticsState | None = None,
+) -> int:
     """内部失敗を launcher-error receipt に封じる。
 
     manifest entry は費消済み session の資源台帳なので、失敗時も削除しない。
@@ -2729,6 +3120,19 @@ def _publish_launcher_error_receipt(
         args.output_published_by_run = False
     for attempt in attempts:
         attempt["accepted"] = False
+    if getattr(args, "finalization_started_ns", None) is None:
+        finalization_started_ns = _monotonic_ns()
+        args.preparation_wall_clock_s = _preparation_admission_elapsed_s(
+            args, finalization_started_ns
+        )
+        _start_finalization_once(
+            args, started_ns=finalization_started_ns
+        )
+    job_stop_reason = (
+        _FINALIZATION_STOP_REASON
+        if _finalization_limit_reached(args)
+        else None
+    )
     receipt = _receipt(
         args,
         attempts=attempts,
@@ -2736,26 +3140,63 @@ def _publish_launcher_error_receipt(
         codex_path=codex_path,
         codex_sha256=codex_sha256,
         codex_version=codex_version,
-        force_launcher_error=True,
+        force_launcher_error=job_stop_reason is None,
+        job_stop_reason=job_stop_reason,
     )
     _validate_receipt(receipt)
     with _reserve_receipt_slot(args.receipt) as replace_invalid:
         staged_receipt: Path | None = None
         try:
             staged_receipt = _stage_receipt_write(args.receipt, receipt)
-            publication_temp = staged_receipt
-            staged_receipt = None
-            _atomic_create_json_reserved(
-                args.receipt,
-                publication_temp,
-                replace_invalid=replace_invalid,
-            )
+            if job_stop_reason is None and _finalization_limit_reached(args):
+                job_stop_reason = _FINALIZATION_STOP_REASON
+                staged_receipt.unlink()
+                receipt = _receipt(
+                    args,
+                    attempts=attempts,
+                    job_started_ns=args.launcher_started_ns,
+                    codex_path=codex_path,
+                    codex_sha256=codex_sha256,
+                    codex_version=codex_version,
+                    job_stop_reason=job_stop_reason,
+                )
+                _validate_receipt(receipt)
+                staged_receipt = _stage_receipt_write(args.receipt, receipt)
+            while True:
+                published, _exceeded = (
+                    _publish_reserved_receipt_with_finalization_budget(
+                        args,
+                        temporary=staged_receipt,
+                        replace_invalid=replace_invalid,
+                        allow_limit_reached=(
+                            job_stop_reason == _FINALIZATION_STOP_REASON
+                        ),
+                        diagnostics=diagnostics,
+                    )
+                )
+                if published:
+                    staged_receipt = None
+                    break
+                staged_receipt.unlink()
+                job_stop_reason = _FINALIZATION_STOP_REASON
+                receipt = _receipt(
+                    args,
+                    attempts=attempts,
+                    job_started_ns=args.launcher_started_ns,
+                    codex_path=codex_path,
+                    codex_sha256=codex_sha256,
+                    codex_version=codex_version,
+                    job_stop_reason=job_stop_reason,
+                )
+                _validate_receipt(receipt)
+                staged_receipt = _stage_receipt_write(args.receipt, receipt)
         finally:
             if staged_receipt is not None:
                 try:
                     staged_receipt.unlink()
                 except FileNotFoundError:
                     pass
+    return receipt["launcher_rc"]
 
 
 def _launcher_diagnostics_document(
@@ -2793,6 +3234,17 @@ def _launcher_diagnostics_document(
         "job_elapsed_s_at": {
             name: _elapsed_s(now_ns, diagnostics.job_started_ns)
             for name, now_ns in diagnostics.job_boundaries_ns.items()
+        },
+        "finalization_publication": {
+            "gate_elapsed_s": (
+                diagnostics.finalization_publication_gate_elapsed_s
+            ),
+            "completed_elapsed_s": (
+                diagnostics.finalization_publication_completed_elapsed_s
+            ),
+            "limit_exceeded_after_publication": (
+                diagnostics.finalization_limit_exceeded_after_publication
+            ),
         },
         "attempts": [item.as_document() for item in diagnostics.attempts],
     }
@@ -2857,6 +3309,14 @@ def _publish_launcher_diagnostics_without_changing_result(
 
 
 def _run(args: argparse.Namespace) -> int:
+    args.codex_version_wall_clock_s = Decimal(0)
+    args.preparation_wall_clock_s = Decimal(0)
+    args.preparation_completed_ns = None
+    args.attempt_budget_started_ns = None
+    args.attempt_budget_completed_ns = None
+    args.last_attempt_wall_clock_sampled_ns = None
+    args.last_attempt_sealed_ns = None
+    args.finalization_started_ns = None
     codex_path, codex_sha256, codex_version = _preflight_run(args)
     attempts: list[dict[str, Any]] = []
     args.output_published_by_run = False
@@ -2879,21 +3339,21 @@ def _run(args: argparse.Namespace) -> int:
                 diagnostics=diagnostics,
             )
         except BaseException as exc:
+            published_rc: int | None = None
             try:
-                _publish_launcher_error_receipt(
+                published_rc = _publish_launcher_error_receipt(
                     args,
                     attempts=attempts,
                     codex_path=codex_path,
                     codex_sha256=codex_sha256,
                     codex_version=codex_version,
-                )
-                diagnostics.receipt_published_by_run = True
-                diagnostics.note_job_boundary(
-                    "receipt_published", _monotonic_ns()
+                    diagnostics=diagnostics,
                 )
             except BaseException:
                 # receipt 競合の敗者は勝者の完全 receipt を上書きしない。
                 pass
+            if published_rc == 1:
+                return 1
             if isinstance(exc, (LaunchError, OSError, ValueError)):
                 raise
             if not isinstance(exc, Exception):
@@ -3031,7 +3491,7 @@ def _validate_receipt(value: object) -> dict[str, Any]:
     if (
         isinstance(schema_version, bool)
         or not isinstance(schema_version, int)
-        or schema_version not in (1, 2, 3)
+        or schema_version not in (1, 2, 3, 4)
     ):
         raise LaunchError("receipt.schema_version が不正")
     actual_fields = frozenset(value)
@@ -3046,8 +3506,10 @@ def _validate_receipt(value: object) -> dict[str, Any]:
             expected_fields = _RECEIPT_FIELDS_V1
     elif schema_version == 2:
         expected_fields = _RECEIPT_FIELDS_V2
-    else:
+    elif schema_version == 3:
         expected_fields = _RECEIPT_FIELDS_V3
+    else:
+        expected_fields = _RECEIPT_FIELDS_V4
     receipt = dict(_closed_object(value, expected_fields, label="receipt"))
     if (
         not isinstance(receipt["job_id"], str)
@@ -3059,7 +3521,7 @@ def _validate_receipt(value: object) -> dict[str, Any]:
         or _SHA256_RE.fullmatch(receipt["prompt_sha256"]) is None
     ):
         raise LaunchError("receipt.prompt_sha256 が不正")
-    if schema_version == 3:
+    if schema_version in (3, 4):
         if receipt["stage"] not in STAGES:
             raise LaunchError("receipt.stage が不正")
         if (receipt["stage"] == "consult") != (
@@ -3105,11 +3567,11 @@ def _validate_receipt(value: object) -> dict[str, Any]:
         "artifact_dir",
         "output_path",
         "manifest_path",
-        *(('receipt_path',) if schema_version == 3 else ()),
+        *(('receipt_path',) if schema_version in (3, 4) else ()),
         "codex_executable_path",
     ):
         _absolute_path(receipt[field_name], label=f"receipt.{field_name}")
-    if schema_version == 3:
+    if schema_version in (3, 4):
         for field_name in ("repo_root", "sessions_root"):
             _absolute_path(receipt[field_name], label=f"receipt.{field_name}")
         if (
@@ -3126,7 +3588,7 @@ def _validate_receipt(value: object) -> dict[str, Any]:
         or _COMMIT_RE.fullmatch(receipt["manifest_base_commit"]) is None
     ):
         raise LaunchError("receipt.manifest_base_commit が不正")
-    if schema_version == 3:
+    if schema_version in (3, 4):
         snapshot = _closed_object(
             receipt["authority_snapshot"],
             _AUTHORITY_SNAPSHOT_FIELDS,
@@ -3194,7 +3656,7 @@ def _validate_receipt(value: object) -> dict[str, Any]:
     if "wall_clock_scope" in receipt:
         expected_wall_scope = (
             "launcher_start_to_receipt_fields_finalized"
-            if schema_version in (2, 3)
+            if schema_version in (2, 3, 4)
             else "launcher_process"
         )
         if receipt["wall_clock_scope"] != expected_wall_scope:
@@ -3203,22 +3665,48 @@ def _validate_receipt(value: object) -> dict[str, Any]:
         raise LaunchError("receipt.retry_classification が不正")
     if receipt["escaped_process_containment"] != "not_attempted":
         raise LaunchError("receipt.escaped_process_containment が不正")
-    limits = _closed_object(receipt["limits"], _LIMIT_FIELDS, label="limits")
+    limit_fields = _LIMIT_FIELDS_V4 if schema_version == 4 else _LIMIT_FIELDS
+    limits = _closed_object(receipt["limits"], limit_fields, label="limits")
     _strict_number(
         limits["wall_clock_admission_bound_s"],
         label="limits.wall_clock_admission_bound_s",
         positive=True,
     )
+    if schema_version == 4:
+        for field_name in (
+            "preparation_admission_bound_s",
+            "finalization_admission_bound_s",
+        ):
+            _strict_number(
+                limits[field_name],
+                label=f"limits.{field_name}",
+                positive=True,
+            )
     for field_name in (
         "max_model_calls",
         "max_cli_reported_tokens",
         "max_attempts",
     ):
         _strict_int(limits[field_name], label=f"limits.{field_name}", minimum=1)
-    actuals = _closed_object(receipt["actuals"], _ACTUAL_FIELDS, label="actuals")
+    actual_fields = _ACTUAL_FIELDS_V4 if schema_version == 4 else _ACTUAL_FIELDS
+    actuals = _closed_object(receipt["actuals"], actual_fields, label="actuals")
     _strict_number(actuals["wall_clock_s"], label="actuals.wall_clock_s")
     for field_name in _ACTUAL_FIELDS - {"wall_clock_s"}:
         _strict_int(actuals[field_name], label=f"actuals.{field_name}")
+    if schema_version == 4:
+        for field_name in (
+            "preparation_wall_clock_s",
+            "finalization_wall_clock_s",
+        ):
+            _strict_number(
+                actuals[field_name], label=f"actuals.{field_name}"
+            )
+        if (
+            Decimal(actuals["preparation_wall_clock_s"])
+            + Decimal(actuals["finalization_wall_clock_s"])
+            > Decimal(actuals["wall_clock_s"])
+        ):
+            raise LaunchError("receipt V4 区間 actuals が総 wall を超える")
     if actuals["cached_input_tokens"] > actuals["input_tokens"]:
         raise LaunchError("actuals cached_input_tokens が input_tokens を超える")
     if actuals["cli_reported"] != _cli_reported(actuals):
@@ -3251,16 +3739,30 @@ def _validate_receipt(value: object) -> dict[str, Any]:
         "launcher_error",
     ):
         raise LaunchError("receipt.outcome が不正")
-    if receipt["stop_reason"] not in _STOP_REASONS:
+    stop_reasons = _STOP_REASONS_V4 if schema_version == 4 else _STOP_REASONS
+    if receipt["stop_reason"] not in stop_reasons:
         raise LaunchError("receipt.stop_reason が不正")
     if receipt["launcher_rc"] not in (0, 1, 2):
         raise LaunchError("receipt.launcher_rc が不正")
-    if not attempts and receipt["outcome"] != "launcher_error":
+    preparation_stop = bool(
+        schema_version == 4
+        and receipt["stop_reason"] == _PREPARATION_STOP_REASON
+    )
+    finalization_stop = bool(
+        schema_version == 4
+        and receipt["stop_reason"] == _FINALIZATION_STOP_REASON
+    )
+    if (
+        not attempts
+        and receipt["outcome"] != "launcher_error"
+        and not preparation_stop
+        and not finalization_stop
+    ):
         raise LaunchError("attempts 空は launcher_error だけで許可される")
     # Checker-side truth table: writer の _writer_truth から独立に閉じる。
     accepted_count = sum(bool(item["accepted"]) for item in attempts)
     authority_retry_rejected = bool(
-        schema_version == 3
+        schema_version in (3, 4)
         and attempts
         and attempts[-1]["accepted"]
         and any(item["evidence_status"] != "complete" for item in attempts)
@@ -3270,15 +3772,31 @@ def _validate_receipt(value: object) -> dict[str, Any]:
         for item in attempts
         if item["limit_trigger"] is not None
     ]
+    admission_wall_clock_s = Decimal(actuals["wall_clock_s"])
+    if schema_version == 4:
+        admission_wall_clock_s -= Decimal(
+            actuals["preparation_wall_clock_s"]
+        ) + Decimal(actuals["finalization_wall_clock_s"])
+    attempt_wall_within_limit = (
+        admission_wall_clock_s
+        <= Decimal(limits["wall_clock_admission_bound_s"])
+    )
     if receipt["outcome"] == "accepted":
         within_limits = (
-            Decimal(actuals["wall_clock_s"])
-            <= Decimal(limits["wall_clock_admission_bound_s"])
+            attempt_wall_within_limit
             and actuals["model_calls"] <= limits["max_model_calls"]
             and actuals["cli_reported"]
             <= limits["max_cli_reported_tokens"]
             and actuals["attempt_count"] <= limits["max_attempts"]
         )
+        if schema_version == 4:
+            within_limits = bool(
+                within_limits
+                and Decimal(actuals["preparation_wall_clock_s"])
+                < Decimal(limits["preparation_admission_bound_s"])
+                and Decimal(actuals["finalization_wall_clock_s"])
+                < Decimal(limits["finalization_admission_bound_s"])
+            )
         valid_truth = (
             receipt["stop_reason"] == "completed"
             and receipt["launcher_rc"] == 0
@@ -3290,23 +3808,56 @@ def _validate_receipt(value: object) -> dict[str, Any]:
             and receipt["output_sha256"] == attempts[-1]["output_sha256"]
         )
     elif receipt["outcome"] == "not_accepted":
-        expected_stop = triggered[0] if triggered else "max_attempts"
-        valid_truth = (
-            receipt["stop_reason"] == expected_stop
-            and receipt["launcher_rc"] == 1
-            and (accepted_count == 0 or authority_retry_rejected)
-            and receipt["output_sha256"] is None
-        )
+        if preparation_stop:
+            valid_truth = bool(
+                not attempts
+                and receipt["launcher_rc"] == 1
+                and receipt["codex_exit_code"] is None
+                and receipt["validator_rc"] is None
+                and receipt["output_sha256"] is None
+                and Decimal(actuals["preparation_wall_clock_s"])
+                >= Decimal(limits["preparation_admission_bound_s"])
+                and Decimal(actuals["finalization_wall_clock_s"])
+                < Decimal(limits["finalization_admission_bound_s"])
+                and attempt_wall_within_limit
+            )
+        elif finalization_stop:
+            valid_truth = bool(
+                receipt["launcher_rc"] == 1
+                and accepted_count <= 1
+                and receipt["output_sha256"] is None
+                and Decimal(actuals["finalization_wall_clock_s"])
+                >= Decimal(limits["finalization_admission_bound_s"])
+                and attempt_wall_within_limit
+            )
+        else:
+            expected_stop = triggered[0] if triggered else "max_attempts"
+            attempt_wall_truth = True
+            if schema_version == 4:
+                attempt_wall_truth = (
+                    admission_wall_clock_s
+                    >= Decimal(limits["wall_clock_admission_bound_s"])
+                    if expected_stop == "wall_clock_admission_bound_s"
+                    else attempt_wall_within_limit
+                )
+            valid_truth = (
+                receipt["stop_reason"] == expected_stop
+                and receipt["launcher_rc"] == 1
+                and (accepted_count == 0 or authority_retry_rejected)
+                and receipt["output_sha256"] is None
+                and attempt_wall_truth
+            )
     else:
         valid_truth = (
             receipt["stop_reason"] == "launcher_error"
             and receipt["launcher_rc"] == 2
             and accepted_count == 0
             and receipt["output_sha256"] is None
+            and (schema_version != 4 or attempt_wall_within_limit)
         )
     if not valid_truth:
         raise LaunchError("receipt truth table が不正")
-    if schema_version == 3 and receipt["outcome"] == "accepted":
+    if schema_version in (3, 4) and receipt["outcome"] == "accepted":
         if not (
             receipt["recorded_model"] == receipt["requested_model"]
             and receipt["recorded_effort"] == receipt["requested_effort"]
@@ -3423,18 +3974,18 @@ def _recompute_attempt_metering(
 def _check_external_expectations(
     receipt: Mapping[str, Any], expectations: Mapping[str, Any]
 ) -> list[str]:
-    v3 = receipt["schema_version"] == 3
+    modern = receipt["schema_version"] in (3, 4)
     direct = {
         "prompt_sha256": "prompt_sha256",
         "job_id": "job_id",
         "wave_id": "manifest_wave_id",
-        "repo_root": "repo_root" if v3 else "manifest_repo_root",
-        "base_commit": "base_commit" if v3 else "manifest_base_commit",
+        "repo_root": "repo_root" if modern else "manifest_repo_root",
+        "base_commit": "base_commit" if modern else "manifest_base_commit",
         "output_path": "output_path",
-        "model": "requested_model" if v3 else "model",
-        "reasoning": "requested_effort" if v3 else "reasoning",
+        "model": "requested_model" if modern else "model",
+        "reasoning": "requested_effort" if modern else "reasoning",
         "sandbox": "sandbox",
-        "cwd": "requested_cwd" if v3 else "cwd",
+        "cwd": "requested_cwd" if modern else "cwd",
     }
     for option_name, receipt_name in direct.items():
         expected = expectations.get(option_name)
@@ -3445,10 +3996,21 @@ def _check_external_expectations(
         ):
             raise LaunchError(f"external expectation {option_name} が不一致")
     limit_names = (
-        "wall_clock_admission_bound_s",
-        "max_model_calls",
-        "max_cli_reported_tokens",
-        "max_attempts",
+        (
+            "preparation_admission_bound_s",
+            "wall_clock_admission_bound_s",
+            "finalization_admission_bound_s",
+            "max_model_calls",
+            "max_cli_reported_tokens",
+            "max_attempts",
+        )
+        if receipt["schema_version"] == 4
+        else (
+            "wall_clock_admission_bound_s",
+            "max_model_calls",
+            "max_cli_reported_tokens",
+            "max_attempts",
+        )
     )
     self_asserted: list[str] = []
     for field_name in limit_names:
@@ -3457,7 +4019,11 @@ def _check_external_expectations(
             self_asserted.append(field_name)
             continue
         actual = receipt["limits"][field_name]
-        if field_name == "wall_clock_admission_bound_s":
+        if field_name in (
+            "preparation_admission_bound_s",
+            "wall_clock_admission_bound_s",
+            "finalization_admission_bound_s",
+        ):
             matches = Decimal(actual) == Decimal(expected)
         else:
             matches = actual == expected
@@ -3490,13 +4056,15 @@ def _audit_receipt_value(
     executable bytes の hash だけを再束縛する。
     """
     receipt = _validate_receipt(receipt_value)
-    v3 = receipt["schema_version"] == 3
-    requested_model = receipt["requested_model"] if v3 else receipt["model"]
-    requested_effort = (
-        receipt["requested_effort"] if v3 else receipt["reasoning"]
+    modern = receipt["schema_version"] in (3, 4)
+    requested_model = (
+        receipt["requested_model"] if modern else receipt["model"]
     )
-    requested_cwd = receipt["requested_cwd"] if v3 else receipt["cwd"]
-    if v3:
+    requested_effort = (
+        receipt["requested_effort"] if modern else receipt["reasoning"]
+    )
+    requested_cwd = receipt["requested_cwd"] if modern else receipt["cwd"]
+    if modern:
         try:
             historical = snapshot_authority(
                 Path(receipt["repo_root"]),
@@ -3531,9 +4099,9 @@ def _audit_receipt_value(
         )
         if manifest["wave_id"] != receipt["manifest_wave_id"]:
             raise LaunchError("receipt と manifest の wave_id が不一致")
-        if v3:
+        if modern:
             if manifest["schema_version"] != 2:
-                raise LaunchError("receipt v3 には manifest v2 が必要")
+                raise LaunchError("receipt v3/v4 には manifest v2 が必要")
         else:
             if manifest["schema_version"] != 1:
                 raise LaunchError("receipt v1/v2 には manifest v1 が必要")
@@ -3617,7 +4185,7 @@ def _audit_receipt_value(
             )
         ):
             raise LaunchError("attempt session が manifest に無い")
-        if v3 and manifest is not None:
+        if modern and manifest is not None:
             for session_id in rollout_session_ids:
                 matching = [
                     item
@@ -3639,11 +4207,11 @@ def _audit_receipt_value(
                     "authority_digest": receipt["authority_snapshot"]["digest"],
                 }
                 if len(matching) != 1:
-                    raise LaunchError("receipt v3 session が manifest v2 に一意でない")
+                    raise LaunchError("receipt v3/v4 session が manifest v2 に一意でない")
                 for field_name in expected_entry:
                     if matching[0][field_name] != expected_entry[field_name]:
                         raise LaunchError(
-                            f"receipt v3 と manifest v2 の {field_name} が不一致"
+                            f"receipt v3/v4 と manifest v2 の {field_name} が不一致"
                         )
     for field_name in _ACTUAL_FIELDS - {"wall_clock_s", "attempt_count"}:
         recomputed = sum(item[field_name] for item in recomputed_attempts)
@@ -3651,7 +4219,7 @@ def _audit_receipt_value(
             raise LaunchError(f"actuals.{field_name} sealed artifact 再計算が不一致")
     if receipt["actuals"]["attempt_count"] != len(recomputed_attempts):
         raise LaunchError("actuals.attempt_count 再計算が不一致")
-    if v3:
+    if modern:
         model, effort, count, cwd = _recorded_summary(receipt["attempts"])
         if (
             receipt["recorded_model"] != model
@@ -3744,6 +4312,16 @@ def _parser() -> argparse.ArgumentParser:
     run.add_argument(
         "--wall-clock-admission-bound-s", type=_positive_decimal, required=True
     )
+    run.add_argument(
+        "--preparation-admission-bound-s",
+        type=_positive_decimal,
+        default=Decimal("60"),
+    )
+    run.add_argument(
+        "--finalization-admission-bound-s",
+        type=_positive_decimal,
+        default=Decimal("60"),
+    )
     run.add_argument("--max-model-calls", type=_positive_int, required=True)
     run.add_argument(
         "--max-cli-reported-tokens", type=_positive_int, required=True
@@ -3788,6 +4366,12 @@ def _parser() -> argparse.ArgumentParser:
     check.add_argument(
         "--expect-wall-clock-admission-bound-s", type=_positive_decimal
     )
+    check.add_argument(
+        "--expect-preparation-admission-bound-s", type=_positive_decimal
+    )
+    check.add_argument(
+        "--expect-finalization-admission-bound-s", type=_positive_decimal
+    )
     check.add_argument("--expect-max-model-calls", type=_positive_int)
     check.add_argument(
         "--expect-max-cli-reported-tokens", type=_positive_int
@@ -3827,6 +4411,12 @@ def main(argv: Sequence[str] | None = None) -> int:
                 else None
             ),
             "wall_clock_admission_bound_s": args.expect_wall_clock_admission_bound_s,
+            "preparation_admission_bound_s": (
+                args.expect_preparation_admission_bound_s
+            ),
+            "finalization_admission_bound_s": (
+                args.expect_finalization_admission_bound_s
+            ),
             "max_model_calls": args.expect_max_model_calls,
             "max_cli_reported_tokens": (
                 args.expect_max_cli_reported_tokens
