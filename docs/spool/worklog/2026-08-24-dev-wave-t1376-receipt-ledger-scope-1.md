@@ -25,7 +25,13 @@ title: [T-1376] COMMIT receipt の一回限り保証を ledger 単位へ限定�
 - canonical acceptance は T-1520 取り込み後の tip `bb357ad1` で `child-green`、red/flake 0。
   初回 waiter は source mismatch を検出して test 投入前に `restart-required` となり、新 tip から
   起動し直した2回目で成功した。段9 land は lock 内で main が `26c8979f` へ進んだため
-  `stale-main` で停止し、main は変更していない。fresh context で再受入・land する。
+  `stale-main` で停止し、main は変更していない。
+- fresh context で main `4b53d1b7` までの後続を監査し、所有 path の重複が D525 への限定訂正と
+  後続 decision 追記だけであることを確認した。固定 SHA の merge `28b46036` 後、resume gate、
+  T-1286 焦点走 18 passed、Codex agent 検査、docs 検査、spool dry-run を再度通した。
+- canonical acceptance の最初の再投入は、停止用 handoff が着地対象に残ることを投入後に検出して
+  receipt 発行前に中断した。受入結果には数えず、本 fragment へ進捗を吸収して handoff を削除した
+  clean tip から再投入する。
 
 ## 次の一手差分
 
