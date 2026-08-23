@@ -1149,6 +1149,38 @@ def test_real_repo_group_collection_exactly_matches_canonical_nodes():
     _assert_real_repo_collection_order(report)
 
 
+def test_shard_assignment_preserves_live_xdist_group_components_and_split_control():
+    """実 collection marker から作る shard 閉包と、意図的 split の殺傷点。"""
+    _require_pytest()
+    from tools import acceptance_shards
+
+    report = _collect_xdist_group_report(HERE, cwd=ROOT)
+    records = []
+    for entry in report:
+        marks = entry["marks"]
+        group = marks[0]["args"][0] if marks else None
+        nodeid = entry["nodeid"]
+        filename = nodeid.partition("::")[0]
+        records.append(acceptance_shards.ItemRecord(nodeid, filename, group))
+    records = tuple(sorted(records))
+    assignment = acceptance_shards.allocate(records, 3)
+    assert acceptance_shards.assignment_closure_gate(records, assignment.selected)
+
+    real_repo_nodes = [
+        record.nodeid for record in records if record.group == "real-repo"
+    ]
+    assert len(real_repo_nodes) >= 2, "split positive control に必要な実 group が小さすぎる"
+    split = [list(nodeids) for nodeids in assignment.selected]
+    first = real_repo_nodes[0]
+    source = next(index for index, nodeids in enumerate(split) if first in nodeids)
+    destination = (source + 1) % len(split)
+    split[source].remove(first)
+    split[destination].append(first)
+    assert not acceptance_shards.assignment_closure_gate(records, split), (
+        "実 real-repo group を跨がせた positive control が拒否されなかった"
+    )
+
+
 def test_xdist_group_audit_rejects_synthetic_negative_controls():
     """kwargs・二重 marker の shape 負例が監査を必ず赤にする。"""
     _require_pytest()

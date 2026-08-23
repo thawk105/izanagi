@@ -1,5 +1,6 @@
 import hashlib
 import json
+import os
 from pathlib import Path
 import sys
 import tempfile
@@ -126,6 +127,29 @@ def test_nonexact_runner_argv_is_rejected():
                 assert "argv" in str(exc)
             else:
                 raise AssertionError(f"nonexact argv was accepted: {argv!r}")
+
+
+def test_shard_activation_does_not_expand_exact_outer_runner_argv():
+    saved = os.environ.get("IZANAGI_ACCEPTANCE_SHARDS")
+    os.environ["IZANAGI_ACCEPTANCE_SHARDS"] = "3"
+    try:
+        with tempfile.TemporaryDirectory() as raw_root:
+            config = _config(Path(raw_root).resolve())
+            for argv in (
+                ("python3", "tools/run_tests.py", "--izanagi-acceptance-shard-count=3"),
+                ("python3", "tools/run_tests.py", "-q"),
+            ):
+                try:
+                    launcher._validate_config(config, argv)
+                except launcher.LauncherFailure as exc:
+                    assert "argv" in str(exc)
+                else:
+                    raise AssertionError(f"shard mode expanded outer argv: {argv!r}")
+    finally:
+        if saved is None:
+            os.environ.pop("IZANAGI_ACCEPTANCE_SHARDS", None)
+        else:
+            os.environ["IZANAGI_ACCEPTANCE_SHARDS"] = saved
 
 
 def test_blob_bootstrap_uses_canonical_file_without_pathname_reload():
