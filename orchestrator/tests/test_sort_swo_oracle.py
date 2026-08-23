@@ -1109,12 +1109,12 @@ def test_axiom_checker_source_digest_changes_with_source_text(monkeypatch):
 
 def test_contract_manifest_hashes_and_literal_are_exact_snapshot():
     assert O.CORPUS_SHA256 == "436a66d9d5d583e52f5d76c60b4add78c4e252dec471ff8b9620dbf8149bf253"
-    assert O.TU_TEMPLATE_SHA256 == "d88f98bc19911ae7ddd3049731614c0c661a2fe7c0c36c07aebd74281a07d956"
+    assert O.TU_TEMPLATE_SHA256 == "d1a5e422e226240f286f302a4addde79740547682b538d2b46ebfd9dfdd32bca"
     assert O.COMPILE_FLAGS_SHA256 == "7ad0ac2625612307826a109b20f11af4beb8cbf124ad8a2e291f85ec63cbde1e"
     assert O.ORACLE_CONTRACT_ID == (
         "sort-swo-v3-corpus1-protocol2-checker2-grammar1-"
-        "x2b6d45baab3f921208db25299b8622592c484dfb28bebeb8d2cf976fe38474f9-"
-        "c436a66d9d5d5-tud88f98bc1991-f7ad0ac262561-a215b718a5bfe"
+        "x67c3a5d76f3b1604c57d33ab7d0af15f4aaafa896b4810d7c3c95d812d48faa0-"
+        "c436a66d9d5d5-tud1a5e422e226-f7ad0ac262561-a215b718a5bfe"
     )
     assert (O.CONTRACT_VERSION, O.CORPUS_VERSION, O.PROTOCOL_VERSION,
             O.AXIOM_CHECKER_VERSION, O.GRAMMAR_VERSION) == (3, 1, 2, 2, 1)

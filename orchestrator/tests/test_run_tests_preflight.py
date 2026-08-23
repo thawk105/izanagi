@@ -32,6 +32,14 @@ assert _SPEC and _SPEC.loader
 RT = importlib.util.module_from_spec(_SPEC)
 _SPEC.loader.exec_module(RT)
 
+_SYNTHETIC_SORT_SWO_EXCLUSION = RT._PermanentExclusion(
+    path=RT._SANCTIONED_SORT_SWO_ORACLE_PATH,
+    reason="synthetic exclusion mechanism test",
+    release_condition="synthetic release condition",
+    ruling="{{D:synthetic-exclusion}}",
+)
+_SYNTHETIC_SORT_SWO_EXCLUSIONS = (_SYNTHETIC_SORT_SWO_EXCLUSION,)
+
 _EXPECTED_PEGASUS_DISPATCH_EXEMPT_FLAGS = frozenset({
     "--collect-only",
     "--co",
@@ -2570,7 +2578,6 @@ def test_main_assembles_absolute_relative_target_from_other_cwd(
     ) == 0
     assert captured["command"] == [
         sys.executable, "-m", "pytest",
-        f"--ignore={RT._SANCTIONED_SORT_SWO_ORACLE_PATH}",
         f"{target.resolve()}::test_sample",
     ]
     assert captured["kwargs"] == {"cwd": str(_REPO)}
@@ -2598,7 +2605,6 @@ def test_main_absolutizes_plain_relative_target_from_other_cwd(
     assert RT.main(["test_sample.py"], site=RT.site_policy.OTHER) == 0
     assert captured["command"] == [
         sys.executable, "-m", "pytest",
-        f"--ignore={RT._SANCTIONED_SORT_SWO_ORACLE_PATH}",
         str(target.resolve()),
     ]
     assert captured["kwargs"] == {"cwd": str(_REPO)}
@@ -2627,11 +2633,9 @@ def test_main_absolutizes_plain_relative_target_from_other_cwd(
 def test_main_option_values_do_not_suppress_default_target(
     monkeypatch, args, expected_tail, expected_exclusion, table_active,
 ):
-    monkeypatch.setattr(
-        RT,
-        "_PERMANENT_FULL_SUITE_EXCLUSIONS",
-        RT._SELECTION_CONTRACT.SANCTIONED_EXCLUSIONS if table_active else (),
-    )
+    entries = _SYNTHETIC_SORT_SWO_EXCLUSIONS if table_active else ()
+    monkeypatch.setattr(RT._SELECTION_CONTRACT, "SANCTIONED_EXCLUSIONS", entries)
+    monkeypatch.setattr(RT, "_PERMANENT_FULL_SUITE_EXCLUSIONS", entries)
     captured = {}
     monkeypatch.setattr(RT, "_preflight_unstaged_deletions", lambda values, repo: 0)
     monkeypatch.setattr(RT, "_preflight_ruleops", lambda values, repo: 0)

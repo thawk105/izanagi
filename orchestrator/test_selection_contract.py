@@ -39,13 +39,7 @@ class Exclusion:
 SANCTIONED_SORT_SWO_ORACLE_PATH = normalize_path(
     _REPO_ROOT / "orchestrator" / "tests" / "test_sort_swo_oracle.py"
 )
-SANCTIONED_EXCLUSION = Exclusion(
-    path=SANCTIONED_SORT_SWO_ORACLE_PATH,
-    reason="受入全走から恒久除外するユーザー裁定",
-    release_condition="config.h の欠落解消と受入緑を確認し、表からこの entry を削除する",
-    ruling="{{D:sort-swo-oracle-removal}}",
-)
-SANCTIONED_EXCLUSIONS = (SANCTIONED_EXCLUSION,)
+SANCTIONED_EXCLUSIONS: tuple[Exclusion, ...] = ()
 
 
 def _entry_payload(entry: Exclusion) -> dict[str, str]:
