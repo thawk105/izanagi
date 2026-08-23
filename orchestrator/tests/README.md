@@ -96,7 +96,7 @@ worker 起動コストが利得を食い 96 は 32 より遅い)。明示上書�
 - **前の記録と比べるときは同じ checkout で測り直す。** 別 checkout の値との差は修正効果と
   交絡して帰属できない。記録には測った checkout を必ず併記する (dev-wave 側の義務は
   `docs/dev-wave/operations.md` DW-O18、実行環境の確定義務は同 `core.md` DW-S01)
-- 依存物 (submodule・g++-13・実 Silo サンプル) の在庫も checkout と環境で変わる —
+- 依存物 (submodule・g++-13) の在庫も checkout と環境で変わる —
   skip で失われた検出力は rc と一緒に記録する (「依存物不在時の skip」参照)。新しい worktree
   では CCBench submodule の実体化が必要で、未実体化だと real-repo 系が skip でなく赤になる
   (2026-07-28 実測: 42 failed)。`--reference` clone は `objects/info/alternates` を freeze 検証が
@@ -187,7 +187,7 @@ pytest 専用テストで、`python3 file.py` 直接実行は no-op (偽緑で�
 
 ## 依存物不在時の skip (可視化)
 
-gnuplot / 実 Silo サンプル / submodule / C++ toolchain (g++-13) が無い環境では、
+gnuplot / submodule / C++ toolchain (g++-13) が無い環境では、
 該当テストは `skiputil.skip()` で **skip として数える**。print + return の疑似
 スキップは PASS に数えられ、「fresh clone で load-bearing テストが空虚に緑」という
 カバレッジ蒸発を隠すため使わない (audit 2026-06-30 §3)。skip は依存物の**具体的な
@@ -197,12 +197,14 @@ gnuplot / 実 Silo サンプル / submodule / C++ toolchain (g++-13) が無い�
 **この分類は外部依存物の不在だけを数える。** 前提が repo 内に揃っているのに走らない skip は
 別分類であり、下の「条件付き未実走」へ数える。census を作るときに混ぜてはならない。
 
-- **実 Silo サンプル** (`output/runs/silo-sample`, 184k txn / 66MB):
-  `test_verifier.test_real_silo_serializable` (規律2 の緑の地面) が使う。
-  `.gitignore` の `output/runs/` 包括無視で git 追跡外のため fresh clone には無い。
-  再生成: trace-enabled build (`build-trace`, `-DCCBENCH_TRACE=1`) で `ycsb_silo` を
-  回し trace を `output/runs/silo-sample/` に置く (patches/README.md の trace 手順、
-  worklog 2026-06-18 参照)。
+**実 Silo トレースはこの分類から外れた。** 規律2 の実データ地面は、追跡下の
+`orchestrator/tests/fixtures/g5_silo_real_prefix/` (実 emitter が吐いた bytes の
+commit-stamp prefix) が担い、`test_verifier.test_real_silo_serializable` は
+**どの checkout でも必ず実走する**。追跡外の大規模サンプル `output/runs/silo-sample` は、
+置いた機体でだけ同じ node の中で追加検証される任意入力であり、不在でも skip しない
+(必須検査は既に完了しているため)。fixture の由来・再生成手順・判定既知の根拠は
+`fixtures/README.md` が正本。
+
 - **submodule**: `git submodule update --init external/ccbench` 後に
   source_digest / EVOLVE-BLOCK / S-1 freeze 生成系テストが有効化される。submodule 実ファイル
   (`cmake/Options.cmake` / `include/backoff.hh` / `cc/silo/CMakeLists.txt`) を直接読む
@@ -214,6 +216,15 @@ gnuplot / 実 Silo サンプル / submodule / C++ toolchain (g++-13) が無い�
   (D23)。preprocess を駆動する source_digest / diff-of-diffs 系テストは、
   `g++-13` が PATH に無い環境では `_require_g13()` で skip する
   (`_fake_ccbench_repo()` で submodule 非依存に走るものも、preprocess 段で g++-13 が要る)。
+  **pinned toolchain はこの不在を解消しない** (2026-08-23 実測)。
+  `orchestrator/qualification/submission.py` の `prepare_toolchain()` は
+  `shutil.which("g++-13")` で PATH 上の実体を解決して realpath と sha256 を記録するだけで、
+  compiler を導入する経路を持たない。T-1461 の staged FetchContent も masstree / mimalloc /
+  googletest の**ソース**転送であって compiler は対象外である。**ただしこの skip 群が
+  g++-13 を要するのはテストがその名前を literal で渡すからであり、性質が版に依存するからでは
+  ない** — 本番 campaign 自体、`buildcache.compilers_for_current_site()` により Pegasus
+  計算ノードでは素の `g++` を使う。規範 compiler をどちらに置くかは未裁定である
+  ([T-790] の再裁定に含める)。
 - **gnuplot**: `test_reports.test_make_plot_generates_valid_png` のみ。
 - **pinned Codex runtime** (pinned codex + 同梱 bwrap + trusted busybox):
   `test_codex_role_runtime` の runtime 系。codex の auto-update でピンがずれると
@@ -244,12 +255,36 @@ rc=0 で当たる。適用は `orchestrator/campaign/patchharness.py` の `appli
 本番経路が実際に使っている機構である。4 node は `conftest.py` の `REAL_REPO_SERIAL_NODES` へ
 登録済みで xdist の `real-repo` group で直列化されるため、並列との衝突も無い。
 
-**それでも受入 suite では窓を開けない (ユーザー裁定)。** 開けても実効回収は 4 node 中 2 node に
-留まる — `test_source_digest_fixed_variant_distinct` は `_require_g13()` 相当のガードを持たない
-まま `source_digest.src_token` を呼ぶため、pinned compiler が無い環境では skip でなく未捕捉
-RuntimeError = 赤になる。回収 2 node と引き換えに、受入全走という共有の関門へ実 submodule を
-変異させる箇所が 4 増える。費用対効果が pinned compiler の在庫に依存するので、在庫が入るまでは
-開けない。隔離 checkout でこの境界を測る経路は別タスクとして起票してある。
+**それでも受入 suite では窓を開けない (ユーザー裁定、[T-790])。** 開けても実効回収は
+4 node 中 2 node に留まる。回収 2 node と引き換えに、受入全走という共有の関門へ実 submodule の
+作業ツリーを変異させる箇所が増える。隔離 checkout でこの境界を測る経路は別タスクとして
+起票してある。
+
+**2026-08-23 の実測。** 隔離 worktree で template patch を campaign 本番経路
+`patchharness.applied()` により実適用し、4 node を実走した。`parse_options_defaults` と
+`test_real_submodule_payload_edit` は PASSED、`failsclosed_on_missing_define` は
+`_require_g13()` で skip、`fixed_variant_distinct` はガードを持たないまま
+`source_digest.src_token` を呼んで未捕捉 RuntimeError = 赤になった。上の「実効回収 2 node」は
+この形で再現する。**このガード欠落は同日に修理済み**で、以後は赤でなく依存物不在 skip に落ちる
+(`test_skip_classification.py::test_conditional_preprocess_nodes_require_g13` が結線を固定する)。
+
+**費用の数値は次のとおり。** 現在この suite は実 submodule の**作業ツリー**を変異させる node を
+持たない — `patchharness.applied()` の呼出しはすべて `_fake_ccbench_repo()` の tmpdir 偽 repo が
+対象である (`patchharness.checkout()` は実 submodule に対しても使うが、使い捨て worktree を
+作るだけで共有作業ツリーは変異させない)。窓を何個開けるかは実装形 (4 node を 1 window で包むか
+node ごとに開くか) で変わるので、確定値をここへ書かない。時間費用は小さい — 単発直列配置での
+window 開閉込みの差分は約 0.5 秒、隔離 checkout 側は `git worktree add --detach` の
+0.07 秒/サイクルである。ただしどちらも xdist 受入全走の予測ではない。
+`REAL_REPO_SERIAL_NODES` へ登録済みであることは「追加ペナルティ 0」を意味しない。
+
+**律速は pinned compiler の在庫ではない (2026-08-23 実測)。** pinned でない g++-12 を渡すと、
+`fixed_variant_distinct` が主張する 5 つの関係 (`-1` は stock へ正規化 / 値違いは別 id =
+alias 防止 / variant_id が分かれる) も、`failsclosed_on_missing_define` の供給漏れ停止も
+そのまま成立した。これは D34 (digest の**値**は環境依存で pin しない) と整合する — これらの
+テストは関係しか主張していない。したがって「在庫が入るまで開けない」は制約の言い換えとしては
+正しくない。ただし版非依存は保証ではなく現行 source での実測一致であり、合成枝が
+`#if __GNUC__` のような builtin 条件を使えば関係まで版依存になりうる。
+規範 compiler の裁定と [T-790] の再裁定はユーザー手番である。
 
 **塞がないままの成果物影響。** source digest の alias 防止・未定義 macro の fail-closed・
 hook 編集面の実 template 結線は、標準の受入全走では**恒久的に未検査**である。誤った variant
@@ -258,4 +293,4 @@ identity や certified 選択を許しうる面なので、census を読むと�
 
 ## fixtures
 
-判定既知の手製極小トレースは `fixtures/README.md` 参照。
+判定既知の手製極小トレースと、実 emitter 由来の実データ fixture は `fixtures/README.md` 参照。

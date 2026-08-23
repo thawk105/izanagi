@@ -2579,6 +2579,7 @@ _PEGASUS_EXPECTED_CLASSES = {
     "tools/pegasus/fetch_third_party.py": "local-ok",
     "tools/pegasus/floor_campaign.sh": "dispatch-required",
     "tools/pegasus/floor_scoping.sh": "dispatch-required",
+    "tools/pegasus/generate_floor_masstree_payload_policy.py": "unknown",
     "tools/pegasus/make_acquisition_receipt.py": "dispatch-required",
     "tools/pegasus/mocc_trace_pilot.sh": "dispatch-required",
     "tools/pegasus/oracle_n_pilot.sh": "dispatch-required",
@@ -2674,6 +2675,12 @@ _PEGASUS_EXPECTED_ENTRIES = {
         "reason": "PBS floor scoping job body",
         "primary_gate": "PBS allocation and job-body site preflight",
         "evidence": "static job-body classification"
+    },
+    "tools/pegasus/generate_floor_masstree_payload_policy.py": {
+        "class": "unknown",
+        "reason": "input caps and capped-input measurement are incomplete",
+        "primary_gate": "hook deny pending admission evidence",
+        "evidence": "unmeasured; unbounded input surfaces remain"
     },
     "tools/pegasus/make_acquisition_receipt.py": {
         "class": "dispatch-required",

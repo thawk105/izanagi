@@ -1,0 +1,1 @@
+orchestrator/tests/fixtures/**/trace_*.log -text
