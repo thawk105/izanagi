@@ -2515,6 +2515,13 @@ def test_collection_environment_neutralizes_pytest_addopts(
         repo_root=repo,
         command_runner=command_runner,
     ) == 0
+    assert CAR._PYTEST_SELECTION_ENV == frozenset({
+        "PYTEST_ADDOPTS",
+        "PYTEST_DISABLE_PLUGIN_AUTOLOAD",
+        "PYTEST_PLUGINS",
+        "IZANAGI_RUN_GROWTH_HELD_TESTS",
+        "IZANAGI_T080_E2E",
+    })
     assert len(observed_environments) == 2
     for environment in observed_environments:
         assert environment["PYTEST_ADDOPTS"] == ""

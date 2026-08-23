@@ -27504,3 +27504,199 @@ corpus 変異検出は、**候補 comparator が基準 snapshot を書き換え�
 - 修理と同じ wave で防壁を再設計する — 正しさ防壁の設計変更は裁定パッケージへ送る契約であり、
   受理集合を変える設計を実装 wave へ混ぜない。
 - 検出器を信用したまま運用する — 最適化圧力は必ず正しさを攻撃しに来るという前提に反する。
+
+## D697. 環境フレークは node ID 単位で隔離し、再導入タスクを fail-closed で必須にする (2026-08-23)
+
+**決定:**
+
+1. 同一 tree で緑にも赤にもなるテストを隔離する機構を
+   `orchestrator/tests/flaky_test_holds.py` に新設する。**scope は node ID 完全一致のみ**とし、
+   file 単位・ディレクトリ単位・パターン一致で巻き込まない。
+2. 登録の受理条件は次の 6 つで、1 つでも欠ければ `ValueError` で import / collection を落とす。
+   黙って entry を無効化しない。
+   - 同一 tree で緑と赤の両方が観測されている (少なくとも一方は受入全走と同じ collection 条件)
+   - 赤の理由文字列 (failure signature) を持つ
+   - 原因が特定されている
+   - canonical な証拠を `docs/failures.md` の F 番号で指せる
+   - 再導入タスクの slug を持つ
+   - `known_failure_node_ids` が entry の key と一致する
+3. 証拠は自己申告にしない。**当該 F 節の本文に、entry の test 関数名と failure signature が
+   実在すること**まで validator が照合する。
+4. 隔離は走行末尾の `IZANAGI_FLAKY_HOLD_SUMMARY_V1` に必ず出す。
+5. **opt-in 環境変数を作らない。** 隔離された node を走らせたいときは registry から entry を消す
+   (= 再導入する)。
+6. 完全 collection で登録 node が現れなければ `pytest.UsageError` で止める (stale registry 検出)。
+7. 変異 harness には、変異の期待失敗 node が隔離集合と交差したとき分類せず停止する
+   fail-closed guard を置く。
+8. 両親が同じ実装面ファイルを変更した main 取り込みでは、Codex `role=author` の合成監査を行う。
+
+**理由:**
+
+- 隔離は本質的に検査を走らせなくする操作であり、扱いを誤ると正しさの防壁を静かに無効化する。
+  絶対規律 2 は「正しさゲートを緩める変異を許さない」と定め、最適化圧力は必ず正しさを
+  攻撃しに来るという前提で設計せよと求めている。受入が赤で land できないという圧力は、
+  まさにその最適化圧力である。
+- 敵対レビューは「既存の F 番号を再利用し node ID だけ正しくして残りを任意の文字列にした entry が
+  登録できる」ことを指摘した。これは実測されていない node を受入集合から外せる経路であり、
+  赤の圧力下での最短の悪用経路でもある。証拠を台帳本文へ束縛することでこれを塞ぐ。
+- node ID 単位に限る根拠は 2 つある。(a) file 粒度の見積りでは
+  `matched_node_count=130` に対し `collateral_node_count=120` となり、純粋な unit 検査と
+  受理検査まで受入集合から消える。(b) 親が「実 launcher subprocess を起動する node」だけへ
+  scope を狭める静的判別子を作ろうとしたが、最良の判別子でも既知の赤 13 件のうち 1 件を
+  取りこぼした。**取りこぼす述語に fail-closed な機構を載せることはできない。**
+- opt-in 環境変数を作らないのは、受入走行へ継承されるにもかかわらず acceptance receipt の
+  env projection に無く、**隔離が効いた走行と効いていない走行を受領証から区別できなくなる**ため。
+  land 側で拒否するか projection へ足す必要があるが、どちらも `tools/dev_wave_land.py` の
+  重く pin された受理条件に触る。
+- 合成監査を義務づける根拠は実測である。両 wave が独立に `orchestrator/tests/conftest.py` を
+  変更し、自動 merge は競合なしで通ったが、合成は壊れていた
+  (F481)。
+
+**却下した選択肢:**
+
+- file / family 粒度の隔離 — 巻き添えが重く、`test_codex_worker_launch.py` については
+  そもそも環境前提が成立している (launcher は正常起動し子側の指標も全て正常) ため
+  file 単位で外す論拠が立たない。D679 の粒度緩和は「ファイルの環境前提が成立していない」
+  場合に閉じた話であり、白紙委任ではない。
+- 既存 growth hold registry への相乗り — 解除条件が異なる。growth は恒久で
+  ユーザー明示命令のみ、flaky は一時で再導入タスクにより解除される。
+  相乗りすると解除の意味論が混ざり、inventory の layer-level 単数 field でも表現できない。
+- 証拠を `docs/` 配下の JSON に置く — `tools/check_docs.py` の再帰列挙対象になく、
+  schema も byte 予算も孤児検査も効かない。置いても検査されない。
+- 非帰属判定器 (`tools/check_acceptance_reds.py`) に依存する設計 — D678 により
+  受入経路で使わないと決まっており、依存すると機構ごと無効化される。
+
+## D698. テストの予算値が production の gate でないなら、隔離ではなく修理する (2026-08-23)
+
+**決定:**
+
+高負荷で非決定的に落ちるテストであっても、**落ちる原因がテスト側の fixture 値であり、
+それが production の正しさゲートではない場合は、隔離せず修理する。**
+修理は「検査対象でない limit が先に発火しない値へ変える」形で行い、
+検査対象の limit の検出力を 1 つも失わないことを条件とする。
+
+**理由:**
+
+- `orchestrator/tests/test_codex_worker_launch.py` の helper `_base_command` が渡していた
+  `max_wall = "3"` は、テストを速くするための fixture 値であり、production の既定 3600 秒とは
+  別物だった。144 test のうち 22 件がこの小さい wall を渡しながら**別の limit** を検査しており、
+  高負荷では wall が先に発火して assertion が壊れていた。**壊れていたのはテストの書き方であって
+  被験体ではない。**
+- 隔離は情報を失う側の操作である。同じ結果 (受入が緑になる) を、検出力を失わずに得られるなら
+  そちらが上位である。本件では file 単位で隔離すると launcher の受理集合検査
+  (起動前検証、rc 期待値、evidence / metering の完全性、process group の残留、終了検証) を
+  丸ごと失うが、修理では 1 つも失わない。
+- ハングの安全網は別層にある (`_run_launcher_subprocess` の `timeout=10`)。
+  予算を上げても暴走の検出は失われない。
+- 同型の判断が `orchestrator/tests/test_growth_test_holds_contract.py` にも当たった。
+  親環境の `FORCE_COLOR` が pytest 要約行を着色し照合が外れる既知失敗 (F373) は、
+  台帳の恒久対応が「起動 script で `env -u FORCE_COLOR -u COLORTERM` を前置する」という
+  運用規律だったため 3 度目の再発を招いた。**運用の前置きに頼る限り、忘れた者が次を踏む。**
+  テスト側が自分の subprocess の着色を明示的に切れば ambient env に関係なく決定的になる。
+
+**却下した選択肢:**
+
+- 予算を一律に大きくする — 本当に暴走した被験体を捕まえられなくなり、絶対規律 2 の逆方向へ動く。
+  変更するのは「検査対象が wall でない node」に限り、wall 自体を検査する node は触らない。
+- 隔離してから後続 wave で修理する — 修理が小さいと判明している以上、
+  その間ずっと受理集合を欠いたまま走ることになる。
+- 運用規律の追記で対応する — F373 が 3 度の再発でその不十分さを実証している。
+
+## D699. launcher の受理締切を 3 区間の独立予算へ分ける (2026-08-23)
+
+**決定:** `codex_worker_launch.py` の受理締切を 1 本から 3 本へ分け、境界を
+`L`=launcher 起点、`P`=初回 `Popen` 直前、`S`=最終 attempt wall 標本、
+`R`=receipt atomic 公開完了、`V`=`codex --version` 所要として次のとおり束縛する。
+
+- 準備 `(P-L)-V` を `preparation_admission_bound_s` (既定 60) で縛る
+- 監督実行 `(S-P)+V` を従来の `wall_clock_admission_bound_s` (既定 3600、変更しない) で縛る
+- 最終化 `R-S` を `finalization_admission_bound_s` (既定 60) で縛る
+
+3 区間の和は `R-L` であり、**無予算の区間を作らない**。runtime の gate と receipt validator の
+残差計算は同じ境界を使う。receipt は schema V4 を新設し
+`actuals.preparation_wall_clock_s` / `actuals.finalization_wall_clock_s` で内訳を可視化する。
+`actuals.wall_clock_s` と `wall_clock_scope` の意味、V1〜V3 の field 集合と truth table、
+「完全な既存 receipt は上書きできない」防壁は変更しない。
+準備超過・最終化超過は attempt の `limit_trigger` ではなく job 単位の stop reason とし、
+attempt 側の 3 理由集合は据え置く。控除後 attempt wall の検査は全 outcome へ適用し、
+job-stop が attempt 超過を覆い隠せないようにする。
+
+**理由:**
+- 従来の 1 本の予算は launcher の module import 時点から receipt 構築までの全経過を縛っており、
+  被験体である codex attempt でない準備 (project import、実行ファイル hash、manifest / receipt 検証)
+  と最終化 (seal、audit、receipt staging、atomic 公開) を同じ予算で食っていた。
+  被験体が正常でも機体が混むと締切に達し、launcher の受理集合検査の rc が
+  テストの中身でなくノード負荷で決まっていた。
+- 予算の一律引き上げは採らない。本当に暴走した被験体を捕まえられなくなるため、
+  受理集合を緩める方向になる。
+- `codex --version` は caller 指定の codex を実行するので**被験体**である。その所要を準備側へ
+  置くと、暴走した被験体が準備予算へ逃げられる。attempt 予算へ算入し、さらに
+  新規 session / process group で起動して残留子孫の観測と終了確認を行う。
+  これにより被験体の実行時間の縛りは変更前より緩まない。
+- 実走 launcher の診断成果物 1281 件で、準備は p50 0.678 s / max 3.792 s、
+  最終化は p50 0.986 s / max 4.940 s、seal は p50 0.0058 s。最終化は成果物サイズ依存が弱く
+  約 0.8 秒の床を持つため、**準備だけを控除する設計では症状が消えない**ことが実測で示された。
+
+**却下した選択肢:**
+- 予算の一律引き上げ — 暴走した被験体を捕まえられなくなる。
+- 準備だけを attempt 予算から外す — 最終化費が予算に残り、負荷下で同じ赤が残る。
+  段 3 の敵対レンズ 2 本が独立にこの穴を指摘し、その後の実測が裏づけた。
+- `_RECEIPT_FIELDS_V3` を其の場で拡張して V4 を作らない — 既存 V3 受領証が検証に落ち、
+  「完全な既存 receipt は上書きできない」防壁が逆に無効化される。
+- 準備超過を attempt の `limit_trigger` として記録する — 存在しない attempt が準備超過した、
+  という不正な受領証になる。
+- 準備区間に物理 hard cap を与える — 既存 wall 上限も polled admission 検査であり、
+  同じ強度に揃えるのが本決定の射程である。hard cap は launcher の import より外側の
+  watchdog を要し、呼び出し形と背景 job の detach 契約に触れるため別途審査とする。
+
+## D700. T-080 stub-free E2E の opt-in を撤去し受入全走へ戻す (2026-08-23)
+
+**決定:** `orchestrator/tests/test_s8b_oracle_driver.py` の T-080 stub-free E2E
+(6 function / 展開後 11 nodeid) の `IZANAGI_T080_E2E=1` opt-in を機構ごと撤去し、
+既定の受入全走で実行する。opt-in のまま「いつか回す」で残す形は採らない。
+
+**理由:**
+- **opt-in にした理由は既に解消している。** 導入 (commit fe34c90f、2026-08-12) の理由は
+  依存物の不在ではなく実走コストで、fixture 構築 1 回 213.40 秒・4 key 合計 899.69 秒だった。
+  その律速は T-080 receipt 履歴検査の per-commit git 起動であり、**同じ wave の D313 が
+  batch 化して畳んでいる。**
+- **走らないテストは実際に腐った。** 11 日間走らなかった間に 2 件が赤になった。原因は両件とも
+  同日の裁定 `rulings-4th-batch-2026-08-12` が入れた凍結検証保留への追随漏れで、
+  片方は同じテストの他 2 枝が保留対応済みなのに 1 枝だけ取り残される部分適用だった。
+  **opt-in にしていなければ当日に露見していた。**
+- **費用は予算内である。** 計算ノード gen_S の xdist 実測で、11 nodeid の call 時間合計は
+  492.17 秒 / 最長単一 nodeid 51.43 秒。対象は排他 group に属さないため排他鎖に載らず、
+  既存の最長単一テストより短い。
+- 数値目標の扱いは D312 に従う。閾値の跨ぎで設計を決めず、閾値のために検査を弱めない。
+
+**却下した選択肢:**
+- **受入とは別 gate で定期実行する** — 定期実行の基盤が repo に無い (D220)。本 wave で
+  現在の repo を独立走査して再確認した (hook のみで CI / cron / timer は無い)。
+  作れば opt-in の改名にしかならず、「走らないテスト」を別名で残す。
+- **検出力が重複しているとみて削除する** — 直接 helper 検査は実 repo・public `verify_receipt`・
+  public driver gate を通す E2E と受理集合が異なる。部分削除でも受理集合を実際に縮める。
+- **`REAL_REPO_SERIAL_NODES` へ 11 nodeid を登録する** — 登録すると展開後 11 node 全部が
+  単一 worker へ直列化され、その worker が critical path になる。受入予算と両立しない。
+
+## D701. 既定実行の保証は静的 decorator 監査でなく実測 probe で行う (2026-08-23)
+
+**決定:** 重いテスト群が既定で走ることの保証は、AST による decorator 監査ではなく、
+**既定 collection を実際に走らせて対象 nodeid が選択され setup へ到達することを実測する
+positive control** で行う。AST による consumer 集合と parametrize 値の exact pin は併置して残す。
+
+**理由:**
+- 静的な decorator 監査は関数 decorator しか見ない。module 冒頭の `pytestmark`、
+  定義後の `.pytestmark` 代入、`GROWTH_TEST_HOLDS` 登録、conftest の
+  `pytest_collection_modifyitems`、autouse fixture / `pytest_runtest_setup` の `pytest.skip()`、
+  deselect、`pytest.param(marks=...)` は**すべて素通りする**。
+  同じ群が既に一度腐っている以上、素通りする経路を残す保証は意味がない。
+- 判定は子 pytest の rc ではなく **report の内容**で行う。全 node の rc を対象 node の判定へ
+  流用すると、無関係な setup 失敗で受入全体を赤にする過剰拒否になる。
+- probe は実履歴・共有 submodule を読むため、**probe の node だけ**を実 repo 直列群へ登録する。
+
+**主張の限界 (これ以上に強く書かない):**
+- probe の子環境は受入全走の xdist worker 環境と同値ではない。**受入環境に固有の条件で
+  黙らせる細工は probe を通る。** 受入そのものでない probe に受入での実行を証明させることは
+  原理的にできない。保証の範囲は「既定 collection での沈黙の検出」に限る。
+- probe は `--setup-only` なのでテスト本体を実行しない。**本体の骨抜き
+  (先頭 `return`、本体内 `pytest.skip()`) は検出できない。** 骨抜きを検出する機構は変異 matrix である。
