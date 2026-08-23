@@ -35,6 +35,25 @@ title: [T-1477] D58 bench-first screening v2 初回ablationのPegasus実装を�
   D662着地をpeerセッション2件から独立に確認した (`docs/decisions.md` D662)。本waveの受入は
   D662に従う。
 
+- 2026-08-23 再開: branch を新しい worktree へ復元し (前セッションが worktree だけ撤去、branch と
+  commit は無傷)、submodule を再帰初期化して local main (248 commit、tip
+  `b89ea755400924179c9a6ba8bf4d9bb2ec6660c3`) を取り込み、受入全走を通して land した。ablation
+  本走 (insight §7 (i)〜(iv)) は再開時点でも実行不能であることを、推定でなく現行 main 上の直接
+  呼出しで再現して確認した (詳細は {{F:backoff-sweep-official-ratification-gap}} の 2026-08-23
+  追試)。`declared_use_class` を `exploration` へ落として迂回する案も、批准検査が
+  `require_environment_contract` にだけ従い use class と独立であることを実測して却下した
+  (規律 2)。よって 2026-08-22 のユーザー裁定 (wave をここで区切る) をそのまま維持した。
+- main 取り込みの競合は AI provenance の known-violation 台帳 2 file
+  (`tools/check_ai_provenance.py`、`orchestrator/tests/test_check_ai_provenance.py`) だけで、
+  両親が独立に別 entry を追記したことによる位置競合だった。解決は和集合 (本 wave 側 2 件 +
+  main 側 7 件、registry 合計 53 件、畳み込みなし) で Codex `role=author` が書き、親は転記だけを
+  行った。親は解決結果の全行がどちらかの親に存在することを機械照合し (どちらの親にも無い行 0 件、
+  追加は構文成立用の区切りのみ)、merge commit に Codex `role=author` trailer を付けた。
+  焦点走 `orchestrator/tests/test_check_ai_provenance.py` は 320 passed / 19.36 秒で緑。
+- 人間が批准台帳へ追記すべき行の中身を確定して報告した (`schema_version` = 1、
+  `closure_digest_sha256` = `db511c3d841128bfdbf5ba7c6bbdb2ce4da1fe0fdefe8d52aaacb0906ddeea44`、
+  現行 closure 版に対する値)。
+
 ## 次の一手差分
 
 ### 更新
@@ -45,4 +64,9 @@ title: [T-1477] D58 bench-first screening v2 初回ablationのPegasus実装を�
   landしそのまま再利用可能。calibration実測データ (rr95 floor=0.002174) も証跡保存済み。
   再開時は`output/insights/2026-07-14_bench-first-screening-design.md` §5 item7の
   2026-08-22進捗注記から辿る。
+  批准時の注意 (2026-08-23 実測): 追記する行は
+  `schema_version` = 1 と、その時点の closure に対する `closure_digest_sha256` の 2 key だけ。
+  批准は closure 版ごとにしか効かないため、追記後は `CONTRACT_LOADER_RELATIVE_PATHS` の
+  25 file を触る wave が着地する前に campaign を起動する。また過去 5 回の投入では毎回
+  別の環境 gap が出ているので、批准解除後も 6 件目が出る前提で着手する。
   base: 12def7e4fafc6b15d27c0c901e58d09cdd328c402bc5571b347a0addb2417b39

@@ -42,3 +42,25 @@ seq: 2
   批准台帳が埋まっていない間は、この経路を前提にした受入・実測計画を段1briefで
   事前に検出できるよう、`hooks/enforcement-source-closure-ratifications.v1.jsonl`が
   0行のままかを着手前に確認する運用を検討する (段8改善候補、docs予算逼迫のため本wave未実装)。
+- 2026-08-23 追試 (再開 wave、推定を実測へ格上げ): 上の「おそらく未実行」という推定を、現行
+  local main (`b89ea755` 取り込み時点。closure 25 file は 2026-08-21 以降不変) に対する直接
+  呼出しで実測へ格上げした。`contract_loader_binding.capture_contract_loader_binding()` と
+  `verify_live_contract_loader_binding()` は成功し、`verify_ratified_contract_loader_binding()`
+  だけが `enforcement-source-closure-unratified: closure digest is absent from the read-only
+  ledger` で落ちる。批准台帳 file は working tree にも git 履歴にも存在しない (0 行ですらなく
+  未作成で、`git cat-file -e main:hooks/enforcement-source-closure-ratifications.v1.jsonl` が
+  `Not a valid object name` を返す)。よって本 gap は T-1477 固有でも Pegasus 固有でもなく、
+  現行 main そのものの状態である。
+- 迂回路の不在も実測した: `declared_use_class` を `official` から `exploration` へ変えても
+  迂回できない。`ident.ensure_campaign_identity` の批准検査は `require_environment_contract`
+  にだけ従い、この引数は use class と独立である (`loop.py` は既定 `True` のまま呼ぶ)。
+  `False` を渡す呼出しは `orchestrator/campaign/guided.py` の guided 免除経路だけで、
+  `verify_against_lock` は `not require_environment_contract` かつ v2 lock の組合せを
+  `v2-lock-requires-authority` で拒否する。既存 lock の resume 経路は批准検査を通らないが、
+  ablation の off/on はどちらも brand-new campaign なので該当しない。規律 2 により、
+  免除経路への付け替えは採らない。
+- 運用上の含意 (批准は closure 版ごとにしか効かない): `CONTRACT_LOADER_RELATIVE_PATHS` の
+  25 file は直近 30 日で 163 commit が触れている (最新の変更は 2026-08-21)。D526 は台帳データ
+  自身を closure から除いているので追記行そのものは digest を動かさないが、25 file のどれかが
+  動けば digest が変わり新しい行が要る。したがって批准と official 新規 campaign の起動は
+  近接させる必要があり、間に 25 file を触る wave が着地すると再び塞がる。
