@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import subprocess
 import sys
 from pathlib import Path
 from unittest import mock
@@ -24,6 +25,19 @@ def _evidence() -> tuple[P.EvidenceRef, ...]:
         P.EvidenceRef(path="z/report.json", blob_sha256="1" * 64),
         P.EvidenceRef(path="z/report.json", blob_sha256="2" * 64),
         P.EvidenceRef(path="a/report.json", blob_sha256="3" * 64),
+    )
+
+
+def _middle_evidence() -> tuple[P.EvidenceRef, ...]:
+    return (
+        P.EvidenceRef(path="middle/source.json", blob_sha256="4" * 64),
+        P.EvidenceRef(path="middle/receipt.json", blob_sha256="5" * 64),
+    )
+
+
+def _last_evidence() -> tuple[P.EvidenceRef, ...]:
+    return (
+        P.EvidenceRef(path="last/report.json", blob_sha256="6" * 64),
     )
 
 
@@ -51,14 +65,14 @@ def _source_report(
                 "C03",
                 P.PredicateStatus.EVIDENCE_UNDEFINED,
                 "undefined-source",
-                (),
+                _middle_evidence(),
             ),
             P.PredicateResult("C02", P.PredicateStatus.ERROR, "error-source", ()),
             P.PredicateResult(
                 "C01",
                 P.PredicateStatus.NOT_EVALUATED,
                 "not-evaluated-source",
-                (),
+                _last_evidence(),
             ),
         )
     return P.ActivationReport(
@@ -133,17 +147,27 @@ def test_m3_authorization_contract_does_not_decide_or_authorize() -> None:
 def test_m4_evidence_path_hash_order_and_count_are_exact() -> None:
     source = _source_report()
     report = M._project_activation_report(source)
-    evidence = report["predicates"]["results"][0]["evidence"]
-    assert evidence == [
-        {"path": item.path, "blob_sha256": item.blob_sha256}
-        for item in source.predicates[0].evidence
+    nested_evidence = [
+        result["evidence"] for result in report["predicates"]["results"]
     ]
-    assert [item["path"] for item in evidence] == [
+    assert nested_evidence == [
+        [
+            {"path": item.path, "blob_sha256": item.blob_sha256}
+            for item in result.evidence
+        ]
+        for result in source.predicates
+    ]
+    assert [item["path"] for item in nested_evidence[0]] == [
         "z/report.json",
         "z/report.json",
         "a/report.json",
     ]
-    assert len(evidence) == 3
+    assert [item["path"] for item in nested_evidence[len(nested_evidence) // 2]] == [
+        "middle/source.json",
+        "middle/receipt.json",
+    ]
+    assert [item["path"] for item in nested_evidence[-1]] == ["last/report.json"]
+    assert len(nested_evidence[0]) == 3
 
 
 def test_m5_source_status_reason_order_and_count_are_unchanged() -> None:
@@ -222,6 +246,61 @@ def test_source_metadata_is_an_exact_projection() -> None:
         "projection_module_blob_sha256": source.projection_module_blob_sha256,
         "effective": source.effective,
     }
+
+
+def test_v1_report_schema_key_sets_are_exact() -> None:
+    source = _source_report()
+    report = M._project_activation_report(source)
+
+    assert set(report) == {
+        "schema_version",
+        "status",
+        "authorization",
+        "source",
+        "section5",
+        "predicates",
+    }
+    assert set(report["authorization"]) == {
+        "authority",
+        "report_effect",
+        "decision_in_report",
+    }
+    assert set(report["source"]) == {
+        "commit",
+        "condition_freeze_valid",
+        "freeze_generation",
+        "protected_sha256",
+        "freeze_reason_code",
+        "decider_version",
+        "decider_version_matches",
+        "decider_version_reason_code",
+        "core_module_blob_sha256",
+        "evaluator_module_blob_sha256",
+        "projection_module_blob_sha256",
+        "effective",
+    }
+    assert set(report["section5"]) == {
+        "source_findings_present",
+        "total",
+        "status_counts",
+        "findings",
+    }
+    assert [set(finding) for finding in report["section5"]["findings"]] == [
+        {"name", "status", "reason_code"}
+        for _ in source.section5_findings
+    ]
+    assert set(report["predicates"]) == {"total", "status_counts", "results"}
+    assert [set(result) for result in report["predicates"]["results"]] == [
+        {"id", "status", "reason_code", "evidence"}
+        for _ in source.predicates
+    ]
+    assert [
+        [set(evidence) for evidence in result["evidence"]]
+        for result in report["predicates"]["results"]
+    ] == [
+        [{"path", "blob_sha256"} for _ in result.evidence]
+        for result in source.predicates
+    ]
 
 
 def test_empty_section5_source_is_explicit_and_not_invented() -> None:
@@ -312,6 +391,74 @@ def test_cli_serialization_exception_is_json_exit_two(monkeypatch, capsys) -> No
         },
     }
     assert captured.err == ""
+
+
+@pytest.mark.parametrize(
+    "argv",
+    [
+        ["--definitely-invalid"],
+        ["--commit"],
+        ["--help"],
+    ],
+    ids=["unknown-option", "missing-value", "help"],
+)
+def test_cli_argument_failures_are_canonical_json_exit_two(
+    argv: list[str],
+    monkeypatch,
+    capsys,
+) -> None:
+    evaluator = mock.Mock(side_effect=AssertionError("must not evaluate"))
+    monkeypatch.setattr(M, "gate_report_at", evaluator)
+
+    assert M._main(argv) == 2
+
+    captured = capsys.readouterr()
+    payload = json.loads(captured.out)
+    expected = json.dumps(
+        payload,
+        allow_nan=False,
+        ensure_ascii=False,
+        separators=(",", ":"),
+        sort_keys=True,
+    )
+    assert captured.out == expected + "\n"
+    assert set(payload) == {"schema_version", "error"}
+    assert payload["schema_version"] == "s8c-gate-report/v1"
+    assert set(payload["error"]) == {"type", "message"}
+    assert payload["error"]["type"] == "_ArgumentParseError"
+    assert payload["error"]["message"]
+    assert captured.err == ""
+    evaluator.assert_not_called()
+
+
+def test_module_cli_guard_routes_argument_error_as_json() -> None:
+    completed = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "orchestrator.campaign.s8c_gate_report",
+            "--definitely-invalid",
+        ],
+        cwd=_ROOT,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    payload = json.loads(completed.stdout)
+    expected = json.dumps(
+        payload,
+        allow_nan=False,
+        ensure_ascii=False,
+        separators=(",", ":"),
+        sort_keys=True,
+    )
+    assert completed.returncode == 2
+    assert completed.stdout == expected + "\n"
+    assert payload["schema_version"] == "s8c-gate-report/v1"
+    assert payload["error"]["type"] == "_ArgumentParseError"
+    assert payload["error"]["message"]
+    assert completed.stderr == ""
 
 
 def test_real_repo_head_is_only_compared_with_its_source_report() -> None:

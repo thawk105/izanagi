@@ -23,6 +23,15 @@ _STATUS_EFFECTIVE = "PREREGISTRATION_EFFECTIVE"
 _STATUS_NOT_EFFECTIVE = "PREREGISTRATION_NOT_EFFECTIVE"
 
 
+class _ArgumentParseError(Exception):
+    """Argument parsing failed without writing plain-text CLI output."""
+
+
+class _JsonArgumentParser(argparse.ArgumentParser):
+    def error(self, message: str) -> None:
+        raise _ArgumentParseError(message)
+
+
 def _status_counts(members: object, values: object) -> dict[str, int]:
     counts = collections.Counter(item.status.value for item in values)
     return {member.value: counts[member.value] for member in members}
@@ -135,15 +144,18 @@ def _error_json(exc: Exception) -> str:
 
 
 def _build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description=__doc__)
+    parser = _JsonArgumentParser(description=__doc__, add_help=False)
+    parser.add_argument("-h", "--help", dest="help_requested", action="store_true")
     parser.add_argument("--commit", default="HEAD")
     parser.add_argument("--repo-root", type=Path, default=Path("."))
     return parser
 
 
 def _main(argv: Optional[Sequence[str]] = None) -> int:
-    args = _build_parser().parse_args(argv)
     try:
+        args = _build_parser().parse_args(argv)
+        if args.help_requested:
+            raise _ArgumentParseError("help requested")
         report = gate_report_at(args.repo_root, args.commit)
         source = report["source"]
         if not isinstance(source, dict):
