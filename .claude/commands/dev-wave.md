@@ -113,6 +113,7 @@ CC 合成 campaign の実行ループではない。
 | 24 | 背景 producer・待ち手の生成 / 再利用 / 停止、通知処理、待ち条件作成の直前 | `docs/dev-wave/core.md`: `DW-C00` |
 | 25 | main を進める land を起動する直前 | `docs/dev-wave/operations.md`: `DW-O25` |
 | 26 | 起動/待機/検査/submodule/取込/fix前 | `docs/dev-wave/core.md`: `DW-C01` |
+| 27 | land 成功後の自己撤去直前 | `docs/dev-wave/operations.md`: `DW-O28` |
 
 各条件の詳細は参照節だけを正本とし、事故の物語は `docs/failures.md` の F 番号へ置く。
 同じ物語を入口・referenceへ再掲しない。

@@ -63,6 +63,7 @@ _PYTEST_SELECTION_ENV = frozenset({
     "PYTEST_DISABLE_PLUGIN_AUTOLOAD",
     "PYTEST_PLUGINS",
     "IZANAGI_RUN_GROWTH_HELD_TESTS",
+    # 履歴側 tested_main の旧 opt-in へ ambient 値を漏らさない。
     "IZANAGI_T080_E2E",
 })
 
