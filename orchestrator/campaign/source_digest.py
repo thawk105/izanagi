@@ -863,7 +863,118 @@ def _repo_cmake_supplies_macro(text: str, macro: str) -> bool:
     return False
 
 
-def _repo_supply_files(root: str) -> Iterable[tuple[str, str]]:
+def _is_repo_supply_path(path: str) -> bool:
+    """checkout/tree の双方で同じ repo-wide supply 対象集合を選ぶ。"""
+    basename = os.path.basename(path)
+    suffix = os.path.splitext(basename)[1].lower()
+    return basename in _REPO_CMAKE_NAMES or suffix in (
+        _REPO_CMAKE_SUFFIXES | _REPO_CXX_SUFFIXES
+    )
+
+
+def _git_tree_entries(root: str, commit: str) -> Iterable[tuple[str, str, str, str]]:
+    """commit tree を mode/type/OID/path 付きで fail-closed に列挙する。"""
+    try:
+        result = subprocess.run(
+            ["git", "-C", root, "ls-tree", "-r", "-z", commit, "--"],
+            capture_output=True,
+            env=_sanitized_git_env(),
+        )
+    except (OSError, subprocess.SubprocessError) as exc:
+        raise RuntimeError(
+            f"source_digest: git ls-tree {commit} 起動失敗 ({exc}) — commit tree の "
+            "macro supply を確定できないため fails-closed (T-1506)"
+        ) from exc
+    if result.returncode != 0:
+        stderr = result.stderr.decode("utf-8", errors="replace").strip()
+        raise RuntimeError(
+            f"source_digest: git ls-tree {commit} 失敗 (rc={result.returncode}): "
+            f"{stderr[-300:]} → commit tree の macro supply を確定できないため "
+            "fails-closed (T-1506)"
+        )
+    if result.stdout and not result.stdout.endswith(b"\0"):
+        raise RuntimeError(
+            "source_digest: git ls-tree -z の出力が NUL 終端でない — commit tree の "
+            "macro supply を確定できないため fails-closed (T-1506)"
+        )
+
+    records = result.stdout.split(b"\0")
+    if records and records[-1] == b"":
+        records.pop()
+    seen: set[str] = set()
+    for record in records:
+        header, separator, raw_path = record.partition(b"\t")
+        if not separator:
+            raise RuntimeError(
+                "source_digest: git ls-tree entry に path 区切りがない — commit tree の "
+                "macro supply を確定できないため fails-closed (T-1506)"
+            )
+        try:
+            fields = header.decode("ascii").split()
+            path = raw_path.decode("utf-8")
+        except UnicodeError as exc:
+            raise RuntimeError(
+                "source_digest: git ls-tree entry の path/header が UTF-8/ASCII でない — "
+                "commit tree の macro supply を確定できないため fails-closed (T-1506)"
+            ) from exc
+        if len(fields) != 3:
+            raise RuntimeError(
+                f"source_digest: git ls-tree entry header が不正: {fields!r} — "
+                "commit tree の macro supply を確定できないため fails-closed (T-1506)"
+            )
+        if not path:
+            raise RuntimeError(
+                "source_digest: git ls-tree entry の path が空 — commit tree の macro "
+                "supply を確定できないため fails-closed (T-1506)"
+            )
+        if path in seen:
+            raise RuntimeError(
+                f"source_digest: git ls-tree entry の path が重複: {path!r} — commit tree "
+                "の macro supply を確定できないため fails-closed (T-1506)"
+            )
+        seen.add(path)
+        mode, object_type, oid = fields
+        yield mode, object_type, oid, path
+
+
+def _checkout_gitlink_oid(root: str, rel: str) -> str:
+    """初期化済み submodule checkout が実際に指す commit を返す。"""
+    checkout = os.path.join(root, rel)
+    if not os.path.isdir(checkout):
+        raise RuntimeError(
+            f"source_digest: commit tree の gitlink {rel!r} に対応する checkout がない — "
+            "submodule の supply を確定できないため fails-closed (T-1506)"
+        )
+    try:
+        result = subprocess.run(
+            ["git", "-C", checkout, "rev-parse", "--verify", "HEAD^{commit}"],
+            capture_output=True,
+            text=True,
+            env=_sanitized_git_env(),
+        )
+    except (OSError, subprocess.SubprocessError, UnicodeError) as exc:
+        raise RuntimeError(
+            f"source_digest: gitlink checkout {rel!r} の HEAD 解決に失敗 ({exc}) — "
+            "submodule の supply を確定できないため fails-closed (T-1506)"
+        ) from exc
+    if result.returncode != 0:
+        raise RuntimeError(
+            f"source_digest: gitlink checkout {rel!r} の HEAD 解決が失敗 "
+            f"(rc={result.returncode}): {result.stderr.strip()[-300:]} → submodule の "
+            "supply を確定できないため fails-closed (T-1506)"
+        )
+    oid = result.stdout.strip()
+    if not re.fullmatch(r"[0-9a-f]+", oid):
+        raise RuntimeError(
+            f"source_digest: gitlink checkout {rel!r} の HEAD OID が不正: {oid!r} — "
+            "submodule の supply を確定できないため fails-closed (T-1506)"
+        )
+    return oid
+
+
+def _repo_supply_files(
+    root: str, *, commit: str | None = None
+) -> Iterable[tuple[str, str]]:
     """repo-wide macro supply audit の対象 C/C++/CMake text を列挙する。"""
     if not os.path.isdir(root):
         raise RuntimeError(
@@ -873,16 +984,52 @@ def _repo_supply_files(root: str) -> Iterable[tuple[str, str]]:
     for directory, dirs, files in os.walk(root):
         dirs[:] = [name for name in dirs if name != ".git"]
         for filename in files:
-            suffix = os.path.splitext(filename)[1].lower()
-            if filename not in _REPO_CMAKE_NAMES and suffix not in (
-                    _REPO_CMAKE_SUFFIXES | _REPO_CXX_SUFFIXES):
+            if not _is_repo_supply_path(filename):
                 continue
             path = os.path.join(directory, filename)
             yield path, _read(path)
 
+    if commit is None:
+        return
+    for mode, object_type, oid, path in _git_tree_entries(root, commit):
+        if mode in {"100644", "100755"}:
+            if object_type != "blob":
+                raise RuntimeError(
+                    f"source_digest: regular file mode の tree entry が blob でない: "
+                    f"path={path!r} mode={mode!r} type={object_type!r} → fails-closed "
+                    "(T-1506)"
+                )
+            if _is_repo_supply_path(path):
+                yield path, _git_show(root, commit, path)
+        elif mode == "120000":
+            raise RuntimeError(
+                f"source_digest: commit tree に symlink entry がある: {path!r} — link先の "
+                "macro supply を確定できないため fails-closed (T-1506)"
+            )
+        elif mode == "160000":
+            if object_type != "commit":
+                raise RuntimeError(
+                    f"source_digest: gitlink mode の tree entry が commit でない: "
+                    f"path={path!r} type={object_type!r} → fails-closed (T-1506)"
+                )
+            checkout_oid = _checkout_gitlink_oid(root, path)
+            if checkout_oid != oid:
+                raise RuntimeError(
+                    f"source_digest: commit tree と checkout の gitlink OID が不一致: "
+                    f"path={path!r} tree={oid!r} checkout={checkout_oid!r} — submodule の "
+                    "supply を確定できないため fails-closed (T-1506)"
+                )
+        else:
+            raise RuntimeError(
+                f"source_digest: commit tree に未対応 mode がある: "
+                f"path={path!r} mode={mode!r} → fails-closed (T-1506)"
+            )
 
-def _assert_proven_repo_absent_macros(ccbench_dir: str = "") -> frozenset[str]:
-    """registry macro が repo のどの供給構文にも現れないことを毎回検証する。"""
+
+def _assert_proven_repo_absent_macros(
+    ccbench_dir: str = "", *, commit: str | None = None
+) -> frozenset[str]:
+    """registry macro が checkout と指定 commit tree に無いことを毎回検証する。"""
     overlap = set(PROVEN_REPO_ABSENT_MACROS) & set(CONTEXT_MACROS)
     if overlap:
         raise RuntimeError(
@@ -897,7 +1044,7 @@ def _assert_proven_repo_absent_macros(ccbench_dir: str = "") -> frozenset[str]:
             )
     sub = ccbench_dir or _ccbench_dir()
     hits: List[str] = []
-    for path, text in _repo_supply_files(sub):
+    for path, text in _repo_supply_files(sub, commit=commit):
         basename = os.path.basename(path)
         suffix = os.path.splitext(basename)[1].lower()
         if basename in _REPO_CMAKE_NAMES or suffix in _REPO_CMAKE_SUFFIXES:
@@ -1234,7 +1381,7 @@ def _git_show(ccbench_dir: str, commit: str, rel: str) -> str:
             ["git", "-C", ccbench_dir, "show", f"{commit}:{rel}"],
             capture_output=True, text=True, env=_sanitized_git_env(),
         )
-    except (OSError, subprocess.SubprocessError) as e:
+    except (OSError, subprocess.SubprocessError, UnicodeError) as e:
         raise RuntimeError(
             f"source_digest: git show 起動失敗 ({e}) — baseline を確定できず "
             "fails-closed (D23)") from e
