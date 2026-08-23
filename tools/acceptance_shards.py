@@ -32,6 +32,11 @@ SCHEMA = "izanagi-acceptance-shard-report/v1"
 PLUGIN_SPEC_ENV = "IZANAGI_ACCEPTANCE_SHARD_PLUGIN_V1"
 SCHEDULER_PREFIX = "IZANAGI_EFFECTIVE_SCHEDULER_V1 "
 ARTIFACT_PREFIX = "IZANAGI_ACCEPTANCE_SHARD_ARTIFACTS_V1 "
+_DISPATCH_OUTCOME_PREFIX = b"IZANAGI_DISPATCH_OUTCOME_V1 "
+_DISPATCH_MARKER_PAYLOAD_MAX_BYTES = 4096
+_DISPATCH_MARKER_LINE_MAX_BYTES = (
+    len(_DISPATCH_OUTCOME_PREFIX) + _DISPATCH_MARKER_PAYLOAD_MAX_BYTES + 2
+)
 _SCHEDULER_ATTR = "_izanagi_effective_scheduler"
 _SESSION_PREFIX = ".izanagi-acceptance-shards"
 _REPORT_FIELDS = frozenset({
@@ -1051,6 +1056,106 @@ def _emit_merged(result: MergeResult) -> None:
     print(SCHEDULER_PREFIX + payload, flush=True)
 
 
+def _dispatcher_no_verdict_payload(log_path: Path) -> Optional[Mapping[str, Any]]:
+    """dispatcher log 1 本から唯一の未起動 queue-timeout marker を読む。"""
+
+    marker_payload: Optional[bytes] = None
+    try:
+        with log_path.open("rb") as stream:
+            while True:
+                line = stream.readline(_DISPATCH_MARKER_LINE_MAX_BYTES + 1)
+                if not line:
+                    break
+                if not line.endswith(b"\n"):
+                    if line.startswith(
+                        (b"| " + _DISPATCH_OUTCOME_PREFIX, _DISPATCH_OUTCOME_PREFIX)
+                    ):
+                        return None
+                    while True:
+                        line = stream.readline(_DISPATCH_MARKER_LINE_MAX_BYTES + 1)
+                        if not line:
+                            return None
+                        if line.endswith(b"\n"):
+                            break
+                    continue
+                raw = line[:-1]
+                if raw.endswith(b"\r"):
+                    raw = raw[:-1]
+                if raw.startswith(b"| " + _DISPATCH_OUTCOME_PREFIX):
+                    return None
+                if raw.startswith(_DISPATCH_OUTCOME_PREFIX):
+                    candidate = raw[len(_DISPATCH_OUTCOME_PREFIX):]
+                    if (
+                        marker_payload is not None
+                        or len(candidate) > _DISPATCH_MARKER_PAYLOAD_MAX_BYTES
+                    ):
+                        return None
+                    marker_payload = candidate
+    except OSError:
+        return None
+    if marker_payload is None:
+        return None
+
+    def reject_duplicate_keys(
+        pairs: list[tuple[str, object]],
+    ) -> dict[str, object]:
+        value: dict[str, object] = {}
+        for key, item in pairs:
+            if key in value:
+                raise ValueError("duplicate JSON key")
+            value[key] = item
+        return value
+
+    try:
+        payload = json.loads(
+            marker_payload.decode("utf-8"),
+            object_pairs_hook=reject_duplicate_keys,
+        )
+    except (UnicodeError, ValueError, RecursionError):
+        return None
+    if not (
+        type(payload) is dict
+        and set(payload) == {"child_rc", "child_started", "kind", "reason"}
+        and payload.get("child_rc") is None
+        and payload.get("child_started") is False
+        and payload.get("kind") == "infra"
+        and payload.get("reason") == "queue-wait-timeout"
+    ):
+        return None
+    return payload
+
+
+def _emit_aggregate_no_verdict_attestation(
+    session: Path, shard_count: int, *, child_started_reported: bool,
+) -> bool:
+    """全 shard 未起動の queue timeout だけを外側へ一行 attest する。"""
+
+    if child_started_reported is True or shard_count not in {2, 3}:
+        return False
+    for index in range(shard_count):
+        if _dispatcher_no_verdict_payload(
+            session / f"shard-{index}" / "dispatcher.log"
+        ) is None:
+            return False
+    payload = {
+        "child_rc": None,
+        "child_started": False,
+        "kind": "infra",
+        "reason": "queue-wait-timeout",
+    }
+    print(
+        _DISPATCH_OUTCOME_PREFIX.decode("ascii") + json.dumps(
+            payload,
+            ensure_ascii=True,
+            separators=(",", ":"),
+            sort_keys=True,
+        ),
+        file=sys.stderr,
+        flush=True,
+    )
+    return True
+
+
 def run_parallel(
     *, repo: Path, shard_count: int, dispatch_call: Callable[..., Any],
     collect_login: Callable[[Path, float], tuple[int, Sequence[str]]],
@@ -1138,6 +1243,9 @@ def run_parallel(
         finalize_parallel()
         result = MergeResult(INFRA_RC, "dispatcher-start")
         _emit_merged(result)
+        _emit_aggregate_no_verdict_attestation(
+            session, shard_count, child_started_reported=False,
+        )
         return CompositeResult(INFRA_RC, child_started=False)
     try:
         login_rc, login_universe = collect_login(session, deadline_at)
@@ -1145,11 +1253,17 @@ def run_parallel(
         finalize_parallel()
         result = MergeResult(INFRA_RC, "login-collection-exception")
         _emit_merged(result)
+        _emit_aggregate_no_verdict_attestation(
+            session, shard_count, child_started_reported=False,
+        )
         return CompositeResult(INFRA_RC, child_started=False)
     if login_rc != 0:
         finalize_parallel()
         result = MergeResult(INFRA_RC, "login-collection")
         _emit_merged(result)
+        _emit_aggregate_no_verdict_attestation(
+            session, shard_count, child_started_reported=False,
+        )
         return CompositeResult(INFRA_RC, child_started=False)
 
     outcomes: dict[int, dict[str, Any]] = {}
@@ -1185,9 +1299,15 @@ def run_parallel(
         finalize_parallel()
         result = MergeResult(INFRA_RC, "dispatch-infrastructure")
         _emit_merged(result)
+        child_started = any(
+            payload.get("child_started") is True for payload in outcomes.values()
+        )
+        _emit_aggregate_no_verdict_attestation(
+            session, shard_count, child_started_reported=child_started,
+        )
         return CompositeResult(
             INFRA_RC,
-            child_started=any(payload.get("child_started") is True for payload in outcomes.values()),
+            child_started=child_started,
         )
     try:
         for process in processes.values():
@@ -1200,12 +1320,28 @@ def run_parallel(
         finalize_parallel()
         result = MergeResult(INFRA_RC, "dispatcher-process")
         _emit_merged(result)
+        _emit_aggregate_no_verdict_attestation(
+            session,
+            shard_count,
+            child_started_reported=any(
+                payload.get("child_started") is True
+                for payload in outcomes.values()
+            ),
+        )
         return CompositeResult(INFRA_RC, child_started=False)
 
     recovered = finalize_parallel()
     if recovered:
         result = MergeResult(INFRA_RC, "dispatcher-intent-recovery")
         _emit_merged(result)
+        _emit_aggregate_no_verdict_attestation(
+            session,
+            shard_count,
+            child_started_reported=any(
+                payload.get("child_started") is True
+                for payload in outcomes.values()
+            ),
+        )
         return CompositeResult(INFRA_RC, child_started=False)
 
     reports = _load_reports(session, shard_count)

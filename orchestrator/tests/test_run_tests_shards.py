@@ -4,6 +4,7 @@ from __future__ import annotations
 import ast
 import inspect
 import itertools
+import json
 import sys
 import time
 import xml.etree.ElementTree as ET
@@ -11,8 +12,11 @@ from pathlib import Path
 
 import pytest
 
+from orchestrator.campaign import login_headroom as LH
 from tools import acceptance_shards as SH
+from tools import dev_wave_wait as DW
 from tools import run_tests as RT
+from tools.pegasus import dispatch_compute as DC
 
 
 _SESSION_ROOT = Path("/acceptance-shard-fixture")
@@ -124,16 +128,106 @@ def test_runner_exclusion_helper_forwards_colliding_keyword_names():
     ) == ("payload", "callee-exclusions", "callee-function")
 
 
-@pytest.mark.parametrize("value, expected", [(None, 1), ("", 1), ("1", 1), ("2", 2), ("3", 3)])
-def test_activation_closed_positive_values(value, expected):
+@pytest.mark.parametrize(
+    "value, expected",
+    [(None, None), ("", None), ("1", 1), ("2", 2), ("3", 3)],
+)
+def test_acceptance_shard_request_closed_positive_values(value, expected):
     environ = {} if value is None else {RT._ACCEPTANCE_SHARDS_ENV: value}
-    assert RT._acceptance_shard_count(environ) == expected
+    assert RT._acceptance_shard_request(environ) == expected
 
 
 @pytest.mark.parametrize("value", ["0", "4", " 1", "1 ", "02", "serial"])
-def test_activation_invalid_values_are_rc16_inputs(value):
+def test_acceptance_shard_request_invalid_values_are_rc16_inputs(value):
     with pytest.raises(ValueError):
-        RT._acceptance_shard_count({RT._ACCEPTANCE_SHARDS_ENV: value})
+        RT._acceptance_shard_request({RT._ACCEPTANCE_SHARDS_ENV: value})
+
+
+def _resolve_shards(request=None, **overrides):
+    inputs = {
+        "is_acceptance": True,
+        "resolved_site": RT.site_policy.PEGASUS_LOGIN,
+        "raw_args": [],
+        "force_dispatch": False,
+        "internal_shard_spec": None,
+        "positional": (),
+        "bounded_membership": None,
+    }
+    inputs.update(overrides)
+    return RT._resolve_acceptance_shard_count(request, **inputs)
+
+
+def test_default_eligible_login_acceptance_resolves_to_k2():
+    assert _resolve_shards() == 2
+    assert _resolve_shards(
+        raw_args=[RT._FORCE_DISPATCH_OPTION], force_dispatch=True,
+    ) == 2
+
+
+@pytest.mark.parametrize(
+    "overrides",
+    [
+        {"is_acceptance": False},
+        {"resolved_site": RT.site_policy.OTHER},
+        {"bounded_membership": True},
+        {"positional": ("orchestrator/tests/test_a.py",)},
+        {"internal_shard_spec": object()},
+        {"raw_args": ["-q"]},
+    ],
+    ids=(
+        "nonacceptance", "nonlogin", "bounded-scope", "positional",
+        "internal-spec", "non-force-argv",
+    ),
+)
+def test_default_ineligible_dimensions_resolve_silently_to_k1(overrides):
+    assert _resolve_shards(**overrides) == 1
+
+
+def test_default_nonempty_pytest_addopts_resolves_silently_to_k1(monkeypatch):
+    monkeypatch.setenv("PYTEST_ADDOPTS", "-q")
+    args = RT._normalize_args([])
+    is_acceptance = RT._is_acceptance_run(args)
+    assert is_acceptance is False
+    assert _resolve_shards(is_acceptance=is_acceptance) == 1
+
+
+def test_explicit_one_opts_out_even_when_default_would_be_eligible():
+    assert _resolve_shards(1) == 1
+
+
+@pytest.mark.parametrize("shard_request", [2, 3])
+@pytest.mark.parametrize(
+    "overrides",
+    [
+        {"is_acceptance": False},
+        {"resolved_site": RT.site_policy.OTHER},
+        {"bounded_membership": True},
+        {"positional": ("orchestrator/tests/test_a.py",)},
+        {"internal_shard_spec": object()},
+        {"raw_args": ["-q"]},
+    ],
+    ids=(
+        "nonacceptance", "nonlogin", "bounded-scope", "positional",
+        "internal-spec", "non-force-argv",
+    ),
+)
+def test_explicit_multi_shard_requests_fail_closed_when_ineligible(
+    shard_request, overrides,
+):
+    with pytest.raises(ValueError):
+        _resolve_shards(shard_request, **overrides)
+
+
+@pytest.mark.parametrize("shard_request", [0, 4, True, 2.0, "2"])
+def test_resolver_rejects_values_outside_integer_closed_set(shard_request):
+    with pytest.raises(ValueError):
+        _resolve_shards(shard_request)
+
+
+def test_resolver_uses_exact_bounded_membership_predicate():
+    assert _resolve_shards(bounded_membership=None) == 2
+    assert _resolve_shards(bounded_membership=False) == 2
+    assert _resolve_shards(bounded_membership=True) == 1
 
 
 def test_invalid_activation_returns_rc16_before_execution(monkeypatch):
@@ -216,8 +310,11 @@ def test_internal_shard_command_keeps_default_suite_root(
         assert RT._RUNNER_EXCLUSION_ENV not in child_env
 
 
-def test_explicit_shards_reject_nonlogin_without_fallback(monkeypatch):
-    monkeypatch.setenv(RT._ACCEPTANCE_SHARDS_ENV, "2")
+@pytest.mark.parametrize("shard_request", ["2", "3"])
+def test_explicit_shards_reject_nonlogin_without_fallback(
+    monkeypatch, shard_request,
+):
+    monkeypatch.setenv(RT._ACCEPTANCE_SHARDS_ENV, shard_request)
     monkeypatch.setenv("PYTEST_ADDOPTS", "")
     monkeypatch.setenv("PYTEST_PLUGINS", "")
     forbidden = lambda *_args, **_kwargs: (_ for _ in ()).throw(
@@ -232,6 +329,13 @@ def test_valid_login_activation_enters_composite_with_empty_outer_argv(monkeypat
     monkeypatch.setenv("PYTEST_ADDOPTS", "")
     monkeypatch.setenv("PYTEST_PLUGINS", "")
     monkeypatch.setattr(RT, "_bounded_scope_membership", lambda: None)
+    monkeypatch.setattr(
+        RT,
+        "_evaluate_login_admission",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            AssertionError("explicit K=2 must bypass admission")
+        ),
+    )
     monkeypatch.setattr(RT, "_preflight_unstaged_deletions", lambda *_args: 0)
     monkeypatch.setattr(RT, "_preflight_ruleops", lambda *_args: 0)
     monkeypatch.setattr(RT, "_preflight_submodule", lambda *_args: 0)
@@ -252,6 +356,237 @@ def test_valid_login_activation_enters_composite_with_empty_outer_argv(monkeypat
     assert observed["args"] == []
     assert observed["kwargs"]["shard_count"] == 2
     assert observed["kwargs"]["exclusions"] == RT._PERMANENT_FULL_SUITE_EXCLUSIONS
+
+
+def _prepare_default_login(monkeypatch, *, bounded_membership=None):
+    monkeypatch.delenv(RT._ACCEPTANCE_SHARDS_ENV, raising=False)
+    monkeypatch.setenv("PYTEST_ADDOPTS", "")
+    monkeypatch.setenv("PYTEST_PLUGINS", "")
+    monkeypatch.setattr(
+        RT, "_bounded_scope_membership", lambda: bounded_membership,
+    )
+    monkeypatch.setattr(RT, "_preflight_unstaged_deletions", lambda *_args: 0)
+    monkeypatch.setattr(RT, "_preflight_ruleops", lambda *_args: 0)
+    monkeypatch.setattr(RT, "_preflight_submodule", lambda *_args: 0)
+
+
+def test_default_login_acceptance_dispatches_as_k2_after_admission(monkeypatch):
+    _prepare_default_login(monkeypatch)
+    events = []
+
+    def grant_budget(**kwargs):
+        events.append(("admission", kwargs))
+        return LH.Admission.DISPATCH, None, "headroom short"
+
+    def composite(dispatch_fn, args, **kwargs):
+        events.append(("dispatch", list(args), kwargs))
+        return 7
+
+    monkeypatch.setattr(LH, "grant_budget", grant_budget)
+    monkeypatch.setattr(RT, "_queue_dispatch_possible", lambda: (True, "queue"))
+    monkeypatch.setattr(RT, "_dispatch_result", composite)
+
+    marker = object()
+    assert RT.main(
+        [], site=RT.site_policy.PEGASUS_LOGIN, dispatch_fn=marker,
+    ) == 7
+    assert events[0] == ("admission", {"operation": "tests-full"})
+    assert events[1][0:2] == ("dispatch", [])
+    assert events[1][2]["shard_count"] == 2
+    assert events[1][2]["exclusions"] == RT._PERMANENT_FULL_SUITE_EXCLUSIONS
+
+
+def test_nonempty_pytest_addopts_dispatches_as_k1_after_admission(monkeypatch):
+    _prepare_default_login(monkeypatch)
+    monkeypatch.setenv("PYTEST_ADDOPTS", "-q")
+    monkeypatch.setattr(
+        LH,
+        "grant_budget",
+        lambda **_kwargs: (LH.Admission.DISPATCH, None, "headroom short"),
+    )
+    monkeypatch.setattr(RT, "_queue_dispatch_possible", lambda: (True, "queue"))
+    observed = {}
+
+    def composite(_dispatch_fn, args, **kwargs):
+        observed["args"] = list(args)
+        observed["shard_count"] = kwargs["shard_count"]
+        return 0
+
+    monkeypatch.setattr(RT, "_dispatch_result", composite)
+
+    assert RT.main([], site=RT.site_policy.PEGASUS_LOGIN) == 0
+    assert observed == {"args": [], "shard_count": 1}
+
+
+def test_default_force_dispatch_enters_k2_without_admission(monkeypatch):
+    _prepare_default_login(monkeypatch)
+    observed = {}
+    monkeypatch.setattr(
+        RT,
+        "_evaluate_login_admission",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            AssertionError("force dispatch must bypass admission")
+        ),
+    )
+
+    def composite(_dispatch_fn, args, **kwargs):
+        observed["args"] = list(args)
+        observed["shard_count"] = kwargs["shard_count"]
+        return 0
+
+    monkeypatch.setattr(RT, "_dispatch_result", composite)
+    assert RT.main(
+        [RT._FORCE_DISPATCH_OPTION], site=RT.site_policy.PEGASUS_LOGIN,
+    ) == 0
+    assert observed == {"args": [], "shard_count": 2}
+
+
+def test_default_login_acceptance_with_headroom_stays_local_k1(monkeypatch):
+    _prepare_default_login(monkeypatch)
+    dispatch = lambda *_args, **_kwargs: (_ for _ in ()).throw(
+        AssertionError("local admission must not dispatch")
+    )
+    scope_calls = []
+
+    def run_scope(args, cap, *, recording_session=None):
+        scope_calls.append((list(args), cap, recording_session))
+        return RT._ScopeResult(RT._ScopeOutcome.CHILD_RC, 0)
+
+    monkeypatch.setattr(
+        LH, "grant_budget",
+        lambda **_kwargs: (LH.Admission.LOCAL, 1234, "headroom available"),
+    )
+    monkeypatch.setattr(RT, "_run_bounded_scope", run_scope)
+    monkeypatch.setattr(
+        RT, "_queue_dispatch_possible",
+        lambda: (_ for _ in ()).throw(
+            AssertionError("local admission needs no queue check")
+        ),
+    )
+
+    assert RT.main(
+        [], site=RT.site_policy.PEGASUS_LOGIN, dispatch_fn=dispatch,
+    ) == 0
+    assert len(scope_calls) == 1
+    assert scope_calls[0][0:2] == ([], 1234)
+
+
+def test_default_login_acceptance_avoids_dispatch_when_queue_unavailable(
+    monkeypatch,
+):
+    _prepare_default_login(monkeypatch)
+    grants = []
+
+    def grant_budget(**kwargs):
+        grants.append(kwargs)
+        if kwargs.get("min_bytes") == 0:
+            return LH.Admission.LOCAL, 500, "emergency local budget"
+        return LH.Admission.DISPATCH, None, "headroom short"
+
+    monkeypatch.setattr(LH, "grant_budget", grant_budget)
+    monkeypatch.setattr(
+        RT, "_queue_dispatch_possible", lambda: (False, "ENA=DIS STS=INA"),
+    )
+    monkeypatch.setattr(
+        RT,
+        "_run_bounded_scope",
+        lambda *_args, **_kwargs: RT._ScopeResult(
+            RT._ScopeOutcome.CHILD_RC, 0,
+        ),
+    )
+    dispatch = lambda *_args, **_kwargs: (_ for _ in ()).throw(
+        AssertionError("unavailable queue must not dispatch")
+    )
+
+    assert RT.main(
+        [], site=RT.site_policy.PEGASUS_LOGIN, dispatch_fn=dispatch,
+    ) == 0
+    assert grants == [
+        {"operation": "tests-full"},
+        {"min_bytes": 0, "operation": "tests-full"},
+    ]
+
+
+def test_default_bounded_scope_child_does_not_reenter_sharding(monkeypatch):
+    _prepare_default_login(monkeypatch, bounded_membership=True)
+    calls = []
+    monkeypatch.setattr(
+        RT,
+        "_dispatch_result",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            AssertionError("bounded child must not dispatch")
+        ),
+    )
+    monkeypatch.setattr(RT, "_ensure_xdist", lambda: False)
+    monkeypatch.setattr(
+        RT.subprocess,
+        "call",
+        lambda command, **kwargs: calls.append((command, kwargs)) or 0,
+    )
+
+    assert RT.main([], site=RT.site_policy.PEGASUS_LOGIN) == 0
+    assert len(calls) == 1
+
+
+def test_default_cap_oom_fallback_preserves_k2_and_exclusions(monkeypatch):
+    _prepare_default_login(monkeypatch)
+    fingerprint = RT._TreeFingerprint("a" * 64, (1, 2, 3, 4, 5))
+    monkeypatch.setattr(
+        LH, "grant_budget",
+        lambda **_kwargs: (LH.Admission.LOCAL, 1234, "headroom available"),
+    )
+    monkeypatch.setattr(
+        RT,
+        "_run_bounded_scope",
+        lambda *_args, **_kwargs: RT._ScopeResult(RT._ScopeOutcome.CAP_OOM),
+    )
+    monkeypatch.setattr(
+        RT, "_tree_and_submodules_fingerprint", lambda _repo: fingerprint,
+    )
+    observed = {}
+
+    def composite(dispatch_fn, args, **kwargs):
+        observed["dispatch_fn"] = dispatch_fn
+        observed["args"] = list(args)
+        observed["kwargs"] = kwargs
+        return 9
+
+    monkeypatch.setattr(RT, "_dispatch_result", composite)
+    marker = object()
+    assert RT.main(
+        [], site=RT.site_policy.PEGASUS_LOGIN, dispatch_fn=marker,
+    ) == 9
+    assert observed["dispatch_fn"] is marker
+    assert observed["args"] == []
+    assert observed["kwargs"]["shard_count"] == 2
+    assert observed["kwargs"]["exclusions"] == RT._PERMANENT_FULL_SUITE_EXCLUSIONS
+    assert isinstance(observed["kwargs"]["recording_session"], RT._RecordingSession)
+
+
+def test_default_shard_gate_failure_never_retries_as_k1(monkeypatch):
+    _prepare_default_login(monkeypatch)
+    monkeypatch.setattr(
+        LH, "grant_budget",
+        lambda **_kwargs: (LH.Admission.DISPATCH, None, "headroom short"),
+    )
+    monkeypatch.setattr(RT, "_queue_dispatch_possible", lambda: (True, "queue"))
+    calls = []
+
+    def fail_composite(_dispatch_fn, args, **kwargs):
+        calls.append((list(args), kwargs["shard_count"]))
+        return RT._PEGASUS_DISPATCH_RC
+
+    monkeypatch.setattr(RT, "_dispatch_result", fail_composite)
+    monkeypatch.setattr(
+        RT.subprocess,
+        "call",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            AssertionError("gate failure must not run K=1 pytest")
+        ),
+    )
+
+    assert RT.main([], site=RT.site_policy.PEGASUS_LOGIN) == 16
+    assert calls == [([], 2)]
 
 
 @pytest.mark.parametrize(
@@ -568,6 +903,351 @@ def test_infra_gate_emits_no_scheduler_marker(capsys):
     SH._emit_merged(SH.MergeResult(16, "fixture-failure"))
     captured = capsys.readouterr()
     assert SH.SCHEDULER_PREFIX not in captured.out + captured.err
+
+
+def _dispatch_outcome_line(
+    *, line_ending=b"\n", payload_padding=0, **overrides,
+) -> bytes:
+    payload = {
+        "child_rc": None,
+        "child_started": False,
+        "kind": "infra",
+        "reason": "queue-wait-timeout",
+    }
+    payload.update(overrides)
+    encoded = json.dumps(
+        payload,
+        ensure_ascii=True,
+        separators=(",", ":"),
+        sort_keys=True,
+    ).encode("ascii")
+    return (
+        SH._DISPATCH_OUTCOME_PREFIX
+        + encoded
+        + (b" " * payload_padding)
+        + line_ending
+    )
+
+
+def _write_dispatcher_logs(session, logs):
+    for index, log in enumerate(logs):
+        shard = session / f"shard-{index}"
+        shard.mkdir(parents=True)
+        (shard / "dispatcher.log").write_bytes(log)
+
+
+@pytest.mark.parametrize("shard_count", [2, 3])
+def test_aggregate_no_verdict_attestation_is_unique_and_consumer_retryable(
+    tmp_path, capsys, shard_count,
+):
+    session = tmp_path / "session"
+    marker = _dispatch_outcome_line()
+    _write_dispatcher_logs(session, (marker,) * shard_count)
+
+    assert SH._emit_aggregate_no_verdict_attestation(
+        session, shard_count, child_started_reported=False,
+    ) is True
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert captured.err.encode("ascii") == marker
+    assert captured.err.count(SH._DISPATCH_OUTCOME_PREFIX.decode("ascii")) == 1
+    assert SH._DISPATCH_OUTCOME_PREFIX == DW._DISPATCH_OUTCOME_PREFIX
+    assert SH._DISPATCH_OUTCOME_PREFIX == DC._DISPATCH_OUTCOME_PREFIX.encode(
+        "ascii"
+    )
+    evidence = DW._scan_no_verdict_log_chunks([captured.err.encode("ascii")])
+    assert DW._retry_evidence_reason(evidence) == "retryable-no-verdict-infra"
+
+
+def test_aggregate_no_verdict_attestation_accepts_consumer_payload_limit_and_crlf(
+    tmp_path, capsys,
+):
+    session = tmp_path / "session"
+    canonical = _dispatch_outcome_line()
+    payload_size = len(canonical) - len(SH._DISPATCH_OUTCOME_PREFIX) - 1
+    padding = SH._DISPATCH_MARKER_PAYLOAD_MAX_BYTES - payload_size
+    marker = _dispatch_outcome_line(
+        line_ending=b"\r\n", payload_padding=padding,
+    )
+    assert SH._DISPATCH_MARKER_PAYLOAD_MAX_BYTES == DW._MARKER_PAYLOAD_MAX_BYTES
+    assert (
+        len(marker) - len(SH._DISPATCH_OUTCOME_PREFIX) - len(b"\r\n")
+        == DW._MARKER_PAYLOAD_MAX_BYTES
+    )
+    _write_dispatcher_logs(session, (marker, marker))
+
+    assert SH._emit_aggregate_no_verdict_attestation(
+        session, 2, child_started_reported=False,
+    ) is True
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert captured.err.encode("ascii") == canonical
+
+
+@pytest.mark.parametrize(
+    "bad_log",
+    [
+        b"dispatcher failed without marker\n",
+        _dispatch_outcome_line() + b"incomplete-eof-fragment",
+        _dispatch_outcome_line() + _dispatch_outcome_line(),
+        _dispatch_outcome_line() + b"| " + _dispatch_outcome_line(),
+        _dispatch_outcome_line(child_started=True),
+        _dispatch_outcome_line(reason="overall-timeout"),
+        _dispatch_outcome_line(child_rc=1),
+        _dispatch_outcome_line(kind="child"),
+        _dispatch_outcome_line(extra="field"),
+        SH._DISPATCH_OUTCOME_PREFIX + b"not-json\n",
+        SH._DISPATCH_OUTCOME_PREFIX
+        + b'{"child_rc":null,"child_started":false,"child_started":false,'
+        + b'"kind":"infra","reason":"queue-wait-timeout"}\n',
+    ],
+    ids=(
+        "missing", "incomplete-eof", "duplicate", "relayed", "child-started",
+        "wrong-reason", "child-rc", "wrong-kind", "extra-root-field",
+        "malformed-json", "duplicate-key",
+    ),
+)
+@pytest.mark.parametrize(
+    "shard_count,bad_index",
+    [(count, index) for count in (2, 3) for index in range(count)],
+    ids=("k2-index0", "k2-index1", "k3-index0", "k3-index1", "k3-index2"),
+)
+def test_aggregate_no_verdict_attestation_fails_closed_for_any_bad_shard(
+    tmp_path, capsys, bad_log, shard_count, bad_index,
+):
+    session = tmp_path / "session"
+    logs = [_dispatch_outcome_line()] * shard_count
+    logs[bad_index] = bad_log
+    _write_dispatcher_logs(session, logs)
+
+    assert SH._emit_aggregate_no_verdict_attestation(
+        session, shard_count, child_started_reported=False,
+    ) is False
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert SH._DISPATCH_OUTCOME_PREFIX.decode("ascii") not in captured.err
+
+
+def test_aggregate_no_verdict_attestation_rejects_parent_child_started_evidence(
+    tmp_path, capsys,
+):
+    session = tmp_path / "session"
+    _write_dispatcher_logs(session, (_dispatch_outcome_line(),) * 2)
+
+    assert SH._emit_aggregate_no_verdict_attestation(
+        session, 2, child_started_reported=True,
+    ) is False
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert SH._DISPATCH_OUTCOME_PREFIX.decode("ascii") not in captured.err
+
+
+def _prepare_parallel_session(monkeypatch, tmp_path, *, shard_count=2):
+    session = tmp_path / "session"
+    for index in range(shard_count):
+        (session / f"shard-{index}").mkdir(parents=True)
+    monkeypatch.setattr(SH, "create_session", lambda _repo, _count: session)
+    monkeypatch.setattr(DC, "recover_dispatch_intents", lambda *_args, **_kwargs: ())
+    return session
+
+
+def _wait_for_dispatcher_markers(session, shard_count, deadline_at):
+    marker = _dispatch_outcome_line()
+    while time.monotonic() < deadline_at:
+        try:
+            if all(
+                (session / f"shard-{index}" / "dispatcher.log").read_bytes()
+                == marker
+                for index in range(shard_count)
+            ):
+                return
+        except OSError:
+            pass
+        time.sleep(0.01)
+    raise AssertionError("dispatcher marker logs were not completed")
+
+
+def test_parallel_infra_path_emits_one_aggregate_no_verdict_attestation(
+    monkeypatch, tmp_path, capfd,
+):
+    _prepare_parallel_session(monkeypatch, tmp_path)
+    barrier = SH.multiprocessing.get_context("fork").Barrier(2)
+
+    def dispatch_call(_args, **_kwargs):
+        barrier.wait(timeout=5)
+        SH.os.write(2, _dispatch_outcome_line())
+        barrier.wait(timeout=5)
+        return SH.CompositeResult(SH.INFRA_RC, child_started=False)
+
+    result = SH.run_parallel(
+        repo=tmp_path / "repo",
+        shard_count=2,
+        dispatch_call=dispatch_call,
+        collect_login=lambda _session, _deadline: (0, ()),
+        deadline_at=time.monotonic() + 10.0,
+    )
+
+    assert int(result) == SH.INFRA_RC
+    assert result.child_started is False
+    captured = capfd.readouterr()
+    prefix = SH._DISPATCH_OUTCOME_PREFIX.decode("ascii")
+    assert captured.err.count(prefix) == 1
+    evidence = DW._scan_no_verdict_log_chunks([captured.err.encode("utf-8")])
+    assert DW._retry_evidence_reason(evidence) == "retryable-no-verdict-infra"
+
+
+def test_parallel_parent_child_started_evidence_suppresses_attestation(
+    monkeypatch, tmp_path, capfd,
+):
+    _prepare_parallel_session(monkeypatch, tmp_path)
+    context = SH.multiprocessing.get_context("fork")
+    barrier = context.Barrier(2)
+    hold_second = context.Event()
+
+    def dispatch_call(_args, **kwargs):
+        barrier.wait(timeout=5)
+        SH.os.write(2, _dispatch_outcome_line())
+        barrier.wait(timeout=5)
+        if kwargs["nonce"] == "shard-1":
+            hold_second.wait(timeout=5)
+        return SH.CompositeResult(
+            SH.INFRA_RC,
+            child_started=kwargs["nonce"] == "shard-0",
+        )
+
+    result = SH.run_parallel(
+        repo=tmp_path / "repo",
+        shard_count=2,
+        dispatch_call=dispatch_call,
+        collect_login=lambda _session, _deadline: (0, ()),
+        deadline_at=time.monotonic() + 10.0,
+    )
+
+    assert int(result) == SH.INFRA_RC
+    assert result.child_started is True
+    captured = capfd.readouterr()
+    assert captured.err.count(SH._DISPATCH_OUTCOME_PREFIX.decode("ascii")) == 0
+
+
+@pytest.mark.parametrize(
+    "failure_kind",
+    ["login-collection", "login-collection-exception"],
+)
+def test_parallel_login_collection_failures_emit_one_attestation(
+    monkeypatch, tmp_path, capfd, failure_kind,
+):
+    session = _prepare_parallel_session(monkeypatch, tmp_path)
+
+    def dispatch_call(_args, **_kwargs):
+        SH.os.write(2, _dispatch_outcome_line())
+        return SH.CompositeResult(SH.INFRA_RC, child_started=False)
+
+    def collect_login(_session, deadline_at):
+        _wait_for_dispatcher_markers(session, 2, deadline_at)
+        if failure_kind == "login-collection-exception":
+            raise RuntimeError("fixture login collection failure")
+        return 3, ()
+
+    result = SH.run_parallel(
+        repo=tmp_path / "repo",
+        shard_count=2,
+        dispatch_call=dispatch_call,
+        collect_login=collect_login,
+        deadline_at=time.monotonic() + 10.0,
+    )
+
+    assert int(result) == SH.INFRA_RC
+    assert result.child_started is False
+    captured = capfd.readouterr()
+    prefix = SH._DISPATCH_OUTCOME_PREFIX.decode("ascii")
+    assert captured.err.count(prefix) == 1
+    assert f"acceptance shard gate failed: {failure_kind}" in captured.err
+
+
+def test_parallel_intent_recovery_emits_one_attestation(
+    monkeypatch, tmp_path, capfd,
+):
+    _prepare_parallel_session(monkeypatch, tmp_path)
+    monkeypatch.setattr(
+        DC,
+        "recover_dispatch_intents",
+        lambda *_args, **_kwargs: ({"nonce": "shard-0"},),
+    )
+    barrier = SH.multiprocessing.get_context("fork").Barrier(2)
+
+    def dispatch_call(_args, **_kwargs):
+        barrier.wait(timeout=5)
+        SH.os.write(2, _dispatch_outcome_line())
+        barrier.wait(timeout=5)
+        return SH.CompositeResult(0, child_started=False)
+
+    result = SH.run_parallel(
+        repo=tmp_path / "repo",
+        shard_count=2,
+        dispatch_call=dispatch_call,
+        collect_login=lambda _session, _deadline: (0, ()),
+        deadline_at=time.monotonic() + 10.0,
+    )
+
+    assert int(result) == SH.INFRA_RC
+    assert result.child_started is False
+    captured = capfd.readouterr()
+    prefix = SH._DISPATCH_OUTCOME_PREFIX.decode("ascii")
+    assert captured.err.count(prefix) == 1
+    assert "acceptance shard gate failed: dispatcher-intent-recovery" in captured.err
+
+
+def _write_parallel_success_artifacts(session):
+    reports = _reports()
+    for index, report in enumerate(reports):
+        shard = session / f"shard-{index}"
+        junit_path = shard / "junit.xml"
+        report["junit_path"] = str(junit_path)
+        (shard / "report.json").write_text(
+            json.dumps(report, ensure_ascii=True), encoding="ascii",
+        )
+        root = ET.Element("testsuite", {
+            "tests": str(len(report["selected"])),
+            "failures": "0",
+            "errors": "0",
+            "skipped": "0",
+            "time": "0",
+        })
+        junit_path.write_bytes(ET.tostring(root, encoding="utf-8"))
+
+
+@pytest.mark.parametrize(
+    "valid_reports,expected_rc",
+    [(True, 0), (False, SH.INFRA_RC)],
+    ids=("success", "gate-failure"),
+)
+def test_parallel_merge_paths_do_not_emit_no_verdict_attestation(
+    monkeypatch, tmp_path, capfd, valid_reports, expected_rc,
+):
+    session = _prepare_parallel_session(monkeypatch, tmp_path)
+    if valid_reports:
+        _write_parallel_success_artifacts(session)
+    barrier = SH.multiprocessing.get_context("fork").Barrier(2)
+
+    def dispatch_call(_args, **_kwargs):
+        barrier.wait(timeout=5)
+        SH.os.write(2, _dispatch_outcome_line())
+        barrier.wait(timeout=5)
+        return SH.CompositeResult(0, child_started=True)
+
+    result = SH.run_parallel(
+        repo=tmp_path / "repo",
+        shard_count=2,
+        dispatch_call=dispatch_call,
+        collect_login=lambda _session, _deadline: (
+            0, tuple(record.nodeid for record in _records()),
+        ),
+        deadline_at=time.monotonic() + 10.0,
+    )
+
+    assert int(result) == expected_rc
+    captured = capfd.readouterr()
+    assert captured.err.count(SH._DISPATCH_OUTCOME_PREFIX.decode("ascii")) == 0
 
 
 def test_session_artifacts_are_outside_repo(monkeypatch, tmp_path):
