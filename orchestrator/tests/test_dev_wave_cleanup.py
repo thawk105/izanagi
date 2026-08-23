@@ -109,6 +109,26 @@ def _run(repo: Repo, capsys, **overrides: str) -> tuple[int, str, str]:
     return rc, captured.out, captured.err
 
 
+def _unoccupied_payload(path: Path) -> dict[str, object]:
+    return {
+        "status": "unoccupied",
+        "occupants": [],
+        "issues": [],
+        "scanned": 1,
+        "same_uid_cwd_unreachable": [],
+        "unreachable": {"cwd_permission": 0},
+        "worktree": os.fspath(path),
+    }
+
+
+def _stub_unoccupied(monkeypatch) -> None:
+    monkeypatch.setattr(
+        cleanup,
+        "_occupancy_payload",
+        lambda path: (cleanup.occupancy.UNOCCUPIED_RC, _unoccupied_payload(path)),
+    )
+
+
 def _assert_success_output(
     result: tuple[int, str, str],
     outcome: str,
@@ -333,8 +353,10 @@ def test_rejects_dirty_worktree_without_mutation(tmp_path, monkeypatch, capsys, 
         ("rc-occupied", 21),
         ("status-occupied", 21),
         ("occupants", 21),
+        ("indeterminate-occupants", 21),
         ("rc-indeterminate", 22),
         ("issues", 22),
+        ("mixed-issues", 22),
     ),
 )
 def test_rejects_occupancy_payload_failures_without_mutation(
@@ -357,14 +379,98 @@ def test_rejects_occupancy_payload_failures_without_mutation(
         payload["status"] = "occupied"
     elif signal == "occupants":
         payload["occupants"] = [{"pid": 1}]
+    elif signal == "indeterminate-occupants":
+        rc = 2
+        payload["status"] = "indeterminate"
+        payload["occupants"] = [{"pid": 1}]
+        payload["issues"] = [{"error": "missing", "pid": 2, "source": "cwd"}]
     elif signal == "rc-indeterminate":
         rc = 2
     elif signal == "issues":
         payload["issues"] = [{"error": "x"}]
+    elif signal == "mixed-issues":
+        rc = 2
+        payload["status"] = "indeterminate"
+        payload["issues"] = [
+            {"error": "missing", "pid": 2, "source": "cwd"},
+            {"error": "permission", "pid": 3, "source": "cmdline"},
+        ]
     else:  # pragma: no cover - parameter list is the registry
         raise AssertionError(signal)
-    monkeypatch.setattr(cleanup, "_occupancy_payload", lambda path: (rc, payload))
+    calls = 0
+
+    def occupancy_result(path):
+        nonlocal calls
+        calls += 1
+        return rc, payload
+
+    monkeypatch.setattr(cleanup, "_occupancy_payload", occupancy_result)
     _assert_rejected_preserving(repo, capsys, expected_rc=expected)
+    assert calls == 1
+
+
+def test_retries_disappeared_pid_issue_then_removes(
+    tmp_path, monkeypatch, capsys,
+):
+    repo = _make_repo(tmp_path, monkeypatch, locked=True)
+    transient = _unoccupied_payload(repo.wave)
+    transient.update({
+        "status": "indeterminate",
+        "issues": [{"error": "missing", "pid": 1234, "source": "cwd"}],
+    })
+    calls = 0
+
+    def occupancy_sequence(path):
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            return cleanup.occupancy.INDETERMINATE_RC, transient
+        return cleanup.occupancy.UNOCCUPIED_RC, _unoccupied_payload(path)
+
+    monkeypatch.setattr(cleanup, "_occupancy_payload", occupancy_sequence)
+
+    result = _run(repo, capsys)
+
+    _assert_success_output(
+        result,
+        "removed",
+        occupancy_phases=("preflight", "recheck"),
+    )
+    assert calls == 3
+    diagnostic_lines = result[2].splitlines()
+    assert "phase=preflight " in diagnostic_lines[0]
+    assert "retry_count=1" in diagnostic_lines[0]
+    assert "phase=recheck " in diagnostic_lines[1]
+    assert "retry_count=0" in diagnostic_lines[1]
+    _assert_removed(repo)
+
+
+def test_three_disappeared_pid_issue_scans_remain_indeterminate(
+    tmp_path, monkeypatch, capsys,
+):
+    repo = _make_repo(tmp_path, monkeypatch, locked=True)
+    transient = _unoccupied_payload(repo.wave)
+    transient.update({
+        "status": "indeterminate",
+        "issues": [{"error": "missing", "pid": 1234, "source": "cmdline"}],
+    })
+    calls = 0
+
+    def always_transient(path):
+        nonlocal calls
+        calls += 1
+        return cleanup.occupancy.INDETERMINATE_RC, transient
+
+    monkeypatch.setattr(cleanup, "_occupancy_payload", always_transient)
+    before = _snapshot(repo)
+
+    rc, stdout, stderr = _run(repo, capsys)
+
+    assert (rc, stdout) == (22, "")
+    assert calls == 3
+    assert "status=rejected phase=occupancy" in stderr
+    assert "attempts=3 retry_count=2" in stderr
+    _assert_preserved(repo, before)
 
 
 @pytest.mark.parametrize(
@@ -433,6 +539,27 @@ def test_accepts_arbitrary_same_uid_unreachable_process_with_diagnostics(
     assert result[2].count("nqs_shpd") == 2
     assert result[2].count('"pid": 7') == 2
     _assert_removed(repo)
+
+
+def test_real_occupancy_scan_rejects_live_process_cwd(
+    tmp_path, monkeypatch, capsys,
+):
+    repo = _make_repo(tmp_path, monkeypatch, locked=True)
+    process = subprocess.Popen(
+        [sys.executable, "-c", "import sys; sys.stdin.buffer.read(1)"],
+        cwd=repo.wave,
+        stdin=subprocess.PIPE,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+    )
+    try:
+        assert process.poll() is None
+        _assert_rejected_preserving(repo, capsys, expected_rc=21)
+    finally:
+        assert process.stdin is not None
+        process.stdin.write(b"x")
+        process.stdin.close()
+        assert process.wait(timeout=10) == 0
 
 
 def test_rejects_cwd_inside_target_without_mutation(tmp_path, monkeypatch, capsys):
@@ -579,6 +706,7 @@ def test_prune_dry_run_stops_when_any_candidate_directory_exists(
     tmp_path, monkeypatch, capsys,
 ):
     repo = _make_repo(tmp_path, monkeypatch)
+    _stub_unoccupied(monkeypatch)
     _git(repo.wave, "checkout", "--detach")
     other = repo.main / ".claude" / "worktrees" / "other"
     _git(repo.main, "worktree", "add", "-b", "other", os.fspath(other))
@@ -740,6 +868,7 @@ def test_each_mutation_phase_failure_is_partial_and_calls_nothing_afterward(
     tmp_path, monkeypatch, capsys, phase, state,
 ):
     repo = _make_repo(tmp_path, monkeypatch, locked=(state == "a-locked"))
+    _stub_unoccupied(monkeypatch)
     if state in {"c", "d"}:
         _prepare_state(repo, state)
     failed = False
@@ -810,7 +939,10 @@ def test_each_mutation_phase_failure_is_partial_and_calls_nothing_afterward(
         raise AssertionError(phase)
 
     rc, stdout, stderr = _run(repo, capsys)
-    assert failed
+    assert failed, (
+        f"injection did not fire: phase={phase} state={state} "
+        f"rc={rc} stdout={stdout!r} stderr={stderr!r}"
+    )
     assert rc == 30 and stdout == ""
     assert f"status=partial phase={phase}" in stderr
     assert stderr.count("\n") == 1
@@ -820,6 +952,7 @@ def test_keyboard_interrupt_after_mutation_start_reports_partial(
     tmp_path, monkeypatch, capsys,
 ):
     repo = _make_repo(tmp_path, monkeypatch)
+    _stub_unoccupied(monkeypatch)
 
     def interrupt(*args):
         raise KeyboardInterrupt

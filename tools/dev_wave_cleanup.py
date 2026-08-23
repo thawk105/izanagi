@@ -26,6 +26,8 @@ RC_PARTIAL = 30
 _REPO = Path(__file__).resolve().parent.parent
 _SHA_RE = re.compile(r"(?:[0-9a-f]{40}|[0-9a-f]{64})\Z")
 _PRUNE_LINE_RE = re.compile(r"^Removing worktrees/([^:]+): .+$")
+_OCCUPANCY_MAX_SCANS = 3
+_DISAPPEARED_PID_ISSUE_SOURCES = frozenset({"stat", "cwd", "cmdline"})
 
 
 @dataclass(frozen=True)
@@ -66,6 +68,7 @@ class VerifiedWavePath:
 class OccupancyDiagnostics:
     cwd_permission: object
     same_uid_cwd_unreachable: object
+    retry_count: int
 
 
 @dataclass(frozen=True)
@@ -420,54 +423,98 @@ def _occupancy_payload(path: Path) -> tuple[int, dict[str, object]]:
     return rc, payload
 
 
+def _is_disappeared_pid_issue(issue: object) -> bool:
+    if not isinstance(issue, dict):
+        return False
+    pid = issue.get("pid")
+    source = issue.get("source")
+    return (
+        type(pid) is int
+        and pid > 0
+        and issue.get("error") == "missing"
+        and isinstance(source, str)
+        and source in _DISAPPEARED_PID_ISSUE_SOURCES
+    )
+
+
 def _assert_unoccupied(path: Path) -> OccupancyDiagnostics:
-    try:
-        rc, payload = _occupancy_payload(path)
-    except CleanupFailure:
-        raise
-    except Exception as exc:  # noqa: BLE001 - checker failures are indeterminate
-        raise _reject(
-            "occupancy", f"occupancy checker failed: {exc}",
-            RC_OCCUPANCY_INDETERMINATE,
-        ) from exc
-    expected_keys = {
-        "issues", "occupants", "same_uid_cwd_unreachable", "status", "unreachable", "worktree",
-    }
-    if not isinstance(payload, dict) or not expected_keys <= set(payload):
-        raise _reject("occupancy", "occupancy payload lacks required fields", RC_OCCUPANCY_INDETERMINATE)
-    if payload.get("worktree") != os.fspath(path):
-        raise _reject("occupancy", "occupancy payload target mismatch", RC_OCCUPANCY_INDETERMINATE)
-    occupants = payload.get("occupants")
-    if (
-        rc == occupancy.OCCUPIED_RC
-        or payload.get("status") == "occupied"
-        or (isinstance(occupants, list) and bool(occupants))
-    ):
-        raise _reject("occupancy", "target worktree is occupied", RC_OCCUPIED)
-    unreachable = payload.get("unreachable")
-    valid = (
-        rc == occupancy.UNOCCUPIED_RC
-        and payload.get("status") == "unoccupied"
-        and occupants == []
-        and payload.get("issues") == []
-    )
-    if not valid:
-        raise _reject("occupancy", "occupancy result is indeterminate or inconsistent", RC_OCCUPANCY_INDETERMINATE)
-    if not isinstance(unreachable, dict) or "cwd_permission" not in unreachable:
-        raise _reject(
-            "occupancy", "unreachable process diagnostics are malformed",
-            RC_OCCUPANCY_INDETERMINATE,
+    for attempt in range(1, _OCCUPANCY_MAX_SCANS + 1):
+        retry_count = attempt - 1
+        attempt_diagnostic = f"attempts={attempt} retry_count={retry_count}"
+        try:
+            rc, payload = _occupancy_payload(path)
+        except CleanupFailure:
+            raise
+        except Exception as exc:  # noqa: BLE001 - checker failures are indeterminate
+            raise _reject(
+                "occupancy", f"occupancy checker failed: {exc}; {attempt_diagnostic}",
+                RC_OCCUPANCY_INDETERMINATE,
+            ) from exc
+        expected_keys = {
+            "issues", "occupants", "same_uid_cwd_unreachable", "status", "unreachable", "worktree",
+        }
+        if not isinstance(payload, dict) or not expected_keys <= set(payload):
+            raise _reject(
+                "occupancy", f"occupancy payload lacks required fields; {attempt_diagnostic}",
+                RC_OCCUPANCY_INDETERMINATE,
+            )
+        if payload.get("worktree") != os.fspath(path):
+            raise _reject(
+                "occupancy", f"occupancy payload target mismatch; {attempt_diagnostic}",
+                RC_OCCUPANCY_INDETERMINATE,
+            )
+        occupants = payload.get("occupants")
+        if (
+            rc == occupancy.OCCUPIED_RC
+            or payload.get("status") == "occupied"
+            or (isinstance(occupants, list) and bool(occupants))
+        ):
+            raise _reject(
+                "occupancy", f"target worktree is occupied; {attempt_diagnostic}",
+                RC_OCCUPIED,
+            )
+        issues = payload.get("issues")
+        retryable = (
+            payload.get("status") == "indeterminate"
+            and occupants == []
+            and isinstance(issues, list)
+            and bool(issues)
+            and all(_is_disappeared_pid_issue(issue) for issue in issues)
         )
-    unreachable_same_uid = payload.get("same_uid_cwd_unreachable")
-    if not isinstance(unreachable_same_uid, list):
-        raise _reject(
-            "occupancy", "same-uid unreachable process diagnostics are malformed",
-            RC_OCCUPANCY_INDETERMINATE,
+        if retryable and attempt < _OCCUPANCY_MAX_SCANS:
+            continue
+        unreachable = payload.get("unreachable")
+        valid = (
+            rc == occupancy.UNOCCUPIED_RC
+            and payload.get("status") == "unoccupied"
+            and occupants == []
+            and issues == []
         )
-    return OccupancyDiagnostics(
-        cwd_permission=unreachable["cwd_permission"],
-        same_uid_cwd_unreachable=unreachable_same_uid,
-    )
+        if not valid:
+            raise _reject(
+                "occupancy",
+                f"occupancy result is indeterminate or inconsistent; {attempt_diagnostic}",
+                RC_OCCUPANCY_INDETERMINATE,
+            )
+        if not isinstance(unreachable, dict) or "cwd_permission" not in unreachable:
+            raise _reject(
+                "occupancy",
+                f"unreachable process diagnostics are malformed; {attempt_diagnostic}",
+                RC_OCCUPANCY_INDETERMINATE,
+            )
+        unreachable_same_uid = payload.get("same_uid_cwd_unreachable")
+        if not isinstance(unreachable_same_uid, list):
+            raise _reject(
+                "occupancy",
+                f"same-uid unreachable process diagnostics are malformed; {attempt_diagnostic}",
+                RC_OCCUPANCY_INDETERMINATE,
+            )
+        return OccupancyDiagnostics(
+            cwd_permission=unreachable["cwd_permission"],
+            same_uid_cwd_unreachable=unreachable_same_uid,
+            retry_count=retry_count,
+        )
+    raise AssertionError("occupancy scan loop exhausted")
 
 
 def _assert_clean_and_head(path: Path, tip: str) -> None:
@@ -891,7 +938,8 @@ def _print_occupancy_diagnostic(observation: OccupancyObservation) -> None:
         f"phase={_sanitize(observation.phase)} "
         f"cwd_permission={_sanitize(diagnostics.cwd_permission)} "
         "same_uid_cwd_unreachable="
-        f"{_sanitize(json.dumps(diagnostics.same_uid_cwd_unreachable, ensure_ascii=False, sort_keys=True))}",
+        f"{_sanitize(json.dumps(diagnostics.same_uid_cwd_unreachable, ensure_ascii=False, sort_keys=True))} "
+        f"retry_count={diagnostics.retry_count}",
         file=sys.stderr,
     )
 
