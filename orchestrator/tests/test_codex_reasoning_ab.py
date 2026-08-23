@@ -6102,9 +6102,8 @@ def test_prompt_replacement_count_zero_expected_and_excess(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
-    source_rollout = TOOL._find_rollout(
-        _HISTORICAL_SESSIONS, TOOL.SESSION_IDS["POS"]
-    )
+    source_rollout = _REAL_ROLLOUT
+    TOOL._verify_rollout_sha(source_rollout, "POS")
     canonical_message = TOOL.extract_user_message(source_rollout)
     if replacement_count == 0:
         message = canonical_message.replace(TOOL.OLD_ROOT, "/neutral-old-root")
