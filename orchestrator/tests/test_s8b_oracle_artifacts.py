@@ -281,6 +281,36 @@ def test_oracle_schema_aliases_are_sourced_from_artifact_leaf():
             assert value.attr == attribute
 
 
+def test_output_namespace_marker_authorities_are_exact_runtime_roles():
+    assert artifacts.OFFICIAL_NAMESPACE_BYTES == b'{"namespace":"official"}\n'
+    assert artifacts.EXPLORATION_NAMESPACE_BYTES == b'{"namespace":"exploration"}\n'
+    assert json.loads(artifacts.OFFICIAL_NAMESPACE_BYTES) == {"namespace": "official"}
+    assert json.loads(artifacts.EXPLORATION_NAMESPACE_BYTES) == {
+        "namespace": "exploration",
+    }
+
+
+def test_historical_official_candidates_share_exact_migration_root_marker():
+    completed = subprocess.run(
+        ["git", "ls-files", "output/campaigns"],
+        cwd=ROOT, text=True, capture_output=True, check=True,
+    )
+    candidate_ids = {
+        parts[2]
+        for line in completed.stdout.splitlines()
+        if len(parts := Path(line).parts) >= 4
+    }
+    marker = ROOT / "output/namespace.json"
+
+    assert len(candidate_ids) == 30
+    assert marker.is_file() and not marker.is_symlink()
+    assert marker.read_bytes() == artifacts.OFFICIAL_NAMESPACE_BYTES
+    assert {
+        (ROOT / "output/campaigns" / candidate_id).parents[1] / "namespace.json"
+        for candidate_id in candidate_ids
+    } == {marker}
+
+
 def test_exploration_cli_packages_three_by_three_without_official_output(tmp_path):
     input_path = tmp_path / "payload.json"
     input_path.write_text('{"generic":"result"}', encoding="utf-8")

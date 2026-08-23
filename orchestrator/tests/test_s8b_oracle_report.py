@@ -83,6 +83,14 @@ _MANIFEST_ENV_ISSUE = (
 _SPEC_FIXTURES: dict[str, spec_fixture.ReviewedSpecFixture] = {}
 
 
+def _mark_official(root: Path) -> Path:
+    root = Path(root)
+    root.mkdir(parents=True, exist_ok=True)
+    marker = root / "namespace.json"
+    marker.write_bytes(artifacts.OFFICIAL_NAMESPACE_BYTES)
+    return marker
+
+
 def _e1_epoch() -> admission.CampaignVerifierEpoch:
     return admission.CampaignVerifierEpoch(
         campaign_verifier_epoch=f"E1:{'e' * 64}",
@@ -271,6 +279,7 @@ def _verify_for_report(
         tmp_path: Path, manifest: artifacts.OfficialManifest,
 ) -> oracle_manifest.VerifiedManifest:
     """report API テスト用に production verifier から token を得る。"""
+    _mark_official(tmp_path)
     manifest_path = (
         tmp_path
         / f"manifest-for-report-{len(tuple(tmp_path.glob('manifest-for-report-*')))}.json"
@@ -316,6 +325,7 @@ def _ratified_cli_manifest(
     # Preserve the emitter's git-backed artifacts and expose an external
     # sibling as the official report output root.
     shutil.copytree(root / "output", root.parent / "output")
+    _mark_official(root.parent / "output")
     freeze_path = root / topology["generation_path"]
     for role, relative_path in GENERATOR_SOURCES.items():
         source = root / relative_path
@@ -672,6 +682,7 @@ def _trial(layout, item: dict, outcome: str, *, variant: str = VARIANT,
 
 
 def _layout(tmp_path: Path, manifest: dict, campaign_id: str = "oracle-b0"):
+    _mark_official(tmp_path)
     layout = campaign_layout(campaign_id, output_root=str(tmp_path)).ensure()
     _campaign_start(layout, manifest, campaign_id)
     return layout
@@ -726,6 +737,7 @@ def _finish_campaign_rows(
 
 
 def _two_campaign_manifest(tmp_path: Path) -> dict:
+    _mark_official(tmp_path)
     manifest = _manifest(tmp_path)
     rows = copy.deepcopy(manifest["schedule"]["rows"][:2])
     rows[0]["block_id"] = "b0"
@@ -976,6 +988,7 @@ def test_build_observations_accepts_actual_verify_manifest_result(tmp_path):
 
 def test_legacy_manifest_cannot_launder_spec_sha256_into_observations_or_judge(
         tmp_path):
+    _mark_official(tmp_path)
     official = _manifest(tmp_path)
     assert isinstance(official["spec_sha256"], str)
     legacy = _schema_less_legacy(official)
@@ -1243,6 +1256,7 @@ def test_report_rejects_valid_raw_and_exploration_manifest_types(tmp_path):
 
 
 def test_staged_legacy_v1_without_run_contract_remains_accepted(tmp_path):
+    _mark_official(tmp_path)
     document = dict(_manifest(tmp_path))
     document.pop("run_contract")
     legacy = artifacts.load_official_manifest(json.dumps(document).encode())
@@ -1256,6 +1270,7 @@ def test_staged_legacy_v1_without_run_contract_remains_accepted(tmp_path):
 
 def test_completed_legacy_without_run_contract_or_receipt_skips_contract_checks(
         tmp_path, monkeypatch):
+    _mark_official(tmp_path)
     document = dict(_manifest(tmp_path))
     document.pop("run_contract")
     legacy = artifacts.load_official_manifest(json.dumps(document).encode())
@@ -1598,6 +1613,7 @@ def test_cli_official_resolves_ratified_freeze_and_verifies(tmp_path):
 
 def test_report_rejects_unverifiable_floor_admission_without_output(tmp_path):
     root, manifest_path, _document, approved = _ratified_cli_manifest(tmp_path)
+    _mark_official(root.parent / "report-output")
     admission_root = root / ".git/izanagi/s8b-holdout-admission-v1"
     admission_root.rename(admission_root.with_name("admission-unavailable"))
     output = tmp_path / "unverifiable-admission-must-not-exist.json"
@@ -1616,6 +1632,7 @@ def test_report_rejects_unverifiable_floor_admission_without_output(tmp_path):
 
 def test_cli_verify_failure_returns_two_without_output(tmp_path):
     root, _manifest_path, document, approved = _ratified_cli_manifest(tmp_path)
+    _mark_official(root.parent / "report-output")
     damaged = copy.deepcopy(document)
     damaged["manifest_id"] = "damaged-manifest-id"
     manifest_path = tmp_path / "damaged-ratified-cli-manifest.json"
@@ -1641,6 +1658,7 @@ def test_cli_verify_failure_returns_two_without_output(tmp_path):
 def test_report_cli_accepts_matching_spec_then_rejects_one_other_spec_without_output(
         tmp_path):
     root, manifest_path, _document, approved_a = _ratified_cli_manifest(tmp_path)
+    _mark_official(root.parent / "report-output")
     positive_output = tmp_path / "positive-observations.json"
     with mock.patch.object(
             oracle_spec, "APPROVED_SPEC_SHA256", approved_a.sha256):
@@ -1680,12 +1698,12 @@ def test_report_cli_accepts_matching_spec_then_rejects_one_other_spec_without_ou
     assert not negative_output.exists()
 
 
-def test_official_missing_output_root_reports_missing_and_judges_indeterminate(
+def test_official_marked_empty_output_root_reports_missing_and_judges_indeterminate(
         tmp_path):
     root, manifest_path, _document, approved = _ratified_cli_manifest(tmp_path)
     output_root = root.parent / "missing-report-output"
     observations_path = tmp_path / "missing-store-observations.json"
-    assert not output_root.exists()
+    _mark_official(output_root)
 
     with mock.patch.object(
             oracle_spec, "APPROVED_SPEC_SHA256", approved.sha256):
@@ -1708,9 +1726,28 @@ def test_official_missing_output_root_reports_missing_and_judges_indeterminate(
     )
 
 
+def test_official_missing_marker_cli_fails_without_output(tmp_path):
+    root, manifest_path, _document, approved = _ratified_cli_manifest(tmp_path)
+    output_root = root.parent / "unmarked-report-output"
+    output_root.mkdir()
+    observations_path = tmp_path / "missing-marker-must-not-exist.json"
+
+    with mock.patch.object(
+            oracle_spec, "APPROVED_SPEC_SHA256", approved.sha256):
+        rc = report.main([
+            "report", "--manifest", str(manifest_path),
+            "--output-root", str(output_root),
+            "--out", str(observations_path), "--repo-root", str(root),
+        ])
+
+    assert rc == 2
+    assert not observations_path.exists()
+
+
 def test_judge_cli_reverifies_official_manifest_and_legacy_cannot_reach_verdict(
         tmp_path):
     root, manifest_path, document, approved = _ratified_cli_manifest(tmp_path)
+    _mark_official(root.parent / "report-output")
     observations_path = tmp_path / "judge-input-observations.json"
     with mock.patch.object(
             oracle_spec, "APPROVED_SPEC_SHA256", approved.sha256):
@@ -1752,6 +1789,7 @@ def test_cli_legacy_skips_freeze_resolution(tmp_path):
         encoding="utf-8",
     )
     output = tmp_path / "legacy-cli-observations.json"
+    _mark_official(tmp_path / "legacy-output")
 
     with mock.patch.object(
             report.s8b_ratified_freeze,
@@ -1794,6 +1832,7 @@ def test_cli_legacy_subprocess_creates_output(tmp_path):
         encoding="utf-8",
     )
     output = tmp_path / "subprocess-observations.json"
+    _mark_official(tmp_path / "subprocess-output")
 
     completed = subprocess.run(
         [
@@ -1829,6 +1868,7 @@ def test_report_cli_rejects_exploration_manifest_without_output(tmp_path):
         "payload": {},
     }), encoding="utf-8")
     output = tmp_path / "must-not-exist.json"
+    _mark_official(tmp_path)
 
     rc = report.main([
         "report", "--manifest", str(manifest_path),
@@ -1839,16 +1879,226 @@ def test_report_cli_rejects_exploration_manifest_without_output(tmp_path):
     assert not output.exists()
 
 
-def test_report_rejects_exploration_namespace_and_symlink_alias(tmp_path):
+def test_report_requires_root_namespace_marker(tmp_path):
+    root = tmp_path / "missing-marker"
+    root.mkdir()
+
+    with pytest.raises(report.ReportError, match="namespace marker が存在しない"):
+        report._resolve_official_output_root(root)
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [
+        artifacts.EXPLORATION_NAMESPACE_BYTES,
+        b'{"namespace":"unknown"}\n',
+        b'{"namespace":',
+        b'{ "namespace": "official" }\n',
+        b'{"namespace":"official"}',
+    ],
+    ids=["exploration", "unknown", "malformed", "whitespace", "missing-lf"],
+)
+def test_report_requires_official_namespace_exact_bytes(tmp_path, payload):
+    root = tmp_path / "non-official-marker"
+    root.mkdir()
+    (root / "namespace.json").write_bytes(payload)
+
+    with pytest.raises(report.ReportError, match="namespace"):
+        report._resolve_official_output_root(root)
+
+
+@pytest.mark.parametrize(
+    "ancestor_payload",
+    [
+        artifacts.EXPLORATION_NAMESPACE_BYTES,
+        b'{"namespace":"unknown"}\n',
+        b'{"namespace":',
+    ],
+    ids=["exploration", "unknown", "malformed"],
+)
+def test_report_rejects_distant_nonofficial_ancestor_behind_local_official_markers(
+        tmp_path, ancestor_payload):
+    outer = tmp_path / "outer"
+    outer.mkdir()
+    (outer / "namespace.json").write_bytes(ancestor_payload)
+    middle = outer / "middle"
+    _mark_official(middle)
+    root = middle / "official-root"
+    _mark_official(root)
+
+    with pytest.raises(report.ReportError, match="namespace"):
+        report._resolve_official_output_root(root)
+
+
+def test_report_rejects_unreadable_ancestor_marker(tmp_path):
+    outer = tmp_path / "outer"
+    marker = _mark_official(outer)
+    root = outer / "official-root"
+    _mark_official(root)
+    real_open = report.os.open
+
+    def deny_ancestor(path, flags):
+        if Path(path) == marker:
+            raise PermissionError(13, "fixture denies ancestor marker")
+        return real_open(path, flags)
+
+    with mock.patch.object(report.os, "open", side_effect=deny_ancestor):
+        with pytest.raises(report.ReportError, match="安全に open できない"):
+            report._resolve_official_output_root(root)
+
+
+def test_report_accepts_external_root_with_all_marker_bearing_ancestors_official(
+        tmp_path):
+    outer = tmp_path / "outer"
+    _mark_official(outer)
+    root = outer / "official-root"
+    _mark_official(root)
+
+    admitted = report._resolve_official_output_root(root)
+
+    assert admitted.path == root.resolve()
+    assert [identity.path for identity in admitted.namespace_identities] == [
+        root / "namespace.json", outer / "namespace.json",
+    ]
+
+
+def test_report_rejects_input_root_and_marker_symlinks(tmp_path):
+    target = tmp_path / "target"
+    _mark_official(target)
+    alias = tmp_path / "alias"
+    alias.symlink_to(target, target_is_directory=True)
+    with pytest.raises(report.ReportError, match="symlink component"):
+        report._resolve_official_output_root(alias)
+
+    root = tmp_path / "marker-link"
+    root.mkdir()
+    marker_target = tmp_path / "official-marker-target"
+    marker_target.write_bytes(artifacts.OFFICIAL_NAMESPACE_BYTES)
+    (root / "namespace.json").symlink_to(marker_target)
+    with pytest.raises(report.ReportError, match="marker が symlink"):
+        report._resolve_official_output_root(root)
+
+
+def test_report_marker_fifo_is_rejected_without_blocking(tmp_path):
+    root = tmp_path / "fifo-marker"
+    root.mkdir()
+    (root / "namespace.json").mkfifo()
+    real_open = report.os.open
+
+    def guarded_open(path, flags):
+        assert flags & report.os.O_NOFOLLOW
+        assert flags & report.os.O_NONBLOCK
+        return real_open(path, flags)
+
+    with mock.patch.object(report.os, "open", side_effect=guarded_open):
+        with pytest.raises(report.ReportError, match="通常 file でない"):
+            report._resolve_official_output_root(root)
+
+
+def test_report_marker_device_descriptor_is_rejected_before_read(tmp_path):
+    root = tmp_path / "device-marker"
+    _mark_official(root)
+    device_descriptor = report.os.open("/dev/null", report.os.O_RDONLY)
+
+    with mock.patch.object(
+            report.os, "open", return_value=device_descriptor), mock.patch.object(
+            report.os, "read", side_effect=AssertionError("device leaf was read")):
+        with pytest.raises(report.ReportError, match="通常 file でない"):
+            report._resolve_official_output_root(root)
+
+
+def test_report_oversized_marker_is_rejected_before_read(tmp_path):
+    root = tmp_path / "oversized-marker"
+    root.mkdir()
+    (root / "namespace.json").write_bytes(b"x" * 4096)
+
+    with mock.patch.object(
+            report.os, "read", side_effect=AssertionError("oversized leaf was read")):
+        with pytest.raises(report.ReportError, match="有界サイズ"):
+            report._resolve_official_output_root(root)
+
+
+def test_report_canonical_repo_exception_is_exact_and_external_root_still_passes(
+        tmp_path, monkeypatch):
+    repository = tmp_path / "repository"
+    (repository / ".git").mkdir(parents=True)
+    canonical = repository / "output"
+    _mark_official(canonical)
+    monkeypatch.setattr(report, "repo_output_root", lambda: str(canonical))
+
+    assert report._resolve_official_output_root(canonical).path == canonical.resolve()
+
+    sibling = repository / "output-sibling"
+    _mark_official(sibling)
+    with pytest.raises(report.ReportError, match="repository 外"):
+        report._resolve_official_output_root(sibling)
+
+    foreign = tmp_path / "foreign-repository"
+    (foreign / ".git").mkdir(parents=True)
+    _mark_official(foreign / "output")
+    with pytest.raises(report.ReportError, match="repository 外"):
+        report._resolve_official_output_root(foreign / "output")
+
+    worktree_output = tmp_path / ".codex" / "worktrees" / "other" / "output"
+    _mark_official(worktree_output)
+    with pytest.raises(report.ReportError, match="worktree container"):
+        report._resolve_official_output_root(worktree_output)
+
+    external = tmp_path / "external-output"
+    _mark_official(external)
+    assert report._resolve_official_output_root(external).path == external.resolve()
+
+
+def test_report_canonical_tracked_root_uses_read_only_campaign_path_carrier():
+    admitted = report._resolve_official_output_root(ROOT / "output")
+
+    layout = report._resolved_campaign_layout(
+        "historical-candidate", admitted.path,
+    )
+
+    assert Path(layout.root) == ROOT / "output/campaigns/historical-candidate"
+
+
+@pytest.mark.parametrize("swap_target", ["marker", "root"])
+def test_report_rejects_root_or_marker_replacement_after_observation_scan(
+        tmp_path, swap_target):
+    manifest = _manifest(tmp_path)
+    root = tmp_path / "volatile-output"
+    marker = _mark_official(root)
+    verified = _verify_for_report(tmp_path, manifest)
+    original_projection = report._campaign_verifier_epoch_projection
+
+    def replace_after_projection(campaign_id, resolved_output_root):
+        projected = original_projection(campaign_id, resolved_output_root)
+        if swap_target == "marker":
+            marker.unlink()
+            marker.write_bytes(artifacts.OFFICIAL_NAMESPACE_BYTES)
+        else:
+            replacement = tmp_path / "replacement-output"
+            _mark_official(replacement)
+            root.rename(tmp_path / "original-output")
+            replacement.rename(root)
+        return projected
+
+    with mock.patch.object(
+            report, "_campaign_verifier_epoch_projection",
+            side_effect=replace_after_projection):
+        with pytest.raises(report.ReportError, match="観測中に変化"):
+            report.build_observations(manifest=verified, output_root=root)
+
+
+def test_report_rejects_exploration_namespace_and_root_symlink_alias(tmp_path):
     manifest = _manifest(tmp_path)
     layout = exploration_campaign_layout("trial-a", output_root=str(tmp_path)).ensure()
     exploration_root = Path(layout.root).parents[1]
     alias = tmp_path / "exploration-alias"
     alias.symlink_to(exploration_root, target_is_directory=True)
 
-    for output_root in (exploration_root, alias):
-        with pytest.raises(report.ReportError, match="exploration namespace"):
-            report.build_observations(manifest=_verify_for_report(tmp_path, manifest), output_root=output_root)
+    verified = _verify_for_report(tmp_path, manifest)
+    with pytest.raises(report.ReportError, match="exploration namespace"):
+        report.build_observations(manifest=verified, output_root=exploration_root)
+    with pytest.raises(report.ReportError, match="symlink component"):
+        report.build_observations(manifest=verified, output_root=alias)
 
 
 def test_report_rejects_campaign_symlink_to_exploration_namespace(tmp_path):
@@ -1861,14 +2111,28 @@ def test_report_rejects_campaign_symlink_to_exploration_namespace(tmp_path):
     _trial(exploration, item, "committed")
     _finish_campaign(exploration, manifest)
     official_root = tmp_path / "official"
+    _mark_official(official_root)
     campaigns = official_root / "campaigns"
-    campaigns.mkdir(parents=True)
+    campaigns.mkdir()
     (campaigns / "oracle-b0").symlink_to(
         Path(exploration.root), target_is_directory=True,
     )
 
     with pytest.raises(report.ReportError, match="campaign path component が symlink"):
         report.build_observations(manifest=_verify_for_report(tmp_path, manifest), output_root=official_root)
+
+
+def test_report_rejects_campaigns_root_symlink_and_invalid_campaign_id(tmp_path):
+    root = tmp_path / "official"
+    _mark_official(root)
+    target = tmp_path / "campaign-target"
+    target.mkdir()
+    (root / "campaigns").symlink_to(target, target_is_directory=True)
+
+    with pytest.raises(report.ReportError, match="campaign path component が symlink"):
+        report._resolved_campaign_layout("oracle-b0", root.resolve())
+    with pytest.raises(report.ReportError, match="campaign_id"):
+        report._resolved_campaign_layout("../oracle-b0", root.resolve())
 
 
 def test_report_reuses_resolved_output_root_after_namespace_check(tmp_path):
@@ -1882,24 +2146,38 @@ def test_report_reuses_resolved_output_root_after_namespace_check(tmp_path):
     attacker = _layout(attacker_root, manifest)
     _trial(attacker, item, "committed", tps=(91.0, 92.0, 93.0, 94.0, 95.0))
     _finish_campaign(attacker, manifest)
-    alias = tmp_path / "official-alias"
-    alias.symlink_to(trusted_root, target_is_directory=True)
-    original_resolver = report._resolve_official_output_root
+    admitted = report._resolve_official_output_root(trusted_root)
+    epoch_roots: list[Path] = []
+    measurement_roots: list[Path] = []
+    real_measurement_condition = report._measurement_condition_for_campaign
 
-    def resolve_then_swap(output_root):
-        resolved = original_resolver(output_root)
-        alias.unlink()
-        alias.symlink_to(attacker_root, target_is_directory=True)
-        return resolved
+    def certified(campaign, *, purpose):
+        epoch_roots.append(Path(campaign.root))
+        return _e1_epoch()
+
+    def recording_measurement_condition(
+            campaign_id, manifest_sha256, expected_block_ids, output_root):
+        measurement_roots.append(Path(output_root))
+        return real_measurement_condition(
+            campaign_id, manifest_sha256, expected_block_ids, output_root,
+        )
 
     with mock.patch.object(
-        report, "_resolve_official_output_root", side_effect=resolve_then_swap,
+        report, "_resolve_official_output_root", return_value=admitted,
+    ), mock.patch.object(
+        report._artifact_admission, "require_campaign_verifier_epoch",
+        side_effect=certified,
+    ), mock.patch.object(
+        report, "_measurement_condition_for_campaign",
+        side_effect=recording_measurement_condition,
     ):
         observations = report.build_observations(
-            manifest=_verify_for_report(tmp_path, manifest), output_root=alias,
+            manifest=_verify_for_report(tmp_path, manifest), output_root=attacker_root,
         )
 
     assert observations["rows"][0]["bench_values"] == [1.0, 2.0, 3.0, 4.0, 5.0]
+    assert epoch_roots == [trusted_root / "campaigns/oracle-b0"]
+    assert measurement_roots == [trusted_root.resolve()]
 
 
 def test_report_cli_rejects_exploration_output_root_without_output(tmp_path):
@@ -4641,6 +4919,7 @@ def _degraded_campaign(
         tmp_path: Path, manifest: dict, campaign_id: str, block_id: str,
         rows: list[dict], *, observation: dict | None = None,
 ) -> None:
+    _mark_official(tmp_path)
     selected = _degraded_perf_observation() if observation is None else observation
     layout = campaign_layout(campaign_id, output_root=str(tmp_path)).ensure()
     sidecar = Path(layout.root) / "measurement-manifest.json"
