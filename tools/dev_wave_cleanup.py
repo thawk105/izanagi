@@ -26,6 +26,7 @@ RC_PARTIAL = 30
 _REPO = Path(__file__).resolve().parent.parent
 _SHA_RE = re.compile(r"(?:[0-9a-f]{40}|[0-9a-f]{64})\Z")
 _PRUNE_LINE_RE = re.compile(r"^Removing worktrees/([^:]+): .+$")
+_UNREACHABLE_COMM_ALLOWLIST = frozenset({"sshd", "ssh-agent", "(sd-pam)", "systemd"})
 
 
 @dataclass(frozen=True)
@@ -66,6 +67,18 @@ class VerifiedWavePath:
 class OccupancyDiagnostics:
     cwd_permission: object
     same_uid_cwd_unreachable: object
+
+
+@dataclass(frozen=True)
+class OccupancyObservation:
+    phase: str
+    diagnostics: OccupancyDiagnostics
+
+
+@dataclass(frozen=True)
+class CleanupResult:
+    outcome: str
+    occupancy: tuple[OccupancyObservation, ...]
 
 
 class CleanupFailure(Exception):
@@ -179,27 +192,55 @@ def _validate_path_spelling(raw: str, label: str, *, must_exist: bool) -> Path:
     return path
 
 
-def _validate_git_verb(args: Sequence[str]) -> None:
+def _validate_git_argv(args: Sequence[str]) -> None:
     if not args:
         raise RuntimeError("empty git command")
-    verb = args[0]
-    simple = {
-        "cat-file", "check-ref-format", "merge-base", "rev-list", "rev-parse",
-        "status", "symbolic-ref",
-    }
-    if verb in simple:
+    argv = tuple(args)
+    if argv in {
+        ("rev-parse", "--git-common-dir"),
+        ("rev-parse", "--git-dir"),
+        ("rev-parse", "--git-path", "izanagi-spool-fold-state.json"),
+        ("status", "--porcelain=v1", "-z", "--untracked-files=all", "--ignore-submodules=none"),
+        ("symbolic-ref", "--quiet", "HEAD"),
+        ("worktree", "list", "--porcelain"),
+        ("worktree", "prune", "--dry-run", "--verbose", "--expire=now"),
+        ("worktree", "prune", "--expire=now"),
+        ("checkout", "--detach"),
+    }:
         return
-    if verb == "worktree" and len(args) > 1 and args[1] in {"list", "unlock", "prune"}:
+    if (
+        len(argv) == 3
+        and argv[:2] in {
+            ("cat-file", "-e"),
+            ("check-ref-format", "--branch"),
+            ("rev-list", "--walk-reflogs"),
+            ("rev-parse", "--verify"),
+            ("worktree", "unlock"),
+        }
+        and argv[2]
+        and not argv[2].startswith("-")
+    ):
         return
-    if verb == "checkout" and len(args) > 1 and args[1] == "--detach":
+    if (
+        len(argv) == 4
+        and argv[:2] == ("merge-base", "--is-ancestor")
+        and argv[2]
+        and not argv[2].startswith("-")
+        and argv[3] == "refs/heads/main"
+    ):
         return
-    if verb == "branch" and len(args) > 1 and args[1] == "-d":
+    if (
+        len(argv) == 4
+        and argv[:3] == ("branch", "-d", "--")
+        and argv[3]
+        and not argv[3].startswith("-")
+    ):
         return
-    raise RuntimeError(f"git command is not allowlisted: {verb}")
+    raise RuntimeError(f"git argv is not allowlisted: {argv!r}")
 
 
 def _git(cwd: Path, *args: str) -> subprocess.CompletedProcess[bytes]:
-    _validate_git_verb(args)
+    _validate_git_argv(args)
     return subprocess.run(
         ["git", "-C", os.fspath(cwd), *args],
         stdin=subprocess.DEVNULL,
@@ -390,7 +431,9 @@ def _assert_unoccupied(path: Path) -> OccupancyDiagnostics:
             "occupancy", f"occupancy checker failed: {exc}",
             RC_OCCUPANCY_INDETERMINATE,
         ) from exc
-    expected_keys = {"issues", "occupants", "status", "worktree"}
+    expected_keys = {
+        "issues", "occupants", "same_uid_cwd_unreachable", "status", "unreachable", "worktree",
+    }
     if not isinstance(payload, dict) or not expected_keys <= set(payload):
         raise _reject("occupancy", "occupancy payload lacks required fields", RC_OCCUPANCY_INDETERMINATE)
     if payload.get("worktree") != os.fspath(path):
@@ -411,11 +454,27 @@ def _assert_unoccupied(path: Path) -> OccupancyDiagnostics:
     )
     if not valid:
         raise _reject("occupancy", "occupancy result is indeterminate or inconsistent", RC_OCCUPANCY_INDETERMINATE)
+    if not isinstance(unreachable, dict) or "cwd_permission" not in unreachable:
+        raise _reject(
+            "occupancy", "unreachable process diagnostics are malformed",
+            RC_OCCUPANCY_INDETERMINATE,
+        )
+    unreachable_same_uid = payload.get("same_uid_cwd_unreachable")
+    if not isinstance(unreachable_same_uid, list):
+        raise _reject(
+            "occupancy", "same-uid unreachable process diagnostics are malformed",
+            RC_OCCUPANCY_INDETERMINATE,
+        )
+    for process in unreachable_same_uid:
+        comm = process.get("comm") if isinstance(process, dict) else None
+        if comm not in _UNREACHABLE_COMM_ALLOWLIST:
+            raise _reject(
+                "occupancy", f"same-uid process cwd is unreachable and comm is not allowlisted: {comm!r}",
+                RC_OCCUPANCY_INDETERMINATE,
+            )
     return OccupancyDiagnostics(
-        cwd_permission=(
-            unreachable.get("cwd_permission") if isinstance(unreachable, dict) else None
-        ),
-        same_uid_cwd_unreachable=payload.get("same_uid_cwd_unreachable", []),
+        cwd_permission=unreachable["cwd_permission"],
+        same_uid_cwd_unreachable=unreachable_same_uid,
     )
 
 
@@ -430,7 +489,84 @@ def _assert_clean_and_head(path: Path, tip: str) -> None:
         raise ValueError("wave HEAD differs from tested tip")
 
 
-def _assert_branch_safety(main: Path, ref: str) -> None:
+def _assert_reflog_commits_reachable(main: Path, shas: Sequence[str], label: str) -> None:
+    for sha in shas:
+        if not _SHA_RE.fullmatch(sha):
+            raise ValueError(f"{label} contains a malformed commit id")
+        reachable = _git(main, "merge-base", "--is-ancestor", sha, "refs/heads/main")
+        if reachable.returncode == 1:
+            raise ValueError(f"{label} contains a commit not reachable from main")
+        if reachable.returncode != 0:
+            raise ValueError(f"{label} ancestry check rc={reachable.returncode}")
+
+
+def _head_reflog_shas(administrative_gitdir: Path) -> tuple[str, ...]:
+    raw = (administrative_gitdir / "logs" / "HEAD").read_bytes()
+    if not raw or b"\x00" in raw or not raw.endswith(b"\n"):
+        raise ValueError("worktree HEAD reflog is missing or malformed")
+    shas: list[str] = []
+    for line in raw.splitlines():
+        fields = line.split(b" ", 2)
+        if len(fields) != 3:
+            raise ValueError("worktree HEAD reflog line is malformed")
+        for raw_sha in fields[:2]:
+            try:
+                sha = raw_sha.decode("ascii", "strict")
+            except UnicodeDecodeError as exc:
+                raise ValueError("worktree HEAD reflog commit id is not ASCII") from exc
+            if set(sha) == {"0"} and len(sha) in {40, 64}:
+                continue
+            if not _SHA_RE.fullmatch(sha):
+                raise ValueError("worktree HEAD reflog contains a malformed commit id")
+            shas.append(sha)
+    unique = tuple(dict.fromkeys(shas))
+    if not unique:
+        raise ValueError("worktree HEAD reflog has no inspectable commits")
+    return unique
+
+
+def _administrative_gitdirs_for_wave(common: Path, wave: Path) -> tuple[Path, ...]:
+    registry = common / "worktrees"
+    if not registry.exists():
+        return ()
+    if not registry.is_dir():
+        raise ValueError("worktree administrative registry is not a directory")
+    matches: list[Path] = []
+    for candidate in registry.iterdir():
+        try:
+            candidate_resolved = candidate.resolve(strict=True)
+        except OSError as exc:
+            raise ValueError(f"worktree administrative entry cannot be resolved: {exc}") from exc
+        if candidate_resolved != candidate or not candidate.is_dir():
+            raise ValueError("worktree administrative entry is not a direct directory")
+        binding_path = candidate / "gitdir"
+        try:
+            raw = binding_path.read_bytes()
+        except FileNotFoundError:
+            continue
+        if not raw or b"\x00" in raw or raw.count(b"\n") > 1:
+            raise ValueError("worktree administrative gitdir binding is malformed")
+        binding = Path(os.fsdecode(raw.rstrip(b"\n")))
+        if not binding.is_absolute():
+            binding = candidate / binding
+        binding = Path(os.path.abspath(binding))
+        if binding == wave / ".git":
+            matches.append(candidate)
+    return tuple(matches)
+
+
+def _stale_administrative_gitdir(common: Path, wave: Path) -> Path:
+    matches = _administrative_gitdirs_for_wave(common, wave)
+    if len(matches) != 1:
+        raise ValueError("target stale worktree administrative gitdir is not unique")
+    return matches[0]
+
+
+def _assert_branch_safety(
+    main: Path,
+    ref: str,
+    administrative_gitdir: Path | None,
+) -> None:
     ancestry = _git(main, "merge-base", "--is-ancestor", ref, "refs/heads/main")
     if ancestry.returncode != 0:
         raise ValueError(f"branch ancestry check rc={ancestry.returncode}")
@@ -443,14 +579,13 @@ def _assert_branch_safety(main: Path, ref: str) -> None:
         raise ValueError("branch reflog output is not ASCII") from exc
     if not reflog_shas:
         raise ValueError("branch reflog is unavailable")
-    for sha in reflog_shas:
-        if not _SHA_RE.fullmatch(sha):
-            raise ValueError("branch reflog contains a malformed commit id")
-        reachable = _git(main, "merge-base", "--is-ancestor", sha, "refs/heads/main")
-        if reachable.returncode == 1:
-            raise ValueError("branch reflog contains a commit not reachable from main")
-        if reachable.returncode != 0:
-            raise ValueError(f"branch reflog ancestry check rc={reachable.returncode}")
+    _assert_reflog_commits_reachable(main, reflog_shas, "branch reflog")
+    if administrative_gitdir is not None:
+        _assert_reflog_commits_reachable(
+            main,
+            _head_reflog_shas(administrative_gitdir),
+            "worktree HEAD reflog",
+        )
 
 
 def _assert_no_other_holder(
@@ -465,21 +600,52 @@ def _classify(
     directory_exists: bool,
     branch_tip: str | None,
     ref: str,
+    tested_tip: str,
 ) -> str:
-    if directory_exists and record is not None and record.branch == ref and not record.detached:
+    if (
+        directory_exists
+        and record is not None
+        and record.branch == ref
+        and record.detached is False
+        and record.head == tested_tip
+        and branch_tip == tested_tip
+    ):
         return "a"
-    if directory_exists and record is not None and record.detached and record.branch is None:
+    if (
+        directory_exists
+        and record is not None
+        and record.branch is None
+        and record.detached is True
+        and record.head == tested_tip
+        and branch_tip == tested_tip
+    ):
         return "b"
-    if not directory_exists and record is not None and branch_tip is not None:
+    if (
+        not directory_exists
+        and record is not None
+        and record.branch is None
+        and record.detached is True
+        and record.head == tested_tip
+        and branch_tip == tested_tip
+    ):
         return "c"
-    if not directory_exists and record is None and branch_tip is not None:
+    if not directory_exists and record is None and branch_tip == tested_tip:
         return "d"
     if not directory_exists and record is None and branch_tip is None:
         return "e"
     raise ValueError("target does not match one cleanup state")
 
 
-def _preflight(args: Args) -> tuple[str, Path, str, WorktreeRecord | None, VerifiedWavePath | None]:
+def _preflight(
+    args: Args,
+) -> tuple[
+    str,
+    Path,
+    str,
+    WorktreeRecord | None,
+    VerifiedWavePath | None,
+    OccupancyDiagnostics | None,
+]:
     branch_check = _git(args.main_worktree, "check-ref-format", "--branch", args.wave_branch)
     if branch_check.returncode != 0:
         raise _usage("wave branch is not a valid local branch name")
@@ -510,12 +676,19 @@ def _preflight(args: Args) -> tuple[str, Path, str, WorktreeRecord | None, Verif
     if main_record is None or main_record.branch != "refs/heads/main":
         raise ValueError("main-worktree porcelain identity mismatch")
     record = _record_for(records, args.wave_worktree)
+    path_present = os.path.lexists(args.wave_worktree)
     directory_exists = args.wave_worktree.is_dir()
-    if args.wave_worktree.exists() and not directory_exists:
+    if path_present and not directory_exists:
         raise ValueError("wave path exists but is not a directory")
     ref = f"refs/heads/{args.wave_branch}"
     branch_tip = _resolve_commit(args.main_worktree, f"{ref}^{{commit}}")
-    state = _classify(record, directory_exists, branch_tip, ref)
+    state = _classify(
+        record,
+        directory_exists,
+        branch_tip,
+        ref,
+        args.tested_wave_tip_sha,
+    )
     _assert_cwd_outside(args.wave_worktree)
     fold_path = _git_path(
         args.main_worktree,
@@ -524,28 +697,31 @@ def _preflight(args: Args) -> tuple[str, Path, str, WorktreeRecord | None, Verif
     )
     if os.path.lexists(fold_path):
         raise ValueError("active fold state exists")
+    if state in {"d", "e"} and _administrative_gitdirs_for_wave(common, args.wave_worktree):
+        raise ValueError("target administrative gitdir exists without a porcelain record")
     if state == "e":
-        return state, common, ref, record, None
-    if branch_tip != args.tested_wave_tip_sha:
-        raise ValueError("wave branch differs from tested tip")
+        return state, common, ref, record, None, None
     if record is not None:
-        if record.head != args.tested_wave_tip_sha:
-            raise ValueError("worktree record HEAD differs from tested tip")
         _assert_no_other_holder(records, args.wave_worktree, ref)
 
     verified: VerifiedWavePath | None = None
+    administrative_gitdir: Path | None = None
     if directory_exists:
         identity = _directory_identity(args.wave_worktree, common)
         verified = VerifiedWavePath(args.wave_worktree, identity)
+        administrative_gitdir = identity.gitdir
         if _git_path(args.wave_worktree, "rev-parse", "--git-common-dir") != common:
             raise ValueError("wave worktree belongs to another common git-dir")
         _assert_clean_and_head(args.wave_worktree, args.tested_wave_tip_sha)
-    _assert_branch_safety(args.main_worktree, ref)
+    elif state == "c":
+        administrative_gitdir = _stale_administrative_gitdir(common, args.wave_worktree)
+    _assert_branch_safety(args.main_worktree, ref, administrative_gitdir)
+    occupancy_diagnostics: OccupancyDiagnostics | None = None
     if directory_exists:
-        _assert_unoccupied(args.wave_worktree)
+        occupancy_diagnostics = _assert_unoccupied(args.wave_worktree)
         assert verified is not None
         _assert_identity(args.wave_worktree, common, verified.identity)
-    return state, common, ref, record, verified
+    return state, common, ref, record, verified, occupancy_diagnostics
 
 
 def _remove_verified_tree(verified: VerifiedWavePath, common: Path) -> None:
@@ -620,8 +796,9 @@ def _mutate(
     ref: str,
     initial_record: WorktreeRecord | None,
     verified: VerifiedWavePath | None,
-) -> None:
+) -> OccupancyDiagnostics | None:
     phase = "unlock"
+    recheck_diagnostics: OccupancyDiagnostics | None = None
     try:
         if state in {"a", "b", "c"} and initial_record is not None and initial_record.locked:
             _must_git(args.main_worktree, "worktree", "unlock", os.fspath(args.wave_worktree))
@@ -642,7 +819,7 @@ def _mutate(
             assert verified is not None
             _assert_clean_and_head(args.wave_worktree, args.tested_wave_tip_sha)
             _assert_identity(args.wave_worktree, common, verified.identity)
-            _assert_unoccupied(args.wave_worktree)
+            recheck_diagnostics = _assert_unoccupied(args.wave_worktree)
 
         phase = "remove-directory"
         if state in {"a", "b"}:
@@ -678,27 +855,58 @@ def _mutate(
         _verify_record_state(args.main_worktree, args.wave_worktree, absent=True)
         if _resolve_commit(args.main_worktree, f"{ref}^{{commit}}") is not None:
             raise ValueError("wave branch exists after cleanup")
-    except Exception as exc:  # noqa: BLE001 - fixed partial-state CLI contract
+        return recheck_diagnostics
+    except BaseException as exc:  # noqa: BLE001 - interruption is also a partial mutation
         raise _partial(phase, exc) from exc
 
 
-def run(argv: Sequence[str]) -> str:
+def _assert_already_clean(args: Args, common: Path, ref: str) -> None:
+    if os.path.lexists(args.wave_worktree):
+        raise ValueError("wave path appeared before already-clean result")
+    if _record_for(_worktree_records(args.main_worktree), args.wave_worktree) is not None:
+        raise ValueError("worktree record appeared before already-clean result")
+    if _administrative_gitdirs_for_wave(common, args.wave_worktree):
+        raise ValueError("worktree administrative gitdir appeared before already-clean result")
+    if _resolve_commit(args.main_worktree, f"{ref}^{{commit}}") is not None:
+        raise ValueError("wave branch appeared before already-clean result")
+
+
+def run(argv: Sequence[str]) -> CleanupResult:
     args = _parse_argv(argv)
     try:
-        state, common, ref, record, verified = _preflight(args)
+        state, common, ref, record, verified, preflight_diagnostics = _preflight(args)
+        if state == "e":
+            _assert_already_clean(args, common, ref)
     except CleanupFailure:
         raise
     except Exception as exc:  # noqa: BLE001 - fixed rejection CLI contract
         raise _reject("preflight", str(exc)) from exc
     if state == "e":
-        return "already-clean"
-    _mutate(args, state, common, ref, record, verified)
-    return "removed"
+        return CleanupResult("already-clean", ())
+    recheck_diagnostics = _mutate(args, state, common, ref, record, verified)
+    observations: list[OccupancyObservation] = []
+    if preflight_diagnostics is not None:
+        observations.append(OccupancyObservation("preflight", preflight_diagnostics))
+    if recheck_diagnostics is not None:
+        observations.append(OccupancyObservation("recheck", recheck_diagnostics))
+    return CleanupResult("removed", tuple(observations))
+
+
+def _print_occupancy_diagnostic(observation: OccupancyObservation) -> None:
+    diagnostics = observation.diagnostics
+    print(
+        "dev-wave-cleanup: diagnostic=occupancy "
+        f"phase={_sanitize(observation.phase)} "
+        f"cwd_permission={_sanitize(diagnostics.cwd_permission)} "
+        "same_uid_cwd_unreachable="
+        f"{_sanitize(json.dumps(diagnostics.same_uid_cwd_unreachable, ensure_ascii=False, sort_keys=True))}",
+        file=sys.stderr,
+    )
 
 
 def main(argv: Sequence[str] | None = None) -> int:
     try:
-        outcome = run(sys.argv[1:] if argv is None else argv)
+        result = run(sys.argv[1:] if argv is None else argv)
     except CleanupFailure as exc:
         print(
             "dev-wave-cleanup: "
@@ -713,7 +921,9 @@ def main(argv: Sequence[str] | None = None) -> int:
             file=sys.stderr,
         )
         return RC_REJECTED
-    print(outcome)
+    for observation in result.occupancy:
+        _print_occupancy_diagnostic(observation)
+    print(result.outcome)
     return 0
 
 

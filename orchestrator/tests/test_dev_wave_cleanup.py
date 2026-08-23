@@ -109,6 +109,23 @@ def _run(repo: Repo, capsys, **overrides: str) -> tuple[int, str, str]:
     return rc, captured.out, captured.err
 
 
+def _assert_success_output(
+    result: tuple[int, str, str],
+    outcome: str,
+    *,
+    occupancy_phases: tuple[str, ...],
+) -> None:
+    rc, stdout, stderr = result
+    assert (rc, stdout) == (0, f"{outcome}\n")
+    lines = stderr.splitlines()
+    assert len(lines) == len(occupancy_phases)
+    for line, phase in zip(lines, occupancy_phases, strict=True):
+        assert line.startswith(
+            f"dev-wave-cleanup: diagnostic=occupancy phase={phase} cwd_permission="
+        )
+        assert " same_uid_cwd_unreachable=" in line
+
+
 def _record_bytes(repo: Repo) -> bytes:
     return _git(repo.main, "worktree", "list", "--porcelain").stdout
 
@@ -150,8 +167,11 @@ def _prepare_state(repo: Repo, state: str) -> None:
 @pytest.mark.parametrize("locked", (False, True), ids=("unlocked", "locked"))
 def test_landed_attached_worktree_is_removed(tmp_path, monkeypatch, capsys, locked):
     repo = _make_repo(tmp_path, monkeypatch, locked=locked)
-    rc, stdout, stderr = _run(repo, capsys)
-    assert (rc, stdout, stderr) == (0, "removed\n", "")
+    _assert_success_output(
+        _run(repo, capsys),
+        "removed",
+        occupancy_phases=("preflight", "recheck"),
+    )
     _assert_removed(repo)
 
 
@@ -167,15 +187,87 @@ def test_reentry_states_run_only_remaining_cleanup(tmp_path, monkeypatch, capsys
         return original(cwd, *args)
 
     monkeypatch.setattr(cleanup, "_git", spy)
-    rc, stdout, stderr = _run(repo, capsys)
     expected = "already-clean\n" if state == "e" else "removed\n"
-    assert (rc, stdout, stderr) == (0, expected, "")
+    occupancy_phases = ("preflight", "recheck") if state in {"a", "b"} else ()
+    _assert_success_output(
+        _run(repo, capsys),
+        expected.rstrip("\n"),
+        occupancy_phases=occupancy_phases,
+    )
     _assert_removed(repo)
     assert (("checkout", "--detach") in calls) is (state == "a")
     assert any(call[:2] == ("worktree", "prune") and "--dry-run" in call for call in calls) is (
         state in {"a", "b", "c"}
     )
     assert any(call[:2] == ("branch", "-d") for call in calls) is (state != "e")
+
+
+def test_rejects_stale_record_bound_to_a_different_branch(
+    tmp_path, monkeypatch, capsys,
+):
+    repo = _make_repo(tmp_path, monkeypatch)
+    admin = Path(
+        (repo.wave / ".git").read_text(encoding="utf-8").removeprefix("gitdir: ").strip()
+    )
+    _git(repo.main, "branch", "other", repo.tip)
+    (admin / "HEAD").write_text("ref: refs/heads/other\n", encoding="utf-8")
+    shutil.rmtree(repo.wave)
+    _assert_rejected_preserving(repo, capsys)
+
+
+@pytest.mark.parametrize("appeared", ("path", "record", "ref"))
+def test_already_clean_rechecks_each_absence_before_success(
+    tmp_path, monkeypatch, capsys, appeared,
+):
+    repo = _make_repo(tmp_path, monkeypatch)
+    _prepare_state(repo, "e")
+    if appeared == "path":
+        original_lexists = cleanup.os.path.lexists
+        target_calls = 0
+
+        def path_appears(path):
+            nonlocal target_calls
+            if Path(path) == repo.wave:
+                target_calls += 1
+                if target_calls == 2:
+                    return True
+            return original_lexists(path)
+
+        monkeypatch.setattr(cleanup.os.path, "lexists", path_appears)
+    elif appeared == "record":
+        original_records = cleanup._worktree_records
+        record_calls = 0
+
+        def record_appears(main):
+            nonlocal record_calls
+            records = original_records(main)
+            record_calls += 1
+            if record_calls == 2:
+                records.append(cleanup.WorktreeRecord(
+                    os.fsencode(repo.wave), repo.wave, repo.tip, None, True, False, True,
+                ))
+            return records
+
+        monkeypatch.setattr(cleanup, "_worktree_records", record_appears)
+    elif appeared == "ref":
+        original_resolve = cleanup._resolve_commit
+        ref_calls = 0
+
+        def ref_appears(main, expression):
+            nonlocal ref_calls
+            if expression == f"refs/heads/{repo.branch}^{{commit}}":
+                ref_calls += 1
+                if ref_calls == 2:
+                    return repo.tip
+            return original_resolve(main, expression)
+
+        monkeypatch.setattr(cleanup, "_resolve_commit", ref_appears)
+    else:  # pragma: no cover - parameter list is the registry
+        raise AssertionError(appeared)
+
+    rc, stdout, stderr = _run(repo, capsys)
+    assert (rc, stdout) == (20, "")
+    assert "status=rejected phase=preflight" in stderr
 
 
 def _assert_rejected_preserving(repo: Repo, capsys, *, expected_rc=20, **overrides):
@@ -205,22 +297,41 @@ def test_rejects_dirty_worktree_without_mutation(tmp_path, monkeypatch, capsys, 
 
 
 @pytest.mark.parametrize(
-    ("rc", "payload", "expected"),
+    ("signal", "expected"),
     (
-        (1, {"status": "occupied", "occupants": [{"pid": 1}], "issues": [],
-             "scanned": 1, "same_uid_cwd_unreachable": [],
-             "unreachable": {"cwd_permission": 0}}, 21),
-        (2, {"status": "indeterminate", "occupants": [], "issues": [{"error": "x"}],
-             "scanned": 1, "same_uid_cwd_unreachable": [],
-             "unreachable": {"cwd_permission": 0}}, 22),
+        ("rc-occupied", 21),
+        ("status-occupied", 21),
+        ("occupants", 21),
+        ("rc-indeterminate", 22),
+        ("issues", 22),
     ),
-    ids=("occupied-rc1", "indeterminate-rc2"),
 )
 def test_rejects_occupancy_payload_failures_without_mutation(
-    tmp_path, monkeypatch, capsys, rc, payload, expected,
+    tmp_path, monkeypatch, capsys, signal, expected,
 ):
     repo = _make_repo(tmp_path, monkeypatch, locked=True)
-    payload = {**payload, "worktree": os.fspath(repo.wave)}
+    rc = 0
+    payload = {
+        "status": "unoccupied",
+        "occupants": [],
+        "issues": [],
+        "scanned": 1,
+        "same_uid_cwd_unreachable": [],
+        "unreachable": {"cwd_permission": 0},
+        "worktree": os.fspath(repo.wave),
+    }
+    if signal == "rc-occupied":
+        rc = 1
+    elif signal == "status-occupied":
+        payload["status"] = "occupied"
+    elif signal == "occupants":
+        payload["occupants"] = [{"pid": 1}]
+    elif signal == "rc-indeterminate":
+        rc = 2
+    elif signal == "issues":
+        payload["issues"] = [{"error": "x"}]
+    else:  # pragma: no cover - parameter list is the registry
+        raise AssertionError(signal)
     monkeypatch.setattr(cleanup, "_occupancy_payload", lambda path: (rc, payload))
     _assert_rejected_preserving(repo, capsys, expected_rc=expected)
 
@@ -233,7 +344,12 @@ def test_rejects_occupancy_payload_failures_without_mutation(
             "unreachable": {"cwd_permission": 2030},
         },
         {
-            "same_uid_cwd_unreachable": [{"pid": 7, "comm": "worker"}],
+            "same_uid_cwd_unreachable": [
+                {"pid": 7, "comm": "sshd"},
+                {"pid": 8, "comm": "ssh-agent"},
+                {"pid": 9, "comm": "(sd-pam)"},
+                {"pid": 10, "comm": "systemd"},
+            ],
             "unreachable": {"cwd_permission": 2030},
         },
     ),
@@ -253,8 +369,31 @@ def test_accepts_nonblocking_occupancy_diagnostics(
     }
     monkeypatch.setattr(cleanup, "_occupancy_payload", lambda path: (0, payload))
 
-    assert _run(repo, capsys) == (0, "removed\n", "")
+    result = _run(repo, capsys)
+    _assert_success_output(
+        result,
+        "removed",
+        occupancy_phases=("preflight", "recheck"),
+    )
+    assert result[2].count("cwd_permission=2030") == 2
     _assert_removed(repo)
+
+
+def test_rejects_non_allowlisted_same_uid_unreachable_process(
+    tmp_path, monkeypatch, capsys,
+):
+    repo = _make_repo(tmp_path, monkeypatch, locked=True)
+    payload = {
+        "status": "unoccupied",
+        "occupants": [],
+        "issues": [],
+        "scanned": 1,
+        "same_uid_cwd_unreachable": [{"pid": 7, "comm": "worker"}],
+        "unreachable": {"cwd_permission": 2030},
+        "worktree": os.fspath(repo.wave),
+    }
+    monkeypatch.setattr(cleanup, "_occupancy_payload", lambda path: (0, payload))
+    _assert_rejected_preserving(repo, capsys, expected_rc=22)
 
 
 def test_rejects_cwd_inside_target_without_mutation(tmp_path, monkeypatch, capsys):
@@ -359,9 +498,19 @@ def test_rejects_reflog_only_unreachable_commit_without_mutation(
 ):
     repo = _make_repo(tmp_path, monkeypatch, locked=True)
     _git(repo.main, "worktree", "unlock", os.fspath(repo.wave))
+    admin = Path(
+        (repo.wave / ".git").read_text(encoding="utf-8").removeprefix("gitdir: ").strip()
+    )
+    _git(repo.wave, "checkout", "--detach")
     (repo.wave / "tracked.txt").write_text("unreachable\n", encoding="utf-8")
     _git(repo.wave, "commit", "-am", "unreachable reflog entry")
+    unreachable = _sha(repo.wave)
     _git(repo.wave, "reset", "--hard", repo.tip)
+    branch_reflog = _git(
+        repo.main, "rev-list", "--walk-reflogs", f"refs/heads/{repo.branch}",
+    ).stdout.decode().splitlines()
+    assert unreachable not in branch_reflog
+    assert unreachable.encode() in (admin / "logs" / "HEAD").read_bytes()
     _git(repo.main, "worktree", "lock", "--reason", "synthetic", os.fspath(repo.wave))
     _assert_rejected_preserving(repo, capsys)
 
@@ -437,6 +586,59 @@ def test_forbidden_git_verbs_absent_from_source_calls_and_runtime_allowlist(monk
     assert calls == []
 
 
+@pytest.mark.parametrize(
+    "argv",
+    (
+        ("branch", "-d", "-f", "--", "wave"),
+        ("branch", "-f", "-d", "--", "wave"),
+        ("branch", "-d", "--force", "--", "wave"),
+        ("branch", "--force", "-d", "--", "wave"),
+        ("branch", "-d", "--", "wave", "-f"),
+    ),
+)
+def test_git_argv_schema_rejects_force_delete_permutations(monkeypatch, argv):
+    calls = []
+    monkeypatch.setattr(
+        cleanup.subprocess, "run", lambda *args, **kwargs: calls.append((args, kwargs)),
+    )
+    with pytest.raises(RuntimeError):
+        cleanup._git(Path("/tmp"), *argv)
+    assert calls == []
+
+
+@pytest.mark.parametrize(
+    "allowed",
+    (
+        ("cat-file", "-e", "a" * 40 + "^{commit}"),
+        ("check-ref-format", "--branch", "wave"),
+        ("merge-base", "--is-ancestor", "a" * 40, "refs/heads/main"),
+        ("rev-list", "--walk-reflogs", "refs/heads/wave"),
+        ("rev-parse", "--git-common-dir"),
+        ("rev-parse", "--git-dir"),
+        ("rev-parse", "--git-path", "izanagi-spool-fold-state.json"),
+        ("rev-parse", "--verify", "refs/heads/wave^{commit}"),
+        ("status", "--porcelain=v1", "-z", "--untracked-files=all", "--ignore-submodules=none"),
+        ("symbolic-ref", "--quiet", "HEAD"),
+        ("worktree", "list", "--porcelain"),
+        ("worktree", "unlock", "/tmp/wave"),
+        ("worktree", "prune", "--dry-run", "--verbose", "--expire=now"),
+        ("worktree", "prune", "--expire=now"),
+        ("checkout", "--detach"),
+        ("branch", "-d", "--", "wave"),
+    ),
+)
+def test_git_argv_schema_rejects_trailing_arguments_for_every_allowed_form(
+    monkeypatch, allowed,
+):
+    calls = []
+    monkeypatch.setattr(
+        cleanup.subprocess, "run", lambda *args, **kwargs: calls.append((args, kwargs)),
+    )
+    with pytest.raises(RuntimeError):
+        cleanup._git(Path("/tmp"), *allowed, "--force")
+    assert calls == []
+
+
 def test_git_argv_spy_sees_only_allowlisted_cleanup_commands(tmp_path, monkeypatch, capsys):
     repo = _make_repo(tmp_path, monkeypatch)
     calls: list[tuple[str, ...]] = []
@@ -447,7 +649,11 @@ def test_git_argv_spy_sees_only_allowlisted_cleanup_commands(tmp_path, monkeypat
         return original(cwd, *args)
 
     monkeypatch.setattr(cleanup, "_git", spy)
-    assert _run(repo, capsys) == (0, "removed\n", "")
+    _assert_success_output(
+        _run(repo, capsys),
+        "removed",
+        occupancy_phases=("preflight", "recheck"),
+    )
     assert calls
     assert ("worktree", "list", "--porcelain") in calls
     assert all("-z" not in call for call in calls if call[:2] == ("worktree", "list"))
@@ -552,6 +758,43 @@ def test_each_mutation_phase_failure_is_partial_and_calls_nothing_afterward(
     assert rc == 30 and stdout == ""
     assert f"status=partial phase={phase}" in stderr
     assert stderr.count("\n") == 1
+
+
+def test_keyboard_interrupt_after_mutation_start_reports_partial(
+    tmp_path, monkeypatch, capsys,
+):
+    repo = _make_repo(tmp_path, monkeypatch)
+
+    def interrupt(*args):
+        raise KeyboardInterrupt
+
+    monkeypatch.setattr(cleanup, "_remove_verified_tree", interrupt)
+    rc, stdout, stderr = _run(repo, capsys)
+    assert (rc, stdout) == (30, "")
+    assert "status=partial phase=remove-directory" in stderr
+    assert stderr.count("\n") == 1
+    assert repo.wave.is_dir()
+    assert _sha(repo.main, f"refs/heads/{repo.branch}") == repo.tip
+
+
+def test_keyboard_interrupt_during_preflight_is_not_partial(tmp_path, monkeypatch, capsys):
+    main = tmp_path / "main"
+    main.mkdir()
+    wave = tmp_path / "wave"
+    monkeypatch.setattr(
+        cleanup,
+        "_preflight",
+        lambda args: (_ for _ in ()).throw(KeyboardInterrupt()),
+    )
+    with pytest.raises(KeyboardInterrupt):
+        cleanup.main([
+            "--main-worktree", os.fspath(main),
+            "--wave-worktree", os.fspath(wave),
+            "--wave-branch", "wave",
+            "--tested-wave-tip-sha", "a" * 40,
+        ])
+    captured = capsys.readouterr()
+    assert (captured.out, captured.err) == ("", "")
 
 
 def test_argv_requires_each_option_once_and_full_lowercase_sha(capsys):
