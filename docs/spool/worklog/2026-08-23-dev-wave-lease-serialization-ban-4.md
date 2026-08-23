@@ -83,6 +83,35 @@ title: 受入 lease の待ちループと待ち行列を機構ごと除去した
   (2) launcher 15 件の負荷タイムアウトが出ない状態で素の全走が rc=0 になること。
   ユーザー裁定により本 wave は branch を残して終了し、除去の着地後に別 session が land する。
 
+- **受入 1 回に 40 分かかる原因を実測で分解した。** 内訳は queue 待ち 5 分 26 秒
+  (09:16:26 投入 → 09:21:52 開始)、テスト本体 5 分 41 秒 (341 秒、job 939080.nqsv)、
+  **赤の非帰属判定器 約 29 分**。遅いのはテストでも計算ノードの混雑でもなく判定器だった。
+- **裁定 D678「判定器を受入経路で使わない」がコードで守られていないことを発見した。**
+  受入 command が赤で戻ると `tools/dev_wave_wait.py` が
+  `tools/check_acceptance_reds.py` を自動起動する (`_RED_CHECKER_PATH` 経由、
+  別 session `pegasus test distribution optimization` が独立に file:line で裏取り)。
+  親は判定器を使わないつもりで投入したが、赤になった瞬間に走り 29 分を失った。
+  **散文の裁定が機構で守られていないと全 wave が同じ穴に落ちる**という一般則の実例である。
+  ユーザー裁定 (2026-08-23):「自分が原因じゃないテスト失敗は一瞬で直せるなら自分で直す、
+  難しそうなら後続別新規ウェーブで直すべき。自分が原因じゃないテストで main land に
+  5 分以上かかるべきではない。全ての並行セッションにも通達しろ」。稼働中 9 セッションへ通達した。
+- **親の判断ミスを 2 件、peer の指摘で撤回した。両方とも「直す」より「止める」へ安易に倒れていた。**
+  1. `test_sort_swo_oracle.py` へ一律 module-level skip を入れたが、main が着地させた
+     原因特定型の skip (`_skip_if_real_cpp_e2e_masstree_is_unavailable`) の方が優れており、
+     さらに `test_pytest_collection_config.py::test_explicit_sort_swo_target_still_collects_without_runner_ignore`
+     が pin する「明示指定なら収集され続ける」契約を破っていた (焦点走で 1 failed を実測)。撤回。
+  2. `test_codex_worker_launch.py` を除外契約へ載せようとしたが、別 session が既に**修理**し
+     実走で緑を確認していた (170 passed / 6.55 秒、request 939036.nqsv)。原因は
+     144 test 中 22 件が小さい `max_wall` を渡しながら検査対象は別の limit だったことで、
+     wall を subprocess timeout (10 秒) より大きくすれば検出力を落とさず直る。
+     除外していたら 144 test を失っていた。実装子を停止して撤回。
+     親の観測「15 件 → 10 件と赤の件数が揺れる」が、固定欠陥ではなく負荷依存であることの
+     証拠として先方の記録へ引かれた。
+- 判定器の自動起動を `tools/dev_wave_wait.py` から到達不能にする実装を投入した。
+  受理を child-green の 1 本だけにし、赤はそのまま失敗として返す。
+  `tools/dev_wave_land.py` と `tools/check_acceptance_reds.py` 本体は非接触。
+  裁定側は「D678 の拡張ではなく新規 D で追認する。実装は待たずに進めてよい」と回答した。
+
 ## 次の一手差分
 
 ### 新規
