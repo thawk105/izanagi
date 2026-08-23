@@ -96,7 +96,7 @@ worker 起動コストが利得を食い 96 は 32 より遅い)。明示上書�
 - **前の記録と比べるときは同じ checkout で測り直す。** 別 checkout の値との差は修正効果と
   交絡して帰属できない。記録には測った checkout を必ず併記する (dev-wave 側の義務は
   `docs/dev-wave/operations.md` DW-O18、実行環境の確定義務は同 `core.md` DW-S01)
-- 依存物 (submodule・g++-13・実 Silo サンプル) の在庫も checkout と環境で変わる —
+- 依存物 (submodule・g++-13) の在庫も checkout と環境で変わる —
   skip で失われた検出力は rc と一緒に記録する (「依存物不在時の skip」参照)。新しい worktree
   では CCBench submodule の実体化が必要で、未実体化だと real-repo 系が skip でなく赤になる
   (2026-07-28 実測: 42 failed)。`--reference` clone は `objects/info/alternates` を freeze 検証が
@@ -187,7 +187,7 @@ pytest 専用テストで、`python3 file.py` 直接実行は no-op (偽緑で�
 
 ## 依存物不在時の skip (可視化)
 
-gnuplot / 実 Silo サンプル / submodule / C++ toolchain (g++-13) が無い環境では、
+gnuplot / submodule / C++ toolchain (g++-13) が無い環境では、
 該当テストは `skiputil.skip()` で **skip として数える**。print + return の疑似
 スキップは PASS に数えられ、「fresh clone で load-bearing テストが空虚に緑」という
 カバレッジ蒸発を隠すため使わない (audit 2026-06-30 §3)。skip は依存物の**具体的な
@@ -197,12 +197,14 @@ gnuplot / 実 Silo サンプル / submodule / C++ toolchain (g++-13) が無い�
 **この分類は外部依存物の不在だけを数える。** 前提が repo 内に揃っているのに走らない skip は
 別分類であり、下の「条件付き未実走」へ数える。census を作るときに混ぜてはならない。
 
-- **実 Silo サンプル** (`output/runs/silo-sample`, 184k txn / 66MB):
-  `test_verifier.test_real_silo_serializable` (規律2 の緑の地面) が使う。
-  `.gitignore` の `output/runs/` 包括無視で git 追跡外のため fresh clone には無い。
-  再生成: trace-enabled build (`build-trace`, `-DCCBENCH_TRACE=1`) で `ycsb_silo` を
-  回し trace を `output/runs/silo-sample/` に置く (patches/README.md の trace 手順、
-  worklog 2026-06-18 参照)。
+**実 Silo トレースはこの分類から外れた。** 規律2 の実データ地面は、追跡下の
+`orchestrator/tests/fixtures/g5_silo_real_prefix/` (実 emitter が吐いた bytes の
+commit-stamp prefix) が担い、`test_verifier.test_real_silo_serializable` は
+**どの checkout でも必ず実走する**。追跡外の大規模サンプル `output/runs/silo-sample` は、
+置いた機体でだけ同じ node の中で追加検証される任意入力であり、不在でも skip しない
+(必須検査は既に完了しているため)。fixture の由来・再生成手順・判定既知の根拠は
+`fixtures/README.md` が正本。
+
 - **submodule**: `git submodule update --init external/ccbench` 後に
   source_digest / EVOLVE-BLOCK / S-1 freeze 生成系テストが有効化される。submodule 実ファイル
   (`cmake/Options.cmake` / `include/backoff.hh` / `cc/silo/CMakeLists.txt`) を直接読む
@@ -291,4 +293,4 @@ identity や certified 選択を許しうる面なので、census を読むと�
 
 ## fixtures
 
-判定既知の手製極小トレースは `fixtures/README.md` 参照。
+判定既知の手製極小トレースと、実 emitter 由来の実データ fixture は `fixtures/README.md` 参照。
