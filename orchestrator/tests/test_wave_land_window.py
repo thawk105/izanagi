@@ -51,8 +51,15 @@ def _write_ticket(
 ) -> Path:
     holder = WLW._holder_for(wave)
     path = _ticket_path(lease_dir, wave)
+    legacy_payload = (
+        json.dumps(
+            {"holder": holder, "queued_at_ns": queued_at_ns, "ttl": 300},
+            ensure_ascii=True,
+        )
+        + "\n"
+    ).encode("ascii")
     path.write_bytes(
-        WLW._ticket_payload(holder, queued_at_ns) if content is None else content
+        legacy_payload if content is None else content
     )
     os.utime(path, ns=(mtime_ns, mtime_ns))
     return path
@@ -414,12 +421,7 @@ def test_renew_never_creates_or_drops_ticket(
     def forbidden_queue_operation(*_args, **_kwargs):
         raise AssertionError("renew must not touch the queue")
 
-    for name in (
-        "_create_lease",
-        "_ensure_ticket",
-        "_queue_head",
-        "_drop_ticket_best_effort",
-    ):
+    for name in ("_create_lease", "_drop_ticket_best_effort"):
         monkeypatch.setattr(WLW, name, forbidden_queue_operation)
 
     renewed = _renew(tmp_path, _WAVE_A)
@@ -500,7 +502,6 @@ def test_self_claim_renew_failure_is_structured_unavailable(
     _claim(tmp_path, _WAVE_A, capsys)
     lease = tmp_path / "acceptance.lease"
     before = (lease.stat().st_mtime_ns, lease.read_bytes())
-    monkeypatch.setattr(WLW, "_ensure_ticket", lambda *args: False)
 
     if failure == "utime":
         monkeypatch.setattr(
@@ -764,377 +765,144 @@ def test_release_then_other_wave_can_acquire(
     assert second["holder"] != first["holder"]
 
 
-def test_acquired_claim_removes_own_wait_ticket(
+@pytest.mark.parametrize(
+    ("ticket_age_seconds", "content"),
+    [
+        (1, None),
+        (301, None),
+        (1, b"not-json"),
+    ],
+    ids=("fresh", "stale", "malformed"),
+)
+def test_free_claim_ignores_orphaned_legacy_ticket(
     tmp_path: Path,
     capsys: pytest.CaptureFixture[str],
-    monkeypatch: pytest.MonkeyPatch,
+    ticket_age_seconds: int,
+    content: bytes | None,
 ) -> None:
-    monkeypatch.setattr(WLW.time, "time_ns", lambda: _NOW_NS)
-    _write_ticket(
-        tmp_path,
-        _WAVE_A,
-        queued_at_ns=100,
-        mtime_ns=_NOW_NS - 1,
-    )
-    result = _claim(tmp_path, _WAVE_A, capsys)
-
-    assert result["state"] == "acquired"
-    assert not _ticket_path(tmp_path, _WAVE_A).exists()
-
-
-def test_held_claim_creates_strict_wait_ticket(
-    tmp_path: Path,
-    capsys: pytest.CaptureFixture[str],
-) -> None:
-    _claim(tmp_path, _WAVE_A, capsys)
-    result = _claim(tmp_path, _WAVE_B, capsys, main_sha=_SHA_B)
-    ticket_payload = json.loads(_ticket_path(tmp_path, _WAVE_B).read_text("ascii"))
-
-    assert result["state"] == "held"
-    assert ticket_payload["holder"] == WLW._holder_for(_WAVE_B)
-    assert isinstance(ticket_payload["queued_at_ns"], int)
-    assert ticket_payload["queued_at_ns"] > 0
-    assert ticket_payload["ttl"] == 300
-
-
-def test_fifo_oldest_waiter_acquires_before_fast_newcomer(
-    tmp_path: Path,
-    capsys: pytest.CaptureFixture[str],
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """M1: 最古優先を固定する。"""
-    monkeypatch.setattr(WLW.time, "time_ns", lambda: _NOW_NS)
-    _claim(tmp_path, _WAVE_A, capsys)
-    _write_ticket(
-        tmp_path,
-        _WAVE_B,
-        queued_at_ns=100,
-        mtime_ns=_NOW_NS - 2_000_000_000,
-    )
-    _write_ticket(
-        tmp_path,
-        _WAVE_C,
-        queued_at_ns=200,
-        mtime_ns=_NOW_NS - 1_000_000_000,
-    )
-    _release(tmp_path, _WAVE_A, capsys)
-
-    newcomer = _claim(tmp_path, _WAVE_C, capsys, main_sha=_SHA_B)
-    oldest = _claim(tmp_path, _WAVE_B, capsys, main_sha=_SHA_B)
-
-    assert newcomer["state"] == "queued"
-    assert newcomer["holder"] == WLW._holder_for(_WAVE_B)
-    assert oldest["state"] == "acquired"
-
-
-def test_equal_arrival_uses_holder_digest_not_creation_order(
-    tmp_path: Path,
-    capsys: pytest.CaptureFixture[str],
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """M9: 同着時は作成順でなく holder digest の小さい札を先頭にする。"""
-    monkeypatch.setattr(WLW.time, "time_ns", lambda: _NOW_NS)
-    waves_by_holder = sorted((_WAVE_B, _WAVE_C), key=WLW._holder_for)
-    for wave in reversed(waves_by_holder):
-        _write_ticket(
-            tmp_path,
-            wave,
-            queued_at_ns=300,
-            mtime_ns=_NOW_NS - 1_000_000_000,
-        )
-
-    result = _claim(tmp_path, waves_by_holder[1], capsys, main_sha=_SHA_B)
-
-    assert result["state"] == "queued"
-    assert result["holder"] == WLW._holder_for(waves_by_holder[0])
-
-
-def test_waiter_heartbeat_updates_mtime_without_rewriting_arrival(
-    tmp_path: Path,
-    capsys: pytest.CaptureFixture[str],
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """M2: heartbeat は mtime だけを更新し queued_at_ns を不変にする。"""
-    monkeypatch.setattr(WLW.time, "time_ns", lambda: _NOW_NS)
-    _claim(tmp_path, _WAVE_A, capsys)
+    now_ns = WLW.time.time_ns()
     ticket = _write_ticket(
         tmp_path,
-        _WAVE_B,
-        queued_at_ns=123,
-        mtime_ns=_NOW_NS - 10_000_000_000,
+        _WAVE_A,
+        queued_at_ns=1,
+        mtime_ns=now_ns - ticket_age_seconds * 1_000_000_000,
+        content=content,
+    )
+    before = (ticket.read_bytes(), ticket.stat().st_mtime_ns)
+
+    result = _claim(tmp_path, _WAVE_B, capsys, main_sha=_SHA_B)
+
+    assert result["state"] == "acquired"
+    assert result["holder"] == WLW._holder_for(_WAVE_B)
+    assert ticket.exists()
+    assert (ticket.read_bytes(), ticket.stat().st_mtime_ns) == before
+    assert not _ticket_path(tmp_path, _WAVE_B).exists()
+
+
+def test_claim_does_not_remove_existing_legacy_ticket(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    ticket = _write_ticket(
+        tmp_path,
+        _WAVE_A,
+        queued_at_ns=1,
+        mtime_ns=WLW.time.time_ns(),
     )
     before = ticket.read_bytes()
 
-    result = _claim(tmp_path, _WAVE_B, capsys, main_sha=_SHA_B)
+    result = _claim(tmp_path, _WAVE_A, capsys)
 
-    assert result["state"] == "held"
+    assert result["state"] == "acquired"
+    assert ticket.exists()
     assert ticket.read_bytes() == before
-    assert ticket.stat().st_mtime_ns == _NOW_NS
 
 
-def test_waiter_heartbeat_succeeds_when_flock_is_busy(
+def test_held_claim_does_not_create_legacy_ticket(
     tmp_path: Path,
     capsys: pytest.CaptureFixture[str],
-    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setattr(WLW.time, "time_ns", lambda: _NOW_NS)
     _claim(tmp_path, _WAVE_A, capsys)
-    ticket = _write_ticket(
-        tmp_path,
-        _WAVE_B,
-        queued_at_ns=123,
-        mtime_ns=_NOW_NS - 10_000_000_000,
-    )
-    before = (ticket.stat().st_ino, ticket.read_bytes())
-    real_flock_bounded = WLW._flock_bounded
-
-    def busy_ticket_flock(fd: int, operation: int) -> None:
-        if os.fstat(fd).st_ino == before[0]:
-            raise BlockingIOError(errno.EWOULDBLOCK, "busy")
-        real_flock_bounded(fd, operation)
-
-    monkeypatch.setattr(WLW, "_flock_bounded", busy_ticket_flock)
 
     result = _claim(tmp_path, _WAVE_B, capsys, main_sha=_SHA_B)
 
     assert result["state"] == "held"
-    assert (ticket.stat().st_ino, ticket.read_bytes()) == before
-    assert ticket.stat().st_mtime_ns == _NOW_NS
+    assert result["holder"] == WLW._holder_for(_WAVE_A)
+    assert not _ticket_path(tmp_path, _WAVE_B).exists()
+    assert not list(tmp_path.glob("ticket.*"))
 
 
-def test_abandoned_waiter_ttl_boundary_is_literal_300(
+@pytest.mark.parametrize(
+    "failure",
+    ["exception", "race"],
+    ids=("create-exception", "create-race"),
+)
+def test_claim_create_failure_is_bounded_and_fail_closed(
     tmp_path: Path,
     capsys: pytest.CaptureFixture[str],
     monkeypatch: pytest.MonkeyPatch,
+    failure: str,
 ) -> None:
-    """M3: 299 秒は fresh、300 秒ちょうどで stale とする。"""
-    monkeypatch.setattr(WLW.time, "time_ns", lambda: _NOW_NS)
-    results: dict[int, dict[str, object]] = {}
-    for age_seconds in (299, 300):
-        lease_dir = tmp_path / str(age_seconds)
-        lease_dir.mkdir()
-        _write_ticket(
-            lease_dir,
-            _WAVE_B,
-            queued_at_ns=100,
-            mtime_ns=_NOW_NS - age_seconds * 1_000_000_000,
-        )
-        _write_ticket(
-            lease_dir,
-            _WAVE_C,
-            queued_at_ns=200,
-            mtime_ns=_NOW_NS - 1_000_000_000,
-        )
-        results[age_seconds] = _claim(
-            lease_dir, _WAVE_C, capsys, main_sha=_SHA_B
-        )
+    create_calls = 0
 
-    assert results[299]["state"] == "queued"
-    assert results[299]["holder"] == WLW._holder_for(_WAVE_B)
-    assert results[300]["state"] == "acquired"
+    def create_failure(*_args: object) -> dict[str, object] | None:
+        nonlocal create_calls
+        create_calls += 1
+        if failure == "exception":
+            raise OSError(errno.ENOSPC, "full")
+        return None
 
-
-def test_head_that_cannot_create_lease_drops_own_ticket(
-    tmp_path: Path,
-    capsys: pytest.CaptureFixture[str],
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """M4/V1: lease 作成失敗で self-maintaining head を残さない。"""
-    monkeypatch.setattr(WLW.time, "time_ns", lambda: _NOW_NS)
-    _write_ticket(
-        tmp_path,
-        _WAVE_A,
-        queued_at_ns=100,
-        mtime_ns=_NOW_NS - 1,
-    )
-    monkeypatch.setattr(
-        WLW,
-        "_create_lease",
-        lambda *args: (_ for _ in ()).throw(OSError(errno.ENOSPC, "full")),
-    )
+    monkeypatch.setattr(WLW, "_create_lease", create_failure)
 
     result = _claim(tmp_path, _WAVE_A, capsys)
 
     assert result["state"] == "unavailable"
-    assert not _ticket_path(tmp_path, _WAVE_A).exists()
+    assert result["source"] == {
+        "status": "unavailable",
+        "reason": (
+            "lease-unavailable" if failure == "exception" else "lease-race"
+        ),
+    }
+    assert create_calls == (
+        1 if failure == "exception" else WLW._MAX_RACE_RETRIES
+    )
+    assert not (tmp_path / "acceptance.lease").exists()
+    assert not list(tmp_path.glob("ticket.*"))
 
 
-def test_ticket_cleanup_failure_does_not_mask_acquired(
+def test_claim_retries_actual_file_exists_from_create_lease(
     tmp_path: Path,
     capsys: pytest.CaptureFixture[str],
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    real_unlink = WLW.os.unlink
-    own_name = _ticket_path(tmp_path, _WAVE_A).name
-    unlink_attempts: list[object] = []
-    monkeypatch.setattr(WLW.time, "time_ns", lambda: _NOW_NS)
-    _write_ticket(
-        tmp_path,
-        _WAVE_A,
-        queued_at_ns=100,
-        mtime_ns=_NOW_NS - 1,
-    )
+    create_calls = 0
+    real_open = WLW.os.open
 
-    def fail_ticket_unlink(path: object, *, dir_fd: int | None = None) -> None:
-        if path == own_name:
-            unlink_attempts.append(path)
-            raise PermissionError(errno.EACCES, "denied")
-        real_unlink(path, dir_fd=dir_fd)
+    def create_race(
+        path: object,
+        flags: int,
+        mode: int = 0o777,
+        *,
+        dir_fd: int | None = None,
+    ) -> int:
+        nonlocal create_calls
+        if path == WLW._LEASE_NAME and flags & os.O_EXCL:
+            create_calls += 1
+            raise FileExistsError(errno.EEXIST, "simulated create race")
+        return real_open(path, flags, mode, dir_fd=dir_fd)
 
-    monkeypatch.setattr(WLW.os, "unlink", fail_ticket_unlink)
+    monkeypatch.setattr(WLW.os, "open", create_race)
 
     result = _claim(tmp_path, _WAVE_A, capsys)
 
-    assert result["state"] == "acquired"
-    assert unlink_attempts
-    assert set(unlink_attempts) == {own_name}
-    assert _ticket_path(tmp_path, _WAVE_A).exists()
-
-
-def test_ticket_registration_failure_degrades_to_legacy_path(
-    tmp_path: Path,
-    capsys: pytest.CaptureFixture[str],
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    monkeypatch.setattr(WLW.time, "time_ns", lambda: _NOW_NS)
-    first = _write_ticket(
-        tmp_path,
-        _WAVE_B,
-        queued_at_ns=100,
-        mtime_ns=_NOW_NS - 1_000_000_000,
-    )
-    monkeypatch.setattr(WLW, "_ensure_ticket", lambda *args: False)
-
-    result = _claim(tmp_path, _WAVE_C, capsys, main_sha=_SHA_B)
-
-    assert result["state"] == "acquired"
-    assert result["holder"] == WLW._holder_for(_WAVE_C)
-    assert first.exists()
-
-
-def test_ticket_scan_cap_degrades_to_legacy_path(
-    tmp_path: Path,
-    capsys: pytest.CaptureFixture[str],
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """M5/V2: 65 枚は queue を無効化し、停止せず現行 lease 競争へ戻す。"""
-    monkeypatch.setattr(WLW.time, "time_ns", lambda: _NOW_NS)
-    existing_tickets: list[Path] = []
-    for index in range(64):
-        holder = f"{index:012x}"
-        path = tmp_path / f"ticket.{holder}"
-        path.write_bytes(WLW._ticket_payload(holder, index + 1))
-        os.utime(path, ns=(_NOW_NS - 1_000_000_000,) * 2)
-        existing_tickets.append(path)
-    _write_ticket(
-        tmp_path,
-        _WAVE_C,
-        queued_at_ns=10_000,
-        mtime_ns=_NOW_NS - 1_000_000_000,
-    )
-
-    result = _claim(tmp_path, _WAVE_C, capsys, main_sha=_SHA_B)
-
-    assert result["state"] == "acquired"
-    assert all(path.exists() for path in existing_tickets)
-    assert not _ticket_path(tmp_path, _WAVE_C).exists()
-
-
-def test_exactly_64_tickets_keep_queue_enabled(
-    tmp_path: Path,
-    capsys: pytest.CaptureFixture[str],
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """M8: 64 枚ちょうどなら cap 超過ではない。"""
-    monkeypatch.setattr(WLW.time, "time_ns", lambda: _NOW_NS)
-    claimant = WLW._holder_for(_WAVE_C)
-    holders = [f"{index:012x}" for index in range(63)] + [claimant]
-    for index, holder in enumerate(holders):
-        path = tmp_path / f"ticket.{holder}"
-        path.write_bytes(WLW._ticket_payload(holder, index + 1))
-        os.utime(path, ns=(_NOW_NS - 1_000_000_000,) * 2)
-
-    result = _claim(tmp_path, _WAVE_C, capsys, main_sha=_SHA_B)
-
-    assert result["state"] == "queued"
-    assert result["holder"] == "000000000000"
-    assert _ticket_path(tmp_path, _WAVE_C).exists()
-
-
-def test_total_entry_scan_cap_degrades_to_legacy_path(
-    tmp_path: Path,
-    capsys: pytest.CaptureFixture[str],
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    monkeypatch.setattr(WLW.time, "time_ns", lambda: _NOW_NS)
-    first = _write_ticket(
-        tmp_path,
-        _WAVE_B,
-        queued_at_ns=1,
-        mtime_ns=_NOW_NS - 1_000_000_000,
-    )
-    for index in range(WLW._MAX_ENTRIES_SCANNED):
-        (tmp_path / f"other-{index:04d}").touch()
-
-    result = _claim(tmp_path, _WAVE_C, capsys, main_sha=_SHA_B)
-
-    assert result["state"] == "acquired"
-    assert first.exists()
-
-
-def test_filename_payload_holder_mismatch_is_not_a_queue_candidate(
-    tmp_path: Path,
-    capsys: pytest.CaptureFixture[str],
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """M10: filename と payload の holder 不一致札を順序候補から外す。"""
-    monkeypatch.setattr(WLW.time, "time_ns", lambda: _NOW_NS)
-    filename_holder = WLW._holder_for(_WAVE_B)
-    payload_holder = "000000000000"
-    mismatched = tmp_path / f"ticket.{filename_holder}"
-    mismatched.write_bytes(WLW._ticket_payload(payload_holder, 1))
-    os.utime(mismatched, ns=(_NOW_NS - 1_000_000_000,) * 2)
-    _write_ticket(
-        tmp_path,
-        _WAVE_C,
-        queued_at_ns=2,
-        mtime_ns=_NOW_NS - 1_000_000_000,
-    )
-
-    result = _claim(tmp_path, _WAVE_C, capsys, main_sha=_SHA_B)
-
-    assert result["state"] == "acquired"
-    assert mismatched.exists()
-
-
-def test_single_corrupt_ticket_does_not_let_newcomer_overtake(
-    tmp_path: Path,
-    capsys: pytest.CaptureFixture[str],
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """M6/V3: 異常札だけを外し、別の正常な先着 waiter を保持する。"""
-    monkeypatch.setattr(WLW.time, "time_ns", lambda: _NOW_NS)
-    _write_ticket(
-        tmp_path,
-        _WAVE_B,
-        queued_at_ns=100,
-        mtime_ns=_NOW_NS - 2_000_000_000,
-    )
-    corrupt_holder = "deadbeef0000"
-    corrupt = tmp_path / f"ticket.{corrupt_holder}"
-    corrupt.write_bytes(b'{"holder":"deadbeef0000","queued_at_ns":')
-    os.utime(corrupt, ns=(_NOW_NS - 2_000_000_000,) * 2)
-    _write_ticket(
-        tmp_path,
-        _WAVE_C,
-        queued_at_ns=200,
-        mtime_ns=_NOW_NS - 1_000_000_000,
-    )
-
-    result = _claim(tmp_path, _WAVE_C, capsys, main_sha=_SHA_B)
-
-    assert result["state"] == "queued"
-    assert result["holder"] == WLW._holder_for(_WAVE_B)
+    assert result["state"] == "unavailable"
+    assert result["source"] == {
+        "status": "unavailable",
+        "reason": "lease-race",
+    }
+    assert create_calls == WLW._MAX_RACE_RETRIES
+    assert not (tmp_path / "acceptance.lease").exists()
+    assert not list(tmp_path.glob("ticket.*"))
 
 
 def test_release_without_lease_drops_own_ticket(
@@ -1153,6 +921,37 @@ def test_release_without_lease_drops_own_ticket(
 
     assert result["state"] == "free"
     assert not ticket.exists()
+
+
+def test_release_does_not_remove_foreign_legacy_ticket(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """R2: release は所有外の旧 ticket を cleanup しない。"""
+    ticket = _write_ticket(
+        tmp_path,
+        _WAVE_B,
+        queued_at_ns=100,
+        mtime_ns=_NOW_NS,
+    )
+    before = ticket.read_bytes()
+    real_fstat = WLW.os.fstat
+    ticket_fd = os.open(ticket, os.O_RDONLY)
+    try:
+        metadata = real_fstat(ticket_fd)
+    finally:
+        os.close(ticket_fd)
+    foreign_values = list(metadata)
+    foreign_values[4] = metadata.st_uid + 1
+    foreign_metadata = os.stat_result(foreign_values)
+    monkeypatch.setattr(WLW.os, "fstat", lambda _fd: foreign_metadata)
+
+    result = _release(tmp_path, _WAVE_B, capsys)
+
+    assert result["state"] == "free"
+    assert ticket.exists()
+    assert ticket.read_bytes() == before
 
 
 def test_status_distinguishes_free_and_held(
@@ -1219,7 +1018,7 @@ def test_status_free_means_only_that_the_lease_is_absent(
     assert present["state"] == "held"
 
 
-def test_status_does_not_touch_or_interpret_wait_tickets(
+def test_status_reports_free_with_orphaned_legacy_ticket(
     tmp_path: Path,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
@@ -1227,8 +1026,8 @@ def test_status_does_not_touch_or_interpret_wait_tickets(
         tmp_path,
         _WAVE_B,
         queued_at_ns=100,
-        mtime_ns=_NOW_NS,
-        content=b"not-json",
+        mtime_ns=WLW.time.time_ns(),
+        content=b"legacy-ticket",
     )
     before = (ticket.read_bytes(), ticket.stat().st_mtime_ns)
 
@@ -1236,67 +1035,6 @@ def test_status_does_not_touch_or_interpret_wait_tickets(
 
     assert result["state"] == "free"
     assert (ticket.read_bytes(), ticket.stat().st_mtime_ns) == before
-
-
-def test_future_dated_waiter_is_stale_immediately(
-    tmp_path: Path,
-    capsys: pytest.CaptureFixture[str],
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    monkeypatch.setattr(WLW.time, "time_ns", lambda: _NOW_NS)
-    _write_ticket(
-        tmp_path,
-        _WAVE_B,
-        queued_at_ns=100,
-        mtime_ns=_NOW_NS + 1,
-    )
-    _write_ticket(
-        tmp_path,
-        _WAVE_C,
-        queued_at_ns=200,
-        mtime_ns=_NOW_NS - 1,
-    )
-
-    result = _claim(tmp_path, _WAVE_C, capsys, main_sha=_SHA_B)
-
-    assert result["state"] == "acquired"
-
-
-def test_stale_waiter_unlink_failure_does_not_block_acquisition(
-    tmp_path: Path,
-    capsys: pytest.CaptureFixture[str],
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    monkeypatch.setattr(WLW.time, "time_ns", lambda: _NOW_NS)
-    stale = _write_ticket(
-        tmp_path,
-        _WAVE_B,
-        queued_at_ns=100,
-        mtime_ns=_NOW_NS - 300_000_000_000,
-    )
-    _write_ticket(
-        tmp_path,
-        _WAVE_C,
-        queued_at_ns=200,
-        mtime_ns=_NOW_NS - 1,
-    )
-    real_unlink = WLW.os.unlink
-    unlink_attempts: list[object] = []
-
-    def fail_stale_unlink(path: object, *, dir_fd: int | None = None) -> None:
-        if path == stale.name:
-            unlink_attempts.append(path)
-            raise PermissionError(errno.EACCES, "denied")
-        real_unlink(path, dir_fd=dir_fd)
-
-    monkeypatch.setattr(WLW.os, "unlink", fail_stale_unlink)
-
-    result = _claim(tmp_path, _WAVE_C, capsys, main_sha=_SHA_B)
-
-    assert result["state"] == "acquired"
-    assert unlink_attempts
-    assert set(unlink_attempts) == {stale.name}
-    assert stale.exists()
 
 
 def test_non_owner_release_cancels_own_wait_ticket_only(
@@ -1319,31 +1057,6 @@ def test_non_owner_release_cancels_own_wait_ticket_only(
     assert result["holder"] == first["holder"]
     assert lease.read_bytes() == before
     assert not ticket.exists()
-
-
-def test_queue_scan_failure_degrades_to_existing_lease_path(
-    tmp_path: Path,
-    capsys: pytest.CaptureFixture[str],
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    real_queue_head = WLW._queue_head
-    queue_head_calls: list[int] = []
-
-    def recorded_queue_head(directory_fd: int) -> object:
-        queue_head_calls.append(directory_fd)
-        return real_queue_head(directory_fd)
-
-    monkeypatch.setattr(WLW, "_queue_head", recorded_queue_head)
-    monkeypatch.setattr(
-        WLW.os, "scandir", lambda fd: (_ for _ in ()).throw(OSError())
-    )
-
-    result = _claim(tmp_path, _WAVE_A, capsys)
-
-    assert result["state"] == "acquired"
-    assert len(queue_head_calls) == 1
-    assert (tmp_path / "acceptance.lease").is_file()
-    assert not _ticket_path(tmp_path, _WAVE_A).exists()
 
 
 @pytest.mark.parametrize(
@@ -1437,6 +1150,48 @@ def test_stale_invalid_lease_is_reclaimed_by_mtime(
     assert result["state"] == "acquired"
     assert result["holder_self"] is True
     assert json.loads(lease.read_text(encoding="ascii"))["ttl"] == 2400
+
+
+def test_claim_retries_after_stale_lease_disappears_during_unlink(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(WLW.time, "time", lambda: float(_NOW))
+    _claim(tmp_path, _WAVE_A, capsys)
+    os.utime(tmp_path / "acceptance.lease", (_NOW - 2401,) * 2)
+    real_unlink = WLW.os.unlink
+    unlink_calls = 0
+
+    def disappear_after_unlink(
+        path: object, *, dir_fd: int | None = None
+    ) -> None:
+        nonlocal unlink_calls
+        if (
+            path == WLW._LEASE_NAME
+            and dir_fd is not None
+            and unlink_calls == 0
+        ):
+            unlink_calls += 1
+            real_unlink(path, dir_fd=dir_fd)
+            raise FileNotFoundError(errno.ENOENT, "stale lease disappeared")
+        real_unlink(path, dir_fd=dir_fd)
+
+    monkeypatch.setattr(WLW.os, "unlink", disappear_after_unlink)
+
+    result = _claim(tmp_path, _WAVE_B, capsys, main_sha=_SHA_B)
+
+    assert result["state"] == "acquired"
+    assert result["holder"] == WLW._holder_for(_WAVE_B)
+    assert result["main_sha"] == _SHA_B
+    assert unlink_calls == 1
+    assert json.loads(
+        (tmp_path / "acceptance.lease").read_text(encoding="ascii")
+    ) == {
+        "holder": WLW._holder_for(_WAVE_B),
+        "main_sha": _SHA_B,
+        "ttl": 2400,
+    }
 
 
 def test_fresh_invalid_lease_remains_fail_closed(
@@ -1675,124 +1430,6 @@ def test_new_lease_flock_retries_are_nonblocking_and_bounded(
     assert not (tmp_path / "acceptance.lease").exists()
 
 
-def test_ticket_payload_rejects_duplicate_oversized_and_nonliteral_fields(
-    tmp_path: Path,
-) -> None:
-    holder = WLW._holder_for(_WAVE_B)
-    invalid_payloads = [
-        (
-            b'{"holder":"'
-            + holder.encode("ascii")
-            + b'","queued_at_ns":1,"queued_at_ns":2,"ttl":300}'
-        ),
-        WLW._ticket_payload(holder, 1).replace(b'"ttl": 300', b'"ttl": true'),
-        WLW._ticket_payload(holder, 1).replace(b'"ttl": 300', b'"ttl": 299'),
-        WLW._ticket_payload(holder, 1).replace(
-            b'"queued_at_ns": 1', b'"queued_at_ns": true'
-        ),
-    ]
-    for content in invalid_payloads:
-        with pytest.raises(ValueError):
-            WLW._parse_ticket(content, holder)
-
-    path = tmp_path / f"ticket.{holder}"
-    path.write_bytes(b" " * 4097)
-    directory_fd = WLW._open_directory(tmp_path)
-    try:
-        with pytest.raises(ValueError, match="byte limit"):
-            WLW._open_ticket(directory_fd, path.name, exclusive=False)
-    finally:
-        os.close(directory_fd)
-
-
-def test_ticket_open_uses_nofollow_nonblock_and_dir_fd(
-    tmp_path: Path,
-    capsys: pytest.CaptureFixture[str],
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    _claim(tmp_path, _WAVE_A, capsys)
-    _claim(tmp_path, _WAVE_B, capsys, main_sha=_SHA_B)
-    real_open = WLW.os.open
-    seen: list[tuple[int, int | None]] = []
-
-    def checked_open(
-        path: object, flags: int, mode: int = 0o777, *, dir_fd: int | None = None
-    ) -> int:
-        if path == _ticket_path(tmp_path, _WAVE_B).name:
-            seen.append((flags, dir_fd))
-        return real_open(path, flags, mode, dir_fd=dir_fd)
-
-    monkeypatch.setattr(WLW.os, "open", checked_open)
-
-    result = _claim(tmp_path, _WAVE_B, capsys, main_sha=_SHA_B)
-
-    assert result["state"] == "held"
-    assert seen
-    assert all(flags & os.O_NOFOLLOW for flags, _ in seen)
-    assert all(flags & os.O_NONBLOCK for flags, _ in seen)
-    assert all(isinstance(dir_fd, int) for _, dir_fd in seen)
-
-
-def test_other_uid_ticket_is_rejected_before_flock(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    ticket = _write_ticket(
-        tmp_path,
-        _WAVE_B,
-        queued_at_ns=1,
-        mtime_ns=_NOW_NS,
-    )
-    metadata = ticket.stat()
-    foreign_values = list(metadata)
-    foreign_values[4] = metadata.st_uid + 1
-    foreign_metadata = os.stat_result(foreign_values)
-    monkeypatch.setattr(WLW.os, "fstat", lambda fd: foreign_metadata)
-    monkeypatch.setattr(
-        WLW.fcntl,
-        "flock",
-        lambda fd, operation: (_ for _ in ()).throw(
-            AssertionError("flock must not run for another uid")
-        ),
-    )
-    directory_fd = WLW._open_directory(tmp_path)
-    try:
-        with pytest.raises(ValueError, match="owner differs"):
-            WLW._open_ticket(directory_fd, ticket.name, exclusive=False)
-    finally:
-        os.close(directory_fd)
-
-
-def test_ticket_flock_retries_are_nonblocking_bounded(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    monkeypatch.setattr(WLW.time, "time_ns", lambda: _NOW_NS)
-    ticket = _write_ticket(
-        tmp_path,
-        _WAVE_B,
-        queued_at_ns=1,
-        mtime_ns=_NOW_NS,
-    )
-    operations: list[int] = []
-
-    def always_busy(fd: int, operation: int) -> None:
-        operations.append(operation)
-        raise BlockingIOError(errno.EWOULDBLOCK, "busy")
-
-    monkeypatch.setattr(WLW.fcntl, "flock", always_busy)
-    directory_fd = WLW._open_directory(tmp_path)
-    try:
-        with pytest.raises(BlockingIOError):
-            WLW._open_ticket(directory_fd, ticket.name, exclusive=False)
-    finally:
-        os.close(directory_fd)
-
-    assert len(operations) == 8
-    assert all(operation & fcntl.LOCK_NB for operation in operations)
-    assert all(operation & fcntl.LOCK_SH for operation in operations)
-
-
 def test_ticket_cleanup_preserves_same_name_replacement(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -1857,35 +1494,6 @@ def test_ticket_cleanup_does_not_require_flock_and_returns_success(
 
     assert removed is True
     assert not ticket.exists()
-
-
-def test_instruction_like_waiter_is_digest_only_in_ticket_and_output(
-    tmp_path: Path,
-    capsys: pytest.CaptureFixture[str],
-) -> None:
-    _claim(tmp_path, _WAVE_A, capsys)
-    rc, result, output = _invoke_json(
-        [
-            "claim",
-            "--lease-dir",
-            str(tmp_path),
-            "--wave",
-            _INSTRUCTION_WAVE,
-            "--main-sha",
-            _SHA_B,
-        ],
-        capsys,
-    )
-    ticket = tmp_path / f"ticket.{_INSTRUCTION_DIGEST}"
-    payload = ticket.read_text("ascii")
-
-    assert rc == 0
-    assert result["state"] == "held"
-    assert _INSTRUCTION_DIGEST in ticket.name
-    assert _INSTRUCTION_DIGEST in payload
-    assert _INSTRUCTION_WAVE not in ticket.name
-    assert _INSTRUCTION_WAVE not in payload
-    assert _INSTRUCTION_WAVE not in output
 
 
 def test_instruction_like_wave_is_digest_only_in_all_outputs(
