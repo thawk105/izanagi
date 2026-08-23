@@ -89,6 +89,11 @@ git add -- docs/spool
 直後、同じ協調 lock を保持したまま実行する。これにより採番・追記・ローテーションが直列化され、
 race も再採番も起きない。
 
+**書いた fragment を撤回するときは、file を削除せず内容を書き換える。** fragment の削除と
+`FOLDED.md` の変更は fold の署名であり、land の verifier は wave の commit 区間にこれらが現れると
+`landed-fold-owned-path` で拒否する (`tools/dev_waves/git_state.py`)。撤回したい決定は、決定を残して
+結論を現況へ改める。後から削除し直しても、削除した commit が区間に残る限り拒否は解けない。
+
 fold が行うこと:
 
 1. fragment を決定的順序 (`wave`, `seq`, ledger, path) で読む
