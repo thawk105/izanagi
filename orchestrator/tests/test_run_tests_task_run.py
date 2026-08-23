@@ -169,7 +169,9 @@ def test_manual_id_keeps_pytest_argv_and_records_monotonic_result(monkeypatch, t
     target = "orchestrator/tests/test_run_tests_task_run.py"
     assert RT.main([target, "-k", "one"], site=RT.site_policy.OTHER) == 1
     assert captured["command"] == [
-        sys.executable, "-m", "pytest", str(_REPO / target), "-k", "one",
+        sys.executable, "-m", "pytest",
+        f"--ignore={_REPO / 'orchestrator' / 'tests' / 'test_sort_swo_oracle.py'}",
+        str(_REPO / target), "-k", "one",
     ]
     assert captured["cwd"] == str(_REPO)
     assert Path(captured["env"]["IZANAGI_TASK_RUN_SIDECAR"]).is_absolute()
