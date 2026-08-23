@@ -41,6 +41,8 @@ _ANSI_ESCAPE = re.compile(r"\x1b\[[0-?]*[ -/]*[@-~]")
 _SHA1 = re.compile(r"[0-9a-f]{40}")
 _DISPATCH_LINE_PREFIX = "| "
 _DISPATCH_CONTROL_PREFIX = "[Pegasus dispatch] "
+_EFFECTIVE_SCHEDULER_PREFIX = "IZANAGI_EFFECTIVE_SCHEDULER_V1 "
+_EFFECTIVE_SCHEDULERS = frozenset({"loadgroup", "serial", "unknown"})
 _DISPATCH_RECEIPT_LINE = re.compile(
     r"^\[Pegasus dispatch\] receipt を (?P<path>/[^\r\n]*) "
     r"へ保存しました \(child rc=(?P<rc>[0-9]+)\)$"
@@ -496,6 +498,38 @@ def _terminal_counts(line: str) -> Mapping[str, int] | None:
             raise InvalidInput(f"duplicate terminal summary category: {kind}")
         counts[kind] = int(count_match.group("count"), 10)
     return counts
+
+
+def _no_duplicate_json_keys(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    result: dict[str, Any] = {}
+    for key, value in pairs:
+        if key in result:
+            raise InvalidInput("duplicate JSON key in pytest collection metadata")
+        result[key] = value
+    return result
+
+
+def _is_collection_metadata(line: str) -> bool:
+    """pytest の collection 出力に付く正規化済み診断 marker を検証する。"""
+
+    if not line.startswith(_EFFECTIVE_SCHEDULER_PREFIX):
+        return False
+    payload_text = line[len(_EFFECTIVE_SCHEDULER_PREFIX):]
+    try:
+        payload = json.loads(
+            payload_text,
+            object_pairs_hook=_no_duplicate_json_keys,
+        )
+    except (json.JSONDecodeError, UnicodeError, ValueError, RecursionError) as exc:
+        raise InvalidInput("pytest collection scheduler marker is invalid") from exc
+    if (
+        not isinstance(payload, dict)
+        or set(payload) != {"effective_scheduler"}
+        or not isinstance(payload["effective_scheduler"], str)
+        or payload["effective_scheduler"] not in _EFFECTIVE_SCHEDULERS
+    ):
+        raise InvalidInput("pytest collection scheduler marker is invalid")
+    return True
 
 
 def _outcome_reference(body: str) -> str:
@@ -1060,7 +1094,17 @@ def _complete_collected_nodeids(
     if selected == 0:
         raise InvalidInput("pytest collection selected zero tests")
 
-    body_lines = [line for line in lines if line != footer_candidates[0]]
+    body_lines = []
+    metadata_count = 0
+    for line in lines:
+        if line == footer_candidates[0]:
+            continue
+        if _is_collection_metadata(line):
+            metadata_count += 1
+            continue
+        body_lines.append(line)
+    if metadata_count > 1:
+        raise InvalidInput("pytest collection scheduler marker is non-unique")
     if path_text is None:
         nodeids = []
         for line in body_lines:
