@@ -30,3 +30,16 @@ seq: 2
 - 再発検知: **同じ変異を無条件版と条件版の対で事前登録する。** 本 wave では
   無条件の ww 停止が手製 fixture 4 node に KILLED、規模条件付きが SURVIVED となり、
   pin の射程が機械で露出した。片方だけを登録すると、この差は見えない。
+
+## 再発
+
+### F273
+
+- **再発: 2026-08-23** — 受入全走 attempt 4 (tested tip 414dc1e1) が 8 failed で戻り、
+  失敗 node は全件 `orchestrator/tests/test_codex_worker_launch.py` だった。
+  失敗の中身は `stop_reason='wall_clock_admission_bound_s'` で、
+  `codex_exit_code=0` / `validator_rc=0` / `termination_verified=True` と launcher の時間切れである。
+  本 wave の差分 (verifier の trace fixture とテスト、docs) からこのファイルへの到達経路は無い。
+  台帳の再発検知どおり実測した — 並行 launcher は 1 本、login node の load average は 15.99、
+  同ファイルの単独走 (`--force-dispatch`) は **170 passed / 7.11 秒 / rc=0** で緑。
+  よって実装差分へ帰属させない。
