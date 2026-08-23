@@ -80,14 +80,19 @@ title: '[T-1488] rr80/rr20 calibrationの計算ノードcertification取得・�
   `unreviewed: orchestrator/holdout_observation.py`で落ちていた。Codex `role=author`がperf面を
   レビューして`_REVIEWED_PERF_FILES`へ1行登録し、親の実走で5 passed / rc=0。列挙側と既存期待値は
   変更していない。
+- **ユーザー裁定は「実装だけlandし、成果物の登録はholdout解禁まで見送る」。** 決定と却下した
+  選択肢は{{D:rr80-rr20-artifacts-withheld-until-holdout-release}}。成果物142 fileをrepoから
+  除き、repo外の`dev-wave-jobs/dev-wave-t1488-rr80-rr20-calibration/withheld-artifacts/`へ
+  byte同一で退避した (証明書2件のSHA-256がfilename前置語と一致することを退避時に照合済み)。
+  除去後の素の走査はrr80=0・rr20=0・rr50陽性対照85・`_assert_search_pass: PASS`。
 
 ## 次の一手差分
 
 ### 更新
 
-- [T-1488] **P1・ユーザー裁定待ち**: rr80/rr20 calibrationの取得・実測・実装・変異検証は完了した
-  が、受入全走で成果物10 fileがT-523のrepo全体holdout走査に三軸一致でhitし、登録したまま
-  landできないと判明した。有効なrr80/rr20証明書をrepoに置くことと、repoに三軸表現が1件も無い
-  ことは同時に成り立たない。正しさ防壁の緩和は行わず裁定へ返した
-  (`dev-wave-jobs/rulings-inbox/2026-08-23-t1488-rr80-rr20-artifacts-vs-holdout-freeze-scan.md`)。
+- [T-1488] **P2・holdout解禁待ち**: 取得・実測・実装・変異検証は完了し、実装はlandした。
+  残るのは登録だけで、これはholdout解禁 (g1→g2 activation) まで着手しない
+  ({{D:rr80-rr20-artifacts-withheld-until-holdout-release}})。実測値はrepo外の
+  `dev-wave-jobs/dev-wave-t1488-rr80-rr20-calibration/withheld-artifacts/`にbyte同一で
+  保全済みで、解禁後は同じbytesを再登録すればよく再取得は要らない。
   base: c5e67e1e8a5f284fc96a13ea53b1da442c2ae12170f7501efec92a3427d572f3
