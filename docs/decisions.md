@@ -28037,3 +28037,239 @@ main repository root を求め、その parent とする。
   ゼロの経路 (`check-receipt` は repo 内に自動呼び出し元が無い) への投資は規律5 に反する。
   旧 receipt が新 exact-field-set で構造検査に落ちるのは、権威対象が実際に増えたことの
   正確な反映であり隠さない。
+
+## D715. calibration取得はholdout保護 (T-523) の対象外とする (2026-08-23)
+
+**決定:** rr80/rr20のcalibration取得 (証明書発行のための性能測定) は、
+`orchestrator/holdout_observation.py` (T-523、commit `ebca2947`) が課すholdout保護
+(rr80/rr20でのccbench実行を正式なholdout admissionなしに一律拒否する設計) の対象外とする。
+専用の`CalibrationObservationCapability`(formal `HoldoutObservationAdmission`とは別型・
+別registry) を新設し、`orchestrator/calibrator/cli.py`の`_certify_main`(ratio 20/80の
+ときのみ) だけが発行できるようにする。capabilityはbinary_sha256・完全なgflags・numactl・
+timeout・perf・extra_envを束縛し、sweep/noiseのphase状態機械 (sweepのrecords生成規則に
+よる束縛、records系列の完全消費またはearly-stop最小観測数3点のいずれかでのみnoiseへ
+遷移) を持つ。env非依存のjob単位durable markerでreplayを防止し、issuer呼び出し箇所を
+`_certify_main`の1箇所に限定するAST meta-testを追加する。
+
+**理由:**
+- calibrationは常にrepoにpinされた単一のstock CCBench (variantではない、
+  `certify_calibration.sh`がgitlink一致・pinned-clean検査を行う) の性能特性を測定するだけ
+  であり、複数CC実装間の比較データ (T-523が守るholdout情報) を生成しない。
+- D655/D658裁定 (rr80/rr20 calibrationの取得・登録をAI/ツールが行ってよい) とT-523保護が
+  直接衝突していることが実機投入で判明し、ユーザーに確認した上でこの整理により解決した。
+
+**却下した選択肢:**
+- calibration取得を正式なholdout admission発行 (H1/H2実験相当の重い経路、campaign ledgerの
+  durable-consumption経路) 経由にする — calibration専用の軽量経路と比べて過剰な設計変更に
+  なり、実質的に正式実験の起票に近づいてしまうため不採用。
+- T-523の保護を緩和せず、rr80/rr20の取得自体を正式なholdout解禁まで延期する — D655/D658が
+  既に取得を許可しており、延期する理由がない。
+- `admission=None`の既存tokenless分岐をそのまま緩めてrr80/rr20を通す — 正式H1/H2実験の
+  admissionなしrr80/rr20実行と区別がつかなくなり、T-523の保護を実質的に無効化するため不採用。
+
+## D716. rr80/rr20 calibration 成果物は holdout 解禁まで repo へ置かない (2026-08-23)
+
+**決定:** rr80/rr20 の calibration 取得・検証は AI/ツール経路で行ってよい (D655/D658 のまま) が、
+**その成果物を tracked な repo へ置くのは holdout 解禁 (g1→g2 activation) までとする。**
+本 wave は取得と実装だけを land し、成果物 142 file
+(`output/env/pegasus/calibration/{attempts,job-staging}/0[_:]936025.nqsv`・同 `936044.nqsv`、
+`registered/calibration-6cfeb65b12970eb6.json`・`calibration-7e2be8adff051662.json`、
+`output/calibration-capability-markers/` の 2 件) を repo から除いた。
+実測そのものは repo 外の
+`/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t1488-rr80-rr20-calibration/withheld-artifacts/`
+に byte 同一で保全してあり、解禁後に同じ bytes を再登録できる (証明書 2 件の SHA-256 は
+filename 前置語と一致することを退避時に照合済み)。
+
+**理由:**
+- T-523 の repo 全体 holdout 走査は「同一 file が rratio / skew / rmw の三軸すべてに一致したら
+  1 hit」と数え、rr80/rr20 は 0 hit でなければならない。rr50 は陽性対照 (85 hit) であり、
+  **calibration 成果物が走査対象に入ること自体が設計である。**
+- 有効な rr80/rr20 証明書は workload descriptor を必ず含むため、**それを repo に置くことと
+  repo に三軸表現が 1 件も無いことは同時に成り立たない。** 実装の欠陥ではなく、D655/D658 と
+  T-523 の射程の衝突である。
+- 実測: 現ツリーで rr80=5・rr20=5・FAIL、当該 10 file 除外で rr80=0・rr20=0・rr50=85・PASS。
+  除去後の素の走査でも rr80=0・rr20=0・rr50=85・PASS。
+- 2026-08-22 にユーザーが承認した D715 は**実行時 admission gateway**
+  の迂回であり、repo 内容の走査はその射程に入っていない。
+
+**却下した選択肢:**
+- freeze scan に calibration 成果物の allowlist を足す — repo を読める者が rr80/rr20 の存在と
+  実測特性を見られるようになり、T-523 が守ろうとしているものを直接損なう。正しさ防壁の緩和で
+  あり、ユーザー裁定でも本 wave では採らないと決めた。
+- D88 の可逆 defang で三軸語を無害化する — `registered/calibration-*.json` は filename が内容の
+  SHA-256 前置語で published self-comparison gate も内容に束縛されるため、bytes を変えると
+  証明書が無効になる。docs には使えるがこの 10 file には適用できない。
+- wave 全体を解禁まで保留する — 敵対レビュー 2 本と変異 matrix 3/3 KILLED を通った実装
+  (capability 機構、python3.10 interpreter 解決、perf の PATH 順序、sweep early-stop 遷移) が
+  滞留し、実機で 3 回踏んだ欠陥の修正が他 wave へ効かない。
+
+## D717. D631 が残した実測 gap は埋まったが、その設計択一は D662 の待ち行列廃止で消滅した — 歴史記録として残し再訪しない (2026-08-23)
+
+**決定:** D631 (`docs/decisions.md`) の「閉じない残余」が要求した「claim 前に merge・受入テストを
+済ませていたら実際にどれくらいの頻度で無駄になっていたか」の定量実測を、新規 lease claim・
+新規 production 変更なしの事後解析で実施し、`output/insights/2026-08-21_t1469-acceptance-lease-timing/README.md`
+へ記録した。**この実測を歴史記録として台帳へ残し、D631 と D270 の再訪は行わない。**
+
+**理由:**
+- 実測: 既存 artifact から機械的に再現できる最小の母集団 (n=7) では、6/7 (85.7%) が
+  claim 前 merge を無駄にしていたと推定され、待ち時間の中央値は約 42 分だった。
+  観測当時の判断としては、D631 が再訪の条件とした「陳腐化率は十分低い」は支持されない。
+- **ただし、この設計択一は観測の翌日に消滅した。** D662 (2026-08-22 ユーザー裁定) が受入 lease の
+  待ち行列を廃止し、D691 (2026-08-23) が待ち機構を実装から除去した。現在の `claim` は待ち札を
+  作らず `queued` を返さず、他 wave が保持中でも `held` を返して即投入する。
+  「claim 成立までの待ち区間」という構造そのものが無い以上、「claim 前に merge するか否か」という
+  D631/D270 の択一は現行運用に存在しない。したがって再訪は無意味であり、supersede も検討しない。
+- 観測値そのものは取り消されない。待ち行列運用下で「受入待ちだけで main land が数時間止まる」
+  という D662 の判断根拠と同じ現象を、独立に定量化した記録として価値がある。
+  insight 冒頭の erratum が、222 行のうち歴史記録として有効な部分・待ち行列と独立に今も有効な
+  部分・現行運用では誤りになった部分を名指しする。
+
+**却下した選択肢:**
+- **この結果を worklog にだけ書き、decision を新設しない** — worklog はローテーション・archive
+  移動の対象であり、D631 と同じ理由 (将来の再調査コスト) で decisions.md へ残す方が安価。
+  実際、D631 が要求した実測が 1 度は行われたという事実自体を残さないと、同じ調査が再度起きうる。
+- **「D631 の却下と D270 の現行設計を維持し supersede は検討しない」と当時の文面のまま記録する**
+  — D662 が待ち行列ごと廃止した後では、D270 を「現行設計」と呼ぶこと自体が事実に反する。
+  回収 wave (2026-08-23) の独立監査がこれを blocker として指摘したため、決定の文面を
+  現況へ改めた。
+- **母集団を広げるため新規 instrumentation を実装する** — 本 wave は docs のみ・production 変更
+  禁止の scope であり、除外した 4 件 (複数試行 wave) の attempt 単位の識別を可能にする改修は
+  別 wave の範囲。加えて待ち行列が廃止された今、母数を広げても測る対象が無い。
+
+**閉じない残余:** 無し。除外した 4 件の attempt 単位 instrumentation は、測定対象の機構ごと
+廃止されたため不要になった。
+
+## D718. pegasus-runbook.md の受入 lease 規範は main 側で整合済み — follow-up タスクを起票しない (2026-08-23)
+
+**決定:** `docs/pegasus-runbook.md` の受入 lease 関連記述を D662 (受入 lease 待ち行列廃止) へ
+全面整合させる作業は、**本 entry の land 時点で main 側に着地済みである**。したがって
+follow-up タスクを新規に起票しない。本 wave の scope は `.claude/commands/dev-wave.md` の
+9 段状態機械 項 6 本文と、その機械 pin (`tools/check_docs.py`) の整合だけとする。
+
+**理由:**
+- 本 wave の段 3 敵対相談は、runbook の 958-961 / 980-988 / 1045-1051 / 1087-1104 / 1125-1129 行目
+  付近の 5 箇所に「claim が `acquired` / `held-self` の場合だけ投入できる」という、D662 と矛盾する
+  無条件の規範が残っていると指摘した。当時は T-1458 が未着地で `--lease-optional` の最終仕様を
+  実装から確認できず、正確な改訂ができなかったため、follow-up として別 wave へ送る決定をした。
+- **その後 main 側 commit `c5e81e0c` (`docs(dev-wave): DW-O27 と runbook §7.3 を待ち行列廃止後の
+  現行契約へ揃える`) が同じ整合を完了させた。** 回収 wave (2026-08-23) が現行 main の runbook を
+  読んで確認した — 958 行目付近は `acquired` / `held-self` / `held` (と旧版の `queued`) を投入し
+  `stale-held` / `unavailable` を fail-closed とする現行契約に揃っており、1087 行目付近には
+  「待ち行列 (待ち札) は無い。D662 で廃止し、2026-08-23 に `claim` から機構ごと除去した」が
+  明記されている。
+- 完了済みの作業を「未了」として台帳へ登録すると、pending task 集合が偽に増え、
+  次に何を選ぶかの判断を誤らせる。回収 wave の独立監査がこれを blocker として指摘した。
+
+**却下した選択肢:**
+- **当時の文面のまま follow-up を起票する** — 完了済みの作業へ新しい T 番号が付く。
+- **決定ごと台帳から落とす** — 「なぜ本 wave が runbook を触らなかったか」の理由が失われ、
+  同じ scope 判断が将来また争点になる。決定は残し、結論だけを現況へ改める。
+
+**残る負債:** 本 wave が固定した項 6 の文言は `--lease-optional` という **現在は後方互換の
+no-op である flag** を代理指標として pin している (`DW-O27`)。「lease 取得可否で止めない」という
+意味そのものを pin しているわけではない。意味ベースの pin への置換は
+[T-1580] の射程に含める。
+
+## D719. 素材台帳は「採用集合」を名乗らず、未確立の項目を値へ化かさない (2026-08-23)
+
+**決定:** T-189 の作業カタログを**事前選別 (pre-screen) の候補台帳**として定義し、
+次の 4 点を機械で強制する。
+
+1. schema に `included` / `eligible` / `selected` という語を置かない。行の配列名は `candidates`。
+2. 機械導出できない項目は値を捏造せず、`evidence_status = "not-established"` と
+   `blocked_on` (scope 外依存の名指し) を持つ。`0` / `false` / `"none-required"` へ
+   化かす経路を作らない。**走査していない検査面も同じ形で記録する** —
+   「検査していないこと」と「検査して問題が無かったこと」を artifact 上で区別する。
+3. 同一 wave-stage に複数の物理 receipt があっても**束ねず・選ばず・捨てない。**
+   物理 receipt 1 件 = 1 行とし、候補にできないものは理由コード付きで `excluded` に残す。
+   検証器は「候補行数 + 同じ wave-stage の理由付き除外行数 == 物理 receipt 総数」を要求する。
+4. 集計値は行集合から再導出して一致を要求する。台帳に書かれた数を自己申告のまま信じない。
+
+**理由:**
+- 素材を作る wave は、その素材が将来 gate の入力になることを知っている。
+  このとき最も起きやすい事故は「機械導出できない項目を、それらしい既定値で埋めて先へ通す」
+  ことである。`0` は「神託所見が 0 件」と読まれ、`false` は「混入なし」と読まれる。
+  どちらも測っていない。**未確立を未確立のまま持ち回れる schema でなければ、
+  下流は測っていないものを測ったことにして受理集合を決める。**
+- 段6 の敵対レビューは、検証器が (3) を強制していないため
+  「行を 1 つ削って件数を辻褄合わせした台帳」と「序数が重複した台帳」が受理されることを
+  probe で実証した。**性質を裁定文へ書いただけでは発火しない** — 検証器で閉じて初めて効く。
+- (4) が無いと、集計値は下流にとって任意値になる。実際に `0/0` と `999/999` の
+  双方が受理された。
+
+**却下した選択肢:**
+- **入力集合全体の hash を受理条件にする** — 2026-08-12 のユーザー方針
+  (論文主張に要るのは粗い provenance のみ、署名・束縛機構の新設は既定で見送り) に当たる。
+  記録する hash は一次資料が既に持つもの (prompt hash、receipt hash、raw hash) と
+  成果物自身の hash に限り、新しい束縛の起点を作らない。
+- **候補にできない receipt を落とす** — 「黙って消えないこと」が (3) の目的であり、
+  落とせば目的を失う。理由コード付きで残す。
+- **候補行数 == 物理 receipt 数を要求する** — 実データで成立しない。
+  投げ文を復元できない receipt は理由付きで除外されるのが正しい挙動であり、
+  この形を要求すると生成器が実態を表現できなくなる (実際に生成が止まった)。
+- **設計作業由来の候補を自動除外する** — 検出した literal marker の有無と
+  「設計作業に使われた task か」は同値ではない。marker を記録し、判断は下流へ残す。
+
+## D720. 取り残し branch の回収は「未着地」だけでなく「現況で妥当」を land 条件とする (2026-08-23)
+
+**決定:** main へ未マージのまま取り残された branch を回収するとき、land の条件を次の 2 つの
+連言とする。どちらか一方でも成立しなければ逐語 land しない。
+
+1. **未着地である。** `git cherry` (patch-id) に加えて、spool fragment は
+   `docs/spool/FOLDED.md` の `content_sha256`、非 fragment file は blob 照合で確かめる。
+   path や行数の一致は着地の証拠にならない。
+2. **現況で妥当である。** branch が書かれた後に main が進み、前提が反証・廃止・完了済みに
+   なっていないかを独立コンテキストで監査する。**未着地であることは、まだ正しいことを
+   意味しない。**
+
+条件 2 が成立しない部分は、次の 3 群へ分けて扱う。
+(a) 歴史記録として取り消されないもの → erratum を添えて land する。
+(b) 前提と独立に今も有効なもの → そのまま land する。
+(c) 現行運用では誤りになったもの → land しない。canonical 台帳へ入れない。
+
+**理由:**
+- 2026-08-23 の回収 wave が、対象 6 本のうち 5 本で条件 2 の不成立を実測した。内訳は、
+  実装の前提が main の再設計で崩れたもの 1 本、記録が完了済みの作業を未了として登録する
+  もの 2 本、正しさゲートを緩める向きの実装 1 本、説明と実装が食い違ったまま完了を宣言する
+  もの 1 本である。逐語 land していれば、台帳は完了済みの作業へ新しい番号を付け、
+  廃止された機構を現行設計と呼び、閉じていない穴を閉じたと記録していた。
+- 先行 wave `dev-wave-t949-951-branch-land` (worklog entry 499) が同型を 1 例記録し、
+  `DW-G03` (族一般化には独立 2 例) により制度化を見送っていた。本 wave が独立な 2 例目以降を
+  複数観測したので、`DW-G03` の条件を満たす。
+- 回収は「逐語 replay」ではない。branch が持っていた**価値**を現況の台帳へ移すことであり、
+  価値の一部が死んでいるなら死んだ部分を落とすのが回収である。
+
+**却下した選択肢:**
+- **未着地なら逐語 land する** — 実測 5/6 で台帳を汚す。回収の目的は branch を消すことではなく
+  価値を移すことである。
+- **条件 2 が 1 つでも崩れたら branch ごと捨てる** — 観測値や実装の一部は生きており、
+  一括で捨てると実測した工数を失う。3 群へ分けて扱う方が安価。
+- **判定を書いた本人の説明で代用する** — 素性を自分で作っていない差分であり、規律 6 により
+  データとして扱う。説明と実装の食い違いは実測 2 本で確認された。
+
+## D721. provenance 全史監査の combined diff に pure-union 免除を入れない (2026-08-23)
+
+**決定:** merge commit の combined diff が「全行に `-` が無く `+` が高々 1 個」であることを根拠に、
+その path を実装面から除外する一般則は採用しない。既知違反は従来どおり exact SHA の
+known-violation 台帳で個別に扱う。
+
+**理由:**
+- 提案された述語は、**手で競合解消した merge** を実装面なしとして通す。提案に付随する正例テストが
+  それを明示的に固定していた — `git merge` が競合 (`returncode == 1`) を返したときにファイルを
+  手で書き直して `add` し、その merge commit を Claude author で作ったうえで
+  `_commit_paths(merge) == []` を期待する形である。編集上の判断を含む merge を Codex author 不要と
+  するのは、`docs/ai-provenance.md` の「実装面の Codex author 契約」に無い免除である。
+  絶対規律 2 (正しさゲートを緩める変異を許さない) に該当する。
+- combined diff の最終形からは、git の自動解決と手動の union 解消を区別できない。
+  「編集上の判断が無い形だけを通す」という自称は、この述語では実装できない。
+- 免除の対象とされた 3 件は、main 側で既に exact SHA の known-violation として登録済みであり、
+  全史監査上は解決済みである。狭いユーザー裁定を広い形状免除へ置き換える二重解決になる。
+- 述語を main 現行の台帳へ適用すると、後発登録の 2 件が finding を失って
+  `known-violation-stale` になる。checker は stale を rc=2 とし、land は `RC_PROVENANCE = 29` で
+  main を 1 bit も変えずに拒否する。採用しても land できない。
+
+**却下した選択肢:**
+- **述語を狭めて自動解決だけを通す** — combined diff の最終形に判別材料が無い以上、
+  狭め方が無い。merge の解決過程を記録する別機構が要り、本決定の射程を超える。
+- **後発 2 件も台帳から外して通す** — 既知違反を 53 件から 48 件へ減らすことになり、
+  さらにゲートを緩める。

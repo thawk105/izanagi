@@ -49,8 +49,7 @@ CC 合成 campaign の実行ループではない。
    「実装しない」と裁定した場合だけ段 5・6 を飛ばし、`4→7→8→9` とする。
 5. **実装 (codex 並列):** 所有を分け、実装子の権限境界内で実装する。
 6. **レビュー・fix (codex 並列):** 敵対レビュー 2 本、fix、変異 matrix、受入再走を行う。
-   受入直前に受入 lease を `tools/dev_wave_wait.py acceptance` で `claim` し、
-   `acquired` / `held-self` のときだけ投入する。
+   受入投入は `tools/dev_wave_wait.py acceptance --lease-optional` を使う。
 7. **記録 (親):** worklog、insights、decisions、commit、記録後検査を完了する。
 8. **スキル自己改善 (親):** 共有契約で候補を routing し、ゼロなら無言で通過する。
 9. **終端・local main (親):** 共通 land operation で監査済み成果だけを取り込み、結果を確定して終了する。
