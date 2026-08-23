@@ -1315,14 +1315,15 @@ def pytest_sessionfinish(session, exitstatus) -> None:
             assert FLAKY_TEST_HOLDS is not None
             matched_ids = set(getattr(
                 session.config, _FLAKY_HOLD_MATCHED_IDS_ATTR, ()
-            ))
+            )) & set(FLAKY_TEST_HOLDS)
+        if terminal is not None and matched_ids:
             skipped_ids = set(getattr(
                 session.config, _FLAKY_HOLD_SKIPPED_IDS_ATTR, ()
-            ))
+            )) & set(FLAKY_TEST_HOLDS)
             summary = {
                 "registered_node_count": len(FLAKY_TEST_HOLDS),
-                "matched_node_count": len(matched_ids & set(FLAKY_TEST_HOLDS)),
-                "skipped_node_count": len(skipped_ids & set(FLAKY_TEST_HOLDS)),
+                "matched_node_count": len(matched_ids),
+                "skipped_node_count": len(skipped_ids),
                 "registry_sha256": FLAKY_TEST_HOLDS_SHA256,
             }
             terminal.write_line(

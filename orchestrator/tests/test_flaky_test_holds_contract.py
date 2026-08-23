@@ -58,6 +58,7 @@ def test_initial_registry_is_one_exact_node_with_reintroduction_anchor() -> None
 def test_real_pytest_subprocess_skips_registered_node_and_runs_same_file_sibling() -> None:
     environment = os.environ.copy()
     environment["NO_COLOR"] = "1"
+    environment["PYTHONDONTWRITEBYTECODE"] = "1"
     result = subprocess.run(
         [
             sys.executable,
@@ -86,6 +87,7 @@ def test_real_pytest_subprocess_skips_registered_node_and_runs_same_file_sibling
 def test_xdist_subprocess_focus_collection_does_not_run_stale_check() -> None:
     environment = os.environ.copy()
     environment["NO_COLOR"] = "1"
+    environment["PYTHONDONTWRITEBYTECODE"] = "1"
     result = subprocess.run(
         [
             sys.executable,
@@ -116,6 +118,7 @@ def test_xdist_subprocess_focus_collection_does_not_run_stale_check() -> None:
 def test_xdist_subprocess_complete_collection_runs_stale_check() -> None:
     environment = os.environ.copy()
     environment["NO_COLOR"] = "1"
+    environment["PYTHONDONTWRITEBYTECODE"] = "1"
     result = subprocess.run(
         [
             sys.executable,
@@ -253,3 +256,12 @@ def test_flaky_summary_is_separate_and_uses_registry_digest() -> None:
     assert not any(
         line.startswith("IZANAGI_GROWTH_HOLD_SUMMARY_V1 ") for line in lines
     )
+
+
+def _run() -> int:
+    """Run fixture and parametrized nodes without a plain-runner false green."""
+    return int(pytest.main(["-q", str(Path(__file__).resolve())]))
+
+
+if __name__ == "__main__":
+    raise SystemExit(_run())
