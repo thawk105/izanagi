@@ -95,12 +95,16 @@ def _argv(repo: Repo, **overrides: str) -> list[str]:
         "tip": repo.tip,
     }
     values.update(overrides)
-    return [
+    argv = [
         "--main-worktree", values["main"],
         "--wave-worktree", values["wave"],
         "--wave-branch", values["branch"],
         "--tested-wave-tip-sha", values["tip"],
     ]
+    landing_tip = values.get("landing_tip")
+    if landing_tip is not None:
+        argv.extend(("--landing-wave-tip-sha", landing_tip))
+    return argv
 
 
 def _run(repo: Repo, capsys, **overrides: str) -> tuple[int, str, str]:
@@ -189,6 +193,30 @@ def test_landed_attached_worktree_is_removed(tmp_path, monkeypatch, capsys, lock
     repo = _make_repo(tmp_path, monkeypatch, locked=locked)
     _assert_success_output(
         _run(repo, capsys),
+        "removed",
+        occupancy_phases=("preflight", "recheck"),
+    )
+    _assert_removed(repo)
+
+
+def test_forward_merged_landing_tip_is_used_for_cleanup(
+    tmp_path,
+    monkeypatch,
+    capsys,
+):
+    repo = _make_repo(tmp_path, monkeypatch, landed=False)
+    tested_tip = repo.tip
+    (repo.main / "main-after.txt").write_text("main advance\n", encoding="utf-8")
+    _git(repo.main, "add", "main-after.txt")
+    _git(repo.main, "commit", "-m", "main advance")
+    incorporated_main = _sha(repo.main)
+    _git(repo.wave, "merge", "--no-ff", "--no-edit", incorporated_main)
+    landing_tip = _sha(repo.wave)
+    assert landing_tip != tested_tip
+    _git(repo.main, "merge", "--ff-only", landing_tip)
+
+    _assert_success_output(
+        _run(repo, capsys, landing_tip=landing_tip),
         "removed",
         occupancy_phases=("preflight", "recheck"),
     )
@@ -995,6 +1023,13 @@ def test_argv_requires_each_option_once_and_full_lowercase_sha(capsys):
             "--wave-worktree", "/tmp/b",
             "--wave-branch", "wave",
             "--tested-wave-tip-sha", "A" * 40,
+        ],
+        [
+            "--main-worktree", "/tmp/a",
+            "--wave-worktree", "/tmp/b",
+            "--wave-branch", "wave",
+            "--tested-wave-tip-sha", "a" * 40,
+            "--landing-wave-tip-sha", "B" * 40,
         ],
     )
     for argv in cases:

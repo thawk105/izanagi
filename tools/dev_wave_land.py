@@ -147,6 +147,7 @@ class LandRequest:
     audited_commits: tuple[str, ...]
     acceptance_wave: str
     acceptance_receipt: Path
+    landing_wave_tip_sha: str | None = field(default=None, kw_only=True)
 
 
 @dataclass(frozen=True)
@@ -165,6 +166,9 @@ class LandResult:
         default=None,
         kw_only=True,
     )
+    tested_tip_sha: str | None = field(default=None, kw_only=True)
+    landing_tip_sha: str | None = field(default=None, kw_only=True)
+    incorporated_main_shas: tuple[str, ...] = field(default=(), kw_only=True)
     release_safe: bool = field(default=False, compare=False)
     retryable_same_request: bool = field(default=False, compare=False)
 
@@ -188,6 +192,9 @@ class LandResult:
                 if self.acceptance_flake_nodeids is None
                 else list(self.acceptance_flake_nodeids)
             ),
+            "tested_tip_sha": self.tested_tip_sha,
+            "landing_tip_sha": self.landing_tip_sha,
+            "incorporated_main_shas": list(self.incorporated_main_shas),
             "release_safe": self.release_safe,
             "retryable_same_request": self.retryable_same_request,
         }
@@ -362,6 +369,15 @@ class _LandFingerprint:
 
 
 @dataclass(frozen=True)
+class _ForwardMainMerge:
+    commit_sha: str
+    first_parent_sha: str
+    incorporated_main_sha: str
+    prior_main_sha: str
+    tree_sha: str
+
+
+@dataclass(frozen=True)
 class _LockedPreflight:
     fold: object
     active_plan: object | None
@@ -374,6 +390,9 @@ class _LockedPreflight:
     locked_main: str
     wave_ref: str
     fingerprint: _LandFingerprint
+    forward_main_merges: tuple[_ForwardMainMerge, ...]
+    fold_trusted_main_cutoff: str
+    landed_commits: tuple[str, ...]
 
 
 def _git_env() -> dict[str, str]:
@@ -1177,7 +1196,12 @@ def _ref_sha(repo: Path, ref: str, label: str) -> str:
     )
 
 
-def _verify_heads(repository: _Repository, tested_tip: str) -> tuple[str, str]:
+def _verify_heads(
+    repository: _Repository,
+    landing_tip: str,
+    *,
+    tested_tip: str,
+) -> tuple[str, str]:
     main_ref = _symbolic_head(repository.main, "main")
     if main_ref != "refs/heads/main":
         raise _Reject(RC_IDENTITY, "primary worktree HEAD must be refs/heads/main")
@@ -1189,8 +1213,13 @@ def _verify_heads(repository: _Repository, tested_tip: str) -> tuple[str, str]:
     wave_head = _head(repository.wave, "wave")
     if _ref_sha(repository.wave, wave_ref, "wave branch") != wave_head:
         raise _Reject(RC_IDENTITY, "wave HEAD/ref mismatch")
-    if wave_head != tested_tip:
-        raise _Reject(RC_AUDIT, "wave HEAD/ref moved from tested wave tip")
+    if wave_head != landing_tip:
+        reason = (
+            "wave HEAD/ref moved from tested wave tip"
+            if landing_tip == tested_tip
+            else "wave HEAD/ref moved from landing wave tip"
+        )
+        raise _Reject(RC_AUDIT, reason)
     return main_head, wave_ref
 
 
@@ -1240,6 +1269,27 @@ def _verify_effective_config(repository: _Repository) -> None:
             )
         if result.returncode == 0 and result.stdout:
             raise _Reject(RC_AUDIT, f"{label} is unsupported")
+
+
+def _verify_replay_config(repository: _Repository) -> None:
+    result = _git(
+        repository.main,
+        "config",
+        "--includes",
+        "--null",
+        "--name-only",
+        "--get-regexp",
+        r"^merge\..*\.driver$",
+    )
+    if result.returncode not in (0, 1):
+        raise _Reject(
+            RC_AUDIT,
+            "external merge driver configuration: config inspection failed "
+            f"({_detail(result.stderr)})",
+            retryable_same_request=True,
+        )
+    if result.returncode == 0 and result.stdout:
+        raise _Reject(RC_AUDIT, "external merge driver configuration is unsupported")
 
 
 def _handoff_snapshot(
@@ -1749,6 +1799,322 @@ def _is_ancestor(repo: Path, older: str, newer: str) -> bool:
     )
 
 
+def _resolved_commit(repository: _Repository, revision: str, label: str) -> str:
+    resolved = _decode_sha(
+        _require_git(
+            _git(repository.wave, "rev-parse", "--verify", f"{revision}^{{commit}}"),
+            label,
+        ),
+        label,
+    )
+    if resolved != revision:
+        raise _Reject(RC_AUDIT, f"{label}: object does not resolve exactly")
+    return resolved
+
+
+def _unique_merge_base(
+    repository: _Repository,
+    left: str,
+    right: str,
+    label: str,
+) -> str:
+    raw = _require_git(
+        _git(repository.wave, "merge-base", "--all", left, right),
+        label,
+    )
+    try:
+        values = tuple(line for line in raw.decode("ascii").splitlines() if line)
+    except UnicodeDecodeError as exc:
+        raise _Reject(RC_AUDIT, f"{label}: non-ASCII object id") from exc
+    if len(values) != 1:
+        raise _Reject(RC_AUDIT, f"{label}: expected exactly one merge base")
+    return _sha(values[0], label)
+
+
+def _forward_main_merge_topology(
+    repository: _Repository,
+    tested_tip: str,
+    landing_tip: str,
+) -> tuple[_ForwardMainMerge, ...]:
+    """T..L の first-parent 列を exact な main 前方取り込み列へ畳む。"""
+
+    _resolved_commit(repository, tested_tip, "tested wave tip")
+    _resolved_commit(repository, landing_tip, "landing wave tip")
+    if landing_tip == tested_tip:
+        return ()
+    raw = _require_git(
+        _git(
+            repository.wave,
+            "rev-list",
+            "--reverse",
+            "--first-parent",
+            "--parents",
+            f"{tested_tip}..{landing_tip}",
+        ),
+        "forward main merge first-parent closure",
+    )
+    try:
+        rows = tuple(line.split() for line in raw.decode("ascii").splitlines() if line)
+    except UnicodeDecodeError as exc:
+        raise _Reject(
+            RC_AUDIT,
+            "forward main merge first-parent closure is non-ASCII",
+        ) from exc
+    if not rows:
+        raise _Reject(RC_AUDIT, "landing tip has no first-parent path from tested tip")
+
+    expected_parent = tested_tip
+    previous_main: str | None = None
+    merges: list[_ForwardMainMerge] = []
+    for index, row in enumerate(rows, start=1):
+        if len(row) < 2:
+            raise _Reject(
+                RC_AUDIT,
+                "forward main merge first-parent commit must have exactly two parents",
+            )
+        commit = _sha(row[0], f"forward main merge {index} object")
+        first_parent = _sha(row[1], f"forward main merge {index} first parent")
+        if first_parent != expected_parent:
+            raise _Reject(RC_AUDIT, "forward main merge first-parent chain is not exact")
+        if len(row) != 3:
+            _reject_non_two_parent_forward_commit()
+        if len(row) == 2:
+            # B-057-3: parent-count 条件を恒真化する変異でも、この通常 commit
+            # を後段の添字・closure gate が重ねて拒否しないようにする。
+            expected_parent = commit
+            continue
+        incorporated_main = _sha(
+            row[2],
+            f"forward main merge {index} incorporated main",
+        )
+        prior_main = _unique_merge_base(
+            repository,
+            first_parent,
+            incorporated_main,
+            f"forward main merge {index} merge base",
+        )
+        if previous_main is not None and prior_main != previous_main:
+            raise _Reject(
+                RC_AUDIT,
+                "forward main merge does not continue from the prior incorporated main",
+            )
+        if prior_main == incorporated_main or not _is_ancestor(
+            repository.wave, prior_main, incorporated_main
+        ):
+            raise _Reject(RC_AUDIT, "incorporated main history did not advance")
+        if previous_main is not None and (
+            previous_main == incorporated_main
+            or not _is_ancestor(repository.wave, previous_main, incorporated_main)
+        ):
+            raise _Reject(RC_AUDIT, "incorporated main history is not monotonic")
+        tree_sha = _decode_sha(
+            _require_git(
+                _git(
+                    repository.wave,
+                    "rev-parse",
+                    "--verify",
+                    f"{commit}^{{tree}}",
+                ),
+                f"forward main merge {index} tree",
+            ),
+            f"forward main merge {index} tree",
+        )
+        merges.append(_ForwardMainMerge(
+            commit_sha=commit,
+            first_parent_sha=first_parent,
+            incorporated_main_sha=incorporated_main,
+            prior_main_sha=prior_main,
+            tree_sha=tree_sha,
+        ))
+        expected_parent = commit
+        previous_main = incorporated_main
+    if merges[-1].commit_sha != landing_tip:
+        raise _Reject(RC_AUDIT, "forward main merge chain does not end at landing tip")
+    return tuple(merges)
+
+
+def _reject_non_two_parent_forward_commit() -> None:
+    raise _Reject(
+        RC_AUDIT,
+        "forward main merge first-parent commit must have exactly two parents",
+    )
+
+
+def _replay_forward_main_merges(
+    repository: _Repository,
+    merges: Sequence[_ForwardMainMerge],
+) -> None:
+    """隔離 repo で既定 strategy の merge を再演し、whole tree を照合する。"""
+
+    if not merges:
+        return
+    object_format_raw = _require_git(
+        _git(repository.wave, "rev-parse", "--show-object-format"),
+        "repository object format",
+    )
+    try:
+        object_format = object_format_raw.decode("ascii").strip()
+    except UnicodeDecodeError as exc:
+        raise _Reject(RC_AUDIT, "repository object format is non-ASCII") from exc
+    if object_format not in {"sha1", "sha256"}:
+        raise _Reject(RC_AUDIT, "repository object format is unsupported")
+    try:
+        source_objects = (repository.common / "objects").resolve(strict=True)
+    except OSError as exc:
+        raise _Reject(
+            RC_AUDIT,
+            f"source object store cannot be resolved ({exc})",
+            retryable_same_request=True,
+        ) from exc
+    source_objects_raw = os.fsencode(source_objects)
+    if b"\n" in source_objects_raw or b"\x00" in source_objects_raw:
+        raise _Reject(RC_AUDIT, "source object store path is unsafe for alternates")
+
+    try:
+        with tempfile.TemporaryDirectory(
+            prefix="izanagi-dev-wave-merge-replay-",
+            dir="/tmp",
+        ) as raw:
+            replay = Path(raw)
+            _require_git(
+                _git(
+                    replay,
+                    "init",
+                    "--quiet",
+                    f"--object-format={object_format}",
+                    ".",
+                ),
+                "forward main merge replay init",
+            )
+            alternates = replay / ".git" / "objects" / "info" / "alternates"
+            alternates.write_bytes(source_objects_raw + b"\n")
+            _require_git(
+                _git(replay, "symbolic-ref", "HEAD", "refs/heads/replay"),
+                "forward main merge replay symbolic HEAD",
+            )
+            for index, merge in enumerate(merges, start=1):
+                _require_git(
+                    _git(
+                        replay,
+                        "update-ref",
+                        "refs/heads/replay",
+                        merge.first_parent_sha,
+                    ),
+                    f"forward main merge replay {index} ref",
+                )
+                _require_git(
+                    _git(replay, "reset", "--hard", merge.first_parent_sha),
+                    f"forward main merge replay {index} reset",
+                )
+                replayed = _git(
+                    replay,
+                    "-c",
+                    "user.name=Izanagi Merge Replay",
+                    "-c",
+                    "user.email=merge-replay@izanagi.invalid",
+                    "-c",
+                    "commit.gpgSign=false",
+                    "merge",
+                    "--no-commit",
+                    "--no-ff",
+                    "--no-edit",
+                    "--no-stat",
+                    "--no-progress",
+                    merge.incorporated_main_sha,
+                )
+                # B-057-2: 非 0 rc を見逃す変異では expected fallback が残り、
+                # 後段 write-tree failure が同じ入力を重ねて拒否しないようにする。
+                replay_tree = merge.tree_sha
+                if replayed.returncode != 0:
+                    _reject_nonclean_replay(
+                        merge,
+                        replayed,
+                    )
+                if replayed.returncode == 0:
+                    replay_tree = _decode_sha(
+                        _require_git(
+                            _git(replay, "write-tree"),
+                            f"forward main merge replay {index} tree",
+                        ),
+                        f"forward main merge replay {index} tree",
+                    )
+                if replay_tree != merge.tree_sha:
+                    raise _Reject(
+                        RC_AUDIT,
+                        "forward main merge replay tree mismatch "
+                        f"at {merge.commit_sha}",
+                    )
+    except _Reject:
+        raise
+    except OSError as exc:
+        raise _Reject(
+            RC_AUDIT,
+            f"forward main merge replay workspace failed ({exc})",
+            retryable_same_request=True,
+        ) from exc
+
+
+def _reject_nonclean_replay(
+    merge: _ForwardMainMerge,
+    replayed: _GitResult,
+) -> None:
+    raise _Reject(
+        RC_AUDIT,
+        "forward main merge replay rejected a non-clean merge "
+        f"at {merge.commit_sha} "
+        f"({_detail(replayed.stderr) or 'no detail'})",
+        retryable_same_request=replayed.returncode not in {1},
+    )
+
+
+def _verify_locked_forward_main(
+    repository: _Repository,
+    locked_main: str,
+    landing_tip: str,
+    merges: Sequence[_ForwardMainMerge],
+) -> None:
+    if not merges:
+        raise _Reject(RC_AUDIT, "forward main merge verification token is empty")
+    if not _is_ancestor(
+        repository.wave,
+        merges[-1].incorporated_main_sha,
+        locked_main,
+    ):
+        raise _Reject(RC_STALE_MAIN, "incorporated main is not an ancestor of locked main")
+    if not _is_ancestor(repository.wave, locked_main, landing_tip):
+        raise _Reject(RC_STALE_MAIN, "landing tip does not contain locked main")
+
+
+def _fold_landed_closure(
+    repository: _Repository,
+    *,
+    tested_main: str,
+    landing_tip: str,
+    forward_main_merges: Sequence[_ForwardMainMerge],
+) -> tuple[str, tuple[str, ...]]:
+    cutoff = (
+        forward_main_merges[-1].incorporated_main_sha
+        if forward_main_merges
+        else tested_main
+    )
+    raw = _require_git(
+        _git(repository.wave, "rev-list", "--reverse", f"{cutoff}..{landing_tip}"),
+        "fold landed commit closure",
+    )
+    try:
+        actual = tuple(
+            _sha(line, "fold landed commit")
+            for line in raw.decode("ascii").splitlines()
+            if line
+        )
+    except UnicodeDecodeError as exc:
+        raise _Reject(RC_AUDIT, "fold landed commit closure is non-ASCII") from exc
+    # 通常形では topology gate により actual == A..T + (C_i) となる。
+    # ここは fold engine 自身が永続化する exact closure の導出だけを担い、
+    # B-057-3 の parent-count gate と重複する拒否面を作らない。
+    return cutoff, actual
+
+
 def _verify_audit(
     repository: _Repository,
     tested_main: str,
@@ -1933,7 +2299,12 @@ def _main_is_allowed(
     tested_main: str,
     tested_tip: str,
     audited: tuple[str, ...],
+    *,
+    landing_tip: str,
+    forward_main_merges: Sequence[_ForwardMainMerge],
 ) -> bool:
+    if landing_tip != tested_tip:
+        return bool(forward_main_merges)
     if current == tested_main:
         return True
     return (
@@ -2052,6 +2423,8 @@ def _locked_preflight(
     *,
     tested_main: str,
     tested_tip: str,
+    landing_tip: str,
+    prelocked_forward_main_merges: tuple[_ForwardMainMerge, ...],
     requested_audit: tuple[str, ...],
     reported_main_before: str | None,
 ) -> _LockedPreflight | LandResult:
@@ -2059,7 +2432,9 @@ def _locked_preflight(
 
     _verify_history_modifiers(repository)
     _verify_effective_config(repository)
-    target_paths = _target_paths(repository, tested_main, tested_tip)
+    if landing_tip != tested_tip:
+        _verify_replay_config(repository)
+    target_paths = _target_paths(repository, tested_main, landing_tip)
     try:
         fold = _load_spool_fold()
         active_plan = fold.load_active_plan(repository.main)
@@ -2075,7 +2450,7 @@ def _locked_preflight(
             f"fold transaction inspection failed: {type(exc).__name__}: {exc}",
             reported_main_before,
             reported_main_before,
-            tested_tip,
+            landing_tip,
             retryable_same_request=True,
         )
     try:
@@ -2092,10 +2467,30 @@ def _locked_preflight(
             requested_audit,
         )
         base_gitlinks = _gitlink_map(repository.wave, tested_main)
-        target_gitlinks = _gitlink_map(repository.wave, tested_tip)
-        target_normal_entries = _normal_entry_paths(repository.wave, tested_tip)
+        target_gitlinks = _gitlink_map(repository.wave, landing_tip)
+        target_normal_entries = _normal_entry_paths(repository.wave, landing_tip)
         gitlinks_changed = base_gitlinks != target_gitlinks
-        locked_main, wave_ref = _verify_heads(repository, tested_tip)
+        locked_main, wave_ref = _verify_heads(
+            repository,
+            landing_tip,
+            tested_tip=tested_tip,
+        )
+        forward_main_merges = _forward_main_merge_topology(
+            repository,
+            tested_tip,
+            landing_tip,
+        )
+        if forward_main_merges != prelocked_forward_main_merges:
+            raise _Reject(
+                RC_AUDIT,
+                "forward main merge SHA closure changed before locked preflight",
+            )
+        fold_trusted_main_cutoff, landed_commits = _fold_landed_closure(
+            repository,
+            tested_main=tested_main,
+            landing_tip=landing_tip,
+            forward_main_merges=forward_main_merges,
+        )
     except _Reject as exc:
         raise _Reject(
             exc.rc,
@@ -2103,8 +2498,37 @@ def _locked_preflight(
             release_safe=active_plan is None,
             retryable_same_request=exc.retryable_same_request,
         ) from exc
-    if active_plan is None and not _main_is_allowed(
-        repository, locked_main, tested_main, tested_tip, audited
+    if (
+        active_plan is None
+        and landing_tip != tested_tip
+        and locked_main != landing_tip
+    ):
+        try:
+            _verify_locked_forward_main(
+                repository,
+                locked_main,
+                landing_tip,
+                forward_main_merges,
+            )
+        except _Reject as exc:
+            return LandResult(
+                exc.rc,
+                "stale-main",
+                exc.reason,
+                locked_main,
+                locked_main,
+                landing_tip,
+                release_safe=True,
+                retryable_same_request=exc.retryable_same_request,
+            )
+    if active_plan is None and locked_main != landing_tip and not _main_is_allowed(
+        repository,
+        locked_main,
+        tested_main,
+        tested_tip,
+        audited,
+        landing_tip=landing_tip,
+        forward_main_merges=forward_main_merges,
     ):
         return LandResult(
             RC_STALE_MAIN,
@@ -2112,14 +2536,14 @@ def _locked_preflight(
             "main moved outside the tested audited closure while locking",
             locked_main,
             locked_main,
-            tested_tip,
+            landing_tip,
             release_safe=True,
         )
     fingerprint = _land_fingerprint(
         repository,
         current=locked_main,
-        tested_tip=tested_tip,
-        wave_head=tested_tip,
+        tested_tip=landing_tip,
+        wave_head=landing_tip,
         control=control,
     )
     return _LockedPreflight(
@@ -2134,6 +2558,9 @@ def _locked_preflight(
         locked_main=locked_main,
         wave_ref=wave_ref,
         fingerprint=fingerprint,
+        forward_main_merges=forward_main_merges,
+        fold_trusted_main_cutoff=fold_trusted_main_cutoff,
+        landed_commits=landed_commits,
     )
 
 
@@ -3091,22 +3518,50 @@ def land(request: LandRequest) -> LandResult:
     lock = _LandLockHandle()
     main_before: str | None = None
     tested_tip: str | None = None
+    landing_tip: str | None = None
+    prelocked_forward_main_merges: tuple[_ForwardMainMerge, ...] = ()
     acceptance_verification: _AcceptanceVerification | None = None
     quiescent_rejection = False
 
     def finish(result: LandResult) -> LandResult:
+        decorated = replace(
+            result,
+            tested_tip_sha=tested_tip,
+            landing_tip_sha=landing_tip,
+            incorporated_main_shas=tuple(
+                merge.incorporated_main_sha
+                for merge in prelocked_forward_main_merges
+            ),
+        )
         if acceptance_verification is None:
-            return result
-        return _with_acceptance_verification(result, acceptance_verification)
+            return decorated
+        return _with_acceptance_verification(decorated, acceptance_verification)
 
     try:
         tested_main = _sha(request.tested_main_sha, "tested main")
         tested_tip = _sha(request.tested_wave_tip_sha, "tested wave tip")
+        landing_tip = _sha(
+            request.landing_wave_tip_sha or tested_tip,
+            "landing wave tip",
+        )
         requested_audit = tuple(
             _sha(commit, f"audited commit {index}")
             for index, commit in enumerate(request.audited_commits)
         )
         repository = _verify_repository(request)
+        if landing_tip != tested_tip:
+            _verify_history_modifiers(repository)
+            _verify_effective_config(repository)
+            _verify_replay_config(repository)
+            prelocked_forward_main_merges = _forward_main_merge_topology(
+                repository,
+                tested_tip,
+                landing_tip,
+            )
+            _replay_forward_main_merges(
+                repository,
+                prelocked_forward_main_merges,
+            )
         lock_window_started = _land_lock_now()
         lock_deadline = lock_window_started + _LAND_LOCK_WAIT_SECONDS
         waited_s = 0.0
@@ -3118,23 +3573,25 @@ def land(request: LandRequest) -> LandResult:
             )
             waited_s += waited
             if not acquired:
-                return _lock_busy_result(
+                return finish(_lock_busy_result(
                     phase="initial",
                     waited_s=waited_s,
                     window_started=lock_window_started,
-                    tested_tip=tested_tip,
-                )
+                    tested_tip=landing_tip,
+                ))
             preflight = _locked_preflight(
                 repository,
                 tested_main=tested_main,
                 tested_tip=tested_tip,
+                landing_tip=landing_tip,
+                prelocked_forward_main_merges=prelocked_forward_main_merges,
                 requested_audit=requested_audit,
                 reported_main_before=main_before,
             )
             if isinstance(preflight, LandResult):
                 return finish(preflight)
             main_before = preflight.locked_main
-            if preflight.locked_main != tested_tip and preflight.active_plan is None:
+            if preflight.locked_main != landing_tip and preflight.active_plan is None:
                 initial_fingerprint = preflight.fingerprint
                 lock.close()
                 receipt = _audit_provenance_history(repository)
@@ -3149,7 +3606,7 @@ def land(request: LandRequest) -> LandResult:
                         phase="post-provenance",
                         waited_s=waited_s,
                         window_started=lock_window_started,
-                        tested_tip=tested_tip,
+                        tested_tip=landing_tip,
                     ))
                 refreshed_control = _control_snapshot(
                     repository, preflight.control.worktree_targets
@@ -3172,7 +3629,7 @@ def land(request: LandRequest) -> LandResult:
                             f"{type(exc).__name__}: {exc}",
                             main_before,
                             main_before,
-                            tested_tip,
+                            landing_tip,
                             retryable_same_request=True,
                         ))
                     raise _Reject(
@@ -3185,7 +3642,7 @@ def land(request: LandRequest) -> LandResult:
                     refreshed_fingerprint = _land_fingerprint(
                         repository,
                         current=_head(repository.main, "main after provenance audit"),
-                        tested_tip=tested_tip,
+                        tested_tip=landing_tip,
                         wave_head=_head(
                             repository.wave, "wave after provenance audit"
                         ),
@@ -3208,12 +3665,14 @@ def land(request: LandRequest) -> LandResult:
                     repository,
                     tested_main=tested_main,
                     tested_tip=tested_tip,
+                    landing_tip=landing_tip,
+                    prelocked_forward_main_merges=prelocked_forward_main_merges,
                     requested_audit=requested_audit,
                     reported_main_before=main_before,
                 )
                 if isinstance(preflight, LandResult):
                     return finish(preflight)
-                _verify_provenance_receipt(repository, receipt, tested_tip)
+                _verify_provenance_receipt(repository, receipt, landing_tip)
                 main_before = preflight.locked_main
             quiescent_rejection = preflight.active_plan is None
             acceptance_verification = _verify_acceptance_receipt(
@@ -3227,13 +3686,14 @@ def land(request: LandRequest) -> LandResult:
             fold = preflight.fold
             active_plan = preflight.active_plan
             control = preflight.control
-            audited = preflight.audited
             base_gitlinks = preflight.base_gitlinks
             target_gitlinks = preflight.target_gitlinks
             target_normal_entries = preflight.target_normal_entries
             gitlinks_changed = preflight.gitlinks_changed
             locked_main = preflight.locked_main
             wave_ref = preflight.wave_ref
+            fold_trusted_main_cutoff = preflight.fold_trusted_main_cutoff
+            landed_commits = preflight.landed_commits
             if active_plan is not None:
                 state_path = fold._state_path(repository.main)
                 origin = getattr(active_plan, "origin", None)
@@ -3246,7 +3706,7 @@ def land(request: LandRequest) -> LandResult:
                         "lock-aware finalize command は未実装",
                         main_before,
                         locked_main,
-                        tested_tip,
+                        landing_tip,
                         retryable_same_request=True,
                     ))
                 try:
@@ -3254,7 +3714,7 @@ def land(request: LandRequest) -> LandResult:
                         raise RuntimeError("stored fold origin is not land")
                     if origin.wave_ref != wave_ref:
                         raise RuntimeError("stored fold origin wave_ref does not match the request")
-                    if origin.tested_tip != tested_tip:
+                    if origin.tested_tip != landing_tip:
                         raise RuntimeError("stored fold origin tested_tip does not match the request")
                     transaction_id = getattr(active_plan, "transaction_id", None)
                     complete_issues = fold.validate_spool_tree(
@@ -3278,18 +3738,18 @@ def land(request: LandRequest) -> LandResult:
                         f"stored fold transaction preflight failed: {type(exc).__name__}: {exc}",
                         main_before,
                         locked_main,
-                        tested_tip,
+                        landing_tip,
                         retryable_same_request=True,
                     ))
-                if locked_main != tested_tip:
+                if locked_main != landing_tip:
                     return finish(_finalize_recovered_fold_commit(
                         repository,
                         fold=fold,
                         plan=active_plan,
                         fold_commit=locked_main,
                         main_before=main_before,
-                        tested_tip=tested_tip,
-                        landed_commits=audited,
+                        tested_tip=landing_tip,
+                        landed_commits=landed_commits,
                         wave_ref=wave_ref,
                     ))
                 if getattr(active_plan, "phase", None) != "applied":
@@ -3299,7 +3759,7 @@ def land(request: LandRequest) -> LandResult:
                         "shape A requires an applied transaction at origin.tested_tip",
                         main_before,
                         locked_main,
-                        tested_tip,
+                        landing_tip,
                         retryable_same_request=True,
                     ))
                 try:
@@ -3318,7 +3778,7 @@ def land(request: LandRequest) -> LandResult:
                         f"stored fold rollback preflight failed: {type(exc).__name__}: {exc}",
                         main_before,
                         locked_main,
-                        tested_tip,
+                        landing_tip,
                         retryable_same_request=True,
                     ))
                 recovery = LandResult(
@@ -3327,7 +3787,7 @@ def land(request: LandRequest) -> LandResult:
                     "main is at the tested tip with an active fold transaction",
                     main_before,
                     locked_main,
-                    tested_tip,
+                    landing_tip,
                 )
                 return finish(_fold_main_locked(
                     repository,
@@ -3335,8 +3795,8 @@ def land(request: LandRequest) -> LandResult:
                     fold=fold,
                     plan=active_plan,
                     trusted_main_cutoff_sha=origin.trusted_main_cutoff,
-                    tested_tip=tested_tip,
-                    landed_commits=audited,
+                    tested_tip=landing_tip,
+                    landed_commits=landed_commits,
                     wave_ref=wave_ref,
                     rollback_ref=origin.rollback_ref,
                     snapshots=recovery_snapshots,
@@ -3349,11 +3809,11 @@ def land(request: LandRequest) -> LandResult:
                 origin = fold.FoldOrigin(
                     kind="land",
                     base=locked_main,
-                    tested_tip=tested_tip,
+                    tested_tip=landing_tip,
                     wave_ref=wave_ref,
                     rollback_ref=locked_main,
-                    trusted_main_cutoff=tested_main,
-                    audited_digest=fold.audited_commit_digest(tuple(audited)),
+                    trusted_main_cutoff=fold_trusted_main_cutoff,
+                    audited_digest=fold.audited_commit_digest(landed_commits),
                 )
                 plan = fold.plan_fold(
                     repository.wave,
@@ -3373,7 +3833,7 @@ def land(request: LandRequest) -> LandResult:
                     f"candidate fold planning failed: {type(exc).__name__}: {exc}",
                     main_before,
                     locked_main,
-                    tested_tip,
+                    landing_tip,
                     release_safe=not interrupted,
                     retryable_same_request=interrupted,
                 ))
@@ -3386,12 +3846,12 @@ def land(request: LandRequest) -> LandResult:
                 )
             if getattr(plan, "status", None) == "noop":
                 declared = verify_declared_fold_commit(
-                    repository.main if locked_main == tested_tip else repository.wave,
+                    repository.main if locked_main == landing_tip else repository.wave,
                     fold_commit_sha=None,
-                    trusted_main_cutoff_sha=tested_main,
-                    landed_main_sha=tested_tip,
-                    landed_commits=audited,
-                    wave_tip=tested_tip,
+                    trusted_main_cutoff_sha=fold_trusted_main_cutoff,
+                    landed_main_sha=landing_tip,
+                    landed_commits=landed_commits,
+                    wave_tip=landing_tip,
                 )
                 if not declared.ok:
                     return finish(LandResult(
@@ -3400,10 +3860,10 @@ def land(request: LandRequest) -> LandResult:
                         f"declared no-fold shape rejected: {declared.detail}",
                         main_before,
                         locked_main,
-                        tested_tip,
+                        landing_tip,
                         release_safe=True,
                     ))
-            if locked_main == tested_tip:
+            if locked_main == landing_tip:
                 if gitlinks_changed and not _gitlinks_synchronized(
                     repository,
                     base_gitlinks,
@@ -3417,7 +3877,7 @@ def land(request: LandRequest) -> LandResult:
                         "submodule synchronization remains required",
                         main_before,
                         locked_main,
-                        tested_tip,
+                        landing_tip,
                     ))
                 already_landed = LandResult(
                     RC_OK,
@@ -3425,7 +3885,7 @@ def land(request: LandRequest) -> LandResult:
                     "another lander reached the tested tip first",
                     main_before,
                     locked_main,
-                    tested_tip,
+                    landing_tip,
                     release_safe=True,
                 )
                 if getattr(plan, "status", None) == "noop":
@@ -3442,7 +3902,7 @@ def land(request: LandRequest) -> LandResult:
                         f"fold preflight failed: {type(exc).__name__}: {exc}",
                         main_before,
                         locked_main,
-                        tested_tip,
+                        landing_tip,
                         release_safe=not interrupted,
                         retryable_same_request=interrupted,
                     ))
@@ -3451,11 +3911,11 @@ def land(request: LandRequest) -> LandResult:
                     already_landed,
                     fold=fold,
                     plan=plan,
-                    trusted_main_cutoff_sha=tested_main,
-                    tested_tip=tested_tip,
-                    landed_commits=audited,
+                    trusted_main_cutoff_sha=fold_trusted_main_cutoff,
+                    tested_tip=landing_tip,
+                    landed_commits=landed_commits,
                     wave_ref=wave_ref,
-                    rollback_ref=tested_tip,
+                    rollback_ref=landing_tip,
                     snapshots=snapshots,
                     index_tree=index_tree,
                     state_path=state_path,
@@ -3466,7 +3926,7 @@ def land(request: LandRequest) -> LandResult:
             _verify_target_collisions(
                 repository,
                 current=locked_main,
-                tested_tip=tested_tip,
+                tested_tip=landing_tip,
                 control=collision_control,
             )
             refreshed_collision_control = _control_snapshot(
@@ -3498,18 +3958,18 @@ def land(request: LandRequest) -> LandResult:
                         f"fold preflight failed: {type(exc).__name__}: {exc}",
                         main_before,
                         locked_main,
-                        tested_tip,
+                        landing_tip,
                         release_safe=not interrupted,
                         retryable_same_request=interrupted,
                     ))
             merge = _git(
                 repository.main,
-                "merge", "--ff-only", "--no-stat", "--no-progress", tested_tip,
+                "merge", "--ff-only", "--no-stat", "--no-progress", landing_tip,
                 pass_fds=(lock.fd,),
             )
             merged = _postcondition(
                 repository,
-                tested_tip=tested_tip,
+                tested_tip=landing_tip,
                 wave_ref=wave_ref,
                 merge_rc=merge.returncode,
                 main_before=locked_main,
@@ -3525,9 +3985,9 @@ def land(request: LandRequest) -> LandResult:
                 merged,
                 fold=fold,
                 plan=plan,
-                trusted_main_cutoff_sha=tested_main,
-                tested_tip=tested_tip,
-                landed_commits=audited,
+                trusted_main_cutoff_sha=fold_trusted_main_cutoff,
+                tested_tip=landing_tip,
+                landed_commits=landed_commits,
                 wave_ref=wave_ref,
                 rollback_ref=locked_main,
                 snapshots=snapshots,
@@ -3543,7 +4003,7 @@ def land(request: LandRequest) -> LandResult:
             exc.reason,
             main_before,
             main_before,
-            tested_tip,
+            landing_tip,
             release_safe=(
                 exc.release_safe
                 or (quiescent_rejection and not exc.retryable_same_request)
@@ -3563,6 +4023,10 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--wave-worktree", type=Path, required=True)
     parser.add_argument("--tested-main-sha", required=True)
     parser.add_argument("--tested-wave-tip-sha", required=True)
+    parser.add_argument(
+        "--landing-wave-tip-sha",
+        help="実着地 tip。省略時は --tested-wave-tip-sha と同じ",
+    )
     parser.add_argument("--acceptance-wave", required=True)
     parser.add_argument("--acceptance-receipt", type=Path, required=True)
     parser.add_argument(
@@ -3584,6 +4048,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         audited_commits=tuple(args.audited_commit),
         acceptance_wave=args.acceptance_wave,
         acceptance_receipt=args.acceptance_receipt,
+        landing_wave_tip_sha=args.landing_wave_tip_sha,
     )
     try:
         authority_digest = _release_authority_digest(

@@ -36,6 +36,7 @@ class Args:
     wave_worktree: Path
     wave_branch: str
     tested_wave_tip_sha: str
+    landing_wave_tip_sha: str
 
 
 @dataclass(frozen=True)
@@ -126,9 +127,10 @@ def _parse_argv(argv: Sequence[str]) -> Args:
         "--wave-worktree": "wave",
         "--wave-branch": "branch",
         "--tested-wave-tip-sha": "tip",
+        "--landing-wave-tip-sha": "landing_tip",
     }
-    if len(argv) != 8:
-        raise _usage("exactly four option-value pairs are required")
+    if len(argv) not in {8, 10}:
+        raise _usage("four required and at most one optional option-value pair are allowed")
     values: dict[str, str] = {}
     for index in range(0, len(argv), 2):
         option = argv[index]
@@ -141,13 +143,17 @@ def _parse_argv(argv: Sequence[str]) -> Args:
         if not value or "\x00" in value:
             raise _usage(f"invalid value for {option}")
         values[key] = value
-    if set(values) != set(expected.values()):
+    required = {"main", "wave", "branch", "tip"}
+    if not required <= set(values) or set(values) - set(expected.values()):
         raise _usage("all four options are required")
     if not _SHA_RE.fullmatch(values["tip"]):
         raise _usage("tested tip must be a full lowercase 40- or 64-digit sha")
+    landing_tip = values.get("landing_tip", values["tip"])
+    if not _SHA_RE.fullmatch(landing_tip):
+        raise _usage("landing tip must be a full lowercase 40- or 64-digit sha")
     main = _validate_path_spelling(values["main"], "main-worktree", must_exist=True)
     wave = _validate_path_spelling(values["wave"], "wave-worktree", must_exist=False)
-    return Args(main, wave, values["branch"], values["tip"])
+    return Args(main, wave, values["branch"], values["tip"], landing_tip)
 
 
 def _validate_path_spelling(raw: str, label: str, *, must_exist: bool) -> Path:
@@ -704,9 +710,14 @@ def _preflight(
         raise ValueError("tool repository and main-worktree common git-dir differ")
     if _one_line(_must_git(args.main_worktree, "symbolic-ref", "--quiet", "HEAD"), "main HEAD") != "refs/heads/main":
         raise ValueError("main-worktree HEAD is not refs/heads/main")
-    commit_check = _git(args.main_worktree, "cat-file", "-e", f"{args.tested_wave_tip_sha}^{{commit}}")
+    commit_check = _git(args.main_worktree, "cat-file", "-e", f"{args.landing_wave_tip_sha}^{{commit}}")
     if commit_check.returncode != 0:
-        raise ValueError("tested tip is not an existing commit object")
+        label = (
+            "tested tip"
+            if args.landing_wave_tip_sha == args.tested_wave_tip_sha
+            else "landing tip"
+        )
+        raise ValueError(f"{label} is not an existing commit object")
 
     records = _worktree_records(args.main_worktree)
     if not records or records[0].path_raw != os.fsencode(args.main_worktree):
@@ -726,7 +737,7 @@ def _preflight(
         directory_exists,
         branch_tip,
         ref,
-        args.tested_wave_tip_sha,
+        args.landing_wave_tip_sha,
     )
     _assert_cwd_outside(args.wave_worktree)
     fold_path = _git_path(
@@ -751,7 +762,7 @@ def _preflight(
         administrative_gitdir = identity.gitdir
         if _git_path(args.wave_worktree, "rev-parse", "--git-common-dir") != common:
             raise ValueError("wave worktree belongs to another common git-dir")
-        _assert_clean_and_head(args.wave_worktree, args.tested_wave_tip_sha)
+        _assert_clean_and_head(args.wave_worktree, args.landing_wave_tip_sha)
     elif state == "c":
         administrative_gitdir = _stale_administrative_gitdir(common, args.wave_worktree)
     _assert_branch_safety(args.main_worktree, ref, administrative_gitdir)
@@ -850,13 +861,18 @@ def _mutate(
                 args.main_worktree, args.wave_worktree, detached=True, locked=False,
             )
             assert detached_record is not None
-            if detached_record.head != args.tested_wave_tip_sha:
-                raise ValueError("detached record HEAD differs from tested tip")
+            if detached_record.head != args.landing_wave_tip_sha:
+                label = (
+                    "tested tip"
+                    if args.landing_wave_tip_sha == args.tested_wave_tip_sha
+                    else "landing tip"
+                )
+                raise ValueError(f"detached record HEAD differs from {label}")
 
         phase = "recheck"
         if state in {"a", "b"}:
             assert verified is not None
-            _assert_clean_and_head(args.wave_worktree, args.tested_wave_tip_sha)
+            _assert_clean_and_head(args.wave_worktree, args.landing_wave_tip_sha)
             _assert_identity(args.wave_worktree, common, verified.identity)
             recheck_diagnostics = _assert_unoccupied(args.wave_worktree)
 
@@ -879,14 +895,14 @@ def _mutate(
             _verify_record_state(args.main_worktree, args.wave_worktree, absent=True)
 
         phase = "branch-recheck"
-        if _resolve_commit(args.main_worktree, f"{ref}^{{commit}}") != args.tested_wave_tip_sha:
+        if _resolve_commit(args.main_worktree, f"{ref}^{{commit}}") != args.landing_wave_tip_sha:
             raise ValueError("wave branch changed before deletion")
         ancestry = _git(args.main_worktree, "merge-base", "--is-ancestor", ref, "refs/heads/main")
         if ancestry.returncode != 0:
             raise ValueError(f"branch ancestry recheck rc={ancestry.returncode}")
 
         phase = "branch-delete"
-        _delete_branch(args.main_worktree, args.wave_branch, args.tested_wave_tip_sha)
+        _delete_branch(args.main_worktree, args.wave_branch, args.landing_wave_tip_sha)
 
         phase = "postcondition"
         if os.path.lexists(args.wave_worktree):
