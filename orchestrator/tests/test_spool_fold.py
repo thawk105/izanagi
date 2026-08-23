@@ -3352,6 +3352,31 @@ def _run_cli(repo: Path, *args: str) -> subprocess.CompletedProcess[bytes]:
     )
 
 
+def _latest_substantive_task_bytes(repo: Path, task_id: str) -> bytes:
+    encoded_id = re.escape(task_id.encode("ascii"))
+    task_start = re.compile(rb"(?m)^- " + encoded_id + rb"(?= |\n)")
+    item_boundary = re.compile(rb"(?m)^(?:- \[T-[0-9]+\](?= |\n)|## )")
+    carry_pattern = (
+        "- "
+        + re.escape(task_id)
+        + r" (?:\([1-9][0-9]*\)|変わらず \(\([1-9][0-9]*\) 参照\))\n"
+    )
+    carry = re.compile(carry_pattern.encode("utf-8"))
+    sources = [
+        repo / "docs/worklog.md",
+        *sorted((repo / "docs/archive").glob("worklog-*.md"), reverse=True),
+    ]
+    for source in sources:
+        source_bytes = source.read_bytes()
+        for match in reversed(list(task_start.finditer(source_bytes))):
+            boundary = item_boundary.search(source_bytes, match.end())
+            end = boundary.start() if boundary is not None else len(source_bytes)
+            candidate = source_bytes[match.start():end].rstrip(b"\n") + b"\n"
+            if carry.fullmatch(candidate) is None:
+                return candidate
+    raise AssertionError(f"{task_id} の substantive 本文が real corpus にない")
+
+
 def test_cli_base_digest_returns_non_carry_item_digest_without_writes(tmp_path: Path) -> None:
     repo = _repo(tmp_path)
     _install_cli(repo)
@@ -3409,13 +3434,7 @@ def test_cli_base_digest_real_corpus_resolves_active_and_rejects_completed(
 ) -> None:
     repo = _copy_real_canonical_family(tmp_path)
     _install_cli(repo)
-    source = repo / "docs/worklog.md"
-    source_bytes = source.read_bytes()
-    start = source_bytes.index(
-        "- [T-139] **P2・裁定済み (2026-08-24 /rulings 全件、択 (a))**".encode()
-    )
-    end = source_bytes.index(b"- [T-337]", start)
-    substantive = source_bytes[start:end]
+    substantive = _latest_substantive_task_bytes(repo, "[T-139]")
     expected = (hashlib.sha256(substantive).hexdigest() + "\n").encode("ascii")
     before = _cli_snapshot(repo)
 

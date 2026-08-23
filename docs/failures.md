@@ -522,6 +522,13 @@
   前景実行すると正しく `rc=70 producer-timeout` を返した。偽完了は待ち手の内部ロジックではなく
   背景 job 側の完了通知経路で起きており、2026-08-17 の「待ち手自身が偽 green を返す」とは
   発生層が異なる。判定を `.done` の実体確認へ寄せる対応は層が変わっても有効である。
+
+- **再発: 2026-08-24** — 同一 wave 内で `tools/dev_wave_wait.py producer` の偽完了が **3 回**。
+  段 6 の敵対レビュー A の待ち手、変異 probe の待ち手、変異本走の待ち手のいずれもが
+  rc=0・出力ゼロ・`.done` 不在で戻り、実際には子が生存して走行を続けていた。
+  恒久対応 (`.done` の実在と成果物の実在を併せて確認し、待ち手の rc を信じない) が
+  3 回とも効き、実害はゼロ。追加事実は **偽完了が特定の段に偏らず、
+  read-only の codex 子にも計算ノードへ dispatch する変異 harness にも等しく起きる**点である。
 ### F25. commit trailer block の分断・結合ミス — provenance 監査 3+2 違反、積み直し 2 回 [手順漏れ]
 - 事象: 2026-07-20 の同一セッションで 2 回、`AI-Agent` trailer が git に trailer と認識されない
   message を作成 (1 回目 = trailer 行と `Co-Authored-By` の間に空行 → block 分断で AI-Agent が本文化。
@@ -2422,6 +2429,18 @@
   引き上げを戻す。戻す前に引き上げを消してはならない — 現時点ではこの引き上げだけが
   当該 node の赤を止めている。
 - **supersede: 2026-08-23** — 「pytest tmp は終了時に失われ失敗時 receipt / stop reason を保存していないため 3 秒超過そのものを根本原因と断定しない」という未確定は解消した。上記 2026-08-23 の再発項が receipt 逐語で断定を与えている。
+
+- **再発: 2026-08-24** — 変異 harness の baseline が、親の焦点走では緑だった node で赤になった。
+  焦点走は 10 file (1676 item)、変異 baseline は 2 file (327 item) で、どちらも同じ
+  計算ノードへ dispatch している。落ちたのは
+  `test_exploration_external_root_keeps_wave_clean` で、赤の本文は
+  `orchestrator/campaign/execution_guard.py` の
+  `CertifiedWriterAuthorizationError`「Pegasus compute では receipt state 内で一意な
+  required authorization_contract だけを受理する」。当 wave の差分は campaign 層にも
+  当該テストにも触れていない。`REAL_REPO_SERIAL_NODES` 未登録。
+  追加事実は、**フレークの引き金が worker 数ではなく file 集合 (xdist の同居関係) でも成立する**
+  点である。D690 に従い `--deselect` で外して先へ進めた。
+  **申し送り**: この node の file 集合依存を根治する作業は別 wave が要る。
 ### F58. 並行 wave が land 済みの「次の一手」ID を別内容へ再利用し、裁定待ち 2 件が正本から消えた [手順漏れ] [恒真ゲート]
 
 - **事象 (2026-07-31, `/rulings`):** worklog (72) が land した 2 つの ID を、並行して走っていた
@@ -3960,6 +3979,14 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 併せて顕在化: **子の完了報告は削除を網羅しない。** 子の前後で
   `git status --porcelain --untracked-files=all` を突き合わせるのが唯一の確実な検出手段である。
 - 恒久対応は F106 のまま (`DW-O19` の走行中不可触規律と harness preflight)。
+
+- **再発: 2026-08-24** — 変異 matrix の走行中に、親が段 7 の設計判断 fragment を worktree へ書き、
+  `tools/mutation_harness.py` が runner 実行前の preflight で untracked file を検出して
+  rc=2 で停止した。**親は同じ turn の中で「変異走行中は tree へ書かない」と自ら明示した直後に
+  違反している。** 追加事実は、**規律を言語化することは順序の設計の代わりにならない**点である。
+  恒久対応の向きは「走行中に書かない」ではなく「走行前に、変異結果を待たない記録
+  (設計判断 fragment) を書き終えて commit しておく」という順序の固定にある。
+  実害は 1 往復ぶんの再走。
 ### F107. 内側検証の変異を外側の一括再検証が mask した [恒真ゲート]
 
 - 事象: 事前登録した変異 M15 (publish 直後の再検証と rollback を落とす) が本走で **SURVIVED**
@@ -6677,6 +6704,12 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   pegasus-runbook.md §7.3 の既存記述 (「待ち手では merge せず親へ戻す」) 自体は正確だったが、
   F225 の恒久対応節と読み合わせた際に「Codex 子の先取り統合だけで足りる」と誤読しやすい
   構成だった。
+
+- **再発: 2026-08-24** — 親が `docs/dev-wave/operations.md` を編集した未 commit 状態で
+  段 6 の fix 子を投げ、`NG: docs/dev-wave/operations.md: working tree が authority commit と異なる`
+  で rc=2 拒否された。追加事実は、**merge 由来だけでなく親自身の docs 編集でも同じ拒否が起きる**
+  点である。段 6 は「親が docs を直す」と「子に実装を直させる」が同じ段に同居するため、
+  この順序衝突は構造的に起きる。回避は docs 編集を統合 commit にしてから子を投げること。
 ### F226. source hash を埋め込む golden が同族ファイルの全変異を道連れにする [ドリフト]
 
 - 事象: 変異 11 件のうち 4 件が MISMATCH になった。うち 2 件 (judge / report の変異) は
@@ -12958,3 +12991,21 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: 同テスト。**受入 launcher 配下で初めて踏まれる経路を既定にするときは、
   isolated mode で import graph 全体が解決できるかを先に実測する。**
   焦点走の緑は受入 launcher 配下の緑を含意しない。
+
+### F511. 裁定本文を行範囲で切り出して子へ渡し、実装条件の後半が欠けたまま段 3 を走らせた [手順漏れ]
+
+- 事象: 親が `docs/decisions.md` の裁定を `sed -n '<開始>,<終了>p'` で job dir へ切り出し、
+  段 2・段 3 の子へ「必読事項の射影」として渡した。行範囲の終端を実際の次見出しで
+  確かめていなかったため、**実装条件 4 項のうち後半 2 項が欠けた本文**が子へ渡り、
+  段 3 の 2 レンズはその状態で攻撃を行った。
+- 根本原因: 切り出しの終端を「だいたいこのくらい」で決め、切り出した後に
+  末尾が節の終わりであることを確認しなかった。射影した資料の完全性を検査する経路が無い。
+- 恒久対応: 節単位の切り出しは行範囲でなく次見出しまでを取る
+  (`awk '/^## <見出し>/{f=1} f&&/^## /&&!/^## <見出し>/{exit} f'`)。
+  切り出した直後に末尾を目視し、節の最後の項が含まれることを確かめる。
+  memory `truncated-diagnostics-are-not-a-closure` の適用先を「診断出力」から
+  「子へ射影する一次資料」へ広げる。
+- 再発検知: 敵対レンズが「brief が裁定に帰属させた条件が射影本文に無い」と指摘したことで
+  発覚した。射影資料の完全性は子のレビュー観点に含める。
+- 実害: この回は brief 側に 4 条件とも書いてあったため裁定の実質は失われなかった。
+  ただし brief が正しくなければ、欠けた条件を無視した設計が段 4 まで通っていた。
