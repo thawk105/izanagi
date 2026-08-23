@@ -85,6 +85,13 @@ _STOP_REASONS = _LIMIT_REASONS + (
     "max_attempts",
     "launcher_error",
 )
+_FAILURE_CLASSES = (None, "f43_fragment", "f45_missing_output", "other")
+_F43_VALIDATOR_FAILURE_PREFIXES = (
+    "raw byte 数が不足",
+    "fenced code block 外に必須見出しが無い",
+)
+# qualification/attempt_ledger.py の同名 failure_class は別moduleの判定であり、
+# この attempt receipt field とは無関係である。
 _PREPARATION_STOP_REASON = "preparation_admission_bound_s"
 _FINALIZATION_STOP_REASON = "finalization_admission_bound_s"
 _CODEX_VERSION_NOT_RUN_GUARD_REJECTED = (
@@ -131,6 +138,9 @@ _ATTEMPT_FIELDS = frozenset(
         "process_group_residual",
         "termination_verified",
     }
+)
+_ATTEMPT_FIELDS_WITH_FAILURE_CLASS = _ATTEMPT_FIELDS | frozenset(
+    {"failure_class"}
 )
 _ROLLOUT_FIELDS = frozenset(
     {"session_id", "path", "sha256", "bytes"}
@@ -1653,13 +1663,62 @@ def _normal_reap(
     return residual, residual == 0
 
 
-def _validator_rc(path: Path) -> int:
-    failures = _validator.check_file(
+def _validator_failures(path: Path) -> list[str]:
+    return _validator.check_file(
         path,
         min_bytes=_validator._DEFAULT_MIN_BYTES,
         heading=re.compile(_validator._DEFAULT_HEADING, re.MULTILINE),
     )
-    return 0 if not failures else 1
+
+
+def _validator_rc(path: Path) -> int:
+    return 0 if not _validator_failures(path) else 1
+
+
+def _classify_failure(
+    codex_exit_code: Any,
+    output_bytes: Any,
+    validator_failures: Sequence[str] | None,
+) -> str | None:
+    """Seal 時点の不変な観測値だけから異常終了型を分類する。
+
+    ``f43_fragment`` は docs/failures.md の F43、``f45_missing_output`` は
+    F45 の構造的特徴に対応する。accepted や limit_trigger のような後置で
+    反転しうる field は意図的に参照しない。
+    """
+    valid_exit_code = isinstance(codex_exit_code, int) and not isinstance(
+        codex_exit_code, bool
+    )
+    valid_output_bytes = isinstance(output_bytes, int) and not isinstance(
+        output_bytes, bool
+    )
+    if (
+        valid_exit_code
+        and codex_exit_code != 0
+        and valid_output_bytes
+        and output_bytes == 0
+    ):
+        return "f45_missing_output"
+    if valid_exit_code and codex_exit_code == 0:
+        if validator_failures is None:
+            # exit 0 でも output file 自体が無い場合は断片とは呼ばない。
+            return "other"
+        if not isinstance(validator_failures, Sequence) or isinstance(
+            validator_failures, (str, bytes, bytearray)
+        ):
+            return "other"
+        if not validator_failures:
+            return None
+        if all(
+            isinstance(failure, str)
+            and any(
+                failure.startswith(prefix)
+                for prefix in _F43_VALIDATOR_FAILURE_PREFIXES
+            )
+            for failure in validator_failures
+        ):
+            return "f43_fragment"
+    return "other"
 
 
 def _seal_attempt(
@@ -1680,9 +1739,15 @@ def _seal_attempt(
     stderr_sha, stderr_bytes = _hash_file(state.stderr_path)
     if state.output_path.exists():
         output_sha, output_bytes = _hash_file(state.output_path)
-        validator_rc = _validator_rc(state.output_path)
+        validator_failures = _validator_failures(state.output_path)
+        validator_rc = 0 if not validator_failures else 1
     else:
-        output_sha, output_bytes, validator_rc = None, 0, None
+        output_sha, output_bytes, validator_failures, validator_rc = (
+            None,
+            0,
+            None,
+            None,
+        )
     actuals = _rollout_actuals(state)
     evidence_status = _evidence_status(state)
     metering_status = _metering_status(state)
@@ -1736,6 +1801,9 @@ def _seal_attempt(
     return {
         "attempt_index": state.attempt_index,
         "accepted": accepted,
+        "failure_class": _classify_failure(
+            process.returncode, output_bytes, validator_failures
+        ),
         "evidence_status": evidence_status,
         "metering_status": metering_status,
         "limit_trigger": state.limit_trigger,
@@ -2947,6 +3015,11 @@ def _run_supervised(
         if retry_limit is not None:
             attempt["limit_trigger"] = retry_limit
             break
+        if attempt["failure_class"] == "f45_missing_output":
+            raise AttemptLoopError(
+                "Codex が非ゼロ終了し、attempt output が無いので retry を停止",
+                attempt,
+            )
     args.attempt_budget_completed_ns = args.last_attempt_wall_clock_sampled_ns
     args.finalization_started_ns = args.last_attempt_wall_clock_sampled_ns
     _latch_final_job_limit(
@@ -3428,9 +3501,21 @@ def _run(args: argparse.Namespace) -> int:
         )
 
 
-def _validate_attempt(value: Any, *, index: int) -> dict[str, Any]:
+def _validate_attempt(
+    value: Any, *, index: int, schema_version: int = 4
+) -> dict[str, Any]:
+    # V4 は failure_class を必須にする。V1-V3 は main 親の旧形式と、
+    # wave 親が failure_class を追加して生成した形式の両方だけを受理する。
+    has_failure_class = bool(
+        isinstance(value, Mapping) and "failure_class" in value
+    )
+    attempt_fields = (
+        _ATTEMPT_FIELDS_WITH_FAILURE_CLASS
+        if schema_version == 4 or has_failure_class
+        else _ATTEMPT_FIELDS
+    )
     attempt = dict(
-        _closed_object(value, _ATTEMPT_FIELDS, label=f"attempts[{index}]")
+        _closed_object(value, attempt_fields, label=f"attempts[{index}]")
     )
     if _strict_int(
         attempt["attempt_index"],
@@ -3532,6 +3617,28 @@ def _validate_attempt(value: Any, *, index: int) -> dict[str, Any]:
             raise LaunchError(f"attempt.{field_name} が不正")
     if not isinstance(attempt["termination_verified"], bool):
         raise LaunchError("attempt.termination_verified が bool ではない")
+    output_path = Path(attempt["output_path"])
+    validator_failures = (
+        _validator_failures(output_path) if output_path.exists() else None
+    )
+    expected_failure_class = _classify_failure(
+        attempt["codex_exit_code"],
+        attempt["output_bytes"],
+        validator_failures,
+    )
+    if has_failure_class:
+        failure_class = attempt["failure_class"]
+        if failure_class not in _FAILURE_CLASSES:
+            raise LaunchError("attempt.failure_class が不正")
+        if failure_class != expected_failure_class:
+            raise LaunchError("attempt.failure_class 再計算が不一致")
+    else:
+        # 旧 schema は sealed artifact 由来値を内部で補い、後段の意味検査を
+        # 現行 schema と同じ閉じた表で行う。receipt file 自体は書き換えない。
+        failure_class = expected_failure_class
+        attempt["failure_class"] = failure_class
+    if attempt["accepted"] and failure_class is not None:
+        raise LaunchError("accepted attempt.failure_class が不正")
     if attempt["accepted"]:
         if not (
             attempt["limit_trigger"] is None
@@ -3778,7 +3885,7 @@ def _validate_receipt(value: object) -> dict[str, Any]:
     if not isinstance(attempts_raw, list):
         raise LaunchError("receipt.attempts が配列でない")
     attempts = [
-        _validate_attempt(item, index=index)
+        _validate_attempt(item, index=index, schema_version=schema_version)
         for index, item in enumerate(attempts_raw)
     ]
     expected_actuals = _sum_attempts(attempts)
