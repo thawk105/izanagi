@@ -649,8 +649,12 @@ def test_version_time_consumes_attempt_not_preparation_budget(
     assert "preparation_admission_bound_s" not in completed.stderr
     assert not paths["marker"].exists()
     # V4 は控除後 attempt wall を全 outcome で検査するため、上限超過を
-    # launcher_error receipt へ偽装して公開することも許さない。
-    assert not paths["receipt"].exists()
+    # accepted と偽装した receipt の公開を許さない。
+    assert paths["receipt"].is_file()
+    receipt = json.loads(paths["receipt"].read_text(encoding="utf-8"))
+    assert receipt["outcome"] == "launcher_error"
+    assert receipt["outcome"] != "accepted"
+    assert receipt["attempts"] == []
 
 
 def test_version_process_group_rejects_and_reaps_detached_child(

@@ -1867,7 +1867,13 @@ def _attempt_loop(
 
     try:
         try:
-            _require_attempt_hook_installation(args.repo_root, args.cwd)
+            if attempt_index == 1 and getattr(
+                args, "attempt_hook_installation_prevalidated", False
+            ):
+                # version より前の検査を初回 attempt の検査として再利用する。
+                args.attempt_hook_installation_prevalidated = False
+            else:
+                _require_attempt_hook_installation(args.repo_root, args.cwd)
             preflight_now_ns = _monotonic_ns()
             if getattr(args, "attempt_budget_started_ns", None) is None:
                 preparation_elapsed = _preparation_admission_elapsed_s(
@@ -2637,6 +2643,7 @@ def _preflight_run(
         # caller 指定 codex は --version も被験体である。guard が拒否した
         # 場合は version process も起動しない。
         _require_attempt_hook_installation(args.repo_root, args.cwd)
+        args.attempt_hook_installation_prevalidated = True
     except LaunchError as exc:
         return (
             codex_path,
@@ -3355,6 +3362,7 @@ def _run(args: argparse.Namespace) -> int:
     args.preparation_wall_clock_s = Decimal(0)
     args.preparation_completed_ns = None
     args.attempt_budget_started_ns = None
+    args.attempt_hook_installation_prevalidated = False
     args.attempt_budget_completed_ns = None
     args.last_attempt_wall_clock_sampled_ns = None
     args.last_attempt_sealed_ns = None
