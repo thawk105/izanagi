@@ -13,6 +13,8 @@ from pathlib import Path
 
 import pytest
 
+from orchestrator.campaign import source_digest
+
 _ROOT = Path(__file__).resolve().parents[2]
 _CHECKER = _ROOT / "tools/check_trace0_preprocess_identity.py"
 _SOURCE = Path("cc/silo/transaction.cc")
@@ -404,6 +406,21 @@ def test_known_absent_is_rejected_from_comparison_commit_tree(tmp_path: Path) ->
     )
 
 
+def test_known_absent_is_rejected_from_checkout_when_commit_is_specified(
+    tmp_path: Path,
+) -> None:
+    pair = _modified_pair(tmp_path, _MQLOCK_NEW_SOURCE, old_source=_MQLOCK_OLD_SOURCE)
+    _write(pair.repo, "include/checkout-only-supply.hh", "#define MQLOCK 1\n")
+    for commit in (pair.old, pair.new):
+        assert "include/checkout-only-supply.hh" not in _git(
+            pair.repo, "ls-tree", "-r", "--name-only", commit
+        ).splitlines()
+    _assert_rejected(
+        _run(pair),
+        "PROVEN_REPO_ABSENT_MACROS が stale",
+    )
+
+
 def test_known_absent_old_only_supply_is_rejected_from_old_commit(
     tmp_path: Path,
 ) -> None:
@@ -465,6 +482,37 @@ def test_commit_tree_symlink_entry_is_rejected(tmp_path: Path) -> None:
     _assert_rejected(_run(_Pair(repo, old, new)), "symlink entry")
 
 
+def test_checkout_walk_directory_enumeration_error_is_rejected(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    repo, _old = _base_repo(tmp_path)
+    walk_error = PermissionError(13, "permission denied", os.fspath(repo / "blocked"))
+
+    def failing_walk(_root: str, *, onerror=None):
+        assert onerror is not None
+        onerror(walk_error)
+        yield "", [], []
+
+    monkeypatch.setattr(source_digest.os, "walk", failing_walk)
+    with pytest.raises(RuntimeError, match="checkout directory の列挙に失敗"):
+        list(source_digest._repo_supply_files(os.fspath(repo)))
+
+
+def test_uninitialized_gitlink_directory_is_not_asked_to_resolve_parent_head(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    repo, _old = _base_repo(tmp_path)
+    (repo / "third_party/fixture").mkdir(parents=True)
+
+    def reject_git_call(*_args, **_kwargs):
+        raise AssertionError("non-repository gitlink directory must not invoke git")
+
+    monkeypatch.setattr(source_digest.subprocess, "run", reject_git_call)
+    assert source_digest._checkout_gitlink_oid(
+        os.fspath(repo), "third_party/fixture"
+    ) is None
+
+
 def test_commit_tree_with_matching_initialized_gitlink_is_accepted(
     tmp_path: Path,
 ) -> None:
@@ -493,6 +541,45 @@ def test_commit_tree_with_matching_initialized_gitlink_is_accepted(
     new = _commit(repo, "comparison new with gitlink")
     assert _git(repo, "diff", "--name-only", old, new) == _SOURCE.as_posix()
     result = _run(_Pair(repo, old, new))
+    assert result.returncode == 0, result.stderr
+
+
+def test_commit_tree_with_uninitialized_gitlink_worktree_is_accepted(
+    tmp_path: Path,
+) -> None:
+    """親裁定により、計算 job と同じ未初期化 gitlink は coverage 対象外として通す。"""
+    child = tmp_path / "gitlink-source"
+    child.mkdir()
+    _git(child, "init", "-q")
+    _git(child, "config", "user.name", "Izanagi Test")
+    _git(child, "config", "user.email", "izanagi-test@example.invalid")
+    _write(child, "include/fixture.hh", "#pragma once\n")
+    _commit(child, "gitlink source")
+
+    repo, _initial = _base_repo(tmp_path)
+    _git(
+        repo,
+        "-c",
+        "protocol.file.allow=always",
+        "submodule",
+        "add",
+        "-q",
+        os.fspath(child),
+        "third_party/fixture",
+    )
+    old = _commit(repo, "comparison old with gitlink")
+    _write(repo, _SOURCE, _TRACE_ONLY_NEW_SOURCE)
+    new = _commit(repo, "comparison new with gitlink")
+
+    detached = tmp_path / "detached-checkout"
+    _git(repo, "worktree", "add", "-q", "--detach", os.fspath(detached), new)
+    gitlink_checkout = detached / "third_party/fixture"
+    gitlink_checkout.mkdir(parents=True, exist_ok=True)
+    assert gitlink_checkout.is_dir()
+    assert not (gitlink_checkout / ".git").exists()
+    assert _git(detached, "rev-parse", "HEAD") == new
+
+    result = _run(_Pair(detached, old, new))
     assert result.returncode == 0, result.stderr
 
 

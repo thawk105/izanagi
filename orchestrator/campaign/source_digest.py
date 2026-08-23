@@ -937,51 +937,71 @@ def _git_tree_entries(root: str, commit: str) -> Iterable[tuple[str, str, str, s
         yield mode, object_type, oid, path
 
 
-def _checkout_gitlink_oid(root: str, rel: str) -> str:
-    """初期化済み submodule checkout が実際に指す commit を返す。"""
+def _checkout_gitlink_oid(root: str, rel: str) -> str | None:
+    """rel 自身が repository 境界なら submodule checkout の commit を返す。"""
     checkout = os.path.join(root, rel)
-    if not os.path.isdir(checkout):
-        raise RuntimeError(
-            f"source_digest: commit tree の gitlink {rel!r} に対応する checkout がない — "
-            "submodule の supply を確定できないため fails-closed (T-1506)"
-        )
+    git_marker = os.path.join(checkout, ".git")
+    if (
+        not os.path.isdir(checkout)
+        or os.path.islink(checkout)
+        or os.path.islink(git_marker)
+        or not (os.path.isfile(git_marker) or os.path.isdir(git_marker))
+    ):
+        return None
     try:
-        result = subprocess.run(
+        top_level_result = subprocess.run(
+            ["git", "-C", checkout, "rev-parse", "--show-toplevel"],
+            capture_output=True,
+            text=True,
+            env=_sanitized_git_env(),
+        )
+    except (OSError, subprocess.SubprocessError, UnicodeError):
+        return None
+    if top_level_result.returncode != 0:
+        return None
+    top_level = top_level_result.stdout.strip()
+    if not top_level or os.path.realpath(top_level) != os.path.realpath(checkout):
+        return None
+
+    try:
+        head_result = subprocess.run(
             ["git", "-C", checkout, "rev-parse", "--verify", "HEAD^{commit}"],
             capture_output=True,
             text=True,
             env=_sanitized_git_env(),
         )
-    except (OSError, subprocess.SubprocessError, UnicodeError) as exc:
-        raise RuntimeError(
-            f"source_digest: gitlink checkout {rel!r} の HEAD 解決に失敗 ({exc}) — "
-            "submodule の supply を確定できないため fails-closed (T-1506)"
-        ) from exc
-    if result.returncode != 0:
-        raise RuntimeError(
-            f"source_digest: gitlink checkout {rel!r} の HEAD 解決が失敗 "
-            f"(rc={result.returncode}): {result.stderr.strip()[-300:]} → submodule の "
-            "supply を確定できないため fails-closed (T-1506)"
-        )
-    oid = result.stdout.strip()
+    except (OSError, subprocess.SubprocessError, UnicodeError):
+        return None
+    if head_result.returncode != 0:
+        return None
+    oid = head_result.stdout.strip()
     if not re.fullmatch(r"[0-9a-f]+", oid):
-        raise RuntimeError(
-            f"source_digest: gitlink checkout {rel!r} の HEAD OID が不正: {oid!r} — "
-            "submodule の supply を確定できないため fails-closed (T-1506)"
-        )
+        return None
     return oid
 
 
 def _repo_supply_files(
     root: str, *, commit: str | None = None
 ) -> Iterable[tuple[str, str]]:
-    """repo-wide macro supply audit の対象 C/C++/CMake text を列挙する。"""
+    """repo-wide macro supply audit の対象 C/C++/CMake text を列挙する。
+
+    submodule の中身は不在証明の対象外である。初期化済み checkout があれば従来どおり
+    os.walk で読むが、gitlink coverage を確認できなくても top-level tree の監査は続ける。
+    """
     if not os.path.isdir(root):
         raise RuntimeError(
             f"source_digest: ccbench repo が directory でない: {root!r} → "
             "repo-wide macro registry を確定できないため fails-closed"
         )
-    for directory, dirs, files in os.walk(root):
+
+    def raise_walk_error(exc: OSError) -> None:
+        raise RuntimeError(
+            f"source_digest: checkout directory の列挙に失敗: "
+            f"path={exc.filename!r} ({exc}) → repo-wide macro registry を "
+            "確定できないため fails-closed (T-1506)"
+        ) from exc
+
+    for directory, dirs, files in os.walk(root, onerror=raise_walk_error):
         dirs[:] = [name for name in dirs if name != ".git"]
         for filename in files:
             if not _is_repo_supply_path(filename):
@@ -1014,11 +1034,9 @@ def _repo_supply_files(
                 )
             checkout_oid = _checkout_gitlink_oid(root, path)
             if checkout_oid != oid:
-                raise RuntimeError(
-                    f"source_digest: commit tree と checkout の gitlink OID が不一致: "
-                    f"path={path!r} tree={oid!r} checkout={checkout_oid!r} — submodule の "
-                    "supply を確定できないため fails-closed (T-1506)"
-                )
+                # 未初期化・非 repository・別 HEAD は coverage を主張しない。
+                # submodule の中身は上の docstring のとおり不在証明の対象外である。
+                continue
         else:
             raise RuntimeError(
                 f"source_digest: commit tree に未対応 mode がある: "
