@@ -2986,11 +2986,6 @@ def _run_supervised(
             )
             return launcher_rc
         attempts.append(attempt)
-        if attempt["failure_class"] == "f45_missing_output":
-            raise AttemptLoopError(
-                "Codex が非ゼロ終了し、attempt output が無いので retry を停止",
-                attempt,
-            )
         prior["model_calls"] += attempt["model_calls"]
         prior["cli_reported"] += attempt["cli_reported"]
         if attempt["accepted"] or attempt["limit_trigger"] is not None:
@@ -3020,6 +3015,11 @@ def _run_supervised(
         if retry_limit is not None:
             attempt["limit_trigger"] = retry_limit
             break
+        if attempt["failure_class"] == "f45_missing_output":
+            raise AttemptLoopError(
+                "Codex が非ゼロ終了し、attempt output が無いので retry を停止",
+                attempt,
+            )
     args.attempt_budget_completed_ns = args.last_attempt_wall_clock_sampled_ns
     args.finalization_started_ns = args.last_attempt_wall_clock_sampled_ns
     _latch_final_job_limit(
@@ -3617,7 +3617,10 @@ def _validate_attempt(
             raise LaunchError(f"attempt.{field_name} が不正")
     if not isinstance(attempt["termination_verified"], bool):
         raise LaunchError("attempt.termination_verified が bool ではない")
-    validator_failures = _validator_failures(Path(attempt["output_path"]))
+    output_path = Path(attempt["output_path"])
+    validator_failures = (
+        _validator_failures(output_path) if output_path.exists() else None
+    )
     expected_failure_class = _classify_failure(
         attempt["codex_exit_code"],
         attempt["output_bytes"],

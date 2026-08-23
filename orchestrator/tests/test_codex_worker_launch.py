@@ -2621,6 +2621,18 @@ def _write_valid_diagnostic_receipt(
             "termination_verified": True,
         }
         attempt.update(overrides)
+        if "failure_class" not in overrides:
+            sealed_output_path = Path(attempt["output_path"])
+            validator_failures = (
+                LAUNCHER._validator_failures(sealed_output_path)
+                if sealed_output_path.exists()
+                else None
+            )
+            attempt["failure_class"] = LAUNCHER._classify_failure(
+                attempt["codex_exit_code"],
+                attempt["output_bytes"],
+                validator_failures,
+            )
         attempts.append(attempt)
     actuals = {
         "wall_clock_s": sum(item["wall_clock_s"] for item in attempts),
@@ -3032,6 +3044,26 @@ def test_launcher_failure_diagnostic_reports_all_visible_failures_and_guard(
     assert 'failed_predicates=["accepted"]' not in hidden_guard_message
 
 
+def test_missing_output_failure_class_recomputation_skips_validator(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    paths = {
+        "receipt": tmp_path / "receipt.json",
+        "artifact": tmp_path / "artifacts",
+    }
+
+    def unexpected_validator_call(_path: Path) -> list[str]:
+        raise AssertionError("missing output must not be passed to the validator")
+
+    monkeypatch.setattr(
+        LAUNCHER, "_validator_failures", unexpected_validator_call
+    )
+    receipt = _write_valid_diagnostic_receipt(paths, [{}])
+
+    assert receipt["attempts"][0]["output_sha256"] is None
+    assert receipt["attempts"][0]["failure_class"] == "other"
+
+
 def test_launcher_failure_diagnostic_rejects_fifo_and_over_limit_streams(
     tmp_path: Path,
 ) -> None:
@@ -3279,24 +3311,27 @@ def test_workspace_write_failure_classification_is_sandbox_independent(
 
 
 @pytest.mark.parametrize("mode", ["missing_output", "empty_output"])
-def test_workspace_write_f45_missing_output_is_fail_closed(
+def test_workspace_write_f45_is_classified_without_retry(
     tmp_path: Path, mode: str
 ) -> None:
     _completed, receipt, paths = _run_case(
         tmp_path,
         mode,
-        expected_returncode=2,
+        expected_returncode=1,
         max_wall="10",
         evidence_grace="3",
         sandbox="workspace-write",
     )
     assert receipt is not None
+    assert receipt["outcome"] == "not_accepted"
+    assert receipt["stop_reason"] == "max_attempts"
+    assert receipt["launcher_rc"] == 1
     assert receipt["attempts"][0]["failure_class"] == "f45_missing_output"
     assert len(receipt["attempts"]) == 1
     assert paths["counter"].read_text(encoding="ascii") == "1"
 
 
-def test_default_max_attempts_observes_failure_class_and_fail_closed(
+def test_default_max_attempts_observes_failure_class_without_retry(
     tmp_path: Path,
 ) -> None:
     fake = _write_fake_codex(tmp_path / "fake-codex")
@@ -3310,10 +3345,13 @@ def test_default_max_attempts_observes_failure_class_and_fail_closed(
     _remove_option(command, "--max-attempts")
     env["FAKE_MODE"] = "missing_output"
     _run_launcher_subprocess(
-        command, env=env, paths=paths, expected_returncode=2
+        command, env=env, paths=paths, expected_returncode=1
     )
     receipt = json.loads(paths["receipt"].read_text(encoding="utf-8"))
     assert receipt["limits"]["max_attempts"] == 1
+    assert receipt["outcome"] == "not_accepted"
+    assert receipt["stop_reason"] == "max_attempts"
+    assert receipt["launcher_rc"] == 1
     assert receipt["attempts"][0]["failure_class"] == "f45_missing_output"
     assert paths["counter"].read_text(encoding="ascii") == "1"
 
