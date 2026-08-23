@@ -57,6 +57,20 @@ title: 環境フレークの登録制隔離を新設し、F57 と F373 は隔離
   MUT-4 の期待集合を実効 gate へ再照準して再走した。probe で判明したのは、
   negative control の 1 つ `[failure signature-changes1]` が別の層に mask されていることである。
   signature 照合の検出力自体は専用テストが持つため穴ではない。
+- **変異 1 件が生存し、実効 gate へ再照準した結果さらに深い穴が判明した。**
+  最終 tip・計算ノードでの matrix は baseline PASSED、MUT-1〜4 が KILLED、
+  **MUT-5 が SURVIVED** だった。MUT-5 は
+  `_xdist_flaky_collection_is_complete` を常に `False` にする変異で、
+  stale registry 検査を xdist 経路で完全に無効化する。等価変異ではない —
+  **受入全走はその xdist 経路で走る。** 配線を証明するはずの control が
+  正常な registry を使っており、検査が呼ばれても呼ばれなくても同じ結果になっていた
+  (F175 と同じ恒真化)。`DW-M02` に従い実効 gate へ再照準して stale 注入型の control を
+  新設したところ、**その control 自身が赤になり、第 3 の穴が出た** — 注入は効いている
+  (`registered_node_count:2 / matched_node_count:1`) のに rc=0 で、同じ出力に
+  `effective_scheduler: serial` がある。`-n` を渡しつつ実効 scheduler が serial になる条件では、
+  非 xdist 経路が xdist hook へ委ね、xdist hook は worker collection が無いので発火せず、
+  **どちらの経路も検査しない。** 本 wave では control を戻し
+  ({{T:flaky-stale-gate-wiring}} へ送る)、隔離の中核挙動は MUT-3 の KILLED と実走で担保する。
 - 実測: F373 の対照実験は同一 tree・同一コマンド・同一 ambient 環境 (`FORCE_COLOR=3`) で
   修理前 rc=1 / 修理後 rc=0。**この赤は login node での走行に閉じる** — 当該走行の log に
   `Pegasus dispatch` の出現は 0 件で、計算ノードへ dispatch されていない。
@@ -104,17 +118,20 @@ title: 環境フレークの登録制隔離を新設し、F57 と F373 は隔離
   負荷に比例して膨らむのか特定の段に集中するのかは 1 走行 1 サンプルから分離できていない。
   切り分け結果に基づき、締切を「attempt 本体で測る」か「固定費を予算から除く」形へ変える。
   **予算を一律に増やす形は採らない** (本当に暴走した被験体を捕まえられなくなる)。
-- {{T:exploration-external-root-flaky-cause}} **P2・新規**:
-  `test_dev_wave_land.py::test_exploration_external_root_keeps_wave_clean` の非決定性の
-  原因を特定する。同一 commit `e8671324` で通ったり落ちたりすることは実測済みで、
-  署名は `execution_guard.require_certified_writer_authorization` /
-  `numactl=('numactl','--interleave=all')` / `env_contract=None`。
-  原因が特定できれば本 wave が作った registry へ entry を 1 つ足すだけで隔離でき、
-  機構側の変更は要らない。**原因未特定のまま隔離してはならない。**
 - {{T:flaky-quarantine-receipt-binding}} **P2・新規**: 隔離集合を acceptance receipt へ束縛する。
   現状は走行末尾の `IZANAGI_FLAKY_HOLD_SUMMARY_V1` と registry の version 管理でしか
   隔離範囲が辿れず、`child-green` の受領証それ自体からは「何件が隔離されていたか」が読めない。
   `tools/dev_wave_land.py` の受理条件と receipt schema に触るため本 wave の scope 外とした。
+- {{T:flaky-stale-gate-wiring}} **P1・新規**: stale registry 検査の配線を、
+  実効 scheduler が xdist / serial のいずれでも発火する形にし、恒真でない control で固定する。
+  実測で 2 つの穴が確定している。(a) `_xdist_flaky_collection_is_complete` を常に `False` に
+  する変異が SURVIVED した (一次資料 `mutation-ledger-mut5-survived.json`)。
+  (b) `-n` を渡しつつ実効 scheduler が serial になる条件では、非 xdist 経路が
+  xdist hook へ委ね、xdist hook は worker collection が無いので発火せず、どちらの経路も
+  検査しない。**衛生検査であって隔離の中核ゲートではない**ため本 wave では戻したが、
+  現状は「1 行で緩められて検出されない」状態が残っている。
+  control は実 subprocess で stale な registry を注入し、非 0 終了を要求する形にする
+  (注入は test 内に閉じること — production へ opt-in 口を作らない)。
 - {{T:failure-digest-budget-loses-evidence}} **P2・新規**: 失敗 digest の byte 予算が
   証拠を体系的に捨てている。実測で `failures=60 selected=10 omitted_failures=50
   source_bytes=226327 budget_bytes=49152`。赤が数十件出る走行では失敗本文の 8 割以上が失われ、
