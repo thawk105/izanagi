@@ -26,7 +26,6 @@ RC_PARTIAL = 30
 _REPO = Path(__file__).resolve().parent.parent
 _SHA_RE = re.compile(r"(?:[0-9a-f]{40}|[0-9a-f]{64})\Z")
 _PRUNE_LINE_RE = re.compile(r"^Removing worktrees/([^:]+): .+$")
-_UNREACHABLE_COMM_ALLOWLIST = frozenset({"sshd", "ssh-agent", "(sd-pam)", "systemd"})
 
 
 @dataclass(frozen=True)
@@ -465,13 +464,6 @@ def _assert_unoccupied(path: Path) -> OccupancyDiagnostics:
             "occupancy", "same-uid unreachable process diagnostics are malformed",
             RC_OCCUPANCY_INDETERMINATE,
         )
-    for process in unreachable_same_uid:
-        comm = process.get("comm") if isinstance(process, dict) else None
-        if comm not in _UNREACHABLE_COMM_ALLOWLIST:
-            raise _reject(
-                "occupancy", f"same-uid process cwd is unreachable and comm is not allowlisted: {comm!r}",
-                RC_OCCUPANCY_INDETERMINATE,
-            )
     return OccupancyDiagnostics(
         cwd_permission=unreachable["cwd_permission"],
         same_uid_cwd_unreachable=unreachable_same_uid,

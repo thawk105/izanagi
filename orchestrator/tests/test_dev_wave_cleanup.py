@@ -286,6 +286,37 @@ def test_rejects_non_ancestor_without_mutation(tmp_path, monkeypatch, capsys):
     _assert_rejected_preserving(repo, capsys)
 
 
+def test_preflight_ancestry_gate_rejects_before_any_removal(
+    tmp_path, monkeypatch, capsys,
+):
+    repo = _make_repo(tmp_path, monkeypatch, landed=False, locked=True)
+    # Isolate the direct branch-tip gate from the separate reflog ancestry gate.
+    monkeypatch.setattr(cleanup, "_assert_reflog_commits_reachable", lambda *args: None)
+    before = _snapshot(repo)
+    tracked = repo.wave / "tracked.txt"
+    tracked_before = tracked.read_bytes()
+    gitfile_before = (repo.wave / ".git").read_bytes()
+    administrative = Path(
+        gitfile_before.decode("utf-8").removeprefix("gitdir: ").strip()
+    )
+    administrative_head_before = (administrative / "HEAD").read_bytes()
+    lock_before = (administrative / "locked").read_bytes()
+
+    rc, stdout, stderr = _run(repo, capsys)
+
+    assert (rc, stdout) == (20, "")
+    assert stderr.startswith("dev-wave-cleanup: status=rejected phase=preflight ")
+    assert "status=partial" not in stderr
+    assert repo.wave.is_dir()
+    assert tracked.is_file()
+    assert tracked.read_bytes() == tracked_before
+    assert (repo.wave / ".git").read_bytes() == gitfile_before
+    assert administrative.is_dir()
+    assert (administrative / "HEAD").read_bytes() == administrative_head_before
+    assert (administrative / "locked").read_bytes() == lock_before
+    _assert_preserved(repo, before)
+
+
 @pytest.mark.parametrize("kind", ("tracked", "untracked"))
 def test_rejects_dirty_worktree_without_mutation(tmp_path, monkeypatch, capsys, kind):
     repo = _make_repo(tmp_path, monkeypatch, locked=True)
@@ -379,7 +410,7 @@ def test_accepts_nonblocking_occupancy_diagnostics(
     _assert_removed(repo)
 
 
-def test_rejects_non_allowlisted_same_uid_unreachable_process(
+def test_accepts_arbitrary_same_uid_unreachable_process_with_diagnostics(
     tmp_path, monkeypatch, capsys,
 ):
     repo = _make_repo(tmp_path, monkeypatch, locked=True)
@@ -388,12 +419,20 @@ def test_rejects_non_allowlisted_same_uid_unreachable_process(
         "occupants": [],
         "issues": [],
         "scanned": 1,
-        "same_uid_cwd_unreachable": [{"pid": 7, "comm": "worker"}],
+        "same_uid_cwd_unreachable": [{"pid": 7, "comm": "nqs_shpd"}],
         "unreachable": {"cwd_permission": 2030},
         "worktree": os.fspath(repo.wave),
     }
     monkeypatch.setattr(cleanup, "_occupancy_payload", lambda path: (0, payload))
-    _assert_rejected_preserving(repo, capsys, expected_rc=22)
+    result = _run(repo, capsys)
+    _assert_success_output(
+        result,
+        "removed",
+        occupancy_phases=("preflight", "recheck"),
+    )
+    assert result[2].count("nqs_shpd") == 2
+    assert result[2].count('"pid": 7') == 2
+    _assert_removed(repo)
 
 
 def test_rejects_cwd_inside_target_without_mutation(tmp_path, monkeypatch, capsys):
@@ -584,6 +623,23 @@ def test_forbidden_git_verbs_absent_from_source_calls_and_runtime_allowlist(monk
         with pytest.raises(RuntimeError):
             cleanup._git(Path("/tmp"), *verb)
     assert calls == []
+
+
+@pytest.mark.parametrize(
+    "argv",
+    (
+        ("worktree", "remove", "--force"),
+        ("worktree", "remove"),
+        ("worktree", "remove", "--force", "--", "x"),
+        ("submodule", "deinit", "-f", "--", "external/ccbench"),
+        ("submodule", "deinit"),
+        ("branch", "-D", "--", "x"),
+        ("branch", "-D", "x"),
+    ),
+)
+def test_git_argv_validator_directly_rejects_forbidden_commands(argv):
+    with pytest.raises(RuntimeError, match="git argv is not allowlisted"):
+        cleanup._validate_git_argv(argv)
 
 
 @pytest.mark.parametrize(
