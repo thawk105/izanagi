@@ -4824,6 +4824,29 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: 変異 M1〜M5 (dedupe を外す / 最初の usage を採る / 入力 3 項をそれぞれ落とす) と
   M12 (母集団を報告から省く) が事前登録済みで、3 走目に 12/12 KILLED を確認した。
 
+
+- **再発: 2026-08-24** — known-violation 台帳の見直し wave で、親が自作した実測 script 4 本の
+  欠陥に気づかないまま結論をユーザーへ 3 度報告した。敵対 2 レンズが実データで否定した。
+  欠陥は 4 種類ある。(1) `_commit_paths()` は変更 path を全部返し、
+  `validate_implementation_author()` が `_is_implementation_path()` で絞った集合だけを
+  finding 対象にするが、script はこの前段 filter を再現せず**gate と違う母集合を測っていた**。
+  (2) `git merge-file` という blob 単位の低水準 3-way merge の結果を「実際の merge で競合し
+  人が手解決した」と一般化して報告した。rename 検出・`.gitattributes` の custom merge driver・
+  当時の strategy を再現しないため、示せるのは「素の 3-way merge では競合した」までである。
+  (3) `bytes.splitlines()` を使って末尾 LF の差を潰し、出現回数の条件も実装しないまま
+  「plan の述語を満たす 4 件」と称した。(4) 生成器分類が canonical trailer を検査せず
+  `'AI-Agent:' in body` だけを見たため、trailer block の配置誤り 1 件 (`3f2c43d758`) を
+  「manager が実装面を直接 commit」へ誤分類した。
+  再測定では (1)(2) の値は偶然変わらなかった (12 件、増加 20 回・減少 2 回) が、
+  land 根拠としては成立していなかった。F144 本体の「計測器そのものに正しさの検査を置かなかった」と
+  同じ根本原因で、今回は**権威実装が既に repo に在るのに、その判定順序を写さず別実装で測った**点が
+  新しい。
+- 追加の恒久対応: memory `parent-measurement-must-mirror-authoritative-filter` —
+  権威ある checker / gate が既に repo にあるとき、親の使い捨て実測 script は
+  その**判定順序と前段 filter を関数ごと再利用する** (import して呼ぶ)。再実装しない。
+  再利用できない場合は、母集合の差を出力へ 1 行で明記してから報告する。
+  低水準 command による再計算 (`git merge-file` 等) は、権威実装が使っていない限り
+  「代理であり本体ではない」と明記する。
 ### F145. 背景 job が子を投入したまま待ちを張らず 6 時間 24 分停止した [手順漏れ]
 
 - 事象: 段 6 の fix 子を投入したあと、完了待ちを張らずにユーザーへ中間報告して turn を終えた。
@@ -11277,6 +11300,27 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: 同型は、real-corpus テストがまだアクティブな task_id を fixture anchor に使っている
   場合に、その task_id が実体更新されるたびに顕在化しうる (lint 化は未整備、目視)。
 
+
+- **再発: 2026-08-24 (2 回目)** — 同じ
+  `orchestrator/tests/test_spool_fold.py::test_cli_base_digest_real_corpus_resolves_active_and_rejects_completed`
+  が受入全走で赤化した (14832 passed / 1 failed / 67 skipped、赤はこの 1 件だけ)。
+  F434 本体が「同型は、real-corpus テストがまだアクティブな task_id を fixture anchor に
+  使っている場合に、その task_id が実体更新されるたびに顕在化しうる」と予告したとおりの再発である。
+  今回の引き金は main の fold `768e9fe6` で、2026-08-24 の `/rulings` 裁定を反映して
+  `docs/worklog.md` へ実体の `[T-139]` 項目が入った。1 つ前の main `d8eaa0a7` の
+  `docs/worklog.md` に実体の `[T-139]` は 0 件だったことを親が blob で確認している。
+  carry 鎖を遡る実装は正しく新しい実体項目へ解決しており
+  (`--base-digest '[T-139]'` は `88d943ab…` を返す)、テスト側の固定ポインタが
+  `docs/archive/worklog-phase3-0820-720-721.md` を指したまま追随していないことが赤の原因である。
+  **1 回目 (2026-08-20 の実体更新) は archive 内の別 file への移動だったが、2 回目の今回は
+  archive から現行 `docs/worklog.md` への移動である。** fixture anchor が archive に留まる保証は
+  無く、追随修正はこの先も繰り返す。
+  本 wave は D690 決定 1 (自分が原因でない赤は一瞬で直せるなら自分で直す) に従い
+  Codex `role=author` で局所修復したが、別セッションが 00:48 JST に同じ赤を main へ
+  先に着地させていた (`3876fbe8`) ため自分の修復は撤回し、main 側の版を採った。
+  **非帰属の赤に対して 2 セッションが独立に修復へ動く重複が実際に起きた。**
+  F434 が記録した恒久対応の候補 (fixture anchor に、既に完了して archive され二度と実体更新
+  されない task_id を選ぶ設計) は、これで**独立 2 例が揃った**。実施は別タスクとする。
 ### F435. source_digest.py が mocc protocol の実供給マクロを認識せず床値実測がbuild段階で全滅した [ドリフト] [テスト代表性]
 
 - 事象: [T-1431] (2026-08-20) の床値pilot実測で、`s8b_floor_campaign.py` driver が
@@ -13009,3 +13053,221 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   発覚した。射影資料の完全性は子のレビュー観点に含める。
 - 実害: この回は brief 側に 4 条件とも書いてあったため裁定の実質は失われなかった。
   ただし brief が正しくなければ、欠けた条件を無視した設計が段 4 まで通っていた。
+
+### F512. 受入は fold 前の tree を検査するため、fold が生む退行が緑の受領証を通り抜けて main を赤にした [テスト代表性] [手順漏れ]
+
+- 事象: `/rulings` の裁定記録が受入全走 14832 passed / 0 failed で緑の受領証を得て land したが、
+  **land 後の main で `test_spool_fold.py::test_cli_base_digest_real_corpus_resolves_active_and_rejects_completed`
+  が赤になった。** 次の wave の受入で初めて表に出た。実コーパスを読むテストなので、
+  **この赤は全 wave の受入を止める**。
+- 根本原因: **fold は `tools/dev_wave_land.py` が ff-only した直後に land の協調 lock の中で走る。**
+  受入はその手前で終わっているので、**fold が canonical へ書いた後の tree は、その land を
+  承認した受入の検査対象に一度も入らない。** 本件では fold が「次の一手」を再生成して
+  `[T-139]` の実体を archive から現行エントリへ移し、当該テストが literal 固定していた
+  期待値と食い違った。受入時点では fragment しか存在せず、canonical は無傷だったため緑だった。
+- 誘発要因: 当該テストは `[T-139]` という**特定の active な ID** と
+  `docs/archive/worklog-phase3-0820-720-721.md` という**特定の archive file** を literal で
+  固定していた。active な項の実体は、その項を更新した wave のエントリへ移る。よってこの
+  固定は「誰かがこの項を更新したら壊れる」時限装置であり、更新は正常な運用である。
+- 恒久対応: `orchestrator/tests/test_spool_fold.py` の
+  `_latest_substantive_task_bytes` (main の `2b56f5ae` / `3876fbe8`、別セッションが実施)。
+  期待値を archive の literal 位置からでなく**実体の現在位置から導出する**形へ変えた。
+  本 wave も並行に Codex `role=author` で同型の修理を書き、焦点走 166 passed で確認したが、
+  **先に着地していた main 側の修理を採り、自分の版は捨てた** — 直後の他セッションの修理へ
+  126 行の書き換えを被せるのは churn であり、緑になっている経路を触り直す利得が無い。
+- 残る限界 (検出力): main 側の形は**対象 ID を `[T-139]` に固定したまま**なので、その項の実体が
+  現行 worklog にある間は「carry 鎖を archive まで辿る」性質を実際には踏まない。
+  本 wave が捨てた版はこの性質を強制していた。**同テストが名乗る保証と実際に踏む経路の差**として
+  残るので、次に同 file を触る wave が閉じること。
+- 残る限界 (未実施・裁定待ち): **fold 後の tree を検査する経路が無いこと自体は塞いでいない。**
+  fold は決定的なので `--dry-run` の出力へ検査を掛ける経路は作れるが、受入の受理条件を
+  変えるため裁定パッケージへ送る。本 F はその未実施を明示するために書いている。
+- 再発検知: 同型は「canonical を書き換える機構の出力が、その機構を承認した検査の後に走る」
+  形で再発する。fold 以外に land 相で canonical を触る機構を足す wave は、この F を読むこと。
+
+### F513. carry 鎖を辿る自作 resolver が凍結エントリ用の第 2 形式を知らず、stub 自身を実体として digest した [誤前提]
+
+- 事象: 上記の恒久対応を書く際、親が test 内へ独立実装した carry 鎖 resolver が
+  `[T-011]` に対し CLI と異なる digest を返した。**親は最初これを「切り出し規則の食い違い」と
+  読み違え、2 つの ID (`[T-337]`・`[T-139]`) で検算して一致したことを根拠に規則は正しいと
+  判断していた。** 実際には検算した 2 件がたまたま第 1 形式しか通らない鎖だった。
+- 根本原因: carry stub には形式が 2 つある — 通常の `- [T-NNN] (N)` と、
+  **凍結済み過去エントリの `- [T-NNN] 変わらず ((N) 参照)`** (`docs/spool/README.md` に明記)。
+  第 2 形式を stub と認識しないと、そこで鎖が止まり stub 行そのものを実体として digest する。
+- 誘発要因: 標本 2 件での検算を「規則が正しい」の根拠にした。**両方とも同じ形式だけを通る鎖で、
+  第 2 形式を 1 度も踏んでいなかった。** 検算の被覆を数えず一致件数だけを見た。
+- 恒久対応: 両形式を認識する。実装は `orchestrator/tests/test_spool_fold.py` の
+  `_carry_resolved_archive_item` (両形式の正規表現を or で並べ、理由をコメントで固定)。
+  再検算は第 2 形式を踏む `[T-011]`・`[T-059]` で行い、CLI と一致することを確認した。
+- 再発検知: carry 鎖を自作で辿るコードを書く wave は、**第 2 形式を踏む ID を検算に必ず含める**。
+  第 1 形式だけの標本は、この欠落に対する検出力を持たない。
+
+### F514. 8c attempt registry は値を見た後の失敗理由の付け替えで再走を得られる [恒真ゲート]
+
+- 事象: `record_attempt_terminal` に渡す明示 `failure_reason` が、事前に封印した分類受領証の
+  `pre_observation_failure_reason` を上書きする。terminal 行は受領証の値を
+  `pre_observation_failure_reason_echo` として持ち、echo が受領証と一致することは検査されるが、
+  **`failure_reason` が echo と一致することは検査されない**。null matrix も
+  `failure_reason` が retryable 集合に属することしか見ない。したがって受領証の理由を
+  `None` で封印し、性能値を読んでから `terminal_status="retryable-failure"` +
+  `failure_reason="preempted"` を付ければ次の slot が受理される。観測開始を記録しなければ
+  「観測後の再走禁止」検査も通る。
+- 根本原因: 出力前に封印する分類と、再走を認可する terminal 理由が**別の field** になっており、
+  両者の一致を要求する検査が無かった。「出力を読む前に分類する」という要件が、
+  受領証の存在だけで満たされたことにされていた (恒真ゲート)。
+- 恒久対応: D735 決定 3 —
+  共通 core の遷移 policy に `require_terminal_reason_equals_classification` を置き、
+  一致検査の有無を profile の項目にした。**8b profile は `True`** で塞いである
+  (`orchestrator/campaign/s8b_attempt_profile.py`)。
+  **8c profile は `False` のままであり、8c 側の穴は開いたままである** —
+  締めると 8c の受理集合が狭まり D672 の実装条件に反するため、締める時期は別途のユーザー裁定に委ねる。
+- 再発検知: `orchestrator/tests/test_attempt_registry_core_s8b_profile.py` の
+  「8b は理由不一致を拒否し、同じ入力を 8c profile は従来どおり受理する」対の検査。
+  段 4 事前登録の変異 M2 (8b profile の policy を `False` へ倒す) が実測で kill されることを確認済み。
+
+### F515. 生産側と消費側の key がずれても赤にならず機構が静かに無効化される [恒真ゲート] [自己整合]
+
+- 事象: 受入の投入順を決める所要台帳で、生成側 (junit の `classname` から nodeid を復元) と
+  消費側 (`item.path` から nodeid を復元) が**別々の規則で同じ key を作っていた**。
+  規則がずれると台帳の全 key が未知になり、並べ替えが no-op へ落ちる。
+  **これは例外も赤も出さない。** 段 6 の敵対レビューが指摘するまで誰も気づかなかった。
+- 根本原因: 新設した 26 個の gate のうち、消費側を検査するものが
+  **期待値を消費側の関数そのもので生成していた**。自己整合なので両側がずれても全部緑になる。
+  生成側 -> 実 collection -> 消費側 の round-trip を通す gate が 1 つも無かった。
+- 恒久対応: **実台帳と実 collection の被覆率を測る gate** を置いた。
+  repo にある実台帳を読み、実 collection の nodeid を消費側の規則で key へ変換し、
+  被覆率が 90% 未満なら赤にする。期待値を消費側の関数から導かない。
+  閾値の根拠は 14457 / 14663 = 98.6% (実測) と、欠落 10% でも makespan が
+  111.9 対 111.8 秒で実質同等という頑健性実測。
+- 再発検知: 消費側の key 生成を壊す変異 (`@group` suffix を落とさない) がこの gate で落ちること。
+  この gate は**台帳の陳腐化を検知する運用 gate も兼ねる**。
+- 一般化: **producer と consumer が独立に同じ識別子を組み立てる設計では、
+  consumer 側の gate を consumer 側の関数で書くと必ず自己整合になる。**
+  片側の実データを固定して round-trip を通す gate が要る。
+
+### F516. 未知要素を先頭へ寄せると LPT の利得が消える [性能] [模型の誤り]
+
+- 事象: 所要降順の並べ替えで、台帳に無い unit を「安全側」として先頭へ寄せたところ、
+  欠落 1.3% で makespan が 111.8 秒から 166.2 秒へ悪化した。実既定の 155.3 秒より遅い。
+- 根本原因: xdist の `LoadScopeScheduling.schedule()` は各 node へ 1 unit を配り、
+  続けて `_reschedule()` でもう 1 unit を配る。**先頭 96 unit (= 48 x 2) だけが
+  同期して 1 台 1 本ずつ配られる。** それ以降は worker が非同期に取りに来るため、
+  重い unit が窓の外に押し出されると 1 台が連続で抱え込む。
+  実測では 1 worker が 81.66 + 60.17 + 60.17 = 202 秒を直列に抱え、
+  最速 worker は 109.5 秒で遊んだ。
+- 恒久対応: 未知 unit の擬似 cost を「既知の cost 降順の第 96 位」にした
+  (D746)。欠落 30% まで実既定より速い。
+- 再発検知: 未知既定を先頭 (`inf`) や 0 (末尾) へ戻す変異が gate で落ちること。
+- 一般化: **greedy list scheduling の利得は「重い job が同期配布窓に入る」ことに依存する。**
+  「未知は安全側へ」という直感は、窓の位置を無視すると逆効果になる。
+
+### F517. fail-soft の不変条件を outcome 不変まで広げて書いてしまった [裁定] [過大主張]
+
+- 事象: 段 1 の brief で不変条件を「台帳の障害は順序の質だけを落とし、
+  選択・skip・受理判定・receipt を 1 件も変えない」と書いた。この文は
+  「順序を変えても outcome は変わらない」まで含むように読める。
+  段 6 の敵対レビューが、module scope fixture の finalizer や `tmp_path_factory` の連番で
+  **順序差だけで緑と赤が入れ替わる**具体構成を示した。
+- 根本原因: 「台帳の障害に対する不変性」と「順序変更に対する不変性」は別の主張なのに、
+  1 文へまとめた。後者は順序依存のテストがある限り一般には成立しない。
+- 恒久対応: 不変条件を 2 つに分けた。(2a) 台帳の障害は順序の質だけを変える (成立・gate 済み)。
+  (2b) 順序非依存は本 repo の受入が既に要求している前提であり、
+  本 wave が持ち込んだものではない (`-n 48` で 48 worker へ任意に散らされ、
+  xdist 自身も既定で件数降順に並べ替えている)。
+- 再発検知: 受入全走を決定的な検査とする。赤が出たら順序依存の実在として停止し、
+  テストを緩めて緑にしない。
+- 一般化: **「X の障害に対する不変性」を「X が変える対象に対する不変性」と混ぜて書かない。**
+  gate は前者しか pin できない。
+
+### F518. 背景 job では待ち手も監視も「完了した」と嘘をつく [待ち手] [通知]
+
+- 事象: 背景 job で回した dev-wave で、子の完了待ちが**成果物なしで成功を返す**事象を
+  4 回踏んだ。内訳は `tools/dev_wave_wait.py producer` が 2 回 (どちらも出力ゼロ・rc=0・約 7 分)、
+  Claude harness の Monitor が 2 回 (`.done` が存在しないのに `DONE rc=0` を通知)。
+  いずれも producer (launcher bash / `dev_wave_codex.py` / `codex exec`) は 3 段とも生きていた。
+- 根本原因: `wait_for_producer` は pid 状態を poll し `.done` と artifact が揃うまで
+  `RC_OK` を返さない構造なので、**tool の欠陥ではなく外側が待ち手 process を回収している**。
+  背景 job の harness が turn を跨ぐ background 実行を reap するのが最有力だが未確定。
+  Monitor の誤報は原因未特定で、こちらは通知経路そのものが信用できない。
+- 恒久対応: **なし (既存契約で足りている)。** `DW-O01` の
+  「完了は `.done` と exit code だけで判定し、grep も通知も判定にしない」に従っていたので
+  4 回とも現物照合で救えた。**この規律は「通知が先行しうる」だけでなく
+  「通知が偽でありうる」場合にも効く**ことが実地で確かめられた。
+- 再発検知: 完了通知を受けたら必ず `.done` の実在と内容、artifact の bytes を現物で確認する。
+  確認せずに次段へ進むと、走行中の子の tree を壊す。
+- 一般化: **背景 job では「待ち手の rc」も「完了通知」も完了の証拠にならない。**
+  producer が書く成果物だけが証拠である。長い待ちは前景 block を分割して張るのが最も確実。
+
+### F519. `pytester` の `HOME` 差し替えが user site の pytest を見えなくする [環境] [偽赤]
+
+- 事象: 新設した live gate 11 件が全滅した。内側 subprocess が
+  `/usr/bin/python3: No module named pytest` で即死していた。
+- 根本原因: `pytester` は inner run のために `HOME` を tmp directory へ差し替える。
+  この機体の pytest は **user site** (`$HOME/.local/lib/python3.10/site-packages`) にあるため、
+  `HOME` が変わると解決できなくなる。修正して pytest が入るようになると、今度は
+  repo root が `sys.path` に無く `No module named 'orchestrator'` になった。
+- 恒久対応: `pytester` の subprocess を起動する前に、`PYTHONPATH` へ
+  **user site と repo root の両方**を前置する (既存値は保つ)。
+  `runpytest_inprocess` へ逃げると production の hook chain と worker 側 wiring を通せない。
+- 再発検知: live gate が緑であること自体。**静的レビューでは検出できない**ので、
+  `DW-O16` の「実行環境に依存する実装は実機で動かすまで closed にしない」に従う。
+- 一般化: **user site へ導入した interpreter 資材は、`HOME` を差し替える test harness から見えない。**
+  `pytester`・`tmp_path` を使う subprocess test は、この機体では `PYTHONPATH` の明示が要る。
+
+### F520. 変異 harness の `--runner-mode dispatch` は login node の余裕で壊れる [変異] [argv]
+
+- 事象: 変異 probe は `--runner-mode dispatch` で 12/12 走完走したが、直後の本走は
+  `baseline が緑でないため production write を開始しない: status=PARSE_ERROR` で止まった。
+  attempt sidecar には `artifact_error: receipt 表示行が exactly one でない: 0` と rc=0 が残っていた。
+  **テストは通っているのに、dispatch receipt が 1 行も無い**ため harness が parse できなかった。
+- 根本原因: `tools/run_tests.py` は §7.0.0 の自動判定で local と dispatch を選ぶ。
+  login node に余裕があると local を選び、dispatch receipt 行を出さない。
+  一方 `--runner-mode dispatch` は毎走に receipt 行が exactly one あることを要求する。
+  **同じ argv・同じ tip でも、login node の空きメモリ次第で走行形が変わる。**
+- 恒久対応: `--runner-mode local` へ切り替える。harness は runner を黒箱として扱い、
+  `run_tests.py` が内部で必要なら dispatch する。
+  ただし `--attempt-out` / `--wrapper-attempt` は **`dispatch` 専用**なので同時に外す
+  (`attempt sidecar は --runner-mode dispatch でのみ使用できる`)。
+- 再発検知: probe が dispatch mode で通っても本走が同じ mode で通るとは限らない。
+  **probe と本走は同じ mode でも別の走行形になりうる。**
+- 一般化: 走行形 (local / dispatch) を自動判定する runner を、走行形を要求する harness へ
+  渡すと、環境の空き次第で間欠的に落ちる。**判定するのは runner か harness のどちらか一方にする。**
+
+### F521. 受入全走を 1 回丸ごと使って、先に回せた checker の違反を見つけた [手順] [関門順]
+
+- 事象: 受入全走 (14996 件) が 1 件だけ赤になった
+  (`test_check_subprocess_bytecode_guard.py::test_real_repo_clean`)。
+  原因は新設 test が Python を明示 `env=` 付きで起動する 2 箇所に
+  bytecode 書き込み guard (`-B` または `PYTHONDONTWRITEBYTECODE`) が無かったこと。
+  **`python3 tools/check_subprocess_bytecode_guard.py --repo <worktree>` を 1 回叩けば
+  数秒で分かる違反**を、受入 1 走 (外側 wall 573 秒 + lease 1 回) を使って見つけた。
+- 根本原因: 受入前の安い関門として `check_docs.py` と `check_ai_provenance.py` は回したが、
+  **repo 全体を走査する他の checker を棚卸ししていなかった。**
+  焦点走は「変更した test file と consumer test」を対象にするので、
+  `test_real_repo_clean` のような**実 repo 全体を検査する test は焦点走の対象に入らない**。
+- 恒久対応: **新しい実行可能資材 (subprocess 起動、hook、生成器) を足す wave は、
+  受入前に `tools/check_*.py` のうち `--repo` を取るものを棚卸しして回す。**
+  焦点走の対象選定 (`DW-O26`) は参照関係で引くが、
+  「repo 全体を走査する checker 系 test」は参照関係では引けない。
+- 再発検知: 受入で checker 系 test だけが赤になったら、この型の再発である。
+- 一般化: **焦点走は「変更 file を参照する test」を集めるが、
+  「repo 全体を見る test」は誰も参照しないので集まらない。**
+  後者は checker を直接叩いて先に潰す。
+
+### F522. acceptance 直前に session-start resume gate を再実行し、既存の main 取り込み経路を使わず停止した [手順漏れ] [コンテキスト浪費]
+
+- 事象: [T-1376] の stale-main 再開で固定 main を取り込んだ後、acceptance 直前に local main が
+  8 commit 進んだ。親は `check_wave_startup.py --mode resume` を再実行して NG を得ると waiter を
+  中断し、fresh context へ戻した。この運用を繰り返せば、高頻度 land 下で受入実走 0 のまま
+  再開を反復する。さらに同じ shell の gate 非 0 で後続を止めず、起動した waiter を手動中断した。
+- 根本原因: `DW-O20` の resume gate を session 開始時の検査でなく acceptance 直前の gate として
+  再適用した。一方 `tools/dev_wave_wait.py` の `_run_acceptance_attempt()` は claim 後の behind を
+  検出し、`--merge-message-file` の provenance 検査、`merge --no-ff --no-commit`、commit、behind と
+  clean-tree の再検査を行ってから acceptance command を起動する。既存の活性経路と外側の運用を
+  食い違わせた。
+- 恒久対応: 現行の実行面は `tools/dev_wave_wait.py::_run_acceptance_attempt()` と D731/D732 の
+  前方 main 取り込み検証を使う。契約の曖昧さは [T-1622] で
+  `DW-O20`、checker、subprocess E2E を同期し、同じ誤適用を機械検出する。
+- 再発検知: session-start resume gate の成功後に main を前進させ、単一の acceptance waiter が
+  fixed message の merge commit を作り、behind=0 と clean tree を再確認して child command を
+  1 回だけ起動する subprocess test。fresh-context 停止や child 起動 0 回なら再発とする。
