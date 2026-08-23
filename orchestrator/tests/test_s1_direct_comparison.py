@@ -66,6 +66,12 @@ _FAKE_SILO_CMAKE = (
     "  SOURCES transaction.cc\n"
     "  WORKLOADS ycsb)\n"
 )
+_FAKE_MOCC_CMAKE = (
+    "ccbench_add_protocol(mocc\n"
+    "  SOURCES transaction.cc\n"
+    "  WORKLOADS ycsb)\n"
+)
+_FAKE_MOCC_TRANSACTION_CC = "int mocc_fixture;\n"
 _FAKE_BACKOFF_HH = (
     "class Backoff {\n"
     " public:\n"
@@ -220,18 +226,22 @@ class TxExecutor {
     yield []
 
 
-def _require_g13() -> None:
-    if shutil.which("g++-13") is None:
-        pytest.skip(
-            "C++ toolchain 不在 (g++-13 が PATH に無い) — "
-            "本番 source_digest.resolve の identity 検査を実走できない"
-        )
+def _any_cxx() -> str:
+    """同一の選択 compiler 内で source-digest の現行関係を検査する。
+
+    compiler 版をまたぐ関係は保証しない。候補が全滅した場合だけ依存物不在として skip する。
+    """
+    for c in ("g++-13", "g++-12", "g++"):
+        if shutil.which(c):
+            return c
+    pytest.skip("C++ toolchain 全滅 (g++-13/g++-12/g++ いずれも PATH に無い)")
 
 
 def _fake_ccbench_repo(root: Path) -> tuple[Path, str]:
     (root / "cmake").mkdir(parents=True)
     (root / "include").mkdir()
     (root / "cc" / "silo").mkdir(parents=True)
+    (root / "cc" / "mocc").mkdir(parents=True)
     (root / "cmake" / "Options.cmake").write_text(
         _FAKE_OPTIONS_CMAKE, encoding="utf-8"
     )
@@ -240,6 +250,12 @@ def _fake_ccbench_repo(root: Path) -> tuple[Path, str]:
     )
     (root / "cc" / "silo" / "CMakeLists.txt").write_text(
         _FAKE_SILO_CMAKE, encoding="utf-8"
+    )
+    (root / "cc" / "mocc" / "CMakeLists.txt").write_text(
+        _FAKE_MOCC_CMAKE, encoding="utf-8"
+    )
+    (root / "cc" / "mocc" / "transaction.cc").write_text(
+        _FAKE_MOCC_TRANSACTION_CC, encoding="utf-8"
     )
     (root / axis_trigger_gating.SOURCE_REL).write_text(
         _FAKE_GATE_TRANSACTION_CC, encoding="utf-8"
@@ -767,7 +783,7 @@ def test_fresh_prepare_rejects_configuration_added_only_to_producer_domain(
 def test_real_source_digest_unifies_all_outer_whitespace_tokens(tmp_path):
     from orchestrator.campaign import p3_s4_loop as loop_axis
 
-    _require_g13()
+    cxx = _any_cxx()
     sub, head = _fake_ccbench_repo(tmp_path / "fake-ccbench")
     source = sub / axis_trigger_gating.SOURCE_REL
     predicate = emit_predicate(TriggerGateIR(20))
@@ -781,7 +797,8 @@ def test_real_source_digest_unifies_all_outer_whitespace_tokens(tmp_path):
     )
     assert exact_result.passed
     exact_source = source.read_bytes()
-    exact_token = S.source_digest.resolve(genome, head, ccbench_dir=str(sub))
+    exact_token = S.source_digest.resolve(
+        genome, head, ccbench_dir=str(sub), cxx=cxx)
     exact_variant = pipeline.variant_id(genome, exact_token)
 
     for name, outer in _OUTER_WHITESPACE:
@@ -794,7 +811,8 @@ def test_real_source_digest_unifies_all_outer_whitespace_tokens(tmp_path):
         )
         assert result.passed, name
         assert source.read_bytes() == exact_source, name
-        token = S.source_digest.resolve(genome, head, ccbench_dir=str(sub))
+        token = S.source_digest.resolve(
+            genome, head, ccbench_dir=str(sub), cxx=cxx)
         assert token == exact_token, name
         assert pipeline.variant_id(genome, token) == exact_variant, name
 

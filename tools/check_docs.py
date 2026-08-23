@@ -575,7 +575,7 @@ DEV_WAVE_SELF_ROUTING_SECTION_LITERAL = """## routing
 """
 DEV_WAVE_DW_O25_SECTION_LITERAL = """## DW-O25 — ff-only land の全史 provenance 関門
 
-D254 に従い、land は `locked_main != tested_tip` のときだけ lock を解放して全史 provenance 監査を自ら走らせ、480 秒以内の rc=0 を必須とする。赤は `RC_PROVENANCE = 29` で main を 1 bit も変えず拒否し、CLI flag・環境変数・警告化の逃がし道を作らない。
+D254 に従い、land は `locked_main != 着地tip` のときだけ lock を解放して全史 provenance 監査を自ら走らせ、480 秒以内の rc=0 を必須とする。赤は `RC_PROVENANCE = 29` で main を 1 bit も変えず拒否し、CLI flag・環境変数・警告化の逃がし道を作らない。
 lock 再取得後に全検査をやり直し、`tip_sha` / `checker_blob_sha` / `executed_bytes_sha` / `returncode` を束縛した receipt を lock 内で再照合する。`already-landed` の no-op と active fold transaction の recovery では監査を起動しない。
 """
 DEV_WAVE_DW_O26_SECTION_LITERAL = """## DW-O26 — 焦点走の consumer test 拡張
@@ -622,11 +622,22 @@ DEV_WAVE_EXACT_VISIBLE_SECTIONS = {
         DEV_WAVE_DW_C01_SECTION_LITERAL + "\n",
 }
 
+CODEX_DEV_WAVE_NATURAL_LANGUAGE_STOP_LITERAL = (
+    "本 Skill は明示起動専用であり、自然文の依頼を一般タスクとして\n"
+    "  処理せず、`$dev-wave <対象>` の明示起動を案内して止まる。"
+)
+CODEX_DEV_WAVE_PROTECTED_PATH_AUTHORING_LITERAL = (
+    "防護パス文字列を含む prompt・commit message は、Bash heredoc や不透明な command substitution で\n"
+    "  作らない。Codex では Bash の中からではなく `apply_patch` tool を直接呼び、新規 file は\n"
+    "  `*** Add File:` patch で作る。commit message はその file を `git commit -F <file>` へ渡す。"
+)
 CODEX_DEV_WAVE_SKILL_LITERALS = (
     ".claude/commands/dev-wave.md",
     CODEX_DEV_WAVE_STARTUP_ROUTING_ITEM_LITERAL,
     "docs/dev-wave/workers.md",
     "docs/dev-wave/operations.md",
+    CODEX_DEV_WAVE_NATURAL_LANGUAGE_STOP_LITERAL,
+    CODEX_DEV_WAVE_PROTECTED_PATH_AUTHORING_LITERAL,
     "manager は実装面を直接編集しない",
     "codex exec",
     "collaboration child",
@@ -636,10 +647,20 @@ CODEX_DEV_WAVE_SKILL_LITERALS = (
     "段 1〜9",
     "local main",
 )
+CODEX_DEV_WAVE_DESCRIPTION = (
+    "Run one Izanagi development wave through its brief, Codex planning and "
+    "adversarial review, implementation, mutation and acceptance checks, "
+    "recording, and bounded termination workflow. Use only for an explicit "
+    "$dev-wave invocation; implicit invocation is disabled. Do not use it for "
+    "a CC synthesis campaign."
+)
 CODEX_DEV_WAVE_OPENAI_YAML = """interface:
   display_name: "Dev Wave"
   short_description: "Izanagi の開発 wave を共通契約に従って実行"
   default_prompt: "Use $dev-wave to run one Izanagi development wave for the specified task."
+
+policy:
+  allow_implicit_invocation: false
 """
 CODEX_RULINGS_SKILL_LIMITS = {
     ".agents/skills/rulings/SKILL.md": TextLimit(3_000, 400),
@@ -674,19 +695,16 @@ CODEX_CLEANUP_BRANCHES_SKILL_FILES = frozenset(
 )
 CODEX_CLEANUP_BRANCHES_DESCRIPTION = (
     "Safely inventory and clean up merged local Izanagi branches and worktrees "
-    "through the shared dispatcher. Use only for an explicit $cleanup-branches "
-    "invocation; implicit invocation is disabled."
+    "through the shared dispatcher. Use for merged-branch or worktree cleanup; "
+    "deletion needs explicit $cleanup-branches."
 )
 CODEX_CLEANUP_BRANCHES_SKILL_SHA256 = (
-    "cc3eff8cc6ebebe07b5014c79b2a24aee4a67ab4a55f391e38a9ac82d68ed116"
+    "72af2a3311dcd5daa0bb81a40dc4831b885d7015b7f88332907d29c20dbaf0e0"
 )
 CODEX_CLEANUP_BRANCHES_OPENAI_YAML = """interface:
   display_name: "Cleanup Branches"
   short_description: "Izanagi のマージ済み branch と worktree を安全に整理"
   default_prompt: "Use $cleanup-branches to safely clean up merged local branches and worktrees."
-
-policy:
-  allow_implicit_invocation: false
 """
 CLEANUP_COMMAND_SHA256 = (
     "5602424621a29a76488691b3cd6a883dfbaa4a63326aab9682c89ae2754c6e4b"
@@ -5931,6 +5949,7 @@ def _check_command_docs_guard(findings: list[str]) -> set[Path]:
         expected_files=CODEX_DEV_WAVE_SKILL_FILES,
         literals=CODEX_DEV_WAVE_SKILL_LITERALS,
         openai_yaml=CODEX_DEV_WAVE_OPENAI_YAML,
+        expected_description=CODEX_DEV_WAVE_DESCRIPTION,
         forbidden_literals=(DEV_WAVE_LAND_HELPER,),
         exact_literals=(CODEX_DEV_WAVE_STAGE9_LAND_LITERAL,),
         exact_visible_sections={

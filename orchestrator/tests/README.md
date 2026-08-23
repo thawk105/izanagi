@@ -184,14 +184,15 @@ pytest 専用テストで、`python3 file.py` 直接実行は no-op (偽緑で�
 <!-- PYTEST_ONLY_ALLOWLIST_END -->
 
 - self-run: `test_s8c_acceptance_receipt_v2.py` — receipt v2 の正例・負の対照
+- self-run: `test_s8c_gate_report.py` — 8c 事前登録関門の状態・根拠を構造化報告
 
 ## 依存物不在時の skip (可視化)
 
-gnuplot / submodule / C++ toolchain (g++-13) が無い環境では、
+gnuplot / submodule / C++ toolchain 候補が無い環境では、
 該当テストは `skiputil.skip()` で **skip として数える**。print + return の疑似
 スキップは PASS に数えられ、「fresh clone で load-bearing テストが空虚に緑」という
 カバレッジ蒸発を隠すため使わない (audit 2026-06-30 §3)。skip は依存物の**具体的な
-不在検知**に限定し (実ファイルの存在・`shutil.which("g++-13")`)、依存物が揃った
+不在検知**に限定し (実ファイルの存在・全 C++ compiler 候補の不在)、依存物が揃った
 環境では従来どおり実検査が走る (検査は弱めない)。
 
 **この分類は外部依存物の不在だけを数える。** 前提が repo 内に揃っているのに走らない skip は
@@ -212,19 +213,20 @@ commit-stamp prefix) が担い、`test_verifier.test_real_silo_serializable` は
   `_require_ccbench_file()`、`build_document()`/`generate()` を叩く
   `test_s1_known_axes_freeze` は `_require_submodule_sources()`、`.git` 由来の HEAD が
   要るものは `_ccbench_head_or_skip()`。
-- **C++ toolchain (g++-13)**: source_digest の preprocess は `g++-13` を直接叩く
-  (D23)。preprocess を駆動する source_digest / diff-of-diffs 系テストは、
-  `g++-13` が PATH に無い環境では `_require_g13()` で skip する
-  (`_fake_ccbench_repo()` で submodule 非依存に走るものも、preprocess 段で g++-13 が要る)。
-  **pinned toolchain はこの不在を解消しない** (2026-08-23 実測)。
+- **C++ toolchain 候補 (`g++-13`, `g++-12`, `g++` の順)**: source_digest / diff-of-diffs
+  系の受入テストは、各 node で `_any_cxx()` が最初に実在する 1 本を選び、同じ compiler を
+  current/HEAD・positive/negative・cache consumer へ明示して実走する。全候補不在時だけ依存物
+  skip にする。digest の値や関係を compiler 版横断で保証する機構ではなく、同一の選択済み
+  compiler 内で現行 source の等値・非等値・受理・拒否関係を検査する契約である。
+  **pinned toolchain は compiler の不在を解消しない** (2026-08-23 実測)。
   `orchestrator/qualification/submission.py` の `prepare_toolchain()` は
   `shutil.which("g++-13")` で PATH 上の実体を解決して realpath と sha256 を記録するだけで、
   compiler を導入する経路を持たない。T-1461 の staged FetchContent も masstree / mimalloc /
-  googletest の**ソース**転送であって compiler は対象外である。**ただしこの skip 群が
-  g++-13 を要するのはテストがその名前を literal で渡すからであり、性質が版に依存するからでは
-  ない** — 本番 campaign 自体、`buildcache.compilers_for_current_site()` により Pegasus
-  計算ノードでは素の `g++` を使う。規範 compiler をどちらに置くかは未裁定である
-  ([T-790] の再裁定に含める)。
+  googletest の**ソース**転送であって compiler は対象外である。qualification の exact
+  gcc-13/g++-13 toolchain manifest と series identity は今回変更していない。本番 campaign の
+  `buildcache.compilers_for_current_site()` が Pegasus compute で素の `g++` を返す契約とも別で、
+  `_any_cxx()` が production と同じ要求名を選ぶ保証は主張しない。受入テストを available compiler
+  fallback へ寄せる択 (a) は 2026-08-23 にユーザー裁定済み ([T-1526])。
 - **gnuplot**: `test_reports.test_make_plot_generates_valid_png` のみ。
 - **pinned Codex runtime** (pinned codex + 同梱 bwrap + trusted busybox):
   `test_codex_role_runtime` の runtime 系。codex の auto-update でピンがずれると
@@ -260,13 +262,16 @@ rc=0 で当たる。適用は `orchestrator/campaign/patchharness.py` の `appli
 作業ツリーを変異させる箇所が増える。隔離 checkout でこの境界を測る経路は別タスクとして
 起票してある。
 
-**2026-08-23 の実測。** 隔離 worktree で template patch を campaign 本番経路
+**2026-08-23 の修正前実測。** 隔離 worktree で template patch を campaign 本番経路
 `patchharness.applied()` により実適用し、4 node を実走した。`parse_options_defaults` と
 `test_real_submodule_payload_edit` は PASSED、`failsclosed_on_missing_define` は
 `_require_g13()` で skip、`fixed_variant_distinct` はガードを持たないまま
 `source_digest.src_token` を呼んで未捕捉 RuntimeError = 赤になった。上の「実効回収 2 node」は
-この形で再現する。**このガード欠落は同日に修理済み**で、以後は赤でなく依存物不在 skip に落ちる
-(`test_skip_classification.py::test_conditional_preprocess_nodes_require_g13` が結線を固定する)。
+この形で再現する。**このガード欠落は同日に修理済み**で、当時は赤でなく exact g++-13 の
+依存物不在 skip に落ちる形になった。2026-08-24 の [T-1526] 実装後は、窓が閉じている間は同じ
+conditional skipを維持し、窓が開けば available compiler で実走する。順序と selected-cxx 結線は
+`test_skip_classification.py::test_conditional_preprocess_nodes_classify_before_compiler_selection` と
+`test_selected_cxx_is_bound_to_every_target_consumer` が固定する。
 
 **費用の数値は次のとおり。** 現在この suite は実 submodule の**作業ツリー**を変異させる node を
 持たない — `patchharness.applied()` の呼出しはすべて `_fake_ccbench_repo()` の tmpdir 偽 repo が
@@ -284,7 +289,8 @@ alias 防止 / variant_id が分かれる) も、`failsclosed_on_missing_define`
 テストは関係しか主張していない。したがって「在庫が入るまで開けない」は制約の言い換えとしては
 正しくない。ただし版非依存は保証ではなく現行 source での実測一致であり、合成枝が
 `#if __GNUC__` のような builtin 条件を使えば関係まで版依存になりうる。
-規範 compiler の裁定と [T-790] の再裁定はユーザー手番である。
+この版非依存 caveat は維持したまま、受入テストは available compiler fallbackへ寄せる択 (a) で
+裁定・実装済みである。qualification の exact compiler契約や compiler portability一般化は別scope。
 
 **塞がないままの成果物影響。** source digest の alias 防止・未定義 macro の fail-closed・
 hook 編集面の実 template 結線は、標準の受入全走では**恒久的に未検査**である。誤った variant
