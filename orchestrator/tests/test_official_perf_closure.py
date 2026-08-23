@@ -63,6 +63,7 @@ _REVIEWED_PERF_FILES = frozenset({
     "orchestrator/campaign/s8b_verdict.py",
     "orchestrator/campaign/screening_driver.py",
     "orchestrator/campaign/silo_ladder_rung1.py",
+    "orchestrator/holdout_observation.py",
     "orchestrator/qualification/artifacts.py",
     "orchestrator/qualification/contract.py",
     "orchestrator/qualification/submission.py",
