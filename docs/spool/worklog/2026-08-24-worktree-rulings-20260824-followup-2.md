@@ -25,6 +25,10 @@ title: rulings 推奨8件を裁定し、既存D730を文書予算残件へ適用
   local main land 後の人間アクションとして残す。
 - T-1477 の enforcement closure 批准追記は既に承認済みで、今回の裁定対象ではない。
   AI が批准を代行しない境界と人間アクション待ちは不変である。
+- 記録 commit `ba966c9c` に対し、fold 焦点走は166 passed、Codex agent検査成功、docs検査は
+  違反なし、全史 provenance 監査は新規違反なし (既知53件) だった。canonical acceptance 1回目は
+  tested main `618c9236` / tested tip `ba966c9c` で `child-green`、赤0・flake0。
+  本 fragment へ結果を吸収して専用 handoff を削除し、最終tipを再度 acceptance へ送る。
 
 ## 次の一手差分
 
