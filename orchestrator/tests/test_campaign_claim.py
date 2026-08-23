@@ -215,7 +215,12 @@ def test_different_protocol_claim_being_written_is_retried_and_accepted(
         sleep_calls.append(seconds)
         owner_path.write_bytes(owner_raw)
 
-    monkeypatch.setattr(module.time, "sleep", finish_owner_write)
+    class FakeTime:
+        @staticmethod
+        def sleep(seconds):
+            finish_owner_write(seconds)
+
+    monkeypatch.setattr(module, "time", FakeTime)
 
     acquired = acquire_claim(tmp_path, _record("protocol-b", "b" * 64))
 
