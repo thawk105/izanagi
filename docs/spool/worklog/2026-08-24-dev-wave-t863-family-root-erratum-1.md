@@ -13,7 +13,9 @@ title: [T-863] 公表 core v2 §8.1 の偽命題を canonical decision で限定
   {{D:t863-family-root-erratum}} へ集約した。
 - main 前進を検出して段 2 を現基準から再実行し、独立 2 レンズを再走した。初回・再走の real 所見は
   すべて採用した。
-- 受入全走はこの fragment 起草時点では未実施である。結果は実測後に追記する。
+- canonical acceptance は tested main `26c8979f16624ee48c10157b2f7d3d766da0cf69`、tested tip
+  `2c19c86b9372f27c492a7cd784ad8cd0a69a40ec` に対して `child-green` だった。全走は
+  14878 passed / 67 skipped、赤 0、flake 0。lease は取得されなかった。
 
 ## 次の一手差分
 
