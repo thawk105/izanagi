@@ -12636,3 +12636,97 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: fork の最終メッセージが依頼した成果物の形式 (file:line 粒度の回答等) を満たさず、
   代わりに親自身の言い回し・待機文言を模倣していないかを、親が受領直後に目視で確認する
   (機械検査は fork の自由記述出力の意味を判定できないため、当面は行動規律)。
+
+### F498. backoff_sweep.pyのofficial新規campaign初期化が2026-08-18以降おそらく未実行のまま批准台帳gapで塞がっていた [ドリフト] [テスト代表性]
+
+- 事象: [T-1477] D58 ablationでPegasus上`backoff_sweep.py read-heavy`(screening無し、
+  `declared_use_class="official"`固定)を実行したところ、brand-new campaign初期化
+  (既存lock無し・既存WAL無し) 経路で`IdentityMismatch: contract-loader-drift:
+  enforcement-source-ratification: enforcement-source-closure-unratified: closure digest
+  is absent from the read-only ledger`が発火し、実行開始2〜3秒でfail-closedした
+  (`orchestrator/campaign/ident.py:242 _capture_current_loader_binding` →
+  `contract_loader_binding.py:400 verify_ratified_contract_loader_binding`)。
+- 根本原因: `hooks/enforcement-source-closure-ratifications.v1.jsonl`(enforcement-source
+  批准台帳、`CONTRACT_LOADER_RELATIVE_PATHS`の25 pathのclosure digestを記録) はD526
+  (2026-08-18、worklog entry 660) で「批准台帳のhooks/配置はAI実装者の追記を機械的に塞ぐ...
+  0行のままlandするため新certified lock生成はfail-closedになる」と明記のうえ**意図的に0行**で
+  land済みだった。当時は「v2 lockが存在しないためlive影響はゼロ」と判断されていたが、
+  `backoff_sweep.py`は3箇所全てで`declared_use_class="official"`固定であり、`ident.py`の
+  new-campaign初期化経路は既定`require_environment_contract=True`でこの検査を必ず通る。
+  worklog全文検索でD526land以降の追記実績は無く(2026-08-22現在も0行)、2026-07-15の
+  positive control (insight `2026-07-14_bench-first-screening-design.md` §5 item6) は
+  D526land より1か月前の実行だったため抵触しなかったと推定される。すなわち**D526land
+  (2026-08-18) 以降、環境を問わずbackoff_sweep.pyのofficial新規campaign初期化を
+  完走させた実行が存在しない可能性が高い**——他wave/他人格による日常的なsweep実行は
+  既存lockの再利用 (resume) か`declared_use_class="exploration"`系の別経路を使っており、
+  この特定の組合せ (official + brand-new campaign) を通していなかったと考えられる。
+- 恒久対応: D526は意図した設計 (AIによる自己批准を防ぐfail-closed) であり、本waveはこれを
+  緩めない。恒久対応は「人間が`hooks/enforcement-source-closure-ratifications.v1.jsonl`へ
+  現行closure digestの批准entryを追記する」ことに限られる (D526自身が定めた唯一の解除経路)。
+  AIからの追記手段は存在しない。本F エントリはこの経路が塞がっていた事実の記録であり、
+  再開判断はユーザー裁定 (2026-08-22、[T-1477] wave内でwave区切りを選択) に委ねた。
+- 再発検知: `declared_use_class="official"`かつ`is_reservation_required`または
+  brand-new campaign初期化 (既存lock無し) を新たに実行しようとするあらゆるwaveが、
+  同じ`contract-loader-drift`エラーで即座に検知する (fail-closedのため実害は最小)。
+  批准台帳が埋まっていない間は、この経路を前提にした受入・実測計画を段1briefで
+  事前に検出できるよう、`hooks/enforcement-source-closure-ratifications.v1.jsonl`が
+  0行のままかを着手前に確認する運用を検討する (段8改善候補、docs予算逼迫のため本wave未実装)。
+- 2026-08-23 追試 (再開 wave、推定を実測へ格上げ): 上の「おそらく未実行」という推定を、現行
+  local main (`b89ea755` 取り込み時点。closure 25 file は 2026-08-21 以降不変) に対する直接
+  呼出しで実測へ格上げした。`contract_loader_binding.capture_contract_loader_binding()` と
+  `verify_live_contract_loader_binding()` は成功し、`verify_ratified_contract_loader_binding()`
+  だけが `enforcement-source-closure-unratified: closure digest is absent from the read-only
+  ledger` で落ちる。批准台帳 file は working tree にも git 履歴にも存在しない (0 行ですらなく
+  未作成で、`git cat-file -e main:hooks/enforcement-source-closure-ratifications.v1.jsonl` が
+  `Not a valid object name` を返す)。よって本 gap は T-1477 固有でも Pegasus 固有でもなく、
+  現行 main そのものの状態である。
+- 迂回路の不在も実測した: `declared_use_class` を `official` から `exploration` へ変えても
+  迂回できない。`ident.ensure_campaign_identity` の批准検査は `require_environment_contract`
+  にだけ従い、この引数は use class と独立である (`loop.py` は既定 `True` のまま呼ぶ)。
+  `False` を渡す呼出しは `orchestrator/campaign/guided.py` の guided 免除経路だけで、
+  `verify_against_lock` は `not require_environment_contract` かつ v2 lock の組合せを
+  `v2-lock-requires-authority` で拒否する。既存 lock の resume 経路は批准検査を通らないが、
+  ablation の off/on はどちらも brand-new campaign なので該当しない。規律 2 により、
+  免除経路への付け替えは採らない。
+- 運用上の含意 (批准は closure 版ごとにしか効かない): `CONTRACT_LOADER_RELATIVE_PATHS` の
+  25 file は直近 30 日で 163 commit が触れている (最新の変更は 2026-08-21)。D526 は台帳データ
+  自身を closure から除いているので追記行そのものは digest を動かさないが、25 file のどれかが
+  動けば digest が変わり新しい行が要る。したがって批准と official 新規 campaign の起動は
+  近接させる必要があり、間に 25 file を触る wave が着地すると再び塞がる。
+
+### F499. merge 途中の作業ツリーでは Codex 子を起動できず、子自身に merge させることもできないため「子は競合解決だけ」が字義どおり実行不能だった [ドリフト] [手順不整合]
+
+- 事象: [T-1477] の再開 wave で local main を取り込んだところ AI provenance の known-violation
+  台帳 2 file が競合した。両親が同じ実装面 file を触るため `DW-O17` により競合解決は Codex
+  `role=author` が担う必要がある。ところが `DW-C01` の定める形 (親が merge し、子は競合解決だけ)
+  を実行しようとすると、2 段階で失敗した。
+  (1) merge 途中の作業ツリーで子を起動すると
+  `NG: docs/dev-wave/operations.md: working tree が authority commit と異なる` で rc=2 になり
+  起動できない。`tools/dev_waves/launch_authority.py` の `snapshot_authority()` は `commit=None`
+  のとき `docs/dev-wave/*` の working tree bytes が HEAD blob と一致することを要求するが、
+  main 側でこれらの docs が変わっていると merge 途中のツリーは必ずこの検査に落ちる。
+  (2) では子自身に `git merge --no-ff --no-commit main` を実行させればよいかというと、
+  子の sandbox は `.git` へ書けないため `ORIG_HEAD.lock` の Read-only エラーで rc=128 になり、
+  これも成立しない。
+- 根本原因: 子の起動 gate (working tree == HEAD を要求) と、子に要求する作業 (working tree が
+  HEAD と異なる merge 状態でしか存在しない) が両立しない。`docs/dev-wave/*` が両親で同一なら
+  (1) は起きないため、この不整合は「main 側が dev-wave docs を触った期間に main を取り込む
+  wave」でだけ発火する。今回はまさにその条件が揃っていた。
+- 恒久対応: 実際に成立した手順は次のとおり。親が `git merge --no-ff --no-commit <main tip>` を実行し、
+  競合した file の本文 (conflict marker 入り) を repo 外の job dir へ退避してから
+  `git merge --abort` で作業ツリーを clean へ戻す。この clean な状態で子を起動し、
+  「退避した本文を repo 内 path へ写し、marker だけを解消せよ。git は一切実行するな」と指示する。
+  子の解決結果を親が job dir へ保存し、`git checkout --` で復元、改めて merge を実行して
+  子の解決本文を転記し `git add` と commit を親が行う。この形なら子の起動 gate を満たしつつ
+  解決の著作は子に残る。親は解決結果の全行がどちらかの親に存在することを機械照合して監査する
+  (今回は「どちらの親にも無い行 0 件」、追加は構文成立用の区切りだけだった)。
+- 未実施 (候補として返す): 上記手順を `DW-C01` の「mergeは親。子は競合解決だけ」の行へ
+  1〜2 行で統合したいが、`DW-C01` は `tools/check_docs.py` の
+  `DEV_WAVE_DW_C01_SECTION_LITERAL` で exact section literal として pin されており、
+  節本文の変更は実装面 file (`tools/check_docs.py` と `orchestrator/tests/test_check_docs.py`
+  の合成 fixture) の同時変更を要する。本 wave の成果物 (certified 選択・レポート・台帳) の値・
+  受理集合・参照は変わらないため `DW-G05` に従い本 wave では実装せず、後続 wave またはユーザー
+  裁定へ返す。
+- 再発検知: main 側が `docs/dev-wave/*` を触った期間に main を取り込み、かつ両親が同じ実装面
+  file を触る wave が、同じ rc=2 と rc=128 の対で即座に検知する (fail-closed のため実害は
+  時間損失だけ)。
