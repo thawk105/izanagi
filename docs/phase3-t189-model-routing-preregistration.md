@@ -14,20 +14,21 @@ D423 は、dev-wave 段2(plan)・段5(author) の codex model を、品質証拠
 block randomization・cache 条件の分離・価格 version・事前登録済み非劣性 margin を備えた比較実験が
 得られた場合にのみ再訪できる、としている。
 
-D514 (2026-08-18) により、dev-wave は既に全段 `gpt-5.6-luna@max` へ統一されている。
-`docs/dev-wave/operations.md` の DW-O01 権威行も次のとおりである。
+D514 (2026-08-18) により、dev-wave は一度**全段 `gpt-5.6-luna@max`** へ統一された。
+**その後 D682 (2026-08-23) がユーザー裁定として D514 を supersede し、dev-wave は
+全段 `gpt-5.6-sol@xhigh` へ戻っている。** `docs/dev-wave/operations.md` の DW-O01 権威行が
+現行値の正本であり、本文書はその値を再掲しない (再掲すると権威が二重化する)。
 
-```text
-`<model>`: 全段 `gpt-5.6-luna` (段 3 の 2 本も同じ)。
-```
-
-D514 はこの変更を品質同等性の証拠ではなく費用に基づく運用選好として記録している。したがって
-本実験の目的は変更前の事前判断ではない。先行した全 luna 化が持つ品質リスク (段3・段6 の検出
-レンズが同一 model になったことによる系統的盲点) を事後検証し、将来の証拠に基づく sol 復帰
-またはハイブリッド復帰の当否を判断可能にすることである。
+D514 も D682 も、変更の根拠を品質同等性の証拠ではなくユーザー裁定として記録している
+(D514 は費用に基づく運用選好、D682 は進捗悪化を理由とする明示指示)。したがって
+本実験の目的は変更前の事前判断ではない。**先行した全 luna 化の期間が持っていた品質リスク
+(段3・段6 の検出レンズが同一 model になったことによる系統的盲点) を事後検証し、
+将来の証拠に基づく model 経路の当否を判断可能にすることである。**
+D682 による sol 復帰は証拠に基づく判断ではないため、本実験の必要性を消さない。
 
 **本文書が設計するのは exploratory pilot である。** 段3 の敵対相談 (統計レンズ) が、現実的に
-確保できる held-out task 規模 (§6 参照、8〜10 task-stage 程度) はもとより、当初目標とした
+確保できる held-out task 規模 (§6 参照。当時の見積りは 8〜10 task-stage で、
+2026-08-23 の実測でこの見積りは覆った。実測値と測定手順は §6.1) はもとより、当初目標とした
 24 task-stage であっても、confirmatory な非劣性を実証できる標本数に届かないことを算術的に
 示した (§11 参照)。本文書は「非劣性を証明する実験」ではなく、**効果量を推定し、真に
 confirmatory な実験に必要な標本数を再計算するための pilot** として設計する。これは D423/D207
@@ -221,8 +222,30 @@ T-201・T-338 程度) を洗い出し、T-755 (submodule commit・実走未完�
 のような除外例も踏まえ、**現実的な候補は4〜5件程度、両 stage 使えても 8〜10 task-stage に留まる**
 と見積もった (段3所見 B3)。
 
-**24×2 task-stage という規模は目標値であり、実験開始条件ではない。** task 母集団が dev-wave の
-継続により自然に増えるまでは、8〜10 task-stage 程度の exploratory pilot として実施する。
+**この見積りは 2026-08-23 の実測で覆った。** 見積りは worklog の目視走査に基づいており、
+dev-wave の codex receipt 台帳 (`<jobs-root>/<wave>/<job-id>/receipt.json`) を数えたものでは
+なかった。実測の段階 funnel は次のとおりである。**単一の数だけを引用してはならない。
+各段の測定手順を併記すること。**
+
+| 測った量 | 値 (2026-08-23) | 測定手順 |
+|---|---:|---|
+| receipt の schema 別件数 | v3=644 / v4=10 / その他 17 (`dev-wave-producer-receipt/v1`=9, v2=3, `izanagi-acceptance-red-check/v1`=4, schema 欠落=1) | 深さ 2 固定で全件読み `schema_version` を数える |
+| plan と author の receipt を両方持つ wave (v3+v4) | 56 | `stage` が `plan`/`author` の receipt を wave 単位に束ねる |
+| 両 stage の prompt 本文を sha256 で復元できる wave | **49** (全 regular file 走査) / 48 (`.md` 限定) | wave 直下の各 file の sha256 を receipt の `prompt_sha256` と照合 |
+| その wave 群の物理 plan+author receipt 数 | **137** | 論理 98 task-stage に対し 137 件。**26 wave-stage が複数 receipt を持つ** |
+| うち primary `acceptance-receipt*.json` を持つ wave | **40** | wave 直下の file 名で判定 |
+| 復元した prompt に model slug を含む wave | 0 (先行 49 wave)。**本文書の素材を作った wave 自身は 2 receipt で検出される** — 価格表を扱う投げ文であるため必然であり、同 wave は §6.1 の「設計作業由来」により候補から外れる | `gpt-5.6-sol` / `gpt-5.6-luna` / `reasoning=max` の literal 検索。台帳は wave 単位でなく **receipt 単位**で走査するので、件数の母数が異なることに注意する |
+
+**この母集合は dev-wave の継続により走行中も増える。** 値は生成時点のものであり、
+台帳 (§6.1 末尾) の `counts` が実体の正本である。
+
+**この 49 wave は「held-out task として採用した集合」ではない。**
+下記の残り条件 (replay 可能性、設計作業由来でないこと、最終 acceptance、stage 境界の固定) の
+うち、stage 境界と replay 可能性は §5.3 の replayer 契約が未登録のため**まだ判定できない**。
+台帳はこれらを `evidence_status = "not-established"` として記録し、値を捏造しない。
+
+**24×2 task-stage という規模は目標値であり、実験開始条件ではない。** 実効数が確定するのは
+§8 の oracle ledger と §5.3 の replayer 契約が揃った後である。
 
 **段6所見 B3 (現実規模と層別目標の不整合)**: §6.2 の「4層×目標6件」「少なくとも4 negative task」
 は、現実的な4〜5 task/段という規模と同時には成立しない。pilot 世代では次の具体的な内訳を
@@ -230,7 +253,7 @@ lock 時に固定する (数値は catalog 確定後に埋める placeholder で
 
 | 項目 | pilot 世代 (現実規模) | 将来 confirmatory 世代 (目標) |
 |---|---:|---:|
-| stage あたり task-stage 数 | 4〜5 (§6.1 実測) | 24 (層あたり6) |
+| stage あたり task-stage 数 | 事前選別の母集合は 49 wave (§6.1 実測)。**実効数は未確定** — §8 oracle ledger と §5.3 replayer 契約が揃うまで確定しない | 24 (層あたり6) |
 | 4層すべてを満たすか | 満たさない可能性が高く、候補ゼロの層は catalog 確定後に記録する | 4層×6件を満たす |
 | positive task 数 | catalog 確定後に確定 (`N_positive_lock`) | §11.4 power simulation の要求値 |
 | negative control 数 | catalog 確定後に確定 (`N_negative_lock`)。§11.3 の絶対 false-finding gate が要求する最低数に届かない場合、当該 gate は descriptive に限定する | §11.3 の絶対 false-finding gate 最低値以上 |
@@ -251,8 +274,30 @@ task の採否は arm の出力を見る前に決める。実験後に「難し�
 しない。
 
 登録前 (実走開始前) に task catalog を作り、task ごとに prompt hash、snapshot hash、artifact、
-acceptance、stage境界、slug混入有無、type、oracle件数、除外理由を固定する。この catalog 作成
-作業自体は本 wave の scope 外 (実走前提の作業)。
+acceptance、stage境界、slug混入有無、type、oracle件数、除外理由を固定する。
+
+**事前選別 (pre-screen) の候補台帳は 2026-08-23 に作成した (D674 の (6))。**
+
+- 実体: `output/t189-routing-preregistration/task-catalog-v1.json`
+- 生成器: `tools/t189_task_catalog.py` (read-only。jobs root と repo root を引数で受け、
+  ネットワークへ出ない)
+- **この台帳は「採用した held-out task の集合」ではない。** 行は `candidates` であり、
+  `included` / `eligible` / `selected` という概念を持たない。
+- 機械導出できた項目 (prompt hash、snapshot = `base_commit`、receipt、slug 走査、
+  acceptance receipt の有無と verdict、type) は値で埋まっている。
+- 機械導出できない項目は `evidence_status = "not-established"` と `blocked_on` を持ち、
+  値を捏造していない。該当は次の 3 つである。
+  - `oracle_finding_count` → §8 oracle ledger が未実装
+  - `t189_stage_boundary` → §5.3 replayer 契約が未登録。
+    **dev-wave の `stage="author"` は本文書の stage 5 と同義ではない**
+    (段7 の別用途の子も `stage="author"` で記録される実例がある)
+  - `replay_artifact_sufficiency` → §5.3 replayer 契約が未登録
+- 同一 wave-stage に複数 receipt がある場合 (実測 26 件) は束ねず選ばず、
+  物理 receipt 1 件 = 台帳 1 行とし、`wave_stage_receipt_count` と `receipt_ordinal` を持たせる。
+  選択規則を置かないことで、選び方によって受理集合が動く経路自体を作らない。
+
+**したがって (6) は「素材を実データで揃えた」ところまで閉じており、
+「実走可能な held-out task catalog を完成させた」とは主張しない。**
 
 ### 6.2 task type と独立分類 (段4裁定 A4 反映)
 
@@ -268,13 +313,27 @@ acceptance、stage境界、slug混入有無、type、oracle件数、除外理由
 
 段3 統計レンズが、この tie-break は形式上固定されていても、複合 task の分類判断自体が実験実施者
 に残り、model output・acceptance・難易度・候補数を見ていない保証がないと指摘した (段3所見 A4)。
-これを踏まえ、次を追加する。
 
-- **model output と候補数を見ない独立分類者2名**が、run schedule 作成前に task catalog と
-  分類 manifest を凍結する。
-- 意見不一致は第三者 adjudication とし、分類の hash・timestamp を保存する。
+**この所見に対して当初置いた「独立分類者2名の署名 + 第三者 adjudication」は、
+ユーザー裁定 D674 (2026-08-23) により見送られた。** 署名・外部の信頼起点を新設する型の機構は
+2026-08-12 のユーザー方針 (論文主張に要るのは粗い provenance のみ) に当たるためである。
+代わりに **分類基準を公開したうえでの自前分類を段階導入**する。現行の体制は次のとおり。
+
+- 分類基準は `docs/phase3-t189-task-catalog-classification.md` (`t189-task-type/v1`) に公開する。
+  4 層の判定条件、使ってよい資料とその優先順位、tie-break、`unclassified` にする条件を含む。
+- 分類結果は `output/t189-routing-preregistration/task-type-classification-v1.json` に置き、
+  1 行ごとに `rule_id`・`evidence` (一次資料の所在)・`rationale` を保存する。
+  **分類者名・署名・独立判定・adjudication の field は作らない。**
+- 分類の単位は wave (task) 1 件につき 1 判断とし、task-stage ごとに分けない。
+- 分類は **model output・A/B の結果・候補数・層別の充足状況を根拠にしない。**
+  使ってよいのは worklog エントリ見出しと段2 投げ文本文だけである。
 - 候補不足時に層を埋めるための再分類はしない。候補が目標数に満たない層を持つ stage は
   §12 の標本数 gate が未達となり `routing_evidence_status = inconclusive` に固定される。
+- 主目的が確定しない wave は層へ割り当てず `unclassified` にする。
+  2026-08-23 の初回分類では 50 行中 9 行が `unclassified` だった。
+
+**この体制の限界は §14 に記載する。分類者は実験実施者と同一人物であり、独立性による
+bias 制御は存在しない。**
 
 各 stage について、4層から task を目標6件ずつ (実際には §6.1 の現実的規模に従う) 抽出し、
 少なくとも4 taskは oracle finding が0件の negative control とする。ある層に候補が目標数に
@@ -450,6 +509,13 @@ D514 は、2026-07-30 時点の例として sol を入力 `$5` / 出力 `$30` pe
 出力 `$1.20` per M と記録し、同日に luna が80%値下げされたことを記録している。古い価格表を
 実験期間へ機械的に適用しない。
 
+**2026-08-23 に公式原表を実取得したところ、sol 側は D514 の記録と一致しなかった。**
+現行の標準区分の単価は sol が入力 `$4` / 出力 `$20`、luna が入力 `$0.20` / 出力 `$1.20` である
+(原表は sol の暫定価格が少なくとも 2026-11-21 まで有効と注記する)。
+luna/sol の比は D514 が述べた 4% ではなく、入力 5% / 出力 6% になる。
+**この事実は D514 も D682 も改訂しない。** どちらもユーザー裁定であり、
+本文書に裁定を supersede する権限は無い。記録するのは食い違いの事実だけである。
+
 段3 運用レンズが、D514 の価格記述には数値と日付はあるが、provider の公式原表・SKU・取得方法・
 version が記録されていないと指摘した (段3所見 B6)。実走前に、次の price snapshot を凍結する。
 
@@ -462,6 +528,43 @@ version が記録されていないと指摘した (段3所見 B6)。実走前�
 - price table version
 - effective timestamp と取得 timestamp
 - 価格が不明な token category
+
+**price snapshot は 2026-08-23 に実データで作成した (D674 の (7))。**
+
+- 実体: `output/t189-routing-preregistration/price-snapshot-v1.json`
+  (`schema_version = t189-price-snapshot/v1`)
+- 生成器: `tools/t189_price_snapshot.py`。**保存済み bytes だけを読む parser であり、
+  fetch しない。** 取得は 1 回限りの人手手順として分離してある。
+- 出典: 要求 URL `https://platform.openai.com/docs/pricing` が HTTP 301 で
+  `https://developers.openai.com/api/docs/pricing` へ転送され、そこで 200。両方を記録する。
+- raw: 全文 547,547 bytes を repo 外へ保存し、path と sha256 を artifact に記録する。
+  repo 内には**手を加えていない byte 同一の抜粋** 19,117 bytes
+  (`output/t189-routing-preregistration/price-standard-table-excerpt.html`) を置き、
+  全文中の byte offset と両者の sha256 で結ぶ。
+  **HTTP ヘッダ全文は repo に入れない** — 取得時の応答に Cloudflare の `set-cookie`
+  (`__cf_bm` / `_cfuvid`) が含まれるため。artifact へ写すのは
+  status / location / etag / last-modified / content-type だけである。
+- 単価 (標準区分・short context・USD per 1M tokens):
+  sol = 入力 `4` / キャッシュ入力 `0.4` / キャッシュ書込 `5` / 出力 `20`、
+  luna = `0.2` / `0.02` / `0.25` / `1.2`。値は decimal 文字列で保持し float を使わない。
+- SKU mapping は receipt の token field へ対応づける。
+  入力 = `input_tokens` − `cached_input_tokens`、キャッシュ入力 = `cached_input_tokens`、
+  出力 = `output_tokens` (`reasoning_output_tokens` は `output_tokens` の部分集合であり
+  二重計上しない)。
+- **価格が不明な token category は「キャッシュ書込」である。**
+  receipt にこれへ対応する記録項目が存在しないため、`unknown_token_categories` に載せてある。
+- effective timestamp は原表が公開していないため `null` とし、`effective_at_status` を
+  `not-published-in-source` にする。**HTTP の `last-modified` を effective timestamp へ
+  流用しない** (別 field として記録する)。
+- **この単価は実請求額ではない。** dev-wave の codex は購読ログインで実行しており、
+  API の従量課金経路を通らない。本 snapshot の単価は、token 数を arm 間で比較可能な費用へ
+  正規化するための公表単価であって、支払額の記録ではない。
+
+**現時点でこの snapshot を読む実験装置は無い。** `tools/codex_reasoning_ab.py` は
+`price_version` の非 null を 2 箇所 (`validate_nullable_dimensions` と schedule dimension 側) で
+拒否する。この拒否を緩めるのは装置側の担当項目であり、本文書は
+**「取得・検証済み、装置未接続 (captured and validated, apparatus-unbound)」**と記録する。
+「price lock 完了」とは書かない。
 
 schedule の全 slot は同じ `price_version` を参照する。**上記項目が欠落する場合、schedule を
 無効化する (fail-closed)。** 価格改定が実験開始前に発生した場合は、実験を開始せず価格 snapshot
@@ -485,8 +588,15 @@ schedule の全 slot は同じ `price_version` を参照する。**上記項目�
 ```
 
 したがって coverage 差の下限は概ね `-0.139` まであり得て、margin 候補 `-0.05` を上回れない。
-24件全てが有効でも約 `-0.117` である。**§6.1 の現実的な held-out 規模 (8〜10 task-stage) では
-この問題はさらに悪化する。** 本文書はこれを隠さず、次の運用ルールを定める。
+24件全てが有効でも約 `-0.117` である。
+
+**この節が以前置いていた「§6.1 の現実的な held-out 規模は 8〜10 task-stage」という前提は
+2026-08-23 の実測で覆った (§6.1 の funnel 表)。** ただし **標本数の問題が解消したわけではない。**
+事前選別の母集合が 49 wave あることと、実効 positive/negative task 数がいくつになるかは別である。
+実効数は §8 の oracle ledger と §5.3 の replayer 契約が揃うまで確定せず、
+`N_positive_min` / `N_negative_min` も未 lock のままである。
+**「母集合が大きいから confirmatory 判定が出せる」という読みは成立しない。**
+本文書はこれを隠さず、次の運用ルールを定める。
 
 - **`N_positive_min` を実験開始前の lock 時に値入りで固定する (段6所見 A1)。** 値は §11.4 の
   power simulation から決定し、当て推量で決めない。実効 positive task 数 (negative control を
@@ -576,7 +686,8 @@ margin 候補の検出力を当て推量で決めない。実走開始前の loc
    candidate の検出力の値) を、§13 の lock 対象に含める。simulation を再実行すれば同じ
    `N_positive_min`/`N_negative_min`/margin 値が再現できることを、実験開始前に確認する。
 
-**lock の実行順序 (段6所見 N3)**: (1) task catalog の凍結 (§6.1、独立分類者2名の署名を含む) →
+**lock の実行順序 (段6所見 N3)**: (1) task catalog の凍結 (§6.1。**独立分類者2名の署名は
+D674 により廃止済み**で、公開基準による自前分類 artifact に置き換わっている) →
 (2) 実効 task 数の確定 (§6.2 の層別内訳、pilot 世代なら §6.1 の表) → (3) 本節の power
 simulation の実行と `N_positive_min`/`N_negative_min`/margin 値の確定 → (4) schedule.json の
 生成と hash 凍結 (§6.3)。各段階の成果物 hash を §13 に記録し、順序を入れ替えない。
@@ -664,8 +775,12 @@ overall は単一の gate ではなく、次の3系列に分離する。
 次は run 開始前に、§11.4 が定める順序 (task catalog → 実効 task 数 → power simulation →
 schedule) で lock する。
 
-- task universe hash (独立分類者2名の凍結署名を含む)
-- task type 分類規則
+- task universe (**素材取得済み・lock 未了**。事前選別の候補台帳
+  `output/t189-routing-preregistration/task-catalog-v1.json` が 2026-08-23 時点の実体。
+  **独立分類者2名の凍結署名という要件は D674 により廃止した。**
+  lock 自体は §8 oracle ledger と §5.3 replayer 契約が揃うまで行えない)
+- task type 分類規則 (**取得済み**: `docs/phase3-t189-task-catalog-classification.md`
+  `t189-task-type/v1` と分類結果 artifact)
 - task 数と層別数 (実効数。pilot 世代は §6.1 の表、将来世代は §6.2 の目標)
 - `N_positive_min`、`N_negative_min` (§11.4 power simulation の出力)
 - power simulation の実装コード hash・乱数 seed・想定効果分布パラメータ・検出力の出力値
@@ -675,10 +790,14 @@ schedule) で lock する。
 - oracle ledger
 - apparatus pin
 - cache protocol (制御可能性の実測結果。制御不能なら resource gate を `not-applicable` 固定)
-- price snapshot
-- margin 値 (§11.3、§11.4 power simulation を経て確定)
-- custodian 実現方式 (same-owner-advisory か独立 custodian か。担当者・UID・handoff・ACL を
-  独立実現する場合はその記録)
+- price snapshot (**取得・検証済み、装置未接続**:
+  `output/t189-routing-preregistration/price-snapshot-v1.json`。
+  §10 の全 field が実値で埋まっているが、`tools/codex_reasoning_ab.py` が
+  `price_version` の非 null を 2 箇所で拒否するため schedule へは束縛できない。
+  この状態を「price lock 完了」と呼ばない)
+- margin 値 (§11.3、§11.4 power simulation を経て確定。**D674 が (1) を落としたため未確定のまま**)
+- custodian 実現方式 (**D674 により独立 custodian の実現方式は見送り**。
+  したがって same-owner-advisory で確定し、§12.1 に従い結果は `apparatus_diagnostic` に留まる)
 - stage2/stage5 replayer 契約 (§5.3: 入力・出力 hash、downstream model/effort pin)
 - GO/NO-GO 判定表 (§12: `routing_evidence_status` 3値、quality-overall/resource-overall の
   適用条件を含む)
@@ -688,9 +807,24 @@ run 開始後は、oracle、margin、task 除外規則、判定表を変更し�
 
 ## 14. limitation
 
-- **現実的な held-out task 規模 (8〜10 task-stage、§6.1) では、margin 候補 (§11.3) を
-  confirmatory に満たせる検出力がない可能性が高い (§11.1、§11.4)。** 24×2 という目標規模でも
-  同様の限界が残りうる。
+- **事前選別の母集合は 49 wave (§6.1 実測) だが、実効 task 数は未確定であり、
+  margin 候補 (§11.3) を confirmatory に満たせる検出力がある保証は無い (§11.1、§11.4)。**
+  24×2 という目標規模でも同様の限界が残りうる。母集合が大きいことは検出力の証拠ではない。
+- **task type 分類は自前分類であり、独立分類者による bias 制御が無い** (D674 が
+  独立分類者2名の署名を見送ったため)。さらに**分類基準の著者は、基準を確定する前に
+  対象コーパスの見出しを見ている** — 当初設計した機械 literal 分類が実測で 4 層を判別できないと
+  分かり方式を改めた過程で、そうなった。後から基準を自分に有利へ書き換えられないという保証は無く、
+  機械検査もできない。詳細は `docs/phase3-t189-task-catalog-classification.md` §8。
+- **候補台帳は事前選別であり、held-out task の採用集合ではない。**
+  `oracle_finding_count`・`t189_stage_boundary`・`replay_artifact_sufficiency` は
+  `not-established` のままで、§8 oracle ledger と §5.3 replayer 契約に依存する。
+  **dev-wave の `stage="author"` を本文書の stage 5 と同一視しない** (段7 の別用途の子も
+  同じ値で記録される実例がある)。
+- **price snapshot の全文 raw は repo 外に置いてある。** repo 内の byte 同一抜粋で
+  価格値そのものは再検証できるが、ページ全文の再現性は保存先の寿命に依存する。
+- **price snapshot の単価は実請求額ではない。** 実行は購読ログインで行われており
+  API の従量課金経路を通らない。単価は token 数を比較可能な費用へ正規化するための
+  公表単価である。
 - 現行装置は served model を attest できず、結果は requested model に限定される。
 - **独立 custodian が実現できない場合、T-181 と同じく masking は `same-owner-advisory` であり
   真の blind ではない。その場合 `routing_evidence_status` は確定せず、結果は `apparatus_diagnostic`
@@ -726,11 +860,11 @@ run 開始後は、oracle、margin、task 除外規則、判定表を変更し�
 |---|---|---|
 | paired | §4、§6.3 | 設計は満たす |
 | blind | §7、§12.1 | 設計は満たすが、独立 custodian 未実現なら `apparatus_diagnostic` に格下げし routing 判断に使わない (blocker) |
-| held-out 複数 task | §6 | 設計は満たすが、現実規模は目標 (24×2) より小さい (pilot 世代 8〜10 task-stage、§6.1 の表) |
+| held-out 複数 task | §6 | 設計は満たす。**2026-08-23 の実測で、事前選別の母集合は 49 wave (§6.1 の funnel 表)。当初見積り 8〜10 task-stage は覆った。** ただし実効数は未確定で、母集合の大きさは検出力の証拠ではない |
 | 独立 oracle | §8 | 設計は満たす |
 | block randomization | §6.3 | 設計は満たす |
 | cache 条件の分離 | §9、§12.2 | 設計は満たすが、現行装置は制御手段を持たない場合 resource 指標を `not-applicable` とする (blocker)。**2026-08-21 実測で制御不能と確定**、resource は `not-applicable` のまま (§9 追記) |
-| 価格 version | §10 | 設計は満たす。**取得手順・原表・SKU を実走開始前の準備段階で凍結する契約を本文書で明記するが、実データそのものは本 wave では取得しない** (実データ取得は将来の実装・実走 wave が行う) |
+| 価格 version | §10 | 設計は満たす。**2026-08-23 に実データを取得・検証済み** (`price-snapshot-v1.json`)。ただし装置が `price_version` の非 null を 2 箇所で拒否するため**装置未接続**であり、「price lock 完了」ではない |
 | 事前登録済み非劣性 margin | §11、判定表 §12 | 候補値と lock 手続き (`N_positive_min`/`N_negative_min`/`power_threshold=0.80`) を明記。現実的標本数では confirmatory な検出力が不足する可能性が高く、その場合は `inconclusive` に確定的に固定する |
 
 主指標は task-cluster paired 差による finding coverage (§3 の式)、副指標は log 尺度の
@@ -739,11 +873,27 @@ token・wall-clock 比、fix 巡回数、task-binary な false finding rate で�
 利用する (`inconclusive`/`apparatus_diagnostic` は rollback 材料にしない、§12.4)。
 `requested_model` と `served_model` を分離し、served model は unknown のまま記録する。
 
-**未解決点(実装・実走 wave が引き継ぐべき前提条件)**: (1) power simulation の実施と
-`N_positive_min`/`N_negative_min`/margin の最終 lock (§11.4)、(2) 独立 custodian の実現方式
-確定、(3) provider cache 制御可能性の実測 (**2026-08-21 実測済み・不成立で確定、§9 参照**)、
-(4) T-181 装置の横断的 refactor (§5.2)、
-(5) stage2/stage5 downstream replayer の実装 (§5.3、両 stage とも downstream model/effort
-pin を含む)、(6) task catalog の実データ作成と独立分類者2名の確保 (§6.1/§6.2)、(7) price
-snapshot の実データ取得 (§10)。いずれも本 wave の scope 外 (D87) であり、本文書はこれらの
-前提条件を明示することで、将来の実装 wave が着手可能な状態を作ることを目的とする。
+**未解決点 (実装・実走 wave が引き継ぐべき前提条件)** — 7 項目のうち 4 項目は
+**ユーザー裁定 D674 (2026-08-23) で処遇が確定した。**
+
+- (1) power simulation の実施と `N_positive_min`/`N_negative_min`/margin の最終 lock (§11.4)
+  — **D674 により実施しない。** 電力の推計とそれに紐づく標本数下限・余裕幅の確定は落とす。
+- (2) 独立 custodian の実現方式確定 — **D674 により見送り。** same-owner-advisory で確定し、
+  結果は `apparatus_diagnostic` に留まる (§12.1)。
+- (3) provider cache 制御可能性の実測 — **2026-08-21 実測済み・不成立で確定** (§9)。
+- (4) T-181 装置の横断的 refactor (§5.2) — 既存の担当項目が持つ。**未了。**
+  `price_version` の非 null 拒否 2 箇所の解消もここに属する。
+- (5) stage2/stage5 downstream replayer の実装 (§5.3、両 stage とも downstream model/effort
+  pin を含む) — 既存の担当項目が持つ。**未了。** これが揃うまで
+  `t189_stage_boundary` と `replay_artifact_sufficiency` は `not-established` のままである。
+- (6) task catalog の実データ作成 (§6.1/§6.2) — **2026-08-23 に事前選別の候補台帳を実データで
+  作成した。独立分類者2名の確保は D674 により見送り、公開基準による自前分類へ置き換えた。**
+  ただし oracle 件数と stage 境界が未確立のため、**実走可能な catalog としては未完了**である。
+- (7) price snapshot の実データ取得 (§10) — **2026-08-23 に取得・検証済み。装置未接続。**
+
+このほか §8 の独立 oracle ledger は依然として未作成であり、(6) が実走可能になる前提である。
+本文書はこれらの前提条件を明示することで、将来の実装 wave が着手可能な状態を作ることを目的とする。
+
+**`routing_evidence_status` (§12.1) は `inconclusive` のままである。** (6) と (7) の実データが
+揃っても、D640 (2026-08-21) が定めたこの扱いは変わらない。confirmatory 前提のうち
+blind (独立 custodian) と標本数 (`N_*` 未 lock) が満たされないためである。
