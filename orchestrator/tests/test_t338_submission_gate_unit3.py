@@ -86,6 +86,34 @@ def _blob_ref(path: str, commit: str, data: bytes) -> BlobRef:
     return BlobRef(path, commit, hashlib.sha256(data).hexdigest())
 
 
+def _forge_legacy_d282_authority_for_consumer_compatibility(
+    record: _manifest.PreregistrationRecord,
+) -> _manifest.ApprovedManifest:
+    """Forge only the pre-D574 semantic-consumer fixture; writer rejects it."""
+
+    approved = object.__new__(_manifest.ApprovedManifest)
+    errata = {item.erratum_id: BlobRef(item.path, item.commit, item.sha256) for item in record.errata}
+    values = {
+        "approval_ref": record.approval_manifest,
+        "target_core": record.core,
+        "approved_blobs": {
+            "addendum_a": record.addendum_a,
+            "derivation_map": record.addendum_a,
+            "erratum_t139_core_s15_exactkey_v1": errata["t139-core-s15-exactkey-v1"],
+            "erratum_t139_core_s7_stresscheck_v1": errata["t139-core-s7-stresscheck-v1"],
+            "record_items": record.addendum_a,
+            "receipt_schema": record.receipt_schema,
+        },
+        "erratum_application_order": tuple(item.erratum_id for item in record.errata),
+        "composed_sha256": record.composed_core_sha256,
+        "prereg_commit": record.prereg_commit,
+        "_seal": _manifest._MANIFEST_CAPABILITY_TOKEN,
+    }
+    for name, value in values.items():
+        object.__setattr__(approved, name, value)
+    return approved
+
+
 def _preregistration_value(record: _manifest.PreregistrationRecord) -> dict[str, object]:
     def blob(ref: BlobRef) -> dict[str, str]:
         return {"path": ref.path, "commit": ref.commit, "sha256": ref.sha256}
@@ -155,12 +183,13 @@ def _make_git_fixture(tmp_path: Path) -> SimpleNamespace:
     root.mkdir()
     subprocess.run([_GIT, "init", "-q"], cwd=root, env=_git_env(), check=True)
     (root / "root.txt").write_bytes(b"root\n")
-    root_commit = _commit(root, "root", "root.txt")
+    (root / "prereg").mkdir()
+    (root / "prereg/approval.json").write_bytes(b"approval\n")
+    root_commit = _commit(root, "root", "root.txt", "prereg/approval.json")
 
     content_files = {
         "prereg/core.md": b"core\n",
         "prereg/addendum-a.md": b"addendum-a\n",
-        "prereg/approval.json": b"approval\n",
         "prereg/erratum-one.md": b"erratum-one\n",
         "prereg/erratum-two.md": b"erratum-two\n",
         "prereg/receipt-schema.json": _SCHEMA_PATH.read_bytes(),
@@ -271,13 +300,15 @@ def _make_git_fixture(tmp_path: Path) -> SimpleNamespace:
                 approval_fold_commit=root_commit,
             ),
         ),
-        approval_manifest=refs["prereg/approval.json"],
+        approval_manifest=_blob_ref("prereg/approval.json", root_commit, b"approval\n"),
         receipt_schema=refs["prereg/receipt-schema.json"],
         composed_core_sha256=hashlib.sha256(b"composed core\n").hexdigest(),
         prereg_commit=root_commit,
     )
     binding = _binding._PreregBinding._issue(
         record=record,
+        approved_manifest=_forge_legacy_d282_authority_for_consumer_compatibility(record),
+        repository_root=root,
         measurement_head=head_commit,
         prereg_commit=root_commit,
         prereg_content_commit=content_commit,
@@ -620,7 +651,7 @@ def _assert_semantic(code: str, callable_object, *args, **kwargs) -> None:
 
 
 def _receipt_document(value: dict[str, Any]) -> ReceiptDocument:
-    raw_bytes = json.dumps(value, separators=(",", ":")).encode()
+    raw_bytes = (json.dumps(value, ensure_ascii=False, indent=2) + "\n").encode()
     return ReceiptDocument(
         raw_bytes=raw_bytes,
         value=value,
