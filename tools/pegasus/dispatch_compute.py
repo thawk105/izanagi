@@ -8,7 +8,10 @@ dev harness 専用の薄い submitter であり、certification submitter は置
 from __future__ import annotations
 
 import argparse
+import fcntl
+import hashlib
 import json
+import math
 import os
 import re
 import secrets
@@ -60,7 +63,13 @@ _TASK_RUN_SIDECAR_ENV = "IZANAGI_TASK_RUN_SIDECAR"
 _TASK_RUN_AUTO_RECORD_ENV = "IZANAGI_TASK_RUN_AUTO_RECORD"
 _COMPUTE_MARKER_NAME = "compute-visible.json"
 _ORPHAN_HOLD_NAME = "orphan-hold.json"
+_ORPHAN_HOLD_DIR_NAME = "orphan-holds"
 _ORPHAN_HOLD_SCHEMA = "pegasus-orphan-hold/v1"
+_CONTROL_LOCK_NAME = "submission.lock"
+_INTENT_SCHEMA = "pegasus-dispatch-intent/v1"
+_INTENT_CONFIRM_SCHEMA = "pegasus-dispatch-intent-confirm/v1"
+_INTENT_HANDLED_SCHEMA = "pegasus-dispatch-intent-handled/v1"
+_INTENT_RECOVERY_SCHEMA = "pegasus-dispatch-intent-recovery/v1"
 
 
 class _DispatchResult(int):
@@ -468,6 +477,64 @@ def _write_json_x(path: Path, payload: Mapping[str, Any], *, mode: int = 0o600) 
     finally:
         if descriptor >= 0:
             os.close(descriptor)
+
+
+def _intent_path(registry_root: Path, shard_index: int, suffix: str) -> Path:
+    return registry_root / f"shard-{shard_index}.{suffix}.json"
+
+
+def _register_dispatch_intent(
+    registry_root: Path,
+    *,
+    group_id: str,
+    shard_index: int,
+    job_name: str,
+    submission_dir: Path,
+) -> Path:
+    path = _intent_path(registry_root, shard_index, "intent")
+    _write_json_x(path, {
+        "schema_version": _INTENT_SCHEMA,
+        "group_id": group_id,
+        "shard_index": shard_index,
+        "job_name": job_name,
+        "submission_dir": str(submission_dir),
+    })
+    _fsync_dir(registry_root)
+    return path
+
+
+def _confirm_dispatch_intent(
+    registry_root: Path,
+    *,
+    shard_index: int,
+    request_id: str,
+) -> Path:
+    path = _intent_path(registry_root, shard_index, "confirm")
+    _write_json_x(path, {
+        "schema_version": _INTENT_CONFIRM_SCHEMA,
+        "shard_index": shard_index,
+        "request_id": request_id,
+    })
+    _fsync_dir(registry_root)
+    return path
+
+
+def _mark_dispatch_intent_handled(
+    registry_root: Path,
+    *,
+    shard_index: int,
+    request_id: Optional[str],
+) -> None:
+    path = _intent_path(registry_root, shard_index, "handled")
+    try:
+        _write_json_x(path, {
+            "schema_version": _INTENT_HANDLED_SCHEMA,
+            "shard_index": shard_index,
+            "request_id": request_id,
+        })
+        _fsync_dir(registry_root)
+    except FileExistsError:
+        pass
 
 
 def _write_text_x(path: Path, text: str, *, mode: int) -> None:
@@ -1059,37 +1126,97 @@ def _latch_submission_disabled(
     reason: str,
     submission_dir: Path,
     request_id: Optional[str],
+    lock_fd: Optional[int] = None,
 ) -> Path:
-    path = output_root / "submission-disabled.json"
-    payload = {
-        "schema_version": "pegasus-submission-disabled/v1",
-        "reason": reason,
-        "submission_dir": str(submission_dir),
-        "request_id": request_id,
-        "recovery": "ユーザー自身の端末から qsub し、有効性を確認してください",
-    }
+    owned_lock = None
     try:
-        _write_json_x(path, payload)
-    except FileExistsError:
-        pass
-    return path
+        if lock_fd is None:
+            owned_lock = _acquire_control_lock(output_root)
+        path = output_root / "submission-disabled.json"
+        payload = {
+            "schema_version": "pegasus-submission-disabled/v1",
+            "reason": reason,
+            "submission_dir": str(submission_dir),
+            "request_id": request_id,
+            "recovery": "ユーザー自身の端末から qsub し、有効性を確認してください",
+        }
+        try:
+            _write_json_x(path, payload)
+        except FileExistsError:
+            pass
+        return path
+    finally:
+        if owned_lock is not None:
+            _release_control_lock(owned_lock)
+
+
+def _acquire_control_lock(output_root: Path) -> int:
+    output_root.mkdir(parents=True, exist_ok=True)
+    descriptor = os.open(
+        output_root / _CONTROL_LOCK_NAME,
+        os.O_RDWR | os.O_CREAT,
+        0o600,
+    )
+    try:
+        fcntl.flock(descriptor, fcntl.LOCK_EX)
+    except BaseException:
+        os.close(descriptor)
+        raise
+    return descriptor
+
+
+def _release_control_lock(descriptor: int) -> None:
+    try:
+        fcntl.flock(descriptor, fcntl.LOCK_UN)
+    finally:
+        os.close(descriptor)
 
 
 def _orphan_hold_path(output_root: Path) -> Path:
     return output_root / _ORPHAN_HOLD_NAME
 
 
+def _orphan_hold_request_path(
+    output_root: Path,
+    *,
+    request_id: Optional[str],
+    job_name: str,
+    submission_dir: Path,
+) -> Path:
+    leaf: Optional[str] = None
+    if request_id is not None:
+        try:
+            candidate = _normalize_request_id(request_id)
+        except DispatchError:
+            candidate = ""
+        if _GATE_REQUEST_ID_RE.fullmatch(candidate) is not None:
+            leaf = candidate
+    if leaf is None:
+        material = f"{job_name}\0{submission_dir}".encode("utf-8", errors="strict")
+        leaf = "unknown-" + hashlib.sha256(material).hexdigest()[:24]
+    return output_root / _ORPHAN_HOLD_DIR_NAME / f"{leaf}.json"
+
+
 def _orphan_hold_present(output_root: Path) -> bool:
-    """hold は latch であり相互排他 lock ではない。判定不能も成立側へ倒す。"""
+    """request 別 hold または互換 marker の判定不能も成立側へ倒す。"""
 
     path = _orphan_hold_path(output_root)
     try:
         os.lstat(path)
     except FileNotFoundError:
+        pass
+    except OSError:
+        return True
+    else:
+        return True
+    directory = output_root / _ORPHAN_HOLD_DIR_NAME
+    try:
+        with os.scandir(directory) as entries:
+            return any(True for _entry in entries)
+    except FileNotFoundError:
         return False
     except OSError:
         return True
-    return True
 
 
 def _orphan_hold_required(qdel: Mapping[str, Any]) -> bool:
@@ -1105,6 +1232,7 @@ def _latch_orphan_hold(
     submission_dir: Path,
     request_id: Optional[str],
     job_name: str,
+    lock_fd: Optional[int] = None,
 ) -> Optional[Path]:
     """job が残り得る証拠を create-only で保存する。
 
@@ -1119,7 +1247,13 @@ def _latch_orphan_hold(
     gate_reason = gate.get("reason") if isinstance(gate, Mapping) else None
     returncode = qdel.get("returncode")
     exception = qdel.get("exception")
-    path = _orphan_hold_path(output_root)
+    path = _orphan_hold_request_path(
+        output_root,
+        request_id=request_id,
+        job_name=job_name,
+        submission_dir=submission_dir,
+    )
+    compatibility_path = _orphan_hold_path(output_root)
     payload = {
         "schema_version": _ORPHAN_HOLD_SCHEMA,
         "reason": "job-may-remain-without-terminal-evidence",
@@ -1150,11 +1284,21 @@ def _latch_orphan_hold(
             "final-step": "source の clean/HEAD を確認した後だけ hold を手動削除する",
         },
     }
+    owned_lock = None
     try:
-        _write_json_x(path, payload)
+        if lock_fd is None:
+            owned_lock = _acquire_control_lock(output_root)
+        path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+        try:
+            _write_json_x(path, payload)
+        except FileExistsError:
+            pass
+        try:
+            _write_json_x(compatibility_path, payload)
+        except FileExistsError:
+            pass
+        _fsync_dir(path.parent)
         _fsync_dir(output_root)
-    except FileExistsError:
-        return path
     except OSError as exc:
         qdel["hold_error"] = f"{type(exc).__name__}: {exc}"
         print(
@@ -1163,12 +1307,17 @@ def _latch_orphan_hold(
             flush=True,
         )
         return None
+    finally:
+        if owned_lock is not None:
+            _release_control_lock(owned_lock)
     print(
         f"Pegasus orphan hold を create-only で保存しました: {path}",
         file=sys.stderr,
         flush=True,
     )
-    return path
+    # 既存 consumer はこの aggregate marker を表示用 path として使う。
+    # request の完全な台帳は orphan-holds/ 以下であり、二本目以降も失わない。
+    return compatibility_path
 
 
 def _print_terminal_handoff(latch: Path, reason: str) -> None:
@@ -1449,6 +1598,149 @@ def _fresh_qstat_gated_qdel(
     return qdel
 
 
+def recover_dispatch_intents(
+    registry_root: Path,
+    control_root: Path,
+    *,
+    deadline_at: float,
+    run_command: CommandRunner = subprocess.run,
+    environ: Optional[Mapping[str, str]] = None,
+    clock: Clock = time.monotonic,
+    sleep: Sleeper = time.sleep,
+) -> tuple[dict[str, Any], ...]:
+    """異常死した shard worker の未処理 intent を deadline 内で回収する。"""
+
+    registry = Path(registry_root).resolve()
+    controls = Path(control_root).resolve()
+    command_env = dict(os.environ if environ is None else environ)
+    outcomes: list[dict[str, Any]] = []
+    try:
+        intent_paths = sorted(registry.glob("shard-*.intent.json"))
+    except OSError as exc:
+        return ({"error": f"{type(exc).__name__}: {exc}"},)
+    for intent_path in intent_paths:
+        try:
+            intent = _read_json_object(intent_path)
+            if set(intent) != {
+                "schema_version", "group_id", "shard_index", "job_name",
+                "submission_dir",
+            } or intent["schema_version"] != _INTENT_SCHEMA:
+                raise DispatchError("intent-schema")
+            shard_index = intent["shard_index"]
+            job_name = intent["job_name"]
+            submission_dir = Path(intent["submission_dir"]).resolve()
+            expected_artifact_root = (
+                registry.parent / f"shard-{shard_index}" / "dispatch"
+            ).resolve()
+            if (
+                type(shard_index) is not int
+                or shard_index < 0
+                or type(job_name) is not str
+                or not job_name
+                or not submission_dir.is_dir()
+                or intent.get("group_id") != registry.parent.name
+                or intent_path != _intent_path(registry, shard_index, "intent")
+            ):
+                raise DispatchError("intent-value")
+            try:
+                submission_dir.relative_to(expected_artifact_root)
+            except ValueError as exc:
+                raise DispatchError("intent-submission-dir") from exc
+            if job_name != _job_name(submission_dir.name):
+                raise DispatchError("intent-job-name")
+            handled_path = _intent_path(registry, shard_index, "handled")
+            if handled_path.exists():
+                continue
+
+            request_id: Optional[str] = None
+            confirm_path = _intent_path(registry, shard_index, "confirm")
+            if confirm_path.exists():
+                confirm = _read_json_object(confirm_path)
+                if set(confirm) != {
+                    "schema_version", "shard_index", "request_id",
+                } or confirm["schema_version"] != _INTENT_CONFIRM_SCHEMA:
+                    raise DispatchError("intent-confirm-schema")
+                if confirm["shard_index"] != shard_index:
+                    raise DispatchError("intent-confirm-index")
+                request_id = confirm["request_id"]
+                if type(request_id) is not str:
+                    raise DispatchError("intent-confirm-request-id")
+
+            def bounded_run(command: Sequence[str], **kwargs: Any):
+                remaining = deadline_at - clock()
+                if remaining <= 0:
+                    raise subprocess.TimeoutExpired(command, 0)
+                requested = float(kwargs.get("timeout", remaining))
+                kwargs["timeout"] = min(requested, remaining)
+                return run_command(command, **kwargs)
+
+            discovery: Optional[dict[str, Any]] = None
+            if request_id is None and clock() < deadline_at:
+                discovery_attempts: list[dict[str, Any]] = []
+                for attempt in range(1, DEFAULT_IMMEDIATE_QSTAT_ATTEMPTS + 1):
+                    request_id, discovery = _discover_request_id(
+                        bounded_run,
+                        job_name=job_name,
+                        submission_dir=submission_dir,
+                        environ=command_env,
+                    )
+                    discovery_attempts.append({
+                        "attempt": attempt,
+                        **({} if discovery is None else discovery),
+                    })
+                    if request_id is not None or clock() >= deadline_at:
+                        break
+                    remaining_before_retry = max(0.0, deadline_at - clock())
+                    sleep(min(DEFAULT_POLL_INTERVAL_S, remaining_before_retry))
+                discovery = {"attempts": discovery_attempts}
+            remaining = max(0.0, deadline_at - clock())
+            qdel = _fresh_qstat_gated_qdel(
+                bounded_run,
+                request_id=request_id,
+                cwd=submission_dir,
+                environ=command_env,
+                cleanup_budget_s=remaining,
+                retry_interval_s=min(DEFAULT_POLL_INTERVAL_S, remaining),
+                job_name=job_name,
+                submission_dir=submission_dir,
+                clock=clock,
+                sleep=sleep,
+            )
+            _latch_orphan_hold(
+                controls,
+                qdel=qdel,
+                submission_dir=submission_dir,
+                request_id=request_id,
+                job_name=job_name,
+            )
+            outcome = {
+                "schema_version": _INTENT_RECOVERY_SCHEMA,
+                "shard_index": shard_index,
+                "request_id": request_id,
+                "discovery": discovery,
+                "qdel": qdel,
+            }
+            recovery_path = _intent_path(registry, shard_index, "recovery")
+            try:
+                _write_json_x(recovery_path, outcome)
+                _fsync_dir(registry)
+            except FileExistsError:
+                pass
+            outcomes.append(outcome)
+            if qdel.get("job_may_remain") is False:
+                _mark_dispatch_intent_handled(
+                    registry,
+                    shard_index=shard_index,
+                    request_id=request_id,
+                )
+        except BaseException as exc:
+            outcomes.append({
+                "intent_path": str(intent_path),
+                "error": f"{type(exc).__name__}: {exc}",
+            })
+    return tuple(outcomes)
+
+
 def _print_qdel_remaining_warning(
     qdel: Mapping[str, Any],
     *,
@@ -1496,6 +1788,12 @@ def _dispatch_impl(
     repo_root: Optional[Path] = None,
     environ: Optional[Mapping[str, str]] = None,
     output_root: Optional[Path] = None,
+    artifact_root: Optional[Path] = None,
+    control_root: Optional[Path] = None,
+    intent_registry_root: Optional[Path] = None,
+    intent_group_id: Optional[str] = None,
+    intent_shard_index: Optional[int] = None,
+    deadline_at: Optional[float] = None,
     walltime: str = DEFAULT_WALLTIME,
     queue_wait_timeout_s: float = DEFAULT_QUEUE_WAIT_TIMEOUT_S,
     overall_grace_s: float = DEFAULT_OVERALL_GRACE_S,
@@ -1520,10 +1818,52 @@ def _dispatch_impl(
         Path(__file__).resolve().parents[2]
         if repo_root is None else Path(repo_root).resolve()
     )
-    root = (
-        repo / "output" / "pegasus-dispatch"
-        if output_root is None else Path(output_root).resolve()
+    if artifact_root is not None or control_root is not None:
+        if output_root is not None or artifact_root is None or control_root is None:
+            raise ValueError(
+                "split dispatch requires artifact_root and control_root only"
+            )
+        root = Path(artifact_root).resolve()
+        controls = Path(control_root).resolve()
+        canonical_controls = repo / "output" / "pegasus-dispatch"
+        if controls != canonical_controls or root == controls:
+            raise ValueError(
+                "split dispatch control_root must be repo/output/pegasus-dispatch"
+            )
+        try:
+            root.relative_to(repo)
+        except ValueError:
+            pass
+        else:
+            raise ValueError("split dispatch artifact_root must be outside repo")
+    else:
+        root = (
+            repo / "output" / "pegasus-dispatch"
+            if output_root is None else Path(output_root).resolve()
+        )
+        controls = root
+    intent_registry: Optional[Path] = None
+    intent_enabled = any(
+        value is not None
+        for value in (intent_registry_root, intent_group_id, intent_shard_index)
     )
+    if intent_enabled:
+        if (
+            artifact_root is None
+            or intent_registry_root is None
+            or type(intent_group_id) is not str
+            or re.fullmatch(r"[A-Za-z0-9._-]+", intent_group_id) is None
+            or type(intent_shard_index) is not int
+            or intent_shard_index < 0
+        ):
+            raise ValueError("split dispatch intent registry contract is incomplete")
+        intent_registry = Path(intent_registry_root).resolve()
+        expected_registry = root.parent.parent / "dispatch-intents"
+        if (
+            intent_registry != expected_registry
+            or intent_group_id != expected_registry.parent.name
+        ):
+            raise ValueError("split dispatch intent registry is not session-bound")
     walltime_s = _walltime_seconds(walltime)
     if min(
         queue_wait_timeout_s,
@@ -1537,6 +1877,26 @@ def _dispatch_impl(
         raise ValueError("poll interval は 0 にできません")
     if immediate_qstat_attempts <= 0:
         raise ValueError("immediate qstat attempts は正でなければなりません")
+    if deadline_at is not None:
+        if not math.isfinite(deadline_at) or deadline_at <= clock():
+            raise ValueError("parent deadline は将来の有限な monotonic 値が必要です")
+        base_run_command = run_command
+        base_sleep = sleep
+
+        def deadline_bounded_run(command: Sequence[str], **kwargs: Any):
+            remaining = deadline_at - clock()
+            if remaining <= 0:
+                raise subprocess.TimeoutExpired(command, 0)
+            requested = float(kwargs.get("timeout", remaining))
+            kwargs["timeout"] = min(requested, remaining)
+            return base_run_command(command, **kwargs)
+
+        def deadline_bounded_sleep(seconds: float) -> None:
+            remaining = max(0.0, deadline_at - clock())
+            base_sleep(min(seconds, remaining))
+
+        run_command = deadline_bounded_run
+        sleep = deadline_bounded_sleep
 
     command_env = dict(os.environ if environ is None else environ)
     request_env = {
@@ -1546,8 +1906,9 @@ def _dispatch_impl(
     command_env.pop(_TASK_RUN_ENV, None)
     command_env.pop(_TASK_RUN_ROOT_ENV, None)
 
+    controls.mkdir(parents=True, exist_ok=True)
     root.mkdir(parents=True, exist_ok=True)
-    latch = root / "submission-disabled.json"
+    latch = controls / "submission-disabled.json"
     if latch.exists():
         _print_terminal_handoff(latch, "既存の F47 型ラッチ")
         return _return_infra(
@@ -1555,8 +1916,8 @@ def _dispatch_impl(
             child_started=False,
             allow_unstarted=True,
         )
-    orphan_hold = _orphan_hold_path(root)
-    if _orphan_hold_present(root):
+    orphan_hold = _orphan_hold_path(controls)
+    if _orphan_hold_present(controls):
         print(
             "Pegasus orphan hold があるため scheduler command を起動しません。"
             f"hold: {orphan_hold}。qstat で対象の不在または終端を確認し、"
@@ -1616,6 +1977,15 @@ def _dispatch_impl(
     )
     _fsync_dir(submission_dir)
     _fsync_dir(root)
+    if intent_registry is not None:
+        intent_registry.mkdir(mode=0o700, parents=True, exist_ok=True)
+        _register_dispatch_intent(
+            intent_registry,
+            group_id=intent_group_id,
+            shard_index=intent_shard_index,
+            job_name=job_name,
+            submission_dir=submission_dir,
+        )
 
     request_id: Optional[str] = None
     active = False
@@ -1627,6 +1997,7 @@ def _dispatch_impl(
     run_deadline_rebased = False
     terminal_history_end = False
     cleanup_claimed = False
+    control_lock_fd: Optional[int] = None
     pending_cleanup_signal: Optional[int] = None
     stdout_record: Optional[dict[str, Any]] = None
     stderr_record: Optional[dict[str, Any]] = None
@@ -1672,13 +2043,19 @@ def _dispatch_impl(
         receipt["qdel"] = qdel_record
         cleanup_claimed = True
         try:
+            effective_cleanup_budget = cleanup_budget_s
+            if deadline_at is not None:
+                effective_cleanup_budget = min(
+                    effective_cleanup_budget,
+                    max(0.0, deadline_at - clock()),
+                )
             return _fresh_qstat_gated_qdel(
                 run_command,
                 request_id=request_id,
                 cwd=submission_dir if submission_dir.exists() else root,
                 environ=command_env,
                 qstat_attempts=immediate_qstat_attempts,
-                cleanup_budget_s=cleanup_budget_s,
+                cleanup_budget_s=effective_cleanup_budget,
                 retry_interval_s=poll_interval_s,
                 terminal_history_end=terminal_history_end,
                 clock=clock,
@@ -1689,11 +2066,12 @@ def _dispatch_impl(
             )
         finally:
             _latch_orphan_hold(
-                root,
+                controls,
                 qdel=qdel_record,
                 submission_dir=submission_dir,
                 request_id=request_id,
                 job_name=job_name,
+                lock_fd=control_lock_fd,
             )
 
     for signum in (signal.SIGINT, signal.SIGTERM):
@@ -1705,6 +2083,14 @@ def _dispatch_impl(
     started = 0.0
     submitted_at = 0.0
     try:
+        # 既存の quick check 後に待機した peer もあるため、投入直前に mutex
+        # 内で再検査し、immediate visibility の確定まで同じ lock を保持する。
+        control_lock_fd = _acquire_control_lock(controls)
+        if latch.exists():
+            _print_terminal_handoff(latch, "既存の F47 型ラッチ")
+            raise DispatchError("submission-disabled")
+        if _orphan_hold_present(controls):
+            raise DispatchError("orphan-hold")
         started = clock()
         preflight = _run(
             run_command,
@@ -1744,6 +2130,12 @@ def _dispatch_impl(
             raise DispatchError(f"qsub rc={qsub.returncode}")
         submitted_at = clock()
         request_id = _parse_request_id(qsub.stdout or "")
+        if intent_registry is not None:
+            _confirm_dispatch_intent(
+                intent_registry,
+                shard_index=intent_shard_index,
+                request_id=request_id,
+            )
         normalized_id = _normalize_request_id(request_id)
         receipt["request_id"] = request_id
         receipt["normalized_request_id"] = normalized_id
@@ -1793,10 +2185,11 @@ def _dispatch_impl(
             receipt["qdel"] = claim_cleanup_once()
             active = False
             latched = _latch_submission_disabled(
-                root,
+                controls,
                 reason=reason,
                 submission_dir=submission_dir,
                 request_id=request_id,
+                lock_fd=control_lock_fd,
             )
             _persist_receipt(submission_dir, root, receipt)
             if pending_cleanup_signal is not None:
@@ -1816,10 +2209,11 @@ def _dispatch_impl(
             receipt["qdel"] = claim_cleanup_once()
             active = False
             latched = _latch_submission_disabled(
-                root,
+                controls,
                 reason=reason,
                 submission_dir=submission_dir,
                 request_id=request_id,
+                lock_fd=control_lock_fd,
             )
             _persist_receipt(submission_dir, root, receipt)
             if pending_cleanup_signal is not None:
@@ -1832,9 +2226,14 @@ def _dispatch_impl(
             )
             return _return_infra(reason, child_started=True)
 
+        _release_control_lock(control_lock_fd)
+        control_lock_fd = None
+
         current = visible
         queue_started = submitted_at
         total_deadline = submitted_at + walltime_s + overall_grace_s
+        if deadline_at is not None:
+            total_deadline = min(total_deadline, deadline_at)
         announced_state: Optional[str] = None
         terminal_at: Optional[float] = None
         while True:
@@ -1885,6 +2284,8 @@ def _dispatch_impl(
                     total_deadline = (
                         run_observed_at + walltime_s + overall_grace_s
                     )
+                    if deadline_at is not None:
+                        total_deadline = min(total_deadline, deadline_at)
                 if not run_seen:
                     run_seen = True
                     receipt["queue_wait_s"] = max(0.0, now - queue_started)
@@ -1920,6 +2321,8 @@ def _dispatch_impl(
             receipt["queue_wait_observed"] = False
         _progress(f"request {normalized_id} の成果物収集を開始します")
         collection_deadline = clock() + accounting_grace_s
+        if deadline_at is not None:
+            collection_deadline = min(collection_deadline, deadline_at)
         result: Optional[dict[str, Any]] = None
         marker_valid = False
         marker_record: dict[str, Any] = {}
@@ -1976,10 +2379,11 @@ def _dispatch_impl(
                     receipt["qdel"] = claim_cleanup_once()
                     active = False
                     latched = _latch_submission_disabled(
-                        root,
+                        controls,
                         reason=reason,
                         submission_dir=submission_dir,
                         request_id=request_id,
+                        lock_fd=control_lock_fd,
                     )
                     _persist_receipt(submission_dir, root, receipt)
                     if pending_cleanup_signal is not None:
@@ -2071,11 +2475,12 @@ def _dispatch_impl(
             }
             receipt["qdel"] = qdel_record
             _latch_orphan_hold(
-                root,
+                controls,
                 qdel=qdel_record,
                 submission_dir=submission_dir,
                 request_id=request_id,
                 job_name=job_name,
+                lock_fd=control_lock_fd,
             )
             discovered, discovery = _discover_request_id(
                 run_command,
@@ -2091,6 +2496,14 @@ def _dispatch_impl(
                     receipt["normalized_request_id"] = _normalize_request_id(discovered)
                 except DispatchError:
                     pass
+                _latch_orphan_hold(
+                    controls,
+                    qdel=qdel_record,
+                    submission_dir=submission_dir,
+                    request_id=request_id,
+                    job_name=job_name,
+                    lock_fd=control_lock_fd,
+                )
         elif active:
             if request_id is None:
                 discovered, discovery = _discover_request_id(
@@ -2141,6 +2554,27 @@ def _dispatch_impl(
             allow_unstarted=True,
         )
     finally:
+        if intent_registry is not None:
+            qdel = receipt.get("qdel")
+            handled = (
+                (not qsub_submitted and not qsub_result_unknown)
+                or (
+                    isinstance(qdel, Mapping)
+                    and qdel.get("job_may_remain") is False
+                )
+                or (
+                    isinstance(receipt.get("outcome"), Mapping)
+                    and receipt["outcome"].get("kind") == "child"
+                )
+            )
+            if handled:
+                _mark_dispatch_intent_handled(
+                    intent_registry,
+                    shard_index=intent_shard_index,
+                    request_id=request_id,
+                )
+        if control_lock_fd is not None:
+            _release_control_lock(control_lock_fd)
         for signum, handler in old_handlers.items():
             try:
                 signal.signal(signum, handler)
@@ -2155,6 +2589,12 @@ def dispatch(
     repo_root: Optional[Path] = None,
     environ: Optional[Mapping[str, str]] = None,
     output_root: Optional[Path] = None,
+    artifact_root: Optional[Path] = None,
+    control_root: Optional[Path] = None,
+    intent_registry_root: Optional[Path] = None,
+    intent_group_id: Optional[str] = None,
+    intent_shard_index: Optional[int] = None,
+    deadline_at: Optional[float] = None,
     walltime: str = DEFAULT_WALLTIME,
     queue_wait_timeout_s: float = DEFAULT_QUEUE_WAIT_TIMEOUT_S,
     overall_grace_s: float = DEFAULT_OVERALL_GRACE_S,
@@ -2187,6 +2627,12 @@ def dispatch(
             repo_root=repo_root,
             environ=environ,
             output_root=output_root,
+            artifact_root=artifact_root,
+            control_root=control_root,
+            intent_registry_root=intent_registry_root,
+            intent_group_id=intent_group_id,
+            intent_shard_index=intent_shard_index,
+            deadline_at=deadline_at,
             walltime=walltime,
             queue_wait_timeout_s=queue_wait_timeout_s,
             overall_grace_s=overall_grace_s,
@@ -2205,10 +2651,13 @@ def dispatch(
             Path(__file__).resolve().parents[2]
             if repo_root is None else Path(repo_root).resolve()
         )
-        root = (
-            repo / "output" / "pegasus-dispatch"
-            if output_root is None else Path(output_root).resolve()
-        )
+        if artifact_root is not None:
+            root = Path(artifact_root).resolve()
+        else:
+            root = (
+                repo / "output" / "pegasus-dispatch"
+                if output_root is None else Path(output_root).resolve()
+            )
         try:
             root.mkdir(parents=True, exist_ok=True)
             receipt_nonce = (

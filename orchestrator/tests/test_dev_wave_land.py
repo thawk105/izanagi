@@ -928,6 +928,21 @@ def test_land_accepts_effective_scheduler(scheduler: str) -> None:
         assert (result.rc, result.status) == (LAND.RC_OK, "landed"), result
 
 
+def test_sharding_does_not_add_receipt_fields_or_expand_land_acceptance() -> None:
+    with _repo() as repo:
+        wave = repo.waves["one"]
+        tip = repo.commit(wave, "wave.txt", "wave\n")
+        request = repo.request(wave, tip=tip)
+        payload = _receipt_payload(request.acceptance_receipt)
+        payload["shard_count"] = 2
+        _write_receipt(request.acceptance_receipt, payload)
+
+        result = _land(request)
+
+        assert result.rc == LAND.RC_AUDIT, result
+        assert result.reason == "acceptance-receipt-rejected"
+
+
 def _assert_standard_v5_positive_control() -> None:
     with _repo() as repo:
         wave = repo.waves["one"]

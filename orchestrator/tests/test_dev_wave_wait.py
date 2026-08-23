@@ -2919,6 +2919,26 @@ def test_relayed_loadgroup_literal_is_accepted() -> None:
     assert DW._scheduler_from_marker_payloads(payloads) == "loadgroup"
 
 
+def test_shard_merger_output_exposes_exactly_one_waiter_accepted_marker(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    from tools import acceptance_shards
+
+    acceptance_shards._emit_merged(
+        acceptance_shards.MergeResult(
+            0,
+            "ok",
+            scheduler="loadgroup",
+            universe=("orchestrator/tests/test_x.py::test_x",),
+            terminal_counts=(("passed", 1),),
+        )
+    )
+    output = capsys.readouterr().out.encode("ascii")
+    _digest, payloads = DW._scan_acceptance_log_chunks([output])
+    assert len(payloads) == 1
+    assert DW._scheduler_from_marker_payloads(payloads) == "loadgroup"
+
+
 def test_scanner_has_constant_extra_memory_for_huge_unterminated_line() -> None:
     chunk = b"x" * 65536
 
