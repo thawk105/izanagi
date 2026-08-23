@@ -58,7 +58,22 @@ title: 環境フレークの登録制隔離を新設し、F57 と F373 は隔離
   negative control の 1 つ `[failure signature-changes1]` が別の層に mask されていることである。
   signature 照合の検出力自体は専用テストが持つため穴ではない。
 - 実測: F373 の対照実験は同一 tree・同一コマンド・同一 ambient 環境 (`FORCE_COLOR=3`) で
-  修理前 rc=1 / 修理後 rc=0。launcher 全走は request `939036.nqsv` で 48 worker
+  修理前 rc=1 / 修理後 rc=0。**この赤は login node での走行に閉じる** — 当該走行の log に
+  `Pegasus dispatch` の出現は 0 件で、計算ノードへ dispatch されていない。
+  `FORCE_COLOR` を持たない計算ノードで走る受入では緑になるため、**この 1 件は誰の land も
+  止めていなかった。** 別セッションが「差分ゼロの main で決定的に赤」と周知した際、
+  走行環境の条件を確かめずに repo 側の性質として配ったことが後に訂正されている。
+  修理の正当性は変わらない (焦点走を login で回す全 wave が踏み続けるため) が、
+  **影響範囲を受入まで広げて書いてはならない。**
+- **受入緑は F373 修理の回帰検査になっていない。** 別セッションが修理前の main
+  (`tested_main = dff2f3e0`) で受入全走を実走し `14,310 passed` / 赤 0 件 /
+  `verdict=child-green` を得ている。dispatch 経由の受入では色が無効なので、
+  この赤は最初から発火しない。**回帰の証拠は色有効環境での実走** (`f373-after-fix.log`、
+  ambient `FORCE_COLOR=3` のまま rc=0) だけである。
+  一般則として、**検査が走る環境の外にある条件は、その検査では守れない。**
+  前置きの `env -u` に頼る恒久対応が 3 度目の再発を防げなかったのと同じ構図であり、
+  この事実は F373 の supersede の根拠をむしろ強める — 前置きに頼る形は
+  受入でも検出できないため、忘れた者が踏むまで誰も気づけない。launcher 全走は request `939036.nqsv` で 48 worker
   `170 passed in 6.55s`。段 6 の検証 7 file 焦点走は `255 passed / 2 skipped / rc=0`。
   provenance 全史監査は 5045 件・新規違反なし。
 
