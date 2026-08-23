@@ -4,8 +4,14 @@ import copy
 import hashlib
 import html
 import json
+import sys
+from pathlib import Path
 
 import pytest
+
+_REPO = Path(__file__).resolve().parents[2]
+if str(_REPO) not in sys.path:
+    sys.path.insert(0, str(_REPO))
 
 from tools.t189_price_snapshot import (
     PriceSnapshotError,
@@ -382,3 +388,7 @@ def test_receipt_mapping_cannot_claim_a_cache_write_field() -> None:
     cache_write["operation"] = "identity"
     with pytest.raises(PriceSnapshotError, match="receipt token accounting"):
         validate_price_snapshot(artifact)
+
+
+if __name__ == "__main__":
+    raise SystemExit(pytest.main([__file__, "-q"]))

@@ -3,9 +3,14 @@ from __future__ import annotations
 import copy
 import hashlib
 import json
+import sys
 from pathlib import Path
 
 import pytest
+
+_REPO = Path(__file__).resolve().parents[2]
+if str(_REPO) not in sys.path:
+    sys.path.insert(0, str(_REPO))
 
 from tools.t189_task_catalog import (
     TaskCatalogError,
@@ -683,3 +688,7 @@ def test_schema_keys_never_claim_final_task_admission(tmp_path: Path) -> None:
                 yield from keys(item)
 
     assert not {"included", "eligible", "selected"}.intersection(keys(artifact))
+
+
+if __name__ == "__main__":
+    raise SystemExit(pytest.main([__file__, "-q"]))
