@@ -34,9 +34,22 @@ from tools.dev_waves.schema import (  # noqa: E402
 SCHEMA_VERSION = "t189-task-catalog/v1"
 CLASSIFICATION_SCHEMA_VERSION = 1
 CLASSIFICATION_KIND = "t189-task-type-classification"
+CLASSIFICATION_CRITERIA_DOCUMENT = (
+    "docs/phase3-t189-task-catalog-classification.md"
+)
+CLASSIFICATION_CRITERIA_VERSION = "t189-task-type/v1"
 SUPPORTED_RECEIPT_SCHEMAS = frozenset({3, 4})
 DEV_WAVE_STAGES = ("plan", "author")
 TASK_TYPES = ("new-mechanism", "bug-fix", "check-or-test", "docs")
+RULE_TASK_TYPES: dict[str, str | None] = {
+    "TT-NEW-01": "new-mechanism",
+    "TT-BUG-01": "bug-fix",
+    "TT-CHECK-01": "check-or-test",
+    "TT-DOCS-01": "docs",
+    "TT-UNCLASSIFIED-01": None,
+    "TT-UNCLASSIFIED-02": None,
+    "TT-UNCLASSIFIED-03": None,
+}
 MODEL_LITERALS = ("gpt-5.6-sol", "gpt-5.6-luna", "reasoning=max")
 DESIGN_MARKERS = (
     "codex_reasoning_ab", "T-189", "T-181", "T-182", "model-routing",
@@ -52,9 +65,8 @@ EXCLUSION_REASONS = (
 )
 
 _CLASSIFICATION_TOP_FIELDS = frozenset({
-    "artifact_kind", "classifications", "classifier", "criteria_document",
-    "criteria_version", "independent_classifiers", "schema_version",
-    "signatures",
+    "artifact_kind", "classifications", "criteria_document",
+    "criteria_version", "schema_version",
 })
 _CLASSIFICATION_FIELDS = frozenset({
     "evidence", "rationale", "rule_id", "task_type", "task_type_status",
@@ -80,8 +92,9 @@ _EXCLUDED_FIELDS = frozenset({
     "wave_id", "receipt", "receipt_schema_version", "dev_wave_stage",
     "reason_codes",
 })
-_PATH_DIGEST_FIELDS = frozenset({"jobs_relative_path", "sha256"})
+_PATH_DIGEST_FIELDS = frozenset({"jobs_relative_path", "relative_to", "sha256"})
 _NOT_ESTABLISHED_FIELDS = frozenset({"evidence_status", "blocked_on"})
+_SLUG_SCAN_BLOCKED_ON = "§5.3 replayer 契約 (未登録)"
 
 CommitResolver = Callable[[Path, str], bool]
 
@@ -175,8 +188,14 @@ def _relative_path(value: object, *, label: str) -> str:
         return _fail(label, "must use POSIX separators")
     path = PurePosixPath(text)
     if path.is_absolute() or text != path.as_posix() or text == "." or ".." in path.parts:
-        return _fail(label, "must be a normalized jobs-root relative path")
+        return _fail(label, "must be a normalized relative path")
     return text
+
+
+def _relative_to(value: object, *, label: str, expected: str) -> str:
+    if value != expected:
+        return _fail(label, f"must be {expected}")
+    return expected
 
 
 def _digest(value: object, *, label: str) -> str:
@@ -208,21 +227,33 @@ def _validate_classification_evidence(value: object, *, label: str) -> dict[str,
         return _fail(label, "must be an object")
     kind = value.get("kind")
     if kind == "worklog-entry":
-        item = _object(value, frozenset({"kind", "path", "line"}), label=label)
+        item = _object(
+            value, frozenset({"kind", "path", "relative_to", "line"}),
+            label=label,
+        )
         return {
             "kind": "worklog-entry",
             "path": _relative_path(item["path"], label=f"{label}.path"),
+            "relative_to": _relative_to(
+                item["relative_to"], label=f"{label}.relative_to",
+                expected="repository-root",
+            ),
             "line": _int(item["line"], label=f"{label}.line", minimum=1),
         }
     if kind == "plan-prompt":
         item = _object(
-            value, frozenset({"kind", "jobs_relative_path", "sha256"}),
+            value,
+            frozenset({"kind", "jobs_relative_path", "relative_to", "sha256"}),
             label=label,
         )
         return {
             "kind": "plan-prompt",
             "jobs_relative_path": _relative_path(
                 item["jobs_relative_path"], label=f"{label}.jobs_relative_path",
+            ),
+            "relative_to": _relative_to(
+                item["relative_to"], label=f"{label}.relative_to",
+                expected="jobs-root",
             ),
             "sha256": _digest(item["sha256"], label=f"{label}.sha256"),
         }
@@ -237,21 +268,18 @@ def _load_classifications(path: Path) -> dict[str, dict[str, object]]:
         return _fail("classification-artifact.artifact_kind", "unsupported kind")
     if top["schema_version"] != CLASSIFICATION_SCHEMA_VERSION:
         return _fail("classification-artifact.schema_version", "unsupported version")
-    _string(top["classifier"], label="classification-artifact.classifier")
-    _relative_path(
+    criteria_document = _relative_path(
         top["criteria_document"], label="classification-artifact.criteria_document",
     )
-    _string(top["criteria_version"], label="classification-artifact.criteria_version")
-    if _int(
-        top["independent_classifiers"],
-        label="classification-artifact.independent_classifiers",
-    ) != 0:
+    if criteria_document != CLASSIFICATION_CRITERIA_DOCUMENT:
         return _fail(
-            "classification-artifact.independent_classifiers",
-            "must be zero for this generation",
+            "classification-artifact.criteria_document", "criteria mismatch",
         )
-    if top["signatures"] is not None:
-        return _fail("classification-artifact.signatures", "must be null")
+    criteria_version = _string(
+        top["criteria_version"], label="classification-artifact.criteria_version",
+    )
+    if criteria_version != CLASSIFICATION_CRITERIA_VERSION:
+        return _fail("classification-artifact.criteria_version", "criteria mismatch")
     entries = top["classifications"]
     if not isinstance(entries, list):
         return _fail("classification-artifact.classifications", "must be a list")
@@ -273,10 +301,15 @@ def _load_classifications(path: Path) -> dict[str, dict[str, object]]:
                 return _fail(f"{label}.task_type", "must be null when unclassified")
         else:
             return _fail(f"{label}.task_type_status", "unknown status")
+        rule_id = _string(entry["rule_id"], label=f"{label}.rule_id")
+        if rule_id not in RULE_TASK_TYPES:
+            return _fail(f"{label}.rule_id", "unknown classification rule")
+        if RULE_TASK_TYPES[rule_id] != task_type:
+            return _fail(f"{label}.rule_id", "does not map to task_type")
         result[wave_id] = {
             "task_type": task_type,
             "task_type_status": status,
-            "rule_id": _string(entry["rule_id"], label=f"{label}.rule_id"),
+            "rule_id": rule_id,
             "tie_break_applied": _bool(
                 entry["tie_break_applied"], label=f"{label}.tie_break_applied",
             ),
@@ -408,6 +441,7 @@ def _primary_acceptance_receipt(jobs_root: Path, wave_id: str) -> dict[str, obje
             return _fail(f"primary-acceptance:{relative}.verdict", "must be a string")
         records.append({
             "jobs_relative_path": relative,
+            "relative_to": "jobs-root",
             "sha256": hashlib.sha256(raw).hexdigest(),
             "verdict": value["verdict"],
         })
@@ -466,21 +500,36 @@ def _candidate_row(
         "receipt_schema_version": receipt.schema_version,
         "receipt": {
             "jobs_relative_path": receipt.relative_path,
+            "relative_to": "jobs-root",
             "sha256": receipt.raw_sha256,
         },
         "prompt": {
             "jobs_relative_path": prompt_relative,
+            "relative_to": "jobs-root",
             "sha256": receipt.prompt_sha256,
         },
         "base_commit": receipt.base_commit,
         "base_commit_resolvable": base_commit_resolvable,
         "model_slug_contamination": {
-            "detected": bool(model_matches),
             "scanned_surfaces": [{
                 "surface": "prompt-body",
                 "jobs_relative_path": prompt_relative,
+                "relative_to": "jobs-root",
+                "detected": bool(model_matches),
                 "matches": model_matches,
             }],
+            "unscanned_surfaces": [
+                {
+                    "surface": "snapshot",
+                    "evidence_status": "not-established",
+                    "blocked_on": _SLUG_SCAN_BLOCKED_ON,
+                },
+                {
+                    "surface": "artifact",
+                    "evidence_status": "not-established",
+                    "blocked_on": _SLUG_SCAN_BLOCKED_ON,
+                },
+            ],
         },
         "t189_design_work_markers": design_markers,
         "primary_acceptance_receipt": acceptance,
@@ -617,6 +666,7 @@ def build_task_catalog(
                 "wave_id": receipt.wave_id,
                 "receipt": {
                     "jobs_relative_path": receipt.relative_path,
+                    "relative_to": "jobs-root",
                     "sha256": receipt.raw_sha256,
                 },
                 "receipt_schema_version": _display_schema_version(
@@ -660,6 +710,10 @@ def _validate_path_digest(value: object, *, label: str) -> dict[str, str]:
         "jobs_relative_path": _relative_path(
             item["jobs_relative_path"], label=f"{label}.jobs_relative_path",
         ),
+        "relative_to": _relative_to(
+            item["relative_to"], label=f"{label}.relative_to",
+            expected="jobs-root",
+        ),
         "sha256": _digest(item["sha256"], label=f"{label}.sha256"),
     }
 
@@ -677,15 +731,18 @@ def _validate_not_established(
 
 def _validate_contamination(value: object, *, label: str) -> dict[str, object]:
     item = _object(
-        value, frozenset({"detected", "scanned_surfaces"}), label=label,
+        value,
+        frozenset({"scanned_surfaces", "unscanned_surfaces"}),
+        label=label,
     )
-    detected = _bool(item["detected"], label=f"{label}.detected")
     surfaces = item["scanned_surfaces"]
     if not isinstance(surfaces, list) or len(surfaces) != 1:
         return _fail(f"{label}.scanned_surfaces", "must contain prompt-body once")
     surface = _object(
         surfaces[0],
-        frozenset({"surface", "jobs_relative_path", "matches"}),
+        frozenset({
+            "surface", "jobs_relative_path", "relative_to", "detected", "matches",
+        }),
         label=f"{label}.scanned_surfaces[0]",
     )
     if surface["surface"] != "prompt-body":
@@ -694,18 +751,56 @@ def _validate_contamination(value: object, *, label: str) -> dict[str, object]:
     if (not isinstance(matches, list) or
             matches != [literal for literal in MODEL_LITERALS if literal in matches]):
         return _fail(f"{label}.scanned_surfaces[0].matches", "invalid literal list")
+    detected = _bool(
+        surface["detected"], label=f"{label}.scanned_surfaces[0].detected",
+    )
     if detected != bool(matches):
-        return _fail(f"{label}.detected", "does not match literal results")
+        return _fail(
+            f"{label}.scanned_surfaces[0].detected",
+            "does not match literal results",
+        )
+    unscanned = item["unscanned_surfaces"]
+    if not isinstance(unscanned, list) or len(unscanned) != 2:
+        return _fail(
+            f"{label}.unscanned_surfaces", "must contain snapshot and artifact",
+        )
+    normalized_unscanned: list[dict[str, str]] = []
+    for index, expected_surface in enumerate(("snapshot", "artifact")):
+        unscanned_label = f"{label}.unscanned_surfaces[{index}]"
+        record = _object(
+            unscanned[index],
+            frozenset({"surface", "evidence_status", "blocked_on"}),
+            label=unscanned_label,
+        )
+        if record["surface"] != expected_surface:
+            return _fail(f"{unscanned_label}.surface", "unexpected surface")
+        if record["evidence_status"] != "not-established":
+            return _fail(
+                f"{unscanned_label}.evidence_status", "must be not-established",
+            )
+        if record["blocked_on"] != _SLUG_SCAN_BLOCKED_ON:
+            return _fail(f"{unscanned_label}.blocked_on", "dependency mismatch")
+        normalized_unscanned.append({
+            "surface": expected_surface,
+            "evidence_status": "not-established",
+            "blocked_on": _SLUG_SCAN_BLOCKED_ON,
+        })
     return {
-        "detected": detected,
         "scanned_surfaces": [{
             "surface": "prompt-body",
             "jobs_relative_path": _relative_path(
                 surface["jobs_relative_path"],
                 label=f"{label}.scanned_surfaces[0].jobs_relative_path",
             ),
+            "relative_to": _relative_to(
+                surface["relative_to"],
+                label=f"{label}.scanned_surfaces[0].relative_to",
+                expected="jobs-root",
+            ),
+            "detected": detected,
             "matches": list(matches),
         }],
+        "unscanned_surfaces": normalized_unscanned,
     }
 
 
@@ -721,7 +816,7 @@ def _validate_acceptance(value: object, *, label: str) -> dict[str, object]:
         record_label = f"{label}.records[{index}]"
         record = _object(
             raw_record,
-            frozenset({"jobs_relative_path", "sha256", "verdict"}),
+            frozenset({"jobs_relative_path", "relative_to", "sha256", "verdict"}),
             label=record_label,
         )
         path = _relative_path(
@@ -732,6 +827,10 @@ def _validate_acceptance(value: object, *, label: str) -> dict[str, object]:
         previous_path = path
         normalized.append({
             "jobs_relative_path": path,
+            "relative_to": _relative_to(
+                record["relative_to"], label=f"{record_label}.relative_to",
+                expected="jobs-root",
+            ),
             "sha256": _digest(record["sha256"], label=f"{record_label}.sha256"),
             "verdict": _string(record["verdict"], label=f"{record_label}.verdict"),
         })
@@ -786,6 +885,10 @@ def _validate_candidate(value: object, *, label: str) -> dict[str, object]:
     if reason is None:
         normalized_reason = None
         normalized_rule = _string(rule_id, label=f"{label}.rule_id")
+        if normalized_rule not in RULE_TASK_TYPES:
+            return _fail(f"{label}.rule_id", "unknown classification rule")
+        if RULE_TASK_TYPES[normalized_rule] != task_type:
+            return _fail(f"{label}.rule_id", "does not map to task_type")
         normalized_tie = _bool(tie_break, label=f"{label}.tie_break_applied")
         normalized_evidence = _validate_classification_evidence(
             evidence, label=f"{label}.evidence",
@@ -884,9 +987,17 @@ def validate_task_catalog(value: object) -> dict[str, object]:
         _validate_excluded(item, label=f"task_catalog.excluded[{index}]")
         for index, item in enumerate(excluded_raw)
     ]
-    if counts["candidate_receipt_count"] != len(candidates):
+    candidate_count = _int(
+        counts["candidate_receipt_count"],
+        label="task_catalog.counts.candidate_receipt_count",
+    )
+    excluded_count = _int(
+        counts["excluded_receipt_count"],
+        label="task_catalog.counts.excluded_receipt_count",
+    )
+    if candidate_count != len(candidates):
         return _fail("task_catalog.counts.candidate_receipt_count", "count mismatch")
-    if counts["excluded_receipt_count"] != len(excluded):
+    if excluded_count != len(excluded):
         return _fail("task_catalog.counts.excluded_receipt_count", "count mismatch")
     paired_count = _int(
         counts["paired_stage_wave_count"],
@@ -896,8 +1007,71 @@ def validate_task_catalog(value: object) -> dict[str, object]:
         counts["prompt_recoverable_wave_count"],
         label="task_catalog.counts.prompt_recoverable_wave_count",
     )
-    if prompt_count > paired_count:
-        return _fail("task_catalog.counts", "prompt wave count exceeds paired wave count")
+    rows_by_wave_stage: dict[tuple[str, str], list[dict[str, object]]] = defaultdict(list)
+    excluded_by_wave_stage: Counter[tuple[str, str]] = Counter()
+    stages_by_wave: dict[str, set[str]] = defaultdict(set)
+    prompt_available: set[tuple[str, str]] = set()
+    for row in candidates:
+        key = (row["wave_id"], row["dev_wave_stage"])
+        rows_by_wave_stage[key].append(row)
+        stages_by_wave[row["wave_id"]].add(row["dev_wave_stage"])
+        prompt_available.add(key)
+    for row in excluded:
+        if (row["receipt_schema_version"] in SUPPORTED_RECEIPT_SCHEMAS and
+                row["dev_wave_stage"] in DEV_WAVE_STAGES):
+            key = (row["wave_id"], row["dev_wave_stage"])
+            excluded_by_wave_stage[key] += 1
+            stages_by_wave[row["wave_id"]].add(row["dev_wave_stage"])
+            if "prompt-body-unrecoverable" not in row["reason_codes"]:
+                prompt_available.add(key)
+
+    for (wave_id, stage), rows in rows_by_wave_stage.items():
+        declared_counts = {row["wave_stage_receipt_count"] for row in rows}
+        if len(declared_counts) != 1:
+            return _fail(
+                f"task_catalog.candidates[{wave_id}/{stage}].wave_stage_receipt_count",
+                "must agree within wave-stage",
+            )
+        declared_count = next(iter(declared_counts))
+        covered_receipts = len(rows) + excluded_by_wave_stage[(wave_id, stage)]
+        if declared_count != covered_receipts:
+            return _fail(
+                f"task_catalog.candidates[{wave_id}/{stage}].wave_stage_receipt_count",
+                "candidate and excluded row count mismatch",
+            )
+        ordinals = [row["receipt_ordinal"] for row in rows]
+        if len(ordinals) != len(set(ordinals)):
+            return _fail(
+                f"task_catalog.candidates[{wave_id}/{stage}].receipt_ordinal",
+                "must be unique within wave-stage",
+            )
+
+    observed_task_types: dict[str, object] = {}
+    for row in candidates:
+        previous = observed_task_types.setdefault(row["wave_id"], row["task_type"])
+        if previous != row["task_type"]:
+            return _fail(
+                f"task_catalog.candidates[{row['wave_id']}].task_type",
+                "classification must be consistent within a wave",
+            )
+
+    paired_waves = {
+        wave_id for wave_id, stages in stages_by_wave.items()
+        if stages == set(DEV_WAVE_STAGES)
+    }
+    derived_paired_count = len(paired_waves)
+    derived_prompt_count = sum(
+        all((wave_id, stage) in prompt_available for stage in DEV_WAVE_STAGES)
+        for wave_id in paired_waves
+    )
+    if paired_count != derived_paired_count:
+        return _fail(
+            "task_catalog.counts.paired_stage_wave_count", "count mismatch",
+        )
+    if prompt_count != derived_prompt_count:
+        return _fail(
+            "task_catalog.counts.prompt_recoverable_wave_count", "count mismatch",
+        )
     by_type = _object(
         counts["candidate_receipts_by_task_type"],
         frozenset((*TASK_TYPES, "unclassified")),
@@ -938,8 +1112,8 @@ def validate_task_catalog(value: object) -> dict[str, object]:
         "counts": {
             "paired_stage_wave_count": paired_count,
             "prompt_recoverable_wave_count": prompt_count,
-            "candidate_receipt_count": len(candidates),
-            "excluded_receipt_count": len(excluded),
+            "candidate_receipt_count": candidate_count,
+            "excluded_receipt_count": excluded_count,
             "candidate_receipts_by_task_type": normalized_counts,
         },
         "candidates": candidates,

@@ -233,8 +233,19 @@ dev-wave の codex receipt 台帳 (`<jobs-root>/<wave>/<job-id>/receipt.json`) �
 | plan と author の receipt を両方持つ wave (v3+v4) | 56 | `stage` が `plan`/`author` の receipt を wave 単位に束ねる |
 | 両 stage の prompt 本文を sha256 で復元できる wave | **49** (全 regular file 走査) / 48 (`.md` 限定) | wave 直下の各 file の sha256 を receipt の `prompt_sha256` と照合 |
 | その wave 群の物理 plan+author receipt 数 | **137** | 論理 98 task-stage に対し 137 件。**26 wave-stage が複数 receipt を持つ** |
-| うち primary `acceptance-receipt*.json` を持つ wave | **40** | wave 直下の file 名で判定 |
-| 復元した prompt に model slug を含む wave | 0 (先行 49 wave)。**本文書の素材を作った wave 自身は 2 receipt で検出される** — 価格表を扱う投げ文であるため必然であり、同 wave は §6.1 の「設計作業由来」により候補から外れる | `gpt-5.6-sol` / `gpt-5.6-luna` / `reasoning=max` の literal 検索。台帳は wave 単位でなく **receipt 単位**で走査するので、件数の母数が異なることに注意する |
+| うち primary acceptance receipt を持つ wave | **39** | wave 直下の `acceptance-receipt-<n>.json` の実在で判定。**`*.acceptance-red-check.json` は primary ではない** — 赤の帰属判定の副 receipt であり、これだけを持つ wave (実測 1 件) を数えてはならない |
+| 復元した prompt に model slug を含む wave | 0 (先行 49 wave)。**本文書の素材を作った wave 自身は 2 receipt で検出される** — 価格表を扱う投げ文であるため必然である | `gpt-5.6-sol` / `gpt-5.6-luna` / `reasoning=max` の literal 検索。台帳は wave 単位でなく **receipt 単位**で走査するので、件数の母数が異なることに注意する |
+
+**この funnel の値は 2026-08-23 時点のものであり、台帳生成時にはすでに動いていた。**
+台帳の `counts` (生成時点で paired 57 / prompt 復元可 50 / 候補 133 行 / 除外 544 件) が実体の正本であり、
+上表と一致しないのは母集合が並行 wave の進行で増えたためである。**どちらかが誤りなのではない。**
+値を引用するときは、上表 (2026-08-23 の funnel) と台帳 `counts` (生成時点) のどちらかを明示する。
+
+**本文書の素材を作った wave 自身は、台帳から自動除外されていない。**
+台帳は `t189_design_work_markers` に検出した literal を記録するだけで、
+「設計作業由来だから候補から外す」判断は下流 (人間) に残してある。
+marker の有無と「T-181/T-182/T-189 の設計作業に使われた task か」は同値ではないためである。
+したがって候補 133 行には本 wave 由来の 3 行が含まれる。**除外済みと読んではならない。**
 
 **この母集合は dev-wave の継続により走行中も増える。** 値は生成時点のものであり、
 台帳 (§6.1 末尾) の `counts` が実体の正本である。
@@ -330,7 +341,10 @@ acceptance、stage境界、slug混入有無、type、oracle件数、除外理由
 - 候補不足時に層を埋めるための再分類はしない。候補が目標数に満たない層を持つ stage は
   §12 の標本数 gate が未達となり `routing_evidence_status = inconclusive` に固定される。
 - 主目的が確定しない wave は層へ割り当てず `unclassified` にする。
-  2026-08-23 の初回分類では 50 行中 9 行が `unclassified` だった。
+  2026-08-23 の初回分類では 50 wave 中 **8 wave** が `unclassified` だった
+  (内訳: `new-mechanism` 24、`bug-fix` 9、`check-or-test` 7、`docs` 2)。
+  台帳側は receipt 単位なので母数が異なる (候補 133 行の内訳は
+  `new-mechanism` 63、`bug-fix` 22、`check-or-test` 19、`docs` 5、`unclassified` 24)。
 
 **この体制の限界は §14 に記載する。分類者は実験実施者と同一人物であり、独立性による
 bias 制御は存在しない。**
@@ -671,6 +685,16 @@ token、wall、fix の非劣性判定を cost 単独で置き換えない。
 
 ### 11.4 Power simulation (実験開始前 lock の必須項目)
 
+> **状態 (2026-08-23、D674)**: **本節の power simulation は実施しないとユーザーが裁定した。**
+> したがって `N_positive_min` / `N_negative_min` / margin は**確定しない**。
+> 本節は「実施すれば lock はこう組む」という設計として残すが、
+> **現時点で実走開始条件を満たす見込みは無い。**
+> §13 の lock 項目表と §12 の gate は、この状態のまま
+> `routing_evidence_status = inconclusive` を返す (§12.4 の状態遷移 2)。
+> 本節を「必須だが未実施」と読んで実走を止める判断も、
+> 「必須でないから飛ばしてよい」と読んで実走する判断も、どちらも誤りである。
+> **実走そのものが、D674 の裁定により当面成立しない。**
+
 margin 候補の検出力を当て推量で決めない。実走開始前の lock 手続きの一部として、次を行う。
 
 1. 想定する劣化シナリオ (例: 1 taskで全 findingを失う、1 taskで追加fixが発生する等) を効果
@@ -774,6 +798,11 @@ overall は単一の gate ではなく、次の3系列に分離する。
 
 次は run 開始前に、§11.4 が定める順序 (task catalog → 実効 task 数 → power simulation →
 schedule) で lock する。
+
+> **状態 (2026-08-23、D674)**: この lock 手続きは**完了できない**。
+> 3 番目の power simulation を実施しないとユーザーが裁定したため、順序がそこで止まる。
+> 下の一覧は各項目の**到達状況**を記したものであり、「これを埋めれば実走できる」表ではない。
+> 実走の可否は D674 を覆すユーザー裁定に属する。
 
 - task universe (**素材取得済み・lock 未了**。事前選別の候補台帳
   `output/t189-routing-preregistration/task-catalog-v1.json` が 2026-08-23 時点の実体。

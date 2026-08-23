@@ -541,12 +541,14 @@ def parse_price_snapshot(
         "raw_snapshot": {
             "storage": "outside-repository",
             "path": normalized_metadata["raw_snapshot_path"],
+            "relative_to": "repository-root",
             "sha256": hashlib.sha256(raw_html).hexdigest(),
             "byte_length": len(raw_html),
         },
         "excerpt": {
             "storage": "repository",
             "path": normalized_metadata["excerpt_path"],
+            "relative_to": "repository-root",
             "sha256": hashlib.sha256(excerpt).hexdigest(),
             "byte_offset": excerpt_offset,
             "byte_length": excerpt_length,
@@ -574,17 +576,23 @@ def _positive_int(value: object, *, label: str, allow_zero: bool = False) -> int
 
 
 def _validate_record(value: object, *, label: str, excerpt: bool) -> dict[str, object]:
-    fields = ({"storage", "path", "sha256", "byte_offset", "byte_length"}
-              if excerpt else {"storage", "path", "sha256", "byte_length"})
+    fields = (
+        {"storage", "path", "relative_to", "sha256", "byte_offset", "byte_length"}
+        if excerpt
+        else {"storage", "path", "relative_to", "sha256", "byte_length"}
+    )
     item = _object(value, frozenset(fields), label=label)
     expected_storage = "repository" if excerpt else "outside-repository"
     if item["storage"] != expected_storage:
         return _fail(f"{label}.storage", "storage scope mismatch")
+    if item["relative_to"] != "repository-root":
+        return _fail(f"{label}.relative_to", "must be repository-root")
     result: dict[str, object] = {
         "storage": expected_storage,
         "path": _relative_path(
             item["path"], label=f"{label}.path", repository_local=excerpt,
         ),
+        "relative_to": "repository-root",
         "sha256": _validate_digest(item["sha256"], label=f"{label}.sha256"),
         "byte_length": _positive_int(
             item["byte_length"], label=f"{label}.byte_length",
@@ -596,8 +604,11 @@ def _validate_record(value: object, *, label: str, excerpt: bool) -> dict[str, o
         )
         # Preserve the artifact's fixed field spelling while returning a fresh tree.
         return {
-            "storage": result["storage"], "path": result["path"],
-            "sha256": result["sha256"], "byte_offset": result["byte_offset"],
+            "storage": result["storage"],
+            "path": result["path"],
+            "relative_to": result["relative_to"],
+            "sha256": result["sha256"],
+            "byte_offset": result["byte_offset"],
             "byte_length": result["byte_length"],
         }
     return result
@@ -700,6 +711,8 @@ def validate_price_snapshot(value: object) -> dict[str, object]:
     mapping = item["sku_mapping"]
     if not isinstance(mapping, dict) or not mapping:
         return _fail("sku_mapping", "must be a non-empty object")
+    if set(mapping) != set(TARGET_MODELS):
+        return _fail("sku_mapping", "target model set mismatch")
     normalized_mapping: dict[str, object] = {}
     for model, raw_sku in mapping.items():
         if not isinstance(model, str) or not _MODEL_RE.fullmatch(model):

@@ -137,9 +137,11 @@ def test_parse_fixture_records_exact_standard_prices_and_raw_evidence() -> None:
     assert artifact["capture_command_status"] == "recorded-exact"
 
     raw_record = artifact["raw_snapshot"]
+    assert raw_record["relative_to"] == "repository-root"
     assert raw_record["sha256"] == hashlib.sha256(raw).hexdigest()
     assert raw_record["byte_length"] == len(raw)
     excerpt_record = artifact["excerpt"]
+    assert excerpt_record["relative_to"] == "repository-root"
     start = excerpt_record["byte_offset"]
     end = start + excerpt_record["byte_length"]
     excerpt = raw[start:end]
@@ -171,6 +173,20 @@ def test_mut6_empty_sku_mapping_is_rejected() -> None:
     artifact = _artifact()
     artifact["sku_mapping"] = {}
     with pytest.raises(PriceSnapshotError, match="sku_mapping"):
+        validate_price_snapshot(artifact)
+
+
+@pytest.mark.parametrize("mutation", ["missing-luna", "unrelated-model"])
+def test_sku_mapping_requires_the_exact_target_model_set(mutation: str) -> None:
+    artifact = _artifact()
+    if mutation == "missing-luna":
+        artifact["sku_mapping"].pop("gpt-5.6-luna")
+    else:
+        artifact["sku_mapping"] = {
+            "unrelated-model": artifact["sku_mapping"]["gpt-5.6-sol"],
+        }
+
+    with pytest.raises(PriceSnapshotError, match="sku_mapping.*target model set mismatch"):
         validate_price_snapshot(artifact)
 
 
@@ -296,20 +312,57 @@ def test_http_header_allowlist_rejects_set_cookie() -> None:
 
 
 @pytest.mark.parametrize(
-    "mutation",
+    ("mutation", "reason"),
     [
-        lambda artifact: artifact["raw_snapshot"].pop("sha256"),
-        lambda artifact: artifact["excerpt"].pop("byte_offset"),
-        lambda artifact: artifact["excerpt"].update({"byte_length": 10**9}),
-        lambda artifact: artifact["excerpt"].update({"path": "../outside.raw"}),
-        lambda artifact: artifact["raw_snapshot"].update({"path": "/absolute/raw.html"}),
-        lambda artifact: artifact["raw_snapshot"].update({"path": "inside/raw.html"}),
+        pytest.param(
+            lambda artifact: artifact["raw_snapshot"].pop("sha256"),
+            "raw_snapshot: field set mismatch",
+            id="raw-sha-missing",
+        ),
+        pytest.param(
+            lambda artifact: artifact["excerpt"].pop("byte_offset"),
+            "excerpt: field set mismatch",
+            id="excerpt-offset-missing",
+        ),
+        pytest.param(
+            lambda artifact: artifact["excerpt"].update({"byte_length": 10**9}),
+            "excerpt: byte range exceeds raw snapshot",
+            id="excerpt-range-exceeds-raw",
+        ),
+        pytest.param(
+            lambda artifact: artifact["excerpt"].update({"path": "../outside.raw"}),
+            "excerpt.path: repository excerpt path may not escape the repository",
+            id="excerpt-escapes-repository",
+        ),
+        pytest.param(
+            lambda artifact: artifact["raw_snapshot"].update(
+                {"path": "/absolute/raw.html"},
+            ),
+            "raw_snapshot.path: must be a normalized relative path",
+            id="raw-absolute-path",
+        ),
+        pytest.param(
+            lambda artifact: artifact["raw_snapshot"].update(
+                {"path": "inside/raw.html"},
+            ),
+            "raw_snapshot.path: external raw path must escape the repository",
+            id="raw-path-does-not-escape",
+        ),
     ],
 )
-def test_raw_and_excerpt_evidence_records_are_fail_closed(mutation) -> None:
+def test_raw_and_excerpt_evidence_records_are_fail_closed(mutation, reason: str) -> None:
     artifact = _artifact()
     mutation(artifact)
-    with pytest.raises(PriceSnapshotError):
+    with pytest.raises(PriceSnapshotError, match=reason):
+        validate_price_snapshot(artifact)
+
+
+@pytest.mark.parametrize("record", ["raw_snapshot", "excerpt"])
+def test_price_path_records_fix_their_relative_base(record: str) -> None:
+    artifact = _artifact()
+    artifact[record]["relative_to"] = "jobs-root"
+
+    with pytest.raises(PriceSnapshotError, match=rf"{record}.relative_to.*repository-root"):
         validate_price_snapshot(artifact)
 
 
