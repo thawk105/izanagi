@@ -61,3 +61,36 @@ seq: 3
   (`len(sweep_records)==1 < 3`) は引き続き拒否される。
 - 再発検知: `orchestrator/tests/test_holdout_observation.py`に、3点消費後のnoise遷移
   許可テストと1点消費の拒否テストの両方を追加した。実機のrr80/rr20成功投入で最終実証。
+
+### {{F:preregistered-mutation-skipped-on-stranded-wave}}. 段4で事前登録した変異matrixが実施されないままwaveが取り残され、handoffは完了と読めた [手順漏れ]
+
+- 事象: 2026-08-23の再開セッションで、段4裁定が「fix後、変異matrixで所見1・2のkill確認を
+  行い、受入全走へ進む」と事前登録していたにもかかわらず、job dirに変異成果物が1件も
+  存在しないことを発見した。引き継ぎhandoffの「完了した中間成果」節と段6総括は実機成功を
+  強く記述しており、通読すると段6が閉じたように読める。
+- 根本原因: 段6の総括が「敵対レビュー2本の追加再走は実機成功確認で代替する」とだけ書き、
+  同じ段4裁定に併記されていた変異matrixの要否に触れなかった。再開側が段の完了を
+  handoffの散文で判定すると、この欠落は見えない。
+- 恒久対応: 再開セッションで anchor をlocal main取り込み後のtipに取り直して変異matrixを
+  実施した (3/3 KILLED、baseline rc=0)。再開waveは段の完了をhandoffの記述ではなく
+  job dirの成果物実在で照合する。
+- 再発検知: なし (機械検査は未設置)。`DW-S04`の「実装差分ゼロのwaveだけ変異matrixを
+  免除する」を、実装差分の実測 (`git diff main...HEAD --stat`) と突き合わせて判定する。
+
+### {{F:merge-audit-cannot-run-before-commit-via-launcher}}. 両親が同じ実装面fileを触るmergeで、合成監査を commit 前に挟む経路が塞がっていた [手順漏れ]
+
+- 事象: local main取り込みで両親がともに `orchestrator/tests/test_ccbench_spawn_sites.py`
+  を触り、合成結果が両親どちらとも異なったため、`tools/check_ai_provenance.py` が
+  `実装面に Codex role=author がない` で暫定messageを拒否した (実測 rc=1)。一方 Codex
+  launcher は `snapshot_authority` が `docs/dev-wave/operations.md` と
+  `docs/dev-wave/workers.md` の working tree bytes を HEAD の blob と比較するため、
+  `git merge --no-ff --no-commit` の状態 (両fileが未commitで書き換わっている) では起動できない。
+  先例が採った「暫定commit→監査→amend」は、この preflight を通せないので成立しない。
+- 根本原因: 監査を commit 前に要求する provenance gate と、clean treeを要求する launcher
+  authority が、merge 進行中の木という同じ状態で互いを塞いでいた。
+- 恒久対応: `git write-tree` + `git commit-tree` で合成結果だけを指す使い捨ての snapshot
+  commit を作り、`git worktree add --detach` した木を Codex 子の `--repo-root` に渡して
+  監査した。暫定commitもamendも要らず、監査は commit の前に置ける。監査後に snapshot
+  worktree を畳んで prune し、land を塞ぐ残骸を残さない。
+- 再発検知: なし (機械検査は未設置)。両親の変更path集合の積が実装面を含むかは
+  `git diff --name-only <親> <合成結果>` を両親について取れば commit 前に判定できる。
