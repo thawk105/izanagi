@@ -750,14 +750,6 @@ _SELECTION_RECEIPT_PREFIX = (
     None if _SELECTION_CONTRACT is None
     else _SELECTION_CONTRACT.SELECTION_RECEIPT_PREFIX
 )
-_PERMANENT_EXCLUSION_SET_VERSION = (
-    None if _SELECTION_CONTRACT is None
-    else _SELECTION_CONTRACT.EXCLUSION_SET_VERSION
-)
-_SANCTIONED_SORT_SWO_ORACLE_PATH = (
-    None if _SELECTION_CONTRACT is None
-    else str(_SELECTION_CONTRACT.SANCTIONED_SORT_SWO_ORACLE_PATH)
-)
 _EFFECTIVE_SCHEDULER_PREFIX = "IZANAGI_EFFECTIVE_SCHEDULER_V1 "
 _EFFECTIVE_SCHEDULER_ATTR = "_izanagi_effective_scheduler"
 _FLAKY_HOLD_SUMMARY_PREFIX = "IZANAGI_FLAKY_HOLD_SUMMARY_V1 "
@@ -857,13 +849,11 @@ def _collection_narrowing_is_runner_owned(config) -> bool:
     if argv is None:
         return False
     argv = tuple(argv)
-    owned_payload = _runner_owned_exclusion_payload(config)
+    owned_entries = _runner_owned_exclusion_payload(config)
     owned_tokens = []
-    if owned_payload is not None and _SELECTION_CONTRACT is not None:
+    if owned_entries is not None and _SELECTION_CONTRACT is not None:
         owned_tokens.extend(
-            _SELECTION_CONTRACT.exclusion_tokens(
-                _SELECTION_CONTRACT.SANCTIONED_EXCLUSIONS
-            )
+            _SELECTION_CONTRACT.exclusion_tokens(owned_entries)
         )
     for token in argv:
         if token in owned_tokens:
@@ -894,8 +884,8 @@ def _is_complete_growth_hold_collection(config) -> bool:
     return _collection_narrowing_is_runner_owned(config)
 
 
-def _runner_owned_exclusion_payload(config) -> dict[str, str] | None:
-    """認証済み runner payload だけを collection 防壁から除く。
+def _runner_owned_exclusion_payload(config) -> tuple[object, ...] | None:
+    """認証済み runner exclusion entries だけを collection 防壁から除く。
 
     env を継承した入れ子 pytest は runner の narrowing token を持たないため、
     runner 所有の除外なしとして扱う。narrowing token が存在する場合だけ、
@@ -924,35 +914,37 @@ def _runner_owned_exclusion_payload(config) -> dict[str, str] | None:
         raise pytest.UsageError(
             "runner exclusion env は共有 selection contract を import できないため拒否します"
         )
-    expected_payload = _SELECTION_CONTRACT.serialize_payload(
+    entries = _SELECTION_CONTRACT.canonicalize_sanctioned_exclusion_set(
         _SELECTION_CONTRACT.SANCTIONED_EXCLUSIONS
+    )
+    if entries is None or len(entries) != 1:
+        raise pytest.UsageError(
+            "runner exclusion contract は canonical exactly-one ではありません"
+        )
+    expected_payload = _SELECTION_CONTRACT.serialize_payload(
+        entries
     )
     if raw != expected_payload:
         raise pytest.UsageError(
             "runner exclusion payload が共有 selection contract と一致しません"
         )
     expected_tokens = _SELECTION_CONTRACT.exclusion_tokens(
-        _SELECTION_CONTRACT.SANCTIONED_EXCLUSIONS
+        entries
     )
     if observed_tokens != expected_tokens:
         raise pytest.UsageError(
             "runner exclusion token が共有 selection contract と一致しません"
         )
-    payload = _SELECTION_CONTRACT.payload_entries(
-        _SELECTION_CONTRACT.SANCTIONED_EXCLUSIONS
-    )
-    return payload[0] if len(payload) == 1 else None
+    return entries
 
 
 def _emit_runner_exclusion_receipt(config) -> None:
-    payload = _runner_owned_exclusion_payload(config)
-    if payload is None or hasattr(config, "workerinput"):
+    entries = _runner_owned_exclusion_payload(config)
+    if entries is None or hasattr(config, "workerinput"):
         return
     assert _SELECTION_CONTRACT is not None
     print(
-        _SELECTION_CONTRACT.selection_receipt_line(
-            _SELECTION_CONTRACT.SANCTIONED_EXCLUSIONS
-        ),
+        _SELECTION_CONTRACT.selection_receipt_line(entries),
         file=sys.stderr,
         flush=True,
     )
