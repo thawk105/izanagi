@@ -68,7 +68,8 @@ def committed_repo(tmp_path: Path) -> tuple[Path, str, Path]:
         "if '--collect-only' in sys.argv:\n"
         "    print(COLLECTED)\n"
         "    raise SystemExit(0)\n"
-        "raise SystemExit(99)\n",
+        "print('================ 7 passed in 0.01s ================')\n"
+        "raise SystemExit(0)\n",
         encoding="utf-8",
     )
     _git(repo, "add", ".gitignore", "tracked.txt", "tools/run_tests.py")
@@ -245,11 +246,17 @@ def _fake_dispatch_result(
     scheduler_stdout = submission_dir / "dispatch.sh.ofixture"
     scheduler_stdout.write_text(authoritative_stdout, encoding="utf-8")
     pytest_args = [value for value in values[2:] if value != "--force-dispatch"]
-    target_path, separator, target_suffix = pytest_args[-1].partition("::")
-    expected_target = str((worktree / target_path).resolve(strict=False))
-    pytest_args[-1] = expected_target + (
-        separator + target_suffix if separator else ""
+    target_indices = (
+        ()
+        if "--collect-only" in values or len(pytest_args) <= 2
+        else range(2, len(pytest_args))
     )
+    for index in target_indices:
+        target_path, separator, target_suffix = pytest_args[index].partition("::")
+        expected_target = str((worktree / target_path).resolve(strict=False))
+        pytest_args[index] = expected_target + (
+            separator + target_suffix if separator else ""
+        )
     document: dict[str, object] = {
         "schema_version": "pegasus-dispatch-receipt/v2",
         "submission_dir": str(submission_dir),
@@ -288,8 +295,10 @@ def _fake_dispatch_result(
     return subprocess.CompletedProcess(values, returncode, relay, "")
 
 
-def _unexpected_runner(_worktree: Path, nodeid: str) -> int:
-    raise AssertionError(f"runner must not be reached: {nodeid}")
+def _unexpected_runner(
+    _worktree: Path, nodeids: Sequence[str]
+) -> CAR._PytestRunResult:
+    raise AssertionError(f"runner must not be reached: {tuple(nodeids)!r}")
 
 
 def _non_attributable_rerun(
@@ -299,6 +308,14 @@ def _non_attributable_rerun(
     return subprocess.CompletedProcess(
         values, 1, _summary_log((("FAILED", nodeid),)), ""
     )
+
+
+def _run_result(returncode: int, *references: str) -> CAR._PytestRunResult:
+    return CAR._PytestRunResult(returncode, tuple(references))
+
+
+def _full_result(*references: str) -> CAR._PytestRunResult:
+    return _run_result(1 if references else 0, *references)
 
 
 def test_green_log_returns_zero(
@@ -479,11 +496,26 @@ def test_all_non_attributable_reds_return_zero(
         ),
     )
     receipt = tmp_path / "receipt.json"
+    calls: list[str] = []
+
+    def full_runner(_worktree: Path) -> CAR._PytestRunResult:
+        calls.append("full")
+        return _full_result(second, _NON_ATTRIBUTABLE, _ATTRIBUTABLE_A)
+
+    def collection_runner(_worktree: Path) -> tuple[str, ...]:
+        calls.append("collect")
+        return (second, _NON_ATTRIBUTABLE, _ATTRIBUTABLE_A)
+
     assert CAR.main(
         _arguments(log, tested_main, receipt, probe_root),
         repo_root=repo,
-        node_runner=lambda _worktree, _nodeid: 1,
+        full_runner=full_runner,
+        collection_runner=collection_runner,
+        node_runner=lambda _worktree, _nodeids: pytest.fail(
+            "D is empty; wave batch must not run"
+        ),
     ) == 0
+    assert calls == ["full", "collect"]
     assert capsys.readouterr().out.splitlines() == [
         "status=non-attributable-only"
     ]
@@ -509,20 +541,19 @@ def test_attributable_red_stops_even_beside_non_attributable(
             )
         ),
     )
-    outcomes = {
-        _NON_ATTRIBUTABLE: [1],
-        _ATTRIBUTABLE_A: [0, 1],
-        _ATTRIBUTABLE_B: [0, 1],
-    }
+    batch_calls: list[tuple[str, ...]] = []
 
-    def node_runner(_worktree: Path, nodeid: str) -> int:
-        return outcomes[nodeid].pop(0)
+    def node_runner(_worktree: Path, nodeids: Sequence[str]) -> CAR._PytestRunResult:
+        batch_calls.append(tuple(nodeids))
+        return _run_result(1, _ATTRIBUTABLE_A, _ATTRIBUTABLE_B)
 
     assert CAR.main(
         _arguments(log, tested_main, tmp_path / "receipt.json", probe_root),
         repo_root=repo,
+        full_runner=lambda _worktree: _full_result(_NON_ATTRIBUTABLE),
         node_runner=node_runner,
     ) == 1
+    assert batch_calls == [(_ATTRIBUTABLE_A, _ATTRIBUTABLE_B)]
     assert capsys.readouterr().out.splitlines() == [
         "status=attributable-red",
         f"attributable={_ATTRIBUTABLE_A}",
@@ -538,12 +569,13 @@ def test_main_green_wave_red_is_attributable(
     wave_tip = _advance_wave_tip(repo)
     log = _write_log(tmp_path, _summary_log((("FAILED", _ATTRIBUTABLE_A),)))
     receipt = tmp_path / "receipt.json"
-    observed_tips: list[str] = []
+    observed_tips: list[tuple[str, tuple[str, ...]]] = []
 
-    def node_runner(worktree: Path, _nodeid: str) -> int:
-        tip = _git(worktree, "rev-parse", "HEAD").stdout.strip()
-        observed_tips.append(tip)
-        return 0 if tip == tested_main else 1
+    def node_runner(worktree: Path, nodeids: Sequence[str]) -> CAR._PytestRunResult:
+        observed_tips.append(
+            (_git(worktree, "rev-parse", "HEAD").stdout.strip(), tuple(nodeids))
+        )
+        return _run_result(1, _ATTRIBUTABLE_A)
 
     assert CAR.main(
         _arguments(
@@ -554,9 +586,10 @@ def test_main_green_wave_red_is_attributable(
             wave_tip=wave_tip,
         ),
         repo_root=repo,
+        full_runner=lambda _worktree: _full_result(),
         node_runner=node_runner,
     ) == 1
-    assert observed_tips == [tested_main, wave_tip]
+    assert observed_tips == [(wave_tip, (_ATTRIBUTABLE_A,))]
     raw = receipt.read_bytes()
     document = json.loads(raw)
     assert set(document) == {
@@ -591,11 +624,13 @@ def test_main_green_wave_green_is_recorded_as_flake(
     wave_tip = _advance_wave_tip(repo)
     log = _write_log(tmp_path, _summary_log((("FAILED", _NON_ATTRIBUTABLE),)))
     receipt = tmp_path / "receipt.json"
-    observed_tips: list[str] = []
+    observed_tips: list[tuple[str, tuple[str, ...]]] = []
 
-    def node_runner(worktree: Path, _nodeid: str) -> int:
-        observed_tips.append(_git(worktree, "rev-parse", "HEAD").stdout.strip())
-        return 0
+    def node_runner(worktree: Path, nodeids: Sequence[str]) -> CAR._PytestRunResult:
+        observed_tips.append(
+            (_git(worktree, "rev-parse", "HEAD").stdout.strip(), tuple(nodeids))
+        )
+        return _run_result(0)
 
     assert CAR.main(
         _arguments(
@@ -606,12 +641,13 @@ def test_main_green_wave_green_is_recorded_as_flake(
             wave_tip=wave_tip,
         ),
         repo_root=repo,
+        full_runner=lambda _worktree: _full_result(),
         node_runner=node_runner,
     ) == 0
     assert capsys.readouterr().out.splitlines() == [
         "status=non-attributable-only"
     ]
-    assert observed_tips == [tested_main, wave_tip]
+    assert observed_tips == [(wave_tip, (_NON_ATTRIBUTABLE,))]
     document = json.loads(receipt.read_text(encoding="utf-8"))
     assert set(document) == {
         "collections", "log_path", "log_sha256", "nodes", "schema_version",
@@ -644,11 +680,14 @@ def test_main_red_is_non_attributable_without_wave_rerun(
     wave_tip = _advance_wave_tip(repo)
     log = _write_log(tmp_path, _summary_log((("FAILED", _NON_ATTRIBUTABLE),)))
     receipt = tmp_path / "receipt.json"
-    observed_tips: list[str] = []
+    observed: list[tuple[str, str]] = []
 
-    def node_runner(worktree: Path, _nodeid: str) -> int:
-        observed_tips.append(_git(worktree, "rev-parse", "HEAD").stdout.strip())
-        return 1
+    def full_runner(worktree: Path) -> CAR._PytestRunResult:
+        observed.append(("full", _git(worktree, "rev-parse", "HEAD").stdout.strip()))
+        return _full_result(_NON_ATTRIBUTABLE)
+
+    def node_runner(_worktree: Path, _nodeids: Sequence[str]) -> CAR._PytestRunResult:
+        raise AssertionError("D is empty; wave batch must not run")
 
     assert CAR.main(
         _arguments(
@@ -659,10 +698,12 @@ def test_main_red_is_non_attributable_without_wave_rerun(
             wave_tip=wave_tip,
         ),
         repo_root=repo,
+        full_runner=full_runner,
         node_runner=node_runner,
     ) == 0
-    assert observed_tips == [tested_main]
-    document = json.loads(receipt.read_bytes())
+    assert observed == [("full", tested_main)]
+    raw = receipt.read_bytes()
+    document = json.loads(raw)
     assert set(document) == {
         "collections", "log_path", "log_sha256", "nodes", "schema_version",
         "status", "submodules", "tested_main", "wave_tip",
@@ -696,17 +737,13 @@ def test_mixed_non_attributable_and_flake_receipt_is_tool_complete(
         _summary_log((("FAILED", red), ("ERROR", flake))),
     )
     receipt = tmp_path / "receipt.json"
-    observed: list[tuple[str, str]] = []
+    observed: list[tuple[str, tuple[str, ...]]] = []
 
-    def node_runner(worktree: Path, nodeid: str) -> int:
+    def node_runner(worktree: Path, nodeids: Sequence[str]) -> CAR._PytestRunResult:
         observed.append(
-            (_git(worktree, "rev-parse", "HEAD").stdout.strip(), nodeid)
+            (_git(worktree, "rev-parse", "HEAD").stdout.strip(), tuple(nodeids))
         )
-        if nodeid == red:
-            return 1
-        if nodeid == flake:
-            return 0
-        raise AssertionError(f"unexpected nodeid: {nodeid}")
+        return _run_result(0)
 
     assert CAR.main(
         _arguments(
@@ -717,11 +754,10 @@ def test_mixed_non_attributable_and_flake_receipt_is_tool_complete(
             wave_tip=wave_tip,
         ),
         repo_root=repo,
+        full_runner=lambda _worktree: _full_result(red),
         node_runner=node_runner,
     ) == 0
-    assert observed.count((tested_main, red)) == 1
-    assert observed.count((tested_main, flake)) == 1
-    assert observed.count((wave_tip, flake)) == 1
+    assert observed == [(wave_tip, (flake,))]
 
     document = json.loads(receipt.read_bytes())
     assert set(document) == {
@@ -755,8 +791,6 @@ def test_wave_rerun_rc_outside_zero_or_one_fails_closed(
     repo, tested_main, probe_root = committed_repo
     wave_tip = _advance_wave_tip(repo)
     log = _write_log(tmp_path, _summary_log((("FAILED", _NON_ATTRIBUTABLE),)))
-    outcomes = iter((0, 2))
-
     assert CAR.main(
         _arguments(
             log,
@@ -766,7 +800,8 @@ def test_wave_rerun_rc_outside_zero_or_one_fails_closed(
             wave_tip=wave_tip,
         ),
         repo_root=repo,
-        node_runner=lambda _worktree, _nodeid: next(outcomes),
+        full_runner=lambda _worktree: _full_result(),
+        node_runner=lambda _worktree, _nodeids: (2, ()),
     ) == 2
     assert not (tmp_path / "receipt.json").exists()
 
@@ -809,7 +844,7 @@ def test_probe_worktree_head_change_after_node_fails_closed(
     )
     reached = False
 
-    def move_probe_head(worktree: Path, _nodeid: str) -> int:
+    def move_probe_head(worktree: Path) -> CAR._PytestRunResult:
         nonlocal reached
         reached = True
         _git(
@@ -828,7 +863,7 @@ def test_probe_worktree_head_change_after_node_fails_closed(
     assert CAR.main(
         _arguments(log, tested_main, tmp_path / "receipt.json", probe_root),
         repo_root=repo,
-        node_runner=move_probe_head,
+        full_runner=move_probe_head,
     ) == 2
     assert reached
     assert list(probe_root.iterdir()) == []
@@ -841,9 +876,9 @@ def test_wave_probe_head_change_after_node_fails_closed(
     wave_tip = _advance_wave_tip(repo)
     log = _write_log(tmp_path, _summary_log((("FAILED", _NON_ATTRIBUTABLE),)))
 
-    def move_wave_probe_head(worktree: Path, _nodeid: str) -> int:
-        if _git(worktree, "rev-parse", "HEAD").stdout.strip() == tested_main:
-            return 0
+    def move_wave_probe_head(
+        worktree: Path, _nodeids: Sequence[str]
+    ) -> CAR._PytestRunResult:
         _git(
             worktree,
             "-c",
@@ -866,6 +901,7 @@ def test_wave_probe_head_change_after_node_fails_closed(
             wave_tip=wave_tip,
         ),
         repo_root=repo,
+        full_runner=lambda _worktree: _full_result(),
         node_runner=move_wave_probe_head,
     ) == 2
     assert list(probe_root.iterdir()) == []
@@ -878,13 +914,13 @@ def test_wave_probe_fingerprint_change_after_node_fails_closed(
     wave_tip = _advance_wave_tip(repo)
     log = _write_log(tmp_path, _summary_log((("FAILED", _NON_ATTRIBUTABLE),)))
 
-    def contaminate_wave_probe(worktree: Path, _nodeid: str) -> int:
-        if _git(worktree, "rev-parse", "HEAD").stdout.strip() == tested_main:
-            return 0
+    def contaminate_wave_probe(
+        worktree: Path, _nodeids: Sequence[str]
+    ) -> CAR._PytestRunResult:
         cache = worktree / "__pycache__"
         cache.mkdir()
         (cache / "marker.pyc").write_bytes(b"pollution")
-        return 1
+        return _run_result(1, _NON_ATTRIBUTABLE)
 
     assert CAR.main(
         _arguments(
@@ -895,12 +931,294 @@ def test_wave_probe_fingerprint_change_after_node_fails_closed(
             wave_tip=wave_tip,
         ),
         repo_root=repo,
+        full_runner=lambda _worktree: _full_result(),
         node_runner=contaminate_wave_probe,
     ) == 2
     assert list(probe_root.iterdir()) == []
 
 
-def test_each_node_uses_a_fresh_probe_worktree(
+def test_worktree_add_rc128_retries_once_and_succeeds(
+    tmp_path: Path,
+    committed_repo: tuple[Path, str, Path],
+) -> None:
+    repo, tested_main, probe_root = committed_repo
+    log = _write_log(tmp_path, _summary_log((("FAILED", _NON_ATTRIBUTABLE),)))
+    add_attempts = 0
+    sleeps: list[float] = []
+
+    def command_runner(command: Sequence[str], **kwargs):
+        nonlocal add_attempts
+        values = list(command)
+        if len(values) >= 5 and values[3:5] == ["worktree", "add"]:
+            add_attempts += 1
+            if add_attempts == 1:
+                return subprocess.CompletedProcess(values, 128, "", "busy")
+        return subprocess.run(values, **kwargs)
+
+    assert CAR.main(
+        _arguments(log, tested_main, tmp_path / "receipt.json", probe_root),
+        repo_root=repo,
+        full_runner=lambda _worktree: _full_result(_NON_ATTRIBUTABLE),
+        collection_runner=lambda _worktree: (_NON_ATTRIBUTABLE,),
+        command_runner=command_runner,
+        sleeper=sleeps.append,
+    ) == 0
+    assert add_attempts == 2
+    assert sleeps == [1.0]
+    assert list(probe_root.iterdir()) == []
+
+
+def test_worktree_add_rc128_twice_fails_after_one_retry(
+    tmp_path: Path,
+    committed_repo: tuple[Path, str, Path],
+) -> None:
+    repo, tested_main, probe_root = committed_repo
+    log = _write_log(tmp_path, _summary_log((("FAILED", _NON_ATTRIBUTABLE),)))
+    add_attempts = 0
+    sleeps: list[float] = []
+
+    def command_runner(command: Sequence[str], **kwargs):
+        nonlocal add_attempts
+        values = list(command)
+        if len(values) >= 5 and values[3:5] == ["worktree", "add"]:
+            add_attempts += 1
+            if add_attempts > 2:
+                raise AssertionError("worktree add retry exceeded one retry")
+            return subprocess.CompletedProcess(values, 128, "", "busy")
+        return subprocess.run(values, **kwargs)
+
+    assert CAR.main(
+        _arguments(log, tested_main, tmp_path / "receipt.json", probe_root),
+        repo_root=repo,
+        full_runner=lambda _worktree: _full_result(_NON_ATTRIBUTABLE),
+        collection_runner=lambda _worktree: (_NON_ATTRIBUTABLE,),
+        command_runner=command_runner,
+        sleeper=sleeps.append,
+    ) == 2
+    assert add_attempts == 2
+    assert sleeps == [1.0]
+    assert list(probe_root.iterdir()) == []
+
+
+def test_worktree_add_non128_failure_is_not_retried(
+    tmp_path: Path,
+    committed_repo: tuple[Path, str, Path],
+) -> None:
+    repo, tested_main, probe_root = committed_repo
+    log = _write_log(tmp_path, _summary_log((("FAILED", _NON_ATTRIBUTABLE),)))
+    add_attempts = 0
+    sleeps: list[float] = []
+
+    def command_runner(command: Sequence[str], **kwargs):
+        nonlocal add_attempts
+        values = list(command)
+        if len(values) >= 5 and values[3:5] == ["worktree", "add"]:
+            add_attempts += 1
+            return subprocess.CompletedProcess(values, 1, "", "fatal")
+        return subprocess.run(values, **kwargs)
+
+    assert CAR.main(
+        _arguments(log, tested_main, tmp_path / "receipt.json", probe_root),
+        repo_root=repo,
+        full_runner=lambda _worktree: _full_result(_NON_ATTRIBUTABLE),
+        collection_runner=lambda _worktree: (_NON_ATTRIBUTABLE,),
+        command_runner=command_runner,
+        sleeper=sleeps.append,
+    ) == 2
+    assert add_attempts == 1
+    assert sleeps == []
+    assert list(probe_root.iterdir()) == []
+
+
+def test_worktree_remove_rc128_retries_once_and_succeeds(
+    tmp_path: Path,
+    committed_repo: tuple[Path, str, Path],
+) -> None:
+    repo, tested_main, _probe_root = committed_repo
+    parent = tmp_path / "probe-parent"
+    parent.mkdir()
+    worktree = parent / "worktree"
+    _git(repo, "worktree", "add", "--detach", str(worktree), tested_main)
+    remove_attempts = 0
+    sleeps: list[float] = []
+
+    def command_runner(command: Sequence[str], **kwargs):
+        nonlocal remove_attempts
+        values = list(command)
+        if len(values) >= 5 and values[3:5] == ["worktree", "remove"]:
+            remove_attempts += 1
+            if remove_attempts == 1:
+                return subprocess.CompletedProcess(values, 128, "", "busy")
+        return subprocess.run(values, **kwargs)
+
+    CAR._cleanup_probe(
+        repo,
+        parent,
+        worktree,
+        added=True,
+        command_runner=command_runner,
+        sleeper=sleeps.append,
+    )
+    assert remove_attempts == 2
+    assert sleeps == [1.0]
+    assert not parent.exists()
+
+
+def test_worktree_remove_rc128_twice_fails_after_one_retry(
+    tmp_path: Path,
+    committed_repo: tuple[Path, str, Path],
+) -> None:
+    repo, tested_main, _probe_root = committed_repo
+    parent = tmp_path / "probe-parent"
+    parent.mkdir()
+    worktree = parent / "worktree"
+    _git(repo, "worktree", "add", "--detach", str(worktree), tested_main)
+    remove_attempts = 0
+    sleeps: list[float] = []
+
+    def command_runner(command: Sequence[str], **kwargs):
+        nonlocal remove_attempts
+        values = list(command)
+        if len(values) >= 5 and values[3:5] == ["worktree", "remove"]:
+            remove_attempts += 1
+            if remove_attempts > 2:
+                raise AssertionError("worktree remove retry exceeded one retry")
+            return subprocess.CompletedProcess(values, 128, "", "busy")
+        return subprocess.run(values, **kwargs)
+
+    with pytest.raises(CAR.InvalidInput, match="probe cleanup failed"):
+        CAR._cleanup_probe(
+            repo,
+            parent,
+            worktree,
+            added=True,
+            command_runner=command_runner,
+            sleeper=sleeps.append,
+        )
+    assert remove_attempts == 2
+    assert sleeps == [1.0]
+    assert worktree.exists()
+
+
+def test_worktree_remove_non128_failure_is_not_retried(
+    tmp_path: Path,
+    committed_repo: tuple[Path, str, Path],
+) -> None:
+    repo, tested_main, _probe_root = committed_repo
+    parent = tmp_path / "probe-parent"
+    parent.mkdir()
+    worktree = parent / "worktree"
+    _git(repo, "worktree", "add", "--detach", str(worktree), tested_main)
+    remove_attempts = 0
+    sleeps: list[float] = []
+
+    def command_runner(command: Sequence[str], **kwargs):
+        nonlocal remove_attempts
+        values = list(command)
+        if len(values) >= 5 and values[3:5] == ["worktree", "remove"]:
+            remove_attempts += 1
+            return subprocess.CompletedProcess(values, 1, "", "fatal")
+        return subprocess.run(values, **kwargs)
+
+    with pytest.raises(CAR.InvalidInput, match="probe cleanup failed"):
+        CAR._cleanup_probe(
+            repo,
+            parent,
+            worktree,
+            added=True,
+            command_runner=command_runner,
+            sleeper=sleeps.append,
+        )
+    assert remove_attempts == 1
+    assert sleeps == []
+    assert worktree.exists()
+
+
+def test_worktree_remove_retry_rechecks_orphan_hold_after_sleep(
+    tmp_path: Path,
+    committed_repo: tuple[Path, str, Path],
+) -> None:
+    repo, tested_main, _probe_root = committed_repo
+    parent = tmp_path / "probe-parent"
+    parent.mkdir()
+    worktree = parent / "worktree"
+    _git(repo, "worktree", "add", "--detach", str(worktree), tested_main)
+    remove_attempts = 0
+    sleeps: list[float] = []
+    hold = worktree / "output" / "pegasus-dispatch" / "orphan-hold.json"
+
+    def command_runner(command: Sequence[str], **kwargs):
+        nonlocal remove_attempts
+        values = list(command)
+        if len(values) >= 5 and values[3:5] == ["worktree", "remove"]:
+            remove_attempts += 1
+            if remove_attempts > 1:
+                raise AssertionError("worktree remove retried after orphan hold")
+            return subprocess.CompletedProcess(values, 128, "", "busy")
+        return subprocess.run(values, **kwargs)
+
+    def create_hold(delay: float) -> None:
+        sleeps.append(delay)
+        hold.parent.mkdir(parents=True)
+        hold.write_text("preserve evidence\n", encoding="utf-8")
+
+    with pytest.raises(CAR.InvalidInput, match="orphan-hold"):
+        CAR._cleanup_probe(
+            repo,
+            parent,
+            worktree,
+            added=True,
+            command_runner=command_runner,
+            sleeper=create_hold,
+        )
+    assert remove_attempts == 1
+    assert sleeps == [1.0]
+    assert hold.is_file()
+    assert worktree.exists()
+    assert parent.exists()
+
+
+@pytest.mark.skipif(not hasattr(signal, "SIGTERM"), reason="SIGTERM unavailable")
+def test_worktree_remove_retry_signal_is_deferred_until_cleanup(
+    tmp_path: Path,
+    committed_repo: tuple[Path, str, Path],
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    repo, tested_main, probe_root = committed_repo
+    log = _write_log(tmp_path, _summary_log((("FAILED", _NON_ATTRIBUTABLE),)))
+    remove_attempts = 0
+    sleeps: list[float] = []
+
+    def command_runner(command: Sequence[str], **kwargs):
+        nonlocal remove_attempts
+        values = list(command)
+        if len(values) >= 5 and values[3:5] == ["worktree", "remove"]:
+            remove_attempts += 1
+            if remove_attempts == 1:
+                return subprocess.CompletedProcess(values, 128, "", "busy")
+        return subprocess.run(values, **kwargs)
+
+    def signal_during_sleep(delay: float) -> None:
+        sleeps.append(delay)
+        os.kill(os.getpid(), signal.SIGTERM)
+
+    assert CAR.main(
+        _arguments(log, tested_main, tmp_path / "receipt.json", probe_root),
+        repo_root=repo,
+        full_runner=lambda _worktree: _full_result(_NON_ATTRIBUTABLE),
+        collection_runner=lambda _worktree: (_NON_ATTRIBUTABLE,),
+        command_runner=command_runner,
+        sleeper=signal_during_sleep,
+    ) == 2
+    captured = capsys.readouterr()
+    assert "terminated by signal" in captured.err
+    assert "probe worktree cleanup did not complete" not in captured.err
+    assert remove_attempts == 2
+    assert sleeps == [1.0]
+    assert list(probe_root.iterdir()) == []
+
+
+def test_main_full_run_uses_one_probe_worktree_for_any_red_count(
     tmp_path: Path, committed_repo: tuple[Path, str, Path]
 ) -> None:
     repo, tested_main, probe_root = committed_repo
@@ -909,20 +1227,156 @@ def test_each_node_uses_a_fresh_probe_worktree(
         tmp_path,
         _summary_log((("FAILED", _NON_ATTRIBUTABLE), ("FAILED", second))),
     )
-    observed: list[Path] = []
+    observed: list[tuple[str, object]] = []
 
-    def record_worktree(worktree: Path, _nodeid: str) -> int:
-        observed.append(worktree)
-        return 1
+    def full_runner(worktree: Path) -> CAR._PytestRunResult:
+        observed.append(("full", worktree))
+        return _full_result(_NON_ATTRIBUTABLE, second)
+
+    def collection_runner(worktree: Path) -> tuple[str, ...]:
+        observed.append(("collect", worktree))
+        return (_NON_ATTRIBUTABLE, second)
 
     assert CAR.main(
         _arguments(log, tested_main, tmp_path / "receipt.json", probe_root),
         repo_root=repo,
-        node_runner=record_worktree,
+        full_runner=full_runner,
+        collection_runner=collection_runner,
     ) == 0
-    assert len(observed) == 2
-    assert len({str(path) for path in observed}) == 2
+    assert [kind for kind, _worktree in observed] == ["full", "collect"]
+    assert observed[0][1] == observed[1][1]
     assert list(probe_root.iterdir()) == []
+
+
+@pytest.mark.parametrize("red_count", [2, 26])
+def test_dispatch_count_is_constant_for_two_or_26_reds(
+    tmp_path: Path,
+    committed_repo: tuple[Path, str, Path],
+    red_count: int,
+) -> None:
+    repo, tested_main, probe_root = committed_repo
+    reds = tuple(
+        f"orchestrator/tests/test_example.py::test_generated_{index}"
+        for index in range(red_count)
+    )
+    log = _write_log(
+        tmp_path,
+        _summary_log(tuple(("FAILED", nodeid) for nodeid in reds)),
+    )
+    calls: list[str] = []
+
+    def full_runner(_worktree: Path) -> CAR._PytestRunResult:
+        calls.append("full")
+        return _full_result(*reds)
+
+    def collection_runner(_worktree: Path) -> tuple[str, ...]:
+        calls.append("collect")
+        return reds
+
+    assert CAR.main(
+        _arguments(log, tested_main, tmp_path / "receipt.json", probe_root),
+        repo_root=repo,
+        full_runner=full_runner,
+        collection_runner=collection_runner,
+        node_runner=lambda _worktree, _nodeids: pytest.fail(
+            "D is empty; wave batch must not run"
+        ),
+    ) == 0
+    assert calls == ["full", "collect"]
+
+
+def test_difference_nodes_are_one_batch_and_split_attributable_from_flake(
+    tmp_path: Path,
+    committed_repo: tuple[Path, str, Path],
+) -> None:
+    repo, tested_main, probe_root = committed_repo
+    wave_tip = _advance_wave_tip(repo)
+    red = _ATTRIBUTABLE_A
+    flake = _ATTRIBUTABLE_B
+    log = _write_log(
+        tmp_path,
+        _summary_log((("FAILED", red), ("ERROR", flake))),
+    )
+    calls: list[tuple[str, tuple[str, ...]]] = []
+
+    def node_runner(worktree: Path, nodeids: Sequence[str]) -> CAR._PytestRunResult:
+        calls.append((_git(worktree, "rev-parse", "HEAD").stdout.strip(), tuple(nodeids)))
+        return _run_result(1, red)
+
+    receipt = tmp_path / "receipt.json"
+    assert CAR.main(
+        _arguments(log, tested_main, receipt, probe_root, wave_tip=wave_tip),
+        repo_root=repo,
+        full_runner=lambda _worktree: _full_result(),
+        collection_runner=lambda _worktree: (red, flake),
+        node_runner=node_runner,
+    ) == 1
+    assert calls == [(wave_tip, (red, flake))]
+    assert [node["classification"] for node in json.loads(receipt.read_text())["nodes"]] == [
+        "attributable",
+        "flake",
+    ]
+
+
+def test_main_full_run_abnormal_rc_fails_closed_without_receipt(
+    tmp_path: Path,
+    committed_repo: tuple[Path, str, Path],
+) -> None:
+    repo, tested_main, probe_root = committed_repo
+    log = _write_log(tmp_path, _summary_log((("FAILED", _NON_ATTRIBUTABLE),)))
+    receipt = tmp_path / "receipt.json"
+    assert CAR.main(
+        _arguments(log, tested_main, receipt, probe_root),
+        repo_root=repo,
+        full_runner=lambda _worktree: (2, ()),
+        collection_runner=lambda _worktree: pytest.fail("collect must not run"),
+    ) == 2
+    assert not receipt.exists()
+
+
+def test_tip_reference_absent_from_main_collection_enters_difference_batch(
+    tmp_path: Path,
+    committed_repo: tuple[Path, str, Path],
+) -> None:
+    repo, tested_main, probe_root = committed_repo
+    new_nodeid = "orchestrator/tests/test_example.py::test_wave_only"
+    log = _write_log(tmp_path, _summary_log((("FAILED", new_nodeid),)))
+    seen: list[tuple[str, ...]] = []
+
+    def node_runner(_worktree: Path, nodeids: Sequence[str]) -> CAR._PytestRunResult:
+        seen.append(tuple(nodeids))
+        return _run_result(1, nodeids[0])
+
+    receipt = tmp_path / "receipt.json"
+    assert CAR.main(
+        _arguments(log, tested_main, receipt, probe_root),
+        repo_root=repo,
+        full_runner=lambda _worktree: _full_result(),
+        collection_runner=lambda _worktree: (_NON_ATTRIBUTABLE,),
+        node_runner=node_runner,
+    ) == 1
+    assert seen == [(f"{new_nodeid} - fixture detail",)]
+    assert json.loads(receipt.read_text(encoding="utf-8"))["nodes"][0][
+        "classification"
+    ] == "attributable"
+
+
+def test_main_reference_absent_from_its_collection_fails_closed(
+    tmp_path: Path,
+    committed_repo: tuple[Path, str, Path],
+) -> None:
+    repo, tested_main, probe_root = committed_repo
+    main_only = "orchestrator/tests/test_main_only"
+    log = _write_log(tmp_path, _summary_log((("FAILED", _NON_ATTRIBUTABLE),)))
+    receipt = tmp_path / "receipt.json"
+    assert CAR.main(
+        _arguments(log, tested_main, receipt, probe_root),
+        repo_root=repo,
+        full_runner=lambda _worktree: _full_result(main_only),
+        collection_runner=lambda _worktree: (_NON_ATTRIBUTABLE,),
+        node_runner=lambda _worktree, _nodeids: pytest.fail("batch must not run"),
+    ) == 2
+    assert not receipt.exists()
 
 
 def test_cache_only_submodule_initialization_failure_fails_closed(
@@ -976,19 +1430,19 @@ def test_initialized_submodule_uses_local_module_dir_and_file_protocol(
             observed_update_environment.update(kwargs["env"])
         return subprocess.run(values, **kwargs)
 
-    def assert_initialized(worktree: Path, _nodeid: str) -> int:
+    def assert_initialized(worktree: Path) -> CAR._PytestRunResult:
         assert (worktree / path_text / "dependency.txt").read_text(
             encoding="utf-8"
         ) == "cached dependency\n"
         assert _git(
             worktree, "config", "--get", f"submodule.{path_text}.url"
         ).stdout.strip() == str(module_dir)
-        return 1
+        return _full_result(_NON_ATTRIBUTABLE)
 
     assert CAR.main(
         _arguments(log, tested_main, receipt, probe_root),
         repo_root=repo,
-        node_runner=assert_initialized,
+        full_runner=assert_initialized,
         command_runner=observe_submodule_commands,
     ) == 0
     assert len(observed_config) == 1
@@ -1019,14 +1473,14 @@ def test_reference_uninitialized_submodule_is_not_initialized_and_is_receipted(
             submodule_updates.append(values)
         return subprocess.run(values, **kwargs)
 
-    def assert_uninitialized(worktree: Path, _nodeid: str) -> int:
+    def assert_uninitialized(worktree: Path) -> CAR._PytestRunResult:
         assert not (worktree / path_text / ".git").exists()
-        return 1
+        return _full_result(_NON_ATTRIBUTABLE)
 
     assert CAR.main(
         _arguments(log, tested_main, receipt, probe_root),
         repo_root=repo,
-        node_runner=assert_uninitialized,
+        full_runner=assert_uninitialized,
         command_runner=observe_commands,
     ) == 0
     assert submodule_updates == []
@@ -1072,16 +1526,16 @@ def test_ignored_artifact_from_node_fails_closed(
         tmp_path, _summary_log((("FAILED", _NON_ATTRIBUTABLE),))
     )
 
-    def contaminate(worktree: Path, _nodeid: str) -> int:
+    def contaminate(worktree: Path) -> CAR._PytestRunResult:
         cache = worktree / "__pycache__"
         cache.mkdir()
         (cache / "marker.pyc").write_bytes(b"pollution")
-        return 1
+        return _full_result(_NON_ATTRIBUTABLE)
 
     assert CAR.main(
         _arguments(log, tested_main, tmp_path / "receipt.json", probe_root),
         repo_root=repo,
-        node_runner=contaminate,
+        full_runner=contaminate,
     ) == 2
     assert list(probe_root.iterdir()) == []
 
@@ -1096,16 +1550,16 @@ def test_ignored_artifact_diagnostic_includes_path(
         tmp_path, _summary_log((("FAILED", _NON_ATTRIBUTABLE),))
     )
 
-    def contaminate(worktree: Path, _nodeid: str) -> int:
+    def contaminate(worktree: Path) -> CAR._PytestRunResult:
         cache = worktree / "__pycache__"
         cache.mkdir()
         (cache / "marker.pyc").write_bytes(b"pollution")
-        return 1
+        return _full_result(_NON_ATTRIBUTABLE)
 
     assert CAR.main(
         _arguments(log, tested_main, tmp_path / "receipt.json", probe_root),
         repo_root=repo,
-        node_runner=contaminate,
+        full_runner=contaminate,
     ) == 2
     captured = capsys.readouterr()
     assert "probe worktree is not clean, including ignored files" in captured.err
@@ -1123,19 +1577,19 @@ def test_ignored_artifact_diagnostic_includes_multiple_paths(
         tmp_path, _summary_log((("FAILED", _NON_ATTRIBUTABLE),))
     )
 
-    def contaminate(worktree: Path, _nodeid: str) -> int:
+    def contaminate(worktree: Path) -> CAR._PytestRunResult:
         first_cache = worktree / "__pycache__"
         first_cache.mkdir()
         (first_cache / "marker.pyc").write_bytes(b"pollution")
         second_cache = worktree / "orchestrator" / "campaign" / "__pycache__"
         second_cache.mkdir(parents=True)
         (second_cache / "marker.pyc").write_bytes(b"pollution")
-        return 1
+        return _full_result(_NON_ATTRIBUTABLE)
 
     assert CAR.main(
         _arguments(log, tested_main, tmp_path / "receipt.json", probe_root),
         repo_root=repo,
-        node_runner=contaminate,
+        full_runner=contaminate,
     ) == 2
     captured = capsys.readouterr()
     assert "!! __pycache__/" in captured.err
@@ -1155,17 +1609,17 @@ def test_ignored_artifact_diagnostic_record_limit(
         tmp_path, _summary_log((("FAILED", _NON_ATTRIBUTABLE),))
     )
 
-    def contaminate(worktree: Path, _nodeid: str) -> int:
+    def contaminate(worktree: Path) -> CAR._PytestRunResult:
         for index in range(entry_count):
             cache = worktree / f"dirty-{index:03d}" / "__pycache__"
             cache.mkdir(parents=True)
             (cache / "marker.pyc").write_bytes(b"pollution")
-        return 1
+        return _full_result(_NON_ATTRIBUTABLE)
 
     assert CAR.main(
         _arguments(log, tested_main, tmp_path / "receipt.json", probe_root),
         repo_root=repo,
-        node_runner=contaminate,
+        full_runner=contaminate,
     ) == 2
     captured = capsys.readouterr()
     if entry_count == 64:
@@ -1187,18 +1641,18 @@ def test_ignored_artifact_diagnostic_byte_limit(
     entry_count = 40
     assert entry_count < 64
 
-    def contaminate(worktree: Path, _nodeid: str) -> int:
+    def contaminate(worktree: Path) -> CAR._PytestRunResult:
         for index in range(entry_count):
             directory = f"dirty-{index:02d}-" + ("x" * 190)
             cache = worktree / directory / "__pycache__"
             cache.mkdir(parents=True)
             (cache / "marker.pyc").write_bytes(b"pollution")
-        return 1
+        return _full_result(_NON_ATTRIBUTABLE)
 
     assert CAR.main(
         _arguments(log, tested_main, tmp_path / "receipt.json", probe_root),
         repo_root=repo,
-        node_runner=contaminate,
+        full_runner=contaminate,
     ) == 2
     captured = capsys.readouterr()
     summary = next(
@@ -1222,14 +1676,14 @@ def test_sigterm_cleans_active_probe_before_nonzero_exit(
         tmp_path, _summary_log((("FAILED", _NON_ATTRIBUTABLE),))
     )
 
-    def terminate(_worktree: Path, _nodeid: str) -> int:
+    def terminate(_worktree: Path) -> CAR._PytestRunResult:
         os.kill(os.getpid(), signal.SIGTERM)
         raise AssertionError("signal handler must interrupt the runner")
 
     assert CAR.main(
         _arguments(log, tested_main, tmp_path / "receipt.json", probe_root),
         repo_root=repo,
-        node_runner=terminate,
+        full_runner=terminate,
     ) == 2
     assert list(probe_root.iterdir()) == []
     assert str(probe_root) not in _git(repo, "worktree", "list", "--porcelain").stdout
@@ -1337,13 +1791,13 @@ def test_probe_worktree_is_removed_on_failure(
         tmp_path, _summary_log((("FAILED", _NON_ATTRIBUTABLE),))
     )
 
-    def fail_runner(_worktree: Path, _nodeid: str) -> int:
+    def fail_runner(_worktree: Path) -> CAR._PytestRunResult:
         raise RuntimeError("injected runner failure")
 
     assert CAR.main(
         _arguments(log, tested_main, tmp_path / "receipt.json", probe_root),
         repo_root=repo,
-        node_runner=fail_runner,
+        full_runner=fail_runner,
     ) == 2
     assert list(probe_root.iterdir()) == []
     assert str(probe_root) not in _git(repo, "worktree", "list", "--porcelain").stdout
@@ -1368,7 +1822,7 @@ def test_probe_cleanup_failure_returns_invalid_input(
     assert CAR.main(
         _arguments(log, tested_main, tmp_path / "receipt.json", probe_root),
         repo_root=repo,
-        node_runner=lambda _worktree, _nodeid: 1,
+        full_runner=lambda _worktree: _full_result(_NON_ATTRIBUTABLE),
         command_runner=failed_remove_after_real_cleanup,
     ) == 2
     assert list(probe_root.iterdir()) == []
@@ -1386,7 +1840,7 @@ def test_receipt_binds_log_hash_and_tested_main(
     assert CAR.main(
         _arguments(log, tested_main, receipt, probe_root),
         repo_root=repo,
-        node_runner=lambda _worktree, _nodeid: 1,
+        full_runner=lambda _worktree: _full_result(_NON_ATTRIBUTABLE),
     ) == 0
     document = json.loads(receipt.read_text(encoding="utf-8"))
     assert document["log_path"] == str(log)
@@ -1413,7 +1867,7 @@ def test_receipt_binds_log_hash_and_tested_main(
     assert receipt.read_bytes() == canonical
 
 
-def test_default_seam_forces_dispatch_for_collection_and_rerun(
+def test_default_seam_forces_dispatch_for_full_run_and_collection(
     tmp_path: Path, committed_repo: tuple[Path, str, Path]
 ) -> None:
     repo, tested_main, probe_root = committed_repo
@@ -1452,23 +1906,21 @@ def test_default_seam_forces_dispatch_for_collection_and_rerun(
         command_runner=command_runner,
     ) == 0
     assert len(observed) == 2
-    collection, rerun = observed
-    assert collection[0] == sys.executable
-    assert collection[1] == rerun[1]
-    assert Path(collection[1]).parts[-2:] == ("tools", "run_tests.py")
+    full, collection = observed
+    assert full[0] == sys.executable
+    assert full[1] == collection[1]
+    assert Path(full[1]).parts[-2:] == ("tools", "run_tests.py")
+    assert full[2:] == [
+        "--force-dispatch",
+        "-p",
+        "no:cacheprovider",
+    ]
     assert collection[2:] == [
         "--force-dispatch",
         "-p",
         "no:cacheprovider",
         "--collect-only",
         "-q",
-        "orchestrator/tests/test_example.py",
-    ]
-    assert rerun[2:] == [
-        "--force-dispatch",
-        "-p",
-        "no:cacheprovider",
-        _NON_ATTRIBUTABLE,
     ]
 
 
@@ -1510,6 +1962,7 @@ def test_truncated_relay_uses_complete_dispatch_receipt(
     assert CAR.main(
         _arguments(log, tested_main, tmp_path / "receipt.json", probe_root),
         repo_root=repo,
+        full_runner=lambda _worktree: _full_result(_NON_ATTRIBUTABLE),
         command_runner=command_runner,
     ) == 0
     assert list(probe_root.iterdir()) == []
@@ -1542,20 +1995,22 @@ def test_truncated_relay_without_receipt_fails_closed_before_rerun(
     assert CAR.main(
         _arguments(log, tested_main, tmp_path / "receipt.json", probe_root),
         repo_root=repo,
+        full_runner=lambda _worktree: _full_result(_NON_ATTRIBUTABLE),
         command_runner=command_runner,
     ) == 2
     assert not rerun_reached
 
 
-def test_dispatch_receipt_outside_probe_root_fails_closed_before_rerun(
+def test_dispatch_receipt_outside_probe_root_fails_closed_before_wave_batch(
     tmp_path: Path, committed_repo: tuple[Path, str, Path]
 ) -> None:
     repo, tested_main, probe_root = committed_repo
     log = _write_log(tmp_path, _summary_log((("FAILED", _NON_ATTRIBUTABLE),)))
-    rerun_reached = False
+    full_run_reached = False
+    wave_batch_reached = False
 
     def command_runner(command: Sequence[str], **kwargs):
-        nonlocal rerun_reached
+        nonlocal full_run_reached, wave_batch_reached
         values = list(command)
         if len(values) >= 2 and Path(values[1]).name == "run_tests.py":
             if "--collect-only" in values:
@@ -1572,7 +2027,10 @@ def test_dispatch_receipt_outside_probe_root_fails_closed_before_rerun(
                     ),
                     receipt_root=tmp_path / "foreign-dispatch",
                 )
-            rerun_reached = True
+            if len(values) > 5:
+                wave_batch_reached = True
+            else:
+                full_run_reached = True
             return _non_attributable_rerun(values)
         return subprocess.run(values, **kwargs)
 
@@ -1581,7 +2039,8 @@ def test_dispatch_receipt_outside_probe_root_fails_closed_before_rerun(
         repo_root=repo,
         command_runner=command_runner,
     ) == 2
-    assert not rerun_reached
+    assert full_run_reached
+    assert not wave_batch_reached
 
 
 def test_dispatch_collection_receipt_requires_bound_request_args(
@@ -1763,15 +2222,16 @@ def test_dispatch_receipt_replacement_character_fails_closed(
     ) == 2
 
 
-def test_collection_footer_count_mismatch_fails_closed_before_rerun(
+def test_collection_footer_count_mismatch_fails_closed_before_wave_batch(
     tmp_path: Path, committed_repo: tuple[Path, str, Path]
 ) -> None:
     repo, tested_main, probe_root = committed_repo
     log = _write_log(tmp_path, _summary_log((("FAILED", _NON_ATTRIBUTABLE),)))
-    rerun_reached = False
+    full_run_reached = False
+    wave_batch_reached = False
 
     def command_runner(command: Sequence[str], **kwargs):
-        nonlocal rerun_reached
+        nonlocal full_run_reached, wave_batch_reached
         values = list(command)
         if len(values) >= 2 and Path(values[1]).name == "run_tests.py":
             if "--collect-only" in values:
@@ -1781,7 +2241,10 @@ def test_collection_footer_count_mismatch_fails_closed_before_rerun(
                     _NON_ATTRIBUTABLE + "\n\n2 tests collected in 0.01s\n",
                     "",
                 )
-            rerun_reached = True
+            if len(values) > 5:
+                wave_batch_reached = True
+            else:
+                full_run_reached = True
             return _non_attributable_rerun(values)
         return subprocess.run(values, **kwargs)
 
@@ -1790,7 +2253,8 @@ def test_collection_footer_count_mismatch_fails_closed_before_rerun(
         repo_root=repo,
         command_runner=command_runner,
     ) == 2
-    assert not rerun_reached
+    assert full_run_reached
+    assert not wave_batch_reached
 
 
 def test_collection_footer_missing_fails_closed_on_production_path(
@@ -1798,15 +2262,19 @@ def test_collection_footer_missing_fails_closed_on_production_path(
 ) -> None:
     repo, tested_main, probe_root = committed_repo
     log = _write_log(tmp_path, _summary_log((("FAILED", _NON_ATTRIBUTABLE),)))
-    rerun_reached = False
+    full_run_reached = False
+    wave_batch_reached = False
 
     def command_runner(command: Sequence[str], **kwargs):
-        nonlocal rerun_reached
+        nonlocal full_run_reached, wave_batch_reached
         values = list(command)
         if len(values) >= 2 and Path(values[1]).name == "run_tests.py":
             if "--collect-only" in values:
                 return subprocess.CompletedProcess(values, 0, _NON_ATTRIBUTABLE + "\n", "")
-            rerun_reached = True
+            if len(values) > 5:
+                wave_batch_reached = True
+            else:
+                full_run_reached = True
             return _non_attributable_rerun(values)
         return subprocess.run(values, **kwargs)
 
@@ -1815,7 +2283,8 @@ def test_collection_footer_missing_fails_closed_on_production_path(
         repo_root=repo,
         command_runner=command_runner,
     ) == 2
-    assert not rerun_reached
+    assert full_run_reached
+    assert not wave_batch_reached
 
 
 def test_single_test_collection_footer_is_accepted(
@@ -2086,7 +2555,7 @@ def test_checker_receipt_records_collection_provenance(
         command_runner=command_runner,
     ) == 0
     collection = json.loads(receipt.read_text(encoding="utf-8"))["collections"][0]
-    assert collection["path"] == "orchestrator/tests/test_example.py"
+    assert collection["path"] == ""
     assert collection["source"] == "dispatch-receipt"
     assert "receipt_path" not in collection
     assert collection["deleted_receipt_path"].endswith(
@@ -2343,7 +2812,7 @@ def test_collection_duplicate_or_invalid_footer_fails_closed(
     ) == 2
 
 
-def test_each_logged_path_has_an_independent_complete_collection_gate(
+def test_full_collection_gate_runs_once_for_all_red_paths(
     tmp_path: Path, committed_repo: tuple[Path, str, Path]
 ) -> None:
     repo, tested_main, probe_root = committed_repo
@@ -2354,33 +2823,194 @@ def test_each_logged_path_has_an_independent_complete_collection_gate(
             (("FAILED", _NON_ATTRIBUTABLE), ("ERROR", second))
         ),
     )
-    collected_targets: list[str] = []
+    collection_calls: list[Path] = []
 
-    def command_runner(command: Sequence[str], **kwargs):
-        values = list(command)
-        if len(values) >= 2 and Path(values[1]).name == "run_tests.py":
-            if "--collect-only" in values:
-                target = values[-1]
-                collected_targets.append(target)
-                selected = _NON_ATTRIBUTABLE if target.endswith("test_example.py") else second
-                return subprocess.CompletedProcess(
-                    values, 0, selected + "\n\n1 test collected in 0.01s\n", ""
-                )
-            selector = values[-1]
-            return subprocess.CompletedProcess(
-                values, 1, _summary_log((("FAILED", selector),)), ""
-            )
-        return subprocess.run(values, **kwargs)
+    def collection_runner(worktree: Path) -> tuple[str, ...]:
+        collection_calls.append(worktree)
+        return (_NON_ATTRIBUTABLE, second)
 
     assert CAR.main(
         _arguments(log, tested_main, tmp_path / "receipt.json", probe_root),
         repo_root=repo,
-        command_runner=command_runner,
+        full_runner=lambda _worktree: _full_result(_NON_ATTRIBUTABLE, second),
+        collection_runner=collection_runner,
+        node_runner=lambda _worktree, _nodeids: pytest.fail(
+            "D is empty; wave batch must not run"
+        ),
     ) == 0
-    assert collected_targets == [
-        "orchestrator/tests/test_example.py",
-        "orchestrator/tests/test_second.py",
+    assert len(collection_calls) == 1
+
+
+def test_collection_missing_main_reference_fails_closed_before_batch(
+    tmp_path: Path,
+    committed_repo: tuple[Path, str, Path],
+) -> None:
+    repo, tested_main, probe_root = committed_repo
+    second = "orchestrator/tests/test_example.py::test_non_attributable_two"
+    log = _write_log(
+        tmp_path,
+        _summary_log((
+            ("FAILED", _NON_ATTRIBUTABLE),
+            ("ERROR", second),
+        )),
+    )
+    node_calls: list[tuple[str, ...]] = []
+
+    def node_runner(_worktree: Path, nodeids: Sequence[str]) -> CAR._PytestRunResult:
+        node_calls.append(tuple(nodeids))
+        return _run_result(1, second)
+
+    receipt = tmp_path / "receipt.json"
+    assert CAR.main(
+        _arguments(log, tested_main, receipt, probe_root),
+        repo_root=repo,
+        full_runner=lambda _worktree: _full_result(_NON_ATTRIBUTABLE, second),
+        node_runner=node_runner,
+        collection_runner=lambda _worktree: (_NON_ATTRIBUTABLE,),
+    ) == 2
+    assert node_calls == []
+    assert not receipt.exists()
+
+
+def test_tip_suffix_not_in_main_collection_is_a_wave_difference(
+    tmp_path: Path,
+    committed_repo: tuple[Path, str, Path],
+) -> None:
+    repo, tested_main, probe_root = committed_repo
+    reference = "orchestrator/tests/test_example.py::test_target[param]"
+    log = _write_log(tmp_path, _summary_log((("FAILED", reference),)))
+    node_calls: list[tuple[str, ...]] = []
+
+    def node_runner(_worktree: Path, nodeids: Sequence[str]) -> CAR._PytestRunResult:
+        node_calls.append(tuple(nodeids))
+        return _run_result(0)
+
+    receipt = tmp_path / "receipt.json"
+    assert CAR.main(
+        _arguments(log, tested_main, receipt, probe_root),
+        repo_root=repo,
+        node_runner=node_runner,
+        full_runner=lambda _worktree: _full_result(),
+        collection_runner=lambda _worktree: (
+            "orchestrator/tests/test_example.py::test_target",
+        ),
+    ) == 0
+    assert node_calls == [(f"{reference} - fixture detail",)]
+
+
+def test_same_tip_and_path_two_nodes_are_normally_nonattributable(
+    tmp_path: Path,
+    committed_repo: tuple[Path, str, Path],
+) -> None:
+    repo, tested_main, probe_root = committed_repo
+    second = "orchestrator/tests/test_example.py::test_non_attributable_two"
+    log = _write_log(
+        tmp_path,
+        _summary_log((
+            ("FAILED", _NON_ATTRIBUTABLE),
+            ("ERROR", second),
+        )),
+    )
+    receipt = tmp_path / "receipt.json"
+    assert CAR.main(
+        _arguments(log, tested_main, receipt, probe_root),
+        repo_root=repo,
+        full_runner=lambda _worktree: _full_result(_NON_ATTRIBUTABLE, second),
+        collection_runner=lambda _worktree: (_NON_ATTRIBUTABLE, second),
+    ) == 0
+    document = json.loads(receipt.read_text(encoding="utf-8"))
+    assert document["status"] == "non-attributable-only"
+    assert document["nodes"]
+    assert len(document["collections"]) == 1
+
+
+def test_folded_collection_receipt_is_tool_complete(
+    tmp_path: Path,
+    committed_repo: tuple[Path, str, Path],
+) -> None:
+    repo, tested_main, probe_root = committed_repo
+    second = "orchestrator/tests/test_example.py::test_non_attributable_two"
+    log = _write_log(
+        tmp_path,
+        _summary_log((
+            ("FAILED", _NON_ATTRIBUTABLE),
+            ("ERROR", second),
+        )),
+    )
+    receipt = tmp_path / "receipt.json"
+    assert CAR.main(
+        _arguments(log, tested_main, receipt, probe_root),
+        repo_root=repo,
+        full_runner=lambda _worktree: _full_result(_NON_ATTRIBUTABLE, second),
+        collection_runner=lambda _worktree: (_NON_ATTRIBUTABLE, second),
+    ) == 0
+    document = json.loads(receipt.read_text(encoding="utf-8"))
+    assert document["status"] == "non-attributable-only"
+    assert set(document) == {
+        "collections", "log_path", "log_sha256", "nodes", "schema_version",
+        "status", "submodules", "tested_main", "wave_tip",
+    }
+    assert document["schema_version"] == "izanagi-acceptance-red-check/v1"
+    assert document["tested_main"] == tested_main
+    assert document["wave_tip"] == tested_main
+    assert document["log_path"] == str(log)
+    assert document["log_sha256"] == hashlib.sha256(log.read_bytes()).hexdigest()
+    assert document["submodules"] == []
+    assert document["nodes"] == [
+        {
+            "classification": "non-attributable",
+            "nodeid": _NON_ATTRIBUTABLE,
+            "rerun_rc": 1,
+        },
+        {
+            "classification": "non-attributable",
+            "nodeid": second,
+            "rerun_rc": 1,
+        },
     ]
+    assert document["collections"] == [
+        {
+            "deleted_receipt_path": None,
+            "path": "",
+            "request_id": None,
+            "source": "injected-runner",
+            "stdout_sha256": None,
+            "submission_nonce": None,
+        }
+    ]
+
+
+def test_collection_receipt_has_one_complete_main_entry(
+    tmp_path: Path,
+    committed_repo: tuple[Path, str, Path],
+) -> None:
+    repo, tested_main, probe_root = committed_repo
+    second = "orchestrator/tests/test_second.py::test_red"
+    log = _write_log(
+        tmp_path,
+        _summary_log((
+            ("FAILED", _NON_ATTRIBUTABLE),
+            ("ERROR", second),
+        )),
+    )
+    receipt = tmp_path / "receipt.json"
+    assert CAR.main(
+        _arguments(log, tested_main, receipt, probe_root),
+        repo_root=repo,
+        full_runner=lambda _worktree: _full_result(_NON_ATTRIBUTABLE, second),
+        collection_runner=lambda _worktree: (_NON_ATTRIBUTABLE, second),
+    ) == 0
+
+    document = json.loads(receipt.read_text(encoding="utf-8"))
+    assert [item["path"] for item in document["collections"]] == [""]
+    assert len(document["collections"]) == 1
+    assert all(
+        set(item) == {
+            "deleted_receipt_path", "path", "request_id", "source",
+            "stdout_sha256", "submission_nonce",
+        }
+        for item in document["collections"]
+    )
 
 
 def test_injected_collection_failure_cannot_reach_rerun_or_status(
@@ -2391,13 +3021,13 @@ def test_injected_collection_failure_cannot_reach_rerun_or_status(
     repo, tested_main, probe_root = committed_repo
     log = _write_log(tmp_path, _summary_log((("FAILED", _NON_ATTRIBUTABLE),)))
 
-    def fail_collection(_worktree: Path, _path_text: str) -> tuple[str, ...]:
+    def fail_collection(_worktree: Path) -> tuple[str, ...]:
         raise CAR.InvalidInput("injected incomplete collection")
 
     assert CAR.main(
         _arguments(log, tested_main, tmp_path / "receipt.json", probe_root),
         repo_root=repo,
-        node_runner=_unexpected_runner,
+        full_runner=lambda _worktree: _full_result(_NON_ATTRIBUTABLE),
         collection_runner=fail_collection,
     ) == 2
     captured = capsys.readouterr()
@@ -2413,21 +3043,20 @@ def test_xdist_group_suffix_is_removed_only_from_rerun_selector(
     logged_nodeid = _NON_ATTRIBUTABLE + "@real-repo"
     log = _write_log(tmp_path, _summary_log((("FAILED", logged_nodeid),)))
     receipt = tmp_path / "receipt.json"
-    observed: list[str] = []
+    observed: list[tuple[str, ...]] = []
 
-    def node_runner(_worktree: Path, selector: str) -> int:
-        observed.append(selector)
-        return 1
+    def node_runner(_worktree: Path, nodeids: Sequence[str]) -> CAR._PytestRunResult:
+        observed.append(tuple(nodeids))
+        return _run_result(1, _NON_ATTRIBUTABLE)
 
     assert CAR.main(
         _arguments(log, tested_main, receipt, probe_root),
         repo_root=repo,
+        full_runner=lambda _worktree: _full_result(),
         node_runner=node_runner,
-    ) == 0
-    assert observed == [_NON_ATTRIBUTABLE]
-    assert json.loads(receipt.read_text(encoding="utf-8"))["nodes"][0][
-        "nodeid"
-    ] == logged_nodeid
+    ) == 1
+    assert observed == [(_NON_ATTRIBUTABLE,)]
+    assert json.loads(receipt.read_text(encoding="utf-8"))["nodes"][0]["nodeid"] == logged_nodeid
 
 
 @pytest.mark.parametrize(
@@ -2444,31 +3073,41 @@ def test_collection_preserves_literal_nodeid_suffixes(
 ) -> None:
     repo, tested_main, probe_root = committed_repo
     log = _write_log(tmp_path, _summary_log((("FAILED", literal_nodeid),)))
-    observed: list[str] = []
+    observed: list[tuple[str, ...]] = []
 
-    def node_runner(_worktree: Path, selector: str) -> int:
-        observed.append(selector)
-        return 1
+    def node_runner(_worktree: Path, nodeids: Sequence[str]) -> CAR._PytestRunResult:
+        observed.append(tuple(nodeids))
+        return _run_result(1, literal_nodeid)
 
     assert CAR.main(
         _arguments(log, tested_main, tmp_path / "receipt.json", probe_root),
         repo_root=repo,
+        full_runner=lambda _worktree: _full_result(),
         node_runner=node_runner,
-    ) == 0
-    assert observed == [literal_nodeid]
+    ) == 1
+    assert observed == [(literal_nodeid,)]
 
 
-def test_uncollected_logged_nodeid_fails_closed_without_rerun(
+def test_uncollected_logged_nodeid_is_wave_difference(
     tmp_path: Path, committed_repo: tuple[Path, str, Path]
 ) -> None:
     repo, tested_main, probe_root = committed_repo
     unknown = "orchestrator/tests/test_example.py::test_not_collected"
     log = _write_log(tmp_path, _summary_log((("FAILED", unknown),)))
+    observed: list[tuple[str, ...]] = []
+
+    def node_runner(_worktree: Path, nodeids: Sequence[str]) -> CAR._PytestRunResult:
+        observed.append(tuple(nodeids))
+        return _run_result(0)
+
     assert CAR.main(
         _arguments(log, tested_main, tmp_path / "receipt.json", probe_root),
         repo_root=repo,
-        node_runner=_unexpected_runner,
-    ) == 2
+        full_runner=lambda _worktree: _full_result(),
+        collection_runner=lambda _worktree: (_NON_ATTRIBUTABLE,),
+        node_runner=node_runner,
+    ) == 0
+    assert observed == [(f"{unknown} - fixture detail",)]
     assert list(probe_root.iterdir()) == []
 
 
