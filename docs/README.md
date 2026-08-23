@@ -49,9 +49,15 @@
 - `related-work/` — 関連研究 (README.md が本体 + shinka-deepdive.md 付録 + literature-map/ 文献マップ + notes/ 調査ノート)
 - `paper-story/` — 論文ストーリーの横断合成 (日付付き凍結スナップショットを束ねる、詳細は同 README)
 - `roadmap-history/` — roadmap の版凍結置き場 (改訂セレモニーの正本 = 同 README)
+- `phase3-t189-model-routing-preregistration.md` — model 経路 (sol / luna) 比較実験の事前登録。
+  未解決点の処遇は D674 で確定済み。素材の到達状況 (task catalog・price snapshot) は同書 §13 と総括が正本
+- `phase3-t189-task-catalog-classification.md` — 上記 §6.2 の task type 4 層の分類基準 (`t189-task-type/v1`)。
+  D674 が独立分類者2名の署名を見送ったため、公開基準による自前分類の規則と限界を置く正本。
+  分類結果の実体は `output/t189-routing-preregistration/task-type-classification-v1.json`
 - `phase3-s*.md`・`phase3-8b-*.md`・`phase3-8c-*.md` — 現行 phase doc の従属文書 (段の設計書・手順書)。段ごとの内訳は phase3.md から辿る (段番号をここに列挙しない — 段の追加で腐るため)
 - `freeze-permanent-design.md` — freeze 族の恒久設計の正本 ([T-080]、R1..R16 承認済み 2026-07-22)
 - `calibration-freeze-authority-bundle-design.md` — 較正 (環境契約の活性化) と凍結 (ratified freeze の世代) を束ねる**上位層**の恒久設計 ([T-657] R3。段 0 実施中で status は `incomplete`、裁定の状態は同書 §12、正本の precedence 規則は同書 §1)。freeze 族**内部**の設計正本は `freeze-permanent-design.md` と `freeze-permanent-design-s2.md` の 2 件
+- `env-contract-activation-prerequisites.md` — pegasus g1→g2 activation の必要条件・現在値・証拠・未充足理由・owner を引く日付付き readiness index。条件の意味と値の正本は同書が指す code / record / decision / fixture manifest
 - `freeze-permanent-design-s2.md` — 第 2 設計段パッケージ (§13 の exact 化 + 変異事前登録候補。段完了で凍結する design 族。未了事項は同書冒頭の状態行が正本)
 - `mutation-restore-durability-design.md` — 変異復元を grace 予算依存から journal + fsync + 再開時修復へ転換する設計 ([T-487] 起草。第一 slice = 使い捨て専有 worktree (`tools/mutation_worktree.py`) だけ実装済みで §9.1 の充足は 0/6。状態は同書冒頭、裁定軸は §9、着手範囲は §9.3 が正本)
 
