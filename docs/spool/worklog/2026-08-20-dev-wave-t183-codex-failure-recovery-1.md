@@ -89,8 +89,38 @@ title: [T-183] F43/F45型の早期分類・retry上限・fail-closed回復を実
   sealed artifact から内部再導出する形へ修正し、回帰テストを 3 本追加した。
   **「競合が無い automerge でも合成は保証されない」の実例がまた 1 つ増えた。**
 - 2026-08-20 時点で受入をブロックしていた `check_acceptance_reds.py` の probe cleanliness
-  検査は、その後 main 側で受入経路から外された ([D662] 系の運用簡素化)。本記録の時点で
-  受入全走は未実施であり、本記録 commit を含む tip に対してこれから投入する。
+  検査は、その後 main 側で受入経路から外された ([D662] 系の運用簡素化)。
+
+### 受入 1 回目が暴いた自分のバグ 2 件 — 2026-08-20 の非帰属判定は誤りだった
+
+- 受入全走 (計算ノード 48 並列、`raw_child_rc=1`) の赤 5 件のうち **4 件が本 wave 起因**
+  だった。非帰属は `test_dev_wave_cleanup.py::test_landed_attached_worktree_is_removed[unlocked]`
+  の 1 件だけである。
+- **バグ A**: F45 fail-closed の `AttemptLoopError` 送出を、attempt ループの終端判定
+  (`accepted or limit_trigger is not None` の break、`attempt_index >= max_attempts` の
+  continue、retry admission limit) より**前**に置いていた。このため次の attempt が構造的に
+  起きない走行 (`--max-attempts` 既定の 1) や launcher 自身の予算執行で終わる走行まで
+  rc=1 (not_accepted) が rc=2 (launcher_error) へ横取りされていた。送出を全終端判定の
+  後ろへ移した。F45 fail-closed の目的は「同一 prompt での**次の** attempt を止める」ことで
+  あり、止めるべき retry が無い走行で発火するのは仕様の取り違えだった。
+- **バグ B**: `_validate_attempt` が `_validator_failures()` を無条件に再読していたが、
+  `_seal_attempt` は output file 不在時に `None` を封じており、「file 不在」の扱いが
+  seal 側と検査側で非対称だった。検査側を seal 側へ揃えた。
+- **2026-08-20 の記録の訂正**: 当時 3 回の受入で毎回同じ 2 件
+  (`test_launcher_failure_diagnostic_reports_all_visible_failures_and_guard`・
+  `test_thread_missing_after_grace_kills_process_group`) が落ちたのを
+  「共有 login node の負荷による timing flake、環境要因」と結論し非帰属としたが、
+  **これは誤りだった。** 実際は上記バグ A / B であり、`codex_exit_code=-9` という
+  署名の一致だけを根拠に既知の環境要因パターンへ当てはめてしまった。
+  「3 走とも寸分違わず同じ 2 件」という当時の観測そのものが、flake ではなく決定的な
+  バグであることを示していた — 環境要因なら走行ごとに揺れるはずである。
+  **非帰属判定は署名の見た目一致でなく、赤の本文 (assertion message) まで読んで行う。**
+- 今回それを捕まえられたのは、main 側が受理締切を 3 区間へ分ける改修で新設した
+  `test_codex_worker_launch_budget.py` の 2 件が、同じバグ A を別の入口から踏んだためである。
+  自 wave のテストだけでは 3 日間見つからなかった。
+- 変異 matrix (fix 後、`mutation-spec-v1.json`): baseline PASSED (188 passed)、
+  `MF-1` (F45 gate 除去) と `MF-2` (validate 側の file 不在扱い) がともに KILLED。
+  2/2 KILLED・SURVIVED 0・MISMATCH 0。
 - login node での焦点走は launcher の timing 系が 78 件赤くなった
   (hostname=pegasus02・PBS_JOBID 未設定・`codex_exit_code=-15`・wall 予算 3 秒)。
   計算ノードへ dispatch した焦点走では新設回帰テスト 6 件が緑。
@@ -106,6 +136,9 @@ title: [T-183] F43/F45型の早期分類・retry上限・fail-closed回復を実
   妨げない設計を実装した。workspace-write の `--max-attempts>1` 拒否と `_seal_attempt` の
   accepted 7 条件 AND は無改修。テスト新設 10 関数 (15 ケース)、変異 matrix =
   baseline PASSED・4/4 KILLED・SURVIVED 0・MISMATCH 0。main 取り込みの合成監査で見つかった
-  旧 schema V1〜V3 receipt の受理集合退行も同じ branch 内で修正し、回帰テスト 3 本を足した。
+  旧 schema V1〜V3 receipt の受理集合退行、および受入 1 回目が暴いた F45 fail-closed の
+  発火範囲の誤り (バグ A) と `failure_class` 再計算の seal/検査 非対称 (バグ B) も
+  同じ branch 内で修正し、回帰テストを足した。fix 後の変異 matrix は
+  baseline PASSED・2/2 KILLED・SURVIVED 0・MISMATCH 0。
   remaining: none
   base: 72a3732e19231ef094307a36dd084b089be4041072faa9143cfe145ba5513765
