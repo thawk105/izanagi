@@ -48,37 +48,38 @@ EXPECTED_TEST_HOLD_GROUPS = (
     ),
     (
         {
-            "test_codex_reasoning_ab.py::test_agent_sandbox_binds_exclude_attempt_receipt_directory",
-            "test_codex_reasoning_ab.py::test_attempt_four_is_rejected_before_launch",
-            "test_codex_reasoning_ab.py::test_cleaned_snapshot_records_absent_commit_graph_and_keeps_closure",
-            "test_codex_reasoning_ab.py::test_f3_4_prelaunch_exception_completes_pair_and_allows_next_generation",
             "test_codex_reasoning_ab.py::test_forbidden_commits_are_unreachable_in_both_cases",
-            "test_codex_reasoning_ab.py::test_m1_snapshot_head_pin_is_independent",
-            "test_codex_reasoning_ab.py::test_m3_focus_artifact_directions",
-            "test_codex_reasoning_ab.py::test_m3_ignored_extra_and_missing",
-            "test_codex_reasoning_ab.py::test_m3_snapshot_mode_change",
-            "test_codex_reasoning_ab.py::test_m3_symbolic_head_is_required",
-            "test_codex_reasoning_ab.py::test_parent_numstat_controls_remain_pinned",
-            "test_codex_reasoning_ab.py::test_pos_neg_submodule_initialization_state_mismatch_is_rejected",
-            "test_codex_reasoning_ab.py::test_stale_commit_graph_referencing_pruned_commit_is_rejected_and_manifested",
-            "test_codex_reasoning_ab.py::test_verify_replays_complete_fake_codex_experiment",
         },
         "output_artifacts",
         (
-            "Constructs the shared real snapshot fixture by recursively "
-            "enumerating the real Codex session corpus, so cost grows with "
-            "output artifacts."
+            "Measured on 2026-08-23 in this worktree: corpus recursive enumeration "
+            'Path.rglob("rollout-*.jsonl") covered 5,505 files in 0.045 seconds, and tip '
+            "index enumeration git ls-files --stage -z covered 13,908 entries in 0.031 "
+            "seconds. This node's call took 0.01 seconds; this is a one-point observation "
+            "under concurrent execution, not a permanent value. The hold remains because "
+            "D451 does not apply: default-run barrier node "
+            "test_codex_reasoning_ab.py::test_snapshot_submodule_object_store_is_recursive "
+            "passes verify_snapshot over a clean POS snapshot. "
+            'IZANAGI_HOLD_REEVAL_V1 {"advisory":"This is a record, not an automatic release condition; no default-run evaluator exists for this sentinel, and release remains explicit-user-command-only.","barrier_nodes":["test_codex_reasoning_ab.py::test_snapshot_submodule_object_store_is_recursive"],"measured_on":"2026-08-23","observed_call_seconds":0.01}'
         ),
     ),
     (
         {
-            "test_codex_reasoning_ab.py::test_m2_production_golden_requires_both_routes",
-            "test_codex_reasoning_ab.py::test_prompt_replacement_count_zero_expected_and_excess",
+            "test_codex_reasoning_ab.py::test_parent_numstat_controls_remain_pinned",
         },
         "output_artifacts",
         (
-            "Recursively enumerates the real Codex session corpus, so cost "
-            "grows with output artifacts."
+            "Measured on 2026-08-23 in this worktree: corpus recursive enumeration "
+            'Path.rglob("rollout-*.jsonl") covered 5,505 files in 0.045 seconds, and tip '
+            "index enumeration git ls-files --stage -z covered 13,908 entries in 0.031 "
+            "seconds. This node's call took 6.91 seconds; this is a one-point observation "
+            "under concurrent execution, not a permanent value. The hold remains because "
+            "D451 does not apply: default-run barrier node "
+            "test_codex_reasoning_ab.py::test_snapshot_submodule_object_store_is_recursive "
+            "passes verify_snapshot over a clean POS snapshot, and default-run barrier node "
+            "test_codex_reasoning_ab.py::test_task_manifest_binds_frozen_provenance_to_literal_values "
+            "pins the manifest literals. "
+            'IZANAGI_HOLD_REEVAL_V1 {"advisory":"This is a record, not an automatic release condition; no default-run evaluator exists for this sentinel, and release remains explicit-user-command-only.","barrier_nodes":["test_codex_reasoning_ab.py::test_snapshot_submodule_object_store_is_recursive","test_codex_reasoning_ab.py::test_task_manifest_binds_frozen_provenance_to_literal_values"],"measured_on":"2026-08-23","observed_call_seconds":6.91}'
         ),
     ),
     (

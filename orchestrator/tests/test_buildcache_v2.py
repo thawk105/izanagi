@@ -246,7 +246,9 @@ def _build(tmp_path: Path, contract: ExecutionEnvironmentContract, *, trace: boo
            ccbench_dir: str = "", timeout_s: int | None = None,
            dependency_prefix: str = "", site: str | None = None,
            expected_toolchain_manifest=None, fetchcontent_base_dir: str = "",
-           fetchcontent_dependency_receipt=None, declared_use_class=None):
+           fetchcontent_dependency_receipt=None, declared_use_class=None,
+           masstree_source_dir=None, mimalloc_source_dir=None,
+           googletest_source_dir=None):
     genome = Genome("silo", {"BACK_OFF": 1})
     source_root = ccbench_dir or str(tmp_path / "ccbench")
     context, evidence, admission = _admission_bundle(
@@ -278,6 +280,12 @@ def _build(tmp_path: Path, contract: ExecutionEnvironmentContract, *, trace: boo
         kwargs["fetchcontent_base_dir"] = fetchcontent_base_dir
     if fetchcontent_dependency_receipt is not None:
         kwargs["fetchcontent_dependency_receipt"] = fetchcontent_dependency_receipt
+    if masstree_source_dir is not None:
+        kwargs["masstree_source_dir"] = masstree_source_dir
+    if mimalloc_source_dir is not None:
+        kwargs["mimalloc_source_dir"] = mimalloc_source_dir
+    if googletest_source_dir is not None:
+        kwargs["googletest_source_dir"] = googletest_source_dir
     return buildcache.build_v2(
         genome,
         **kwargs,
@@ -353,6 +361,7 @@ def test_v2_fetchcontent_base_is_canonical_single_define_and_receipt_in_preimage
     assert manifest["preimage"]["fetchcontent_dependency_receipt"] == (
         receipt
     )
+    assert "fetchcontent_transport_mode" not in manifest["preimage"]
     assert manifest["completion_marker"] == "complete"
     assert str(base.resolve()) not in json.dumps(
         manifest["preimage"], sort_keys=True,
@@ -564,6 +573,134 @@ def test_prepare_masstree_fetchcontent_never_emits_source_dir_override(
         token.startswith("-DFETCHCONTENT_SOURCE_DIR_")
         for command in calls for token in command
     )
+
+
+def test_prepare_masstree_fetchcontent_emits_all_three_staged_source_dirs(
+        tmp_path, monkeypatch):
+    base = tmp_path / "base"
+    source = tmp_path / "ccbench"
+    base.mkdir()
+    source.mkdir()
+    staged = {
+        name: tmp_path / f"{name}-src"
+        for name in ("masstree", "mimalloc", "googletest")
+    }
+    for path in staged.values():
+        path.mkdir()
+    calls = []
+    monkeypatch.setattr(
+        buildcache, "_run", lambda cmd, what, **kwargs: calls.append((cmd, what, kwargs)),
+    )
+    monkeypatch.setattr(
+        buildcache.site_policy, "current_site", lambda: buildcache.site_policy.OTHER,
+    )
+    result = buildcache.prepare_masstree_fetchcontent(
+        ccbench_dir=str(source.resolve()),
+        fetchcontent_base_dir=str(base.resolve()),
+        expected_toolchain_manifest={
+            role: {
+                "requested": role, "realpath": f"/tool/{role}",
+                "version_first_line": "v1", "version": "v1",
+            }
+            for role in ("cc", "cxx", "cmake")
+        },
+        configure_timeout_s=11, target_timeout_s=13,
+        masstree_source_dir=staged["masstree"].resolve(),
+        mimalloc_source_dir=staged["mimalloc"].resolve(),
+        googletest_source_dir=staged["googletest"].resolve(),
+    )
+    configure = list(result.configure_argv)
+    assert [
+        token for token in configure
+        if token.startswith("-DFETCHCONTENT_SOURCE_DIR_")
+    ] == [
+        f"-DFETCHCONTENT_SOURCE_DIR_MASSTREE={staged['masstree'].resolve()}",
+        f"-DFETCHCONTENT_SOURCE_DIR_MIMALLOC={staged['mimalloc'].resolve()}",
+        f"-DFETCHCONTENT_SOURCE_DIR_GOOGLETEST={staged['googletest'].resolve()}",
+    ]
+    assert calls[0][1] == "configure"
+    assert calls[1][1] == "build"
+
+
+def test_prepare_masstree_fetchcontent_rejects_partial_staged_source_dirs(
+        tmp_path):
+    base = tmp_path / "base"
+    source = tmp_path / "ccbench"
+    masstree = tmp_path / "masstree-src"
+    base.mkdir()
+    source.mkdir()
+    masstree.mkdir()
+    with pytest.raises(buildcache.BuildCacheError, match="3本同時指定"):
+        buildcache.prepare_masstree_fetchcontent(
+            ccbench_dir=str(source.resolve()),
+            fetchcontent_base_dir=str(base.resolve()),
+            expected_toolchain_manifest={
+                role: {
+                    "requested": role, "realpath": f"/tool/{role}",
+                    "version_first_line": "v1", "version": "v1",
+                }
+                for role in ("cc", "cxx", "cmake")
+            },
+            configure_timeout_s=11, target_timeout_s=13,
+            masstree_source_dir=masstree.resolve(),
+        )
+
+
+def test_v2_fetchcontent_transport_mode_separates_base_and_source_identity():
+    genome = Genome("silo", {"BACK_OFF": 1})
+    toolchain = {
+        role: {"requested": role, "realpath": f"/tool/{role}", "version_first_line": "v1"}
+        for role in ("cc", "cxx", "cmake")
+    }
+    kwargs = dict(
+        site="test", dependency_prefix=[], admission={"receipt": "fixture"},
+        fetchcontent_dependency_receipt=_dependency_receipt(),
+    )
+    legacy = buildcache._v2_identity(
+        genome, "a" * 40, False, "stock", "cc", "cxx", toolchain,
+        fetchcontent_transport_mode=None, **kwargs,
+    )
+    source = buildcache._v2_identity(
+        genome, "a" * 40, False, "stock", "cc", "cxx", toolchain,
+        fetchcontent_transport_mode="source-dir", **kwargs,
+    )
+    assert "fetchcontent_transport_mode" not in legacy[0]
+    assert source[0]["fetchcontent_transport_mode"] == "source-dir"
+    assert legacy[1] != source[1]
+
+
+def test_v2_source_dir_transport_reaches_configure_and_completion_identity(
+        tmp_path, monkeypatch):
+    _install_toolchain(tmp_path, monkeypatch)
+    _fake_build_environment(monkeypatch, tmp_path)
+    base = tmp_path / "fetchcontent"
+    base.mkdir()
+    receipt = _write_fetchcontent_dependency(base)
+    staged = {
+        name: base / f"{name}-src"
+        for name in ("mimalloc", "googletest")
+    }
+    for path in staged.values():
+        path.mkdir()
+    source = _build(
+        tmp_path, _contract(1), fetchcontent_base_dir=str(base.resolve()),
+        fetchcontent_dependency_receipt=receipt,
+        masstree_source_dir=str((base / "masstree-src").resolve()),
+        mimalloc_source_dir=str(staged["mimalloc"].resolve()),
+        googletest_source_dir=str(staged["googletest"].resolve()),
+    )
+    assert [
+        token for token in source.configure_argv
+        if token.startswith("-DFETCHCONTENT_SOURCE_DIR_")
+    ] == [
+        f"-DFETCHCONTENT_SOURCE_DIR_MASSTREE={base.resolve() / 'masstree-src'}",
+        f"-DFETCHCONTENT_SOURCE_DIR_MIMALLOC={staged['mimalloc'].resolve()}",
+        f"-DFETCHCONTENT_SOURCE_DIR_GOOGLETEST={staged['googletest'].resolve()}",
+    ]
+    manifest = json.loads(
+        (Path(source.build_dir) / "completion.json").read_text(encoding="utf-8")
+    )
+    assert manifest["preimage"]["fetchcontent_transport_mode"] == "source-dir"
 
 
 def _call_copyout_api(tmp_path: Path, api: str, *, trace: bool = True):

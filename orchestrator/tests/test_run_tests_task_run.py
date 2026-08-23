@@ -66,7 +66,8 @@ def test_explicit_auto_off_preserves_exact_command_and_call_shape(monkeypatch):
 
     assert RT.main(["-q"], site=RT.site_policy.OTHER) == 7
     assert called == [(([
-        sys.executable, "-m", "pytest", str(_REPO / "orchestrator" / "tests"),
+        sys.executable, "-m", "pytest",
+        str(_REPO / "orchestrator" / "tests"),
         "-n", "4", "--dist", "loadgroup", "-q",
     ],), {"cwd": str(_REPO)})]
 
@@ -167,7 +168,8 @@ def test_manual_id_keeps_pytest_argv_and_records_monotonic_result(monkeypatch, t
     target = "orchestrator/tests/test_run_tests_task_run.py"
     assert RT.main([target, "-k", "one"], site=RT.site_policy.OTHER) == 1
     assert captured["command"] == [
-        sys.executable, "-m", "pytest", str(_REPO / target), "-k", "one",
+        sys.executable, "-m", "pytest",
+        str(_REPO / target), "-k", "one",
     ]
     assert captured["cwd"] == str(_REPO)
     assert Path(captured["env"]["IZANAGI_TASK_RUN_SIDECAR"]).is_absolute()

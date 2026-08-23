@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import importlib.util
 import json
 import os
 import re
@@ -32,6 +33,7 @@ from orchestrator.qualification import artifacts
 TOOL_DIR = REPO / "tools" / "pegasus"
 SUBMIT = TOOL_DIR / "submit_floor.sh"
 JOB = TOOL_DIR / "floor_campaign.sh"
+GENERATOR = TOOL_DIR / "generate_floor_masstree_payload_policy.py"
 SHARED_POLICY = TOOL_DIR / "policy.json"
 FLOOR_POLICY = TOOL_DIR / "policies" / "floor_v1.json"
 PROTOCOL = REPO / "output" / "s8b-freeze" / "floor_protocol.json"
@@ -413,6 +415,39 @@ def _successful_bin(tmp_path: Path) -> tuple[Path, Path, Path]:
     return bin_dir, qsub_args, qsub_cwd
 
 
+def _install_floor_third_party_sources(repo: Path) -> Path:
+    """Install clean fixture checkouts and bind their pins into fixture policy."""
+    policy_path = repo / "tools" / "pegasus" / "policy.json"
+    policy = json.loads(policy_path.read_text(encoding="utf-8"))
+    source_root = (
+        repo / "output" / "env" / "pegasus" / "silo_ladder_rung1"
+        / "job-staging" / "thirdparty-src"
+    )
+    source_root.mkdir(parents=True)
+    for item in policy["silo_ladder_rung1"]["third_party_sources"]:
+        source = source_root / item["source_name"]
+        source.mkdir()
+        subprocess.run(
+            ["git", "-c", "core.hooksPath=", "init", "-q", str(source)],
+            check=True, env=_git_env(source),
+        )
+        _git(source, "config", "user.email", "fixture@example.invalid")
+        _git(source, "config", "user.name", "fixture")
+        (source / "fixture-source.txt").write_text(
+            item["name"] + "\n", encoding="utf-8",
+        )
+        _git(source, "add", ".")
+        _git(source, "commit", "-qm", "fixture source")
+        item["pin"] = _git(source, "rev-parse", "HEAD").stdout.strip()
+    policy_path.write_text(
+        json.dumps(policy, ensure_ascii=False, sort_keys=True, indent=2) + "\n",
+        encoding="utf-8",
+    )
+    _git(repo, "add", "tools/pegasus/policy.json")
+    _git(repo, "commit", "-qm", "fixture floor third-party pins")
+    return source_root
+
+
 def _submit(
     repo: Path,
     bin_dir: Path,
@@ -459,6 +494,52 @@ def test_floor_shell_syntax(script: Path) -> None:
         ["bash", "-n", str(script)], capture_output=True, text=True
     )
     assert result.returncode == 0, result.stderr
+
+
+def test_floor_masstree_policy_generator_is_independent_and_has_both_cli_inputs() -> None:
+    source = GENERATOR.read_text(encoding="utf-8")
+    assert '"--source-dir"' in source
+    assert '"--output"' in source
+    assert 'SCHEMA_VERSION = "s8b-floor-masstree-payload/v1"' in source
+    assert "s8b_floor_campaign" not in source
+    assert "buildcache" not in source
+    assert '"config_sha256"' in source
+    assert '"archive_sha256"' in source
+
+
+def test_floor_masstree_policy_generator_requires_force_to_replace_output(
+        tmp_path: Path, monkeypatch) -> None:
+    spec = importlib.util.spec_from_file_location(
+        "floor_masstree_payload_generator_fixture", GENERATOR,
+    )
+    assert spec is not None and spec.loader is not None
+    generator = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(generator)
+    output = tmp_path / "policy.json"
+    output.write_bytes(b"existing policy bytes\n")
+    source = tmp_path / "masstree-src"
+    source.mkdir()
+    monkeypatch.setattr(
+        generator, "_load_policy", lambda _path: ("fixture-url", "a" * 40),
+    )
+    monkeypatch.setattr(
+        generator, "_prepare_source", lambda source_dir, **_kwargs: source_dir,
+    )
+    monkeypatch.setattr(
+        generator, "_build_and_hash", lambda _source: ("b" * 64, "c" * 64),
+    )
+
+    assert generator.main([
+        "--source-dir", str(source), "--output", str(output),
+    ]) == 2
+    assert output.read_bytes() == b"existing policy bytes\n"
+
+    assert generator.main([
+        "--source-dir", str(source), "--output", str(output), "--force",
+    ]) == 0
+    generated = json.loads(output.read_text(encoding="utf-8"))
+    assert generated["config_sha256"] == "b" * 64
+    assert generated["archive_sha256"] == "c" * 64
 
 
 def test_floor_wrapper_preflight_rejection_is_nonmutating_and_starts_no_driver(
@@ -815,7 +896,7 @@ def test_floor_job_hardens_interpreter() -> None:
         ("$PY", "-I", "-B"): 16,
     })
     assert _shell_interpreter_invocations(submit) == Counter({
-        ("python3", "-I", "-B"): 6,
+        ("python3", "-I", "-B"): 7,
     })
     normal_checkpoint_stages = re.findall(
         r'^CURRENT_STAGE=([^\n]+)\nif ! checkpoint_event "\$CURRENT_STAGE" entered',
@@ -824,11 +905,12 @@ def test_floor_job_hardens_interpreter() -> None:
     )
     assert normal_checkpoint_stages == [
         "static-admission", "attempt-setup", "policy", "submit-binding",
+        "fetchcontent-staging",
         "source-identity", "allocation-reservation", "gflags-build",
         "glog-build", "protocol-resolution", "floor-driver", "job-result",
     ]
-    assert len(re.findall(r"(?<![A-Za-z0-9_])python3(?=\s)", submit)) == 6
-    assert submit.count("python3 -I -B") == 6
+    assert len(re.findall(r"(?<![A-Za-z0-9_])python3(?=\s)", submit)) == 7
+    assert submit.count("python3 -I -B") == 7
     assert re.search(r"(?<![A-Za-z0-9_])python3\s+(?!-I -B)", submit) is None
 
 
@@ -1867,6 +1949,8 @@ def test_floor_job_invokes_fixed_pilot_cli_without_bypass(
         "pilot",
         "--protocol",
         str(tmp_path / "repo/output/s8b-freeze/floor_protocol.json"),
+        "--fetchcontent-base-dir",
+        "/tmp/izanagi-floor-fetchcontent",
         *confirmation_argv,
     ]
     assert actual_argv.count("--confirm-irreversible-pilot-holdout") == len(
@@ -1913,7 +1997,7 @@ def test_floor_job_does_not_swallow_driver_rc() -> None:
     )
 
 
-def test_submit_floor_qsub_exports_nonce_without_third_party_cache() -> None:
+def test_submit_floor_qsub_exports_nonce_and_stages_third_party_payload() -> None:
     source = SUBMIT.read_text(encoding="utf-8")
     match = re.search(r'^export_spec="([^"]+)"$', source, re.MULTILINE)
     assert match is not None
@@ -1923,13 +2007,22 @@ def test_submit_floor_qsub_exports_nonce_without_third_party_cache() -> None:
         '  -v "$export_spec" "$JOB_SCRIPT"'
     ) in source
     assert "IZANAGI_RESERVATION_" not in match.group(1)
+    assert "FLOOR_THIRD_PARTY_PERSISTENT_ROOT" in source
+    assert "masstree-payload" in source
+    stage_call = re.search(
+        r"^\s*stage_floor_third_party_payload\s*\|\|", source, re.MULTILINE,
+    )
+    assert stage_call is not None
+    assert stage_call.start() < source.index(
+        "qsub_cmd=("
+    )
 
 
-def test_submit_floor_has_no_third_party_cache_cli_or_environment_contract() -> None:
+def test_submit_floor_uses_silo_third_party_source_contract() -> None:
     source = SUBMIT.read_text(encoding="utf-8")
-    assert "IZANAGI_PEGASUS_THIRDPARTY_CACHE" not in source
-    assert "THIRD_PARTY_CACHE_ROOT" not in source
-    assert "--cache-root" not in source
+    assert "silo_ladder_rung1/job-staging/thirdparty-src" in source
+    assert "verify_third_party_pinned_clean" in source
+    assert "cp -a -- \"$source\" \"$destination\"" in source
 
 
 def test_floor_scripts_use_create_only_leaves_and_json() -> None:
@@ -2026,6 +2119,59 @@ def test_submit_floor_dry_run_is_scheduler_free_and_writes_exact_receipts(
     assert "authorization" not in result.stdout.lower()
 
 
+def test_submit_floor_dry_run_stages_payload_when_pinned_sources_are_available(
+        tmp_path: Path,
+) -> None:
+    repo = _fixture_repo(tmp_path)
+    _install_floor_third_party_sources(repo)
+    bin_dir, sentinel = _sentinel_bin(tmp_path)
+    result = _submit(repo, bin_dir, "--dry-run")
+    assert result.returncode == 0, result.stderr
+    assert not sentinel.exists()
+    submission = _only_submission(repo, "output/env/pegasus/floor/attempts")
+    payload_root = submission / "masstree-payload"
+    assert {
+        path.name for path in payload_root.iterdir()
+    } == {"masstree-src", "mimalloc-src", "googletest-src"}
+
+
+def test_submit_floor_failed_payload_staging_cleans_temp_and_skips_qsub(
+        tmp_path: Path,
+) -> None:
+    repo = _fixture_repo(tmp_path)
+    source_root = _install_floor_third_party_sources(repo)
+    policy = json.loads(
+        (repo / "tools/pegasus/policy.json").read_text(encoding="utf-8")
+    )
+    masstree = next(
+        item for item in policy["silo_ladder_rung1"]["third_party_sources"]
+        if item["name"] == "masstree"
+    )
+    drifted = source_root / masstree["source_name"]
+    (drifted / "head-drift.txt").write_text("drift\n", encoding="utf-8")
+    _git(drifted, "add", "head-drift.txt")
+    _git(drifted, "commit", "-qm", "head drift")
+
+    bin_dir, sentinel = _sentinel_bin(
+        tmp_path,
+        failures={
+            "qstat": 0,
+            "pegasusinfo": 0,
+            "rbudgetcheck": 0,
+            "check_quota": 0,
+            "qsub": 99,
+        },
+    )
+    result = _submit(repo, bin_dir)
+    assert result.returncode == 2
+    submission = _only_submission(repo, "output/env/pegasus/floor/attempts")
+    assert not (submission / "masstree-payload").exists()
+    assert not (submission / "masstree-payload.tmp").exists()
+    assert sentinel.read_text(encoding="utf-8").splitlines() == [
+        "qstat", "pegasusinfo", "rbudgetcheck", "check_quota",
+    ]
+
+
 def test_submit_floor_rejects_hidden_worktree_job_script_drift(
     tmp_path: Path,
 ) -> None:
@@ -2052,6 +2198,7 @@ def _successful_submission(
     extra_env: dict[str, str] | None = None,
 ) -> tuple[Path, Path, Path, Path]:
     repo = _fixture_repo(tmp_path)
+    _install_floor_third_party_sources(repo)
     bin_dir, qsub_args, qsub_cwd = _successful_bin(tmp_path)
     result = _submit(repo, bin_dir, *arguments, extra_env=extra_env)
     assert result.returncode == 0, result.stderr
@@ -2098,6 +2245,38 @@ def test_submit_floor_non_dry_run_success_writes_real_submission_record(
     assert stat.S_IMODE(claims.stat().st_mode) == 0o700
 
 
+def test_submit_floor_copies_and_reverifies_all_floor_third_party_sources(
+    tmp_path: Path,
+) -> None:
+    repo, submission, _qsub_args_path, _qsub_cwd_path = _successful_submission(
+        tmp_path,
+    )
+    payload_root = submission / "masstree-payload"
+    assert payload_root.is_dir() and not payload_root.is_symlink()
+    for name in ("masstree", "mimalloc", "googletest"):
+        source = payload_root / f"{name}-src"
+        assert source.is_dir() and not source.is_symlink()
+        head = _git(source, "rev-parse", "--verify", "HEAD").stdout.strip()
+        status = _git(
+            source, "status", "--porcelain", "--untracked-files=all",
+        ).stdout
+        assert re.fullmatch(r"[0-9a-f]{40}", head)
+        assert status == ""
+
+
+def test_floor_job_stages_payload_before_driver_and_passes_base_dir() -> None:
+    source = JOB.read_text(encoding="utf-8")
+    assert 'FETCHCONTENT_STAGING="$TMPDIR/izanagi-floor-fetchcontent"' in source
+    assert 'FLOOR_THIRD_PARTY_PAYLOAD_ROOT="$SUBMISSION_DIR/masstree-payload"' in source
+    assert source.index("stage_floor_fetchcontent_payload") < source.index(
+        "driver_argv=("
+    )
+    assert (
+        'driver_argv+=(--fetchcontent-base-dir "$FETCHCONTENT_STAGING")'
+        in source
+    )
+
+
 def test_submit_floor_probes_and_indexes_explicit_external_evidence_root(
     tmp_path: Path,
 ) -> None:
@@ -2137,6 +2316,7 @@ def test_submit_floor_unreadable_override_falls_back_and_records_probe(
     tmp_path: Path,
 ) -> None:
     repo = _fixture_repo(tmp_path)
+    _install_floor_third_party_sources(repo)
     bin_dir, qsub_args_path, _qsub_cwd = _successful_bin(tmp_path)
     unsafe = repo / "output" / "inside-repository"
     result = _submit(
@@ -2173,6 +2353,7 @@ def test_submit_floor_unreadable_default_persists_sidecar_for_consumer(
     tmp_path: Path,
 ) -> None:
     repo = _fixture_repo(tmp_path)
+    _install_floor_third_party_sources(repo)
     bin_dir, _qsub_args_path, _qsub_cwd = _successful_bin(tmp_path)
     default_root = repo.parent / "izanagi-job-evidence"
     default_root.symlink_to(repo / "output", target_is_directory=True)
@@ -2262,6 +2443,8 @@ def test_submit_floor_qsub_argv_does_not_inherit_ambient_confirmation(
             tmp_path
             / "job-environment/repo/output/s8b-freeze/floor_protocol.json"
         ),
+        "--fetchcontent-base-dir",
+        "/tmp/izanagi-floor-fetchcontent",
     ]
 
 
@@ -3311,7 +3494,10 @@ def test_floor_job_qstat_value_drives_policy_check(
 def _receipt_validator_fragment() -> str:
     source = JOB.read_text(encoding="utf-8")
     start = source.index("receipt_rc=0")
-    end = source.index("# 出典: certify_calibration.sh:174-208", start)
+    # The staging phase now sits between receipt validation and source
+    # identity.  Keep its checkpoint/TMPDIR prerequisites out of this
+    # receipt-only fragment; the phase has its own integration coverage.
+    end = source.index("CURRENT_STAGE=fetchcontent-staging", start)
     return source[start:end]
 
 
@@ -3420,9 +3606,13 @@ def test_submit_receipt_round_trips_through_job_validator(
 
 def _driver_tail() -> str:
     source = JOB.read_text(encoding="utf-8")
-    return "CHECKPOINT_PATH=${CHECKPOINT_PATH:-}\n" + source[
+    return (
+        "CHECKPOINT_PATH=${CHECKPOINT_PATH:-}\n"
+        "FETCHCONTENT_STAGING=${FETCHCONTENT_STAGING:-/tmp/izanagi-floor-fetchcontent}\n"
+        + source[
         source.index("protocol_resolution_rc=0") :
-    ]
+        ]
+    )
 
 
 def _floor_driver_stub_source(*, invalid_metric: str | None = None) -> str:
@@ -3572,6 +3762,8 @@ def test_floor_protocol_resolution_is_shared_by_all_consumers(
             "pilot",
             "--protocol",
             str(tmp_path / "repo" / protocol_path),
+            "--fetchcontent-base-dir",
+            "/tmp/izanagi-floor-fetchcontent",
         ],
     ]
     job_result = json.loads(

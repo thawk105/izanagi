@@ -56,13 +56,6 @@ def _hold(
     )
 
 
-_SNAPSHOT_CORPUS_REASON = (
-    "Constructs the shared real snapshot fixture by recursively enumerating "
-    "the real Codex session corpus, so cost grows with output artifacts."
-)
-_ROLLOUT_REASON = (
-    "Recursively enumerates the real Codex session corpus, so cost grows with output artifacts."
-)
 _KNOWN_AXES_ARTIFACT_REASON = (
     "Builds or verifies the real known-axes freeze by globbing and parsing "
     "campaign artifacts, so cost grows with output artifacts."
@@ -113,22 +106,38 @@ def _node_collateral(detail: str) -> str:
 
 
 _HOLD_ROWS = (
-    ("test_codex_reasoning_ab.py::test_m3_focus_artifact_directions", _hold("output_artifacts", _SNAPSHOT_CORPUS_REASON)),
-    ("test_codex_reasoning_ab.py::test_verify_replays_complete_fake_codex_experiment", _hold("output_artifacts", _SNAPSHOT_CORPUS_REASON)),
-    ("test_codex_reasoning_ab.py::test_m3_ignored_extra_and_missing", _hold("output_artifacts", _SNAPSHOT_CORPUS_REASON)),
-    ("test_codex_reasoning_ab.py::test_m3_snapshot_mode_change", _hold("output_artifacts", _SNAPSHOT_CORPUS_REASON)),
-    ("test_codex_reasoning_ab.py::test_cleaned_snapshot_records_absent_commit_graph_and_keeps_closure", _hold("output_artifacts", _SNAPSHOT_CORPUS_REASON)),
-    ("test_codex_reasoning_ab.py::test_stale_commit_graph_referencing_pruned_commit_is_rejected_and_manifested", _hold("output_artifacts", _SNAPSHOT_CORPUS_REASON)),
-    ("test_codex_reasoning_ab.py::test_agent_sandbox_binds_exclude_attempt_receipt_directory", _hold("output_artifacts", _SNAPSHOT_CORPUS_REASON)),
-    ("test_codex_reasoning_ab.py::test_f3_4_prelaunch_exception_completes_pair_and_allows_next_generation", _hold("output_artifacts", _SNAPSHOT_CORPUS_REASON)),
-    ("test_codex_reasoning_ab.py::test_m3_symbolic_head_is_required", _hold("output_artifacts", _SNAPSHOT_CORPUS_REASON)),
-    ("test_codex_reasoning_ab.py::test_m1_snapshot_head_pin_is_independent", _hold("output_artifacts", _SNAPSHOT_CORPUS_REASON)),
-    ("test_codex_reasoning_ab.py::test_forbidden_commits_are_unreachable_in_both_cases", _hold("output_artifacts", _SNAPSHOT_CORPUS_REASON)),
-    ("test_codex_reasoning_ab.py::test_attempt_four_is_rejected_before_launch", _hold("output_artifacts", _SNAPSHOT_CORPUS_REASON)),
-    ("test_codex_reasoning_ab.py::test_pos_neg_submodule_initialization_state_mismatch_is_rejected", _hold("output_artifacts", _SNAPSHOT_CORPUS_REASON)),
-    ("test_codex_reasoning_ab.py::test_parent_numstat_controls_remain_pinned", _hold("output_artifacts", _SNAPSHOT_CORPUS_REASON)),
-    ("test_codex_reasoning_ab.py::test_m2_production_golden_requires_both_routes", _hold("output_artifacts", _ROLLOUT_REASON)),
-    ("test_codex_reasoning_ab.py::test_prompt_replacement_count_zero_expected_and_excess", _hold("output_artifacts", _ROLLOUT_REASON)),
+    (
+        "test_codex_reasoning_ab.py::test_forbidden_commits_are_unreachable_in_both_cases",
+        _hold(
+            "output_artifacts",
+            "Measured on 2026-08-23 in this worktree: corpus recursive enumeration "
+            'Path.rglob("rollout-*.jsonl") covered 5,505 files in 0.045 seconds, and tip '
+            "index enumeration git ls-files --stage -z covered 13,908 entries in 0.031 "
+            "seconds. This node's call took 0.01 seconds; this is a one-point observation "
+            "under concurrent execution, not a permanent value. The hold remains because "
+            "D451 does not apply: default-run barrier node "
+            "test_codex_reasoning_ab.py::test_snapshot_submodule_object_store_is_recursive "
+            "passes verify_snapshot over a clean POS snapshot. "
+            'IZANAGI_HOLD_REEVAL_V1 {"advisory":"This is a record, not an automatic release condition; no default-run evaluator exists for this sentinel, and release remains explicit-user-command-only.","barrier_nodes":["test_codex_reasoning_ab.py::test_snapshot_submodule_object_store_is_recursive"],"measured_on":"2026-08-23","observed_call_seconds":0.01}'
+        ),
+    ),
+    (
+        "test_codex_reasoning_ab.py::test_parent_numstat_controls_remain_pinned",
+        _hold(
+            "output_artifacts",
+            "Measured on 2026-08-23 in this worktree: corpus recursive enumeration "
+            'Path.rglob("rollout-*.jsonl") covered 5,505 files in 0.045 seconds, and tip '
+            "index enumeration git ls-files --stage -z covered 13,908 entries in 0.031 "
+            "seconds. This node's call took 6.91 seconds; this is a one-point observation "
+            "under concurrent execution, not a permanent value. The hold remains because "
+            "D451 does not apply: default-run barrier node "
+            "test_codex_reasoning_ab.py::test_snapshot_submodule_object_store_is_recursive "
+            "passes verify_snapshot over a clean POS snapshot, and default-run barrier node "
+            "test_codex_reasoning_ab.py::test_task_manifest_binds_frozen_provenance_to_literal_values "
+            "pins the manifest literals. "
+            'IZANAGI_HOLD_REEVAL_V1 {"advisory":"This is a record, not an automatic release condition; no default-run evaluator exists for this sentinel, and release remains explicit-user-command-only.","barrier_nodes":["test_codex_reasoning_ab.py::test_snapshot_submodule_object_store_is_recursive","test_codex_reasoning_ab.py::test_task_manifest_binds_frozen_provenance_to_literal_values"],"measured_on":"2026-08-23","observed_call_seconds":6.91}'
+        ),
+    ),
     (
         "test_s8b_oracle_driver.py::test_cli_subprocess_returns_rc_2_on_gate_refused",
         _hold("commits", "Runs the real repository freeze/history gate whose cost grows with commit history."),

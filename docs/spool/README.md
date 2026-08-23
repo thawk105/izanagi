@@ -48,6 +48,10 @@ title: ...            # worklog のみ必須。他 ledger では禁止
 `ledger` はディレクトリ名と一致し、ファイル名は frontmatter から再構成した文字列と byte 一致
 しなければならない。UTF-8 / LF / 末尾 newline 必須。未知 key・重複 key は拒否。
 
+**値を引用符で囲まない。** fold は frontmatter を行単位で読み値を逐語に取る (YAML として
+解釈しない)。`title: '...'` と書くと引用符ごと canonical の H2 見出しへ残り、canonical は
+fold だけが書けるため着地後は直せない。題が `[` で始まっても `:` を含んでも、無引用で書く。
+
 ## placeholder (遅延採番)
 
 新しい T / D / F 番号は **fragment に書かない**。書くのは名前 (slug) だけで、実番号は fold が付ける。

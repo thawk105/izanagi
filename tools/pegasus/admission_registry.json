@@ -55,6 +55,12 @@
       "primary_gate": "PBS allocation and job-body site preflight",
       "evidence": "static job-body classification"
     },
+    "tools/pegasus/generate_floor_masstree_payload_policy.py": {
+      "class": "unknown",
+      "reason": "input caps and capped-input measurement are incomplete",
+      "primary_gate": "hook deny pending admission evidence",
+      "evidence": "unmeasured; unbounded input surfaces remain"
+    },
     "tools/pegasus/make_acquisition_receipt.py": {
       "class": "dispatch-required",
       "reason": "receipt helper invoked from the calibration compute job",
