@@ -227,6 +227,26 @@ def test_complete_collection_rejects_a_stale_registered_node() -> None:
         CONF._check_flaky_hold_collection_complete(SimpleNamespace(), ())
 
 
+def test_shard_controller_does_not_recheck_its_selected_xdist_subset() -> None:
+    config = SimpleNamespace(
+        args=[str(Path(CONF.__file__).resolve().parent)],
+        invocation_params=SimpleNamespace(args=()),
+        pluginmanager=SimpleNamespace(
+            get_plugin=lambda name: SimpleNamespace(
+                sched=SimpleNamespace(numnodes=1),
+            ) if name == "dsession" else None,
+        ),
+        _izanagi_flaky_hold_collection_workers={"gw0"},
+    )
+    assert CONF._xdist_flaky_collection_is_complete(config) is True
+
+    config._izanagi_acceptance_shard_spec = object()
+    assert CONF._xdist_flaky_collection_is_complete(config) is False
+
+    config.workerinput = {}
+    assert CONF._is_complete_flaky_hold_collection(config) is True
+
+
 def test_flaky_summary_is_separate_and_uses_registry_digest() -> None:
     lines: list[str] = []
 
