@@ -62,6 +62,12 @@ class VerifiedWavePath:
     identity: DirectoryIdentity
 
 
+@dataclass(frozen=True)
+class OccupancyDiagnostics:
+    cwd_permission: object
+    same_uid_cwd_unreachable: object
+
+
 class CleanupFailure(Exception):
     def __init__(self, rc: int, status: str, phase: str, reason: str) -> None:
         super().__init__(reason)
@@ -229,15 +235,17 @@ def _git_path(cwd: Path, *args: str, must_exist: bool = True) -> Path:
 
 
 def _parse_worktree_records(raw: bytes) -> list[WorktreeRecord]:
-    if not raw.endswith(b"\x00\x00"):
-        raise ValueError("porcelain-z lacks record terminator")
+    if b"\x00" in raw:
+        raise ValueError("line porcelain contains NUL")
+    if not raw.endswith(b"\n\n"):
+        raise ValueError("line porcelain lacks record terminator")
     records: list[WorktreeRecord] = []
-    for record_raw in raw[:-2].split(b"\x00\x00"):
+    for record_raw in raw[:-2].split(b"\n\n"):
         if not record_raw:
             raise ValueError("empty porcelain record")
         fields: dict[bytes, bytes] = {}
         flags: set[bytes] = set()
-        for item in record_raw.split(b"\x00"):
+        for item in record_raw.split(b"\n"):
             key, sep, value = item.partition(b" ")
             if key not in {b"worktree", b"HEAD", b"branch", b"detached", b"bare", b"locked", b"prunable"}:
                 raise ValueError(f"unknown porcelain field {key!r}")
@@ -258,7 +266,7 @@ def _parse_worktree_records(raw: bytes) -> list[WorktreeRecord]:
         if b"bare" in flags:
             raise ValueError("bare worktree record is unsupported")
         path_raw = fields[b"worktree"]
-        if not path_raw.startswith(b"/") or b"\x00" in path_raw:
+        if not path_raw.startswith(b"/") or any(byte < 0x20 or byte == 0x7f for byte in path_raw):
             raise ValueError("porcelain worktree path is not absolute")
         try:
             head = fields[b"HEAD"].decode("ascii")
@@ -282,7 +290,7 @@ def _parse_worktree_records(raw: bytes) -> list[WorktreeRecord]:
 
 
 def _worktree_records(main: Path) -> list[WorktreeRecord]:
-    result = _must_git(main, "worktree", "list", "--porcelain", "-z")
+    result = _must_git(main, "worktree", "list", "--porcelain")
     return _parse_worktree_records(result.stdout)
 
 
@@ -372,7 +380,7 @@ def _occupancy_payload(path: Path) -> tuple[int, dict[str, object]]:
     return rc, payload
 
 
-def _assert_unoccupied(path: Path) -> None:
+def _assert_unoccupied(path: Path) -> OccupancyDiagnostics:
     try:
         rc, payload = _occupancy_payload(path)
     except CleanupFailure:
@@ -382,26 +390,33 @@ def _assert_unoccupied(path: Path) -> None:
             "occupancy", f"occupancy checker failed: {exc}",
             RC_OCCUPANCY_INDETERMINATE,
         ) from exc
-    expected_keys = {"issues", "occupants", "scanned", "status", "unreachable", "worktree"}
+    expected_keys = {"issues", "occupants", "status", "worktree"}
     if not isinstance(payload, dict) or not expected_keys <= set(payload):
         raise _reject("occupancy", "occupancy payload lacks required fields", RC_OCCUPANCY_INDETERMINATE)
     if payload.get("worktree") != os.fspath(path):
         raise _reject("occupancy", "occupancy payload target mismatch", RC_OCCUPANCY_INDETERMINATE)
-    if rc == occupancy.OCCUPIED_RC or payload.get("status") == "occupied":
+    occupants = payload.get("occupants")
+    if (
+        rc == occupancy.OCCUPIED_RC
+        or payload.get("status") == "occupied"
+        or (isinstance(occupants, list) and bool(occupants))
+    ):
         raise _reject("occupancy", "target worktree is occupied", RC_OCCUPIED)
-    same_uid = payload.get("same_uid_cwd_unreachable", [])
     unreachable = payload.get("unreachable")
     valid = (
         rc == occupancy.UNOCCUPIED_RC
         and payload.get("status") == "unoccupied"
-        and payload.get("occupants") == []
+        and occupants == []
         and payload.get("issues") == []
-        and same_uid == []
-        and isinstance(unreachable, dict)
-        and unreachable.get("cwd_permission") == 0
     )
     if not valid:
         raise _reject("occupancy", "occupancy result is indeterminate or inconsistent", RC_OCCUPANCY_INDETERMINATE)
+    return OccupancyDiagnostics(
+        cwd_permission=(
+            unreachable.get("cwd_permission") if isinstance(unreachable, dict) else None
+        ),
+        same_uid_cwd_unreachable=payload.get("same_uid_cwd_unreachable", []),
+    )
 
 
 def _assert_clean_and_head(path: Path, tip: str) -> None:
@@ -419,9 +434,23 @@ def _assert_branch_safety(main: Path, ref: str) -> None:
     ancestry = _git(main, "merge-base", "--is-ancestor", ref, "refs/heads/main")
     if ancestry.returncode != 0:
         raise ValueError(f"branch ancestry check rc={ancestry.returncode}")
-    reflog = _must_git(main, "rev-list", "--walk-reflogs", ref, "--not", "refs/heads/main")
-    if reflog.stdout:
-        raise ValueError("branch reflog contains a commit not reachable from main")
+    reflog = _git(main, "rev-list", "--walk-reflogs", ref)
+    if reflog.returncode != 0:
+        raise ValueError(f"branch reflog cannot be inspected rc={reflog.returncode}")
+    try:
+        reflog_shas = tuple(dict.fromkeys(reflog.stdout.decode("ascii", "strict").splitlines()))
+    except UnicodeDecodeError as exc:
+        raise ValueError("branch reflog output is not ASCII") from exc
+    if not reflog_shas:
+        raise ValueError("branch reflog is unavailable")
+    for sha in reflog_shas:
+        if not _SHA_RE.fullmatch(sha):
+            raise ValueError("branch reflog contains a malformed commit id")
+        reachable = _git(main, "merge-base", "--is-ancestor", sha, "refs/heads/main")
+        if reachable.returncode == 1:
+            raise ValueError("branch reflog contains a commit not reachable from main")
+        if reachable.returncode != 0:
+            raise ValueError(f"branch reflog ancestry check rc={reachable.returncode}")
 
 
 def _assert_no_other_holder(

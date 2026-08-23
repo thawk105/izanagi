@@ -810,6 +810,7 @@ docs/skill-self-improvement.md
 """
     _write(root, ".claude/commands/dev-wave.md", dev_wave)
     _write(root, "tools/dev_wave_land.py", "# synthetic land helper\n")
+    _write(root, "tools/dev_wave_cleanup.py", "# synthetic cleanup helper\n")
     _write(
         root,
         "tools/dev_wave_codex.py",

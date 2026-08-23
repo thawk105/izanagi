@@ -53,52 +53,6 @@ def _sha(cwd: Path, expression: str = "HEAD") -> str:
     return _git(cwd, "rev-parse", expression).stdout.decode().strip()
 
 
-def _line_porcelain_to_z(raw: bytes) -> bytes:
-    """Git 2.34 test host の line porcelain を production parser の -z bytes にする。"""
-
-    stripped = raw.rstrip(b"\n")
-    if not stripped:
-        return b""
-    records = stripped.split(b"\n\n")
-    return b"\x00\x00".join(b"\x00".join(record.splitlines()) for record in records) + b"\x00\x00"
-
-
-@pytest.fixture(autouse=True)
-def _git_234_porcelain_adapter(monkeypatch):
-    """production の必須 -z 呼出しを保ち、旧 Git の test output だけ NUL 化する。"""
-
-    original = cleanup._git
-
-    def adapted(cwd, *args):
-        if args == ("worktree", "list", "--porcelain", "-z"):
-            result = _git(Path(cwd), "worktree", "list", "--porcelain")
-            return subprocess.CompletedProcess(
-                result.args,
-                result.returncode,
-                _line_porcelain_to_z(result.stdout),
-                result.stderr,
-            )
-        if (
-            len(args) == 5
-            and args[:2] == ("rev-list", "--walk-reflogs")
-            and args[3:] == ("--not", "refs/heads/main")
-        ):
-            reflog = _git(Path(cwd), "reflog", "show", "--format=%H", args[2])
-            unreachable = []
-            for sha in dict.fromkeys(reflog.stdout.decode().splitlines()):
-                ancestor = _git(
-                    Path(cwd), "merge-base", "--is-ancestor", sha, "refs/heads/main",
-                    check=False,
-                )
-                if ancestor.returncode != 0:
-                    unreachable.append(sha)
-            output = (("\n".join(unreachable) + "\n") if unreachable else "").encode()
-            return subprocess.CompletedProcess(reflog.args, 0, output, b"")
-        return original(Path(cwd), *args)
-
-    monkeypatch.setattr(cleanup, "_git", adapted)
-
-
 def _make_repo(
     tmp_path: Path,
     monkeypatch,
@@ -259,15 +213,8 @@ def test_rejects_dirty_worktree_without_mutation(tmp_path, monkeypatch, capsys, 
         (2, {"status": "indeterminate", "occupants": [], "issues": [{"error": "x"}],
              "scanned": 1, "same_uid_cwd_unreachable": [],
              "unreachable": {"cwd_permission": 0}}, 22),
-        (0, {"status": "unoccupied", "occupants": [], "issues": [],
-             "scanned": 1, "same_uid_cwd_unreachable": [],
-             "unreachable": {"cwd_permission": 1}}, 22),
-        (0, {"status": "unoccupied", "occupants": [], "issues": [],
-             "scanned": 1,
-             "same_uid_cwd_unreachable": [{"pid": 7, "comm": "worker"}],
-             "unreachable": {"cwd_permission": 0}}, 22),
     ),
-    ids=("occupied-rc1", "indeterminate-rc2", "cwd-permission", "same-uid-cwd"),
+    ids=("occupied-rc1", "indeterminate-rc2"),
 )
 def test_rejects_occupancy_payload_failures_without_mutation(
     tmp_path, monkeypatch, capsys, rc, payload, expected,
@@ -276,6 +223,38 @@ def test_rejects_occupancy_payload_failures_without_mutation(
     payload = {**payload, "worktree": os.fspath(repo.wave)}
     monkeypatch.setattr(cleanup, "_occupancy_payload", lambda path: (rc, payload))
     _assert_rejected_preserving(repo, capsys, expected_rc=expected)
+
+
+@pytest.mark.parametrize(
+    "diagnostics",
+    (
+        {
+            "same_uid_cwd_unreachable": [],
+            "unreachable": {"cwd_permission": 2030},
+        },
+        {
+            "same_uid_cwd_unreachable": [{"pid": 7, "comm": "worker"}],
+            "unreachable": {"cwd_permission": 2030},
+        },
+    ),
+    ids=("cwd-permission", "same-uid-cwd"),
+)
+def test_accepts_nonblocking_occupancy_diagnostics(
+    tmp_path, monkeypatch, capsys, diagnostics,
+):
+    repo = _make_repo(tmp_path, monkeypatch, locked=True)
+    payload = {
+        "status": "unoccupied",
+        "occupants": [],
+        "issues": [],
+        "scanned": 2035,
+        "worktree": os.fspath(repo.wave),
+        **diagnostics,
+    }
+    monkeypatch.setattr(cleanup, "_occupancy_payload", lambda path: (0, payload))
+
+    assert _run(repo, capsys) == (0, "removed\n", "")
+    _assert_removed(repo)
 
 
 def test_rejects_cwd_inside_target_without_mutation(tmp_path, monkeypatch, capsys):
@@ -329,12 +308,40 @@ def test_rejects_malformed_porcelain_without_mutation(tmp_path, monkeypatch, cap
     original = cleanup._git
 
     def malformed(cwd, *args):
-        if args == ("worktree", "list", "--porcelain", "-z"):
-            raw = b"worktree " + os.fsencode(repo.main) + b"\x00HEAD " + repo.tip.encode() + b"\x00mystery x\x00\x00"
+        if args == ("worktree", "list", "--porcelain"):
+            raw = (
+                b"worktree " + os.fsencode(repo.main) + b"\n"
+                b"HEAD " + repo.tip.encode() + b"\n"
+                b"mystery x\n\n"
+            )
             return subprocess.CompletedProcess(args, 0, raw, b"")
         return original(cwd, *args)
 
     monkeypatch.setattr(cleanup, "_git", malformed)
+    _assert_rejected_preserving(repo, capsys)
+
+
+def test_rejects_porcelain_record_with_newline_in_target_path_without_mutation(
+    tmp_path, monkeypatch, capsys,
+):
+    repo = _make_repo(tmp_path, monkeypatch, locked=True)
+    original = cleanup._git
+
+    def newline_path(cwd, *args):
+        result = original(cwd, *args)
+        if args == ("worktree", "list", "--porcelain"):
+            result = subprocess.CompletedProcess(
+                result.args,
+                result.returncode,
+                result.stdout.replace(
+                    b"worktree " + os.fsencode(repo.wave) + b"\n",
+                    b"worktree " + os.fsencode(repo.wave) + b"\ncontinued\n",
+                ),
+                result.stderr,
+            )
+        return result
+
+    monkeypatch.setattr(cleanup, "_git", newline_path)
     _assert_rejected_preserving(repo, capsys)
 
 
@@ -356,6 +363,27 @@ def test_rejects_reflog_only_unreachable_commit_without_mutation(
     _git(repo.wave, "commit", "-am", "unreachable reflog entry")
     _git(repo.wave, "reset", "--hard", repo.tip)
     _git(repo.main, "worktree", "lock", "--reason", "synthetic", os.fspath(repo.wave))
+    _assert_rejected_preserving(repo, capsys)
+
+
+@pytest.mark.parametrize("mode", ("empty", "fatal"))
+def test_rejects_uninspectable_branch_reflog_without_mutation(
+    tmp_path, monkeypatch, capsys, mode,
+):
+    repo = _make_repo(tmp_path, monkeypatch, locked=True)
+    original = cleanup._git
+
+    def uninspectable(cwd, *args):
+        if args == ("rev-list", "--walk-reflogs", f"refs/heads/{repo.branch}"):
+            return subprocess.CompletedProcess(
+                args,
+                0 if mode == "empty" else 128,
+                b"",
+                b"" if mode == "empty" else b"fatal: synthetic missing reflog\n",
+            )
+        return original(cwd, *args)
+
+    monkeypatch.setattr(cleanup, "_git", uninspectable)
     _assert_rejected_preserving(repo, capsys)
 
 
@@ -421,6 +449,10 @@ def test_git_argv_spy_sees_only_allowlisted_cleanup_commands(tmp_path, monkeypat
     monkeypatch.setattr(cleanup, "_git", spy)
     assert _run(repo, capsys) == (0, "removed\n", "")
     assert calls
+    assert ("worktree", "list", "--porcelain") in calls
+    assert all("-z" not in call for call in calls if call[:2] == ("worktree", "list"))
+    assert any(call[:2] == ("rev-list", "--walk-reflogs") for call in calls)
+    assert all("--not" not in call for call in calls if call[:2] == ("rev-list", "--walk-reflogs"))
     assert all(
         call[:2] not in {("worktree", "remove"), ("submodule", "deinit"), ("branch", "-D")}
         for call in calls
