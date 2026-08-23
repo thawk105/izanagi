@@ -4,7 +4,7 @@ ledger: worklog
 authored: 2026-08-20
 wave: dev-wave-t183-codex-failure-recovery
 seq: 1
-title: '[T-183] F43/F45型の早期分類・retry上限・fail-closed回復を実装した (コード+テスト、branch worktree-dev-wave-t183-codex-failure-recovery、変異matrix = baseline PASSED・4/4 KILLED・SURVIVED 0・MISMATCH 0、受入は T-1053 の既知バグでブロック中・land 未達)'
+title: [T-183] F43/F45型の早期分類・retry上限・fail-closed回復を実装し、3日止まっていた取り残し branch を別 context で再開して受入まで進めた (コード+テスト、branch worktree-dev-wave-t183-codex-failure-recovery、変異matrix = baseline PASSED・4/4 KILLED・SURVIVED 0・MISMATCH 0)
 ---
 
 ## 本文
@@ -66,21 +66,46 @@ title: '[T-183] F43/F45型の早期分類・retry上限・fail-closed回復を�
   T-183 自体の実装・レビュー・変異検証は完了しており、受入は [T-1053] の解消または
   該当赤の解消 (main 側) を待って再投入すればよい状態にある。
 
+### 2026-08-23 の再開 (別 context)
+
+- 2026-08-22 23:48 から止まっていた取り残し branch を fresh context で再開した。着手時点で
+  branch は local main から 248 commit 遅れており、まず main
+  `c301c4fdb0bc7997d729fe0de80f8b99356a6012` を取り込んだ。競合は 3 hunk
+  (`tools/codex_worker_launch.py` の定数定義部 1 件、
+  `orchestrator/tests/test_codex_worker_launch.py` の finalization 締切テスト 2 件) で、
+  いずれも両側 union として解消した。後者は main 側が受理締切を 3 区間へ分けた改修で
+  期待値を `accepted is True` / `limit_trigger is None` へ改めており、wave 側が足していた
+  `failure_class is None` の 1 行だけを併置する形になった。
+- **この競合解消は Codex 実装子へ委任できなかった。** conflict marker が launcher 自身の
+  source に載るため `tools/dev_wave_codex.py --stage author` が import 時に SyntaxError で
+  停止し、marker 除去後も authority-snapshot が未 commit の `docs/dev-wave/operations.md` を
+  拒否した。暫定 message で merge を commit してから合成監査子を投入し、監査結果を
+  amend で畳み込む順序で回した。
+- **合成監査 (Codex role=author) が実際の退行を 1 件検出した。** wave 側が
+  `failure_class` を attempt receipt の必須 field にしたため、main 親が読めていた schema
+  V1〜V3 の receipt (この field を持たない) が `_validate_attempt` の閉じた field 表で
+  拒否されるようになっていた。受理集合が意図せず狭まる型の退行で、テストは緑・競合も
+  出ない箇所だった。V4 は必須のまま維持し、V1〜V3 に限り field 有無の両形式を受理して
+  sealed artifact から内部再導出する形へ修正し、回帰テストを 3 本追加した。
+  **「競合が無い automerge でも合成は保証されない」の実例がまた 1 つ増えた。**
+- 2026-08-20 時点で受入をブロックしていた `check_acceptance_reds.py` の probe cleanliness
+  検査は、その後 main 側で受入経路から外された ([D662] 系の運用簡素化)。本記録の時点で
+  受入全走は未実施であり、本記録 commit を含む tip に対してこれから投入する。
+- login node での焦点走は launcher の timing 系が 78 件赤くなった
+  (hostname=pegasus02・PBS_JOBID 未設定・`codex_exit_code=-15`・wall 予算 3 秒)。
+  計算ノードへ dispatch した焦点走では新設回帰テスト 6 件が緑。
+  **launcher 系テストの緑判定を login node の走行で行ってはいけない。**
+
 ## 次の一手差分
 
-### 更新
+### 完了
 
-- [T-183] **P1・実装完了・受入は [T-1053] でブロック中**: `tools/codex_worker_launch.py`/
-  `tools/dev_wave_codex.py` へ `failure_class`
+- [T-183] `tools/codex_worker_launch.py` / `tools/dev_wave_codex.py` へ `failure_class`
   (`f43_fragment`/`f45_missing_output`/`other`/None、seal 後に不変な観測値だけから導出する
-  純粋関数) を追加し、F45型は同一job内での追加試行をfail-closedし、F43型は既存retryを妨げない
-  設計を実装した。workspace-writeの`--max-attempts>1`拒否と`_seal_attempt`のaccepted 7条件AND
-  は無改修。統合commit `ac52eae3` (branch `worktree-dev-wave-t183-codex-failure-recovery`)。
-  テスト新設10関数(15ケース、workspace-write×分類の網羅・late limit trigger後の
-  failure_class保持回帰・既定値1でのobservability・positive control3種を含む)、
-  変異matrix = baseline PASSED・4/4 KILLED・SURVIVED 0・MISMATCH 0。受入全走3回とも
-  同一の3件の赤 (差分に無関係と個別確認済み) が [T-1053] (既知・裁定済み・未実装) の
-  probe cleanliness検査でブロックされ受領証未発行。次の一手は受入の再投入
-  ([T-1053] 解消後、または該当赤 2件 (計算ノードのtimingタイト) ・1件
-  (test_spool_foldのreal corpus drift) が別途解消した後)。
+  純粋関数) を追加し、F45 型は同一 job 内での追加試行を fail-closed し、F43 型は既存 retry を
+  妨げない設計を実装した。workspace-write の `--max-attempts>1` 拒否と `_seal_attempt` の
+  accepted 7 条件 AND は無改修。テスト新設 10 関数 (15 ケース)、変異 matrix =
+  baseline PASSED・4/4 KILLED・SURVIVED 0・MISMATCH 0。main 取り込みの合成監査で見つかった
+  旧 schema V1〜V3 receipt の受理集合退行も同じ branch 内で修正し、回帰テスト 3 本を足した。
+  remaining: none
   base: 72a3732e19231ef094307a36dd084b089be4041072faa9143cfe145ba5513765
