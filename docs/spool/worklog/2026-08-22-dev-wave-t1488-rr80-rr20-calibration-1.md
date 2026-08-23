@@ -66,11 +66,28 @@ title: '[T-1488] rr80/rr20 calibrationの計算ノードcertification取得・�
   単独再走で2 passed / rc=0。32 worker並列下で`timeout=10`のsubprocessがstdoutを空で返す
   非帰属フレークであり、本waveの差分 (DW-O11/DW-O16の散文) からは到達しえない。
   `DW-O18`に従い非帰属として記録する。
+- **受入全走 (tested tip `1ac98ed7`) は42 failed / 14564 passed / 268.45秒で赤。受入受領証は
+  未発行、受入leaseは解放済み。** 41件は単一原因で、本waveが登録するrr80/rr20 calibration
+  成果物10 fileが、T-523のrepo全体holdout走査で三軸一致としてhitする。親が走査を直接実行した
+  実測は、現ツリー (14514 file) でrr80=5・rr20=5・rr50陽性対照=85・FAIL、当該10 fileを除外
+  (14504 file) でrr80=0・rr20=0・rr50=85・`_assert_search_pass: PASS`。
+  **有効なrr80/rr20証明書をrepoに置くことと、repoに三軸表現が1件も無いことは同時に成り立たない。**
+  2026-08-22にユーザーが承認したのは実行時admission gatewayの迂回であり、repo内容の走査は
+  射程外である。D88の可逆defangも`registered/calibration-*.json`のfilenameが内容のSHA-256
+  前置語であるため使えない。正しさ防壁は緩めず裁定へ返した。
+- 残る1件は別原因で、in-scopeのmust-fixとして閉じた。
+  `test_official_perf_closure.py::test_outer_perf_file_and_added_guard_inventory_is_exact`が
+  `unreviewed: orchestrator/holdout_observation.py`で落ちていた。Codex `role=author`がperf面を
+  レビューして`_REVIEWED_PERF_FILES`へ1行登録し、親の実走で5 passed / rc=0。列挙側と既存期待値は
+  変更していない。
 
 ## 次の一手差分
 
-### 完了
+### 更新
 
-- [T-1488] rr80/rr20 calibrationの計算ノードcertification取得・実測・登録を完了した。
-  remaining: none
+- [T-1488] **P1・ユーザー裁定待ち**: rr80/rr20 calibrationの取得・実測・実装・変異検証は完了した
+  が、受入全走で成果物10 fileがT-523のrepo全体holdout走査に三軸一致でhitし、登録したまま
+  landできないと判明した。有効なrr80/rr20証明書をrepoに置くことと、repoに三軸表現が1件も無い
+  ことは同時に成り立たない。正しさ防壁の緩和は行わず裁定へ返した
+  (`dev-wave-jobs/rulings-inbox/2026-08-23-t1488-rr80-rr20-artifacts-vs-holdout-freeze-scan.md`)。
   base: c5e67e1e8a5f284fc96a13ea53b1da442c2ae12170f7501efec92a3427d572f3
