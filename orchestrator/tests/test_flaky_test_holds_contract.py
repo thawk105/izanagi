@@ -35,6 +35,10 @@ _FOCUS_NODE = (
     "orchestrator/tests/test_campaign_claim.py::"
     "test_read_proc_starttime_uses_field_22_with_spaced_comm"
 )
+_STALE_NODE = (
+    "orchestrator/tests/test_flaky_test_holds_contract.py::"
+    "test_stale_registry_injected_node"
+)
 
 
 def _valid_hold() -> REG.FlakyTestHold:
@@ -139,6 +143,58 @@ def test_xdist_subprocess_complete_collection_runs_stale_check() -> None:
     )
     assert result.returncode == 0, result.stdout
     assert "flaky-test hold keys missing from complete collection" not in result.stdout
+
+
+def test_xdist_subprocess_complete_collection_rejects_stale_injected_registry(
+    tmp_path: Path,
+) -> None:
+    plugin_path = tmp_path / "stale_flaky_registry.py"
+    plugin_path.write_text(
+        "from orchestrator.tests import conftest\n"
+        f"_STALE_NODE = {_STALE_NODE!r}\n"
+        "\n"
+        "def pytest_sessionstart(session):\n"
+        "    del session\n"
+        "    registry = dict(conftest.FLAKY_TEST_HOLDS)\n"
+        "    registry[_STALE_NODE] = object()\n"
+        "    conftest.FLAKY_TEST_HOLDS = registry\n",
+        encoding="utf-8",
+    )
+    environment = os.environ.copy()
+    environment["NO_COLOR"] = "1"
+    inherited_pythonpath = environment.get("PYTHONPATH")
+    pythonpath = [str(tmp_path)]
+    if inherited_pythonpath:
+        pythonpath.append(inherited_pythonpath)
+    environment["PYTHONPATH"] = os.pathsep.join(pythonpath)
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "pytest",
+            "--color=no",
+            "-p",
+            "orchestrator.tests.conftest",
+            "-p",
+            "stale_flaky_registry",
+            "-n",
+            "2",
+            "--dist",
+            "load",
+            "--collect-only",
+            str(Path(CONF.__file__).resolve().parent),
+        ],
+        cwd=_REPO,
+        env=environment,
+        check=False,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        timeout=120,
+    )
+    assert result.returncode != 0, result.stdout
+    assert "flaky-test hold keys missing from complete collection" in result.stdout
+    assert _STALE_NODE in result.stdout
 
 
 def test_mutation_harness_rejects_an_isolated_expected_failure_node() -> None:
