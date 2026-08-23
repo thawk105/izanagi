@@ -15,7 +15,7 @@ import textwrap
 REPO_ROOT = Path(__file__).resolve().parents[2]
 SUBMITTER = REPO_ROOT / "tools/pegasus/submit_mocc_trace.sh"
 POLICY = REPO_ROOT / "tools/pegasus/mocc_trace_v1_policy.json"
-NEW_OID = "ef9328a35d49b1b9b610f244bee22ad7f10b8b66"
+NEW_OID = "058d0c4e5f237d88ec1c2ebe0739113d82906e47"
 BASE_OID = "511c9538e4e8efa54b45cda62e72389ed3b706ec"
 
 

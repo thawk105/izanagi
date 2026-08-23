@@ -20,8 +20,10 @@ if str(REPO_ROOT) not in sys.path:
 
 from orchestrator.campaign.genome import SILO_SPACE  # noqa: E402
 from orchestrator.campaign.source_digest import (  # noqa: E402
+    EVOLVE_BLOCK_SOURCE_PROTOCOLS,
     _INCLUDE_RE,
     _assert_conditional_macros_covered,
+    _assert_proven_repo_absent_macros,
     _context_overlays,
     _cpp_normalize,
     _git_show,
@@ -368,6 +370,8 @@ def _compare_file(
     new_oid: str,
     path: str,
     compiler: str,
+    old_known_absent: frozenset[str],
+    new_known_absent: frozenset[str],
     genomes: Sequence[Any],
     overlays: Sequence[dict[str, str]],
     expected_context_count: int,
@@ -391,14 +395,23 @@ def _compare_file(
         if added_include_index is None or len(new_markers) != len(old_markers) + 1:
             raise CheckError(f"include marker 列を構成できない未対応形: {path}")
 
+    source_rel = path if path in EVOLVE_BLOCK_SOURCE_PROTOCOLS else None
     contexts: list[dict[str, object]] = []
     for genome in genomes:
-        old_defines = dict(_head_defines(os.fspath(repo), genome, old_oid))
-        new_defines = dict(_head_defines(os.fspath(repo), genome, new_oid))
+        old_defines = dict(
+            _head_defines(os.fspath(repo), genome, old_oid, source_rel)
+        )
+        new_defines = dict(
+            _head_defines(os.fspath(repo), genome, new_oid, source_rel)
+        )
         old_defines["TRACE"] = "0"
         new_defines["TRACE"] = "0"
-        _assert_conditional_macros_covered(old_source, old_defines, compiler, path)
-        _assert_conditional_macros_covered(new_source, new_defines, compiler, path)
+        _assert_conditional_macros_covered(
+            old_source, old_defines, compiler, path, old_known_absent
+        )
+        _assert_conditional_macros_covered(
+            new_source, new_defines, compiler, path, new_known_absent
+        )
 
         for overlay in overlays:
             old_context_defines = dict(old_defines, **overlay)
@@ -494,6 +507,12 @@ def check(
         raise CheckError(f"--repo が directory でない: {repo}")
     old_oid = _resolve_commit(repo, old)
     new_oid = _resolve_commit(repo, new)
+    old_known_absent = _assert_proven_repo_absent_macros(
+        os.fspath(repo), commit=old_oid
+    )
+    new_known_absent = _assert_proven_repo_absent_macros(
+        os.fspath(repo), commit=new_oid
+    )
     ancestor = _is_ancestor(repo, old_oid, new_oid)
     if not ancestor:
         raise CheckError(f"old commit は new commit の祖先でない: {old_oid} !<= {new_oid}")
@@ -523,6 +542,8 @@ def check(
                 new_oid,
                 path,
                 compiler,
+                old_known_absent,
+                new_known_absent,
                 genomes,
                 overlays,
                 expected_context_count,
