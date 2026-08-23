@@ -12,6 +12,7 @@ import multiprocessing
 import os
 import secrets
 import signal
+import subprocess
 import sys
 import time
 import xml.etree.ElementTree as ET
@@ -22,6 +23,8 @@ from pathlib import Path
 from typing import Any, Callable, Mapping, Optional, Sequence
 
 import pytest
+
+from tools import dev_wave_land as _dev_wave_land
 
 
 INFRA_RC = 16
@@ -117,6 +120,59 @@ def _is_within(path: Path, parent: Path) -> bool:
     except ValueError:
         return False
     return True
+
+
+def _git_common_dir(repo: Path) -> Path:
+    try:
+        result = subprocess.run(
+            [
+                "/usr/bin/git", "rev-parse", "--path-format=absolute",
+                "--git-common-dir",
+            ],
+            cwd=repo,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,
+            text=True,
+            timeout=10.0,
+            check=False,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        raise ShardError("git-common-dir") from None
+    lines = result.stdout.splitlines()
+    if result.returncode != 0 or len(lines) != 1 or not lines[0]:
+        raise ShardError("git-common-dir")
+    common_dir = Path(lines[0])
+    if not common_dir.is_absolute():
+        raise ShardError("git-common-dir-nonabsolute")
+    common_dir = common_dir.resolve()
+    if common_dir.name != ".git" or not common_dir.is_dir():
+        raise ShardError("git-common-dir-shape")
+    return common_dir
+
+
+def _validate_shared_root(repo: Path, main_repo: Path, shared_root: Path) -> None:
+    repo = repo.resolve()
+    main_repo = main_repo.resolve()
+    shared_root = shared_root.resolve()
+    for relative_bytes in _dev_wave_land._CONTROL_CONTAINERS:
+        if type(relative_bytes) is not bytes or not relative_bytes:
+            raise ShardError("control-container-contract")
+        relative = Path(os.fsdecode(relative_bytes))
+        if relative.is_absolute() or not relative.parts or ".." in relative.parts:
+            raise ShardError("control-container-contract")
+        control_container = (main_repo / relative).resolve()
+        if _is_within(shared_root, control_container):
+            raise ShardError("artifact-root-in-control-container")
+    if _is_within(shared_root, repo):
+        raise ShardError("artifact-root-inside-repo")
+
+
+def shared_root_for_repo(repo: Path) -> Path:
+    repo = repo.resolve()
+    main_repo = _git_common_dir(repo).parent
+    shared_root = (main_repo.parent / _SESSION_PREFIX).resolve()
+    _validate_shared_root(repo, main_repo, shared_root)
+    return shared_root
 
 
 def _write_bytes_create_only(path: Path, payload: bytes) -> None:
@@ -889,13 +945,17 @@ def create_session(repo: Path, shard_count: int) -> Path:
     if shard_count not in {2, 3}:
         raise ShardError("shard-count")
     repo = repo.resolve()
-    shared_root = repo.parent / _SESSION_PREFIX
-    shared_root.mkdir(mode=0o700, parents=True, exist_ok=True)
-    if shared_root.is_symlink() or not shared_root.is_dir():
+    main_repo = _git_common_dir(repo).parent
+    shared_path = main_repo.parent / _SESSION_PREFIX
+    if shared_path.is_symlink():
         raise ShardError("artifact-shared-root-type")
-    shared_root = shared_root.resolve()
-    if _is_within(shared_root, repo):
-        raise ShardError("artifact-root-inside-repo")
+    shared_root = shared_path.resolve()
+    _validate_shared_root(repo, main_repo, shared_root)
+    shared_path.mkdir(mode=0o700, parents=True, exist_ok=True)
+    if shared_path.is_symlink() or not shared_path.is_dir():
+        raise ShardError("artifact-shared-root-type")
+    shared_root = shared_path.resolve()
+    _validate_shared_root(repo, main_repo, shared_root)
     session = shared_root / secrets.token_hex(16)
     session.mkdir(mode=0o700)
     for index in range(shard_count):

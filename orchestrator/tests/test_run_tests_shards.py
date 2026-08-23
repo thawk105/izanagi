@@ -178,6 +178,9 @@ def test_internal_shard_command_keeps_default_suite_root(monkeypatch, tmp_path):
     monkeypatch.setattr(RT.subprocess, "call", fake_call)
     monkeypatch.setattr(RT, "_REPO", str(repo))
     monkeypatch.setattr(RT, "_DEFAULT_TARGET", str(default_target))
+    monkeypatch.setattr(
+        SH, "shared_root_for_repo", lambda _repo: session.parent.resolve(),
+    )
     rc = RT._run_internal_acceptance_shard(
         SH.InternalSpec(session, 2, 0),
         resolved_site=RT.site_policy.PEGASUS_COMPUTE,
@@ -552,14 +555,70 @@ def test_infra_gate_emits_no_scheduler_marker(capsys):
     assert SH.SCHEDULER_PREFIX not in captured.out + captured.err
 
 
-def test_session_artifacts_are_outside_repo(tmp_path):
+def test_session_artifacts_are_outside_repo(monkeypatch, tmp_path):
     repo = tmp_path / "repo"
     repo.mkdir()
+    git_dir = repo / ".git"
+    git_dir.mkdir()
+    monkeypatch.setattr(SH, "_git_common_dir", lambda _repo: git_dir.resolve())
     session = SH.create_session(repo, 2)
     assert not SH._is_within(session, repo.resolve())
     assert session.parent.name == ".izanagi-acceptance-shards"
     assert (session / "shard-0").is_dir()
     assert (session / "shard-1").is_dir()
+
+
+@pytest.mark.parametrize(
+    "relative",
+    [Path(".claude/worktrees"), Path(".codex/worktrees")],
+)
+def test_shared_root_rejects_land_control_containers(tmp_path, relative):
+    main_repo = tmp_path / "repo"
+    worktree = main_repo / relative / "wave"
+    shared_root = main_repo / relative / SH._SESSION_PREFIX
+    with pytest.raises(SH.ShardError, match="artifact-root-in-control-container"):
+        SH._validate_shared_root(
+            worktree.resolve(), main_repo.resolve(), shared_root.resolve(),
+        )
+
+
+def test_shared_root_guard_tracks_land_control_containers(monkeypatch, tmp_path):
+    added = b"future/worktrees"
+    monkeypatch.setattr(
+        SH._dev_wave_land,
+        "_CONTROL_CONTAINERS",
+        SH._dev_wave_land._CONTROL_CONTAINERS + (added,),
+    )
+    main_repo = (tmp_path / "repo").resolve()
+    shared_root = (main_repo / "future/worktrees" / SH._SESSION_PREFIX).resolve()
+    with pytest.raises(SH.ShardError, match="artifact-root-in-control-container"):
+        SH._validate_shared_root(main_repo, main_repo, shared_root)
+
+
+def test_worktree_shared_root_is_derived_outside_control_container(
+    monkeypatch, tmp_path,
+):
+    main_repo = tmp_path / "repo"
+    git_dir = main_repo / ".git"
+    worktree = main_repo / ".claude/worktrees/wave"
+    git_dir.mkdir(parents=True)
+    worktree.mkdir(parents=True)
+    monkeypatch.setattr(SH, "_git_common_dir", lambda _repo: git_dir.resolve())
+    shared_root = SH.shared_root_for_repo(worktree)
+    assert shared_root == (tmp_path / SH._SESSION_PREFIX).resolve()
+    assert not SH._is_within(
+        shared_root, (main_repo / ".claude/worktrees").resolve(),
+    )
+    assert not SH._is_within(
+        shared_root, (main_repo / ".codex/worktrees").resolve(),
+    )
+
+
+def test_shared_root_inside_repo_guard_remains(tmp_path):
+    repo = (tmp_path / "repo").resolve()
+    shared_root = repo / "artifacts" / SH._SESSION_PREFIX
+    with pytest.raises(SH.ShardError, match="artifact-root-inside-repo"):
+        SH._validate_shared_root(repo, repo, shared_root)
 
 
 def test_parallel_implementation_uses_fork_processes_not_threads():

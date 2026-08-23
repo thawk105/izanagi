@@ -1440,7 +1440,10 @@ def _run_internal_acceptance_shard(
         return _PEGASUS_DISPATCH_RC
     repo = Path(_REPO).resolve()
     session = spec.session_root.resolve()
-    expected_shared_root = (repo.parent / ".izanagi-acceptance-shards").resolve()
+    try:
+        expected_shared_root = acceptance_shards.shared_root_for_repo(repo)
+    except acceptance_shards.ShardError:
+        return _PEGASUS_DISPATCH_RC
     if (
         resolved_site != site_policy.PEGASUS_COMPUTE
         or list(args)
