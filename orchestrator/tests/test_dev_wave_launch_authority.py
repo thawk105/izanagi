@@ -28,7 +28,7 @@ _V1_MODEL_LINE = (
     "`<model>`: 段 3 のみ 2 本で `gpt-5.6-sol`→`gpt-5.6-luna`、"
     "他段 `gpt-5.6-sol`。"
 )
-_V2_MODEL_LINE = "`<model>`: 全段 `gpt-5.6-luna` (段 3 の 2 本も同じ)。"
+_V2_MODEL_LINE = "`<model>`: 全段 `gpt-5.6-sol` (段 3 の 2 本も同じ)。"
 _STAGE_LANES = (
     ("plan", None),
     ("consult", "sol"),
@@ -66,12 +66,16 @@ def _workers_with_stage_reasoning() -> str:
     text = (_ROOT / _WORKERS).read_text(encoding="utf-8")
     replacements = (
         (
-            "codex は `reasoning=max`、`sandbox=workspace-write` とする。",
             "codex は `reasoning=xhigh`、`sandbox=workspace-write` とする。",
+            "codex は `reasoning=medium`、`sandbox=workspace-write` とする。",
         ),
         (
-            "実装 wave は異なるレンズの敵対レビューを `reasoning=max` で必ず 2 本並列で行う。",
+            "実装 wave は異なるレンズの敵対レビューを `reasoning=xhigh` で必ず 2 本並列で行う。",
             "実装 wave は異なるレンズの敵対レビューを `reasoning=high` で必ず 2 本並列で行う。",
+        ),
+        (
+            "並列 fix の統合後、焦点再レビューは全体へ `reasoning=xhigh` で 1 本でよい。",
+            "並列 fix の統合後、焦点再レビューは全体へ `reasoning=low` で 1 本でよい。",
         ),
     )
     for old, new in replacements:
@@ -137,13 +141,13 @@ def test_snapshot_and_derive_current_authority_positive(tmp_path: Path) -> None:
     assert tuple(dict.fromkeys(item[0] for item in requirements)) == STAGES
     assert snapshot.model_authority_version == "v2"
     assert {requirement.model for requirement in requirements.values()} == {
-        "gpt-5.6-luna"
+        "gpt-5.6-sol"
     }
     assert requirements[("review", None)].effort_authority == "docs"
     assert requirements[("focus", None)].effort_authority == "docs"
-    assert requirements[("author", None)].effort == "max"
+    assert requirements[("author", None)].effort == "xhigh"
     assert requirements[("author", None)].effort_authority == "docs"
-    assert requirements[("fix", None)].effort == "max"
+    assert requirements[("fix", None)].effort == "xhigh"
     assert requirements[("fix", None)].effort_authority == "docs"
     assert len(snapshot.sections) == 4
 
@@ -160,10 +164,10 @@ def test_v2_all_stage_and_lane_models_resolve_to_single_model(
         for stage, lane in _STAGE_LANES
     ]
     assert snapshot.model_authority_version == "v2"
-    assert snapshot.consult_models == ("gpt-5.6-luna", "gpt-5.6-luna")
-    assert snapshot.other_model == "gpt-5.6-luna"
+    assert snapshot.consult_models == ("gpt-5.6-sol", "gpt-5.6-sol")
+    assert snapshot.other_model == "gpt-5.6-sol"
     assert [requirement.model for requirement in requirements] == [
-        "gpt-5.6-luna"
+        "gpt-5.6-sol"
     ] * 7
 
 
@@ -191,9 +195,10 @@ def test_v2_snapshot_mapping_inconsistency_fails_closed(tmp_path: Path) -> None:
         tmp_path, operations=_operations_with_authority_line(_V2_MODEL_LINE)
     )
     snapshot = snapshot_authority(root)
+    inconsistent_model = f"{snapshot.consult_models[0]}-inconsistent-fixture"
     inconsistent = replace(
         snapshot,
-        consult_models=("gpt-5.6-sol", snapshot.consult_models[1]),
+        consult_models=(inconsistent_model, snapshot.consult_models[1]),
     )
     with pytest.raises(AuthorityError, match="v2 の全段 model が一致しない"):
         derive_launch(inconsistent, stage="consult", lane="sol")
@@ -243,16 +248,16 @@ def test_derive_launch_uses_stage_specific_effort_sections(tmp_path: Path) -> No
     root = _prepare_repo(tmp_path, workers=_workers_with_stage_reasoning())
     snapshot = snapshot_authority(root)
 
-    assert derive_launch(snapshot, stage="author", lane=None).effort == "xhigh"
-    assert derive_launch(snapshot, stage="fix", lane=None).effort == "xhigh"
+    assert derive_launch(snapshot, stage="author", lane=None).effort == "medium"
+    assert derive_launch(snapshot, stage="fix", lane=None).effort == "medium"
     assert derive_launch(snapshot, stage="review", lane=None).effort == "high"
-    assert derive_launch(snapshot, stage="focus", lane=None).effort == "max"
+    assert derive_launch(snapshot, stage="focus", lane=None).effort == "low"
 
 
 def test_all_stage_models_match_independent_docs_cross_check() -> None:
     section = _independent_docs_section(_ROOT / _OPERATIONS, "DW-O01")
     expected_models = re.findall(r"`(gpt-[A-Za-z0-9._-]+)`", section)
-    assert expected_models == ["gpt-5.6-luna"]
+    assert expected_models == ["gpt-5.6-sol"]
 
     snapshot = snapshot_authority(_ROOT)
     for stage, lane in _STAGE_LANES:
@@ -433,7 +438,7 @@ def test_live_v1_is_rejected_but_historical_v1_is_reconstructed(
     assert current.model_authority_version == "v2"
     assert (
         derive_launch(current, stage="author", lane=None).model
-        == "gpt-5.6-luna"
+        == "gpt-5.6-sol"
     )
 
 
@@ -467,7 +472,7 @@ def test_historical_v1_rejects_same_lens_model_and_reconstructs_valid_v1(
 def test_v2_model_slug_drift_fails_closed(
     tmp_path: Path, invalid_model: str
 ) -> None:
-    invalid_line = _V2_MODEL_LINE.replace("gpt-5.6-luna", invalid_model, 1)
+    invalid_line = _V2_MODEL_LINE.replace("gpt-5.6-sol", invalid_model, 1)
     root = _prepare_repo(
         tmp_path, operations=_operations_with_authority_line(invalid_line)
     )

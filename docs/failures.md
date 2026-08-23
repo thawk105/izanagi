@@ -510,6 +510,16 @@
   待ち手の rc を信じない) がそのまま効いた。追加事実は**同一 wave 内で同じ待ち手が 2 度
   偽完了した**点で (段 6 レビュー B でも成果物 flush 前に rc=0 が返り再読で解消)、
   偽完了が単発事故ではなく常態であることを補強する。
+
+- **再発: 2026-08-23** — `tools/dev_wave_wait.py producer` を背景 job で張った待ち手が、
+  producer 生存中に **exit 0 かつ出力ゼロ**で戻る偽完了を、同一 wave 内で 2 度起こした
+  (段 6 レビュー B の待ち手と、段 6 fix の待ち手)。どちらも `.done` は不在で子は生存しており、
+  `pgrep` で runner の生存を確認して張り直した。恒久対応 (`.done` 出現と producer 死の
+  両方で判定し、待ち手の rc も通知も信じない) がそのまま効き、実害はゼロだった。
+  追加事実は、**待ち手ツール自体は健全だった**点である — 同じ argv を `--max-wait-seconds 20` で
+  前景実行すると正しく `rc=70 producer-timeout` を返した。偽完了は待ち手の内部ロジックではなく
+  背景 job 側の完了通知経路で起きており、2026-08-17 の「待ち手自身が偽 green を返す」とは
+  発生層が異なる。判定を `.done` の実体確認へ寄せる対応は層が変わっても有効である。
 ### F25. commit trailer block の分断・結合ミス — provenance 監査 3+2 違反、積み直し 2 回 [手順漏れ]
 - 事象: 2026-07-20 の同一セッションで 2 回、`AI-Agent` trailer が git に trailer と認識されない
   message を作成 (1 回目 = trailer 行と `Co-Authored-By` の間に空行 → block 分断で AI-Agent が本文化。
@@ -11828,3 +11838,73 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   `_LEASE_TTL_SECONDS` の値自体の見直しは、本 wave のスコープ外として別セッションへ
   引き継いだ (未着手)。`--lease-optional` が浸透すれば直列化待ち自体の発生頻度は
   大幅に下がるはずだが、フラグを付け忘れた wave は引き続き同型の問題に当たりうる。
+
+### F466. 受入の親子が互いの完了を待って停止した [手順漏れ]
+
+- 事象: 2026-08-22、ある wave の受入が上限時間の約 92% (約 2,200 秒 / 上限 2,400 秒) まで
+  進行ゼロで止まり、後続 9 wave が順番待ちで滞留した。計算ノード側の実行は 09:17:49 に
+  終了 (子 rc=1) しており、実行中のプロセスは 1 本も残っていなかった。
+  子 (`tools/acceptance_launcher.py`) は結果を書き終えたあと親からの完了通知を待って
+  `pipe_read` でブロックし、親 (`tools/dev_wave_wait.py acceptance`) は子の終了を待って
+  `do_wait` でブロックしていた。CPU 0%、受入受領証は 0 バイトのまま。
+- 根本原因: 親側の受入本体で、結果の読み取りから完了通知の送出までの区間 (`read_outcome()` と
+  `send_completion()` の間にある後処理・清浄性検査・赤の帰属検査) が異常分岐へ落ちたとき、
+  待ち合わせを打ち切る後始末へ到達せずに抜ける経路がある。区間が try/finally で
+  囲われていないため、通知を出さないまま親が子の終了待ちへ入る。正確な分岐点は未特定
+  (静的読解のみ、再現実験は未実施)。
+- 恒久対応: D676 (監視役がどん詰まりを検知して停止させてよい、
+  検知材料はログ無成長・補助プロセス消失・一定時間無応答の 3 点) を暫定の歯止めとし、
+  当該区間を try/finally で必ず後始末へ落とす修正を実装 wave が入れる (本 fold の worklog
+  新規項が所有)。上限時間による自動失効は正しく働いており、順番待ちの引き継ぎ自体は正常だった。
+- 再発検知: 親が完了通知を出さずに子の終了待ちへ入る経路の負例テスト
+  (結果読み取り後の後処理で例外を起こし、子が待ち続けずに打ち切られることを確認する)。
+- 補足: 同じ待ち状態のスナップショットを示した別 wave は約 12 分後に自力で解放へ到達しており
+  (テスト失敗を正しく検出した通常の失敗終了)、この待ち状態の一致だけでは本事象の
+  十分条件にならない。確定事例は現時点で 1 件。過去の待ち手事象 2 件 (出力の読み違い、
+  自分自身を他人と誤検出) とは機序が異なるため、再発ではなく新しい型として登録する。
+
+### F467. 値の張り替えで移行先の値を検索語に入れず、既にその値を持つ箇所が no-op 化した [手順漏れ]
+
+- 事象: dev-wave の codex 権威を `gpt-5.6-luna`/`max` から `gpt-5.6-sol`/`xhigh` へ張り替えた際、
+  移行先の値を**既にハードコードしていた 2 箇所**が無変化になった。1 件は
+  `test_v2_snapshot_mapping_inconsistency_fails_closed` が `consult_models` へ注入していた
+  `gpt-5.6-sol` で、権威自体が sol になったため注入が効かず `DID NOT RAISE` の赤になった。
+  もう 1 件は段別 effort fixture の置換が `xhigh` → `xhigh` になり、author / fix と focus が
+  同値になって節の取り違えを検出できなくなった (テストは緑のまま証明力だけ失った)。
+- 根本原因: 段 2 の閉包探索が**移行元の値だけ**を検索語にしていた。移行先の値を既に持つ箇所は
+  grep に掛からず、置換後に `置換前 == 置換後` へ潰れる。緑のまま潰れる側は実走でも見えない。
+- 恒久対応: D682 の張り替え手順として、閉包探索の検索語に
+  **移行元と移行先の両方**を入れる。加えて `DW-M04` の変異で、段別 fixture の識別力そのものを
+  KILL 対象にする (本 wave の M3 = focus effort を author 由来へ誤配線 → 1 node KILLED が実体)。
+- 再発検知: `orchestrator/tests/test_dev_wave_launch_authority.py::test_derive_launch_uses_stage_specific_effort_sections`
+  が段ごとに相異なる値 (S05-A=medium / S06-A=high / S06-C=low) を要求し、いずれも live 値
+  `xhigh` と異なるため、同型の no-op が再び起きれば assertion が落ちる。
+
+### F468. 外部依存の準備待ちで落ちた正しさゲートを「壊れた既知赤」と誤認し、除去の一歩手前まで行った [誤前提]
+
+- 事象: 受入全走で `orchestrator/tests/test_sort_swo_oracle.py` が **26 件赤**になり、4 回の
+  受入で件数も内訳も完全一致した。複数セッションがこれを「main 登録済みの決定的な既知赤」と扱い、
+  **file ごと受入から永久除外する**方針が動き、ユーザーからも除去の許可が出た。実際にはテストは
+  健全で、外部依存 (masstree) の構築が終わっていないだけだった。
+- 根本原因: 赤の**理由**を読まず、件数の再現性だけで「決定的 = テスト側の問題」と推論した。
+  `/tmp` の oracle memo キャッシュには `detail_code: oracle-environment-dependency-unresolved`、
+  依存候補 10 件すべてが `config-h-missing` と記録されていた。コンパイラは `path:g++` で
+  `selected` になっており、**落ちていたのは依存側だけ**だった。
+  この経路は「cache miss and corruption never invoke the resolver」という fail-closed 設計のため、
+  依存が後から揃っても既存キャッシュの失敗を読み続ける。件数の再現性は
+  「テストが決定的に壊れている」ではなく「キャッシュされた失敗を読み続けている」の帰結である。
+- **依存が揃うにつれ赤が減ることを実測した**: `config.h` 不在時 26 件 → `config.h` 生成後 10 件。
+  残り 10 件の理由も `oracle-environment-dependency-unresolved` から
+  `_EvaluationUnavailable: candidate-run-signal-6` (コンパイルは通りバイナリが SIGABRT) へ変わり、
+  `libjson.a` と `.o` が未生成であることを確認した。
+- 除去していた場合の損失: この file は strict weak ordering の公理違反を**実コンパイル・実行**で
+  検出する正しさゲートである (`test_cpp_e2e_reports_each_axiom_and_exact_indices` の
+  irreflexive / asymmetric / transitive / equivalence-transitive)。除去は sort comparator の
+  変異が公理を破っても検出できない状態を作り、絶対規律 2 に正面から抵触した。
+- 恒久対応: 受入の赤を「非帰属」「既知」と分類する前に、**赤の理由文字列を必ず読む**。
+  `_EvaluationUnavailable` / `*-unresolved` / `*-missing` の形は環境の準備不足を示し、
+  テスト側の欠陥ではない。memo キャッシュを持つ経路では、キャッシュが失敗を保持している間は
+  件数が固定されるため、**再現性を決定性の証拠に使ってはならない**。
+- 再発検知: `python3 tools/run_tests.py orchestrator/tests/test_sort_swo_oracle.py -q` を
+  依存構築の前後で走らせると件数が変わる。`/tmp/izanagi-sort-swo-oracle-*.json` の
+  `failure.detail_code` と `dependency_candidates[].outcome` が一次資料である。
