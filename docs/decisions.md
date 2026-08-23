@@ -27042,3 +27042,161 @@ field) は変更しない。比較専用の新規変数 (`CPU_MODEL_NORMALIZED`)
   probe設計を変更した。
 - interpreter解決不能時に`verifier.rc`を書かない (既存契約のまま) — 「stage=verifierの失敗では
   常に`verifier.rc`が存在する」という一貫性を優先し、書く方針を採用した。
+
+## D686. 非帰属 probe の worktree 再利用は、状態隔離を証明できないため採用しない (2026-08-23)
+
+**決定:** `tools/check_acceptance_reds.py` の probe worktree を node 間で使い回す高速化は
+**実装しない**。node ごとに worktree を作り直す現行設計を維持する。
+
+**理由:**
+
+- 潜在利得は小さくない。過去 receipt 130 件の全数集計では probe worktree の構築が
+  705 回発生しており、`(receipt, tip)` 単位で使い回せば 230 回まで減る (475 回削減)。
+  それでも採らない。
+- **現行 fingerprint は submodule 内の gitignore された生成物を検出しない。**
+  本 wave で対照実験を行った。probe と同一手順で作った worktree に対し、
+  `git status --porcelain=v1 --untracked-files=all --ignored=matching --ignore-submodules=none`
+  は (a) submodule 内の untracked file を ` M external/ccbench` として検出し、
+  (b) 親 repo 側の gitignore された file を `!! orchestrator/__pycache__/` として検出したが、
+  (c) **submodule 内の gitignore されたビルド生成物** (`external/ccbench/build/` 配下、
+  ccbench の `.gitignore` が `build*/` を無視) は検出せず、fingerprint は空のままだった。
+- これは最も再利用したい対象に直撃する。受入で赤になった実測 26 件は
+  `orchestrator/tests/test_sort_swo_oracle.py` で、失敗理由は CCBench のビルド生成物への
+  依存 (`config-h-missing`) である。node N のビルドが node N+1 の判定を変えても
+  どの検査も発火しない。本来 `attributable` (この wave が壊した regression) と
+  判定すべきものが `flake` として素通りしうる。規律 2/3 の違反である。
+- **救済案 (fingerprint を submodule へ再帰させる) も不十分と判明した。**
+  `git status --ignored=matching` は ignored ディレクトリを**ディレクトリ単位で折り畳む**
+  (出力は `!! build/` であって配下の file 名ではない)。既に `build/` がある状態で
+  内部 file の bytes・mtime・mode を変えても status 文字列は変わらない。
+  さらに initialized な CCBench には最初から ignored build dir があるため再帰 fingerprint は
+  初期状態で非空になり、これを通すために空判定を baseline 判定へ緩めると盲点が復活する。
+- **worktree の外の副作用も残る。** 共有 build cache、ccache、`$HOME` 配下、`/tmp`、
+  共有 git module cache、PBS 側の状態は worktree を捨てても残る。
+  `-p no:cacheprovider` は pytest の CacheProvider しか止めない。
+  状態隔離を worktree の中だけで完結して証明できない。
+- 「速くなった」と記録しながら regression 見逃し経路を残すのが最悪の結果である。
+  利得より重い。
+
+**却下した選択肢:**
+
+- initialized submodule がある場合だけ再利用を諦める fallback — 安全だが、実測対象は
+  必ず initialized なので利得がゼロになる。実装する意味がない。
+- 再帰 fingerprint を足して再利用する — 上記のとおり ignored ディレクトリの折り畳みにより
+  内容変化を捉えられず、隔離の証明にならない。
+- node 間で submodule working tree を `git clean -xdff` する — 再帰・外部状態・
+  tracked metadata をリセットせず隔離の証明にならない。再帰 clean を足せば
+  毎回ビルドし直すことになり、再利用の利得を消す。
+
+再訪条件: probe の状態隔離を「何によって証明するか」の設計が先に立ったとき。
+worktree 内の status では足りないことが本 wave で確定したので、
+内容ベースの再帰 manifest か、probe を状態から切り離す別の隔離機構が要る。
+
+## D687. 非帰属 probe の collection cache は、selector 誤選択の残余リスクを受け入れたうえで採用する (2026-08-23)
+
+**決定:** 同一 `(tip, path)` に対する `pytest --collect-only` を 1 回に cache し、
+receipt の `collections` を distinct key ごとに 1 entry へ畳み込む。
+**閉じきれない残余リスクが 1 つあることを明示して受け入れる。**
+
+**理由:**
+
+- 利得は全数実測で確定している。過去 receipt 130 件で collect-only dispatch は 476 回、
+  distinct `(receipt, path)` へ畳むと 169 回になる (307 回削減)。
+  node 数が多い receipt ほど distinct path が少なく (37 node で 3 path、
+  26 node で 1 path が 7 receipt)、痛いところほど無駄が大きい構造だった。
+- テストは 1 件も間引かない。全 node の単一 node rerun は維持する。
+- consumer 契約を壊さない。`collections` の件数を縛る述語は live code に存在しない
+  (root 9 field と collection 6 field の形だけを検査し、`len` も node との対応も見ない)。
+  `checker_receipt_sha256` の chain は digest の**形**しか検査せず内容へ束縛していない。
+- **残余リスク:** cache 集合と真の集合が食い違うと、`_selector_from_collection` の
+  prefix + 最長 + 一意 の規則の下で「有効だがより短い selector」が選ばれ、
+  fail-closed にならないまま誤った node を再実行しうる。再 collection なしにこの穴は塞げない。
+- 成立には 2 条件が要り、どちらも満たされにくい。
+  (a) 同一 tip で collection が非決定的であること。本 wave で本番経路の独立 2 PBS job と
+  login node の計 3 観測を比較し、62 nodeid が完全一致した (機種を跨いでも一致)。
+  probe worktree は HEAD 一致と fingerprint 空を毎回 assert しており、collection の入力である
+  木が同一であることは証明済みで、変わりうるのは環境だけである。
+  (b) `X` と `X - Y` が両方 collected nodeid になる形であること。pytest の命名では
+  関数名に空白は入らず parametrize は `[...]` を生み、`[` 始まりの suffix は規則で弾かれる。
+- 到達可能な誤りは fail-closed である。cache 集合に対象が無ければ `InvalidInput`、
+  suffix 規則を外れれば `InvalidInput`、存在しない selector なら pytest rc=5 で
+  `{0,1}` 以外として拒否、rc=1 なら実出力と selector の一致を要求する。
+
+**却下した選択肢:**
+
+- 1 回の collection 観測を node 数だけ複製して `collections` の件数を保つ — 複製すると
+  `request_id` / `submission_nonce` / `stdout_sha256` という 1 回の dispatch に固有の値が
+  並び、26 回 dispatch した外観になる。証拠の捏造に近い。件数を縛る consumer は無く、
+  「1 観測 = 1 entry」の方が実態を正直に反映する。
+- cache 由来であることを示す field を `collections` entry へ足す — consumer が
+  6 field ちょうどを要求するため receipt が拒否される。schema 変更は別裁定を要する。
+- cache を採らない — 残余リスクは消えるが、本 wave の利得も消える。
+  上記のとおり成立条件が実測で否定されており、割に合わない。
+
+再訪条件: 同一 tip で collection が非決定的だと実測されたとき。
+その時点で cache は撤回し、node ごとの再 collection へ戻す。
+
+## D688. 受入の赤の帰属判定を、赤 1 件ずつの再走から tested main 全走との集合差分へ作り替える (2026-08-23)
+
+**決定 (ユーザー裁定):** `tools/check_acceptance_reds.py` の帰属判定を、
+赤 nodeid ごとに使い捨て worktree を作って単独再走する O(赤の件数) の設計から、
+**tested main で全走を 1 回だけ行い、受入ログの赤集合との差分で帰属を出す O(1) の設計**へ
+作り替える。
+
+- `non-attributable = R_tip ∩ R_main`
+- `attributable 候補 D = R_tip \ R_main`
+- **`D` が非空のときだけ、`D` 全体を wave tip 上で 1 回の batch 再実行にまとめる。**
+  落ちれば `attributable`、通れば `flake`。**per-node に分解しない。**
+
+dispatch 回数は赤の件数に依存しない (main 全走 1 + collect-only 1、必要なら batch 1)。
+
+**理由:**
+
+- **直列では 5 分予算 (D678) を満たせないことが算術で確定した。** 同一混雑下の A/B 実測で
+  1 dispatch は約 22 秒の固定費であり (投入枠を 5 分へ絞って 22.30 秒、既定 1 時間で 21.86 秒、
+  有意差なし)、26 件 × 22 秒 = 572 秒 > 300 秒。ローカル git を 0 と仮定してもなお超える。
+  実際、collection 畳み込みを適用した後でも手動実行が 58 分走って 26 件を完了しなかった。
+- **テストは 1 件も間引かない。むしろ増える。** main 側で全走するので、
+  従来 (赤の件数ぶんだけ単独実行) より多くのテストを実行する。
+- **比較が同種同士になる。** 従来は「tip 側は全走の赤 vs main 側は単独実行の結果」で
+  実行条件が異なっていた。全走 vs 全走の差分の方が帰属判定として筋が通る。
+- **tip 側の全走は判定器の追加コストではない。** それは受入全走そのものである。
+  ここを二重計上して「全走 2 回で 8 分」と読む誤解が起きやすい。
+  判定器が新たに払うのは main 側の全走 1 回 (実測 196〜260 秒) だけである。
+- **probe worktree が 1〜2 個に減る。** 赤の件数に比例して露出していた
+  rc=128 競合・probe 残骸放置・共有 `.git/config` のロック競合・判定中の main 競走が
+  構造的に縮小する。他セッターの実測では 4 回投入して 4 回とも別々の理由で壊れており、
+  いずれも「判定が長い」ことが露出条件だった。
+
+**当初前提が実測で覆った点 (これを書かないと下記の設計判断が読めなくなる):**
+
+親は当初「差分集合は通常空集合なので、その再実行は例外経路でよい」と考えていた。
+**これは誤りだった。** T-755 セッターの実測で、同一 branch・同一 tip 系列でも
+並行受入 3 本のとき 26 件、4 本のとき 36 件が落ち、**差の 10 件は差分ではなく並行度に起因する**。
+素朴な差分だとこの 10 件が attributable 候補になり、無関係な wave を再現しない形で止める。
+
+したがって **`D` の batch 再実行は例外経路ではなく常設経路である**。
+これが並行度由来の偽陽性を flake として落とす。per-node に分解せず 1 dispatch へ畳むので
+O(1) は保たれる。
+
+**却下した選択肢:**
+
+- **worktree 再利用** — 状態隔離を証明できない
+  (D686 参照)。
+- **bounded 並列 (6〜8 並列)** — 26 件を約 3 分にできるが O(赤の件数) が残り、
+  上記 4 つの失敗モードが消えない。判定時間が失敗確率を上げる自己増悪構造も解消しない。
+- **投入枠 (walltime) の適正化** — `run_tests.py` は
+  `IZANAGI_DISPATCH_WALLTIME_OVERRIDE` の seam を持ち、既定は
+  `dispatch_compute.py` の `DEFAULT_WALLTIME = "01:00:00"` である。
+  数秒の仕事に 1 時間枠を要求する形は不合理だが、**A/B 実測で所要は変わらなかった**
+  (22.30 秒 vs 21.86 秒)。約 22 秒は queue 待ちではなく起動・後片付けの固定費だった。
+- **判定器を既定オフにするだけ** — 既知赤が残る限り受入受領証の発行経路が閉じ着地できない。
+  絶対規律 2 を緩める読み替えは行わない。
+
+**残る限界:** 判定器を受入経路で使わない (D678) 前提では、受領証は「全緑」でしか発行されない。
+非帰属の新しい赤が出た wave の着地経路は D662 点 4/5 (known-violation 登録 →
+D679 でテスト側を止める → 修理を高優先度タスクへ) に依存する。
+判定主体が道具から人間・AI の判断へ移った点は記録に値する。
+
+再訪条件: 受領証の発行経路が整い、判定器を受入経路で再び使う判断が出たとき。
+その時点で本設計の O(1) 性が効く。
