@@ -70,6 +70,22 @@ _SHA_RE = re.compile(r"(?:[0-9a-f]{40}|[0-9a-f]{64})\Z")
 _SHA1_RE = re.compile(r"[0-9a-f]{40}\Z")
 _SHA256_RE = re.compile(r"[0-9a-f]{64}\Z")
 _HOLDER_RE = re.compile(r"[0-9a-f]{12}\Z")
+_MERGE_AFFECTING_CONFIG_KEYS = frozenset({
+    b"core.attributesfile",
+    b"diff.algorithm",
+    b"diff.renamelimit",
+    b"diff.renames",
+    b"merge.autostash",
+    b"merge.directoryrenames",
+    b"merge.renamelimit",
+    b"merge.renames",
+    b"merge.renormalize",
+    b"merge.verifysignatures",
+})
+_BRANCH_CONFIG_PREFIX = b"branch."
+_BRANCH_MERGE_OPTIONS_SUFFIX = b".mergeoptions"
+_MERGE_DRIVER_CONFIG_PREFIX = b"merge."
+_MERGE_DRIVER_CONFIG_SUFFIXES = (b".driver", b".recursive")
 _ACCEPTANCE_RECEIPT_SCHEMA = "dev-wave-acceptance-receipt/v5"
 _ACCEPTANCE_AUTHORITY_KINDS = {
     "tested-main": "dev-wave-acceptance-launcher",
@@ -416,6 +432,21 @@ def _git_env() -> dict[str, str]:
     return env
 
 
+def _config_inspection_env() -> dict[str, str]:
+    """親 merge と同じ config origin を読むため Git override だけを除く。"""
+
+    env = {
+        key: value
+        for key, value in os.environ.items()
+        if not key.startswith("GIT_")
+    }
+    env.update({
+        "GIT_TERMINAL_PROMPT": "0",
+        "LC_ALL": "C",
+    })
+    return env
+
+
 def _git(repo: Path, *args: str, pass_fds: tuple[int, ...] = ()) -> _GitResult:
     try:
         completed = subprocess.run(
@@ -428,6 +459,34 @@ def _git(repo: Path, *args: str, pass_fds: tuple[int, ...] = ()) -> _GitResult:
             shell=False,
             close_fds=True,
             pass_fds=pass_fds,
+        )
+    except OSError as exc:
+        return _GitResult(127, b"", str(exc).encode("utf-8", "replace"))
+    return _GitResult(completed.returncode, completed.stdout, completed.stderr)
+
+
+def _git_config_names(repo: Path) -> _GitResult:
+    """system/global/local/worktree の effective key 名を include 込みで返す。"""
+
+    try:
+        completed = subprocess.run(
+            [
+                _GIT_EXE,
+                "-C",
+                str(repo),
+                "config",
+                "--includes",
+                "--null",
+                "--name-only",
+                "--list",
+            ],
+            env=_config_inspection_env(),
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            check=False,
+            shell=False,
+            close_fds=True,
         )
     except OSError as exc:
         return _GitResult(127, b"", str(exc).encode("utf-8", "replace"))
@@ -1274,24 +1333,62 @@ def _verify_effective_config(repository: _Repository) -> None:
 
 
 def _verify_replay_config(repository: _Repository) -> None:
-    result = _git(
-        repository.main,
-        "config",
-        "--includes",
-        "--null",
-        "--name-only",
-        "--get-regexp",
-        r"^merge\..*\.driver$",
-    )
-    if result.returncode not in (0, 1):
-        raise _Reject(
-            RC_AUDIT,
-            "external merge driver configuration: config inspection failed "
-            f"({_detail(result.stderr)})",
-            retryable_same_request=True,
-        )
-    if result.returncode == 0 and result.stdout:
-        raise _Reject(RC_AUDIT, "external merge driver configuration is unsupported")
+    wave_branch = _symbolic_head(repository.wave, "wave")[len("refs/heads/"):]
+    wave_branch_raw = wave_branch.encode("ascii")
+    for label, worktree in (("main", repository.main), ("wave", repository.wave)):
+        result = _git_config_names(worktree)
+        if result.returncode != 0:
+            raise _Reject(
+                RC_AUDIT,
+                "merge-affecting configuration: config inspection failed "
+                f"for {label} worktree ({_detail(result.stderr)})",
+                retryable_same_request=True,
+            )
+        for raw_key in result.stdout.split(b"\0"):
+            if not raw_key:
+                continue
+            key = raw_key.lower()
+            is_merge_driver = (
+                key.startswith(_MERGE_DRIVER_CONFIG_PREFIX)
+                and any(
+                    len(key) > len(_MERGE_DRIVER_CONFIG_PREFIX) + len(suffix)
+                    and key.endswith(suffix)
+                    for suffix in _MERGE_DRIVER_CONFIG_SUFFIXES
+                )
+            )
+            if is_merge_driver:
+                raise _Reject(
+                    RC_AUDIT,
+                    "external merge driver configuration is unsupported",
+                )
+            is_branch_merge_options = (
+                key.startswith(_BRANCH_CONFIG_PREFIX)
+                and len(key) > (
+                    len(_BRANCH_CONFIG_PREFIX)
+                    + len(_BRANCH_MERGE_OPTIONS_SUFFIX)
+                )
+                and key.endswith(_BRANCH_MERGE_OPTIONS_SUFFIX)
+                and raw_key[
+                    len(_BRANCH_CONFIG_PREFIX):
+                    -len(_BRANCH_MERGE_OPTIONS_SUFFIX)
+                ] == wave_branch_raw
+            )
+            if (
+                key in _MERGE_AFFECTING_CONFIG_KEYS
+                or is_branch_merge_options
+            ):
+                try:
+                    display_key = key.decode("ascii")
+                except UnicodeDecodeError as exc:
+                    raise _Reject(
+                        RC_AUDIT,
+                        "merge-affecting configuration key is non-ASCII",
+                    ) from exc
+                raise _Reject(
+                    RC_AUDIT,
+                    "merge-affecting configuration is unsupported: "
+                    f"{display_key}",
+                )
 
 
 def _handoff_snapshot(
@@ -1835,6 +1932,7 @@ def _unique_merge_base(
 
 def _forward_main_merge_topology(
     repository: _Repository,
+    tested_main: str,
     tested_tip: str,
     landing_tip: str,
 ) -> tuple[_ForwardMainMerge, ...]:
@@ -1895,6 +1993,17 @@ def _forward_main_merge_topology(
             row[2],
             f"forward main merge {index} incorporated main",
         )
+        if not merges and not _is_ancestor(
+            repository.wave,
+            tested_main,
+            incorporated_main,
+        ):
+            # B-057-7: この gate を外したときだけ divergent fixture が
+            # land まで到達する。後段へ同じ A <= S_1 条件を重ねない。
+            raise _Reject(
+                RC_AUDIT,
+                "first incorporated main is not a descendant of tested main",
+            )
         prior_main = _unique_merge_base(
             repository,
             first_parent,
@@ -2485,6 +2594,7 @@ def _locked_preflight(
         )
         forward_main_merges = _forward_main_merge_topology(
             repository,
+            tested_main,
             tested_tip,
             landing_tip,
         )
@@ -3563,6 +3673,7 @@ def land(request: LandRequest) -> LandResult:
             _verify_replay_config(repository)
             prelocked_forward_main_merges = _forward_main_merge_topology(
                 repository,
+                tested_main,
                 tested_tip,
                 landing_tip,
             )

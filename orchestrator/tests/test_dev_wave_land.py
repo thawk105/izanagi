@@ -6512,6 +6512,41 @@ def test_receipt_survives_clean_forward_main_merge_chain(count: int) -> None:
         ) == incorporated
 
 
+def test_first_forward_main_must_descend_from_tested_main_only_by_origin_gate() -> None:
+    """B-057-7: B--A--T と B--S の差替えを起点 gate 固有で拒否する。"""
+
+    with _repo(waves=(("codex", "one"), ("codex", "divergent"))) as repo:
+        wave = repo.waves["one"]
+        divergent = repo.waves["divergent"]
+        tested_main = repo.commit(
+            repo.main,
+            "accepted-main.txt",
+            "accepted main\n",
+        )
+        _git(wave, "merge", "--ff-only", tested_main)
+        tested_tip = repo.commit(wave, "wave.txt", "accepted wave\n")
+        request = repo.request(wave, base=tested_main, tip=tested_tip)
+
+        incorporated_main = repo.commit(
+            divergent,
+            "divergent-main.txt",
+            "untested divergent main\n",
+        )
+        _git(wave, "merge", "--no-ff", "--no-edit", incorporated_main)
+        landing_tip = _git(wave, "rev-parse", "HEAD")
+        _git(repo.main, "reset", "--hard", incorporated_main)
+
+        result = _land(dataclasses.replace(
+            request,
+            landing_wave_tip_sha=landing_tip,
+        ))
+
+        assert (result.rc, result.status) == (LAND.RC_AUDIT, "rejected")
+        assert result.reason == (
+            "first incorporated main is not a descendant of tested main"
+        )
+
+
 def test_same_file_disjoint_hunks_forward_merge_matches_default_git_replay() -> None:
     with _repo() as repo:
         wave = repo.waves["one"]
@@ -6617,17 +6652,111 @@ def test_forward_merge_replay_isolated_mutations_use_default_strategy() -> None:
         )
 
 
-def test_forward_merge_replay_rejects_external_merge_driver_configuration() -> None:
+@pytest.mark.parametrize("driver_key", ("driver", "recursive"))
+def test_forward_merge_replay_rejects_external_merge_driver_configuration(
+    driver_key: str,
+) -> None:
     with _repo() as repo:
         wave = repo.waves["one"]
         request, _, _ = _forward_merge_request(repo, wave, count=1)
-        _git(repo.main, "config", "merge.synthetic.driver", "true")
+        _git(repo.main, "config", f"merge.synthetic.{driver_key}", "true")
 
         result = _land(request)
 
         assert result.rc == LAND.RC_AUDIT
         assert result.status == "rejected"
         assert result.reason == "external merge driver configuration is unsupported"
+
+
+def test_forward_merge_replay_rejects_wave_worktree_merge_driver_configuration(
+) -> None:
+    with _repo() as repo:
+        wave = repo.waves["one"]
+        request, _, _ = _forward_merge_request(repo, wave, count=1)
+        _git(repo.main, "config", "extensions.worktreeConfig", "true")
+        _git(
+            wave,
+            "config",
+            "--worktree",
+            "merge.synthetic.driver",
+            "true",
+        )
+
+        result = _land(request)
+
+        assert result.rc == LAND.RC_AUDIT
+        assert result.status == "rejected"
+        assert result.reason == "external merge driver configuration is unsupported"
+
+
+@pytest.mark.parametrize(
+    ("key", "value"),
+    (
+        ("core.attributesFile", "synthetic-attributes"),
+        ("diff.algorithm", "patience"),
+        ("diff.renameLimit", "1"),
+        ("diff.renames", "false"),
+        ("merge.autoStash", "true"),
+        ("merge.directoryRenames", "true"),
+        ("merge.renameLimit", "1"),
+        ("merge.renames", "false"),
+        ("merge.renormalize", "true"),
+        ("merge.verifySignatures", "true"),
+        ("branch.wave/codex-one.mergeOptions", "-Xours"),
+    ),
+)
+def test_forward_merge_replay_rejects_each_merge_affecting_config_key_only_by_gate(
+    key: str,
+    value: str,
+) -> None:
+    with _repo() as repo:
+        wave = repo.waves["one"]
+        request, _, _ = _forward_merge_request(repo, wave, count=1)
+        _git(repo.main, "config", key, value)
+
+        result = _land(request)
+
+        assert (result.rc, result.status) == (LAND.RC_AUDIT, "rejected")
+        assert result.reason == (
+            "merge-affecting configuration is unsupported: " + key.lower()
+        )
+
+
+@pytest.mark.parametrize("origin", ("main-local", "wave-worktree", "global"))
+def test_forward_merge_config_gate_reads_every_git_config_origin(
+    origin: str,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    with _repo() as repo:
+        wave = repo.waves["one"]
+        request, _, _ = _forward_merge_request(repo, wave, count=1)
+        if origin == "main-local":
+            _git(repo.main, "config", "--local", "merge.renormalize", "true")
+        elif origin == "wave-worktree":
+            _git(repo.main, "config", "extensions.worktreeConfig", "true")
+            _git(
+                wave,
+                "config",
+                "--worktree",
+                "merge.renormalize",
+                "true",
+            )
+        else:
+            xdg = repo.root / "xdg"
+            config_dir = xdg / "git"
+            config_dir.mkdir(parents=True)
+            (config_dir / "config").write_text(
+                "[merge]\n\trenormalize = true\n",
+                encoding="utf-8",
+            )
+            monkeypatch.setenv("XDG_CONFIG_HOME", str(xdg))
+
+        result = _land(request)
+
+        assert (result.rc, result.status) == (LAND.RC_AUDIT, "rejected")
+        assert result.reason == (
+            "merge-affecting configuration is unsupported: merge.renormalize"
+        )
 
 
 def test_conflicting_forward_merge_is_rejected_by_replay_rc_gate() -> None:
@@ -6799,6 +6928,7 @@ def test_locked_forward_main_ff_gate_has_no_competing_rejection_layer() -> None:
             try:
                 merges = LAND._forward_main_merge_topology(
                     repository,
+                    request.tested_main_sha,
                     request.tested_wave_tip_sha,
                     request.landing_wave_tip_sha,
                 )
@@ -6867,6 +6997,7 @@ def test_forward_main_merge_chain_at_json_budget_cap_is_accepted() -> None:
             try:
                 merges = LAND._forward_main_merge_topology(
                     repository,
+                    request.tested_main_sha,
                     request.tested_wave_tip_sha,
                     request.landing_wave_tip_sha,
                 )
