@@ -59,3 +59,20 @@ seq: 2
   変異事前登録 MUT-7 (境界検査の無効化) が発火を確認する。
   **受入環境側で temp root を admission する層は未実装で、ユーザー裁定へ返す。**
 - 再発検知: 上記 import 時境界検査と MUT-7。
+
+### {{F:mutation-run-leaves-untracked-residue}}. 変異走行が実ツリーへ untracked 残骸を残した [手順漏れ]
+
+- 事象: `tools/mutation_harness.py` の変異 MUT-7 (T-080 E2E fixture の temp root 境界検査を
+  無効化する) の走行中、境界の負例が実 repo の `output/t080-stub-free-e2e/` へ
+  382MB と 451MB を書いた (probe 走と本走で各 1 回)。harness の復元は tracked file を対象とするため、
+  この成果物は走行後も残った。
+- 根本原因: 変異が「テストの副作用を止める防壁」そのものを外す型のとき、防壁が守っていた
+  書き込みが実際に起きる。harness の復元契約は tracked file の内容比較に閉じており、
+  変異が誘発した untracked 成果物は射程外である。
+- 恒久対応: harness 自身の起動前 untracked 検出が fail-closed で次走を止める
+  (`tools/mutation_harness.py` の `runner/test 実行前に untracked file を検出` で
+  本 wave が実際に 1 回止められた)。親は走行後に `git status --short` で残骸を確認し撤去する。
+  **この確認義務を `docs/dev-wave/mutation.md` の DW-M05 へ明文化する案は、
+  同 file の L1.5 unique footprint が予算満杯 (追記 218 bytes がそのまま超過分) のため
+  実施できず、ユーザー裁定へ返す。**
+- 再発検知: harness の起動前 untracked 検出。撤去漏れは land の clean-tree gate が拒否する。
