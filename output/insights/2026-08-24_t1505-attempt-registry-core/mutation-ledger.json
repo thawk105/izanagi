@@ -1,0 +1,741 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1484-floor-restart-registry/output/pegasus-dispatch/fcf6c026aa36145d0d1fb27becc4a876/izdw-fcf6c026aa.o941487",
+      "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1484-floor-restart-registry/output/pegasus-dispatch/fcf6c026aa36145d0d1fb27becc4a876/receipt.json",
+      "runner_mode": "dispatch",
+      "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 32%]\n........................................................................ [ 64%]\n........................................................................ [ 96%]\n.........                                                                [100%]\n225 passed in 42.70s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+      "stdout_sha256": "6af5e97b0b79f48134fb0f44432c330d1c22d6b48030559ac2c232d978d3804e"
+    },
+    "artifact_error": null,
+    "collection_sha256": "c98fbf8ba84d916ebc2d9dbc45c4361079174853a3a10ebefc8b41bbee834f32",
+    "duration_s": 62.795,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "86b2a60d8bfdc4f6dbb087fc1658deb050b1860d3ef5472f861172ceb43250a2",
+    "repo_head": "74dd2203e520626ebe016ba5c8d86d0405f24c94",
+    "runner_sha256": "e1d8149db4b1c2805801d2bf155d5fe65c998b2c7b9f2ddf23646eea1f0a5af4",
+    "spec_sha256": "12cfbc055a171481c00cc5135174b9f63dd1ea95e595d328ea42c64aa9885cd6",
+    "status": "PASSED",
+    "test_output_sha256": "6af5e97b0b79f48134fb0f44432c330d1c22d6b48030559ac2c232d978d3804e",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "a2f39875cca6da44a561f5dd58ce5ce16fb76a3f572ff07ae5a2d204d3390ce1"
+  },
+  "date": "2026-08-23T15:42:11.745095+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1484-floor-restart-registry/output/pegasus-dispatch/ca6bd88f8b5f3e053826e7a26a528290/izdw-ca6bd88f8b.o941488",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1484-floor-restart-registry/output/pegasus-dispatch/ca6bd88f8b5f3e053826e7a26a528290/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n...............................F........................................ [ 32%]\n..............................................................F......... [ 64%]\n........................................................................ [ 96%]\n.........                                                                [100%]\n=================================== FAILURES ===================================\n____ test_retryable_terminal_after_observation_hits_only_observation_guard _____\n[gw22] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_retryable_terminal_after_observation_hits_only_observation_guard() -> None:\n        official_profile = _profile()\n        profile = replace(\n            official_profile,\n            retryable_reasons=frozenset({\"scheduler-timeout\"}),\n        )\n        first = _slot(0, 0)\n        next_slot = _slot(0, 1)\n    \n        assert official_profile.retryable_reasons == frozenset()\n        assert s8b.S8B_RETRYABLE_FAILURE_REASONS == frozenset()\n        rows = _reserve(\n            _genesis(profile, [first, next_slot]), profile=profile, slot=first,\n        )\n        rows = _classify(\n            rows, profile=profile, slot=first, reason=\"scheduler-timeout\",\n        )\n        rows = core.begin_attempt_observation(\n            rows,\n            profile=profile,\n            freeze_id=_FREEZE,\n            slot_id=profile.slot_codec.slot_id(first),\n        )\n        rows = _terminal(\n            rows,\n            profile=profile,\n            slot=first,\n            status=\"retryable-failure\",\n            failure_reason=\"scheduler-timeout\",\n            report_sha256=_REPORT,\n        )\n        assert rows[-1][\"terminal_status\"] == \"retryable-failure\"\n        assert rows[-1][\"observation_start_event_sha256\"] is not None\n    \n>       _assert_core_rejection(\n            \"[attempt-slot-order] a retryable failure after observation cannot \"\n            \"authorize a retry\",\n            lambda: _reserve(rows, profile=profile, slot=next_slot),\n        )\n\norchestrator/tests/test_attempt_registry_core_s8b_profile.py:391: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nexpected = '[attempt-slot-order] a retryable failure after observation cannot authorize a retry'\noperation = <function test_retryable_terminal_after_observation_hits_only_observation_guard.<locals>.<lambda> at 0x14974993a8c0>\n\n    def _assert_core_rejection(\n        expected: str,\n        operation: Callable[[], object],\n    ) -> None:\n>       with pytest.raises(core.AttemptRegistryCoreError) as caught:\nE       Failed: DID NOT RAISE AttemptRegistryCoreError\n\norchestrator/tests/test_attempt_registry_core_s8b_profile.py:171: Failed\n_________ test_attempt_registry_rejects_retry_after_observation_start __________\n[gw40] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw40/test_attempt_registry_rejects_1')\n\n    def test_attempt_registry_rejects_retry_after_observation_start(\n        tmp_path: Path,\n    ) -> None:\n        repo, _manifest, _m, registry, p, c, freeze, slots = _attempt_fixture(\n            tmp_path,\n            repeats_for_first=2,\n        )\n        first, second = slots[:2]\n        cap = _reserve_attempt(repo, registry, p, c, freeze, first)\n        _classify_and_terminal(\n            cap,\n            failure_reason=\"wall-timeout\",\n            terminal_status=\"retryable-failure\",\n            begin_observation=True,\n        )\n>       with pytest.raises(R.TrialRegistryError, match=r\"after observation|retry\"):\nE       Failed: DID NOT RAISE TrialRegistryError\n\norchestrator/tests/test_trial_registry.py:6054: Failed\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_attempt_registry_core_s8b_profile.py::test_retryable_terminal_after_observation_hits_only_observation_guard\nFAILED orchestrator/tests/test_trial_registry.py::test_attempt_registry_rejects_retry_after_observation_start\n2 failed, 223 passed in 35.43s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_attempt_registry_core_s8b_profile.py::test_retryable_terminal_after_observation_hits_only_observation_guard\" nodeid_bytes=131 nodeid_omitted_bytes=0 source_bytes=2197 retained_bytes=2197 omitted_bytes=0 rendered_excerpt_bytes=2310 sha256=e8d32b87b3e4adcceae89346db1393381f23cf61ead64521e18d50a3d0d0a2ea\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw22] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_retryable_terminal_after_observation_hits_only_observation_guard() -> None:\n>         official_profile = _profile()\n>         profile = replace(\n>             official_profile,\n>             retryable_reasons=frozenset({\"scheduler-timeout\"}),\n>         )\n>         first = _slot(0, 0)\n>         next_slot = _slot(0, 1)\n>     \n>         assert official_profile.retryable_reasons == frozenset()\n>         assert s8b.S8B_RETRYABLE_FAILURE_REASONS == frozenset()\n>         rows = _reserve(\n>             _genesis(profile, [first, next_slot]), profile=profile, slot=first,\n>         )\n>         rows = _classify(\n>             rows, profile=profile, slot=first, reason=\"scheduler-timeout\",\n>         )\n>         rows = core.begin_attempt_observation(\n>             rows,\n>             profile=profile,\n>             freeze_id=_FREEZE,\n>             slot_id=profile.slot_codec.slot_id(first),\n>         )\n>         rows = _terminal(\n>             rows,\n>             profile=profile,\n>             slot=first,\n>             status=\"retryable-failure\",\n>             failure_reason=\"scheduler-timeout\",\n>             report_sha256=_REPORT,\n>         )\n>         assert rows[-1][\"terminal_status\"] == \"retryable-failure\"\n>         assert rows[-1][\"observation_start_event_sha256\"] is not None\n>     \n> >       _assert_core_rejection(\n>             \"[attempt-slot-order] a retryable failure after observation cannot \"\n>             \"authorize a retry\",\n>             lambda: _reserve(rows, profile=profile, slot=next_slot),\n>         )\n> \n> orchestrator/tests/test_attempt_registry_core_s8b_profile.py:391: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> expected = '[attempt-slot-order] a retryable failure after observation cannot authorize a retry'\n> operation = <function test_retryable_terminal_after_observation_hits_only_observation_guard.<locals>.<lambda> at 0x14974993a8c0>\n> \n>     def _assert_core_rejection(\n>         expected: str,\n>         operation: Callable[[], object],\n>     ) -> None:\n> >       with pytest.raises(core.AttemptRegistryCoreError) as caught:\n> E       Failed: DID NOT RAISE AttemptRegistryCoreError\n> \n> orchestrator/tests/test_attempt_registry_core_s8b_profile.py:171: Failed\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_trial_registry.py::test_attempt_registry_rejects_retry_after_observation_start\" nodeid_bytes=102 nodeid_omitted_bytes=0 source_bytes=875 retained_bytes=875 omitted_bytes=0 rendered_excerpt_bytes=922 sha256=663921bab3f2a3d43fbf02968e63718e64a0de005f0011b7e4a461037cc28863\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw40] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw40/test_attempt_registry_rejects_1')\n> \n>     def test_attempt_registry_rejects_retry_after_observation_start(\n>         tmp_path: Path,\n>     ) -> None:\n>         repo, _manifest, _m, registry, p, c, freeze, slots = _attempt_fixture(\n>             tmp_path,\n>             repeats_for_first=2,\n>         )\n>         first, second = slots[:2]\n>         cap = _reserve_attempt(repo, registry, p, c, freeze, first)\n>         _classify_and_terminal(\n>             cap,\n>             failure_reason=\"wall-timeout\",\n>             terminal_status=\"retryable-failure\",\n>             begin_observation=True,\n>         )\n> >       with pytest.raises(R.TrialRegistryError, match=r\"after observation|retry\"):\n> E       Failed: DID NOT RAISE TrialRegistryError\n> \n> orchestrator/tests/test_trial_registry.py:6054: Failed\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=3072 retained_bytes=3072 omitted_bytes=0 budget_bytes=49152 rendered_bytes=4431 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "6838de16a32acf61c5424fcbdf2f9abdf5a36c530979fb7dc302772c0106d1ba"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "c98fbf8ba84d916ebc2d9dbc45c4361079174853a3a10ebefc8b41bbee834f32",
+      "duration_s": 67.968,
+      "expected_nodes": [
+        "orchestrator/tests/test_attempt_registry_core_s8b_profile.py::test_retryable_terminal_after_observation_hits_only_observation_guard",
+        "orchestrator/tests/test_trial_registry.py::test_attempt_registry_rejects_retry_after_observation_start"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_attempt_registry_core_s8b_profile.py::test_retryable_terminal_after_observation_hits_only_observation_guard",
+        "orchestrator/tests/test_trial_registry.py::test_attempt_registry_rejects_retry_after_observation_start"
+      ],
+      "hang_risk": false,
+      "id": "M1",
+      "injection_diff_sha256": "066a62119649714c14939e152b7febc2d29db969cdfd3135a7ff619e008a1121",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "676fcfeb3cc6ea27b6abb7d683644ab2fb0324a7d7a29af2de8949f9b9348db5",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/attempt_registry_core.py",
+          "new": "                if False:\n                    _fail(\n                        \"attempt-slot-order\",\n                        \"a retryable failure after observation cannot authorize a retry\",\n                    )\n",
+          "old": "                if (\n                    policy.forbid_retry_after_observation\n                    and previous_terminal.get(\"observation_start_event_sha256\") is not None\n                ):\n                    _fail(\n                        \"attempt-slot-order\",\n                        \"a retryable failure after observation cannot authorize a retry\",\n                    )\n"
+        }
+      ],
+      "repo_head": "74dd2203e520626ebe016ba5c8d86d0405f24c94",
+      "runner_sha256": "e1d8149db4b1c2805801d2bf155d5fe65c998b2c7b9f2ddf23646eea1f0a5af4",
+      "spec_sha256": "12cfbc055a171481c00cc5135174b9f63dd1ea95e595d328ea42c64aa9885cd6",
+      "status": "KILLED",
+      "test_output_sha256": "6838de16a32acf61c5424fcbdf2f9abdf5a36c530979fb7dc302772c0106d1ba",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "a2f39875cca6da44a561f5dd58ce5ce16fb76a3f572ff07ae5a2d204d3390ce1"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1484-floor-restart-registry/output/pegasus-dispatch/8a5b70d3254bef18096e6921262103f6/izdw-8a5b70d325.o941489",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1484-floor-restart-registry/output/pegasus-dispatch/8a5b70d3254bef18096e6921262103f6/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n..............................FF........................................ [ 32%]\n........................................................................ [ 64%]\n........................................................................ [ 96%]\n.........                                                                [100%]\n=================================== FAILURES ===================================\n________ test_s8b_profile_closes_slot_binding_budget_and_reason_policy _________\n[gw16] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_s8b_profile_closes_slot_binding_budget_and_reason_policy() -> None:\n        profile = _profile(budget=2)\n        first = _slot(0, 0)\n        other_repetition = _slot(1, 0)\n    \n        assert profile.retryable_reasons == frozenset()\n        assert s8b.S8B_RETRYABLE_FAILURE_REASONS == frozenset()\n        assert profile.transition_policy.require_previous_terminal\n        assert profile.transition_policy.forbid_retry_after_observation\n>       assert profile.transition_policy.require_terminal_reason_equals_classification\nE       AssertionError: assert False\nE        +  where False = TransitionPolicy(require_previous_terminal=True, forbid_retry_after_observation=True, allow_recovered_abandonment=Fals...quals_classification=False, budget_key=<function _s8b_budget_key at 0x148795160940>, max_consumptions_per_budget_key=2).require_terminal_reason_equals_classification\nE        +    where TransitionPolicy(require_previous_terminal=True, forbid_retry_after_observation=True, allow_recovered_abandonment=Fals...quals_classification=False, budget_key=<function _s8b_budget_key at 0x148795160940>, max_consumptions_per_budget_key=2) = DomainProfile(schema=SchemaProfile(current='s8b-floor-attempt-registry/v1', readable=frozenset({'s8b-floor-attempt-reg...om_genesis at 0x1487951609d0>, binding_conflict_message='attempt rows do not share one binding', binding_mismatch=None).transition_policy\n\norchestrator/tests/test_attempt_registry_core_s8b_profile.py:189: AssertionError\n_______ test_strict_8b_reason_match_rejects_input_that_8c_still_accepts ________\n[gw26] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_strict_8b_reason_match_rejects_input_that_8c_still_accepts() -> None:\n        profile = _profile()\n        slot = _slot(0, 0)\n        classification_reason = \"classified-terminal-failure\"\n        terminal_reason = \"different-terminal-failure\"\n    \n        matching = _classify(\n            _reserve(_genesis(profile, [slot]), profile=profile, slot=slot),\n            profile=profile,\n            slot=slot,\n            reason=classification_reason,\n        )\n        matching = _terminal(\n            matching,\n            profile=profile,\n            slot=slot,\n            status=\"terminal-failure\",\n            failure_reason=classification_reason,\n        )\n        assert matching[-1][\"failure_reason\"] == classification_reason\n    \n        mismatching = _classify(\n            _reserve(_genesis(profile, [slot]), profile=profile, slot=slot),\n            profile=profile,\n            slot=slot,\n            reason=classification_reason,\n        )\n>       _assert_core_rejection(\n            \"[attempt-classification] terminal failure reason differs from classification\",\n            lambda: _terminal(\n                mismatching,\n                profile=profile,\n                slot=slot,\n                status=\"terminal-failure\",\n                failure_reason=terminal_reason,\n            ),\n        )\n\norchestrator/tests/test_attempt_registry_core_s8b_profile.py:599: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nexpected = '[attempt-classification] terminal failure reason differs from classification'\noperation = <function test_strict_8b_reason_match_rejects_input_that_8c_still_accepts.<locals>.<lambda> at 0x147d3ab6e8c0>\n\n    def _assert_core_rejection(\n        expected: str,\n        operation: Callable[[], object],\n    ) -> None:\n>       with pytest.raises(core.AttemptRegistryCoreError) as caught:\nE       Failed: DID NOT RAISE AttemptRegistryCoreError\n\norchestrator/tests/test_attempt_registry_core_s8b_profile.py:171: Failed\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_attempt_registry_core_s8b_profile.py::test_s8b_profile_closes_slot_binding_budget_and_reason_policy\nFAILED orchestrator/tests/test_attempt_registry_core_s8b_profile.py::test_strict_8b_reason_match_rejects_input_that_8c_still_accepts\n2 failed, 223 passed in 48.42s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_attempt_registry_core_s8b_profile.py::test_strict_8b_reason_match_rejects_input_that_8c_still_accepts\" nodeid_bytes=125 nodeid_omitted_bytes=0 source_bytes=2045 retained_bytes=2045 omitted_bytes=0 rendered_excerpt_bytes=2154 sha256=54e5de8f05fec92842a730e77efa41632dafe5ad4ddd0f25aa311dabb361af1d\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw26] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_strict_8b_reason_match_rejects_input_that_8c_still_accepts() -> None:\n>         profile = _profile()\n>         slot = _slot(0, 0)\n>         classification_reason = \"classified-terminal-failure\"\n>         terminal_reason = \"different-terminal-failure\"\n>     \n>         matching = _classify(\n>             _reserve(_genesis(profile, [slot]), profile=profile, slot=slot),\n>             profile=profile,\n>             slot=slot,\n>             reason=classification_reason,\n>         )\n>         matching = _terminal(\n>             matching,\n>             profile=profile,\n>             slot=slot,\n>             status=\"terminal-failure\",\n>             failure_reason=classification_reason,\n>         )\n>         assert matching[-1][\"failure_reason\"] == classification_reason\n>     \n>         mismatching = _classify(\n>             _reserve(_genesis(profile, [slot]), profile=profile, slot=slot),\n>             profile=profile,\n>             slot=slot,\n>             reason=classification_reason,\n>         )\n> >       _assert_core_rejection(\n>             \"[attempt-classification] terminal failure reason differs from classification\",\n>             lambda: _terminal(\n>                 mismatching,\n>                 profile=profile,\n>                 slot=slot,\n>                 status=\"terminal-failure\",\n>                 failure_reason=terminal_reason,\n>             ),\n>         )\n> \n> orchestrator/tests/test_attempt_registry_core_s8b_profile.py:599: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> expected = '[attempt-classification] terminal failure reason differs from classification'\n> operation = <function test_strict_8b_reason_match_rejects_input_that_8c_still_accepts.<locals>.<lambda> at 0x147d3ab6e8c0>\n> \n>     def _assert_core_rejection(\n>         expected: str,\n>         operation: Callable[[], object],\n>     ) -> None:\n> >       with pytest.raises(core.AttemptRegistryCoreError) as caught:\n> E       Failed: DID NOT RAISE AttemptRegistryCoreError\n> \n> orchestrator/tests/test_attempt_registry_core_s8b_profile.py:171: Failed\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_attempt_registry_core_s8b_profile.py::test_s8b_profile_closes_slot_binding_budget_and_reason_policy\" nodeid_bytes=123 nodeid_omitted_bytes=0 source_bytes=1537 retained_bytes=1537 omitted_bytes=0 rendered_excerpt_bytes=1572 sha256=e1ef9dddaa690a13cb31bc5963f04d70c24b3d3122064ec51071567b0d012134\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw16] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_s8b_profile_closes_slot_binding_budget_and_reason_policy() -> None:\n>         profile = _profile(budget=2)\n>         first = _slot(0, 0)\n>         other_repetition = _slot(1, 0)\n>     \n>         assert profile.retryable_reasons == frozenset()\n>         assert s8b.S8B_RETRYABLE_FAILURE_REASONS == frozenset()\n>         assert profile.transition_policy.require_previous_terminal\n>         assert profile.transition_policy.forbid_retry_after_observation\n> >       assert profile.transition_policy.require_terminal_reason_equals_classification\n> E       AssertionError: assert False\n> E        +  where False = TransitionPolicy(require_previous_terminal=True, forbid_retry_after_observation=True, allow_recovered_abandonment=Fals...quals_classification=False, budget_key=<function _s8b_budget_key at 0x148795160940>, max_consumptions_per_budget_key=2).require_terminal_reason_equals_classification\n> E        +    where TransitionPolicy(require_previous_terminal=True, forbid_retry_after_observation=True, allow_recovered_abandonment=Fals...quals_classification=False, budget_key=<function _s8b_budget_key at 0x148795160940>, max_consumptions_per_budget_key=2) = DomainProfile(schema=SchemaProfile(current='s8b-floor-attempt-registry/v1', readable=frozenset({'s8b-floor-attempt-reg...om_genesis at 0x1487951609d0>, binding_conflict_message='attempt rows do not share one binding', binding_mismatch=None).transition_policy\n> \n> orchestrator/tests/test_attempt_registry_core_s8b_profile.py:189: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=3582 retained_bytes=3582 omitted_bytes=0 budget_bytes=49152 rendered_bytes=4943 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "8bee1e1b05e219be7cb1ee620315632db85c8c7cc5cc1df4607421217468b300"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "c98fbf8ba84d916ebc2d9dbc45c4361079174853a3a10ebefc8b41bbee834f32",
+      "duration_s": 78.311,
+      "expected_nodes": [
+        "orchestrator/tests/test_attempt_registry_core_s8b_profile.py::test_s8b_profile_closes_slot_binding_budget_and_reason_policy",
+        "orchestrator/tests/test_attempt_registry_core_s8b_profile.py::test_strict_8b_reason_match_rejects_input_that_8c_still_accepts"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_attempt_registry_core_s8b_profile.py::test_s8b_profile_closes_slot_binding_budget_and_reason_policy",
+        "orchestrator/tests/test_attempt_registry_core_s8b_profile.py::test_strict_8b_reason_match_rejects_input_that_8c_still_accepts"
+      ],
+      "hang_risk": false,
+      "id": "M2",
+      "injection_diff_sha256": "1436a7a21621b042b2834fcb4c287a7483764170d80c140bf62cb522da168b2b",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "53525719ac124e69e929deaa317ff53f45059f15a1665b05ed5a7ddb79a75b6e",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_attempt_profile.py",
+          "new": "            require_terminal_reason_equals_classification=False,\n",
+          "old": "            require_terminal_reason_equals_classification=True,\n"
+        }
+      ],
+      "repo_head": "74dd2203e520626ebe016ba5c8d86d0405f24c94",
+      "runner_sha256": "e1d8149db4b1c2805801d2bf155d5fe65c998b2c7b9f2ddf23646eea1f0a5af4",
+      "spec_sha256": "12cfbc055a171481c00cc5135174b9f63dd1ea95e595d328ea42c64aa9885cd6",
+      "status": "KILLED",
+      "test_output_sha256": "8bee1e1b05e219be7cb1ee620315632db85c8c7cc5cc1df4607421217468b300",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "a2f39875cca6da44a561f5dd58ce5ce16fb76a3f572ff07ae5a2d204d3390ce1"
+    },
+    {
+      "anchor_counts": {
+        "0": 1,
+        "1": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1484-floor-restart-registry/output/pegasus-dispatch/5732b83993682b4fdc6de6ed0c4024be/izdw-5732b83993.o941491",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1484-floor-restart-registry/output/pegasus-dispatch/5732b83993682b4fdc6de6ed0c4024be/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n.....................................FF................................. [ 32%]\n........................................................................ [ 64%]\n........................................................................ [ 96%]\n.........                                                                [100%]\n=================================== FAILURES ===================================\n________________ test_six_facades_are_unrebound_real_functions _________________\n[gw14] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_six_facades_are_unrebound_real_functions() -> None:\n        source = Path(R.__file__).read_text(encoding=\"utf-8\")\n        tree = ast.parse(source)\n        names = {\n            \"create_attempt_registry_genesis\",\n            \"load_attempt_registry\",\n            \"reserve_attempt_slot\",\n            \"classify_attempt\",\n            \"begin_attempt_observation\",\n            \"record_attempt_terminal\",\n        }\n        definitions = {\n            node.name for node in tree.body if isinstance(node, ast.FunctionDef)\n        }\n        rebound = {\n            target.id\n            for node in tree.body\n            if isinstance(node, (ast.Assign, ast.AnnAssign))\n            for target in (\n                node.targets if isinstance(node, ast.Assign) else (node.target,)\n            )\n            if isinstance(target, ast.Name)\n        }\n>       assert names <= definitions\nE       AssertionError: assert {'begin_attem...attempt_slot'} <= {'_assert_anc...mmit_id', ...}\nE         \nE         Extra items in the left set:\nE         'reserve_attempt_slot'\n\norchestrator/tests/test_attempt_registry_core_equivalence.py:769: AssertionError\n_________ test_trial_registry_six_facades_have_no_top_level_rebinding __________\n[gw27] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_trial_registry_six_facades_have_no_top_level_rebinding() -> None:\n>       _assert_six_facades_are_unrebound(\n            Path(R.__file__).read_text(encoding=\"utf-8\")\n        )\n\norchestrator/tests/test_attempt_registry_core_s8b_profile.py:683: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nsource = '# -*- coding: utf-8 -*-\\n\"\"\"Phase 3 8c trial manifest registration and acceptance gates.\\n\\nThe v2 receipt projects t...ut).decode(\"utf-8\"))\\n    return 0\\n\\n\\nif __name__ == \"__main__\":  # pragma: no cover\\n    raise SystemExit(main())\\n'\n\n    def _assert_six_facades_are_unrebound(source: str) -> None:\n        tree = ast.parse(source)\n        definitions = [\n            statement.name\n            for statement in tree.body\n            if isinstance(statement, (ast.FunctionDef, ast.AsyncFunctionDef))\n            and statement.name in _FACADE_NAMES\n        ]\n        missing = sorted(_FACADE_NAMES - set(definitions))\n        duplicates = sorted({name for name in definitions if definitions.count(name) != 1})\n        rebound = sorted(\n            _FACADE_NAMES.intersection(\n                name\n                for statement in tree.body\n                for name in _non_function_bindings(statement)\n            )\n        )\n        if missing:\n>           raise AssertionError(f\"facade definitions are missing: {', '.join(missing)}\")\nE           AssertionError: facade definitions are missing: reserve_attempt_slot\n\norchestrator/tests/test_attempt_registry_core_s8b_profile.py:673: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_attempt_registry_core_equivalence.py::test_six_facades_are_unrebound_real_functions\nFAILED orchestrator/tests/test_attempt_registry_core_s8b_profile.py::test_trial_registry_six_facades_have_no_top_level_rebinding\n2 failed, 223 passed in 36.53s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_attempt_registry_core_s8b_profile.py::test_trial_registry_six_facades_have_no_top_level_rebinding\" nodeid_bytes=121 nodeid_omitted_bytes=0 source_bytes=1600 retained_bytes=1600 omitted_bytes=0 rendered_excerpt_bytes=1696 sha256=c4de5177a988deb026188993618a8d8ef8f0c5fc61c511b8f67e876b1afee166\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw27] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_trial_registry_six_facades_have_no_top_level_rebinding() -> None:\n> >       _assert_six_facades_are_unrebound(\n>             Path(R.__file__).read_text(encoding=\"utf-8\")\n>         )\n> \n> orchestrator/tests/test_attempt_registry_core_s8b_profile.py:683: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> source = '# -*- coding: utf-8 -*-\\x5cn\"\"\"Phase 3 8c trial manifest registration and acceptance gates.\\x5cn\\x5cnThe v2 receipt projects t...ut).decode(\"utf-8\"))\\x5cn    return 0\\x5cn\\x5cn\\x5cnif __name__ == \"__main__\":  # pragma: no cover\\x5cn    raise SystemExit(main())\\x5cn'\n> \n>     def _assert_six_facades_are_unrebound(source: str) -> None:\n>         tree = ast.parse(source)\n>         definitions = [\n>             statement.name\n>             for statement in tree.body\n>             if isinstance(statement, (ast.FunctionDef, ast.AsyncFunctionDef))\n>             and statement.name in _FACADE_NAMES\n>         ]\n>         missing = sorted(_FACADE_NAMES - set(definitions))\n>         duplicates = sorted({name for name in definitions if definitions.count(name) != 1})\n>         rebound = sorted(\n>             _FACADE_NAMES.intersection(\n>                 name\n>                 for statement in tree.body\n>                 for name in _non_function_bindings(statement)\n>             )\n>         )\n>         if missing:\n> >           raise AssertionError(f\"facade definitions are missing: {', '.join(missing)}\")\n> E           AssertionError: facade definitions are missing: reserve_attempt_slot\n> \n> orchestrator/tests/test_attempt_registry_core_s8b_profile.py:673: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_attempt_registry_core_equivalence.py::test_six_facades_are_unrebound_real_functions\" nodeid_bytes=107 nodeid_omitted_bytes=0 source_bytes=1193 retained_bytes=1193 omitted_bytes=0 rendered_excerpt_bytes=1258 sha256=7f0512b961cc593b6edf3e25e89ae1dfaf1e5e697119648652e0d13376a8e3d3\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw14] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_six_facades_are_unrebound_real_functions() -> None:\n>         source = Path(R.__file__).read_text(encoding=\"utf-8\")\n>         tree = ast.parse(source)\n>         names = {\n>             \"create_attempt_registry_genesis\",\n>             \"load_attempt_registry\",\n>             \"reserve_attempt_slot\",\n>             \"classify_attempt\",\n>             \"begin_attempt_observation\",\n>             \"record_attempt_terminal\",\n>         }\n>         definitions = {\n>             node.name for node in tree.body if isinstance(node, ast.FunctionDef)\n>         }\n>         rebound = {\n>             target.id\n>             for node in tree.body\n>             if isinstance(node, (ast.Assign, ast.AnnAssign))\n>             for target in (\n>                 node.targets if isinstance(node, ast.Assign) else (node.target,)\n>             )\n>             if isinstance(target, ast.Name)\n>         }\n> >       assert names <= definitions\n> E       AssertionError: assert {'begin_attem...attempt_slot'} <= {'_assert_anc...mmit_id', ...}\n> E         \n> E         Extra items in the left set:\n> E         'reserve_attempt_slot'\n> \n> orchestrator/tests/test_attempt_registry_core_equivalence.py:769: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=2793 retained_bytes=2793 omitted_bytes=0 budget_bytes=49152 rendered_bytes=4151 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "38fd12b19a023d4b917654bbcc259c6938129fd0a9b85c11ae97c81fa5e62c3b"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "c98fbf8ba84d916ebc2d9dbc45c4361079174853a3a10ebefc8b41bbee834f32",
+      "duration_s": 73.057,
+      "expected_nodes": [
+        "orchestrator/tests/test_attempt_registry_core_equivalence.py::test_six_facades_are_unrebound_real_functions",
+        "orchestrator/tests/test_attempt_registry_core_s8b_profile.py::test_trial_registry_six_facades_have_no_top_level_rebinding"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_attempt_registry_core_equivalence.py::test_six_facades_are_unrebound_real_functions",
+        "orchestrator/tests/test_attempt_registry_core_s8b_profile.py::test_trial_registry_six_facades_have_no_top_level_rebinding"
+      ],
+      "hang_risk": false,
+      "id": "M3",
+      "injection_diff_sha256": "63f59ebdb62c10322fa16da855c83c1ab2d4c4d84be0d7a73dfe11630467d510",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "16f88cf97aaa22a016450afdf05589db538d6c9cb4dd58db4843fee0740c8a31",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/trial_registry.py",
+          "new": "def _reserve_attempt_slot_facade(\n    *,\n    repository_root: Path,\n    freeze_id: str,\n    slot_id: str,\n",
+          "old": "def reserve_attempt_slot(\n    *,\n    repository_root: Path,\n    freeze_id: str,\n    slot_id: str,\n"
+        },
+        {
+          "file": "orchestrator/campaign/trial_registry.py",
+          "new": "reserve_attempt_slot = _reserve_attempt_slot_facade\nrecord_attempt_start = reserve_attempt_slot\n",
+          "old": "record_attempt_start = reserve_attempt_slot\n"
+        }
+      ],
+      "repo_head": "74dd2203e520626ebe016ba5c8d86d0405f24c94",
+      "runner_sha256": "e1d8149db4b1c2805801d2bf155d5fe65c998b2c7b9f2ddf23646eea1f0a5af4",
+      "spec_sha256": "12cfbc055a171481c00cc5135174b9f63dd1ea95e595d328ea42c64aa9885cd6",
+      "status": "KILLED",
+      "test_output_sha256": "38fd12b19a023d4b917654bbcc259c6938129fd0a9b85c11ae97c81fa5e62c3b",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "a2f39875cca6da44a561f5dd58ce5ce16fb76a3f572ff07ae5a2d204d3390ce1"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1484-floor-restart-registry/output/pegasus-dispatch/0b0af3b3beadf8a271c748dacacee32b/izdw-0b0af3b3be.o941494",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1484-floor-restart-registry/output/pegasus-dispatch/0b0af3b3beadf8a271c748dacacee32b/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................F.F............................. [ 32%]\n........................................................................ [ 64%]\n........................................................................ [ 96%]\n.........                                                                [100%]\n=================================== FAILURES ===================================\n________________ test_six_facades_are_unrebound_real_functions _________________\n[gw14] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_six_facades_are_unrebound_real_functions() -> None:\n        source = Path(R.__file__).read_text(encoding=\"utf-8\")\n        tree = ast.parse(source)\n        names = {\n            \"create_attempt_registry_genesis\",\n            \"load_attempt_registry\",\n            \"reserve_attempt_slot\",\n            \"classify_attempt\",\n            \"begin_attempt_observation\",\n            \"record_attempt_terminal\",\n        }\n        definitions = {\n            node.name for node in tree.body if isinstance(node, ast.FunctionDef)\n        }\n        rebound = {\n            target.id\n            for node in tree.body\n            if isinstance(node, (ast.Assign, ast.AnnAssign))\n            for target in (\n                node.targets if isinstance(node, ast.Assign) else (node.target,)\n            )\n            if isinstance(target, ast.Name)\n        }\n        assert names <= definitions\n>       assert names.isdisjoint(rebound)\nE       AssertionError: assert False\nE        +  where False = <built-in method isdisjoint of set object at 0x148b24f4fca0>({'ARMS', 'ATTEMPT_REGISTRY_SCHEMA_VERSION', 'ATTEMPT_RETRYABLE_FAILURE_REASONS', 'ATTEMPT_STATUSES', 'DEFAULT_ATTEMPT_REGISTRY_PATH', 'DEFAULT_EFFECTIVE_BINDING_PATH', ...})\nE        +    where <built-in method isdisjoint of set object at 0x148b24f4fca0> = {'begin_attempt_observation', 'classify_attempt', 'create_attempt_registry_genesis', 'load_attempt_registry', 'record_attempt_terminal', 'reserve_attempt_slot'}.isdisjoint\n\norchestrator/tests/test_attempt_registry_core_equivalence.py:770: AssertionError\n_________ test_trial_registry_six_facades_have_no_top_level_rebinding __________\n[gw27] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_trial_registry_six_facades_have_no_top_level_rebinding() -> None:\n>       _assert_six_facades_are_unrebound(\n            Path(R.__file__).read_text(encoding=\"utf-8\")\n        )\n\norchestrator/tests/test_attempt_registry_core_s8b_profile.py:683: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nsource = '# -*- coding: utf-8 -*-\\n\"\"\"Phase 3 8c trial manifest registration and acceptance gates.\\n\\nThe v2 receipt projects t...ut).decode(\"utf-8\"))\\n    return 0\\n\\n\\nif __name__ == \"__main__\":  # pragma: no cover\\n    raise SystemExit(main())\\n'\n\n    def _assert_six_facades_are_unrebound(source: str) -> None:\n        tree = ast.parse(source)\n        definitions = [\n            statement.name\n            for statement in tree.body\n            if isinstance(statement, (ast.FunctionDef, ast.AsyncFunctionDef))\n            and statement.name in _FACADE_NAMES\n        ]\n        missing = sorted(_FACADE_NAMES - set(definitions))\n        duplicates = sorted({name for name in definitions if definitions.count(name) != 1})\n        rebound = sorted(\n            _FACADE_NAMES.intersection(\n                name\n                for statement in tree.body\n                for name in _non_function_bindings(statement)\n            )\n        )\n        if missing:\n            raise AssertionError(f\"facade definitions are missing: {', '.join(missing)}\")\n        if duplicates:\n            raise AssertionError(f\"top-level facade definitions repeat: {', '.join(duplicates)}\")\n        if rebound:\n>           raise AssertionError(\n                f\"top-level facade rebinding is forbidden: {', '.join(rebound)}\"\n            )\nE           AssertionError: top-level facade rebinding is forbidden: create_attempt_registry_genesis\n\norchestrator/tests/test_attempt_registry_core_s8b_profile.py:677: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_attempt_registry_core_equivalence.py::test_six_facades_are_unrebound_real_functions\nFAILED orchestrator/tests/test_attempt_registry_core_s8b_profile.py::test_trial_registry_six_facades_have_no_top_level_rebinding\n2 failed, 223 passed in 37.18s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_attempt_registry_core_s8b_profile.py::test_trial_registry_six_facades_have_no_top_level_rebinding\" nodeid_bytes=121 nodeid_omitted_bytes=0 source_bytes=1890 retained_bytes=1890 omitted_bytes=0 rendered_excerpt_bytes=1998 sha256=ce8c2b21086435a0a68f8a2a4fe58f394c94e68613f2e5af45ba7baf86e096c9\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw27] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_trial_registry_six_facades_have_no_top_level_rebinding() -> None:\n> >       _assert_six_facades_are_unrebound(\n>             Path(R.__file__).read_text(encoding=\"utf-8\")\n>         )\n> \n> orchestrator/tests/test_attempt_registry_core_s8b_profile.py:683: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> source = '# -*- coding: utf-8 -*-\\x5cn\"\"\"Phase 3 8c trial manifest registration and acceptance gates.\\x5cn\\x5cnThe v2 receipt projects t...ut).decode(\"utf-8\"))\\x5cn    return 0\\x5cn\\x5cn\\x5cnif __name__ == \"__main__\":  # pragma: no cover\\x5cn    raise SystemExit(main())\\x5cn'\n> \n>     def _assert_six_facades_are_unrebound(source: str) -> None:\n>         tree = ast.parse(source)\n>         definitions = [\n>             statement.name\n>             for statement in tree.body\n>             if isinstance(statement, (ast.FunctionDef, ast.AsyncFunctionDef))\n>             and statement.name in _FACADE_NAMES\n>         ]\n>         missing = sorted(_FACADE_NAMES - set(definitions))\n>         duplicates = sorted({name for name in definitions if definitions.count(name) != 1})\n>         rebound = sorted(\n>             _FACADE_NAMES.intersection(\n>                 name\n>                 for statement in tree.body\n>                 for name in _non_function_bindings(statement)\n>             )\n>         )\n>         if missing:\n>             raise AssertionError(f\"facade definitions are missing: {', '.join(missing)}\")\n>         if duplicates:\n>             raise AssertionError(f\"top-level facade definitions repeat: {', '.join(duplicates)}\")\n>         if rebound:\n> >           raise AssertionError(\n>                 f\"top-level facade rebinding is forbidden: {', '.join(rebound)}\"\n>             )\n> E           AssertionError: top-level facade rebinding is forbidden: create_attempt_registry_genesis\n> \n> orchestrator/tests/test_attempt_registry_core_s8b_profile.py:677: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_attempt_registry_core_equivalence.py::test_six_facades_are_unrebound_real_functions\" nodeid_bytes=107 nodeid_omitted_bytes=0 source_bytes=1608 retained_bytes=1608 omitted_bytes=0 rendered_excerpt_bytes=1673 sha256=6f547bc8606a7366e9a73e4278a25d18f7b0a1127f9528e67188447aaedacf09\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw14] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_six_facades_are_unrebound_real_functions() -> None:\n>         source = Path(R.__file__).read_text(encoding=\"utf-8\")\n>         tree = ast.parse(source)\n>         names = {\n>             \"create_attempt_registry_genesis\",\n>             \"load_attempt_registry\",\n>             \"reserve_attempt_slot\",\n>             \"classify_attempt\",\n>             \"begin_attempt_observation\",\n>             \"record_attempt_terminal\",\n>         }\n>         definitions = {\n>             node.name for node in tree.body if isinstance(node, ast.FunctionDef)\n>         }\n>         rebound = {\n>             target.id\n>             for node in tree.body\n>             if isinstance(node, (ast.Assign, ast.AnnAssign))\n>             for target in (\n>                 node.targets if isinstance(node, ast.Assign) else (node.target,)\n>             )\n>             if isinstance(target, ast.Name)\n>         }\n>         assert names <= definitions\n> >       assert names.isdisjoint(rebound)\n> E       AssertionError: assert False\n> E        +  where False = <built-in method isdisjoint of set object at 0x148b24f4fca0>({'ARMS', 'ATTEMPT_REGISTRY_SCHEMA_VERSION', 'ATTEMPT_RETRYABLE_FAILURE_REASONS', 'ATTEMPT_STATUSES', 'DEFAULT_ATTEMPT_REGISTRY_PATH', 'DEFAULT_EFFECTIVE_BINDING_PATH', ...})\n> E        +    where <built-in method isdisjoint of set object at 0x148b24f4fca0> = {'begin_attempt_observation', 'classify_attempt', 'create_attempt_registry_genesis', 'load_attempt_registry', 'record_attempt_terminal', 'reserve_attempt_slot'}.isdisjoint\n> \n> orchestrator/tests/test_attempt_registry_core_equivalence.py:770: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=3498 retained_bytes=3498 omitted_bytes=0 budget_bytes=49152 rendered_bytes=4868 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "d8b2a58a520a7ef407a4739d94a1b68acd5da6d4f8a7314dabe10de934bcf9e7"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "c98fbf8ba84d916ebc2d9dbc45c4361079174853a3a10ebefc8b41bbee834f32",
+      "duration_s": 68.487,
+      "expected_nodes": [
+        "orchestrator/tests/test_attempt_registry_core_equivalence.py::test_six_facades_are_unrebound_real_functions",
+        "orchestrator/tests/test_attempt_registry_core_s8b_profile.py::test_trial_registry_six_facades_have_no_top_level_rebinding"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_attempt_registry_core_equivalence.py::test_six_facades_are_unrebound_real_functions",
+        "orchestrator/tests/test_attempt_registry_core_s8b_profile.py::test_trial_registry_six_facades_have_no_top_level_rebinding"
+      ],
+      "hang_risk": false,
+      "id": "M4",
+      "injection_diff_sha256": "a854b1211173a250922a882da5bfd19973e5b9fa5a516708803752c848bc741d",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "2dafc5ac00c2a8e71afc97e4fa5979f773fec4c60b2100ccf74d34ca93016131",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/trial_registry.py",
+          "new": "        gate=\"attempt-registry-genesis\",\n    )\n\n\ncreate_attempt_registry_genesis = create_attempt_registry_genesis\n\n\ndef _attempt_tree_paths(\n",
+          "old": "        gate=\"attempt-registry-genesis\",\n    )\n\n\ndef _attempt_tree_paths(\n"
+        }
+      ],
+      "repo_head": "74dd2203e520626ebe016ba5c8d86d0405f24c94",
+      "runner_sha256": "e1d8149db4b1c2805801d2bf155d5fe65c998b2c7b9f2ddf23646eea1f0a5af4",
+      "spec_sha256": "12cfbc055a171481c00cc5135174b9f63dd1ea95e595d328ea42c64aa9885cd6",
+      "status": "KILLED",
+      "test_output_sha256": "d8b2a58a520a7ef407a4739d94a1b68acd5da6d4f8a7314dabe10de934bcf9e7",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "a2f39875cca6da44a561f5dd58ce5ce16fb76a3f572ff07ae5a2d204d3390ce1"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1484-floor-restart-registry/output/pegasus-dispatch/b1143fba265e1b7e08db7dfc1fd1b89c/izdw-b1143fba26.o941495",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1484-floor-restart-registry/output/pegasus-dispatch/b1143fba265e1b7e08db7dfc1fd1b89c/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n..............................FF........................................ [ 32%]\n........................................................................ [ 64%]\n........................................................................ [ 96%]\n.........                                                                [100%]\n=================================== FAILURES ===================================\n________ test_s8b_profile_closes_slot_binding_budget_and_reason_policy _________\n[gw16] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_s8b_profile_closes_slot_binding_budget_and_reason_policy() -> None:\n        profile = _profile(budget=2)\n        first = _slot(0, 0)\n        other_repetition = _slot(1, 0)\n    \n        assert profile.retryable_reasons == frozenset()\n        assert s8b.S8B_RETRYABLE_FAILURE_REASONS == frozenset()\n        assert profile.transition_policy.require_previous_terminal\n        assert profile.transition_policy.forbid_retry_after_observation\n        assert profile.transition_policy.require_terminal_reason_equals_classification\n        assert profile.slot_codec.slot_id(first) == (\n            \"holdout-a\", \"configuration-a\", 0, 0,\n        )\n        assert profile.slot_codec.series_key(first) == (\n            \"holdout-a\", \"configuration-a\", 0,\n        )\n        budget_key = profile.transition_policy.budget_key\n        assert budget_key is not None\n>       assert budget_key(first) == budget_key(other_repetition) == (\n            \"holdout-a\", \"configuration-a\",\n        )\nE       AssertionError: assert ('holdout-a',...uration-a', 0) == ('holdout-a',...uration-a', 1)\nE         \nE         At index 2 diff: 0 != 1\nE         Use -v to get more diff\n\norchestrator/tests/test_attempt_registry_core_s8b_profile.py:198: AssertionError\n_______ test_budget_is_cell_wide_and_does_not_reset_for_each_repetition ________\n[gw20] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_budget_is_cell_wide_and_does_not_reset_for_each_repetition() -> None:\n        profile = _profile(budget=2)\n        repetitions = [_slot(index, 0) for index in range(3)]\n        rows = _genesis(profile, repetitions)\n    \n        rows = _reserve(rows, profile=profile, slot=repetitions[0])\n        rows = _reserve(rows, profile=profile, slot=repetitions[1])\n        assert [\n            row[\"repetition\"] for row in rows if row[\"event\"] == \"start\"\n        ] == [0, 1]\n    \n>       _assert_core_rejection(\n            \"[attempt-slot-order] attempt consumption exceeds the profile budget\",\n            lambda: _reserve(rows, profile=profile, slot=repetitions[2]),\n        )\n\norchestrator/tests/test_attempt_registry_core_s8b_profile.py:320: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nexpected = '[attempt-slot-order] attempt consumption exceeds the profile budget'\noperation = <function test_budget_is_cell_wide_and_does_not_reset_for_each_repetition.<locals>.<lambda> at 0x14f4fe2328c0>\n\n    def _assert_core_rejection(\n        expected: str,\n        operation: Callable[[], object],\n    ) -> None:\n>       with pytest.raises(core.AttemptRegistryCoreError) as caught:\nE       Failed: DID NOT RAISE AttemptRegistryCoreError\n\norchestrator/tests/test_attempt_registry_core_s8b_profile.py:171: Failed\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_attempt_registry_core_s8b_profile.py::test_s8b_profile_closes_slot_binding_budget_and_reason_policy\nFAILED orchestrator/tests/test_attempt_registry_core_s8b_profile.py::test_budget_is_cell_wide_and_does_not_reset_for_each_repetition\n2 failed, 223 passed in 68.93s (0:01:08)\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_attempt_registry_core_s8b_profile.py::test_budget_is_cell_wide_and_does_not_reset_for_each_repetition\" nodeid_bytes=125 nodeid_omitted_bytes=0 source_bytes=1394 retained_bytes=1394 omitted_bytes=0 rendered_excerpt_bytes=1459 sha256=61c143c2796569ef79aaff27d33f4bfe187d2069b3fdb8c08952f1bca2c81290\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw20] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_budget_is_cell_wide_and_does_not_reset_for_each_repetition() -> None:\n>         profile = _profile(budget=2)\n>         repetitions = [_slot(index, 0) for index in range(3)]\n>         rows = _genesis(profile, repetitions)\n>     \n>         rows = _reserve(rows, profile=profile, slot=repetitions[0])\n>         rows = _reserve(rows, profile=profile, slot=repetitions[1])\n>         assert [\n>             row[\"repetition\"] for row in rows if row[\"event\"] == \"start\"\n>         ] == [0, 1]\n>     \n> >       _assert_core_rejection(\n>             \"[attempt-slot-order] attempt consumption exceeds the profile budget\",\n>             lambda: _reserve(rows, profile=profile, slot=repetitions[2]),\n>         )\n> \n> orchestrator/tests/test_attempt_registry_core_s8b_profile.py:320: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> expected = '[attempt-slot-order] attempt consumption exceeds the profile budget'\n> operation = <function test_budget_is_cell_wide_and_does_not_reset_for_each_repetition.<locals>.<lambda> at 0x14f4fe2328c0>\n> \n>     def _assert_core_rejection(\n>         expected: str,\n>         operation: Callable[[], object],\n>     ) -> None:\n> >       with pytest.raises(core.AttemptRegistryCoreError) as caught:\n> E       Failed: DID NOT RAISE AttemptRegistryCoreError\n> \n> orchestrator/tests/test_attempt_registry_core_s8b_profile.py:171: Failed\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_attempt_registry_core_s8b_profile.py::test_s8b_profile_closes_slot_binding_budget_and_reason_policy\" nodeid_bytes=123 nodeid_omitted_bytes=0 source_bytes=1288 retained_bytes=1288 omitted_bytes=0 rendered_excerpt_bytes=1347 sha256=63c120bd808c4b120753483815352e2e93491e6120ed6a03d5dd81dfd95bbfbf\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw16] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_s8b_profile_closes_slot_binding_budget_and_reason_policy() -> None:\n>         profile = _profile(budget=2)\n>         first = _slot(0, 0)\n>         other_repetition = _slot(1, 0)\n>     \n>         assert profile.retryable_reasons == frozenset()\n>         assert s8b.S8B_RETRYABLE_FAILURE_REASONS == frozenset()\n>         assert profile.transition_policy.require_previous_terminal\n>         assert profile.transition_policy.forbid_retry_after_observation\n>         assert profile.transition_policy.require_terminal_reason_equals_classification\n>         assert profile.slot_codec.slot_id(first) == (\n>             \"holdout-a\", \"configuration-a\", 0, 0,\n>         )\n>         assert profile.slot_codec.series_key(first) == (\n>             \"holdout-a\", \"configuration-a\", 0,\n>         )\n>         budget_key = profile.transition_policy.budget_key\n>         assert budget_key is not None\n> >       assert budget_key(first) == budget_key(other_repetition) == (\n>             \"holdout-a\", \"configuration-a\",\n>         )\n> E       AssertionError: assert ('holdout-a',...uration-a', 0) == ('holdout-a',...uration-a', 1)\n> E         \n> E         At index 2 diff: 0 != 1\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_attempt_registry_core_s8b_profile.py:198: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=2682 retained_bytes=2682 omitted_bytes=0 budget_bytes=49152 rendered_bytes=4023 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "a2d09a2d0655d7d3b63858f5fb62f0079255f707357c54ba81bc12422d1dcdbb"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "c98fbf8ba84d916ebc2d9dbc45c4361079174853a3a10ebefc8b41bbee834f32",
+      "duration_s": 116.398,
+      "expected_nodes": [
+        "orchestrator/tests/test_attempt_registry_core_s8b_profile.py::test_budget_is_cell_wide_and_does_not_reset_for_each_repetition",
+        "orchestrator/tests/test_attempt_registry_core_s8b_profile.py::test_s8b_profile_closes_slot_binding_budget_and_reason_policy"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_attempt_registry_core_s8b_profile.py::test_s8b_profile_closes_slot_binding_budget_and_reason_policy",
+        "orchestrator/tests/test_attempt_registry_core_s8b_profile.py::test_budget_is_cell_wide_and_does_not_reset_for_each_repetition"
+      ],
+      "hang_risk": false,
+      "id": "M5",
+      "injection_diff_sha256": "82ff456b9db2eec96bd5bf9f57835788f1612c7578a659c98ce4f5c14c5ad95d",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "8cb2e5e6860006437a8661d2af789aa94fbb4a44ca06e2330f43e73a78bec15e",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_attempt_profile.py",
+          "new": "    return slot.freeze_holdout_key, slot.configuration_id, slot.repetition\n",
+          "old": "    return slot.freeze_holdout_key, slot.configuration_id\n"
+        }
+      ],
+      "repo_head": "74dd2203e520626ebe016ba5c8d86d0405f24c94",
+      "runner_sha256": "e1d8149db4b1c2805801d2bf155d5fe65c998b2c7b9f2ddf23646eea1f0a5af4",
+      "spec_sha256": "12cfbc055a171481c00cc5135174b9f63dd1ea95e595d328ea42c64aa9885cd6",
+      "status": "KILLED",
+      "test_output_sha256": "a2d09a2d0655d7d3b63858f5fb62f0079255f707357c54ba81bc12422d1dcdbb",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "a2f39875cca6da44a561f5dd58ce5ce16fb76a3f572ff07ae5a2d204d3390ce1"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1484-floor-restart-registry/output/pegasus-dispatch/940fa3644a7792e90aaf63c32463da3a/izdw-940fa3644a.o941497",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1484-floor-restart-registry/output/pegasus-dispatch/940fa3644a7792e90aaf63c32463da3a/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n.............................FF......................................... [ 32%]\n........................................................................ [ 64%]\n........................................................................ [ 96%]\n.........                                                                [100%]\n=================================== FAILURES ===================================\n_______________ test_unknown_event_rejection_reason_is_identical _______________\n[gw1] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_unknown_event_rejection_reason_is_identical() -> None:\n        manifest_sha256 = hashlib.sha256(b\"{}\\n\").hexdigest()\n        rows = core.create_attempt_registry_genesis(\n            profile=R._S8C_ATTEMPT_PROFILE,\n            freeze_id=\"reference-freeze\",\n            manifest_path=Path(\"manifest.json\"),\n            manifest_sha256=manifest_sha256,\n            slots=[_slot()],\n        )\n        unknown = _legacy_event({\n            \"schema_version\": _SCHEMA_VERSION,\n            \"event\": \"recovery\",\n            \"freeze_id\": \"reference-freeze\",\n            \"slot_id\": \"reference-trial-r0-a0\",\n        }, index=1, previous=rows[0][\"event_sha256\"])\n        payload = _row_bytes(tuple(rows) + (unknown,))\n        expected = \"[attempt-registry-schema] attempt registry line 2.event is unknown\"\n        with pytest.raises(core.AttemptRegistryCoreError) as core_error:\n            core.load_attempt_registry(payload, profile=R._S8C_ATTEMPT_PROFILE)\n        with pytest.raises(R.TrialRegistryError) as facade_error:\n            R._load_attempt_registry_bytes(payload)\n>       assert str(core_error.value) == expected == str(facade_error.value)\nE       AssertionError: assert '[attempt-reg...antic handler' == '[attempt-reg...nt is unknown'\nE         \nE         - [attempt-registry-schema] attempt registry line 2.event is unknown\nE         ?                    --                                   ^  ---  ^\nE         + [attempt-registry-semantic] attempt registry line 2.event has no core semantic handler\nE         ?                       ++++                                ^^    ^^^^^^^^^^ +++++++++++\n\norchestrator/tests/test_attempt_registry_core_equivalence.py:494: AssertionError\n_______ test_known_event_round_trip_passes_and_unknown_event_is_rejected _______\n[gw23] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_known_event_round_trip_passes_and_unknown_event_is_rejected() -> None:\n        profile = _profile()\n        slot = _slot(0, 0)\n        rows = _genesis(profile, [slot])\n        assert core.load_attempt_registry(\n            _registry_bytes(rows), profile=profile,\n        ) == rows\n    \n        unknown = core.chained_event_row(\n            {\n                \"schema_version\": profile.schema.current,\n                \"event\": \"recovery\",\n            },\n            event_index=1,\n            previous_event_sha256=rows[0][\"event_sha256\"],\n        )\n>       _assert_core_rejection(\n            \"[attempt-registry-schema] attempt registry line 2.event is unknown\",\n            lambda: core.load_attempt_registry(\n                _registry_bytes((*rows, unknown)), profile=profile,\n            ),\n        )\n\norchestrator/tests/test_attempt_registry_core_s8b_profile.py:424: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nexpected = '[attempt-registry-schema] attempt registry line 2.event is unknown'\noperation = <function test_known_event_round_trip_passes_and_unknown_event_is_rejected.<locals>.<lambda> at 0x149ee9fd68c0>\n\n    def _assert_core_rejection(\n        expected: str,\n        operation: Callable[[], object],\n    ) -> None:\n        with pytest.raises(core.AttemptRegistryCoreError) as caught:\n            operation()\n>       assert str(caught.value) == expected\nE       AssertionError: assert '[attempt-reg...antic handler' == '[attempt-reg...nt is unknown'\nE         \nE         - [attempt-registry-schema] attempt registry line 2.event is unknown\nE         ?                    --                                   ^  ---  ^\nE         + [attempt-registry-semantic] attempt registry line 2.event has no core semantic handler\nE         ?                       ++++                                ^^    ^^^^^^^^^^ +++++++++++\n\norchestrator/tests/test_attempt_registry_core_s8b_profile.py:173: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_attempt_registry_core_equivalence.py::test_unknown_event_rejection_reason_is_identical\nFAILED orchestrator/tests/test_attempt_registry_core_s8b_profile.py::test_known_event_round_trip_passes_and_unknown_event_is_rejected\n2 failed, 223 passed in 67.08s (0:01:07)\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_attempt_registry_core_s8b_profile.py::test_known_event_round_trip_passes_and_unknown_event_is_rejected\" nodeid_bytes=126 nodeid_omitted_bytes=0 source_bytes=2011 retained_bytes=2011 omitted_bytes=0 rendered_excerpt_bytes=2104 sha256=ecf6865a78d53ea2d3830ec264701a63ae25c6d4d0f8f8d99032c3bc1f5856c6\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw23] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_known_event_round_trip_passes_and_unknown_event_is_rejected() -> None:\n>         profile = _profile()\n>         slot = _slot(0, 0)\n>         rows = _genesis(profile, [slot])\n>         assert core.load_attempt_registry(\n>             _registry_bytes(rows), profile=profile,\n>         ) == rows\n>     \n>         unknown = core.chained_event_row(\n>             {\n>                 \"schema_version\": profile.schema.current,\n>                 \"event\": \"recovery\",\n>             },\n>             event_index=1,\n>             previous_event_sha256=rows[0][\"event_sha256\"],\n>         )\n> >       _assert_core_rejection(\n>             \"[attempt-registry-schema] attempt registry line 2.event is unknown\",\n>             lambda: core.load_attempt_registry(\n>                 _registry_bytes((*rows, unknown)), profile=profile,\n>             ),\n>         )\n> \n> orchestrator/tests/test_attempt_registry_core_s8b_profile.py:424: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> expected = '[attempt-registry-schema] attempt registry line 2.event is unknown'\n> operation = <function test_known_event_round_trip_passes_and_unknown_event_is_rejected.<locals>.<lambda> at 0x149ee9fd68c0>\n> \n>     def _assert_core_rejection(\n>         expected: str,\n>         operation: Callable[[], object],\n>     ) -> None:\n>         with pytest.raises(core.AttemptRegistryCoreError) as caught:\n>             operation()\n> >       assert str(caught.value) == expected\n> E       AssertionError: assert '[attempt-reg...antic handler' == '[attempt-reg...nt is unknown'\n> E         \n> E         - [attempt-registry-schema] attempt registry line 2.event is unknown\n> E         ?                    --                                   ^  ---  ^\n> E         + [attempt-registry-semantic] attempt registry line 2.event has no core semantic handler\n> E         ?                       ++++                                ^^    ^^^^^^^^^^ +++++++++++\n> \n> orchestrator/tests/test_attempt_registry_core_s8b_profile.py:173: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_attempt_registry_core_equivalence.py::test_unknown_event_rejection_reason_is_identical\" nodeid_bytes=110 nodeid_omitted_bytes=0 source_bytes=1743 retained_bytes=1743 omitted_bytes=0 rendered_excerpt_bytes=1811 sha256=0caa84c7d58930122e77480b431b160edb5e1b7afa14814b1f44fb8c3d2f35c1\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw1] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_unknown_event_rejection_reason_is_identical() -> None:\n>         manifest_sha256 = hashlib.sha256(b\"{}\\x5cn\").hexdigest()\n>         rows = core.create_attempt_registry_genesis(\n>             profile=R._S8C_ATTEMPT_PROFILE,\n>             freeze_id=\"reference-freeze\",\n>             manifest_path=Path(\"manifest.json\"),\n>             manifest_sha256=manifest_sha256,\n>             slots=[_slot()],\n>         )\n>         unknown = _legacy_event({\n>             \"schema_version\": _SCHEMA_VERSION,\n>             \"event\": \"recovery\",\n>             \"freeze_id\": \"reference-freeze\",\n>             \"slot_id\": \"reference-trial-r0-a0\",\n>         }, index=1, previous=rows[0][\"event_sha256\"])\n>         payload = _row_bytes(tuple(rows) + (unknown,))\n>         expected = \"[attempt-registry-schema] attempt registry line 2.event is unknown\"\n>         with pytest.raises(core.AttemptRegistryCoreError) as core_error:\n>             core.load_attempt_registry(payload, profile=R._S8C_ATTEMPT_PROFILE)\n>         with pytest.raises(R.TrialRegistryError) as facade_error:\n>             R._load_attempt_registry_bytes(payload)\n> >       assert str(core_error.value) == expected == str(facade_error.value)\n> E       AssertionError: assert '[attempt-reg...antic handler' == '[attempt-reg...nt is unknown'\n> E         \n> E         - [attempt-registry-schema] attempt registry line 2.event is unknown\n> E         ?                    --                                   ^  ---  ^\n> E         + [attempt-registry-semantic] attempt registry line 2.event has no core semantic handler\n> E         ?                       ++++                                ^^    ^^^^^^^^^^ +++++++++++\n> \n> orchestrator/tests/test_attempt_registry_core_equivalence.py:494: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=3754 retained_bytes=3754 omitted_bytes=0 budget_bytes=49152 rendered_bytes=5120 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "d1b606c8a480c7a4b206ddbd39ecc9f78ee7e514ec3e6f3729b624ee1ccdb99e"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "c98fbf8ba84d916ebc2d9dbc45c4361079174853a3a10ebefc8b41bbee834f32",
+      "duration_s": 105.654,
+      "expected_nodes": [
+        "orchestrator/tests/test_attempt_registry_core_equivalence.py::test_unknown_event_rejection_reason_is_identical",
+        "orchestrator/tests/test_attempt_registry_core_s8b_profile.py::test_known_event_round_trip_passes_and_unknown_event_is_rejected"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_attempt_registry_core_equivalence.py::test_unknown_event_rejection_reason_is_identical",
+        "orchestrator/tests/test_attempt_registry_core_s8b_profile.py::test_known_event_round_trip_passes_and_unknown_event_is_rejected"
+      ],
+      "hang_risk": false,
+      "id": "M6",
+      "injection_diff_sha256": "b7ec0f777de0f7fb4d0a79ff52ee5441e86b715f2462269b174cc97c4e048bcd",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "b9ffdbaa741fc09abc99525b5acfa88716d96795cd39306b8dfb763f95c6a450",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/attempt_registry_core.py",
+          "new": "    if expected is None:\n        expected = frozenset(value)\n",
+          "old": "    if expected is None:\n        _fail(\"attempt-registry-schema\", f\"{label}.event is unknown\")\n"
+        }
+      ],
+      "repo_head": "74dd2203e520626ebe016ba5c8d86d0405f24c94",
+      "runner_sha256": "e1d8149db4b1c2805801d2bf155d5fe65c998b2c7b9f2ddf23646eea1f0a5af4",
+      "spec_sha256": "12cfbc055a171481c00cc5135174b9f63dd1ea95e595d328ea42c64aa9885cd6",
+      "status": "KILLED",
+      "test_output_sha256": "d1b606c8a480c7a4b206ddbd39ecc9f78ee7e514ec3e6f3729b624ee1ccdb99e",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "a2f39875cca6da44a561f5dd58ce5ce16fb76a3f572ff07ae5a2d204d3390ce1"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1484-floor-restart-registry/output/pegasus-dispatch/f76613ec1d531dc4fc8dd09d026fb8d4/izdw-f76613ec1d.o941484",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1484-floor-restart-registry/output/pegasus-dispatch/f76613ec1d531dc4fc8dd09d026fb8d4/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "orchestrator/tests/test_attempt_registry_core_equivalence.py::test_reference_core_and_facade_event_and_receipt_bytes_are_identical\norchestrator/tests/test_attempt_registry_core_equivalence.py::test_unknown_event_rejection_reason_is_identical\norchestrator/tests/test_attempt_registry_core_equivalence.py::test_genesis_builder_rejection_matches_pre_extraction_order[non-json-value]\norchestrator/tests/test_attempt_registry_core_equivalence.py::test_genesis_builder_rejection_matches_pre_extraction_order[wrong-field-type]\norchestrator/tests/test_attempt_registry_core_equivalence.py::test_genesis_builder_rejection_matches_pre_extraction_order[missing-key]\norchestrator/tests/test_attempt_registry_core_equivalence.py::test_genesis_builder_rejection_matches_pre_extraction_order[extra-key]\norchestrator/tests/test_attempt_registry_core_equivalence.py::test_genesis_builder_rejection_matches_pre_extraction_order[out-of-range-value]\norchestrator/tests/test_attempt_registry_core_equivalence.py::test_genesis_builder_retryable_reasons_match_pre_extraction[none]\norchestrator/tests/test_attempt_registry_core_equivalence.py::test_genesis_builder_retryable_reasons_match_pre_extraction[outside-closed-set]\norchestrator/tests/test_attempt_registry_core_equivalence.py::test_genesis_builder_retryable_reasons_match_pre_extraction[empty]\norchestrator/tests/test_attempt_registry_core_equivalence.py::test_genesis_builder_retryable_reasons_match_pre_extraction[non-string]\norchestrator/tests/test_attempt_registry_core_equivalence.py::test_skipped_slot_rejection_reason_is_identical\norchestrator/tests/test_attempt_registry_core_equivalence.py::test_frozen_paths_and_public_signatures_are_literal_pinned\norchestrator/tests/test_attempt_registry_core_equivalence.py::test_facade_namespace_keeps_core_helpers_private\norchestrator/tests/test_attempt_registry_core_equivalence.py::test_six_facades_are_unrebound_real_functions\norchestrator/tests/test_attempt_registry_core_equivalence.py::test_core_source_has_no_8c_domain_literals\norchestrator/tests/test_attempt_registry_core_s8b_profile.py::test_s8b_profile_closes_slot_binding_budget_and_reason_policy\norchestrator/tests/test_attempt_registry_core_s8b_profile.py::test_genesis_rejects_freeze_id_that_differs_from_8b_binding\norchestrator/tests/test_attempt_registry_core_s8b_profile.py::test_preallocation_accepts_a_genesis_slot_and_rejects_an_absent_slot\norchestrator/tests/test_attempt_registry_core_s8b_profile.py::test_series_order_accepts_first_slot_and_rejects_skip_and_empty_retry_set\norchestrator/tests/test_attempt_registry_core_s8b_profile.py::test_budget_is_cell_wide_and_does_not_reset_for_each_repetition\norchestrator/tests/test_attempt_registry_core_s8b_profile.py::test_observation_lifecycle_is_accepted_but_cannot_open_a_later_slot\norchestrator/tests/test_attempt_registry_core_s8b_profile.py::test_retryable_terminal_after_observation_hits_only_observation_guard\norchestrator/tests/test_attempt_registry_core_s8b_profile.py::test_known_event_round_trip_passes_and_unknown_event_is_rejected\norchestrator/tests/test_attempt_registry_core_s8b_profile.py::test_profile_only_event_cannot_acquire_terminal_semantics\norchestrator/tests/test_attempt_registry_core_s8b_profile.py::test_schema_profile_mappings_are_deeply_immutable\norchestrator/tests/test_attempt_registry_core_s8b_profile.py::test_strict_8b_reason_match_rejects_input_that_8c_still_accepts\norchestrator/tests/test_attempt_registry_core_s8b_profile.py::test_trial_registry_six_facades_have_no_top_level_rebinding\norchestrator/tests/test_attempt_registry_core_s8b_profile.py::test_facade_rebinding_guard_rejects_c03_blind_synthetic_source\norchestrator/tests/test_trial_registry.py::test_p1_exact_six_trial_manifest_passes\norchestrator/tests/test_trial_registry.py::test_t1185_m1_manifest_generation_one_is_rejected_at_exact_path\norchestrator/tests/test_trial_registry.py::test_manifest_generations_rejects_bool_at_exact_path\norchestrator/tests/test_trial_registry.py::test_p2_first_and_second_registration_append_pass\norchestrator/tests/test_trial_registry.py::test_p3_each_registered_trial_resolves_launch_binding\norchestrator/tests/test_trial_registry.py::test_p4_prereg_equal_to_measurement_commit_passes\norchestrator/tests/test_trial_registry.py::test_p5_six_complete_terminal_reports_pass_acceptance\norchestrator/tests/test_trial_registry.py::test_s8c_acceptance_no_build_verifier_leaf_is_independently_recomputed\norchestrator/tests/test_trial_registry.py::test_s8c_acceptance_registered_build_reports_reach_receipt_for_h1_h2_workloads\norchestrator/tests/test_trial_registry.py::test_s8c_acceptance_registered_build_reports_remain_fail_closed_for_unknown_workload\norchestrator/tests/test_trial_registry.py::test_s8c_acceptance_does_not_swallow_unexpected_workload_resolver_error\norchestrator/tests/test_trial_registry.py::test_s8c_acceptance_build_with_empty_cells_fails_closed_before_receipt\norchestrator/tests/test_trial_registry.py::test_s8c_acceptance_failure_cell_pins_layer3_chain_absent_reason\norchestrator/tests/test_trial_registry.py::test_s8c_acceptance_rejects_campaign_from_different_output_root\norchestrator/tests/test_trial_registry.py::test_t822_acceptance_allows_coherent_past_measurement_head\norchestrator/tests/test_trial_registry.py::test_t822_acceptance_rejects_mixed_measurement_heads\norchestrator/tests/test_trial_registry.py::test_t1185_pa_all_six_generation_two_reports_pass_acceptance\norchestrator/tests/test_trial_registry.py::test_t1185_m3_m4_acceptance_checks_last_report_generation_budget\norchestrator/tests/test_trial_registry.py::test_acceptance_projects_identical_terminal_bytes_in_all_json_boundaries[True]\norchestrator/tests/test_trial_registry.py::test_acceptance_projects_identical_terminal_bytes_in_all_json_boundaries[False]\norchestrator/tests/test_trial_registry.py::test_acceptance_independently_requires_exact_rederived_launch_admission[missing-report]\norchestrator/tests/test_trial_registry.py::test_acceptance_independently_requires_exact_rederived_launch_admission[run-start-mismatch]\norchestrator/tests/test_trial_registry.py::test_acceptance_independently_rederives_historical_arm_execution[missing]\norchestrator/tests/test_trial_registry.py::test_acceptance_independently_rederives_historical_arm_execution[wrong-digest]\norchestrator/tests/test_trial_registry.py::test_acceptance_rejects_cell_descriptor_that_differs_from_arm_input\norchestrator/tests/test_trial_registry.py::test_acceptance_registered_run_rejects_one_missing_digest\norchestrator/tests/test_trial_registry.py::test_acceptance_runs_digest_chain_once_per_registered_trial\norchestrator/tests/test_trial_registry.py::test_acceptance_rejects_null_or_open_origin_binding_projection[None]\norchestrator/tests/test_trial_registry.py::test_acceptance_rejects_null_or_open_origin_binding_projection[origin_binding_record1]\norchestrator/tests/test_trial_registry.py::test_acceptance_rederives_each_self_consistent_launch_binding_field[manifest_sha256-0000000000000000000000000000000000000000000000000000000000000000]\norchestrator/tests/test_trial_registry.py::test_acceptance_rederives_each_self_consistent_launch_binding_field[arm-forged-arm]\norchestrator/tests/test_trial_registry.py::test_acceptance_rederives_each_self_consistent_launch_binding_field[campaign_id-forged-campaign]\norchestrator/tests/test_trial_registry.py::test_acceptance_rederives_each_self_consistent_launch_binding_field[holdout-forged-holdout]\norchestrator/tests/test_trial_registry.py::test_acceptance_rederives_each_self_consistent_launch_binding_field[measurement_head-0000000000000000000000000000000000000000]\norchestrator/tests/test_trial_registry.py::test_p6_partial_terminal_outcomes_are_reported_not_dropped\norchestrator/tests/test_trial_registry.py::test_p6_one_cell_partial_terminal_outcome_passes_acceptance\norchestrator/tests/test_trial_registry.py::test_p6_indeterminate_not_consumed_partial_fails_formal_acceptance\norchestrator/tests/test_trial_registry.py::test_t1185_pb_partial_one_generation_with_budget_two_passes_acceptance\norchestrator/tests/test_trial_registry.py::test_p7_later_registry_rows_do_not_hide_older_manifest\norchestrator/tests/test_trial_registry.py::test_p9_prime_existing_registry_unregistered_exploratory_id_passes\norchestrator/tests/test_trial_registry.py::test_u4_holdout_set_is_derived_from_registry_bindings\norchestrator/tests/test_trial_registry.py::test_manifestless_unregistered_launch_is_rejected_by_default\norchestrator/tests/test_trial_registry.py::test_holdout_exploratory_opt_in_is_unconditionally_rejected\norchestrator/tests/test_trial_registry.py::test_explicit_non_holdout_exploration_is_sealed_and_non_certifying\norchestrator/tests/test_trial_registry.py::test_originless_launch_record_and_canonical_bytes_are_exactly_unchanged\norchestrator/tests/test_trial_registry.py::test_launch_record_projects_the_same_issued_capability_object\norchestrator/tests/test_trial_registry.py::test_launch_record_rejects_an_issued_capability_for_another_trial\norchestrator/tests/test_trial_registry.py::test_registered_admission_does_not_implicitly_resolve_arm_input\norchestrator/tests/test_trial_registry.py::test_bind_trial_arm_issues_exact_three_field_projection\norchestrator/tests/test_trial_registry.py::test_exploratory_admission_rejects_invalid_lexical_inputs[INVALID-workloads0-\\\\[field\\\\] ]\norchestrator/tests/test_trial_registry.py::test_exploratory_admission_rejects_invalid_lexical_inputs[duplicate-workload-workloads1-\\\\[workloads\\\\] ]\norchestrator/tests/test_trial_registry.py::test_exploratory_admission_rejects_invalid_repository\norchestrator/tests/test_trial_registry.py::test_admit_registered_launch_requires_manifest_commit_capability\norchestrator/tests/test_trial_registry.py::test_admit_registered_formal_noncertifying_requires_explicit_opt_in\norchestrator/tests/test_trial_registry.py::test_admit_registered_formal_noncertifying_validates_freeze_and_returns_binding\norchestrator/tests/test_trial_registry.py::test_admit_registered_formal_noncertifying_rejects_condition_freeze_failure\norchestrator/tests/test_trial_registry.py::test_rederived_launch_admission_accepts_formal_noncertifying_mode\norchestrator/tests/test_trial_registry.py::test_rederived_registered_effective_still_requires_effective_capability\norchestrator/tests/test_trial_registry.py::test_formal_noncertifying_lifecycle_start_consumes_reserved_attempt_slot\norchestrator/tests/test_trial_registry.py::test_m07_outer_manifest_capability_commit_check_is_unmasked\norchestrator/tests/test_trial_registry.py::test_admit_registered_launch_rejects_ancestor_commit_capability\norchestrator/tests/test_trial_registry.py::test_registered_admission_and_lifecycle_are_non_certifying_and_start_once\norchestrator/tests/test_trial_registry.py::test_lifecycle_terminal_projects_the_formal_consumer_shape_by_bytes[True]\norchestrator/tests/test_trial_registry.py::test_lifecycle_terminal_projects_the_formal_consumer_shape_by_bytes[False]\norchestrator/tests/test_trial_registry.py::test_lifecycle_updates_take_exclusive_flock_and_fsync\norchestrator/tests/test_trial_registry.py::test_lifecycle_rejects_noncanonical_json_before_append\norchestrator/tests/test_trial_registry.py::test_lifecycle_rejects_canonical_unknown_event_before_append\norchestrator/tests/test_trial_registry.py::test_lifecycle_git_history_rejects_non_append_only_attacks[delete-recreate]\norchestrator/tests/test_trial_registry.py::test_lifecycle_git_history_rejects_non_append_only_attacks[modify-revert]\norchestrator/tests/test_trial_registry.py::test_m10_acceptance_rejects_missing_lifecycle_terminal\norchestrator/tests/test_trial_registry.py::test_acceptance_rejects_start_run_root_outside_report_parent\norchestrator/tests/test_trial_registry.py::test_m11_acceptance_receipt_is_exclusive_create\norchestrator/tests/test_trial_registry.py::test_acceptance_v3_has_no_certifying_issuance_branch\norchestrator/tests/test_trial_registry.py::test_acceptance_effective_preregistration_is_mandatory_keyword\norchestrator/tests/test_trial_registry.py::test_registry_introduction_is_unique_history_not_approval_authority\norchestrator/tests/test_trial_registry.py::test_p12_accept_cli_runs_from_clean_pythonpath\norchestrator/tests/test_trial_registry.py::test_m1_duplicate_json_key_is_rejected\norchestrator/tests/test_trial_registry.py::test_m2_exact_manifest_schema_is_rejected[missing]\norchestrator/tests/test_trial_registry.py::test_m2_exact_manifest_schema_is_rejected[unknown]\norchestrator/tests/test_trial_registry.py::test_m2_exact_manifest_schema_is_rejected[schema]\norchestrator/tests/test_trial_registry.py::test_m3_cartesian_gate_rejects_duplicate_and_missing_pair\norchestrator/tests/test_trial_registry.py::test_m4_trial_and_campaign_uniqueness_is_rejected[trial_id]\norchestrator/tests/test_trial_registry.py::test_m4_trial_and_campaign_uniqueness_is_rejected[campaign_id]\norchestrator/tests/test_trial_registry.py::test_m5_prereg_commit_lexical_closed_set_is_rejected\norchestrator/tests/test_trial_registry.py::test_redundant_field_gate_rejects_before_cartesian_fallback[arm-blind]\norchestrator/tests/test_trial_registry.py::test_redundant_field_gate_rejects_before_cartesian_fallback[holdout-H3]\norchestrator/tests/test_trial_registry.py::test_m6a_registry_unterminated_line_is_rejected\norchestrator/tests/test_trial_registry.py::test_m6b_registry_noncanonical_line_is_rejected\norchestrator/tests/test_trial_registry.py::test_registration_trials_must_use_canonical_order\norchestrator/tests/test_trial_registry.py::test_redundant_registry_blank_line_gate_rejects_before_json_decoder\norchestrator/tests/test_trial_registry.py::test_redundant_registry_duplicate_key_gate_rejects_before_canonical_bytes\norchestrator/tests/test_trial_registry.py::test_m7_append_preserves_inode_size_and_existing_prefix\norchestrator/tests/test_trial_registry.py::test_m8_registry_global_reuse_is_rejected[manifest]\norchestrator/tests/test_trial_registry.py::test_m8_registry_global_reuse_is_rejected[trial]\norchestrator/tests/test_trial_registry.py::test_m8_registry_global_reuse_is_rejected[campaign]\norchestrator/tests/test_trial_registry.py::test_m9_launcher_requires_committed_exact_registry[untracked]\norchestrator/tests/test_trial_registry.py::test_m9_launcher_requires_committed_exact_registry[dirty]\norchestrator/tests/test_trial_registry.py::test_m10_registration_must_exactly_match_manifest[m10a-arm]\norchestrator/tests/test_trial_registry.py::test_m10_registration_must_exactly_match_manifest[m10b-campaign]\norchestrator/tests/test_trial_registry.py::test_m10_registration_must_exactly_match_manifest[m10c-prereg]\norchestrator/tests/test_trial_registry.py::test_m10_registration_must_exactly_match_manifest[m10d-hash]\norchestrator/tests/test_trial_registry.py::test_m11_selected_manifest_membership_is_required\norchestrator/tests/test_trial_registry.py::test_m12_holdout_workload_binding_is_required\norchestrator/tests/test_trial_registry.py::test_m13_producer_campaign_derivation_is_independently_bound\norchestrator/tests/test_trial_registry.py::test_m14_ancestry_direction_is_not_reversible\norchestrator/tests/test_trial_registry.py::test_diagnostic_sensitivity_m15_git_operational_failure_is_not_non_ancestry\norchestrator/tests/test_trial_registry.py::test_m16_report_prereg_binding_is_required[m16a-missing]\norchestrator/tests/test_trial_registry.py::test_m16_report_prereg_binding_is_required[m16b-different]\norchestrator/tests/test_trial_registry.py::test_m17_measurement_registry_must_already_contain_registration\norchestrator/tests/test_trial_registry.py::test_redundant_registry_prefix_defense_rejects_before_history_walk\norchestrator/tests/test_trial_registry.py::test_redundant_six_report_argument_count_defense_is_required\norchestrator/tests/test_trial_registry.py::test_m20_report_trial_set_rejects_duplicate_or_foreign[duplicate]\norchestrator/tests/test_trial_registry.py::test_m20_report_trial_set_rejects_duplicate_or_foreign[foreign]\norchestrator/tests/test_trial_registry.py::test_m21_terminal_ratio_and_campaign_projection_is_bound[ratio]\norchestrator/tests/test_trial_registry.py::test_m21_terminal_ratio_and_campaign_projection_is_bound[campaign]\norchestrator/tests/test_trial_registry.py::test_m22_existing_completeness_verifier_is_mandatory\norchestrator/tests/test_trial_registry.py::test_m28_report_only_binding_without_run_start_binding_is_rejected\norchestrator/tests/test_trial_registry.py::test_m29_intermediate_committed_rewrite_is_rejected_by_history_walk\norchestrator/tests/test_trial_registry.py::test_registered_trial_is_rejected_without_manifest_for_unit_b\norchestrator/tests/test_trial_registry.py::test_registry_parent_real_path_must_stay_inside_repository\norchestrator/tests/test_trial_registry.py::test_append_uses_nofollow_append_flags_and_fsyncs_file_then_directory\norchestrator/tests/test_trial_registry.py::test_git_repository_switching_environment_is_removed\norchestrator/tests/test_trial_registry.py::test_shallow_repository_is_rejected_for_ancestry\norchestrator/tests/test_trial_registry.py::test_launch_resolves_measurement_head_once\norchestrator/tests/test_trial_registry.py::test_acceptance_report_argument_must_be_sibling_report_json\norchestrator/tests/test_trial_registry.py::test_registry_history_rejects_delete_then_recreate_commit\norchestrator/tests/test_trial_registry.py::test_exploratory_gate_uses_head_registry_when_working_file_is_missing\norchestrator/tests/test_trial_registry.py::test_m31_journal_snapshot_swap_cannot_compose_binding_and_completeness\norchestrator/tests/test_trial_registry.py::test_m31_same_inode_journal_rewrite_restore_cannot_compose_snapshots\norchestrator/tests/test_trial_registry.py::test_literal_pathspec_registry_history_cannot_be_hidden\norchestrator/tests/test_trial_registry.py::test_git_environment_is_allowlisted_and_literal_pathspec_is_forced\norchestrator/tests/test_trial_registry.py::test_manifest_committed_symlink_mode_is_rejected\norchestrator/tests/test_trial_registry.py::test_registry_committed_symlink_mode_is_rejected\norchestrator/tests/test_trial_registry.py::test_registry_git_component_is_rejected_before_file_creation\norchestrator/tests/test_trial_registry.py::test_append_componentwise_open_rejects_parent_symlink_swap\norchestrator/tests/test_trial_registry.py::test_append_rebinds_target_inode_after_lock\norchestrator/tests/test_trial_registry.py::test_append_rebinds_parent_inode_after_lock\norchestrator/tests/test_trial_registry.py::test_registry_history_rejects_git_mv_then_restore\norchestrator/tests/test_trial_registry.py::test_registry_history_rejects_merge_dag_with_deleted_parent\norchestrator/tests/test_trial_registry.py::test_manifest_has_no_commit_self_reference\norchestrator/tests/test_trial_registry.py::test_effective_binding_requires_manifest_blob_at_content_commit\norchestrator/tests/test_trial_registry.py::test_effective_commit_requires_exact_single_parent\norchestrator/tests/test_trial_registry.py::test_effective_commit_rejects_root_commit\norchestrator/tests/test_trial_registry.py::test_effective_commit_rejects_other_parent\norchestrator/tests/test_trial_registry.py::test_effective_commit_rejects_merge_commit\norchestrator/tests/test_trial_registry.py::test_effective_binding_parent_fixture_rejects_manifest_content_mismatch\norchestrator/tests/test_trial_registry.py::test_effective_binding_rejects_manifest_sha256_mismatch\norchestrator/tests/test_trial_registry.py::test_effective_commit_rejects_noncanonical_commit_arguments\norchestrator/tests/test_trial_registry.py::test_effective_commit_rejects_parent_query_failure\norchestrator/tests/test_trial_registry.py::test_effective_commit_rejects_graft_file\norchestrator/tests/test_trial_registry.py::test_effective_commit_rejects_replace_ref\norchestrator/tests/test_trial_registry.py::test_effective_commit_must_ancestor_measurement_head\norchestrator/tests/test_trial_registry.py::test_acceptance_rejects_missing_registry_trial\norchestrator/tests/test_trial_registry.py::test_acceptance_rejects_extra_registry_trial\norchestrator/tests/test_trial_registry.py::test_acceptance_rejects_registry_canonical_tuple_mutation[arm]\norchestrator/tests/test_trial_registry.py::test_acceptance_rejects_registry_canonical_tuple_mutation[holdout]\norchestrator/tests/test_trial_registry.py::test_acceptance_rejects_registry_canonical_tuple_mutation[campaign_id]\norchestrator/tests/test_trial_registry.py::test_acceptance_rejects_registry_canonical_tuple_mutation[generations]\norchestrator/tests/test_trial_registry.py::test_acceptance_rejects_content_or_effective_commit_mismatch\norchestrator/tests/test_trial_registry.py::test_acceptance_rejects_content_commit_without_manifest_ancestor\norchestrator/tests/test_trial_registry.py::test_attempt_registry_genesis_is_closed_before_first_performance_observation\norchestrator/tests/test_trial_registry.py::test_attempt_registry_consumes_only_next_slot_for_same_failed_repeat\norchestrator/tests/test_trial_registry.py::test_attempt_registry_rejects_successful_rerun_and_score_selected_slot\norchestrator/tests/test_trial_registry.py::test_attempt_registry_rejects_observation_value_replacement\norchestrator/tests/test_trial_registry.py::test_attempt_registry_requires_exact_external_failure_reason\norchestrator/tests/test_trial_registry.py::test_attempt_registry_classification_receipt_is_create_only\norchestrator/tests/test_trial_registry.py::test_attempt_registry_classification_row_must_match_receipt\norchestrator/tests/test_trial_registry.py::test_attempt_registry_rejects_capability_digest_replacement\norchestrator/tests/test_trial_registry.py::test_attempt_registry_rejects_observed_primary_value_null\norchestrator/tests/test_trial_registry.py::test_attempt_registry_rejects_second_root_in_full_history\norchestrator/tests/test_trial_registry.py::test_attempt_registry_replays_legacy_v1_registry_after_v2_upgrade\norchestrator/tests/test_trial_registry.py::test_attempt_registry_rejects_v1_row_under_v2_genesis\norchestrator/tests/test_trial_registry.py::test_attempt_registry_rejects_terminal_failure_report_without_observation_start\norchestrator/tests/test_trial_registry.py::test_attempt_registry_accepts_pre_observation_terminal_failure_without_report\norchestrator/tests/test_trial_registry.py::test_attempt_registry_rejects_terminal_from_copied_capability_owner\norchestrator/tests/test_trial_registry.py::test_attempt_registry_rejects_non_string_schema_version[list]\norchestrator/tests/test_trial_registry.py::test_attempt_registry_rejects_non_string_schema_version[dict]\norchestrator/tests/test_trial_registry.py::test_attempt_registry_rejects_v1_second_root_in_full_history\norchestrator/tests/test_trial_registry.py::test_attempt_registry_rejects_retry_after_observation_start\norchestrator/tests/test_trial_registry.py::test_attempt_registry_rejects_terminal_echo_mutation_after_rehash\norchestrator/tests/test_trial_registry.py::test_attempt_registry_rejects_reordered_observation_start_after_rehash\norchestrator/tests/test_trial_registry.py::test_attempt_registry_rejects_classification_seal_from_other_slot\norchestrator/tests/test_trial_registry.py::test_attempt_registry_rejects_legacy_performance_output_field_in_v2\norchestrator/tests/test_trial_registry.py::test_attempt_registry_records_seal_observation_and_monotonic_event_index\norchestrator/tests/test_trial_registry.py::test_attempt_event_hash_matches_golden_vector\norchestrator/tests/test_trial_registry.py::test_attempt_registry_rejects_event_sha256_tampering\norchestrator/tests/test_trial_registry.py::test_attempt_registry_rejects_previous_event_sha256_tampering\norchestrator/tests/test_trial_registry.py::test_attempt_registry_rejects_event_index_tampering\norchestrator/tests/test_trial_registry.py::test_attempt_registry_accepts_correct_formal_slot_consumption\norchestrator/tests/test_trial_registry.py::test_attempt_registry_accepts_observed_terminal_status_only\norchestrator/tests/test_trial_registry.py::test_attempt_acceptance_rejects_unmanifested_replicate_slot\norchestrator/tests/test_trial_registry.py::test_attempt_acceptance_rejects_terminal_failure_report_observed_values\norchestrator/tests/test_trial_registry.py::test_attempt_registry_rejects_schedule_row_hash_replacement\norchestrator/tests/test_trial_registry.py::test_attempt_registry_rejects_process_identity_replacement\norchestrator/tests/test_trial_registry.py::test_attempt_registry_rejects_raw_output_hash_replacement\norchestrator/tests/test_trial_registry.py::test_attempt_registry_rejects_terminal_report_hash_replacement\n\n225 tests collected in 0.66s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"serial\"}\n",
+        "stdout_sha256": "79fa60aa6474b7e275bfe21ff016c3a72c79865bc6f83c3d724ba590998af9d5"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_attempt_registry_core_equivalence.py::test_reference_core_and_facade_event_and_receipt_bytes_are_identical",
+        "orchestrator/tests/test_attempt_registry_core_equivalence.py::test_unknown_event_rejection_reason_is_identical",
+        "orchestrator/tests/test_attempt_registry_core_equivalence.py::test_genesis_builder_rejection_matches_pre_extraction_order[non-json-value]",
+        "orchestrator/tests/test_attempt_registry_core_equivalence.py::test_genesis_builder_rejection_matches_pre_extraction_order[wrong-field-type]",
+        "orchestrator/tests/test_attempt_registry_core_equivalence.py::test_genesis_builder_rejection_matches_pre_extraction_order[missing-key]",
+        "orchestrator/tests/test_attempt_registry_core_equivalence.py::test_genesis_builder_rejection_matches_pre_extraction_order[extra-key]",
+        "orchestrator/tests/test_attempt_registry_core_equivalence.py::test_genesis_builder_rejection_matches_pre_extraction_order[out-of-range-value]",
+        "orchestrator/tests/test_attempt_registry_core_equivalence.py::test_genesis_builder_retryable_reasons_match_pre_extraction[none]",
+        "orchestrator/tests/test_attempt_registry_core_equivalence.py::test_genesis_builder_retryable_reasons_match_pre_extraction[outside-closed-set]",
+        "orchestrator/tests/test_attempt_registry_core_equivalence.py::test_genesis_builder_retryable_reasons_match_pre_extraction[empty]",
+        "orchestrator/tests/test_attempt_registry_core_equivalence.py::test_genesis_builder_retryable_reasons_match_pre_extraction[non-string]",
+        "orchestrator/tests/test_attempt_registry_core_equivalence.py::test_skipped_slot_rejection_reason_is_identical",
+        "orchestrator/tests/test_attempt_registry_core_equivalence.py::test_frozen_paths_and_public_signatures_are_literal_pinned",
+        "orchestrator/tests/test_attempt_registry_core_equivalence.py::test_facade_namespace_keeps_core_helpers_private",
+        "orchestrator/tests/test_attempt_registry_core_equivalence.py::test_six_facades_are_unrebound_real_functions",
+        "orchestrator/tests/test_attempt_registry_core_equivalence.py::test_core_source_has_no_8c_domain_literals",
+        "orchestrator/tests/test_attempt_registry_core_s8b_profile.py::test_s8b_profile_closes_slot_binding_budget_and_reason_policy",
+        "orchestrator/tests/test_attempt_registry_core_s8b_profile.py::test_genesis_rejects_freeze_id_that_differs_from_8b_binding",
+        "orchestrator/tests/test_attempt_registry_core_s8b_profile.py::test_preallocation_accepts_a_genesis_slot_and_rejects_an_absent_slot",
+        "orchestrator/tests/test_attempt_registry_core_s8b_profile.py::test_series_order_accepts_first_slot_and_rejects_skip_and_empty_retry_set",
+        "orchestrator/tests/test_attempt_registry_core_s8b_profile.py::test_budget_is_cell_wide_and_does_not_reset_for_each_repetition",
+        "orchestrator/tests/test_attempt_registry_core_s8b_profile.py::test_observation_lifecycle_is_accepted_but_cannot_open_a_later_slot",
+        "orchestrator/tests/test_attempt_registry_core_s8b_profile.py::test_retryable_terminal_after_observation_hits_only_observation_guard",
+        "orchestrator/tests/test_attempt_registry_core_s8b_profile.py::test_known_event_round_trip_passes_and_unknown_event_is_rejected",
+        "orchestrator/tests/test_attempt_registry_core_s8b_profile.py::test_profile_only_event_cannot_acquire_terminal_semantics",
+        "orchestrator/tests/test_attempt_registry_core_s8b_profile.py::test_schema_profile_mappings_are_deeply_immutable",
+        "orchestrator/tests/test_attempt_registry_core_s8b_profile.py::test_strict_8b_reason_match_rejects_input_that_8c_still_accepts",
+        "orchestrator/tests/test_attempt_registry_core_s8b_profile.py::test_trial_registry_six_facades_have_no_top_level_rebinding",
+        "orchestrator/tests/test_attempt_registry_core_s8b_profile.py::test_facade_rebinding_guard_rejects_c03_blind_synthetic_source",
+        "orchestrator/tests/test_trial_registry.py::test_p1_exact_six_trial_manifest_passes",
+        "orchestrator/tests/test_trial_registry.py::test_t1185_m1_manifest_generation_one_is_rejected_at_exact_path",
+        "orchestrator/tests/test_trial_registry.py::test_manifest_generations_rejects_bool_at_exact_path",
+        "orchestrator/tests/test_trial_registry.py::test_p2_first_and_second_registration_append_pass",
+        "orchestrator/tests/test_trial_registry.py::test_p3_each_registered_trial_resolves_launch_binding",
+        "orchestrator/tests/test_trial_registry.py::test_p4_prereg_equal_to_measurement_commit_passes",
+        "orchestrator/tests/test_trial_registry.py::test_p5_six_complete_terminal_reports_pass_acceptance",
+        "orchestrator/tests/test_trial_registry.py::test_s8c_acceptance_no_build_verifier_leaf_is_independently_recomputed",
+        "orchestrator/tests/test_trial_registry.py::test_s8c_acceptance_registered_build_reports_reach_receipt_for_h1_h2_workloads",
+        "orchestrator/tests/test_trial_registry.py::test_s8c_acceptance_registered_build_reports_remain_fail_closed_for_unknown_workload",
+        "orchestrator/tests/test_trial_registry.py::test_s8c_acceptance_does_not_swallow_unexpected_workload_resolver_error",
+        "orchestrator/tests/test_trial_registry.py::test_s8c_acceptance_build_with_empty_cells_fails_closed_before_receipt",
+        "orchestrator/tests/test_trial_registry.py::test_s8c_acceptance_failure_cell_pins_layer3_chain_absent_reason",
+        "orchestrator/tests/test_trial_registry.py::test_s8c_acceptance_rejects_campaign_from_different_output_root",
+        "orchestrator/tests/test_trial_registry.py::test_t822_acceptance_allows_coherent_past_measurement_head",
+        "orchestrator/tests/test_trial_registry.py::test_t822_acceptance_rejects_mixed_measurement_heads",
+        "orchestrator/tests/test_trial_registry.py::test_t1185_pa_all_six_generation_two_reports_pass_acceptance",
+        "orchestrator/tests/test_trial_registry.py::test_t1185_m3_m4_acceptance_checks_last_report_generation_budget",
+        "orchestrator/tests/test_trial_registry.py::test_acceptance_projects_identical_terminal_bytes_in_all_json_boundaries[True]",
+        "orchestrator/tests/test_trial_registry.py::test_acceptance_projects_identical_terminal_bytes_in_all_json_boundaries[False]",
+        "orchestrator/tests/test_trial_registry.py::test_acceptance_independently_requires_exact_rederived_launch_admission[missing-report]",
+        "orchestrator/tests/test_trial_registry.py::test_acceptance_independently_requires_exact_rederived_launch_admission[run-start-mismatch]",
+        "orchestrator/tests/test_trial_registry.py::test_acceptance_independently_rederives_historical_arm_execution[missing]",
+        "orchestrator/tests/test_trial_registry.py::test_acceptance_independently_rederives_historical_arm_execution[wrong-digest]",
+        "orchestrator/tests/test_trial_registry.py::test_acceptance_rejects_cell_descriptor_that_differs_from_arm_input",
+        "orchestrator/tests/test_trial_registry.py::test_acceptance_registered_run_rejects_one_missing_digest",
+        "orchestrator/tests/test_trial_registry.py::test_acceptance_runs_digest_chain_once_per_registered_trial",
+        "orchestrator/tests/test_trial_registry.py::test_acceptance_rejects_null_or_open_origin_binding_projection[None]",
+        "orchestrator/tests/test_trial_registry.py::test_acceptance_rejects_null_or_open_origin_binding_projection[origin_binding_record1]",
+        "orchestrator/tests/test_trial_registry.py::test_acceptance_rederives_each_self_consistent_launch_binding_field[manifest_sha256-0000000000000000000000000000000000000000000000000000000000000000]",
+        "orchestrator/tests/test_trial_registry.py::test_acceptance_rederives_each_self_consistent_launch_binding_field[arm-forged-arm]",
+        "orchestrator/tests/test_trial_registry.py::test_acceptance_rederives_each_self_consistent_launch_binding_field[campaign_id-forged-campaign]",
+        "orchestrator/tests/test_trial_registry.py::test_acceptance_rederives_each_self_consistent_launch_binding_field[holdout-forged-holdout]",
+        "orchestrator/tests/test_trial_registry.py::test_acceptance_rederives_each_self_consistent_launch_binding_field[measurement_head-0000000000000000000000000000000000000000]",
+        "orchestrator/tests/test_trial_registry.py::test_p6_partial_terminal_outcomes_are_reported_not_dropped",
+        "orchestrator/tests/test_trial_registry.py::test_p6_one_cell_partial_terminal_outcome_passes_acceptance",
+        "orchestrator/tests/test_trial_registry.py::test_p6_indeterminate_not_consumed_partial_fails_formal_acceptance",
+        "orchestrator/tests/test_trial_registry.py::test_t1185_pb_partial_one_generation_with_budget_two_passes_acceptance",
+        "orchestrator/tests/test_trial_registry.py::test_p7_later_registry_rows_do_not_hide_older_manifest",
+        "orchestrator/tests/test_trial_registry.py::test_p9_prime_existing_registry_unregistered_exploratory_id_passes",
+        "orchestrator/tests/test_trial_registry.py::test_u4_holdout_set_is_derived_from_registry_bindings",
+        "orchestrator/tests/test_trial_registry.py::test_manifestless_unregistered_launch_is_rejected_by_default",
+        "orchestrator/tests/test_trial_registry.py::test_holdout_exploratory_opt_in_is_unconditionally_rejected",
+        "orchestrator/tests/test_trial_registry.py::test_explicit_non_holdout_exploration_is_sealed_and_non_certifying",
+        "orchestrator/tests/test_trial_registry.py::test_originless_launch_record_and_canonical_bytes_are_exactly_unchanged",
+        "orchestrator/tests/test_trial_registry.py::test_launch_record_projects_the_same_issued_capability_object",
+        "orchestrator/tests/test_trial_registry.py::test_launch_record_rejects_an_issued_capability_for_another_trial",
+        "orchestrator/tests/test_trial_registry.py::test_registered_admission_does_not_implicitly_resolve_arm_input",
+        "orchestrator/tests/test_trial_registry.py::test_bind_trial_arm_issues_exact_three_field_projection",
+        "orchestrator/tests/test_trial_registry.py::test_exploratory_admission_rejects_invalid_lexical_inputs[INVALID-workloads0-//[field//] ]",
+        "orchestrator/tests/test_trial_registry.py::test_exploratory_admission_rejects_invalid_lexical_inputs[duplicate-workload-workloads1-//[workloads//] ]",
+        "orchestrator/tests/test_trial_registry.py::test_exploratory_admission_rejects_invalid_repository",
+        "orchestrator/tests/test_trial_registry.py::test_admit_registered_launch_requires_manifest_commit_capability",
+        "orchestrator/tests/test_trial_registry.py::test_admit_registered_formal_noncertifying_requires_explicit_opt_in",
+        "orchestrator/tests/test_trial_registry.py::test_admit_registered_formal_noncertifying_validates_freeze_and_returns_binding",
+        "orchestrator/tests/test_trial_registry.py::test_admit_registered_formal_noncertifying_rejects_condition_freeze_failure",
+        "orchestrator/tests/test_trial_registry.py::test_rederived_launch_admission_accepts_formal_noncertifying_mode",
+        "orchestrator/tests/test_trial_registry.py::test_rederived_registered_effective_still_requires_effective_capability",
+        "orchestrator/tests/test_trial_registry.py::test_formal_noncertifying_lifecycle_start_consumes_reserved_attempt_slot",
+        "orchestrator/tests/test_trial_registry.py::test_m07_outer_manifest_capability_commit_check_is_unmasked",
+        "orchestrator/tests/test_trial_registry.py::test_admit_registered_launch_rejects_ancestor_commit_capability",
+        "orchestrator/tests/test_trial_registry.py::test_registered_admission_and_lifecycle_are_non_certifying_and_start_once",
+        "orchestrator/tests/test_trial_registry.py::test_lifecycle_terminal_projects_the_formal_consumer_shape_by_bytes[True]",
+        "orchestrator/tests/test_trial_registry.py::test_lifecycle_terminal_projects_the_formal_consumer_shape_by_bytes[False]",
+        "orchestrator/tests/test_trial_registry.py::test_lifecycle_updates_take_exclusive_flock_and_fsync",
+        "orchestrator/tests/test_trial_registry.py::test_lifecycle_rejects_noncanonical_json_before_append",
+        "orchestrator/tests/test_trial_registry.py::test_lifecycle_rejects_canonical_unknown_event_before_append",
+        "orchestrator/tests/test_trial_registry.py::test_lifecycle_git_history_rejects_non_append_only_attacks[delete-recreate]",
+        "orchestrator/tests/test_trial_registry.py::test_lifecycle_git_history_rejects_non_append_only_attacks[modify-revert]",
+        "orchestrator/tests/test_trial_registry.py::test_m10_acceptance_rejects_missing_lifecycle_terminal",
+        "orchestrator/tests/test_trial_registry.py::test_acceptance_rejects_start_run_root_outside_report_parent",
+        "orchestrator/tests/test_trial_registry.py::test_m11_acceptance_receipt_is_exclusive_create",
+        "orchestrator/tests/test_trial_registry.py::test_acceptance_v3_has_no_certifying_issuance_branch",
+        "orchestrator/tests/test_trial_registry.py::test_acceptance_effective_preregistration_is_mandatory_keyword",
+        "orchestrator/tests/test_trial_registry.py::test_registry_introduction_is_unique_history_not_approval_authority",
+        "orchestrator/tests/test_trial_registry.py::test_p12_accept_cli_runs_from_clean_pythonpath",
+        "orchestrator/tests/test_trial_registry.py::test_m1_duplicate_json_key_is_rejected",
+        "orchestrator/tests/test_trial_registry.py::test_m2_exact_manifest_schema_is_rejected[missing]",
+        "orchestrator/tests/test_trial_registry.py::test_m2_exact_manifest_schema_is_rejected[unknown]",
+        "orchestrator/tests/test_trial_registry.py::test_m2_exact_manifest_schema_is_rejected[schema]",
+        "orchestrator/tests/test_trial_registry.py::test_m3_cartesian_gate_rejects_duplicate_and_missing_pair",
+        "orchestrator/tests/test_trial_registry.py::test_m4_trial_and_campaign_uniqueness_is_rejected[trial_id]",
+        "orchestrator/tests/test_trial_registry.py::test_m4_trial_and_campaign_uniqueness_is_rejected[campaign_id]",
+        "orchestrator/tests/test_trial_registry.py::test_m5_prereg_commit_lexical_closed_set_is_rejected",
+        "orchestrator/tests/test_trial_registry.py::test_redundant_field_gate_rejects_before_cartesian_fallback[arm-blind]",
+        "orchestrator/tests/test_trial_registry.py::test_redundant_field_gate_rejects_before_cartesian_fallback[holdout-H3]",
+        "orchestrator/tests/test_trial_registry.py::test_m6a_registry_unterminated_line_is_rejected",
+        "orchestrator/tests/test_trial_registry.py::test_m6b_registry_noncanonical_line_is_rejected",
+        "orchestrator/tests/test_trial_registry.py::test_registration_trials_must_use_canonical_order",
+        "orchestrator/tests/test_trial_registry.py::test_redundant_registry_blank_line_gate_rejects_before_json_decoder",
+        "orchestrator/tests/test_trial_registry.py::test_redundant_registry_duplicate_key_gate_rejects_before_canonical_bytes",
+        "orchestrator/tests/test_trial_registry.py::test_m7_append_preserves_inode_size_and_existing_prefix",
+        "orchestrator/tests/test_trial_registry.py::test_m8_registry_global_reuse_is_rejected[manifest]",
+        "orchestrator/tests/test_trial_registry.py::test_m8_registry_global_reuse_is_rejected[trial]",
+        "orchestrator/tests/test_trial_registry.py::test_m8_registry_global_reuse_is_rejected[campaign]",
+        "orchestrator/tests/test_trial_registry.py::test_m9_launcher_requires_committed_exact_registry[untracked]",
+        "orchestrator/tests/test_trial_registry.py::test_m9_launcher_requires_committed_exact_registry[dirty]",
+        "orchestrator/tests/test_trial_registry.py::test_m10_registration_must_exactly_match_manifest[m10a-arm]",
+        "orchestrator/tests/test_trial_registry.py::test_m10_registration_must_exactly_match_manifest[m10b-campaign]",
+        "orchestrator/tests/test_trial_registry.py::test_m10_registration_must_exactly_match_manifest[m10c-prereg]",
+        "orchestrator/tests/test_trial_registry.py::test_m10_registration_must_exactly_match_manifest[m10d-hash]",
+        "orchestrator/tests/test_trial_registry.py::test_m11_selected_manifest_membership_is_required",
+        "orchestrator/tests/test_trial_registry.py::test_m12_holdout_workload_binding_is_required",
+        "orchestrator/tests/test_trial_registry.py::test_m13_producer_campaign_derivation_is_independently_bound",
+        "orchestrator/tests/test_trial_registry.py::test_m14_ancestry_direction_is_not_reversible",
+        "orchestrator/tests/test_trial_registry.py::test_diagnostic_sensitivity_m15_git_operational_failure_is_not_non_ancestry",
+        "orchestrator/tests/test_trial_registry.py::test_m16_report_prereg_binding_is_required[m16a-missing]",
+        "orchestrator/tests/test_trial_registry.py::test_m16_report_prereg_binding_is_required[m16b-different]",
+        "orchestrator/tests/test_trial_registry.py::test_m17_measurement_registry_must_already_contain_registration",
+        "orchestrator/tests/test_trial_registry.py::test_redundant_registry_prefix_defense_rejects_before_history_walk",
+        "orchestrator/tests/test_trial_registry.py::test_redundant_six_report_argument_count_defense_is_required",
+        "orchestrator/tests/test_trial_registry.py::test_m20_report_trial_set_rejects_duplicate_or_foreign[duplicate]",
+        "orchestrator/tests/test_trial_registry.py::test_m20_report_trial_set_rejects_duplicate_or_foreign[foreign]",
+        "orchestrator/tests/test_trial_registry.py::test_m21_terminal_ratio_and_campaign_projection_is_bound[ratio]",
+        "orchestrator/tests/test_trial_registry.py::test_m21_terminal_ratio_and_campaign_projection_is_bound[campaign]",
+        "orchestrator/tests/test_trial_registry.py::test_m22_existing_completeness_verifier_is_mandatory",
+        "orchestrator/tests/test_trial_registry.py::test_m28_report_only_binding_without_run_start_binding_is_rejected",
+        "orchestrator/tests/test_trial_registry.py::test_m29_intermediate_committed_rewrite_is_rejected_by_history_walk",
+        "orchestrator/tests/test_trial_registry.py::test_registered_trial_is_rejected_without_manifest_for_unit_b",
+        "orchestrator/tests/test_trial_registry.py::test_registry_parent_real_path_must_stay_inside_repository",
+        "orchestrator/tests/test_trial_registry.py::test_append_uses_nofollow_append_flags_and_fsyncs_file_then_directory",
+        "orchestrator/tests/test_trial_registry.py::test_git_repository_switching_environment_is_removed",
+        "orchestrator/tests/test_trial_registry.py::test_shallow_repository_is_rejected_for_ancestry",
+        "orchestrator/tests/test_trial_registry.py::test_launch_resolves_measurement_head_once",
+        "orchestrator/tests/test_trial_registry.py::test_acceptance_report_argument_must_be_sibling_report_json",
+        "orchestrator/tests/test_trial_registry.py::test_registry_history_rejects_delete_then_recreate_commit",
+        "orchestrator/tests/test_trial_registry.py::test_exploratory_gate_uses_head_registry_when_working_file_is_missing",
+        "orchestrator/tests/test_trial_registry.py::test_m31_journal_snapshot_swap_cannot_compose_binding_and_completeness",
+        "orchestrator/tests/test_trial_registry.py::test_m31_same_inode_journal_rewrite_restore_cannot_compose_snapshots",
+        "orchestrator/tests/test_trial_registry.py::test_literal_pathspec_registry_history_cannot_be_hidden",
+        "orchestrator/tests/test_trial_registry.py::test_git_environment_is_allowlisted_and_literal_pathspec_is_forced",
+        "orchestrator/tests/test_trial_registry.py::test_manifest_committed_symlink_mode_is_rejected",
+        "orchestrator/tests/test_trial_registry.py::test_registry_committed_symlink_mode_is_rejected",
+        "orchestrator/tests/test_trial_registry.py::test_registry_git_component_is_rejected_before_file_creation",
+        "orchestrator/tests/test_trial_registry.py::test_append_componentwise_open_rejects_parent_symlink_swap",
+        "orchestrator/tests/test_trial_registry.py::test_append_rebinds_target_inode_after_lock",
+        "orchestrator/tests/test_trial_registry.py::test_append_rebinds_parent_inode_after_lock",
+        "orchestrator/tests/test_trial_registry.py::test_registry_history_rejects_git_mv_then_restore",
+        "orchestrator/tests/test_trial_registry.py::test_registry_history_rejects_merge_dag_with_deleted_parent",
+        "orchestrator/tests/test_trial_registry.py::test_manifest_has_no_commit_self_reference",
+        "orchestrator/tests/test_trial_registry.py::test_effective_binding_requires_manifest_blob_at_content_commit",
+        "orchestrator/tests/test_trial_registry.py::test_effective_commit_requires_exact_single_parent",
+        "orchestrator/tests/test_trial_registry.py::test_effective_commit_rejects_root_commit",
+        "orchestrator/tests/test_trial_registry.py::test_effective_commit_rejects_other_parent",
+        "orchestrator/tests/test_trial_registry.py::test_effective_commit_rejects_merge_commit",
+        "orchestrator/tests/test_trial_registry.py::test_effective_binding_parent_fixture_rejects_manifest_content_mismatch",
+        "orchestrator/tests/test_trial_registry.py::test_effective_binding_rejects_manifest_sha256_mismatch",
+        "orchestrator/tests/test_trial_registry.py::test_effective_commit_rejects_noncanonical_commit_arguments",
+        "orchestrator/tests/test_trial_registry.py::test_effective_commit_rejects_parent_query_failure",
+        "orchestrator/tests/test_trial_registry.py::test_effective_commit_rejects_graft_file",
+        "orchestrator/tests/test_trial_registry.py::test_effective_commit_rejects_replace_ref",
+        "orchestrator/tests/test_trial_registry.py::test_effective_commit_must_ancestor_measurement_head",
+        "orchestrator/tests/test_trial_registry.py::test_acceptance_rejects_missing_registry_trial",
+        "orchestrator/tests/test_trial_registry.py::test_acceptance_rejects_extra_registry_trial",
+        "orchestrator/tests/test_trial_registry.py::test_acceptance_rejects_registry_canonical_tuple_mutation[arm]",
+        "orchestrator/tests/test_trial_registry.py::test_acceptance_rejects_registry_canonical_tuple_mutation[holdout]",
+        "orchestrator/tests/test_trial_registry.py::test_acceptance_rejects_registry_canonical_tuple_mutation[campaign_id]",
+        "orchestrator/tests/test_trial_registry.py::test_acceptance_rejects_registry_canonical_tuple_mutation[generations]",
+        "orchestrator/tests/test_trial_registry.py::test_acceptance_rejects_content_or_effective_commit_mismatch",
+        "orchestrator/tests/test_trial_registry.py::test_acceptance_rejects_content_commit_without_manifest_ancestor",
+        "orchestrator/tests/test_trial_registry.py::test_attempt_registry_genesis_is_closed_before_first_performance_observation",
+        "orchestrator/tests/test_trial_registry.py::test_attempt_registry_consumes_only_next_slot_for_same_failed_repeat",
+        "orchestrator/tests/test_trial_registry.py::test_attempt_registry_rejects_successful_rerun_and_score_selected_slot",
+        "orchestrator/tests/test_trial_registry.py::test_attempt_registry_rejects_observation_value_replacement",
+        "orchestrator/tests/test_trial_registry.py::test_attempt_registry_requires_exact_external_failure_reason",
+        "orchestrator/tests/test_trial_registry.py::test_attempt_registry_classification_receipt_is_create_only",
+        "orchestrator/tests/test_trial_registry.py::test_attempt_registry_classification_row_must_match_receipt",
+        "orchestrator/tests/test_trial_registry.py::test_attempt_registry_rejects_capability_digest_replacement",
+        "orchestrator/tests/test_trial_registry.py::test_attempt_registry_rejects_observed_primary_value_null",
+        "orchestrator/tests/test_trial_registry.py::test_attempt_registry_rejects_second_root_in_full_history",
+        "orchestrator/tests/test_trial_registry.py::test_attempt_registry_replays_legacy_v1_registry_after_v2_upgrade",
+        "orchestrator/tests/test_trial_registry.py::test_attempt_registry_rejects_v1_row_under_v2_genesis",
+        "orchestrator/tests/test_trial_registry.py::test_attempt_registry_rejects_terminal_failure_report_without_observation_start",
+        "orchestrator/tests/test_trial_registry.py::test_attempt_registry_accepts_pre_observation_terminal_failure_without_report",
+        "orchestrator/tests/test_trial_registry.py::test_attempt_registry_rejects_terminal_from_copied_capability_owner",
+        "orchestrator/tests/test_trial_registry.py::test_attempt_registry_rejects_non_string_schema_version[list]",
+        "orchestrator/tests/test_trial_registry.py::test_attempt_registry_rejects_non_string_schema_version[dict]",
+        "orchestrator/tests/test_trial_registry.py::test_attempt_registry_rejects_v1_second_root_in_full_history",
+        "orchestrator/tests/test_trial_registry.py::test_attempt_registry_rejects_retry_after_observation_start",
+        "orchestrator/tests/test_trial_registry.py::test_attempt_registry_rejects_terminal_echo_mutation_after_rehash",
+        "orchestrator/tests/test_trial_registry.py::test_attempt_registry_rejects_reordered_observation_start_after_rehash",
+        "orchestrator/tests/test_trial_registry.py::test_attempt_registry_rejects_classification_seal_from_other_slot",
+        "orchestrator/tests/test_trial_registry.py::test_attempt_registry_rejects_legacy_performance_output_field_in_v2",
+        "orchestrator/tests/test_trial_registry.py::test_attempt_registry_records_seal_observation_and_monotonic_event_index",
+        "orchestrator/tests/test_trial_registry.py::test_attempt_event_hash_matches_golden_vector",
+        "orchestrator/tests/test_trial_registry.py::test_attempt_registry_rejects_event_sha256_tampering",
+        "orchestrator/tests/test_trial_registry.py::test_attempt_registry_rejects_previous_event_sha256_tampering",
+        "orchestrator/tests/test_trial_registry.py::test_attempt_registry_rejects_event_index_tampering",
+        "orchestrator/tests/test_trial_registry.py::test_attempt_registry_accepts_correct_formal_slot_consumption",
+        "orchestrator/tests/test_trial_registry.py::test_attempt_registry_accepts_observed_terminal_status_only",
+        "orchestrator/tests/test_trial_registry.py::test_attempt_acceptance_rejects_unmanifested_replicate_slot",
+        "orchestrator/tests/test_trial_registry.py::test_attempt_acceptance_rejects_terminal_failure_report_observed_values",
+        "orchestrator/tests/test_trial_registry.py::test_attempt_registry_rejects_schedule_row_hash_replacement",
+        "orchestrator/tests/test_trial_registry.py::test_attempt_registry_rejects_process_identity_replacement",
+        "orchestrator/tests/test_trial_registry.py::test_attempt_registry_rejects_raw_output_hash_replacement",
+        "orchestrator/tests/test_trial_registry.py::test_attempt_registry_rejects_terminal_report_hash_replacement"
+      ],
+      "duration_s": 21.74,
+      "rc": 0,
+      "repo_head": "74dd2203e520626ebe016ba5c8d86d0405f24c94",
+      "runner_sha256": "e1d8149db4b1c2805801d2bf155d5fe65c998b2c7b9f2ddf23646eea1f0a5af4",
+      "spec_sha256": "12cfbc055a171481c00cc5135174b9f63dd1ea95e595d328ea42c64aa9885cd6",
+      "status": "PASSED",
+      "tool_sha256": "a2f39875cca6da44a561f5dd58ce5ce16fb76a3f572ff07ae5a2d204d3390ce1"
+    },
+    "hang_timeout_seconds": 2700.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "M1": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_attempt_registry_core_s8b_profile.py::test_retryable_terminal_after_observation_hits_only_observation_guard",
+          "orchestrator/tests/test_trial_registry.py::test_attempt_registry_rejects_retry_after_observation_start"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "066a62119649714c14939e152b7febc2d29db969cdfd3135a7ff619e008a1121",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/attempt_registry_core.py",
+            "new": "                if False:\n                    _fail(\n                        \"attempt-slot-order\",\n                        \"a retryable failure after observation cannot authorize a retry\",\n                    )\n",
+            "old": "                if (\n                    policy.forbid_retry_after_observation\n                    and previous_terminal.get(\"observation_start_event_sha256\") is not None\n                ):\n                    _fail(\n                        \"attempt-slot-order\",\n                        \"a retryable failure after observation cannot authorize a retry\",\n                    )\n"
+          }
+        ]
+      },
+      "M2": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_attempt_registry_core_s8b_profile.py::test_s8b_profile_closes_slot_binding_budget_and_reason_policy",
+          "orchestrator/tests/test_attempt_registry_core_s8b_profile.py::test_strict_8b_reason_match_rejects_input_that_8c_still_accepts"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "1436a7a21621b042b2834fcb4c287a7483764170d80c140bf62cb522da168b2b",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/s8b_attempt_profile.py",
+            "new": "            require_terminal_reason_equals_classification=False,\n",
+            "old": "            require_terminal_reason_equals_classification=True,\n"
+          }
+        ]
+      },
+      "M3": {
+        "anchor_counts": {
+          "0": 1,
+          "1": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_attempt_registry_core_equivalence.py::test_six_facades_are_unrebound_real_functions",
+          "orchestrator/tests/test_attempt_registry_core_s8b_profile.py::test_trial_registry_six_facades_have_no_top_level_rebinding"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "63f59ebdb62c10322fa16da855c83c1ab2d4c4d84be0d7a73dfe11630467d510",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/trial_registry.py",
+            "new": "def _reserve_attempt_slot_facade(\n    *,\n    repository_root: Path,\n    freeze_id: str,\n    slot_id: str,\n",
+            "old": "def reserve_attempt_slot(\n    *,\n    repository_root: Path,\n    freeze_id: str,\n    slot_id: str,\n"
+          },
+          {
+            "file": "orchestrator/campaign/trial_registry.py",
+            "new": "reserve_attempt_slot = _reserve_attempt_slot_facade\nrecord_attempt_start = reserve_attempt_slot\n",
+            "old": "record_attempt_start = reserve_attempt_slot\n"
+          }
+        ]
+      },
+      "M4": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_attempt_registry_core_equivalence.py::test_six_facades_are_unrebound_real_functions",
+          "orchestrator/tests/test_attempt_registry_core_s8b_profile.py::test_trial_registry_six_facades_have_no_top_level_rebinding"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "a854b1211173a250922a882da5bfd19973e5b9fa5a516708803752c848bc741d",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/trial_registry.py",
+            "new": "        gate=\"attempt-registry-genesis\",\n    )\n\n\ncreate_attempt_registry_genesis = create_attempt_registry_genesis\n\n\ndef _attempt_tree_paths(\n",
+            "old": "        gate=\"attempt-registry-genesis\",\n    )\n\n\ndef _attempt_tree_paths(\n"
+          }
+        ]
+      },
+      "M5": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_attempt_registry_core_s8b_profile.py::test_budget_is_cell_wide_and_does_not_reset_for_each_repetition",
+          "orchestrator/tests/test_attempt_registry_core_s8b_profile.py::test_s8b_profile_closes_slot_binding_budget_and_reason_policy"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "82ff456b9db2eec96bd5bf9f57835788f1612c7578a659c98ce4f5c14c5ad95d",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/s8b_attempt_profile.py",
+            "new": "    return slot.freeze_holdout_key, slot.configuration_id, slot.repetition\n",
+            "old": "    return slot.freeze_holdout_key, slot.configuration_id\n"
+          }
+        ]
+      },
+      "M6": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_attempt_registry_core_equivalence.py::test_unknown_event_rejection_reason_is_identical",
+          "orchestrator/tests/test_attempt_registry_core_s8b_profile.py::test_known_event_round_trip_passes_and_unknown_event_is_rejected"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "b7ec0f777de0f7fb4d0a79ff52ee5441e86b715f2462269b174cc97c4e048bcd",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/attempt_registry_core.py",
+            "new": "    if expected is None:\n        expected = frozenset(value)\n",
+            "old": "    if expected is None:\n        _fail(\"attempt-registry-schema\", f\"{label}.event is unknown\")\n"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "86b2a60d8bfdc4f6dbb087fc1658deb050b1860d3ef5472f861172ceb43250a2",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "dispatch",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "-q",
+      "-rf",
+      "orchestrator/tests/test_attempt_registry_core_equivalence.py",
+      "orchestrator/tests/test_attempt_registry_core_s8b_profile.py",
+      "orchestrator/tests/test_trial_registry.py",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 2700.0
+  },
+  "repo_head": "74dd2203e520626ebe016ba5c8d86d0405f24c94",
+  "runner_identity": {
+    "command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "-q",
+      "-rf",
+      "orchestrator/tests/test_attempt_registry_core_equivalence.py",
+      "orchestrator/tests/test_attempt_registry_core_s8b_profile.py",
+      "orchestrator/tests/test_trial_registry.py",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1484-floor-restart-registry/tools/pegasus/dispatch_compute.py",
+    "dispatch_entrypoint_sha256": "531c793ae8cf37eb163c6599288382ff08d80a0702ecce1f4a8417db2c6c94d2",
+    "dispatch_head_blob_sha256": "531c793ae8cf37eb163c6599288382ff08d80a0702ecce1f4a8417db2c6c94d2",
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1484-floor-restart-registry/tools/run_tests.py",
+    "entrypoint_sha256": "0627d3ec17fc00d993e6a935b798df33dadd170b1db934e289519aa79d0ffa67",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+    "head_blob_sha256": "0627d3ec17fc00d993e6a935b798df33dadd170b1db934e289519aa79d0ffa67",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "c3b7286229c49a4bbac417ac4adc63cc0a0c9a3f",
+    "runner_mode": "dispatch"
+  },
+  "runner_sha256": "e1d8149db4b1c2805801d2bf155d5fe65c998b2c7b9f2ddf23646eea1f0a5af4",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "12cfbc055a171481c00cc5135174b9f63dd1ea95e595d328ea42c64aa9885cd6",
+  "summary": {
+    "KILLED": 6,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 0,
+    "TIMEOUT": 0,
+    "completed": 6,
+    "matching": 6,
+    "recorded": 6,
+    "registered": 6
+  },
+  "tool_identity": {
+    "head_blob_sha256": "018992241713143cb44d6f8f031e5389f1b835fb7e24e388cfaa5db6ef264b3a",
+    "path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1484-floor-restart-registry/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "018992241713143cb44d6f8f031e5389f1b835fb7e24e388cfaa5db6ef264b3a"
+  },
+  "tool_sha256": "a2f39875cca6da44a561f5dd58ce5ce16fb76a3f572ff07ae5a2d204d3390ce1",
+  "updated_at": "2026-08-23T15:52:38.540088+00:00"
+}
