@@ -1950,6 +1950,18 @@ def test_known_violation_ledger_matches_literal_entries():
         "`3eaf2038ec2ac3e7965c2a1eedcadb1ed1266626`) が `KNOWN_PROVENANCE_VIOLATIONS` タプル末尾で競合し、"
         "削除なしの純粋なunionで解決した。親作成mergeのためCodex著者とは記さない。"
     )
+    t1477_ruling = (
+        "2026-08-22 [T-1477] provenance known-violation登録 "
+        "(ユーザー選択: known-violation 登録)"
+    )
+    t1477_note = (
+        "`role=fix` は許可値でなく `author` の誤記。実装は Codex `role=author` が書き親が統合したもので、"
+        "内容は正確で綴りだけの誤り"
+    )
+    t1477_malformed_value = (
+        "product=codex; model=gpt-5.6-luna; reasoning=unknown; "
+        "role=fix"
+    )
     observed = tuple(
         (
             spec.commit,
@@ -2133,10 +2145,140 @@ def test_known_violation_ledger_matches_literal_entries():
             t1479_merge3_note,
             "",
         ),
+        (
+            "649fe5a060a39de295f90d2002e8f97082729ea6",
+            "malformed-ai-agent",
+            t1477_ruling,
+            t1477_note,
+            t1477_malformed_value,
+        ),
+        (
+            "649fe5a060a39de295f90d2002e8f97082729ea6",
+            "missing-codex-author",
+            t1477_ruling,
+            t1477_note,
+            "",
+        ),
+        (
+            "e86d363a876ab00e7e6b37dfdd94385e5ab03816",
+            "missing-codex-author",
+            "本セッション内でユーザーへ状況を説明し known-violation 登録の続行を承認された (2026-08-21、3回目)",
+            "merge commit `e86d363a876ab00e7e6b37dfdd94385e5ab03816` は、本waveとmain側の別waveが独立にcommit "
+            "`09ce607b779272fda5629a350676471a16bea9bb` (ユーザーのccbench pin更新commit) を "
+            "known-violation登録したことによる重複エントリの競合を、親のClaudeセッションが直接解決したものである。"
+            "実装面で競合したのは `tools/check_ai_provenance.py` と "
+            "`orchestrator/tests/test_check_ai_provenance.py` の2 fileで、解決は両親のいずれかに既存するテキストの"
+            "選択・配置のみ (新規著作なし) であることを、親セッションが両親の内容と結合結果を行単位で"
+            "機械比較して確認済み (結合結果の全行がどちらかの親に存在)。`git diff-tree --cc` combined diff実測 "
+            "(2026-08-22、T-1479のロジック改修後に親が再検証) でも `tools/check_ai_provenance.py` のpatch本体が"
+            "非空であることを確認しており、新ロジックの下でも引き続き実装面著作として検出される。",
+            "",
+        ),
+        (
+            "0c0f3e71b3208370be8d4e7e20a84a2152afe4b2",
+            "missing-codex-author",
+            "本セッション内でユーザーへ状況を説明し known-violation 登録の続行を承認された (2026-08-21、4回目)",
+            "merge commit `0c0f3e71b3208370be8d4e7e20a84a2152afe4b2` は、main側off-arm neutralization (C02) 対応と"
+            "複数waveのccbench provenance known-violation登録を取り込んだもの。"
+            "`tools/check_ai_provenance.py`/`orchestrator/tests/test_check_ai_provenance.py`の競合は親が両親のいずれかに"
+            "既存するテキストの選択・配置のみで解決 (新規著作なし)。"
+            "`orchestrator/campaign/autonomous_trial_completeness.py`他4fileは競合マーカーなしで自動マージされ、"
+            "結合結果の全行がどちらかの親に存在することを機械比較で確認済み (新規著作0行)。"
+            "ただし自動マージの結果、`registered`→`arm_execution_permitted`改名箇所とmain側off-arm処理が追加した"
+            "同名の古い変数参照が意味的に衝突しNameErrorになったため、直後のcommit `b7c9c5af` (Codex role=author) で"
+            "1行修正し焦点走1378 passedを確認した。`git diff-tree --cc` combined diff実測 (2026-08-22、T-1479のロジック"
+            "改修後に親が再検証) でも `tools/check_ai_provenance.py`/`test_check_ai_provenance.py` 双方のpatch本体が"
+            "非空であることを確認しており、新ロジックの下でも引き続き実装面著作として検出される。",
+            "",
+        ),
+        (
+            "bf92f327cadfbe626e37cab73d55abe80d3994dd",
+            "missing-codex-author",
+            "本セッション内でユーザーへ状況を説明し known-violation 登録の続行を承認された (2026-08-22、6回目)",
+            "受入投入前に local main 側36コミット（dev-wave-t1476-verify-state-committed の s8b oracle "
+            "report/holdout freeze 関連実装、T-1434 の cache probe insight、T-646 の master seed toctou 修正、"
+            "docs系spool/fold多数）を取り込んだ6回目の merge "
+            "`bf92f327cadfbe626e37cab73d55abe80d3994dd`。"
+            "`tools/check_ai_provenance.py` / `orchestrator/tests/test_check_ai_provenance.py` の "
+            "KNOWN_PROVENANCE_VIOLATIONS / expected tuple 末尾への、本 wave の4エントリ "
+            "(664dfc62 / e86d363a / 0c0f3e71 / dd58c9ca) と main 側の別 wave "
+            "(dev-wave-t1476-verify-state-committed、6f2d97c8 / 3eaf2038) の独立追加が3箇所で競合し、"
+            "親の Claude セッションが直接両側の既存エントリを残す union で解決した。"
+            "`git diff-tree --cc bf92f327cadfbe626e37cab73d55abe80d3994dd` 相当の確認では、"
+            "3箇所の結合結果は両親に既存する known-violation エントリの単純な unionであり、"
+            "競合解決による新規著作なしと確認済み。"
+            "本 wave 担当5 file（`orchestrator/campaign/autonomous_trial_completeness.py` 等）は main 側が変更せず、"
+            "`git status` にも現れなかった。main 側由来で自動マージされた "
+            "`orchestrator/campaign/s8b_holdout_freeze.py` / `orchestrator/campaign/s8b_oracle_report.py` 他も"
+            "構文確認済みで、焦点走は対象3 fileで762 passed、s8b/pegasus関連5 fileで527 passed・2 skippedを確認した。"
+            "merge commit は `AI-Agent: product=claude; model=claude-sonnet-5; reasoning=not-exposed; role=integrator` "
+            "だけで Codex `role=author` 行がないため checker が missing-codex-author を検出した。"
+            "親作成 merge のため Codex 著者とは記さない。`git diff-tree --cc` combined diff実測 "
+            "(2026-08-22、T-1479のロジック改修後に親が再検証) でも両fileのpatch本体が非空であることを確認しており、"
+            "新ロジックの下でも引き続き実装面著作として検出される。",
+            "",
+        ),
+        (
+            "b9c07cc22d483a9103dac208a83446872161ffad",
+            "missing-codex-author",
+            "本セッション内でユーザーへ状況を説明し known-violation 登録の続行を承認された (2026-08-22、7回目)",
+            "受入投入前に local main 側11コミット（T-1479による `KNOWN_PROVENANCE_VIOLATIONS` 判定ロジック改修）を"
+            "取り込んだ7回目の merge commit `b9c07cc22d483a9103dac208a83446872161ffad`。T-1479は `_commit_paths()` の"
+            "merge分岐を pairwise diff の積集合のみで判定する方式から、`git diff-tree --cc` のcombined diff patch本体が"
+            "空かどうかを `_combined_diff_paths()` で判定する方式へ置き換え、実装面 finding が消えると確認できた19件を"
+            "台帳から削除した。これに伴い本 wave の5エントリ (664dfc62 / e86d363a / 0c0f3e71 / dd58c9ca / bf92f327) を"
+            "新ロジックで個別に再検証し、`git diff-tree --cc <sha> -- <path>` の対象pathへのpatch本体が実質空 (bytes=0)"
+            "だった `664dfc62` / `dd58c9ca` は削除し、`e86d363a` / `0c0f3e71` / `bf92f327` はそれぞれ4515 bytes、"
+            "2906+4030 bytes、9196+7766 bytesでpatch本体が非空だったため保持した。"
+            "`tools/check_ai_provenance.py` / `orchestrator/tests/test_check_ai_provenance.py` の競合解決は親の Claude セッションが"
+            "main側 (T-1479整理後) の内容を丸ごとベースに採用し、自waveのエントリを個別に再配置した。merge commit は "
+            "`AI-Agent: product=claude; model=claude-sonnet-5; reasoning=not-exposed; role=integrator` だけで Codex "
+            "`role=author` 行がないため checker が `missing-codex-author` (paths=orchestrator/tests/test_check_ai_provenance.py, "
+            "tools/check_ai_provenance.py) を検出した。親作成 merge のため Codex 著者とは記さない。",
+            "",
+        ),
+        (
+            "25614f868c1a1b562a68072233fdf55b0be93cd1",
+            "missing-codex-author",
+            "本セッション内でユーザーへ状況を説明し known-violation 登録の承認を得た (2026-08-23)",
+            "D662 (受入 lease claim 待ちの廃止) 対応で `tools/dev_wave_wait.py` へ実装した "
+            "`--lease-optional` (commit 0c89ec77、Codex role=author) を今後の全 wave が自動的に"
+            "使うよう、`docs/dev-wave/operations.md` の DW-O27 追加・`.claude/commands/dev-wave.md` "
+            "条件18への追記・`tools/check_docs.py` の dispatch 契約 (REQUIRED_REFERENCE_SECTIONS / "
+            "CONDITION_DISPATCH_CONTRACT[\"18\"]) 登録を commit 25614f86 で行った。3箇所とも既存の"
+            "文字列集合へのリテラル追加のみでロジック変更はないが、manager (claude) が直接 commit した"
+            "ため `tools/check_docs.py` への変更に Codex `role=author` trailer がなく、checker が "
+            "`missing-codex-author` (paths=tools/check_docs.py) を検出した。",
+            "",
+        ),
+        (
+            "94815c57976806da56a3f067ade91c0041b2e2d1",
+            "missing-codex-author",
+            "本セッション内でユーザーへ状況を説明し known-violation 登録の承認を得た (2026-08-23)",
+            "commit `94815c57976806da56a3f067ade91c0041b2e2d1` は `tools/check_ai_provenance.py` へ "
+            "`_T1458_DOCS_REGISTRY_RULING`/`_T1458_DOCS_REGISTRY_NOTE` 定数と、commit "
+            "`25614f868c1a1b562a68072233fdf55b0be93cd1` に対応する `KnownViolationSpec` エントリ1件を追加した。"
+            "manager (claude) が直接 commit したため Codex `role=author` trailer がなく、"
+            "`missing-codex-author` として検出された。",
+            "",
+        ),
+        (
+            "3a5e5feb5f5c65e5e91752f847c623ce37e9b14d",
+            "missing-codex-author",
+            "本セッション内でユーザーへ状況を説明し known-violation 登録の承認を得た (2026-08-23)",
+            "commit `3a5e5feb5f5c65e5e91752f847c623ce37e9b14d` は "
+            "`orchestrator/tests/test_check_ai_provenance.py` の "
+            "`test_known_violation_ledger_matches_literal_entries` の `expected` タプルへ、commit "
+            "`94815c57976806da56a3f067ade91c0041b2e2d1` の known-violation エントリ（commit SHA、"
+            "`missing-codex-author`、ruling、note、空文字列）の逐語ミラーを追加した。"
+            "manager (claude) が直接 commit したため Codex `role=author` trailer がなく、"
+            "`missing-codex-author` として検出された。",
+            "",
+        ),
     )
     assert len(provenance.KNOWN_PROVENANCE_VIOLATIONS) == len(expected)
     assert observed == expected
-    assert len({row[0] for row in expected}) == len(expected)
+    assert len({(row[0], row[1]) for row in expected}) == len(expected)
     assert provenance._LEDGER_FINDING_KINDS == frozenset({
         "missing-ai-agent", "missing-codex-author", "malformed-ai-agent",
     })
@@ -2638,9 +2780,14 @@ def test_registry_rejects_non_descriptive_required_note_rc2(
 
 def test_production_registry_notes_satisfy_descriptive_contract():
     registry = provenance._known_violation_registry()
+    flattened = tuple(
+        spec
+        for specs in registry.values()
+        for spec in specs
+    )
 
-    assert len(registry) == len(provenance.KNOWN_PROVENANCE_VIOLATIONS)
-    assert tuple(registry.values()) == provenance.KNOWN_PROVENANCE_VIOLATIONS
+    assert len(flattened) == len(provenance.KNOWN_PROVENANCE_VIOLATIONS)
+    assert flattened == provenance.KNOWN_PROVENANCE_VIOLATIONS
 
 
 def test_registry_accepts_visible_character_mixed_with_non_descriptive_characters(

@@ -178,6 +178,7 @@ def test_resource_defaults_and_overrides() -> None:
         assert _option(defaults, "--wall-clock-admission-bound-s") == "3600"
         assert _option(defaults, "--max-model-calls") == "100"
         assert _option(defaults, "--max-cli-reported-tokens") == "1000000"
+        assert "--max-attempts" not in defaults
         overridden = _argv(
             _invoke(
                 root,
@@ -204,6 +205,17 @@ def test_resource_defaults_and_overrides() -> None:
         assert _option(overridden, "--artifact-dir") == os.fspath(
             root / "artifacts" / "wave-alpha" / "explicit-job"
         )
+
+        retried = _argv(
+            _invoke(
+                root,
+                stage="plan",
+                reasoning="max",
+                extra=("--max-attempts", "2"),
+            )
+        )
+        assert retried.count("--max-attempts") == 1
+        assert _option(retried, "--max-attempts") == "2"
 
 
 def test_evidence_grace_default_and_decimal_override_are_forwarded_once() -> None:
@@ -521,6 +533,20 @@ def test_review_fix_jobs_create_private_paths_and_share_wave_manifest() -> None:
             assert artifact_dir.is_dir()
             assert stat.S_IMODE(artifact_dir.stat().st_mode) == 0o700
             assert Path(entry["receipt"]).is_file()
+
+
+def test_workspace_write_max_attempts_is_rejected_before_directory_creation() -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        result = _invoke(
+            root,
+            stage="author",
+            sandbox="workspace-write",
+            extra=("--max-attempts", "2"),
+        )
+        assert result.returncode == 2
+        assert "read-only" in result.stderr
+        assert not (root / "artifacts" / "wave-alpha").exists()
 
 
 def test_invalid_reasoning_for_bound_stages_is_rc2() -> None:

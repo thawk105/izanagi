@@ -304,6 +304,121 @@ _T1476_MERGE3_NOTE = (
     "working tree driftしCodex dispatchが構造的に使えなかったため親が直接union解消した。"
     "親作成mergeのためCodex著者とは記さない。"
 )
+_T1477_RULING = (
+    "2026-08-22 [T-1477] provenance known-violation登録 "
+    "(ユーザー選択: known-violation 登録)"
+)
+_T1477_NOTE = (
+    "`role=fix` は許可値でなく `author` の誤記。実装は Codex `role=author` が書き親が統合したもので、"
+    "内容は正確で綴りだけの誤り"
+)
+_T1477_MALFORMED_VALUE = (
+    "product=codex; model=gpt-5.6-luna; reasoning=unknown; "
+    "role=fix"
+)
+_T1458_MERGE2_RULING = (
+    "本セッション内でユーザーへ状況を説明し known-violation 登録の続行を承認された (2026-08-21、3回目)"
+)
+_T1458_MERGE2_NOTE = (
+    "merge commit `e86d363a876ab00e7e6b37dfdd94385e5ab03816` は、本waveとmain側の別waveが独立にcommit "
+    "`09ce607b779272fda5629a350676471a16bea9bb` (ユーザーのccbench pin更新commit) を "
+    "known-violation登録したことによる重複エントリの競合を、親のClaudeセッションが直接解決したものである。"
+    "実装面で競合したのは `tools/check_ai_provenance.py` と "
+    "`orchestrator/tests/test_check_ai_provenance.py` の2 fileで、解決は両親のいずれかに既存するテキストの"
+    "選択・配置のみ (新規著作なし) であることを、親セッションが両親の内容と結合結果を行単位で"
+    "機械比較して確認済み (結合結果の全行がどちらかの親に存在)。`git diff-tree --cc` combined diff実測 "
+    "(2026-08-22、T-1479のロジック改修後に親が再検証) でも `tools/check_ai_provenance.py` のpatch本体が"
+    "非空であることを確認しており、新ロジックの下でも引き続き実装面著作として検出される。"
+)
+_T1458_MERGE3_RULING = (
+    "本セッション内でユーザーへ状況を説明し known-violation 登録の続行を承認された (2026-08-21、4回目)"
+)
+_T1458_MERGE3_NOTE = (
+    "merge commit `0c0f3e71b3208370be8d4e7e20a84a2152afe4b2` は、main側off-arm neutralization (C02) 対応と"
+    "複数waveのccbench provenance known-violation登録を取り込んだもの。"
+    "`tools/check_ai_provenance.py`/`orchestrator/tests/test_check_ai_provenance.py`の競合は親が両親のいずれかに"
+    "既存するテキストの選択・配置のみで解決 (新規著作なし)。"
+    "`orchestrator/campaign/autonomous_trial_completeness.py`他4fileは競合マーカーなしで自動マージされ、"
+    "結合結果の全行がどちらかの親に存在することを機械比較で確認済み (新規著作0行)。"
+    "ただし自動マージの結果、`registered`→`arm_execution_permitted`改名箇所とmain側off-arm処理が追加した"
+    "同名の古い変数参照が意味的に衝突しNameErrorになったため、直後のcommit `b7c9c5af` (Codex role=author) で"
+    "1行修正し焦点走1378 passedを確認した。`git diff-tree --cc` combined diff実測 (2026-08-22、T-1479のロジック"
+    "改修後に親が再検証) でも `tools/check_ai_provenance.py`/`test_check_ai_provenance.py` 双方のpatch本体が"
+    "非空であることを確認しており、新ロジックの下でも引き続き実装面著作として検出される。"
+)
+_T1458_MERGE5_RULING = (
+    "本セッション内でユーザーへ状況を説明し known-violation 登録の続行を承認された (2026-08-22、6回目)"
+)
+_T1458_MERGE5_NOTE = (
+    "受入投入前に local main 側36コミット（dev-wave-t1476-verify-state-committed の s8b oracle "
+    "report/holdout freeze 関連実装、T-1434 の cache probe insight、T-646 の master seed toctou 修正、"
+    "docs系spool/fold多数）を取り込んだ6回目の merge "
+    "`bf92f327cadfbe626e37cab73d55abe80d3994dd`。"
+    "`tools/check_ai_provenance.py` / `orchestrator/tests/test_check_ai_provenance.py` の "
+    "KNOWN_PROVENANCE_VIOLATIONS / expected tuple 末尾への、本 wave の4エントリ "
+    "(664dfc62 / e86d363a / 0c0f3e71 / dd58c9ca) と main 側の別 wave "
+    "(dev-wave-t1476-verify-state-committed、6f2d97c8 / 3eaf2038) の独立追加が3箇所で競合し、"
+    "親の Claude セッションが直接両側の既存エントリを残す union で解決した。"
+    "`git diff-tree --cc bf92f327cadfbe626e37cab73d55abe80d3994dd` 相当の確認では、"
+    "3箇所の結合結果は両親に既存する known-violation エントリの単純な unionであり、"
+    "競合解決による新規著作なしと確認済み。"
+    "本 wave 担当5 file（`orchestrator/campaign/autonomous_trial_completeness.py` 等）は main 側が変更せず、"
+    "`git status` にも現れなかった。main 側由来で自動マージされた "
+    "`orchestrator/campaign/s8b_holdout_freeze.py` / `orchestrator/campaign/s8b_oracle_report.py` 他も"
+    "構文確認済みで、焦点走は対象3 fileで762 passed、s8b/pegasus関連5 fileで527 passed・2 skippedを確認した。"
+    "merge commit は `AI-Agent: product=claude; model=claude-sonnet-5; reasoning=not-exposed; role=integrator` "
+    "だけで Codex `role=author` 行がないため checker が missing-codex-author を検出した。"
+    "親作成 merge のため Codex 著者とは記さない。`git diff-tree --cc` combined diff実測 "
+    "(2026-08-22、T-1479のロジック改修後に親が再検証) でも両fileのpatch本体が非空であることを確認しており、"
+    "新ロジックの下でも引き続き実装面著作として検出される。"
+)
+_T1458_MERGE6_RULING = (
+    "本セッション内でユーザーへ状況を説明し known-violation 登録の続行を承認された (2026-08-22、7回目)"
+)
+_T1458_MERGE6_NOTE = (
+    "受入投入前に local main 側11コミット（T-1479による `KNOWN_PROVENANCE_VIOLATIONS` 判定ロジック改修）を"
+    "取り込んだ7回目の merge commit `b9c07cc22d483a9103dac208a83446872161ffad`。T-1479は `_commit_paths()` の"
+    "merge分岐を pairwise diff の積集合のみで判定する方式から、`git diff-tree --cc` のcombined diff patch本体が"
+    "空かどうかを `_combined_diff_paths()` で判定する方式へ置き換え、実装面 finding が消えると確認できた19件を"
+    "台帳から削除した。これに伴い本 wave の5エントリ (664dfc62 / e86d363a / 0c0f3e71 / dd58c9ca / bf92f327) を"
+    "新ロジックで個別に再検証し、`git diff-tree --cc <sha> -- <path>` の対象pathへのpatch本体が実質空 (bytes=0)"
+    "だった `664dfc62` / `dd58c9ca` は削除し、`e86d363a` / `0c0f3e71` / `bf92f327` はそれぞれ4515 bytes、"
+    "2906+4030 bytes、9196+7766 bytesでpatch本体が非空だったため保持した。"
+    "`tools/check_ai_provenance.py` / `orchestrator/tests/test_check_ai_provenance.py` の競合解決は親の Claude セッションが"
+    "main側 (T-1479整理後) の内容を丸ごとベースに採用し、自waveのエントリを個別に再配置した。merge commit は "
+    "`AI-Agent: product=claude; model=claude-sonnet-5; reasoning=not-exposed; role=integrator` だけで Codex "
+    "`role=author` 行がないため checker が `missing-codex-author` (paths=orchestrator/tests/test_check_ai_provenance.py, "
+    "tools/check_ai_provenance.py) を検出した。親作成 merge のため Codex 著者とは記さない。"
+)
+_T1458_DOCS_REGISTRY_RULING = (
+    "本セッション内でユーザーへ状況を説明し known-violation 登録の承認を得た (2026-08-23)"
+)
+_T1458_DOCS_REGISTRY_NOTE = (
+    "D662 (受入 lease claim 待ちの廃止) 対応で `tools/dev_wave_wait.py` へ実装した "
+    "`--lease-optional` (commit 0c89ec77、Codex role=author) を今後の全 wave が自動的に"
+    "使うよう、`docs/dev-wave/operations.md` の DW-O27 追加・`.claude/commands/dev-wave.md` "
+    "条件18への追記・`tools/check_docs.py` の dispatch 契約 (REQUIRED_REFERENCE_SECTIONS / "
+    "CONDITION_DISPATCH_CONTRACT[\"18\"]) 登録を commit 25614f86 で行った。3箇所とも既存の"
+    "文字列集合へのリテラル追加のみでロジック変更はないが、manager (claude) が直接 commit した"
+    "ため `tools/check_docs.py` への変更に Codex `role=author` trailer がなく、checker が "
+    "`missing-codex-author` (paths=tools/check_docs.py) を検出した。"
+)
+_T1458_DOCS_REGISTRY_LEDGER_NOTE = (
+    "commit `94815c57976806da56a3f067ade91c0041b2e2d1` は `tools/check_ai_provenance.py` へ "
+    "`_T1458_DOCS_REGISTRY_RULING`/`_T1458_DOCS_REGISTRY_NOTE` 定数と、commit "
+    "`25614f868c1a1b562a68072233fdf55b0be93cd1` に対応する `KnownViolationSpec` エントリ1件を追加した。"
+    "manager (claude) が直接 commit したため Codex `role=author` trailer がなく、"
+    "`missing-codex-author` として検出された。"
+)
+_T1458_DOCS_REGISTRY_MIRROR_NOTE = (
+    "commit `3a5e5feb5f5c65e5e91752f847c623ce37e9b14d` は "
+    "`orchestrator/tests/test_check_ai_provenance.py` の "
+    "`test_known_violation_ledger_matches_literal_entries` の `expected` タプルへ、commit "
+    "`94815c57976806da56a3f067ade91c0041b2e2d1` の known-violation エントリ（commit SHA、"
+    "`missing-codex-author`、ruling、note、空文字列）の逐語ミラーを追加した。"
+    "manager (claude) が直接 commit したため Codex `role=author` trailer がなく、"
+    "`missing-codex-author` として検出された。"
+)
 KNOWN_PROVENANCE_VIOLATIONS = (
     KnownViolationSpec(
         "88f0f9f081f7c76c8ab5fc4a94e2640f70af129b",
@@ -709,6 +824,61 @@ KNOWN_PROVENANCE_VIOLATIONS = (
         _T1479_MERGE3_RULING,
         note=_T1479_MERGE3_NOTE,
     ),
+    KnownViolationSpec(
+        "649fe5a060a39de295f90d2002e8f97082729ea6",
+        MALFORMED_AI_AGENT,
+        _T1477_RULING,
+        note=_T1477_NOTE,
+        expected_finding_value=_T1477_MALFORMED_VALUE,
+    ),
+    KnownViolationSpec(
+        "649fe5a060a39de295f90d2002e8f97082729ea6",
+        MISSING_CODEX_AUTHOR,
+        _T1477_RULING,
+        note=_T1477_NOTE,
+    ),
+    KnownViolationSpec(
+        "e86d363a876ab00e7e6b37dfdd94385e5ab03816",
+        MISSING_CODEX_AUTHOR,
+        _T1458_MERGE2_RULING,
+        note=_T1458_MERGE2_NOTE,
+    ),
+    KnownViolationSpec(
+        "0c0f3e71b3208370be8d4e7e20a84a2152afe4b2",
+        MISSING_CODEX_AUTHOR,
+        _T1458_MERGE3_RULING,
+        note=_T1458_MERGE3_NOTE,
+    ),
+    KnownViolationSpec(
+        "bf92f327cadfbe626e37cab73d55abe80d3994dd",
+        MISSING_CODEX_AUTHOR,
+        _T1458_MERGE5_RULING,
+        note=_T1458_MERGE5_NOTE,
+    ),
+    KnownViolationSpec(
+        "b9c07cc22d483a9103dac208a83446872161ffad",
+        MISSING_CODEX_AUTHOR,
+        _T1458_MERGE6_RULING,
+        note=_T1458_MERGE6_NOTE,
+    ),
+    KnownViolationSpec(
+        "25614f868c1a1b562a68072233fdf55b0be93cd1",
+        MISSING_CODEX_AUTHOR,
+        _T1458_DOCS_REGISTRY_RULING,
+        note=_T1458_DOCS_REGISTRY_NOTE,
+    ),
+    KnownViolationSpec(
+        "94815c57976806da56a3f067ade91c0041b2e2d1",
+        MISSING_CODEX_AUTHOR,
+        _T1458_DOCS_REGISTRY_RULING,
+        note=_T1458_DOCS_REGISTRY_LEDGER_NOTE,
+    ),
+    KnownViolationSpec(
+        "3a5e5feb5f5c65e5e91752f847c623ce37e9b14d",
+        MISSING_CODEX_AUTHOR,
+        _T1458_DOCS_REGISTRY_RULING,
+        note=_T1458_DOCS_REGISTRY_MIRROR_NOTE,
+    ),
 )
 
 
@@ -728,7 +898,7 @@ def _contains_descriptive_note_character(value: str) -> bool:
     )
 
 
-def _known_violation_registry() -> dict[str, KnownViolationSpec]:
+def _known_violation_registry() -> dict[str, tuple[KnownViolationSpec, ...]]:
     """固定台帳を history 監査時にだけ検証して full SHA map にする。"""
 
     if not isinstance(KNOWN_PROVENANCE_VIOLATIONS, tuple):
@@ -736,7 +906,7 @@ def _known_violation_registry() -> dict[str, KnownViolationSpec]:
             "known provenance violation registry has invalid container: "
             f"{type(KNOWN_PROVENANCE_VIOLATIONS).__name__}"
         )
-    registry: dict[str, KnownViolationSpec] = {}
+    registry: dict[str, list[KnownViolationSpec]] = {}
     for spec in KNOWN_PROVENANCE_VIOLATIONS:
         if not isinstance(spec, KnownViolationSpec):
             raise RuntimeError(
@@ -752,11 +922,6 @@ def _known_violation_registry() -> dict[str, KnownViolationSpec]:
             raise RuntimeError(
                 "known provenance violation registry has invalid full SHA: "
                 f"{spec.commit!r}"
-            )
-        if spec.commit in registry:
-            raise RuntimeError(
-                "known provenance violation registry has duplicate SHA: "
-                f"{spec.commit}"
             )
         if not isinstance(spec.expected_finding_kind, str):
             raise RuntimeError(
@@ -833,8 +998,21 @@ def _known_violation_registry() -> dict[str, KnownViolationSpec]:
                 "known provenance violation registry has prohibited character in "
                 f"finding value: {spec.commit}"
             )
-        registry[spec.commit] = spec
-    return registry
+        prior_specs = registry.setdefault(spec.commit, [])
+        if any(
+            prior.expected_finding_kind == spec.expected_finding_kind
+            and prior.expected_finding_value == spec.expected_finding_value
+            for prior in prior_specs
+        ):
+            raise RuntimeError(
+                "known provenance violation registry has duplicate SHA/finding: "
+                f"{spec.commit} {spec.expected_finding_kind}"
+            )
+        prior_specs.append(spec)
+    return {
+        commit: tuple(specs)
+        for commit, specs in registry.items()
+    }
 
 
 def _known_violation_line(spec: KnownViolationSpec) -> str:
@@ -1736,7 +1914,9 @@ def _normal_commit_audit(
 def _known_violation_audit(
     audits: list[CommitAudit],
     *,
-    registry: dict[str, KnownViolationSpec],
+    registry: dict[
+        str, KnownViolationSpec | tuple[KnownViolationSpec, ...]
+    ],
     suppressed_missing: tuple[str, str] | None,
     stale_eligible_commits: set[str],
     authoritative: bool = False,
@@ -1745,39 +1925,51 @@ def _known_violation_audit(
 
     findings: list[str] = []
     known_violations: list[KnownViolationSpec] = []
-    expected_kind_counts = {
-        commit: 0
-        for commit in registry
-        if commit in stale_eligible_commits
+    specs_by_commit = {
+        commit: (
+            (value,)
+            if isinstance(value, KnownViolationSpec)
+            else value
+        )
+        for commit, value in registry.items()
     }
-    consumed_registry_entries: set[str] = set()
+    expected_kind_counts = {
+        spec: 0
+        for commit, specs in specs_by_commit.items()
+        if commit in stale_eligible_commits
+        for spec in specs
+    }
+    consumed_registry_entries: set[KnownViolationSpec] = set()
     for audit in audits:
         for finding in audit.normal_findings:
             if suppressed_missing == (audit.commit, finding.text):
                 continue
-            spec_for_commit = registry.get(audit.commit)
-            if (
-                spec_for_commit is not None
-                and finding.ledger_kind == spec_for_commit.expected_finding_kind
-                and (
-                    not spec_for_commit.expected_finding_value
-                    or finding.text.startswith(
-                        f"{audit.label}: AI-Agent の形式違反: "
-                        f"{spec_for_commit.expected_finding_value!r} — "
-                    )
-                )
-            ):
-                if audit.commit in expected_kind_counts:
-                    expected_kind_counts[audit.commit] += 1
-                if audit.commit not in consumed_registry_entries:
-                    known_violations.append(spec_for_commit)
-                    consumed_registry_entries.add(audit.commit)
+            for spec_for_commit in specs_by_commit.get(audit.commit, ()):
+                if spec_for_commit in consumed_registry_entries:
                     continue
-            findings.append(finding.text)
+                if (
+                    finding.ledger_kind == spec_for_commit.expected_finding_kind
+                    and (
+                        not spec_for_commit.expected_finding_value
+                        or finding.text.startswith(
+                            f"{audit.label}: AI-Agent の形式違反: "
+                            f"{spec_for_commit.expected_finding_value!r} — "
+                        )
+                    )
+                ):
+                    if spec_for_commit in expected_kind_counts:
+                        expected_kind_counts[spec_for_commit] += 1
+                    known_violations.append(spec_for_commit)
+                    consumed_registry_entries.add(spec_for_commit)
+                    break
+            else:
+                findings.append(finding.text)
     stale = tuple(
-        registry[commit]
-        for commit, count in expected_kind_counts.items()
-        if count == 0
+        spec
+        for commit in specs_by_commit
+        for spec in specs_by_commit[commit]
+        if spec in expected_kind_counts
+        and expected_kind_counts[spec] == 0
     )
     return KnownViolationAudit(
         tuple(findings), tuple(known_violations), stale,

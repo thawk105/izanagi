@@ -1,0 +1,56 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 240,
+  "timeout_seconds": 1800,
+  "hang_timeout_seconds": 1800,
+  "mutations": [
+    {
+      "id": "M1",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/holdout_observation.py",
+          "old": "            if state.next_sweep_records is not None and len(state.sweep_records) < 3:\n                raise HoldoutObservationError(\n                    \"sweep phase still has unconsumed records\")\n",
+          "new": "            if False:\n                raise HoldoutObservationError(\n                    \"sweep phase still has unconsumed records\")\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_holdout_observation.py::test_calibration_capability_rejects_noise_transition_with_unconsumed_sweep"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M2",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "orchestrator/holdout_observation.py",
+          "old": "            if state.next_sweep_records is not None and len(state.sweep_records) < 3:\n                raise HoldoutObservationError(\n                    \"sweep phase still has unconsumed records\")\n",
+          "new": "            if state.next_sweep_records is not None:\n                raise HoldoutObservationError(\n                    \"sweep phase still has unconsumed records\")\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_holdout_observation.py::test_calibration_capability_allows_noise_transition_after_three_sweep_points"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M3",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/calibrator/runner.py",
+          "old": "        execution_numactl, execution_extra_env = (\n",
+          "new": "        _discarded_gateway_values = (\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_holdout_observation.py::test_calibration_gateway_reuses_normalized_runtime_values_for_spawn"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}

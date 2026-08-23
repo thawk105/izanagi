@@ -3104,6 +3104,14 @@ def _finish_trial(
         )
     cells: list[dict[str, Any]] = []
     experiment_indeterminate = False
+    if fatal_error is not None:
+        if budget_ledger_path is not None:
+            raise AutonomousTrialError(
+                "budget cell terminal is indeterminate after provider "
+                "initialization or transport admission error"
+            )
+        elif launch_admission.binding is not None:
+            experiment_indeterminate = True
     if fatal_error is None:
         for workload in selected:
             if time.monotonic() - started_monotonic >= max_wall_s:
