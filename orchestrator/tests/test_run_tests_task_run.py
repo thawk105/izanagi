@@ -67,7 +67,6 @@ def test_explicit_auto_off_preserves_exact_command_and_call_shape(monkeypatch):
     assert RT.main(["-q"], site=RT.site_policy.OTHER) == 7
     assert called == [(([
         sys.executable, "-m", "pytest",
-        f"--ignore={_REPO / 'orchestrator' / 'tests' / 'test_sort_swo_oracle.py'}",
         str(_REPO / "orchestrator" / "tests"),
         "-n", "4", "--dist", "loadgroup", "-q",
     ],), {"cwd": str(_REPO)})]
@@ -170,7 +169,6 @@ def test_manual_id_keeps_pytest_argv_and_records_monotonic_result(monkeypatch, t
     assert RT.main([target, "-k", "one"], site=RT.site_policy.OTHER) == 1
     assert captured["command"] == [
         sys.executable, "-m", "pytest",
-        f"--ignore={_REPO / 'orchestrator' / 'tests' / 'test_sort_swo_oracle.py'}",
         str(_REPO / target), "-k", "one",
     ]
     assert captured["cwd"] == str(_REPO)

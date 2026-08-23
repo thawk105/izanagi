@@ -94,8 +94,8 @@ _INVALID_ORACLE_FINDING = {
 # Producer 定数を参照しない独立 golden。current は現行 snapshot、v2 は履歴 snapshot。
 _CURRENT_ORACLE_CONTRACT_ID_GOLDEN = (
     "sort-swo-v3-corpus1-protocol2-checker2-grammar1-"
-    "x2b6d45baab3f921208db25299b8622592c484dfb28bebeb8d2cf976fe38474f9-"
-    "c436a66d9d5d5-tud88f98bc1991-f7ad0ac262561-a215b718a5bfe"
+    "x67c3a5d76f3b1604c57d33ab7d0af15f4aaafa896b4810d7c3c95d812d48faa0-"
+    "c436a66d9d5d5-tud1a5e422e226-f7ad0ac262561-a215b718a5bfe"
 )
 _LEGACY_ORACLE_CONTRACT_ID_V2_GOLDEN = (
     "sort-swo-v2-corpus1-protocol2-checker2-grammar1-"
