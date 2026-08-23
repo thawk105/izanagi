@@ -5,6 +5,7 @@ import ast
 import inspect
 import itertools
 import json
+import subprocess
 import sys
 import time
 import xml.etree.ElementTree as ET
@@ -20,6 +21,42 @@ from tools.pegasus import dispatch_compute as DC
 
 
 _SESSION_ROOT = Path("/acceptance-shard-fixture")
+
+
+def test_acceptance_shards_imports_in_isolated_mode_without_user_site():
+    repo = Path(__file__).resolve().parents[2]
+    completed = subprocess.run(
+        [
+            sys.executable,
+            "-I",
+            "-c",
+            (
+                "import os, sys; "
+                "sys.path.insert(0, os.getcwd()); "
+                "import tools.acceptance_shards"
+            ),
+        ],
+        cwd=repo,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        check=False,
+    )
+    assert completed.returncode == 0, completed.stderr
+
+
+@pytest.mark.parametrize(
+    "hook,attribute",
+    [
+        (SH.pytest_collection_modifyitems, "trylast"),
+        (SH.pytest_testnodedown, "optionalhook"),
+        (SH.pytest_sessionfinish, "trylast"),
+    ],
+)
+def test_acceptance_shard_hooks_keep_pytest_hookimpl_attributes(
+    hook, attribute,
+):
+    assert hook.pytest_impl[attribute] is True
 
 
 def _records() -> tuple[SH.ItemRecord, ...]:

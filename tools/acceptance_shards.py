@@ -22,7 +22,26 @@ from multiprocessing.connection import wait as wait_connections
 from pathlib import Path
 from typing import Any, Callable, Mapping, Optional, Sequence
 
-import pytest
+try:
+    import pytest
+except ModuleNotFoundError as exc:
+    if exc.name != "pytest":
+        raise
+
+    def _pytest_hookimpl(
+        **_options: Any,
+    ) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
+        def decorate(function: Callable[..., Any]) -> Callable[..., Any]:
+            return function
+
+        return decorate
+
+
+    class _PytestUsageError(RuntimeError):
+        pass
+else:
+    _pytest_hookimpl = pytest.hookimpl
+    _PytestUsageError = pytest.UsageError
 
 from tools import dev_wave_land as _dev_wave_land
 
@@ -708,7 +727,9 @@ def _plugin_spec() -> Optional[InternalSpec]:
             payload["shard_count"], payload["shard_index"],
         )
     except (OSError, TypeError, ValueError, json.JSONDecodeError) as exc:
-        raise pytest.UsageError(f"invalid acceptance shard plugin spec: {exc}") from exc
+        raise _PytestUsageError(
+            f"invalid acceptance shard plugin spec: {exc}"
+        ) from exc
 
 
 _PLUGIN_CONFIG: Any = None
@@ -738,7 +759,7 @@ def pytest_configure(config: Any) -> None:
     setattr(config, "_izanagi_acceptance_shard_spec", spec)
 
 
-@pytest.hookimpl(trylast=True)
+@_pytest_hookimpl(trylast=True)
 def pytest_collection_modifyitems(config: Any, items: list[Any]) -> None:
     spec = getattr(config, "_izanagi_acceptance_shard_spec", None)
     if spec is None:
@@ -790,7 +811,7 @@ def pytest_runtest_logreport(report: Any) -> None:
         _FAILURES.add(nodeid)
 
 
-@pytest.hookimpl(optionalhook=True)
+@_pytest_hookimpl(optionalhook=True)
 def pytest_testnodedown(node: Any, error: Any) -> None:
     del error
     if _PLUGIN_CONFIG is None:
@@ -868,7 +889,7 @@ def _controller_state(config: Any) -> tuple[list[dict[str, Any]], list[str], lis
     return full[0]["records"], full[0]["selected"], sorted(digests)
 
 
-@pytest.hookimpl(trylast=True)
+@_pytest_hookimpl(trylast=True)
 def pytest_sessionfinish(session: Any, exitstatus: Any) -> None:
     spec = getattr(session.config, "_izanagi_acceptance_shard_spec", None)
     if spec is None:
