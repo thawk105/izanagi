@@ -11,7 +11,7 @@ prompt 非空を先に検査し、既存 `.done` は消さず再利用せず再�
 待機は `tools/dev_wave_wait.py producer` を使い、`--pid-file` は producer script 自身が `echo $$` で書く。
 完了は `.done` と exit code だけで判定し、grep も通知も判定にしない（通知は先行しうる）。成果物は最終メッセージから読む（F23/F24）。
 採用は `tools/check_codex_output.py` の rc=0（prompt は `## 総括` 必須。F43）。
-`<model>`: 全段 `gpt-5.6-luna` (段 3 の 2 本も同じ)。
+`<model>`: 全段 `gpt-5.6-sol` (段 3 の 2 本も同じ)。
 `--artifact-root` は `<root>/<wave>/` しか作らず、`<root>` 未作成は rc=2。投入前に作る。
 `--max-*` は非権威の運用既定で caller が上げてよい。重い巡は所要 model call と token を見積もる。
 中断子の部分成果物は未完了と明記して保全し、次の子へ監査させる。
@@ -74,6 +74,8 @@ producer が書く全ファイル種を棚卸しして brief に列挙する。�
 
 受入形では未 stage 削除と git 検査不能を `run_tests.py` が止める (bypass 不可)。
 復旧・stage・復元の後に再走し、gate の赤を受入結果にしない。
+`output/` 配下の一括削除は `git status --porcelain -- <path>` で対象が untracked だけと個別確認して
+から行う。「commit されていないはず」の理解だけの `rm -rf` は別 wave の tracked file を消す。
 
 ## DW-O12 — 裁定手順と実行手順の差
 
@@ -83,12 +85,19 @@ worklog には裁定予定を写さず、実際に実行した手順を書く。
 凍結は自分が直前に書いたものでも拘束する。
 DW-S06-C の受入投入記述は段6内の中間走行 (変異検証目的) を指す。land 対象 tip への最終受入投入は
 DW-S07 の記録 commit 完了後に行う——取り違えると記録 commit が tested tip から漏れ land が rc=23
-になる。測定値は測った checkout を併記する（F41）。
+になる。測定値は測った checkout を併記する（F41）。dispatch した走の所要は job の Elapse か
+runner 自身の報告時間を正とし、親側の外側 wall を所要として記録しない（queue 待ちを含む）。
 
 ## DW-O13 — gate 入力の実在
 
 設計前に入力が実成果物のどの field に存在するか確認し、同名識別子を二義化しない（D75）。
 既存 exact 述語の改訂で受理形を増やす場合も新設に当たる。
+field の実在では足りない。その field が実環境で取りうる値を実測し、要求する値が到達可能か
+確かめてから述語を採用する。到達不能なら採用せず、測った値域を裁定へ書く。
+時間予算は実測分布の max への倍率で決め、母集合と「観測 regime が適用対象と同じか」を併記する。
+正例は余裕を取る。負例は向きで 2 分し、発火自体が目的なら小さい値（一律の余裕は恒真化）、
+特定の時点で発火させたい負例は前段に余裕を取る（下限 = 不足が確定した値 x 裾 x 正例倍率）。
+内側予算の和 + 終了余裕 < 外側 watchdog を検査自身に確かめさせる。
 
 ## DW-O14 — no-touch と monkeypatch
 
@@ -98,6 +107,8 @@ monkeypatch は最後の手段とする（D78）。
 ## DW-O16 — fix 後の焦点再レビュー
 
 所見ごとの closed / partial / regressed 対応表を要求し、表なしで root cause が閉じたと判定しない（D78）。
+PATH 構築・interpreter 解決・外部 command 選定など実行環境に依存する実装は、レビュー通過だけで
+closed とせず実機で動かすまで確かめる。
 NO-GO が続く場合は fix を重ねず 3 巡を上限とし、親が変異で裏取りして残る所見を real/refuted に
 裁定して閉じる。根拠は worklog に書く。
 
@@ -172,3 +183,24 @@ lock 再取得後に全検査をやり直し、`tip_sha` / `checker_blob_sha` / 
 参照する consumer test も含める。名前の推測でなく参照関係で引く（例: 変更した production module 名で
 `orchestrator/tests/` を grep する）。この拡張を欠く焦点走は、静的レビューが見落とした破れを
 初回実測でも取り逃す（F242）。
+## DW-O27 — acceptance は lease を待たない
+
+D662 により受入 lease の待ち行列は廃止し、待ち機構を実装から除去した。
+`tools/dev_wave_wait.py acceptance` は投入前 claim を 1 回だけ行い、`held` でも待たず
+wave digest の疑似 holder で投入する。待つ経路は無く flag でも戻せない。
+`--lease-optional` と `--poll-seconds` は後方互換の no-op。`stale-held`・`unavailable`
+は従来どおり fail-closed。integrity 検査と receipt の全 field は未取得でも不変。
+`--lease-dir` は省略せず専用 dir で迂回しない。未取得が確定した走行は `release` しない。
+
+`tools/check_docs.py` の dispatch 契約へ新節を登録する際は、
+`orchestrator/tests/test_check_docs.py` の合成 fixture との整合性を同じ
+commit で確認する（`DW-O26` の精神を checker 変更にも適用。怠ると多数の
+テストが連鎖的に失敗する — T-1458 実測、320 件）。
+
+## DW-O28 — land 後の自己撤去
+
+親は `landed` / `already-landed` を確認後、同じ段 9 で先に対象 worktree 外の main worktree へ移り、投入した計算ノード job の終端後に次を実行する（`<MAIN>` / `<WAVE>` は絶対 path）。
+`python3 tools/dev_wave_cleanup.py --main-worktree <MAIN> --wave-worktree <WAVE> --wave-branch <BRANCH> --tested-wave-tip-sha <TIP>`
+tool は unoccupied、clean、tested tip が `refs/heads/main` の祖先、fold state 不在、wave が非 primary、cwd が対象外を全て要求し、どれかが不成立または判定不能なら fail-closed で停止する。
+同一 wave の worktree と branch を撤去し、次 wave・ユーザー・`/cleanup-branches` へ引き渡さない。
+F26 に従い `git worktree remove` と `git submodule deinit` は使わない。branch は `git branch -d` だけで消し `-D` を使わない。撤去できない理由は報告し、次 wave の worklog へ記録する。

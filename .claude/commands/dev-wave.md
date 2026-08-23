@@ -103,7 +103,7 @@ CC 合成 campaign の実行ループではない。
 | 15 | fix 後に変異を走らせる直前 | `docs/dev-wave/mutation.md`: `DW-M07` |
 | 16 | fix 後の焦点再レビューを行う直前 | `docs/dev-wave/operations.md`: `DW-O16` |
 | 17 | commit を作る直前 | `docs/dev-wave/operations.md`: `DW-O17` |
-| 18 | 親がテスト・受入を走らせる直前 | `docs/dev-wave/operations.md`: `DW-O18`, `DW-O26` |
+| 18 | 親がテスト・受入を走らせる直前 | `docs/dev-wave/operations.md`: `DW-O18`, `DW-O26`, `DW-O27` |
 | 19 | tracked file を一時変異する直前 | `docs/dev-wave/operations.md`: `DW-O19` |
 | 20 | 背景 job + worktree 隔離の wave 開始時（最遅: clean-tree gate を worktree で走らせる直前） | `docs/dev-wave/operations.md`: `DW-O20` |
 | 21 | 無人継続を構成し最初の process を起動する前 | `docs/dev-wave/core.md`: `DW-CTX` |
@@ -112,6 +112,7 @@ CC 合成 campaign の実行ループではない。
 | 24 | 背景 producer・待ち手の生成 / 再利用 / 停止、通知処理、待ち条件作成の直前 | `docs/dev-wave/core.md`: `DW-C00` |
 | 25 | main を進める land を起動する直前 | `docs/dev-wave/operations.md`: `DW-O25` |
 | 26 | 起動/待機/検査/submodule/取込/fix前 | `docs/dev-wave/core.md`: `DW-C01` |
+| 27 | land 成功後の自己撤去直前 | `docs/dev-wave/operations.md`: `DW-O28` |
 
 各条件の詳細は参照節だけを正本とし、事故の物語は `docs/failures.md` の F 番号へ置く。
 同じ物語を入口・referenceへ再掲しない。

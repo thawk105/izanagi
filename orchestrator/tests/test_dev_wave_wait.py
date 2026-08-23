@@ -2,7 +2,6 @@
 """tools/dev_wave_wait.py の canonical waiter 契約テスト。"""
 from __future__ import annotations
 
-import ast
 import errno
 import hashlib
 import importlib.util
@@ -27,8 +26,8 @@ import pytest
 _ROOT = Path(__file__).resolve().parents[2]
 _TOOL = _ROOT / "tools" / "dev_wave_wait.py"
 _LAUNCHER = _ROOT / "tools" / "acceptance_launcher.py"
-_RED_CHECKER = _ROOT / "tools" / "check_acceptance_reds.py"
 _LEASE_HELPER = _ROOT / "tools" / "wave_land_window.py"
+_LANDER = _ROOT / "tools" / "dev_wave_land.py"
 _DISPATCHER = _ROOT / "tools" / "pegasus" / "dispatch_compute.py"
 _SPEC = importlib.util.spec_from_file_location("dev_wave_wait_under_test", _TOOL)
 assert _SPEC and _SPEC.loader
@@ -49,6 +48,13 @@ assert _LEASE_SPEC and _LEASE_SPEC.loader
 WL = importlib.util.module_from_spec(_LEASE_SPEC)
 sys.modules[_LEASE_SPEC.name] = WL
 _LEASE_SPEC.loader.exec_module(WL)
+_LAND_SPEC = importlib.util.spec_from_file_location(
+    "dev_wave_land_under_test_for_waiter", _LANDER,
+)
+assert _LAND_SPEC and _LAND_SPEC.loader
+LAND = importlib.util.module_from_spec(_LAND_SPEC)
+sys.modules[_LAND_SPEC.name] = LAND
+_LAND_SPEC.loader.exec_module(LAND)
 _DISPATCH_SPEC = importlib.util.spec_from_file_location(
     "pegasus_dispatch_compute_under_test", _DISPATCHER,
 )
@@ -68,9 +74,6 @@ _VALIDATED_MESSAGE = Path("/validated-message.txt")
 _RECEIPT = Path("/receipts/acceptance.json")
 _RECEIPT_TEMP = Path("/receipts/.dev-wave-acceptance-receipt-test.tmp")
 _LOG = Path("/receipts/acceptance.log")
-_CHECKER_RECEIPT = Path(
-    "/receipts/acceptance.json.acceptance-red-check.json"
-)
 _COMMAND = ("harmless-command", "--flag")
 _RELAYED_LOADGROUP_MARKER = (
     b'| IZANAGI_EFFECTIVE_SCHEDULER_V1 {"effective_scheduler":"loadgroup"}'
@@ -78,11 +81,8 @@ _RELAYED_LOADGROUP_MARKER = (
 _HOLDER = hashlib.sha256(_WAVE.encode("utf-8")).hexdigest()[:12]
 _WAITER_BLOB = "d" * 40
 _WAITER_BYTES_SHA256 = hashlib.sha256(b"same waiter source").hexdigest()
-_CHECKER_BLOB = "e" * 40
-_RUNNER_BLOB = "1" * 40
 _LAUNCHER_BLOB = "2" * 40
 _LAUNCHER_SOURCE = b"# acceptance launcher source\n"
-_CHECKER_SOURCE = b"# tested main checker source\n"
 _SELF_REPORTED_MERGE_MESSAGE = (
     b"merge main\n\n"
     b"AI-Agent: product=claude; model=not-exposed; "
@@ -369,12 +369,11 @@ class _FakeEffects:
             write_receipt_temp=self.write_receipt_temp,
             rename=self.rename,
             run_logged=self.run_logged,
-            read_bytes=self.read_bytes,
             is_symlink=self.is_symlink,
             inspect_acceptance_log=self.inspect_acceptance_log,
             running_waiter_bytes_sha256=self.running_waiter_bytes_sha256,
             tip_waiter_bytes_sha256=self.tip_waiter_bytes_sha256,
-            run_with_input=self.run_with_input,
+            run_trusted_blob_git=self.run_with_input,
             launcher_source=self.launcher_source,
             launch_launcher=self.launch_launcher,
             inspect_no_verdict_log=self.inspect_no_verdict_log,
@@ -417,7 +416,7 @@ class _FakeEffects:
                     (_SUBMODULE_STATUS_ARGV, True, DW._CommandResult(0, "")),
             ]
             scheduler: str | None = None
-            if result.returncode in (0, 1):
+            if result.returncode == 0:
                 try:
                     _digest, payloads = DW._scan_acceptance_log_chunks(
                         [self.logged_bytes]
@@ -546,10 +545,6 @@ class _FakeEffects:
         assert cwd == _REPO
         self.launcher_argv = actual
         return _FakeLauncherSession(self, actual, source)
-
-    def read_bytes(self, path: Path) -> bytes:
-        assert path in self.byte_files, f"unexpected read_bytes: {path}"
-        return self.byte_files[path]
 
     def inspect_acceptance_log(self, path: Path) -> tuple[str, str]:
         assert path in self.byte_files, f"unexpected acceptance log: {path}"
@@ -843,249 +838,8 @@ def _held_self_payload(**overrides: object) -> str:
     return json.dumps(payload)
 
 
-def _checker_argv(
-    *,
-    tested_main: str = _SHA_A,
-    tested_tip: str = _SHA_A,
-) -> tuple[str, ...]:
-    return DW._red_checker_argv(
-        repo=_REPO,
-        log_file=_LOG,
-        checker_receipt=_CHECKER_RECEIPT,
-        probe_root=_LOG.parent,
-        tested_main=tested_main,
-        tested_tip=tested_tip,
-    )
-
-
-def _red_gate_git_argv(*args: str) -> tuple[str, ...]:
-    return DW._red_gate_git_argv(_REPO, *args)
-
-
-def _checker_receipt_bytes(
-    fake: _FakeEffects,
-    *,
-    status: str,
-    nodes: list[dict[str, object]],
-    log_sha256: str | None = None,
-    tested_main: str = _SHA_A,
-    tested_tip: str = _SHA_A,
-) -> bytes:
-    return (
-        json.dumps(
-            {
-                "collections": [
-                    {
-                        "deleted_receipt_path": None,
-                        "path": "orchestrator/tests/test_known.py",
-                        "request_id": None,
-                        "source": "local",
-                        "stdout_sha256": "f" * 64,
-                        "submission_nonce": None,
-                    }
-                ],
-                "log_path": str(_LOG),
-                "log_sha256": (
-                    hashlib.sha256(fake.logged_bytes).hexdigest()
-                    if log_sha256 is None
-                    else log_sha256
-                ),
-                "nodes": nodes,
-                "schema_version": "izanagi-acceptance-red-check/v1",
-                "status": status,
-                "submodules": [],
-                "tested_main": tested_main,
-                "wave_tip": tested_tip,
-            },
-            sort_keys=True,
-            separators=(",", ":"),
-        )
-        + "\n"
-    ).encode("ascii")
-
-
-def _queue_checker(
-    fake: _FakeEffects,
-    *,
-    rc: int = 0,
-    status: str = "non-attributable-only",
-    nodes: list[dict[str, object]] | None = None,
-    log_sha256: str | None = None,
-    tested_main: str = _SHA_A,
-    tested_tip: str = _SHA_A,
-    runner_gate: bool | None = None,
-    main_runner_blob: str = _RUNNER_BLOB,
-    tip_runner_blob: str = _RUNNER_BLOB,
-    main_runner_type: str = "blob",
-    tip_runner_type: str = "blob",
-) -> bytes:
-    for revision in (tested_main, tested_tip):
-        fake.expect_run_with_input(
-            _red_gate_git_argv(
-                "rev-parse",
-                "--verify",
-                f"{revision}:{DW._RED_CHECKER_PATH}",
-            ),
-            b"",
-            DW._BinaryCommandResult(0, (_CHECKER_BLOB + "\n").encode("ascii")),
-        )
-    fake.expect_run_with_input(
-        _red_gate_git_argv(
-            "cat-file",
-            "blob",
-            f"{tested_main}:{DW._RED_CHECKER_PATH}",
-        ),
-        b"",
-        DW._BinaryCommandResult(0, _CHECKER_SOURCE),
-    )
-    fake.expect_run_with_input(
-        _red_gate_git_argv("hash-object", "--stdin", "--no-filters"),
-        _CHECKER_SOURCE,
-        DW._BinaryCommandResult(0, (_CHECKER_BLOB + "\n").encode("ascii")),
-    )
-    fake.expect_run_with_input(
-        _checker_argv(tested_main=tested_main, tested_tip=tested_tip),
-        _CHECKER_SOURCE,
-        DW._BinaryCommandResult(rc),
-        capture=False,
-    )
-    raw = _checker_receipt_bytes(
-        fake,
-        status=status,
-        nodes=(
-            [{
-                "classification": "non-attributable",
-                "nodeid": "orchestrator/tests/test_known.py::test_known",
-                "rerun_rc": 1,
-            }]
-            if nodes is None
-            else nodes
-        ),
-        log_sha256=log_sha256,
-        tested_main=tested_main,
-        tested_tip=tested_tip,
-    )
-    fake.byte_files[_CHECKER_RECEIPT] = raw
-    if runner_gate is None:
-        runner_gate = rc == 0 and status == "non-attributable-only"
-    if runner_gate:
-        for revision, object_type, blob_sha in (
-            (tested_main, main_runner_type, main_runner_blob),
-            (tested_tip, tip_runner_type, tip_runner_blob),
-        ):
-            fake.expect_run_with_input(
-                _red_gate_git_argv(
-                    "cat-file", "-t", f"{revision}:{DW._RUNNER_PATH}"
-                ),
-                b"",
-                DW._BinaryCommandResult(0, (object_type + "\n").encode("ascii")),
-            )
-            fake.expect_run_with_input(
-                _red_gate_git_argv(
-                    "rev-parse", "--verify", f"{revision}:{DW._RUNNER_PATH}"
-                ),
-                b"",
-                DW._BinaryCommandResult(0, (blob_sha + "\n").encode("ascii")),
-            )
-    return raw
-
-
-def _queue_non_attributable_receipt_tail(fake: _FakeEffects) -> None:
-    fake.expect_run(
-        ("git", "rev-parse", "main"),
-        DW._CommandResult(0, _SHA_A + "\n"),
-    )
-    fake.expect_run(
-        _helper("claim", _SHA_A),
-        DW._CommandResult(0, _held_self_payload()),
-    )
-
-
-def _checker_execution_events(
-    *,
-    tested_main: str = _SHA_A,
-    tested_tip: str = _SHA_A,
-    include_runner_gate: bool = False,
-) -> list[tuple[object, ...]]:
-    events = [*_WAITER_BLOB_RESOLUTION_EVENTS]
-    for revision in (tested_main, tested_tip):
-        events.append((
-            "run_with_input",
-            _red_gate_git_argv(
-                "rev-parse",
-                "--verify",
-                f"{revision}:{DW._RED_CHECKER_PATH}",
-            ),
-            _REPO,
-            True,
-            b"",
-        ))
-    events.extend([
-        (
-            "run_with_input",
-            _red_gate_git_argv(
-                "cat-file",
-                "blob",
-                f"{tested_main}:{DW._RED_CHECKER_PATH}",
-            ),
-            _REPO,
-            True,
-            b"",
-        ),
-        (
-            "run_with_input",
-            _red_gate_git_argv("hash-object", "--stdin", "--no-filters"),
-            _REPO,
-            True,
-            _CHECKER_SOURCE,
-        ),
-        (
-            "run_with_input",
-            _checker_argv(tested_main=tested_main, tested_tip=tested_tip),
-            _REPO,
-            False,
-            _CHECKER_SOURCE,
-        ),
-    ])
-    if include_runner_gate:
-        for revision in (tested_main, tested_tip):
-            events.extend([
-                (
-                    "run_with_input",
-                    _red_gate_git_argv(
-                        "cat-file", "-t", f"{revision}:{DW._RUNNER_PATH}"
-                    ),
-                    _REPO,
-                    True,
-                    b"",
-                ),
-                (
-                    "run_with_input",
-                    _red_gate_git_argv(
-                        "rev-parse",
-                        "--verify",
-                        f"{revision}:{DW._RUNNER_PATH}",
-                    ),
-                    _REPO,
-                    True,
-                    b"",
-                ),
-            ])
-    return events
-
-
-def _is_checker_execution_event(event: tuple[object, ...]) -> bool:
-    return (
-        len(event) >= 2
-        and event[0] == "run_with_input"
-        and isinstance(event[1], tuple)
-        and event[1][:4] == (
-            sys.executable,
-            "-I",
-            "-c",
-            DW._RED_CHECKER_BOOTSTRAP,
-        )
-    )
+def _trusted_blob_git_argv(*args: str) -> tuple[str, ...]:
+    return DW._trusted_blob_git_argv(_REPO, *args)
 
 
 def _valid_receipt_arguments() -> dict[str, object]:
@@ -1111,7 +865,6 @@ def _valid_receipt_arguments() -> dict[str, object]:
         "verdict": "child-green",
         "log_sha256": "f" * 64,
         "effective_scheduler": "serial",
-        "red_check": None,
     }
 
 
@@ -1119,7 +872,6 @@ def _launcher_receipt_bytes(**arguments: object) -> bytes:
     pre = arguments["pre_fingerprint"]
     post = arguments["post_fingerprint"]
     environment = arguments["environment"]
-    red_check = arguments["red_check"]
     assert isinstance(pre, DW._TreeFingerprint)
     assert isinstance(post, DW._TreeFingerprint)
     assert isinstance(environment, DW._AcceptanceEnvironment)
@@ -1130,16 +882,6 @@ def _launcher_receipt_bytes(**arguments: object) -> bytes:
         or any(character not in "0123456789abcdef" for character in log_sha256)
     ):
         raise LA.LauncherFailure("invalid log digest")
-    red_json = None
-    if isinstance(red_check, DW._RedCheckResult):
-        red_json = {
-            "checker_blob_sha": red_check.checker_blob_sha,
-            "checker_rc": red_check.checker_rc,
-            "checker_receipt_sha256": red_check.checker_receipt_sha256,
-            "checker_status": red_check.checker_status,
-            "flake_nodeids": list(red_check.flake_nodeids),
-            "red_nodeids": list(red_check.red_nodeids),
-        }
     config = LA._Config(
         repo_root=_REPO,
         wave=arguments["wave"],
@@ -1171,28 +913,12 @@ def _launcher_receipt_bytes(**arguments: object) -> bytes:
         {
             "effective_scheduler": arguments["effective_scheduler"],
             "post_fingerprint": DW._fingerprint_json(post),
-            "red_check": red_json,
+            "red_check": None,
         },
     )
     if json.loads(payload)["verdict"] != arguments["verdict"]:
         raise LA.LauncherFailure("verdict mismatch")
     return payload
-
-
-def _red_check(
-    *,
-    red_nodeids: tuple[str, ...] = ("test.py::test_red",),
-    flake_nodeids: tuple[str, ...] = (),
-) -> object:
-    return DW._RedCheckResult(
-        checker_rc=0,
-        checker_status="non-attributable-only",
-        checker_blob_sha=_CHECKER_BLOB,
-        checker_receipt_sha256="f" * 64,
-        red_nodeids=red_nodeids,
-        flake_nodeids=flake_nodeids,
-    )
-
 
 _LAUNCHER_START_EVENTS = [
     ("write_receipt_temp", _RECEIPT),
@@ -1339,7 +1065,6 @@ def _real_waiter_repo(
     shutil.copy2(_TOOL, tools / "dev_wave_wait.py")
     shutil.copy2(_LEASE_HELPER, tools / "wave_land_window.py")
     shutil.copy2(_LAUNCHER, tools / "acceptance_launcher.py")
-    shutil.copy2(_RED_CHECKER, tools / "check_acceptance_reds.py")
     _write_exact_runner(
         repo,
         "print('IZANAGI_EFFECTIVE_SCHEDULER_V1 "
@@ -1433,6 +1158,7 @@ def _run_acceptance(
     lifecycle: object = None,
     receipt_file: Path = _RECEIPT,
     log_file: Path = _LOG,
+    lease_optional: bool = False,
 ) -> object:
     return DW.run_acceptance(
         wave=_WAVE,
@@ -1447,6 +1173,7 @@ def _run_acceptance(
         log_file=log_file,
         owned_paths=owned_paths,
         lifecycle=lifecycle,
+        lease_optional=lease_optional,
     )
 
 
@@ -1489,6 +1216,7 @@ class _RoutingAcceptanceEffects(_FakeEffects):
         claim_payload: str | None = None,
         command_result: object = None,
         postclaim_rc: int = 0,
+        final_main_sha: str | None = None,
         merge_result: object = None,
         preclaim_history_provenance_result: object = None,
         history_provenance_result: object = None,
@@ -1511,6 +1239,7 @@ class _RoutingAcceptanceEffects(_FakeEffects):
             DW._CommandResult(0) if command_result is None else command_result
         )
         self.postclaim_rc = postclaim_rc
+        self.final_main_sha = final_main_sha
         self.merge_result = (
             DW._CommandResult(0) if merge_result is None else merge_result
         )
@@ -1556,6 +1285,8 @@ class _RoutingAcceptanceEffects(_FakeEffects):
             self.main_reads += 1
             if self.main_reads == 2 and self.postclaim_rc != 0:
                 return DW._CommandResult(self.postclaim_rc)
+            if self.main_reads >= 3 and self.final_main_sha is not None:
+                return DW._CommandResult(0, self.final_main_sha + "\n")
             return DW._CommandResult(0, _SHA_A + "\n")
         if actual == _helper("claim", _SHA_A, lease_dir=self.lease_dir):
             self.claims += 1
@@ -1626,76 +1357,6 @@ class _RoutingAcceptanceEffects(_FakeEffects):
             return DW._CommandResult(1)
         raise AssertionError(f"unexpected run: {actual}")
 
-    def run_with_input(
-        self,
-        argv: object,
-        cwd: Path,
-        capture: bool,
-        content: bytes,
-    ) -> object:
-        actual = tuple(argv)
-        self.events.append(("run_with_input", actual, cwd, capture, content))
-        if actual[: len(DW._GIT_CONFIG) + 3] == (
-            DW._GIT_EXE,
-            *DW._GIT_CONFIG,
-            "-C",
-            str(_REPO),
-        ):
-            command = actual[len(DW._GIT_CONFIG) + 3:]
-            if (
-                command[:2] == ("cat-file", "-t")
-                and command[2].endswith(f":{DW._RUNNER_PATH}")
-            ):
-                return DW._BinaryCommandResult(0, b"blob\n")
-            if command[:2] == ("rev-parse", "--verify"):
-                blob_sha = (
-                    _RUNNER_BLOB
-                    if command[2].endswith(f":{DW._RUNNER_PATH}")
-                    else _CHECKER_BLOB
-                )
-                return DW._BinaryCommandResult(
-                    0,
-                    (blob_sha + "\n").encode("ascii"),
-                )
-            if command[:2] == ("cat-file", "blob"):
-                return DW._BinaryCommandResult(0, _CHECKER_SOURCE)
-            if command == ("hash-object", "--stdin", "--no-filters"):
-                assert content == _CHECKER_SOURCE
-                return DW._BinaryCommandResult(
-                    0,
-                    (_CHECKER_BLOB + "\n").encode("ascii"),
-                )
-        if actual[:4] == (
-            sys.executable,
-            "-I",
-            "-c",
-            DW._RED_CHECKER_BOOTSTRAP,
-        ):
-            def option(name: str) -> str:
-                return actual[actual.index(name) + 1]
-
-            checker_receipt = Path(option("--receipt"))
-            self.byte_files[checker_receipt] = (
-                json.dumps(
-                    {
-                        "collections": [],
-                        "log_path": option("--log"),
-                        "log_sha256": hashlib.sha256(self.logged_bytes).hexdigest(),
-                        "nodes": [],
-                        "schema_version": "izanagi-acceptance-red-check/v1",
-                        "status": "green",
-                        "submodules": [],
-                        "tested_main": option("--tested-main"),
-                        "wave_tip": option("--wave-tip"),
-                    },
-                    sort_keys=True,
-                    separators=(",", ":"),
-                )
-                + "\n"
-            ).encode("ascii")
-            return DW._BinaryCommandResult(0)
-        raise AssertionError(f"unexpected run_with_input: {actual}")
-
     def is_file(self, path: Path) -> bool:
         self.events.append(("is_file", path))
         return True
@@ -1713,13 +1374,11 @@ class _RetryAcceptanceEffects(_RoutingAcceptanceEffects):
         logs: list[bytes],
         main_after_first: str = _SHA_A,
         head_shas: list[str] | None = None,
-        checker_mode: str = "success",
         advance_after_first: float = 0.0,
         advance_before_first_claim: float = 0.0,
         advance_on_claim: dict[int, float] | None = None,
         signal_on_claim: int | None = None,
         lease_dir: Path = _LEASE,
-        checker_nodes: list[dict[str, object]] | None = None,
     ) -> None:
         super().__init__(
             behind=[0] * 16,
@@ -1733,21 +1392,10 @@ class _RetryAcceptanceEffects(_RoutingAcceptanceEffects):
         self.command_results = list(command_results)
         self.logs = list(logs)
         self.main_after_first = main_after_first
-        self.checker_mode = checker_mode
         self.advance_after_first = advance_after_first
         self.advance_before_first_claim = advance_before_first_claim
         self.advance_on_claim = dict(advance_on_claim or {})
         self.signal_on_claim = signal_on_claim
-        self.checker_nodes = (
-            [{
-                "classification": "non-attributable",
-                "nodeid": "orchestrator/tests/test_known.py::test_known",
-                "rerun_rc": 1,
-            }]
-            if checker_nodes is None
-            else checker_nodes
-        )
-        self.red_check_bindings: list[tuple[str, str]] = []
         self.inject_artifact_after_archive: Path | None = None
         self.env_after_archive: dict[str, str] | None = None
         self.lifecycle_to_observe: object | None = None
@@ -1811,41 +1459,6 @@ class _RetryAcceptanceEffects(_RoutingAcceptanceEffects):
         if self.submissions == 1 and self.advance_after_first:
             self.sleep(self.advance_after_first)
         return result
-
-    def run_with_input(
-        self,
-        argv: object,
-        cwd: Path,
-        capture: bool,
-        content: bytes,
-    ) -> object:
-        actual = tuple(argv)
-        if actual[:4] == (
-            sys.executable,
-            "-I",
-            "-c",
-            DW._RED_CHECKER_BOOTSTRAP,
-        ):
-            self.events.append(("run_with_input", actual, cwd, capture, content))
-
-            def option(name: str) -> str:
-                return actual[actual.index(name) + 1]
-
-            tested_main = option("--tested-main")
-            tested_tip = option("--wave-tip")
-            self.red_check_bindings.append((tested_main, tested_tip))
-            if self.checker_mode == "failure":
-                return DW._BinaryCommandResult(2)
-            checker_receipt = Path(option("--receipt"))
-            self.byte_files[checker_receipt] = _checker_receipt_bytes(
-                self,
-                status="non-attributable-only",
-                nodes=self.checker_nodes,
-                tested_main=tested_main,
-                tested_tip=tested_tip,
-            )
-            return DW._BinaryCommandResult(0)
-        return super().run_with_input(argv, cwd, capture, content)
 
     def archive_log(self, source: Path, target: Path) -> None:
         super().archive_log(source, target)
@@ -2378,7 +1991,7 @@ def test_nonzero_child_is_postchecked_before_propagation() -> None:
     child_index = fake.events.index(("run", _COMMAND, _REPO, False))
     release_index = fake.events.index(("run", _helper("release"), _REPO, True))
     assert ("run", _INDEX_FLAGS_ARGV, _REPO, True) in fake.events[child_index:release_index]
-    assert not any(_is_checker_execution_event(event) for event in fake.events)
+    assert not any(event[0] == "run_with_input" for event in fake.events)
     fake.assert_drained()
 
 
@@ -2905,6 +2518,26 @@ def test_relayed_loadgroup_literal_is_accepted() -> None:
     assert DW._scheduler_from_marker_payloads(payloads) == "loadgroup"
 
 
+def test_shard_merger_output_exposes_exactly_one_waiter_accepted_marker(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    from tools import acceptance_shards
+
+    acceptance_shards._emit_merged(
+        acceptance_shards.MergeResult(
+            0,
+            "ok",
+            scheduler="loadgroup",
+            universe=("orchestrator/tests/test_x.py::test_x",),
+            terminal_counts=(("passed", 1),),
+        )
+    )
+    output = capsys.readouterr().out.encode("ascii")
+    _digest, payloads = DW._scan_acceptance_log_chunks([output])
+    assert len(payloads) == 1
+    assert DW._scheduler_from_marker_payloads(payloads) == "loadgroup"
+
+
 def test_scanner_has_constant_extra_memory_for_huge_unterminated_line() -> None:
     chunk = b"x" * 65536
 
@@ -3109,7 +2742,7 @@ _INVALID_SCHEDULER_LOGS = (
     _INVALID_SCHEDULER_LOGS,
     ids=[case for case, _ in _INVALID_SCHEDULER_LOGS],
 )
-def test_scheduler_attestation_is_fail_closed_before_red_checker(
+def test_scheduler_attestation_is_fail_closed_for_green_command(
     case: str,
     logged_bytes: bytes,
     capsys: pytest.CaptureFixture[str],
@@ -3117,7 +2750,7 @@ def test_scheduler_attestation_is_fail_closed_before_red_checker(
     fake = _FakeEffects()
     fake.logged_bytes = logged_bytes
     _queue_clean_acceptance_prefix(fake)
-    fake.expect_run(_COMMAND, DW._CommandResult(1), capture=False)
+    fake.expect_run(_COMMAND, DW._CommandResult(0), capture=False)
     _release(fake)
 
     outcome = _run_acceptance(fake)
@@ -3126,10 +2759,7 @@ def test_scheduler_attestation_is_fail_closed_before_red_checker(
     assert outcome.stage == "acceptance-scheduler-attestation", case
     assert outcome.detail is not None
     assert fake.receipt_content is None
-    assert not any(
-        _is_checker_execution_event(event)
-        for event in fake.events
-    )
+    assert not any(event[0] == "run_with_input" for event in fake.events)
     DW._print_outcome(outcome)
     diagnostic = capsys.readouterr().err
     attestation_diagnostics = [
@@ -3143,962 +2773,27 @@ def test_scheduler_attestation_is_fail_closed_before_red_checker(
     fake.assert_drained()
 
 
-def _verify_red_direct(
-    fake: _FakeEffects,
-    *,
-    tested_main: str = _SHA_A,
-    tested_tip: str = _SHA_A,
-) -> object:
-    return DW._verify_red_check_receipt(
-        effects=fake.effects,
-        repo=_REPO,
-        log_file=_LOG,
-        checker_receipt=_CHECKER_RECEIPT,
-        probe_root=_LOG.parent,
-        tested_main=tested_main,
-        tested_tip=tested_tip,
-        log_sha256=hashlib.sha256(fake.logged_bytes).hexdigest(),
-    )
+def test_failed_acceptance_does_not_launch_red_checker() -> None:
+    """checker 呼出しを戻すと strict fake の未期待 command で赤になる pin。"""
 
-
-def _red_payload(nodes: list[dict[str, object]]) -> dict[str, object]:
-    fake = _FakeEffects()
-    return json.loads(
-        _checker_receipt_bytes(
-            fake,
-            status="non-attributable-only",
-            nodes=nodes,
-            log_sha256="9" * 64,
-        )
-    )
-
-
-def _consume_red_payload(
-    payload: object,
-) -> tuple[tuple[str, ...], tuple[str, ...]]:
-    return DW._red_check_payload_nodeids(
-        payload,
-        tested_main=_SHA_A,
-        tested_tip=_SHA_A,
-        log_sha256="9" * 64,
-    )
-
-
-def test_red_check_payload_accepts_exact_supported_node_shapes() -> None:
-    red = "a.py::test_red"
-    flake = "b.py::test_flake"
-    payload = _red_payload([
-        {
-            "classification": "non-attributable",
-            "nodeid": red,
-            "rerun_rc": 1,
-        },
-        {
-            "classification": "flake",
-            "main_rerun_rc": 0,
-            "nodeid": flake,
-            "rerun_rc": 0,
-            "wave_rerun_rc": 0,
-        },
-    ])
-
-    assert _consume_red_payload(payload) == ((red,), (flake,))
-
-
-@pytest.mark.parametrize(
-    "node",
-    (
-        {
-            "classification": "flake",
-            "main_rerun_rc": 0,
-            "nodeid": "x.py::test_x",
-            "rerun_rc": 0,
-            "wave_rerun_rc": 0,
-            "extra": 0,
-        },
-        {
-            "classification": "flake",
-            "main_rerun_rc": 0,
-            "nodeid": "x.py::test_x",
-            "rerun_rc": 0,
-            "wave_rerun_rc": 1,
-        },
-        {
-            "classification": "flake",
-            "main_rerun_rc": False,
-            "nodeid": "x.py::test_x",
-            "rerun_rc": 0,
-            "wave_rerun_rc": 0,
-        },
-        {
-            "classification": "non-attributable",
-            "nodeid": "x.py::test_x",
-            "rerun_rc": 0,
-        },
-        {
-            "classification": "non-attributable",
-            "nodeid": "x.py::test_x",
-            "rerun_rc": True,
-        },
-        {
-            "classification": "attributable",
-            "main_rerun_rc": 0,
-            "nodeid": "x.py::test_x",
-            "rerun_rc": 0,
-            "wave_rerun_rc": 1,
-        },
-        {
-            "classification": "unknown",
-            "nodeid": "x.py::test_x",
-            "rerun_rc": 1,
-        },
-    ),
-    ids=(
-        "flake-extra-field-M1",
-        "flake-wave-rc-M2",
-        "flake-bool-rc",
-        "non-attributable-zero-M3",
-        "non-attributable-bool",
-        "attributable",
-        "unknown-classification",
-    ),
-)
-def test_red_check_payload_rejects_non_exact_node_shapes(
-    node: dict[str, object],
-) -> None:
-    with pytest.raises(DW._StageFailure) as exc_info:
-        _consume_red_payload(_red_payload([node]))
-
-    assert exc_info.value.outcome == DW._Outcome(70, "acceptance-red-check")
-
-
-@pytest.mark.parametrize(
-    "nodes",
-    (
-        [
-            {"classification": "non-attributable", "nodeid": "z", "rerun_rc": 1},
-            {"classification": "non-attributable", "nodeid": "a", "rerun_rc": 1},
-        ],
-        [
-            {"classification": "flake", "main_rerun_rc": 0, "nodeid": "a", "rerun_rc": 0, "wave_rerun_rc": 0},
-            {"classification": "flake", "main_rerun_rc": 0, "nodeid": "a", "rerun_rc": 0, "wave_rerun_rc": 0},
-        ],
-        [
-            {"classification": "non-attributable", "nodeid": "a", "rerun_rc": 1},
-            {"classification": "flake", "main_rerun_rc": 0, "nodeid": "a", "rerun_rc": 0, "wave_rerun_rc": 0},
-        ],
-    ),
-    ids=("red-unsorted", "flake-duplicate", "overlap-M4"),
-)
-def test_red_check_payload_rejects_unsorted_duplicate_or_overlapping_sets(
-    nodes: list[dict[str, object]],
-) -> None:
-    with pytest.raises(DW._StageFailure) as exc_info:
-        _consume_red_payload(_red_payload(nodes))
-
-    assert exc_info.value.outcome == DW._Outcome(70, "acceptance-red-check")
-
-
-def _queue_red_blob_sha(
-    fake: _FakeEffects,
-    revision: str,
-    result: object,
-) -> None:
-    fake.expect_run_with_input(
-        _red_gate_git_argv(
-            "rev-parse",
-            "--verify",
-            f"{revision}:{DW._RED_CHECKER_PATH}",
-        ),
-        b"",
-        result,
-    )
-
-
-def test_red_checker_main_tip_blob_mismatch_is_indeterminate() -> None:
-    fake = _FakeEffects()
-    _queue_red_blob_sha(
-        fake,
-        _SHA_A,
-        DW._BinaryCommandResult(0, (_CHECKER_BLOB + "\n").encode("ascii")),
-    )
-    _queue_red_blob_sha(
-        fake,
-        _SHA_B,
-        DW._BinaryCommandResult(0, (_SHA_C + "\n").encode("ascii")),
-    )
-
-    with pytest.raises(DW._StageFailure) as exc_info:
-        _verify_red_direct(fake, tested_main=_SHA_A, tested_tip=_SHA_B)
-
-    assert exc_info.value.outcome == DW._Outcome(70, "acceptance-red-check")
-    assert not any(_is_checker_execution_event(event) for event in fake.events)
-    fake.assert_drained()
-
-
-def test_red_checker_executed_bytes_mismatch_is_indeterminate() -> None:
-    fake = _FakeEffects()
-    for revision in (_SHA_A, _SHA_B):
-        _queue_red_blob_sha(
-            fake,
-            revision,
-            DW._BinaryCommandResult(
-                0,
-                (_CHECKER_BLOB + "\n").encode("ascii"),
-            ),
-        )
-    fake.expect_run_with_input(
-        _red_gate_git_argv(
-            "cat-file",
-            "blob",
-            f"{_SHA_A}:{DW._RED_CHECKER_PATH}",
-        ),
-        b"",
-        DW._BinaryCommandResult(0, _CHECKER_SOURCE),
-    )
-    fake.expect_run_with_input(
-        _red_gate_git_argv("hash-object", "--stdin", "--no-filters"),
-        _CHECKER_SOURCE,
-        DW._BinaryCommandResult(0, (_SHA_C + "\n").encode("ascii")),
-    )
-
-    with pytest.raises(DW._StageFailure) as exc_info:
-        _verify_red_direct(fake, tested_main=_SHA_A, tested_tip=_SHA_B)
-
-    assert exc_info.value.outcome == DW._Outcome(70, "acceptance-red-check")
-    assert not any(_is_checker_execution_event(event) for event in fake.events)
-    fake.assert_drained()
-
-
-@pytest.mark.parametrize("case", ("nonzero", "malformed"))
-def test_red_checker_blob_lookup_failure_is_indeterminate(case: str) -> None:
-    fake = _FakeEffects()
-    result = (
-        DW._BinaryCommandResult(9)
-        if case == "nonzero"
-        else DW._BinaryCommandResult(0, b"not-an-object-id\n")
-    )
-    _queue_red_blob_sha(fake, _SHA_A, result)
-
-    with pytest.raises(DW._StageFailure) as exc_info:
-        _verify_red_direct(fake)
-
-    assert exc_info.value.outcome.stage == "acceptance-red-check"
-    assert exc_info.value.outcome.rc == 70
-    assert exc_info.value.outcome.source_rc == (9 if case == "nonzero" else None)
-    assert not any(_is_checker_execution_event(event) for event in fake.events)
-    fake.assert_drained()
-
-
-@pytest.mark.parametrize("case", ("tip-lookup", "main-content", "content-hash"))
-def test_red_checker_binding_command_failure_is_indeterminate(case: str) -> None:
-    fake = _FakeEffects()
-    success_sha = DW._BinaryCommandResult(
-        0,
-        (_CHECKER_BLOB + "\n").encode("ascii"),
-    )
-    _queue_red_blob_sha(fake, _SHA_A, success_sha)
-    _queue_red_blob_sha(
-        fake,
-        _SHA_B,
-        DW._BinaryCommandResult(9) if case == "tip-lookup" else success_sha,
-    )
-    if case != "tip-lookup":
-        fake.expect_run_with_input(
-            _red_gate_git_argv(
-                "cat-file",
-                "blob",
-                f"{_SHA_A}:{DW._RED_CHECKER_PATH}",
-            ),
-            b"",
-            (
-                DW._BinaryCommandResult(9)
-                if case == "main-content"
-                else DW._BinaryCommandResult(0, _CHECKER_SOURCE)
-            ),
-        )
-    if case == "content-hash":
-        fake.expect_run_with_input(
-            _red_gate_git_argv("hash-object", "--stdin", "--no-filters"),
-            _CHECKER_SOURCE,
-            DW._BinaryCommandResult(9),
-        )
-
-    with pytest.raises(DW._StageFailure) as exc_info:
-        _verify_red_direct(fake, tested_main=_SHA_A, tested_tip=_SHA_B)
-
-    assert exc_info.value.outcome == DW._Outcome(
-        70,
-        "acceptance-red-check",
-        9,
-    )
-    assert not any(_is_checker_execution_event(event) for event in fake.events)
-    fake.assert_drained()
-
-
-def test_red_checker_different_commits_same_checker_blob_is_accepted() -> None:
-    fake = _FakeEffects()
-    _queue_checker(fake, tested_main=_SHA_A, tested_tip=_SHA_B)
-
-    result = _verify_red_direct(fake, tested_main=_SHA_A, tested_tip=_SHA_B)
-
-    assert result.checker_blob_sha == _CHECKER_BLOB
-    assert result.checker_status == "non-attributable-only"
-    assert result.flake_nodeids == ()
-    fake.assert_drained()
-
-
-def test_non_attributable_runner_blob_mismatch_is_indeterminate() -> None:
-    fake = _FakeEffects()
-    _queue_checker(
-        fake,
-        tested_main=_SHA_A,
-        tested_tip=_SHA_B,
-        tip_runner_blob=_SHA_C,
-    )
-
-    with pytest.raises(DW._StageFailure) as exc_info:
-        _verify_red_direct(fake, tested_main=_SHA_A, tested_tip=_SHA_B)
-
-    assert exc_info.value.outcome == DW._Outcome(70, "acceptance-red-check")
-    fake.assert_drained()
-
-
-def test_non_attributable_runner_object_must_be_blob() -> None:
-    fake = _FakeEffects()
-    _queue_checker(
-        fake,
-        main_runner_type="tree",
-        runner_gate=False,
-    )
-    fake.expect_run_with_input(
-        _red_gate_git_argv(
-            "cat-file", "-t", f"{_SHA_A}:{DW._RUNNER_PATH}"
-        ),
-        b"",
-        DW._BinaryCommandResult(0, b"tree\n"),
-    )
-
-    with pytest.raises(DW._StageFailure) as exc_info:
-        _verify_red_direct(fake)
-
-    assert exc_info.value.outcome == DW._Outcome(70, "acceptance-red-check")
-    fake.assert_drained()
-
-
-def test_red_checker_missing_input_seam_is_indeterminate_without_fallback() -> None:
-    fake = _FakeEffects()
-    effects = DW._Effects(**{
-        **fake.effects.__dict__,
-        "run_with_input": None,
-    })
-
-    with pytest.raises(DW._StageFailure) as exc_info:
-        DW._verify_red_check_receipt(
-            effects=effects,
-            repo=_REPO,
-            log_file=_LOG,
-            checker_receipt=_CHECKER_RECEIPT,
-            probe_root=_LOG.parent,
-            tested_main=_SHA_A,
-            tested_tip=_SHA_A,
-            log_sha256=hashlib.sha256(fake.logged_bytes).hexdigest(),
-        )
-
-    assert exc_info.value.outcome == DW._Outcome(70, "acceptance-red-check")
-    assert fake.events == []
-    fake.assert_drained()
-
-
-_REAL_RED_CHECKER_SOURCE = b'''\
-import argparse
-import hashlib
-import json
-import os
-import subprocess
-import sys
-from pathlib import Path
-
-def main(
-    argv=None,
-    *,
-    repo_root=None,
-    node_runner=None,
-    collection_runner=None,
-    command_runner=subprocess.run,
-):
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--log", required=True)
-    parser.add_argument("--tested-main", required=True)
-    parser.add_argument("--wave-tip", required=True)
-    parser.add_argument("--receipt", required=True)
-    parser.add_argument("--probe-root", required=True)
-    args = parser.parse_args(argv)
-    git_result = command_runner(
-        ["git", "-C", str(repo_root), "rev-parse", "--show-toplevel"],
-        cwd=repo_root,
-        check=False,
-        stdin=subprocess.DEVNULL,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-    )
-    if git_result.returncode != 0:
-        return git_result.returncode
-    payload = {
-        "collections": [{
-            "deleted_receipt_path": None,
-            "path": "orchestrator/tests/test_known.py",
-            "request_id": None,
-            "source": str(repo_root) + "|dont=" + str(sys.dont_write_bytecode),
-            "stdout_sha256": "f" * 64,
-            "submission_nonce": None,
-        }],
-        "log_path": args.log,
-        "log_sha256": hashlib.sha256(Path(args.log).read_bytes()).hexdigest(),
-        "nodes": [{
-            "classification": "non-attributable",
-            "nodeid": "orchestrator/tests/test_known.py::test_known",
-            "rerun_rc": 1,
-        }],
-        "schema_version": "izanagi-acceptance-red-check/v1",
-        "status": "non-attributable-only",
-        "submodules": [],
-        "tested_main": args.tested_main,
-        "wave_tip": args.wave_tip,
-    }
-    Path(args.receipt).write_text(
-        json.dumps(payload, sort_keys=True, separators=(",", ":")) + "\\n",
-        encoding="ascii",
-    )
-    return int(os.environ.get("IZANAGI_CHECKER_TEST_RC", "0"))
-'''
-
-_BOOTSTRAP_GIT_PROBE_SOURCE = b'''\
-import json
-import subprocess
-from pathlib import Path
-
-def main(argv=None, *, repo_root=None, command_runner=subprocess.run):
-    observed = {}
-    def recording_run(command, *args, **kwargs):
-        observed["command"] = command
-        observed["environment"] = kwargs.get("env")
-        return subprocess.CompletedProcess(command, 0, "", "")
-    subprocess.run = recording_run
-    completed = command_runner(
-        ["git", "status"],
-        cwd=repo_root,
-        env={
-            "GIT_ALLOW_PROTOCOL": "file",
-            "GIT_ATTR_NOSYSTEM": "0",
-            "GIT_CONFIG_GLOBAL": "/attacker/global",
-            "GIT_CONFIG_SYSTEM": "/attacker/system",
-            "GIT_NO_REPLACE_OBJECTS": "0",
-            "GIT_OPTIONAL_LOCKS": "checker-value",
-            "NON_GIT_SENTINEL": "preserved",
-        },
-    )
-    Path(repo_root, "bootstrap-git-probe.json").write_text(
-        json.dumps(observed), encoding="ascii"
-    )
-    return completed.returncode
-'''
-
-_REAL_REPLACE_NODEID = "orchestrator/tests/test_known.py::test_known"
-
-
-def _real_probe_runner_source(*, node_rc: int) -> str:
-    if node_rc == 1:
-        terminal = (
-            "print('=== short test summary info ===')\n"
-            "print('FAILED ' + node + ' - synthetic known red')\n"
-            "print('=== 1 failed in 0.01s ===')\n"
-        )
-    else:
-        terminal = "print('=== 1 passed in 0.01s ===')\n"
-    return (
-        "import sys\n"
-        f"node={_REAL_REPLACE_NODEID!r}\n"
-        "if '--collect-only' in sys.argv:\n"
-        "    print(node)\n"
-        "    print('1 test collected in 0.01s')\n"
-        "    raise SystemExit(0)\n"
-        + terminal
-        + f"raise SystemExit({node_rc})\n"
-    )
-
-
-def _real_red_git(repo: Path, *args: str) -> str:
-    completed = subprocess.run(
-        [DW._GIT_EXE, *DW._GIT_CONFIG, "-C", str(repo), *args],
-        cwd=repo,
-        env=DW._git_env(),
-        check=False,
-        stdin=subprocess.DEVNULL,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        text=True,
-    )
-    assert completed.returncode == 0, (args, completed.stderr)
-    return completed.stdout.strip()
-
-
-def _real_red_checker_repo(tmp_path: Path) -> tuple[Path, str, str]:
-    repo = tmp_path / "repo"
-    repo.mkdir()
-    initialized = subprocess.run(
-        [DW._GIT_EXE, "init", "-q", "-b", "main", str(repo)],
-        env=DW._git_env(),
-        check=False,
-        stdin=subprocess.DEVNULL,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-    )
-    assert initialized.returncode == 0, initialized.stderr
-    checker = repo / DW._RED_CHECKER_PATH
-    checker.parent.mkdir()
-    checker.write_bytes(_REAL_RED_CHECKER_SOURCE)
-    runner = repo / "tools/run_tests.py"
-    runner.write_bytes(b"raise SystemExit(0)\n")
-    _real_red_git(
-        repo,
-        "add",
-        DW._RED_CHECKER_PATH,
-        "tools/run_tests.py",
-    )
-    _real_red_git(
-        repo,
-        "-c",
-        "user.name=Dev Wave Test",
-        "-c",
-        "user.email=dev-wave@example.invalid",
-        "commit",
-        "-qm",
-        "checker",
-    )
-    tested_main = _real_red_git(repo, "rev-parse", "HEAD")
-    (repo / "unrelated.txt").write_text("tip differs\n", encoding="ascii")
-    _real_red_git(repo, "add", "unrelated.txt")
-    _real_red_git(
-        repo,
-        "-c",
-        "user.name=Dev Wave Test",
-        "-c",
-        "user.email=dev-wave@example.invalid",
-        "commit",
-        "-qm",
-        "unrelated",
-    )
-    tested_tip = _real_red_git(repo, "rev-parse", "HEAD")
-    assert tested_main != tested_tip
-    assert _real_red_git(
-        repo,
-        "rev-parse",
-        f"{tested_main}:tools/run_tests.py",
-    ) == _real_red_git(
-        repo,
-        "rev-parse",
-        f"{tested_tip}:tools/run_tests.py",
-    )
-    return repo, tested_main, tested_tip
-
-
-def _real_replace_ref_repo(
-    tmp_path: Path,
-) -> tuple[Path, str, str, bytes]:
-    repo = tmp_path / "replace-repo"
-    repo.mkdir()
-    initialized = subprocess.run(
-        [DW._GIT_EXE, "init", "-q", "-b", "main", str(repo)],
-        env=DW._git_env(),
-        check=False,
-        stdin=subprocess.DEVNULL,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-    )
-    assert initialized.returncode == 0, initialized.stderr
-    checker = repo / DW._RED_CHECKER_PATH
-    checker.parent.mkdir()
-    shutil.copy2(_ROOT / DW._RED_CHECKER_PATH, checker)
-    original_checker = checker.read_bytes()
-    runner = repo / "tools" / "run_tests.py"
-    runner.write_text(_real_probe_runner_source(node_rc=1), encoding="ascii")
-    _real_red_git(repo, "add", DW._RED_CHECKER_PATH, "tools/run_tests.py")
-    _real_red_git(
-        repo,
-        "-c",
-        "user.name=Dev Wave Test",
-        "-c",
-        "user.email=dev-wave@example.invalid",
-        "commit",
-        "-qm",
-        "tested main",
-    )
-    tested_main = _real_red_git(repo, "rev-parse", "HEAD")
-
-    _real_red_git(repo, "checkout", "-qb", "crafted")
-    checker.write_text("raise SystemExit(99)\n", encoding="ascii")
-    runner.write_text(_real_probe_runner_source(node_rc=0), encoding="ascii")
-    _real_red_git(repo, "add", DW._RED_CHECKER_PATH, "tools/run_tests.py")
-    _real_red_git(
-        repo,
-        "-c",
-        "user.name=Dev Wave Test",
-        "-c",
-        "user.email=dev-wave@example.invalid",
-        "commit",
-        "-qm",
-        "crafted replacement",
-    )
-    replacement = _real_red_git(repo, "rev-parse", "HEAD")
-
-    _real_red_git(repo, "checkout", "-q", "main")
-    tested_tip = _real_red_git(repo, "rev-parse", "HEAD")
-    _real_red_git(repo, "replace", tested_main, replacement)
-    assert tested_main == tested_tip
-    return repo, tested_main, tested_tip, original_checker
-
-
-def _verify_real_red_checker(
-    repo: Path,
-    tested_main: str,
-    tested_tip: str,
-    tmp_path: Path,
-) -> object:
-    log_file = tmp_path / "acceptance.log"
-    receipt = tmp_path / "checker-receipt.json"
-    log_file.write_bytes(b"real red log\n")
-    return DW._verify_red_check_receipt(
-        effects=DW._default_effects(),
-        repo=repo,
-        log_file=log_file,
-        checker_receipt=receipt,
-        probe_root=tmp_path,
-        tested_main=tested_main,
-        tested_tip=tested_tip,
-        log_sha256=hashlib.sha256(log_file.read_bytes()).hexdigest(),
-    )
-
-
-def test_red_checker_executes_verified_snapshot_after_path_replacement(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    repo, tested_main, tested_tip = _real_red_checker_repo(tmp_path)
-    (repo / DW._RED_CHECKER_PATH).write_text(
-        "raise SystemExit(47)\n",
-        encoding="ascii",
-    )
-    monkeypatch.setenv("PYTHONDONTWRITEBYTECODE", "1")
-
-    result = _verify_real_red_checker(repo, tested_main, tested_tip, tmp_path)
-
-    expected_blob = _real_red_git(
-        repo,
-        "rev-parse",
-        f"{tested_main}:{DW._RED_CHECKER_PATH}",
-    )
-    payload = json.loads((tmp_path / "checker-receipt.json").read_text("ascii"))
-    assert result.checker_blob_sha == expected_blob
-    assert payload["collections"][0]["source"] == f"{repo}|dont=True"
-    assert result.red_nodeids == (
-        "orchestrator/tests/test_known.py::test_known",
-    )
-
-
-def test_red_checker_bootstrap_propagates_exit_code(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    repo, tested_main, tested_tip = _real_red_checker_repo(tmp_path)
-    log_file = tmp_path / "acceptance.log"
-    log_file.write_bytes(b"real red log\n")
-    binding = DW._verified_red_checker_source(
-        DW._default_effects(),
-        repo,
-        tested_main,
-        tested_tip,
-        "acceptance-red-check",
-    )
-    monkeypatch.setenv("IZANAGI_CHECKER_TEST_RC", "17")
-
-    completed = DW._run_with_input(
-        DW._default_effects(),
-        DW._red_checker_argv(
-            repo=repo,
-            log_file=log_file,
-            checker_receipt=tmp_path / "checker-receipt.json",
-            probe_root=tmp_path,
-            tested_main=tested_main,
-            tested_tip=tested_tip,
-        ),
-        repo,
-        binding.source,
-        "acceptance-red-check",
-        capture=False,
-    )
-
-    assert completed.returncode == 17
-
-
-def test_red_checker_bootstrap_ignores_pythonpath_shadow(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    repo, tested_main, tested_tip = _real_red_checker_repo(tmp_path)
-    shadow = tmp_path / "shadow"
-    shadow.mkdir()
-    (shadow / "argparse.py").write_text(
-        "raise SystemExit(89)\n",
-        encoding="ascii",
-    )
-    monkeypatch.setenv("PYTHONPATH", str(shadow))
-
-    result = _verify_real_red_checker(repo, tested_main, tested_tip, tmp_path)
-
-    assert result.checker_status == "non-attributable-only"
-
-
-def _run_bootstrap_git_probe(repo: Path) -> dict[str, object]:
-    completed = DW._default_run_with_input(
-        DW._red_checker_argv(
-            repo=repo,
-            log_file=repo / "acceptance.log",
-            checker_receipt=repo / "checker-receipt.json",
-            probe_root=repo,
-            tested_main=_SHA_A,
-            tested_tip=_SHA_B,
-        ),
-        repo,
-        False,
-        _BOOTSTRAP_GIT_PROBE_SOURCE,
-    )
-    assert completed.returncode == 0
-    return json.loads((repo / "bootstrap-git-probe.json").read_text("ascii"))
-
-
-def test_red_checker_bootstrap_preserves_explicit_git_environment_and_forces_authority(
-    tmp_path: Path,
-) -> None:
-    observed = _run_bootstrap_git_probe(tmp_path)
-    environment = observed["environment"]
-
-    assert isinstance(environment, dict)
-    assert environment["GIT_ALLOW_PROTOCOL"] == "file"
-    assert environment["GIT_OPTIONAL_LOCKS"] == "checker-value"
-    assert environment["NON_GIT_SENTINEL"] == "preserved"
-    assert environment["GIT_CONFIG_GLOBAL"] == os.devnull
-    assert environment["GIT_CONFIG_SYSTEM"] == os.devnull
-    assert environment["GIT_ATTR_NOSYSTEM"] == "1"
-    assert environment["GIT_NO_REPLACE_OBJECTS"] == "1"
-
-
-def test_red_checker_bootstrap_does_not_forbid_file_protocol(
-    tmp_path: Path,
-) -> None:
-    observed = _run_bootstrap_git_probe(tmp_path)
-    command = observed["command"]
-
-    assert isinstance(command, list)
-    assert command[0] == DW._GIT_EXE
-    assert command[1:1 + len(DW._GIT_AUTHORITY_CONFIG)] == list(
-        DW._GIT_AUTHORITY_CONFIG
-    )
-    assert "core.hooksPath=/dev/null" in command
-    assert "protocol.file.allow=never" not in command
-    assert command[-1] == "status"
-
-
-def test_red_checker_blob_lookup_uses_hardened_git(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    repo, tested_main, tested_tip = _real_red_checker_repo(tmp_path)
-    shim_dir = tmp_path / "shim"
-    shim_dir.mkdir()
-    marker = tmp_path / "path-git-ran"
-    shim = shim_dir / "git"
-    shim.write_text(
-        "#!/bin/sh\nprintf used > " + str(marker) + "\nexit 99\n",
-        encoding="ascii",
-    )
-    shim.chmod(0o755)
-    monkeypatch.setenv("PATH", str(shim_dir))
-
-    result = _verify_real_red_checker(repo, tested_main, tested_tip, tmp_path)
-
-    assert result.checker_status == "non-attributable-only"
-    assert not marker.exists()
-
-
-def test_red_checker_blob_lookup_ignores_replace_ref(tmp_path: Path) -> None:
-    repo, tested_main, tested_tip, original_checker = _real_replace_ref_repo(
-        tmp_path
-    )
-    replaced_env = DW._git_env()
-    replaced_env.pop("GIT_NO_REPLACE_OBJECTS")
-    replaced = subprocess.run(
-        [
-            DW._GIT_EXE,
-            *DW._GIT_CONFIG,
-            "-C",
-            str(repo),
-            "cat-file",
-            "blob",
-            f"{tested_main}:{DW._RED_CHECKER_PATH}",
-        ],
-        cwd=repo,
-        env=replaced_env,
-        check=False,
-        stdin=subprocess.DEVNULL,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-    )
-    assert replaced.returncode == 0, replaced.stderr
-    assert replaced.stdout != original_checker
-
-    binding = DW._verified_red_checker_source(
-        DW._default_effects(),
-        repo,
-        tested_main,
-        tested_tip,
-        "acceptance-red-check",
-    )
-
-    assert binding.source == original_checker
-
-
-def test_red_checker_internal_git_ignores_replace_ref(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    repo, tested_main, tested_tip, _original_checker = _real_replace_ref_repo(
-        tmp_path
-    )
-    shim_dir = tmp_path / "inner-git-shim"
-    shim_dir.mkdir()
-    marker = tmp_path / "inner-path-git-ran"
-    shim = shim_dir / "git"
-    shim.write_text(
-        "#!/bin/sh\nprintf used > "
-        + str(marker)
-        + "\nexec "
-        + DW._GIT_EXE
-        + ' "$@"\n',
-        encoding="ascii",
-    )
-    shim.chmod(0o755)
-    monkeypatch.setenv("PATH", str(shim_dir))
-    log_file = tmp_path / "replace-red.log"
-    log_file.write_text(
-        "=== short test summary info ===\n"
-        f"FAILED {_REAL_REPLACE_NODEID} - synthetic known red\n"
-        "=== 1 failed in 0.01s ===\n",
-        encoding="ascii",
-    )
-
-    result = DW._verify_red_check_receipt(
-        effects=DW._default_effects(),
-        repo=repo,
-        log_file=log_file,
-        checker_receipt=tmp_path / "replace-checker-receipt.json",
-        probe_root=tmp_path,
-        tested_main=tested_main,
-        tested_tip=tested_tip,
-        log_sha256=hashlib.sha256(log_file.read_bytes()).hexdigest(),
-    )
-
-    assert result.checker_status == "non-attributable-only"
-    assert result.red_nodeids == (_REAL_REPLACE_NODEID,)
-    assert not marker.exists()
-
-
-def test_red_checker_git_calls_are_routed_through_command_runner() -> None:
-    tree = ast.parse(
-        (_ROOT / DW._RED_CHECKER_PATH).read_text(encoding="utf-8")
-    )
-    direct_subprocess_calls = []
-    git_calls = []
-    for node in ast.walk(tree):
-        if not isinstance(node, ast.Call):
-            continue
-        if (
-            isinstance(node.func, ast.Attribute)
-            and isinstance(node.func.value, ast.Name)
-            and node.func.value.id == "subprocess"
-        ):
-            direct_subprocess_calls.append((node.lineno, node.func.attr))
-        if isinstance(node.func, ast.Name) and node.func.id == "_git":
-            git_calls.append(node)
-
-    assert direct_subprocess_calls == []
-    assert git_calls
-    assert all(
-        any(keyword.arg == "command_runner" for keyword in call.keywords)
-        for call in git_calls
-    )
-
-
-def test_red_checker_gate_git_environment_is_hardened(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    monkeypatch.setenv("GIT_DIR", "/attacker/repository")
-    monkeypatch.setenv("GIT_NO_REPLACE_OBJECTS", "0")
-    monkeypatch.setenv("GIT_CONFIG_GLOBAL", "/attacker/config")
-
-    env = DW._git_env()
-    argv = DW._red_gate_git_argv(_REPO, "rev-parse", "--verify", "HEAD")
-
-    assert argv[0] == "/usr/bin/git" == DW._GIT_EXE
-    assert argv[1:1 + len(DW._GIT_CONFIG)] == DW._GIT_CONFIG
-    assert "GIT_DIR" not in env
-    assert env["GIT_NO_REPLACE_OBJECTS"] == "1"
-    assert env["GIT_CONFIG_GLOBAL"] == os.devnull
-    assert env["GIT_CONFIG_SYSTEM"] == os.devnull
-    assert env["LC_ALL"] == "C"
-
-
-def test_red_checker_bootstrap_has_no_short_outer_timeout(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    calls: list[tuple[list[str], dict[str, object]]] = []
-
-    def recording_run(argv: list[str], **kwargs: object) -> object:
-        calls.append((argv, kwargs))
-        return subprocess.CompletedProcess(argv, 0, None, None)
-
-    monkeypatch.setattr(DW.subprocess, "run", recording_run)
-    argv = _checker_argv()
-
-    result = DW._default_run_with_input(
-        argv,
-        _REPO,
-        False,
-        _CHECKER_SOURCE,
-    )
-
-    assert result.returncode == 0
-    assert calls == [(list(argv), {
-        "input": _CHECKER_SOURCE,
-        "check": False,
-        "cwd": _REPO,
-        "shell": False,
-        "text": False,
-    })]
-    assert argv[1] == "-I"
-    assert "timeout" not in calls[0][1]
-
-
-def test_failed_acceptance_never_publishes_receipt() -> None:
     fake = _FakeEffects()
     _queue_clean_acceptance_prefix(fake)
     fake.expect_run(_COMMAND, DW._CommandResult(1), capture=False)
-    _queue_checker(fake, status="green", nodes=[], runner_gate=False)
     _release(fake)
 
     outcome = _run_acceptance(fake)
 
-    assert outcome == DW._Outcome(70, "acceptance-red-check")
+    assert outcome == DW._Outcome(70, "acceptance-command", 1)
+    assert not any(
+        event[0] in {"run", "run_with_input"}
+        and isinstance(event[1], tuple)
+        and any(
+            isinstance(argument, str)
+            and "tools/check_acceptance_reds.py" in argument
+            for argument in event[1]
+        )
+        for event in fake.events
+    )
     assert fake.receipt_content is None
     assert fake.receipt_published is False
     fake.assert_drained()
@@ -4109,7 +2804,7 @@ def test_failed_acceptance_never_publishes_receipt() -> None:
     [2, 13, 16, 23, -signal.SIGTERM],
     ids=("pytest-usage", "deletion-gate", "dispatch", "audit", "signal"),
 )
-def test_non_pytest_failure_rc_rejected_without_red_checker(
+def test_non_pytest_failure_rc_rejected_without_extra_command(
     raw_child_rc: int,
 ) -> None:
     fake = _FakeEffects()
@@ -4128,212 +2823,9 @@ def test_non_pytest_failure_rc_rejected_without_red_checker(
         "acceptance-command",
         DW._normalize_child_rc(raw_child_rc),
     )
-    assert not any(_is_checker_execution_event(event) for event in fake.events)
+    assert not any(event[0] == "run_with_input" for event in fake.events)
     assert fake.receipt_content is None
     assert fake.receipt_published is False
-    fake.assert_drained()
-
-
-@pytest.mark.parametrize("checker_rc", [1, 2], ids=("attributable", "unknown"))
-def test_failed_acceptance_rejects_nonzero_checker_rc(checker_rc: int) -> None:
-    fake = _FakeEffects()
-    _queue_clean_acceptance_prefix(fake)
-    fake.expect_run(_COMMAND, DW._CommandResult(1), capture=False)
-    _queue_checker(fake, rc=checker_rc)
-    _release(fake)
-
-    outcome = _run_acceptance(fake)
-
-    assert outcome == DW._Outcome(
-        70,
-        "acceptance-red-check",
-        checker_rc,
-    )
-    assert fake.receipt_content is None
-    assert fake.receipt_published is False
-    fake.assert_drained()
-
-
-def test_non_attributable_only_publishes_receipt_with_real_child_rc() -> None:
-    fake = _FakeEffects()
-    fake.logged_bytes = b"synthetic failing pytest log\n" + _scheduler_marker()
-    lifecycle = DW._AcceptanceLifecycle()
-    _queue_clean_acceptance_prefix(fake)
-    fake.expect_run(_COMMAND, DW._CommandResult(1), capture=False)
-    checker_raw = _queue_checker(fake)
-    _queue_non_attributable_receipt_tail(fake)
-
-    outcome = _run_acceptance(fake, lifecycle=lifecycle)
-
-    assert outcome == DW._Outcome(0)
-    receipt = json.loads(fake.receipt_content)
-    assert receipt["verdict"] == "non-attributable-only"
-    assert receipt["child_rc"] == 1
-    assert receipt["checker_rc"] == 0
-    assert receipt["checker_status"] == "non-attributable-only"
-    assert receipt["checker_blob_sha"] == _CHECKER_BLOB
-    assert receipt["checker_receipt_sha256"] == hashlib.sha256(
-        checker_raw
-    ).hexdigest()
-    assert receipt["red_nodeids"] == [
-        "orchestrator/tests/test_known.py::test_known"
-    ]
-    assert receipt["flake_nodeids"] == []
-    assert receipt["log_sha256"] == hashlib.sha256(fake.logged_bytes).hexdigest()
-    fake.assert_drained()
-
-
-def test_flake_only_publishes_v5_receipt_with_separate_nodeids() -> None:
-    fake = _FakeEffects()
-    fake.logged_bytes = b"synthetic flaky pytest log\n" + _scheduler_marker()
-    lifecycle = DW._AcceptanceLifecycle()
-    _queue_clean_acceptance_prefix(fake)
-    fake.expect_run(_COMMAND, DW._CommandResult(1), capture=False)
-    flake = "orchestrator/tests/test_flake.py::test_flake"
-    _queue_checker(fake, nodes=[{
-        "classification": "flake",
-        "main_rerun_rc": 0,
-        "nodeid": flake,
-        "rerun_rc": 0,
-        "wave_rerun_rc": 0,
-    }])
-    _queue_non_attributable_receipt_tail(fake)
-
-    outcome = _run_acceptance(fake, lifecycle=lifecycle)
-
-    assert outcome == DW._Outcome(0)
-    receipt = json.loads(fake.receipt_content)
-    assert receipt["schema_version"] == "dev-wave-acceptance-receipt/v5"
-    assert receipt["red_nodeids"] == []
-    assert receipt["flake_nodeids"] == [flake]
-    fake.assert_drained()
-
-
-def test_mixed_red_and_flake_receipt_preserves_disjoint_sets() -> None:
-    fake = _FakeEffects()
-    fake.logged_bytes = b"synthetic mixed pytest log\n" + _scheduler_marker()
-    lifecycle = DW._AcceptanceLifecycle()
-    _queue_clean_acceptance_prefix(fake)
-    fake.expect_run(_COMMAND, DW._CommandResult(1), capture=False)
-    red = "a.py::test_red"
-    flake = "b.py::test_flake"
-    _queue_checker(fake, nodes=[
-        {"classification": "non-attributable", "nodeid": red, "rerun_rc": 1},
-        {
-            "classification": "flake",
-            "main_rerun_rc": 0,
-            "nodeid": flake,
-            "rerun_rc": 0,
-            "wave_rerun_rc": 0,
-        },
-    ])
-    _queue_non_attributable_receipt_tail(fake)
-
-    outcome = _run_acceptance(fake, lifecycle=lifecycle)
-
-    assert outcome == DW._Outcome(0)
-    receipt = json.loads(fake.receipt_content)
-    assert receipt["red_nodeids"] == [red]
-    assert receipt["flake_nodeids"] == [flake]
-    fake.assert_drained()
-
-
-def test_checker_receipt_log_hash_mismatch_is_rejected() -> None:
-    fake = _FakeEffects()
-    fake.logged_bytes = b"owned log bytes\n" + _scheduler_marker()
-    _queue_clean_acceptance_prefix(fake)
-    fake.expect_run(_COMMAND, DW._CommandResult(1), capture=False)
-    _queue_checker(
-        fake,
-        log_sha256=hashlib.sha256(b"other log").hexdigest(),
-        runner_gate=False,
-    )
-    _release(fake)
-
-    outcome = _run_acceptance(fake)
-
-    assert outcome == DW._Outcome(70, "acceptance-red-check")
-    assert fake.receipt_content is None
-    fake.assert_drained()
-
-
-def test_checker_receipt_without_collections_is_rejected() -> None:
-    fake = _FakeEffects()
-    _queue_clean_acceptance_prefix(fake)
-    fake.expect_run(_COMMAND, DW._CommandResult(1), capture=False)
-    checker_raw = _queue_checker(fake, runner_gate=False)
-    payload = json.loads(checker_raw)
-    del payload["collections"]
-    fake.byte_files[_CHECKER_RECEIPT] = (
-        json.dumps(payload, sort_keys=True, separators=(",", ":")) + "\n"
-    ).encode("ascii")
-    _release(fake)
-
-    outcome = _run_acceptance(fake)
-
-    assert outcome == DW._Outcome(70, "acceptance-red-check")
-    assert fake.receipt_content is None
-    fake.assert_drained()
-
-
-def test_checker_receipt_collection_with_unknown_field_is_rejected() -> None:
-    fake = _FakeEffects()
-    _queue_clean_acceptance_prefix(fake)
-    fake.expect_run(_COMMAND, DW._CommandResult(1), capture=False)
-    checker_raw = _queue_checker(fake, runner_gate=False)
-    payload = json.loads(checker_raw)
-    payload["collections"][0]["unknown"] = "rejected"
-    fake.byte_files[_CHECKER_RECEIPT] = (
-        json.dumps(payload, sort_keys=True, separators=(",", ":")) + "\n"
-    ).encode("ascii")
-    _release(fake)
-
-    outcome = _run_acceptance(fake)
-
-    assert outcome == DW._Outcome(70, "acceptance-red-check")
-    assert fake.receipt_content is None
-    fake.assert_drained()
-
-
-def test_checker_receipt_with_current_collections_schema_is_accepted() -> None:
-    fake = _FakeEffects()
-    _queue_clean_acceptance_prefix(fake)
-    fake.expect_run(_COMMAND, DW._CommandResult(1), capture=False)
-    _queue_checker(fake)
-    _queue_non_attributable_receipt_tail(fake)
-
-    outcome = _run_acceptance(fake)
-
-    assert outcome == DW._Outcome(0)
-    assert json.loads(fake.receipt_content)["verdict"] == "non-attributable-only"
-    fake.assert_drained()
-
-
-@pytest.mark.parametrize(
-    "field",
-    ("schema_version", "wave_tip", "tested_main", "classification"),
-)
-def test_checker_receipt_identity_and_nodes_are_bound(field: str) -> None:
-    fake = _FakeEffects()
-    _queue_clean_acceptance_prefix(fake)
-    fake.expect_run(_COMMAND, DW._CommandResult(1), capture=False)
-    checker_raw = _queue_checker(fake, runner_gate=False)
-    payload = json.loads(checker_raw)
-    if field == "schema_version":
-        payload[field] = "izanagi-acceptance-red-check/v0"
-    elif field in {"wave_tip", "tested_main"}:
-        payload[field] = _SHA_B
-    else:
-        payload["nodes"][0][field] = "attributable"
-    fake.byte_files[_CHECKER_RECEIPT] = (
-        json.dumps(payload, sort_keys=True, separators=(",", ":")) + "\n"
-    ).encode("ascii")
-    _release(fake)
-
-    outcome = _run_acceptance(fake)
-
-    assert outcome == DW._Outcome(70, "acceptance-red-check")
-    assert fake.receipt_content is None
     fake.assert_drained()
 
 
@@ -4341,7 +2833,7 @@ def test_checker_receipt_identity_and_nodes_are_bound(field: str) -> None:
     "postcheck",
     ("postrun-clean", "postrun-index-flags", "postrun-fingerprint"),
 )
-def test_postrun_failure_prevents_red_checker(postcheck: str) -> None:
+def test_postrun_integrity_failure_precedes_child_failure(postcheck: str) -> None:
     fake = _FakeEffects()
     _queue_clean_acceptance_prefix(fake)
     fake.expect_run(
@@ -4362,7 +2854,7 @@ def test_postrun_failure_prevents_red_checker(postcheck: str) -> None:
     outcome = _run_acceptance(fake)
 
     assert outcome == DW._Outcome(70, postcheck)
-    assert not any(_is_checker_execution_event(event) for event in fake.events)
+    assert not any(event[0] == "run_with_input" for event in fake.events)
     fake.assert_drained()
 
 
@@ -4466,94 +2958,9 @@ def test_launcher_receipt_rejects_invalid_fields(
         _launcher_receipt_bytes(**arguments)
 
 
-@pytest.mark.parametrize(
-    ("verdict", "child_rc", "red_check", "reason", "observed"),
-    (
-        (
-            "child-green",
-            1,
-            None,
-            "receipt-child-green",
-            {"child_rc": 1, "red_check_present": None},
-        ),
-        (
-            "child-green",
-            0,
-            _red_check(),
-            "receipt-child-green",
-            {"child_rc": 0, "red_check_present": True},
-        ),
-        (
-            "non-attributable-only",
-            0,
-            None,
-            "receipt-non-attributable",
-            {
-                "child_rc": 0,
-                "red_check_present": None,
-                "red_nodeid_count": None,
-                "flake_nodeid_count": None,
-            },
-        ),
-        (
-            "non-attributable-only",
-            1,
-            None,
-            "receipt-non-attributable",
-            {
-                "child_rc": 1,
-                "red_check_present": False,
-                "red_nodeid_count": None,
-                "flake_nodeid_count": None,
-            },
-        ),
-        (
-            "non-attributable-only",
-            1,
-            _red_check(red_nodeids=()),
-            "receipt-non-attributable",
-            {
-                "child_rc": 1,
-                "red_check_present": True,
-                "red_nodeid_count": 0,
-                "flake_nodeid_count": 0,
-            },
-        ),
-    ),
-    ids=(
-        "child-green",
-        "child-green-red-check",
-        "non-attributable-child-rc",
-        "non-attributable-missing-red-check",
-        "non-attributable-empty-nodeids",
-    ),
-)
-def test_launcher_receipt_rejects_inconsistent_outcome(
-    verdict: str,
-    child_rc: int,
-    red_check: object,
-    reason: str,
-    observed: dict[str, object],
-) -> None:
-    del reason, observed
+def test_launcher_receipt_rejects_nonzero_child_for_child_green() -> None:
     arguments = _valid_receipt_arguments()
-    arguments.update(
-        verdict=verdict,
-        child_rc=child_rc,
-        red_check=red_check,
-    )
-
-    with pytest.raises(LA.LauncherFailure):
-        _launcher_receipt_bytes(**arguments)
-
-
-def test_acceptance_receipt_rejects_overlapping_red_check_sets_directly() -> None:
-    arguments = _valid_receipt_arguments()
-    arguments.update(
-        child_rc=1,
-        verdict="non-attributable-only",
-        red_check=_red_check(red_nodeids=("a",), flake_nodeids=("a",)),
-    )
+    arguments["child_rc"] = 1
 
     with pytest.raises(LA.LauncherFailure):
         _launcher_receipt_bytes(**arguments)
@@ -4687,7 +3094,7 @@ def test_trusted_launcher_source_never_falls_back_to_tip() -> None:
         f"100644 blob {_LAUNCHER_BLOB}\ttools/acceptance_launcher.py\0"
     ).encode("ascii")
     fake.expect_run_with_input(
-        DW._red_gate_git_argv(
+        DW._trusted_blob_git_argv(
             _REPO,
             "ls-tree",
             "-z",
@@ -4699,14 +3106,14 @@ def test_trusted_launcher_source_never_falls_back_to_tip() -> None:
         DW._BinaryCommandResult(0, tree),
     )
     fake.expect_run_with_input(
-        DW._red_gate_git_argv(
+        DW._trusted_blob_git_argv(
             _REPO, "cat-file", "blob", _LAUNCHER_BLOB
         ),
         b"",
         DW._BinaryCommandResult(0, _LAUNCHER_SOURCE),
     )
     fake.expect_run_with_input(
-        DW._red_gate_git_argv(
+        DW._trusted_blob_git_argv(
             _REPO, "hash-object", "--stdin", "--no-filters"
         ),
         _LAUNCHER_SOURCE,
@@ -4740,7 +3147,7 @@ def test_missing_main_launcher_selects_tested_tip_bootstrap() -> None:
     ).encode("ascii")
     for revision, tree in ((_SHA_A, b""), (_SHA_B, tip_tree)):
         fake.expect_run_with_input(
-            DW._red_gate_git_argv(
+            DW._trusted_blob_git_argv(
                 _REPO,
                 "ls-tree",
                 "-z",
@@ -4752,14 +3159,14 @@ def test_missing_main_launcher_selects_tested_tip_bootstrap() -> None:
             DW._BinaryCommandResult(0, tree),
         )
     fake.expect_run_with_input(
-        DW._red_gate_git_argv(
+        DW._trusted_blob_git_argv(
             _REPO, "cat-file", "blob", _LAUNCHER_BLOB
         ),
         b"",
         DW._BinaryCommandResult(0, _LAUNCHER_SOURCE),
     )
     fake.expect_run_with_input(
-        DW._red_gate_git_argv(
+        DW._trusted_blob_git_argv(
             _REPO, "hash-object", "--stdin", "--no-filters"
         ),
         _LAUNCHER_SOURCE,
@@ -6009,74 +4416,6 @@ def test_dangling_log_path_is_rejected_before_claim() -> None:
 
 
 @pytest.mark.parametrize(
-    "case",
-    (
-        "existing-checker-receipt",
-        "dangling-checker-receipt",
-        "symlink-probe-root",
-        "dangling-symlink-probe-root",
-    ),
-)
-def test_red_checker_paths_are_rejected_before_claim(case: str) -> None:
-    fake = _FakeEffects()
-    if case == "existing-checker-receipt":
-        fake.existing_paths.add(_CHECKER_RECEIPT)
-    elif case == "dangling-checker-receipt":
-        fake.symlinks.add(_CHECKER_RECEIPT)
-    else:
-        fake.symlinks.add(_LOG.parent)
-        if case == "dangling-symlink-probe-root":
-            fake.directories.remove(_LOG.parent)
-    _preflight(fake, claim_guards=False)
-
-    outcome = _run_acceptance(fake)
-
-    expected_stage = (
-        "acceptance-receipt-preflight"
-        if case == "dangling-symlink-probe-root"
-        else "acceptance-red-check-preflight"
-    )
-    assert outcome == DW._Outcome(2, expected_stage)
-    assert not any(
-        event[0] == "run" and event[1] == _helper("claim", _SHA_A)
-        for event in fake.events
-    )
-    fake.assert_drained()
-
-
-def test_dangling_probe_root_is_rejected_before_claim(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    fake = _FakeEffects()
-    log_file = Path("/red-check-probe/acceptance.log")
-    probe_root = log_file.parent
-    fake.directories.add(probe_root)
-    fake.symlinks.add(probe_root)
-    probe_root_dir_checks = 0
-    original_is_dir = fake.is_dir
-
-    def is_dir(path: Path) -> bool:
-        nonlocal probe_root_dir_checks
-        if path == probe_root:
-            probe_root_dir_checks += 1
-            return probe_root_dir_checks == 1
-        return original_is_dir(path)
-
-    monkeypatch.setattr(fake, "is_dir", is_dir)
-    _preflight(fake, claim_guards=False)
-
-    outcome = _run_acceptance(fake, log_file=log_file)
-
-    assert outcome == DW._Outcome(2, "acceptance-red-check-preflight")
-    assert probe_root_dir_checks == 2
-    assert not any(
-        event[0] == "run" and event[1] == _helper("claim", _SHA_A)
-        for event in fake.events
-    )
-    fake.assert_drained()
-
-
-@pytest.mark.parametrize(
     ("key", "value"),
     [
         ("PYTEST_ADDOPTS", "-k nothing"),
@@ -6648,28 +4987,70 @@ def test_producer_file_visibility_grace_is_bounded() -> None:
 
 
 @pytest.mark.parametrize(
-    "state", ["held", "queued", "stale-held", "unavailable"],
-    ids=("held", "queued", "stale-held", "unavailable"),
+    ("state", "lease_optional"),
+    [
+        pytest.param("held", False, id="held-default"),
+        pytest.param("held", True, id="held-legacy-flag"),
+        pytest.param("queued", False, id="queued-default"),
+        pytest.param("queued", True, id="queued-legacy-flag"),
+    ],
 )
-def test_acceptance_non_accepted_state_never_runs_command(state: str) -> None:
+def test_acceptance_claim_is_single_nonblocking(
+    state: str,
+    lease_optional: bool,
+) -> None:
+    """Pin A: 未取得経路では、投入前の claim を一度だけ試みる。"""
+
+    def run_once(flag: bool) -> tuple[object, ...]:
+        fake = _RoutingAcceptanceEffects(
+            behind=[0, 0],
+            claim_payload=json.dumps({"state": state}),
+        )
+        outcome = _run_acceptance(fake, lease_optional=flag)
+
+        assert outcome.rc == 0
+        assert (fake.claims, fake.submissions, fake.releases) == (1, 1, 0)
+        assert not any(event[0] == "sleep" for event in fake.events)
+        assert fake.receipt_published is True
+        assert fake.receipt_content is not None
+        receipt = json.loads(fake.receipt_content)
+        assert receipt["lease_holder"] == _HOLDER
+        assert not any(
+            event[0] == "run" and event[1] == _helper("release")
+            for event in fake.events
+        )
+        fake.assert_drained()
+        return (
+            outcome.rc,
+            fake.claims,
+            fake.submissions,
+            fake.releases,
+            receipt["lease_holder"],
+        )
+
+    observed = run_once(lease_optional)
+    other_flag = run_once(not lease_optional)
+    assert observed == other_flag == (0, 1, 1, 0, _HOLDER)
+
+
+@pytest.mark.parametrize(
+    "state", ["stale-held", "unavailable"],
+    ids=("stale-held", "unavailable"),
+)
+def test_acceptance_rejects_non_nonblocking_claim_state(state: str) -> None:
     fake = _FakeEffects()
     _preflight(fake)
     _claim(fake, _SHA_A, json.dumps({"state": state}))
-    if state in {"held", "queued"}:
-        fake.monotonic_queue[:] = [0.0, 0.0]
     outcome = _run_acceptance(fake, max_wait=1)
 
     assert outcome.rc == 70
-    expected = [
+    assert fake.events == [
         *_PREFLIGHT_EVENTS,
         ("monotonic",),
         ("run", ("git", "rev-parse", "main"), _REPO, True),
         ("monotonic",),
         ("run", _helper("claim", _SHA_A), _REPO, True),
     ]
-    if state in {"held", "queued"}:
-        expected.append(("monotonic",))
-    assert fake.events == expected
     fake.assert_drained()
 
 
@@ -6758,6 +5139,293 @@ def test_claim_once_real_acquired_payload_grants_acquired_ownership() -> None:
 
     assert claim == DW._ClaimContext("acquired", _HOLDER, _SHA_A, 0)
     assert lifecycle.ownership is DW._LeaseOwnership.ACQUIRED
+    fake.assert_drained()
+
+
+@pytest.mark.parametrize("state", ["held", "queued"])
+def test_try_claim_once_without_wait_builds_unclaimed_context(
+    state: str,
+) -> None:
+    fake = _FakeEffects()
+    _claim(fake, _SHA_A, json.dumps({"state": state}))
+    lifecycle = DW._AcceptanceLifecycle()
+
+    started_at, claim = DW._try_claim_once_without_wait(
+        fake.effects,
+        _REPO,
+        _LEASE,
+        _WAVE,
+        7200.0,
+        lifecycle,
+    )
+
+    assert started_at == 0.0
+    assert claim == DW._ClaimContext(
+        state,
+        _HOLDER,
+        _SHA_A,
+        None,
+        True,
+    )
+    assert lifecycle.ownership is DW._LeaseOwnership.NONE
+    assert not any(event[0] == "sleep" for event in fake.events)
+    fake.assert_drained()
+
+
+def test_acceptance_lease_optional_is_noop_for_acquired_path() -> None:
+    def run_once(flag: bool) -> tuple[object, ...]:
+        fake = _RoutingAcceptanceEffects(
+            behind=[0, 0],
+            claim_payload=_acquired_payload(),
+        )
+        lifecycle = DW._AcceptanceLifecycle()
+        outcome = _run_acceptance(
+            fake,
+            lifecycle=lifecycle,
+            lease_optional=flag,
+        )
+
+        assert outcome.rc == 0
+        assert lifecycle.ownership is DW._LeaseOwnership.RETAINED
+        assert (fake.claims, fake.submissions, fake.releases) == (2, 1, 0)
+        assert fake.receipt_published is True
+        assert json.loads(fake.receipt_content)["lease_holder"] == _HOLDER
+        assert not any(event[0] == "sleep" for event in fake.events)
+        fake.assert_drained()
+        return (
+            outcome.rc,
+            lifecycle.ownership,
+            fake.claims,
+            fake.submissions,
+            fake.releases,
+            json.loads(fake.receipt_content)["lease_holder"],
+        )
+
+    assert run_once(False) == run_once(True)
+
+
+@pytest.mark.parametrize(
+    ("state", "lease_optional"),
+    [
+        pytest.param("held", False, id="held-default"),
+        pytest.param("held", True, id="held-legacy-flag"),
+        pytest.param("queued", False, id="queued-default"),
+        pytest.param("queued", True, id="queued-legacy-flag"),
+    ],
+)
+def test_acceptance_unclaimed_path_skips_wait_reclaim_and_release(
+    state: str, lease_optional: bool, tmp_path: Path,
+) -> None:
+    fake = _RoutingAcceptanceEffects(
+        behind=[0, 0],
+        claim_payload=json.dumps({"state": state}),
+    )
+    lifecycle = DW._AcceptanceLifecycle()
+
+    outcome = _run_acceptance(
+        fake,
+        lifecycle=lifecycle,
+        lease_optional=lease_optional,
+    )
+
+    assert outcome.rc == 0
+    assert lifecycle.ownership is DW._LeaseOwnership.NONE
+    assert (fake.claims, fake.submissions, fake.releases) == (1, 1, 0)
+    assert fake.receipt_published is True
+    receipt = json.loads(fake.receipt_content)
+    assert receipt["lease_holder"] == hashlib.sha256(
+        _WAVE.encode("utf-8")
+    ).hexdigest()[:12]
+    receipt_path = tmp_path / "acceptance.json"
+    receipt_path.write_bytes(fake.receipt_content)
+    raw_receipt = receipt_path.read_bytes()
+    assert LAND._release_authority_digest(
+        receipt_path,
+        _WAVE,
+    ) == hashlib.sha256(raw_receipt).hexdigest()
+    assert fake.events.count(("sleep", 30)) == 0
+    assert not any(
+        event[0] == "run" and event[1] == _helper("release")
+        for event in fake.events
+    )
+    fake.assert_drained()
+
+
+@pytest.mark.parametrize(
+    ("state", "lease_optional"),
+    [
+        pytest.param("held", False, id="held-default"),
+        pytest.param("held", True, id="held-legacy-flag"),
+        pytest.param("queued", False, id="queued-default"),
+        pytest.param("queued", True, id="queued-legacy-flag"),
+    ],
+)
+def test_pin_c_unclaimed_keeps_main_drift_check(
+    state: str, lease_optional: bool
+) -> None:
+    fake = _RoutingAcceptanceEffects(
+        behind=[0, 0],
+        claim_payload=json.dumps({"state": state}),
+        final_main_sha=_SHA_B,
+    )
+    lifecycle = DW._AcceptanceLifecycle()
+
+    outcome = _run_acceptance(
+        fake,
+        lifecycle=lifecycle,
+        lease_optional=lease_optional,
+    )
+
+    assert outcome.rc == 70
+    assert outcome.stage == "acceptance-receipt"
+    assert json.loads(outcome.detail) == {
+        "reason": "receipt-main-moved",
+        "observed": {
+            "claimed_main_sha": _SHA_A,
+            "final_main_sha": _SHA_B,
+        },
+    }
+    assert lifecycle.ownership is DW._LeaseOwnership.NONE
+    assert (fake.claims, fake.submissions, fake.releases) == (1, 1, 0)
+    assert fake.receipt_published is False
+    assert not any(
+        event[0] == "run" and event[1] == _helper("release")
+        for event in fake.events
+    )
+    fake.assert_drained()
+
+
+@pytest.mark.parametrize(
+    ("state", "lease_optional"),
+    [
+        pytest.param("held", False, id="held-default"),
+        pytest.param("held", True, id="held-legacy-flag"),
+        pytest.param("queued", False, id="queued-default"),
+        pytest.param("queued", True, id="queued-legacy-flag"),
+    ],
+)
+def test_pin_c_unclaimed_postrun_dirty_blocks_without_receipt(
+    state: str, lease_optional: bool
+) -> None:
+    fake = _FakeEffects()
+    _queue_clean_acceptance_prefix(
+        fake,
+        claim_payload=json.dumps({"state": state}),
+    )
+    fake.expect_run(
+        _COMMAND,
+        DW._CommandResult(0),
+        capture=False,
+        unchanged_postrun=False,
+    )
+    fake.expect_run(_STATUS_ARGV, DW._CommandResult(0, " M changed.py\n"))
+
+    outcome = _run_acceptance(fake, lease_optional=lease_optional)
+
+    assert outcome == DW._Outcome(70, "postrun-clean")
+    assert fake.receipt_content is None
+    assert fake.receipt_published is False
+    assert not any(
+        event[0] == "run" and event[1] == _helper("release")
+        for event in fake.events
+    )
+    fake.assert_drained()
+
+
+@pytest.mark.parametrize(
+    ("state", "lease_optional"),
+    [
+        pytest.param("held", False, id="held-default"),
+        pytest.param("held", True, id="held-legacy-flag"),
+        pytest.param("queued", False, id="queued-default"),
+        pytest.param("queued", True, id="queued-legacy-flag"),
+    ],
+)
+def test_pin_c_unclaimed_postrun_index_flags_block_without_receipt(
+    state: str, lease_optional: bool
+) -> None:
+    fake = _FakeEffects()
+    _queue_clean_acceptance_prefix(
+        fake,
+        claim_payload=json.dumps({"state": state}),
+    )
+    fake.expect_run(
+        _COMMAND,
+        DW._CommandResult(0),
+        capture=False,
+        unchanged_postrun=False,
+    )
+    fake.expect_run(_STATUS_ARGV, DW._CommandResult(0, ""))
+    fake.expect_run(_INDEX_FLAGS_ARGV, DW._CommandResult(0, "S hidden.py\0"))
+
+    outcome = _run_acceptance(fake, lease_optional=lease_optional)
+
+    assert outcome == DW._Outcome(70, "postrun-index-flags")
+    assert fake.receipt_content is None
+    assert fake.receipt_published is False
+    assert not any(
+        event[0] == "run" and event[1] == _helper("release")
+        for event in fake.events
+    )
+    fake.assert_drained()
+
+
+@pytest.mark.parametrize(
+    ("state", "lease_optional"),
+    [
+        pytest.param("held", False, id="held-default"),
+        pytest.param("held", True, id="held-legacy-flag"),
+        pytest.param("queued", False, id="queued-default"),
+        pytest.param("queued", True, id="queued-legacy-flag"),
+    ],
+)
+def test_pin_c_unclaimed_postrun_fingerprint_blocks_without_receipt(
+    state: str, lease_optional: bool
+) -> None:
+    fake = _FakeEffects()
+    _queue_clean_acceptance_prefix(
+        fake,
+        claim_payload=json.dumps({"state": state}),
+    )
+    fake.expect_run(
+        _COMMAND,
+        DW._CommandResult(0),
+        capture=False,
+        unchanged_postrun=False,
+    )
+    _postrun_integrity(fake, head=_SHA_B)
+
+    outcome = _run_acceptance(fake, lease_optional=lease_optional)
+
+    assert outcome == DW._Outcome(70, "postrun-fingerprint")
+    assert fake.receipt_content is None
+    assert fake.receipt_published is False
+    assert not any(
+        event[0] == "run" and event[1] == _helper("release")
+        for event in fake.events
+    )
+    fake.assert_drained()
+
+
+def test_pin_d_unclaimed_failure_does_not_release_foreign_lease() -> None:
+    fake = _RoutingAcceptanceEffects(
+        behind=[0, 0],
+        claim_payload=json.dumps({"state": "held"}),
+        command_result=DW._CommandResult(23),
+    )
+
+    outcome = _run_acceptance(fake)
+
+    assert outcome.rc == 70
+    assert outcome.stage == "acceptance-command"
+    assert outcome.source_rc == 23
+    assert fake.receipt_content is None
+    assert fake.receipt_published is False
+    assert fake.releases == 0
+    assert not any(
+        event[0] == "run" and event[1] == _helper("release")
+        for event in fake.events
+    )
     fake.assert_drained()
 
 
@@ -6984,29 +5652,22 @@ def test_acceptance_rejects_claim_json(case: str, payload: str) -> None:
     fake.assert_drained()
 
 
-def test_held_and_queued_refresh_main_before_every_claim() -> None:
-    fake = _FakeEffects()
-    _preflight(fake)
-    fake.monotonic_queue[:] = [0.0, 0.0, 30.0]
-    _claim(fake, _SHA_A, '{"state":"held"}')
-    _claim(fake, _SHA_B, '{"state":"queued"}')
-    _claim(fake, _SHA_C, _acquired_payload(main_sha=_SHA_C))
-    fake.expect_run(("git", "rev-parse", "main"), DW._CommandResult(0, _SHA_C + "\n"))
-    fake.expect_run(("git", "rev-list", "--count", "HEAD..main"), DW._CommandResult(0, "0\n"))
-    fake.expect_run(("git", "rev-list", "--count", "HEAD..main"), DW._CommandResult(0, "0\n"))
-    _prerun_status(fake)
-    fake.expect_run(_COMMAND, DW._CommandResult(0), capture=False)
+@pytest.mark.parametrize("state", ["held", "queued"])
+def test_unclaimed_acceptance_claim_does_not_refresh_or_retry(state: str) -> None:
+    fake = _RoutingAcceptanceEffects(
+        behind=[0, 0],
+        claim_payload=json.dumps({"state": state}),
+    )
+
     outcome = _run_acceptance(fake)
+
     assert outcome.rc == 0
-    claim_shas = [
-        event[1][-1]
+    assert fake.claims == 1
+    assert fake.events.count(("sleep", 30)) == 0
+    assert not any(
+        event[0] == "run" and event[1] == _helper("release")
         for event in fake.events
-        if event[0] == "run" and len(event[1]) > 2 and event[1][2] == "claim"
-    ]
-    assert claim_shas == [_SHA_A, _SHA_B, _SHA_C, _SHA_C]
-    assert fake.events.count(("sleep", 30)) == 2
-    assert not any(event[0] == "run" and event[1] == _helper("release") for event in fake.events)
-    fake.assert_drained()
+    )
 
 
 def test_acquired_reloads_main_before_behind_check() -> None:
@@ -8425,41 +7086,12 @@ def test_abnormal_path_without_ownership_does_not_release(kind: str) -> None:
     if kind == "subprocess-error":
         fake.expect_run(("git", "rev-parse", "main"), OSError("boom"))
     else:
-        fake.monotonic_queue[:] = [0.0, 0.0]
         _claim(fake, _SHA_A, '{"state":"held"}')
-        original_sleep = fake.sleep
-
-        def interrupting_sleep(seconds: float) -> None:
-            original_sleep(seconds)
-            raise KeyboardInterrupt
-
-        effects = fake.effects
-        effects = DW._Effects(
-            run=effects.run, run_unbounded=effects.run_unbounded,
-            sleep=interrupting_sleep, kill=effects.kill,
-            is_file=effects.is_file, read_text=effects.read_text,
-            getenv=effects.getenv, monotonic=effects.monotonic,
-            write_temp=effects.write_temp, unlink=effects.unlink,
-            path_exists=effects.path_exists, is_dir=effects.is_dir,
-            resolve_path=effects.resolve_path,
-            write_receipt_temp=effects.write_receipt_temp,
-            rename=effects.rename,
-            run_logged=effects.run_logged,
-            read_bytes=effects.read_bytes,
-            is_symlink=effects.is_symlink,
-            inspect_acceptance_log=effects.inspect_acceptance_log,
-            run_with_input=effects.run_with_input,
-            acceptance_monotonic=effects.acceptance_monotonic,
-        )
+        fake.expect_run(("git", "rev-parse", "main"), KeyboardInterrupt())
     if kind == "subprocess-error":
         outcome = _run_acceptance(fake)
     else:
-        outcome = DW.run_acceptance(
-            wave=_WAVE, lease_dir=_LEASE, merge_message_file=None,
-            poll_seconds=30, max_wait_seconds=7200, command=_COMMAND,
-            repo=_REPO, effects=effects, receipt_file=_RECEIPT,
-            log_file=_LOG,
-        )
+        outcome = _run_acceptance(fake)
     assert outcome.rc == (130 if kind == "keyboard-interrupt" else 70)
     expected = [
         *_PREFLIGHT_EVENTS,
@@ -8471,8 +7103,7 @@ def test_abnormal_path_without_ownership_does_not_release(kind: str) -> None:
             [
                 ("monotonic",),
                 ("run", _helper("claim", _SHA_A), _REPO, True),
-                ("monotonic",),
-                ("sleep", 30),
+                ("run", ("git", "rev-parse", "main"), _REPO, True),
             ]
         )
     assert fake.events == expected
@@ -8488,7 +7119,6 @@ def test_release_failure_overrides_primary_result() -> None:
     fake.expect_run(("git", "rev-list", "--count", "HEAD..main"), DW._CommandResult(0, "0\n"))
     _prerun_status(fake)
     fake.expect_run(_COMMAND, DW._CommandResult(1), capture=False)
-    _queue_checker(fake, rc=1)
     _release(fake, DW._CommandResult(0, '{"state":"unavailable"}'))
     outcome = _run_acceptance(fake)
     assert outcome.rc == 74
@@ -8507,7 +7137,6 @@ def test_release_failure_overrides_primary_result() -> None:
         *_LAUNCHER_START_EVENTS,
         ("run", _COMMAND, _REPO, False),
         *_POSTRUN_INTEGRITY_EVENTS,
-        *_checker_execution_events(),
         *_LAUNCHER_FAILURE_CLEANUP_EVENTS,
         ("run", _helper("release"), _REPO, True),
     ]
@@ -8563,7 +7192,6 @@ def test_release_subprocess_failures_are_cleanup_failures(release_result: object
     fake.expect_run(("git", "rev-list", "--count", "HEAD..main"), DW._CommandResult(0, "0\n"))
     _prerun_status(fake)
     fake.expect_run(_COMMAND, DW._CommandResult(1), capture=False)
-    _queue_checker(fake, rc=1)
     _release(fake, release_result)
 
     outcome = _run_acceptance(fake)
@@ -8584,7 +7212,6 @@ def test_release_subprocess_failures_are_cleanup_failures(release_result: object
         *_LAUNCHER_START_EVENTS,
         ("run", _COMMAND, _REPO, False),
         *_POSTRUN_INTEGRITY_EVENTS,
-        *_checker_execution_events(),
         *_LAUNCHER_FAILURE_CLEANUP_EVENTS,
         ("run", _helper("release"), _REPO, True),
     ]
@@ -8809,7 +7436,18 @@ def test_acceptance_cli_contract(case: str) -> None:
         assert args.poll_seconds == 30
         assert args.max_wait_seconds == 7200
         assert args.owned_path == []
+        assert args.lease_optional is False
         assert child == ["harmless"]
+        lease_optional_action = next(
+            action
+            for action in DW._acceptance_parser()._actions
+            if "--lease-optional" in action.option_strings
+        )
+        assert (
+            "後方互換のため受理する no-op。"
+            "挙動を選択する flag ではない"
+            in lease_optional_action.help
+        )
         merge_message_action = next(
             action
             for action in DW._acceptance_parser()._actions
@@ -8821,6 +7459,29 @@ def test_acceptance_cli_contract(case: str) -> None:
     with pytest.raises(DW._StageFailure) as raised:
         DW._parse_cli(argv)
     assert raised.value.outcome.rc == 2
+
+
+def test_acceptance_cli_lease_optional_is_legacy_noop() -> None:
+    command, args, child = DW._parse_cli(
+        [
+            "acceptance",
+            "--wave",
+            _WAVE,
+            "--lease-dir",
+            str(_LEASE),
+            "--lease-optional",
+            "--receipt-file",
+            str(_RECEIPT),
+            "--log-file",
+            str(_LOG),
+            "--",
+            "harmless",
+        ]
+    )
+
+    assert command == "acceptance"
+    assert args.lease_optional is True
+    assert child == ["harmless"]
 
 
 def test_acceptance_owned_path_is_repeatable() -> None:
@@ -9516,7 +8177,6 @@ def test_real_git_production_provenance_rejects_malformed_merge_message(
     shutil.copy2(_LEASE_HELPER, tools / "wave_land_window.py")
     shutil.copy2(_TOOL, tools / "dev_wave_wait.py")
     shutil.copy2(_LAUNCHER, tools / "acceptance_launcher.py")
-    shutil.copy2(_RED_CHECKER, tools / "check_acceptance_reds.py")
     shutil.copy2(_ROOT / "tools" / "check_ai_provenance.py", tools)
     _write_exact_runner(
         repo,
@@ -9784,7 +8444,6 @@ def test_default_wiring_with_real_git_and_lease_helper(tmp_path: Path) -> None:
     shutil.copy2(_LEASE_HELPER, tools / "wave_land_window.py")
     shutil.copy2(_TOOL, tools / "dev_wave_wait.py")
     shutil.copy2(_LAUNCHER, tools / "acceptance_launcher.py")
-    shutil.copy2(_RED_CHECKER, tools / "check_acceptance_reds.py")
     _write_test_provenance_checker(repo)
     _write_exact_runner(
         repo,
@@ -9819,7 +8478,6 @@ def test_default_wiring_with_real_git_and_lease_helper(tmp_path: Path) -> None:
         "tools/wave_land_window.py",
         "tools/dev_wave_wait.py",
         "tools/acceptance_launcher.py",
-        "tools/check_acceptance_reds.py",
         "tools/run_tests.py",
         "tools/check_ai_provenance.py",
     )
@@ -9936,7 +8594,6 @@ def _run_runtime_waiter_bytes_case(
     shutil.copy2(_TOOL, tools / "dev_wave_wait.py")
     shutil.copy2(_LEASE_HELPER, tools / "wave_land_window.py")
     shutil.copy2(_LAUNCHER, tools / "acceptance_launcher.py")
-    shutil.copy2(_RED_CHECKER, tools / "check_acceptance_reds.py")
     _write_test_provenance_checker(main_repo)
     counter = tmp_path / "command-runs.txt"
     _write_exact_runner(
@@ -10095,7 +8752,6 @@ def test_default_wiring_second_acceptance_reuses_self_held_lease(
     shutil.copy2(_LEASE_HELPER, helper)
     shutil.copy2(_TOOL, repo / "tools" / "dev_wave_wait.py")
     shutil.copy2(_LAUNCHER, repo / "tools" / "acceptance_launcher.py")
-    shutil.copy2(_RED_CHECKER, repo / "tools" / "check_acceptance_reds.py")
     _write_test_provenance_checker(repo)
     _write_exact_runner(
         repo,
@@ -10129,7 +8785,6 @@ def test_default_wiring_second_acceptance_reuses_self_held_lease(
         "tools/wave_land_window.py",
         "tools/dev_wave_wait.py",
         "tools/acceptance_launcher.py",
-        "tools/check_acceptance_reds.py",
         "tools/run_tests.py",
         "tools/check_ai_provenance.py",
     )
@@ -10210,7 +8865,6 @@ def test_public_main_real_signal_releases_lease(tmp_path: Path) -> None:
     shutil.copy2(_LEASE_HELPER, repo / "tools" / "wave_land_window.py")
     shutil.copy2(_TOOL, repo / "tools" / "dev_wave_wait.py")
     shutil.copy2(_LAUNCHER, repo / "tools" / "acceptance_launcher.py")
-    shutil.copy2(_RED_CHECKER, repo / "tools" / "check_acceptance_reds.py")
     _write_test_provenance_checker(repo)
     _write_exact_runner(
         repo,
@@ -10239,7 +8893,6 @@ def test_public_main_real_signal_releases_lease(tmp_path: Path) -> None:
         "tools/wave_land_window.py",
         "tools/dev_wave_wait.py",
         "tools/acceptance_launcher.py",
-        "tools/check_acceptance_reds.py",
         "tools/run_tests.py",
         "tools/check_ai_provenance.py",
     )
@@ -10292,7 +8945,6 @@ def test_public_main_real_signal_after_success_uses_restored_handler(
     shutil.copy2(_LEASE_HELPER, repo / "tools" / "wave_land_window.py")
     shutil.copy2(_TOOL, repo / "tools" / "dev_wave_wait.py")
     shutil.copy2(_LAUNCHER, repo / "tools" / "acceptance_launcher.py")
-    shutil.copy2(_RED_CHECKER, repo / "tools" / "check_acceptance_reds.py")
     _write_test_provenance_checker(repo)
     _write_exact_runner(
         repo,
@@ -10321,7 +8973,6 @@ def test_public_main_real_signal_after_success_uses_restored_handler(
         "tools/wave_land_window.py",
         "tools/dev_wave_wait.py",
         "tools/acceptance_launcher.py",
-        "tools/check_acceptance_reds.py",
         "tools/run_tests.py",
         "tools/check_ai_provenance.py",
     )
@@ -10471,7 +9122,7 @@ def test_retry_keeps_priority_with_real_lease_and_competing_ticket(
     assert fake.submissions == 2
     assert fake.competitor_claim is not None
     assert fake.competitor_claim["state"] == "held"
-    assert (lease_dir / f"ticket.{competitor_holder}").is_file()
+    assert not (lease_dir / f"ticket.{competitor_holder}").is_file()
     assert (lease_dir / "acceptance.lease").is_file()
 
 
@@ -10525,26 +9176,26 @@ def test_attempt_two_terminal_releases_real_owned_lease(tmp_path: Path) -> None:
 
 
 @pytest.mark.parametrize(
-    ("child_rc", "checker_mode", "expected_rc"),
-    [(0, "success", 0), (1, "success", 0), (1, "failure", 70)],
-    ids=("green", "red-check-success", "red-check-failure"),
+    ("child_rc", "expected_rc", "expected_claims"),
+    [(0, 0, 2), (1, 70, 1)],
+    ids=("green", "red"),
 )
-def test_verdict_attempt_is_never_retried(
+def test_child_verdict_attempt_is_never_retried(
     child_rc: int,
-    checker_mode: str,
     expected_rc: int,
+    expected_claims: int,
 ) -> None:
     fake = _RetryAcceptanceEffects(
         command_results=[child_rc, 0],
         logs=[_scheduler_marker(), _scheduler_marker()],
-        checker_mode=checker_mode,
     )
 
     outcome = _run_acceptance(fake)
 
     assert outcome.rc == expected_rc
     assert fake.submissions == 1
-    assert fake.claims == (1 if checker_mode == "failure" else 2)
+    assert fake.claims == expected_claims
+    assert not any(event[0] == "run_with_input" for event in fake.events)
 
 
 @pytest.mark.parametrize(
@@ -10749,40 +9400,6 @@ def test_retry_success_uses_only_success_attempt_values_and_v5_schema() -> None:
     }
 
 
-def test_retry_red_check_binds_second_attempt_main_and_tip() -> None:
-    red = "orchestrator/tests/test_known.py::test_known"
-    flake = "orchestrator/tests/test_retry.py::test_flake"
-    fake = _RetryAcceptanceEffects(
-        command_results=[16, 1],
-        logs=[
-            _dispatch_outcome_marker(),
-            b"FAILED orchestrator/tests/test_known.py::test_known\n"
-            + _scheduler_marker(),
-        ],
-        head_shas=[_SHA_A, _SHA_A, _SHA_B, _SHA_B],
-        checker_mode="success",
-        checker_nodes=[
-            {"classification": "non-attributable", "nodeid": red, "rerun_rc": 1},
-            {
-                "classification": "flake",
-                "main_rerun_rc": 0,
-                "nodeid": flake,
-                "rerun_rc": 0,
-                "wave_rerun_rc": 0,
-            },
-        ],
-    )
-
-    outcome = _run_acceptance(fake)
-
-    assert outcome == DW._Outcome(0)
-    assert fake.red_check_bindings == [(_SHA_A, _SHA_B)]
-    receipt = json.loads(fake.receipt_content)
-    assert (receipt["tested_main"], receipt["tested_tip"]) == (_SHA_A, _SHA_B)
-    assert receipt["red_nodeids"] == [red]
-    assert receipt["flake_nodeids"] == [flake]
-
-
 def test_retry_main_advance_is_terminal_before_second_command() -> None:
     fake = _RetryAcceptanceEffects(
         command_results=[16, 0],
@@ -10855,32 +9472,20 @@ def test_retry_renew_requires_same_held_self_lease(renew_payload: str) -> None:
     assert fake.releases == 1
 
 
-@pytest.mark.parametrize(
-    "unexpected_path",
-    [_RECEIPT, _CHECKER_RECEIPT],
-    ids=("receipt", "red-check-receipt"),
-)
-def test_retry_does_not_remove_artifact_that_appears_between_attempts(
-    unexpected_path: Path,
-) -> None:
+def test_retry_does_not_remove_receipt_that_appears_between_attempts() -> None:
     fake = _RetryAcceptanceEffects(
         command_results=[16, 0],
         logs=[_dispatch_outcome_marker(), _scheduler_marker()],
     )
-    fake.inject_artifact_after_archive = unexpected_path
+    fake.inject_artifact_after_archive = _RECEIPT
 
     outcome = _run_acceptance(fake)
 
-    expected_stage = (
-        "acceptance-receipt-preflight"
-        if unexpected_path == _RECEIPT
-        else "acceptance-red-check-preflight"
-    )
-    assert outcome == DW._Outcome(2, expected_stage)
+    assert outcome == DW._Outcome(2, "acceptance-receipt-preflight")
     assert fake.submissions == 1
-    assert unexpected_path in fake.existing_paths
+    assert _RECEIPT in fake.existing_paths
     assert not any(
-        event[0] == "unlink" and event[1] == unexpected_path
+        event[0] == "unlink" and event[1] == _RECEIPT
         for event in fake.events
     )
     assert fake.releases == 1

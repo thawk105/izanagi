@@ -44,6 +44,7 @@ class ScanIssue:
 @dataclass(frozen=True)
 class Unreachable:
     cwd_permission: int
+    zombie: int = 0
 
 
 @dataclass(frozen=True)
@@ -191,6 +192,17 @@ def _read_process_comm(pid_dir: Path) -> str:
     return (pid_dir / "comm").read_text(encoding="utf-8").rstrip("\n")
 
 
+def _process_is_zombie(pid_dir: Path) -> bool:
+    try:
+        lines = (pid_dir / "status").read_text(encoding="utf-8").splitlines()
+    except (OSError, RuntimeError, UnicodeError):
+        return False
+    for line in lines:
+        if line.startswith("State:"):
+            return line.removeprefix("State:").lstrip().startswith("Z")
+    return False
+
+
 def _parent_is_invoking_shell(
     pid_dir: Path,
     argv: Sequence[str],
@@ -239,21 +251,23 @@ def _scan_pid(
     tuple[ScanIssue, ...],
     int,
     tuple[SameUidCwdUnreachable, ...],
+    int,
 ] | None:
     try:
         start_before = _read_starttime(pid_dir)
     except FileNotFoundError as exc:
         if _pid_disappeared(pid_dir):
             return None
-        return None, (_issue(pid, "stat", exc),), 0, ()
+        return None, (_issue(pid, "stat", exc),), 0, (), 0
     except (OSError, RuntimeError, UnicodeError, ValueError) as exc:
-        return None, (_issue(pid, "stat", exc),), 0, ()
+        return None, (_issue(pid, "stat", exc),), 0, (), 0
 
     sources: set[str] = set()
     issues: list[ScanIssue] = []
     process_cwd: Path | None = None
     cwd_permission_unreachable = 0
     same_uid_cwd_unreachable: tuple[SameUidCwdUnreachable, ...] = ()
+    zombie_unreachable = 0
 
     try:
         process_cwd = _read_process_cwd(pid_dir)
@@ -277,11 +291,14 @@ def _scan_pid(
     except FileNotFoundError as exc:
         if _pid_disappeared(pid_dir):
             return None
-        issues.append(_issue(pid, "cwd", exc))
+        if _process_is_zombie(pid_dir):
+            zombie_unreachable = 1
+        else:
+            issues.append(_issue(pid, "cwd", exc))
     except (OSError, RuntimeError, UnicodeError) as exc:
         issues.append(_issue(pid, "cwd", exc))
 
-    if pid != self_pid:
+    if pid != self_pid and not zombie_unreachable:
         try:
             argv = _read_cmdline(pid_dir)
             ignore_cmdline = (
@@ -315,6 +332,7 @@ def _scan_pid(
             tuple(issues + [_issue(pid, "stat", exc)]),
             cwd_permission_unreachable,
             same_uid_cwd_unreachable,
+            zombie_unreachable,
         )
     except (OSError, RuntimeError, UnicodeError, ValueError) as exc:
         return (
@@ -322,12 +340,13 @@ def _scan_pid(
             tuple(issues + [_issue(pid, "stat", exc)]),
             cwd_permission_unreachable,
             same_uid_cwd_unreachable,
+            zombie_unreachable,
         )
 
     if start_after != start_before:
         return None, (
             ScanIssue(error="pid-reused", pid=pid, source="stat"),
-        ), cwd_permission_unreachable, same_uid_cwd_unreachable
+        ), cwd_permission_unreachable, same_uid_cwd_unreachable, zombie_unreachable
 
     occupant = None
     if sources:
@@ -337,6 +356,7 @@ def _scan_pid(
         tuple(issues),
         cwd_permission_unreachable,
         same_uid_cwd_unreachable,
+        zombie_unreachable,
     )
 
 
@@ -394,6 +414,7 @@ def scan_worktree_occupancy(
     occupants: list[Occupant] = []
     issues: list[ScanIssue] = []
     cwd_permission_unreachable = 0
+    zombie_unreachable = 0
     same_uid_cwd_unreachable: list[SameUidCwdUnreachable] = []
     for pid, pid_dir in pid_dirs:
         result = _scan_pid(
@@ -411,11 +432,13 @@ def scan_worktree_occupancy(
             pid_issues,
             pid_cwd_permission_unreachable,
             pid_same_uid_cwd_unreachable,
+            pid_zombie_unreachable,
         ) = result
         if occupant is not None:
             occupants.append(occupant)
         issues.extend(pid_issues)
         cwd_permission_unreachable += pid_cwd_permission_unreachable
+        zombie_unreachable += pid_zombie_unreachable
         same_uid_cwd_unreachable.extend(pid_same_uid_cwd_unreachable)
 
     occupants.sort(key=lambda item: (item.pid, item.sources))
@@ -436,17 +459,21 @@ def scan_worktree_occupancy(
         same_uid_cwd_unreachable=tuple(same_uid_cwd_unreachable),
         unreachable=Unreachable(
             cwd_permission=cwd_permission_unreachable,
+            zombie=zombie_unreachable,
         ),
     )
 
 
 def _report_payload(report: ScanReport) -> dict[str, object]:
+    unreachable = {"cwd_permission": report.unreachable.cwd_permission}
+    if report.unreachable.zombie:
+        unreachable["zombie"] = report.unreachable.zombie
     payload: dict[str, object] = {
         "issues": [asdict(issue) for issue in report.issues],
         "occupants": [asdict(occupant) for occupant in report.occupants],
         "scanned": report.scanned,
         "status": report.status,
-        "unreachable": asdict(report.unreachable),
+        "unreachable": unreachable,
         "worktree": str(report.worktree),
     }
     if report.same_uid_cwd_unreachable:

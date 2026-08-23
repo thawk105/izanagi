@@ -7,6 +7,7 @@ pytest でも、素の `python orchestrator/tests/test_verifier.py` でも走る
 from __future__ import annotations
 
 from collections import Counter
+import hashlib
 import json
 import os
 import sys
@@ -16,13 +17,16 @@ _HERE = os.path.dirname(os.path.abspath(__file__))
 _ORCH = os.path.dirname(_HERE)
 sys.path.insert(0, os.path.dirname(_ORCH))
 
-from skiputil import Skip, skip                               # noqa: E402
+from skiputil import Skip                                     # noqa: E402
 from orchestrator.verifier import render_text, verify_trace_dir, result_to_dict  # noqa: E402
 from orchestrator.verifier.dsg import DSG                                  # noqa: E402
-from orchestrator.verifier.model import (CycleEdge, EdgeReason, RW, WR, WW)  # noqa: E402
+from orchestrator.verifier.model import (                              # noqa: E402
+    CycleEdge, EdgeReason, Integrity, RW, VerifyResult, WR, WW,
+)
 from orchestrator.verifier.parse import ParseError, parse_trace_dir        # noqa: E402
 
 FIX = os.path.join(_HERE, "fixtures")
+REAL_SILO_FIXTURE = os.path.join(FIX, "g5_silo_real_prefix")
 # repo ルート相対で実 Silo トレース (生成済みなら)
 _REPO = os.path.dirname(_ORCH)
 SILO_SAMPLE = os.path.join(_REPO, "output", "runs", "silo-sample")
@@ -223,6 +227,10 @@ _V2_FIXTURE_FILES = (
     "g3_readonly/trace_0.log",
     "g3_readonly/trace_1.log",
     "g4_rw_no_cycle/trace_0.log",
+    "g5_silo_real_prefix/trace_0.log",
+    "g5_silo_real_prefix/trace_1.log",
+    "g5_silo_real_prefix/trace_2.log",
+    "g5_silo_real_prefix/trace_3.log",
     "integrity_orphan/trace_0.log",
     "m1_commit_at_genesis/trace_0.log",
     "m2_version_dup/trace_0.log",
@@ -234,6 +242,8 @@ _V2_FIXTURE_FILES = (
     "r3_cycle3/trace_0.log",
     "r4_mixed_cycle/trace_0.log",
     "r5_nonlatest_transitive/trace_0.log",
+    "r6_epoch_version_order/trace_0.log",
+    "r7_epoch_rw_successor/trace_0.log",
 )
 
 
@@ -1382,17 +1392,173 @@ def test_structured_report_has_edge_detail():
             assert "key" in r and "type" in r
 
 
-# ---- 実 Silo トレース (生成済みのときだけ。緑のはず) ----
+# ---- 実 Silo トレース (tracked prefix は常時、大規模 sample は存在時だけ) ----
 
-def test_real_silo_serializable():
-    if not os.path.isdir(SILO_SAMPLE):
-        skip(f"no real Silo sample at {SILO_SAMPLE} — 再生成手順は tests/README.md")
-    res = verify_trace_dir(SILO_SAMPLE)
+_REAL_SILO_FIXTURE_BYTES = {
+    "trace_0.log": (43140, "dd29e43ecba185dc898436f677ed85a703151171cb925fa730f8fd9948947e99"),
+    "trace_1.log": (110139, "ae31f582340e6cfa0615e435145716524ba8d5f4af79a8b78688e5a025c027a2"),
+    "trace_2.log": (111402, "66a4f265ce8d66163d9db63a4a7f4b2e726cee72cb49b63d3b0d67d2482c1c25"),
+    "trace_3.log": (51209, "240d03187bc75fe5cd5fd01c2cea67d3d27033b2e91f37444a19a83e678c7f03"),
+}
+
+
+def _assert_certified_serializable(trace_dir, *, expected_commits=None):
+    res = verify_trace_dir(trace_dir, expected_commits=expected_commits)
     assert res.serializable, (
-        f"real Silo trace MUST be serializable but got "
-        f"{len(res.anomalies)} anomalies: "
+        f"trace MUST be serializable but got {len(res.anomalies)} anomalies: "
         f"{[a.phenomenon for a in res.anomalies[:3]]}")
     assert res.integrity.clean(), f"integrity not clean: {res.integrity.notes}"
+    assert res.certified, "serializable clean trace MUST be certified"
+    return res
+
+
+def test_real_silo_fixture_bytes_are_exact():
+    actual = {}
+    for filename in sorted(_REAL_SILO_FIXTURE_BYTES):
+        with open(os.path.join(REAL_SILO_FIXTURE, filename), "rb") as fh:
+            data = fh.read()
+        actual[filename] = (len(data), hashlib.sha256(data).hexdigest())
+    assert actual == _REAL_SILO_FIXTURE_BYTES
+
+
+def test_epoch_version_order_g2():
+    res = _verify("r6_epoch_version_order")
+    assert not res.serializable
+    assert res.verdict == "non-serializable"
+    assert res.integrity.clean(), res.integrity.notes
+    assert not res.certified
+    assert len(res.anomalies) == 1
+    assert res.anomalies[0].phenomenon == "G2"
+    assert set(res.anomalies[0].cycle) == {0, 1}
+
+
+def test_epoch_rw_successor_order_g2():
+    res = _verify("r7_epoch_rw_successor")
+    assert not res.serializable
+    assert res.verdict == "non-serializable"
+    assert res.integrity.clean(), res.integrity.notes
+    assert not res.certified
+    assert len(res.anomalies) == 1
+    anomaly = res.anomalies[0]
+    assert anomaly.phenomenon == "G2"
+    assert set(anomaly.cycle) == {1, 2}
+    cross_epoch_rw = [
+        reason
+        for edge in anomaly.edges
+        if (edge.src, edge.dst) == (2, 1)
+        for reason in edge.reasons
+        if reason.etype == RW
+    ]
+    assert cross_epoch_rw == [
+        EdgeReason(RW, "0000000000000001", (1, 100), (2, 1)),
+    ]
+
+
+def test_real_silo_edge_type_combinations_are_exact():
+    txns, _issues = parse_trace_dir(REAL_SILO_FIXTURE)
+    dsg = DSG(txns)
+    combinations = Counter(
+        tuple(sorted({reason.etype for reason in dsg._reasons(src, dst)}))
+        for src, destinations in dsg.adj.items()
+        for dst in destinations
+    )
+    assert combinations == Counter({
+        (WR,): 2677,
+        (RW,): 2724,
+        (WR, WW): 2934,
+        (RW, WR, WW): 62,
+        (RW, WR): 69,
+    })
+
+    extended = Counter()
+    for edge_types, count in combinations.items():
+        for edge_type in edge_types:
+            extended[edge_type] += count
+    assert extended == Counter({WR: 5742, RW: 2855, WW: 2996})
+    assert sum(combinations.values()) == 8466
+
+
+def test_real_silo_serializable():
+    res = _assert_certified_serializable(
+        REAL_SILO_FIXTURE, expected_commits=1345,
+    )
+    assert (
+        res.n_txns, res.n_reads, res.n_writes, res.n_keys, res.n_edges,
+    ) == (1345, 6311, 3244, 199, 8466)
+
+    if os.path.isdir(SILO_SAMPLE):
+        _assert_certified_serializable(SILO_SAMPLE)
+
+
+def test_real_silo_node_behaviorally_calls_verifier_and_propagates_failure():
+    global verify_trace_dir
+
+    original = verify_trace_dir
+    tracked_fixture = os.path.normcase(os.path.realpath(os.path.join(
+        _HERE, "fixtures", "g5_silo_real_prefix",
+    )))
+    clean = Integrity(expected_commits=1345, observed_commits=1345)
+    good = VerifyResult(
+        trace_dir=tracked_fixture,
+        serializable=True,
+        integrity=clean,
+        n_txns=1345,
+        n_reads=6311,
+        n_writes=3244,
+        n_keys=199,
+        n_edges=8466,
+    )
+
+    def invoke(spy):
+        global verify_trace_dir
+        verify_trace_dir = spy
+        try:
+            try:
+                test_real_silo_serializable()
+            except BaseException as exc:
+                is_pytest_skip = (
+                    type(exc).__module__ == "_pytest.outcomes"
+                    and type(exc).__name__ == "Skipped"
+                )
+                if isinstance(exc, Skip) or is_pytest_skip:
+                    raise AssertionError(
+                        "tracked 実 Silo node が verifier 実走を skip した"
+                    ) from exc
+                raise
+        finally:
+            verify_trace_dir = original
+
+    calls = []
+
+    def good_spy(trace_dir, max_report=20, *, expected_commits=None):
+        calls.append((
+            os.path.normcase(os.path.realpath(os.fspath(trace_dir))),
+            expected_commits,
+        ))
+        return good
+
+    invoke(good_spy)
+    mandatory_calls = [call for call in calls if call[0] == tracked_fixture]
+    assert mandatory_calls == [(tracked_fixture, 1345)]
+    assert verify_trace_dir is original
+
+    broken = replace(good, serializable=False)
+    try:
+        invoke(lambda *args, **kwargs: broken)
+        assert False, "壊れた verifier 結果を node が assertion error にしなかった"
+    except AssertionError as exc:
+        assert "trace MUST be serializable" in str(exc)
+    assert verify_trace_dir is original
+
+    def skip_spy(*args, **kwargs):
+        raise Skip("behavioral meta-test sentinel")
+
+    try:
+        invoke(skip_spy)
+        assert False, "verifier の Skip を meta-test が赤にしなかった"
+    except AssertionError as exc:
+        assert isinstance(exc.__cause__, Skip)
+    assert verify_trace_dir is original
 
 
 # ---- 素の runner (pytest 無しでも) ----

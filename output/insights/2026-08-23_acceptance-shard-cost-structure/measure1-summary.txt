@@ -1,0 +1,51 @@
+=== K=1 全走 (job 939131.nqsv) ===
+| ===== 10 failed, 14361 passed, 96 skipped, 3 warnings in 229.41s (0:03:49) =====
+| Created Request Time:   Sun Aug 23 09:46:09 2026
+| Started Request Time:   Sun Aug 23 09:46:17 2026
+| Ended Request Time:     Sun Aug 23 09:50:08 2026
+|   Elapse:               235S
+|   Remaining Elapse:     3365S
+outer_wall_s=252
+
+=== 固定費走 (job 939155.nqsv、48 worker 起動・テスト 0 件) ===
+| created: 48/48 workers
+| 48 workers [0 items]
+| ============================ no tests ran in 12.86s ============================
+|   Elapse:               18S
+|   Remaining Elapse:     3582S
+outer_wall_s=37 rc=5
+
+=== K=2 同時投入 ===
+combined_outer_wall_s=135
+shard0: | IZANAGI_FAILURE_DIGEST_ACCOUNT failures=13 failed=12 errors=1 selected=13 omitted_failures=0 source_bytes=34376 retained_bytes=34376 omitted_bytes=0 budget_bytes=49152 rendered_bytes=42032 omitted_manifest_sha256=-
+shard0: outer_wall_s=135 rc=1
+shard1: | =========== 6424 passed, 10 skipped, 3 warnings in 94.04s (0:01:34) ============
+shard1: outer_wall_s=119 rc=0
+
+=== 排他 group 別の鎖長 (analyze3.py) ===
+join: 14467 件一致 / 未一致 0 件
+
+直列総和 5364.9 s  (grouped 220.8 / ungrouped 5144.1)
+
+--- 排他 group ---
+  s8c-preregistration-candidate      103.0 s  (5 件)  最長 30.2s
+        30.2 s  test_s8c_preregistration_invariant.py::test_candidate_freeze_matches_contract_and_generation_chain
+        27.3 s  test_s8c_preregistration_invariant.py::test_wave_files_do_not_contaminate_production_holdout_scan
+        24.5 s  test_s8c_preregistration_invariant.py::test_candidate_is_not_effective_and_has_zero_satisfied_predicates
+  real-repo                          103.0 s  (70 件)  最長 28.2s
+        28.2 s  test_s8b_floor_campaign.py::test_real_seal_protocol_to_floor_official_core_e2e
+        22.8 s  test_codex_reasoning_ab.py::test_snapshot_submodule_object_store_is_recursive
+        19.4 s  test_codex_reasoning_ab.py::test_supervisor_launches_pair_and_scrubs_git_environment
+  dev-waves-runtime                   14.9 s  (22 件)  最長 1.9s
+         1.9 s  test_dev_waves_integration.py::test_real_daemon_sigkill_restart_closes_recovery_gate_at_three_points[waves2-2-child-running-2]
+         1.4 s  test_dev_waves_integration.py::test_real_daemon_sigkill_restart_closes_recovery_gate_at_three_points[waves1-1-verifying-1]
+         1.3 s  test_dev_waves_integration.py::test_accepted_reconciliation_rejects_dirty_repo_without_child_rerun[submodule]
+
+最長鎖 103.0 s / 最長単体 85.46 s
+work 下界 @48core (K=1) = 111.8 s
+分割の硬い床 = max(最長鎖, 最長単体) = 103.0 s
+
+=== login collection (warm) ===
+FULL 238 file / 14467 tests collected in 8.15s
+HALF_A 119 file / 8053 tests collected in 4.48s
+HALF_B 119 file / 6414 tests collected in 5.93s

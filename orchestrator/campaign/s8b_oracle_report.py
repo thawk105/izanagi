@@ -1146,6 +1146,21 @@ def _safe_payload(record: object) -> Mapping:
     return payload if isinstance(payload, Mapping) else {}
 
 
+def _attempt_binding_issues(
+        records: Sequence[object], *, stage: str,
+        expected_attempt_id: str | None,
+) -> list[str]:
+    # 件数不整合 (0件/2件以上) は既存の別 gate (truth-table 不一致、bench_done 重複検査、
+    # abort/commit 重複検査) が既に閉じるため、ちょうど1件のときだけ判定する
+    # (T-1476 の _verify_state と同じ設計)。
+    if expected_attempt_id is None or len(records) != 1:
+        return []
+    payload = _safe_payload(records[0])
+    if payload.get("build_attempt_id") != expected_attempt_id:
+        return [f"{stage}.build_attempt_id が committed attempt と不一致"]
+    return []
+
+
 def _pipeline_payload_issues(records: Sequence[object]) -> dict[int, str]:
     """全 pipeline record の payload 型違反を record identity へ束縛する。"""
     issues: dict[int, str] = {}
@@ -1333,6 +1348,21 @@ def _assess_window(item: Mapping, window: Sequence[object], manifest: Mapping,
     counts = {stage: sum(record.stage == stage for record in pipeline_records)
               for stage in _outcome_stage_contract.PIPELINE_STAGES}
     abort_records = [record for record in pipeline_records if record.stage == "abort"]
+    build_done_records = [
+        record for record in pipeline_records if record.stage == "build_done"
+    ]
+    commit_records = [
+        record for record in pipeline_records if record.stage == "commit"
+    ]
+    for stage, stage_records in (
+        ("build_done", build_done_records),
+        ("bench_done", benches),
+        ("abort", abort_records),
+        ("commit", commit_records),
+    ):
+        issues.extend(_attempt_binding_issues(
+            stage_records, stage=stage, expected_attempt_id=expected_attempt_id,
+        ))
     if counts["build_start"] != 1:
         issues.append(f"build_start が一意でない: {counts['build_start']}")
     if counts["abort"] > 1 or counts["commit"] > 1:
