@@ -27,6 +27,8 @@ from ._manifest import (
     ErratumRef,
     ManifestError,
     PreregistrationRecord,
+    _assert_approved_manifest_intact,
+    _is_sealed_approved_manifest,
     _load_approved_manifest,
     _require_manifest_matches_approval,
 )
@@ -82,7 +84,7 @@ def _record_from_refs(
         addendum_b=addendum_b,
         fold_commit=approved.approval_ref.commit,
         errata=tuple(errata),
-        approval_manifest=approved.approval_ref,
+        approval_manifest=getattr(approved, "manifest_ref", approved.approval_ref),
         receipt_schema=approved.approved_blobs["receipt_schema"],
         composed_core_sha256=approved.composed_sha256,
         prereg_commit=approved.prereg_commit,
@@ -94,6 +96,7 @@ class _PreregBinding:
     """Opaque root-bound reference capability; no admission decision is made here."""
 
     record: PreregistrationRecord
+    approved_manifest: ApprovedManifest
     measurement_head: str
     prereg_commit: str
     prereg_content_commit: str
@@ -105,6 +108,8 @@ class _PreregBinding:
         self,
         *,
         record: PreregistrationRecord,
+        approved_manifest: ApprovedManifest,
+        repository_root: str | os.PathLike[str],
         measurement_head: str,
         prereg_commit: str,
         prereg_content_commit: str,
@@ -116,6 +121,8 @@ class _PreregBinding:
             raise TypeError("_PreregBinding は内部 token からのみ発行される")
         if type(record) is not PreregistrationRecord:
             raise TypeError("record が PreregistrationRecord でない")
+        if not _is_sealed_approved_manifest(approved_manifest):
+            raise TypeError("approved_manifest が sealed authority でない")
         if type(root_identity) is not tuple or len(root_identity) != 2 or any(
             type(item) is not int or item < 0 for item in root_identity
         ):
@@ -131,7 +138,13 @@ class _PreregBinding:
             raise TypeError("binding anchor が record と一致しない")
         if prereg_content_commit != record.core.commit:
             raise TypeError("binding content commit が core と一致しない")
+        root = require_git_repository(repository_root)
+        if _root_identity(root) != root_identity:
+            raise TypeError("root identity が repository_root と一致しない")
+        _require_manifest_matches_approval(record, approved_manifest)
+        _assert_approved_manifest_intact(os.fspath(root), approved_manifest)
         object.__setattr__(self, "record", record)
+        object.__setattr__(self, "approved_manifest", approved_manifest)
         object.__setattr__(self, "measurement_head", measurement_head)
         object.__setattr__(self, "prereg_commit", prereg_commit)
         object.__setattr__(self, "prereg_content_commit", prereg_content_commit)
@@ -144,6 +157,8 @@ class _PreregBinding:
         cls,
         *,
         record: PreregistrationRecord,
+        approved_manifest: ApprovedManifest,
+        repository_root: str | os.PathLike[str],
         measurement_head: str,
         prereg_commit: str,
         prereg_content_commit: str,
@@ -153,6 +168,8 @@ class _PreregBinding:
     ) -> _PreregBinding:
         return cls(
             record=record,
+            approved_manifest=approved_manifest,
+            repository_root=repository_root,
             measurement_head=measurement_head,
             prereg_commit=prereg_commit,
             prereg_content_commit=prereg_content_commit,
@@ -166,6 +183,8 @@ class _PreregBinding:
 
         if type(self) is not _PreregBinding or self._seal is not _CAPABILITY_TOKEN:
             raise GitSupportError("preregistration capability の seal が不正である")
+        if not _is_sealed_approved_manifest(self.approved_manifest):
+            raise GitSupportError("approval authority の seal が不正である")
         root = require_git_repository(repository_root)
         if _root_identity(root) != self._root_identity:
             raise GitSupportError("repository root identity が binding 発行時から変わった")
@@ -177,6 +196,8 @@ class _PreregBinding:
             raise GitSupportError("binding anchor が record と一致しない")
         if self.prereg_content_commit != self.record.core.commit:
             raise GitSupportError("binding content commit が core と一致しない")
+        _require_manifest_matches_approval(self.record, self.approved_manifest)
+        _assert_approved_manifest_intact(os.fspath(root), self.approved_manifest)
 
         require_ancestor(
             root,
@@ -250,6 +271,8 @@ def _resolve_effective_preregistration(
     _commit(effective, "prereg_effective_commit")
     binding = _PreregBinding._issue(
         record=record,
+        approved_manifest=approved,
+        repository_root=root,
         measurement_head=measurement_head,
         prereg_commit=record.prereg_commit,
         prereg_content_commit=record.core.commit,

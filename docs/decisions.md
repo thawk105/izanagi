@@ -21715,7 +21715,8 @@ keyword 3) と judge CLI の引数は変更しない。期待 SHA の唯一の�
 **決定:** COMMIT receipt を発行する capability は、実 verifier entrypoint が trace を検証した
 その呼び出しの内側でだけ生成する。呼び手が構築した `VerifyResult` や、呼び手が組み立てた
 serialized dict / hash を authority にしない。capability は operation・variant・workload・sink・
-lock context を焼き込み、receipt 発行時に完全一致と一回消費を要求する。
+lock context を焼き込む。receipt を受理する sink は完全一致と、flock 下で走査する同じ ledger の
+消費済み集合内での一回消費を要求する。別 layout の ledger を横断する一意性は主張しない。
 
 **理由:**
 - 「receipt を要求する検査を足す」ことと「receipt が verifier 由来である」ことは別である。
@@ -28799,3 +28800,500 @@ lock 内では SHA の同一性と祖先関係だけを再確認する。
   §10.5 にも規定が無い。誰が stale を宣言できるかの fencing 設計も要る。
 - **8b の再走理由集合を実装子判断で決める** — 受理集合を変えるため許されない。
 - **8b を production へ配線してから裁定を待つ** — 途中状態が production から到達可能になる。
+
+## D736. known-violation 0 件は現行契約では到達不能であり、目標指標の改訂をユーザー裁定へ返す (2026-08-24)
+
+**決定:** 「known-violation を 0 件にする」は、現行の provenance 契約と履歴不変の原則のもとでは
+AI 側の作業だけでは達成できないと記録する。53 件のうち 49 件は不可逆であり、残り 4 件も
+D737 により撤去しない。目標指標を改めるか、
+遡及訂正の枠を開くかはユーザー裁定へ返す。
+
+**理由:**
+- known-violation は「過去の commit がその時点で有効だった規約に違反していた」という事実の記録で
+  あり、commit message を書き換えずに事実を消す手段は無い。履歴の書き換えは禁止されている。
+- 最大の塊である 2026-08-09 の 22 件は、trailer literal が全件同一の単一事故である。
+  「規則が後から出来たため legacy 免除に当たるのでは」という仮説は反証した — 値の文字集合規則と
+  role 許可集合はいずれも checker 導入 commit `50c1ef4e` (2026-07-14) から在り、
+  `docs/ai-provenance.md` も違反 commit `f277efd446` (2026-08-08) の時点で同じ本文だった。
+- 遡及訂正の経路は 1 本しかなく、閉じている。`docs/provenance/correction.md` の `PR-C01` は
+  「一般 allowlist・設定・CLI 免除へ拡張しない。この枠は `6d7141dc` で消費済みであり、
+  新しい担い手を追加してはならない」と明記する。`AI-Agent-Waiver` は commit 自身の trailer を
+  読むため遡及適用に履歴書き換えを要する。git notes による外付け訂正の経路は repo 内に存在しない
+  (全数検索で不在を確認)。
+- 増加は実測で単調である。各 blob の registry tuple を `ast` で構文解析し `--first-parent` で
+  main 本線だけを追うと、件数の変化点は増加 20 回・減少 2 回。意味のある減少は checker 是正による
+  53→34 の 1 回だけで、44.7 時間後に 53 へ復帰した (約 10 件/日)。**生成器を止めずに台帳だけ
+  減らしても 2 日と持たない。**
+
+**却下した選択肢:**
+- trailer の文法 (`IDENT` の文字集合、role の許可集合) を緩めて 22 件を通す — 絶対規律 2 に反する。
+  違反当時から有効だった規則を後から緩めることは、監査そのものを無効化する。
+- 親の判断で `PR-C01` の一回性を解除する — 訂正機構を恒久的に開く判断であり、
+  「後から書けば直せる」経路を作る。親の裁量ではない。
+- 台帳の件数を報告から省く、または「残置」として扱いを下げる — D662 決定 5 が
+  「低優先度の残置ではなく高優先度タスクとして随時解決する」と定めた方針に反する。
+
+## D737. merge の実装面判定に「著作行の実在」による免除を入れない (2026-08-24)
+
+**決定:** merge commit の実装面 path 判定へ、「結果の全行がいずれかの親に存在し、かつ全親が結果の
+subsequence である」ことを根拠に除外する一般則は入れない。D721 を維持する。
+該当していた 4 件 (`5823caf328`, `3eaf2038ec`, `0c0f3e71b3`, `bf92f327ca`) は台帳に残す。
+
+**理由:**
+- 述語を満たしても merge author は実装上の意味を著作できる。親 P1 が `@audit`、親 P2 が
+  `@authorize` を持ち、結果が両方を並べる場合、全行が親由来で両親とも結果の subsequence であり
+  出現回数も上限内である。しかし `audit(authorize(check))` という**相対順序を決めたこと自体**が
+  実装著作であり、逆順とは挙動が異なる。両親が同じ 1 行を持ち結果がそれを 2 回置く場合も同型で、
+  二重登録という新しい挙動を merge author が作っている。
+- したがって D721 の中心理由「最終形からは自動解決と手解決を区別できない」は、述語を
+  行の集合包含から順序保存へ強めても解消しない。強めても救えるのは 10 件から 4 件へ狭まるだけで、
+  「手で解決した merge を Codex author 不要にする」という本質は変わらない。
+- 収量が小さい。4 件は台帳 53 件の 7.5% であり、同じ労力を生成器側へ向ければ最大 12 件分の
+  将来抑止になる (D738)。
+
+**却下した選択肢:**
+- 述語をさらに強めて「最短共通 supersequence」まで要求する — 同一の空行や閉じ括弧が多数ある
+  file では、別ブロックの同値行を同一視して正当な独立追加まで落とす。順序著作の反例も残る。
+- `git merge-file` の再計算で自動解決だった merge だけを通す — blob 単位の低水準 merge であり、
+  rename 検出・`.gitattributes` の custom merge driver・実際の strategy を再現しない。
+  当時の解決主体を示す証拠にならない。
+- 該当 4 件だけを個別にユーザー裁定で撤去する — 既に exact SHA の known-violation として
+  登録済みであり、狭い裁定を二重に重ねるだけで受理集合は変わらない。
+
+## D738. 台帳の entry 単位格納への移行は、逐語 pin 撤去のユーザー裁定を着手条件とする (2026-08-24)
+
+**決定:** `KNOWN_PROVENANCE_VIOLATIONS` を entry 単位のデータへ移す改修は、
+`test_known_violation_ledger_matches_literal_entries` の独立 literal pin を撤去してよいという
+ユーザー裁定が出るまで着手しない。裁定が出た場合の必須条件を本決定に固定する。
+
+**理由:**
+- 移行の効果は逐語ミラーを畳むことと不可分である。正本の tuple だけをデータへ移しても、
+  ミラーが Python literal のまま残れば登録のたびにそこを編集することになり、実装面の変更と
+  競合が残る。ミラーを同じデータから読む形に書き換えれば、同じ値を 2 度読むだけの恒真な検査になる。
+- 逐語ミラーは説明文だけを固定しているのではない。53 件全部の commit・finding kind・
+  expected value・ruling・note・順序・一意性を独立に照合しており、`ruling` と `note` は
+  受理判定に使われない**からこそ**全史監査では改変を検出できない。実 commit 照合テストの被覆は
+  31 件にとどまり、最新 22 件を含まない。**この pin を畳めば、単一 file の編集だけで
+  台帳の裁定根拠と公開 note を偽造・消去できる。**
+- 既存の正しさ防壁を撤去する判断は親の裁量ではない (絶対規律 2)。
+
+**必須条件 (裁定が出た場合):**
+- file key は `<sha>` 単独では足りない。1 commit が 2 finding を持つ実例があるため
+  複合 key (`<sha>--<kind>` 等) で一意化し、filename と本文の一致を検査する。
+- index file を持たず `sorted` の directory 列挙で読む。index を置けば共通編集面が復活する。
+- 現行 `_known_violation_registry()` の全検証 (full lowercase SHA、kind 集合、ruling 非空、
+  note の改行禁止と禁止文字と descriptive 要求、malformed の value 要否、SHA/finding 重複禁止) を
+  同値に保存し、重複 key・未知 key・欠落 key・型違反を厳格に拒否する。
+- tracked な regular file だけを読み、symlink・untracked・ignored を拒否する。
+  HEAD の tree から読むか、worktree と HEAD の一致を検証する。**さもなければ untracked file を
+  置くだけで finding を抑止できる。**
+- データ directory は実装面として分類する。`docs/` 配下へ置いて docs-only 化することは
+  利点ではなく、Codex author 契約の抜け道である。
+- loader は lazy load とし、import 時に走らせない (`--message-file` 契約を壊す)。
+- 53 件全部を実 commit の finding と突き合わせる検査と、公開 stdout の逐語検査を同じ wave に置く。
+- 投影外 consumer (`tools/check_docs.py`、`orchestrator/tests/test_check_docs.py`、
+  `orchestrator/tests/test_hooks.py`、`orchestrator/tests/test_dev_wave_land.py`) の
+  opaque pin (whole-file SHA-256、byte 予算、行数、逐語断片) の read-only 閉包確認を必須 scope に含める。
+- 同一 entry の並行登録は競合が残る。別 filename へ逃がすと merge 後に registry 重複で
+  停止するため、**意図的に fail-closed とする。**
+
+**却下した選択肢:**
+- 逐語 pin を単純削除して競合面を減らす — 受理集合と land 可否を変えずに台帳の裁定根拠だけを
+  偽造・消去できるようになる。gate の弱化である。
+- 正本の tuple だけをデータ化し、ミラーは Python literal のまま残す — 競合面が減らないため
+  効果が出ない。
+- データを `docs/` 配下へ置いて登録 commit を docs-only にする — 現行の実装面判定は
+  prefix・suffix・basename の 3 条件だけを見るため `docs/**/*.json` を実装面にしない。
+  結果として Claude 単独の commit で finding を抑止できるようになる。
+
+## D739. 8b は外部証拠と fencing を備えた専用 recovery event で死んだ attempt を引き取る (2026-08-24)
+
+**決定:** 計測 process の消失で terminal を書けなくなった 8b attempt は、別 process が
+scheduler accounting 等の外部証拠を検証した場合に限り、専用 recovery event で引き取れるようにする。
+event は 8b だけに許可し、誰が stale を宣言できるかを fencing で制限する。共通 core へ明示的な
+semantic handler を実装し、event 名を profile の許可表へ足すだけの実装は認めない。
+
+**理由:** 現行の owner 束縛では、PBS の時間切れ・node 障害・SIGKILL で分類主体そのものが消えると
+attempt が永久に未完了になる。これは D496 の「行き止まりを作らない」と D510 の事前割当再走を
+実現不能にする。一方、owner 束縛を全体で緩めると 8c の受理集合まで広がり、D672 に反する。
+
+**却下した選択肢:**
+- terminal の owner 束縛を全体的に緩める — 8c を含む既存の受理集合を広げる。
+- 引き取りを作らない — 落ちた構成を測り直せず、既裁定の救出経路が成立しない。
+- profile の event 表だけを増やす — semantic 未実装 event が terminal として扱われた実測済みの穴を再導入する。
+
+## D740. 観測開始後の再走は外因性を外部証拠で確認できる失敗理由だけに限る (2026-08-24)
+
+**決定:** 観測開始後に落ちた反復は、性能と独立な外部要因を信頼側の外部証拠で確認できる場合だけ、
+次 attempt の値を主値へ昇格できる。対象は node 障害と scheduler による外部中断の閉じた集合とし、
+wall timeout、単なる PID / process 消失、自己申告だけの失敗は含めない。実装前に理由の exact 値と
+証拠源を凍結し、分類は性能出力を読む前に create-only 受領証へ残す。
+
+**理由:** すべて永久欠測にすると事故 1 回で cell が行き止まりになる。すべての次 attempt を採ると、
+完走しやすい run の条件付き性能へ estimand が変わる。wall timeout は遅い run ほど起きやすく、
+性能との相関を除けない。外因性を証明できる理由だけに限れば、行き止まりを減らしつつ
+結果を見た後の再走選択を防げる。
+
+**却下した選択肢:**
+- すべて永久欠測にする — 統計的には保守的だが D496 の行き止まり禁止に反する。
+- 次 attempt を理由を問わず主値へ昇格する — 元の床値と同じ量だと主張できない。
+- wall timeout や単なる process 消失を retryable にする — 性能との相関または証拠不足を除けない。
+
+## D741. 8c の分類理由と terminal 理由の一致検査を次の正式利用前に必須化する (2026-08-24)
+
+**決定:** 8c の既存成果物と今回の互換 facade の受理集合は遡及変更しない。一方、次の正式 8c 走行または
+凍結世代更新より前に、事前分類受領証の失敗理由と terminal の再走理由の一致検査を必須化する。
+それまでは現行経路を新しい正式証拠の生成に使わない。
+
+**理由:** 現行 8c には、分類時に失敗理由なしで封印し、性能値を見た後で retryable 理由へ付け替えて
+次 slot を得られる実在の reward-hacking 経路がある。直ちに互換 facade の受理集合を変えると
+D672 の実装条件を後から破るが、期限なしの現状維持は絶対規律 2 に反する。版境界で締めれば、
+過去成果物を保ったまま次の正式利用を安全にできる。
+
+**却下した選択肢:**
+- 今回の互換抽出へ遡及して即時に締める — D672 が要求した受理集合不変を破る。
+- 期限を置かず現状維持する — 値を見た後の再走選択を正式系列へ残す。
+
+## D742. known-violation は不可逆な歴史群と新規群を分け、新規増加ゼロを目標にする (2026-08-24)
+
+**決定:** known-violation の総数 0 は目標にしない。過去 commit の不変な違反を「不可逆な歴史群」として
+固定し、現在の契約下で新しく生じた違反を別群で数える。運用目標は新規群 0 とし、新規登録は
+従来どおり高優先度で解消する。遡及訂正枠の一回性は解除しない。
+
+**理由:** 既存違反の大半は履歴を書き換えない限り消せず、総数 0 の唯一の実現手段は監査文法を緩めるか
+遡及訂正機構を恒久的に開くことになる。どちらも監査の意味を薄める。新規増加 0 は現在の機構を
+緩めずに制御でき、生成器修理の効果も測れる。
+
+**却下した選択肢:**
+- 総数 0 のため遡及訂正枠を再開する — 「後から補記すれば通せる」恒久経路を作る。
+- 文法を緩めて既存違反を通す — 違反当時から有効だった正しさ gate を後退させる。
+
+## D743. known-violation の entry 単位格納は独立検査を同じ wave で置換する条件で認める (2026-08-24)
+
+**決定:** known-violation 台帳を 1 finding 1 file の entry 単位格納へ移してよい。既存の独立した
+逐語 literal mirror は単純削除せず、同じ実装 wave で次の検査へ置換することを着手条件とする。
+
+- 複合 key、filename と本文の一致、重複・未知・欠落 key の厳格拒否
+- tracked な regular file だけを読み、symlink・untracked・ignored と HEAD 不一致を拒否
+- データ directory 自体を実装面として分類
+- 既存全 entry の実 commit finding との照合と、公開 stdout の逐語検査
+- 投影外 consumer の byte / literal pin を含む read-only 閉包確認
+
+同じ finding の並行登録競合は fail-closed のまま残し、競合ゼロを保証しない。
+
+**理由:** 単一 Python tuple と逐語 mirror の共通末尾は、並行 wave の競合と手解決による新しい違反を
+反復生成している。一方、逐語 mirror は受理判定が読まない ruling / note の改変を検出する独立防壁で、
+代替なしに畳むと裁定根拠を偽造・消去できる。上記検査を同時に置けば、防壁を保ちながら共通編集面を減らせる。
+
+**却下した選択肢:**
+- 現状維持 — 台帳編集由来の違反生成器を温存する。
+- 逐語 mirror だけを削除する — 正しさ防壁の単純な弱化になる。
+- データを docs-only 面へ置く — Codex author 契約の抜け道になる。
+
+## D744. `.agents/**/agents/*.yaml` を docs 面とし、Codex author 必須の対象から外す (2026-08-24)
+
+**決定 (2026-08-24 ユーザー裁定):** repo-scoped Codex Skill の interface metadata
+(`.agents/**/agents/*.yaml`) は docs 面とする。D95 決定 (1) の「実装面は Codex `role=author`
+実装子が書き、親は直接編集しない」の対象に含めず、親が直接編集してよい。
+`.agents/**/SKILL.md` も従来どおり docs 面である。`tools/check_ai_provenance.py` の
+`_is_implementation_path()` は既にこの分類と一致しており、変更しない。
+
+**理由:**
+
+- **sandbox 化された Codex 子は `.agents/` へ物理的に書けない。** 本 wave で 2 経路とも拒否された。
+  Bash 経由の `apply_patch <<'PATCH'` は `guard_bash` が「防護ツリーのパスと不透明構文の同居」で拒否し、
+  native `apply_patch` tool は `patch rejected: writing outside of the project; rejected by user
+  approval settings` で拒否した。同じ sandbox・同じ worktree で `tools/` と
+  `orchestrator/` へは書けているため、`.agents/` 固有の制約である。
+  Codex が自分の skill 定義を書き換えられないのは、製品側の自己改変防止として整合的である。
+- したがって当該 path を Codex author 必須にすると、**dev-wave では永久に保守できない面**が生まれる。
+  D95 が塞ぎたかったのは「親が実装を代筆して Codex 帰属を空洞化させること」であり、
+  子が構造的に到達できない path を親が保守することはその型ではない。
+- 分類の実体は既に `_is_implementation_path()` が持っている
+  (`.agents/` は所在の列挙になく `.yaml` は拡張子の列挙にない)。本決定はその分類を明文化し、
+  D95 本文の「機械設定も実装面である」という一般記述との食い違いを、この path に限って解消する。
+- 内容の設計判断そのものは Codex 実装子が担っている。同子が `tools/check_docs.py` の期待値定数を
+  書き、親はその定数へ byte 単位で一致させるだけである。著者性の実体は失われない。
+
+**射程の限定:**
+
+- 本決定は `.agents/**/agents/*.yaml` と `.agents/**/SKILL.md` に閉じる。
+  `.codex/` 配下、`tools/`、`orchestrator/`、`hooks/` の機械設定は従来どおり実装面である。
+- 「子が書けないから親が書く」を一般の免除理由にしない。他の path で同種の主張をするときは、
+  拒否の逐語と再現手順を添えて改めてユーザー裁定を取る。
+
+**却下した選択肢:**
+
+- **親が代筆せず停止する (D95 の既定)** — 該当 path を dev-wave から永久に保守不能にする。
+  暗黙起動の防壁のような、実際に運用事故へ直結する修正が入らなくなる。
+- **`AI-Agent` trailer だけを書き換えて Codex author を主張する** — 実作業帰属を偽る。
+- **`_is_implementation_path()` を広げて `.agents/` を実装面にする** — 子が書けない以上、
+  検査を通せる主体がいなくなる。
+
+## D745. Codex cleanup-branches の安全縮退を「一致の裁定済み例外」として全数記録する (2026-08-24)
+
+**決定:** Codex 側 `cleanup-branches` skill が Claude command に対して持つ意図的な差分は、
+共通 dispatcher の不一致ではなく **Codex 固有の安全縮退**である。両者の一致は
+「共通 dispatcher の手順が一致し、そのうえで下表の縮退だけが Codex 側に上乗せされる」と定義する。
+以後この skill について「完全一致」とは書かず、下表を参照する。
+
+| 面 | Claude command | Codex overlay | 向き |
+|---|---|---|---|
+| `git worktree prune` | 実行する | preview のみ、実 prune は人間へ引き渡す | 縮退 |
+| local `main` / primary worktree | 一般の eligibility 判定に従う | 無条件に保持する | 縮退 |
+| foreign / locked worktree | eligibility 判定に従う | inventory と report のみ、unlock・削除・prune をしない | 縮退 |
+| eligibility の再評価 | 削除直前の占有検査 | 各破壊操作の直前に全条件を再評価する | 縮退 |
+| 権限不足時 | — | 権限を拡大せず、実行できた操作と残作業を人間へ返す | 縮退 |
+| overlay 衝突時の優先順位 | — | 削除範囲が狭くなる安全側へ縮退する | 縮退 |
+| `ExitWorktree` | 使える前提 | 使える前提を置かず、cwd を対象外へ固定できなければ停止 | 翻訳 |
+
+**理由:**
+
+- これらは 2026-07-30 の Codex adapter 移植時に意図して入れた縮退であり、退行ではない。
+  しかし「依頼上の一致に対する裁定済みの例外である」という権威と全数一覧が repo に無かったため、
+  一致検査のたびに未解決の不一致として再発見される。
+- 縮退はすべて**削除範囲を狭める向き**にそろっており、正しさ防壁を緩める向きの差は無い。
+- 差を残すか解消するかは設計択一であり、本決定は現況の明文化に留める。解消の可否は別途裁定する。
+
+**却下した選択肢:**
+
+- **縮退を外して Claude と同じ結果へ揃える** — 破壊操作の安全弁を自動的に外すことになる。
+  実施するならユーザー裁定を要する。
+- **記録せず現況のまま置く** — 次の一致検査が同じ不一致を再発見し、
+  「一致した」と報告できない状態が恒久化する。
+
+## D746. 受入全走の work unit を所要降順へ並べ替える (2026-08-24)
+
+**決定:** collection の最後に work unit を所要降順へ並べ替える。順序だけを変え、収集集合は
+1 件も変えない。所要は repo へ commit した `orchestrator/tests/acceptance_duration_ledger.json`
+から引く。scheduler class・argv・`pytest.ini`・xdist の option は 1 つも変えない。
+
+実装は次の 8 点を満たす。
+
+1. 並べ替えは既存 collection wrapper の post-yield で行う。xdist の worker 側 hook が
+   nodeid へ `@group` を付けた後の最終 nodeid を見る。
+2. work unit の切り出しは `LoadGroupScheduling._split_scope` と exact 一致させる
+   (`nodeid.rfind("@") > nodeid.rfind("]")` の guard を含む)。
+3. **未知 unit の擬似 cost は「この collection で既知な unit の cost 降順の第 96 位」。**
+   96 は 48 worker x 2 = `schedule()` の初期同期配布の窓である。
+4. tie-break は元の unit index。unit 内の相対順は保つ。
+5. 台帳が不在・破損・上限 (16 MiB) 超過・部分欠落・読取不能でも順序の質だけが落ちる。
+   既知 0 件なら完全 no-op。台帳を選択・skip・予算・受理判定の入力にしない。
+6. 発火は loadgroup 走に限る。worker では xdist が `config.option.dist` を `"no"` へ
+   書き換えるので `config.getvalue("loadgroup")` で判定する。
+   早期停止 (`-x`/`--maxfail`/stepwise)、明示 order (`--ff`/`--nf`/`--lf`)、
+   非実行 flag、`--trace`、`--no-loadscope-reorder` のある走では並べ替えない。
+7. 台帳は controller が 1 度だけ読み `workerinput` で配る。worker は file を再読しない。
+   controller が読まない走では key を配らず、worker は key の不在を「台帳なし」として受理する。
+   **並べ替えが有効な worker で key が無い場合だけ** fail-closed で拒否する。
+8. identity 検査は `assert` ではなく明示拒否 (`python -O` で消えないため)。
+
+**理由:**
+
+- `LoadScopeScheduling.schedule()` は collection 順の `OrderedDict` を workqueue にし
+  `popitem(last=False)` で FIFO 消費する。**collection の順序がそのまま投入順**である。
+- 前 wave の一次資料で xdist の割当を event driven に再現したところ、実既定
+  (件数降順の安定 sort + `_reschedule` の先取り緩衝) が 155.3 秒、所要降順が 111.8 秒だった。
+  **差 43.5 秒**は固定 duration 上の反実仮想であり、実測 wall の予測ではない。
+- **利得は「重い unit が先頭 96 の同期配布窓に入る」ことに依存する。** それ以降は worker が
+  非同期に取りに来るため、重い unit が窓の外にあると 1 台が連続で抱え込む
+  (実測で 1 worker が 81.7 + 60.2 + 60.2 = 202 秒を直列に抱え、最速 worker は 109.5 秒で遊んだ)。
+  未知既定を先頭寄せにするとまさにこれが起きる。第 96 位案は欠落 1.3% で 111.8 秒、
+  先頭案は 166.2 秒だった。
+- 値の精度は要らない。各 unit の所要が `2^(-2..2)` 倍ずれても makespan は変わらない。
+  **要るのは順位だけ**なので、台帳は毎走更新しなくてよい (欠落 10% でも 111.9 秒)。
+- 台帳が空・読めない場合の下限は「現状維持」である。
+
+**却下した選択肢:**
+
+- **custom scheduler** — D390 / D393 が実効 scheduler を exact 型 `LoadGroupScheduling` に
+  束縛しており、受入 receipt が拒否する。collection 並べ替えが唯一の経路である。
+- **`config.option.loadscopereorder` の無効化** — 不要。collection を所要降順にすれば、
+  後段の件数安定 sort を通しても同じ 111.8 秒になる (差 0.0 秒)。
+  現在の複数 item unit が 3 個 (103.0 / 103.0 / 14.9 秒) で、件数上位と所要上位が一致するため。
+  **この等価性は group 構成に依存する**ので、実装は後段 sort に耐えることを前提に置く。
+- **file 粒度の unit** — 最大 file が 420.8 秒あり、makespan の床が上がって逆効果。
+- **低価値テストの削除** — D747 を参照。
+- **shard 分割** — 前 wave が queue 待ちで総所要が負けると実測済み。
+
+**保証しないこと:** 順序を変えれば、順序依存のテストは緑と赤が入れ替わりうる。
+ただし**順序非依存は本 repo の受入が既に要求している前提**である
+(`-n 48` で 48 worker へ任意に散らされ、xdist 自身も既定で件数降順に並べ替えている)。
+本 wave はその前提をより強く踏む。潜在的な順序依存があれば受入全走が赤になって露見する。
+
+## D747. 受入の高速化手段としてテスト削除を採らない (2026-08-24)
+
+**決定:** 「価値の低いテストを削除して受入を速くする」は採らない。削除 0 件で閉じる。
+
+**理由 (すべて 1 走 14467 件 / 直列総和 5364.9 秒の実測):**
+
+- 所要 0.01 秒未満が **7750 件で合計 15.1 秒**。48 並列の wall 換算で 0.31 秒。
+  **全テストの 54% を消しても wall は 0.3 秒しか縮まない。** 中央値は 0.005 秒である。
+- D746 を入れると makespan が work 下界と一致するので、
+  **削減した直列秒数の 1/48 しか wall に効かない。**
+- 床がある。排他鎖 `s8c-preregistration-candidate` が 102.98 秒なので、
+  直列総和が 4943 秒 (= 48 x 102.98) を下回ると鎖が律速になる。現在 5364.9 秒なので
+  **削減で得られる余地は最大でも 422 秒 = wall 8.8 秒**である。
+- 高コスト側を実ファイルで確認したが、削除できるものは 1 件もなかった。すべて
+  「同じ前置きを何度も払っている」型で、正しい対処は削除ではなく共有化である。
+
+**限界:** この結論は**テストの実行 work についてだけ**成立する。各 ungrouped test は
+1 work unit でもあるので、削除は unit 送信・`worker_collection.index()`・完了 event・
+`_pending_of` の再走査・collection 処理も減らす。これらは 15.1 秒に含まれておらず、
+未解明の残余 61.3 秒の一部でありうる。**「安いテストを減らしても wall に効かない」は未証明**である。
+
+**却下した選択肢:**
+
+- 所要だけで削除候補を決める — subsume を証明できない削除は検出力を落とす。
+- parametrize 族 (総 work の 30.5%、1175 族) の一括削減 — 本 wave の scope 外。
+  batch 化・fixture 共有・真の subsume 調査として別途起票する。
+
+## D748. 公表 core v2 §8.1 の family_root 偽命題を限定訂正する (2026-08-24)
+
+**決定:** 公表 core v2 §8.1 がいう「`family_root` が primary 系列と同じ commit である」は
+偽である。次の記号を用いる。
+
+```text
+P = 88d68f9127b31df5aafc3d59607896626a1652e8
+A = dce4ae4fed6f4fb33747165c5b92c16d01822850
+I = individual_publication
+R = alpha_reservation
+```
+
+公表側の根は `P`、primary 実台帳の根は `A` であり、`P != A` である。したがって §8.1 の
+命題 `P = A` は、conformance、適合報告、proof chain の根拠に使ってはならない。この限定訂正は
+`P` 自体を公表系列の根または D291 の `source_core.commit` の provenance として参照することを
+禁じない。
+
+公表 entry 空間と primary entry 空間の互いに素性は `(root, kind)` で成立する。任意の正整数
+`n, m` について、`n = m` の場合を含めても `(P, I, n) != (A, R, m)` である。この量化は
+ordinal の受理・発行を授権せず、数値 ordinal が常に異なるとも主張しない。共有しないのは
+ordinal namespace と entry identity である。公表台帳が 0 byte でも、固定 literal と canonical
+path の束縛が `(P, I)` を同定する。
+
+**D291 の保存境界:** 本決定は D291 全体を supersede しない。次をすべて保存する。
+
+- `approved_blobs` の 2 role と 2 承認三つ組:
+  - `publication_core` =
+    (`output/insights/2026-08-11_t139-pubcore-stage2/publication-core-v2.md`,
+    `66934dda7f28893110a64a2011e213c2bda5e821`,
+    `ad326dae70584d86470ff861e9bfd517b4f5b8406247f8047ae6cdb3ddabef67`)
+  - `source_addendum_b` =
+    (`output/insights/2026-08-11_t139-pubcore-stage2/addendum-b-v2.md`,
+    `25a66d2042a4fff1021e033c23fc2b814a735de9`,
+    `ad12b60d29bb94ff67c3302b0779cb4765cd1c77768149d7cf6587698febb048`)
+- `document_relations` の 3 role を含む節全体の exact 一致、`exact_closure`、p01 / p02 の
+  承認値と比較単位。
+- D291 の fold trust root `F_p = b13b7ea840ad51199f40b3a534c9d1cdb422af2e`。
+- 2 文書の `authority: none` bytes と、承認 authority を D291 が持つ境界。
+
+これは blob approval の失効・更新・再承認ではなく、承認済み bytes 内の命題 `P = A` だけに
+対する後続解釈の限定 override である。本決定は予約手続きの第三の authority ではない。予約の
+authority を公表 core v2 の §8.1 / §8.2 と追補 P だけから解決する既存境界を保存する。
+
+**operational boundary:** 本決定は、R2 の予約原子性、cross-worktree 一意性、予約 writer、
+公表機構を完成・変更・授権しない。既存 validator、resolver、producer、consumer、受理集合、
+固定 root / kind、両台帳の内容も変更しない。D291 の `pilot_submission = forbidden`、
+`main_submission = forbidden`、`source_main_run_gate = not_implemented` はそのままである。
+空の公表台帳を正例として読めることは、entry 追加や ordinal 発行の権限を意味しない。
+
+**理由:** 実在する公表台帳 identity は `(P, I)`、primary 台帳の ordinal 1 entry は `(A, R, 1)`
+であり、承認済み文書の `P = A` と両立しない。偽命題を残したままにすると、将来の consumer が
+実台帳と矛盾する同一 commit を proof chain の根拠として適合報告へ取り込みうる。一方、承認文書を
+編集すると D291 が承認した exact bytes ではなくなるため、canonical decision で命題の使用だけを
+限定する。公表根 `P`、primary 根 `A`、公表 core の承認 blob commit `66934dda...`、D291 の fold
+trust root `b13b7ea8...` は別の役割であり、相互に読み替えない。
+
+**却下した選択肢:**
+
+- 承認済み公表 core を直接編集する — D291 の exact-byte authority を失う。
+- 公表根または primary 根を書き換えて同じ commit へ寄せる — 実台帳の provenance を改変する。
+- `P` の利用を一般に禁止する — 公表根と `source_core.commit` という正当な役割まで失効させる。
+- 本決定を予約 authority や ordinal 発行根拠にする — 公表 core v2 の閉じた予約 authority 境界を破る。
+- 数値 ordinal の不一致だけで互いに素性を説明する — 両 namespace に同じ数値が存在する場合を扱えない。
+- R2 原子性、予約 writer、公表機構も同時に実装する — 本訂正から独立した未完了面であり scope 外である。
+
+## D749. T-139 の pilot 禁止は運用経路の閉包まで維持する (2026-08-24)
+
+**決定 (ユーザー裁定):** T-139 の `pilot_submission = forbidden` を現時点では解除しない。
+sealed series / receipt-set、production consumer、公開 API、PBS driver、collector を実装・検証し、
+private receipt の検査から実投入までの運用経路を閉じた後に、pilot だけを本走と分離して再提示する。
+本走禁止、certified 成果物、公表への昇格は引き続き変更しない。
+
+**理由:** private receipt gate の実装と検証は完了したが、実投入を担う producer / driver / collector と
+receipt-set は未実装である。canonical な解禁だけを先行させると、D292 が避けた「実装を条件へ
+合わせるために受理条件を緩める圧力」を再導入する。残る実装 wave は pilot 禁止を維持したまま進められる。
+
+**却下した選択肢:**
+- private gate の緑だけで pilot を直ちに解禁する — 解禁の運用実体が無く、decision だけが先行する。
+- pilot と本走を同時に解禁する — 根拠と成果物影響が異なり、D292 の分離要求に反する。
+
+## D750. shard 完全性の受領証証明は実害が出るまで見送る (2026-08-24)
+
+**決定 (ユーザー裁定):** 受入が既定 K=2 で分割される事実を踏まえても、受領証へ shard 完全性の
+証明項目を追加する変更は見送る。従属する red-check receipt の `nodes` / `collections` 対応を
+束縛する schema 変更も行わない。分割の取りこぼし、または空の収集結果を受理したことに起因する
+実害が1件観測された時点で、両者を同時に再訪する。
+
+**理由:** 「分割は既定で動いていない」という D728 の補強論拠は D733 で撤回されたが、実害0件と、
+実行器内部の完全性検査が実在することは変わらない。欠けているのは受領証だけを読む第三者向けの証明で、
+受理条件を扱う3道具と旧 schema の移行を今変更する費用は主目的から遠い。
+
+**却下した選択肢:**
+- 既定 K=2 になった事実だけで直ちに受領証 schema を改訂する — 実害の有無と外部証明の要否を混同する。
+- red-check schema だけを先に変える — 従属先と分離すると同梱理由が消え、処遇が再び宙に浮く。
+
+## D751. TRACE=0 同一性検査の3穴は正式計測前に閉じる (2026-08-24)
+
+**決定 (ユーザー裁定):** TRACE=0 前処理同一性検査に残る次の3穴を、同検査を通した値を正式な
+性能証拠へ使う前に同一 wave で修理する。(1) CMake の間接マクロ供給と行継続 `#define` の見落とし、
+(2) macro include operand の差し替えによる false-green、(3) 活性 hash 不一致と
+`identical: true` が同時に立つ report の自己矛盾。各穴を単独に発火させる負の対照を置く。
+pilot-only・非認証の配線確認まで一律に禁止しない。
+
+**理由:** include 差し替えの false-green は、性能計測用ビルドから trace 処理を完全除去する
+絶対規律1へ直接掛かる。mocc の TRACE=0 値を正式材料へ使う前なら、成果物を遡及訂正せずに閉じられる。
+
+**却下した選択肢:**
+- report の自己矛盾だけ直し解析上の2穴を残す — 表示は整っても false-green の受理集合が残る。
+- 3穴を既知限界として受容する — 正式な性能証拠が観測者効果の除去を証明できない。
+
+## D752. fold 適用後 tree は実コーパス依存検査を land 前に通す (2026-08-24)
+
+**決定 (ユーザー裁定):** fold の決定的な dry-run 出力を隔離した tree へ適用し、fold が変更する
+canonical 台帳を読む実コーパス依存テストだけを land 前に実行する関門を追加する。受入全走を
+fold 前後で2回行わない。対象検査の選定と、fold 出力と実適用 bytes の一致を実装 wave で固定する。
+
+**理由:** 受入全走が緑でも、その後の fold が main を赤にした実害が1件ある。fold は決定的なので、
+原因に近い対象検査だけを事前に掛ければ、全走コストを倍にせず同型退行を閉じられる。
+
+**却下した選択肢:**
+- fold 後に受入全走をもう1回行う — 費用が実害の範囲に見合わない。
+- land 後の赤を次 wave で修理する — 全 wave を止める canonical main の赤を再許容する。
+
+## D753. Codex Skill の real-repo docs 検査は growth hold を維持する (2026-08-24)
+
+**決定 (ユーザー裁定):** `test_check_docs.py::test_real_repo_clean` は
+`GROWTH_TEST_HOLDS` のままとし、受入全走へ戻さない。Codex Skill の実ファイルと checker 定数の
+一致は、クラス2/3完了時に必須の `python3 tools/check_docs.py` 明示実行で担保する。
+
+**理由:** held node は docs 総量に比例する同じ checker の重複実行であり、戻しても検出力は増えない。
+既存の explicit-user-command-only 裁定と、成長比例テストを受入から外す目的を維持できる。
+
+**却下した選択肢:**
+- 当該 node だけ受入へ戻す — 同じ checker を二重に実行し、既裁定の成長比例 cost を戻す。
+- checker の明示実行も省く — Skill drift の機械防壁そのものを失う。
+
+## D754. Codex cleanup-branches の安全縮退7面を維持する (2026-08-24)
+
+**決定 (ユーザー裁定):** D745 が全数記録した Codex 固有の安全縮退7面をすべて維持する。
+Claude command と同じ削除結果へ揃えず、「共通 dispatcher に安全縮退を上乗せした裁定済み例外」
+として扱う。今後も完全一致とは記述しない。
+
+**理由:** 7面はすべて prune・削除・権限拡大の範囲を狭める向きで、CC自動合成の主経路へ影響しない。
+製品間の結果一致だけを得るために破壊操作の安全弁を外す利得はない。
+
+**却下した選択肢:**
+- Claude command と同じ結果へ揃える — local main、foreign / locked worktree、prune 等への
+  破壊操作範囲を広げる。
+- 差を未記録へ戻す — 次の一致検査が同じ差を未解決として再発見する。

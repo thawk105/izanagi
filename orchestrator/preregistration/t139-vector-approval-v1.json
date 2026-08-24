@@ -1,0 +1,26 @@
+{
+  "schema_version": "t139-vector-approval/v1",
+  "decision_kind": "t139-vector-approval/v1",
+  "forward_supersedes": {
+    "decision_kind": "t139-preregistration-approval-supersession/v1",
+    "approval": {
+      "path": "docs/decisions.md",
+      "commit": "39d760985a5e37d20464c394760bf65596156566",
+      "sha256": "ec588bb6b8149b1d35e62246045771a4b9769a5a2b2de3160575bb1a6cec79cf"
+    }
+  },
+  "base_approval_fold_commit": "39d760985a5e37d20464c394760bf65596156566",
+  "approval_fold_commit": "b261b293f40548d7fc44293df3806df69acb7bc9",
+  "canonical_authority": {
+    "path": "docs/decisions.md",
+    "commit": "b261b293f40548d7fc44293df3806df69acb7bc9",
+    "sha256": "68896d97b84050630370e1545c1082a9f2ddab3b25a00a071048261766107d69"
+  },
+  "conformance_vector_index": {
+    "approval": {
+      "path": "orchestrator/tests/fixtures/t338_submission_gate/conformance/index-v2.json",
+      "commit": "6d431a60acc709832513440266c84ad86ea5ebc9",
+      "sha256": "b4a86912212e9350c37c15c1c4eeabf7f9ce71e4806bec7d2e4cf491b2d39099"
+    }
+  }
+}
