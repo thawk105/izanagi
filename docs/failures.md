@@ -1037,6 +1037,16 @@
   恒久対応: **run script 自身に `echo $$ > <pid-file>` を書かせ、待ち手は `--pid-file` を使う。**
   親が外から pid を推定しない。本 wave の `run-s3.sh` / `run-s6.sh` / `run-s6focus.sh` が実体である。
   「pid で見る」だけでは不十分で、**どの pid かを producer 自身に宣言させる**ところまでが対応である。
+
+- **再発: 2026-08-24** ([T-1611] 巻き取り wave)。2026-08-11 の恒久対応
+  「**run script 自身に `echo $$ > <pid-file>` を書かせ、待ち手は `--pid-file` を使う。
+  親が外から pid を推定しない**」に反した。`nohup setsid <script> &` の直後に
+  `pgrep -f <out path>` で拾った pid (215693) は中間 process で、実体は 215722 だった。
+  待ち手は 1 分足らずで `producer-exited` / `ARTIFACT=absent` を返し、
+  **まだ 8 走の途中だった変異本走を完了と誤報した。** `pgrep -af` の全文照合で実 pid を
+  確定し、待ち手を張り直して回復した。成果物は失っていない。
+  13 日前に同じ対応を書いたばかりの台帳を読まずに `pgrep` の先頭 pid を使ったのが原因であり、
+  対応内容は変えず、pid file を書かせる方を既定にする。
 ### F33. 変異ハーネスの同一ファイル複数置換が上書きで消え、両層変異が偽 SURVIVED になった [恒真ゲート] [手順漏れ]
 
 - 事象: [T-004] の変異 matrix 2 巡目で、両層変異 (M06ab/M07b) の各置換を**毎回 originals から**
@@ -4727,6 +4737,26 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   **同日 2 例目という事実が、この赤が特定 wave の事情ではなく受入 shard 経路の構造由来である
   ことを示す。** 恒久対応は本 wave の scope 外で、受入基盤の所有 wave の判断に委ねる点は
   1 例目と同じ。
+
+- **再発: 2026-08-25 (同日 3 例目)** — 直前の docs-only wave (同日 2 例目) と**同一の形が
+  連続で再生産された**。本 wave も docs-only (差分は `docs/spool/` の 2 file) で、
+  受入全走を 1 本しか投入せず走行中に repo へ何も書いていないのに、
+  `test_s8b_floor_campaign.py` の `_real_output_snapshot()` 系が 11 件赤になった
+  (11 failed / 15,284 passed / 60 skipped)。junit の差分は 11 件とも
+  `first extra item: ('dir', 'task-runs/reports')` で、2 例目と逐語一致する。
+  受入 shard は同じ作業木から request `944878` と `944879` を重ねて投入しており
+  (shard-1 の junit が 03:21:47、shard-0 が 03:23:20 に確定)、既知の機序と一致する。
+  帰属は 3 点で否定した — (1) wave の差分 2 file は `launch_cert` / `certificate` を
+  1 箇所も参照しない (`git diff` の grep が 0 件)、(2) 同 file の焦点走は
+  **451 passed / 2 skipped** で緑 (rc=0)、(3) junit 差分が実装ではなく
+  `output/task-runs/` の dir 増加を指す。
+- **新しい事実は決定性である。** 2 例目の焦点走も 451 passed / 2 skipped であり、
+  赤の件数 (11)・assertion 本文・焦点走の緑の内訳が 3 例目と完全に一致した。
+  この赤は wave 固有の事情でも散発的な flake でもなく、**docs-only wave が受入 shard 経路を
+  通ると再現する構造的な赤**である。「単独再走で消える」という 1 例目の再発検知条件は、
+  裏返せば「受入全走を投入するたびに一定確率で 1 回捨てる」費用を全 wave が払い続けることを
+  意味する。恒久対応 (task-run 記録の書き出し先を shard session root へ逃がす seam) は
+  本 wave の scope 外で、受入基盤の所有 wave の判断に委ねる点は 1・2 例目と同じ。
 ### F137. 衛生上の所見を閉じる fix が、元の所見より重い破壊経路を新設した [権限逸脱]
 
 - 事象: 段 6 レビューが「publish の一時ファイルが書込み失敗時に `registered/` へ残る」を
@@ -13664,3 +13694,79 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   再照準するか、DW-M03 に従い冗長 gate と明記して単独変異の証拠から外す。
 - 再発検知: 本 wave の probe 巡 receipt (`mutation-ledger-probe.json` の SURVIVED 2 件) と、
   再照準後の probe 第 2 巡で SURVIVED 0 件になったこと。
+
+### F537. 変異 wrapper の共有木検査は 2 root を見る — 自分の書き込みと他 wave 由来を分けずに一般化した [観測] [誤前提]
+
+- 事象: 変異本走を 3 回投入し、最初の 2 回が `shared_snapshot_matches=false` / `MUT_RC=125` で
+  abort した。1 回目は走行中に自分の wave worktree へ記録 docs 2 本を新規作成していた。
+  2 回目は木へ一切書かず、走行前後とも `git status --porcelain` が 0 行であることを確認したが、
+  同じ失敗になった。3 回目は**条件を何も変えずに再投入しただけで通った**
+  (`shared_snapshot_matches=true` / `failure=null`)。
+- 根本原因: `tools/mutation_worktree.py` の `_primary_and_source_roots()` は
+  `(primary, source)` の 2 root を返し、`_observe_shared()` は**両方**の
+  `git status --porcelain=v1 --untracked-files=all --ignore-submodules=none` と
+  `git submodule status --recursive` の stdout bytes 完全一致を要求する。
+  `primary` は `--source-repo` の common git-dir の親であり、wave worktree を渡すと
+  共有 main checkout になる。**2 root は挙動が違う。** 共有 main では各 wave worktree が
+  入れ子 repo として `?? .codex/worktrees/<x>/` の 1 行へ畳まれるので中身への書き込みでは
+  変わらないが、worktree の増減と land 中の一過性 dirty で変わる。source root では畳まれないので
+  自分の書き込みが直接効く。
+- 影響: 12〜13 分の本走を 2 回空振りさせた。さらに親が 2 例から
+  「混雑下では静穏窓が land 間隔より長いので構造的に成立しない」と一般化し、
+  独立 clone への切替えを不要に設計した。3 回目が素の再投入で通ったことで**間欠性**が確定し、
+  一般化が誤りだったと判明した。並行セッションへも誤った一般化を送っており、
+  相手からの 2 度の指摘で帰属を訂正した。
+- 恒久対応: (a) 変異走行中は source root へ書かない — memory
+  `no-acceptance-run-during-mutation`。(b) `shared_snapshot_matches=false` を見たら、
+  走行前後の source root の `git status --porcelain` を照合して自己帰属と外部帰属を分ける。
+  外部帰属なら**素の再投入を先に 1 回試す**。(c) 反復する場合だけ `--source-repo` へ
+  独立 clone を渡す。roots が clone 1 本へ dedup され共有 checkout から構造的に切れる
+  (別 wave の `--source-repo /work/1/SFC/tanab/mutation-src-t1601` が既存実例)。
+- 再発検知: wrapper receipt の `shared_snapshot_matches` と `failure` を毎回読む。
+  `false` のときに帰属を分けずに機構の一般化を書いたら再発とする。
+
+### F538. 停止 wave の棚卸しを 20 分前のスナップショットで提示し、6 件すべてが空振りになった [観測] [手順漏れ]
+
+- 事象: 死んだ codex の worktree を巻き取る作業で、親が停止中の wave を棚卸しし、
+  再開用の投げ文 6 件をユーザーへ提示した。ユーザーは「一気に投げる」と述べていた。
+  提示から 25 分後に並行セッションの指摘で測り直したところ、**6 件すべてが既に着地したか
+  別セッションに確保されていた。** 内訳は land 済み 1、branch 消滅 1、稼働中 4 である。
+  棚卸しの実測時刻は提示の 20 分前で、その旨を提示文に書いていなかった。
+- 根本原因: worktree の占有状態は分単位で変わる。棚卸しは提示の直前に測り直す必要があるが、
+  親は調査フェーズの値をそのまま提案フェーズへ持ち越した。memory
+  `task-suggestion-check-listagents-and-mechanism` が同じ規律を既に記録している。
+  スナップショットの取得時刻を明記しなかったため、受け手は現在値と読める形になっていた。
+- 影響: ユーザーが 6 件を一括起動していれば、全件が重複確保か既着地への空振りになった。
+  実害は指摘によって回避された。並行セッションの側も、送ってきた訂正が送信時点で
+  既に 2 件古くなっており、**同じ型を対称に踏んでいた。**
+- 恒久対応: 停止 wave の候補一覧を提示する直前に、branch の ancestry・worktree HEAD の前進・
+  job dir の更新時刻を測り直す。測り直せない場合は**スナップショットの取得時刻を本文へ明記し、
+  現在値でないことを述べる**。実体は memory `task-suggestion-check-listagents-and-mechanism` と
+  本エントリである。
+- 再発検知: 候補一覧を含む提示に、測定時刻または「提示直前に再測した」旨の記載が無ければ再発とする。
+
+### F539. 失敗時にも stdout を出す command を `$(cmd || echo SENTINEL)` で分類し、不在の枝が到達不能になった [恒真ゲート] [手順漏れ]
+
+- 事象: 取り残し branch 6 本の着地判定で、各 path が main に在るかを
+  `ms=$(git rev-parse "main:$p" 2>/dev/null || echo ABSENT_IN_MAIN)` で採り、
+  `ms` を branch 側 blob と比べて SAME / MAIN_ABSENT / DIFF の 3 分類に振っていた。
+  **MAIN_ABSENT が 1 件も出ず、spool fragment 7 本すべてが「main に別内容で存在」と出た。**
+  実際には 7 本とも main に存在しない (fold 済みで削除されている) 側だった。
+  判定表を作り直すまで、fold 済み fragment を「main と内容が食い違う未着地の成果」と
+  読む一歩手前だった。実害は無い (同 wave 内で気づき、`git cat-file -e` 版へ作り直した)。
+- 根本原因: `git rev-parse main:<path>` は path が解決できないとき、
+  **解決前の引数文字列 `main:<path>` を stdout へ書いたうえで非 0 で終わる**。
+  `$(...)` は command 置換の対象全体の stdout を捕るので、`||` の右辺が発火しても
+  捕獲値は sentinel 単独にならず `main:<path>` と sentinel の連結になる。
+  結果として sentinel との等値比較が恒に偽になり、**「不在」の分類枝が到達不能**になって
+  全件が既定枝 (DIFF) へ落ちた。rc は握り潰していない (F37 とは別型) — rc は正しく非 0 を
+  返しており、壊れたのは捕獲した値の方である。
+- 恒久対応: memory `absence-check-needs-cat-file-e-not-rev-parse-fallback`
+  (存在の有無は `git cat-file -e <rev>:<path>` の rc で先に決め、内容比較はその後に行う。
+  `$(cmd || echo SENTINEL)` を分類に使うのは、cmd が失敗時に stdout を出さないと
+  確かめた場合だけとする)。あわせて分類器を書いたら、**各分類枝が実データで 1 回以上
+  発火することを数えてから結論に使う** — 本件は「MAIN_ABSENT が 0 件」という
+  数え上げが最初の異常兆候だった。
+- 再発検知: **機械検査は無い (prompt 規律)。** 使い捨ての shell 分類器は repo の
+  lint 対象外であり、恒真な保証にしないためここに明記する。実務上の防壁は上記 memory と、
+  「全分類枝の発火数を見る」作法の 2 つだけである。

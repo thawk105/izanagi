@@ -32,10 +32,12 @@ from .layout import (campaign_layout, env_scope_dir,
                      validate_campaign_id, write_capability_for_directory)
 from .lock import campaign_lock
 from .model import CampaignConfig, Genome, STAGE_ABORT, STAGE_BUILD_START
-from .pipeline import (AdmissionCapabilityResolver, EvalResult, PerfConfig, S2_TAG,
+from .pipeline import (AdmissionCapabilityResolver, EvalResult, LEGACY_TAG,
+                       PERFORMANCE_TAG, PerfConfig, S2_TAG,
                        SEARCH_CONFIG_VERIFY_KEY,
-                       VERIFY_LEGACY_PLUS_S2, evaluate, s2_correctness_workload,
-                       variant_id)
+                       VERIFY_LEGACY_PLUS_PERFORMANCE, VERIFY_LEGACY_PLUS_S2,
+                       evaluate, performance_correctness_workload,
+                       s2_correctness_workload, variant_id)
 from .trigger_gate_binding import (
     SCHEMA_VERSION as TRIGGER_BINDING_SCHEMA,
     SourceBinding,
@@ -104,6 +106,18 @@ def _perform_perf_preflight(
         perf_candidates=_policy_perf_candidates(_repo_root()),
     ))
     return receipt, _perf_preflight.use_perf_from_receipt(receipt)
+
+
+def _closed_verify_workloads(cfg: CampaignConfig, perf: PerfConfig):
+    """Validate verify mode and construct opt-in passes before authorization."""
+    mode = cfg.search_config.get(SEARCH_CONFIG_VERIFY_KEY)
+    if mode is None or mode == LEGACY_TAG:
+        return None
+    if mode == VERIFY_LEGACY_PLUS_S2:
+        return [(S2_TAG, s2_correctness_workload())]
+    if mode == VERIFY_LEGACY_PLUS_PERFORMANCE:
+        return [(PERFORMANCE_TAG, performance_correctness_workload(perf))]
+    raise ValueError(f"unsupported verify mode: {mode!r}")
 
 
 def _authorize_measurement(
@@ -242,6 +256,10 @@ def run_campaign(cfg: CampaignConfig, genomes: Sequence[Genome],
     elif (type(trigger_gate_binding) is not TriggerGateBinding
           or trigger_gate_binding.source is not None):
         raise TypeError("trigger campaign は source-null candidate binding が必要")
+    # Verify mode is a closed input.  Resolve it before authorization, claims,
+    # perf probes, layout creation, or WAL writes.  Unknown values must never
+    # silently fall back to the inherited legacy-only pass.
+    extra_correctness = _closed_verify_workloads(cfg, perf)
     cfg = ident.bind_admission_policy(cfg, build_context.policy)
     authorization = _authorize_measurement(
         cfg, authorization_contract, env_tag=env_tag, clocks_per_us=clocks_per_us,
@@ -265,14 +283,6 @@ def run_campaign(cfg: CampaignConfig, genomes: Sequence[Genome],
         declared_use_class=declared_use_class,
         output_root=output_root,
     )):
-
-        # D36 決定4-1: search_config[SEARCH_CONFIG_VERIFY_KEY]=="legacy+s2" で S2 構成
-        # (t48 フルロード規模、データパス被覆担当) を legacy (検出力担当) に追加する。
-        # search_config はここで既に campaign_id のハッシュ対象 (D13) なので、S2 on/off
-        # の切り替えは自動的に別 campaign になり WAL terminal skip の汚染を構造的に防ぐ。
-        extra_correctness = None
-        if cfg.search_config.get(SEARCH_CONFIG_VERIFY_KEY) == VERIFY_LEGACY_PLUS_S2:
-            extra_correctness = [(S2_TAG, s2_correctness_workload())]
 
         # 同一性を照合した後に限り、replay 前に無終端 tail を物理修復する。
         repair = ident.ensure_resumable_wal(
