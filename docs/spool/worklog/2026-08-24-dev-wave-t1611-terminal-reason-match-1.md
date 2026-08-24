@@ -54,6 +54,23 @@ title: [T-1611] 8c の理由一致検査を前向き formal 経路 3 本で締�
   `orchestrator/tests/test_attempt_registry_core_s8b_profile.py` だけが T-1601/T-1602 と共有だった。
   同 wave が先に land した後、AST で top-level 定義名を突き合わせて衝突ゼロを確認している
   (base 41 / 本 wave 追加 9 / main 側追加 36、交わりなし、main が消した名で本 wave が触るものもなし)。
+- **受入内部 merge へ D105 waiver を 1 件適用した (2026-08-25 ユーザー承認、
+  reason=codex-launcher-evidence-invalid)。** 受入ツールの内部 merge で両親が同じ実装面 3 file を
+  独立変更しており、`check_ai_provenance.py --message-file` が自己申告 message を
+  「実装面に Codex role=author がない」で拒否することを staged merge に対して実測した (rc=1)。
+  根拠を作る read-only Codex 検証子は **7 走すべて `evidence_status=invalid` で不採用**になった。
+  出力自体は毎回完備で `check_codex_output.py` は rc=0、判定も 3 file すべて `safe` /
+  総括「採用可」だった。**認証を拒まれた run を根拠に codex authorship を書くのは捏造なので書かず、**
+  資料を削って通す案も子の検証範囲を狭める取引なので採らず、ユーザー裁定へ返して承認を得た。
+- 検証子の失敗は**外部から診断できない**。潰れた仮説は 7 つ — 重い走行 / tool 呼び出しの有無 /
+  repo 外読み取り / 最終 flush との競走 / 多重 rollout / 大きさ由来 / 時間依存。
+  とくに大きさ由来は、**同 wave 前半 (日中) の子が 847KB の events で認証されている**ことで反証された
+  (親の不合格は 65KB〜347KB)。`_evidence_status()` の 6 条件、設定 field、文字クラス、境界時刻は
+  合格側と不合格側で一致する。残るのは最終 `observe()` を包む
+  `except BaseException: state.stdout_invalid = True` が握り潰す例外だけで、
+  `process_reap_completed` から `final_drain_completed` までは全群 1 ミリ秒未満であり I/O 遅延でもない。
+- 親の手順上の反省: 大きさの理論を自分の 10 走から組み立てる前に、**同じ job dir にある前半 6 走の
+  receipt を見るべきだった。反証は最初からそこにあった。**
 
 ## 次の一手差分
 
