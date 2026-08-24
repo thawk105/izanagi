@@ -78,6 +78,7 @@ def _git_environment() -> dict[str, str]:
         "GIT_CONFIG_SYSTEM": os.devnull,
         "GIT_CONFIG_NOSYSTEM": "1",
         "GIT_TERMINAL_PROMPT": "0",
+        "GIT_OPTIONAL_LOCKS": "0",
     })
     return environment
 

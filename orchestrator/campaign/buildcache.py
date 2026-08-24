@@ -698,6 +698,22 @@ def _validate_fetchcontent_dependency_receipt(
     return normalized
 
 
+def _validate_fetchcontent_archive_sha256(value: object) -> Optional[str]:
+    """Validate the optional run-local archive observation.
+
+    The two-key dependency receipt remains a compatibility surface.  Floor
+    production callers additionally pass this observation so a different run
+    may use different archive bytes while one run cannot silently replace them.
+    """
+    if value is None:
+        return None
+    if not is_full_sha256(value):
+        raise BuildCacheError(
+            "FetchContent dependency archive sha256 が不正"
+        )
+    return value
+
+
 def _canonical_fetchcontent_base(value: object) -> str:
     try:
         raw = os.fspath(value)
@@ -786,21 +802,46 @@ def _fetchcontent_git_environment() -> Dict[str, str]:
 
 
 def _sha256_fetchcontent_file(path: str, *, label: str) -> str:
+    fd = -1
     try:
-        info = os.lstat(path)
-        if stat.S_ISLNK(info.st_mode) or not stat.S_ISREG(info.st_mode):
+        entry = os.lstat(path)
+        flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0) | getattr(
+            os, "O_CLOEXEC", 0,
+        )
+        fd = os.open(path, flags)
+        before = os.fstat(fd)
+        if (stat.S_ISLNK(entry.st_mode) or not stat.S_ISREG(entry.st_mode)
+                or not stat.S_ISREG(before.st_mode)
+                or _stat_identity(entry) != _stat_identity(before)):
             raise BuildCacheError(
                 f"FetchContent dependency {label} が non-symlink regular file でない"
             )
         digest = hashlib.sha256()
-        with open(path, "rb") as handle:
-            for chunk in iter(lambda: handle.read(64 * 1024), b""):
-                digest.update(chunk)
+        while True:
+            chunk = os.read(fd, 64 * 1024)
+            if not chunk:
+                break
+            digest.update(chunk)
+        after = os.fstat(fd)
+        if _stable_file_identity(before) != _stable_file_identity(after):
+            raise BuildCacheError(
+                f"FetchContent dependency {label} が hash 中に変化した"
+            )
     except OSError as exc:
         raise BuildCacheError(
             f"FetchContent dependency {label} を再照合できない"
         ) from exc
+    finally:
+        if fd >= 0:
+            os.close(fd)
     return digest.hexdigest()
+
+
+def _observe_fetchcontent_archive_sha256(source_root: str) -> str:
+    return _sha256_fetchcontent_file(
+        os.path.join(source_root, "libkohler_masstree_json.a"),
+        label="libkohler_masstree_json.a",
+    )
 
 
 def _observe_fetchcontent_dependency_receipt(
@@ -999,6 +1040,7 @@ def _v2_identity(
         *, site: str, dependency_prefix: List[str],
         admission: Dict[str, Any],
         fetchcontent_dependency_receipt: Optional[Mapping[str, object]] = None,
+        fetchcontent_archive_sha256: Optional[object] = None,
         fetchcontent_transport_mode: Optional[str] = None,
 ) -> tuple[Dict[str, Any], str]:
     """完全 pre-image と full build digest (64hex) を返す。"""
@@ -1020,6 +1062,15 @@ def _v2_identity(
     )
     if receipt is not None:
         preimage["fetchcontent_dependency_receipt"] = receipt
+    archive_sha256 = _validate_fetchcontent_archive_sha256(
+        fetchcontent_archive_sha256,
+    )
+    if archive_sha256 is not None:
+        if receipt is None:
+            raise BuildCacheError(
+                "FetchContent archive sha256 は dependency receipt と同時指定必須"
+            )
+        preimage["fetchcontent_archive_sha256"] = archive_sha256
     if fetchcontent_transport_mode is not None:
         if fetchcontent_transport_mode not in {"base-only", "source-dir"}:
             raise BuildCacheError(
@@ -1205,6 +1256,9 @@ def _validate_v2_entry(
             "contract_sha256", "preimage", "toolchain", "binary", "admission",
         }
         dependency_receipt = preimage.get("fetchcontent_dependency_receipt")
+        dependency_archive_sha256 = preimage.get(
+            "fetchcontent_archive_sha256"
+        )
         if dependency_receipt is not None:
             expected_keys.add("fetchcontent_dependency")
         optional_pair = {
@@ -1270,12 +1324,22 @@ def _validate_v2_entry(
         source_root_sha256 = ""
         if dependency_receipt is not None:
             dependency = manifest["fetchcontent_dependency"]
+            dependency_keys = {"source_root_sha256", "source_subdir"}
+            if dependency_archive_sha256 is not None:
+                dependency_keys.add("archive_sha256")
             if (type(dependency) is not dict
-                    or set(dependency) != {"source_root_sha256", "source_subdir"}
+                    or set(dependency) != dependency_keys
                     or dependency.get("source_subdir") != "masstree-src"
                     or not is_full_sha256(dependency.get("source_root_sha256"))):
                 raise BuildCacheError(
                     f"v2 FetchContent dependency manifest が不正: {manifest_path}"
+                )
+            if (dependency_archive_sha256 is not None
+                    and dependency.get("archive_sha256")
+                    != dependency_archive_sha256):
+                raise BuildCacheError(
+                    f"v2 FetchContent archive sha256 が pre-image と不一致: "
+                    f"{manifest_path}"
                 )
             source_root_sha256 = dependency["source_root_sha256"]
         binary_record = manifest["binary"]
@@ -1671,6 +1735,7 @@ def build_v2(
         mimalloc_source_dir: Optional[object] = None,
         googletest_source_dir: Optional[object] = None,
         fetchcontent_dependency_receipt: Optional[Mapping[str, object]] = None,
+        fetchcontent_archive_sha256: Optional[object] = None,
 ) -> BuildResult:
     """contract namespace に staging/claim/manifest 付きで build する v2 API。
 
@@ -1738,6 +1803,13 @@ def build_v2(
     dependency_receipt = _validate_fetchcontent_dependency_receipt(
         fetchcontent_dependency_receipt,
     )
+    dependency_archive_sha256 = _validate_fetchcontent_archive_sha256(
+        fetchcontent_archive_sha256,
+    )
+    if dependency_archive_sha256 is not None and dependency_receipt is None:
+        raise BuildCacheError(
+            "FetchContent archive sha256 は dependency receipt と同時指定必須"
+        )
     source_dirs = _normalize_fetchcontent_source_dirs(
         masstree_source_dir=masstree_source_dir,
         mimalloc_source_dir=mimalloc_source_dir,
@@ -1755,6 +1827,14 @@ def build_v2(
         _canonical_fetchcontent_base(fetchcontent_base_dir)
         if fetchcontent_base_dir else ""
     )
+    if dependency_archive_sha256 is not None:
+        observed_archive_sha256 = _observe_fetchcontent_archive_sha256(
+            os.path.join(canonical_fetchcontent_base, "masstree-src"),
+        )
+        if observed_archive_sha256 != dependency_archive_sha256:
+            raise BuildCacheError(
+                "FetchContent dependency archive が build 前の binding と不一致"
+            )
     try:
         root = os.fspath(cache_root)
     except TypeError as exc:
@@ -1819,6 +1899,7 @@ def build_v2(
         site=actual_site, dependency_prefix=effective_dependency_prefix,
         admission=admission_identity,
         fetchcontent_dependency_receipt=dependency_receipt,
+        fetchcontent_archive_sha256=dependency_archive_sha256,
         fetchcontent_transport_mode=fetchcontent_transport_mode,
     )
     parent = os.path.join(root, "contracts", contract_sha256)
@@ -1856,6 +1937,18 @@ def build_v2(
                 )
                 if not trace:
                     _assert_no_trace_symbols(binary, binary_fd=binary_fd)
+                if dependency_archive_sha256 is not None:
+                    post_hit_archive_sha256 = (
+                        _observe_fetchcontent_archive_sha256(
+                            os.path.join(
+                                canonical_fetchcontent_base, "masstree-src",
+                            )
+                        )
+                    )
+                    if post_hit_archive_sha256 != dependency_archive_sha256:
+                        raise BuildCacheError(
+                            "FetchContent dependency archive が cache hit 中に変化した"
+                        )
             finally:
                 os.close(binary_fd)
             return _v2_result(
@@ -1946,6 +2039,14 @@ def build_v2(
                     raise BuildCacheError(
                         "FetchContent dependency 内容が build 中に変化した"
                     )
+                if dependency_archive_sha256 is not None:
+                    observed_archive_sha256 = (
+                        _observe_fetchcontent_archive_sha256(effective_root)
+                    )
+                    if observed_archive_sha256 != dependency_archive_sha256:
+                        raise BuildCacheError(
+                            "FetchContent dependency archive が build 中に変化した"
+                        )
 
             clean_fd, clean_identity = _mkdir_open_at(
                 parent_fd, clean_name, label="v2 clean publish candidate",
@@ -1992,6 +2093,10 @@ def build_v2(
                     "source_root_sha256": masstree_source_root_sha256,
                     "source_subdir": "masstree-src",
                 }
+                if dependency_archive_sha256 is not None:
+                    completion["fetchcontent_dependency"]["archive_sha256"] = (
+                        dependency_archive_sha256
+                    )
             _write_fsynced_json_at(clean_fd, _V2_COMPLETION_MANIFEST, completion)
             copied.fsync_directories()
             os.fsync(clean_fd)

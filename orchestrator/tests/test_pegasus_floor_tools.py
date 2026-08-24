@@ -591,6 +591,50 @@ def test_floor_masstree_policy_generator_clones_source_before_configure(
     ).stdout == ""
 
 
+def test_floor_masstree_policy_generator_keeps_input_index_bytes_unchanged(
+        tmp_path: Path) -> None:
+    spec = importlib.util.spec_from_file_location(
+        "floor_masstree_payload_generator_index_fixture", GENERATOR,
+    )
+    assert spec is not None and spec.loader is not None
+    generator = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(generator)
+    source = (tmp_path / "input-source").resolve()
+    source.mkdir()
+    subprocess.run(["git", "init", "-q", str(source)], check=True)
+    tracked = source / "bootstrap.sh"
+    tracked.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+    subprocess.run(["git", "-C", str(source), "add", "bootstrap.sh"], check=True)
+    subprocess.run(
+        [
+            "git", "-C", str(source), "-c", "user.name=Fixture",
+            "-c", "user.email=fixture@example.invalid", "commit", "-qm", "pin",
+        ],
+        check=True,
+    )
+    pin = subprocess.run(
+        ["git", "-C", str(source), "rev-parse", "HEAD"],
+        check=True, capture_output=True, text=True,
+    ).stdout.strip()
+    index = source / ".git" / "index"
+    index_before = index.read_bytes()
+    tracked_stat = tracked.stat()
+    os.utime(
+        tracked,
+        ns=(tracked_stat.st_atime_ns, tracked_stat.st_mtime_ns + 2_000_000_000),
+    )
+    work_dir = tmp_path / "work"
+    work_dir.mkdir()
+
+    prepared = generator._prepare_source(
+        source, url="unused", pin=pin, work_dir=work_dir,
+    )
+
+    assert prepared == work_dir / "masstree-src"
+    assert generator._git_environment()["GIT_OPTIONAL_LOCKS"] == "0"
+    assert index.read_bytes() == index_before
+
+
 def test_floor_wrapper_preflight_rejection_is_nonmutating_and_starts_no_driver(
     tmp_path: Path,
 ) -> None:

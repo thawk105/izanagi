@@ -247,6 +247,7 @@ def _build(tmp_path: Path, contract: ExecutionEnvironmentContract, *, trace: boo
            dependency_prefix: str = "", site: str | None = None,
            expected_toolchain_manifest=None, fetchcontent_base_dir: str = "",
            fetchcontent_dependency_receipt=None, declared_use_class=None,
+           fetchcontent_archive_sha256=None,
            masstree_source_dir=None, mimalloc_source_dir=None,
            googletest_source_dir=None):
     genome = Genome("silo", {"BACK_OFF": 1})
@@ -280,6 +281,8 @@ def _build(tmp_path: Path, contract: ExecutionEnvironmentContract, *, trace: boo
         kwargs["fetchcontent_base_dir"] = fetchcontent_base_dir
     if fetchcontent_dependency_receipt is not None:
         kwargs["fetchcontent_dependency_receipt"] = fetchcontent_dependency_receipt
+    if fetchcontent_archive_sha256 is not None:
+        kwargs["fetchcontent_archive_sha256"] = fetchcontent_archive_sha256
     if masstree_source_dir is not None:
         kwargs["masstree_source_dir"] = masstree_source_dir
     if mimalloc_source_dir is not None:
@@ -408,6 +411,140 @@ def test_v2_cache_hit_reuses_same_content_receipt_across_distinct_bases(
     assert second.masstree_source_root_sha256 == hashlib.sha256(
         str(base_a.resolve() / "masstree-src").encode("utf-8")
     ).hexdigest()
+
+
+def test_v2_run_local_archive_observations_allow_distinct_build_bytes_across_runs(
+        tmp_path, monkeypatch):
+    bindir = _install_toolchain(tmp_path, monkeypatch)
+    _fake_build_environment(monkeypatch, tmp_path)
+    ccbench = tmp_path / "ccbench"
+    ccbench.mkdir()
+    generated_archives = {}
+    prebuild_targets = []
+    original_run = buildcache._run
+
+    def generate_archive_from_prebuild(cmd, what, **kwargs):
+        original_run(cmd, what, **kwargs)
+        if what == "build" and cmd[cmd.index("--target") + 1] == "masstree_build":
+            build_dir = Path(cmd[cmd.index("--build") + 1])
+            base = build_dir.parent.resolve()
+            (base / "masstree-src" / "libkohler_masstree_json.a").write_bytes(
+                generated_archives[base]
+            )
+            prebuild_targets.append(base)
+
+    monkeypatch.setattr(buildcache, "_run", generate_archive_from_prebuild)
+
+    def prebuild(base, payload):
+        generated_archives[base.resolve()] = payload
+        buildcache.prepare_masstree_fetchcontent(
+            ccbench_dir=str(ccbench.resolve()),
+            fetchcontent_base_dir=str(base.resolve()),
+            expected_toolchain_manifest=_expected_toolchain_manifest(bindir),
+            configure_timeout_s=11, target_timeout_s=13,
+        )
+
+    base_a = tmp_path / "fetchcontent-a"
+    base_a.mkdir()
+    receipt = _write_fetchcontent_dependency(base_a)
+    prebuild(base_a, b"archive produced by valid prebuild run A\n")
+    archive_a = base_a / "masstree-src" / "libkohler_masstree_json.a"
+    hash_a = hashlib.sha256(archive_a.read_bytes()).hexdigest()
+    first = _build(
+        tmp_path, _contract(1), fetchcontent_base_dir=str(base_a.resolve()),
+        fetchcontent_dependency_receipt=receipt,
+        fetchcontent_archive_sha256=hash_a,
+    )
+
+    base_b = tmp_path / "fetchcontent-b"
+    base_b.mkdir()
+    shutil.copytree(base_a / "masstree-src", base_b / "masstree-src")
+    archive_b = base_b / "masstree-src" / "libkohler_masstree_json.a"
+    prebuild(base_b, b"archive produced by valid prebuild run B\n")
+    hash_b = hashlib.sha256(archive_b.read_bytes()).hexdigest()
+    second = _build(
+        tmp_path, _contract(1), fetchcontent_base_dir=str(base_b.resolve()),
+        fetchcontent_dependency_receipt=receipt,
+        fetchcontent_archive_sha256=hash_b,
+    )
+
+    assert hash_a != hash_b
+    assert prebuild_targets == [base_a.resolve(), base_b.resolve()]
+    assert not first.cached and not second.cached
+    assert first.build_dir != second.build_dir
+    for result, expected in ((first, hash_a), (second, hash_b)):
+        manifest = json.loads(
+            (Path(result.build_dir) / "completion.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        assert manifest["preimage"]["fetchcontent_archive_sha256"] == expected
+        assert manifest["fetchcontent_dependency"]["archive_sha256"] == expected
+
+
+def test_v2_run_local_archive_replacement_during_fresh_build_is_rejected(
+        tmp_path, monkeypatch):
+    _install_toolchain(tmp_path, monkeypatch)
+    _fake_build_environment(monkeypatch, tmp_path)
+    base = tmp_path / "fetchcontent"
+    base.mkdir()
+    receipt = _write_fetchcontent_dependency(base)
+    archive = base / "masstree-src" / "libkohler_masstree_json.a"
+    expected_archive_sha256 = hashlib.sha256(archive.read_bytes()).hexdigest()
+    original_run = buildcache._run
+
+    def replace_archive_after_build(cmd, what, **kwargs):
+        original_run(cmd, what, **kwargs)
+        if what == "build":
+            archive.write_bytes(b"same-run replacement after build\n")
+
+    monkeypatch.setattr(buildcache, "_run", replace_archive_after_build)
+    with pytest.raises(
+            buildcache.BuildCacheError,
+            match="archive が build 中に変化"):
+        _build(
+            tmp_path, _contract(1),
+            fetchcontent_base_dir=str(base.resolve()),
+            fetchcontent_dependency_receipt=receipt,
+            fetchcontent_archive_sha256=expected_archive_sha256,
+        )
+    assert list((tmp_path / "cache").rglob("completion.json")) == []
+
+
+def test_v2_run_local_archive_replacement_during_cache_hit_is_rejected(
+        tmp_path, monkeypatch):
+    _install_toolchain(tmp_path, monkeypatch)
+    _fake_build_environment(monkeypatch, tmp_path)
+    base = tmp_path / "fetchcontent"
+    base.mkdir()
+    receipt = _write_fetchcontent_dependency(base)
+    archive = base / "masstree-src" / "libkohler_masstree_json.a"
+    expected_archive_sha256 = hashlib.sha256(archive.read_bytes()).hexdigest()
+    first = _build(
+        tmp_path, _contract(1), fetchcontent_base_dir=str(base.resolve()),
+        fetchcontent_dependency_receipt=receipt,
+        fetchcontent_archive_sha256=expected_archive_sha256,
+    )
+    assert not first.cached
+
+    original_recheck = buildcache._recheck_source_evidence
+
+    def replace_archive_during_hit(*args, **kwargs):
+        original_recheck(*args, **kwargs)
+        archive.write_bytes(b"same-run replacement during cache hit\n")
+
+    monkeypatch.setattr(
+        buildcache, "_recheck_source_evidence", replace_archive_during_hit,
+    )
+    with pytest.raises(
+            buildcache.BuildCacheError,
+            match="archive が cache hit 中に変化"):
+        _build(
+            tmp_path, _contract(1),
+            fetchcontent_base_dir=str(base.resolve()),
+            fetchcontent_dependency_receipt=receipt,
+            fetchcontent_archive_sha256=expected_archive_sha256,
+        )
 
 
 def test_v2_dependency_drift_before_publish_leaves_no_completed_cache_entry(
