@@ -91,4 +91,44 @@ job stdout が書かれていた。`IZANAGI FAILURE DIGEST` の抜粋部は budg
 
 ## 4. 変異 matrix
 
-(本走の結果をこの節へ追記する)
+二段で走らせた。1 段目は DW-M07 が定める **probe** で、全件 `SURVIVED` 期待で登録して
+観測 node を集める。2 段目が本走で、probe の観測 node を**期待完全集合**として pin し
+`KILLED` 期待で走らせる (DW-M08)。
+
+- 本走 spec sha256: `e3ba8cc464ed148df4e8598614594cf48d2427e3056b6408f171a3b64514e3fa`
+- 本走 repo_head: `caaa838cbfec459c5bc4958e07f3d11f1683573d`
+- runner: `--runner-mode dispatch` / runner sha256 `2e69b62aea116bf1…`
+- baseline: **PASSED** (rc=0, 所要 27.0 秒、失敗 node 0 件)
+- wrapper: child_rc=0, shared_snapshot_matches=true, teardown_completed=true
+- launcher の終了 rc: 0
+
+**集計: KILLED 9 / SURVIVED 0 / MISMATCH 0 / TIMEOUT 0 / PARSE_ERROR 0 (登録 9 件、記録 9 件)**
+
+| 変異 | 無効化した gate | 本走 | 期待 node 数 | 実測 node 数 | 一致 | 所要 |
+|---|---|---|---|---|---|---|
+| M1 | stage5 contract kind の判定 | KILLED | 2 | 2 | はい | 42.6s |
+| M2 | plan input hash の照合 | KILLED | 1 | 1 | はい | 27.0s |
+| M3 | author output hash の照合 | KILLED | 1 | 1 | はい | 27.0s |
+| M4 | downstream pin の role 別取得 | KILLED | 17 | 17 | はい | 27.0s |
+| M6 | fix pass index の上限判定 | KILLED | 1 | 1 | はい | 27.4s |
+| M7 | downstream receipt の model/effort 照合 | KILLED | 2 | 2 | はい | 27.9s |
+| M8 | task acceptance の exact `unbound` 判定 | KILLED | 2 | 2 | はい | 57.9s |
+| M9 | create-only wrapper (通常上書きへ) | KILLED | 3 | 3 | はい | 27.2s |
+| M10 | validation receipt の post-apply tree hash 再照合 | KILLED | 1 | 1 | はい | 27.2s |
+
+### 4.1 読み方
+
+**登録した 9 件すべてが KILLED で、期待 node 完全集合と一致した。** 生存変異はゼロである。
+gate を 1 つ無効化すると、その gate を狙った test だけが落ちる形になっている。
+
+M4 だけ期待 node が 17 件と多い。`downstream_pins[expected_role]` を反対の role へ
+入れ替えると、downstream receipt の検証が最初の `requested_model` 照合で落ちるため、
+その先の leaf 検査を狙った parameterized case が**まとめて**赤くなる。
+受理集合が変わる向きは正しく、kill としては成立しているが、**単一理由ではない** —
+DW-M03 の「過剰決定」に当たるので、M4 単独の赤を「role 別 pin だけが効いた証拠」として
+引用してはならない。role 別 pin の単独証拠は
+`test_stage5_downstream_receipt_validator_binds_role_specific_pins` が持つ。
+
+probe と本走で M4 の node 集合は 17 件で一致し、さらに 1 回目の probe で timeout した
+孤児 job (942745) の `FAILED` 行から回収した 17 件とも完全一致した。**独立した 3 回の観測で
+同じ完全集合が出ている**ため、この期待集合は決定的である。

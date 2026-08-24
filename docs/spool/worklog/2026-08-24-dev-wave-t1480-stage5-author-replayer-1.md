@@ -39,6 +39,13 @@ title: [T-1480] stage5 author downstream replayer を acceptance unbound のま�
   不変であることだけを主張する。追跡・未追跡も docs・実装面も区別しないので、untracked が 4 件
   増えた時点で主張が破れた。測定は固定 commit の隔離 worktree で走っており実体は健全だが、
   wrapper の保証は無効なので記録を先に commit して木を clean にし、本走を無干渉で走らせ直した。
+- **段8の docs 統合は byte 予算で止めた。** 変異 TIMEOUT の誤読を防ぐ 4 行を `DW-M06`
+  (hang 変異 = 誤読の発火点) へ入れようとしたが、同節が属する L1.5 層は予算 9566 bytes に対し
+  既に 9565 bytes を使っており余裕がゼロだった。条件節側の `DW-M07` も単節予算 1000 bytes に対し
+  978 bytes で余裕 22 bytes しかない。自己改善契約は「予算値を上げる変更は通常の自己改善に
+  含めず、理由付きの独立審査対象にする」「予算のために安全義務を削除・弱化してはならない」と
+  定めるため、既存文の圧縮も予算引き上げも本 wave では行わず**ユーザー裁定へ返す**。
+  恒久対応は台帳 2 件と memory `mutation-timeout-includes-dispatch-queue-wait` が担う。
 - 設計判断は {{D:stage5-acceptance-unbound}}。逐語と変異台帳は
   `output/insights/2026-08-24_t1480-stage5-author-replayer.md`。
 
