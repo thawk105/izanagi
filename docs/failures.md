@@ -1305,6 +1305,13 @@
   偽緑の実害は無かった (near miss)。恒久対応は F37 既存のとおり変わらない。
 
 - **再発: 2026-08-24** — local main mergeのcommit前に`git diff --cached --check`がincoming main由来archive 4件の`new blank line at EOF`でrc=2を返したが、`set -e`のない同一shellの次行へ`git commit`を置いたためcommitまで進んだ。merge後の両親比較でfirst-parent側だけrc=2、second-parent側はrc=0、combined diffは空と確認し、競合解決による新規混入は無かった。恒久対応は既存DW-O17の「検査を単独rcで走らせ、赤なら状態変更へ進まない」から変更しない。
+
+- **再発: 2026-08-25** — 背景 job の待ち手を `dev_wave_wait.py producer ... 2>&1 | tail -3` の形で
+  張ったため、通知が報告する exit code が待ち手ではなく `tail` のものになった。変異本走で表面化し、
+  「完了 (exit code 0)」の通知後に `.done` も成果物も無く、producer は稼働中だった。
+  `| tail` を外して前景で張り直すと `rc=70 producer-timeout` が正しく返った。
+  検査 rc だけでなく**待ち手の rc も同じ穴を持つ**。各段で `.done` と
+  `check_codex_output.py` を個別に検証していたため偽緑の記録には至っていない (near miss)。
 ### F38. 記録後検査の値を埋める amend で、worklog 内の記録 commit hash が dangling になった [ドリフト] [手順漏れ]
 
 - 事象: `DW-S07` の F34 恒久対応 (記録 commit の後に再走) と F36 恒久対応 (実測前に欄を作らない) を
