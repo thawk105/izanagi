@@ -73,6 +73,7 @@ from orchestrator.campaign import env_attestation  # noqa: E402
 from orchestrator.campaign import artifact_admission  # noqa: E402
 from orchestrator.campaign import execution_guard  # noqa: E402
 from orchestrator.campaign import model, pipeline, s8b_budget, s8b_oracle_driver as driver, wal  # noqa: E402
+from orchestrator.campaign import s8b_oracle_artifacts as oracle_artifacts  # noqa: E402
 from orchestrator.campaign import s8b_freeze_io  # noqa: E402
 from orchestrator.campaign import s8b_materialization  # noqa: E402
 from orchestrator.campaign import s8b_oracle_manifest as manifest_module  # noqa: E402
@@ -3924,6 +3925,7 @@ def test_transient_prepare_failure_retries_once(tmp_path):
     assert result["events"][2]["attempt"] == 2
     assert len(evaluate_fn.calls) == len(document["schedule"]["rows"])
     observations_path = tmp_path / "retry-observations.json"
+    _authorize_official_report_output(output_root)
     assert report_module.main([
         "report", "--manifest", str(manifest_path),
         "--output-root", str(output_root), "--out", str(observations_path),
@@ -5055,6 +5057,13 @@ def _tree_file_snapshot(root: Path) -> dict[str, str]:
     }
 
 
+def _authorize_official_report_output(output_root: Path) -> None:
+    """report consumer fixture に exact official runtime role を付与する。"""
+    (output_root / "namespace.json").write_bytes(
+        oracle_artifacts.OFFICIAL_NAMESPACE_BYTES,
+    )
+
+
 def _unique_store_victim(binaries: dict) -> dict:
     victims = [
         rec for rec in binaries.values()
@@ -5322,6 +5331,7 @@ def test_v2_completed_driver_adapter_campaign_is_accepted_by_report(tmp_path):
         freeze_document=reverified.ratified.document,
         freeze_sha256=reverified.ratified.sha256,
     )
+    _authorize_official_report_output(out_root)
     with mock.patch.object(
             report_module._artifact_admission,
             "require_campaign_verifier_epoch",
@@ -5395,6 +5405,7 @@ def test_v2_post_run_store_change_is_reported_and_refused(tmp_path, change):
         expected_state = "missing"
         expected_reason = "store-reverification-store-missing"
 
+    _authorize_official_report_output(out_root)
     with mock.patch.object(
             report_module._artifact_admission,
             "require_campaign_verifier_epoch",

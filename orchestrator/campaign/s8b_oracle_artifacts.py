@@ -28,6 +28,11 @@ COMBINED_VERDICT_SCHEMA = "8b-combined-verdict/v2"
 EXPLORATION_ARTIFACT_SCHEMA = "8b-oracle-exploration-artifact/v1"
 MEASUREMENT_MANIFEST_SCHEMA = "8b-oracle-measurement-manifest/v1"
 
+# Output-root namespace markers are exact runtime-role authorities.  They do
+# not attest who produced an artifact or whether its provenance gates pass.
+OFFICIAL_NAMESPACE_BYTES = b'{"namespace":"official"}\n'
+EXPLORATION_NAMESPACE_BYTES = b'{"namespace":"exploration"}\n'
+
 EXPLORATION_ARTIFACT_ROLES = frozenset({"manifest", "observations", "verdict"})
 EXPLORATION_ARTIFACT_KEYS = frozenset({
     "schema_version", "artifact_role", "campaign_id", "measurement_hint", "payload",
