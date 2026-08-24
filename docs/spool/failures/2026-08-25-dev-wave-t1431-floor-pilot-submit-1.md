@@ -80,3 +80,32 @@ seq: 1
   `git status` は差分の列挙であって在籍の列挙ではない。
 - 再発検知: 除去の直後に `git status --porcelain` を必ず読み、` D` 行が 1 行でもあれば
   即座に `git checkout -- <path>` で復元する (本件はこの手順で検出・復旧した)。
+
+### {{F:umask-in-launcher-corrupts-merged-worktree-modes}}. 受入 launcher の `umask 077` が merge 済み作業ツリーの mode を壊し、受入を 32 件赤にした [計測汚染] [手順漏れ]
+
+- 事象: 受入全走 attempt 1 が `18 error, 14 failed, 15359 passed, 60 skipped` で落ちた。
+  赤はすべて `orchestrator/tests/test_codex_reasoning_ab.py` に集中しており、
+  本 wave が 1 度も触っていない file である。junit の本文は
+  `ValidationError: st_mode mismatch docs/decisions.md: 0o100600 != 0o100644` 等で、
+  distinct な first-line は 11 種、すべて `st_mode mismatch` か
+  それを含む assertion だった。
+- 根本原因: 受入を起動する launcher script に `umask 077` を書いていた。
+  `tools/dev_wave_wait.py acceptance` は claim 後に **自分で local main を merge する**ため、
+  git がこの umask のまま作業ツリーへ file を書き、
+  **incoming の 47 file すべてが 0600 (実行可能 1 件は 0700) になった**。
+  `test_codex_reasoning_ab.py` は repo snapshot の `st_mode` を検査するため、これを拒否した。
+  **git は実行ビット以外の permission を追跡しないので、この破損は
+  `git status` にも `git diff` にも現れず、index からも復元できない。**
+  修正した file 数 47 が merge の incoming file 数 47 と完全一致し、因果が閉じた。
+- 恒久対応: **git 操作を含む走行の launcher で `umask` を触らない。**
+  job artifact の permission を絞りたい場合は、作成した artifact だけを個別に `chmod` する。
+  受入 launcher の正本は `docs/pegasus-runbook.md` の受入 lease 待ち手の節であり、
+  同節の定型に `umask` は含まれていない — 定型へ勝手な行を足したことが直接の原因である。
+- 再発検知: 赤が `st_mode mismatch` を含むなら本件型である。
+  `git ls-files -s` の記録 mode と作業ツリーの実 mode を突き合わせて差分を数え、
+  0 でなければ `chmod` で戻してから再投入する。差分件数が直前の merge の
+  incoming file 数と一致するかも併せて確かめる。
+- 補足: 単独再走 (`test_codex_reasoning_ab.py` だけ) は 454 passed / 2 skipped で緑だった。
+  この時点で一部の mode が既に戻っていたためであり、**「単独で緑なら非帰属フレーク」という
+  読みは本件では誤り**である。`DW-O18` の単独再走は必要条件であって十分条件ではない。
+  junit の assertion 本文まで読んで初めて帰属が確定した。

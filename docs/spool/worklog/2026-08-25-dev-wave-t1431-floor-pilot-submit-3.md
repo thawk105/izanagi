@@ -54,6 +54,14 @@ title: [T-1431] 床値 pilot を実投入し、止めていた到達不能述語
   通知だけでは死を検出できない。detach 形で投げ直して回復した。
   なお最初の 2 本は実際には完走しており (receipt の outcome=accepted、
   成果物 hash も receipt と一致)、再投入は重複だった。段 8 の候補として登録した。
+- **受入 attempt 1 の赤 32 件は親の操作が原因だった** ({{F:umask-in-launcher-corrupts-merged-worktree-modes}})。
+  受入 launcher に書いた `umask 077` を受入ラッパが継承したまま local main を merge したため、
+  git が作業ツリーへ書いた incoming 47 file すべてが 0600 になり、
+  repo snapshot の mode を検査する `test_codex_reasoning_ab.py` が落ちた。
+  **単独再走は 454 passed で緑だったが、それは非帰属の証明ではなかった。**
+  junit の assertion 本文 (`st_mode mismatch ... 0o100600 != 0o100644`) まで読んで
+  初めて帰属が確定した。mode を全件戻し、`umask` を触らない launcher で再投入した。
+  attempt 2 は 15427 passed / 60 skipped / 0 failed で receipt が出た。
 - エージェント工数: 段 2 plan 1 本、段 3 consult 2 本、段 5 author 1 本、段 6 review 2 本、
   段 6 fix 1 本。すべて `gpt-5.6-sol`。plan / consult は `xhigh`、
   author / review / fix は段既定 (`--reasoning` 指定不可)。
