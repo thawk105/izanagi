@@ -324,6 +324,37 @@ result を出す前に死んだ campaign の復帰には使えない。
 したがって **1 回目の official 床値 campaign が crash 点 2〜6 で死ぬと、その protocol と env の
 組では以後 official 床値を出せない。** これは既知の袋小路であり、解消には §5 の裁定が要る。
 
+#### 観測開始後の中断 — semantic core は実装済み、収集器は未実装 ([T-1601] [T-1602])
+
+上表の crash 点 4 (観測開始後) について、**判定と受理の意味論だけ**が現行 main に入った。
+運用上の可否は 1 行も変わっていない。両者を混ぜて読まないこと。
+
+**入ったもの (attempt registry core と 8b profile)**
+
+- `recovery` を core の semantic event として追加し、専用の parse / replay 分岐と
+  `record_attempt_recovery` API を置いた。profile の許可表だけを増やす形は採っていない。
+- 観測開始後の再走を認める理由を exact 2 値
+  (`node_failure` / `scheduler_external_interruption`) の閉集合に固定した (D740)。
+  `wall_timeout`、process 消失、SIGKILL の自己申告、caller の自由文字列は
+  `[attempt-recovery-evidence]` で拒否する。
+- 証拠は create-only の `scheduler-accounting-receipt/v1` に限る。core は schema / event /
+  source / authority ID / authority policy hash の exact 一致、対象 start-event hash の一致、
+  nested receipt の digest 再計算、recoverer identity が start owner と異なることを検査する。
+- 同一 slot の terminal と recovery は双方向で排他とし、二重 recovery も拒否する。
+  次 ordinal の start は「直前 slot の retryable terminal」か「verified recovery」の
+  どちらか一方だけで認可する。
+- 通常 terminal の retryable reason 集合は空のまま据え置き、recovery の 2 理由を混載しない。
+- 8c 側の schema / event bytes / facade 署名 / 拒否理由 snapshot は 1 bit も変えていない。
+
+**入っていないもの (運用可否が変わらない理由)**
+
+- scheduler accounting を実際に読んで receipt を発行する collector が無い。
+- receipt の store、facade、journal、stats consumer が未配線である。
+- したがって durable な 8b registry / receipt は現時点で 0 件であり、
+  **crash 点 4 で死んだ campaign を今日この経路で復帰させることはできない。**
+  上表の可否欄は変わらない。
+- 収集器と配線は後続タスクへ直列化する。
+
 ---
 
 ## 4. 順序の争点 — [T-657] 世代交代との衝突 (**裁定済み**)

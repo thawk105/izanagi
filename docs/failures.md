@@ -118,6 +118,8 @@
   `output/insights/2026-08-21_t1461-masstree-staging-scope-finding/README.md` 参照。
 
 - **再発: 2026-08-23** (受入 lease 直列化撤去 wave)。親が進捗報告と handoff へ書いた JST 時刻 5 件 (04:33 / 05:20 / 06:00 / 06:35 / 07:00) がいずれも実測でなく推定で、段 7 直前に `date` を打った実測値は 06:13 だった。最後の 2 件は実時刻より先へ進んでおり、時系列として成立していない。2026-08-17 の再発で定めた「報告に時刻を書く直前に必ず `date` を実行する」を、wave の途中から守らなくなった。原因は、最初の 1 回だけ `date` を打ち、その後は経過時間を体感で足していたことである。恒久対応は変更なし — 時刻を書く 1 回ごとに `date` を実行する。**「セッション開始時に 1 回測ってから加算する」は実測ではない。**
+
+- **再発: 2026-08-24 (near-miss)** — handoffの最終更新を`date`で実測せず「13:50 JST」と記入した。commit前に実測して「14:13 JST」へ訂正したためcanonicalへの誤記は回避した。恒久対応は既存どおり、時刻を書く1回ごとに`date`を実行する。
 ### F2. C1 drift — campaign ディレクトリ発見ロジックの分裂 [ドリフト]
 - 事象: report/critic 3 本が campaign ディレクトリの発見方法を各自実装し、歴史的ディレクトリ
   構成の変化で挙動が割れた (worklog Phase 2、修理 065593a)。同時期に repro_command の
@@ -1268,6 +1270,8 @@
   後続の別目的の再監査でパイプを外し `; echo $?` で直接確認したところ真の rc=1 に気づき、是正
   (`git reset --hard` → amend → merge 再実行) した。誤った trailer が main へ着地することはなく、
   偽緑の実害は無かった (near miss)。恒久対応は F37 既存のとおり変わらない。
+
+- **再発: 2026-08-24** — local main mergeのcommit前に`git diff --cached --check`がincoming main由来archive 4件の`new blank line at EOF`でrc=2を返したが、`set -e`のない同一shellの次行へ`git commit`を置いたためcommitまで進んだ。merge後の両親比較でfirst-parent側だけrc=2、second-parent側はrc=0、combined diffは空と確認し、競合解決による新規混入は無かった。恒久対応は既存DW-O17の「検査を単独rcで走らせ、赤なら状態変更へ進まない」から変更しない。
 ### F38. 記録後検査の値を埋める amend で、worklog 内の記録 commit hash が dangling になった [ドリフト] [手順漏れ]
 
 - 事象: `DW-S07` の F34 恒久対応 (記録 commit の後に再走) と F36 恒久対応 (実測前に欄を作らない) を
@@ -9090,6 +9094,15 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   手動 qdel をせず (F47 型ラッチを立てないため)、`qstat` で request の不在を確認し、
   source が clean で HEAD 不変であることを確かめてから hold を手動削除した。
   auto-memory `long-running-checks-need-generous-timeouts` に固定。
+
+- **再発: 2026-08-24** ([T-1480] wave)。`check_ai_provenance.py` を親の 2 分 command timeout の
+  中で走らせた。この checker は既定の自動判定で計算ノードへ dispatch するため、親が SIGTERM
+  された時点で job が孤児化し、wave worktree に pending orphan hold が武装した。
+  今回は job 側が短く終わったため hold は自動解除され二次被害は出なかったが、成立していれば
+  以後この worktree からの dispatch (受入を含む) が全面停止していた。
+  恒久対応は既出 (長時間走りうる検査は余裕あるタイムアウト、または背景経路で起動する) —
+  守らなかったこと自体が事象である。**「git を読むだけの checker だから軽い」という見積りが
+  誤りで、dispatch するか否かは checker 側の自動判定が決める。**
 ### F334. 正本 runbook が「無い」と実測記録した kernel field を、後発の gate が必須条件にした — 機構全体が一度も動かないまま land した [恒真ゲート] [テスト代表性]
 
 - 事象: `tools/mutation_fanout.py` の admission は、measurement log の
@@ -10269,6 +10282,18 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   `--wrapper-attempt`を上げて再投入) で、2回目の投入は全7走 (collection・baseline・
   変異5件) が成功した。`check_acceptance_reds.py` 以外の呼び手 (`mutation_harness.py`
   内部のtest runner dispatch) でも同型が発生することを確認した。
+
+- **再発: 2026-08-24** ([T-1480] wave)。変異 probe を detached で投入した後、待ち時間に
+  記録 fragment 3 本と insight 1 本を同じ wave worktree へ書いた。`mutation_worktree.py` の
+  wrapper は source 共有木の `status` / `submodule-status` の stdout bytes が走行の前後で
+  不変であることだけを主張するので、untracked file が 4 件増えた時点でこの主張が破れ、
+  wrapper は `shared_snapshot_matches: false` / rc=125 で終わった。
+  変異の測定自体は固定 commit `5f9bc54b` の隔離 worktree で走っており、変異対象
+  (`tools/codex_reasoning_ab.py`) には触れていないため実体は健全だが、**wrapper の保証は無効**である。
+  恒久対応は既出 (変異走行中に tree へ書かない) — 守らなかったこと自体が事象である。
+  今回は「編集したのは docs であって実装面ではない」という区別が無関係であることが顕在化した。
+  **wrapper が見ているのは `git status` の bytes であり、追跡・未追跡も docs・実装面も区別しない。**
+- 回復: 記録を先に commit して木を clean にしてから、本走を無干渉で走らせ直した。
 ### F384. 所有 file の合計行数が大きい実装子が SIGKILL され成果物ゼロで終わる [セッション死・救出] [コンテキスト浪費]
 
 - 事象: dev-wave 段 5 の実装子 2 体が `codex_exit_code = -9` で終了した。1 体目は
@@ -13347,3 +13372,166 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: main 側が `tools/dev_wave_wait.py` を変更した状態で、behind な tip から acceptance を
   投入する subprocess test。launcher が全走後に `restart-required` を返し receipt を発行しなければ再発とする。
   先に main を取り込んだ tip からの同一投入では receipt が発行されることを対の正例とする。
+
+### F525. 占有検査を timeout で包むと自分の引数が占有の証拠になった [恒真ゲート] [手順漏れ]
+
+- 事象: `/cleanup-branches` §3 の指示どおり `tools/check_worktree_occupancy.py` を
+  worktree 10 本へ走らせ、全 10 本が rc=1 (占有) を返した。占有者の pid は連番
+  (900042 / 900048 / 900130 / ... / 900520) で、直後には `/proc/<pid>` が消えていた。
+  唯一違ったのは `timeout 300` で包んでいた点で、包まずに再実行すると内訳は
+  真の占有 1 本 (pid 1100953、cwd 一致、2026-08-22 から生存) と rc=2 が 9 本だった。
+  偽の占有を信じれば掃除が全面停止し、疑って迂回すれば fail-closed 防壁を潰す。
+- 根本原因: 検査が cmdline 一致を無視するのは「自分の pid」と
+  「**直接の親**が起動 shell のとき」だけで、`_parent_is_invoking_shell()` は親の
+  `/proc/<pid>/exe` 名を shell 名の集合と照合する。`timeout` を挟むと直接の親が
+  `timeout` になり shell 名に一致しないため除外が外れ、**その argv に載っている対象
+  worktree path そのもの**が占有の証拠として数え直される。検査対象を引数で渡す以上、
+  `nohup` `env` `xargs` `stdbuf` など任意の非 shell wrapper で同型が起きる。
+- 恒久対応: memory `occupancy-check-must-not-be-wrapped` (呼び出し側の規律)。
+  検査側の是正 ([T-1635]) は本 wave の編集面の外にあり、
+  裁定へ返す。
+- 再発検知: rc=1 の occupants が「連番 pid」かつ「sources が cmdline だけ」なら
+  wrapper 自己一致を疑い、`ls -l /proc/<pid>/cwd` と `cat /proc/<pid>/comm` で裏を取る。
+  機械検査は [T-1635] の負例 node で入れる。
+- 家族: F297 (初版が本番で常に判定不能)、F489 (zombie 1 本で恒久的に判定不能) と同じ
+  「掃除の関門が本番環境で構造的に通れない」型の 3 例目。前 2 例は検査を fail-closed へ
+  倒す欠陥、本件は**呼び出し方**が偽陽性を作る点が異なる。
+
+### F526. 掃除の必須監査が argv 長超過で実行不能になり削除が全面停止した [恒真ゲート]
+
+- 事象: `/cleanup-branches` §1 が必須とする
+  `tools/audit_dangling_commits.py --offrepo-root /work/1/SFC/tanab/dev-wave-jobs`
+  (`docs/pegasus-runbook.md` §7.2 が指定する探索根) が、約 20 分走ったのち
+  `audit_dangling_commits: 実行できません: [Errno 7] Argument list too long: 'git'`
+  で rc=2 を返した。§1 は rc2 を「実行不能・削除停止」と定めるため、
+  安全条件を満たす取り込み済み branch 84 本が 1 本も消せず、掃除が全面停止した。
+  本件はユーザー指示で再開したが (ahead=0 の削除では到達不能な変更が新たに生じないため)、
+  **既定の削除経路は塞がったままである**。
+- 根本原因: `_landed_reference_matches()` が bytes 一致候補の全 pattern を
+  `git grep -F -l -z -e <p1> -e <p2> ...` という **1 回分の argv** に載せる。
+  pattern 数は off-repo 探索根 (`dev-wave-jobs`) の成長に比例して増えるため、
+  実行環境の argv 上限にいつか必ず当たる。上限に達した時点で監査は永久に rc=2 になり、
+  時間経過で自然に解消しない。
+- 恒久対応: memory `dangling-audit-argv-overflow-blocks-cleanup` (現象と診断の記録)。
+  分割実行への是正 ([T-1636]) は本 wave の編集面の外にあり、
+  裁定へ返す。
+- 再発検知: [T-1636] で、argv 上限を超える pattern 数を
+  与えても完走することを pin する。
+- 家族: F297 / F489 と同じ「掃除の関門が本番環境で構造的に通れない」型で、
+  滞留の規模 (worktree 32 本・branch 121 本) も F489 の実測に近い。
+
+### F527. 占有検査に相対 path を渡し、22 本すべてを偽の「撤去可」と判定した [恒真ゲート] [誤前提]
+
+- 事象: worktree 撤去の可否を測るため、自分の worktree の中から
+  `python3 tools/check_worktree_occupancy.py .claude/worktrees/<slug>` を 22 本ぶん走らせ、
+  **全 22 本が「占有者ゼロ」**になった。撤去してよいと読みかけたが、JSON の `scanned` が
+  **0** で、`worktree` field が
+  `.../cleanup-branches-20260823/.claude/worktrees/<slug>` という**実在しない path**を
+  指していた。絶対 path で全件やり直すと、真の占有 1 本 (pid 1100953) と
+  直近 2 時間以内に書き込みのある 3 本が現れた。
+- 根本原因: 検査は相対 path を **cwd 基準**で解決する。自分が worktree の中に居ると
+  `.claude/worktrees/<slug>` は「worktree の中の worktree」を指し、実在しないので
+  走査対象が空になる。空の走査は占有者ゼロを生み、`status` は indeterminate になるが
+  **`occupants: []` だけを見ると合格に見える**。呼び出し側の誤りが、検査の合格側へ倒れた。
+- 恒久対応: memory `occupancy-check-must-not-be-wrapped` へ絶対 path 必須を併記。
+  検査側で不在 path を明示的に失敗させる是正
+  ([T-1635]) は本 wave の編集面の外にあり裁定へ返す。
+- 再発検知: `occupants` を読む前に **`scanned` が 0 でないこと**と `worktree` field が
+  意図した絶対 path であることを確認する。[T-1635] で
+  不在 path の正例 node を入れる。
+- 家族: F525 と同じ「呼び出し方が占有判定を狂わせる」型。
+  ただし向きが逆で、あちらは偽陽性 (掃除が止まるだけ) なのに対し、
+  本件は**偽陰性 — 消してはいけないものを消しうる**危険な側へ倒れる。
+
+### F528. process外へ出たbytesをtrustedと誤認し、untrusted producerのfd capabilityを見落とした [恒真ゲート]
+
+- 事象: sort SWO oracle のpre-sort snapshotを専用pipeへ書けばcandidateが基準を取り消せないため、親側pre/post比較をmutation防壁として再有効化できると判断した。敵対検査で、candidateが同じprocessのpost pipe fdを所有し、mutation前snapshotと合法relationを偽frameとして書けることが判明した。別TUでsymbolを隠してもfd capabilityは残った。
+- 根本原因: 「既に送ったpre bytesを削除できない」と「後続のpost bytesがtrusted producer由来である」を混同し、byte境界だけをauthority境界として扱った。
+- 恒久対応: CLAUDE.md規律2とD766により、candidateがprotocol fdを所有せずsnapshot対象memoryへの書込みも強制拒否・観測できる境界を実証するまで防壁を再有効化しない。
+- 再発検知: 将来設計のnegative controlでcandidateからprotocol fd列挙・writer surface・snapshot対象writeの各到達が不可能または構造化rejectになることを実測し、一つでも到達すれば再有効化を止める。
+
+### F529. dispatch 経路の変異 TIMEOUT を「変異がハングした」と読み、無実の変異を fail-open 側へ倒しかけた [計測汚染] [手順漏れ]
+
+- 事象: [T-1480] の変異 probe で M4 が `timeout_seconds: 300` に掛かって TIMEOUT になり、
+  harness が停止した。前セッションの記録は「hang しうる変異」として扱われる形で残った。
+  実際は queue 待ちだけで 300 秒を使い切っており、変異自体は 10 秒で完走して 17 件の
+  失敗 node を出していた (= 十分に kill されていた)。
+- 根本原因: `--runner-mode dispatch` では `timeout_seconds` が job の **queue 待ちを含む**
+  壁時計である。同じ spec の M1/M2/M3 は queue が空いていたため 27〜30 秒で完走しており、
+  混雑した瞬間に投入された 1 件だけが timeout になった。判定根拠は dispatch job 942745 の
+  scheduler 逐語 `Created 14:14:30` / `Started 14:19:47` / `Ended 14:19:53` / `Elapse: 10S`。
+- なぜ危険か: F32 の恒久対応 3 は timeout を「その変異が fail-closed から fail-open へ倒れた
+  証拠」として記録すると定めている。queue 由来の timeout をそのまま読むと、**実際には検出されて
+  いる変異を「gate をすり抜けた」と台帳へ書く**ことになる。誤りの向きが安全側でない。
+- 恒久対応: memory `mutation-timeout-includes-dispatch-queue-wait` — TIMEOUT を結論にする前に
+  submission dir の job stderr (`izdw-*.e<id>`) を読み、`Started - Created` (queue 待ち) と
+  `Elapse` (実行時間) を分離する。`Elapse` が小さければ変異は無実で spec の timeout が
+  短すぎただけと判定し、`timeout_seconds` を混雑を見込んだ値へ再登録して走り直す。
+- 再発検知: 変異結果に TIMEOUT が 1 件でもあれば、その変異の submission dir の
+  `Elapse` を台帳へ併記する。併記が無い TIMEOUT を fail-open の証拠として採用しない。
+
+### F530. orphan-hold を解除せず変異を resume し、投入側の拒否を変異側の PARSE_ERROR として記録した [手順漏れ]
+
+- 事象: 上記 M4 の abort が残した orphan-hold (`orphan-holds/942745.nqsv.json`) を解除しないまま
+  `--resume` を投入した。dispatch は即座に拒否し、harness からは
+  `receipt 表示行が exactly one でない: 0` / `rc=16` / 所要 0.113 秒の **PARSE_ERROR** としてしか
+  見えなかった。原因が変異側 (出力が読めない) か投入側 (そもそも走っていない) か区別できず、
+  「canonical stdout から failed node を抽出できない」という変異側の言葉で記録が残った。
+- 根本原因: harness は resume の前に orphan-hold の有無を検査しない。hold は
+  「以後この worktree からの dispatch を止める」ラッチなので、投入拒否は必ず収集段の
+  parse 失敗として現れる。所要 0.113 秒という値だけが投入側の異常を示していた。
+- 恒久対応: memory `dispatch-qdel-arms-f47-latch` の復旧順 (qstat で不在または終端を確認 →
+  dirty source を復元 → clean/HEAD を確認 → hold と sidecar を削除) を **resume の前に必ず** 通す。
+  F453 が定めた 2 種 sidecar の両方確認と同じ位置で行う。
+- 再発検知: 変異の PARSE_ERROR / rc=16 を見たら、その run の `duration_s` を先に見る。
+  baseline 所要より 2 桁小さい値なら変異側ではなく投入側を疑い、hold の有無を確認する。
+
+### F531. backslash付き正規表現リテラルを含むtool出力がcodex JSONL strict parserを「Unterminated string」で落とす [手順漏れ]
+
+- 事象: 段5実装子 (`--stage author`) が `codex_exit_code=0`・392秒・21 model call・
+  2004 bytes の完全な出力を生成したにもかかわらず、receiptが`evidence_status=invalid`/
+  `outcome=not_accepted`/`launcher_rc=1`になり `-o` の最終成果物が書かれなかった。同waveの
+  段6敵対レビュー2本・fix1本でも同型が再発した (合計4回)。さらに 2026-08-24 の再開 context で
+  main 取り込み後の合成監査子 (`--stage author`) でも再発し、同 wave 内で計5回になった。
+  この5回目は `codex_exit_code=0`・602秒・27 model call・9316 bytes で、
+  `check_codex_output.py` rc=0 の健全な出力だった。
+- 根本原因: `orchestrator.codex_roles.events.parse_jsonl`を`attempt-0001.events.jsonl`へ
+  直接importして実測した結果、子が`sed`/`git diff`で出力した内容 (親のhandoff・段2プラン・
+  実装差分) に含まれる`\x00-\x1f`等の正規表現リテラル (backslash付き) が、command_execution
+  イベントの`aggregated_output`へ埋め込まれる際にJSON escapeの整合が崩れ、「Unterminated
+  string」でJSON parseに失敗する行が生じた。web_searchの重複key (F217) でも非NFC文字
+  (F223) でもない別の trigger — backslashを多く含む正規表現/コードスニペットをtool出力
+  経由で読ませると再現しうる。
+- 恒久対応: 未実施。当面の回避は `attempt-0001.output.md` を`check_codex_output.py`で検収
+  (rc=0なら内容は健全) して`-o`の期待パスへ複製するrecover手順 (F223の回避と同型)。
+  恒久対応 (parser側でbackslash-escapeを堅牢化する、または子promptで正規表現を含む大きい
+  tool出力を避けさせる) は本waveのscope外。
+- 再発検知: `evidence_status=invalid`で`codex_exit_code=0`・成果物`check_codex_output.py`
+  rc=0のとき、F217 (`web_search`重複key) でもF223 (非NFC行) でもなければ本F。
+  `attempt-*.events.jsonl`を`orchestrator.codex_roles.events.parse_jsonl`へ1行ずつ通し
+  `EventValidationError`の`"Unterminated string"`メッセージで特定できる。
+  子の仕事自体が正規表現リテラルを扱う内容 (本waveの制御文字除去がまさにそれ) のときは
+  決定的に再発すると考えてよい。
+
+### F532. 両親が同じ実装面fileを触るmergeで、規約が要求するCodex author子を起動する経路が機械的に存在しない [手順漏れ]
+
+- 事象: local main の取り込みで両親が同じ実装面 file を触ったため、`check_ai_provenance.py` が
+  merge commit に Codex `role=author` を要求した (rc=1)。ところが `git merge --no-ff --no-commit`
+  を抱えたまま `tools/dev_wave_codex.py` で author 子を起動すると、launcher が
+  `docs/dev-wave/operations.md: working tree が authority commit と異なる` で rc=2 拒否した。
+  規約が要求する子を、規約が指す状態のままでは起動できない。
+- 根本原因: `tools/dev_waves/launch_authority.py` の `snapshot_authority()` は commit 引数を
+  省略した live 使用時に authority 文書 2 本の working tree bytes と HEAD の blob を byte 比較する。
+  staged merge では authority 文書が main 側の版になっており HEAD と一致しない。authority commit を
+  外から与える CLI 経路も無い。DW-O17 は「実装面 path が両親と異なれば Codex `role=author` へ」と
+  書くが、その状態で子を起動する手順を持たない。
+- near miss: working tree の authority 文書だけを HEAD の版へ書き戻せば gate は通るが、これは
+  gate の迂回であり、子が読む authority が実際の HEAD と食い違う。採らなかった。
+- 恒久対応: D770 — 重なる path を片親の版で確定させた merge commit と、
+  clean tree で Codex `role=author` が合成を再適用する commit の 2 本へ分け、分割前の
+  `git write-tree` と分割後の `HEAD^{tree}` の一致を照合する。
+- 再発検知: merge 直前の `check_ai_provenance.py --message-file` が
+  `実装面に Codex role=author がない — paths=...` を出したとき本 F の条件に入る。
+  DW-O17 の本文へ手順を統合する案は、L2 単節予算 1000 bytes に対し DW-O17 が既に 974 bytes を
+  使っており入らない。予算値の引き上げは自己改善の範囲外 (`docs/skill-self-improvement.md`) のため
+  ユーザー裁定へ返す。
