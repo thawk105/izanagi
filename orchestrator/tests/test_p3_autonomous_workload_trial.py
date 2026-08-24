@@ -2814,6 +2814,62 @@ def test_transport_admission_error_persists_verified_partial_report(
     )
 
 
+def test_redacted_transport_error_replaces_endpoint_and_pbs_secrets() -> None:
+    endpoint_secret = "http://user:secret@example.test:18080"
+    pbs_jobid = "12345.pegasus"
+    receipt = {
+        "endpoint_values": {"http_proxy": endpoint_secret},
+        "pbs_jobid": pbs_jobid,
+    }
+
+    message = A._redacted_transport_error(
+        RuntimeError(f"endpoint={endpoint_secret} job={pbs_jobid}"),
+        receipt,
+    )
+
+    assert endpoint_secret not in message
+    assert pbs_jobid not in message
+    assert message == "endpoint=<redacted> job=<redacted>"
+
+
+def test_redacted_transport_error_removes_control_chars_without_receipt() -> None:
+    message = A._redacted_transport_error(
+        RuntimeError("left\r\n\t\x00middle right "),
+        None,
+    )
+
+    assert message == "leftmiddleright"
+    assert all(char not in message for char in "\r\n\t\x00  ")
+
+
+def test_redacted_transport_error_caps_long_messages() -> None:
+    marker = "...(truncated)"
+    message = A._redacted_transport_error(RuntimeError("x" * 600), None)
+
+    assert len(message) == 500
+    assert message == "x" * (500 - len(marker)) + marker
+    assert message.endswith(marker)
+
+
+def test_redacted_transport_error_exactly_500_chars_unchanged() -> None:
+    message = "x" * 500
+    assert A._redacted_transport_error(RuntimeError(message), None) == message
+
+
+def test_redacted_transport_error_501_chars_gets_capped() -> None:
+    marker = "...(truncated)"
+    message = A._redacted_transport_error(RuntimeError("x" * 501), None)
+
+    assert len(message) == 500
+    assert message == "x" * (500 - len(marker)) + marker
+
+
+def test_redacted_transport_error_preserves_short_messages() -> None:
+    message = "short provider failure"
+
+    assert A._redacted_transport_error(RuntimeError(message), None) == message
+
+
 def test_run_workload_other_build_reaches_drive_positive(tmp_path, monkeypatch) -> None:
     monkeypatch.setattr(A, "MAX_APPROVED_GENERATIONS", 2)
     monkeypatch.setattr(

@@ -226,7 +226,7 @@ def test_trace_only_change_passes_with_deterministic_required_evidence(tmp_path:
     assert first.stdout == second.stdout
 
     report = json.loads(first.stdout)
-    assert report["schema"] == "izanagi-trace0-preprocess-identity/v1"
+    assert report["schema"] == "izanagi-trace0-preprocess-identity/v2"
     assert report["guarantee"] == _GUARANTEE
     assert report["result"] == "pass"
     assert report["repo"] == os.fspath(pair.repo.resolve())
@@ -266,7 +266,8 @@ def test_trace_only_change_passes_with_deterministic_required_evidence(tmp_path:
         assert len(normalized["old_sha256"]) == 64
         assert activity["identical"] is True
         assert activity["old_sha256"] == activity["new_sha256"]
-        assert activity["active_markers"] == ["IZANAGI_TRACE0_INCLUDE_MARKER_00000000"]
+        assert activity["old_active_markers"] == ["IZANAGI_TRACE0_INCLUDE_MARKER_00000000"]
+        assert activity["new_active_markers"] == ["IZANAGI_TRACE0_INCLUDE_MARKER_00000000"]
 
 
 def test_trace_output_outside_trace_branch_is_rejected(tmp_path: Path) -> None:
@@ -817,6 +818,504 @@ def test_comment_only_drift_outside_trace_is_accepted(tmp_path: Path) -> None:
     result = _run(pair)
     assert result.returncode == 0, result.stderr
     assert json.loads(result.stdout)["result"] == "pass"
+
+
+def test_known_absent_set_indirect_target_definition_is_rejected_from_new_commit_only(
+    tmp_path: Path,
+) -> None:
+    repo, old = _base_repo(tmp_path)
+    _write(
+        repo,
+        "cc/silo/CMakeLists.txt",
+        "set(MODE MQLOCK)\ntarget_compile_definitions(silo PRIVATE ${MODE})\n",
+    )
+    new = _commit(repo, "new-only indirect supply")
+    _git(repo, "checkout", "-q", "--detach", old)
+    assert "MQLOCK" not in (repo / "cc/silo/CMakeLists.txt").read_text(encoding="utf-8")
+    with pytest.raises(RuntimeError, match="PROVEN_REPO_ABSENT_MACROS が stale"):
+        source_digest._assert_proven_repo_absent_macros(os.fspath(repo), commit=new)
+
+
+def test_known_absent_set_indirect_cxx_flags_is_rejected_from_old_commit_only(
+    tmp_path: Path,
+) -> None:
+    repo, _initial = _base_repo(tmp_path)
+    _write(
+        repo,
+        "cc/silo/CMakeLists.txt",
+        'set(MODE MQLOCK)\nset(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D${MODE}")\n',
+    )
+    old = _commit(repo, "old-only indirect flags")
+    _write(repo, "cc/silo/CMakeLists.txt", "# supply removed\n")
+    _write(repo, _SOURCE, _TRACE_ONLY_NEW_SOURCE)
+    _commit(repo, "new without supply")
+    assert "MQLOCK" not in (repo / "cc/silo/CMakeLists.txt").read_text(encoding="utf-8")
+    with pytest.raises(RuntimeError, match="PROVEN_REPO_ABSENT_MACROS が stale"):
+        source_digest._assert_proven_repo_absent_macros(os.fspath(repo), commit=old)
+
+
+def test_known_absent_string_concat_indirect_is_rejected(tmp_path: Path) -> None:
+    repo, _old = _base_repo(tmp_path)
+    _write(
+        repo,
+        "cc/silo/CMakeLists.txt",
+        "string(CONCAT MODE MQ LOCK)\ntarget_compile_definitions(silo PRIVATE ${MODE})\n",
+    )
+    with pytest.raises(RuntimeError, match="PROVEN_REPO_ABSENT_MACROS が stale"):
+        source_digest._assert_proven_repo_absent_macros(os.fspath(repo))
+
+
+def test_known_absent_supply_hidden_by_cmake_bracket_argument_is_rejected(
+    tmp_path: Path,
+) -> None:
+    repo, _old = _base_repo(tmp_path)
+    _write(
+        repo,
+        "cc/silo/CMakeLists.txt",
+        'set(a [=[" ]=])\nset(MODE MQLOCK)\n'
+        'target_compile_definitions(silo PRIVATE ${MODE})\nset(b [=[" ]=])\n',
+    )
+    with pytest.raises(RuntimeError, match="PROVEN_REPO_ABSENT_MACROS が stale"):
+        source_digest._assert_proven_repo_absent_macros(os.fspath(repo))
+
+
+def test_cmake_bracket_inside_quoted_argument_does_not_hide_supply(tmp_path: Path) -> None:
+    repo, _old = _base_repo(tmp_path)
+    _write(
+        repo,
+        "cc/silo/CMakeLists.txt",
+        'set(CXX_ATTRIBUTE "[[maybe_unused]]")\n'
+        'set(QUOTED_BRACKET_PREFIX "[[")\n'
+        "target_compile_definitions(silo PRIVATE OTHER_MACRO)\n",
+    )
+    assert source_digest._assert_proven_repo_absent_macros(
+        os.fspath(repo)
+    ) == source_digest.PROVEN_REPO_ABSENT_MACROS
+
+
+def test_known_absent_spliced_define_is_rejected_from_new_commit_only(
+    tmp_path: Path,
+) -> None:
+    repo, old = _base_repo(tmp_path)
+    _write(repo, "include/spliced.hh", "#defi\\\nne MQLOCK 1\n")
+    new = _commit(repo, "new-only spliced define")
+    _git(repo, "checkout", "-q", "--detach", old)
+    assert not (repo / "include/spliced.hh").exists()
+    with pytest.raises(RuntimeError, match="PROVEN_REPO_ABSENT_MACROS が stale"):
+        source_digest._assert_proven_repo_absent_macros(os.fspath(repo), commit=new)
+
+
+def test_known_absent_define_after_raw_string_is_rejected(tmp_path: Path) -> None:
+    repo, _old = _base_repo(tmp_path)
+    _write(
+        repo,
+        "include/raw-string-supply.hh",
+        'const char* text = R"tag(" /*\n)tag";\n#define MQLOCK 1\n// */\n',
+    )
+    with pytest.raises(RuntimeError, match="PROVEN_REPO_ABSENT_MACROS が stale"):
+        source_digest._assert_proven_repo_absent_macros(os.fspath(repo))
+
+
+def test_identifier_suffix_before_raw_opener_does_not_hide_define(tmp_path: Path) -> None:
+    repo, _old = _base_repo(tmp_path)
+    _write(
+        repo,
+        "include/raw-string-token-boundary.hh",
+        '#define UNUSED fooR"(x"\n#define MQLOCK 1\nconst char *tail = ")";\n',
+    )
+    with pytest.raises(RuntimeError, match="PROVEN_REPO_ABSENT_MACROS が stale"):
+        source_digest._assert_proven_repo_absent_macros(os.fspath(repo))
+
+
+def test_bracket_payload_legacy_rejection_is_preserved(tmp_path: Path) -> None:
+    repo, _old = _base_repo(tmp_path)
+    _write(
+        repo,
+        "cc/silo/CMakeLists.txt",
+        "set(DOC [[target_compile_definitions(t PRIVATE MQLOCK)]])\n",
+    )
+    with pytest.raises(RuntimeError, match="PROVEN_REPO_ABSENT_MACROS が stale"):
+        source_digest._assert_proven_repo_absent_macros(os.fspath(repo))
+
+
+@pytest.mark.parametrize(
+    "supply",
+    [
+        "\ufeff#define MQLOCK 1\n",
+        "%:define MQLOCK 1\n",
+    ],
+)
+def test_bom_or_digraph_define_is_rejected(tmp_path: Path, supply: str) -> None:
+    repo, _old = _base_repo(tmp_path)
+    _write(repo, "include/alternate-directive.hh", supply)
+    with pytest.raises(RuntimeError, match="PROVEN_REPO_ABSENT_MACROS が stale"):
+        source_digest._assert_proven_repo_absent_macros(os.fspath(repo))
+
+
+def test_duplicate_bom_supply_file_is_rejected_fail_closed(tmp_path: Path) -> None:
+    repo, _old = _base_repo(tmp_path)
+    _write(repo, "include/duplicate-bom.hh", "\ufeff\ufeff#define MQLOCK 1\n")
+    with pytest.raises(RuntimeError, match="先頭 UTF-8 BOM が重複"):
+        source_digest._assert_proven_repo_absent_macros(os.fspath(repo))
+
+
+def test_set_property_compile_definitions_is_rejected(tmp_path: Path) -> None:
+    repo, _old = _base_repo(tmp_path)
+    _write(
+        repo,
+        "cc/silo/CMakeLists.txt",
+        "set_property(TARGET bench PROPERTY COMPILE_DEFINITIONS MQLOCK)\n",
+    )
+    with pytest.raises(RuntimeError, match="PROVEN_REPO_ABSENT_MACROS が stale"):
+        source_digest._assert_proven_repo_absent_macros(os.fspath(repo))
+
+
+def test_space_separated_dash_d_macro_in_cxx_flags_is_rejected(tmp_path: Path) -> None:
+    repo, _old = _base_repo(tmp_path)
+    _write(repo, "cc/silo/CMakeLists.txt", 'set(CMAKE_CXX_FLAGS "-D MQLOCK")\n')
+    with pytest.raises(RuntimeError, match="PROVEN_REPO_ABSENT_MACROS が stale"):
+        source_digest._assert_proven_repo_absent_macros(os.fspath(repo))
+
+
+def test_known_absent_list_append_indirect_is_rejected(tmp_path: Path) -> None:
+    repo, _old = _base_repo(tmp_path)
+    _write(
+        repo,
+        "cc/silo/CMakeLists.txt",
+        "list(APPEND MODES MQLOCK)\n"
+        "target_compile_definitions(t PRIVATE ${MODES})\n",
+    )
+    with pytest.raises(RuntimeError, match="PROVEN_REPO_ABSENT_MACROS が stale"):
+        source_digest._assert_proven_repo_absent_macros(os.fspath(repo))
+
+
+def test_physical_line_supply_rejection_is_not_weakened_by_splicing(tmp_path: Path) -> None:
+    repo, _old = _base_repo(tmp_path)
+    _write(
+        repo,
+        "include/legacy-physical-view.hh",
+        "// phase-2 joins this comment \\\n#define MQLOCK 1\n",
+    )
+    with pytest.raises(RuntimeError, match="PROVEN_REPO_ABSENT_MACROS が stale"):
+        source_digest._assert_proven_repo_absent_macros(os.fspath(repo))
+
+
+def test_generator_expression_supply_remains_rejected_before_expansion(
+    tmp_path: Path,
+) -> None:
+    repo, _old = _base_repo(tmp_path)
+    _write(
+        repo,
+        "cc/silo/CMakeLists.txt",
+        'target_compile_definitions(silo PRIVATE "-DOTHER=$<IF:$<BOOL:1>,MQLOCK,0>")\n',
+    )
+    with pytest.raises(RuntimeError, match="generator expression"):
+        source_digest._assert_proven_repo_absent_macros(os.fspath(repo))
+
+
+def test_macro_include_operand_is_rejected_fail_closed(tmp_path: Path) -> None:
+    old = '#define TRACE_HEADER "old.hh"\n#include TRACE_HEADER\nint steady = 7;\n'
+    new = '#define TRACE_HEADER "new.hh"\n#include TRACE_HEADER\nint steady = 7;\n'
+    pair = _modified_pair(tmp_path, new, old_source=old)
+    _assert_rejected(_run(pair), "#include operand が literal header token でない")
+
+
+def test_import_directive_is_rejected_fail_closed(tmp_path: Path) -> None:
+    old = '#if TRACE\n#import "never-used.hh"\nint trace_value = 1;\n#endif\nint steady = 7;\n'
+    new = old.replace("int trace_value = 1;", "int trace_value = 2;")
+    pair = _modified_pair(tmp_path, new, old_source=old)
+    _assert_rejected(_run(pair), "#import directive は未対応")
+
+
+def test_digraph_include_directive_is_rejected_fail_closed(tmp_path: Path) -> None:
+    old = '#if TRACE\n%:include "never-used.hh"\nint trace_value = 1;\n#endif\nint steady = 7;\n'
+    new = old.replace("int trace_value = 1;", "int trace_value = 2;")
+    pair = _modified_pair(tmp_path, new, old_source=old)
+    _assert_rejected(_run(pair), "digraph directive (%:) は未対応")
+
+
+def test_comment_formed_include_directive_is_rejected_fail_closed(tmp_path: Path) -> None:
+    directive = '#/* comment across\n*/include "never-used.hh"\n'
+    old = "#if TRACE\n" + directive + "int trace_value = 1;\n#endif\nint steady = 7;\n"
+    new = old.replace("int trace_value = 1;", "int trace_value = 2;")
+    pair = _modified_pair(tmp_path, new, old_source=old)
+    _assert_rejected(_run(pair), "comment 除去後にだけ現れる include directive")
+
+
+def test_line_spliced_include_is_rejected_and_was_green_before_fix(tmp_path: Path) -> None:
+    old = '#if TRACE\n#inclu\\\nde "/dev/null"\nint trace_value = 1;\n#endif\nint steady = 7;\n'
+    new = old.replace("int trace_value = 1;", "int trace_value = 2;")
+    pair = _modified_pair(tmp_path, new, old_source=old)
+    _assert_rejected(_run(pair), "include directive は未対応")
+
+
+def test_comment_decoy_cannot_forge_raw_logical_include_correspondence(
+    tmp_path: Path,
+) -> None:
+    empty_header = tmp_path / "empty.hh"
+    empty_header.write_text("", encoding="utf-8")
+    directive = f'#/**/include "{empty_header}"\n'
+    decoy = f'/*\n#include "{empty_header}"\n*/\n'
+    old = (
+        decoy + directive
+        + "#if TRACE\nint trace_value = 1;\n#endif\nint steady = 7;\n"
+    )
+    new = (
+        decoy + "#if TRACE\n" + directive
+        + "int trace_value = 2;\n#endif\nint steady = 7;\n"
+    )
+    pair = _modified_pair(tmp_path, new, old_source=old)
+    _assert_rejected(_run(pair), "raw と logical で同じ位置・綴りに対応しない")
+
+
+def test_two_comment_decoys_cannot_forge_raw_logical_include_correspondence(
+    tmp_path: Path,
+) -> None:
+    directive = '#/**/include "never-used.hh"\n'
+    decoys = (
+        '/*\n#include "first-decoy.hh"\n*/\n'
+        '/*\n#include "second-decoy.hh"\n*/\n'
+    )
+    old = (
+        decoys + "#if TRACE\n" + directive
+        + "int trace_value = 1;\n#endif\nint steady = 7;\n"
+    )
+    new = old.replace("int trace_value = 1;", "int trace_value = 2;")
+    pair = _modified_pair(tmp_path, new, old_source=old)
+    _assert_rejected(_run(pair), "include directive 件数が一致しない")
+
+
+def test_comment_decoy_after_formed_directive_cannot_forge_correspondence(
+    tmp_path: Path,
+) -> None:
+    directive = '#/**/include "never-used.hh"\n'
+    decoy = '/*\n#include "decoy.hh"\n*/\n'
+    old = (
+        "#if TRACE\n" + directive
+        + "int trace_value = 1;\n#endif\n" + decoy + "int steady = 7;\n"
+    )
+    new = old.replace("int trace_value = 1;", "int trace_value = 2;")
+    pair = _modified_pair(tmp_path, new, old_source=old)
+    _assert_rejected(_run(pair), "raw と logical で同じ位置・綴りに対応しない")
+
+
+def test_comment_decoy_only_pair_preserves_raw_logical_count_rejection(
+    tmp_path: Path,
+) -> None:
+    decoy = '/*\n#include "decoy.hh"\n*/\n'
+    old = decoy + "#if TRACE\nint trace_value = 1;\n#endif\nint steady = 7;\n"
+    new = old.replace("int trace_value = 1;", "int trace_value = 2;")
+    pair = _modified_pair(tmp_path, new, old_source=old)
+    _assert_rejected(_run(pair), "include directive 件数が一致しない")
+
+
+def test_new_side_comment_decoy_is_rejected_by_raw_logical_count_gate(
+    tmp_path: Path,
+) -> None:
+    decoy = '/*\n#include "decoy.hh"\n*/\n'
+    old = "#if TRACE\nint trace_value = 1;\n#endif\nint steady = 7;\n"
+    new = decoy + old.replace("int trace_value = 1;", "int trace_value = 2;")
+    pair = _modified_pair(tmp_path, new, old_source=old)
+    _assert_rejected(_run(pair), "include directive 件数が一致しない")
+
+
+def test_bom_prefixed_include_spelling_change_is_rejected(tmp_path: Path) -> None:
+    old_header = tmp_path / "empty-old.hh"
+    new_header = tmp_path / "empty-new.hh"
+    old_header.write_text("", encoding="utf-8")
+    new_header.write_text("", encoding="utf-8")
+    old = (
+        f'\ufeff#include "{old_header}"\n'
+        "#if TRACE\nint trace_value = 1;\n#endif\nint steady = 7;\n"
+    )
+    new = (
+        f'\ufeff#include "{new_header}"\n'
+        "#if TRACE\nint trace_value = 2;\n#endif\nint steady = 7;\n"
+    )
+    pair = _modified_pair(tmp_path, new, old_source=old)
+    _assert_rejected(_run(pair), "include 行文字列（順序込み）が不一致")
+
+
+def test_leading_whitespace_before_include_remains_accepted(tmp_path: Path) -> None:
+    old = (
+        " \t#include <cstdint>\n"
+        "#if TRACE\nint trace_value = 1;\n#endif\nint steady = 7;\n"
+    )
+    new = old.replace("int trace_value = 1;", "int trace_value = 2;")
+    pair = _modified_pair(tmp_path, new, old_source=old)
+    result = _run(pair)
+    assert result.returncode == 0, result.stderr
+    assert json.loads(result.stdout)["result"] == "pass"
+
+
+def test_bom_followed_by_whitespace_before_include_remains_accepted(
+    tmp_path: Path,
+) -> None:
+    old = (
+        "\ufeff \t#include <cstdint>\n"
+        "#if TRACE\nint trace_value = 1;\n#endif\nint steady = 7;\n"
+    )
+    new = old.replace("int trace_value = 1;", "int trace_value = 2;")
+    pair = _modified_pair(tmp_path, new, old_source=old)
+    result = _run(pair)
+    assert result.returncode == 0, result.stderr
+    assert json.loads(result.stdout)["result"] == "pass"
+
+
+def test_duplicate_leading_bom_is_rejected_fail_closed(tmp_path: Path) -> None:
+    old = (
+        "\ufeff\ufeff#include <cstdint>\n"
+        "#if TRACE\nint trace_value = 1;\n#endif\nint steady = 7;\n"
+    )
+    new = old.replace("int trace_value = 1;", "int trace_value = 2;")
+    pair = _modified_pair(tmp_path, new, old_source=old)
+    _assert_rejected(_run(pair), "先頭 UTF-8 BOM が重複")
+
+
+def test_asymmetric_leading_bom_is_rejected_fail_closed(tmp_path: Path) -> None:
+    body = (
+        "#include <cstdint>\n"
+        "#if TRACE\nint trace_value = 1;\n#endif\nint steady = 7;\n"
+    )
+    old = "\ufeff" + body
+    new = body.replace("int trace_value = 1;", "int trace_value = 2;")
+    pair = _modified_pair(tmp_path, new, old_source=old)
+    _assert_rejected(_run(pair), "old/new の先頭 UTF-8 BOM 有無が不一致")
+
+
+def test_literal_include_operand_trace_only_change_passes(tmp_path: Path) -> None:
+    old = '#include <cstdint>\n#include "local.hh"\n#if TRACE\nint trace = 1;\n#endif\n'
+    new = old.replace("int trace = 1;", "int trace = 2;")
+    pair = _modified_pair(tmp_path, new, old_source=old)
+    result = _run(pair)
+    assert result.returncode == 0, result.stderr
+    assert json.loads(result.stdout)["result"] == "pass"
+
+
+def test_marker_name_split_by_line_continuation_is_rejected(tmp_path: Path) -> None:
+    collision = "#define IZANAGI_TRACE0_INCLU\\\nDE_MARKER_00000000 0\n"
+    old = collision + '#include <required.hh>\n#if TRACE\nint trace = 1;\n#endif\n'
+    new = collision + '#if TRACE\n#include <required.hh>\nint trace = 2;\n#endif\n'
+    pair = _modified_pair(tmp_path, new, old_source=old)
+    _assert_rejected(_run(pair), "include marker 識別子が source と衝突")
+
+
+def test_mocc_nonfinal_permitted_include_reports_nonidentical_policy_pass(
+    tmp_path: Path,
+) -> None:
+    old = (
+        '#include <first.hh>\n#include <second.hh>\n'
+        '#if TRACE\nint trace = 1;\n#endif\nint steady = 7;\n'
+    )
+    new = (
+        '#include <first.hh>\n#if TRACE\n'
+        f'{_MOCC_TRACE_INCLUDE}\nint trace = 2;\n#endif\n'
+        '#include <second.hh>\nint steady = 7;\n'
+    )
+    pair = _mocc_modified_pair(tmp_path, new, old_source=old)
+    result = _run(pair)
+    assert result.returncode == 0, result.stderr
+    report = json.loads(result.stdout)
+    for context in report["files"][0]["contexts"]:
+        normalized = context["normalized_preprocess"]
+        activity = context["include_activity"]
+        policy = activity["policy_comparison"]
+        assert normalized["identical"] is True
+        assert activity["old_sha256"] != activity["new_sha256"]
+        assert activity["identical"] is False
+        assert activity["old_active_markers"] == [
+            "IZANAGI_TRACE0_INCLUDE_MARKER_00000000",
+            "IZANAGI_TRACE0_INCLUDE_MARKER_00000001",
+        ]
+        assert activity["new_active_markers"] == [
+            "IZANAGI_TRACE0_INCLUDE_MARKER_00000000",
+            "IZANAGI_TRACE0_INCLUDE_MARKER_00000002",
+        ]
+        assert policy["accepted"] is True
+        assert policy["basis"] == "permitted_mocc_trace_include_addition"
+        assert policy["permitted_addition"] == {
+            "new_include_index": 1,
+            "new_marker": "IZANAGI_TRACE0_INCLUDE_MARKER_00000001",
+            "active_at_trace0": False,
+        }
+
+
+def test_mocc_permitted_addition_cannot_deactivate_another_include(
+    tmp_path: Path,
+) -> None:
+    old = (
+        '#include <first.hh>\n#include <second.hh>\n'
+        '#if TRACE\nint trace = 1;\n#endif\nint steady = 7;\n'
+    )
+    new = (
+        '#include <first.hh>\n#if TRACE\n'
+        f'{_MOCC_TRACE_INCLUDE}\n#include <second.hh>\nint trace = 2;\n'
+        '#endif\nint steady = 7;\n'
+    )
+    pair = _mocc_modified_pair(tmp_path, new, old_source=old)
+    _assert_rejected(_run(pair), "include 活性（順序込み）が不一致")
+
+
+def test_comparison_evidence_rejects_value_digest_disagreement(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    checker = _load_checker_module()
+    evidence = checker._comparison_evidence(b"old-value", b"new-value")
+    assert evidence["identical"] is False
+    assert evidence["old_sha256"] != evidence["new_sha256"]
+    monkeypatch.setattr(
+        checker,
+        "_independent_sha256_pair",
+        lambda _old, _new: ("same-digest", "same-digest"),
+    )
+    with pytest.raises(checker.CheckError, match="値と digest の同一性が不整合"):
+        checker._comparison_evidence(b"old-value", b"new-value")
+
+
+def test_unresolved_indirect_cmake_value_is_not_a_rejection_reason(tmp_path: Path) -> None:
+    repo, _old = _base_repo(tmp_path)
+    _write(
+        repo,
+        "cc/silo/CMakeLists.txt",
+        "target_compile_definitions(silo PRIVATE ${CONFIGURE_TIME_VALUE})\n",
+    )
+    assert source_digest._assert_proven_repo_absent_macros(
+        os.fspath(repo)
+    ) == source_digest.PROVEN_REPO_ABSENT_MACROS
+
+
+def test_repo_supply_files_is_enumerated_once_per_absence_validation(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    calls: list[tuple[str, str | None]] = []
+
+    def one_snapshot(root: str, *, commit: str | None = None):
+        calls.append((root, commit))
+        yield "CMakeLists.txt", "target_compile_definitions(t PRIVATE OTHER_MACRO)\n"
+
+    monkeypatch.setattr(source_digest, "_repo_supply_files", one_snapshot)
+    assert source_digest._assert_proven_repo_absent_macros(
+        os.fspath(tmp_path), commit="a" * 40
+    ) == source_digest.PROVEN_REPO_ABSENT_MACROS
+    assert calls == [(os.fspath(tmp_path), "a" * 40)]
+
+
+def test_marker_prefix_is_rejected_even_without_generated_marker_name() -> None:
+    checker = _load_checker_module()
+    with pytest.raises(checker.CheckError, match="include marker prefix"):
+        checker._mark_includes("int IZANAGI_TRACE0_INCLUDE_MARKER_custom = 0;\n")
+
+
+def test_exact_include_activity_policy_report_shape() -> None:
+    checker = _load_checker_module()
+    decision = checker._compare_include_activity(
+        "cc/silo/transaction.cc", ["M0"], ["M0"], ["M0"], ["M0"], None
+    )
+    assert decision == {
+        "accepted": True,
+        "basis": "exact_identity",
+        "permitted_addition": None,
+    }
 
 
 if __name__ == "__main__":

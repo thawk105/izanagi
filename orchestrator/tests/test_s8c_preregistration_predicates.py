@@ -170,9 +170,11 @@ def _snapshot_current_commit(tmp_path: Path) -> tuple[Path, str]:
 @pytest.fixture(scope="module")
 def current_commit_snapshot(
     tmp_path_factory: pytest.TempPathFactory,
-) -> tuple[Path, str]:
+) -> tuple[Path, str, tuple[core.PredicateResult, ...]]:
     """Read-only snapshot shared by all current-tree equivalence checks."""
-    return _snapshot_current_commit(tmp_path_factory.mktemp("current-commit"))
+    root, head = _snapshot_current_commit(tmp_path_factory.mktemp("current-commit"))
+    results = tuple(M.get_registry().evaluate_all(head, repo_root=root))
+    return root, head, results
 
 
 def test_predicate_registry_is_exactly_c01_through_c12(tmp_path: Path) -> None:
@@ -184,35 +186,35 @@ def test_predicate_registry_is_exactly_c01_through_c12(tmp_path: Path) -> None:
     assert all(item.reason_code in M.REASON_CODES for item in results)
 
 
+@pytest.mark.xdist_group("s8c-predicate-snapshot")
 def test_current_repository_snapshot_has_zero_satisfied_predicates(
-    current_commit_snapshot: tuple[Path, str],
+    current_commit_snapshot: tuple[Path, str, tuple[core.PredicateResult, ...]],
 ) -> None:
-    root, head = current_commit_snapshot
-    results = M.get_registry().evaluate_all(head, repo_root=root)
+    root, head, results = current_commit_snapshot
     assert sum(item.status is core.PredicateStatus.SATISFIED for item in results) == 0
     for item in results:
         assert item.evidence
         assert all(ref.path and len(ref.blob_sha256) == 64 for ref in item.evidence)
 
 
+@pytest.mark.xdist_group("s8c-predicate-snapshot")
 def test_current_repository_snapshot_exactly_matches_head(
-    current_commit_snapshot: tuple[Path, str],
+    current_commit_snapshot: tuple[Path, str, tuple[core.PredicateResult, ...]],
 ) -> None:
-    root, head = current_commit_snapshot
-    snapshot = tuple(M.get_registry().evaluate_all(head, repo_root=root))
+    root, head, snapshot = current_commit_snapshot
     actual = tuple(M.get_registry().evaluate_all("HEAD", repo_root=_ROOT))
     assert snapshot == actual
 
 
+@pytest.mark.xdist_group("s8c-predicate-snapshot")
 def test_current_repository_gap_reason_snapshot_requires_cross_wave_review(
-    current_commit_snapshot: tuple[Path, str],
+    current_commit_snapshot: tuple[Path, str, tuple[core.PredicateResult, ...]],
 ) -> None:
     """個別 reason は gap ledger。他 wave の land 時は意図を再審査して更新する。
 
     [T-325] の land で trial_registry の capability probe 段階を通過した。
     """
-    root, head = current_commit_snapshot
-    results = M.get_registry().evaluate_all(head, repo_root=root)
+    root, head, results = current_commit_snapshot
     assert {
         item.id: (item.status, item.reason_code) for item in results
     } == {
@@ -249,12 +251,12 @@ def test_current_repository_gap_reason_snapshot_requires_cross_wave_review(
     }
 
 
+@pytest.mark.xdist_group("s8c-predicate-snapshot")
 def test_current_repository_c12_registry_reports_unwired_allocation_consumer(
-    current_commit_snapshot: tuple[Path, str],
+    current_commit_snapshot: tuple[Path, str, tuple[core.PredicateResult, ...]],
 ) -> None:
     # production が正しく配線されたら反転させる snapshot tripwire である。
-    root, head = current_commit_snapshot
-    results = M.get_registry().evaluate_all(head, repo_root=root)
+    root, head, results = current_commit_snapshot
     c12 = {item.id: item for item in results}["C12"]
     assert c12.status is core.PredicateStatus.EVIDENCE_UNDEFINED
     assert c12.reason_code == "completion-proof-not-machine-checkable"
@@ -276,12 +278,13 @@ def test_c02_missing_registry_preserves_capability_absent_reason(
     assert result.reason_code == "trial-registry-capability-absent"
 
 
+@pytest.mark.xdist_group("s8c-predicate-snapshot")
 def test_current_repository_c12_allocation_binding_helper_reports_unwired_consumer(
-    current_commit_snapshot: tuple[Path, str],
+    current_commit_snapshot: tuple[Path, str, tuple[core.PredicateResult, ...]],
 ) -> None:
     # production が正しく配線されたら反転させる snapshot tripwire である。
-    root, head = current_commit_snapshot
-    result = _result(root, head, "C12")
+    root, head, results = current_commit_snapshot
+    result = {item.id: item for item in results}["C12"]
     assert result.status is core.PredicateStatus.EVIDENCE_UNDEFINED
     assert result.reason_code == "completion-proof-not-machine-checkable"
 

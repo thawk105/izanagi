@@ -1,0 +1,94 @@
+{
+  "estimated_run_seconds": 400,
+  "hang_timeout_seconds": 1800,
+  "mutations": [
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_current_repository_snapshot_has_zero_satisfied_predicates"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "m01",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8c_preregistration.py",
+          "new": "    return hashlib.sha256(raw).hexdigest()[:63]\n",
+          "old": "    return hashlib.sha256(raw).hexdigest()\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_current_repository_snapshot_exactly_matches_head"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "m02",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8c_preregistration_evidence_contract.v1.json",
+          "new": "{\n\n  \"",
+          "old": "{\n  \""
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_current_repository_gap_reason_snapshot_requires_cross_wave_review"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "m03",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8c_preregistration_evidence.py",
+          "new": "    SCHEDULE_SCHEMA_ABSENT = \"schedule-schema-absent-mutated\"\n",
+          "old": "    SCHEDULE_SCHEMA_ABSENT = \"schedule-schema-absent\"\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_current_repository_c12_allocation_binding_helper_reports_unwired_consumer",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_current_repository_c12_registry_reports_unwired_allocation_consumer",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_current_repository_gap_reason_snapshot_requires_cross_wave_review"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "m04",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8c_preregistration_evidence.py",
+          "new": "    COMPLETION_PROOF_NOT_MACHINE_CHECKABLE = \"completion-proof-not-machine-checkable-mutated\"\n",
+          "old": "    COMPLETION_PROOF_NOT_MACHINE_CHECKABLE = \"completion-proof-not-machine-checkable\"\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_current_repository_c12_allocation_binding_helper_reports_unwired_consumer",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_current_repository_c12_registry_reports_unwired_allocation_consumer",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_current_repository_gap_reason_snapshot_requires_cross_wave_review",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_current_repository_snapshot_exactly_matches_head",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_current_repository_snapshot_has_zero_satisfied_predicates"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "m05",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8c_preregistration.py",
+          "new": "        object.__setattr__(self, \"evidence\", ())\n",
+          "old": "        object.__setattr__(self, \"evidence\", tuple(self.evidence))\n"
+        }
+      ]
+    }
+  ],
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "timeout_seconds": 1800
+}
