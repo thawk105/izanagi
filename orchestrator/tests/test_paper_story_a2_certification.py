@@ -325,9 +325,11 @@ def _write_receipt_bundle(
         "request_id": request_id,
         "qstat_visibility": {
             "observed": True,
+            "observed_at_utc": "2026-08-25T00:00:00Z",
             "request_id": request_id,
             "argv": ["qstat", "-f", request_id],
             "returncode": 0,
+            "state": "RUN",
             "stdout": "Request ID: 12345.nqsv\nRequest State = RUN\n",
             "stderr": "",
         },
@@ -343,7 +345,8 @@ def _write_receipt_bundle(
     })
     terminal_stdout = (
         "Request ID: 12345.nqsv\nRequest State = EXT\n"
-        if terminal_reason == "scheduler-end-state" else ""
+        if terminal_reason == "scheduler-end-state"
+        else "Batch Request: 12345.nqsv does not exist on nqsv.\n"
     )
     completion = {
         "schema_version": A2.COMPLETION_SCHEMA,
@@ -538,7 +541,7 @@ def test_m6_positive_report_never_claims_global_minimality(tmp_path):
         current_pin=CURRENT_PIN, request_id="123.nqsv")
     assert report["status"] == "observed-positive"
     assert report["global_minimality_established"] is False
-    assert report["smallest_observed_sufficient_in_this_two_point_protocol"] == "200/4"
+    assert report["smallest_observed_sufficient_in_this_two_point_protocol"] is None
 
 
 def test_anomaly_is_determinate_reject_and_performance_incomplete_is_not_pass(
@@ -600,7 +603,18 @@ def test_m9_run_argv_zero_must_be_the_canonical_binary(tmp_path):
     decoy = root / "decoy"
     decoy.write_bytes(b"decoy")
     binary_index = evidence["run_argv"].index("--") + 1
+    canonical_binary = evidence["run_argv"][binary_index]
+    expected_workload_flags = A2._run_workload_flags(
+        evidence["run_argv"][binary_index:])
     evidence["run_argv"][binary_index] = str(decoy)
+    evidence["run_argv"].insert(binary_index + 1, canonical_binary)
+    assert evidence["run_argv"][binary_index] == str(decoy)
+    assert canonical_binary in evidence["run_argv"][binary_index + 1:]
+    assert A2._run_workload_flags(
+        evidence["run_argv"][binary_index + 1:]) == expected_workload_flags
+    with pytest.raises(A2.CertificationError, match=r"argv\[0\]"):
+        A2._require_run_binary_at_position(
+            evidence["run_argv"], binary_index, Path(canonical_binary))
     with pytest.raises(A2.CertificationError, match=r"argv\[0\]"):
         A2.validate_trace0_evidence(
             policy, raw["cell_id"], root.name, CURRENT_PIN, evidence)
@@ -679,6 +693,34 @@ def test_submission_argv_environment_nodes_and_job_body_are_exact(
     with pytest.raises(A2.CertificationError):
         A2._validate_submission_receipt(
             policy, mutant, root.name, root, CURRENT_PIN)
+
+
+def test_submission_visibility_requires_timestamped_nonterminal_state(tmp_path):
+    policy = _policy(tmp_path)
+    root = A2.preregister_attempt(
+        policy, "attempt-submit-terminal-visibility", CURRENT_PIN)
+    _, submission = _write_receipt_bundle(policy, root)
+
+    terminal = copy.deepcopy(submission)
+    terminal["qstat_visibility"]["state"] = "EXT"
+    terminal["qstat_visibility"]["stdout"] = (
+        "Request ID: 12345.nqsv\nRequest State = EXT\n")
+    with pytest.raises(A2.CertificationError, match="qstat visibility"):
+        A2._validate_submission_receipt(
+            policy, terminal, root.name, root, CURRENT_PIN)
+
+    terminal_output = copy.deepcopy(submission)
+    terminal_output["qstat_visibility"]["stdout"] = (
+        "Request ID: 12345.nqsv\nRequest State = EXT\n")
+    with pytest.raises(A2.CertificationError, match="qstat visibility"):
+        A2._validate_submission_receipt(
+            policy, terminal_output, root.name, root, CURRENT_PIN)
+
+    missing_time = copy.deepcopy(submission)
+    missing_time["qstat_visibility"].pop("observed_at_utc")
+    with pytest.raises(A2.CertificationError, match="qstat visibility"):
+        A2._validate_submission_receipt(
+            policy, missing_time, root.name, root, CURRENT_PIN)
 
 
 def test_m11_materializer_stages_marker_before_single_noreplace_rename(
@@ -837,6 +879,38 @@ def test_completion_accepts_both_canonical_terminal_observations(
     evidence = A2.validate_acquisition_bundle(
         policy, acquisition, current_pin=CURRENT_PIN)
     assert evidence["raw_manifest_valid"] is True
+    if terminal_reason == "request-disappeared-after-visibility":
+        assert evidence["completion"]["terminal_observation"]["stdout"] == (
+            "Batch Request: 12345.nqsv does not exist on nqsv.\n")
+
+
+@pytest.mark.parametrize(
+    "mutation", ("empty-output", "visible-output", "nonzero-rc", "stderr"),
+)
+def test_disappeared_terminal_rejects_noncanonical_observations(
+        tmp_path, mutation):
+    policy = _policy(tmp_path)
+    root = A2.preregister_attempt(
+        policy, "attempt-disappeared-negative-" + mutation, CURRENT_PIN)
+    _, submission = _write_receipt_bundle(
+        policy, root, terminal_reason="request-disappeared-after-visibility")
+    completion, _ = A2._read_json(root / "receipts" / "completion.json")
+    terminal = completion["terminal_observation"]
+    if mutation == "empty-output":
+        terminal["stdout"] = ""
+    elif mutation == "visible-output":
+        terminal["stdout"] = "Request ID: 12345.nqsv\nRequest State = RUN\n"
+    elif mutation == "nonzero-rc":
+        terminal["returncode"] = 1
+    else:
+        terminal["stderr"] = "qstat failed\n"
+    submission_binding = A2._validate_submission_receipt(
+        policy, submission, root.name, root, CURRENT_PIN)
+    with pytest.raises(A2.CertificationError):
+        A2._validate_completion_receipt(
+            policy, completion, root.name, root, CURRENT_PIN,
+            submission_binding["request_id"], submission_binding,
+        )
 
 
 def test_raw_manifest_binds_campaign_lock_and_wal_and_freezes_raw_bytes(tmp_path):
@@ -922,6 +996,12 @@ def test_trace0_argv_closed_grammar_rejects_unconsumed_tokens(tmp_path, mutation
     with pytest.raises(A2.CertificationError):
         A2.validate_trace0_evidence(
             policy, raw["cell_id"], root.name, CURRENT_PIN, evidence)
+
+
+def test_wal_configure_locator_comes_from_versioned_grammar():
+    source = inspect.getsource(A2._raw_cell_from_wal)
+    assert '_cmake_directory(configure, "-B")' not in source
+    assert '["build_directory_option"]' in source
 
 
 def test_synthetic_pbs_free_preregister_through_analyze_positive(tmp_path):

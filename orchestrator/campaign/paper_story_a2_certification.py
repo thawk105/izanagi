@@ -36,7 +36,7 @@ from .pipeline import PerfConfig
 POLICY_SCHEMA = "paper-story-a2-certification-policy/v1"
 RAW_RESULT_SCHEMA = "paper-story-a2-cell-result/v2"
 CERTIFICATION_SCHEMA = "paper-story-a2-certification-result/v2"
-SUBMISSION_SCHEMA = "paper-story-a2-submission-receipt/v2"
+SUBMISSION_SCHEMA = "paper-story-a2-submission-receipt/v3"
 COMPLETION_SCHEMA = "paper-story-a2-completion-receipt/v2"
 ACQUISITION_SCHEMA = "paper-story-a2-acquisition-receipt/v2"
 TRACE0_SCHEMA = "paper-story-a2-trace0-evidence/v2"
@@ -63,6 +63,18 @@ _NQSV_GROUP_RE = re.compile(r"(?m)^[ \t]*Group Name:[ \t]*(\S+)[ \t]*$")
 _NQSV_STARTED_RE = re.compile(r"(?m)^[ \t]*Started Request Time:[ \t]*\S.*$")
 _NQSV_ENDED_RE = re.compile(r"(?m)^[ \t]*Ended Request Time:[ \t]*\S.*$")
 _NQSV_ELAPSE_RE = re.compile(r"(?m)^[ \t]*Elapse:[ \t]*\S.*$")
+_NQSV_REQUEST_STATE_RE = re.compile(
+    r"(?m)^[ \t]*Request[ \t]+State[ \t]*=[ \t]*(\S+)[ \t]*$"
+)
+_NQSV_DISAPPEARED_RE = re.compile(
+    r"[ \t]*Batch[ \t]+Request:[ \t]+(\S+)[ \t]+does[ \t]+not[ \t]+"
+    r"exist[ \t]+on[ \t]+nqsv\.[ \t]*(?:\r?\n)?"
+)
+_UTC_OBSERVATION_RE = re.compile(
+    r"[0-9]{4}-(?:0[1-9]|1[0-2])-"
+    r"(?:0[1-9]|[12][0-9]|3[01])T"
+    r"(?:[01][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9]Z"
+)
 _TERMINAL_STATE_RE = re.compile(
     r"(?im)^[ \t]*(?:Request[ \t]+State|State)[ \t]*=[ \t]*EXT[ \t]*$"
     r"|^[ \t]*Current[ \t]+State[ \t]*=[ \t]*"
@@ -806,16 +818,28 @@ def _validate_submission_receipt(policy: Policy, payload: Mapping[str, Any],
         raise CertificationError("job body bytes differ from submission receipt")
 
     visibility = payload["qstat_visibility"]
+    visibility_stdout = (
+        visibility.get("stdout") if type(visibility) is dict else None)
+    visibility_states = (
+        _NQSV_REQUEST_STATE_RE.findall(visibility_stdout)
+        if type(visibility_stdout) is str else []
+    )
     if (type(visibility) is not dict or set(visibility) != {
-            "observed", "request_id", "argv", "returncode", "stdout", "stderr"}
+            "observed", "observed_at_utc", "request_id", "argv", "returncode",
+            "state", "stdout", "stderr"}
             or visibility.get("observed") is not True
+            or type(visibility.get("observed_at_utc")) is not str
+            or _UTC_OBSERVATION_RE.fullmatch(
+                visibility.get("observed_at_utc", "")) is None
             or _normalize_request_id(visibility.get("request_id")) != request_id
             or visibility.get("argv") != ["qstat", "-f", request_id]
             or visibility.get("returncode") != 0
             or visibility.get("stderr") != ""
-            or type(visibility.get("stdout")) is not str
+            or visibility.get("state") not in {"QUE", "RUN"}
+            or visibility_states != [visibility.get("state")]
+            or type(visibility_stdout) is not str
             or [_normalize_request_id(value) for value in
-                _NQSV_REQUEST_RE.findall(visibility["stdout"])] != [request_id]):
+                _NQSV_REQUEST_RE.findall(visibility_stdout)] != [request_id]):
         raise CertificationError("qstat visibility evidence is incomplete")
     return {
         "request_id": request_id,
@@ -865,17 +889,20 @@ def _validate_completion_receipt(policy: Policy, payload: Mapping[str, Any],
             or terminal.get("state") != "END"
             or type(terminal.get("stdout")) is not str):
         raise CertificationError("scheduler terminal observation is incomplete")
-    terminal_ids = [
-        _normalize_request_id(value)
-        for value in _NQSV_REQUEST_RE.findall(terminal["stdout"])
-    ]
     if terminal["reason"] == "scheduler-end-state":
+        terminal_ids = [
+            _normalize_request_id(value)
+            for value in _NQSV_REQUEST_RE.findall(terminal["stdout"])
+        ]
         if terminal_ids != [request_id] or _TERMINAL_STATE_RE.search(
                 terminal["stdout"]) is None:
             raise CertificationError("visible scheduler terminal state is not request-bound")
     elif terminal["reason"] == "request-disappeared-after-visibility":
-        if terminal_ids:
-            raise CertificationError("disappeared request terminal still contains request ID")
+        disappeared = _NQSV_DISAPPEARED_RE.fullmatch(terminal["stdout"])
+        if (disappeared is None
+                or _normalize_request_id(disappeared.group(1)) != request_id):
+            raise CertificationError(
+                "disappeared request terminal is not the exact NQSV signature")
     else:
         raise CertificationError("scheduler terminal reason is not canonical")
 
@@ -1308,8 +1335,7 @@ def _exact_trace0_run_argv(policy: Policy, cell: CellSpec,
     ] + [
         f"-{key}={value}" for key, value in cell.perf["workload"].items()
     ]
-    if len(argv) <= len(prefix) or argv[len(prefix)] != str(perf_binary):
-        raise CertificationError("run argv[0] after the canonical wrapper is not the binary")
+    _require_run_binary_at_position(argv, len(prefix), perf_binary)
     expected = prefix + [str(perf_binary)] + expected_flags
     if list(argv) != expected:
         raise CertificationError("run argv does not match the closed producer grammar")
@@ -1317,6 +1343,15 @@ def _exact_trace0_run_argv(policy: Policy, cell: CellSpec,
             token[1:].partition("=")[0]: token.partition("=")[2]
             for token in expected_flags}:
         raise CertificationError("run argv workload flags are not exact")
+
+
+def _require_run_binary_at_position(
+        argv: Sequence[str], binary_index: int, perf_binary: Path) -> None:
+    if (type(binary_index) is not int or binary_index < 0
+            or len(argv) <= binary_index
+            or argv[binary_index] != str(perf_binary)):
+        raise CertificationError(
+            "run argv[0] after the canonical wrapper is not the binary")
 
 
 def validate_trace0_evidence(policy: Policy, cell_id: str, attempt_id: str,
@@ -1682,12 +1717,7 @@ def collect_results(policy: Policy, raw_results: Iterable[Mapping[str, Any]],
         "status": status,
         "a4_noise_floor_status": "open",
         "legacy_role": "historically inherited companion",
-        "smallest_observed_sufficient_in_this_two_point_protocol": (
-            (policy.document["legacy_correctness"]["ycsb_tuple_num"] + "/"
-             + policy.document["legacy_correctness"]["thread_num"])
-            if all(cell["correctness"]["status"] == "certified"
-                   for cell in cells) else None
-        ),
+        "smallest_observed_sufficient_in_this_two_point_protocol": None,
         "global_minimality_established": False,
         "compile_out_evidence_scope": COMPILE_OUT_SCOPE,
         "independent_observation_limits": {
@@ -1983,7 +2013,9 @@ def _raw_cell_from_wal(policy: Policy, cell: CellSpec, *, result: object,
             run = list(run)
         if (type(configure) is list and type(build) is list
                 and type(run) is list and run):
-            build_dir = _cmake_directory(configure, "-B")
+            build_directory_option = policy.document[
+                "trace0_cmake_argv"]["configure"]["build_directory_option"]
+            build_dir = _cmake_directory(configure, build_directory_option)
             try:
                 separator_index = run.index("--")
             except ValueError:
