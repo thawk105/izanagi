@@ -94,7 +94,7 @@ _NONSELECT_FLAGS = frozenset({
 })
 _NONSELECT_VALUE_OPTIONS = frozenset({
     "-n", "--numprocesses", "--dist", "--color", "--tb", "--capture",
-    "--junitxml", "--junit-prefix", "--rootdir", "--confcutdir",
+    "--junitxml", "--junit-prefix", "--rootdir",
     "--basetemp", "--durations", "--durations-min", "--verbosity",
     "--show-capture", "--import-mode", "--log-level", "--log-format",
     "--log-date-format", "--log-cli-level", "--log-cli-format",
@@ -102,7 +102,7 @@ _NONSELECT_VALUE_OPTIONS = frozenset({
     "--log-file-level", "--log-file-format", "--log-file-date-format",
 })
 _FULL_SUITE_DISQUALIFY_VALUE_OPTIONS = frozenset({
-    "--override-ini", "-o", "-p",
+    "--override-ini", "-o", "-p", "--confcutdir",
 })
 _SELECT_FLAGS = frozenset({
     "-k", "-m", "--lf", "--last-failed", "--ff", "--failed-first",
@@ -178,23 +178,19 @@ class _DispatchCallResult(NamedTuple):
 
 _PermanentExclusion = _SELECTION_CONTRACT.Exclusion
 _PERMANENT_EXCLUSION_SET_VERSION = _SELECTION_CONTRACT.EXCLUSION_SET_VERSION
-_SANCTIONED_SORT_SWO_ORACLE_PATH = _SELECTION_CONTRACT.SANCTIONED_SORT_SWO_ORACLE_PATH
+_SANCTIONED_CLEANUP_TEST_PATH = _SELECTION_CONTRACT.SANCTIONED_CLEANUP_TEST_PATH
 
-# ここが runtime の active table。現在は共有契約の空 tuple を参照する。
+# ここが runtime の active table。現在は共有契約の cleanup entry を参照する。
 # sanctioned な上限と payload の定義は引き続き共有契約 module にだけ存在する。
 _PERMANENT_FULL_SUITE_EXCLUSIONS = _SELECTION_CONTRACT.SANCTIONED_EXCLUSIONS
 
 
 def _permanent_exclusions_are_sanctioned(
-    exclusions: Sequence[_PermanentExclusion],
-) -> bool:
-    """runner の恒久除外表を裁定済みの閉じた集合として検証する。"""
+    exclusions: tuple[_PermanentExclusion, ...],
+) -> tuple[_PermanentExclusion, ...] | None:
+    """runner の恒久除外表を private canonical tuple へ写す。"""
 
-    try:
-        entries = tuple(exclusions)
-    except TypeError:
-        return False
-    return _SELECTION_CONTRACT.is_sanctioned_exclusion_set(entries)
+    return _SELECTION_CONTRACT.canonicalize_sanctioned_exclusion_set(exclusions)
 
 
 def _runner_exclusion_payload(
@@ -636,20 +632,6 @@ def _positional_tokens(args: Sequence[str]) -> tuple[str, ...]:
     return tuple(positional)
 
 
-def _explicitly_targets_sanctioned_oracle(args: Sequence[str]) -> bool:
-    """修正対象の oracle file を明示指定した走行か判定する。"""
-
-    sanctioned_target = Path(_SANCTIONED_SORT_SWO_ORACLE_PATH).resolve()
-    for token in _positional_tokens(args):
-        path_part = token.partition("::")[0]
-        try:
-            if Path(path_part).resolve(strict=False) == sanctioned_target:
-                return True
-        except OSError:
-            continue
-    return False
-
-
 def _has_no_execution_flag(args: Sequence[str]) -> bool:
     if any(token.split("=", 1)[0] in _NO_EXECUTION_FLAGS for token in args):
         return True
@@ -716,13 +698,14 @@ def _is_acceptance_run(args: Sequence[str]) -> bool:
     if os.environ.get("PYTEST_PLUGINS", "").strip():
         return False
     default_target = Path(_DEFAULT_TARGET).resolve()
+    positional_count = 0
     i = 0
     while i < len(args):
         token = args[i]
         option, separator, value = token.partition("=")
         if token == "--" or option in _NO_EXECUTION_FLAGS or option in _SELECT_FLAGS:
             return False
-        if option in {"-o", "-p", "--override-ini"}:
+        if option in _FULL_SUITE_DISQUALIFY_VALUE_OPTIONS:
             return False
         if token.startswith("-k") or token.startswith("-m"):
             return False
@@ -740,6 +723,9 @@ def _is_acceptance_run(args: Sequence[str]) -> bool:
                 if Path(token).resolve(strict=False) != default_target:
                     return False
             except OSError:
+                return False
+            positional_count += 1
+            if positional_count > 1:
                 return False
             i += 1
             continue
@@ -2422,8 +2408,9 @@ def main(
     args = _normalize_args(pytest_args)
     is_acceptance = _is_acceptance_run(args)
     positional = _positional_tokens(args)
-    configured_exclusions = _PERMANENT_FULL_SUITE_EXCLUSIONS
-    if not _permanent_exclusions_are_sanctioned(configured_exclusions):
+    try:
+        configured_exclusions = tuple(_PERMANENT_FULL_SUITE_EXCLUSIONS)
+    except TypeError:
         print(
             "恒久除外表が裁定済み literal path と一致しないため、"
             "テスト command を作らず停止します。",
@@ -2431,11 +2418,18 @@ def main(
             flush=True,
         )
         return _PERMANENT_EXCLUSION_GATE_RC
-    exclusions = (
-        ()
-        if _explicitly_targets_sanctioned_oracle(args)
-        else configured_exclusions
+    canonical_exclusions = _permanent_exclusions_are_sanctioned(
+        configured_exclusions
     )
+    if canonical_exclusions is None:
+        print(
+            "恒久除外表が裁定済み literal path と一致しないため、"
+            "テスト command を作らず停止します。",
+            file=sys.stderr,
+            flush=True,
+        )
+        return _PERMANENT_EXCLUSION_GATE_RC
+    exclusions = canonical_exclusions if is_acceptance else ()
     if is_acceptance and _has_non_loadgroup_user_dist(args):
         print(
             "受入形では --dist loadgroup 以外の --dist 上書きを拒否します。",
