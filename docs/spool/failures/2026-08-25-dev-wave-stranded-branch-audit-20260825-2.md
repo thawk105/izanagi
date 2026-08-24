@@ -33,3 +33,27 @@ seq: 2
 - 再発検知: **機械検査は無い (prompt 規律)。** 使い捨ての shell 分類器は repo の
   lint 対象外であり、恒真な保証にしないためここに明記する。実務上の防壁は上記 memory と、
   「全分類枝の発火数を見る」作法の 2 つだけである。
+
+## 再発
+
+### F136
+
+- **再発: 2026-08-25 (同日 3 例目)** — 直前の docs-only wave (同日 2 例目) と**同一の形が
+  連続で再生産された**。本 wave も docs-only (差分は `docs/spool/` の 2 file) で、
+  受入全走を 1 本しか投入せず走行中に repo へ何も書いていないのに、
+  `test_s8b_floor_campaign.py` の `_real_output_snapshot()` 系が 11 件赤になった
+  (11 failed / 15,284 passed / 60 skipped)。junit の差分は 11 件とも
+  `first extra item: ('dir', 'task-runs/reports')` で、2 例目と逐語一致する。
+  受入 shard は同じ作業木から request `944878` と `944879` を重ねて投入しており
+  (shard-1 の junit が 03:21:47、shard-0 が 03:23:20 に確定)、既知の機序と一致する。
+  帰属は 3 点で否定した — (1) wave の差分 2 file は `launch_cert` / `certificate` を
+  1 箇所も参照しない (`git diff` の grep が 0 件)、(2) 同 file の焦点走は
+  **451 passed / 2 skipped** で緑 (rc=0)、(3) junit 差分が実装ではなく
+  `output/task-runs/` の dir 増加を指す。
+- **新しい事実は決定性である。** 2 例目の焦点走も 451 passed / 2 skipped であり、
+  赤の件数 (11)・assertion 本文・焦点走の緑の内訳が 3 例目と完全に一致した。
+  この赤は wave 固有の事情でも散発的な flake でもなく、**docs-only wave が受入 shard 経路を
+  通ると再現する構造的な赤**である。「単独再走で消える」という 1 例目の再発検知条件は、
+  裏返せば「受入全走を投入するたびに一定確率で 1 回捨てる」費用を全 wave が払い続けることを
+  意味する。恒久対応 (task-run 記録の書き出し先を shard session root へ逃がす seam) は
+  本 wave の scope 外で、受入基盤の所有 wave の判断に委ねる点は 1・2 例目と同じ。

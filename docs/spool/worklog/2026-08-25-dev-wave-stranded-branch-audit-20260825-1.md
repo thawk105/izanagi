@@ -50,6 +50,13 @@ title: main へ未マージのまま残る branch 6 本を内容照合で着地�
   着地済みエントリで実体が確認できた。hash 不一致で止まったら、次に ID の採番状況と
   canonical 側の同題エントリを見る。
 - branch と worktree は削除していない (ユーザー指示があるときのみ)。
+- **受入 attempt 1 は F136 の同日 3 例目で 11 件赤になった** (11 failed / 15,284 passed /
+  60 skipped、差分は 11 件とも `('dir', 'task-runs/reports')`)。帰属は 3 点で否定した —
+  差分 2 file が `launch_cert` / `certificate` を 1 箇所も参照しない、同 file の焦点走が
+  451 passed / 2 skipped で緑、junit 差分が実装でなく `output/task-runs/` の dir 増加を指す。
+  直前の docs-only wave (2 例目) と赤の件数・assertion 本文・焦点走の内訳が完全に一致しており、
+  この赤の決定性を F136 へ追記した。attempt 2 を本 commit を含む tip へ投入した
+  (走行結果の正本は受入 receipt)。
 
 ## 次の一手差分
 
