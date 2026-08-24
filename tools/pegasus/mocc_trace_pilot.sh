@@ -663,12 +663,41 @@ if [[ "$TRACE_MODE" -eq 0 ]]; then
   # D297 checker is deliberately a hard gate.  Its nonzero result means that
   # TRACE=0 execution is skipped; no fallback or relaxed branch is permitted.
   build_mode 0
+  CHECKER_PY=""
+  checker_py_rejected=""
+  for py_name in python3 python3.10 python3.11 python3.12; do
+    py_cmd=$(command -v -- "$py_name") || continue
+    py_resolved=$(realpath -e -- "$py_cmd") || continue
+    [[ -x "$py_resolved" ]] || continue
+    if (
+      cd "$REPO_ROOT" &&
+      PYTHONPATH="$REPO_ROOT${PYTHONPATH:+:$PYTHONPATH}" \
+      "$py_resolved" -c \
+        'import sys; import orchestrator.campaign.source_digest; raise SystemExit(0 if sys.version_info >= (3, 10) else 1)' \
+        "$REPO_ROOT"
+    ) >/dev/null 2>&1; then
+      CHECKER_PY="$py_resolved"
+      break
+    fi
+    checker_py_rejected+="${checker_py_rejected:+ }$py_name=$py_resolved"
+  done
+
   CHECKER_RC=0
-  python3 "$REPO_ROOT/tools/check_trace0_preprocess_identity.py" \
-    --repo "$BUILD_SOURCE" --old "$BASE_OID" --new "$NEW_OID" \
-    --cxx "$CXX_PATH" --expect-paths cc/mocc/transaction.cc \
-    >"$ATTEMPT_DIR/trace0-preprocess-identity.json" \
-    2>"$ATTEMPT_DIR/trace0-preprocess-identity.stderr" || CHECKER_RC=$?
+  if [[ -n "$CHECKER_PY" ]]; then
+    (
+      cd "$REPO_ROOT" &&
+      PYTHONPATH="$REPO_ROOT${PYTHONPATH:+:$PYTHONPATH}" \
+      "$CHECKER_PY" "$REPO_ROOT/tools/check_trace0_preprocess_identity.py" \
+        --repo "$BUILD_SOURCE" --old "$BASE_OID" --new "$NEW_OID" \
+        --cxx "$CXX_PATH" --expect-paths cc/mocc/transaction.cc
+    ) >"$ATTEMPT_DIR/trace0-preprocess-identity.json" \
+      2>"$ATTEMPT_DIR/trace0-preprocess-identity.stderr" || CHECKER_RC=$?
+  else
+    CHECKER_RC=2
+    checker_gate_message="no python3 >= 3.10 candidate can import orchestrator.campaign.source_digest (rejected: ${checker_py_rejected:-none})"
+    printf '%s\n' "$checker_gate_message" \
+      >"$ATTEMPT_DIR/trace0-preprocess-identity.stderr"
+  fi
   printf '%s\n' "$CHECKER_RC" >"$ATTEMPT_DIR/trace0-preprocess-identity.rc"
   if [[ "$CHECKER_RC" -ne 0 ]]; then
     python3 - "$ATTEMPT_DIR/trace0-execution.json" "$CHECKER_RC" <<'PY'
