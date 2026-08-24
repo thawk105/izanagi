@@ -14,6 +14,7 @@ import pytest
 
 from tools.dev_waves.launch_authority import (
     STAGES,
+    _MERGE_HEAD_MAX_BYTES,
     AuthorityError,
     derive_launch,
     snapshot_authority,
@@ -157,6 +158,30 @@ def _replace_author_effort(text: str, effort: str) -> str:
         count=1,
     )
     assert count == 1
+    return changed
+
+
+def _replace_worker_efforts(
+    text: str, *, author: str, review: str, focus: str
+) -> str:
+    changed = _replace_author_effort(text, author)
+    replacements = (
+        (
+            r"実装 wave は異なるレンズの敵対レビューを "
+            r"`reasoning=[A-Za-z0-9_-]+` で必ず 2 本並列で行う。",
+            "実装 wave は異なるレンズの敵対レビューを "
+            f"`reasoning={review}` で必ず 2 本並列で行う。",
+        ),
+        (
+            r"並列 fix の統合後、焦点再レビューは全体へ "
+            r"`reasoning=[A-Za-z0-9_-]+` で 1 本でよい。",
+            "並列 fix の統合後、焦点再レビューは全体へ "
+            f"`reasoning={focus}` で 1 本でよい。",
+        ),
+    )
+    for pattern, replacement in replacements:
+        changed, count = re.subn(pattern, replacement, changed, count=1)
+        assert count == 1
     return changed
 
 
@@ -533,6 +558,44 @@ def test_mid_merge_clean_auto_merged_authority_author_is_accepted(
     assert accepted.authority_commit == head
 
 
+def test_mid_merge_accepts_when_operations_matches_and_workers_is_deleted(
+    tmp_path: Path,
+) -> None:
+    root, head, _incoming = _prepare_mid_merge_repo(
+        tmp_path, conflicted=False
+    )
+    committed_operations = subprocess.run(
+        ["git", "-C", os.fspath(root), "show", f"{head}:{_OPERATIONS}"],
+        check=True,
+        stdout=subprocess.PIPE,
+    ).stdout
+    (root / _OPERATIONS).write_bytes(committed_operations)
+    (root / _WORKERS).unlink()
+
+    accepted = snapshot_authority(root, allow_mid_merge=True)
+
+    assert accepted == snapshot_authority(root, commit=head)
+
+
+def test_mid_merge_accepts_when_workers_matches_and_operations_is_deleted(
+    tmp_path: Path,
+) -> None:
+    root, head, _incoming = _prepare_mid_merge_repo(
+        tmp_path, conflicted=False
+    )
+    committed_workers = subprocess.run(
+        ["git", "-C", os.fspath(root), "show", f"{head}:{_WORKERS}"],
+        check=True,
+        stdout=subprocess.PIPE,
+    ).stdout
+    (root / _WORKERS).write_bytes(committed_workers)
+    (root / _OPERATIONS).unlink()
+
+    accepted = snapshot_authority(root, allow_mid_merge=True)
+
+    assert accepted == snapshot_authority(root, commit=head)
+
+
 def test_non_author_stage_in_mid_merge_is_rejected(tmp_path: Path) -> None:
     root, _head, _incoming = _prepare_mid_merge_repo(
         tmp_path, conflicted=False
@@ -592,11 +655,45 @@ def test_merge_head_symlink_is_rejected(tmp_path: Path) -> None:
         snapshot_authority(root, allow_mid_merge=True)
 
 
+def test_merge_head_fifo_is_rejected(tmp_path: Path) -> None:
+    root = _prepare_repo(tmp_path)
+    os.mkfifo(_git_dir(root) / "MERGE_HEAD")
+    path = root / _OPERATIONS
+    path.write_text(path.read_text(encoding="utf-8") + "\n", encoding="utf-8")
+
+    with pytest.raises(AuthorityError, match="regular file"):
+        snapshot_authority(root, allow_mid_merge=True)
+
+
+def test_merge_head_directory_is_rejected(tmp_path: Path) -> None:
+    root = _prepare_repo(tmp_path)
+    (_git_dir(root) / "MERGE_HEAD").mkdir()
+    path = root / _OPERATIONS
+    path.write_text(path.read_text(encoding="utf-8") + "\n", encoding="utf-8")
+
+    with pytest.raises(AuthorityError, match="regular file"):
+        snapshot_authority(root, allow_mid_merge=True)
+
+
+def test_merge_head_over_size_limit_is_rejected(tmp_path: Path) -> None:
+    root = _prepare_repo(tmp_path)
+    (_git_dir(root) / "MERGE_HEAD").write_bytes(
+        b"f" * (_MERGE_HEAD_MAX_BYTES + 1)
+    )
+    path = root / _OPERATIONS
+    path.write_text(path.read_text(encoding="utf-8") + "\n", encoding="utf-8")
+
+    with pytest.raises(AuthorityError, match="サイズ上限"):
+        snapshot_authority(root, allow_mid_merge=True)
+
+
 _MALFORMED_MERGE_HEAD_CASES = (
     "valid_then_invalid",
     "empty",
     "non_hex",
     "missing_object",
+    "non_commit_object",
+    "leading_whitespace",
 )
 
 
@@ -619,14 +716,29 @@ def test_malformed_merge_head_is_rejected(
             check=False,
         )
         assert missing.returncode != 0
+    elif case == "non_commit_object":
+        raw = _git(root, "rev-parse", "HEAD^{tree}") + "\n"
+    elif case == "leading_whitespace":
+        raw = f" {head}\n"
     else:  # pragma: no cover - registration meta-test が閉じる
         raise AssertionError(case)
     (_git_dir(root) / "MERGE_HEAD").write_text(raw, encoding="ascii")
     path = root / _OPERATIONS
     path.write_text(path.read_text(encoding="utf-8") + "\n", encoding="utf-8")
 
-    with pytest.raises(AuthorityError):
+    expected_message = "commit object" if case == "non_commit_object" else None
+    with pytest.raises(AuthorityError, match=expected_message):
         snapshot_authority(root, allow_mid_merge=True)
+
+
+def test_allow_mid_merge_is_ignored_for_historical_snapshot(
+    tmp_path: Path,
+) -> None:
+    root = _prepare_repo(tmp_path)
+    head = _git(root, "rev-parse", "HEAD")
+    (_git_dir(root) / "MERGE_HEAD").write_text("not-an-oid\n", encoding="ascii")
+    (root / _OPERATIONS).unlink()
+
     assert snapshot_authority(
         root, commit=head, allow_mid_merge=True
     ) == snapshot_authority(root, commit=head)
@@ -638,7 +750,59 @@ def test_malformed_merge_head_case_registration_is_complete() -> None:
         "empty",
         "non_hex",
         "missing_object",
+        "non_commit_object",
+        "leading_whitespace",
     }
+
+
+def test_merge_head_without_trailing_newline_is_accepted(
+    tmp_path: Path,
+) -> None:
+    root = _prepare_repo(tmp_path)
+    head = _git(root, "rev-parse", "HEAD")
+    (_git_dir(root) / "MERGE_HEAD").write_bytes(head.encode("ascii"))
+    path = root / _OPERATIONS
+    path.write_text(path.read_text(encoding="utf-8") + "\n", encoding="utf-8")
+
+    assert snapshot_authority(
+        root, allow_mid_merge=True
+    ) == snapshot_authority(root, commit=head)
+
+
+def test_merge_head_with_crlf_terminator_is_accepted(tmp_path: Path) -> None:
+    root = _prepare_repo(tmp_path)
+    head = _git(root, "rev-parse", "HEAD")
+    (_git_dir(root) / "MERGE_HEAD").write_bytes(
+        head.encode("ascii") + b"\r\n"
+    )
+    path = root / _OPERATIONS
+    path.write_text(path.read_text(encoding="utf-8") + "\n", encoding="utf-8")
+
+    assert snapshot_authority(
+        root, allow_mid_merge=True
+    ) == snapshot_authority(root, commit=head)
+
+
+def test_merge_head_replacement_object_does_not_change_type_check(
+    tmp_path: Path,
+) -> None:
+    root = _prepare_repo(tmp_path)
+    head = _git(root, "rev-parse", "HEAD")
+    blob = subprocess.run(
+        ["git", "-C", os.fspath(root), "hash-object", "-w", "--stdin"],
+        check=True,
+        input=b"replacement-source\n",
+        stdout=subprocess.PIPE,
+    ).stdout.decode("ascii").strip()
+    _git(root, "update-ref", f"refs/replace/{blob}", head)
+    assert _git(root, "cat-file", "-t", blob) == "commit"
+    assert _git(root, "--no-replace-objects", "cat-file", "-t", blob) == "blob"
+    (_git_dir(root) / "MERGE_HEAD").write_text(blob + "\n", encoding="ascii")
+    path = root / _OPERATIONS
+    path.write_text(path.read_text(encoding="utf-8") + "\n", encoding="utf-8")
+
+    with pytest.raises(AuthorityError, match="commit object"):
+        snapshot_authority(root, allow_mid_merge=True)
 
 
 def test_merge_detection_is_worktree_local(tmp_path: Path) -> None:
@@ -696,11 +860,17 @@ def test_mid_merge_binding_target_is_head(tmp_path: Path) -> None:
     base_operations = (root / _OPERATIONS).read_text(encoding="utf-8")
     base_workers = (root / _WORKERS).read_text(encoding="utf-8")
     incoming_operations = _replace_model(base_operations, "gpt-5.6-terra")
-    incoming_workers = _replace_author_effort(base_workers, "high")
+    incoming_workers = _replace_worker_efforts(
+        base_workers, author="high", review="medium", focus="low"
+    )
     head_operations = _replace_model(base_operations, "gpt-5.6-luna")
-    head_workers = _replace_author_effort(base_workers, "medium")
+    head_workers = _replace_worker_efforts(
+        base_workers, author="medium", review="low", focus="high"
+    )
     working_operations = _replace_model(base_operations, "gpt-5.6-working")
-    working_workers = _replace_author_effort(base_workers, "low")
+    working_workers = _replace_worker_efforts(
+        base_workers, author="low", review="high", focus="medium"
+    )
 
     _git(root, "checkout", "-qb", "incoming")
     (root / _OPERATIONS).write_text(incoming_operations, encoding="utf-8")
@@ -730,13 +900,23 @@ def test_mid_merge_binding_target_is_head(tmp_path: Path) -> None:
             working_snapshot.other_model,
         }
     ) == 3
-    assert len(
-        {
-            head_snapshot.author_effort,
-            incoming_snapshot.author_effort,
-            working_snapshot.author_effort,
-        }
-    ) == 3
+    snapshots = (head_snapshot, incoming_snapshot, working_snapshot)
+    for effort_field in (
+        "author_effort",
+        "review_effort",
+        "focus_effort",
+    ):
+        assert len(
+            {getattr(snapshot, effort_field) for snapshot in snapshots}
+        ) == 3
+    section_hashes = tuple(
+        {section.section: section.sha256 for section in snapshot.sections}
+        for snapshot in snapshots
+    )
+    for section_id in ("DW-O01", "DW-S06-A", "DW-S06-C", "DW-S05-A"):
+        assert len(
+            {by_section[section_id] for by_section in section_hashes}
+        ) == 3
 
     accepted = snapshot_authority(root, allow_mid_merge=True)
 
