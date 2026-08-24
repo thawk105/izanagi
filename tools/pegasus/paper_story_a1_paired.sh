@@ -32,6 +32,9 @@ refuse() {
 [[ -n "${IZANAGI_A1_ATTEMPT_ROOT:-}" ]] || refuse "attempt root is required"
 [[ -n "${IZANAGI_A1_ACQUISITION_RECEIPT:-}" ]] || refuse "acquisition receipt is required"
 [[ -n "${IZANAGI_A1_COMPLETION_RECEIPT:-}" ]] || refuse "completion receipt is required"
+[[ -n "${IZANAGI_SUBMISSION_NONCE:-}" ]] || refuse "submission nonce is required"
+[[ "$IZANAGI_SUBMISSION_NONCE" =~ ^[A-Za-z0-9][A-Za-z0-9._-]*$ ]] || \
+  refuse "submission nonce is unsafe"
 [[ "$IZANAGI_A1_ATTEMPT_ROOT" = /* ]] || refuse "attempt root must be absolute"
 [[ "$IZANAGI_A1_ACQUISITION_RECEIPT" = /* ]] || refuse "acquisition receipt must be absolute"
 [[ "$IZANAGI_A1_COMPLETION_RECEIPT" = /* ]] || refuse "completion receipt must be absolute"
@@ -44,6 +47,12 @@ CURRENT_HEAD=$(git -C "$REPO_ROOT" rev-parse HEAD) || refuse "cannot resolve HEA
 [[ "$CURRENT_HEAD" == "$IZANAGI_EXPECTED_HEAD" ]] || refuse "HEAD mismatch"
 [[ -z "$(git -C "$REPO_ROOT" status --porcelain --untracked-files=all)" ]] || \
   refuse "working tree is dirty"
+CURRENT_SCRIPT_SHA=$(sha256sum "$REPO_ROOT/$JOB_RELATIVE" | awk '{print $1}') || \
+  refuse "cannot hash tracked job body"
+[[ "$CURRENT_SCRIPT_SHA" =~ ^[0-9a-f]{64}$ ]] || refuse "tracked job body SHA is invalid"
+ATTEMPT_CHILD=${IZANAGI_A1_ATTEMPT_ROOT##*/}
+[[ "$IZANAGI_SUBMISSION_NONCE" == "$ATTEMPT_CHILD" ]] || \
+  refuse "submission nonce differs from attempt child"
 
 PYTHON_BIN=""
 for candidate in python3.10 python3.11 python3.12 python3; do
@@ -200,6 +209,7 @@ variables = {
     "IZANAGI_A1_ATTEMPT_ROOT": str(attempt),
     "IZANAGI_A1_ACQUISITION_RECEIPT": str(submission),
     "IZANAGI_A1_COMPLETION_RECEIPT": str(completion),
+    "IZANAGI_SUBMISSION_NONCE": attempt.name,
 }
 variable_text = ",".join(f"{key}={value}" for key, value in variables.items())
 options = {
@@ -285,6 +295,107 @@ if ! mkdir -- "$TMP_ROOT"; then
 fi
 export TMPDIR="$TMP_ROOT"
 export IZANAGI_EXPLORATION_OUTPUT_ROOT="$OUTPUT_ROOT"
+
+readarray -t REQUESTED_WALLTIMES < <(
+  sed -n -E \
+    's/^#PBS[[:space:]]+-l[[:space:]]+elapstim_req=([0-9]{2}:[0-9]{2}:[0-9]{2})[[:space:]]*$/\1/p' \
+    "$REPO_ROOT/$JOB_RELATIVE"
+)
+[[ ${#REQUESTED_WALLTIMES[@]} -eq 1 ]] || \
+  refuse "job body must declare exactly one HH:MM:SS elapstim_req"
+IFS=: read -r REQUESTED_HOURS REQUESTED_MINUTES REQUESTED_SECONDS \
+  <<< "${REQUESTED_WALLTIMES[0]}"
+((10#$REQUESTED_MINUTES < 60 && 10#$REQUESTED_SECONDS < 60)) || \
+  refuse "job body elapstim_req minute/second is invalid"
+REQUESTED_S=$((
+  10#$REQUESTED_HOURS * 3600
+  + 10#$REQUESTED_MINUTES * 60
+  + 10#$REQUESTED_SECONDS
+))
+((REQUESTED_S > 0)) || refuse "job body elapstim_req must be positive"
+
+qstat_rc=0
+QSTAT_JOBID=${PBS_JOBID#0:}
+timeout 30 qstat -f "$QSTAT_JOBID" >"$RAW_ROOT/qstat-f.stdout" \
+  2>"$RAW_ROOT/qstat-f.stderr" || qstat_rc=$?
+printf '%s\n' "$qstat_rc" >"$RAW_ROOT/qstat-f.rc"
+HOSTNAME_SHORT=$(hostname) || refuse "cannot observe hostname"
+HOSTNAME_FQDN=$(hostname -f) || refuse "cannot observe hostname -f"
+readarray -t qstat_values < <("$PYTHON_BIN" - \
+  "$RAW_ROOT/qstat-f.stdout" "$HOSTNAME_SHORT" "$qstat_rc" <<'PY'
+import re
+import subprocess
+import sys
+
+path, observed, rc = sys.argv[1:]
+text = open(path, encoding="utf-8", errors="replace").read()
+assigned = "unavailable"
+started = "unavailable"
+if rc == "0":
+    for key in ("exec_host", "exec_vnode", "assigned_host", "vnode"):
+        match = re.search(rf"(?im)^\s*{re.escape(key)}\s*=\s*([^\n]+)", text)
+        if match:
+            raw = match.group(1).strip()
+            if raw.lower() == "(none)":
+                continue
+            token = re.split(r"[:+/,()\s]", raw.lstrip("("))[0]
+            if token:
+                assigned = token
+                break
+    if assigned == "unavailable":
+        match = re.search(
+            r"(?im)^\s*Execution Hosts\(JSVNO\):\s*$\n[ \t]+([^\s(),:+/]+)",
+            text,
+        )
+        if match and match.group(1).lower() != "none":
+            assigned = match.group(1)
+    if assigned == "unavailable" and observed.split(".")[0] in text:
+        assigned = observed.split(".")[0]
+    for key in ("stime", "start_time", "start", "Started Request Time"):
+        match = re.search(rf"(?im)^\s*{re.escape(key)}\s*=\s*(.+?)\s*$", text)
+        if not match:
+            continue
+        raw = match.group(1).strip()
+        if raw.lower() == "(none)":
+            continue
+        if raw.isdigit() and int(raw) > 1_000_000_000:
+            started = raw
+            break
+        parsed = subprocess.run(
+            ["date", "-d", raw, "+%s"], capture_output=True, text=True
+        )
+        if parsed.returncode == 0 and parsed.stdout.strip().isdigit():
+            started = parsed.stdout.strip()
+            break
+print(assigned)
+print(started)
+PY
+)
+ASSIGNED_HOST=${qstat_values[0]:-unavailable}
+SCHEDULER_STARTED_EPOCH=${qstat_values[1]:-unavailable}
+if [[ "$qstat_rc" -ne 0 || "$ASSIGNED_HOST" == unavailable \
+      || "$SCHEDULER_STARTED_EPOCH" == unavailable ]]; then
+  refuse "qstat allocation/start binding unavailable"
+fi
+if [[ "$ASSIGNED_HOST" == "$HOSTNAME_SHORT" ]]; then
+  RESERVATION_HOST="$HOSTNAME_SHORT"
+elif [[ "$ASSIGNED_HOST" == "$HOSTNAME_FQDN" ]]; then
+  RESERVATION_HOST="$HOSTNAME_FQDN"
+else
+  refuse "qstat assigned host has no exact hostname/hostname-f observation"
+fi
+BOOT_ID=$(< /proc/sys/kernel/random/boot_id) || refuse "cannot read boot ID"
+[[ -n "$BOOT_ID" ]] || refuse "boot ID is empty"
+DEADLINE_EPOCH=$((SCHEDULER_STARTED_EPOCH + REQUESTED_S))
+export IZANAGI_RESERVATION_JOB_ID="$PBS_JOBID"
+export IZANAGI_RESERVATION_REQUESTED_S="$REQUESTED_S"
+export IZANAGI_RESERVATION_SCHEDULER_STARTED_EPOCH="$SCHEDULER_STARTED_EPOCH"
+export IZANAGI_RESERVATION_DEADLINE_EPOCH="$DEADLINE_EPOCH"
+export IZANAGI_RESERVATION_HOST="$RESERVATION_HOST"
+export IZANAGI_RESERVATION_BOOT_ID="$BOOT_ID"
+export IZANAGI_RESERVATION_SCRIPT_SHA256="$CURRENT_SCRIPT_SHA"
+export IZANAGI_RESERVATION_NONCE="$IZANAGI_SUBMISSION_NONCE"
+
 DRIVER_RC=125
 TERMINAL_PATH="$RAW_ROOT/job-terminal.json"
 
@@ -344,6 +455,23 @@ source_binding = {
     "evidence_level": "source-routed-trace0",
     "artifact_standalone_proof": False,
 }
+reservation_keys = (
+    "JOB_ID",
+    "REQUESTED_S",
+    "SCHEDULER_STARTED_EPOCH",
+    "DEADLINE_EPOCH",
+    "HOST",
+    "BOOT_ID",
+    "SCRIPT_SHA256",
+    "NONCE",
+)
+reservation_binding = {
+    key.lower(): os.environ["IZANAGI_RESERVATION_" + key]
+    for key in reservation_keys
+}
+reservation_binding["requested_s"] = int(reservation_binding["requested_s"])
+for key in ("scheduler_started_epoch", "deadline_epoch"):
+    reservation_binding[key] = float(reservation_binding[key])
 result_path = os.path.join(result_root, "result.json")
 receipt_path = os.path.join(result_root, "receipt.json")
 result_sha = digest(result_path)
@@ -362,7 +490,7 @@ success = all((
     source_ok,
 ))
 document = {
-    "schema_version": "paper-story-a1-paired-job-terminal/v2",
+    "schema_version": "paper-story-a1-paired-job-terminal/v3",
     "study_id": study_id,
     "pbs_jobid": pbs_jobid,
     "expected_head": expected_head,
@@ -380,6 +508,7 @@ document = {
         "pbs_o_host": pbs_o_host,
         "pbs_o_workdir": pbs_o_workdir,
     },
+    "reservation_binding": reservation_binding,
     "attempt_identity": {
         "st_dev": attempt_info.st_dev,
         "st_ino": attempt_info.st_ino,

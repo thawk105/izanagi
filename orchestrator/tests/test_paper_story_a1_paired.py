@@ -58,6 +58,19 @@ def _source_binding() -> dict:
     }
 
 
+def _reservation_binding() -> dict:
+    return {
+        "job_id": "0:12345.nqsv",
+        "requested_s": 21600,
+        "scheduler_started_epoch": 1_700_000_000.0,
+        "deadline_epoch": 1_700_021_600.0,
+        "host": "compute01",
+        "boot_id": "test-boot-id",
+        "script_sha256": "c" * 64,
+        "nonce": "attempt",
+    }
+
+
 def _frame(stage: str, variant: str, attempt_id: str, payload: dict) -> dict:
     return {
         "line_number": 1,
@@ -220,6 +233,7 @@ def _raw_documents(*, invalid_workload: bool = False) -> tuple[dict, dict, dict,
         policy,
         policy_sha256=policy_sha,
         source_binding=_source_binding(),
+        reservation_binding=_reservation_binding(),
         workloads=workloads,
     )
     attempt_identity = {"st_dev": 1, "st_ino": 2}
@@ -230,9 +244,10 @@ def _raw_documents(*, invalid_workload: bool = False) -> tuple[dict, dict, dict,
         "study_id": paired.STUDY_ID,
         "formal": False,
         "promotion_prohibited": True,
-        "pbs_jobid": "12345.nqsv",
+        "pbs_jobid": "0:12345.nqsv",
         "source_binding": _source_binding(),
         "roots": {
+            "attempt_root": "/durable/attempt",
             "completion_receipt": completion_receipt,
             "attempt_identity": attempt_identity,
         },
@@ -241,9 +256,9 @@ def _raw_documents(*, invalid_workload: bool = False) -> tuple[dict, dict, dict,
     terminal = {
         "schema_version": paired.JOB_TERMINAL_SCHEMA,
         "study_id": paired.STUDY_ID,
-        "pbs_jobid": "12345.nqsv",
+        "pbs_jobid": "0:12345.nqsv",
         "pbs_observation": {
-            "pbs_jobid": "12345.nqsv",
+            "pbs_jobid": "0:12345.nqsv",
             "pbs_o_host": "pegasus01",
             "pbs_o_workdir": "/repo",
         },
@@ -254,6 +269,7 @@ def _raw_documents(*, invalid_workload: bool = False) -> tuple[dict, dict, dict,
         "shell_rc": 0,
         "status": "finished",
         "terminal_source_binding": _source_binding(),
+        "reservation_binding": _reservation_binding(),
         "completion_receipt_path": completion_receipt,
         "attempt_identity": attempt_identity,
         "submission_receipt_sha256": submission_sha,
@@ -618,6 +634,7 @@ def test_incomplete_workload_suppresses_cross_workload_conclusion_M10() -> None:
         policy,
         policy_sha256=policy_sha,
         source_binding=_source_binding(),
+        reservation_binding=_reservation_binding(),
         workloads=workloads,
     )
     assert result["complete"] is False
@@ -631,6 +648,16 @@ def test_validate_raw_documents_accepts_matching_complete_positive() -> None:
     assert paired.validate_raw_documents(
         result, receipt, terminal, policy
     ) == (result, receipt, terminal)
+
+
+def test_validate_raw_documents_rejects_reservation_terminal_mismatch() -> None:
+    result, receipt, terminal, policy = _raw_documents()
+    terminal["reservation_binding"]["nonce"] = "different-attempt"
+    with pytest.raises(
+        paired.PaperStoryError,
+        match="job terminal reservation binding differs from result",
+    ):
+        paired.validate_raw_documents(result, receipt, terminal, policy)
 
 
 def test_validate_raw_documents_rejects_claimed_complete_with_invalid_workload_M25(
@@ -983,6 +1010,7 @@ def test_clean_exact_two_arm_three_workload_positive_case() -> None:
         policy,
         policy_sha256=policy_sha,
         source_binding=_source_binding(),
+        reservation_binding=_reservation_binding(),
         workloads=workloads,
     )
     assert result["complete"] is True
@@ -1003,6 +1031,7 @@ def test_result_and_readme_disclose_nqsv_observation_scope() -> None:
         policy,
         policy_sha256=policy_sha,
         source_binding=_source_binding(),
+        reservation_binding=_reservation_binding(),
         workloads=workloads,
     )
     assert result["pbs_evidence_scope"] == paired._json_safe(
@@ -1030,6 +1059,7 @@ def test_materializer_requires_exact_zero_driver_and_shell_rc(
         policy,
         policy_sha256=policy_sha,
         source_binding=_source_binding(),
+        reservation_binding=_reservation_binding(),
         workloads=workloads,
     )
     receipt = {

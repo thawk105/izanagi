@@ -52,13 +52,18 @@ from .model import (  # noqa: E402
     STAGE_VERIFY_DONE,
 )
 from .pipeline import PerfConfig  # noqa: E402
+from .reservation import (  # noqa: E402
+    ReservationBinding,
+    ReservationError,
+    read_binding,
+)
 
 
 POLICY_PATH = Path(__file__).with_name("paper_story_a1_paired.v1.json")
 STUDY_ID = "paper-story-a1-20260824-exploratory-v1"
-RESULT_SCHEMA = "paper-story-a1-paired-result/v1"
+RESULT_SCHEMA = "paper-story-a1-paired-result/v2"
 RECEIPT_SCHEMA = "paper-story-a1-paired-receipt/v2"
-JOB_TERMINAL_SCHEMA = "paper-story-a1-paired-job-terminal/v2"
+JOB_TERMINAL_SCHEMA = "paper-story-a1-paired-job-terminal/v3"
 SUBMISSION_SCHEMA = "paper-story-a1-paired-submission/v1"
 ACQUISITION_SCHEMA = SUBMISSION_SCHEMA
 COMPLETION_SCHEMA = "paper-story-a1-paired-scheduler-completion/v1"
@@ -114,6 +119,16 @@ _PBS_OBSERVATION_KEYS = frozenset({
     "pbs_o_host",
     "pbs_o_workdir",
 })
+RESERVATION_BINDING_KEYS = (
+    "job_id",
+    "requested_s",
+    "scheduler_started_epoch",
+    "deadline_epoch",
+    "host",
+    "boot_id",
+    "script_sha256",
+    "nonce",
+)
 PBS_EVIDENCE_SCOPE = {
     "job_environment_fields": (
         "PBS_JOBID",
@@ -232,6 +247,34 @@ def _parse_request_id(stdout: str) -> str:
     if len(tokens) == 1:
         return tokens[0].rstrip(".")
     raise PaperStoryError("qsub stdout does not contain one request ID")
+
+
+def _validate_reservation_binding_document(value: object) -> dict[str, object]:
+    if type(value) is not dict or set(value) != set(RESERVATION_BINDING_KEYS):
+        raise PaperStoryError("reservation binding shape differs")
+    try:
+        binding = ReservationBinding(**value)
+    except (ReservationError, TypeError) as exc:
+        raise PaperStoryError(f"reservation binding is invalid: {exc}") from exc
+    if _PBS_JOBID.fullmatch(binding.job_id) is None:
+        raise PaperStoryError("reservation job ID is unsafe")
+    return {
+        field: getattr(binding, field)
+        for field in RESERVATION_BINDING_KEYS
+    }
+
+
+def _reservation_binding_from_environment(
+    environ: Mapping[str, str],
+) -> dict[str, object]:
+    try:
+        binding = read_binding(environ)
+    except ReservationError as exc:
+        raise PaperStoryError(f"reservation environment is invalid: {exc}") from exc
+    return _validate_reservation_binding_document({
+        field: getattr(binding, field)
+        for field in RESERVATION_BINDING_KEYS
+    })
 
 
 def _read_bytes_once(path: Path, *, missing_ok: bool = False) -> bytes | None:
@@ -563,6 +606,7 @@ def _canonical_qsub_contract(
         "IZANAGI_A1_ATTEMPT_ROOT": os.fspath(attempt),
         "IZANAGI_A1_ACQUISITION_RECEIPT": evidence["submission_receipt"],
         "IZANAGI_A1_COMPLETION_RECEIPT": evidence["completion_receipt"],
+        "IZANAGI_SUBMISSION_NONCE": attempt.name,
     }
     variable_text = ",".join(f"{key}={value}" for key, value in variables.items())
     options = {
@@ -1794,10 +1838,12 @@ def assemble_result(
     *,
     policy_sha256: str,
     source_binding: Mapping[str, object],
+    reservation_binding: Mapping[str, object],
     workloads: Sequence[Mapping[str, object]],
     measurement_error: str | None = None,
 ) -> dict:
     validate_policy(policy)
+    reservation = _validate_reservation_binding_document(reservation_binding)
     workload_names = [item.get("workload") for item in workloads]
     campaign_ids = [item.get("campaign_id") for item in workloads]
     wal_paths = [
@@ -1830,6 +1876,7 @@ def assemble_result(
         "pairing_design": PAIRING_DESIGN,
         "policy_sha256": policy_sha256,
         "source_binding": dict(source_binding),
+        "reservation_binding": reservation,
         "pbs_evidence_scope": _json_safe(PBS_EVIDENCE_SCOPE),
         "complete": complete,
         "measurement_error": measurement_error,
@@ -1911,6 +1958,7 @@ def run_measurement(args) -> int:
     if any(roots[key] != trusted_roots[key] for key in roots):
         raise PaperStoryError("CLI roots differ from acquisition receipt topology")
     roots = dict(trusted_roots)
+    reservation_binding = _reservation_binding_from_environment(os.environ)
     site, contract, authorization = p2_2.resolve_site_runtime()
     if site != site_policy.PEGASUS_COMPUTE:
         raise PaperStoryError("resolved runtime is not Pegasus compute")
@@ -2000,6 +2048,7 @@ def run_measurement(args) -> int:
         policy,
         policy_sha256=policy_sha,
         source_binding=source_binding,
+        reservation_binding=reservation_binding,
         workloads=workload_results,
         measurement_error=measurement_error,
     )
@@ -2197,9 +2246,21 @@ def validate_raw_documents(result: object, receipt: object, terminal: object, po
         or pbs_observation.get("pbs_jobid") != terminal.get("pbs_jobid")
     ):
         raise PaperStoryError("job terminal PBS environment observation differs")
+    reservation_binding = _validate_reservation_binding_document(
+        result.get("reservation_binding")
+    )
+    if terminal.get("reservation_binding") != reservation_binding:
+        raise PaperStoryError("job terminal reservation binding differs from result")
+    if (
+        reservation_binding["job_id"] != terminal.get("pbs_jobid")
+        or reservation_binding["job_id"] != receipt.get("pbs_jobid")
+    ):
+        raise PaperStoryError("reservation job ID differs from raw PBS identity")
     binding = result.get("source_binding")
     if type(binding) is not dict:
         raise PaperStoryError("result source binding is missing")
+    if not _validate_source_binding(binding):
+        raise PaperStoryError("source binding is incomplete")
     if terminal.get("expected_head") != binding.get("measurement_source_commit"):
         raise PaperStoryError("job terminal expected HEAD differs from source binding")
     if (
@@ -2219,14 +2280,23 @@ def validate_raw_documents(result: object, receipt: object, terminal: object, po
         raise PaperStoryError("terminal completion receipt path differs")
     if terminal.get("attempt_identity") != roots.get("attempt_identity"):
         raise PaperStoryError("terminal attempt root inode binding differs")
+    attempt_root = roots.get("attempt_root")
+    if (
+        type(attempt_root) is not str
+        or Path(attempt_root).name != reservation_binding["nonce"]
+    ):
+        raise PaperStoryError("reservation nonce differs from attempt identity")
+    if (
+        reservation_binding["script_sha256"]
+        != binding["files"][JOB_RELATIVE_PATH]["working_sha256"]
+    ):
+        raise PaperStoryError("reservation script SHA differs from source binding")
     submission = receipt.get("submission_receipt")
     if (
         type(submission) is not dict
         or terminal.get("submission_receipt_sha256") != submission.get("sha256")
     ):
         raise PaperStoryError("terminal submission receipt hash differs")
-    if not _validate_source_binding(result.get("source_binding")):
-        raise PaperStoryError("source binding is incomplete")
     return result, receipt, terminal
 
 
@@ -2439,6 +2509,13 @@ def run_materialize(args) -> int:
         pbs_observation=terminal.get("pbs_observation"),
         policy=policy,
     )
+    submission_variables = acquisition.get("qsub_options", {}).get("variables")
+    if (
+        type(submission_variables) is not dict
+        or submission_variables.get("IZANAGI_SUBMISSION_NONCE")
+        != result["reservation_binding"]["nonce"]
+    ):
+        raise PaperStoryError("reservation nonce differs from submission binding")
     _revalidate_attempt_root(receipt.get("roots", {}))
     if receipt.get("roots") != trusted_roots:
         raise PaperStoryError("raw receipt roots differ from fixed acquisition topology")

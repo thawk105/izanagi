@@ -33,6 +33,16 @@ EXPECTED_NQSV_QSTAT_STATES = (
     "MIG",
     "STG",
 )
+EXPECTED_RESERVATION_EXPORTS = {
+    "IZANAGI_RESERVATION_JOB_ID": "$PBS_JOBID",
+    "IZANAGI_RESERVATION_REQUESTED_S": "$REQUESTED_S",
+    "IZANAGI_RESERVATION_SCHEDULER_STARTED_EPOCH": "$SCHEDULER_STARTED_EPOCH",
+    "IZANAGI_RESERVATION_DEADLINE_EPOCH": "$DEADLINE_EPOCH",
+    "IZANAGI_RESERVATION_HOST": "$RESERVATION_HOST",
+    "IZANAGI_RESERVATION_BOOT_ID": "$BOOT_ID",
+    "IZANAGI_RESERVATION_SCRIPT_SHA256": "$CURRENT_SCRIPT_SHA",
+    "IZANAGI_RESERVATION_NONCE": "$IZANAGI_SUBMISSION_NONCE",
+}
 
 
 def _gate_args(tmp_path: Path) -> dict:
@@ -863,14 +873,18 @@ def test_job_body_contains_all_m12_gates_and_no_submitter() -> None:
         'visibility["state"] not in NQSV_QSTAT_STATES',
         'visibility["queue"] != expected_queue',
         '"pbs_observation": {',
+        '"reservation_binding": reservation_binding,',
         '"attempt_identity": {',
+        "/proc/sys/kernel/random/boot_id",
     )
     for marker in required:
         assert source.count(marker) == 1, marker
     assert _shell_submitter_violations(source) == []
     assert "dispatch_compute.py" not in source
     assert "PBS_O_QUEUE" not in source
-    assert "/proc/" not in source
+    assert re.findall(r"/proc/[A-Za-z0-9_./-]+", source) == [
+        "/proc/sys/kernel/random/boot_id"
+    ]
     assert "os.readlink" not in source
     assert 're.fullmatch(r"[A-Z]", visibility["state"])' not in source
 
@@ -894,6 +908,10 @@ def _shell_fixture(tmp_path: Path, *, dirty: bool = False, mode: str = "ok"):
         json.dumps(_policy_for_base(base), sort_keys=True) + "\n",
         encoding="utf-8",
     )
+    job = repo / paired.JOB_RELATIVE_PATH
+    job.parent.mkdir(parents=True, exist_ok=True)
+    job.write_text(JOB.read_text(encoding="utf-8"), encoding="utf-8")
+    job.chmod(JOB.stat().st_mode & 0o777)
     bin_dir = tmp_path / "bin"
     bin_dir.mkdir()
     head = "a" * 40
@@ -907,11 +925,28 @@ def _shell_fixture(tmp_path: Path, *, dirty: bool = False, mode: str = "ok"):
         encoding="utf-8",
     )
     git_stub.chmod(0o755)
+    qstat_stub = bin_dir / "qstat"
+    qstat_stub.write_text(
+        "#!/bin/bash\n"
+        "printf 'exec_host = compute01\\nstart_time = %s\\n' \"$(/bin/date +%s)\"\n",
+        encoding="utf-8",
+    )
+    qstat_stub.chmod(0o755)
+    hostname_stub = bin_dir / "hostname"
+    hostname_stub.write_text(
+        "#!/bin/bash\n"
+        "if [[ \"${1:-}\" == '-f' ]]; then echo compute01.example; "
+        "else echo compute01; fi\n",
+        encoding="utf-8",
+    )
+    hostname_stub.chmod(0o755)
     python_stub_source = (
         "#!/bin/bash\n"
         "printf '%s\\n' \"$*\" >> \"$STUB_LOG\"\n"
         "if [[ \"$1\" == '-c' ]]; then exec /usr/bin/python3 \"$@\"; fi\n"
         "if [[ \"$1\" == '-' && \"$2\" == *.submission.json ]]; then "
+        "exec /usr/bin/python3 \"$@\"; fi\n"
+        "if [[ \"$1\" == '-' && \"$2\" == *qstat-f.stdout ]]; then "
         "exec /usr/bin/python3 \"$@\"; fi\n"
         "if [[ \"$1\" == '-' && \"$2\" == *job-terminal.json ]]; then\n"
         "  [[ \"$STUB_MODE\" == writer-fail ]] && exit 9\n"
@@ -919,6 +954,13 @@ def _shell_fixture(tmp_path: Path, *, dirty: bool = False, mode: str = "ok"):
         "fi\n"
         "if [[ \"$1\" == '-' ]]; then exit 0; fi\n"
         "if [[ \"$1\" == *.py ]]; then\n"
+        "  if [[ \"$STUB_MODE\" == require-reservation ]]; then\n"
+        "    /usr/bin/python3 -c 'import os; "
+        "from orchestrator.campaign import paper_story_a1_paired as p; "
+        "binding = p._reservation_binding_from_environment(os.environ); "
+        "[print(\"IZANAGI_RESERVATION_\" + key.upper() + \"=\" + str(value)) "
+        "for key, value in binding.items()]' >> \"$STUB_LOG\" || exit 27\n"
+        "  fi\n"
         "  if [[ \"$STUB_MODE\" == existing-terminal ]]; then "
         ": > \"$IZANAGI_A1_ATTEMPT_ROOT/raw/job-terminal.json\"; fi\n"
         "  exit 0\n"
@@ -947,6 +989,7 @@ def _shell_fixture(tmp_path: Path, *, dirty: bool = False, mode: str = "ok"):
         "IZANAGI_A1_ATTEMPT_ROOT": os.fspath(attempt),
         "IZANAGI_A1_ACQUISITION_RECEIPT": os.fspath(acquisition),
         "IZANAGI_A1_COMPLETION_RECEIPT": os.fspath(completion),
+        "IZANAGI_SUBMISSION_NONCE": attempt.name,
         "FAKE_HEAD": head,
         "FAKE_DIRTY": "1" if dirty else "0",
         "STUB_LOG": os.fspath(log),
@@ -960,6 +1003,7 @@ def _run_shell_job(
     *,
     stdout_path: Path | None = None,
     stderr_path: Path | None = None,
+    job_path: Path = JOB,
 ):
     attempt = Path(environment["IZANAGI_A1_ATTEMPT_ROOT"])
     evidence = paired._attempt_evidence_paths(attempt)
@@ -969,7 +1013,7 @@ def _run_shell_job(
         "w", encoding="utf-8"
     ) as stderr_stream:
         completed = subprocess.run(
-            [os.fspath(JOB)],
+            [os.fspath(job_path)],
             env=environment,
             text=True,
             stdout=stdout_stream,
@@ -1031,6 +1075,75 @@ def test_production_job_narrow_stub_reaches_site_and_driver(tmp_path: Path) -> N
     assert completed.returncode == 0, stderr
     assert (attempt / "raw/tmp").is_dir()
     assert paired.DRIVER_RELATIVE_PATH in log.read_text(encoding="utf-8")
+
+
+def test_job_body_exports_complete_reservation_and_rejects_missing_one_M27(
+    tmp_path: Path,
+) -> None:
+    source = JOB.read_text(encoding="utf-8")
+    observed = dict(re.findall(
+        r'^export (IZANAGI_RESERVATION_[A-Z0-9_]+)="([^"\n]+)"$',
+        source,
+        flags=re.MULTILINE,
+    ))
+    assert observed == EXPECTED_RESERVATION_EXPORTS
+
+    positive_env, _, positive_log = _shell_fixture(
+        tmp_path / "positive", mode="require-reservation"
+    )
+    positive_env["PBS_JOBID"] = "0:12345.nqsv"
+    positive_job = (
+        Path(positive_env["PBS_O_WORKDIR"]) / paired.JOB_RELATIVE_PATH
+    )
+    positive_job.write_text(source, encoding="utf-8")
+    positive_job.chmod(0o755)
+    completed, stderr = _run_shell_job(positive_env, job_path=positive_job)
+    assert completed.returncode == 0, stderr
+    reservation = dict(
+        line.split("=", 1)
+        for line in positive_log.read_text(encoding="utf-8").splitlines()
+        if line.startswith("IZANAGI_RESERVATION_")
+    )
+    assert set(reservation) == set(EXPECTED_RESERVATION_EXPORTS)
+    assert reservation["IZANAGI_RESERVATION_JOB_ID"] == positive_env["PBS_JOBID"]
+    assert reservation["IZANAGI_RESERVATION_REQUESTED_S"] == "21600"
+    assert int(float(reservation["IZANAGI_RESERVATION_DEADLINE_EPOCH"])) == (
+        int(float(reservation["IZANAGI_RESERVATION_SCHEDULER_STARTED_EPOCH"]))
+        + 21600
+    )
+
+    missing = "IZANAGI_RESERVATION_NONCE"
+    export_line = f'export {missing}="{EXPECTED_RESERVATION_EXPORTS[missing]}"\n'
+    assert source.count(export_line) == 1
+    mutant = source.replace(export_line, "", 1)
+    mutant_env, _, _ = _shell_fixture(
+        tmp_path / "mutant", mode="require-reservation"
+    )
+    mutant_env["PBS_JOBID"] = "0:12345.nqsv"
+    mutant_job = Path(mutant_env["PBS_O_WORKDIR"]) / paired.JOB_RELATIVE_PATH
+    mutant_job.write_text(mutant, encoding="utf-8")
+    mutant_job.chmod(0o755)
+    completed, _ = _run_shell_job(mutant_env, job_path=mutant_job)
+    assert completed.returncode == 27
+
+
+def test_production_job_rejects_missing_elapstim_req_declaration(
+    tmp_path: Path,
+) -> None:
+    environment, _, _ = _shell_fixture(tmp_path)
+    job = Path(environment["PBS_O_WORKDIR"]) / paired.JOB_RELATIVE_PATH
+    source = job.read_text(encoding="utf-8")
+    declarations = re.findall(
+        r"^#PBS[ \t]+-l[ \t]+elapstim_req=[0-9]{2}:[0-9]{2}:[0-9]{2}[ \t]*$",
+        source,
+        flags=re.MULTILINE,
+    )
+    assert len(declarations) == 1
+    job.write_text(source.replace(declarations[0], "", 1), encoding="utf-8")
+
+    completed, stderr = _run_shell_job(environment)
+    assert completed.returncode == 2
+    assert "job body must declare exactly one HH:MM:SS elapstim_req" in stderr
 
 
 def test_production_job_does_not_gate_on_nqsv_fd_targets(tmp_path: Path) -> None:
