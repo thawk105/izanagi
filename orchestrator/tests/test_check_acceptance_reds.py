@@ -2663,7 +2663,7 @@ def test_dispatch_cleanup_preserves_everything_when_orphan_hold_exists(
     receipt.write_text("{}\n", encoding="utf-8")
     hold = root / "orphan-hold.json"
     hold.write_text("{}\n", encoding="utf-8")
-    artifacts = CAR._DispatchArtifacts(root, receipt, submission, None, "nonce")
+    artifacts = CAR._DispatchArtifacts(root, receipt, submission, None, "nonce", root)
     rmtree_calls: list[Path] = []
     rmdir_calls: list[Path] = []
 
@@ -2687,6 +2687,66 @@ def test_dispatch_cleanup_preserves_everything_when_orphan_hold_exists(
     assert hold.is_file()
 
 
+def test_dispatch_cleanup_preserves_everything_for_request_ledger_only(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    root = tmp_path / "probe" / "output" / "pegasus-dispatch"
+    submission = root / "nonce"
+    submission.mkdir(parents=True)
+    receipt = submission / "receipt.json"
+    receipt.write_text("{}\n", encoding="utf-8")
+    ledger = root / "orphan-holds" / "424242.nqsv.json"
+    ledger.parent.mkdir()
+    ledger.write_text("{}\n", encoding="utf-8")
+    artifacts = CAR._DispatchArtifacts(root, receipt, submission, None, "nonce", root)
+    rmtree_calls: list[Path] = []
+    rmdir_calls: list[Path] = []
+    monkeypatch.setattr(
+        CAR.shutil,
+        "rmtree",
+        lambda path: rmtree_calls.append(Path(path)),
+    )
+    monkeypatch.setattr(
+        Path,
+        "rmdir",
+        lambda path: rmdir_calls.append(Path(path)),
+    )
+
+    with pytest.raises(CAR.InvalidInput, match="orphan-hold"):
+        CAR._cleanup_dispatch_artifacts(artifacts)
+
+    assert rmtree_calls == []
+    assert rmdir_calls == []
+    assert receipt.is_file()
+    assert ledger.is_file()
+
+
+def test_dispatch_cleanup_ledger_scan_error_is_fail_closed(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    root = tmp_path / "probe" / "output" / "pegasus-dispatch"
+    submission = root / "nonce"
+    submission.mkdir(parents=True)
+    receipt = submission / "receipt.json"
+    receipt.write_text("{}\n", encoding="utf-8")
+    (root / "orphan-holds").mkdir()
+    artifacts = CAR._DispatchArtifacts(root, receipt, submission, None, "nonce", root)
+    real_scandir = CAR.os.scandir
+
+    def fail_descriptor_scan(path):
+        if isinstance(path, int):
+            raise PermissionError("injected ledger scan denial")
+        return real_scandir(path)
+
+    monkeypatch.setattr(CAR.os, "scandir", fail_descriptor_scan)
+
+    with pytest.raises(CAR.InvalidInput, match="orphan-hold"):
+        CAR._cleanup_dispatch_artifacts(artifacts)
+
+    assert receipt.is_file()
+    assert submission.is_dir()
+
+
 def test_dispatch_cleanup_lstat_error_preserves_everything(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -2696,7 +2756,7 @@ def test_dispatch_cleanup_lstat_error_preserves_everything(
     receipt = submission / "receipt.json"
     receipt.write_text("{}\n", encoding="utf-8")
     hold = root / "orphan-hold.json"
-    artifacts = CAR._DispatchArtifacts(root, receipt, submission, None, "nonce")
+    artifacts = CAR._DispatchArtifacts(root, receipt, submission, None, "nonce", root)
     real_lstat = os.lstat
     rmtree_calls: list[Path] = []
     rmdir_calls: list[Path] = []
@@ -2735,7 +2795,7 @@ def test_dispatch_cleanup_without_hold_keeps_existing_positive_behavior(
     submission.mkdir(parents=True)
     receipt = submission / "receipt.json"
     receipt.write_text("{}\n", encoding="utf-8")
-    artifacts = CAR._DispatchArtifacts(root, receipt, submission, None, "nonce")
+    artifacts = CAR._DispatchArtifacts(root, receipt, submission, None, "nonce", root)
 
     CAR._cleanup_dispatch_artifacts(artifacts)
 

@@ -29,12 +29,14 @@ fsync を呼ぶコード経路は変えていない (検査は弱めない) — 
 """
 import hashlib
 import json
+import math
 import os
 import shutil
 import subprocess
 import sys
 import time
 import uuid
+from collections import Counter
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 from types import MappingProxyType, SimpleNamespace
@@ -741,6 +743,23 @@ _FLAKY_HOLD_MATCHED_IDS_ATTR = "_izanagi_collected_flaky_hold_ids"
 _FLAKY_HOLD_SKIPPED_IDS_ATTR = "_izanagi_skipped_flaky_hold_ids"
 _FLAKY_HOLD_COLLECTION_WORKERS_ATTR = "_izanagi_flaky_hold_collection_workers"
 _REAL_REPO_SERIAL_NODE_ATTR = "_izanagi_real_repo_serial_node"
+_ACCEPTANCE_DURATION_LEDGER_REPO_ROOT = Path(__file__).resolve().parents[2]
+_ACCEPTANCE_DURATION_LEDGER_PATH = (
+    _ACCEPTANCE_DURATION_LEDGER_REPO_ROOT
+    / "orchestrator/tests/acceptance_duration_ledger.json"
+)
+# The current ledger is about 1.77 MiB.  Sixteen MiB leaves ample growth room
+# while bounding one untrusted JSON read and parse before collection starts.
+_ACCEPTANCE_DURATION_LEDGER_MAX_BYTES = 16 * 1024 * 1024
+_ACCEPTANCE_DURATION_LEDGER_CONFIG_ATTR = (
+    "_izanagi_acceptance_duration_seconds_by_nodeid"
+)
+_ACCEPTANCE_DURATION_LEDGER_WORKERINPUT_KEY = (
+    "izanagi_acceptance_duration_ledger_v1"
+)
+# loadscope.schedule() synchronously gives 48 workers one unit and then one
+# prefetched unit via _reschedule(), so the initial distribution window is 96.
+_ACCEPTANCE_INITIAL_DISTRIBUTION_UNITS = 48 * 2
 _COLLECTION_NARROWING_OPTIONS = frozenset({"--ignore", "--ignore-glob", "--pyargs"})
 _RUNNER_EXCLUSION_ENV = (
     None if _SELECTION_CONTRACT is None
@@ -750,17 +769,281 @@ _SELECTION_RECEIPT_PREFIX = (
     None if _SELECTION_CONTRACT is None
     else _SELECTION_CONTRACT.SELECTION_RECEIPT_PREFIX
 )
-_PERMANENT_EXCLUSION_SET_VERSION = (
-    None if _SELECTION_CONTRACT is None
-    else _SELECTION_CONTRACT.EXCLUSION_SET_VERSION
-)
-_SANCTIONED_SORT_SWO_ORACLE_PATH = (
-    None if _SELECTION_CONTRACT is None
-    else str(_SELECTION_CONTRACT.SANCTIONED_SORT_SWO_ORACLE_PATH)
-)
 _EFFECTIVE_SCHEDULER_PREFIX = "IZANAGI_EFFECTIVE_SCHEDULER_V1 "
 _EFFECTIVE_SCHEDULER_ATTR = "_izanagi_effective_scheduler"
 _FLAKY_HOLD_SUMMARY_PREFIX = "IZANAGI_FLAKY_HOLD_SUMMARY_V1 "
+
+
+def _validate_acceptance_duration_ledger_document(document) -> dict[str, float]:
+    """Return individually validated durations, or an empty no-ledger view."""
+    if not isinstance(document, dict):
+        return {}
+    schema_version = document.get("schema_version")
+    if (
+        isinstance(schema_version, bool)
+        or schema_version != 1
+        or document.get("unit") != "seconds"
+    ):
+        return {}
+    durations = document.get("duration_seconds_by_nodeid")
+    nodeid_count = document.get("nodeid_count")
+    if (
+        not isinstance(durations, dict)
+        or isinstance(nodeid_count, bool)
+        or not isinstance(nodeid_count, int)
+        or nodeid_count < 0
+        or nodeid_count != len(durations)
+    ):
+        return {}
+
+    validated: dict[str, float] = {}
+    for nodeid, value in durations.items():
+        if (
+            not isinstance(nodeid, str)
+            or isinstance(value, bool)
+            or not isinstance(value, (int, float))
+            or value < 0
+        ):
+            continue
+        try:
+            duration = float(value)
+        except OverflowError:
+            continue
+        if math.isfinite(duration):
+            validated[nodeid] = duration
+    return validated
+
+
+def _load_acceptance_duration_ledger(
+    path: Path = _ACCEPTANCE_DURATION_LEDGER_PATH,
+) -> dict[str, float]:
+    """Load a bounded ledger fail-softly without hiding programming errors."""
+    try:
+        with path.open("rb") as stream:
+            raw = stream.read(_ACCEPTANCE_DURATION_LEDGER_MAX_BYTES + 1)
+    except OSError:
+        return {}
+    if len(raw) > _ACCEPTANCE_DURATION_LEDGER_MAX_BYTES:
+        return {}
+    try:
+        text = raw.decode("utf-8")
+    except UnicodeError:
+        return {}
+    try:
+        document = json.loads(text)
+    except (ValueError, RecursionError):
+        # JSONDecodeError is a ValueError subclass.  MemoryError and process
+        # control exceptions deliberately remain visible.
+        return {}
+    return _validate_acceptance_duration_ledger_document(document)
+
+
+def _acceptance_duration_worker_payload(durations) -> dict[str, object]:
+    """Build a serialization-safe controller snapshot for xdist workers."""
+    if not isinstance(durations, dict):
+        raise pytest.UsageError("acceptance duration ledger controller snapshot 型が不正")
+    return {
+        "schema_version": 1,
+        "duration_seconds_by_nodeid": dict(durations),
+    }
+
+
+def _acceptance_durations_from_worker_payload(payload) -> dict[str, float]:
+    """Reject broken worker wiring instead of treating it as a file failure."""
+    if not isinstance(payload, dict) or payload.get("schema_version") != 1:
+        raise pytest.UsageError("acceptance duration ledger worker payload 型が不正")
+    durations = payload.get("duration_seconds_by_nodeid")
+    if not isinstance(durations, dict):
+        raise pytest.UsageError("acceptance duration ledger worker durations 型が不正")
+    validated: dict[str, float] = {}
+    for nodeid, value in durations.items():
+        if (
+            not isinstance(nodeid, str)
+            or isinstance(value, bool)
+            or not isinstance(value, (int, float))
+            or value < 0
+        ):
+            raise pytest.UsageError("acceptance duration ledger worker entry 型が不正")
+        try:
+            duration = float(value)
+        except OverflowError as exc:
+            raise pytest.UsageError(
+                "acceptance duration ledger worker entry 型が不正"
+            ) from exc
+        if not math.isfinite(duration):
+            raise pytest.UsageError("acceptance duration ledger worker entry 型が不正")
+        validated[nodeid] = duration
+    return validated
+
+
+def _configure_acceptance_duration_ledger(config) -> None:
+    """Read once on the controller and consume only workerinput on workers."""
+    if hasattr(config, "workerinput"):
+        workerinput = config.workerinput
+        if not isinstance(workerinput, dict):
+            raise pytest.UsageError("xdist workerinput が acceptance ledger を受け取れない")
+        if _ACCEPTANCE_DURATION_LEDGER_WORKERINPUT_KEY in workerinput:
+            durations = _acceptance_durations_from_worker_payload(
+                workerinput[_ACCEPTANCE_DURATION_LEDGER_WORKERINPUT_KEY]
+            )
+        else:
+            if _acceptance_reordering_enabled(config):
+                raise pytest.UsageError(
+                    "xdist workerinput に acceptance ledger snapshot が無い"
+                )
+            durations = {}
+    else:
+        durations = (
+            _load_acceptance_duration_ledger(_ACCEPTANCE_DURATION_LEDGER_PATH)
+            if _acceptance_controller_should_load_duration_ledger(config)
+            else {}
+        )
+    setattr(config, _ACCEPTANCE_DURATION_LEDGER_CONFIG_ATTR, durations)
+
+
+def _acceptance_loadgroup_scope(nodeid: str) -> str:
+    """Match LoadGroupScheduling._split_scope exactly."""
+    if nodeid.rfind("@") > nodeid.rfind("]"):
+        return nodeid.split("@")[-1]
+    return nodeid
+
+
+def _acceptance_ledger_nodeid(item) -> str | None:
+    """Return the resolved repo-relative nodeid without an xdist group suffix."""
+    try:
+        nodeid = str(item.nodeid)
+        if nodeid.rfind("@") > nodeid.rfind("]"):
+            nodeid = nodeid[:nodeid.rfind("@")]
+        relative_path = Path(item.path).resolve(strict=False).relative_to(
+            _ACCEPTANCE_DURATION_LEDGER_REPO_ROOT
+        ).as_posix()
+        _original_path, separator, suffix = nodeid.partition("::")
+        return relative_path if not separator else f"{relative_path}::{suffix}"
+    except (ValueError, OSError, RuntimeError, TypeError):
+        return None
+
+
+def _replace_acceptance_items(items, reordered) -> None:
+    """Replace only a verified identity multiset; this remains active under -O."""
+    before_count = len(items)
+    before_identities = Counter(id(item) for item in items)
+    if (
+        len(reordered) != before_count
+        or Counter(id(item) for item in reordered) != before_identities
+    ):
+        raise pytest.UsageError(
+            "acceptance duration reorder が item identity multiset を変更した"
+        )
+    items[:] = reordered
+    if (
+        len(items) != before_count
+        or Counter(id(item) for item in items) != before_identities
+    ):
+        raise pytest.UsageError(
+            "acceptance duration reorder 後の item identity multiset が不正"
+        )
+
+
+def _reorder_acceptance_items_by_duration(items, durations) -> bool:
+    """Order loadgroup work units by descending known or policy-default cost."""
+    if not durations:
+        return False
+
+    units: list[dict[str, object]] = []
+    unit_by_scope: dict[str, dict[str, object]] = {}
+    for item in items:
+        scope = _acceptance_loadgroup_scope(str(item.nodeid))
+        unit = unit_by_scope.get(scope)
+        if unit is None:
+            unit = {"index": len(units), "items": []}
+            unit_by_scope[scope] = unit
+            units.append(unit)
+        unit["items"].append(item)
+
+    known_costs: list[float] = []
+    for unit in units:
+        cost = 0.0
+        known = True
+        for item in unit["items"]:
+            duration = durations.get(_acceptance_ledger_nodeid(item))
+            if duration is None:
+                known = False
+                break
+            cost += duration
+            if not math.isfinite(cost):
+                known = False
+                break
+        unit["known"] = known
+        unit["cost"] = cost
+        if known:
+            known_costs.append(cost)
+
+    if not known_costs:
+        return False
+    known_costs.sort(reverse=True)
+    unknown_cost = known_costs[
+        min(_ACCEPTANCE_INITIAL_DISTRIBUTION_UNITS, len(known_costs)) - 1
+    ]
+    ordered_units = sorted(
+        units,
+        key=lambda unit: (
+            -(unit["cost"] if unit["known"] else unknown_cost),
+            unit["index"],
+        ),
+    )
+    reordered = [item for unit in ordered_units for item in unit["items"]]
+    _replace_acceptance_items(items, reordered)
+    return True
+
+
+def _acceptance_options_allow_reordering(option) -> bool:
+    """Return whether parsed options preserve ordinary execution ordering."""
+    if getattr(option, "maxfail", 0) not in (None, 0):
+        return False
+    disabled_booleans = (
+        "stepwise",
+        "stepwise_skip",
+        "stepwise_reset",
+        "failedfirst",
+        "newfirst",
+        "lf",
+        "collectonly",
+        "setuponly",
+        "setupplan",
+        "showfixtures",
+        "show_fixtures_per_test",
+        "trace",
+    )
+    if any(bool(getattr(option, name, False)) for name in disabled_booleans):
+        return False
+    if getattr(option, "cacheshow", None) is not None:
+        return False
+    if getattr(option, "loadscopereorder", True) is False:
+        return False
+    return True
+
+
+def _acceptance_controller_should_load_duration_ledger(config) -> bool:
+    """Load only for an enabled controller-side loadgroup invocation."""
+    try:
+        option = config.option
+        return (
+            option.dist == "loadgroup"
+            and _acceptance_options_allow_reordering(option)
+        )
+    except (AttributeError, ValueError, TypeError):
+        return False
+
+
+def _acceptance_reordering_enabled(config) -> bool:
+    """Use parsed pytest options, never argv text, to preserve run semantics."""
+    try:
+        if not config.getvalue("loadgroup"):
+            return False
+        option = config.option
+        return _acceptance_options_allow_reordering(option)
+    except (AttributeError, ValueError, TypeError):
+        return False
 
 
 def _growth_holds_opted_in() -> bool:
@@ -857,13 +1140,11 @@ def _collection_narrowing_is_runner_owned(config) -> bool:
     if argv is None:
         return False
     argv = tuple(argv)
-    owned_payload = _runner_owned_exclusion_payload(config)
+    owned_entries = _runner_owned_exclusion_payload(config)
     owned_tokens = []
-    if owned_payload is not None and _SELECTION_CONTRACT is not None:
+    if owned_entries is not None and _SELECTION_CONTRACT is not None:
         owned_tokens.extend(
-            _SELECTION_CONTRACT.exclusion_tokens(
-                _SELECTION_CONTRACT.SANCTIONED_EXCLUSIONS
-            )
+            _SELECTION_CONTRACT.exclusion_tokens(owned_entries)
         )
     for token in argv:
         if token in owned_tokens:
@@ -894,8 +1175,8 @@ def _is_complete_growth_hold_collection(config) -> bool:
     return _collection_narrowing_is_runner_owned(config)
 
 
-def _runner_owned_exclusion_payload(config) -> dict[str, str] | None:
-    """認証済み runner payload だけを collection 防壁から除く。
+def _runner_owned_exclusion_payload(config) -> tuple[object, ...] | None:
+    """認証済み runner exclusion entries だけを collection 防壁から除く。
 
     env を継承した入れ子 pytest は runner の narrowing token を持たないため、
     runner 所有の除外なしとして扱う。narrowing token が存在する場合だけ、
@@ -924,35 +1205,37 @@ def _runner_owned_exclusion_payload(config) -> dict[str, str] | None:
         raise pytest.UsageError(
             "runner exclusion env は共有 selection contract を import できないため拒否します"
         )
-    expected_payload = _SELECTION_CONTRACT.serialize_payload(
+    entries = _SELECTION_CONTRACT.canonicalize_sanctioned_exclusion_set(
         _SELECTION_CONTRACT.SANCTIONED_EXCLUSIONS
+    )
+    if entries is None or len(entries) != 1:
+        raise pytest.UsageError(
+            "runner exclusion contract は canonical exactly-one ではありません"
+        )
+    expected_payload = _SELECTION_CONTRACT.serialize_payload(
+        entries
     )
     if raw != expected_payload:
         raise pytest.UsageError(
             "runner exclusion payload が共有 selection contract と一致しません"
         )
     expected_tokens = _SELECTION_CONTRACT.exclusion_tokens(
-        _SELECTION_CONTRACT.SANCTIONED_EXCLUSIONS
+        entries
     )
     if observed_tokens != expected_tokens:
         raise pytest.UsageError(
             "runner exclusion token が共有 selection contract と一致しません"
         )
-    payload = _SELECTION_CONTRACT.payload_entries(
-        _SELECTION_CONTRACT.SANCTIONED_EXCLUSIONS
-    )
-    return payload[0] if len(payload) == 1 else None
+    return entries
 
 
 def _emit_runner_exclusion_receipt(config) -> None:
-    payload = _runner_owned_exclusion_payload(config)
-    if payload is None or hasattr(config, "workerinput"):
+    entries = _runner_owned_exclusion_payload(config)
+    if entries is None or hasattr(config, "workerinput"):
         return
     assert _SELECTION_CONTRACT is not None
     print(
-        _SELECTION_CONTRACT.selection_receipt_line(
-            _SELECTION_CONTRACT.SANCTIONED_EXCLUSIONS
-        ),
+        _SELECTION_CONTRACT.selection_receipt_line(entries),
         file=sys.stderr,
         flush=True,
     )
@@ -1092,6 +1375,15 @@ def pytest_collection_modifyitems(config, items):
     if _is_complete_flaky_hold_collection(config):
         _check_flaky_hold_collection_complete(config, seen_flaky_hold_ids)
     yield
+    if _acceptance_reordering_enabled(config):
+        durations = getattr(
+            config, _ACCEPTANCE_DURATION_LEDGER_CONFIG_ATTR, None,
+        )
+        if not isinstance(durations, dict):
+            raise pytest.UsageError(
+                "acceptance duration ledger が collection hook に配線されていない"
+            )
+        _reorder_acceptance_items_by_duration(items, durations)
 
 
 @pytest.hookimpl(wrapper=True, tryfirst=True)
@@ -1165,6 +1457,16 @@ def pytest_configure_node(node) -> None:
     if not isinstance(workerinput, dict):
         raise pytest.UsageError("xdist workerinput が receipt memo nonce を受け取れない")
     workerinput[_RECEIPT_MEMO_SESSION_ID_ATTR] = session_id
+    durations = getattr(
+        node.config, _ACCEPTANCE_DURATION_LEDGER_CONFIG_ATTR, None,
+    )
+    if (
+        isinstance(durations, dict)
+        and _acceptance_controller_should_load_duration_ledger(node.config)
+    ):
+        workerinput[_ACCEPTANCE_DURATION_LEDGER_WORKERINPUT_KEY] = (
+            _acceptance_duration_worker_payload(durations)
+        )
     if hasattr(node.config, _ORACLE_ENVIRONMENT_MEMO_SESSION_ID_ATTR):
         oracle_session_id = getattr(
             node.config, _ORACLE_ENVIRONMENT_MEMO_SESSION_ID_ATTR, None,
@@ -1527,6 +1829,7 @@ def _finish_memo_sessions(config, *, suppress_errors: bool) -> None:
 def pytest_configure(config) -> None:
     _emit_runner_exclusion_receipt(config)
     try:
+        _configure_acceptance_duration_ledger(config)
         _configure_receipt_memo_session(config)
         _configure_oracle_environment_memo_session(config)
         _configure_receipt_memo_run_id(config)

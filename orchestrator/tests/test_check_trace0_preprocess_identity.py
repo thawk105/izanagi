@@ -13,6 +13,8 @@ from pathlib import Path
 
 import pytest
 
+from orchestrator.campaign import source_digest
+
 _ROOT = Path(__file__).resolve().parents[2]
 _CHECKER = _ROOT / "tools/check_trace0_preprocess_identity.py"
 _SOURCE = Path("cc/silo/transaction.cc")
@@ -29,6 +31,7 @@ set(CCBENCH_NO_WAIT_LOCKING_IN_VALIDATION 1 CACHE STRING "test")
 set(CCBENCH_NO_WAIT_OF_TICTOC 0 CACHE STRING "test")
 set(CCBENCH_WAL 0 CACHE STRING "test")
 set(CCBENCH_TRACE 0 CACHE STRING "test")
+set(CCBENCH_TEMPERATURE_RESET_OPT 1 CACHE STRING "test")
 function(ccbench_universal_definitions target)
   target_compile_definitions(${target} PRIVATE
     BACK_OFF=${CCBENCH_BACK_OFF}
@@ -51,6 +54,25 @@ int trace_value() { return 1; }
 int steady_value() { return 7; }
 """
 _TRACE_ONLY_NEW_SOURCE = _OLD_SOURCE.replace(
+    "int trace_value() { return 1; }", "int trace_value() { return 2; }"
+)
+_MOCC_OWNER_CMAKE = """\
+ccbench_add_protocol(mocc
+  SOURCES transaction.cc
+  WORKLOADS ycsb
+  OPTIONS RWLOCK TEMPERATURE_RESET_OPT=${CCBENCH_TEMPERATURE_RESET_OPT})
+"""
+_MQLOCK_OLD_SOURCE = """\
+#include <cstdint>
+#ifdef MQLOCK
+int mqlock_value() { return 1; }
+#endif
+#if TRACE
+int trace_value() { return 1; }
+#endif
+int steady_value() { return 7; }
+"""
+_MQLOCK_NEW_SOURCE = _MQLOCK_OLD_SOURCE.replace(
     "int trace_value() { return 1; }", "int trace_value() { return 2; }"
 )
 
@@ -86,7 +108,14 @@ def _commit(repo: Path, message: str) -> str:
     return oid
 
 
-def _base_repo(tmp_path: Path, source: str = _OLD_SOURCE, *, source_rel: Path = _SOURCE) -> tuple[Path, str]:
+def _base_repo(
+    tmp_path: Path,
+    source: str = _OLD_SOURCE,
+    *,
+    source_rel: Path = _SOURCE,
+    protocol_cmake_text: str = "# synthetic protocol file\n",
+    write_owner_cmake: bool = True,
+) -> tuple[Path, str]:
     repo = tmp_path / "ccbench"
     repo.mkdir()
     _git(repo, "init", "-q")
@@ -94,9 +123,9 @@ def _base_repo(tmp_path: Path, source: str = _OLD_SOURCE, *, source_rel: Path = 
     _git(repo, "config", "user.email", "izanagi-test@example.invalid")
     _write(repo, "cmake/Options.cmake", _OPTIONS)
     _write(repo, "cc/silo/CMakeLists.txt", "# synthetic protocol file\n")
-    protocol_cmake = source_rel.parent / "CMakeLists.txt"
-    if protocol_cmake != Path("cc/silo/CMakeLists.txt"):
-        _write(repo, protocol_cmake, "# synthetic protocol file\n")
+    owner_cmake_path = source_rel.parent / "CMakeLists.txt"
+    if write_owner_cmake and owner_cmake_path != Path("cc/silo/CMakeLists.txt"):
+        _write(repo, owner_cmake_path, protocol_cmake_text)
     _write(repo, source_rel, source)
     return repo, _commit(repo, "old")
 
@@ -111,9 +140,20 @@ def _modified_pair(tmp_path: Path, new_source: str, *, old_source: str = _OLD_SO
 
 
 def _mocc_modified_pair(
-    tmp_path: Path, new_source: str, *, old_source: str = _OLD_SOURCE
+    tmp_path: Path,
+    new_source: str,
+    *,
+    old_source: str = _OLD_SOURCE,
+    protocol_cmake_text: str = "# synthetic protocol file\n",
+    write_owner_cmake: bool = True,
 ) -> _Pair:
-    repo, old = _base_repo(tmp_path, old_source, source_rel=_MOCC_SOURCE)
+    repo, old = _base_repo(
+        tmp_path,
+        old_source,
+        source_rel=_MOCC_SOURCE,
+        protocol_cmake_text=protocol_cmake_text,
+        write_owner_cmake=write_owner_cmake,
+    )
     _write(repo, _MOCC_SOURCE, new_source)
     new = _commit(repo, "new")
     _git(repo, "checkout", "-q", "--detach", old)
@@ -245,6 +285,59 @@ def test_mocc_trace_include_addition_passes_with_expected_path(tmp_path: Path) -
     assert report["files"][0]["include_line_count"] == 1
 
 
+def test_registered_mocc_source_uses_owner_protocol_defines(tmp_path: Path) -> None:
+    old_source = """\
+#if RWLOCK
+int rwlock_enabled = 1;
+#endif
+#if TEMPERATURE_RESET_OPT
+int temperature_reset_enabled = 1;
+#endif
+#if TRACE
+int trace_value = 1;
+#endif
+int steady_value = 7;
+"""
+    new_source = old_source.replace("int trace_value = 1;", "int trace_value = 2;")
+    pair = _mocc_modified_pair(
+        tmp_path,
+        new_source,
+        old_source=old_source,
+        protocol_cmake_text=_MOCC_OWNER_CMAKE,
+    )
+    result = _run(pair, expect_paths=[_MOCC_SOURCE.as_posix()])
+    assert result.returncode == 0, result.stderr
+    report = json.loads(result.stdout)
+    contexts = report["files"][0]["contexts"]
+    assert contexts
+    for context in contexts:
+        assert context["defines"]["old"]["RWLOCK"] == "1"
+        assert context["defines"]["new"]["RWLOCK"] == "1"
+        assert context["defines"]["old"]["TEMPERATURE_RESET_OPT"] == "1"
+        assert context["defines"]["new"]["TEMPERATURE_RESET_OPT"] == "1"
+
+
+def test_unregistered_cpp_source_keeps_genome_protocol_defines(tmp_path: Path) -> None:
+    repo, old = _base_repo(tmp_path, _OLD_SOURCE, source_rel=_EXTRA_SOURCE)
+    _write(repo, _EXTRA_SOURCE, _TRACE_ONLY_NEW_SOURCE)
+    new = _commit(repo, "new")
+    pair = _Pair(repo, old, new)
+    result = _run(pair, expect_paths=[_EXTRA_SOURCE.as_posix()])
+    assert result.returncode == 0, result.stderr
+    assert json.loads(result.stdout)["files"][0]["path"] == _EXTRA_SOURCE.as_posix()
+
+
+def test_registered_source_owner_cmake_failure_is_not_downgraded(
+    tmp_path: Path,
+) -> None:
+    pair = _mocc_modified_pair(
+        tmp_path,
+        _TRACE_ONLY_NEW_SOURCE,
+        write_owner_cmake=False,
+    )
+    _assert_rejected(_run(pair), "cc/mocc/CMakeLists.txt")
+
+
 def test_trace_include_addition_is_rejected_for_non_mocc_path(tmp_path: Path) -> None:
     new = _OLD_SOURCE.replace("#if TRACE\n", f"#if TRACE\n{_MOCC_TRACE_INCLUDE}\n", 1)
     pair = _modified_pair(tmp_path, new)
@@ -297,6 +390,197 @@ def test_expected_paths_match_is_order_independent_and_recorded(tmp_path: Path) 
     report = json.loads(result.stdout)
     assert report["expected_paths"] == sorted(expected)
     assert {item["path"] for item in report["files"]} == set(expected)
+
+
+def test_known_absent_is_rejected_from_comparison_commit_tree(tmp_path: Path) -> None:
+    repo, checkout_oid = _base_repo(tmp_path, _MQLOCK_OLD_SOURCE)
+    _write(repo, "include/mqlock_supply.hh", "#define MQLOCK 1\n")
+    old = _commit(repo, "comparison old with supply")
+    _write(repo, _SOURCE, _MQLOCK_NEW_SOURCE)
+    new = _commit(repo, "comparison new with supply")
+    _git(repo, "checkout", "-q", "--detach", checkout_oid)
+    assert _git(repo, "diff", "--name-only", old, new) == _SOURCE.as_posix()
+    _assert_rejected(
+        _run(_Pair(repo, old, new)),
+        "PROVEN_REPO_ABSENT_MACROS が stale",
+    )
+
+
+def test_known_absent_is_rejected_from_checkout_when_commit_is_specified(
+    tmp_path: Path,
+) -> None:
+    pair = _modified_pair(tmp_path, _MQLOCK_NEW_SOURCE, old_source=_MQLOCK_OLD_SOURCE)
+    _write(pair.repo, "include/checkout-only-supply.hh", "#define MQLOCK 1\n")
+    for commit in (pair.old, pair.new):
+        assert "include/checkout-only-supply.hh" not in _git(
+            pair.repo, "ls-tree", "-r", "--name-only", commit
+        ).splitlines()
+    _assert_rejected(
+        _run(pair),
+        "PROVEN_REPO_ABSENT_MACROS が stale",
+    )
+
+
+def test_known_absent_old_only_supply_is_rejected_from_old_commit(
+    tmp_path: Path,
+) -> None:
+    repo, checkout_oid = _base_repo(tmp_path, _MQLOCK_OLD_SOURCE)
+    _write(repo, _SOURCE, _MQLOCK_OLD_SOURCE + "#define MQLOCK 1\n")
+    old = _commit(repo, "comparison old with supply")
+    _write(repo, _SOURCE, _MQLOCK_NEW_SOURCE)
+    new = _commit(repo, "comparison new without supply")
+    _git(repo, "checkout", "-q", "--detach", checkout_oid)
+    assert _git(repo, "diff", "--name-only", old, new) == _SOURCE.as_posix()
+    _assert_rejected(
+        _run(_Pair(repo, old, new)),
+        "PROVEN_REPO_ABSENT_MACROS が stale",
+    )
+
+
+def test_known_absent_new_only_supply_is_rejected_from_new_commit(
+    tmp_path: Path,
+) -> None:
+    repo, old = _base_repo(tmp_path, _MQLOCK_OLD_SOURCE)
+    _write(repo, _SOURCE, _MQLOCK_NEW_SOURCE + "#define MQLOCK 1\n")
+    new = _commit(repo, "comparison new with supply")
+    _git(repo, "checkout", "-q", "--detach", old)
+    assert _git(repo, "diff", "--name-only", old, new) == _SOURCE.as_posix()
+    _assert_rejected(
+        _run(_Pair(repo, old, new)),
+        "PROVEN_REPO_ABSENT_MACROS が stale",
+    )
+
+
+def test_known_absent_validation_receives_both_comparison_oids_once(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    pair = _modified_pair(tmp_path, _TRACE_ONLY_NEW_SOURCE)
+    checker = _load_checker_module()
+    calls: list[tuple[str, str | None]] = []
+
+    def record_absence(repo: str = "", *, commit: str | None = None) -> frozenset[str]:
+        calls.append((repo, commit))
+        return frozenset({"MQLOCK"})
+
+    monkeypatch.setattr(checker, "_assert_proven_repo_absent_macros", record_absence)
+    report = checker.check(pair.repo, pair.old, pair.new, _cxx())
+    assert report["result"] == "pass"
+    assert calls == [
+        (os.fspath(pair.repo.resolve()), pair.old),
+        (os.fspath(pair.repo.resolve()), pair.new),
+    ]
+
+
+def test_commit_tree_symlink_entry_is_rejected(tmp_path: Path) -> None:
+    repo, _initial = _base_repo(tmp_path)
+    (repo / "include").mkdir()
+    os.symlink("../cc/silo/transaction.cc", repo / "include/supply-link.hh")
+    old = _commit(repo, "comparison old with symlink")
+    _write(repo, _SOURCE, _TRACE_ONLY_NEW_SOURCE)
+    new = _commit(repo, "comparison new with symlink")
+    assert _git(repo, "diff", "--name-only", old, new) == _SOURCE.as_posix()
+    _assert_rejected(_run(_Pair(repo, old, new)), "symlink entry")
+
+
+def test_checkout_walk_directory_enumeration_error_is_rejected(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    repo, _old = _base_repo(tmp_path)
+    walk_error = PermissionError(13, "permission denied", os.fspath(repo / "blocked"))
+
+    def failing_walk(_root: str, *, onerror=None):
+        assert onerror is not None
+        onerror(walk_error)
+        yield "", [], []
+
+    monkeypatch.setattr(source_digest.os, "walk", failing_walk)
+    with pytest.raises(RuntimeError, match="checkout directory の列挙に失敗"):
+        list(source_digest._repo_supply_files(os.fspath(repo)))
+
+
+def test_uninitialized_gitlink_directory_is_not_asked_to_resolve_parent_head(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    repo, _old = _base_repo(tmp_path)
+    (repo / "third_party/fixture").mkdir(parents=True)
+
+    def reject_git_call(*_args, **_kwargs):
+        raise AssertionError("non-repository gitlink directory must not invoke git")
+
+    monkeypatch.setattr(source_digest.subprocess, "run", reject_git_call)
+    assert source_digest._checkout_gitlink_oid(
+        os.fspath(repo), "third_party/fixture"
+    ) is None
+
+
+def test_commit_tree_with_matching_initialized_gitlink_is_accepted(
+    tmp_path: Path,
+) -> None:
+    child = tmp_path / "gitlink-source"
+    child.mkdir()
+    _git(child, "init", "-q")
+    _git(child, "config", "user.name", "Izanagi Test")
+    _git(child, "config", "user.email", "izanagi-test@example.invalid")
+    _write(child, "include/fixture.hh", "#pragma once\n")
+    child_oid = _commit(child, "gitlink source")
+
+    repo, _initial = _base_repo(tmp_path)
+    _git(
+        repo,
+        "-c",
+        "protocol.file.allow=always",
+        "submodule",
+        "add",
+        "-q",
+        os.fspath(child),
+        "third_party/fixture",
+    )
+    assert _git(repo / "third_party/fixture", "rev-parse", "HEAD") == child_oid
+    old = _commit(repo, "comparison old with gitlink")
+    _write(repo, _SOURCE, _TRACE_ONLY_NEW_SOURCE)
+    new = _commit(repo, "comparison new with gitlink")
+    assert _git(repo, "diff", "--name-only", old, new) == _SOURCE.as_posix()
+    result = _run(_Pair(repo, old, new))
+    assert result.returncode == 0, result.stderr
+
+
+def test_commit_tree_with_uninitialized_gitlink_worktree_is_accepted(
+    tmp_path: Path,
+) -> None:
+    """親裁定により、計算 job と同じ未初期化 gitlink は coverage 対象外として通す。"""
+    child = tmp_path / "gitlink-source"
+    child.mkdir()
+    _git(child, "init", "-q")
+    _git(child, "config", "user.name", "Izanagi Test")
+    _git(child, "config", "user.email", "izanagi-test@example.invalid")
+    _write(child, "include/fixture.hh", "#pragma once\n")
+    _commit(child, "gitlink source")
+
+    repo, _initial = _base_repo(tmp_path)
+    _git(
+        repo,
+        "-c",
+        "protocol.file.allow=always",
+        "submodule",
+        "add",
+        "-q",
+        os.fspath(child),
+        "third_party/fixture",
+    )
+    old = _commit(repo, "comparison old with gitlink")
+    _write(repo, _SOURCE, _TRACE_ONLY_NEW_SOURCE)
+    new = _commit(repo, "comparison new with gitlink")
+
+    detached = tmp_path / "detached-checkout"
+    _git(repo, "worktree", "add", "-q", "--detach", os.fspath(detached), new)
+    gitlink_checkout = detached / "third_party/fixture"
+    gitlink_checkout.mkdir(parents=True, exist_ok=True)
+    assert gitlink_checkout.is_dir()
+    assert not (gitlink_checkout / ".git").exists()
+    assert _git(detached, "rev-parse", "HEAD") == new
+
+    result = _run(_Pair(detached, old, new))
+    assert result.returncode == 0, result.stderr
 
 
 @pytest.mark.parametrize(
@@ -368,7 +652,16 @@ def test_context_count_mismatch_is_rejected_fail_closed(
     compare_file = checker._compare_file
 
     def compare_with_one_fewer_genome(
-        repo, old_oid, new_oid, path, compiler, genomes, overlays, expected_context_count
+        repo,
+        old_oid,
+        new_oid,
+        path,
+        compiler,
+        old_known_absent,
+        new_known_absent,
+        genomes,
+        overlays,
+        expected_context_count,
     ):
         assert expected_context_count > 0
         assert len(genomes) > 1
@@ -378,6 +671,8 @@ def test_context_count_mismatch_is_rejected_fail_closed(
             new_oid,
             path,
             compiler,
+            old_known_absent,
+            new_known_absent,
             genomes[:-1],
             overlays,
             expected_context_count,

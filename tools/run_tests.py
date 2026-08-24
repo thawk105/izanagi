@@ -94,7 +94,7 @@ _NONSELECT_FLAGS = frozenset({
 })
 _NONSELECT_VALUE_OPTIONS = frozenset({
     "-n", "--numprocesses", "--dist", "--color", "--tb", "--capture",
-    "--junitxml", "--junit-prefix", "--rootdir", "--confcutdir",
+    "--junitxml", "--junit-prefix", "--rootdir",
     "--basetemp", "--durations", "--durations-min", "--verbosity",
     "--show-capture", "--import-mode", "--log-level", "--log-format",
     "--log-date-format", "--log-cli-level", "--log-cli-format",
@@ -102,7 +102,7 @@ _NONSELECT_VALUE_OPTIONS = frozenset({
     "--log-file-level", "--log-file-format", "--log-file-date-format",
 })
 _FULL_SUITE_DISQUALIFY_VALUE_OPTIONS = frozenset({
-    "--override-ini", "-o", "-p",
+    "--override-ini", "-o", "-p", "--confcutdir",
 })
 _SELECT_FLAGS = frozenset({
     "-k", "-m", "--lf", "--last-failed", "--ff", "--failed-first",
@@ -178,23 +178,19 @@ class _DispatchCallResult(NamedTuple):
 
 _PermanentExclusion = _SELECTION_CONTRACT.Exclusion
 _PERMANENT_EXCLUSION_SET_VERSION = _SELECTION_CONTRACT.EXCLUSION_SET_VERSION
-_SANCTIONED_SORT_SWO_ORACLE_PATH = _SELECTION_CONTRACT.SANCTIONED_SORT_SWO_ORACLE_PATH
+_SANCTIONED_CLEANUP_TEST_PATH = _SELECTION_CONTRACT.SANCTIONED_CLEANUP_TEST_PATH
 
-# ここが runtime の active table。現在は共有契約の空 tuple を参照する。
+# ここが runtime の active table。現在は共有契約の cleanup entry を参照する。
 # sanctioned な上限と payload の定義は引き続き共有契約 module にだけ存在する。
 _PERMANENT_FULL_SUITE_EXCLUSIONS = _SELECTION_CONTRACT.SANCTIONED_EXCLUSIONS
 
 
 def _permanent_exclusions_are_sanctioned(
-    exclusions: Sequence[_PermanentExclusion],
-) -> bool:
-    """runner の恒久除外表を裁定済みの閉じた集合として検証する。"""
+    exclusions: tuple[_PermanentExclusion, ...],
+) -> tuple[_PermanentExclusion, ...] | None:
+    """runner の恒久除外表を private canonical tuple へ写す。"""
 
-    try:
-        entries = tuple(exclusions)
-    except TypeError:
-        return False
-    return _SELECTION_CONTRACT.is_sanctioned_exclusion_set(entries)
+    return _SELECTION_CONTRACT.canonicalize_sanctioned_exclusion_set(exclusions)
 
 
 def _runner_exclusion_payload(
@@ -254,20 +250,52 @@ def _validate_shard_outer_args(
     )
 
 
-def _acceptance_shard_count(
+def _acceptance_shard_request(
     environ: Optional[Mapping[str, str]] = None,
-) -> int:
-    """opt-in の閉集合を解決し、不正値を通常 K=1 へ丸めない。"""
+) -> Optional[int]:
+    """shard 要求の env 字句だけを閉集合として解釈する。"""
 
     source = os.environ if environ is None else environ
     value = source.get(_ACCEPTANCE_SHARDS_ENV)
-    if value is None or value == "" or value == "1":
-        return 1
-    if value == "2":
-        return 2
-    if value == "3":
-        return 3
+    if value is None or value == "":
+        return None
+    if value in {"1", "2", "3"}:
+        return int(value, 10)
     raise ValueError(f"{_ACCEPTANCE_SHARDS_ENV}={value!r} is not accepted")
+
+
+def _resolve_acceptance_shard_count(
+    request: Optional[int],
+    *,
+    is_acceptance: bool,
+    resolved_site: str,
+    raw_args: Sequence[str],
+    force_dispatch: bool,
+    internal_shard_spec: Optional[object],
+    positional: Sequence[str],
+    bounded_membership: Optional[bool],
+) -> int:
+    """確定済み入力だけから effective K を解決する。"""
+
+    if request is not None and type(request) is not int:
+        raise ValueError("acceptance shard request must be an integer")
+    eligible = (
+        is_acceptance
+        and site_policy.is_pegasus_login(resolved_site)
+        and _validate_shard_outer_args(raw_args, force_dispatch)
+        and not positional
+        and internal_shard_spec is None
+        and bounded_membership is not True
+    )
+    if request is None:
+        return 2 if eligible else 1
+    if request == 1:
+        return 1
+    if request in {2, 3}:
+        if not eligible:
+            raise ValueError("explicit acceptance shard request is ineligible")
+        return request
+    raise ValueError("invalid acceptance shard request")
 
 
 def _consume_internal_shard_spec(
@@ -604,20 +632,6 @@ def _positional_tokens(args: Sequence[str]) -> tuple[str, ...]:
     return tuple(positional)
 
 
-def _explicitly_targets_sanctioned_oracle(args: Sequence[str]) -> bool:
-    """修正対象の oracle file を明示指定した走行か判定する。"""
-
-    sanctioned_target = Path(_SANCTIONED_SORT_SWO_ORACLE_PATH).resolve()
-    for token in _positional_tokens(args):
-        path_part = token.partition("::")[0]
-        try:
-            if Path(path_part).resolve(strict=False) == sanctioned_target:
-                return True
-        except OSError:
-            continue
-    return False
-
-
 def _has_no_execution_flag(args: Sequence[str]) -> bool:
     if any(token.split("=", 1)[0] in _NO_EXECUTION_FLAGS for token in args):
         return True
@@ -684,13 +698,14 @@ def _is_acceptance_run(args: Sequence[str]) -> bool:
     if os.environ.get("PYTEST_PLUGINS", "").strip():
         return False
     default_target = Path(_DEFAULT_TARGET).resolve()
+    positional_count = 0
     i = 0
     while i < len(args):
         token = args[i]
         option, separator, value = token.partition("=")
         if token == "--" or option in _NO_EXECUTION_FLAGS or option in _SELECT_FLAGS:
             return False
-        if option in {"-o", "-p", "--override-ini"}:
+        if option in _FULL_SUITE_DISQUALIFY_VALUE_OPTIONS:
             return False
         if token.startswith("-k") or token.startswith("-m"):
             return False
@@ -708,6 +723,9 @@ def _is_acceptance_run(args: Sequence[str]) -> bool:
                 if Path(token).resolve(strict=False) != default_target:
                     return False
             except OSError:
+                return False
+            positional_count += 1
+            if positional_count > 1:
                 return False
             i += 1
             continue
@@ -2379,7 +2397,7 @@ def main(
     pytest_args, force_dispatch = _consume_runner_options(raw_args)
     try:
         pytest_args, internal_shard_spec = _consume_internal_shard_spec(pytest_args)
-        shard_count = _acceptance_shard_count()
+        shard_request = _acceptance_shard_request()
     except (OSError, TypeError, ValueError) as exc:
         print(
             f"acceptance shard 指定を受理できません: {exc}",
@@ -2389,8 +2407,10 @@ def main(
         return _PEGASUS_DISPATCH_RC
     args = _normalize_args(pytest_args)
     is_acceptance = _is_acceptance_run(args)
-    configured_exclusions = _PERMANENT_FULL_SUITE_EXCLUSIONS
-    if not _permanent_exclusions_are_sanctioned(configured_exclusions):
+    positional = _positional_tokens(args)
+    try:
+        configured_exclusions = tuple(_PERMANENT_FULL_SUITE_EXCLUSIONS)
+    except TypeError:
         print(
             "恒久除外表が裁定済み literal path と一致しないため、"
             "テスト command を作らず停止します。",
@@ -2398,11 +2418,18 @@ def main(
             flush=True,
         )
         return _PERMANENT_EXCLUSION_GATE_RC
-    exclusions = (
-        ()
-        if _explicitly_targets_sanctioned_oracle(args)
-        else configured_exclusions
+    canonical_exclusions = _permanent_exclusions_are_sanctioned(
+        configured_exclusions
     )
+    if canonical_exclusions is None:
+        print(
+            "恒久除外表が裁定済み literal path と一致しないため、"
+            "テスト command を作らず停止します。",
+            file=sys.stderr,
+            flush=True,
+        )
+        return _PERMANENT_EXCLUSION_GATE_RC
+    exclusions = canonical_exclusions if is_acceptance else ()
     if is_acceptance and _has_non_loadgroup_user_dist(args):
         print(
             "受入形では --dist loadgroup 以外の --dist 上書きを拒否します。",
@@ -2432,28 +2459,6 @@ def main(
         )
         return _PEGASUS_DISPATCH_RC
 
-    shard_mode = shard_count > 1
-    if shard_mode and (
-        internal_shard_spec is not None
-        or not is_acceptance
-        or not _validate_shard_outer_args(raw_args, force_dispatch)
-        or _positional_tokens(args)
-        or not site_policy.is_pegasus_login(resolved_site)
-    ):
-        print(
-            "明示 shard mode は空 argv の受入形かつ Pegasus LOGIN でのみ受理します。",
-            file=sys.stderr,
-            flush=True,
-        )
-        return _PEGASUS_DISPATCH_RC
-    if internal_shard_spec is not None and shard_count != 1:
-        print(
-            "内部 shard spec と外側 shard activation の同時指定を拒否します。",
-            file=sys.stderr,
-            flush=True,
-        )
-        return _PEGASUS_DISPATCH_RC
-
     bounded_membership = _bounded_scope_membership()
     if bounded_membership is False:
         print(
@@ -2464,6 +2469,27 @@ def main(
         )
         return _PEGASUS_DISPATCH_RC
 
+    try:
+        shard_count = _resolve_acceptance_shard_count(
+            shard_request,
+            is_acceptance=is_acceptance,
+            resolved_site=resolved_site,
+            raw_args=raw_args,
+            force_dispatch=force_dispatch,
+            internal_shard_spec=internal_shard_spec,
+            positional=positional,
+            bounded_membership=bounded_membership,
+        )
+    except ValueError:
+        print(
+            "明示 shard mode は空 argv の受入形かつ Pegasus LOGIN でのみ受理します。",
+            file=sys.stderr,
+            flush=True,
+        )
+        return _PEGASUS_DISPATCH_RC
+    shard_mode = shard_count > 1
+    explicit_shard_mode = shard_request in {2, 3} and shard_mode
+
     dispatch_exempt = _has_dispatch_exempt_flag(args)
     bounded_scope_exempt = _has_bounded_scope_exempt_flag(args)
     login_admission_dispatch = False
@@ -2471,7 +2497,7 @@ def main(
         bounded_membership is None
         and not bounded_scope_exempt
         and not force_dispatch
-        and not shard_mode
+        and not explicit_shard_mode
         and internal_shard_spec is None
         and site_policy.is_pegasus_login(resolved_site)
     ):
@@ -2555,6 +2581,8 @@ def main(
                 dispatch_fn,
                 args,
                 recording_session=recording_session,
+                shard_count=shard_count,
+                exclusions=exclusions,
             )
 
     preflight_rc = _preflight_unstaged_deletions(args, Path(_REPO))
@@ -2604,6 +2632,8 @@ def main(
         elif login_admission_dispatch or not dispatch_exempt:
             return _call_with_runner_exclusions(
                 exclusions, _dispatch_result, dispatch_fn, args,
+                shard_count=shard_count,
+                exclusions=exclusions,
             )
 
     use_xdist = False

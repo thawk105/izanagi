@@ -32,13 +32,8 @@ assert _SPEC and _SPEC.loader
 RT = importlib.util.module_from_spec(_SPEC)
 _SPEC.loader.exec_module(RT)
 
-_SYNTHETIC_SORT_SWO_EXCLUSION = RT._PermanentExclusion(
-    path=RT._SANCTIONED_SORT_SWO_ORACLE_PATH,
-    reason="synthetic exclusion mechanism test",
-    release_condition="synthetic release condition",
-    ruling="{{D:synthetic-exclusion}}",
-)
-_SYNTHETIC_SORT_SWO_EXCLUSIONS = (_SYNTHETIC_SORT_SWO_EXCLUSION,)
+_CANONICAL_CLEANUP_EXCLUSION = RT._PERMANENT_FULL_SUITE_EXCLUSIONS[0]
+_CANONICAL_CLEANUP_EXCLUSIONS = (_CANONICAL_CLEANUP_EXCLUSION,)
 
 _EXPECTED_PEGASUS_DISPATCH_EXEMPT_FLAGS = frozenset({
     "--collect-only",
@@ -380,6 +375,8 @@ def test_acceptance_shape_positive_controls(args):
         ["-o", "x=1"],
         ["-pno:plugin"],
         ["--override-ini=x=1"],
+        ["--confcutdir", "orchestrator/tests"],
+        ["--confcutdir=orchestrator/tests"],
         ["--", "-q"],
         ["--collect-only"],
         ["--smoke-only"],
@@ -2305,6 +2302,7 @@ def test_previous_full_cap_estimate_dispatches_without_local_scope(monkeypatch):
     grants = []
     dispatch = mock.Mock(return_value=9)
     scope = mock.Mock(side_effect=AssertionError("estimated full run must dispatch"))
+    monkeypatch.setenv(RT._ACCEPTANCE_SHARDS_ENV, "1")
 
     def grant_budget(**kwargs):
         grants.append(kwargs)
@@ -2324,6 +2322,7 @@ def test_previous_full_cap_estimate_dispatches_without_local_scope(monkeypatch):
 
 def test_previous_full_cap_estimate_dispatches_after_preflights(monkeypatch):
     events = []
+    monkeypatch.setenv(RT._ACCEPTANCE_SHARDS_ENV, "1")
 
     def preflight(name):
         return lambda args, repo: events.append(name) or 0
@@ -2621,7 +2620,7 @@ def test_main_absolutizes_plain_relative_target_from_other_cwd(
         (
             ["--deselect=ignored.py::test_node"],
             ["--deselect=ignored.py::test_node"],
-            True,
+            False,
         ),
     ],
 )
@@ -2633,8 +2632,7 @@ def test_main_absolutizes_plain_relative_target_from_other_cwd(
 def test_main_option_values_do_not_suppress_default_target(
     monkeypatch, args, expected_tail, expected_exclusion, table_active,
 ):
-    entries = _SYNTHETIC_SORT_SWO_EXCLUSIONS if table_active else ()
-    monkeypatch.setattr(RT._SELECTION_CONTRACT, "SANCTIONED_EXCLUSIONS", entries)
+    entries = _CANONICAL_CLEANUP_EXCLUSIONS if table_active else ()
     monkeypatch.setattr(RT, "_PERMANENT_FULL_SUITE_EXCLUSIONS", entries)
     captured = {}
     monkeypatch.setattr(RT, "_preflight_unstaged_deletions", lambda values, repo: 0)
@@ -2651,7 +2649,7 @@ def test_main_option_values_do_not_suppress_default_target(
     expected_exclusion = expected_exclusion and table_active
     expected_command = [sys.executable, "-m", "pytest"]
     if expected_exclusion:
-        expected_command.append(f"--ignore={RT._SANCTIONED_SORT_SWO_ORACLE_PATH}")
+        expected_command.append(f"--ignore={RT._SANCTIONED_CLEANUP_TEST_PATH}")
     expected_command.extend([
         str(_REPO / "orchestrator" / "tests"),
         *expected_tail,
