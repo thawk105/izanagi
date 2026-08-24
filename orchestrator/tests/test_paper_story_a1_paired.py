@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import ast
 import copy
+import errno
 import hashlib
 import json
 import math
@@ -794,6 +795,98 @@ def test_materialization_is_exact_leaf_and_noreplace_publish(tmp_path: Path) -> 
         paired._publish_staging_noreplace(second, destination)
 
 
+def test_einval_fallback_publishes_absent_destination_and_records_limits_M37(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    destination = tmp_path / "insight"
+    calls: list[int] = []
+
+    def einval_then_default(source: Path, target: Path, flags: int) -> None:
+        calls.append(flags)
+        if flags == paired._RENAME_NOREPLACE:
+            raise OSError(errno.EINVAL, os.strerror(errno.EINVAL))
+        assert flags == paired._RENAME_DEFAULT
+        source.rename(target)
+
+    monkeypatch.setattr(paired, "_renameat2_directory", einval_then_default)
+    paired._publish_materialization_bundle(
+        destination,
+        {"receipt": True},
+        {
+            "complete": False,
+            "cross_workload_conclusion": None,
+            "limitations": [],
+        },
+    )
+
+    assert calls == [paired._RENAME_NOREPLACE, paired._RENAME_DEFAULT]
+    assert destination.is_dir()
+    result = json.loads((destination / "result.json").read_text(encoding="utf-8"))
+    publish = result["materialization_evidence"]["publish"]
+    assert publish["selected_mechanism"] == paired.PUBLISH_EINVAL_FALLBACK
+    assert publish["selection_observation"] == {
+        "rename_noreplace_attempted": True,
+        "errno": "EINVAL",
+    }
+    assert any(
+        "not atomic no-replace against a non-cooperating writer" in limitation
+        for limitation in publish["limitations"]
+    )
+    assert any(
+        "not atomic no-replace against a non-cooperating destination writer"
+        in limitation
+        for limitation in result["limitations"]
+    )
+    readme = (destination / "README.md").read_text(encoding="utf-8")
+    assert "RENAME_NOREPLACE was attempted" in readme
+    assert "returned EINVAL" in readme
+    assert "may be replaced" in readme
+    completion = json.loads(
+        (destination / paired.COMPLETION_MARKER).read_text(encoding="utf-8")
+    )
+    assert completion["publish"] == publish
+
+
+def test_einval_fallback_refuses_existing_destination_M36(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    destination = tmp_path / "insight"
+    destination.mkdir()
+    original_identity = destination.stat().st_ino
+    calls: list[int] = []
+
+    def einval_then_overwriting_default(
+        source: Path, target: Path, flags: int
+    ) -> None:
+        calls.append(flags)
+        if flags == paired._RENAME_NOREPLACE:
+            raise OSError(errno.EINVAL, os.strerror(errno.EINVAL))
+        assert flags == paired._RENAME_DEFAULT
+        source.rename(target)
+
+    monkeypatch.setattr(
+        paired, "_renameat2_directory", einval_then_overwriting_default
+    )
+    with pytest.raises(
+        paired.PaperStoryError,
+        match="fallback materialization publish refused: destination already exists",
+    ):
+        paired._publish_materialization_bundle(
+            destination,
+            {"receipt": True},
+            {
+                "complete": False,
+                "cross_workload_conclusion": None,
+                "limitations": [],
+            },
+        )
+
+    assert calls == [paired._RENAME_NOREPLACE]
+    assert destination.is_dir()
+    assert destination.stat().st_ino == original_identity
+    assert list(destination.iterdir()) == []
+
+
 def test_unpublished_materialization_staging_is_removed(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -806,6 +899,13 @@ def test_unpublished_materialization_staging_is_removed(
         raise paired.PaperStoryError("injected publish refusal")
 
     monkeypatch.setattr(paired, "_publish_staging_noreplace", refuse_publish)
+    monkeypatch.setattr(
+        paired,
+        "_observe_materialization_publish",
+        lambda target: paired._materialization_publish_evidence(
+            paired.PUBLISH_RENAME_NOREPLACE
+        ),
+    )
     with pytest.raises(paired.PaperStoryError, match="injected publish refusal"):
         paired._publish_materialization_bundle(
             destination,
@@ -827,6 +927,13 @@ def test_publish_error_after_rename_does_not_remove_destination(
 
     monkeypatch.setattr(
         paired, "_publish_staging_noreplace", rename_then_report_error
+    )
+    monkeypatch.setattr(
+        paired,
+        "_observe_materialization_publish",
+        lambda target: paired._materialization_publish_evidence(
+            paired.PUBLISH_RENAME_NOREPLACE
+        ),
     )
     with pytest.raises(paired.PaperStoryError, match="injected post-rename error"):
         paired._publish_materialization_bundle(
@@ -943,7 +1050,14 @@ def test_completion_marker_is_present_at_single_publish_boundary_M17(
         source.rename(target)
 
     monkeypatch.setattr(paired, "_publish_staging_noreplace", inspect_publish)
-    paired._publish_complete_staging(staging, destination, {"complete": True})
+    paired._publish_complete_staging(
+        staging,
+        destination,
+        {"complete": True},
+        paired._materialization_publish_evidence(
+            paired.PUBLISH_RENAME_NOREPLACE
+        ),
+    )
     assert observed["files"] == {
         "README.md", "receipt.json", "result.json", paired.COMPLETION_MARKER,
     }

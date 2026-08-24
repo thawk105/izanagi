@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import argparse
 import ctypes
+import errno
 import hashlib
 import json
 import math
@@ -150,6 +151,14 @@ PBS_EVIDENCE_SCOPE = {
 MATERIALIZATION_EVIDENCE_SCHEMA = (
     "paper-story-a1-paired-materialization-evidence/v1"
 )
+MATERIALIZATION_PUBLISH_SCHEMA = (
+    "paper-story-a1-paired-materialization-publish/v1"
+)
+PUBLISH_RENAME_NOREPLACE = "renameat2-rename-noreplace"
+PUBLISH_EINVAL_FALLBACK = "a1-exclusive-claim-check-then-renameat2"
+_RENAME_DEFAULT = 0
+_RENAME_NOREPLACE = 1
+_AT_FDCWD = -100
 SCHEDULER_COMPLETION_INTERPRETATION = {
     "terminal_forms": {
         "scheduler-end-state": (
@@ -2574,6 +2583,38 @@ def _readme(result: Mapping[str, object]) -> str:
         if complete
         else "No cross-workload conclusion is available because at least one workload is invalid."
     )
+    materialization_evidence = result.get("materialization_evidence")
+    publish_evidence = (
+        materialization_evidence.get("publish")
+        if type(materialization_evidence) is dict else None
+    )
+    if (
+        type(publish_evidence) is dict
+        and publish_evidence.get("selected_mechanism") == PUBLISH_EINVAL_FALLBACK
+    ):
+        publish_text = (
+            "Materialization publish: RENAME_NOREPLACE was attempted on this "
+            "filesystem and returned EINVAL. The fallback held an A-1-specific "
+            "exclusive sibling claim, refused a destination present at its "
+            "existence check, and then exposed the complete staging directory with "
+            "one flags-zero renameat2 call. This is not atomic no-replace against a "
+            "non-cooperating writer: an empty type-compatible destination created "
+            "after the check and before that rename may be replaced. No file is "
+            "written below the destination after the directory publish.\n"
+        )
+    elif (
+        type(publish_evidence) is dict
+        and publish_evidence.get("selected_mechanism") == PUBLISH_RENAME_NOREPLACE
+    ):
+        publish_text = (
+            "Materialization publish: the complete staging directory was exposed "
+            "with renameat2 RENAME_NOREPLACE, providing atomic no-replace publish "
+            "on this filesystem. No file is written below the destination after "
+            "the directory publish.\n"
+        )
+    else:
+        publish_text = ""
+    publish_section = f"\n{publish_text}" if publish_text else ""
     return (
         "# Paper-story A-1 exploratory positional comparison\n\n"
         f"Study: `{STUDY_ID}`\n\n"
@@ -2596,6 +2637,7 @@ def _readme(result: Mapping[str, object]) -> str:
         "are explicitly recorded as unobserved, not as empty values or zero. Job "
         "success remains established independently by driver_rc=0, shell_rc=0, and "
         "job terminal status=finished.\n"
+        f"{publish_section}"
     )
 
 
@@ -2660,9 +2702,7 @@ def _fsync_directory(path: Path) -> None:
         os.close(fd)
 
 
-def _publish_staging_noreplace(staging: Path, destination: Path) -> None:
-    rename_noreplace = 1
-    at_fdcwd = -100
+def _renameat2_directory(staging: Path, destination: Path, flags: int) -> None:
     libc = ctypes.CDLL(None, use_errno=True)
     renameat2 = getattr(libc, "renameat2", None)
     if renameat2 is None:
@@ -2676,26 +2716,181 @@ def _publish_staging_noreplace(staging: Path, destination: Path) -> None:
     ]
     renameat2.restype = ctypes.c_int
     rc = renameat2(
-        at_fdcwd,
+        _AT_FDCWD,
         os.fsencode(staging),
-        at_fdcwd,
+        _AT_FDCWD,
         os.fsencode(destination),
-        rename_noreplace,
+        flags,
     )
     if rc != 0:
         error = ctypes.get_errno()
+        raise OSError(error, os.strerror(error), os.fspath(destination))
+
+
+def _publish_staging_noreplace(staging: Path, destination: Path) -> None:
+    try:
+        _renameat2_directory(staging, destination, _RENAME_NOREPLACE)
+    except OSError as exc:
         raise PaperStoryError(
-            f"no-replace materialization publish failed: {os.strerror(error)}"
-        )
+            f"no-replace materialization publish failed: {exc.strerror}"
+        ) from exc
     _fsync_directory(destination.parent)
 
 
-def _publish_complete_staging(
-    staging: Path, destination: Path, completion: Mapping[str, object]
+def _materialization_publish_evidence(mechanism: str) -> dict[str, object]:
+    if mechanism == PUBLISH_RENAME_NOREPLACE:
+        return {
+            "schema_version": MATERIALIZATION_PUBLISH_SCHEMA,
+            "selected_mechanism": mechanism,
+            "selection_observation": {
+                "rename_noreplace_attempted": True,
+                "errno": None,
+            },
+            "guarantees": [
+                "Destination publication is atomic and no-replace on the observed filesystem.",
+                "Every materialized file and the completion marker exist in staging before publish.",
+                "No file is written below destination after directory publish.",
+            ],
+            "limitations": [],
+        }
+    if mechanism == PUBLISH_EINVAL_FALLBACK:
+        return {
+            "schema_version": MATERIALIZATION_PUBLISH_SCHEMA,
+            "selected_mechanism": mechanism,
+            "selection_observation": {
+                "rename_noreplace_attempted": True,
+                "errno": "EINVAL",
+            },
+            "guarantees": [
+                "A destination present at the fallback existence check is refused without publication.",
+                "Cooperating A-1 publishers cannot hold the same exclusive sibling claim.",
+                "Every materialized file and the completion marker exist in staging before publish.",
+                "No file is written below destination after directory publish.",
+            ],
+            "limitations": [
+                "Fallback publication is not atomic no-replace against a non-cooperating writer.",
+                "An empty type-compatible destination created after the existence check and before the flags-zero renameat2 call may be replaced.",
+            ],
+        }
+    raise PaperStoryError("materialization publish mechanism differs")
+
+
+def _observe_materialization_publish(destination: Path) -> dict[str, object]:
+    """Select the A-1 publish path only by an actual same-filesystem attempt."""
+    try:
+        probe_root = Path(tempfile.mkdtemp(
+            prefix=f".{destination.name}.publish-probe-",
+            dir=destination.parent,
+        ))
+        probe_source = probe_root / "source"
+        probe_destination = probe_root / "destination"
+        probe_source.mkdir(mode=0o700)
+    except OSError as exc:
+        raise PaperStoryError(
+            f"materialization publish probe creation failed: {exc}"
+        ) from exc
+    try:
+        try:
+            _renameat2_directory(
+                probe_source, probe_destination, _RENAME_NOREPLACE
+            )
+        except OSError as exc:
+            if exc.errno != errno.EINVAL:
+                raise PaperStoryError(
+                    "no-replace materialization publish probe failed: "
+                    f"{exc.strerror}"
+                ) from exc
+            return _materialization_publish_evidence(PUBLISH_EINVAL_FALLBACK)
+        return _materialization_publish_evidence(PUBLISH_RENAME_NOREPLACE)
+    finally:
+        try:
+            if probe_source.exists():
+                probe_source.rmdir()
+            if probe_destination.exists():
+                probe_destination.rmdir()
+            probe_root.rmdir()
+        except OSError as exc:
+            raise PaperStoryError(
+                f"materialization publish probe cleanup failed: {exc}"
+            ) from exc
+
+
+def _release_materialization_publish_claim(
+    claim: Path, identity: tuple[int, int]
 ) -> None:
+    try:
+        info = claim.lstat()
+    except OSError as exc:
+        raise PaperStoryError(
+            f"fallback materialization publish claim stat failed: {exc}"
+        ) from exc
+    if (
+        not stat.S_ISREG(info.st_mode)
+        or (info.st_dev, info.st_ino) != identity
+    ):
+        raise PaperStoryError("fallback materialization publish claim identity differs")
+    try:
+        claim.unlink()
+        _fsync_directory(claim.parent)
+    except OSError as exc:
+        raise PaperStoryError(
+            f"fallback materialization publish claim cleanup failed: {exc}"
+        ) from exc
+
+
+def _publish_staging_after_einval(staging: Path, destination: Path) -> None:
+    claim = destination.parent / f".{destination.name}.publish-claim"
+    flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL
+    if hasattr(os, "O_NOFOLLOW"):
+        flags |= os.O_NOFOLLOW
+    try:
+        claim_fd = os.open(claim, flags, 0o600)
+    except OSError as exc:
+        raise PaperStoryError(
+            f"exclusive fallback materialization publish claim failed: {exc}"
+        ) from exc
+    claim_identity = os.fstat(claim_fd)
+    try:
+        os.fsync(claim_fd)
+        _fsync_directory(destination.parent)
+        if os.path.lexists(destination):
+            raise PaperStoryError(
+                "fallback materialization publish refused: destination already exists"
+            )
+        try:
+            _renameat2_directory(staging, destination, _RENAME_DEFAULT)
+        except OSError as exc:
+            raise PaperStoryError(
+                f"fallback materialization publish failed: {exc.strerror}"
+            ) from exc
+        _fsync_directory(destination.parent)
+    finally:
+        os.close(claim_fd)
+        _release_materialization_publish_claim(
+            claim, (claim_identity.st_dev, claim_identity.st_ino)
+        )
+
+
+def _publish_complete_staging(
+    staging: Path,
+    destination: Path,
+    completion: Mapping[str, object],
+    publish_evidence: Mapping[str, object] | None = None,
+) -> None:
+    selected = (
+        dict(publish_evidence)
+        if publish_evidence is not None
+        else _observe_materialization_publish(destination)
+    )
     _exclusive_write(staging / COMPLETION_MARKER, completion)
     _fsync_directory(staging)
-    _publish_staging_noreplace(staging, destination)
+    mechanism = selected.get("selected_mechanism")
+    if mechanism == PUBLISH_RENAME_NOREPLACE:
+        _publish_staging_noreplace(staging, destination)
+    elif mechanism == PUBLISH_EINVAL_FALLBACK:
+        _publish_staging_after_einval(staging, destination)
+    else:
+        raise PaperStoryError("materialization publish mechanism differs")
 
 
 def _remove_unpublished_staging(
@@ -2719,6 +2914,31 @@ def _remove_unpublished_staging(
         raise PaperStoryError(f"staging cleanup failed: {exc}") from exc
 
 
+def _attach_materialization_publish_evidence(
+    result: Mapping[str, object], publish_evidence: Mapping[str, object]
+) -> dict[str, object]:
+    materialization = result.get("materialization_evidence")
+    if type(materialization) is not dict:
+        materialization = {}
+    published = {
+        **result,
+        "materialization_evidence": {
+            **materialization,
+            "publish": dict(publish_evidence),
+        },
+    }
+    if publish_evidence.get("selected_mechanism") == PUBLISH_EINVAL_FALLBACK:
+        limitations = result.get("limitations")
+        published["limitations"] = [
+            *(limitations if type(limitations) is list else []),
+            (
+                "EINVAL publish fallback is not atomic no-replace against a "
+                "non-cooperating destination writer."
+            ),
+        ]
+    return published
+
+
 def _publish_materialization_bundle(
     destination: Path,
     materialized_receipt: Mapping[str, object],
@@ -2733,18 +2953,25 @@ def _publish_materialization_bundle(
     staging_identity = (staging_info.st_dev, staging_info.st_ino)
     published = False
     try:
+        publish_evidence = _observe_materialization_publish(destination)
+        published_result = _attach_materialization_publish_evidence(
+            result, publish_evidence
+        )
         _exclusive_write(staging / "receipt.json", materialized_receipt)
-        _exclusive_write(staging / "result.json", result)
-        _exclusive_write_text(staging / "README.md", _readme(result))
+        _exclusive_write(staging / "result.json", published_result)
+        _exclusive_write_text(staging / "README.md", _readme(published_result))
         completion = {
             "schema_version": "paper-story-a1-paired-materialization-complete/v1",
             "destination": os.fspath(destination),
+            "publish": publish_evidence,
             "files": {
                 name: _sha256_file(staging / name)
                 for name in ("README.md", "receipt.json", "result.json")
             },
         }
-        _publish_complete_staging(staging, destination, completion)
+        _publish_complete_staging(
+            staging, destination, completion, publish_evidence
+        )
         published = True
     finally:
         if not published:
