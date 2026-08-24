@@ -1,0 +1,1079 @@
+{
+ "baseline": {
+  "duration_s": 27.241,
+  "rc": 0,
+  "status": "PASSED"
+ },
+ "date": "2026-08-24T15:50:40.782832+00:00",
+ "mutations": [
+  {
+   "duration_s": 27.042,
+   "expected_nodes": [
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_known_absent_set_indirect_cxx_flags_is_rejected_from_old_commit_only",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_known_absent_set_indirect_target_definition_is_rejected_from_new_commit_only",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_known_absent_supply_hidden_by_cmake_bracket_argument_is_rejected"
+   ],
+   "expected_status": "KILLED",
+   "failed_nodes": [
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_known_absent_supply_hidden_by_cmake_bracket_argument_is_rejected",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_known_absent_set_indirect_target_definition_is_rejected_from_new_commit_only",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_known_absent_set_indirect_cxx_flags_is_rejected_from_old_commit_only"
+   ],
+   "id": "M1",
+   "matches_expectation": true,
+   "rc": 1,
+   "status": "KILLED"
+  },
+  {
+   "duration_s": 27.114,
+   "expected_nodes": [
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_known_absent_string_concat_indirect_is_rejected"
+   ],
+   "expected_status": "KILLED",
+   "failed_nodes": [
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_known_absent_string_concat_indirect_is_rejected"
+   ],
+   "id": "M2-CONCAT",
+   "matches_expectation": true,
+   "rc": 1,
+   "status": "KILLED"
+  },
+  {
+   "duration_s": 27.079,
+   "expected_nodes": [
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_known_absent_list_append_indirect_is_rejected"
+   ],
+   "expected_status": "KILLED",
+   "failed_nodes": [
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_known_absent_list_append_indirect_is_rejected"
+   ],
+   "id": "M2-APPEND",
+   "matches_expectation": true,
+   "rc": 1,
+   "status": "KILLED"
+  },
+  {
+   "duration_s": 27.311,
+   "expected_nodes": [
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_known_absent_list_append_indirect_is_rejected",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_known_absent_set_indirect_cxx_flags_is_rejected_from_old_commit_only",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_known_absent_set_indirect_target_definition_is_rejected_from_new_commit_only",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_known_absent_string_concat_indirect_is_rejected",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_known_absent_supply_hidden_by_cmake_bracket_argument_is_rejected",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_space_separated_dash_d_macro_in_cxx_flags_is_rejected"
+   ],
+   "expected_status": "KILLED",
+   "failed_nodes": [
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_known_absent_list_append_indirect_is_rejected",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_space_separated_dash_d_macro_in_cxx_flags_is_rejected",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_known_absent_string_concat_indirect_is_rejected",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_known_absent_supply_hidden_by_cmake_bracket_argument_is_rejected",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_known_absent_set_indirect_target_definition_is_rejected_from_new_commit_only",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_known_absent_set_indirect_cxx_flags_is_rejected_from_old_commit_only"
+   ],
+   "id": "M3",
+   "matches_expectation": true,
+   "rc": 1,
+   "status": "KILLED"
+  },
+  {
+   "duration_s": 52.628,
+   "expected_nodes": [
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_bracket_payload_legacy_rejection_is_preserved"
+   ],
+   "expected_status": "KILLED",
+   "failed_nodes": [
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_bracket_payload_legacy_rejection_is_preserved"
+   ],
+   "id": "M6",
+   "matches_expectation": true,
+   "rc": 1,
+   "status": "KILLED"
+  },
+  {
+   "duration_s": 28.885,
+   "expected_nodes": [
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_generator_expression_supply_remains_rejected_before_expansion"
+   ],
+   "expected_status": "KILLED",
+   "failed_nodes": [
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_generator_expression_supply_remains_rejected_before_expansion"
+   ],
+   "id": "M8",
+   "matches_expectation": true,
+   "rc": 1,
+   "status": "KILLED"
+  },
+  {
+   "duration_s": 31.588,
+   "expected_nodes": [
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_set_property_compile_definitions_is_rejected"
+   ],
+   "expected_status": "KILLED",
+   "failed_nodes": [
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_set_property_compile_definitions_is_rejected"
+   ],
+   "id": "M6b",
+   "matches_expectation": true,
+   "rc": 1,
+   "status": "KILLED"
+  },
+  {
+   "duration_s": 37.98,
+   "expected_nodes": [
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_space_separated_dash_d_macro_in_cxx_flags_is_rejected"
+   ],
+   "expected_status": "KILLED",
+   "failed_nodes": [
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_space_separated_dash_d_macro_in_cxx_flags_is_rejected"
+   ],
+   "id": "M7f",
+   "matches_expectation": true,
+   "rc": 1,
+   "status": "KILLED"
+  },
+  {
+   "duration_s": 32.194,
+   "expected_nodes": [
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_known_absent_spliced_define_is_rejected_from_new_commit_only"
+   ],
+   "expected_status": "KILLED",
+   "failed_nodes": [
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_known_absent_spliced_define_is_rejected_from_new_commit_only"
+   ],
+   "id": "M5",
+   "matches_expectation": true,
+   "rc": 1,
+   "status": "KILLED"
+  },
+  {
+   "duration_s": 31.974,
+   "expected_nodes": [
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_physical_line_supply_rejection_is_not_weakened_by_splicing"
+   ],
+   "expected_status": "KILLED",
+   "failed_nodes": [
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_physical_line_supply_rejection_is_not_weakened_by_splicing"
+   ],
+   "id": "M5b",
+   "matches_expectation": true,
+   "rc": 1,
+   "status": "KILLED"
+  },
+  {
+   "duration_s": 32.042,
+   "expected_nodes": [
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_bom_or_digraph_define_is_rejected[/ufeff#define MQLOCK 1/n]",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_duplicate_bom_supply_file_is_rejected_fail_closed"
+   ],
+   "expected_status": "KILLED",
+   "failed_nodes": [
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_duplicate_bom_supply_file_is_rejected_fail_closed",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_bom_or_digraph_define_is_rejected[/ufeff#define MQLOCK 1/n]"
+   ],
+   "id": "M4b",
+   "matches_expectation": true,
+   "rc": 1,
+   "status": "KILLED"
+  },
+  {
+   "duration_s": 26.958,
+   "expected_nodes": [
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_bom_or_digraph_define_is_rejected[%:define MQLOCK 1/n]"
+   ],
+   "expected_status": "KILLED",
+   "failed_nodes": [
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_bom_or_digraph_define_is_rejected[%:define MQLOCK 1/n]"
+   ],
+   "id": "M5d",
+   "matches_expectation": true,
+   "rc": 1,
+   "status": "KILLED"
+  },
+  {
+   "duration_s": 27.031,
+   "expected_nodes": [
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_commit_tree_symlink_entry_is_rejected",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_known_absent_is_rejected_from_comparison_commit_tree",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_known_absent_new_only_supply_is_rejected_from_new_commit",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_known_absent_old_only_supply_is_rejected_from_old_commit",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_known_absent_set_indirect_cxx_flags_is_rejected_from_old_commit_only",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_known_absent_set_indirect_target_definition_is_rejected_from_new_commit_only",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_known_absent_spliced_define_is_rejected_from_new_commit_only",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_repo_supply_files_is_enumerated_once_per_absence_validation"
+   ],
+   "expected_status": "KILLED",
+   "failed_nodes": [
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_repo_supply_files_is_enumerated_once_per_absence_validation",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_commit_tree_symlink_entry_is_rejected",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_known_absent_set_indirect_target_definition_is_rejected_from_new_commit_only",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_known_absent_spliced_define_is_rejected_from_new_commit_only",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_known_absent_set_indirect_cxx_flags_is_rejected_from_old_commit_only",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_known_absent_is_rejected_from_comparison_commit_tree",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_known_absent_new_only_supply_is_rejected_from_new_commit",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_known_absent_old_only_supply_is_rejected_from_old_commit"
+   ],
+   "id": "M18",
+   "matches_expectation": true,
+   "rc": 1,
+   "status": "KILLED"
+  },
+  {
+   "duration_s": 27.021,
+   "expected_nodes": [
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_comment_decoy_after_formed_directive_cannot_forge_correspondence",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_comment_decoy_cannot_forge_raw_logical_include_correspondence",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_comment_decoy_only_pair_preserves_raw_logical_count_rejection",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_comment_formed_include_directive_is_rejected_fail_closed",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_digraph_include_directive_is_rejected_fail_closed",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_import_directive_is_rejected_fail_closed",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_line_spliced_include_is_rejected_and_was_green_before_fix",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_macro_include_operand_is_rejected_fail_closed",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_new_side_comment_decoy_is_rejected_by_raw_logical_count_gate",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_two_comment_decoys_cannot_forge_raw_logical_include_correspondence"
+   ],
+   "expected_status": "KILLED",
+   "failed_nodes": [
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_new_side_comment_decoy_is_rejected_by_raw_logical_count_gate",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_comment_decoy_after_formed_directive_cannot_forge_correspondence",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_two_comment_decoys_cannot_forge_raw_logical_include_correspondence",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_digraph_include_directive_is_rejected_fail_closed",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_line_spliced_include_is_rejected_and_was_green_before_fix",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_comment_decoy_cannot_forge_raw_logical_include_correspondence",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_comment_formed_include_directive_is_rejected_fail_closed",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_import_directive_is_rejected_fail_closed",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_comment_decoy_only_pair_preserves_raw_logical_count_rejection",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_macro_include_operand_is_rejected_fail_closed"
+   ],
+   "id": "M9",
+   "matches_expectation": true,
+   "rc": 1,
+   "status": "KILLED"
+  },
+  {
+   "duration_s": 26.998,
+   "expected_nodes": [
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_comment_decoy_after_formed_directive_cannot_forge_correspondence",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_comment_decoy_cannot_forge_raw_logical_include_correspondence",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_comment_formed_include_directive_is_rejected_fail_closed",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_line_spliced_include_is_rejected_and_was_green_before_fix"
+   ],
+   "expected_status": "KILLED",
+   "failed_nodes": [
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_comment_formed_include_directive_is_rejected_fail_closed",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_line_spliced_include_is_rejected_and_was_green_before_fix",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_comment_decoy_after_formed_directive_cannot_forge_correspondence",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_comment_decoy_cannot_forge_raw_logical_include_correspondence"
+   ],
+   "id": "M11",
+   "matches_expectation": true,
+   "rc": 1,
+   "status": "KILLED"
+  },
+  {
+   "duration_s": 27.075,
+   "expected_nodes": [
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_comment_decoy_only_pair_preserves_raw_logical_count_rejection",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_new_side_comment_decoy_is_rejected_by_raw_logical_count_gate",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_two_comment_decoys_cannot_forge_raw_logical_include_correspondence"
+   ],
+   "expected_status": "KILLED",
+   "failed_nodes": [
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_two_comment_decoys_cannot_forge_raw_logical_include_correspondence",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_new_side_comment_decoy_is_rejected_by_raw_logical_count_gate",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_comment_decoy_only_pair_preserves_raw_logical_count_rejection"
+   ],
+   "id": "M11c",
+   "matches_expectation": true,
+   "rc": 1,
+   "status": "KILLED"
+  },
+  {
+   "duration_s": 27.07,
+   "expected_nodes": [
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_digraph_include_directive_is_rejected_fail_closed",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_import_directive_is_rejected_fail_closed"
+   ],
+   "expected_status": "KILLED",
+   "failed_nodes": [
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_import_directive_is_rejected_fail_closed",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_digraph_include_directive_is_rejected_fail_closed"
+   ],
+   "id": "M10",
+   "matches_expectation": true,
+   "rc": 1,
+   "status": "KILLED"
+  },
+  {
+   "duration_s": 26.962,
+   "expected_nodes": [
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_marker_name_split_by_line_continuation_is_rejected",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_marker_prefix_is_rejected_even_without_generated_marker_name"
+   ],
+   "expected_status": "KILLED",
+   "failed_nodes": [
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_marker_prefix_is_rejected_even_without_generated_marker_name",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_marker_name_split_by_line_continuation_is_rejected"
+   ],
+   "id": "M12",
+   "matches_expectation": true,
+   "rc": 1,
+   "status": "KILLED"
+  },
+  {
+   "duration_s": 27.023,
+   "expected_nodes": [
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_bom_followed_by_whitespace_before_include_remains_accepted",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_bom_prefixed_include_spelling_change_is_rejected"
+   ],
+   "expected_status": "KILLED",
+   "failed_nodes": [
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_bom_followed_by_whitespace_before_include_remains_accepted",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_bom_prefixed_include_spelling_change_is_rejected"
+   ],
+   "id": "M4c",
+   "matches_expectation": true,
+   "rc": 1,
+   "status": "KILLED"
+  },
+  {
+   "duration_s": 27.015,
+   "expected_nodes": [
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_asymmetric_leading_bom_is_rejected_fail_closed"
+   ],
+   "expected_status": "KILLED",
+   "failed_nodes": [
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_asymmetric_leading_bom_is_rejected_fail_closed"
+   ],
+   "id": "M4d",
+   "matches_expectation": true,
+   "rc": 1,
+   "status": "KILLED"
+  },
+  {
+   "duration_s": 26.983,
+   "expected_nodes": [
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_duplicate_bom_supply_file_is_rejected_fail_closed",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_duplicate_leading_bom_is_rejected_fail_closed"
+   ],
+   "expected_status": "KILLED",
+   "failed_nodes": [
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_duplicate_bom_supply_file_is_rejected_fail_closed",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_duplicate_leading_bom_is_rejected_fail_closed"
+   ],
+   "id": "M4e",
+   "matches_expectation": true,
+   "rc": 1,
+   "status": "KILLED"
+  },
+  {
+   "duration_s": 26.987,
+   "expected_nodes": [
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_mocc_nonfinal_permitted_include_reports_nonidentical_policy_pass"
+   ],
+   "expected_status": "KILLED",
+   "failed_nodes": [
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_mocc_nonfinal_permitted_include_reports_nonidentical_policy_pass"
+   ],
+   "id": "M13",
+   "matches_expectation": true,
+   "rc": 1,
+   "status": "KILLED"
+  },
+  {
+   "duration_s": 27.238,
+   "expected_nodes": [
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_mocc_nonfinal_permitted_include_reports_nonidentical_policy_pass",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_trace_only_change_passes_with_deterministic_required_evidence"
+   ],
+   "expected_status": "KILLED",
+   "failed_nodes": [
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_trace_only_change_passes_with_deterministic_required_evidence",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_mocc_nonfinal_permitted_include_reports_nonidentical_policy_pass"
+   ],
+   "id": "M14",
+   "matches_expectation": true,
+   "rc": 1,
+   "status": "KILLED"
+  },
+  {
+   "duration_s": 31.986,
+   "expected_nodes": [
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_comparison_evidence_rejects_value_digest_disagreement"
+   ],
+   "expected_status": "KILLED",
+   "failed_nodes": [
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_comparison_evidence_rejects_value_digest_disagreement"
+   ],
+   "id": "M16",
+   "matches_expectation": true,
+   "rc": 1,
+   "status": "KILLED"
+  },
+  {
+   "duration_s": 26.965,
+   "expected_nodes": [
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_mocc_permitted_addition_cannot_deactivate_another_include"
+   ],
+   "expected_status": "KILLED",
+   "failed_nodes": [
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_mocc_permitted_addition_cannot_deactivate_another_include"
+   ],
+   "id": "M17",
+   "matches_expectation": true,
+   "rc": 1,
+   "status": "KILLED"
+  }
+ ],
+ "procedure": {
+  "collection": {
+   "artifact": {
+    "job_stdout_path": "/work/1/SFC/tanab/mutation-scratch-t1584/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/ced9942a3fe0091474e89c9b7d1b97e3/izdw-ced9942a3f.o944499",
+    "receipt_path": "/work/1/SFC/tanab/mutation-scratch-t1584/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/ced9942a3fe0091474e89c9b7d1b97e3/receipt.json",
+    "runner_mode": "dispatch",
+    "stdout": "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_trace_only_change_passes_with_deterministic_required_evidence\norchestrator/tests/test_check_trace0_preprocess_identity.py::test_trace_output_outside_trace_branch_is_rejected\norchestrator/tests/test_check_trace0_preprocess_identity.py::test_mocc_trace_include_addition_passes_with_expected_path\norchestrator/tests/test_check_trace0_preprocess_identity.py::test_registered_mocc_source_uses_owner_protocol_defines\norchestrator/tests/test_check_trace0_preprocess_identity.py::test_unregistered_cpp_source_keeps_genome_protocol_defines\norchestrator/tests/test_check_trace0_preprocess_identity.py::test_registered_source_owner_cmake_failure_is_not_downgraded\norchestrator/tests/test_check_trace0_preprocess_identity.py::test_trace_include_addition_is_rejected_for_non_mocc_path\norchestrator/tests/test_check_trace0_preprocess_identity.py::test_mocc_trace_include_without_trace_guard_is_rejected\norchestrator/tests/test_check_trace0_preprocess_identity.py::test_mocc_trace_include_addition_cannot_hide_another_include\norchestrator/tests/test_check_trace0_preprocess_identity.py::test_ifdef_trace_is_rejected_when_trace_is_explicitly_zero\norchestrator/tests/test_check_trace0_preprocess_identity.py::test_include_moved_inside_trace_branch_is_rejected_by_activity\norchestrator/tests/test_check_trace0_preprocess_identity.py::test_every_modified_cpp_source_is_checked_without_expected_paths\norchestrator/tests/test_check_trace0_preprocess_identity.py::test_expected_paths_match_is_order_independent_and_recorded\norchestrator/tests/test_check_trace0_preprocess_identity.py::test_known_absent_is_rejected_from_comparison_commit_tree\norchestrator/tests/test_check_trace0_preprocess_identity.py::test_known_absent_is_rejected_from_checkout_when_commit_is_specified\norchestrator/tests/test_check_trace0_preprocess_identity.py::test_known_absent_old_only_supply_is_rejected_from_old_commit\norchestrator/tests/test_check_trace0_preprocess_identity.py::test_known_absent_new_only_supply_is_rejected_from_new_commit\norchestrator/tests/test_check_trace0_preprocess_identity.py::test_known_absent_validation_receives_both_comparison_oids_once\norchestrator/tests/test_check_trace0_preprocess_identity.py::test_commit_tree_symlink_entry_is_rejected\norchestrator/tests/test_check_trace0_preprocess_identity.py::test_checkout_walk_directory_enumeration_error_is_rejected\norchestrator/tests/test_check_trace0_preprocess_identity.py::test_uninitialized_gitlink_directory_is_not_asked_to_resolve_parent_head\norchestrator/tests/test_check_trace0_preprocess_identity.py::test_commit_tree_with_matching_initialized_gitlink_is_accepted\norchestrator/tests/test_check_trace0_preprocess_identity.py::test_commit_tree_with_uninitialized_gitlink_worktree_is_accepted\norchestrator/tests/test_check_trace0_preprocess_identity.py::test_expected_paths_rejects_actual_or_expected_superset[expected0]\norchestrator/tests/test_check_trace0_preprocess_identity.py::test_expected_paths_rejects_actual_or_expected_superset[expected1]\norchestrator/tests/test_check_trace0_preprocess_identity.py::test_expected_paths_rejects_duplicates\norchestrator/tests/test_check_trace0_preprocess_identity.py::test_help_documents_expected_paths_exact_set_contract\norchestrator/tests/test_check_trace0_preprocess_identity.py::test_modified_header_is_rejected_as_outside_checker_guarantee[.h]\norchestrator/tests/test_check_trace0_preprocess_identity.py::test_modified_header_is_rejected_as_outside_checker_guarantee[.hh]\norchestrator/tests/test_check_trace0_preprocess_identity.py::test_modified_header_is_rejected_as_outside_checker_guarantee[.hpp]\norchestrator/tests/test_check_trace0_preprocess_identity.py::test_modified_header_is_rejected_as_outside_checker_guarantee[.hxx]\norchestrator/tests/test_check_trace0_preprocess_identity.py::test_modified_header_is_rejected_as_outside_checker_guarantee[.ipp]\norchestrator/tests/test_check_trace0_preprocess_identity.py::test_empty_context_enumeration_is_rejected_fail_closed\norchestrator/tests/test_check_trace0_preprocess_identity.py::test_context_count_mismatch_is_rejected_fail_closed\norchestrator/tests/test_check_trace0_preprocess_identity.py::test_old_and_new_digests_are_computed_by_independent_calls\norchestrator/tests/test_check_trace0_preprocess_identity.py::test_add_delete_and_rename_are_rejected_as_unsupported_status[add]\norchestrator/tests/test_check_trace0_preprocess_identity.py::test_add_delete_and_rename_are_rejected_as_unsupported_status[delete]\norchestrator/tests/test_check_trace0_preprocess_identity.py::test_add_delete_and_rename_are_rejected_as_unsupported_status[rename]\norchestrator/tests/test_check_trace0_preprocess_identity.py::test_mode_change_is_rejected\norchestrator/tests/test_check_trace0_preprocess_identity.py::test_non_cpp_changed_path_is_rejected\norchestrator/tests/test_check_trace0_preprocess_identity.py::test_preprocess_failure_is_not_downgraded_to_pass\norchestrator/tests/test_check_trace0_preprocess_identity.py::test_nonexistent_compiler_is_rejected\norchestrator/tests/test_check_trace0_preprocess_identity.py::test_missing_required_cxx_argument_is_rejected\norchestrator/tests/test_check_trace0_preprocess_identity.py::test_same_commit_empty_diff_is_rejected\norchestrator/tests/test_check_trace0_preprocess_identity.py::test_short_sha_and_symbolic_ref_are_rejected[short]\norchestrator/tests/test_check_trace0_preprocess_identity.py::test_short_sha_and_symbolic_ref_are_rejected[symbolic]\norchestrator/tests/test_check_trace0_preprocess_identity.py::test_missing_commit_object_is_rejected\norchestrator/tests/test_check_trace0_preprocess_identity.py::test_nonancestor_commit_relation_is_rejected\norchestrator/tests/test_check_trace0_preprocess_identity.py::test_include_line_spelling_change_is_rejected\norchestrator/tests/test_check_trace0_preprocess_identity.py::test_existing_conditional_macro_guard_remains_fail_closed[#ifdef UNKNOWN_BUILD_MACRO\\nint hidden = 1;\\n#endif\\n-\\u672a\\u77e5\\u30de\\u30af\\u30ed]\norchestrator/tests/test_check_trace0_preprocess_identity.py::test_existing_conditional_macro_guard_remains_fail_closed[#if __has_include(<hidden.hh>)\\nint hidden = 1;\\n#endif\\n-__has_include]\norchestrator/tests/test_check_trace0_preprocess_identity.py::test_difference_visible_only_in_nonbase_context_is_rejected\norchestrator/tests/test_check_trace0_preprocess_identity.py::test_comment_only_drift_outside_trace_is_accepted\norchestrator/tests/test_check_trace0_preprocess_identity.py::test_known_absent_set_indirect_target_definition_is_rejected_from_new_commit_only\norchestrator/tests/test_check_trace0_preprocess_identity.py::test_known_absent_set_indirect_cxx_flags_is_rejected_from_old_commit_only\norchestrator/tests/test_check_trace0_preprocess_identity.py::test_known_absent_string_concat_indirect_is_rejected\norchestrator/tests/test_check_trace0_preprocess_identity.py::test_known_absent_supply_hidden_by_cmake_bracket_argument_is_rejected\norchestrator/tests/test_check_trace0_preprocess_identity.py::test_cmake_bracket_inside_quoted_argument_does_not_hide_supply\norchestrator/tests/test_check_trace0_preprocess_identity.py::test_known_absent_spliced_define_is_rejected_from_new_commit_only\norchestrator/tests/test_check_trace0_preprocess_identity.py::test_known_absent_define_after_raw_string_is_rejected\norchestrator/tests/test_check_trace0_preprocess_identity.py::test_identifier_suffix_before_raw_opener_does_not_hide_define\norchestrator/tests/test_check_trace0_preprocess_identity.py::test_bracket_payload_legacy_rejection_is_preserved\norchestrator/tests/test_check_trace0_preprocess_identity.py::test_bom_or_digraph_define_is_rejected[\\ufeff#define MQLOCK 1\\n]\norchestrator/tests/test_check_trace0_preprocess_identity.py::test_bom_or_digraph_define_is_rejected[%:define MQLOCK 1\\n]\norchestrator/tests/test_check_trace0_preprocess_identity.py::test_duplicate_bom_supply_file_is_rejected_fail_closed\norchestrator/tests/test_check_trace0_preprocess_identity.py::test_set_property_compile_definitions_is_rejected\norchestrator/tests/test_check_trace0_preprocess_identity.py::test_space_separated_dash_d_macro_in_cxx_flags_is_rejected\norchestrator/tests/test_check_trace0_preprocess_identity.py::test_known_absent_list_append_indirect_is_rejected\norchestrator/tests/test_check_trace0_preprocess_identity.py::test_physical_line_supply_rejection_is_not_weakened_by_splicing\norchestrator/tests/test_check_trace0_preprocess_identity.py::test_generator_expression_supply_remains_rejected_before_expansion\norchestrator/tests/test_check_trace0_preprocess_identity.py::test_macro_include_operand_is_rejected_fail_closed\norchestrator/tests/test_check_trace0_preprocess_identity.py::test_import_directive_is_rejected_fail_closed\norchestrator/tests/test_check_trace0_preprocess_identity.py::test_digraph_include_directive_is_rejected_fail_closed\norchestrator/tests/test_check_trace0_preprocess_identity.py::test_comment_formed_include_directive_is_rejected_fail_closed\norchestrator/tests/test_check_trace0_preprocess_identity.py::test_line_spliced_include_is_rejected_and_was_green_before_fix\norchestrator/tests/test_check_trace0_preprocess_identity.py::test_comment_decoy_cannot_forge_raw_logical_include_correspondence\norchestrator/tests/test_check_trace0_preprocess_identity.py::test_two_comment_decoys_cannot_forge_raw_logical_include_correspondence\norchestrator/tests/test_check_trace0_preprocess_identity.py::test_comment_decoy_after_formed_directive_cannot_forge_correspondence\norchestrator/tests/test_check_trace0_preprocess_identity.py::test_comment_decoy_only_pair_preserves_raw_logical_count_rejection\norchestrator/tests/test_check_trace0_preprocess_identity.py::test_new_side_comment_decoy_is_rejected_by_raw_logical_count_gate\norchestrator/tests/test_check_trace0_preprocess_identity.py::test_bom_prefixed_include_spelling_change_is_rejected\norchestrator/tests/test_check_trace0_preprocess_identity.py::test_leading_whitespace_before_include_remains_accepted\norchestrator/tests/test_check_trace0_preprocess_identity.py::test_bom_followed_by_whitespace_before_include_remains_accepted\norchestrator/tests/test_check_trace0_preprocess_identity.py::test_duplicate_leading_bom_is_rejected_fail_closed\norchestrator/tests/test_check_trace0_preprocess_identity.py::test_asymmetric_leading_bom_is_rejected_fail_closed\norchestrator/tests/test_check_trace0_preprocess_identity.py::test_literal_include_operand_trace_only_change_passes\norchestrator/tests/test_check_trace0_preprocess_identity.py::test_marker_name_split_by_line_continuation_is_rejected\norchestrator/tests/test_check_trace0_preprocess_identity.py::test_mocc_nonfinal_permitted_include_reports_nonidentical_policy_pass\norchestrator/tests/test_check_trace0_preprocess_identity.py::test_mocc_permitted_addition_cannot_deactivate_another_include\norchestrator/tests/test_check_trace0_preprocess_identity.py::test_comparison_evidence_rejects_value_digest_disagreement\norchestrator/tests/test_check_trace0_preprocess_identity.py::test_unresolved_indirect_cmake_value_is_not_a_rejection_reason\norchestrator/tests/test_check_trace0_preprocess_identity.py::test_repo_supply_files_is_enumerated_once_per_absence_validation\norchestrator/tests/test_check_trace0_preprocess_identity.py::test_marker_prefix_is_rejected_even_without_generated_marker_name\norchestrator/tests/test_check_trace0_preprocess_identity.py::test_exact_include_activity_policy_report_shape\n\n94 tests collected in 0.43s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"serial\"}\n",
+    "stdout_sha256": "787202606bd9947b657663e8723e595da85a04b84b82df635d7b2c79511f098e"
+   },
+   "collected_nodes": [
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_trace_only_change_passes_with_deterministic_required_evidence",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_trace_output_outside_trace_branch_is_rejected",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_mocc_trace_include_addition_passes_with_expected_path",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_registered_mocc_source_uses_owner_protocol_defines",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_unregistered_cpp_source_keeps_genome_protocol_defines",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_registered_source_owner_cmake_failure_is_not_downgraded",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_trace_include_addition_is_rejected_for_non_mocc_path",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_mocc_trace_include_without_trace_guard_is_rejected",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_mocc_trace_include_addition_cannot_hide_another_include",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_ifdef_trace_is_rejected_when_trace_is_explicitly_zero",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_include_moved_inside_trace_branch_is_rejected_by_activity",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_every_modified_cpp_source_is_checked_without_expected_paths",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_expected_paths_match_is_order_independent_and_recorded",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_known_absent_is_rejected_from_comparison_commit_tree",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_known_absent_is_rejected_from_checkout_when_commit_is_specified",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_known_absent_old_only_supply_is_rejected_from_old_commit",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_known_absent_new_only_supply_is_rejected_from_new_commit",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_known_absent_validation_receives_both_comparison_oids_once",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_commit_tree_symlink_entry_is_rejected",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_checkout_walk_directory_enumeration_error_is_rejected",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_uninitialized_gitlink_directory_is_not_asked_to_resolve_parent_head",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_commit_tree_with_matching_initialized_gitlink_is_accepted",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_commit_tree_with_uninitialized_gitlink_worktree_is_accepted",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_expected_paths_rejects_actual_or_expected_superset[expected0]",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_expected_paths_rejects_actual_or_expected_superset[expected1]",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_expected_paths_rejects_duplicates",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_help_documents_expected_paths_exact_set_contract",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_modified_header_is_rejected_as_outside_checker_guarantee[.h]",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_modified_header_is_rejected_as_outside_checker_guarantee[.hh]",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_modified_header_is_rejected_as_outside_checker_guarantee[.hpp]",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_modified_header_is_rejected_as_outside_checker_guarantee[.hxx]",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_modified_header_is_rejected_as_outside_checker_guarantee[.ipp]",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_empty_context_enumeration_is_rejected_fail_closed",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_context_count_mismatch_is_rejected_fail_closed",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_old_and_new_digests_are_computed_by_independent_calls",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_add_delete_and_rename_are_rejected_as_unsupported_status[add]",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_add_delete_and_rename_are_rejected_as_unsupported_status[delete]",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_add_delete_and_rename_are_rejected_as_unsupported_status[rename]",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_mode_change_is_rejected",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_non_cpp_changed_path_is_rejected",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_preprocess_failure_is_not_downgraded_to_pass",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_nonexistent_compiler_is_rejected",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_missing_required_cxx_argument_is_rejected",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_same_commit_empty_diff_is_rejected",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_short_sha_and_symbolic_ref_are_rejected[short]",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_short_sha_and_symbolic_ref_are_rejected[symbolic]",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_missing_commit_object_is_rejected",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_nonancestor_commit_relation_is_rejected",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_include_line_spelling_change_is_rejected",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_existing_conditional_macro_guard_remains_fail_closed[#ifdef UNKNOWN_BUILD_MACRO/nint hidden = 1;/n#endif/n-/u672a/u77e5/u30de/u30af/u30ed]",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_existing_conditional_macro_guard_remains_fail_closed[#if __has_include(<hidden.hh>)/nint hidden = 1;/n#endif/n-__has_include]",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_difference_visible_only_in_nonbase_context_is_rejected",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_comment_only_drift_outside_trace_is_accepted",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_known_absent_set_indirect_target_definition_is_rejected_from_new_commit_only",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_known_absent_set_indirect_cxx_flags_is_rejected_from_old_commit_only",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_known_absent_string_concat_indirect_is_rejected",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_known_absent_supply_hidden_by_cmake_bracket_argument_is_rejected",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_cmake_bracket_inside_quoted_argument_does_not_hide_supply",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_known_absent_spliced_define_is_rejected_from_new_commit_only",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_known_absent_define_after_raw_string_is_rejected",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_identifier_suffix_before_raw_opener_does_not_hide_define",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_bracket_payload_legacy_rejection_is_preserved",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_bom_or_digraph_define_is_rejected[/ufeff#define MQLOCK 1/n]",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_bom_or_digraph_define_is_rejected[%:define MQLOCK 1/n]",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_duplicate_bom_supply_file_is_rejected_fail_closed",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_set_property_compile_definitions_is_rejected",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_space_separated_dash_d_macro_in_cxx_flags_is_rejected",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_known_absent_list_append_indirect_is_rejected",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_physical_line_supply_rejection_is_not_weakened_by_splicing",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_generator_expression_supply_remains_rejected_before_expansion",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_macro_include_operand_is_rejected_fail_closed",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_import_directive_is_rejected_fail_closed",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_digraph_include_directive_is_rejected_fail_closed",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_comment_formed_include_directive_is_rejected_fail_closed",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_line_spliced_include_is_rejected_and_was_green_before_fix",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_comment_decoy_cannot_forge_raw_logical_include_correspondence",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_two_comment_decoys_cannot_forge_raw_logical_include_correspondence",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_comment_decoy_after_formed_directive_cannot_forge_correspondence",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_comment_decoy_only_pair_preserves_raw_logical_count_rejection",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_new_side_comment_decoy_is_rejected_by_raw_logical_count_gate",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_bom_prefixed_include_spelling_change_is_rejected",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_leading_whitespace_before_include_remains_accepted",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_bom_followed_by_whitespace_before_include_remains_accepted",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_duplicate_leading_bom_is_rejected_fail_closed",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_asymmetric_leading_bom_is_rejected_fail_closed",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_literal_include_operand_trace_only_change_passes",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_marker_name_split_by_line_continuation_is_rejected",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_mocc_nonfinal_permitted_include_reports_nonidentical_policy_pass",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_mocc_permitted_addition_cannot_deactivate_another_include",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_comparison_evidence_rejects_value_digest_disagreement",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_unresolved_indirect_cmake_value_is_not_a_rejection_reason",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_repo_supply_files_is_enumerated_once_per_absence_validation",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_marker_prefix_is_rejected_even_without_generated_marker_name",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_exact_include_activity_policy_report_shape"
+   ],
+   "duration_s": 26.963,
+   "rc": 0,
+   "repo_head": "56d6a463d923b024c17b4a3c75ce128cfe9fcee0",
+   "runner_sha256": "abf901db73c5a8244757e2125da766cfce3600bc118a2399591df7967610ff9c",
+   "spec_sha256": "7390b243fd17371d74835693f096939f4753bcf5cb4e7edcff18cbdd56b7e36a",
+   "status": "PASSED",
+   "tool_sha256": "f30a0e3f4f16be92b889937ae835d1098d617ee9150a06eb8518d06507c8b4d7"
+  },
+  "hang_timeout_seconds": 2700.0,
+  "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+  "registration_preflight": {
+   "M1": {
+    "anchor_counts": {
+     "0": 1
+    },
+    "expected_nodes": [
+     "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_known_absent_set_indirect_cxx_flags_is_rejected_from_old_commit_only",
+     "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_known_absent_set_indirect_target_definition_is_rejected_from_new_commit_only",
+     "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_known_absent_supply_hidden_by_cmake_bracket_argument_is_rejected"
+    ],
+    "expected_status": "KILLED",
+    "injection_diff_sha256": "c524210e97787632bd3467a22fcf79416d8f68f709fd2bb8d148fae424d1eafd",
+    "replacements": [
+     {
+      "file": "orchestrator/campaign/source_digest.py",
+      "new": "        if False and tokens and _OPTION_IDENT_RE.fullmatch(tokens[0]):\n            payload = tokens[1:]\n",
+      "old": "        if name == \"set\" and tokens and _OPTION_IDENT_RE.fullmatch(tokens[0]):\n            payload = tokens[1:]\n"
+     }
+    ]
+   },
+   "M10": {
+    "anchor_counts": {
+     "0": 1,
+     "1": 1
+    },
+    "expected_nodes": [
+     "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_digraph_include_directive_is_rejected_fail_closed",
+     "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_import_directive_is_rejected_fail_closed"
+    ],
+    "expected_status": "KILLED",
+    "injection_diff_sha256": "2f457ae8db1dd8cad3da7d5ab2a2fc92e57c3fef000c4df2ffc64a3456217b8f",
+    "replacements": [
+     {
+      "file": "tools/check_trace0_preprocess_identity.py",
+      "new": "    if False:\n        raise CheckError(f\"digraph directive (%:) は未対応: {side} {path}\")\n",
+      "old": "    if _DIGRAPH_DIRECTIVE_RE.search(source) or _DIGRAPH_DIRECTIVE_RE.search(spliced):\n        raise CheckError(f\"digraph directive (%:) は未対応: {side} {path}\")\n"
+     },
+     {
+      "file": "tools/check_trace0_preprocess_identity.py",
+      "new": "    if False:\n        raise CheckError(f\"#import directive は未対応: {side} {path}\")\n",
+      "old": "    if any(match.group(1).lower() == \"import\" for match in logical_directives):\n        raise CheckError(f\"#import directive は未対応: {side} {path}\")\n"
+     }
+    ]
+   },
+   "M11": {
+    "anchor_counts": {
+     "0": 1
+    },
+    "expected_nodes": [
+     "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_comment_decoy_after_formed_directive_cannot_forge_correspondence",
+     "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_comment_decoy_cannot_forge_raw_logical_include_correspondence",
+     "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_comment_formed_include_directive_is_rejected_fail_closed",
+     "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_line_spliced_include_is_rejected_and_was_green_before_fix"
+    ],
+    "expected_status": "KILLED",
+    "injection_diff_sha256": "b926416569239e5f2e941ea755b0fbcebfac60208285bdf5b475d175de9549e1",
+    "replacements": [
+     {
+      "file": "tools/check_trace0_preprocess_identity.py",
+      "new": "    if False:\n",
+      "old": "    if corresponding_logical != logical_spellings:\n"
+     }
+    ]
+   },
+   "M11c": {
+    "anchor_counts": {
+     "0": 1
+    },
+    "expected_nodes": [
+     "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_comment_decoy_only_pair_preserves_raw_logical_count_rejection",
+     "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_new_side_comment_decoy_is_rejected_by_raw_logical_count_gate",
+     "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_two_comment_decoys_cannot_forge_raw_logical_include_correspondence"
+    ],
+    "expected_status": "KILLED",
+    "injection_diff_sha256": "cf7a9832288eeaf7a27962815782d3563041c8c830b1ee9d12363308a2ef63e7",
+    "replacements": [
+     {
+      "file": "tools/check_trace0_preprocess_identity.py",
+      "new": "    if False:\n        unsupported_reasons.append(\n",
+      "old": "    if len(raw_includes) != len(logical_includes):\n        unsupported_reasons.append(\n"
+     }
+    ]
+   },
+   "M12": {
+    "anchor_counts": {
+     "0": 1,
+     "1": 1
+    },
+    "expected_nodes": [
+     "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_marker_name_split_by_line_continuation_is_rejected",
+     "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_marker_prefix_is_rejected_even_without_generated_marker_name"
+    ],
+    "expected_status": "KILLED",
+    "injection_diff_sha256": "a23b966feace3dba64b344bc7623c29002e5f39f81c63646dfd2c7123e04bfdd",
+    "replacements": [
+     {
+      "file": "tools/check_trace0_preprocess_identity.py",
+      "new": "    spliced_source = source_text\n    for marker in markers:\n        if re.search(rf\"\\b{re.escape(marker)}\\b\", spliced_source):\n",
+      "old": "    spliced_source = _splice_c_line_continuations(source_text)\n    for marker in markers:\n        if re.search(rf\"\\b{re.escape(marker)}\\b\", spliced_source):\n"
+     },
+     {
+      "file": "tools/check_trace0_preprocess_identity.py",
+      "new": "    if False:\n        raise CheckError(\"include marker prefix が source に存在する未対応形\")\n",
+      "old": "    if _MARKER_PREFIX in source_text:\n        raise CheckError(\"include marker prefix が source に存在する未対応形\")\n"
+     }
+    ]
+   },
+   "M13": {
+    "anchor_counts": {
+     "0": 1
+    },
+    "expected_nodes": [
+     "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_mocc_nonfinal_permitted_include_reports_nonidentical_policy_pass"
+    ],
+    "expected_status": "KILLED",
+    "injection_diff_sha256": "9a0b7da74fba001b8ca981efd8becaaf15e9d64849c6cdf00196bccd2eb37aae",
+    "replacements": [
+     {
+      "file": "tools/check_trace0_preprocess_identity.py",
+      "new": "            activity_evidence = dict(\n                _comparison_evidence(old_activity_bytes, new_activity_bytes),\n                identical=True,\n            )\n",
+      "old": "            activity_evidence = _comparison_evidence(\n                old_activity_bytes, new_activity_bytes\n            )\n"
+     }
+    ]
+   },
+   "M14": {
+    "anchor_counts": {
+     "0": 1
+    },
+    "expected_nodes": [
+     "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_mocc_nonfinal_permitted_include_reports_nonidentical_policy_pass",
+     "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_trace_only_change_passes_with_deterministic_required_evidence"
+    ],
+    "expected_status": "KILLED",
+    "injection_diff_sha256": "1eb72bacc408171d0eec3b88be2c3544ef30160c423eb4579f0e7a7cb1a9f399",
+    "replacements": [
+     {
+      "file": "tools/check_trace0_preprocess_identity.py",
+      "new": "                    \"old_active_markers\": old_active,\n                    \"active_markers\": old_active,\n",
+      "old": "                    \"old_active_markers\": old_active,\n                    \"new_active_markers\": new_active,\n"
+     }
+    ]
+   },
+   "M16": {
+    "anchor_counts": {
+     "0": 1
+    },
+    "expected_nodes": [
+     "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_comparison_evidence_rejects_value_digest_disagreement"
+    ],
+    "expected_status": "KILLED",
+    "injection_diff_sha256": "6b9dac284f70f7afe034b1f594442969d095b7a4c68656e525dc81bac0efd79f",
+    "replacements": [
+     {
+      "file": "tools/check_trace0_preprocess_identity.py",
+      "new": "    if False:\n        raise CheckError(\"値と digest の同一性が不整合\")\n",
+      "old": "    if value_identical != digest_identical:\n        raise CheckError(\"値と digest の同一性が不整合\")\n"
+     }
+    ]
+   },
+   "M17": {
+    "anchor_counts": {
+     "0": 1
+    },
+    "expected_nodes": [
+     "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_mocc_permitted_addition_cannot_deactivate_another_include"
+    ],
+    "expected_status": "KILLED",
+    "injection_diff_sha256": "e0564a0ce4b630fe89d9c917b2ba82abeb22c176c3d05ba61e215fd71ae60478",
+    "replacements": [
+     {
+      "file": "tools/check_trace0_preprocess_identity.py",
+      "new": "    if False:\n        raise CheckError(f\"include 活性（順序込み）が不一致: path={path!r}\")\n\n\ndef _compare_include_activity(\n",
+      "old": "    if old_active != mapped_new_active:\n        raise CheckError(f\"include 活性（順序込み）が不一致: path={path!r}\")\n\n\ndef _compare_include_activity(\n"
+     }
+    ]
+   },
+   "M18": {
+    "anchor_counts": {
+     "0": 1
+    },
+    "expected_nodes": [
+     "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_commit_tree_symlink_entry_is_rejected",
+     "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_known_absent_is_rejected_from_comparison_commit_tree",
+     "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_known_absent_new_only_supply_is_rejected_from_new_commit",
+     "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_known_absent_old_only_supply_is_rejected_from_old_commit",
+     "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_known_absent_set_indirect_cxx_flags_is_rejected_from_old_commit_only",
+     "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_known_absent_set_indirect_target_definition_is_rejected_from_new_commit_only",
+     "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_known_absent_spliced_define_is_rejected_from_new_commit_only",
+     "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_repo_supply_files_is_enumerated_once_per_absence_validation"
+    ],
+    "expected_status": "KILLED",
+    "injection_diff_sha256": "931adb5d60e64e5ed294bf439c91cf6f671cc0af1650687a446f0a285ad94eca",
+    "replacements": [
+     {
+      "file": "orchestrator/campaign/source_digest.py",
+      "new": "    supply_files = list(_repo_supply_files(sub, commit=None))\n",
+      "old": "    supply_files = list(_repo_supply_files(sub, commit=commit))\n"
+     }
+    ]
+   },
+   "M2-APPEND": {
+    "anchor_counts": {
+     "0": 1
+    },
+    "expected_nodes": [
+     "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_known_absent_list_append_indirect_is_rejected"
+    ],
+    "expected_status": "KILLED",
+    "injection_diff_sha256": "b53afd0a457d63ebd8e9041d47e8f6a505527b177c3e90129aa2de5d6f192390",
+    "replacements": [
+     {
+      "file": "orchestrator/campaign/source_digest.py",
+      "new": "        elif False and len(tokens) >= 2 and tokens[0].upper() == \"APPEND\":\n",
+      "old": "        elif name == \"list\" and len(tokens) >= 2 and tokens[0].upper() == \"APPEND\":\n"
+     }
+    ]
+   },
+   "M2-CONCAT": {
+    "anchor_counts": {
+     "0": 1
+    },
+    "expected_nodes": [
+     "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_known_absent_string_concat_indirect_is_rejected"
+    ],
+    "expected_status": "KILLED",
+    "injection_diff_sha256": "1aee1a3853afb6078018dd735fbaf80e98c1221107ad0a14e4f8a166b28699d4",
+    "replacements": [
+     {
+      "file": "orchestrator/campaign/source_digest.py",
+      "new": "        elif False and len(tokens) >= 2 and tokens[0].upper() == \"CONCAT\":\n",
+      "old": "        elif name == \"string\" and len(tokens) >= 2 and tokens[0].upper() == \"CONCAT\":\n"
+     }
+    ]
+   },
+   "M3": {
+    "anchor_counts": {
+     "0": 1
+    },
+    "expected_nodes": [
+     "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_known_absent_list_append_indirect_is_rejected",
+     "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_known_absent_set_indirect_cxx_flags_is_rejected_from_old_commit_only",
+     "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_known_absent_set_indirect_target_definition_is_rejected_from_new_commit_only",
+     "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_known_absent_string_concat_indirect_is_rejected",
+     "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_known_absent_supply_hidden_by_cmake_bracket_argument_is_rejected",
+     "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_space_separated_dash_d_macro_in_cxx_flags_is_rejected"
+    ],
+    "expected_status": "KILLED",
+    "injection_diff_sha256": "649d8b7e3f56e0a00f471424cee176f1c8b529be0cb49439ac76619c465f3106",
+    "replacements": [
+     {
+      "file": "orchestrator/campaign/source_digest.py",
+      "new": "    for name, body in []:\n        tokens = _cmake_tokens(body)\n        supply_tokens: list[str] | None = None\n",
+      "old": "    for name, body in _cmake_command_records(text):\n        tokens = _cmake_tokens(body)\n        supply_tokens: list[str] | None = None\n"
+     }
+    ]
+   },
+   "M4b": {
+    "anchor_counts": {
+     "0": 1
+    },
+    "expected_nodes": [
+     "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_bom_or_digraph_define_is_rejected[/ufeff#define MQLOCK 1/n]",
+     "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_duplicate_bom_supply_file_is_rejected_fail_closed"
+    ],
+    "expected_status": "KILLED",
+    "injection_diff_sha256": "ccd4f7bc561f1c3d55f3ee6ddc2232c89f77974fbd5b07e7284fc94ce130fb9b",
+    "replacements": [
+     {
+      "file": "orchestrator/campaign/source_digest.py",
+      "new": "    for view, logical_path, path, text in namespaced_files:\n        text = text\n",
+      "old": "    for view, logical_path, path, text in namespaced_files:\n        text = _strip_utf8_bom(text)\n"
+     }
+    ]
+   },
+   "M4c": {
+    "anchor_counts": {
+     "0": 1
+    },
+    "expected_nodes": [
+     "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_bom_followed_by_whitespace_before_include_remains_accepted",
+     "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_bom_prefixed_include_spelling_change_is_rejected"
+    ],
+    "expected_status": "KILLED",
+    "injection_diff_sha256": "6c75fccb623378b99eca0794110a3fa821e61f6c19834fa782a838f42af2d67f",
+    "replacements": [
+     {
+      "file": "tools/check_trace0_preprocess_identity.py",
+      "new": "        old_source = old_source\n        new_source = new_source\n",
+      "old": "        old_source = _strip_utf8_bom(old_source)\n        new_source = _strip_utf8_bom(new_source)\n"
+     }
+    ]
+   },
+   "M4d": {
+    "anchor_counts": {
+     "0": 1
+    },
+    "expected_nodes": [
+     "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_asymmetric_leading_bom_is_rejected_fail_closed"
+    ],
+    "expected_status": "KILLED",
+    "injection_diff_sha256": "de46e7dd4147af4f51fd3b2eb7da9d0d5a2ecc91b7a2c5a53ba553f50b5ff49c",
+    "replacements": [
+     {
+      "file": "tools/check_trace0_preprocess_identity.py",
+      "new": "    if False:\n",
+      "old": "    if old_has_bom != new_has_bom:\n"
+     }
+    ]
+   },
+   "M4e": {
+    "anchor_counts": {
+     "0": 1
+    },
+    "expected_nodes": [
+     "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_duplicate_bom_supply_file_is_rejected_fail_closed",
+     "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_duplicate_leading_bom_is_rejected_fail_closed"
+    ],
+    "expected_status": "KILLED",
+    "injection_diff_sha256": "a7702ae51f8aa4b43f53c6b11249c231fad17eed091df3366377c67ac58eb642",
+    "replacements": [
+     {
+      "file": "orchestrator/campaign/source_digest.py",
+      "new": "    if False:\n",
+      "old": "    if without_bom.startswith(\"\\ufeff\"):\n"
+     }
+    ]
+   },
+   "M5": {
+    "anchor_counts": {
+     "0": 1
+    },
+    "expected_nodes": [
+     "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_known_absent_spliced_define_is_rejected_from_new_commit_only"
+    ],
+    "expected_status": "KILLED",
+    "injection_diff_sha256": "fbb8cfa09243f0a71207340bcef365e7109cb6d9f05553eb5e10147ab2a0fdeb",
+    "replacements": [
+     {
+      "file": "orchestrator/campaign/source_digest.py",
+      "new": "    return (\n        _strip_c_comments_without_splicing(text),\n        _strip_c_comments_without_splicing(text),\n    )\n",
+      "old": "    return (\n        _strip_c_comments_for_supply(text),\n        _strip_c_comments_without_splicing(text),\n    )\n"
+     }
+    ]
+   },
+   "M5b": {
+    "anchor_counts": {
+     "0": 1
+    },
+    "expected_nodes": [
+     "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_physical_line_supply_rejection_is_not_weakened_by_splicing"
+    ],
+    "expected_status": "KILLED",
+    "injection_diff_sha256": "3a53038e9b5a774407d931dfe7805de41e84e9cf98cd66641f2a2078fb4b7765",
+    "replacements": [
+     {
+      "file": "orchestrator/campaign/source_digest.py",
+      "new": "    return (\n        _strip_c_comments_for_supply(text),\n        _strip_c_comments_for_supply(text),\n    )\n",
+      "old": "    return (\n        _strip_c_comments_for_supply(text),\n        _strip_c_comments_without_splicing(text),\n    )\n"
+     }
+    ]
+   },
+   "M5d": {
+    "anchor_counts": {
+     "0": 1
+    },
+    "expected_nodes": [
+     "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_bom_or_digraph_define_is_rejected[%:define MQLOCK 1/n]"
+    ],
+    "expected_status": "KILLED",
+    "injection_diff_sha256": "a7eda5b70344be116998abe7a5ffff8ac26e207c11c649d86f7cbda76432bafe",
+    "replacements": [
+     {
+      "file": "orchestrator/campaign/source_digest.py",
+      "new": "                            rf\"(?m)^[ \\t]*(?:#)[ \\t]*define[ \\t]+\"\n",
+      "old": "                            rf\"(?m)^[ \\t]*(?:#|%:)[ \\t]*define[ \\t]+\"\n"
+     }
+    ]
+   },
+   "M6": {
+    "anchor_counts": {
+     "0": 1
+    },
+    "expected_nodes": [
+     "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_bracket_payload_legacy_rejection_is_preserved"
+    ],
+    "expected_status": "KILLED",
+    "injection_diff_sha256": "1e51f6142c60da9b457522eacff82f8443b9b6c870f1deeb87c606616e3f80b8",
+    "replacements": [
+     {
+      "file": "orchestrator/campaign/source_digest.py",
+      "new": "    for name in ():\n        for body in _cmake_calls_including_bracket_arguments(text, name):\n",
+      "old": "    for name in (*_CMAKE_SUPPLY_CALL_NAMES, \"set_property\"):\n        for body in _cmake_calls_including_bracket_arguments(text, name):\n"
+     }
+    ]
+   },
+   "M6b": {
+    "anchor_counts": {
+     "0": 1
+    },
+    "expected_nodes": [
+     "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_set_property_compile_definitions_is_rejected"
+    ],
+    "expected_status": "KILLED",
+    "injection_diff_sha256": "95cb30af757cb306aeb4317450a96146367bfbc8a571c3e133cc5c6bf5a7a3a8",
+    "replacements": [
+     {
+      "file": "orchestrator/campaign/source_digest.py",
+      "new": "        if False:\n            return tokens[index + 2:]\n",
+      "old": "        if upper[index:index + 2] == [\"PROPERTY\", \"COMPILE_DEFINITIONS\"]:\n            return tokens[index + 2:]\n"
+     }
+    ]
+   },
+   "M7f": {
+    "anchor_counts": {
+     "0": 1
+    },
+    "expected_nodes": [
+     "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_space_separated_dash_d_macro_in_cxx_flags_is_rejected"
+    ],
+    "expected_status": "KILLED",
+    "injection_diff_sha256": "13bef8c06e5a76f9e681ceb8a94ed307803b7d210b8b459b9044ce55ea713d79",
+    "replacements": [
+     {
+      "file": "orchestrator/campaign/source_digest.py",
+      "new": "            or (\n                False\n                and re.search(rf\"(?<!\\S)-D[ \\t]+{escaped}(?:=|\\b)\", element)\n            )\n",
+      "old": "            or (\n                flags_string\n                and re.search(rf\"(?<!\\S)-D[ \\t]+{escaped}(?:=|\\b)\", element)\n            )\n"
+     }
+    ]
+   },
+   "M8": {
+    "anchor_counts": {
+     "0": 1
+    },
+    "expected_nodes": [
+     "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_generator_expression_supply_remains_rejected_before_expansion"
+    ],
+    "expected_status": "KILLED",
+    "injection_diff_sha256": "4813e2c11bf9a61ca358af3ad54bbe6393ab254dc31bfecbd5cc41dad7af6613",
+    "replacements": [
+     {
+      "file": "orchestrator/campaign/source_digest.py",
+      "new": "    if False:\n        raise RuntimeError(\n            \"source_digest: CMake supply token に generator expression がある — \"\n            \"macro の静的な供給元を確定できないため fails-closed (T-1437)\"\n        )\n",
+      "old": "    if \"$<\" in token and macro in token:\n        raise RuntimeError(\n            \"source_digest: CMake supply token に generator expression がある — \"\n            \"macro の静的な供給元を確定できないため fails-closed (T-1437)\"\n        )\n"
+     }
+    ]
+   },
+   "M9": {
+    "anchor_counts": {
+     "0": 1
+    },
+    "expected_nodes": [
+     "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_comment_decoy_after_formed_directive_cannot_forge_correspondence",
+     "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_comment_decoy_cannot_forge_raw_logical_include_correspondence",
+     "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_comment_decoy_only_pair_preserves_raw_logical_count_rejection",
+     "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_comment_formed_include_directive_is_rejected_fail_closed",
+     "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_digraph_include_directive_is_rejected_fail_closed",
+     "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_import_directive_is_rejected_fail_closed",
+     "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_line_spliced_include_is_rejected_and_was_green_before_fix",
+     "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_macro_include_operand_is_rejected_fail_closed",
+     "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_new_side_comment_decoy_is_rejected_by_raw_logical_count_gate",
+     "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_two_comment_decoys_cannot_forge_raw_logical_include_correspondence"
+    ],
+    "expected_status": "KILLED",
+    "injection_diff_sha256": "b2b0e1b43fb0a7972786154f63916865eeb8de5128f082e9936ed5747f8edb9b",
+    "replacements": [
+     {
+      "file": "tools/check_trace0_preprocess_identity.py",
+      "new": "    pass\n",
+      "old": "    _assert_literal_include_operands(old_source, path, \"old\")\n    _assert_literal_include_operands(new_source, path, \"new\")\n"
+     }
+    ]
+   }
+  },
+  "registration_sha256": "8a1bfe146d690b5110bda26a938d093519b4fe4b263c329f0affaf165b412f4f",
+  "restore_policy": "write fixed repo_head text then exact read_text equality",
+  "runner_mode": "dispatch",
+  "source_policy": "fixed repo_head blob plus startup/read-back equality",
+  "test_command": [
+   "python3",
+   "tools/run_tests.py",
+   "--force-dispatch",
+   "orchestrator/tests/test_check_trace0_preprocess_identity.py",
+   "-q",
+   "-rf",
+   "-p",
+   "no:cacheprovider"
+  ],
+  "timeout_seconds": 1800.0
+ },
+ "repo_head": "56d6a463d923b024c17b4a3c75ce128cfe9fcee0",
+ "runner_identity": {
+  "command": [
+   "python3",
+   "tools/run_tests.py",
+   "--force-dispatch",
+   "orchestrator/tests/test_check_trace0_preprocess_identity.py",
+   "-q",
+   "-rf",
+   "-p",
+   "no:cacheprovider"
+  ],
+  "dispatch_entrypoint_path": "/work/1/SFC/tanab/mutation-scratch-t1584/.izanagi-mutation-worktree/repo/tools/pegasus/dispatch_compute.py",
+  "dispatch_entrypoint_sha256": "f84b24c83b8d4c98551b657fe023e934d2a683e170f9cd8193b75b02be3556a5",
+  "dispatch_head_blob_sha256": "f84b24c83b8d4c98551b657fe023e934d2a683e170f9cd8193b75b02be3556a5",
+  "entrypoint_kind": "izanagi-run-tests",
+  "entrypoint_path": "/work/1/SFC/tanab/mutation-scratch-t1584/.izanagi-mutation-worktree/repo/tools/run_tests.py",
+  "entrypoint_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+  "executable_path": "/usr/bin/python3.10",
+  "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+  "head_blob_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+  "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+  "repo_path": "tools/run_tests.py",
+  "repo_tree": "73e03745f79d17911aacaa5c9aec0b5f84e9cd27",
+  "runner_mode": "dispatch"
+ },
+ "runner_sha256": "abf901db73c5a8244757e2125da766cfce3600bc118a2399591df7967610ff9c",
+ "schema": "izanagi-dev-wave-mutation/v4",
+ "spec_sha256": "7390b243fd17371d74835693f096939f4753bcf5cb4e7edcff18cbdd56b7e36a",
+ "summary": {
+  "KILLED": 25,
+  "MISMATCH": 0,
+  "PARSE_ERROR": 0,
+  "SURVIVED": 0,
+  "TIMEOUT": 0,
+  "completed": 25,
+  "matching": 25,
+  "recorded": 25,
+  "registered": 25
+ },
+ "tool_identity": {
+  "head_blob_sha256": "4c31e3d799ce653ab3a970ebff4258e9e624d73d990e4b392de367c95225c281",
+  "path": "/work/1/SFC/tanab/mutation-scratch-t1584/.izanagi-mutation-worktree/repo/tools/mutation_harness.py",
+  "repo_path": "tools/mutation_harness.py",
+  "sha256": "4c31e3d799ce653ab3a970ebff4258e9e624d73d990e4b392de367c95225c281"
+ },
+ "tool_sha256": "f30a0e3f4f16be92b889937ae835d1098d617ee9150a06eb8518d06507c8b4d7"
+}
