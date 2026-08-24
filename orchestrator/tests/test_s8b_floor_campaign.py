@@ -3907,11 +3907,15 @@ def test_floor_dependency_head_mismatch_outranks_source_stat_failure_before_orac
     monkeypatch.setattr(
         s8b_floor_campaign, "_masstree_policy_pin", lambda _snapshot: expected_head,
     )
+    target = source.resolve()
+    original_dependency_stat = s8b_floor_campaign._stat_floor_dependency_root
     stat_calls = []
 
     def unavailable_stat(path):
-        stat_calls.append(path)
-        raise FileNotFoundError("fixture simultaneous stat failure")
+        if path == target:
+            stat_calls.append(path)
+            raise FileNotFoundError("fixture simultaneous stat failure")
+        return original_dependency_stat(path)
 
     monkeypatch.setattr(
         s8b_floor_campaign, "_stat_floor_dependency_root", unavailable_stat,
