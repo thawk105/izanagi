@@ -2153,41 +2153,15 @@ def _floor_toolchain_manifest_sha256(manifest: object) -> str:
     return hashlib.sha256(payload).hexdigest()
 
 
-def _masstree_policy_pin(repo_root: Path) -> str:
-    policy_path = _silo_ladder.third_party_policy_path(Path(repo_root))
-    try:
-        sources = _silo_ladder.third_party_policy(repo_root)
-    except Exception as exc:
-        raise _FloorOraclePreflightError(
-            "共有 third-party policy の検証に失敗",
-            detail_code="floor-dependency-policy-unavailable",
-            origin="shared-policy:masstree",
-            outcome="invalid-path",
-            path=policy_path,
-        ) from exc
-    matches = [item for item in sources if item.get("name") == "masstree"]
-    if len(matches) != 1:
-        raise _FloorOraclePreflightError(
-            "共有 policy の masstree pin が一意でない",
-            detail_code="floor-dependency-policy-pin-nonunique",
-            origin="shared-policy:masstree",
-            outcome="invalid-path",
-            path=policy_path,
-        )
-    pin = matches[0].get("pin")
-    if type(pin) is not str or re.fullmatch(r"[0-9a-f]{40}", pin) is None:
-        raise _FloorOraclePreflightError(
-            "共有 policy の masstree pin が不正",
-            detail_code="floor-dependency-policy-pin-invalid",
-            origin="shared-policy:masstree",
-            outcome="invalid-path",
-            path=policy_path,
-        )
-    return pin
+@dataclass(frozen=True)
+class _LoadedFloorThirdPartyPolicy:
+    path: Path
+    entries: tuple[tuple[object, object], ...]
 
 
-def _floor_third_party_policy_pins(repo_root: Path) -> dict[str, str]:
-    """共有 policy から staged 3依存の pin を一度に取得する。"""
+def _load_floor_third_party_policy(
+        repo_root: Path, *, origin: str,
+) -> _LoadedFloorThirdPartyPolicy:
     policy_path = _silo_ladder.third_party_policy_path(Path(repo_root))
     try:
         sources = _silo_ladder.third_party_policy(Path(repo_root))
@@ -2195,29 +2169,74 @@ def _floor_third_party_policy_pins(repo_root: Path) -> dict[str, str]:
         raise _FloorOraclePreflightError(
             "共有 third-party policy の検証に失敗",
             detail_code="floor-dependency-policy-unavailable",
-            origin="shared-policy:third-party",
+            origin=origin,
             outcome="invalid-path",
             path=policy_path,
         ) from exc
+    return _LoadedFloorThirdPartyPolicy(
+        path=policy_path,
+        entries=tuple(
+            (item.get("name"), item.get("pin")) for item in sources
+        ),
+    )
+
+
+def _floor_third_party_policy_pin(
+        policy: _LoadedFloorThirdPartyPolicy, name: str,
+) -> str:
+    matches = [pin for item_name, pin in policy.entries if item_name == name]
+    if len(matches) != 1:
+        raise _FloorOraclePreflightError(
+            f"共有 policy の {name} pin が一意でない",
+            detail_code="floor-dependency-policy-pin-nonunique",
+            origin=f"shared-policy:{name}",
+            outcome="invalid-path",
+            path=policy.path,
+        )
+    pin = matches[0]
+    if type(pin) is not str or re.fullmatch(r"[0-9a-f]{40}", pin) is None:
+        raise _FloorOraclePreflightError(
+            f"共有 policy の {name} pin が不正",
+            detail_code="floor-dependency-policy-pin-invalid",
+            origin=f"shared-policy:{name}",
+            outcome="invalid-path",
+            path=policy.path,
+        )
+    return pin
+
+
+def _masstree_policy_pin(
+        repo_root_or_policy: Path | _LoadedFloorThirdPartyPolicy,
+) -> str:
+    policy = (
+        repo_root_or_policy
+        if isinstance(repo_root_or_policy, _LoadedFloorThirdPartyPolicy)
+        else _load_floor_third_party_policy(
+            Path(repo_root_or_policy), origin="shared-policy:masstree",
+        )
+    )
+    return _floor_third_party_policy_pin(policy, "masstree")
+
+
+def _floor_third_party_policy_pins(repo_root: Path) -> dict[str, str]:
+    """共有 policy から staged 3依存の pin を一度に取得する。"""
+    policy = _load_floor_third_party_policy(
+        Path(repo_root), origin="shared-policy:third-party",
+    )
     pins: dict[str, str] = {}
     for name in _FLOOR_THIRD_PARTY_SOURCE_NAMES:
-        matches = [item for item in sources if item.get("name") == name]
-        if len(matches) != 1:
-            raise _FloorOraclePreflightError(
-                f"共有 policy の {name} pin が一意でない",
-                detail_code="floor-dependency-policy-pin-nonunique",
-                origin=f"shared-policy:{name}",
-                outcome="invalid-path",
-                path=policy_path,
-            )
-        pin = matches[0].get("pin")
+        pin = (
+            _masstree_policy_pin(policy)
+            if name == "masstree"
+            else _floor_third_party_policy_pin(policy, name)
+        )
         if type(pin) is not str or re.fullmatch(r"[0-9a-f]{40}", pin) is None:
             raise _FloorOraclePreflightError(
                 f"共有 policy の {name} pin が不正",
                 detail_code="floor-dependency-policy-pin-invalid",
                 origin=f"shared-policy:{name}",
                 outcome="invalid-path",
-                path=policy_path,
+                path=policy.path,
             )
         pins[name] = pin
     return pins
@@ -2827,6 +2846,14 @@ def _verify_floor_oracle_dependency_source(
             outcome="invalid-path",
             path=source_root,
         )
+    if observed_head != expected_head:
+        raise _FloorOraclePreflightError(
+            "masstree source HEAD が共有 policy pin と不一致",
+            detail_code="floor-dependency-head-mismatch",
+            origin="floor-dependency:masstree",
+            outcome="invalid-path",
+            path=source_root,
+        )
     try:
         source_info = _stat_floor_dependency_root(source_root)
     except OSError as exc:
@@ -2837,14 +2864,6 @@ def _verify_floor_oracle_dependency_source(
             outcome="missing",
             path=source_root,
         ) from exc
-    if observed_head != expected_head:
-        raise _FloorOraclePreflightError(
-            "masstree source HEAD が共有 policy pin と不一致",
-            detail_code="floor-dependency-head-mismatch",
-            origin="floor-dependency:masstree",
-            outcome="invalid-path",
-            path=source_root,
-        )
     if require_tracked_clean:
         _verify_floor_tracked_source_unchanged(
             source_root, repo_root=Path(repo_root),

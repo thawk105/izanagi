@@ -3020,6 +3020,62 @@ def test_floor_postflight_gate_classifies_head_drift(tmp_path, monkeypatch):
     )
 
 
+def test_floor_postflight_head_drift_outranks_source_stat_failure(
+        tmp_path, monkeypatch):
+    repo_root = tmp_path / "repo"
+    repo_root.mkdir()
+    base = tmp_path / "fetchcontent"
+    source = base / "masstree-src"
+    head = _git_fixture_source(source)
+    (source / "config.h").write_text("#pragma once\n", encoding="utf-8")
+    (source / "libkohler_masstree_json.a").write_bytes(b"fixture archive")
+    before = s8b_floor_campaign._verify_floor_oracle_dependency_source(
+        base.resolve(), repo_root=repo_root, expected_head=head,
+        expected_toolchain_manifest_sha256=(
+            _fixture_toolchain_manifest_sha256()
+        ),
+    )
+    (source / "tracked.hh").write_text("// replacement HEAD\n", encoding="utf-8")
+    subprocess.run(
+        ["git", "-C", str(source), "add", "tracked.hh"], check=True,
+    )
+    subprocess.run(
+        [
+            "git", "-C", str(source), "-c", "user.name=Fixture",
+            "-c", "user.email=fixture@example.invalid", "commit", "-qm",
+            "replacement HEAD",
+        ],
+        check=True,
+    )
+    result = _fixture_floor_build_result(
+        cached=False,
+        fetchcontent_base_dir=str(base.resolve()),
+        masstree_source_root_sha256=hashlib.sha256(
+            str(source.resolve()).encode("utf-8")
+        ).hexdigest(),
+    )
+    stat_calls = []
+
+    def unavailable_stat(path):
+        stat_calls.append(path)
+        raise FileNotFoundError("fixture simultaneous stat failure")
+
+    monkeypatch.setattr(
+        s8b_floor_campaign, "_stat_floor_dependency_root", unavailable_stat,
+    )
+    with pytest.raises(s8b_floor_campaign._FloorOraclePreflightError) as caught:
+        s8b_floor_campaign._verify_floor_build_dependency(
+            result, ["cmake", f"-DFETCHCONTENT_BASE_DIR={base.resolve()}"],
+            fetchcontent_base=base.resolve(), before=before,
+            expected_toolchain_manifest=_FIXTURE_TOOLCHAIN_MANIFEST,
+            repo_root=repo_root,
+        )
+    assert caught.value.diagnostic.detail_code == (
+        "floor-dependency-postflight-head-drift"
+    )
+    assert stat_calls == []
+
+
 @pytest.mark.parametrize("cached", [False, True], ids=["fresh", "cache-hit"])
 @pytest.mark.parametrize(
     ("failure_kind", "detail_code"),
@@ -3806,6 +3862,97 @@ def test_floor_dependency_disappearance_race_persists_closed_detail_before_oracl
     assert downstream_calls == []
 
 
+def test_floor_dependency_head_mismatch_outranks_source_stat_failure_before_oracle(
+        tmp_path, monkeypatch):
+    freeze = _freeze_document()
+    cells = [next(
+        cell for cell in s8b_floor_campaign.enumerate_cells(
+            freeze, stock_configuration=_STOCK,
+        ) if cell["configuration_id"] == "sort_best"
+    )]
+    contract = ec.lookup(ENV_TAG)
+    verified = env_attestation.load_verified_calibration(contract, ROOT)
+    marker_root = tmp_path / "job-staging"
+    marker_root.mkdir()
+    base = tmp_path / "fetchcontent"
+    base.mkdir()
+    legacy_tmpdir = tmp_path / "legacy-tmp"
+    legacy_tmpdir.mkdir()
+    monkeypatch.setenv("TMPDIR", str(legacy_tmpdir.resolve()))
+    monkeypatch.setattr(
+        s8b_floor_campaign.tempfile,
+        "mkdtemp",
+        lambda **_kwargs: str(base.resolve()),
+    )
+    source = base / "masstree-src"
+    observed_head = _git_fixture_source(source)
+    expected_head = "0" * 40
+    assert observed_head != expected_head
+    (source / "config.h").write_text("#pragma once\n", encoding="utf-8")
+    (source / "libkohler_masstree_json.a").write_bytes(b"fixture archive")
+    prebuild_source = tmp_path / "prebuild-ccbench"
+    prebuild_source.mkdir()
+
+    @contextlib.contextmanager
+    def checkout(_pin, *, base_dir):
+        del base_dir
+        yield str(prebuild_source.resolve())
+
+    monkeypatch.setattr(s8b_floor_campaign.patchharness, "checkout", checkout)
+    monkeypatch.setattr(
+        s8b_floor_campaign.buildcache,
+        "prepare_masstree_fetchcontent",
+        lambda **_kwargs: SimpleNamespace(),
+    )
+    monkeypatch.setattr(
+        s8b_floor_campaign, "_masstree_policy_pin", lambda _snapshot: expected_head,
+    )
+    stat_calls = []
+
+    def unavailable_stat(path):
+        stat_calls.append(path)
+        raise FileNotFoundError("fixture simultaneous stat failure")
+
+    monkeypatch.setattr(
+        s8b_floor_campaign, "_stat_floor_dependency_root", unavailable_stat,
+    )
+    downstream_calls = []
+
+    @contextlib.contextmanager
+    def production_prepare(*_args, **_kwargs):
+        downstream_calls.append("oracle")
+        pytest.fail("dependency preflight 拒否後に oracle を実行しない")
+        yield
+
+    monkeypatch.setattr(s8b_floor_campaign, "prepare_cell", production_prepare)
+    with pytest.raises(sort_swo_oracle.SortSwoOracleUnavailable) as caught:
+        s8b_floor_campaign.build_cells(
+            freeze, cells, ccbench_pin="0" * 40,
+            out_root=tmp_path / "out", prepare_fn=production_prepare,
+            contract=contract, verified_calibration=verified,
+            build_fn=lambda *_args, **_kwargs: downstream_calls.append("build"),
+            fetchcontent_base_dir=None, phase_marker_root=marker_root,
+        )
+    assert caught.value.result.infrastructure.detail_code == (
+        "floor-dependency-head-mismatch"
+    )
+    artifact = json.loads((
+        marker_root / s8b_floor_campaign._FLOOR_PREFLIGHT_FAILURE_FILENAME
+    ).read_text(encoding="utf-8"))
+    assert artifact["infrastructure"]["detail_code"] == (
+        "floor-dependency-head-mismatch"
+    )
+    assert artifact["infrastructure"]["environment_resolution"][
+        "dependency_candidates"
+    ] == [{
+        "origin": "floor-dependency:masstree",
+        "outcome": "invalid-path",
+        "path": str(source.resolve()),
+    }]
+    assert stat_calls == []
+    assert downstream_calls == []
+
+
 def test_floor_dependency_base_creation_failure_persists_before_oracle_or_build(
         tmp_path, monkeypatch):
     freeze = _freeze_document()
@@ -4184,6 +4331,45 @@ def test_floor_oracle_uses_existing_shared_pin_without_floor_policy_copy():
         (ROOT / "tools/pegasus/policies/floor_v1.json").read_text(encoding="utf-8")
     )
     assert not any("masstree" in key for key in floor_policy)
+
+
+def test_floor_third_party_pin_snapshot_uses_masstree_seam_without_reread(
+        monkeypatch):
+    pins_a = {
+        "masstree": "a" * 40,
+        "mimalloc": "b" * 40,
+        "googletest": "c" * 40,
+    }
+    pins_b = {name: "d" * 40 for name in pins_a}
+    policy_reads = []
+
+    def read_policy(_root):
+        policy_reads.append(True)
+        pins = pins_a if len(policy_reads) == 1 else pins_b
+        return [
+            {"name": name, "pin": pin}
+            for name, pin in pins.items()
+        ]
+
+    original_masstree_pin = s8b_floor_campaign._masstree_policy_pin
+    seam_snapshots = []
+
+    def masstree_pin(snapshot):
+        seam_snapshots.append(snapshot)
+        return original_masstree_pin(snapshot)
+
+    monkeypatch.setattr(
+        s8b_floor_campaign._silo_ladder, "third_party_policy", read_policy,
+    )
+    monkeypatch.setattr(
+        s8b_floor_campaign, "_masstree_policy_pin", masstree_pin,
+    )
+    assert s8b_floor_campaign._floor_third_party_policy_pins(ROOT) == pins_a
+    assert policy_reads == [True]
+    assert len(seam_snapshots) == 1
+    assert isinstance(
+        seam_snapshots[0], s8b_floor_campaign._LoadedFloorThirdPartyPolicy,
+    )
 
 
 def test_floor_masstree_payload_policy_loader_is_exact_and_shared_pin_bound():
