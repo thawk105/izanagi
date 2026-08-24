@@ -49,7 +49,7 @@ _LEGACY_ADMISSION_SCHEMA = "buildcache-legacy-admission/v1"
 _LEGACY_ADMISSION_SIDECAR = "admission.json"
 _FETCHCONTENT_SOURCE_NAMES = ("masstree", "mimalloc", "googletest")
 _FETCHCONTENT_RECEIPT_KEYS = frozenset({
-    "masstree_head", "config_sha256", "archive_sha256",
+    "masstree_head", "config_sha256",
 })
 
 _SECURE_FLAG_NAMES = (
@@ -692,7 +692,7 @@ def _validate_fetchcontent_dependency_receipt(
     if (type(normalized["masstree_head"]) is not str
             or re.fullmatch(r"[0-9a-f]{40}", normalized["masstree_head"]) is None):
         raise BuildCacheError("FetchContent dependency receipt の masstree HEAD が不正")
-    for key in ("config_sha256", "archive_sha256"):
+    for key in ("config_sha256",):
         if not is_full_sha256(normalized[key]):
             raise BuildCacheError(f"FetchContent dependency receipt の {key} が不正")
     return normalized
@@ -848,10 +848,6 @@ def _observe_fetchcontent_dependency_receipt(
         "masstree_head": lines[1],
         "config_sha256": _sha256_fetchcontent_file(
             os.path.join(canonical_source, "config.h"), label="config.h",
-        ),
-        "archive_sha256": _sha256_fetchcontent_file(
-            os.path.join(canonical_source, "libkohler_masstree_json.a"),
-            label="libkohler_masstree_json.a",
         ),
     }
 

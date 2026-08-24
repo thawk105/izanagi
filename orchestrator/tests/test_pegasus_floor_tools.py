@@ -500,11 +500,14 @@ def test_floor_masstree_policy_generator_is_independent_and_has_both_cli_inputs(
     source = GENERATOR.read_text(encoding="utf-8")
     assert '"--source-dir"' in source
     assert '"--output"' in source
-    assert 'SCHEMA_VERSION = "s8b-floor-masstree-payload/v1"' in source
+    assert 'SCHEMA_VERSION = "s8b-floor-masstree-payload/v2"' in source
     assert "s8b_floor_campaign" not in source
     assert "buildcache" not in source
     assert '"config_sha256"' in source
-    assert '"archive_sha256"' in source
+    assert '"archive_sha256"' not in source
+    assert '["make"' not in source
+    assert '["ar"' not in source
+    assert '["ranlib"' not in source
 
 
 def test_floor_masstree_policy_generator_requires_force_to_replace_output(
@@ -526,7 +529,7 @@ def test_floor_masstree_policy_generator_requires_force_to_replace_output(
         generator, "_prepare_source", lambda source_dir, **_kwargs: source_dir,
     )
     monkeypatch.setattr(
-        generator, "_build_and_hash", lambda _source: ("b" * 64, "c" * 64),
+        generator, "_configure_and_hash", lambda _source: "b" * 64,
     )
 
     assert generator.main([
@@ -538,8 +541,54 @@ def test_floor_masstree_policy_generator_requires_force_to_replace_output(
         "--source-dir", str(source), "--output", str(output), "--force",
     ]) == 0
     generated = json.loads(output.read_text(encoding="utf-8"))
+    assert set(generated) == {"schema_version", "name", "pin", "config_sha256"}
+    assert generated["schema_version"] == "s8b-floor-masstree-payload/v2"
     assert generated["config_sha256"] == "b" * 64
-    assert generated["archive_sha256"] == "c" * 64
+
+
+def test_floor_masstree_policy_generator_clones_source_before_configure(
+        tmp_path: Path) -> None:
+    spec = importlib.util.spec_from_file_location(
+        "floor_masstree_payload_generator_clone_fixture", GENERATOR,
+    )
+    assert spec is not None and spec.loader is not None
+    generator = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(generator)
+    source = (tmp_path / "input-source").resolve()
+    source.mkdir()
+    subprocess.run(["git", "init", "-q", str(source)], check=True)
+    tracked = source / "bootstrap.sh"
+    tracked.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+    subprocess.run(["git", "-C", str(source), "add", "bootstrap.sh"], check=True)
+    subprocess.run(
+        [
+            "git", "-C", str(source), "-c", "user.name=Fixture",
+            "-c", "user.email=fixture@example.invalid", "commit", "-qm", "pin",
+        ],
+        check=True,
+    )
+    pin = subprocess.run(
+        ["git", "-C", str(source), "rev-parse", "HEAD"],
+        check=True, capture_output=True, text=True,
+    ).stdout.strip()
+    before = tracked.read_bytes()
+    work_dir = tmp_path / "work"
+    work_dir.mkdir()
+
+    prepared = generator._prepare_source(
+        source, url="unused", pin=pin, work_dir=work_dir,
+    )
+
+    assert prepared == work_dir / "masstree-src"
+    assert prepared != source
+    assert tracked.read_bytes() == before
+    assert subprocess.run(
+        [
+            "git", "-C", str(source), "status", "--porcelain=v1",
+            "--untracked-files=all", "--ignored=matching",
+        ],
+        check=True, capture_output=True, text=True,
+    ).stdout == ""
 
 
 def test_floor_wrapper_preflight_rejection_is_nonmutating_and_starts_no_driver(

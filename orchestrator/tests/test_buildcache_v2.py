@@ -292,11 +292,10 @@ def _build(tmp_path: Path, contract: ExecutionEnvironmentContract, *, trace: boo
     )
 
 
-def _dependency_receipt(*, config: str = "b", archive: str = "c") -> dict[str, str]:
+def _dependency_receipt(*, config: str = "b") -> dict[str, str]:
     return {
         "masstree_head": "a" * 40,
         "config_sha256": config * 64,
-        "archive_sha256": archive * 64,
     }
 
 
@@ -324,8 +323,21 @@ def _write_fetchcontent_dependency(base: Path) -> dict[str, str]:
     return {
         "masstree_head": head,
         "config_sha256": hashlib.sha256(config.read_bytes()).hexdigest(),
-        "archive_sha256": hashlib.sha256(archive.read_bytes()).hexdigest(),
     }
+
+
+def test_v2_fetchcontent_dependency_receipt_requires_exact_head_config_schema():
+    receipt = _dependency_receipt()
+    assert buildcache._validate_fetchcontent_dependency_receipt(receipt) == receipt
+    invalid = [
+        {**receipt, "archive_sha256": "c" * 64},
+        {"masstree_head": receipt["masstree_head"]},
+        {**receipt, "config_sha256": "not-a-sha256"},
+        {**receipt, "masstree_head": "not-a-head"},
+    ]
+    for candidate in invalid:
+        with pytest.raises(buildcache.BuildCacheError):
+            buildcache._validate_fetchcontent_dependency_receipt(candidate)
 
 
 def test_v2_fetchcontent_base_is_canonical_single_define_and_receipt_in_preimage(
@@ -382,6 +394,9 @@ def test_v2_cache_hit_reuses_same_content_receipt_across_distinct_bases(
     base_b = tmp_path / "fetchcontent-b"
     base_b.mkdir()
     shutil.copytree(base_a / "masstree-src", base_b / "masstree-src")
+    (base_b / "masstree-src" / "libkohler_masstree_json.a").write_bytes(
+        b"different archive from another valid build path\n"
+    )
     second = _build(
         tmp_path, _contract(1), fetchcontent_base_dir=str(base_b.resolve()),
         fetchcontent_dependency_receipt=receipt,

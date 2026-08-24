@@ -176,6 +176,8 @@ _FLOOR_PROTOCOLS_REL = "output/s8b-freeze/floor-protocols"
 _FLOOR_PROTOCOL_PAIR_RE = re.compile(r"[0-9a-f]{64}--[0-9a-f]{40}\.json")
 _FLOOR_JOB_STAGING_ENV = "IZANAGI_FLOOR_JOB_STAGING"
 _PRIVATE_DIAGNOSTIC_MAX_BYTES = 128 * 1024
+_FLOOR_BUILD_EXCEPTION_MESSAGE_MAX_BYTES = 4096
+_FLOOR_BUILD_EXCEPTION_TYPE_MAX_BYTES = 128
 _FLOOR_PREFLIGHT_FAILURE_FILENAME = "sort-swo-oracle-preflight-failure.json"
 _FLOOR_POSTFLIGHT_FAILURE_FILENAME = "sort-swo-oracle-postflight-failure.json"
 _PRIVATE_SORT_SWO_EVIDENCE_SCHEMA = "s8b-sort-swo-private-evidence/v1"
@@ -196,6 +198,7 @@ _FLOOR_TOOLCHAIN_PREFLIGHT_DETAIL_CODES = frozenset({
     "floor-toolchain-version-launch-failed",
     "floor-toolchain-version-invalid",
     "floor-toolchain-receipt-mismatch",
+    "floor-toolchain-manifest-invalid",
     "floor-toolchain-cxx-manifest-missing",
     "floor-toolchain-cxx-manifest-invalid",
 })
@@ -228,7 +231,6 @@ _FLOOR_DEPENDENCY_PREFLIGHT_DETAIL_CODES = frozenset({
     "floor-dependency-config-hash-unavailable",
     "floor-dependency-archive-missing",
     "floor-dependency-archive-not-regular",
-    "floor-dependency-archive-hash-unavailable",
     "floor-dependency-staged-source-path-invalid",
     "floor-dependency-staged-source-not-directory",
     "floor-dependency-staged-source-inside-repository",
@@ -253,12 +255,13 @@ _FLOOR_DEPENDENCY_POSTFLIGHT_DETAIL_CODES = frozenset({
     "floor-dependency-postflight-effective-root-mismatch",
     "floor-dependency-postflight-source-unavailable",
     "floor-dependency-postflight-head-drift",
+    "floor-dependency-postflight-tracked-source-drift",
     "floor-dependency-postflight-config-drift",
-    "floor-dependency-postflight-archive-drift",
     "floor-dependency-postflight-source-set",
     "floor-dependency-postflight-config-expected-mismatch",
-    "floor-dependency-postflight-archive-expected-mismatch",
     "floor-dependency-postflight-payload-policy-mismatch",
+    "floor-dependency-postflight-toolchain-manifest-mismatch",
+    "floor-dependency-postflight-toolchain-hash-mismatch",
 })
 _FLOOR_PREFLIGHT_CANDIDATE_OUTCOMES = frozenset({
     "not-configured",
@@ -1988,6 +1991,68 @@ class _FloorOraclePreflightDiagnostic:
         }
 
 
+def _bounded_utf8_text(value: str, *, max_bytes: int, keep_tail: bool) -> str:
+    encoded = value.encode("utf-8", errors="backslashreplace")
+    bounded = encoded[-max_bytes:] if keep_tail else encoded[:max_bytes]
+    while bounded:
+        try:
+            return bounded.decode("utf-8", errors="strict")
+        except UnicodeDecodeError:
+            bounded = bounded[1:] if keep_tail else bounded[:-1]
+    return ""
+
+
+@dataclass(frozen=True)
+class _FloorBuildExceptionDiagnostic:
+    exception_type: str
+    message_tail: str
+    message_tail_sha256: str
+    message_truncated: bool
+
+    def private_dict(self) -> dict[str, object]:
+        return {
+            "schema_version": "s8b-floor-build-exception/v1",
+            "exception_type": self.exception_type,
+            "message_tail": self.message_tail,
+            "message_tail_sha256": self.message_tail_sha256,
+            "message_truncated": self.message_truncated,
+        }
+
+
+def _floor_build_exception_diagnostic(
+        exc: BaseException,
+) -> _FloorBuildExceptionDiagnostic:
+    exception_type = getattr(type(exc), "__name__", "Exception")
+    if type(exception_type) is not str or not exception_type:
+        exception_type = "Exception"
+    exception_type = _bounded_utf8_text(
+        exception_type,
+        max_bytes=_FLOOR_BUILD_EXCEPTION_TYPE_MAX_BYTES,
+        keep_tail=False,
+    ) or "Exception"
+    try:
+        message = str(exc)
+    except BaseException:
+        message = "<exception message unavailable>"
+    if type(message) is not str:
+        message = "<exception message unavailable>"
+    encoded = message.encode("utf-8", errors="backslashreplace")
+    message_tail = _bounded_utf8_text(
+        message,
+        max_bytes=_FLOOR_BUILD_EXCEPTION_MESSAGE_MAX_BYTES,
+        keep_tail=True,
+    )
+    message_tail_bytes = message_tail.encode("utf-8")
+    return _FloorBuildExceptionDiagnostic(
+        exception_type=exception_type,
+        message_tail=message_tail,
+        message_tail_sha256=hashlib.sha256(message_tail_bytes).hexdigest(),
+        message_truncated=(
+            len(encoded) > _FLOOR_BUILD_EXCEPTION_MESSAGE_MAX_BYTES
+        ),
+    )
+
+
 class _FloorOraclePreflightError(FloorCampaignError):
     """production floor の oracle 前検査を閉じた診断へ運ぶ内部例外。"""
 
@@ -2020,19 +2085,17 @@ class _FloorOracleDependencyBinding:
     expected_head: str
     observed_head: str
     config_sha256: str
-    archive_sha256: str
+    expected_toolchain_manifest_sha256: str
     source_st_dev: int
     source_st_ino: int
     transport_mode: str = "base-only"
     expected_config_sha256: Optional[str] = None
-    expected_archive_sha256: Optional[str] = None
     payload_policy_sha256: Optional[str] = None
 
     def cache_receipt(self) -> dict[str, str]:
         return {
             "masstree_head": self.observed_head,
             "config_sha256": self.config_sha256,
-            "archive_sha256": self.archive_sha256,
         }
 
     def private_dict(self) -> dict[str, object]:
@@ -2041,7 +2104,9 @@ class _FloorOracleDependencyBinding:
             "dependency_expected_head": self.expected_head,
             "dependency_head": self.observed_head,
             "dependency_config_sha256": self.config_sha256,
-            "dependency_archive_sha256": self.archive_sha256,
+            "dependency_toolchain_manifest_sha256": (
+                self.expected_toolchain_manifest_sha256
+            ),
             "dependency_source_st_dev": self.source_st_dev,
             "dependency_source_st_ino": self.source_st_ino,
         }
@@ -2049,11 +2114,31 @@ class _FloorOracleDependencyBinding:
             result["dependency_transport_mode"] = self.transport_mode
         if self.expected_config_sha256 is not None:
             result["dependency_expected_config_sha256"] = self.expected_config_sha256
-        if self.expected_archive_sha256 is not None:
-            result["dependency_expected_archive_sha256"] = self.expected_archive_sha256
         if self.payload_policy_sha256 is not None:
             result["dependency_payload_policy_sha256"] = self.payload_policy_sha256
         return result
+
+
+@dataclass(frozen=True)
+class _LoadedFloorMasstreePayloadPolicy:
+    schema_version: str
+    name: str
+    pin: str
+    config_sha256: str
+    raw_sha256: str
+
+
+def _floor_toolchain_manifest_sha256(manifest: object) -> str:
+    try:
+        payload = json.dumps(
+            manifest, sort_keys=True, separators=(",", ":"),
+            ensure_ascii=True, allow_nan=False,
+        ).encode("utf-8")
+    except (TypeError, ValueError, UnicodeError) as exc:
+        raise ValueError(
+            "floor toolchain manifest を canonical JSON 化できない"
+        ) from exc
+    return hashlib.sha256(payload).hexdigest()
 
 
 def _masstree_policy_pin(repo_root: Path) -> str:
@@ -2132,13 +2217,13 @@ def _floor_masstree_payload_policy_path(repo_root: Path) -> Path:
 
 def _load_floor_masstree_payload_policy(
         repo_root: Path = ROOT,
-) -> dict[str, str]:
-    """独立 floor payload policy を strict schema で読む (hash は計算しない)。"""
+) -> _LoadedFloorMasstreePayloadPolicy:
+    """同一 raw bytes から strict policy と receipt hash を一度に導出する。"""
     path = _floor_masstree_payload_policy_path(Path(repo_root))
     try:
-        raw = path.read_text(encoding="utf-8")
+        raw = path.read_bytes()
         document = json.loads(
-            raw,
+            raw.decode("utf-8", errors="strict"),
             object_pairs_hook=_no_duplicate_pairs,
             parse_constant=_reject_json_constant,
         )
@@ -2150,9 +2235,7 @@ def _load_floor_masstree_payload_policy(
             outcome="invalid-path",
             path=path,
         ) from exc
-    expected_keys = {
-        "schema_version", "name", "pin", "config_sha256", "archive_sha256",
-    }
+    expected_keys = {"schema_version", "name", "pin", "config_sha256"}
     if type(document) is not dict:
         raise _FloorOraclePreflightError(
             "floor masstree payload policy の top-level が object でない",
@@ -2169,7 +2252,7 @@ def _load_floor_masstree_payload_policy(
             outcome="invalid-path",
             path=path,
         )
-    if (document["schema_version"] != "s8b-floor-masstree-payload/v1"
+    if (document["schema_version"] != "s8b-floor-masstree-payload/v2"
             or document["name"] != "masstree"):
         raise _FloorOraclePreflightError(
             "floor masstree payload policy の schema/name が不正",
@@ -2187,7 +2270,7 @@ def _load_floor_masstree_payload_policy(
             outcome="invalid-path",
             path=path,
         )
-    for key in ("config_sha256", "archive_sha256"):
+    for key in ("config_sha256",):
         if (type(document[key]) is not str
                 or re.fullmatch(r"[0-9a-f]{64}", document[key]) is None):
             raise _FloorOraclePreflightError(
@@ -2206,7 +2289,13 @@ def _load_floor_masstree_payload_policy(
             outcome="identity-mismatch",
             path=path,
         )
-    return dict(document)
+    return _LoadedFloorMasstreePayloadPolicy(
+        schema_version=document["schema_version"],
+        name=document["name"],
+        pin=document["pin"],
+        config_sha256=document["config_sha256"],
+        raw_sha256=hashlib.sha256(raw).hexdigest(),
+    )
 
 
 def _floor_git_environment() -> dict[str, str]:
@@ -2223,23 +2312,13 @@ def _floor_git_environment() -> dict[str, str]:
     return env
 
 
-def _sha256_regular_file(path: Path, *, artifact: str = "config") -> str:
-    if artifact == "config":
-        label = "config.h"
-        missing_code = "floor-dependency-config-missing"
-        nonregular_code = "floor-dependency-config-not-regular"
-        hash_code = "floor-dependency-config-hash-unavailable"
-        missing_outcome = "config-h-missing"
-        nonregular_outcome = "config-h-not-regular-file"
-    elif artifact == "archive":
-        label = "libkohler_masstree_json.a"
-        missing_code = "floor-dependency-archive-missing"
-        nonregular_code = "floor-dependency-archive-not-regular"
-        hash_code = "floor-dependency-archive-hash-unavailable"
-        missing_outcome = "missing"
-        nonregular_outcome = "not-regular-file"
-    else:
-        raise ValueError("未知の masstree dependency artifact")
+def _sha256_regular_file(path: Path) -> str:
+    label = "config.h"
+    missing_code = "floor-dependency-config-missing"
+    nonregular_code = "floor-dependency-config-not-regular"
+    hash_code = "floor-dependency-config-hash-unavailable"
+    missing_outcome = "config-h-missing"
+    nonregular_outcome = "config-h-not-regular-file"
     try:
         info = path.lstat()
     except OSError as exc:
@@ -2274,6 +2353,27 @@ def _sha256_regular_file(path: Path, *, artifact: str = "config") -> str:
     return digest.hexdigest()
 
 
+def _verify_masstree_archive(path: Path) -> None:
+    try:
+        info = path.lstat()
+    except OSError as exc:
+        raise _FloorOraclePreflightError(
+            "masstree libkohler_masstree_json.a が存在しない",
+            detail_code="floor-dependency-archive-missing",
+            origin="floor-dependency:masstree",
+            outcome="missing",
+            path=path.parent,
+        ) from exc
+    if path.is_symlink() or not stat.S_ISREG(info.st_mode):
+        raise _FloorOraclePreflightError(
+            "masstree libkohler_masstree_json.a が non-symlink regular file でない",
+            detail_code="floor-dependency-archive-not-regular",
+            origin="floor-dependency:masstree",
+            outcome="not-regular-file",
+            path=path.parent,
+        )
+
+
 def _stat_floor_dependency_root(path: Path) -> os.stat_result:
     """依存 root の identity probe を単一の注入 site に束縛する。"""
     return path.stat()
@@ -2281,8 +2381,16 @@ def _stat_floor_dependency_root(path: Path) -> os.stat_result:
 
 def _verify_pristine_floor_dependency_sources(
         fetchcontent_base_dir: Path, *, repo_root: Path,
+        source_names: tuple[str, ...] = _FLOOR_THIRD_PARTY_SOURCE_NAMES,
+        tracked_only: bool = False,
 ) -> dict[str, Path]:
     """CMake 前に staged 3依存の path・pin・clean 状態を検証する。"""
+    if (type(source_names) is not tuple or not source_names
+            or len(set(source_names)) != len(source_names)
+            or any(name not in _FLOOR_THIRD_PARTY_SOURCE_NAMES
+                   for name in source_names)
+            or type(tracked_only) is not bool):
+        raise ValueError("staged source status 検査 mode が不正")
     try:
         raw_base = Path(fetchcontent_base_dir)
         resolved_repo = Path(repo_root).resolve(strict=True)
@@ -2324,7 +2432,7 @@ def _verify_pristine_floor_dependency_sources(
 
     pins = _floor_third_party_policy_pins(Path(repo_root))
     verified: dict[str, Path] = {}
-    for name in _FLOOR_THIRD_PARTY_SOURCE_NAMES:
+    for name in source_names:
         unresolved_source = resolved_base / f"{name}-src"
         try:
             source_root = unresolved_source.resolve(strict=True)
@@ -2368,7 +2476,8 @@ def _verify_pristine_floor_dependency_sources(
         try:
             head_probe = subprocess.run(
                 [
-                    "git", "-C", str(source_root), "rev-parse",
+                    "git", "-c", "core.fsmonitor=", "-c", "core.hooksPath=",
+                    "-c", "core.useReplaceRefs=false", "-C", str(source_root), "rev-parse",
                     "--show-toplevel", "--verify", "HEAD",
                 ],
                 env=_floor_git_environment(),
@@ -2432,11 +2541,17 @@ def _verify_pristine_floor_dependency_sources(
             )
 
         try:
+            status_argv = [
+                "git", "-c", "core.fsmonitor=", "-c", "core.hooksPath=",
+                "-c", "core.useReplaceRefs=false", "-C", str(source_root),
+                "status", "--porcelain=v1",
+                "--untracked-files=no" if tracked_only else "--untracked-files=all",
+                "--ignore-submodules=none",
+            ]
+            if not tracked_only:
+                status_argv.append("--ignored=matching")
             status = subprocess.run(
-                [
-                    "git", "-C", str(source_root), "status", "--porcelain",
-                    "--untracked-files=all",
-                ],
+                status_argv,
                 env=_floor_git_environment(),
                 text=True,
                 stdout=subprocess.PIPE,
@@ -2474,7 +2589,10 @@ def _verify_pristine_floor_dependency_sources(
 
 def _verify_floor_oracle_dependency_source(
         fetchcontent_base_dir: Path, *, repo_root: Path,
-        expected_head: str) -> _FloorOracleDependencyBinding:
+        expected_head: str,
+        expected_toolchain_manifest_sha256: str,
+        require_tracked_clean: bool = False,
+) -> _FloorOracleDependencyBinding:
     if (type(expected_head) is not str
             or re.fullmatch(r"[0-9a-f]{40}", expected_head) is None):
         raise _FloorOraclePreflightError(
@@ -2618,10 +2736,23 @@ def _verify_floor_oracle_dependency_source(
             outcome="invalid-path",
             path=source_root,
         )
+    if require_tracked_clean:
+        _verify_floor_tracked_source_unchanged(
+            source_root, repo_root=Path(repo_root),
+        )
+    if (type(expected_toolchain_manifest_sha256) is not str
+            or re.fullmatch(
+                r"[0-9a-f]{64}", expected_toolchain_manifest_sha256,
+            ) is None):
+        raise _FloorOraclePreflightError(
+            "expected floor toolchain manifest hash が不正",
+            detail_code="floor-dependency-postflight-toolchain-hash-mismatch",
+            origin="floor-dependency-postflight:toolchain",
+            outcome="identity-mismatch",
+            path=source_root,
+        )
     config_sha256 = _sha256_regular_file(source_root / "config.h")
-    archive_sha256 = _sha256_regular_file(
-        source_root / "libkohler_masstree_json.a", artifact="archive",
-    )
+    _verify_masstree_archive(source_root / "libkohler_masstree_json.a")
     try:
         source_info = _stat_floor_dependency_root(source_root)
     except OSError as exc:
@@ -2637,7 +2768,9 @@ def _verify_floor_oracle_dependency_source(
         expected_head=expected_head,
         observed_head=observed_head,
         config_sha256=config_sha256,
-        archive_sha256=archive_sha256,
+        expected_toolchain_manifest_sha256=(
+            expected_toolchain_manifest_sha256
+        ),
         source_st_dev=source_info.st_dev,
         source_st_ino=source_info.st_ino,
     )
@@ -2762,8 +2895,19 @@ def _prepare_floor_oracle_dependency(
 ) -> _FloorOracleDependencyBinding:
     """staged/legacy の transport を固定して prebuild し、oracle identity を取得する。"""
     staged_sources: dict[str, Path] = {}
-    expected_payload: Optional[dict[str, str]] = None
+    expected_payload: Optional[_LoadedFloorMasstreePayloadPolicy] = None
     payload_policy_sha256: Optional[str] = None
+    try:
+        expected_toolchain_manifest_sha256 = _floor_toolchain_manifest_sha256(
+            expected_toolchain_manifest,
+        )
+    except ValueError as exc:
+        raise _FloorOraclePreflightError(
+            "expected floor toolchain manifest が canonical JSON でない",
+            detail_code="floor-toolchain-manifest-invalid",
+            origin="floor-toolchain:manifest",
+            outcome="invalid-path",
+        ) from exc
     if fetchcontent_base is None:
         # legacy は従来どおり job-local base を作成してから無条件 prebuild する。
         effective_base = _canonical_floor_fetchcontent_base(
@@ -2778,19 +2922,7 @@ def _prepare_floor_oracle_dependency(
         expected_payload = _load_floor_masstree_payload_policy(
             Path(repo_root),
         )
-        policy_path = _floor_masstree_payload_policy_path(Path(repo_root))
-        try:
-            payload_policy_sha256 = hashlib.sha256(
-                policy_path.read_bytes()
-            ).hexdigest()
-        except OSError as exc:
-            raise _FloorOraclePreflightError(
-                "floor masstree payload policy の raw bytes を読めない",
-                detail_code="floor-dependency-payload-policy-unavailable",
-                origin="floor-payload-policy:masstree-bytes",
-                outcome="invalid-path",
-                path=policy_path,
-            ) from exc
+        payload_policy_sha256 = expected_payload.raw_sha256
     fixed_sub = Path(repo_root) / "external" / "ccbench"
     try:
         checkout = patchharness.checkout(ccbench_pin, base_dir=str(fixed_sub))
@@ -2851,6 +2983,9 @@ def _prepare_floor_oracle_dependency(
     binding = _verify_floor_oracle_dependency_source(
         effective_base, repo_root=Path(repo_root),
         expected_head=_masstree_policy_pin(Path(repo_root)),
+        expected_toolchain_manifest_sha256=(
+            expected_toolchain_manifest_sha256
+        ),
     )
     if fetchcontent_base is None:
         return binding
@@ -2858,8 +2993,7 @@ def _prepare_floor_oracle_dependency(
     return replace(
         binding,
         transport_mode="source-dir",
-        expected_config_sha256=expected_payload["config_sha256"],
-        expected_archive_sha256=expected_payload["archive_sha256"],
+        expected_config_sha256=expected_payload.config_sha256,
         payload_policy_sha256=payload_policy_sha256,
     )
 
@@ -2949,7 +3083,9 @@ def _write_phase_marker(
             "dependency_head": dependency.observed_head,
             "dependency_expected_head": dependency.expected_head,
             "dependency_config_sha256": dependency.config_sha256,
-            "dependency_archive_sha256": dependency.archive_sha256,
+            "dependency_toolchain_manifest_sha256": (
+                dependency.expected_toolchain_manifest_sha256
+            ),
             "dependency_source_st_dev": dependency.source_st_dev,
             "dependency_source_st_ino": dependency.source_st_ino,
         })
@@ -3040,6 +3176,7 @@ def _persist_floor_oracle_preflight_failure(
 def _persist_floor_oracle_postflight_failure(
         marker_root: Path, error: _FloorOraclePreflightError, *,
         verified_compiler: Optional[str],
+        build_exception: Optional[_FloorBuildExceptionDiagnostic] = None,
 ) -> SortSwoOracleUnavailable:
     if error.diagnostic.detail_code not in _FLOOR_DEPENDENCY_POSTFLIGHT_DETAIL_CODES:
         raise ValueError("postflight 永続化へ preflight detail code を渡せない")
@@ -3048,7 +3185,14 @@ def _persist_floor_oracle_postflight_failure(
         verified_compiler=verified_compiler,
     )
     record = private_attempt_record(result)
-    record["floor_failure_diagnostic"] = error.diagnostic.private_dict()
+    diagnostic = error.diagnostic.private_dict()
+    if build_exception is not None:
+        if (error.diagnostic.detail_code
+                != "floor-dependency-postflight-build-failed"
+                or error.diagnostic.outcome != "execution-failed"):
+            raise ValueError("build exception diagnostic の適用先が不正")
+        diagnostic["build_exception"] = build_exception.private_dict()
+    record["floor_failure_diagnostic"] = diagnostic
     _create_private_json(marker_root / _FLOOR_POSTFLIGHT_FAILURE_FILENAME, record)
     return SortSwoOracleUnavailable(result)
 
@@ -3066,9 +3210,44 @@ def _floor_postflight_error(
     )
 
 
+def _verify_floor_tracked_source_unchanged(
+        source_root: Path, *, repo_root: Path,
+) -> None:
+    try:
+        verified = _verify_pristine_floor_dependency_sources(
+            source_root.parent, repo_root=Path(repo_root),
+            source_names=("masstree",), tracked_only=True,
+        )
+    except _FloorOraclePreflightError as exc:
+        if exc.diagnostic.detail_code == "floor-dependency-staged-source-dirty":
+            raise _floor_postflight_error(
+                "build 後に masstree tracked source が変化した",
+                detail_code="floor-dependency-postflight-tracked-source-drift",
+                outcome="identity-mismatch", path=source_root,
+            ) from exc
+        if exc.diagnostic.detail_code == "floor-dependency-staged-head-mismatch":
+            raise _floor_postflight_error(
+                "build 後に masstree HEAD が変化した",
+                detail_code="floor-dependency-postflight-head-drift",
+                outcome="identity-mismatch", path=source_root,
+            ) from exc
+        raise _floor_postflight_error(
+            "build 後の masstree tracked source status を検査できない",
+            detail_code="floor-dependency-postflight-source-unavailable",
+            outcome="identity-mismatch", path=source_root,
+        ) from exc
+    if verified.get("masstree") != source_root:
+        raise _floor_postflight_error(
+            "build 後の masstree source root が binding と不一致",
+            detail_code="floor-dependency-postflight-source-unavailable",
+            outcome="identity-mismatch", path=source_root,
+        )
+
+
 def _verify_floor_build_dependency(
         result: object, configure_argv: tuple[str, ...] | list[str], *,
         fetchcontent_base: Path, before: _FloorOracleDependencyBinding,
+        expected_toolchain_manifest: Mapping[str, object],
         repo_root: Path = ROOT,
 ) -> _FloorOracleDependencyBinding:
     """binary admission 前に build 成果物由来 root と依存内容を再照合する。"""
@@ -3076,6 +3255,53 @@ def _verify_floor_build_dependency(
         raise _floor_postflight_error(
             "build result の FetchContent base が期待値と不一致",
             detail_code="floor-dependency-postflight-result-base-mismatch",
+            outcome="identity-mismatch", path=fetchcontent_base,
+        )
+    try:
+        expected_toolchain_manifest_sha256 = _floor_toolchain_manifest_sha256(
+            expected_toolchain_manifest,
+        )
+    except ValueError as exc:
+        raise _floor_postflight_error(
+            "calibration toolchain manifest を canonical JSON 化できない",
+            detail_code="floor-dependency-postflight-toolchain-hash-mismatch",
+            outcome="identity-mismatch", path=fetchcontent_base,
+        ) from exc
+    if (expected_toolchain_manifest_sha256
+            != before.expected_toolchain_manifest_sha256):
+        raise _floor_postflight_error(
+            "calibration toolchain manifest hash が dependency binding と不一致",
+            detail_code="floor-dependency-postflight-toolchain-hash-mismatch",
+            outcome="identity-mismatch", path=fetchcontent_base,
+        )
+    result_toolchain_manifest = getattr(result, "toolchain_manifest", None)
+    if (type(result_toolchain_manifest) is not dict
+            or result_toolchain_manifest != expected_toolchain_manifest):
+        raise _floor_postflight_error(
+            "build result toolchain manifest が calibration と不一致",
+            detail_code="floor-dependency-postflight-toolchain-manifest-mismatch",
+            outcome="identity-mismatch", path=fetchcontent_base,
+        )
+    result_toolchain_manifest_sha256 = getattr(
+        result, "toolchain_manifest_sha256", None,
+    )
+    try:
+        canonical_result_toolchain_manifest_sha256 = (
+            _floor_toolchain_manifest_sha256(result_toolchain_manifest)
+        )
+    except ValueError as exc:
+        raise _floor_postflight_error(
+            "build result toolchain manifest を canonical JSON 化できない",
+            detail_code="floor-dependency-postflight-toolchain-hash-mismatch",
+            outcome="identity-mismatch", path=fetchcontent_base,
+        ) from exc
+    if (canonical_result_toolchain_manifest_sha256
+            != expected_toolchain_manifest_sha256
+            or result_toolchain_manifest_sha256
+            != expected_toolchain_manifest_sha256):
+        raise _floor_postflight_error(
+            "build result toolchain manifest hash が calibration/binding と不一致",
+            detail_code="floor-dependency-postflight-toolchain-hash-mismatch",
             outcome="identity-mismatch", path=fetchcontent_base,
         )
     if (not isinstance(configure_argv, (list, tuple))
@@ -3154,8 +3380,15 @@ def _verify_floor_build_dependency(
         after = _verify_floor_oracle_dependency_source(
             fetchcontent_base, repo_root=repo_root,
             expected_head=before.expected_head,
+            expected_toolchain_manifest_sha256=(
+                before.expected_toolchain_manifest_sha256
+            ),
+            require_tracked_clean=True,
         )
     except _FloorOraclePreflightError as exc:
+        if exc.diagnostic.detail_code == (
+                "floor-dependency-postflight-tracked-source-drift"):
+            raise
         detail_code = (
             "floor-dependency-postflight-head-drift"
             if exc.diagnostic.detail_code == "floor-dependency-head-mismatch"
@@ -3178,39 +3411,19 @@ def _verify_floor_build_dependency(
             detail_code="floor-dependency-postflight-config-drift",
             outcome="identity-mismatch", path=expected_source,
         )
-    if after.archive_sha256 != before.archive_sha256:
-        raise _floor_postflight_error(
-            "build 後に masstree archive が変化した",
-            detail_code="floor-dependency-postflight-archive-drift",
-            outcome="identity-mismatch", path=expected_source,
-        )
     expected_config_sha256 = before.expected_config_sha256
-    expected_archive_sha256 = before.expected_archive_sha256
     if before.transport_mode == "source-dir":
-        if expected_config_sha256 is None or expected_archive_sha256 is None:
-            try:
-                expected_payload = _load_floor_masstree_payload_policy(
-                    Path(repo_root),
-                )
-            except _FloorOraclePreflightError as exc:
-                raise _floor_postflight_error(
-                    "独立 floor masstree payload policy を再検証できない",
-                    detail_code="floor-dependency-postflight-source-unavailable",
-                    outcome="identity-mismatch", path=expected_source,
-                ) from exc
-            expected_config_sha256 = expected_payload["config_sha256"]
-            expected_archive_sha256 = expected_payload["archive_sha256"]
+        if expected_config_sha256 is None:
+            raise _floor_postflight_error(
+                "独立 floor masstree payload policy binding が欠落",
+                detail_code="floor-dependency-postflight-source-unavailable",
+                outcome="identity-mismatch", path=expected_source,
+            )
         if after.config_sha256 != expected_config_sha256:
             raise _floor_postflight_error(
                 "build 後の masstree config.h が独立 expected hash と不一致",
                 detail_code="floor-dependency-postflight-config-expected-mismatch",
                 outcome="identity-mismatch", path=expected_source / "config.h",
-            )
-        if after.archive_sha256 != expected_archive_sha256:
-            raise _floor_postflight_error(
-                "build 後の masstree archive が独立 expected hash と不一致",
-                detail_code="floor-dependency-postflight-archive-expected-mismatch",
-                outcome="identity-mismatch", path=expected_source,
             )
     if before.transport_mode == "base-only":
         return after
@@ -3218,7 +3431,6 @@ def _verify_floor_build_dependency(
         after,
         transport_mode=before.transport_mode,
         expected_config_sha256=expected_config_sha256,
-        expected_archive_sha256=expected_archive_sha256,
         payload_policy_sha256=before.payload_policy_sha256,
     )
 
@@ -3641,6 +3853,7 @@ def build_cells(
                     marker_root,
                     error,
                     verified_compiler=verified_oracle_compiler,
+                    build_exception=_floor_build_exception_diagnostic(exc),
                 ) from exc
             if getattr(result, "contract_sha256", None) != contract.contract_sha256:
                 raise FloorCampaignError(
@@ -3664,6 +3877,9 @@ def build_cells(
                         result, configure_argv,
                         fetchcontent_base=fetchcontent_base,
                         before=dependency_binding,
+                        expected_toolchain_manifest=(
+                            expected_toolchain_manifest
+                        ),
                     )
                 except _FloorOraclePreflightError as exc:
                     raise _persist_floor_oracle_postflight_failure(
