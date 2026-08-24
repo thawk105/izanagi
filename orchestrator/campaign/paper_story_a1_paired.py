@@ -66,7 +66,7 @@ RECEIPT_SCHEMA = "paper-story-a1-paired-receipt/v2"
 JOB_TERMINAL_SCHEMA = "paper-story-a1-paired-job-terminal/v3"
 SUBMISSION_SCHEMA = "paper-story-a1-paired-submission/v1"
 ACQUISITION_SCHEMA = SUBMISSION_SCHEMA
-COMPLETION_SCHEMA = "paper-story-a1-paired-scheduler-completion/v1"
+COMPLETION_SCHEMA = "paper-story-a1-paired-scheduler-completion/v2"
 PAIRING_DESIGN = "arm-grouped-positional-v1"
 ARM_ORDER = ("adaptive", "static10")
 WORKLOAD_ORDER = ("write-heavy", "balanced", "read-heavy")
@@ -99,6 +99,9 @@ _FULL_SHA256 = re.compile(r"[0-9a-f]{64}")
 _PBS_JOBID = re.compile(r"(?:0:)?[A-Za-z0-9][A-Za-z0-9._-]*")
 _NORMALIZED_REQUEST_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]*")
 _REQUEST_RE = re.compile(r"Request\s+(\S+)\s+submitted")
+_QSTAT_REQUEST_ID_RE = re.compile(
+    r"(?im)^\s*Request\s+ID\s*[:=]\s*(\S+)\s*$"
+)
 _PBS_QUEUE = "gen_S"
 NQSV_QSTAT_STATES = frozenset({
     "ARR",
@@ -142,6 +145,25 @@ PBS_EVIDENCE_SCOPE = {
     "queue_binding": "submission qstat_visibility only",
     "delivery_log_binding": (
         "scheduler completion receipt path/bytes SHA-256 plus job-terminal SHA-256"
+    ),
+}
+MATERIALIZATION_EVIDENCE_SCHEMA = (
+    "paper-story-a1-paired-materialization-evidence/v1"
+)
+SCHEDULER_COMPLETION_INTERPRETATION = {
+    "terminal_forms": {
+        "scheduler-end-state": (
+            "qstat still exposes terminal state and scheduler exit status"
+        ),
+        "request-disappeared-after-visibility": (
+            "submission qstat_visibility proves the request was visible before a "
+            "later successful qstat observation no longer exposes it; scheduler "
+            "state and exit status are explicitly unobserved"
+        ),
+    },
+    "job_outcome": (
+        "driver_rc=0, shell_rc=0, and job terminal status=finished establish job "
+        "success even when a disappeared request has no observable scheduler exit status"
     ),
 }
 
@@ -247,6 +269,18 @@ def _parse_request_id(stdout: str) -> str:
     if len(tokens) == 1:
         return tokens[0].rstrip(".")
     raise PaperStoryError("qsub stdout does not contain one request ID")
+
+
+def _qstat_mentions_request(stdout: str, request_id: str) -> bool:
+    """Match dispatch_compute's structured request-ID visibility check."""
+    expected = _validated_request_id(request_id, "qstat request ID")
+    for observed in _QSTAT_REQUEST_ID_RE.findall(stdout):
+        try:
+            if _validated_request_id(observed, "observed qstat request ID") == expected:
+                return True
+        except PaperStoryError:
+            continue
+    return False
 
 
 def _validate_reservation_binding_document(value: object) -> dict[str, object]:
@@ -799,12 +833,55 @@ def validate_acquisition_receipt(
     }
 
 
+def _validate_prior_qstat_visibility(
+    submission_receipt: object,
+    *,
+    request_id: str,
+    terminal_observed_epoch: int,
+) -> None:
+    if type(submission_receipt) is not dict:
+        raise PaperStoryError(
+            "scheduler disappearance lacks prior submission visibility"
+        )
+    submit = submission_receipt.get("submit_observation")
+    visibility = submit.get("qstat_visibility") if type(submit) is dict else None
+    if (
+        type(visibility) is not dict
+        or set(visibility) != {
+            "request_id", "visible", "state", "queue", "observed_epoch",
+        }
+        or visibility.get("visible") is not True
+        or type(visibility.get("state")) is not str
+        or visibility["state"] not in NQSV_QSTAT_STATES
+        or visibility.get("queue") != _PBS_QUEUE
+        or type(visibility.get("observed_epoch")) is not int
+        or visibility["observed_epoch"] <= 0
+        or visibility["observed_epoch"] >= terminal_observed_epoch
+    ):
+        raise PaperStoryError(
+            "scheduler disappearance lacks prior submission visibility"
+        )
+    expected = _validated_request_id(request_id, "completion request ID")
+    if (
+        _validated_request_id(
+            submission_receipt.get("request_id"), "submission request ID"
+        ) != expected
+        or _validated_request_id(
+            visibility.get("request_id"), "qstat visibility request ID"
+        ) != expected
+    ):
+        raise PaperStoryError(
+            "scheduler disappearance lacks prior submission visibility"
+        )
+
+
 def validate_completion_receipt(
     receipt: object,
     *,
     trusted_roots: Mapping[str, str],
     source_commit: str,
     request_id: str,
+    submission_receipt: Mapping[str, object],
     submission_receipt_sha256: str,
     job_terminal_sha256: str,
 ) -> dict:
@@ -864,7 +941,9 @@ def validate_completion_receipt(
             raise PaperStoryError(f"scheduler completion {label} hash differs")
     terminal = receipt.get("scheduler_terminal")
     if type(terminal) is not dict or set(terminal) != {
+        "terminal_reason",
         "qstat_visible",
+        "qstat_rc",
         "state",
         "exit_status",
         "observed_epoch",
@@ -874,10 +953,8 @@ def validate_completion_receipt(
         raise PaperStoryError("scheduler terminal observation shape differs")
     qstat_stdout = terminal.get("qstat_stdout")
     if (
-        terminal.get("qstat_visible") is not True
-        or terminal.get("state") not in {"C", "F"}
-        or type(terminal.get("exit_status")) is not int
-        or terminal.get("exit_status") != 0
+        type(terminal.get("qstat_rc")) is not int
+        or terminal.get("qstat_rc") != 0
         or type(terminal.get("observed_epoch")) is not int
         or terminal["observed_epoch"] <= 0
         or type(qstat_stdout) is not str
@@ -886,6 +963,38 @@ def validate_completion_receipt(
         != _sha256_bytes(qstat_stdout.encode("utf-8"))
     ):
         raise PaperStoryError("scheduler terminal observation is incomplete")
+    terminal_reason = terminal.get("terminal_reason")
+    state = terminal.get("state")
+    exit_status = terminal.get("exit_status")
+    if terminal_reason == "scheduler-end-state":
+        if (
+            terminal.get("qstat_visible") is not True
+            or type(state) is not dict
+            or set(state) != {"observed", "value"}
+            or state.get("observed") is not True
+            or state.get("value") not in {"C", "F"}
+            or type(exit_status) is not dict
+            or set(exit_status) != {"observed", "value"}
+            or exit_status.get("observed") is not True
+            or type(exit_status.get("value")) is not int
+            or exit_status.get("value") != 0
+        ):
+            raise PaperStoryError("visible scheduler terminal observation differs")
+    elif terminal_reason == "request-disappeared-after-visibility":
+        if (
+            terminal.get("qstat_visible") is not False
+            or state != {"observed": False}
+            or exit_status != {"observed": False}
+            or _qstat_mentions_request(qstat_stdout, request_id)
+        ):
+            raise PaperStoryError("disappeared scheduler terminal observation differs")
+        _validate_prior_qstat_visibility(
+            submission_receipt,
+            request_id=request_id,
+            terminal_observed_epoch=terminal["observed_epoch"],
+        )
+    else:
+        raise PaperStoryError("scheduler terminal reason differs")
     return receipt
 
 
@@ -2447,8 +2556,34 @@ def _readme(result: Mapping[str, object]) -> str:
         "PBS_O_WORKDIR. PBS_O_QUEUE is not exported by this NQSV site and is not "
         "claimed as a job observation. NQSV stdout/stderr FD targets are not the "
         "qsub -o/-e delivery files; their delivered bytes are bound only by the "
-        "scheduler completion receipt SHA-256 values and the job-terminal SHA-256.\n"
+        "scheduler completion receipt SHA-256 values and the job-terminal SHA-256. "
+        "Scheduler terminal evidence accepts exactly two forms: a request still "
+        "visible in a terminal state, or a request proven visible at submission and "
+        "later absent from qstat. In the absent form, scheduler state and exit status "
+        "are explicitly recorded as unobserved, not as empty values or zero. Job "
+        "success remains established independently by driver_rc=0, shell_rc=0, and "
+        "job terminal status=finished.\n"
     )
+
+
+def _materialized_result(
+    result: Mapping[str, object],
+    completion: Mapping[str, object],
+    terminal: Mapping[str, object],
+) -> dict[str, object]:
+    return {
+        **result,
+        "materialization_evidence": {
+            "schema_version": MATERIALIZATION_EVIDENCE_SCHEMA,
+            "scheduler_terminal": dict(completion["scheduler_terminal"]),
+            "job_terminal_outcome": {
+                "driver_rc": terminal["driver_rc"],
+                "shell_rc": terminal["shell_rc"],
+                "status": terminal["status"],
+            },
+            "interpretation": _json_safe(SCHEDULER_COMPLETION_INTERPRETATION),
+        },
+    }
 
 
 def create_materialization_destination(raw: Path) -> Path:
@@ -2654,6 +2789,7 @@ def run_materialize(args) -> int:
         trusted_roots=trusted_roots,
         source_commit=args.expected_head,
         request_id=receipt.get("pbs_jobid"),
+        submission_receipt=acquisition,
         submission_receipt_sha256=acquisition_binding["sha256"],
         job_terminal_sha256=_sha256_file(job_terminal_path),
     )
@@ -2700,7 +2836,11 @@ def run_materialize(args) -> int:
             },
         },
     }
-    _publish_materialization_bundle(destination, materialized_receipt, result)
+    _publish_materialization_bundle(
+        destination,
+        materialized_receipt,
+        _materialized_result(result, completion, terminal),
+    )
     return 0
 
 

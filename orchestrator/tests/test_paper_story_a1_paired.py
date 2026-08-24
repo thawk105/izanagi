@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import ast
 import copy
 import hashlib
 import json
@@ -1171,10 +1172,68 @@ def test_result_and_readme_disclose_nqsv_observation_scope() -> None:
     assert result["pbs_evidence_scope"] == paired._json_safe(
         paired.PBS_EVIDENCE_SCOPE
     )
+    scheduler_terminal = {
+        "terminal_reason": "request-disappeared-after-visibility",
+        "qstat_visible": False,
+        "qstat_rc": 0,
+        "state": {"observed": False},
+        "exit_status": {"observed": False},
+        "observed_epoch": 2,
+        "qstat_stdout": (
+            "Batch Request: 944956.nqsv does not exist on nqsv.\n"
+        ),
+        "qstat_stdout_sha256": "e" * 64,
+    }
+    materialized = paired._materialized_result(
+        result,
+        {"scheduler_terminal": scheduler_terminal},
+        {"driver_rc": 0, "shell_rc": 0, "status": "finished"},
+    )
+    evidence = materialized["materialization_evidence"]
+    assert evidence["scheduler_terminal"] == scheduler_terminal
+    terminal_forms = evidence["interpretation"]["terminal_forms"]
+    assert set(terminal_forms) == {
+        "scheduler-end-state",
+        "request-disappeared-after-visibility",
+    }
+    assert "explicitly unobserved" in terminal_forms[
+        "request-disappeared-after-visibility"
+    ]
+    assert evidence["job_terminal_outcome"] == {
+        "driver_rc": 0,
+        "shell_rc": 0,
+        "status": "finished",
+    }
+    assert "driver_rc=0, shell_rc=0" in evidence["interpretation"]["job_outcome"]
     readme = paired._readme(result)
     assert "PBS_O_QUEUE is not exported" in readme
     assert "stdout/stderr FD targets are not the qsub -o/-e delivery files" in readme
     assert "scheduler completion receipt SHA-256" in readme
+    assert "later absent from qstat" in readme
+    assert "explicitly recorded as unobserved" in readme
+    assert "driver_rc=0, shell_rc=0" in readme
+    source = Path(paired.__file__).read_text(encoding="utf-8")
+    materializer = next(
+        node
+        for node in ast.parse(source).body
+        if isinstance(node, ast.FunctionDef) and node.name == "run_materialize"
+    )
+    publish = next(
+        node
+        for node in ast.walk(materializer)
+        if (
+            isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Name)
+            and node.func.id == "_publish_materialization_bundle"
+        )
+    )
+    materialized_result = publish.args[2]
+    assert isinstance(materialized_result, ast.Call)
+    assert isinstance(materialized_result.func, ast.Name)
+    assert materialized_result.func.id == "_materialized_result"
+    assert [argument.id for argument in materialized_result.args] == [
+        "result", "completion", "terminal",
+    ]
 
 
 @pytest.mark.parametrize(

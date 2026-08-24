@@ -635,23 +635,34 @@ def test_acquisition_receipt_requires_direct_durable_child_M16(
         )
 
 
-def test_scheduler_completion_receipt_cross_binds_terminal_and_logs(
+def _scheduler_completion_fixture(
     tmp_path: Path,
-) -> None:
+    *,
+    request_id: str = "12345.nqsv",
+    qsub_stdout: str | None = None,
+) -> tuple[dict, dict, dict, bytes, Path]:
     repo = tmp_path / "repo"
     repo.mkdir()
     base = (tmp_path / "measurement").resolve()
     base.mkdir()
     attempt = base / "attempt"
     attempt.mkdir()
-    submission = _acquisition(attempt, repo)
+    submission = _acquisition(
+        attempt,
+        repo,
+        request_id=request_id,
+        qsub_stdout=qsub_stdout,
+        qstat_state="QUE",
+    )
     trusted = paired.validate_acquisition_receipt(
         submission,
         repo_root=repo,
         study_id=paired.STUDY_ID,
         source_commit="a" * 40,
-        request_id="12345.nqsv",
-        pbs_observation=_pbs_observation(attempt, repo),
+        request_id=request_id,
+        pbs_observation=_pbs_observation(
+            attempt, repo, pbs_jobid=request_id
+        ),
         policy=_policy_for_base(base),
     )
     submission_raw = (json.dumps(submission, sort_keys=True) + "\n").encode()
@@ -661,7 +672,7 @@ def test_scheduler_completion_receipt_cross_binds_terminal_and_logs(
     terminal_path = Path(trusted["raw_root"]) / "job-terminal.json"
     terminal_path.parent.mkdir(parents=True)
     terminal_path.write_bytes(b"terminal\n")
-    qstat_stdout = "Job Id: 12345.nqsv\n    job_state = F\n"
+    qstat_stdout = f"Job Id: {request_id}\n    job_state = F\n"
 
     def binding(path: str | Path) -> dict:
         candidate = Path(path)
@@ -675,12 +686,14 @@ def test_scheduler_completion_receipt_cross_binds_terminal_and_logs(
         "study_id": paired.STUDY_ID,
         "source_commit": "a" * 40,
         "attempt_root": trusted["attempt_root"],
-        "request_id": "12345.nqsv",
+        "request_id": request_id,
         "submission_receipt": binding(trusted["submission_receipt"]),
         "scheduler_terminal": {
+            "terminal_reason": "scheduler-end-state",
             "qstat_visible": True,
-            "state": "F",
-            "exit_status": 0,
+            "qstat_rc": 0,
+            "state": {"observed": True, "value": "F"},
+            "exit_status": {"observed": True, "value": 0},
             "observed_epoch": 2,
             "qstat_stdout": qstat_stdout,
             "qstat_stdout_sha256": hashlib.sha256(qstat_stdout.encode()).hexdigest(),
@@ -689,11 +702,21 @@ def test_scheduler_completion_receipt_cross_binds_terminal_and_logs(
         "stderr": binding(trusted["stderr_path"]),
         "job_terminal": binding(terminal_path),
     }
+    return completion, submission, trusted, submission_raw, terminal_path
+
+
+def test_scheduler_completion_receipt_cross_binds_terminal_and_logs(
+    tmp_path: Path,
+) -> None:
+    completion, submission, trusted, submission_raw, terminal_path = (
+        _scheduler_completion_fixture(tmp_path)
+    )
     assert paired.validate_completion_receipt(
         completion,
         trusted_roots=trusted,
         source_commit="a" * 40,
         request_id="12345.nqsv",
+        submission_receipt=submission,
         submission_receipt_sha256=hashlib.sha256(submission_raw).hexdigest(),
         job_terminal_sha256=hashlib.sha256(terminal_path.read_bytes()).hexdigest(),
     ) == completion
@@ -702,6 +725,7 @@ def test_scheduler_completion_receipt_cross_binds_terminal_and_logs(
         trusted_roots=trusted,
         source_commit="a" * 40,
         request_id="0:12345.nqsv",
+        submission_receipt=submission,
         submission_receipt_sha256=hashlib.sha256(submission_raw).hexdigest(),
         job_terminal_sha256=hashlib.sha256(terminal_path.read_bytes()).hexdigest(),
     ) == completion
@@ -714,6 +738,7 @@ def test_scheduler_completion_receipt_cross_binds_terminal_and_logs(
             trusted_roots=trusted,
             source_commit="a" * 40,
             request_id="12345.nqsv",
+            submission_receipt=submission,
             submission_receipt_sha256=hashlib.sha256(submission_raw).hexdigest(),
             job_terminal_sha256=hashlib.sha256(terminal_path.read_bytes()).hexdigest(),
         )
@@ -725,6 +750,7 @@ def test_scheduler_completion_receipt_cross_binds_terminal_and_logs(
             trusted_roots=trusted,
             source_commit="a" * 40,
             request_id="0:12345.nqsv",
+            submission_receipt=submission,
             submission_receipt_sha256=hashlib.sha256(submission_raw).hexdigest(),
             job_terminal_sha256=hashlib.sha256(terminal_path.read_bytes()).hexdigest(),
         )
@@ -738,9 +764,119 @@ def test_scheduler_completion_receipt_cross_binds_terminal_and_logs(
             trusted_roots=trusted,
             source_commit="a" * 40,
             request_id="0:12345.nqsv",
+            submission_receipt=submission,
             submission_receipt_sha256=hashlib.sha256(submission_raw).hexdigest(),
             job_terminal_sha256=hashlib.sha256(terminal_path.read_bytes()).hexdigest(),
         )
+
+
+def _disappeared_completion_fixture(
+    tmp_path: Path,
+) -> tuple[dict, dict, dict, bytes, Path]:
+    request_id = "944956.nqsv"
+    values = _scheduler_completion_fixture(
+        tmp_path,
+        request_id=request_id,
+        qsub_stdout=f"Request {request_id} submitted to queue: gen_S.\n",
+    )
+    completion, submission, trusted, submission_raw, terminal_path = values
+    qstat_stdout = (
+        f"Batch Request: {request_id} does not exist on nqsv.\n"
+    )
+    completion["scheduler_terminal"] = {
+        "terminal_reason": "request-disappeared-after-visibility",
+        "qstat_visible": False,
+        "qstat_rc": 0,
+        "state": {"observed": False},
+        "exit_status": {"observed": False},
+        "observed_epoch": 2,
+        "qstat_stdout": qstat_stdout,
+        "qstat_stdout_sha256": hashlib.sha256(qstat_stdout.encode()).hexdigest(),
+    }
+    return completion, submission, trusted, submission_raw, terminal_path
+
+
+def test_scheduler_completion_accepts_disappearance_after_submission_visibility(
+    tmp_path: Path,
+) -> None:
+    completion, submission, trusted, submission_raw, terminal_path = (
+        _disappeared_completion_fixture(tmp_path)
+    )
+    assert submission["submit_observation"]["qstat_visibility"] == {
+        "request_id": "944956.nqsv",
+        "visible": True,
+        "state": "QUE",
+        "queue": "gen_S",
+        "observed_epoch": 1,
+    }
+    assert paired.validate_completion_receipt(
+        completion,
+        trusted_roots=trusted,
+        source_commit="a" * 40,
+        request_id="0:944956.nqsv",
+        submission_receipt=submission,
+        submission_receipt_sha256=hashlib.sha256(submission_raw).hexdigest(),
+        job_terminal_sha256=hashlib.sha256(terminal_path.read_bytes()).hexdigest(),
+    ) == completion
+    assert completion["scheduler_terminal"]["state"] == {"observed": False}
+    assert completion["scheduler_terminal"]["exit_status"] == {"observed": False}
+
+
+def test_scheduler_completion_rejects_disappearance_without_prior_visibility_M32(
+    tmp_path: Path,
+) -> None:
+    completion, submission, trusted, submission_raw, terminal_path = (
+        _disappeared_completion_fixture(tmp_path)
+    )
+    submission["submit_observation"]["qstat_visibility"]["visible"] = False
+    submission_raw = (json.dumps(submission, sort_keys=True) + "\n").encode()
+    Path(trusted["submission_receipt"]).write_bytes(submission_raw)
+    completion["submission_receipt"]["sha256"] = hashlib.sha256(
+        submission_raw
+    ).hexdigest()
+    with pytest.raises(
+        paired.PaperStoryError,
+        match="disappearance lacks prior submission visibility",
+    ):
+        paired.validate_completion_receipt(
+            completion,
+            trusted_roots=trusted,
+            source_commit="a" * 40,
+            request_id="944956.nqsv",
+            submission_receipt=submission,
+            submission_receipt_sha256=hashlib.sha256(submission_raw).hexdigest(),
+            job_terminal_sha256=hashlib.sha256(
+                terminal_path.read_bytes()
+            ).hexdigest(),
+        )
+
+
+def test_scheduler_completion_rejects_fabricated_exit_zero_for_disappearance_M33(
+    tmp_path: Path,
+) -> None:
+    completion, submission, trusted, submission_raw, terminal_path = (
+        _disappeared_completion_fixture(tmp_path)
+    )
+    completion["scheduler_terminal"]["exit_status"] = {
+        "observed": True,
+        "value": 0,
+    }
+    with pytest.raises(
+        paired.PaperStoryError,
+        match="disappeared scheduler terminal observation differs",
+    ):
+        paired.validate_completion_receipt(
+            completion,
+            trusted_roots=trusted,
+            source_commit="a" * 40,
+            request_id="944956.nqsv",
+            submission_receipt=submission,
+            submission_receipt_sha256=hashlib.sha256(submission_raw).hexdigest(),
+            job_terminal_sha256=hashlib.sha256(
+                terminal_path.read_bytes()
+            ).hexdigest(),
+        )
+
 
 def _shell_body_without_heredocs(source: str) -> str:
     output = []
