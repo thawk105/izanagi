@@ -265,7 +265,11 @@ def _ccbench_dir() -> str:
 
 
 def _strip_cmake_comments(text: str) -> str:
-    """CMake のコメントを空白化し、文字列と改行を保持する。"""
+    """CMake のコメントを空白化し、文字列・bracket argument・改行を保持する。
+
+    Bracket argument は quote 外でだけ開始する。したがって quoted argument 内の
+    ``[[maybe_unused]]`` を bracket と誤認して後続 command を隠すことはない。
+    """
     out: List[str] = []
     i = 0
     quoted = False
@@ -291,10 +295,35 @@ def _strip_cmake_comments(text: str) -> str:
                 quoted = False
             i += 1
             continue
+        bracket = _cmake_bracket(text, i)
+        if bracket is not None:
+            opener_len, closer = bracket
+            end = text.find(closer, i + opener_len)
+            if end < 0:
+                raise RuntimeError(
+                    "source_digest: CMake bracket argument/comment が未終端 — "
+                    "マクロ供給表を確定できないため fails-closed (T-148)"
+                )
+            out.append(text[i:end + len(closer)])
+            i = end + len(closer)
+            continue
         if c == '"':
             quoted = True
             out.append(c)
         elif c == "#":
+            bracket_comment = _cmake_bracket(text, i + 1)
+            if bracket_comment is not None:
+                opener_len, closer = bracket_comment
+                end = text.find(closer, i + 1 + opener_len)
+                if end < 0:
+                    raise RuntimeError(
+                        "source_digest: CMake bracket comment が未終端 — "
+                        "マクロ供給表を確定できないため fails-closed (T-148)"
+                    )
+                segment = text[i:end + len(closer)]
+                out.extend("\n" if char == "\n" else " " for char in segment)
+                i = end + len(closer)
+                continue
             comment = True
             out.append(" ")
         else:
@@ -327,6 +356,16 @@ def _scan_cmake_parentheses(text: str, open_pos: int, label: str) -> tuple[str, 
                 quoted = False
         elif c == '"':
             quoted = True
+        elif (bracket := _cmake_bracket(text, i)) is not None:
+            opener_len, closer = bracket
+            end = text.find(closer, i + opener_len)
+            if end < 0:
+                raise RuntimeError(
+                    f"source_digest: {label} の bracket argument が未終端 — "
+                    "マクロ供給表を確定できないため fails-closed (T-148)"
+                )
+            i = end + len(closer)
+            continue
         elif c == "(":
             depth += 1
         elif c == ")":
@@ -349,11 +388,11 @@ def _cmake_calls(text: str, name: str) -> List[str]:
     scan = list(clean)
     quoted = False
     escaped = False
-    for index, char in enumerate(clean):
+    index = 0
+    while index < len(clean):
+        char = clean[index]
         if quoted:
-            if char == "\n":
-                quoted = False
-            elif escaped:
+            if escaped:
                 scan[index] = " "
                 escaped = False
             elif char == "\\":
@@ -365,10 +404,24 @@ def _cmake_calls(text: str, name: str) -> List[str]:
                 scan[index] = " "
         elif char == '"':
             quoted = True
+        elif (bracket := _cmake_bracket(clean, index)) is not None:
+            opener_len, closer = bracket
+            end = clean.find(closer, index + opener_len)
+            if end < 0:
+                raise RuntimeError(
+                    "source_digest: CMake bracket argument が未終端 — "
+                    "マクロ供給表を確定できないため fails-closed (T-148)"
+                )
+            for bracket_index in range(index, end + len(closer)):
+                if clean[bracket_index] != "\n":
+                    scan[bracket_index] = " "
+            index = end + len(closer)
+            continue
         elif char == "#":
             # Comments were already blanked, but retain this guard for direct
             # callers that pass a partially normalized snippet.
             scan[index] = " "
+        index += 1
     call_re = re.compile(rf"\b{re.escape(name)}\s*\(", re.IGNORECASE)
     scan_text = "".join(scan)
     calls: List[str] = []
@@ -396,6 +449,18 @@ def _cmake_tokens(text: str) -> List[str]:
         token: List[str] = []
         while i < n and not text[i].isspace():
             c = text[i]
+            bracket = _cmake_bracket(text, i)
+            if bracket is not None:
+                opener_len, closer = bracket
+                end = text.find(closer, i + opener_len)
+                if end < 0:
+                    raise RuntimeError(
+                        "source_digest: CMake bracket argument が未終端 — "
+                        "供給表を確定できないため fails-closed (T-148)"
+                    )
+                token.append(text[i + opener_len:end])
+                i = end + len(closer)
+                continue
             if c == '"':
                 i += 1
                 escaped = False
@@ -757,9 +822,32 @@ _CMAKE_SUPPLY_CALL_NAMES = (
     "add_compile_options", "target_compile_options", "set_target_properties",
 )
 
+_CMAKE_SUPPLIES = "SUPPLIES"
+_CMAKE_DOES_NOT_SUPPLY = "DOES_NOT_SUPPLY"
+_CMAKE_UNPROVABLE_REPO_VALUE = "UNPROVABLE_REPO_VALUE"
+_CMAKE_VAR_RE = re.compile(r"\$\{([A-Za-z_]\w*)\}")
+_CMAKE_STATIC_EXPANSION_LIMIT = 32
+_C_RAW_STRING_OPEN_RE = re.compile(
+    r'(?:u8|u|U|L)?R"([^ ()\\\t\r\n]{0,16})\('
+)
 
-def _strip_c_comments_for_supply(text: str) -> str:
-    """C/C++ のコメントを空白化して ``#define`` 供給構文だけを残す。"""
+
+def _splice_c_line_continuations(text: str) -> str:
+    """C/C++ translation phase 2 の backslash-newline を除去する。"""
+    return re.sub(r"\\(?:\r\n|\n)", "", text)
+
+
+def _cmake_bracket(text: str, start: int) -> tuple[int, str] | None:
+    """``start`` の CMake bracket opener について opener 長と closer を返す。"""
+    match = re.match(r"\[(=*)\[", text[start:])
+    if match is None:
+        return None
+    equals = match.group(1)
+    return len(match.group(0)), f"]{equals}]"
+
+
+def _strip_c_comments_without_splicing(text: str) -> str:
+    """C/C++ comment を除き、raw string を一つの literal として飛ばす。"""
     out: List[str] = []
     i = 0
     n = len(text)
@@ -797,6 +885,20 @@ def _strip_c_comments_for_supply(text: str) -> str:
                 quote = None
             i += 1
             continue
+        raw_match = _C_RAW_STRING_OPEN_RE.match(text, i)
+        if raw_match is not None:
+            delimiter = raw_match.group(1)
+            closer = f"){delimiter}\""
+            end = text.find(closer, raw_match.end())
+            if end < 0:
+                raise RuntimeError(
+                    "source_digest: C/C++ 供給源の raw string が未終端 — "
+                    "repo-wide macro registry を確定できないため fails-closed (T-1437)"
+                )
+            segment = text[i:end + len(closer)]
+            out.extend("\n" if char == "\n" else " " for char in segment)
+            i = end + len(closer)
+            continue
         if c == "/" and nxt == "*":
             out.extend((" ", " "))
             i += 2
@@ -824,6 +926,19 @@ def _strip_c_comments_for_supply(text: str) -> str:
     return "".join(out)
 
 
+def _strip_c_comments_for_supply(text: str) -> str:
+    """phase 2 splice の後に comment を除いた compiler-faithful supply view。"""
+    return _strip_c_comments_without_splicing(_splice_c_line_continuations(text))
+
+
+def _c_supply_views(text: str) -> tuple[str, str]:
+    """phase-2 view と従来の物理行 view の和集合を返す。"""
+    return (
+        _strip_c_comments_for_supply(text),
+        _strip_c_comments_without_splicing(text),
+    )
+
+
 def _repo_macro_token_matches(token: str, macro: str) -> bool:
     """CMake の literal compile-definition token が macro を供給するか。"""
     if "$<" in token and macro in token:
@@ -844,23 +959,179 @@ def _repo_macro_token_matches(token: str, macro: str) -> bool:
     return False
 
 
-def _repo_cmake_supplies_macro(text: str, macro: str) -> bool:
-    """CMake の literal 供給 call と CMAKE_CXX_FLAGS を検査する。"""
+def _cmake_command_records(text: str) -> list[tuple[str, str]]:
+    """CMake command を source order で列挙し、argument 内の見かけの call は除く。"""
     clean = _strip_cmake_comments(text)
-    for call_name in _CMAKE_SUPPLY_CALL_NAMES:
-        for body in _cmake_calls(clean, call_name):
-            tokens = _cmake_tokens(body)
-            if any(_repo_macro_token_matches(token, macro) for token in tokens):
-                return True
-    # set(CMAKE_CXX_FLAGS... "... -DMQLOCK ...") のような directory-wide
-    # flag 注入も閉包に含める。変数展開だけの token は literal 供給ではなく、
-    # 上記の universal/protocol parser が展開元を検査する。
-    for set_body in _cmake_calls(clean, "set"):
-        tokens = _cmake_tokens(set_body)
-        if tokens and re.fullmatch(r"CMAKE_CXX_FLAGS(?:_[A-Za-z0-9_]+)?", tokens[0], re.IGNORECASE):
-            if any(_repo_macro_token_matches(token, macro) for token in tokens[1:]):
-                return True
-    return False
+    records: list[tuple[str, str]] = []
+    i = 0
+    while i < len(clean):
+        bracket = _cmake_bracket(clean, i)
+        if bracket is not None:
+            opener_len, closer = bracket
+            end = clean.find(closer, i + opener_len)
+            if end < 0:
+                raise RuntimeError(
+                    "source_digest: CMake bracket argument が未終端 — "
+                    "供給表を確定できないため fails-closed (T-148)"
+                )
+            i = end + len(closer)
+            continue
+        if clean[i] == '"':
+            i += 1
+            escaped = False
+            while i < len(clean):
+                if escaped:
+                    escaped = False
+                elif clean[i] == "\\":
+                    escaped = True
+                elif clean[i] == '"':
+                    i += 1
+                    break
+                i += 1
+            continue
+        if clean[i].isalpha() or clean[i] == "_":
+            end_name = i + 1
+            while end_name < len(clean) and (
+                clean[end_name].isalnum() or clean[end_name] == "_"
+            ):
+                end_name += 1
+            open_pos = end_name
+            while open_pos < len(clean) and clean[open_pos].isspace():
+                open_pos += 1
+            if open_pos < len(clean) and clean[open_pos] == "(":
+                name = clean[i:end_name]
+                body, end = _scan_cmake_parentheses(clean, open_pos, name)
+                records.append((name.lower(), body))
+                i = end
+                continue
+            i = end_name
+            continue
+        i += 1
+    return records
+
+
+def _expand_static_cmake_value(
+    value: str,
+    bindings: Mapping[str, str],
+    *,
+    seen: frozenset[str] = frozenset(),
+    depth: int = 0,
+) -> tuple[str, bool]:
+    """既知 binding だけを有限再帰展開し、未証明部分の有無も返す。"""
+    if depth >= _CMAKE_STATIC_EXPANSION_LIMIT:
+        return value, True
+    unprovable = False
+
+    def replace(match: re.Match[str]) -> str:
+        nonlocal unprovable
+        name = match.group(1)
+        if name in seen or name not in bindings:
+            unprovable = True
+            return match.group(0)
+        expanded, nested_unprovable = _expand_static_cmake_value(
+            bindings[name],
+            bindings,
+            seen=seen | {name},
+            depth=depth + 1,
+        )
+        unprovable = unprovable or nested_unprovable
+        return expanded
+
+    expanded = _CMAKE_VAR_RE.sub(replace, value)
+    if len(expanded) > 1024 * 1024:
+        return value, True
+    return expanded, unprovable
+
+
+def _classify_cmake_supply_tokens(
+    tokens: Iterable[str], macro: str, bindings: Mapping[str, str]
+) -> str:
+    """raw guard、literal、静的展開の固定順で supply token を分類する。"""
+    raw_tokens = list(tokens)
+    for token in raw_tokens:
+        if "$<" in token and macro in token:
+            # This pre-existing rejection deliberately precedes classification:
+            # expanding OTHER=$<...,MQLOCK,...> must never turn an old red input green.
+            _repo_macro_token_matches(token, macro)
+    if any(_repo_macro_token_matches(token, macro) for token in raw_tokens):
+        return _CMAKE_SUPPLIES
+
+    unprovable = False
+    for token in raw_tokens:
+        expanded, unresolved = _expand_static_cmake_value(token, bindings)
+        unprovable = unprovable or unresolved
+        if _repo_macro_token_matches(expanded, macro):
+            return _CMAKE_SUPPLIES
+    return _CMAKE_UNPROVABLE_REPO_VALUE if unprovable else _CMAKE_DOES_NOT_SUPPLY
+
+
+def _repo_cmake_supply_classification(text: str, macro: str) -> str:
+    """CMake の静的に証明できる供給を三値分類する。
+
+    ``set()``、literal ``string(CONCAT)``、``list(APPEND)`` だけを source order で
+    解決する。循環、再帰上限、未認識 command、外部値など解決不能な間接値の背後に
+    registry macro が隠れる限界は残る。その場合は ``UNPROVABLE_REPO_VALUE`` を記録するが、
+    D723 と同型に「供給と主張しない」へ倒し、拒否理由にはしない。
+    """
+    bindings: dict[str, str] = {}
+    saw_unprovable = False
+    for name, body in _cmake_command_records(text):
+        tokens = _cmake_tokens(body)
+        supply_tokens: list[str] | None = None
+        if name in _CMAKE_SUPPLY_CALL_NAMES:
+            supply_tokens = tokens
+        elif (
+            name == "set"
+            and tokens
+            and re.fullmatch(
+                r"CMAKE_CXX_FLAGS(?:_[A-Za-z0-9_]+)?", tokens[0], re.IGNORECASE
+            )
+        ):
+            supply_tokens = tokens[1:]
+
+        if supply_tokens is not None:
+            outcome = _classify_cmake_supply_tokens(supply_tokens, macro, bindings)
+            if outcome == _CMAKE_SUPPLIES:
+                return outcome
+            saw_unprovable = saw_unprovable or outcome == _CMAKE_UNPROVABLE_REPO_VALUE
+
+        if name == "set" and tokens and _OPTION_IDENT_RE.fullmatch(tokens[0]):
+            payload = tokens[1:]
+            for terminator in ("CACHE", "PARENT_SCOPE"):
+                if terminator in payload:
+                    payload = payload[:payload.index(terminator)]
+            bindings[tokens[0]] = ";".join(payload)
+        elif name == "string" and len(tokens) >= 2 and tokens[0].upper() == "CONCAT":
+            pieces: list[str] = []
+            unprovable = False
+            for token in tokens[2:]:
+                expanded, unresolved = _expand_static_cmake_value(token, bindings)
+                pieces.append(expanded)
+                unprovable = unprovable or unresolved
+            if not unprovable and _OPTION_IDENT_RE.fullmatch(tokens[1]):
+                bindings[tokens[1]] = "".join(pieces)
+            else:
+                saw_unprovable = True
+        elif name == "list" and len(tokens) >= 2 and tokens[0].upper() == "APPEND":
+            variable = tokens[1]
+            pieces: list[str] = []
+            unprovable = False
+            for token in tokens[2:]:
+                expanded, unresolved = _expand_static_cmake_value(token, bindings)
+                pieces.append(expanded)
+                unprovable = unprovable or unresolved
+            if not unprovable and _OPTION_IDENT_RE.fullmatch(variable):
+                previous = bindings.get(variable, "")
+                bindings[variable] = ";".join(part for part in (previous, *pieces) if part)
+            else:
+                saw_unprovable = True
+
+    return _CMAKE_UNPROVABLE_REPO_VALUE if saw_unprovable else _CMAKE_DOES_NOT_SUPPLY
+
+
+def _repo_cmake_supplies_macro(text: str, macro: str) -> bool:
+    """Compatibility predicate: only statically proven supply is affirmative."""
+    return _repo_cmake_supply_classification(text, macro) == _CMAKE_SUPPLIES
 
 
 def _is_repo_supply_path(path: str) -> bool:
@@ -1047,7 +1318,12 @@ def _repo_supply_files(
 def _assert_proven_repo_absent_macros(
     ccbench_dir: str = "", *, commit: str | None = None
 ) -> frozenset[str]:
-    """registry macro が checkout と指定 commit tree に無いことを毎回検証する。"""
+    """registry macro が checkout と指定 commit tree に無いことを毎回検証する。
+
+    checkout/commit の canonical CMake は別 view namespace で解析する。同一 logical
+    path が両 view にあることは重複構文ではない。解決不能な間接 CMake 値は供給と
+    主張せず、拒否にも使わないため、その背後の supply は証明範囲外として残る。
+    """
     overlap = set(PROVEN_REPO_ABSENT_MACROS) & set(CONTEXT_MACROS)
     if overlap:
         raise RuntimeError(
@@ -1062,7 +1338,29 @@ def _assert_proven_repo_absent_macros(
             )
     sub = ccbench_dir or _ccbench_dir()
     hits: List[str] = []
-    for path, text in _repo_supply_files(sub, commit=commit):
+    # Enumeration can invoke git for every commit-tree blob.  Materialize it once
+    # and reuse it for every macro and lexical view (subprocess multiplier 1.00).
+    supply_files = list(_repo_supply_files(sub, commit=commit))
+    namespaced_files: list[tuple[str, str, str, str]] = []
+    seen: set[tuple[str, str]] = set()
+    root_real = os.path.realpath(sub)
+    for path, text in supply_files:
+        if os.path.isabs(path):
+            view = "checkout"
+            logical_path = os.path.relpath(os.path.realpath(path), root_real)
+        else:
+            view = "commit"
+            logical_path = path
+        key = (view, logical_path)
+        if key in seen:
+            raise RuntimeError(
+                "source_digest: repo supply path が同一 view 内で重複: "
+                f"view={view!r} path={logical_path!r} → fails-closed (T-1506)"
+            )
+        seen.add(key)
+        namespaced_files.append((view, logical_path, path, text))
+
+    for view, logical_path, path, text in namespaced_files:
         basename = os.path.basename(path)
         suffix = os.path.splitext(basename)[1].lower()
         if basename in _REPO_CMAKE_NAMES or suffix in _REPO_CMAKE_SUFFIXES:
@@ -1079,18 +1377,18 @@ def _assert_proven_repo_absent_macros(
                 if (macro in protocol_details[0]
                         or macro in universal_details[0]
                         or _repo_cmake_supplies_macro(text, macro)):
-                    hits.append(f"{path}: CMake supply")
+                    hits.append(f"{view}:{logical_path}: CMake supply")
         elif suffix in _REPO_CXX_SUFFIXES:
-            clean = _strip_c_comments_for_supply(text)
-            for macro in PROVEN_REPO_ABSENT_MACROS:
-                if re.search(
-                        rf"(?m)^[ \t]*#[ \t]*define[ \t]+{re.escape(macro)}(?:[ \t(]|$)",
-                        clean):
-                    hits.append(f"{path}: #define {macro}")
+            for clean in _c_supply_views(text):
+                for macro in PROVEN_REPO_ABSENT_MACROS:
+                    if re.search(
+                            rf"(?m)^[ \t]*#[ \t]*define[ \t]+{re.escape(macro)}(?:[ \t(]|$)",
+                            clean):
+                        hits.append(f"{view}:{logical_path}: #define {macro}")
     if hits:
         raise RuntimeError(
             "source_digest: PROVEN_REPO_ABSENT_MACROS が stale — repo に供給源が出現: "
-            f"{hits[:12]!r} → fails-closed (T-1437)"
+            f"{sorted(set(hits))[:12]!r} → fails-closed (T-1437)"
         )
     return PROVEN_REPO_ABSENT_MACROS
 
@@ -1221,7 +1519,7 @@ def _lex_normalize(source_text: str, rel: str = "") -> str:
       以降のソースを飲み込み、その先の指令すべてがガードから消える (A must-fix 3)。
     - 未終端のコメント/リテラルと raw string は「解釈不能」であり、静かに全消しして受理すると
       ガードが恒真化する。identity 核の契約どおり停止する (A should 3)。"""
-    src = source_text.replace("\\\n", "")
+    src = _splice_c_line_continuations(source_text)
     out, i, n = [], 0, len(src)
     while i < n:
         c = src[i]
