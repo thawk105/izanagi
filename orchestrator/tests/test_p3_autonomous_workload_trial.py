@@ -7097,6 +7097,201 @@ def test_formal_noncertifying_registered_workload_consumes_shared_slot(
     ] == [report["slot_id"]]
 
 
+@pytest.mark.parametrize(
+    "formal_noncertifying",
+    [False, True],
+    ids=["registered-effective", "registered-formal-non-certifying"],
+)
+def test_registered_modes_route_reserve_and_terminal_only_through_formal_facades(
+    formal_noncertifying,
+    tmp_path,
+    monkeypatch,
+    t325_registered_trial,
+) -> None:
+    if formal_noncertifying:
+        monkeypatch.delitem(A.WORKLOADS, "rr80")
+        monkeypatch.setattr(
+            A.s8c_preregistration,
+            "validate_condition_freeze_at",
+            lambda *_args: None,
+        )
+    original_reserve = A.trial_registry.reserve_formal_attempt_slot
+    original_terminal = A.trial_registry.record_formal_attempt_terminal
+    calls = {"reserve": 0, "terminal": 0}
+
+    def observe_reserve(**kwargs):
+        calls["reserve"] += 1
+        return original_reserve(**kwargs)
+
+    def observe_terminal(*args, **kwargs):
+        calls["terminal"] += 1
+        return original_terminal(*args, **kwargs)
+
+    def reject_compat(*_args, **_kwargs):
+        pytest.fail("registered production reached a compatibility attempt facade")
+
+    monkeypatch.setattr(
+        A.trial_registry, "reserve_formal_attempt_slot", observe_reserve,
+    )
+    monkeypatch.setattr(
+        A.trial_registry, "record_formal_attempt_terminal", observe_terminal,
+    )
+    monkeypatch.setattr(A.trial_registry, "reserve_attempt_slot", reject_compat)
+    monkeypatch.setattr(A.trial_registry, "record_attempt_terminal", reject_compat)
+
+    run_kwargs = {}
+    if formal_noncertifying:
+        run_kwargs.update({
+            "effective_preregistration": None,
+            "allow_formal_noncertifying": True,
+        })
+    report = _t325_run(
+        t325_registered_trial,
+        tmp_path / f"strict-route-{formal_noncertifying}",
+        **run_kwargs,
+    )
+
+    assert report["status"] == "complete"
+    assert calls == {"reserve": 1, "terminal": 1}
+
+
+def test_run_trial_routes_exactly_five_terminal_sites_through_formal_helper(
+) -> None:
+    tree = ast.parse(Path(A.__file__).read_text(encoding="utf-8"))
+    functions = {
+        node.name: node
+        for node in tree.body
+        if isinstance(node, ast.FunctionDef)
+    }
+    run_trial = functions["run_trial"]
+    helper = functions["_record_attempt_terminal_for_run"]
+    helper_calls = [
+        call
+        for call in ast.walk(run_trial)
+        if isinstance(call, ast.Call)
+        and isinstance(call.func, ast.Name)
+        and call.func.id == "_record_attempt_terminal_for_run"
+    ]
+    assert len(helper_calls) == 5
+
+    facade_names = {
+        "record_attempt_terminal",
+        "record_formal_attempt_terminal",
+    }
+
+    def qualified_facade_calls(function: ast.FunctionDef) -> list[ast.Call]:
+        return [
+            call
+            for call in ast.walk(function)
+            if isinstance(call, ast.Call)
+            and isinstance(call.func, ast.Attribute)
+            and isinstance(call.func.value, ast.Name)
+            and call.func.value.id == "trial_registry"
+            and call.func.attr in facade_names
+        ]
+
+    helper_facades = qualified_facade_calls(helper)
+    assert len(helper_facades) == 1
+    assert helper_facades[0].func.attr == "record_formal_attempt_terminal"
+    assert all(
+        not qualified_facade_calls(function)
+        for name, function in functions.items()
+        if name != "_record_attempt_terminal_for_run"
+    )
+
+
+def test_exploratory_run_does_not_reach_any_attempt_facade(
+    tmp_path, monkeypatch,
+) -> None:
+    def reject_attempt(*_args, **_kwargs):
+        pytest.fail("exploratory execution reached an attempt facade")
+
+    for name in (
+        "reserve_attempt_slot",
+        "reserve_formal_attempt_slot",
+        "record_attempt_terminal",
+        "record_formal_attempt_terminal",
+    ):
+        monkeypatch.setattr(A.trial_registry, name, reject_attempt)
+
+    report = A.run_trial(
+        trial_id="t1611-exploratory-routing",
+        workloads=["ycsb-a"],
+        generations=1,
+        provider_kind="fixture",
+        run_root=tmp_path / "t1611-exploratory-routing",
+        sub="/unused",
+        do_build=False,
+        providers={role: A.FixtureRoleProvider(role) for role in A.ROLE_FILES},
+        drive=_fake_drive,
+        preview=_fake_preview,
+        allow_unregistered_exploratory=True,
+    )
+    assert report["status"] == "complete"
+    assert report["launch_admission"]["mode"] == (
+        "explicit-unregistered-exploratory"
+    )
+
+
+def test_registered_partial_producer_failure_is_fail_closed_without_terminal(
+    tmp_path, monkeypatch, t325_registered_trial,
+) -> None:
+    run_root = tmp_path / "t1611-partial-fail-closed"
+    original_forbid = A.trial_registry.forbid_trial_restart
+    forbid_calls: list[str] = []
+
+    def observe_forbid(token):
+        forbid_calls.append(token.trial_id)
+        return original_forbid(token)
+
+    def partial_report(**_kwargs):
+        return {
+            "status": "partial",
+            "attempt_journal": str(run_root / "attempts.jsonl"),
+            "cells": [],
+        }
+
+    monkeypatch.setattr(
+        A.trial_registry, "forbid_trial_restart", observe_forbid,
+    )
+    monkeypatch.setattr(A, "_finish_trial", partial_report)
+    with pytest.raises(
+        A.trial_registry.TrialRegistryError,
+        match=r"terminal failure reason differs from classification",
+    ) as captured:
+        _t325_run(t325_registered_trial, run_root)
+    assert any(
+        "terminal-record=TrialRegistryError" in note
+        for note in getattr(captured.value, "__notes__", ())
+    )
+    assert forbid_calls == [t325_registered_trial.trial_id]
+
+    attempt_rows = [
+        json.loads(line)
+        for line in (
+            t325_registered_trial.repo
+            / A.trial_registry.DEFAULT_ATTEMPT_REGISTRY_PATH
+        ).read_text(encoding="utf-8").splitlines()
+    ]
+    assert not any(row.get("event") == "terminal" for row in attempt_rows)
+    lifecycle_rows = [
+        json.loads(line)
+        for line in (
+            t325_registered_trial.repo
+            / A.trial_registry.DEFAULT_LIFECYCLE_PATH
+        ).read_text(encoding="utf-8").splitlines()
+    ]
+    assert [row["event"] for row in lifecycle_rows] == ["start"]
+    with pytest.raises(
+        A.trial_registry.TrialRegistryError,
+        match=r"\[lifecycle-start-once\] ",
+    ):
+        _t325_run(
+            t325_registered_trial,
+            tmp_path / "t1611-partial-fail-closed-rerun",
+        )
+
+
 def test_registered_formal_noncertifying_build_crash_is_indeterminate(
     tmp_path, monkeypatch, t325_registered_trial,
 ) -> None:
