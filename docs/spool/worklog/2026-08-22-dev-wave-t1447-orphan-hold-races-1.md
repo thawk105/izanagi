@@ -4,7 +4,7 @@ ledger: worklog
 authored: 2026-08-22
 wave: dev-wave-t1447-orphan-hold-races
 seq: 1
-title: [T-1447] orphan-hold raceを現行shard dispatchへ統合したが、受入mirror不一致でlandを停止した (コード+テスト、branch worktree-dev-wave-t1447-orphan-hold-races)
+title: [T-1447] orphan-hold raceとacceptance infra reason mirrorを現行shard dispatchへ統合した (コード+テスト、branch worktree-dev-wave-t1447-orphan-hold-races)
 ---
 
 ## 本文
@@ -47,10 +47,16 @@ title: [T-1447] orphan-hold raceを現行shard dispatchへ統合したが、受�
   HEAD復元・該当hold/sidecarだけを削除した。
 - 段5実装は当初のcodex plan (`stage2-plan.md`) より広いraceの窓 (qsub直前の危険状態突入
   直後から保護する設計) を実現しており、親briefの想定より優れた設計だったことを段5監査で確認した。
+- 新acceptanceの唯一の赤はproducerへ追加した`orphan-hold-{write,promote,release}-failed` 3理由の
+  `dev_wave_wait` mirror漏れだった。D95 Codex author fix (`dedb17b8`) で3理由を同期し、焦点reviewは
+  5/5 closed・must-fixなし・GO。逐語一致nodeは1 passed、変更fileは再走367 passed、直接import
+  consumerは172 passed。初回変更file走のlease timeout 1件はwave/main双方の単独再走で1 passed、
+  変更file再走も全緑となり非帰属のtiming赤と分離した。固定commitへのmirror除去3変異はbaseline
+  PASSED、3/3 KILLED、SURVIVED/MISMATCH/TIMEOUT 0だった。
 
 ## 次の一手差分
 
-### 更新
+### 完了
 
 - [T-1447] dispatch_compute.pyのorphan-hold機構の未防御race 3件 ((a)外部SIGKILLでhold未作成、
   (b)hold書込み失敗のfail-open、(c)qdel後qstat終端未確認) を是正した。pending hold前倒し作成
@@ -59,8 +65,10 @@ title: [T-1447] orphan-hold raceを現行shard dispatchへ統合したが、受�
   現mainのshard/control/intent設計へ統合し、release failure-atomic化とledger-only consumer閉包を
   追加した。焦点走465 passed/1 skipped。変異matrixはdispatch 5/5 KILLED + bounded local
   MUT-4 1/1 KILLEDで、SURVIVED 0・MISMATCH 0。MUT-3 diagnostic TIMEOUTは別枠記録。
-  新acceptanceは15038 passed/60 skipped/1 failed。赤は
+  旧acceptanceは15038 passed/60 skipped/1 failed。赤は
   `test_dev_wave_wait.py::test_dispatch_attestation_protocol_matches_producer_exactly`で、単独再走も
   再現した。`dispatch_compute`へ追加したorphan-hold failure 3理由の`dev_wave_wait` mirror漏れを
-  D95 Codex authorへ戻し、修正後の新receiptを取るまでlandしない。
+  D95 Codex authorで同期し、逐語一致node・変更file・直接consumerを緑化した。mirror除去3変異は
+  baseline PASSED・3/3 KILLED・SURVIVED/MISMATCH/TIMEOUT 0。新acceptanceだけを段9の受理証拠に使う。
+  remaining: none
   base: b9fe3f9e302886223fd631f3c20d40ab2da10bdba8d4641ab1d8a6e08e8e60ae
