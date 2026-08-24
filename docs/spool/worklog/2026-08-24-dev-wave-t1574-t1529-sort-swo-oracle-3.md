@@ -13,6 +13,7 @@ title: sort SWO oracle の再有効化を強い capability 隔離まで停止し
 - 段2 plan、段3敵対相談2本、ユーザー再裁定後の段2b plan、段3b敵対相談2本を隔離Codexで実行した。段3b linkage初回はF45 output 0 byteで不受理、output-first retryで回復した。
 - 同一TU案はcandidateがbaselineとpost frameを偽造でき、別TU案もpost pipe fd capabilityを共有するため防壁完了にならないと確定した。ユーザーは規律2を優先し、強いprocess/memory capability隔離まで再有効化しない推奨を裁定した。正本は{{D:sort-swo-strong-isolation-before-reactivation}}、失敗型は{{F:same-process-oracle-protocol-capability}}。
 - A2、Masstree clean fixture、wire protocol、golden consumerの実装は行っていない。実装差分ゼロのため変異matrixは免除し、次waveは起動しなかった。
+- 正式受入前のmain取込みで、incoming main由来の`git diff --cached --check`赤後も同一shellがcommitへ進むF37再発があった。両親差分とcombined diffで本merge固有の混入なしを確認し、fail-fast契約の遵守漏れとしてfailuresへ記録した。
 
 ## 次の一手差分
 

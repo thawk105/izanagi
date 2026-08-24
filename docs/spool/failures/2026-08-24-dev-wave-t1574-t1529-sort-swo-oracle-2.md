@@ -20,3 +20,7 @@ seq: 2
 ### F1
 
 - **再発: 2026-08-24 (near-miss)** — handoffの最終更新を`date`で実測せず「13:50 JST」と記入した。commit前に実測して「14:13 JST」へ訂正したためcanonicalへの誤記は回避した。恒久対応は既存どおり、時刻を書く1回ごとに`date`を実行する。
+
+### F37
+
+- **再発: 2026-08-24** — local main mergeのcommit前に`git diff --cached --check`がincoming main由来archive 4件の`new blank line at EOF`でrc=2を返したが、`set -e`のない同一shellの次行へ`git commit`を置いたためcommitまで進んだ。merge後の両親比較でfirst-parent側だけrc=2、second-parent側はrc=0、combined diffは空と確認し、競合解決による新規混入は無かった。恒久対応は既存DW-O17の「検査を単独rcで走らせ、赤なら状態変更へ進まない」から変更しない。
